@@ -176,9 +176,9 @@ def test_lessons_h3_entries_extracted(index_mod, mb_path):
     data = json.loads((mb_path / "index.json").read_text())
     lessons = data["lessons"]
     assert len(lessons) == 2
-    titles = [l["title"] for l in lessons]
+    titles = [lesson["title"] for lesson in lessons]
     assert any("Не коммить .env" in t for t in titles)
-    ids = [l["id"] for l in lessons]
+    ids = [lesson["id"] for lesson in lessons]
     assert "L-001" in ids and "L-002" in ids
 
 
