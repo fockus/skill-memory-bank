@@ -187,3 +187,32 @@ Types: `feature`, `fix`, `refactor`, `experiment`
 ├── notes/          # Пустая директория
 └── reports/        # Пустая директория
 ```
+
+---
+
+## Custom metrics override (`.memory-bank/metrics.sh`)
+
+Опциональный файл. Если существует — `mb-metrics.sh` вызовет его вместо auto-detect. Используй когда:
+- проект имеет нестандартную структуру (monorepo, несколько языков в одном)
+- нужны специфичные метрики (custom test runner, kubernetes readiness, ML reward и т.п.)
+- auto-detect возвращает `stack=unknown`
+
+Скрипт должен выводить `key=value` строки на stdout:
+
+```bash
+#!/usr/bin/env bash
+# .memory-bank/metrics.sh — custom metrics для этого проекта.
+
+set -euo pipefail
+
+echo "stack=custom"                       # произвольная метка
+echo "test_cmd=make test"                 # как запускать тесты
+echo "lint_cmd=make lint"                 # как линтить
+echo "src_count=$(find src -type f | wc -l | tr -d ' ')"
+
+# Любые дополнительные метрики (будут переданы в MB Manager as-is):
+echo "coverage=$(coverage report | tail -1 | awk '{print $4}')"
+echo "reward_mean=$(jq '.mean' results.json)"
+```
+
+После создания — `chmod +x .memory-bank/metrics.sh`. Тестирование: `bash scripts/mb-metrics.sh` должен вернуть `source=override` вместо `source=auto`.

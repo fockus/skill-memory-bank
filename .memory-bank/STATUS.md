@@ -6,15 +6,16 @@
 Долговременная проектная память для Claude Code. Skill обеспечивает сохранение контекста между сессиями через `.memory-bank/`. Рефактор v2 делает skill language-agnostic, добавляет тесты/CI, интегрирует `mb-codebase-mapper`, устраняет дублирование и хардкод.
 
 ## Ключевые метрики
-- Shell-скрипты: 8 (5 refactored под `_lib.sh` + `_lib.sh` сам)
+- Shell-скрипты: 9 (`_lib.sh`, `mb-metrics.sh` + 5 refactored + 2 hook)
 - Python-скрипты: 1 (`merge-hooks.py`, без тестов — Этап 6)
-- Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `codebase-mapper` — последний orphan, адаптируется в Этапе 3)
-- Команды: 19 в `commands/` (консолидация в Этапе 5)
-- Bats tests: **36/36 green** (`tests/bats/test_lib.bats`)
+- Агенты: 4 (`mb-manager` ✅, `mb-doctor` ✅ language-agnostic, `plan-verifier`, `codebase-mapper` — orphan, Этап 3)
+- Команды: 19 в `commands/` (`mb.md` ✅ language-agnostic, консолидация остального в Этапе 5)
+- Bats tests: **46/46 green** (`test_lib.bats` 36 + `test_metrics.bats` 10)
 - Python tests: 0 (Этап 6-8)
 - Shellcheck warnings: **0** (с `-x --source-path=SCRIPTDIR`)
 - CI: отсутствует (Этап 6)
 - Fixtures: 6 стеков (python, go, rust, node, multi, unknown)
+- Hardcoded `pytest`/`ruff`/`taskloom` в operational code: **0**
 
 ## Roadmap
 
@@ -22,13 +23,13 @@
 - **Аудит skill v1**: выявлено 36 проблем, сгруппировано по критичности
 - **План рефактора v2**: 10 этапов с DoD SMART, TDD, рисками, Gate
 - **Этап 0: Dogfood init** — `.memory-bank/` инициализирован в репо, план сохранён, коммит `637dd84`
-- **Этап 1: DRY + language detection** — `_lib.sh` (7 функций, 150 строк), 36 bats-тестов зелёные, 5 скриптов рефакторены, 0 shellcheck warnings
+- **Этап 1: DRY + language detection** — `_lib.sh` (7 функций, 150 строк), 36 bats-тестов, 5 скриптов рефакторены, коммит `722fbc5`
+- **Этап 2: Language-agnostic metrics** — `mb-metrics.sh` + 10 bats-тестов, `/mb update` и `mb-doctor` без Python-хардкода, override-механизм
 
 ### 🔧 В работе
-- **Этап 2: Language-agnostic `/mb update` и `mb-doctor`** — убрать хардкод pytest/ruff/taskloom
+- **Этап 3: `mb-codebase-mapper`** — адаптация orphan-агента под Memory Bank (output → `.memory-bank/codebase/`)
 
 ### ⬜ Далее
-- **Этап 3**: `mb-codebase-mapper` — memory-bank-native
 - **Этап 4**: Автоматизация consistency-chain (plan-sync)
 - **Этап 5**: Ecosystem integration (Agent tool, native memory coexistence, merge init)
 - **Этап 6**: Tests + CI (bats, pytest, GitHub Actions)

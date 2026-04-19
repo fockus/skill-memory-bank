@@ -19,13 +19,15 @@
 - ✅ Bats 36/36 зелёные (100% coverage функций `_lib.sh`)
 - ✅ Smoke-tests: collision handling, mb-stage markers, search — все работают
 
-## Этап 2: Language-agnostic /mb update и mb-doctor
-- ⬜ Bats-тесты для `detect_test_cmd` / `detect_lint_cmd` на всех fixtures
-- ⬜ Переписать `/mb update` в `commands/mb.md` — убрать Python-хардкод, использовать `_lib.sh`
-- ⬜ Переписать `agents/mb-doctor.md` — убрать `src/taskloom/` и `.venv/bin/python`
-- ⬜ Реализовать fallback на `.memory-bank/metrics.sh` если существует
-- ⬜ Integration test: `/mb update` на Go-fixture даёт валидные метрики
-- ⬜ 0 вхождений `pytest`/`ruff`/`taskloom` вне fixtures
+## Этап 2: Language-agnostic /mb update и mb-doctor ✅
+- ✅ Bats-тесты для metrics: 10 тестов (`tests/bats/test_metrics.bats`), все green
+- ✅ Создан `scripts/mb-metrics.sh` — language-agnostic сборщик метрик (`source=auto`, key=value output)
+- ✅ Переписан `/mb update` в `commands/mb.md` — использует `mb-metrics.sh` + `--run` опцию
+- ✅ Переписан `agents/mb-doctor.md` — убран `src/taskloom/` и `.venv/bin/python`, использует `mb-metrics.sh`
+- ✅ Fallback на `.memory-bank/metrics.sh` реализован (priority 1), протестирован bats
+- ✅ Template `metrics.sh` задокументирован в `references/templates.md`
+- ✅ Smoke: 4 стека (python/go/rust/node) → валидные метрики; unknown → warning + exit 0
+- ✅ 0 вхождений `.venv/bin`/`src/taskloom`/`pytest -q` в `commands/` и `agents/` (только в `_lib.sh` как return value стека)
 
 ## Этап 3: mb-codebase-mapper — memory-bank-native
 - ⬜ Bats-тесты для `/mb map` на fixtures (python, go, multi)

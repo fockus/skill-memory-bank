@@ -120,13 +120,21 @@
 ## Дополнительные проверки (если указано action: doctor-full)
 
 ### Код vs MB
-Проверь что метрики в STATUS.md соответствуют реальности:
+Проверь что метрики в STATUS.md соответствуют реальности. Используй language-agnostic метрик-скрипт:
+
 ```bash
-.venv/bin/python -m pytest -q 2>&1 | tail -2  # реальное число тестов
-find src/taskloom/ -name "*.py" ! -name "__*" ! -path "*/__pycache__/*" | wc -l  # source files
+# Авто-детект стека + структурированный вывод (stack/test_cmd/lint_cmd/src_count)
+bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh
+
+# Опционально — прогнать тесты и получить test_status=pass|fail
+bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh --run
 ```
 
-Если метрики расходятся — обнови STATUS.md.
+Скрипт сам определяет Python/Go/Rust/Node и возвращает соответствующие команды. Для проектов с нестандартной структурой можно создать override `./.memory-bank/metrics.sh` — он будет вызван вместо auto-detect.
+
+Если метрики в STATUS.md расходятся с выводом `mb-metrics.sh` — обнови STATUS.md через Edit.
+
+Если `stack=unknown` — не пытайся выдумать метрики, оставь прежние значения и добавь warning в отчёт.
 
 ### Файл плана vs статус
 Для каждого файла в plans/ (не в done/): проверь что его статус в шапке соответствует checklist.

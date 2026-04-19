@@ -69,15 +69,21 @@ action: <действие>
 
 В отличие от `done`, **update** не создаёт заметку и не требует описания сессии — агент сам анализирует:
 
-1. **Собери текущие метрики** (без subagent, сам):
+1. **Собери метрики через language-agnostic скрипт**:
 ```bash
-# Тесты
-.venv/bin/python -m pytest -q 2>&1 | tail -2
-# Source files
-find src/ -name "*.py" ! -name "__*" ! -path "*/__pycache__/*" 2>/dev/null | wc -l
-# Ruff
-.venv/bin/ruff check src/ 2>&1 | tail -1
-# Git status (что изменилось)
+# Детектит стек (python/go/rust/node/multi), выводит key=value формат:
+#   stack=<stack>
+#   test_cmd=<cmd>
+#   lint_cmd=<cmd>
+#   src_count=<N>
+# Для unknown-стека возвращает пустые значения с warning на stderr (не падает).
+# Override через .memory-bank/metrics.sh если нужны кастомные метрики.
+bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh
+
+# Опционально — запустить тесты и зафиксировать статус:
+bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh --run
+
+# Git-контекст
 git log --oneline -5
 git diff --stat HEAD~3 2>/dev/null | tail -5
 ```
@@ -89,10 +95,11 @@ Agent(
 
 action: actualize
 
-Текущие метрики из кода:
-- Тесты: <результат pytest>
-- Source files: <число>
-- Ruff: <результат>
+Текущие метрики из кода (из mb-metrics.sh):
+- Stack: <detected>
+- Tests: <test_status или предложить запустить вручную>
+- Source files: <src_count>
+- Lint: <lint output если запускался>
 - Последние коммиты: <git log>
 - Изменённые файлы: <git diff stat>
 
@@ -103,6 +110,8 @@ action: actualize
 ```
 
 3. Покажи пользователю что обновлено.
+
+**Note:** если `mb-metrics.sh` вернул `stack=unknown`, предупреди пользователя что auto-метрики недоступны и предложи создать `.memory-bank/metrics.sh` с кастомной логикой (см. `references/templates.md`).
 
 ### doctor
 

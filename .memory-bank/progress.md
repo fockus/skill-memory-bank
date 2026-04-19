@@ -36,4 +36,26 @@
 - **Shellcheck**: `shellcheck -x --source-path=SCRIPTDIR scripts/*.sh` → 0 warnings
 - **Smoke tests**: все 5 рефакторенных скриптов работают на self-bank и temp-директориях; collision handling проверен
 - Тесты: 36 bats green, 0 shellcheck warnings, 5 smoke-тестов зелёных
-- Следующий шаг: Этап 2 (language-agnostic `/mb update` и `mb-doctor`) + коммит Этапа 1
+- Коммит: `722fbc5 feat(stage-1): _lib.sh + bats tests + language detection`
+- Следующий шаг: Этап 2
+
+### Этап 2: Language-agnostic /mb update и mb-doctor
+- **TDD red**: `tests/bats/test_metrics.bats` — 10 тестов для нового `mb-metrics.sh` (detect, unknown fallback, src_count, override, --run mode); red-прогон: 10 skipped
+- **TDD green**: создан `scripts/mb-metrics.sh` — language-agnostic сборщик метрик, выводит `key=value` строки
+  - Priority 1: `.memory-bank/metrics.sh` override если существует → `source=override`
+  - Priority 2: auto-detect через `mb_detect_stack` → `source=auto`
+  - Unknown стек → warning на stderr, exit 0 (graceful)
+  - `--run` режим: выполняет test_cmd, записывает `test_status=pass|fail`
+  - `count_files()` helper с per-stack exclude patterns (`__pycache__`, `vendor`, `target`, `node_modules`, `dist`)
+- **Финальный прогон**: 10/10 green. Total bats: **46/46**
+- **Удалён хардкод**:
+  - `commands/mb.md` `/mb update`: `.venv/bin/python -m pytest`, `ruff check src/` → `bash scripts/mb-metrics.sh`
+  - `agents/mb-doctor.md`: `src/taskloom/`, `.venv/bin/python` → `mb-metrics.sh`
+- **Документация**: `references/templates.md` — секция про custom `metrics.sh` override с полным примером
+- **Smoke tests**:
+  - `mb-metrics.sh .` (этот репо без манифеста) → `stack=unknown`, warning, exit 0
+  - `mb-metrics.sh tests/fixtures/python` → `pytest -q`, `ruff check .`, `src_count=1`
+  - `mb-metrics.sh tests/fixtures/go` → `go test ./...`, `go vet ./...`, `src_count=1`
+- **Shellcheck**: 0 warnings
+- **Grep-проверка**: 0 вхождений `.venv/bin`/`src/taskloom`/`pytest -q` в `commands/` и `agents/` (legitimate references остались только в `_lib.sh` как return values и в `.memory-bank/` как планирование)
+- Следующий шаг: Этап 3 (`mb-codebase-mapper` — адаптация orphan-агента)
