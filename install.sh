@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
 # claude-skill-memory-bank — Installer
-# Long-term project memory + global rules + 19 dev commands
+# Long-term project memory + global rules + 18 dev commands
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 
@@ -18,8 +18,8 @@ BACKED_UP_FILES=()
 echo ""
 echo -e "${BOLD}═══ Installing claude-skill-memory-bank ═══${NC}"
 echo ""
-echo "  • Global RULES.md (TDD, SOLID, Clean Architecture)"
-echo "  • 19 dev commands (/mb, /commit, /review, /test, etc.)"
+echo "  • Global RULES.md (TDD, SOLID, Clean Architecture, FSD for frontend)"
+echo "  • 18 dev commands (/mb, /commit, /review, /test, etc.)"
 echo "  • 4 agents (mb-doctor, mb-manager, plan-verifier, mb-codebase-mapper)"
 echo "  • 2 hooks (block-dangerous, file-change-log)"
 echo "  • Settings hooks (Setup, PreCompact, Stop)"
@@ -132,6 +132,6 @@ PYEOF
 echo ""
 echo -e "${GREEN}═══ Memory Bank installed ═══${NC}"
 echo ""
-echo "  Next: /mb:setup-project — init .memory-bank/ + generate CLAUDE.md"
+echo "  Next: /mb init — init .memory-bank/ + auto-generate CLAUDE.md (--full, default)"
 echo "  Uninstall: $SKILL_DIR/uninstall.sh"
 echo ""

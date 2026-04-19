@@ -1,6 +1,10 @@
 # claude-skill-memory-bank
 
-Long-term project memory for Claude Code. Persists knowledge, rules, and development state across sessions. Gives Claude structured context about your project — status, plans, checklists, lessons learned — so every session starts where the last one left off.
+Three-in-one skill for Claude Code:
+
+1. **Long-term project memory** — `.memory-bank/` persists status, plans, checklists, lessons across sessions. Every session starts where the last one left off.
+2. **Global development rules** — TDD, Clean Architecture (backend), Feature-Sliced Design (frontend), SOLID, Testing Trophy. Installed as `~/.claude/RULES.md` and referenced from every project.
+3. **Dev toolkit** — 18 commands (`/mb`, `/commit`, `/review`, `/test`, `/plan`, `/pr`, `/adr`, `/contract`, `/security-review`, `/db-migration`, `/api-contract`, `/observability`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/start`, `/done`).
 
 ## Prerequisites
 
@@ -18,9 +22,9 @@ cd ~/.claude/skills/claude-skill-memory-bank && chmod +x install.sh uninstall.sh
 
 | Component | Count | Location |
 |-----------|-------|----------|
-| Global rules | 1 | `~/.claude/RULES.md` (TDD, SOLID, Clean Architecture) |
+| Global rules | 1 | `~/.claude/RULES.md` (TDD, SOLID, Clean Architecture, FSD for frontend) |
 | CLAUDE.md section | 1 | Appended to `~/.claude/CLAUDE.md` |
-| Commands | 19 | `~/.claude/commands/` |
+| Commands | 18 | `~/.claude/commands/` |
 | Agents | 4 | `~/.claude/agents/` |
 | Hooks | 2 | `~/.claude/hooks/` |
 | Settings hooks | 5 | Merged into `~/.claude/settings.json` |
@@ -29,8 +33,11 @@ cd ~/.claude/skills/claude-skill-memory-bank && chmod +x install.sh uninstall.sh
 ## Quick Start
 
 ```
-# 1. Initialize memory bank in your project
-/mb:setup-project
+# 1. Initialize memory bank in your project (auto-detects stack, generates CLAUDE.md)
+/mb init
+
+# or minimal (only .memory-bank/ structure)
+/mb init --minimal
 
 # 2. Start each session (loads context)
 /mb start
@@ -53,7 +60,7 @@ cd ~/.claude/skills/claude-skill-memory-bank && chmod +x install.sh uninstall.sh
 | `/mb plan <type> <topic>` | Create plan (feature, fix, refactor, experiment) |
 | `/mb verify` | Verify plan vs implementation (required before `/mb done` if working from a plan) |
 | `/mb index` | Registry of all entries |
-| `/mb init` | Initialize memory bank in a new project |
+| `/mb init [--minimal\|--full]` | Init `.memory-bank/`. `--full` (default): + RULES + CLAUDE.md auto-gen. `--minimal`: structure only |
 | `/commit` | Smart commit with conventional message |
 | `/review` | Code review |
 | `/test` | Run tests with coverage |
@@ -101,10 +108,28 @@ When initialized in a project (`.memory-bank/`):
 
 The installed `RULES.md` enforces across all projects:
 - **TDD** — tests first, then implementation
-- **Clean Architecture** — Infrastructure → Application → Domain
+- **Clean Architecture (backend)** — Infrastructure → Application → Domain
+- **FSD (frontend)** — Feature-Sliced Design: `app → pages → widgets → features → entities → shared`
+- **Mobile (iOS/Android)** — UDF + Clean слои (View → ViewModel → UseCase → Repository → DataSource). iOS: SwiftUI + Observation + SwiftData. Android: Compose + StateFlow + Hilt + Room (Google Recommended Architecture)
 - **SOLID** — SRP (≤300 lines), ISP (≤5 methods), DIP (constructor injection)
 - **Testing Trophy** — integration > unit > e2e; mock only external services
 - **Coverage** — 85%+ overall, 95%+ core, 70%+ infrastructure
+
+## Coexistence with Native Claude Code Memory
+
+Claude Code has its own built-in `auto memory` mechanism (cross-project user profile stored under `~/.claude/projects/.../memory/`). This skill does **not replace** it — they complement each other:
+
+| Aspect | `.memory-bank/` (this skill) | Native `auto memory` |
+|--------|------------------------------|----------------------|
+| **Scope** | Project-specific | Cross-project, tied to user |
+| **Content** | Status, plans, checklists, research, ADRs, lessons | User preferences, role, feedback patterns |
+| **Stored in** | `.memory-bank/` in repo (commit it or gitignore) | `~/.claude/projects/.../memory/` (machine-local) |
+| **Who owns it** | The project (team-shared via git) | The user (personal) |
+| **When to use** | Anything about the project: goals, decisions, state, work-in-progress | Anything about how you like to work: style, tone, constraints |
+
+**Rule of thumb**: if the information is useful to *a teammate picking up the project tomorrow* — it belongs in `.memory-bank/`. If it's useful for *you in a different project next week* — it belongs in native memory.
+
+Both are loaded concurrently by Claude Code. Neither disables the other.
 
 ## Uninstall
 

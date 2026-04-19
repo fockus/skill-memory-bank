@@ -54,14 +54,16 @@
 - ✅ Smoke-test на реальном плане репо: 10 этапов распарсены, Active plan блок создан в plan.md
 - ✅ Shellcheck 0 warnings, bats 117/117 green (+18 новых)
 
-## Этап 5: Ecosystem integration
-- ⬜ `SKILL.md`: убрать `user-invocable: false`, переписать description
-- ⬜ Заменить все `Task(...)` → `Agent(subagent_type=...)` в skill-файлах
-- ⬜ Добавить секцию "Coexistence with native Claude Code memory" в README + SKILL.md
-- ⬜ Слить `/mb init` + `/mb:setup-project` → `/mb init [--minimal|--full]`
-- ⬜ Удалить `commands/setup-project.md`
-- ⬜ Вынести orphan-команды (adr, observability, db-migration и др.) в отдельный plugin или удалить
-- ⬜ Валидация SKILL.md frontmatter через agent-sdk-verifier
+## Этап 5: Ecosystem integration ✅
+- ✅ Добавлены правила для frontend (FSD) и mobile (iOS/Android UDF + Clean) в `rules/RULES.md` и `rules/CLAUDE-GLOBAL.md`
+- ✅ `SKILL.md` frontmatter: убран невалидный `user-invocable: false`, добавлен `name: memory-bank`, description отражает three-in-one
+- ✅ 4× `Task(...)` → `Agent(subagent_type=..., ...)` в `commands/mb.md` (2) и `SKILL.md` (2). Grep `Task(` → 0
+- ✅ Секция "Coexistence with native Claude Code memory" добавлена в `SKILL.md` и `README.md`
+- ✅ `/mb init` объединён с `/mb:setup-project` → `/mb init [--minimal|--full]`. `--full` (default): структура + RULES + CLAUDE.md автодетект + `.planning/` symlink. `--minimal`: только структура
+- ✅ `commands/setup-project.md` удалён; install.sh/uninstall.sh/README/CLAUDE.md/claude-md-template обновлены (18 команд теперь)
+- ✅ README.md переписан: three-in-one concept (MB + RULES + dev toolkit) + coexistence секция + frontend FSD + mobile правила
+- ⬜ Orphan-команды — решено **оставить** (они часть dev-toolkit). `implement.md`/`pipeline.md` остаются глобально (GSD-зависимость)
+- ⬜ Валидация SKILL.md frontmatter через agent-sdk-verifier — отложено в Этап 6 (CI)
 
 ## Этап 6: Tests + CI
 - ⬜ Создать `tests/bats/` с покрытием всех shell-скриптов

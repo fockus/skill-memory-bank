@@ -2,7 +2,9 @@
 
 > **Contract-First** — Protocol/ABC → contract-тесты → реализация. Тесты проходят для ЛЮБОЙ корректной реализации.
 > **TDD** — сначала тесты, потом код. Пропуск: только опечатки, форматирование, exploratory prototypes.
-> **Clean Architecture** — `Infrastructure → Application → Domain` (никогда обратно). Domain = 0 внешних зависимостей.
+> **Clean Architecture (backend)** — `Infrastructure → Application → Domain` (никогда обратно). Domain = 0 внешних зависимостей.
+> **FSD (frontend)** — Feature-Sliced Design для React/Vue/Angular. Слои сверху вниз: `app → pages → widgets → features → entities → shared`. Импорт строго вниз; cross-slice внутри слоя — через widget/page; public API каждого slice — через `index.ts`.
+> **Mobile (iOS/Android)** — UDF + Clean слои: `View → ViewModel → UseCase → Repository (SSOT) → DataSource`. iOS: SwiftUI + `@Observable`, `async/await`, SwiftData, SPM feature-модули. Android: Jetpack Compose + StateFlow + Hilt + Room, Gradle multi-module, Google Recommended Architecture. Immutable UI state, DI через protocols/interfaces.
 > **SOLID пороги** — SRP: >300 строк или >3 публичных метода разной природы = разделить. ISP: Interface ≤5 методов. DIP: конструктор принимает абстракцию.
 > **DRY / KISS / YAGNI** — дубль >2 раз → извлечь. Три одинаковых строки лучше преждевременной абстракции. Не писать код "на будущее".
 > **Testing Trophy** — интеграционные > unit > e2e. Mock только внешние сервисы. >5 mock'ов → кандидат на интеграционный.

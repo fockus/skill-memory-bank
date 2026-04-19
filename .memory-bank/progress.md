@@ -123,3 +123,23 @@
 - **Shellcheck**: 0 warnings (включая оба новых скрипта)
 - install.sh копирует `scripts/*.sh` → новые скрипты подхватятся автоматически
 - Следующий шаг: Этап 5 (Ecosystem integration — Task→Agent, SKILL.md frontmatter, coexistence с native memory, merge `/mb init` + `/mb:setup-project`)
+
+### Этап 5: Ecosystem integration
+- **Расширение rules** — skill теперь покрывает 3 платформенных слоя:
+  - Backend: Clean Architecture (было)
+  - Frontend: **FSD (Feature-Sliced Design)** — `app → pages → widgets → features → entities → shared`, правила импорта вниз, public API через `index.ts`, cross-slice через widget/page
+  - Mobile: **iOS + Android** — UDF + Clean слои. iOS: SwiftUI + `@Observable`, `async/await`, SwiftData, SPM модули, TCA для крупных. Android: Google Recommended Architecture (Compose + ViewModel + StateFlow + Hilt + Room, Gradle multi-module). Общее: immutable UI state, SSOT в Repository, DI через protocols/interfaces
+  - Всё добавлено в `rules/RULES.md` и компактно в `rules/CLAUDE-GLOBAL.md`
+- **SKILL.md frontmatter fix**: убран невалидный `user-invocable: false`, добавлен `name: memory-bank`, description отражает three-in-one concept
+- **Task→Agent migration**: 4 вхождения `Task(...)` → `Agent(subagent_type=..., model=..., description=..., prompt=...)` в `commands/mb.md` (2) и `SKILL.md` (2). Grep-проверка: **0 вхождений `Task(`** в skill-файлах
+- **Merge `/mb init` + `/mb:setup-project`** в единую `/mb init [--minimal|--full]`:
+  - `--minimal` — только структура `.memory-bank/` + 7 core файлов
+  - `--full` (default) — + `RULES.md` copy + auto-detect стека (через `mb-metrics.sh` + фреймворки) + генерация `CLAUDE.md` + опциональный `.planning/` symlink
+  - Удалён `commands/setup-project.md`
+  - Обновлены: `install.sh` banner (19→18), `uninstall.sh` manual cleanup list, `README.md`, `CLAUDE.md`, `references/claude-md-template.md`
+- **README переписан** — three-in-one concept в top секции: (1) Memory Bank, (2) Global dev rules, (3) 18 dev commands. Добавлена секция "Coexistence with Native Claude Code Memory" — таблица различий между `.memory-bank/` и native `auto memory`, правило выбора ("project vs user")
+- **SKILL.md** также получил секцию coexistence
+- **Git push скрипты** не трогались — Этап 5 чисто документационный
+- **Orphan-команды**: решено **не удалять**. По уточнению пользователя skill = dev-toolkit + MB + RULES, 18 команд — часть skill'а (не orphan). `implement.md`/`pipeline.md` остаются глобально (GSD-зависимость)
+- **Метрики**: bats 117/117 green (не изменилось — Этап 5 без новых скриптов), shellcheck 0 warnings, 0 `Task(` вхождений, 0 хардкода
+- Следующий шаг: Этап 6 (Tests + CI — pytest для `merge-hooks.py`, e2e Docker roundtrip, GitHub Actions matrix macos+ubuntu)

@@ -20,7 +20,7 @@ Before ANY work: read `~/.claude/RULES.md` + `.memory-bank/RULES.md`.
 | `/mb start` | Load project context |
 | `/mb done` | Save progress, close session |
 | `/mb verify` | Check plan vs implementation |
-| `/mb:setup-project` | Init .memory-bank/ + auto-generate CLAUDE.md |
+| `/mb init [--minimal\|--full]` | Init `.memory-bank/`. `--full` (default): + RULES + CLAUDE.md auto-gen |
 | `/commit` | Smart commit |
 | `/review` | Full code review |
 | `/test` | Run tests + analysis |

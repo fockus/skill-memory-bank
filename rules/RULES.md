@@ -81,6 +81,91 @@ STATUS.md        ← Фаза, blockers, audit findings
 - `Trainer` = `update()`, `train_epoch()`. Использует модули через Protocol
 - Модуль не импортирует свой Trainer. Trainer импортирует модуль
 
+### Frontend — Feature-Sliced Design (FSD)
+
+Для фронтенд-проектов (React/Vue/Angular/Svelte) используй FSD вместо классической Clean Architecture. FSD специализирован под UI-композицию.
+
+**Слои (top → bottom, импорт строго вниз):**
+
+| Слой | Что внутри | Пример |
+|------|------------|--------|
+| `app/` | Инициализация, провайдеры, роутер, глобальные стили | `<AppProviders>`, `App.tsx`, `index.css` |
+| `pages/` | Отдельные страницы приложения | `pages/product/`, `pages/checkout/` |
+| `widgets/` | Самостоятельные блоки UI, composable | `Header`, `Sidebar`, `ProductCard` |
+| `features/` | Пользовательские действия с бизнес-ценностью | `auth-by-email`, `add-to-cart` |
+| `entities/` | Бизнес-сущности (модель данных + UI representation) | `user`, `product`, `order` |
+| `shared/` | Переиспользуемые примитивы без бизнес-контекста | `shared/ui/Button`, `shared/lib/dayjs`, `shared/api` |
+
+**Структура slice (bussiness-слой кроме shared/app):**
+
+```
+features/auth-by-email/
+  ├── ui/          # React-компоненты фичи
+  ├── model/       # state (Redux/Zustand/MobX), хуки, селекторы
+  ├── api/         # HTTP-запросы, tRPC/RTK Query endpoints
+  ├── lib/         # helpers, чистые функции
+  └── index.ts     # public API — ТОЛЬКО то что нужно снаружи
+```
+
+**Правила:**
+
+- **Импорт строго вниз по слоям**: `page` → `widget` → `feature` → `entity` → `shared`. Обратно — запрещено.
+- **Cross-slice import внутри одного слоя запрещён**: `features/auth` НЕ импортит из `features/cart`. Композиция — в `widget` или `page`.
+- **Public API slice через `index.ts`**: внешние импорты только через `@/features/auth-by-email`, никогда `@/features/auth-by-email/model/store.ts`.
+- **UI kit в `shared/ui/`**: dumb-компоненты без бизнес-логики (Button, Input, Modal).
+- **Pages = композиция**: страница не содержит бизнес-логики, только сборка widgets/features.
+
+**Линтер**: `@feature-sliced/eslint-config` + `steiger` для валидации.
+
+**Что НЕ FSD** (типичные ошибки):
+
+- `src/components/` / `src/pages/` / `src/utils/` — это structure-by-type, анти-FSD
+- Фичи импортят друг друга напрямую → надо через widget или shared/model
+- Компоненты импортят конкретные файлы slice минуя `index.ts`
+
+### Mobile — iOS / Android
+
+Для нативных мобильных приложений используй паттерны платформы, построенные на Unidirectional Data Flow (UDF) и Clean-слоях.
+
+**iOS (Swift/SwiftUI):**
+
+- **UI**: SwiftUI + Observation (`@Observable`, `@State`, `@Binding`) для iOS 17+. UIKit + MVVM+Coordinator для legacy.
+- **Concurrency**: `async/await` + `Actor`, не GCD/Combine в новом коде.
+- **Persistence**: SwiftData (iOS 17+) или Core Data.
+- **Слои**: `View → ViewModel → UseCase → Repository → DataSource(network/local)`. Domain — протоколы + Entity, без зависимостей от UIKit/SwiftUI.
+- **Модульность**: SPM feature-модули (`FeatureAuth`, `CoreUI`, `CoreNetwork`).
+- **Крупные приложения**: The Composable Architecture (TCA) — Redux-like для SwiftUI, оправдан при shared state между экранами.
+- **Tests**: XCTest + `swift-snapshot-testing` для UI.
+
+**Android (Kotlin/Compose):**
+
+Следуй официальному [Android Recommended Architecture](https://developer.android.com/topic/architecture):
+
+```
+UI Layer         (Composable + ViewModel + UiState immutable)
+     ↓ UDF
+Domain Layer     (UseCase — опционально, если логика shared между VM)
+     ↓
+Data Layer       (Repository = Single Source of Truth;
+                  DataSource: Remote (Retrofit/Ktor) + Local (Room))
+```
+
+- **UI**: Jetpack Compose + Material 3. XML View system — только legacy.
+- **Reactive**: Kotlin Coroutines + Flow. `StateFlow` для UI state, `SharedFlow` для one-off events.
+- **DI**: Hilt (поверх Dagger).
+- **Persistence**: Room (SQL), DataStore (preferences), WorkManager (background).
+- **Модульность**: Gradle multi-module — `:feature:auth`, `:feature:cart`, `:core:ui`, `:core:network`, `:core:database`.
+- **Shared логика iOS+Android**: Kotlin Multiplatform (KMP) — domain/data слои на Kotlin, UI нативно на каждой платформе.
+- **Tests**: JUnit + Turbine (Flow), Paparazzi/Roborazzi для UI snapshot.
+
+**Общие правила (iOS + Android):**
+
+- **UDF**: state течёт вниз (Repository → ViewModel → UiState → View), events вверх (View → VM.onEvent()).
+- **Immutable UI state**: всегда новый объект через `copy()` / `struct`, никогда мутация.
+- **Single Source of Truth**: Repository владеет данными; ViewModel — только derived state.
+- **Testability**: зависимости через protocols/interfaces, DI контейнер подставляет fakes в тестах.
+- **One ViewModel per screen**: не шарить VM между экранами (composable state — через shared Repository).
+
 ---
 
 ## TDD — Test-Driven Development

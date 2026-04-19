@@ -1,6 +1,6 @@
 # CLAUDE.md Template
 
-Шаблон для генерации CLAUDE.md через `/mb:setup-project`.
+Шаблон для генерации CLAUDE.md через `/mb init --full`.
 Переменные в `{VARIABLE}` заменяются автодетектом.
 
 ---
@@ -84,7 +84,7 @@
 | `/mb update` | Актуализировать core files |
 | `/mb done` | Завершение сессии |
 | `/mb verify` | Верификация плана vs код |
-| `/mb:setup-project` | Пересоздать CLAUDE.md |
+| `/mb init --full` | Пересоздать CLAUDE.md с автодетектом стека |
 
 ### Структура .memory-bank/
 
