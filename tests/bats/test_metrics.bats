@@ -42,6 +42,44 @@ teardown() {
   [[ "$output" == *"test_cmd=cargo test"* ]]
 }
 
+@test "metrics: java fixture → stack=java, src_count >= 1" {
+  run bash "$SCRIPT" "$FIXTURES/java"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stack=java"* ]]
+  src_line=$(echo "$output" | grep '^src_count=')
+  count="${src_line#src_count=}"
+  [ "$count" -ge 1 ]
+}
+
+@test "metrics: kotlin fixture → stack=kotlin, test_cmd=gradle test, src_count >= 1" {
+  run bash "$SCRIPT" "$FIXTURES/kotlin"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stack=kotlin"* ]]
+  [[ "$output" == *"gradle test"* ]]
+  src_line=$(echo "$output" | grep '^src_count=')
+  count="${src_line#src_count=}"
+  [ "$count" -ge 1 ]
+}
+
+@test "metrics: swift fixture → stack=swift, test_cmd=swift test, src_count >= 1" {
+  run bash "$SCRIPT" "$FIXTURES/swift"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stack=swift"* ]]
+  [[ "$output" == *"swift test"* ]]
+  src_line=$(echo "$output" | grep '^src_count=')
+  count="${src_line#src_count=}"
+  [ "$count" -ge 1 ]
+}
+
+@test "metrics: cpp fixture → stack=cpp, src_count >= 1" {
+  run bash "$SCRIPT" "$FIXTURES/cpp"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stack=cpp"* ]]
+  src_line=$(echo "$output" | grep '^src_count=')
+  count="${src_line#src_count=}"
+  [ "$count" -ge 1 ]
+}
+
 @test "metrics: node fixture → stack=node, test_cmd contains test" {
   run bash "$SCRIPT" "$FIXTURES/node"
   [ "$status" -eq 0 ]

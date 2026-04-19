@@ -74,6 +74,30 @@ teardown() {
   [ "$output" = "node" ]
 }
 
+@test "mb_detect_stack: java fixture → java" {
+  run mb_detect_stack "$FIXTURES/java"
+  [ "$status" -eq 0 ]
+  [ "$output" = "java" ]
+}
+
+@test "mb_detect_stack: kotlin fixture → kotlin" {
+  run mb_detect_stack "$FIXTURES/kotlin"
+  [ "$status" -eq 0 ]
+  [ "$output" = "kotlin" ]
+}
+
+@test "mb_detect_stack: swift fixture → swift" {
+  run mb_detect_stack "$FIXTURES/swift"
+  [ "$status" -eq 0 ]
+  [ "$output" = "swift" ]
+}
+
+@test "mb_detect_stack: cpp fixture → cpp" {
+  run mb_detect_stack "$FIXTURES/cpp"
+  [ "$status" -eq 0 ]
+  [ "$output" = "cpp" ]
+}
+
 @test "mb_detect_stack: multi fixture → multi" {
   run mb_detect_stack "$FIXTURES/multi"
   [ "$status" -eq 0 ]
@@ -125,6 +149,30 @@ teardown() {
   [[ "$output" == *test* ]]
 }
 
+@test "mb_detect_test_cmd: java → mvn test|gradle test" {
+  run mb_detect_test_cmd java
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"mvn test"* || "$output" == *"gradle test"* ]]
+}
+
+@test "mb_detect_test_cmd: kotlin → gradle test" {
+  run mb_detect_test_cmd kotlin
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"gradle test"* ]]
+}
+
+@test "mb_detect_test_cmd: swift → swift test" {
+  run mb_detect_test_cmd swift
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"swift test"* ]]
+}
+
+@test "mb_detect_test_cmd: cpp → ctest|meson test" {
+  run mb_detect_test_cmd cpp
+  [ "$status" -eq 0 ]
+  [[ "$output" == *ctest* || "$output" == *"meson test"* ]]
+}
+
 @test "mb_detect_test_cmd: unknown → empty" {
   run mb_detect_test_cmd unknown
   [ "$status" -eq 0 ]
@@ -157,6 +205,30 @@ teardown() {
   [[ "$output" == *eslint* || "$output" == *biome* ]]
 }
 
+@test "mb_detect_lint_cmd: java → checkstyle|spotbugs|spotless" {
+  run mb_detect_lint_cmd java
+  [ "$status" -eq 0 ]
+  [[ "$output" == *checkstyle* || "$output" == *spotbugs* || "$output" == *spotless* ]]
+}
+
+@test "mb_detect_lint_cmd: kotlin → ktlint|detekt" {
+  run mb_detect_lint_cmd kotlin
+  [ "$status" -eq 0 ]
+  [[ "$output" == *ktlint* || "$output" == *detekt* ]]
+}
+
+@test "mb_detect_lint_cmd: swift → swiftlint" {
+  run mb_detect_lint_cmd swift
+  [ "$status" -eq 0 ]
+  [[ "$output" == *swiftlint* ]]
+}
+
+@test "mb_detect_lint_cmd: cpp → clang-tidy|cppcheck" {
+  run mb_detect_lint_cmd cpp
+  [ "$status" -eq 0 ]
+  [[ "$output" == *clang-tidy* || "$output" == *cppcheck* ]]
+}
+
 @test "mb_detect_lint_cmd: unknown → empty" {
   run mb_detect_lint_cmd unknown
   [ "$status" -eq 0 ]
@@ -187,6 +259,30 @@ teardown() {
   run mb_detect_src_glob node
   [ "$status" -eq 0 ]
   [[ "$output" == *"*.ts"* || "$output" == *"*.js"* ]]
+}
+
+@test "mb_detect_src_glob: java → *.java" {
+  run mb_detect_src_glob java
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"*.java"* ]]
+}
+
+@test "mb_detect_src_glob: kotlin → *.kt" {
+  run mb_detect_src_glob kotlin
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"*.kt"* ]]
+}
+
+@test "mb_detect_src_glob: swift → *.swift" {
+  run mb_detect_src_glob swift
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"*.swift"* ]]
+}
+
+@test "mb_detect_src_glob: cpp → *.cpp|*.cc|*.cxx" {
+  run mb_detect_src_glob cpp
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"*.cpp"* || "$output" == *"*.cc"* || "$output" == *"*.cxx"* ]]
 }
 
 @test "mb_detect_src_glob: unknown → empty" {

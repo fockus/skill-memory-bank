@@ -31,7 +31,11 @@ mb_resolve_path() {
 }
 
 # Detect project stack by scanning manifest files in a directory.
-# Outputs one of: python, go, rust, node, multi, unknown.
+# Outputs one of: python, go, rust, node, java, kotlin, swift, cpp, multi, unknown.
+#
+# Java vs Kotlin resolution:
+#   - build.gradle.kts OR apply plugin: 'kotlin' in build.gradle → kotlin
+#   - pom.xml OR build.gradle (без kotlin-маркера) → java
 mb_detect_stack() {
   local dir="${1:-$PWD}"
 
@@ -59,6 +63,26 @@ mb_detect_stack() {
     stack="node"
   fi
 
+  # Kotlin имеет приоритет над Java (overlapping Gradle manifest)
+  if [ -f "$dir/build.gradle.kts" ] || \
+     { [ -f "$dir/build.gradle" ] && grep -qE "plugin.*kotlin|kotlin\(" "$dir/build.gradle" 2>/dev/null; }; then
+    count=$((count + 1))
+    stack="kotlin"
+  elif [ -f "$dir/pom.xml" ] || [ -f "$dir/build.gradle" ]; then
+    count=$((count + 1))
+    stack="java"
+  fi
+
+  if [ -f "$dir/Package.swift" ]; then
+    count=$((count + 1))
+    stack="swift"
+  fi
+
+  if [ -f "$dir/CMakeLists.txt" ] || [ -f "$dir/meson.build" ]; then
+    count=$((count + 1))
+    stack="cpp"
+  fi
+
   if [ "$count" -eq 0 ]; then
     printf '%s\n' "unknown"
   elif [ "$count" -ge 2 ]; then
@@ -70,12 +94,18 @@ mb_detect_stack() {
 
 # Return a recommended test command for a detected stack.
 # Empty output for unknown stacks — caller decides how to handle.
+# Defaults are conventional; projects with unusual setup should override via
+# .memory-bank/metrics.sh.
 mb_detect_test_cmd() {
   case "${1:-}" in
     python) printf '%s\n' "pytest -q" ;;
     go)     printf '%s\n' "go test ./..." ;;
     rust)   printf '%s\n' "cargo test" ;;
     node)   printf '%s\n' "npm test" ;;
+    java)   printf '%s\n' "mvn test" ;;
+    kotlin) printf '%s\n' "gradle test" ;;
+    swift)  printf '%s\n' "swift test" ;;
+    cpp)    printf '%s\n' "ctest --output-on-failure" ;;
     multi)  printf '%s\n' "pytest -q" ;;
     *)      : ;;
   esac
@@ -88,6 +118,10 @@ mb_detect_lint_cmd() {
     go)     printf '%s\n' "go vet ./..." ;;
     rust)   printf '%s\n' "cargo clippy -- -D warnings" ;;
     node)   printf '%s\n' "eslint ." ;;
+    java)   printf '%s\n' "mvn checkstyle:check" ;;
+    kotlin) printf '%s\n' "detekt" ;;
+    swift)  printf '%s\n' "swiftlint" ;;
+    cpp)    printf '%s\n' "cppcheck --enable=all --quiet ." ;;
     multi)  printf '%s\n' "ruff check ." ;;
     *)      : ;;
   esac
@@ -100,6 +134,10 @@ mb_detect_src_glob() {
     go)     printf '%s\n' "**/*.go" ;;
     rust)   printf '%s\n' "**/*.rs" ;;
     node)   printf '%s\n' "**/*.ts **/*.tsx **/*.js **/*.jsx" ;;
+    java)   printf '%s\n' "**/*.java" ;;
+    kotlin) printf '%s\n' "**/*.kt **/*.kts" ;;
+    swift)  printf '%s\n' "**/*.swift" ;;
+    cpp)    printf '%s\n' "**/*.cpp **/*.cc **/*.cxx **/*.hpp **/*.h" ;;
     multi)  printf '%s\n' "**/*.py" ;;
     *)      : ;;
   esac

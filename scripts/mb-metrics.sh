@@ -82,6 +82,37 @@ count_files() {
         -not -path '*/build/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
+    java)
+      find "$dir" -name "*.java" -type f \
+        -not -path '*/\.*' \
+        -not -path '*/target/*' \
+        -not -path '*/build/*' \
+        -not -path '*/.gradle/*' \
+        2>/dev/null | wc -l | tr -d ' '
+      ;;
+    kotlin)
+      find "$dir" \( -name "*.kt" -o -name "*.kts" \) -type f \
+        -not -path '*/\.*' \
+        -not -path '*/target/*' \
+        -not -path '*/build/*' \
+        -not -path '*/.gradle/*' \
+        2>/dev/null | wc -l | tr -d ' '
+      ;;
+    swift)
+      find "$dir" -name "*.swift" -type f \
+        -not -path '*/\.*' \
+        -not -path '*/.build/*' \
+        -not -path '*/DerivedData/*' \
+        2>/dev/null | wc -l | tr -d ' '
+      ;;
+    cpp)
+      find "$dir" \( -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" -o -name "*.c" -o -name "*.hpp" -o -name "*.h" \) -type f \
+        -not -path '*/\.*' \
+        -not -path '*/build/*' \
+        -not -path '*/out/*' \
+        -not -path '*/cmake-build-*/*' \
+        2>/dev/null | wc -l | tr -d ' '
+      ;;
     multi)
       echo "-1"  # multi-stack: caller может декомпозировать через отдельные вызовы
       ;;
