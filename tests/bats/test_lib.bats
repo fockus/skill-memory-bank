@@ -98,6 +98,30 @@ teardown() {
   [ "$output" = "cpp" ]
 }
 
+@test "mb_detect_stack: ruby fixture → ruby" {
+  run mb_detect_stack "$FIXTURES/ruby"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ruby" ]
+}
+
+@test "mb_detect_stack: php fixture → php" {
+  run mb_detect_stack "$FIXTURES/php"
+  [ "$status" -eq 0 ]
+  [ "$output" = "php" ]
+}
+
+@test "mb_detect_stack: csharp fixture → csharp" {
+  run mb_detect_stack "$FIXTURES/csharp"
+  [ "$status" -eq 0 ]
+  [ "$output" = "csharp" ]
+}
+
+@test "mb_detect_stack: elixir fixture → elixir" {
+  run mb_detect_stack "$FIXTURES/elixir"
+  [ "$status" -eq 0 ]
+  [ "$output" = "elixir" ]
+}
+
 @test "mb_detect_stack: multi fixture → multi" {
   run mb_detect_stack "$FIXTURES/multi"
   [ "$status" -eq 0 ]
@@ -173,6 +197,30 @@ teardown() {
   [[ "$output" == *ctest* || "$output" == *"meson test"* ]]
 }
 
+@test "mb_detect_test_cmd: ruby → rspec|rake test" {
+  run mb_detect_test_cmd ruby
+  [ "$status" -eq 0 ]
+  [[ "$output" == *rspec* || "$output" == *"rake test"* ]]
+}
+
+@test "mb_detect_test_cmd: php → phpunit" {
+  run mb_detect_test_cmd php
+  [ "$status" -eq 0 ]
+  [[ "$output" == *phpunit* ]]
+}
+
+@test "mb_detect_test_cmd: csharp → dotnet test" {
+  run mb_detect_test_cmd csharp
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dotnet test"* ]]
+}
+
+@test "mb_detect_test_cmd: elixir → mix test" {
+  run mb_detect_test_cmd elixir
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"mix test"* ]]
+}
+
 @test "mb_detect_test_cmd: unknown → empty" {
   run mb_detect_test_cmd unknown
   [ "$status" -eq 0 ]
@@ -229,6 +277,30 @@ teardown() {
   [[ "$output" == *clang-tidy* || "$output" == *cppcheck* ]]
 }
 
+@test "mb_detect_lint_cmd: ruby → rubocop" {
+  run mb_detect_lint_cmd ruby
+  [ "$status" -eq 0 ]
+  [[ "$output" == *rubocop* ]]
+}
+
+@test "mb_detect_lint_cmd: php → phpstan|psalm" {
+  run mb_detect_lint_cmd php
+  [ "$status" -eq 0 ]
+  [[ "$output" == *phpstan* || "$output" == *psalm* ]]
+}
+
+@test "mb_detect_lint_cmd: csharp → dotnet format" {
+  run mb_detect_lint_cmd csharp
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dotnet format"* ]]
+}
+
+@test "mb_detect_lint_cmd: elixir → credo|mix format" {
+  run mb_detect_lint_cmd elixir
+  [ "$status" -eq 0 ]
+  [[ "$output" == *credo* || "$output" == *"mix format"* ]]
+}
+
 @test "mb_detect_lint_cmd: unknown → empty" {
   run mb_detect_lint_cmd unknown
   [ "$status" -eq 0 ]
@@ -283,6 +355,30 @@ teardown() {
   run mb_detect_src_glob cpp
   [ "$status" -eq 0 ]
   [[ "$output" == *"*.cpp"* || "$output" == *"*.cc"* || "$output" == *"*.cxx"* ]]
+}
+
+@test "mb_detect_src_glob: ruby → *.rb" {
+  run mb_detect_src_glob ruby
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"*.rb"* ]]
+}
+
+@test "mb_detect_src_glob: php → *.php" {
+  run mb_detect_src_glob php
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"*.php"* ]]
+}
+
+@test "mb_detect_src_glob: csharp → *.cs" {
+  run mb_detect_src_glob csharp
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"*.cs"* ]]
+}
+
+@test "mb_detect_src_glob: elixir → *.ex" {
+  run mb_detect_src_glob elixir
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"*.ex"* ]]
 }
 
 @test "mb_detect_src_glob: unknown → empty" {

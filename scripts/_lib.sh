@@ -83,6 +83,30 @@ mb_detect_stack() {
     stack="cpp"
   fi
 
+  if [ -f "$dir/Gemfile" ] || [ -f "$dir/Rakefile" ] || [ -f "$dir/Gemfile.lock" ]; then
+    count=$((count + 1))
+    stack="ruby"
+  fi
+
+  if [ -f "$dir/composer.json" ]; then
+    count=$((count + 1))
+    stack="php"
+  fi
+
+  # C# / .NET: .csproj/.fsproj/.sln — glob-matched, compgen для portability
+  if compgen -G "$dir/*.csproj" >/dev/null 2>&1 \
+     || compgen -G "$dir/*.sln" >/dev/null 2>&1 \
+     || compgen -G "$dir/*.fsproj" >/dev/null 2>&1 \
+     || [ -f "$dir/global.json" ]; then
+    count=$((count + 1))
+    stack="csharp"
+  fi
+
+  if [ -f "$dir/mix.exs" ]; then
+    count=$((count + 1))
+    stack="elixir"
+  fi
+
   if [ "$count" -eq 0 ]; then
     printf '%s\n' "unknown"
   elif [ "$count" -ge 2 ]; then
@@ -106,6 +130,10 @@ mb_detect_test_cmd() {
     kotlin) printf '%s\n' "gradle test" ;;
     swift)  printf '%s\n' "swift test" ;;
     cpp)    printf '%s\n' "ctest --output-on-failure" ;;
+    ruby)   printf '%s\n' "bundle exec rspec" ;;
+    php)    printf '%s\n' "vendor/bin/phpunit" ;;
+    csharp) printf '%s\n' "dotnet test" ;;
+    elixir) printf '%s\n' "mix test" ;;
     multi)  printf '%s\n' "pytest -q" ;;
     *)      : ;;
   esac
@@ -122,6 +150,10 @@ mb_detect_lint_cmd() {
     kotlin) printf '%s\n' "detekt" ;;
     swift)  printf '%s\n' "swiftlint" ;;
     cpp)    printf '%s\n' "cppcheck --enable=all --quiet ." ;;
+    ruby)   printf '%s\n' "rubocop" ;;
+    php)    printf '%s\n' "vendor/bin/phpstan analyse" ;;
+    csharp) printf '%s\n' "dotnet format --verify-no-changes" ;;
+    elixir) printf '%s\n' "mix credo --strict" ;;
     multi)  printf '%s\n' "ruff check ." ;;
     *)      : ;;
   esac
@@ -138,6 +170,10 @@ mb_detect_src_glob() {
     kotlin) printf '%s\n' "**/*.kt **/*.kts" ;;
     swift)  printf '%s\n' "**/*.swift" ;;
     cpp)    printf '%s\n' "**/*.cpp **/*.cc **/*.cxx **/*.hpp **/*.h" ;;
+    ruby)   printf '%s\n' "**/*.rb" ;;
+    php)    printf '%s\n' "**/*.php" ;;
+    csharp) printf '%s\n' "**/*.cs" ;;
+    elixir) printf '%s\n' "**/*.ex **/*.exs" ;;
     multi)  printf '%s\n' "**/*.py" ;;
     *)      : ;;
   esac

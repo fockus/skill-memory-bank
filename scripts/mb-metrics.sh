@@ -113,6 +113,33 @@ count_files() {
         -not -path '*/cmake-build-*/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
+    ruby)
+      find "$dir" -name "*.rb" -type f \
+        -not -path '*/\.*' \
+        -not -path '*/vendor/*' \
+        -not -path '*/.bundle/*' \
+        2>/dev/null | wc -l | tr -d ' '
+      ;;
+    php)
+      find "$dir" -name "*.php" -type f \
+        -not -path '*/\.*' \
+        -not -path '*/vendor/*' \
+        2>/dev/null | wc -l | tr -d ' '
+      ;;
+    csharp)
+      find "$dir" -name "*.cs" -type f \
+        -not -path '*/\.*' \
+        -not -path '*/bin/*' \
+        -not -path '*/obj/*' \
+        2>/dev/null | wc -l | tr -d ' '
+      ;;
+    elixir)
+      find "$dir" \( -name "*.ex" -o -name "*.exs" \) -type f \
+        -not -path '*/\.*' \
+        -not -path '*/_build/*' \
+        -not -path '*/deps/*' \
+        2>/dev/null | wc -l | tr -d ' '
+      ;;
     multi)
       echo "-1"  # multi-stack: caller может декомпозировать через отдельные вызовы
       ;;

@@ -80,6 +80,45 @@ teardown() {
   [ "$count" -ge 1 ]
 }
 
+@test "metrics: ruby fixture → stack=ruby, src_count >= 1" {
+  run bash "$SCRIPT" "$FIXTURES/ruby"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stack=ruby"* ]]
+  src_line=$(echo "$output" | grep '^src_count=')
+  count="${src_line#src_count=}"
+  [ "$count" -ge 1 ]
+}
+
+@test "metrics: php fixture → stack=php, test_cmd contains phpunit, src_count >= 1" {
+  run bash "$SCRIPT" "$FIXTURES/php"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stack=php"* ]]
+  [[ "$output" == *phpunit* ]]
+  src_line=$(echo "$output" | grep '^src_count=')
+  count="${src_line#src_count=}"
+  [ "$count" -ge 1 ]
+}
+
+@test "metrics: csharp fixture → stack=csharp, test_cmd=dotnet test, src_count >= 1" {
+  run bash "$SCRIPT" "$FIXTURES/csharp"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stack=csharp"* ]]
+  [[ "$output" == *"dotnet test"* ]]
+  src_line=$(echo "$output" | grep '^src_count=')
+  count="${src_line#src_count=}"
+  [ "$count" -ge 1 ]
+}
+
+@test "metrics: elixir fixture → stack=elixir, test_cmd=mix test, src_count >= 1" {
+  run bash "$SCRIPT" "$FIXTURES/elixir"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stack=elixir"* ]]
+  [[ "$output" == *"mix test"* ]]
+  src_line=$(echo "$output" | grep '^src_count=')
+  count="${src_line#src_count=}"
+  [ "$count" -ge 1 ]
+}
+
 @test "metrics: node fixture → stack=node, test_cmd contains test" {
   run bash "$SCRIPT" "$FIXTURES/node"
   [ "$status" -eq 0 ]
