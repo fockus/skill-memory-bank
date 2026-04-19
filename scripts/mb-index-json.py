@@ -32,6 +32,16 @@ from typing import Any
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.DOTALL)
 LESSON_RE = re.compile(r"^###\s+(L-\d+)[:\-\s]+(.+?)\s*$", re.MULTILINE)
+_KEBAB_RE_1 = re.compile(r"(.)([A-Z][a-z]+)")
+_KEBAB_RE_2 = re.compile(r"([a-z0-9])([A-Z])")
+
+
+def _kebab_case(s: str) -> str:
+    """camelCase/PascalCase/UPPER → kebab-case (lowercase with hyphens)."""
+    s = str(s).strip().strip('"\'')
+    s = _KEBAB_RE_1.sub(r"\1-\2", s)
+    s = _KEBAB_RE_2.sub(r"\1-\2", s)
+    return s.lower()
 # PII markers: <private>...</private> — содержимое не попадает в index.
 # Закрытые блоки вырезаются полностью; открытые без закрытия — до конца текста
 # (защита от утечки при забытом </private>).
@@ -124,6 +134,11 @@ def _index_notes(mb_path: Path) -> list[dict[str, Any]]:
             tags = [tags]
         # Защита: теги с PII-маркерами не индексируем.
         tags = [t for t in tags if "<private>" not in str(t) and "</private>" not in str(t)]
+        # Normalize: lowercase + kebab-case (camelCase/PascalCase/UPPER → foo-bar).
+        tags = [_kebab_case(t) for t in tags]
+        # Dedup preserving order.
+        seen: set[str] = set()
+        tags = [t for t in tags if not (t in seen or seen.add(t))]
 
         clean_body, has_private = _strip_private(body)
 

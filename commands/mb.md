@@ -33,6 +33,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `compact [--dry-run\|--apply]` | Status-based decay: plans в done/ >60d → BACKLOG archive, low-importance notes >90d → notes/archive/. Active планы НЕ трогаются. `--dry-run` (default) — reasoning only |
 | `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB из Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extract: progress.md (daily), notes/ (arch discussions heuristic), PII auto-wrap. Dedup SHA256 + resume state |
 | `graph [--apply] [src_root]` | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in через `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache |
+| `tags [--apply] [--auto-merge]` | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 vs closed vocabulary, propose merges. `--auto-merge` применяет только distance ≤1. Vocabulary в `.memory-bank/tags-vocabulary.md` (fallback — `references/tags-vocabulary.md`). `mb-index-json.py` авто-kebab-case |
 | `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
