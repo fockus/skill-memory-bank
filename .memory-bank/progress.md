@@ -166,3 +166,16 @@
 - **.gitignore расширен** (`.coverage`, `.pytest_cache/`, `.ruff_cache/`), **status badge** в README
 - **Локальные результаты**: 132 bats green (117 unit + 15 e2e), 16 pytest green (92% coverage), 0 shellcheck warnings, ruff all passed
 - Следующий шаг: Этап 7 (Hooks fixes — file-change-log false-positives на `pass`/docstring, log rotation 10MB, `MB_ALLOW_NO_VERIFY=1` bypass в block-dangerous, merge-hooks дедупликация с id-маркером)
+
+### Этап 7: Hooks fixes
+- **TDD red** — `tests/bats/test_hooks.bats`, 11 тестов. Первый прогон: 5 фейлов (bare-pass false-positive, docstring-TODO false-positive, нет log rotation, нет MB_ALLOW_NO_VERIFY bypass + hint)
+- **TDD green** — реализация:
+  - `block-dangerous.sh` — `--no-verify` guard теперь проверяет `MB_ALLOW_NO_VERIFY=1`: при установленном env — warning + exit 0; иначе — exit 2 + hint с примером команды
+  - `file-change-log.sh` — полностью переписан:
+    - Убран `pass\s*$` из placeholder-regex (легитимный Python)
+    - Placeholder-поиск теперь через awk-препроцессор: сначала вырезаются triple-quoted блоки (`"""` или `'''`), потом `grep \b(TODO|FIXME|HACK|XXX|PLACEHOLDER|NotImplementedError|raise NotImplemented)\b` по остатку. Docstrings не триггерят. "TODOLIST" не триггерит (word-boundary)
+    - Log rotation: `stat -f%z || stat -c%s` для portability, при >10MB ротация `.log → .log.1 → .log.2 → .log.3`
+    - Awk переписан с `-v dq='"""' -v sq="'''"` и функцией `count(str, pat)` на `index()` — shellcheck SC1003 триггер устранён (тройные кавычки в awk-regex)
+- **Итог**: 11 hook-тестов green, total bats **143/143 green** (+11 от Этапа 6). Shellcheck 0 warnings
+- **YAGNI skip**: `merge-hooks.py` дедупликация через id-маркер — пропущено. Существующий content-based dedup уже работает (Этап 6: 16 тестов, 92% coverage). Whitespace-normalize/id-маркер — оверинжиниринг без реального use-case
+- Следующий шаг: Этап 8 (index.json прагматично — frontmatter index для notes/+lessons/, `mb-search --tag` через index для O(tagged) вместо grep-всего)

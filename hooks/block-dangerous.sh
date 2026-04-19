@@ -70,10 +70,15 @@ if echo "$COMMAND" | grep -qEi '>\s*~/.ssh/|>\s*~/.gnupg/|>\s*~/.aws/credentials
   exit 2
 fi
 
-# BLOCK: git hooks bypass
+# BLOCK: git hooks bypass (override via MB_ALLOW_NO_VERIFY=1 for one-off needs)
 if echo "$COMMAND" | grep -qEi 'git\s+(commit|push)\s+.*--no-verify'; then
-  echo "BLOCKED: --no-verify bypasses safety hooks" >&2
-  exit 2
+  if [ "${MB_ALLOW_NO_VERIFY:-0}" = "1" ]; then
+    echo "WARNING: --no-verify allowed by MB_ALLOW_NO_VERIFY=1 (bypass safety hooks)" >&2
+  else
+    echo "BLOCKED: --no-verify bypasses safety hooks" >&2
+    echo "         override (one-off): MB_ALLOW_NO_VERIFY=1 git commit --no-verify ..." >&2
+    exit 2
+  fi
 fi
 
 # WARN: рискованные команды (не блокируют, только feedback)

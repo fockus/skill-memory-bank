@@ -10,7 +10,7 @@ Three-in-one skill для Claude Code: (1) Long-term project memory через `
 - Python-скрипты: 1 (`merge-hooks.py`, без тестов — Этап 6)
 - Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `mb-codebase-mapper`)
 - Команды: **18** в `commands/` (после слияния `/mb init` + `/mb:setup-project`)
-- Bats tests: **132/132 green** (117 unit + 15 e2e install/uninstall)
+- Bats tests: **143/143 green** (117 unit + 15 e2e + 11 hooks)
 - Python tests: **16/16 green** (`test_merge_hooks.py`), **92% coverage** на `settings/merge-hooks.py` (порог 85%)
 - Shellcheck warnings: **0**
 - Ruff: **0 errors** (settings/ + tests/pytest/)
@@ -36,9 +36,10 @@ Three-in-one skill для Claude Code: (1) Long-term project memory через `
 - **Этап 4: Автоматизация consistency-chain** — `mb-plan-sync.sh` + `mb-plan-done.sh`, 18 bats-тестов, интеграция в `/mb plan` и `mb-doctor`
 - **Этап 5: Ecosystem integration** — Task→Agent (0 legacy), SKILL.md frontmatter fix, `/mb init [--minimal|--full]` (merged with setup-project), coexistence с native memory, three-in-one README, rules для frontend (FSD) и mobile (iOS/Android)
 - **Этап 6: Tests + CI** — pytest (16/16, 92% coverage), e2e install/uninstall (15/15, isolated HOME), GitHub Actions matrix macos+ubuntu, shellcheck+ruff lint job, **2 real bugs fixed** найденные e2e: missing marker + macOS realpath
+- **Этап 7: Hooks fixes** — `file-change-log.sh` без `pass`-false-positive, TODO skip in docstrings, log rotation 10MB→.log.1/2/3. `block-dangerous.sh` с `MB_ALLOW_NO_VERIFY=1` bypass. 11 новых hook-тестов
 
 ### 🔧 В работе
-- **Этап 7: Hooks fixes** — file-change-log false-positives, log rotation, MB_ALLOW_NO_VERIFY bypass, merge-hooks дедупликация с id-маркером
+- **Этап 8: index.json прагматично** — frontmatter index для notes/+lessons/, `mb-search --tag` через index
 
 ### ⬜ Далее
 - **Этап 7**: Hooks — fixes (false-positives, log rotation, bypass)
