@@ -28,6 +28,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `done` | Завершение сессии (actualize + note + progress) |
 | `plan <type> <topic>` | Создать план |
 | `verify` | Верификация выполнения плана (план vs код) |
+| `map [focus]` | Просканировать кодовую базу и записать MD-документы в `.memory-bank/codebase/`. focus: stack / arch / quality / concerns / all (default: all) |
 | `init` | Инициализировать Memory Bank в новом проекте |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
@@ -187,6 +188,39 @@ Task(
 5. Если есть WARNING — сообщи пользователю и спроси нужно ли исправлять.
 
 **ВАЖНО:** `/mb verify` **ОБЯЗАТЕЛЬНО** вызывается перед `/mb done` если работа велась по плану. Не закрывай план без верификации.
+
+### map [focus]
+
+Сканирование кодовой базы и генерация структурированных MD-документов в `.memory-bank/codebase/`.
+
+Значения `focus` (первое слово после `map`):
+- `stack` — только STACK.md (языки, runtime, интеграции)
+- `arch` — только ARCHITECTURE.md (слои, структура, точки входа)
+- `quality` — только CONVENTIONS.md (naming, стиль, тестирование)
+- `concerns` — только CONCERNS.md (tech debt, риски)
+- `all` (default, если focus не указан) — все 4 документа
+
+Запусти MB Codebase Mapper subagent:
+
+```
+Agent(
+  prompt="<содержимое ~/.claude/skills/memory-bank/agents/mb-codebase-mapper.md>
+
+focus: <stack|arch|quality|concerns|all>
+
+Проанализируй текущий проект и запиши MD-документы напрямую в `.memory-bank/codebase/`. Используй `mb-metrics.sh` для детекции стека, следуй шаблонам ≤70 строк, возвращай только confirmation.",
+  subagent_type="general-purpose",
+  model="sonnet",
+  description="MB Codebase Mapper: focus=<focus>"
+)
+```
+
+**После завершения:**
+- Новые/обновлённые MD лежат в `.memory-bank/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md`
+- `/mb context` теперь автоматически показывает 1-строчный summary каждого MD
+- `/mb context --deep` показывает полное содержимое codebase-документов
+
+Сообщи пользователю: какие документы созданы/обновлены, определённый стек, предложи `/mb context --deep` для полного контекста.
 
 ### init
 

@@ -58,4 +58,46 @@
   - `mb-metrics.sh tests/fixtures/go` → `go test ./...`, `go vet ./...`, `src_count=1`
 - **Shellcheck**: 0 warnings
 - **Grep-проверка**: 0 вхождений `.venv/bin`/`src/taskloom`/`pytest -q` в `commands/` и `agents/` (legitimate references остались только в `_lib.sh` как return values и в `.memory-bank/` как планирование)
-- Следующий шаг: Этап 3 (`mb-codebase-mapper` — адаптация orphan-агента)
+- Следующий шаг: Этап 2.1 → 2.2 → 3
+
+### Этап 2.1: Java/Kotlin/Swift/C++ (коммит 69f9422)
+- Расширение language coverage: 4 новых стека добавлены в `_lib.sh`
+- Java: `pom.xml`/`build.gradle` → mvn test + checkstyle
+- Kotlin: `build.gradle.kts` (приоритет) → gradle test + detekt
+- Swift: `Package.swift` → swift test + swiftlint
+- C/C++ (unified `cpp` tag): `CMakeLists.txt`/`meson.build` → ctest + cppcheck
+- Fixtures: java/kotlin/swift/cpp — все прошли detection + src_count
+- Tests: 46 → 66 (+20), все green
+
+### Этап 2.2: Ruby/PHP/C#/Elixir (коммит 4ad08aa)
+- Ещё 4 стека — теперь **12 общих** (+ multi + unknown)
+- Ruby: `Gemfile` → rspec + rubocop
+- PHP: `composer.json` → phpunit + phpstan
+- C#: glob-matching `*.csproj`/`*.sln` через compgen → dotnet test + dotnet format
+- Elixir: `mix.exs` → mix test + credo
+- Tests: 66 → 86 (+20), все green
+
+### Этап 3: mb-codebase-mapper (memory-bank-native)
+- **TDD red**: `tests/bats/test_context_integration.bats` — 7 тестов для `mb-context.sh --deep` и integrated codebase summary
+- Первый прогон: 5 red (includes/summary/--deep), 2 green (graceful без codebase/)
+- **TDD green**: обновлён `scripts/mb-context.sh`
+  - Новый флаг `--deep` (парсится перед path-arg)
+  - Секция "Codebase summary" при наличии `.memory-bank/codebase/*.md`
+  - Default mode: 1-строчный summary каждого MD (первая не-заголовочная строка)
+  - --deep mode: полное содержимое
+  - Graceful: без codebase/ — секция пропускается
+- Финальный прогон: 7/7 green
+- **Адаптация агента**:
+  - `agents/codebase-mapper.md` (770 строк, orphan GSD) → `agents/mb-codebase-mapper.md` (316 строк, -59%)
+  - Frontmatter: `name: mb-codebase-mapper`, color: cyan, MB-native description
+  - Output path: `.planning/codebase/` → `.memory-bank/codebase/`
+  - Шаблоны: 6 → 4 (STACK+INTEGRATIONS объединены; ARCH+STRUCTURE объединены; CONVENTIONS+TESTING объединены; CONCERNS)
+  - Каждый шаблон ≤70 строк (закреплено в `<critical_rules>`)
+  - Агент вызывает `mb-metrics.sh` для детекции стека — leveraging Этап 2
+  - Forbidden files list сохранён (security: .env, credentials, *.pem и т.д.)
+- **Команда `/mb map [focus]`** в `commands/mb.md`: stack|arch|quality|concerns|all (default: all)
+- **Обновления экосистемы**: install.sh banner, uninstall.sh manual cleanup list, README.md agents-таблица — всё ссылается на `mb-codebase-mapper`
+- Total bats: **93/93 green** (86 + 7 context-integration)
+- Shellcheck: 0 warnings
+- **Устранено**: пункт #1 из аудита (orphan codebase-mapper). `.planning/codebase/` refs больше нет в skill-коде (только 1 legitimate reference в `codebase/map-codebase.md` — GSD command template, не skill-файл)
+- Следующий шаг: Этап 4 (`mb-plan-sync.sh` — автоматизация consistency-chain)

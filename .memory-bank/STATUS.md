@@ -8,14 +8,15 @@
 ## Ключевые метрики
 - Shell-скрипты: 9 (`_lib.sh`, `mb-metrics.sh` + 5 refactored + 2 hook)
 - Python-скрипты: 1 (`merge-hooks.py`, без тестов — Этап 6)
-- Агенты: 4 (`mb-manager` ✅, `mb-doctor` ✅ language-agnostic, `plan-verifier`, `codebase-mapper` — orphan, Этап 3)
-- Команды: 19 в `commands/` (`mb.md` ✅ language-agnostic, консолидация остального в Этапе 5)
-- Bats tests: **46/46 green** (`test_lib.bats` 36 + `test_metrics.bats` 10)
+- Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `mb-codebase-mapper` — все MB-native)
+- Команды: 19 в `commands/` (`/mb` теперь с подкомандой `map`)
+- Bats tests: **93/93 green** (`test_lib.bats` 56 + `test_metrics.bats` 30 + `test_context_integration.bats` 7)
 - Python tests: 0 (Этап 6-8)
 - Shellcheck warnings: **0** (с `-x --source-path=SCRIPTDIR`)
 - CI: отсутствует (Этап 6)
-- Fixtures: 6 стеков (python, go, rust, node, multi, unknown)
+- Fixtures: 12 стеков (python, go, rust, node, java, kotlin, swift, cpp, ruby, php, csharp, elixir + multi + unknown)
 - Hardcoded `pytest`/`ruff`/`taskloom` в operational code: **0**
+- Orphan-агенты: **0** (`codebase-mapper` → `mb-codebase-mapper`)
 
 ## Roadmap
 
@@ -23,11 +24,14 @@
 - **Аудит skill v1**: выявлено 36 проблем, сгруппировано по критичности
 - **План рефактора v2**: 10 этапов с DoD SMART, TDD, рисками, Gate
 - **Этап 0: Dogfood init** — `.memory-bank/` инициализирован в репо, план сохранён, коммит `637dd84`
-- **Этап 1: DRY + language detection** — `_lib.sh` (7 функций, 150 строк), 36 bats-тестов, 5 скриптов рефакторены, коммит `722fbc5`
-- **Этап 2: Language-agnostic metrics** — `mb-metrics.sh` + 10 bats-тестов, `/mb update` и `mb-doctor` без Python-хардкода, override-механизм
+- **Этап 1: DRY + language detection** — `_lib.sh` (7 функций), 36 bats-тестов, 5 скриптов рефакторены, коммит `722fbc5`
+- **Этап 2: Language-agnostic metrics** — `mb-metrics.sh` + override, `/mb update` и `mb-doctor` без Python-хардкода, коммит `4695a1f`
+- **Этап 2.1: Java/Kotlin/Swift/C++** — +20 bats-тестов, 4 новых fixture-стека, коммит `69f9422`
+- **Этап 2.2: Ruby/PHP/C#/Elixir** — +20 bats-тестов, 4 новых fixture-стека, коммит `4ad08aa`
+- **Этап 3: mb-codebase-mapper** — orphan агент адаптирован (316 vs 770 строк), `/mb map` команда, интеграция в `/mb context --deep`
 
 ### 🔧 В работе
-- **Этап 3: `mb-codebase-mapper`** — адаптация orphan-агента под Memory Bank (output → `.memory-bank/codebase/`)
+- **Этап 4: Автоматизация consistency-chain** — `mb-plan-sync.sh` для синхронизации plan↔checklist↔STATUS
 
 ### ⬜ Далее
 - **Этап 4**: Автоматизация consistency-chain (plan-sync)

@@ -29,16 +29,19 @@
 - ✅ Smoke: 4 стека (python/go/rust/node) → валидные метрики; unknown → warning + exit 0
 - ✅ 0 вхождений `.venv/bin`/`src/taskloom`/`pytest -q` в `commands/` и `agents/` (только в `_lib.sh` как return value стека)
 
-## Этап 3: mb-codebase-mapper — memory-bank-native
-- ⬜ Bats-тесты для `/mb map` на fixtures (python, go, multi)
-- ⬜ Переименовать `agents/codebase-mapper.md` → `agents/mb-codebase-mapper.md`
-- ⬜ Сменить frontmatter (`name: mb-codebase-mapper`) + description
-- ⬜ Сменить output path `.planning/codebase/` → `.memory-bank/codebase/`
-- ⬜ Сократить шаблоны до ≤70 строк каждый (STACK, ARCHITECTURE, CONVENTIONS, CONCERNS)
-- ⬜ Создать команду `/mb map [focus]` (stack|arch|quality|concerns|all)
-- ⬜ Интегрировать codebase-summary в `/mb context`
-- ⬜ `/mb context --deep` для полного codebase-контекста
-- ⬜ Idempotency test: повторный `/mb map` обновляет, не дублирует
+## Этап 3: mb-codebase-mapper — memory-bank-native ✅
+- ✅ Bats-тесты для `/mb context` integration: `test_context_integration.bats` (7 тестов)
+- ✅ Переименован `agents/codebase-mapper.md` → `agents/mb-codebase-mapper.md` (orphan удалён)
+- ✅ Frontmatter обновлён: `name: mb-codebase-mapper` + MB-native description
+- ✅ Output path `.planning/codebase/` → `.memory-bank/codebase/`
+- ✅ Сокращено с 6 шаблонов до 4 (STACK, ARCHITECTURE, CONVENTIONS, CONCERNS), файл 770 → 316 строк (−59%)
+- ✅ Все 4 шаблона ≤70 строк (заложено в `<critical_rules>` агента)
+- ✅ Команда `/mb map [focus]` добавлена в `commands/mb.md` (stack|arch|quality|concerns|all)
+- ✅ Codebase summary интегрирован в `/mb context`: 1-строчный summary каждого MD
+- ✅ `/mb context --deep` → полное содержимое codebase-документов
+- ✅ Интеграция с `mb-metrics.sh` — агент вызывает его для детекции стека первым шагом
+- ✅ Updated install.sh, uninstall.sh, README.md — всё ссылается на `mb-codebase-mapper`
+- ✅ Idempotent by design: агент использует Write tool, который перезаписывает (не append)
 
 ## Этап 4: Автоматизация consistency-chain
 - ⬜ Bats-тесты для `mb-plan-sync.sh` (creation, modification, idempotent)

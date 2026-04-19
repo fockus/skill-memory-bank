@@ -88,7 +88,7 @@ When initialized in a project (`.memory-bank/`):
 | `mb-doctor` | Diagnose and repair memory bank issues |
 | `mb-manager` | Automated memory bank updates (sonnet) |
 | `plan-verifier` | Verify plan completion vs code |
-| `codebase-mapper` | Map and document codebase structure |
+| `mb-codebase-mapper` | Scan codebase, write structured MDs (STACK/ARCHITECTURE/CONVENTIONS/CONCERNS) to `.memory-bank/codebase/` — integrated with `/mb context` |
 
 ## Hooks
 
