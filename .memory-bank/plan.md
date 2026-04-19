@@ -15,21 +15,6 @@
 ## Active plan
 
 <!-- mb-active-plan -->
-### План 2026-04-20 refactor skill-v2.1
-
-**Статус:** 0/9 этапов выполнено
-
-- ⬜ Этап 1: Auto-capture через SessionEnd hook (v2.1)
-- ⬜ Этап 2: Drift checkers без AI (`mb-drift.sh`) (v2.1)
-- ⬜ Этап 3: PII markers `<private>...</private>` (v2.1)
-- ⬜ Этап 4: Compaction decay `/mb compact` (v2.1)
-- ⬜ Этап 5: Import from Claude Code JSONL (v2.2)
-- ⬜ Этап 6: Tree-sitter code graph в `codebase/` (v2.2)
-- ⬜ Этап 7: Tags normalization (v2.2)
-- ⬜ Этап 8: Cross-agent output — Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code (v3.0)
-- ⬜ Этап 9: pipx/PyPI distribution + Homebrew tap (v3.0)
-
-Полный план: `.memory-bank/plans/2026-04-20_refactor_skill-v2.1.md`
 <!-- /mb-active-plan -->
 
 ## Ближайшие шаги

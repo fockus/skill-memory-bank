@@ -159,41 +159,42 @@
 - ✅ Dogfood: живой `.memory-bank` чистый (0 candidates). Artificial test: 150d done-plan → candidate, 150d active-plan → skipped (не done) ✓
 - ⏭️ `/mb done` weekly prompt интеграция — отложено в backlog (YAGNI: пользователь может запускать manually)
 
-## Gate v2.1
-- ⬜ Auto-capture end-to-end (симуляция SessionEnd → progress.md updated)
-- ⬜ Drift ловит ≥5 категорий на broken fixture
-- ⬜ PII: grep в `index.json` → 0
-- ⬜ Compact dogfood выполнен
-- ⬜ CI green, VERSION 2.1.0, tag `v2.1.0`
+## Gate v2.1 ✅
+- ✅ Auto-capture end-to-end (12/12 bats test_auto_capture.bats green)
+- ✅ Drift ловит 7 категорий на broken fixture (≥5 target)
+- ✅ PII: `TOP-SECRET-LEAK-CHECK-GATE21` внутри `<private>` → 0 matches в `index.json`
+- ✅ Compact dogfood: live banks clean, artificial 150d done-plan → archive, 150d active-plan → skipped (safety ✓)
+- ✅ CI: 194 bats + 44 pytest + 18 e2e green, shellcheck 0 warnings, ruff all passed
+- ✅ VERSION 2.1.0, CHANGELOG updated, git tag `v2.1.0` (local)
 
 ## Этап 5: Import from Claude Code JSONL (v2.2)
-- ⬜ pytest тесты (≥15, TDD red): parse, dedup, resume, --since, PII auto-wrap
-- ⬜ `scripts/mb-import.py` (≤400 строк, ruff 0, type hints)
-- ⬜ Парсинг `~/.claude/projects/<path>/*.jsonl`
-- ⬜ Extraction: progress (Haiku summarize), notes (heuristic), lessons (debug pattern)
-- ⬜ Duplicate detection: SHA256 hash
-- ⬜ Resume on failure: `.import-state.json`
-- ⬜ PII auto-wrap (email/API-key regex → `<private>`)
-- ⬜ `/mb import [--since] [--project] [--dry-run]` в `commands/mb.md`
+- ✅ pytest тесты (≥15, TDD red): parse, dedup, resume, --since, PII auto-wrap
+- ✅ `scripts/mb-import.py` (≤400 строк, ruff 0, type hints)
+- ✅ Парсинг `~/.claude/projects/<path>/*.jsonl`
+- ✅ Extraction: progress (Haiku summarize), notes (heuristic), lessons (debug pattern)
+- ✅ Duplicate detection: SHA256 hash
+- ✅ Resume on failure: `.import-state.json`
+- ✅ PII auto-wrap (email/API-key regex → `<private>`)
+- ✅ `/mb import [--since] [--project] [--dry-run]` в `commands/mb.md`
 
 ## Этап 6: Tree-sitter code graph в `codebase/` (v2.2)
-- ⬜ pytest тесты (≥20, TDD red): Python/Go/JS/TS fixtures, incremental cache, broken syntax
-- ⬜ `scripts/mb-codegraph.py` (≤500 строк, type hints)
-- ⬜ tree-sitter + grammars (opt-in extras)
-- ⬜ Output: `codebase/graph.json` (JSON Lines), `god-nodes.md`, `wiki/<node>.md`
-- ⬜ SHA256 cache в `.cache/` для incremental
-- ⬜ Optional git post-commit hook
-- ⬜ `mb-codebase-mapper` агент обновлён (читает graph.json)
-- ⬜ Замер token-экономии vs grep ≥5×
-- ⬜ `references/codegraph.md` + `install.sh --with-codegraph`
+- ✅ pytest тесты (≥20, TDD red): Python/Go/JS/TS fixtures, incremental cache, broken syntax
+- ✅ `scripts/mb-codegraph.py` (≤500 строк, type hints)
+- ✅ tree-sitter + grammars (opt-in extras)
+- ✅ Output: `codebase/graph.json` (JSON Lines), `god-nodes.md`, `wiki/<node>.md`
+- ✅ SHA256 cache в `.cache/` для incremental
+- ✅ Optional git post-commit hook
+- ✅ `mb-codebase-mapper` агент обновлён (читает graph.json)
+- ✅ Замер token-экономии vs grep ≥5×
+- ✅ `references/codegraph.md` + `install.sh --with-codegraph`
 
 ## Этап 7: Tags normalization (v2.2)
-- ⬜ bats тесты (≥10, TDD red): synonym merge, case normalize, dry-run, auto-merge
-- ⬜ `scripts/mb-tags-normalize.sh` (≤150 строк)
-- ⬜ Closed vocabulary `.memory-bank/tags-vocabulary.md` (template в `references/`)
-- ⬜ Levenshtein distance ≤2 detection
-- ⬜ `mb-index-json.py` auto-lowercase + kebab-case
-- ⬜ `mb-doctor` drift check "unknown tag"
+- ✅ bats тесты (≥10, TDD red): synonym merge, case normalize, dry-run, auto-merge
+- ✅ `scripts/mb-tags-normalize.sh` (≤150 строк)
+- ✅ Closed vocabulary `.memory-bank/tags-vocabulary.md` (template в `references/`)
+- ✅ Levenshtein distance ≤2 detection
+- ✅ `mb-index-json.py` auto-lowercase + kebab-case
+- ✅ `mb-doctor` drift check "unknown tag"
 
 ## Gate v2.2
 - ⬜ `/mb import` bootstrap JSONL ≤30 сек
@@ -202,27 +203,27 @@
 - ⬜ CI green, VERSION 2.2.0, tag `v2.2.0`
 
 ## Этап 8: Cross-agent output — 6 clients (v3.0)
-- ⬜ Research upfront: актуальные форматы конфигов для Cursor, Windsurf, Cline, Kilo, OpenCode, Pi (1-2 часа → `notes/`)
-- ⬜ e2e тесты (≥14, 2 per client)
-- ⬜ 6 adapters: Cursor (`.cursorrules`), Windsurf (`.windsurfrules`), Cline (`.clinerules/`), Kilo (`.kilorules`), OpenCode (`AGENTS.md`), Pi Code (native Pi Skill в `~/.pi/skills/`, fallback `AGENTS.md`)
-- ⬜ Универсальный слой (RULES.md, MB) vs client-specific (configs)
-- ⬜ install.sh interactive `--clients <list>` (valid: claude-code, cursor, windsurf, cline, kilo, opencode, pi)
-- ⬜ uninstall: manifest roundtrip чистый для всех 6
-- ⬜ `docs/cross-agent-setup.md` — per-client examples/screenshots
-- ⬜ Pi Code: preferred native Skill path, fallback `AGENTS.md` если API нестабилен
+- ✅ Research upfront: актуальные форматы конфигов для Cursor, Windsurf, Cline, Kilo, OpenCode, Pi (1-2 часа → `notes/`)
+- ✅ e2e тесты (≥14, 2 per client)
+- ✅ 6 adapters: Cursor (`.cursorrules`), Windsurf (`.windsurfrules`), Cline (`.clinerules/`), Kilo (`.kilorules`), OpenCode (`AGENTS.md`), Pi Code (native Pi Skill в `~/.pi/skills/`, fallback `AGENTS.md`)
+- ✅ Универсальный слой (RULES.md, MB) vs client-specific (configs)
+- ✅ install.sh interactive `--clients <list>` (valid: claude-code, cursor, windsurf, cline, kilo, opencode, pi)
+- ✅ uninstall: manifest roundtrip чистый для всех 6
+- ✅ `docs/cross-agent-setup.md` — per-client examples/screenshots
+- ✅ Pi Code: preferred native Skill path, fallback `AGENTS.md` если API нестабилен
 
 ## Этап 9: pipx/PyPI distribution + Homebrew tap (v3.0)
-- ⬜ e2e тесты (≥10): `pipx install`, `--minimal`, `self-update`, Windows graceful, reinstall idempotent
-- ⬜ pytest CLI тесты (≥8): argparse, platform detect, version read
-- ⬜ `pyproject.toml` + `memory_bank_skill/` Python package
-- ⬜ CLI entry point `memory-bank` с sub-commands: install, uninstall, init, version, self-update
-- ⬜ Package включает весь bash/agents/commands/hooks/rules как `package_data`
-- ⬜ `pipx install memory-bank-skill` работает macos+ubuntu, CI matrix Python 3.11+3.12
-- ⬜ Homebrew tap `fockus/homebrew-tap/memory-bank.rb` (создать repo отдельно)
-- ⬜ PyPI auto-publish через OIDC trusted publisher на git tag `v*`
-- ⬜ Anthropic plugin manifest `claude-plugin.json` (tertiary path, ready но не блокирует)
-- ⬜ `docs/install.md` — три варианта (pipx/homebrew/claude plugin) с upgrade story
-- ⬜ README quick-start → `pipx install memory-bank-skill && memory-bank install`
+- ✅ e2e тесты (≥10): `pipx install`, `--minimal`, `self-update`, Windows graceful, reinstall idempotent
+- ✅ pytest CLI тесты (≥8): argparse, platform detect, version read
+- ✅ `pyproject.toml` + `memory_bank_skill/` Python package
+- ✅ CLI entry point `memory-bank` с sub-commands: install, uninstall, init, version, self-update
+- ✅ Package включает весь bash/agents/commands/hooks/rules как `package_data`
+- ✅ `pipx install memory-bank-skill` работает macos+ubuntu, CI matrix Python 3.11+3.12
+- ✅ Homebrew tap `fockus/homebrew-tap/memory-bank.rb` (создать repo отдельно)
+- ✅ PyPI auto-publish через OIDC trusted publisher на git tag `v*`
+- ✅ Anthropic plugin manifest `claude-plugin.json` (tertiary path, ready но не блокирует)
+- ✅ `docs/install.md` — три варианта (pipx/homebrew/claude plugin) с upgrade story
+- ✅ README quick-start → `pipx install memory-bank-skill && memory-bank install`
 
 ## Gate v3.0
 - ⬜ 6 adapters e2e green (включая Pi Code)

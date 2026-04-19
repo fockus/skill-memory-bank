@@ -2,6 +2,49 @@
 
 Все значимые изменения документируются здесь. Формат — [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), версионирование — [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] — 2026-04-20
+
+Hardening release: auto-capture при забытом `/mb done`, detection drift без AI, защита PII в заметках, status-based decay для старых планов и заметок.
+
+### Added
+
+- **Auto-capture SessionEnd hook** (`hooks/session-end-autosave.sh`) — если сессия закрылась без `/mb done`, hook добавляет placeholder-запись в `progress.md`. Lock-файл `.memory-bank/.session-lock` пишется командой `/mb done` → hook видит свежий lock (<1h) и пропускает auto-capture. `MB_AUTO_CAPTURE` env: `auto` (default) / `strict` / `off`. Concurrent-safe через `.auto-lock` (30s TTL). Идемпотентен по session_id.
+- **Drift checkers без AI** (`scripts/mb-drift.sh`) — 8 deterministic checkers (path, staleness, script_coverage, dependency, cross_file, index_sync, command, frontmatter). Output: `drift_check_<name>=ok|warn|skip` + `drift_warnings=N`. Exit 0 если 0 warnings, 1 иначе. `agents/mb-doctor.md` Step 0 = `mb-drift.sh` → LLM call только если `drift_warnings > 0`. Экономит AI-токены.
+- **PII markers `<private>...</private>`** в notes — содержимое блоков не попадает в `index.json` (summary + tags filtered), при `mb-search` заменяется на `[REDACTED]` (inline) или `[REDACTED match in private block]` (multi-line). Unclosed `<private>` fail-safe: хвост до EOF считается приватным. Entries получают `has_private: bool` флаг. `--show-private` требует `MB_SHOW_PRIVATE=1` env (double-confirmation). `hooks/file-change-log.sh` warnит при Write/Edit `.md` файла с `<private>` блоком.
+- **Compaction decay `/mb compact`** (`scripts/mb-compact.sh`) — status-based archival: требует **age > threshold AND done-signal**. Active планы (not done) **НЕ архивируются** даже >180d — warning only. Done-signal (OR): файл физически в `plans/done/`, ИЛИ метка `✅`/`[x]` в `checklist.md`, ИЛИ упоминание как "завершён|done|closed|shipped" в `progress.md`/`STATUS.md`. Notes — `importance: low` + mtime >90d + нет референсов в core файлах. `--dry-run` (default) reasoning only, `--apply` выполняет + touch `.last-compact`. Entries из `notes/archive/` получают `archived: bool` флаг. `mb-search --include-archived` — opt-in для поиска в архиве.
+
+### Changed
+
+- **`agents/mb-doctor.md`** — Step 0 теперь вызов `mb-drift.sh`; LLM-шаги (1-4) выполняются только при drift_warnings > 0 или `doctor-full`.
+- **`scripts/mb-index-json.py`** — парсер `<private>` блоков, `has_private: bool` + `archived: bool` fields в entry schema.
+- **`scripts/mb-search.sh`** — span-aware Python filter для REDACTED replacement. `--show-private` + `--include-archived` флаги.
+- **`settings/hooks.json`** — добавлен SessionEnd event для auto-capture.
+- **`commands/mb.md`** — `/mb done` пишет `.session-lock`. Секция `/mb compact` с полной status-based логикой и примерами.
+- **`SKILL.md`** — секции "Private content" и "Auto-capture".
+- **`references/metadata.md`** — schema extended с `has_private` + `archived` fields.
+
+### Tests
+
+- bats: **194** (20 test_compact + 4 test_search_archived + 5 test_search_private + 20 test_drift + 12 test_auto_capture + регрессии).
+- pytest: **44** (7 PII + 2 archived + регрессии).
+- e2e: 18 install/uninstall (включая SessionEnd hook roundtrip).
+- shellcheck: 0 warnings (SC1091 info expected для `source _lib.sh`).
+- ruff: all passed.
+
+### Gate v2.1 — passed ✅
+
+1. ✅ Auto-capture end-to-end: симулированный SessionEnd → `progress.md` обновлён без `/mb done`.
+2. ✅ `mb-drift.sh` на broken fixture: 7 warnings из 8 categories (≥5 target).
+3. ✅ PII security smoke: `TOP-SECRET-LEAK-CHECK-GATE21` внутри `<private>` → **0 matches** в `index.json`.
+4. ✅ `/mb compact` dogfood: живой banks чистый (0 candidates), artificial 150d done-plan → archive, 150d active-plan → не archive (safety works).
+5. ✅ CI matrix `[macos, ubuntu]` × (bats + e2e + pytest) green.
+
+### Deferred to backlog
+
+- LLM upgrade для auto-capture (сейчас append-only, детали дочитывает `/mb start` из JSONL).
+- `/mb done` weekly prompt для compaction check.
+- Pre-commit drift hook как отдельный file (YAGNI, документирован в `references/templates.md`).
+
 ## [2.0.0] — 2026-04-19
 
 Крупный рефакторинг: skill становится language-agnostic, tested, CI-covered, integrated с экосистемой Claude Code. Три концепта под одной крышей: **Memory Bank + RULES + dev toolkit**.
