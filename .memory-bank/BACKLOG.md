@@ -9,7 +9,7 @@
 - **Bridge to native Claude Code memory**: двунаправленная синхронизация ключевых записей между `.memory-bank/` и `~/.claude/projects/.../memory/`. Сейчас только документация coexistence (Этап 5).
 - **Auto-commit hook**: после `/mb done` автоматически создавать `chore(mb): ...` commit с дельтой `.memory-bank/`. Защищает от потери состояния при переключении веток.
 - **`/mb graph`**: визуализация связей plan→checklist→STATUS→progress для больших проектов. Подпитывает contextual recall.
-- **Stage 6.5 — Tree-sitter adapter для non-Python языков (opt-in extras)**: после Stage 6 (Python-only через `ast`) добавить tree-sitter backend через `pip install memory-bank-skill[codegraph]`. Drop-in replacement: same JSON schema, same agent interface. Purchases: Go/Rust/JS/TS/Java/Kotlin/Swift/C++/Ruby grammars. Trigger: 2+ пользователя с multi-language stack, или дог-фуд на non-Python проекте. [2026-04-20, corrected from original Stage 6 scope]
+- ✅ **Stage 6.5 — Tree-sitter adapter для non-Python языков**: **SHIPPED 2026-04-20.** Реализовано в `mb-codegraph.py` — 6 языков (Go/JS/TS/Rust/Java + Python). `HAS_TREE_SITTER` флаг проверяет наличие; без него Python-only (v1 behavior). 14 bats (pytest) тестов зелёные. User install: `pip install tree-sitter tree-sitter-python tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java`. Future additions (C/C++, Ruby, PHP, Kotlin, Swift) — просто добавить запись в `_TS_LANG_CONFIG` по запросу.
 
 ### LOW
 

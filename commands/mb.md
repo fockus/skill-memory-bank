@@ -32,7 +32,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `upgrade` | Обновить skill из GitHub (git pull + re-install). Флаги: `--check` (только проверить), `--force` (без подтверждения) |
 | `compact [--dry-run\|--apply]` | Status-based decay: plans в done/ >60d → BACKLOG archive, low-importance notes >90d → notes/archive/. Active планы НЕ трогаются. `--dry-run` (default) — reasoning only |
 | `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB из Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extract: progress.md (daily), notes/ (arch discussions heuristic), PII auto-wrap. Dedup SHA256 + resume state |
-| `graph [--apply] [src_root]` | Python code graph через stdlib `ast`: nodes (functions/classes/modules) + edges (imports/calls/inherits). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache. Non-Python — Stage 6.5 backlog (tree-sitter opt-in) |
+| `graph [--apply] [src_root]` | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in через `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache |
 | `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
@@ -434,10 +434,18 @@ User: /mb graph --apply
 
 **Интеграция с `mb-codebase-mapper`:** агент использует `graph.json` как источник для разделов CONVENTIONS и CONCERNS вместо grep (backlog для v2.3).
 
-**Ограничения v1 (Python-only):**
-- Tree-sitter adapter для Go/Rust/JS/TS/Java/etc — Stage 6.5 opt-in extras в backlog. Проект с не-Python кодом получит только `.py` покрытие
-- Type inference отсутствует — edges работают на именах (call к `foo()` не различает модули с одноимённой функцией). Разрешение имён через imports — TODO
+**Поддержка языков (v2.2 + Stage 6.5):**
+- **Всегда работает** (stdlib ast): Python (`.py`)
+- **Opt-in** (требует tree-sitter + grammars): Go (`.go`), JavaScript (`.js`/`.jsx`/`.mjs`), TypeScript (`.ts`/`.tsx`), Rust (`.rs`), Java (`.java`)
+- Install tree-sitter: `pip install tree-sitter tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java`
+- Без tree-sitter: non-Python файлы тихо пропускаются (graceful degradation). `HAS_TREE_SITTER` флаг в скрипте отражает статус
+- Skipped directories: `.venv`, `node_modules`, `__pycache__`, `.git`, `target`, `dist`, `build`, любые `.*`
+
+**Ограничения:**
+- Type inference отсутствует — edges работают на именах (call к `foo()` не различает модули с одноимённой функцией). Разрешение имён через imports — TODO v2.3+
+- Tree-sitter extractor упрощён (MVP): не все edge cases языка — если увидишь пропущенный узел, open issue
 - `god-nodes.md` wiki/ per-node documentation — отложено (YAGNI до реального запроса)
+- C/C++/Ruby/PHP/Kotlin/Swift — не поддержаны (добавить по требованию через новую запись в `_TS_LANG_CONFIG`)
 
 ### init [--minimal|--full]
 

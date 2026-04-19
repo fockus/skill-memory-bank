@@ -30,6 +30,239 @@ from typing import Any
 
 TOP_GOD_NODES = 20
 
+# ═══ Tree-sitter adapter (Stage 6.5 — opt-in) ═══
+# Languages загружаются лениво. Если tree-sitter или соответствующий binding
+# не установлены, обработчик просто отсутствует и файлы этого типа пропускаются
+# (с warning). Python всегда работает через stdlib ast.
+HAS_TREE_SITTER = False
+_TS_PARSERS: dict[str, Any] = {}
+try:
+    from tree_sitter import Language, Parser  # noqa: PLC0415
+    HAS_TREE_SITTER = True
+except ImportError:
+    pass
+
+
+# Config: extension → (language_name, module_import_name)
+_TS_LANG_CONFIG = {
+    ".go":  ("go", "tree_sitter_go"),
+    ".js":  ("javascript", "tree_sitter_javascript"),
+    ".mjs": ("javascript", "tree_sitter_javascript"),
+    ".jsx": ("javascript", "tree_sitter_javascript"),
+    ".ts":  ("typescript", "tree_sitter_typescript"),
+    ".tsx": ("tsx", "tree_sitter_typescript"),
+    ".rs":  ("rust", "tree_sitter_rust"),
+    ".java": ("java", "tree_sitter_java"),
+}
+
+
+def _get_ts_parser(lang_name: str, module_name: str) -> Any | None:
+    """Lazy-load tree-sitter parser for a language. Returns None on failure."""
+    if not HAS_TREE_SITTER:
+        return None
+    if lang_name in _TS_PARSERS:
+        return _TS_PARSERS[lang_name]
+    try:
+        mod = __import__(module_name)
+    except ImportError:
+        _TS_PARSERS[lang_name] = None
+        return None
+    try:
+        # typescript module имеет language_typescript() / language_tsx()
+        if lang_name == "typescript":
+            lang_fn = getattr(mod, "language_typescript", None) or getattr(mod, "language", None)
+        elif lang_name == "tsx":
+            lang_fn = getattr(mod, "language_tsx", None) or getattr(mod, "language", None)
+        else:
+            lang_fn = getattr(mod, "language", None)
+        if lang_fn is None:
+            _TS_PARSERS[lang_name] = None
+            return None
+        lang = Language(lang_fn())
+        parser = Parser(lang)
+        _TS_PARSERS[lang_name] = parser
+        return parser
+    except Exception as e:  # noqa: BLE001 — robust fallback
+        print(f"[warn] tree-sitter {lang_name}: {e}", file=sys.stderr)
+        _TS_PARSERS[lang_name] = None
+        return None
+
+
+# Node type whitelists per language. Keep minimal — MVP not full semantic analysis.
+_TS_NODE_KINDS = {
+    "go": {
+        "function": ("function_declaration", "method_declaration"),
+        "class":    ("type_spec",),
+        "import":   ("import_spec",),
+        "call":     ("call_expression",),
+    },
+    "javascript": {
+        "function": ("function_declaration", "method_definition", "arrow_function"),
+        "class":    ("class_declaration",),
+        "import":   ("import_statement",),
+        "call":     ("call_expression",),
+        "inherit":  ("class_heritage",),
+    },
+    "typescript": {
+        "function": ("function_declaration", "method_definition", "method_signature"),
+        "class":    ("class_declaration", "interface_declaration"),
+        "import":   ("import_statement",),
+        "call":     ("call_expression",),
+        "inherit":  ("class_heritage", "extends_clause"),
+    },
+    "tsx": {
+        "function": ("function_declaration", "method_definition"),
+        "class":    ("class_declaration", "interface_declaration"),
+        "import":   ("import_statement",),
+        "call":     ("call_expression",),
+    },
+    "rust": {
+        "function": ("function_item",),
+        "class":    ("struct_item", "enum_item", "trait_item"),
+        "import":   ("use_declaration",),
+        "call":     ("call_expression",),
+    },
+    "java": {
+        "function": ("method_declaration", "constructor_declaration"),
+        "class":    ("class_declaration", "interface_declaration"),
+        "import":   ("import_declaration",),
+        "call":     ("method_invocation",),
+        "inherit":  ("superclass", "extends_interfaces"),
+    },
+}
+
+
+def _ts_node_text(node: Any, source: bytes) -> str:
+    return source[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+
+
+def _ts_find_name(node: Any, source: bytes) -> str:
+    """Best-effort: ищет дочерний identifier для имени функции/класса."""
+    # Try field "name" first (tree-sitter grammars typically have it)
+    name_node = node.child_by_field_name("name")
+    if name_node is not None:
+        return _ts_node_text(name_node, source)
+    # Fallback: first identifier child
+    for child in node.children:
+        if child.type in ("identifier", "type_identifier", "property_identifier",
+                          "field_identifier", "simple_identifier"):
+            return _ts_node_text(child, source)
+    return ""
+
+
+def _ts_find_call_target(node: Any, source: bytes) -> str:
+    """Для call_expression / method_invocation — имя вызываемой функции."""
+    # Go/JS/Rust: "function" field
+    fn = node.child_by_field_name("function")
+    if fn is not None:
+        return _ts_node_text(fn, source).strip()
+    # Java method_invocation: "name" field
+    name = node.child_by_field_name("name")
+    if name is not None:
+        obj = node.child_by_field_name("object")
+        if obj is not None:
+            return f"{_ts_node_text(obj, source)}.{_ts_node_text(name, source)}"
+        return _ts_node_text(name, source)
+    # Fallback: first child text trimmed
+    return _ts_node_text(node, source).split("(")[0].strip()
+
+
+def _ts_find_import_target(node: Any, source: bytes, lang: str) -> list[str]:
+    """Extract import path(s) from language-specific node."""
+    text = _ts_node_text(node, source)
+    targets: list[str] = []
+    if lang == "go":
+        # import_spec: "path" [string_literal]
+        path_node = node.child_by_field_name("path")
+        if path_node is not None:
+            targets.append(_ts_node_text(path_node, source).strip('"`'))
+    elif lang in ("javascript", "typescript", "tsx"):
+        # import_statement: source [string]
+        src_node = node.child_by_field_name("source")
+        if src_node is not None:
+            targets.append(_ts_node_text(src_node, source).strip("'\""))
+    elif lang == "rust":
+        # use_declaration: argument is the path
+        for child in node.children:
+            if child.type in ("scoped_use_list", "use_list", "scoped_identifier", "identifier"):
+                targets.append(_ts_node_text(child, source))
+                break
+        if not targets:
+            targets.append(text.removeprefix("use").rstrip(";").strip())
+    elif lang == "java":
+        # import_declaration: first identifier chain after "import"
+        for child in node.children:
+            if child.type in ("scoped_identifier", "identifier"):
+                targets.append(_ts_node_text(child, source))
+                break
+    return [t for t in targets if t]
+
+
+def _ts_find_inherit_targets(node: Any, source: bytes, lang: str) -> list[str]:
+    """Parent class/interface names for class_heritage / extends / superclass."""
+    targets: list[str] = []
+    text = _ts_node_text(node, source)
+    # Simple heuristic: identifiers in the node text. Better to walk children.
+    for child in node.children:
+        if child.type in ("identifier", "type_identifier",
+                          "type_reference", "scoped_type_identifier"):
+            targets.append(_ts_node_text(child, source))
+    if not targets and text:
+        # Fallback: strip 'extends ' / 'implements '
+        cleaned = text.replace("extends", "").replace("implements", "").strip()
+        if cleaned:
+            targets.append(cleaned.split(",")[0].strip())
+    return targets
+
+
+def _parse_ts_file(py_path: Path, src_root: Path, lang_name: str, module_name: str) -> dict[str, Any]:
+    """Parse non-Python file via tree-sitter. Returns same schema as parse_file."""
+    parser = _get_ts_parser(lang_name, module_name)
+    if parser is None:
+        raise RuntimeError(f"tree-sitter parser unavailable for {lang_name}")
+    source = py_path.read_bytes()
+    tree = parser.parse(source)
+    rel = _rel(py_path, src_root)
+    nodes: list[dict[str, Any]] = [{"kind": "module", "name": rel, "file": rel, "line": 1}]
+    edges: list[dict[str, Any]] = []
+    kinds = _TS_NODE_KINDS.get(lang_name, {})
+    func_types = kinds.get("function", ())
+    class_types = kinds.get("class", ())
+    import_types = kinds.get("import", ())
+    call_types = kinds.get("call", ())
+    inherit_types = kinds.get("inherit", ())
+
+    # Walk full tree iteratively (avoid recursion limit).
+    stack = [tree.root_node]
+    while stack:
+        n = stack.pop()
+        t = n.type
+        if t in func_types:
+            name = _ts_find_name(n, source)
+            if name:
+                nodes.append({"kind": "function", "name": name, "file": rel,
+                              "line": n.start_point[0] + 1})
+        elif t in class_types:
+            name = _ts_find_name(n, source)
+            if name:
+                nodes.append({"kind": "class", "name": name, "file": rel,
+                              "line": n.start_point[0] + 1})
+        elif t in import_types:
+            for target in _ts_find_import_target(n, source, lang_name):
+                edges.append({"src": rel, "dst": target, "kind": "import"})
+        elif t in call_types:
+            target = _ts_find_call_target(n, source)
+            if target:
+                edges.append({"src": rel, "dst": target, "kind": "call"})
+        elif t in inherit_types:
+            for target in _ts_find_inherit_targets(n, source, lang_name):
+                edges.append({"src": rel, "dst": target, "kind": "inherit"})
+        # Enqueue children
+        stack.extend(n.children)
+
+    return {"nodes": nodes, "edges": edges, "hash": _sha256(source.decode("utf-8", errors="replace")),
+            "file": rel}
+
 
 def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -213,20 +446,38 @@ def build_graph(
     if not src_root.exists():
         return {"nodes": [], "edges": [], "reparsed": 0, "cached": 0}
 
-    py_files = sorted(src_root.rglob("*.py"))
-    for py in py_files:
-        # Skip hidden dirs (like .venv, __pycache__)
-        parts = py.relative_to(src_root).parts
-        if any(p.startswith(".") or p == "__pycache__" for p in parts[:-1]):
+    # Собираем все файлы: Python via ast + tree-sitter-supported, если установлен.
+    supported_exts = {".py"}
+    if HAS_TREE_SITTER:
+        supported_exts.update(_TS_LANG_CONFIG.keys())
+
+    all_source_files: list[Path] = []
+    for ext in sorted(supported_exts):
+        all_source_files.extend(src_root.rglob(f"*{ext}"))
+    all_source_files = sorted(set(all_source_files))
+
+    for src_file in all_source_files:
+        # Skip hidden dirs (like .venv, __pycache__, node_modules)
+        try:
+            parts = src_file.relative_to(src_root).parts
+        except ValueError:
+            continue
+        skip_dirs = {".venv", "__pycache__", "node_modules", ".git", "target", "dist", "build"}
+        if any(p.startswith(".") or p in skip_dirs for p in parts[:-1]):
             continue
 
-        rel = _rel(py, src_root)
-        text: str
+        rel = _rel(src_file, src_root)
+        ext = src_file.suffix.lower()
         try:
-            text = py.read_text(encoding="utf-8")
+            if ext == ".py":
+                text = src_file.read_text(encoding="utf-8")
+                content_hash = _sha256(text)
+            else:
+                content_hash = _sha256(
+                    src_file.read_bytes().decode("utf-8", errors="replace")
+                )
         except (OSError, UnicodeDecodeError):
             continue
-        content_hash = _sha256(text)
 
         # Cache check
         if cache_dir is not None:
@@ -237,9 +488,15 @@ def build_graph(
                 cached += 1
                 continue
 
-        # Parse
+        # Dispatch parser
         try:
-            result = parse_file(py, src_root)
+            if ext == ".py":
+                result = parse_file(src_file, src_root)
+            elif ext in _TS_LANG_CONFIG and HAS_TREE_SITTER:
+                lang_name, module_name = _TS_LANG_CONFIG[ext]
+                result = _parse_ts_file(src_file, src_root, lang_name, module_name)
+            else:
+                continue
         except SyntaxError as e:
             print(f"[warn] {rel}: syntax error skipped — {e.msg}", file=sys.stderr)
             continue
