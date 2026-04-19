@@ -1,22 +1,14 @@
 #!/usr/bin/env bash
-# mb-context.sh — собирает текущий контекст из Memory Bank
+# mb-context.sh — собирает текущий контекст из Memory Bank.
 # Usage: mb-context.sh [mb_path]
-# Default path: .memory-bank/
+# Default: .memory-bank/ в cwd (или external из .claude-workspace).
 
 set -euo pipefail
 
-# Auto-resolve from .claude-workspace if no explicit path given
-if [[ -z "${1:-}" ]] && [[ -f ".claude-workspace" ]]; then
-  _WS_STORAGE=$(grep "^storage:" .claude-workspace 2>/dev/null | awk '{print $2}' | tr -d '"' || echo "local")
-  if [[ "$_WS_STORAGE" == "external" ]]; then
-    _WS_PROJECT_ID=$(grep "^project_id:" .claude-workspace 2>/dev/null | awk '{print $2}' | tr -d '"')
-    MB_PATH="$HOME/.claude/workspaces/$_WS_PROJECT_ID/.memory-bank"
-  else
-    MB_PATH=".memory-bank"
-  fi
-else
-  MB_PATH="${1:-.memory-bank}"
-fi
+# shellcheck source=_lib.sh
+source "$(dirname "$0")/_lib.sh"
+
+MB_PATH=$(mb_resolve_path "${1:-}")
 
 if [[ ! -d "$MB_PATH" ]]; then
   echo "[MEMORY BANK: INACTIVE] Директория $MB_PATH не найдена"

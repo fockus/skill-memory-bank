@@ -6,26 +6,28 @@
 Долговременная проектная память для Claude Code. Skill обеспечивает сохранение контекста между сессиями через `.memory-bank/`. Рефактор v2 делает skill language-agnostic, добавляет тесты/CI, интегрирует `mb-codebase-mapper`, устраняет дублирование и хардкод.
 
 ## Ключевые метрики
-- Shell-скрипты: 7 (без тестов)
-- Python-скрипты: 1 (`merge-hooks.py`, без тестов)
-- Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `codebase-mapper` — последний orphan)
-- Команды: 19 в `commands/`
-- Тестовое покрытие: **0%** (нарушение RULES — исправляется в Этапе 6)
-- CI: отсутствует
-- Shellcheck warnings: unknown (замер в Этапе 1)
+- Shell-скрипты: 8 (5 refactored под `_lib.sh` + `_lib.sh` сам)
+- Python-скрипты: 1 (`merge-hooks.py`, без тестов — Этап 6)
+- Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `codebase-mapper` — последний orphan, адаптируется в Этапе 3)
+- Команды: 19 в `commands/` (консолидация в Этапе 5)
+- Bats tests: **36/36 green** (`tests/bats/test_lib.bats`)
+- Python tests: 0 (Этап 6-8)
+- Shellcheck warnings: **0** (с `-x --source-path=SCRIPTDIR`)
+- CI: отсутствует (Этап 6)
+- Fixtures: 6 стеков (python, go, rust, node, multi, unknown)
 
 ## Roadmap
 
 ### ✅ Завершено
 - **Аудит skill v1**: выявлено 36 проблем, сгруппировано по критичности
 - **План рефактора v2**: 10 этапов с DoD SMART, TDD, рисками, Gate
+- **Этап 0: Dogfood init** — `.memory-bank/` инициализирован в репо, план сохранён, коммит `637dd84`
+- **Этап 1: DRY + language detection** — `_lib.sh` (7 функций, 150 строк), 36 bats-тестов зелёные, 5 скриптов рефакторены, 0 shellcheck warnings
 
 ### 🔧 В работе
-- **Этап 0: Dogfood init** — инициализация `.memory-bank/` в корне репозитория
+- **Этап 2: Language-agnostic `/mb update` и `mb-doctor`** — убрать хардкод pytest/ruff/taskloom
 
 ### ⬜ Далее
-- **Этап 1**: DRY-утилиты `_lib.sh` + language detection
-- **Этап 2**: Language-agnostic `/mb update` и `mb-doctor`
 - **Этап 3**: `mb-codebase-mapper` — memory-bank-native
 - **Этап 4**: Автоматизация consistency-chain (plan-sync)
 - **Этап 5**: Ecosystem integration (Agent tool, native memory coexistence, merge init)

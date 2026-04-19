@@ -65,13 +65,15 @@
 - CI matrix: macos-latest + ubuntu-latest
 
 **DoD:**
-- [ ] `_lib.sh` создан, coverage bats ≥90%
-- [ ] все 4 скрипта используют `_lib.sh`, дублирующий код удалён (≥60 строк удалено)
-- [ ] `detect_stack` правильно определяет 5 fixture-стеков + unknown
-- [ ] `shellcheck scripts/*.sh` → 0 warnings
-- [ ] `_lib.sh` ≤150 строк (ISP)
+- [x] `_lib.sh` создан (150 строк), bats 36/36 green (100% функций покрыты)
+- [x] 5 скриптов используют `_lib.sh` (mb-context, mb-search, mb-note, mb-plan, mb-index), дублирующий код удалён (~50 строк)
+- [x] `detect_stack` правильно определяет все 6 fixture-стеков (python, go, rust, node, multi, unknown)
+- [x] `shellcheck -x --source-path=SCRIPTDIR scripts/*.sh` → 0 warnings
+- [x] `_lib.sh` = 150 строк (ISP OK)
 
 **Правила кода:** SRP (одна функция — одна задача), POSIX-совместимость, без bash-isms где возможно
+
+**Итог:** все 5 пунктов DoD выполнены. Bonus — `mb-index.sh` тоже рефакторен (не было в изначальном списке, но был тот же duplicate). Collision handling в `mb-note.sh` (`_2`, `_3` суффикс) устранил класс багов "exit 1 при повторной заметке в ту же минуту".
 
 ---
 

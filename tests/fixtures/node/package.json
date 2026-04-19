@@ -1,0 +1,13 @@
+{
+  "name": "example-node",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "eslint": "^9.0.0"
+  }
+}

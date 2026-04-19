@@ -1,21 +1,23 @@
 # claude-skill-memory-bank — Чеклист
 
-## Этап 0: Dogfood init
+## Этап 0: Dogfood init ✅
 - ✅ Создать `.memory-bank/` структуру (experiments, plans/done, notes, reports, codebase)
 - ✅ Написать `STATUS.md`, `plan.md`, `checklist.md`, `RESEARCH.md`, `BACKLOG.md`, `progress.md`, `lessons.md`
 - ✅ Сохранить план рефактора в `plans/2026-04-19_refactor_skill-v2.md`
-- ⬜ Зафиксировать коммит `chore: dogfood — init .memory-bank for skill v2 refactor`
+- ✅ Зафиксировать коммит `chore: dogfood — init .memory-bank for skill v2 refactor` (637dd84)
 
-## Этап 1: DRY-утилиты + language detection
-- ⬜ Написать bats-тесты для `_lib.sh` (TDD red)
-- ⬜ Создать `scripts/_lib.sh` с `resolve_mb_path`, `detect_stack`, `detect_test_cmd`, `detect_lint_cmd`, `sanitize_topic`, `collision_safe_filename`
-- ⬜ Создать fixtures: `tests/fixtures/{python,go,node,rust,multi}/`
-- ⬜ Рефакторить `mb-context.sh` → source `_lib.sh`
-- ⬜ Рефакторить `mb-search.sh` → source `_lib.sh`
-- ⬜ Рефакторить `mb-note.sh` → source `_lib.sh`, collision-safe filename
-- ⬜ Рефакторить `mb-plan.sh` → source `_lib.sh`
-- ⬜ `shellcheck scripts/*.sh` → 0 warnings
-- ⬜ Bats coverage ≥90% для `_lib.sh`
+## Этап 1: DRY-утилиты + language detection ✅
+- ✅ Написать bats-тесты для `_lib.sh` (TDD red) — 36 тестов в `tests/bats/test_lib.bats`
+- ✅ Создать `scripts/_lib.sh` с 7 функциями: `mb_resolve_path`, `mb_detect_stack`, `mb_detect_test_cmd`, `mb_detect_lint_cmd`, `mb_detect_src_glob`, `mb_sanitize_topic`, `mb_collision_safe_filename`
+- ✅ Создать fixtures: `tests/fixtures/{python,go,node,rust,multi,unknown}/`
+- ✅ Рефакторить `mb-context.sh` → source `_lib.sh`
+- ✅ Рефакторить `mb-search.sh` → source `_lib.sh`
+- ✅ Рефакторить `mb-note.sh` → source `_lib.sh`, collision-safe filename
+- ✅ Рефакторить `mb-plan.sh` → source `_lib.sh` + `<!-- mb-stage:N -->` маркеры в шаблоне
+- ✅ Рефакторить `mb-index.sh` → source `_lib.sh` (bonus — тоже использовал дублирующий workspace resolver)
+- ✅ `shellcheck -x --source-path=SCRIPTDIR scripts/*.sh` → 0 warnings
+- ✅ Bats 36/36 зелёные (100% coverage функций `_lib.sh`)
+- ✅ Smoke-tests: collision handling, mb-stage markers, search — все работают
 
 ## Этап 2: Language-agnostic /mb update и mb-doctor
 - ⬜ Bats-тесты для `detect_test_cmd` / `detect_lint_cmd` на всех fixtures

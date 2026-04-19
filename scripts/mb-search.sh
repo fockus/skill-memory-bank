@@ -1,23 +1,14 @@
 #!/usr/bin/env bash
-# mb-search.sh — поиск по Memory Bank
+# mb-search.sh — поиск по Memory Bank.
 # Usage: mb-search.sh <query> [mb_path]
 
 set -euo pipefail
 
-QUERY="${1:?Usage: mb-search.sh <query> [mb_path]}"
+# shellcheck source=_lib.sh
+source "$(dirname "$0")/_lib.sh"
 
-# Auto-resolve from .claude-workspace if no explicit path given
-if [[ -z "${2:-}" ]] && [[ -f ".claude-workspace" ]]; then
-  _WS_STORAGE=$(grep "^storage:" .claude-workspace 2>/dev/null | awk '{print $2}' | tr -d '"' || echo "local")
-  if [[ "$_WS_STORAGE" == "external" ]]; then
-    _WS_PROJECT_ID=$(grep "^project_id:" .claude-workspace 2>/dev/null | awk '{print $2}' | tr -d '"')
-    MB_PATH="$HOME/.claude/workspaces/$_WS_PROJECT_ID/.memory-bank"
-  else
-    MB_PATH=".memory-bank"
-  fi
-else
-  MB_PATH="${2:-.memory-bank}"
-fi
+QUERY="${1:?Usage: mb-search.sh <query> [mb_path]}"
+MB_PATH=$(mb_resolve_path "${2:-}")
 
 if [[ ! -d "$MB_PATH" ]]; then
   echo "[MEMORY BANK: INACTIVE] Директория $MB_PATH не найдена" >&2

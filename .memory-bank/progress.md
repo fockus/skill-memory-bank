@@ -21,4 +21,19 @@
 - План рефактора сохранён в `plans/2026-04-19_refactor_skill-v2.md`
 - Skill теперь дог-фудит сам себя
 - Тесты: манипуляции файловые, smoke-check через `ls .memory-bank/` даёт 7 файлов + 5 директорий
-- Следующий шаг: коммит `chore: dogfood — init .memory-bank for skill v2 refactor`, затем Этап 1 (TDD red: bats-тесты для `_lib.sh`)
+- Коммит: `637dd84 chore: dogfood — init .memory-bank for skill v2 refactor`
+- Следующий шаг: Этап 1 (TDD red → green)
+
+### Этап 1: DRY-утилиты + language detection
+- **TDD red**: создан `tests/bats/test_lib.bats` с 36 тестами для 7 функций; начальный прогон — 36 skipped
+- **Fixtures**: `tests/fixtures/{python,go,rust,node,multi,unknown}/` — реальные манифесты (pyproject.toml, go.mod, Cargo.toml, package.json)
+- **TDD green**: создан `scripts/_lib.sh` (150 строк) с функциями `mb_resolve_path`, `mb_detect_stack`, `mb_detect_test_cmd`, `mb_detect_lint_cmd`, `mb_detect_src_glob`, `mb_sanitize_topic`, `mb_collision_safe_filename`
+- Первый прогон: 35/36 passed. Баг — brace-pattern `*.{ts,tsx,js,jsx}` не содержал литерал `*.ts` → фикс на space-separated patterns
+- Финальный прогон: **36/36 green**
+- **Refactor**: mb-context.sh, mb-search.sh, mb-note.sh, mb-plan.sh, mb-index.sh → source `_lib.sh`. Удалено ~50 строк дублирующего workspace-resolver кода
+- mb-plan.sh получил `<!-- mb-stage:N -->` маркеры в шаблоне (подготовка к Этапу 4)
+- mb-note.sh: коллизия имени теперь → `_2`/`_3` суффикс (раньше был exit 1)
+- **Shellcheck**: `shellcheck -x --source-path=SCRIPTDIR scripts/*.sh` → 0 warnings
+- **Smoke tests**: все 5 рефакторенных скриптов работают на self-bank и temp-директориях; collision handling проверен
+- Тесты: 36 bats green, 0 shellcheck warnings, 5 smoke-тестов зелёных
+- Следующий шаг: Этап 2 (language-agnostic `/mb update` и `mb-doctor`) + коммит Этапа 1

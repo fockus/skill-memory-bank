@@ -1,21 +1,13 @@
 #!/usr/bin/env bash
-# mb-index.sh — реестр записей Memory Bank
+# mb-index.sh — реестр записей Memory Bank.
 # Usage: mb-index.sh [mb_path]
 
 set -euo pipefail
 
-# Auto-resolve from .claude-workspace if no explicit path given
-if [[ -z "${1:-}" ]] && [[ -f ".claude-workspace" ]]; then
-  _WS_STORAGE=$(grep "^storage:" .claude-workspace 2>/dev/null | awk '{print $2}' | tr -d '"' || echo "local")
-  if [[ "$_WS_STORAGE" == "external" ]]; then
-    _WS_PROJECT_ID=$(grep "^project_id:" .claude-workspace 2>/dev/null | awk '{print $2}' | tr -d '"')
-    MB_PATH="$HOME/.claude/workspaces/$_WS_PROJECT_ID/.memory-bank"
-  else
-    MB_PATH=".memory-bank"
-  fi
-else
-  MB_PATH="${1:-.memory-bank}"
-fi
+# shellcheck source=_lib.sh
+source "$(dirname "$0")/_lib.sh"
+
+MB_PATH=$(mb_resolve_path "${1:-}")
 
 if [[ ! -d "$MB_PATH" ]]; then
   echo "[MEMORY BANK: INACTIVE] Директория $MB_PATH не найдена" >&2
