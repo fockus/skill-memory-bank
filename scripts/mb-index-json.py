@@ -32,6 +32,18 @@ from typing import Any
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.DOTALL)
 LESSON_RE = re.compile(r"^###\s+(L-\d+)[:\-\s]+(.+?)\s*$", re.MULTILINE)
+# PII markers: <private>...</private> — содержимое не попадает в index.
+# Закрытые блоки вырезаются полностью; открытые без закрытия — до конца текста
+# (защита от утечки при забытом </private>).
+PRIVATE_CLOSED_RE = re.compile(r"<private>.*?</private>", re.DOTALL)
+PRIVATE_OPEN_RE = re.compile(r"<private>.*\Z", re.DOTALL)
+
+
+def _strip_private(text: str) -> tuple[str, bool]:
+    """Remove <private>...</private> blocks. Return (clean_text, had_private)."""
+    new, n_closed = PRIVATE_CLOSED_RE.subn("", text)
+    new, n_open = PRIVATE_OPEN_RE.subn("", new)
+    return new, (n_closed + n_open) > 0
 
 
 def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
@@ -110,6 +122,10 @@ def _index_notes(mb_path: Path) -> list[dict[str, Any]]:
         tags = meta.get("tags") or []
         if isinstance(tags, str):
             tags = [tags]
+        # Защита: теги с PII-маркерами не индексируем.
+        tags = [t for t in tags if "<private>" not in str(t) and "</private>" not in str(t)]
+
+        clean_body, has_private = _strip_private(body)
 
         rel = note.relative_to(mb_path).as_posix()
         entries.append(
@@ -118,7 +134,8 @@ def _index_notes(mb_path: Path) -> list[dict[str, Any]]:
                 "type": meta.get("type") or "note",
                 "tags": list(tags),
                 "importance": meta.get("importance"),
-                "summary": _summary(body),
+                "summary": _summary(clean_body),
+                "has_private": has_private,
             }
         )
     return entries

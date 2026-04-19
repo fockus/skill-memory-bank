@@ -135,14 +135,15 @@
 - ⏭️ Pre-commit hook — документирован, реальный файл оставлен user opt-in (YAGNI — большинство не захочет блокирующий hook)
 - ✅ Dogfood: на live `.memory-bank/` → 1 real drift найден (checklist ссылка на `plans/` вместо `plans/done/`), исправлено → 0 warnings
 
-## Этап 3: PII markers `<private>...</private>` (v2.1)
-- ⬜ pytest тесты `<private>` в `mb-index-json.py` (≥6 тестов, TDD red)
-- ⬜ Parser: exclude из summary, tags, mark `has_private: true`
-- ⬜ bats тесты для `mb-search.sh` REDACTED replacement (≥4 тестов)
-- ⬜ `--show-private` + `MB_SHOW_PRIVATE=1` double-confirmation
-- ⬜ `hooks/file-change-log.sh` warning на private в commits
-- ⬜ SKILL.md + `references/metadata.md` секция "Private content"
-- ⬜ Security smoke-test: grep private в `index.json` → ничего
+## Этап 3: PII markers `<private>...</private>` (v2.1) ✅
+- ✅ pytest 7 новых тестов в `test_index_json.py` (TDD red-first: 5/7 fail до кода)
+- ✅ Parser в `mb-index-json.py`: `PRIVATE_CLOSED_RE` + `PRIVATE_OPEN_RE` (fail-safe на unclosed), `_strip_private()` + tags filter + `has_private` флаг
+- ✅ bats 5 новых тестов в `test_search_private.bats` (TDD red-first: 3/5 fail до кода)
+- ✅ `mb-search.sh` переписан: span-aware Python filter, inline → `[REDACTED]`, multi-line → `[REDACTED match in private block]`
+- ✅ `--show-private` + `MB_SHOW_PRIVATE=1` double-confirmation (exit 2 без env)
+- ✅ `hooks/file-change-log.sh` warning на `<private>` в `.md` файлах при Write/Edit
+- ✅ SKILL.md секция "Private content" (quick-start + защита + важное предупреждение про git)
+- ✅ Security smoke: `TOP-SECRET-LEAK-CHECK` внутри `<private>` → НЕ появляется в `index.json` (dogfood verified)
 
 ## Этап 4: Compaction decay `/mb compact` (v2.1)
 - ⬜ bats тесты (≥12, TDD red): plan>60d, note low>90d, dry-run, idempotent, archived flag

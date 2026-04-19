@@ -87,6 +87,13 @@ if [ -n "$PLACEHOLDERS" ]; then
   echo "$PLACEHOLDERS" >&2
 fi
 
+# ═══ <private> markers в .md файлах ═══
+# Если пользователь коммитит файл с <private>...</private> — предупреждаем.
+# Блок не утечёт в index.json/search, но может утечь в git history.
+if [[ "$FILE_PATH" =~ \.md$ ]] && grep -q '<private>' "$FILE_PATH" 2>/dev/null; then
+  echo "WARNING: <private> block in $FILE_PATH — убедись что не коммитишь в git (или используй git-filter/.gitattributes)" >&2
+fi
+
 # ═══ Secrets в исходниках ═══
 if [[ "$FILE_PATH" =~ \.(py|go|js|ts|rb|java|rs|swift|kt)$ ]]; then
   SECRETS=$(grep -nEi '(password|secret|api_key|token|private_key)\s*=\s*["\x27][^"\x27]{8,}' "$FILE_PATH" 2>/dev/null \

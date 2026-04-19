@@ -308,6 +308,26 @@
 - **DoD все ✓**: 7 из 7 пунктов выполнены. Pre-commit hook как отдельный файл оставлен YAGNI — документирован, user активирует сам если нужен
 - **Следующий шаг**: Этап 3 — PII markers `<private>...</private>`. TDD red-first: расширить `tests/pytest/test_index_json.py` (≥6 новых тестов на exclude from summary/tags, malformed handling) до кода
 
+### Этап 3 v2.1 — PII markers `<private>...</private>` ✅
+- **TDD red-first pytest**: 7 новых тестов в `tests/pytest/test_index_json.py` (exclude from summary, has_private flag true/false, multiple blocks, unclosed fence graceful, nested markdown inside, tags filter). Red phase: 5/7 fail до кода.
+- **TDD red-first bats**: 5 новых тестов в `tests/bats/test_search_private.bats` (inline redact, multi-line redact, --show-private без env → exit 2, MB_SHOW_PRIVATE=1 full output, --tag не находит тег из private). Red phase: 3/5 fail до кода.
+- **Реализация `mb-index-json.py`**:
+  - `PRIVATE_CLOSED_RE = re.compile(r"<private>.*?</private>", re.DOTALL)`
+  - `PRIVATE_OPEN_RE = re.compile(r"<private>.*\Z", re.DOTALL)` — **fail-safe** на unclosed fence (вырезает хвост до EOF)
+  - `_strip_private(text) -> (clean, has_private)` функция
+  - В `_index_notes`: tags filter `"<private>" not in str(t)`, clean_body через `_strip_private`, entry получает `has_private: True/False`
+- **Реализация `mb-search.sh`**:
+  - Парсинг `--show-private` флага + проверка `MB_SHOW_PRIVATE=1` (double-confirmation, exit 2 без env)
+  - Freetext mode переписан через Python: span-aware filter (`priv_closed.finditer` + `priv_open.finditer`), hits в inline private → substituted `[REDACTED]`, multi-line → `[REDACTED match in private block]`
+  - Tag mode: добавлен pipe через `redact()` awk-функцию для head -20 output
+- **`hooks/file-change-log.sh`**: при Write/Edit `.md` файла с `<private>` блоком → warning на stderr (не блокирует git workflow)
+- **SKILL.md секция "Private content"**: quick-start + защитные свойства + важное предупреждение что `<private>` **не** фильтрует git-diff (для этого нужны `.gitattributes` / git hooks)
+- **Security smoke test**: synth note `notes/pii.md` с `<private>TOP-SECRET-LEAK-CHECK</private>` → запуск `mb-index-json.py` → `grep TOP-SECRET-LEAK-CHECK index.json` → **0 matches** ✓
+- **Тесты**: bats **188/188 green** (145 unit + 20 drift + 5 search_private + 18 e2e), pytest **42/42 green** (26 index + 16 merge-hooks), shellcheck 0 warnings
+- **DoD всё ✓**: 8 пунктов плана выполнены
+- **Следующий шаг**: Этап 4 — Compaction decay `/mb compact`. TDD red-first: `tests/bats/test_compact.bats` (≥12 тестов на plan>60d, note low>90d, dry-run, idempotent, archived flag) до кода
+
+
 
 
 

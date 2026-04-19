@@ -98,6 +98,42 @@ Claude Code имеет встроенный `auto memory` (кросс-проек
 
 ---
 
+## Private content — `<private>...</private>` (since v2.1)
+
+Markdown-синтаксис для исключения чувствительной информации (клиентские данные, API-ключи, partner names) из индекса и поиска:
+
+```markdown
+---
+type: note
+tags: [auth, partner-x]
+importance: high
+---
+
+Обсудили с клиентом <private>Иван Иванов, +7-900-***</private>.
+Интеграция с <private>api_key=sk-abc123...</private> запланирована на вторник.
+```
+
+**Защита:**
+- Содержимое `<private>...</private>` **не попадает** в `index.json` (ни в `summary`, ни в `tags`)
+- При `mb-search` выводе вместо секрета показывается `[REDACTED]` (inline) или `[REDACTED match in private block]` (multi-line)
+- Entry получает флаг `has_private: true` для downstream фильтрации
+- Unclosed `<private>` без `</private>` → весь хвост считается приватным (fail-safe)
+- `hooks/file-change-log.sh` warn'ит при коммите файла с `<private>` блоком (напоминание проверить git)
+
+**Двойное подтверждение для показа:**
+```bash
+# Отказ без env:
+mb-search --show-private <query>
+# [error] --show-private требует MB_SHOW_PRIVATE=1 env
+
+# Только при явном opt-in:
+MB_SHOW_PRIVATE=1 mb-search --show-private <query>
+```
+
+**Важно:** `<private>` защищает от утечки через `index.json` / `mb-search`, но **НЕ** фильтрует git-diff. Для полной защиты рассмотри `.gitattributes` фильтры или git hooks.
+
+---
+
 ## Auto-capture (since v2.1)
 
 SessionEnd hook автоматически дописывает placeholder-entry в `progress.md`, если сессия завершилась без явного `/mb done`. Никакой работы не теряется даже при забытом ручном actualize.

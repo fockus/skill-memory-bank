@@ -340,6 +340,143 @@ def test_frontmatter_with_yaml_list_not_dict(index_mod, mb_path):
 
 
 # ═══════════════════════════════════════════════════════════════
+# PII markers — <private>...</private> (Stage 3 v2.1)
+# ═══════════════════════════════════════════════════════════════
+
+
+def test_private_block_excluded_from_summary(index_mod, mb_path):
+    """Содержимое <private>...</private> не попадает в summary entry."""
+    make_note(
+        mb_path,
+        "pii.md",
+        textwrap_dedent(
+            """
+            ---
+            type: note
+            ---
+
+            Обсуждение с клиентом <private>Иван Иванов, +7-900-123</private>.
+            Решили: мигрировать на новый API.
+            """
+        ),
+    )
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    summary = data["notes"][0]["summary"]
+    assert "Иванов" not in summary
+    assert "123" not in summary
+    # Окружающий контекст сохраняется
+    assert "клиентом" in summary or "мигрировать" in summary
+
+
+def test_has_private_flag_true_when_block_present(index_mod, mb_path):
+    """Entry получает has_private: True если в body есть <private> блок."""
+    make_note(
+        mb_path,
+        "secret.md",
+        "---\ntype: note\n---\n\nбыло <private>нечто</private> в тексте.\n",
+    )
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    assert data["notes"][0].get("has_private") is True
+
+
+def test_has_private_flag_false_when_absent(index_mod, mb_path):
+    """Entry без private блоков: has_private: False (или отсутствует)."""
+    make_note(mb_path, "clean.md", "---\ntype: note\n---\n\nчистый текст.\n")
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    assert data["notes"][0].get("has_private") in (False, None)
+
+
+def test_multiple_private_blocks_all_excluded(index_mod, mb_path):
+    """Несколько <private> блоков — все redacted из summary."""
+    make_note(
+        mb_path,
+        "multi.md",
+        textwrap_dedent(
+            """
+            ---
+            type: note
+            ---
+
+            Клиент <private>A1-secret</private> и ключ <private>B2-token</private>.
+            Public info OK.
+            """
+        ),
+    )
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    summary = data["notes"][0]["summary"]
+    assert "A1-secret" not in summary
+    assert "B2-token" not in summary
+    assert data["notes"][0]["has_private"] is True
+
+
+def test_unclosed_private_fence_graceful(index_mod, mb_path):
+    """Unclosed <private> без </private> → parser не падает, хвост excluded."""
+    make_note(
+        mb_path,
+        "broken.md",
+        "---\ntype: note\n---\n\nбезопасный текст <private>утечка-должна-быть-исключена\n",
+    )
+    # Must not raise
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    summary = data["notes"][0]["summary"]
+    assert "утечка" not in summary
+    assert data["notes"][0]["has_private"] is True
+
+
+def test_nested_markdown_inside_private_excluded(index_mod, mb_path):
+    """Markdown (списки, жирный) внутри <private> корректно вырезается."""
+    make_note(
+        mb_path,
+        "nested.md",
+        textwrap_dedent(
+            """
+            ---
+            type: note
+            ---
+
+            Проект X.
+            <private>
+            - пункт секретного списка
+            - **жирный** секрет
+            </private>
+            Продолжение.
+            """
+        ),
+    )
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    summary = data["notes"][0]["summary"]
+    assert "секретного" not in summary
+    assert "жирный" not in summary
+
+
+def test_private_in_tags_field_ignored(index_mod, mb_path):
+    """Защитная проверка: если тег содержит <private> маркер — игнорировать."""
+    make_note(
+        mb_path,
+        "paranoia.md",
+        "---\ntype: note\ntags: [public, \"<private>leak</private>\"]\n---\n\nbody\n",
+    )
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads((mb_path / "index.json").read_text())
+    tags_json = json.dumps(data["notes"][0]["tags"])
+    assert "<private>" not in tags_json
+    assert "leak" not in tags_json
+
+
+# ═══════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════
 
