@@ -91,9 +91,10 @@ echo -e "${BLUE}[5/7] Skill data${NC}"
 MB_DEST="$CLAUDE_DIR/skills/memory-bank"
 mkdir -p "$MB_DEST"/{agents,scripts,references}
 install_file "$SKILL_DIR/SKILL.md" "$MB_DEST/SKILL.md"
+[ -f "$SKILL_DIR/VERSION" ] && install_file "$SKILL_DIR/VERSION" "$MB_DEST/VERSION"
 for f in "$SKILL_DIR"/scripts/*.sh; do [ -f "$f" ] && install_file "$f" "$MB_DEST/scripts/$(basename "$f")"; done
 for f in "$SKILL_DIR"/references/*.md; do [ -f "$f" ] && install_file "$f" "$MB_DEST/references/$(basename "$f")"; done
-echo -e "  ${GREEN}✓${NC} SKILL.md + scripts + references"
+echo -e "  ${GREEN}✓${NC} SKILL.md + VERSION + scripts + references"
 
 # ═══ Step 6: Settings hooks ═══
 echo -e "${BLUE}[6/7] Settings${NC}"

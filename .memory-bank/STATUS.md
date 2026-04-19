@@ -10,7 +10,7 @@
 - Python-скрипты: 1 (`merge-hooks.py`, без тестов — Этап 6)
 - Агенты: 4 (`mb-manager`, `mb-doctor`, `plan-verifier`, `mb-codebase-mapper` — все MB-native)
 - Команды: 19 в `commands/` (`/mb` теперь с подкомандой `map`)
-- Bats tests: **93/93 green** (`test_lib.bats` 56 + `test_metrics.bats` 30 + `test_context_integration.bats` 7)
+- Bats tests: **99/99 green** (`test_lib.bats` 56 + `test_metrics.bats` 30 + `test_context_integration.bats` 7 + `test_upgrade.bats` 6)
 - Python tests: 0 (Этап 6-8)
 - Shellcheck warnings: **0** (с `-x --source-path=SCRIPTDIR`)
 - CI: отсутствует (Этап 6)

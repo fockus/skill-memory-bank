@@ -29,6 +29,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `plan <type> <topic>` | Создать план |
 | `verify` | Верификация выполнения плана (план vs код) |
 | `map [focus]` | Просканировать кодовую базу и записать MD-документы в `.memory-bank/codebase/`. focus: stack / arch / quality / concerns / all (default: all) |
+| `upgrade` | Обновить skill из GitHub (git pull + re-install). Флаги: `--check` (только проверить), `--force` (без подтверждения) |
 | `init` | Инициализировать Memory Bank в новом проекте |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
@@ -221,6 +222,50 @@ focus: <stack|arch|quality|concerns|all>
 - `/mb context --deep` показывает полное содержимое codebase-документов
 
 Сообщи пользователю: какие документы созданы/обновлены, определённый стек, предложи `/mb context --deep` для полного контекста.
+
+### upgrade
+
+Обновление skill до актуальной версии из GitHub. Требует `git clone`-установку.
+
+Флаги (первое слово после `upgrade`):
+- (без флагов) — проверить и с подтверждением применить
+- `--check` — только проверить (exit 1 если доступно обновление, exit 0 если up-to-date)
+- `--force` — применить без интерактивного подтверждения
+
+Выполни напрямую (без subagent — это systems-level операция, LLM не нужен):
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-upgrade.sh $ARGS_AFTER_UPGRADE
+```
+
+Скрипт выполняет:
+1. Pre-flight: проверяет что `~/.claude/skills/claude-skill-memory-bank` — git repo с чистым working tree
+2. Читает `VERSION` файл и local commit hash
+3. `git fetch origin` + сравнивает local vs remote (ahead/behind)
+4. Показывает список ожидающих коммитов (`git log HEAD..origin/main`)
+5. Если `--check` — exit с кодом состояния
+6. Если есть обновления и не `--force` — запрашивает подтверждение
+7. При подтверждении: `git pull --ff-only` + re-run `install.sh` (идемпотентный merge hooks / команд)
+8. Выводит `local → new` версию
+
+**Типичный сценарий:**
+```
+User: /mb upgrade
+→ скрипт fetch, показывает: "3 behind, 0 ahead"
+→ показывает 3 последних коммита
+→ запрашивает: "Применить 3 обновлений? (y/n)"
+→ user: y
+→ git pull + bash install.sh → manifest обновлён
+→ "Skill обновлён: 2.0.0-dev (cd65d0a) → 2.1.0 (abc1234)"
+```
+
+**Ошибки:**
+- Skill не git-clone → hint на переустановку через clone
+- Dirty working tree → hint на `git stash`/`git checkout --`
+- Divergent branches → hint на manual pull
+- Non-interactive без `--force` → error
+
+**ВАЖНО:** Skill repo (`~/.claude/skills/claude-skill-memory-bank/`) — это ИСХОДНИК skill'а. После `git pull` нужно re-run `install.sh` чтобы скопировать новые файлы в `~/.claude/{commands,agents,hooks,skills}/`. Скрипт делает это автоматически.
 
 ### init
 
