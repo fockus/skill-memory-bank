@@ -98,6 +98,25 @@ Claude Code имеет встроенный `auto memory` (кросс-проек
 
 ---
 
+## Auto-capture (since v2.1)
+
+SessionEnd hook автоматически дописывает placeholder-entry в `progress.md`, если сессия завершилась без явного `/mb done`. Никакой работы не теряется даже при забытом ручном actualize.
+
+**Режимы (env `MB_AUTO_CAPTURE`):**
+- `auto` (default) — hook пишет запись при закрытии сессии
+- `strict` — hook пропускает, но выводит предупреждение в stderr (для команд где важен ручной actualize)
+- `off` — полный noop
+
+**Как это работает:**
+- `/mb done` после успешного actualize пишет `.memory-bank/.session-lock` → hook видит свежий lock (<1h) и пропускает auto-capture (ручной уже выполнен)
+- Без lock → hook добавляет короткую заметку в `progress.md`. Детали восстановит `/mb start` в следующей сессии (MB Manager дочитает JSONL-транскрипт).
+- Concurrent-safe через короткий `.auto-lock` (30 сек) — не создаёт дубли при параллельных вызовах
+- Идемпотентен по `session_id` — тот же session + день = одна запись
+
+**Opt-out:** `export MB_AUTO_CAPTURE=off` в `~/.zshrc` или uninstall hook через `/mb upgrade` с флагом отключения (TBD).
+
+---
+
 ## Ссылки
 
 - Metadata protocol + `index.json` + 8 ключевых правил: `references/metadata.md`

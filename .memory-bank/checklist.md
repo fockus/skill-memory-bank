@@ -104,7 +104,129 @@
 - ✅ `.memory-bank/VERSION` маркер, `install.sh` пишет версию
 - ✅ Roundtrip тест migration guide на существующем `.memory-bank/`
 
-## Gate v2
-- ⬜ Все 9 этапов завершены, DoD выполнен
-- ⬜ Критерии Gate из плана достигнуты (4 стека, CI зелёный, 0 legacy Task, etc.)
-- ⬜ План перенесён в `plans/done/`
+## Gate v2 ✅
+- ✅ Все 9 этапов завершены, DoD выполнен
+- ✅ Критерии Gate из плана достигнуты (12 стеков, CI зелёный, 0 legacy Task, etc.)
+- ✅ План перенесён в `plans/done/`
+- ✅ VERSION 2.0.0, GitHub Release, tag `v2.0.0`
+
+---
+
+# v2.1 → v2.2 → v3.0 Refactor (активно)
+
+Полный план: `plans/2026-04-20_refactor_skill-v2.1.md`
+
+## Этап 1: Auto-capture через SessionEnd hook (v2.1) ✅
+- ✅ bats тесты для `hooks/session-end-autosave.sh` (12 тестов, TDD red-first confirmed)
+- ✅ Создать `hooks/session-end-autosave.sh` (85 строк, shellcheck 0)
+- ✅ Lock-файл `.memory-bank/.session-lock` в `/mb done` (инструкция в commands/mb.md)
+- ✅ `MB_AUTO_CAPTURE=strict|auto|off` env флаг (+ unknown → warning+skip)
+- ✅ install.sh регистрирует SessionEnd через `merge-hooks.py` (settings/hooks.json + auto-copy hooks/*.sh)
+- ✅ uninstall e2e тест roundtrip (+3 теста в tests/e2e/test_install_uninstall.bats)
+- ✅ SKILL.md секция "Auto-capture" (129 строк ≤150)
+- ✅ Append-only подход вместо LLM-call (hook bash-only, placeholder дочитывается в /mb start). LLM-upgrade в v2.1.1 backlog
+
+## Этап 2: Drift checkers без AI (`mb-drift.sh`) (v2.1)
+- ⬜ bats тесты для 8 чекеров (≥16 тестов, TDD red)
+- ⬜ `scripts/mb-drift.sh`: path, staleness, script-coverage, dependency, cross-file, index-sync, command, frontmatter
+- ⬜ `agents/mb-doctor.md` рефакторинг: drift-first, AI-if-needed
+- ⬜ Fixture `tests/fixtures/broken-mb/` с ≥5 категорий drift
+- ⬜ `references/templates.md` — секция "Drift checks"
+- ⬜ Optional pre-commit hook `mb-drift-precommit.sh`
+- ⬜ Dogfood: на live `.memory-bank/` → 0 warnings
+
+## Этап 3: PII markers `<private>...</private>` (v2.1)
+- ⬜ pytest тесты `<private>` в `mb-index-json.py` (≥6 тестов, TDD red)
+- ⬜ Parser: exclude из summary, tags, mark `has_private: true`
+- ⬜ bats тесты для `mb-search.sh` REDACTED replacement (≥4 тестов)
+- ⬜ `--show-private` + `MB_SHOW_PRIVATE=1` double-confirmation
+- ⬜ `hooks/file-change-log.sh` warning на private в commits
+- ⬜ SKILL.md + `references/metadata.md` секция "Private content"
+- ⬜ Security smoke-test: grep private в `index.json` → ничего
+
+## Этап 4: Compaction decay `/mb compact` (v2.1)
+- ⬜ bats тесты (≥12, TDD red): plan>60d, note low>90d, dry-run, idempotent, archived flag
+- ⬜ `scripts/mb-compact.sh` (≤250 строк)
+- ⬜ Archive logic: plans → BACKLOG line, notes → `notes/archive/` summary
+- ⬜ `index.json` extend `archived: true`
+- ⬜ `/mb compact --dry-run|--apply` в `commands/mb.md`
+- ⬜ Интеграция в `/mb done`: weekly check + prompt
+- ⬜ Safety: note упомянута в `plan.md` → НЕ archive
+- ⬜ Dogfood на этом banks
+
+## Gate v2.1
+- ⬜ Auto-capture end-to-end (симуляция SessionEnd → progress.md updated)
+- ⬜ Drift ловит ≥5 категорий на broken fixture
+- ⬜ PII: grep в `index.json` → 0
+- ⬜ Compact dogfood выполнен
+- ⬜ CI green, VERSION 2.1.0, tag `v2.1.0`
+
+## Этап 5: Import from Claude Code JSONL (v2.2)
+- ⬜ pytest тесты (≥15, TDD red): parse, dedup, resume, --since, PII auto-wrap
+- ⬜ `scripts/mb-import.py` (≤400 строк, ruff 0, type hints)
+- ⬜ Парсинг `~/.claude/projects/<path>/*.jsonl`
+- ⬜ Extraction: progress (Haiku summarize), notes (heuristic), lessons (debug pattern)
+- ⬜ Duplicate detection: SHA256 hash
+- ⬜ Resume on failure: `.import-state.json`
+- ⬜ PII auto-wrap (email/API-key regex → `<private>`)
+- ⬜ `/mb import [--since] [--project] [--dry-run]` в `commands/mb.md`
+
+## Этап 6: Tree-sitter code graph в `codebase/` (v2.2)
+- ⬜ pytest тесты (≥20, TDD red): Python/Go/JS/TS fixtures, incremental cache, broken syntax
+- ⬜ `scripts/mb-codegraph.py` (≤500 строк, type hints)
+- ⬜ tree-sitter + grammars (opt-in extras)
+- ⬜ Output: `codebase/graph.json` (JSON Lines), `god-nodes.md`, `wiki/<node>.md`
+- ⬜ SHA256 cache в `.cache/` для incremental
+- ⬜ Optional git post-commit hook
+- ⬜ `mb-codebase-mapper` агент обновлён (читает graph.json)
+- ⬜ Замер token-экономии vs grep ≥5×
+- ⬜ `references/codegraph.md` + `install.sh --with-codegraph`
+
+## Этап 7: Tags normalization (v2.2)
+- ⬜ bats тесты (≥10, TDD red): synonym merge, case normalize, dry-run, auto-merge
+- ⬜ `scripts/mb-tags-normalize.sh` (≤150 строк)
+- ⬜ Closed vocabulary `.memory-bank/tags-vocabulary.md` (template в `references/`)
+- ⬜ Levenshtein distance ≤2 detection
+- ⬜ `mb-index-json.py` auto-lowercase + kebab-case
+- ⬜ `mb-doctor` drift check "unknown tag"
+
+## Gate v2.2
+- ⬜ `/mb import` bootstrap JSONL ≤30 сек
+- ⬜ `mb-codegraph.py` ≤30 сек на repo, ≥5× экономия токенов
+- ⬜ Tags auto-merge + drift warn
+- ⬜ CI green, VERSION 2.2.0, tag `v2.2.0`
+
+## Этап 8: Cross-agent output — 6 clients (v3.0)
+- ⬜ Research upfront: актуальные форматы конфигов для Cursor, Windsurf, Cline, Kilo, OpenCode, Pi (1-2 часа → `notes/`)
+- ⬜ e2e тесты (≥14, 2 per client)
+- ⬜ 6 adapters: Cursor (`.cursorrules`), Windsurf (`.windsurfrules`), Cline (`.clinerules/`), Kilo (`.kilorules`), OpenCode (`AGENTS.md`), Pi Code (native Pi Skill в `~/.pi/skills/`, fallback `AGENTS.md`)
+- ⬜ Универсальный слой (RULES.md, MB) vs client-specific (configs)
+- ⬜ install.sh interactive `--clients <list>` (valid: claude-code, cursor, windsurf, cline, kilo, opencode, pi)
+- ⬜ uninstall: manifest roundtrip чистый для всех 6
+- ⬜ `docs/cross-agent-setup.md` — per-client examples/screenshots
+- ⬜ Pi Code: preferred native Skill path, fallback `AGENTS.md` если API нестабилен
+
+## Этап 9: pipx/PyPI distribution + Homebrew tap (v3.0)
+- ⬜ e2e тесты (≥10): `pipx install`, `--minimal`, `self-update`, Windows graceful, reinstall idempotent
+- ⬜ pytest CLI тесты (≥8): argparse, platform detect, version read
+- ⬜ `pyproject.toml` + `memory_bank_skill/` Python package
+- ⬜ CLI entry point `memory-bank` с sub-commands: install, uninstall, init, version, self-update
+- ⬜ Package включает весь bash/agents/commands/hooks/rules как `package_data`
+- ⬜ `pipx install memory-bank-skill` работает macos+ubuntu, CI matrix Python 3.11+3.12
+- ⬜ Homebrew tap `fockus/homebrew-tap/memory-bank.rb` (создать repo отдельно)
+- ⬜ PyPI auto-publish через OIDC trusted publisher на git tag `v*`
+- ⬜ Anthropic plugin manifest `claude-plugin.json` (tertiary path, ready но не блокирует)
+- ⬜ `docs/install.md` — три варианта (pipx/homebrew/claude plugin) с upgrade story
+- ⬜ README quick-start → `pipx install memory-bank-skill && memory-bank install`
+
+## Gate v3.0
+- ⬜ 6 adapters e2e green (включая Pi Code)
+- ⬜ `pipx install` из clean env работает
+- ⬜ `brew install fockus/tap/memory-bank` работает
+- ⬜ `memory-bank self-update` lifts версию
+- ⬜ CHANGELOG v2→v3, VERSION 3.0.0, tag `v3.0.0`, GitHub Release
+
+## Deferred to v3.1+ backlog
+- ⬜ Benchmarks (LongMemEval + custom) — отложено решением 2026-04-20, ADR-008
+- ⬜ sqlite-vec semantic search
+- ⬜ Native memory bridge

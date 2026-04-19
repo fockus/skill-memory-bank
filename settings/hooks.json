@@ -78,5 +78,15 @@
         }
       ]
     }
+  ],
+  "SessionEnd": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/session-end-autosave.sh # [memory-bank-skill]"
+        }
+      ]
+    }
   ]
 }

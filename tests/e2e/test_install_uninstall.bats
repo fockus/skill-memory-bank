@@ -98,6 +98,25 @@ teardown() {
   [ "$block_count" -eq 1 ]
 }
 
+@test "install: SessionEnd auto-capture hook registered and executable" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  # Hook copied
+  [ -x "$HOME/.claude/hooks/session-end-autosave.sh" ]
+
+  # Event зарегистрирован в settings.json
+  grep -q "SessionEnd" "$HOME/.claude/settings.json"
+  grep -q "session-end-autosave.sh" "$HOME/.claude/settings.json"
+}
+
+@test "install: SessionEnd idempotent — two runs = one entry" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  count=$(grep -c "session-end-autosave.sh" "$HOME/.claude/settings.json")
+  [ "$count" -eq 1 ]
+}
+
 # ═══════════════════════════════════════════════════════════════
 # Uninstall roundtrip
 # ═══════════════════════════════════════════════════════════════
@@ -110,7 +129,17 @@ teardown() {
   [ ! -f "$HOME/.claude/commands/mb.md" ]
   [ ! -f "$HOME/.claude/agents/mb-manager.md" ]
   [ ! -f "$HOME/.claude/hooks/block-dangerous.sh" ]
+  [ ! -f "$HOME/.claude/hooks/session-end-autosave.sh" ]
   [ ! -d "$HOME/.claude/skills/memory-bank" ]
+}
+
+@test "uninstall: SessionEnd hook removed from settings.json" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  if [ -f "$HOME/.claude/settings.json" ]; then
+    ! grep -q "session-end-autosave.sh" "$HOME/.claude/settings.json"
+  fi
 }
 
 @test "uninstall: strips MB hooks from settings.json" {

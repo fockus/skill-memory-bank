@@ -234,3 +234,60 @@
   7. Versioning: CHANGELOG, migration guide, VERSION 2.0.0
 - **Dogfood финальный**: `bash scripts/mb-plan-done.sh .memory-bank/plans/2026-04-19_refactor_skill-v2.md .memory-bank` → `closed_stages=10 → plans/done/`. Все 10 секций этапов в checklist: `⬜ → ✅`. Active plan блок очищен
 - **Итог**: skill готов к релизу v2.0.0. Первый push на GitHub запустит CI (matrix macos+ubuntu); badge в README покажет статус
+
+## 2026-04-20
+
+### Планирование v2.1 → v2.2 → v3.0 после внешнего ревью
+- Получена обратная связь от внешнего чата: 7 объективных критик (no auto-capture, keyword-only search, no benchmarks, single-writer, git-clone-install, bus-factor=1, claude-code-only) + 16 предложений
+- Приоритизирован профиль **C (гибрид)** — personal сейчас, public через v3.0
+- Составлен детальный план: `plans/2026-04-20_refactor_skill-v2.1.md` — 10 этапов, DoD SMART, TDD requirements, риски, 3 Gate
+- **v2.1 (этапы 1-4):** Auto-capture (SessionEnd hook + Haiku), drift checkers без AI (`mb-drift.sh` с 8 чекерами), PII markers `<private>...</private>`, compaction decay (`/mb compact`)
+- **v2.2 (этапы 5-7):** Import from Claude Code JSONL (`~/.claude/projects/*.jsonl` → bootstrap), tree-sitter code graph в `codebase/` (AST + god-nodes + wiki + incremental), tags normalization (closed vocabulary + Levenshtein)
+- **v3.0 (этапы 8-10):** Cross-agent adapters (Cursor, Windsurf, Cline, Kilo, OpenCode), npm distribution (`npx @fockus/memory-bank install`), benchmarks (LongMemEval + custom 10 scenarios)
+- **Отклонено после ревью:** hash-based IDs (YAGNI), KB compilation (преждевременная иерархия), GWT в DoD (дубль), schema drift (domain-specific), `/mb debug` (дубль superpowers), viewer UI (chrome over substance), REST/daemon (ломает simplicity)
+- **Отложено в v3.1+ backlog:** sqlite-vec semantic search (после Gate v3.0), i18n, native memory bridge, viewer dashboard
+- **Open questions:** (1) "PI" в cross-agent списке — не распознано (Copilot? JetBrains? Cody?); (2) LongMemEval license; (3) npm scope `@fockus/` availability; (4) claude-mem baseline для benchmarks — optional
+- **MB updated:** `plan.md` (новый focus + active plan блок), `STATUS.md` (roadmap v2.1/2.2/3.0 + 3 gates), `checklist.md` (50+ новых ⬜ items структурировано по этапам), `plans/2026-04-20_refactor_skill-v2.1.md` (полный план)
+- **Следующий шаг:** подтверждение "PI" → Этап 1 (auto-capture) start. TDD red-first: bats тесты для `session-end-autosave.sh`
+
+### Уточнение плана после user-feedback (итерация 2)
+- **"Pi" identified**: [Pi Code agent от Mario Zechner](https://github.com/badlogic/pi-mono) — terminal coding harness с Skills API, sessions в `~/.pi/agent/sessions/`. Станет 6-м adapter в Этапе 8 (preferred path — native Pi Skill, fallback — `AGENTS.md`-формат)
+- **Distribution pivot** (ADR-008): **npm распространение отменено**. Вместо него:
+  - **Primary**: `pipx install memory-bank-skill` (PyPI). Наш стек уже 12% Python, pipx изолирует env, `pipx upgrade` решает update story out-of-the-box, standard для CLI tools с mix deps
+  - **Secondary**: Homebrew tap `fockus/homebrew-tap/memory-bank` (macOS native UX)
+  - **Tertiary**: Anthropic plugin manifest `claude-plugin.json` для `claude plugin install` когда marketplace будет mature
+  - Обоснование: для mix-stack skill (88% bash + 12% Python) npm = лишний Node.js runtime без реального value. `pipx` + pyproject.toml + `package_data` → bundle всех bash scripts внутри Python package, запускается через CLI entry point
+- **Names availability (проверено через registry API)**:
+  - `memory-bank-skill` на PyPI → 404 ✓ свободно
+  - `claude-memory-bank` на PyPI → 404 ✓ свободно (backup)
+  - `@fockus/memory-bank` на npm → 404 ✓ свободно (reserved на будущее, если вернёмся)
+- **Benchmarks defer** (ADR-009): Этап 10 (LongMemEval + custom) отложен в v3.1+ HIGH backlog по решению пользователя. Обоснование: без 1+ месяца реальной usage-baseline v3.0 цифры искусственные; differentiator сейчас — TDD/plan-verifier/cross-agent, не recall
+- **План стал 9 этапов** (было 10), 3 Gate (v2.1/v2.2/v3.0) без изменений, v3.0 теперь requires Gate по 2 этапам (8-9) вместо 3
+- **Новые ADR**: ADR-008 (distribution — pipx primary), ADR-009 (benchmarks defer). Итого после ревью: ADR-004 до ADR-009 (6 новых решений задокументированы)
+- **Open questions оставшиеся**: (1) создать `fockus/homebrew-tap` repo заранее или перед release; (2) PyPI OIDC trusted publisher — пользователь настраивает в web UI однократно; (3) Windows — explicit skip default, или попытка Git Bash/MSYS2
+- **MB updated**: `plans/2026-04-20_refactor_skill-v2.1.md` (Этап 8 Pi adapter, Этап 9 pipx вместо npm, Этап 10 удалён в backlog, risks/gates/open-questions обновлены), `plan.md` (9 этапов в active plan, уточнения), `STATUS.md` (roadmap, Gate v3.0, решённые вопросы), `checklist.md` (Этап 8 6 clients, Этап 9 pipx, Этап 10 в v3.1 backlog), `BACKLOG.md` (ADR-008 + ADR-009 + benchmarks в HIGH backlog)
+
+### Этап 1 v2.1 — Auto-capture SessionEnd hook ✅
+- Создан `fockus/homebrew-tap` repo на GitHub (https://github.com/fockus/homebrew-tap) — для будущего v3.0 Этапа 9
+- **TDD red-first**: написано 12 bats тестов в `tests/bats/test_auto_capture.bats` (lock-файл fresh/stale, MB_AUTO_CAPTURE auto/off/strict/bogus, no-bank noop, missing progress.md, idempotent, concurrent guard через `.auto-lock`, cleanup on exit, session_id+date в entry). Red phase: все 12 fail
+- **Реализация**: `hooks/session-end-autosave.sh` (85 строк, shellcheck 0 warnings):
+  - Читает SessionEnd JSON с stdin → cwd → `$cwd/.memory-bank/`
+  - Fresh `.session-lock` (<1h) → ручной `/mb done` выполнен → skip+clear
+  - Stale lock (>1h) → считаем устаревшим → игнорируем и auto-capture
+  - `MB_AUTO_CAPTURE` modes: `auto` (default), `strict` (skip+warn), `off` (full noop), unknown (skip+warn)
+  - `.auto-lock` concurrent guard (30 сек TTL), `trap 'rm -f' EXIT INT TERM`
+  - Идемпотентность по session_id prefix (cut -c1-8) — та же сессия и день → 1 entry
+  - Append в progress.md: `## YYYY-MM-DD\n### Auto-capture YYYY-MM-DD (session abc12345)\n- placeholder hint для следующего /mb start`
+  - Portable `stat -f%m || stat -c%Y` (macOS BSD + GNU Linux)
+- **Интеграция**:
+  - `settings/hooks.json` — новый event `SessionEnd` (dedup через `# [memory-bank-skill]` маркер)
+  - `commands/mb.md` — `/mb done` теперь `touch .memory-bank/.session-lock` после успешного actualize (маркер для hook'а)
+  - `install.sh` без изменений — автоматом копирует новый `hooks/session-end-autosave.sh` (glob `hooks/*.sh`)
+  - `tests/e2e/test_install_uninstall.bats` — +3 теста (SessionEnd зарегистрирован+executable, idempotent install, uninstall cleanup)
+- **Документация**: `SKILL.md` секция "Auto-capture" (129 строк ≤150), opt-out через `export MB_AUTO_CAPTURE=off`
+- **Зелёные тесты**: bats **163/163** (145 unit + 18 e2e), shellcheck 0 warnings, pytest 35/35 (не трогали)
+- **DoD всё ✓**: 8 пунктов из плана выполнены. Append-only подход вместо LLM-call в hook — сознательное упрощение (bash-скрипт не может вызвать Agent; детали восстанавливает следующий `/mb start` через MB Manager + JSONL-транскрипт, что совпадает с Этапом 5)
+- **Следующий шаг**: Этап 2 — drift checkers без AI (`mb-drift.sh`). TDD red-first: `tests/bats/test_drift.bats` (≥16 тестов по 2 на чекер) до кода
+
+
+

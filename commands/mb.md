@@ -64,6 +64,7 @@ action: <действие>
   1. Актуализировать все core files
   2. Создать заметку по выполненной работе
   3. Дописать progress.md
+  4. **После успешного agent call** — выполнить `touch .memory-bank/.session-lock`. Это маркер для SessionEnd hook: ручной `/mb done` выполнен, auto-capture пропустит эту сессию (см. `hooks/session-end-autosave.sh`, `MB_AUTO_CAPTURE` env var).
 
 ### update
 
