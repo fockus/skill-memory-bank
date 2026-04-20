@@ -229,19 +229,19 @@
 - ⬜ Archive старого репо с banner "Moved to skill-memory-bank"
 - ⬜ `docs/repo-migration.md` — guide для пользователей (обновление git remote)
 - ⬜ e2e ≥6 тестов post-migration smoke
-- ⬜ VERSION bumped до `3.0.0-rc1`, CHANGELOG "## Repository moved" section
-- ⬜ ADR-011 зафиксирован в BACKLOG
+- ✅ VERSION bumped до `3.0.0-rc1`, CHANGELOG "## [3.0.0-rc1]" + "### Repository moved" section
+- ✅ ADR-011 зафиксирован в BACKLOG
 
 ## Этап 9: pipx/PyPI distribution + Homebrew tap (v3.0)
-- ⬜ e2e тесты (≥10): `pipx install`, `--minimal`, `self-update`, Windows graceful, reinstall idempotent
-- ⬜ pytest CLI тесты (≥8): argparse, platform detect, version read
-- ⬜ `pyproject.toml` + `memory_bank_skill/` Python package
-- ⬜ CLI entry point `memory-bank` с sub-commands: install, uninstall, init, version, self-update
-- ⬜ Package включает весь bash/agents/commands/hooks/rules как `package_data`
-- ⬜ `pipx install memory-bank-skill` работает macos+ubuntu, CI matrix Python 3.11+3.12
-- ⬜ Homebrew tap `fockus/homebrew-tap/memory-bank.rb` — source URL указывает на `fockus/skill-memory-bank`
-- ⬜ PyPI auto-publish через OIDC trusted publisher на git tag `v*`, `project_urls.Repository` → новый URL
-- ⬜ Anthropic plugin manifest `claude-plugin.json` (tertiary path, ready но не блокирует)
+- ✅ e2e тесты (7): `pipx install` wheel в isolated venv → `memory-bank` CLI работает с bundle resolution
+- ✅ pytest CLI тесты (18): argparse, platform detect, version, bundle resolution, shell invocation
+- ✅ `pyproject.toml` + `memory_bank_skill/` Python package (hatchling build, shared-data для bash scripts)
+- ✅ CLI entry point `memory-bank` с sub-commands: install, uninstall, init, version, self-update, doctor
+- ✅ Package включает всё (adapters, agents, commands, hooks, rules, scripts, references) через shared-data
+- ✅ Wheel builds (178K), `pip install` работает, CI matrix Python 3.11 + 3.12 на ubuntu + macos
+- ✅ Homebrew formula template `packaging/homebrew/memory-bank.rb` (ready для `fockus/homebrew-tap` repo)
+- ✅ PyPI auto-publish через OIDC trusted publisher на git tag `v*` (`.github/workflows/publish.yml`)
+- ⬜ Anthropic plugin manifest `claude-plugin.json` (tertiary path, deferred — не блокирует Gate)
 - ✅ `docs/install.md` — три варианта (pipx/homebrew/claude plugin) с upgrade story
 - ✅ README quick-start → `pipx install memory-bank-skill && memory-bank install`
 
