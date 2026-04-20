@@ -208,11 +208,11 @@
   - ✅ `adapters/cursor.sh` → `.cursor/rules/*.mdc` + `.cursor/hooks.json` (**CC-compat, reuse наших hooks**) — 12 bats green
   - ⬜ `adapters/windsurf.sh` → `.windsurf/rules/*.md` + Cascade hooks JSON
   - ⬜ `adapters/cline.sh` → `.clinerules/` + `.clinerules/hooks/*.sh`
-  - ⬜ `adapters/kilo.sh` → `.kilocode/rules/*.md` + git-hooks-fallback (единственный без native)
+  - ✅ `adapters/kilo.sh` → `.kilocode/rules/memory-bank.md` + git-hooks-fallback (mandatory) — 9 bats green
   - ⬜ `adapters/opencode.sh` → `AGENTS.md` + `opencode.json` + TS plugin (с `experimental.session.compacting`)
   - ⬜ `adapters/pi.sh` → `~/.pi/skills/memory-bank/` native + git-hooks-fallback transitional
   - ⬜ `adapters/codex.sh` → `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` (experimental)
-- ⬜ `adapters/git-hooks-fallback.sh` (mandatory для Kilo, opt-in для Pi)
+- ✅ `adapters/git-hooks-fallback.sh` (mandatory для Kilo, opt-in для Pi) — 14 bats green, chain pattern + manifest backup/restore
 - ⬜ e2e тесты ≥18 (2 per client × 7 + CC-reuse smoke + git-fallback + AGENTS.md shared + OpenCode compact mapping)
 - ⬜ Universal layer (RULES.md, `.memory-bank/`) vs client-specific (configs/hooks)
 - ⬜ install.sh interactive + `--clients <list>` (valid: claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex)
