@@ -1,29 +1,36 @@
 {"type": "node", "kind": "module", "name": "mb-codegraph.py", "file": "mb-codegraph.py", "line": 1}
-{"type": "node", "kind": "function", "name": "_sha256", "file": "mb-codegraph.py", "line": 34}
-{"type": "node", "kind": "function", "name": "_atomic_write", "file": "mb-codegraph.py", "line": 38}
-{"type": "node", "kind": "function", "name": "_rel", "file": "mb-codegraph.py", "line": 51}
-{"type": "node", "kind": "class", "name": "_Extractor", "file": "mb-codegraph.py", "line": 58}
-{"type": "node", "kind": "function", "name": "_Extractor.__init__", "file": "mb-codegraph.py", "line": 61}
-{"type": "node", "kind": "function", "name": "_Extractor._qualname", "file": "mb-codegraph.py", "line": 67}
-{"type": "node", "kind": "function", "name": "_Extractor._current_src", "file": "mb-codegraph.py", "line": 70}
-{"type": "node", "kind": "function", "name": "_Extractor.visit_FunctionDef", "file": "mb-codegraph.py", "line": 73}
-{"type": "node", "kind": "function", "name": "_Extractor.visit_AsyncFunctionDef", "file": "mb-codegraph.py", "line": 76}
-{"type": "node", "kind": "function", "name": "_Extractor._handle_function", "file": "mb-codegraph.py", "line": 79}
-{"type": "node", "kind": "function", "name": "_Extractor.visit_ClassDef", "file": "mb-codegraph.py", "line": 93}
-{"type": "node", "kind": "function", "name": "_Extractor.visit_Import", "file": "mb-codegraph.py", "line": 116}
-{"type": "node", "kind": "function", "name": "_Extractor.visit_ImportFrom", "file": "mb-codegraph.py", "line": 124}
-{"type": "node", "kind": "function", "name": "_Extractor.visit_Call", "file": "mb-codegraph.py", "line": 134}
-{"type": "node", "kind": "function", "name": "_name_of", "file": "mb-codegraph.py", "line": 146}
-{"type": "node", "kind": "function", "name": "parse_file", "file": "mb-codegraph.py", "line": 158}
-{"type": "node", "kind": "function", "name": "_cache_slug", "file": "mb-codegraph.py", "line": 180}
-{"type": "node", "kind": "function", "name": "_load_cache", "file": "mb-codegraph.py", "line": 184}
-{"type": "node", "kind": "function", "name": "_save_cache", "file": "mb-codegraph.py", "line": 194}
-{"type": "node", "kind": "function", "name": "build_graph", "file": "mb-codegraph.py", "line": 199}
-{"type": "node", "kind": "function", "name": "_compute_degree", "file": "mb-codegraph.py", "line": 260}
-{"type": "node", "kind": "function", "name": "_render_god_nodes", "file": "mb-codegraph.py", "line": 278}
-{"type": "node", "kind": "function", "name": "_write_graph_jsonl", "file": "mb-codegraph.py", "line": 301}
-{"type": "node", "kind": "function", "name": "run", "file": "mb-codegraph.py", "line": 310}
-{"type": "node", "kind": "function", "name": "main", "file": "mb-codegraph.py", "line": 357}
+{"type": "node", "kind": "function", "name": "_get_ts_parser", "file": "mb-codegraph.py", "line": 59}
+{"type": "node", "kind": "function", "name": "_ts_node_text", "file": "mb-codegraph.py", "line": 135}
+{"type": "node", "kind": "function", "name": "_ts_find_name", "file": "mb-codegraph.py", "line": 139}
+{"type": "node", "kind": "function", "name": "_ts_find_call_target", "file": "mb-codegraph.py", "line": 153}
+{"type": "node", "kind": "function", "name": "_ts_find_import_target", "file": "mb-codegraph.py", "line": 170}
+{"type": "node", "kind": "function", "name": "_ts_find_inherit_targets", "file": "mb-codegraph.py", "line": 201}
+{"type": "node", "kind": "function", "name": "_parse_ts_file", "file": "mb-codegraph.py", "line": 218}
+{"type": "node", "kind": "function", "name": "_sha256", "file": "mb-codegraph.py", "line": 267}
+{"type": "node", "kind": "function", "name": "_atomic_write", "file": "mb-codegraph.py", "line": 271}
+{"type": "node", "kind": "function", "name": "_rel", "file": "mb-codegraph.py", "line": 284}
+{"type": "node", "kind": "class", "name": "_Extractor", "file": "mb-codegraph.py", "line": 291}
+{"type": "node", "kind": "function", "name": "_Extractor.__init__", "file": "mb-codegraph.py", "line": 294}
+{"type": "node", "kind": "function", "name": "_Extractor._qualname", "file": "mb-codegraph.py", "line": 300}
+{"type": "node", "kind": "function", "name": "_Extractor._current_src", "file": "mb-codegraph.py", "line": 303}
+{"type": "node", "kind": "function", "name": "_Extractor.visit_FunctionDef", "file": "mb-codegraph.py", "line": 306}
+{"type": "node", "kind": "function", "name": "_Extractor.visit_AsyncFunctionDef", "file": "mb-codegraph.py", "line": 309}
+{"type": "node", "kind": "function", "name": "_Extractor._handle_function", "file": "mb-codegraph.py", "line": 312}
+{"type": "node", "kind": "function", "name": "_Extractor.visit_ClassDef", "file": "mb-codegraph.py", "line": 326}
+{"type": "node", "kind": "function", "name": "_Extractor.visit_Import", "file": "mb-codegraph.py", "line": 349}
+{"type": "node", "kind": "function", "name": "_Extractor.visit_ImportFrom", "file": "mb-codegraph.py", "line": 357}
+{"type": "node", "kind": "function", "name": "_Extractor.visit_Call", "file": "mb-codegraph.py", "line": 367}
+{"type": "node", "kind": "function", "name": "_name_of", "file": "mb-codegraph.py", "line": 379}
+{"type": "node", "kind": "function", "name": "parse_file", "file": "mb-codegraph.py", "line": 391}
+{"type": "node", "kind": "function", "name": "_cache_slug", "file": "mb-codegraph.py", "line": 413}
+{"type": "node", "kind": "function", "name": "_load_cache", "file": "mb-codegraph.py", "line": 417}
+{"type": "node", "kind": "function", "name": "_save_cache", "file": "mb-codegraph.py", "line": 427}
+{"type": "node", "kind": "function", "name": "build_graph", "file": "mb-codegraph.py", "line": 432}
+{"type": "node", "kind": "function", "name": "_compute_degree", "file": "mb-codegraph.py", "line": 517}
+{"type": "node", "kind": "function", "name": "_render_god_nodes", "file": "mb-codegraph.py", "line": 535}
+{"type": "node", "kind": "function", "name": "_write_graph_jsonl", "file": "mb-codegraph.py", "line": 558}
+{"type": "node", "kind": "function", "name": "run", "file": "mb-codegraph.py", "line": 567}
+{"type": "node", "kind": "function", "name": "main", "file": "mb-codegraph.py", "line": 614}
 {"type": "node", "kind": "module", "name": "mb-import.py", "file": "mb-import.py", "line": 1}
 {"type": "node", "kind": "function", "name": "iter_events", "file": "mb-import.py", "line": 44}
 {"type": "node", "kind": "function", "name": "event_text", "file": "mb-import.py", "line": 63}
@@ -42,14 +49,15 @@
 {"type": "node", "kind": "function", "name": "run_import", "file": "mb-import.py", "line": 185}
 {"type": "node", "kind": "function", "name": "main", "file": "mb-import.py", "line": 301}
 {"type": "node", "kind": "module", "name": "mb-index-json.py", "file": "mb-index-json.py", "line": 1}
-{"type": "node", "kind": "function", "name": "_strip_private", "file": "mb-index-json.py", "line": 42}
-{"type": "node", "kind": "function", "name": "_parse_frontmatter", "file": "mb-index-json.py", "line": 49}
-{"type": "node", "kind": "function", "name": "_simple_yaml_parse", "file": "mb-index-json.py", "line": 69}
-{"type": "node", "kind": "function", "name": "_summary", "file": "mb-index-json.py", "line": 95}
-{"type": "node", "kind": "function", "name": "_index_notes", "file": "mb-index-json.py", "line": 109}
-{"type": "node", "kind": "function", "name": "_index_lessons", "file": "mb-index-json.py", "line": 147}
-{"type": "node", "kind": "function", "name": "build_index", "file": "mb-index-json.py", "line": 159}
-{"type": "node", "kind": "function", "name": "main", "file": "mb-index-json.py", "line": 187}
+{"type": "node", "kind": "function", "name": "_kebab_case", "file": "mb-index-json.py", "line": 39}
+{"type": "node", "kind": "function", "name": "_strip_private", "file": "mb-index-json.py", "line": 52}
+{"type": "node", "kind": "function", "name": "_parse_frontmatter", "file": "mb-index-json.py", "line": 59}
+{"type": "node", "kind": "function", "name": "_simple_yaml_parse", "file": "mb-index-json.py", "line": 79}
+{"type": "node", "kind": "function", "name": "_summary", "file": "mb-index-json.py", "line": 105}
+{"type": "node", "kind": "function", "name": "_index_notes", "file": "mb-index-json.py", "line": 119}
+{"type": "node", "kind": "function", "name": "_index_lessons", "file": "mb-index-json.py", "line": 162}
+{"type": "node", "kind": "function", "name": "build_index", "file": "mb-index-json.py", "line": 174}
+{"type": "node", "kind": "function", "name": "main", "file": "mb-index-json.py", "line": 202}
 {"type": "edge", "src": "mb-codegraph.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "mb-codegraph.py", "dst": "argparse", "kind": "import"}
 {"type": "edge", "src": "mb-codegraph.py", "dst": "ast", "kind": "import"}
@@ -60,6 +68,84 @@
 {"type": "edge", "src": "mb-codegraph.py", "dst": "tempfile", "kind": "import"}
 {"type": "edge", "src": "mb-codegraph.py", "dst": "pathlib.Path", "kind": "import"}
 {"type": "edge", "src": "mb-codegraph.py", "dst": "typing.Any", "kind": "import"}
+{"type": "edge", "src": "mb-codegraph.py", "dst": "tree_sitter.Language", "kind": "import"}
+{"type": "edge", "src": "mb-codegraph.py", "dst": "tree_sitter.Parser", "kind": "import"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "__import__", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "getattr", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "getattr", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "getattr", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "getattr", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "getattr", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "Language", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "lang_fn", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "Parser", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_get_ts_parser", "dst": "print", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_node_text", "dst": "decode", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_name", "dst": "node.child_by_field_name", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_name", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_name", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "node.child_by_field_name", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "_ts_node_text.strip", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "node.child_by_field_name", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "node.child_by_field_name", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "strip", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "_ts_node_text.split", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_call_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "node.child_by_field_name", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "targets.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "_ts_node_text.strip", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "node.child_by_field_name", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "targets.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "_ts_node_text.strip", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "targets.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "targets.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "text.removeprefix.rstrip.strip", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "text.removeprefix.rstrip", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "text.removeprefix", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "targets.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_import_target", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "targets.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "_ts_node_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "text.replace.replace.strip", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "text.replace.replace", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "text.replace", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "targets.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "strip", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_ts_find_inherit_targets", "dst": "cleaned.split", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_get_ts_parser", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "RuntimeError", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "py_path.read_bytes", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "parser.parse", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_rel", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_TS_NODE_KINDS.get", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "kinds.get", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "kinds.get", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "kinds.get", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "kinds.get", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "kinds.get", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "stack.pop", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_ts_find_name", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "nodes.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_ts_find_name", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "nodes.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_ts_find_import_target", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "edges.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_ts_find_call_target", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "edges.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_ts_find_inherit_targets", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "edges.append", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "stack.extend", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "_sha256", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:_parse_ts_file", "dst": "source.decode", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:_sha256", "dst": "hashlib.sha256.hexdigest", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:_sha256", "dst": "hashlib.sha256", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:_sha256", "dst": "text.encode", "kind": "call"}
@@ -126,14 +212,23 @@
 {"type": "edge", "src": "mb-codegraph.py:_save_cache", "dst": "_atomic_write", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:_save_cache", "dst": "json.dumps", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "src_root.exists", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "supported_exts.update", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "_TS_LANG_CONFIG.keys", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "sorted", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "all_source_files.extend", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "src_root.rglob", "kind": "call"}
-{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "py.relative_to", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "sorted", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "src_file.relative_to", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "any", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "p.startswith", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "_rel", "kind": "call"}
-{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "py.read_text", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "src_file.suffix.lower", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "src_file.read_text", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "_sha256", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "_sha256", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "src_file.read_bytes.decode", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "src_file.read_bytes", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "_load_cache", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "cached_data.get", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "all_nodes.extend", "kind": "call"}
@@ -141,6 +236,7 @@
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "all_edges.extend", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "cached_data.get", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "parse_file", "kind": "call"}
+{"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "_parse_ts_file", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "print", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "print", "kind": "call"}
 {"type": "edge", "src": "mb-codegraph.py:build_graph", "dst": "all_nodes.extend", "kind": "call"}
@@ -365,6 +461,14 @@
 {"type": "edge", "src": "mb-index-json.py", "dst": "re.compile", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py", "dst": "re.compile", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_kebab_case", "dst": "str.strip.strip", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_kebab_case", "dst": "str.strip", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_kebab_case", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_kebab_case", "dst": "_KEBAB_RE_1.sub", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_kebab_case", "dst": "_KEBAB_RE_2.sub", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_kebab_case", "dst": "s.lower", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py", "dst": "re.compile", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py:_strip_private", "dst": "PRIVATE_CLOSED_RE.subn", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py:_strip_private", "dst": "PRIVATE_OPEN_RE.subn", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py:_parse_frontmatter", "dst": "FRONTMATTER_RE.match", "kind": "call"}
@@ -403,6 +507,9 @@
 {"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "isinstance", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "_kebab_case", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "seen.add", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "_strip_private", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "note.relative_to.as_posix", "kind": "call"}
 {"type": "edge", "src": "mb-index-json.py:_index_notes", "dst": "note.relative_to", "kind": "call"}

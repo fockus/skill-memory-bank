@@ -328,42 +328,134 @@
 ---
 
 <!-- mb-stage:8 -->
-### Этап 8: Cross-agent output — Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code (v3.0)
+### Этап 8: Cross-agent output — Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code, Codex (v3.0)
+
+**Research upfront (completed 2026-04-20):** см. `notes/2026-04-20_03-36_cross-agent-research.md`. Ключевые findings:
+- **Cursor 1.7+ (октябрь 2025)** имеет полноценный hooks API, **совместимый с Claude Code форматом** → direct reuse наших `hooks/*.sh` (killer feature)
+- **6 из 7 клиентов** — native hooks (Cursor, Windsurf, Cline, OpenCode, Pi, Codex). **Только Kilo** требует git-hooks fallback (FR #5827 open)
+- OpenCode `experimental.session.compacting` — direct PreCompact match (unique advantage)
+- `AGENTS.md` — shared format между OpenCode/Codex/Pi-fallback/Cline-auto-read
 
 **Что сделать:**
 - Разделить контент на слои:
   - **Universal**: `rules/RULES.md`, `.memory-bank/` markdown структура — одинаковы для всех клиентов
   - **Client-specific**: config-файл, slash-команды, hook-формат
-- Adapter per client в `adapters/`:
-  - `adapters/cursor.sh` → `.cursorrules` (converted from CLAUDE.md)
-  - `adapters/windsurf.sh` → `.windsurfrules`
-  - `adapters/cline.sh` → `.clinerules/` директория
-  - `adapters/kilo.sh` → `.kilorules` (подтвердить формат — по коду Kilo Code репо)
-  - `adapters/opencode.sh` → `AGENTS.md`
-  - `adapters/pi.sh` → native Pi Skill package (`~/.pi/skills/memory-bank/`) — Pi имеет extensibility через Skills API (Mario Zechner, badlogic/pi-mono). Preferred path: публикация как Pi Skill, не просто rules-file. Fallback: `AGENTS.md`-формат если Skill API нестабилен
+- Adapter per client в `adapters/` (native hooks где поддерживается):
+  - `adapters/cursor.sh` → `.cursor/rules/*.mdc` + `.cursor/hooks.json` (**CC-compat, reuse наших `hooks/*.sh`**). Events: sessionStart, sessionEnd, preToolUse, preCompact, stop, beforeShellExecution, afterFileEdit
+  - `adapters/windsurf.sh` → `.windsurf/rules/*.md` + Cascade hooks JSON (project-level), exit-2 для pre-hook block
+  - `adapters/cline.sh` → `.clinerules/` + `.clinerules/hooks/*.sh`. Events: beforeToolExecution, afterToolExecution, onNotification
+  - `adapters/kilo.sh` → `.kilocode/rules/*.md` + `kilo.jsonc` instructions array + **git-hooks-fallback** (единственный без native hooks)
+  - `adapters/opencode.sh` → `AGENTS.md` + `opencode.json` plugin config + TypeScript plugin file. Events: session.created/idle/deleted, tool.execute.before/after, **experimental.session.compacting** (= PreCompact)
+  - `adapters/pi.sh` → native Pi Skill package (`~/.pi/skills/memory-bank/`) preferred, `AGENTS.md` + git-hooks-fallback as transitional belt-and-suspenders до стабилизации Pi Skills API
+  - `adapters/codex.sh` → `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` (experimental, warn user в docs). Events: userpromptsubmit + lifecycle under development
+- **`adapters/git-hooks-fallback.sh`** (новый артефакт):
+  - Устанавливает `.git/hooks/post-commit` + `.git/hooks/pre-commit`
+  - `post-commit` детектит изменения в `.memory-bank/*` → запускает `mb-session-end.sh`
+  - `pre-commit` запускает `file-change-log.sh` equivalent (private-block warn)
+  - Idempotent install (chain с existing hooks, не ломает)
+  - **Mandatory для Kilo**, opt-in для Pi
 - Расширить `install.sh`:
   - Interactive prompt "Which clients?" (multi-select) — default только Claude Code
   - Генерит только выбранные
   - manifest отслеживает сгенерированные файлы (для uninstall)
 - Slash-команды: генерим markdown-wrappers где возможно, иначе документация "В этом клиенте /mb не поддерживается, используйте manual workflow"
-- Hooks: для non-CC клиентов hooks недоступны — SessionEnd auto-capture graceful degrade to "pre-commit git hook на изменения в `.memory-bank/`". Для Pi — использовать его native session-save в `~/.pi/agent/sessions/` как сигнал
+- **Важно про AGENTS.md:** OpenCode, Codex и Pi(fallback) используют `AGENTS.md`. При одновременной установке — единый shared file (no-conflict при identical content). Manifest фиксирует ownership per-client для uninstall-idempotency. Cline auto-reads `AGENTS.md` — бонус, не конфликт
 
 **Тестирование:**
-- `tests/e2e/test_cross_agent_install.bats` (≥14 тестов — 2 per client × 7 clients = 14):
-  - Isolated HOME sandbox, install.sh с `--clients cursor,windsurf,opencode,pi`
-  - Проверка генерации правильных config-файлов/skill-packages
-  - uninstall roundtrip: всё удалено
-  - manifest содержит все созданные файлы
-  - Pi adapter: либо skill зарегистрирован в `~/.pi/skills/`, либо `AGENTS.md` fallback
+- `tests/e2e/test_cross_agent_install.bats` (≥18 тестов):
+  - 2 теста per client × 7 = 14 (install+uninstall roundtrip, manifest integrity)
+  - \+ 1 тест Cursor `hooks.json` CC-reuse smoke (наш `mb-session-end.sh` вызывается из Cursor `sessionEnd`)
+  - \+ 1 тест git-hooks-fallback (Kilo scenario — post-commit appends placeholder)
+  - \+ 1 тест AGENTS.md shared ownership (install opencode+codex → single file, uninstall codex → opencode-owned файл остаётся)
+  - \+ 1 тест OpenCode `experimental.session.compacting` mapping (plugin получает event, вызывает MB Manager)
 
 **DoD (SMART):**
-- [ ] 6 adapters созданы и работают: Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code
-- [ ] e2e 14+/14+ green, manifest roundtrip чистый для всех 6
-- [ ] `install.sh` interactive mode работает, `--clients <list>` non-interactive (valid values: claude-code, cursor, windsurf, cline, kilo, opencode, pi)
-- [ ] `uninstall.sh` корректно удаляет client-specific артефакты (через manifest)
-- [ ] Documentation: `docs/cross-agent-setup.md` — example per client + скриншот где применимо
-- [ ] Smoke test: установка skill + Cursor → `.cursorrules` в Cursor работает; установка в Pi → `~/.pi/skills/memory-bank/` регистрируется и `/mb context` работает
-- [ ] Research upfront: за 1-2 часа перед началом этапа проверить актуальный формат конфигов всех 6 клиентов (формат меняется) — результат в `notes/2026-XX-XX_cross-agent-research.md`
+- [ ] 7 adapters созданы: Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code, Codex
+- [ ] `adapters/git-hooks-fallback.sh` idempotent, не ломает existing hooks (chain pattern)
+- [ ] e2e 18+/18+ green, manifest roundtrip чистый для всех 7
+- [ ] `install.sh` interactive mode работает, `--clients <list>` non-interactive (valid values: claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex)
+- [ ] `uninstall.sh` корректно удаляет client-specific артефакты (через manifest), корректно обрабатывает shared `AGENTS.md` при uninstall только одного из {opencode, codex, pi}
+- [ ] Documentation: `docs/cross-agent-setup.md` — example per client + highlighted "Cursor ≡ Claude Code hooks compatibility" + CLI vs IDE limitation warning для Cursor + "experimental" warning для Codex hooks
+- [ ] Smoke test: установка skill + Cursor → `.cursor/hooks.json` работает, `sessionEnd` триггерит `mb-session-end.sh`; установка в Pi → `~/.pi/skills/memory-bank/` регистрируется и `/mb context` работает; установка в Codex → `codex` CLI видит `AGENTS.md` и применяет правила
+- [ ] ✅ Research upfront — **completed 2026-04-20** в `notes/2026-04-20_03-36_cross-agent-research.md`
+
+---
+
+<!-- mb-stage:8.5 -->
+### Этап 8.5: Repository migration — `claude-skill-memory-bank` → `skill-memory-bank` (v3.0 prep)
+
+**Контекст:** После Stage 8 skill становится **универсальным** — работает с 7 клиентами, не только Claude Code. Имя `claude-skill-memory-bank` misleading (привязывает к одному клиенту). Публичный релиз должен быть из нейтрального имени `skill-memory-bank`. Миграция **ДО** Stage 9 (pipx/PyPI), чтобы URL в metadata был финальным с первого release (иначе перевыпуск на PyPI + Homebrew).
+
+**Что сделать:**
+- **Создать новый публичный репо `fockus/skill-memory-bank`** на GitHub:
+  - Public visibility, MIT license
+  - Description: "Universal long-term project memory + dev toolkit for Claude Code, Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code, Codex"
+  - Topics: `memory-bank`, `claude-code`, `cursor`, `ai-coding`, `dev-tools`, `llm-memory`
+- **Migration strategy** (выбор: full history vs clean break):
+  - **Default: full history migration** через `git clone --mirror` + `git push --mirror`
+  - Rationale: сохраняет ADR, research, решения, authorship для transparency
+  - Alternative (clean-break): если history слишком "private" / содержит personal decisions → new repo с single "v3.0 initial public release" commit, старый архив как reference
+  - Решение фиксируется в ADR-011 во время migration
+- **URL / metadata updates** (sed/grep по всему репо):
+  - `README.md` — clone URLs, badges (CI, version)
+  - `install.sh` — GitHub raw install one-liner
+  - `scripts/mb-upgrade.sh` — `GITHUB_REPO="fockus/skill-memory-bank"`
+  - `CHANGELOG.md` — release links
+  - `.github/workflows/*` — если есть cross-repo refs
+  - `SKILL.md`, `CLAUDE.md`, `docs/*` — все упоминания старого URL
+  - `VERSION` остаётся `2.2.0` → bump до `3.0.0-rc1` при migration (финал `3.0.0` в Gate v3.0)
+- **Archive старого репо:**
+  - GitHub UI → Settings → Archive this repository
+  - Добавить в README старого репо банер "⚠️ Moved to [skill-memory-bank](https://github.com/fockus/skill-memory-bank)"
+  - НЕ удалять (issues/PRs история сохраняется для backreference)
+  - Redirect git remotes — GitHub auto-handles redirect для HTTP, но для SSH нужен manual update пользователям
+- **Installation link update везде:**
+  - Старый one-liner: `curl ... fockus/claude-skill-memory-bank/main/install.sh`
+  - Новый: `curl ... fockus/skill-memory-bank/main/install.sh`
+  - Обновить в SKILL.md, CLAUDE.md, README.md, docs/
+- **Issues/PRs migration** (optional, manual):
+  - Open issues: пересоздать в новом репо с cross-link на старый
+  - Merged PRs: history сохраняется через git (не нужна миграция)
+- **Tag continuity:**
+  - Push все tags (v2.0.0, v2.1.0, v2.2.0) в новый репо
+  - GitHub Releases пересоздать в новом репо (скопировать release notes через `gh release`)
+- **CI setup:**
+  - `.github/workflows/ci.yml` работает без изменений (relative paths)
+  - GitHub secrets: пересоздать если были (PyPI token для Stage 9 будет через OIDC trusted publisher, не secret)
+- **Post-migration smoke:**
+  - `git clone https://github.com/fockus/skill-memory-bank.git` → `bash install.sh` → `/mb init` → всё работает
+  - `mb-upgrade.sh --check` → тянет с нового URL
+
+**Тестирование:**
+- `tests/e2e/test_repo_migration.bats` (≥6 тестов, **post-migration smoke**):
+  - `mb-upgrade.sh` URL обновлён и достижим
+  - `install.sh` one-liner работает из нового URL
+  - `SKILL.md` не содержит упоминаний старого репо
+  - `grep -r "claude-skill-memory-bank" .` — только в CHANGELOG (history) и specific ADR-011
+  - Tags `v2.0.0`, `v2.1.0`, `v2.2.0` доступны в новом репо
+  - Старый репо archived (manual check, automated assertion — HTTP HEAD на GH API)
+- Manual pre-flight check:
+  - PyPI name `memory-bank-skill` остаётся (решение ADR-008) — **не** переименовываем в `skill-memory-bank`, чтобы не конфликтовать с существующим python пакетом если есть. Проверить PyPI до migration.
+  - Homebrew tap formula: `fockus/homebrew-tap/memory-bank.rb` источник указывает на новый `fockus/skill-memory-bank` URL
+
+**DoD (SMART):**
+- [ ] Новый репо `fockus/skill-memory-bank` создан, public, лицензия MIT, описание актуальное
+- [ ] Git history migrated (или clean-break с ADR-011 rationale)
+- [ ] Все URL в коде/docs обновлены: `grep -r "claude-skill-memory-bank" .` = 0 matches (кроме CHANGELOG/ADR-011 историчные)
+- [ ] `mb-upgrade.sh` тянет релизы из нового URL — smoke green
+- [ ] Tags `v2.0.0`, `v2.1.0`, `v2.2.0` + GitHub Releases пересозданы в новом репо
+- [ ] Старый репо `fockus/claude-skill-memory-bank` archived с banner-notice
+- [ ] CI `.github/workflows/ci.yml` проходит в новом репо (bats + pytest + shellcheck)
+- [ ] `docs/repo-migration.md` — migration guide для пользователей (как обновить remote, что меняется, что не меняется)
+- [ ] e2e 6+/6+ green
+- [ ] VERSION bumped до `3.0.0-rc1`, CHANGELOG.md entry "### Repository moved"
+- [ ] ADR-011 зафиксирован в BACKLOG.md (migration strategy + package naming decision)
+
+**Риски:**
+- Broken external links — у кого-то в docs/notes ссылки на старый репо. Mitigation: GitHub auto-redirects HTTP clones, SSH clones ломаются (документировать в `docs/repo-migration.md`)
+- PyPI name conflict — `skill-memory-bank` может быть занят. Mitigation: оставляем PyPI name `memory-bank-skill` (ADR-008), URL в metadata указывает на новый GH URL
+- Lost issue discussions — если не мигрируем issues, теряется context. Mitigation: reopen top-5 active issues в новом с cross-link
+- Search/SEO reset — GitHub Stars, search ranking частично сбрасываются. Mitigation: banner на старом, объявление в README
 
 ---
 
@@ -465,14 +557,16 @@
 - [ ] Benchmark токен-экономии для code-graph vs grep: ≥5× (внутренний, не publish — это про другое)
 - [ ] VERSION 2.2.0, CHANGELOG.md, git tag `v2.2.0`
 
-## Gate v3.0 (после этапов 8-9)
+## Gate v3.0 (после этапов 8, 8.5, 9)
 
-- [ ] 6 client adapters работают с e2e coverage (Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code)
+- [ ] 7 client adapters работают с e2e coverage (Cursor, Windsurf, Cline, Kilo, OpenCode, Pi Code, Codex)
+- [ ] **Repo migrated в `fockus/skill-memory-bank` (public)**, старый archived с banner, все URL обновлены
 - [ ] `pipx install memory-bank-skill && memory-bank install` работает из clean env на macos + ubuntu
-- [ ] Homebrew tap `fockus/homebrew-tap/memory-bank` работает: `brew install fockus/tap/memory-bank`
+- [ ] Homebrew tap `fockus/homebrew-tap/memory-bank` работает: `brew install fockus/tap/memory-bank`, formula source URL указывает на `fockus/skill-memory-bank`
 - [ ] `memory-bank self-update` → `pipx upgrade memory-bank-skill` lifts версию
+- [ ] `mb-upgrade.sh` тянет из `fockus/skill-memory-bank` main branch
 - [ ] PyPI auto-publish на git tag через OIDC trusted publisher
-- [ ] VERSION 3.0.0, CHANGELOG.md migration guide v2→v3, git tag `v3.0.0`, GitHub Release
+- [ ] VERSION 3.0.0, CHANGELOG.md migration guide v2→v3 + "## Repository moved" section, git tag `v3.0.0`, GitHub Release в **новом** репо
 - [ ] Public announcement готов (Twitter/blog — optional, user decides, не блокирует Gate)
 
 ## Deferred to v3.1+ backlog
@@ -487,6 +581,7 @@
 2. ✅ **Distribution** — `pipx install memory-bank-skill` primary (PyPI scope свободен ✓), Homebrew tap secondary, Anthropic plugin — tertiary. npm убран (overhead без value). ADR-008
 3. ✅ **Benchmarks** — deferred to v3.1+ backlog (пользователь подтвердил)
 4. ✅ **npm scope** — не актуально после отказа от npm. `@fockus/memory-bank` свободен на случай возврата
+5. ✅ **Codex добавлен** (2026-04-20) — OpenAI Codex CLI (`openai/codex`) становится 7-м adapter. Output: `AGENTS.md` (shared-format с OpenCode) + optional `.codex/config.toml` для project-level settings. При совместной установке с OpenCode `AGENTS.md` — shared file; manifest фиксирует ownership per-client для корректного uninstall
 
 ## Новые open questions
 

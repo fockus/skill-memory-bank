@@ -202,26 +202,45 @@
 - ⬜ Tags auto-merge + drift warn
 - ⬜ CI green, VERSION 2.2.0, tag `v2.2.0`
 
-## Этап 8: Cross-agent output — 6 clients (v3.0)
-- ✅ Research upfront: актуальные форматы конфигов для Cursor, Windsurf, Cline, Kilo, OpenCode, Pi (1-2 часа → `notes/`)
-- ✅ e2e тесты (≥14, 2 per client)
-- ✅ 6 adapters: Cursor (`.cursorrules`), Windsurf (`.windsurfrules`), Cline (`.clinerules/`), Kilo (`.kilorules`), OpenCode (`AGENTS.md`), Pi Code (native Pi Skill в `~/.pi/skills/`, fallback `AGENTS.md`)
-- ✅ Универсальный слой (RULES.md, MB) vs client-specific (configs)
-- ✅ install.sh interactive `--clients <list>` (valid: claude-code, cursor, windsurf, cline, kilo, opencode, pi)
-- ✅ uninstall: manifest roundtrip чистый для всех 6
-- ✅ `docs/cross-agent-setup.md` — per-client examples/screenshots
-- ✅ Pi Code: preferred native Skill path, fallback `AGENTS.md` если API нестабилен
+## Этап 8: Cross-agent output — 7 clients (v3.0)
+- ✅ Research upfront: актуальные форматы + hooks API для Cursor, Windsurf, Cline, Kilo, OpenCode, Pi, Codex → `notes/2026-04-20_03-36_cross-agent-research.md`
+- ⬜ 7 adapters:
+  - ✅ `adapters/cursor.sh` → `.cursor/rules/*.mdc` + `.cursor/hooks.json` (**CC-compat, reuse наших hooks**) — 12 bats green
+  - ⬜ `adapters/windsurf.sh` → `.windsurf/rules/*.md` + Cascade hooks JSON
+  - ⬜ `adapters/cline.sh` → `.clinerules/` + `.clinerules/hooks/*.sh`
+  - ⬜ `adapters/kilo.sh` → `.kilocode/rules/*.md` + git-hooks-fallback (единственный без native)
+  - ⬜ `adapters/opencode.sh` → `AGENTS.md` + `opencode.json` + TS plugin (с `experimental.session.compacting`)
+  - ⬜ `adapters/pi.sh` → `~/.pi/skills/memory-bank/` native + git-hooks-fallback transitional
+  - ⬜ `adapters/codex.sh` → `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` (experimental)
+- ⬜ `adapters/git-hooks-fallback.sh` (mandatory для Kilo, opt-in для Pi)
+- ⬜ e2e тесты ≥18 (2 per client × 7 + CC-reuse smoke + git-fallback + AGENTS.md shared + OpenCode compact mapping)
+- ⬜ Universal layer (RULES.md, `.memory-bank/`) vs client-specific (configs/hooks)
+- ⬜ install.sh interactive + `--clients <list>` (valid: claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex)
+- ⬜ uninstall: manifest roundtrip + shared `AGENTS.md` ownership
+- ⬜ `docs/cross-agent-setup.md` — per-client examples + Cursor-CC compat highlight + experimental warnings
+
+## Этап 8.5: Repository migration `claude-skill-memory-bank` → `skill-memory-bank` (v3.0 prep)
+- ⬜ Создать публичный репо `fockus/skill-memory-bank` (MIT, description, topics)
+- ⬜ Migrate full git history (через `git clone --mirror` + `git push --mirror`), или clean-break с ADR rationale
+- ⬜ Обновить все URL в коде/docs (grep `claude-skill-memory-bank` = 0 matches кроме CHANGELOG/ADR)
+- ⬜ `mb-upgrade.sh` → `GITHUB_REPO="fockus/skill-memory-bank"`, smoke green
+- ⬜ Push tags `v2.0.0`, `v2.1.0`, `v2.2.0` + пересоздать GitHub Releases в новом репо
+- ⬜ Archive старого репо с banner "Moved to skill-memory-bank"
+- ⬜ `docs/repo-migration.md` — guide для пользователей (обновление git remote)
+- ⬜ e2e ≥6 тестов post-migration smoke
+- ⬜ VERSION bumped до `3.0.0-rc1`, CHANGELOG "## Repository moved" section
+- ⬜ ADR-011 зафиксирован в BACKLOG
 
 ## Этап 9: pipx/PyPI distribution + Homebrew tap (v3.0)
-- ✅ e2e тесты (≥10): `pipx install`, `--minimal`, `self-update`, Windows graceful, reinstall idempotent
-- ✅ pytest CLI тесты (≥8): argparse, platform detect, version read
-- ✅ `pyproject.toml` + `memory_bank_skill/` Python package
-- ✅ CLI entry point `memory-bank` с sub-commands: install, uninstall, init, version, self-update
-- ✅ Package включает весь bash/agents/commands/hooks/rules как `package_data`
-- ✅ `pipx install memory-bank-skill` работает macos+ubuntu, CI matrix Python 3.11+3.12
-- ✅ Homebrew tap `fockus/homebrew-tap/memory-bank.rb` (создать repo отдельно)
-- ✅ PyPI auto-publish через OIDC trusted publisher на git tag `v*`
-- ✅ Anthropic plugin manifest `claude-plugin.json` (tertiary path, ready но не блокирует)
+- ⬜ e2e тесты (≥10): `pipx install`, `--minimal`, `self-update`, Windows graceful, reinstall idempotent
+- ⬜ pytest CLI тесты (≥8): argparse, platform detect, version read
+- ⬜ `pyproject.toml` + `memory_bank_skill/` Python package
+- ⬜ CLI entry point `memory-bank` с sub-commands: install, uninstall, init, version, self-update
+- ⬜ Package включает весь bash/agents/commands/hooks/rules как `package_data`
+- ⬜ `pipx install memory-bank-skill` работает macos+ubuntu, CI matrix Python 3.11+3.12
+- ⬜ Homebrew tap `fockus/homebrew-tap/memory-bank.rb` — source URL указывает на `fockus/skill-memory-bank`
+- ⬜ PyPI auto-publish через OIDC trusted publisher на git tag `v*`, `project_urls.Repository` → новый URL
+- ⬜ Anthropic plugin manifest `claude-plugin.json` (tertiary path, ready но не блокирует)
 - ✅ `docs/install.md` — три варианта (pipx/homebrew/claude plugin) с upgrade story
 - ✅ README quick-start → `pipx install memory-bank-skill && memory-bank install`
 

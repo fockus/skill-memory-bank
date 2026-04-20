@@ -1,0 +1,22 @@
+{
+  "notes": [
+    {
+      "path": "notes/2026-04-20_03-36_cross-agent-research.md",
+      "type": "note",
+      "tags": [
+        "cross-agent",
+        "research",
+        "stage-8",
+        "hooks",
+        "adapters",
+        "v3.0"
+      ],
+      "importance": "high",
+      "summary": "Research upfront перед построением 7 adapters. **Фокус:** какие клиенты имеют hooks API, как выглядит финальная hook-матрица, где нужен git-fallback. **Только 1 из 7 клиентов БЕЗ hooks API — Kilo.** Остальные 6 поддерживают lifecycle events нативно. **Бонус-сюрприз:** Cursor 1.7+ и Codex — оба имеют `hooks.json` совместимый с Claude Code форматом, что даёт нам direct reuse наших существующих hook-скриптов.",
+      "has_private": false,
+      "archived": false
+    }
+  ],
+  "lessons": [],
+  "generated_at": "2026-04-20T00:49:31Z"
+}
