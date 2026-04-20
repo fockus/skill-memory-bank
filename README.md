@@ -1,8 +1,11 @@
-# claude-skill-memory-bank
+# skill-memory-bank
 
-[![test](https://github.com/fockus/claude-skill-memory-bank/actions/workflows/test.yml/badge.svg)](https://github.com/fockus/claude-skill-memory-bank/actions/workflows/test.yml)
+[![test](https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml/badge.svg)](https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml)
 
-Three-in-one skill for Claude Code:
+Universal long-term project memory + dev toolkit for **8 AI coding clients**:
+Claude Code, Cursor, Windsurf, Cline, Kilo, OpenCode, Codex, Pi Code.
+
+Three-in-one skill:
 
 1. **Long-term project memory** — `.memory-bank/` persists status, plans, checklists, lessons across sessions. Every session starts where the last one left off.
 2. **Global development rules** — TDD, Clean Architecture (backend), Feature-Sliced Design (frontend), SOLID, Testing Trophy. Installed as `~/.claude/RULES.md` and referenced from every project.
@@ -16,8 +19,8 @@ Three-in-one skill for Claude Code:
 ## Install
 
 ```bash
-git clone https://github.com/fockus/claude-skill-memory-bank.git ~/.claude/skills/claude-skill-memory-bank
-cd ~/.claude/skills/claude-skill-memory-bank && chmod +x install.sh uninstall.sh && ./install.sh
+git clone https://github.com/fockus/skill-memory-bank.git ~/.claude/skills/skill-memory-bank
+cd ~/.claude/skills/skill-memory-bank && chmod +x install.sh uninstall.sh && ./install.sh
 ```
 
 ## What Gets Installed
@@ -136,7 +139,7 @@ Both are loaded concurrently by Claude Code. Neither disables the other.
 ## Uninstall
 
 ```bash
-cd ~/.claude/skills/claude-skill-memory-bank && ./uninstall.sh
+cd ~/.claude/skills/skill-memory-bank && ./uninstall.sh
 ```
 
 Removes all installed files, restores backups. Project `.memory-bank/` directories are not touched.

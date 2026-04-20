@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# claude-skill-memory-bank — Installer
+# skill-memory-bank — Installer
 # Long-term project memory + global rules + 18 dev commands
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
@@ -77,7 +77,7 @@ for c in "${CLIENTS_ARR[@]}"; do
 done
 
 echo ""
-echo -e "${BOLD}═══ Installing claude-skill-memory-bank ═══${NC}"
+echo -e "${BOLD}═══ Installing skill-memory-bank ═══${NC}"
 echo ""
 echo "  • Global RULES.md (TDD, SOLID, Clean Architecture, FSD for frontend)"
 echo "  • 18 dev commands (/mb, /commit, /review, /test, etc.)"
@@ -199,7 +199,7 @@ files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
 backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
 manifest = {
     "installed_at": os.environ["INSTALL_DATE"],
-    "skill": "claude-skill-memory-bank",
+    "skill": "skill-memory-bank",
     "files": list(set(files)),
     "backups": list(set(backups))
 }

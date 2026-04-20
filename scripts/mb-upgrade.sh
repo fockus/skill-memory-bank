@@ -7,7 +7,7 @@
 #   mb-upgrade.sh --force      # применить без подтверждения (для автоматизации)
 #
 # Env:
-#   MB_SKILL_DIR — путь к клонированному репо. Default: ~/.claude/skills/claude-skill-memory-bank
+#   MB_SKILL_DIR — путь к клонированному репо. Default: ~/.claude/skills/skill-memory-bank
 #
 # Требования:
 #   - skill установлен как `git clone` (не ZIP)
@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-SKILL_DIR="${MB_SKILL_DIR:-$HOME/.claude/skills/claude-skill-memory-bank}"
+SKILL_DIR="${MB_SKILL_DIR:-$HOME/.claude/skills/skill-memory-bank}"
 
 CHECK_ONLY=0
 FORCE=0
@@ -34,14 +34,14 @@ done
 # ═══ Pre-flight: skill directory exists ═══
 if [ ! -d "$SKILL_DIR" ]; then
   echo "[error] Skill directory не найдена: $SKILL_DIR" >&2
-  echo "[hint] Установи через: git clone https://github.com/fockus/claude-skill-memory-bank.git $SKILL_DIR" >&2
+  echo "[hint] Установи через: git clone https://github.com/fockus/skill-memory-bank.git $SKILL_DIR" >&2
   exit 1
 fi
 
 # ═══ Pre-flight: it's a git repo ═══
 if [ ! -d "$SKILL_DIR/.git" ]; then
   echo "[error] $SKILL_DIR — не git repository (auto-upgrade требует clone)" >&2
-  echo "[hint] Переустанови через: rm -rf $SKILL_DIR && git clone https://github.com/fockus/claude-skill-memory-bank.git $SKILL_DIR" >&2
+  echo "[hint] Переустанови через: rm -rf $SKILL_DIR && git clone https://github.com/fockus/skill-memory-bank.git $SKILL_DIR" >&2
   exit 1
 fi
 

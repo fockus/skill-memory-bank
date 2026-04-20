@@ -2,6 +2,37 @@
 
 Все значимые изменения документируются здесь. Формат — [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), версионирование — [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0-rc1] — 2026-04-20
+
+### Repository moved
+
+Этот skill переехал в новый публичный репозиторий: **[`fockus/skill-memory-bank`](https://github.com/fockus/skill-memory-bank)**. Старое имя `claude-skill-memory-bank` отражало только один из 8 поддерживаемых клиентов и стало misleading.
+
+**Migration guide:** [docs/repo-migration.md](docs/repo-migration.md).
+
+Historical releases (`v1.x`, `v2.0.0`, `v2.1.0`, `v2.2.0`) остаются доступны в старом репозитории. `v3.0.0` и далее публикуются в новом.
+
+### Added
+
+- **Stage 8 — Cross-agent adapters** (7 clients beyond Claude Code): Cursor (CC-compat hooks), Windsurf (Cascade), Cline (`.clinerules/hooks/`), Kilo (+ git-hooks fallback), OpenCode (TS plugin с `experimental.session.compacting`), Codex (experimental hooks), Pi Code (dual-mode). See `docs/cross-agent-setup.md`.
+- **`adapters/_lib_agents_md.sh`** — refcount-based shared `AGENTS.md` ownership via `.mb-agents-owners.json`. Enables safe coexistence of OpenCode / Codex / Pi installs.
+- **`adapters/git-hooks-fallback.sh`** — universal `.git/hooks/` installer (post-commit auto-capture, pre-commit `<private>` warnings, chain pattern preserves user hooks).
+- **`install.sh --clients <list>`** — non-interactive multi-client install. Valid: `claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex`.
+- **`docs/cross-agent-setup.md`** — complete per-client cheatsheet + hook capability matrix + troubleshooting FAQ.
+- **`docs/repo-migration.md`** — upgrade instructions for existing users.
+
+### Changed
+
+- Repository name: `claude-skill-memory-bank` → `skill-memory-bank`.
+- Install target directory: `~/.claude/skills/skill-memory-bank/` (was `claude-skill-memory-bank/`).
+- `mb-upgrade.sh` tracks new origin URL.
+
+### Tests
+
+- **340+/340+ bats + e2e green** (+90 adapter bats, +10 install-clients e2e over v2.2.0).
+
+---
+
 ## [2.2.0] — 2026-04-20
 
 Knowledge-reach release: cold-start через JSONL-импорт, code graph для 6 языков, tags normalization через controlled vocabulary.

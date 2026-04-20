@@ -5,7 +5,7 @@ MANIFEST="$SKILL_DIR/.installed-manifest.json"
 CLAUDE_DIR="$HOME/.claude"
 GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 
-echo -e "\n${BOLD}═══ Uninstalling claude-skill-memory-bank ═══${NC}\n"
+echo -e "\n${BOLD}═══ Uninstalling skill-memory-bank ═══${NC}\n"
 
 if [ ! -f "$MANIFEST" ]; then
   echo -e "${RED}No manifest found.${NC} Manual cleanup:"

@@ -253,7 +253,7 @@ bash ~/.claude/skills/memory-bank/scripts/mb-upgrade.sh $ARGS_AFTER_UPGRADE
 ```
 
 Скрипт выполняет:
-1. Pre-flight: проверяет что `~/.claude/skills/claude-skill-memory-bank` — git repo с чистым working tree
+1. Pre-flight: проверяет что `~/.claude/skills/skill-memory-bank` — git repo с чистым working tree
 2. Читает `VERSION` файл и local commit hash
 3. `git fetch origin` + сравнивает local vs remote (ahead/behind)
 4. Показывает список ожидающих коммитов (`git log HEAD..origin/main`)

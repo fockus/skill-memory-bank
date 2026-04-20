@@ -8,7 +8,7 @@
 
 ```bash
 # 1. Обновить исходник skill
-cd ~/.claude/skills/claude-skill-memory-bank
+cd ~/.claude/skills/skill-memory-bank
 git fetch && git checkout v2.0.0
 
 # 2. Переустановить (idempotent — существующие user hooks сохранятся)
@@ -42,7 +42,7 @@ python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py .memory-bank
 ### 1. Обновите исходник skill
 
 ```bash
-cd ~/.claude/skills/claude-skill-memory-bank
+cd ~/.claude/skills/skill-memory-bank
 git fetch origin
 git log HEAD..origin/main --oneline   # посмотреть что нового
 git checkout v2.0.0                   # или `main` для bleeding-edge
@@ -122,7 +122,7 @@ cat ~/.claude/skills/memory-bank/VERSION   # 2.0.0
 Если что-то пошло не так — вернитесь к v1:
 
 ```bash
-cd ~/.claude/skills/claude-skill-memory-bank
+cd ~/.claude/skills/skill-memory-bank
 ./uninstall.sh               # снимет v2 установку (сохраняет backups)
 git checkout v1.0.0
 ./install.sh                 # установит v1
@@ -151,6 +151,6 @@ ls ~/.claude/*.pre-mb-backup.*
 
 ## Поддержка
 
-- Issues: https://github.com/fockus/claude-skill-memory-bank/issues
+- Issues: https://github.com/fockus/skill-memory-bank/issues
 - CHANGELOG: [../CHANGELOG.md](../CHANGELOG.md)
 - Версия: `cat ~/.claude/skills/memory-bank/VERSION`
