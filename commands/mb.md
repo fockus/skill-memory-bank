@@ -35,6 +35,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `graph [--apply] [src_root]` | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in через `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache |
 | `tags [--apply] [--auto-merge]` | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 vs closed vocabulary, propose merges. `--auto-merge` применяет только distance ≤1. Vocabulary в `.memory-bank/tags-vocabulary.md` (fallback — `references/tags-vocabulary.md`). `mb-index-json.py` авто-kebab-case |
 | `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
+| `help [subcommand]` | Справка. Без аргумента — список всех подкоманд. С аргументом — детали конкретной (`/mb help compact`, `/mb help tags`, ...) |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
 
 ---
@@ -447,6 +448,77 @@ User: /mb graph --apply
 - Tree-sitter extractor упрощён (MVP): не все edge cases языка — если увидишь пропущенный узел, open issue
 - `god-nodes.md` wiki/ per-node documentation — отложено (YAGNI до реального запроса)
 - C/C++/Ruby/PHP/Kotlin/Swift — не поддержаны (добавить по требованию через новую запись в `_TS_LANG_CONFIG`)
+
+### help [subcommand]
+
+Справка по подкомандам `/mb`. Single source of truth — читает `~/.claude/skills/memory-bank/commands/mb.md` напрямую.
+
+**Режимы (первое слово после `help`):**
+
+1. **`/mb help`** (без аргумента) — вывести router-таблицу всех подкоманд с кратким описанием одной строкой.
+2. **`/mb help <subcommand>`** — извлечь и показать детальный блок реализации конкретной подкоманды (разделы вида `### <subcommand>`).
+
+**Алгоритм для агента:**
+
+```bash
+SKILL_MD="$HOME/.claude/skills/memory-bank/commands/mb.md"
+SUB="$SUBCOMMAND_ARG"  # первое слово после "help", может быть пустым
+
+SKILL_MD="$SKILL_MD" SUB="$SUB" python3 - <<'PY'
+import os, sys
+path = os.environ["SKILL_MD"]
+sub = os.environ.get("SUB", "").strip()
+lines = open(path, encoding="utf-8").read().splitlines()
+
+if not sub:
+    # Mode 1: router table — between "### Роутинг" and next "---"
+    in_section = False
+    for line in lines:
+        if line.startswith("### Роутинг"):
+            in_section = True
+            continue
+        if in_section and line.startswith("---"):
+            break
+        if in_section:
+            print(line)
+    print("\nDetails: /mb help <subcommand>  (e.g. /mb help compact)")
+    sys.exit(0)
+
+# Mode 2: extract "### SUB" block (exact, space-after, or bracket-after)
+header = f"### {sub}"
+in_block = False
+for line in lines:
+    is_header = line == header or line.startswith(header + " ") or line.startswith(header + "[")
+    if is_header:
+        in_block = True
+        print(line)
+        continue
+    if in_block and line.startswith("### "):
+        break
+    if in_block and line.rstrip() == "---":
+        break
+    if in_block:
+        print(line)
+PY
+```
+
+**Примеры:**
+
+```
+User: /mb help
+→ выводит роутер-таблицу с 18 подкомандами
+
+User: /mb help compact
+→ выводит полную секцию "### compact [--dry-run|--apply]" с логикой,
+  примерами, ограничениями
+
+User: /mb help tags
+→ выводит секцию "### tags [--apply] [--auto-merge]"
+```
+
+**Не путай с:**
+- `/help` — built-in Claude Code команда (не skill).
+- `commands/catchup.md` / `commands/start.md` / `commands/done.md` — standalone top-level slash-команды (lightweight), не подкоманды `/mb`.
 
 ### init [--minimal|--full]
 
