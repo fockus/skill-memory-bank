@@ -1,8 +1,7 @@
 name: publish
 
 # Publishes memory-bank-skill to PyPI on every pushed `v*` tag.
-# Uses OIDC trusted publishing (configure at PyPI project settings once).
-# No API token needed in secrets — identity verified via GitHub OIDC.
+# Uses classic API token auth (PYPI_API_TOKEN secret).
 
 on:
   push:
@@ -55,14 +54,9 @@ jobs:
           path: dist/
 
   publish-pypi:
-    name: Publish to PyPI (OIDC trusted publisher)
+    name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-    environment:
-      name: pypi
-      url: https://pypi.org/project/memory-bank-skill/
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -72,6 +66,8 @@ jobs:
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
   github-release:
     name: Create GitHub Release
