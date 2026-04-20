@@ -15,6 +15,67 @@ BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 INSTALLED_FILES=()
 BACKED_UP_FILES=()
 
+# ═══ Arg parsing ═══
+VALID_CLIENTS=(claude-code cursor windsurf cline kilo opencode pi codex)
+CLIENTS="claude-code"
+PROJECT_ROOT="$PWD"
+
+show_help() {
+  cat <<HELP_EOF
+Usage: install.sh [OPTIONS]
+
+Installs Memory Bank (global ~/.claude/) and optionally writes cross-agent
+adapters (.cursor/, .windsurf/, .clinerules/, etc.) into a project directory.
+
+Options:
+  --clients <list>        Comma-separated client list. Default: claude-code only.
+                          Valid: claude-code, cursor, windsurf, cline, kilo,
+                                 opencode, pi, codex
+  --project-root <path>   Target directory for cross-agent adapters (default: PWD).
+  --help                  Show this message.
+
+Examples:
+  install.sh                                         # Global install only
+  install.sh --clients claude-code,cursor            # + .cursor/ adapter in PWD
+  install.sh --clients cursor,windsurf,opencode     # Multi-client, no claude-code
+HELP_EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --clients)
+      CLIENTS="${2:-}"
+      [ -z "$CLIENTS" ] && { echo "[install.sh] --clients requires an argument" >&2; exit 1; }
+      shift 2
+      ;;
+    --project-root)
+      PROJECT_ROOT="${2:-}"
+      [ -z "$PROJECT_ROOT" ] && { echo "[install.sh] --project-root requires an argument" >&2; exit 1; }
+      shift 2
+      ;;
+    --help|-h)
+      show_help; exit 0 ;;
+    *)
+      echo "[install.sh] unknown argument: $1 (use --help)" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Validate client list
+IFS=',' read -ra CLIENTS_ARR <<< "$CLIENTS"
+for c in "${CLIENTS_ARR[@]}"; do
+  c_trimmed="${c// /}"
+  valid=0
+  for v in "${VALID_CLIENTS[@]}"; do
+    [ "$c_trimmed" = "$v" ] && valid=1 && break
+  done
+  if [ "$valid" -eq 0 ]; then
+    echo "[install.sh] invalid client '$c_trimmed'. Valid: ${VALID_CLIENTS[*]}" >&2
+    exit 1
+  fi
+done
+
 echo ""
 echo -e "${BOLD}═══ Installing claude-skill-memory-bank ═══${NC}"
 echo ""
@@ -147,8 +208,29 @@ with open(os.environ["MANIFEST_PATH"], "w") as f:
 print("  Manifest saved")
 PYEOF
 
+# ═══ Step 8: Cross-agent adapters (optional) ═══
+ADAPTERS_INVOKED=()
+for c in "${CLIENTS_ARR[@]}"; do
+  c_trimmed="${c// /}"
+  [ "$c_trimmed" = "claude-code" ] && continue  # already done above
+  adapter="$SKILL_DIR/adapters/$c_trimmed.sh"
+  if [ ! -x "$adapter" ]; then
+    echo -e "  ${YELLOW}~${NC} adapter missing or not executable: $adapter" >&2
+    continue
+  fi
+  echo -e "${BLUE}[8/8] Cross-agent: $c_trimmed${NC}"
+  if bash "$adapter" install "$PROJECT_ROOT"; then
+    ADAPTERS_INVOKED+=("$c_trimmed")
+  else
+    echo -e "  ${RED}✗${NC} adapter $c_trimmed failed" >&2
+  fi
+done
+
 echo ""
 echo -e "${GREEN}═══ Memory Bank installed ═══${NC}"
+if [ "${#ADAPTERS_INVOKED[@]}" -gt 0 ]; then
+  echo -e "  Cross-agent adapters: ${ADAPTERS_INVOKED[*]} (project: $PROJECT_ROOT)"
+fi
 echo ""
 echo "  Next: /mb init — init .memory-bank/ + auto-generate CLAUDE.md (--full, default)"
 echo "  Uninstall: $SKILL_DIR/uninstall.sh"

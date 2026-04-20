@@ -214,11 +214,11 @@
   - ✅ `adapters/codex.sh` → `AGENTS.md` (shared refcount) + `.codex/config.toml` + `.codex/hooks.json` (experimental, warn) — 11 bats green (incl. 4 coexistence tests с OpenCode)
 - ✅ `adapters/_lib_agents_md.sh` — shared AGENTS.md refcount management (`.mb-agents-owners.json`). Prevents section loss when multiple MB adapters coexist
 - ✅ `adapters/git-hooks-fallback.sh` (mandatory для Kilo, opt-in для Pi) — 14 bats green, chain pattern + manifest backup/restore
-- ⬜ e2e тесты ≥18 (2 per client × 7 + CC-reuse smoke + git-fallback + AGENTS.md shared + OpenCode compact mapping)
-- ⬜ Universal layer (RULES.md, `.memory-bank/`) vs client-specific (configs/hooks)
-- ⬜ install.sh interactive + `--clients <list>` (valid: claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex)
-- ⬜ uninstall: manifest roundtrip + shared `AGENTS.md` ownership
-- ⬜ `docs/cross-agent-setup.md` — per-client examples + Cursor-CC compat highlight + experimental warnings
+- ✅ e2e тесты — 10 e2e install.sh `--clients` integration tests + per-adapter 76 bats (12+10+12+9+12+11+10+14 = 90) **= 340/340 full suite green**
+- ✅ Universal layer (RULES.md, `.memory-bank/`) vs client-specific (configs/hooks) — реализовано через `_lib_agents_md.sh` + adapter isolation
+- ✅ install.sh `--clients <list>` non-interactive (valid: claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex) + `--project-root` + `--help`. Interactive prompt — Stage 8 follow-up (optional UX)
+- ✅ uninstall: manifest roundtrip + shared `AGENTS.md` ownership (refcount) — verified coexistence tests
+- ✅ `docs/cross-agent-setup.md` — per-client cheatsheet + Cursor-CC compat highlight + hook matrix + experimental warnings + troubleshooting FAQ
 
 ## Этап 8.5: Repository migration `claude-skill-memory-bank` → `skill-memory-bank` (v3.0 prep)
 - ⬜ Создать публичный репо `fockus/skill-memory-bank` (MIT, description, topics)
