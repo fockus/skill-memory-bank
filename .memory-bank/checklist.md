@@ -209,9 +209,10 @@
   - ✅ `adapters/windsurf.sh` → `.windsurf/rules/*.md` + Cascade hooks JSON (user-prompt-submit, model-response) — 10 bats green
   - ✅ `adapters/cline.sh` → `.clinerules/memory-bank.md` + `.clinerules/hooks/*.sh` (beforeToolExecution, afterToolExecution, onNotification) — 12 bats green
   - ✅ `adapters/kilo.sh` → `.kilocode/rules/memory-bank.md` + git-hooks-fallback (mandatory) — 9 bats green
-  - ⬜ `adapters/opencode.sh` → `AGENTS.md` + `opencode.json` + TS plugin (с `experimental.session.compacting`)
-  - ⬜ `adapters/pi.sh` → `~/.pi/skills/memory-bank/` native + git-hooks-fallback transitional
-  - ⬜ `adapters/codex.sh` → `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` (experimental)
+  - ✅ `adapters/opencode.sh` → `AGENTS.md` (shared refcount) + `opencode.json` + TS plugin с `experimental.session.compacting` — 12 bats green
+  - ✅ `adapters/pi.sh` → dual-mode: MB_PI_MODE=skill (native `~/.pi/skills/memory-bank/`) | agents-md (default, git-hooks transitional) — 10 bats green
+  - ✅ `adapters/codex.sh` → `AGENTS.md` (shared refcount) + `.codex/config.toml` + `.codex/hooks.json` (experimental, warn) — 11 bats green (incl. 4 coexistence tests с OpenCode)
+- ✅ `adapters/_lib_agents_md.sh` — shared AGENTS.md refcount management (`.mb-agents-owners.json`). Prevents section loss when multiple MB adapters coexist
 - ✅ `adapters/git-hooks-fallback.sh` (mandatory для Kilo, opt-in для Pi) — 14 bats green, chain pattern + manifest backup/restore
 - ⬜ e2e тесты ≥18 (2 per client × 7 + CC-reuse smoke + git-fallback + AGENTS.md shared + OpenCode compact mapping)
 - ⬜ Universal layer (RULES.md, `.memory-bank/`) vs client-specific (configs/hooks)
