@@ -206,8 +206,8 @@
 - ✅ Research upfront: актуальные форматы + hooks API для Cursor, Windsurf, Cline, Kilo, OpenCode, Pi, Codex → `notes/2026-04-20_03-36_cross-agent-research.md`
 - ⬜ 7 adapters:
   - ✅ `adapters/cursor.sh` → `.cursor/rules/*.mdc` + `.cursor/hooks.json` (**CC-compat, reuse наших hooks**) — 12 bats green
-  - ⬜ `adapters/windsurf.sh` → `.windsurf/rules/*.md` + Cascade hooks JSON
-  - ⬜ `adapters/cline.sh` → `.clinerules/` + `.clinerules/hooks/*.sh`
+  - ✅ `adapters/windsurf.sh` → `.windsurf/rules/*.md` + Cascade hooks JSON (user-prompt-submit, model-response) — 10 bats green
+  - ✅ `adapters/cline.sh` → `.clinerules/memory-bank.md` + `.clinerules/hooks/*.sh` (beforeToolExecution, afterToolExecution, onNotification) — 12 bats green
   - ✅ `adapters/kilo.sh` → `.kilocode/rules/memory-bank.md` + git-hooks-fallback (mandatory) — 9 bats green
   - ⬜ `adapters/opencode.sh` → `AGENTS.md` + `opencode.json` + TS plugin (с `experimental.session.compacting`)
   - ⬜ `adapters/pi.sh` → `~/.pi/skills/memory-bank/` native + git-hooks-fallback transitional
