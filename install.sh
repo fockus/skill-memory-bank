@@ -17,8 +17,9 @@ BACKED_UP_FILES=()
 
 # ═══ Arg parsing ═══
 VALID_CLIENTS=(claude-code cursor windsurf cline kilo opencode pi codex)
-CLIENTS="claude-code"
+CLIENTS=""                  # unset sentinel — triggers interactive or default
 PROJECT_ROOT="$PWD"
+NON_INTERACTIVE=0
 
 show_help() {
   cat <<HELP_EOF
@@ -28,14 +29,18 @@ Installs Memory Bank (global ~/.claude/) and optionally writes cross-agent
 adapters (.cursor/, .windsurf/, .clinerules/, etc.) into a project directory.
 
 Options:
-  --clients <list>        Comma-separated client list. Default: claude-code only.
+  --clients <list>        Comma-separated client list.
                           Valid: claude-code, cursor, windsurf, cline, kilo,
                                  opencode, pi, codex
+                          If omitted and running in a TTY → interactive menu.
+                          Non-TTY default: claude-code only.
   --project-root <path>   Target directory for cross-agent adapters (default: PWD).
+  --non-interactive       Never prompt; use defaults when --clients not passed.
   --help                  Show this message.
 
 Examples:
-  install.sh                                         # Global install only
+  install.sh                                         # Interactive menu (TTY)
+  install.sh --non-interactive                       # claude-code only, no prompt
   install.sh --clients claude-code,cursor            # + .cursor/ adapter in PWD
   install.sh --clients cursor,windsurf,opencode     # Multi-client, no claude-code
 HELP_EOF
@@ -53,6 +58,8 @@ while [ $# -gt 0 ]; do
       [ -z "$PROJECT_ROOT" ] && { echo "[install.sh] --project-root requires an argument" >&2; exit 1; }
       shift 2
       ;;
+    --non-interactive)
+      NON_INTERACTIVE=1; shift ;;
     --help|-h)
       show_help; exit 0 ;;
     *)
@@ -61,6 +68,84 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+# ═══ Interactive client picker ═══
+# Triggers only when: --clients empty AND stdin is TTY AND --non-interactive not set.
+# Env override: MB_CLIENTS="claude-code,cursor" bash install.sh — skip prompt too.
+if [ -z "$CLIENTS" ] && [ -n "${MB_CLIENTS:-}" ]; then
+  CLIENTS="$MB_CLIENTS"
+fi
+
+interactive_pick_clients() {
+  echo ""
+  echo -e "${BOLD}Which AI coding agents do you want to enable?${NC}"
+  echo "  Claude Code is recommended as the primary target."
+  echo "  Cross-agent adapters write per-client config (.cursor/, .windsurf/, etc.)"
+  echo "  into the current project ($PROJECT_ROOT)."
+  echo ""
+  local idx=1
+  for c in "${VALID_CLIENTS[@]}"; do
+    local marker=" "
+    [ "$c" = "claude-code" ] && marker="*"
+    printf "  [%d]%s %s\n" "$idx" "$marker" "$c"
+    idx=$((idx + 1))
+  done
+  echo ""
+  echo "  Enter numbers separated by spaces or commas (e.g. '1 2 5'),"
+  echo "  'all' for every client, or press Enter for just claude-code."
+  echo ""
+  printf "> "
+  local reply
+  IFS= read -r reply </dev/tty || reply=""
+  reply="${reply// /,}"         # spaces → commas
+  reply="${reply//,,/,}"         # collapse double commas
+  reply="${reply#,}"; reply="${reply%,}"
+
+  if [ -z "$reply" ]; then
+    CLIENTS="claude-code"
+    echo "  → selected: claude-code (default)"
+    return
+  fi
+
+  if [ "$reply" = "all" ]; then
+    CLIENTS="$(IFS=,; echo "${VALID_CLIENTS[*]}")"
+    echo "  → selected: $CLIENTS"
+    return
+  fi
+
+  local picked=()
+  IFS=',' read -ra parts <<< "$reply"
+  for p in "${parts[@]}"; do
+    p="${p// /}"
+    [ -z "$p" ] && continue
+    if ! [[ "$p" =~ ^[0-9]+$ ]]; then
+      echo "[install.sh] invalid selection: '$p' (expected number 1-${#VALID_CLIENTS[@]})" >&2
+      exit 1
+    fi
+    local i=$((p - 1))
+    if [ "$i" -lt 0 ] || [ "$i" -ge "${#VALID_CLIENTS[@]}" ]; then
+      echo "[install.sh] out of range: '$p' (valid: 1-${#VALID_CLIENTS[@]})" >&2
+      exit 1
+    fi
+    picked+=("${VALID_CLIENTS[$i]}")
+  done
+
+  if [ "${#picked[@]}" -eq 0 ]; then
+    CLIENTS="claude-code"
+    echo "  → selected: claude-code (default)"
+  else
+    CLIENTS="$(IFS=,; echo "${picked[*]}")"
+    echo "  → selected: $CLIENTS"
+  fi
+}
+
+if [ -z "$CLIENTS" ]; then
+  if [ "$NON_INTERACTIVE" -eq 1 ] || [ ! -t 0 ]; then
+    CLIENTS="claude-code"
+  else
+    interactive_pick_clients
+  fi
+fi
 
 # Validate client list
 IFS=',' read -ra CLIENTS_ARR <<< "$CLIENTS"

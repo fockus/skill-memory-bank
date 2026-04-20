@@ -9,7 +9,7 @@ echo -e "\n${BOLD}═══ Uninstalling skill-memory-bank ═══${NC}\n"
 
 if [ ! -f "$MANIFEST" ]; then
   echo -e "${RED}No manifest found.${NC} Manual cleanup:"
-  echo "  rm ~/.claude/commands/{mb,adr,plan,start,done,commit,review,test,doc,pr,changelog,catchup,refactor,security-review,contract,api-contract,db-migration,observability}.md"
+  echo "  rm ~/.claude/commands/{mb,adr,plan,start,done,commit,review,test,doc,pr,changelog,catchup,refactor,security-review,contract,api-contract,db-migration,observability,install}.md"
   echo "  rm ~/.claude/agents/{mb-doctor,mb-manager,plan-verifier,mb-codebase-mapper}.md"
   echo "  rm ~/.claude/hooks/{block-dangerous,file-change-log}.sh"
   echo "  rm -rf ~/.claude/skills/memory-bank"

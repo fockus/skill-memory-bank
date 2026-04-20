@@ -67,10 +67,29 @@ cd ~/.claude/skills/skill-memory-bank
 
 ### Add cross-agent support (Cursor, Windsurf, OpenCode, etc.)
 
+Three ways — pick whichever matches your workflow:
+
+**A. Interactive menu** (from any terminal — recommended if you're unsure which clients you want):
+
 ```bash
-# From inside your project directory:
+cd your-project/
+memory-bank install                     # multi-select prompt for all 8 clients
+```
+
+**B. CLI flags** (scripts / CI / one-liner):
+
+```bash
+cd your-project/
 memory-bank install --clients claude-code,cursor,windsurf
 ```
+
+**C. From inside an agent** (Claude Code, OpenCode, Codex — anything with bash tool access):
+
+```
+/install
+```
+
+The agent asks which clients you want (via AskUserQuestion in Claude Code, or an inline prompt elsewhere), then runs `memory-bank install --clients <selected>` for the current project.
 
 Supported client names: `claude-code`, `cursor`, `windsurf`, `cline`, `kilo`, `opencode`, `pi`, `codex`.
 
@@ -132,33 +151,57 @@ Installs `~/.claude/RULES.md` (or equivalent per client) with:
 
 The agent reads these rules at session start and follows them without you having to remind it.
 
-### 3. 18 dev-workflow commands
+### 3. Dev-workflow commands
+
+**18 top-level slash-commands** (live in `commands/`):
 
 | Command | Purpose |
 |---------|---------|
-| `/mb start` | Load full project context |
-| `/mb done` | End-of-session actualize + progress note |
-| `/mb verify` | Check that implementation matches the plan |
-| `/mb plan <type> <topic>` | Create a detailed plan (feature / fix / refactor / experiment) with DoD criteria |
-| `/mb search <query>` | Search across the memory bank |
-| `/mb note <topic>` | Quick knowledge note |
-| `/mb tasks` | Show pending work |
-| `/mb update` | Refresh core files without closing the session |
-| `/commit` | Conventional-commit message with context |
-| `/review` | Full code review (security + perf + quality) |
-| `/test` | Run tests with coverage analysis |
-| `/plan` | Implementation plan generator |
-| `/refactor` | Guided refactoring |
-| `/pr` | Create pull request with description |
-| `/adr` | Architecture Decision Record template |
+| `/mb <sub>` | Memory Bank hub (20 sub-commands — see table below) |
+| `/start` | Lightweight session start (loads STATUS/checklist only) |
+| `/done` | Lightweight session close (no full actualize) |
+| `/plan` | Implementation plan generator with DoD/TDD scaffolding |
+| `/commit` | Conventional-commit message with MB context |
+| `/pr` | Create pull request with structured description |
+| `/review` | Full code review (correctness + security + perf + style) |
+| `/test` | Run tests + coverage analysis + gap report |
+| `/refactor` | Guided refactoring (Strangler Fig, staged diffs) |
+| `/doc` | Generate / refresh documentation from code |
+| `/changelog` | Update CHANGELOG.md from recent commits |
+| `/catchup` | Summarize recent changes since last session |
+| `/adr` | Architecture Decision Record template writer |
 | `/contract` | Contract-first workflow (Protocol/ABC → tests → impl) |
-| `/security-review` | Security audit pass |
-| `/api-contract` | API contract validation |
-| `/db-migration` | Safe migration planning |
-| `/observability` | Logging/metrics/tracing review |
-| `/doc` | Generate documentation |
-| `/changelog` | CHANGELOG update |
-| `/catchup` | Summarize recent changes |
+| `/security-review` | OWASP-focused security audit pass |
+| `/api-contract` | API contract validation + breaking-change detection |
+| `/db-migration` | Safe DB migration planning (rollback, backfill) |
+| `/observability` | Logging / metrics / tracing audit for a module |
+
+**20 `/mb` sub-commands** (live in `commands/mb.md`):
+
+| Sub-command | Purpose |
+|-------------|---------|
+| `/mb` / `/mb context` | Collect project context (status, checklist, active plan) |
+| `/mb start` | Extended session start — full context + active plan body |
+| `/mb done` | Close session — actualize + note + progress |
+| `/mb update` | Refresh core files with live metrics (no note) |
+| `/mb verify` | Verify implementation matches the active plan (CRITICAL before `/mb done`) |
+| `/mb doctor` | Find & fix inconsistencies inside the memory bank |
+| `/mb plan <type> <topic>` | Create detailed plan (feature / fix / refactor / experiment) |
+| `/mb search <query>` | Keyword search across the memory bank |
+| `/mb note <topic>` | Quick knowledge note (5-15 lines) |
+| `/mb tasks` | Show pending tasks from checklist |
+| `/mb index` | Registry of all entries (core + notes/plans/experiments/reports) |
+| `/mb map [focus]` | Scan codebase, write MD docs to `.memory-bank/codebase/` (stack/arch/quality/concerns/all) |
+| `/mb graph [--apply]` | Multi-language code graph: Python (stdlib `ast`) + Go/JS/TS/Rust/Java (tree-sitter, opt-in) |
+| `/mb compact [--apply]` | Status-based decay — archive old done plans + low-importance notes |
+| `/mb import --project <path>` | Bootstrap MB from Claude Code JSONL transcripts |
+| `/mb tags [--apply]` | Normalize frontmatter tags (Levenshtein-based synonym merge) |
+| `/mb upgrade` | Update skill from GitHub (git pull + re-install) |
+| `/mb init [--minimal\|--full]` | Initialize `.memory-bank/` in a new project |
+| `/mb deps [--install-hints]` | Dependency check (python3, jq, git + optional tree-sitter) |
+| `/mb help [subcommand]` | Show sub-command reference inline |
+
+**Run `/mb help` inside any agent** to see this table live; `/mb help <sub>` for full detail of one sub-command.
 
 ### 4. Cross-agent portability
 
@@ -225,18 +268,19 @@ memory-bank install --clients cursor   # adds .cursor/ adapter
 After `pipx install memory-bank-skill`:
 
 ```bash
-memory-bank install [--clients <list>] [--project-root <path>]
+memory-bank install [--clients <list>] [--project-root <path>] [--non-interactive]
 memory-bank uninstall
 memory-bank init                    # prints /mb init hint
 memory-bank version
 memory-bank self-update             # prints `pipx upgrade ...`
-memory-bank doctor                  # resolves bundle, platform info
+memory-bank doctor                  # resolves bundle, platform info, checks bash
 memory-bank --help
 ```
 
 Flags:
-- `--clients <list>` — comma-separated. Valid: `claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex`. Default: `claude-code` only.
+- `--clients <list>` — comma-separated. Valid: `claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex`. If omitted and running in a TTY → interactive menu. Non-TTY default: `claude-code` only.
 - `--project-root <path>` — where to place client-specific adapters. Default: current directory.
+- `--non-interactive` — never prompt; use defaults when `--clients` not specified. Use in CI / scripted installs.
 
 ---
 
@@ -256,11 +300,25 @@ Flags:
 
 | OS | Status |
 |----|--------|
-| macOS | ✅ Full |
-| Linux | ✅ Full |
-| Windows | ⚠️ WSL only (bash required) |
+| macOS | ✅ Native |
+| Linux | ✅ Native |
+| Windows (Git Bash) | ✅ Via Git for Windows — install works, CLI auto-detects `bash.exe` |
+| Windows (WSL) | ✅ Full native POSIX path |
+| Windows (native PowerShell, no bash) | ⚠️ Fails with install hint |
 
-Running native Windows prints a WSL hint and exits. Use WSL: `wsl --install`, then install from inside WSL.
+**Windows quick start:**
+
+```powershell
+# Either:
+winget install Git.Git            # → supplies bash.exe at C:\Program Files\Git\bin\bash.exe
+# or:
+wsl --install                     # → full Linux env
+pip install memory-bank-skill     # inside WSL or with Git Bash on PATH
+memory-bank doctor                # verifies bash discovery
+memory-bank install               # works once bash is resolvable
+```
+
+`memory-bank doctor` on Windows reports the detected bash path (or an install hint if none found).
 
 ---
 

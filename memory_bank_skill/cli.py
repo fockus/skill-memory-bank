@@ -8,8 +8,11 @@ Subcommands:
     self-update   Suggest pipx upgrade command
     doctor        Print resolved bundle path + platform info
 
-Windows is not supported (skill relies on bash); CLI exits with a helpful
-message + WSL hint instead of silently failing.
+Platform support:
+    - macOS / Linux: native bash
+    - Windows + Git for Windows: auto-detects bash.exe (C:\\Program Files\\Git\\bin\\)
+    - Windows + WSL: routes through `wsl bash` if `bash.exe` not found on PATH
+    - Windows without either: exits with install hint for Git/WSL
 """
 
 from __future__ import annotations
@@ -17,8 +20,10 @@ from __future__ import annotations
 import argparse
 import os
 import platform
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from memory_bank_skill import __version__
 from memory_bank_skill._bundle import find_bundle_root
@@ -37,20 +42,83 @@ VALID_CLIENTS = (
 )
 
 
-# ═══ Platform gate ═══
+# ═══ Platform detection ═══
 def is_windows() -> bool:
     return platform.system().lower() == "windows"
 
 
-def require_posix() -> None:
+# Common locations where Git for Windows installs bash.exe.
+# Listed in priority order (user install first, system install second).
+WINDOWS_BASH_CANDIDATES: tuple[str, ...] = (
+    r"C:\Program Files\Git\bin\bash.exe",
+    r"C:\Program Files (x86)\Git\bin\bash.exe",
+    r"C:\Users\Public\Git\bin\bash.exe",
+)
+
+
+def _env_bash_override() -> str | None:
+    """Explicit user override: MB_BASH=/path/to/bash.exe."""
+    override = os.environ.get("MB_BASH")
+    if override and Path(override).exists():
+        return override
+    return None
+
+
+def find_bash() -> str | None:
+    """Locate a usable bash executable. Returns absolute path or None."""
+    # Explicit override wins.
+    override = _env_bash_override()
+    if override:
+        return override
+
+    # POSIX: `bash` on PATH is the normal case.
+    if not is_windows():
+        found = shutil.which("bash")
+        return found
+
+    # Windows: prefer `bash.exe` on PATH (Git Bash adds its dir).
+    found = shutil.which("bash.exe") or shutil.which("bash")
+    if found:
+        # Guard against WSL's C:\Windows\System32\bash.exe — that launches WSL
+        # interactively without forwarding the script path correctly in every
+        # environment. Skip it; fall through to explicit Git Bash paths first.
+        if "system32" not in found.lower():
+            return found
+
+    # Check well-known Git for Windows install locations.
+    for candidate in WINDOWS_BASH_CANDIDATES:
+        if Path(candidate).exists():
+            return candidate
+
+    # Last resort: WSL via `wsl bash`. Only return if wsl.exe exists.
+    wsl = shutil.which("wsl.exe") or shutil.which("wsl")
+    if wsl:
+        return wsl  # run_shell() handles the `wsl bash ...` invocation form.
+
+    return None
+
+
+def windows_install_hint() -> str:
+    return (
+        "memory-bank-skill needs bash on Windows. Install one of:\n"
+        "  • Git for Windows:  winget install Git.Git   (provides bash.exe)\n"
+        "  • WSL:              wsl --install            (full Linux env)\n"
+        "\n"
+        "Then re-run the command. Override detection with:\n"
+        '  set MB_BASH="C:\\path\\to\\bash.exe"\n'
+    )
+
+
+def require_bash() -> str:
+    """Return path to bash or exit with a helpful message."""
+    bash = find_bash()
+    if bash:
+        return bash
     if is_windows():
-        sys.stderr.write(
-            "memory-bank-skill requires a POSIX shell (macOS or Linux).\n"
-            "Windows: use WSL (Windows Subsystem for Linux) to run the skill.\n"
-            "  1. wsl --install\n"
-            "  2. From inside WSL: pipx install memory-bank-skill && memory-bank install\n"
-        )
-        sys.exit(2)
+        sys.stderr.write(windows_install_hint())
+    else:
+        sys.stderr.write("[memory-bank] `bash` not found on PATH\n")
+    sys.exit(2)
 
 
 # ═══ Shell invocation ═══
@@ -61,33 +129,43 @@ def run_shell(script: str, *args: str) -> int:
     if not script_path.is_file():
         sys.stderr.write(f"[memory-bank] missing bundled script: {script_path}\n")
         return 3
-    cmd = ["bash", str(script_path), *args]
+
+    bash = require_bash()
+    bash_lower = bash.lower()
+    is_wsl_wrapper = is_windows() and (bash_lower.endswith("wsl.exe") or bash_lower.endswith("wsl"))
+
+    if is_wsl_wrapper:
+        # WSL mode: `wsl bash <script> <args>`. WSL auto-translates C:\ paths
+        # under /mnt/c/ when the script resides on the Windows filesystem.
+        cmd = [bash, "bash", str(script_path), *args]
+    else:
+        cmd = [bash, str(script_path), *args]
+
     try:
         result = subprocess.run(cmd, check=False)  # noqa: S603
     except FileNotFoundError:
-        sys.stderr.write("[memory-bank] `bash` not found on PATH\n")
+        sys.stderr.write(f"[memory-bank] `{bash}` not found on PATH\n")
         return 4
     return result.returncode
 
 
 # ═══ Subcommand handlers ═══
 def cmd_install(args: argparse.Namespace) -> int:
-    require_posix()
     sh_args: list[str] = []
     if args.clients:
         sh_args.extend(["--clients", args.clients])
     if args.project_root:
         sh_args.extend(["--project-root", args.project_root])
+    if args.non_interactive:
+        sh_args.append("--non-interactive")
     return run_shell("install.sh", *sh_args)
 
 
 def cmd_uninstall(_args: argparse.Namespace) -> int:
-    require_posix()
     return run_shell("uninstall.sh")
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    require_posix()
     # `/mb init` is handled by Claude Code command; CLI just hints
     target = args.project_root or os.getcwd()
     sys.stdout.write(
@@ -125,8 +203,18 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     except FileNotFoundError as e:
         sys.stdout.write(f"Bundle: NOT FOUND ({e})\n")
         return 1
-    if is_windows():
-        sys.stdout.write("Windows detected — `install` / `uninstall` blocked (use WSL).\n")
+
+    # Bash discovery: now same report on every platform.
+    bash = find_bash()
+    if bash:
+        sys.stdout.write(f"bash: {bash}\n")
+        if is_windows():
+            sys.stdout.write("  (Windows: Git Bash / WSL detected — install / uninstall work.)\n")
+    else:
+        sys.stdout.write("bash: NOT FOUND\n")
+        if is_windows():
+            sys.stdout.write(windows_install_hint())
+        return 1
     return 0
 
 
@@ -142,9 +230,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_install = sub.add_parser("install", help="Install skill globally + optional cross-agent adapters")
     p_install.add_argument(
         "--clients",
-        help=f"Comma-separated client list. Valid: {', '.join(VALID_CLIENTS)}",
+        help=f"Comma-separated client list. Valid: {', '.join(VALID_CLIENTS)}. "
+             "Omit to use interactive menu when running in a TTY.",
     )
     p_install.add_argument("--project-root", help="Target directory for cross-agent adapters (default: PWD)")
+    p_install.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Skip interactive prompts; use defaults when --clients not specified.",
+    )
     p_install.set_defaults(func=cmd_install)
 
     p_uninstall = sub.add_parser("uninstall", help="Remove global skill install")

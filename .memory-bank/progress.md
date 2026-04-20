@@ -1,5 +1,28 @@
 # claude-skill-memory-bank — Progress Log
 
+## 2026-04-20 (Stage 10: UX polish — README, interactive install, Windows)
+
+### Выполнено
+- **README command reference**: разделён на две полные таблицы — 18 top-level slash-команд + 20 `/mb` подкоманд (ранее было 23 смешанных строки с пропусками). Добавлен "3 способа установки cross-agent adapters" (меню / CLI / `/install`).
+- **Interactive client picker в `install.sh`**: multi-select меню 8 клиентов когда `--clients` не задан + stdin TTY + `--non-interactive` не установлен. Принимает числа, имена, `all`, пустой ввод. `MB_CLIENTS` env как альтернатива CLI-флагу. `--non-interactive` для CI.
+- **`/install` slash-команда** (`commands/install.md`): работает из Claude Code (`AskUserQuestion` multi-select), OpenCode, Codex (inline prompt). Делегирует в `memory-bank install --clients ... --project-root $PWD`.
+- **Windows compromise (Git Bash / WSL)**: снят `require_posix()` hard-fail. `find_bash()` с приоритетами: `MB_BASH` env → `bash.exe` на PATH (skip system32 shim) → `C:\Program Files\Git\bin\bash.exe` → WSL fallback. `memory-bank doctor` выводит resolved bash path + actionable install hint если не найден.
+- **Тесты**: 29 pytest (+9 новых на `find_bash` discovery, WSL wrapper mode, `--non-interactive` forwarding) + 13 bats (`test_install_interactive.bats`) на CLI-флаги и env overrides. Всё зелёное: 125 pytest + 325 bats.
+- **CHANGELOG**: секция `[Unreleased]` с полным списком Added / Changed / Docs. VERSION не менял — остаётся `3.0.0-rc1` по договорённости.
+- **`.gitignore`**: добавлены `/.cursor/`, `/.windsurf/`, `/.clinerules/`, `/.kilocode/`, `/.codex/`, `/AGENTS.md` — следы dogfood-install'ов в корне репы.
+
+### Files changed
+- `README.md`, `install.sh`, `uninstall.sh`, `memory_bank_skill/cli.py`, `.gitignore`
+- `commands/install.md` (new)
+- `tests/pytest/test_cli.py` (rewrite), `tests/bats/test_install_interactive.bats` (new)
+- `CHANGELOG.md`
+
+### Follow-up
+- Не коммитил — жду инструкцию пользователя (правило: коммит только по запросу).
+- VERSION остаётся `3.0.0-rc1` до решения пользователя bump'ать или ждать dogfood.
+
+---
+
 ## 2026-04-19
 
 ### Аудит skill v1

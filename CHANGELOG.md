@@ -2,6 +2,36 @@
 
 Все значимые изменения документируются здесь. Формат — [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), версионирование — [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Interactive client picker в `install.sh`** — когда `--clients` не задан и stdin TTY, показывается multi-select меню с 8 клиентами (`claude-code`, `cursor`, `windsurf`, `cline`, `kilo`, `opencode`, `pi`, `codex`). Принимаются числа, имена, `all` или пустой ввод (= `claude-code`). Подавляется флагом `--non-interactive` или non-TTY stdin.
+- **`install.sh --non-interactive`** — явный bypass интерактива для CI / scripted installs.
+- **Env `MB_CLIENTS`** — альтернативный путь задать клиентов (аналог `--clients`), полезен в Docker / pipx wrappers.
+- **`memory-bank install --non-interactive`** — forward flag'а из Python CLI.
+- **`/install` slash-команда** (`commands/install.md`) — запуск установки adapter'ов изнутри Claude Code / OpenCode / Codex. Использует `AskUserQuestion` для multi-select в CC, inline prompt в других агентах.
+- **Windows compromise — Git Bash / WSL support**:
+  - `cli.py` больше не делает hard-fail на Windows. Добавлен `find_bash()` с приоритетами: `MB_BASH` env override → `bash.exe` на PATH → `C:\Program Files\Git\bin\bash.exe` → WSL fallback.
+  - `system32\bash.exe` (WSL launcher shim) игнорируется в пользу Git Bash / explicit WSL.
+  - `memory-bank doctor` теперь показывает resolved bash path на любой платформе.
+  - При отсутствии bash на Windows печатается actionable install hint (winget / WSL).
+- **README: полная command reference** — две таблицы (18 top-level slash-команд + 20 `/mb` sub-команд), вместо прежнего частичного списка из 23 строк.
+- **README: 3 способа установки cross-agent adapters** — интерактивное меню, CLI-флаги, `/install` изнутри агента.
+
+### Changed
+
+- `memory-bank install / uninstall / init / doctor` — сняты вызовы `require_posix()`, работают на Windows при наличии bash.
+- `tests/pytest/test_cli.py` — обновлены под новую платформенную модель (29 тестов, включая 9 новых на `find_bash()` discovery + WSL wrapper mode).
+- `tests/bats/test_install_interactive.bats` — новый файл с 13 тестами на CLI-флаги, валидацию, env overrides.
+
+### Docs
+
+- README: Platform matrix расширен (macOS native / Linux native / Windows Git Bash / Windows WSL / Windows без bash — последнее с hint'ом).
+- README: command tables пронумерованы как "18 top-level + 20 `/mb` sub-commands".
+
+---
+
 ## [3.0.0-rc1] — 2026-04-20
 
 ### Repository moved

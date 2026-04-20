@@ -1,14 +1,14 @@
 """Tests for memory_bank_skill.cli.
 
-Covers: argparse, version, platform gate, bundle resolution, shell wrapper paths.
-Windows paths mocked; shell invocations use bundled install.sh --help (safe, no-op).
+Covers: argparse, version, bundle resolution, bash discovery, shell wrapper.
+Platform behavior mocked; shell invocations use bundled install.sh --help.
 """
 
 from __future__ import annotations
 
-import io
 import os
 import platform
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -48,7 +48,7 @@ def test_top_level_version_flag(capsys):
 def test_no_subcommand_shows_help_and_exits_nonzero(capsys):
     with pytest.raises(SystemExit) as exc:
         cli.main([])
-    # argparse with required=True exits 2 and writes to stderr
+    # argparse with required=True exits 2
     assert exc.value.code == 2
 
 
@@ -58,7 +58,7 @@ def test_unknown_subcommand_errors(capsys):
 
 
 # ═══════════════════════════════════════════════════════════════
-# Self-update + doctor
+# Self-update + init + doctor
 # ═══════════════════════════════════════════════════════════════
 
 def test_self_update_prints_pipx_command(capsys):
@@ -76,13 +76,14 @@ def test_init_prints_claude_code_hint(capsys):
     assert "/mb init" in out
 
 
-def test_doctor_reports_bundle_and_platform(capsys):
+def test_doctor_reports_bundle_platform_and_bash(capsys):
     rc = cli.main(["doctor"])
-    assert rc == 0
+    # rc == 0 on systems with bash (macOS/Linux CI); rc==1 on Windows w/o bash
     out = capsys.readouterr().out
     assert __version__ in out
     assert "Bundle root:" in out
     assert "install.sh:" in out
+    assert "bash:" in out
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -106,14 +107,13 @@ def test_bundle_override_env(tmp_path, monkeypatch):
 def test_bundle_not_found_raises(monkeypatch, tmp_path):
     monkeypatch.setenv("MB_SKILL_BUNDLE", str(tmp_path / "does-not-exist"))
     monkeypatch.setattr("sys.prefix", str(tmp_path / "nowhere"))
-    # Patch dev-layout candidate to also be invalid
     with patch("memory_bank_skill._bundle.__file__", str(tmp_path / "x.py")):
         with pytest.raises(FileNotFoundError):
             find_bundle_root()
 
 
 # ═══════════════════════════════════════════════════════════════
-# Platform gate
+# Platform + bash discovery
 # ═══════════════════════════════════════════════════════════════
 
 def test_is_windows_detects():
@@ -121,32 +121,118 @@ def test_is_windows_detects():
         assert cli.is_windows() is True
 
 
-def test_install_on_windows_exits_with_wsl_hint(capsys):
-    with patch.object(platform, "system", return_value="Windows"):
-        with pytest.raises(SystemExit) as exc:
-            cli.main(["install"])
-        assert exc.value.code == 2
+def test_is_windows_false_on_posix():
+    with patch.object(platform, "system", return_value="Darwin"):
+        assert cli.is_windows() is False
+
+
+def test_find_bash_posix_returns_which_result(monkeypatch):
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.delenv("MB_BASH", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/bash" if name == "bash" else None)
+    assert cli.find_bash() == "/usr/bin/bash"
+
+
+def test_find_bash_env_override_wins(monkeypatch, tmp_path):
+    fake_bash = tmp_path / "custom-bash"
+    fake_bash.write_text("")
+    monkeypatch.setenv("MB_BASH", str(fake_bash))
+    # Even on POSIX with PATH bash — override takes priority.
+    monkeypatch.setattr(shutil, "which", lambda name: "/should/not/be/used")
+    assert cli.find_bash() == str(fake_bash)
+
+
+def test_find_bash_env_override_ignored_if_missing(monkeypatch):
+    monkeypatch.setenv("MB_BASH", "/does/not/exist/bash")
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/bash" if name == "bash" else None)
+    # Non-existent override falls back to PATH discovery.
+    assert cli.find_bash() == "/usr/bin/bash"
+
+
+def test_find_bash_windows_path_discovery(monkeypatch):
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    monkeypatch.delenv("MB_BASH", raising=False)
+    monkeypatch.setattr(
+        shutil, "which",
+        lambda name: r"C:\Program Files\Git\bin\bash.exe" if name == "bash.exe" else None,
+    )
+    assert cli.find_bash() == r"C:\Program Files\Git\bin\bash.exe"
+
+
+def test_find_bash_windows_skips_system32(monkeypatch):
+    """shutil.which may return C:\\Windows\\System32\\bash.exe (WSL launcher shim).
+
+    That invocation form doesn't handle script forwarding reliably, so the
+    discoverer must skip it and prefer Git Bash / explicit WSL."""
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    monkeypatch.delenv("MB_BASH", raising=False)
+    # system32 match from `which` ...
+    monkeypatch.setattr(
+        shutil, "which",
+        lambda name: r"C:\Windows\System32\bash.exe" if name == "bash.exe" else None,
+    )
+    # ... and no Git Bash anywhere on disk ...
+    monkeypatch.setattr(Path, "exists", lambda self: False)
+    # ... falls through to None (or wsl if available — but we killed Path.exists).
+    result = cli.find_bash()
+    assert result != r"C:\Windows\System32\bash.exe"
+
+
+def test_find_bash_windows_wsl_fallback(monkeypatch):
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    monkeypatch.delenv("MB_BASH", raising=False)
+
+    def fake_which(name):
+        if name in ("bash.exe", "bash"):
+            return None
+        if name in ("wsl.exe", "wsl"):
+            return r"C:\Windows\System32\wsl.exe"
+        return None
+
+    monkeypatch.setattr(shutil, "which", fake_which)
+    monkeypatch.setattr(Path, "exists", lambda self: False)
+    assert cli.find_bash() == r"C:\Windows\System32\wsl.exe"
+
+
+def test_find_bash_windows_no_bash_returns_none(monkeypatch):
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    monkeypatch.delenv("MB_BASH", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    monkeypatch.setattr(Path, "exists", lambda self: False)
+    assert cli.find_bash() is None
+
+
+def test_require_bash_exits_with_hint_on_windows(monkeypatch, capsys):
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    monkeypatch.setattr(cli, "find_bash", lambda: None)
+    with pytest.raises(SystemExit) as exc:
+        cli.require_bash()
+    assert exc.value.code == 2
     err = capsys.readouterr().err
-    assert "WSL" in err or "Windows" in err
+    assert "Git for Windows" in err or "WSL" in err
 
 
-def test_uninstall_on_windows_exits(capsys):
-    with patch.object(platform, "system", return_value="Windows"):
-        with pytest.raises(SystemExit):
-            cli.main(["uninstall"])
+def test_require_bash_exits_on_posix_without_bash(monkeypatch, capsys):
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(cli, "find_bash", lambda: None)
+    with pytest.raises(SystemExit):
+        cli.require_bash()
+    err = capsys.readouterr().err
+    assert "bash" in err.lower()
 
 
 # ═══════════════════════════════════════════════════════════════
 # Shell invocation plumbing
 # ═══════════════════════════════════════════════════════════════
 
-def test_run_shell_invokes_install_help_via_bundle(monkeypatch):
-    """install.sh --help prints usage and exits 0 (smoke test for shell wrapper)."""
+def test_run_shell_invokes_install_help_via_bundle():
+    """install.sh --help prints usage and exits 0 (real subprocess smoke test)."""
     rc = cli.run_shell("install.sh", "--help")
     assert rc == 0
 
 
-def test_run_shell_missing_script(monkeypatch, capsys):
+def test_run_shell_missing_script(capsys):
     rc = cli.run_shell("does-not-exist.sh")
     assert rc == 3
     err = capsys.readouterr().err
@@ -164,7 +250,8 @@ def test_install_cmd_passes_clients_flag(tmp_path, monkeypatch):
     monkeypatch.setattr(platform, "system", lambda: "Darwin")
     rc = cli.main(["install", "--clients", "cursor", "--project-root", str(tmp_path)])
     assert rc == 0
-    assert "install.sh" in captured["cmd"][1]
+    # cmd = [bash_path, install_sh_path, --clients, cursor, --project-root, <path>]
+    assert any("install.sh" in part for part in captured["cmd"])
     assert "--clients" in captured["cmd"]
     assert "cursor" in captured["cmd"]
     assert "--project-root" in captured["cmd"]
@@ -184,6 +271,20 @@ def test_install_cmd_no_args_calls_install_sh(monkeypatch):
     assert "--clients" not in captured["cmd"]
 
 
+def test_install_cmd_forwards_non_interactive(monkeypatch):
+    captured: dict = {}
+
+    def fake_run(cmd, check, **kw):
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    rc = cli.main(["install", "--non-interactive"])
+    assert rc == 0
+    assert "--non-interactive" in captured["cmd"]
+
+
 def test_uninstall_cmd_calls_uninstall_sh(monkeypatch):
     captured: dict = {}
 
@@ -195,4 +296,41 @@ def test_uninstall_cmd_calls_uninstall_sh(monkeypatch):
     monkeypatch.setattr(platform, "system", lambda: "Darwin")
     rc = cli.main(["uninstall"])
     assert rc == 0
-    assert "uninstall.sh" in captured["cmd"][1]
+    assert any("uninstall.sh" in part for part in captured["cmd"])
+
+
+def test_run_shell_wsl_wrapper_mode(monkeypatch):
+    """When bash path is wsl.exe, run_shell should prepend 'bash' to cmd."""
+    captured: dict = {}
+
+    def fake_run(cmd, check, **kw):
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    monkeypatch.setattr(cli, "require_bash", lambda: r"C:\Windows\System32\wsl.exe")
+    rc = cli.run_shell("install.sh", "--help")
+    assert rc == 0
+    # cmd should be [wsl.exe, bash, <script>, --help]
+    assert captured["cmd"][0].lower().endswith("wsl.exe")
+    assert captured["cmd"][1] == "bash"
+    assert captured["cmd"][-1] == "--help"
+
+
+def test_run_shell_plain_bash_mode(monkeypatch):
+    """When bash is a regular bash binary, no 'bash' prefix is needed."""
+    captured: dict = {}
+
+    def fake_run(cmd, check, **kw):
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(cli, "require_bash", lambda: "/bin/bash")
+    rc = cli.run_shell("install.sh", "--help")
+    assert rc == 0
+    assert captured["cmd"][0] == "/bin/bash"
+    assert "install.sh" in captured["cmd"][1]
+    assert captured["cmd"][-1] == "--help"

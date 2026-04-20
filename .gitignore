@@ -13,3 +13,14 @@ htmlcov/
 .pytest_cache/
 .ruff_cache/
 .memory-bank/codebase/.cache/
+
+# Cross-agent adapter output from dogfood / test installs in this repo
+# (the skill writes these into any project where `/install` runs — when we
+# dogfood, they end up at the repo root and shouldn't be tracked).
+/.cursor/
+/.windsurf/
+/.clinerules/
+/.kilocode/
+/.codex/
+/.mb-agents-owners.json
+/AGENTS.md
