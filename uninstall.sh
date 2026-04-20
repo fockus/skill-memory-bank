@@ -3,7 +3,8 @@ set -euo pipefail
 SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
 MANIFEST="$SKILL_DIR/.installed-manifest.json"
 CLAUDE_DIR="$HOME/.claude"
-GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
+OPENCODE_DIR="$HOME/.config/opencode"
+GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 
 echo -e "\n${BOLD}═══ Uninstalling skill-memory-bank ═══${NC}\n"
 
@@ -25,7 +26,8 @@ MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(f) for f in json.l
   if [ -f "$filepath" ]; then
     case "$filepath" in
       "$HOME/.claude/"*) rm "$filepath" && echo "  rm $filepath" ;;
-      *) echo "  [SKIP] $filepath (outside ~/.claude/)" ;;
+      "$HOME/.config/opencode/"*) rm "$filepath" && echo "  rm $filepath" ;;
+      *) echo "  [SKIP] $filepath (outside managed dirs)" ;;
     esac
   fi
 done
@@ -36,7 +38,8 @@ MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(b) for b in json.l
     orig="${bp%%|*}"; bak="${bp##*|}"
     case "$orig" in
       "$HOME/.claude/"*) [ -f "$bak" ] && mv "$bak" "$orig" && echo "  restored $orig" ;;
-      *) echo "  [SKIP] $orig (outside ~/.claude/)" ;;
+      "$HOME/.config/opencode/"*) [ -f "$bak" ] && mv "$bak" "$orig" && echo "  restored $orig" ;;
+      *) echo "  [SKIP] $orig (outside managed dirs)" ;;
     esac
   }
 done
@@ -84,8 +87,45 @@ if m in c:
 print('  CLAUDE.md cleaned')
 PYEOF
 
+# Clean OpenCode AGENTS.md MB section
+[ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank:start" "$OPENCODE_DIR/AGENTS.md" && OPENCODE_AGENTS_PATH="$OPENCODE_DIR/AGENTS.md" python3 << 'PYEOF' 2>/dev/null || true
+import os
+import tempfile
+
+agents_path = os.environ["OPENCODE_AGENTS_PATH"]
+content = open(agents_path, encoding="utf-8").read().splitlines()
+inside = False
+kept = []
+for line in content:
+    if "<!-- memory-bank:start -->" in line:
+        inside = True
+        continue
+    if inside and "<!-- memory-bank:end -->" in line:
+        inside = False
+        continue
+    if not inside:
+        kept.append(line)
+
+new_content = "\n".join(kept).strip()
+if new_content:
+    new_content += "\n"
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(agents_path) or '.', suffix='.tmp')
+    try:
+        with os.fdopen(tmp_fd, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        os.replace(tmp_path, agents_path)
+    except BaseException:
+        os.unlink(tmp_path)
+        raise
+else:
+    os.remove(agents_path)
+print('  OpenCode AGENTS.md cleaned')
+PYEOF
+
 rm -f "$MANIFEST"
 rmdir "$CLAUDE_DIR/skills/memory-bank/"{scripts,references,agents} 2>/dev/null || true
 rmdir "$CLAUDE_DIR/skills/memory-bank" 2>/dev/null || true
+rmdir "$OPENCODE_DIR/commands" 2>/dev/null || true
+rmdir "$OPENCODE_DIR" 2>/dev/null || true
 
 echo -e "\n${GREEN}═══ Uninstalled ═══${NC}\n  Project .memory-bank/ dirs untouched.\n"

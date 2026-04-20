@@ -60,6 +60,16 @@ Upgrade via `scripts/mb-upgrade.sh` (reads `git fetch origin`).
 
 `--clients` accepts: `claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex`.
 
+`memory-bank install` now performs a native OpenCode global install too:
+- `~/.config/opencode/AGENTS.md`
+- `~/.config/opencode/commands/*.md`
+
+If you also pass `--clients opencode`, project-level OpenCode files are added under:
+- `<project>/AGENTS.md`
+- `<project>/opencode.json`
+- `<project>/.opencode/plugins/memory-bank.js`
+- `<project>/.opencode/commands/*.md`
+
 See [cross-agent-setup.md](cross-agent-setup.md) for per-client details.
 
 ## Platform support

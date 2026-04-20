@@ -24,13 +24,14 @@ PROJECT_ROOT="$(cd "$PROJECT_ROOT_RAW" && pwd)"
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OC_DIR="$PROJECT_ROOT/.opencode"
+COMMANDS_DIR="$OC_DIR/commands"
 PLUGIN_DIR="$OC_DIR/plugins"
 PLUGIN_FILE="$PLUGIN_DIR/memory-bank.js"
 PLUGIN_REF="./.opencode/plugins/memory-bank.js"
 OC_JSON="$PROJECT_ROOT/opencode.json"
 MANIFEST="$OC_DIR/.mb-manifest.json"
 
-# shellcheck source=./_lib_agents_md.sh
+# shellcheck disable=SC1091
 . "$(dirname "$0")/_lib_agents_md.sh"
 
 require_jq() { command -v jq >/dev/null 2>&1 || { echo "[opencode-adapter] jq required" >&2; exit 1; }; }
@@ -140,15 +141,29 @@ uninstall_opencode_json() {
 # ═══ Install ═══
 install_opencode() {
   require_jq
-  mkdir -p "$PLUGIN_DIR"
+  mkdir -p "$PLUGIN_DIR" "$COMMANDS_DIR"
 
   local owned
   owned=$(agents_md_install "$PROJECT_ROOT" "opencode" "$SKILL_DIR")
   plugin_body > "$PLUGIN_FILE"
   install_opencode_json
 
+  local f
+  for f in "$SKILL_DIR"/commands/*.md; do
+    [ -f "$f" ] || continue
+    cp "$f" "$COMMANDS_DIR/$(basename "$f")"
+  done
+
   local files_json
-  files_json=$(printf '%s\n' "$PLUGIN_FILE" | jq -R . | jq -s .)
+  files_json=$(
+    {
+      printf '%s\n' "$PLUGIN_FILE"
+      for f in "$SKILL_DIR"/commands/*.md; do
+        [ -f "$f" ] || continue
+        printf '%s\n' "$COMMANDS_DIR/$(basename "$f")"
+      done
+    } | jq -R . | jq -s .
+  )
 
   jq -n \
     --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -189,6 +204,7 @@ uninstall_opencode() {
 
   # 5. Clean empty dirs
   rmdir "$PLUGIN_DIR" 2>/dev/null || true
+  rmdir "$COMMANDS_DIR" 2>/dev/null || true
   rmdir "$OC_DIR" 2>/dev/null || true
 
   echo "[opencode-adapter] uninstalled from $PROJECT_ROOT"

@@ -44,7 +44,7 @@ pipx install memory-bank-skill           # stable
 # or, for the latest release candidate:
 pipx install --pip-args='--pre' memory-bank-skill
 
-memory-bank install                      # global install for Claude Code
+memory-bank install                      # global install for Claude Code + OpenCode
 ```
 
 **Requires:** Python 3.11+, `pipx`, `jq`.
@@ -141,7 +141,8 @@ Across sessions, compaction events, and even across AI agents — the project st
 
 ### 2. Engineering rules applied automatically
 
-Installs `~/.claude/RULES.md` (or equivalent per client) with:
+Installs `~/.claude/RULES.md`, `~/.claude/CLAUDE.md`, and native OpenCode global files
+(`~/.config/opencode/AGENTS.md` + `~/.config/opencode/commands/`) with:
 
 - **TDD** — tests before implementation
 - **Clean Architecture** (backend) — Infrastructure → Application → Domain, never the reverse
@@ -217,7 +218,7 @@ One `.memory-bank/` directory, 8 AI clients:
 | **Windsurf** | ✅ Cascade Hooks | `.windsurf/rules/*.md` + `.windsurf/hooks.json` |
 | **Cline** | ✅ `.clinerules/hooks/*.sh` | `.clinerules/memory-bank.md` + `hooks/` |
 | **Kilo** | ❌ (fallback to git hooks) | `.kilocode/rules/` + `.git/hooks/` |
-| **OpenCode** | ✅ TypeScript plugins | `AGENTS.md` + `opencode.json` + TS plugin |
+| **OpenCode** | ✅ TypeScript plugins + native commands | `~/.config/opencode/{AGENTS.md,commands/}` + project `AGENTS.md` + `opencode.json` + TS plugin |
 | **Codex** (OpenAI) | ✅ Experimental | `AGENTS.md` + `.codex/config.toml` + `hooks.json` |
 | **Pi Code** | Dual-mode (skill / AGENTS.md) | `~/.pi/skills/memory-bank/` or `AGENTS.md` |
 

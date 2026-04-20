@@ -1,7 +1,8 @@
 # Cross-agent setup (Stage 8, v3.0)
 
 Memory Bank works across 7+ AI coding clients. Global skill is installed once in
-`~/.claude/`; per-project adapters write client-specific configs + hooks.
+`~/.claude/` and, for OpenCode, also natively in `~/.config/opencode/`; per-project
+adapters write client-specific configs + hooks.
 
 ## Supported clients
 
@@ -12,7 +13,7 @@ Memory Bank works across 7+ AI coding clients. Global skill is installed once in
 | 3 | Windsurf | Cascade Hooks (JSON+shell) | `.windsurf/rules/*.md` + `.windsurf/hooks.json` |
 | 4 | Cline | `.clinerules/hooks/*.sh` | `.clinerules/*.md` + `hooks/` |
 | 5 | Kilo | ❌ (FR #5827 open) — git-hooks fallback | `.kilocode/rules/*.md` |
-| 6 | OpenCode | TypeScript plugins (`session.*`, `tool.execute.*`, `experimental.session.compacting`) | `AGENTS.md` + `opencode.json` |
+| 6 | OpenCode | TypeScript plugins (`session.*`, `tool.execute.*`, `experimental.session.compacting`) + native slash commands | `~/.config/opencode/{AGENTS.md,commands/}` + `AGENTS.md` + `opencode.json` |
 | 7 | Codex | Experimental `hooks.json` (`userpromptsubmit` stable) | `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
 | 8 | Pi Code | Dual-mode (Skills API in dev) | `~/.pi/skills/memory-bank/` or `AGENTS.md` |
 
@@ -96,8 +97,11 @@ adapters/opencode.sh install ~/my-project
 ```
 
 Creates:
+- `~/.config/opencode/AGENTS.md` — global OpenCode rules for prompt injection
+- `~/.config/opencode/commands/*.md` — native slash commands in OpenCode menu
 - `AGENTS.md` — shared format, refcount-tracked via `.mb-agents-owners.json`
 - `opencode.json` — plugin reference added to `plugin` array
+- `.opencode/commands/*.md` — project-local slash commands (works even without global install)
 - `.opencode/plugins/memory-bank.js` — TS plugin with `session.idle`,
   `session.deleted`, `tool.execute.before`, and **`experimental.session.compacting`**
   (direct PreCompact equivalent)

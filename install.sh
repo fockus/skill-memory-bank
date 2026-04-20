@@ -7,6 +7,7 @@ set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
+OPENCODE_DIR="$HOME/.config/opencode"
 MANIFEST="$SKILL_DIR/.installed-manifest.json"
 
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
@@ -14,6 +15,13 @@ BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 
 INSTALLED_FILES=()
 BACKED_UP_FILES=()
+
+# shellcheck disable=SC1091
+. "$SKILL_DIR/adapters/_lib_agents_md.sh"
+
+count_matching_files() {
+  find "$1" -maxdepth 1 -type f -name "$2" | wc -l | tr -d ' '
+}
 
 # ═══ Arg parsing ═══
 VALID_CLIENTS=(claude-code cursor windsurf cline kilo opencode pi codex)
@@ -185,7 +193,8 @@ fi
 
 backup_if_exists() {
   if [ -f "$1" ] && [ ! -L "$1" ]; then
-    local backup="$1.pre-mb-backup.$(date +%s)"
+    local backup
+    backup="$1.pre-mb-backup.$(date +%s)"
     cp "$1" "$backup"
     BACKED_UP_FILES+=("$1|$backup")
   fi
@@ -197,6 +206,30 @@ install_file() {
   cp "$1" "$2"
   [[ "$2" == *.sh || "$2" == *.py ]] && chmod +x "$2"
   INSTALLED_FILES+=("$2")
+}
+
+install_opencode_global_agents() {
+  local agents_file="$OPENCODE_DIR/AGENTS.md"
+  mkdir -p "$OPENCODE_DIR"
+
+  if [ -f "$agents_file" ]; then
+    if grep -q "$MB_START_MARKER" "$agents_file" 2>/dev/null; then
+      echo -e "  ${YELLOW}~${NC} OpenCode AGENTS.md (already has MB section)"
+      return
+    fi
+    backup_if_exists "$agents_file"
+    {
+      printf '\n'
+      _agents_md_section "$SKILL_DIR"
+    } >> "$agents_file"
+    INSTALLED_FILES+=("$agents_file")
+    echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md (merged)"
+    return
+  fi
+
+  _agents_md_section "$SKILL_DIR" > "$agents_file"
+  INSTALLED_FILES+=("$agents_file")
+  echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md (created)"
 }
 
 # ═══ Step 1: Rules ═══
@@ -225,13 +258,15 @@ else
   echo -e "  ${GREEN}✓${NC} CLAUDE.md (created with marker)"
 fi
 
+install_opencode_global_agents
+
 # ═══ Step 2: Agents ═══
 echo -e "${BLUE}[2/7] Agents${NC}"
 for f in "$SKILL_DIR"/agents/*.md; do
   [ -f "$f" ] || continue
   install_file "$f" "$CLAUDE_DIR/agents/$(basename "$f")"
 done
-echo -e "  ${GREEN}✓${NC} $(ls "$SKILL_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ') agents"
+echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SKILL_DIR/agents" '*.md') agents"
 
 # ═══ Step 3: Hooks ═══
 echo -e "${BLUE}[3/7] Hooks${NC}"
@@ -239,15 +274,16 @@ for f in "$SKILL_DIR"/hooks/*.sh; do
   [ -f "$f" ] || continue
   install_file "$f" "$CLAUDE_DIR/hooks/$(basename "$f")"
 done
-echo -e "  ${GREEN}✓${NC} $(ls "$SKILL_DIR"/hooks/*.sh 2>/dev/null | wc -l | tr -d ' ') hooks"
+echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SKILL_DIR/hooks" '*.sh') hooks"
 
 # ═══ Step 4: Commands ═══
 echo -e "${BLUE}[4/7] Commands${NC}"
 for f in "$SKILL_DIR"/commands/*.md; do
   [ -f "$f" ] || continue
   install_file "$f" "$CLAUDE_DIR/commands/$(basename "$f")"
+  install_file "$f" "$OPENCODE_DIR/commands/$(basename "$f")"
 done
-echo -e "  ${GREEN}✓${NC} $(ls "$SKILL_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ') commands"
+echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SKILL_DIR/commands" '*.md') commands"
 
 # ═══ Step 5: Skill files ═══
 echo -e "${BLUE}[5/7] Skill data${NC}"

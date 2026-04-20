@@ -8,6 +8,7 @@
 # Generates:
 #   <project>/AGENTS.md                     — shared format (uses markers)
 #   <project>/opencode.json                  — plugin registration
+#   <project>/.opencode/commands/*.md        — project slash commands
 #   <project>/.opencode/plugins/memory-bank.js — TypeScript plugin (compiled JS)
 #   <project>/.opencode/.mb-manifest.json    — ownership tracking
 #
@@ -63,6 +64,14 @@ run_adapter() {
   # Plugin must reference key events
   grep -q "session.idle\|session.deleted" "$plugin"
   grep -q "experimental.session.compacting\|tool.execute.before" "$plugin"
+}
+
+@test "opencode: install creates project commands for slash menu" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.opencode/commands/mb.md" ]
+  [ -f "$PROJECT/.opencode/commands/start.md" ]
+  [ -f "$PROJECT/.opencode/commands/done.md" ]
 }
 
 @test "opencode: install writes manifest" {
@@ -127,6 +136,7 @@ EOF
   run_adapter uninstall "$PROJECT"
   [ "$status" -eq 0 ]
   [ ! -f "$PROJECT/.opencode/plugins/memory-bank.js" ]
+  [ ! -f "$PROJECT/.opencode/commands/mb.md" ]
   [ ! -f "$PROJECT/.opencode/.mb-manifest.json" ]
 }
 

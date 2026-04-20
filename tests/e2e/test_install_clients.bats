@@ -57,6 +57,7 @@ teardown() {
 @test "install.sh --clients opencode,codex coexist via shared AGENTS.md refcount" {
   bash "$REPO_ROOT/install.sh" --clients opencode,codex --project-root "$PROJECT" >/dev/null
   [ -f "$PROJECT/AGENTS.md" ]
+  [ -f "$PROJECT/.opencode/commands/mb.md" ]
   local count
   count=$(grep -c "memory-bank:start" "$PROJECT/AGENTS.md")
   [ "$count" -eq 1 ]

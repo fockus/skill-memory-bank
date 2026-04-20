@@ -26,7 +26,9 @@ teardown() {
 
   [ -f "$HOME/.claude/RULES.md" ]
   [ -f "$HOME/.claude/CLAUDE.md" ]
+  [ -f "$HOME/.config/opencode/AGENTS.md" ]
   [ -d "$HOME/.claude/commands" ]
+  [ -d "$HOME/.config/opencode/commands" ]
   [ -d "$HOME/.claude/agents" ]
   [ -d "$HOME/.claude/hooks" ]
   [ -d "$HOME/.claude/skills/memory-bank" ]
@@ -37,6 +39,7 @@ teardown() {
 
   # Key commands must exist
   [ -f "$HOME/.claude/commands/mb.md" ]
+  [ -f "$HOME/.config/opencode/commands/mb.md" ]
   [ -f "$HOME/.claude/commands/commit.md" ]
   [ -f "$HOME/.claude/commands/review.md" ]
   [ -f "$HOME/.claude/commands/plan.md" ]
@@ -73,6 +76,12 @@ teardown() {
 @test "install: CLAUDE.md has MEMORY-BANK-SKILL marker" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   grep -q "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md"
+}
+
+@test "install: OpenCode AGENTS.md has memory-bank markers" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  grep -q "<!-- memory-bank:start -->" "$HOME/.config/opencode/AGENTS.md"
+  grep -q "<!-- memory-bank:end -->" "$HOME/.config/opencode/AGENTS.md"
 }
 
 @test "install: writes manifest" {
@@ -127,6 +136,7 @@ teardown() {
 
   [ ! -f "$HOME/.claude/RULES.md" ]
   [ ! -f "$HOME/.claude/commands/mb.md" ]
+  [ ! -f "$HOME/.config/opencode/commands/mb.md" ]
   [ ! -f "$HOME/.claude/agents/mb-manager.md" ]
   [ ! -f "$HOME/.claude/hooks/block-dangerous.sh" ]
   [ ! -f "$HOME/.claude/hooks/session-end-autosave.sh" ]
@@ -172,6 +182,22 @@ teardown() {
 
   grep -q "User's own preferences" "$HOME/.claude/CLAUDE.md"
   grep -q "Important project rules" "$HOME/.claude/CLAUDE.md"
+}
+
+@test "uninstall: preserves user OpenCode AGENTS.md content above skill section" {
+  mkdir -p "$HOME/.config/opencode"
+  cat > "$HOME/.config/opencode/AGENTS.md" <<'EOF'
+# User OpenCode rules
+
+Keep answers concise.
+EOF
+
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  grep -q "User OpenCode rules" "$HOME/.config/opencode/AGENTS.md"
+  grep -q "Keep answers concise" "$HOME/.config/opencode/AGENTS.md"
+  ! grep -q "memory-bank:start" "$HOME/.config/opencode/AGENTS.md"
 }
 
 @test "uninstall: preserves user hooks in settings.json" {
