@@ -22,5 +22,8 @@ htmlcov/
 /.clinerules/
 /.kilocode/
 /.codex/
+/.opencode/
 /.mb-agents-owners.json
+/.mb-pi-manifest.json
+/opencode.json
 /AGENTS.md

@@ -86,7 +86,9 @@ memory-bank install --clients claude-code,cursor,windsurf
 **C. From inside an agent** (Claude Code, OpenCode, Codex — anything with bash tool access):
 
 ```
-/install
+/mb install                                 # interactive picker
+/mb install cursor,windsurf                 # direct
+/mb install all                             # every client
 ```
 
 The agent asks which clients you want (via AskUserQuestion in Claude Code, or an inline prompt elsewhere), then runs `memory-bank install --clients <selected>` for the current project.
@@ -176,7 +178,7 @@ The agent reads these rules at session start and follows them without you having
 | `/db-migration` | Safe DB migration planning (rollback, backfill) |
 | `/observability` | Logging / metrics / tracing audit for a module |
 
-**20 `/mb` sub-commands** (live in `commands/mb.md`):
+**21 `/mb` sub-commands** (live in `commands/mb.md`):
 
 | Sub-command | Purpose |
 |-------------|---------|
@@ -198,6 +200,7 @@ The agent reads these rules at session start and follows them without you having
 | `/mb tags [--apply]` | Normalize frontmatter tags (Levenshtein-based synonym merge) |
 | `/mb upgrade` | Update skill from GitHub (git pull + re-install) |
 | `/mb init [--minimal\|--full]` | Initialize `.memory-bank/` in a new project |
+| `/mb install [<clients>]` | Install Memory Bank + cross-agent adapters interactively or via client list |
 | `/mb deps [--install-hints]` | Dependency check (python3, jq, git + optional tree-sitter) |
 | `/mb help [subcommand]` | Show sub-command reference inline |
 

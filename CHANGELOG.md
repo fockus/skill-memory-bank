@@ -10,14 +10,14 @@
 - **`install.sh --non-interactive`** — явный bypass интерактива для CI / scripted installs.
 - **Env `MB_CLIENTS`** — альтернативный путь задать клиентов (аналог `--clients`), полезен в Docker / pipx wrappers.
 - **`memory-bank install --non-interactive`** — forward flag'а из Python CLI.
-- **`/install` slash-команда** (`commands/install.md`) — запуск установки adapter'ов изнутри Claude Code / OpenCode / Codex. Использует `AskUserQuestion` для multi-select в CC, inline prompt в других агентах.
+- **`/mb install` подкоманда** (секция в `commands/mb.md`) — запуск установки adapter'ов изнутри Claude Code / OpenCode / Codex. Использует `AskUserQuestion` для multi-select в CC, inline prompt в других агентах. Пространство имён `/mb` защищает от коллизий с другими skill'ами.
 - **Windows compromise — Git Bash / WSL support**:
   - `cli.py` больше не делает hard-fail на Windows. Добавлен `find_bash()` с приоритетами: `MB_BASH` env override → `bash.exe` на PATH → `C:\Program Files\Git\bin\bash.exe` → WSL fallback.
   - `system32\bash.exe` (WSL launcher shim) игнорируется в пользу Git Bash / explicit WSL.
   - `memory-bank doctor` теперь показывает resolved bash path на любой платформе.
   - При отсутствии bash на Windows печатается actionable install hint (winget / WSL).
 - **README: полная command reference** — две таблицы (18 top-level slash-команд + 20 `/mb` sub-команд), вместо прежнего частичного списка из 23 строк.
-- **README: 3 способа установки cross-agent adapters** — интерактивное меню, CLI-флаги, `/install` изнутри агента.
+- **README: 3 способа установки cross-agent adapters** — интерактивное меню, CLI-флаги, `/mb install` изнутри агента.
 
 ### Changed
 

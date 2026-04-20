@@ -35,6 +35,7 @@ allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 | `graph [--apply] [src_root]` | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in через `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache |
 | `tags [--apply] [--auto-merge]` | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 vs closed vocabulary, propose merges. `--auto-merge` применяет только distance ≤1. Vocabulary в `.memory-bank/tags-vocabulary.md` (fallback — `references/tags-vocabulary.md`). `mb-index-json.py` авто-kebab-case |
 | `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
+| `install [<clients>]` | Поставить Memory Bank для проекта. Если `<clients>` пустой — спросить multiselect из 8 (claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex). Дергает `memory-bank install --clients ... --project-root $PWD` |
 | `help [subcommand]` | Справка. Без аргумента — список всех подкоманд. С аргументом — детали конкретной (`/mb help compact`, `/mb help tags`, ...) |
 | `deps [--install-hints]` | Проверка зависимостей (required: python3/jq/git; optional: rg/shellcheck/tree-sitter/PyYAML). `--install-hints` — OS-specific install commands |
 | (нераспознанное) | Поиск по `$ARGUMENTS` |
@@ -671,6 +672,124 @@ Symlink сохранит совместимость с GSD.
 - Detected stack: `{language}`, `{framework}`, `{tools}`
 - Сообщи: `[MEMORY BANK: ACTIVE]`
 - Предложи следующий шаг: `/mb start` или (если в проекте есть план) `/mb plan feature "<topic>"`
+
+---
+
+### install [<clients>]
+
+Установить Memory Bank для текущего проекта + выбранных AI-агентов. Работает в Claude Code, OpenCode, Codex — в любом агенте с Bash-инструментом.
+
+**Формат аргумента** (первое слово после `install`):
+- Пусто → интерактивный выбор.
+- Comma/space-separated список клиентов (например `claude-code,cursor,windsurf`) → прямой запуск без prompt'а.
+- `all` → все 8 клиентов.
+
+Допустимые имена: `claude-code`, `cursor`, `windsurf`, `cline`, `kilo`, `opencode`, `pi`, `codex`.
+
+---
+
+#### Step 1 — Проверь CLI
+
+```bash
+command -v memory-bank >/dev/null 2>&1 && memory-bank version
+```
+
+Если не найден — сообщи пользователю и предложи:
+
+```
+memory-bank CLI не найден. Установи одним из способов:
+
+  pipx install memory-bank-skill           # cross-platform
+  brew install fockus/tap/memory-bank      # macOS / Linuxbrew
+  pip install memory-bank-skill            # альтернатива
+
+Затем перезапусти /mb install.
+```
+
+И завершай.
+
+---
+
+#### Step 2 — Собери список клиентов
+
+**Если `$ARGUMENTS` (после слова `install`) непустой** — используй его напрямую. CLI сам валидирует.
+
+**Если пустой:**
+
+В **Claude Code** используй `AskUserQuestion` с `multiSelect: true`:
+
+```
+question: "Which AI coding agents should share this project's memory bank?"
+header: "Clients"
+options:
+  - {label: "claude-code (recommended)", description: "Primary Claude Code setup"}
+  - {label: "cursor", description: "Cursor 1.7+ with CC-compat hooks"}
+  - {label: "windsurf", description: "Windsurf Cascade hooks"}
+  - {label: "opencode + codex + pi (shared AGENTS.md)", description: "All three use AGENTS.md — refcount-tracked"}
+```
+
+Если пользователь выбрал "opencode + codex + pi" — разверни в `opencode,codex,pi`.
+
+Если пользователь ничего не выбрал — дефолт `claude-code`.
+
+В **других агентах** (OpenCode, Codex), без `AskUserQuestion`, выведи список и попроси ввести:
+
+```
+Which agents should share this project's memory bank?
+  [1] claude-code (recommended)
+  [2] cursor
+  [3] windsurf
+  [4] cline
+  [5] kilo
+  [6] opencode
+  [7] pi
+  [8] codex
+
+Reply with names or numbers (e.g. "1,2" or "cursor,windsurf"),
+'all' for every client, or press Enter for claude-code only.
+```
+
+Распарси ответ в comma-separated список имён.
+
+---
+
+#### Step 3 — Запусти установку
+
+```bash
+memory-bank install --clients "<selected-list>" --project-root "$PWD"
+```
+
+Покажи stdout — CLI даёт красивый пошаговый отчёт (Rules / Agents / Hooks / Commands / Settings / Manifest + cross-agent adapters).
+
+---
+
+#### Step 4 — Resume hint
+
+После успеха:
+
+```
+✓ Memory Bank installed for: <clients>
+  Project root: <PWD>
+
+Next steps:
+  • Initialize the memory bank:   /mb init
+  • Load context in this session: /mb start
+  • Plan a feature:               /mb plan feature <topic>
+```
+
+Если среди установленных клиентов есть отличный от текущего (user в Claude Code выбрал `cursor`) — напомни что в том IDE adapter подхватится автоматически при следующем открытии проекта.
+
+---
+
+**Ошибки:**
+
+- `memory-bank: command not found` → см. Step 1.
+- `invalid client 'X'` → проверь имя (строгий список из 8).
+- `bash not found on PATH` (Windows) → посоветуй Git for Windows или WSL.
+
+**Не путай с:**
+- `/mb init` — инициализирует `.memory-bank/` **внутри** проекта после того как skill установлен глобально. Обычно `install` → потом `init`.
+- `install.sh` из корня репо — shell-скрипт, который `memory-bank install` вызывает под капотом.
 
 ---
 
