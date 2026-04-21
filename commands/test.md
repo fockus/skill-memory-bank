@@ -1,42 +1,47 @@
 ---
 description: Run tests, analyze failures, and propose fixes
-allowed-tools: [Bash, Read, Glob, Grep]
+allowed-tools: [Bash, Read, Glob, Grep, Task]
 argument-hint: [test-filter]
 ---
 
-## 1. Stack detection
+## 1. Delegate execution to `mb-test-runner`
 
-```bash
-eval "$(bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh)"
-# Exposes: stack, test_cmd (e.g., "go test ./..." / "pytest -q" / "npm test"), lint_cmd, src_count
+```
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  description="mb-test-runner: run + parse project tests",
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-test-runner.md>
+
+dir: ."
+)
 ```
 
-If `stack=unknown` or `test_cmd` is empty, ask the user for the test runner (or suggest creating `.memory-bank/metrics.sh` with a custom override — see `references/templates.md`).
+The agent detects stack via `mb-metrics.sh`, runs tests with per-stack parsing through `scripts/mb-test-run.sh`, and returns structured JSON: `{stack, tests_pass, tests_total, tests_failed, failures[], coverage, duration_ms}` plus a human summary. Use the JSON as the authoritative source for the rest of this flow.
 
-## 2. Run the tests
+If `stack=unknown` or the runner is missing, the agent reports `tests_pass=null`. Offer to create `.memory-bank/metrics.sh` (see `references/templates.md`).
 
-Use `$test_cmd` — narrowed by `$ARGUMENTS` when provided (file path, test name, marker, or tag). Known runners:
+If `$ARGUMENTS` provided a filter (test file, name, marker), pass it in the invocation context so the agent can narrow the run. Stage 3 of the runner does full-suite; filter support is follow-up work.
 
-- Go: `go test ./... -run "<pattern>"` / `-race`
-- Python: `pytest` (+ `-k "<pattern>"` / `-m "<marker>"`)
-- Node.js: `npm test` / `vitest` / `jest --testNamePattern "<pattern>"`
-- Rust: `cargo test "<pattern>"` (+ `--release` / `--doc`)
-- Java: `mvn test -Dtest=<Class>#<method>` / `gradle test --tests "<pattern>"`
-- Ruby: `rspec` / `bundle exec rspec` / `rake test`
-- .NET: `dotnet test --filter "<expression>"`
+## 2. If `tests_pass == true`
 
-## 3. If tests pass
+Show the verdict + counts + duration from the agent's human summary. Done.
 
-Show a summary (counts, durations, coverage if the runner supports it).
+## 3. If `tests_pass == false`
 
-## 4. If tests fail
+For each failure (prioritize entries with `touches_session == true`):
 
-- List failing tests with the first-line failure message
 - Read the failing test source and the code under test in full
 - Check `.memory-bank/lessons.md` for known flaky patterns or recurring anti-patterns
 - Classify: code bug vs. outdated test vs. environmental (flaky) issue
 - Propose a concrete fix — show the diff
 - Ask `y/N` before applying the fix (default = No)
+
+The agent's `failures[].likely_cause` is a hint, not authority — always read the file yourself before proposing a fix.
+
+## 4. If `tests_pass == null` (NOT-RUN)
+
+Do not treat as pass. Report the reason (unknown stack, runner missing, zero tests collected) and offer the user a choice: install the runner, add `.memory-bank/metrics.sh`, or proceed without verification (flagged explicitly in the session log).
 
 ## 5. Memory Bank
 

@@ -17,12 +17,17 @@ setup() {
   [ -f "$PROMPT" ]
 }
 
-@test "tests: prompt invokes mb-metrics.sh --run for test execution" {
-  grep -Fq 'mb-metrics.sh --run' "$PROMPT"
+@test "tests: prompt invokes test execution (mb-metrics.sh --run pre-Stage-3 OR mb-test-runner delegation Stage-3+)" {
+  # Stage 1 used mb-metrics.sh --run directly. Stage 3 delegates to the
+  # mb-test-runner subagent (which wraps mb-test-run.sh) to avoid double
+  # execution. Either wording is an acceptable contract.
+  grep -Fq 'mb-metrics.sh --run' "$PROMPT" || grep -Fq 'mb-test-runner' "$PROMPT"
 }
 
-@test "tests: prompt parses test_status=pass|fail from metrics output" {
-  grep -Eq 'test_status=(pass\|fail|pass/fail)|test_status' "$PROMPT"
+@test "tests: prompt parses test verdict — either test_status= (v1) or tests_pass (v2)" {
+  # v1: key=value from mb-metrics.sh (`test_status=pass|fail`).
+  # v2: JSON field from mb-test-runner (`tests_pass: true|false|null`).
+  grep -Eq 'test_status|tests_pass' "$PROMPT"
 }
 
 @test "tests: response format declares 'Tests run:' row" {

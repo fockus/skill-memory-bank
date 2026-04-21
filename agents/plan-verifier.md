@@ -68,25 +68,30 @@ For every plan stage, verify every DoD item:
 3. **Check lint** — if the DoD requires lint-clean status, verify it
 4. **Search for stubs/placeholders** — grep for `TODO`, `FIXME`, `HACK`, `placeholder`, `stub`, `pass`, `NotImplementedError`
 
-### Step 3.5: Run tests (`test_status=pass|fail`)
+### Step 3.5: Run tests (delegate to `mb-test-runner`)
 
-Tests being *present* is not enough — a DoD like "tests pass" or "coverage ≥ 85%" is only ✅ if tests actually run green. Delegate execution to the language-agnostic metrics script:
+Tests being *present* is not enough — a DoD like "tests pass" or "coverage ≥ 85%" is only ✅ if tests actually run green. Delegate to the `mb-test-runner` subagent which runs `scripts/mb-test-run.sh` and returns structured JSON:
 
-```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh --run
-# Parse key=value stdout:
-#   stack=<python|go|rust|node|...>
-#   test_status=pass|fail
-#   test_cmd=<command>
-#   src_count=<N>
+```
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  description="mb-test-runner: structured test execution",
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-test-runner.md>
+
+dir: .
+session_diff_range: <Baseline commit>...HEAD"
+)
 ```
 
-**Rules:**
+Do **not** call `mb-metrics.sh --run` directly here — that would double-run the suite. The test-runner agent uses `mb-metrics.sh` only for stack detection (no `--run`), then executes the suite itself with per-stack parsing.
 
-- `test_status=pass` → Tests row in the report = `pass`.
-- `test_status=fail` → Tests row = `fail` + CRITICAL for every plan stage whose DoD requires "tests pass".
-- Script output missing `test_status` (stack=unknown, no runner detected) → Tests row = `not-run`. **Do NOT silently pass** — flag WARNING: "tests not measured; plan DoD may be unverifiable here".
-- If the DoD specifies coverage ≥ X% and the stack exposes coverage (pytest `--cov`, `go test -cover`, `jest --coverage`), parse it; otherwise mark coverage as "not measured" rather than falsely ✅.
+**Rules (unchanged from previous policy, now applied to the JSON contract):**
+
+- `tests_pass == true`  → Tests row in the report = `pass`.
+- `tests_pass == false` → Tests row = `fail` + CRITICAL for every plan stage whose DoD requires "tests pass". Use `failures[].touches_session` to prioritize regressions introduced in this session.
+- `tests_pass == null`  → Tests row = `not-run`. **Do NOT silently pass** — flag WARNING: "tests not measured (stack=<stack>); plan DoD may be unverifiable here".
+- If the DoD specifies coverage ≥ X% and `coverage.overall` is populated (pytest `--cov`, `go test -cover`, `jest --coverage`), compare; otherwise mark coverage as "not measured" rather than falsely ✅.
 
 ### Step 3.6: Check RULES.md adherence
 
