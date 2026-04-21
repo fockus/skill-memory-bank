@@ -163,6 +163,36 @@ pre,
   background: linear-gradient(135deg, rgba(255, 250, 242, 0.98), rgba(244, 239, 227, 0.92));
 }
 
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 22px;
+}
+.hero-badges a {
+  display: inline-flex;
+  line-height: 0;
+}
+.hero-badges img {
+  height: 22px;
+  display: block;
+}
+
+.install-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #d5e0c8;
+  line-height: 1.9;
+}
+.install-card ul a {
+  color: #e5f4c4;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(229, 244, 196, 0.35);
+}
+.install-card ul a:hover {
+  border-bottom-color: #e5f4c4;
+}
+
 .eyebrow {
   margin: 0 0 18px;
   color: var(--ink-muted);
