@@ -65,30 +65,30 @@ def jsonl_project(tmp_path: Path) -> Path:
         {"type": "user", "sessionId": "session-1",
          "timestamp": "2026-04-18T10:00:00.000Z",
          "message": {"role": "user",
-                     "content": [{"type": "text", "text": "Помоги разобраться с auth flow"}]},
+                     "content": [{"type": "text", "text": "Help me understand the auth flow"}]},
          "uuid": "u1"},
         {"type": "assistant", "sessionId": "session-1",
          "timestamp": "2026-04-18T10:00:30.000Z",
          "message": {"role": "assistant",
                      "content": [{"type": "text",
-                                  "text": "Auth состоит из OAuth2 PKCE потока с refresh токенами. " * 40}]},
+                                  "text": "Auth consists of an OAuth2 PKCE flow with refresh tokens. " * 40}]},
          "uuid": "a1"},
         {"type": "assistant", "sessionId": "session-1",
          "timestamp": "2026-04-18T10:01:00.000Z",
          "message": {"role": "assistant",
                      "content": [{"type": "text",
-                                  "text": "Дальше рассмотрим session management и scope enforcement. " * 40}]},
+                                  "text": "Next, let's review session management and scope enforcement. " * 40}]},
          "uuid": "a2"},
         {"type": "assistant", "sessionId": "session-1",
          "timestamp": "2026-04-18T10:01:30.000Z",
          "message": {"role": "assistant",
                      "content": [{"type": "text",
-                                  "text": "Наконец, token rotation и revocation list при logout. " * 40}]},
+                                  "text": "Finally, token rotation and the revocation list during logout. " * 40}]},
          "uuid": "a3"},
         {"type": "user", "sessionId": "session-1",
          "timestamp": "2026-04-19T14:00:00.000Z",
          "message": {"role": "user",
-                     "content": [{"type": "text", "text": "Другая задача на следующий день"}]},
+                     "content": [{"type": "text", "text": "A different task on the next day"}]},
          "uuid": "u2"},
     ]
     with jsonl.open("w", encoding="utf-8") as f:
@@ -110,7 +110,7 @@ def _run_cli(args: list[str]) -> subprocess.CompletedProcess:
 
 
 def test_parses_user_and_assistant_events(import_mod, jsonl_project):
-    """Reader возвращает список событий с нормализованными полями."""
+    """Reader returns a list of events with normalized fields."""
     jsonl = next(jsonl_project.glob("*.jsonl"))
     events = list(import_mod.iter_events(jsonl))
     assert len(events) >= 6
@@ -120,7 +120,7 @@ def test_parses_user_and_assistant_events(import_mod, jsonl_project):
 
 
 def test_broken_jsonl_line_skipped_with_warning(import_mod, tmp_path, capsys):
-    """Битая строка → warning на stderr, остальные события обрабатываются."""
+    """Broken line → warning on stderr, remaining events still process."""
     jsonl = tmp_path / "broken.jsonl"
     jsonl.write_text(
         '{"type":"user","sessionId":"s","timestamp":"2026-04-19T00:00:00Z",'
@@ -139,7 +139,7 @@ def test_broken_jsonl_line_skipped_with_warning(import_mod, tmp_path, capsys):
 
 
 def test_dry_run_zero_file_changes(import_mod, mb_path, jsonl_project):
-    """--dry-run: progress.md не меняется, notes/ не создаются."""
+    """--dry-run: progress.md does not change, notes/ are not created."""
     before_progress = (mb_path / "progress.md").read_text()
     before_notes_count = len(list((mb_path / "notes").glob("*.md")))
 
@@ -154,14 +154,14 @@ def test_dry_run_zero_file_changes(import_mod, mb_path, jsonl_project):
 
 
 def test_apply_writes_progress_entries(import_mod, mb_path, jsonl_project):
-    """--apply: progress.md получает daily-grouped секции."""
+    """--apply: progress.md receives daily-grouped sections."""
     import_mod.run_import(
         mb_path=str(mb_path),
         project_dir=str(jsonl_project),
         mode="apply",
     )
     progress = (mb_path / "progress.md").read_text()
-    # Должны быть даты из fixture (2026-04-18, 2026-04-19)
+    # Dates from the fixture should be present (2026-04-18, 2026-04-19)
     assert "2026-04-18" in progress
     assert "2026-04-19" in progress
 
@@ -172,7 +172,7 @@ def test_apply_writes_progress_entries(import_mod, mb_path, jsonl_project):
 
 
 def test_apply_idempotent_two_runs(import_mod, mb_path, jsonl_project):
-    """Два запуска подряд → 0 duplicate entries в progress.md."""
+    """Two consecutive runs → 0 duplicate entries in progress.md."""
     import_mod.run_import(mb_path=str(mb_path), project_dir=str(jsonl_project), mode="apply")
     first_size = (mb_path / "progress.md").stat().st_size
     import_mod.run_import(mb_path=str(mb_path), project_dir=str(jsonl_project), mode="apply")
@@ -181,7 +181,7 @@ def test_apply_idempotent_two_runs(import_mod, mb_path, jsonl_project):
 
 
 def test_event_hash_deterministic(import_mod):
-    """Dedup hash — детерминистичен для того же (timestamp + first 500 chars)."""
+    """Dedup hash is deterministic for the same (timestamp + first 500 chars)."""
     e1 = {"timestamp": "2026-04-18T10:00:00Z",
           "message": {"content": [{"type": "text", "text": "same body"}]}}
     e2 = {"timestamp": "2026-04-18T10:00:00Z",
@@ -195,7 +195,7 @@ def test_event_hash_deterministic(import_mod):
 
 
 def test_since_filter_excludes_earlier_events(import_mod, mb_path, jsonl_project):
-    """--since 2026-04-19 → события за 2026-04-18 не импортируются."""
+    """--since 2026-04-19 → events from 2026-04-18 are not imported."""
     import_mod.run_import(
         mb_path=str(mb_path),
         project_dir=str(jsonl_project),
@@ -213,10 +213,10 @@ def test_since_filter_excludes_earlier_events(import_mod, mb_path, jsonl_project
 
 
 def test_architectural_discussion_creates_note(import_mod, mb_path, jsonl_project):
-    """≥3 consecutive assistant messages >1K chars → note в notes/."""
+    """≥3 consecutive assistant messages >1K chars → note in notes/."""
     import_mod.run_import(mb_path=str(mb_path), project_dir=str(jsonl_project), mode="apply")
     notes = list((mb_path / "notes").glob("*.md"))
-    # fixture содержит 3 длинных assistant сообщения подряд
+    # fixture contains 3 consecutive long assistant messages
     assert len(notes) >= 1
 
 
@@ -226,7 +226,7 @@ def test_architectural_discussion_creates_note(import_mod, mb_path, jsonl_projec
 
 
 def test_email_autowrapped_in_private(import_mod, tmp_path, mb_path):
-    """Email в user message → wrap в <private>...</private>."""
+    """Email in user message → wrap in <private>...</private>."""
     proj = tmp_path / "projects" / "-email-test"
     proj.mkdir(parents=True)
     jsonl = proj / "s.jsonl"
@@ -235,23 +235,23 @@ def test_email_autowrapped_in_private(import_mod, tmp_path, mb_path):
         "timestamp": "2026-04-19T00:00:00Z",
         "message": {"role": "user",
                     "content": [{"type": "text",
-                                 "text": "Пиши на test.user@example.com или support@company.io"}]},
+                                 "text": "Write to test.user@example.com or support@company.io"}]},
         "uuid": "u"
     }) + "\n")
     import_mod.run_import(mb_path=str(mb_path), project_dir=str(proj), mode="apply")
     progress = (mb_path / "progress.md").read_text()
-    # Email должен быть обёрнут
+    # Email must be wrapped
     assert "test.user@example.com" not in progress or "<private>" in progress
-    # Если упоминается — только внутри private
+    # If it appears, it must only appear inside private
     if "test.user@example.com" in progress:
-        # Должен быть хотя бы один <private> до email
+        # There must be at least one <private> before the email
         idx = progress.index("test.user@example.com")
         prefix = progress[:idx]
         assert "<private>" in prefix
 
 
 def test_api_key_autowrapped_in_private(import_mod, tmp_path, mb_path):
-    """API key паттерн (sk-... / Bearer ...) → <private> wrap."""
+    """API key pattern (sk-... / Bearer ...) → <private> wrap."""
     proj = tmp_path / "projects" / "-apikey-test"
     proj.mkdir(parents=True)
     jsonl = proj / "s.jsonl"
@@ -260,7 +260,7 @@ def test_api_key_autowrapped_in_private(import_mod, tmp_path, mb_path):
         "timestamp": "2026-04-19T00:00:00Z",
         "message": {"role": "user",
                     "content": [{"type": "text",
-                                 "text": "ключ: sk-ant-api03-ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"}]},
+                                 "text": "key: sk-ant-api03-ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"}]},
         "uuid": "u"
     }) + "\n")
     import_mod.run_import(mb_path=str(mb_path), project_dir=str(proj), mode="apply")
@@ -277,7 +277,7 @@ def test_api_key_autowrapped_in_private(import_mod, tmp_path, mb_path):
 
 
 def test_import_state_written_on_apply(import_mod, mb_path, jsonl_project):
-    """.memory-bank/.import-state.json пишется после apply."""
+    """.memory-bank/.import-state.json is written after apply."""
     import_mod.run_import(mb_path=str(mb_path), project_dir=str(jsonl_project), mode="apply")
     assert (mb_path / ".import-state.json").exists()
     state = json.loads((mb_path / ".import-state.json").read_text())
@@ -286,7 +286,7 @@ def test_import_state_written_on_apply(import_mod, mb_path, jsonl_project):
 
 
 def test_dry_run_does_not_write_state(import_mod, mb_path, jsonl_project):
-    """dry-run не создаёт state file."""
+    """dry-run does not create the state file."""
     import_mod.run_import(mb_path=str(mb_path), project_dir=str(jsonl_project), mode="dry-run")
     assert not (mb_path / ".import-state.json").exists()
 
@@ -297,13 +297,13 @@ def test_dry_run_does_not_write_state(import_mod, mb_path, jsonl_project):
 
 
 def test_cli_requires_project_argument(import_mod):
-    """CLI без --project → error exit."""
+    """CLI without --project → error exit."""
     result = _run_cli([])
     assert result.returncode != 0
 
 
 def test_cli_dry_run_default(import_mod, mb_path, jsonl_project):
-    """CLI без --apply = dry-run по умолчанию (no file changes)."""
+    """CLI without --apply = dry-run by default (no file changes)."""
     before = (mb_path / "progress.md").read_text()
     result = _run_cli(["--project", str(jsonl_project), str(mb_path)])
     assert result.returncode == 0
@@ -318,7 +318,7 @@ def test_cli_apply_flag_triggers_writes(import_mod, mb_path, jsonl_project):
 
 
 def test_cli_missing_project_dir(import_mod, mb_path):
-    """Несуществующий --project → error exit."""
+    """Nonexistent --project → error exit."""
     result = _run_cli(["--project", "/nonexistent/fake/path", "--apply", str(mb_path)])
     assert result.returncode != 0
 
@@ -329,7 +329,7 @@ def test_cli_missing_project_dir(import_mod, mb_path):
 
 
 def test_empty_project_dir_noop(import_mod, mb_path, tmp_path):
-    """Проект без JSONL файлов → noop, exit 0."""
+    """Project without JSONL files → noop, exit 0."""
     empty_proj = tmp_path / "projects" / "-empty"
     empty_proj.mkdir(parents=True)
     import_mod.run_import(mb_path=str(mb_path), project_dir=str(empty_proj), mode="apply")

@@ -32,6 +32,9 @@ EVENT_BINDINGS=(
   "model-response:after-response.sh"
 )
 
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_lib_agents_md.sh"
+
 require_jq() { command -v jq >/dev/null 2>&1 || { echo "[windsurf-adapter] jq required" >&2; exit 1; }; }
 
 before_prompt_body() {
@@ -124,7 +127,7 @@ install_windsurf() {
       echo ''
       echo '# Global Rules'
       echo ''
-      cat "$SKILL_DIR/rules/RULES.md"
+      mb_emit_rules_file "$SKILL_DIR/rules/RULES.md"
     fi
   } > "$RULES_FILE"
 

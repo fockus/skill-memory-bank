@@ -1,212 +1,212 @@
-# Memory Bank — Шаблоны
+# Memory Bank — Templates
 
-## Заметка (notes/)
+## Note (`notes/`)
 
-Файл: `notes/YYYY-MM-DD_HH-MM_<topic>.md`
+File: `notes/YYYY-MM-DD_HH-MM_<topic>.md`
 
 ```markdown
 # <Topic>
 Date: YYYY-MM-DD HH:MM
 
-## Что сделано
-- <действие 1>
-- <действие 2>
-- <действие 3>
+## What was done
+- <action 1>
+- <action 2>
+- <action 3>
 
-## Новые знания
-- <вывод, паттерн, переиспользуемое решение>
-- <что запомнить для будущих сессий>
+## New knowledge
+- <conclusion, pattern, reusable solution>
+- <what to remember for future sessions>
 ```
 
-5-15 строк. Знания, не хронология.
+5-15 lines. Knowledge, not chronology.
 
 ---
 
-## Запись в progress.md (append)
+## `progress.md` entry (append)
 
 ```markdown
 ## YYYY-MM-DD
 
-### <Тема>
-- <что сделано, 3-5 пунктов>
-- Тесты: N green, coverage X%
-- Следующий шаг: <что дальше>
+### <Topic>
+- <what was done, 3-5 bullets>
+- Tests: N green, coverage X%
+- Next step: <what comes next>
 ```
 
-Дописывать ТОЛЬКО в конец файла. Не редактировать старые записи.
+Append ONLY to the end of the file. Never edit old entries.
 
 ---
 
-## Запись в lessons.md
+## `lessons.md` entry
 
 ```markdown
-### <Название паттерна> (EXP-NNN / источник)
-<Описание проблемы. Что произошло.>
-<Решение. Как исправили или как избежать.>
-<Общий паттерн. Когда это может повториться.>
+### <Pattern name> (EXP-NNN / source)
+<Problem description. What happened.>
+<Fix. How it was corrected or avoided.>
+<General pattern. When it may recur.>
 ```
 
-2-4 строки. Группировать по категориям (ML Architecture, ML Methodology, Testing, etc.)
+2-4 lines. Group by categories (`ML Architecture`, `ML Methodology`, `Testing`, etc.).
 
 ---
 
-## Гипотеза в RESEARCH.md
+## Hypothesis in `RESEARCH.md`
 
 ```markdown
-| H-NNN | <Гипотеза (SMART: конкретная, измеримая)> | ⬜ Не проверена | — | — | — |
+| H-NNN | <Hypothesis (SMART: specific, measurable)> | ⬜ Not tested | — | — | — |
 ```
 
-Статусы: `⬜ Не проверена` → `🔬 Проверяется` → `✅ Подтверждена` / `❌ Опровергнута`
+Statuses: `⬜ Not tested` → `🔬 Testing` → `✅ Confirmed` / `❌ Refuted`
 
 ---
 
-## ADR в BACKLOG.md
+## ADR in `BACKLOG.md`
 
 ```markdown
-- ADR-NNN: <Решение> — <контекст, рассмотренные альтернативы, последствия> [YYYY-MM-DD]
+- ADR-NNN: <Decision> — <context, considered alternatives, consequences> [YYYY-MM-DD]
 ```
 
 ---
 
-## Эксперимент (experiments/EXP-NNN.md)
+## Experiment (`experiments/EXP-NNN.md`)
 
 ```markdown
-# EXP-NNN: <Название>
+# EXP-NNN: <Title>
 
-## Гипотеза
-H-NNN: <текст гипотезы>
+## Hypothesis
+H-NNN: <hypothesis text>
 
-## Настройка
-- Baseline: <описание baseline конфигурации>
-- Treatment: <ОДНО изменение относительно baseline>
-- Метрика: <что измеряем, как определяем успех>
-- Горизонт: <N эпизодов, seeds>
-- Конфигурация: <ключевые гиперпараметры>
+## Setup
+- Baseline: <baseline configuration description>
+- Treatment: <ONE change relative to the baseline>
+- Metric: <what is measured, how success is defined>
+- Horizon: <N episodes, seeds>
+- Configuration: <key hyperparameters>
 
-## Результаты
+## Results
 
-| Метрика | Baseline | Treatment | Delta | p-value | Cohen's d |
-|---------|----------|-----------|-------|---------|-----------|
-| reward  |          |           |       |         |           |
-| entropy |          |           |       |         |           |
+| Metric | Baseline | Treatment | Delta | p-value | Cohen's d |
+|--------|----------|-----------|-------|---------|-----------|
+| reward |          |           |       |         |           |
+| entropy|          |           |       |         |           |
 
-## Выводы
-- <основной finding>
-- <что это значит для проекта>
+## Conclusions
+- <main finding>
+- <what it means for the project>
 
-## Следующие шаги
-- <что делать дальше на основе результатов>
+## Next steps
+- <what to do next based on the results>
 
-## Статус: ⬜ Pending / 🔬 Running / ✅ Done / ❌ Failed
+## Status: ⬜ Pending / 🔬 Running / ✅ Done / ❌ Failed
 ```
 
-Принцип: одно изменение за эксперимент (single-change policy).
+Principle: one change per experiment (single-change policy).
 
 ---
 
-## План (plans/YYYY-MM-DD_<type>_<topic>.md)
+## Plan (`plans/YYYY-MM-DD_<type>_<topic>.md`)
 
 Types: `feature`, `fix`, `refactor`, `experiment`
 
 ```markdown
-# План: <type> — <topic>
+# Plan: <type> — <topic>
 
-## Контекст
+## Context
 
-**Проблема:** <что промптило создание этого плана>
+**Problem:** <what triggered this plan>
 
-**Ожидаемый результат:** <что должно получиться>
+**Expected result:** <what should be achieved>
 
-**Связанные файлы:**
-- <ссылки на код, спеки, эксперименты>
+**Related files:**
+- <links to code, specs, experiments>
 
 ---
 
-## Этапы
+## Stages
 
-### Этап 1: <название>
+### Stage 1: <name>
 
-**Что сделать:**
-- <конкретные действия>
+**What to do:**
+- <concrete actions>
 
-**Тестирование (TDD — тесты ПЕРЕД реализацией):**
-- <unit тесты: что проверяем, edge cases>
-- <integration тесты: какие компоненты вместе>
+**Testing (TDD — tests BEFORE implementation):**
+- <unit tests: what they verify, edge cases>
+- <integration tests: which components together>
 
 **DoD (Definition of Done):**
-- [ ] <конкретный, измеримый критерий (SMART)>
-- [ ] тесты проходят
+- [ ] <concrete, measurable criterion (SMART)>
+- [ ] tests pass
 - [ ] lint clean
 
-**Правила кода:** SOLID, DRY, KISS, YAGNI, Clean Architecture
+**Code rules:** SOLID, DRY, KISS, YAGNI, Clean Architecture
 
 ---
 
-### Этап 2: <название>
+### Stage 2: <name>
 
-**Что сделать:**
--
+**What to do:**
+- 
 
-**Тестирование (TDD):**
--
+**Testing (TDD):**
+- 
 
 **DoD:**
 - [ ]
 
 ---
 
-## Риски и mitigation
+## Risks and mitigation
 
-| Риск | Вероятность | Mitigation |
-|------|------------|------------|
-| <риск> | H/M/L | <как предотвратить> |
+| Risk | Probability | Mitigation |
+|------|-------------|------------|
+| <risk> | H/M/L | <how to prevent it> |
 
-## Gate (критерий успеха плана)
+## Gate (plan success criterion)
 
-<Когда план считается выполненным целиком>
+<When the plan is considered fully complete>
 ```
 
 ---
 
-## Инициализация нового Memory Bank (/mb init)
+## New Memory Bank initialization (`/mb init`)
 
-Создаёт минимальную структуру:
+Creates the minimal structure:
 
-```
+```text
 .memory-bank/
-├── STATUS.md       # Заголовок + "Текущая фаза: Начало"
-├── plan.md         # Заголовок + "Текущий фокус: определить"
-├── checklist.md    # Заголовок + пустой чеклист
-├── RESEARCH.md     # Заголовок + пустая таблица гипотез
-├── BACKLOG.md      # Заголовок + пустые секции
-├── progress.md     # Заголовок
-├── lessons.md      # Заголовок
-├── experiments/    # Пустая директория
-├── plans/          # Пустая директория
-│   └── done/       # Пустая директория
-├── notes/          # Пустая директория
-└── reports/        # Пустая директория
+├── STATUS.md       # Header + "Current phase: Start"
+├── plan.md         # Header + "Current focus: define"
+├── checklist.md    # Header + empty checklist
+├── RESEARCH.md     # Header + empty hypothesis table
+├── BACKLOG.md      # Header + empty sections
+├── progress.md     # Header
+├── lessons.md      # Header
+├── experiments/    # Empty directory
+├── plans/          # Empty directory
+│   └── done/       # Empty directory
+├── notes/          # Empty directory
+└── reports/        # Empty directory
 ```
 
 ---
 
 ## Drift checks (`scripts/mb-drift.sh`)
 
-Deterministic проверки консистентности `.memory-bank/` без AI-вызовов. Используется `mb-doctor` шагом 0 — экономит токены когда банк уже чист.
+Deterministic consistency checks for `.memory-bank/` without AI calls. `mb-doctor` uses it in step 0 to save tokens when the bank is already clean.
 
-### Использование
+### Usage
 
 ```bash
-# На текущем проекте
+# Current project
 bash ~/.claude/skills/memory-bank/scripts/mb-drift.sh .
 
-# На другом проекте
+# Another project
 bash ~/.claude/skills/memory-bank/scripts/mb-drift.sh /path/to/project
 ```
 
-### Output (stdout — key=value)
+### Output (stdout — `key=value`)
 
-```
+```text
 drift_check_path=ok
 drift_check_staleness=ok
 drift_check_script_coverage=ok
@@ -218,32 +218,32 @@ drift_check_frontmatter=ok
 drift_warnings=0
 ```
 
-**Значения:** `ok` (нет проблем), `warn` (drift найден), `skip` (проверка неприменима — например `dependency=skip` если нет `pyproject.toml`/`package.json`/`go.mod`).
+**Values:** `ok` (no problems), `warn` (drift found), `skip` (check not applicable — for example `dependency=skip` if there is no `pyproject.toml` / `package.json` / `go.mod`).
 
-Диагностические сообщения — на stderr, префикс `[drift:<name>]`.
+Diagnostic messages go to stderr with the `[drift:<name>]` prefix.
 
-**Exit code:** 0 если `drift_warnings=0`, иначе 1 (подходит для pre-commit hook).
+**Exit code:** 0 when `drift_warnings=0`, otherwise 1 (works for a pre-commit hook).
 
-### 8 чекеров
+### 8 checkers
 
-| Имя | Что проверяет |
-|-----|---------------|
-| `path` | Ссылки `notes/X.md`, `plans/X.md`, `reports/X.md`, `experiments/X.md` в core-файлах существуют |
-| `staleness` | `STATUS.md`/`plan.md`/`checklist.md`/`progress.md` не обновлялись >30 дней |
-| `script_coverage` | `bash scripts/X.sh` references ведут на existing файлы (в проекте или в skill) |
-| `dependency` | Python версия в `STATUS.md` совпадает с `pyproject.toml` (если есть) |
-| `cross_file` | Числа вида "N bats green" консистентны между `STATUS.md`, `checklist.md`, `progress.md` |
-| `index_sync` | `index.json` mtime свежее всех `notes/*.md` (иначе нужно переиндексировать) |
-| `command` | `npm run X` / `make X` references ведут на existing scripts/targets |
-| `frontmatter` | `notes/*.md` с `---` имеют закрывающий fence |
+| Name | What it checks |
+|------|-----------------|
+| `path` | Links like `notes/X.md`, `plans/X.md`, `reports/X.md`, `experiments/X.md` in core files actually exist |
+| `staleness` | `STATUS.md` / `plan.md` / `checklist.md` / `progress.md` have not been untouched for >30 days |
+| `script_coverage` | `bash scripts/X.sh` references point to existing files (project-local or skill-local) |
+| `dependency` | Python version in `STATUS.md` matches `pyproject.toml` (if present) |
+| `cross_file` | Counts like "N bats green" are consistent across `STATUS.md`, `checklist.md`, `progress.md` |
+| `index_sync` | `index.json` mtime is newer than all `notes/*.md` files (otherwise reindexing is needed) |
+| `command` | `npm run X` / `make X` references point to existing scripts/targets |
+| `frontmatter` | `notes/*.md` files starting with `---` also contain a closing fence |
 
-### Интеграция с `mb-doctor`
+### Integration with `mb-doctor`
 
-`mb-doctor` вызывает `mb-drift.sh` первым шагом:
-- `drift_warnings=0` → отчёт "ok", LLM-анализ не нужен
-- `drift_warnings>0` → читать warnings и запустить Шаги 1-4 агента (cross-reference проверки, Edit fixes)
+`mb-doctor` runs `mb-drift.sh` first:
+- `drift_warnings=0` → report "ok", no LLM analysis needed
+- `drift_warnings>0` → read warnings and then run agent Steps 1-4 (cross-reference checks, Edit fixes)
 
-Это даёт ~80% экономии токенов на стандартных случаях, когда банк чист.
+This saves ~80% of tokens in standard cases where the bank is already clean.
 
 ### Pre-commit hook (optional)
 
@@ -260,27 +260,27 @@ bash ~/.claude/skills/memory-bank/scripts/mb-drift.sh . || {
 
 ## Custom metrics override (`.memory-bank/metrics.sh`)
 
-Опциональный файл. Если существует — `mb-metrics.sh` вызовет его вместо auto-detect. Используй когда:
-- проект имеет нестандартную структуру (monorepo, несколько языков в одном)
-- нужны специфичные метрики (custom test runner, kubernetes readiness, ML reward и т.п.)
-- auto-detect возвращает `stack=unknown`
+Optional file. If present, `mb-metrics.sh` calls it instead of auto-detect. Use it when:
+- the project has a non-standard structure (monorepo, multiple languages together)
+- you need project-specific metrics (custom test runner, Kubernetes readiness, ML reward, etc.)
+- auto-detect returns `stack=unknown`
 
-Скрипт должен выводить `key=value` строки на stdout:
+The script must print `key=value` lines to stdout:
 
 ```bash
 #!/usr/bin/env bash
-# .memory-bank/metrics.sh — custom metrics для этого проекта.
+# .memory-bank/metrics.sh — custom metrics for this project.
 
 set -euo pipefail
 
-echo "stack=custom"                       # произвольная метка
-echo "test_cmd=make test"                 # как запускать тесты
-echo "lint_cmd=make lint"                 # как линтить
+echo "stack=custom"                       # arbitrary label
+echo "test_cmd=make test"                 # how to run tests
+echo "lint_cmd=make lint"                 # how to lint
 echo "src_count=$(find src -type f | wc -l | tr -d ' ')"
 
-# Любые дополнительные метрики (будут переданы в MB Manager as-is):
+# Any extra metrics (passed through to MB Manager as-is):
 echo "coverage=$(coverage report | tail -1 | awk '{print $4}')"
 echo "reward_mean=$(jq '.mean' results.json)"
 ```
 
-После создания — `chmod +x .memory-bank/metrics.sh`. Тестирование: `bash scripts/mb-metrics.sh` должен вернуть `source=override` вместо `source=auto`.
+After creating it, run `chmod +x .memory-bank/metrics.sh`. Validation: `bash scripts/mb-metrics.sh` should return `source=override` instead of `source=auto`.

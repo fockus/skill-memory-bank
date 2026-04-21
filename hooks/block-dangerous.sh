@@ -1,6 +1,6 @@
 #!/bin/bash
-# PreToolUse hook: блокировка опасных Bash-команд
-# Exit 2 = полная блокировка операции
+# PreToolUse hook: blocks dangerous Bash commands
+# Exit 2 = hard block
 
 command -v jq >/dev/null 2>&1 || { echo "ERROR: jq required for hook" >&2; exit 2; }
 
@@ -9,10 +9,10 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 [ -z "$COMMAND" ] && exit 0
 
-# BLOCK: деструктивные команды (exit 2)
+# BLOCK: destructive commands (exit 2)
 if echo "$COMMAND" | grep -qEi \
   'rm\s+-rf\s+/($|\s)|rm\s+-rf\s+~|rm\s+-rf\s+/\*|rm\s+-rf\s+\.\s*$'; then
-  echo "BLOCKED: rm -rf на корневую/домашнюю директорию" >&2
+  echo "BLOCKED: rm -rf on the root/home directory" >&2
   exit 2
 fi
 
@@ -81,7 +81,7 @@ if echo "$COMMAND" | grep -qEi 'git\s+(commit|push)\s+.*--no-verify'; then
   fi
 fi
 
-# WARN: рискованные команды (не блокируют, только feedback)
+# WARN: risky commands (do not block, only emit feedback)
 if echo "$COMMAND" | grep -qEi 'rm\s+-rf'; then
   echo "WARNING: rm -rf detected — verify target path" >&2
 fi

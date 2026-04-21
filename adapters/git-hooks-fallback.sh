@@ -87,9 +87,9 @@ fi
 {
   printf '\n## %s\n\n' "$_today"
   printf '### Auto-capture %s (git-%s)\n' "$_today" "$_sha"
-  printf -- '- Сессия завершилась без явного /mb done (git post-commit fallback)\n'
+  printf -- '- Session ended without an explicit /mb done (git post-commit fallback)\n'
   printf -- '- Commit SHA: %s\n' "$_sha"
-  printf -- '- Детали будут восстановлены при следующем /mb start\n'
+  printf -- '- Details will be restored during the next /mb start\n'
 } >> "$_mb_progress"
 exit 0
 HOOK_EOF

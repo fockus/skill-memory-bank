@@ -1,16 +1,19 @@
 # ~/.claude/commands/doc.md
+
 ---
-description: Сгенерируй/обнови документацию для модуля
+
+## description: Generate or update documentation for a module
 agent: explorer
 context: fork
 allowed-tools: [Read, Glob, Grep, Bash, Write]
----
-Для модуля $ARGUMENTS:
-1. Найди все публичные API: экспортированные функции, структуры, интерфейсы
-2. Прочитай существующие комментарии и godoc/docstrings
-3. Создай/обнови `./docs/<модуль>.md`:
-   - Назначение модуля
-   - Публичный API с описанием каждой функции/метода
-   - Примеры использования из тестов
-   - Зависимости и конфигурация
-4. Если комментарии в коде отсутствуют или неполные — предложи добавить
+
+For module `$ARGUMENTS`:
+
+1. Find all public APIs: exported functions, structs, interfaces
+2. Read the existing comments and godoc/docstrings
+3. Create or update `./docs/<module>.md`:
+  - Module purpose
+  - Public API with descriptions of every function/method
+  - Usage examples from tests
+  - Dependencies and configuration
+4. If code comments are missing or incomplete, suggest adding them

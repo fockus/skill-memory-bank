@@ -28,7 +28,6 @@ from pathlib import Path
 from memory_bank_skill import __version__
 from memory_bank_skill._bundle import find_bundle_root
 
-
 PACKAGE_NAME = "memory-bank-skill"
 VALID_CLIENTS = (
     "claude-code",
@@ -40,6 +39,7 @@ VALID_CLIENTS = (
     "pi",
     "codex",
 )
+VALID_LANGUAGES = ("en", "ru")
 
 
 # ═══ Platform detection ═══
@@ -78,12 +78,11 @@ def find_bash() -> str | None:
 
     # Windows: prefer `bash.exe` on PATH (Git Bash adds its dir).
     found = shutil.which("bash.exe") or shutil.which("bash")
-    if found:
+    if found and "system32" not in found.lower():
         # Guard against WSL's C:\Windows\System32\bash.exe — that launches WSL
         # interactively without forwarding the script path correctly in every
         # environment. Skip it; fall through to explicit Git Bash paths first.
-        if "system32" not in found.lower():
-            return found
+        return found
 
     # Check well-known Git for Windows install locations.
     for candidate in WINDOWS_BASH_CANDIDATES:
@@ -154,6 +153,8 @@ def cmd_install(args: argparse.Namespace) -> int:
     sh_args: list[str] = []
     if args.clients:
         sh_args.extend(["--clients", args.clients])
+    if args.language:
+        sh_args.extend(["--language", args.language])
     if args.project_root:
         sh_args.extend(["--project-root", args.project_root])
     if args.non_interactive:
@@ -232,6 +233,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--clients",
         help=f"Comma-separated client list. Valid: {', '.join(VALID_CLIENTS)}. "
              "Omit to use interactive menu when running in a TTY.",
+    )
+    p_install.add_argument(
+        "--language",
+        choices=VALID_LANGUAGES,
+        help=f"Preferred installed rules language. Valid: {', '.join(VALID_LANGUAGES)}.",
     )
     p_install.add_argument("--project-root", help="Target directory for cross-agent adapters (default: PWD)")
     p_install.add_argument(

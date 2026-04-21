@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for hooks/session-end-autosave.sh — auto-capture hook для Memory Bank.
+# Tests for hooks/session-end-autosave.sh — auto-capture hook for Memory Bank.
 #
-# Hook reads SessionEnd JSON с stdin, парсит cwd, работает с
-# $cwd/.memory-bank/progress.md в режимах MB_AUTO_CAPTURE=auto|strict|off.
+# Hook reads SessionEnd JSON from stdin, parses cwd, and works with
+# $cwd/.memory-bank/progress.md in MB_AUTO_CAPTURE=auto|strict|off modes.
 #
-# Lock-файл `.memory-bank/.session-lock` означает что ручной /mb done
-# уже был — hook skip + clear lock.
+# Lock file `.memory-bank/.session-lock` means a manual /mb done
+# already happened — the hook skips and clears the lock.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -19,7 +19,7 @@ setup() {
   PROJECT="$(mktemp -d)"
   MB="$PROJECT/.memory-bank"
   mkdir -p "$MB/notes" "$MB/plans"
-  printf '# Progress\n\nИстория работы.\n' > "$MB/progress.md"
+  printf '# Progress\n\nWork history.\n' > "$MB/progress.md"
   printf '# Checklist\n' > "$MB/checklist.md"
   printf '# STATUS\n' > "$MB/STATUS.md"
 
@@ -41,8 +41,8 @@ payload_session_end() {
     '{hook_event_name:"SessionEnd", cwd:$cwd, session_id:$sid, reason:"clear"}'
 }
 
-# Run hook capturing stdout+stderr и exit code через __EXIT__ sentinel.
-# Переменные окружения передаём через leading assignments.
+# Run hook capturing stdout+stderr and exit code through the __EXIT__ sentinel.
+# Environment variables are passed through leading assignments.
 run_hook_env() {
   local env_assign="$1" input="$2"
   local raw
@@ -56,35 +56,35 @@ run_hook() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Lock-файл logic (ручной /mb done уже был)
+# Lock-file logic (a manual /mb done already happened)
 # ═══════════════════════════════════════════════════════════════
 
 @test "auto-capture: fresh lock exists → skip and clear lock" {
-  # .session-lock создан ручным /mb done минуту назад.
+  # .session-lock created by manual /mb done one minute ago.
   touch "$MB/.session-lock"
   before=$(wc -l < "$MB/progress.md")
 
   run_hook "$(payload_session_end)"
   [ "$status" -eq 0 ]
 
-  # Lock удалён (чтобы следующая сессия не считала его устаревшим).
+  # Lock removed (so the next session does not treat it as stale).
   [ ! -f "$MB/.session-lock" ]
 
-  # progress.md не менялся.
+  # progress.md did not change.
   after=$(wc -l < "$MB/progress.md")
   [ "$before" -eq "$after" ]
 }
 
 @test "auto-capture: stale lock (>1h) → runs and appends" {
   touch "$MB/.session-lock"
-  # Перематываем mtime на 2 часа назад.
+  # Move mtime 2 hours back.
   old=$(($(date +%s) - 7200))
   touch -t "$(date -r "$old" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$old" +%Y%m%d%H%M.%S)" "$MB/.session-lock"
 
   run_hook "$(payload_session_end)"
   [ "$status" -eq 0 ]
 
-  # Stale lock очищен, entry добавлена.
+  # Stale lock cleared, entry added.
   [ ! -f "$MB/.session-lock" ]
   grep -q "Auto-capture" "$MB/progress.md"
 }
@@ -142,7 +142,7 @@ run_hook() {
 
 @test "auto-capture: no .memory-bank/ → noop exit 0" {
   NOBANK="$(mktemp -d)"
-  before=$(cat "$MB/progress.md")  # наш seeded MB не должен быть затронут.
+  before=$(cat "$MB/progress.md")  # our seeded MB must stay untouched.
 
   run_hook_env "MB_AUTO_CAPTURE=auto" "$(payload_session_end "$NOBANK")"
   [ "$status" -eq 0 ]
@@ -159,7 +159,7 @@ run_hook() {
   run_hook_env "MB_AUTO_CAPTURE=auto" "$(payload_session_end)"
   [ "$status" -eq 0 ]
 
-  # Hook НЕ создаёт progress.md — это должен сделать /mb init.
+  # The hook does NOT create progress.md — /mb init must do that.
   [ ! -f "$MB/progress.md" ]
 }
 
@@ -177,7 +177,7 @@ run_hook() {
 }
 
 @test "auto-capture: concurrent invocation — fresh .auto-lock → second instance skips" {
-  # Имитируем что другой hook inprogress (создал свежий .auto-lock).
+  # Simulate another hook already in progress (fresh .auto-lock created).
   touch "$MB/.auto-lock"
 
   before=$(cat "$MB/progress.md")
@@ -185,7 +185,7 @@ run_hook() {
   run_hook_env "MB_AUTO_CAPTURE=auto" "$(payload_session_end)"
   [ "$status" -eq 0 ]
 
-  # Второй инстанс не трогает progress.md.
+  # The second instance does not touch progress.md.
   after=$(cat "$MB/progress.md")
   [ "$before" = "$after" ]
 }
@@ -194,7 +194,7 @@ run_hook() {
   run_hook_env "MB_AUTO_CAPTURE=auto" "$(payload_session_end)"
   [ "$status" -eq 0 ]
 
-  # Auto-lock (temp) должен быть убран через trap EXIT.
+  # Auto-lock (temp) should be removed through trap EXIT.
   [ ! -f "$MB/.auto-lock" ]
 }
 
@@ -204,6 +204,6 @@ run_hook() {
 
   today=$(date +%Y-%m-%d)
   grep -q "$today" "$MB/progress.md"
-  # Короткий префикс session_id (первые 8 символов).
+  # Short session_id prefix (first 8 characters).
   grep -q "deadbeef" "$MB/progress.md"
 }

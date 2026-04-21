@@ -6,7 +6,6 @@ Platform behavior mocked; shell invocations use bundled install.sh --help.
 
 from __future__ import annotations
 
-import os
 import platform
 import shutil
 import subprocess
@@ -16,14 +15,11 @@ from unittest.mock import patch
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from memory_bank_skill import __version__  # noqa: E402
-from memory_bank_skill import cli  # noqa: E402
+from memory_bank_skill import __version__, cli  # noqa: E402
 from memory_bank_skill._bundle import find_bundle_root  # noqa: E402
-
 
 # ═══════════════════════════════════════════════════════════════
 # Version + basic argparse
@@ -77,7 +73,7 @@ def test_init_prints_claude_code_hint(capsys):
 
 
 def test_doctor_reports_bundle_platform_and_bash(capsys):
-    rc = cli.main(["doctor"])
+    cli.main(["doctor"])
     # rc == 0 on systems with bash (macOS/Linux CI); rc==1 on Windows w/o bash
     out = capsys.readouterr().out
     assert __version__ in out
@@ -107,9 +103,10 @@ def test_bundle_override_env(tmp_path, monkeypatch):
 def test_bundle_not_found_raises(monkeypatch, tmp_path):
     monkeypatch.setenv("MB_SKILL_BUNDLE", str(tmp_path / "does-not-exist"))
     monkeypatch.setattr("sys.prefix", str(tmp_path / "nowhere"))
-    with patch("memory_bank_skill._bundle.__file__", str(tmp_path / "x.py")):
-        with pytest.raises(FileNotFoundError):
-            find_bundle_root()
+    with patch("memory_bank_skill._bundle.__file__", str(tmp_path / "x.py")), pytest.raises(
+        FileNotFoundError
+    ):
+        find_bundle_root()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -257,6 +254,21 @@ def test_install_cmd_passes_clients_flag(tmp_path, monkeypatch):
     assert "--project-root" in captured["cmd"]
 
 
+def test_install_cmd_passes_language_flag(monkeypatch):
+    captured: dict = {}
+
+    def fake_run(cmd, check, **kw):
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    rc = cli.main(["install", "--language", "ru"])
+    assert rc == 0
+    assert "--language" in captured["cmd"]
+    assert "ru" in captured["cmd"]
+
+
 def test_install_cmd_no_args_calls_install_sh(monkeypatch):
     captured: dict = {}
 
@@ -334,3 +346,73 @@ def test_run_shell_plain_bash_mode(monkeypatch):
     assert captured["cmd"][0] == "/bin/bash"
     assert "install.sh" in captured["cmd"][1]
     assert captured["cmd"][-1] == "--help"
+
+
+# ═══════════════════════════════════════════════════════════════
+# Cursor global parity — end-to-end install/uninstall smoke test
+# ═══════════════════════════════════════════════════════════════
+
+def _run_install_sh(sandbox_home: Path, repo_root: Path) -> subprocess.CompletedProcess:
+    """Run the real install.sh against a sandboxed $HOME."""
+    env = {
+        "HOME": str(sandbox_home),
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    }
+    return subprocess.run(
+        ["bash", str(repo_root / "install.sh"), "--non-interactive"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _run_uninstall_sh(sandbox_home: Path, repo_root: Path) -> subprocess.CompletedProcess:
+    env = {
+        "HOME": str(sandbox_home),
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    }
+    return subprocess.run(
+        ["bash", str(repo_root / "uninstall.sh")],
+        env=env,
+        input="y\n",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash required")
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq required for Cursor hooks.json merge")
+def test_cli_install_uninstall_smoke_with_cursor_global(tmp_path):
+    """Smoke test: memory-bank install/uninstall don't crash with Cursor global steps."""
+    sandbox = tmp_path / "home"
+    sandbox.mkdir()
+
+    install_result = _run_install_sh(sandbox, REPO_ROOT)
+    assert install_result.returncode == 0, (
+        f"install.sh failed (rc={install_result.returncode})\n"
+        f"stdout:\n{install_result.stdout}\n"
+        f"stderr:\n{install_result.stderr}"
+    )
+
+    assert (sandbox / ".cursor" / "skills" / "memory-bank").is_symlink()
+    assert (sandbox / ".cursor" / "hooks.json").is_file()
+    assert (sandbox / ".cursor" / "AGENTS.md").is_file()
+    assert (sandbox / ".cursor" / "memory-bank-user-rules.md").is_file()
+    assert (sandbox / ".cursor" / "commands" / "mb.md").is_file()
+
+    agents_content = (sandbox / ".cursor" / "AGENTS.md").read_text()
+    assert "memory-bank-cursor:start" in agents_content
+    assert "memory-bank-cursor:end" in agents_content
+
+    uninstall_result = _run_uninstall_sh(sandbox, REPO_ROOT)
+    assert uninstall_result.returncode == 0, (
+        f"uninstall.sh failed (rc={uninstall_result.returncode})\n"
+        f"stdout:\n{uninstall_result.stdout}\n"
+        f"stderr:\n{uninstall_result.stderr}"
+    )
+
+    assert not (sandbox / ".cursor" / "skills" / "memory-bank").exists()
+    assert not (sandbox / ".cursor" / "memory-bank-user-rules.md").exists()
+    assert not (sandbox / ".cursor" / "commands" / "mb.md").exists()

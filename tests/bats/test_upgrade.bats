@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests for scripts/mb-upgrade.sh — skill self-update pre-flight checks.
 #
-# Network-dependent behaviors (fetch, pull) не тестируются — проверяются только
+# Network-dependent behaviors (`fetch`, `pull`) are not tested — only
 # pre-flight guards: git repo detection, dirty tree, missing VERSION.
 
 setup() {
@@ -47,7 +47,7 @@ teardown() {
 
   MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --check
   [ "$status" -ne 0 ]
-  [[ "$output$stderr" == *"локальные изменения"* || "$output$stderr" == *"dirty"* || "$output$stderr" == *"изменения"* ]]
+  [[ "$output$stderr" == *"dirty"* || "$output$stderr" == *"local changes"* || "$output$stderr" == *"uncommitted"* ]]
 }
 
 @test "upgrade: fails when working tree has staged but uncommitted changes" {
@@ -80,9 +80,9 @@ teardown() {
   git add VERSION
   git commit -q -m "init"
 
-  # --check без remote → fetch упадёт, но VERSION должна быть прочитана
+  # `--check` without a remote means `fetch` fails, but VERSION must still be read
   MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --check
-  # Любой exit code, но output должен содержать 1.2.3
+  # Any exit code is acceptable, but output must contain 1.2.3
   [[ "$output" == *"1.2.3"* ]]
 }
 
@@ -98,6 +98,6 @@ teardown() {
   git commit -q -m "init"
 
   MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --check
-  # Не должен падать из-за missing VERSION — output должен содержать "unknown"
+  # It must not fail because VERSION is missing — output should contain "unknown"
   [[ "$output" == *"unknown"* ]]
 }

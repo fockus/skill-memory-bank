@@ -64,6 +64,12 @@ teardown() {
   jq -e '.owners | contains(["opencode","codex"])' "$PROJECT/.mb-agents-owners.json" >/dev/null
 }
 
+@test "install.sh --language ru localizes project adapter rules" {
+  bash "$REPO_ROOT/install.sh" --clients cursor,codex --language ru --project-root "$PROJECT" >/dev/null
+  grep -q '1. \*\*Language\*\*: Russian — responses and code comments' "$PROJECT/AGENTS.md"
+  grep -q '1. \*\*Language\*\*: Russian — responses and code comments' "$PROJECT/.cursor/rules/memory-bank.mdc"
+}
+
 @test "install.sh --clients invalidname → exit non-zero with validation error" {
   run bash "$REPO_ROOT/install.sh" --clients invalidname --project-root "$PROJECT"
   [ "$status" -ne 0 ]

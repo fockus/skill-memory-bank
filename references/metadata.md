@@ -1,12 +1,12 @@
 # Memory Bank — metadata protocol
 
-Детальное описание YAML frontmatter в `notes/` и структуры `index.json`.
+Detailed description of YAML frontmatter for `notes/` and the `index.json` structure.
 
 ---
 
-## Frontmatter формат
+## Frontmatter format
 
-Все заметки в `notes/` создаются с YAML frontmatter для семантического поиска и targeted recall.
+All notes in `notes/` are created with YAML frontmatter for semantic search and targeted recall.
 
 ```yaml
 ---
@@ -19,24 +19,24 @@ created: YYYY-MM-DD
 ---
 ```
 
-### Правила
+### Rules
 
-1. **Все новые notes/** получают YAML frontmatter при создании (MB Manager генерирует автоматически).
-2. **Tags** извлекаются LLM из содержимого заметки: 3-7 ключевых технических терминов, lowercase, singular.
+1. **All new `notes/` files** receive YAML frontmatter on creation (generated automatically by MB Manager).
+2. **Tags** are extracted by the LLM from note content: 3-7 key technical terms, lowercase, singular.
 3. **Importance**:
-   - `high` — patterns, decisions, critical architectural insights
-   - `medium` — general notes, knowledge
-   - `low` — minor observations, одноразовые фиксы
-4. **Шаблон**: `references/templates.md`.
-5. **Старые заметки** (без frontmatter) продолжают работать — `index.json` обрабатывает их с default `type: note`, `tags: []`.
+  - `high` — patterns, decisions, critical architectural insights
+  - `medium` — general notes, knowledge
+  - `low` — minor observations, one-off fixes
+4. **Template**: `references/templates.md`.
+5. **Old notes** (without frontmatter) still work — `index.json` treats them with defaults: `type: note`, `tags: []`.
 
 ---
 
-## Index Protocol
+## Index protocol
 
-Memory Bank использует `index.json` для быстрого поиска без чтения всех файлов.
+Memory Bank uses `index.json` for fast lookup without reading every file.
 
-### Формат `{mb_path}/index.json`
+### Format: `{mb_path}/index.json`
 
 ```json
 {
@@ -70,32 +70,33 @@ Memory Bank использует `index.json` для быстрого поиск
 }
 ```
 
-**`archived: bool`** — `true` если файл лежит в `notes/archive/` (перемещён через `mb-compact.sh --apply`). Default `mb-search` исключает archived; opt-in через `mb-search --include-archived <query>`.
+`**archived: bool**` — `true` if the file lives under `notes/archive/` (moved there through `mb-compact.sh --apply`). Default `mb-search` excludes archived items; opt in through `mb-search --include-archived <query>`.
 
 ### Regeneration
 
-- Пересоздаётся при `/mb done` (через MB Manager `action: actualize` → вызов `scripts/mb-index-json.py`).
-- Также пересоздаётся автоматически при `mb-search --tag <tag>`, если отсутствует.
-- Вручную: `python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py <mb_path>`.
+- Rebuilt during `/mb done` (MB Manager `action: actualize` → calls `scripts/mb-index-json.py`)
+- Also rebuilt automatically by `mb-search --tag <tag>` if missing
+- Manually: `python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py <mb_path>`
 
 ### Usage
 
-Agent читает `index.json` → фильтрует по `tags`/`importance` → читает только релевантные файлы.
+Agent reads `index.json` → filters by `tags` / `importance` → reads only relevant files.
 
 ### Fallback
 
-- `PyYAML` не установлен → простой fallback-парсер в `mb-index-json.py` (понимает `key: value` и `key: [a, b]`).
-- `index.json` отсутствует → `mb-search` работает через grep, `mb-search --tag` возвращает error с hint.
+- `PyYAML` not installed → `mb-index-json.py` uses a simple fallback parser (understands `key: value` and `key: [a, b]`)
+- `index.json` missing → `mb-search` falls back to grep; `mb-search --tag` returns an error with a hint
 
 ---
 
-## Ключевые правила Memory Bank
+## Key Memory Bank rules
 
-1. **Core files = истина о проекте**. `STATUS.md`, `plan.md`, `checklist.md` — всегда актуальны.
-2. **`progress.md` = APPEND-ONLY**. Никогда не удалять и не редактировать старые записи.
-3. **Нумерация сквозная**: H-NNN (гипотезы), EXP-NNN (эксперименты), ADR-NNN (решения), L-NNN (уроки).
-4. **`notes/` = знания, не хронология**. 5-15 строк. Выводы, паттерны, переиспользуемые решения.
-5. **Checklist**: ✅ = выполнено, ⬜ = не выполнено. Обновлять каждую сессию.
-6. **Не вставляй логи, stacktraces, большие блоки кода**. Только дистиллированные заметки.
-7. **ML эксперименты**: гипотеза (SMART) → baseline → одно изменение → run → результат (p-value, Cohen's d).
-8. **Архитектурные решения** → ADR в `BACKLOG.md` (контекст → решение → альтернативы → последствия).
+1. **Core files = project truth.** `STATUS.md`, `plan.md`, `checklist.md` must always stay current.
+2. `**progress.md` = APPEND-ONLY.** Never delete or edit old entries.
+3. **Monotonic numbering**: H-NNN (hypotheses), EXP-NNN (experiments), ADR-NNN (decisions), L-NNN (lessons).
+4. `**notes/` = knowledge, not chronology.** 5-15 lines. Conclusions, patterns, reusable solutions.
+5. **Checklist**: ✅ = done, ⬜ = not done. Update every session.
+6. **Do not paste logs, stack traces, or large code blocks.** Only distilled notes.
+7. **ML experiments**: hypothesis (SMART) → baseline → one change → run → result (p-value, Cohen's d).
+8. **Architectural decisions** → ADR in `BACKLOG.md` (context → decision → alternatives → consequences).
+

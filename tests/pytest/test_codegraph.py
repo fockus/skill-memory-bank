@@ -77,7 +77,7 @@ def _run_cli(args: list[str]) -> subprocess.CompletedProcess:
 
 
 def test_parse_single_function(cg_mod, src_root):
-    """Одна функция → 1 node кинда function."""
+    """One function → 1 node of kind function."""
     write_py(src_root, "m.py", """
         def hello():
             pass
@@ -88,7 +88,7 @@ def test_parse_single_function(cg_mod, src_root):
 
 
 def test_parse_class_with_methods(cg_mod, src_root):
-    """Class с методами → class node + method nodes."""
+    """Class with methods → class node + method nodes."""
     write_py(src_root, "m.py", """
         class Foo:
             def bar(self):
@@ -104,7 +104,7 @@ def test_parse_class_with_methods(cg_mod, src_root):
 
 
 def test_parse_imports(cg_mod, src_root):
-    """import X / from X import Y → edges кинда import."""
+    """import X / from X import Y → edges of kind import."""
     write_py(src_root, "m.py", """
         import os
         from pathlib import Path
@@ -118,7 +118,7 @@ def test_parse_imports(cg_mod, src_root):
 
 
 def test_parse_function_calls(cg_mod, src_root):
-    """Вызов функции → edge кинда call."""
+    """Function call → edge of kind call."""
     write_py(src_root, "m.py", """
         def worker():
             helper()
@@ -150,7 +150,7 @@ def test_parse_class_inheritance(cg_mod, src_root):
 
 
 def test_multi_file_each_parsed(cg_mod, src_root):
-    """Два .py файла → оба в graph."""
+    """Two .py files → both are in the graph."""
     write_py(src_root, "a.py", "def alpha(): pass\n")
     write_py(src_root, "b.py", "def beta(): pass\n")
     graph = cg_mod.build_graph(src_root)
@@ -165,7 +165,7 @@ def test_multi_file_each_parsed(cg_mod, src_root):
 
 
 def test_broken_syntax_skipped_with_warning(cg_mod, src_root, capsys):
-    """Файл с syntax error → skip + warning, batch продолжается."""
+    """File with syntax error → skip + warning, batch continues."""
     write_py(src_root, "good.py", "def ok(): pass\n")
     write_py(src_root, "bad.py", "def broken( :\n")  # syntax error
     graph = cg_mod.build_graph(src_root)
@@ -176,14 +176,14 @@ def test_broken_syntax_skipped_with_warning(cg_mod, src_root, capsys):
 
 
 def test_empty_src_root_returns_empty_graph(cg_mod, src_root):
-    """Пустая директория → nodes=[], edges=[]."""
+    """Empty directory → nodes=[], edges=[]."""
     graph = cg_mod.build_graph(src_root)
     assert graph["nodes"] == []
     assert graph["edges"] == []
 
 
 def test_non_python_files_ignored(cg_mod, src_root):
-    """*.md, *.json, *.sh — не парсятся."""
+    """*.md, *.json, *.sh are not parsed."""
     (src_root / "README.md").write_text("# Hi\n")
     (src_root / "config.json").write_text("{}")
     write_py(src_root, "m.py", "def f(): pass\n")
@@ -198,21 +198,21 @@ def test_non_python_files_ignored(cg_mod, src_root):
 
 
 def test_apply_writes_graph_json_lines(cg_mod, mb_path, src_root):
-    """--apply пишет graph.json в JSON Lines формате."""
+    """--apply writes graph.json in JSON Lines format."""
     write_py(src_root, "m.py", "def f(): pass\nclass C: pass\n")
     cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
     graph_file = mb_path / "codebase" / "graph.json"
     assert graph_file.exists()
     lines = [line for line in graph_file.read_text().splitlines() if line.strip()]
     assert len(lines) >= 2
-    # Каждая строка валидный JSON
+    # Each line is valid JSON
     for line in lines:
         json.loads(line)
 
 
 def test_apply_writes_god_nodes_md(cg_mod, mb_path, src_root):
-    """god-nodes.md создаётся и содержит топ-узлы по degree."""
-    # Создаём "звёздный" node: hub вызывается из нескольких мест
+    """god-nodes.md is created and contains the top nodes by degree."""
+    # Create a "star" node: hub is called from several places
     write_py(src_root, "hub.py", "def hub(): pass\n")
     write_py(src_root, "a.py", "from hub import hub\ndef a(): hub()\n")
     write_py(src_root, "b.py", "from hub import hub\ndef b(): hub()\n")
@@ -224,7 +224,7 @@ def test_apply_writes_god_nodes_md(cg_mod, mb_path, src_root):
 
 
 def test_dry_run_no_file_writes(cg_mod, mb_path, src_root):
-    """--dry-run → 0 file changes в codebase/."""
+    """--dry-run → 0 file changes in codebase/."""
     write_py(src_root, "m.py", "def f(): pass\n")
     cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="dry-run")
     assert not (mb_path / "codebase" / "graph.json").exists()
@@ -237,28 +237,28 @@ def test_dry_run_no_file_writes(cg_mod, mb_path, src_root):
 
 
 def test_cache_stored_in_codebase_cache(cg_mod, mb_path, src_root):
-    """После --apply появляется .cache/ с per-file hash JSON."""
+    """After --apply, .cache/ appears with per-file hash JSON."""
     write_py(src_root, "m.py", "def f(): pass\n")
     cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
     cache_dir = mb_path / "codebase" / ".cache"
     assert cache_dir.exists()
-    # Должен быть хотя бы 1 JSON в cache
+    # There must be at least 1 JSON file in cache
     caches = list(cache_dir.glob("*.json"))
     assert len(caches) >= 1
 
 
 def test_incremental_unchanged_file_not_reparsed(cg_mod, mb_path, src_root):
-    """Unchanged file → reparsed_count=0 во втором запуске."""
+    """Unchanged file → reparsed_count=0 on the second run."""
     write_py(src_root, "m.py", "def f(): pass\n")
     cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
-    # Второй запуск без изменений
+    # Second run without changes
     summary = cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
     assert summary.get("reparsed", 0) == 0
     assert summary.get("cached", 0) >= 1
 
 
 def test_incremental_changed_file_reparsed(cg_mod, mb_path, src_root):
-    """Изменение файла → reparsed_count ≥1."""
+    """Changing a file → reparsed_count ≥1."""
     write_py(src_root, "m.py", "def f(): pass\n")
     cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
     write_py(src_root, "m.py", "def f(): pass\ndef g(): pass\n")
@@ -272,7 +272,7 @@ def test_incremental_changed_file_reparsed(cg_mod, mb_path, src_root):
 
 
 def test_cli_dry_run_default(cg_mod, mb_path, src_root):
-    """CLI без --apply = dry-run, 0 file writes."""
+    """CLI without --apply = dry-run, 0 file writes."""
     write_py(src_root, "m.py", "def f(): pass\n")
     result = _run_cli([str(mb_path), str(src_root)])
     assert result.returncode == 0
@@ -280,7 +280,7 @@ def test_cli_dry_run_default(cg_mod, mb_path, src_root):
 
 
 def test_cli_apply_writes_files(cg_mod, mb_path, src_root):
-    """CLI --apply → graph.json + god-nodes.md создаются."""
+    """CLI --apply → graph.json + god-nodes.md are created."""
     write_py(src_root, "m.py", "def f(): pass\n")
     result = _run_cli(["--apply", str(mb_path), str(src_root)])
     assert result.returncode == 0
@@ -288,7 +288,7 @@ def test_cli_apply_writes_files(cg_mod, mb_path, src_root):
 
 
 def test_cli_missing_src_root_error(cg_mod, mb_path):
-    """Несуществующий src_root → exit 1."""
+    """Nonexistent src_root → exit 1."""
     result = _run_cli(["--apply", str(mb_path), "/nonexistent/fake"])
     assert result.returncode != 0
 
@@ -299,7 +299,7 @@ def test_cli_missing_src_root_error(cg_mod, mb_path):
 
 
 def test_node_has_required_fields(cg_mod, src_root):
-    """Каждый node имеет: kind, name, file, line."""
+    """Each node has: kind, name, file, line."""
     write_py(src_root, "m.py", "def f(): pass\n")
     graph = cg_mod.build_graph(src_root)
     for n in graph["nodes"]:
@@ -311,7 +311,7 @@ def test_node_has_required_fields(cg_mod, src_root):
 
 
 def test_edge_has_required_fields(cg_mod, src_root):
-    """Каждый edge имеет: src, dst, kind."""
+    """Each edge has: src, dst, kind."""
     write_py(src_root, "m.py", "import os\n")
     graph = cg_mod.build_graph(src_root)
     for e in graph["edges"]:
@@ -321,15 +321,15 @@ def test_edge_has_required_fields(cg_mod, src_root):
 
 
 def test_god_nodes_sorted_by_degree_desc(cg_mod, mb_path, src_root):
-    """god-nodes.md — топ по degree, sorted descending."""
+    """god-nodes.md — top by degree, sorted descending."""
     write_py(src_root, "popular.py", "def popular(): pass\n")
-    # 3 файла вызывают popular
+    # 3 files call popular
     for name in ("a.py", "b.py", "c.py"):
         write_py(src_root, name, f"from popular import popular\ndef {name[:-3]}(): popular()\n")
     write_py(src_root, "orphan.py", "def lonely(): pass\n")
     cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
     content = (mb_path / "codebase" / "god-nodes.md").read_text()
-    # popular должен быть выше orphan/lonely
+    # popular must rank above orphan/lonely
     pop_idx = content.find("popular")
     lonely_idx = content.find("lonely")
     if lonely_idx > 0:

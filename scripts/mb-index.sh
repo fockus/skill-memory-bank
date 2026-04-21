@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mb-index.sh — реестр записей Memory Bank.
+# mb-index.sh — Memory Bank entry registry.
 # Usage: mb-index.sh [mb_path]
 
 set -euo pipefail
@@ -10,11 +10,11 @@ source "$(dirname "$0")/_lib.sh"
 MB_PATH=$(mb_resolve_path "${1:-}")
 
 if [[ ! -d "$MB_PATH" ]]; then
-  echo "[MEMORY BANK: INACTIVE] Директория $MB_PATH не найдена" >&2
+  echo "[MEMORY BANK: INACTIVE] Directory $MB_PATH not found" >&2
   exit 1
 fi
 
-# Кроссплатформенная дата модификации
+# Cross-platform modification date
 file_mod_date() {
   if stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$1" 2>/dev/null; then
     return
@@ -32,7 +32,7 @@ for file in STATUS.md plan.md checklist.md RESEARCH.md BACKLOG.md progress.md le
   if [[ -f "$filepath" ]]; then
     mod_date=$(file_mod_date "$filepath")
     lines=$(wc -l < "$filepath" | tr -d ' ')
-    echo "  $file ($lines строк, $mod_date)"
+    echo "  $file ($lines lines, $mod_date)"
   fi
 done
 echo ""

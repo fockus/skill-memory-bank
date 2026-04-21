@@ -1,5 +1,5 @@
 ---
-description: Сканирование кода на security vulnerabilities (OWASP, secrets, dependencies)
+description: Scan code for security vulnerabilities (OWASP, secrets, dependencies)
 allowed-tools: [Read, Glob, Grep, Bash]
 ---
 
@@ -7,12 +7,12 @@ allowed-tools: [Read, Glob, Grep, Bash]
 
 ## 1. Scope
 
-- Если $ARGUMENTS указан — анализируй указанный модуль/директорию
-- Если не указан — анализируй все изменённые файлы (`git diff --name-only`)
+- If `$ARGUMENTS` is provided, analyze the specified module/directory
+- If not provided, analyze all changed files (`git diff --name-only`)
 
-## 2. Автоматический анализ
+## 2. Automated analysis
 
-Определи стек и запусти подходящие сканеры:
+Detect the stack and run the appropriate scanners:
 
 ### Go
 ```bash
@@ -31,23 +31,23 @@ safety check 2>/dev/null
 npm audit 2>/dev/null
 ```
 
-### Поиск секретов
+### Secret scanning
 ```bash
 grep -rn --include="*.go" --include="*.py" --include="*.js" --include="*.ts" --include="*.yaml" --include="*.yml" --include="*.env*" \
   -E "(password|secret|api_key|token|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|sk_live_)" .
 ```
 
-## 3. Ручной анализ
+## 3. Manual analysis
 
-Прочитай каждый файл в scope и проверь:
+Read each file in scope and check for:
 
 - **Injection:** SQL, command, XSS, LDAP, template injection
-- **Authentication:** слабые пароли, отсутствие rate limiting, хранение credentials
-- **Authorization:** отсутствие проверок прав, IDOR, privilege escalation
-- **Data Exposure:** логирование секретов, лишние данные в API responses, stack traces в production
-- **Configuration:** debug mode, CORS *, отключённый HTTPS, default credentials
-- **Dependencies:** известные CVE
-- **Cryptography:** MD5/SHA1 для паролей, hardcoded keys, отсутствие salt
+- **Authentication:** weak passwords, missing rate limiting, credential storage issues
+- **Authorization:** missing permission checks, IDOR, privilege escalation
+- **Data Exposure:** secret logging, excessive API response data, stack traces in production
+- **Configuration:** debug mode, `CORS *`, disabled HTTPS, default credentials
+- **Dependencies:** known CVEs
+- **Cryptography:** MD5/SHA1 for passwords, hardcoded keys, missing salt
 
 ## 4. OWASP Top 10 Checklist
 
@@ -62,30 +62,30 @@ grep -rn --include="*.go" --include="*.py" --include="*.js" --include="*.ts" --i
 - [ ] A09 — Security Logging and Monitoring Failures
 - [ ] A10 — Server-Side Request Forgery
 
-## 5. Отчёт
+## 5. Report
 
 ```markdown
 # Security Review Report
-Дата: YYYY-MM-DD HH:MM
-Scope: <что проверялось>
+Date: YYYY-MM-DD HH:MM
+Scope: <what was reviewed>
 
-## Критичное (блокирует релиз)
-- [файл:строка] <уязвимость> — <рекомендация>
+## Critical (release-blocking)
+- [file:line] <vulnerability> — <recommendation>
 
-## Высокий риск
-- [файл:строка] <описание> — <рекомендация>
+## High risk
+- [file:line] <description> — <recommendation>
 
-## Средний риск
-- [файл:строка] <описание> — <рекомендация>
+## Medium risk
+- [file:line] <description> — <recommendation>
 
-## Низкий риск
-- [файл:строка] <описание> — <рекомендация>
+## Low risk
+- [file:line] <description> — <recommendation>
 
 ## Dependencies
-- <пакет@версия>: <CVE>
+- <package@version>: <CVE>
 
-## Итог
-<1-3 предложения: общая оценка, главные риски>
+## Summary
+<1-3 sentences: overall assessment, major risks>
 ```
 
-Если существует `./.memory-bank/` — сохрани в `./.memory-bank/reports/YYYY-MM-DD_security-review.md`.
+If `./.memory-bank/` exists, save the report to `./.memory-bank/reports/YYYY-MM-DD_security-review.md`.

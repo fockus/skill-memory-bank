@@ -1,147 +1,147 @@
-# Memory Bank — Структура файлов
+# Memory Bank — File Structure
 
-## Корневые (core) файлы
+## Root (core) files
 
-### STATUS.md
-Главный обзорный файл проекта. Единственный источник истины о текущем состоянии.
+### `STATUS.md`
+The main overview file for the project. The single source of truth for the current state.
 
 ```markdown
-# <Проект>: Статус проекта
+# <Project>: Project Status
 
-## Текущая фаза
-**Phase N: <Название>.** <Краткое описание статуса.>
+## Current phase
+**Phase N: <Name>.** <Short status description.>
 
-<Общее описание проекта, 2-3 предложения.>
+<General project description, 2-3 sentences.>
 
-## Ключевые метрики
-- Тесты: **NNN** (unit + integration), все green
+## Key metrics
+- Tests: **NNN** (unit + integration), all green
 - Coverage: **NN%+**
-- <Специфичные метрики проекта>
+- <Project-specific metrics>
 - Lint: clean
 
 ## Roadmap
-### ✅ Завершено
-- **<Phase/Milestone>**: <описание>, N тестов
+### ✅ Completed
+- **<Phase/Milestone>**: <description>, N tests
 
-### 🔧 В работе
-- **<Phase>**: <что делается>
+### 🔧 In progress
+- **<Phase>**: <what is being worked on>
 
-### ⬜ Далее
-- **<Phase>**: <что планируется>
+### ⬜ Next
+- **<Phase>**: <what is planned next>
 ```
 
-### plan.md
-Текущие приоритеты и фокус. Обновлять при смене направления.
+### `plan.md`
+Current priorities and focus. Update when direction changes.
 
 ```markdown
-# <Проект> — План
+# <Project> — Plan
 
-## Текущий фокус
-<Что делаем сейчас, 1-3 предложения>
+## Current focus
+<What we are doing now, 1-3 sentences>
 
-## Ближайшие шаги
-1. <шаг>
-2. <шаг>
+## Next steps
+1. <step>
+2. <step>
 
-## Отложено
-- <задачи не в фокусе>
+## Deferred
+- <tasks outside the current focus>
 ```
 
-### checklist.md
-Трекер задач с группировкой по фазам/секциям.
+### `checklist.md`
+Task tracker grouped by phases/sections.
 
 ```markdown
-# <Проект> — Чеклист
+# <Project> — Checklist
 
-## <Фаза/Секция>
-- ✅ <выполненная задача>
-- ⬜ <невыполненная задача>
+## <Phase/Section>
+- ✅ <completed task>
+- ⬜ <unfinished task>
 ```
 
-### RESEARCH.md
-Исследовательский журнал: гипотезы, findings, текущий эксперимент.
+### `RESEARCH.md`
+Research log: hypotheses, findings, current experiment.
 
 ```markdown
-# <Проект> — Исследования
+# <Project> — Research
 
-## Текущий эксперимент
-EXP-NNN: <название>
+## Current experiment
+EXP-NNN: <title>
 
-## Гипотезы
-| ID | Гипотеза | Статус | Эксперимент | Результат | Вывод |
-|----|----------|--------|------------|-----------|-------|
-| H-001 | <текст> | ✅ Подтверждена | EXP-001 | <delta> | <вывод> |
-| H-002 | <текст> | ⬜ Не проверена | — | — | — |
+## Hypotheses
+| ID | Hypothesis | Status | Experiment | Result | Conclusion |
+|----|------------|--------|------------|--------|------------|
+| H-001 | <text> | ✅ Confirmed | EXP-001 | <delta> | <conclusion> |
+| H-002 | <text> | ⬜ Not tested | — | — | — |
 
-## Ключевые findings
+## Key findings
 - <F-001>: <finding>
 ```
 
-### BACKLOG.md
-Идеи и архитектурные решения.
+### `BACKLOG.md`
+Ideas and architectural decisions.
 
 ```markdown
 # Backlog
 
-## Идеи
+## Ideas
 ### HIGH
-- <идея с обоснованием>
+- <idea with rationale>
 
 ### LOW
-- <идея>
+- <idea>
 
-## Архитектурные решения (ADR)
-- ADR-001: <Решение> — <контекст, альтернативы> [YYYY-MM-DD]
+## Architectural decisions (ADR)
+- ADR-001: <Decision> — <context, alternatives> [YYYY-MM-DD]
 ```
 
-### progress.md
-Лог выполненного по датам. **APPEND-ONLY** — никогда не удалять старые записи.
+### `progress.md`
+Date-based execution log. **APPEND-ONLY** — never delete old entries.
 
 ```markdown
-# <Проект> — Progress Log
+# <Project> — Progress Log
 
 ## YYYY-MM-DD
 
-### <Тема>
-- <что сделано>
-- Тесты: N green, coverage X%
-- Следующий шаг: <что дальше>
+### <Topic>
+- <what was done>
+- Tests: N green, coverage X%
+- Next step: <what comes next>
 ```
 
-### lessons.md
-Антипаттерны и повторяющиеся ошибки. Группировка по категориям.
+### `lessons.md`
+Anti-patterns and repeated mistakes. Group by category.
 
 ```markdown
-# <Проект> — Lessons & Antipatterns
+# <Project> — Lessons & Antipatterns
 
-## <Категория>
+## <Category>
 
-### <Название паттерна> (EXP-NNN / источник)
-<Описание проблемы и решения. 2-4 строки.>
+### <Pattern name> (EXP-NNN / source)
+<Problem description and fix. 2-4 lines.>
 ```
 
 ---
 
-## Директории
+## Directories
 
-### experiments/ — ML эксперименты
-Файлы: `EXP-NNN.md`. Нумерация сквозная.
+### `experiments/` — ML experiments
+Files: `EXP-NNN.md`. Monotonic numbering.
 
-Формат: Гипотеза → Настройка (baseline + одно изменение) → Результаты (таблица с delta, p-value, Cohen's d) → Выводы → Статус.
+Format: Hypothesis → Setup (baseline + one change) → Results (table with delta, p-value, Cohen's d) → Conclusions → Status.
 
-### plans/ — Детальные планы
-Файлы: `YYYY-MM-DD_<type>_<topic>.md`. Типы: feature, fix, refactor, experiment.
+### `plans/` — Detailed plans
+Files: `YYYY-MM-DD_<type>_<topic>.md`. Types: `feature`, `fix`, `refactor`, `experiment`.
 
-Завершённые планы перемещаются в `plans/done/`.
+Completed plans move to `plans/done/`.
 
-Формат: Контекст → Этапы (с DoD по SMART, TDD) → Риски → Gate.
+Format: Context → Stages (with SMART DoD, TDD) → Risks → Gate.
 
-### notes/ — Заметки-знания
-Файлы: `YYYY-MM-DD_HH-MM_<topic>.md`.
+### `notes/` — Knowledge notes
+Files: `YYYY-MM-DD_HH-MM_<topic>.md`.
 
-5-15 строк. Фокус на выводах и паттернах, не на хронологии.
+5-15 lines. Focus on conclusions and patterns, not chronology.
 
-Формат: Что сделано (3-5 пунктов) → Новые знания (выводы, паттерны).
+Format: What was done (3-5 bullets) → New knowledge (conclusions, patterns).
 
-### reports/ — Отчёты и ревью
-Произвольный формат. Используются когда полный отчёт полезен будущим сессиям.
+### `reports/` — Reports and reviews
+Free-form. Use when a full report will help future sessions.

@@ -35,7 +35,7 @@ mb_resolve_path() {
 #
 # Java vs Kotlin resolution:
 #   - build.gradle.kts OR apply plugin: 'kotlin' in build.gradle → kotlin
-#   - pom.xml OR build.gradle (без kotlin-маркера) → java
+#   - pom.xml OR build.gradle (without the Kotlin marker) → java
 mb_detect_stack() {
   local dir="${1:-$PWD}"
 
@@ -63,7 +63,7 @@ mb_detect_stack() {
     stack="node"
   fi
 
-  # Kotlin имеет приоритет над Java (overlapping Gradle manifest)
+  # Kotlin takes priority over Java (overlapping Gradle manifests)
   if [ -f "$dir/build.gradle.kts" ] || \
      { [ -f "$dir/build.gradle" ] && grep -qE "plugin.*kotlin|kotlin\(" "$dir/build.gradle" 2>/dev/null; }; then
     count=$((count + 1))
@@ -93,7 +93,7 @@ mb_detect_stack() {
     stack="php"
   fi
 
-  # C# / .NET: .csproj/.fsproj/.sln — glob-matched, compgen для portability
+  # C# / .NET: .csproj/.fsproj/.sln — glob-matched, `compgen` for portability
   if compgen -G "$dir/*.csproj" >/dev/null 2>&1 \
      || compgen -G "$dir/*.sln" >/dev/null 2>&1 \
      || compgen -G "$dir/*.fsproj" >/dev/null 2>&1 \

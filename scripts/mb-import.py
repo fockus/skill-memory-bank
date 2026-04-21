@@ -26,9 +26,10 @@ import os
 import re
 import sys
 import tempfile
-from datetime import datetime, timezone
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 # ═══ PII patterns — conservative, low false-positive ═══
 EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
@@ -78,7 +79,7 @@ def event_hash(event: dict[str, Any]) -> str:
     """SHA256 of (timestamp + first 500 chars of text) — stable dedup key."""
     ts = event.get("timestamp", "")
     text = event_text(event)[:500]
-    return hashlib.sha256(f"{ts}|{text}".encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha256(f"{ts}|{text}".encode()).hexdigest()[:16]
 
 
 def wrap_pii(text: str) -> str:
@@ -130,13 +131,13 @@ def summarize_day(events: list[dict[str, Any]]) -> str:
     """1-line summary of a day's activity — user turns + assistant message counts."""
     users = sum(1 for e in events if e.get("type") == "user")
     assistants = sum(1 for e in events if e.get("type") == "assistant")
-    # Снимок первого user-query как контекстный ориентир
+    # Snapshot of the first user query as a context anchor
     first_user = next((e for e in events if e.get("type") == "user"), None)
     if first_user:
         first_text = event_text(first_user)[:120].replace("\n", " ").strip()
     else:
-        first_text = "(без user-запросов)"
-    return f"{users} user turns, {assistants} assistant replies. Первый запрос: {first_text}"
+        first_text = "(no user prompts)"
+    return f"{users} user turns, {assistants} assistant replies. First prompt: {first_text}"
 
 
 def _slugify(text: str, max_len: int = 40) -> str:
@@ -204,7 +205,7 @@ def run_import(
     state = _load_state(mb) if mode == "apply" else {"seen_hashes": [], "last_run": None}
     seen = set(state.get("seen_hashes", []))
 
-    # Collect все события across all JSONL, apply dedup + since
+    # Collect all events across all JSONL files, apply dedup + since
     all_events: list[dict[str, Any]] = []
     for jsonl in jsonls:
         for ev in iter_events(jsonl):
@@ -226,7 +227,7 @@ def run_import(
             continue
         by_day.setdefault(day, []).append(ev)
 
-    # Arch discussions (per day, чтобы не мержить)
+    # Architectural discussions (per day, so they do not merge together)
     notes_to_write: list[tuple[str, str]] = []  # (filename, content)
     for day, events in by_day.items():
         runs = collect_arch_discussions(events)
@@ -242,7 +243,7 @@ def run_import(
                 "tags: [imported, discussion]\n"
                 "importance: medium\n"
                 "---\n\n"
-                f"<!-- imported from JSONL {datetime.now(timezone.utc).strftime('%Y-%m-%d')} -->\n"
+                f"<!-- imported from JSONL {datetime.now(UTC).strftime('%Y-%m-%d')} -->\n"
                 f"{body}\n"
             )
             notes_to_write.append((fname, note_content))
@@ -273,7 +274,7 @@ def run_import(
         summary_line = summarize_day(day_events)
         summary_line = wrap_pii(summary_line)
         section_header = f"## {day} (imported)"
-        # Idempotency: skip if header already есть с "imported" marker
+        # Idempotency: skip if the header already exists with the "imported" marker
         if section_header in current_progress:
             continue
         new_sections.append(f"\n{section_header}\n\n- {summary_line}\n")
@@ -292,7 +293,7 @@ def run_import(
     # Update state with new hashes
     new_hashes = [event_hash(e) for e in all_events]
     state["seen_hashes"] = list(set(state.get("seen_hashes", [])) | set(new_hashes))
-    state["last_run"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    state["last_run"] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     _save_state(mb, state)
 
     return summary

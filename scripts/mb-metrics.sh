@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# mb-metrics.sh — language-agnostic сборщик метрик проекта.
+# mb-metrics.sh — language-agnostic project metrics collector.
 #
 # Usage:
-#   mb-metrics.sh [dir]          # read-only: выводит key=value (stack, cmds, counts)
-#   mb-metrics.sh --run [dir]    # выполняет test_cmd и записывает test_status
+#   mb-metrics.sh [dir]          # read-only: prints key=value (stack, cmds, counts)
+#   mb-metrics.sh --run [dir]    # executes `test_cmd` and records `test_status`
 #
 # Priority:
-#   1. ./.memory-bank/metrics.sh (override) — если существует, вызывается вместо auto-detect
-#   2. Auto-detect через mb_detect_stack из _lib.sh
+#   1. ./.memory-bank/metrics.sh (override) — if present, called instead of auto-detect
+#   2. Auto-detect through `mb_detect_stack` from `_lib.sh`
 #
-# Exit 0 даже при unknown-стеке (graceful fallback).
+# Exit 0 even for unknown stacks (graceful fallback).
 
 set -euo pipefail
 
@@ -40,8 +40,8 @@ if [[ "$STACK" == "unknown" ]]; then
   echo "test_cmd="
   echo "lint_cmd="
   echo "src_count=0"
-  echo "[warning] Стек не определён. Метрики пропущены." >&2
-  echo "[hint] Создайте .memory-bank/metrics.sh для кастомных метрик." >&2
+  echo "[warning] Stack not detected. Metrics skipped." >&2
+  echo "[hint] Create .memory-bank/metrics.sh for custom metrics." >&2
   exit 0
 fi
 
@@ -141,7 +141,7 @@ count_files() {
         2>/dev/null | wc -l | tr -d ' '
       ;;
     multi)
-      echo "-1"  # multi-stack: caller может декомпозировать через отдельные вызовы
+      echo "-1"  # multi-stack: caller may decompose through separate invocations
       ;;
     *)
       echo "0"
@@ -155,7 +155,7 @@ echo "src_count=$SRC_COUNT"
 # ═══ Optional: --run mode ═══
 if [[ "$RUN_MODE" -eq 1 ]] && [[ -n "$TEST_CMD" ]]; then
   echo ""
-  echo "[run] Выполнение test_cmd: $TEST_CMD"
+  echo "[run] Executing test_cmd: $TEST_CMD"
   if (cd "$DIR" && bash -c "$TEST_CMD" >/tmp/mb-metrics-test.log 2>&1); then
     echo "test_status=pass"
   else

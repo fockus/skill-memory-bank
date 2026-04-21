@@ -1,17 +1,17 @@
 #!/bin/bash
-# SessionEnd hook: auto-capture для Memory Bank.
-#   - Если .memory-bank/.session-lock свежий (<1h) → /mb done уже был,
-#     подчищаем lock и выходим.
-#   - Иначе (в режиме MB_AUTO_CAPTURE=auto) дописываем placeholder entry
-#     в progress.md (append-only, идемпотентно по session_id).
-#   - MB_AUTO_CAPTURE=off → полный noop. =strict → skip с hint.
-#   - Concurrent-safe: .auto-lock защищает от дублей при быстрых вызовах.
-#   - Полный actualize остаётся у ручного /mb done (Sonnet); hook — Haiku-ready
-#     placeholder, который MB Manager раскроет в следующей сессии.
+# SessionEnd hook: Memory Bank auto-capture.
+#   - If .memory-bank/.session-lock is fresh (<1h), /mb done already ran;
+#     clear the lock and exit.
+#   - Otherwise (when MB_AUTO_CAPTURE=auto), append a placeholder entry
+#     to progress.md (append-only, idempotent by session_id).
+#   - MB_AUTO_CAPTURE=off → full noop. =strict → skip with a hint.
+#   - Concurrent-safe: .auto-lock protects against duplicate quick invocations.
+#   - Full actualization remains part of manual /mb done (Sonnet); this hook writes
+#     a Haiku-ready placeholder that MB Manager can expand in the next session.
 
 set -u
 
-command -v jq >/dev/null 2>&1 || exit 0   # без jq — тихо noop
+command -v jq >/dev/null 2>&1 || exit 0   # without jq — silently noop
 
 INPUT=$(cat)
 CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)
@@ -23,7 +23,7 @@ MB="$CWD/.memory-bank"
 MODE="${MB_AUTO_CAPTURE:-auto}"
 LOCK="$MB/.session-lock"
 AUTO_LOCK="$MB/.auto-lock"
-MAX_LOCK_AGE=3600  # 1 час
+MAX_LOCK_AGE=3600  # 1 hour
 MAX_AUTO_LOCK_AGE=30
 
 # Portable mtime
@@ -33,14 +33,14 @@ mtime() {
 
 now=$(date +%s)
 
-# ═══ Lock-файл: маркер ручного /mb done ═══
+# ═══ Lock file: marker for manual /mb done ═══
 if [ -f "$LOCK" ]; then
   age=$(( now - $(mtime "$LOCK") ))
   if [ "$age" -lt "$MAX_LOCK_AGE" ]; then
     rm -f "$LOCK"
     exit 0
   fi
-  # Stale lock — убираем и продолжаем auto-capture.
+  # Stale lock — remove it and continue with auto-capture.
   rm -f "$LOCK"
 fi
 
@@ -50,13 +50,13 @@ case "$MODE" in
     exit 0
     ;;
   strict)
-    printf '[MB strict] ожидается явный /mb done (нет .session-lock), auto-capture пропущен\n' >&2
+    printf '[MB strict] explicit /mb done expected (no .session-lock), auto-capture skipped\n' >&2
     exit 0
     ;;
   auto)
     ;;  # fall through
   *)
-    printf '[MB] unknown MB_AUTO_CAPTURE=%s (ожидалось auto|strict|off), skipping\n' "$MODE" >&2
+    printf '[MB] unknown MB_AUTO_CAPTURE=%s (expected auto|strict|off), skipping\n' "$MODE" >&2
     exit 0
     ;;
 esac
@@ -74,13 +74,13 @@ trap 'rm -f "$AUTO_LOCK"' EXIT INT TERM
 
 # ═══ progress.md ═══
 PROGRESS="$MB/progress.md"
-[ -f "$PROGRESS" ] || exit 0   # не создаём — это работа /mb init
+[ -f "$PROGRESS" ] || exit 0   # do not create it here — that is /mb init's job
 
 SID=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null || echo "unknown")
 SID_PREFIX=$(printf '%s' "$SID" | cut -c1-8)
 TODAY=$(date +%Y-%m-%d)
 
-# Идемпотентность: та же сессия и день уже записаны → ничего не делаем.
+# Idempotency: if the same session/day is already recorded, do nothing.
 if grep -q "Auto-capture.*${SID_PREFIX}" "$PROGRESS" 2>/dev/null; then
   exit 0
 fi
@@ -88,8 +88,8 @@ fi
 {
   printf '\n## %s\n\n' "$TODAY"
   printf '### Auto-capture %s (session %s)\n' "$TODAY" "$SID_PREFIX"
-  printf -- '- Сессия завершилась без явного /mb done\n'
-  printf -- '- Детали будут восстановлены при следующем /mb start (MB Manager дочитает транскрипт)\n'
+  printf -- '- Session ended without an explicit /mb done\n'
+  printf -- '- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)\n'
 } >> "$PROGRESS"
 
 exit 0

@@ -22,6 +22,54 @@
 MB_START_MARKER="<!-- memory-bank:start -->"
 MB_END_MARKER="<!-- memory-bank:end -->"
 
+mb_preferred_language() {
+  local lang="${MB_LANGUAGE:-${LANGUAGE:-en}}"
+  case "$lang" in
+    en|ru) printf '%s' "$lang" ;;
+    *) printf '%s' "en" ;;
+  esac
+}
+
+mb_emit_rules_file() {
+  local rules_file="$1"
+  local lang
+  lang="$(mb_preferred_language)"
+
+  if [ ! -f "$rules_file" ]; then
+    return 1
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    cat "$rules_file"
+    return 0
+  fi
+
+  TARGET_RULES_FILE="$rules_file" \
+  MB_RULE_LANGUAGE="$lang" \
+  python3 <<'PYEOF'
+from pathlib import Path
+import os
+import re
+import sys
+
+path = Path(os.environ["TARGET_RULES_FILE"])
+text = path.read_text()
+lang = os.environ["MB_RULE_LANGUAGE"]
+
+if lang == "ru":
+    replacement = "1. **Language**: Russian — responses and code comments. Technical terms may remain in English."
+else:
+    replacement = "1. **Language**: English — responses and code comments. Technical terms may remain in English."
+
+text = re.sub(
+    r"1\. \*\*[^*]+\*\*: .+",
+    replacement,
+    text,
+)
+sys.stdout.write(text)
+PYEOF
+}
+
 # ───────── Build section content ─────────
 _agents_md_section() {
   local skill_dir="$1"
@@ -43,7 +91,7 @@ _agents_md_section() {
     echo ''
     echo '## Global Rules'
     echo ''
-    cat "$skill_dir/rules/RULES.md"
+    mb_emit_rules_file "$skill_dir/rules/RULES.md"
     echo ''
   fi
   echo "$MB_END_MARKER"

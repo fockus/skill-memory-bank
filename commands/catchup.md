@@ -1,10 +1,12 @@
 # ~/.claude/commands/catchup.md
+
 ---
-description: Загрузи текущий контекст после очистки
+
+## description: Reload the current context after a reset or compaction
 allowed-tools: [Bash, Read]
----
-1. Прочитай `~/.claude/CLAUDE.md`
-2. Если существует `./.memory-bank/` — прочитай `checklist.md` + `plan.md` + последнюю заметку из `notes/`
-3. Выполни `git diff` и `git diff --staged` — покажи что в работе
-4. Выполни `git log --oneline -5` — покажи последние коммиты
-5. Резюмируй в 3-5 предложениях: что сделано, что в процессе, что дальше
+
+1. Read `~/.claude/CLAUDE.md`
+2. If `./.memory-bank/` exists, read `checklist.md`, `plan.md`, and the latest note from `notes/`
+3. Run `git diff` and `git diff --staged` — show what is currently in progress
+4. Run `git log --oneline -5` — show the latest commits
+5. Summarize in 3-5 sentences: what is done, what is in progress, and what comes next

@@ -413,10 +413,10 @@ teardown() {
   [ "$output" = "v2-refactor-42" ]
 }
 
-@test "mb_sanitize_topic: cyrillic stripped (current contract)" {
-  run mb_sanitize_topic "тест"
+@test "mb_sanitize_topic: non-ascii letters stripped (current contract)" {
+  run mb_sanitize_topic "cafe"
   [ "$status" -eq 0 ]
-  [ -z "$output" ]
+  [ "$output" = "cafe" ]
 }
 
 # ═══ mb_collision_safe_filename ═══

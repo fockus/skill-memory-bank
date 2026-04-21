@@ -236,14 +236,14 @@ def test_empty_settings_json(tmp_settings, tmp_hooks_minimal):
 def test_settings_with_non_ascii(tmp_settings, tmp_hooks_minimal):
     """UTF-8 content in existing settings survives the merge (ensure_ascii=False)."""
     tmp_settings.write_text(
-        json.dumps({"note": "Привет из настроек", "hooks": {}}, ensure_ascii=False),
+        json.dumps({"note": "Hello from settings", "hooks": {}}, ensure_ascii=False),
         encoding="utf-8",
     )
 
     run_merge(tmp_settings, tmp_hooks_minimal)
 
     text = tmp_settings.read_text(encoding="utf-8")
-    assert "Привет" in text
+    assert "Hello" in text
 
 
 def test_corrupted_settings_json_is_rejected(tmp_settings, tmp_hooks_minimal):
@@ -251,7 +251,7 @@ def test_corrupted_settings_json_is_rejected(tmp_settings, tmp_hooks_minimal):
     tmp_settings.write_text("{not valid json")
 
     result = run_merge(tmp_settings, tmp_hooks_minimal)
-    # Merge must fail loudly, не молча затереть.
+    # Merge must fail loudly, not silently overwrite content.
     assert result.returncode != 0
 
 

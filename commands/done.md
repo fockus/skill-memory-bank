@@ -1,6 +1,6 @@
 # .claude/commands/done.md
-1. Обнови ./.memory-bank/checklist.md — отметь выполненные задачи ✅
-2. Создай заметку в ./.memory-bank/notes/ по формату YYYY-MM-DD_HH-MM_<тема>.md
-3. Допиши итог в ./.memory-bank/progress.md
+1. Update `./.memory-bank/checklist.md` — mark completed tasks as ✅
+2. Create a note in `./.memory-bank/notes/` using the format `YYYY-MM-DD_HH-MM_<topic>.md`
+3. Append the session outcome to `./.memory-bank/progress.md`
 
-Для полного завершения с актуализацией всех core files (STATUS, RESEARCH, lessons, BACKLOG): `/mb done`
+For a full end-of-session actualization of all core files (`STATUS`, `RESEARCH`, `lessons`, `BACKLOG`), use: `/mb done`

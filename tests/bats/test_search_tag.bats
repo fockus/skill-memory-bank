@@ -49,7 +49,7 @@ EOF
 
   run bash "$SEARCH" --tag nonexistent "$TMPBANK"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Ничего не найдено"* ]]
+  [[ "$output" == *"Nothing found"* ]]
 }
 
 @test "search --tag: auto-generates index.json if missing" {

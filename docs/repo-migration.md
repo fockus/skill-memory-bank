@@ -50,7 +50,12 @@ bash install.sh
 ```
 
 This refreshes `~/.claude/{RULES.md,commands/,agents/,hooks/}` and registers the
-new skill directory. Safe to run on top of existing state.
+new skill directory. It also refreshes the managed aliases:
+- `~/.claude/skills/memory-bank`
+- `~/.codex/skills/memory-bank`
+- `~/.codex/AGENTS.md`
+
+Safe to run on top of existing state.
 
 ### 4. (Optional) Enable cross-agent adapters
 

@@ -1,20 +1,24 @@
 # Cross-agent setup (Stage 8, v3.0)
 
-Memory Bank works across 7+ AI coding clients. Global skill is installed once in
-`~/.claude/` and, for OpenCode, also natively in `~/.config/opencode/`; per-project
-adapters write client-specific configs + hooks.
+Memory Bank works across 7+ AI coding clients. Canonical global skill lives under
+`~/.claude/skills/skill-memory-bank`; Claude, Codex, and Cursor consume it through
+managed aliases (`~/.claude/skills/memory-bank`, `~/.codex/skills/memory-bank`,
+`~/.cursor/skills/memory-bank`). OpenCode also gets native global files under
+`~/.config/opencode/`. Cursor additionally receives global hooks, slash commands,
+an `AGENTS.md` marker section, and a paste-ready rules file at the user level.
+Per-project adapters write client-specific configs + hooks.
 
 ## Supported clients
 
 | # | Client | Native hooks | Config format |
 |---|--------|--------------|---------------|
 | 1 | Claude Code | Full (SessionEnd/PreCompact/PreToolUse) | `~/.claude/settings.json` |
-| 2 | **Cursor** (1.7+) | **Full, CC-compat** `hooks.json` | `.cursor/rules/*.mdc` + `.cursor/hooks.json` |
+| 2 | **Cursor** (1.7+) | **Full global + project, CC-compat** `hooks.json` | **Global:** `~/.cursor/{skills,hooks,commands,AGENTS.md,memory-bank-user-rules.md,hooks.json}` · **Project:** `.cursor/rules/*.mdc` + `.cursor/hooks.json` |
 | 3 | Windsurf | Cascade Hooks (JSON+shell) | `.windsurf/rules/*.md` + `.windsurf/hooks.json` |
 | 4 | Cline | `.clinerules/hooks/*.sh` | `.clinerules/*.md` + `hooks/` |
 | 5 | Kilo | ❌ (FR #5827 open) — git-hooks fallback | `.kilocode/rules/*.md` |
 | 6 | OpenCode | TypeScript plugins (`session.*`, `tool.execute.*`, `experimental.session.compacting`) + native slash commands | `~/.config/opencode/{AGENTS.md,commands/}` + `AGENTS.md` + `opencode.json` |
-| 7 | Codex | Experimental `hooks.json` (`userpromptsubmit` stable) | `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
+| 7 | Codex | Conservative global support + experimental project hooks | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
 | 8 | Pi Code | Dual-mode (Skills API in dev) | `~/.pi/skills/memory-bank/` or `AGENTS.md` |
 
 ## Install
@@ -37,10 +41,46 @@ bash install.sh --clients cursor,opencode --project-root ~/my-project
 
 ## Per-client cheatsheet
 
-### Cursor (killer feature: CC hooks compatibility)
+### Cursor (full global parity + project adapter)
+
+Cursor is a first-class **global** target: `install.sh` writes all five artifacts
+automatically with **no `--clients cursor` flag required**. The project-level
+adapter (`.cursor/rules/*.mdc` + `.cursor/hooks.json`) is an optional add-on.
+
+**Global install (always):**
 
 ```bash
-adapters/cursor.sh install ~/my-project
+bash install.sh --non-interactive
+# or: memory-bank install
+```
+
+Creates under `~/.cursor/`:
+- `skills/memory-bank/` — symlink on canonical skill bundle (auto-discovered by Cursor)
+- `hooks.json` + `hooks/*.sh` — three hooks tagged `_mb_owned: true`:
+  `sessionEnd` (autosave), `preCompact` (reminder), `beforeShellExecution` (block-dangerous)
+- `commands/*.md` — user-level slash commands mirrored from the skill
+- `AGENTS.md` — marker section `memory-bank-cursor:start/end` (managed block,
+  user content above/below is preserved)
+- `memory-bank-user-rules.md` — paste-ready bundle for **Settings → Rules → User Rules**
+  (Cursor has no file API for global User Rules; this is a one-time manual copy-paste)
+
+**Cursor User Rules paste flow:**
+
+```bash
+# macOS
+pbcopy < ~/.cursor/memory-bank-user-rules.md
+# Linux
+xclip -selection clipboard < ~/.cursor/memory-bank-user-rules.md
+```
+
+Then in Cursor: Settings → Rules → User Rules → paste.
+
+**Optional project adapter:**
+
+```bash
+bash install.sh --clients cursor --project-root ~/my-project
+# or: memory-bank install --clients cursor --project-root ~/my-project
+# or directly: adapters/cursor.sh install ~/my-project
 ```
 
 Creates:
@@ -113,10 +153,17 @@ adapters/codex.sh install ~/my-project
 ```
 
 Creates:
+- `~/.codex/skills/memory-bank` — global skill alias to the canonical bundle
+- `~/.codex/AGENTS.md` — global Memory Bank entrypoint and conservative hook guidance
 - `AGENTS.md` — shared format
 - `.codex/config.toml` — project settings (`project_doc_max_bytes=65536`,
   `approval_policy="on-request"`)
 - `.codex/hooks.json` — experimental hooks (warning included in `_mb_warning` field)
+
+**⚠️ Important:** Codex global support is broader than just the project adapter:
+- bundled `commands/`, `agents/`, `hooks/`, `scripts/`, `references/` are available through `~/.codex/skills/memory-bank/`;
+- `~/.codex/AGENTS.md` is the global entrypoint;
+- actual hook/config execution remains primarily project-level via `.codex/`.
 
 **⚠️ Experimental:** Codex hooks schema may change. Re-run `adapters/codex.sh install`
 after upgrading Codex CLI.
@@ -166,10 +213,20 @@ Ownership is refcounted in `.mb-agents-owners.json`:
 
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
-| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | git-fallback or Skill | `hooks.json` (when stable) |
-| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — | `preCompact` (pending) |
-| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | native | `userpromptsubmit` (exit 2) |
-| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | fallback | pending |
+| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | git-fallback or Skill | project `.codex/hooks.json` only |
+| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — | guidance via `~/.codex/AGENTS.md`, project hook pending |
+| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | native | project `userpromptsubmit` (exit 2) |
+| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | fallback | guidance only |
+
+## Resource availability matrix
+
+| Resource | Claude global | Codex global | Cursor global | Native host surface in Codex |
+|----------|---------------|--------------|---------------|-------------------------------|
+| `SKILL.md` | `~/.claude/skills/memory-bank/` | `~/.codex/skills/memory-bank/` | `~/.cursor/skills/memory-bank/` | Yes, via skill discovery |
+| `commands/` | bundled + Claude commands installed | bundled in Codex skill alias | bundled + mirrored to `~/.cursor/commands/` | No separate native slash-command install |
+| `agents/` | bundled + Claude global agents installed | bundled in Codex skill alias | bundled in skill (`~/.cursor/skills/memory-bank/agents/`) | No separate global agent registry assumed |
+| `hooks/` | bundled + Claude global hooks installed | bundled in Codex skill alias | bundled + three global bindings in `~/.cursor/hooks.json` (tagged `_mb_owned`) | Conservative/project-level only |
+| Global rules | `~/.claude/CLAUDE.md` managed section | `~/.codex/AGENTS.md` managed section | `~/.cursor/AGENTS.md` managed section **+** paste-file for Settings → Rules → User Rules | n/a |
 
 ## Uninstall
 
@@ -198,6 +255,26 @@ git: `git checkout HEAD -- AGENTS.md`.
 **Q: Cursor hooks fire in IDE but not CLI.**
 A: Known Cursor CLI limitation (only `beforeShellExecution` / `afterShellExecution`
 dispatched in CLI). Use the IDE for full lifecycle coverage.
+
+**Q: I installed Memory Bank but Cursor's User Rules panel is empty.**
+A: Cursor exposes **no file API for global User Rules** — they are only editable
+via Settings → Rules → User Rules. `install.sh` writes a paste-ready file to
+`~/.cursor/memory-bank-user-rules.md`. Run:
+```bash
+# macOS
+pbcopy < ~/.cursor/memory-bank-user-rules.md
+# Linux
+xclip -selection clipboard < ~/.cursor/memory-bank-user-rules.md
+```
+Then paste once into Settings → Rules → User Rules. This is a one-time manual
+step per machine.
+
+**Q: Does Cursor need `--clients cursor` for the global install?**
+A: No. Global Cursor artifacts (`~/.cursor/skills/`, `~/.cursor/hooks.json`,
+`~/.cursor/commands/`, `~/.cursor/AGENTS.md`, `~/.cursor/memory-bank-user-rules.md`)
+are written by `install.sh` unconditionally. Pass `--clients cursor` only when
+you also want the project-level adapter (`.cursor/rules/*.mdc` + `.cursor/hooks.json`)
+in your current project.
 
 **Q: Codex CLI ignores `.codex/hooks.json`.**
 A: The hooks API is experimental and **off by default**. Enable it in Codex CLI config

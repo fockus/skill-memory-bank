@@ -1,40 +1,43 @@
 ---
-description: Contract-First — определи интерфейс, напиши contract-тесты, потом реализацию
+
+## description: Contract-First — define the interface, write contract tests, then implement
+
 allowed-tools: [Read, Glob, Grep, Bash, Write]
----
 
 # Contract-First: $ARGUMENTS
 
-## 1. Анализ
+## 1. Analysis
 
-- Изучи существующие интерфейсы и контракты в проекте
-- Прочитай `./.memory-bank/plan.md` и ADR если есть
-- Определи какие слои затронуты (handler / service / repository / infra)
+- Study the existing interfaces and contracts in the project
+- Read `./.memory-bank/plan.md` and any ADRs if they exist
+- Determine which layers are affected (`handler` / `service` / `repository` / `infra`)
 
-## 2. Определение контракта
+## 2. Define the contract
 
-Сначала покажи мне:
-- Интерфейс (сигнатуры методов, типы входов/выходов)
-- Примеры использования (Specification by Example): конкретные входы → ожидаемые выходы
-- Ошибочные сценарии: что может пойти не так → какие ошибки возвращаем
+Show me first:
 
-**Спроси подтверждение перед продолжением.**
+- The interface (method signatures, input/output types)
+- Usage examples (Specification by Example): concrete inputs → expected outputs
+- Failure scenarios: what can go wrong → which errors are returned
 
-## 3. Contract-тесты
+**Ask for confirmation before continuing.**
 
-После подтверждения контракта:
-- Напиши тесты на интерфейс (Testing Trophy: интеграционные в приоритете)
-- Тесты проверяют контракт, не реализацию
-- Тесты должны падать (реализации ещё нет)
-- Запусти — убедись что падают по правильной причине
+## 3. Contract tests
 
-## 4. Реализация
+After the contract is approved:
 
-- Реализуй интерфейс
-- Запусти contract-тесты — все должны пройти
-- Contract-тесты НЕ меняются при реализации. Если нужно менять тесты — контракт был определён неправильно, вернись к шагу 2
+- Write tests for the interface (Testing Trophy: prioritize integration tests)
+- Tests must verify the contract, not the implementation
+- Tests should fail first (the implementation does not exist yet)
+- Run them and make sure they fail for the right reason
 
-## 5. Финализация
+## 4. Implementation
 
-- Запусти весь suite
-- Если Memory Bank активен — заметка в `notes/`
+- Implement the interface
+- Run the contract tests — all must pass
+- Contract tests must NOT change during implementation. If you need to change them, the contract was defined incorrectly; go back to step 2
+
+## 5. Finalization
+
+- Run the full test suite
+- If Memory Bank is active, add a note in `notes/`

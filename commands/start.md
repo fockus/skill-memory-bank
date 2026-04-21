@@ -1,6 +1,7 @@
 # ~/.claude/commands/start.md
-Прочитай ./.memory-bank/checklist.md и ./.memory-bank/plan.md.
-Выведи [MEMORY BANK: ACTIVE] и резюме фокуса в 1-3 предложениях.
-Если ./.memory-bank/ не существует — выведи [MEMORY BANK: INACTIVE].
 
-Для расширенного контекста с MB Manager (STATUS, RESEARCH, планы, заметки): `/mb start`
+Read `./.memory-bank/checklist.md` and `./.memory-bank/plan.md`.
+Output `[MEMORY BANK: ACTIVE]` and summarize the current focus in 1-3 sentences.
+If `./.memory-bank/` does not exist, output `[MEMORY BANK: INACTIVE]`.
+
+For expanded context with MB Manager (`STATUS`, `RESEARCH`, plans, notes), use: `/mb start`

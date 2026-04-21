@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for <private>...</private> handling в mb-search.sh — Stage 3 v2.1.
+# Tests for <private>...</private> handling in mb-search.sh — Stage 3 v2.1.
 #
-# Контракт:
-#   - default mode: <private>...</private> заменяется на [REDACTED] в output
-#   - --show-private без MB_SHOW_PRIVATE=1 → exit 2, hint в stderr
-#   - MB_SHOW_PRIVATE=1 + --show-private → полный output
-#   - --tag поиск: теги внутри <private> игнорируются → not findable через tag
+# Contract:
+#   - default mode: <private>...</private> is replaced with [REDACTED] in output
+#   - --show-private without MB_SHOW_PRIVATE=1 → exit 2, hint in stderr
+#   - MB_SHOW_PRIVATE=1 + --show-private → full output
+#   - --tag search: tags inside <private> are ignored → not findable through tag
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -37,7 +37,7 @@ run_search_env() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# REDACTED replacement в default mode
+# REDACTED replacement in default mode
 # ═══════════════════════════════════════════════════════════════
 
 @test "search private: default mode redacts inline <private> in output" {
@@ -46,13 +46,13 @@ run_search_env() {
 type: note
 ---
 
-Клиент <private>SECRET-ABC-123</private> подписал договор.
+Client <private>SECRET-ABC-123</private> signed the agreement.
 EOF
 
   run_search "SECRET-ABC-123"
-  # exit 0 с результатом (grep нашёл совпадение в raw file)
+  # exit 0 with a result (grep found a match in the raw file)
   [ "$status" -eq 0 ]
-  # Но в output заменено на REDACTED
+  # But the output replaces it with REDACTED
   [[ "$output" != *"SECRET-ABC-123"* ]]
   [[ "$output" == *"REDACTED"* ]]
 }
@@ -72,7 +72,7 @@ Public part.
 EOF
 
   run_search "SECRET-MULTI"
-  # После REDACT → SECRET-MULTI не должно быть в output
+  # After REDACT → SECRET-MULTI must not be in output
   [[ "$output" != *"SECRET-MULTI-LINE"* ]]
   [[ "$output" != *"password=top"* ]]
 }
@@ -81,7 +81,7 @@ EOF
 # --show-private double-confirmation
 # ═══════════════════════════════════════════════════════════════
 
-@test "search private: --show-private без MB_SHOW_PRIVATE=1 → exit !=0 + hint" {
+@test "search private: --show-private without MB_SHOW_PRIVATE=1 → exit !=0 + hint" {
   cat > "$MB/notes/pii.md" <<'EOF'
 ---
 type: note
@@ -100,33 +100,33 @@ EOF
 type: note
 ---
 
-Полный секрет: <private>FULL-SECRET-Y</private>.
+Full secret: <private>FULL-SECRET-Y</private>.
 EOF
 
   run_search_env "MB_SHOW_PRIVATE=1" --show-private "FULL-SECRET"
   [ "$status" -eq 0 ]
   [[ "$output" == *"FULL-SECRET-Y"* ]]
-  # REDACTED не должно быть в этом режиме
+  # REDACTED should not appear in this mode
   [[ "$output" != *"REDACTED"* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════
-# --tag search с private-содержимым в tags (защитная логика)
+# --tag search with private content in tags (defensive behavior)
 # ═══════════════════════════════════════════════════════════════
 
-@test "search private: --tag не находит note по тегу если тег внутри <private>" {
-  # index.json сгенерируется автоматически; тег внутри <private> в frontmatter
-  # должен быть отфильтрован парсером index.
+@test "search private: --tag does not find a note when the tag is inside <private>" {
+  # index.json is generated automatically; a tag inside <private> in frontmatter
+  # must be filtered out by the index parser.
   cat > "$MB/notes/pii.md" <<'EOF'
 ---
 type: note
 tags: [public-tag]
 ---
 
-Note с тегом в приватном блоке: <private>tags: [secret-tag]</private>.
+Note with a tag inside a private block: <private>tags: [secret-tag]</private>.
 EOF
 
   run_search --tag "secret-tag"
-  # Не должно найти — тег только в <private>
-  [[ "$output" == *"Ничего не найдено"* ]]
+  # It should not find anything — the tag exists only inside <private>
+  [[ "$output" == *"Nothing found"* ]]
 }

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# mb-context.sh — собирает текущий контекст из Memory Bank.
+# mb-context.sh — collects current context from Memory Bank.
 #
 # Usage:
-#   mb-context.sh [mb_path]          # обычный контекст (core + plans + last note)
-#   mb-context.sh --deep [mb_path]   # то же + полные codebase/ MD
+#   mb-context.sh [mb_path]          # standard context (core + plans + last note)
+#   mb-context.sh --deep [mb_path]   # same + full `codebase/` Markdown docs
 #
-# Default: .memory-bank/ в cwd (или external из .claude-workspace).
+# Default: `.memory-bank/` in CWD (or external storage from `.claude-workspace`).
 #
-# Интеграция с mb-codebase-mapper:
-#   Если .memory-bank/codebase/ существует с MD-файлами — добавляется
-#   секция "Codebase summary" с 1-строчным summary каждого MD (default)
-#   или полным содержимым (--deep).
+# Integration with `mb-codebase-mapper`:
+#   If `.memory-bank/codebase/` exists with Markdown files, add a
+#   "Codebase summary" section with a one-line summary for each doc (default)
+#   or the full contents (`--deep`).
 
 set -euo pipefail
 
@@ -26,7 +26,7 @@ fi
 MB_PATH=$(mb_resolve_path "${1:-}")
 
 if [[ ! -d "$MB_PATH" ]]; then
-  echo "[MEMORY BANK: INACTIVE] Директория $MB_PATH не найдена"
+  echo "[MEMORY BANK: INACTIVE] Directory $MB_PATH not found"
   exit 0
 fi
 
@@ -43,11 +43,11 @@ for file in STATUS.md plan.md checklist.md RESEARCH.md; do
   fi
 done
 
-# Активные планы (не в done/)
+# Active plans (not in `done/`)
 if [[ -d "$MB_PATH/plans" ]]; then
   active_plans=$(find "$MB_PATH/plans" -maxdepth 1 -name "*.md" -type f 2>/dev/null | sort -r | head -3)
   if [[ -n "$active_plans" ]]; then
-    echo "--- Активные планы ---"
+    echo "--- Active plans ---"
     while IFS= read -r plan; do
       echo "  - $(basename "$plan")"
     done <<< "$active_plans"
@@ -55,7 +55,7 @@ if [[ -d "$MB_PATH/plans" ]]; then
   fi
 fi
 
-# Codebase summary (от mb-codebase-mapper)
+# Codebase summary (from `mb-codebase-mapper`)
 if [[ -d "$MB_PATH/codebase" ]]; then
   codebase_mds=$(find "$MB_PATH/codebase" -maxdepth 1 -name "*.md" -type f 2>/dev/null | sort)
   if [[ -n "$codebase_mds" ]]; then
@@ -67,7 +67,7 @@ if [[ -d "$MB_PATH/codebase" ]]; then
         echo "### $name"
         cat "$md"
       else
-        # Первая не-пустая строка, не являющаяся markdown-заголовком
+        # First non-empty line that is not a Markdown heading
         summary=$(grep -vE '^(#|\s*$)' "$md" 2>/dev/null | head -1 || true)
         if [[ -n "$summary" ]]; then
           echo "  $name: $summary"
@@ -80,11 +80,11 @@ if [[ -d "$MB_PATH/codebase" ]]; then
   fi
 fi
 
-# Последняя заметка
+# Latest note
 if [[ -d "$MB_PATH/notes" ]]; then
   latest_note=$(find "$MB_PATH/notes" -name "*.md" -type f 2>/dev/null | sort -r | head -1)
   if [[ -n "$latest_note" ]]; then
-    echo "--- Последняя заметка: $(basename "$latest_note") ---"
+    echo "--- Latest note: $(basename "$latest_note") ---"
     cat "$latest_note"
     echo ""
   fi

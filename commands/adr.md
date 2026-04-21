@@ -1,45 +1,47 @@
 ---
-description: Создай Architecture Decision Record в memory-bank
+
+## description: Create an Architecture Decision Record in memory-bank
+
 allowed-tools: [Read, Glob, Grep, Bash, Write]
----
 
 # ADR: $ARGUMENTS
 
-## 1. Контекст
+## 1. Context
 
-- Прочитай существующие ADR в `./.memory-bank/plans/` (файлы с `_adr_` в имени)
-- Изучи релевантную часть кодовой базы
-- Убедись что такое решение не было уже зафиксировано или отвергнуто
+- Read existing ADRs in `./.memory-bank/plans/` (files with `_adr_` in the name)
+- Study the relevant part of the codebase
+- Make sure this decision has not already been recorded or rejected
 
-## 2. Создание ADR
+## 2. Create the ADR
 
 ```bash
 mkdir -p ./.memory-bank/plans
 ```
 
-Запиши в `./.memory-bank/plans/YYYY-MM-DD_adr_<название-через-дефисы>.md`:
+Write it to `./.memory-bank/plans/YYYY-MM-DD_adr_<kebab-case-title>.md`:
 
 ```markdown
-# ADR: <Название решения>
-Дата: YYYY-MM-DD
-Статус: ✅ Принято | ❌ Отвергнуто | 🔄 Заменено на ADR-XXX
+# ADR: <Decision title>
+Date: YYYY-MM-DD
+Status: ✅ Accepted | ❌ Rejected | 🔄 Replaced by ADR-XXX
 
-## Контекст
-<!-- Какая проблема? Какие ограничения? Что привело к необходимости решения? -->
+## Context
+<!-- What problem are we solving? What constraints exist? Why is this decision needed? -->
 
-## Решение
-<!-- Что решили делать и как именно -->
+## Decision
+<!-- What exactly did we decide to do? -->
 
-## Альтернативы
-<!-- Какие варианты рассматривались и почему отвергнуты -->
-<!-- Альтернатива 1: ... — отвергнута потому что ... -->
-<!-- Альтернатива 2: ... — отвергнута потому что ... -->
+## Alternatives
+<!-- Which options were considered and why were they rejected? -->
+<!-- Alternative 1: ... — rejected because ... -->
+<!-- Alternative 2: ... — rejected because ... -->
 
-## Последствия
-<!-- Что это решение меняет? Какие trade-offs? Что станет проще/сложнее? -->
+## Consequences
+<!-- What changes because of this decision? What trade-offs does it introduce? What becomes easier/harder? -->
 ```
 
-## 3. Обновление Memory Bank
+## 3. Update Memory Bank
 
-- Обнови `plan.md` — добавь ссылку на новый ADR
-- Создай заметку в `notes/`
+- Update `plan.md` — add a link to the new ADR
+- Create a note in `notes/`
+

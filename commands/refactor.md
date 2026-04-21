@@ -1,15 +1,17 @@
 # ~/.claude/commands/refactor.md
----
-description: Рефакторинг указанного модуля с сохранением поведения
-allowed-tools: [Bash, Read, Write, Glob, Grep]
----
-Цель: рефакторинг $ARGUMENTS
 
-1. Прочитай все файлы модуля и связанные тесты
-2. Запусти существующие тесты — зафиксируй baseline (все должны проходить)
-3. Найди нарушения: SOLID, DRY, KISS, Clean Architecture
-4. Составь план рефакторинга, покажи мне
-5. После подтверждения — рефакторь поэтапно
-6. После каждого этапа — прогон тестов, всё должно проходить
-7. Если нужны новые тесты — напиши до рефакторинга
-8. В конце — полный прогон, сравнение с baseline
+---
+
+## description: Refactor the specified module while preserving behavior
+allowed-tools: [Bash, Read, Write, Glob, Grep]
+
+Goal: refactor `$ARGUMENTS`
+
+1. Read all module files and related tests
+2. Run the existing tests and capture a baseline (everything should pass)
+3. Identify violations of `SOLID`, `DRY`, `KISS`, and Clean Architecture
+4. Draft a refactoring plan and show it to me
+5. After approval, refactor step by step
+6. After each step, run tests — everything must still pass
+7. If new tests are needed, write them before refactoring
+8. Finish with a full test run and compare against the baseline

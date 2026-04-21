@@ -132,7 +132,7 @@ teardown() {
   run bash "$SCRIPT" "$FIXTURES/unknown"
   [ "$status" -eq 0 ]
   [[ "$output" == *"stack=unknown"* ]]
-  [[ "$stderr" == *"стек"* || "$stderr" == *"stack"* ]] || \
+  [[ "$stderr" == *"stack"* ]] || \
     [[ "$output" == *"warning"* ]]
 }
 

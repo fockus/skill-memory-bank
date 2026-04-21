@@ -17,6 +17,13 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CODEGRAPH_SCRIPT = REPO_ROOT / "scripts" / "mb-codegraph.py"
+TS_LANGS = (
+    ("go", "tree_sitter_go"),
+    ("javascript", "tree_sitter_javascript"),
+    ("typescript", "tree_sitter_typescript"),
+    ("rust", "tree_sitter_rust"),
+    ("java", "tree_sitter_java"),
+)
 
 
 def _load_codegraph_module():
@@ -33,6 +40,13 @@ def cg_mod():
     mod = _load_codegraph_module()
     if not getattr(mod, "HAS_TREE_SITTER", False):
         pytest.skip("tree-sitter not installed — Stage 6.5 requires extras")
+    missing = [
+        lang for lang, module_name in TS_LANGS if mod._get_ts_parser(lang, module_name) is None
+    ]
+    if missing:
+        pytest.skip(
+            "tree-sitter language bindings unavailable for Stage 6.5: " + ", ".join(missing)
+        )
     return mod
 
 
@@ -223,7 +237,7 @@ def test_java_class_and_method(cg_mod, src_root):
 
 
 def test_mixed_python_go_js(cg_mod, src_root):
-    """Проект с .py + .go + .js → все 3 файла в graph."""
+    """Project with .py + .go + .js → all 3 files appear in the graph."""
     write_file(src_root, "a.py", "def alpha(): pass\n")
     write_file(src_root, "b.go", "package main\nfunc Beta() {}\n")
     write_file(src_root, "c.js", "function gamma() {}\n")
@@ -243,6 +257,6 @@ def test_broken_go_syntax_skipped(cg_mod, src_root, capsys):
     write_file(src_root, "good.go", "package main\nfunc Ok() {}\n")
     write_file(src_root, "bad.go", "package main\nfunc ( { broken\n")
     graph = cg_mod.build_graph(src_root)
-    # Хороший файл должен быть в graph
+    # The valid file must be in the graph
     files = {n["file"] for n in graph["nodes"] if "file" in n}
     assert "good.go" in files

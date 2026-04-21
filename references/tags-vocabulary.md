@@ -1,50 +1,50 @@
 # Default tags vocabulary
 
-Controlled vocabulary для frontmatter `tags` в `notes/*.md`. Используется `mb-tags-normalize.sh` для detection unknown-тегов и synonym-merge.
+Controlled vocabulary for frontmatter `tags` in `notes/*.md`. Used by `mb-tags-normalize.sh` to detect unknown tags and merge synonyms.
 
-Пользователь может скопировать этот файл в `.memory-bank/tags-vocabulary.md` и кастомизировать под проект (добавить domain-specific теги, убрать неиспользуемые).
+The user may copy this file into `.memory-bank/tags-vocabulary.md` and customize it for the project (add domain-specific tags, remove unused ones).
 
 ## Conventions
 
-- Только kebab-case: `refactor`, `db-migration`, `perf-critical`
-- Lowercase, без пробелов
-- Существительные (где применимо): `bug` не `bugs`
-- Краткие: `api` не `api-endpoint`
+- Kebab-case only: `refactor`, `db-migration`, `perf-critical`
+- Lowercase, no spaces
+- Prefer singular nouns where applicable: `bug`, not `bugs`
+- Keep tags short: `api`, not `api-endpoint`
 
 ## Core tags
 
-- arch          # архитектурное решение / паттерн
+- arch          # architectural decision / pattern
 - auth          # authentication / authorization
-- bug           # баг или его фикс
+- bug           # bug or bug fix
 - ci            # continuous integration
-- doc           # документация
-- db            # база данных
+- doc           # documentation
+- db            # database
 - deploy        # deployment / release
-- experiment    # эксперимент / research
-- feature       # новая фича
+- experiment    # experiment / research
+- feature       # new feature
 - infra         # infrastructure
-- lesson        # извлечённый урок (дублирует lessons.md как tag)
-- migration     # миграция (schema / framework / version)
+- lesson        # extracted lesson (mirrors lessons.md as a tag)
+- migration     # migration (schema / framework / version)
 - monitoring    # observability / alerts
 - perf          # performance optimization
 - pii           # privacy / personal data handling
-- pattern       # повторно используемый pattern
-- refactor      # рефакторинг
+- pattern       # reusable pattern
+- refactor      # refactoring
 - security      # security issue / hardening
-- test          # тесты (unit / integration / e2e)
+- test          # tests (unit / integration / e2e)
 
 ## Process tags
 
-- debug         # отладочная сессия
+- debug         # debugging session
 - review        # code review findings
-- post-mortem   # разбор инцидента
+- post-mortem   # incident analysis
 - adr           # architectural decision record
-- spike         # исследовательский спайк
+- spike         # exploratory spike
 
 ## Workflow tags
 
-- blocked       # заблокировано внешней зависимостью
-- todo          # требует действия
+- blocked       # blocked by external dependency
+- todo          # requires action
 - wip           # work in progress
-- imported      # импортировано из JSONL (авто-tag)
-- discussion    # архитектурная дискуссия (авто-tag)
+- imported      # imported from JSONL (auto-tag)
+- discussion    # architectural discussion (auto-tag)

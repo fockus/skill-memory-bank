@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for mb-search.sh --include-archived — notes/archive/ фильтрация.
+# Tests for mb-search.sh --include-archived — notes/archive/ filtering.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -18,10 +18,10 @@ tags: [active]
 importance: medium
 ---
 
-ARCHIVE_SEARCH_NEEDLE активная.
+ARCHIVE_SEARCH_NEEDLE active.
 EOF
 
-  # Archived note с тем же ключевым словом
+  # Archived note with the same keyword
   cat > "$MB/notes/archive/old.md" <<EOF
 ---
 type: note
@@ -29,7 +29,7 @@ tags: [archived-tag]
 importance: low
 ---
 
-ARCHIVE_SEARCH_NEEDLE из архива.
+ARCHIVE_SEARCH_NEEDLE from archive.
 EOF
 
   python3 "$INDEX_PY" "$MB" >/dev/null 2>&1
@@ -46,27 +46,27 @@ run_search() {
   output="${raw%$'\n'__EXIT__*}"
 }
 
-@test "search default: НЕ находит notes/archive/" {
+@test "search default: does NOT find notes/archive/" {
   run_search ARCHIVE_SEARCH_NEEDLE
   [ "$status" -eq 0 ]
   [[ "$output" == *"notes/active.md"* ]]
   [[ "$output" != *"notes/archive/old.md"* ]]
 }
 
-@test "search --include-archived: находит и active и archived" {
+@test "search --include-archived: finds both active and archived" {
   run_search --include-archived ARCHIVE_SEARCH_NEEDLE
   [ "$status" -eq 0 ]
   [[ "$output" == *"notes/active.md"* ]]
   [[ "$output" == *"notes/archive/old.md"* ]]
 }
 
-@test "search --tag default: НЕ находит archived" {
+@test "search --tag default: does NOT find archived" {
   run_search --tag archived-tag
   [ "$status" -eq 0 ]
   [[ "$output" != *"notes/archive/old.md"* ]]
 }
 
-@test "search --include-archived --tag: находит archived" {
+@test "search --include-archived --tag: finds archived" {
   run_search --include-archived --tag archived-tag
   [ "$status" -eq 0 ]
   [[ "$output" == *"notes/archive/old.md"* ]]

@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
-# Tests for scripts/mb-drift.sh — 8 deterministic checkers без AI.
+# Tests for scripts/mb-drift.sh — 8 deterministic checkers without AI.
 #
-# Output contract: key=value на stdout, warnings на stderr.
-#   - drift_warnings=N (итоговое число)
+# Output contract: key=value on stdout, warnings on stderr.
+#   - drift_warnings=N (final count)
 #   - drift_check_<name>=ok|warn per checker
-# Exit: 0 если drift_warnings=0, 1 иначе.
+# Exit: 0 if drift_warnings=0, otherwise 1.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -13,7 +13,7 @@ setup() {
   PROJECT="$(mktemp -d)"
   MB="$PROJECT/.memory-bank"
   mkdir -p "$MB/notes" "$MB/plans/done" "$MB/reports"
-  # Базовое содержимое core-файлов — всегда чистое если тест не изменит.
+  # Baseline core-file contents — clean unless a test changes them.
   : > "$MB/STATUS.md"
   : > "$MB/checklist.md"
   : > "$MB/plan.md"
@@ -27,7 +27,7 @@ teardown() {
   [ -n "${PROJECT:-}" ] && [ -d "$PROJECT" ] && rm -rf "$PROJECT"
 }
 
-# Run drift, capturing stdout/stderr и exit code.
+# Run drift, capturing stdout/stderr and exit code.
 run_drift() {
   local target="${1:-$PROJECT}"
   local raw
@@ -46,9 +46,9 @@ run_drift() {
   [[ "$output" == *"drift_warnings=0"* ]]
 }
 
-@test "drift: output format — key=value лексически парсируется" {
+@test "drift: output format — key=value parses lexically" {
   run_drift
-  # Все key=value строки должны быть парсируемы (no weird chars)
+  # All key=value lines must be parseable (no weird chars)
   echo "$output" | grep -E '^[a-z_][a-z0-9_]*=[^[:space:]]*$' | head -1
 }
 
@@ -61,25 +61,25 @@ run_drift() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Checker 1: path — ссылки на файлы существуют
+# Checker 1: path — file references exist
 # ═══════════════════════════════════════════════════════════════
 
-@test "drift[path]: reference к existing note → no warning" {
+@test "drift[path]: reference to existing note → no warning" {
   echo "note-stub" > "$MB/notes/2026-04-20_test.md"
-  echo "См. notes/2026-04-20_test.md" > "$MB/checklist.md"
+  echo "See notes/2026-04-20_test.md" > "$MB/checklist.md"
   run_drift
   [[ "$output" == *"drift_check_path=ok"* ]]
 }
 
-@test "drift[path]: reference к missing note → warning path" {
-  echo "См. notes/missing.md" > "$MB/checklist.md"
+@test "drift[path]: reference to missing note → warning path" {
+  echo "See notes/missing.md" > "$MB/checklist.md"
   run_drift
   [[ "$output" == *"drift_check_path=warn"* ]]
   [ "$status" -ne 0 ]
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Checker 2: staleness — core files не стухли
+# Checker 2: staleness — core files stay fresh
 # ═══════════════════════════════════════════════════════════════
 
 @test "drift[staleness]: recent core files → no warning" {
@@ -119,7 +119,7 @@ run_drift() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "drift[dependency]: no project deps file → skip check (ok)" {
-  # Чистый project без pyproject/package.json — чекер skip с ok.
+  # Clean project without pyproject/package.json — checker skips as ok.
   echo "Python 3.12" > "$MB/STATUS.md"
   run_drift
   [[ "$output" == *"drift_check_dependency=ok"* ]] || [[ "$output" == *"drift_check_dependency=skip"* ]]
@@ -132,25 +132,25 @@ name = "foo"
 requires-python = ">=3.12"
 EOF
   echo "# STATUS" > "$MB/STATUS.md"
-  echo "Стек: Python 3.11" >> "$MB/STATUS.md"
+  echo "Stack: Python 3.11" >> "$MB/STATUS.md"
   run_drift
   [[ "$output" == *"drift_check_dependency=warn"* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Checker 5: cross-file — числовая консистентность между MB-файлами
+# Checker 5: cross-file — numeric consistency across MB files
 # ═══════════════════════════════════════════════════════════════
 
-@test "drift[cross-file]: same test count в STATUS и checklist → no warning" {
+@test "drift[cross-file]: same test count in STATUS and checklist → no warning" {
   echo "Tests: 163 bats green" > "$MB/STATUS.md"
-  echo "**Итог**: 163 bats green" > "$MB/checklist.md"
+  echo "**Summary**: 163 bats green" > "$MB/checklist.md"
   run_drift
   [[ "$output" == *"drift_check_cross_file=ok"* ]]
 }
 
-@test "drift[cross-file]: test counts расходятся — STATUS=163 vs checklist=100 → warning" {
+@test "drift[cross-file]: test counts differ — STATUS=163 vs checklist=100 → warning" {
   echo "Tests: 163 bats green" > "$MB/STATUS.md"
-  echo "**Итог**: 100 bats green" > "$MB/checklist.md"
+  echo "**Summary**: 100 bats green" > "$MB/checklist.md"
   run_drift
   [[ "$output" == *"drift_check_cross_file=warn"* ]]
 }
@@ -183,7 +183,7 @@ EOF
   cat > "$PROJECT/package.json" <<'EOF'
 {"name":"x","scripts":{"test":"jest"}}
 EOF
-  echo "Запусти: npm run test" > "$MB/plan.md"
+  echo "Run: npm run test" > "$MB/plan.md"
   run_drift
   [[ "$output" == *"drift_check_command=ok"* ]]
 }
@@ -192,13 +192,13 @@ EOF
   cat > "$PROJECT/package.json" <<'EOF'
 {"name":"x","scripts":{"test":"jest"}}
 EOF
-  echo "Запусти: npm run nonexistent-script" > "$MB/plan.md"
+  echo "Run: npm run nonexistent-script" > "$MB/plan.md"
   run_drift
   [[ "$output" == *"drift_check_command=warn"* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Checker 8: frontmatter — notes YAML валиден
+# Checker 8: frontmatter — notes YAML is valid
 # ═══════════════════════════════════════════════════════════════
 
 @test "drift[frontmatter]: valid frontmatter → no warning" {
@@ -221,7 +221,7 @@ EOF
 type: note
 tags: [unclosed
 EOF
-  # Нет закрывающей --- → parser не сможет разобрать.
+  # No closing --- → parser cannot parse it.
   run_drift
   [[ "$output" == *"drift_check_frontmatter=warn"* ]]
 }
@@ -230,15 +230,15 @@ EOF
 # Aggregation — broken fixture smoke
 # ═══════════════════════════════════════════════════════════════
 
-@test "drift: broken fixture — ≥5 категорий warnings" {
-  # Комбинация ошибок — используем существующий tests/fixtures/broken-mb/
-  # если есть, иначе синтезируем inline.
+@test "drift: broken fixture — ≥5 warning categories" {
+  # Combination of errors — use existing tests/fixtures/broken-mb/
+  # if present, otherwise synthesize inline.
   FIXTURE="$REPO_ROOT/tests/fixtures/broken-mb"
   if [ -d "$FIXTURE" ]; then
     run_drift "$FIXTURE"
   else
-    # Inline: минимум 5 видов drift.
-    echo "См. notes/missing.md" > "$MB/checklist.md"                                      # path
+    # Inline: at least 5 kinds of drift.
+    echo "See notes/missing.md" > "$MB/checklist.md"                                      # path
     old=$(( $(date +%s) - 40 * 86400 ))
     touch -t "$(date -r "$old" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$old" +%Y%m%d%H%M.%S)" "$MB/STATUS.md" # staleness
     echo "bash scripts/gone.sh" >> "$MB/plan.md"                                          # script-coverage
@@ -248,7 +248,7 @@ EOF
     run_drift
   fi
 
-  # Минимум 5 warnings.
+  # At least 5 warnings.
   warnings=$(echo "$output" | grep -oE 'drift_warnings=[0-9]+' | head -1 | cut -d= -f2)
   [ "${warnings:-0}" -ge 5 ]
   [ "$status" -ne 0 ]

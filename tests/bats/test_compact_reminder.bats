@@ -7,7 +7,7 @@
 #   - If .memory-bank/.last-compact missing → silent exit 0 (opt-in)
 #   - If .last-compact mtime < 7d → silent exit 0
 #   - If .last-compact ≥7d AND /mb compact --dry-run shows candidates > 0 →
-#     reminder на stderr
+#     reminder on stderr
 #   - If MB_COMPACT_REMIND=off → noop (env opt-out)
 #   - Read-only: 0 file changes
 
@@ -21,7 +21,7 @@ setup() {
   for n in STATUS plan checklist progress lessons RESEARCH BACKLOG; do
     : > "$MB/$n.md"
   done
-  # Stub jq usage: hook читает .cwd из JSON
+  # Stub jq usage: hook reads .cwd from JSON
   JSON_INPUT="{\"cwd\":\"$PROJECT\",\"session_id\":\"test-s\"}"
 }
 
@@ -66,7 +66,7 @@ make_compact_candidate() {
 
 @test "reminder: missing .last-compact → silent (opt-in)" {
   make_compact_candidate
-  # .last-compact НЕ создан
+  # .last-compact is NOT created
   run_hook
   [ "$status" -eq 0 ]
   [[ "$output" != *"compact"* ]] || [[ "$output" != *"ready"* ]]
@@ -74,14 +74,14 @@ make_compact_candidate() {
 
 @test "reminder: fresh .last-compact (<7d) → silent" {
   make_compact_candidate
-  touch "$MB/.last-compact"   # свежий
+  touch "$MB/.last-compact"   # fresh
   run_hook
   [ "$status" -eq 0 ]
   [[ "$output" != *"compact"* ]] || [[ "$output" != *"ready"* ]]
 }
 
 @test "reminder: stale .last-compact (>7d) + 0 candidates → silent" {
-  # Нет aged planов/notes → candidates=0
+  # No aged plans/notes → candidates=0
   touch "$MB/.last-compact"
   age_days "$MB/.last-compact" 10
   run_hook
@@ -95,7 +95,7 @@ make_compact_candidate() {
   age_days "$MB/.last-compact" 10
   run_hook
   [ "$status" -eq 0 ]
-  # Ожидаем reminder — упоминание "compact" и количества кандидатов
+  # Expect a reminder — mention of "compact" and the number of candidates
   [[ "$output" == *"compact"* ]]
 }
 
@@ -108,12 +108,12 @@ make_compact_candidate() {
   [ -z "$output" ]
 }
 
-@test "reminder: read-only — не создаёт файлов в .memory-bank/" {
+@test "reminder: read-only — does not create files in .memory-bank/" {
   make_compact_candidate
   touch "$MB/.last-compact"
   age_days "$MB/.last-compact" 10
 
-  # Snapshot списка файлов до
+  # Snapshot of the file list before
   local before_files
   before_files=$(find "$MB" -type f | sort)
 

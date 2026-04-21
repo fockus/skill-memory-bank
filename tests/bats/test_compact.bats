@@ -1,16 +1,16 @@
 #!/usr/bin/env bats
 # Tests for scripts/mb-compact.sh — status-based compaction decay.
 #
-# Архивация требует (age > threshold) AND (done-signal):
-#   - done-signal для планов:
-#       • файл в plans/done/ — primary (уже закрыт через mb-plan-done.sh)
-#       • ИЛИ путь упомянут в checklist.md строкой с ✅/[x]
-#       • ИЛИ упомянут в progress.md/STATUS.md как "завершён|done|closed|shipped"
-#   - done-signal для notes: frontmatter importance: low + нет активных референсов
+# Archival requires (age > threshold) AND (done-signal):
+#   - done-signal for plans:
+#       • file in plans/done/ — primary (already closed through mb-plan-done.sh)
+#       • OR path mentioned in checklist.md on a line with ✅/[x]
+#       • OR mentioned in progress.md/STATUS.md as "done|closed|shipped"
+#   - done-signal for notes: frontmatter importance: low + no active references
 #
-# Active planы (not done) НЕ трогаются даже >180d → warning only.
+# Active plans (not done) are NOT touched even >180d → warning only.
 #
-# Output: key=value на stdout, reasoning per candidate.
+# Output: key=value on stdout, reasoning per candidate.
 # Exit: 0 success, 1 error.
 
 setup() {
@@ -68,7 +68,7 @@ set_mtime_days_ago() {
 @test "compact: --dry-run is default (no args)" {
   run_compact
   [ "$status" -eq 0 ]
-  # Нет изменений файлов
+  # No file changes
   [ ! -d "$MB/notes/archive" ]
 }
 
@@ -76,7 +76,7 @@ set_mtime_days_ago() {
 # Plans — time threshold (60d default)
 # ═══════════════════════════════════════════════════════════════
 
-@test "compact: plan in plans/done/ <60d → не трогать (age too low)" {
+@test "compact: plan in plans/done/ <60d → do not touch (age too low)" {
   local p="$MB/plans/done/2026-03-15_feature_x.md"
   echo "# Plan X" > "$p"
   set_mtime_days_ago "$p" 30
@@ -102,20 +102,20 @@ set_mtime_days_ago() {
 # Plans — status-based safety (CRITICAL)
 # ═══════════════════════════════════════════════════════════════
 
-@test "compact: active plan in plans/ (not done) + >180d → НЕ трогать" {
+@test "compact: active plan in plans/ (not done) + >180d → do not touch" {
   local p="$MB/plans/2025-10-01_feature_active.md"
   echo "# Active Plan" > "$p"
   set_mtime_days_ago "$p" 200
 
   run_compact --dry-run
   [ "$status" -eq 0 ]
-  # Не в кандидатах на archive
+  # Not among archive candidates
   [[ "$output" != *"archive: plans/2025-10-01"* ]]
-  # Должен быть warning про старый active план
+  # There should be a warning about an old active plan
   [[ "$output" == *"2025-10-01"* ]]
   [[ "$output" == *"active"*"old"* ]] \
     || [[ "$output" == *"warning"* ]] \
-    || [[ "$output" == *"не done"* ]] \
+    || [[ "$output" == *"not done"* ]] \
     || [[ "$output" == *"not done"* ]]
 }
 
@@ -123,10 +123,10 @@ set_mtime_days_ago() {
   local p="$MB/plans/2026-02-18_feature_done_checklist.md"
   echo "# Plan" > "$p"
   set_mtime_days_ago "$p" 70
-  # ✅ signal в checklist
+  # ✅ signal in checklist
   cat > "$MB/checklist.md" <<EOF
-## Этап 1: X
-- ✅ Работа по плану: plans/2026-02-18_feature_done_checklist.md
+## Stage 1: X
+- ✅ Plan work completed: plans/2026-02-18_feature_done_checklist.md
 EOF
 
   run_compact --dry-run
@@ -135,29 +135,29 @@ EOF
   [[ "$output" == *"archive"* ]] || [[ "$output" == *"candidate"* ]]
 }
 
-@test "compact: plan marked ⬜ в checklist + >180d → НЕ трогать (active)" {
+@test "compact: plan marked ⬜ in checklist + >180d → do not touch (active)" {
   local p="$MB/plans/2025-09-01_feature_still_todo.md"
   echo "# Plan" > "$p"
   set_mtime_days_ago "$p" 230
   cat > "$MB/checklist.md" <<EOF
-## Этап 1: Y
-- ⬜ plans/2025-09-01_feature_still_todo.md — ещё делаем
+## Stage 1: Y
+- ⬜ plans/2025-09-01_feature_still_todo.md — still in progress
 EOF
 
   run_compact --dry-run
   [ "$status" -eq 0 ]
-  # Не archive
+  # Do not archive
   [[ "$output" != *"archive: plans/2025-09-01"* ]]
 }
 
-@test "compact: plan упомянут в progress.md как 'завершён' + >60d → archive" {
+@test "compact: plan mentioned in progress.md as 'done' + >60d → archive" {
   local p="$MB/plans/2026-02-10_feature_progress_done.md"
   echo "# Plan" > "$p"
   set_mtime_days_ago "$p" 75
   cat > "$MB/progress.md" <<EOF
 ## 2026-02-15
 
-- План 2026-02-10_feature_progress_done.md завершён
+- Plan 2026-02-10_feature_progress_done.md done
 EOF
 
   run_compact --dry-run
@@ -188,7 +188,7 @@ EOF
   [[ "$output" == *"archive"* ]] || [[ "$output" == *"candidate"* ]]
 }
 
-@test "compact: medium-importance note >90d → НЕ тронуто" {
+@test "compact: medium-importance note >90d → untouched" {
   local n="$MB/notes/2026-01-10_medium.md"
   cat > "$n" <<EOF
 ---
@@ -205,7 +205,7 @@ EOF
   [[ "$output" != *"archive: notes/2026-01-10_medium"* ]]
 }
 
-@test "compact: low note <90d → НЕ тронуто" {
+@test "compact: low note <90d → untouched" {
   local n="$MB/notes/2026-04-01_recent_low.md"
   cat > "$n" <<EOF
 ---
@@ -221,7 +221,7 @@ EOF
   [[ "$output" != *"archive: notes/2026-04-01"* ]]
 }
 
-@test "compact: low note >90d + referenced in plan.md → НЕ тронуто (safety)" {
+@test "compact: low note >90d + referenced in plan.md → untouched (safety)" {
   local n="$MB/notes/2026-01-05_referenced.md"
   cat > "$n" <<EOF
 ---
@@ -232,8 +232,8 @@ Referenced from plan.
 EOF
   set_mtime_days_ago "$n" 120
   cat > "$MB/plan.md" <<EOF
-# План
-См. также notes/2026-01-05_referenced.md
+# Plan
+See also notes/2026-01-05_referenced.md
 EOF
 
   run_compact --dry-run
@@ -256,9 +256,9 @@ EOF
 
   run_compact --apply
   [ "$status" -eq 0 ]
-  # Файл удалён
+  # File removed
   [ ! -f "$p" ]
-  # BACKLOG получил строку
+  # BACKLOG received a line
   grep -q "archive_me" "$MB/BACKLOG.md"
   grep -q "Archived plans" "$MB/BACKLOG.md"
 }
@@ -280,7 +280,7 @@ EOF
   [ -f "$MB/notes/archive/2026-01-02_archive_low.md" ]
 }
 
-@test "compact: --apply идемпотентна (2 run подряд — 0 дополнительных изменений)" {
+@test "compact: --apply is idempotent (2 consecutive runs — 0 extra changes)" {
   local p="$MB/plans/done/2026-01-01_idem.md"
   echo "# Plan" > "$p"
   set_mtime_days_ago "$p" 80
@@ -299,14 +299,14 @@ EOF
   [ "$backlog_size1" -eq "$backlog_size2" ]
 }
 
-@test "compact: --apply обновляет .last-compact timestamp" {
+@test "compact: --apply updates .last-compact timestamp" {
   [ ! -f "$MB/.last-compact" ]
   run_compact --apply
   [ "$status" -eq 0 ]
   [ -f "$MB/.last-compact" ]
 }
 
-@test "compact: --dry-run НЕ создаёт .last-compact" {
+@test "compact: --dry-run does NOT create .last-compact" {
   run_compact --dry-run
   [ "$status" -eq 0 ]
   [ ! -f "$MB/.last-compact" ]
@@ -316,8 +316,8 @@ EOF
 # Error handling
 # ═══════════════════════════════════════════════════════════════
 
-@test "compact: broken frontmatter note → skip с warning, не блокирует batch" {
-  # Хорошая нота, которая должна обработаться
+@test "compact: broken frontmatter note → skip with warning, does not block batch" {
+  # Good note that should still be processed
   local good="$MB/notes/2026-01-01_good_low.md"
   cat > "$good" <<EOF
 ---
@@ -328,7 +328,7 @@ Good note to archive.
 EOF
   set_mtime_days_ago "$good" 100
 
-  # Битая нота: невалидный frontmatter
+  # Broken note: invalid frontmatter
   local bad="$MB/notes/2026-01-01_broken.md"
   cat > "$bad" <<EOF
 ---
@@ -341,11 +341,11 @@ EOF
 
   run_compact --dry-run
   [ "$status" -eq 0 ]
-  # Хорошая попала в candidates
+  # Good note made it into candidates
   [[ "$output" == *"2026-01-01_good_low.md"* ]]
 }
 
-@test "compact: missing .memory-bank/ → exit 1 с hint" {
+@test "compact: missing .memory-bank/ → exit 1 with hint" {
   NOBANK="$(mktemp -d)"
   raw=$(cd "$NOBANK" && bash "$COMPACT" --dry-run 2>&1; printf '\n__EXIT__%s' "$?")
   status="${raw##*__EXIT__}"
@@ -355,7 +355,7 @@ EOF
   rm -rf "$NOBANK"
 }
 
-@test "compact: unknown flag → exit 1 с usage" {
+@test "compact: unknown flag → exit 1 with usage" {
   run_compact --unknown-flag
   [ "$status" -ne 0 ]
   [[ "$output" == *"usage"* ]] || [[ "$output" == *"Usage"* ]] || [[ "$output" == *"unknown"* ]]

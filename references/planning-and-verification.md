@@ -1,89 +1,89 @@
 # Memory Bank — planning and verification
 
-Правила создания планов и процесс верификации через Plan Verifier.
+Rules for plan creation and the verification process through Plan Verifier.
 
 ---
 
-## Правила создания планов
+## Plan creation rules
 
-Создание плана — **главный агент** (не MB Manager).
+Plan creation belongs to the **main agent** (not MB Manager).
 
-### Шаги
+### Steps
 
-1. Создай файл: `bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"`. Типы: `feature`, `fix`, `refactor`, `experiment`.
-2. Заполни секции:
-   - **Контекст**: проблема, что промптило, ожидаемый результат.
-   - **Этапы**: каждый с DoD по SMART (конкретный, измеримый, достижимый, реалистичный, с временными рамками).
-   - **Тестирование**: unit + integration тесты ПЕРЕД реализацией (TDD).
-   - **Каждый этап**: что тестировать, какие edge cases, lint requirements.
-   - **Правила кода**: SOLID, DRY, KISS, YAGNI, Clean Architecture/FSD/Mobile — по `RULES.md`.
-   - **Риски**: вероятность (H/M/L), mitigation.
-   - **Gate**: критерий успеха плана целиком.
-3. Этапы атомарны и упорядочены по зависимостям.
-4. Нет placeholder'ов — каждый шаг конкретен.
-5. Каждый `assert` в тестах проверяет бизнес-требование или edge case.
+1. Create the file: `bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"`. Types: `feature`, `fix`, `refactor`, `experiment`.
+2. Fill the sections:
+   - **Context**: the problem, what triggered the plan, expected outcome.
+   - **Stages**: each with SMART DoD (specific, measurable, achievable, realistic, time-bounded).
+   - **Testing**: unit + integration tests BEFORE implementation (TDD).
+   - **Each stage**: what to test, edge cases, lint requirements.
+   - **Code rules**: SOLID, DRY, KISS, YAGNI, Clean Architecture/FSD/Mobile — per `RULES.md`.
+   - **Risks**: probability (H/M/L), mitigation.
+   - **Gate**: success criterion for the whole plan.
+3. Stages must be atomic and dependency-ordered.
+4. No placeholders — every step must be concrete.
+5. Every `assert` in tests must verify a business requirement or edge case.
 
-### Маркеры этапов
+### Stage markers
 
-Шаблон `mb-plan.sh` автоматически добавляет `<!-- mb-stage:N -->` перед `### Этап N: <name>`. Эти маркеры используются `mb-plan-sync.sh` и `mb-plan-done.sh` для автоматической синхронизации с `checklist.md`, `plan.md`.
+The `mb-plan.sh` template automatically adds `<!-- mb-stage:N -->` before `### Stage N: <name>`. Those markers are used by `mb-plan-sync.sh` and `mb-plan-done.sh` for automatic synchronization with `checklist.md` and `plan.md`.
 
-### Консистентность — ОБЯЗАТЕЛЬНО при создании плана
+### Consistency — REQUIRED when creating a plan
 
-После создания плана запусти:
-
-```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <путь к плану>
-```
-
-Скрипт идемпотентно:
-- добавит отсутствующие секции `## Этап N: <name>` в `checklist.md`
-- обновит блок `<!-- mb-active-plan -->` в `plan.md`
-
-### Цепочка source of truth
-
-```
-plan.md (Active plan → ссылка) → plans/<файл>.md (задачи, DoD) → checklist.md (трекинг) → STATUS.md (фаза)
-```
-
-**При завершении плана:**
+After creating a plan, run:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-plan-done.sh <путь к плану>
+bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <path-to-plan>
 ```
 
-Скрипт переместит файл в `plans/done/`, закроет `⬜ → ✅`, очистит Active plan блок.
+The script idempotently:
+- adds missing `## Stage N: <name>` sections to `checklist.md`
+- updates the `<!-- mb-active-plan -->` block in `plan.md`
+
+### Source-of-truth chain
+
+```text
+plan.md (Active plan → link) → plans/<file>.md (tasks, DoD) → checklist.md (tracking) → STATUS.md (phase)
+```
+
+**When finishing a plan:**
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-plan-done.sh <path-to-plan>
+```
+
+The script moves the file into `plans/done/`, closes `⬜ → ✅`, and clears the active-plan block.
 
 ---
 
-## Plan Verifier — верификация планов
+## Plan Verifier — plan verification
 
-Plan Verifier — subagent на Sonnet, который проверяет соответствие кода плану. Prompt: `agents/plan-verifier.md`.
+Plan Verifier is a Sonnet subagent that checks code against the plan. Prompt: `agents/plan-verifier.md`.
 
-### Когда запускать
+### When to run it
 
-**ОБЯЗАТЕЛЬНО** перед закрытием плана (`/mb done` при работе по плану):
+**REQUIRED** before closing a plan (`/mb done` when the session followed a plan):
 
-1. Вызови `/mb verify`.
-2. Plan Verifier перечитает план, проверит `git diff`, найдёт расхождения.
-3. Исправь все CRITICAL проблемы.
-4. WARNING — на усмотрение (спроси пользователя).
-5. Только после этого — `/mb done`.
+1. Run `/mb verify`.
+2. Plan Verifier rereads the plan, checks `git diff`, and finds gaps.
+3. Fix all CRITICAL issues.
+4. WARNING issues are discretionary — ask the user.
+5. Only then run `/mb done`.
 
-### Формат вызова
+### Invocation format
 
-```
+```text
 Agent(
   subagent_type="general-purpose",
   model="sonnet",
-  description="Plan Verifier: проверка плана",
-  prompt="<содержание agents/plan-verifier.md>\n\nФайл плана: <путь>\n\nКонтекст: <что сделано>"
+  description="Plan Verifier: plan verification",
+  prompt="<contents of agents/plan-verifier.md>\n\nPlan file: <path>\n\nContext: <what was done>"
 )
 ```
 
-### Категории проблем
+### Issue categories
 
-| Категория | Что значит | Действие |
-|-----------|-----------|----------|
-| CRITICAL | Этап не реализован, DoD не выполнен, тесты отсутствуют | Исправить обязательно |
-| WARNING | Частичное покрытие, отклонение от плана | Спросить пользователя |
-| INFO | Дополнительная работа не из плана | Принять к сведению |
+| Category | Meaning | Action |
+|----------|---------|--------|
+| CRITICAL | Stage not implemented, DoD not met, tests missing | Must fix |
+| WARNING | Partial coverage, deviation from the plan | Ask the user |
+| INFO | Additional work outside the plan | Record for awareness |

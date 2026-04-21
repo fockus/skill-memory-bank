@@ -1,306 +1,308 @@
 # Global Rules
 
-> Универсальные правила кодирования и процесса.
-> Применяются ко ВСЕМ проектам. Проект-специфичные правила — в `RULES.MD` корня проекта.
+> Universal coding and process rules.
+> Apply to ALL projects. Project-specific rules belong in the repository root `RULES.MD`.
 
 ---
 
-## CRITICAL — нарушение = провал
+## CRITICAL — violation means failure
 
-1. **Язык**: русский — ответы и комментарии в коде. Техтермины на английском.
-2. **Код без заглушек**: никаких `...`, `TODO`, `pass` (исключение: staged stubs за feature flag с docstring)
-3. **Деструктивные действия — только после "go"**
-4. **Защищённые файлы** (`.env`, `ci/**`, Docker/K8s/Terraform) — не трогать без запроса
-5. **Новая логика = тесты FIRST** (TDD)
-6. **Принципы**: TDD / SOLID / DRY / KISS / YAGNI / Clean Architecture — без исключений
-7. **Contract-First**: интерфейс → contract-тесты → реализация
-8. **Fail Fast**: не уверен в направлении → план на 3-5 строк, спроси
-9. **RULES.md — обязательный стандарт**: ВСЯ работа ОБЯЗАНА следовать правилам из этого файла + проектного `RULES.MD`. Не рекомендация, а hard requirement.
+1. **Language**: follow the configured project/install language preference. English is the default. Technical terms may remain in English.
+2. **No placeholder code**: no `...`, `TODO`, or `pass` (exception: staged stubs behind a feature flag with a docstring)
+3. **Destructive actions only after explicit "go"**
+4. **Protected files** (`.env`, `ci/`**, Docker/K8s/Terraform) — do not touch without an explicit request
+5. **New logic = tests FIRST** (TDD)
+6. **Principles**: TDD / SOLID / DRY / KISS / YAGNI / Clean Architecture — no exceptions
+7. **Contract-First**: interface → contract tests → implementation
+8. **Fail Fast**: if you are unsure about direction, write a 3-5 line plan and ask
+9. **RULES.md is a mandatory standard**: ALL work MUST follow this file plus the project `RULES.MD`. It is not a recommendation; it is a hard requirement.
 
 ---
 
-## Source of Truth — цепочка планирования
+## Source of Truth — planning chain
 
-Если в проекте есть Memory Bank (`.memory-bank/`), планирование и реализация работают через единую цепочку:
+If a project has Memory Bank (`.memory-bank/`), planning and implementation flow through one chain:
 
 ```
-plan.md (поле "Active plan" → ссылка на файл)
+plan.md ("Active plan" field → link to file)
     ↓
-plans/<файл>.md  ← Source of truth: задачи, DoD, этапы
+plans/<file>.md  ← Source of truth: tasks, DoD, stages
     ↓
-checklist.md     ← Трекинг: ✅ закрыто, ⬜ осталось
+checklist.md     ← Tracking: ✅ done, ⬜ remaining
     ↓
-STATUS.md        ← Фаза, blockers, audit findings
+STATUS.md        ← Phase, blockers, audit findings
 ```
 
-### Правила консистентности
+### Consistency rules
 
-1. **Новый план** (`/mb plan`) ОБЯЗАН быть отражён во ВСЕХ трёх местах:
-   - `plans/<файл>.md` — детальный план с DoD
-   - `plan.md` — ссылка в поле "Active plan" + обновлённый фокус
-   - `STATUS.md` — обновлённый roadmap (секция "В процессе")
-   - `checklist.md` — задачи из плана как ⬜ пункты
-2. **Задачи берутся ТОЛЬКО из детального плана**. Не придумывать задачи вне плана.
-3. **checklist.md отражает план**: каждый этап из `plans/<файл>.md` = ⬜ пункт в checklist.
-4. **STATUS.md отражает факты**: roadmap обновляется при реальном завершении, не при планировании.
-5. **При смене активного плана**: обновить plan.md + STATUS.md + checklist.md.
-6. **При завершении плана**: перенести в `plans/done/`, обновить plan.md, STATUS.md, checklist.md.
+1. **A new plan** (`/mb plan`) MUST be reflected in all three places:
+  - `plans/<file>.md` — detailed plan with DoD
+  - `plan.md` — link in the "Active plan" field + updated focus
+  - `STATUS.md` — updated roadmap ("In Progress" section)
+  - `checklist.md` — plan tasks represented as ⬜ items
+2. **Tasks come ONLY from the detailed plan**. Do not invent off-plan tasks.
+3. `**checklist.md` reflects the plan**: each stage in `plans/<file>.md` = one ⬜ item in the checklist.
+4. `**STATUS.md` reflects facts**: update the roadmap on actual completion, not on planning.
+5. **When the active plan changes**: update `plan.md` + `STATUS.md` + `checklist.md`.
+6. **When a plan is completed**: move it to `plans/done/`, then update `plan.md`, `STATUS.md`, and `checklist.md`.
 
 ---
 
-## Архитектура
+## Architecture
 
 ### Clean Architecture
 
-**Направление зависимостей**: `Infrastructure → Application → Domain` (никогда обратно).
-Запрещено: импорт из infrastructure в application/domain.
+**Dependency direction**: `Infrastructure → Application → Domain` (never backward).
+Forbidden: imports from infrastructure into application/domain.
 
-**Слои:**
+**Layers:**
 
-- **Domain**: types, protocols, business logic. Нет зависимостей от внешних библиотек (кроме stdlib)
-- **Application**: use cases, orchestrators. Зависит от Domain
-- **Infrastructure**: frameworks, DB, HTTP, файловая система. Зависит от Application и Domain
+- **Domain**: types, protocols, business logic. No dependencies on external libraries (except stdlib)
+- **Application**: use cases, orchestrators. Depends on Domain
+- **Infrastructure**: frameworks, DB, HTTP, filesystem. Depends on Application and Domain
 
 ### SOLID
 
-- **SRP** (Single Responsibility): один модуль = одна причина для изменения. >3 публичных методов разной природы = нарушение. Класс с >300 строк — кандидат на разделение
-- **OCP** (Open/Closed): расширять через композицию и Strategy pattern, не правкой существующего кода. Новое поведение = новый класс, не `if-else` в старом
-- **LSP** (Liskov Substitution): подкласс должен работать везде, где работает родитель. Нарушение: переопределение метода с другой семантикой
-- **ISP** (Interface Segregation): Protocol/Interface ≤5 методов. Клиент не должен зависеть от методов, которые не использует. Толстый интерфейс → разбить на несколько тонких
-- **DIP** (Dependency Inversion): зависимость от Protocol/ABC, не от конкретных классов. Конструктор принимает абстракцию, фабрика создаёт конкретику
+- **SRP** (Single Responsibility): one module = one reason to change. More than 3 public methods of different kinds is a violation. A class with more than 300 lines is a split candidate
+- **OCP** (Open/Closed): extend through composition and the Strategy pattern, not by modifying old code. New behavior = new class, not `if-else` inside old code
+- **LSP** (Liskov Substitution): a subclass must work everywhere the parent works. Violation: overriding a method with different semantics
+- **ISP** (Interface Segregation): Protocol/Interface ≤5 methods. A client must not depend on methods it does not use. A fat interface should be split into thinner ones
+- **DIP** (Dependency Inversion): depend on Protocol/ABC, not concrete classes. Constructors accept abstractions; factories create concrete implementations
 
 ### DRY / KISS / YAGNI
 
-- **DRY**: дублирование >2 раз → извлечь в функцию/класс. НО: не извлекать если совпадение случайное (разные домены, разные причины изменения)
-- **KISS**: простое решение предпочтительнее сложного. Три одинаковых строки лучше преждевременной абстракции. Если решение требует объяснения — оно слишком сложное
-- **YAGNI**: не писать код "на будущее". Не добавлять feature flags, конфигурацию, абстракции для гипотетических требований. Добавлять только когда нужно СЕЙЧАС
+- **DRY**: duplication more than 2 times → extract function/class. BUT do not extract if the similarity is accidental (different domains, different reasons to change)
+- **KISS**: simple solutions beat complex ones. Three repeated lines are better than premature abstraction. If a solution requires a lot of explanation, it is too complex
+- **YAGNI**: do not write code for hypothetical future needs. Do not add feature flags, config, or abstractions for imagined requirements. Add only what is needed NOW
 
-### Training / Inference separation (ML проекты)
+### Training / Inference separation (ML projects)
 
-- `nn.Module` = только `forward()`, `act()`, `evaluate()`. Без training logic
-- `Trainer` = `update()`, `train_epoch()`. Использует модули через Protocol
-- Модуль не импортирует свой Trainer. Trainer импортирует модуль
+- `nn.Module` = only `forward()`, `act()`, `evaluate()`. No training logic
+- `Trainer` = `update()`, `train_epoch()`. Uses modules through a Protocol
+- A module must not import its own Trainer. The Trainer imports the module
 
 ### Frontend — Feature-Sliced Design (FSD)
 
-Для фронтенд-проектов (React/Vue/Angular/Svelte) используй FSD вместо классической Clean Architecture. FSD специализирован под UI-композицию.
+For frontend projects (React/Vue/Angular/Svelte), use FSD instead of classical Clean Architecture. FSD is specialized for UI composition.
 
-**Слои (top → bottom, импорт строго вниз):**
+**Layers (top → bottom, imports strictly downward):**
 
-| Слой | Что внутри | Пример |
-|------|------------|--------|
-| `app/` | Инициализация, провайдеры, роутер, глобальные стили | `<AppProviders>`, `App.tsx`, `index.css` |
-| `pages/` | Отдельные страницы приложения | `pages/product/`, `pages/checkout/` |
-| `widgets/` | Самостоятельные блоки UI, composable | `Header`, `Sidebar`, `ProductCard` |
-| `features/` | Пользовательские действия с бизнес-ценностью | `auth-by-email`, `add-to-cart` |
-| `entities/` | Бизнес-сущности (модель данных + UI representation) | `user`, `product`, `order` |
-| `shared/` | Переиспользуемые примитивы без бизнес-контекста | `shared/ui/Button`, `shared/lib/dayjs`, `shared/api` |
 
-**Структура slice (bussiness-слой кроме shared/app):**
+| Layer       | What belongs there                                 | Example                                              |
+| ----------- | -------------------------------------------------- | ---------------------------------------------------- |
+| `app/`      | Initialization, providers, router, global styles   | `<AppProviders>`, `App.tsx`, `index.css`             |
+| `pages/`    | Individual application pages                       | `pages/product/`, `pages/checkout/`                  |
+| `widgets/`  | Independent composable UI blocks                   | `Header`, `Sidebar`, `ProductCard`                   |
+| `features/` | User actions with business value                   | `auth-by-email`, `add-to-cart`                       |
+| `entities/` | Business entities (data model + UI representation) | `user`, `product`, `order`                           |
+| `shared/`   | Reusable primitives with no business context       | `shared/ui/Button`, `shared/lib/dayjs`, `shared/api` |
 
-```
+
+**Slice structure (business layers except shared/app):**
+
+```text
 features/auth-by-email/
-  ├── ui/          # React-компоненты фичи
-  ├── model/       # state (Redux/Zustand/MobX), хуки, селекторы
-  ├── api/         # HTTP-запросы, tRPC/RTK Query endpoints
-  ├── lib/         # helpers, чистые функции
-  └── index.ts     # public API — ТОЛЬКО то что нужно снаружи
+  ├── ui/          # React components for the feature
+  ├── model/       # state (Redux/Zustand/MobX), hooks, selectors
+  ├── api/         # HTTP requests, tRPC/RTK Query endpoints
+  ├── lib/         # helpers, pure functions
+  └── index.ts     # public API — ONLY what external code should use
 ```
 
-**Правила:**
+**Rules:**
 
-- **Импорт строго вниз по слоям**: `page` → `widget` → `feature` → `entity` → `shared`. Обратно — запрещено.
-- **Cross-slice import внутри одного слоя запрещён**: `features/auth` НЕ импортит из `features/cart`. Композиция — в `widget` или `page`.
-- **Public API slice через `index.ts`**: внешние импорты только через `@/features/auth-by-email`, никогда `@/features/auth-by-email/model/store.ts`.
-- **UI kit в `shared/ui/`**: dumb-компоненты без бизнес-логики (Button, Input, Modal).
-- **Pages = композиция**: страница не содержит бизнес-логики, только сборка widgets/features.
+- **Imports go strictly downward by layer**: `page` → `widget` → `feature` → `entity` → `shared`. Reverse imports are forbidden.
+- **Cross-slice imports within the same layer are forbidden**: `features/auth` must NOT import from `features/cart`. Compose in `widget` or `page`.
+- **Slice public API goes through `index.ts`**: external imports only through `@/features/auth-by-email`, never `@/features/auth-by-email/model/store.ts`.
+- **UI kit lives in `shared/ui/`**: dumb components with no business logic (Button, Input, Modal).
+- **Pages = composition**: a page should not contain business logic; it only assembles widgets/features.
 
-**Линтер**: `@feature-sliced/eslint-config` + `steiger` для валидации.
+**Linter**: `@feature-sliced/eslint-config` + `steiger` for validation.
 
-**Что НЕ FSD** (типичные ошибки):
+**What is NOT FSD** (common mistakes):
 
-- `src/components/` / `src/pages/` / `src/utils/` — это structure-by-type, анти-FSD
-- Фичи импортят друг друга напрямую → надо через widget или shared/model
-- Компоненты импортят конкретные файлы slice минуя `index.ts`
+- `src/components/` / `src/pages/` / `src/utils/` — this is structure-by-type, anti-FSD
+- Features importing each other directly → route through `widget` or `shared/model`
+- Components importing concrete slice files instead of going through `index.ts`
 
 ### Mobile — iOS / Android
 
-Для нативных мобильных приложений используй паттерны платформы, построенные на Unidirectional Data Flow (UDF) и Clean-слоях.
+For native mobile applications, use platform patterns built around Unidirectional Data Flow (UDF) and clean layers.
 
 **iOS (Swift/SwiftUI):**
 
-- **UI**: SwiftUI + Observation (`@Observable`, `@State`, `@Binding`) для iOS 17+. UIKit + MVVM+Coordinator для legacy.
-- **Concurrency**: `async/await` + `Actor`, не GCD/Combine в новом коде.
-- **Persistence**: SwiftData (iOS 17+) или Core Data.
-- **Слои**: `View → ViewModel → UseCase → Repository → DataSource(network/local)`. Domain — протоколы + Entity, без зависимостей от UIKit/SwiftUI.
-- **Модульность**: SPM feature-модули (`FeatureAuth`, `CoreUI`, `CoreNetwork`).
-- **Крупные приложения**: The Composable Architecture (TCA) — Redux-like для SwiftUI, оправдан при shared state между экранами.
-- **Tests**: XCTest + `swift-snapshot-testing` для UI.
+- **UI**: SwiftUI + Observation (`@Observable`, `@State`, `@Binding`) for iOS 17+. UIKit + MVVM+Coordinator for legacy apps
+- **Concurrency**: `async/await` + `Actor`, not GCD/Combine in new code
+- **Persistence**: SwiftData (iOS 17+) or Core Data
+- **Layers**: `View → ViewModel → UseCase → Repository → DataSource(network/local)`. Domain = protocols + Entity, with no UIKit/SwiftUI dependencies
+- **Modularity**: SPM feature modules (`FeatureAuth`, `CoreUI`, `CoreNetwork`)
+- **Large apps**: The Composable Architecture (TCA) — Redux-like for SwiftUI, justified when screens share state
+- **Tests**: XCTest + `swift-snapshot-testing` for UI
 
 **Android (Kotlin/Compose):**
 
-Следуй официальному [Android Recommended Architecture](https://developer.android.com/topic/architecture):
+Follow the official [Android Recommended Architecture](https://developer.android.com/topic/architecture):
 
-```
-UI Layer         (Composable + ViewModel + UiState immutable)
+```text
+UI Layer         (Composable + ViewModel + immutable UiState)
      ↓ UDF
-Domain Layer     (UseCase — опционально, если логика shared между VM)
+Domain Layer     (UseCase — optional if logic is shared between VMs)
      ↓
 Data Layer       (Repository = Single Source of Truth;
                   DataSource: Remote (Retrofit/Ktor) + Local (Room))
 ```
 
-- **UI**: Jetpack Compose + Material 3. XML View system — только legacy.
-- **Reactive**: Kotlin Coroutines + Flow. `StateFlow` для UI state, `SharedFlow` для one-off events.
-- **DI**: Hilt (поверх Dagger).
-- **Persistence**: Room (SQL), DataStore (preferences), WorkManager (background).
-- **Модульность**: Gradle multi-module — `:feature:auth`, `:feature:cart`, `:core:ui`, `:core:network`, `:core:database`.
-- **Shared логика iOS+Android**: Kotlin Multiplatform (KMP) — domain/data слои на Kotlin, UI нативно на каждой платформе.
-- **Tests**: JUnit + Turbine (Flow), Paparazzi/Roborazzi для UI snapshot.
+- **UI**: Jetpack Compose + Material 3. XML View system is legacy-only
+- **Reactive**: Kotlin Coroutines + Flow. `StateFlow` for UI state, `SharedFlow` for one-off events
+- **DI**: Hilt (on top of Dagger)
+- **Persistence**: Room (SQL), DataStore (preferences), WorkManager (background work)
+- **Modularity**: Gradle multi-module — `:feature:auth`, `:feature:cart`, `:core:ui`, `:core:network`, `:core:database`
+- **Shared iOS+Android logic**: Kotlin Multiplatform (KMP) — domain/data layers in Kotlin, UI native per platform
+- **Tests**: JUnit + Turbine (Flow), Paparazzi/Roborazzi for UI snapshots
 
-**Общие правила (iOS + Android):**
+**Shared rules (iOS + Android):**
 
-- **UDF**: state течёт вниз (Repository → ViewModel → UiState → View), events вверх (View → VM.onEvent()).
-- **Immutable UI state**: всегда новый объект через `copy()` / `struct`, никогда мутация.
-- **Single Source of Truth**: Repository владеет данными; ViewModel — только derived state.
-- **Testability**: зависимости через protocols/interfaces, DI контейнер подставляет fakes в тестах.
-- **One ViewModel per screen**: не шарить VM между экранами (composable state — через shared Repository).
+- **UDF**: state flows downward (Repository → ViewModel → UiState → View), events flow upward (View → `VM.onEvent()`)
+- **Immutable UI state**: always create a new object via `copy()` / `struct`, never mutate in place
+- **Single Source of Truth**: Repository owns the data; ViewModel only exposes derived state
+- **Testability**: dependencies go through protocols/interfaces; DI supplies fakes in tests
+- **One ViewModel per screen**: do not share VMs across screens (composable state goes through a shared Repository)
 
 ---
 
 ## TDD — Test-Driven Development
 
-### Два режима TDD
+### Two TDD modes
 
-**Детерминистичные модули** (parsers, validators, business logic, routers):
+**Deterministic modules** (parsers, validators, business logic, routers):
 
-```
+```text
 Red → Green → Refactor
 ```
 
-1. Написать failing тест ПЕРЕД кодом
-2. Минимальная реализация чтобы тест прошёл
-3. Refactor (убрать дублирование, улучшить naming)
-4. Повторить
+1. Write a failing test BEFORE code
+2. Add the minimum implementation needed to pass
+3. Refactor (remove duplication, improve naming)
+4. Repeat
 
-**ML-модули** (models, trainers, losses):
+**ML modules** (models, trainers, losses):
 
-- **Contract tests (ДО реализации):** output shape, gradient flow, range invariants, determinism (seed), no NaN/Inf, device-agnostic
-- **Statistical tests (ПОСЛЕ):** convergence (final_loss < initial * threshold), sanity checks. Маркер `@pytest.mark.slow`
+- **Contract tests (BEFORE implementation):** output shape, gradient flow, range invariants, determinism (seed), no NaN/Inf, device-agnostic behavior
+- **Statistical tests (AFTER implementation):** convergence (`final_loss < initial * threshold`), sanity checks. Mark with `@pytest.mark.slow`
 
-**Когда пропустить TDD:** опечатки, форматирование, exploratory prototypes.
+**When it is acceptable to skip TDD:** typos, formatting, exploratory prototypes.
 
 ### Contract-First Development
 
-1. Определить интерфейс (Protocol / ABC / type signatures)
-2. Написать contract-тесты (проверяют контракт, а не реализацию)
-3. Реализовать
-4. Contract-тесты должны проходить для ЛЮБОЙ корректной реализации
+1. Define the interface (Protocol / ABC / type signatures)
+2. Write contract tests (they verify the contract, not the implementation)
+3. Implement
+4. Contract tests must pass for ANY correct implementation
 
 ---
 
-## Тесты — Testing Trophy
+## Tests — Testing Trophy
 
-### Приоритет (Testing Trophy)
+### Priority (Testing Trophy)
 
+```text
+         /  E2E  \          ← targeted, critical flows
+        / Integration \      ← PRIMARY FOCUS
+       /    Unit Tests   \   ← pure logic, edge cases
+      / Static Analysis    \ ← type checking and linting — always
 ```
-         /  E2E  \          ← точечно, критические flows
-        / Integration \      ← ОСНОВНОЙ ФОКУС
-       /    Unit Tests   \   ← чистая логика, edge cases
-      / Static Analysis    \ ← type checking, linting — всегда
-```
 
-- **Интеграционные (основной фокус):** реальные компоненты вместе, mock только внешние сервисы (DB, HTTP, файловая система). Если >5 mock'ов — кандидат на интеграционный тест
-- **Unit:** чистая логика, edge cases, граничные значения. Быстрые, изолированные
-- **E2E:** только критические user flows. Дорогие, хрупкие — минимум
-- **Static:** type checking, linting — всегда, на каждый коммит
+- **Integration tests (primary focus):** real components together, mock only external services (DB, HTTP, filesystem). More than 5 mocks is a sign you likely need an integration test
+- **Unit tests:** pure logic, edge cases, boundaries. Fast and isolated
+- **E2E tests:** only critical user flows. Expensive and brittle — keep to a minimum
+- **Static analysis:** type checking and linting — always, on every commit
 
-### Правила написания тестов
+### Test-writing rules
 
-- **Имя = бизнес-требование**: `test_<что>_<условие>_<результат>`. Пример: `test_evidence_pack_caps_rel_facts_at_ten`
-- **Assert = бизнес-факт**: каждый assert проверяет конкретное требование или edge case
+- **Name = business requirement**: `test_<what>_<condition>_<result>`. Example: `test_evidence_pack_caps_rel_facts_at_ten`
+- **Assert = business fact**: every assert checks a specific requirement or edge case
 
 ```python
-# Плохо — бессмысленный assert
+# Bad — meaningless assert
 assert result is not None
 
-# Хорошо — проверяет бизнес-требование
+# Good — verifies a business requirement
 assert len(pack.rel_facts) <= 10
 assert encoder.sigma > 0
 assert loss < initial_loss * 0.8
 ```
 
-- **Мокать только внешние границы**: DB, HTTP API, файловая система, третьесторонние сервисы. Бизнес-логику НЕ мокать — использовать in-memory реализации
-- **Вариации через `@parametrize`**, не копипаста тестов
-- **Каждый тест = один сценарий**: не проверять 5 вещей в одном тесте
-- **Тест должен падать по одной причине**: если упал — сразу понятно что сломалось
-- **Arrange-Act-Assert**: чёткое разделение setup / действие / проверка
-- **Specification by Example**: требования как конкретные входы/выходы = готовые test cases
+- **Mock only external boundaries**: DB, HTTP APIs, filesystem, third-party services. Do NOT mock business logic — use in-memory implementations
+- **Use `@parametrize`** for variations instead of copying tests
+- **Each test = one scenario**: do not check five unrelated things in one test
+- **A test should fail for one reason**: when it fails, it should be obvious what broke
+- **Arrange-Act-Assert**: keep setup / action / verification clearly separated
+- **Specification by Example**: requirements expressed as concrete inputs/outputs become ready-made test cases
 
 ### Markers
 
-- `@pytest.mark.slow` — тесты >10 секунд (ML convergence, statistical)
-- `@pytest.mark.gpu` — требуют GPU
-- Проект-специфичные markers — в `RULES.MD` проекта
+- `@pytest.mark.slow` — tests longer than 10 seconds (ML convergence, statistical)
+- `@pytest.mark.gpu` — require a GPU
+- Project-specific markers belong in the project `RULES.MD`
 
 ### Coverage
 
-- Target: **85%+** общий
+- Target: **85%+** overall
 - Core/business logic: **95%+**
 - Infrastructure/adapters: **70%+**
-- Проект-специфичные targets по слоям — в `RULES.MD` проекта
+- Project-specific per-layer targets belong in the project `RULES.MD`
 
 ---
 
 ## Coding Standards
 
-### Общие
+### General
 
-- Полные импорты, valid syntax, complete functions — код copy-paste ready
-- Без placeholder'ов: никаких `TODO`, `...`, псевдокода
-- No new libraries/frameworks без явного запроса
-- Multi-file changes → план сначала, потом реализация
+- Full imports, valid syntax, complete functions — code must be copy-paste ready
+- No placeholders: no `TODO`, `...`, or pseudocode
+- No new libraries/frameworks without an explicit request
+- Multi-file changes → plan first, then implement
 
-### Рефакторинг
+### Refactoring
 
-- **Strangler Fig**: новый код оборачивает старый, замена поэтапно с тестами
-- Каждый шаг рефакторинга — тесты проходят. Никогда не ломать тесты "на время"
-- Переименование: найти ВСЕ использования (grep/IDE), не угадывать
+- **Strangler Fig**: new code wraps old code, then replaces it incrementally with tests
+- Every refactoring step keeps tests passing. Never break tests "temporarily"
+- Renames: find ALL usages (`grep`/IDE), do not guess
 
-### Архитектурные решения
+### Architectural decisions
 
-- Значимое решение → ADR (контекст → решение → альтернативы → последствия)
-- Перед архитектурным изменением — проверить существующие ADR
-- Если есть Memory Bank → ADR в `.memory-bank/BACKLOG.md`
+- Significant decision → ADR (context → decision → alternatives → consequences)
+- Before making an architectural change, check existing ADRs
+- If Memory Bank exists → put ADRs in `.memory-bank/BACKLOG.md`
 
-### Формат ответа
+### Response format
 
-- Структура: **Цель → Действие → Результат**
-- Если Memory Bank активен: `[MEMORY BANK: ACTIVE]` в начале
-- Код: полные функции, copy-paste ready, полные импорты
+- Structure: **Goal → Action → Result**
+- If Memory Bank is active: start with `[MEMORY BANK: ACTIVE]`
+- Code: full functions, copy-paste ready, complete imports
 
 ---
 
 ## ML: device, reproducibility, numerical hygiene
 
-**Device-agnostic:** запрещено `.cuda()`. Только `.to(config.device)`. Тесты = CPU.
+**Device-agnostic:** `.cuda()` is forbidden. Use only `.to(config.device)`. Tests run on CPU.
 
-**Seed:** фиксировать seed (random, numpy, torch, cuda) в начале каждого run.
+**Seed:** fix the seed (`random`, `numpy`, `torch`, `cuda`) at the start of every run.
 
-**Checkpoint:** weights + optimizer + config + metrics + git hash. Model version — mismatch при загрузке = error.
+**Checkpoint:** save weights + optimizer + config + metrics + git hash. Model version mismatch on load = error.
 
-**Numerics:** gradient clipping обязателен. NaN/Inf detection в debug. Running mean/std для reward normalization.
+**Numerics:** gradient clipping is mandatory. Enable NaN/Inf detection in debug. Use running mean/std for reward normalization.
 
-**Fail-fast:** NaN в loss, entropy→0 (policy collapse), OOM → немедленная остановка.
+**Fail-fast:** NaN in loss, entropy → 0 (policy collapse), or OOM → stop immediately.
 
-**Experiment lifecycle:** hypothesis (SMART) → baseline → одно изменение → run → compare (p-value, Cohen's d) → keep/rollback. Запрещено менять 2+ вещи без ablation.
+**Experiment lifecycle:** hypothesis (SMART) → baseline → one change → run → compare (`p-value`, `Cohen's d`) → keep/rollback. Changing 2+ things without ablation is forbidden.
 
 ---
 
-## Staged stubs (разрешены)
+## Staged stubs (allowed)
 
-Stub = полная реализация Protocol/Interface + docstring (что, чем заменяется, когда).
-Stub за feature flag. Без feature flag — не stub, а production code.
+A stub = a complete Protocol/Interface implementation + docstring (what it does, what replaces it, when).
+A stub must be behind a feature flag. Without a feature flag, it is not a stub; it is production code.
 
 ---
 
@@ -308,186 +310,196 @@ Stub за feature flag. Без feature flag — не stub, а production code.
 
 ---
 
-## Skill и инструменты
+## Skill and Tools
 
 **Skill**: `memory-bank` (`~/.claude/skills/memory-bank/`)
-**Шаблоны**: `~/.claude/skills/memory-bank/references/templates.md`
+**Templates**: `~/.claude/skills/memory-bank/references/templates.md`
 **Workflow**: `~/.claude/skills/memory-bank/references/workflow.md`
-**Структура**: `~/.claude/skills/memory-bank/references/structure.md`
-**Subagent**: MB Manager (sonnet) — для механической актуализации. Prompt: `~/.claude/skills/memory-bank/agents/mb-manager.md`
+**Structure**: `~/.claude/skills/memory-bank/references/structure.md`
+**Subagent**: MB Manager (sonnet) — for mechanical actualization. Prompt: `~/.claude/skills/memory-bank/agents/mb-manager.md`
 **Plan Verifier**: `~/.claude/skills/memory-bank/agents/plan-verifier.md`
 
 ---
 
-## Команды /mb
+## `/mb` Commands
 
-| Команда | Описание |
-|---------|----------|
-| `/mb` или `/mb context` | Собрать контекст проекта (статус, чеклист, план) |
-| `/mb start` | Расширенный старт сессии (контекст + активный план целиком) |
-| `/mb search <query>` | Поиск информации в банке по ключевым словам |
-| `/mb note <topic>` | Создать заметку по теме |
-| `/mb update` | Актуализировать core files (checklist, plan, status) |
-| `/mb tasks` | Показать незавершённые задачи |
-| `/mb index` | Реестр всех записей в банке (core files + notes/plans/experiments/reports с количеством) |
-| `/mb done` | Завершение сессии (actualize + note + progress) |
-| `/mb plan <type> <topic>` | Создать план (type: feature, fix, refactor, experiment) |
-| `/mb verify` | Верификация выполнения плана (план vs код, все DoD). **ОБЯЗАТЕЛЬНО** перед `/mb done` если работа велась по плану |
-| `/mb init` | Инициализировать Memory Bank в новом проекте |
+
+| Command                   | Description                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `/mb` or `/mb context`    | Gather project context (status, checklist, plan)                                                             |
+| `/mb start`               | Extended session start (context + full active plan)                                                          |
+| `/mb search <query>`      | Search the bank by keywords                                                                                  |
+| `/mb note <topic>`        | Create a note for the topic                                                                                  |
+| `/mb update`              | Actualize core files (`checklist`, `plan`, `status`)                                                         |
+| `/mb tasks`               | Show unfinished tasks                                                                                        |
+| `/mb index`               | Registry of all bank entries (core files + notes/plans/experiments/reports with counts)                      |
+| `/mb done`                | End the session (actualize + note + progress)                                                                |
+| `/mb plan <type> <topic>` | Create a plan (`type`: `feature`, `fix`, `refactor`, `experiment`)                                           |
+| `/mb verify`              | Verify plan execution (plan vs code, all DoD items). **MANDATORY** before `/mb done` if work followed a plan |
+| `/mb init`                | Initialize Memory Bank in a new project                                                                      |
+
 
 ---
 
-## Структура `.memory-bank/`
+## `.memory-bank/` Structure
 
-**Ядро (читать каждую сессию):**
+**Core (read every session):**
 
-| Файл | Назначение | Когда обновлять |
-|------|-----------|-----------------|
-| `STATUS.md` | Где мы, roadmap, ключевые метрики, gates | Завершён этап, сдвинулся roadmap, изменились метрики |
-| `checklist.md` | Текущие задачи ✅/⬜ | Каждую сессию, сразу при завершении задачи |
-| `plan.md` | Приоритеты, направление | Когда меняется вектор/фокус |
-| `RESEARCH.md` | Реестр гипотез + findings + текущий эксперимент | При изменении статуса гипотезы или нового finding |
 
-**Детальные записи (читать по запросу):**
+| File           | Purpose                                             | When to update                                          |
+| -------------- | --------------------------------------------------- | ------------------------------------------------------- |
+| `STATUS.md`    | Where we are, roadmap, key metrics, gates           | Stage completed, roadmap shifted, metrics changed       |
+| `checklist.md` | Current tasks ✅/⬜                                   | Every session, immediately when a task is completed     |
+| `plan.md`      | Priorities and direction                            | When the focus/vector changes                           |
+| `RESEARCH.md`  | Hypothesis registry + findings + current experiment | When hypothesis status changes or a new finding appears |
 
-| Файл / Папка | Назначение | Когда обновлять |
-|--------------|-----------|-----------------|
-| `BACKLOG.md` | Идеи, ADR, отклонённое | Когда появляется идея или архитектурное решение |
-| `progress.md` | Выполненная работа по датам | Конец сессии (append-only) |
-| `lessons.md` | Повторяющиеся ошибки, антипаттерны | Когда замечен паттерн |
-| `experiments/` | `EXP-NNN_<n>.md` — детальные записи ML экспериментов | При завершении эксперимента |
-| `plans/` | `YYYY-MM-DD_<type>_<n>.md` — детальные планы | Перед сложной работой |
-| `reports/` | `YYYY-MM-DD_<type>_<n>.md` — отчёты | Когда полезно будущим сессиям |
-| `notes/` | `YYYY-MM-DD_HH-MM_<тема>.md` — заметки по задачам | По завершении задачи |
+
+**Detailed records (read on demand):**
+
+
+| File / Folder  | Purpose                                           | When to update                                    |
+| -------------- | ------------------------------------------------- | ------------------------------------------------- |
+| `BACKLOG.md`   | Ideas, ADRs, rejected items                       | When a new idea or architectural decision appears |
+| `progress.md`  | Completed work by date                            | End of session (append-only)                      |
+| `lessons.md`   | Repeated mistakes, anti-patterns                  | When a pattern is noticed                         |
+| `experiments/` | `EXP-NNN_<n>.md` — detailed ML experiment records | When an experiment is completed                   |
+| `plans/`       | `YYYY-MM-DD_<type>_<n>.md` — detailed plans       | Before complex work                               |
+| `reports/`     | `YYYY-MM-DD_<type>_<n>.md` — reports              | When useful for future sessions                   |
+| `notes/`       | `YYYY-MM-DD_HH-MM_<topic>.md` — task notes        | After completing a task                           |
+
 
 ---
 
 ## Workflow
 
-### `/mb start` — начало сессии
+### `/mb start` — start of session
 
-1. Проверить `.memory-bank/` существует → `[MEMORY BANK: ACTIVE]`
-2. Читать 4 core files:
-   - `STATUS.md` → где мы в проекте, roadmap, gates
-   - `checklist.md` → текущие задачи (⬜/✅)
-   - `plan.md` → приоритеты и направление
-   - `RESEARCH.md` → какие гипотезы активны, текущий эксперимент
-3. Резюмировать фокус в 1-3 предложения
-4. Если есть активный план в `plans/` → прочитать его целиком
+1. Check whether `.memory-bank/` exists → `[MEMORY BANK: ACTIVE]`
+2. Read the 4 core files:
+  - `STATUS.md` → where we are in the project, roadmap, gates
+  - `checklist.md` → current tasks (⬜/✅)
+  - `plan.md` → priorities and direction
+  - `RESEARCH.md` → which hypotheses are active, current experiment
+3. Summarize the focus in 1-3 sentences
+4. If there is an active plan in `plans/` → read it in full
 
-### Во время работы — когда обновлять файлы
+### During work — when to update files
 
-| Событие | Действие |
-|---------|----------|
-| Завершена задача из checklist | `checklist.md`: ⬜ → ✅ (сразу, не откладывать) |
-| Новая задача обнаружена | `checklist.md`: + ⬜ новая задача |
-| Завершён этап / milestone | `STATUS.md`: обновить roadmap и метрики |
-| Сдвинулся roadmap | `STATUS.md`: перенести пункты между секциями |
-| Изменились ключевые метрики | `STATUS.md`: обновить секцию метрик |
-| Новая гипотеза | `RESEARCH.md`: строка в таблицу (📋 PLANNED) |
-| Начало ML эксперимента | `experiments/EXP-NNN_<n>.md` + статус 🔬 в RESEARCH.md |
-| Эксперимент завершён | RESEARCH.md: статус ✅/🔴/⚠️ + finding. experiments/: результаты |
-| Архитектурное решение | `BACKLOG.md`: ADR-NNN (контекст → решение → альтернативы) |
-| Детальная многоэтапная работа | `plans/`: файл через `/mb plan <type> <topic>` |
-| Замеченный антипаттерн | `lessons.md`: запись с контекстом |
-| Сменился фокус/приоритеты | `plan.md`: обновить |
 
-### `/mb done` — завершение сессии
+| Event                            | Action                                                           |
+| -------------------------------- | ---------------------------------------------------------------- |
+| A checklist task is completed    | `checklist.md`: ⬜ → ✅ (immediately, do not postpone)             |
+| A new task is discovered         | `checklist.md`: add a new ⬜ task                                 |
+| A stage / milestone is completed | `STATUS.md`: update roadmap and metrics                          |
+| Roadmap changed                  | `STATUS.md`: move items between sections                         |
+| Key metrics changed              | `STATUS.md`: update the metrics section                          |
+| New hypothesis                   | `RESEARCH.md`: add a table row (`📋 PLANNED`)                    |
+| Start of an ML experiment        | `experiments/EXP-NNN_<n>.md` + status 🔬 in `RESEARCH.md`        |
+| Experiment completed             | `RESEARCH.md`: status ✅/🔴/⚠️ + finding. `experiments/`: results |
+| Architectural decision           | `BACKLOG.md`: ADR-NNN (context → decision → alternatives)        |
+| Detailed multi-stage work        | `plans/`: create a file via `/mb plan <type> <topic>`            |
+| Anti-pattern noticed             | `lessons.md`: add an entry with context                          |
+| Focus/priorities changed         | `plan.md`: update it                                             |
 
-1. **Если работа велась по плану** → `/mb verify` **ОБЯЗАТЕЛЬНО** перед `/mb done`:
-   - Plan Verifier перечитает план, проверит `git diff`, найдёт расхождения
-   - CRITICAL → исправить обязательно
-   - WARNING → на усмотрение (спросить пользователя)
-2. `checklist.md`: отметить завершённое ✅, добавить новое ⬜
-3. `progress.md`: дописать в конец (APPEND-ONLY, никогда не удалять старое)
-4. `STATUS.md`: обновить если milestone или сдвинулся roadmap
-5. `RESEARCH.md`: обновить если ML результаты (статус гипотезы, finding)
-6. `lessons.md`: добавить если обнаружен антипаттерн
-7. `BACKLOG.md`: добавить если идея или ADR
-8. `plan.md`: обновить если сменился фокус
-9. `notes/`: создать заметку по завершённой работе
 
-### `/mb update` — промежуточная актуализация
+### `/mb done` — end of session
 
-Подмножество `/mb done`: обновляет только core files (checklist, plan, status).
-Без создания note и без записи в progress.
-Вызывать когда: закончен промежуточный этап, но сессия продолжается.
+1. **If work followed a plan** → run `/mb verify` **MANDATORILY** before `/mb done`:
+  - Plan Verifier rereads the plan, checks `git diff`, and finds mismatches
+  - CRITICAL → must be fixed
+  - WARNING → optional / user decision
+2. `checklist.md`: mark completed items ✅, add new items ⬜
+3. `progress.md`: append to the end (APPEND-ONLY, never delete old entries)
+4. `STATUS.md`: update if a milestone completed or the roadmap changed
+5. `RESEARCH.md`: update if there are ML results (hypothesis status, finding)
+6. `lessons.md`: add an entry if an anti-pattern was found
+7. `BACKLOG.md`: add an item if there is a new idea or ADR
+8. `plan.md`: update if the focus changed
+9. `notes/`: create a note for the completed work
 
-### Перед compaction
+### `/mb update` — intermediate actualization
 
-Вызвать `/mb update` чтобы сохранить текущий прогресс ДО сжатия контекста.
+Subset of `/mb done`: updates only the core files (`checklist`, `plan`, `status`).
+No note creation and no `progress` entry.
+Use when: an intermediate stage is finished but the session continues.
 
----
+### Before compaction
 
-## Edge cases: notes/ vs reports/
-
-**notes/ — создавать когда:**
-
-- Завершена конкретная задача или этап
-- Обнаружено переиспользуемое знание (паттерн, решение, workaround)
-- Формат: 5-15 строк, фокус на **выводах и паттернах**, не на хронологии
-- Имя: `YYYY-MM-DD_HH-MM_<тема>.md`
-
-**notes/ — НЕ создавать когда:**
-
-- Тривиальные изменения (опечатки, форматирование)
-- Exploratory prototype, который не дал полезного знания
-- Информация уже зафиксирована в lessons.md или RESEARCH.md
-
-**reports/ — создавать когда:**
-
-- Полный отчёт полезен будущим сессиям (больше чем note)
-- Анализ результатов эксперимента (дополнение к experiments/)
-- Сравнительный анализ подходов
-- Post-mortem инцидента
-- Свободный формат, подробнее чем notes/
+Run `/mb update` to save current progress BEFORE context compression.
 
 ---
 
-## /mb index — реестр записей
+## Edge cases: `notes/` vs `reports/`
 
-Показывает: core files (с числом строк и датой модификации) + списки notes/, plans/, experiments/, reports/ с количеством файлов.
-Скрипт: `~/.claude/skills/memory-bank/scripts/mb-index.sh`.
+**Create `notes/` entries when:**
 
----
+- A specific task or stage is completed
+- Reusable knowledge is discovered (pattern, solution, workaround)
+- Format: 5-15 lines, focused on **conclusions and patterns**, not chronology
+- Name: `YYYY-MM-DD_HH-MM_<topic>.md`
 
-## Кто обновляет файлы
+**Do NOT create `notes/` entries when:**
 
-| Работа | Кто |
-|--------|-----|
-| Механическая актуализация (checklist ⬜→✅, progress append, STATUS метрики) | MB Manager (sonnet subagent) |
-| Создание планов (plans/) | Главный агент (требует глубины, DoD, TDD) |
-| Архитектурные решения (ADR) | Главный агент формулирует → MB Manager сохраняет в BACKLOG.md |
-| ML результаты (интерпретация) | Главный агент интерпретирует → MB Manager обновляет RESEARCH.md |
+- Changes are trivial (typos, formatting)
+- An exploratory prototype produced no useful knowledge
+- The information is already captured in `lessons.md` or `RESEARCH.md`
 
----
+**Create `reports/` when:**
 
-## Ключевые правила
-
-- `progress.md` = **APPEND-ONLY** (никогда не удалять/редактировать старое)
-- Нумерация сквозная: H-NNN, EXP-NNN, ADR-NNN (не переиспользовать)
-- notes/ = знания и паттерны (5-15 строк), **не хронология**
-- checklist: ✅ = done, ⬜ = todo. Обновлять **сразу** при завершении задачи
-- Каждая гипотеза: метрика + порог (target) + ссылка на EXP после проверки
-- Запрещено: гипотеза без метрики, эксперимент без гипотезы
-- Finding = подтверждённый факт после stat. significant результата. Не удаляется
+- A full report is useful for future sessions (larger than a note)
+- Experiment result analysis is needed (in addition to `experiments/`)
+- Comparative analysis of approaches is needed
+- An incident post-mortem is needed
+- The content needs to be freer-form and more detailed than a note
 
 ---
 
-## Форматы файлов (кратко)
+## `/mb index` — entry registry
 
-Полные шаблоны → `~/.claude/skills/memory-bank/references/templates.md`
+Shows: core files (with line count and modification date) + lists of `notes/`, `plans/`, `experiments/`, `reports/` with file counts.
+Script: `~/.claude/skills/memory-bank/scripts/mb-index.sh`.
+
+---
+
+## Who updates files
+
+
+| Work                                                                            | Owner                                                     |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Mechanical actualization (`checklist` ⬜→✅, `progress` append, `STATUS` metrics) | MB Manager (sonnet subagent)                              |
+| Plan creation (`plans/`)                                                        | Main agent (requires depth, DoD, TDD)                     |
+| Architectural decisions (ADR)                                                   | Main agent formulates → MB Manager stores in `BACKLOG.md` |
+| ML result interpretation                                                        | Main agent interprets → MB Manager updates `RESEARCH.md`  |
+
+
+---
+
+## Key Rules
+
+- `progress.md` = **APPEND-ONLY** (never delete/edit old entries)
+- Numbering is global: H-NNN, EXP-NNN, ADR-NNN (never reuse)
+- `notes/` = knowledge and patterns (5-15 lines), **not chronology**
+- `checklist`: ✅ = done, ⬜ = todo. Update **immediately** when a task is completed
+- Each hypothesis must have: metric + threshold (`target`) + EXP reference after verification
+- Forbidden: a hypothesis without a metric, an experiment without a hypothesis
+- A Finding = a confirmed fact after a statistically significant result. Do not delete it
+
+---
+
+## File Formats (short)
+
+Full templates → `~/.claude/skills/memory-bank/references/templates.md`
 
 ### STATUS.md
 
 ```markdown
-# <Проект>: Статус
+# <Project>: Status
 
-## Текущая фаза
-## Ключевые метрики
-## Roadmap (✅ Завершено / 🔄 В процессе / 📋 Следующее / 🔮 Горизонт)
-## Gates (критерии перехода)
-## Известные ограничения
+## Current Phase
+## Key Metrics
+## Roadmap (✅ Done / 🔄 In Progress / 📋 Next / 🔮 Horizon)
+## Gates (phase transition criteria)
+## Known Constraints
 ```
 
 ### RESEARCH.md
@@ -495,28 +507,29 @@ Stub за feature flag. Без feature flag — не stub, а production code.
 ```markdown
 # Research Log
 
-## Гипотезы
-| ID | Гипотеза | Статус | Метрика | Target | Результат | EXP |
-Статусы: 📋 PLANNED → 🔬 TESTING → ✅ CONFIRMED / 🔴 REFUTED / ⚠️ INCONCLUSIVE
+## Hypotheses
+| ID | Hypothesis | Status | Metric | Target | Result | EXP |
+Statuses: 📋 PLANNED → 🔬 TESTING → ✅ CONFIRMED / 🔴 REFUTED / ⚠️ INCONCLUSIVE
 
-## Подтверждённые факты
-## Текущий эксперимент
+## Confirmed Findings
+## Current Experiment
 ```
 
 ### BACKLOG.md
 
 ```markdown
-## Идеи (HIGH / MEDIUM / LOW)
-## Архитектурные решения (ADR)
-## Отклонённые идеи
+## Ideas (HIGH / MEDIUM / LOW)
+## Architectural Decisions (ADR)
+## Rejected Ideas
 ```
 
 ### experiments/EXP-NNN
 
 ```markdown
-## Meta (дата, гипотезы, git hash, config, hardware)
-## Setup (arms, epochs, параметры)
-## Results (таблица метрик)
+## Meta (date, hypotheses, git hash, config, hardware)
+## Setup (arms, epochs, parameters)
+## Results (metrics table)
 ## Statistical Tests (Welch t-test, Cohen's d, p-value)
-## Выводы + Решение (Keep / Rollback / Повторить)
+## Conclusions + Decision (Keep / Rollback / Repeat)
 ```
+

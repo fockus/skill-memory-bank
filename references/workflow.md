@@ -1,125 +1,125 @@
 # Memory Bank — Workflow
 
-## Начало сессии
+## Session start
 
-```
-1. Проверь существование .memory-bank/
-   ├── Да → [MEMORY BANK: ACTIVE]
-   │   ├── Запусти mb-context.sh или /mb start
-   │   ├── Прочитай: STATUS.md, plan.md, checklist.md, RESEARCH.md
-   │   └── Резюмируй фокус в 1-3 предложения
-   └── Нет → [MEMORY BANK: INACTIVE], работай без банка
-```
-
-## Во время работы
-
-### Когда обновлять каждый файл
-
-```
-checklist.md    ← Каждую завершённую задачу (⬜ → ✅)
-                   Каждую новую задачу (+ ⬜ <задача>)
-
-STATUS.md       ← Завершён этап или milestone
-                   Изменились ключевые метрики (тесты, coverage, reward)
-                   Сдвинулся roadmap
-
-plan.md         ← Сменился фокус или приоритеты
-                   Завершена текущая фаза, начинается новая
-
-RESEARCH.md     ← Новая гипотеза (H-NNN)
-                   Эксперимент завершён (результат + вывод)
-                   Новый finding
-
-BACKLOG.md      ← Новая идея (HIGH/LOW)
-                   Архитектурное решение (ADR-NNN)
-
-lessons.md      ← Обнаружен антипаттерн или повторяющаяся ошибка
-                   Инсайт из ML эксперимента
-
-progress.md     ← Конец сессии (APPEND-ONLY)
+```text
+1. Check whether .memory-bank/ exists
+   ├── Yes → [MEMORY BANK: ACTIVE]
+   │   ├── Run mb-context.sh or /mb start
+   │   ├── Read: STATUS.md, plan.md, checklist.md, RESEARCH.md
+   │   └── Summarize focus in 1-3 sentences
+   └── No → [MEMORY BANK: INACTIVE], work without the bank
 ```
 
-### Когда создавать файлы
+## During work
 
-```
-notes/          ← Завершена задача или этап
-                   Обнаружено нечто переиспользуемое
-                   Знания, не хронология (5-15 строк)
+### When to update each file
 
-experiments/    ← Перед запуском ML эксперимента
-                   Формат: гипотеза → baseline → одно изменение → метрики
+```text
+checklist.md    ← Every completed task (⬜ → ✅)
+                   Every newly discovered task (+ ⬜ <task>)
 
-plans/          ← Перед сложной многоэтапной работой
-                   Формат: контекст → этапы (DoD, TDD) → риски → gate
-                   ⚠️ ПОСЛЕ создания плана обновить plan.md + STATUS.md + checklist.md
+STATUS.md       ← A stage or milestone completes
+                   Key metrics changed (tests, coverage, reward)
+                   Roadmap moved
 
-reports/        ← Когда полный отчёт полезен будущим сессиям
-```
+plan.md         ← Focus or priorities changed
+                   Current phase completed, new phase starts
 
-### Консистентность планов (ОБЯЗАТЕЛЬНО)
+RESEARCH.md     ← New hypothesis (H-NNN)
+                   Experiment finished (result + conclusion)
+                   New finding
 
-```
-При создании нового плана (/mb plan):
-    plans/<файл>.md  → создать детальный план
-    plan.md          → обновить "Active plan" + фокус
-    STATUS.md        → обновить roadmap ("В процессе")
-    checklist.md     → добавить задачи как ⬜ пункты
+BACKLOG.md      ← New idea (HIGH/LOW)
+                   Architectural decision (ADR-NNN)
 
-При завершении плана:
-    plans/<файл>.md  → перенести в plans/done/
-    plan.md          → убрать/сменить "Active plan"
-    STATUS.md        → перенести в "Завершено"
-    checklist.md     → все задачи плана = ✅
+lessons.md      ← Anti-pattern or repeated mistake detected
+                   Insight from an ML experiment
 
-Цепочка: plan.md → plans/<файл>.md → checklist.md → STATUS.md
-Все 4 файла ОБЯЗАНЫ быть синхронизированы.
+progress.md     ← End of session (APPEND-ONLY)
 ```
 
-### Decision tree: кто обновляет
+### When to create files
 
+```text
+notes/          ← A task or stage completed
+                   Something reusable was discovered
+                   Knowledge, not chronology (5-15 lines)
+
+experiments/    ← Before running an ML experiment
+                   Format: hypothesis → baseline → one change → metrics
+
+plans/          ← Before complex multi-stage work
+                   Format: context → stages (DoD, TDD) → risks → gate
+                   ⚠️ AFTER creating the plan, update plan.md + STATUS.md + checklist.md
+
+reports/        ← When a full report will be useful to future sessions
 ```
-Механическая актуализация (checklist, progress, STATUS метрики)
+
+### Plan consistency (REQUIRED)
+
+```text
+When creating a new plan (/mb plan):
+    plans/<file>.md  → create the detailed plan
+    plan.md          → update "Active plan" + focus
+    STATUS.md        → update roadmap ("In progress")
+    checklist.md     → add tasks as ⬜ items
+
+When completing a plan:
+    plans/<file>.md  → move to plans/done/
+    plan.md          → clear/change "Active plan"
+    STATUS.md        → move it to "Completed"
+    checklist.md     → all tasks in the plan = ✅
+
+Chain: plan.md → plans/<file>.md → checklist.md → STATUS.md
+All 4 files MUST stay synchronized.
+```
+
+### Decision tree: who updates what
+
+```text
+Mechanical actualization (checklist, progress, STATUS metrics)
     → MB Manager (Sonnet subagent)
 
-Создание планов (plans/)
-    → Главный агент (требует глубины)
+Plan creation (plans/)
+    → Main agent (requires deeper reasoning)
 
-Архитектурные решения (ADR)
-    → Главный агент формулирует + MB Manager сохраняет в BACKLOG.md
+Architectural decisions (ADR)
+    → Main agent formulates + MB Manager stores in BACKLOG.md
 
-ML результаты
-    → Главный агент интерпретирует + MB Manager обновляет RESEARCH.md
+ML results
+    → Main agent interprets + MB Manager updates RESEARCH.md
 ```
 
-## Завершение сессии
+## Session finish
 
+```text
+1. If work followed a plan:
+   ├── /mb verify — REQUIRED before closing
+   │   ├── Plan Verifier rereads the plan, checks git diff
+   │   ├── CRITICAL → must fix
+   │   └── WARNING → ask the user
+   └── Only after verification → /mb done
+
+2. Run /mb done or MB Manager (actualize + note):
+   ├── checklist.md: mark completed ✅, add new ⬜
+   ├── progress.md: append at the end (APPEND-ONLY)
+   ├── STATUS.md: update if milestone changed
+   ├── RESEARCH.md: update if there are ML results
+   ├── lessons.md: add if an anti-pattern was found
+   ├── BACKLOG.md: add if there is an idea/ADR
+   ├── plan.md: update if focus changed
+   └── notes/: create a note about the completed work
+
+3. Or manually:
+   ├── /mb update (actualize core files)
+   └── /mb note <topic> (write a note)
 ```
-1. Если работа велась по плану:
-   ├── /mb verify — ОБЯЗАТЕЛЬНО перед закрытием
-   │   ├── Plan Verifier перечитает план, проверит git diff
-   │   ├── CRITICAL → исправить
-   │   └── WARNING → спросить пользователя
-   └── Только после верификации → /mb done
 
-2. Вызови /mb done или MB Manager (actualize + note):
-   ├── checklist.md: отметь завершённое ✅, добавь новое ⬜
-   ├── progress.md: дописывай в конец (APPEND-ONLY)
-   ├── STATUS.md: обнови если milestone
-   ├── RESEARCH.md: обнови если ML результаты
-   ├── lessons.md: добавь если антипаттерн
-   ├── BACKLOG.md: добавь если идея/ADR
-   ├── plan.md: обнови если сменился фокус
-   └── notes/: создай заметку по завершённой работе
+## Before compaction
 
-3. Или вручную:
-   ├── /mb update (актуализация core files)
-   └── /mb note <topic> (заметка)
-```
-
-## Перед compaction
-
-```
-1. Вызови MB Manager (action: actualize) для сохранения текущего прогресса
-2. Все знания из сессии должны быть в банке ДО compaction
-3. После compaction — /mb start для восстановления контекста
+```text
+1. Run MB Manager (action: actualize) to save current progress
+2. All useful knowledge from the session must be in the bank BEFORE compaction
+3. After compaction — run /mb start to restore context
 ```

@@ -1,75 +1,75 @@
 ---
-description: Добавление structured logging, metrics, tracing в модуль
+description: Add structured logging, metrics, and tracing to a module
 allowed-tools: [Read, Glob, Grep, Bash, Write]
 ---
 
 # Observability: $ARGUMENTS
 
-## 1. Анализ текущего состояния
+## 1. Analyze the current state
 
 ```bash
-# Логирование
+# Logging
 grep -rn "log\.\|logger\.\|logging\.\|fmt\.Print\|console\.log\|print(" \
   --include="*.go" --include="*.py" --include="*.ts" . | head -30
 
-# Метрики
+# Metrics
 grep -rn "prometheus\|metrics\|statsd\|datadog" . | head -20
 
 # Tracing
 grep -rn "opentelemetry\|jaeger\|zipkin\|trace\.\|span\." . | head -20
 
-# Текущие зависимости
+# Current dependencies
 grep -E "zerolog|zap|slog|logrus|structlog|pino" go.mod package.json requirements.txt 2>/dev/null
 ```
 
 ## 2. Structured Logging
 
-### Go (zerolog / slog)
-- Замени `fmt.Println` / `log.Println` на structured logger
-- Обязательные поля: timestamp, level, message, request_id, error (если есть)
-- Уровни: DEBUG (dev), INFO (бизнес-события), WARN (recoverable), ERROR (failures)
-- JSON формат для production
+### Go (`zerolog` / `slog`)
+- Replace `fmt.Println` / `log.Println` with a structured logger
+- Required fields: `timestamp`, `level`, `message`, `request_id`, `error` (if present)
+- Levels: `DEBUG` (dev), `INFO` (business events), `WARN` (recoverable), `ERROR` (failures)
+- Use JSON format for production
 
-### Python (structlog)
-- Замени `print()` / `logging.info()` на structured logger
-- JSON формат для production, colored для dev
+### Python (`structlog`)
+- Replace `print()` / `logging.info()` with a structured logger
+- Use JSON for production and colored output for local development
 
-### Требования
-- Логи НЕ содержат PII / secrets
-- Каждый лог имеет correlation ID (request_id / trace_id)
-- Error логи включают stack trace
+### Requirements
+- Logs must NOT contain PII or secrets
+- Every log entry must include a correlation ID (`request_id` / `trace_id`)
+- Error logs must include a stack trace
 
 ## 3. Metrics (Prometheus)
 
-Добавь метрики:
+Add metrics:
 - `http_requests_total` — counter by method, path, status
 - `http_request_duration_seconds` — histogram by method, path
-- Бизнес-метрики: registrations, orders, payments (counter)
-- Go runtime: goroutines, memory (автоматически через promhttp)
+- Business metrics: registrations, orders, payments (counter)
+- Go runtime: goroutines, memory (automatic via `promhttp`)
 
-Требования:
-- Bounded cardinality (НЕ user_id / email в labels)
-- Middleware/interceptor подход (не inline в handlers)
+Requirements:
+- Bounded cardinality (NEVER use `user_id` / `email` as labels)
+- Middleware/interceptor approach (not inline inside handlers)
 
 ## 4. Tracing (OpenTelemetry)
 
-Добавь spans:
-- HTTP handler (автоматически через middleware)
+Add spans:
+- HTTP handler (automatically via middleware)
 - DB queries
 - External API calls
-- Ключевые бизнес-операции
+- Key business operations
 
-Требования:
-- Context propagation через весь стек
-- Sampling для production (не 100%)
-- Trace ID в логах для корреляции
+Requirements:
+- Context propagation across the full stack
+- Production sampling (not 100%)
+- Trace ID in logs for correlation
 
-## 5. Проверка
+## 5. Verification
 
-- Нет PII/secrets в логах
-- Metrics имеют bounded cardinality
-- Traces имеют sampling
-- Всё подключается через middleware (не inline в бизнес-логику)
-- Тесты не ломаются от добавления observability
+- No PII/secrets in logs
+- Metrics have bounded cardinality
+- Traces use sampling
+- Everything is wired through middleware (not inline in business logic)
+- Tests do not break because observability was added
 
-Если есть `./.memory-bank/` — заметка в `notes/`.
+If `./.memory-bank/` exists, add a note in `notes/`.

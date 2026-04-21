@@ -26,6 +26,9 @@ RULES_FILE="$CLINE_DIR/memory-bank.md"
 HOOKS_DIR="$CLINE_DIR/hooks"
 MANIFEST="$CLINE_DIR/.mb-manifest.json"
 
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_lib_agents_md.sh"
+
 require_jq() { command -v jq >/dev/null 2>&1 || { echo "[cline-adapter] jq required" >&2; exit 1; }; }
 
 # ═══ Hook bodies ═══
@@ -162,7 +165,7 @@ install_cline() {
       echo ''
       echo '# Global Rules'
       echo ''
-      cat "$SKILL_DIR/rules/RULES.md"
+      mb_emit_rules_file "$SKILL_DIR/rules/RULES.md"
     fi
   } > "$RULES_FILE"
 

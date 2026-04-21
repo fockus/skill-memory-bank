@@ -1,129 +1,135 @@
 ---
-description: Составляет детальный план работы с DoD и сохраняет в memory-bank
+
+## description: Creates a detailed work plan with DoD and saves it in memory-bank
 allowed-tools: [Read, Glob, Grep, Bash, Write]
----
 
-# Планирование: $ARGUMENTS
+# Planning: $ARGUMENTS
 
-## 0. Подготовка
+## 0. Preparation
 
-Прочитай перед началом:
-1. `~/.claude/CLAUDE.md` — глобальные правила
-2. `./.memory-bank/plan.md` — текущие приоритеты (если есть)
-3. `./.memory-bank/checklist.md` — текущие задачи (если есть)
-4. `./.memory-bank/lessons.md` — известные антипаттерны (если есть)
+Read before you start:
 
-Изучи кодовую базу в контексте задачи:
+1. `~/.claude/CLAUDE.md` — global rules
+2. `./.memory-bank/plan.md` — current priorities (if present)
+3. `./.memory-bank/checklist.md` — current tasks (if present)
+4. `./.memory-bank/lessons.md` — known anti-patterns (if present)
+
+Study the codebase in the context of the task:
+
 ```bash
-# Структура проекта
+# Project structure
 find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/venv/*' -not -path '*/__pycache__/*' | head -200
 ```
 
-Найди и прочитай файлы, релевантные теме "$ARGUMENTS".
+Find and read the files relevant to the topic `"$ARGUMENTS"`.
 
-## 1. Анализ
+## 1. Analysis
 
-Перед написанием плана ответь себе:
-- Какую проблему решаем?
-- Какие компоненты системы затронуты?
-- Какие зависимости и ограничения существуют?
-- Какие риски и неизвестные?
-- Как это вписывается в текущую архитектуру (Clean Architecture)?
+Before writing the plan, answer these questions:
 
-## 2. Составление плана
+- What problem are we solving?
+- Which system components are affected?
+- What dependencies and constraints exist?
+- What risks and unknowns are there?
+- How does this fit the current architecture (Clean Architecture)?
 
-Создай директорию если не существует:
+## 2. Draft the plan
+
+Create the directory if it does not exist:
+
 ```bash
 mkdir -p ./.memory-bank/plans
 ```
 
-Определи тип плана: feature | refactor | bugfix | research
+Determine the plan type: `feature | refactor | bugfix | research`
 
-Запиши в `./.memory-bank/plans/YYYY-MM-DD_<тип>_<название-через-дефисы>.md`:
+Write it to `./.memory-bank/plans/YYYY-MM-DD_<type>_<kebab-case-title>.md`:
 
 ```markdown
-# <Название задачи>
-Дата: YYYY-MM-DD
-Тип: feature | refactor | bugfix | research
-Статус: 🟡 В работе
+# <Task title>
+Date: YYYY-MM-DD
+Type: feature | refactor | bugfix | research
+Status: 🟡 In progress
 
-## Контекст
-<!-- Зачем это нужно, какую проблему решает, предпосылки -->
+## Context
+<!-- Why is this needed? What problem does it solve? What are the preconditions? -->
 
 ## Scope
-<!-- Что входит в задачу. Что явно НЕ входит -->
+<!-- What is in scope? What is explicitly out of scope? -->
 
-## Архитектурные решения
-<!-- Выбранный подход, паттерны, структура. Почему именно так -->
-<!-- ASCII-диаграмма если помогает -->
+## Architectural decisions
+<!-- Chosen approach, patterns, structure. Why this approach? -->
+<!-- Add an ASCII diagram if it helps -->
 
-## Этапы
+## Stages
 
-### Этап 1: <название>
-**Цель:** <что должно быть достигнуто — конкретно и измеримо>
-**Файлы:** <какие файлы создаются/меняются>
+### Stage 1: <title>
+**Goal:** <what must be achieved — concrete and measurable>
+**Files:** <which files are created/changed>
 
-**Реализация:**
-1. <шаг>
-2. <шаг>
+**Implementation:**
+1. <step>
+2. <step>
 3. ...
 
-**Тесты (TDD — пишутся ДО реализации):**
-- Unit: <что покрыть, какие сценарии>
-- Интеграционные: <взаимодействие каких компонентов проверить>
-- E2E: <какой пользовательский сценарий проверить> (если применимо)
+**Tests (TDD — written BEFORE implementation):**
+- Unit: <what to cover, which scenarios>
+- Integration: <which component interactions to verify>
+- E2E: <which user journey to validate> (if applicable)
 
 **DoD (Definition of Done):**
-- [ ] <критерий — Specific, Measurable, Achievable, Relevant, Time-bound>
-- [ ] <критерий>
-- [ ] Все unit-тесты написаны и проходят
-- [ ] Интеграционные тесты написаны и проходят (если применимо)
-- [ ] Нет нарушений SOLID / DRY / KISS
-- [ ] Зависимости направлены корректно (Clean Architecture)
-- [ ] Код прошёл self-review
+- [ ] <criterion — Specific, Measurable, Achievable, Relevant, Time-bound>
+- [ ] <criterion>
+- [ ] All unit tests are written and passing
+- [ ] Integration tests are written and passing (if applicable)
+- [ ] No `SOLID` / `DRY` / `KISS` violations
+- [ ] Dependency direction is correct (Clean Architecture)
+- [ ] Code passed self-review
 
-### Этап 2: <название>
-<!-- Та же структура -->
+### Stage 2: <title>
+<!-- Same structure -->
 
-### Этап N: Финальная проверка
-**Цель:** Убедиться что всё работает вместе
+### Stage N: Final verification
+**Goal:** Verify that everything works together
 
-**Тесты:**
-- Полный прогон unit-тестов
-- Полный прогон интеграционных тестов
-- E2E тесты основных сценариев
+**Tests:**
+- Full unit test run
+- Full integration test run
+- E2E tests for the main user scenarios
 
 **DoD:**
-- [ ] Все тесты проходят
-- [ ] Coverage не ниже <порог>% (если настроен)
-- [ ] Нет TODO / FIXME / HACK в новом коде
-- [ ] Документация обновлена (если нужно)
-- [ ] Code review пройден (/user:review)
+- [ ] All tests pass
+- [ ] Coverage is not below <threshold>% (if configured)
+- [ ] No `TODO` / `FIXME` / `HACK` in new code
+- [ ] Documentation is updated (if needed)
+- [ ] Code review is complete (`/user:review`)
 
-## Риски и mitigation
-| Риск | Вероятность | Влияние | Mitigation |
+## Risks and mitigation
+| Risk | Probability | Impact | Mitigation |
 |------|-------------|---------|------------|
-| <риск> | Высокая/Средняя/Низкая | <что сломается> | <как предотвратить> |
+| <risk> | High/Medium/Low | <what might break> | <how to prevent it> |
 
-## Зависимости
-<!-- Внешние зависимости, блокеры, что нужно от других -->
+## Dependencies
+<!-- External dependencies, blockers, and what is needed from others -->
 
-## Оценка
-<!-- Грубая оценка трудоёмкости по этапам -->
+## Estimate
+<!-- Rough effort estimate by stage -->
 ```
 
-## 3. Обновление Memory Bank
+## 3. Update Memory Bank
 
-После создания плана:
-1. Обнови `./.memory-bank/checklist.md` — добавь задачи из плана как ⬜
-2. Обнови `./.memory-bank/plan.md` — добавь ссылку на новый план и обнови приоритеты
-3. Создай заметку `./.memory-bank/notes/YYYY-MM-DD_HH-MM_plan-<тема>.md` с кратким резюме плана (5-10 строк)
+After creating the plan:
 
-## Требования к качеству плана
+1. Update `./.memory-bank/checklist.md` — add tasks from the plan as ⬜ items
+2. Update `./.memory-bank/plan.md` — add a link to the new plan and refresh priorities
+3. Create a note at `./.memory-bank/notes/YYYY-MM-DD_HH-MM_plan-<topic>.md` with a short summary of the plan (5-10 lines)
 
-- Каждый этап атомарный — можно взять и сделать независимо
-- DoD конкретные и проверяемые — никаких "код хорошего качества"
-- Тесты описаны ДО реализации в каждом этапе (TDD)
-- Этапы упорядочены по зависимостям — нельзя начать этап 3 не завершив этап 1
-- Каждый DoD-критерий отвечает на вопрос "как проверить что это сделано?"
-- План учитывает уроки из `lessons.md` (если есть)
+## Plan quality requirements
+
+- Each stage must be atomic — it should be possible to pick it up and execute it independently
+- DoD must be concrete and verifiable — no vague items like "high-quality code"
+- Tests must be described BEFORE implementation in every stage (TDD)
+- Stages must be ordered by dependency — you cannot start stage 3 before finishing stage 1
+- Every DoD criterion must answer the question: "How do we verify this is done?"
+- The plan should incorporate lessons from `lessons.md` (if any)
+

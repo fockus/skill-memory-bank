@@ -9,10 +9,10 @@ Contract:
         "notes": [
           {"path": "notes/2026-04-19_auth.md", "type": "note",
            "tags": ["auth","bug"], "importance": "high",
-           "summary": "первые 2 строки без frontmatter"}
+           "summary": "first 2 lines without frontmatter"}
         ],
         "lessons": [
-          {"id": "L-001", "title": "Имя урока"}
+          {"id": "L-001", "title": "Lesson name"}
         ],
         "generated_at": "2026-04-19T12:00:00Z"
       }
@@ -161,11 +161,11 @@ def test_lessons_h3_entries_extracted(index_mod, mb_path):
             """
             # Lessons
 
-            ### L-001: Не коммить .env
+            ### L-001: Do not commit .env
 
             details...
 
-            ### L-002: Проверяй миграции на staging
+            ### L-002: Validate migrations on staging
 
             details...
             """
@@ -177,13 +177,13 @@ def test_lessons_h3_entries_extracted(index_mod, mb_path):
     lessons = data["lessons"]
     assert len(lessons) == 2
     titles = [lesson["title"] for lesson in lessons]
-    assert any("Не коммить .env" in t for t in titles)
+    assert any("Do not commit .env" in t for t in titles)
     ids = [lesson["id"] for lesson in lessons]
     assert "L-001" in ids and "L-002" in ids
 
 
 def test_no_lessons_yields_empty_list(index_mod, mb_path):
-    (mb_path / "lessons.md").write_text("# Lessons\n\n(нет уроков)\n")
+    (mb_path / "lessons.md").write_text("# Lessons\n\n(no lessons)\n")
     index_mod.build_index(str(mb_path))
 
     data = json.loads((mb_path / "index.json").read_text())
@@ -345,7 +345,7 @@ def test_frontmatter_with_yaml_list_not_dict(index_mod, mb_path):
 
 
 def test_private_block_excluded_from_summary(index_mod, mb_path):
-    """Содержимое <private>...</private> не попадает в summary entry."""
+    """Contents of <private>...</private> do not appear in the summary entry."""
     make_note(
         mb_path,
         "pii.md",
@@ -355,8 +355,8 @@ def test_private_block_excluded_from_summary(index_mod, mb_path):
             type: note
             ---
 
-            Обсуждение с клиентом <private>Иван Иванов, +7-900-123</private>.
-            Решили: мигрировать на новый API.
+            Discussion with client <private>Ivan Ivanov, +7-900-123</private>.
+            Decision: migrate to the new API.
             """
         ),
     )
@@ -364,18 +364,18 @@ def test_private_block_excluded_from_summary(index_mod, mb_path):
 
     data = json.loads((mb_path / "index.json").read_text())
     summary = data["notes"][0]["summary"]
-    assert "Иванов" not in summary
+    assert "Ivanov" not in summary
     assert "123" not in summary
-    # Окружающий контекст сохраняется
-    assert "клиентом" in summary or "мигрировать" in summary
+    # Surrounding context is preserved
+    assert "client" in summary or "migrate" in summary
 
 
 def test_has_private_flag_true_when_block_present(index_mod, mb_path):
-    """Entry получает has_private: True если в body есть <private> блок."""
+    """Entry gets has_private: True when the body contains a <private> block."""
     make_note(
         mb_path,
         "secret.md",
-        "---\ntype: note\n---\n\nбыло <private>нечто</private> в тексте.\n",
+        "---\ntype: note\n---\n\nthere was <private>something</private> in the text.\n",
     )
     index_mod.build_index(str(mb_path))
 
@@ -384,8 +384,8 @@ def test_has_private_flag_true_when_block_present(index_mod, mb_path):
 
 
 def test_has_private_flag_false_when_absent(index_mod, mb_path):
-    """Entry без private блоков: has_private: False (или отсутствует)."""
-    make_note(mb_path, "clean.md", "---\ntype: note\n---\n\nчистый текст.\n")
+    """Entry without private blocks: has_private: False (or absent)."""
+    make_note(mb_path, "clean.md", "---\ntype: note\n---\n\nclean text.\n")
     index_mod.build_index(str(mb_path))
 
     data = json.loads((mb_path / "index.json").read_text())
@@ -393,7 +393,7 @@ def test_has_private_flag_false_when_absent(index_mod, mb_path):
 
 
 def test_multiple_private_blocks_all_excluded(index_mod, mb_path):
-    """Несколько <private> блоков — все redacted из summary."""
+    """Multiple <private> blocks — all are redacted from the summary."""
     make_note(
         mb_path,
         "multi.md",
@@ -403,7 +403,7 @@ def test_multiple_private_blocks_all_excluded(index_mod, mb_path):
             type: note
             ---
 
-            Клиент <private>A1-secret</private> и ключ <private>B2-token</private>.
+            Client <private>A1-secret</private> and key <private>B2-token</private>.
             Public info OK.
             """
         ),
@@ -418,23 +418,23 @@ def test_multiple_private_blocks_all_excluded(index_mod, mb_path):
 
 
 def test_unclosed_private_fence_graceful(index_mod, mb_path):
-    """Unclosed <private> без </private> → parser не падает, хвост excluded."""
+    """Unclosed <private> without </private> → parser does not crash, tail excluded."""
     make_note(
         mb_path,
         "broken.md",
-        "---\ntype: note\n---\n\nбезопасный текст <private>утечка-должна-быть-исключена\n",
+        "---\ntype: note\n---\n\nsafe text <private>leak-must-be-excluded\n",
     )
     # Must not raise
     index_mod.build_index(str(mb_path))
 
     data = json.loads((mb_path / "index.json").read_text())
     summary = data["notes"][0]["summary"]
-    assert "утечка" not in summary
+    assert "leak" not in summary
     assert data["notes"][0]["has_private"] is True
 
 
 def test_nested_markdown_inside_private_excluded(index_mod, mb_path):
-    """Markdown (списки, жирный) внутри <private> корректно вырезается."""
+    """Markdown (lists, bold) inside <private> is removed correctly."""
     make_note(
         mb_path,
         "nested.md",
@@ -444,12 +444,12 @@ def test_nested_markdown_inside_private_excluded(index_mod, mb_path):
             type: note
             ---
 
-            Проект X.
+            Project X.
             <private>
-            - пункт секретного списка
-            - **жирный** секрет
+            - secret list item
+            - **bold** secret
             </private>
-            Продолжение.
+            Continuation.
             """
         ),
     )
@@ -457,12 +457,12 @@ def test_nested_markdown_inside_private_excluded(index_mod, mb_path):
 
     data = json.loads((mb_path / "index.json").read_text())
     summary = data["notes"][0]["summary"]
-    assert "секретного" not in summary
-    assert "жирный" not in summary
+    assert "secret" not in summary
+    assert "bold" not in summary
 
 
 def test_private_in_tags_field_ignored(index_mod, mb_path):
-    """Защитная проверка: если тег содержит <private> маркер — игнорировать."""
+    """Protective check: if a tag contains a <private> marker — ignore it."""
     make_note(
         mb_path,
         "paranoia.md",
@@ -497,7 +497,7 @@ def test_archived_flag_true_for_notes_archive_subdir(index_mod, mb_path):
 
 
 def test_archived_flag_false_for_regular_notes(index_mod, mb_path):
-    """notes/X.md (не в archive) → archived: False."""
+    """notes/X.md (not in archive) → archived: False."""
     make_note(
         mb_path,
         "active.md",

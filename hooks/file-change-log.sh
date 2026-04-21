@@ -1,11 +1,11 @@
 #!/bin/bash
-# PostToolUse hook: лог изменений файлов + проверка на placeholder/secrets.
-#   - логирует Write/Edit в ~/.claude/file-changes.log
-#   - ротирует лог при превышении 10 MB (→ .log.1, .log.2)
-#   - ищет TODO/FIXME/HACK/XXX/PLACEHOLDER/NotImplementedError в КОДЕ (не в
-#     docstrings и не в плейнтекстовых файлах)
-#   - НЕ считает bare `pass` за placeholder — это легитимный Python
-#   - варнит на hardcoded secrets в source-коде
+# PostToolUse hook: file-change log + placeholder/secret checks.
+#   - logs Write/Edit events to ~/.claude/file-changes.log
+#   - rotates the log after 10 MB (→ .log.1, .log.2)
+#   - searches TODO/FIXME/HACK/XXX/PLACEHOLDER/NotImplementedError in CODE (not
+#     in docstrings and not in plain-text files)
+#   - does NOT treat bare `pass` as a placeholder — it is valid Python
+#   - warns about hardcoded secrets in source code
 
 set -u
 
@@ -22,11 +22,11 @@ LOG_FILE="$HOME/.claude/file-changes.log"
 MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10 MB
 
 # ═══ Log rotation ═══
-# Portable size check: BSD stat -f%z (macOS) или GNU stat -c%s (Linux).
+# Portable size check: BSD `stat -f%z` (macOS) or GNU `stat -c%s` (Linux).
 if [ -f "$LOG_FILE" ]; then
   LOG_SIZE=$(stat -f%z "$LOG_FILE" 2>/dev/null || stat -c%s "$LOG_FILE" 2>/dev/null || echo 0)
   if [ "$LOG_SIZE" -gt "$MAX_LOG_SIZE" ]; then
-    # Сдвигаем .log.2 → .log.3, .log.1 → .log.2, .log → .log.1
+    # Shift .log.2 → .log.3, .log.1 → .log.2, .log → .log.1
     [ -f "$LOG_FILE.2" ] && mv "$LOG_FILE.2" "$LOG_FILE.3"
     [ -f "$LOG_FILE.1" ] && mv "$LOG_FILE.1" "$LOG_FILE.2"
     mv "$LOG_FILE" "$LOG_FILE.1"
@@ -41,20 +41,20 @@ esac
 
 [ -f "$FILE_PATH" ] || exit 0
 
-# Плейнтекстовые файлы — без проверок (TODO в markdown/config ≠ bug).
+# Plain-text files — no checks (`TODO` in markdown/config is not a bug).
 if [[ "$FILE_PATH" =~ \.(md|txt|json|yaml|yml|toml|cfg|ini|env)$ ]]; then
   exit 0
 fi
 
-# ═══ Placeholder detection (вне docstrings) ═══
+# ═══ Placeholder detection (outside docstrings) ═══
 #
-# Алгоритм: сначала вырезаем triple-quoted блоки (""" ... """ и ''' ... '''),
-# потом грепаем в том, что осталось.
-#   - `pass` убран из списка — легитимный Python-стейтмент.
-#   - Поиск выполняется с учётом ещё одной границы (\b): "TODOLIST" не триггерит.
+# Algorithm: first strip triple-quoted blocks (""" ... """ and ''' ... '''),
+# then grep what remains.
+#   - `pass` is removed from the list — it is a legitimate Python statement.
+#   - Search uses another word boundary (\b): "TODOLIST" should not trigger.
 #
-# awk читает маркеры через переменные, чтобы shellcheck-SC1003 не путался
-# с тройными одинарными кавычками внутри awk-скрипта.
+# awk receives quote markers through variables so shellcheck-SC1003 does not get
+# confused by triple single quotes inside the awk script.
 stripped=$(awk -v dq='"""' -v sq="'''" '
   BEGIN { in_q = 0 }
   function count(str, pat,   n) {
@@ -83,18 +83,18 @@ PLACEHOLDERS=$(printf '%s\n' "$stripped" \
   | head -5 || true)
 
 if [ -n "$PLACEHOLDERS" ]; then
-  echo "WARNING: Placeholder'ы найдены в $FILE_PATH:" >&2
+  echo "WARNING: Placeholders found in $FILE_PATH:" >&2
   echo "$PLACEHOLDERS" >&2
 fi
 
-# ═══ <private> markers в .md файлах ═══
-# Если пользователь коммитит файл с <private>...</private> — предупреждаем.
-# Блок не утечёт в index.json/search, но может утечь в git history.
+# ═══ <private> markers in .md files ═══
+# If the user commits a file with <private>...</private>, warn them.
+# The block will not leak through index.json/search, but it may leak into git history.
 if [[ "$FILE_PATH" =~ \.md$ ]] && grep -q '<private>' "$FILE_PATH" 2>/dev/null; then
-  echo "WARNING: <private> block in $FILE_PATH — убедись что не коммитишь в git (или используй git-filter/.gitattributes)" >&2
+  echo "WARNING: <private> block in $FILE_PATH — make sure it should go into git (or use git-filter/.gitattributes)" >&2
 fi
 
-# ═══ Secrets в исходниках ═══
+# ═══ Secrets in source files ═══
 if [[ "$FILE_PATH" =~ \.(py|go|js|ts|rb|java|rs|swift|kt)$ ]]; then
   SECRETS=$(grep -nEi '(password|secret|api_key|token|private_key)\s*=\s*["\x27][^"\x27]{8,}' "$FILE_PATH" 2>/dev/null \
     | grep -vEi '(test|mock|fake|example|placeholder|xxx|your_)' \

@@ -4,17 +4,19 @@
 # Contract (sync):
 #   Input:  plan-file (path to .md with <!-- mb-stage:N --> markers)
 #   Effects:
-#     - checklist.md: для каждого (N, name) пары из плана — если нет секции
-#       `## Этап N: <name>` — append `## Этап N: <name>\n- ⬜ <name>\n`.
-#     - plan.md: блок между `<!-- mb-active-plan -->` и `<!-- /mb-active-plan -->`
-#       заменяется на `**Active plan:** \`plans/<basename>\` — <title>`.
-#     - Идемпотентно: повторный запуск → 0 diff.
+#     - checklist.md: for each `(N, name)` pair from the plan — if there is no
+#       `## Stage N: <name>` section — append
+#       `## Stage N: <name>\n- ⬜ <name>\n`.
+#     - plan.md: the block between `<!-- mb-active-plan -->` and
+#       `<!-- /mb-active-plan -->` is replaced with
+#       `**Active plan:** \`plans/<basename>\` — <title>`.
+#     - Idempotent: a repeated run → 0 diff.
 #
 # Contract (done):
-#   - Все `- ⬜` внутри секций этапов плана в checklist.md → `- ✅`.
+#   - All `- ⬜` inside plan stage sections in checklist.md → `- ✅`.
 #   - `mv <plan-file> <mb>/plans/done/<basename>`.
-#   - В plan.md блок между `<!-- mb-active-plan -->` и `<!-- /mb-active-plan -->`
-#     → пустой (или заменяется на "No active plan").
+#   - The block between `<!-- mb-active-plan -->` and
+#     `<!-- /mb-active-plan -->` in plan.md becomes empty.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -28,42 +30,42 @@ setup() {
   # Plan with stage markers
   PLAN_FILE="$TMPBANK/plans/2026-04-19_refactor_skill-v2.md"
   cat > "$PLAN_FILE" <<'EOF'
-# План: refactor — skill-v2
+# Plan: refactor — skill-v2
 
-## Контекст
+## Context
 
 Test plan.
 
-## Этапы
+## Stages
 
 <!-- mb-stage:1 -->
-### Этап 1: DRY-утилиты
+### Stage 1: DRY-utilities
 
-Что сделать: create _lib.sh.
+What to do: create _lib.sh.
 
 <!-- mb-stage:2 -->
-### Этап 2: Language-agnostic metrics
+### Stage 2: Language-agnostic metrics
 
-Что сделать: create mb-metrics.sh.
+What to do: create mb-metrics.sh.
 
 <!-- mb-stage:3 -->
-### Этап 3: codebase-mapper
+### Stage 3: codebase-mapper
 
-Что сделать: adapt agent.
+What to do: adapt agent.
 EOF
 
   # Minimal core files
   cat > "$TMPBANK/checklist.md" <<'EOF'
-# Project — Чеклист
+# Project — Checklist
 
-## Этап 0: Dogfood init ✅
-- ✅ инициализация
+## Stage 0: Dogfood init ✅
+- ✅ initialization
 EOF
 
   cat > "$TMPBANK/plan.md" <<'EOF'
-# Project — План
+# Project — Plan
 
-## Текущий фокус
+## Current Focus
 
 Test focus.
 
@@ -72,7 +74,7 @@ Test focus.
 <!-- mb-active-plan -->
 <!-- /mb-active-plan -->
 
-## Ближайшие шаги
+## Next Steps
 
 1. test
 EOF
@@ -103,23 +105,23 @@ teardown() {
   [ "$status" -eq 0 ]
 
   run cat "$TMPBANK/checklist.md"
-  [[ "$output" == *"## Этап 1: DRY-утилиты"* ]]
-  [[ "$output" == *"## Этап 2: Language-agnostic metrics"* ]]
-  [[ "$output" == *"## Этап 3: codebase-mapper"* ]]
+  [[ "$output" == *"## Stage 1: DRY-utilities"* ]]
+  [[ "$output" == *"## Stage 2: Language-agnostic metrics"* ]]
+  [[ "$output" == *"## Stage 3: codebase-mapper"* ]]
 }
 
 @test "sync: existing stage not duplicated" {
   [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
-  # Pre-populate checklist with Этап 1 already
+  # Pre-populate checklist with Stage 1 already
   cat >> "$TMPBANK/checklist.md" <<'EOF'
 
-## Этап 1: DRY-утилиты ✅
+## Stage 1: DRY-utilities ✅
 - ✅ custom item
 EOF
 
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-  # Count occurrences of "## Этап 1:" — should be 1
-  count=$(grep -c "^## Этап 1:" "$TMPBANK/checklist.md")
+  # Count occurrences of "## Stage 1:" — should be 1
+  count=$(grep -c "^## Stage 1:" "$TMPBANK/checklist.md")
   [ "$count" -eq 1 ]
   # Custom item preserved
   grep -q "custom item" "$TMPBANK/checklist.md"
@@ -149,7 +151,7 @@ EOF
   [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
 
-  # Открывающий и закрывающий маркеры должны остаться ровно по одному
+  # Opening and closing markers must remain exactly once
   open_count=$(grep -c "<!-- mb-active-plan -->" "$TMPBANK/plan.md")
   close_count=$(grep -c "<!-- /mb-active-plan -->" "$TMPBANK/plan.md")
   [ "$open_count" -eq 1 ]
@@ -159,14 +161,14 @@ EOF
 @test "sync: fallback to regex when no mb-stage markers" {
   [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   cat > "$PLAN_FILE" <<'EOF'
-# План: fix — legacy-plan
+# Plan: fix — legacy-plan
 
-## Этапы
+## Stages
 
-### Этап 1: fix bug A
+### Stage 1: fix bug A
 content
 
-### Этап 2: fix bug B
+### Stage 2: fix bug B
 content
 EOF
 
@@ -174,13 +176,13 @@ EOF
   [ "$status" -eq 0 ]
 
   run cat "$TMPBANK/checklist.md"
-  [[ "$output" == *"## Этап 1: fix bug A"* ]]
-  [[ "$output" == *"## Этап 2: fix bug B"* ]]
+  [[ "$output" == *"## Stage 1: fix bug A"* ]]
+  [[ "$output" == *"## Stage 2: fix bug B"* ]]
 }
 
 @test "sync: creates Active plan markers if plan.md lacks them" {
   [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
-  # plan.md без маркеров
+  # plan.md without markers
   cat > "$TMPBANK/plan.md" <<'EOF'
 # Plan
 
@@ -202,7 +204,7 @@ EOF
   [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   run bash "$SYNC" "$TMPBANK/plans/nonexistent.md" "$TMPBANK"
   [ "$status" -ne 0 ]
-  [[ "$output$stderr" == *"не найден"* || "$output$stderr" == *"not found"* ]]
+  [[ "$output$stderr" == *"not found"* ]]
 }
 
 @test "sync: checklist with ⬜ item per stage" {
@@ -211,7 +213,7 @@ EOF
 
   run cat "$TMPBANK/checklist.md"
   # Each added section should have a ⬜ item
-  [[ "$output" == *"- ⬜ DRY-утилиты"* ]]
+  [[ "$output" == *"- ⬜ DRY-utilities"* ]]
   [[ "$output" == *"- ⬜ Language-agnostic metrics"* ]]
   [[ "$output" == *"- ⬜ codebase-mapper"* ]]
 }
@@ -249,12 +251,12 @@ EOF
   bash "$DONE" "$PLAN_FILE" "$TMPBANK"
 
   # After done — no ⬜ left in plan stages
-  ! grep -q "^- ⬜ DRY-утилиты" "$TMPBANK/checklist.md"
+  ! grep -q "^- ⬜ DRY-utilities" "$TMPBANK/checklist.md"
   ! grep -q "^- ⬜ Language-agnostic metrics" "$TMPBANK/checklist.md"
   ! grep -q "^- ⬜ codebase-mapper" "$TMPBANK/checklist.md"
 
   # Instead they should be ✅
-  grep -q "^- ✅ DRY-утилиты" "$TMPBANK/checklist.md"
+  grep -q "^- ✅ DRY-utilities" "$TMPBANK/checklist.md"
   grep -q "^- ✅ Language-agnostic metrics" "$TMPBANK/checklist.md"
   grep -q "^- ✅ codebase-mapper" "$TMPBANK/checklist.md"
 }
@@ -288,7 +290,7 @@ EOF
   [ -f "$SYNC" ] && bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   bash "$DONE" "$PLAN_FILE" "$TMPBANK"
 
-  # Second call: plan already moved — should error, не ломать состояние
+  # Second call: plan already moved — should error, without breaking state
   run bash "$DONE" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -ne 0 ]
 }
@@ -299,7 +301,7 @@ EOF
 
   bash "$DONE" "$PLAN_FILE" "$TMPBANK"
 
-  # Этап 0 (pre-existing) нетронут
-  grep -q "^## Этап 0: Dogfood init" "$TMPBANK/checklist.md"
-  grep -q "^- ✅ инициализация" "$TMPBANK/checklist.md"
+  # Stage 0 (pre-existing) stays untouched
+  grep -q "^## Stage 0: Dogfood init" "$TMPBANK/checklist.md"
+  grep -q "^- ✅ initialization" "$TMPBANK/checklist.md"
 }

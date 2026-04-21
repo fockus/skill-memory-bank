@@ -26,7 +26,7 @@ import os
 import re
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -42,9 +42,9 @@ def _kebab_case(s: str) -> str:
     s = _KEBAB_RE_1.sub(r"\1-\2", s)
     s = _KEBAB_RE_2.sub(r"\1-\2", s)
     return s.lower()
-# PII markers: <private>...</private> — содержимое не попадает в index.
-# Закрытые блоки вырезаются полностью; открытые без закрытия — до конца текста
-# (защита от утечки при забытом </private>).
+# PII markers: `<private>...</private>` — content must not enter the index.
+# Closed blocks are fully removed; open blocks without closing tag extend to EOF
+# (protects against leaks when `</private>` is forgotten).
 PRIVATE_CLOSED_RE = re.compile(r"<private>.*?</private>", re.DOTALL)
 PRIVATE_OPEN_RE = re.compile(r"<private>.*\Z", re.DOTALL)
 
@@ -132,7 +132,7 @@ def _index_notes(mb_path: Path) -> list[dict[str, Any]]:
         tags = meta.get("tags") or []
         if isinstance(tags, str):
             tags = [tags]
-        # Защита: теги с PII-маркерами не индексируем.
+        # Protection: do not index tags containing PII markers.
         tags = [t for t in tags if "<private>" not in str(t) and "</private>" not in str(t)]
         # Normalize: lowercase + kebab-case (camelCase/PascalCase/UPPER → foo-bar).
         tags = [_kebab_case(t) for t in tags]
@@ -143,7 +143,7 @@ def _index_notes(mb_path: Path) -> list[dict[str, Any]]:
         clean_body, has_private = _strip_private(body)
 
         rel = note.relative_to(mb_path).as_posix()
-        # notes/archive/... entries получают archived: True (opt-in через --include-archived)
+        # `notes/archive/...` entries get `archived: True` (opt in through `--include-archived`)
         archived = rel.startswith("notes/archive/")
         entries.append(
             {
@@ -180,7 +180,7 @@ def build_index(mb_path_str: str) -> dict[str, Any]:
     data = {
         "notes": _index_notes(mb_path),
         "lessons": _index_lessons(mb_path),
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
     target = mb_path / "index.json"

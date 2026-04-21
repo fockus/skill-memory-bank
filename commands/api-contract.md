@@ -1,11 +1,11 @@
 ---
-description: Управление API контрактами — OpenAPI, gRPC, breaking changes detection
+description: Manage API contracts — OpenAPI, gRPC, breaking-change detection
 allowed-tools: [Read, Glob, Grep, Bash, Write]
 ---
 
 # API Contract: $ARGUMENTS
 
-## 1. Определение типа API
+## 1. Detect the API type
 
 ```bash
 # OpenAPI / Swagger
@@ -22,33 +22,33 @@ find . -name "*.graphql" -o -name "*.gql" 2>/dev/null
 grep -rn "func.*Handler\|func.*http\.\|r\.GET\|r\.POST\|r\.PUT\|r\.DELETE" --include="*.go" . | head -30
 ```
 
-## 2. Действие
+## 2. Action
 
-В зависимости от $ARGUMENTS:
+Depending on `$ARGUMENTS`:
 
-### generate — Генерация спецификации
-- Изучи все endpoints / handlers / routes
-- Сгенерируй OpenAPI 3.0 спецификацию
-- Включи: paths, schemas, request/response bodies, error codes, auth
+### `generate` — specification generation
+- Study all endpoints / handlers / routes
+- Generate an OpenAPI 3.0 specification
+- Include: paths, schemas, request/response bodies, error codes, auth
 
-### check — Breaking Changes Detection
-- Сравни текущую спецификацию с последней зафиксированной
+### `check` — breaking change detection
+- Compare the current specification with the latest committed one
 - Breaking changes:
-  - Удалённые endpoints
-  - Изменённые типы полей
-  - Новые required поля (без default)
-  - Удалённые response fields
-  - Изменённые HTTP methods / status codes
+  - Removed endpoints
+  - Changed field types
+  - New required fields (without defaults)
+  - Removed response fields
+  - Changed HTTP methods / status codes
 
-### test — Contract Tests
-- Сгенерируй тесты на основе спецификации
-- Проверь что API соответствует контракту
-- Проверь error responses и edge cases
+### `test` — contract tests
+- Generate tests from the specification
+- Verify that the API conforms to the contract
+- Verify error responses and edge cases
 
-## 3. Валидация
+## 3. Validation
 
 ```bash
-# OpenAPI lint (если установлен)
+# OpenAPI lint (if installed)
 npx @stoplight/spectral-cli lint openapi.yaml 2>/dev/null
 
 # Protobuf lint
@@ -58,7 +58,7 @@ buf lint 2>/dev/null
 go test ./api/... -run TestContract 2>/dev/null
 ```
 
-## 4. Результат
+## 4. Result
 
-Сохрани/обнови спецификацию в `./docs/api/` или `./api/`.
-Если есть `./.memory-bank/` — заметка в `notes/`.
+Save or update the specification in `./docs/api/` or `./api/`.
+If `./.memory-bank/` exists, add a note in `notes/`.

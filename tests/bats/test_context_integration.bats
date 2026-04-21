@@ -54,7 +54,7 @@ EOF
 
   run bash "$SCRIPT" "$TMPBANK"
   [ "$status" -eq 0 ]
-  # Должен выцепить summary-строку с Python, не заголовок
+  # It should extract the Python summary line, not the heading
   [[ "$output" == *"Python 3.12"* ]]
 }
 
@@ -81,7 +81,7 @@ Primary: Go 1.22.
 
 ## Runtime
 - Go 1.22
-- net/http стандартная библиотека
+- net/http standard library
 
 ## Frameworks
 - Cobra CLI

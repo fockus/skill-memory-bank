@@ -4,7 +4,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "cat << 'CONTEXT'\n[SYSTEM] [memory-bank-skill] Прочитай ~/.claude/CLAUDE.md перед началом работы.\nПринципы: TDD · Testing Trophy · Contract-First · SOLID · DRY · KISS · YAGNI · Clean Architecture · Fail Fast\nMemory Bank: ./.memory-bank/ — если существует, вызови /mb start или Task(MB Manager, action: context) для загрузки контекста.\nCONTEXT"
+          "command": "cat << 'CONTEXT'\n[SYSTEM] [memory-bank-skill] Read ~/.claude/CLAUDE.md before starting work.\nPrinciples: TDD · Testing Trophy · Contract-First · SOLID · DRY · KISS · YAGNI · Clean Architecture · Fail Fast\nMemory Bank: ./.memory-bank/ — if it exists, run /mb start or Agent(MB Manager, action: context) to load context.\nCONTEXT"
         }
       ]
     }
@@ -15,7 +15,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "echo '[PRE-WRITE] [memory-bank-skill] TDD · Contract-First · нет TODO/placeholder · импорты полные · комментарии на русском · обработка ошибок'"
+          "command": "echo '[PRE-WRITE] [memory-bank-skill] TDD · Contract-First · no TODO/placeholders · complete imports · comments in English · error handling'"
         }
       ]
     },
@@ -54,7 +54,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "osascript -e 'display notification \"Claude Code ждёт внимания\" with title \"Claude Code\"' 2>/dev/null; true # [memory-bank-skill]"
+          "command": "osascript -e 'display notification \"Claude Code needs attention\" with title \"Claude Code\"' 2>/dev/null; true # [memory-bank-skill]"
         }
       ]
     }
@@ -64,7 +64,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "echo '[COMPACTION] [memory-bank-skill] Перед compaction: вызови MB Manager (Task, model: sonnet) для актуализации .memory-bank/ — checklist, progress, STATUS. Затем сохрани ключевые принципы из CLAUDE.md и текущий контекст задачи.'"
+          "command": "echo '[COMPACTION] [memory-bank-skill] Before compaction, run MB Manager (Agent, model: sonnet) to actualize .memory-bank/ — checklist, progress, STATUS. Then preserve key principles from CLAUDE.md and the current task context.'"
         }
       ]
     }
@@ -74,7 +74,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "if [ -d .memory-bank ]; then echo '[MEMORY BANK] [memory-bank-skill] Рекомендация: /mb done — обновить checklist, создать заметку, дописать progress'; fi"
+          "command": "if [ -d .memory-bank ]; then echo '[MEMORY BANK] [memory-bank-skill] Recommendation: /mb done — update checklist, create a note, append progress'; fi"
         }
       ]
     }

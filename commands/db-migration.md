@@ -1,11 +1,11 @@
 ---
-description: Создание и управление миграциями БД (golang-migrate, Alembic, Prisma)
+description: Create and manage DB migrations (golang-migrate, Alembic, Prisma)
 allowed-tools: [Read, Glob, Grep, Bash, Write]
 ---
 
 # Database Migration: $ARGUMENTS
 
-## 1. Определение инструментов
+## 1. Detect the tooling
 
 ```bash
 # golang-migrate
@@ -18,49 +18,49 @@ ls alembic/ 2>/dev/null; cat alembic.ini 2>/dev/null
 # Prisma (Node.js)
 cat prisma/schema.prisma 2>/dev/null
 
-# SQL файлы
+# SQL files
 find . -name "*.sql" -path "*/migrat*" 2>/dev/null | head -20
 ```
 
-## 2. Создание миграции
+## 2. Create the migration
 
-### Формат имени
-`YYYYMMDDHHMMSS_<описание>.up.sql` / `.down.sql`
+### File naming format
+`YYYYMMDDHHMMSS_<description>.up.sql` / `.down.sql`
 
-### Требования
-- Каждая миграция имеет up И down
-- down полностью откатывает up
-- Destructive операции (DROP TABLE, DROP COLUMN) — только после подтверждения
-- Данные мигрируются отдельно от схемы
-- Индексы создаются CONCURRENTLY если поддерживается
+### Requirements
+- Every migration must have both `up` and `down`
+- `down` must fully roll back `up`
+- Destructive operations (`DROP TABLE`, `DROP COLUMN`) require confirmation
+- Data migrations must be separated from schema migrations
+- Create indexes `CONCURRENTLY` when supported
 
-### Анализ
-1. Прочитай существующие миграции — пойми текущую схему
-2. Определи что нужно изменить ($ARGUMENTS)
-3. Проверь нет ли конфликтов с последними миграциями
-4. Покажи план изменений и спроси подтверждение
+### Analysis
+1. Read the existing migrations and understand the current schema
+2. Determine what must change (`$ARGUMENTS`)
+3. Check for conflicts with recent migrations
+4. Show the change plan and ask for confirmation
 
-## 3. Генерация
+## 3. Generation
 
-Сгенерируй up и down миграции. Проверь:
-- Идемпотентность: `IF NOT EXISTS`, `IF EXISTS`
-- Backwards compatibility: старый код работает с новой схемой
-- Rollback safety: down не теряет данные без предупреждения
+Generate both `up` and `down` migrations. Verify:
+- Idempotency: `IF NOT EXISTS`, `IF EXISTS`
+- Backward compatibility: old code still works with the new schema
+- Rollback safety: `down` does not lose data without warning
 
-## 4. Тестирование
+## 4. Testing
 
 ```bash
-# Применить up
+# Apply up
 migrate -path migrations -database "$DATABASE_URL" up
 
-# Проверить схему
-# Применить down
+# Verify the schema
+# Apply down
 migrate -path migrations -database "$DATABASE_URL" down 1
 
-# Применить up снова (идемпотентность)
+# Apply up again (idempotency)
 migrate -path migrations -database "$DATABASE_URL" up
 ```
 
 ## 5. Memory Bank
 
-Если существует `./.memory-bank/` — заметка в `notes/` с описанием изменений схемы.
+If `./.memory-bank/` exists, add a note in `notes/` describing the schema changes.

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# mb-plan.sh — создание файла плана в Memory Bank.
+# mb-plan.sh — create a plan file in Memory Bank.
 # Usage: mb-plan.sh <type> <topic> [mb_path]
 # Types: feature, fix, refactor, experiment
-# Создаёт plans/YYYY-MM-DD_<type>_<topic>.md с шаблоном (DoD, TDD, риски, Gate).
-# Маркеры <!-- mb-stage:N --> в шаблоне используются mb-plan-sync.sh (Этап 4).
+# Creates `plans/YYYY-MM-DD_<type>_<topic>.md` from a template (DoD, TDD, risks, gate).
+# `<!-- mb-stage:N -->` markers in the template are used by `mb-plan-sync.sh`.
 
 set -euo pipefail
 
@@ -17,13 +17,13 @@ PLANS_DIR="$MB_PATH/plans"
 
 case "$TYPE" in
   feature|fix|refactor|experiment) ;;
-  *) echo "Неизвестный тип: $TYPE. Допустимые: feature, fix, refactor, experiment" >&2; exit 1 ;;
+  *) echo "Unknown type: $TYPE. Allowed: feature, fix, refactor, experiment" >&2; exit 1 ;;
 esac
 
 SAFE_TOPIC=$(mb_sanitize_topic "$TOPIC")
 
 if [[ -z "$SAFE_TOPIC" ]]; then
-  echo "Topic содержит только не-ASCII символы: $TOPIC" >&2
+  echo "Topic contains only non-ASCII characters: $TOPIC" >&2
   exit 1
 fi
 
@@ -34,47 +34,47 @@ FILEPATH=$(mb_collision_safe_filename "$PLANS_DIR/$FILENAME")
 mkdir -p "$PLANS_DIR"
 
 cat > "$FILEPATH" << 'TEMPLATE'
-# План: TYPE — TOPIC
+# Plan: TYPE — TOPIC
 
-## Контекст
+## Context
 
-**Проблема:** <!-- Что промптило создание этого плана -->
+**Problem:** <!-- What triggered creation of this plan -->
 
-**Ожидаемый результат:** <!-- Что должно получиться -->
+**Expected result:** <!-- What should be achieved -->
 
-**Связанные файлы:**
-- <!-- ссылки на код, спеки, эксперименты -->
+**Related files:**
+- <!-- links to code, specs, experiments -->
 
 ---
 
-## Этапы
+## Stages
 
 <!-- mb-stage:1 -->
-### Этап 1: <!-- название -->
+### Stage 1: <!-- title -->
 
-**Что сделать:**
-- <!-- конкретные действия -->
+**What to do:**
+- <!-- concrete actions -->
 
-**Тестирование (TDD — тесты ПЕРЕД реализацией):**
-- <!-- unit тесты: что проверяем, edge cases -->
-- <!-- integration тесты: какие компоненты вместе -->
+**Testing (TDD — tests BEFORE implementation):**
+- <!-- unit tests: what they verify, edge cases -->
+- <!-- integration tests: which components interact -->
 
 **DoD (Definition of Done):**
-- [ ] <!-- конкретный, измеримый критерий (SMART) -->
-- [ ] тесты проходят
+- [ ] <!-- concrete, measurable criterion (SMART) -->
+- [ ] tests pass
 - [ ] lint clean
 
-**Правила кода:** SOLID, DRY, KISS, YAGNI, Clean Architecture
+**Code rules:** SOLID, DRY, KISS, YAGNI, Clean Architecture
 
 ---
 
 <!-- mb-stage:2 -->
-### Этап 2: <!-- название -->
+### Stage 2: <!-- title -->
 
-**Что сделать:**
+**What to do:**
 -
 
-**Тестирование (TDD):**
+**Testing (TDD):**
 -
 
 **DoD:**
@@ -82,18 +82,18 @@ cat > "$FILEPATH" << 'TEMPLATE'
 
 ---
 
-## Риски и mitigation
+## Risks and mitigation
 
-| Риск | Вероятность | Mitigation |
+| Risk | Probability | Mitigation |
 |------|-------------|------------|
-| <!-- риск --> | <!-- H/M/L --> | <!-- как предотвратить --> |
+| <!-- risk --> | <!-- H/M/L --> | <!-- how to prevent it --> |
 
-## Gate (критерий успеха плана)
+## Gate (plan success criterion)
 
-<!-- Когда план считается выполненным целиком -->
+<!-- When the plan is considered fully complete -->
 TEMPLATE
 
-# Подставить type и topic в заголовок (портативный sed: macOS vs GNU)
+# Substitute type and topic into the title (portable `sed`: macOS vs GNU)
 if sed --version >/dev/null 2>&1; then
   sed -i "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g" "$FILEPATH"
 else

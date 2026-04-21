@@ -1,317 +1,338 @@
 ---
-description: "Memory Bank — управление долгосрочной памятью проекта"
+
+## description: "Memory Bank — long-term project memory management"
 allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
----
 
 # Memory Bank — /mb
 
-Команда `/mb` — единая точка входа для управления Memory Bank проекта (`.memory-bank/`).
+The `/mb` command is the single entrypoint for managing project Memory Bank (`.memory-bank/`).
 
-## Подкоманды
+## Subcommands
 
-Аргументы: `$ARGUMENTS`
+Arguments: `$ARGUMENTS`
 
-Определи подкоманду из первого слова `$ARGUMENTS`. Остальные слова — параметры подкоманды.
+Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words are parameters for that subcommand.
 
-### Роутинг
+### Routing
 
-| Подкоманда | Действие |
-|-----------|---------|
-| (пусто) или `context` | Собрать контекст проекта |
-| `start` | Расширенный старт сессии |
-| `search <query>` | Поиск информации в банке |
-| `note <topic>` | Создать заметку |
-| `update` | Актуализировать core files (с анализом текущего состояния кода) |
-| `doctor` | Найти и исправить рассинхроны внутри MB (консистентность записей) |
-| `tasks` | Показать незавершённые задачи |
-| `index` | Реестр всех записей |
-| `done` | Завершение сессии (actualize + note + progress) |
-| `plan <type> <topic>` | Создать план |
-| `verify` | Верификация выполнения плана (план vs код) |
-| `map [focus]` | Просканировать кодовую базу и записать MD-документы в `.memory-bank/codebase/`. focus: stack / arch / quality / concerns / all (default: all) |
-| `upgrade` | Обновить skill из GitHub (git pull + re-install). Флаги: `--check` (только проверить), `--force` (без подтверждения) |
-| `compact [--dry-run\|--apply]` | Status-based decay: plans в done/ >60d → BACKLOG archive, low-importance notes >90d → notes/archive/. Active планы НЕ трогаются. `--dry-run` (default) — reasoning only |
-| `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB из Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extract: progress.md (daily), notes/ (arch discussions heuristic), PII auto-wrap. Dedup SHA256 + resume state |
-| `graph [--apply] [src_root]` | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in через `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache |
-| `tags [--apply] [--auto-merge]` | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 vs closed vocabulary, propose merges. `--auto-merge` применяет только distance ≤1. Vocabulary в `.memory-bank/tags-vocabulary.md` (fallback — `references/tags-vocabulary.md`). `mb-index-json.py` авто-kebab-case |
-| `init [--minimal\|--full]` | Инициализировать Memory Bank. `--full` (default): + RULES copy + CLAUDE.md с автодетектом стека. `--minimal`: только структура |
-| `install [<clients>]` | Поставить Memory Bank для проекта. Если `<clients>` пустой — спросить multiselect из 8 (claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex). Дергает `memory-bank install --clients ... --project-root $PWD` |
-| `help [subcommand]` | Справка. Без аргумента — список всех подкоманд. С аргументом — детали конкретной (`/mb help compact`, `/mb help tags`, ...) |
-| `deps [--install-hints]` | Проверка зависимостей (required: python3/jq/git; optional: rg/shellcheck/tree-sitter/PyYAML). `--install-hints` — OS-specific install commands |
-| (нераспознанное) | Поиск по `$ARGUMENTS` |
+
+| Subcommand                                               | Action                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| (empty) or `context`                                     | Collect project context                                                                                                                                                                                                                                                                                  |
+| `start`                                                  | Extended session start                                                                                                                                                                                                                                                                                   |
+| `search <query>`                                         | Search information in the memory bank                                                                                                                                                                                                                                                                    |
+| `note <topic>`                                           | Create a note                                                                                                                                                                                                                                                                                            |
+| `update`                                                 | Actualize core files (with real code-state analysis)                                                                                                                                                                                                                                                     |
+| `doctor`                                                 | Find and fix internal MB inconsistencies                                                                                                                                                                                                                                                                 |
+| `tasks`                                                  | Show unfinished tasks                                                                                                                                                                                                                                                                                    |
+| `index`                                                  | Registry of all entries                                                                                                                                                                                                                                                                                  |
+| `done`                                                   | End session (`actualize + note + progress`)                                                                                                                                                                                                                                                              |
+| `plan <type> <topic>`                                    | Create a plan                                                                                                                                                                                                                                                                                            |
+| `verify`                                                 | Verify plan execution (plan vs code)                                                                                                                                                                                                                                                                     |
+| `map [focus]`                                            | Scan the codebase and write MD documents to `.memory-bank/codebase/`. Focus: `stack / arch / quality / concerns / all` (default: `all`)                                                                                                                                                                  |
+| `upgrade`                                                | Update the skill from GitHub (`git pull + re-install`). Flags: `--check` (check only), `--force` (skip confirmation)                                                                                                                                                                                     |
+| `compact [--dry-run|--apply]`                            | Status-based decay: plans in `done/` older than 60d → BACKLOG archive, low-importance notes older than 90d → `notes/archive/`. Active plans are not touched. `--dry-run` (default) = reasoning only                                                                                                      |
+| `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB from Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extracts `progress.md` (daily), `notes/` (architecture-discussion heuristic), PII auto-wrap. Dedup via SHA256 + resume state                                                                                                  |
+| `graph [--apply] [src_root]`                             | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in through `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache                       |
+| `tags [--apply] [--auto-merge]`                          | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 against a closed vocabulary and propose merges. `--auto-merge` only applies distance ≤1. Vocabulary is in `.memory-bank/tags-vocabulary.md` (fallback: `references/tags-vocabulary.md`). `mb-index-json.py` auto-normalizes to kebab-case |
+| `init [--minimal|--full]`                                | Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only                                                                                                                                                                                     |
+| `install [<clients>]`                                    | Install Memory Bank for the project. If `<clients>` is empty, ask for an 8-client multiselect (`claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex`). Calls `memory-bank install --clients ... --project-root $PWD`                                                                                |
+| `help [subcommand]`                                      | Help. No argument → list all subcommands. With argument → show details for that specific one (`/mb help compact`, `/mb help tags`, ...)                                                                                                                                                                  |
+| `deps [--install-hints]`                                 | Dependency check (required: `python3`, `jq`, `git`; optional: `rg`, `shellcheck`, `tree-sitter`, `PyYAML`). `--install-hints` prints OS-specific install commands                                                                                                                                        |
+| (unrecognized)                                           | Search by `$ARGUMENTS`                                                                                                                                                                                                                                                                                   |
+
 
 ---
 
-## Реализация подкоманд
+## Subcommand implementation
 
 ### context / start / search / note / tasks / done
 
-Для этих подкоманд запусти MB Manager subagent:
+For these subcommands, run the MB Manager subagent:
 
 ```
 Agent(
   subagent_type="general-purpose",
   model="sonnet",
-  description="MB Manager: <действие>",
-  prompt="<содержимое ~/.claude/skills/memory-bank/agents/mb-manager.md>
+  description="MB Manager: <action>",
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-manager.md>
 
-action: <действие>
+action: <action>
 
-<описание задачи и контекст из текущей сессии>"
+<task description and current-session context>"
 )
 ```
 
-Конкретные actions:
-- **context** / **(пусто)**: `action: context`
-- **start**: `action: context` — расширенный, прочитай также активный план целиком
-- **search <query>**: `action: search <query>` где query = остаток `$ARGUMENTS` после "search"
-- **note <topic>**: `action: note <topic>` + передай описание что было сделано в текущей сессии
+Concrete actions:
+
+- **context** / **(empty)**: `action: context`
+- **start**: `action: context` — extended mode; also read the active plan in full
+- **search ****: **`action: search <query>` where `query` is the remainder of `$ARGUMENTS` after `search`
+- **note ****: **`action: note <topic>` + pass what was done in the current session
 - **tasks**: `action: tasks`
-- **done**: `action: actualize` + `action: note` — передай полное описание работы текущей сессии. MB Manager должен:
-  1. Актуализировать все core files
-  2. Создать заметку по выполненной работе
-  3. Дописать progress.md
-  4. **После успешного agent call** — выполнить `touch .memory-bank/.session-lock`. Это маркер для SessionEnd hook: ручной `/mb done` выполнен, auto-capture пропустит эту сессию (см. `hooks/session-end-autosave.sh`, `MB_AUTO_CAPTURE` env var).
+- **done**: `action: actualize` + `action: note` — pass the full description of the current session's work. MB Manager must:
+  1. Actualize all core files
+  2. Create a note about the completed work
+  3. Append to `progress.md`
+  4. **After a successful agent call**, run `touch .memory-bank/.session-lock`. This marks manual `/mb done` as completed so SessionEnd auto-capture will skip this session (see `hooks/session-end-autosave.sh`, `MB_AUTO_CAPTURE` env var).
 
 ### update
 
-Актуализация core files с автоматическим анализом текущего состояния проекта.
+Actualize core files using automatic analysis of the current project state.
 
-В отличие от `done`, **update** не создаёт заметку и не требует описания сессии — агент сам анализирует:
+Unlike `done`, **update** does not create a note and does not require a session summary — the agent analyzes the state directly:
 
-1. **Собери метрики через language-agnostic скрипт**:
+1. **Collect metrics through the language-agnostic script**:
+
 ```bash
-# Детектит стек (python/go/rust/node/multi), выводит key=value формат:
+# Detects the stack (python/go/rust/node/multi), outputs key=value:
 #   stack=<stack>
 #   test_cmd=<cmd>
 #   lint_cmd=<cmd>
 #   src_count=<N>
-# Для unknown-стека возвращает пустые значения с warning на stderr (не падает).
-# Override через .memory-bank/metrics.sh если нужны кастомные метрики.
+# For an unknown stack it returns empty values with a warning on stderr (does not fail).
+# Override via .memory-bank/metrics.sh if you need custom metrics.
 bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh
 
-# Опционально — запустить тесты и зафиксировать статус:
+# Optional — run tests and capture status:
 bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh --run
 
-# Git-контекст
+# Git context
 git log --oneline -5
 git diff --stat HEAD~3 2>/dev/null | tail -5
 ```
 
-2. **Запусти MB Manager** с собранными метриками:
+1. **Run MB Manager** with the collected metrics:
+
 ```
 Agent(
-  prompt="<содержимое ~/.claude/skills/memory-bank/agents/mb-manager.md>
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-manager.md>
 
 action: actualize
 
-Текущие метрики из кода (из mb-metrics.sh):
+Current metrics from code (from mb-metrics.sh):
 - Stack: <detected>
-- Tests: <test_status или предложить запустить вручную>
+- Tests: <test_status or suggest running them manually>
 - Source files: <src_count>
-- Lint: <lint output если запускался>
-- Последние коммиты: <git log>
-- Изменённые файлы: <git diff stat>
+- Lint: <lint output if it was run>
+- Recent commits: <git log>
+- Changed files: <git diff stat>
 
-Обнови core files (STATUS метрики, checklist, plan фокус) на основе РЕАЛЬНЫХ данных из кода. Не полагайся на описание — проверяй через grep/find/bash.",
+Update core files (STATUS metrics, checklist, plan focus) using REAL data from the codebase. Do not rely on the narrative description — verify through grep/find/bash.",
   subagent_type="general-purpose",
   model="sonnet"
 )
 ```
 
-3. Покажи пользователю что обновлено.
+1. Show the user what was updated.
 
-**Note:** если `mb-metrics.sh` вернул `stack=unknown`, предупреди пользователя что auto-метрики недоступны и предложи создать `.memory-bank/metrics.sh` с кастомной логикой (см. `references/templates.md`).
+**Note:** if `mb-metrics.sh` returns `stack=unknown`, warn the user that auto-metrics are unavailable and suggest creating `.memory-bank/metrics.sh` with custom logic (see `references/templates.md`).
 
 ### doctor
 
-Диагностика и исправление рассинхронов ВНУТРИ Memory Bank.
+Diagnose and fix inconsistencies INSIDE Memory Bank.
 
-Запусти MB Doctor subagent:
+Run the MB Doctor subagent:
 
 ```
 Agent(
-  prompt="<содержимое ~/.claude/skills/memory-bank/agents/mb-doctor.md>
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-doctor.md>
 
 action: doctor
 
-Проверь консистентность всех core files в .memory-bank/:
-- plan.md статусы vs checklist.md
-- STATUS.md метрики vs реальные (pytest, source files)
-- STATUS.md ограничения vs реальный код
+Check consistency across all core files in .memory-bank/:
+- plan.md statuses vs checklist.md
+- STATUS.md metrics vs reality (pytest, source files)
+- STATUS.md constraints vs real code
 - BACKLOG.md vs plan.md
 - progress.md completeness
-- Файлы планов в plans/ vs их статусы
-- Дубликаты, устаревшие ссылки",
+- plan files in plans/ vs their statuses
+- duplicates and stale references",
   subagent_type="general-purpose",
   model="sonnet"
 )
 ```
 
-Покажи отчёт пользователю: что найдено, что исправлено, что требует решения.
+Show the report to the user: what was found, what was fixed, and what still needs a decision.
 
 ### index
 
-Быстрая операция, без subagent:
+Quick operation, no subagent:
+
 ```bash
 bash ~/.claude/skills/memory-bank/scripts/mb-index.sh
 ```
-Покажи результат пользователю.
 
-### plan <type> <topic>
+Show the result to the user.
 
-1. Создай файл плана:
+### plan  
+
+1. Create the plan file:
+
 ```bash
 bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"
-# → выводит путь к созданному файлу, например:
+# → prints the created file path, for example:
 # .memory-bank/plans/2026-04-19_refactor_skill-v2.md
 ```
-2. **Сам заполни план** по правилам из `~/.claude/skills/memory-bank/SKILL.md` (секция "Правила создания планов"):
-   - Контекст: проблема, причина, ожидаемый результат
-   - Этапы: каждый с DoD по SMART, тестирование (TDD). Используй маркеры `<!-- mb-stage:N -->` перед каждым `### Этап N: <name>` — они нужны для автосинхронизации.
-   - Риски и mitigation
-   - Gate: критерий успеха
-3. Запусти синхронизацию с checklist.md + plan.md:
-```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <путь к плану>
-```
-   Скрипт добавит отсутствующие секции `## Этап N: <name>` в checklist.md и обновит блок `<!-- mb-active-plan -->` в plan.md. Идемпотентно — можно повторять при правке плана.
 
-Если type не указан — спроси пользователя. Допустимые: feature, fix, refactor, experiment.
+1. **Fill in the plan yourself** using the rules in `~/.claude/skills/memory-bank/SKILL.md` (the "Plan creation rules" section):
+  - Context: problem, cause, expected outcome
+  - Stages: each with SMART DoD and TDD testing. Use `<!-- mb-stage:N -->` markers before each `### Stage N: <name>` — they are required for auto-sync.
+  - Risks and mitigation
+  - Gate: success criteria
+2. Run synchronization with `checklist.md` + `plan.md`:
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <plan path>
+```
+
+   The script adds missing `## Stage N: <name>` sections to `checklist.md` and refreshes the `<!-- mb-active-plan -->` block in `plan.md`. It is idempotent — you can rerun it while editing the plan.
+
+If `type` is missing, ask the user. Allowed values: `feature`, `fix`, `refactor`, `experiment`.
 
 ### verify
 
-Верификация выполнения плана — проверка что код соответствует плану, все DoD выполнены, нет пропусков.
+Plan verification — confirm that code matches the plan, all DoD items are satisfied, and nothing important is missing.
 
-1. Найди активный план в `.memory-bank/plans/` (не в `done/`). Если планов несколько — используй самый свежий или тот, который указан в аргументах.
-2. Запусти Plan Verifier subagent:
+1. Find the active plan in `.memory-bank/plans/` (not in `done/`). If there are several, use the most recent one or the one specified in the arguments.
+2. Run the Plan Verifier subagent:
 
 ```
 Agent(
   subagent_type="general-purpose",
   model="sonnet",
-  description="Plan Verifier: проверка плана",
-  prompt="<содержимое ~/.claude/skills/memory-bank/agents/plan-verifier.md>
+  description="Plan Verifier: plan verification",
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/plan-verifier.md>
 
-Файл плана: <путь к плану>
+Plan file: <path to plan>
 
-Контекст: <описание текущей работы, какие этапы считаются завершёнными>"
+Context: <description of current work, which stages are considered complete>"
 )
 ```
 
-3. Получи отчёт от Plan Verifier. Покажи пользователю.
-4. Если есть CRITICAL проблемы — **исправь их** перед продолжением.
-5. Если есть WARNING — сообщи пользователю и спроси нужно ли исправлять.
+1. Get the Plan Verifier report and show it to the user.
+2. If there are CRITICAL issues, **fix them** before proceeding.
+3. If there are WARNING issues, tell the user and ask whether they should be fixed.
 
-**ВАЖНО:** `/mb verify` **ОБЯЗАТЕЛЬНО** вызывается перед `/mb done` если работа велась по плану. Не закрывай план без верификации.
+**IMPORTANT:** `/mb verify` is **REQUIRED** before `/mb done` when the work followed a plan. Do not close out a plan without verification.
 
 ### map [focus]
 
-Сканирование кодовой базы и генерация структурированных MD-документов в `.memory-bank/codebase/`.
+Scan the codebase and generate structured MD documents in `.memory-bank/codebase/`.
 
-Значения `focus` (первое слово после `map`):
-- `stack` — только STACK.md (языки, runtime, интеграции)
-- `arch` — только ARCHITECTURE.md (слои, структура, точки входа)
-- `quality` — только CONVENTIONS.md (naming, стиль, тестирование)
-- `concerns` — только CONCERNS.md (tech debt, риски)
-- `all` (default, если focus не указан) — все 4 документа
+`focus` values (the first word after `map`):
 
-Запусти MB Codebase Mapper subagent:
+- `stack` — only `STACK.md` (languages, runtime, integrations)
+- `arch` — only `ARCHITECTURE.md` (layers, structure, entrypoints)
+- `quality` — only `CONVENTIONS.md` (naming, style, testing)
+- `concerns` — only `CONCERNS.md` (tech debt, risks)
+- `all` (default, if omitted) — all 4 documents
+
+Run the MB Codebase Mapper subagent:
 
 ```
 Agent(
-  prompt="<содержимое ~/.claude/skills/memory-bank/agents/mb-codebase-mapper.md>
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-codebase-mapper.md>
 
 focus: <stack|arch|quality|concerns|all>
 
-Проанализируй текущий проект и запиши MD-документы напрямую в `.memory-bank/codebase/`. Используй `mb-metrics.sh` для детекции стека, следуй шаблонам ≤70 строк, возвращай только confirmation.",
+Analyze the current project and write MD documents directly to `.memory-bank/codebase/`. Use `mb-metrics.sh` for stack detection, follow the ≤70-line templates, and return confirmation only.",
   subagent_type="general-purpose",
   model="sonnet",
   description="MB Codebase Mapper: focus=<focus>"
 )
 ```
 
-**После завершения:**
-- Новые/обновлённые MD лежат в `.memory-bank/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md`
-- `/mb context` теперь автоматически показывает 1-строчный summary каждого MD
-- `/mb context --deep` показывает полное содержимое codebase-документов
+**After completion:**
 
-Сообщи пользователю: какие документы созданы/обновлены, определённый стек, предложи `/mb context --deep` для полного контекста.
+- New/updated Markdown docs live in `.memory-bank/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md`
+- `/mb context` now automatically shows a one-line summary for each doc
+- `/mb context --deep` shows the full contents of codebase documents
+
+Tell the user which documents were created/updated, which stack was detected, and suggest `/mb context --deep` for full context.
 
 ### upgrade
 
-Обновление skill до актуальной версии из GitHub. Требует `git clone`-установку.
+Update the skill to the latest version from GitHub. Requires a `git clone` installation.
 
-Флаги (первое слово после `upgrade`):
-- (без флагов) — проверить и с подтверждением применить
-- `--check` — только проверить (exit 1 если доступно обновление, exit 0 если up-to-date)
-- `--force` — применить без интерактивного подтверждения
+Flags (the first word after `upgrade`):
 
-Выполни напрямую (без subagent — это systems-level операция, LLM не нужен):
+- (no flags) — check and apply after confirmation
+- `--check` — check only (exit 1 if an update is available, exit 0 if already up to date)
+- `--force` — apply without interactive confirmation
+
+Run directly (no subagent — this is a systems-level operation, no LLM needed):
 
 ```bash
 bash ~/.claude/skills/memory-bank/scripts/mb-upgrade.sh $ARGS_AFTER_UPGRADE
 ```
 
-Скрипт выполняет:
-1. Pre-flight: проверяет что `~/.claude/skills/skill-memory-bank` — git repo с чистым working tree
-2. Читает `VERSION` файл и local commit hash
-3. `git fetch origin` + сравнивает local vs remote (ahead/behind)
-4. Показывает список ожидающих коммитов (`git log HEAD..origin/main`)
-5. Если `--check` — exit с кодом состояния
-6. Если есть обновления и не `--force` — запрашивает подтверждение
-7. При подтверждении: `git pull --ff-only` + re-run `install.sh` (идемпотентный merge hooks / команд)
-8. Выводит `local → new` версию
+The script:
 
-**Типичный сценарий:**
+1. Pre-flight: checks that `~/.claude/skills/skill-memory-bank` is a git repo with a clean working tree
+2. Reads the `VERSION` file and local commit hash
+3. Runs `git fetch origin` and compares local vs remote (`ahead/behind`)
+4. Shows pending commits (`git log HEAD..origin/main`)
+5. If `--check` is used — exits with a status code
+6. If updates exist and `--force` is not used — asks for confirmation
+7. On confirmation: `git pull --ff-only` + re-run `install.sh` (idempotent merge of hooks/commands)
+8. Prints `local → new` version
+
+**Typical flow:**
+
 ```
 User: /mb upgrade
-→ скрипт fetch, показывает: "3 behind, 0 ahead"
-→ показывает 3 последних коммита
-→ запрашивает: "Применить 3 обновлений? (y/n)"
+→ script fetches, shows: "3 behind, 0 ahead"
+→ shows the latest 3 commits
+→ asks: "Apply 3 updates? (y/n)"
 → user: y
-→ git pull + bash install.sh → manifest обновлён
-→ "Skill обновлён: 2.0.0-dev (cd65d0a) → 2.1.0 (abc1234)"
+→ `git pull` + `bash install.sh` → manifest refreshed
+→ "Skill updated: 2.0.0-dev (cd65d0a) → 2.1.0 (abc1234)"
 ```
 
-**Ошибки:**
-- Skill не git-clone → hint на переустановку через clone
-- Dirty working tree → hint на `git stash`/`git checkout --`
-- Divergent branches → hint на manual pull
-- Non-interactive без `--force` → error
+**Errors:**
 
-**ВАЖНО:** Skill repo (`~/.claude/skills/claude-skill-memory-bank/`) — это ИСХОДНИК skill'а. После `git pull` нужно re-run `install.sh` чтобы скопировать новые файлы в `~/.claude/{commands,agents,hooks,skills}/`. Скрипт делает это автоматически.
+- Skill is not a git clone → suggest reinstalling via clone
+- Dirty working tree → suggest `git stash` / `git checkout --`
+- Divergent branches → suggest manual pull
+- Non-interactive mode without `--force` → error
+
+**IMPORTANT:** The skill repo (`~/.claude/skills/skill-memory-bank`) is the canonical source. After `git pull`, `install.sh` must be rerun to refresh host-specific globals, symlink aliases `~/.claude/skills/memory-bank` and `~/.codex/skills/memory-bank`, and the managed block in `~/.codex/AGENTS.md`. The script does this automatically.
 
 ### compact [--dry-run|--apply]
 
-Status-based archival decay. Очищает старые выполненные планы и неиспользуемые low-importance заметки, **не трогая активную работу**.
+Status-based archival decay. Cleans up old completed plans and unused low-importance notes, **without touching active work**.
 
-**Критерии (AND, не OR):**
+**Criteria (AND, not OR):**
 
-| Кандидат | Age threshold | Done-signal (обязателен) |
-|----------|---------------|---------------------------|
-| Plan в `plans/done/` | `>60d` mtime | Primary: уже физически в `plans/done/` |
-| Plan в `plans/*.md` (active location) | `>60d` mtime | Метка `✅` / `[x]` в `checklist.md` строки с basename, ИЛИ упоминание в `progress.md`/`STATUS.md` как `завершён\|done\|closed\|shipped` |
-| Note в `notes/*.md` | `>90d` mtime | `importance: low` в frontmatter + **нет** референсов basename в `plan.md`/`STATUS.md`/`checklist.md`/`RESEARCH.md`/`BACKLOG.md` |
 
-**Safety-net:** active plans (not done) — **НЕ архивируются** даже >180d. Вместо этого warning "план X старше 180d, но не done — проверь актуальность".
+| Candidate                              | Age threshold | Done-signal (required)                                                                                                                  |
+| -------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan in `plans/done/`                  | `>60d` mtime  | Primary: already physically in `plans/done/`                                                                                            |
+| Plan in `plans/*.md` (active location) | `>60d` mtime  | `✅` / `[x]` marker in `checklist.md` line with the basename, OR mention in `progress.md`/`STATUS.md` as `completed|done|closed|shipped` |
+| Note in `notes/*.md`                   | `>90d` mtime  | `importance: low` in frontmatter + **no** basename references in `plan.md`/`STATUS.md`/`checklist.md`/`RESEARCH.md`/`BACKLOG.md`        |
 
-**Эффекты `--apply`:**
-- Plans → компрессия в 1 строку в `BACKLOG.md ## Archived plans` секцию, файл удалён. Ссылка на исходник в формате `(was: plans/done/<file>.md)` — git history сохраняет полный текст.
-- Notes → move в `notes/archive/` + body сжат до 3 непустых строк + marker `<!-- archived on YYYY-MM-DD -->`. Entries получают `archived: true` в `index.json`.
+
+**Safety net:** active plans (not done) are **NOT archived** even if >180d old. Instead, emit a warning like "plan X is older than 180d but not done — check whether it is still relevant".
+
+**Effects of `--apply`:**
+
+- Plans → compressed into one line inside `BACKLOG.md ## Archived plans`, original file deleted. Source path is preserved as `(was: plans/done/<file>.md)` — git history keeps the full text.
+- Notes → moved to `notes/archive/` + body compressed to 3 non-empty lines + marker `<!-- archived on YYYY-MM-DD -->`. Entries get `archived: true` in `index.json`.
 - Touched `.memory-bank/.last-compact` timestamp.
 
-`--dry-run` (default) — reasoning per candidate на stdout, 0 file changes.
+`--dry-run` (default) — prints reasoning per candidate to stdout, 0 file changes.
 
-Выполни напрямую (systems-level, LLM не нужен для decision logic — она deterministic):
+Run directly (systems-level, no LLM needed for the decision logic — it is deterministic):
 
 ```bash
 bash ~/.claude/skills/memory-bank/scripts/mb-compact.sh $ARGS_AFTER_COMPACT
 ```
 
-**Поиск в архиве:** default `mb-search` НЕ находит archived. Opt-in через `mb-search.sh --include-archived <query>` или `--include-archived --tag <tag>`.
+**Searching the archive:** default `mb-search` does NOT include archived items. Opt in via `mb-search.sh --include-archived <query>` or `--include-archived --tag <tag>`.
 
-**Типичный сценарий:**
+**Typical flow:**
+
 ```
 User: /mb compact
 → dry-run output:
@@ -329,7 +350,7 @@ User: /mb compact
     ...
 
   # Warnings — active plans older than 180d:
-    warning: plans/2025-09-01_long_feature.md is 230d old but not done — проверь актуальность
+    warning: plans/2025-09-01_long_feature.md is 230d old but not done — check whether it is still relevant
 
 User: /mb compact --apply
 → [apply] archived plan: plans/done/2026-01-10_feature_x.md (reason=in_done_dir)
@@ -337,31 +358,34 @@ User: /mb compact --apply
   ...
 ```
 
-### import --project <path> [--since YYYY-MM-DD] [--apply]
+### import --project  [--since YYYY-MM-DD] [--apply]
 
-Bootstrap Memory Bank из транскриптов Claude Code JSONL. Cold-start за секунды вместо недель наработки вручную.
+Bootstrap Memory Bank from Claude Code JSONL transcripts. Cold-start in seconds instead of weeks of manual reconstruction.
 
-**Источник:** `~/.claude/projects/<slug>/*.jsonl` — Claude Code хранит там все session transcripts. Slug строится из путей проекта (например `-Users-fockus-Apps-X` для `/Users/fockus/Apps/X`).
+**Source:** `~/.claude/projects/<slug>/*.jsonl` — Claude Code stores all session transcripts there. The slug is derived from project paths (for example `-Users-fockus-Apps-X` for `/Users/fockus/Apps/X`).
 
 **Extract strategy:**
-- `progress.md` — daily-grouped секции `## YYYY-MM-DD (imported)` с summary (N user turns + M assistant replies + первые 120 chars первого user-запроса)
-- `notes/` — heuristic architectural discussions: ≥3 consecutive assistant messages >1K chars → note `YYYY-MM-DD_NN_<topic-slug>.md` с frontmatter `importance: medium`, tags `[imported, discussion]`, body = first + last message compressed
+
+- `progress.md` — daily-grouped `## YYYY-MM-DD (imported)` sections with a summary (N user turns + M assistant replies + the first 120 chars of the first user prompt)
+- `notes/` — heuristic architectural discussions: ≥3 consecutive assistant messages >1K chars → note `YYYY-MM-DD_NN_<topic-slug>.md` with frontmatter `importance: medium`, tags `[imported, discussion]`, body = compressed first + last message
 
 **Safety:**
-- `--dry-run` (default) — stdout summary (jsonls/events/days/notes counts), 0 file changes
-- `--apply` — выполняет writes + touches `.memory-bank/.import-state.json`
-- **Dedup:** SHA256(timestamp + first 500 chars text) persisted в state — 2 запуска подряд идемпотентны
-- **PII auto-wrap:** email + API-key (`sk-...`, `sk-ant-...`, `Bearer <long>`, `gh[pousr]_<long>`) regex → `<private>...</private>`. Intersection с Этапом 3 — imported данные защищены от leak в index.json/search
-- **Resume:** `.import-state.json` содержит `seen_hashes` — повторный импорт пропускает already-seen events
-- **Broken JSONL line:** skip с warning, остальное продолжает парситься
 
-Выполни напрямую:
+- `--dry-run` (default) — stdout summary (jsonls/events/days/notes counts), 0 file changes
+- `--apply` — performs writes + touches `.memory-bank/.import-state.json`
+- **Dedup:** SHA256(timestamp + first 500 chars of text) persisted in state — two consecutive runs are idempotent
+- **PII auto-wrap:** email + API key (`sk-...`, `sk-ant-...`, `Bearer <long>`, `gh[pousr]_<long>`) regex → `<private>...</private>`. This intersects with Stage 3 so imported data is protected from leaking into `index.json` / search
+- **Resume:** `.import-state.json` stores `seen_hashes` — repeated imports skip already-seen events
+- **Broken JSONL line:** skip with warning; continue parsing the rest
+
+Run directly:
 
 ```bash
 python3 ~/.claude/skills/memory-bank/scripts/mb-import.py $ARGS_AFTER_IMPORT
 ```
 
-**Типичный сценарий (cold-start):**
+**Typical cold-start flow:**
+
 ```
 User: /mb import --project ~/.claude/projects/-Users-fockus-Apps-myproject/ --since 2026-03-01
 → dry-run output:
@@ -376,39 +400,44 @@ User: /mb import --project ~/.claude/projects/-Users-fockus-Apps-myproject/ --si
   jsonls=5 events=342 days=18 notes=12 mode=apply
 ```
 
-**Ограничения v2.2:**
-- Summarization сейчас deterministic (first+last chars), не LLM. Haiku-powered compression — backlog для v2.3+ если качество summaries окажется недостаточным
-- Debug-session detection для `lessons.md` — TODO (v2.2+)
-- STATUS.md seed — только manual
+**Limitations in v2.2:**
+
+- Summarization is currently deterministic (first+last chars), not LLM-based. Haiku-powered compression is backlog for v2.3+ if summary quality proves insufficient
+- Debug-session detection for `lessons.md` — TODO (v2.2+)
+- `STATUS.md` seed — manual only
 
 ### graph [--apply] [src_root]
 
-Построение code graph для Python-части проекта через stdlib `ast` (0 new deps). Заменяет `grep` для вопросов "где вызывается X?", "какие classes наследуются от Y?", "что импортируется из model.py?" — детерминистично, быстро, incremental.
+Build a code graph for the Python part of the project through stdlib `ast` (0 new deps). Replaces `grep` for questions like "where is X called?", "which classes inherit from Y?", "what is imported from model.py?" — deterministic, fast, incremental.
 
-**Что парсит:**
+**What it parses:**
+
 - **Nodes:** module (per file), function (top-level + nested), class
 - **Edges:** `import` (import X / from Y import Z), `call` (func() / obj.method()), `inherit` (class Child(Parent))
 
 **Output (`--apply`):**
-- `<mb>/codebase/graph.json` — JSON Lines (одна node/edge на строку, grep-friendly, streamable)
-- `<mb>/codebase/god-nodes.md` — топ-20 узлов по degree (in + out), с file:line + kind
+
+- `<mb>/codebase/graph.json` — JSON Lines (one node/edge per line, grep-friendly, streamable)
+- `<mb>/codebase/god-nodes.md` — top 20 nodes by degree (in + out), with `file:line` + kind
 - `<mb>/codebase/.cache/<hash>.json` — per-file SHA256 → parsed entities
 
-**Incremental:** если `sha256(file_content)` совпадает с cached — skip re-parse. На большом repo второй прогон моментальный.
+**Incremental:** if `sha256(file_content)` matches the cache — skip re-parse. On a large repo, the second run is near-instant.
 
 **Safety:**
-- `--dry-run` (default) — stdout summary (nodes/edges/reparsed/cached), 0 file changes
-- `--apply` — пишет все outputs + обновляет cache
-- Broken syntax → skip с warning, батч продолжается
-- `.venv/`, `__pycache__/`, `.*/` — исключены
 
-Выполни напрямую:
+- `--dry-run` (default) — stdout summary (nodes/edges/reparsed/cached), 0 file changes
+- `--apply` — writes all outputs + updates cache
+- Broken syntax → skip with warning, batch continues
+- `.venv/`, `__pycache__/`, `.*/` — excluded
+
+Run directly:
 
 ```bash
 python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py $ARGS_AFTER_GRAPH
 ```
 
-**Типичный сценарий:**
+**Typical flow:**
+
 ```
 User: /mb graph
 → dry-run output:
@@ -422,12 +451,13 @@ User: /mb graph --apply
 → nodes=52 edges=388 reparsed=3 cached=0 mode=apply
   [writes codebase/graph.json + god-nodes.md + .cache/]
 
-# Изменил 1 файл, перезапустил:
+# Modified 1 file, reran:
 User: /mb graph --apply
-→ reparsed=1 cached=2 — один файл re-parsed, два из кеша
+→ `reparsed=1 cached=2` — one file re-parsed, two loaded from cache
 ```
 
-**Пример top god-nodes (dogfood на этом repo):**
+**Example top god-nodes (dogfood on this repo):**
+
 ```
 | # | Name          | Kind     | File:Line            | Degree |
 |---|---------------|----------|----------------------|--------|
@@ -436,38 +466,43 @@ User: /mb graph --apply
 | 3 | _atomic_write | function | mb-import.py:157     | 22     |
 ```
 
-**Интеграция с `mb-codebase-mapper`:** агент использует `graph.json` как источник для разделов CONVENTIONS и CONCERNS вместо grep (backlog для v2.3).
+**Integration with `mb-codebase-mapper`:** the agent uses `graph.json` as the source for CONVENTIONS and CONCERNS instead of grep (backlog for v2.3).
 
-**Поддержка языков (v2.2 + Stage 6.5):**
-- **Всегда работает** (stdlib ast): Python (`.py`)
-- **Opt-in** (требует tree-sitter + grammars): Go (`.go`), JavaScript (`.js`/`.jsx`/`.mjs`), TypeScript (`.ts`/`.tsx`), Rust (`.rs`), Java (`.java`)
+**Language support (v2.2 + Stage 6.5):**
+
+- **Always works** (stdlib `ast`): Python (`.py`)
+- **Opt-in** (requires tree-sitter + grammars): Go (`.go`), JavaScript (`.js`/`.jsx`/`.mjs`), TypeScript (`.ts`/`.tsx`), Rust (`.rs`), Java (`.java`)
 - Install tree-sitter: `pip install tree-sitter tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java`
-- Без tree-sitter: non-Python файлы тихо пропускаются (graceful degradation). `HAS_TREE_SITTER` флаг в скрипте отражает статус
-- Skipped directories: `.venv`, `node_modules`, `__pycache__`, `.git`, `target`, `dist`, `build`, любые `.*`
+- Without tree-sitter: non-Python files are silently skipped (graceful degradation). The `HAS_TREE_SITTER` flag in the script reflects the status
+- Skipped directories: `.venv`, `node_modules`, `__pycache__`, `.git`, `target`, `dist`, `build`, any `.`*
 
-**Ограничения:**
-- Type inference отсутствует — edges работают на именах (call к `foo()` не различает модули с одноимённой функцией). Разрешение имён через imports — TODO v2.3+
-- Tree-sitter extractor упрощён (MVP): не все edge cases языка — если увидишь пропущенный узел, open issue
-- `god-nodes.md` wiki/ per-node documentation — отложено (YAGNI до реального запроса)
-- C/C++/Ruby/PHP/Kotlin/Swift — не поддержаны (добавить по требованию через новую запись в `_TS_LANG_CONFIG`)
+**Limitations:**
+
+- Type inference is absent — edges work on names only (`foo()` calls do not distinguish modules with the same function name). Name resolution through imports — TODO v2.3+
+- Tree-sitter extractor is intentionally simplified (MVP): not all language edge cases are covered — if you notice a missing node, open an issue
+- `god-nodes.md` wiki/per-node documentation — deferred (YAGNI until there is real demand)
+- C/C++/Ruby/PHP/Kotlin/Swift are not supported (can be added on demand via a new entry in `_TS_LANG_CONFIG`)
 
 ### deps [--install-hints]
 
-Проверка всех required + optional зависимостей skill'а. Выполняется автоматически перед `install.sh` (step 0), доступна standalone через `/mb deps`.
+Check all required and optional skill dependencies. This runs automatically before `install.sh` (step 0) and is also available standalone via `/mb deps`.
 
-**Required (exit 1 если отсутствуют):**
-- `bash` — runtime для shell-скриптов
-- `python3` — для `mb-index-json.py`, `mb-import.py`, `mb-codegraph.py`, hooks
-- `jq` — для `session-end-autosave.sh`, `block-dangerous.sh`, `file-change-log.sh` (JSON parse из hook stdin)
-- `git` — для `mb-upgrade.sh`, version tracking
+**Required (exit 1 if missing):**
 
-**Optional (warning, не blocker):**
-- `rg` (ripgrep) — ускоряет `mb-search`, fallback на grep
-- `shellcheck` — только для dev (CI lint)
-- `tree_sitter` (Python package) + grammars — multi-language `/mb graph` (Go/JS/TS/Rust/Java). Без него работает только Python
-- `PyYAML` — strict YAML в frontmatter, fallback на simple parser
+- `bash` — runtime for shell scripts
+- `python3` — required by `mb-index-json.py`, `mb-import.py`, `mb-codegraph.py`, and hooks
+- `jq` — required by `session-end-autosave.sh`, `block-dangerous.sh`, `file-change-log.sh` (JSON parsing from hook stdin)
+- `git` — required by `mb-upgrade.sh` and version tracking
+
+**Optional (warning, not a blocker):**
+
+- `rg` (ripgrep) — speeds up `mb-search`, with fallback to `grep`
+- `shellcheck` — dev-only (CI lint)
+- `tree_sitter` (Python package) + grammars — multi-language `/mb graph` (Go/JS/TS/Rust/Java). Without it, only Python works
+- `PyYAML` — strict YAML parsing in frontmatter, with fallback to the simple parser
 
 **Output format** (key=value, machine-parseable):
+
 ```
 dep_bash=ok
 dep_python3=ok
@@ -478,15 +513,16 @@ deps_required_missing=1
 deps_optional_missing=2
 ```
 
-**Install hints** — `--install-hints` выводит OS-specific команды (brew/apt/dnf/pacman detected через `/etc/os-release`).
+**Install hints** — `--install-hints` prints OS-specific commands (brew/apt/dnf/pacman detected via `/etc/os-release`).
 
-Выполни напрямую:
+Run directly:
 
 ```bash
 bash ~/.claude/skills/memory-bank/scripts/mb-deps-check.sh $ARGS_AFTER_DEPS
 ```
 
-**Типичный сценарий — первая установка:**
+**Typical first-install flow:**
+
 ```
 User: bash install.sh
 → [0/7] Dependency check
@@ -500,22 +536,22 @@ User: brew install jq && bash install.sh
   [1/7] Rules → ...continues
 ```
 
-**Override:** `MB_SKIP_DEPS_CHECK=1 bash install.sh` — пропускает preflight (CI / isolated envs где tools проверяются иначе).
+**Override:** `MB_SKIP_DEPS_CHECK=1 bash install.sh` — skips preflight (CI / isolated environments where tools are checked differently).
 
 ### help [subcommand]
 
-Справка по подкомандам `/mb`. Single source of truth — читает `~/.claude/skills/memory-bank/commands/mb.md` напрямую.
+Help for `/mb` subcommands. Single source of truth — reads `~/.claude/skills/memory-bank/commands/mb.md` directly.
 
-**Режимы (первое слово после `help`):**
+**Modes (first word after `help`):**
 
-1. **`/mb help`** (без аргумента) — вывести router-таблицу всех подкоманд с кратким описанием одной строкой.
-2. **`/mb help <subcommand>`** — извлечь и показать детальный блок реализации конкретной подкоманды (разделы вида `### <subcommand>`).
+1. `**/mb help`** (no argument) — print the router table of all subcommands with one-line descriptions.
+2. `**/mb help <subcommand>**` — extract and show the detailed implementation block for that subcommand (sections like `### <subcommand>`).
 
-**Алгоритм для агента:**
+**Algorithm for the agent:**
 
 ```bash
 SKILL_MD="$HOME/.claude/skills/memory-bank/commands/mb.md"
-SUB="$SUBCOMMAND_ARG"  # первое слово после "help", может быть пустым
+SUB="$SUBCOMMAND_ARG"  # first word after "help"; may be empty
 
 SKILL_MD="$SKILL_MD" SUB="$SUB" python3 - <<'PY'
 import os, sys
@@ -524,10 +560,10 @@ sub = os.environ.get("SUB", "").strip()
 lines = open(path, encoding="utf-8").read().splitlines()
 
 if not sub:
-    # Mode 1: router table — between "### Роутинг" and next "---"
+    # Mode 1: router table — between "### Routing" and the next "---"
     in_section = False
     for line in lines:
-        if line.startswith("### Роутинг"):
+        if line.startswith("### Routing"):
             in_section = True
             continue
         if in_section and line.startswith("---"):
@@ -555,168 +591,175 @@ for line in lines:
 PY
 ```
 
-**Примеры:**
+**Examples:**
 
 ```
 User: /mb help
-→ выводит роутер-таблицу с 18 подкомандами
+→ prints the router table with 18 subcommands
 
 User: /mb help compact
-→ выводит полную секцию "### compact [--dry-run|--apply]" с логикой,
-  примерами, ограничениями
+→ prints the full section "### compact [--dry-run|--apply]" with logic,
+  examples, and limitations
 
 User: /mb help tags
-→ выводит секцию "### tags [--apply] [--auto-merge]"
+→ prints the section "### tags [--apply] [--auto-merge]"
 ```
 
-**Не путай с:**
-- `/help` — built-in Claude Code команда (не skill).
-- `commands/catchup.md` / `commands/start.md` / `commands/done.md` — standalone top-level slash-команды (lightweight), не подкоманды `/mb`.
+**Do not confuse with:**
+
+- `/help` — built-in Claude Code command (not a skill).
+- `commands/catchup.md` / `commands/start.md` / `commands/done.md` — standalone top-level slash commands (lightweight), not `/mb` subcommands.
 
 ### init [--minimal|--full]
 
-Инициализация Memory Bank в новом проекте.
+Initialize Memory Bank in a new project.
 
-**Режимы** (первое слово после `init`):
-- `--minimal` — только `.memory-bank/` структура + core-файлы. Для продвинутых пользователей, которые сами напишут CLAUDE.md.
-- `--full` (default, если флаг не указан) — `.memory-bank/` + `RULES.md` copy + авто-детект стека + генерация `CLAUDE.md` + предложение symlink `.planning/`.
+**Modes** (first word after `init`):
+
+- `--minimal` — only `.memory-bank/` structure + core files. For advanced users who will write `CLAUDE.md` themselves.
+- `--full` (default, if no flag is provided) — `.memory-bank/` + `RULES.md` copy + stack auto-detect + `CLAUDE.md` generation + optional `.planning/` symlink prompt.
 
 ---
 
-#### Step 1: Создай структуру
+#### Step 1: Create the structure
 
 ```bash
 mkdir -p .memory-bank/{experiments,plans/done,notes,reports,codebase}
 ```
 
-Core файлы (шаблоны — `~/.claude/skills/memory-bank/references/templates.md`):
-- `STATUS.md` — заголовок проекта, "Текущая фаза: Начало"
-- `plan.md` — "Текущий фокус: определить", секция `## Active plan` с маркерами `<!-- mb-active-plan -->` / `<!-- /mb-active-plan -->` (для автосинхронизации)
-- `checklist.md` — пустой чеклист
-- `RESEARCH.md` — заголовок + пустая таблица гипотез
-- `BACKLOG.md` — заголовок + пустые секции (Идеи HIGH/LOW, ADR)
-- `progress.md` — заголовок
-- `lessons.md` — заголовок
+Core files (templates — `~/.claude/skills/memory-bank/references/templates.md`):
 
-**Если `--minimal` — остановись здесь.** Сообщи: `[MEMORY BANK: INITIALIZED]` + подсказка `/mb start`.
+- `STATUS.md` — project header, "Current phase: Start"
+- `plan.md` — "Current focus: define", `## Active plan` section with markers `<!-- mb-active-plan -->` / `<!-- /mb-active-plan -->` (for auto-sync)
+- `checklist.md` — empty checklist
+- `RESEARCH.md` — header + empty hypothesis table
+- `BACKLOG.md` — header + empty sections (HIGH/LOW ideas, ADRs)
+- `progress.md` — header
+- `lessons.md` — header
+
+**If `--minimal` — stop here.** Report `[MEMORY BANK: INITIALIZED]` + a hint to run `/mb start`.
 
 ---
 
-#### Step 2: Copy RULES (только `--full`)
+#### Step 2: Copy RULES (`--full` only)
 
 ```bash
 cp ~/.claude/RULES.md .memory-bank/RULES.md
-# Если уже существует — сравни через diff, спроси пользователя прежде чем перезаписывать
+# If it already exists — compare via diff and ask the user before overwriting
 ```
 
 ---
 
-#### Step 3: Auto-detect стека (только `--full`)
+#### Step 3: Auto-detect the stack (`--full` only)
 
-Запусти `mb-metrics.sh` для детекции стека + дополни более детальной информацией:
+Run `mb-metrics.sh` to detect the stack, then enrich it with more detailed information:
 
 ```bash
 bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh
 # → stack, test_cmd, lint_cmd, src_count
 ```
 
-Дополни информацией о фреймворках (grep imports/deps):
+Augment with framework information (grep imports/deps):
+
 - Python: FastAPI, Django, Flask (pyproject.toml + imports)
 - Node: Next.js, Express, Nest (package.json deps)
 - Go: gin, echo, fiber (go.mod)
-- Frontend: React/Vue/Angular/Svelte + FSD слои (проверь `src/app/`, `src/pages/`, `src/features/`, `src/entities/`, `src/shared/`)
+- Frontend: React/Vue/Angular/Svelte + FSD layers (check `src/app/`, `src/pages/`, `src/features/`, `src/entities/`, `src/shared/`)
 
-Сохрани результаты: `{LANGUAGE}`, `{FRAMEWORK}`, `{STRUCTURE}`, `{TOOLS}`.
-
----
-
-#### Step 4: Сгенерируй CLAUDE.md (только `--full`)
-
-Используй шаблон из `~/.claude/skills/memory-bank/references/claude-md-template.md`. В шаблон подставь `{LANGUAGE}`, `{FRAMEWORK}`, `{TOOLS}`, структуру проекта, список ключевых зависимостей.
-
-Обязательные секции в сгенерированном CLAUDE.md:
-- **Project** — название, описание
-- **Technology Stack** — языки, runtime, фреймворки, package manager
-- **Conventions** — naming patterns (детектируй из существующего кода), code style
-- **Architecture** — для backend: Clean Architecture направление; для frontend: FSD layers
-- **Rules** — ссылка на `~/.claude/RULES.md` + `.memory-bank/RULES.md` + краткие критические правила (TDD, Contract-First, Clean Arch/FSD, SOLID пороги, coverage)
-- **Memory Bank** — команда `/mb`, ключевые файлы
-
-**Покажи пользователю draft перед записью.** Спроси: "Записать CLAUDE.md? Нужно что-то добавить/изменить?"
+Store the results: `{LANGUAGE}`, `{FRAMEWORK}`, `{STRUCTURE}`, `{TOOLS}`.
 
 ---
 
-#### Step 5: `.planning/` symlink (только `--full`, опционально)
+#### Step 4: Generate `CLAUDE.md` (`--full` only)
 
-Если `.planning/` уже существует (от GSD/других tools) и `.memory-bank/.planning/` не существует:
+Use the template from `~/.claude/skills/memory-bank/references/claude-md-template.md`. Fill in `{LANGUAGE}`, `{FRAMEWORK}`, `{TOOLS}`, project structure, and key dependencies.
+
+Required sections in generated `CLAUDE.md`:
+
+- **Project** — name and description
+- **Technology Stack** — languages, runtime, frameworks, package manager
+- **Conventions** — naming patterns (detect from existing code), code style
+- **Architecture** — for backend: Clean Architecture dependency direction; for frontend: FSD layers
+- **Rules** — link to `~/.claude/RULES.md` + `.memory-bank/RULES.md` + short critical rules (TDD, Contract-First, Clean Arch/FSD, SOLID thresholds, coverage)
+- **Memory Bank** — `/mb` command and key files
+
+**Show the user the draft before writing it.** Ask: "Write CLAUDE.md? Anything to add or change?"
+
+---
+
+#### Step 5: `.planning/` symlink (`--full` only, optional)
+
+If `.planning/` already exists (from GSD or other tools) and `.memory-bank/.planning/` does not exist:
 
 ```
-Предлагаю перенести .planning/ внутрь .memory-bank/:
+I suggest moving `.planning/` inside `.memory-bank/`:
   mv .planning .memory-bank/.planning
   ln -s .memory-bank/.planning .planning
 
-Это объединит артефакты проекта в одной директории.
-Symlink сохранит совместимость с GSD.
+This keeps project artifacts in one directory.
+The symlink preserves GSD compatibility.
 
-Сделать? (y/n)
+Do this? (y/n)
 ```
 
-Если `y` — выполни. Если `n` — оставить как есть.
+If `y` — execute it. If `n` — leave everything as-is.
 
 ---
 
-#### Step 6: Резюме
+#### Step 6: Summary
 
-Выведи:
-- Созданные файлы: `.memory-bank/` + `CLAUDE.md` (если `--full`)
+Print:
+
+- Created files: `.memory-bank/` + `CLAUDE.md` (if `--full`)
 - Detected stack: `{language}`, `{framework}`, `{tools}`
-- Сообщи: `[MEMORY BANK: ACTIVE]`
-- Предложи следующий шаг: `/mb start` или (если в проекте есть план) `/mb plan feature "<topic>"`
+- Report: `[MEMORY BANK: ACTIVE]`
+- Suggest the next step: `/mb start` or (if the project needs planning) `/mb plan feature "<topic>"`
 
 ---
 
-### install [<clients>]
+### install []
 
-Установить Memory Bank для текущего проекта + выбранных AI-агентов. Работает в Claude Code, OpenCode, Codex — в любом агенте с Bash-инструментом.
+Install Memory Bank for the current project + selected AI agents. The CLI can be run from Claude Code, OpenCode, Codex, and other agents with a Bash tool, but native `/mb` command surface is guaranteed only for Claude Code / OpenCode. In Codex, installation provides global skill registration + `~/.codex/AGENTS.md` hints, not a separate slash-command surface.
 
-**Формат аргумента** (первое слово после `install`):
-- Пусто → интерактивный выбор.
-- Comma/space-separated список клиентов (например `claude-code,cursor,windsurf`) → прямой запуск без prompt'а.
-- `all` → все 8 клиентов.
+**Argument format** (first word after `install`):
 
-Допустимые имена: `claude-code`, `cursor`, `windsurf`, `cline`, `kilo`, `opencode`, `pi`, `codex`.
+- Empty → interactive selection.
+- Comma/space-separated client list (for example `claude-code,cursor,windsurf`) → direct run without prompt.
+- `all` → all 8 clients.
+
+Allowed names: `claude-code`, `cursor`, `windsurf`, `cline`, `kilo`, `opencode`, `pi`, `codex`.
 
 ---
 
-#### Step 1 — Проверь CLI
+#### Step 1 — Check the CLI
 
 ```bash
 command -v memory-bank >/dev/null 2>&1 && memory-bank version
 ```
 
-Если не найден — сообщи пользователю и предложи:
+If not found — tell the user and suggest:
 
 ```
-memory-bank CLI не найден. Установи одним из способов:
+memory-bank CLI not found. Install it using one of:
 
   pipx install memory-bank-skill           # cross-platform
   brew install fockus/tap/memory-bank      # macOS / Linuxbrew
-  pip install memory-bank-skill            # альтернатива
+  pip install memory-bank-skill            # alternative
 
-Затем перезапусти /mb install.
+Then retry installation via CLI `memory-bank install ...` or the matching host command where supported.
 ```
 
-И завершай.
+Then stop.
 
 ---
 
-#### Step 2 — Собери список клиентов
+#### Step 2 — Collect the client list
 
-**Если `$ARGUMENTS` (после слова `install`) непустой** — используй его напрямую. CLI сам валидирует.
+**If `$ARGUMENTS` (after the word `install`) is non-empty** — use it directly. The CLI validates it.
 
-**Если пустой:**
+**If empty:**
 
-В **Claude Code** используй `AskUserQuestion` с `multiSelect: true`:
+In **Claude Code**, use `AskUserQuestion` with `multiSelect: true`:
 
 ```
 question: "Which AI coding agents should share this project's memory bank?"
@@ -728,11 +771,11 @@ options:
   - {label: "opencode + codex + pi (shared AGENTS.md)", description: "All three use AGENTS.md — refcount-tracked"}
 ```
 
-Если пользователь выбрал "opencode + codex + pi" — разверни в `opencode,codex,pi`.
+If the user chose "opencode + codex + pi" — expand it into `opencode,codex,pi`.
 
-Если пользователь ничего не выбрал — дефолт `claude-code`.
+If the user selected nothing — default to `claude-code`.
 
-В **других агентах** (OpenCode, Codex), без `AskUserQuestion`, выведи список и попроси ввести:
+In **other agents without `AskUserQuestion`**, print the list and ask for input:
 
 ```
 Which agents should share this project's memory bank?
@@ -749,23 +792,23 @@ Reply with names or numbers (e.g. "1,2" or "cursor,windsurf"),
 'all' for every client, or press Enter for claude-code only.
 ```
 
-Распарси ответ в comma-separated список имён.
+Parse the reply into a comma-separated list of names.
 
 ---
 
-#### Step 3 — Запусти установку
+#### Step 3 — Run installation
 
 ```bash
 memory-bank install --clients "<selected-list>" --project-root "$PWD"
 ```
 
-Покажи stdout — CLI даёт красивый пошаговый отчёт (Rules / Agents / Hooks / Commands / Settings / Manifest + cross-agent adapters).
+Show stdout — the CLI prints a step-by-step report (Rules / Agents / Hooks / Commands / Settings / Manifest + cross-agent adapters).
 
 ---
 
 #### Step 4 — Resume hint
 
-После успеха:
+After success:
 
 ```
 ✓ Memory Bank installed for: <clients>
@@ -777,25 +820,27 @@ Next steps:
   • Plan a feature:               /mb plan feature <topic>
 ```
 
-Если среди установленных клиентов есть отличный от текущего (user в Claude Code выбрал `cursor`) — напомни что в том IDE adapter подхватится автоматически при следующем открытии проекта.
+If the installed client list includes one different from the current host (for example the user in Claude Code chose `cursor`) — remind them that the adapter will be picked up automatically when that IDE next opens the project.
 
 ---
 
-**Ошибки:**
+**Errors:**
 
-- `memory-bank: command not found` → см. Step 1.
-- `invalid client 'X'` → проверь имя (строгий список из 8).
-- `bash not found on PATH` (Windows) → посоветуй Git for Windows или WSL.
+- `memory-bank: command not found` → see Step 1.
+- `invalid client 'X'` → check the name (strict list of 8).
+- `bash not found on PATH` (Windows) → suggest Git for Windows or WSL.
 
-**Не путай с:**
-- `/mb init` — инициализирует `.memory-bank/` **внутри** проекта после того как skill установлен глобально. Обычно `install` → потом `init`.
-- `install.sh` из корня репо — shell-скрипт, который `memory-bank install` вызывает под капотом.
+**Do not confuse with:**
+
+- `/mb init` — initializes `.memory-bank/` **inside** the project after the skill is installed globally. Usually `install` → then `init`.
+- `install.sh` in the repo root — the shell script that `memory-bank install` calls under the hood.
 
 ---
 
-## Общие правила
+## General Rules
 
-- Если `.memory-bank/` не существует и команда не `init` — сообщи `[MEMORY BANK: INACTIVE]` и предложи `/mb init`
-- После выполнения — покажи пользователю краткое резюме результата
+- If `.memory-bank/` does not exist and the command is not `init` — report `[MEMORY BANK: INACTIVE]` and suggest `/mb init`
+- After execution — show the user a short result summary
 - progress.md = APPEND-ONLY
-- Нумерация сквозная: H-NNN, EXP-NNN, ADR-NNN
+- Numbering is global: H-NNN, EXP-NNN, ADR-NNN
+

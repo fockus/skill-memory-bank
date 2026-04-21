@@ -1,16 +1,16 @@
 #!/usr/bin/env bats
-# Tests for scripts/mb-tags-normalize.sh + kebab-case в mb-index-json.py.
+# Tests for scripts/mb-tags-normalize.sh + kebab-case in mb-index-json.py.
 #
 # Contract:
 #   mb-tags-normalize.sh [--dry-run|--apply] [--auto-merge] [mb_path]
 #
 # Logic:
 #   - Load vocabulary from <mb>/tags-vocabulary.md (one tag per line, bullets OK)
-#     ИЛИ default из references/tags-vocabulary.md если банковского нет
+#     OR default from references/tags-vocabulary.md if the bank one is absent
 #   - Scan notes/*.md frontmatter, collect actual_tags set
-#   - Detect synonyms: pairs (a, b) где Levenshtein(a, b) ≤ 2 → propose merge to
-#     vocabulary-form (preferred) или shorter
-#   - --auto-merge: применяет только high-confidence (distance ≤ 1)
+#   - Detect synonyms: pairs (a, b) where Levenshtein(a, b) ≤ 2 → propose merge to
+#     vocabulary-form (preferred) or shorter
+#   - --auto-merge: applies only high-confidence merges (distance ≤ 1)
 #   - --apply (default: --dry-run): rewrite frontmatter tags in affected files
 #
 # Exit: 0 success, 1 error, 2 unknown tags detected (drift signal).
@@ -97,7 +97,7 @@ EOF
   write_note "b.md" "sqlite_vec"
   run_normalize --dry-run
   [ "$status" -eq 0 ]
-  # Должна быть предложенная пара в output
+  # The suggested pair must appear in output
   [[ "$output" == *"sqlite_vec"* ]]
   [[ "$output" == *"sqlite-vec"* ]]
 }
@@ -108,19 +108,19 @@ EOF
   write_note "b.md" "sqlite_vec"
   run_normalize --apply --auto-merge
   [ "$status" -eq 0 ]
-  # b.md должен теперь содержать sqlite-vec (из vocabulary)
+  # b.md must now contain sqlite-vec (from vocabulary)
   grep -q "sqlite-vec" "$MB/notes/b.md"
   ! grep -q "sqlite_vec" "$MB/notes/b.md"
 }
 
-@test "normalize: distance=2 НЕ авто-мержится при --auto-merge" {
+@test "normalize: distance=2 is NOT auto-merged with --auto-merge" {
   write_vocab
   write_note "a.md" "test"
-  write_note "b.md" "teest2"    # distance=2 от test (вставка 'e' + '2')
+  write_note "b.md" "teest2"    # distance=2 from test (inserted 'e' + '2')
   run_normalize --apply --auto-merge
-  # Unknown tag (no close match) → exit 2 допустимо
+  # Unknown tag (no close match) → exit 2 is acceptable
   [ "$status" -eq 0 ] || [ "$status" -eq 2 ]
-  # teest2 остаётся (distance=2 не auto-merged)
+  # teest2 remains (distance=2 is not auto-merged)
   grep -q "teest2" "$MB/notes/b.md"
 }
 
@@ -157,7 +157,7 @@ EOF
 }
 
 @test "normalize: falls back to default vocabulary if bank's is missing" {
-  # Нет $MB/tags-vocabulary.md
+  # No $MB/tags-vocabulary.md
   write_note "a.md" "auth, bug, test"
   run_normalize --dry-run
   [ "$status" -eq 0 ]
@@ -167,19 +167,19 @@ EOF
 # --apply mechanics
 # ═══════════════════════════════════════════════════════════════
 
-@test "normalize: --apply без --auto-merge НЕ меняет файлы (interactive mode требует stdin)" {
+@test "normalize: --apply without --auto-merge does NOT change files (interactive mode needs stdin)" {
   write_vocab
   write_note "a.md" "sqlite_vec"
   local before
   before=$(cat "$MB/notes/a.md")
   run_normalize --apply
-  # Без --auto-merge interactive ↔ в тесте stdin closed → skip
+  # Without --auto-merge it is interactive; in tests stdin is closed → skip
   local after
   after=$(cat "$MB/notes/a.md")
   [ "$before" = "$after" ]
 }
 
-@test "normalize: --apply --auto-merge idempotent (2 run подряд)" {
+@test "normalize: --apply --auto-merge is idempotent (2 consecutive runs)" {
   write_vocab
   write_note "a.md" "sqlite_vec"
   run_normalize --apply --auto-merge
@@ -192,7 +192,7 @@ EOF
 }
 
 # ═══════════════════════════════════════════════════════════════
-# kebab-case в mb-index-json.py
+# kebab-case in mb-index-json.py
 # ═══════════════════════════════════════════════════════════════
 
 @test "index-json: camelCase tag → kebab-case in index" {

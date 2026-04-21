@@ -15,7 +15,7 @@
 # Safety:
 #   --dry-run (default): reasoning on stdout, 0 file writes
 #   --apply --auto-merge: rewrite frontmatter tags in affected notes
-#   --apply без --auto-merge: interactive mode (требует stdin — при closed stdin skip)
+#   `--apply` without `--auto-merge`: interactive mode (requires stdin — skipped if stdin is closed)
 #
 # Exit: 0 clean; 1 error; 2 unknown tags detected (drift signal for mb-doctor).
 
@@ -62,7 +62,7 @@ elif [ -f "$VOCAB_DEFAULT" ]; then
   VOCAB_FILE="$VOCAB_DEFAULT"
 fi
 
-# Main работа делается в Python для Levenshtein. Bash отвечает за arg parsing + dispatch.
+# Main work is done in Python for Levenshtein matching. Bash handles arg parsing + dispatch.
 MODE="$MODE" AUTO_MERGE="$AUTO_MERGE" MB="$MB_PATH" VOCAB="$VOCAB_FILE" python3 - <<'PYEOF'
 import os
 import re

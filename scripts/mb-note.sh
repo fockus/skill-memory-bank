@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# mb-note.sh — создание заметки в Memory Bank.
+# mb-note.sh — create a note in Memory Bank.
 # Usage: mb-note.sh <topic> [mb_path]
-# Создаёт notes/YYYY-MM-DD_HH-MM_<topic>.md.
-# При коллизии имени добавляет суффикс _2, _3 вместо падения.
+# Creates `notes/YYYY-MM-DD_HH-MM_<topic>.md`.
+# On filename collision, adds suffix `_2`, `_3` instead of failing.
 
 set -euo pipefail
 
@@ -16,7 +16,7 @@ NOTES_DIR="$MB_PATH/notes"
 SAFE_TOPIC=$(mb_sanitize_topic "$TOPIC")
 
 if [[ -z "$SAFE_TOPIC" ]]; then
-  echo "Topic содержит только не-ASCII символы — не удаётся сформировать имя файла: $TOPIC" >&2
+  echo "Topic contains only non-ASCII characters — cannot build a filename: $TOPIC" >&2
   exit 1
 fi
 
@@ -30,10 +30,10 @@ DATE_NOW=$(date +"%Y-%m-%d %H:%M")
 printf '# %s\nDate: %s\n' "$TOPIC" "$DATE_NOW" > "$FILEPATH"
 cat >> "$FILEPATH" << 'EOF'
 
-## Что сделано
+## What was done
 -
 
-## Новые знания
+## New knowledge
 -
 EOF
 

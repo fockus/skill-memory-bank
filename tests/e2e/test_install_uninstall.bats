@@ -26,12 +26,34 @@ teardown() {
 
   [ -f "$HOME/.claude/RULES.md" ]
   [ -f "$HOME/.claude/CLAUDE.md" ]
+  [ -f "$HOME/.claude/memory-bank-config.json" ]
+  [ -f "$HOME/.codex/AGENTS.md" ]
   [ -f "$HOME/.config/opencode/AGENTS.md" ]
   [ -d "$HOME/.claude/commands" ]
   [ -d "$HOME/.config/opencode/commands" ]
   [ -d "$HOME/.claude/agents" ]
   [ -d "$HOME/.claude/hooks" ]
-  [ -d "$HOME/.claude/skills/memory-bank" ]
+  [ -L "$HOME/.claude/skills/skill-memory-bank" ]
+  [ -L "$HOME/.claude/skills/memory-bank" ]
+  [ -L "$HOME/.codex/skills/memory-bank" ]
+}
+
+@test "install: default language is English in installed rules and config" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  grep -q '1. \*\*Language\*\*: English — responses and code comments' "$HOME/.claude/RULES.md"
+  grep -q '\*\*Language\*\* — respond in English; technical terms may remain in English\.' "$HOME/.claude/CLAUDE.md"
+  grep -q 'comments in English' "$HOME/.claude/settings.json"
+  grep -q '"preferred_language": "en"' "$HOME/.claude/memory-bank-config.json"
+}
+
+@test "install: --language ru localizes global rules and settings" {
+  bash "$REPO_ROOT/install.sh" --language ru >/dev/null
+
+  grep -q '1. \*\*Language\*\*: Russian — responses and code comments' "$HOME/.claude/RULES.md"
+  grep -q '\*\*Language\*\* — respond in Russian; technical terms may remain in English\.' "$HOME/.claude/CLAUDE.md"
+  grep -q 'comments in Russian' "$HOME/.claude/settings.json"
+  grep -q '"preferred_language": "ru"' "$HOME/.claude/memory-bank-config.json"
 }
 
 @test "install: copies expected commands" {
@@ -73,6 +95,36 @@ teardown() {
   done
 }
 
+@test "install: skill bundle is complete for Claude and Codex aliases" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  [ -f "$HOME/.claude/skills/memory-bank/SKILL.md" ]
+  [ -d "$HOME/.claude/skills/memory-bank/commands" ]
+  [ -d "$HOME/.claude/skills/memory-bank/agents" ]
+  [ -d "$HOME/.claude/skills/memory-bank/hooks" ]
+  [ -d "$HOME/.claude/skills/memory-bank/scripts" ]
+  [ -d "$HOME/.claude/skills/memory-bank/references" ]
+  [ -d "$HOME/.claude/skills/memory-bank/rules" ]
+  [ -f "$HOME/.claude/skills/memory-bank/commands/mb.md" ]
+  [ -f "$HOME/.claude/skills/memory-bank/agents/mb-manager.md" ]
+  [ -f "$HOME/.claude/skills/memory-bank/hooks/session-end-autosave.sh" ]
+  [ -f "$HOME/.codex/skills/memory-bank/commands/mb.md" ]
+  [ -f "$HOME/.codex/skills/memory-bank/agents/mb-manager.md" ]
+  [ -f "$HOME/.codex/skills/memory-bank/hooks/session-end-autosave.sh" ]
+}
+
+@test "install: Claude and Codex aliases resolve to canonical skill path" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  claude_canonical="$(python3 -c 'import os; print(os.path.realpath("'"$HOME"'/.claude/skills/skill-memory-bank"))')"
+  claude_alias="$(python3 -c 'import os; print(os.path.realpath("'"$HOME"'/.claude/skills/memory-bank"))')"
+  codex_alias="$(python3 -c 'import os; print(os.path.realpath("'"$HOME"'/.codex/skills/memory-bank"))')"
+
+  [ "$claude_canonical" = "$REPO_ROOT" ]
+  [ "$claude_alias" = "$claude_canonical" ]
+  [ "$codex_alias" = "$claude_canonical" ]
+}
+
 @test "install: CLAUDE.md has MEMORY-BANK-SKILL marker" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   grep -q "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md"
@@ -82,6 +134,13 @@ teardown() {
   bash "$REPO_ROOT/install.sh" >/dev/null
   grep -q "<!-- memory-bank:start -->" "$HOME/.config/opencode/AGENTS.md"
   grep -q "<!-- memory-bank:end -->" "$HOME/.config/opencode/AGENTS.md"
+}
+
+@test "install: Codex AGENTS.md has managed memory-bank block" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  grep -q "<!-- memory-bank-codex:start -->" "$HOME/.codex/AGENTS.md"
+  grep -q "<!-- memory-bank-codex:end -->" "$HOME/.codex/AGENTS.md"
+  grep -q "~/.codex/skills/memory-bank/SKILL.md" "$HOME/.codex/AGENTS.md"
 }
 
 @test "install: writes manifest" {
@@ -113,7 +172,7 @@ teardown() {
   # Hook copied
   [ -x "$HOME/.claude/hooks/session-end-autosave.sh" ]
 
-  # Event зарегистрирован в settings.json
+  # Event is registered in settings.json
   grep -q "SessionEnd" "$HOME/.claude/settings.json"
   grep -q "session-end-autosave.sh" "$HOME/.claude/settings.json"
 }
@@ -140,7 +199,9 @@ teardown() {
   [ ! -f "$HOME/.claude/agents/mb-manager.md" ]
   [ ! -f "$HOME/.claude/hooks/block-dangerous.sh" ]
   [ ! -f "$HOME/.claude/hooks/session-end-autosave.sh" ]
-  [ ! -d "$HOME/.claude/skills/memory-bank" ]
+  [ ! -e "$HOME/.claude/skills/skill-memory-bank" ]
+  [ ! -e "$HOME/.claude/skills/memory-bank" ]
+  [ ! -e "$HOME/.codex/skills/memory-bank" ]
 }
 
 @test "uninstall: SessionEnd hook removed from settings.json" {
@@ -159,6 +220,15 @@ teardown() {
   # settings.json may still exist, but must not contain memory-bank-skill markers
   if [ -f "$HOME/.claude/settings.json" ]; then
     ! grep -q "memory-bank-skill" "$HOME/.claude/settings.json"
+  fi
+}
+
+@test "uninstall: strips Codex managed section from AGENTS.md" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  if [ -f "$HOME/.codex/AGENTS.md" ]; then
+    ! grep -q "memory-bank-codex:start" "$HOME/.codex/AGENTS.md"
   fi
 }
 
@@ -198,6 +268,22 @@ EOF
   grep -q "User OpenCode rules" "$HOME/.config/opencode/AGENTS.md"
   grep -q "Keep answers concise" "$HOME/.config/opencode/AGENTS.md"
   ! grep -q "memory-bank:start" "$HOME/.config/opencode/AGENTS.md"
+}
+
+@test "uninstall: preserves user Codex AGENTS.md content above skill section" {
+  mkdir -p "$HOME/.codex"
+  cat > "$HOME/.codex/AGENTS.md" <<'EOF'
+# User Codex rules
+
+Respect existing workflows.
+EOF
+
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  grep -q "User Codex rules" "$HOME/.codex/AGENTS.md"
+  grep -q "Respect existing workflows." "$HOME/.codex/AGENTS.md"
+  ! grep -q "memory-bank-codex:start" "$HOME/.codex/AGENTS.md"
 }
 
 @test "uninstall: preserves user hooks in settings.json" {

@@ -32,6 +32,9 @@ HOOKS_JSON="$CURSOR_DIR/hooks.json"
 HOOKS_DIR="$CURSOR_DIR/hooks"
 MANIFEST="$CURSOR_DIR/.mb-manifest.json"
 
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_lib_agents_md.sh"
+
 # Our hook scripts that get copied into .cursor/hooks/
 MB_HOOKS=(
   "session-end-autosave.sh"
@@ -75,9 +78,7 @@ install_cursor() {
     if [ -f "$SKILL_DIR/rules/RULES.md" ]; then
       echo '---'
       echo ''
-      echo '# Global Rules'
-      echo ''
-      cat "$SKILL_DIR/rules/RULES.md"
+      mb_emit_rules_file "$SKILL_DIR/rules/RULES.md"
     fi
   } > "$RULES_FILE"
 

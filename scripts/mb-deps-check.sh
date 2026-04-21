@@ -127,7 +127,7 @@ check_optional() {
 
 check_pymod_optional() {
   local name="$1" module="$2"
-  # Python3 required для проверки; если его нет — skip
+  # Python3 is required for this check; if missing — skip
   if ! has_cmd python3; then
     echo "dep_${name}=optional-missing"
     OPTIONAL_MISSING=$((OPTIONAL_MISSING + 1))
@@ -192,7 +192,7 @@ if [ "$QUIET" -eq 0 ]; then
   if [ "$REQUIRED_MISSING" -eq 0 ]; then
     say_err "✅ All required dependencies present."
     if [ "$OPTIONAL_MISSING" -gt 0 ]; then
-      say_err "   $OPTIONAL_MISSING optional missing — skill works, but некоторые features disabled."
+      say_err "   $OPTIONAL_MISSING optional missing — the skill still works, but some features are disabled."
       say_err "   Run with --install-hints to see install commands."
     fi
   else

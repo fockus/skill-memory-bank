@@ -13,14 +13,14 @@
 #   0 — all required present
 #   1 — at least 1 required missing (blocker)
 #
-# Test strategy: инжектим fake PATH без конкретной утилиты, проверяем что
-# скрипт корректно её флагает. Для "all present" случая используем системный PATH.
+# Test strategy: inject a fake PATH without a specific utility and verify the
+# script flags it correctly. For the "all present" case, use the system PATH.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   DEPS="$REPO_ROOT/scripts/mb-deps-check.sh"
   SANDBOX_BIN="$(mktemp -d)"
-  # Создадим 2-uninstalled sandbox: только bash внутри
+  # Create a stripped sandbox: only bash inside
   ln -s "$(command -v bash)" "$SANDBOX_BIN/bash"
 }
 
@@ -46,8 +46,8 @@ run_deps_sandbox() {
 
 @test "deps: all present on current system → exit 0 (assuming python3/jq/git installed)" {
   run_deps
-  # На dev-машине все required должны быть. Если CI без jq — ожидаем exit 1.
-  # Assert: output содержит dep_python3=ok или ясную причину.
+  # On a dev machine all required tools should exist. If CI lacks jq — expect exit 1.
+  # Assert: output contains dep_python3=ok or a clear reason.
   [[ "$output" == *"dep_python3="* ]]
   [[ "$output" == *"dep_jq="* ]]
   [[ "$output" == *"dep_git="* ]]
@@ -71,15 +71,15 @@ run_deps_sandbox() {
 @test "deps: --install-hints prints brew/apt instructions on missing required" {
   run_deps_sandbox --install-hints
   [ "$status" -ne 0 ]
-  # Должен упомянуть install команды
+  # It should mention install commands
   [[ "$output" == *"brew"* ]] || [[ "$output" == *"apt"* ]] || [[ "$output" == *"install"* ]]
 }
 
 @test "deps: --quiet suppresses human-readable output, keeps key=value" {
   run_deps --quiet
-  # Key=value остаётся
+  # key=value remains
   [[ "$output" == *"dep_python3="* ]]
-  # Никаких эмодзи/цветов
+  # No emoji/colors
   [[ "$output" != *"✅"* ]]
   [[ "$output" != *"❌"* ]]
 }
@@ -87,12 +87,12 @@ run_deps_sandbox() {
 @test "deps: tree-sitter check reports presence or optional-missing (not blocker)" {
   run_deps
   [[ "$output" == *"dep_tree_sitter="* ]]
-  # tree-sitter — opt-in; missing не должно влиять на required_missing count
-  # (assertion: если он missing, то in optional_missing, не required)
+  # tree-sitter is opt-in; missing it must not affect required_missing count
+  # (assertion: if it is missing, it must be in optional_missing, not required)
 }
 
-@test "deps: exit 0 even если много optional missing, пока required ok" {
-  # На системе с установленными required (python3, jq, git) — exit 0 независимо от optional
+@test "deps: exit 0 even if many optional deps are missing while required are ok" {
+  # On a system with required deps installed (python3, jq, git) — exit 0 regardless of optional
   if ! command -v python3 >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
     skip "required deps missing on this system"
   fi

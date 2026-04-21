@@ -3,13 +3,13 @@
 #
 # Usage: mb-compact.sh [--dry-run|--apply] [mb_path]
 #
-# Архивация требует (age > threshold) AND (done-signal):
-#   Plans: файл в plans/done/ (primary) ИЛИ упомянут в checklist.md ✅
-#          ИЛИ в progress.md/STATUS.md как "завершён|done|closed|shipped".
-#          Активные планы (not done) НЕ трогаются даже >180d → warning.
-#   Notes: frontmatter importance: low + >90d + нет референсов в core.
+# Archival requires (age > threshold) AND (done-signal):
+#   Plans: file in `plans/done/` (primary) OR mentioned in `checklist.md` as ✅
+#          OR in `progress.md`/`STATUS.md` as "completed|done|closed|shipped".
+#          Active plans (not done) are NOT touched even if >180d → warning.
+#   Notes: frontmatter `importance: low` + >90d + no references in core files.
 #
-# --dry-run (default): reasoning, 0 changes. --apply: выполняет + touch .last-compact.
+# `--dry-run` (default): reasoning only, 0 changes. `--apply`: perform changes + touch `.last-compact`.
 
 set -euo pipefail
 
@@ -38,12 +38,12 @@ done
 MB_PATH_RAW=$(mb_resolve_path "$MB_ARG")
 if [ ! -d "$MB_PATH_RAW" ]; then
   echo "[error] .memory-bank not found at: $MB_PATH_RAW" >&2
-  echo "[hint]  run /mb init первым" >&2
+  echo "[hint]  run /mb init first" >&2
   exit 1
 fi
 MB_PATH=$(cd "$MB_PATH_RAW" && pwd)
 
-# Возраст файла в днях (portable BSD/GNU stat).
+# File age in days (portable BSD/GNU `stat`).
 mtime_days() {
   local f="$1" now mtime
   [ -e "$f" ] || { echo 0; return; }
@@ -52,7 +52,7 @@ mtime_days() {
   echo $(( (now - mtime) / 86400 ))
 }
 
-# Importance из frontmatter (первые 20 строк).
+# Importance from frontmatter (first 20 lines).
 note_importance() {
   [ -f "$1" ] || { echo ""; return; }
   awk '
@@ -66,7 +66,7 @@ note_importance() {
   ' "$1"
 }
 
-# Валидность frontmatter — базовая.
+# Basic frontmatter validity check.
 note_frontmatter_ok() {
   local f="$1" body_start
   head -1 "$f" | grep -q '^---$' || return 1
@@ -76,7 +76,7 @@ note_frontmatter_ok() {
   return 0
 }
 
-# Done-signal для plan. Echoes reason on stdout. 0 если done, 1 если active.
+# Done-signal for a plan. Echoes reason to stdout. 0 if done, 1 if active.
 plan_done_signal() {
   local plan="$1" rel abs_plan basename
   abs_plan=$(cd "$(dirname "$plan")" 2>/dev/null && pwd)/$(basename "$plan")
@@ -93,7 +93,7 @@ plan_done_signal() {
   local f
   for f in "$MB_PATH/progress.md" "$MB_PATH/STATUS.md"; do
     [ -f "$f" ] || continue
-    if grep -E 'завершён|завершена|завершено|\bdone\b|\bclosed\b|\bshipped\b' "$f" 2>/dev/null \
+    if grep -E 'completed|done|closed|shipped' "$f" 2>/dev/null \
        | grep -qF "$basename"; then
       echo "progress_done"; return 0
     fi
@@ -105,7 +105,7 @@ plan_done_signal() {
   return 1
 }
 
-# Референсы note в active файлах.
+# References to a note in active files.
 note_referenced() {
   local rel="$1" base f
   base=$(basename "$rel")
@@ -120,14 +120,14 @@ note_referenced() {
 plan_oneline_summary() {
   local f="$1" title outcome
   title=$(grep -m1 '^# ' "$f" 2>/dev/null | sed 's/^# *//' || true)
-  outcome=$(grep -m1 -iE '^(Outcome|Итог|Результат):' "$f" 2>/dev/null \
+  outcome=$(grep -m1 -iE '^(Outcome|Result|Summary):' "$f" 2>/dev/null \
             | sed 's/^[^:]*: *//' || true)
   [ -z "$title" ] && title=$(basename "$f" .md)
   [ -z "$outcome" ] && outcome="archived"
   echo "${title} → ${outcome}"
 }
 
-# Body compressed до 3 non-empty lines (без frontmatter).
+# Body compressed to 3 non-empty lines (without frontmatter).
 note_compress_body() {
   awk '
     BEGIN { fm = 0; found_open = 0; n = 0 }
@@ -273,10 +273,10 @@ fi
 
 if [ -n "$active_warnings" ]; then
   echo ""
-  echo "# Warnings — active plans older than ${ACTIVE_WARN_DAYS}d (не done, не архивируются):"
+  echo "# Warnings — active plans older than ${ACTIVE_WARN_DAYS}d (not done, not archived):"
   while IFS=$'\t' read -r rel age; do
     [ -z "$rel" ] && continue
-    echo "  warning: $rel is ${age}d old but not done — проверь актуальность"
+    echo "  warning: $rel is ${age}d old but not done — check whether it is still relevant"
   done <<< "$active_warnings"
 fi
 

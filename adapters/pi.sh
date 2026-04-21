@@ -67,7 +67,7 @@ install_skill_mode() {
       echo ''
       echo '# Global Rules'
       echo ''
-      cat "$SKILL_DIR/rules/RULES.md"
+      mb_emit_rules_file "$SKILL_DIR/rules/RULES.md"
     fi
   } > "$PI_SKILL_DIR/SKILL.md"
 

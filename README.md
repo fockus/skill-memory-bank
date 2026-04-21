@@ -44,7 +44,9 @@ pipx install memory-bank-skill           # stable
 # or, for the latest release candidate:
 pipx install --pip-args='--pre' memory-bank-skill
 
-memory-bank install                      # global install for Claude Code + OpenCode
+memory-bank install                      # global install for Claude Code + Cursor + Codex hints + OpenCode
+# optional: pick installed rule language explicitly
+memory-bank install --language ru
 ```
 
 **Requires:** Python 3.11+, `pipx`, `jq`.
@@ -74,6 +76,7 @@ Three ways — pick whichever matches your workflow:
 ```bash
 cd your-project/
 memory-bank install                     # multi-select prompt for all 8 clients
+# in TTY mode it will also ask which language to use for installed rules
 ```
 
 **B. CLI flags** (scripts / CI / one-liner):
@@ -81,9 +84,10 @@ memory-bank install                     # multi-select prompt for all 8 clients
 ```bash
 cd your-project/
 memory-bank install --clients claude-code,cursor,windsurf
+memory-bank install --clients claude-code,cursor --language en
 ```
 
-**C. From inside an agent** (Claude Code, OpenCode, Codex — anything with bash tool access):
+**C. From inside an agent with command surface** (Claude Code / OpenCode):
 
 ```
 /mb install                                 # interactive picker
@@ -91,9 +95,10 @@ memory-bank install --clients claude-code,cursor,windsurf
 /mb install all                             # every client
 ```
 
-The agent asks which clients you want (via AskUserQuestion in Claude Code, or an inline prompt elsewhere), then runs `memory-bank install --clients <selected>` for the current project.
+Claude Code/OpenCode can front this through `/mb install`, then run `memory-bank install --clients <selected>` for the current project. In Codex use the CLI directly; Codex gets global skill discovery plus `~/.codex/AGENTS.md` hints, not a native `/mb` command surface.
 
 Supported client names: `claude-code`, `cursor`, `windsurf`, `cline`, `kilo`, `opencode`, `pi`, `codex`.
+Supported rule languages: `en`, `ru`. You can also set `MB_LANGUAGE=en|ru`.
 
 Full per-client details: [docs/cross-agent-setup.md](docs/cross-agent-setup.md).
 
@@ -141,7 +146,12 @@ Across sessions, compaction events, and even across AI agents — the project st
 
 ### 2. Engineering rules applied automatically
 
-Installs `~/.claude/RULES.md`, `~/.claude/CLAUDE.md`, and native OpenCode global files
+Installs `~/.claude/RULES.md`, `~/.claude/CLAUDE.md`, canonical skill registration in
+`~/.claude/skills/skill-memory-bank`, compatibility aliases in `~/.claude/skills/memory-bank`,
+`~/.codex/skills/memory-bank`, and `~/.cursor/skills/memory-bank`, plus full Cursor global
+surface (`~/.cursor/hooks.json` + `~/.cursor/hooks/*.sh` + `~/.cursor/commands/*.md`
++ `~/.cursor/AGENTS.md` managed section + `~/.cursor/memory-bank-user-rules.md`
+paste-file for Settings → Rules → User Rules), plus native OpenCode global files
 (`~/.config/opencode/AGENTS.md` + `~/.config/opencode/commands/`) with:
 
 - **TDD** — tests before implementation
@@ -214,12 +224,12 @@ One `.memory-bank/` directory, 8 AI clients:
 | Client | Native hooks | Adapter output |
 |--------|--------------|----------------|
 | **Claude Code** | Full lifecycle | `~/.claude/settings.json` + `hooks/` |
-| **Cursor 1.7+** | ✅ (Claude-Code-compatible format) | `.cursor/rules/*.mdc` + `.cursor/hooks.json` |
+| **Cursor 1.7+** | ✅ (Claude-Code-compatible format) | **Global (auto):** `~/.cursor/{skills,hooks,commands,AGENTS.md,hooks.json,memory-bank-user-rules.md}` · **Project (optional `--clients cursor`):** `.cursor/rules/*.mdc` + `.cursor/hooks.json` |
 | **Windsurf** | ✅ Cascade Hooks | `.windsurf/rules/*.md` + `.windsurf/hooks.json` |
 | **Cline** | ✅ `.clinerules/hooks/*.sh` | `.clinerules/memory-bank.md` + `hooks/` |
 | **Kilo** | ❌ (fallback to git hooks) | `.kilocode/rules/` + `.git/hooks/` |
 | **OpenCode** | ✅ TypeScript plugins + native commands | `~/.config/opencode/{AGENTS.md,commands/}` + project `AGENTS.md` + `opencode.json` + TS plugin |
-| **Codex** (OpenAI) | ✅ Experimental | `AGENTS.md` + `.codex/config.toml` + `hooks.json` |
+| **Codex** (OpenAI) | ✅ Conservative global support + experimental project hooks | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + project `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
 | **Pi Code** | Dual-mode (skill / AGENTS.md) | `~/.pi/skills/memory-bank/` or `AGENTS.md` |
 
 `AGENTS.md` is shared across OpenCode, Codex, Pi — ownership is refcount-tracked, so uninstalling one client doesn't break the others.
@@ -254,11 +264,30 @@ Agent: [appends session summary to progress.md, updates STATUS.md if needed]
 
 ```bash
 cd some-legacy-project/
-memory-bank install --clients cursor   # adds .cursor/ adapter
+memory-bank install                     # global install for all supported clients
+#                                       # (Claude + Cursor + Codex + OpenCode, auto)
+memory-bank install --clients cursor    # OPTIONAL: also wire .cursor/ project adapter
+#                                       # — global parity already active without this flag
 
 # In Cursor:
 /mb init --full                         # auto-detect stack, generate CLAUDE.md
 /mb start                               # load everything
+```
+
+### Cursor-only quick start
+
+```bash
+# Step 1. Install (no --clients flag needed for Cursor global parity)
+memory-bank install
+
+# Step 2 (one-time, per machine). Cursor User Rules panel is UI-only —
+# paste the generated bundle into Settings → Rules → User Rules:
+pbcopy < ~/.cursor/memory-bank-user-rules.md           # macOS
+xclip -selection clipboard < ~/.cursor/memory-bank-user-rules.md   # Linux
+
+# Step 3. Open any project in Cursor and run:
+/mb init                                # one-time per project
+/mb start                               # every session
 ```
 
 ### Sharing state with your team
@@ -272,7 +301,7 @@ memory-bank install --clients cursor   # adds .cursor/ adapter
 After `pipx install memory-bank-skill`:
 
 ```bash
-memory-bank install [--clients <list>] [--project-root <path>] [--non-interactive]
+memory-bank install [--clients <list>] [--language <en|ru>] [--project-root <path>] [--non-interactive]
 memory-bank uninstall
 memory-bank init                    # prints /mb init hint
 memory-bank version
@@ -341,13 +370,16 @@ A: Yes. Everything is local. No data sent anywhere unless your AI agent itself c
 A: That's the whole point. Install per-client: `memory-bank install --clients cursor,windsurf,claude-code`. One memory bank, everyone reads it.
 
 **Q: Cursor hooks are experimental / Codex hooks are experimental — is that a problem?**
-A: Partial — where native hooks don't exist or aren't stable, we ship graceful fallbacks (git hooks for Kilo; `AGENTS.md` fallback for Pi). See [docs/cross-agent-setup.md](docs/cross-agent-setup.md) for specifics.
+A: Partial — where native hooks don't exist or aren't stable, we ship graceful fallbacks or conservative integration. For Codex, global support means skill discovery + `~/.codex/AGENTS.md` hints; hook/config integration is still primarily project-level via `.codex/`. See [docs/cross-agent-setup.md](docs/cross-agent-setup.md) for specifics.
 
 **Q: My existing `AGENTS.md` / `.cursor/hooks.json` — will this overwrite them?**
 A: No. Adapters use a marker pattern (`<!-- memory-bank:start/end -->` for MD files, `_mb_owned: true` for JSON hooks) and merge idempotently. User content is preserved; uninstall only removes MB-owned sections.
 
 **Q: How do I upgrade?**
 A: `pipx upgrade memory-bank-skill` or `brew upgrade memory-bank`. Git-clone install: `cd ~/.claude/skills/skill-memory-bank && git pull && ./install.sh`.
+
+**Q: Does reinstalling create `.pre-mb-backup.*` files every time?**
+A: No. Since `3.0.0-rc3`, `install.sh` is byte-level idempotent: each target is compared via `cmp -s` to the expected post-install content (including localization) and backup is created only if content actually differs. Repeat installs on an up-to-date tree produce zero backups. Language swap (`--language en` → `--language ru`) backs up exactly the localize-target files (`RULES.md`, `memory-bank-user-rules.md`) and nothing else.
 
 **Q: I want to remove everything.**
 A: `memory-bank uninstall` removes global install. Per-project adapters: `adapters/<client>.sh uninstall <project-dir>` (or drop the `.memory-bank/`, `.cursor/`, etc. directories manually).

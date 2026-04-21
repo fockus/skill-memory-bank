@@ -1,13 +1,13 @@
 ---
-description: Полное ревью незакоммиченного кода — принципы, архитектура, тесты, безопасность
+description: Full review of uncommitted code — principles, architecture, tests, security
 allowed-tools: [Read, Glob, Grep, Bash, Write]
 ---
 
-# Code Review — незакоммиченный код
+# Code Review — uncommitted code
 
-## 1. Сбор контекста
+## 1. Gather context
 
-Выполни:
+Run:
 ```bash
 git diff --staged --name-only
 git diff --name-only
@@ -15,118 +15,117 @@ git diff
 git diff --staged
 ```
 
-Если есть `./.memory-bank/plan.md` или `./.memory-bank/checklist.md` — прочитай их. Это текущий план работы, сверяй реализацию с ним.
+If `./.memory-bank/plan.md` or `./.memory-bank/checklist.md` exists, read it. That is the current work plan — compare the implementation against it.
 
-Прочитай каждый изменённый файл целиком, а не только diff — нужен полный контекст для архитектурного анализа.
+Read every changed file in full, not just the diff — you need full context for architectural analysis.
 
-## 2. Анализ принципов
+## 2. Principles analysis
 
 ### SOLID
-- **S** — Есть ли классы/функции с несколькими зонами ответственности?
-- **O** — Есть ли правки, которые потребуют менять существующий код вместо расширения?
-- **L** — Нарушена ли подстановка в иерархиях наследования?
-- **I** — Есть ли раздутые интерфейсы, которые стоит разделить?
-- **D** — Есть ли прямые зависимости от конкретных реализаций вместо абстракций?
+- **S** — Are there classes/functions with multiple responsibility areas?
+- **O** — Are there changes that force modifications to existing code instead of extension?
+- **L** — Is substitutability broken in inheritance hierarchies?
+- **I** — Are there bloated interfaces that should be split?
+- **D** — Are there direct dependencies on concrete implementations instead of abstractions?
 
 ### DRY
-- Дублирование логики между изменёнными файлами или с существующим кодом в проекте
-- Копипаста, которую стоит вынести в общую функцию/утилиту
+- Logic duplicated across changed files or against existing project code
+- Copy-paste that should be extracted into a shared function/utility
 
 ### KISS
-- Переусложнённые решения, которые можно упростить
-- Лишние абстракции без реальной необходимости
+- Overcomplicated solutions that can be simplified
+- Extra abstractions without real need
 
 ### YAGNI
-- Код, написанный «на будущее» без текущей потребности
+- Code written “for the future” without a present need
 
-## 3. Чистая архитектура
+## 3. Clean Architecture
 
-- Правильность направления зависимостей (внешние слои → внутренние, не наоборот)
-- Бизнес-логика не содержит деталей инфраструктуры (БД, HTTP, фреймворки)
-- Use cases / сервисы не зависят от конкретных репозиториев напрямую
-- Нет утечки доменных объектов в слой представления и наоборот
-- Границы между слоями чёткие, нет «сквозных» импортов
+- Correct dependency direction (outer layers → inner layers, not the other way around)
+- Business logic does not contain infrastructure details (DB, HTTP, frameworks)
+- Use cases / services do not depend directly on concrete repositories
+- No leakage of domain objects into the presentation layer and vice versa
+- Layer boundaries are clear, with no “through-layer” imports
 
-## 4. Корректность реализации
+## 4. Implementation correctness
 
-- Код делает то, что заявлено в diff/коммите?
-- Есть ли мёртвый или недостижимый код?
-- Есть ли незавершённые TODO, FIXME, HACK, заглушки, placeholder'ы?
-- Обработка ошибок: все ли exceptional paths покрыты?
-- Edge cases: пустые значения, nil/None, пустые коллекции, граничные числа
-- Race conditions в асинхронном коде
+- Does the code do what the diff/commit claims?
+- Is there dead or unreachable code?
+- Are there unfinished `TODO`, `FIXME`, `HACK`, stubs, or placeholders?
+- Error handling: are all exceptional paths covered?
+- Edge cases: empty values, `nil`/`None`, empty collections, boundary numbers
+- Race conditions in async code
 
-## 5. Соответствие плану
+## 5. Plan alignment
 
-Если найден `./.memory-bank/plan.md` или `./.memory-bank/checklist.md`:
-- Какие пункты плана реализованы в этих изменениях?
-- Какие пункты плана НЕ реализованы, хотя должны были быть?
-- Есть ли код, не предусмотренный планом (scope creep)?
+If `./.memory-bank/plan.md` or `./.memory-bank/checklist.md` is found:
+- Which plan items are implemented in these changes?
+- Which plan items are NOT implemented even though they should be?
+- Is there any code that was not part of the plan (scope creep)?
 
-Если плана нет — пропусти эту секцию.
+If there is no plan, skip this section.
 
-## 6. Безопасность
+## 6. Security
 
-- Захардкоженные секреты, токены, пароли, ключи
-- SQL-инъекции, XSS, CSRF — если применимо
-- Небезопасная десериализация или eval
-- Логирование чувствительных данных
-- Избыточные права доступа, отсутствие валидации входных данных
-- Зависимости с известными уязвимостями (если можно проверить)
+- Hardcoded secrets, tokens, passwords, keys
+- SQL injection, XSS, CSRF — if applicable
+- Unsafe deserialization or `eval`
+- Logging of sensitive data
+- Excessive permissions, missing input validation
+- Dependencies with known vulnerabilities (if they can be checked)
 
-## 7. Тесты
+## 7. Tests
 
-Выполни:
+Run:
 ```bash
-# Найти тестовые файлы, связанные с изменёнными файлами
-# Адаптируй команды под стек проекта (pytest, jest, go test и т.д.)
+# Find test files related to the changed files
+# Adapt commands to the project stack (pytest, jest, go test, etc.)
 ```
 
-Проверь:
-- Есть ли unit-тесты для каждого изменённого модуля?
-- Покрывают ли тесты основные сценарии и edge cases?
-- Есть ли интеграционные тесты для взаимодействия компонентов?
-- Есть ли e2e тесты для затронутых пользовательских сценариев?
+Check:
+- Are there unit tests for every changed module?
+- Do tests cover the main scenarios and edge cases?
+- Are there integration tests for component interactions?
+- Are there e2e tests for affected user scenarios?
 
-Запусти тесты и зафиксируй результат:
+Run tests and record the result:
 ```bash
-# Запусти тестовый suite проекта
-# Покажи summary: passed / failed / skipped
+# Run the project's test suite
+# Show a summary: passed / failed / skipped
 ```
 
-## 8. Отчёт
+## 8. Report
 
-Составь отчёт в формате ниже. Для каждой найденной проблемы укажи файл, строку и конкретную рекомендацию.
+Write the report in the format below. For each finding, include the file, line, and a concrete recommendation.
 
 ```markdown
 # Code Review Report
-Дата: YYYY-MM-DD HH:MM
-Файлов проверено: N
-Строк изменено: +N / -N
+Date: YYYY-MM-DD HH:MM
+Files reviewed: N
+Lines changed: +N / -N
 
-## Критичное
-<!-- Блокирует мерж: баги, уязвимости, сломанные тесты -->
+## Critical
+<!-- Merge blockers: bugs, vulnerabilities, broken tests -->
 
-## Серьёзное
-<!-- Нарушения SOLID/CA, значительные архитектурные проблемы -->
+## Serious
+<!-- SOLID / Clean Architecture violations, significant architecture issues -->
 
-## Замечания
-<!-- DRY/KISS/YAGNI, стиль, мелкие улучшения -->
+## Notes
+<!-- DRY / KISS / YAGNI, style, smaller improvements -->
 
-## Тесты
+## Tests
 - Unit: ✅/❌ (passed/total)
-- Интеграционные: ✅/❌/⚠️ отсутствуют
-- E2E: ✅/❌/⚠️ отсутствуют
-- Непокрытые модули: [список]
+- Integration: ✅/❌/⚠️ missing
+- E2E: ✅/❌/⚠️ missing
+- Uncovered modules: [list]
 
-## Соответствие плану
-- Реализовано: [пункты]
-- Не реализовано: [пункты]
-- Вне плана: [пункты]
+## Plan alignment
+- Implemented: [items]
+- Not implemented: [items]
+- Outside the plan: [items]
 
-## Итог
-<!-- 1-3 предложения: общая оценка, главный риск, рекомендация (мержить / доработать) -->
+## Summary
+<!-- 1-3 sentences: overall assessment, top risk, recommendation (merge / revise) -->
 ```
 
-Если существует `./.memory-bank/` — сохрани отчёт в `./.memory-bank/reports/YYYY-MM-DD_review_<краткое-описание>.md`.
-
+If `./.memory-bank/` exists, save the report to `./.memory-bank/reports/YYYY-MM-DD_review_<short-description>.md`.

@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# mb-plan-sync.sh — синхронизирует план с checklist.md + plan.md.
+# mb-plan-sync.sh — synchronize a plan with `checklist.md` + `plan.md`.
 #
 # Usage:
 #   mb-plan-sync.sh <plan-file> [mb_path]
 #
-# Эффекты:
-#   - Из плана извлекаются пары (N, name) через маркеры `<!-- mb-stage:N -->`
-#     (fallback: regex `### Этап N: <name>`).
-#   - В checklist.md для каждой пары, если секция `## Этап N: <name>`
-#     отсутствует — добавляется в конец файла вместе с одним пунктом `- ⬜ <name>`.
-#     Существующие секции не модифицируются → идемпотентно.
-#   - В plan.md блок между маркерами `<!-- mb-active-plan -->` и
-#     `<!-- /mb-active-plan -->` заменяется на единственную строку
+# Effects:
+#   - Extract `(N, name)` pairs from the plan via `<!-- mb-stage:N -->` markers
+#     (fallback: regex `### Stage N: <name>`).
+#   - For each pair, if `checklist.md` does not have `## Stage N: <name>`,
+#     append the section to the end together with one item `- ⬜ <name>`.
+#     Existing sections are not modified → idempotent.
+#   - In `plan.md`, replace the block between `<!-- mb-active-plan -->` and
+#     `<!-- /mb-active-plan -->` with a single line
 #     `**Active plan:** \`plans/<basename>\` — <title>`.
-#     Если маркеров нет — добавляются после заголовка `## Active plan`
-#     или в конец файла.
+#     If markers do not exist, add them after `## Active plan`
+#     or at the end of the file.
 #
 # Exit codes: 0 OK, 1 usage/missing file, 2 parse error.
 
@@ -27,7 +27,7 @@ PLAN_FILE="${1:?Usage: mb-plan-sync.sh <plan-file> [mb_path]}"
 MB_PATH=$(mb_resolve_path "${2:-}")
 
 if [ ! -f "$PLAN_FILE" ]; then
-  echo "[error] План не найден: $PLAN_FILE" >&2
+  echo "[error] Plan not found: $PLAN_FILE" >&2
   exit 1
 fi
 
@@ -35,20 +35,20 @@ CHECKLIST="$MB_PATH/checklist.md"
 PLAN_MD="$MB_PATH/plan.md"
 
 [ -f "$CHECKLIST" ] || {
-  echo "[error] checklist.md не найден: $CHECKLIST" >&2
+  echo "[error] checklist.md not found: $CHECKLIST" >&2
   exit 1
 }
 [ -f "$PLAN_MD" ] || {
-  echo "[error] plan.md не найден: $PLAN_MD" >&2
+  echo "[error] plan.md not found: $PLAN_MD" >&2
   exit 1
 }
 
 BASENAME=$(basename "$PLAN_FILE")
 
-# ═══ Извлечь title плана (первый H1 после опционального префикса) ═══
+# ═══ Extract plan title (first H1 after optional prefix) ═══
 plan_title=$(awk '
   /^# /{
-    sub(/^# (План|Plan)[:：][[:space:]]*/, "")
+    sub(/^# [^:：]+[:：][[:space:]]*/, "")
     sub(/^# /, "")
     print
     exit
@@ -56,10 +56,10 @@ plan_title=$(awk '
 ' "$PLAN_FILE")
 [ -n "$plan_title" ] || plan_title="$BASENAME"
 
-# ═══ Парсинг этапов ═══
-# Primary: маркеры <!-- mb-stage:N --> → следующая строка ### Этап N: <name>.
-# Fallback: если маркеров нет — парсим ### Этап N: <name> напрямую.
-# Вывод: tab-separated (N<TAB>name), по строке на этап.
+# ═══ Stage parsing ═══
+# Primary: `<!-- mb-stage:N -->` markers → next line `### Stage N: <name>`.
+# Fallback: if markers are missing — parse `### Stage N: <name>` directly.
+# Output: tab-separated (`N<TAB>name`), one line per stage.
 parse_stages() {
   awk '
     BEGIN { use_markers = 0 }
@@ -69,8 +69,8 @@ parse_stages() {
       pending = substr($0, RSTART, RLENGTH)
       next
     }
-    pending != "" && /^### Этап [0-9]+:/ {
-      sub(/^### Этап [0-9]+:[[:space:]]*/, "")
+    pending != "" && /^### [^0-9]+[0-9]+:/ {
+      sub(/^### [^0-9]+[0-9]+:[[:space:]]*/, "")
       printf "%s\t%s\n", pending, $0
       pending = ""
       next
@@ -85,24 +85,24 @@ stages=$(parse_stages) || rc=$?
 rc=${rc:-0}
 
 if [ "$rc" -eq 42 ] || [ -z "$stages" ]; then
-  # Fallback — нет маркеров, парсим ### напрямую
+  # Fallback — no markers, parse `###` headings directly
   stages=$(awk '
-    /^### Этап [0-9]+:/ {
+    /^### [^0-9]+[0-9]+:/ {
       line = $0
       match(line, /[0-9]+/)
       n = substr(line, RSTART, RLENGTH)
-      sub(/^### Этап [0-9]+:[[:space:]]*/, "", line)
+      sub(/^### [^0-9]+[0-9]+:[[:space:]]*/, "", line)
       printf "%s\t%s\n", n, line
     }
   ' "$PLAN_FILE")
 fi
 
 if [ -z "$stages" ]; then
-  echo "[error] Не удалось извлечь этапы из $PLAN_FILE" >&2
+  echo "[error] Failed to extract stages from $PLAN_FILE" >&2
   exit 2
 fi
 
-# ═══ Append отсутствующих секций в checklist ═══
+# ═══ Append missing sections to checklist ═══
 append_missing_stages() {
   local checklist="$1" stages="$2"
   local tmp
@@ -112,13 +112,13 @@ append_missing_stages() {
   local added=0
   while IFS=$'\t' read -r n name; do
     [ -n "$n" ] || continue
-    # Проверяем присутствие секции `## Этап N:` (без учёта ✅/названия)
-    if grep -qE "^## Этап ${n}:" "$tmp"; then
+    # Check whether `## Stage N:` already exists (ignoring title/emoji)
+    if grep -qE "^## [^0-9]*${n}:" "$tmp"; then
       continue
     fi
-    # Добавляем в конец
+    # Append to the end
     {
-      printf '\n## Этап %s: %s\n' "$n" "$name"
+      printf '\n## Stage %s: %s\n' "$n" "$name"
       printf -- '- ⬜ %s\n' "$name"
     } >> "$tmp"
     added=$((added + 1))
@@ -130,7 +130,7 @@ append_missing_stages() {
 
 added_count=$(append_missing_stages "$CHECKLIST" "$stages")
 
-# ═══ Обновить Active plan блок в plan.md ═══
+# ═══ Update active-plan block in plan.md ═══
 update_active_plan_block() {
   local plan_md="$1" basename="$2" title="$3"
   local tmp
@@ -139,7 +139,7 @@ update_active_plan_block() {
   local new_line="**Active plan:** \`plans/$basename\` — $title"
 
   if grep -q '<!-- mb-active-plan -->' "$plan_md"; then
-    # Есть маркеры — заменяем содержимое между ними
+    # Markers exist — replace the content between them
     awk -v newline="$new_line" '
       BEGIN { inside = 0 }
       /<!-- mb-active-plan -->/ {
@@ -156,7 +156,7 @@ update_active_plan_block() {
       !inside { print }
     ' "$plan_md" > "$tmp"
   else
-    # Маркеров нет — вставляем блок после `## Active plan` или добавляем в конец
+    # Markers do not exist — insert after `## Active plan` or append to the end
     if grep -qE '^## Active plan[[:space:]]*$' "$plan_md"; then
       awk -v newline="$new_line" '
         /^## Active plan[[:space:]]*$/ {
