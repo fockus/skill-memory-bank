@@ -52,7 +52,7 @@ fi
 [ -x "$COMPACT_SCRIPT" ] || exit 0   # script unavailable — silent skip
 
 # Run dry-run in CWD and parse `candidates=N`
-OUTPUT=$(cd "$CWD" && bash "$COMPACT_SCRIPT" --dry-run 2>/dev/null || true)
+OUTPUT=$(cd "$CWD" && bash "$COMPACT_SCRIPT" --dry-run 2>/dev/null; true)
 CANDIDATES=$(printf '%s\n' "$OUTPUT" | grep -E '^candidates=' | head -1 | cut -d= -f2)
 CANDIDATES="${CANDIDATES:-0}"
 
