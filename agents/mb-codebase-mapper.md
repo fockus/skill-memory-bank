@@ -40,8 +40,34 @@ You will get `stack=<python|go|rust|node|java|kotlin|swift|cpp|ruby|php|csharp|e
 This sets the direction for exploration (which manifests to read, which test runners to expect). For `multi`, handle each stack separately. For `unknown`, rely on the visible structure.
 </step>
 
+<step name="check_graph">
+**Graph-first policy.** Prefer `graph.json` over ad-hoc source scans. Before any exploration, check whether `/mb graph --apply` has produced a usable artifact:
+
+```bash
+GRAPH=".memory-bank/codebase/graph.json"
+GOD_NODES=".memory-bank/codebase/god-nodes.md"
+STALE_HOURS="${MB_GRAPH_STALE_HOURS:-24}"
+
+graph_usable=0
+if [ -f "$GRAPH" ]; then
+  # mtime-based freshness check (portable macOS+Linux)
+  age_seconds=$(( $(date +%s) - $(stat -f %m "$GRAPH" 2>/dev/null || stat -c %Y "$GRAPH") ))
+  max=$(( STALE_HOURS * 3600 ))
+  if [ "$age_seconds" -le "$max" ] && [ -s "$GRAPH" ]; then
+    graph_usable=1
+  fi
+fi
+```
+
+Decision:
+- `graph_usable=1` → prefer graph.json / god-nodes.md over raw grep. Record `graph: used (age=<N>h, nodes=<K>)` in the output header.
+- `graph_usable=0` → `graph.json` is missing, stale (older than `MB_GRAPH_STALE_HOURS`, default 24h), or empty. Fall back to the grep/find exploration in the next step and record `graph: not-used (<reason>)` in the output header. Never error — graceful degradation is the contract.
+
+The caller may also override staleness via `MB_GRAPH_STALE_HOURS=168` etc. Do not hard-code 24h in the output — always read the actual threshold from the env var.
+</step>
+
 <step name="explore_by_focus">
-For each focus, use Glob/Grep/Read. Example commands:
+**Fill the graph with grep only when `graph_usable=0` OR when graph-derived answers leave gaps** (e.g., god-nodes.md is empty on tiny repos). For each focus, use Glob/Grep/Read. Example commands:
 
 **stack** (manifests, dependencies, integrations):
 ```bash
@@ -73,6 +99,48 @@ grep -rnE "(TODO|FIXME|HACK|XXX)" --include="*.{py,go,rs,ts,js,java,kt,swift,cpp
 # Large files — potential complexity hotspots:
 find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.go" \) 2>/dev/null | xargs wc -l 2>/dev/null | sort -rn | head -10
 ```
+</step>
+
+<step name="derive_from_graph">
+When `graph_usable=1` (from `check_graph`), derive the following **before** you fall back to grep. The graph is authoritative for structural questions; grep fills only the prose gaps.
+
+**For `quality` focus (CONVENTIONS.md) — naming-pattern stats from graph:**
+
+The graph encodes every function/class node with its source name. Count naming styles across node names rather than scanning file bodies:
+
+```bash
+# JSON Lines: one node per line, shape {"type":"node","kind":"function",...,"name":"..."}.
+python3 - <<'PY'
+import json, re
+n_snake = n_camel = n_pascal = 0
+with open(".memory-bank/codebase/graph.json") as f:
+    for line in f:
+        obj = json.loads(line)
+        if obj.get("type") != "node" or obj.get("kind") not in ("function", "class"):
+            continue
+        name = obj.get("name", "")
+        if "_" in name:            n_snake  += 1
+        elif re.match(r"^[A-Z]", name): n_pascal += 1
+        elif re.match(r"^[a-z]", name): n_camel  += 1
+print(f"snake_case={n_snake}  camelCase={n_camel}  PascalCase={n_pascal}")
+PY
+```
+
+Write the dominant style into `CONVENTIONS.md` "Naming" section (e.g., "Functions: snake_case (82% of 540 names)") — a factual count beats a subjective "Uses camelCase".
+
+**For `concerns` focus (CONCERNS.md) — god-nodes from graph:**
+
+`.memory-bank/codebase/god-nodes.md` is already a ranked table of top-degree functions (degree = in + out edges). Cite the **top 3-5** by name + location in the CONCERNS "Performance hotspots" / "Fragile areas" sections rather than eyeballing `wc -l | sort`. Example:
+
+```text
+## Fragile Areas
+**`run_import` (function, 60-degree god-node):**
+- Files: `mb-import.py:185`
+- Why fragile: hub of 60 calls/imports; any signature change ripples widely.
+- Safe change: extract handlers before touching signature.
+```
+
+If `god-nodes.md` is missing but `graph.json` exists, recompute the top-5 inline from the JSON. If both are missing (`graph_usable=0`), keep the original `wc -l` heuristic.
 </step>
 
 <step name="write_documents">
@@ -109,7 +177,8 @@ Ready for integration with /mb context.
 ```markdown
 # Technology Stack
 
-**Analyzed:** [YYYY-MM-DD]
+**Generated:** `$(date -u +%FT%TZ)` — compute via shell, never hand-type
+**Graph:** used | not-used (<reason>) — from the `check_graph` step
 
 ## Languages & Runtime
 - **Primary:** [language] [version] — [where it is used]
@@ -142,7 +211,8 @@ Ready for integration with /mb context.
 ```markdown
 # Architecture
 
-**Analyzed:** [YYYY-MM-DD]
+**Generated:** `$(date -u +%FT%TZ)` — compute via shell, never hand-type
+**Graph:** used | not-used (<reason>) — from the `check_graph` step
 
 ## Pattern
 **Overall:** [Clean Architecture / MVC / Hexagonal / etc]
@@ -185,7 +255,8 @@ project/
 ```markdown
 # Coding Conventions
 
-**Analyzed:** [YYYY-MM-DD]
+**Generated:** `$(date -u +%FT%TZ)` — compute via shell, never hand-type
+**Graph:** used | not-used (<reason>) — from the `check_graph` step
 
 ## Naming
 - **Files:** [pattern — snake_case/kebab-case/PascalCase, example]
@@ -226,7 +297,8 @@ project/
 ```markdown
 # Codebase Concerns
 
-**Analyzed:** [YYYY-MM-DD]
+**Generated:** `$(date -u +%FT%TZ)` — compute via shell, never hand-type
+**Graph:** used | not-used (<reason>) — from the `check_graph` step
 
 ## Tech Debt
 **[Area]:**
