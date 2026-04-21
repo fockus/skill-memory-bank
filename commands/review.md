@@ -21,35 +21,33 @@ If `./.memory-bank/codebase/ARCHITECTURE.md` and `./.memory-bank/codebase/CONCER
 
 Read every changed file in full, not just the diff — you need full context for architectural analysis.
 
-## 2. Principles analysis
+## 2. Principles + architecture — delegated to `mb-rules-enforcer`
 
-### SOLID
-- **S** — Are there classes/functions with multiple responsibility areas?
-- **O** — Are there changes that force modifications to existing code instead of extension?
-- **L** — Is substitutability broken in inheritance hierarchies?
-- **I** — Are there bloated interfaces that should be split?
-- **D** — Are there direct dependencies on concrete implementations instead of abstractions?
+Do NOT inline SOLID / Clean Architecture / TDD-delta checks here. Delegate to the dedicated subagent, which returns a structured JSON report + human summary:
 
-### DRY
-- Logic duplicated across changed files or against existing project code
-- Copy-paste that should be extracted into a shared function/utility
+```
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  description="mb-rules-enforcer: principles + architecture audit",
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-rules-enforcer.md>
 
-### KISS
-- Overcomplicated solutions that can be simplified
-- Extra abstractions without real need
+files: <comma-separated list from step 1 (git diff --name-only)>
+diff_range: HEAD...HEAD
+rules_path: .memory-bank/RULES.md"
+)
+```
 
-### YAGNI
-- Code written “for the future” without a present need
+The enforcer runs `scripts/mb-rules-check.sh` (deterministic SRP / Clean Arch / TDD-delta) and adds LLM-level judgment for ISP / DRY. Parse its JSON for the Report in step 8 — every `CRITICAL` violation becomes a Critical item, every `WARNING` a Serious item.
 
-## 3. Clean Architecture
+Apply the remaining judgment-only checks inline:
 
-- Correct dependency direction (outer layers → inner layers, not the other way around)
-- Business logic does not contain infrastructure details (DB, HTTP, frameworks)
-- Use cases / services do not depend directly on concrete repositories
-- No leakage of domain objects into the presentation layer and vice versa
-- Layer boundaries are clear, with no “through-layer” imports
+- **KISS** — overcomplicated solutions, needless abstractions
+- **YAGNI** — code written "for the future" with no present call site
 
-## 4. Implementation correctness
+These are intentionally not deterministic; the enforcer cannot replace a careful human look at "is this code simpler than it needs to be?"
+
+## 3. Implementation correctness
 
 - Does the code do what the diff/commit claims?
 - Is there dead or unreachable code?
@@ -58,7 +56,7 @@ Read every changed file in full, not just the diff — you need full context for
 - Edge cases: empty values, `nil`/`None`, empty collections, boundary numbers
 - Race conditions in async code
 
-## 5. Plan alignment
+## 4. Plan alignment
 
 If `./.memory-bank/plan.md` or `./.memory-bank/checklist.md` is found:
 - Which plan items are implemented in these changes?
@@ -67,7 +65,7 @@ If `./.memory-bank/plan.md` or `./.memory-bank/checklist.md` is found:
 
 If there is no plan, skip this section.
 
-## 6. Security
+## 5. Security
 
 - Hardcoded secrets, tokens, passwords, keys
 - SQL injection, XSS, CSRF — if applicable
@@ -76,7 +74,7 @@ If there is no plan, skip this section.
 - Excessive permissions, missing input validation
 - Dependencies with known vulnerabilities (if they can be checked)
 
-## 7. Tests
+## 6. Tests
 
 Run:
 ```bash
@@ -96,7 +94,7 @@ Run tests and record the result:
 # Show a summary: passed / failed / skipped
 ```
 
-## 8. Report
+## 7. Report
 
 Write the report in the format below. For each finding, include the file, line, and a concrete recommendation.
 

@@ -84,6 +84,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-doctor` | `/mb doctor` — memory-bank inconsistencies (use `mb-plan-sync.sh` first, only edit for semantic drift) | `agents/mb-doctor.md` |
 | `mb-codebase-mapper` | `/mb map [focus]` — scan the codebase → `.memory-bank/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md` | `agents/mb-codebase-mapper.md` |
 | `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan. Uses `**Baseline commit:**` from the plan header (ctime fallback) for `git diff`, runs tests via `mb-metrics.sh --run`, and enforces RULES.md (SRP/Clean-Arch direction/TDD delta) | `agents/plan-verifier.md` |
+| `mb-rules-enforcer` | `/review`, `/commit`, `/pr`, `plan-verifier` Step 3.6 — runs `scripts/mb-rules-check.sh` (solid/srp, clean_arch/direction, tdd/delta) and adds LLM-level ISP/DRY judgment. Returns strict JSON + human summary | `agents/mb-rules-enforcer.md` |
 
 Do **NOT** delegate plan creation, architectural decisions, or ML-result evaluation to a subagent — that is main-agent work.
 
