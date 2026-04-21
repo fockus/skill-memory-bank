@@ -6,6 +6,7 @@ Platform behavior mocked; shell invocations use bundled install.sh --help.
 
 from __future__ import annotations
 
+import json
 import platform
 import shutil
 import subprocess
@@ -297,6 +298,20 @@ def test_install_cmd_forwards_non_interactive(monkeypatch):
     assert "--non-interactive" in captured["cmd"]
 
 
+def test_install_cmd_rejects_invalid_clients_before_shell(monkeypatch, capsys):
+    called = {"run_shell": False}
+
+    def fake_run_shell(*args, **kwargs):
+        called["run_shell"] = True
+        return 0
+
+    monkeypatch.setattr(cli, "run_shell", fake_run_shell)
+    rc = cli.main(["install", "--clients", "cursor,bogus-client"])
+    assert rc == 2
+    assert called["run_shell"] is False
+    assert "invalid client" in capsys.readouterr().err.lower()
+
+
 def test_uninstall_cmd_calls_uninstall_sh(monkeypatch):
     captured: dict = {}
 
@@ -309,6 +324,20 @@ def test_uninstall_cmd_calls_uninstall_sh(monkeypatch):
     rc = cli.main(["uninstall"])
     assert rc == 0
     assert any("uninstall.sh" in part for part in captured["cmd"])
+
+
+def test_uninstall_cmd_forwards_non_interactive(monkeypatch):
+    captured: dict = {}
+
+    def fake_run(cmd, check, **kw):
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    rc = cli.main(["uninstall", "-y"])
+    assert rc == 0
+    assert "-y" in captured["cmd"] or "--non-interactive" in captured["cmd"]
 
 
 def test_run_shell_wsl_wrapper_mode(monkeypatch):
@@ -348,6 +377,17 @@ def test_run_shell_plain_bash_mode(monkeypatch):
     assert captured["cmd"][-1] == "--help"
 
 
+def test_run_shell_returns_bash_not_found_when_subprocess_spawn_fails(monkeypatch, capsys):
+    def fake_run(*args, **kwargs):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(cli, "require_bash", lambda: "/missing/bash")
+    rc = cli.run_shell("install.sh", "--help")
+    assert rc == cli.EXIT_BASH_NOT_FOUND
+    assert "not found" in capsys.readouterr().err.lower()
+
+
 # ═══════════════════════════════════════════════════════════════
 # Cursor global parity — end-to-end install/uninstall smoke test
 # ═══════════════════════════════════════════════════════════════
@@ -367,15 +407,20 @@ def _run_install_sh(sandbox_home: Path, repo_root: Path) -> subprocess.Completed
     )
 
 
-def _run_uninstall_sh(sandbox_home: Path, repo_root: Path) -> subprocess.CompletedProcess:
+def _run_uninstall_sh(
+    sandbox_home: Path,
+    repo_root: Path,
+    *extra_args: str,
+    input_text: str | None = "y\n",
+) -> subprocess.CompletedProcess:
     env = {
         "HOME": str(sandbox_home),
         "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
     }
     return subprocess.run(
-        ["bash", str(repo_root / "uninstall.sh")],
+        ["bash", str(repo_root / "uninstall.sh"), *extra_args],
         env=env,
-        input="y\n",
+        input=input_text,
         capture_output=True,
         text=True,
         check=False,
@@ -416,3 +461,43 @@ def test_cli_install_uninstall_smoke_with_cursor_global(tmp_path):
     assert not (sandbox / ".cursor" / "skills" / "memory-bank").exists()
     assert not (sandbox / ".cursor" / "memory-bank-user-rules.md").exists()
     assert not (sandbox / ".cursor" / "commands" / "mb.md").exists()
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash required")
+def test_uninstall_non_interactive_flag_works_without_stdin(tmp_path):
+    sandbox = tmp_path / "home"
+    sandbox.mkdir()
+
+    install_result = _run_install_sh(sandbox, REPO_ROOT)
+    assert install_result.returncode == 0
+
+    uninstall_result = _run_uninstall_sh(sandbox, REPO_ROOT, "-y", input_text=None)
+    assert uninstall_result.returncode == 0, uninstall_result.stderr
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash required")
+def test_install_manifest_has_schema_version_and_stable_file_order(tmp_path):
+    sandbox = tmp_path / "home"
+    sandbox.mkdir()
+
+    manifest_path = REPO_ROOT / ".installed-manifest.json"
+    original_manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else None
+
+    try:
+        first = _run_install_sh(sandbox, REPO_ROOT)
+        assert first.returncode == 0, first.stderr
+        manifest_1 = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        second = _run_install_sh(sandbox, REPO_ROOT)
+        assert second.returncode == 0, second.stderr
+        manifest_2 = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        assert manifest_1["schema_version"] == 1
+        assert manifest_2["schema_version"] == 1
+        assert manifest_1["files"] == manifest_2["files"]
+        assert manifest_1["backups"] == manifest_2["backups"]
+    finally:
+        if original_manifest is None:
+            manifest_path.unlink(missing_ok=True)
+        else:
+            manifest_path.write_text(original_manifest, encoding="utf-8")

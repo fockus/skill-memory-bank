@@ -26,6 +26,11 @@ DIR="${1:-.}"
 
 # ═══ Priority 1: project-specific override ═══
 if [[ -f "$DIR/.memory-bank/metrics.sh" ]]; then
+  if [[ "${MB_ALLOW_METRICS_OVERRIDE:-0}" != "1" ]]; then
+    echo "[error] refusing to run $DIR/.memory-bank/metrics.sh without MB_ALLOW_METRICS_OVERRIDE=1" >&2
+    echo "[hint] set MB_ALLOW_METRICS_OVERRIDE=1 only for trusted repositories" >&2
+    exit 2
+  fi
   echo "source=override"
   bash "$DIR/.memory-bank/metrics.sh"
   exit 0

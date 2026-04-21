@@ -33,8 +33,10 @@ MANIFEST="$OC_DIR/.mb-manifest.json"
 
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_lib_agents_md.sh"
-
-require_jq() { command -v jq >/dev/null 2>&1 || { echo "[opencode-adapter] jq required" >&2; exit 1; }; }
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_framework.sh"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_contract.sh"
 
 # ═══ Plugin file ═══
 plugin_body() {
@@ -140,7 +142,7 @@ uninstall_opencode_json() {
 
 # ═══ Install ═══
 install_opencode() {
-  require_jq
+  adapter_require_jq "opencode-adapter" || exit 1
   mkdir -p "$PLUGIN_DIR" "$COMMANDS_DIR"
 
   local owned
@@ -162,17 +164,15 @@ install_opencode() {
         [ -f "$f" ] || continue
         printf '%s\n' "$COMMANDS_DIR/$(basename "$f")"
       done
-    } | jq -R . | jq -s .
+    } | adapter_json_array_from_lines
   )
 
-  jq -n \
-    --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg skill_version "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    --arg plugin_ref "$PLUGIN_REF" \
-    --argjson files "$files_json" \
-    --argjson agents_owned "$owned" \
-    '{installed_at: $installed_at, adapter: "opencode", skill_version: $skill_version, plugin_ref: $plugin_ref, files: $files, agents_md_owned: $agents_owned}' \
-    > "$MANIFEST"
+  adapter_write_manifest \
+    "$MANIFEST" \
+    "opencode" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    "{\"plugin_ref\": $(jq -Rn --arg ref "$PLUGIN_REF" '$ref'), \"agents_md_owned\": $owned}"
 
   echo "[opencode-adapter] installed to $PROJECT_ROOT"
 }
@@ -183,15 +183,10 @@ uninstall_opencode() {
     echo "[opencode-adapter] no manifest found, nothing to uninstall"
     return 0
   fi
-  require_jq
+  adapter_require_jq "opencode-adapter" || exit 1
 
   # 1. Remove plugin file
-  local files
-  files=$(jq -r '.files[]' "$MANIFEST")
-  local f
-  while IFS= read -r f; do
-    [ -n "$f" ] && [ -f "$f" ] && rm -f "$f"
-  done <<< "$files"
+  adapter_remove_manifest_files "$MANIFEST"
 
   # 2. Strip from opencode.json
   uninstall_opencode_json
@@ -218,3 +213,5 @@ case "$ACTION" in
     exit 1
     ;;
 esac
+
+adapter_contract_require_functions install_opencode uninstall_opencode >/dev/null

@@ -22,6 +22,13 @@
 MB_START_MARKER="<!-- memory-bank:start -->"
 MB_END_MARKER="<!-- memory-bank:end -->"
 
+_owners_require_jq() {
+  command -v jq >/dev/null 2>&1 || {
+    echo "[agents-md] jq required" >&2
+    return 1
+  }
+}
+
 mb_preferred_language() {
   local lang="${MB_LANGUAGE:-${LANGUAGE:-en}}"
   case "$lang" in
@@ -102,6 +109,7 @@ _owners_file() { echo "$1/.mb-agents-owners.json"; }
 
 _owners_read() {
   local f
+  _owners_require_jq || return 1
   f=$(_owners_file "$1")
   if [ -f "$f" ]; then
     cat "$f"
@@ -112,7 +120,12 @@ _owners_read() {
 
 _owners_write() {
   local pr="$1" data="$2"
-  echo "$data" > "$(_owners_file "$pr")"
+  local target tmp
+  _owners_require_jq || return 1
+  target=$(_owners_file "$pr")
+  tmp=$(mktemp "$target.XXXXXX.tmp")
+  printf '%s\n' "$data" > "$tmp"
+  mv "$tmp" "$target"
 }
 
 # ───────── Install ─────────

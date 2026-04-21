@@ -4,6 +4,86 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [3.1.2] — 2026-04-21
+
+**Review findings hardening + installer boundary refactor.** Seven stages
+closing three classes of problems surfaced by the full-repo review and
+security audit: P0 security risks around path traversal and manifest
+poisoning, architectural debt in `install.sh` / adapter layer, and
+contract / maintainability drift in CLI, manifests, and shared helpers.
+All 3 High findings from `SECURITY_AUDIT_REPORT.md` closed; 601/601 bats
++ 246/246 pytest green.
+
+### Added
+
+- **Safe path helpers in `scripts/_lib.sh`** — canonicalization and subtree
+  validation reused by `install.sh` / `uninstall.sh` / adapters. Traversal
+  payloads in `.claude-workspace`, uninstall manifest paths, and `adapters/pi.sh`
+  `pi_skill_dir` all fail closed.
+- **`MB_ALLOW_METRICS_OVERRIDE=1` opt-in gate** for `.memory-bank/metrics.sh`
+  execution. Default blocks user-supplied overrides with an actionable hint.
+- **`-y` / `--non-interactive` flags** on `uninstall.sh` and the Python
+  `memory-bank uninstall` CLI. Both skip the prompt for CI/automation usage.
+- **`schema_version` + deterministic file/backup ordering** in the global
+  install manifest. Unblocks safe tooling that reasons over manifests.
+- **`memory_bank_skill/_io.py`** — shared atomic-write helper; replaces four
+  duplicated `_atomic_write()` implementations in Python scripts.
+- **`memory_bank_skill/_texttools.py`** — shared `strip_marked_section` /
+  `localize_language_rule` / etc.; replaces four near-identical Python
+  heredoc blocks in `uninstall.sh` with one shared call path.
+- **`adapters/_framework.sh` + `adapters/_contract.sh`** — shared adapter
+  entrypoints (install/uninstall), manifest writing, hook JSON merge, and
+  contract invariants. Sourced by all 7 adapters.
+- **`references/adapter-manifest-schema.md`** — documented manifest schema
+  (`schema_version`, `adapter`, `installed_at`, `files`, optional keys).
+- **Direct bats coverage** for `mb-note.sh`, `mb-plan.sh`, `_lib_agents_md.sh`
+  refcount/atomic-write behavior, 10 MB hook-log rotation boundary, and
+  `run_shell()` subprocess failure path — closes review-cited test gaps.
+- **`test_texttools.py`** pytest coverage for atomic write rollback,
+  marker-strip, and language-rule localization.
+
+### Changed
+
+- **`install.sh` no longer contains client-specific Cursor global helpers** —
+  hooks / AGENTS / user-rules logic moved into `adapters/cursor.sh`. The
+  universal installer is now orchestration only (argument parsing + shared
+  install + adapter invocation). `install.sh: 1` reference vs
+  `adapters/cursor.sh: 8` references post-refactor.
+- **`uninstall.sh` delegates adapter cleanup** instead of relying solely on
+  the global manifest. Adapter artifacts round-trip cleanly; user content
+  preserved.
+- **`adapters/_lib_agents_md.sh`** writes owner state atomically with an
+  explicit `jq` preflight that fails clearly when the binary is missing.
+- **All 7 adapters migrated to the shared framework** without changing their
+  public CLI. OpenCode/Codex/Pi shared `AGENTS.md` coexistence preserved.
+- **`mb-compact.sh` is narrowed back to archival decay.** Structural migration
+  of `checklist.md` done-sections and `plan.md` deferred/declined bullets now
+  lives in `mb-migrate-structure.sh`, which keeps compaction and migration on
+  separate boundaries again.
+- **`settings/merge-hooks.py`** now strips only Memory Bank-owned hook items
+  within mixed entries, preserving unrelated user commands in the same event.
+- **Pi's native `MB_PI_MODE=skill` path** is no longer part of the supported
+  default surface. Normal installs stay on `agents-md`; native-skill probing
+  requires the explicit `MB_EXPERIMENTAL_PI_SKILL=1` gate.
+
+### Fixed
+
+- Traversal payloads in `.claude-workspace`, uninstall manifest paths, and
+  `adapters/pi.sh` `pi_skill_dir` now reject external targets before any
+  destructive operation.
+- `install.sh::backup_if_exists()` refuses symlink targets that escape
+  managed directories; safe regular-file idempotency preserved.
+- `memory-bank install` fails early on unknown `--clients` values with a
+  clear error before `install.sh` runs.
+- `settings/merge-hooks.py` no longer drops mixed user/MB hook entries when
+  the first hook item happens to be MB-owned.
+
+### Docs
+
+- `README.md`, `docs/install.md`, `docs/release-process.md`, `SECURITY.md`
+  now document `memory-bank uninstall -y`, `MB_ALLOW_METRICS_OVERRIDE=1`
+  opt-in, and Pi's experimental native skill gate.
+
 ## [3.2.0] — 2026-04-21 (unreleased — staged on main)
 
 **Subagent maturity release.** Six stages of targeted upgrades to the skill's

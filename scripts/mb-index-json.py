@@ -22,13 +22,17 @@ Shape::
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    from memory_bank_skill._io import atomic_write
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from memory_bank_skill._io import atomic_write
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.DOTALL)
 LESSON_RE = re.compile(r"^###\s+(L-\d+)[:\-\s]+(.+?)\s*$", re.MULTILINE)
@@ -184,17 +188,7 @@ def build_index(mb_path_str: str) -> dict[str, Any]:
     }
 
     target = mb_path / "index.json"
-    tmp_fd, tmp_path = tempfile.mkstemp(
-        dir=str(mb_path), prefix=".index.json.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False, sort_keys=False)
-        os.replace(tmp_path, target)
-    except BaseException:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-        raise
+    atomic_write(target, json.dumps(data, indent=2, ensure_ascii=False, sort_keys=False))
 
     return data
 

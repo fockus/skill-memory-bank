@@ -55,7 +55,7 @@ Upgrade via `scripts/mb-upgrade.sh` (reads `git fetch origin`).
 | Command                                                                               | Purpose                                            |
 | ------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `memory-bank install [--clients <list>] [--language <en|ru>] [--project-root <path>]` | Run global install + optional cross-agent adapters |
-| `memory-bank uninstall`                                                               | Remove global install                              |
+| `memory-bank uninstall [-y|--non-interactive]`                                        | Remove global install                              |
 | `memory-bank init`                                                                    | Print `/mb init` hint (Claude Code command)        |
 | `memory-bank version`                                                                 | Print version                                      |
 | `memory-bank self-update`                                                             | Show upgrade command                               |
@@ -70,6 +70,7 @@ Upgrade via `scripts/mb-upgrade.sh` (reads `git fetch origin`).
 - TTY install without `--language` → interactive language prompt
 - non-interactive install without `--language` → default `en`
 - env override also works: `MB_LANGUAGE=ru memory-bank install`
+- uninstall can also be non-interactive: `memory-bank uninstall -y`
 
 `memory-bank install` now performs these global registrations:
 
@@ -98,6 +99,11 @@ If you also pass `--clients opencode`, project-level OpenCode files are added un
 
 See [cross-agent-setup.md](cross-agent-setup.md) for per-client details.
 
+## Security-sensitive toggles
+
+- Project-local `.memory-bank/metrics.sh` overrides are **disabled by default**. To run one intentionally, use `MB_ALLOW_METRICS_OVERRIDE=1`.
+- Pi's native skill mode is **not** part of the supported default surface. The supported path is `agents-md`. If you need to probe the native API, gate it explicitly: `MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1 adapters/pi.sh install <project>`.
+
 ## Platform support
 
 
@@ -122,3 +128,5 @@ venv shared-data. Reinstall: `pipx reinstall memory-bank-skill`.
 
 **Upgrade didn't pick up new version** — `pipx reinstall memory-bank-skill`
 (more aggressive than `pipx upgrade`).
+
+`memory-bank uninstall` hangs in CI — pass `-y` / `--non-interactive`.

@@ -79,6 +79,7 @@ run_adapter() {
   [ "$status" -eq 0 ]
   local m="$PROJECT/.opencode/.mb-manifest.json"
   [ -f "$m" ]
+  jq -e '.schema_version == 1' "$m" >/dev/null
   jq -e '.adapter == "opencode"' "$m" >/dev/null
   jq -e '.agents_md_owned == true' "$m" >/dev/null
 }

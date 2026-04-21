@@ -241,6 +241,33 @@ EOF
   [[ "$output" != *"archive: notes/2026-01-05_referenced"* ]]
 }
 
+@test "compact: does not perform structural migration for checklist or plan.md" {
+  local p="$MB/plans/done/2026-01-01_done.md"
+  cat > "$p" <<'EOF'
+# Done plan
+
+## Stages
+### Stage 1: legacy-stage
+EOF
+  set_mtime_days_ago "$p" 90
+
+  cat > "$MB/checklist.md" <<'EOF'
+## Stage 1: legacy-stage
+- ✅ finished
+EOF
+
+  cat > "$MB/plan.md" <<'EOF'
+## Deferred
+
+- keep-this-for-migrate
+EOF
+
+  run_compact --apply
+  [ "$status" -eq 0 ]
+  grep -q '^## Stage 1: legacy-stage' "$MB/checklist.md"
+  grep -q '^- keep-this-for-migrate' "$MB/plan.md"
+}
+
 # ═══════════════════════════════════════════════════════════════
 # --apply mechanics
 # ═══════════════════════════════════════════════════════════════

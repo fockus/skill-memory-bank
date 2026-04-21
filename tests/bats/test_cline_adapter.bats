@@ -60,6 +60,7 @@ run_adapter() {
   [ "$status" -eq 0 ]
   local m="$PROJECT/.clinerules/.mb-manifest.json"
   [ -f "$m" ]
+  jq -e '.schema_version == 1' "$m" >/dev/null
   jq -e '.adapter == "cline"' "$m" >/dev/null
   jq -e '.files | length >= 4' "$m" >/dev/null
   jq -e '.hooks_events | index("beforeToolExecution")' "$m" >/dev/null

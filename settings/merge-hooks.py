@@ -70,8 +70,44 @@ def _is_mb_managed(cmd: str) -> bool:
     return any(pat in cmd for pat in LEGACY_PATTERNS)
 
 
+def _strip_mb_managed_from_entry(entry: object) -> object | None:
+    if not isinstance(entry, dict):
+        return entry
+
+    hooks = entry.get("hooks")
+    if not isinstance(hooks, list):
+        return entry
+
+    cleaned_hooks = []
+    removed_any = False
+    for hook in hooks:
+        if not isinstance(hook, dict):
+            cleaned_hooks.append(hook)
+            continue
+
+        command = hook.get("command", "") or ""
+        if _is_mb_managed(command):
+            removed_any = True
+            continue
+        cleaned_hooks.append(hook)
+
+    if not removed_any:
+        return entry
+    if not cleaned_hooks:
+        return None
+
+    cleaned_entry = dict(entry)
+    cleaned_entry["hooks"] = cleaned_hooks
+    return cleaned_entry
+
+
 def _strip_mb_managed(entries: list) -> list:
-    return [e for e in entries if not _is_mb_managed(_first_cmd(e))]
+    cleaned = []
+    for entry in entries:
+        stripped = _strip_mb_managed_from_entry(entry)
+        if stripped is not None:
+            cleaned.append(stripped)
+    return cleaned
 
 
 def merge_hooks(settings_path: str, hooks_path: str) -> None:

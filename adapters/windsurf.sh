@@ -34,8 +34,10 @@ EVENT_BINDINGS=(
 
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_lib_agents_md.sh"
-
-require_jq() { command -v jq >/dev/null 2>&1 || { echo "[windsurf-adapter] jq required" >&2; exit 1; }; }
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_framework.sh"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_contract.sh"
 
 before_prompt_body() {
   cat <<'HOOK_EOF'
@@ -105,7 +107,7 @@ HOOK_EOF
 
 # ═══ Install ═══
 install_windsurf() {
-  require_jq
+  adapter_require_jq "windsurf-adapter" || exit 1
   mkdir -p "$WINDSURF_DIR/rules" "$HOOKS_DIR"
 
   # 1. Rules file (Windsurf frontmatter: trigger)
@@ -170,16 +172,15 @@ install_windsurf() {
 
   # 5. Manifest
   local files_json events_json
-  files_json=$(printf '%s\n' "$RULES_FILE" "$HOOKS_DIR"/*.sh | jq -R . | jq -s .)
-  events_json=$(printf '%s\n' "${EVENT_BINDINGS[@]}" | awk -F: '{print $1}' | jq -R . | jq -s .)
+  files_json=$(printf '%s\n' "$RULES_FILE" "$HOOKS_DIR"/*.sh | adapter_json_array_from_lines)
+  events_json=$(printf '%s\n' "${EVENT_BINDINGS[@]}" | awk -F: '{print $1}' | adapter_json_array_from_lines)
 
-  jq -n \
-    --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg skill_version "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    --argjson files "$files_json" \
-    --argjson hooks_events "$events_json" \
-    '{installed_at: $installed_at, adapter: "windsurf", skill_version: $skill_version, files: $files, hooks_events: $hooks_events}' \
-    > "$MANIFEST"
+  adapter_write_manifest \
+    "$MANIFEST" \
+    "windsurf" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    "{\"hooks_events\": $events_json}"
 
   echo "[windsurf-adapter] installed to $PROJECT_ROOT"
 }
@@ -190,16 +191,12 @@ uninstall_windsurf() {
     echo "[windsurf-adapter] no manifest found, nothing to uninstall"
     return 0
   fi
-  require_jq
+  adapter_require_jq "windsurf-adapter" || exit 1
 
-  local files events
-  files=$(jq -r '.files[]' "$MANIFEST")
+  local events
   events=$(jq -r '.hooks_events[]' "$MANIFEST")
 
-  local f
-  while IFS= read -r f; do
-    [ -n "$f" ] && [ -f "$f" ] && rm -f "$f"
-  done <<< "$files"
+  adapter_remove_manifest_files "$MANIFEST"
 
   # Strip our-owned entries from hooks.json
   if [ -f "$HOOKS_JSON" ]; then
@@ -240,3 +237,5 @@ case "$ACTION" in
     exit 1
     ;;
 esac
+
+adapter_contract_require_functions install_windsurf uninstall_windsurf >/dev/null

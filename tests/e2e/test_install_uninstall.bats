@@ -157,6 +157,42 @@ teardown() {
   python3 -c "import json; json.load(open('$REPO_ROOT/.installed-manifest.json'))"
 }
 
+@test "install: manifest has schema_version=1" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  [ -f "$REPO_ROOT/.installed-manifest.json" ]
+  python3 - <<PY
+import json
+
+data = json.load(open("$REPO_ROOT/.installed-manifest.json"))
+assert data["schema_version"] == 1
+PY
+}
+
+@test "install: global manifest does not own Cursor global files" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  python3 - <<PY
+import json
+
+data = json.load(open("$REPO_ROOT/.installed-manifest.json"))
+files = data["files"]
+assert all("/.cursor/AGENTS.md" not in f for f in files)
+assert all("/.cursor/hooks.json" not in f for f in files)
+assert all("/.cursor/memory-bank-user-rules.md" not in f for f in files)
+assert all("/.cursor/commands/mb.md" not in f for f in files)
+PY
+}
+
+@test "install: refuses unsafe symlink target outside managed dirs" {
+  mkdir -p "$HOME/.claude" "$HOME/outside"
+  echo "keep me" > "$HOME/outside/victim.txt"
+  ln -s "$HOME/outside/victim.txt" "$HOME/.claude/RULES.md"
+
+  run bash "$REPO_ROOT/install.sh"
+  [ "$status" -ne 0 ]
+  grep -q "keep me" "$HOME/outside/victim.txt"
+}
+
 @test "install: idempotent — two runs yield no duplicate CLAUDE.md sections" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   bash "$REPO_ROOT/install.sh" >/dev/null
@@ -210,6 +246,61 @@ teardown() {
   [ ! -e "$HOME/.claude/skills/skill-memory-bank" ]
   [ ! -e "$HOME/.claude/skills/memory-bank" ]
   [ ! -e "$HOME/.codex/skills/memory-bank" ]
+}
+
+@test "uninstall: -y removes installed files without stdin prompt" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  run bash "$REPO_ROOT/uninstall.sh" -y
+
+  [ "$status" -eq 0 ]
+  [ ! -f "$HOME/.claude/RULES.md" ]
+  [ ! -e "$HOME/.claude/skills/memory-bank" ]
+}
+
+@test "uninstall: skips poisoned manifest paths outside managed dirs" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  mkdir -p "$HOME/victim-dir"
+  echo "do not delete" > "$HOME/victim-dir/keep.txt"
+
+  python3 - <<PY
+import json
+from pathlib import Path
+
+manifest = Path("$REPO_ROOT/.installed-manifest.json")
+data = json.loads(manifest.read_text())
+data["files"].append("$HOME/.claude/../victim-dir")
+manifest.write_text(json.dumps(data, indent=2))
+PY
+
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ -d "$HOME/victim-dir" ]
+  [ -f "$HOME/victim-dir/keep.txt" ]
+}
+
+@test "uninstall: removes Cursor global files even if global manifest lacks them" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  python3 - <<PY
+import json
+from pathlib import Path
+
+manifest = Path("$REPO_ROOT/.installed-manifest.json")
+data = json.loads(manifest.read_text())
+data["files"] = [
+    f for f in data["files"]
+    if "/.cursor/" not in f
+]
+manifest.write_text(json.dumps(data, indent=2))
+PY
+
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ ! -f "$HOME/.cursor/hooks.json" ]
+  [ ! -f "$HOME/.cursor/AGENTS.md" ]
+  [ ! -f "$HOME/.cursor/memory-bank-user-rules.md" ]
+  [ ! -f "$HOME/.cursor/commands/mb.md" ]
+  [ ! -f "$HOME/.cursor/.mb-manifest.json" ]
 }
 
 @test "uninstall: SessionEnd hook removed from settings.json" {

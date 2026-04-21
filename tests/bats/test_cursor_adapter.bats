@@ -81,6 +81,7 @@ run_adapter() {
   local m="$PROJECT/.cursor/.mb-manifest.json"
   [ -f "$m" ]
   jq . "$m" >/dev/null
+  jq -e '.schema_version == 1' "$m" >/dev/null
   # Manifest must list the rules file and hooks.json ownership
   jq -e '.files | length > 0' "$m" >/dev/null
   jq -e '.hooks_events | length > 0' "$m" >/dev/null

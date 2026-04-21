@@ -59,6 +59,7 @@ run_adapter() {
   [ "$status" -eq 0 ]
   local m="$PROJECT/.kilocode/.mb-manifest.json"
   [ -f "$m" ]
+  jq -e '.schema_version == 1' "$m" >/dev/null
   jq -e '.adapter == "kilo"' "$m" >/dev/null
   jq -e '.files | length > 0' "$m" >/dev/null
   jq -e '.git_hooks_installed == true' "$m" >/dev/null

@@ -5,9 +5,9 @@
 #   adapters/pi.sh install [PROJECT_ROOT]
 #   adapters/pi.sh uninstall [PROJECT_ROOT]
 #
-# Modes (via MB_PI_MODE env, default = agents-md for safety while Skills API stabilizes):
-#   agents-md  — AGENTS.md (shared, refcount) + git-hooks-fallback (transitional)
-#   skill      — native ~/.pi/skills/memory-bank/ (preferred when Pi Skills API stable)
+# Modes (via MB_PI_MODE env, default = agents-md):
+#   agents-md  — AGENTS.md (shared, refcount) + git-hooks-fallback
+#   skill      — experimental compatibility path, gated out of normal installs
 #
 # Pi Skills API is in active development (2026-04-20 research), so agents-md is default.
 
@@ -53,6 +53,7 @@ run_adapter() {
   [ "$status" -eq 0 ]
   local m="$PROJECT/.mb-pi-manifest.json"
   [ -f "$m" ]
+  jq -e '.schema_version == 1' "$m" >/dev/null
   jq -e '.adapter == "pi"' "$m" >/dev/null
   jq -e '.mode == "agents-md"' "$m" >/dev/null
 }
@@ -78,28 +79,30 @@ run_adapter() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Skill mode (explicit opt-in)
+# Experimental skill mode gate
 # ═══════════════════════════════════════════════════════════════
 
-@test "pi: MB_PI_MODE=skill creates ~/.pi/skills/memory-bank/SKILL.md" {
+@test "pi: MB_PI_MODE=skill is rejected without experimental gate" {
   MB_PI_MODE=skill run_adapter install "$PROJECT"
-  [ "$status" -eq 0 ]
-  [ -f "$HOME/.pi/skills/memory-bank/SKILL.md" ]
-  grep -qi "memory bank" "$HOME/.pi/skills/memory-bank/SKILL.md"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"experimental"* ]]
 }
 
-@test "pi: MB_PI_MODE=skill manifest records mode=skill" {
-  MB_PI_MODE=skill run_adapter install "$PROJECT"
-  [ "$status" -eq 0 ]
-  local m="$PROJECT/.mb-pi-manifest.json"
-  jq -e '.mode == "skill"' "$m" >/dev/null
+@test "pi: skill mode uninstall rejects poisoned manifest path outside ~/.pi/skills" {
+  mkdir -p "$HOME/keep-me"
+  echo "still here" > "$HOME/keep-me/file.txt"
+  cat > "$PROJECT/.mb-pi-manifest.json" <<EOF
+{
+  "adapter": "pi",
+  "mode": "skill",
+  "pi_skill_dir": "$HOME/keep-me"
 }
+EOF
 
-@test "pi: skill mode uninstall removes skill directory" {
-  MB_PI_MODE=skill run_adapter install "$PROJECT"
-  MB_PI_MODE=skill run_adapter uninstall "$PROJECT"
+  run_adapter uninstall "$PROJECT"
   [ "$status" -eq 0 ]
-  [ ! -d "$HOME/.pi/skills/memory-bank" ]
+  [ -d "$HOME/keep-me" ]
+  [ -f "$HOME/keep-me/file.txt" ]
   [ ! -f "$PROJECT/.mb-pi-manifest.json" ]
 }
 

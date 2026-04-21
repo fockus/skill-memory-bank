@@ -79,6 +79,14 @@ teardown() {
   grep -q "~/.cursor/skills/memory-bank" "$HOME/.cursor/memory-bank-user-rules.md"
 }
 
+@test "cursor-global: install writes ~/.cursor/.mb-manifest.json with schema_version=1" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  [ -f "$HOME/.cursor/.mb-manifest.json" ]
+  jq -e '.schema_version == 1' "$HOME/.cursor/.mb-manifest.json" >/dev/null
+  jq -e '.adapter == "cursor-global"' "$HOME/.cursor/.mb-manifest.json" >/dev/null
+}
+
 # ═══════════════════════════════════════════════════════════════
 # Idempotency
 # ═══════════════════════════════════════════════════════════════

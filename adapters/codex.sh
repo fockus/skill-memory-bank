@@ -29,8 +29,10 @@ MANIFEST="$CODEX_DIR/.mb-manifest.json"
 
 # shellcheck source=./_lib_agents_md.sh
 . "$(dirname "$0")/_lib_agents_md.sh"
-
-require_jq() { command -v jq >/dev/null 2>&1 || { echo "[codex-adapter] jq required" >&2; exit 1; }; }
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_framework.sh"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_contract.sh"
 
 # ═══ config.toml template ═══
 config_toml_body() {
@@ -90,7 +92,7 @@ HOOK_EOF
 
 # ═══ Install ═══
 install_codex() {
-  require_jq
+  adapter_require_jq "codex-adapter" || exit 1
   mkdir -p "$CODEX_DIR/hooks"
 
   # 1. AGENTS.md via shared lib (refcount aware)
@@ -109,15 +111,14 @@ install_codex() {
 
   # 5. Manifest
   local files_json
-  files_json=$(printf '%s\n' "$CONFIG_TOML" "$HOOKS_JSON" "$CODEX_DIR/hooks/before-prompt.sh" | jq -R . | jq -s .)
+  files_json=$(printf '%s\n' "$CONFIG_TOML" "$HOOKS_JSON" "$CODEX_DIR/hooks/before-prompt.sh" | adapter_json_array_from_lines)
 
-  jq -n \
-    --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg skill_version "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    --argjson files "$files_json" \
-    --argjson agents_owned "$owned" \
-    '{installed_at: $installed_at, adapter: "codex", skill_version: $skill_version, files: $files, agents_md_owned: $agents_owned, experimental_hooks: true}' \
-    > "$MANIFEST"
+  adapter_write_manifest \
+    "$MANIFEST" \
+    "codex" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    "{\"agents_md_owned\": $owned, \"experimental_hooks\": true}"
 
   echo "[codex-adapter] installed to $PROJECT_ROOT (hooks API: experimental)"
 }
@@ -128,15 +129,10 @@ uninstall_codex() {
     echo "[codex-adapter] no manifest found, nothing to uninstall"
     return 0
   fi
-  require_jq
+  adapter_require_jq "codex-adapter" || exit 1
 
   # 1. Remove tracked files
-  local files
-  files=$(jq -r '.files[]' "$MANIFEST")
-  local f
-  while IFS= read -r f; do
-    [ -n "$f" ] && [ -f "$f" ] && rm -f "$f"
-  done <<< "$files"
+  adapter_remove_manifest_files "$MANIFEST"
 
   # 2. Decrement AGENTS.md ownership
   agents_md_uninstall "$PROJECT_ROOT" "codex"
@@ -159,3 +155,5 @@ case "$ACTION" in
     exit 1
     ;;
 esac
+
+adapter_contract_require_functions install_codex uninstall_codex >/dev/null

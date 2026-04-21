@@ -164,7 +164,7 @@ teardown() {
 
 # ═══ Override ═══
 
-@test "metrics: .memory-bank/metrics.sh override takes priority" {
+@test "metrics: .memory-bank/metrics.sh override is blocked by default" {
   mkdir -p "$TMPDIR/.memory-bank"
   cat > "$TMPDIR/.memory-bank/metrics.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -176,6 +176,24 @@ EOF
 
   cd "$TMPDIR"
   run bash "$SCRIPT" "$TMPDIR"
+  [ "$status" -ne 0 ]
+  [[ "$output" != *"stack=custom-override"* ]]
+  [[ "$output" != *"src_count=999"* ]]
+  [[ "$output" == *"MB_ALLOW_METRICS_OVERRIDE=1"* ]] || [[ "${stderr:-}" == *"MB_ALLOW_METRICS_OVERRIDE=1"* ]]
+}
+
+@test "metrics: .memory-bank/metrics.sh override runs with explicit opt-in" {
+  mkdir -p "$TMPDIR/.memory-bank"
+  cat > "$TMPDIR/.memory-bank/metrics.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "stack=custom-override"
+echo "test_cmd=custom-test"
+echo "src_count=999"
+EOF
+  chmod +x "$TMPDIR/.memory-bank/metrics.sh"
+
+  cd "$TMPDIR"
+  MB_ALLOW_METRICS_OVERRIDE=1 run bash "$SCRIPT" "$TMPDIR"
   [ "$status" -eq 0 ]
   [[ "$output" == *"stack=custom-override"* ]]
   [[ "$output" == *"src_count=999"* ]]

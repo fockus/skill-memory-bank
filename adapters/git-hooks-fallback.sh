@@ -32,6 +32,11 @@ GIT_DIR="$PROJECT_ROOT/.git"
 HOOKS_DIR="$GIT_DIR/hooks"
 MANIFEST="$GIT_DIR/mb-hooks-manifest.json"
 
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_framework.sh"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_contract.sh"
+
 require_git_repo() {
   if [ ! -d "$GIT_DIR" ]; then
     echo "[git-hooks] not a git repository: $PROJECT_ROOT" >&2
@@ -180,15 +185,14 @@ install_git_hooks() {
 
   # Manifest
   local files_json
-  files_json=$(printf '%s\n' "$HOOKS_DIR/post-commit" "$HOOKS_DIR/pre-commit" | jq -R . | jq -s .)
+  files_json=$(printf '%s\n' "$HOOKS_DIR/post-commit" "$HOOKS_DIR/pre-commit" | adapter_json_array_from_lines)
 
-  jq -n \
-    --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --argjson files "$files_json" \
-    --argjson backup_post "$had_user_post" \
-    --argjson backup_pre "$had_user_pre" \
-    '{installed_at: $installed_at, adapter: "git-hooks-fallback", files: $files, had_user_post_commit: ($backup_post == 1), had_user_pre_commit: ($backup_pre == 1)}' \
-    > "$MANIFEST"
+  adapter_write_manifest \
+    "$MANIFEST" \
+    "git-hooks-fallback" \
+    "$(cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    "{\"had_user_post_commit\": $([ "$had_user_post" -eq 1 ] && printf true || printf false), \"had_user_pre_commit\": $([ "$had_user_pre" -eq 1 ] && printf true || printf false)}"
 
   echo "[git-hooks] installed to $PROJECT_ROOT/.git/hooks/"
 }
@@ -233,3 +237,5 @@ case "$ACTION" in
     exit 1
     ;;
 esac
+
+adapter_contract_require_functions install_git_hooks uninstall_git_hooks >/dev/null

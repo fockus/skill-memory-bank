@@ -362,3 +362,41 @@ def test_direct_call_string_entries_ignored(merge_mod, tmp_settings, tmp_path):
         if isinstance(h, dict)
     ]
     assert "ok" in cmds
+
+
+def test_direct_call_preserves_user_hook_in_mixed_entry(merge_mod, tmp_settings, tmp_hooks_minimal):
+    """Mixed entries must lose only MB-owned hook items, not user hook items."""
+    tmp_settings.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "PreToolUse": [
+                        {
+                            "matcher": "Bash",
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "~/.claude/hooks/block-dangerous.sh # [memory-bank-skill]",
+                                },
+                                {
+                                    "type": "command",
+                                    "command": "echo user-custom-guard",
+                                },
+                            ],
+                        }
+                    ]
+                }
+            }
+        )
+    )
+
+    merge_mod.merge_hooks(str(tmp_settings), str(tmp_hooks_minimal))
+
+    data = json.loads(tmp_settings.read_text())
+    cmds = [
+        hook["command"]
+        for entry in data["hooks"]["PreToolUse"]
+        for hook in entry.get("hooks", [])
+    ]
+    assert "echo user-custom-guard" in cmds
+    assert sum("block-dangerous" in cmd for cmd in cmds) == 1

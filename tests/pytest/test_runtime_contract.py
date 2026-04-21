@@ -29,3 +29,16 @@ def test_license_file_exists() -> None:
     license_file = REPO_ROOT / "LICENSE"
     assert license_file.is_file()
     assert "MIT License" in license_file.read_text(encoding="utf-8")
+
+
+def test_install_sh_no_longer_embeds_cursor_global_helper_bodies() -> None:
+    install_sh = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
+    assert "install_cursor_global_agents()" not in install_sh
+    assert "install_cursor_user_rules_paste()" not in install_sh
+    assert "install_cursor_global_hooks()" not in install_sh
+
+
+def test_cursor_adapter_supports_global_actions() -> None:
+    cursor_adapter = (REPO_ROOT / "adapters" / "cursor.sh").read_text(encoding="utf-8")
+    assert "install-global" in cursor_adapter
+    assert "uninstall-global" in cursor_adapter

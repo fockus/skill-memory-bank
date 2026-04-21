@@ -122,6 +122,19 @@ EOF
   [ ! -f "$log.1" ]
 }
 
+@test "file-change-log: exact 10 MB boundary does NOT rotate" {
+  log="$HOME/.claude/file-changes.log"
+  dd if=/dev/zero of="$log" bs=1048576 count=10 2>/dev/null
+  size=$(stat -f%z "$log" 2>/dev/null || stat -c%s "$log")
+  [ "$size" -eq 10485760 ]
+
+  file="$TMPHOME/boundary.py"
+  echo "x = 1" > "$file"
+  run_hook "$FC_LOG" "$(payload_write "$file")"
+  [ "$status" -eq 0 ]
+  [ ! -f "$log.1" ]
+}
+
 # ═══════════════════════════════════════════════════════════════
 # block-dangerous — MB_ALLOW_NO_VERIFY bypass
 # ═══════════════════════════════════════════════════════════════

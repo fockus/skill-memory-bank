@@ -63,6 +63,7 @@ run_adapter() {
   [ "$status" -eq 0 ]
   local m="$PROJECT/.codex/.mb-manifest.json"
   [ -f "$m" ]
+  jq -e '.schema_version == 1' "$m" >/dev/null
   jq -e '.adapter == "codex"' "$m" >/dev/null
 }
 

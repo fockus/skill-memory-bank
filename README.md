@@ -318,7 +318,7 @@ After `pipx install memory-bank-skill`:
 
 ```bash
 memory-bank install [--clients <list>] [--language <en|ru|es|zh>] [--project-root <path>] [--non-interactive]
-memory-bank uninstall
+memory-bank uninstall [-y|--non-interactive]
 memory-bank init                    # prints /mb init hint
 memory-bank version
 memory-bank self-update             # prints `pipx upgrade ...`
@@ -330,6 +330,7 @@ Flags:
 - `--clients <list>` — comma-separated. Valid: `claude-code, cursor, windsurf, cline, kilo, opencode, pi, codex`. If omitted and running in a TTY → interactive menu. Non-TTY default: `claude-code` only.
 - `--project-root <path>` — where to place client-specific adapters. Default: current directory.
 - `--non-interactive` — never prompt; use defaults when `--clients` not specified. Use in CI / scripted installs.
+- `-y` / `--non-interactive` on `uninstall` — skip the confirmation prompt. Use in CI / scripted cleanup.
 
 ---
 
@@ -339,7 +340,9 @@ Flags:
 |----------|---------|---------|
 | `MB_AUTO_CAPTURE` | SessionEnd auto-capture mode: `auto` / `strict` / `off` | `auto` |
 | `MB_COMPACT_REMIND` | Weekly `/mb compact` reminder: `auto` / `off` | `auto` |
-| `MB_PI_MODE` | Pi adapter mode: `agents-md` / `skill` | `agents-md` |
+| `MB_ALLOW_METRICS_OVERRIDE` | Allow executing project-local `.memory-bank/metrics.sh` overrides | `0` |
+| `MB_PI_MODE` | Pi adapter mode. Supported: `agents-md`; `skill` is experimental | `agents-md` |
+| `MB_EXPERIMENTAL_PI_SKILL` | Explicit gate for `MB_PI_MODE=skill` compatibility testing | `0` |
 | `MB_SKILL_BUNDLE` | Override bundle path (dev / testing) | auto-detected |
 | `MB_SKIP_DEPS_CHECK` | Skip preflight dep check in `install.sh` | `0` |
 
@@ -398,7 +401,13 @@ A: `pipx upgrade memory-bank-skill` or `brew upgrade memory-bank`. Git-clone ins
 A: No. Since `3.0.0`, `install.sh` is byte-level idempotent: each target is compared via `cmp -s` to the expected post-install content (including localization) and backup is created only if content actually differs. Repeat installs on an up-to-date tree produce zero backups. Language swap (`--language en` → `--language ru`) backs up exactly the localize-target files (`RULES.md`, `memory-bank-user-rules.md`) and nothing else.
 
 **Q: I want to remove everything.**
-A: `memory-bank uninstall` removes global install. Per-project adapters: `adapters/<client>.sh uninstall <project-dir>` (or drop the `.memory-bank/`, `.cursor/`, etc. directories manually).
+A: `memory-bank uninstall -y` removes global install without a prompt. Per-project adapters: `adapters/<client>.sh uninstall <project-dir>`.
+
+**Q: Can a project-local `.memory-bank/metrics.sh` run arbitrary commands during install or doctor flows?**
+A: Not by default. Project-local metrics overrides are disabled unless you explicitly opt in with `MB_ALLOW_METRICS_OVERRIDE=1`. Without that env var, the shipped stack detection stays on the safe built-in path.
+
+**Q: Does Pi still support `MB_PI_MODE=skill`?**
+A: Only as an explicit compatibility experiment. The supported path is `agents-md`. If you need to probe the native Pi Skills surface, gate it intentionally with `MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1` and expect breakage while the upstream API is still moving.
 
 **Q: Is this production-ready?**
 A: Yes. `3.0.0` is the first stable 3.x release. Daily used on real projects. Full test envelope green (bats + pytest). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.

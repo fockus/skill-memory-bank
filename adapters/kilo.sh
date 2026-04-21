@@ -29,8 +29,10 @@ GIT_FALLBACK="$ADAPTERS_DIR/git-hooks-fallback.sh"
 
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_lib_agents_md.sh"
-
-require_jq() { command -v jq >/dev/null 2>&1 || { echo "[kilo-adapter] jq required" >&2; exit 1; }; }
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_framework.sh"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_contract.sh"
 require_git() {
   if [ ! -d "$PROJECT_ROOT/.git" ]; then
     echo "[kilo-adapter] Kilo requires git repo (git-hooks-fallback is mandatory — no native hooks API)" >&2
@@ -39,7 +41,7 @@ require_git() {
 }
 
 install_kilo() {
-  require_jq
+  adapter_require_jq "kilo-adapter" || exit 1
   require_git
   mkdir -p "$KILO_DIR/rules"
 
@@ -68,13 +70,13 @@ install_kilo() {
 
   # 3. Manifest
   local files_json
-  files_json=$(printf '%s\n' "$RULES_FILE" | jq -R . | jq -s .)
-  jq -n \
-    --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg skill_version "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    --argjson files "$files_json" \
-    '{installed_at: $installed_at, adapter: "kilo", skill_version: $skill_version, files: $files, git_hooks_installed: true}' \
-    > "$MANIFEST"
+  files_json=$(printf '%s\n' "$RULES_FILE" | adapter_json_array_from_lines)
+  adapter_write_manifest \
+    "$MANIFEST" \
+    "kilo" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    '{"git_hooks_installed": true}'
 
   echo "[kilo-adapter] installed to $PROJECT_ROOT"
 }
@@ -84,15 +86,10 @@ uninstall_kilo() {
     echo "[kilo-adapter] no manifest found, nothing to uninstall"
     return 0
   fi
-  require_jq
+  adapter_require_jq "kilo-adapter" || exit 1
 
   # 1. Remove tracked files
-  local files
-  files=$(jq -r '.files[]' "$MANIFEST")
-  local f
-  while IFS= read -r f; do
-    [ -n "$f" ] && [ -f "$f" ] && rm -f "$f"
-  done <<< "$files"
+  adapter_remove_manifest_files "$MANIFEST"
 
   # 2. Uninstall git-hooks-fallback if we installed it
   local installed_git
@@ -119,3 +116,5 @@ case "$ACTION" in
     exit 1
     ;;
 esac
+
+adapter_contract_require_functions install_kilo uninstall_kilo >/dev/null

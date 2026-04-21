@@ -48,6 +48,8 @@ to gate deploys:
 git status
 bats tests/bats/ tests/e2e/
 python3 -m pytest tests/pytest/
+ruff check .
+shellcheck -x --source-path=SCRIPTDIR scripts/*.sh adapters/*.sh hooks/*.sh install.sh uninstall.sh
 
 # 2. Update VERSION + memory_bank_skill/__init__.py + CHANGELOG
 #    (all three must match the tag exactly)
@@ -90,6 +92,7 @@ On every pushed `v*` tag:
   pipx install --pip-args='--pre' memory-bank-skill   # use --pre for rc versions
   memory-bank version
   memory-bank doctor
+  memory-bank uninstall -y
   ```
 - [ ] Update Homebrew formula if stable release:
   ```bash

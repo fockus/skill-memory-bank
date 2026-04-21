@@ -71,6 +71,7 @@ run_adapter() {
   [ "$status" -eq 0 ]
   local m="$PROJECT/.windsurf/.mb-manifest.json"
   [ -f "$m" ]
+  jq -e '.schema_version == 1' "$m" >/dev/null
   jq -e '.adapter == "windsurf"' "$m" >/dev/null
   jq -e '.files | length >= 2' "$m" >/dev/null
 }

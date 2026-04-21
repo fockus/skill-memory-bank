@@ -48,6 +48,14 @@ teardown() {
   [ "$output" = "$HOME/.claude/workspaces/myproject/.memory-bank" ]
 }
 
+@test "mb_resolve_path: external workspace rejects traversal project_id" {
+  cd "$TMPDIR"
+  printf 'storage: external\nproject_id: ../../../../tmp/pwned\n' > .claude-workspace
+  run mb_resolve_path
+  [ "$status" -eq 0 ]
+  [ "$output" = ".memory-bank" ]
+}
+
 # ═══ mb_detect_stack ═══
 
 @test "mb_detect_stack: python fixture → python" {

@@ -61,6 +61,8 @@ We follow **coordinated disclosure**:
 
 - `install.sh` uses a marker pattern (`<!-- memory-bank:start/end -->`) to merge into user files idempotently; it never silently overwrites existing content.
 - Backups (`.pre-mb-backup.<timestamp>`) are created only when content differs — see FAQ in README.
-- Uninstall removes only manifested files; user content between markers is preserved.
+- Uninstall removes only manifested files after canonical path validation; user content between markers is preserved.
+- Project-local `.memory-bank/metrics.sh` overrides are blocked by default and run only with explicit `MB_ALLOW_METRICS_OVERRIDE=1` opt-in.
+- Pi native skill mode is not part of the supported default install surface; it remains behind `MB_EXPERIMENTAL_PI_SKILL=1` while the upstream API is unstable.
 - The skill does not make network calls at runtime (neither `install.sh` nor the Python CLI).
 - No telemetry. No analytics. No opt-in / opt-out to discuss.

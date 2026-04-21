@@ -8,9 +8,39 @@ CURSOR_DIR="$HOME/.cursor"
 OPENCODE_DIR="$HOME/.config/opencode"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
-CURSOR_START_MARKER="<!-- memory-bank-cursor:start -->"
-CURSOR_END_MARKER="<!-- memory-bank-cursor:end -->"
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
+
+# shellcheck disable=SC1091
+. "$SKILL_DIR/scripts/_lib.sh"
+
+managed_roots=("$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR" "$OPENCODE_DIR")
+NON_INTERACTIVE=0
+
+run_texttool() {
+  PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 -m memory_bank_skill._texttools "$@"
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -y|--non-interactive)
+      NON_INTERACTIVE=1
+      shift
+      ;;
+    --help|-h)
+      cat <<'EOF'
+Usage: uninstall.sh [-y|--non-interactive]
+
+  -y, --non-interactive   Skip confirmation prompt and uninstall immediately.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "[uninstall.sh] unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
 
 echo -e "\n${BOLD}═══ Uninstalling skill-memory-bank ═══${NC}\n"
 
@@ -25,10 +55,13 @@ if [ ! -f "$MANIFEST" ]; then
   exit 1
 fi
 
-echo -n "Remove all memory-bank files? (y/n): "; read -r c; [ "$c" != "y" ] && exit 0
+if [ "$NON_INTERACTIVE" -eq 0 ]; then
+  echo -n "Remove all memory-bank files? (y/n): "
+  read -r c
+  [ "$c" != "y" ] && exit 0
+fi
 
 echo -e "\n${BLUE}Removing files...${NC}"
-# Manifest stores absolute paths already — no realpath needed (BSD realpath has no -m flag).
 MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
   [ -z "$filepath" ] && continue
   case "$filepath" in
@@ -38,13 +71,11 @@ MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(f) for f in json.l
       ;;
   esac
   if [ -e "$filepath" ] || [ -L "$filepath" ]; then
-    case "$filepath" in
-      "$HOME/.claude/"*) rm -rf "$filepath" && echo "  rm $filepath" ;;
-      "$HOME/.codex/"*) rm -rf "$filepath" && echo "  rm $filepath" ;;
-      "$HOME/.cursor/"*) rm -rf "$filepath" && echo "  rm $filepath" ;;
-      "$HOME/.config/opencode/"*) rm -rf "$filepath" && echo "  rm $filepath" ;;
-      *) echo "  [SKIP] $filepath (outside managed dirs)" ;;
-    esac
+    if mb_path_is_within "$filepath" "${managed_roots[@]}"; then
+      rm -rf "$filepath" && echo "  rm $filepath"
+    else
+      echo "  [SKIP] $filepath (outside managed dirs)"
+    fi
   fi
 done
 
@@ -52,13 +83,11 @@ echo -e "\n${BLUE}Restoring backups...${NC}"
 MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(b) for b in json.load(open(os.environ['MANIFEST_PATH'])).get('backups',[])]" 2>/dev/null | while read -r bp; do
   [ -n "$bp" ] && echo "$bp" | grep -q '|' && {
     orig="${bp%%|*}"; bak="${bp##*|}"
-    case "$orig" in
-      "$HOME/.claude/"*) { [ -e "$bak" ] || [ -L "$bak" ]; } && mv "$bak" "$orig" && echo "  restored $orig" ;;
-      "$HOME/.codex/"*) { [ -e "$bak" ] || [ -L "$bak" ]; } && mv "$bak" "$orig" && echo "  restored $orig" ;;
-      "$HOME/.cursor/"*) { [ -e "$bak" ] || [ -L "$bak" ]; } && mv "$bak" "$orig" && echo "  restored $orig" ;;
-      "$HOME/.config/opencode/"*) { [ -e "$bak" ] || [ -L "$bak" ]; } && mv "$bak" "$orig" && echo "  restored $orig" ;;
-      *) echo "  [SKIP] $orig (outside managed dirs)" ;;
-    esac
+    if mb_path_is_within "$orig" "${managed_roots[@]}"; then
+      { [ -e "$bak" ] || [ -L "$bak" ]; } && mv "$bak" "$orig" && echo "  restored $orig"
+    else
+      echo "  [SKIP] $orig (outside managed dirs)"
+    fi
   }
 done
 
@@ -87,173 +116,18 @@ print('  Hooks cleaned')
 PYEOF
 
 # Clean CLAUDE.md MB section
-[ -f "$CLAUDE_DIR/CLAUDE.md" ] && grep -q "\[MEMORY-BANK-SKILL\]" "$CLAUDE_DIR/CLAUDE.md" && CLAUDE_MD_PATH="$CLAUDE_DIR/CLAUDE.md" python3 << 'PYEOF' 2>/dev/null || true
-import os
-claude_md = os.environ["CLAUDE_MD_PATH"]
-c=open(claude_md).read()
-m='# [MEMORY-BANK-SKILL]'
-if m in c:
-    import tempfile
-    new_content = c[:c.index(m)].rstrip()+'\n'
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(claude_md) or '.', suffix='.tmp')
-    try:
-        with os.fdopen(tmp_fd, 'w') as f: f.write(new_content)
-        os.replace(tmp_path, claude_md)
-    except BaseException:
-        os.unlink(tmp_path)
-        raise
-print('  CLAUDE.md cleaned')
-PYEOF
+[ -f "$CLAUDE_DIR/CLAUDE.md" ] && grep -q "\[MEMORY-BANK-SKILL\]" "$CLAUDE_DIR/CLAUDE.md" && run_texttool strip-after-marker --path "$CLAUDE_DIR/CLAUDE.md" --marker "# [MEMORY-BANK-SKILL]" 2>/dev/null && echo "  CLAUDE.md cleaned" || true
 
 # Clean OpenCode AGENTS.md MB section
-[ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank:start" "$OPENCODE_DIR/AGENTS.md" && OPENCODE_AGENTS_PATH="$OPENCODE_DIR/AGENTS.md" python3 << 'PYEOF' 2>/dev/null || true
-import os
-import tempfile
-
-agents_path = os.environ["OPENCODE_AGENTS_PATH"]
-content = open(agents_path, encoding="utf-8").read().splitlines()
-inside = False
-kept = []
-for line in content:
-    if "<!-- memory-bank:start -->" in line:
-        inside = True
-        continue
-    if inside and "<!-- memory-bank:end -->" in line:
-        inside = False
-        continue
-    if not inside:
-        kept.append(line)
-
-new_content = "\n".join(kept).strip()
-if new_content:
-    new_content += "\n"
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(agents_path) or '.', suffix='.tmp')
-    try:
-        with os.fdopen(tmp_fd, 'w', encoding='utf-8') as f:
-            f.write(new_content)
-        os.replace(tmp_path, agents_path)
-    except BaseException:
-        os.unlink(tmp_path)
-        raise
-else:
-    os.remove(agents_path)
-print('  OpenCode AGENTS.md cleaned')
-PYEOF
+[ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank:start" "$OPENCODE_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$OPENCODE_DIR/AGENTS.md" --start-marker "<!-- memory-bank:start -->" --end-marker "<!-- memory-bank:end -->" 2>/dev/null && echo "  OpenCode AGENTS.md cleaned" || true
 
 # Clean Codex AGENTS.md MB section
-[ -f "$CODEX_DIR/AGENTS.md" ] && grep -q "memory-bank-codex:start" "$CODEX_DIR/AGENTS.md" && CODEX_AGENTS_PATH="$CODEX_DIR/AGENTS.md" CODEX_START="$CODEX_START_MARKER" CODEX_END="$CODEX_END_MARKER" python3 << 'PYEOF' 2>/dev/null || true
-import os
-import tempfile
+[ -f "$CODEX_DIR/AGENTS.md" ] && grep -q "memory-bank-codex:start" "$CODEX_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$CODEX_DIR/AGENTS.md" --start-marker "$CODEX_START_MARKER" --end-marker "$CODEX_END_MARKER" 2>/dev/null && echo "  Codex AGENTS.md cleaned" || true
 
-agents_path = os.environ["CODEX_AGENTS_PATH"]
-start = os.environ["CODEX_START"]
-end = os.environ["CODEX_END"]
-content = open(agents_path, encoding="utf-8").read().splitlines()
-inside = False
-kept = []
-for line in content:
-    if start in line:
-        inside = True
-        continue
-    if inside and end in line:
-        inside = False
-        continue
-    if not inside:
-        kept.append(line)
-
-new_content = "\n".join(kept).strip()
-if new_content:
-    new_content += "\n"
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(agents_path) or ".", suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            f.write(new_content)
-        os.replace(tmp_path, agents_path)
-    except BaseException:
-        os.unlink(tmp_path)
-        raise
-else:
-    os.remove(agents_path)
-print("  Codex AGENTS.md cleaned")
-PYEOF
-
-# Clean Cursor AGENTS.md MB section
-[ -f "$CURSOR_DIR/AGENTS.md" ] && grep -q "memory-bank-cursor:start" "$CURSOR_DIR/AGENTS.md" && CURSOR_AGENTS_PATH="$CURSOR_DIR/AGENTS.md" CURSOR_START="$CURSOR_START_MARKER" CURSOR_END="$CURSOR_END_MARKER" python3 << 'PYEOF' 2>/dev/null || true
-import os
-import tempfile
-
-agents_path = os.environ["CURSOR_AGENTS_PATH"]
-start = os.environ["CURSOR_START"]
-end = os.environ["CURSOR_END"]
-content = open(agents_path, encoding="utf-8").read().splitlines()
-inside = False
-kept = []
-for line in content:
-    if start in line:
-        inside = True
-        continue
-    if inside and end in line:
-        inside = False
-        continue
-    if not inside:
-        kept.append(line)
-
-new_content = "\n".join(kept).strip()
-if new_content:
-    new_content += "\n"
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(agents_path) or ".", suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            f.write(new_content)
-        os.replace(tmp_path, agents_path)
-    except BaseException:
-        os.unlink(tmp_path)
-        raise
-else:
-    os.remove(agents_path)
-print("  Cursor AGENTS.md cleaned")
-PYEOF
-
-# Clean Cursor hooks.json from _mb_owned entries
-if [ -f "$CURSOR_DIR/hooks.json" ] && command -v jq >/dev/null 2>&1; then
-  CURSOR_HOOKS_PATH="$CURSOR_DIR/hooks.json" python3 << 'PYEOF' 2>/dev/null || true
-import json
-import os
-import tempfile
-
-hooks_path = os.environ["CURSOR_HOOKS_PATH"]
-with open(hooks_path, encoding="utf-8") as f:
-    data = json.load(f)
-
-hooks = data.get("hooks", {})
-cleaned = {}
-for event, entries in hooks.items():
-    if not isinstance(entries, list):
-        cleaned[event] = entries
-        continue
-    kept = [e for e in entries if not (isinstance(e, dict) and e.get("_mb_owned") is True)]
-    if kept:
-        cleaned[event] = kept
-
-if cleaned:
-    data["hooks"] = cleaned
-    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(hooks_path) or ".", suffix=".tmp")
-    try:
-        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, hooks_path)
-    except BaseException:
-        os.unlink(tmp_path)
-        raise
-    print("  Cursor hooks.json cleaned (MB entries removed)")
-else:
-    os.remove(hooks_path)
-    print("  Cursor hooks.json removed (no user hooks left)")
-PYEOF
+# Cursor global cleanup lives in adapters/cursor.sh
+if [ -f "$CURSOR_DIR/.mb-manifest.json" ]; then
+  bash "$SKILL_DIR/adapters/cursor.sh" uninstall-global >/dev/null && echo "  Cursor global adapter cleaned"
 fi
-
-# Remove Cursor User Rules paste-file (auto-generated, no user edits expected)
-[ -f "$CURSOR_DIR/memory-bank-user-rules.md" ] && rm -f "$CURSOR_DIR/memory-bank-user-rules.md" && echo "  rm $CURSOR_DIR/memory-bank-user-rules.md"
 
 rm -f "$MANIFEST"
 rmdir "$CLAUDE_DIR/skills" 2>/dev/null || true

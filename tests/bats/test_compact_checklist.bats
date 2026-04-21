@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Tests for v3.1 /mb compact — checklist.md done-section removal.
+# Tests for v3.1 structural migration — checklist.md done-section removal.
 #
-# Contract (extension to mb-compact.sh):
+# Contract (owned by mb-migrate-structure.sh):
 #   --apply removes from checklist.md any `## Stage N: <name>` section where:
 #     • ALL its items are ✅  AND
 #     • A file plans/done/<basename>.md exists that references that stage/title
@@ -11,7 +11,7 @@
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
-  COMPACT="$REPO_ROOT/scripts/mb-compact.sh"
+  MIGRATE="$REPO_ROOT/scripts/mb-migrate-structure.sh"
 
   PROJECT="$(mktemp -d)"
   MB="$PROJECT/.memory-bank"
@@ -66,20 +66,20 @@ set_mtime_days_ago() {
 }
 
 @test "compact-checklist: dry-run reports checklist_sections_to_remove=1" {
-  run bash "$COMPACT" --dry-run "$MB"
+  run bash "$MIGRATE" --dry-run "$MB"
   [ "$status" -eq 0 ]
   [[ "$output" == *"checklist_sections_to_remove=1"* ]]
 }
 
 @test "compact-checklist: --apply removes fully-done linked section" {
-  bash "$COMPACT" --apply "$MB"
+  bash "$MIGRATE" --apply "$MB"
 
   ! grep -q '^## Stage 1: first-task' "$MB/checklist.md"
   ! grep -q '^- ✅ item-a' "$MB/checklist.md"
 }
 
 @test "compact-checklist: preserves section with any ⬜ item" {
-  bash "$COMPACT" --apply "$MB"
+  bash "$MIGRATE" --apply "$MB"
   grep -q '^## Stage 2: still-active' "$MB/checklist.md"
   grep -q 'not done' "$MB/checklist.md"
 }
@@ -92,20 +92,20 @@ set_mtime_days_ago() {
 - ✅ only-item
 EOF
 
-  bash "$COMPACT" --apply "$MB"
+  bash "$MIGRATE" --apply "$MB"
   grep -q '^## Stage 9: orphan-complete' "$MB/checklist.md"
 }
 
 @test "compact-checklist: respects MB_COMPACT_CHECKLIST_DAYS env override" {
   # Set threshold to 100 → 40d plan does not qualify → no removal
-  MB_COMPACT_CHECKLIST_DAYS=100 bash "$COMPACT" --apply "$MB"
+  MB_COMPACT_CHECKLIST_DAYS=100 bash "$MIGRATE" --apply "$MB"
   grep -q '^## Stage 1: first-task' "$MB/checklist.md"
 }
 
 @test "compact-checklist: idempotent — rerunning --apply is no-op" {
-  bash "$COMPACT" --apply "$MB"
+  bash "$MIGRATE" --apply "$MB"
   sum1=$(shasum "$MB/checklist.md" | awk '{print $1}')
-  bash "$COMPACT" --apply "$MB"
+  bash "$MIGRATE" --apply "$MB"
   sum2=$(shasum "$MB/checklist.md" | awk '{print $1}')
   [ "$sum1" = "$sum2" ]
 }

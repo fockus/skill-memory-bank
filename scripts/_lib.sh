@@ -9,6 +9,68 @@
 
 # Resolve MB path from explicit arg or .claude-workspace file in cwd.
 # Falls back to ".memory-bank" (relative path) when nothing else is known.
+mb_normalize_path() {
+  local path="${1:-}"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$path" <<'PY'
+import os
+import sys
+
+print(os.path.abspath(os.path.normpath(sys.argv[1])))
+PY
+    return 0
+  fi
+  if command -v realpath >/dev/null 2>&1; then
+    realpath -m "$path" 2>/dev/null && return 0
+  fi
+  printf '%s\n' "$path"
+}
+
+mb_resolve_real_path() {
+  local path="${1:-}"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$path" <<'PY'
+import os
+import sys
+
+print(os.path.realpath(sys.argv[1]))
+PY
+    return 0
+  fi
+  if command -v readlink >/dev/null 2>&1; then
+    readlink -f "$path" 2>/dev/null && return 0
+  fi
+  mb_normalize_path "$path"
+}
+
+mb_path_is_within() {
+  local candidate root normalized_candidate normalized_root
+  candidate="${1:-}"
+  shift || true
+  normalized_candidate=$(mb_normalize_path "$candidate")
+  for root in "$@"; do
+    normalized_root=$(mb_normalize_path "$root")
+    case "$normalized_candidate" in
+      "$normalized_root"|"$normalized_root"/*) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+mb_mtime() {
+  local path="${1:-}"
+  [ -e "$path" ] || {
+    printf '%s\n' 0
+    return 0
+  }
+  stat -f%m "$path" 2>/dev/null || stat -c%Y "$path" 2>/dev/null || printf '%s\n' 0
+}
+
+mb_valid_workspace_project_id() {
+  local project_id="${1:-}"
+  [[ "$project_id" =~ ^[A-Za-z0-9_-]+$ ]]
+}
+
 mb_resolve_path() {
   if [ -n "${1:-}" ]; then
     printf '%s\n' "$1"
@@ -20,7 +82,7 @@ mb_resolve_path() {
     storage=$(grep '^storage:' .claude-workspace 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
     if [ "$storage" = "external" ]; then
       project_id=$(grep '^project_id:' .claude-workspace 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
-      if [ -n "$project_id" ]; then
+      if [ -n "$project_id" ] && mb_valid_workspace_project_id "$project_id"; then
         printf '%s\n' "$HOME/.claude/workspaces/$project_id/.memory-bank"
         return 0
       fi

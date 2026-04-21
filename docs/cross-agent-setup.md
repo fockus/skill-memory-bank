@@ -168,19 +168,23 @@ Creates:
 **⚠️ Experimental:** Codex hooks schema may change. Re-run `adapters/codex.sh install`
 after upgrading Codex CLI.
 
-### Pi Code (dual-mode)
+### Pi Code
 
 ```bash
-# Default (safe): AGENTS.md + git-hooks-fallback
+# Supported path: AGENTS.md + git-hooks-fallback
 adapters/pi.sh install ~/my-project
-
-# Opt-in: native Pi Skills API (when stable)
-MB_PI_MODE=skill adapters/pi.sh install ~/my-project
 ```
 
-`agents-md` mode is default because Pi Skills API is in active development
-(2026-04-20). Switch to `skill` mode once
-[pi-mono](https://github.com/badlogic/pi-mono) Skills API stabilizes.
+`agents-md` is the supported path because Pi Skills API is still in active
+development (2026-04-20 research). The native `skill` mode remains an explicit
+compatibility probe only:
+
+```bash
+MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1 adapters/pi.sh install ~/my-project
+```
+
+Do not use that path in normal installs or CI unless you are validating an
+upstream Pi API change.
 
 ## Shared AGENTS.md coexistence
 
@@ -213,7 +217,7 @@ Ownership is refcounted in `.mb-agents-owners.json`:
 
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
-| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | git-fallback or Skill | project `.codex/hooks.json` only |
+| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | git-fallback (supported), Skill (experimental) | project `.codex/hooks.json` only |
 | PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — | guidance via `~/.codex/AGENTS.md`, project hook pending |
 | PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | native | project `userpromptsubmit` (exit 2) |
 | Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | fallback | guidance only |
@@ -282,9 +286,11 @@ per OpenAI docs, or wait for GA. The `_mb_warning` field in the generated file
 documents this.
 
 **Q: `MB_PI_MODE=skill` produced a Skill folder but Pi doesn't pick it up.**
-A: Pi Skills API is in active development. Check
-[pi-mono](https://github.com/badlogic/pi-mono) for current manifest schema. The
-adapter ships with a best-guess `SKILL.md` format that may need updates.
+A: That path is experimental by design and is gated behind
+`MB_EXPERIMENTAL_PI_SKILL=1`. The supported adapter path is `agents-md`. If you
+are intentionally testing the native Pi API, check
+[pi-mono](https://github.com/badlogic/pi-mono) for current manifest/schema
+changes before relying on the generated `SKILL.md`.
 
 **Q: Kilo adapter fails with "requires git repo".**
 A: Kilo has no native hooks → git-hooks-fallback is mandatory. Run `git init`

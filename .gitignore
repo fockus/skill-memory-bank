@@ -19,6 +19,9 @@ htmlcov/
 # /.memory-bank/ of every consumer project. Never ship them in the public skill repo.
 /.memory-bank/
 
+# Claude Code harness runtime (local CLI state — never part of the skill).
+/.claude/
+
 # Build artifacts
 /dist/
 /build/

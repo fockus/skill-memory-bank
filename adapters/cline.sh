@@ -28,8 +28,10 @@ MANIFEST="$CLINE_DIR/.mb-manifest.json"
 
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_lib_agents_md.sh"
-
-require_jq() { command -v jq >/dev/null 2>&1 || { echo "[cline-adapter] jq required" >&2; exit 1; }; }
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_framework.sh"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_contract.sh"
 
 # ═══ Hook bodies ═══
 before_tool_body() {
@@ -141,7 +143,7 @@ HOOK_EOF
 
 # ═══ Install ═══
 install_cline() {
-  require_jq
+  adapter_require_jq "cline-adapter" || exit 1
   mkdir -p "$CLINE_DIR" "$HOOKS_DIR"
 
   # 1. Rules file
@@ -181,16 +183,15 @@ install_cline() {
     "$RULES_FILE" \
     "$HOOKS_DIR/before-tool.sh" \
     "$HOOKS_DIR/after-tool.sh" \
-    "$HOOKS_DIR/on-notification.sh" | jq -R . | jq -s .)
+    "$HOOKS_DIR/on-notification.sh" | adapter_json_array_from_lines)
   events_json=$(jq -n '["beforeToolExecution","afterToolExecution","onNotification"]')
 
-  jq -n \
-    --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg skill_version "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    --argjson files "$files_json" \
-    --argjson hooks_events "$events_json" \
-    '{installed_at: $installed_at, adapter: "cline", skill_version: $skill_version, files: $files, hooks_events: $hooks_events}' \
-    > "$MANIFEST"
+  adapter_write_manifest \
+    "$MANIFEST" \
+    "cline" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    "{\"hooks_events\": $events_json}"
 
   echo "[cline-adapter] installed to $PROJECT_ROOT"
 }
@@ -201,14 +202,9 @@ uninstall_cline() {
     echo "[cline-adapter] no manifest found, nothing to uninstall"
     return 0
   fi
-  require_jq
+  adapter_require_jq "cline-adapter" || exit 1
 
-  local files
-  files=$(jq -r '.files[]' "$MANIFEST")
-  local f
-  while IFS= read -r f; do
-    [ -n "$f" ] && [ -f "$f" ] && rm -f "$f"
-  done <<< "$files"
+  adapter_remove_manifest_files "$MANIFEST"
 
   rm -f "$MANIFEST"
 
@@ -227,3 +223,5 @@ case "$ACTION" in
     exit 1
     ;;
 esac
+
+adapter_contract_require_functions install_cline uninstall_cline >/dev/null

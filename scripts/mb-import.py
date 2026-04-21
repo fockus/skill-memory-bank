@@ -22,14 +22,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
 import sys
-import tempfile
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    from memory_bank_skill._io import atomic_write
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from memory_bank_skill._io import atomic_write
 
 # ═══ PII patterns — conservative, low false-positive ═══
 EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
@@ -155,19 +159,6 @@ def _compress_arch_run(run: list[dict[str, Any]]) -> str:
     return f"{first}\n\n…\n\n{last}"
 
 
-def _atomic_write(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(content)
-        os.replace(tmp, path)
-    except BaseException:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
-        raise
-
-
 def _load_state(mb_path: Path) -> dict[str, Any]:
     state_file = mb_path / ".import-state.json"
     if not state_file.exists():
@@ -180,7 +171,7 @@ def _load_state(mb_path: Path) -> dict[str, Any]:
 
 def _save_state(mb_path: Path, state: dict[str, Any]) -> None:
     state_file = mb_path / ".import-state.json"
-    _atomic_write(state_file, json.dumps(state, indent=2, ensure_ascii=False))
+    atomic_write(state_file, json.dumps(state, indent=2, ensure_ascii=False))
 
 
 def run_import(
@@ -280,7 +271,7 @@ def run_import(
         new_sections.append(f"\n{section_header}\n\n- {summary_line}\n")
 
     if new_sections:
-        _atomic_write(progress_file, current_progress + "".join(new_sections))
+        atomic_write(progress_file, current_progress + "".join(new_sections))
 
     notes_dir = mb / "notes"
     notes_dir.mkdir(exist_ok=True)
@@ -288,7 +279,7 @@ def run_import(
         dest = notes_dir / fname
         if dest.exists():
             continue
-        _atomic_write(dest, content)
+        atomic_write(dest, content)
 
     # Update state with new hashes
     new_hashes = [event_hash(e) for e in all_events]

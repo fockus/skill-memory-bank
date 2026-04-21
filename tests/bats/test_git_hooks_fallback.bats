@@ -50,6 +50,7 @@ run_adapter() {
   local m="$PROJECT/.git/mb-hooks-manifest.json"
   [ -f "$m" ]
   jq . "$m" >/dev/null
+  jq -e '.schema_version == 1' "$m" >/dev/null
   jq -e '.adapter == "git-hooks-fallback"' "$m" >/dev/null
 }
 

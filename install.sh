@@ -14,24 +14,9 @@ CANONICAL_SKILL_DIR="$CLAUDE_DIR/skills/skill-memory-bank"
 CLAUDE_SKILL_ALIAS="$CLAUDE_DIR/skills/memory-bank"
 CODEX_SKILL_ALIAS="$CODEX_DIR/skills/memory-bank"
 CURSOR_SKILL_ALIAS="$CURSOR_DIR/skills/memory-bank"
-CURSOR_USER_RULES_FILE="$CURSOR_DIR/memory-bank-user-rules.md"
 MANIFEST="$SOURCE_SKILL_DIR/.installed-manifest.json"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
-CURSOR_START_MARKER="<!-- memory-bank-cursor:start -->"
-CURSOR_END_MARKER="<!-- memory-bank-cursor:end -->"
-
-# Cursor global hook scripts & event bindings (mirror adapters/cursor.sh, rooted in ~/.cursor)
-CURSOR_GLOBAL_HOOKS=(
-  "session-end-autosave.sh"
-  "mb-compact-reminder.sh"
-  "block-dangerous.sh"
-)
-CURSOR_GLOBAL_HOOK_BINDINGS=(
-  "sessionEnd:session-end-autosave.sh"
-  "preCompact:mb-compact-reminder.sh"
-  "beforeShellExecution:block-dangerous.sh"
-)
 
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
 BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
@@ -41,6 +26,8 @@ BACKED_UP_FILES=()
 
 # shellcheck disable=SC1091
 . "$SOURCE_SKILL_DIR/adapters/_lib_agents_md.sh"
+# shellcheck disable=SC1091
+. "$SOURCE_SKILL_DIR/scripts/_lib.sh"
 
 count_matching_files() {
   find "$1" -maxdepth 1 -type f -name "$2" | wc -l | tr -d ' '
@@ -292,6 +279,23 @@ backup_if_exists() {
   local target="$1"
   local expected="${2:-}"
   if [ -e "$target" ] || [ -L "$target" ]; then
+    if [ -L "$target" ]; then
+      local managed_root resolved_target
+      case "$target" in
+        "$CLAUDE_DIR"/*) managed_root="$CLAUDE_DIR" ;;
+        "$CODEX_DIR"/*) managed_root="$CODEX_DIR" ;;
+        "$CURSOR_DIR"/*) managed_root="$CURSOR_DIR" ;;
+        "$OPENCODE_DIR"/*) managed_root="$OPENCODE_DIR" ;;
+        *) managed_root="" ;;
+      esac
+      if [ -n "$managed_root" ]; then
+        resolved_target=$(mb_resolve_real_path "$target")
+        if ! mb_path_is_within "$resolved_target" "$managed_root"; then
+          echo "[install.sh] refusing to back up symlink target outside managed dir: $target -> $resolved_target" >&2
+          return 1
+        fi
+      fi
+    fi
     if [ -n "$expected" ] && [ -f "$expected" ] && cmp -s "$target" "$expected"; then
       return 2
     fi
@@ -349,51 +353,21 @@ comments_language_name() {
   esac
 }
 
+run_texttool() {
+  PYTHONPATH="$SOURCE_SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 -m memory_bank_skill._texttools "$@"
+}
+
 localize_installed_file() {
   local file="$1"
   local after_marker="${2:-}"
-  TARGET_FILE="$file" \
-  TARGET_AFTER_MARKER="$after_marker" \
-  MB_RULE_FULL="$(language_rule_full)" \
-  MB_RULE_SHORT="$(language_rule_short)" \
-  MB_COMMENTS_LANGUAGE="$(comments_language_name)" \
-  python3 <<'PYEOF'
-from pathlib import Path
-import os
-import re
-
-path = Path(os.environ["TARGET_FILE"])
-if not path.exists():
-    raise SystemExit(0)
-
-text = path.read_text()
-after_marker = os.environ.get("TARGET_AFTER_MARKER", "")
-rule_full = os.environ["MB_RULE_FULL"]
-rule_short = os.environ["MB_RULE_SHORT"]
-comments_language = os.environ["MB_COMMENTS_LANGUAGE"]
-
-prefix = ""
-target = text
-if after_marker and after_marker in text:
-    prefix, rest = text.split(after_marker, 1)
-    prefix = prefix + after_marker
-    target = rest
-
-target = re.sub(
-    r"1\. \*\*[^*]+\*\*: .+",
-    f"1. **Language**: {rule_full}",
-    target,
-)
-target = re.sub(
-    r"> \*\*[^*]+\*\* — .+",
-    f"> **Language** — {rule_short}",
-    target,
-)
-target = target.replace("comments in English", f"comments in {comments_language}")
-target = target.replace("comments in Russian", f"comments in {comments_language}")
-
-path.write_text(prefix + target)
-PYEOF
+  [ -f "$file" ] || return 0
+  run_texttool localize-file \
+    --path "$file" \
+    --rule-full "$(language_rule_full)" \
+    --rule-short "$(language_rule_short)" \
+    --comments-language "$(comments_language_name)" \
+    --after-marker "$after_marker"
 }
 
 # Apply localization in-place to an arbitrary file (not bound to "standard" target).
@@ -403,45 +377,12 @@ localize_path_inplace() {
   local file="$1"
   local after_marker="${2:-}"
   [ -f "$file" ] || return 0
-  TARGET_FILE="$file" \
-  TARGET_AFTER_MARKER="$after_marker" \
-  MB_RULE_FULL="$(language_rule_full)" \
-  MB_RULE_SHORT="$(language_rule_short)" \
-  MB_COMMENTS_LANGUAGE="$(comments_language_name)" \
-  python3 <<'PYEOF'
-from pathlib import Path
-import os
-import re
-
-path = Path(os.environ["TARGET_FILE"])
-text = path.read_text()
-after_marker = os.environ.get("TARGET_AFTER_MARKER", "")
-rule_full = os.environ["MB_RULE_FULL"]
-rule_short = os.environ["MB_RULE_SHORT"]
-comments_language = os.environ["MB_COMMENTS_LANGUAGE"]
-
-prefix = ""
-target = text
-if after_marker and after_marker in text:
-    prefix, rest = text.split(after_marker, 1)
-    prefix = prefix + after_marker
-    target = rest
-
-target = re.sub(
-    r"1\. \*\*[^*]+\*\*: .+",
-    f"1. **Language**: {rule_full}",
-    target,
-)
-target = re.sub(
-    r"> \*\*[^*]+\*\* — .+",
-    f"> **Language** — {rule_short}",
-    target,
-)
-target = target.replace("comments in English", f"comments in {comments_language}")
-target = target.replace("comments in Russian", f"comments in {comments_language}")
-
-path.write_text(prefix + target)
-PYEOF
+  run_texttool localize-file \
+    --path "$file" \
+    --rule-full "$(language_rule_full)" \
+    --rule-short "$(language_rule_short)" \
+    --comments-language "$(comments_language_name)" \
+    --after-marker "$after_marker"
 }
 
 # Idempotent copy+localize: compose expected post-install content in a temp file,
@@ -511,6 +452,7 @@ ensure_skill_aliases() {
     install_symlink "$SOURCE_SKILL_DIR" "$CANONICAL_SKILL_DIR"
     echo -e "  ${GREEN}✓${NC} canonical skill: $CANONICAL_SKILL_DIR"
   else
+    INSTALLED_FILES+=("$CANONICAL_SKILL_DIR")
     echo -e "  ${YELLOW}~${NC} canonical skill already points to source"
   fi
 
@@ -626,176 +568,6 @@ install_codex_global_agents() {
   echo -e "  ${GREEN}✓${NC} Codex AGENTS.md (created)"
 }
 
-# ═══ Cursor global install helpers ═══
-# Cursor docs (confirmed 2026-04):
-#   - ~/.cursor/hooks.json + ~/.cursor/hooks/*   — user hooks (merged with project)
-#   - ~/.cursor/commands/*.md                     — user slash commands
-#   - ~/.cursor/skills/<name>/SKILL.md            — personal skills (auto-discovered)
-#   - User Rules (analog of ~/.claude/CLAUDE.md)  — UI-only, no file API
-# To cover the "global rules" channel we write three complementary artifacts:
-#   1. ~/.cursor/skills/memory-bank      (canonical alias — handled in ensure_skill_aliases)
-#   2. ~/.cursor/AGENTS.md               (marker section — for future compatibility/forks)
-#   3. ~/.cursor/memory-bank-user-rules.md  (paste-ready file for Settings → Rules → User Rules)
-
-cursor_agents_section() {
-  cat <<EOF
-$CURSOR_START_MARKER
-
-# Memory Bank — Cursor Global Entry Point
-
-Global Memory Bank skill is registered at:
-- \`~/.cursor/skills/memory-bank/SKILL.md\`
-
-Bundled resources available to Cursor agents:
-- Commands: \`~/.cursor/commands/\` (mirror of skill \`commands/\`)
-- Agent prompts: \`~/.cursor/skills/memory-bank/agents/\`
-- Hooks: \`~/.cursor/hooks/\` wired via \`~/.cursor/hooks.json\`
-
-Recommended workflow:
-- Start by reading \`.memory-bank/STATUS.md\`, \`checklist.md\`, \`plan.md\`, \`RESEARCH.md\`
-- Use \`/mb\` as the entrypoint for Memory Bank flows
-- Update \`checklist.md\` immediately (⬜ → ✅) when tasks complete
-
-Cursor surfaces user-level rules only through **Settings → Rules → User Rules**.
-The same content is mirrored to \`~/.cursor/memory-bank-user-rules.md\` for copy-paste:
-- macOS:  \`pbcopy < ~/.cursor/memory-bank-user-rules.md\`
-- Linux:  \`xclip -selection clipboard < ~/.cursor/memory-bank-user-rules.md\`
-
----
-
-EOF
-  cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
-  printf '\n%s\n' "$CURSOR_END_MARKER"
-}
-
-install_cursor_global_agents() {
-  local agents_file="$CURSOR_DIR/AGENTS.md"
-  local tmp
-  mkdir -p "$CURSOR_DIR"
-
-  if [ -f "$agents_file" ] && grep -q "$CURSOR_START_MARKER" "$agents_file" 2>/dev/null; then
-    tmp="$agents_file.tmp"
-    awk -v s="$CURSOR_START_MARKER" -v e="$CURSOR_END_MARKER" '
-      BEGIN { inside=0 }
-      index($0, s) { inside=1; next }
-      index($0, e) { inside=0; next }
-      !inside { print }
-    ' "$agents_file" > "$tmp"
-    {
-      cat "$tmp"
-      printf '\n'
-      cursor_agents_section
-    } > "$agents_file"
-    rm -f "$tmp"
-    INSTALLED_FILES+=("$agents_file")
-    localize_installed_file "$agents_file" "$CURSOR_START_MARKER"
-    echo -e "  ${GREEN}✓${NC} Cursor AGENTS.md (refreshed)"
-    return
-  fi
-
-  if [ -f "$agents_file" ]; then
-    {
-      printf '\n'
-      cursor_agents_section
-    } >> "$agents_file"
-    INSTALLED_FILES+=("$agents_file")
-    localize_installed_file "$agents_file" "$CURSOR_START_MARKER"
-    echo -e "  ${GREEN}✓${NC} Cursor AGENTS.md (merged)"
-    return
-  fi
-
-  cursor_agents_section > "$agents_file"
-  INSTALLED_FILES+=("$agents_file")
-  localize_installed_file "$agents_file" "$CURSOR_START_MARKER"
-  echo -e "  ${GREEN}✓${NC} Cursor AGENTS.md (created)"
-}
-
-install_cursor_user_rules_paste() {
-  mkdir -p "$CURSOR_DIR"
-
-  local tmp
-  tmp="$(mktemp)"
-  {
-    cat <<'EOF'
-# Memory Bank — User Rules (paste into Cursor → Settings → Rules → User Rules)
-
-> This content mirrors the global Memory Bank skill at `~/.cursor/skills/memory-bank/`.
-> Cursor does not expose a file API for global User Rules, so paste this block manually
-> into Settings → Rules → User Rules once per machine.
-
-EOF
-    cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
-  } > "$tmp"
-  localize_path_inplace "$tmp"
-
-  if [ -f "$CURSOR_USER_RULES_FILE" ] && cmp -s "$tmp" "$CURSOR_USER_RULES_FILE"; then
-    rm -f "$tmp"
-    INSTALLED_FILES+=("$CURSOR_USER_RULES_FILE")
-    echo -e "  ${YELLOW}~${NC} Cursor User Rules paste-file unchanged"
-    return
-  fi
-
-  backup_if_exists "$CURSOR_USER_RULES_FILE"
-  mv "$tmp" "$CURSOR_USER_RULES_FILE"
-  INSTALLED_FILES+=("$CURSOR_USER_RULES_FILE")
-  echo -e "  ${GREEN}✓${NC} Cursor User Rules paste-file: $CURSOR_USER_RULES_FILE"
-}
-
-install_cursor_global_hooks() {
-  if ! command -v jq >/dev/null 2>&1; then
-    echo -e "  ${YELLOW}~${NC} Cursor global hooks skipped (jq required)"
-    return 0
-  fi
-
-  mkdir -p "$CURSOR_DIR/hooks"
-
-  local h
-  for h in "${CURSOR_GLOBAL_HOOKS[@]}"; do
-    if [ ! -f "$SOURCE_SKILL_DIR/hooks/$h" ]; then
-      echo -e "  ${YELLOW}~${NC} missing source hook: $SOURCE_SKILL_DIR/hooks/$h"
-      continue
-    fi
-    install_file "$SOURCE_SKILL_DIR/hooks/$h" "$CURSOR_DIR/hooks/$h"
-  done
-
-  # Build our hook bindings: each event gets one { command, _mb_owned } entry.
-  local our_hooks_json
-  our_hooks_json=$(jq -n '{hooks: {}}')
-  local binding event script cmd
-  for binding in "${CURSOR_GLOBAL_HOOK_BINDINGS[@]}"; do
-    event="${binding%%:*}"
-    script="${binding#*:}"
-    cmd="bash $CURSOR_DIR/hooks/$script"
-    our_hooks_json=$(echo "$our_hooks_json" | jq \
-      --arg event "$event" \
-      --arg cmd "$cmd" \
-      '.hooks[$event] = [{command: $cmd, _mb_owned: true}]')
-  done
-
-  local hooks_json="$CURSOR_DIR/hooks.json"
-  local merged
-  if [ -f "$hooks_json" ]; then
-    merged=$(jq --slurpfile new <(echo "$our_hooks_json") '
-      . as $existing |
-      (.version // 1) as $ver |
-      reduce ($new[0].hooks | keys[]) as $evt (
-        $existing;
-        .version = $ver
-        | .hooks //= {}
-        | .hooks[$evt] = (
-            ((.hooks[$evt] // []) | map(select((._mb_owned // false) | not)))
-            + ($new[0].hooks[$evt])
-          )
-      )
-    ' "$hooks_json")
-  else
-    merged=$(echo "$our_hooks_json" | jq '.version = 1')
-  fi
-  echo "$merged" > "$hooks_json"
-  INSTALLED_FILES+=("$hooks_json")
-  echo -e "  ${GREEN}✓${NC} Cursor global hooks.json (${#CURSOR_GLOBAL_HOOK_BINDINGS[@]} events)"
-}
-
 # ═══ Step 1: Rules ═══
 echo -e "${BLUE}[1/7] Rules${NC}"
 install_file_localized "$SOURCE_SKILL_DIR/rules/RULES.md" "$CLAUDE_DIR/RULES.md"
@@ -811,7 +583,7 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
     echo -e "  ${GREEN}✓${NC} CLAUDE.md (merged)"
   else
     localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "# [MEMORY-BANK-SKILL]"
-    # Already installed — do NOT add to INSTALLED_FILES (no backup = uninstall would delete it)
+    INSTALLED_FILES+=("$CLAUDE_DIR/CLAUDE.md")
     echo -e "  ${YELLOW}~${NC} CLAUDE.md (already has MB section; language refreshed)"
   fi
 else
@@ -853,16 +625,17 @@ for f in "$SOURCE_SKILL_DIR"/commands/*.md; do
   [ -f "$f" ] || continue
   install_file "$f" "$CLAUDE_DIR/commands/$(basename "$f")"
   install_file "$f" "$OPENCODE_DIR/commands/$(basename "$f")"
-  install_file "$f" "$CURSOR_DIR/commands/$(basename "$f")"
 done
 echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/commands" '*.md') commands"
 
 # ═══ Step 5: Skill files ═══
 echo -e "${BLUE}[5/7] Skill registration${NC}"
 ensure_skill_aliases
-install_cursor_global_agents
-install_cursor_user_rules_paste
-install_cursor_global_hooks
+if MB_LANGUAGE="$LANGUAGE" bash "$SOURCE_SKILL_DIR/adapters/cursor.sh" install-global; then
+  echo -e "  ${GREEN}✓${NC} Cursor global artifacts via adapter"
+else
+  echo -e "  ${YELLOW}~${NC} Cursor global adapter install failed" >&2
+fi
 
 # ═══ Step 6: Settings hooks ═══
 echo -e "${BLUE}[6/7] Settings${NC}"
@@ -873,6 +646,7 @@ if [ -f "$SOURCE_SKILL_DIR/settings/hooks.json" ] && command -v python3 &>/dev/n
     2>/dev/null && echo -e "  ${GREEN}✓${NC} Hooks merged" \
     || echo -e "  ${YELLOW}~${NC} Manual hook setup may be needed"
   localize_installed_file "$CLAUDE_DIR/settings.json"
+  INSTALLED_FILES+=("$CLAUDE_DIR/settings.json")
 else
   echo -e "  ${YELLOW}~${NC} Skipped (python3 required for merge)"
 fi
@@ -888,18 +662,23 @@ import json, os
 files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
 raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
 
+
+def _ordered_unique(items):
+    return list(dict.fromkeys(items))
+
 # filter: keep only backups whose backup_path ("target|backup") still exists on disk
 def _backup_path(entry: str) -> str:
     parts = entry.split("|", 1)
     return parts[1] if len(parts) == 2 else ""
 
-backups = [b for b in raw_backups if os.path.exists(_backup_path(b))]
+backups = _ordered_unique([b for b in raw_backups if os.path.exists(_backup_path(b))])
 
 manifest = {
+    "schema_version": 1,
     "installed_at": os.environ["INSTALL_DATE"],
     "skill": "skill-memory-bank",
-    "files": list(set(files)),
-    "backups": list(set(backups))
+    "files": _ordered_unique(files),
+    "backups": backups,
 }
 with open(os.environ["MANIFEST_PATH"], "w") as f:
     json.dump(manifest, f, indent=2)
@@ -936,12 +715,6 @@ echo "  Claude alias:    $CLAUDE_SKILL_ALIAS"
 echo "  Codex alias:     $CODEX_SKILL_ALIAS"
 echo "  Cursor alias:    $CURSOR_SKILL_ALIAS"
 echo "  Uninstall: $SOURCE_SKILL_DIR/uninstall.sh"
-echo ""
-echo -e "${BOLD}Cursor User Rules (one-time manual step):${NC}"
-echo "  Cursor's global User Rules live in Settings → Rules → User Rules (UI only)."
-echo "  Copy the bundled paste-file to clipboard and paste it in once per machine:"
-echo "    macOS:  pbcopy < $CURSOR_USER_RULES_FILE"
-echo "    Linux:  xclip -selection clipboard < $CURSOR_USER_RULES_FILE"
 echo ""
 echo "  Optional — multi-language code graph (Go/JS/TS/Rust/Java via tree-sitter):"
 echo "    pip install tree-sitter tree-sitter-python tree-sitter-go \\"

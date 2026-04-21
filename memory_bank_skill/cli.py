@@ -40,6 +40,9 @@ VALID_CLIENTS = (
     "codex",
 )
 VALID_LANGUAGES = ("en", "ru", "es", "zh")
+EXIT_INVALID_USAGE = 2
+EXIT_MISSING_SCRIPT = 3
+EXIT_BASH_NOT_FOUND = 4
 
 
 # ═══ Platform detection ═══
@@ -127,7 +130,7 @@ def run_shell(script: str, *args: str) -> int:
     script_path = bundle / script
     if not script_path.is_file():
         sys.stderr.write(f"[memory-bank] missing bundled script: {script_path}\n")
-        return 3
+        return EXIT_MISSING_SCRIPT
 
     bash = require_bash()
     bash_lower = bash.lower()
@@ -144,12 +147,31 @@ def run_shell(script: str, *args: str) -> int:
         result = subprocess.run(cmd, check=False)  # noqa: S603
     except FileNotFoundError:
         sys.stderr.write(f"[memory-bank] `{bash}` not found on PATH\n")
-        return 4
+        return EXIT_BASH_NOT_FOUND
     return result.returncode
+
+
+def _invalid_clients(raw: str) -> list[str]:
+    invalid: list[str] = []
+    for client in raw.split(","):
+        candidate = client.strip()
+        if not candidate:
+            continue
+        if candidate not in VALID_CLIENTS:
+            invalid.append(candidate)
+    return invalid
 
 
 # ═══ Subcommand handlers ═══
 def cmd_install(args: argparse.Namespace) -> int:
+    if args.clients:
+        invalid = _invalid_clients(args.clients)
+        if invalid:
+            sys.stderr.write(
+                "[memory-bank] invalid client(s): "
+                f"{', '.join(invalid)}. Valid: {', '.join(VALID_CLIENTS)}\n"
+            )
+            return EXIT_INVALID_USAGE
     sh_args: list[str] = []
     if args.clients:
         sh_args.extend(["--clients", args.clients])
@@ -162,8 +184,11 @@ def cmd_install(args: argparse.Namespace) -> int:
     return run_shell("install.sh", *sh_args)
 
 
-def cmd_uninstall(_args: argparse.Namespace) -> int:
-    return run_shell("uninstall.sh")
+def cmd_uninstall(args: argparse.Namespace) -> int:
+    sh_args: list[str] = []
+    if args.non_interactive:
+        sh_args.append("-y")
+    return run_shell("uninstall.sh", *sh_args)
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -251,6 +276,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_install.set_defaults(func=cmd_install)
 
     p_uninstall = sub.add_parser("uninstall", help="Remove global skill install")
+    p_uninstall.add_argument(
+        "-y",
+        "--non-interactive",
+        action="store_true",
+        help="Skip the confirmation prompt and uninstall immediately.",
+    )
     p_uninstall.set_defaults(func=cmd_uninstall)
 
     p_init = sub.add_parser("init", help="Print initialization hint (use /mb init inside Claude Code)")

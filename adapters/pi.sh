@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # adapters/pi.sh — Pi Code (pi-mono) cross-agent adapter.
 #
-# Pi Skills API is in active development (2026-04-20 research). We ship two modes:
+# Pi Skills API is in active development (2026-04-20 research). Normal installs ship one supported mode:
 #
 #   MB_PI_MODE=agents-md  (default)  — AGENTS.md (shared, refcount) +
 #                                       git-hooks-fallback. Safe, stable today.
-#   MB_PI_MODE=skill                 — Native ~/.pi/skills/memory-bank/ package.
-#                                       Preferred when Pi Skills API stabilizes.
+#
+# Experimental compatibility path (not part of the supported default surface):
+#   MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1 adapters/pi.sh install [PROJECT_ROOT]
+#                                       Native ~/.pi/skills/memory-bank/ package.
 #
 # Usage:
 #   adapters/pi.sh install [PROJECT_ROOT]
 #   adapters/pi.sh uninstall [PROJECT_ROOT]
 #
-# Switch: MB_PI_MODE=skill adapters/pi.sh install [PROJECT_ROOT]
+# Switch: MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1 adapters/pi.sh install [PROJECT_ROOT]
 
 set -euo pipefail
 
@@ -34,8 +36,12 @@ MODE="${MB_PI_MODE:-agents-md}"
 
 # shellcheck source=./_lib_agents_md.sh
 . "$(dirname "$0")/_lib_agents_md.sh"
-
-require_jq() { command -v jq >/dev/null 2>&1 || { echo "[pi-adapter] jq required" >&2; exit 1; }; }
+# shellcheck source=../scripts/_lib.sh
+. "$SKILL_DIR/scripts/_lib.sh"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_framework.sh"
+# shellcheck disable=SC1091
+. "$(dirname "$0")/_contract.sh"
 
 # ═══ Skill mode (native ~/.pi/skills/memory-bank/) ═══
 PI_SKILL_DIR="$HOME/.pi/skills/memory-bank"
@@ -72,15 +78,14 @@ install_skill_mode() {
   } > "$PI_SKILL_DIR/SKILL.md"
 
   local files_json
-  files_json=$(jq -n --arg p "$PI_SKILL_DIR/SKILL.md" '[$p]')
+  files_json=$(printf '%s\n' "$PI_SKILL_DIR/SKILL.md" | adapter_json_array_from_lines)
 
-  jq -n \
-    --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg skill_version "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    --arg pi_skill_dir "$PI_SKILL_DIR" \
-    --argjson files "$files_json" \
-    '{installed_at: $installed_at, adapter: "pi", mode: "skill", skill_version: $skill_version, pi_skill_dir: $pi_skill_dir, files: $files}' \
-    > "$MANIFEST"
+  adapter_write_manifest \
+    "$MANIFEST" \
+    "pi" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    "{\"mode\": \"skill\", \"pi_skill_dir\": $(jq -Rn --arg p "$PI_SKILL_DIR" '$p')}"
 
   echo "[pi-adapter] installed (mode: skill, path: $PI_SKILL_DIR)"
 }
@@ -88,7 +93,13 @@ install_skill_mode() {
 uninstall_skill_mode() {
   local skill_path
   skill_path=$(jq -r '.pi_skill_dir' "$MANIFEST")
-  [ -n "$skill_path" ] && [ -d "$skill_path" ] && rm -rf "$skill_path"
+  if [ -n "$skill_path" ] && [ -d "$skill_path" ]; then
+    if mb_path_is_within "$skill_path" "$HOME/.pi/skills"; then
+      rm -rf "$skill_path"
+    else
+      echo "[pi-adapter] skip unsafe manifest path: $skill_path" >&2
+    fi
+  fi
   rm -f "$MANIFEST"
   # Clean empty parent dirs
   rmdir "$HOME/.pi/skills" 2>/dev/null || true
@@ -106,12 +117,12 @@ install_agents_md_mode() {
   owned=$(agents_md_install "$PROJECT_ROOT" "pi" "$SKILL_DIR")
   bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
 
-  jq -n \
-    --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg skill_version "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    --argjson agents_owned "$owned" \
-    '{installed_at: $installed_at, adapter: "pi", mode: "agents-md", skill_version: $skill_version, agents_md_owned: $agents_owned, git_hooks_installed: true}' \
-    > "$MANIFEST"
+  adapter_write_manifest \
+    "$MANIFEST" \
+    "pi" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    '[]' \
+    "{\"mode\": \"agents-md\", \"agents_md_owned\": $owned, \"git_hooks_installed\": true}"
 
   echo "[pi-adapter] installed (mode: agents-md, transitional)"
 }
@@ -131,9 +142,16 @@ uninstall_agents_md_mode() {
 
 # ═══ Dispatch ═══
 install_pi() {
-  require_jq
+  adapter_require_jq "pi-adapter" || exit 1
   case "$MODE" in
-    skill)     install_skill_mode ;;
+    skill)
+      if [ "${MB_EXPERIMENTAL_PI_SKILL:-0}" != "1" ]; then
+        echo "[pi-adapter] MB_PI_MODE=skill is experimental and disabled by default" >&2
+        echo "[pi-adapter] use MB_EXPERIMENTAL_PI_SKILL=1 only for explicit compatibility testing" >&2
+        exit 1
+      fi
+      install_skill_mode
+      ;;
     agents-md) install_agents_md_mode ;;
     *)
       echo "[pi-adapter] unknown MB_PI_MODE=$MODE (expected: agents-md|skill)" >&2
@@ -147,7 +165,7 @@ uninstall_pi() {
     echo "[pi-adapter] no manifest found, nothing to uninstall"
     return 0
   fi
-  require_jq
+  adapter_require_jq "pi-adapter" || exit 1
   local installed_mode
   installed_mode=$(jq -r '.mode // "agents-md"' "$MANIFEST")
   case "$installed_mode" in
@@ -166,6 +184,9 @@ case "$ACTION" in
   uninstall) uninstall_pi ;;
   *)
     echo "Usage: [MB_PI_MODE=agents-md|skill] $0 install|uninstall [PROJECT_ROOT]" >&2
+    echo "       skill mode additionally requires MB_EXPERIMENTAL_PI_SKILL=1" >&2
     exit 1
     ;;
 esac
+
+adapter_contract_require_functions install_pi uninstall_pi >/dev/null

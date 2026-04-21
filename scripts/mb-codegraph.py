@@ -22,11 +22,15 @@ import argparse
 import ast
 import hashlib
 import json
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
+
+try:
+    from memory_bank_skill._io import atomic_write
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from memory_bank_skill._io import atomic_write
 
 TOP_GOD_NODES = 20
 
@@ -268,19 +272,6 @@ def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _atomic_write(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(content)
-        os.replace(tmp, path)
-    except BaseException:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
-        raise
-
-
 def _rel(path: Path, root: Path) -> str:
     try:
         return path.relative_to(root).as_posix()
@@ -426,7 +417,7 @@ def _load_cache(cache_dir: Path, rel_path: str) -> dict[str, Any] | None:
 
 def _save_cache(cache_dir: Path, rel_path: str, data: dict[str, Any]) -> None:
     cache_file = cache_dir / f"{_cache_slug(rel_path)}.json"
-    _atomic_write(cache_file, json.dumps(data, ensure_ascii=False, indent=2))
+    atomic_write(cache_file, json.dumps(data, ensure_ascii=False, indent=2))
 
 
 def build_graph(
@@ -561,7 +552,7 @@ def _write_graph_jsonl(graph: dict[str, Any], target: Path) -> None:
         lines.append(json.dumps({"type": "node", **n}, ensure_ascii=False))
     for e in graph["edges"]:
         lines.append(json.dumps({"type": "edge", **e}, ensure_ascii=False))
-    _atomic_write(target, "\n".join(lines) + "\n")
+    atomic_write(target, "\n".join(lines) + "\n")
 
 
 def run(
@@ -606,7 +597,7 @@ def run(
         return summary
 
     _write_graph_jsonl(graph, codebase / "graph.json")
-    _atomic_write(codebase / "god-nodes.md", _render_god_nodes(graph))
+    atomic_write(codebase / "god-nodes.md", _render_god_nodes(graph))
 
     return summary
 
