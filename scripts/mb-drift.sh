@@ -198,6 +198,36 @@ check_frontmatter() {
   if [ "$count" -gt 0 ]; then warn frontmatter "$count malformed notes"; else ok frontmatter; fi
 }
 
+# ═══ 9. research_experiments — H-NNN Confirmed/Refuted ↔ experiments/EXP-NNN.md ═══
+# For every hypothesis that reports a definitive outcome (Confirmed/Refuted) in
+# RESEARCH.md, the matching experiments/EXP-NNN.md must exist on disk. Otherwise
+# the knowledge trail is broken and future sessions cannot inspect the evidence.
+check_research_experiments() {
+  local research="$MB/RESEARCH.md"
+  if [ ! -f "$research" ]; then
+    skip research_experiments "RESEARCH.md not found"
+    return
+  fi
+  local count=0 id num file_expected
+  # Extract rows of the form "| H-NNN | ... | ✅ Confirmed | ... |" or "❌ Refuted".
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    num="${id#H-}"
+    file_expected="$MB/experiments/EXP-${num}.md"
+    if [ ! -f "$file_expected" ]; then
+      count=$(( count + 1 ))
+      echo "  - ${id} has definitive status but experiments/EXP-${num}.md is missing" >&2
+    fi
+  done < <(grep -E '^\| *H-[0-9]+ *\|' "$research" 2>/dev/null \
+           | grep -E 'Confirmed|Refuted' \
+           | sed -nE 's/^\| *(H-[0-9]+) *\|.*/\1/p')
+  if [ "$count" -gt 0 ]; then
+    warn research_experiments "$count hypothesis/experiment gap(s)"
+  else
+    ok research_experiments
+  fi
+}
+
 # ═══ Run all checks ═══
 check_path
 check_staleness
@@ -207,6 +237,7 @@ check_cross_file
 check_index_sync
 check_command
 check_frontmatter
+check_research_experiments
 
 echo "drift_warnings=$WARNINGS"
 
