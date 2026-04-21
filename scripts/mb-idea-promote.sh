@@ -65,7 +65,8 @@ print(m.group("status").strip().upper() if m else "")
 PY
 )
 
-case "${status^^}" in
+status_upper=$(printf '%s' "$status" | tr '[:lower:]' '[:upper:]')
+case "$status_upper" in
   NEW|TRIAGED) ;;
   PLANNED)  echo "[error] Idea $ID is already PLANNED" >&2; exit 2 ;;
   DONE)     echo "[error] Idea $ID is already DONE" >&2; exit 2 ;;

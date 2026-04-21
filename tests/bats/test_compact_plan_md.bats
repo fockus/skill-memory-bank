@@ -64,14 +64,14 @@ teardown() {
   [[ "$output" == *"plan_md_ideas_to_migrate=3"* ]]
 }
 
-@test "compact-plan-md: --apply moves Отложено bullets to BACKLOG as DEFERRED" {
+@test "compact-plan-md: --apply moves Deferred (RU) bullets to BACKLOG as DEFERRED" {
   bash "$COMPACT" --apply "$MB"
 
   grep -qE '### I-00[0-9]+ — Telemetry opt-in \[MED, DEFERRED' "$MB/BACKLOG.md"
   grep -qE '### I-00[0-9]+ — Remote backend sync \[MED, DEFERRED' "$MB/BACKLOG.md"
 }
 
-@test "compact-plan-md: --apply moves Отклонено bullets as DECLINED" {
+@test "compact-plan-md: --apply moves Declined (RU) bullets as DECLINED" {
   bash "$COMPACT" --apply "$MB"
   grep -qE '### I-00[0-9]+ — Auto-commit on save \(YAGNI\) \[LOW, DECLINED' "$MB/BACKLOG.md"
 }

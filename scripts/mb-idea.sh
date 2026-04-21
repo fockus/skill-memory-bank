@@ -37,9 +37,6 @@ esac
 if grep -qE "^### I-[0-9]{3} — ${TITLE} " "$BACKLOG" \
    || grep -qE "^### I-[0-9]{3} — ${TITLE}\$" "$BACKLOG" \
    || grep -qE "^### I-[0-9]{3} — ${TITLE} \[" "$BACKLOG"; then
-  existing=$(grep -Eo '^### I-[0-9]{3}' "$BACKLOG" \
-             | grep -B1 -A0 "$TITLE" 2>/dev/null | head -1 || true)
-  # Simpler path: just report and exit 0.
   id=$(awk -v t="$TITLE" '
     $0 ~ ("^### I-[0-9]{3} — " t) {
       match($0, /I-[0-9]{3}/)
