@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Commands refactor (audit-driven, 2026-04-21)
+
+- **Canonical command template** — `references/command-template.md` documents the required YAML frontmatter shape (`description`, `allowed-tools`, `argument-hint`), body structure, memory-bank integration snippets, alias pattern, and a pre-commit validation checklist. Linked from `SKILL.md`.
+- **Frontmatter fixed in 10 command files** — `adr.md`, `catchup.md`, `changelog.md`, `commit.md`, `contract.md`, `done.md`, `plan.md`, `refactor.md`, `start.md`, `test.md` previously opened with `# ~/.claude/commands/<name>.md` + `---` + `## description:` as a Markdown heading. This killed YAML parsing so host UIs (Claude Code, OpenCode, Cursor) never loaded descriptions or tool whitelists. All 10 now open with a valid `^---$` fence on line 1 and expose exactly 2 fences. `pr.md` had the same comment-before-fence issue — also fixed. `doc.md` frontmatter normalized (plugin-specific `agent:` / `context:` keys preserved inside the fence with an explanatory HTML comment).
+- **Alias resolution — `/plan`, `/start`, `/done` are now the primary commands.** The sophisticated logic (mb-plan.sh scaffold + mb-plan-sync.sh, mb-context.sh + codebase-bootstrap suggestion, MB Manager actualize+note + `.session-lock` touch) lives in `commands/plan.md`, `commands/start.md`, `commands/done.md`. `/mb plan|start|done` are explicit aliases that delegate to the primary commands. `commands/mb.md` sections shrink to pointer-paragraphs and keep the router entries working so `/mb plan feature <topic>` still reaches the same scripts.
+- **`/adr` writes to `BACKLOG.md`** — previously wrote ADR files to `plans/`, contradicting `RULES.md` + MB Manager which both say ADRs belong in `BACKLOG.md ## Architectural decisions (ADR)`. New flow: find max existing `ADR-NNN`, monotonic +1, append as one-line entry per `references/templates.md`. Optional cross-link note. Empty-args guard.
+- **Stack-generic refactor via `mb-metrics.sh`** — `security-review.md`, `db-migration.md`, `observability.md`, `api-contract.md`, `test.md` now all call `mb-metrics.sh` first and have an explicit `stack=unknown` fallback that asks the user instead of assuming.
+  - `/security-review` now covers Go / Python / Node / Rust / Java / Kotlin / Ruby / .NET (8 stacks) and recommends `trufflehog` / `gitleaks` over the naive grep for secret scanning.
+  - `/db-migration` now detects 8+ tools: golang-migrate, goose, Atlas, Alembic, Prisma, Sequelize, Knex, Diesel, SQLx, Flyway, Liquibase, Entity Framework Core, plain SQL. Non-listed → ask the user.
+  - `/observability` now covers Go / Python / Node / Rust / Java / Kotlin / .NET with specific library recommendations per stack.
+  - `/api-contract` detects Go (gin/echo/chi/net-http) + Node (Express/Fastify/Nest) + Python (FastAPI/Flask/Django) + Spring + ASP.NET + Rust (Axum/Actix/Rocket) + Rails. Recommends Schemathesis + Pact for contract tests.
+  - `/test` now uses `$test_cmd` from metrics instead of hardcoding `go test / pytest / jest`; keeps per-runner `-filter` hints as examples.
+- **Safety gates — destructive operations no longer silent:**
+  - `/commit` runs `mb-drift.sh` + `git diff --check` pre-flight, scans the staged diff for debug residue / secrets / TODOs, and requires explicit `y/N` confirmation (default = No) before `git commit`.
+  - `/pr` refuses to create a PR from `main` / `master`, warns if 0 commits ahead of the integration branch, surfaces CI workflows via `gh workflow list`, and requires `y/N` preview confirmation before `gh pr create`.
+  - `/db-migration` destructive SQL ops (`DROP TABLE`, `DROP COLUMN`, `TRUNCATE`, `DELETE FROM` without `WHERE`) now require explicit `y/N` confirmation *before the file is written*, not just before it is applied.
+- **Empty-`$ARGUMENTS` guards** — `/refactor`, `/contract`, `/adr`, `/api-contract`, `/db-migration` now all stop and ask the user for the missing topic instead of running with an empty target (Fail-Fast per `RULES.md`).
+- **`codebase/` integration in context-reading commands** — `/catchup` now reads the `codebase/*.md` summaries alongside plan / checklist / notes. `/review` reads `codebase/ARCHITECTURE.md` + `codebase/CONCERNS.md` for its architectural analysis section. `/pr` adds a `## Codebase context` section to the PR body when `codebase/` is populated.
+- **Verification** — `bash scripts/mb-drift.sh .` → `drift_warnings=0` on all 8 checks (path, staleness, script_coverage, dependency, cross_file, index_sync, command, frontmatter). Frontmatter loop check: 17 / 17 command files (minus `mb.md` which has a custom router structure) start with `^---$` and expose exactly 2 `---` fences.
+
+Plan: `.memory-bank/plans/done/2026-04-21_refactor_commands-audit-fixes.md` (10 stages, all PASS).
+
 ### Docs
 
 - **Surface `.memory-bank/codebase/` in all structural / workflow documentation.** The directory (populated by `mb-codebase-mapper` via `/mb map` / `/mb graph`, consumed by `scripts/mb-context.sh`) used to be mentioned only in `SKILL.md`, `commands/mb.md`, and the mapper agent prompt — it was missing from the two files that ship to user globals (`rules/CLAUDE-GLOBAL.md` → `~/.claude/CLAUDE.md` managed block, `rules/RULES.md` → `~/.claude/RULES.md`), the structure/workflow/templates references, and the per-project `CLAUDE.md` template used by `/mb init --full`. As a result, fresh agents did not know the folder existed, what lives in it, or when to regenerate it.

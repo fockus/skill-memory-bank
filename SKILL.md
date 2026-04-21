@@ -224,6 +224,7 @@ The SessionEnd hook `hooks/mb-compact-reminder.sh` reminds the user to run `/mb 
 - Templates: `references/templates.md`
 - Structure: `references/structure.md`
 - Workflow: `references/workflow.md`
+- Command file template: `references/command-template.md`
 - CHANGELOG: `CHANGELOG.md`
 - Migration v1→v2: `docs/MIGRATION-v1-v2.md`
 - Primary entrypoint:

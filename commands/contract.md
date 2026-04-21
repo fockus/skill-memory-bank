@@ -1,10 +1,14 @@
 ---
-
-## description: Contract-First — define the interface, write contract tests, then implement
-
-allowed-tools: [Read, Glob, Grep, Bash, Write]
+description: Contract-First — define the interface, write contract tests, then implement
+allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
+argument-hint: <module-or-interface-name>
+---
 
 # Contract-First: $ARGUMENTS
+
+## 0. Validate arguments
+
+If `$ARGUMENTS` is empty, stop and ask the user for the module / interface name to design. Do not proceed with an empty target.
 
 ## 1. Analysis
 

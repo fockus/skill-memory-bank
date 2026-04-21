@@ -17,6 +17,8 @@ git diff --staged
 
 If `./.memory-bank/plan.md` or `./.memory-bank/checklist.md` exists, read it. That is the current work plan — compare the implementation against it.
 
+If `./.memory-bank/codebase/ARCHITECTURE.md` and `./.memory-bank/codebase/CONCERNS.md` exist, read them too — `ARCHITECTURE.md` grounds the architectural analysis in Section 3, `CONCERNS.md` tells you which known-fragile areas deserve extra scrutiny when touched.
+
 Read every changed file in full, not just the diff — you need full context for architectural analysis.
 
 ## 2. Principles analysis

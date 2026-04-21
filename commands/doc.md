@@ -1,11 +1,23 @@
-# ~/.claude/commands/doc.md
-
 ---
-
-## description: Generate or update documentation for a module
+description: Generate or update documentation for a module
+allowed-tools: [Read, Glob, Grep, Bash, Write]
+argument-hint: <module-path>
 agent: explorer
 context: fork
-allowed-tools: [Read, Glob, Grep, Bash, Write]
+---
+
+<!--
+  `agent: explorer` and `context: fork` are plugin-specific keys (e.g. Codex uses
+  `context: fork`). Harmless in hosts that don't recognize them; where supported
+  they route the command to the Explorer subagent in a forked context so the
+  main session is not polluted by read-heavy exploration.
+-->
+
+## 0. Validate arguments
+
+If `$ARGUMENTS` is empty, stop and ask the user which module to document.
+
+## 1. Document the module
 
 For module `$ARGUMENTS`:
 

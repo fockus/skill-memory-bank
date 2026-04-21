@@ -1,11 +1,18 @@
 ---
+description: Create a detailed work plan with DoD and save it in memory-bank
+allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
+argument-hint: <type> <topic>
+---
 
-## description: Creates a detailed work plan with DoD and saves it in memory-bank
-allowed-tools: [Read, Glob, Grep, Bash, Write]
+# Plan: $ARGUMENTS
 
-# Planning: $ARGUMENTS
+Canonical planning command. `/mb plan` is an alias that dispatches here.
 
-## 0. Preparation
+## 0. Validate arguments
+
+Parse `$ARGUMENTS` into `<type> <topic>`. Allowed `type`: `feature`, `fix`, `refactor`, `experiment`. If `type` is missing or not in the allowed set, stop and ask the user. If `topic` is empty, stop and ask.
+
+## 1. Preparation
 
 Read before you start:
 
@@ -13,123 +20,63 @@ Read before you start:
 2. `./.memory-bank/plan.md` — current priorities (if present)
 3. `./.memory-bank/checklist.md` — current tasks (if present)
 4. `./.memory-bank/lessons.md` — known anti-patterns (if present)
+5. `./.memory-bank/codebase/*.md` — stack / architecture / conventions / concerns summaries (if populated)
 
-Study the codebase in the context of the task:
+Study the codebase in the context of the topic. Find and read the files relevant to `"$ARGUMENTS"`.
 
-```bash
-# Project structure
-find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/venv/*' -not -path '*/__pycache__/*' | head -200
-```
+## 2. Scaffold the plan file
 
-Find and read the files relevant to the topic `"$ARGUMENTS"`.
-
-## 1. Analysis
-
-Before writing the plan, answer these questions:
-
-- What problem are we solving?
-- Which system components are affected?
-- What dependencies and constraints exist?
-- What risks and unknowns are there?
-- How does this fit the current architecture (Clean Architecture)?
-
-## 2. Draft the plan
-
-Create the directory if it does not exist:
+Use the scaffolding script — it creates the file with `<!-- mb-stage:N -->` markers that `mb-plan-sync.sh` relies on later:
 
 ```bash
-mkdir -p ./.memory-bank/plans
+bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"
+# Prints the created path, for example:
+# .memory-bank/plans/2026-04-21_refactor_<topic>.md
 ```
 
-Determine the plan type: `feature | refactor | bugfix | research`
+## 3. Fill in the plan
 
-Write it to `./.memory-bank/plans/YYYY-MM-DD_<type>_<kebab-case-title>.md`:
+Open the created file and fill each section. Required structure:
 
-```markdown
-# <Task title>
-Date: YYYY-MM-DD
-Type: feature | refactor | bugfix | research
-Status: 🟡 In progress
+- **Context** — problem, expected result, related files
+- **Stages** — each wrapped with `<!-- mb-stage:N -->` markers (do not remove them), with:
+  - Clear title
+  - *What to do* — concrete actions
+  - *Testing (TDD — tests BEFORE implementation)* — unit / integration / e2e per applicability
+  - *DoD (SMART)* — specific, measurable, achievable, relevant, time-bound checkboxes. Every DoD item must answer «how do we verify?». Include TDD, lint, SOLID/DRY/KISS adherence, architectural direction.
+  - *Code rules* — one-line reference to the principles that apply
+- **Risks and mitigation** — table with Risk / Probability / Mitigation
+- **Gate** — overall success criterion
 
-## Context
-<!-- Why is this needed? What problem does it solve? What are the preconditions? -->
+Stages must be atomic, ordered by dependency, and small enough to pick up independently.
 
-## Scope
-<!-- What is in scope? What is explicitly out of scope? -->
+If `lessons.md` has entries relevant to this topic, incorporate them into the stages.
 
-## Architectural decisions
-<!-- Chosen approach, patterns, structure. Why this approach? -->
-<!-- Add an ASCII diagram if it helps -->
+## 4. Synchronize with checklist and plan.md
 
-## Stages
+After filling the plan, run:
 
-### Stage 1: <title>
-**Goal:** <what must be achieved — concrete and measurable>
-**Files:** <which files are created/changed>
-
-**Implementation:**
-1. <step>
-2. <step>
-3. ...
-
-**Tests (TDD — written BEFORE implementation):**
-- Unit: <what to cover, which scenarios>
-- Integration: <which component interactions to verify>
-- E2E: <which user journey to validate> (if applicable)
-
-**DoD (Definition of Done):**
-- [ ] <criterion — Specific, Measurable, Achievable, Relevant, Time-bound>
-- [ ] <criterion>
-- [ ] All unit tests are written and passing
-- [ ] Integration tests are written and passing (if applicable)
-- [ ] No `SOLID` / `DRY` / `KISS` violations
-- [ ] Dependency direction is correct (Clean Architecture)
-- [ ] Code passed self-review
-
-### Stage 2: <title>
-<!-- Same structure -->
-
-### Stage N: Final verification
-**Goal:** Verify that everything works together
-
-**Tests:**
-- Full unit test run
-- Full integration test run
-- E2E tests for the main user scenarios
-
-**DoD:**
-- [ ] All tests pass
-- [ ] Coverage is not below <threshold>% (if configured)
-- [ ] No `TODO` / `FIXME` / `HACK` in new code
-- [ ] Documentation is updated (if needed)
-- [ ] Code review is complete (`/user:review`)
-
-## Risks and mitigation
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|---------|------------|
-| <risk> | High/Medium/Low | <what might break> | <how to prevent it> |
-
-## Dependencies
-<!-- External dependencies, blockers, and what is needed from others -->
-
-## Estimate
-<!-- Rough effort estimate by stage -->
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <plan-file-path>
 ```
 
-## 3. Update Memory Bank
+The script is idempotent and:
+- Adds missing `## Stage N: <name>` sections to `checklist.md` with `⬜` items per DoD
+- Refreshes the `<!-- mb-active-plan -->` block in `plan.md`
+- Reports `added=N` so you see what changed
 
-After creating the plan:
+Re-run `mb-plan-sync.sh` while iterating on the plan — it will reconcile new stages without touching old ones.
 
-1. Update `./.memory-bank/checklist.md` — add tasks from the plan as ⬜ items
-2. Update `./.memory-bank/plan.md` — add a link to the new plan and refresh priorities
-3. Create a note at `./.memory-bank/notes/YYYY-MM-DD_HH-MM_plan-<topic>.md` with a short summary of the plan (5-10 lines)
+## 5. Update Memory Bank core files
 
-## Plan quality requirements
+1. `plan.md` — already updated by the sync script; add a 1-2 sentence focus line if the direction shifted
+2. `STATUS.md` — move relevant phase into "In progress"
+3. `notes/` — optional: create `YYYY-MM-DD_HH-MM_plan-<topic>.md` with a 5-10 line summary if the plan is non-trivial
 
-- Each stage must be atomic — it should be possible to pick it up and execute it independently
-- DoD must be concrete and verifiable — no vague items like "high-quality code"
-- Tests must be described BEFORE implementation in every stage (TDD)
-- Stages must be ordered by dependency — you cannot start stage 3 before finishing stage 1
-- Every DoD criterion must answer the question: "How do we verify this is done?"
-- The plan should incorporate lessons from `lessons.md` (if any)
+## 6. Next step
 
+Tell the user:
+- Path to the plan file
+- Number of stages created
+- First stage to execute
+- Reminder: after work, `/verify` (or `/mb verify`) before `/done`

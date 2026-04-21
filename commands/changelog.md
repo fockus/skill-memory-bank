@@ -1,9 +1,8 @@
-# ~/.claude/commands/changelog.md
-
 ---
-
-## description: Generate a changelog from commits
-allowed-tools: [Bash, Read]
+description: Generate a changelog from commits
+allowed-tools: [Bash, Read, Edit]
+argument-hint: [version]
+---
 
 1. Detect the latest tag: `git describe --tags --abbrev=0 2>/dev/null || echo "start"`
 2. Collect commits since the latest tag: `git log <tag>..HEAD --pretty=format:"%h %s" --no-merges`

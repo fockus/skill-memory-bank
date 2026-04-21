@@ -46,7 +46,17 @@ Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words ar
 
 ## Subcommand implementation
 
-### context / start / search / note / tasks / done
+### Aliases for `/start`, `/done`, `/plan`
+
+`/mb start`, `/mb done`, and `/mb plan` are aliases that dispatch to the canonical commands:
+
+- `/mb start` → see `commands/start.md` (reads Memory Bank, suggests `/mb map` if `codebase/` empty)
+- `/mb done` → see `commands/done.md` (MB Manager actualize + note + `.session-lock`)
+- `/mb plan <type> <topic>` → see `commands/plan.md` (mb-plan.sh scaffold + fill + mb-plan-sync.sh)
+
+Invoking `/mb start` = invoking `/start` — same scripts, same subagents, same outcome. Do not duplicate the logic here; read the primary command file and follow it.
+
+### context / search / note / tasks
 
 For these subcommands, run the MB Manager subagent:
 
@@ -65,16 +75,10 @@ action: <action>
 
 Concrete actions:
 
-- **context** / **(empty)**: `action: context`
-- **start**: `action: context` — extended mode; also read the active plan in full
+- **context** / **(empty)**: `action: context` — also delegated to `/start` for consistent behavior
 - **search ****: **`action: search <query>` where `query` is the remainder of `$ARGUMENTS` after `search`
 - **note ****: **`action: note <topic>` + pass what was done in the current session
 - **tasks**: `action: tasks`
-- **done**: `action: actualize` + `action: note` — pass the full description of the current session's work. MB Manager must:
-  1. Actualize all core files
-  2. Create a note about the completed work
-  3. Append to `progress.md`
-  4. **After a successful agent call**, run `touch .memory-bank/.session-lock`. This marks manual `/mb done` as completed so SessionEnd auto-capture will skip this session (see `hooks/session-end-autosave.sh`, `MB_AUTO_CAPTURE` env var).
 
 ### update
 
@@ -165,30 +169,11 @@ bash ~/.claude/skills/memory-bank/scripts/mb-index.sh
 
 Show the result to the user.
 
-### plan  
+### plan
 
-1. Create the plan file:
+**Alias** for `/plan` — dispatch to `commands/plan.md`. The canonical planning command lives there: mb-plan.sh scaffold → fill with `<!-- mb-stage:N -->` markers + SMART DoD + TDD per stage → mb-plan-sync.sh to reconcile with `checklist.md` + `plan.md`.
 
-```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"
-# → prints the created file path, for example:
-# .memory-bank/plans/2026-04-19_refactor_skill-v2.md
-```
-
-1. **Fill in the plan yourself** using the rules in `~/.claude/skills/memory-bank/SKILL.md` (the "Plan creation rules" section):
-  - Context: problem, cause, expected outcome
-  - Stages: each with SMART DoD and TDD testing. Use `<!-- mb-stage:N -->` markers before each `### Stage N: <name>` — they are required for auto-sync.
-  - Risks and mitigation
-  - Gate: success criteria
-2. Run synchronization with `checklist.md` + `plan.md`:
-
-```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <plan path>
-```
-
-   The script adds missing `## Stage N: <name>` sections to `checklist.md` and refreshes the `<!-- mb-active-plan -->` block in `plan.md`. It is idempotent — you can rerun it while editing the plan.
-
-If `type` is missing, ask the user. Allowed values: `feature`, `fix`, `refactor`, `experiment`.
+Allowed `type` values: `feature`, `fix`, `refactor`, `experiment`. If `type` is missing, ask the user.
 
 ### verify
 
