@@ -91,6 +91,36 @@ Emit the enriched JSON first, then a human summary that always orders: verdict �
 
 Allowed `tests_pass` values: `true`, `false`, `null` (stack unknown / runner missing / zero tests — **never emit `false` when tests did not actually run**).
 
+### Per-stack examples
+
+**Go:**
+```json
+{
+  "stack": "go",
+  "tests_pass": false,
+  "tests_total": 42,
+  "tests_failed": 1,
+  "failures": [{"file": "", "name": "TestConnectionPool_Reconnect", "error_head": "pool_test.go:87: expected 3 reconnect attempts, got 1"}],
+  "coverage": {"overall": null, "per_file": {}},
+  "duration_ms": 2340
+}
+```
+
+**Node (future — not in v1; same schema):**
+```json
+{
+  "stack": "node",
+  "tests_pass": true,
+  "tests_total": 28,
+  "tests_failed": 0,
+  "failures": [],
+  "coverage": {"overall": "86.2%", "per_file": {"src/auth.ts": "92%"}},
+  "duration_ms": 4120
+}
+```
+
+Node is not yet supported by `scripts/mb-test-run.sh` — when mb-metrics detects `stack=node`, `tests_pass=null` with a NOT-RUN warning is returned until v3.3+ ships jest/vitest parsing.
+
 ## Human summary
 
 ```

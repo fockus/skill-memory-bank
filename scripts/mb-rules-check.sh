@@ -177,27 +177,52 @@ is_test_file() {
 # Given a source basename stem, check if any file in DIFF_FILES matches
 # a test pattern for that stem.
 has_matching_test() {
-  local stem="$1"
-  # Normalize stem: replace '-' and '_' both ways when looking for a test.
-  local stem_alt_1="${stem//-/_}"
-  local stem_alt_2="${stem//_/-}"
+  local stem="$1" src_basename="$2"
+  # Build the candidate stem list: original + dash/underscore variants +
+  # versions with a leading `mb-` prefix stripped. Scripts named `mb-foo.sh`
+  # are routinely covered by `test_foo_*.bats` (the test targets the
+  # conceptual feature, not the prefixed script name). Without this strip
+  # step the matcher emits false-positive tdd/delta CRITICALs even when
+  # full coverage exists.
+  local -a stems=("$stem" "${stem//-/_}" "${stem//_/-}")
+  case "$stem" in
+    mb-*)
+      local stripped="${stem#mb-}"
+      stems+=("$stripped" "${stripped//-/_}" "${stripped//_/-}")
+      ;;
+    mb_*)
+      local stripped="${stem#mb_}"
+      stems+=("$stripped" "${stripped//-/_}" "${stripped//_/-}")
+      ;;
+  esac
 
-  local df
+  local df base s
+  # Pass 1 — basename-based matching (fast path). Catches the common
+  # same-stem convention used by most projects.
   for df in "${DIFF_FILES[@]+"${DIFF_FILES[@]}"}"; do
-    local base
     base="$(basename "$df")"
-    # test_<stem>.* / test_<stem-alt>.*
-    if [[ "$base" == "test_${stem}."* || "$base" == "test_${stem_alt_1}."* || "$base" == "test_${stem_alt_2}."* ]]; then
-      return 0
-    fi
-    # <stem>_test.* / <stem>.test.* / <stem>.spec.*
-    if [[ "$base" == "${stem}_test."* || "$base" == "${stem}.test."* || "$base" == "${stem}.spec."* ]]; then
-      return 0
-    fi
-    if [[ "$base" == "${stem_alt_1}_test."* || "$base" == "${stem_alt_1}.test."* || "$base" == "${stem_alt_1}.spec."* ]]; then
-      return 0
-    fi
-    if [[ "$base" == "${stem_alt_2}_test."* || "$base" == "${stem_alt_2}.test."* || "$base" == "${stem_alt_2}.spec."* ]]; then
+    for s in "${stems[@]}"; do
+      if [[ "$base" == "test_${s}."* || "$base" == "${s}_test."* \
+            || "$base" == "${s}.test."* || "$base" == "${s}.spec."* ]]; then
+        return 0
+      fi
+    done
+  done
+  # Pass 2 — content-based matching (fallback). When tests are named after
+  # the agent/feature rather than the script (e.g. test_rules_enforcer_*.bats
+  # exercises scripts/mb-rules-check.sh), basename matching misses real
+  # coverage. Grep each diff-changed test file for the source basename; a
+  # single literal reference counts as co-change intent.
+  [[ -z "$src_basename" ]] && return 1
+  for df in "${DIFF_FILES[@]+"${DIFF_FILES[@]}"}"; do
+    base="$(basename "$df")"
+    # Only inspect files that look like tests.
+    case "$base" in
+      test_*|*_test.*|*.test.*|*.spec.*) ;;
+      *) continue ;;
+    esac
+    [[ -f "$df" ]] || continue
+    if grep -Fq "$src_basename" "$df" 2>/dev/null; then
       return 0
     fi
   done
@@ -271,7 +296,7 @@ check_tdd_delta() {
     local base stem
     base="$(basename "$f")"
     stem="${base%.*}"
-    if ! has_matching_test "$stem"; then
+    if ! has_matching_test "$stem" "$base"; then
       emit_violation "tdd/delta" "CRITICAL" "$f" 1 \
         "no matching test in diff" \
         "Source file changed without a co-changed test; add or update tests in the same commit range."

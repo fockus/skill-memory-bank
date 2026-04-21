@@ -4,6 +4,83 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [3.2.0] — 2026-04-21 (unreleased — staged on main)
+
+**Subagent maturity release.** Six stages of targeted upgrades to the skill's
+subagent layer. Two new deterministic helpers (`scripts/mb-rules-check.sh`,
+`scripts/mb-test-run.sh`) unblock two new subagents; four existing subagents
+get first-class contracts, graph-aware analysis, and explicit conflict
+resolution. 102 new bats assertions; 177/177 passing including regression.
+
+### Added
+
+- **`agents/mb-rules-enforcer.md` + `scripts/mb-rules-check.sh`** — deterministic
+  SRP (>300 lines), Clean Architecture direction (`domain/` importing
+  `infrastructure/`), and TDD-delta (source without matching test) checks
+  that emit strict JSON. The wrapping subagent adds LLM-level ISP / DRY
+  judgment. Called by `/review`, `/commit`, `/pr`, and plan-verifier Step
+  3.6. JSON-first design enables machine composition; CRITICAL/WARNING/INFO
+  vocabulary is closed and documented.
+- **`agents/mb-test-runner.md` + `scripts/mb-test-run.sh`** — per-stack
+  structured test executor (python + go in v1). Returns
+  `{stack, tests_pass, tests_total, tests_failed, failures[], coverage,
+  duration_ms}`. Never collapses `null` to `false` — absence of a runner
+  yields explicit NOT-RUN rather than silent pass. Called by `/test` and
+  plan-verifier Step 3.5; replaces direct `mb-metrics.sh --run` to avoid
+  double execution.
+- **`scripts/mb-drift.sh` check #9 — `check_research_experiments`** — scans
+  `RESEARCH.md` for H-NNN rows whose status is ✅ Confirmed or ❌ Refuted and
+  verifies the matching `experiments/EXP-NNN.md` exists. Missing file →
+  `drift_check_research_experiments=warn` + per-H stderr line. Zero LLM
+  tokens for detection.
+- **`**Baseline commit:** <hash>` header in every new plan** (`scripts/mb-plan.sh`
+  writes `git rev-parse HEAD` at plan creation). `plan-verifier` uses it as
+  the diff base via `git diff <baseline>...HEAD`, replacing `HEAD~N` guessing.
+  Fallback chain: ctime lookup → `HEAD~10` with WARNING. Outside a git repo →
+  `unknown`.
+- **`MB_DOCTOR_REQUIRE_CLEAN_TREE` env guard** — when set to `1`, mb-doctor
+  refuses to auto-fix on a dirty working tree and surfaces an actionable
+  `git stash` hint. Default OFF; intended for CI / shared environments.
+- **`MB_GRAPH_STALE_HOURS` env override** — default 24h. Controls how fresh
+  `graph.json` must be before `mb-codebase-mapper` consumes it; stale →
+  graceful grep fallback.
+- **`### action: done` first-class section in `agents/mb-manager.md`** —
+  normative 6-step flow (actualize → note → plan closure → session-lock →
+  index regen → report) + explicit 5-rule "Actualize conflict resolution"
+  subsection. Supersedes the prior "combined flow of actualize + note"
+  wording in `commands/done.md`.
+
+### Changed
+
+- **`agents/plan-verifier.md` Step 3.5** now delegates to `mb-test-runner`
+  instead of calling `mb-metrics.sh --run` directly. Eliminates double test
+  execution in the verify → done flow.
+- **`agents/plan-verifier.md` Step 3.6** enforces RULES.md with project-first
+  precedence (`.memory-bank/RULES.md` → `~/.claude/RULES.md`).
+- **`agents/mb-codebase-mapper.md`** now prefers `graph.json` / `god-nodes.md`
+  over ad-hoc grep when deriving CONVENTIONS (naming-pattern counts from
+  node names) and CONCERNS (god-nodes cited by name + degree). Dogfood on
+  this repo: 92% snake_case (53/57 function names), top-5 god-nodes ready to
+  cite. Auto-stamps `Generated: $(date -u +%FT%TZ)` in template headers.
+- **`commands/review.md`** and **`commands/test.md`** replace inline principle
+  / stack-runner enumerations with single `Agent()` delegation blocks.
+- **`scripts/mb-rules-check.sh` `has_matching_test()`** strips a leading
+  `mb-` prefix before basename matching AND adds a content-grep fallback —
+  tests named after the agent/feature (`test_rules_enforcer_*.bats`) now
+  correctly satisfy tdd/delta for their wrapping scripts (`mb-rules-check.sh`).
+
+### Fixed
+
+- `plan-verifier` no longer uses `HEAD~N` as the diff base — guess-driven
+  audit scope is replaced with the recorded `**Baseline commit:**` from the
+  plan header.
+- `mb-doctor` no longer edits files silently under a dirty tree when the
+  guard env is set — the previous implicit trust in the working state is
+  replaced with an observable decision point.
+- `mb-rules-check.sh` `tdd/delta` false positives on scripts whose tests are
+  named after the conceptual feature (not the script) are resolved via the
+  content-grep fallback pass.
+
 ## [3.1.1] — 2026-04-21
 
 **i18n infrastructure release.** Memory Bank now ships locale-aware

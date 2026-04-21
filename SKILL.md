@@ -83,7 +83,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-manager` | `/mb context`, `search`, `note`, `tasks`, `done`, `update`, PreCompact hook | `agents/mb-manager.md` |
 | `mb-doctor` | `/mb doctor` — memory-bank inconsistencies (use `mb-plan-sync.sh` first, only edit for semantic drift) | `agents/mb-doctor.md` |
 | `mb-codebase-mapper` | `/mb map [focus]` — scan the codebase → `.memory-bank/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md` | `agents/mb-codebase-mapper.md` |
-| `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan. Uses `**Baseline commit:**` from the plan header (ctime fallback) for `git diff`, runs tests via `mb-metrics.sh --run`, and enforces RULES.md (SRP/Clean-Arch direction/TDD delta) | `agents/plan-verifier.md` |
+| `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan. Uses `**Baseline commit:**` from the plan header (ctime fallback) for `git diff`, delegates test execution to `mb-test-runner`, and enforces RULES.md (SRP/Clean-Arch direction/TDD delta) via `mb-rules-enforcer` conventions | `agents/plan-verifier.md` |
 | `mb-rules-enforcer` | `/review`, `/commit`, `/pr`, `plan-verifier` Step 3.6 — runs `scripts/mb-rules-check.sh` (solid/srp, clean_arch/direction, tdd/delta) and adds LLM-level ISP/DRY judgment. Returns strict JSON + human summary | `agents/mb-rules-enforcer.md` |
 | `mb-test-runner` | `/test`, `plan-verifier` Step 3.5 — runs `scripts/mb-test-run.sh` (python + go in v1), correlates failures with session diff via `touches_session`. Returns JSON `{stack, tests_pass, tests_total, tests_failed, failures[], coverage, duration_ms}`. Never collapses `null` → `false` | `agents/mb-test-runner.md` |
 
