@@ -158,7 +158,10 @@ cmd_get() {
 cmd_set() {
   local key="${1:-}"
   local val="${2:-}"
-  [ -n "$key" ] && [ -n "$val" ] || { echo "mb-config: set <key> <value>" >&2; exit 2; }
+  if [ -z "$key" ] || [ -z "$val" ]; then
+    echo "mb-config: set <key> <value>" >&2
+    exit 2
+  fi
   case "$key" in
     lang)
       if ! is_supported_locale "$val"; then
