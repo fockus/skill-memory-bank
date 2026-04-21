@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Docs
+
+- **Surface `.memory-bank/codebase/` in all structural / workflow documentation.** The directory (populated by `mb-codebase-mapper` via `/mb map` / `/mb graph`, consumed by `scripts/mb-context.sh`) used to be mentioned only in `SKILL.md`, `commands/mb.md`, and the mapper agent prompt — it was missing from the two files that ship to user globals (`rules/CLAUDE-GLOBAL.md` → `~/.claude/CLAUDE.md` managed block, `rules/RULES.md` → `~/.claude/RULES.md`), the structure/workflow/templates references, and the per-project `CLAUDE.md` template used by `/mb init --full`. As a result, fresh agents did not know the folder existed, what lives in it, or when to regenerate it.
+  - `references/structure.md` — new `### codebase/ — Codebase map` subsection with artifact table (6 files), producer (`mb-codebase-mapper` subagent, sonnet), consumer (`mb-context.sh`), and regeneration triggers.
+  - `references/workflow.md` — session-start bootstrap rule (suggest `/mb map` when `codebase/` is empty, never auto-invoke) + `codebase/` rows in the "when to update" and "when to create" decision tables.
+  - `references/templates.md` — tree comments on the `/mb init` structure so every subdirectory (including `codebase/`) has an inline description of who fills it.
+  - `references/claude-md-template.md` — new `codebase/` row in the `.memory-bank/` table so the generated per-project `CLAUDE.md` documents the folder.
+  - `rules/CLAUDE-GLOBAL.md` + `rules/RULES.md` — identical new `codebase/` row in the "Detailed records" table (byte-identical wording across both files) + bootstrap sentence / step in the session-start workflow.
+  - `commands/mb.md` `### init` — new optional **Step 1.5** in `--full` mode: asks the user whether to seed `codebase/` by running `mb-codebase-mapper` now; default answer is skip. Step 6 Summary now surfaces `/mb map` as a follow-up next step.
+- **No behavioural change** — `mb-codebase-mapper` is still never auto-invoked; `/mb init --minimal` is unaffected; all existing commands keep their exact current contracts. Running `bash scripts/mb-drift.sh .` still reports `drift_warnings=0`.
+
 ---
 
 ## [3.0.0] — 2026-04-20

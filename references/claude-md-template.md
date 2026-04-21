@@ -108,5 +108,6 @@ Detailed rules: `~/.claude/RULES.md` + `.memory-bank/RULES.md`
 | `RESEARCH.md`  | Hypotheses + findings           | New finding               |
 | `progress.md`  | Completed work (append-only)    | End of session            |
 | `lessons.md`   | Anti-patterns                   | When a pattern is noticed |
+| `codebase/`    | Codebase map: stack, architecture, conventions, concerns | After `/mb init` or `/mb map` |
 
 

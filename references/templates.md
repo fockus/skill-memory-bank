@@ -181,11 +181,15 @@ Creates the minimal structure:
 ├── BACKLOG.md      # Header + empty sections
 ├── progress.md     # Header
 ├── lessons.md      # Header
-├── experiments/    # Empty directory
-├── plans/          # Empty directory
-│   └── done/       # Empty directory
-├── notes/          # Empty directory
-└── reports/        # Empty directory
+├── experiments/    # Empty; filled by experiment authors (EXP-NNN.md)
+├── plans/          # Empty; filled by /mb plan (YYYY-MM-DD_<type>_<topic>.md)
+│   └── done/       # Empty; archived plans move here via /mb plan-done
+├── notes/          # Empty; filled by /mb note (YYYY-MM-DD_HH-MM_<topic>.md)
+├── reports/        # Empty; free-form reports useful to future sessions
+└── codebase/       # Empty; populated by /mb map (mb-codebase-mapper subagent)
+                    #   STACK.md / ARCHITECTURE.md / CONVENTIONS.md / CONCERNS.md
+                    #   Optional: graph.json + god-nodes.md via /mb graph --apply
+                    #   Consumed by /mb context (summaries) and --deep (full)
 ```
 
 ---

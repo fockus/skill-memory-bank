@@ -145,3 +145,29 @@ Format: What was done (3-5 bullets) → New knowledge (conclusions, patterns).
 
 ### `reports/` — Reports and reviews
 Free-form. Use when a full report will help future sessions.
+
+### `codebase/` — Codebase map
+Structured snapshot of the project, read on session start and consumed by planning/implementation agents.
+
+**Artifacts:**
+
+| File            | Generator             | Purpose                                                                 |
+|-----------------|-----------------------|-------------------------------------------------------------------------|
+| `STACK.md`      | `/mb map stack`       | Languages, runtime, dependencies, external integrations                 |
+| `ARCHITECTURE.md` | `/mb map arch`      | Layers, data flow, directory structure, entry points                    |
+| `CONVENTIONS.md` | `/mb map quality`    | Naming, style, testing, imports                                         |
+| `CONCERNS.md`   | `/mb map concerns`    | Tech debt, known bugs, security risks, performance hotspots             |
+| `graph.json`    | `/mb graph --apply`   | JSON Lines — nodes/edges for modules, functions, classes (ast-based)    |
+| `god-nodes.md`  | `/mb graph --apply`   | Top-20 nodes by degree (code hotspots)                                  |
+
+**Producer:** subagent `mb-codebase-mapper` (prompt: `agents/mb-codebase-mapper.md`, sonnet). Each MD doc is capped at ≤70 lines — details belong in code, not in mirror docs.
+
+**Consumer:** `scripts/mb-context.sh` — injects a one-line summary per doc into `/mb context`, and full contents when called with `--deep`.
+
+**When to regenerate:**
+- Right after `/mb init` (bootstrap a new project)
+- Stack / major dependency change → `/mb map stack`
+- Major refactor of layers / structure → `/mb map arch`
+- New lint / test tooling → `/mb map quality`
+- Security or performance findings → `/mb map concerns`
+- Any large change → `/mb map all` + `/mb graph --apply`

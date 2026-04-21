@@ -641,6 +641,21 @@ Core files (templates — `~/.claude/skills/memory-bank/references/templates.md`
 
 ---
 
+#### Step 1.5: Offer to populate `codebase/` (`--full` only)
+
+Before continuing to RULES and stack detection, ask the user whether the skill should seed `.memory-bank/codebase/` now via the `mb-codebase-mapper` subagent:
+
+```
+Populate .memory-bank/codebase/ with STACK / ARCHITECTURE / CONVENTIONS / CONCERNS?
+This launches the `mb-codebase-mapper` subagent (sonnet) with focus=all.
+Default: skip — you can run `/mb map` anytime later.
+(y/N)
+```
+
+If the answer is `y`, run the subagent exactly as documented in `### map [focus]` with `focus: all`. If the answer is `N` or empty, skip and continue to Step 2 — never auto-invoke the mapper. The folder stays empty; `/mb start` will suggest `/mb map` on the next session if still empty.
+
+---
+
 #### Step 2: Copy RULES (`--full` only)
 
 ```bash
@@ -713,7 +728,10 @@ Print:
 - Created files: `.memory-bank/` + `CLAUDE.md` (if `--full`)
 - Detected stack: `{language}`, `{framework}`, `{tools}`
 - Report: `[MEMORY BANK: ACTIVE]`
-- Suggest the next step: `/mb start` or (if the project needs planning) `/mb plan feature "<topic>"`
+- Suggest the next steps:
+  - `/mb start` — load context in subsequent sessions
+  - `/mb map` — populate `.memory-bank/codebase/` (STACK / ARCHITECTURE / CONVENTIONS / CONCERNS) if skipped in Step 1.5
+  - (if the project needs planning) `/mb plan feature "<topic>"`
 
 ---
 

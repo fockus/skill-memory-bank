@@ -7,9 +7,14 @@
    ├── Yes → [MEMORY BANK: ACTIVE]
    │   ├── Run mb-context.sh or /mb start
    │   ├── Read: STATUS.md, plan.md, checklist.md, RESEARCH.md
+   │   ├── Check .memory-bank/codebase/
+   │   │   ├── Missing or empty → suggest /mb map all (mb-codebase-mapper, sonnet)
+   │   │   └── Populated → mb-context.sh already folded summaries into context
    │   └── Summarize focus in 1-3 sentences
    └── No → [MEMORY BANK: INACTIVE], work without the bank
 ```
+
+**Bootstrap rule:** On the very first `/mb start` after `/mb init`, or whenever `.memory-bank/codebase/` contains no `*.md` files, the agent must surface the suggestion `run /mb map` (default answer = skip). Do not auto-invoke the mapper — the user owns the decision.
 
 ## During work
 
@@ -37,6 +42,13 @@ lessons.md      ← Anti-pattern or repeated mistake detected
                    Insight from an ML experiment
 
 progress.md     ← End of session (APPEND-ONLY)
+
+codebase/       ← Stack or major dependency changed → /mb map stack
+                   Architecture / layer boundaries changed → /mb map arch
+                   Lint / test tooling changed → /mb map quality
+                   Security or performance finding → /mb map concerns
+                   Whole project snapshot needed → /mb map all
+                   Code graph needs refresh → /mb graph --apply
 ```
 
 ### When to create files
@@ -54,6 +66,11 @@ plans/          ← Before complex multi-stage work
                    ⚠️ AFTER creating the plan, update plan.md + STATUS.md + checklist.md
 
 reports/        ← When a full report will be useful to future sessions
+
+codebase/       ← After /mb init (bootstrap) — run /mb map all
+                   Whenever STACK / ARCHITECTURE / CONVENTIONS / CONCERNS drifts
+                   Populated by mb-codebase-mapper subagent (sonnet)
+                   Consumed by /mb context (summaries) / /mb context --deep (full)
 ```
 
 ### Plan consistency (REQUIRED)
