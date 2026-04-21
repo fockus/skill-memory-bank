@@ -34,10 +34,11 @@ build_and_install() {
 
 @test "pipx-like install: memory-bank version prints package version" {
   build_and_install
-  local out
+  local out expected
   out=$("$VENV_DIR/bin/memory-bank" version)
+  expected=$(cat "$REPO_ROOT/VERSION")
   [[ "$out" == *"memory-bank-skill"* ]]
-  [[ "$out" == *"3.0.0"* ]]
+  [[ "$out" == *"$expected"* ]]
 }
 
 @test "pipx-like install: memory-bank doctor resolves bundle from venv share/" {
