@@ -42,6 +42,14 @@ This directory lives alongside your code (commit it, share it with your team, or
 
 Pick one:
 
+### Option 0: skills.sh CLI (fastest one-shot install)
+
+```bash
+npx skills add fockus/skill-memory-bank
+```
+
+Copies the skill bundle (SKILL.md + scripts + commands + agents) into your local skills directory. Use this for a quick single-host try-out (Claude Code, Cursor, or any host that reads `~/.claude/skills/` or `~/.cursor/skills/`). For cross-agent setup (Codex / Windsurf / OpenCode hooks, managed blocks in `AGENTS.md`, `memory-bank` CLI, hooks, slash commands globally installed), use Option 1 or 2 below.
+
 ### Option 1: pipx (recommended, cross-platform)
 
 ```bash
