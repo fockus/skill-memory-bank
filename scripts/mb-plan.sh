@@ -31,10 +31,22 @@ DATE=$(date +"%Y-%m-%d")
 FILENAME="${DATE}_${TYPE}_${SAFE_TOPIC}.md"
 FILEPATH=$(mb_collision_safe_filename "$PLANS_DIR/$FILENAME")
 
+# Capture baseline git commit at plan-creation time. plan-verifier uses this as
+# the diff base (`git diff <baseline>...HEAD`) so the audit sees exactly the
+# code written after the plan was drafted — no dependence on `HEAD~N` guesses.
+# When the caller is not inside a git repo or has no commits, write `unknown`
+# so the prompt can degrade gracefully via its documented fallback.
+BASELINE_COMMIT=$(git rev-parse HEAD 2>/dev/null || true)
+if [[ -z "$BASELINE_COMMIT" ]]; then
+  BASELINE_COMMIT="unknown"
+fi
+
 mkdir -p "$PLANS_DIR"
 
 cat > "$FILEPATH" << 'TEMPLATE'
 # Plan: TYPE — TOPIC
+
+**Baseline commit:** BASELINE_COMMIT_PLACEHOLDER
 
 ## Context
 
@@ -93,11 +105,11 @@ cat > "$FILEPATH" << 'TEMPLATE'
 <!-- When the plan is considered fully complete -->
 TEMPLATE
 
-# Substitute type and topic into the title (portable `sed`: macOS vs GNU)
+# Substitute type, topic, and baseline commit into the title (portable `sed`: macOS vs GNU)
 if sed --version >/dev/null 2>&1; then
-  sed -i "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g" "$FILEPATH"
+  sed -i "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g; s|BASELINE_COMMIT_PLACEHOLDER|$BASELINE_COMMIT|g" "$FILEPATH"
 else
-  sed -i '' "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g" "$FILEPATH"
+  sed -i '' "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g; s|BASELINE_COMMIT_PLACEHOLDER|$BASELINE_COMMIT|g" "$FILEPATH"
 fi
 
 echo "$FILEPATH"

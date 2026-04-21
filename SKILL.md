@@ -83,7 +83,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-manager` | `/mb context`, `search`, `note`, `tasks`, `done`, `update`, PreCompact hook | `agents/mb-manager.md` |
 | `mb-doctor` | `/mb doctor` — memory-bank inconsistencies (use `mb-plan-sync.sh` first, only edit for semantic drift) | `agents/mb-doctor.md` |
 | `mb-codebase-mapper` | `/mb map [focus]` — scan the codebase → `.memory-bank/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md` | `agents/mb-codebase-mapper.md` |
-| `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan | `agents/plan-verifier.md` |
+| `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan. Uses `**Baseline commit:**` from the plan header (ctime fallback) for `git diff`, runs tests via `mb-metrics.sh --run`, and enforces RULES.md (SRP/Clean-Arch direction/TDD delta) | `agents/plan-verifier.md` |
 
 Do **NOT** delegate plan creation, architectural decisions, or ML-result evaluation to a subagent — that is main-agent work.
 
