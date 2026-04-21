@@ -1,4 +1,4 @@
-"""Smoke-тесты для статического лендинга GitHub Pages."""
+"""Smoke tests for the static GitHub Pages landing page."""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def _parse_html() -> tuple[str, _AssetParser]:
 
 def test_landing_page_contains_core_sections_and_assets() -> None:
     index_file = SITE_ROOT / "index.html"
-    assert index_file.is_file(), "site/index.html должен существовать"
+    assert index_file.is_file(), "site/index.html must exist"
 
     title, parsed = _parse_html()
 
@@ -85,14 +85,14 @@ def test_landing_page_contains_core_sections_and_assets() -> None:
     assert any("github.com/fockus/skill-memory-bank" in href for href in parsed.anchors)
 
     for asset_path in [*parsed.stylesheets, *parsed.scripts]:
-        assert not asset_path.startswith("http"), f"Ожидался локальный ассет, а не внешний: {asset_path}"
+        assert not asset_path.startswith("http"), f"Expected a local asset, not a remote one: {asset_path}"
         candidate = (SITE_ROOT / asset_path).resolve()
-        assert candidate.is_file(), f"Ассет из HTML отсутствует на диске: {asset_path}"
+        assert candidate.is_file(), f"Asset referenced from HTML is missing on disk: {asset_path}"
 
 
 def test_pages_workflow_publishes_site_directory() -> None:
     workflow_file = REPO_ROOT / ".github" / "workflows" / "pages.yml"
-    assert workflow_file.is_file(), "Нужен отдельный workflow для GitHub Pages"
+    assert workflow_file.is_file(), "A dedicated GitHub Pages workflow is required"
 
     workflow = workflow_file.read_text(encoding="utf-8")
     assert "actions/configure-pages" in workflow

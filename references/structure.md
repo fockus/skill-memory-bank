@@ -1,23 +1,23 @@
 # Memory Bank — File Structure (v3.1)
 
-> **v3.1 note:** четыре core-файла (`STATUS.md`, `plan.md`, `checklist.md`, `BACKLOG.md`) теперь имеют чётко разделённые обязанности и strict-формат со скрипт-управляемыми markers. Если у вас старый bank, запустите `scripts/mb-migrate-structure.sh --apply`.
+> **v3.1 note:** the four core files (`STATUS.md`, `plan.md`, `checklist.md`, `BACKLOG.md`) now have clearly separated responsibilities and a strict format managed by script-owned markers. If you have an older bank, run `scripts/mb-migrate-structure.sh --apply`.
 
 ## Core files — roles matrix
 
-| File           | Покрытие                                     | Лимит (рекомендация) | Кто редактирует                                         |
-|----------------|----------------------------------------------|----------------------|---------------------------------------------------------|
-| `STATUS.md`    | «где я прямо сейчас» snapshot                | ≤ 60 строк           | человек + `mb-plan-sync.sh` / `mb-plan-done.sh`         |
-| `plan.md`      | направление + активные планы                 | ≤ 80 строк           | человек + `mb-plan-sync.sh` / `mb-plan-done.sh`         |
-| `checklist.md` | операционный to-do **только по активным**    | ≤ 100 строк          | агент в сессии + `mb-plan-sync.sh` / `mb-plan-done.sh`  |
-| `BACKLOG.md`   | реестр идей + ADR                            | без лимита           | человек + `mb-idea.sh` / `mb-idea-promote.sh` / `mb-adr.sh` / `mb-compact.sh` |
+| File           | Coverage                                     | Limit (recommended) | Edited by                                               |
+|----------------|----------------------------------------------|---------------------|---------------------------------------------------------|
+| `STATUS.md`    | “where the project is right now” snapshot    | ≤ 60 lines          | human + `mb-plan-sync.sh` / `mb-plan-done.sh`           |
+| `plan.md`      | direction + active plans                     | ≤ 80 lines          | human + `mb-plan-sync.sh` / `mb-plan-done.sh`           |
+| `checklist.md` | operational to-do **for active plans only**  | ≤ 100 lines         | in-session agent + `mb-plan-sync.sh` / `mb-plan-done.sh`|
+| `BACKLOG.md`   | idea registry + ADRs                         | no limit            | human + `mb-idea.sh` / `mb-idea-promote.sh` / `mb-adr.sh` / `mb-compact.sh` |
 
-Лимиты — *рекомендации*, не enforce. Если превышены — подсказка запустить `/mb compact`.
+Limits are *recommendations*, not hard enforcement. If they are exceeded, the skill may suggest running `/mb compact`.
 
 ---
 
 ## `STATUS.md` — current snapshot
 
-**Назначение:** прочитав за 30 секунд, увидеть, где проект сейчас и что происходит в работе.
+**Purpose:** in 30 seconds, understand where the project is and what is currently happening.
 
 ```markdown
 # <Project> — Status
@@ -50,14 +50,14 @@ See [BACKLOG.md](BACKLOG.md) for the idea registry and ADRs.
 ```
 
 **Markers:**
-- `<!-- mb-active-plans -->` / `<!-- /mb-active-plans -->` — upsert: одна запись на `basename` плана. Скрипты: `mb-plan-sync.sh` (добавить/обновить), `mb-plan-done.sh` (удалить).
-- `<!-- mb-recent-done -->` / `<!-- /mb-recent-done -->` — FIFO newest-first. Trim до `MB_RECENT_DONE_LIMIT` (default `10`). Управляет `mb-plan-done.sh`.
+- `<!-- mb-active-plans -->` / `<!-- /mb-active-plans -->` — upsert: one entry per plan basename. Managed by `mb-plan-sync.sh` (add/update) and `mb-plan-done.sh` (remove).
+- `<!-- mb-recent-done -->` / `<!-- /mb-recent-done -->` — FIFO newest-first. Trimmed to `MB_RECENT_DONE_LIMIT` (default `10`). Managed by `mb-plan-done.sh`.
 
 ---
 
 ## `plan.md` — direction + active plans
 
-**Назначение:** один источник правды о том, что «в работе прямо сейчас» и куда двигаемся.
+**Purpose:** the single source of truth for what is in progress right now and where the project is heading.
 
 ```markdown
 # <Project> — Plan
@@ -76,25 +76,25 @@ See [BACKLOG.md](BACKLOG.md) for the idea registry and ADRs.
 
 See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
 
-## Отложено
+## Deferred
 
-<!-- bullets мигрируют в BACKLOG как DEFERRED через /mb compact --apply -->
+<!-- bullets migrate into BACKLOG as DEFERRED via /mb compact --apply -->
 
-## Отклонено
+## Declined
 
-<!-- bullets мигрируют в BACKLOG как DECLINED через /mb compact --apply -->
+<!-- bullets migrate into BACKLOG as DECLINED via /mb compact --apply -->
 ```
 
-**Что НЕ пишем:**
-- Исторические «что сделано» (`progress.md`).
-- Операционные to-do для активных планов (`checklist.md`).
-- Сырые идеи (`BACKLOG.md`).
+**What does NOT belong here:**
+- Historical “what was done” notes (`progress.md`).
+- Operational to-do items for active plans (`checklist.md`).
+- Raw ideas (`BACKLOG.md`).
 
 ---
 
 ## `checklist.md` — operational to-do
 
-**Назначение:** оперативный список шагов **только по активным планам**. Не архив.
+**Purpose:** an operational step list **for active plans only**. It is not an archive.
 
 ```markdown
 # <Project> — Checklist
@@ -106,16 +106,16 @@ See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
 ```
 
 **Lifecycle:**
-1. `mb-plan-sync.sh <plan>` добавляет секцию `## Stage N: <title>` с `⬜` items.
-2. Агент по ходу работы меняет `⬜ → ✅`.
-3. `mb-plan-done.sh <plan>` **удаляет всю секцию** (материал уже в `plans/done/<basename>`).
-4. Завершённые секции без связанного plan-файла живут до `/mb compact --apply` (по threshold'у `MB_COMPACT_CHECKLIST_DAYS`, default `30`).
+1. `mb-plan-sync.sh <plan>` adds a `## Stage N: <title>` section with `⬜` items.
+2. The agent flips `⬜ → ✅` during execution.
+3. `mb-plan-done.sh <plan>` **removes the entire section** (the durable record already lives in `plans/done/<basename>`).
+4. Completed sections without a linked plan file remain until `/mb compact --apply` removes them based on `MB_COMPACT_CHECKLIST_DAYS` (default `30`).
 
 ---
 
 ## `BACKLOG.md` — ideas + ADR registry
 
-**Назначение:** живой parking lot идей + журнал архитектурных решений.
+**Purpose:** a live idea parking lot plus an architecture decision journal.
 
 ```markdown
 # Backlog
@@ -156,17 +156,17 @@ See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
 ```
 
 **ID schemes:**
-- **Idea ID:** `I-NNN` — monotonic через весь файл, zero-padded до 3 цифр. Генератор: `mb-idea.sh`. При ручной вставке `I-NNN` автоматика учитывает `max + 1`.
-- **ADR ID:** `ADR-NNN` — monotonic через весь файл. Генератор: `mb-adr.sh`.
+- **Idea ID:** `I-NNN` — monotonic across the whole file, zero-padded to 3 digits. Generated by `mb-idea.sh`. If you insert an `I-NNN` manually, automation still uses `max + 1`.
+- **ADR ID:** `ADR-NNN` — monotonic across the whole file. Generated by `mb-adr.sh`.
 
-**Idea status lifecycle:** `NEW → TRIAGED → PLANNED → DONE` (или `DEFERRED` / `DECLINED`).
+**Idea status lifecycle:** `NEW → TRIAGED → PLANNED → DONE` (or `DEFERRED` / `DECLINED`).
 
-**Idea priorities:** `HIGH | MED | LOW` (case-insensitive на вход, uppercase в файле).
+**Idea priorities:** `HIGH | MED | LOW` (case-insensitive on input, uppercase in the file).
 
 **Auto-transitions:**
-- `mb-idea-promote.sh I-NNN <type>` → `NEW|TRIAGED` → `PLANNED` + создать plan-файл + добавить `**Plan:** [plans/...](...)`.
-- `mb-plan-done.sh <plan>` → если идея привязана к плану (`**Plan:** plans/...`), `PLANNED` → `DONE` + `**Outcome:** <placeholder>`.
-- `mb-compact.sh --apply` → `plan.md` «Отложено» / «Отклонено» → новые `I-NNN` идеи со статусом `DEFERRED` / `DECLINED`.
+- `mb-idea-promote.sh I-NNN <type>` → `NEW|TRIAGED` → `PLANNED` + create a plan file + add `**Plan:** [plans/...](...)`.
+- `mb-plan-done.sh <plan>` → if an idea is linked to the plan (`**Plan:** plans/...`), `PLANNED` → `DONE` + `**Outcome:** <placeholder>`.
+- `mb-compact.sh --apply` → localized `plan.md` `Deferred` / `Declined` sections → new `I-NNN` ideas with `DEFERRED` / `DECLINED` status.
 
 ---
 
@@ -207,7 +207,7 @@ EXP-NNN: <title>
 - Next step: <what comes next>
 ```
 
-Никогда не удаляем старые записи. Compact работает только на `plans/` и `notes/`.
+Never delete old entries. Compact operates only on `plans/` and `notes/`.
 
 ---
 
@@ -237,11 +237,11 @@ Format: Hypothesis → Setup (baseline + one change) → Results (table with del
 
 Files: `YYYY-MM-DD_<type>_<topic>.md`. Types: `feature`, `fix`, `refactor`, `experiment`.
 
-Completed plans move to `plans/done/` через `mb-plan-done.sh`.
+Completed plans move to `plans/done/` via `mb-plan-done.sh`.
 
 Format: Context → Stages (SMART DoD + TDD) → Risks → Gate.
 
-Stage markers: `<!-- mb-stage:N -->` перед `### Stage N: <title>` — опциональные, позволяют `mb-plan-sync.sh` точно разобрать план.
+Stage markers: `<!-- mb-stage:N -->` before `### Stage N: <title>` — optional, but they let `mb-plan-sync.sh` parse the plan precisely.
 
 ### `notes/` — knowledge notes
 
@@ -249,7 +249,7 @@ Files: `YYYY-MM-DD_HH-MM_<topic>.md`.
 
 5-15 lines. Focus: conclusions and patterns, not chronology.
 
-Frontmatter опционален, но `importance: low` подсказывает compact'у, что заметку можно архивировать (>90d + no refs).
+Frontmatter is optional, but `importance: low` hints to compact that the note can be archived (>90d + no refs).
 
 ### `reports/` — free-form reports
 
@@ -268,8 +268,8 @@ Structured snapshot, read on session start and consumed by planning/implementati
 | `graph.json`     | `/mb graph --apply`  | JSON Lines — nodes/edges for modules, functions, classes (ast-based)    |
 | `god-nodes.md`   | `/mb graph --apply`  | Top-20 nodes by degree (code hotspots)                                  |
 
-**Producer:** subagent `mb-codebase-mapper` (sonnet). Каждый MD doc ≤ 70 строк.
-**Consumer:** `scripts/mb-context.sh` — one-line summary в `/mb context`, full body — при `--deep`.
+**Producer:** subagent `mb-codebase-mapper` (sonnet). Each MD doc should stay within 70 lines.
+**Consumer:** `scripts/mb-context.sh` — one-line summary in `/mb context`, full body with `--deep`.
 
 **When to regenerate:**
 - After `/mb init`
@@ -283,12 +283,12 @@ Structured snapshot, read on session start and consumed by planning/implementati
 
 ## Control envelopes
 
-Переменные окружения для управления lifecycle:
+Environment variables that control lifecycle behavior:
 
 | Variable                      | Default | Effect                                                                 |
 |-------------------------------|---------|------------------------------------------------------------------------|
-| `MB_RECENT_DONE_LIMIT`        | `10`    | Сколько done-планов хранит `STATUS.md ## Recently done`                |
-| `MB_COMPACT_CHECKLIST_DAYS`   | `30`    | Возрастной порог удаления done-секций из `checklist.md` через compact  |
-| `MB_COMPACT_PLAN_AGE_DAYS`    | `60`    | Возрастной порог архивирования done-планов                             |
-| `MB_COMPACT_NOTE_AGE_DAYS`    | `90`    | Возрастной порог архивирования low-importance notes                    |
-| `MB_COMPACT_ACTIVE_WARN_DAYS` | `180`   | Возраст, после которого compact предупреждает об active-планах         |
+| `MB_RECENT_DONE_LIMIT`        | `10`    | How many completed plans `STATUS.md ## Recently done` keeps            |
+| `MB_COMPACT_CHECKLIST_DAYS`   | `30`    | Age threshold for removing completed sections from `checklist.md`      |
+| `MB_COMPACT_PLAN_AGE_DAYS`    | `60`    | Age threshold for archiving completed plans                            |
+| `MB_COMPACT_NOTE_AGE_DAYS`    | `90`    | Age threshold for archiving low-importance notes                       |
+| `MB_COMPACT_ACTIVE_WARN_DAYS` | `180`   | Age after which compact warns about still-active plans                 |

@@ -17,13 +17,13 @@ Refactor core files.
 1. Finish Stage 1
 2. Roll to Stage 2
 
-## Отложено
+## Deferred
 
 - Telemetry opt-in
 - Remote backend sync
 - Cross-project links
 
-## Отклонено
+## Declined
 
 - Auto-commit on every save (YAGNI)
 - LLM-powered migration (overkill)

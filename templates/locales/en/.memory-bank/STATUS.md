@@ -1,0 +1,29 @@
+# Project — Status
+
+
+
+**Current phase:** —
+**Focus:** —
+**Blockers:** none
+
+## Metrics
+
+- Tests: 0
+- Coverage: —
+- Last compact: —
+
+## Active plans
+
+<!-- mb-active-plans -->
+<!-- /mb-active-plans -->
+
+
+## Recently done (last 10)
+
+<!-- mb-recent-done -->
+<!-- /mb-recent-done -->
+
+
+## Roadmap (high level)
+
+See [BACKLOG.md](BACKLOG.md) for the idea registry and ADRs.

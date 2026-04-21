@@ -23,15 +23,15 @@ MARKER = "[memory-bank-skill]"
 # the [memory-bank-skill] marker. Matched as plain substrings against the
 # first hook's command. Keep these in sync with anything that ever shipped.
 LEGACY_PATTERNS: list[str] = [
-    "[SYSTEM] Прочитай ~/.claude/CLAUDE.md",          # Setup (ru, unmarked)
+    "[SYSTEM] \u041f\u0440\u043e\u0447\u0438\u0442\u0430\u0439 ~/.claude/CLAUDE.md",  # Setup (legacy localized, unmarked)
     "[SYSTEM] Read ~/.claude/CLAUDE.md",              # Setup (en, unmarked)
-    "'[PRE-WRITE] TDD",                               # PreToolUse echo (ru, unmarked)
+    "'[PRE-WRITE] TDD",                               # PreToolUse echo (legacy localized, unmarked)
     "'[PRE-WRITE] no TODO",                           # PreToolUse echo (en, unmarked)
-    "[COMPACTION] Перед compaction",                  # PreCompact (ru, unmarked)
+    "[COMPACTION] \u041f\u0435\u0440\u0435\u0434 compaction",  # PreCompact (legacy localized, unmarked)
     "[COMPACTION] Before compaction",                 # PreCompact (en, unmarked)
-    "[MEMORY BANK] Рекомендация",                     # Stop (ru, unmarked)
+    "[MEMORY BANK] \u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u044f",  # Stop (legacy localized, unmarked)
     "[MEMORY BANK] Recommendation",                   # Stop (en, unmarked)
-    '"Claude Code ждёт внимания"',                    # Notification (ru, unmarked)
+    '"Claude Code \u0436\u0434\u0451\u0442 \u0432\u043d\u0438\u043c\u0430\u043d\u0438\u044f"',  # Notification (legacy localized, unmarked)
     '"Claude Code needs attention"',                  # Notification (en, unmarked)
 ]
 

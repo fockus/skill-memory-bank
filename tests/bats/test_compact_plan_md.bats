@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for v3.1 /mb compact — plan.md "Отложено" / "Отклонено" migration.
+# Tests for v3.1 /mb compact — legacy localized Deferred / Declined migration.
 #
 # Contract (extension to mb-compact.sh):
 #   --apply on plan.md:
-#     • For each bullet under `## Отложено` section → move to BACKLOG.md as
+#     • For each bullet under the localized `Deferred` section → move to BACKLOG.md as
 #       `### I-NNN — <text> [MED, DEFERRED, YYYY-MM-DD]`
-#     • For each bullet under `## Отклонено` section → move as
+#     • For each bullet under the localized `Declined` section → move as
 #       `### I-NNN — <text> [LOW, DECLINED, YYYY-MM-DD]`
 #     • Removes bullets from plan.md (empties the sections).
 #   Also accepts English equivalents: "Deferred" / "Declined".
@@ -43,12 +43,12 @@ Test.
 <!-- mb-active-plans -->
 <!-- /mb-active-plans -->
 
-## Отложено
+## Deferred
 
 - Telemetry opt-in
 - Remote backend sync
 
-## Отклонено
+## Declined
 
 - Auto-commit on save (YAGNI)
 EOF
@@ -64,14 +64,14 @@ teardown() {
   [[ "$output" == *"plan_md_ideas_to_migrate=3"* ]]
 }
 
-@test "compact-plan-md: --apply moves Deferred (RU) bullets to BACKLOG as DEFERRED" {
+@test "compact-plan-md: --apply moves Deferred bullets to BACKLOG as DEFERRED" {
   bash "$COMPACT" --apply "$MB"
 
   grep -qE '### I-00[0-9]+ — Telemetry opt-in \[MED, DEFERRED' "$MB/BACKLOG.md"
   grep -qE '### I-00[0-9]+ — Remote backend sync \[MED, DEFERRED' "$MB/BACKLOG.md"
 }
 
-@test "compact-plan-md: --apply moves Declined (RU) bullets as DECLINED" {
+@test "compact-plan-md: --apply moves Declined bullets as DECLINED" {
   bash "$COMPACT" --apply "$MB"
   grep -qE '### I-00[0-9]+ — Auto-commit on save \(YAGNI\) \[LOW, DECLINED' "$MB/BACKLOG.md"
 }
@@ -86,22 +86,23 @@ teardown() {
 
 @test "compact-plan-md: keeps section headings empty (for future additions)" {
   bash "$COMPACT" --apply "$MB"
-  grep -q '^## Отложено' "$MB/plan.md"
-  grep -q '^## Отклонено' "$MB/plan.md"
+  grep -q '^## Deferred' "$MB/plan.md"
+  grep -q '^## Declined' "$MB/plan.md"
 }
 
-@test "compact-plan-md: English aliases (Deferred/Declined) work too" {
+@test "compact-plan-md: legacy localized aliases also work" {
   cat > "$MB/plan.md" <<'EOF'
 # Project — Plan
 
-## Deferred
+## __LOCALIZED_DEFERRED__
 
 - Later thing
 
-## Declined
+## __LOCALIZED_DECLINED__
 
 - Never thing
 EOF
+  perl -0pi -e 's/__LOCALIZED_DEFERRED__/\x{041E}\x{0442}\x{043B}\x{043E}\x{0436}\x{0435}\x{043D}\x{043E}/g; s/__LOCALIZED_DECLINED__/\x{041E}\x{0442}\x{043A}\x{043B}\x{043E}\x{043D}\x{0435}\x{043D}\x{043E}/g' "$MB/plan.md"
 
   bash "$COMPACT" --apply "$MB"
   grep -qE '### I-00[0-9]+ — Later thing \[MED, DEFERRED' "$MB/BACKLOG.md"

@@ -48,7 +48,7 @@ count_matching_files() {
 
 # ═══ Arg parsing ═══
 VALID_CLIENTS=(claude-code cursor windsurf cline kilo opencode pi codex)
-VALID_LANGUAGES=(en ru)
+VALID_LANGUAGES=(en ru es zh)
 CLIENTS=""                  # unset sentinel — triggers interactive or default
 LANGUAGE=""                 # unset sentinel — triggers interactive or default
 PROJECT_ROOT="$PWD"
@@ -67,8 +67,9 @@ Options:
                                  opencode, pi, codex
                           If omitted and running in a TTY → interactive menu.
                           Non-TTY default: claude-code only.
-  --language <code>       Preferred response/comment language for installed rules.
-                          Valid: en, ru
+  --language <code>       Preferred locale for rules + .memory-bank/ templates.
+                          Valid: en, ru, es, zh
+                          (es/zh ship as scaffolds awaiting community translations)
                           If omitted and running in a TTY → interactive prompt.
                           Non-TTY default: en.
   --project-root <path>   Target directory for cross-agent adapters (default: PWD).

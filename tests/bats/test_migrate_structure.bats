@@ -7,7 +7,7 @@
 #   --apply: perform migration + create `.memory-bank/.pre-migrate/<timestamp>/` backup.
 #   Detection:
 #     • legacy if plan.md has `<!-- mb-active-plan -->` (singular) but NOT plural variant
-#     • OR BACKLOG.md has raw `## Ideas` with `(пока нет)` / `(empty)` placeholder
+#     • OR BACKLOG.md has raw `## Ideas` with a legacy `(none yet)` / `(empty)` placeholder
 #     • OR STATUS.md lacks `<!-- mb-active-plans -->` / `<!-- mb-recent-done -->` markers
 #   Actions:
 #     • Upgrade markers: `<!-- mb-active-plan -->` → `<!-- mb-active-plans -->` in plan.md + STATUS.md
@@ -83,8 +83,8 @@ teardown() {
 
   grep -qE '^## Ideas' "$TMPBANK/BACKLOG.md"
   grep -qE '^## ADR'   "$TMPBANK/BACKLOG.md"
-  # placeholder "(пока нет)" should be removed
-  ! grep -q 'пока нет' "$TMPBANK/BACKLOG.md"
+  # legacy placeholder should be removed
+  ! grep -qF $'\u043f\u043e\u043a\u0430 \u043d\u0435\u0442' "$TMPBANK/BACKLOG.md"
 }
 
 @test "migrate: --apply is idempotent (second run no-op on already-migrated bank)" {

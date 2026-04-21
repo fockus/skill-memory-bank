@@ -78,8 +78,8 @@ pass:
 1. **`checklist.md`** — stage sections whose every item is ticked *and* whose
    linked plan already lives in `plans/done/` for more than
    `MB_COMPACT_CHECKLIST_DAYS` days (default 14) are removed on `--apply`.
-2. **`plan.md`** — bullets in `## Отложено` / `## Deferred` and
-   `## Отклонено` / `## Declined` sections are migrated into `BACKLOG.md` as
+2. **`plan.md`** — bullets in legacy localized `Deferred` / `Declined`
+   sections are migrated into `BACKLOG.md` as
    fresh `I-NNN` ideas with status `DEFERRED` / `DECLINED` respectively, and
    removed from `plan.md` (section heading preserved for future entries).
 

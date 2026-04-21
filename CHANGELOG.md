@@ -4,6 +4,46 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [3.1.1] — 2026-04-21
+
+**i18n infrastructure release.** Memory Bank now ships locale-aware
+`.memory-bank/` template bundles. Existing English users are unaffected —
+this is a pure capability addition.
+
+### Added
+
+- **Locale template bundles under `templates/locales/{en,ru,es,zh}/.memory-bank/`.**
+  `en` and `ru` ship as full translations; `es` and `zh` ship as scaffolds
+  (EN copy + `TODO(i18n-<lang>)` banner) that the community can complete via
+  PR — see [`docs/i18n.md`](i18n.md).
+- **New `scripts/mb-config.sh`** — 4-tier locale resolver:
+  1. `MB_LANG` env var
+  2. `$MB_ROOT/.memory-bank/.mb-config` (`lang=XX`)
+  3. Heuristic auto-detect from existing bank content (Cyrillic → `ru`) with
+     write-back for determinism
+  4. Default `en`
+- **New `scripts/mb-init-bank.sh`** — deterministic, locale-aware bank
+  scaffolder. Respects `--lang=XX`, `MB_LANG`, existing `.mb-config`; never
+  overwrites user-authored files.
+- **`memory-bank init --lang=XX`** CLI flag and **`/mb init --lang=XX`**
+  command form.
+- **`install.sh --language {en|ru|es|zh}`** — expanded whitelist (was `en|ru`).
+- **`docs/i18n.md`** — contributor guide for adding a new locale.
+
+### Contract
+
+- Canonical English anchors (`<!-- mb-active-plans -->`,
+  `<!-- mb-recent-done -->`, `## Ideas`, `## ADR`) remain English in **every**
+  locale bundle — every `mb-*` script depends on them.
+- `commands/mb.md`, script CLI output, and the main English docs stay English.
+
+### Coverage
+
+- 216 pytest + 14 skipped (pytest suite)
+- 14/14 `mb-config` bats
+- 9/9 `mb-init-bank` bats
+- 28/28 install/uninstall e2e bats
+
 ## [3.1.0] — 2026-04-21
 
 **Major refactor of core Memory Bank files** (`STATUS.md`, `plan.md`, `checklist.md`, `BACKLOG.md`) with stricter formats, multi-active plan support, monotonic idea IDs, and a dedicated `mb-compact.sh` extension that prunes stale `checklist.md` / `plan.md` entries.
@@ -27,7 +67,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - **`scripts/mb-plan-done.sh` is fully redesigned.** Instead of just ticking checkboxes, it now (1) removes the plan's stage sections from `checklist.md` entirely, (2) removes its entry from the active-plans blocks in `plan.md` + `STATUS.md`, (3) prepends the completed plan to `<!-- mb-recent-done -->` in `STATUS.md` (trimmed to `MB_RECENT_DONE_LIMIT`, default 10), (4) flips any linked `BACKLOG.md` idea from `PLANNED` → `DONE` and appends an `**Outcome:**` placeholder, and (5) moves the plan file to `plans/done/`.
 - **`scripts/mb-compact.sh` extended** with `checklist.md` + `plan.md` compaction:
   - `CHECKLIST_AGE_DAYS` (default 14) — fully-done checklist sections that link to a `plans/done/` file older than this threshold are removed on `--apply`.
-  - Bullets inside `plan.md` `## Отложено` / `## Deferred` (and `## Отклонено` / `## Declined`) are migrated into `BACKLOG.md` as new ideas with status `DEFERRED` (or `DECLINED`) and removed from `plan.md`. Section headings are preserved empty for future use.
+  - Bullets inside legacy localized `plan.md` `Deferred` / `Declined` sections are migrated into `BACKLOG.md` as new ideas with status `DEFERRED` (or `DECLINED`) and removed from `plan.md`. Section headings are preserved empty for future use.
 - **`templates/.memory-bank/`** — `STATUS.md`, `plan.md`, `checklist.md`, `BACKLOG.md` redesigned around the new marker blocks and ID schemes. Header comments explain each file's role, size recommendations, and script contracts (deliberately avoid mentioning literal marker names to prevent regex false-positives in format-invariant tests).
 - **`references/structure.md`** — rewritten as the v3.1 specification. Defines format invariants, lifecycle (NEW → TRIAGED → PLANNED → DONE / DEFERRED / DECLINED), ID schemes (`I-NNN`, `ADR-NNN`, `H-NNN`, `EXP-NNN`), control env vars (`MB_RECENT_DONE_LIMIT`, `MB_COMPACT_CHECKLIST_DAYS`, `MB_COMPACT_AGE_DAYS`), and per-file / per-directory contracts.
 - **`commands/mb.md`** — new subcommands `/mb idea`, `/mb idea-promote`, `/mb adr`, `/mb migrate-structure` documented in the routing table and body sections.
@@ -47,7 +87,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - `test_idea_promote.bats` (6 tests) — plan creation from idea, `NEW → PLANNED` flip, plan cross-link, active-plans registration.
   - `test_adr.bats` (6 tests) — monotonic `ADR-NNN`, skeleton sections, date format.
   - `test_compact_checklist.bats` (6 tests) — fully-done section removal linked to old `plans/done/`, env-var override.
-  - `test_compact_plan_md.bats` (7 tests) — Отложено → `DEFERRED`, Отклонено → `DECLINED`, English alias support.
+  - `test_compact_plan_md.bats` (7 tests) — localized `Deferred` → `DEFERRED`, localized `Declined` → `DECLINED`, English alias support.
   - `test_migrate_structure.bats` (8 tests) — dry-run / apply modes, backup creation, marker upgrade, skeleton injection, idempotency.
   - `test_templates_format.py` — format invariants for all four core templates.
 - **`test_plan_sync.bats` (legacy)** updated to the v3.1 contract (single-plan edge cases + error handling); multi-plan behaviour lives in the new suites.

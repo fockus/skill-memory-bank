@@ -114,7 +114,7 @@ memory-bank install --clients claude-code,cursor --language en
 Claude Code/OpenCode can front this through `/mb install`, then run `memory-bank install --clients <selected>` for the current project. In Codex use the CLI directly; Codex gets global skill discovery plus `~/.codex/AGENTS.md` hints, not a native `/mb` command surface.
 
 Supported client names: `claude-code`, `cursor`, `windsurf`, `cline`, `kilo`, `opencode`, `pi`, `codex`.
-Supported rule languages: `en`, `ru`. You can also set `MB_LANGUAGE=en|ru`.
+Supported rule languages: `en` (default), `ru` (full translation), `es`/`zh` (scaffolds — community PRs welcome, see [docs/i18n.md](docs/i18n.md)). You can also set `MB_LANGUAGE=en|ru|es|zh`.
 
 Full per-client details: [docs/cross-agent-setup.md](docs/cross-agent-setup.md).
 
@@ -317,7 +317,7 @@ xclip -selection clipboard < ~/.cursor/memory-bank-user-rules.md   # Linux
 After `pipx install memory-bank-skill`:
 
 ```bash
-memory-bank install [--clients <list>] [--language <en|ru>] [--project-root <path>] [--non-interactive]
+memory-bank install [--clients <list>] [--language <en|ru|es|zh>] [--project-root <path>] [--non-interactive]
 memory-bank uninstall
 memory-bank init                    # prints /mb init hint
 memory-bank version

@@ -39,7 +39,7 @@ VALID_CLIENTS = (
     "pi",
     "codex",
 )
-VALID_LANGUAGES = ("en", "ru")
+VALID_LANGUAGES = ("en", "ru", "es", "zh")
 
 
 # ═══ Platform detection ═══
@@ -169,11 +169,14 @@ def cmd_uninstall(_args: argparse.Namespace) -> int:
 def cmd_init(args: argparse.Namespace) -> int:
     # `/mb init` is handled by Claude Code command; CLI just hints
     target = args.project_root or os.getcwd()
+    lang = args.lang or "en"
     sys.stdout.write(
         f"[memory-bank] To initialize Memory Bank for a project, run inside Claude Code:\n"
-        f"    /mb init\n\n"
+        f"    /mb init --lang {lang}\n\n"
         f"  Target project: {target}\n"
-        f"  This creates .memory-bank/ with STATUS.md, checklist.md, plan.md, RESEARCH.md.\n"
+        f"  Locale: lang={lang}\n"
+        f"  This creates .memory-bank/ with STATUS.md, plan.md, checklist.md, "
+        f"BACKLOG.md, RESEARCH.md, progress.md, lessons.md.\n"
     )
     return 0
 
@@ -252,6 +255,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_init = sub.add_parser("init", help="Print initialization hint (use /mb init inside Claude Code)")
     p_init.add_argument("--project-root", help="Target project directory (default: PWD)")
+    p_init.add_argument(
+        "--lang",
+        choices=VALID_LANGUAGES,
+        default=None,
+        help=f"Preferred locale for .memory-bank/ templates. "
+             f"Valid: {', '.join(VALID_LANGUAGES)}. Default: en.",
+    )
     p_init.set_defaults(func=cmd_init)
 
     p_version = sub.add_parser("version", help="Print version")

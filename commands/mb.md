@@ -599,7 +599,7 @@ User: /mb help tags
 - `/help` — built-in Claude Code command (not a skill).
 - `commands/catchup.md` / `commands/start.md` / `commands/done.md` — standalone top-level slash commands (lightweight), not `/mb` subcommands.
 
-### init [--minimal|--full]
+### init [--minimal|--full] [--lang=XX]
 
 Initialize Memory Bank in a new project.
 
@@ -607,6 +607,16 @@ Initialize Memory Bank in a new project.
 
 - `--minimal` — only `.memory-bank/` structure + core files. For advanced users who will write `CLAUDE.md` themselves.
 - `--full` (default, if no flag is provided) — `.memory-bank/` + `RULES.md` copy + stack auto-detect + `CLAUDE.md` generation + optional `.planning/` symlink prompt.
+
+**Locale (`--lang`)** — since v3.1.1 Memory Bank ships localized template bundles:
+
+- `--lang=en` (default) — English templates
+- `--lang=ru` — full Russian translation
+- `--lang=es`, `--lang=zh` — scaffolds (EN copy + `TODO(i18n-<lang>)` banner; community translations welcome via PR, see `docs/i18n.md`)
+
+Locale resolution (highest → lowest): `--lang` flag → `MB_LANG` env → `.memory-bank/.mb-config` (`lang=XX`) → auto-detect from existing bank content → `en`.
+
+The agent should invoke `scripts/mb-init-bank.sh --lang=<resolved>` to copy the correct `templates/locales/<lang>/.memory-bank/` bundle. Canonical anchors (`<!-- mb-active-plans -->`, `## Ideas`, `## ADR`) stay English across every locale — every `mb-*` script depends on them.
 
 ---
 
@@ -958,7 +968,7 @@ One-shot migrator for the v3.0 → v3.1 Memory Bank file structure. Safe to run 
 - `plan.md` has singular `<!-- mb-active-plan -->` marker (but not plural variant).
 - `plan.md` uses the legacy text-only "## Active plan" + "**Active plan:** `plans/...`" without a HTML-comment block.
 - `STATUS.md` is missing `<!-- mb-active-plans -->` or `<!-- mb-recent-done -->` blocks.
-- `BACKLOG.md` contains `(пока нет)` / `(empty)` placeholders or lacks `## ADR`.
+- `BACKLOG.md` contains legacy placeholder markers such as `(empty)` or lacks `## ADR`.
 
 **Effect of `--apply`:**
 
@@ -1010,4 +1020,3 @@ User: /mb migrate-structure --apply
 - After execution — show the user a short result summary
 - progress.md = APPEND-ONLY
 - Numbering is global: H-NNN, EXP-NNN, ADR-NNN
-

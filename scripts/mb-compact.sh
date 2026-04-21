@@ -239,7 +239,7 @@ apply_note_archive() {
   echo "[apply] archived note: $rel → notes/archive/"
 }
 
-# ─── v3.1: checklist.md section removal + plan.md "Отложено/Отклонено" migration ───
+# ─── v3.1: checklist.md section removal + legacy localized Deferred/Declined migration ───
 
 # Print list of fully-done `## ` sections in checklist.md that are linked to
 # a plan file in `plans/done/` older than CHECKLIST_AGE_DAYS.
@@ -327,8 +327,8 @@ open(path, "w", encoding="utf-8").write(new_text)
 PY
 }
 
-# Emit bullets to migrate from plan.md's "Отложено/Deferred" → DEFERRED
-# and "Отклонено/Declined" → DECLINED. Format: <status>\t<text>
+# Emit bullets to migrate from plan.md's localized `Deferred` / `Declined`
+# sections into DEFERRED / DECLINED. Format: <status>\t<text>
 collect_plan_md_bullets() {
   local plan="$MB_PATH/plan.md"
   [ -f "$plan" ] || return 0
@@ -338,8 +338,8 @@ import sys
 
 text = open(sys.argv[1], encoding="utf-8").read()
 sections = re.split(r'(?m)^(?=## )', text)
-DEFERRED = {"Отложено", "Deferred"}
-DECLINED = {"Отклонено", "Declined"}
+DEFERRED = {"\u041e\u0442\u043b\u043e\u0436\u0435\u043d\u043e", "Deferred"}
+DECLINED = {"\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e", "Declined"}
 
 for section in sections:
     lines = section.splitlines()
@@ -372,8 +372,8 @@ plan_path, backlog_path = sys.argv[1], sys.argv[2]
 plan_text = open(plan_path, encoding="utf-8").read()
 backlog_text = open(backlog_path, encoding="utf-8").read()
 
-DEFERRED = {"Отложено", "Deferred"}
-DECLINED = {"Отклонено", "Declined"}
+DEFERRED = {"\u041e\u0442\u043b\u043e\u0436\u0435\u043d\u043e", "Deferred"}
+DECLINED = {"\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e", "Declined"}
 
 sections = re.split(r'(?m)^(?=## )', plan_text)
 migrated = []

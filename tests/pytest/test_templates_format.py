@@ -1,17 +1,19 @@
 """Format invariants for templates/.memory-bank/ core files (v3.1 structure).
 
-Гарантии, на которые опираются скрипты `mb-plan-sync.sh`, `mb-plan-done.sh`,
-`mb-idea.sh`, `mb-idea-promote.sh`, `mb-adr.sh` и `mb-compact.sh`:
+Guarantees relied on by `mb-plan-sync.sh`, `mb-plan-done.sh`,
+`mb-idea.sh`, `mb-idea-promote.sh`, `mb-adr.sh`, and `mb-compact.sh`:
 
-- plan.md:     один блок `<!-- mb-active-plans --> ... <!-- /mb-active-plans -->`,
-               секции `## Current focus`, `## Active plans`, `## Отложено`, `## Отклонено`.
-- STATUS.md:   блоки `<!-- mb-active-plans -->` и `<!-- mb-recent-done -->`,
-               секции `## Metrics`, `## Active plans`, `## Recently done (last 10)`.
-- BACKLOG.md:  секции `## Ideas` и `## ADR`, без placeholder-а `(пока нет)`.
-- checklist.md: начинается с `# Project — Checklist` (или `# Checklist`) и
-               содержит хотя бы один ⬜ пункт (smoke).
+- plan.md:     exactly one `<!-- mb-active-plans --> ... <!-- /mb-active-plans -->`
+               block, plus `## Current focus`, `## Active plans`, `## Deferred`,
+               and `## Declined` sections.
+- STATUS.md:   `<!-- mb-active-plans -->` and `<!-- mb-recent-done -->` blocks,
+               plus `## Metrics`, `## Active plans`, `## Recently done`.
+- BACKLOG.md:  `## Ideas` and `## ADR` sections, without a legacy `(none yet)`
+               placeholder.
+- checklist.md: starts with `# Project — Checklist` (or `# Checklist`) and
+               contains at least one ⬜ item (smoke).
 
-Тесты падают, если кто-то правит templates, ломая контракт скриптов.
+These tests fail if someone edits the templates and breaks the script contract.
 """
 
 from __future__ import annotations
@@ -56,8 +58,8 @@ def test_plan_md_has_required_sections() -> None:
     for section in (
         "## Current focus",
         "## Active plans",
-        "## Отложено",
-        "## Отклонено",
+        "## Deferred",
+        "## Declined",
     ):
         assert section in text, f"plan.md missing section: {section}"
 
@@ -94,7 +96,7 @@ def test_backlog_has_ideas_and_adr_sections() -> None:
 
 def test_backlog_has_no_legacy_placeholder() -> None:
     text = _read("BACKLOG.md")
-    assert "пока нет" not in text, "legacy '(пока нет)' placeholder must be removed"
+    assert "none yet" not in text, "legacy '(none yet)' placeholder must be removed"
 
 
 # ── checklist.md ─────────────────────────────────────────────────────────

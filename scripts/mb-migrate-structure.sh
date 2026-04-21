@@ -9,7 +9,7 @@
 #      "## Active plan"/"**Active plan:**" to a plural block.
 #   3. Ensure STATUS.md has `<!-- mb-active-plans -->` + `<!-- mb-recent-done -->` blocks.
 #   4. Rewrite BACKLOG.md to skeleton with `## Ideas` + `## ADR` sections
-#      (strip "(пока нет)" / "(empty)" placeholders; keep any real ideas).
+#      (strip legacy "(none yet)" / "(empty)" placeholders; keep any real ideas).
 #
 # Idempotent: second run detects 0 actions.
 
@@ -40,6 +40,7 @@ MB_PATH=$(cd "$MB_PATH" && pwd)
 PLAN="$MB_PATH/plan.md"
 STATUS="$MB_PATH/STATUS.md"
 BACKLOG="$MB_PATH/BACKLOG.md"
+LEGACY_NONE_YET=$'\u043f\u043e\u043a\u0430 \u043d\u0435\u0442'
 
 # ─── Detection ──────────────────────────────────────────────────────────────
 actions=()
@@ -58,7 +59,8 @@ if [ -f "$STATUS" ]; then
 fi
 
 if [ -f "$BACKLOG" ]; then
-  if grep -qE 'пока нет|\(empty\)' "$BACKLOG" \
+  if grep -qF "$LEGACY_NONE_YET" "$BACKLOG" \
+     || grep -qE '\(empty\)' "$BACKLOG" \
      || ! grep -qE '^## ADR\s*$' "$BACKLOG"; then
     actions+=("BACKLOG.md: restructure to skeleton (## Ideas + ## ADR)")
   fi
@@ -195,7 +197,7 @@ path = sys.argv[1]
 text = open(path, encoding="utf-8").read()
 
 # Strip common placeholders
-text = re.sub(r'(?m)^[\s]*\(пока нет\)[\s]*$', '', text)
+text = re.sub(r'(?m)^[\s]*\(\u043f\u043e\u043a\u0430 \u043d\u0435\u0442\)[\s]*$', '', text)
 text = re.sub(r'(?m)^[\s]*\(empty\)[\s]*$', '', text)
 
 if not re.search(r'(?m)^# ', text):
