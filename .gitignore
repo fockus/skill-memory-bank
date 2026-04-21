@@ -1,5 +1,6 @@
 .installed-manifest.json
 *.backup.*
+*.pre-mb-backup.*
 .DS_Store
 .env
 *.env
@@ -12,7 +13,16 @@ __pycache__/
 htmlcov/
 .pytest_cache/
 .ruff_cache/
-.memory-bank/codebase/.cache/
+
+# Project-local memory bank (dogfood). Contains session-specific status, plans,
+# and progress logs that are not part of the distributed skill — they live in
+# /.memory-bank/ of every consumer project. Never ship them in the public skill repo.
+/.memory-bank/
+
+# Build artifacts
+/dist/
+/build/
+*.egg-info/
 
 # Cross-agent adapter output from dogfood / test installs in this repo
 # (the skill writes these into any project where `/install` runs — when we
