@@ -26,12 +26,15 @@ Every new AI coding session is amnesia. You re-explain the project, re-state the
 ├── STATUS.md          ← where we are, what's next
 ├── checklist.md       ← current tasks (✅ / ⬜)
 ├── plan.md            ← priorities, direction
-├── RESEARCH.md        ← hypotheses, experiments
+├── RESEARCH.md        ← hypotheses log (H-NNN) + current experiment
+├── BACKLOG.md         ← parking lot for ideas + ADRs
 ├── progress.md        ← work log (append-only)
 ├── lessons.md         ← mistakes not to repeat
 ├── notes/             ← knowledge (5-15 line snippets)
 ├── plans/             ← detailed plans per feature/fix
-└── reports/           ← analysis, post-mortems
+├── reports/           ← analysis, post-mortems
+├── experiments/       ← EXP-NNN experiment artifacts
+└── codebase/          ← stack / architecture / conventions map (`/mb map`)
 ```
 
 This directory lives alongside your code (commit it, share it with your team, or `.gitignore` it — your call).
