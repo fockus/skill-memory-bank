@@ -6,7 +6,29 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ---
 
-## [3.0.0-rc2] — 2026-04-20
+## [3.0.0] — 2026-04-20
+
+First stable 3.x release. Combines the work from the `3.0.0-rc1` / `rc2` / `rc3`
+candidates: native cross-agent install (Claude Code, Codex, Cursor, OpenCode),
+five-artifact global parity for Cursor, byte-level idempotent `install.sh`,
+and the `memory-bank install` / `memory-bank uninstall` / `memory-bank doctor`
+CLI. Install via `pipx install memory-bank-skill` or `brew install fockus/tap/memory-bank`.
+
+### Fixed (idempotency, promoted from `3.0.0-rc3`)
+
+- **`install.sh` is now byte-level idempotent** — repeat runs on an up-to-date tree create **zero** `.pre-mb-backup.*` files.
+  - Root cause: `backup_if_exists()` did an unconditional `mv` on any existing target, and `install_file()` called it without comparing `src` / `dst` content. For localized files (`RULES.md`, Cursor paste-file) a raw `cmp -s src dst` never matched because `dst` had been language-substituted.
+  - Observed damage before the fix: 14 historic installs → 1628 accumulated `.pre-mb-backup.*` files; a single "clean" reinstall generated 48 backups, 37 of them byte-identical to the active file.
+- **New helpers** in `install.sh`:
+  - `install_file()` short-circuits via `cmp -s "$src" "$dst"` when content is already identical.
+  - `backup_if_exists()` accepts an optional 2nd arg `expected_content_path` and returns `2` (skip marker) on content match.
+  - `install_file_localized()` — composes expected post-install content in a temp file (`cp src` + `localize_path_inplace`), compares to `dst` via `cmp -s`, skips backup+write on match. Used for `RULES.md` in Step 1.
+  - `localize_path_inplace()` — substitution helper without the existence shortcut.
+  - `install_cursor_user_rules_paste()` rewritten with a compose-to-tmp + `cmp -s` skip instead of unconditional overwrite.
+- **Manifest `.backups[]`** is now filtered via `os.path.exists` — stale refs from user-cleaned `.pre-mb-backup.*` files are dropped instead of accumulating across installs.
+- **`tests/e2e/test_install_idempotent.bats`** — 5 bats scenarios: zero backups on repeat install, exactly-one backup per real content diff, zero backups after external delete, language-swap backs up only localize-target files, manifest lists only existing backup paths.
+
+**Result**: repeat install on an up-to-date tree → 0 backups. Language swap (`--language en` → `--language ru`) → exactly 2 backups (`RULES.md` + `memory-bank-user-rules.md`) and nothing else.
 
 ### Added
 

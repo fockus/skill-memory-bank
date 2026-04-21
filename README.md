@@ -379,13 +379,13 @@ A: No. Adapters use a marker pattern (`<!-- memory-bank:start/end -->` for MD fi
 A: `pipx upgrade memory-bank-skill` or `brew upgrade memory-bank`. Git-clone install: `cd ~/.claude/skills/skill-memory-bank && git pull && ./install.sh`.
 
 **Q: Does reinstalling create `.pre-mb-backup.*` files every time?**
-A: No. Since `3.0.0-rc3`, `install.sh` is byte-level idempotent: each target is compared via `cmp -s` to the expected post-install content (including localization) and backup is created only if content actually differs. Repeat installs on an up-to-date tree produce zero backups. Language swap (`--language en` → `--language ru`) backs up exactly the localize-target files (`RULES.md`, `memory-bank-user-rules.md`) and nothing else.
+A: No. Since `3.0.0`, `install.sh` is byte-level idempotent: each target is compared via `cmp -s` to the expected post-install content (including localization) and backup is created only if content actually differs. Repeat installs on an up-to-date tree produce zero backups. Language swap (`--language en` → `--language ru`) backs up exactly the localize-target files (`RULES.md`, `memory-bank-user-rules.md`) and nothing else.
 
 **Q: I want to remove everything.**
 A: `memory-bank uninstall` removes global install. Per-project adapters: `adapters/<client>.sh uninstall <project-dir>` (or drop the `.memory-bank/`, `.cursor/`, etc. directories manually).
 
 **Q: Is this production-ready?**
-A: Current version is a release candidate (`3.0.0-rc1`). Daily used on real projects. 461 automated tests green (bats + pytest). Stable API; rc only because we want 1-2 weeks of real-world usage before the stable tag.
+A: Yes. `3.0.0` is the first stable 3.x release. Daily used on real projects. Full test envelope green (bats + pytest). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.
 
 ---
 

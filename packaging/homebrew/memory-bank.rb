@@ -4,8 +4,10 @@ class MemoryBank < Formula
   desc "Universal long-term project memory for AI coding clients (Claude Code, Cursor, etc.)"
   homepage "https://github.com/fockus/skill-memory-bank"
   # url/sha256 updated after each release (brew bump-formula-pr or manual)
-  url "https://files.pythonhosted.org/packages/5a/12/be71032d252b888a40966c084916f3fdbd562f745c66462a21bec077a20d/memory_bank_skill-3.0.0rc1.tar.gz"
-  sha256 "551eb90e463994bd5fba259547d3da779a11e1226fd88507fad81fb08b9be5b8"
+  # After `v3.0.0` is pushed and PyPI publishes the sdist, replace the
+  # url + sha256 below via `brew bump-formula-pr` in the tap repo.
+  url "https://files.pythonhosted.org/packages/source/m/memory-bank-skill/memory_bank_skill-3.0.0.tar.gz"
+  sha256 "PENDING_AFTER_PYPI_PUBLISH"
   license "MIT"
   head "https://github.com/fockus/skill-memory-bank.git", branch: "main"
 
