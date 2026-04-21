@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [3.0.1] — 2026-04-21
+
+Patch release consolidating the command audit, docs-surface refactor,
+CI stabilization, and the migration to PyPI Trusted Publishing.
+
+### CI / release pipeline
+
+- **PyPI publishing switched to Trusted Publisher (OIDC).** `publish.yml` no longer uses the long-lived `PYPI_API_TOKEN` secret. The `publish-pypi` job now declares `environment: pypi` + `permissions: id-token: write`, and `pypa/gh-action-pypi-publish` auto-activates OIDC. Matches the PyPI-recommended auth path (`docs.pypi.org/trusted-publishers/`). The `pypi` GitHub environment is managed in repo Settings → Environments; it shows up as a green Deployments card on every successful release.
+- **`test.yml` installs `.[codegraph]` extras** so `tree-sitter` language bindings are present in CI. Without them `tests/pytest/test_codegraph_ts.py` silently skipped 14 scenarios, dragging coverage of `scripts/mb-codegraph.py` under the 85% threshold. Now coverage reports 92 %+ consistently.
+- **`shellcheck` SC2015 resolved in two scripts.** `scripts/mb-deps-check.sh` helpers (`say` / `say_err`) rewritten from the `A && B || C` pattern to explicit `if [ … ]; then …; fi`. `hooks/mb-compact-reminder.sh` subshell switched from `cmd || true` to `cmd; true` inside `$(…)`. Same behaviour, no more SC2015 warnings on lint CI.
+
+### Badges / docs surface
+
+- **Landing page badges (`site/index.html`) + README badges** aligned. 8 green shields total: tests CI, PyPI version, GitHub release, Python versions, Homebrew tap, monthly downloads, last commit, MIT license. All URLs carry a `v=300` cache-buster so `camo.githubusercontent.com` pulls the current shields.io SVG (without it, GitHub's camo proxy held onto the `v3.0.0rc1` image after the stable release).
+- **New `Docs` section on the landing page** with curated links to the install guide, `/mb` command reference, `CHANGELOG`, release process, and v1→v2 migration notes. Listed in the topnav.
+- **`CONTRIBUTING.md` + `SECURITY.md`** added to satisfy GitHub Community Standards (green Community tab, Security Policy link on the repo header). `CONTRIBUTING` documents the TDD workflow, dev-dependency setup (`.[codegraph,dev]`), Conventional Commits, and the four local lint/test gates. `SECURITY` documents supported versions (3.0.x active, 2.x critical-only until 2026-10, <2 EOL), the private reporting channel (GitHub Security Advisories), response SLAs, and the coordinated-disclosure policy.
+
 ### Commands refactor (audit-driven, 2026-04-21)
 
 - **Canonical command template** — `references/command-template.md` documents the required YAML frontmatter shape (`description`, `allowed-tools`, `argument-hint`), body structure, memory-bank integration snippets, alias pattern, and a pre-commit validation checklist. Linked from `SKILL.md`.
