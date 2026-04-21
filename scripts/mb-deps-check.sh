@@ -37,8 +37,12 @@ has_pymod() {
   python3 -c "import $1" >/dev/null 2>&1
 }
 
-say() { [ "$QUIET" -eq 0 ] && echo "$@" || true; }
-say_err() { [ "$QUIET" -eq 0 ] && echo "$@" >&2 || true; }
+say() {
+  if [ "$QUIET" -eq 0 ]; then echo "$@"; fi
+}
+say_err() {
+  if [ "$QUIET" -eq 0 ]; then echo "$@" >&2; fi
+}
 
 # ═══ OS detection ═══
 detect_os() {
