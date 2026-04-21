@@ -1,8 +1,13 @@
 # memory-bank-skill
 
-[![test](https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml/badge.svg)](https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml)
-[![PyPI](https://img.shields.io/pypi/v/memory-bank-skill?color=blue)](https://pypi.org/project/memory-bank-skill/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/fockus/skill-memory-bank/test.yml?branch=main&label=tests&style=flat-square&color=brightgreen&v=300)](https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml)
+[![PyPI version](https://img.shields.io/pypi/v/memory-bank-skill?style=flat-square&color=brightgreen&label=pypi&v=300)](https://pypi.org/project/memory-bank-skill/)
+[![GitHub release](https://img.shields.io/github/v/release/fockus/skill-memory-bank?style=flat-square&color=brightgreen&label=release&v=300)](https://github.com/fockus/skill-memory-bank/releases/latest)
+[![Python versions](https://img.shields.io/pypi/pyversions/memory-bank-skill?style=flat-square&color=brightgreen&v=300)](https://pypi.org/project/memory-bank-skill/)
+[![Homebrew tap](https://img.shields.io/badge/homebrew-fockus%2Ftap-brightgreen?style=flat-square&v=300)](https://github.com/fockus/homebrew-tap)
+[![Downloads](https://img.shields.io/pypi/dm/memory-bank-skill?style=flat-square&color=brightgreen&v=300)](https://pypi.org/project/memory-bank-skill/)
+[![Last commit](https://img.shields.io/github/last-commit/fockus/skill-memory-bank?style=flat-square&color=brightgreen&v=300)](https://github.com/fockus/skill-memory-bank/commits/main)
+[![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square&v=300)](LICENSE)
 
 **Long-term project memory + dev toolkit for 8 AI coding agents.** Your AI remembers the project between sessions, follows the same engineering rules, and picks up exactly where you left off.
 
