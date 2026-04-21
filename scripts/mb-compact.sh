@@ -19,6 +19,7 @@ source "$(dirname "$0")/_lib.sh"
 PLAN_AGE_DAYS=60
 NOTE_AGE_DAYS=90
 ACTIVE_WARN_DAYS=180
+CHECKLIST_AGE_DAYS="${MB_COMPACT_CHECKLIST_DAYS:-30}"
 
 MODE="dry-run"
 MB_ARG=""
@@ -238,20 +239,218 @@ apply_note_archive() {
   echo "[apply] archived note: $rel → notes/archive/"
 }
 
+# ─── v3.1: checklist.md section removal + plan.md "Отложено/Отклонено" migration ───
+
+# Print list of fully-done `## ` sections in checklist.md that are linked to
+# a plan file in `plans/done/` older than CHECKLIST_AGE_DAYS.
+collect_checklist_candidates() {
+  local checklist="$MB_PATH/checklist.md"
+  [ -f "$checklist" ] || return 0
+  [ -d "$MB_PATH/plans/done" ] || return 0
+
+  python3 - "$checklist" "$MB_PATH/plans/done" "$CHECKLIST_AGE_DAYS" <<'PY'
+import os
+import re
+import sys
+import time
+
+checklist_path, done_dir, threshold_days = sys.argv[1], sys.argv[2], int(sys.argv[3])
+text = open(checklist_path, encoding="utf-8").read()
+
+sections = re.split(r'(?m)^(?=## )', text)
+now = time.time()
+
+done_plans = []
+if os.path.isdir(done_dir):
+    for name in os.listdir(done_dir):
+        if name.endswith(".md"):
+            full = os.path.join(done_dir, name)
+            done_plans.append((full, open(full, encoding="utf-8").read()))
+
+
+def linked_old_plan(heading: str) -> bool:
+    needle = f"### {heading.strip()}"
+    for path, content in done_plans:
+        if needle in content:
+            age_days = (now - os.path.getmtime(path)) / 86400
+            if age_days > threshold_days:
+                return True
+    return False
+
+
+for section in sections:
+    first = section.splitlines()[0] if section.splitlines() else ""
+    if not first.startswith("## "):
+        continue
+    heading = first[3:].strip()
+    items = [line for line in section.splitlines() if re.match(r'^\s*-\s', line)]
+    if not items:
+        continue
+    if any("⬜" in it or "[ ]" in it for it in items):
+        continue
+    if not all(("✅" in it) or ("[x]" in it.lower()) for it in items):
+        continue
+    if linked_old_plan(heading):
+        print(heading)
+PY
+}
+
+# Strip given `## <heading>` sections from checklist.md (in-place).
+apply_checklist_removal() {
+  local checklist="$MB_PATH/checklist.md" headings_file="$1"
+  [ -f "$checklist" ] || return 0
+  [ -s "$headings_file" ] || return 0
+  python3 - "$checklist" "$headings_file" <<'PY'
+import re
+import sys
+
+path, headings_file = sys.argv[1], sys.argv[2]
+text = open(path, encoding="utf-8").read()
+targets = {
+    line.strip() for line in open(headings_file, encoding="utf-8") if line.strip()
+}
+
+parts = re.split(r'(?m)^(?=## )', text)
+kept = []
+for p in parts:
+    first = p.splitlines()[0] if p.splitlines() else ""
+    if first.startswith("## "):
+        heading = first[3:].strip()
+        if heading in targets:
+            continue
+    kept.append(p)
+
+new_text = "".join(kept)
+# Collapse 3+ blank lines into max 2.
+new_text = re.sub(r'\n{3,}', '\n\n', new_text)
+open(path, "w", encoding="utf-8").write(new_text)
+PY
+}
+
+# Emit bullets to migrate from plan.md's "Отложено/Deferred" → DEFERRED
+# and "Отклонено/Declined" → DECLINED. Format: <status>\t<text>
+collect_plan_md_bullets() {
+  local plan="$MB_PATH/plan.md"
+  [ -f "$plan" ] || return 0
+  python3 - "$plan" <<'PY'
+import re
+import sys
+
+text = open(sys.argv[1], encoding="utf-8").read()
+sections = re.split(r'(?m)^(?=## )', text)
+DEFERRED = {"Отложено", "Deferred"}
+DECLINED = {"Отклонено", "Declined"}
+
+for section in sections:
+    lines = section.splitlines()
+    if not lines or not lines[0].startswith("## "):
+        continue
+    heading = lines[0][3:].strip()
+    if heading in DEFERRED:
+        status = "DEFERRED"
+    elif heading in DECLINED:
+        status = "DECLINED"
+    else:
+        continue
+    for line in lines[1:]:
+        m = re.match(r'^\s*-\s+(.*\S)\s*$', line)
+        if m:
+            print(f"{status}\t{m.group(1)}")
+PY
+}
+
+# Write DEFERRED/DECLINED ideas into BACKLOG.md and strip bullets from plan.md.
+apply_plan_md_migration() {
+  local plan="$MB_PATH/plan.md" backlog="$MB_PATH/BACKLOG.md"
+  [ -f "$plan" ] && [ -f "$backlog" ] || return 0
+  python3 - "$plan" "$backlog" <<'PY'
+import re
+import sys
+import datetime
+
+plan_path, backlog_path = sys.argv[1], sys.argv[2]
+plan_text = open(plan_path, encoding="utf-8").read()
+backlog_text = open(backlog_path, encoding="utf-8").read()
+
+DEFERRED = {"Отложено", "Deferred"}
+DECLINED = {"Отклонено", "Declined"}
+
+sections = re.split(r'(?m)^(?=## )', plan_text)
+migrated = []
+new_parts = []
+for section in sections:
+    lines = section.splitlines(keepends=True)
+    if not lines or not lines[0].startswith("## "):
+        new_parts.append(section)
+        continue
+    heading = lines[0][3:].strip()
+    if heading in DEFERRED:
+        status, prio = "DEFERRED", "MED"
+    elif heading in DECLINED:
+        status, prio = "DECLINED", "LOW"
+    else:
+        new_parts.append(section)
+        continue
+    kept_lines = [lines[0]]
+    for line in lines[1:]:
+        m = re.match(r'^\s*-\s+(.*\S)\s*$', line)
+        if m:
+            migrated.append((status, prio, m.group(1)))
+        else:
+            kept_lines.append(line)
+    new_parts.append("".join(kept_lines))
+
+new_plan = "".join(new_parts)
+new_plan = re.sub(r'\n{3,}', '\n\n', new_plan)
+
+if migrated:
+    ids = [int(m.group(1)) for m in re.finditer(r'I-(\d{3})', backlog_text)]
+    next_id = max(ids) + 1 if ids else 1
+    today = datetime.date.today().isoformat()
+    lines_out = []
+    for status, prio, text in migrated:
+        id_str = f"I-{next_id:03d}"
+        next_id += 1
+        lines_out.append(
+            f"\n### {id_str} — {text} [{prio}, {status}, {today}]\n"
+        )
+    if re.search(r'(?m)^## Ideas\s*$', backlog_text):
+        new_backlog = re.sub(
+            r'(?m)^(## Ideas\s*\n)',
+            lambda m: m.group(1) + "".join(lines_out),
+            backlog_text,
+            count=1,
+        )
+    else:
+        new_backlog = backlog_text.rstrip("\n") + "\n\n## Ideas\n" + "".join(lines_out)
+    open(backlog_path, "w", encoding="utf-8").write(new_backlog)
+
+open(plan_path, "w", encoding="utf-8").write(new_plan)
+PY
+}
+
 # ═══ Main ═══
 plan_candidates=$(collect_plan_candidates)
 note_candidates=$(collect_note_candidates)
 active_warnings=$(collect_active_plan_warnings)
+checklist_candidates=$(collect_checklist_candidates)
+plan_md_bullets=$(collect_plan_md_bullets)
 
 plan_count=0
 note_count=0
+checklist_count=0
+plan_md_count=0
 [ -n "$plan_candidates" ] && plan_count=$(echo "$plan_candidates" | grep -c .)
 [ -n "$note_candidates" ] && note_count=$(echo "$note_candidates" | grep -c .)
+[ -n "$checklist_candidates" ] && checklist_count=$(echo "$checklist_candidates" | grep -c .)
+[ -n "$plan_md_bullets" ] && plan_md_count=$(echo "$plan_md_bullets" | grep -c .)
 
 echo "mode=$MODE"
 echo "plans_candidates=$plan_count"
 echo "notes_candidates=$note_count"
-echo "candidates=$((plan_count + note_count))"
+echo "checklist_sections_to_remove=$checklist_count"
+echo "plan_md_ideas_to_migrate=$plan_md_count"
+echo "candidates=$((plan_count + note_count + checklist_count + plan_md_count))"
 
 if [ "$plan_count" -gt 0 ]; then
   echo ""
@@ -292,6 +491,17 @@ if [ "$MODE" = "apply" ]; then
       [ -z "$rel" ] && continue
       apply_note_archive "$rel"
     done <<< "$note_candidates"
+  fi
+  if [ -n "$checklist_candidates" ]; then
+    headings_tmp=$(mktemp)
+    printf '%s\n' "$checklist_candidates" > "$headings_tmp"
+    apply_checklist_removal "$headings_tmp"
+    rm -f "$headings_tmp"
+    echo "[apply] removed $checklist_count checklist section(s)"
+  fi
+  if [ -n "$plan_md_bullets" ]; then
+    apply_plan_md_migration
+    echo "[apply] migrated $plan_md_count plan.md idea(s) → BACKLOG.md"
   fi
   touch "$MB_PATH/.last-compact"
 fi

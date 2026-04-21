@@ -409,6 +409,8 @@ A: Yes. `3.0.0` is the first stable 3.x release. Daily used on real projects. Fu
 
 - **[Cross-agent setup](docs/cross-agent-setup.md)** — per-client cheatsheet + hook capability matrix
 - **[Install guide](docs/install.md)** — pipx / Homebrew / git-clone with troubleshooting
+- **[v3.0 → v3.1 migration](docs/MIGRATION-v3-v3.1.md)** — automatic structural upgrade (multi-active plans, `I-NNN` ideas, `ADR-NNN`)
+- **[v1 → v2 migration](docs/MIGRATION-v1-v2.md)** — older structural migration
 - **[Repository migration](docs/repo-migration.md)** — for users upgrading from `claude-skill-memory-bank`
 - **[Release process](docs/release-process.md)** — PyPI OIDC setup + tag workflow
 - **[CHANGELOG](CHANGELOG.md)** — version history

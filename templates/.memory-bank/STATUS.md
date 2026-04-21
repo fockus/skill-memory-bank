@@ -1,21 +1,29 @@
-# Project Status
+# Project — Status
 
-## Current Stage
-- Phase: Initial Setup
-- Focus: —
-- Blockers: None
 
-## Key Metrics
+
+**Current phase:** —
+**Focus:** —
+**Blockers:** none
+
+## Metrics
+
 - Tests: 0
 - Coverage: —
+- Last compact: —
 
-## Roadmap
+## Active plans
 
-### Завершено
-(пока пусто)
+<!-- mb-active-plans -->
+<!-- /mb-active-plans -->
 
-### В процессе
-(пока пусто)
 
-### Следующее
-(определится после планирования)
+## Recently done (last 10)
+
+<!-- mb-recent-done -->
+<!-- /mb-recent-done -->
+
+
+## Roadmap (high level)
+
+See [BACKLOG.md](BACKLOG.md) for the idea registry and ADRs.

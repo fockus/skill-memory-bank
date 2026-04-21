@@ -4,6 +4,68 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [3.1.0] — 2026-04-21
+
+**Major refactor of core Memory Bank files** (`STATUS.md`, `plan.md`, `checklist.md`, `BACKLOG.md`) with stricter formats, multi-active plan support, monotonic idea IDs, and a dedicated `mb-compact.sh` extension that prunes stale `checklist.md` / `plan.md` entries.
+
+### Breaking-ish (auto-migrated)
+
+- **`plan.md` / `STATUS.md` now carry multi-active plan blocks.** The singular `<!-- mb-active-plan -->` / `<!-- /mb-active-plan -->` markers are upgraded to plural `<!-- mb-active-plans -->` / `<!-- /mb-active-plans -->` and the heading `## Active plan` → `## Active plans`. `STATUS.md` gains a new `<!-- mb-recent-done -->` / `<!-- /mb-recent-done -->` block (default-trimmed to 10 entries via `MB_RECENT_DONE_LIMIT`).
+- **`BACKLOG.md` now has a fixed skeleton — `## Ideas` (with `### I-NNN — title [PRIO, STATUS, DATE]` entries) + `## ADR` (with `### ADR-NNN — title [date]` entries).** IDs are monotonic project-wide.
+- **Migration is automatic.** Run `bash scripts/mb-migrate-structure.sh --apply .memory-bank` (or `/mb migrate-structure --apply`). The script creates a timestamped `.pre-migrate/YYYYMMDD_HHMMSS/` backup before touching anything, upgrades marker names, and ensures the skeleton is present. Rerunning is a no-op (idempotent). See `docs/MIGRATION-v3-v3.1.md`.
+
+### Added
+
+- **`scripts/mb-idea.sh`** — capture a new idea in `BACKLOG.md ## Ideas` with an auto-assigned `I-NNN` ID (monotonic, project-wide). Usage: `bash scripts/mb-idea.sh "title" [HIGH|MED|LOW]`. Wired as `/mb idea`.
+- **`scripts/mb-idea-promote.sh`** — promote an existing idea (`I-NNN`) to a plan file. Validates idea is in `NEW`/`TRIAGED` state, calls `mb-plan.sh <type>`, flips idea status to `PLANNED`, adds `**Plan:**` cross-link, and runs `mb-plan-sync.sh` to register the new plan in `plan.md` + `STATUS.md`. Wired as `/mb idea-promote`.
+- **`scripts/mb-adr.sh`** — capture a new ADR in `BACKLOG.md ## ADR` with an auto-assigned `ADR-NNN` ID and a standard skeleton (Context / Options / Decision / Rationale / Consequences). Wired as `/mb adr`.
+- **`scripts/mb-migrate-structure.sh`** — one-shot v3.0 → v3.1 structural migration tool (dry-run by default; `--apply` to execute). Wired as `/mb migrate-structure`.
+
+### Changed
+
+- **`scripts/mb-plan-sync.sh` is now multi-active-plan aware.** Upserts the same plan into `<!-- mb-active-plans -->` blocks in *both* `plan.md` and `STATUS.md` (deduped by basename). Auto-upgrades legacy singular markers on first run. Stage sections are appended to `checklist.md` with exact-heading matching so two active plans never collide on identical stage titles.
+- **`scripts/mb-plan-done.sh` is fully redesigned.** Instead of just ticking checkboxes, it now (1) removes the plan's stage sections from `checklist.md` entirely, (2) removes its entry from the active-plans blocks in `plan.md` + `STATUS.md`, (3) prepends the completed plan to `<!-- mb-recent-done -->` in `STATUS.md` (trimmed to `MB_RECENT_DONE_LIMIT`, default 10), (4) flips any linked `BACKLOG.md` idea from `PLANNED` → `DONE` and appends an `**Outcome:**` placeholder, and (5) moves the plan file to `plans/done/`.
+- **`scripts/mb-compact.sh` extended** with `checklist.md` + `plan.md` compaction:
+  - `CHECKLIST_AGE_DAYS` (default 14) — fully-done checklist sections that link to a `plans/done/` file older than this threshold are removed on `--apply`.
+  - Bullets inside `plan.md` `## Отложено` / `## Deferred` (and `## Отклонено` / `## Declined`) are migrated into `BACKLOG.md` as new ideas with status `DEFERRED` (or `DECLINED`) and removed from `plan.md`. Section headings are preserved empty for future use.
+- **`templates/.memory-bank/`** — `STATUS.md`, `plan.md`, `checklist.md`, `BACKLOG.md` redesigned around the new marker blocks and ID schemes. Header comments explain each file's role, size recommendations, and script contracts (deliberately avoid mentioning literal marker names to prevent regex false-positives in format-invariant tests).
+- **`references/structure.md`** — rewritten as the v3.1 specification. Defines format invariants, lifecycle (NEW → TRIAGED → PLANNED → DONE / DEFERRED / DECLINED), ID schemes (`I-NNN`, `ADR-NNN`, `H-NNN`, `EXP-NNN`), control env vars (`MB_RECENT_DONE_LIMIT`, `MB_COMPACT_CHECKLIST_DAYS`, `MB_COMPACT_AGE_DAYS`), and per-file / per-directory contracts.
+- **`commands/mb.md`** — new subcommands `/mb idea`, `/mb idea-promote`, `/mb adr`, `/mb migrate-structure` documented in the routing table and body sections.
+
+### Fixed
+
+- **Python regex deprecation warnings** — replaced POSIX `[[:space:]]*` with `\s*` in the Python snippets embedded in `scripts/mb-compact.sh` and `scripts/mb-migrate-structure.sh`.
+- **BSD/GNU `awk` portability** — `mb-idea.sh` ID generation now uses `grep -Eo | awk -F- | sort -n | tail -1 || true` instead of GNU-only `awk match(..., arr)`. `mb-adr.sh` multiline skeleton is written to a temp file and pulled into `awk` via `getline` to avoid `awk: newline in string` on macOS.
+- **`mb-idea-promote.sh` Unicode-aware parsing** — title/status extraction switched from `sed -E` / `tr -d` (which failed on multibyte `—`) to Python `re.match`.
+
+### Tests (TDD RED→GREEN)
+
+- **8 new BATS suites, 1 new pytest suite:**
+  - `test_plan_sync_multi.bats` (8 tests) — multi-active plan upsert, idempotency, legacy-marker upgrade.
+  - `test_plan_done_multi.bats` (7 tests) — completion flow: recent-done prepend/trim, checklist section removal, BACKLOG status flip.
+  - `test_idea.bats` (7 tests) — monotonic `I-NNN` IDs, priority handling, idempotency, invalid-input validation.
+  - `test_idea_promote.bats` (6 tests) — plan creation from idea, `NEW → PLANNED` flip, plan cross-link, active-plans registration.
+  - `test_adr.bats` (6 tests) — monotonic `ADR-NNN`, skeleton sections, date format.
+  - `test_compact_checklist.bats` (6 tests) — fully-done section removal linked to old `plans/done/`, env-var override.
+  - `test_compact_plan_md.bats` (7 tests) — Отложено → `DEFERRED`, Отклонено → `DECLINED`, English alias support.
+  - `test_migrate_structure.bats` (8 tests) — dry-run / apply modes, backup creation, marker upgrade, skeleton injection, idempotency.
+  - `test_templates_format.py` — format invariants for all four core templates.
+- **`test_plan_sync.bats` (legacy)** updated to the v3.1 contract (single-plan edge cases + error handling); multi-plan behaviour lives in the new suites.
+- **`tests/e2e/test_install_uninstall.bats`** grew one assertion verifying the new v3.1 scripts (`mb-idea.sh`, `mb-idea-promote.sh`, `mb-adr.sh`, `mb-migrate-structure.sh`, `mb-compact.sh`) are installed and executable.
+
+### Migration guide
+
+See `docs/MIGRATION-v3-v3.1.md` for the step-by-step upgrade. TL;DR:
+
+```bash
+# 1. Install the new version
+pipx upgrade memory-bank-skill       # or brew upgrade memory-bank
+# 2. Run the automatic structural migration
+bash ~/.claude/skills/memory-bank/scripts/mb-migrate-structure.sh --apply .memory-bank
+# 3. Verify backup was created
+ls .memory-bank/.pre-migrate/
+```
+
 ## [3.0.1] — 2026-04-21
 
 Patch release consolidating the command audit, docs-surface refactor,

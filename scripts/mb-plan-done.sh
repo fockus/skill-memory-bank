@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
-# mb-plan-done.sh — close a plan.
+# mb-plan-done.sh — close an active plan.
 #
 # Usage:
 #   mb-plan-done.sh <plan-file> [mb_path]
 #
-# Effects:
-#   1. For each `(N, name)` pair from the plan: in the `checklist.md` section
-#      `## Stage N: <name>`, all `- ⬜ ...` are converted to `- ✅ ...`.
-#   2. The plan file is moved to `<mb_path>/plans/done/<basename>`.
-#   3. The contents of the `<!-- mb-active-plan --> … <!-- /mb-active-plan -->`
-#      block in `plan.md` are cleared (markers remain).
+# v3.1 effects:
+#   1. Remove plan's `## Stage N: <name>` sections from checklist.md (not tick).
+#   2. Remove plan's entry from `<!-- mb-active-plans -->` blocks in plan.md + STATUS.md.
+#   3. Prepend entry to `<!-- mb-recent-done -->` in STATUS.md.
+#      Format: `- YYYY-MM-DD — [plans/done/<basename>](plans/done/<basename>) — <title>`
+#      Trim block to MB_RECENT_DONE_LIMIT (default 10).
+#   4. If BACKLOG.md has an idea linked to this plan (`**Plan:** plans/<basename>`),
+#      flip its status to DONE and add `**Outcome:**` placeholder.
+#   5. Move plan-file → plans/done/<basename>.
 #
-# Requirement: the plan file must live inside `<mb_path>/plans/` (not in `done/`).
-# Exit codes: 0 OK, 1 usage/missing file, 2 parse error, 3 wrong location.
+# Requirement: plan-file must live under <mb_path>/plans/ (not already in done/).
+# Exit codes: 0 OK, 1 usage/missing, 2 parse error, 3 wrong location.
 
 set -euo pipefail
 
@@ -21,6 +24,7 @@ source "$(dirname "$0")/_lib.sh"
 
 PLAN_FILE="${1:?Usage: mb-plan-done.sh <plan-file> [mb_path]}"
 MB_PATH=$(mb_resolve_path "${2:-}")
+LIMIT="${MB_RECENT_DONE_LIMIT:-10}"
 
 if [ ! -f "$PLAN_FILE" ]; then
   echo "[error] Plan not found: $PLAN_FILE" >&2
@@ -30,9 +34,8 @@ fi
 PLANS_DIR="$MB_PATH/plans"
 DONE_DIR="$PLANS_DIR/done"
 
-# Validation: file must be inside `plans/` (and not already in `done/`)
 abs_plan=$(cd "$(dirname "$PLAN_FILE")" && pwd)/$(basename "$PLAN_FILE")
-abs_plans=$(cd "$PLANS_DIR" && pwd 2>/dev/null || echo "")
+abs_plans=$(cd "$PLANS_DIR" 2>/dev/null && pwd || echo "")
 abs_done=$(cd "$DONE_DIR" 2>/dev/null && pwd || echo "")
 
 if [ -z "$abs_plans" ] || [[ "$abs_plan" != "$abs_plans"/* ]]; then
@@ -46,12 +49,27 @@ fi
 
 CHECKLIST="$MB_PATH/checklist.md"
 PLAN_MD="$MB_PATH/plan.md"
+STATUS_MD="$MB_PATH/STATUS.md"
+BACKLOG_MD="$MB_PATH/BACKLOG.md"
 BASENAME=$(basename "$PLAN_FILE")
+TODAY=$(date +%Y-%m-%d)
 
 [ -f "$CHECKLIST" ] || { echo "[error] checklist.md not found" >&2; exit 1; }
 [ -f "$PLAN_MD" ]   || { echo "[error] plan.md not found" >&2; exit 1; }
 
-# ═══ Stage parsing (same as sync) ═══
+plan_title=$(awk '
+  /^# /{
+    sub(/^# [^:：]+[:：][[:space:]]*/, "")
+    sub(/^# /, "")
+    print
+    exit
+  }
+' "$PLAN_FILE")
+[ -n "$plan_title" ] || plan_title="$BASENAME"
+
+# ═══════════════════════════════════════════════════════════════
+# Stage parsing (needed to locate checklist sections to remove)
+# ═══════════════════════════════════════════════════════════════
 parse_stages() {
   awk '
     BEGIN { use_markers = 0 }
@@ -91,66 +109,170 @@ if [ -z "$stages" ]; then
   exit 2
 fi
 
-# ═══ Close ⬜ → ✅ inside plan sections in checklist ═══
-# Algorithm: for each stage, find the range (from `## Stage N:` to the next `## `)
-# and replace `- ⬜` → `- ✅` inside that range.
-close_stage_items() {
-  local checklist="$1" n="$2"
+# ═══════════════════════════════════════════════════════════════
+# Remove `## Stage N: <name>` sections from checklist.md
+# Section = from heading line through the line before the next `## ` (or EOF).
+# ═══════════════════════════════════════════════════════════════
+remove_stage_section() {
+  local checklist="$1" n="$2" name="$3"
+  local heading="## Stage ${n}: ${name}"
   local tmp
   tmp=$(mktemp)
 
-  awk -v n="$n" '
-    BEGIN { inside = 0 }
+  awk -v h="$heading" '
+    BEGIN { skip = 0 }
     /^## / {
-      # Check: is this `## Stage N:`?
-      if ($0 ~ "^## [^0-9]*" n ":") {
-        inside = 1
-      } else {
-        inside = 0
-      }
+      if ($0 == h) { skip = 1; next }
+      skip = 0
       print
       next
     }
-    {
-      if (inside && /^- ⬜ /) {
-        sub(/^- ⬜ /, "- ✅ ")
-      }
-      print
-    }
+    !skip { print }
   ' "$checklist" > "$tmp"
 
   mv "$tmp" "$checklist"
 }
 
-closed=0
-while IFS=$'\t' read -r n _name; do
+removed_sections=0
+while IFS=$'\t' read -r n name; do
   [ -n "$n" ] || continue
-  close_stage_items "$CHECKLIST" "$n"
-  closed=$((closed + 1))
+  remove_stage_section "$CHECKLIST" "$n" "$name"
+  removed_sections=$((removed_sections + 1))
 done <<< "$stages"
 
-# ═══ Clear active-plan block in plan.md ═══
-clear_active_plan_block() {
-  local plan_md="$1"
+# ═══════════════════════════════════════════════════════════════
+# Remove plan entry from mb-active-plans block in file
+# ═══════════════════════════════════════════════════════════════
+remove_active_plan_entry() {
+  local file="$1" basename="$2"
+  [ -f "$file" ] || return 0
   local tmp
   tmp=$(mktemp)
 
-  if grep -q '<!-- mb-active-plan -->' "$plan_md"; then
-    awk '
-      BEGIN { inside = 0 }
-      /<!-- mb-active-plan -->/ { print; inside = 1; next }
-      /<!-- \/mb-active-plan -->/ { inside = 0; print; next }
-      !inside { print }
-    ' "$plan_md" > "$tmp"
-    mv "$tmp" "$plan_md"
-  else
-    rm -f "$tmp"
-  fi
+  awk -v bn="$basename" '
+    BEGIN { inside=0 }
+    /<!-- mb-active-plans -->/ { inside=1; print; next }
+    /<!-- \/mb-active-plans -->/ { inside=0; print; next }
+    {
+      if (inside && index($0, bn) > 0) next
+      print
+    }
+  ' "$file" > "$tmp"
+
+  mv "$tmp" "$file"
 }
 
-clear_active_plan_block "$PLAN_MD"
+remove_active_plan_entry "$PLAN_MD" "$BASENAME"
+remove_active_plan_entry "$STATUS_MD" "$BASENAME"
 
-# ═══ Move the plan file ═══
+# ═══════════════════════════════════════════════════════════════
+# Prepend entry to mb-recent-done block in STATUS.md; trim to LIMIT
+# ═══════════════════════════════════════════════════════════════
+prepend_recent_done() {
+  local file="$1" basename="$2" title="$3" today="$4" limit="$5"
+  [ -f "$file" ] || return 0
+
+  local entry="- ${today} — [plans/done/${basename}](plans/done/${basename}) — ${title}"
+
+  # If block missing, inject it before EOF (best-effort legacy handling)
+  if ! grep -q '<!-- mb-recent-done -->' "$file"; then
+    {
+      printf '\n## Recently done\n\n<!-- mb-recent-done -->\n%s\n<!-- /mb-recent-done -->\n' "$entry"
+    } >> "$file"
+    return 0
+  fi
+
+  local tmp
+  tmp=$(mktemp)
+  awk -v entry="$entry" -v limit="$limit" '
+    BEGIN { inside=0; printed=0; count=0 }
+    /<!-- mb-recent-done -->/ {
+      print
+      print entry
+      inside=1
+      printed=1
+      count=1
+      next
+    }
+    /<!-- \/mb-recent-done -->/ {
+      inside=0
+      print
+      next
+    }
+    {
+      if (inside) {
+        if (/^[[:space:]]*$/) { print; next }
+        if (/^- /) {
+          if (count < limit) { print; count++; next }
+          else { next }
+        }
+        print
+        next
+      }
+      print
+    }
+  ' "$file" > "$tmp"
+
+  mv "$tmp" "$file"
+}
+
+prepend_recent_done "$STATUS_MD" "$BASENAME" "$plan_title" "$TODAY" "$LIMIT"
+
+# ═══════════════════════════════════════════════════════════════
+# Flip BACKLOG idea PLANNED → DONE (if linked to this plan)
+# ═══════════════════════════════════════════════════════════════
+flip_backlog_idea() {
+  local file="$1" basename="$2"
+  [ -f "$file" ] || return 0
+
+  if ! grep -qE "\*\*Plan:\*\*.*plans/${basename}" "$file"; then
+    return 0
+  fi
+
+  local tmp
+  tmp=$(mktemp)
+  python3 - "$file" "$basename" > "$tmp" <<'PY'
+import re
+import sys
+
+path, basename = sys.argv[1], sys.argv[2]
+text = open(path, encoding="utf-8").read()
+
+
+def flip_status(block: str) -> str:
+    bits = [b.strip() for b in block.split(",")]
+    for i, b in enumerate(bits):
+        if b.upper() in ("NEW", "TRIAGED", "PLANNED"):
+            bits[i] = "DONE"
+    return ", ".join(bits)
+
+
+parts = re.split(r'(?m)^(?=### I-\d+\s+—\s+)', text)
+out = []
+for part in parts:
+    if f"plans/{basename}" in part and "**Plan:**" in part:
+        part = re.sub(
+            r'^(### I-\d+\s+—\s+.*?\[)([^\]]*)(\])',
+            lambda m: m.group(1) + flip_status(m.group(2)) + m.group(3),
+            part,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if "**Outcome:**" not in part:
+            part = part.rstrip("\n") + "\n\n**Outcome:** closed via plan.\n"
+    out.append(part)
+
+sys.stdout.write("".join(out))
+PY
+
+  mv "$tmp" "$file"
+}
+
+flip_backlog_idea "$BACKLOG_MD" "$BASENAME"
+
+# ═══════════════════════════════════════════════════════════════
+# Move plan file to plans/done/
+# ═══════════════════════════════════════════════════════════════
 mkdir -p "$DONE_DIR"
 if [ -e "$DONE_DIR/$BASENAME" ]; then
   echo "[error] File already exists in done/: $DONE_DIR/$BASENAME" >&2
@@ -158,4 +280,4 @@ if [ -e "$DONE_DIR/$BASENAME" ]; then
 fi
 mv "$PLAN_FILE" "$DONE_DIR/$BASENAME"
 
-echo "[done] plan=$BASENAME closed_stages=$closed → plans/done/"
+echo "[done] plan=$BASENAME removed_sections=$removed_sections → plans/done/"

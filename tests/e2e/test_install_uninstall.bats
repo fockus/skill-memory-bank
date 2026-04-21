@@ -95,6 +95,14 @@ teardown() {
   done
 }
 
+@test "install: v3.1 scripts are executable (idea, idea-promote, adr, migrate-structure)" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  for s in mb-idea.sh mb-idea-promote.sh mb-adr.sh mb-migrate-structure.sh mb-compact.sh; do
+    [ -x "$HOME/.claude/skills/memory-bank/scripts/$s" ]
+  done
+}
+
 @test "install: skill bundle is complete for Claude and Codex aliases" {
   bash "$REPO_ROOT/install.sh" >/dev/null
 

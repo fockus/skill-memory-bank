@@ -1,12 +1,24 @@
-# Plan
+# Project — Plan
 
-## Active Plan
-None
 
-## Focus
-Initial project setup
 
-## Priorities
-1. Определить архитектуру
-2. Настроить инструменты
-3. Первая итерация
+## Current focus
+
+Initial project setup.
+
+## Active plans
+
+<!-- mb-active-plans -->
+<!-- /mb-active-plans -->
+
+
+## Next up
+
+See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
+
+## Отложено
+
+
+
+## Отклонено
+

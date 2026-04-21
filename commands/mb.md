@@ -39,6 +39,10 @@ Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words ar
 | `install [<clients>]`                                    | Install Memory Bank for the project. If `<clients>` is empty, ask for an 8-client multiselect (`claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex`). Calls `memory-bank install --clients ... --project-root $PWD`                                                                                |
 | `help [subcommand]`                                      | Help. No argument → list all subcommands. With argument → show details for that specific one (`/mb help compact`, `/mb help tags`, ...)                                                                                                                                                                  |
 | `deps [--install-hints]`                                 | Dependency check (required: `python3`, `jq`, `git`; optional: `rg`, `shellcheck`, `tree-sitter`, `PyYAML`). `--install-hints` prints OS-specific install commands                                                                                                                                        |
+| `idea <title> [HIGH\|MED\|LOW]`                          | Capture new idea in `BACKLOG.md` with auto-generated monotonic `I-NNN` ID (priority defaults to `MED`)                                                                                                                                                                                                    |
+| `idea-promote <I-NNN> <type>`                            | Promote an idea → plan. Creates plan file via `mb-plan.sh`, flips idea status `NEW\|TRIAGED → PLANNED`, adds `**Plan:** [plans/...]` link, runs plan-sync. `type ∈ feature\|fix\|refactor\|experiment`                                                                                                    |
+| `adr <title>`                                            | Capture Architecture Decision Record with auto-generated monotonic `ADR-NNN` ID inside `BACKLOG.md ## ADR` section — skeleton includes Context / Options / Decision / Rationale / Consequences                                                                                                           |
+| `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `STATUS.md`, restructures `BACKLOG.md` to `## Ideas` + `## ADR` skeleton. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
 | (unrecognized)                                           | Search by `$ARGUMENTS`                                                                                                                                                                                                                                                                                   |
 
 
@@ -837,6 +841,166 @@ If the installed client list includes one different from the current host (for e
 
 - `/mb init` — initializes `.memory-bank/` **inside** the project after the skill is installed globally. Usually `install` → then `init`.
 - `install.sh` in the repo root — the shell script that `memory-bank install` calls under the hood.
+
+---
+
+### idea <title> [HIGH|MED|LOW]
+
+Capture a new idea in `BACKLOG.md ## Ideas` with an auto-generated monotonic `I-NNN` ID.
+
+**Arguments:**
+
+- `title` — free-form idea title (first positional).
+- priority (optional) — `HIGH`, `MED` (default), or `LOW`. Case-insensitive.
+
+**Effect:**
+
+- Appends `### I-NNN — <title> [PRIO, NEW, YYYY-MM-DD]` under `## Ideas` in `BACKLOG.md`.
+- `I-NNN` is monotonic across the entire file (zero-padded 3 digits).
+- Idempotent: re-running with the exact same title reports the existing ID and exits without a duplicate.
+- Invalid priority → exit 2 with usage hint.
+
+Run directly (systems-level, no LLM needed):
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-idea.sh "<title>" [HIGH|MED|LOW]
+```
+
+**Typical flow:**
+
+```
+User: /mb idea "Telemetry opt-in" LOW
+→ [idea] I-007 added (LOW)
+
+User: /mb idea "Add dark mode"
+→ [idea] I-008 added (MED)
+```
+
+Surface the created ID back to the user so they can reference it in `/mb idea-promote`.
+
+---
+
+### idea-promote <I-NNN> <type>
+
+Promote an existing idea into an active plan.
+
+**Arguments:**
+
+- `I-NNN` — ID of the idea in `BACKLOG.md` (must exist and be in `NEW` or `TRIAGED` status).
+- `type` — `feature`, `fix`, `refactor`, or `experiment` (passed through to `mb-plan.sh`).
+
+**Effect:**
+
+- Creates a plan file via `mb-plan.sh` using the idea title as the topic (title → slug).
+- Flips the idea status `NEW|TRIAGED` → `PLANNED`.
+- Adds `**Plan:** [plans/YYYY-MM-DD_<type>_<slug>.md](plans/...)` to the idea block.
+- Runs `mb-plan-sync.sh` so the new plan appears in `plan.md` / `STATUS.md` `<!-- mb-active-plans -->` blocks and its stages are appended to `checklist.md`.
+
+**Refuses to promote** already-`PLANNED`, `DONE`, `DECLINED`, or `DEFERRED` ideas — asks the user to reset status manually or `/mb idea` a fresh one.
+
+Run directly:
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-idea-promote.sh <I-NNN> <type>
+```
+
+**Typical flow:**
+
+```
+User: /mb idea-promote I-007 feature
+→ [promote] I-007 → 2026-04-21_feature_telemetry-opt-in.md
+  plans/2026-04-21_feature_telemetry-opt-in.md
+```
+
+The idea's `**Plan:**` link lets anyone navigate from `BACKLOG.md` to the live plan; `mb-plan-done.sh` later flips status back to `DONE` automatically when the plan is closed.
+
+---
+
+### adr <title>
+
+Capture an Architecture Decision Record (ADR) inside `BACKLOG.md ## ADR`.
+
+**Arguments:**
+
+- `title` — ADR title (free-form).
+
+**Effect:**
+
+- Appends `### ADR-NNN — <title> [YYYY-MM-DD]` under `## ADR` (creates the section if missing).
+- ID is monotonic across the entire `BACKLOG.md`.
+- Skeleton includes: `**Context:**`, `**Options:**`, `**Decision:**`, `**Rationale:**`, `**Consequences:**` — all with `<!-- hint -->` placeholders for the user to fill in.
+- Idempotent per call — each invocation creates a new ADR (no de-dup by title; ADR history is cumulative).
+
+Run directly:
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-adr.sh "<title>"
+```
+
+**Typical flow:**
+
+```
+User: /mb adr "Use OIDC for PyPI publishing"
+→ ADR-003
+  [writes ### ADR-003 — Use OIDC for PyPI publishing [2026-04-21] + skeleton]
+```
+
+After capture, open `BACKLOG.md` and fill in Context / Options / Decision / Rationale / Consequences. The skeleton is intentionally short — the value is in the completed reasoning, not the template.
+
+---
+
+### migrate-structure [--dry-run|--apply]
+
+One-shot migrator for the v3.0 → v3.1 Memory Bank file structure. Safe to run on an already-migrated bank (idempotent).
+
+**Detection — triggers if any of:**
+
+- `plan.md` has singular `<!-- mb-active-plan -->` marker (but not plural variant).
+- `plan.md` uses the legacy text-only "## Active plan" + "**Active plan:** `plans/...`" without a HTML-comment block.
+- `STATUS.md` is missing `<!-- mb-active-plans -->` or `<!-- mb-recent-done -->` blocks.
+- `BACKLOG.md` contains `(пока нет)` / `(empty)` placeholders or lacks `## ADR`.
+
+**Effect of `--apply`:**
+
+1. Backs up `plan.md`, `STATUS.md`, `BACKLOG.md`, `checklist.md` → `.memory-bank/.pre-migrate/<timestamp>/`.
+2. Upgrades `plan.md` singular → plural marker block, rebuilds `## Active plans` with correct entries.
+3. Ensures `STATUS.md` has `## Active plans` + `## Recently done` sections with proper markers.
+4. Rewrites `BACKLOG.md` skeleton: strips placeholders, guarantees `## Ideas` + `## ADR` sections.
+5. Prints a per-action summary.
+
+`--dry-run` (default) — prints the action plan, 0 file changes.
+
+Run directly:
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-migrate-structure.sh $ARGS_AFTER_MIGRATE
+```
+
+**Typical flow:**
+
+```
+User: /mb migrate-structure
+→ mode=dry-run
+  actions_pending=3
+    - plan.md: add <!-- mb-active-plans --> block
+    - STATUS.md: add <!-- mb-recent-done --> block
+    - BACKLOG.md: restructure to skeleton (## Ideas + ## ADR)
+
+User: /mb migrate-structure --apply
+→ [apply] backup → .pre-migrate/20260421_093045/
+  [apply] plan.md migrated
+  [apply] STATUS.md blocks ensured
+  [apply] BACKLOG.md skeleton ensured
+  [apply] v3.1 structural migration complete
+```
+
+**Safety:**
+
+- Running `--apply` twice on an already-migrated bank reports `actions_pending=0` and exits without changes.
+- The `.pre-migrate/<timestamp>/` directory is persistent — restore with `cp .memory-bank/.pre-migrate/<ts>/*.md .memory-bank/` if anything goes wrong.
+- Does not touch `notes/`, `plans/`, `progress.md`, `lessons.md`, `RESEARCH.md`, `experiments/`, `codebase/`, or custom files.
+
+**Recommended usage:** once per bank, after upgrading the skill to v3.1.x. Subsequent compaction is handled by `/mb compact`.
 
 ---
 

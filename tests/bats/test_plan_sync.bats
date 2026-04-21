@@ -1,22 +1,19 @@
 #!/usr/bin/env bats
 # Tests for scripts/mb-plan-sync.sh and scripts/mb-plan-done.sh.
 #
+# v3.1 contract — minimal single-plan edge cases + error handling.
+# Multi-plan behaviour lives in test_plan_sync_multi.bats / test_plan_done_multi.bats.
+#
 # Contract (sync):
-#   Input:  plan-file (path to .md with <!-- mb-stage:N --> markers)
-#   Effects:
-#     - checklist.md: for each `(N, name)` pair from the plan — if there is no
-#       `## Stage N: <name>` section — append
-#       `## Stage N: <name>\n- ⬜ <name>\n`.
-#     - plan.md: the block between `<!-- mb-active-plan -->` and
-#       `<!-- /mb-active-plan -->` is replaced with
-#       `**Active plan:** \`plans/<basename>\` — <title>`.
-#     - Idempotent: a repeated run → 0 diff.
+#   - checklist.md: for each (N, name) pair — if no `## Stage N: <name>` yet,
+#     append heading + `- ⬜ <name>`. Idempotent by EXACT title.
+#   - plan.md: upsert entry in `<!-- mb-active-plans --> ... <!-- /mb-active-plans -->`
+#     block; create the block if missing.
 #
 # Contract (done):
-#   - All `- ⬜` inside plan stage sections in checklist.md → `- ✅`.
-#   - `mv <plan-file> <mb>/plans/done/<basename>`.
-#   - The block between `<!-- mb-active-plan -->` and
-#     `<!-- /mb-active-plan -->` in plan.md becomes empty.
+#   - Removes plan's Stage sections from checklist.md.
+#   - Removes plan's entry from the active-plans block.
+#   - Moves plan file to plans/done/<basename>.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -27,7 +24,6 @@ setup() {
   TMPBANK="$TMPROOT/.memory-bank"
   mkdir -p "$TMPBANK/plans/done"
 
-  # Plan with stage markers
   PLAN_FILE="$TMPBANK/plans/2026-04-19_refactor_skill-v2.md"
   cat > "$PLAN_FILE" <<'EOF'
 # Plan: refactor — skill-v2
@@ -54,29 +50,28 @@ What to do: create mb-metrics.sh.
 What to do: adapt agent.
 EOF
 
-  # Minimal core files
   cat > "$TMPBANK/checklist.md" <<'EOF'
 # Project — Checklist
 
-## Stage 0: Dogfood init ✅
+## Stage 0: Dogfood init
 - ✅ initialization
 EOF
 
   cat > "$TMPBANK/plan.md" <<'EOF'
 # Project — Plan
 
-## Current Focus
+## Current focus
 
 Test focus.
 
-## Active plan
+## Active plans
 
-<!-- mb-active-plan -->
-<!-- /mb-active-plan -->
+<!-- mb-active-plans -->
+<!-- /mb-active-plans -->
 
-## Next Steps
+## Next up
 
-1. test
+See BACKLOG.md.
 EOF
 }
 
@@ -89,77 +84,64 @@ teardown() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "sync: script exists and is executable" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
+  [ -f "$SYNC" ]
   [ -x "$SYNC" ]
 }
 
 @test "sync: parses mb-stage markers from plan" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   run bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -eq 0 ]
 }
 
 @test "sync: appends missing stages to checklist" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   run bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -eq 0 ]
 
-  run cat "$TMPBANK/checklist.md"
-  [[ "$output" == *"## Stage 1: DRY-utilities"* ]]
-  [[ "$output" == *"## Stage 2: Language-agnostic metrics"* ]]
-  [[ "$output" == *"## Stage 3: codebase-mapper"* ]]
+  grep -q "^## Stage 1: DRY-utilities$" "$TMPBANK/checklist.md"
+  grep -q "^## Stage 2: Language-agnostic metrics$" "$TMPBANK/checklist.md"
+  grep -q "^## Stage 3: codebase-mapper$" "$TMPBANK/checklist.md"
 }
 
-@test "sync: existing stage not duplicated" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
-  # Pre-populate checklist with Stage 1 already
+@test "sync: existing stage with identical title not duplicated" {
   cat >> "$TMPBANK/checklist.md" <<'EOF'
 
-## Stage 1: DRY-utilities ✅
+## Stage 1: DRY-utilities
 - ✅ custom item
 EOF
 
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-  # Count occurrences of "## Stage 1:" — should be 1
-  count=$(grep -c "^## Stage 1:" "$TMPBANK/checklist.md")
+  count=$(grep -c "^## Stage 1: DRY-utilities$" "$TMPBANK/checklist.md")
   [ "$count" -eq 1 ]
-  # Custom item preserved
   grep -q "custom item" "$TMPBANK/checklist.md"
 }
 
 @test "sync: idempotent — double run equals single run" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-  first_checksum=$(shasum "$TMPBANK/checklist.md" "$TMPBANK/plan.md" | shasum)
+  sum1=$(shasum "$TMPBANK/checklist.md" "$TMPBANK/plan.md" | shasum)
 
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-  second_checksum=$(shasum "$TMPBANK/checklist.md" "$TMPBANK/plan.md" | shasum)
+  sum2=$(shasum "$TMPBANK/checklist.md" "$TMPBANK/plan.md" | shasum)
 
-  [ "$first_checksum" = "$second_checksum" ]
+  [ "$sum1" = "$sum2" ]
 }
 
-@test "sync: updates Active plan block in plan.md" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
+@test "sync: upserts entry into plan.md active-plans block" {
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
 
-  run cat "$TMPBANK/plan.md"
-  [[ "$output" == *"2026-04-19_refactor_skill-v2.md"* ]]
-  [[ "$output" == *"refactor — skill-v2"* ]]
+  grep -q "2026-04-19_refactor_skill-v2.md" "$TMPBANK/plan.md"
+  grep -q "refactor — skill-v2" "$TMPBANK/plan.md"
 }
 
-@test "sync: Active plan block stays within markers" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
+@test "sync: active-plans markers stay a single pair" {
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
 
-  # Opening and closing markers must remain exactly once
-  open_count=$(grep -c "<!-- mb-active-plan -->" "$TMPBANK/plan.md")
-  close_count=$(grep -c "<!-- /mb-active-plan -->" "$TMPBANK/plan.md")
-  [ "$open_count" -eq 1 ]
-  [ "$close_count" -eq 1 ]
+  op=$(grep -c "<!-- mb-active-plans -->" "$TMPBANK/plan.md")
+  cl=$(grep -c "<!-- /mb-active-plans -->" "$TMPBANK/plan.md")
+  [ "$op" -eq 1 ]
+  [ "$cl" -eq 1 ]
 }
 
 @test "sync: fallback to regex when no mb-stage markers" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   cat > "$PLAN_FILE" <<'EOF'
 # Plan: fix — legacy-plan
 
@@ -175,18 +157,15 @@ EOF
   run bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -eq 0 ]
 
-  run cat "$TMPBANK/checklist.md"
-  [[ "$output" == *"## Stage 1: fix bug A"* ]]
-  [[ "$output" == *"## Stage 2: fix bug B"* ]]
+  grep -q "^## Stage 1: fix bug A$" "$TMPBANK/checklist.md"
+  grep -q "^## Stage 2: fix bug B$" "$TMPBANK/checklist.md"
 }
 
-@test "sync: creates Active plan markers if plan.md lacks them" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
-  # plan.md without markers
+@test "sync: creates active-plans markers if plan.md lacks them" {
   cat > "$TMPBANK/plan.md" <<'EOF'
 # Plan
 
-## Active plan
+## Current focus
 
 Empty.
 EOF
@@ -194,44 +173,36 @@ EOF
   run bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -eq 0 ]
 
-  run cat "$TMPBANK/plan.md"
-  [[ "$output" == *"<!-- mb-active-plan -->"* ]]
-  [[ "$output" == *"<!-- /mb-active-plan -->"* ]]
-  [[ "$output" == *"2026-04-19_refactor_skill-v2.md"* ]]
+  grep -q "<!-- mb-active-plans -->" "$TMPBANK/plan.md"
+  grep -q "<!-- /mb-active-plans -->" "$TMPBANK/plan.md"
+  grep -q "2026-04-19_refactor_skill-v2.md" "$TMPBANK/plan.md"
 }
 
 @test "sync: fails gracefully when plan-file missing" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   run bash "$SYNC" "$TMPBANK/plans/nonexistent.md" "$TMPBANK"
   [ "$status" -ne 0 ]
   [[ "$output$stderr" == *"not found"* ]]
 }
 
 @test "sync: checklist with ⬜ item per stage" {
-  [ -f "$SYNC" ] || skip "mb-plan-sync.sh not implemented yet (TDD red)"
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
 
-  run cat "$TMPBANK/checklist.md"
-  # Each added section should have a ⬜ item
-  [[ "$output" == *"- ⬜ DRY-utilities"* ]]
-  [[ "$output" == *"- ⬜ Language-agnostic metrics"* ]]
-  [[ "$output" == *"- ⬜ codebase-mapper"* ]]
+  grep -q "^- ⬜ DRY-utilities$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Language-agnostic metrics$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ codebase-mapper$" "$TMPBANK/checklist.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
-# mb-plan-done.sh
+# mb-plan-done.sh — error handling only (full contract: test_plan_done_multi.bats)
 # ═══════════════════════════════════════════════════════════════
 
 @test "done: script exists and is executable" {
-  [ -f "$DONE" ] || skip "mb-plan-done.sh not implemented yet (TDD red)"
+  [ -f "$DONE" ]
   [ -x "$DONE" ]
 }
 
 @test "done: moves plan file to plans/done/" {
-  [ -f "$DONE" ] || skip "mb-plan-done.sh not implemented yet (TDD red)"
-  # Prep: sync first so checklist has sections
-  [ -f "$SYNC" ] && bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-
+  bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   basename_file=$(basename "$PLAN_FILE")
   run bash "$DONE" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -eq 0 ]
@@ -240,44 +211,7 @@ EOF
   [ ! -f "$PLAN_FILE" ]
 }
 
-@test "done: closes all ⬜ in plan stages to ✅" {
-  [ -f "$DONE" ] || skip "mb-plan-done.sh not implemented yet (TDD red)"
-  [ -f "$SYNC" ] && bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-
-  # Confirm ⬜ exist before
-  run grep -c "^- ⬜" "$TMPBANK/checklist.md"
-  [ "$output" -ge 3 ]
-
-  bash "$DONE" "$PLAN_FILE" "$TMPBANK"
-
-  # After done — no ⬜ left in plan stages
-  ! grep -q "^- ⬜ DRY-utilities" "$TMPBANK/checklist.md"
-  ! grep -q "^- ⬜ Language-agnostic metrics" "$TMPBANK/checklist.md"
-  ! grep -q "^- ⬜ codebase-mapper" "$TMPBANK/checklist.md"
-
-  # Instead they should be ✅
-  grep -q "^- ✅ DRY-utilities" "$TMPBANK/checklist.md"
-  grep -q "^- ✅ Language-agnostic metrics" "$TMPBANK/checklist.md"
-  grep -q "^- ✅ codebase-mapper" "$TMPBANK/checklist.md"
-}
-
-@test "done: clears Active plan block in plan.md" {
-  [ -f "$DONE" ] || skip "mb-plan-done.sh not implemented yet (TDD red)"
-  [ -f "$SYNC" ] && bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-
-  bash "$DONE" "$PLAN_FILE" "$TMPBANK"
-
-  # After done, Active plan content inside markers should be cleared
-  run cat "$TMPBANK/plan.md"
-  [[ "$output" != *"2026-04-19_refactor_skill-v2.md"* ]]
-  # Markers still there (idempotent with next sync)
-  [[ "$output" == *"<!-- mb-active-plan -->"* ]]
-  [[ "$output" == *"<!-- /mb-active-plan -->"* ]]
-}
-
 @test "done: fails when plan-file not in plans/ of mb_path" {
-  [ -f "$DONE" ] || skip "mb-plan-done.sh not implemented yet (TDD red)"
-  # File outside plans/
   stray="$TMPROOT/stray-plan.md"
   cp "$PLAN_FILE" "$stray"
 
@@ -286,22 +220,17 @@ EOF
 }
 
 @test "done: idempotent — re-running after move fails gracefully" {
-  [ -f "$DONE" ] || skip "mb-plan-done.sh not implemented yet (TDD red)"
-  [ -f "$SYNC" ] && bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
+  bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   bash "$DONE" "$PLAN_FILE" "$TMPBANK"
 
-  # Second call: plan already moved — should error, without breaking state
   run bash "$DONE" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -ne 0 ]
 }
 
 @test "done: preserves other stages in checklist" {
-  [ -f "$DONE" ] || skip "mb-plan-done.sh not implemented yet (TDD red)"
-  [ -f "$SYNC" ] && bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-
+  bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   bash "$DONE" "$PLAN_FILE" "$TMPBANK"
 
-  # Stage 0 (pre-existing) stays untouched
-  grep -q "^## Stage 0: Dogfood init" "$TMPBANK/checklist.md"
-  grep -q "^- ✅ initialization" "$TMPBANK/checklist.md"
+  grep -q "^## Stage 0: Dogfood init$" "$TMPBANK/checklist.md"
+  grep -q "^- ✅ initialization$" "$TMPBANK/checklist.md"
 }

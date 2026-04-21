@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# mb-plan-sync.sh — synchronize a plan with `checklist.md` + `plan.md`.
+# mb-plan-sync.sh — synchronize a plan with checklist.md + plan.md + STATUS.md.
 #
 # Usage:
 #   mb-plan-sync.sh <plan-file> [mb_path]
 #
-# Effects:
-#   - Extract `(N, name)` pairs from the plan via `<!-- mb-stage:N -->` markers
-#     (fallback: regex `### Stage N: <name>`).
-#   - For each pair, if `checklist.md` does not have `## Stage N: <name>`,
-#     append the section to the end together with one item `- ⬜ <name>`.
-#     Existing sections are not modified → idempotent.
-#   - In `plan.md`, replace the block between `<!-- mb-active-plan -->` and
-#     `<!-- /mb-active-plan -->` with a single line
-#     `**Active plan:** \`plans/<basename>\` — <title>`.
-#     If markers do not exist, add them after `## Active plan`
-#     or at the end of the file.
+# Effects (v3.1 — multi-active):
+#   - Parse `(N, name)` pairs from the plan (`<!-- mb-stage:N -->` markers or
+#     fallback to `### Stage N: <name>`).
+#   - For each `(N, name)` absent from checklist.md, append section
+#     `## Stage N: <name>` + item `- ⬜ <name>`. Idempotent by full section title.
+#   - Upsert an entry for this plan into the `<!-- mb-active-plans --> ... -->`
+#     block in BOTH plan.md and STATUS.md:
+#        `- [YYYY-MM-DD] [plans/<basename>](plans/<basename>) — <title>`
+#     Match key = basename. Re-sync replaces the line; different plan appends.
+#   - Legacy singular `<!-- mb-active-plan -->` marker auto-upgrades to plural.
+#   - STATUS.md is optional — if present, it gets the same upsert.
 #
 # Exit codes: 0 OK, 1 usage/missing file, 2 parse error.
 
@@ -33,19 +33,21 @@ fi
 
 CHECKLIST="$MB_PATH/checklist.md"
 PLAN_MD="$MB_PATH/plan.md"
+STATUS_MD="$MB_PATH/STATUS.md"
 
-[ -f "$CHECKLIST" ] || {
-  echo "[error] checklist.md not found: $CHECKLIST" >&2
-  exit 1
-}
-[ -f "$PLAN_MD" ] || {
-  echo "[error] plan.md not found: $PLAN_MD" >&2
-  exit 1
-}
+[ -f "$CHECKLIST" ] || { echo "[error] checklist.md not found: $CHECKLIST" >&2; exit 1; }
+[ -f "$PLAN_MD" ]   || { echo "[error] plan.md not found: $PLAN_MD" >&2; exit 1; }
 
 BASENAME=$(basename "$PLAN_FILE")
 
-# ═══ Extract plan title (first H1 after optional prefix) ═══
+# Date from basename prefix YYYY-MM-DD_, fallback to today's date.
+if [[ "$BASENAME" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
+  PLAN_DATE="${BASH_REMATCH[1]}"
+else
+  PLAN_DATE=$(date +%Y-%m-%d)
+fi
+
+# Plan title = first H1 minus optional `# <kind>:` prefix.
 plan_title=$(awk '
   /^# /{
     sub(/^# [^:：]+[:：][[:space:]]*/, "")
@@ -56,10 +58,9 @@ plan_title=$(awk '
 ' "$PLAN_FILE")
 [ -n "$plan_title" ] || plan_title="$BASENAME"
 
-# ═══ Stage parsing ═══
-# Primary: `<!-- mb-stage:N -->` markers → next line `### Stage N: <name>`.
-# Fallback: if markers are missing — parse `### Stage N: <name>` directly.
-# Output: tab-separated (`N<TAB>name`), one line per stage.
+# ═══════════════════════════════════════════════════════════════
+# Stage parsing
+# ═══════════════════════════════════════════════════════════════
 parse_stages() {
   awk '
     BEGIN { use_markers = 0 }
@@ -85,7 +86,6 @@ stages=$(parse_stages) || rc=$?
 rc=${rc:-0}
 
 if [ "$rc" -eq 42 ] || [ -z "$stages" ]; then
-  # Fallback — no markers, parse `###` headings directly
   stages=$(awk '
     /^### [^0-9]+[0-9]+:/ {
       line = $0
@@ -102,7 +102,9 @@ if [ -z "$stages" ]; then
   exit 2
 fi
 
-# ═══ Append missing sections to checklist ═══
+# ═══════════════════════════════════════════════════════════════
+# Append missing stages into checklist.md (idempotent by full title)
+# ═══════════════════════════════════════════════════════════════
 append_missing_stages() {
   local checklist="$1" stages="$2"
   local tmp
@@ -112,13 +114,13 @@ append_missing_stages() {
   local added=0
   while IFS=$'\t' read -r n name; do
     [ -n "$n" ] || continue
-    # Check whether `## Stage N:` already exists (ignoring title/emoji)
-    if grep -qE "^## [^0-9]*${n}:" "$tmp"; then
+    local heading="## Stage ${n}: ${name}"
+    # Match exact heading line to distinguish multiple active plans sharing N
+    if awk -v h="$heading" 'BEGIN{found=0} $0==h{found=1; exit} END{exit !found}' "$tmp"; then
       continue
     fi
-    # Append to the end
     {
-      printf '\n## Stage %s: %s\n' "$n" "$name"
+      printf '\n%s\n' "$heading"
       printf -- '- ⬜ %s\n' "$name"
     } >> "$tmp"
     added=$((added + 1))
@@ -130,62 +132,105 @@ append_missing_stages() {
 
 added_count=$(append_missing_stages "$CHECKLIST" "$stages")
 
-# ═══ Update active-plan block in plan.md ═══
-update_active_plan_block() {
-  local plan_md="$1" basename="$2" title="$3"
-  local tmp
+# ═══════════════════════════════════════════════════════════════
+# Upsert entry into <!-- mb-active-plans --> block of a file
+# ═══════════════════════════════════════════════════════════════
+# Args: <file> <basename> <date> <title>
+# If the file does not contain plural markers, try to upgrade singular ones
+# or insert a new block after `## Active plan(s)` / at EOF.
+upsert_active_plan_entry() {
+  local file="$1" basename="$2" plan_date="$3" title="$4"
+  local entry tmp
+  entry="- [${plan_date}] [plans/${basename}](plans/${basename}) — ${title}"
   tmp=$(mktemp)
 
-  local new_line="**Active plan:** \`plans/$basename\` — $title"
-
-  if grep -q '<!-- mb-active-plan -->' "$plan_md"; then
-    # Markers exist — replace the content between them
-    awk -v newline="$new_line" '
-      BEGIN { inside = 0 }
-      /<!-- mb-active-plan -->/ {
+  if grep -q '<!-- mb-active-plans -->' "$file"; then
+    awk -v entry="$entry" -v bn="$basename" '
+      BEGIN { inside=0; replaced=0 }
+      /<!-- mb-active-plans -->/ { inside=1; print; next }
+      /<!-- \/mb-active-plans -->/ {
+        if (inside && replaced==0) { print entry; replaced=1 }
+        inside=0
         print
-        print newline
-        inside = 1
+        next
+      }
+      {
+        if (inside) {
+          if (index($0, bn) > 0) {
+            if (replaced==0) { print entry; replaced=1 }
+            next
+          }
+          print
+        } else {
+          print
+        }
+      }
+    ' "$file" > "$tmp"
+    mv "$tmp" "$file"
+    return 0
+  fi
+
+  # Legacy singular markers → upgrade to plural + insert entry
+  if grep -q '<!-- mb-active-plan -->' "$file"; then
+    awk -v entry="$entry" '
+      BEGIN { inside=0; inserted=0 }
+      /<!-- mb-active-plan -->/ {
+        print "<!-- mb-active-plans -->"
+        if (inserted==0) { print entry; inserted=1 }
+        inside=1
         next
       }
       /<!-- \/mb-active-plan -->/ {
-        inside = 0
-        print
+        print "<!-- /mb-active-plans -->"
+        inside=0
         next
       }
       !inside { print }
-    ' "$plan_md" > "$tmp"
-  else
-    # Markers do not exist — insert after `## Active plan` or append to the end
-    if grep -qE '^## Active plan[[:space:]]*$' "$plan_md"; then
-      awk -v newline="$new_line" '
-        /^## Active plan[[:space:]]*$/ {
-          print
-          print ""
-          print "<!-- mb-active-plan -->"
-          print newline
-          print "<!-- /mb-active-plan -->"
-          inserted = 1
-          next
-        }
-        { print }
-      ' "$plan_md" > "$tmp"
-    else
-      cp "$plan_md" "$tmp"
-      {
-        printf '\n## Active plan\n\n'
-        printf '<!-- mb-active-plan -->\n'
-        printf '%s\n' "$new_line"
-        printf '<!-- /mb-active-plan -->\n'
-      } >> "$tmp"
-    fi
+    ' "$file" > "$tmp"
+
+    # Upgrade heading `## Active plan` → `## Active plans` if present
+    sed -i.bak -E 's/^## Active plan[[:space:]]*$/## Active plans/' "$tmp" 2>/dev/null || true
+    rm -f "$tmp.bak"
+
+    mv "$tmp" "$file"
+    return 0
   fi
 
-  mv "$tmp" "$plan_md"
+  # No markers at all — add block after `## Active plans` heading or EOF
+  if grep -qE '^## Active plans[[:space:]]*$' "$file"; then
+    awk -v entry="$entry" '
+      /^## Active plans[[:space:]]*$/ && !done {
+        print
+        print ""
+        print "<!-- mb-active-plans -->"
+        print entry
+        print "<!-- /mb-active-plans -->"
+        done=1
+        next
+      }
+      { print }
+    ' "$file" > "$tmp"
+    mv "$tmp" "$file"
+    return 0
+  fi
+
+  {
+    cat "$file"
+    printf '\n## Active plans\n\n'
+    printf '<!-- mb-active-plans -->\n'
+    printf '%s\n' "$entry"
+    printf '<!-- /mb-active-plans -->\n'
+  } > "$tmp"
+  mv "$tmp" "$file"
 }
 
-update_active_plan_block "$PLAN_MD" "$BASENAME" "$plan_title"
+upsert_active_plan_entry "$PLAN_MD"   "$BASENAME" "$PLAN_DATE" "$plan_title"
+if [ -f "$STATUS_MD" ]; then
+  upsert_active_plan_entry "$STATUS_MD" "$BASENAME" "$PLAN_DATE" "$plan_title"
+fi
 
-# ═══ Report ═══
+# ═══════════════════════════════════════════════════════════════
+# Report
+# ═══════════════════════════════════════════════════════════════
 stage_count=$(printf '%s\n' "$stages" | grep -c . || true)
 echo "[sync] plan=$BASENAME stages=$stage_count added=$added_count"
