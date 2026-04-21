@@ -44,7 +44,7 @@ dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.5"]
 memory-bank = "memory_bank_skill.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/fockus/skill-memory-bank"
+Homepage = "https://fockus.github.io/skill-memory-bank/"
 Repository = "https://github.com/fockus/skill-memory-bank"
 Issues = "https://github.com/fockus/skill-memory-bank/issues"
 Changelog = "https://github.com/fockus/skill-memory-bank/blob/main/CHANGELOG.md"

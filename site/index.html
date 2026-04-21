@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>memory-bank-skill — Persistent memory for AI coding agents</title>
+    <meta
+      name="description"
+      content="Long-term project memory, engineering rules, and workflow commands for AI coding agents across Claude Code, Cursor, Codex, OpenCode, and more."
+    />
+    <meta name="theme-color" content="#f4efe3" />
+    <meta property="og:title" content="memory-bank-skill" />
+    <meta
+      property="og:description"
+      content="Persistent project memory for 8 AI coding agents with GitHub-ready workflow."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="#hero" aria-label="memory-bank-skill home">
+          <span class="brand-mark">MB</span>
+          <span class="brand-copy">
+            <strong>memory-bank-skill</strong>
+            <span>Persistent memory for AI coding teams</span>
+          </span>
+        </a>
+
+        <nav class="topnav" aria-label="Primary">
+          <a href="#problem">Problem</a>
+          <a href="#workflow">Workflow</a>
+          <a href="#agents">Agents</a>
+          <a href="#install">Install</a>
+          <a href="https://github.com/fockus/skill-memory-bank">GitHub</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero" id="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Open source · MIT · GitHub Pages</p>
+            <h1>AI coding agents should not wake up with amnesia.</h1>
+            <p class="hero-lead">
+              <span>memory-bank-skill</span> gives Claude Code, Cursor, Codex, OpenCode,
+              Windsurf, Cline, Kilo, and Pi Code a shared project memory, a shared ruleset,
+              and a shared operating rhythm.
+            </p>
+
+            <div class="hero-actions">
+              <a class="button primary" href="#install">Install in 5 minutes</a>
+              <a class="button secondary" href="https://github.com/fockus/skill-memory-bank">
+                Star on GitHub
+              </a>
+            </div>
+
+            <div class="hero-proof">
+              <div>
+                <strong>8 agents</strong>
+                <span>One memory model</span>
+              </div>
+              <div>
+                <strong>.memory-bank/</strong>
+                <span>Portable project context</span>
+              </div>
+              <div>
+                <strong>21 /mb flows</strong>
+                <span>Plan, verify, update, compact</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-stage">
+            <div class="signal-card">
+              <p class="signal-label">Session signal</p>
+              <div class="signal-orbit" aria-hidden="true">
+                <span class="signal-core"></span>
+                <span class="ring ring-one"></span>
+                <span class="ring ring-two"></span>
+                <span class="ring ring-three"></span>
+              </div>
+              <p class="signal-copy">
+                Project status, plan, checklist, research, notes, and codebase context stay
+                navigable between sessions.
+              </p>
+            </div>
+
+            <div class="terminal-card">
+              <div class="terminal-top">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <pre class="terminal-copy"><code>$ pipx install memory-bank-skill
+$ memory-bank install --clients claude-code,cursor,codex
+
+.memory-bank/
+├── STATUS.md
+├── checklist.md
+├── plan.md
+├── RESEARCH.md
+├── progress.md
+└── notes/
+
+$ /mb start
+[context] active plan loaded
+[rules] tdd + clean architecture + fsd
+[next] resume exactly where we stopped</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="agent-ribbon" aria-label="Supported AI coding agents">
+          <span>Claude Code</span>
+          <span>Cursor</span>
+          <span>Codex</span>
+          <span>OpenCode</span>
+          <span>Windsurf</span>
+          <span>Cline</span>
+          <span>Kilo</span>
+          <span>Pi Code</span>
+        </section>
+
+        <section class="problem section" id="problem">
+          <div class="section-heading">
+            <p class="eyebrow">The problem</p>
+            <h2>The tooling is smart. The memory model is fragile.</h2>
+            <p>
+              Most teams rebuild project context from scratch every session. memory-bank-skill
+              fixes the cold start without forcing you into a proprietary app or a giant prompt.
+            </p>
+          </div>
+
+          <div class="problem-grid">
+            <article class="feature-card accent-sand">
+              <h3>Session cold starts</h3>
+              <p>
+                Yesterday's decisions disappear. Today's agent re-asks the same questions, burns
+                tokens, and repeats preventable mistakes.
+              </p>
+            </article>
+
+            <article class="feature-card accent-lime">
+              <h3>Rule drift</h3>
+              <p>
+                TDD, architecture boundaries, review rituals, and release rules stop being shared
+                constraints and become wishful thinking.
+              </p>
+            </article>
+
+            <article class="feature-card accent-ink">
+              <h3>Tool fragmentation</h3>
+              <p>
+                Claude Code, Cursor, Codex, and OpenCode all need different glue. Your project
+                memory should outlive the agent you used this week.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="workflow section" id="workflow">
+          <div class="section-heading">
+            <p class="eyebrow">How it works</p>
+            <h2>Navigate the project. Do not dump the whole codebase.</h2>
+            <p>
+              The system keeps context structured, small, and durable. Agents load only what is
+              needed and update the memory bank as real work lands.
+            </p>
+          </div>
+
+          <div class="workflow-grid">
+            <article class="workflow-step">
+              <span class="step-index">01</span>
+              <h3>Initialize</h3>
+              <p>
+                `/mb init` creates `.memory-bank/` with status, checklist, plan, research,
+                progress, notes, reports, and codebase docs.
+              </p>
+            </article>
+
+            <article class="workflow-step">
+              <span class="step-index">02</span>
+              <h3>Resume instantly</h3>
+              <p>
+                `/mb start` loads the current state first, so the agent sees roadmap, blockers,
+                and the active plan before it writes code.
+              </p>
+            </article>
+
+            <article class="workflow-step">
+              <span class="step-index">03</span>
+              <h3>Ship with discipline</h3>
+              <p>
+                Rules are bundled with the skill: TDD, SOLID, Clean Architecture, FSD, Testing
+                Trophy, verification order, and Memory Bank hygiene.
+              </p>
+            </article>
+
+            <article class="workflow-step">
+              <span class="step-index">04</span>
+              <h3>Close the loop</h3>
+              <p>
+                `/mb verify` and `/mb done` reconcile plan vs code vs checklist, append progress,
+                and preserve the knowledge for the next session.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="agents section" id="agents">
+          <div class="section-heading">
+            <p class="eyebrow">Cross-agent portability</p>
+            <h2>One repo, one memory bank, eight coding agents.</h2>
+            <p>
+              The project state stays in your repo. Adapters and hints make each host understand
+              the same memory model instead of inventing a different one.
+            </p>
+          </div>
+
+          <div class="agents-grid">
+            <article class="agent-card"><h3>Claude Code</h3><p>Native commands and hooks.</p></article>
+            <article class="agent-card"><h3>Cursor</h3><p>Global rules, hooks, commands, and skill alias.</p></article>
+            <article class="agent-card"><h3>Codex</h3><p>Skill discovery plus `AGENTS.md` guidance and project adapter.</p></article>
+            <article class="agent-card"><h3>OpenCode</h3><p>Global AGENTS surface and native commands.</p></article>
+            <article class="agent-card"><h3>Windsurf</h3><p>Cascade hooks and project rules.</p></article>
+            <article class="agent-card"><h3>Cline</h3><p>`.clinerules` integration and hooks.</p></article>
+            <article class="agent-card"><h3>Kilo</h3><p>Rules plus git-hook fallback where native hooks are absent.</p></article>
+            <article class="agent-card"><h3>Pi Code</h3><p>Dual-mode install: native skill or shared `AGENTS.md`.</p></article>
+          </div>
+        </section>
+
+        <section class="install section" id="install">
+          <div class="section-heading">
+            <p class="eyebrow">Install</p>
+            <h2>Fast to add. Easy to keep.</h2>
+            <p>
+              Start with `pipx`, add the clients you actually use, then initialize memory inside
+              any repo. No framework lock-in, no hosted dependency, no hidden state.
+            </p>
+          </div>
+
+          <div class="install-grid">
+            <article class="install-card">
+              <h3>Recommended</h3>
+              <pre><code>pipx install memory-bank-skill
+memory-bank install --clients claude-code,cursor,codex
+memory-bank install --language ru</code></pre>
+            </article>
+
+            <article class="install-card">
+              <h3>In the project</h3>
+              <pre><code>/mb init
+/mb start
+/mb plan feature landing-page
+/mb verify
+/mb done</code></pre>
+            </article>
+
+            <article class="install-card">
+              <h3>Alt paths</h3>
+              <pre><code>brew tap fockus/tap
+brew install memory-bank
+
+git clone https://github.com/fockus/skill-memory-bank.git \
+  ~/.claude/skills/skill-memory-bank</code></pre>
+            </article>
+          </div>
+        </section>
+
+        <section class="cta section" id="cta">
+          <div class="cta-panel">
+            <div>
+              <p class="eyebrow">Ready to keep the context?</p>
+              <h2>Put the project memory next to the code.</h2>
+              <p>
+                Install the skill, initialize `.memory-bank/`, and let every new session start
+                from the actual state of the project instead of guesswork.
+              </p>
+            </div>
+
+            <div class="cta-actions">
+              <a class="button primary" href="https://github.com/fockus/skill-memory-bank">
+                Open the repository
+              </a>
+              <a class="button secondary" href="#install">See install commands</a>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>memory-bank-skill for serious AI-assisted software work.</p>
+        <a href="https://github.com/fockus/skill-memory-bank">github.com/fockus/skill-memory-bank</a>
+      </footer>
+    </div>
+  </body>
+</html>
