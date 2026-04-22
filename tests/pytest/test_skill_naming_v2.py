@@ -30,6 +30,7 @@ EXCLUDED_PATHS = (
     "CHANGELOG.md",
     "docs/MIGRATION-v3-v3.1.md",
     "docs/MIGRATION-v1-v2.md",
+    "docs/MIGRATION-install-v1-v2.md",
     "tests/pytest/fixtures/",
     "tests/pytest/test_migrate_v2.py",
     "tests/pytest/test_skill_naming_v2.py",
