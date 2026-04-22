@@ -7,7 +7,7 @@ Contract:
       - progress.md: daily-grouped summaries (append-only)
       - notes/: architectural discussion heuristics (≥3 consecutive assistant messages)
       - lessons.md: debug-session patterns (error → fix → explain)
-      - STATUS.md: seed only if empty
+      - status.md: seed only if empty
 
     Dedup: SHA256(timestamp + first 500 chars) → skip if already in index.
     Resume: .memory-bank/.import-state.json (last processed session/event).
@@ -46,8 +46,8 @@ def import_mod():
 def mb_path(tmp_path: Path) -> Path:
     mb = tmp_path / ".memory-bank"
     (mb / "notes").mkdir(parents=True)
-    for name in ("STATUS.md", "plan.md", "checklist.md", "progress.md",
-                 "lessons.md", "RESEARCH.md", "BACKLOG.md"):
+    for name in ("status.md", "roadmap.md", "checklist.md", "progress.md",
+                 "lessons.md", "research.md", "backlog.md"):
         (mb / name).write_text("")
     return mb
 

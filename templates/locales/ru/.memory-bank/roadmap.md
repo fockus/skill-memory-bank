@@ -14,7 +14,7 @@
 
 ## Дальше
 
-См. [BACKLOG.md](BACKLOG.md) — идеи с приоритетами и ADR.
+См. [backlog.md](backlog.md) — идеи с приоритетами и ADR.
 
 ## Отложено
 

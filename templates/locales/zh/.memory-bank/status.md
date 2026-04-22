@@ -1,3 +1,5 @@
+> TODO(i18n-zh): translate this file. See docs/i18n.md.
+
 # Project — Status
 
 
@@ -26,4 +28,4 @@
 
 ## Roadmap (high level)
 
-See [BACKLOG.md](BACKLOG.md) for the idea registry and ADRs.
+See [backlog.md](backlog.md) for the idea registry and ADRs.

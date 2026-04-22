@@ -12,12 +12,12 @@ Supported locales:
     - zh  — scaffold (EN copy + TODO(i18n-zh) banner)
 
 Invariants that MUST hold for every locale:
-    1. All 7 core files present: STATUS.md, plan.md, checklist.md, BACKLOG.md,
-       RESEARCH.md, progress.md, lessons.md.
-    2. plan.md has exactly one `<!-- mb-active-plans -->` marker pair.
-    3. STATUS.md has both `<!-- mb-active-plans -->` and `<!-- mb-recent-done -->`
+    1. All 7 core files present: status.md, roadmap.md, checklist.md, backlog.md,
+       research.md, progress.md, lessons.md.
+    2. roadmap.md has exactly one `<!-- mb-active-plans -->` marker pair.
+    3. status.md has both `<!-- mb-active-plans -->` and `<!-- mb-recent-done -->`
        marker pairs.
-    4. BACKLOG.md has `## Ideas` and `## ADR` headings (strict EN — scripts
+    4. backlog.md has `## Ideas` and `## ADR` headings (strict EN — scripts
        use these as canonical anchors across all locales).
     5. Scaffold locales (es/zh) must carry a `TODO(i18n-<lang>)` banner.
     6. Fully-translated locales (en/ru) must NOT carry a TODO(i18n) banner.
@@ -38,11 +38,11 @@ FULL_LOCALES = ("en", "ru")
 SCAFFOLD_LOCALES = ("es", "zh")
 
 CORE_FILES = (
-    "STATUS.md",
-    "plan.md",
+    "status.md",
+    "roadmap.md",
     "checklist.md",
-    "BACKLOG.md",
-    "RESEARCH.md",
+    "backlog.md",
+    "research.md",
     "progress.md",
     "lessons.md",
 )
@@ -77,16 +77,16 @@ def test_core_file_present_in_every_locale(locale: str, name: str) -> None:
 
 @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
 def test_plan_md_has_plural_active_plans_marker_pair(locale: str) -> None:
-    text = _read(locale, "plan.md")
-    ctx = f"{locale}/plan.md"
+    text = _read(locale, "roadmap.md")
+    ctx = f"{locale}/roadmap.md"
     _exactly_one(text, r"<!--\s*mb-active-plans\s*-->", ctx)
     _exactly_one(text, r"<!--\s*/mb-active-plans\s*-->", ctx)
 
 
 @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
 def test_status_md_has_both_marker_pairs(locale: str) -> None:
-    text = _read(locale, "STATUS.md")
-    ctx = f"{locale}/STATUS.md"
+    text = _read(locale, "status.md")
+    ctx = f"{locale}/status.md"
     _exactly_one(text, r"<!--\s*mb-active-plans\s*-->", ctx)
     _exactly_one(text, r"<!--\s*/mb-active-plans\s*-->", ctx)
     _exactly_one(text, r"<!--\s*mb-recent-done\s*-->", ctx)
@@ -96,12 +96,12 @@ def test_status_md_has_both_marker_pairs(locale: str) -> None:
 @pytest.mark.parametrize("locale", SUPPORTED_LOCALES)
 def test_backlog_has_canonical_english_anchors(locale: str) -> None:
     """Anchors stay English across all locales — scripts key off them."""
-    text = _read(locale, "BACKLOG.md")
+    text = _read(locale, "backlog.md")
     assert re.search(r"^## Ideas\s*$", text, re.MULTILINE), (
-        f"{locale}/BACKLOG.md must keep canonical `## Ideas` heading"
+        f"{locale}/backlog.md must keep canonical `## Ideas` heading"
     )
     assert re.search(r"^## ADR\s*$", text, re.MULTILINE), (
-        f"{locale}/BACKLOG.md must keep canonical `## ADR` heading"
+        f"{locale}/backlog.md must keep canonical `## ADR` heading"
     )
 
 

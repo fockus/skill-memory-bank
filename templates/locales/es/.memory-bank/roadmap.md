@@ -16,7 +16,7 @@ Initial project setup.
 
 ## Next up
 
-See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
+See [backlog.md](backlog.md) — ideas with priority, ADRs.
 
 ## Deferred
 
