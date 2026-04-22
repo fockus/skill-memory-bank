@@ -147,3 +147,56 @@ def test_idempotent_double_apply(v1_copy: Path) -> None:
     # Only one backup dir exists — second run did not create another.
     backups = sorted(v1_copy.glob(".migration-backup-*"))
     assert len(backups) == 1, f"expected 1 backup, got {len(backups)}: {backups}"
+
+
+def test_fenced_code_blocks_preserved(tmp_path: Path) -> None:
+    """Reference fixup must NOT rewrite v1 names inside fenced code blocks
+    or inline code — those are typically example listings that the migration
+    docs legitimately contain.
+    """
+    import shutil
+    src = REPO_ROOT / "tests" / "pytest" / "fixtures" / "mb_v1_layout"
+    mb = tmp_path / ".memory-bank"
+    shutil.copytree(src, mb)
+    # Add a file with v1 names inside a fenced block and in inline code.
+    meta = mb / "notes" / "meta.md"
+    meta.write_text(
+        "# Meta\n"
+        "\n"
+        "This note references STATUS.md in prose (should be rewritten to status.md).\n"
+        "\n"
+        "But inside a code block it should NOT be rewritten:\n"
+        "\n"
+        "```bash\n"
+        'RENAMES_OLD=("STATUS.md" "BACKLOG.md" "RESEARCH.md" "plan.md")\n'
+        "```\n"
+        "\n"
+        "Inline `STATUS.md` also stays (inline code).\n",
+        encoding="utf-8",
+    )
+    result = run_script(mb, "--apply")
+    assert result.returncode == 0, result.stderr
+    after = meta.read_text(encoding="utf-8")
+    # Prose rewritten
+    assert "references status.md in prose" in after
+    # Fenced block preserved verbatim
+    assert 'RENAMES_OLD=("STATUS.md" "BACKLOG.md" "RESEARCH.md" "plan.md")' in after
+    # Inline code preserved
+    assert "Inline `STATUS.md`" in after
+
+
+def test_legacy_label_preserves_original_name(tmp_path: Path) -> None:
+    """The '### Legacy content ...' marker inserted by the content transform
+    must not be self-mangled by the later reference-fixup pass.
+    """
+    import shutil
+    src = REPO_ROOT / "tests" / "pytest" / "fixtures" / "mb_v1_layout"
+    mb = tmp_path / ".memory-bank"
+    shutil.copytree(src, mb)
+    result = run_script(mb, "--apply")
+    assert result.returncode == 0, result.stderr
+    roadmap = (mb / "roadmap.md").read_text(encoding="utf-8")
+    # New wording — no v1 name in the marker, so nothing to rewrite later.
+    assert "### Legacy content (preserved from the previous plan-file format" in roadmap
+    # Must NOT contain the self-corrupted form.
+    assert "from v1 roadmap.md" not in roadmap

@@ -161,7 +161,7 @@ _Active specs/<topic>/ directories._
 
 ---
 
-### Legacy content (from v1 plan.md — review and integrate above)
+### Legacy content (preserved from the previous plan-file format — review and integrate above)
 
 {body.strip()}
 """
@@ -199,15 +199,46 @@ replacements = [
 # Exclude any .migration-backup-* directory under $MB_PATH.
 skip_prefixes = tuple(str(p.resolve()) for p in mb.glob(".migration-backup-*"))
 
+def _rewrite_outside_fences(text: str) -> str:
+    """Apply replacements to non-code-block regions only.
+
+    A "code block" is any segment delimited by a line that starts with
+    ``` (optionally followed by a language tag) — i.e. the CommonMark
+    convention. Inline code (`foo`) is ALSO preserved by a second pass
+    that masks backtick-delimited spans.
+    """
+    # Split by triple-backtick fences. Even-indexed chunks are "outside",
+    # odd-indexed are "inside" (the fence contents + surrounding ``` lines).
+    chunks = re.split(r"(^```.*?^```\s*?$)", text, flags=re.MULTILINE | re.DOTALL)
+    out: list[str] = []
+    for i, chunk in enumerate(chunks):
+        if i % 2 == 1:
+            # Inside a fenced block — leave untouched.
+            out.append(chunk)
+            continue
+        # Outside — also avoid inline `…` spans.
+        inline_parts = re.split(r"(`[^`\n]*`)", chunk)
+        rewritten_parts: list[str] = []
+        for j, part in enumerate(inline_parts):
+            if j % 2 == 1:
+                # Inline code span — untouched.
+                rewritten_parts.append(part)
+            else:
+                s = part
+                for pat, repl in replacements:
+                    s = pat.sub(repl, s)
+                rewritten_parts.append(s)
+        out.append("".join(rewritten_parts))
+    return "".join(out)
+
+
 updated = 0
 for md in mb.rglob("*.md"):
     resolved = str(md.resolve())
     if any(resolved.startswith(p) for p in skip_prefixes):
         continue
     original = md.read_text(encoding="utf-8")
-    new_text = original
-    for pat, repl in replacements:
-        new_text = pat.sub(repl, new_text)
+    new_text = _rewrite_outside_fences(original)
     if new_text != original:
         md.write_text(new_text, encoding="utf-8")
         rel = md.relative_to(mb)
