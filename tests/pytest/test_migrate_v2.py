@@ -130,3 +130,20 @@ def test_references_untouched_in_backup(v1_copy: Path) -> None:
     assert "plan.md" in status_content
     assert "BACKLOG.md" in status_content
     assert "RESEARCH.md" in status_content
+
+
+def test_idempotent_double_apply(v1_copy: Path) -> None:
+    first = run_script(v1_copy, "--apply")
+    assert first.returncode == 0, first.stderr
+    # Capture roadmap content after first run.
+    roadmap_after_first = (v1_copy / "roadmap.md").read_text(encoding="utf-8")
+    # Second run — no v1 files remain, script should exit ok with "no v1 files detected".
+    second = run_script(v1_copy, "--apply")
+    assert second.returncode == 0, second.stderr
+    assert "no v1 files detected" in second.stdout
+    # Roadmap not re-transformed (content unchanged).
+    roadmap_after_second = (v1_copy / "roadmap.md").read_text(encoding="utf-8")
+    assert roadmap_after_first == roadmap_after_second
+    # Only one backup dir exists — second run did not create another.
+    backups = sorted(v1_copy.glob(".migration-backup-*"))
+    assert len(backups) == 1, f"expected 1 backup, got {len(backups)}: {backups}"
