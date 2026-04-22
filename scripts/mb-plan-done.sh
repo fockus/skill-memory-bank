@@ -79,8 +79,8 @@ parse_stages() {
       pending = substr($0, RSTART, RLENGTH)
       next
     }
-    pending != "" && /^### [^0-9]+[0-9]+:/ {
-      sub(/^### [^0-9]+[0-9]+:[[:space:]]*/, "")
+    pending != "" && /^#{2,4} (Task|Stage|Phase|Sprint) [0-9]+:/ {
+      sub(/^#{2,4} (Task|Stage|Phase|Sprint) [0-9]+:[[:space:]]*/, "")
       printf "%s\t%s\n", pending, $0
       pending = ""
       next
@@ -94,11 +94,11 @@ rc=${rc:-0}
 
 if [ "$rc" -eq 42 ] || [ -z "$stages" ]; then
   stages=$(awk '
-    /^### [^0-9]+[0-9]+:/ {
+    /^#{2,4} (Task|Stage|Phase|Sprint) [0-9]+:/ {
       line = $0
       match(line, /[0-9]+/)
       n = substr(line, RSTART, RLENGTH)
-      sub(/^### [^0-9]+[0-9]+:[[:space:]]*/, "", line)
+      sub(/^#{2,4} (Task|Stage|Phase|Sprint) [0-9]+:[[:space:]]*/, "", line)
       printf "%s\t%s\n", n, line
     }
   ' "$PLAN_FILE")

@@ -81,3 +81,36 @@ def test_sync_parses_mixed_headings(tmp_path: Path) -> None:
     checklist = (mb / "checklist.md").read_text(encoding="utf-8")
     assert "## Stage 1: Modern heading first" in checklist
     assert "## Stage 2: Legacy heading" in checklist
+
+
+DONE_SCRIPT = REPO_ROOT / "scripts" / "mb-plan-done.sh"
+
+
+def _run_done(plan_path: Path, mb_path: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", str(DONE_SCRIPT), str(plan_path), str(mb_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_done_parses_phase_sprint_task_headings(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    # status.md optional but both scripts write to it; give them an empty one.
+    (mb / "status.md").write_text("# Status\n", encoding="utf-8")
+    plan = mb / "plans" / "phase_sprint_task.md"
+    shutil.copy2(FIXTURES / "phase_sprint_task.md", plan)
+
+    # First, run sync so checklist has the sections mb-plan-done will remove
+    sync = _run_sync(plan, mb)
+    assert sync.returncode == 0, sync.stderr
+
+    # Now close the plan
+    done = _run_done(plan, mb)
+
+    assert done.returncode == 0, done.stderr
+    assert "removed_sections=3" in done.stdout
+    # Plan file moved to plans/done/
+    assert not plan.exists()
+    assert (mb / "plans" / "done" / "phase_sprint_task.md").is_file()
