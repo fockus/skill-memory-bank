@@ -24,27 +24,27 @@
 If a project has Memory Bank (`.memory-bank/`), planning and implementation flow through one chain:
 
 ```
-plan.md ("Active plan" field → link to file)
+roadmap.md ("Active plan" field → link to file)
     ↓
 plans/<file>.md  ← Source of truth: tasks, DoD, stages
     ↓
 checklist.md     ← Tracking: ✅ done, ⬜ remaining
     ↓
-STATUS.md        ← Phase, blockers, audit findings
+status.md        ← Phase, blockers, audit findings
 ```
 
 ### Consistency rules
 
 1. **A new plan** (`/mb plan`) MUST be reflected in all three places:
   - `plans/<file>.md` — detailed plan with DoD
-  - `plan.md` — link in the "Active plan" field + updated focus
-  - `STATUS.md` — updated roadmap ("In Progress" section)
+  - `roadmap.md` — link in the "Active plan" field + updated focus
+  - `status.md` — updated roadmap ("In Progress" section)
   - `checklist.md` — plan tasks represented as ⬜ items
 2. **Tasks come ONLY from the detailed plan**. Do not invent off-plan tasks.
 3. `**checklist.md` reflects the plan**: each stage in `plans/<file>.md` = one ⬜ item in the checklist.
-4. `**STATUS.md` reflects facts**: update the roadmap on actual completion, not on planning.
-5. **When the active plan changes**: update `plan.md` + `STATUS.md` + `checklist.md`.
-6. **When a plan is completed**: move it to `plans/done/`, then update `plan.md`, `STATUS.md`, and `checklist.md`.
+4. `**status.md` reflects facts**: update the roadmap on actual completion, not on planning.
+5. **When the active plan changes**: update `roadmap.md` + `status.md` + `checklist.md`.
+6. **When a plan is completed**: move it to `plans/done/`, then update `roadmap.md`, `status.md`, and `checklist.md`.
 
 ---
 
@@ -273,7 +273,7 @@ assert loss < initial_loss * 0.8
 
 - Significant decision → ADR (context → decision → alternatives → consequences)
 - Before making an architectural change, check existing ADRs
-- If Memory Bank exists → put ADRs in `.memory-bank/BACKLOG.md`
+- If Memory Bank exists → put ADRs in `.memory-bank/backlog.md`
 
 ### Response format
 
@@ -348,10 +348,10 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
 
 | File           | Purpose                                             | When to update                                          |
 | -------------- | --------------------------------------------------- | ------------------------------------------------------- |
-| `STATUS.md`    | Where we are, roadmap, key metrics, gates           | Stage completed, roadmap shifted, metrics changed       |
+| `status.md`    | Where we are, roadmap, key metrics, gates           | Stage completed, roadmap shifted, metrics changed       |
 | `checklist.md` | Current tasks ✅/⬜                                   | Every session, immediately when a task is completed     |
-| `plan.md`      | Priorities and direction                            | When the focus/vector changes                           |
-| `RESEARCH.md`  | Hypothesis registry + findings + current experiment | When hypothesis status changes or a new finding appears |
+| `roadmap.md`      | Priorities and direction                            | When the focus/vector changes                           |
+| `research.md`  | Hypothesis registry + findings + current experiment | When hypothesis status changes or a new finding appears |
 
 
 **Detailed records (read on demand):**
@@ -359,7 +359,7 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
 
 | File / Folder  | Purpose                                           | When to update                                    |
 | -------------- | ------------------------------------------------- | ------------------------------------------------- |
-| `BACKLOG.md`   | Ideas, ADRs, rejected items                       | When a new idea or architectural decision appears |
+| `backlog.md`   | Ideas, ADRs, rejected items                       | When a new idea or architectural decision appears |
 | `progress.md`  | Completed work by date                            | End of session (append-only)                      |
 | `lessons.md`   | Repeated mistakes, anti-patterns                  | When a pattern is noticed                         |
 | `experiments/` | `EXP-NNN_<n>.md` — detailed ML experiment records | When an experiment is completed                   |
@@ -377,10 +377,10 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
 
 1. Check whether `.memory-bank/` exists → `[MEMORY BANK: ACTIVE]`
 2. Read the 4 core files:
-  - `STATUS.md` → where we are in the project, roadmap, gates
+  - `status.md` → where we are in the project, roadmap, gates
   - `checklist.md` → current tasks (⬜/✅)
-  - `plan.md` → priorities and direction
-  - `RESEARCH.md` → which hypotheses are active, current experiment
+  - `roadmap.md` → priorities and direction
+  - `research.md` → which hypotheses are active, current experiment
 3. Summarize the focus in 1-3 sentences
 4. If there is an active plan in `plans/` → read it in full
 5. Check `.memory-bank/codebase/`:
@@ -394,16 +394,16 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
 | -------------------------------- | ---------------------------------------------------------------- |
 | A checklist task is completed    | `checklist.md`: ⬜ → ✅ (immediately, do not postpone)             |
 | A new task is discovered         | `checklist.md`: add a new ⬜ task                                 |
-| A stage / milestone is completed | `STATUS.md`: update roadmap and metrics                          |
-| Roadmap changed                  | `STATUS.md`: move items between sections                         |
-| Key metrics changed              | `STATUS.md`: update the metrics section                          |
-| New hypothesis                   | `RESEARCH.md`: add a table row (`📋 PLANNED`)                    |
-| Start of an ML experiment        | `experiments/EXP-NNN_<n>.md` + status 🔬 in `RESEARCH.md`        |
-| Experiment completed             | `RESEARCH.md`: status ✅/🔴/⚠️ + finding. `experiments/`: results |
-| Architectural decision           | `BACKLOG.md`: ADR-NNN (context → decision → alternatives)        |
+| A stage / milestone is completed | `status.md`: update roadmap and metrics                          |
+| Roadmap changed                  | `status.md`: move items between sections                         |
+| Key metrics changed              | `status.md`: update the metrics section                          |
+| New hypothesis                   | `research.md`: add a table row (`📋 PLANNED`)                    |
+| Start of an ML experiment        | `experiments/EXP-NNN_<n>.md` + status 🔬 in `research.md`        |
+| Experiment completed             | `research.md`: status ✅/🔴/⚠️ + finding. `experiments/`: results |
+| Architectural decision           | `backlog.md`: ADR-NNN (context → decision → alternatives)        |
 | Detailed multi-stage work        | `plans/`: create a file via `/mb plan <type> <topic>`            |
 | Anti-pattern noticed             | `lessons.md`: add an entry with context                          |
-| Focus/priorities changed         | `plan.md`: update it                                             |
+| Focus/priorities changed         | `roadmap.md`: update it                                             |
 
 
 ### `/mb done` — end of session
@@ -414,11 +414,11 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
   - WARNING → optional / user decision
 2. `checklist.md`: mark completed items ✅, add new items ⬜
 3. `progress.md`: append to the end (APPEND-ONLY, never delete old entries)
-4. `STATUS.md`: update if a milestone completed or the roadmap changed
-5. `RESEARCH.md`: update if there are ML results (hypothesis status, finding)
+4. `status.md`: update if a milestone completed or the roadmap changed
+5. `research.md`: update if there are ML results (hypothesis status, finding)
 6. `lessons.md`: add an entry if an anti-pattern was found
-7. `BACKLOG.md`: add an item if there is a new idea or ADR
-8. `plan.md`: update if the focus changed
+7. `backlog.md`: add an item if there is a new idea or ADR
+8. `roadmap.md`: update if the focus changed
 9. `notes/`: create a note for the completed work
 
 ### `/mb update` — intermediate actualization
@@ -465,21 +465,21 @@ The complete lifecycle of a Memory Bank session. Use this as the canonical seque
 Allowed types: `feature | fix | refactor | experiment | architecture`.
 
 Required plan structure:
-- Stages with markers `<!-- mb-stage:N -->` — `mb-plan-sync.sh` automatically adds them to `checklist.md` and the active block of `plan.md`
+- Stages with markers `<!-- mb-stage:N -->` — `mb-plan-sync.sh` automatically adds them to `checklist.md` and the active block of `roadmap.md`
 - **SMART DoD** per stage (Specific, Measurable, Achievable, Relevant, Time-bound)
 - **TDD requirements** — tests FIRST (red → green → refactor), explicitly written into each stage
 - Atomicity + declared dependencies between stages
 
 Alternative entry points:
-- `/mb idea "<title>" [HIGH|MED|LOW]` → records the idea in `BACKLOG.md` with auto-generated `I-NNN`
+- `/mb idea "<title>" [HIGH|MED|LOW]` → records the idea in `backlog.md` with auto-generated `I-NNN`
 - `/mb idea-promote I-NNN <type>` → idea becomes an active plan (flips status `NEW|TRIAGED → PLANNED`, adds `**Plan:**` link)
-- `/mb adr "<title>"` → Architecture Decision Record in `BACKLOG.md` with auto-generated `ADR-NNN`
+- `/mb adr "<title>"` → Architecture Decision Record in `backlog.md` with auto-generated `ADR-NNN`
 
 ### Phase 3 — Work (atomic updates)
 
 - `checklist.md` — flip ⬜ → ✅ **immediately** when a stage finishes (do not batch)
-- `STATUS.md` — on milestones / metric changes / roadmap shifts
-- `RESEARCH.md` — on hypothesis status changes (📋 PLANNED → 🔬 TESTING → ✅/🔴/⚠️)
+- `status.md` — on milestones / metric changes / roadmap shifts
+- `research.md` — on hypothesis status changes (📋 PLANNED → 🔬 TESTING → ✅/🔴/⚠️)
 - `notes/` — when reusable knowledge or patterns accumulate (5-15 lines, **not chronology**)
 
 ### Phase 4 — Verification (`/mb verify`)
@@ -512,7 +512,7 @@ Sequence performed by the MB Manager subagent:
 | `/mb update` | Before compaction or a long break — saves state without creating a note |
 | `/mb doctor` | Suspected inconsistencies inside the bank (plan vs checklist vs STATUS) |
 | `/mb compact --dry-run` | Inspect archival candidates (`plans/done/` >60d, notes >90d with `importance: low`) |
-| `/mb compact --apply` | Actually archive them (into `BACKLOG.md` and `notes/archive/`) |
+| `/mb compact --apply` | Actually archive them (into `backlog.md` and `notes/archive/`) |
 | `/mb map [focus]` / `/mb graph --apply` | After a major refactor — refresh the codebase map and the graph |
 
 ---
@@ -635,7 +635,7 @@ For repeated queries, create project-local aliases/scripts under `.memory-bank/s
 
 - Changes are trivial (typos, formatting)
 - An exploratory prototype produced no useful knowledge
-- The information is already captured in `lessons.md` or `RESEARCH.md`
+- The information is already captured in `lessons.md` or `research.md`
 
 **Create `reports/` when:**
 
@@ -661,8 +661,8 @@ Script: `~/.claude/skills/memory-bank/scripts/mb-index.sh`.
 | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | Mechanical actualization (`checklist` ⬜→✅, `progress` append, `STATUS` metrics) | MB Manager (sonnet subagent)                              |
 | Plan creation (`plans/`)                                                        | Main agent (requires depth, DoD, TDD)                     |
-| Architectural decisions (ADR)                                                   | Main agent formulates → MB Manager stores in `BACKLOG.md` |
-| ML result interpretation                                                        | Main agent interprets → MB Manager updates `RESEARCH.md`  |
+| Architectural decisions (ADR)                                                   | Main agent formulates → MB Manager stores in `backlog.md` |
+| ML result interpretation                                                        | Main agent interprets → MB Manager updates `research.md`  |
 
 
 ---
@@ -683,7 +683,7 @@ Script: `~/.claude/skills/memory-bank/scripts/mb-index.sh`.
 
 Full templates → `~/.claude/skills/memory-bank/references/templates.md`
 
-### STATUS.md
+### status.md
 
 ```markdown
 # <Project>: Status
@@ -695,7 +695,7 @@ Full templates → `~/.claude/skills/memory-bank/references/templates.md`
 ## Known Constraints
 ```
 
-### RESEARCH.md
+### research.md
 
 ```markdown
 # Research Log
@@ -708,7 +708,7 @@ Statuses: 📋 PLANNED → 🔬 TESTING → ✅ CONFIRMED / 🔴 REFUTED / ⚠�
 ## Current Experiment
 ```
 
-### BACKLOG.md
+### backlog.md
 
 ```markdown
 ## Ideas (HIGH / MEDIUM / LOW)

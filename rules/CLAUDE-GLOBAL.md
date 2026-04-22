@@ -85,7 +85,7 @@ If it does not exist, initialize it and print `[MEMORY BANK: INITIALIZED]`.
 | `/mb update`                                | Intermediate actualize (no note) — before compaction               |
 | `/mb map [stack\|arch\|quality\|concerns\|all]` | Generate/refresh `.memory-bank/codebase/*.md`                      |
 | `/mb graph [--apply]`                       | Build code graph (JSON Lines, grep/jq-friendly)                    |
-| `/mb idea "<title>" [HIGH\|MED\|LOW]` / `/mb adr "<title>"` | Capture idea (I-NNN) / ADR (ADR-NNN) into `BACKLOG.md`             |
+| `/mb idea "<title>" [HIGH\|MED\|LOW]` / `/mb adr "<title>"` | Capture idea (I-NNN) / ADR (ADR-NNN) into `backlog.md`             |
 | `/mb search <query>` / `/mb tasks` / `/mb index` / `/mb doctor` | Search / unfinished tasks / entries registry / consistency check   |
 | `/mb init`                                  | Initialize Memory Bank in a new project                            |
 

@@ -1,161 +1,73 @@
-# Migration guide: v1 → v2
+# Migration v1 → v2: lowercase filenames
 
-This document explains how to migrate an existing skill install from version 1.x to 2.0.0.
+_Since: skill version 2.0.0._
 
----
+## What changed
 
-## TL;DR
+Four files renamed:
 
-```bash
-# 1. Update the skill source
-cd ~/.claude/skills/skill-memory-bank
-git fetch && git checkout v2.0.0
+| v1 (old) | v2 (new) |
+|----------|----------|
+| `STATUS.md` | `status.md` |
+| `BACKLOG.md` | `backlog.md` |
+| `RESEARCH.md` | `research.md` |
+| `plan.md` | `roadmap.md` (+ new format) |
 
-# 2. Reinstall (idempotent — existing user hooks are preserved)
-./install.sh
+## Why
 
-# 3. After reinstall, these paths will be refreshed:
-#    ~/.claude/skills/memory-bank
-#    ~/.codex/skills/memory-bank
-#    ~/.codex/AGENTS.md
+- consistent lowercase filename convention
+- `plan.md` expanded to a true roadmap with ordering, dependencies, and status per plan (see [design spec](../.memory-bank/specs/mb-skill-v2/design.md))
 
-# 4. In projects that already use .memory-bank/:
-mv .planning/codebase .memory-bank/codebase 2>/dev/null || true
-rm -f .memory-bank/index.json          # old index, will be regenerated
-python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py .memory-bank
-```
+## How to migrate
 
-Done. Details below.
-
----
-
-## Breaking changes
-
-| # | What | v1 | v2 | Action |
-|---|------|----|----|--------|
-| 1 | Initialization command | `/mb:setup-project` | `/mb init --full` | Update habits / `.claude/commands/` — `install.sh` removes `setup-project.md` automatically |
-| 2 | Mapping agent | `codebase-mapper` (orphan, GSD-style) | `mb-codebase-mapper` | `install.sh` removes the old agent. Update your own scripts accordingly |
-| 3 | Codebase docs output path | `.planning/codebase/` | `.memory-bank/codebase/` | `mv .planning/codebase .memory-bank/codebase` |
-| 4 | Subagent invocation from commands | `Task(prompt=..., subagent_type=...)` | `Agent(subagent_type=..., prompt=...)` | Automatic — `install.sh` updates it; custom commands must be updated manually |
-| 5 | Python hardcode in `/mb update` | `.venv/bin/python -m pytest` | `bash mb-metrics.sh` | Automatic via `install.sh` |
-| 6 | `SKILL.md` frontmatter | `user-invocable: false` (invalid) | `name: memory-bank` | Automatic |
-
----
-
-## Step-by-step migration
-
-### 1. Update the skill source
+From your project root:
 
 ```bash
-cd ~/.claude/skills/skill-memory-bank
-git fetch origin
-git log HEAD..origin/main --oneline   # inspect incoming changes
-git checkout v2.0.0                   # or `main` for bleeding edge
+# Preview what will change (no writes)
+bash ~/.claude/skills/memory-bank/scripts/mb-migrate-v2.sh --dry-run
+
+# Apply (creates backup in .memory-bank/.migration-backup-<timestamp>/)
+bash ~/.claude/skills/memory-bank/scripts/mb-migrate-v2.sh --apply
 ```
 
-If you modified the skill locally, run `git stash` first.
+## What the script does
 
-### 2. Reinstall
+1. Creates a timestamped backup in `.memory-bank/.migration-backup-<ts>/`.
+2. Renames the 4 files.
+3. Transforms `roadmap.md` content — the legacy `<!-- mb-active-plan -->` block is placed in the new `## Now (in progress)` section; remaining content is preserved under `### Legacy content`.
+4. Updates cross-references (`STATUS.md` → `status.md`, etc.) in every `.md` file inside `.memory-bank/` — except the backup directory.
+5. Is idempotent — running twice is safe (second run is a no-op that reports "no v1 files detected").
 
-```bash
-./install.sh
-```
+## Backward compatibility window
 
-The script:
-- Copies new commands/agents/hooks/scripts
-- **Preserves your user hooks** in `settings.json` (covered by e2e tests)
-- **Preserves your content above the** `[MEMORY-BANK-SKILL]` marker in `CLAUDE.md`
-- Refreshes the install `manifest` for clean future uninstall
+For 2 skill versions:
 
-### 3. In every project with `.memory-bank/`
+- Core scripts fall back to reading old names if new ones are not present.
+- `/mb doctor` WARNs when v1 files still exist.
+- `/mb start` and `/mb context` autodetect v1 layout and prompt migration before loading context.
 
-```bash
-# (a) Move codebase docs if they came from the old codebase-mapper
-if [ -d .planning/codebase ]; then
-  mkdir -p .memory-bank/codebase
-  mv .planning/codebase/*.md .memory-bank/codebase/ 2>/dev/null
-fi
-
-# (b) Remove the stale index.json (it will be rebuilt on next /mb done)
-rm -f .memory-bank/index.json
-
-# (c) Rebuild the index in v2 format
-python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py .memory-bank
-```
-
-### 4. Verify
-
-```bash
-# Are all commands present?
-ls ~/.claude/commands/ | wc -l        # expect 18
-
-# Legacy command should be gone
-ls ~/.claude/commands/setup-project.md 2>&1   # should print: No such file
-
-# Agents
-ls ~/.claude/agents/                  # mb-codebase-mapper.md, not codebase-mapper.md
-
-# VERSION marker
-cat ~/.claude/skills/memory-bank/VERSION   # 2.0.0
-```
-
-### 5. Optional: structural markers in existing plans
-
-If you have active plans in `.memory-bank/plans/*.md` without `<!-- mb-stage:N -->` markers, `mb-plan-sync.sh` will still parse them through a fallback regex. New plans created by `scripts/mb-plan.sh` already include those markers automatically.
-
-Manual marker example for older plans:
-
-```markdown
-<!-- mb-stage:1 -->
-### Stage 1: Existing stage
-```
-
----
-
-## What did NOT break
-
-- `.memory-bank/` structure (`STATUS`, `plan`, `checklist`, `RESEARCH`, `BACKLOG`, `progress`, `lessons`, `notes/`, `plans/`, `experiments/`, `reports/`) — 100% compatible
-- Core file templates and semantics
-- Numbering for H-NNN, EXP-NNN, ADR-NNN, L-NNN — unchanged
-- MB Manager actions (`context`, `search`, `note`, `actualize`, `tasks`) — same API
-- `mb-doctor` kept the same interface
-
----
+After 2 versions, `/mb doctor` will ERROR without migration.
 
 ## Rollback
 
-If something went wrong, return to v1:
+Each `--apply` run creates `.memory-bank/.migration-backup-<timestamp>/`. To rollback:
 
 ```bash
-cd ~/.claude/skills/skill-memory-bank
-./uninstall.sh               # removes the v2 install (preserves backups)
-git checkout v1.0.0
-./install.sh                 # installs v1
-
-# Project-level `.memory-bank/` data stays untouched.
-# If you moved `.planning/codebase/` → `.memory-bank/codebase/`, move it back manually.
+BACKUP=.memory-bank/.migration-backup-<ts>   # pick the one you want
+cp -r "$BACKUP"/* .memory-bank/
+rm .memory-bank/status.md .memory-bank/backlog.md \
+   .memory-bank/research.md .memory-bank/roadmap.md
 ```
 
-Backups of your `CLAUDE.md` / `settings.json` use the suffix `.pre-mb-backup.<timestamp>`. Find them with:
+Or — if `.memory-bank/` is under version control and was committed before the migration — `git checkout .memory-bank/`.
 
-```bash
-ls ~/.claude/*.pre-mb-backup.*
-```
+## Troubleshooting
 
----
+**"no v1 files detected" on first run:**
+Your project is already on v2 (or was never on v1). Nothing to do.
 
-## Known issues
+**"both STATUS.md and status.md present":**
+You manually created a v2 file alongside v1. The script will skip the rename for that pair. Resolve manually (`mv`, merge content, then re-run).
 
-| Problem | Workaround |
-|---------|------------|
-| `PyYAML` is not installed — `mb-index-json.py` uses a fallback parser. It understands `key: value` and `key: [a, b]`, but not nested structures. | Install `pip install pyyaml` for full support. The fallback is enough for simple frontmatter. |
-| On macOS, `realpath -m` does not work (fixed in v2) | If you used v1 on macOS, just reinstall |
-| `settings.json` may contain duplicated hooks from older versions | `./uninstall.sh && ./install.sh` — idempotent reinstall cleans it up |
-
----
-
-## Support
-
-- Issues: https://github.com/fockus/skill-memory-bank/issues
-- CHANGELOG: [../CHANGELOG.md](../CHANGELOG.md)
-- Version: `cat ~/.claude/skills/memory-bank/VERSION`
+**"cannot read .memory-bank":**
+Either the directory doesn't exist or you're in the wrong cwd. `cd` to your project root and retry.

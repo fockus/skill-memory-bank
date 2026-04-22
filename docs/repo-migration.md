@@ -10,7 +10,7 @@ accessible). All new releases, issues, and PRs happen in the new repo.
 
 **Why the move:** after Stage 8 (Cross-agent adapters) the skill supports
 8 AI coding clients beyond Claude Code — the `claude-` prefix became misleading.
-See [ADR-011](../.memory-bank/BACKLOG.md) for full rationale.
+See [ADR-011](../.memory-bank/backlog.md) for full rationale.
 
 ---
 

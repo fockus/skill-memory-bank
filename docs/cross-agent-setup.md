@@ -304,5 +304,5 @@ A: Should not happen — refcount design prevents it. If it does, file an issue 
 
 - [Research notes (2026-04-20)](../.memory-bank/notes/2026-04-20_03-36_cross-agent-research.md)
 - [Plan Stage 8](../.memory-bank/plans/2026-04-20_refactor_skill-v2.1.md)
-- [ADR-010 (Codex)](../.memory-bank/BACKLOG.md)
-- [ADR-011 (Repo migration)](../.memory-bank/BACKLOG.md)
+- [ADR-010 (Codex)](../.memory-bank/backlog.md)
+- [ADR-011 (Repo migration)](../.memory-bank/backlog.md)

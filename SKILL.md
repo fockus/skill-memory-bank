@@ -66,7 +66,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-search.sh <q> [--tag t]` | Search. `--tag` filters via `index.json` |
 | `mb-note.sh <topic>` | Create `notes/YYYY-MM-DD_HH-MM_<topic>.md`. Collision-safe (`_2` / `_3`) |
 | `mb-plan.sh <type> <topic>` | Create `plans/YYYY-MM-DD_<type>_<topic>.md` with `<!-- mb-stage:N -->` markers |
-| `mb-plan-sync.sh <plan>` | Synchronize plan ↔ checklist + `plan.md` (idempotent) |
+| `mb-plan-sync.sh <plan>` | Synchronize plan ↔ checklist + `roadmap.md` (idempotent) |
 | `mb-plan-done.sh <plan>` | Close a plan: `⬜→✅` + move to `plans/done/` |
 | `mb-metrics.sh [--run]` | Language-agnostic metrics (12 stacks). `--run` captures `test_status=pass|fail` |
 | `mb-index.sh` | Registry of all entries (core + notes/plans/experiments/reports) |

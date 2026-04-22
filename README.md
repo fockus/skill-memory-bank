@@ -23,11 +23,11 @@ Every new AI coding session is amnesia. You re-explain the project, re-state the
 
 ```
 .memory-bank/
-├── STATUS.md          ← where we are, what's next
+├── status.md          ← where we are, what's next
 ├── checklist.md       ← current tasks (✅ / ⬜)
-├── plan.md            ← priorities, direction
-├── RESEARCH.md        ← hypotheses log (H-NNN) + current experiment
-├── BACKLOG.md         ← parking lot for ideas + ADRs
+├── roadmap.md            ← priorities, direction
+├── research.md        ← hypotheses log (H-NNN) + current experiment
+├── backlog.md         ← parking lot for ideas + ADRs
 ├── progress.md        ← work log (append-only)
 ├── lessons.md         ← mistakes not to repeat
 ├── notes/             ← knowledge (5-15 line snippets)
@@ -138,7 +138,7 @@ Full per-client details: [docs/cross-agent-setup.md](docs/cross-agent-setup.md).
    /mb start
    ```
 
-   The agent loads `STATUS.md`, `checklist.md`, `plan.md`, `RESEARCH.md` — it knows exactly what you were working on and what comes next.
+   The agent loads `status.md`, `checklist.md`, `roadmap.md`, `research.md` — it knows exactly what you were working on and what comes next.
 
 4. **As you work:** the agent updates `checklist.md` (⬜ → ✅) whenever tasks finish.
 
@@ -148,7 +148,7 @@ Full per-client details: [docs/cross-agent-setup.md](docs/cross-agent-setup.md).
    /mb done
    ```
 
-   This appends a session entry to `progress.md`, updates `STATUS.md` if needed, writes a knowledge note if something interesting was learned.
+   This appends a session entry to `progress.md`, updates `status.md` if needed, writes a knowledge note if something interesting was learned.
 
 That's it. Rinse and repeat.
 
@@ -273,7 +273,7 @@ Agent: [plan-verifier agent checks that implementation matches plan DoD]
 
 You: /mb done
 
-Agent: [appends session summary to progress.md, updates STATUS.md if needed]
+Agent: [appends session summary to progress.md, updates status.md if needed]
 ```
 
 ### Jumping into an existing project

@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [2.0.0-alpha.1] - 2026-04-22
+
+### Breaking
+
+- **Rename core files to lowercase:**
+  - `STATUS.md` → `status.md`
+  - `BACKLOG.md` → `backlog.md`
+  - `RESEARCH.md` → `research.md`
+  - `plan.md` → `roadmap.md` (with new roadmap format)
+- Migration via `scripts/mb-migrate-v2.sh` — see `docs/MIGRATION-v1-v2.md`.
+- 2-version backward-compat window; `/mb doctor` warns on unmigrated layouts.
+
+### Added
+
+- `scripts/mb-migrate-v2.sh` — idempotent v1 → v2 migrator (rename + content transform + reference fixup + timestamped backup)
+- `docs/MIGRATION-v1-v2.md` — user-facing migration guide
+- `tests/pytest/test_migrate_v2.py` — migration coverage (8 integration tests)
+- `tests/pytest/test_skill_naming_v2.py` — naming-guard test (asserts skill code uses v2 names)
+- `tests/pytest/fixtures/mb_v1_layout/` — v1 fixture for migration tests
+
+### Changed
+
+- All `commands/`, `references/`, `agents/`, `scripts/` (except migrators), `adapters/`, `memory_bank_skill/`, `templates/`, `rules/`, IDE-rule mirrors, top-level docs, and existing `tests/pytest/` updated to use v2 names.
+- `/mb start`, `/mb context`, `/mb doctor` autodetect v1 layout and prompt migration.
+- `/mb plan` output path convention unchanged — plan files still land in `.memory-bank/plans/`, roadmap entry now lives in `roadmap.md` (formerly `plan.md`).
+
 ## [3.1.2] — 2026-04-21
 
 **Review findings hardening + installer boundary refactor.** Seven stages
