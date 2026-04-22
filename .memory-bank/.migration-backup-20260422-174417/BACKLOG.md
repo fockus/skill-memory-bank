@@ -1,0 +1,257 @@
+# Backlog
+
+## Ideas
+
+### I-001 — Benchmarks (LongMemEval + custom 10 scenarios) [HIGH, DEFERRED, 2026-04-20]
+
+**Problem:** нет baseline для recall/tokens/session/precision; public release заявляет преимущества без измерений.
+**Sketch:** 3 configs — A (CLAUDE.md only), B (claude-mem stock, optional с API credits), C (наш skill). Вернуться после v3.0 с 1+ месяцем реального использования.
+**Plan:** — (решение ADR-009)
+
+### I-002 — sqlite-vec semantic search [HIGH, DEFERRED, 2026-04-20]
+
+**Problem:** grep-based `mb-search.sh` не поднимает семантически близкие заметки.
+**Sketch:** заменить на embedding-поиск через sqlite-vec + local MiniLM. Отложено до v3.1+ после того как реальные use-cases покажут недостаточность keyword+tags+codegraph.
+**Plan:** — (решение ADR-007)
+
+### I-003 — Bridge to native Claude Code memory [HIGH, NEW, 2026-04-19]
+
+**Problem:** нет программной синхронизации ключевых записей между `.memory-bank/` и `~/.claude/projects/.../memory/` — только документация coexistence (Этап 5).
+**Sketch:** двунаправленный mapper: MB `notes/` ↔ auto-memory entries.
+**Plan:** —
+
+### I-004 — Auto-commit hook после `/mb done` [HIGH, NEW, 2026-04-20]
+
+**Problem:** изменения в `.memory-bank/` теряются при переключении веток если не закоммичены руками.
+**Sketch:** post-`/mb done` хук создаёт `chore(mb): <session-summary>` commit с дельтой `.memory-bank/`.
+**Plan:** —
+
+### I-005 — /mb graph — визуализация связей plan→checklist→STATUS→progress [HIGH, NEW, 2026-04-20]
+
+**Problem:** для больших проектов сложно проследить откуда пришла задача и где она закрылась.
+**Sketch:** SVG/DOT-граф с cross-references между core-файлами. Подпитывает contextual recall.
+**Plan:** —
+
+### I-006 — Tree-sitter adapter для non-Python языков [HIGH, DONE, 2026-04-20]
+
+**Problem:** `mb-codegraph.py` был Python-only, не покрывал Go/JS/TS/Rust/Java в polyglot проектах.
+**Outcome:** SHIPPED 2026-04-20. 6 языков через `HAS_TREE_SITTER` флаг (fallback на Python-only без зависимости). 14 bats/pytest тестов зелёные.
+**Plan:** shipped as part of v2.2 / Stage 6.5.
+
+### I-007 — i18n error-сообщений [LOW, NEW, 2026-04-19]
+
+**Problem:** сейчас часть stderr сообщений на русском, часть на английском — несогласованность.
+**Sketch:** единый source-of-truth строк + env `MB_LOCALE`. Отложено как LOW priority (v3.1+ backlog).
+**Plan:** —
+
+### I-008 — GUI/TUI для просмотра банка (`mb ui`) [LOW, NEW, 2026-04-19]
+
+**Problem:** для adoption новым пользователям полезен overview без ручного `cat`.
+**Sketch:** TUI через `gum` / fzf; возможно простой localhost dashboard. Пересмотреть если Gate v3.0 показывает что UI — bottleneck adoption.
+**Plan:** —
+
+### I-009 — Экспорт банка в Obsidian/Logseq vault [LOW, NEW, 2026-04-19]
+
+**Problem:** пользователи Obsidian хотят читать MB в своём knowledge management.
+**Sketch:** `mb export --format obsidian` — конвертирует frontmatter + backlinks.
+**Plan:** —
+
+### I-010 — Webhook integration: Slack-нотификация при изменении STATUS.md [LOW, NEW, 2026-04-19]
+
+**Problem:** команды не видят когда milestone/gate сдвинулись без проверки репо.
+**Sketch:** опциональный post-commit hook, POST на webhook URL из env.
+**Plan:** —
+
+### I-011 — Auto-generate README.md проекта из .memory-bank/ data [LOW, NEW, 2026-04-19]
+
+**Problem:** README проекта часто устаревает относительно plan/STATUS.
+**Sketch:** `mb readme-gen` — пересобирает README.md из STATUS + tech stack из codebase.
+**Plan:** —
+
+### I-012 — Split skill на 3 плагина (core, dev-commands, hooks) [MED, DECLINED, 2026-04-19]
+
+**Problem:** (рассмотрено) слишком много фрагментации UX для v2. Может быть в v3 если скилл вырастет.
+**Decision:** DECLINED — единый skill проще для install/update.
+
+### I-013 — Миграция bash → Python для всех скриптов [LOW, DECLINED, 2026-04-19]
+
+**Problem:** (рассмотрено) shell-скрипты якобы плохо тестируются.
+**Decision:** DECLINED — shell приемлем для lightweight ops; Python overhead не оправдан для `cat STATUS.md`.
+
+### I-014 — Drop YAML frontmatter, использовать JSON-only [LOW, DECLINED, 2026-04-19]
+
+**Problem:** (рассмотрено) frontmatter якобы усложняет парсинг.
+**Decision:** DECLINED — frontmatter industry standard для note-taking (Obsidian, Logseq); сохраняем совместимость.
+
+### I-015 — Hash-based IDs для заметок/планов [LOW, DECLINED, 2026-04-20]
+
+**Problem:** (предложено в ревью 2026-04-20) решает multi-device конфликты.
+**Decision:** DECLINED — YAGNI. Single-user workflow; multi-device — теоретическая проблема. Sequential IDs (H-NNN, EXP-NNN, I-NNN) работают.
+
+### I-016 — KB compilation (concepts/, connections/, qa/ иерархия) [MED, DECLINED, 2026-04-20]
+
+**Problem:** (предложено в ревью) преждевременная структура a-la Karpathy.
+**Decision:** DECLINED — у нас ≤50 notes, Karpathy-pattern имеет смысл при 300+.
+
+### I-017 — GWT (Given/When/Then) в DoD [LOW, DECLINED, 2026-04-20]
+
+**Problem:** (предложено из GSD) добавить BDD-секцию в DoD шаблона планов.
+**Decision:** DECLINED — дублирует test requirements; BDD tests достаточны без редундантной markdown-секции.
+
+### I-018 — Schema drift detection [MED, DECLINED, 2026-04-20]
+
+**Problem:** (предложено из GSD) проверять DB schema migrations на drift.
+**Decision:** DECLINED — domain-specific для fintech; не fits generic skill, оставляем pre-commit hooks пользователей.
+
+### I-019 — /mb debug (4-phase systematic debugging) [LOW, DECLINED, 2026-04-20]
+
+**Problem:** (предложено из Superpowers) встроить отладочный workflow.
+**Decision:** DECLINED — дублирует `superpowers:debugging` skill. Tool composition > duplication.
+
+### I-020 — REST API / daemon mode [HIGH, DECLINED, 2026-04-20]
+
+**Problem:** (предложено из mcp-memory-service) серверный режим для shared memory.
+**Decision:** DECLINED — ломает архитектурное преимущество (93% Shell, simplicity, offline). Ниша занята mcp-memory-service (1500+ тестов), не конкурируем.
+
+### I-021 — Viewer UI / localhost dashboard [MED, DECLINED, 2026-04-20]
+
+**Problem:** (предложено для adoption) веб-интерфейс для просмотра банка.
+**Decision:** DECLINED — chrome over substance. Пересмотреть если Gate v3.0 покажет что UI — bottleneck adoption. Пересекается с I-008 (LOW/NEW), как LOW-severity альтернатива оставляем.
+
+### I-022 — OpenAI/Cohere embeddings через API [LOW, DECLINED, 2026-04-20]
+
+**Problem:** (рассмотрено как альтернатива I-002) SaaS embeddings вместо local MiniLM.
+**Decision:** DECLINED — теряем детерминированность и оффлайн-работу. Local MiniLM (если когда-нибудь добавим sqlite-vec) достаточен.
+
+## ADR
+
+### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
+
+**Context:** native plugins пока недостаточно зрелые для multi-file distribution.
+**Options:**
+- A: plugin-based packaging — требует manifest rewrite и migration
+- B: keep as-is — zero migration cost
+
+**Decision:** B.
+**Rationale:** скорость выпуска важнее canonical form; пересмотреть в v3.
+**Consequences:** users продолжают клонировать skill repo; нет CI/CD через Anthropic plugin marketplace (пока).
+
+### ADR-002 — Bats-core для shell, pytest для Python [2026-04-19]
+
+**Context:** нужна unified testing story, но shell и Python имеют разные idioms.
+**Options:**
+- A: только bats, мокать Python через shell
+- B: перевести merge-hooks.py → shell
+- C: раздельные frameworks
+
+**Decision:** C.
+**Rationale:** native test idioms побеждают искусственную унификацию.
+**Consequences:** CI запускает оба набора; developers знают оба framework'а.
+
+### ADR-003 — index.json минимальная реализация (без vector) [2026-04-19]
+
+**Context:** sqlite-vec добавляет runtime dependency и усложняет install.
+**Options:**
+- A: полный semantic search
+- B: только frontmatter index (tags/type/importance)
+- C: отказаться от index.json
+
+**Decision:** B.
+**Rationale:** покрывает 80% use-cases при 20% сложности.
+**Consequences:** semantic queries невозможны без отдельного opt-in (ADR-007).
+
+### ADR-004 — Профиль развития — гибрид C (personal → public через v3.0) [2026-04-20]
+
+**Context:** skill опубликован на GitHub, но не рекламируется; пользователь хочет продолжать для себя, затем публично продвигать.
+**Options:**
+- A: только personal — minimal invest, теряем потенциал
+- B: сразу public — преждевременные npm/benchmarks без отработки на себе
+- C: гибрид — v2.1/v2.2 для себя, v3.0 для public
+
+**Decision:** C.
+**Rationale:** dogfooding даёт реальный signal до public commitment.
+**Consequences:** двухфазный release cycle; Stage 9 готовит PyPI/Homebrew к public.
+
+### ADR-005 — Auto-capture через SessionEnd + Haiku [2026-04-20]
+
+**Context:** `progress.md` append-only; нужен cheap auto-summary без полного actualize.
+**Options:**
+- A: Sonnet — overhead на каждой сессии
+- B: без LLM (bash append) — теряем summary
+- C: Haiku с ограниченной областью (только progress.md)
+
+**Decision:** C.
+**Rationale:** Haiku 4× дешевле; full actualize остаётся в manual `/mb done` с Sonnet.
+**Consequences:** две точки записи (auto + manual); доп. сложность в coordination.
+
+### ADR-006 — Code graph через tree-sitter — opt-in через extras [2026-04-20]
+
+**Context:** tree-sitter = C-extensions, install может быть heavy на Windows/legacy системах.
+**Options:**
+- A: всегда включено — ломает install в 10% случаев
+- B: separate package — users пропустят
+- C: opt-in через `pip install memory-bank[codegraph]`
+
+**Decision:** C.
+**Rationale:** default работает без codegraph; advanced users включают явно.
+**Consequences:** документация должна чётко показать когда нужен extras.
+
+### ADR-007 — Отказ от sqlite-vec в v2.1/v2.2 [2026-04-20]
+
+**Context:** ревью настаивало на semantic search, но benefits не подтверждены реальным usage.
+**Options:**
+- A: включить в v2.2 — preemptive complexity
+- B: v3.1+ backlog — ждём реальной потребности
+
+**Decision:** B.
+**Rationale:** (1) keyword+tags+codegraph покрывают 80%; (2) sqlite-vec+MiniLM ~100MB download; (3) benchmark покажет нужно ли.
+**Consequences:** I-002 остаётся DEFERRED; пересмотр после реальных v3.0 use cases.
+
+### ADR-008 — Distribution — pipx/PyPI primary, Homebrew secondary [2026-04-20]
+
+**Context:** mix-stack skill (88% bash + 12% Python).
+**Options:**
+- A: npm — требует Node.js runtime при отсутствии JS-кода
+- B: pipx/PyPI — Python уже in-stack, `pipx` изолирует env, `pipx upgrade` решает update story
+- C: Homebrew tap — native macOS/linuxbrew, но ограниченная аудитория
+- D: `curl | bash` — простейший, но security concerns
+
+**Decision:** B primary + C secondary + Anthropic plugin tertiary.
+**Rationale:** pipx канонично для CLI с mix deps; Homebrew — secondary для macOS-only пользователей.
+**Consequences:** npm убран; scope `@fockus/memory-bank` зарезервирован. PyPI имя `memory-bank-skill` (не `skill-memory-bank`) — избегаем rename pain.
+
+### ADR-009 — Benchmarks отложены в v3.1+ backlog [2026-04-20]
+
+**Context:** ревью настаивало на benchmarks как обязательная фича v3.0 для public release.
+**Options:**
+- A: synthetic benchmark сразу — low-value
+- B: отложить до реальной usage-baseline
+- C: skip навсегда — теряем adoption
+
+**Decision:** B.
+**Rationale:** для valid baseline нужно 1+ месяц реального использования v3.0; без сравнения с claude-mem — single-point measurement.
+**Consequences:** I-001 остаётся DEFERRED; differentiator сейчас — TDD/plan-verifier/cross-agent, не recall цифры.
+
+### ADR-010 — Codex CLI 7-м adapter в Stage 8 [2026-04-20]
+
+**Context:** OpenAI Codex CLI использует `AGENTS.md` как стандарт конфига (совпадает с OpenCode).
+**Options:**
+- A: не добавлять — пропустим аудиторию
+- B: `AGENTS.md` shared с OpenCode — конфликт при одновременной установке
+- C: `AGENTS.md` + optional `.codex/config.toml` — явный marker владения
+
+**Decision:** C.
+**Rationale:** manifest фиксирует ownership per-client; совместная установка с OpenCode возможна при shared `AGENTS.md`.
+**Consequences:** 6→7 adapters; 14→16 e2e tests; uninstall одного не затирает файл пока второй active.
+
+### ADR-011 — Repository migration claude-skill-memory-bank → skill-memory-bank [2026-04-20]
+
+**Context:** после Stage 8 skill работает с 7 клиентами, имя `claude-skill-*` misleading.
+**Options:**
+- A: оставить старое имя + rebrand в README — запутано
+- B: fresh public repo с clean-break history — теряем ADR/research transparency
+- C: full history migration в новый `skill-memory-bank` + archive старого
+
+**Decision:** C.
+**Rationale:** canonical path; сохраняет authorship и link continuity.
+**Consequences:** Stage 8.5 до Stage 9 (иначе PyPI/Homebrew нужен перевыпуск). PyPI имя остаётся `memory-bank-skill` (ADR-008 — не переименовываем). URL в project_urls.Repository → `fockus/skill-memory-bank`.
