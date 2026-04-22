@@ -37,4 +37,4 @@ bash ~/.claude/skills/memory-bank/scripts/mb-roadmap-sync.sh
 ## Exit codes
 
 - `0` — success
-- `1` — `.memory-bank/` not found or malformed plan frontmatter
+- `1` — `.memory-bank/` not found

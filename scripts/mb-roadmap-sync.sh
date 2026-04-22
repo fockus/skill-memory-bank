@@ -94,6 +94,23 @@ BLOCK_LIST_RE = re.compile(
 )
 
 
+_TRUE_TOKENS = {"true", "yes", "on", "1"}
+_FALSE_TOKENS = {"false", "no", "off", "0", ""}
+
+
+def parse_bool(raw: str, key: str, plan_rel: str) -> bool:
+    v = raw.strip().lower()
+    if v in _TRUE_TOKENS:
+        return True
+    if v in _FALSE_TOKENS:
+        return False
+    print(
+        f"[warn] plan {plan_rel}: {key}='{raw}' is not a recognized boolean; treating as false",
+        file=sys.stderr,
+    )
+    return False
+
+
 def detect_block_style_keys(text: str) -> list[str]:
     """Return frontmatter keys that use block-style YAML lists."""
     m = FRONTMATTER_RE.match(text)
@@ -127,7 +144,7 @@ for path in sorted(plans_dir.glob("*.md")):
             "rel": f"plans/{path.name}",
             "status": fm.get("status", "").strip(),
             "depends_on": parse_list(fm.get("depends_on", "[]")),
-            "parallel_safe": fm.get("parallel_safe", "false").strip().lower() == "true",
+            "parallel_safe": parse_bool(fm.get("parallel_safe", "false"), "parallel_safe", f"plans/{path.name}"),
             "linked_specs": parse_list(fm.get("linked_specs", "[]")),
             "topic": fm.get("topic", path.stem).strip(),
             "sprint": fm.get("sprint", "").strip(),

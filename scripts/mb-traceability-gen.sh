@@ -47,12 +47,20 @@ if not specs_dir.is_dir() or not any(specs_dir.glob("*/requirements.md")):
 reqs: dict[str, dict[str, str]] = {}
 for req_file in sorted(specs_dir.glob("*/requirements.md")):
     spec_name = req_file.parent.name
+    spec_rel = f"specs/{spec_name}/requirements.md"
     text = req_file.read_text(encoding="utf-8")
     for m in REQ_RE.finditer(text):
         req_id = f"REQ-{m.group(1)}"
+        if req_id in reqs and reqs[req_id]["spec"] != spec_rel:
+            print(
+                f"[warn] {req_id} defined in multiple specs: "
+                f"{reqs[req_id]['spec']} and {spec_rel}",
+                file=sys.stderr,
+            )
+            continue
         reqs.setdefault(
             req_id,
-            {"spec": f"specs/{spec_name}/requirements.md", "planned": "", "tests": ""},
+            {"spec": spec_rel, "planned": "", "tests": ""},
         )
 
 

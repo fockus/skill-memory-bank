@@ -349,6 +349,64 @@ def test_empty_sections_render_none_placeholder(tmp_path: Path) -> None:
         assert "_None._" in tail.split("##", 1)[0], f"Missing _None._ under {title}"
 
 
+def test_parallel_safe_accepts_yaml_truthy_and_warns_on_unknown(tmp_path: Path) -> None:
+    """`parallel_safe: yes` should be treated as true; unknown values warn and fall back to false."""
+    mb = _init_mb(tmp_path)
+    # Use the full _make_plan signature since `parallel_safe` defaults to "false"
+    plan_yes = mb / "plans" / "2026-04-22_feature_yes.md"
+    plan_yes.write_text(
+        dedent("""\
+            ---
+            type: feature
+            topic: yes-truthy
+            status: queued
+            depends_on: []
+            parallel_safe: yes
+            linked_specs: []
+            sprint: 1
+            phase_of: demo
+            created: 2026-04-22
+            ---
+
+            # Plan: yes-truthy
+
+            ## Task 1: demo
+            """),
+        encoding="utf-8",
+    )
+    plan_weird = mb / "plans" / "2026-04-22_feature_weird.md"
+    plan_weird.write_text(
+        dedent("""\
+            ---
+            type: feature
+            topic: weird-bool
+            status: queued
+            depends_on: []
+            parallel_safe: maybe
+            linked_specs: []
+            sprint: 1
+            phase_of: demo
+            created: 2026-04-22
+            ---
+
+            # Plan: weird-bool
+
+            ## Task 1: demo
+            """),
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+
+    roadmap = (mb / "roadmap.md").read_text(encoding="utf-8")
+    # "yes" → parallel-safe section
+    assert "yes-truthy" in roadmap.split("## Parallel-safe")[1].split("##")[0]
+    # "maybe" → warning on stderr, plan falls through (queued + not parallel → Next section)
+    assert "maybe" in result.stderr or "not a recognized boolean" in result.stderr
+    assert "weird-bool" in roadmap.split("## Next")[1].split("##")[0]
+
+
 def test_link_format_in_plan_line(tmp_path: Path) -> None:
     """I4: plan line format is `- [topic](plans/<filename>) — title`."""
     mb = _init_mb(tmp_path)

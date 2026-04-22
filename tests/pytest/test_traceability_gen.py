@@ -221,6 +221,21 @@ def test_marker_only_path(tmp_path: Path) -> None:
     assert "REQ-001" not in orphans_section, "REQ-001 is marker-covered — must not be orphan"
 
 
+def test_duplicate_req_across_specs_emits_warning(tmp_path: Path) -> None:
+    """If REQ-001 is defined in two specs, stderr must carry a collision warning."""
+    mb = _init_mb(tmp_path)  # creates specs/demo/requirements.md with REQ-001..003
+    (mb / "specs" / "other").mkdir()
+    (mb / "specs" / "other" / "requirements.md").write_text(
+        "# other spec\n\n- REQ-001: Duplicate of demo's REQ-001.\n",
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+    assert "REQ-001" in result.stderr
+    assert "multiple specs" in result.stderr or "defined in" in result.stderr
+
+
 def test_pytest_naming_convention(tmp_path: Path) -> None:
     """REG-C2: tests following pytest convention `def test_REQ_NNN_...():` must be
     detected. Previously `\\b` around `REQ_` failed because `_` is a word char in

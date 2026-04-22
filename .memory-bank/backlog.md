@@ -153,6 +153,37 @@
 **Sketch:** pytest который grep'ом ищет запрещённые конструкции и fail'ит если найдены.
 **Plan:** Sprint 2 (часть расширения test-suite для migrator).
 
+### I-028 — multi-active plan collision in checklist.md (Sprint 2 reviewer C1) [HIGH, NEW, 2026-04-22]
+
+**Problem:** mb-plan-sync.sh keys checklist sections by `## Stage N: <name>` heading. Two active plans sharing a section name (e.g. both have `## Task 1: Setup`) collapse onto one checklist entry. When one plan is closed via mb-plan-done.sh, its removal takes the other plan's entry with it — silent data loss.
+**Repro:** create two plans with `## Task 1: Setup`. `mb-plan-sync.sh p1.md && mb-plan-sync.sh p2.md && mb-plan-done.sh p1.md` → checklist now empty, p2 orphaned.
+**Sketch:** emit `<!-- mb-plan:<basename> -->` marker above each `## Stage N:` section; key remove-logic by marker (plan-scoped), not section heading. Backward-compat: sections without markers are treated as owned by the currently-being-closed plan (conservative legacy behavior).
+**Plan:** Sprint 3 baseline — this is architectural multi-active correctness work, covers Phase/Sprint/Task naming collisions universally. ~50 lines + tests for two-plan collision + single-plan legacy-marker-less cleanup.
+
+### I-029 — mb-traceability-gen: extension list is hard-coded, no `.rb/.kt/.swift/.java/.c/.cpp/.h` [LOW, NEW, 2026-04-22]
+
+**Problem:** (Batch C reviewer M1) `tf.suffix not in {".py", ".ts", ".tsx", ".js", ".go", ".rs", ".sh"}` — hard-coded list excludes common languages. Plan spec said "substrings in file content" without enumerating.
+**Sketch:** move extensions to `_lib.sh` env variable `MB_TRACEABILITY_EXTENSIONS` with sensible default; document override.
+**Plan:** Sprint 3 or later.
+
+### I-030 — mb-roadmap-sync: `.md` file scan omitted from REQ detection [LOW, NEW, 2026-04-22]
+
+**Problem:** (Batch C reviewer M1) Prose mentions of REQ-NNN in `.md` design documents are not counted as coverage. This is probably correct (too noisy), but not documented.
+**Sketch:** add a comment in mb-traceability-gen.sh header explaining the intentional `.md` exclusion.
+**Plan:** Sprint 3 polish.
+
+### I-031 — mb-traceability-gen: traceability.md full-overwrite isn't documented [LOW, NEW, 2026-04-22]
+
+**Problem:** (Batch C reviewer I4) Manual edits to `traceability.md` are silently clobbered. Current header says "Do not edit manually" but the write semantics ("FULL OVERWRITE — any manual edits are lost") should be in the script header comment too.
+**Sketch:** one-line doc addition in `scripts/mb-traceability-gen.sh`.
+**Plan:** Sprint 3 polish.
+
+### I-032 — Phase/Sprint/Task parser: Phase and Sprint as container-only? [LOW, NEW, 2026-04-22]
+
+**Problem:** (final reviewer recommendation) `^#{2,4} (Task|Stage|Phase|Sprint) [0-9]+:` accepts all four equally. In plans like Sprint 2's own (which has `## Phase 1 > Sprint 2 > Task N` nesting), both `Phase 1` and `Task N` become checklist entries. Probably tracking-correct, but semantically `Phase`/`Sprint` are containers, not executable units.
+**Sketch:** decide — allow all four (current), or restrict to `Task|Stage` only with `Phase|Sprint` being document structure. If the latter: narrow regex to `^#{2,4} (Task|Stage) [0-9]+:`.
+**Plan:** Sprint 3 design discussion.
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
