@@ -97,8 +97,6 @@ for i in "${!RENAMES_OLD[@]}"; do
   fi
 done
 
-echo "[ok] rename phase complete — content transform and reference fixup in Task 5+"
-
 # === Content transform: roadmap.md ===
 # Transforms v1 plan.md content into v2 roadmap format. Preserves the legacy
 # <!-- mb-active-plan --> block by relocating it into the new ## Now section.
@@ -172,3 +170,51 @@ path.write_text(new_roadmap, encoding="utf-8")
 print(f"[transformed] {path}")
 PY
 fi
+
+# === Reference fixup inside .memory-bank/ .md files ===
+# Rewrites cross-references in all .md files under $MB_PATH (excluding the
+# backup directory). STATUS.md / BACKLOG.md / RESEARCH.md → lowercase.
+# plan.md → roadmap.md ONLY when used as a file reference (word-boundary
+# preceded by a non-identifier char), not when "plan" appears in prose.
+python3 - "$MB_PATH" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+mb = Path(sys.argv[1])
+replacements = [
+    (re.compile(r"\bSTATUS\.md\b"), "status.md"),
+    (re.compile(r"\bBACKLOG\.md\b"), "backlog.md"),
+    (re.compile(r"\bRESEARCH\.md\b"), "research.md"),
+    # plan.md → roadmap.md: only when preceded by path separator or start of
+    # word (non-identifier char) to avoid mangling prose. Matches:
+    #   "see plan.md"       → yes   (space before)
+    #   "plans/plan.md"     → yes   (slash before)
+    #   "the plan.md file"  → yes   (space before)
+    # Does not match:
+    #   "explanation.md"    → no    ("a" before "plan", identifier char)
+    (re.compile(r"(?<![A-Za-z0-9_\-])plan\.md\b"), "roadmap.md"),
+]
+
+# Exclude any .migration-backup-* directory under $MB_PATH.
+skip_prefixes = tuple(str(p.resolve()) for p in mb.glob(".migration-backup-*"))
+
+updated = 0
+for md in mb.rglob("*.md"):
+    resolved = str(md.resolve())
+    if any(resolved.startswith(p) for p in skip_prefixes):
+        continue
+    original = md.read_text(encoding="utf-8")
+    new_text = original
+    for pat, repl in replacements:
+        new_text = pat.sub(repl, new_text)
+    if new_text != original:
+        md.write_text(new_text, encoding="utf-8")
+        rel = md.relative_to(mb)
+        print(f"[refs] updated {rel}")
+        updated += 1
+
+print(f"[refs] {updated} file(s) updated")
+PY
+
+echo "[ok] migration complete — backup at $backup_dir"

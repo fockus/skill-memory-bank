@@ -92,3 +92,41 @@ def test_roadmap_content_transformed(v1_copy: Path) -> None:
     # Legacy "## Priorities" / "## Direction" preserved in Legacy body
     assert "## Priorities" in roadmap
     assert "## Direction" in roadmap
+
+
+def test_references_updated_in_notes(v1_copy: Path) -> None:
+    result = run_script(v1_copy, "--apply")
+    assert result.returncode == 0, result.stderr
+    note = (v1_copy / "notes" / "2026-04-15_12-00_example.md").read_text(encoding="utf-8")
+    assert "STATUS.md" not in note
+    assert "status.md" in note
+
+
+def test_references_updated_in_plans(v1_copy: Path) -> None:
+    result = run_script(v1_copy, "--apply")
+    assert result.returncode == 0, result.stderr
+    plan = (v1_copy / "plans" / "2026-04-20_feature_example.md").read_text(encoding="utf-8")
+    # plan.md file-ref rewritten to roadmap.md
+    # Fixture content: "Reference: see plan.md and BACKLOG.md."
+    # After fixup should be: "Reference: see roadmap.md and backlog.md."
+    assert "BACKLOG.md" not in plan
+    assert "backlog.md" in plan
+    # Check the plan.md → roadmap.md rewrite specifically (word-boundary regex)
+    assert "see plan.md" not in plan
+    assert "see roadmap.md" in plan
+
+
+def test_references_untouched_in_backup(v1_copy: Path) -> None:
+    result = run_script(v1_copy, "--apply")
+    assert result.returncode == 0, result.stderr
+    backups = sorted(v1_copy.glob(".migration-backup-*"))
+    backup = backups[0]
+    # Backup copies are pristine — old names preserved, references unchanged.
+    assert (backup / "STATUS.md").is_file()
+    status_content = (backup / "STATUS.md").read_text(encoding="utf-8")
+    assert "# Status" in status_content
+    # Original STATUS.md content referenced plan.md / BACKLOG.md / RESEARCH.md —
+    # those references must NOT be rewritten in the backup copy.
+    assert "plan.md" in status_content
+    assert "BACKLOG.md" in status_content
+    assert "RESEARCH.md" in status_content
