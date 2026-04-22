@@ -8,7 +8,7 @@
 #   - Between `<!-- mb-roadmap-auto -->` and `<!-- /mb-roadmap-auto -->` fences,
 #     emit these sections:
 #       ## Now (in progress)            — status: in_progress
-#       ## Next (strict order — depends) — status: queued AND depends_on non-empty
+#       ## Next (strict order — depends) — status: queued AND parallel_safe: false
 #       ## Parallel-safe (can run now)  — status: queued AND parallel_safe: true AND depends_on empty
 #       ## Paused / Archived             — status: paused|cancelled
 #       ## Linked Specs (active)        — distinct linked_specs entries from non-done plans
@@ -16,7 +16,16 @@
 #   - If fence is missing, inject it after the `# Roadmap` H1 line
 #   - Idempotent
 #
-# Exit: 0 OK, 1 missing mb_path / malformed plan, 2 unexpected internal error.
+# NOTE: if roadmap.md has multiple `<!-- mb-roadmap-auto -->` fence pairs,
+# only the FIRST is regenerated. This is by design — the file is intended to
+# have one autosync block. Multi-fence usage is silently ignored (not an error).
+#
+# Warnings (emitted to stderr, do not fail the run):
+#   - Plans without frontmatter are skipped with `[warn] skipping plan without frontmatter: <path>`
+#   - Plans using block-style YAML lists (`depends_on:\n  - a`) warn:
+#     `[warn] plan <path>: <key> uses block-style list; use flow-style [a, b]`
+#
+# Exit: 0 OK, 1 missing mb_path / missing roadmap / plans dir, 2 unexpected internal error.
 
 set -euo pipefail
 
@@ -79,6 +88,21 @@ def plan_title(path: Path, text: str) -> str:
     return path.name
 
 
+BLOCK_LIST_RE = re.compile(
+    r"^(depends_on|linked_specs):\s*$\n(\s+-\s+)",
+    re.MULTILINE,
+)
+
+
+def detect_block_style_keys(text: str) -> list[str]:
+    """Return frontmatter keys that use block-style YAML lists."""
+    m = FRONTMATTER_RE.match(text)
+    if not m:
+        return []
+    raw = m.group(1)
+    return [match.group(1) for match in BLOCK_LIST_RE.finditer(raw + "\n")]
+
+
 # Collect plans (not plans/done/)
 plans: list[dict[str, object]] = []
 for path in sorted(plans_dir.glob("*.md")):
@@ -90,7 +114,13 @@ for path in sorted(plans_dir.glob("*.md")):
         continue
     fm = parse_frontmatter(text)
     if not fm:
+        print(f"[warn] skipping plan without frontmatter: {path}", file=sys.stderr)
         continue
+    for key in detect_block_style_keys(text):
+        print(
+            f"[warn] plan {path}: {key} uses block-style list; use flow-style [a, b]",
+            file=sys.stderr,
+        )
     plans.append(
         {
             "path": path,
@@ -113,7 +143,7 @@ def fmt_plan_line(p: dict[str, object], prefix: str = "- ") -> str:
 
 now_plans = [p for p in plans if p["status"] == "in_progress"]
 queued = [p for p in plans if p["status"] == "queued"]
-next_plans = [p for p in queued if p["depends_on"]]
+next_plans = [p for p in queued if not p["parallel_safe"]]
 parallel_plans = [p for p in queued if p["parallel_safe"] and not p["depends_on"]]
 paused_plans = [p for p in plans if p["status"] in ("paused", "cancelled")]
 
