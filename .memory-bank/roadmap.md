@@ -8,7 +8,23 @@ _No active plan. Run /mb plan <type> <topic> to start._
 
 ## Next (strict order — depends)
 
-_Queued plans appear here. See plans/*.md frontmatter: depends_on._
+Работа v4 idет последовательно, Phase 1 завершена, следующие два sprint'а в строгом порядке:
+
+1. **⏭ Sprint 3 — I-028 fix (multi-active correctness)** [HIGH priority, ~50 строк + tests]
+   - Baseline для Phase 2 — без этого fix'а `/mb discuss` планы словят коллизию в checklist.md
+   - Маркеры `<!-- mb-plan:<basename> -->` над каждой `## Stage N:` секцией
+   - Remove-logic по маркеру (plan-scoped), не по heading content
+   - Backward-compat: секции без маркеров — legacy ownership
+   - Repro: `sync p1 && sync p2 (одинаковый Task name) && done p1` → checklist empty, p2 orphaned
+
+2. **⏳ Phase 2 Sprint 1 — `/mb discuss` + EARS validator + `context/<topic>.md`** [depends_on: Sprint 3]
+   - Заполняет input-сторону traceability pipeline (Sprint 2 построил output, матрица пока всегда "No specs yet")
+   - `/mb discuss <topic>` — структурированное интервью → EARS REQ-001..N
+   - EARS validator — 5 шаблонов (Ubiquitous/Event-driven/State-driven/Optional/Unwanted)
+   - `/mb plan` читает `context/<topic>.md` → REQ-линковка в stages
+   - Решает spec §1 ("нет SDD-дисциплины")
+
+**Обоснование порядка:** Phase 2 планы сами используют `## Task N:` headings, поэтому multi-active коллизии гарантированы при одновременной работе. Починить I-028 **до** Phase 2.
 
 ## Parallel-safe (can run now)
 
@@ -20,12 +36,26 @@ _Plans in paused/cancelled state._
 
 ## Linked Specs (active)
 
-_Active specs/<topic>/ directories._
+- `specs/mb-skill-v2/` — skill v2 design doc (Phase 1 completed)
+
+## Open high/medium backlog (см. backlog.md)
+
+- **I-028 (HIGH)** — multi-active plan collision → Sprint 3 baseline ☝️
+- I-023 (MED) — grep→find в start.md/mb-doctor
+- I-026 ✅ resolved в Sprint 2 (Phase/Sprint/Task parser)
+
+## Roadmap high-level (из specs/mb-skill-v2/design.md §20)
+
+- **Phase 1 — Foundation** ✅ COMPLETE (rename + autosync + traceability-gen infrastructure)
+- **Phase 2 — Discussion & SDD artifacts** (Sprint 1: discuss+EARS+context; Sprint 2: /mb sdd + specs/<topic>/ + SDD-lite)
+- **Phase 3 — Work engine** (Sprint 1: pipeline.yaml + /mb config; Sprint 2: /mb work + 9 role-agents; Sprint 3: review-loop + severity gates)
+- **Phase 4 — Hardening** (Sprint 1: plan-verifier + 4 critical hooks; Sprint 2: --auto/--range/--budget + sprint_context_guard; Sprint 3: superpowers overrides + installer update)
 
 ## See also
-- traceability.md — REQ coverage matrix
+- traceability.md — REQ coverage matrix (пока "No specs yet", Phase 2 заполнит)
 - backlog.md — future ideas & ADR
 - checklist.md — current in-flight tasks
+- notes/2026-04-22_20-30_sprint3-vs-phase2-priority.md — обоснование порядка Sprint 3 → Phase 2
 
 ---
 

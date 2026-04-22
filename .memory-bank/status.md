@@ -1,6 +1,50 @@
 # claude-skill-memory-bank: Статус проекта
 
 ## Текущая фаза
+**Skill v2 Phase 1 Foundation — COMPLETE (2026-04-22).** Phase 1 Sprint 1 (rename migration v1→v2: `STATUS/BACKLOG/RESEARCH/plan` → lowercase + `roadmap`) и Sprint 2 (autosync + traceability-gen + Phase/Sprint/Task parser) смёрджены в main. Pytest: **289 passed, 0 failed** · shellcheck clean · ruff clean.
+
+## ⏭ Следующий шаг — Sprint 3 baseline (I-028 fix) перед Phase 2
+
+**HIGH priority blocker**: multi-active plan checklist collision. Два плана с `## Task 1: Setup` сливаются → close одного удаляет секцию у другого (silent data loss). Sprint 3 = маркеры `<!-- mb-plan:<basename> -->` + key-by-marker remove-logic.
+
+**Почему раньше Phase 2:** Phase 2 Sprint 1 планы (`/mb discuss`, EARS, context) сами используют `## Task N:` heading — коллизия гарантирована при одновременной работе с другим активным планом.
+
+**Подробное обоснование и рассуждения:**
+- 📎 `notes/2026-04-22_20-30_sprint3-vs-phase2-priority.md` — решение + Phase 2 rationale
+- 📎 `backlog.md` → I-028 (HIGH, NEW, 2026-04-22) — full repro + fix sketch
+- 📎 `roadmap.md` → Next section — строгий порядок Sprint 3 → Phase 2 Sprint 1
+- 📎 `checklist.md` → блоки "Sprint 3 baseline" + "Phase 2 Sprint 1" с DoD'ами
+
+## Ключевые артефакты Phase 1 (2026-04-22)
+
+**Sprint 1** (commit `b10d154`):
+- `scripts/mb-migrate-v2.sh` — APFS-safe + fenced-code-aware idempotent migrator (bash 3.2 compat)
+- 10 pytest тестов миграции + 3 Contract-First e2e + naming guard
+- Dogfooded: skill's own `.memory-bank/` мигрировал на v2
+
+**Sprint 2** (commit `25ac4b9`):
+- `scripts/mb-roadmap-sync.sh` — fence-preserving idempotent autosync (parse_bool с YAML-truthy + block-style warnings)
+- `scripts/mb-traceability-gen.sh` — REQ→Plan→Test matrix (zero-spec fallback + multi-spec collision warnings)
+- Parser extension: `^#{2,4} (Task|Stage|Phase|Sprint) [0-9]+:` — backward compat для legacy `### Stage N:`
+- Chain wiring: `mb-plan-sync.sh` / `mb-plan-done.sh` auto-invoke generators (best-effort)
+- `/mb roadmap-sync` + `/mb traceability-gen` slash commands
+
+## Review findings поправленные mid-sprint
+
+- **Sprint 2 Batch C** — C1/C2 Critical regex bugs (COVERS_MARKER_RE hyphen-exclude, REQ_TEST_RE word-boundary) — fixed `aa02567`
+- **Sprint 2 Batch B carry-over** — I1-I4+M1 (malformed-plan warn, queued bucket, block-style detect, strong test asserts, first-fence-wins doc) — fixed `4361771`
+- **Sprint 2 final review** — I1-I3 (stale doc, truthy validation, REQ collision warn) — fixed `8fd9ea1`
+- **Missed status flip** — `25ac4b9`
+
+## Open backlog
+
+- **I-028 (HIGH)** — multi-active plan collision → Sprint 3 baseline
+- I-023, I-024, I-025, I-027 (LOW/MED) — cleanup и polish
+- I-029…I-032 (LOW) — mostly docs и extension lists в traceability/roadmap-sync
+
+---
+
+## Архив — v3.1.2 release (2026-04-21)
 **Phase: v3.1.2 released.** Review findings hardening + installer boundary refactor shipped. Два плана закрыты: `review-hardening-installer-boundaries` (7/7 stages) и `core-files-v3-1` (14/15 stages + stage 12 dogfood done). Git tag `v3.1.2`, PyPI `memory-bank-skill==3.1.2`, Homebrew tap bumped, GitHub Release published.
 
 ## Завершено 2026-04-21 — v3.1.2 release + plan closures
