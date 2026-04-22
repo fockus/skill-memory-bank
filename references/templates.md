@@ -104,6 +104,63 @@ Principle: one change per experiment (single-change policy).
 
 ---
 
+## Plan decomposition — Phase → Sprint → Stage
+
+Formal 3-level hierarchy for planning. **Choose the level by the size of the work — not everything needs to be wrapped in a Phase.**
+
+| Level | Purpose | Size threshold | Context |
+|-------|---------|----------------|---------|
+| **Stage** | Atomic unit of work. Marker `<!-- mb-stage:N -->` inside a plan file | 1-5 files, ~5-15 tests, 5-30 min | Fits in one tool series |
+| **Sprint** | Group of related Stages sharing the same architectural context. = **one plan file** | 3-7 stages, ≤15 files, ≤60 tests, ~3000 lines of new code | **≤ 200k tokens** (one session) |
+| **Phase** | Major direction with ≥2 Sprints and dependencies between them | ≥2 Sprints, > 1 week of work, has roadmap/gates | Multiple plan files |
+
+### When to use which level
+
+| Work size | Structure | Example |
+|-----------|-----------|---------|
+| ≤ 3 stages, 1 session | **Plain plan**, no Phase/Sprint | Bugfix, small refactor |
+| 3-7 stages, several days | One **Sprint** = one plan file | New mid-size feature |
+| ≥ 2 Sprints with dependencies | **Phase** = roadmap + multiple plan files (one per Sprint) | Large initiative |
+
+### 🔴 Hard rule — 200k context window per Sprint
+
+**One Sprint must fit in a single Claude 200k-token context** — from reading code to final verification and Memory Bank actualization.
+
+Budget per Sprint (indicative):
+- ~30k — reading inputs (source files + plan + checklist)
+- ~30k — planning + TDD red phase
+- ~100k — implementation
+- ~30k — verification + test runs + output
+- ~10k — buffer for errors and corrections
+
+**If you estimate a Sprint at >200k — split it into 2 Sprints** along an architectural boundary. Two clean Sprints beat one truncated Sprint.
+
+**Symptoms that require a split:**
+- > 5 large files (>500 lines each) to read
+- > 15 new/modified files
+- > 3000 lines of new code
+- > 60 new tests
+- cross-layer refactor (core + service + infra all at once, all large)
+
+### Required per Stage — SMART DoD
+
+Each Stage in a plan file must have:
+- **Title** — what is being done
+- **Actions** — concrete files/functions
+- **Tests (TDD — BEFORE implementation)** — unit / integration / e2e where applicable
+- **DoD** (SMART: Specific / Measurable / Achievable / Relevant / Time-bound) as checkboxes; each item answers «how do we verify?»
+- **Code rules** — one-line reference to principles (TDD/SOLID/DRY/KISS/Clean Arch)
+
+### Required per Sprint — Gate
+
+Every plan file ends with `## Gate` — the single success criterion. Without a Gate, it's not a Sprint.
+
+### Terminology
+
+Use **Phase / Sprint / Stage** exactly. "Этап" is accepted historically in existing plans (= Stage), but new plans should use the English triple for consistency.
+
+---
+
 ## Plan (`plans/YYYY-MM-DD_<type>_<topic>.md`)
 
 Types: `feature`, `fix`, `refactor`, `experiment`
