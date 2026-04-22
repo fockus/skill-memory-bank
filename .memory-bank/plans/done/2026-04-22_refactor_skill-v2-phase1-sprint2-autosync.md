@@ -1,7 +1,7 @@
 ---
 type: refactor
 topic: skill-v2-phase1-sprint2-autosync
-status: in_progress
+status: done
 depends_on: [plans/done/2026-04-22_refactor_skill-v2-phase1-sprint1-rename.md]
 parallel_safe: false
 linked_specs: [specs/mb-skill-v2]
