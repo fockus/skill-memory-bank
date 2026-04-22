@@ -25,7 +25,7 @@
 set -eu
 
 SUPPORTED_LOCALES=(en ru es zh)
-CORE_FILES=(STATUS.md plan.md checklist.md BACKLOG.md RESEARCH.md progress.md lessons.md)
+CORE_FILES=(status.md roadmap.md checklist.md backlog.md research.md progress.md lessons.md)
 CORE_DIRS=(plans plans/done notes reports experiments codebase)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# mb-adr.sh — capture an Architecture Decision Record in BACKLOG.md.
+# mb-adr.sh — capture an Architecture Decision Record in backlog.md.
 #
 # Usage:
 #   mb-adr.sh <title> [mb_path]
 #
-# Effect: append to `## ADR` section in BACKLOG.md:
+# Effect: append to `## ADR` section in backlog.md:
 #   ### ADR-NNN — <title> [YYYY-MM-DD]
 #   **Context:** …
 #   **Options:**
@@ -13,7 +13,7 @@
 #   **Rationale:** …
 #   **Consequences:** …
 #
-# Exit: 0 OK, 1 missing BACKLOG.md.
+# Exit: 0 OK, 1 missing backlog.md.
 
 set -euo pipefail
 
@@ -23,8 +23,8 @@ source "$(dirname "$0")/_lib.sh"
 TITLE="${1:?Usage: mb-adr.sh <title> [mb_path]}"
 MB_PATH=$(mb_resolve_path "${2:-}")
 
-BACKLOG="$MB_PATH/BACKLOG.md"
-[ -f "$BACKLOG" ] || { echo "[error] BACKLOG.md not found: $BACKLOG" >&2; exit 1; }
+BACKLOG="$MB_PATH/backlog.md"
+[ -f "$BACKLOG" ] || { echo "[error] backlog.md not found: $BACKLOG" >&2; exit 1; }
 
 max_id=$(grep -Eo 'ADR-[0-9]{3}' "$BACKLOG" 2>/dev/null | awk -F- '{print $2+0}' | sort -n | tail -1 || true)
 next=$(printf '%03d' $(( ${max_id:-0} + 1 )))

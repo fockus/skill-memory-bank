@@ -88,7 +88,7 @@ _agents_md_section() {
   echo ''
   echo '**Workflow:**'
   # shellcheck disable=SC2016
-  echo '- Start of session: read `.memory-bank/STATUS.md`, `checklist.md`, `plan.md`, `RESEARCH.md`'
+  echo '- Start of session: read `.memory-bank/status.md`, `checklist.md`, `roadmap.md`, `research.md`'
   # shellcheck disable=SC2016
   echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
   echo '- Before context window fill: manual actualize'

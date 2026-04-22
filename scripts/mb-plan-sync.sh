@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mb-plan-sync.sh — synchronize a plan with checklist.md + plan.md + STATUS.md.
+# mb-plan-sync.sh — synchronize a plan with checklist.md + roadmap.md + status.md.
 #
 # Usage:
 #   mb-plan-sync.sh <plan-file> [mb_path]
@@ -10,11 +10,11 @@
 #   - For each `(N, name)` absent from checklist.md, append section
 #     `## Stage N: <name>` + item `- ⬜ <name>`. Idempotent by full section title.
 #   - Upsert an entry for this plan into the `<!-- mb-active-plans --> ... -->`
-#     block in BOTH plan.md and STATUS.md:
+#     block in BOTH roadmap.md and status.md:
 #        `- [YYYY-MM-DD] [plans/<basename>](plans/<basename>) — <title>`
 #     Match key = basename. Re-sync replaces the line; different plan appends.
 #   - Legacy singular `<!-- mb-active-plan -->` marker auto-upgrades to plural.
-#   - STATUS.md is optional — if present, it gets the same upsert.
+#   - status.md is optional — if present, it gets the same upsert.
 #
 # Exit codes: 0 OK, 1 usage/missing file, 2 parse error.
 
@@ -32,11 +32,11 @@ if [ ! -f "$PLAN_FILE" ]; then
 fi
 
 CHECKLIST="$MB_PATH/checklist.md"
-PLAN_MD="$MB_PATH/plan.md"
-STATUS_MD="$MB_PATH/STATUS.md"
+PLAN_MD="$MB_PATH/roadmap.md"
+STATUS_MD="$MB_PATH/status.md"
 
 [ -f "$CHECKLIST" ] || { echo "[error] checklist.md not found: $CHECKLIST" >&2; exit 1; }
-[ -f "$PLAN_MD" ]   || { echo "[error] plan.md not found: $PLAN_MD" >&2; exit 1; }
+[ -f "$PLAN_MD" ]   || { echo "[error] roadmap.md not found: $PLAN_MD" >&2; exit 1; }
 
 BASENAME=$(basename "$PLAN_FILE")
 

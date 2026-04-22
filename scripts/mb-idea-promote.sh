@@ -6,7 +6,7 @@
 #     type ∈ feature|fix|refactor|experiment
 #
 # Effects:
-#   1. Find idea in BACKLOG.md → extract title.
+#   1. Find idea in backlog.md → extract title.
 #   2. Create plan via mb-plan.sh (type + sanitized title as topic).
 #   3. Flip idea status NEW|TRIAGED → PLANNED; add/replace `**Plan:** [plans/...](plans/...)`.
 #   4. Run mb-plan-sync.sh so the plan appears in active-plans blocks.
@@ -28,8 +28,8 @@ case "$TYPE" in
   *) echo "[error] Invalid type: $TYPE (feature|fix|refactor|experiment)" >&2; exit 3 ;;
 esac
 
-BACKLOG="$MB_PATH/BACKLOG.md"
-[ -f "$BACKLOG" ] || { echo "[error] BACKLOG.md not found: $BACKLOG" >&2; exit 1; }
+BACKLOG="$MB_PATH/backlog.md"
+[ -f "$BACKLOG" ] || { echo "[error] backlog.md not found: $BACKLOG" >&2; exit 1; }
 
 if ! [[ "$ID" =~ ^I-[0-9]{3}$ ]]; then
   echo "[error] Invalid ID format: $ID (expected I-NNN)" >&2
@@ -39,7 +39,7 @@ fi
 # Extract idea header line
 idea_line=$(grep -E "^### ${ID} — " "$BACKLOG" | head -1 || true)
 if [ -z "$idea_line" ]; then
-  echo "[error] Idea $ID not found in BACKLOG.md" >&2
+  echo "[error] Idea $ID not found in backlog.md" >&2
   exit 1
 fi
 

@@ -6,11 +6,11 @@
 #
 # v3.1 effects:
 #   1. Remove plan's `## Stage N: <name>` sections from checklist.md (not tick).
-#   2. Remove plan's entry from `<!-- mb-active-plans -->` blocks in plan.md + STATUS.md.
-#   3. Prepend entry to `<!-- mb-recent-done -->` in STATUS.md.
+#   2. Remove plan's entry from `<!-- mb-active-plans -->` blocks in roadmap.md + status.md.
+#   3. Prepend entry to `<!-- mb-recent-done -->` in status.md.
 #      Format: `- YYYY-MM-DD — [plans/done/<basename>](plans/done/<basename>) — <title>`
 #      Trim block to MB_RECENT_DONE_LIMIT (default 10).
-#   4. If BACKLOG.md has an idea linked to this plan (`**Plan:** plans/<basename>`),
+#   4. If backlog.md has an idea linked to this plan (`**Plan:** plans/<basename>`),
 #      flip its status to DONE and add `**Outcome:**` placeholder.
 #   5. Move plan-file → plans/done/<basename>.
 #
@@ -48,14 +48,14 @@ if [ -n "$abs_done" ] && [[ "$abs_plan" == "$abs_done"/* ]]; then
 fi
 
 CHECKLIST="$MB_PATH/checklist.md"
-PLAN_MD="$MB_PATH/plan.md"
-STATUS_MD="$MB_PATH/STATUS.md"
-BACKLOG_MD="$MB_PATH/BACKLOG.md"
+PLAN_MD="$MB_PATH/roadmap.md"
+STATUS_MD="$MB_PATH/status.md"
+BACKLOG_MD="$MB_PATH/backlog.md"
 BASENAME=$(basename "$PLAN_FILE")
 TODAY=$(date +%Y-%m-%d)
 
 [ -f "$CHECKLIST" ] || { echo "[error] checklist.md not found" >&2; exit 1; }
-[ -f "$PLAN_MD" ]   || { echo "[error] plan.md not found" >&2; exit 1; }
+[ -f "$PLAN_MD" ]   || { echo "[error] roadmap.md not found" >&2; exit 1; }
 
 plan_title=$(awk '
   /^# /{
@@ -166,7 +166,7 @@ remove_active_plan_entry "$PLAN_MD" "$BASENAME"
 remove_active_plan_entry "$STATUS_MD" "$BASENAME"
 
 # ═══════════════════════════════════════════════════════════════
-# Prepend entry to mb-recent-done block in STATUS.md; trim to LIMIT
+# Prepend entry to mb-recent-done block in status.md; trim to LIMIT
 # ═══════════════════════════════════════════════════════════════
 prepend_recent_done() {
   local file="$1" basename="$2" title="$3" today="$4" limit="$5"

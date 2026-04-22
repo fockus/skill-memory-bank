@@ -121,7 +121,7 @@ install_windsurf() {
     echo 'This project uses Memory Bank for long-term memory + dev workflow.'
     echo ''
     echo '**Workflow:**'
-    echo '- Start of session: read `.memory-bank/STATUS.md`, `checklist.md`, `plan.md`, `RESEARCH.md`'
+    echo '- Start of session: read `.memory-bank/status.md`, `checklist.md`, `roadmap.md`, `research.md`'
     echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
     echo ''
     if [ -f "$SKILL_DIR/rules/RULES.md" ]; then

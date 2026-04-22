@@ -52,7 +52,7 @@ install_kilo() {
     echo 'This project uses the Memory Bank skill for long-term memory + dev workflow.'
     echo ''
     echo '**Workflow:**'
-    echo '- Start of session: read `.memory-bank/STATUS.md`, `checklist.md`, `plan.md`, `RESEARCH.md`'
+    echo '- Start of session: read `.memory-bank/status.md`, `checklist.md`, `roadmap.md`, `research.md`'
     echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
     echo '- Before context window fill: manual actualize'
     echo ''

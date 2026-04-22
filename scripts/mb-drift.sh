@@ -42,7 +42,7 @@ skip() { echo "drift_check_${1}=skip"; echo "[drift:${1} skipped] ${2}" >&2; }
 # ═══ 1. path — linked MB files exist ═══
 check_path() {
   local count=0 file
-  for file in "$MB"/STATUS.md "$MB"/plan.md "$MB"/checklist.md "$MB"/BACKLOG.md; do
+  for file in "$MB"/status.md "$MB"/roadmap.md "$MB"/checklist.md "$MB"/backlog.md; do
     [ -f "$file" ] || continue
     while read -r ref; do
       [ -z "$ref" ] && continue
@@ -59,7 +59,7 @@ check_path() {
 check_staleness() {
   local count=0 now file name age
   now=$(date +%s)
-  for file in "$MB"/STATUS.md "$MB"/plan.md "$MB"/checklist.md "$MB"/progress.md; do
+  for file in "$MB"/status.md "$MB"/roadmap.md "$MB"/checklist.md "$MB"/progress.md; do
     [ -f "$file" ] || continue
     age=$(( (now - $(_mtime "$file")) / 86400 ))
     if [ "$age" -gt "$STALE_DAYS" ]; then
@@ -74,7 +74,7 @@ check_staleness() {
 # ═══ 3. script-coverage — `bash scripts/X.sh` references exist ═══
 check_script_coverage() {
   local count=0 file ref
-  for file in "$MB"/STATUS.md "$MB"/plan.md "$MB"/checklist.md "$MB"/BACKLOG.md; do
+  for file in "$MB"/status.md "$MB"/roadmap.md "$MB"/checklist.md "$MB"/backlog.md; do
     [ -f "$file" ] || continue
     while read -r ref; do
       [ -z "$ref" ] && continue
@@ -95,8 +95,8 @@ check_dependency() {
     return
   fi
   # Compare Python: "Python 3.X" in STATUS vs `requires-python` in pyproject
-  if [ -f "$DIR/pyproject.toml" ] && [ -f "$MB/STATUS.md" ]; then
-    py_status=$(grep -oE 'Python[[:space:]]+3\.[0-9]+' "$MB/STATUS.md" 2>/dev/null | head -1 | grep -oE '3\.[0-9]+' || true)
+  if [ -f "$DIR/pyproject.toml" ] && [ -f "$MB/status.md" ]; then
+    py_status=$(grep -oE 'Python[[:space:]]+3\.[0-9]+' "$MB/status.md" 2>/dev/null | head -1 | grep -oE '3\.[0-9]+' || true)
     py_proj=$(grep -oE 'requires-python[^"]*"[^"]+' "$DIR/pyproject.toml" 2>/dev/null | grep -oE '3\.[0-9]+' | head -1 || true)
     if [ -n "$py_status" ] && [ -n "$py_proj" ] && [ "$py_status" != "$py_proj" ]; then
       warn dependency "STATUS Python=$py_status vs pyproject=$py_proj"
@@ -108,12 +108,12 @@ check_dependency() {
 
 # ═══ 5. cross-file — numeric consistency across MB files ═══
 # Check pattern `NNN <unit>` where unit = tests|bats|pytest — values must match
-# between `STATUS.md` and `checklist.md`/`progress.md` when mentioned in both.
+# between `status.md` and `checklist.md`/`progress.md` when mentioned in both.
 check_cross_file() {
   local st ch count=0 other
-  [ -f "$MB/STATUS.md" ] || { ok cross_file; return; }
+  [ -f "$MB/status.md" ] || { ok cross_file; return; }
   # Extract the first "N bats green" from STATUS.
-  st=$(grep -oE '[0-9]+ bats green' "$MB/STATUS.md" 2>/dev/null | head -1 | awk '{print $1}' || true)
+  st=$(grep -oE '[0-9]+ bats green' "$MB/status.md" 2>/dev/null | head -1 | awk '{print $1}' || true)
   if [ -n "${st:-}" ]; then
     for other in "$MB/checklist.md" "$MB/progress.md"; do
       [ -f "$other" ] || continue
@@ -151,7 +151,7 @@ check_command() {
   local count=0 file target
   # npm run X
   if [ -f "$DIR/package.json" ]; then
-    for file in "$MB"/STATUS.md "$MB"/plan.md "$MB"/checklist.md; do
+    for file in "$MB"/status.md "$MB"/roadmap.md "$MB"/checklist.md; do
       [ -f "$file" ] || continue
       while read -r target; do
         [ -z "$target" ] && continue
@@ -164,7 +164,7 @@ check_command() {
   fi
   # make X
   if [ -f "$DIR/Makefile" ]; then
-    for file in "$MB"/STATUS.md "$MB"/plan.md; do
+    for file in "$MB"/status.md "$MB"/roadmap.md; do
       [ -f "$file" ] || continue
       while read -r target; do
         [ -z "$target" ] && continue
@@ -200,12 +200,12 @@ check_frontmatter() {
 
 # ═══ 9. research_experiments — H-NNN Confirmed/Refuted ↔ experiments/EXP-NNN.md ═══
 # For every hypothesis that reports a definitive outcome (Confirmed/Refuted) in
-# RESEARCH.md, the matching experiments/EXP-NNN.md must exist on disk. Otherwise
+# research.md, the matching experiments/EXP-NNN.md must exist on disk. Otherwise
 # the knowledge trail is broken and future sessions cannot inspect the evidence.
 check_research_experiments() {
-  local research="$MB/RESEARCH.md"
+  local research="$MB/research.md"
   if [ ! -f "$research" ]; then
-    skip research_experiments "RESEARCH.md not found"
+    skip research_experiments "research.md not found"
     return
   fi
   local count=0 id num file_expected

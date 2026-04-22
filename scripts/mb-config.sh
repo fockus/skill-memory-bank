@@ -91,7 +91,7 @@ write_config_value() {
 }
 
 # Heuristic: scan bank content for locale hints.
-# Today we look for Cyrillic bytes in STATUS.md / plan.md — covers the
+# Today we look for Cyrillic bytes in status.md / roadmap.md — covers the
 # only non-English locale that shipped before v3.1.1 (ru). For es/zh we
 # currently return en (users must opt in explicitly via --lang).
 detect_lang_from_bank() {
@@ -99,7 +99,7 @@ detect_lang_from_bank() {
   bank="$(bank_dir)"
   [ -d "$bank" ] || { echo en; return 0; }
   local f
-  for f in "$bank/plan.md" "$bank/STATUS.md" "$bank/checklist.md"; do
+  for f in "$bank/roadmap.md" "$bank/status.md" "$bank/checklist.md"; do
     [ -f "$f" ] || continue
     # LC_ALL=C grep for any cyrillic UTF-8 lead byte (0xD0 or 0xD1)
     if LC_ALL=C grep -q $'[\xd0\xd1]' "$f" 2>/dev/null; then

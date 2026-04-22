@@ -516,7 +516,7 @@ Bundled resources available to Codex:
 - Hooks: \`~/.codex/skills/memory-bank/hooks/\`
 
 Recommended workflow:
-- Start by reading \`.memory-bank/STATUS.md\`, \`checklist.md\`, \`plan.md\`, \`RESEARCH.md\`
+- Start by reading \`.memory-bank/status.md\`, \`checklist.md\`, \`roadmap.md\`, \`research.md\`
 - Use \`~/.codex/skills/memory-bank/commands/mb.md\` as the entrypoint for Memory Bank flows
 - Resolve agent prompts from \`~/.codex/skills/memory-bank/agents/\`
 

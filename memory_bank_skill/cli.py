@@ -200,8 +200,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         f"    /mb init --lang {lang}\n\n"
         f"  Target project: {target}\n"
         f"  Locale: lang={lang}\n"
-        f"  This creates .memory-bank/ with STATUS.md, plan.md, checklist.md, "
-        f"BACKLOG.md, RESEARCH.md, progress.md, lessons.md.\n"
+        f"  This creates .memory-bank/ with status.md, roadmap.md, checklist.md, "
+        f"backlog.md, research.md, progress.md, lessons.md.\n"
     )
     return 0
 

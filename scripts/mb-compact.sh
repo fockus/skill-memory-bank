@@ -5,7 +5,7 @@
 #
 # Archival requires (age > threshold) AND (done-signal):
 #   Plans: file in `plans/done/` (primary) OR mentioned in `checklist.md` as ✅
-#          OR in `progress.md`/`STATUS.md` as "completed|done|closed|shipped".
+#          OR in `progress.md`/`status.md` as "completed|done|closed|shipped".
 #          Active plans (not done) are NOT touched even if >180d → warning.
 #   Notes: frontmatter `importance: low` + >90d + no references in core files.
 #
@@ -90,7 +90,7 @@ plan_done_signal() {
     echo "checklist_done"; return 0
   fi
   local f
-  for f in "$MB_PATH/progress.md" "$MB_PATH/STATUS.md"; do
+  for f in "$MB_PATH/progress.md" "$MB_PATH/status.md"; do
     [ -f "$f" ] || continue
     if grep -E 'completed|done|closed|shipped' "$f" 2>/dev/null \
        | grep -qF "$basename"; then
@@ -108,7 +108,7 @@ plan_done_signal() {
 note_referenced() {
   local rel="$1" base f
   base=$(basename "$rel")
-  for f in plan.md STATUS.md checklist.md RESEARCH.md BACKLOG.md; do
+  for f in roadmap.md status.md checklist.md research.md backlog.md; do
     [ -f "$MB_PATH/$f" ] || continue
     grep -qF "$base" "$MB_PATH/$f" 2>/dev/null && return 0
   done
@@ -203,7 +203,7 @@ collect_note_candidates() {
 apply_plan_archive() {
   local rel="$1" reason="$2" f="$MB_PATH/$1"
   [ -f "$f" ] || return 0
-  local summary date_str backlog="$MB_PATH/BACKLOG.md" entry
+  local summary date_str backlog="$MB_PATH/backlog.md" entry
   summary=$(plan_oneline_summary "$f")
   date_str=$(date +%Y-%m-%d)
   if ! grep -q '^## Archived plans' "$backlog" 2>/dev/null; then

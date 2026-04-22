@@ -27,7 +27,7 @@ echo ""
 
 # Core files
 echo "## Core"
-for file in STATUS.md plan.md checklist.md RESEARCH.md BACKLOG.md progress.md lessons.md; do
+for file in status.md roadmap.md checklist.md research.md backlog.md progress.md lessons.md; do
   filepath="$MB_PATH/$file"
   if [[ -f "$filepath" ]]; then
     mod_date=$(file_mod_date "$filepath")

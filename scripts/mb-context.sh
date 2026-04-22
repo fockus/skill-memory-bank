@@ -34,7 +34,7 @@ echo "=== [MEMORY BANK: ACTIVE] ==="
 echo ""
 
 # Core files
-for file in STATUS.md plan.md checklist.md RESEARCH.md; do
+for file in status.md roadmap.md checklist.md research.md; do
   filepath="$MB_PATH/$file"
   if [[ -f "$filepath" ]]; then
     echo "--- $file ---"

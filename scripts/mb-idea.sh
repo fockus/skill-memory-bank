@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# mb-idea.sh — capture a new idea in BACKLOG.md with monotonic I-NNN.
+# mb-idea.sh — capture a new idea in backlog.md with monotonic I-NNN.
 #
 # Usage:
 #   mb-idea.sh <title> [priority] [mb_path]
 #     priority ∈ HIGH|MED|LOW (default MED), case-insensitive.
 #
 # Effect: append `### I-NNN — <title> [PRIORITY, NEW, YYYY-MM-DD]` to the
-# `## Ideas` section of BACKLOG.md. Idempotent by title.
+# `## Ideas` section of backlog.md. Idempotent by title.
 #
-# Exit: 0 OK, 1 missing BACKLOG.md, 2 invalid priority.
+# Exit: 0 OK, 1 missing backlog.md, 2 invalid priority.
 
 set -euo pipefail
 
@@ -19,8 +19,8 @@ TITLE="${1:?Usage: mb-idea.sh <title> [priority] [mb_path]}"
 PRIO_RAW="${2:-}"
 MB_PATH=$(mb_resolve_path "${3:-}")
 
-BACKLOG="$MB_PATH/BACKLOG.md"
-[ -f "$BACKLOG" ] || { echo "[error] BACKLOG.md not found: $BACKLOG" >&2; exit 1; }
+BACKLOG="$MB_PATH/backlog.md"
+[ -f "$BACKLOG" ] || { echo "[error] backlog.md not found: $BACKLOG" >&2; exit 1; }
 
 # Normalize priority
 if [ -z "$PRIO_RAW" ]; then
