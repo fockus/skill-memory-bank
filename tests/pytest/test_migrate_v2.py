@@ -144,6 +144,9 @@ def test_idempotent_double_apply(v1_copy: Path) -> None:
     # Roadmap not re-transformed (content unchanged).
     roadmap_after_second = (v1_copy / "roadmap.md").read_text(encoding="utf-8")
     assert roadmap_after_first == roadmap_after_second
+    # Belt-and-suspenders: confirm the second-run content is still a real roadmap,
+    # not a blank file that happens to equal a blank first-run result.
+    assert "# Roadmap" in roadmap_after_second
     # Only one backup dir exists — second run did not create another.
     backups = sorted(v1_copy.glob(".migration-backup-*"))
     assert len(backups) == 1, f"expected 1 backup, got {len(backups)}: {backups}"

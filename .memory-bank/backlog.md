@@ -123,6 +123,36 @@
 **Problem:** (рассмотрено как альтернатива I-002) SaaS embeddings вместо local MiniLM.
 **Decision:** DECLINED — теряем детерминированность и оффлайн-работу. Local MiniLM (если когда-нибудь добавим sqlite-vec) достаточен.
 
+### I-023 — Унифицировать v1-detection grep → find (commands/start.md, agents/mb-doctor.md) [MED, NEW, 2026-04-22]
+
+**Problem:** (ревью Phase 1 Sprint 1) detection в `commands/start.md` и `agents/mb-doctor.md` использует `ls | grep -E '^(STATUS|BACKLOG|RESEARCH|plan)\.md$'` — на macOS APFS это чувствительно к кэшированию FS. Migrator уже использует корректный `find -maxdepth 1 -type f -name`. Три entry-точки должны давать одинаковый ответ.
+**Sketch:** заменить `ls | grep` на `find .memory-bank -maxdepth 1 -type f -name STATUS.md` и аналоги в обоих файлах.
+**Plan:** Sprint 2 (часть plan-verifier расширения).
+
+### I-024 — Добавить `--` end-of-options handling в mb-migrate-v2.sh [LOW, NEW, 2026-04-22]
+
+**Problem:** (ревью Phase 1 Sprint 1) `bash mb-migrate-v2.sh -- somepath` упадёт с `[error] unknown flag: --`, хотя GNU convention — `--` означает конец опций.
+**Sketch:** в `case "$arg" in` добавить `--) shift ;;` до `--*)`. Одна строка.
+**Plan:** Sprint 2 (low priority — one-shot скрипт, manual users unlikely to pass `--`).
+
+### I-025 — Переименовать переменные `PLAN_MD` → `ROADMAP_MD` в mb-plan-sync.sh / mb-plan-done.sh [LOW, NEW, 2026-04-22]
+
+**Problem:** (ревью Phase 1 Sprint 1) переменные `PLAN_MD="$MB_PATH/roadmap.md"` — имя устарело после переименования. Работает, но misleading при чтении.
+**Sketch:** `sed -i '' 's/PLAN_MD/ROADMAP_MD/g'` в двух скриптах + визуальная проверка что нет коллизий с комментариями.
+**Plan:** Sprint 2 (cleanup, вместе с обучением обоих скриптов парсить Phase/Sprint/Task структуру).
+
+### I-026 — Научить mb-plan-done.sh / mb-plan-sync.sh парсить Phase/Sprint/Task структуру [MED, NEW, 2026-04-22]
+
+**Problem:** (Sprint 1 carry-over) скрипты распознают только `### Stage N:` — новый формат `## Phase N / ### Sprint M / #### Task K` не парсится. В Sprint 1 пришлось вручную move'ить план в `plans/done/`.
+**Sketch:** расширить regex в обоих скриптах: `^#{2,4} (Phase|Sprint|Stage|Task) [0-9]+`. Добавить тесты на новый формат.
+**Plan:** Sprint 2 baseline item (перед новыми планами которые будут использовать новый формат).
+
+### I-027 — Test-guard против bash 4+ конструкций в mb-migrate-v2.sh [LOW, NEW, 2026-04-22]
+
+**Problem:** (ревью Phase 1 Sprint 1 recommendation) macOS bash намертво 3.2. Будущие edit'ы могут reintroduce `declare -A`, `${var,,}`, `${var^^}` и сломать миграцию на Mac.
+**Sketch:** pytest который grep'ом ищет запрещённые конструкции и fail'ит если найдены.
+**Plan:** Sprint 2 (часть расширения test-suite для migrator).
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

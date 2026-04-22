@@ -29,7 +29,7 @@ _Active specs/<topic>/ directories._
 
 ---
 
-### Legacy content (from v1 roadmap.md — review and integrate above)
+### Legacy content (preserved from the previous plan-file format — review and integrate above)
 
 # claude-skill-memory-bank — План
 
