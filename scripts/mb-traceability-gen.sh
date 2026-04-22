@@ -30,7 +30,7 @@ plans_dir = mb / "plans"
 out_path = mb / "traceability.md"
 
 REQ_RE = re.compile(r"\bREQ-(\d{3,})\b")
-REQ_TEST_RE = re.compile(r"\bREQ_(\d{3,})\b")
+REQ_TEST_RE = re.compile(r"REQ_(\d{3,})")
 
 # T5: handle no-specs state
 if not specs_dir.is_dir() or not any(specs_dir.glob("*/requirements.md")):
@@ -67,7 +67,7 @@ def parse_list(raw: str) -> list[str]:
 
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
-COVERS_MARKER_RE = re.compile(r"<!--\s*covers:\s*([^-]+?)\s*-->")
+COVERS_MARKER_RE = re.compile(r"<!--\s*covers:\s*(.+?)\s*-->")
 
 
 def plan_paths() -> list[Path]:

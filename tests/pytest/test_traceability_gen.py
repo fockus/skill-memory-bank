@@ -98,6 +98,25 @@ def test_contract_t1_t4_basic_matrix(tmp_path: Path) -> None:
     assert "## Coverage" in trace
     assert "Total REQs: 3" in trace
 
+    # I2: structural assertion — extract Matrix section and verify each REQ's
+    # Plan/Stage column points to the plan file. Substring-only checks
+    # previously missed cases where a REQ appeared elsewhere in the doc
+    # but had an empty Plan column.
+    matrix_section = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+    expected_plan = "plans/2026-04-22_feature_demo.md"
+    for req_id in ("REQ-001", "REQ-002", "REQ-003"):
+        rows = [
+            line for line in matrix_section.splitlines()
+            if line.startswith(f"| {req_id} |")
+        ]
+        assert len(rows) == 1, f"expected one matrix row for {req_id}, got: {rows}"
+        cells = [c.strip() for c in rows[0].strip().strip("|").split("|")]
+        assert len(cells) == 5, f"expected 5 columns for {req_id}, got {len(cells)}: {cells}"
+        plan_cell = cells[2]
+        assert expected_plan in plan_cell, (
+            f"{req_id} Plan/Stage cell must reference {expected_plan}, got: {plan_cell!r}"
+        )
+
 
 def test_contract_t5_no_specs(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path, with_specs=False)
@@ -149,9 +168,14 @@ def test_orphan_detection(tmp_path: Path) -> None:
 
     trace = (mb / "traceability.md").read_text(encoding="utf-8")
     assert "## Orphans" in trace
+    orphans_section = trace.split("## Orphans")[1]
     # REQ-002 and REQ-003 uncovered → should appear in orphan list
-    assert "REQ-002" in trace.split("## Orphans")[1]
-    assert "REQ-003" in trace.split("## Orphans")[1]
+    assert "REQ-002" in orphans_section
+    assert "REQ-003" in orphans_section
+    # I3: REQ-001 is covered by the plan → must NOT appear as an orphan
+    assert "REQ-001" not in orphans_section, (
+        "REQ-001 is covered by plan frontmatter — must not appear in Orphans section"
+    )
 
 
 def test_marker_only_path(tmp_path: Path) -> None:
