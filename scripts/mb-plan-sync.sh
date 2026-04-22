@@ -234,3 +234,14 @@ fi
 # ═══════════════════════════════════════════════════════════════
 stage_count=$(printf '%s\n' "$stages" | grep -c . || true)
 echo "[sync] plan=$BASENAME stages=$stage_count added=$added_count"
+
+# ═══════════════════════════════════════════════════════════════
+# Chain: roadmap-sync + traceability-gen (best-effort — warn, don't fail)
+# ═══════════════════════════════════════════════════════════════
+SCRIPT_DIR=$(dirname "$0")
+if [ -x "$SCRIPT_DIR/mb-roadmap-sync.sh" ]; then
+  "$SCRIPT_DIR/mb-roadmap-sync.sh" "$MB_PATH" || echo "[warn] mb-roadmap-sync.sh failed (non-fatal)" >&2
+fi
+if [ -x "$SCRIPT_DIR/mb-traceability-gen.sh" ]; then
+  "$SCRIPT_DIR/mb-traceability-gen.sh" "$MB_PATH" || echo "[warn] mb-traceability-gen.sh failed (non-fatal)" >&2
+fi
