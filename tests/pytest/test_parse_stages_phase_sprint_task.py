@@ -114,3 +114,25 @@ def test_done_parses_phase_sprint_task_headings(tmp_path: Path) -> None:
     # Plan file moved to plans/done/
     assert not plan.exists()
     assert (mb / "plans" / "done" / "phase_sprint_task.md").is_file()
+
+
+def test_sync_chain_updates_roadmap_and_traceability(tmp_path: Path) -> None:
+    """mb-plan-sync.sh must trigger mb-roadmap-sync.sh + mb-traceability-gen.sh at end-of-run."""
+    mb = _init_mb(tmp_path)
+    # Pre-populate roadmap with the autosync fence so we can detect regeneration
+    (mb / "roadmap.md").write_text(
+        "# Roadmap\n\n<!-- mb-roadmap-auto -->\nINITIAL\n<!-- /mb-roadmap-auto -->\n",
+        encoding="utf-8",
+    )
+    plan = mb / "plans" / "phase_sprint_task.md"
+    shutil.copy2(FIXTURES / "phase_sprint_task.md", plan)
+
+    result = _run_sync(plan, mb)
+    assert result.returncode == 0, result.stderr
+
+    roadmap = (mb / "roadmap.md").read_text(encoding="utf-8")
+    # After chain call, INITIAL is gone and plan topic appears
+    assert "INITIAL" not in roadmap
+    assert "fixture-phase-sprint-task" in roadmap
+    # traceability.md should exist (no-specs fallback)
+    assert (mb / "traceability.md").is_file()
