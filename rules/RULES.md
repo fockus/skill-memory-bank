@@ -433,6 +433,195 @@ Run `/mb update` to save current progress BEFORE context compression.
 
 ---
 
+## Session Pipeline (full cycle)
+
+The complete lifecycle of a Memory Bank session. Use this as the canonical sequence — the per-command details above are reference material; this section is the agent's working flow.
+
+**One-liner:**
+
+```
+/mb start  →  /mb plan <type> <topic>  →  [work]  →  /mb verify  →  /mb done
+```
+
+### Phase 1 — Context restoration
+
+| Command | When |
+|---|---|
+| `/mb start` | New session — reads 4 core files (STATUS, plan, checklist, RESEARCH) + one-line summary from `codebase/*.md` |
+| `/mb context` | Fast refresh during a session (lightweight) |
+| `/mb context --deep` | Need **full** content of `codebase/*.md` (STACK/ARCHITECTURE/CONVENTIONS/CONCERNS) |
+| `/mb search <query>` | Targeted keyword search across the bank |
+| `/mb tasks` | Only unfinished checklist items |
+
+**After `/mb start` the agent MUST output a 1-3 sentence focus summary**: "We are doing X, on stage Y, next step is Z."
+
+### Phase 2 — Plan creation
+
+```bash
+/mb plan feature "add-cache-eviction"
+# → creates .memory-bank/plans/YYYY-MM-DD_feature_add-cache-eviction.md from template
+```
+
+Allowed types: `feature | fix | refactor | experiment | architecture`.
+
+Required plan structure:
+- Stages with markers `<!-- mb-stage:N -->` — `mb-plan-sync.sh` automatically adds them to `checklist.md` and the active block of `plan.md`
+- **SMART DoD** per stage (Specific, Measurable, Achievable, Relevant, Time-bound)
+- **TDD requirements** — tests FIRST (red → green → refactor), explicitly written into each stage
+- Atomicity + declared dependencies between stages
+
+Alternative entry points:
+- `/mb idea "<title>" [HIGH|MED|LOW]` → records the idea in `BACKLOG.md` with auto-generated `I-NNN`
+- `/mb idea-promote I-NNN <type>` → idea becomes an active plan (flips status `NEW|TRIAGED → PLANNED`, adds `**Plan:**` link)
+- `/mb adr "<title>"` → Architecture Decision Record in `BACKLOG.md` with auto-generated `ADR-NNN`
+
+### Phase 3 — Work (atomic updates)
+
+- `checklist.md` — flip ⬜ → ✅ **immediately** when a stage finishes (do not batch)
+- `STATUS.md` — on milestones / metric changes / roadmap shifts
+- `RESEARCH.md` — on hypothesis status changes (📋 PLANNED → 🔬 TESTING → ✅/🔴/⚠️)
+- `notes/` — when reusable knowledge or patterns accumulate (5-15 lines, **not chronology**)
+
+### Phase 4 — Verification (`/mb verify`)
+
+**MANDATORY before `/mb done` whenever work followed a plan.**
+
+`plan-verifier` subagent:
+1. Rereads the active plan file in `plans/`
+2. Inspects `git diff` (staged + unstaged)
+3. Checks each DoD item against the **real code** (not the conversation memory)
+4. Produces a report classifying each item as CRITICAL / WARNING / OK
+
+Agent actions:
+- **CRITICAL** — must be fixed before `/mb done`
+- **WARNING** — ask the user whether to fix
+- All OK — proceed to Phase 5
+
+### Phase 5 — Session end (`/mb done`)
+
+Sequence performed by the MB Manager subagent:
+1. Actualize core files (`checklist`, `plan`, `STATUS` if needed)
+2. Create a `notes/YYYY-MM-DD_HH-MM_<topic>.md` note about the session (knowledge, patterns, decisions)
+3. Append to `progress.md` (**append-only!**)
+4. If the plan is complete → move `plans/<file>.md` → `plans/done/<file>.md`
+
+### Intermediate / housekeeping commands
+
+| Command | When |
+|---|---|
+| `/mb update` | Before compaction or a long break — saves state without creating a note |
+| `/mb doctor` | Suspected inconsistencies inside the bank (plan vs checklist vs STATUS) |
+| `/mb compact --dry-run` | Inspect archival candidates (`plans/done/` >60d, notes >90d with `importance: low`) |
+| `/mb compact --apply` | Actually archive them (into `BACKLOG.md` and `notes/archive/`) |
+| `/mb map [focus]` / `/mb graph --apply` | After a major refactor — refresh the codebase map and the graph |
+
+---
+
+## Code Graph — usage
+
+`.memory-bank/codebase/graph.json` encodes the structural layer of the project (module/function/class nodes + import/call edges) in JSON Lines format. Use it in place of `grep -rn` for **structural** questions — deterministic, fast, and semantically grounded.
+
+### Data schema
+
+```jsonc
+// Nodes
+{"type":"node", "kind":"module",   "name":"path/to/file.ext", "file":"...", "line":1}
+{"type":"node", "kind":"function", "name":"FuncName",         "file":"...", "line":N}
+{"type":"node", "kind":"class",    "name":"ClassName",        "file":"...", "line":N}
+
+// Edges
+{"type":"edge", "kind":"import", "src":"path/to/src.file", "dst":"pkg/import/path"}
+{"type":"edge", "kind":"call",   "src":"path/to/src.file", "dst":"FuncOrMethodName"}
+// IMPORTANT: src = source file path; dst = function name / import path
+// IMPORTANT: inherit edges — Python stdlib-ast only. Tree-sitter extractors for Go/JS/TS/Rust/Java do NOT emit inherit edges (type inference is absent).
+```
+
+### Basic jq queries
+
+```bash
+# 1. Which files call function X?
+jq -r 'select(.type=="edge" and .kind=="call" and .dst=="X") | .src' \
+  .memory-bank/codebase/graph.json | sort -u
+
+# 2. All functions defined in a directory
+jq -c 'select(.type=="node" and .kind=="function" and (.file|startswith("src/service/")))' \
+  .memory-bank/codebase/graph.json | head -20
+
+# 3. What does a specific file import?
+jq -r 'select(.type=="edge" and .kind=="import" and .src=="src/service/context.py") | .dst' \
+  .memory-bank/codebase/graph.json
+
+# 4. Which files import a particular package?
+jq -r 'select(.type=="edge" and .kind=="import" and .dst=="my_project/utils") | .src' \
+  .memory-bank/codebase/graph.json | sort -u
+
+# 5. Top god-nodes for refactoring
+head -25 .memory-bank/codebase/god-nodes.md
+```
+
+### Practical use cases
+
+```bash
+# IMPACT ANALYSIS — how many files would be affected by changing a signature?
+jq -r 'select(.type=="edge" and .kind=="call" and .dst=="WriteFile") | .src' \
+  .memory-bank/codebase/graph.json | sort -u | wc -l
+
+# ONBOARDING — survey an unfamiliar module
+MODULE="src/service/codeagent"
+jq -c 'select(.type=="node" and (.file|startswith("'$MODULE'/")))' .memory-bank/codebase/graph.json
+jq -r 'select(.type=="edge" and .kind=="import" and (.src|startswith("'$MODULE'/"))) | .dst' \
+  .memory-bank/codebase/graph.json | sort -u   # external deps of the module
+
+# DEAD CODE — functions with no incoming call edges (removal candidates)
+jq -r 'select(.type=="node" and .kind=="function") | .name' .memory-bank/codebase/graph.json \
+  | sort -u > /tmp/defined.txt
+jq -r 'select(.type=="edge" and .kind=="call") | .dst' .memory-bank/codebase/graph.json \
+  | sort -u > /tmp/called.txt
+comm -23 /tmp/defined.txt /tmp/called.txt | head
+# CAVEAT: exported funcs may be called from outside, main/init/Test* have special lifecycles
+
+# HYBRID (graph → grep) — find callers via graph, then read context via rg
+files=$(jq -r 'select(.type=="edge" and .kind=="call" and .dst=="WriteFile") | .src' \
+  .memory-bank/codebase/graph.json | sort -u)
+for f in $files; do rg "WriteFile\(" "$f" -n | head -1; done
+
+# REVERSE DEPENDENCIES — who depends on a given package (1-hop transit)
+jq -r 'select(.type=="edge" and .kind=="import" and (.dst|contains("internal/core/toolnames"))) | .src' \
+  .memory-bank/codebase/graph.json | sort -u
+```
+
+### Decision table — graph vs grep/code-read
+
+| Question | Tool | Why |
+|---|---|---|
+| "Where is X called?" | **graph** | Deterministic, no noise from strings/comments |
+| "What does Y import?" | **graph** | Exact structure, transitive via repeated queries |
+| "How many callers does a function have?" | **graph** | Count edges |
+| "Where is the string 'TODO: legacy'?" | **rg/grep** | Not a structural question |
+| "Who implements interface I?" | **rg/grep + Read** | Graph does not resolve interface-implements (no type inference) |
+| "What methods does struct S have?" | **rg/grep + Read** | Methods-on-receiver are not graph edges |
+| "Complexity hotspots" | **`god-nodes.md` + `wc -l`** | Ready-made top-20 + real LoC |
+| "Diff between branch and main" | **`git diff`** | Graph does not track VCS |
+
+### Caveats
+
+- **Name-only resolution.** The graph matches calls by name only (no type inference). Generic names (`Error`, `New`, `String`, `Run`, `Close`, `Background`, `Now`, `Execute`) in `god-nodes.md` are lexical false-positives — they catch stdlib interface calls. Filter generics when analysing top-degree nodes.
+- **Vendored code.** By default `skip_dirs = {.venv, __pycache__, node_modules, .git, target, dist, build}`. Projects with `vendor/` or `third_party/` (e.g. Go projects vendoring langchaingo) need a **project-local patched copy** in `.memory-bank/scripts/mb-codegraph-local.py` that adds those paths to `skip_dirs`. Run with: `PYTHONPATH="$HOME/.claude/skills/memory-bank" python3 .memory-bank/scripts/mb-codegraph-local.py --apply`.
+- **Language coverage.** Python always works (stdlib `ast`). Go / JS / TS / Rust / Java require `pip install tree-sitter tree-sitter-<lang>` (opt-in). Without tree-sitter, non-Python files are silently skipped (graceful degradation).
+- **Rebuild cost.** Incremental via SHA256 cache in `.cache/` — unchanged files are skipped. First run on a 1000-file project: ~3-5 min. Subsequent runs: seconds.
+
+### When to rebuild
+
+- Major refactor / new modules / moved packages → `/mb graph --apply && /mb map`
+- Weekly or when you notice drift → `/mb map`
+- Per focus area after a feature → `/mb map concerns` or `/mb map arch`
+
+### Automation
+
+For repeated queries, create project-local aliases/scripts under `.memory-bank/scripts/` — keep them project-scoped, never globalize.
+
+---
+
 ## Edge cases: `notes/` vs `reports/`
 
 **Create `notes/` entries when:**

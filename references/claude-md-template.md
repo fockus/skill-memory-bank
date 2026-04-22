@@ -83,17 +83,25 @@ Detailed rules: `~/.claude/RULES.md` + `.memory-bank/RULES.md`
 
 **If `./.memory-bank/` exists → `[MEMORY BANK: ACTIVE]`.**
 
-**Command:** `/mb`. **Workflow:** start → work → verify → done.
+**Session pipeline (one-liner):**
+
+```
+/mb start  →  /mb plan <type> <topic>  →  [work]  →  /mb verify  →  /mb done
+```
+
+**`/mb verify` is MANDATORY before `/mb done` when work followed a plan.**
 
 
-| Command                | Description                                   |
-| ---------------------- | --------------------------------------------- |
-| `/mb` or `/mb context` | Collect project context                       |
-| `/mb start`            | Extended session start                        |
-| `/mb update`           | Actualize core files                          |
-| `/mb done`             | Finish the session                            |
-| `/mb verify`           | Verify plan vs code                           |
-| `/mb init --full`      | Rebuild `CLAUDE.md` with stack auto-detection |
+| Command                                     | Description                                                   |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| `/mb start` / `/mb context [--deep]`        | Restore context (core files + codebase summary)               |
+| `/mb plan <type> <topic>`                   | Create plan with SMART DoD + TDD (types: feature/fix/refactor/experiment) |
+| `/mb verify`                                | Verify code vs plan (plan-verifier subagent)                  |
+| `/mb done`                                  | End session — actualize + note + progress                     |
+| `/mb update`                                | Intermediate actualize (no note) — before compaction          |
+| `/mb map [focus]` / `/mb graph [--apply]`   | Refresh codebase map (MD docs) / code graph (JSON Lines)      |
+| `/mb idea "<t>" [HIGH\|MED\|LOW]` / `/mb adr "<t>"` | Capture idea (I-NNN) / ADR (ADR-NNN)                          |
+| `/mb init --full`                           | Rebuild `CLAUDE.md` with stack auto-detection                 |
 
 
 ### `.memory-bank/` structure
@@ -108,6 +116,29 @@ Detailed rules: `~/.claude/RULES.md` + `.memory-bank/RULES.md`
 | `RESEARCH.md`  | Hypotheses + findings           | New finding               |
 | `progress.md`  | Completed work (append-only)    | End of session            |
 | `lessons.md`   | Anti-patterns                   | When a pattern is noticed |
-| `codebase/`    | Codebase map: stack, architecture, conventions, concerns | After `/mb init` or `/mb map` |
+| `plans/`       | Detailed plans (`YYYY-MM-DD_<type>_<name>.md`) | Before complex work |
+| `codebase/`    | Codebase map + code graph (`STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `CONCERNS.md`, `graph.json`, `god-nodes.md`) | After `/mb init`, stack change, or major refactor |
 
+
+### Code Graph (structural queries)
+
+`.memory-bank/codebase/graph.json` — JSON Lines graph (module/function/class nodes + import/call edges). Prefer it over `grep -rn` for structural questions:
+
+```bash
+# Who calls function X?
+jq -r 'select(.type=="edge" and .kind=="call" and .dst=="X") | .src' \
+  .memory-bank/codebase/graph.json | sort -u
+```
+
+Full jq query library + schema + decision table → `~/.claude/RULES.md § Code Graph — usage`.
+
+### Read detailed rules on demand
+
+Before specific commands/workflows, **read the matching section of `~/.claude/RULES.md`** (and this project's `.memory-bank/RULES.md` for overrides):
+
+- `/mb plan` → `§ Session Pipeline` + `§ Source of Truth`
+- `/mb verify` / `/mb done` → `§ Session Pipeline § Phase 4/5`
+- `/mb graph` / jq queries → `§ Code Graph — usage`
+- Writing tests → `§ Tests — Testing Trophy`
+- ADR, architecture change → `§ Architecture` + `§ Coding Standards`
 
