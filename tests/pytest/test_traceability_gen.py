@@ -152,3 +152,78 @@ def test_orphan_detection(tmp_path: Path) -> None:
     # REQ-002 and REQ-003 uncovered → should appear in orphan list
     assert "REQ-002" in trace.split("## Orphans")[1]
     assert "REQ-003" in trace.split("## Orphans")[1]
+
+
+def test_marker_only_path(tmp_path: Path) -> None:
+    """REG-C1: `<!-- covers: REQ-NNN -->` marker alone (no frontmatter) must mark
+    the REQ as covered. Previously the regex `[^-]+?` excluded hyphens, so every
+    valid REQ ID (which contains `-`) failed to match — dead code path.
+    """
+    mb = _init_mb(tmp_path)
+    # Plan uses ONLY inline marker — no frontmatter covers_requirements
+    (mb / "plans" / "2026-04-22_feature_marker_only.md").write_text(
+        dedent("""\
+            # Plan: marker only
+
+            ## Task 1
+
+            <!-- covers: REQ-001 -->
+            - [ ] Step 1
+            """),
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+
+    trace = (mb / "traceability.md").read_text(encoding="utf-8")
+    # Matrix section: extract row for REQ-001 and verify Plan column is non-empty
+    matrix_section = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+    req001_rows = [
+        line for line in matrix_section.splitlines()
+        if line.startswith("| REQ-001 |")
+    ]
+    assert len(req001_rows) == 1, f"expected one matrix row for REQ-001, got: {req001_rows}"
+    row = req001_rows[0]
+    # Structure: | REQ-001 | spec | plan | tests | status |
+    cells = [c.strip() for c in row.strip().strip("|").split("|")]
+    assert len(cells) == 5, f"expected 5 columns, got {len(cells)}: {cells}"
+    plan_cell = cells[2]
+    assert plan_cell != "—", f"Plan/Stage column must be non-empty for marker-covered REQ-001, got: {plan_cell!r}"
+    assert "marker_only" in plan_cell, f"expected plan filename in Plan cell, got: {plan_cell!r}"
+
+    # Also: REQ-001 must NOT appear in orphans section
+    orphans_section = trace.split("## Orphans", 1)[1]
+    assert "REQ-001" not in orphans_section, "REQ-001 is marker-covered — must not be orphan"
+
+
+def test_pytest_naming_convention(tmp_path: Path) -> None:
+    """REG-C2: tests following pytest convention `def test_REQ_NNN_...():` must be
+    detected. Previously `\\b` around `REQ_` failed because `_` is a word char in
+    Python regex, so `test_REQ_001` had no boundary before `R`.
+    """
+    mb = _init_mb(tmp_path)
+    # No plan coverage — only test file
+    tests_root = mb / "tests" / "unit"
+    tests_root.mkdir(parents=True)
+    (tests_root / "test_foo.py").write_text(
+        "def test_REQ_001_works():\n    pass\n",
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+
+    trace = (mb / "traceability.md").read_text(encoding="utf-8")
+    matrix_section = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+    req001_rows = [
+        line for line in matrix_section.splitlines()
+        if line.startswith("| REQ-001 |")
+    ]
+    assert len(req001_rows) == 1, f"expected one matrix row for REQ-001, got: {req001_rows}"
+    row = req001_rows[0]
+    cells = [c.strip() for c in row.strip().strip("|").split("|")]
+    assert len(cells) == 5, f"expected 5 columns, got {len(cells)}: {cells}"
+    tests_cell = cells[3]
+    assert tests_cell != "—", f"Tests column must be non-empty when test_REQ_001_* exists, got: {tests_cell!r}"
+    assert "test_foo.py" in tests_cell, f"expected test filename in Tests cell, got: {tests_cell!r}"
