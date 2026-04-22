@@ -14,17 +14,17 @@ created: 2026-04-22
 
 ---
 
+<!-- mb-stage:1 -->
 ### Stage 1: Setup
 
-<!-- mb-stage:1 -->
 - ⬜ Do setup work
 
+<!-- mb-stage:2 -->
 ### Stage 2: Core logic
 
-<!-- mb-stage:2 -->
 - ⬜ Do core work
 
+<!-- mb-stage:3 -->
 ### Stage 3: Finalize
 
-<!-- mb-stage:3 -->
 - ⬜ Final work
