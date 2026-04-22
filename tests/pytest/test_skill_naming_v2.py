@@ -7,6 +7,7 @@ Exclusions:
 - docs/MIGRATION-*.md (migration documentation)
 - tests/pytest/fixtures/** (test fixtures intentionally use v1 names)
 - tests/pytest/test_migrate_v2.py (tests migration logic on v1 fixture)
+- tests/pytest/test_migrate_v2_e2e.py (e2e contract test; references v1 names by design)
 - .memory-bank/** (may contain user data during dogfood migration)
 - .pre-migrate*/** (pre-migration backups)
 - dist/, site/, .git/, .pytest_cache/, .ruff_cache/, __pycache__/
@@ -33,6 +34,7 @@ EXCLUDED_PATHS = (
     "docs/MIGRATION-install-v1-v2.md",
     "tests/pytest/fixtures/",
     "tests/pytest/test_migrate_v2.py",
+    "tests/pytest/test_migrate_v2_e2e.py",
     "tests/pytest/test_skill_naming_v2.py",
     ".memory-bank/",
     ".pre-migrate",
@@ -74,7 +76,7 @@ def test_no_v1_uppercase_names(suffix: str) -> None:
         if OLD_NAMES.search(text):
             offenders.append(f.relative_to(REPO_ROOT).as_posix())
     assert not offenders, (
-        f"Files still reference STATUS.md/BACKLOG.md/RESEARCH.md:\n  "
+        "Files still reference STATUS.md/BACKLOG.md/RESEARCH.md:\n  "
         + "\n  ".join(offenders)
     )
 
@@ -92,6 +94,6 @@ def test_no_v1_plan_md(suffix: str) -> None:
         if OLD_PLAN.search(text):
             offenders.append(f.relative_to(REPO_ROOT).as_posix())
     assert not offenders, (
-        f"Files still reference plan.md (expected roadmap.md):\n  "
+        "Files still reference plan.md (expected roadmap.md):\n  "
         + "\n  ".join(offenders)
     )

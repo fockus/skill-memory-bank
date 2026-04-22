@@ -1,7 +1,7 @@
 ---
 type: refactor
 topic: skill-v2-phase1-sprint1-rename
-status: queued
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: [specs/mb-skill-v2]
