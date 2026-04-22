@@ -91,12 +91,12 @@ Agent reads `index.json` → filters by `tags` / `importance` → reads only rel
 
 ## Key Memory Bank rules
 
-1. **Core files = project truth.** `STATUS.md`, `plan.md`, `checklist.md` must always stay current.
+1. **Core files = project truth.** `status.md`, `roadmap.md`, `checklist.md` must always stay current.
 2. `**progress.md` = APPEND-ONLY.** Never delete or edit old entries.
 3. **Monotonic numbering**: H-NNN (hypotheses), EXP-NNN (experiments), ADR-NNN (decisions), L-NNN (lessons).
 4. `**notes/` = knowledge, not chronology.** 5-15 lines. Conclusions, patterns, reusable solutions.
 5. **Checklist**: ✅ = done, ⬜ = not done. Update every session.
 6. **Do not paste logs, stack traces, or large code blocks.** Only distilled notes.
 7. **ML experiments**: hypothesis (SMART) → baseline → one change → run → result (p-value, Cohen's d).
-8. **Architectural decisions** → ADR in `BACKLOG.md` (context → decision → alternatives → consequences).
+8. **Architectural decisions** → ADR in `backlog.md` (context → decision → alternatives → consequences).
 

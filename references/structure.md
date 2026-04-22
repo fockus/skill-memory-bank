@@ -1,21 +1,21 @@
 # Memory Bank — File Structure (v3.1)
 
-> **v3.1 note:** the four core files (`STATUS.md`, `plan.md`, `checklist.md`, `BACKLOG.md`) now have clearly separated responsibilities and a strict format managed by script-owned markers. If you have an older bank, run `scripts/mb-migrate-structure.sh --apply`.
+> **v3.1 note:** the four core files (`status.md`, `roadmap.md`, `checklist.md`, `backlog.md`) now have clearly separated responsibilities and a strict format managed by script-owned markers. If you have an older bank, run `scripts/mb-migrate-structure.sh --apply`.
 
 ## Core files — roles matrix
 
 | File           | Coverage                                     | Limit (recommended) | Edited by                                               |
 |----------------|----------------------------------------------|---------------------|---------------------------------------------------------|
-| `STATUS.md`    | “where the project is right now” snapshot    | ≤ 60 lines          | human + `mb-plan-sync.sh` / `mb-plan-done.sh`           |
-| `plan.md`      | direction + active plans                     | ≤ 80 lines          | human + `mb-plan-sync.sh` / `mb-plan-done.sh`           |
+| `status.md`    | “where the project is right now” snapshot    | ≤ 60 lines          | human + `mb-plan-sync.sh` / `mb-plan-done.sh`           |
+| `roadmap.md`      | direction + active plans                     | ≤ 80 lines          | human + `mb-plan-sync.sh` / `mb-plan-done.sh`           |
 | `checklist.md` | operational to-do **for active plans only**  | ≤ 100 lines         | in-session agent + `mb-plan-sync.sh` / `mb-plan-done.sh`|
-| `BACKLOG.md`   | idea registry + ADRs                         | no limit            | human + `mb-idea.sh` / `mb-idea-promote.sh` / `mb-adr.sh` / `mb-compact.sh` |
+| `backlog.md`   | idea registry + ADRs                         | no limit            | human + `mb-idea.sh` / `mb-idea-promote.sh` / `mb-adr.sh` / `mb-compact.sh` |
 
 Limits are *recommendations*, not hard enforcement. If they are exceeded, the skill may suggest running `/mb compact`.
 
 ---
 
-## `STATUS.md` — current snapshot
+## `status.md` — current snapshot
 
 **Purpose:** in 30 seconds, understand where the project is and what is currently happening.
 
@@ -46,7 +46,7 @@ Limits are *recommendations*, not hard enforcement. If they are exceeded, the sk
 
 ## Roadmap (high level)
 
-See [BACKLOG.md](BACKLOG.md) for the idea registry and ADRs.
+See [backlog.md](backlog.md) for the idea registry and ADRs.
 ```
 
 **Markers:**
@@ -55,7 +55,7 @@ See [BACKLOG.md](BACKLOG.md) for the idea registry and ADRs.
 
 ---
 
-## `plan.md` — direction + active plans
+## `roadmap.md` — direction + active plans
 
 **Purpose:** the single source of truth for what is in progress right now and where the project is heading.
 
@@ -74,7 +74,7 @@ See [BACKLOG.md](BACKLOG.md) for the idea registry and ADRs.
 
 ## Next up
 
-See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
+See [backlog.md](backlog.md) — ideas with priority, ADRs.
 
 ## Deferred
 
@@ -88,7 +88,7 @@ See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
 **What does NOT belong here:**
 - Historical “what was done” notes (`progress.md`).
 - Operational to-do items for active plans (`checklist.md`).
-- Raw ideas (`BACKLOG.md`).
+- Raw ideas (`backlog.md`).
 
 ---
 
@@ -113,7 +113,7 @@ See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
 
 ---
 
-## `BACKLOG.md` — ideas + ADR registry
+## `backlog.md` — ideas + ADR registry
 
 **Purpose:** a live idea parking lot plus an architecture decision journal.
 
@@ -166,11 +166,11 @@ See [BACKLOG.md](BACKLOG.md) — ideas with priority, ADRs.
 **Auto-transitions:**
 - `mb-idea-promote.sh I-NNN <type>` → `NEW|TRIAGED` → `PLANNED` + create a plan file + add `**Plan:** [plans/...](...)`.
 - `mb-plan-done.sh <plan>` → if an idea is linked to the plan (`**Plan:** plans/...`), `PLANNED` → `DONE` + `**Outcome:** <placeholder>`.
-- `mb-compact.sh --apply` → localized `plan.md` `Deferred` / `Declined` sections → new `I-NNN` ideas with `DEFERRED` / `DECLINED` status.
+- `mb-compact.sh --apply` → localized `roadmap.md` `Deferred` / `Declined` sections → new `I-NNN` ideas with `DEFERRED` / `DECLINED` status.
 
 ---
 
-## `RESEARCH.md` — hypothesis log
+## `research.md` — hypothesis log
 
 ```markdown
 # <Project> — Research
@@ -287,7 +287,7 @@ Environment variables that control lifecycle behavior:
 
 | Variable                      | Default | Effect                                                                 |
 |-------------------------------|---------|------------------------------------------------------------------------|
-| `MB_RECENT_DONE_LIMIT`        | `10`    | How many completed plans `STATUS.md ## Recently done` keeps            |
+| `MB_RECENT_DONE_LIMIT`        | `10`    | How many completed plans `status.md ## Recently done` keeps            |
 | `MB_COMPACT_CHECKLIST_DAYS`   | `30`    | Age threshold for removing completed sections from `checklist.md`      |
 | `MB_COMPACT_PLAN_AGE_DAYS`    | `60`    | Age threshold for archiving completed plans                            |
 | `MB_COMPACT_NOTE_AGE_DAYS`    | `90`    | Age threshold for archiving low-importance notes                       |

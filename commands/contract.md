@@ -13,7 +13,7 @@ If `$ARGUMENTS` is empty, stop and ask the user for the module / interface name 
 ## 1. Analysis
 
 - Study the existing interfaces and contracts in the project
-- Read `./.memory-bank/plan.md` and any ADRs if they exist
+- Read `./.memory-bank/roadmap.md` and any ADRs if they exist
 - Determine which layers are affected (`handler` / `service` / `repository` / `infra`)
 
 ## 2. Define the contract

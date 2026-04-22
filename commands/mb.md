@@ -39,10 +39,10 @@ Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words ar
 | `install [<clients>]`                                    | Install Memory Bank for the project. If `<clients>` is empty, ask for an 8-client multiselect (`claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex`). Calls `memory-bank install --clients ... --project-root $PWD`                                                                                |
 | `help [subcommand]`                                      | Help. No argument → list all subcommands. With argument → show details for that specific one (`/mb help compact`, `/mb help tags`, ...)                                                                                                                                                                  |
 | `deps [--install-hints]`                                 | Dependency check (required: `python3`, `jq`, `git`; optional: `rg`, `shellcheck`, `tree-sitter`, `PyYAML`). `--install-hints` prints OS-specific install commands                                                                                                                                        |
-| `idea <title> [HIGH\|MED\|LOW]`                          | Capture new idea in `BACKLOG.md` with auto-generated monotonic `I-NNN` ID (priority defaults to `MED`)                                                                                                                                                                                                    |
+| `idea <title> [HIGH\|MED\|LOW]`                          | Capture new idea in `backlog.md` with auto-generated monotonic `I-NNN` ID (priority defaults to `MED`)                                                                                                                                                                                                    |
 | `idea-promote <I-NNN> <type>`                            | Promote an idea → plan. Creates plan file via `mb-plan.sh`, flips idea status `NEW\|TRIAGED → PLANNED`, adds `**Plan:** [plans/...]` link, runs plan-sync. `type ∈ feature\|fix\|refactor\|experiment`                                                                                                    |
-| `adr <title>`                                            | Capture Architecture Decision Record with auto-generated monotonic `ADR-NNN` ID inside `BACKLOG.md ## ADR` section — skeleton includes Context / Options / Decision / Rationale / Consequences                                                                                                           |
-| `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `STATUS.md`, restructures `BACKLOG.md` to `## Ideas` + `## ADR` skeleton. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
+| `adr <title>`                                            | Capture Architecture Decision Record with auto-generated monotonic `ADR-NNN` ID inside `backlog.md ## ADR` section — skeleton includes Context / Options / Decision / Rationale / Consequences                                                                                                           |
+| `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `status.md`, restructures `backlog.md` to `## Ideas` + `## ADR` skeleton. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
 | (unrecognized)                                           | Search by `$ARGUMENTS`                                                                                                                                                                                                                                                                                   |
 
 
@@ -149,10 +149,10 @@ Agent(
 action: doctor
 
 Check consistency across all core files in .memory-bank/:
-- plan.md statuses vs checklist.md
-- STATUS.md metrics vs reality (pytest, source files)
-- STATUS.md constraints vs real code
-- BACKLOG.md vs plan.md
+- roadmap.md statuses vs checklist.md
+- status.md metrics vs reality (pytest, source files)
+- status.md constraints vs real code
+- backlog.md vs roadmap.md
 - progress.md completeness
 - plan files in plans/ vs their statuses
 - duplicates and stale references",
@@ -175,7 +175,7 @@ Show the result to the user.
 
 ### plan
 
-**Alias** for `/plan` — dispatch to `commands/plan.md`. The canonical planning command lives there: mb-plan.sh scaffold → fill with `<!-- mb-stage:N -->` markers + SMART DoD + TDD per stage → mb-plan-sync.sh to reconcile with `checklist.md` + `plan.md`.
+**Alias** for `/plan` — dispatch to `commands/plan.md`. The canonical planning command lives there: mb-plan.sh scaffold → fill with `<!-- mb-stage:N -->` markers + SMART DoD + TDD per stage → mb-plan-sync.sh to reconcile with `checklist.md` + `roadmap.md`.
 
 Allowed `type` values: `feature`, `fix`, `refactor`, `experiment`. If `type` is missing, ask the user.
 
@@ -298,15 +298,15 @@ Status-based archival decay. Cleans up old completed plans and unused low-import
 | Candidate                              | Age threshold | Done-signal (required)                                                                                                                  |
 | -------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Plan in `plans/done/`                  | `>60d` mtime  | Primary: already physically in `plans/done/`                                                                                            |
-| Plan in `plans/*.md` (active location) | `>60d` mtime  | `✅` / `[x]` marker in `checklist.md` line with the basename, OR mention in `progress.md`/`STATUS.md` as `completed|done|closed|shipped` |
-| Note in `notes/*.md`                   | `>90d` mtime  | `importance: low` in frontmatter + **no** basename references in `plan.md`/`STATUS.md`/`checklist.md`/`RESEARCH.md`/`BACKLOG.md`        |
+| Plan in `plans/*.md` (active location) | `>60d` mtime  | `✅` / `[x]` marker in `checklist.md` line with the basename, OR mention in `progress.md`/`status.md` as `completed|done|closed|shipped` |
+| Note in `notes/*.md`                   | `>90d` mtime  | `importance: low` in frontmatter + **no** basename references in `roadmap.md`/`status.md`/`checklist.md`/`research.md`/`backlog.md`        |
 
 
 **Safety net:** active plans (not done) are **NOT archived** even if >180d old. Instead, emit a warning like "plan X is older than 180d but not done — check whether it is still relevant".
 
 **Effects of `--apply`:**
 
-- Plans → compressed into one line inside `BACKLOG.md ## Archived plans`, original file deleted. Source path is preserved as `(was: plans/done/<file>.md)` — git history keeps the full text.
+- Plans → compressed into one line inside `backlog.md ## Archived plans`, original file deleted. Source path is preserved as `(was: plans/done/<file>.md)` — git history keeps the full text.
 - Notes → moved to `notes/archive/` + body compressed to 3 non-empty lines + marker `<!-- archived on YYYY-MM-DD -->`. Entries get `archived: true` in `index.json`.
 - Touched `.memory-bank/.last-compact` timestamp.
 
@@ -393,7 +393,7 @@ User: /mb import --project ~/.claude/projects/-Users-fockus-Apps-myproject/ --si
 
 - Summarization is currently deterministic (first+last chars), not LLM-based. Haiku-powered compression is backlog for v2.3+ if summary quality proves insufficient
 - Debug-session detection for `lessons.md` — TODO (v2.2+)
-- `STATUS.md` seed — manual only
+- `status.md` seed — manual only
 
 ### graph [--apply] [src_root]
 
@@ -628,11 +628,11 @@ mkdir -p .memory-bank/{experiments,plans/done,notes,reports,codebase}
 
 Core files (templates — `~/.claude/skills/memory-bank/references/templates.md`):
 
-- `STATUS.md` — project header, "Current phase: Start"
-- `plan.md` — "Current focus: define", `## Active plan` section with markers `<!-- mb-active-plan -->` / `<!-- /mb-active-plan -->` (for auto-sync)
+- `status.md` — project header, "Current phase: Start"
+- `roadmap.md` — "Current focus: define", `## Active plan` section with markers `<!-- mb-active-plan -->` / `<!-- /mb-active-plan -->` (for auto-sync)
 - `checklist.md` — empty checklist
-- `RESEARCH.md` — header + empty hypothesis table
-- `BACKLOG.md` — header + empty sections (HIGH/LOW ideas, ADRs)
+- `research.md` — header + empty hypothesis table
+- `backlog.md` — header + empty sections (HIGH/LOW ideas, ADRs)
 - `progress.md` — header
 - `lessons.md` — header
 
@@ -856,7 +856,7 @@ If the installed client list includes one different from the current host (for e
 
 ### idea <title> [HIGH|MED|LOW]
 
-Capture a new idea in `BACKLOG.md ## Ideas` with an auto-generated monotonic `I-NNN` ID.
+Capture a new idea in `backlog.md ## Ideas` with an auto-generated monotonic `I-NNN` ID.
 
 **Arguments:**
 
@@ -865,7 +865,7 @@ Capture a new idea in `BACKLOG.md ## Ideas` with an auto-generated monotonic `I-
 
 **Effect:**
 
-- Appends `### I-NNN — <title> [PRIO, NEW, YYYY-MM-DD]` under `## Ideas` in `BACKLOG.md`.
+- Appends `### I-NNN — <title> [PRIO, NEW, YYYY-MM-DD]` under `## Ideas` in `backlog.md`.
 - `I-NNN` is monotonic across the entire file (zero-padded 3 digits).
 - Idempotent: re-running with the exact same title reports the existing ID and exits without a duplicate.
 - Invalid priority → exit 2 with usage hint.
@@ -896,7 +896,7 @@ Promote an existing idea into an active plan.
 
 **Arguments:**
 
-- `I-NNN` — ID of the idea in `BACKLOG.md` (must exist and be in `NEW` or `TRIAGED` status).
+- `I-NNN` — ID of the idea in `backlog.md` (must exist and be in `NEW` or `TRIAGED` status).
 - `type` — `feature`, `fix`, `refactor`, or `experiment` (passed through to `mb-plan.sh`).
 
 **Effect:**
@@ -904,7 +904,7 @@ Promote an existing idea into an active plan.
 - Creates a plan file via `mb-plan.sh` using the idea title as the topic (title → slug).
 - Flips the idea status `NEW|TRIAGED` → `PLANNED`.
 - Adds `**Plan:** [plans/YYYY-MM-DD_<type>_<slug>.md](plans/...)` to the idea block.
-- Runs `mb-plan-sync.sh` so the new plan appears in `plan.md` / `STATUS.md` `<!-- mb-active-plans -->` blocks and its stages are appended to `checklist.md`.
+- Runs `mb-plan-sync.sh` so the new plan appears in `roadmap.md` / `status.md` `<!-- mb-active-plans -->` blocks and its stages are appended to `checklist.md`.
 
 **Refuses to promote** already-`PLANNED`, `DONE`, `DECLINED`, or `DEFERRED` ideas — asks the user to reset status manually or `/mb idea` a fresh one.
 
@@ -922,13 +922,13 @@ User: /mb idea-promote I-007 feature
   plans/2026-04-21_feature_telemetry-opt-in.md
 ```
 
-The idea's `**Plan:**` link lets anyone navigate from `BACKLOG.md` to the live plan; `mb-plan-done.sh` later flips status back to `DONE` automatically when the plan is closed.
+The idea's `**Plan:**` link lets anyone navigate from `backlog.md` to the live plan; `mb-plan-done.sh` later flips status back to `DONE` automatically when the plan is closed.
 
 ---
 
 ### adr <title>
 
-Capture an Architecture Decision Record (ADR) inside `BACKLOG.md ## ADR`.
+Capture an Architecture Decision Record (ADR) inside `backlog.md ## ADR`.
 
 **Arguments:**
 
@@ -937,7 +937,7 @@ Capture an Architecture Decision Record (ADR) inside `BACKLOG.md ## ADR`.
 **Effect:**
 
 - Appends `### ADR-NNN — <title> [YYYY-MM-DD]` under `## ADR` (creates the section if missing).
-- ID is monotonic across the entire `BACKLOG.md`.
+- ID is monotonic across the entire `backlog.md`.
 - Skeleton includes: `**Context:**`, `**Options:**`, `**Decision:**`, `**Rationale:**`, `**Consequences:**` — all with `<!-- hint -->` placeholders for the user to fill in.
 - Idempotent per call — each invocation creates a new ADR (no de-dup by title; ADR history is cumulative).
 
@@ -955,7 +955,7 @@ User: /mb adr "Use OIDC for PyPI publishing"
   [writes ### ADR-003 — Use OIDC for PyPI publishing [2026-04-21] + skeleton]
 ```
 
-After capture, open `BACKLOG.md` and fill in Context / Options / Decision / Rationale / Consequences. The skeleton is intentionally short — the value is in the completed reasoning, not the template.
+After capture, open `backlog.md` and fill in Context / Options / Decision / Rationale / Consequences. The skeleton is intentionally short — the value is in the completed reasoning, not the template.
 
 ---
 
@@ -965,17 +965,17 @@ One-shot migrator for the v3.0 → v3.1 Memory Bank file structure. Safe to run 
 
 **Detection — triggers if any of:**
 
-- `plan.md` has singular `<!-- mb-active-plan -->` marker (but not plural variant).
-- `plan.md` uses the legacy text-only "## Active plan" + "**Active plan:** `plans/...`" without a HTML-comment block.
-- `STATUS.md` is missing `<!-- mb-active-plans -->` or `<!-- mb-recent-done -->` blocks.
-- `BACKLOG.md` contains legacy placeholder markers such as `(empty)` or lacks `## ADR`.
+- `roadmap.md` has singular `<!-- mb-active-plan -->` marker (but not plural variant).
+- `roadmap.md` uses the legacy text-only "## Active plan" + "**Active plan:** `plans/...`" without a HTML-comment block.
+- `status.md` is missing `<!-- mb-active-plans -->` or `<!-- mb-recent-done -->` blocks.
+- `backlog.md` contains legacy placeholder markers such as `(empty)` or lacks `## ADR`.
 
 **Effect of `--apply`:**
 
-1. Backs up `plan.md`, `STATUS.md`, `BACKLOG.md`, `checklist.md` → `.memory-bank/.pre-migrate/<timestamp>/`.
-2. Upgrades `plan.md` singular → plural marker block, rebuilds `## Active plans` with correct entries.
-3. Ensures `STATUS.md` has `## Active plans` + `## Recently done` sections with proper markers.
-4. Rewrites `BACKLOG.md` skeleton: strips placeholders, guarantees `## Ideas` + `## ADR` sections.
+1. Backs up `roadmap.md`, `status.md`, `backlog.md`, `checklist.md` → `.memory-bank/.pre-migrate/<timestamp>/`.
+2. Upgrades `roadmap.md` singular → plural marker block, rebuilds `## Active plans` with correct entries.
+3. Ensures `status.md` has `## Active plans` + `## Recently done` sections with proper markers.
+4. Rewrites `backlog.md` skeleton: strips placeholders, guarantees `## Ideas` + `## ADR` sections.
 5. Prints a per-action summary.
 
 `--dry-run` (default) — prints the action plan, 0 file changes.
@@ -992,15 +992,15 @@ bash ~/.claude/skills/memory-bank/scripts/mb-migrate-structure.sh $ARGS_AFTER_MI
 User: /mb migrate-structure
 → mode=dry-run
   actions_pending=3
-    - plan.md: add <!-- mb-active-plans --> block
-    - STATUS.md: add <!-- mb-recent-done --> block
-    - BACKLOG.md: restructure to skeleton (## Ideas + ## ADR)
+    - roadmap.md: add <!-- mb-active-plans --> block
+    - status.md: add <!-- mb-recent-done --> block
+    - backlog.md: restructure to skeleton (## Ideas + ## ADR)
 
 User: /mb migrate-structure --apply
 → [apply] backup → .pre-migrate/20260421_093045/
-  [apply] plan.md migrated
-  [apply] STATUS.md blocks ensured
-  [apply] BACKLOG.md skeleton ensured
+  [apply] roadmap.md migrated
+  [apply] status.md blocks ensured
+  [apply] backlog.md skeleton ensured
   [apply] v3.1 structural migration complete
 ```
 
@@ -1008,7 +1008,7 @@ User: /mb migrate-structure --apply
 
 - Running `--apply` twice on an already-migrated bank reports `actions_pending=0` and exits without changes.
 - The `.pre-migrate/<timestamp>/` directory is persistent — restore with `cp .memory-bank/.pre-migrate/<ts>/*.md .memory-bank/` if anything goes wrong.
-- Does not touch `notes/`, `plans/`, `progress.md`, `lessons.md`, `RESEARCH.md`, `experiments/`, `codebase/`, or custom files.
+- Does not touch `notes/`, `plans/`, `progress.md`, `lessons.md`, `research.md`, `experiments/`, `codebase/`, or custom files.
 
 **Recommended usage:** once per bank, after upgrading the skill to v3.1.x. Subsequent compaction is handled by `/mb compact`.
 

@@ -6,7 +6,7 @@
 1. Check whether .memory-bank/ exists
    ├── Yes → [MEMORY BANK: ACTIVE]
    │   ├── Run mb-context.sh or /mb start
-   │   ├── Read: STATUS.md, plan.md, checklist.md, RESEARCH.md
+   │   ├── Read: status.md, roadmap.md, checklist.md, research.md
    │   ├── Check .memory-bank/codebase/
    │   │   ├── Missing or empty → suggest /mb map all (mb-codebase-mapper, sonnet)
    │   │   └── Populated → mb-context.sh already folded summaries into context
@@ -24,18 +24,18 @@
 checklist.md    ← Every completed task (⬜ → ✅)
                    Every newly discovered task (+ ⬜ <task>)
 
-STATUS.md       ← A stage or milestone completes
+status.md       ← A stage or milestone completes
                    Key metrics changed (tests, coverage, reward)
                    Roadmap moved
 
-plan.md         ← Focus or priorities changed
+roadmap.md         ← Focus or priorities changed
                    Current phase completed, new phase starts
 
-RESEARCH.md     ← New hypothesis (H-NNN)
+research.md     ← New hypothesis (H-NNN)
                    Experiment finished (result + conclusion)
                    New finding
 
-BACKLOG.md      ← New idea (HIGH/LOW)
+backlog.md      ← New idea (HIGH/LOW)
                    Architectural decision (ADR-NNN)
 
 lessons.md      ← Anti-pattern or repeated mistake detected
@@ -63,7 +63,7 @@ experiments/    ← Before running an ML experiment
 
 plans/          ← Before complex multi-stage work
                    Format: context → stages (DoD, TDD) → risks → gate
-                   ⚠️ AFTER creating the plan, update plan.md + STATUS.md + checklist.md
+                   ⚠️ AFTER creating the plan, update roadmap.md + status.md + checklist.md
 
 reports/        ← When a full report will be useful to future sessions
 
@@ -78,17 +78,17 @@ codebase/       ← After /mb init (bootstrap) — run /mb map all
 ```text
 When creating a new plan (/mb plan):
     plans/<file>.md  → create the detailed plan
-    plan.md          → update "Active plan" + focus
-    STATUS.md        → update roadmap ("In progress")
+    roadmap.md          → update "Active plan" + focus
+    status.md        → update roadmap ("In progress")
     checklist.md     → add tasks as ⬜ items
 
 When completing a plan:
     plans/<file>.md  → move to plans/done/
-    plan.md          → clear/change "Active plan"
-    STATUS.md        → move it to "Completed"
+    roadmap.md          → clear/change "Active plan"
+    status.md        → move it to "Completed"
     checklist.md     → all tasks in the plan = ✅
 
-Chain: plan.md → plans/<file>.md → checklist.md → STATUS.md
+Chain: roadmap.md → plans/<file>.md → checklist.md → status.md
 All 4 files MUST stay synchronized.
 ```
 
@@ -102,10 +102,10 @@ Plan creation (plans/)
     → Main agent (requires deeper reasoning)
 
 Architectural decisions (ADR)
-    → Main agent formulates + MB Manager stores in BACKLOG.md
+    → Main agent formulates + MB Manager stores in backlog.md
 
 ML results
-    → Main agent interprets + MB Manager updates RESEARCH.md
+    → Main agent interprets + MB Manager updates research.md
 ```
 
 ## Session finish
@@ -121,11 +121,11 @@ ML results
 2. Run /mb done or MB Manager (actualize + note):
    ├── checklist.md: mark completed ✅, add new ⬜
    ├── progress.md: append at the end (APPEND-ONLY)
-   ├── STATUS.md: update if milestone changed
-   ├── RESEARCH.md: update if there are ML results
+   ├── status.md: update if milestone changed
+   ├── research.md: update if there are ML results
    ├── lessons.md: add if an anti-pattern was found
-   ├── BACKLOG.md: add if there is an idea/ADR
-   ├── plan.md: update if focus changed
+   ├── backlog.md: add if there is an idea/ADR
+   ├── roadmap.md: update if focus changed
    └── notes/: create a note about the completed work
 
 3. Or manually:

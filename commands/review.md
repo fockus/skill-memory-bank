@@ -15,7 +15,7 @@ git diff
 git diff --staged
 ```
 
-If `./.memory-bank/plan.md` or `./.memory-bank/checklist.md` exists, read it. That is the current work plan — compare the implementation against it.
+If `./.memory-bank/roadmap.md` or `./.memory-bank/checklist.md` exists, read it. That is the current work plan — compare the implementation against it.
 
 If `./.memory-bank/codebase/ARCHITECTURE.md` and `./.memory-bank/codebase/CONCERNS.md` exist, read them too — `ARCHITECTURE.md` grounds the architectural analysis in Section 3, `CONCERNS.md` tells you which known-fragile areas deserve extra scrutiny when touched.
 
@@ -58,7 +58,7 @@ These are intentionally not deterministic; the enforcer cannot replace a careful
 
 ## 4. Plan alignment
 
-If `./.memory-bank/plan.md` or `./.memory-bank/checklist.md` is found:
+If `./.memory-bank/roadmap.md` or `./.memory-bank/checklist.md` is found:
 - Which plan items are implemented in these changes?
 - Which plan items are NOT implemented even though they should be?
 - Is there any code that was not part of the plan (scope creep)?

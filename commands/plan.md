@@ -19,7 +19,7 @@ Read before you start:
 1. `~/.claude/CLAUDE.md` — global rules
 2. `~/.claude/skills/memory-bank/references/templates.md` — **MUST read the "Plan decomposition — Phase → Sprint → Stage" section**
 3. `./RULES.MD` (project-level, if present) — project-specific decomposition rules + 200k-per-Sprint hard limit
-4. `./.memory-bank/plan.md` — current priorities (if present)
+4. `./.memory-bank/roadmap.md` — current priorities (if present)
 5. `./.memory-bank/checklist.md` — current tasks (if present)
 6. `./.memory-bank/lessons.md` — known anti-patterns (if present)
 7. `./.memory-bank/codebase/*.md` — stack / architecture / conventions / concerns summaries (if populated)
@@ -81,7 +81,7 @@ Stages must be atomic (1-5 files, ~5-15 tests, 5-30 min each), ordered by depend
 
 If `lessons.md` has entries relevant to this topic, incorporate them into the stages.
 
-## 4. Synchronize with checklist and plan.md
+## 4. Synchronize with checklist and roadmap.md
 
 After filling the plan, run:
 
@@ -91,15 +91,15 @@ bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <plan-file-path>
 
 The script is idempotent and:
 - Adds missing `## Stage N: <name>` sections to `checklist.md` with `⬜` items per DoD
-- Refreshes the `<!-- mb-active-plan -->` block in `plan.md`
+- Refreshes the `<!-- mb-active-plan -->` block in `roadmap.md`
 - Reports `added=N` so you see what changed
 
 Re-run `mb-plan-sync.sh` while iterating on the plan — it will reconcile new stages without touching old ones.
 
 ## 5. Update Memory Bank core files
 
-1. `plan.md` — already updated by the sync script; add a 1-2 sentence focus line if the direction shifted
-2. `STATUS.md` — move relevant phase into "In progress"
+1. `roadmap.md` — already updated by the sync script; add a 1-2 sentence focus line if the direction shifted
+2. `status.md` — move relevant phase into "In progress"
 3. `notes/` — optional: create `YYYY-MM-DD_HH-MM_plan-<topic>.md` with a 5-10 line summary if the plan is non-trivial
 
 ## 6. Next step

@@ -58,7 +58,7 @@ allowed-tools: [Bash, Read]
 ---
 
 1. Read `~/.claude/CLAUDE.md`
-2. If `./.memory-bank/` exists, read `STATUS.md`, `plan.md`, `checklist.md`, and `.memory-bank/codebase/*.md` summaries (1 line per doc via `head`)
+2. If `./.memory-bank/` exists, read `status.md`, `roadmap.md`, `checklist.md`, and `.memory-bank/codebase/*.md` summaries (1 line per doc via `head`)
 3. Run `git diff` and `git diff --staged` — show what is currently in progress
 4. Run `git log --oneline -5` — show the latest commits
 5. Summarize in 3-5 sentences: what is done, what is in progress, and what comes next
@@ -111,7 +111,7 @@ Key traits: stack-aware via `mb-metrics.sh` with `unknown` fallback, `argument-h
 **Reading context (session-start commands):**
 
 ```markdown
-Read `.memory-bank/STATUS.md`, `plan.md`, `checklist.md`, `RESEARCH.md`. If `.memory-bank/codebase/` is populated, run `bash ~/.claude/skills/memory-bank/scripts/mb-context.sh` and include the folded codebase summaries; otherwise suggest `/mb map all` (default answer: skip).
+Read `.memory-bank/status.md`, `roadmap.md`, `checklist.md`, `research.md`. If `.memory-bank/codebase/` is populated, run `bash ~/.claude/skills/memory-bank/scripts/mb-context.sh` and include the folded codebase summaries; otherwise suggest `/mb map all` (default answer: skip).
 ```
 
 **Writing reports (long-running analysis commands):**

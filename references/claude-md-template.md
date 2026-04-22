@@ -109,11 +109,11 @@ Detailed rules: `~/.claude/RULES.md` + `.memory-bank/RULES.md`
 
 | File           | Purpose                         | When to update            |
 | -------------- | ------------------------------- | ------------------------- |
-| `STATUS.md`    | Current state, roadmap, metrics | Stage completed           |
+| `status.md`    | Current state, roadmap, metrics | Stage completed           |
 | `checklist.md` | Tasks ✅/⬜                       | Every session             |
-| `plan.md`      | Priorities, direction           | Focus change              |
+| `roadmap.md`      | Priorities, direction           | Focus change              |
 | `RULES.md`     | Project rules                   | When updated              |
-| `RESEARCH.md`  | Hypotheses + findings           | New finding               |
+| `research.md`  | Hypotheses + findings           | New finding               |
 | `progress.md`  | Completed work (append-only)    | End of session            |
 | `lessons.md`   | Anti-patterns                   | When a pattern is noticed |
 | `plans/`       | Detailed plans (`YYYY-MM-DD_<type>_<name>.md`) | Before complex work |

@@ -1,6 +1,6 @@
 ---
 name: mb-doctor
-description: Memory Bank diagnostician — finds and fixes internal inconsistencies across core files (plan.md ↔ checklist.md ↔ STATUS.md ↔ BACKLOG.md ↔ plans/). Invoked by /mb doctor. Uses deterministic mb-drift.sh first.
+description: Memory Bank diagnostician — finds and fixes internal inconsistencies across core files (roadmap.md ↔ checklist.md ↔ status.md ↔ backlog.md ↔ plans/). Invoked by /mb doctor. Uses deterministic mb-drift.sh first.
 tools: Read, Edit, Grep, Bash
 color: red
 ---
@@ -45,10 +45,10 @@ If the user explicitly asked for `doctor-full` or said that `drift` is not enoug
 ### Step 1: Collect data (only if `drift_warnings>0` or `doctor-full`)
 
 Read ALL core files:
-1. `STATUS.md` — phase, metrics, roadmap, limitations
+1. `status.md` — phase, metrics, roadmap, limitations
 2. `checklist.md` — tasks ✅/⬜
-3. `plan.md` — master plan, focus, DoD
-4. `BACKLOG.md` — plans, ADRs, statuses
+3. `roadmap.md` — master plan, focus, DoD
+4. `backlog.md` — plans, ADRs, statuses
 5. `progress.md` — date-based work log
 6. `lessons.md` — anti-patterns
 
@@ -56,26 +56,26 @@ Read ALL core files:
 
 For each pair, verify consistency:
 
-#### 2.1 `plan.md` vs `checklist.md`
-- Every plan (P1-P*) in the `plan.md` table must have a matching status in `checklist.md`
+#### 2.1 `roadmap.md` vs `checklist.md`
+- Every plan (P1-P*) in the `roadmap.md` table must have a matching status in `checklist.md`
 - If `checklist` shows all plan stages ✅ → plan = Done
 - If `checklist` shows any ⬜ → plan CANNOT be Done
 
-#### 2.2 `STATUS.md` vs `checklist.md`
-- Phase in `STATUS.md` must reflect the latest active/completed plan from `checklist`
+#### 2.2 `status.md` vs `checklist.md`
+- Phase in `status.md` must reflect the latest active/completed plan from `checklist`
 - Metrics (tests, source files) must be current
 - In "Known limitations", verify that references to "future" plan items (→ P*-E*) are still correct (the plan must truly be unfinished)
 
-#### 2.3 `STATUS.md` vs `plan.md`
-- Roadmap in `STATUS.md` must match the table in `plan.md`
-- If a plan is Done in `plan.md`, it must appear under "✅ Completed" in `STATUS.md`
+#### 2.3 `status.md` vs `roadmap.md`
+- Roadmap in `status.md` must match the table in `roadmap.md`
+- If a plan is Done in `roadmap.md`, it must appear under "✅ Completed" in `status.md`
 
-#### 2.4 `BACKLOG.md` vs `plan.md`
-- Plan statuses in `BACKLOG.md` must match `plan.md`
+#### 2.4 `backlog.md` vs `roadmap.md`
+- Plan statuses in `backlog.md` must match `roadmap.md`
 - Plan descriptions must be aligned
 
-#### 2.5 `plan.md` internal: DoD vs plan file
-- For the active/latest plan: DoD in `plan.md` must reflect the real status (`[ ]` vs `✅`)
+#### 2.5 `roadmap.md` internal: DoD vs plan file
+- For the active/latest plan: DoD in `roadmap.md` must reflect the real status (`[ ]` vs `✅`)
 - The plan file in `plans/` must have an up-to-date status (not "⬜ Planned" if already Done)
 
 #### 2.6 `progress.md` completeness
@@ -83,13 +83,13 @@ For each pair, verify consistency:
 - Dates must be monotonically increasing (append-only)
 
 #### 2.7 Duplicates and junk
-- Duplicate lines in `STATUS.md`, `plan.md`
+- Duplicate lines in `status.md`, `roadmap.md`
 - Stale "next step" references
 - Empty or stub sections
 
-#### 2.8 `RESEARCH.md` ↔ `experiments/`
+#### 2.8 `research.md` ↔ `experiments/`
 
-Every hypothesis `H-NNN` in `RESEARCH.md` whose status is `✅ Confirmed` or `❌ Refuted` MUST have a matching `experiments/EXP-NNN.md` file. A definitive outcome without the evidence file breaks the knowledge trail.
+Every hypothesis `H-NNN` in `research.md` whose status is `✅ Confirmed` or `❌ Refuted` MUST have a matching `experiments/EXP-NNN.md` file. A definitive outcome without the evidence file breaks the knowledge trail.
 
 This check is also enforced deterministically by `mb-drift.sh` as `drift_check_research_experiments=ok|warn|skip` in Step 0. When the deterministic check warns, emit an INCONSISTENCY row per gap and list the expected file path.
 
@@ -101,12 +101,12 @@ This check is also enforced deterministically by `mb-drift.sh` as `drift_check_r
 ### INCONSISTENCY (must be fixed)
 | # | Files | Problem | Fix |
 |---|-------|---------|-----|
-| 1 | plan.md:67 vs checklist.md:108 | P3 = "⬜ Planned" but checklist = ✅ Done | plan.md: ⬜ → ✅ |
+| 1 | roadmap.md:67 vs checklist.md:108 | P3 = "⬜ Planned" but checklist = ✅ Done | roadmap.md: ⬜ → ✅ |
 
 ### STALE (outdated information)
 | # | File | Problem |
 |---|------|---------|
-| 1 | STATUS.md:65 | Limitation references P3-E3.5 as future work, but the plan is already ✅ |
+| 1 | status.md:65 | Limitation references P3-E3.5 as future work, but the plan is already ✅ |
 
 ### MISSING (missing information)
 | # | What | Expected in |
@@ -114,7 +114,7 @@ This check is also enforced deterministically by `mb-drift.sh` as `drift_check_r
 | 1 | Entry for P12 | progress.md |
 
 ### OK (consistent)
-- checklist.md ↔ plan.md: ✅ (N matches)
+- checklist.md ↔ roadmap.md: ✅ (N matches)
 - ...
 ```
 
@@ -147,7 +147,7 @@ This turns a silent-merge footgun into a visible decision point. The guard defau
 
 **Priority: automation through `mb-plan-sync.sh`.**
 
-For plan ↔ checklist ↔ `plan.md` drift, try scripted repair first:
+For plan ↔ checklist ↔ `roadmap.md` drift, try scripted repair first:
 
 ```bash
 # For every active plan in plans/ (not in done/):
@@ -159,17 +159,17 @@ bash ~/.claude/skills/memory-bank/scripts/mb-plan-done.sh <path-to-plan>
 
 `mb-plan-sync.sh` is idempotent:
 - adds missing `## Stage N: <name>` sections to `checklist.md`
-- updates the `<!-- mb-active-plan -->` block in `plan.md`
+- updates the `<!-- mb-active-plan -->` block in `roadmap.md`
 
 `mb-plan-done.sh`:
 - closes `- ⬜` → `- ✅` inside the plan sections in `checklist`
 - moves the plan file into `plans/done/`
-- clears the active-plan block in `plan.md`
+- clears the active-plan block in `roadmap.md`
 
-Only fix what the scripts cannot handle (semantic drift, `STATUS.md` metrics, `BACKLOG`, stale references) via Edit. Log exactly what you changed.
+Only fix what the scripts cannot handle (semantic drift, `status.md` metrics, `BACKLOG`, stale references) via Edit. Log exactly what you changed.
 
 For remaining INCONSISTENCY items:
-1. Determine which file is the source of truth (priority: `checklist.md > plan.md > STATUS.md > BACKLOG.md`)
+1. Determine which file is the source of truth (priority: `checklist.md > roadmap.md > status.md > backlog.md`)
 2. Fix the inconsistent file via Edit
 3. Log what was fixed
 
@@ -182,7 +182,7 @@ For remaining INCONSISTENCY items:
 **WARNING vs auto-fix boundary (explicit):**
 
 Auto-fix is allowed only when BOTH are true:
-1. The source-of-truth chain resolves the conflict deterministically (`checklist.md > plan.md > STATUS.md > BACKLOG.md`), AND
+1. The source-of-truth chain resolves the conflict deterministically (`checklist.md > roadmap.md > status.md > backlog.md`), AND
 2. The fix is expressible as one of: `mb-plan-sync.sh`, `mb-plan-done.sh`, `mb-index-json.py`, or a single-line Edit with matching `old_string` unique in the file.
 
 Otherwise — flag as WARNING and surface to the user. Do not guess on multi-file semantic conflicts.
@@ -232,7 +232,7 @@ drift_check_research_experiments=ok|warn|skip
 
 ### Code vs Memory Bank
 
-Check that metrics in `STATUS.md` match reality. Use the language-agnostic metrics script:
+Check that metrics in `status.md` match reality. Use the language-agnostic metrics script:
 
 ```bash
 # Auto-detect stack + structured output (stack/test_cmd/lint_cmd/src_count)
@@ -244,7 +244,7 @@ bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh --run
 
 The script auto-detects Python/Go/Rust/Node and returns matching commands. For projects with a non-standard layout you may create an override at `./.memory-bank/metrics.sh` — it will run instead of auto-detect.
 
-If metrics in `STATUS.md` differ from `mb-metrics.sh`, update `STATUS.md` via Edit.
+If metrics in `status.md` differ from `mb-metrics.sh`, update `status.md` via Edit.
 
 If `stack=unknown`, do not invent metrics. Leave the previous values and add a warning to the report.
 

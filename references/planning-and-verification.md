@@ -26,7 +26,7 @@ Plan creation belongs to the **main agent** (not MB Manager).
 
 ### Stage markers
 
-The `mb-plan.sh` template automatically adds `<!-- mb-stage:N -->` before `### Stage N: <name>`. Those markers are used by `mb-plan-sync.sh` and `mb-plan-done.sh` for automatic synchronization with `checklist.md` and `plan.md`.
+The `mb-plan.sh` template automatically adds `<!-- mb-stage:N -->` before `### Stage N: <name>`. Those markers are used by `mb-plan-sync.sh` and `mb-plan-done.sh` for automatic synchronization with `checklist.md` and `roadmap.md`.
 
 ### Consistency — REQUIRED when creating a plan
 
@@ -38,12 +38,12 @@ bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <path-to-plan>
 
 The script idempotently:
 - adds missing `## Stage N: <name>` sections to `checklist.md`
-- updates the `<!-- mb-active-plan -->` block in `plan.md`
+- updates the `<!-- mb-active-plan -->` block in `roadmap.md`
 
 ### Source-of-truth chain
 
 ```text
-plan.md (Active plan → link) → plans/<file>.md (tasks, DoD) → checklist.md (tracking) → STATUS.md (phase)
+roadmap.md (Active plan → link) → plans/<file>.md (tasks, DoD) → checklist.md (tracking) → status.md (phase)
 ```
 
 **When finishing a plan:**

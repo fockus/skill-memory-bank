@@ -19,7 +19,7 @@ If inactive: tell the user and suggest `/mb init` (`--full` for stack auto-detec
 bash ~/.claude/skills/memory-bank/scripts/mb-context.sh
 ```
 
-The script reads `STATUS.md`, `plan.md`, `checklist.md`, `RESEARCH.md`, lists active plans (`plans/*.md` not in `done/`), folds per-document summaries from `.memory-bank/codebase/*.md` if populated, and prints the latest note.
+The script reads `status.md`, `roadmap.md`, `checklist.md`, `research.md`, lists active plans (`plans/*.md` not in `done/`), folds per-document summaries from `.memory-bank/codebase/*.md` if populated, and prints the latest note.
 
 For deep-context mode (full contents of codebase docs instead of summaries):
 
@@ -44,11 +44,11 @@ Do **not** auto-invoke the mapper — the user owns the decision.
 ## 5. Summarize focus
 
 Produce a 1-3 sentence summary covering:
-- Current phase / where the project is (from `STATUS.md`)
+- Current phase / where the project is (from `status.md`)
 - What the user is working on right now (from active plan + checklist)
-- Next step per `plan.md`
+- Next step per `roadmap.md`
 
-Mention metrics (tests passing, coverage) if they appear in `STATUS.md` and have moved recently.
+Mention metrics (tests passing, coverage) if they appear in `status.md` and have moved recently.
 
 ## 6. For deeper actualization
 

@@ -50,7 +50,7 @@ Append ONLY to the end of the file. Never edit old entries.
 
 ---
 
-## Hypothesis in `RESEARCH.md`
+## Hypothesis in `research.md`
 
 ```markdown
 | H-NNN | <Hypothesis (SMART: specific, measurable)> | ⬜ Not tested | — | — | — |
@@ -60,7 +60,7 @@ Statuses: `⬜ Not tested` → `🔬 Testing` → `✅ Confirmed` / `❌ Refuted
 
 ---
 
-## ADR in `BACKLOG.md`
+## ADR in `backlog.md`
 
 ```markdown
 - ADR-NNN: <Decision> — <context, considered alternatives, consequences> [YYYY-MM-DD]
@@ -231,11 +231,11 @@ Creates the minimal structure:
 
 ```text
 .memory-bank/
-├── STATUS.md       # Header + "Current phase: Start"
-├── plan.md         # Header + "Current focus: define"
+├── status.md       # Header + "Current phase: Start"
+├── roadmap.md         # Header + "Current focus: define"
 ├── checklist.md    # Header + empty checklist
-├── RESEARCH.md     # Header + empty hypothesis table
-├── BACKLOG.md      # Header + empty sections
+├── research.md     # Header + empty hypothesis table
+├── backlog.md      # Header + empty sections
 ├── progress.md     # Header
 ├── lessons.md      # Header
 ├── experiments/    # Empty; filled by experiment authors (EXP-NNN.md)
@@ -290,10 +290,10 @@ Diagnostic messages go to stderr with the `[drift:<name>]` prefix.
 | Name | What it checks |
 |------|-----------------|
 | `path` | Links like `notes/X.md`, `plans/X.md`, `reports/X.md`, `experiments/X.md` in core files actually exist |
-| `staleness` | `STATUS.md` / `plan.md` / `checklist.md` / `progress.md` have not been untouched for >30 days |
+| `staleness` | `status.md` / `roadmap.md` / `checklist.md` / `progress.md` have not been untouched for >30 days |
 | `script_coverage` | `bash scripts/X.sh` references point to existing files (project-local or skill-local) |
-| `dependency` | Python version in `STATUS.md` matches `pyproject.toml` (if present) |
-| `cross_file` | Counts like "N bats green" are consistent across `STATUS.md`, `checklist.md`, `progress.md` |
+| `dependency` | Python version in `status.md` matches `pyproject.toml` (if present) |
+| `cross_file` | Counts like "N bats green" are consistent across `status.md`, `checklist.md`, `progress.md` |
 | `index_sync` | `index.json` mtime is newer than all `notes/*.md` files (otherwise reindexing is needed) |
 | `command` | `npm run X` / `make X` references point to existing scripts/targets |
 | `frontmatter` | `notes/*.md` files starting with `---` also contain a closing fence |

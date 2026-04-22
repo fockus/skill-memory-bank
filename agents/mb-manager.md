@@ -47,11 +47,11 @@ Use Read to inspect files, Edit to update existing files, and Write to create ne
 
 ```text
 .memory-bank/
-├── STATUS.md       # Current phase, metrics, roadmap (gates)
-├── plan.md         # Priorities, focus, next steps
+├── status.md       # Current phase, metrics, roadmap (gates)
+├── roadmap.md         # Priorities, focus, next steps
 ├── checklist.md    # Tasks: ✅ done, ⬜ in progress/pending
-├── RESEARCH.md     # Hypotheses, findings, current experiment
-├── BACKLOG.md      # Ideas (HIGH/LOW), ADRs (architectural decisions)
+├── research.md     # Hypotheses, findings, current experiment
+├── backlog.md      # Ideas (HIGH/LOW), ADRs (architectural decisions)
 ├── progress.md     # Date-based execution log (APPEND-ONLY!)
 ├── lessons.md      # Anti-patterns, repeated mistakes, insights
 ├── experiments/    # EXP-NNN.md — ML experiments
@@ -64,11 +64,11 @@ Use Read to inspect files, Edit to update existing files, and Write to create ne
 
 | File           | When to update                     |
 | -------------- | ---------------------------------- |
-| `STATUS.md`    | Stage completion, milestone        |
-| `plan.md`      | Direction change                   |
+| `status.md`    | Stage completion, milestone        |
+| `roadmap.md`      | Direction change                   |
 | `checklist.md` | Every session                      |
-| `RESEARCH.md`  | ML results, experiments            |
-| `BACKLOG.md`   | New idea or architectural decision |
+| `research.md`  | ML results, experiments            |
+| `backlog.md`   | New idea or architectural decision |
 | `progress.md`  | End of session (APPEND-ONLY)       |
 | `lessons.md`   | Repeated pattern discovered        |
 
@@ -91,28 +91,28 @@ Use Read to inspect files, Edit to update existing files, and Write to create ne
 
 ```text
 plans/<file>.md  → create the detailed plan with DoD
-plan.md          → update "Active plan" (link to the file) + focus
-STATUS.md        → update roadmap ("In progress" section)
+roadmap.md          → update "Active plan" (link to the file) + focus
+status.md        → update roadmap ("In progress" section)
 checklist.md     → add plan tasks as ⬜ items
 ```
 
 **When finishing a plan:**
 
 - Move `plans/<file>.md` → `plans/done/`
-- `plan.md` → clear/change "Active plan"
-- `STATUS.md` → move it to "Completed"
+- `roadmap.md` → clear/change "Active plan"
+- `status.md` → move it to "Completed"
 - `checklist.md` → all plan tasks = ✅
 
 **When changing the active plan:**
 
-- `plan.md` → update "Active plan" + focus
-- `STATUS.md` → update roadmap
+- `roadmap.md` → update "Active plan" + focus
+- `status.md` → update roadmap
 - `checklist.md` → add tasks from the new plan
 
 **Source-of-truth chain:**
 
 ```text
-plan.md → plans/<file>.md → checklist.md → STATUS.md
+roadmap.md → plans/<file>.md → checklist.md → status.md
 ```
 
 Consistency violations are a Memory Bank bug. All 4 files MUST stay synchronized.
@@ -153,13 +153,13 @@ Date: YYYY-MM-DD HH:MM
 <Problem and solution description. 2-4 lines.>
 ```
 
-### Hypothesis in `RESEARCH.md`
+### Hypothesis in `research.md`
 
 ```markdown
 | H-NNN | <Hypothesis> | ⬜ Not tested | — | — | — |
 ```
 
-### ADR in `BACKLOG.md`
+### ADR in `backlog.md`
 
 ```markdown
 - ADR-NNN: <Decision> — <context, alternatives> [YYYY-MM-DD]
@@ -208,13 +208,13 @@ Collect and return project context.
 ```text
 ## Project context
 
-**Phase:** <current phase from STATUS.md>
-**Focus:** <priorities from plan.md, 1-2 sentences>
+**Phase:** <current phase from status.md>
+**Focus:** <priorities from roadmap.md, 1-2 sentences>
 **Tasks:** <active ⬜ tasks from checklist, up to 5>
-**Metrics:** <key numbers from STATUS.md>
+**Metrics:** <key numbers from status.md>
 **Active plan:** <title, if present>
 **Latest note:** <title and gist>
-**Next step:** <what to do next, based on plan.md>
+**Next step:** <what to do next, based on roadmap.md>
 ```
 
 ### `action: search <query>`
@@ -247,12 +247,12 @@ Actualize core files based on the provided description of completed work.
 **Steps (in order):**
 
 1. **`checklist.md`** — read the current file, mark completed items (`⬜ → ✅`), add new tasks if discovered
-2. **`STATUS.md`** — update metrics (tests, coverage, reward) if provided. Update roadmap if a stage/milestone completed
+2. **`status.md`** — update metrics (tests, coverage, reward) if provided. Update roadmap if a stage/milestone completed
 3. **`progress.md`** — APPEND a new entry at the end (date + what was done + next step)
-4. **`RESEARCH.md`** — update if there were ML results (hypothesis confirmed/refuted, new finding)
+4. **`research.md`** — update if there were ML results (hypothesis confirmed/refuted, new finding)
 5. **`lessons.md`** — add an entry if an anti-pattern or repeated mistake was found
-6. **`BACKLOG.md`** — add an idea (HIGH/LOW) or ADR if there was an architectural decision
-7. **`plan.md`** — update focus if priorities shifted
+6. **`backlog.md`** — add an idea (HIGH/LOW) or ADR if there was an architectural decision
+7. **`roadmap.md`** — update focus if priorities shifted
 8. **`index.json`** — regenerate through the script (never by hand):
   ```bash
    python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py <MB_PATH>
@@ -281,11 +281,11 @@ Actualize core files based on the provided description of completed work.
 **Updated:**
 - checklist.md: ✅ <task1>, ✅ <task2>, ⬜ <new task>
 - progress.md: +entry for YYYY-MM-DD
-- STATUS.md: metrics updated (tests: N → M)
+- status.md: metrics updated (tests: N → M)
 - ...
 
 **Unchanged (no reason):**
-- lessons.md, BACKLOG.md, ...
+- lessons.md, backlog.md, ...
 ```
 
 ### `action: note <topic>`
@@ -374,7 +374,7 @@ This supersedes the earlier ad-hoc bundling and replaces any prose that called t
 
 **Steps (6-step flow, in order):**
 
-1. **`actualize`** — run the `action: actualize` flow above to reconcile `checklist.md` (⬜→✅ for completed items), append a new entry to `progress.md` (APPEND-ONLY), and update `STATUS.md` / `RESEARCH.md` / `lessons.md` / `BACKLOG.md` / `plan.md` only when the session description genuinely changed them (no-op updates are noise).
+1. **`actualize`** — run the `action: actualize` flow above to reconcile `checklist.md` (⬜→✅ for completed items), append a new entry to `progress.md` (APPEND-ONLY), and update `status.md` / `research.md` / `lessons.md` / `backlog.md` / `roadmap.md` only when the session description genuinely changed them (no-op updates are noise).
 2. **`note`** — run the `action: note` flow above to create `notes/YYYY-MM-DD_HH-MM_<topic>.md` via `bash ~/.claude/skills/memory-bank/scripts/mb-note.sh "<topic>"` with YAML frontmatter + "What was done" + "New knowledge" sections.
 3. **Plan closure (conditional)** — if the session closed a plan, run `bash ~/.claude/skills/memory-bank/scripts/mb-plan-done.sh <plan-file>` to flip remaining `⬜→✅` in the plan's checklist sections, move the plan file into `plans/done/`, and clear the `<!-- mb-active-plans -->` entry.
 4. **Session lock** — `touch .memory-bank/.session-lock` so the SessionEnd auto-capture hook knows this session closed cleanly and does not append a duplicate placeholder to `progress.md`.
@@ -385,11 +385,11 @@ This supersedes the earlier ad-hoc bundling and replaces any prose that called t
 
 When the session description disagrees with on-disk state, pick the source of truth deterministically — do not guess:
 
-1. **`STATUS.md` metrics vs `mb-metrics.sh --run` output** — **trust the script**. Code state is authoritative; STATUS numbers are derived, not sources. Update `STATUS.md` to match the script.
+1. **`status.md` metrics vs `mb-metrics.sh --run` output** — **trust the script**. Code state is authoritative; STATUS numbers are derived, not sources. Update `status.md` to match the script.
 2. **`checklist.md` items vs a plan already in `plans/done/`** — **trust `checklist.md`**. A closed plan is historic; the live checklist reflects current work. Do not reopen `⬜` markers inside closed plan blocks to match the plan file.
 3. **`progress.md` = APPEND-ONLY** — never rewrite historic entries even if they contain inaccuracies. Append a correction entry instead (`## YYYY-MM-DD — Correction to <prior-date>`). History is the ledger, not a working draft.
-4. **`plan.md` focus vs `plans/<active>.md` stages** — **trust the active plan file**. `plan.md` carries a 1-2 sentence focus line plus the `<!-- mb-active-plans -->` block; the detailed stage list lives in `plans/<file>.md`. Sync via `mb-plan-sync.sh` when drift is detected.
-5. **`RESEARCH.md` hypothesis status vs `experiments/EXP-NNN.md`** — **trust the experiment file** (it carries the measurements). If the statuses disagree, update `RESEARCH.md` to match and flag the drift for the user.
+4. **`roadmap.md` focus vs `plans/<active>.md` stages** — **trust the active plan file**. `roadmap.md` carries a 1-2 sentence focus line plus the `<!-- mb-active-plans -->` block; the detailed stage list lives in `plans/<file>.md`. Sync via `mb-plan-sync.sh` when drift is detected.
+5. **`research.md` hypothesis status vs `experiments/EXP-NNN.md`** — **trust the experiment file** (it carries the measurements). If the statuses disagree, update `research.md` to match and flag the drift for the user.
 
 When none of these apply (multi-file semantic ambiguity), emit a WARNING and surface the decision to the user — do not auto-fix on speculation.
 
@@ -401,7 +401,7 @@ When none of these apply (multi-file semantic ambiguity), emit a WARNING and sur
 **Updated:**
 - checklist.md: ✅ <items>, ⬜ <new items>
 - progress.md: +entry for YYYY-MM-DD
-- STATUS.md: metrics refreshed (tests: N → M, coverage: X% → Y%)
+- status.md: metrics refreshed (tests: N → M, coverage: X% → Y%)
 - (other files: list only if actually changed)
 
 **Note:** <path> — type=<type>, tags=[...], importance=<high|medium|low>
