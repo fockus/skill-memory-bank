@@ -14,11 +14,6 @@ htmlcov/
 .pytest_cache/
 .ruff_cache/
 
-# Project-local memory bank (dogfood). Contains session-specific status, plans,
-# and progress logs that are not part of the distributed skill — they live in
-# /.memory-bank/ of every consumer project. Never ship them in the public skill repo.
-/.memory-bank/
-
 # Claude Code harness runtime (local CLI state — never part of the skill).
 /.claude/
 
