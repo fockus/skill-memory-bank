@@ -11,6 +11,9 @@ Exclusions:
 - .pre-migrate*/** (pre-migration backups)
 - dist/, site/, .git/, .pytest_cache/, .ruff_cache/, __pycache__/
 - SECURITY_AUDIT_REPORT.md (historical)
+- commands/start.md (contains v1 detection patterns for Pre-flight check)
+- commands/mb.md (delegates to v1 detection; may reference legacy names)
+- agents/mb-doctor.md (contains v1 detection patterns in "Check: v2 naming migration")
 """
 from __future__ import annotations
 
@@ -39,6 +42,10 @@ EXCLUDED_PATHS = (
     ".pytest_cache/",
     ".ruff_cache/",
     "__pycache__/",
+    # v1-layout autodetection docs: contain legacy names as detection patterns
+    "commands/start.md",
+    "commands/mb.md",
+    "agents/mb-doctor.md",
 )
 
 OLD_NAMES = re.compile(r"\b(STATUS|BACKLOG|RESEARCH)\.md\b")

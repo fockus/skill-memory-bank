@@ -5,6 +5,28 @@ allowed-tools: [Bash, Read, Task]
 
 Canonical session-start command. `/mb start` is an alias that dispatches here.
 
+## Pre-flight: detect v1 layout
+
+Before loading context, check whether the project is still on v1 Memory Bank naming. Run:
+
+```bash
+ls .memory-bank/ 2>/dev/null | grep -E '^(STATUS|BACKLOG|RESEARCH|plan)\.md$'
+```
+
+If any of `STATUS.md / BACKLOG.md / RESEARCH.md / plan.md` appear (and the corresponding lowercase variant — `status.md / backlog.md / research.md / roadmap.md` — is NOT present), the project is on v1 and must be migrated.
+
+Tell the user exactly:
+
+> "Detected v1 Memory Bank layout (uppercase STATUS.md / BACKLOG.md / plan.md). v2 requires lowercase names. Run:
+>
+> ```
+> bash ~/.claude/skills/memory-bank/scripts/mb-migrate-v2.sh --dry-run
+> ```
+>
+> to preview, then `--apply` to execute. Backup is created automatically."
+
+Do NOT proceed with context loading until migration is done, UNLESS the user explicitly says "read v1 anyway" — in which case fall back to reading the old names.
+
 ## 1. Check whether Memory Bank is active
 
 ```bash

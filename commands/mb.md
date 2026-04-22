@@ -62,6 +62,14 @@ Invoking `/mb start` = invoking `/start` — same scripts, same subagents, same 
 
 ### context / search / note / tasks
 
+**Soft v1-layout detection.** Before invoking the subagent for `context` (or `(empty)`), run the v1-layout probe from `commands/start.md` (Pre-flight section). If v1 files are found without v2 counterparts, surface a one-line warning to the user:
+
+```
+WARN: v1 Memory Bank layout detected. Run `bash ~/.claude/skills/memory-bank/scripts/mb-migrate-v2.sh --dry-run` to preview the rename, then `--apply`. Context can still be assembled from v1 names during the 2-version backward-compat window.
+```
+
+Continue with context loading (do not hard-stop — the scripts fall back to v1 names while the window is open). For `search`, `note`, and `tasks` the warning is optional; the subagent itself handles v1 files.
+
 For these subcommands, run the MB Manager subagent:
 
 ```
@@ -139,6 +147,8 @@ Update core files (STATUS metrics, checklist, plan focus) using REAL data from t
 ### doctor
 
 Diagnose and fix inconsistencies INSIDE Memory Bank.
+
+**v2 naming migration check** is delegated to the subagent — see `agents/mb-doctor.md` → "Check: v2 naming migration". The agent will flag v1 files missing their v2 counterpart (WARN) or coexisting v1+v2 pairs (ERROR, manual resolution required) and point the user to `scripts/mb-migrate-v2.sh`.
 
 Run the MB Doctor subagent:
 
