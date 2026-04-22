@@ -98,3 +98,77 @@ for i in "${!RENAMES_OLD[@]}"; do
 done
 
 echo "[ok] rename phase complete — content transform and reference fixup in Task 5+"
+
+# === Content transform: roadmap.md ===
+# Transforms v1 plan.md content into v2 roadmap format. Preserves the legacy
+# <!-- mb-active-plan --> block by relocating it into the new ## Now section.
+if [ -f "$MB_PATH/roadmap.md" ]; then
+  python3 - "$MB_PATH/roadmap.md" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+
+# Idempotency guard — if the file already has the v2 shape, leave it alone.
+if "## Now (in progress)" in text and "## Next" in text:
+    sys.exit(0)
+
+# Extract legacy active-plan block (if any).
+m = re.search(r"<!-- mb-active-plan -->.*?<!-- /mb-active-plan -->", text, re.DOTALL)
+active_plan_block = m.group(0) if m else ""
+
+# Strip old top heading and active-plan block from source body.
+body = re.sub(r"^\s*#\s+Plan\s*\n+", "", text, count=1)
+body = re.sub(
+    r"<!-- mb-active-plan -->.*?<!-- /mb-active-plan -->\n*",
+    "",
+    body,
+    flags=re.DOTALL,
+)
+
+# Build new roadmap.
+now_section = "## Now (in progress)\n\n"
+if active_plan_block:
+    now_section += active_plan_block + "\n"
+else:
+    now_section += "_No active plan. Run /mb plan <type> <topic> to start._\n"
+
+new_roadmap = f"""# Roadmap
+
+_Last updated: auto-synced by mb-roadmap-sync.sh_
+
+{now_section}
+## Next (strict order — depends)
+
+_Queued plans appear here. See plans/*.md frontmatter: depends_on._
+
+## Parallel-safe (can run now)
+
+_Independent plans. See plans/*.md frontmatter: parallel_safe: true._
+
+## Paused / Archived
+
+_Plans in paused/cancelled state._
+
+## Linked Specs (active)
+
+_Active specs/<topic>/ directories._
+
+## See also
+- traceability.md — REQ coverage matrix
+- backlog.md — future ideas & ADR
+- checklist.md — current in-flight tasks
+
+---
+
+### Legacy content (from v1 plan.md — review and integrate above)
+
+{body.strip()}
+"""
+
+path.write_text(new_roadmap, encoding="utf-8")
+print(f"[transformed] {path}")
+PY
+fi

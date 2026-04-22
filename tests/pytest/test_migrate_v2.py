@@ -70,3 +70,25 @@ def test_apply_creates_backup(v1_copy: Path) -> None:
     assert "BACKLOG.md" in backup_entries
     assert "RESEARCH.md" in backup_entries
     assert "plan.md" in backup_entries
+
+
+def test_roadmap_content_transformed(v1_copy: Path) -> None:
+    result = run_script(v1_copy, "--apply")
+    assert result.returncode == 0, result.stderr
+    roadmap = (v1_copy / "roadmap.md").read_text(encoding="utf-8")
+    # New sections present
+    assert "# Roadmap" in roadmap
+    assert "## Now (in progress)" in roadmap
+    assert "## Next" in roadmap
+    assert "## Parallel-safe" in roadmap
+    assert "## Paused / Archived" in roadmap
+    assert "## Linked Specs" in roadmap
+    # Legacy content preserved under See also + Legacy section
+    assert "## See also" in roadmap
+    assert "### Legacy content" in roadmap
+    # Active plan block carried over into Now
+    assert "<!-- mb-active-plan -->" in roadmap
+    assert "plans/2026-04-20_feature_example.md" in roadmap
+    # Legacy "## Priorities" / "## Direction" preserved in Legacy body
+    assert "## Priorities" in roadmap
+    assert "## Direction" in roadmap
