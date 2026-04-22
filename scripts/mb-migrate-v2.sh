@@ -67,6 +67,34 @@ if [ "$MODE" = "dry-run" ]; then
   exit 0
 fi
 
-# === Apply (stub until Task 4+) ===
-echo "[error] --apply not yet implemented" >&2
-exit 2
+# === Backup ===
+ts=$(date +%Y%m%d-%H%M%S)
+backup_dir="$MB_PATH/.migration-backup-$ts"
+mkdir -p "$backup_dir"
+for i in "${!RENAMES_OLD[@]}"; do
+  old="${RENAMES_OLD[$i]}"
+  old_hit=$(find "$MB_PATH" -maxdepth 1 -type f -name "$old" -print -quit 2>/dev/null || true)
+  if [ -n "$old_hit" ]; then
+    cp "$old_hit" "$backup_dir/$old"
+  fi
+done
+echo "[backup] saved to $backup_dir"
+
+# === Rename ===
+# Two-step rename via temporary name to handle case-insensitive FS (macOS APFS):
+# `mv STATUS.md status.md` errors with "same file" on APFS because both names
+# resolve to the same inode. Detour through .tmp-rename-N to force a distinct name.
+for i in "${!RENAMES_OLD[@]}"; do
+  old="${RENAMES_OLD[$i]}"
+  new="${RENAMES_NEW[$i]}"
+  old_hit=$(find "$MB_PATH" -maxdepth 1 -type f -name "$old" -print -quit 2>/dev/null || true)
+  new_hit=$(find "$MB_PATH" -maxdepth 1 -type f -name "$new" -print -quit 2>/dev/null || true)
+  if [ -n "$old_hit" ] && [ -z "$new_hit" ]; then
+    tmp="$MB_PATH/.tmp-rename-$i"
+    mv "$old_hit" "$tmp"
+    mv "$tmp" "$MB_PATH/$new"
+    echo "[renamed] $old → $new"
+  fi
+done
+
+echo "[ok] rename phase complete — content transform and reference fixup in Task 5+"

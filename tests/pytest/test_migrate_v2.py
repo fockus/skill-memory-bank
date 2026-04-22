@@ -37,3 +37,36 @@ def test_detect_v1_layout(v1_copy: Path) -> None:
     assert "BACKLOG.md → backlog.md" in result.stdout
     assert "RESEARCH.md → research.md" in result.stdout
     assert "plan.md → roadmap.md" in result.stdout
+
+
+def test_apply_renames_files(v1_copy: Path) -> None:
+    result = run_script(v1_copy, "--apply")
+    assert result.returncode == 0, result.stderr
+    # Old files gone, new files present.
+    # Note: on macOS APFS (case-insensitive) we check via find because
+    # `(v1_copy / "STATUS.md").exists()` returns True even when only
+    # status.md exists. Use case-sensitive listing instead.
+    entries = {p.name for p in v1_copy.iterdir() if p.is_file()}
+    assert "STATUS.md" not in entries
+    assert "BACKLOG.md" not in entries
+    assert "RESEARCH.md" not in entries
+    assert "plan.md" not in entries
+    assert "status.md" in entries
+    assert "backlog.md" in entries
+    assert "research.md" in entries
+    assert "roadmap.md" in entries
+
+
+def test_apply_creates_backup(v1_copy: Path) -> None:
+    result = run_script(v1_copy, "--apply")
+    assert result.returncode == 0, result.stderr
+    backups = sorted(v1_copy.glob(".migration-backup-*"))
+    assert len(backups) == 1, f"expected 1 backup dir, got {len(backups)}: {backups}"
+    backup = backups[0]
+    assert backup.is_dir()
+    # Backup contains all 4 original files with original names
+    backup_entries = {p.name for p in backup.iterdir() if p.is_file()}
+    assert "STATUS.md" in backup_entries
+    assert "BACKLOG.md" in backup_entries
+    assert "RESEARCH.md" in backup_entries
+    assert "plan.md" in backup_entries
