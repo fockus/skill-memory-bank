@@ -1,0 +1,97 @@
+# memory-bank — default execution pipeline (spec §9)
+#
+# This file is shipped with the skill. `/mb config init` copies it into
+# `<bank>/pipeline.yaml` so the project can override per-project values.
+# `/mb work` consumes the resolved file (project override → this default).
+
+version: 1
+
+# ===== Roles — mapping role → agent (plugin-style overrides supported) =====
+roles:
+  developer: { agent: mb-developer }
+  backend:   { agent: mb-backend,   fallback: mb-developer }
+  frontend:  { agent: mb-frontend,  fallback: mb-developer }
+  ios:       { agent: mb-ios,       fallback: mb-developer }
+  android:   { agent: mb-android,   fallback: mb-developer }
+  architect: { agent: mb-architect }
+  devops:    { agent: mb-devops,    fallback: mb-developer }
+  qa:        { agent: mb-qa,        fallback: mb-developer }
+  analyst:   { agent: mb-analyst }
+  reviewer:
+    agent: mb-reviewer
+    override_if_skill_present:
+      skill: superpowers
+      agent: superpowers:requesting-code-review
+  verifier:  { agent: plan-verifier }
+
+# ===== Pipeline applied per stage =====
+stage_pipeline:
+  - step: implement
+    role: auto                # auto-select based on stage context
+    tdd: true
+  - step: review
+    role: reviewer
+    categories: [logic, code_rules, security, scalability, tests]
+    severity_gate:
+      blocker: 0
+      major: 0
+      minor: 3
+    max_cycles: 3
+    on_max_cycles: stop_for_human   # | continue_with_warning
+  - step: verify
+    role: verifier
+    checks:
+      - ears_format
+      - contract_first_tests
+      - test_red_green
+      - dod_checkboxes
+      - architecture_drift
+      - no_placeholders
+      - protocol_abc_defined
+
+# ===== Budget / risk =====
+budget:
+  default_limit: null            # null = unlimited; CLI --budget overrides
+  warn_at_percent: 80
+  stop_at_percent: 100
+
+protected_paths:
+  - ".env*"
+  - "ci/**"
+  - ".github/workflows/**"
+  - "Dockerfile*"
+  - "k8s/**"
+  - "terraform/**"
+
+sprint_context_guard:
+  soft_warn_tokens: 150000
+  hard_stop_tokens: 190000
+
+# ===== Review rubric — fixed keys, extensible items =====
+review_rubric:
+  logic:
+    - "Every EARS requirement has at least one assertion in tests"
+    - "Edge cases from requirements covered"
+  code_rules:
+    - "SOLID: SRP — files <300 lines OR <=3 public methods"
+    - "No placeholders (TODO/...)"
+    - "Imports complete, functions copy-paste ready"
+  security:
+    - "Input validation at boundaries"
+    - "No secrets in code"
+    - "No raw SQL string concat"
+  scalability:
+    - "No N+1 queries introduced"
+    - "Async where IO-bound"
+  tests:
+    - "Contract-first: Protocol/ABC defined before impl"
+    - "Integration tests > unit tests (Testing Trophy)"
+    - "No test.skip / describe.skip"
+
+# ===== SDD enforcement =====
+sdd:
+  require_ears_in_sdd_command: true       # /mb sdd — hard requirement
+  require_ears_in_plan_command: false     # /mb plan — soft (warning)
+  require_ears_in_plan_with_sdd_flag: true # /mb plan --sdd — hard
+  covers_requirements_policy: warn        # warn | block | off
+  full_mode_path: ".memory-bank/specs"
