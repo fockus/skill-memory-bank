@@ -30,6 +30,14 @@ Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Spri
 
 ## Recently completed
 
+- **✅ I-004 — `mb-auto-commit.sh` opt-in auto-commit for /mb done** [2026-04-25]
+   - `scripts/mb-auto-commit.sh` — bash dispatcher. Triggers only when `MB_AUTO_COMMIT=1` env or `--force` flag.
+   - 4 safety gates (each emits warning, exits 0 — non-fatal): bank clean → no-op; dirty source outside bank → skip (won't sweep code); rebase/merge/cherry-pick in progress → skip; detached HEAD → skip.
+   - Subject: `chore(mb): <last ### heading from progress.md>` (truncated to 60 chars). Fallback: `chore(mb): session-end <YYYY-MM-DD>`. Co-Authored-By trailer for Claude. Never pushes.
+   - Wired into `commands/done.md` step 7 (between `index.json` regen and final report).
+   - 13 new tests: 10 `test_mb_auto_commit.py` (all gates + subject derivation + force-flag + help) + 3 `test_i004_registration.py` (script presence, done.md reference, backlog flip). pytest 615 → 628 (+13).
+   - Backlog `I-004` flipped HIGH-NEW → HIGH-DONE with outcome line. Plan: [plans/done/2026-04-25_feature_i004-auto-commit.md](plans/done/2026-04-25_feature_i004-auto-commit.md).
+
 - **✅ Phase 4 Sprint 3 — installer auto-register + superpowers reviewer detection + v4.0.0 release** [2026-04-25]
    - `scripts/mb-reviewer-resolve.sh` — bash dispatcher reading `pipeline.yaml:roles.reviewer.agent` (default `mb-reviewer`); honours `override_if_skill_present` when the named skill directory exists in `MB_SKILLS_ROOT` (default `~/.claude/skills`); routes `/mb work` review step to `superpowers:requesting-code-review` automatically when present.
    - `settings/hooks.json` extended with 5 v2 entries (PreToolUse `Write|Edit` × 2 + PreToolUse `Task` × 2 + PostToolUse `Write` × 1), all marked `# [memory-bank-skill]` so `merge-hooks.py` strips/re-appends them idempotently.

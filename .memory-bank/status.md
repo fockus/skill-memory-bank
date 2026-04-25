@@ -1,7 +1,7 @@
 # claude-skill-memory-bank: Статус проекта
 
 ## Текущая фаза
-**Skill v2 — RELEASED (v4.0.0, 2026-04-25).** Phase 1 ✅ + Phase 2 ✅ + Phase 3 ✅ + Phase 4 Sprint 1+2+3 ✅ + I-033 ✅. Final sprint (Phase 4 Sprint 3) wired installer auto-registration of all 5 v2 hooks via `settings/hooks.json` + `merge-hooks.py` (idempotent re-install), shipped `scripts/mb-reviewer-resolve.sh` so `/mb work` review step honours `pipeline.yaml:roles.reviewer.override_if_skill_present` (routes to `superpowers:requesting-code-review` when that skill is detected), bumped VERSION 3.1.2 → **4.0.0**, and cut CHANGELOG `[4.0.0]` section. Pytest **615 passed** (596 → +19), shellcheck/ruff clean.
+**Skill v2 — RELEASED (v4.0.0, 2026-04-25). Post-release I-004 hot-add.** Phase 1 ✅ + Phase 2 ✅ + Phase 3 ✅ + Phase 4 Sprint 1+2+3 ✅ + I-033 ✅ + **I-004 ✅**. I-004 ships `scripts/mb-auto-commit.sh` — opt-in (`MB_AUTO_COMMIT=1`) auto-commit `.memory-bank/` after `/mb done` step 7. 4 safety gates (clean source outside bank, no rebase/merge, no detached HEAD, non-empty bank), subject из last `### ` heading в `progress.md`, never pushes. Pytest **628 passed** (615 → +13), shellcheck/ruff clean.
 
 ## ⏭ Следующий шаг
 

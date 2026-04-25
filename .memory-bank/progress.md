@@ -1571,3 +1571,28 @@ Tests grew 335 → 615 (+280) across the v2 work. Все per-sprint per-stage TD
 - Сессия завершилась без явного /mb done (git post-commit fallback)
 - Commit SHA: e4c69b9a
 - Детали будут восстановлены при следующем /mb start
+
+## 2026-04-25 (PM, post-release) — I-004 hot-add: mb-auto-commit.sh
+
+### Сделано
+
+- **`scripts/mb-auto-commit.sh`** — opt-in auto-commit `.memory-bank/` после `/mb done`. CLI: `[--mb <path>] [--force]`. Triggers only when `MB_AUTO_COMMIT=1` env OR `--force` flag.
+- 4 safety gates (every gate non-fatal, exits 0 with stderr warning):
+  1. Bank has no changes → no-op.
+  2. Working tree has dirty files outside `.memory-bank/` → skip (refuses to bundle source changes into a `chore(mb)` commit).
+  3. `.git/{REBASE_HEAD, MERGE_HEAD, CHERRY_PICK_HEAD, BISECT_LOG, rebase-merge, rebase-apply}` present → skip.
+  4. Detached HEAD (`git symbolic-ref -q HEAD` fails) → skip.
+- Subject derivation: last `### ` heading in `progress.md` → `chore(mb): <heading>` truncated to 60 chars (UTF-8 aware). Fallback when no `###`: `chore(mb): session-end <YYYY-MM-DD>`. Co-Authored-By trailer for Claude.
+- **Never pushes.** Push is an explicit user action.
+- **Wired into `commands/done.md` step 7** (после index regen, перед final report).
+- **Tests**: 10 `test_mb_auto_commit.py` (each gate + subject derivation + force flag + help) + 3 `test_i004_registration.py` (script exists+executable, done.md references, backlog DONE flip). **pytest 615 → 628 passed** (+13). shellcheck `-x` clean.
+- Backlog `I-004` flipped HIGH-NEW → HIGH-DONE with `**Outcome:**` line and plan link.
+- Plan → `plans/done/2026-04-25_feature_i004-auto-commit.md`, status: done.
+
+### Why this was the next thing to ship after v4.0.0
+
+Real failure mode hit during the v4.0.0 release session: Phase 4 Sprint 3 commits worked because I made them explicitly per per-sprint plan. Without auto-commit, a session that closes via `/mb done` but skips manual `git commit` leaves bank changes in working tree — vulnerable to `git checkout` / `git stash drop` accidents. Opt-in default keeps the door closed for cross-team repos where surprise commits would be rude; users who want it flip one env var and the skill takes over the bookkeeping.
+
+### Что дальше
+
+По запросу: I-003 (native-memory bridge) после 1-2 weeks parallel usage; I-005 (mb-graph viz) когда banks хитнут 50+ done plans; I-001/I-002 (benchmarks + semantic search) после 1+ месяца production use.

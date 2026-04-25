@@ -21,7 +21,8 @@ Invoke the MB Manager subagent (prompt: `~/.claude/skills/memory-bank/agents/mb-
 4. **Prune checklist** — `bash ~/.claude/skills/memory-bank/scripts/mb-checklist-prune.sh --apply --mb .memory-bank` — collapses fully-✅ sections that link to `plans/done/` into one-liners. Enforces the ≤120-line hard cap declared in `checklist.md` header. Idempotent — safe to call when there is nothing to collapse.
 5. **Touch `.memory-bank/.session-lock`** — signals the SessionEnd auto-capture hook that manual close happened.
 6. **Regenerate `index.json`** via `python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py .memory-bank`.
-7. **Report** — list which files changed, note path, plan closure, prune verdict, index regen, session-lock touch.
+7. **Auto-commit `.memory-bank/` (opt-in)** — `bash ~/.claude/skills/memory-bank/scripts/mb-auto-commit.sh --mb .memory-bank` — runs only when `MB_AUTO_COMMIT=1` is set in the environment. Refuses to commit when source files outside `.memory-bank/` are dirty, during rebase/merge/cherry-pick, or on detached HEAD. Subject derives from the last `### ` heading in `progress.md`. Never pushes — push is an explicit user action.
+8. **Report** — list which files changed, note path, plan closure, prune verdict, index regen, session-lock touch, auto-commit SHA (when committed).
 
 Conflict resolution (also in the prompt): trust `mb-metrics.sh --run` over `status.md` metrics; trust `checklist.md` over closed plans in `plans/done/`; `progress.md` is APPEND-ONLY; trust active plan file over `roadmap.md` focus line; trust `experiments/EXP-NNN.md` over `research.md` status.
 

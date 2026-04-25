@@ -4,7 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-_Nothing yet — open the next minor here._
+### Added — I-004 (auto-commit hook for `/mb done`)
+
+- `scripts/mb-auto-commit.sh` — opt-in (`MB_AUTO_COMMIT=1` env or `--force` flag) auto-commit of `.memory-bank/` changes after `/mb done`. 4 safety gates: bank clean → no-op; dirty source outside bank → skip with warning; rebase/merge/cherry-pick in progress → skip; detached HEAD → skip. Commit subject derives from the last `### ` heading in `progress.md` (truncated to 60 chars); fallback `chore(mb): session-end YYYY-MM-DD`. Never pushes — push remains an explicit user action.
+- Wired into `commands/done.md` step 7 (between `index.json` regen and final report).
+- 13 new tests (`test_mb_auto_commit.py` 10 + `test_i004_registration.py` 3). pytest 615 → 628.
 
 ## [4.0.0] — 2026-04-25
 

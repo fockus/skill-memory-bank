@@ -48,11 +48,14 @@
 **Sketch:** двунаправленный mapper: MB `notes/` ↔ auto-memory entries.
 **Plan:** —
 
-### I-004 — Auto-commit hook после `/mb done` [HIGH, NEW, 2026-04-20]
+### I-004 — Auto-commit hook после `/mb done` [HIGH, DONE, 2026-04-25]
 
+**Outcome:** SHIPPED 2026-04-25. `scripts/mb-auto-commit.sh` — opt-in (`MB_AUTO_COMMIT=1` env or `--force` flag) auto-commit `.memory-bank/` после `/mb done`. Safety gates: refuses on dirty source outside bank, during rebase/merge/cherry-pick, on detached HEAD, no-op when bank clean. Subject из last `### ` heading в `progress.md` (truncated to 60 chars), fallback `chore(mb): session-end YYYY-MM-DD`. Never pushes. Wired into `commands/done.md` step 7. 10 pytest tests + registration test green. Plan: `plans/done/2026-04-25_feature_i004-auto-commit.md`.
+
+**Original sketch (kept for reference):**
 **Problem:** изменения в `.memory-bank/` теряются при переключении веток если не закоммичены руками.
 **Sketch:** post-`/mb done` хук создаёт `chore(mb): <session-summary>` commit с дельтой `.memory-bank/`.
-**Plan:** —
+**Plan:** [plans/done/2026-04-25_feature_i004-auto-commit.md](plans/done/2026-04-25_feature_i004-auto-commit.md)
 
 ### I-005 — /mb graph — визуализация связей plan→checklist→STATUS→progress [HIGH, NEW, 2026-04-20]
 
