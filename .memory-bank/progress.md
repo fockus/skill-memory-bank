@@ -1596,3 +1596,17 @@ Real failure mode hit during the v4.0.0 release session: Phase 4 Sprint 3 commit
 ### Что дальше
 
 По запросу: I-003 (native-memory bridge) после 1-2 weeks parallel usage; I-005 (mb-graph viz) когда banks хитнут 50+ done plans; I-001/I-002 (benchmarks + semantic search) после 1+ месяца production use.
+
+## 2026-04-25
+
+### Auto-capture 2026-04-25 (git-c8289f6e)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: c8289f6e
+- Детали будут восстановлены при следующем /mb start
+
+## 2026-04-25
+
+### Auto-capture 2026-04-25 (git-27c0eed9)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: 27c0eed9
+- Детали будут восстановлены при следующем /mb start
