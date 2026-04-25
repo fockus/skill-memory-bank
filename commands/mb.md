@@ -28,6 +28,7 @@ Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words ar
 | `index`                                                  | Registry of all entries                                                                                                                                                                                                                                                                                  |
 | `done`                                                   | End session (`actualize + note + progress`)                                                                                                                                                                                                                                                              |
 | `plan <type> <topic>`                                    | Create a plan                                                                                                                                                                                                                                                                                            |
+| `discuss <topic>`                                        | 5-phase requirements-elicitation interview → EARS-validated `context/<topic>.md` (Phase 1 Purpose & Users / Phase 2 Functional EARS / Phase 3 Non-Functional / Phase 4 Constraints / Phase 5 Edge Cases). Feeds traceability matrix.                                                                     |
 | `verify`                                                 | Verify plan execution (plan vs code)                                                                                                                                                                                                                                                                     |
 | `map [focus]`                                            | Scan the codebase and write MD documents to `.memory-bank/codebase/`. Focus: `stack / arch / quality / concerns / all` (default: `all`)                                                                                                                                                                  |
 | `upgrade`                                                | Update the skill from GitHub (`git pull + re-install`). Flags: `--check` (check only), `--force` (skip confirmation)                                                                                                                                                                                     |
@@ -188,6 +189,48 @@ Show the result to the user.
 **Alias** for `/plan` — dispatch to `commands/plan.md`. The canonical planning command lives there: mb-plan.sh scaffold → fill with `<!-- mb-stage:N -->` markers + SMART DoD + TDD per stage → mb-plan-sync.sh to reconcile with `checklist.md` + `roadmap.md`.
 
 Allowed `type` values: `feature`, `fix`, `refactor`, `experiment`. If `type` is missing, ask the user.
+
+### discuss <topic>
+
+Run a 5-phase requirements-elicitation interview that produces an EARS-validated `context/<topic>.md`. Feeds `mb-traceability-gen.sh` (REQ → Plan → Test matrix) and is read by `/mb plan` to link stages to requirements.
+
+**Alias** for `/discuss` — dispatch to `commands/discuss.md` for the canonical workflow.
+
+**Phases:**
+
+1. **Purpose & Users** — who uses this, what problem, success criteria.
+2. **Functional Requirements (EARS-enforced)** — assigns IDs via `mb-req-next-id.sh`; validates via `mb-ears-validate.sh`. Five EARS patterns: Ubiquitous (`The ... shall ...`), Event-driven (`When ..., the ... shall ...`), State-driven (`While ..., the ... shall ...`), Optional (`Where ..., the ... shall ...`), Unwanted (`If ..., then the ... shall ...`).
+3. **Non-Functional Requirements** — performance, security, scale, observability (NFR-NNN, free-form).
+4. **Constraints + Out-of-Scope** — hard limits + explicit exclusions.
+5. **Edge Cases & Failure Modes** — boundary conditions, dependency failures.
+
+**Pre-flight:**
+
+- If `<mb>/context/<topic>.md` exists → ask `AskUserQuestion`: continue editing / overwrite / cancel.
+- Warm context — read `roadmap.md`, `research.md`, `codebase/STACK.md`, `codebase/ARCHITECTURE.md` (best-effort, skip missing).
+
+**Finalize:**
+
+- Render `context/<topic>.md` per the template in `references/templates.md` ("Context (`context/<topic>.md`)" section).
+- `bash scripts/mb-ears-validate.sh "$CONTEXT_FILE"` — must exit 0 before commit. On violations, fix in place and retry.
+- `bash scripts/mb-traceability-gen.sh "$MB_PATH"` — regenerate matrix.
+- Set frontmatter `status: ready`.
+
+**Exit conditions:**
+
+- Success — file exists, EARS-valid, traceability regenerated.
+- Cancel mid-interview — leave `status: draft` so `/mb discuss` resumes later.
+- Validation failure user can't fix — keep `status: draft` + surface violation list.
+
+**Out of scope:**
+
+- Does not create a plan (`/mb plan` does that, optionally reading `context/<topic>.md`).
+- Does not edit `roadmap.md` / `status.md` directly.
+
+**Related scripts:**
+
+- `bash scripts/mb-req-next-id.sh [mb_path]` — emits monotonic `REQ-NNN` (max+1 across `specs/*/requirements.md`, `specs/*/design.md`, `context/*.md`).
+- `bash scripts/mb-ears-validate.sh <file>|-` — exit 0 if every `- **REQ-NNN** ...` bullet matches an EARS pattern; exit 1 with violation list on stderr otherwise; exit 2 on usage error.
 
 ### verify
 

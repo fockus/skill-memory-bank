@@ -1,16 +1,16 @@
 # claude-skill-memory-bank: Статус проекта
 
 ## Текущая фаза
-**Skill v2 Phase 1 — COMPLETE (Sprint 1+2+3, 2026-04-25).** Sprint 3 (I-028 multi-active plan checklist collision fix) реализован в режиме TDD на main: маркеры `<!-- mb-plan:<basename> -->` + plan-scoped removal в done-скрипте. Pytest **293 passed**, bats **515 passed** (Sprint 1 v2-rename catch-up), shellcheck/ruff clean. Phase 2 unblocked.
+**Skill v2 Phase 2 Sprint 1 — COMPLETE (2026-04-25).** Phase 1 (Sprint 1+2+3) ✅ + Phase 2 Sprint 1 ✅. Доставлено: `commands/discuss.md` (5-phase interview), `scripts/mb-ears-validate.sh` (5 EARS pattern regex validator), `scripts/mb-req-next-id.sh` (monotonic REQ-NNN cross-spec generator), `context/<topic>.md` template в `references/templates.md`. Pytest **317 passed** (293 → +24), shellcheck/ruff clean.
 
-## ⏭ Следующий шаг — Phase 2 Sprint 1
+## ⏭ Следующий шаг — Phase 2 Sprint 2
 
-`/mb discuss` + EARS validator + `context/<topic>.md` template. См. spec §6-7, roadmap.md Next #2.
+`/mb sdd <topic>` + `specs/<topic>/{requirements,design,tasks}.md` + SDD-lite enhancement в `/mb plan` (читает `context/<topic>.md`, линкует REQ-IDs в stages, опциональный `--sdd` гейт). См. spec §6-7.
 
-**Контекст готов** к старту:
-- 📎 `checklist.md` → блок "Skill v2 — Phase 2 Sprint 1" с 4 ⬜ DoD-пунктами
-- 📎 `roadmap.md` → описание Sprint 1 контракта
-- 📎 `notes/2026-04-22_20-30_sprint3-vs-phase2-priority.md` — Phase 2 rationale (input side traceability)
+**Что готово к Sprint 2:**
+- 📎 `commands/discuss.md` + `scripts/mb-{ears-validate,req-next-id}.sh` — input side traceability работает
+- 📎 `mb-traceability-gen.sh` (Sprint 2 Phase 1) — output side готов
+- 📎 Sprint 2 Phase 2 закроет gap между ними через `/mb sdd` + plan templates
 
 ## Ключевые артефакты Phase 1 (2026-04-22)
 

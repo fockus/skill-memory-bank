@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- **Phase 2 Sprint 1: `/mb discuss` + EARS validator + `context/<topic>.md`.**
+  Input-side of the SDD traceability pipeline. New artifacts:
+  - `commands/discuss.md` — slash-command for the 5-phase requirements
+    interview (Purpose & Users / Functional EARS / Non-Functional /
+    Constraints / Edge Cases & Failure Modes). Validates draft REQs in
+    Phase 2 against the EARS regex; assigns IDs via
+    `mb-req-next-id.sh`; finalizes by running `mb-traceability-gen.sh`.
+  - `commands/mb.md` router table row + `### discuss <topic>` detail
+    section.
+  - `scripts/mb-ears-validate.sh` — validates `- **REQ-NNN** ...`
+    bullets against the 5 EARS patterns (Ubiquitous /
+    Event-driven / State-driven / Optional / Unwanted). Exit 0 = all
+    valid (or no REQs); exit 1 = violations on stderr; exit 2 = usage.
+    Reads from a file path or stdin (`-`).
+  - `scripts/mb-req-next-id.sh` — emits the next monotonic `REQ-NNN`
+    by scanning `specs/*/requirements.md`, `specs/*/design.md` and
+    `context/*.md`. No bank or no REQs → `REQ-001`. Gaps in the
+    existing sequence are NOT filled.
+  - `references/templates.md` — added the `context/<topic>.md`
+    template with Purpose & Users / Functional Requirements (EARS) /
+    Non-Functional / Constraints / Edge Cases / Out of Scope sections.
+  - 24 new pytest cases (13 EARS-validate + 6 req-next-id + 5
+    registration). Total: 293 → 317 passed.
+
 ### Fixed
 
 - **Sprint 3 (I-028): multi-active plan checklist collision.** Two plans sharing

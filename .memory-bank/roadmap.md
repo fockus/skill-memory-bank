@@ -8,16 +8,23 @@ _No active plan. Run /mb plan <type> <topic> to start._
 
 ## Next (strict order — depends)
 
-Phase 1 завершена (Sprint 1+2+3, 2026-04-25), Phase 2 unblocked.
+Phase 1 ✅ + Phase 2 Sprint 1 ✅ (2026-04-25). Дальше:
 
-1. **⏳ Phase 2 Sprint 1 — `/mb discuss` + EARS validator + `context/<topic>.md`**
-   - Заполняет input-сторону traceability pipeline (Sprint 2 построил output, матрица пока всегда "No specs yet")
-   - `/mb discuss <topic>` — структурированное интервью → EARS REQ-001..N
-   - EARS validator — 5 шаблонов (Ubiquitous/Event-driven/State-driven/Optional/Unwanted)
-   - `/mb plan` читает `context/<topic>.md` → REQ-линковка в stages
-   - Решает spec §1 ("нет SDD-дисциплины")
+1. **⏳ Phase 2 Sprint 2 — `/mb sdd` + `specs/<topic>/` + SDD-lite в `/mb plan`**
+   - Полноценный Kiro-style: `specs/<topic>/{requirements,design,tasks}.md`
+   - `/mb plan --sdd`: блок если context отсутствует или EARS-invalid; без `--sdd` — warning
+   - Каждый Stage получает `covers_requirements: [REQ-NNN, ...]`
+   - `mb-plan-sync.sh` уже триггерит traceability-gen после Sprint 2 Phase 1 — переиспользуем
 
 ## Recently completed
+
+- **✅ Phase 2 Sprint 1 — `/mb discuss` + EARS validator + `context/<topic>.md`** [2026-04-25]
+   - `commands/discuss.md` — 5-phase interview (Purpose/EARS/NFR/Constraints/Edge)
+   - `scripts/mb-ears-validate.sh` — 5 EARS pattern regex validator
+   - `scripts/mb-req-next-id.sh` — monotonic REQ-NNN cross-spec generator
+   - `context/<topic>.md` template в `references/templates.md`
+   - 24 new tests (13 EARS + 6 req-id + 5 registration). pytest 293 → 317 passed.
+   - Plan: [plans/done/2026-04-25_feature_phase2-sprint1-discuss-ears.md](plans/done/2026-04-25_feature_phase2-sprint1-discuss-ears.md)
 
 - **✅ Sprint 3 — I-028 fix (multi-active correctness)** [2026-04-25]
    - Маркеры `<!-- mb-plan:<basename> -->` эмитятся sync-скриптом

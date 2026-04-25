@@ -345,3 +345,52 @@ echo "reward_mean=$(jq '.mean' results.json)"
 ```
 
 After creating it, run `chmod +x .memory-bank/metrics.sh`. Validation: `bash scripts/mb-metrics.sh` should return `source=override` instead of `source=auto`.
+
+## Context (`context/<topic>.md`) — `/mb discuss` output (Phase 2 SDD)
+
+Captured by the 5-phase requirements-elicitation interview. Source for `mb-traceability-gen.sh` REQ → Plan → Test matrix.
+
+```markdown
+---
+topic: <topic>
+created: YYYY-MM-DD
+status: draft | ready
+---
+
+# Context: <topic>
+
+## Purpose & Users
+
+Who uses this, what problem does it solve, what are the success criteria?
+
+## Functional Requirements (EARS)
+
+Each line uses one of the 5 EARS patterns (Ubiquitous / Event-driven / State-driven / Optional / Unwanted).
+IDs are project-wide monotonic — get the next one via `bash scripts/mb-req-next-id.sh`.
+
+- **REQ-001** (ubiquitous): The system shall ...
+- **REQ-002** (event-driven): When <trigger>, the system shall ...
+- **REQ-003** (state-driven): While <state>, the system shall ...
+- **REQ-004** (optional): Where <feature>, the system shall ...
+- **REQ-005** (unwanted): If <trigger>, then the system shall ...
+
+## Non-Functional Requirements
+
+- **NFR-001**: Performance — ...
+- **NFR-002**: Security — ...
+- **NFR-003**: Scale — ...
+
+## Constraints
+
+Hard limits (regulatory, technical, organizational) that cannot be relaxed.
+
+## Edge Cases & Failure Modes
+
+What breaks at the boundaries? What happens when dependencies fail?
+
+## Out of Scope
+
+Explicitly excluded — to prevent scope creep during planning.
+```
+
+Validate REQ lines via `bash scripts/mb-ears-validate.sh context/<topic>.md`. Exit 0 = all valid; exit 1 = violations on stderr.

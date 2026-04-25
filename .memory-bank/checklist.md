@@ -445,12 +445,17 @@
 - ✅ CHANGELOG `[Unreleased]` обновлён
 - ✅ I-028 помечен DONE в backlog.md
 
-## Skill v2 — Phase 2 Sprint 1 ⏳ (Sprint 3 unblocked — можно стартовать)
+## Skill v2 — Phase 2 Sprint 1 ✅ (2026-04-25)
 
-`/mb discuss` + EARS validator + `context/<topic>.md`. См. spec §6-7, roadmap Next #2.
+`/mb discuss` + EARS validator + `context/<topic>.md`. См. план [plans/done/2026-04-25_feature_phase2-sprint1-discuss-ears.md].
 
-- ⬜ `/mb discuss <topic>` command (план пока не создан; `context/<topic>.md` template)
-- ⬜ EARS regex validator (5 шаблонов: Ubiquitous / Event-driven / State-driven / Optional / Unwanted)
-- ⬜ `/mb plan` читает `context/<topic>.md` и линкует REQ-IDs в stages
-- ⬜ Tests: EARS-compliance + context→plan→traceability chain
+- ✅ `commands/discuss.md` — slash-command + 5-phase interview workflow
+- ✅ `commands/mb.md` router table + `### discuss <topic>` detail section
+- ✅ `references/templates.md` — `context/<topic>.md` template (Purpose & Users / Functional EARS / Non-Functional / Constraints / Edge Cases / Out of Scope)
+- ✅ `scripts/mb-ears-validate.sh` — 5 EARS patterns regex validator (exit 0/1/2)
+- ✅ `scripts/mb-req-next-id.sh` — monotonic REQ-NNN cross-spec generator
+- ✅ Tests: 13 EARS-validate + 6 req-next-id + 5 registration = 24 new (293 → 317 pytest)
+- ✅ shellcheck + ruff clean
+
+⏳ **Phase 2 Sprint 2** (next): `/mb sdd` + `specs/<topic>/{requirements,design,tasks}.md` + SDD-lite enhancement в `/mb plan`. См. spec §6-7.
 - ✅ Final verification, docs, and release-readiness audit
