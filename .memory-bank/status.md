@@ -1,11 +1,11 @@
 # claude-skill-memory-bank: Статус проекта
 
 ## Текущая фаза
-**Skill v2 Phase 4 Sprint 2 + I-033 hot-fix — COMPLETE (2026-04-25).** Phase 1 ✅ + Phase 2 ✅ + Phase 3 ✅ + Phase 4 Sprint 1+2 ✅ + **I-033 (`mb-checklist-prune.sh`) ✅**. `--slim` wired end-to-end (Phase 4 Sprint 2). I-033 closes the rotating-artifact gap: `scripts/mb-checklist-prune.sh` + 12 pytest tests + ≤120-line CI cap-test + wire-ins (`commands/done.md`, `mb-plan-done.sh`, `mb-compact.sh`). Pytest **596 passed** (584 → +12), shellcheck/ruff clean.
+**Skill v2 — RELEASED (v4.0.0, 2026-04-25).** Phase 1 ✅ + Phase 2 ✅ + Phase 3 ✅ + Phase 4 Sprint 1+2+3 ✅ + I-033 ✅. Final sprint (Phase 4 Sprint 3) wired installer auto-registration of all 5 v2 hooks via `settings/hooks.json` + `merge-hooks.py` (idempotent re-install), shipped `scripts/mb-reviewer-resolve.sh` so `/mb work` review step honours `pipeline.yaml:roles.reviewer.override_if_skill_present` (routes to `superpowers:requesting-code-review` when that skill is detected), bumped VERSION 3.1.2 → **4.0.0**, and cut CHANGELOG `[4.0.0]` section. Pytest **615 passed** (596 → +19), shellcheck/ruff clean.
 
-## ⏭ Следующий шаг — Phase 4 Sprint 3
+## ⏭ Следующий шаг
 
-Финальный sprint v2: `superpowers:requesting-code-review` skill detection в installer (flips `pipeline.yaml:roles.reviewer.override_if_skill_present`), auto-register всех 5 hooks через `install.sh`, SemVer bump + release.
+**Skill v2 RELEASED.** Дальнейшие шаги по запросу: tagging v4.0.0 в git + GitHub release notes (если ещё не сделано), follow-up hot-fixes по результатам реального usage, или новый minor `[Unreleased]` цикл — открой через `/mb idea`.
 
 **Что закрыто:**
 - 📎 Phase 1 — autosync infrastructure + traceability-gen + multi-active correctness

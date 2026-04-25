@@ -27,6 +27,32 @@
           "command": "~/.claude/hooks/block-dangerous.sh # [memory-bank-skill]"
         }
       ]
+    },
+    {
+      "matcher": "Write|Edit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/skills/memory-bank/hooks/mb-protected-paths-guard.sh # [memory-bank-skill]"
+        },
+        {
+          "type": "command",
+          "command": "~/.claude/skills/memory-bank/hooks/mb-ears-pre-write.sh # [memory-bank-skill]"
+        }
+      ]
+    },
+    {
+      "matcher": "Task",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/skills/memory-bank/hooks/mb-context-slim-pre-agent.sh # [memory-bank-skill]"
+        },
+        {
+          "type": "command",
+          "command": "~/.claude/skills/memory-bank/hooks/mb-sprint-context-guard.sh # [memory-bank-skill]"
+        }
+      ]
     }
   ],
   "PostToolUse": [
@@ -36,6 +62,10 @@
         {
           "type": "command",
           "command": "~/.claude/hooks/file-change-log.sh # [memory-bank-skill]"
+        },
+        {
+          "type": "command",
+          "command": "~/.claude/skills/memory-bank/hooks/mb-plan-sync-post-write.sh # [memory-bank-skill]"
         }
       ]
     },

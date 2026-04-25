@@ -1521,3 +1521,46 @@ User-flagged gap: spec §3 had declared `checklist.md` as rotating, spec §13 ha
 - Сессия завершилась без явного /mb done (git post-commit fallback)
 - Commit SHA: d8063b8e
 - Детали будут восстановлены при следующем /mb start
+
+## 2026-04-25
+
+### Auto-capture 2026-04-25 (git-0d753b61)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: 0d753b61
+- Детали будут восстановлены при следующем /mb start
+
+## 2026-04-25 (PM, latest) — Phase 4 Sprint 3: installer auto-register + superpowers reviewer detection + v4.0.0 release
+
+### Сделано
+
+- **`scripts/mb-reviewer-resolve.sh`** — bash dispatcher + python parser. CLI: `[--mb <path>]`. Reads `roles.reviewer.agent` from `<bank>/pipeline.yaml` (project) → `references/pipeline.default.yaml` (default). When `roles.reviewer.override_if_skill_present.{skill,agent}` is set AND `<MB_SKILLS_ROOT>/<skill>/` directory exists → outputs override agent name. Falls back to `mb-reviewer` otherwise. Inline minimal YAML parser when PyYAML missing (handles only the two needed fields).
+- **`settings/hooks.json`** extended with 5 v2 entries (each carries `# [memory-bank-skill]` marker so `merge-hooks.py` is fully idempotent across re-installs):
+  - PreToolUse `Write|Edit` → `mb-protected-paths-guard.sh` + `mb-ears-pre-write.sh`
+  - PreToolUse `Task` → `mb-context-slim-pre-agent.sh` + `mb-sprint-context-guard.sh`
+  - PostToolUse `Write` → `mb-plan-sync-post-write.sh`
+- **`install.sh` step 6.5** — informational probe for `~/.claude/skills/superpowers/`; logs whether reviewer override path is active. Detection is informational; resolver re-checks at runtime regardless of installer output.
+- **`commands/work.md` step 3c** rewritten to call `bash scripts/mb-reviewer-resolve.sh` instead of hard-coding `mb-reviewer`.
+- **VERSION** bumped 3.1.2 → 4.0.0. **CHANGELOG.md** `[Unreleased]` cut to `[4.0.0] — 2026-04-25` with Phase 3+4+I-033 summary; new empty `[Unreleased]` placeholder above.
+- **Tests** — 19 new: 7 `test_hooks_registration.py` (5 individual entries + marker check + idempotent merge round-trip) + 5 `test_mb_reviewer_resolve.py` (default / override / project-override-precedence / default-pipeline-fallback / help-flag) + 7 `test_phase4_sprint3_registration.py` (VERSION = 4.0.0, CHANGELOG `[4.0.0]` section, mentions Phase 3/4/I-033, Unreleased above 4.0.0, resolver script exists+executable, work.md references resolver, install.sh probes superpowers). **pytest 596 → 615 passed** (+19). shellcheck `-x` clean.
+- Plan → `plans/done/2026-04-25_feature_phase4-sprint3-installer-and-release.md`, status: done.
+- checklist.md re-pruned automatically by `/mb done` chain (still 36 lines, well under 120-cap).
+
+### Skill v2 RELEASED — v4.0.0
+
+Skill v2 рефактор завершён. Что вошло за весь refactor (Phase 1 → Phase 4 Sprint 3 + I-033):
+- **Phase 1** (autosync infrastructure) — `mb-roadmap-sync.sh`, `mb-traceability-gen.sh`, multi-active correctness, naming guard.
+- **Phase 2 Sprint 1** — `/mb discuss` 5-phase interview + EARS validator + req-next-id.
+- **Phase 2 Sprint 2** — `/mb sdd` Kiro-style triple + plan SDD-lite (--context/--sdd).
+- **Phase 3 Sprint 1** — `/mb config` + `pipeline.yaml` declarative engine config.
+- **Phase 3 Sprint 2** — `/mb work` MVP (resolve + range + emit + 9 role-agents + reviewer scaffold + dispatch contract).
+- **Phase 3 Sprint 3** — review-loop core (review-parse / severity-gate / budget / protected-check + production-grade reviewer + autopilot hard stops).
+- **Phase 4 Sprint 1** — 4 critical hooks (protected-paths-guard, plan-sync-post-write, ears-pre-write, context-slim-pre-agent scaffold) + installation guide.
+- **Phase 4 Sprint 2** — `--slim`/`--full` end-to-end (`mb-context-slim.py` trimmer + JSON `additionalContext` hook upgrade + 5-й hook `mb-sprint-context-guard.sh` + `mb-session-spend.sh` companion CLI).
+- **Phase 4 Sprint 3** (this entry) — installer auto-register всех 5 hooks + superpowers reviewer detection via `mb-reviewer-resolve.sh` + v4.0.0 release.
+- **I-033** (hot-fix) — `mb-checklist-prune.sh` + ≤120-line CI cap-test + wire-ins. Closes spec §3 / §13 rotating-artifact gap.
+
+Tests grew 335 → 615 (+280) across the v2 work. Все per-sprint per-stage TDD дисциплины удержаны.
+
+### Что дальше
+
+По запросу: tagging v4.0.0 в git + GitHub release notes (если ещё не сделано), follow-up hot-fixes по результатам реального usage, или новый minor `[Unreleased]` цикл (открой через `/mb idea`).

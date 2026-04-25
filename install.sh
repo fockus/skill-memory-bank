@@ -651,6 +651,19 @@ else
   echo -e "  ${YELLOW}~${NC} Skipped (python3 required for merge)"
 fi
 
+# ═══ Step 6.5: superpowers reviewer probe (informational) ═══
+# Detects whether the `superpowers` skill / plugin (e.g. for the
+# `requesting-code-review` flow) is installed alongside this skill.
+# Detection is informational only — `scripts/mb-reviewer-resolve.sh` reads
+# pipeline.yaml at /mb work runtime to honour the override, regardless of
+# what this probe prints.
+SUPERPOWERS_DIR="$CLAUDE_DIR/skills/superpowers"
+if [ -d "$SUPERPOWERS_DIR" ]; then
+  echo -e "  ${GREEN}✓${NC} superpowers skill detected — /mb work review will route to superpowers:requesting-code-review when pipeline.yaml override is enabled"
+else
+  echo -e "  ${YELLOW}~${NC} superpowers skill not detected — /mb work review uses bundled mb-reviewer (default)"
+fi
+
 # ═══ Step 7: Manifest ═══
 echo -e "${BLUE}[7/7] Manifest${NC}"
 INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}"})" \

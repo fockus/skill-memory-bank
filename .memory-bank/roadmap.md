@@ -26,14 +26,18 @@ _Last updated: auto-synced by mb-roadmap-sync.sh_
 
 ## Next intent (prose — not yet a plan file)
 
-Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Sprint 1+2 ✅ (2026-04-25). Дальше:
-
-1. **⏳ Phase 4 Sprint 3 — superpowers overrides + installer + release**
-   - `superpowers:requesting-code-review` skill detection в installer → flip `pipeline.yaml:roles.reviewer.override_if_skill_present`
-   - Auto-register all 5 hooks в `~/.claude/settings.json` через `install.sh`
-   - SemVer bump + CHANGELOG release section + GitHub release
+Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Sprint 1+2+3 ✅ + I-033 ✅ (2026-04-25). **Skill v2 RELEASED как v4.0.0.** Дальше — по запросу (см. backlog).
 
 ## Recently completed
+
+- **✅ Phase 4 Sprint 3 — installer auto-register + superpowers reviewer detection + v4.0.0 release** [2026-04-25]
+   - `scripts/mb-reviewer-resolve.sh` — bash dispatcher reading `pipeline.yaml:roles.reviewer.agent` (default `mb-reviewer`); honours `override_if_skill_present` when the named skill directory exists in `MB_SKILLS_ROOT` (default `~/.claude/skills`); routes `/mb work` review step to `superpowers:requesting-code-review` automatically when present.
+   - `settings/hooks.json` extended with 5 v2 entries (PreToolUse `Write|Edit` × 2 + PreToolUse `Task` × 2 + PostToolUse `Write` × 1), all marked `# [memory-bank-skill]` so `merge-hooks.py` strips/re-appends them idempotently.
+   - `install.sh` step 6.5 — informational probe for `~/.claude/skills/superpowers/`; status line tells user which reviewer route is active.
+   - `commands/work.md` step 3c rewritten to call resolver instead of hard-coding agent name.
+   - **VERSION 3.1.2 → 4.0.0**; CHANGELOG `[Unreleased]` cut to `[4.0.0] — 2026-04-25` summarising Phase 3+4+I-033.
+   - 19 new tests (7 hooks-registration + 5 reviewer-resolve + 7 release-prep). pytest 596 → 615.
+   - Plan: [plans/done/2026-04-25_feature_phase4-sprint3-installer-and-release.md](plans/done/2026-04-25_feature_phase4-sprint3-installer-and-release.md)
 
 - **✅ I-033 — `mb-checklist-prune.sh` + checklist hard-cap enforcement** [2026-04-25]
    - `scripts/mb-checklist-prune.sh` — bash dispatcher + python parser. Collapses fully-✅+plans/done sections to one-liners. Pre-write `.checklist.md.bak.<unix-ts>` backup. Hard-cap warn (>120 lines). Idempotent.

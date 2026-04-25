@@ -8,15 +8,15 @@ _None._
 
 ## ⏭ Next planned
 
-- **Phase 4 Sprint 3 (financial)** — `superpowers:requesting-code-review` skill detection в installer; auto-register всех 5 hooks через `install.sh`; SemVer release. См. spec §13 + roadmap.
+_Skill v2 shipped (v4.0.0). Next iteration TBD — open via `/mb idea` when triggered._
 
 ## ✅ Recently completed (last 3 sprints — full history → progress.md)
 
+### Phase 4 Sprint 3 ✅ (2026-04-25) — Plan: [2026-04-25_feature_phase4-sprint3-installer-and-release.md](plans/done/2026-04-25_feature_phase4-sprint3-installer-and-release.md). Installer auto-registers 5 v2 hooks; `mb-reviewer-resolve.sh` honours `pipeline.yaml` superpowers override; **VERSION 4.0.0** + CHANGELOG `[4.0.0]` cut. Tests 596 → 615 (+19).
+
+### I-033 ✅ (2026-04-25) — Plan: [2026-04-25_refactor_checklist-prune-i033.md](plans/done/2026-04-25_refactor_checklist-prune-i033.md). `mb-checklist-prune.sh` + ≤120-line CI cap-test + wire-ins.
+
 ### Phase 4 Sprint 2 ✅ (2026-04-25) — Plan: [2026-04-25_feature_phase4-sprint2-slim-and-context-guard.md](plans/done/2026-04-25_feature_phase4-sprint2-slim-and-context-guard.md)
-
-### Phase 4 Sprint 1 ✅ (2026-04-25) — Plan: [2026-04-25_feature_phase4-sprint1-critical-hooks.md](plans/done/2026-04-25_feature_phase4-sprint1-critical-hooks.md)
-
-### Phase 3 Sprint 3 ✅ (2026-04-25) — Plan: [2026-04-25_feature_phase3-sprint3-review-loop.md](plans/done/2026-04-25_feature_phase3-sprint3-review-loop.md)
 
 ## 📜 Pre-Phase 3 history (compact pointer)
 

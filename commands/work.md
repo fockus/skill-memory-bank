@@ -75,7 +75,15 @@ When the user types `/mb work [args...]`:
 
    ### 3c. Review step
 
-   Dispatch the reviewer through `Task` (subagent name from `pipeline.yaml:roles.reviewer.agent`, default `mb-reviewer`):
+   Resolve the reviewer agent name first:
+
+   ```bash
+   REVIEWER=$(bash scripts/mb-reviewer-resolve.sh --mb <bank>)
+   ```
+
+   The resolver reads `pipeline.yaml:roles.reviewer.agent` (default `mb-reviewer`) and honours `roles.reviewer.override_if_skill_present` when the named skill directory exists in `MB_SKILLS_ROOT` (default `~/.claude/skills`). With the `superpowers` skill installed it returns `superpowers:requesting-code-review`; otherwise it returns `mb-reviewer`.
+
+   Dispatch the reviewer through `Task` with `$REVIEWER` as `subagent_type` (or as the agent prompt path when the resolver returns an `mb-`-prefixed local agent):
 
    ```
    Task(

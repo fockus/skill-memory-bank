@@ -4,9 +4,35 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-### Added
+_Nothing yet — open the next minor here._
 
-- **Phase 4 Sprint 2: `--slim`/`--full` end-to-end + sprint_context_guard.**
+## [4.0.0] — 2026-04-25
+
+Major release: Skill v2 architectural refactor. Phases 3 + 4 + I-033 ship the executable engine: declarative `pipeline.yaml`, `/mb config` and `/mb work` commands, 9 role-agents + reviewer + verifier, severity-gated review-loop with budget tracking and protected-paths enforcement, 5 critical Claude Code hooks, prompt-trimming `--slim` mode, sprint context guard, checklist hard-cap enforcement, and installer auto-registration with `superpowers:requesting-code-review` skill detection. Breaking change: hook registration in `~/.claude/settings.json` now includes 5 new mb-prefixed hook commands; existing installs auto-merge via `merge-hooks.py`. **Tests 335 → 596+** across the v2 work.
+
+### Added — Phase 4 Sprint 3 (installer + release polish)
+
+- `scripts/mb-reviewer-resolve.sh` — pipeline-aware reviewer resolver. Reads `roles.reviewer.agent` (default `mb-reviewer`); when `roles.reviewer.override_if_skill_present` is configured AND the named skill directory exists in `MB_SKILLS_ROOT` (default `~/.claude/skills`), prints the override agent name (e.g. `superpowers:requesting-code-review`).
+- `settings/hooks.json` extended with 5 v2 hook entries (PreToolUse `Write|Edit` → protected-paths-guard + ears-pre-write; PreToolUse `Task` → context-slim-pre-agent + sprint-context-guard; PostToolUse `Write` → plan-sync-post-write). All carry the `# [memory-bank-skill]` marker so `merge-hooks.py` strips and re-appends them idempotently across re-installs.
+- `install.sh` step 6.5 — informational probe for `~/.claude/skills/superpowers/` directory; prints status of reviewer route resolution.
+- `commands/work.md` step 3c references `mb-reviewer-resolve.sh` so the orchestrator calls the resolver instead of hard-coding the reviewer agent name.
+
+### Added — I-033 hot-fix (checklist hard-cap enforcement)
+
+- `scripts/mb-checklist-prune.sh` — collapses fully-✅ sections linking to `plans/done/...` into one-liners. Pre-write `.checklist.md.bak.<ts>` backup. Hard-cap warn at >120 lines. Idempotent.
+- Wire-ins: `commands/done.md` step 4, `scripts/mb-plan-done.sh` chain, `scripts/mb-compact.sh --apply`. Closes the spec §3 / §13 rotating-artifact gap.
+- CI cap-test (`tests/pytest/test_checklist_cap.py`) enforces ≤120 lines on the repo's own `.memory-bank/checklist.md`.
+
+### Added — Phase 4 Sprint 2 (`--slim`/`--full` + sprint_context_guard)
+
+- `scripts/mb-context-slim.py` — prompt trimmer. Reads the full agent
+  prompt from stdin and emits a slim version containing the active
+  stage block (extracted between `<!-- mb-stage:N -->` markers in the
+  plan) + the DoD bullet list + the plan's `covers_requirements`
+  REQ list + (with `--diff`) the `git diff --staged` output. Falls
+  back to echoing the input prompt unchanged when the stage marker
+  is not present, so a slim mode never breaks the session.
+- `hooks/mb-context-slim-pre-agent.sh` upgraded from Sprint 1's
   Wires the `/mb work --slim` flag from advisory to functional prompt
   trimming, and ships a fifth hook that watches cumulative session
   token spend. New artifacts:
