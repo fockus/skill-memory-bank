@@ -1564,3 +1564,10 @@ Tests grew 335 → 615 (+280) across the v2 work. Все per-sprint per-stage TD
 ### Что дальше
 
 По запросу: tagging v4.0.0 в git + GitHub release notes (если ещё не сделано), follow-up hot-fixes по результатам реального usage, или новый minor `[Unreleased]` цикл (открой через `/mb idea`).
+
+## 2026-04-25
+
+### Auto-capture 2026-04-25 (git-e4c69b9a)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: e4c69b9a
+- Детали будут восстановлены при следующем /mb start

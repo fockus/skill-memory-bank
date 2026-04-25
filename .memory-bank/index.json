@@ -105,8 +105,37 @@
       "summary": "Date: 2026-04-21 16:58 - Released v3.1.2: git tag `v3.1.2` (beb2f9b), Homebrew formula sync (197d2eb), PyPI `memory-bank-skill==3.1.2` via OIDC Trusted Publishing, GitHub Release with wheel + sdist",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-04-22_20-30_sprint3-vs-phase2-priority.md",
+      "type": "note",
+      "tags": [
+        "planning",
+        "priority",
+        "blocker",
+        "sprint-3",
+        "phase-2",
+        "i-028"
+      ],
+      "importance": null,
+      "summary": "После Phase 1 Sprint 2 (roadmap autosync + traceability-gen + Phase/Sprint/Task parser) финальный reviewer нашёл **Critical bug I-028**: multi-active plan checklist collision. Два плана с `## Task 1: Setup` сливаются в одну секцию checklist.md, и close одного удаляет у другого (silent data loss). Phase 2 Sprint 1 (`/mb discuss` + EARS + `context/<topic>.md`) сам по себе разбивается на `## Task 1..N` планы. При одновременной работе с другим планом — коллизия гарантирована. Поэтому:",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-04-25_11-42_skill-v2-released.md",
+      "type": "milestone",
+      "tags": [
+        "release",
+        "skill-v2",
+        "retrospective"
+      ],
+      "importance": "high",
+      "summary": "- Phase 4 Sprint 3 (final v2 sprint) merged: installer auto-registration of all 5 v2 hooks (`settings/hooks.json` + idempotent `merge-hooks.py`), `scripts/mb-reviewer-resolve.sh` for pipeline-aware reviewer routing (default `mb-reviewer`, override → `superpowers:requesting-code-review` when skill detected), `commands/work.md` step 3c rewritten to call resolver, `install.sh` step 6.5 informational probe. - VERSION bumped 3.1.2 → 4.0.0; `CHANGELOG.md [Unreleased]` cut to `[4.0.0] — 2026-04-25` with full Phase 3+4+I-033 scope summary.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-04-21T13:59:15Z"
+  "generated_at": "2026-04-25T08:42:52Z"
 }
