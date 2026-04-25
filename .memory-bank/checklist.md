@@ -430,21 +430,22 @@
 - ✅ Review fixes: C1/C2 regex bugs (traceability), I1-I4+M1 (roadmap-sync Batch B), I1-I3 (final)
 - ✅ Merged to main `25ac4b9` — 289 passed
 
-## Skill v2 — Sprint 3 baseline (I-028 multi-active fix) ⏭ NEXT
+## Skill v2 — Sprint 3 baseline (I-028 multi-active fix) ✅ (2026-04-25)
 
-**HIGH priority** — блокер для Phase 2. См. [notes/2026-04-22_20-30_sprint3-vs-phase2-priority.md].
+См. план [plans/done/2026-04-25_refactor_sprint3-multi-active-fix.md].
 
-- ⬜ Написать failing test для multi-active plan collision (два плана с `## Task 1: Setup`)
-- ⬜ Дизайн: маркеры `<!-- mb-plan:<basename> -->` над каждой `## Stage N:` секцией
-- ⬜ Изменить `append_missing_stages()` в `mb-plan-sync.sh` — добавлять маркер
-- ⬜ Изменить `remove_stage_section()` в `mb-plan-done.sh` — ключевать по маркеру, не по heading
-- ⬜ Backward-compat: секции без маркеров → legacy ownership (закрывающий plan забирает)
-- ⬜ Regression tests: два плана с общим `Task 1: Setup`, close одного, verify другой сохранён
-- ⬜ shellcheck + ruff + полный pytest
-- ⬜ CHANGELOG + merge в main
-- ⬜ I-028 помечен DONE в backlog.md
+- ✅ Failing test для multi-active plan collision — `tests/pytest/test_plan_multi_active_collision.py` (4 cases, RED → GREEN)
+- ✅ Дизайн: маркеры `<!-- mb-plan:<basename> -->` над каждой `## Stage N:` секцией
+- ✅ `append_missing_stages()` в `mb-plan-sync.sh` — эмитит маркер; идемпотентность keyed на (marker, heading)
+- ✅ `remove_stage_section()` в `mb-plan-done.sh` — ключует по маркеру для marker-owned секций
+- ✅ Backward-compat: legacy unmarked секции остаются нетронутыми, если есть marker-conflict; иначе heading-only fallback
+- ✅ Regression tests: 2 плана с общим `Task 1: Setup`, close одного → второй сохранён (test_close_one_plan_preserves_other_plans_section)
+- ✅ shellcheck + ruff + полный pytest 293 passed
+- ✅ Bats fixture v1→v2 catch-up (4 файла) — 479 → 515 passed
+- ✅ CHANGELOG `[Unreleased]` обновлён
+- ✅ I-028 помечен DONE в backlog.md
 
-## Skill v2 — Phase 2 Sprint 1 ⏳ (ждёт Sprint 3)
+## Skill v2 — Phase 2 Sprint 1 ⏳ (Sprint 3 unblocked — можно стартовать)
 
 `/mb discuss` + EARS validator + `context/<topic>.md`. См. spec §6-7, roadmap Next #2.
 

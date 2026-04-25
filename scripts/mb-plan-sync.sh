@@ -103,24 +103,40 @@ if [ -z "$stages" ]; then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# Append missing stages into checklist.md (idempotent by full title)
+# Append missing stages into checklist.md.
+#
+# v3.2 (Sprint 3, I-028): each new section gets a `<!-- mb-plan:<basename> -->`
+# marker line above its heading. Idempotency now keys on the (marker, heading)
+# pair — so two plans sharing `## Stage 1: Setup` produce two independent
+# marker-owned sections instead of silently merging.
+#
+# Pre-existing legacy sections without any marker are NOT considered "ours"
+# during idempotency check; we always append a fresh marker section. Legacy
+# heading-only ownership is preserved (handled by mb-plan-done.sh fallback).
 # ═══════════════════════════════════════════════════════════════
 append_missing_stages() {
-  local checklist="$1" stages="$2"
+  local checklist="$1" stages="$2" basename="$3"
   local tmp
   tmp=$(mktemp)
   cp "$checklist" "$tmp"
 
+  local marker="<!-- mb-plan:${basename} -->"
   local added=0
   while IFS=$'\t' read -r n name; do
     [ -n "$n" ] || continue
     local heading="## Stage ${n}: ${name}"
-    # Match exact heading line to distinguish multiple active plans sharing N
-    if awk -v h="$heading" 'BEGIN{found=0} $0==h{found=1; exit} END{exit !found}' "$tmp"; then
+    # Idempotent only if BOTH our marker AND the exact heading sit on
+    # consecutive lines somewhere in the file.
+    if awk -v m="$marker" -v h="$heading" '
+      BEGIN { prev=""; found=0 }
+      { if (prev==m && $0==h) { found=1; exit } prev=$0 }
+      END { exit !found }
+    ' "$tmp"; then
       continue
     fi
     {
-      printf '\n%s\n' "$heading"
+      printf '\n%s\n' "$marker"
+      printf '%s\n' "$heading"
       printf -- '- ⬜ %s\n' "$name"
     } >> "$tmp"
     added=$((added + 1))
@@ -130,7 +146,7 @@ append_missing_stages() {
   printf '%s\n' "$added"
 }
 
-added_count=$(append_missing_stages "$CHECKLIST" "$stages")
+added_count=$(append_missing_stages "$CHECKLIST" "$stages" "$BASENAME")
 
 # ═══════════════════════════════════════════════════════════════
 # Upsert entry into <!-- mb-active-plans --> block of a file

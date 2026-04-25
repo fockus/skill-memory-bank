@@ -18,7 +18,7 @@ setup() {
   TMPBANK="$TMPROOT/.memory-bank"
   mkdir -p "$TMPBANK/plans/done"
 
-  cat > "$TMPBANK/BACKLOG.md" <<'EOF'
+  cat > "$TMPBANK/backlog.md" <<'EOF'
 # Backlog
 
 ## Ideas
@@ -42,7 +42,7 @@ EOF
 # Project — Checklist
 EOF
 
-  cat > "$TMPBANK/plan.md" <<'EOF'
+  cat > "$TMPBANK/roadmap.md" <<'EOF'
 # Project — Plan
 
 ## Active plans
@@ -51,7 +51,7 @@ EOF
 <!-- /mb-active-plans -->
 EOF
 
-  cat > "$TMPBANK/STATUS.md" <<'EOF'
+  cat > "$TMPBANK/status.md" <<'EOF'
 # Project — Status
 
 ## Active plans
@@ -94,8 +94,8 @@ teardown() {
 @test "promote: flips idea status NEW → PLANNED" {
   bash "$PROMOTE" "I-001" "refactor" "$TMPBANK"
 
-  ! grep -qE 'I-001 — refactor logging layer \[HIGH, NEW' "$TMPBANK/BACKLOG.md"
-  grep -qE 'I-001 — refactor logging layer \[HIGH, PLANNED' "$TMPBANK/BACKLOG.md"
+  ! grep -qE 'I-001 — refactor logging layer \[HIGH, NEW' "$TMPBANK/backlog.md"
+  grep -qE 'I-001 — refactor logging layer \[HIGH, PLANNED' "$TMPBANK/backlog.md"
 }
 
 @test "promote: adds Plan link to the idea section" {
@@ -106,7 +106,7 @@ teardown() {
     /### I-001/ { inside=1; next }
     /^### / { inside=0 }
     inside { print }
-  ' "$TMPBANK/BACKLOG.md" > /tmp/mb-i-001.txt
+  ' "$TMPBANK/backlog.md" > /tmp/mb-i-001.txt
 
   grep -qE '\*\*Plan:\*\* \[plans/.*refactor.*logging.*layer.*\.md\]' /tmp/mb-i-001.txt
   rm -f /tmp/mb-i-001.txt
@@ -120,7 +120,7 @@ teardown() {
     /<!-- mb-active-plans -->/ { inside=1; next }
     /<!-- \/mb-active-plans -->/ { inside=0; next }
     inside { print }
-  ' "$TMPBANK/plan.md" > /tmp/mb-active.txt
+  ' "$TMPBANK/roadmap.md" > /tmp/mb-active.txt
 
   grep -qE 'refactor.*logging.*layer' /tmp/mb-active.txt
   rm -f /tmp/mb-active.txt

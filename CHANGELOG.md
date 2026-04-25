@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sprint 3 (I-028): multi-active plan checklist collision.** Two plans sharing
+  a stage heading (e.g. both with `## Task 1: Setup`) no longer collapse onto a
+  single checklist section. `mb-plan-sync.sh` now emits a
+  `<!-- mb-plan:<basename> -->` marker above each section it appends; idempotency
+  is keyed on the (marker, heading) pair. `mb-plan-done.sh` removes ONLY sections
+  preceded by the closing plan's marker. Sections without markers (pre-existing
+  legacy v3.1 layout) keep heading-only ownership through a conservative fallback
+  that activates only when no other plan claims the same heading via a marker.
+  pytest: 289 → 293 (4 new `test_plan_multi_active_collision.py` cases). bats:
+  479 → 515 passed — Sprint 1 missed a v2 rename in `test_plan_sync.bats`,
+  `test_idea_promote.bats`, `test_plan_sync_multi.bats`, `test_plan_done_multi.bats`
+  fixtures (`plan.md`/`STATUS.md`/`BACKLOG.md` → `roadmap.md`/`status.md`/`backlog.md`),
+  also fixed here. Legacy `test_plan_sync.bats::"existing stage with identical
+  title not duplicated"` rewritten to express the v3.2 contract (legacy unmarked
+  section preserved + new marker section appended).
+
 ## [2.0.0-alpha.1] - 2026-04-22
 
 ### Breaking

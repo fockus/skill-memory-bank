@@ -3,12 +3,12 @@
 #
 # Contract (v3.1):
 #   - New marker block `<!-- mb-active-plans --> ... <!-- /mb-active-plans -->`
-#     (plural) in BOTH plan.md and STATUS.md.
+#     (plural) in BOTH roadmap.md and status.md.
 #   - Each active plan is an entry `- [YYYY-MM-DD] [plans/<basename>](plans/<basename>) — <title>`.
 #   - Upsert semantics: syncing plan A then plan B produces 2 entries, not 1.
 #   - Re-syncing same plan updates (replaces line for that basename), not dupes.
 #   - Backward-compat: single `<!-- mb-active-plan -->` → auto-upgrade to plural.
-#   - STATUS.md gets parallel update (same block).
+#   - status.md gets parallel update (same block).
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -48,7 +48,7 @@ EOF
 <!-- Only active phase tasks. -->
 EOF
 
-  cat > "$TMPBANK/plan.md" <<'EOF'
+  cat > "$TMPBANK/roadmap.md" <<'EOF'
 # Project — Plan
 
 ## Current focus
@@ -62,10 +62,10 @@ Test.
 
 ## Next up
 
-See [BACKLOG.md](BACKLOG.md).
+See [backlog.md](backlog.md).
 EOF
 
-  cat > "$TMPBANK/STATUS.md" <<'EOF'
+  cat > "$TMPBANK/status.md" <<'EOF'
 # Project — Status
 
 **Current phase:** testing
@@ -97,10 +97,10 @@ teardown() {
 @test "sync-multi: first plan creates one entry in mb-active-plans block" {
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
 
-  run cat "$TMPBANK/plan.md"
+  run cat "$TMPBANK/roadmap.md"
   [[ "$output" == *"<!-- mb-active-plans -->"* ]]
   [[ "$output" == *"2026-04-20_feature_a.md"* ]]
-  count=$(grep -c 'plans/2026-04-20_feature_a' "$TMPBANK/plan.md" || true)
+  count=$(grep -c 'plans/2026-04-20_feature_a' "$TMPBANK/roadmap.md" || true)
   [ "$count" -ge 1 ]
 }
 
@@ -108,15 +108,15 @@ teardown() {
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
   bash "$SYNC" "$PLAN_B" "$TMPBANK"
 
-  grep -q "2026-04-20_feature_a.md" "$TMPBANK/plan.md"
-  grep -q "2026-04-21_refactor_b.md" "$TMPBANK/plan.md"
+  grep -q "2026-04-20_feature_a.md" "$TMPBANK/roadmap.md"
+  grep -q "2026-04-21_refactor_b.md" "$TMPBANK/roadmap.md"
 }
 
 @test "sync-multi: resyncing plan A does not create duplicate entry" {
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
 
-  count=$(grep -c "2026-04-20_feature_a.md" "$TMPBANK/plan.md")
+  count=$(grep -c "2026-04-20_feature_a.md" "$TMPBANK/roadmap.md")
   [ "$count" -eq 1 ]
 }
 
@@ -125,8 +125,8 @@ teardown() {
   bash "$SYNC" "$PLAN_B" "$TMPBANK"
 
   # Exactly 1 opening + 1 closing marker pair
-  op=$(grep -c '<!-- mb-active-plans -->' "$TMPBANK/plan.md")
-  cl=$(grep -c '<!-- /mb-active-plans -->' "$TMPBANK/plan.md")
+  op=$(grep -c '<!-- mb-active-plans -->' "$TMPBANK/roadmap.md")
+  cl=$(grep -c '<!-- /mb-active-plans -->' "$TMPBANK/roadmap.md")
   [ "$op" -eq 1 ]
   [ "$cl" -eq 1 ]
 
@@ -134,7 +134,7 @@ teardown() {
     /<!-- mb-active-plans -->/ { inside=1; next }
     /<!-- \/mb-active-plans -->/ { inside=0; next }
     inside { print }
-  ' "$TMPBANK/plan.md" > /tmp/mb-multi-block.txt
+  ' "$TMPBANK/roadmap.md" > /tmp/mb-multi-block.txt
 
   grep -q 'feature_a' /tmp/mb-multi-block.txt
   grep -q 'refactor_b' /tmp/mb-multi-block.txt
@@ -142,21 +142,21 @@ teardown() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# STATUS.md parallel sync
+# status.md parallel sync
 # ═══════════════════════════════════════════════════════════════
 
-@test "sync-multi: STATUS.md gets same entry in its mb-active-plans block" {
+@test "sync-multi: status.md gets same entry in its mb-active-plans block" {
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
 
-  grep -q "2026-04-20_feature_a.md" "$TMPBANK/STATUS.md"
+  grep -q "2026-04-20_feature_a.md" "$TMPBANK/status.md"
 }
 
-@test "sync-multi: STATUS.md accumulates both plans too" {
+@test "sync-multi: status.md accumulates both plans too" {
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
   bash "$SYNC" "$PLAN_B" "$TMPBANK"
 
-  grep -q "2026-04-20_feature_a.md" "$TMPBANK/STATUS.md"
-  grep -q "2026-04-21_refactor_b.md" "$TMPBANK/STATUS.md"
+  grep -q "2026-04-20_feature_a.md" "$TMPBANK/status.md"
+  grep -q "2026-04-21_refactor_b.md" "$TMPBANK/status.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -165,7 +165,7 @@ teardown() {
 
 @test "sync-multi: auto-upgrades legacy single-plan marker to plural" {
   # Replace plural markers with legacy singular
-  cat > "$TMPBANK/plan.md" <<'EOF'
+  cat > "$TMPBANK/roadmap.md" <<'EOF'
 # Project — Plan
 
 ## Active plan
@@ -177,8 +177,8 @@ EOF
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
 
   # After sync — plural markers present; singular gone (or coexist gracefully)
-  grep -q '<!-- mb-active-plans -->' "$TMPBANK/plan.md"
-  grep -q "2026-04-20_feature_a.md" "$TMPBANK/plan.md"
+  grep -q '<!-- mb-active-plans -->' "$TMPBANK/roadmap.md"
+  grep -q "2026-04-20_feature_a.md" "$TMPBANK/roadmap.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -194,7 +194,7 @@ EOF
     /<!-- mb-active-plans -->/ { inside=1; next }
     /<!-- \/mb-active-plans -->/ { inside=0; next }
     inside && /feature_a/ { print }
-  ' "$TMPBANK/plan.md" > /tmp/mb-entry.txt
+  ' "$TMPBANK/roadmap.md" > /tmp/mb-entry.txt
 
   grep -qE '2026-04-20' /tmp/mb-entry.txt
   grep -qE 'plans/2026-04-20_feature_a.md' /tmp/mb-entry.txt
@@ -205,11 +205,11 @@ EOF
 @test "sync-multi: idempotent — two runs checksum equal" {
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
   bash "$SYNC" "$PLAN_B" "$TMPBANK"
-  sum1=$(shasum "$TMPBANK/plan.md" "$TMPBANK/STATUS.md" "$TMPBANK/checklist.md" | shasum)
+  sum1=$(shasum "$TMPBANK/roadmap.md" "$TMPBANK/status.md" "$TMPBANK/checklist.md" | shasum)
 
   bash "$SYNC" "$PLAN_A" "$TMPBANK"
   bash "$SYNC" "$PLAN_B" "$TMPBANK"
-  sum2=$(shasum "$TMPBANK/plan.md" "$TMPBANK/STATUS.md" "$TMPBANK/checklist.md" | shasum)
+  sum2=$(shasum "$TMPBANK/roadmap.md" "$TMPBANK/status.md" "$TMPBANK/checklist.md" | shasum)
 
   [ "$sum1" = "$sum2" ]
 }

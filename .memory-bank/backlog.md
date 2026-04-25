@@ -153,12 +153,13 @@
 **Sketch:** pytest который grep'ом ищет запрещённые конструкции и fail'ит если найдены.
 **Plan:** Sprint 2 (часть расширения test-suite для migrator).
 
-### I-028 — multi-active plan collision in checklist.md (Sprint 2 reviewer C1) [HIGH, NEW, 2026-04-22]
+### I-028 — multi-active plan collision in checklist.md (Sprint 2 reviewer C1) [HIGH, DONE, 2026-04-22]
 
 **Problem:** mb-plan-sync.sh keys checklist sections by `## Stage N: <name>` heading. Two active plans sharing a section name (e.g. both have `## Task 1: Setup`) collapse onto one checklist entry. When one plan is closed via mb-plan-done.sh, its removal takes the other plan's entry with it — silent data loss.
 **Repro:** create two plans with `## Task 1: Setup`. `mb-plan-sync.sh p1.md && mb-plan-sync.sh p2.md && mb-plan-done.sh p1.md` → checklist now empty, p2 orphaned.
 **Sketch:** emit `<!-- mb-plan:<basename> -->` marker above each `## Stage N:` section; key remove-logic by marker (plan-scoped), not section heading. Backward-compat: sections without markers are treated as owned by the currently-being-closed plan (conservative legacy behavior).
-**Plan:** Sprint 3 baseline — this is architectural multi-active correctness work, covers Phase/Sprint/Task naming collisions universally. ~50 lines + tests for two-plan collision + single-plan legacy-marker-less cleanup.
+**Plan:** [plans/done/2026-04-25_refactor_sprint3-multi-active-fix.md](plans/done/2026-04-25_refactor_sprint3-multi-active-fix.md)
+**Outcome:** SHIPPED 2026-04-25. Marker `<!-- mb-plan:<basename> -->` emitted above each checklist section by mb-plan-sync.sh; mb-plan-done.sh keys removal by marker (plan-scoped). Backward-compat path for legacy unmarked sections preserved (conservative removal — only when no marker conflict). pytest 289 → 293 (4 new collision tests + bats fixture refresh from Sprint-1 v2 rename catch-up). bats 479 → 515 passed (legacy-marker-aware contract update for `test_plan_sync.bats` line ~105).
 
 ### I-029 — mb-traceability-gen: extension list is hard-coded, no `.rb/.kt/.swift/.java/.c/.cpp/.h` [LOW, NEW, 2026-04-22]
 

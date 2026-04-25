@@ -8,23 +8,23 @@ _No active plan. Run /mb plan <type> <topic> to start._
 
 ## Next (strict order — depends)
 
-Работа v4 idет последовательно, Phase 1 завершена, следующие два sprint'а в строгом порядке:
+Phase 1 завершена (Sprint 1+2+3, 2026-04-25), Phase 2 unblocked.
 
-1. **⏭ Sprint 3 — I-028 fix (multi-active correctness)** [HIGH priority, ~50 строк + tests]
-   - Baseline для Phase 2 — без этого fix'а `/mb discuss` планы словят коллизию в checklist.md
-   - Маркеры `<!-- mb-plan:<basename> -->` над каждой `## Stage N:` секцией
-   - Remove-logic по маркеру (plan-scoped), не по heading content
-   - Backward-compat: секции без маркеров — legacy ownership
-   - Repro: `sync p1 && sync p2 (одинаковый Task name) && done p1` → checklist empty, p2 orphaned
-
-2. **⏳ Phase 2 Sprint 1 — `/mb discuss` + EARS validator + `context/<topic>.md`** [depends_on: Sprint 3]
+1. **⏳ Phase 2 Sprint 1 — `/mb discuss` + EARS validator + `context/<topic>.md`**
    - Заполняет input-сторону traceability pipeline (Sprint 2 построил output, матрица пока всегда "No specs yet")
    - `/mb discuss <topic>` — структурированное интервью → EARS REQ-001..N
    - EARS validator — 5 шаблонов (Ubiquitous/Event-driven/State-driven/Optional/Unwanted)
    - `/mb plan` читает `context/<topic>.md` → REQ-линковка в stages
    - Решает spec §1 ("нет SDD-дисциплины")
 
-**Обоснование порядка:** Phase 2 планы сами используют `## Task N:` headings, поэтому multi-active коллизии гарантированы при одновременной работе. Починить I-028 **до** Phase 2.
+## Recently completed
+
+- **✅ Sprint 3 — I-028 fix (multi-active correctness)** [2026-04-25]
+   - Маркеры `<!-- mb-plan:<basename> -->` эмитятся sync-скриптом
+   - Remove-logic в done-скрипте — plan-scoped по маркеру с backward-compat fallback
+   - 4 collision-теста (pytest) + bats fixture v2-rename catch-up (4 файла)
+   - pytest 289 → 293 passed; bats 479 → 515 passed
+   - Plan: [plans/done/2026-04-25_refactor_sprint3-multi-active-fix.md](plans/done/2026-04-25_refactor_sprint3-multi-active-fix.md)
 
 ## Parallel-safe (can run now)
 
@@ -40,9 +40,9 @@ _Plans in paused/cancelled state._
 
 ## Open high/medium backlog (см. backlog.md)
 
-- **I-028 (HIGH)** — multi-active plan collision → Sprint 3 baseline ☝️
-- I-023 (MED) — grep→find в start.md/mb-doctor
+- I-028 ✅ resolved в Sprint 3 (multi-active marker-based ownership, 2026-04-25)
 - I-026 ✅ resolved в Sprint 2 (Phase/Sprint/Task parser)
+- I-023 (MED) — grep→find в start.md/mb-doctor
 
 ## Roadmap high-level (из specs/mb-skill-v2/design.md §20)
 

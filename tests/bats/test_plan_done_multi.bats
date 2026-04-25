@@ -2,12 +2,12 @@
 # Tests for v3.1 multi-active-plan support in scripts/mb-plan-done.sh.
 #
 # Contract (v3.1):
-#   - Removes entry from <!-- mb-active-plans --> blocks in BOTH plan.md + STATUS.md.
+#   - Removes entry from <!-- mb-active-plans --> blocks in BOTH roadmap.md + status.md.
 #   - Other active plans' entries remain untouched.
-#   - Prepends entry to <!-- mb-recent-done --> block in STATUS.md.
+#   - Prepends entry to <!-- mb-recent-done --> block in status.md.
 #   - Trims mb-recent-done to MB_RECENT_DONE_LIMIT (default 10).
 #   - REMOVES the plan's Stage-sections from checklist.md entirely (not just tick).
-#   - If the plan has a matching idea in BACKLOG.md (via `Plan: plans/<basename>`),
+#   - If the plan has a matching idea in backlog.md (via `Plan: plans/<basename>`),
 #     the idea status flips `PLANNED → DONE` and gets `**Outcome:** <placeholder>`.
 
 setup() {
@@ -47,7 +47,7 @@ EOF
 # Project — Checklist
 EOF
 
-  cat > "$TMPBANK/plan.md" <<'EOF'
+  cat > "$TMPBANK/roadmap.md" <<'EOF'
 # Project — Plan
 
 ## Active plans
@@ -56,7 +56,7 @@ EOF
 <!-- /mb-active-plans -->
 EOF
 
-  cat > "$TMPBANK/STATUS.md" <<'EOF'
+  cat > "$TMPBANK/status.md" <<'EOF'
 # Project — Status
 
 ## Active plans
@@ -70,7 +70,7 @@ EOF
 <!-- /mb-recent-done -->
 EOF
 
-  cat > "$TMPBANK/BACKLOG.md" <<'EOF'
+  cat > "$TMPBANK/backlog.md" <<'EOF'
 # Backlog
 
 ## Ideas
@@ -97,29 +97,29 @@ teardown() {
 # Active-plans block manipulation
 # ═══════════════════════════════════════════════════════════════
 
-@test "done-multi: removes only closed plan entry from plan.md active-plans" {
+@test "done-multi: removes only closed plan entry from roadmap.md active-plans" {
   bash "$DONE" "$PLAN_A" "$TMPBANK"
 
-  # A should be gone from plan.md active block, B should remain
+  # A should be gone from roadmap.md active block, B should remain
   awk '
     /<!-- mb-active-plans -->/ { inside=1; next }
     /<!-- \/mb-active-plans -->/ { inside=0; next }
     inside { print }
-  ' "$TMPBANK/plan.md" > /tmp/mb-after.txt
+  ' "$TMPBANK/roadmap.md" > /tmp/mb-after.txt
 
   ! grep -q "2026-04-20_feature_a.md" /tmp/mb-after.txt
   grep -q "2026-04-21_refactor_b.md" /tmp/mb-after.txt
   rm -f /tmp/mb-after.txt
 }
 
-@test "done-multi: same removal in STATUS.md active-plans" {
+@test "done-multi: same removal in status.md active-plans" {
   bash "$DONE" "$PLAN_A" "$TMPBANK"
 
   awk '
     /<!-- mb-active-plans -->/ { inside=1; next }
     /<!-- \/mb-active-plans -->/ { inside=0; next }
     inside { print }
-  ' "$TMPBANK/STATUS.md" > /tmp/mb-after.txt
+  ' "$TMPBANK/status.md" > /tmp/mb-after.txt
 
   ! grep -q "2026-04-20_feature_a.md" /tmp/mb-after.txt
   grep -q "2026-04-21_refactor_b.md" /tmp/mb-after.txt
@@ -130,14 +130,14 @@ teardown() {
 # Recently-done prepend + trim
 # ═══════════════════════════════════════════════════════════════
 
-@test "done-multi: prepends closed plan to mb-recent-done in STATUS.md" {
+@test "done-multi: prepends closed plan to mb-recent-done in status.md" {
   bash "$DONE" "$PLAN_A" "$TMPBANK"
 
   awk '
     /<!-- mb-recent-done -->/ { inside=1; next }
     /<!-- \/mb-recent-done -->/ { inside=0; next }
     inside { print }
-  ' "$TMPBANK/STATUS.md" > /tmp/mb-recent.txt
+  ' "$TMPBANK/status.md" > /tmp/mb-recent.txt
 
   grep -q "2026-04-20_feature_a.md" /tmp/mb-recent.txt
   grep -qE '\[(done|closed)\]|plans/done/' /tmp/mb-recent.txt || grep -q 'plans/done/2026-04-20_feature_a' /tmp/mb-recent.txt
@@ -152,7 +152,7 @@ teardown() {
     /<!-- mb-recent-done -->/ { inside=1; next }
     /<!-- \/mb-recent-done -->/ { inside=0; next }
     inside && /refactor_b|feature_a/ { print }
-  ' "$TMPBANK/STATUS.md" > /tmp/mb-recent.txt
+  ' "$TMPBANK/status.md" > /tmp/mb-recent.txt
 
   # refactor_b closed LAST, so it must appear BEFORE feature_a
   first=$(head -1 /tmp/mb-recent.txt)
@@ -162,7 +162,7 @@ teardown() {
 
 @test "done-multi: recent-done trims to MB_RECENT_DONE_LIMIT (default 10)" {
   # Seed 11 pre-existing entries + close one more
-  python3 - "$TMPBANK/STATUS.md" <<'PY'
+  python3 - "$TMPBANK/status.md" <<'PY'
 import sys, pathlib
 p = pathlib.Path(sys.argv[1])
 text = p.read_text()
@@ -182,14 +182,14 @@ PY
     /<!-- \/mb-recent-done -->/ { inside=0; next }
     inside && /^- / { n++ }
     END { print n+0 }
-  ' "$TMPBANK/STATUS.md")
+  ' "$TMPBANK/status.md")
 
   [ "$count" -le 10 ]
 }
 
 @test "done-multi: recent-done trims to MB_RECENT_DONE_LIMIT env override" {
   # Seed 6 entries, limit to 3, close one → expect 3
-  python3 - "$TMPBANK/STATUS.md" <<'PY'
+  python3 - "$TMPBANK/status.md" <<'PY'
 import sys, pathlib
 p = pathlib.Path(sys.argv[1])
 text = p.read_text()
@@ -209,7 +209,7 @@ PY
     /<!-- \/mb-recent-done -->/ { inside=0; next }
     inside && /^- / { n++ }
     END { print n+0 }
-  ' "$TMPBANK/STATUS.md")
+  ' "$TMPBANK/status.md")
 
   [ "$count" -le 3 ]
 }
@@ -235,19 +235,19 @@ PY
 }
 
 # ═══════════════════════════════════════════════════════════════
-# BACKLOG.md idea auto-transition
+# backlog.md idea auto-transition
 # ═══════════════════════════════════════════════════════════════
 
-@test "done-multi: flips idea status PLANNED → DONE in BACKLOG.md" {
+@test "done-multi: flips idea status PLANNED → DONE in backlog.md" {
   bash "$DONE" "$PLAN_A" "$TMPBANK"
 
-  ! grep -q 'I-001 — idea for feature a \[HIGH, PLANNED' "$TMPBANK/BACKLOG.md"
-  grep -qE 'I-001 — idea for feature a \[HIGH, DONE' "$TMPBANK/BACKLOG.md"
+  ! grep -q 'I-001 — idea for feature a \[HIGH, PLANNED' "$TMPBANK/backlog.md"
+  grep -qE 'I-001 — idea for feature a \[HIGH, DONE' "$TMPBANK/backlog.md"
 }
 
 @test "done-multi: adds Outcome placeholder for auto-closed idea" {
   bash "$DONE" "$PLAN_A" "$TMPBANK"
-  grep -q '\*\*Outcome:\*\*' "$TMPBANK/BACKLOG.md"
+  grep -q '\*\*Outcome:\*\*' "$TMPBANK/backlog.md"
 }
 
 @test "done-multi: moves plan file to plans/done/ (regression)" {

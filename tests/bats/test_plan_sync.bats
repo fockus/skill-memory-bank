@@ -57,7 +57,7 @@ EOF
 - ✅ initialization
 EOF
 
-  cat > "$TMPBANK/plan.md" <<'EOF'
+  cat > "$TMPBANK/roadmap.md" <<'EOF'
 # Project — Plan
 
 ## Current focus
@@ -102,7 +102,10 @@ teardown() {
   grep -q "^## Stage 3: codebase-mapper$" "$TMPBANK/checklist.md"
 }
 
-@test "sync: existing stage with identical title not duplicated" {
+@test "sync: legacy unmarked section preserved + new marker section appended (v3.2 contract)" {
+  # v3.2 (Sprint 3, I-028): sync no longer claims unmarked sections. A pre-existing
+  # legacy section with the same heading must remain untouched; sync writes its
+  # own `<!-- mb-plan:<basename> -->` marker section alongside it.
   cat >> "$TMPBANK/checklist.md" <<'EOF'
 
 ## Stage 1: DRY-utilities
@@ -110,17 +113,22 @@ teardown() {
 EOF
 
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-  count=$(grep -c "^## Stage 1: DRY-utilities$" "$TMPBANK/checklist.md")
-  [ "$count" -eq 1 ]
+
+  # Legacy section preserved
   grep -q "custom item" "$TMPBANK/checklist.md"
+  # Two `## Stage 1: DRY-utilities` headings now coexist (one legacy, one marker-owned)
+  count=$(grep -c "^## Stage 1: DRY-utilities$" "$TMPBANK/checklist.md")
+  [ "$count" -eq 2 ]
+  # Plan's marker is present
+  grep -q "<!-- mb-plan:2026-04-19_refactor_skill-v2.md -->" "$TMPBANK/checklist.md"
 }
 
 @test "sync: idempotent — double run equals single run" {
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-  sum1=$(shasum "$TMPBANK/checklist.md" "$TMPBANK/plan.md" | shasum)
+  sum1=$(shasum "$TMPBANK/checklist.md" "$TMPBANK/roadmap.md" | shasum)
 
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
-  sum2=$(shasum "$TMPBANK/checklist.md" "$TMPBANK/plan.md" | shasum)
+  sum2=$(shasum "$TMPBANK/checklist.md" "$TMPBANK/roadmap.md" | shasum)
 
   [ "$sum1" = "$sum2" ]
 }
@@ -128,15 +136,15 @@ EOF
 @test "sync: upserts entry into plan.md active-plans block" {
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
 
-  grep -q "2026-04-19_refactor_skill-v2.md" "$TMPBANK/plan.md"
-  grep -q "refactor — skill-v2" "$TMPBANK/plan.md"
+  grep -q "2026-04-19_refactor_skill-v2.md" "$TMPBANK/roadmap.md"
+  grep -q "refactor — skill-v2" "$TMPBANK/roadmap.md"
 }
 
 @test "sync: active-plans markers stay a single pair" {
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
 
-  op=$(grep -c "<!-- mb-active-plans -->" "$TMPBANK/plan.md")
-  cl=$(grep -c "<!-- /mb-active-plans -->" "$TMPBANK/plan.md")
+  op=$(grep -c "<!-- mb-active-plans -->" "$TMPBANK/roadmap.md")
+  cl=$(grep -c "<!-- /mb-active-plans -->" "$TMPBANK/roadmap.md")
   [ "$op" -eq 1 ]
   [ "$cl" -eq 1 ]
 }
@@ -162,7 +170,7 @@ EOF
 }
 
 @test "sync: creates active-plans markers if plan.md lacks them" {
-  cat > "$TMPBANK/plan.md" <<'EOF'
+  cat > "$TMPBANK/roadmap.md" <<'EOF'
 # Plan
 
 ## Current focus
@@ -173,9 +181,9 @@ EOF
   run bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -eq 0 ]
 
-  grep -q "<!-- mb-active-plans -->" "$TMPBANK/plan.md"
-  grep -q "<!-- /mb-active-plans -->" "$TMPBANK/plan.md"
-  grep -q "2026-04-19_refactor_skill-v2.md" "$TMPBANK/plan.md"
+  grep -q "<!-- mb-active-plans -->" "$TMPBANK/roadmap.md"
+  grep -q "<!-- /mb-active-plans -->" "$TMPBANK/roadmap.md"
+  grep -q "2026-04-19_refactor_skill-v2.md" "$TMPBANK/roadmap.md"
 }
 
 @test "sync: fails gracefully when plan-file missing" {

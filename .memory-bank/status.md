@@ -1,19 +1,16 @@
 # claude-skill-memory-bank: Статус проекта
 
 ## Текущая фаза
-**Skill v2 Phase 1 Foundation — COMPLETE (2026-04-22).** Phase 1 Sprint 1 (rename migration v1→v2: `STATUS/BACKLOG/RESEARCH/plan` → lowercase + `roadmap`) и Sprint 2 (autosync + traceability-gen + Phase/Sprint/Task parser) смёрджены в main. Pytest: **289 passed, 0 failed** · shellcheck clean · ruff clean.
+**Skill v2 Phase 1 — COMPLETE (Sprint 1+2+3, 2026-04-25).** Sprint 3 (I-028 multi-active plan checklist collision fix) реализован в режиме TDD на main: маркеры `<!-- mb-plan:<basename> -->` + plan-scoped removal в done-скрипте. Pytest **293 passed**, bats **515 passed** (Sprint 1 v2-rename catch-up), shellcheck/ruff clean. Phase 2 unblocked.
 
-## ⏭ Следующий шаг — Sprint 3 baseline (I-028 fix) перед Phase 2
+## ⏭ Следующий шаг — Phase 2 Sprint 1
 
-**HIGH priority blocker**: multi-active plan checklist collision. Два плана с `## Task 1: Setup` сливаются → close одного удаляет секцию у другого (silent data loss). Sprint 3 = маркеры `<!-- mb-plan:<basename> -->` + key-by-marker remove-logic.
+`/mb discuss` + EARS validator + `context/<topic>.md` template. См. spec §6-7, roadmap.md Next #2.
 
-**Почему раньше Phase 2:** Phase 2 Sprint 1 планы (`/mb discuss`, EARS, context) сами используют `## Task N:` heading — коллизия гарантирована при одновременной работе с другим активным планом.
-
-**Подробное обоснование и рассуждения:**
-- 📎 `notes/2026-04-22_20-30_sprint3-vs-phase2-priority.md` — решение + Phase 2 rationale
-- 📎 `backlog.md` → I-028 (HIGH, NEW, 2026-04-22) — full repro + fix sketch
-- 📎 `roadmap.md` → Next section — строгий порядок Sprint 3 → Phase 2 Sprint 1
-- 📎 `checklist.md` → блоки "Sprint 3 baseline" + "Phase 2 Sprint 1" с DoD'ами
+**Контекст готов** к старту:
+- 📎 `checklist.md` → блок "Skill v2 — Phase 2 Sprint 1" с 4 ⬜ DoD-пунктами
+- 📎 `roadmap.md` → описание Sprint 1 контракта
+- 📎 `notes/2026-04-22_20-30_sprint3-vs-phase2-priority.md` — Phase 2 rationale (input side traceability)
 
 ## Ключевые артефакты Phase 1 (2026-04-22)
 
