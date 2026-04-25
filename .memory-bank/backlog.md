@@ -216,6 +216,37 @@
 **Sketch:** decide — allow all four (current), or restrict to `Task|Stage` only with `Phase|Sprint` being document structure. If the latter: narrow regex to `^#{2,4} (Task|Stage) [0-9]+:`.
 **Plan:** Sprint 3 design discussion.
 
+
+### I-034 — Plugin-namespaced skill detection for mb-reviewer-resolve.sh + install.sh probe [MED, NEW, 2026-04-25]
+
+**Problem:** Phase 4 Sprint 3 ship-нул `mb-reviewer-resolve.sh` который ищет `superpowers` skill только по path `~/.claude/skills/superpowers/`. В реальности у пользователей skill часто живёт в **plugin namespace** (например `superpowers:requesting-code-review`, `commit-commands:commit`, `gsd:*`, `kaizen:*`) — это plugin-bundled skills, и они НЕ создают `~/.claude/skills/<name>/` директорию. Probe в `install.sh` step 6.5 говорит "superpowers skill not detected", и `mb-reviewer-resolve.sh` всегда возвращает `mb-reviewer` даже когда plugin-version skill реально доступен. Validated на этой машине 2026-04-25 — `superpowers:requesting-code-review` есть в Skill list, но resolver его не видит.
+
+**Sketch:**
+1. **Inventory mechanism для plugin-namespaced skills.** Claude Code skills могут попасть в session тремя способами:
+   - file-system skill: `~/.claude/skills/<name>/` (наш текущий probe).
+   - plugin-bundled skill: `<plugin-root>/skills/<plugin>:<skill-name>/` (e.g. `~/.claude/plugins/superpowers/skills/requesting-code-review/`).
+   - marketplace/installed plugin: location depends on plugin manager.
+   
+   Reliable detection: scan `~/.claude/plugins/*/skills/<name>/` AND `~/.claude/skills/<name>/`. If either matches, skill is "present".
+
+2. **Update `scripts/mb-reviewer-resolve.sh`:**
+   - Replace `if os.path.isdir(skill_dir)` block with helper `def skill_present(skill_name, roots)`.
+   - `roots`: env-injected `MB_SKILLS_ROOT` + `MB_PLUGINS_ROOT` (default `~/.claude/skills` and `~/.claude/plugins`).
+   - For plugin namespace `<plugin>:<inner>` syntax in pipeline.yaml (already supported in `agent` field), check `<plugins-root>/<plugin>/skills/<inner>/` first.
+   - Fallback to legacy `<skills-root>/<skill>/` for back-compat.
+
+3. **Update `install.sh` step 6.5:** mirror the same probe logic. Print which path matched: `superpowers detected via plugin (~/.claude/plugins/superpowers/skills/requesting-code-review/)` vs `via skill dir (~/.claude/skills/superpowers/)`.
+
+4. **Tests:**
+   - `test_mb_reviewer_resolve.py` — new cases: plugin-style skill present in `MB_PLUGINS_ROOT`, both present, neither.
+   - Mirror in registration test.
+
+5. **Risk:** plugin paths are not stable Claude Code public API yet. Document the assumption in `mb-reviewer-resolve.sh` header. If layout changes, the resolver still fails-safe (returns `mb-reviewer`).
+
+**Effort estimate:** 1 short sprint (1-2 hours): resolver patch + 3-4 new tests + install.sh probe update + docs comment.
+
+**Plan:** —
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
