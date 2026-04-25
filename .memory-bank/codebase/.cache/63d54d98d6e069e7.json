@@ -1,0 +1,1391 @@
+{
+  "nodes": [
+    {
+      "kind": "module",
+      "name": "mb-codegraph.py",
+      "file": "mb-codegraph.py",
+      "line": 1
+    },
+    {
+      "kind": "function",
+      "name": "_get_ts_parser",
+      "file": "mb-codegraph.py",
+      "line": 59
+    },
+    {
+      "kind": "function",
+      "name": "_ts_node_text",
+      "file": "mb-codegraph.py",
+      "line": 135
+    },
+    {
+      "kind": "function",
+      "name": "_ts_find_name",
+      "file": "mb-codegraph.py",
+      "line": 139
+    },
+    {
+      "kind": "function",
+      "name": "_ts_find_call_target",
+      "file": "mb-codegraph.py",
+      "line": 153
+    },
+    {
+      "kind": "function",
+      "name": "_ts_find_import_target",
+      "file": "mb-codegraph.py",
+      "line": 170
+    },
+    {
+      "kind": "function",
+      "name": "_ts_find_inherit_targets",
+      "file": "mb-codegraph.py",
+      "line": 201
+    },
+    {
+      "kind": "function",
+      "name": "_parse_ts_file",
+      "file": "mb-codegraph.py",
+      "line": 218
+    },
+    {
+      "kind": "function",
+      "name": "_sha256",
+      "file": "mb-codegraph.py",
+      "line": 267
+    },
+    {
+      "kind": "function",
+      "name": "_atomic_write",
+      "file": "mb-codegraph.py",
+      "line": 271
+    },
+    {
+      "kind": "function",
+      "name": "_rel",
+      "file": "mb-codegraph.py",
+      "line": 284
+    },
+    {
+      "kind": "class",
+      "name": "_Extractor",
+      "file": "mb-codegraph.py",
+      "line": 291
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor.__init__",
+      "file": "mb-codegraph.py",
+      "line": 294
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor._qualname",
+      "file": "mb-codegraph.py",
+      "line": 300
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor._current_src",
+      "file": "mb-codegraph.py",
+      "line": 303
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor.visit_FunctionDef",
+      "file": "mb-codegraph.py",
+      "line": 306
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor.visit_AsyncFunctionDef",
+      "file": "mb-codegraph.py",
+      "line": 309
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor._handle_function",
+      "file": "mb-codegraph.py",
+      "line": 312
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor.visit_ClassDef",
+      "file": "mb-codegraph.py",
+      "line": 326
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor.visit_Import",
+      "file": "mb-codegraph.py",
+      "line": 349
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor.visit_ImportFrom",
+      "file": "mb-codegraph.py",
+      "line": 357
+    },
+    {
+      "kind": "function",
+      "name": "_Extractor.visit_Call",
+      "file": "mb-codegraph.py",
+      "line": 367
+    },
+    {
+      "kind": "function",
+      "name": "_name_of",
+      "file": "mb-codegraph.py",
+      "line": 379
+    },
+    {
+      "kind": "function",
+      "name": "parse_file",
+      "file": "mb-codegraph.py",
+      "line": 391
+    },
+    {
+      "kind": "function",
+      "name": "_cache_slug",
+      "file": "mb-codegraph.py",
+      "line": 413
+    },
+    {
+      "kind": "function",
+      "name": "_load_cache",
+      "file": "mb-codegraph.py",
+      "line": 417
+    },
+    {
+      "kind": "function",
+      "name": "_save_cache",
+      "file": "mb-codegraph.py",
+      "line": 427
+    },
+    {
+      "kind": "function",
+      "name": "build_graph",
+      "file": "mb-codegraph.py",
+      "line": 432
+    },
+    {
+      "kind": "function",
+      "name": "_compute_degree",
+      "file": "mb-codegraph.py",
+      "line": 517
+    },
+    {
+      "kind": "function",
+      "name": "_render_god_nodes",
+      "file": "mb-codegraph.py",
+      "line": 535
+    },
+    {
+      "kind": "function",
+      "name": "_write_graph_jsonl",
+      "file": "mb-codegraph.py",
+      "line": 558
+    },
+    {
+      "kind": "function",
+      "name": "run",
+      "file": "mb-codegraph.py",
+      "line": 567
+    },
+    {
+      "kind": "function",
+      "name": "main",
+      "file": "mb-codegraph.py",
+      "line": 614
+    }
+  ],
+  "edges": [
+    {
+      "src": "mb-codegraph.py",
+      "dst": "__future__.annotations",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "argparse",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "ast",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "hashlib",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "json",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "os",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "sys",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "tempfile",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "pathlib.Path",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "typing.Any",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "tree_sitter.Language",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "tree_sitter.Parser",
+      "kind": "import"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "__import__",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "getattr",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "getattr",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "getattr",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "getattr",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "getattr",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "Language",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "lang_fn",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "Parser",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_get_ts_parser",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_node_text",
+      "dst": "decode",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_name",
+      "dst": "node.child_by_field_name",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_name",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_name",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "node.child_by_field_name",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "_ts_node_text.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "node.child_by_field_name",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "node.child_by_field_name",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "_ts_node_text.split",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_call_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "node.child_by_field_name",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "targets.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "_ts_node_text.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "node.child_by_field_name",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "targets.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "_ts_node_text.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "targets.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "targets.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "text.removeprefix.rstrip.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "text.removeprefix.rstrip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "text.removeprefix",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "targets.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_import_target",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "targets.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "_ts_node_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "text.replace.replace.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "text.replace.replace",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "text.replace",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "targets.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_ts_find_inherit_targets",
+      "dst": "cleaned.split",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_get_ts_parser",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "RuntimeError",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "py_path.read_bytes",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "parser.parse",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_rel",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_TS_NODE_KINDS.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "kinds.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "kinds.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "kinds.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "kinds.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "kinds.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "stack.pop",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_ts_find_name",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "nodes.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_ts_find_name",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "nodes.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_ts_find_import_target",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "edges.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_ts_find_call_target",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "edges.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_ts_find_inherit_targets",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "edges.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "stack.extend",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "_sha256",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_parse_ts_file",
+      "dst": "source.decode",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_sha256",
+      "dst": "hashlib.sha256.hexdigest",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_sha256",
+      "dst": "hashlib.sha256",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_sha256",
+      "dst": "text.encode",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_atomic_write",
+      "dst": "path.parent.mkdir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_atomic_write",
+      "dst": "tempfile.mkstemp",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_atomic_write",
+      "dst": "str",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_atomic_write",
+      "dst": "os.fdopen",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_atomic_write",
+      "dst": "f.write",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_atomic_write",
+      "dst": "os.replace",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_atomic_write",
+      "dst": "os.path.exists",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_atomic_write",
+      "dst": "os.unlink",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_rel",
+      "dst": "path.relative_to.as_posix",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_rel",
+      "dst": "path.relative_to",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_rel",
+      "dst": "str",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor",
+      "dst": "ast.NodeVisitor",
+      "kind": "inherit"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._qualname",
+      "dst": "join",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._current_src",
+      "dst": "rstrip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._current_src",
+      "dst": "self._qualname",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_FunctionDef",
+      "dst": "self._handle_function",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_AsyncFunctionDef",
+      "dst": "self._handle_function",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._handle_function",
+      "dst": "getattr",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._handle_function",
+      "dst": "self.nodes.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._handle_function",
+      "dst": "self._qualname",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._handle_function",
+      "dst": "getattr",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._handle_function",
+      "dst": "self._scope.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._handle_function",
+      "dst": "self.generic_visit",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor._handle_function",
+      "dst": "self._scope.pop",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ClassDef",
+      "dst": "self.nodes.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ClassDef",
+      "dst": "self._qualname",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ClassDef",
+      "dst": "_name_of",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ClassDef",
+      "dst": "self.edges.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ClassDef",
+      "dst": "self._qualname",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ClassDef",
+      "dst": "self._scope.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ClassDef",
+      "dst": "self.generic_visit",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ClassDef",
+      "dst": "self._scope.pop",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_Import",
+      "dst": "self.edges.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_ImportFrom",
+      "dst": "self.edges.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_Call",
+      "dst": "_name_of",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_Call",
+      "dst": "rstrip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_Call",
+      "dst": "self._qualname",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_Call",
+      "dst": "self.edges.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_Extractor.visit_Call",
+      "dst": "self.generic_visit",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_name_of",
+      "dst": "isinstance",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_name_of",
+      "dst": "isinstance",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_name_of",
+      "dst": "_name_of",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_name_of",
+      "dst": "isinstance",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_name_of",
+      "dst": "_name_of",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:parse_file",
+      "dst": "py_path.read_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:parse_file",
+      "dst": "ast.parse",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:parse_file",
+      "dst": "str",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:parse_file",
+      "dst": "_rel",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:parse_file",
+      "dst": "_Extractor",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:parse_file",
+      "dst": "extractor.nodes.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:parse_file",
+      "dst": "extractor.visit",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:parse_file",
+      "dst": "_sha256",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_cache_slug",
+      "dst": "hashlib.sha256.hexdigest",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_cache_slug",
+      "dst": "hashlib.sha256",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_cache_slug",
+      "dst": "rel_path.encode",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_load_cache",
+      "dst": "_cache_slug",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_load_cache",
+      "dst": "cache_file.exists",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_load_cache",
+      "dst": "json.loads",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_load_cache",
+      "dst": "cache_file.read_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_save_cache",
+      "dst": "_cache_slug",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_save_cache",
+      "dst": "_atomic_write",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_save_cache",
+      "dst": "json.dumps",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "src_root.exists",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "supported_exts.update",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "_TS_LANG_CONFIG.keys",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "sorted",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "all_source_files.extend",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "src_root.rglob",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "sorted",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "set",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "src_file.relative_to",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "any",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "p.startswith",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "_rel",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "src_file.suffix.lower",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "src_file.read_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "_sha256",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "_sha256",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "src_file.read_bytes.decode",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "src_file.read_bytes",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "_load_cache",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "cached_data.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "all_nodes.extend",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "cached_data.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "all_edges.extend",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "cached_data.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "parse_file",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "_parse_ts_file",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "all_nodes.extend",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "all_edges.extend",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:build_graph",
+      "dst": "_save_cache",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_compute_degree",
+      "dst": "split",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_compute_degree",
+      "dst": "degree.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_compute_degree",
+      "dst": "name.split",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_compute_degree",
+      "dst": "dst.endswith",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_compute_degree",
+      "dst": "degree.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "_compute_degree",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "sorted",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "degree.items",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "enumerate",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "node_lookup.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "node.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "node.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "node.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "lines.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "lines.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_render_god_nodes",
+      "dst": "join",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_write_graph_jsonl",
+      "dst": "lines.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_write_graph_jsonl",
+      "dst": "json.dumps",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_write_graph_jsonl",
+      "dst": "lines.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_write_graph_jsonl",
+      "dst": "json.dumps",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_write_graph_jsonl",
+      "dst": "_atomic_write",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:_write_graph_jsonl",
+      "dst": "join",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "Path",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "Path",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "mb.is_dir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "FileNotFoundError",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "src.is_dir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "FileNotFoundError",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "codebase.mkdir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "cache_dir.mkdir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "build_graph",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "graph.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "graph.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "_write_graph_jsonl",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "_atomic_write",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:run",
+      "dst": "_render_god_nodes",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:main",
+      "dst": "argparse.ArgumentParser",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:main",
+      "dst": "parser.add_argument",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:main",
+      "dst": "parser.add_argument",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:main",
+      "dst": "parser.add_argument",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:main",
+      "dst": "parser.add_argument",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:main",
+      "dst": "parser.parse_args",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:main",
+      "dst": "run",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py:main",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "sys.exit",
+      "kind": "call"
+    },
+    {
+      "src": "mb-codegraph.py",
+      "dst": "main",
+      "kind": "call"
+    }
+  ],
+  "hash": "ee24992f48815989dfdd75b8f2bbb52eb1a6e6d8ff0011b7b9baaf1a6ada248a",
+  "file": "mb-codegraph.py"
+}

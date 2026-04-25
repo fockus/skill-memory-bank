@@ -1,0 +1,558 @@
+{
+  "nodes": [
+    {
+      "kind": "module",
+      "name": "mb-index-json.py",
+      "file": "mb-index-json.py",
+      "line": 1
+    },
+    {
+      "kind": "function",
+      "name": "_kebab_case",
+      "file": "mb-index-json.py",
+      "line": 39
+    },
+    {
+      "kind": "function",
+      "name": "_strip_private",
+      "file": "mb-index-json.py",
+      "line": 52
+    },
+    {
+      "kind": "function",
+      "name": "_parse_frontmatter",
+      "file": "mb-index-json.py",
+      "line": 59
+    },
+    {
+      "kind": "function",
+      "name": "_simple_yaml_parse",
+      "file": "mb-index-json.py",
+      "line": 79
+    },
+    {
+      "kind": "function",
+      "name": "_summary",
+      "file": "mb-index-json.py",
+      "line": 105
+    },
+    {
+      "kind": "function",
+      "name": "_index_notes",
+      "file": "mb-index-json.py",
+      "line": 119
+    },
+    {
+      "kind": "function",
+      "name": "_index_lessons",
+      "file": "mb-index-json.py",
+      "line": 162
+    },
+    {
+      "kind": "function",
+      "name": "build_index",
+      "file": "mb-index-json.py",
+      "line": 174
+    },
+    {
+      "kind": "function",
+      "name": "main",
+      "file": "mb-index-json.py",
+      "line": 202
+    }
+  ],
+  "edges": [
+    {
+      "src": "mb-index-json.py",
+      "dst": "__future__.annotations",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "json",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "os",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "re",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "sys",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "tempfile",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "datetime.datetime",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "datetime.timezone",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "pathlib.Path",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "typing.Any",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "re.compile",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "re.compile",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "re.compile",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "re.compile",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_kebab_case",
+      "dst": "str.strip.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_kebab_case",
+      "dst": "str.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_kebab_case",
+      "dst": "str",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_kebab_case",
+      "dst": "_KEBAB_RE_1.sub",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_kebab_case",
+      "dst": "_KEBAB_RE_2.sub",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_kebab_case",
+      "dst": "s.lower",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "re.compile",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "re.compile",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_strip_private",
+      "dst": "PRIVATE_CLOSED_RE.subn",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_strip_private",
+      "dst": "PRIVATE_OPEN_RE.subn",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_parse_frontmatter",
+      "dst": "FRONTMATTER_RE.match",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_parse_frontmatter",
+      "dst": "m.group",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_parse_frontmatter",
+      "dst": "m.group",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "yaml",
+      "kind": "import"
+    },
+    {
+      "src": "mb-index-json.py:_parse_frontmatter",
+      "dst": "_simple_yaml_parse",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_parse_frontmatter",
+      "dst": "yaml.safe_load",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_parse_frontmatter",
+      "dst": "isinstance",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_parse_frontmatter",
+      "dst": "_simple_yaml_parse",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "raw.splitlines",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "line.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "line.startswith",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "line.partition",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "key.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "value.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "value.startswith",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "value.endswith",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "v.strip.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "v.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "inner.split",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_simple_yaml_parse",
+      "dst": "value.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_summary",
+      "dst": "body.splitlines",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_summary",
+      "dst": "raw.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_summary",
+      "dst": "stripped.startswith",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_summary",
+      "dst": "lines.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_summary",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_summary",
+      "dst": "join",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "notes_dir.is_dir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "sorted",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "notes_dir.rglob",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "note.read_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "_parse_frontmatter",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "meta.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "isinstance",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "str",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "str",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "_kebab_case",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "set",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "seen.add",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "_strip_private",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "note.relative_to.as_posix",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "note.relative_to",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "rel.startswith",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "entries.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "meta.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "list",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "meta.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_notes",
+      "dst": "_summary",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_lessons",
+      "dst": "lessons_file.is_file",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_lessons",
+      "dst": "lessons_file.read_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_lessons",
+      "dst": "m.group",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_lessons",
+      "dst": "m.group.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_lessons",
+      "dst": "m.group",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:_index_lessons",
+      "dst": "LESSON_RE.finditer",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "Path",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "mb_path.is_dir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "FileNotFoundError",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "_index_notes",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "_index_lessons",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "datetime.now.strftime",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "datetime.now",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "tempfile.mkstemp",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "str",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "os.fdopen",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "json.dump",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "os.replace",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "os.path.exists",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:build_index",
+      "dst": "os.unlink",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:main",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:main",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:main",
+      "dst": "build_index",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py:main",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "sys.exit",
+      "kind": "call"
+    },
+    {
+      "src": "mb-index-json.py",
+      "dst": "main",
+      "kind": "call"
+    }
+  ],
+  "hash": "7c3f1f98fc5d0b0f76dbe8d21e2f008f0de40e4ef11fc87bec10e2678184a13a",
+  "file": "mb-index-json.py"
+}

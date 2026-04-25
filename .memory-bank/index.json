@@ -1,0 +1,112 @@
+{
+  "notes": [
+    {
+      "path": "notes/2026-04-20_03-36_cross-agent-research.md",
+      "type": "note",
+      "tags": [
+        "cross-agent",
+        "research",
+        "stage-8",
+        "hooks",
+        "adapters",
+        "v3.0"
+      ],
+      "importance": "high",
+      "summary": "Research upfront перед построением 7 adapters. **Фокус:** какие клиенты имеют hooks API, как выглядит финальная hook-матрица, где нужен git-fallback. **Только 1 из 7 клиентов БЕЗ hooks API — Kilo.** Остальные 6 поддерживают lifecycle events нативно. **Бонус-сюрприз:** Cursor 1.7+ и Codex — оба имеют `hooks.json` совместимый с Claude Code форматом, что даёт нам direct reuse наших существующих hook-скриптов.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-04-21_06-39_docs-codebase-folder-surfaced.md",
+      "type": "pattern",
+      "tags": [
+        "docs",
+        "memory-bank",
+        "codebase",
+        "/mb-init",
+        "/mb-map",
+        "onboarding"
+      ],
+      "importance": "medium",
+      "summary": "Date: 2026-04-21 - Surfaced `.memory-bank/codebase/` in 6 structural/workflow documents + `/mb init` flow + CHANGELOG",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-04-21_06-59_landing-website.md",
+      "type": "note",
+      "tags": [],
+      "importance": null,
+      "summary": "- Для project-site на GitHub Pages достаточно держать сайт в `site/` и деплоить его официальным workflow через `actions/upload-pages-artifact`. - В HTML лучше использовать только относительные локальные пути (`styles.css`, `app.js`), тогда проектный URL вида `/skill-memory-bank/` работает без дополнительного base-path слоя.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-04-21_07-30_commands-audit-refactor.md",
+      "type": "pattern",
+      "tags": [
+        "commands",
+        "refactor",
+        "frontmatter",
+        "aliases",
+        "safety-gates",
+        "stack-generic",
+        "memory-bank"
+      ],
+      "importance": "high",
+      "summary": "Date: 2026-04-21 - Full audit of commands/ surfaced 7 systemic issues (broken frontmatter, duplicate /plan vs /mb plan, stack hardcoding, missing safety gates, /adr path conflict, weak $ARGUMENTS handling, codebase/ integration gap)",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-04-21_11-54_plan-review-hardening-installer-boundaries.md",
+      "type": "note",
+      "tags": [
+        "planning",
+        "security",
+        "refactor",
+        "installers",
+        "adapters",
+        "memory-bank"
+      ],
+      "importance": "high",
+      "summary": "Date: 2026-04-21 - Создан отдельный refactor-план на устранение проблем из full-repo review и security audit",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-04-21_15-42_agents-quality-plan-completed.md",
+      "type": "decision",
+      "tags": [
+        "subagents",
+        "refactor",
+        "plan-closure",
+        "tdd",
+        "delegation"
+      ],
+      "importance": "high",
+      "summary": "Date: 2026-04-21 15:42 - **Stage 1** `plan-verifier` baseline-aware diff + RULES.md checks + live test execution → commit `3ee5842` (+14 bats)",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-04-21_16-58_release-v312-and-plan-closures.md",
+      "type": "note",
+      "tags": [
+        "release",
+        "homebrew",
+        "pypi",
+        "plan-closure",
+        "two-repo-pattern",
+        "changelog",
+        "installer"
+      ],
+      "importance": "high",
+      "summary": "Date: 2026-04-21 16:58 - Released v3.1.2: git tag `v3.1.2` (beb2f9b), Homebrew formula sync (197d2eb), PyPI `memory-bank-skill==3.1.2` via OIDC Trusted Publishing, GitHub Release with wheel + sdist",
+      "has_private": false,
+      "archived": false
+    }
+  ],
+  "lessons": [],
+  "generated_at": "2026-04-21T13:59:15Z"
+}

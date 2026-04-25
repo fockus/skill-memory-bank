@@ -1514,3 +1514,10 @@ User-flagged gap: spec §3 had declared `checklist.md` as rotating, spec §13 ha
 - Сессия завершилась без явного /mb done (git post-commit fallback)
 - Commit SHA: 187c9d76
 - Детали будут восстановлены при следующем /mb start
+
+## 2026-04-25
+
+### Auto-capture 2026-04-25 (git-d8063b8e)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: d8063b8e
+- Детали будут восстановлены при следующем /mb start

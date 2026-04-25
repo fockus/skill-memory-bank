@@ -1,0 +1,870 @@
+{
+  "nodes": [
+    {
+      "kind": "module",
+      "name": "mb-import.py",
+      "file": "mb-import.py",
+      "line": 1
+    },
+    {
+      "kind": "function",
+      "name": "iter_events",
+      "file": "mb-import.py",
+      "line": 44
+    },
+    {
+      "kind": "function",
+      "name": "event_text",
+      "file": "mb-import.py",
+      "line": 63
+    },
+    {
+      "kind": "function",
+      "name": "event_hash",
+      "file": "mb-import.py",
+      "line": 77
+    },
+    {
+      "kind": "function",
+      "name": "wrap_pii",
+      "file": "mb-import.py",
+      "line": 84
+    },
+    {
+      "kind": "function",
+      "name": "wrap_pii.wrap",
+      "file": "mb-import.py",
+      "line": 86
+    },
+    {
+      "kind": "function",
+      "name": "event_day",
+      "file": "mb-import.py",
+      "line": 99
+    },
+    {
+      "kind": "function",
+      "name": "filter_since",
+      "file": "mb-import.py",
+      "line": 107
+    },
+    {
+      "kind": "function",
+      "name": "collect_arch_discussions",
+      "file": "mb-import.py",
+      "line": 113
+    },
+    {
+      "kind": "function",
+      "name": "summarize_day",
+      "file": "mb-import.py",
+      "line": 129
+    },
+    {
+      "kind": "function",
+      "name": "_slugify",
+      "file": "mb-import.py",
+      "line": 142
+    },
+    {
+      "kind": "function",
+      "name": "_compress_arch_run",
+      "file": "mb-import.py",
+      "line": 148
+    },
+    {
+      "kind": "function",
+      "name": "_atomic_write",
+      "file": "mb-import.py",
+      "line": 157
+    },
+    {
+      "kind": "function",
+      "name": "_load_state",
+      "file": "mb-import.py",
+      "line": 170
+    },
+    {
+      "kind": "function",
+      "name": "_save_state",
+      "file": "mb-import.py",
+      "line": 180
+    },
+    {
+      "kind": "function",
+      "name": "run_import",
+      "file": "mb-import.py",
+      "line": 185
+    },
+    {
+      "kind": "function",
+      "name": "main",
+      "file": "mb-import.py",
+      "line": 301
+    }
+  ],
+  "edges": [
+    {
+      "src": "mb-import.py",
+      "dst": "__future__.annotations",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "argparse",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "hashlib",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "json",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "os",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "re",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "sys",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "tempfile",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "datetime.datetime",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "datetime.timezone",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "pathlib.Path",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "typing.Any",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "typing.Iterator",
+      "kind": "import"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "re.compile",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "re.compile",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:iter_events",
+      "dst": "jsonl_path.open",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:iter_events",
+      "dst": "enumerate",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:iter_events",
+      "dst": "line.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:iter_events",
+      "dst": "json.loads",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:iter_events",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:iter_events",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "event.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "msg.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "isinstance",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "isinstance",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "isinstance",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "block.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "parts.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "block.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_text",
+      "dst": "join",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_hash",
+      "dst": "event.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_hash",
+      "dst": "event_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_hash",
+      "dst": "hashlib.sha256.hexdigest",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_hash",
+      "dst": "hashlib.sha256",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_hash",
+      "dst": "encode",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:wrap_pii.wrap",
+      "dst": "m.group",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:wrap_pii.wrap",
+      "dst": "m.start",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:wrap_pii.wrap",
+      "dst": "prefix.rfind",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:wrap_pii.wrap",
+      "dst": "prefix.rfind",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:wrap_pii",
+      "dst": "EMAIL_RE.sub",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:wrap_pii",
+      "dst": "APIKEY_RE.sub",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_day",
+      "dst": "event.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:event_day",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:filter_since",
+      "dst": "event_day",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:collect_arch_discussions",
+      "dst": "e.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:collect_arch_discussions",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:collect_arch_discussions",
+      "dst": "event_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:collect_arch_discussions",
+      "dst": "current.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:collect_arch_discussions",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:collect_arch_discussions",
+      "dst": "runs.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:collect_arch_discussions",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:collect_arch_discussions",
+      "dst": "runs.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "sum",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "e.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "sum",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "e.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "next",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "e.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "replace.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "replace",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:summarize_day",
+      "dst": "event_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_slugify",
+      "dst": "re.sub",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_slugify",
+      "dst": "text.lower",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_slugify",
+      "dst": "re.sub.strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_slugify",
+      "dst": "re.sub",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_compress_arch_run",
+      "dst": "strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_compress_arch_run",
+      "dst": "event_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_compress_arch_run",
+      "dst": "strip",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_compress_arch_run",
+      "dst": "event_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_compress_arch_run",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_atomic_write",
+      "dst": "path.parent.mkdir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_atomic_write",
+      "dst": "tempfile.mkstemp",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_atomic_write",
+      "dst": "str",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_atomic_write",
+      "dst": "os.fdopen",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_atomic_write",
+      "dst": "f.write",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_atomic_write",
+      "dst": "os.replace",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_atomic_write",
+      "dst": "os.path.exists",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_atomic_write",
+      "dst": "os.unlink",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_load_state",
+      "dst": "state_file.exists",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_load_state",
+      "dst": "json.loads",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_load_state",
+      "dst": "state_file.read_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_save_state",
+      "dst": "_atomic_write",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:_save_state",
+      "dst": "json.dumps",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "Path",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "Path",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "mb.is_dir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "FileNotFoundError",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "proj.is_dir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "FileNotFoundError",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "sorted",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "proj.glob",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "_load_state",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "set",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "state.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "iter_events",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "ev.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "event_day",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "event_hash",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "all_events.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "filter_since",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "event_day",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "by_day.setdefault.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "by_day.setdefault",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "by_day.items",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "collect_arch_discussions",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "enumerate",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "event_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "_slugify",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "_compress_arch_run",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "wrap_pii",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "datetime.now.strftime",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "datetime.now",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "notes_to_write.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "len",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "progress_file.exists",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "progress_file.read_text",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "sorted",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "by_day.keys",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "summarize_day",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "wrap_pii",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "new_sections.append",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "_atomic_write",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "join",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "notes_dir.mkdir",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "dest.exists",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "_atomic_write",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "event_hash",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "list",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "set",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "state.get",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "set",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "datetime.now.strftime",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "datetime.now",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:run_import",
+      "dst": "_save_state",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:main",
+      "dst": "argparse.ArgumentParser",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:main",
+      "dst": "parser.add_argument",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:main",
+      "dst": "parser.add_argument",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:main",
+      "dst": "parser.add_argument",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:main",
+      "dst": "parser.add_argument",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:main",
+      "dst": "parser.parse_args",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:main",
+      "dst": "run_import",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py:main",
+      "dst": "print",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "sys.exit",
+      "kind": "call"
+    },
+    {
+      "src": "mb-import.py",
+      "dst": "main",
+      "kind": "call"
+    }
+  ],
+  "hash": "390f93fe4a24d6d9f3be2342bc1b1ac7d712e2b25ef7c12d969067ae6eadb2bd",
+  "file": "mb-import.py"
+}
