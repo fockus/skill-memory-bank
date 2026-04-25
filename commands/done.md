@@ -18,9 +18,10 @@ Invoke the MB Manager subagent (prompt: `~/.claude/skills/memory-bank/agents/mb-
 1. **Actualize core files** — `checklist.md` (⬜→✅ + new items), `progress.md` (APPEND-ONLY entry), plus `status.md` / `research.md` / `lessons.md` / `backlog.md` / `roadmap.md` when the session genuinely changed them.
 2. **Create a note** via `bash ~/.claude/skills/memory-bank/scripts/mb-note.sh "<topic>"` with YAML frontmatter (`type`, `tags`, `importance`, `created`) + "What was done" + "New knowledge" sections.
 3. **Close a plan** (if the session ended one) via `bash ~/.claude/skills/memory-bank/scripts/mb-plan-done.sh .memory-bank/plans/<plan-file>.md` — flips `⬜→✅` in checklist, moves the file to `plans/done/`, clears the active-plan block.
-4. **Touch `.memory-bank/.session-lock`** — signals the SessionEnd auto-capture hook that manual close happened.
-5. **Regenerate `index.json`** via `python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py .memory-bank`.
-6. **Report** — list which files changed, note path, plan closure, index regen, session-lock touch.
+4. **Prune checklist** — `bash ~/.claude/skills/memory-bank/scripts/mb-checklist-prune.sh --apply --mb .memory-bank` — collapses fully-✅ sections that link to `plans/done/` into one-liners. Enforces the ≤120-line hard cap declared in `checklist.md` header. Idempotent — safe to call when there is nothing to collapse.
+5. **Touch `.memory-bank/.session-lock`** — signals the SessionEnd auto-capture hook that manual close happened.
+6. **Regenerate `index.json`** via `python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py .memory-bank`.
+7. **Report** — list which files changed, note path, plan closure, prune verdict, index regen, session-lock touch.
 
 Conflict resolution (also in the prompt): trust `mb-metrics.sh --run` over `status.md` metrics; trust `checklist.md` over closed plans in `plans/done/`; `progress.md` is APPEND-ONLY; trust active plan file over `roadmap.md` focus line; trust `experiments/EXP-NNN.md` over `research.md` status.
 

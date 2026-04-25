@@ -293,6 +293,12 @@ if [ "$MODE" = "apply" ]; then
     done <<< "$note_candidates"
   fi
   touch "$MB_PATH/.last-compact"
+  # Best-effort checklist prune (collapses fully-✅+plans/done sections to one-liners).
+  SCRIPT_DIR=$(dirname "$0")
+  if [ -x "$SCRIPT_DIR/mb-checklist-prune.sh" ]; then
+    "$SCRIPT_DIR/mb-checklist-prune.sh" --apply --mb "$MB_PATH" >/dev/null \
+      || echo "[warn] mb-checklist-prune.sh failed (non-fatal)" >&2
+  fi
 fi
 
 exit 0

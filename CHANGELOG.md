@@ -6,6 +6,234 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- **Phase 4 Sprint 2: `--slim`/`--full` end-to-end + sprint_context_guard.**
+  Wires the `/mb work --slim` flag from advisory to functional prompt
+  trimming, and ships a fifth hook that watches cumulative session
+  token spend. New artifacts:
+  - `scripts/mb-context-slim.py` — prompt trimmer. Reads the full agent
+    prompt from stdin and emits a slim version containing the active
+    stage block (extracted between `<!-- mb-stage:N -->` markers in the
+    plan) + the DoD bullet list + the plan's `covers_requirements`
+    REQ list + (with `--diff`) the `git diff --staged` output. Falls
+    back to echoing the input prompt unchanged when the stage marker
+    is not present, so a slim mode never breaks the session.
+  - `hooks/mb-context-slim-pre-agent.sh` upgraded from Sprint 1's
+    advisory-only form. When `MB_WORK_MODE=slim`, it now parses the
+    incoming Task `tool_input.prompt` for `Plan: <path.md>` and
+    `Stage: <N>` markers, dispatches the trimmer, and emits a JSON
+    document on stdout —
+    `{"hookSpecificOutput": {"hookEventName": "PreToolUse",
+    "additionalContext": "<slim>"}}` — so Claude Code can append the
+    trimmed view as orchestrator context without mutating
+    `tool_input`. Fail-open semantics throughout.
+  - `scripts/mb-session-spend.sh` — companion CLI mirroring
+    `mb-work-budget.sh`. Subcommands: `init [--soft N] [--hard N]`,
+    `add <chars>`, `status`, `check`, `clear`. State at
+    `<bank>/.session-spend.json`. Chars are converted to tokens via
+    the standard `chars / 4` estimate. Thresholds default to
+    `pipeline.yaml:sprint_context_guard.{soft_warn_tokens,
+    hard_stop_tokens}` (150 000 / 190 000).
+  - `hooks/mb-sprint-context-guard.sh` — fifth hook, `PreToolUse`
+    matched on `Task`. Accumulates the dispatched prompt + description
+    char-count per Task invocation, warns at the soft threshold
+    (stderr only, dispatch proceeds), and hard-blocks (exit 2) at the
+    hard threshold with a recommendation to run `/mb done` +
+    `/compact` + `/mb start`. Bank discovery via `MB_SESSION_BANK`
+    env or `${PWD}/.memory-bank`; lazy-inits the spend tracker on
+    first use.
+  - `references/hooks.md` — context-slim section rewritten to reflect
+    Sprint 2 behavior; new fifth-hook section for the
+    sprint-context-guard; combined `~/.claude/settings.json` snippet
+    now wires two hooks to the `Task` matcher.
+  - `commands/work.md` — `--slim` / `--full` flag entry now states
+    explicitly that the flag exports `MB_WORK_MODE` for the loop
+    subshell so the dispatched Task hooks observe it.
+  - 32 new pytest cases (9 `test_mb_context_slim.py` + 5
+    `test_hook_context_slim_upgrade.py` + 7 `test_mb_session_spend.py`
+    + 5 `test_hook_sprint_context_guard.py` + 6
+    `test_phase4_sprint2_registration.py`). Total: 552 → 584 passed.
+
+  Phase 4 Sprint 3 will auto-register all five hooks during
+  `install.sh` and add a `superpowers:requesting-code-review` skill
+  detector that flips the reviewer override declared in
+  `pipeline.yaml:roles.reviewer.override_if_skill_present`.
+
+- **Phase 4 Sprint 1: 4 critical hooks (spec §13).**
+  Runtime intercept points wired around Claude Code tool calls and
+  subagent dispatches. New artifacts:
+  - `hooks/mb-protected-paths-guard.sh` — `PreToolUse` (Write/Edit).
+    Reads JSON via `jq`, extracts `tool_input.file_path`, delegates
+    to `scripts/mb-work-protected-check.sh` for the actual glob match
+    against `pipeline.yaml:protected_paths`. Exit 2 (hard block) on
+    match unless `MB_ALLOW_PROTECTED=1` is set in the environment.
+    Fails open on missing dependencies.
+  - `hooks/mb-plan-sync-post-write.sh` — `PostToolUse` (Write). When
+    `tool_input.file_path` matches `*plans/*.md` or `*specs/*.md`,
+    triggers the deterministic chain
+    `mb-plan-sync.sh → mb-roadmap-sync.sh → mb-traceability-gen.sh`.
+    Each step is best-effort: missing scripts skipped, non-zero exits
+    logged but never blocking. Always exits 0.
+  - `hooks/mb-ears-pre-write.sh` — `PreToolUse` (Write). When the
+    target is `specs/*/requirements.md` or `context/*.md`, pipes
+    `tool_input.content` through `mb-ears-validate.sh -`. Exit 2 with
+    the validator's findings on the user's stderr if any REQ line
+    fails the EARS regex. Catches manual edits that bypass `/mb sdd`
+    or `/mb plan --sdd`.
+  - `hooks/mb-context-slim-pre-agent.sh` — `PreToolUse` (Task). When
+    `MB_WORK_MODE=slim` is set, emits an advisory note suggesting the
+    orchestrator trim the subagent prompt to the active stage + DoD
+    + covered REQs + `git diff --staged`. Sprint 2 will upgrade from
+    advisory to actual prompt rewrite via JSON `tool_input` output.
+  - `references/hooks.md` — installation guide. Per-hook section with
+    purpose, event type, matchers, behavior, and a copy-pasteable
+    `~/.claude/settings.json` snippet. Combined-snippet section for
+    one-shot setup. Operational notes (`jq` requirement, fail-open
+    semantics, missing-validator handling). Phase 4 follow-up
+    pointers.
+  - 35 new pytest cases (6 `test_hook_protected_paths.py` + 5
+    `test_hook_plan_sync_post_write.py` + 6
+    `test_hook_ears_pre_write.py` + 4 `test_hook_context_slim.py` +
+    14 `test_phase4_sprint1_registration.py`). Total: 517 → 552
+    passed.
+
+  Phase 4 Sprint 2 will wire the `/mb work --slim` flag to
+  `MB_WORK_MODE=slim`, upgrade `mb-context-slim-pre-agent.sh` to
+  actually rewrite the prompt, and ship a fifth hook —
+  `sprint_context_guard.sh` — that observes session token spend and
+  halts at `hard_stop_tokens`. Sprint 3 will auto-register all hooks
+  via `install.sh` and add the
+  `superpowers:requesting-code-review` skill detector for the
+  `pipeline.yaml:roles.reviewer.override_if_skill_present` swap.
+
+- **Phase 3 Sprint 3: review-loop ядро + autopilot hard stops.**
+  Closes Phase 3 — `/mb work` is now a full implement → review → fix
+  → verify loop. New artifacts:
+  - `scripts/mb-work-review-parse.sh` — strict JSON validator for
+    reviewer stdout. Schema: `{verdict ∈ {APPROVED,
+    CHANGES_REQUESTED}, counts: {blocker, major, minor},
+    issues: [{severity, category, file, line, message, fix?}]}`.
+    Cross-check: `CHANGES_REQUESTED` requires non-empty issues.
+    `--lenient` Markdown fallback for the "verdict: ..." form.
+  - `scripts/mb-work-severity-gate.sh` — reads
+    `stage_pipeline[step=review].severity_gate` from the effective
+    `pipeline.yaml` (override via `--gate <json>`); compares against
+    counts via `--counts <json>` or `--counts-stdin`. Exit 0 = PASS,
+    1 = FAIL with per-severity breach lines on stderr.
+  - `scripts/mb-work-budget.sh` — token budget tracker with
+    `init <total> [--warn-at PCT] [--stop-at PCT]`, `add <delta>`,
+    `status`, `check`, `clear`. State at `<bank>/.work-budget.json`.
+    `check` exit codes: 0 below warn, 1 at/above warn (default 80%),
+    2 at/above stop (default 100%).
+  - `scripts/mb-work-protected-check.sh` — matches files against
+    `pipeline.yaml:protected_paths` globs (incl. `**` segment-wildcard
+    via glob→regex translator). Exit 0 if none match, 1 with
+    `[protected] <file> matches <glob>` lines on stderr.
+  - `agents/mb-reviewer.md` — production-grade prompt. Per-category
+    review walk (logic / code_rules / security / scalability /
+    tests), severity decision tree (blocker / major / minor with
+    concrete examples), strict JSON output schema, fix-cycle
+    behavior on subsequent iterations, hard guardrails.
+  - `commands/work.md` — full per-stage workflow wired:
+    implement → protected-check → review (Task → mb-reviewer) →
+    parse → severity-gate → fix-cycle (cap at `max_cycles`,
+    `on_max_cycles ∈ {stop_for_human, continue_with_warning}`) →
+    verify (plan-verifier) → stage-done. Hard stops table for
+    `--auto`: max_cycles reached, verifier fail, protected-path
+    edit without `--allow-protected`, `--budget` exhausted,
+    `sprint_context_guard.hard_stop_tokens` reached.
+  - 43 new pytest cases (11 `test_mb_work_review_parse.py` + 9
+    `test_mb_work_severity_gate.py` + 8 `test_mb_work_budget.py` +
+    6 `test_mb_work_protected_check.py` + 9
+    `test_phase3_sprint3_registration.py`). Total: 474 → 517 passed.
+
+  Phase 4 will add the `context-slim-pre-agent.sh` /
+  `pre-agent-protected-paths.sh` runtime hooks (so the protected-path
+  block fires *before* a Write tool call lands), the `--slim` /
+  `--full` context strategy wiring, and installer detection of the
+  `superpowers:requesting-code-review` skill for the
+  `pipeline.yaml:roles.reviewer.override_if_skill_present` swap.
+
+- **Phase 3 Sprint 2: `/mb work` execution engine + 9 role-agents.**
+  MVP of the executable runtime over plan files. New artifacts:
+  - `scripts/mb-work-resolve.sh` — 5-form target resolver (spec §8.2):
+    existing path → substring search in `plans/` (excluding `done/`) →
+    topic name (`specs/<topic>/tasks.md`) → freeform (≥3 words, exit 3
+    + candidate list for orchestrator-driven match) → empty (active
+    plan from `<!-- mb-active-plans -->` block in `roadmap.md`).
+    `--mb` flag for explicit bank override; ambiguity exit 2 with
+    candidate list.
+  - `scripts/mb-work-range.sh` — range parser (`N` / `A-B` / `A-`)
+    with auto-detected level (plan target → stages from
+    `<!-- mb-stage:N -->` markers; phase target via `--phase` →
+    sprints from frontmatter `sprint:` field). Out-of-bounds rejected;
+    phase mode without sprint frontmatter rejected.
+  - `scripts/mb-work-plan.sh` — JSON Lines emitter, one object per
+    stage with `{plan, stage_no, heading, role, agent, status,
+    dod_lines}`. Role auto-detection by keyword match against heading
+    + body (ios / android / frontend / backend / devops / qa /
+    architect / analyst, with developer fallback). Agent resolved via
+    `pipeline.yaml:roles` (resolved through `mb-pipeline.sh path`).
+    `--dry-run` prepends a `## Execution Plan` summary header.
+  - 9 implementer agents under `agents/`: `mb-developer.md` (generic
+    fallback), `mb-backend.md`, `mb-frontend.md`, `mb-ios.md`,
+    `mb-android.md`, `mb-architect.md`, `mb-devops.md`, `mb-qa.md`,
+    `mb-analyst.md`. Each with role-specific discipline + self-review
+    checklist tied to the rubric.
+  - `agents/mb-reviewer.md` — Sprint 3 review-loop contract scaffold
+    (verdict format, severity gate behaviour, output schema).
+  - `commands/work.md` — slash-command spec for
+    `/mb work [target] [--range A-B] [--dry-run]` documenting target
+    resolution, range parsing, dispatch protocol via `Task` tool, and
+    Sprint 3 deferred items.
+  - `commands/mb.md` — router table row + `### work [target]` detail
+    section.
+  - 76 new pytest cases (9 `test_mb_work_resolve.py` + 9
+    `test_mb_work_range.py` + 10 `test_mb_work_plan.py` + 40
+    `test_mb_work_agents.py` + 8 `test_phase3_sprint2_registration.py`).
+    Total: 398 → 474 passed.
+
+  Sprint 3 will wire the review-loop, severity gates, fix-cycle on
+  `CHANGES_REQUESTED`, `plan-verifier` integration, `--auto` end-to-end
+  hard stops, `--budget` token tracking, `--slim`/`--full` context
+  strategy (with hooks from Phase 4), and the
+  `superpowers:requesting-code-review` skill override.
+
+- **Phase 3 Sprint 1: `/mb config` + `pipeline.yaml` declarative engine config.**
+  Lays the foundation for the Phase 3 Sprint 2 `/mb work` execution
+  engine. New artifacts:
+  - `references/pipeline.default.yaml` — bundled default that ships
+    with the skill. Implements the full spec §9 schema: `version`,
+    `roles` (11 entries: developer / backend / frontend / ios / android
+    / architect / devops / qa / analyst / reviewer / verifier),
+    `stage_pipeline` (implement → review → verify steps with
+    `severity_gate`, `max_cycles`, `on_max_cycles`, and 7 verifier
+    checks), `budget`, `protected_paths` (6 globs incl. `.env*`,
+    `ci/**`, `.github/workflows/**`), `sprint_context_guard`
+    (150k/190k), `review_rubric` (5 sections × 2-3 items), and `sdd`
+    (5 EARS-enforcement keys).
+  - `scripts/mb-pipeline-validate.sh` — structural schema validator
+    (Bash + python+PyYAML heredoc). Checks required keys, version,
+    role declarations, severity_gate ⊆ {blocker, major, minor},
+    max_cycles ≥ 1, `on_max_cycles ∈ {stop_for_human,
+    continue_with_warning}`, budget bounds [0, 100],
+    sprint_context_guard.hard > soft, non-empty rubric lists, sdd
+    boolean fields, `covers_requirements_policy ∈ {warn, block, off}`.
+  - `scripts/mb-pipeline.sh` — dispatcher with subcommands `init`
+    (copies bundled default into `<bank>/pipeline.yaml`, idempotent
+    with `--force` override), `show` (prints resolved config), `path`
+    (prints absolute path of effective file), `validate` (validates
+    resolved config or an explicit file). Resolution chain:
+    `<bank>/pipeline.yaml` → `references/pipeline.default.yaml`.
+  - `commands/config.md` — slash-command spec for `/mb config
+    <subcommand>`.
+  - `commands/mb.md` — router table row + `### config <subcommand>`
+    detail section.
+  - 63 new pytest cases (33 `test_pipeline_default_yaml.py` for
+    schema-shape sanity + 14 `test_mb_pipeline_validate.py` for
+    validator behaviour + 11 `test_mb_pipeline_cli.py` for dispatcher
+    semantics + 5 `test_phase3_sprint1_registration.py`). Total:
+    335 → 398 passed.
+
 - **Phase 2 Sprint 2: `/mb sdd` Kiro-style spec triple + SDD-lite in `/mb plan`.**
   Closes the SDD vertical. New artifacts:
   - `commands/sdd.md` — slash-command for `/mb sdd <topic> [--force]`,

@@ -2,6 +2,34 @@
 
 ## Ideas
 
+### I-033 — `mb-checklist-prune.sh` — auto-archive completed sections to progress.md [HIGH, DONE, 2026-04-25]
+
+**Outcome:** SHIPPED 2026-04-25. `scripts/mb-checklist-prune.sh` + 12 pytest tests + CI cap-test + wire-ins (`commands/done.md`, `mb-plan-done.sh`, `mb-compact.sh`). Repo checklist auto-pruned to 36 lines under hard cap of 120. Plan: `plans/done/2026-04-25_refactor_checklist-prune-i033.md`.
+
+**Original sketch (kept for reference):**
+
+**Problem:** `checklist.md` росла до 534 строк потому что `mb-plan-done.sh` только меняет `⬜` → `✅` в существующих секциях, но никогда не удаляет завершённые sprint-секции. Spec §3 (line 61, 67) явно говорит: "checklist.md ... ротируется ... после `/mb done` → `progress.md`". Spec §13 объявляет `mb-checklist-auto-update.sh` как non-hook script, вызываемый из `/mb done` — но он так и не был построен. В результате каждый закрытый Sprint оставался в checklist'е навсегда и дублировал то, что уже есть в `progress.md` + `roadmap.md "Recently completed"` + `plans/done/`.
+
+**Sketch:**
+1. `scripts/mb-checklist-prune.sh [--dry-run|--apply] [--mb <path>]`:
+   - Сканирует `## ` секции в checklist.md.
+   - Помечает к архивации: секцию, где все bullets имеют `✅` AND содержит ссылку на `plans/done/...`. Опционально дополнительный фильтр "old enough" (≥7d с момента закрытия плана — найти по mtime done-плана).
+   - Compresses секцию в одну строку: `### <heading> ✅ — Plan: [path]`. Полный текст уже есть в plans/done и progress.md, дубль не нужен.
+   - Hard cap: после prune файл ≤120 строк. Если всё ещё длинный — emit warning о ручном trim.
+   - Pre-write backup: copy в `.checklist.md.bak.<timestamp>`.
+
+2. Wire в `/mb done` flow (commands/done.md): после actualize + note + progress, run prune --apply automatically.
+
+3. Wire в `/mb compact` (scripts/mb-compact.sh) как опциональный шаг при `--apply`.
+
+4. Wire в `mb-plan-done.sh`: после flip checkmarks, проверить — если вся секция плана теперь зелёная, immediately collapse её в одну строку (instead of waiting for `/mb done`).
+
+5. Test coverage: pytest для prune script (RED tests for >120 lines triggers warn, all-✅-section collapses, dry-run shows plan, --apply mutates).
+
+6. Add explicit "Hard cap ≤120 lines" convention к header чеклиста (уже сделано вручную 2026-04-25, требуется инструментальное enforcement).
+
+**Plan:** Фолды в Phase 4 Sprint 3 как pre-release polish, либо отдельным small refactor sprint после Phase 4 close.
+
 ### I-001 — Benchmarks (LongMemEval + custom 10 scenarios) [HIGH, DEFERRED, 2026-04-20]
 
 **Problem:** нет baseline для recall/tokens/session/precision; public release заявляет преимущества без измерений.

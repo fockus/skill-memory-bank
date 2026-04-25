@@ -1,17 +1,19 @@
 # claude-skill-memory-bank: Статус проекта
 
 ## Текущая фаза
-**Skill v2 Phase 2 — COMPLETE (Sprint 1+2, 2026-04-25).** Phase 1 (Sprint 1+2+3) ✅ + Phase 2 (Sprint 1+2) ✅. Полная SDD-vertical готова: input (`/mb discuss` → `context/<topic>.md` + EARS validator) → spec triples (`/mb sdd <topic>` → `specs/<topic>/{requirements,design,tasks}.md`) → plan-lite (`/mb plan --context|--sdd` с `## Linked context`) → output traceability (`mb-traceability-gen.sh` matrix). Pytest **335 passed** (317 → +18), shellcheck/ruff clean.
+**Skill v2 Phase 4 Sprint 2 + I-033 hot-fix — COMPLETE (2026-04-25).** Phase 1 ✅ + Phase 2 ✅ + Phase 3 ✅ + Phase 4 Sprint 1+2 ✅ + **I-033 (`mb-checklist-prune.sh`) ✅**. `--slim` wired end-to-end (Phase 4 Sprint 2). I-033 closes the rotating-artifact gap: `scripts/mb-checklist-prune.sh` + 12 pytest tests + ≤120-line CI cap-test + wire-ins (`commands/done.md`, `mb-plan-done.sh`, `mb-compact.sh`). Pytest **596 passed** (584 → +12), shellcheck/ruff clean.
 
-## ⏭ Следующий шаг — Phase 3 Sprint 1
+## ⏭ Следующий шаг — Phase 4 Sprint 3
 
-`/mb config` + `pipeline.yaml` — execution engine. См. spec §8.
+Финальный sprint v2: `superpowers:requesting-code-review` skill detection в installer (flips `pipeline.yaml:roles.reviewer.override_if_skill_present`), auto-register всех 5 hooks через `install.sh`, SemVer bump + release.
 
 **Что закрыто:**
 - 📎 Phase 1 — autosync infrastructure + traceability-gen + multi-active correctness
 - 📎 Phase 2 Sprint 1 — `/mb discuss` 5-phase interview + EARS validator + req-next-id
 - 📎 Phase 2 Sprint 2 — `/mb sdd` Kiro-style triple + plan SDD-lite (--context/--sdd)
-- 📎 Spec §8 (Phase 3) — `/mb work` execution engine остался open
+- 📎 Phase 3 Sprint 1 — `/mb config` + `pipeline.yaml` declarative engine config
+- 📎 Phase 3 Sprint 2 — `/mb work` MVP (resolve + range + emit + 10 agents + dispatch contract)
+- 📎 Phase 3 Sprint 3 — review-loop ядро (review-parse / severity-gate / budget / protected-check + production-grade mb-reviewer + autopilot hard stops)
 
 ## Ключевые артефакты Phase 1 (2026-04-22)
 

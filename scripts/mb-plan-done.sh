@@ -381,3 +381,7 @@ fi
 if [ -x "$SCRIPT_DIR/mb-traceability-gen.sh" ]; then
   "$SCRIPT_DIR/mb-traceability-gen.sh" "$MB_PATH" || echo "[warn] mb-traceability-gen.sh failed (non-fatal)" >&2
 fi
+if [ -x "$SCRIPT_DIR/mb-checklist-prune.sh" ]; then
+  "$SCRIPT_DIR/mb-checklist-prune.sh" --apply --mb "$MB_PATH" >/dev/null \
+    || echo "[warn] mb-checklist-prune.sh failed (non-fatal)" >&2
+fi
