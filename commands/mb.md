@@ -30,6 +30,8 @@ Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words ar
 | `plan <type> <topic>`                                    | Create a plan                                                                                                                                                                                                                                                                                            |
 | `discuss <topic>`                                        | 5-phase requirements-elicitation interview → EARS-validated `context/<topic>.md` (Phase 1 Purpose & Users / Phase 2 Functional EARS / Phase 3 Non-Functional / Phase 4 Constraints / Phase 5 Edge Cases). Feeds traceability matrix.                                                                     |
 | `sdd <topic> [--force]`                                  | Create Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`. If `context/<topic>.md` exists, EARS section copied verbatim into `requirements.md`. `--force` overwrites.                                                                                                                 |
+| `config <init\|show\|validate\|path>`                    | Manage execution `pipeline.yaml` (spec §9). `init` copies bundled default into `<bank>/pipeline.yaml`; `show` prints resolved config; `validate` runs schema check; `path` prints absolute path of resolved file.                                                                                       |
+| `work [target] [--range A-B] [--dry-run]`                | Execute stages from a plan. Auto-selects role-agent per stage (mb-backend / mb-frontend / mb-ios / mb-android / mb-architect / mb-devops / mb-qa / mb-analyst, fallback mb-developer). Sprint 2: implement-step dispatch + dry-run; Sprint 3 adds review-loop, severity gates, verifier integration.    |
 | `verify`                                                 | Verify plan execution (plan vs code)                                                                                                                                                                                                                                                                     |
 | `map [focus]`                                            | Scan the codebase and write MD documents to `.memory-bank/codebase/`. Focus: `stack / arch / quality / concerns / all` (default: `all`)                                                                                                                                                                  |
 | `upgrade`                                                | Update the skill from GitHub (`git pull + re-install`). Flags: `--check` (check only), `--force` (skip confirmation)                                                                                                                                                                                     |
@@ -254,6 +256,57 @@ Create the Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`
 
 - Does not run `/mb discuss`. If no context exists yet, `requirements.md` gets an EARS placeholder block.
 - Does not validate REQ → task coverage (deferred to `/mb verify` and `/mb work` review-loop).
+
+### config <subcommand>
+
+Manage the project's execution `pipeline.yaml` (spec §9) — the declarative config consumed by `/mb work` (Phase 3 Sprint 2). Defines roles → agents mapping, per-stage `implement → review → verify` loop, severity gates, sprint context guard, review rubric, and SDD enforcement policy.
+
+**Alias** for `/config` — dispatch to `commands/config.md` for the canonical doc.
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `init [--force]` | Copy `references/pipeline.default.yaml` → `<bank>/pipeline.yaml`. Refuses overwrite without `--force`. |
+| `show` | Print effective config (`<bank>/pipeline.yaml` if present, otherwise the bundled default). |
+| `path` | Print absolute path of the effective config file. |
+| `validate [yaml_file]` | Run `scripts/mb-pipeline-validate.sh` against the resolved config (no arg) or a given file. |
+
+All subcommands accept a trailing `[mb_path]` arg pointing at an alternative bank.
+
+**Behavior:**
+
+1. Resolution chain: `<bank>/pipeline.yaml` → `references/pipeline.default.yaml`. The bundled default is always present and self-validates.
+2. `init` writes a byte-for-byte copy of the default. Idempotency guard refuses without `--force`.
+3. `validate` exits 0 if schema-clean, 1 with `[validate] <key>: <reason>` lines on stderr otherwise.
+
+**Underlying:** `bash scripts/mb-pipeline.sh <subcommand> [args...]`.
+
+**Why pipeline.yaml?** Different teams need different defaults — review tolerance, max review cycles, role-to-agent mapping, protected paths. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project, version-controlled, and reviewable. Until `/mb work` lands (Phase 3 Sprint 2), `/mb config` is mostly self-documentation; once `/mb work` is live, the resolved config drives every stage.
+
+### work [target] [--range A-B] [--dry-run]
+
+Execute stages from a plan with auto-selected role-agents. Phase 3 Sprint 2 ships target resolution + range parsing + execution-plan emission + implement-step dispatch. Review-loop, severity gates, fix-cycle, and verifier integration land in Phase 3 Sprint 3.
+
+**Alias** for `/work` — dispatch to `commands/work.md` for the canonical workflow.
+
+**Behavior:**
+
+1. **Resolve target** (5 forms — see spec §8.2): existing path → substring in `plans/` → topic name → freeform (≥3 words, exit 3 → orchestrator confirms with user) → empty (active plan from `<!-- mb-active-plans -->` block in `roadmap.md`).
+2. **Apply `--range`**: detects level automatically. Plan input → range over `<!-- mb-stage:N -->` markers. Phase input (multiple sprint-plans with `sprint:` frontmatter) → range over sprint numbers.
+3. **Emit JSON Lines**: one object per stage with fields `plan`, `stage_no`, `heading`, `role` (auto-detected from heading + body keywords: ios / android / frontend / backend / devops / qa / architect / analyst, fallback `developer`), `agent` (mapped via `pipeline.yaml:roles`), `status`, `dod_lines`. `--dry-run` adds a human-readable header and stops here.
+4. **Dispatch**: for each pending stage, invoke `Task` tool with `subagent_type="general-purpose"` and prompt = `<contents of agents/<agent>.md>` + plan path + stage body. The role-agent (mb-developer / mb-backend / mb-frontend / mb-ios / mb-android / mb-architect / mb-devops / mb-qa / mb-analyst) implements against the stage DoD.
+5. **Stage close-out**: prompt the user (auto-confirm with `--auto`, deferred to Sprint 3); mark DoD items.
+
+**Underlying scripts:**
+
+```bash
+bash scripts/mb-work-resolve.sh [target] [--mb <path>]
+bash scripts/mb-work-range.sh <plan> [--range <expr>]
+bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
+```
+
+**Out of scope (Sprint 3):** review-loop after implement step, severity gates, fix-cycle on `CHANGES_REQUESTED`, `plan-verifier` as the verify step, `--auto` end-to-end with hard stops, `--budget` token tracking, `--slim`/`--full` context strategy (needs hooks from Phase 4), `--allow-protected` enforcement, `superpowers:requesting-code-review` skill override.
 
 ### verify
 
