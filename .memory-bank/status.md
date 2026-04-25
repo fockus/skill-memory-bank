@@ -1,16 +1,17 @@
 # claude-skill-memory-bank: Статус проекта
 
 ## Текущая фаза
-**Skill v2 Phase 2 Sprint 1 — COMPLETE (2026-04-25).** Phase 1 (Sprint 1+2+3) ✅ + Phase 2 Sprint 1 ✅. Доставлено: `commands/discuss.md` (5-phase interview), `scripts/mb-ears-validate.sh` (5 EARS pattern regex validator), `scripts/mb-req-next-id.sh` (monotonic REQ-NNN cross-spec generator), `context/<topic>.md` template в `references/templates.md`. Pytest **317 passed** (293 → +24), shellcheck/ruff clean.
+**Skill v2 Phase 2 — COMPLETE (Sprint 1+2, 2026-04-25).** Phase 1 (Sprint 1+2+3) ✅ + Phase 2 (Sprint 1+2) ✅. Полная SDD-vertical готова: input (`/mb discuss` → `context/<topic>.md` + EARS validator) → spec triples (`/mb sdd <topic>` → `specs/<topic>/{requirements,design,tasks}.md`) → plan-lite (`/mb plan --context|--sdd` с `## Linked context`) → output traceability (`mb-traceability-gen.sh` matrix). Pytest **335 passed** (317 → +18), shellcheck/ruff clean.
 
-## ⏭ Следующий шаг — Phase 2 Sprint 2
+## ⏭ Следующий шаг — Phase 3 Sprint 1
 
-`/mb sdd <topic>` + `specs/<topic>/{requirements,design,tasks}.md` + SDD-lite enhancement в `/mb plan` (читает `context/<topic>.md`, линкует REQ-IDs в stages, опциональный `--sdd` гейт). См. spec §6-7.
+`/mb config` + `pipeline.yaml` — execution engine. См. spec §8.
 
-**Что готово к Sprint 2:**
-- 📎 `commands/discuss.md` + `scripts/mb-{ears-validate,req-next-id}.sh` — input side traceability работает
-- 📎 `mb-traceability-gen.sh` (Sprint 2 Phase 1) — output side готов
-- 📎 Sprint 2 Phase 2 закроет gap между ними через `/mb sdd` + plan templates
+**Что закрыто:**
+- 📎 Phase 1 — autosync infrastructure + traceability-gen + multi-active correctness
+- 📎 Phase 2 Sprint 1 — `/mb discuss` 5-phase interview + EARS validator + req-next-id
+- 📎 Phase 2 Sprint 2 — `/mb sdd` Kiro-style triple + plan SDD-lite (--context/--sdd)
+- 📎 Spec §8 (Phase 3) — `/mb work` execution engine остался open
 
 ## Ключевые артефакты Phase 1 (2026-04-22)
 

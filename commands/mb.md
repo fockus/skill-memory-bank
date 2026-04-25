@@ -29,6 +29,7 @@ Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words ar
 | `done`                                                   | End session (`actualize + note + progress`)                                                                                                                                                                                                                                                              |
 | `plan <type> <topic>`                                    | Create a plan                                                                                                                                                                                                                                                                                            |
 | `discuss <topic>`                                        | 5-phase requirements-elicitation interview → EARS-validated `context/<topic>.md` (Phase 1 Purpose & Users / Phase 2 Functional EARS / Phase 3 Non-Functional / Phase 4 Constraints / Phase 5 Edge Cases). Feeds traceability matrix.                                                                     |
+| `sdd <topic> [--force]`                                  | Create Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`. If `context/<topic>.md` exists, EARS section copied verbatim into `requirements.md`. `--force` overwrites.                                                                                                                 |
 | `verify`                                                 | Verify plan execution (plan vs code)                                                                                                                                                                                                                                                                     |
 | `map [focus]`                                            | Scan the codebase and write MD documents to `.memory-bank/codebase/`. Focus: `stack / arch / quality / concerns / all` (default: `all`)                                                                                                                                                                  |
 | `upgrade`                                                | Update the skill from GitHub (`git pull + re-install`). Flags: `--check` (check only), `--force` (skip confirmation)                                                                                                                                                                                     |
@@ -231,6 +232,28 @@ Run a 5-phase requirements-elicitation interview that produces an EARS-validated
 
 - `bash scripts/mb-req-next-id.sh [mb_path]` — emits monotonic `REQ-NNN` (max+1 across `specs/*/requirements.md`, `specs/*/design.md`, `context/*.md`).
 - `bash scripts/mb-ears-validate.sh <file>|-` — exit 0 if every `- **REQ-NNN** ...` bullet matches an EARS pattern; exit 1 with violation list on stderr otherwise; exit 2 on usage error.
+
+### sdd <topic> [--force]
+
+Create the Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`. Each file owns one concern: requirements (EARS-only), design (architecture + interfaces + decisions), tasks (numbered checkboxes).
+
+**Alias** for `/sdd` — dispatch to `commands/sdd.md` for the canonical workflow.
+
+**Behavior:**
+
+1. Resolve `<mb>`. Sanitize topic.
+2. If `specs/<safe_topic>/` exists and no `--force` → exit 1.
+3. If `<mb>/context/<safe_topic>.md` exists → copy its `## Functional Requirements (EARS)` block verbatim into `requirements.md` (REQ-IDs preserved).
+4. Write `requirements.md` (EARS reference + REQ list), `design.md` (Architecture / Interfaces / Decisions / Risks scaffold), `tasks.md` (numbered tasks with `**Covers:** REQ-NNN` placeholders).
+
+**Underlying:** `bash scripts/mb-sdd.sh <topic> [--force] [mb_path]`.
+
+**Connection with `/mb plan`:** the spec triple is the *source of truth* for the topic. `/mb plan <type> <topic>` auto-detects `<mb>/context/<safe_topic>.md` (or accepts `--context <path>`) and adds a `## Linked context` section to the plan. `--sdd` flag in `/mb plan` enforces EARS validity before plan creation.
+
+**Out of scope:**
+
+- Does not run `/mb discuss`. If no context exists yet, `requirements.md` gets an EARS placeholder block.
+- Does not validate REQ → task coverage (deferred to `/mb verify` and `/mb work` review-loop).
 
 ### verify
 

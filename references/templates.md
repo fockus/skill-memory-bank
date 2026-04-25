@@ -394,3 +394,66 @@ Explicitly excluded — to prevent scope creep during planning.
 ```
 
 Validate REQ lines via `bash scripts/mb-ears-validate.sh context/<topic>.md`. Exit 0 = all valid; exit 1 = violations on stderr.
+
+## Spec Requirements (`specs/<topic>/requirements.md`) — Phase 2 Sprint 2
+
+EARS-only requirement list. Created by `bash scripts/mb-sdd.sh <topic>`. If `context/<topic>.md` exists, the EARS section is copied verbatim.
+
+```markdown
+# Requirements: <topic>
+
+> Spec triple — see also: design.md, tasks.md.
+>
+> EARS patterns:
+> - Ubiquitous:        `The <system> shall <response>`
+> - Event-driven:      `When <trigger>, the <system> shall <response>`
+> - State-driven:      `While <state>, the <system> shall <response>`
+> - Optional feature:  `Where <feature>, the <system> shall <response>`
+> - Unwanted:          `If <trigger>, then the <system> shall <response>`
+
+## Requirements (EARS)
+
+- **REQ-NNN** (ubiquitous): The system shall ...
+```
+
+## Spec Design (`specs/<topic>/design.md`) — Phase 2 Sprint 2
+
+Architecture + interfaces + decisions backing `requirements.md`.
+
+```markdown
+# Design: <topic>
+
+## Architecture
+
+<!-- Layering, data flow, dependency direction. -->
+
+## Interfaces
+
+<!-- Protocol/ABC/interface definitions that anchor contract tests. -->
+
+## Decisions
+
+<!-- ADR-style entries: Context / Options / Decision / Rationale / Consequences. -->
+
+## Risks & mitigation
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+|      | H/M/L       | H/M/L  |            |
+```
+
+## Spec Tasks (`specs/<topic>/tasks.md`) — Phase 2 Sprint 2
+
+Numbered, checkbox-tracked work items linked to REQ-IDs they cover.
+
+```markdown
+# Tasks: <topic>
+
+## 1. <task title>
+
+**Covers:** REQ-NNN
+
+- [ ] concrete sub-step
+- [ ] tests pass
+- [ ] lint clean
+```

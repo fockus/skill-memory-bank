@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- **Phase 2 Sprint 2: `/mb sdd` Kiro-style spec triple + SDD-lite in `/mb plan`.**
+  Closes the SDD vertical. New artifacts:
+  - `commands/sdd.md` — slash-command for `/mb sdd <topic> [--force]`,
+    creates `.memory-bank/specs/<topic>/{requirements,design,tasks}.md`.
+    If `<mb>/context/<topic>.md` exists, the
+    `## Functional Requirements (EARS)` block is copied verbatim into
+    `requirements.md` (REQ-IDs preserved). Refuses by default if the
+    spec already exists; `--force` overwrites.
+  - `commands/mb.md` router row + `### sdd <topic>` detail section.
+  - `scripts/mb-sdd.sh` — implementation. Bash + python heredoc for
+    EARS extraction (Python `\s` regex, not POSIX `[[:space:]]`).
+  - `scripts/mb-plan.sh` extended with `--context <path>` and `--sdd`
+    flags. Auto-detects `<mb>/context/<safe_topic>.md` when
+    `--context` is absent. `--sdd` is strict: refuses unless an
+    EARS-valid context exists. When a context is resolved, the plan
+    template gains a `## Linked context` section pointing at the
+    file.
+  - `references/templates.md` — "Spec Requirements", "Spec Design",
+    "Spec Tasks" templates aligned with the `mb-sdd.sh` output.
+  - 18 new pytest cases (7 `test_sdd.py` + 6 `test_plan_sdd_lite.py`
+    + 5 `test_phase2_sprint2_registration.py`). Total: 317 → 335
+    passed.
+
 - **Phase 2 Sprint 1: `/mb discuss` + EARS validator + `context/<topic>.md`.**
   Input-side of the SDD traceability pipeline. New artifacts:
   - `commands/discuss.md` — slash-command for the 5-phase requirements

@@ -1,22 +1,53 @@
 # Roadmap
 
-_Last updated: auto-synced by mb-roadmap-sync.sh_
-
+<!-- mb-roadmap-auto -->
 ## Now (in progress)
 
-_No active plan. Run /mb plan <type> <topic> to start._
+_None._
 
 ## Next (strict order — depends)
 
-Phase 1 ✅ + Phase 2 Sprint 1 ✅ (2026-04-25). Дальше:
+_None._
 
-1. **⏳ Phase 2 Sprint 2 — `/mb sdd` + `specs/<topic>/` + SDD-lite в `/mb plan`**
-   - Полноценный Kiro-style: `specs/<topic>/{requirements,design,tasks}.md`
-   - `/mb plan --sdd`: блок если context отсутствует или EARS-invalid; без `--sdd` — warning
-   - Каждый Stage получает `covers_requirements: [REQ-NNN, ...]`
-   - `mb-plan-sync.sh` уже триггерит traceability-gen после Sprint 2 Phase 1 — переиспользуем
+## Parallel-safe (can run now)
+
+_None._
+
+## Paused / Archived
+
+_None._
+
+## Linked Specs (active)
+
+_None._
+<!-- /mb-roadmap-auto -->
+
+_Last updated: auto-synced by mb-roadmap-sync.sh_
+
+## Next intent (prose — not yet a plan file)
+
+Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ (2026-04-25). Дальше:
+
+1. **⏳ Phase 3 Sprint 1 — `/mb config` + `pipeline.yaml`**
+   - Конфигурация execution engine: roles, review_rubric, severity_gate, sprint_context_guard
+   - YAML schema + bash/python loader
+   - Validate против spec §8.1, §8.5
+
+2. **⏳ Phase 3 Sprint 2 — `/mb work <target>` execution engine**
+   - Resolve target (plan / spec / topic / freeform)
+   - Per-stage review-loop с role-agents (backend/frontend/...)
+   - `--auto`, `--range`, `--budget`, `--slim`/`--full`
+   - Stage-done verifier integration
 
 ## Recently completed
+
+- **✅ Phase 2 Sprint 2 — `/mb sdd` + SDD-lite в `/mb plan`** [2026-04-25]
+   - `scripts/mb-sdd.sh` — Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`
+   - EARS section copied verbatim из `context/<topic>.md` если существует
+   - Idempotency guard + `--force` для overwrite
+   - `scripts/mb-plan.sh` `--context <path>` + `--sdd` flags + auto-detect + `## Linked context` секция
+   - 18 new tests (7 sdd + 6 plan-sdd-lite + 5 registration). pytest 317 → 335 passed.
+   - Plan: [plans/done/2026-04-25_feature_phase2-sprint2-sdd-and-plan-lite.md](plans/done/2026-04-25_feature_phase2-sprint2-sdd-and-plan-lite.md)
 
 - **✅ Phase 2 Sprint 1 — `/mb discuss` + EARS validator + `context/<topic>.md`** [2026-04-25]
    - `commands/discuss.md` — 5-phase interview (Purpose/EARS/NFR/Constraints/Edge)
@@ -33,17 +64,9 @@ Phase 1 ✅ + Phase 2 Sprint 1 ✅ (2026-04-25). Дальше:
    - pytest 289 → 293 passed; bats 479 → 515 passed
    - Plan: [plans/done/2026-04-25_refactor_sprint3-multi-active-fix.md](plans/done/2026-04-25_refactor_sprint3-multi-active-fix.md)
 
-## Parallel-safe (can run now)
+## Linked Specs (manual notes)
 
-_Independent plans. See plans/*.md frontmatter: parallel_safe: true._
-
-## Paused / Archived
-
-_Plans in paused/cancelled state._
-
-## Linked Specs (active)
-
-- `specs/mb-skill-v2/` — skill v2 design doc (Phase 1 completed)
+- `specs/mb-skill-v2/` — skill v2 design doc (Phase 1 completed; Phase 2 Sprint 1 done)
 
 ## Open high/medium backlog (см. backlog.md)
 

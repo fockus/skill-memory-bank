@@ -457,5 +457,17 @@
 - ✅ Tests: 13 EARS-validate + 6 req-next-id + 5 registration = 24 new (293 → 317 pytest)
 - ✅ shellcheck + ruff clean
 
-⏳ **Phase 2 Sprint 2** (next): `/mb sdd` + `specs/<topic>/{requirements,design,tasks}.md` + SDD-lite enhancement в `/mb plan`. См. spec §6-7.
+## Skill v2 — Phase 2 Sprint 2 ✅ (2026-04-25)
+
+`/mb sdd` + SDD-lite в `/mb plan`. См. план [plans/done/2026-04-25_feature_phase2-sprint2-sdd-and-plan-lite.md].
+
+- ✅ `scripts/mb-sdd.sh` — Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md` + EARS copy from `context/<topic>.md` + idempotency guard + `--force`
+- ✅ `scripts/mb-plan.sh` — `--context <path>` + `--sdd` flags + auto-detect context + EARS validation gate
+- ✅ Plan template получает опциональную `## Linked context` секцию
+- ✅ `commands/sdd.md` + router в `commands/mb.md`
+- ✅ `references/templates.md` — Spec Requirements / Design / Tasks templates
+- ✅ Tests: 7 sdd + 6 plan-sdd-lite + 5 registration = 18 new (317 → 335 pytest)
+- ✅ shellcheck + ruff clean
+
+⏳ **Phase 3 Sprint 1** (next): `/mb config` + `pipeline.yaml` (см. spec §8). Phase 2 полностью закрыт — input traceability (`/mb discuss` → context) + output (`mb-traceability-gen.sh` matrix) + spec triples (`/mb sdd`) + plan SDD-lite gate.
 - ✅ Final verification, docs, and release-readiness audit
