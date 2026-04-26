@@ -22,6 +22,7 @@ import argparse
 import ast
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -420,6 +421,53 @@ def _save_cache(cache_dir: Path, rel_path: str, data: dict[str, Any]) -> None:
     atomic_write(cache_file, json.dumps(data, ensure_ascii=False, indent=2))
 
 
+def _filter_gitignored(files: list[Path], src_root: Path) -> list[Path]:
+    """Drop files matched by .gitignore via `git check-ignore --stdin`.
+
+    Single git subprocess per call — accurate and fast. Graceful no-op when
+    src_root is outside a git repo, when git binary is missing, or on any
+    subprocess error. Files outside the discovered git toplevel are kept.
+    """
+    if not files:
+        return files
+    try:
+        toplevel = subprocess.run(
+            ["git", "-C", str(src_root), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        if toplevel.returncode != 0:
+            return files
+        git_root = Path(toplevel.stdout.strip())
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return files
+
+    rel_inputs: list[str] = []
+    for f in files:
+        try:
+            rel_inputs.append(str(f.resolve().relative_to(git_root.resolve())))
+        except ValueError:
+            rel_inputs.append("")  # outside git_root — kept unconditionally
+
+    payload = "\n".join(p for p in rel_inputs if p)
+    if not payload:
+        return files
+    try:
+        check = subprocess.run(
+            ["git", "-C", str(git_root), "check-ignore", "--stdin"],
+            input=payload, capture_output=True, text=True, timeout=60, check=False,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return files
+
+    # `git check-ignore` exits 0 if any matched, 1 if none, 128 on error.
+    if check.returncode not in (0, 1):
+        return files
+
+    ignored = set(check.stdout.splitlines())
+    return [f for f, rel in zip(files, rel_inputs, strict=True)
+            if not rel or rel not in ignored]
+
+
 def build_graph(
     src_root: Path,
     cache_dir: Path | None = None,
@@ -446,6 +494,7 @@ def build_graph(
     for ext in sorted(supported_exts):
         all_source_files.extend(src_root.rglob(f"*{ext}"))
     all_source_files = sorted(set(all_source_files))
+    all_source_files = _filter_gitignored(all_source_files, src_root)
 
     for src_file in all_source_files:
         # Skip hidden dirs (like .venv, __pycache__, node_modules)
