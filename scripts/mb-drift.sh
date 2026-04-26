@@ -228,6 +228,69 @@ check_research_experiments() {
   fi
 }
 
+# ═══ 10. terminology — legacy Cyrillic planning terms outside whitelist ═══
+# Canonical hierarchy is Phase → Sprint → Stage (references/templates.md §
+# Plan decomposition). Cyrillic «Этап / Эпик / Спринт / Фаза» are legacy
+# aliases that are allowed in archived `plans/done/`, in `lessons.md`,
+# `progress.md`, `CHANGELOG.md`, and in the SSoT `references/templates.md`
+# itself. Active surface (`commands/`, `rules/`, `references/` minus the
+# SSoT, `SKILL.md`, `README.md`, and live MB core files) must not contain
+# them — otherwise the convention drifts file by file.
+check_terminology() {
+  local count=0
+  # Build a list of candidate files. Use `find` rather than `git grep` so the
+  # checker also works on a fresh `mb-init`'d project that is not yet tracked.
+  local files=()
+  for f in \
+    "$DIR/SKILL.md" \
+    "$DIR/README.md" \
+    "$MB/status.md" \
+    "$MB/checklist.md" \
+    "$MB/roadmap.md" \
+    "$MB/research.md" \
+    "$MB/backlog.md"
+  do
+    [ -f "$f" ] && files+=("$f")
+  done
+  # commands/ + rules/ + references/ (active surface).
+  while IFS= read -r f; do
+    [ -n "$f" ] && files+=("$f")
+  done < <(find "$DIR/commands" "$DIR/rules" "$DIR/references" -maxdepth 3 -type f -name '*.md' 2>/dev/null \
+            | grep -v 'references/templates\.md$' || true)
+  # active plans/ — but NOT plans/done/ (frozen archive).
+  while IFS= read -r f; do
+    [ -n "$f" ] && files+=("$f")
+  done < <(find "$MB/plans" -maxdepth 1 -type f -name '*.md' 2>/dev/null || true)
+
+  # Lines that explicitly mark the term as legacy / alias / Cyrillic, or that
+  # quote it via French quotes «...», are meta-references documenting the
+  # convention itself — not drift. We skip them before counting.
+  for f in "${files[@]:-}"; do
+    [ -z "$f" ] && continue
+    [ -f "$f" ] || continue
+    local hits
+    # Skip meta-references: lines that mark the term as legacy/alias, lines
+    # quoting the term in `«...»` or backticks (regex literals or code spans
+    # such as `\b(Этап|Спринт)\b`), and TDD jargon (`RED-фаза`, `GREEN-фаза`).
+    hits=$(grep -iE '\b(Этап|Эпик|Спринт|Фаза)\b' "$f" 2>/dev/null \
+            | grep -ivE 'legacy|alias|Cyrillic|«|»|deprecat' \
+            | grep -vE '\\b\(' \
+            | grep -ivE 'red-фаза|green-фаза|refactor-фаза|test-фаза' \
+            | grep -vE '`[^`]*(Этап|Эпик|Спринт|[Фф]аза)[^`]*`' \
+            || true)
+    if [ -n "$hits" ]; then
+      count=$(( count + 1 ))
+      echo "  - $(basename "$f") contains legacy Cyrillic planning term" >&2
+    fi
+  done
+
+  if [ "$count" -gt 0 ]; then
+    warn terminology "$count file(s) with legacy Cyrillic planning terms"
+  else
+    ok terminology
+  fi
+}
+
 # ═══ Run all checks ═══
 check_path
 check_staleness
@@ -238,6 +301,7 @@ check_index_sync
 check_command
 check_frontmatter
 check_research_experiments
+check_terminology
 
 echo "drift_warnings=$WARNINGS"
 

@@ -33,20 +33,32 @@ case "$PRIO" in
   *) echo "[error] Invalid priority: $PRIO_RAW (expected HIGH|MED|LOW)" >&2; exit 2 ;;
 esac
 
-# Idempotency — same title already present?
-if grep -qE "^### I-[0-9]{3} — ${TITLE} " "$BACKLOG" \
-   || grep -qE "^### I-[0-9]{3} — ${TITLE}\$" "$BACKLOG" \
-   || grep -qE "^### I-[0-9]{3} — ${TITLE} \[" "$BACKLOG"; then
-  id=$(awk -v t="$TITLE" '
-    $0 ~ ("^### I-[0-9]{3} — " t) {
-      match($0, /I-[0-9]{3}/)
-      print substr($0, RSTART, RLENGTH)
-      exit
+# Idempotency — same title already present? Use literal-string matching
+# (`grep -F` + `awk index()`) so regex metacharacters in TITLE (e.g. `.*`,
+# `[bug]`, `^foo$`) do not produce false-positive duplicates or break
+# the matcher entirely.
+if grep -qF -- " — ${TITLE} " "$BACKLOG" \
+   || grep -qF -- " — ${TITLE}" "$BACKLOG" \
+   || grep -qF -- " — ${TITLE} [" "$BACKLOG"; then
+  id=$(awk -v t=" — ${TITLE}" '
+    /^### I-[0-9]{3} — / {
+      idx = index($0, t)
+      if (idx == 0) next
+      tail = substr($0, idx + length(t), 1)
+      # Accept only when t is followed by space, "[", or end-of-line — avoids
+      # matching a substring of a longer title.
+      if (tail == "" || tail == " " || tail == "[") {
+        match($0, /I-[0-9]{3}/)
+        print substr($0, RSTART, RLENGTH)
+        exit
+      }
     }
   ' "$BACKLOG")
-  echo "[idea] already present: $id — $TITLE" >&2
-  printf '%s\n' "$id"
-  exit 0
+  if [ -n "$id" ]; then
+    echo "[idea] already present: $id — $TITLE" >&2
+    printf '%s\n' "$id"
+    exit 0
+  fi
 fi
 
 # Find max existing I-NNN across entire file (grep-based, portable)

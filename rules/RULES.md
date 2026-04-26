@@ -19,6 +19,12 @@
 
 ---
 
+## Naming conventions
+
+**Plan hierarchy:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for the size thresholds and when to use which level. Cyrillic «Этап / Спринт / Фаза» — legacy alias, allowed only in `plans/done/*.md` and historical archives. New work uses the English triple.
+
+---
+
 ## Source of Truth — planning chain
 
 If a project has Memory Bank (`.memory-bank/`), planning and implementation flow through one chain:

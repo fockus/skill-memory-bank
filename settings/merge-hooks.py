@@ -144,7 +144,7 @@ def merge_hooks(settings_path: str, hooks_path: str) -> None:
         with os.fdopen(tmp_fd, "w") as f:
             json.dump(settings, f, indent=2, ensure_ascii=False)
         os.replace(tmp_path, settings_path)
-    except BaseException:
+    except Exception:
         os.unlink(tmp_path)
         raise
 

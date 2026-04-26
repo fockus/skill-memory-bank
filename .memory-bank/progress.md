@@ -1610,3 +1610,34 @@ Real failure mode hit during the v4.0.0 release session: Phase 4 Sprint 3 commit
 - Сессия завершилась без явного /mb done (git post-commit fallback)
 - Commit SHA: 27c0eed9
 - Детали будут восстановлены при следующем /mb start
+
+## 2026-04-26
+
+### Auto-capture 2026-04-26 (git-31f5a766)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: 31f5a766
+- Детали будут восстановлены при следующем /mb start
+
+## 2026-04-26
+
+### Auto-capture 2026-04-26 (git-0c4d1df3)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: 0c4d1df3
+- Детали будут восстановлены при следующем /mb start
+
+## 2026-04-27
+
+### v4-audit-remediation — plan closeout (Stages 1-7 ✅)
+
+- **Plan closed:** `refactor — v4-audit-remediation` (`plans/2026-04-25_refactor_v4-audit-remediation.md` → `plans/done/`). Spans 2026-04-25 → 2026-04-27, all 7 stages ✅.
+- **Stage 1** (2026-04-25): SKILL.md/README.md realigned to 24 commands / 45 scripts / 16 agents / 9 hooks. New `tests/pytest/test_doc_counts.py` (6) enforces doc↔reality contract.
+- **Stage 2** (2026-04-26): status.md / CHANGELOG / project-CLAUDE realigned to v4.0.0 truth. `test_status_drift.py` (3) + `test_changelog_no_orphan_section.py` (2) enforce.
+- **Stage 3** (2026-04-26): Git/repo hygiene — `.session-lock` gitignored, `old-origin` removed, `dist/` purged. `test_gitignore_invariants.py` (5).
+- **Stage 4** (2026-04-26): Flaky CLI tests root-caused — `install.sh:17` MANIFEST hardcoded to source-dir bypassed `$HOME` sandbox. Fix: autouse fixture `_protect_repo_install_manifest` in `test_cli.py`. 3 consecutive 663/663 × 0 flake.
+- **Stage 5** (2026-04-27): `BaseException → Exception` in `_io.py:23` + `merge-hooks.py:147` (KeyboardInterrupt/SystemExit now propagate). `set -euo pipefail` in `scripts/_lib.sh` (inherited via `source`). 9 pytest + 4 bats RED→GREEN. Bonus: `commands/mb.md` frontmatter closing `---` (picker showed description as dashes).
+- **Stage 6** (2026-04-27): Security hardening — `mb-idea.sh` literal-string dedup via `grep -F` + boundary-aware `awk index()` (no false-positive on regex metachars in titles); `mb-search.sh` end-of-flags `--` parser + rg/grep `-e` (queries starting with `--` no longer parsed as flags); `hooks/file-change-log.sh` chmod 600 + atomic rotation. 7 bats RED→GREEN, shellcheck clean.
+- **Stage 7** (2026-04-27): Phase/Sprint/Stage SSoT propagation — 5 cross-link refs (`rules/RULES.md`, `SKILL.md`, `commands/plan.md`, `commands/mb.md`, `references/planning-and-verification.md`); new `drift_check_terminology` in `mb-drift.sh` with filter-aware exclusions (legacy/alias/Cyrillic/«»/deprecat tags, regex literals, TDD jargon, backtick code spans); soft-warn in `mb-plan.sh` on legacy-Cyrillic topic; MB core cleanup (Этап → Stage in roadmap/research/backlog/status). 6 tests RED→GREEN. Lesson `### Single-source rule + propagation gap (2026-04-27 / Stage 7)` extends earlier «declarative intent ≠ contract» pattern.
+- **Plan-verifier fix-cycle:** initial verify found 2 CRITICAL (ruff SIM117 in Stage 5 tests; README:419 FAQ not mentioning v4.0.0) + 5 WARN. All CRITICAL fixed: `ruff check --fix` + manual combine of 6th `with` statement; README.md FAQ updated; status.md narrative refreshed (lines 13/25/30); `commands/mb.md` direct cross-link added. Backlog **I-035** captured for refresh of legacy `plan.md` bats fixtures (11 pre-existing fails — separate refactor).
+- **Final totals:** pytest **649 passed × 14 skipped × 0 flake** (3 consecutive runs; baseline pre-Stage-1: 626/628 with 2 flaky); bats **532 ok / 11 not-ok** (pre-existing → I-035); ruff clean; shellcheck `-S warning` clean on touched files; `bash scripts/mb-drift.sh .` → `drift_check_terminology=ok`, only cosmetic `index_sync=warn` (auto-resolves on regen).
+- **Note:** [notes/2026-04-27_01-04_v4-audit-remediation-closeout.md](notes/2026-04-27_01-04_v4-audit-remediation-closeout.md).
+- **Next step:** TBD (`/mb idea` when next signal arrives). Candidates: I-035 (legacy bats fixtures refresh), I-023 (grep→find cleanup), I-034 (plugin-namespaced skill detection).

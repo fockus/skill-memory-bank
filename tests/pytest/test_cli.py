@@ -22,6 +22,30 @@ sys.path.insert(0, str(REPO_ROOT))
 from memory_bank_skill import __version__, cli  # noqa: E402
 from memory_bank_skill._bundle import find_bundle_root  # noqa: E402
 
+
+@pytest.fixture(autouse=True)
+def _protect_repo_install_manifest():
+    """Back up & restore `REPO_ROOT/.installed-manifest.json`.
+
+    `install.sh:17` hard-codes the manifest path to `$SOURCE_SKILL_DIR/...`,
+    so every install-related test in this module overwrites the repo's own
+    manifest regardless of `$HOME` sandboxing. Without this fixture, tests
+    that call `_run_install_sh`/`_run_uninstall_sh` leak state into the
+    repo (and therefore into all subsequent tests in the same session).
+    Root cause of the audit-time flake on `test_cli_install_uninstall_smoke_with_cursor_global`
+    + `test_uninstall_non_interactive_flag_works_without_stdin`.
+    """
+    manifest = REPO_ROOT / ".installed-manifest.json"
+    original = manifest.read_bytes() if manifest.exists() else None
+    try:
+        yield
+    finally:
+        if original is None:
+            if manifest.exists():
+                manifest.unlink()
+        else:
+            manifest.write_bytes(original)
+
 # ═══════════════════════════════════════════════════════════════
 # Version + basic argparse
 # ═══════════════════════════════════════════════════════════════

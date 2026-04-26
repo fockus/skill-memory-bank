@@ -44,7 +44,7 @@
 
 ### I-003 — Bridge to native Claude Code memory [HIGH, NEW, 2026-04-19]
 
-**Problem:** нет программной синхронизации ключевых записей между `.memory-bank/` и `~/.claude/projects/.../memory/` — только документация coexistence (Этап 5).
+**Problem:** нет программной синхронизации ключевых записей между `.memory-bank/` и `~/.claude/projects/.../memory/` — только документация coexistence (Stage 5).
 **Sketch:** двунаправленный mapper: MB `notes/` ↔ auto-memory entries.
 **Plan:** —
 
@@ -246,6 +246,9 @@
 **Effort estimate:** 1 short sprint (1-2 hours): resolver patch + 3-4 new tests + install.sh probe update + docs comment.
 
 **Plan:** —
+
+
+### I-035 — Refresh bats fixtures referencing legacy plan.md after roadmap.md migration [MED, NEW, 2026-04-27]
 
 ## ADR
 

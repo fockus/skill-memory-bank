@@ -4,8 +4,14 @@
 #
 # All functions print their output to stdout and return 0 on success.
 # They avoid `exit` so sourcing scripts stay in control.
+#
+# Strict mode is propagated to the sourcing shell so consumers that forgot
+# `set -euo pipefail` still inherit fail-fast behaviour. Library functions
+# remain non-fatal — they return non-zero, never `exit`.
 
 # shellcheck shell=bash
+
+set -euo pipefail
 
 # Resolve MB path from explicit arg or .claude-workspace file in cwd.
 # Falls back to ".memory-bank" (relative path) when nothing else is known.

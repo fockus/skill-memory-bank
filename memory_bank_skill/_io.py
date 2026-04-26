@@ -20,7 +20,7 @@ def atomic_write(path: str | Path, content: str, *, encoding: str = "utf-8") -> 
         with os.fdopen(fd, "w", encoding=encoding) as handle:
             handle.write(content)
         os.replace(tmp_path, target)
-    except BaseException:
+    except Exception:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
         raise

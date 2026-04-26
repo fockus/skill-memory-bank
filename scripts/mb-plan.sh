@@ -74,6 +74,15 @@ case "$TYPE" in
   *) echo "Unknown type: $TYPE. Allowed: feature, fix, refactor, experiment" >&2; exit 1 ;;
 esac
 
+# Soft-warn on legacy Cyrillic planning terminology in <topic>.
+# Canonical hierarchy is Phase / Sprint / Stage (`references/templates.md` § Plan
+# decomposition). Cyrillic «Этап / Эпик / Спринт / Фаза» are legacy aliases —
+# allowed only in archived plans/done/. We warn but do not block: the user
+# retains the right to name plans freely.
+if printf '%s' "$TOPIC" | grep -qiE '\b(Этап|Эпик|Спринт|Фаза)\b'; then
+  echo "[mb-plan] WARN: topic contains legacy Cyrillic naming; prefer Phase/Sprint/Stage. See references/templates.md." >&2
+fi
+
 SAFE_TOPIC=$(mb_sanitize_topic "$TOPIC")
 
 if [[ -z "$SAFE_TOPIC" ]]; then

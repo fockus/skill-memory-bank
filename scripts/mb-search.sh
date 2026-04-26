@@ -22,8 +22,14 @@ source "$(dirname "$0")/_lib.sh"
 SHOW_PRIVATE=0
 INCLUDE_ARCHIVED=0
 ARGS=()
+END_OF_FLAGS=0
 for arg in "$@"; do
+  if [ "$END_OF_FLAGS" -eq 1 ]; then
+    ARGS+=("$arg")
+    continue
+  fi
   case "$arg" in
+    --)                 END_OF_FLAGS=1 ;;
     --show-private)     SHOW_PRIVATE=1 ;;
     --include-archived) INCLUDE_ARCHIVED=1 ;;
     *)                  ARGS+=("$arg") ;;
@@ -137,20 +143,22 @@ if [ "$SHOW_PRIVATE" -eq 1 ]; then
   # Full output (the user explicitly confirmed through MB_SHOW_PRIVATE=1).
   # `notes/archive/` is still excluded unless `--include-archived` is used.
   EXCLUDE_ARCHIVE=$([ "$INCLUDE_ARCHIVED" -eq 1 ] && echo "" || echo "notes/archive")
+  # `--` ends rg/grep flag parsing so a query that starts with `-` is treated
+  # as a search term rather than an unknown option.
   if command -v rg >/dev/null 2>&1; then
     if [ -n "$EXCLUDE_ARCHIVE" ]; then
-      rg --color=never -n -i --type md --heading -g '!notes/archive/**' "$QUERY" "$MB_PATH" 2>/dev/null \
+      rg --color=never -n -i --type md --heading -g '!notes/archive/**' -e "$QUERY" -- "$MB_PATH" 2>/dev/null \
         || echo "Nothing found for query: $QUERY"
     else
-      rg --color=never -n -i --type md --heading "$QUERY" "$MB_PATH" 2>/dev/null \
+      rg --color=never -n -i --type md --heading -e "$QUERY" -- "$MB_PATH" 2>/dev/null \
         || echo "Nothing found for query: $QUERY"
     fi
   else
     if [ -n "$EXCLUDE_ARCHIVE" ]; then
-      grep -rn -i --include="*.md" --exclude-dir="archive" "$QUERY" "$MB_PATH" 2>/dev/null \
+      grep -rn -i --include="*.md" --exclude-dir="archive" -e "$QUERY" -- "$MB_PATH" 2>/dev/null \
         || echo "Nothing found for query: $QUERY"
     else
-      grep -rn -i --include="*.md" "$QUERY" "$MB_PATH" 2>/dev/null \
+      grep -rn -i --include="*.md" -e "$QUERY" -- "$MB_PATH" 2>/dev/null \
         || echo "Nothing found for query: $QUERY"
     fi
   fi

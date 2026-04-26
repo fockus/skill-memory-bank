@@ -12,6 +12,8 @@ Canonical planning command. `/mb plan` is an alias that dispatches here.
 
 Parse `$ARGUMENTS` into `<type> <topic>`. Allowed `type`: `feature`, `fix`, `refactor`, `experiment`. If `type` is missing or not in the allowed set, stop and ask the user. If `topic` is empty, stop and ask.
 
+> **Hierarchy reminder:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for sizing rules. Cyrillic «Этап / Спринт / Фаза» — legacy alias; the scaffold script will soft-warn if you use them in `<topic>`.
+
 ## 1. Preparation
 
 Read before you start:

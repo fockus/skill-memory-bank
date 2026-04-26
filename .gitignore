@@ -35,3 +35,8 @@ htmlcov/
 /.mb-pi-manifest.json
 /opencode.json
 /AGENTS.md
+
+# Memory Bank runtime artifacts — created/deleted per session, never tracked.
+.memory-bank/.session-lock
+.memory-bank/.auto-lock
+.memory-bank/.checklist.md.bak.*

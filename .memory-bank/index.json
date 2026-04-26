@@ -134,8 +134,35 @@
       "summary": "- Phase 4 Sprint 3 (final v2 sprint) merged: installer auto-registration of all 5 v2 hooks (`settings/hooks.json` + idempotent `merge-hooks.py`), `scripts/mb-reviewer-resolve.sh` for pipeline-aware reviewer routing (default `mb-reviewer`, override → `superpowers:requesting-code-review` when skill detected), `commands/work.md` step 3c rewritten to call resolver, `install.sh` step 6.5 informational probe. - VERSION bumped 3.1.2 → 4.0.0; `CHANGELOG.md [Unreleased]` cut to `[4.0.0] — 2026-04-25` with full Phase 3+4+I-033 scope summary.",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-04-26_23-36_repo-remote-cleanup.md",
+      "type": "note",
+      "tags": [],
+      "importance": null,
+      "summary": "Date: 2026-04-26 23:36 - Removed dead `old-origin` remote (`github.com/fockus/claude-skill-memory-bank` — pre-rename URL); branch `main` upstream switched from `old-origin` → `origin` (`github.com/fockus/skill-memory-bank`).",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-04-27_01-04_v4-audit-remediation-closeout.md",
+      "type": "note",
+      "tags": [
+        "audit",
+        "remediation",
+        "drift",
+        "hardening",
+        "terminology",
+        "ssot",
+        "testing",
+        "security"
+      ],
+      "importance": "high",
+      "summary": "Date: 2026-04-27 01:04 - Closed all 7 stages of the `refactor — v4-audit-remediation` plan (2026-04-25 → 2026-04-27) — the v4.0.0 full-skill audit identified 7 drift groups; remediation now ships.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-04-25T08:42:52Z"
+  "generated_at": "2026-04-26T22:05:54Z"
 }

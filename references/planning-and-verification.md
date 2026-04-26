@@ -2,6 +2,8 @@
 
 Rules for plan creation and the verification process through Plan Verifier.
 
+> **Plan hierarchy:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for size thresholds and the canonical decomposition rules.
+
 ---
 
 ## Plan creation rules

@@ -435,7 +435,7 @@ All 3 High findings from `SECURITY_AUDIT_REPORT.md` closed; 601/601 bats
   now document `memory-bank uninstall -y`, `MB_ALLOW_METRICS_OVERRIDE=1`
   opt-in, and Pi's experimental native skill gate.
 
-## [3.2.0] — 2026-04-21 (unreleased — staged on main)
+## [3.2.0] — 2026-04-21 — absorbed into 4.0.0 (no separate release)
 
 **Subagent maturity release.** Six stages of targeted upgrades to the skill's
 subagent layer. Two new deterministic helpers (`scripts/mb-rules-check.sh`,

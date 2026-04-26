@@ -182,14 +182,18 @@ The agent reads these rules at session start and follows them without you having
 
 ### 3. Dev-workflow commands
 
-**18 top-level slash-commands** (live in `commands/`):
+**24 top-level slash-commands** (live in `commands/`):
 
 | Command | Purpose |
 |---------|---------|
-| `/mb <sub>` | Memory Bank hub (20 sub-commands — see table below) |
+| `/mb <sub>` | Memory Bank hub (20+ sub-commands — see table below) |
 | `/start` | Lightweight session start (loads STATUS/checklist only) |
 | `/done` | Lightweight session close (no full actualize) |
-| `/plan` | Implementation plan generator with DoD/TDD scaffolding |
+| `/plan` | Implementation plan generator with DoD/TDD scaffolding (Phase / Sprint / Stage) |
+| `/discuss` | 5-phase requirements-elicitation interview → `context/<topic>.md` (EARS-validated) |
+| `/sdd` | Kiro-style spec triple → `specs/<topic>/{requirements,design,tasks}.md` |
+| `/work` | Execute plan/spec stages with role-agents, review-loop, severity gate (Phase 3) |
+| `/config` | Manage `pipeline.yaml` engine config (init / show / validate / path) |
 | `/commit` | Conventional-commit message with MB context |
 | `/pr` | Create pull request with structured description |
 | `/review` | Full code review (correctness + security + perf + style) |
@@ -204,6 +208,8 @@ The agent reads these rules at session start and follows them without you having
 | `/api-contract` | API contract validation + breaking-change detection |
 | `/db-migration` | Safe DB migration planning (rollback, backfill) |
 | `/observability` | Logging / metrics / tracing audit for a module |
+| `/roadmap-sync` | Regenerate `roadmap.md` autosync block from plan frontmatter |
+| `/traceability-gen` | Regenerate REQ → Plan → Test traceability matrix |
 
 **21 `/mb` sub-commands** (live in `commands/mb.md`):
 
@@ -410,7 +416,7 @@ A: Not by default. Project-local metrics overrides are disabled unless you expli
 A: Only as an explicit compatibility experiment. The supported path is `agents-md`. If you need to probe the native Pi Skills surface, gate it intentionally with `MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1` and expect breakage while the upstream API is still moving.
 
 **Q: Is this production-ready?**
-A: Yes. `3.0.0` is the first stable 3.x release. Daily used on real projects. Full test envelope green (bats + pytest). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.
+A: Yes. Current stable line is **v4.0.0** (released 2026-04-25), built on the v3.x architectural baseline (`3.0.0` was the first stable 3.x release). Daily used on real projects. Full test envelope green (bats + pytest, 663 passed). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.
 
 ---
 
