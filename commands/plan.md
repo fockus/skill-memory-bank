@@ -47,7 +47,18 @@ Before scaffolding, estimate the scope:
 
 → **Split into 2+ Sprints along an architectural boundary**. State the split explicitly to the user before scaffolding. Two clean Sprints beat one truncated Sprint.
 
-If creating a Phase, scaffold one plan file per Sprint (call `mb-plan.sh` multiple times with suffixed topics, e.g. `<topic>_sprint1`, `<topic>_sprint2`).
+### Phase-level workflow
+
+If the work expands into a **Phase** (≥2 Sprints with dependencies):
+
+1. **Name Sprints up front** — list them with the architectural boundary that separates each, before any scaffolding.
+2. **Scaffold one plan file per Sprint** — call `mb-plan.sh` multiple times with suffixed topics, e.g. `<topic>_sprint1`, `<topic>_sprint2`. Each Sprint file gets its own `## Gate`.
+3. **Add a Phase entry to `roadmap.md`** — a dedicated section like `## Phase: <topic>` with:
+   - One-line goal
+   - Sprint list (ordered, with status: `⬜ planned` / `🟡 in progress` / `✅ done`)
+   - Cross-Sprint dependencies (which Sprint must finish before another starts)
+   - Phase-level Gate (the criterion that closes the Phase, broader than any individual Sprint Gate)
+4. **Run `mb-plan-sync.sh` once per Sprint file** so each Sprint gets its own `<!-- mb-active-plan -->` block; only the currently-active Sprint should be marked active in `roadmap.md`.
 
 ## 2. Scaffold the plan file
 
@@ -58,6 +69,23 @@ bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"
 # Prints the created path, for example:
 # .memory-bank/plans/2026-04-21_refactor_<topic>.md
 ```
+
+### SDD-lite flags (optional)
+
+When the topic has a pre-written EARS-validated context document under `.memory-bank/context/`, the scaffold can link it automatically:
+
+```bash
+# Auto-detect: looks for .memory-bank/context/<sanitized_topic>.md
+bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"
+
+# Explicit context path (any location)
+bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>" --context path/to/context.md
+
+# Strict mode: require context AND pass EARS validation (mb-ears-validate.sh exit 0)
+bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>" --sdd
+```
+
+When a context file is resolved (auto-detected or explicit), the scaffold injects a `## Linked context` section right after Context with a Markdown link. Use `--sdd` for spec-driven work where requirements must be EARS-validated before any planning happens — the script fails fast otherwise.
 
 ## 3. Fill in the plan
 
