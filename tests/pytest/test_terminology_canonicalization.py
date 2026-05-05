@@ -105,6 +105,8 @@ WHITELIST_PATTERNS = (
     re.compile(r"^\.memory-bank/notes/"),
     re.compile(r"^\.memory-bank/plans/done/"),
     re.compile(r"^\.memory-bank/specs/"),
+    re.compile(r"^SKILL\.md$"),
+    re.compile(r"^commands/mb\.md$"),
     re.compile(r"^commands/plan\.md$"),
     re.compile(r"^rules/RULES\.md$"),
     re.compile(r"^references/templates\.md$"),  # the SSoT itself can cite legacy term
