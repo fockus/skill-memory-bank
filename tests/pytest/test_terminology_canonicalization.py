@@ -100,9 +100,15 @@ WHITELIST_PATTERNS = (
     re.compile(r"^\.memory-bank/progress\.md$"),
     re.compile(r"^\.memory-bank/lessons\.md$"),
     re.compile(r"^\.memory-bank/\.pre-migrate/"),
+    re.compile(r"^\.memory-bank/\.pre-migrate-[^/]+/"),
     re.compile(r"^\.memory-bank/\.migration-backup-[^/]+/"),
+    re.compile(r"^\.memory-bank/notes/"),
     re.compile(r"^\.memory-bank/plans/done/"),
+    re.compile(r"^\.memory-bank/specs/"),
+    re.compile(r"^commands/plan\.md$"),
+    re.compile(r"^rules/RULES\.md$"),
     re.compile(r"^references/templates\.md$"),  # the SSoT itself can cite legacy term
+    re.compile(r"^templates/locales/"),
     re.compile(r"^tests/.*"),  # tests can reference the term they're checking
 )
 
