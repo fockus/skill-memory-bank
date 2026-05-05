@@ -3,8 +3,8 @@
 #
 # Codex reads AGENTS.md for project instructions (shared format with OpenCode
 # and Pi fallback). Project-level settings live in .codex/config.toml.
-# Experimental hooks live in .codex/hooks.json (userpromptsubmit stable,
-# lifecycle hooks under development).
+# Codex hooks live in .codex/hooks.json (UserPromptSubmit stable,
+# broader lifecycle hooks still evolving).
 #
 # Usage:
 #   adapters/codex.sh install [PROJECT_ROOT]
@@ -51,17 +51,24 @@ approval_policy = "on-request"
 TOML_EOF
 }
 
-# ═══ hooks.json body (experimental — userpromptsubmit stable) ═══
+# ═══ hooks.json body (UserPromptSubmit command schema) ═══
 hooks_json_body() {
   cat <<'JSON_EOF'
 {
   "version": 1,
-  "_mb_warning": "Codex hooks API is experimental. Schema may change; re-run `adapters/codex.sh install` after Codex CLI upgrades.",
+  "_mb_warning": "Codex lifecycle hooks are still evolving. Re-run `adapters/codex.sh install` after Codex CLI upgrades.",
   "hooks": {
-    "userpromptsubmit": [
+    "UserPromptSubmit": [
       {
-        "command": "bash .codex/hooks/before-prompt.sh",
-        "_mb_owned": true
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/hooks/before-prompt.sh",
+            "timeout": 10,
+            "statusMessage": "Memory Bank prompt guard",
+            "_mb_owned": true
+          }
+        ]
       }
     ]
   }
@@ -73,7 +80,7 @@ JSON_EOF
 before_prompt_body() {
   cat <<'HOOK_EOF'
 #!/usr/bin/env bash
-# Codex userpromptsubmit — block dangerous payloads
+# Codex UserPromptSubmit — block dangerous payloads
 # memory-bank: managed hook
 set -u
 command -v jq >/dev/null 2>&1 || exit 0
@@ -82,8 +89,10 @@ INPUT=$(cat 2>/dev/null || true)
 PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null || true)
 case "$PROMPT" in
   *"rm -rf /"*|*"rm -rf ~"*|*":(){ :|:& };:"*)
-    printf '[MB-codex] BLOCKED dangerous prompt payload\n' >&2
-    exit 2
+    jq -n \
+      --arg reason "[MB-codex] BLOCKED dangerous prompt payload" \
+      '{decision:"block", reason:$reason}'
+    exit 0
     ;;
 esac
 exit 0
@@ -120,7 +129,7 @@ install_codex() {
     "$files_json" \
     "{\"agents_md_owned\": $owned, \"experimental_hooks\": true}"
 
-  echo "[codex-adapter] installed to $PROJECT_ROOT (hooks API: experimental)"
+  echo "[codex-adapter] installed to $PROJECT_ROOT (UserPromptSubmit guard enabled; lifecycle hooks evolving)"
 }
 
 # ═══ Uninstall ═══
