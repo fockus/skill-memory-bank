@@ -14,13 +14,13 @@ setup() {
   MB="$PROJECT/.memory-bank"
   mkdir -p "$MB/notes" "$MB/plans/done" "$MB/reports"
   # Baseline core-file contents — clean unless a test changes them.
-  : > "$MB/STATUS.md"
+  : > "$MB/status.md"
   : > "$MB/checklist.md"
-  : > "$MB/plan.md"
+  : > "$MB/roadmap.md"
   : > "$MB/progress.md"
   : > "$MB/lessons.md"
-  : > "$MB/RESEARCH.md"
-  : > "$MB/BACKLOG.md"
+  : > "$MB/research.md"
+  : > "$MB/backlog.md"
 }
 
 teardown() {
@@ -83,15 +83,15 @@ run_drift() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "drift[staleness]: recent core files → no warning" {
-  echo "fresh" > "$MB/STATUS.md"
+  echo "fresh" > "$MB/status.md"
   run_drift
   [[ "$output" == *"drift_check_staleness=ok"* ]]
 }
 
-@test "drift[staleness]: STATUS.md mtime >30 days → warning staleness" {
-  echo "stale" > "$MB/STATUS.md"
+@test "drift[staleness]: status.md mtime >30 days → warning staleness" {
+  echo "stale" > "$MB/status.md"
   old=$(( $(date +%s) - 40 * 86400 ))
-  touch -t "$(date -r "$old" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$old" +%Y%m%d%H%M.%S)" "$MB/STATUS.md"
+  touch -t "$(date -r "$old" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$old" +%Y%m%d%H%M.%S)" "$MB/status.md"
   run_drift
   [[ "$output" == *"drift_check_staleness=warn"* ]]
 }
@@ -103,13 +103,13 @@ run_drift() {
 @test "drift[script-coverage]: existing bash scripts/foo.sh → no warning" {
   mkdir -p "$PROJECT/scripts"
   : > "$PROJECT/scripts/foo.sh"
-  echo "bash scripts/foo.sh" > "$MB/plan.md"
+  echo "bash scripts/foo.sh" > "$MB/roadmap.md"
   run_drift
   [[ "$output" == *"drift_check_script_coverage=ok"* ]]
 }
 
 @test "drift[script-coverage]: reference missing bash scripts/gone.sh → warning" {
-  echo "bash scripts/gone.sh" > "$MB/plan.md"
+  echo "bash scripts/gone.sh" > "$MB/roadmap.md"
   run_drift
   [[ "$output" == *"drift_check_script_coverage=warn"* ]]
 }
@@ -120,7 +120,7 @@ run_drift() {
 
 @test "drift[dependency]: no project deps file → skip check (ok)" {
   # Clean project without pyproject/package.json — checker skips as ok.
-  echo "Python 3.12" > "$MB/STATUS.md"
+  echo "Python 3.12" > "$MB/status.md"
   run_drift
   [[ "$output" == *"drift_check_dependency=ok"* ]] || [[ "$output" == *"drift_check_dependency=skip"* ]]
 }
@@ -131,8 +131,8 @@ run_drift() {
 name = "foo"
 requires-python = ">=3.12"
 EOF
-  echo "# STATUS" > "$MB/STATUS.md"
-  echo "Stack: Python 3.11" >> "$MB/STATUS.md"
+  echo "# Status" > "$MB/status.md"
+  echo "Stack: Python 3.11" >> "$MB/status.md"
   run_drift
   [[ "$output" == *"drift_check_dependency=warn"* ]]
 }
@@ -142,14 +142,14 @@ EOF
 # ═══════════════════════════════════════════════════════════════
 
 @test "drift[cross-file]: same test count in STATUS and checklist → no warning" {
-  echo "Tests: 163 bats green" > "$MB/STATUS.md"
+  echo "Tests: 163 bats green" > "$MB/status.md"
   echo "**Summary**: 163 bats green" > "$MB/checklist.md"
   run_drift
   [[ "$output" == *"drift_check_cross_file=ok"* ]]
 }
 
 @test "drift[cross-file]: test counts differ — STATUS=163 vs checklist=100 → warning" {
-  echo "Tests: 163 bats green" > "$MB/STATUS.md"
+  echo "Tests: 163 bats green" > "$MB/status.md"
   echo "**Summary**: 100 bats green" > "$MB/checklist.md"
   run_drift
   [[ "$output" == *"drift_check_cross_file=warn"* ]]
@@ -183,7 +183,7 @@ EOF
   cat > "$PROJECT/package.json" <<'EOF'
 {"name":"x","scripts":{"test":"jest"}}
 EOF
-  echo "Run: npm run test" > "$MB/plan.md"
+  echo "Run: npm run test" > "$MB/roadmap.md"
   run_drift
   [[ "$output" == *"drift_check_command=ok"* ]]
 }
@@ -192,7 +192,7 @@ EOF
   cat > "$PROJECT/package.json" <<'EOF'
 {"name":"x","scripts":{"test":"jest"}}
 EOF
-  echo "Run: npm run nonexistent-script" > "$MB/plan.md"
+  echo "Run: npm run nonexistent-script" > "$MB/roadmap.md"
   run_drift
   [[ "$output" == *"drift_check_command=warn"* ]]
 }
@@ -240,9 +240,9 @@ EOF
     # Inline: at least 5 kinds of drift.
     echo "See notes/missing.md" > "$MB/checklist.md"                                      # path
     old=$(( $(date +%s) - 40 * 86400 ))
-    touch -t "$(date -r "$old" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$old" +%Y%m%d%H%M.%S)" "$MB/STATUS.md" # staleness
-    echo "bash scripts/gone.sh" >> "$MB/plan.md"                                          # script-coverage
-    echo "Tests: 5 green" > "$MB/STATUS.md"
+    touch -t "$(date -r "$old" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$old" +%Y%m%d%H%M.%S)" "$MB/status.md" # staleness
+    echo "bash scripts/gone.sh" >> "$MB/roadmap.md"                                      # script-coverage
+    echo "Tests: 5 green" > "$MB/status.md"
     echo "Tests: 999 green" > "$MB/progress.md"                                           # cross-file
     printf -- '---\ntype: note\ntags: [broken\n' > "$MB/notes/2026-04-20_x.md"           # frontmatter
     run_drift

@@ -13,10 +13,10 @@ setup() {
   mkdir -p "$TMPBANK"/{codebase,plans,notes}
 
   # Minimal core files
-  echo "# Status test" > "$TMPBANK/STATUS.md"
-  echo "# Plan test" > "$TMPBANK/plan.md"
+  echo "# Status test" > "$TMPBANK/status.md"
+  echo "# Roadmap test" > "$TMPBANK/roadmap.md"
   echo "# Checklist test" > "$TMPBANK/checklist.md"
-  echo "# Research test" > "$TMPBANK/RESEARCH.md"
+  echo "# Research test" > "$TMPBANK/research.md"
 }
 
 teardown() {
@@ -98,7 +98,7 @@ EOF
   rm -rf "$TMPBANK/codebase"
   run bash "$SCRIPT" --deep "$TMPBANK"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"STATUS.md"* ]]
+  [[ "$output" == *"status.md"* ]]
 }
 
 @test "context: --deep flag accepted before path" {

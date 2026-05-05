@@ -276,7 +276,7 @@ check_terminology() {
             | grep -ivE 'legacy|alias|Cyrillic|«|»|deprecat' \
             | grep -vE '\\b\(' \
             | grep -ivE 'red-фаза|green-фаза|refactor-фаза|test-фаза' \
-            | grep -vE '`[^`]*(Этап|Эпик|Спринт|[Фф]аза)[^`]*`' \
+            | grep -vE "\`[^\`]*(Этап|Эпик|Спринт|[Фф]аза)[^\`]*\`" \
             || true)
     if [ -n "$hits" ]; then
       count=$(( count + 1 ))

@@ -1641,3 +1641,51 @@ Real failure mode hit during the v4.0.0 release session: Phase 4 Sprint 3 commit
 - **Final totals:** pytest **649 passed × 14 skipped × 0 flake** (3 consecutive runs; baseline pre-Stage-1: 626/628 with 2 flaky); bats **532 ok / 11 not-ok** (pre-existing → I-035); ruff clean; shellcheck `-S warning` clean on touched files; `bash scripts/mb-drift.sh .` → `drift_check_terminology=ok`, only cosmetic `index_sync=warn` (auto-resolves on regen).
 - **Note:** [notes/2026-04-27_01-04_v4-audit-remediation-closeout.md](notes/2026-04-27_01-04_v4-audit-remediation-closeout.md).
 - **Next step:** TBD (`/mb idea` when next signal arrives). Candidates: I-035 (legacy bats fixtures refresh), I-023 (grep→find cleanup), I-034 (plugin-namespaced skill detection).
+
+## 2026-04-27
+
+### Auto-capture 2026-04-27 (session 93492d8a)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-04-27
+
+### Auto-capture 2026-04-27 (git-fd962562)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: fd962562
+- Детали будут восстановлены при следующем /mb start
+
+## 2026-04-27
+
+### Auto-capture 2026-04-27 (session f0841c02)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-05-02
+
+### Codex hook contract remediation
+
+- Fixed Codex adapter hook generation to match current Codex `UserPromptSubmit` command schema: event key `UserPromptSubmit`, matcher group with `hooks[]`, handler `type: command`, command path `.codex/hooks/before-prompt.sh`.
+- Reworked generated `before-prompt.sh` to return structured JSON block decisions on stdout (`{"decision":"block","reason":"..."}`) instead of stderr + exit 2, so Codex can parse the decision reliably.
+- Replaced stale bats assertion that accepted lowercase `userpromptsubmit` with a contract check for the current schema, plus hook output tests for dangerous and safe prompts.
+- Updated README / cross-agent docs wording from generic experimental hooks to Codex `UserPromptSubmit` prompt guard + evolving lifecycle hook caveat.
+- Re-ran installer for current project (`./install.sh --clients codex --language ru --project-root ...`) so local `.codex/hooks.json` and `before-prompt.sh` use the fixed schema immediately.
+- Verification: `bats tests/bats/test_codex_adapter.bats` → 13 ok; `bats tests/bats/test_agents_md_lib.bats tests/e2e/test_install_clients.bats` → 16 ok; `PYTHONPATH=. pytest -q tests/pytest/test_runtime_contract.py tests/pytest/test_cli_lang.py` → 18 passed; `shellcheck -x -P adapters -P scripts adapters/codex.sh adapters/_lib_agents_md.sh install.sh` → clean; Codex smoke confirmed current-project hook schema + JSON block output + project AGENTS.md visibility through `codex debug prompt-input --enable codex_hooks`.
+
+## 2026-05-05
+
+### v4.0.1 release/CI/docs drift remediation
+
+- Saved and closed plan `plans/done/2026-05-05_refactor_release-ci-docs-drift.md`.
+- Set source release boundary to `4.0.1`: `VERSION`, `memory_bank_skill.__version__`, CHANGELOG, README, release docs, and status docs now agree. README says PyPI latest remains `3.1.2` until a separate publish step.
+- Fixed shell/Bats regressions: `mb-drift.sh` shellcheck SC2016, `mb-compact.sh` note reference safety, `mb-config.sh` locale autodetect over canonical files, Bats fixtures/tests migrated to lowercase canonical layout.
+- Normalized current docs around canonical lowercase Memory Bank schema; legacy uppercase names remain only as migration/backward-compat inputs. Added security audit closeout matrix.
+- Verification: targeted Bats 81 ok; `bats tests/bats/` 545 ok; `bats tests/e2e/` 75 ok; `python -m pytest tests/pytest/ --cov --cov-report=term-missing --cov-fail-under=85` 651 passed / 14 skipped, coverage 92.33%; `ruff check settings/ tests/pytest/` clean; `shellcheck -x --source-path=SCRIPTDIR scripts/*.sh hooks/*.sh` clean; `git diff --check` clean.
+- Note: repository-local CLI reports `4.0.1` via `python -m memory_bank_skill --version`; global installed `~/.local/bin/memory-bank` remains older because publish/reinstall is outside this PR-ready step. GitHub Actions remains the post-push gate.
+
+## 2026-05-05
+
+### Auto-capture 2026-05-05 (git-d003741f)
+- Сессия завершилась без явного /mb done (git post-commit fallback)
+- Commit SHA: d003741f
+- Детали будут восстановлены при следующем /mb start

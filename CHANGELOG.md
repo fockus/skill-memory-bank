@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [4.0.1] — 2026-05-05
+
+Patch line prepared for PR-ready release integrity. This source tree is ready for a future publish step, but no PyPI/Homebrew/GitHub release is performed by this change.
+
+### Fixed — release / CI / docs drift
+
+- Synchronized `VERSION`, `memory_bank_skill.__version__`, README, and release documentation on the `4.0.1` source line.
+- Restored strict local verification by fixing shellcheck drift and stale Bats contracts around compaction, context loading, drift checks, locale detection, and Memory Bank initialization.
+- Canonicalized current Memory Bank docs and tests on lowercase `status.md`, `roadmap.md`, `checklist.md`, `backlog.md`, `research.md`, `progress.md`, `lessons.md`; uppercase names are legacy migration inputs only.
+- Added a security audit closeout matrix for High/Medium findings so old audit text no longer reads like unresolved current-state risk.
+
 ### Added — I-004 (auto-commit hook for `/mb done`)
 
 - `scripts/mb-auto-commit.sh` — opt-in (`MB_AUTO_COMMIT=1` env or `--force` flag) auto-commit of `.memory-bank/` changes after `/mb done`. 4 safety gates: bank clean → no-op; dirty source outside bank → skip with warning; rebase/merge/cherry-pick in progress → skip; detached HEAD → skip. Commit subject derives from the last `### ` heading in `progress.md` (truncated to 60 chars); fallback `chore(mb): session-end YYYY-MM-DD`. Never pushes — push remains an explicit user action.

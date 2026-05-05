@@ -7,7 +7,7 @@ description: "Agent-agnostic long-term project memory through `.memory-bank/` + 
 
 Three-in-one skill for code agents:
 
-1. **Memory Bank** — long-term project memory through `.memory-bank/` (`STATUS`, `plan`, `checklist`, `RESEARCH`, `BACKLOG`, `progress`, `lessons`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
+1. **Memory Bank** — long-term project memory through `.memory-bank/` (`status.md`, `roadmap.md`, `checklist.md`, `research.md`, `backlog.md`, `progress.md`, `lessons.md`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`). Uppercase legacy names are migration/backward-compat inputs only.
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
 3. **Dev toolkit** — 24 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`.
 
@@ -63,7 +63,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | Script | Purpose |
 |--------|---------|
 | `_lib.sh` | Shared helpers sourced by other scripts |
-| `mb-context.sh [--deep]` | Build context from core files (`STATUS` + `plan` + `checklist` + `RESEARCH` + codebase summary). `--deep` shows full codebase docs |
+| `mb-context.sh [--deep]` | Build context from core files (`status` + `roadmap` + `checklist` + `research` + codebase summary). `--deep` shows full codebase docs |
 | `mb-search.sh <q> [--tag t]` | Keyword search across the memory bank. `--tag` filters via `index.json` |
 | `mb-note.sh <topic>` | Create `notes/YYYY-MM-DD_HH-MM_<topic>.md`. Collision-safe (`_2` / `_3`) |
 | `mb-plan.sh <type> <topic>` | Create `plans/YYYY-MM-DD_<type>_<topic>.md` with `<!-- mb-stage:N -->` markers |

@@ -12,6 +12,8 @@ _Skill v2 shipped (v4.0.0). Next iteration TBD — open via `/mb idea` when trig
 
 ## ✅ Recently completed (last 3 sprints — full history → progress.md)
 
+### v4.0.1 release/CI/docs drift ✅ (2026-05-05) — Plan: [2026-05-05_refactor_release-ci-docs-drift.md](plans/done/2026-05-05_refactor_release-ci-docs-drift.md). Version boundary, shell/Bats regressions, canonical lowercase schema docs, and security closeout matrix. Local verification: shellcheck, ruff, pytest coverage, Bats unit/e2e green. GitHub Actions remains post-push gate.
+
 ### I-004 ✅ (2026-04-25) — Plan: [2026-04-25_feature_i004-auto-commit.md](plans/done/2026-04-25_feature_i004-auto-commit.md). Opt-in `mb-auto-commit.sh` (`MB_AUTO_COMMIT=1`) для `/mb done` step 7. 4 safety gates + 10 pytest tests. Tests 615 → 628 (+13).
 
 ### Phase 4 Sprint 3 ✅ (2026-04-25) — Plan: [2026-04-25_feature_phase4-sprint3-installer-and-release.md](plans/done/2026-04-25_feature_phase4-sprint3-installer-and-release.md). Installer auto-registers 5 v2 hooks; `mb-reviewer-resolve.sh` honours `pipeline.yaml` superpowers override; **VERSION 4.0.0** + CHANGELOG `[4.0.0]` cut. Tests 596 → 615 (+19).

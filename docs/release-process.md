@@ -53,18 +53,18 @@ shellcheck -x --source-path=SCRIPTDIR scripts/*.sh adapters/*.sh hooks/*.sh inst
 
 # 2. Update VERSION + memory_bank_skill/__init__.py + CHANGELOG
 #    (all three must match the tag exactly)
-echo "3.0.0" > VERSION
+echo "4.0.1" > VERSION
 # ...edit memory_bank_skill/__init__.py __version__...
 # ...add CHANGELOG section...
 
 # 3. Commit
 git add VERSION memory_bank_skill/__init__.py CHANGELOG.md
-git commit -m "release: v3.0.0"
+git commit -m "release: v4.0.1"
 
 # 4. Tag + push — triggers publish.yml workflow
-git tag v3.0.0
+git tag v4.0.1
 git push origin main
-git push origin v3.0.0
+git push origin v4.0.1
 ```
 
 ### What the workflow does

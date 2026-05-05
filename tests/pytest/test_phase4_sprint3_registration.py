@@ -7,9 +7,20 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_version_bumped_to_4_0_0() -> None:
+def test_version_bumped_to_4_0_1() -> None:
     text = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    assert text == "4.0.0", f"expected 4.0.0, got {text!r}"
+    assert text == "4.0.1", f"expected 4.0.1, got {text!r}"
+
+
+def test_package_version_matches_version_file() -> None:
+    version_file = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    init_text = (REPO_ROOT / "memory_bank_skill" / "__init__.py").read_text(encoding="utf-8")
+    assert f'__version__ = "{version_file}"' in init_text
+
+
+def test_changelog_has_4_0_1_section() -> None:
+    text = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [4.0.1]" in text
 
 
 def test_changelog_has_4_0_0_section() -> None:

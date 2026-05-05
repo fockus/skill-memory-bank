@@ -13,6 +13,8 @@
 
 Works with: **Claude Code · Cursor · Windsurf · Cline · Kilo · OpenCode · Codex · Pi Code**.
 
+**Source status:** `main` is preparing the `4.0.1` patch line. Until the next publish step runs, the latest PyPI package remains `memory-bank-skill==3.1.2`; install badges reflect the published package, not necessarily this source checkout.
+
 ---
 
 ## The problem it solves
@@ -25,7 +27,7 @@ Every new AI coding session is amnesia. You re-explain the project, re-state the
 .memory-bank/
 ├── status.md          ← where we are, what's next
 ├── checklist.md       ← current tasks (✅ / ⬜)
-├── roadmap.md            ← priorities, direction
+├── roadmap.md         ← priorities, direction
 ├── research.md        ← hypotheses log (H-NNN) + current experiment
 ├── backlog.md         ← parking lot for ideas + ADRs
 ├── progress.md        ← work log (append-only)
@@ -416,7 +418,7 @@ A: Not by default. Project-local metrics overrides are disabled unless you expli
 A: Only as an explicit compatibility experiment. The supported path is `agents-md`. If you need to probe the native Pi Skills surface, gate it intentionally with `MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1` and expect breakage while the upstream API is still moving.
 
 **Q: Is this production-ready?**
-A: Yes. Current stable line is **v4.0.0** (released 2026-04-25), built on the v3.x architectural baseline (`3.0.0` was the first stable 3.x release). Daily used on real projects. Full test envelope green (bats + pytest, 663 passed). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.
+A: The source tree is being prepared as **v4.0.1** for a PR-ready patch release. The last published PyPI package is still **3.1.2** until the separate release/publish workflow runs. Treat current `main` as release-candidate quality only after local CI (`bats`, `pytest --cov`, `shellcheck`, `ruff`) is green.
 
 ---
 
