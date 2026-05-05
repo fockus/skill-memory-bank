@@ -19,8 +19,7 @@ teardown() {
 }
 
 _perm() {
-  if stat -f '%Lp' "$1" 2>/dev/null; then return; fi
-  stat -c '%a' "$1" 2>/dev/null
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null
 }
 
 @test "file-change-log: created log has owner-only perms (600)" {

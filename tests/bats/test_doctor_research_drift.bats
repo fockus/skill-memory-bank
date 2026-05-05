@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
-# Tests for RESEARCH.md ↔ experiments/ drift check in scripts/mb-drift.sh.
+# Tests for research.md ↔ experiments/ drift check in scripts/mb-drift.sh.
 #
 # Stage 5 of plans/2026-04-21_refactor_agents-quality.md adds a new checker
 # `check_research_experiments`:
-#   For every H-NNN in RESEARCH.md whose status is ✅ Confirmed or ❌ Refuted,
+#   For every H-NNN in research.md whose status is ✅ Confirmed or ❌ Refuted,
 #   there must be a matching file at experiments/EXP-NNN.md. Gaps = drift.
 #
 # Contract:
@@ -12,7 +12,7 @@
 #   - "⬜ Not tested" / "🔬 Running" / "—" → NO requirement (ok).
 #   - Missing EXP file → drift_check_research_experiments=warn + per-H stderr
 #     line naming the missing file.
-#   - No RESEARCH.md → drift_check_research_experiments=skip.
+#   - No research.md → drift_check_research_experiments=skip.
 #   - No experiments/ dir but Confirmed hypotheses exist → same as missing
 #     EXP files (warn).
 
@@ -25,10 +25,10 @@ setup() {
   mkdir -p "$MB/experiments" "$MB/plans/done" "$MB/notes"
 
   # Minimal files so the other checkers do not short-circuit.
-  : > "$MB/STATUS.md"
-  : > "$MB/plan.md"
+  : > "$MB/status.md"
+  : > "$MB/roadmap.md"
   : > "$MB/checklist.md"
-  : > "$MB/BACKLOG.md"
+  : > "$MB/backlog.md"
   : > "$MB/progress.md"
 }
 
@@ -37,7 +37,7 @@ teardown() {
 }
 
 @test "research: H-001 Confirmed + missing EXP-001 → warn" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 # Hypotheses
 
 | ID    | Hypothesis      | Status       | Experiment | Result | Conclusion |
@@ -50,7 +50,7 @@ EOF
 }
 
 @test "research: H-001 Refuted + missing EXP-001 → warn" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 # Hypotheses
 
 | ID    | Hypothesis      | Status     | Experiment | Result | Conclusion |
@@ -62,7 +62,7 @@ EOF
 }
 
 @test "research: H-001 Confirmed + existing EXP-001.md → ok" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 | ID    | Hypothesis      | Status       | Experiment | Result | Conclusion |
 | ----- | --------------- | ------------ | ---------- | ------ | ---------- |
 | H-001 | Cache is faster | ✅ Confirmed | EXP-001    | +15%   | ship       |
@@ -79,7 +79,7 @@ EOF
 }
 
 @test "research: all hypotheses Not tested → ok (no requirement)" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 | ID    | Hypothesis | Status         | Experiment | Result | Conclusion |
 | ----- | ---------- | -------------- | ---------- | ------ | ---------- |
 | H-001 | Foo        | ⬜ Not tested   | —          | —      | —          |
@@ -90,7 +90,7 @@ EOF
 }
 
 @test "research: mixed — one Confirmed missing EXP, one Confirmed with EXP → warn" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 | ID    | Hypothesis | Status       | Experiment | Result | Conclusion |
 | ----- | ---------- | ------------ | ---------- | ------ | ---------- |
 | H-001 | Foo        | ✅ Confirmed | EXP-001    | —      | —          |
@@ -103,7 +103,7 @@ EOF
   [[ "$output" == *"drift_check_research_experiments=warn"* ]]
 }
 
-@test "research: no RESEARCH.md at all → skip (not warn)" {
+@test "research: no research.md at all → skip (not warn)" {
   # Remove the research file (setup doesn't create it by default).
   run bash "$DRIFT" "$TMPROOT"
   [[ "$output" == *"drift_check_research_experiments=skip"* ]] \
@@ -111,7 +111,7 @@ EOF
 }
 
 @test "research: drift_warnings counter incremented on gap" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 | ID    | Hypothesis | Status       | Experiment | Result | Conclusion |
 | ----- | ---------- | ------------ | ---------- | ------ | ---------- |
 | H-042 | Foo        | ✅ Confirmed | —          | —      | —          |
