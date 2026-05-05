@@ -6,7 +6,7 @@
 #
 #   Effect:
 #     - Creates PROJECT/.memory-bank/{plans,plans/done,notes,reports,experiments,codebase}/
-#     - Copies 7 core files from templates/locales/<lang>/.memory-bank/ (never overwrites)
+#     - Copies canonical lowercase core files from templates/locales/<lang>/.memory-bank/ (never overwrites)
 #     - Writes PROJECT/.memory-bank/.mb-config with `lang=<lang>`
 #
 #   Resolution of <lang> (highest → lowest):
@@ -45,17 +45,17 @@ teardown() {
 # EN (default)
 # ═══════════════════════════════════════════════════════════════
 
-@test "init: default (no flag) creates EN bank with all 7 core files" {
+@test "init: default (no flag) creates EN bank with all 7 canonical core files" {
   run bash "$INIT"
   [ "$status" -eq 0 ]
 
-  for f in STATUS.md plan.md checklist.md BACKLOG.md RESEARCH.md progress.md lessons.md; do
+  for f in status.md roadmap.md checklist.md backlog.md research.md progress.md lessons.md; do
     [ -f "$TMPROOT/.memory-bank/$f" ] || { echo "missing: $f"; return 1; }
   done
 
   grep -q "^lang=en$" "$TMPROOT/.memory-bank/.mb-config"
-  grep -q "^# Project — Plan" "$TMPROOT/.memory-bank/plan.md"
-  grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/plan.md"
+  grep -q "^# Project — Plan" "$TMPROOT/.memory-bank/roadmap.md"
+  grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
 }
 
 @test "init: creates plans/done, notes, reports, experiments, codebase dirs" {
@@ -73,12 +73,12 @@ teardown() {
   run bash "$INIT" --lang=ru
   [ "$status" -eq 0 ]
 
-  [ -f "$TMPROOT/.memory-bank/plan.md" ]
+  [ -f "$TMPROOT/.memory-bank/roadmap.md" ]
   grep -q "^lang=ru$" "$TMPROOT/.memory-bank/.mb-config"
 
-  # Russian bank must have cyrillic in plan.md (current focus heading)
-  LC_ALL=C grep -q $'\xd0' "$TMPROOT/.memory-bank/plan.md" || {
-    echo "expected cyrillic bytes in ru/plan.md"
+  # Russian bank must have cyrillic in roadmap.md (current focus heading)
+  LC_ALL=C grep -q $'\xd0' "$TMPROOT/.memory-bank/roadmap.md" || {
+    echo "expected cyrillic bytes in ru/roadmap.md"
     return 1
   }
 }
@@ -92,23 +92,23 @@ teardown() {
   [ "$status" -eq 0 ]
 
   # Markers stay English (script contract)
-  grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/plan.md"
-  grep -q "^## Ideas$" "$TMPROOT/.memory-bank/BACKLOG.md"
-  grep -q "^## ADR$" "$TMPROOT/.memory-bank/BACKLOG.md"
+  grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
+  grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
+  grep -q "^## ADR$" "$TMPROOT/.memory-bank/backlog.md"
 
   # Scaffold banner is visible (reminds the user / contributor of the WIP state)
-  grep -q "TODO(i18n-es)" "$TMPROOT/.memory-bank/plan.md" || \
-    grep -q "TODO(i18n-es)" "$TMPROOT/.memory-bank/STATUS.md"
+  grep -q "TODO(i18n-es)" "$TMPROOT/.memory-bank/roadmap.md" || \
+    grep -q "TODO(i18n-es)" "$TMPROOT/.memory-bank/status.md"
 }
 
 @test "init --lang=zh: writes scaffold + preserves canonical English markers" {
   run bash "$INIT" --lang=zh
   [ "$status" -eq 0 ]
 
-  grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/plan.md"
-  grep -q "^## Ideas$" "$TMPROOT/.memory-bank/BACKLOG.md"
-  grep -q "TODO(i18n-zh)" "$TMPROOT/.memory-bank/plan.md" || \
-    grep -q "TODO(i18n-zh)" "$TMPROOT/.memory-bank/STATUS.md"
+  grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
+  grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
+  grep -q "TODO(i18n-zh)" "$TMPROOT/.memory-bank/roadmap.md" || \
+    grep -q "TODO(i18n-zh)" "$TMPROOT/.memory-bank/status.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -117,12 +117,12 @@ teardown() {
 
 @test "init: never overwrites existing files" {
   mkdir -p "$TMPROOT/.memory-bank"
-  echo "USER CONTENT — do not clobber" > "$TMPROOT/.memory-bank/plan.md"
+  echo "USER CONTENT — do not clobber" > "$TMPROOT/.memory-bank/roadmap.md"
 
   run bash "$INIT" --lang=en
   [ "$status" -eq 0 ]
 
-  grep -q "USER CONTENT" "$TMPROOT/.memory-bank/plan.md"
+  grep -q "USER CONTENT" "$TMPROOT/.memory-bank/roadmap.md"
 }
 
 @test "init: rejects invalid locale with exit 2" {

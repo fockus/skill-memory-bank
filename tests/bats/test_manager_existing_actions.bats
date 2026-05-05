@@ -41,9 +41,9 @@ setup() {
 }
 
 @test "regression: Memory Bank structure tree still documented" {
-  grep -Fq 'STATUS.md' "$PROMPT"
-  grep -Fq 'plan.md'   "$PROMPT"
-  grep -Fq 'RESEARCH.md' "$PROMPT"
+  grep -Fq 'status.md' "$PROMPT"
+  grep -Fq 'roadmap.md' "$PROMPT"
+  grep -Fq 'research.md' "$PROMPT"
   grep -Fq 'experiments/' "$PROMPT"
   grep -Fq 'progress.md' "$PROMPT"
 }

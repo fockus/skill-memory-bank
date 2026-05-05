@@ -74,18 +74,22 @@ now_ms() {
 # Split a CSV string into a bash array, skipping empty entries.
 split_csv() {
   local csv="$1"; shift
-  local -n out="$1"
-  out=()
+  local target="$1"
+  eval "$target=()"
   [[ -z "$csv" ]] && return 0
   local IFS=,
   # shellcheck disable=SC2206
-  out=($csv)
+  local out=($csv)
   # drop accidental empty entries (e.g. trailing comma)
   local i=0 cleaned=()
   for i in "${!out[@]}"; do
     [[ -n "${out[$i]}" ]] && cleaned+=("${out[$i]}")
   done
-  out=("${cleaned[@]+"${cleaned[@]}"}")
+  local item
+  # shellcheck disable=SC2034 # item is consumed through eval for Bash 3.2 compatibility.
+  for item in "${cleaned[@]+"${cleaned[@]}"}"; do
+    eval "$target+=(\"\$item\")"
+  done
 }
 
 # JSON string escape: quote + escape backslash/quote/newline.

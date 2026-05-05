@@ -760,7 +760,7 @@ mkdir -p .memory-bank/{experiments,plans/done,notes,reports,codebase}
 Core files (templates — `~/.claude/skills/memory-bank/references/templates.md`):
 
 - `status.md` — project header, "Current phase: Start"
-- `roadmap.md` — "Current focus: define", `## Active plan` section with markers `<!-- mb-active-plan -->` / `<!-- /mb-active-plan -->` (for auto-sync)
+- `roadmap.md` — "Current focus: define", `## Active plans` section with markers `<!-- mb-active-plans -->` / `<!-- /mb-active-plans -->` (for auto-sync)
 - `checklist.md` — empty checklist
 - `research.md` — header + empty hypothesis table
 - `backlog.md` — header + empty sections (HIGH/LOW ideas, ADRs)

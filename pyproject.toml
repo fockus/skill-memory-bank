@@ -25,7 +25,9 @@ classifiers = [
   "Topic :: Software Development",
   "Topic :: Software Development :: Documentation",
 ]
-dependencies = []
+dependencies = [
+  "PyYAML>=6.0",
+]
 
 [project.optional-dependencies]
 codegraph = [

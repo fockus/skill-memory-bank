@@ -158,15 +158,16 @@ Creates:
 - `AGENTS.md` — shared format
 - `.codex/config.toml` — project settings (`project_doc_max_bytes=65536`,
   `approval_policy="on-request"`)
-- `.codex/hooks.json` — experimental hooks (warning included in `_mb_warning` field)
+- `.codex/hooks.json` — `UserPromptSubmit` prompt guard using the current Codex command-hook schema
 
 **⚠️ Important:** Codex global support is broader than just the project adapter:
 - bundled `commands/`, `agents/`, `hooks/`, `scripts/`, `references/` are available through `~/.codex/skills/memory-bank/`;
 - `~/.codex/AGENTS.md` is the global entrypoint;
 - actual hook/config execution remains primarily project-level via `.codex/`.
 
-**⚠️ Experimental:** Codex hooks schema may change. Re-run `adapters/codex.sh install`
-after upgrading Codex CLI.
+**⚠️ Note:** broader Codex lifecycle hooks are still evolving. Re-run
+`adapters/codex.sh install` after upgrading Codex CLI so `.codex/hooks.json`
+stays aligned with the current schema.
 
 ### Pi Code
 
@@ -281,9 +282,10 @@ you also want the project-level adapter (`.cursor/rules/*.mdc` + `.cursor/hooks.
 in your current project.
 
 **Q: Codex CLI ignores `.codex/hooks.json`.**
-A: The hooks API is experimental and **off by default**. Enable it in Codex CLI config
-per OpenAI docs, or wait for GA. The `_mb_warning` field in the generated file
-documents this.
+A: Verify that Codex hooks are enabled in your CLI and that the file uses the
+current command-hook schema (`UserPromptSubmit[].hooks[].type = "command"`).
+Re-run `adapters/codex.sh install` after Codex CLI upgrades; the generated
+`_mb_warning` field documents the lifecycle-hook compatibility caveat.
 
 **Q: `MB_PI_MODE=skill` produced a Skill folder but Pi doesn't pick it up.**
 A: That path is experimental by design and is gated behind

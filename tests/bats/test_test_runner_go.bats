@@ -19,7 +19,9 @@ GO
 }
 
 teardown() {
-  [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ] && rm -rf "$TMPROOT"
+  if [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ]; then
+    rm -rf "$TMPROOT"
+  fi
 }
 
 @test "go: all-passing suite → tests_pass=true, tests_failed=0" {

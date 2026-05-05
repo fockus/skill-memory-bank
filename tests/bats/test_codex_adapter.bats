@@ -8,10 +8,10 @@
 # Generates:
 #   <project>/AGENTS.md            — shared format (refcount via lib)
 #   <project>/.codex/config.toml   — project-level settings
-#   <project>/.codex/hooks.json    — experimental hooks (off by default)
+#   <project>/.codex/hooks.json    — Codex hooks config
 #   <project>/.codex/.mb-manifest.json
 #
-# Codex hooks API: experimental, userpromptsubmit currently stable, lifecycle under dev.
+# Codex hooks API: UserPromptSubmit is stable; lifecycle hooks are still evolving.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -50,12 +50,41 @@ run_adapter() {
   grep -q "project_doc_max_bytes" "$PROJECT/.codex/config.toml"
 }
 
-@test "codex: install creates .codex/hooks.json with userpromptsubmit event" {
+@test "codex: install creates .codex/hooks.json with current UserPromptSubmit command schema" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   [ -f "$PROJECT/.codex/hooks.json" ]
   jq . "$PROJECT/.codex/hooks.json" >/dev/null
-  jq -e '.hooks.userpromptsubmit // .hooks."user-prompt-submit"' "$PROJECT/.codex/hooks.json" >/dev/null
+  jq -e '
+    (.hooks | has("userpromptsubmit") | not)
+    and (.hooks.UserPromptSubmit | length == 1)
+    and (.hooks.UserPromptSubmit[0].hooks | length == 1)
+    and (.hooks.UserPromptSubmit[0].hooks[0].type == "command")
+    and (.hooks.UserPromptSubmit[0].hooks[0].command | contains(".codex/hooks/before-prompt.sh"))
+  ' "$PROJECT/.codex/hooks.json" >/dev/null
+}
+
+@test "codex: before-prompt hook returns JSON block decision for dangerous prompt" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local out
+  out="$(printf '{"prompt":"please run rm -rf / now"}' | "$PROJECT/.codex/hooks/before-prompt.sh")"
+
+  jq -e '
+    .decision == "block"
+    and (.reason | contains("BLOCKED dangerous prompt payload"))
+  ' <<< "$out" >/dev/null
+}
+
+@test "codex: before-prompt hook emits no output for safe prompt" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local out
+  out="$(printf '{"prompt":"please list project files"}' | "$PROJECT/.codex/hooks/before-prompt.sh")"
+
+  [ -z "$out" ]
 }
 
 @test "codex: install writes manifest with adapter=codex" {

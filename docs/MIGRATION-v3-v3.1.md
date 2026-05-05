@@ -1,8 +1,10 @@
 # Migration guide — v3.0.x → v3.1.0
 
-v3.1.0 is a **major refactor of the core Memory Bank files** (`STATUS.md`,
-`plan.md`, `checklist.md`, `BACKLOG.md`). The on-disk shape changes, but
-migration is fully automatic — one command and a timestamped backup.
+v3.1.0 is a **major refactor of the core Memory Bank files**. Legacy
+`STATUS.md`, `plan.md`, `BACKLOG.md`, and `RESEARCH.md` are migrated to the
+canonical lowercase layout: `status.md`, `roadmap.md`, `backlog.md`, and
+`research.md`. The on-disk shape changes, but migration is fully automatic —
+one command and a timestamped backup.
 
 ---
 
@@ -19,7 +21,7 @@ v3.0 tracked exactly one active plan through singular HTML markers:
 ```
 
 v3.1 drops the singular form and tracks any number of active plans through a
-plural block in both `plan.md` and `STATUS.md`:
+plural block in both `roadmap.md` and `status.md`:
 
 ```md
 ## Active plans
@@ -32,12 +34,13 @@ plural block in both `plan.md` and `STATUS.md`:
 
 `mb-plan-sync.sh` dedupes by basename, so running it twice for the same plan
 is idempotent. `mb-plan-done.sh` removes the entry from both files and
-prepends the plan to the new `<!-- mb-recent-done -->` block in `STATUS.md`
+prepends the plan to the new `<!-- mb-recent-done -->` block in `status.md`
 (trimmed to `MB_RECENT_DONE_LIMIT`, default 10).
 
-### `BACKLOG.md` skeleton
+### `backlog.md` skeleton
 
-v3.0 `BACKLOG.md` was freeform. v3.1 fixes the skeleton:
+v3.0 `BACKLOG.md` was freeform. v3.1 migrates it to lowercase `backlog.md`
+and fixes the skeleton:
 
 ```md
 # Backlog
@@ -70,7 +73,7 @@ v3.0 `BACKLOG.md` was freeform. v3.1 fixes the skeleton:
   `**Plan:**` cross-link; `mb-plan-done.sh` flips `PLANNED → DONE` when the
   linked plan completes.
 
-### `checklist.md` / `plan.md` compaction
+### `checklist.md` / `roadmap.md` compaction
 
 `scripts/mb-compact.sh` grew two new jobs alongside the existing note-decay
 pass:
@@ -78,10 +81,10 @@ pass:
 1. **`checklist.md`** — stage sections whose every item is ticked *and* whose
    linked plan already lives in `plans/done/` for more than
    `MB_COMPACT_CHECKLIST_DAYS` days (default 14) are removed on `--apply`.
-2. **`plan.md`** — bullets in legacy localized `Deferred` / `Declined`
-   sections are migrated into `BACKLOG.md` as
+2. **`roadmap.md`** — bullets in localized `Deferred` / `Declined`
+   sections are migrated into `backlog.md` as
    fresh `I-NNN` ideas with status `DEFERRED` / `DECLINED` respectively, and
-   removed from `plan.md` (section heading preserved for future entries).
+   removed from `roadmap.md` (section heading preserved for future entries).
 
 ---
 
@@ -104,10 +107,10 @@ Sample output:
 ```
 mode=dry-run
 actions_pending=4
-  - plan.md: add <!-- mb-active-plans --> block
-  - STATUS.md: add <!-- mb-active-plans --> block
-  - STATUS.md: add <!-- mb-recent-done --> block
-  - BACKLOG.md: restructure to skeleton (## Ideas + ## ADR)
+  - roadmap.md: add <!-- mb-active-plans --> block
+  - status.md: add <!-- mb-active-plans --> block
+  - status.md: add <!-- mb-recent-done --> block
+  - backlog.md: restructure to skeleton (## Ideas + ## ADR)
 ```
 
 ### 3. Apply
@@ -123,8 +126,8 @@ This:
   `<!-- mb-active-plans -->` and converts legacy `**Active plan:**` bullets
   into proper block entries.
 - Renames heading `## Active plan` → `## Active plans`.
-- Ensures `STATUS.md` has the two new marker blocks (empty if you had none).
-- Ensures `BACKLOG.md` has `## Ideas` and `## ADR` sections (appended if
+- Ensures `status.md` has the two new marker blocks (empty if you had none).
+- Ensures `backlog.md` has `## Ideas` and `## ADR` sections (appended if
   missing, leaves existing content untouched).
 
 Rerunning is a no-op (`actions_pending=0`).
@@ -135,7 +138,7 @@ Rerunning is a no-op (`actions_pending=0`).
 bash ~/.claude/skills/memory-bank/scripts/mb-migrate-structure.sh --dry-run .memory-bank
 # expected: actions_pending=0
 
-grep -c "<!-- mb-active-plans -->" .memory-bank/plan.md .memory-bank/STATUS.md
+grep -c "<!-- mb-active-plans -->" .memory-bank/roadmap.md .memory-bank/status.md
 # expected: each file reports 1
 ```
 
@@ -145,11 +148,11 @@ grep -c "<!-- mb-active-plans -->" .memory-bank/plan.md .memory-bank/STATUS.md
 
 | Command                                      | What it does                                                                         |
 | -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `/mb idea "<title>" [HIGH\|MED\|LOW]`        | Append a new idea to `BACKLOG.md ## Ideas` with monotonic `I-NNN`.                   |
+| `/mb idea "<title>" [HIGH\|MED\|LOW]`        | Append a new idea to `backlog.md ## Ideas` with monotonic `I-NNN`.                   |
 | `/mb idea-promote <I-NNN> <type>`            | Promote idea to a plan (`feature\|fix\|refactor\|experiment`); flips status.         |
-| `/mb adr "<title>"`                          | Capture an ADR in `BACKLOG.md ## ADR` with the standard skeleton.                    |
+| `/mb adr "<title>"`                          | Capture an ADR in `backlog.md ## ADR` with the standard skeleton.                    |
 | `/mb migrate-structure [--dry-run\|--apply]` | One-shot structural migration (this doc).                                            |
-| `/mb compact [--apply]`                      | Existing decay pass — now also compacts `checklist.md` and `plan.md` (see above).    |
+| `/mb compact [--apply]`                      | Existing decay pass — now also compacts `checklist.md` and `roadmap.md` (see above). |
 
 ---
 
@@ -158,12 +161,14 @@ grep -c "<!-- mb-active-plans -->" .memory-bank/plan.md .memory-bank/STATUS.md
 If the migration misbehaves:
 
 ```bash
-rm -rf .memory-bank/plan.md .memory-bank/STATUS.md .memory-bank/checklist.md .memory-bank/BACKLOG.md
+rm -rf .memory-bank/roadmap.md .memory-bank/status.md .memory-bank/checklist.md .memory-bank/backlog.md
 cp .memory-bank/.pre-migrate/YYYYMMDD_HHMMSS/*.md .memory-bank/
 ```
 
 The `.pre-migrate/` directory is never touched by subsequent migrations, so
-every run adds a fresh timestamped backup.
+every run adds a fresh timestamped backup. Treat these backups as potentially
+sensitive historical project state; review or delete them before sharing a
+repository snapshot outside the team.
 
 ---
 
@@ -171,7 +176,7 @@ every run adds a fresh timestamped backup.
 
 | Variable                      | Default | Purpose                                                                              |
 | ----------------------------- | ------- | ------------------------------------------------------------------------------------ |
-| `MB_RECENT_DONE_LIMIT`        | `10`    | How many completed plans to keep in `STATUS.md ## <!-- mb-recent-done -->`.          |
+| `MB_RECENT_DONE_LIMIT`        | `10`    | How many completed plans to keep in `status.md ## <!-- mb-recent-done -->`.          |
 | `MB_COMPACT_CHECKLIST_DAYS`   | `14`    | Age (days) for `mb-compact.sh` to remove a fully-done checklist section.             |
 | `MB_COMPACT_AGE_DAYS`         | `90`    | Age (days) for `mb-compact.sh` to archive notes / reports / progress entries.        |
 

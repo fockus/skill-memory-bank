@@ -106,9 +106,14 @@ plan_done_signal() {
 
 # References to a note in active files.
 note_referenced() {
-  local rel="$1" base f
+  local rel="$1" base f legacy_status legacy_research legacy_backlog legacy_plan
   base=$(basename "$rel")
-  for f in roadmap.md status.md checklist.md research.md backlog.md; do
+  legacy_status="STATUS"
+  legacy_research="RESEARCH"
+  legacy_backlog="BACKLOG"
+  legacy_plan="plan"
+  for f in roadmap.md status.md checklist.md research.md backlog.md \
+           "$legacy_plan.md" "$legacy_status.md" "$legacy_research.md" "$legacy_backlog.md"; do
     [ -f "$MB_PATH/$f" ] || continue
     grep -qF "$base" "$MB_PATH/$f" 2>/dev/null && return 0
   done

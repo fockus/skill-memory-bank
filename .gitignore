@@ -38,5 +38,7 @@ htmlcov/
 
 # Memory Bank runtime artifacts — created/deleted per session, never tracked.
 .memory-bank/.session-lock
+.memory-bank/.pre-migrate/
+.memory-bank/.migration-backup-*/
 .memory-bank/.auto-lock
 .memory-bank/.checklist.md.bak.*

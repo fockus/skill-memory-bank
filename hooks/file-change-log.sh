@@ -32,9 +32,9 @@ if [ -f "$LOG_FILE" ]; then
     mv "$LOG_FILE" "$LOG_FILE.1"
     # Re-tighten perms on every rotated copy — the original file may have
     # been created with a looser umask before the chmod-600 fix landed.
-    [ -f "$LOG_FILE.1" ] && chmod 600 "$LOG_FILE.1" 2>/dev/null || true
-    [ -f "$LOG_FILE.2" ] && chmod 600 "$LOG_FILE.2" 2>/dev/null || true
-    [ -f "$LOG_FILE.3" ] && chmod 600 "$LOG_FILE.3" 2>/dev/null || true
+    if [ -f "$LOG_FILE.1" ]; then chmod 600 "$LOG_FILE.1" 2>/dev/null || true; fi
+    if [ -f "$LOG_FILE.2" ]; then chmod 600 "$LOG_FILE.2" 2>/dev/null || true; fi
+    if [ -f "$LOG_FILE.3" ]; then chmod 600 "$LOG_FILE.3" 2>/dev/null || true; fi
   fi
 fi
 
@@ -42,14 +42,14 @@ fi
 # Create with 600 mode atomically: touch+chmod *before* the first write so we
 # never have a window where the file is world-readable.
 if [ ! -f "$LOG_FILE" ]; then
-  : > "$LOG_FILE" 2>/dev/null && chmod 600 "$LOG_FILE" 2>/dev/null || true
+  if : > "$LOG_FILE" 2>/dev/null; then chmod 600 "$LOG_FILE" 2>/dev/null || true; fi
 fi
 case "$TOOL" in
   Write) echo "[$TIMESTAMP] WRITE: $FILE_PATH" >> "$LOG_FILE" ;;
   Edit)  echo "[$TIMESTAMP] EDIT: $FILE_PATH"  >> "$LOG_FILE" ;;
 esac
 # Idempotent perm reassertion — cheap, ensures legacy 644 files get tightened.
-[ -f "$LOG_FILE" ] && chmod 600 "$LOG_FILE" 2>/dev/null || true
+if [ -f "$LOG_FILE" ]; then chmod 600 "$LOG_FILE" 2>/dev/null || true; fi
 
 [ -f "$FILE_PATH" ] || exit 0
 

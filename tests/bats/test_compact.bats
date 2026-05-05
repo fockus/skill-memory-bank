@@ -5,7 +5,7 @@
 #   - done-signal for plans:
 #       • file in plans/done/ — primary (already closed through mb-plan-done.sh)
 #       • OR path mentioned in checklist.md on a line with ✅/[x]
-#       • OR mentioned in progress.md/STATUS.md as "done|closed|shipped"
+#       • OR mentioned in progress.md/status.md as "done|closed|shipped"
 #   - done-signal for notes: frontmatter importance: low + no active references
 #
 # Active plans (not done) are NOT touched even >180d → warning only.
@@ -20,13 +20,13 @@ setup() {
   PROJECT="$(mktemp -d)"
   MB="$PROJECT/.memory-bank"
   mkdir -p "$MB/notes" "$MB/plans/done" "$MB/reports"
-  : > "$MB/STATUS.md"
+  : > "$MB/status.md"
   : > "$MB/checklist.md"
-  : > "$MB/plan.md"
+  : > "$MB/roadmap.md"
   : > "$MB/progress.md"
   : > "$MB/lessons.md"
-  : > "$MB/RESEARCH.md"
-  : > "$MB/BACKLOG.md"
+  : > "$MB/research.md"
+  : > "$MB/backlog.md"
 }
 
 teardown() {
@@ -221,7 +221,7 @@ EOF
   [[ "$output" != *"archive: notes/2026-04-01"* ]]
 }
 
-@test "compact: low note >90d + referenced in plan.md → untouched (safety)" {
+@test "compact: low note >90d + referenced in roadmap.md → untouched (safety)" {
   local n="$MB/notes/2026-01-05_referenced.md"
   cat > "$n" <<EOF
 ---
@@ -231,7 +231,7 @@ importance: low
 Referenced from plan.
 EOF
   set_mtime_days_ago "$n" 120
-  cat > "$MB/plan.md" <<EOF
+  cat > "$MB/roadmap.md" <<EOF
 # Plan
 See also notes/2026-01-05_referenced.md
 EOF
@@ -241,7 +241,7 @@ EOF
   [[ "$output" != *"archive: notes/2026-01-05_referenced"* ]]
 }
 
-@test "compact: does not perform structural migration for checklist or plan.md" {
+@test "compact: does not perform structural migration for checklist or roadmap.md" {
   local p="$MB/plans/done/2026-01-01_done.md"
   cat > "$p" <<'EOF'
 # Done plan
@@ -256,7 +256,7 @@ EOF
 - ✅ finished
 EOF
 
-  cat > "$MB/plan.md" <<'EOF'
+  cat > "$MB/roadmap.md" <<'EOF'
 ## Deferred
 
 - keep-this-for-migrate
@@ -265,7 +265,7 @@ EOF
   run_compact --apply
   [ "$status" -eq 0 ]
   grep -q '^## Stage 1: legacy-stage' "$MB/checklist.md"
-  grep -q '^- keep-this-for-migrate' "$MB/plan.md"
+  grep -q '^- keep-this-for-migrate' "$MB/roadmap.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -286,8 +286,8 @@ EOF
   # File removed
   [ ! -f "$p" ]
   # BACKLOG received a line
-  grep -q "archive_me" "$MB/BACKLOG.md"
-  grep -q "Archived plans" "$MB/BACKLOG.md"
+  grep -q "archive_me" "$MB/backlog.md"
+  grep -q "Archived plans" "$MB/backlog.md"
 }
 
 @test "compact: --apply moves note to notes/archive/" {
@@ -316,13 +316,13 @@ EOF
   [ "$status" -eq 0 ]
 
   local backlog_size1
-  backlog_size1=$(wc -l < "$MB/BACKLOG.md")
+  backlog_size1=$(wc -l < "$MB/backlog.md")
 
   run_compact --apply
   [ "$status" -eq 0 ]
 
   local backlog_size2
-  backlog_size2=$(wc -l < "$MB/BACKLOG.md")
+  backlog_size2=$(wc -l < "$MB/backlog.md")
   [ "$backlog_size1" -eq "$backlog_size2" ]
 }
 

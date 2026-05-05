@@ -3,7 +3,7 @@
 #
 # Contract:
 #   Usage: mb-adr.sh <title> [mb_path]
-#   - Appends to `## ADR` section in BACKLOG.md as
+#   - Appends to `## ADR` section in backlog.md as
 #     `### ADR-NNN — <title> [YYYY-MM-DD]`
 #   - Monotonic NNN (zero-padded 3 digits) across entire file.
 #   - Skeleton includes: **Context:** / **Options:** / **Decision:** / **Rationale:** / **Consequences:**
@@ -17,7 +17,7 @@ setup() {
   TMPBANK="$TMPROOT/.memory-bank"
   mkdir -p "$TMPBANK"
 
-  cat > "$TMPBANK/BACKLOG.md" <<'EOF'
+  cat > "$TMPBANK/backlog.md" <<'EOF'
 # Backlog
 
 ## Ideas
@@ -40,33 +40,33 @@ teardown() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"ADR-001"* ]]
 
-  grep -qE '### ADR-001 — Use OIDC for PyPI publishing \[[0-9]{4}-[0-9]{2}-[0-9]{2}\]' "$TMPBANK/BACKLOG.md"
+  grep -qE '### ADR-001 — Use OIDC for PyPI publishing \[[0-9]{4}-[0-9]{2}-[0-9]{2}\]' "$TMPBANK/backlog.md"
 }
 
 @test "adr: skeleton contains required labeled sections" {
   bash "$ADR" "Sample ADR" "$TMPBANK"
 
-  grep -q '\*\*Context:\*\*'      "$TMPBANK/BACKLOG.md"
-  grep -q '\*\*Options:\*\*'      "$TMPBANK/BACKLOG.md"
-  grep -q '\*\*Decision:\*\*'     "$TMPBANK/BACKLOG.md"
-  grep -q '\*\*Rationale:\*\*'    "$TMPBANK/BACKLOG.md"
-  grep -q '\*\*Consequences:\*\*' "$TMPBANK/BACKLOG.md"
+  grep -q '\*\*Context:\*\*'      "$TMPBANK/backlog.md"
+  grep -q '\*\*Options:\*\*'      "$TMPBANK/backlog.md"
+  grep -q '\*\*Decision:\*\*'     "$TMPBANK/backlog.md"
+  grep -q '\*\*Rationale:\*\*'    "$TMPBANK/backlog.md"
+  grep -q '\*\*Consequences:\*\*' "$TMPBANK/backlog.md"
 }
 
 @test "adr: monotonic IDs across calls" {
   bash "$ADR" "First ADR"  "$TMPBANK"
   bash "$ADR" "Second ADR" "$TMPBANK"
 
-  grep -qE '### ADR-001 — First ADR' "$TMPBANK/BACKLOG.md"
-  grep -qE '### ADR-002 — Second ADR' "$TMPBANK/BACKLOG.md"
+  grep -qE '### ADR-001 — First ADR' "$TMPBANK/backlog.md"
+  grep -qE '### ADR-002 — Second ADR' "$TMPBANK/backlog.md"
 }
 
 @test "adr: skips gap — user-added ADR-007 → next auto is ADR-008" {
-  cat >> "$TMPBANK/BACKLOG.md" <<'EOF'
+  cat >> "$TMPBANK/backlog.md" <<'EOF'
 
 ### ADR-007 — manual ADR [2026-04-10]
 EOF
 
   bash "$ADR" "After gap" "$TMPBANK"
-  grep -qE '### ADR-008 — After gap' "$TMPBANK/BACKLOG.md"
+  grep -qE '### ADR-008 — After gap' "$TMPBANK/backlog.md"
 }

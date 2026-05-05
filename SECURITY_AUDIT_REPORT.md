@@ -35,6 +35,21 @@ The codebase demonstrates positive patterns: atomic file writes in Python, PII r
 | 9 | **Low** | Race Condition | `hooks/file-change-log.sh` | Non-atomic log rotation may lose/corrupt entries |
 | 10 | **Low** | Backup Leak | `adapters/git-hooks-fallback.sh` | Hook backups persist in `.git/hooks/` if uninstall skipped |
 
+## Closeout Matrix (current source)
+
+| # | Status | Closeout / evidence |
+|---|--------|----------------------|
+| 1 | **Fixed** | `uninstall.sh` now validates manifest paths with `mb_path_is_within` against managed roots before `rm -rf`; covered by `tests/e2e/test_install_uninstall.bats` poisoned-manifest case. |
+| 2 | **Fixed** | `scripts/_lib.sh` validates external workspace `project_id` with `^[A-Za-z0-9_-]+$`; covered by `tests/bats/test_lib.bats`. |
+| 3 | **Fixed** | `adapters/pi.sh` validates `pi_skill_dir` under `~/.pi/skills` before deleting; covered by `tests/bats/test_pi_adapter.bats`. |
+| 4 | **Fixed** | `install.sh` refuses symlink backup targets resolving outside the managed root before overwrite. |
+| 5 | **Fixed** | `scripts/mb-metrics.sh` requires `MB_ALLOW_METRICS_OVERRIDE=1` before executing project-local `.memory-bank/metrics.sh`; covered by `tests/bats/test_metrics.bats`. |
+| 6 | **Partially fixed** | `hooks/file-change-log.sh` creates and reasserts `0600` permissions for current and rotated logs; covered by `tests/bats/test_file_change_log_perms.bats`. Non-atomic rotation remains tracked as Low finding #9. |
+| 7 | **Still open** | `scripts/mb-import.py` still relies on limited redaction patterns. Users must review imported notes before committing; stronger generic secret detection remains a future hardening item. |
+| 8 | **Accepted / documented** | Migration backups are deliberate rollback artifacts. `.gitignore` excludes transient backup patterns, and migration docs warn that backups are retained until the user removes them. |
+| 9 | **Accepted low risk** | Rotation can still race under concurrent hook invocations. Impact is log loss/corruption, not code execution or privilege escalation. |
+| 10 | **Accepted low risk** | Git hook backups are local rollback artifacts and `.git/hooks/` is not normally committed. Uninstall restores/removes managed hooks. |
+
 ---
 
 ## Detailed Findings

@@ -13,6 +13,8 @@
 
 Works with: **Claude Code · Cursor · Windsurf · Cline · Kilo · OpenCode · Codex · Pi Code**.
 
+**Source status:** `main` is preparing the `4.0.1` patch line. Until the next publish step runs, the latest PyPI package remains `memory-bank-skill==3.1.2`; install badges reflect the published package, not necessarily this source checkout.
+
 ---
 
 ## The problem it solves
@@ -25,7 +27,7 @@ Every new AI coding session is amnesia. You re-explain the project, re-state the
 .memory-bank/
 ├── status.md          ← where we are, what's next
 ├── checklist.md       ← current tasks (✅ / ⬜)
-├── roadmap.md            ← priorities, direction
+├── roadmap.md         ← priorities, direction
 ├── research.md        ← hypotheses log (H-NNN) + current experiment
 ├── backlog.md         ← parking lot for ideas + ADRs
 ├── progress.md        ← work log (append-only)
@@ -251,7 +253,7 @@ One `.memory-bank/` directory, 8 AI clients:
 | **Cline** | ✅ `.clinerules/hooks/*.sh` | `.clinerules/memory-bank.md` + `hooks/` |
 | **Kilo** | ❌ (fallback to git hooks) | `.kilocode/rules/` + `.git/hooks/` |
 | **OpenCode** | ✅ TypeScript plugins + native commands | `~/.config/opencode/{AGENTS.md,commands/}` + project `AGENTS.md` + `opencode.json` + TS plugin |
-| **Codex** (OpenAI) | ✅ Conservative global support + experimental project hooks | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + project `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
+| **Codex** (OpenAI) | ✅ Conservative global support + `UserPromptSubmit` prompt guard | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + project `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
 | **Pi Code** | Dual-mode (skill / AGENTS.md) | `~/.pi/skills/memory-bank/` or `AGENTS.md` |
 
 `AGENTS.md` is shared across OpenCode, Codex, Pi — ownership is refcount-tracked, so uninstalling one client doesn't break the others.
@@ -394,8 +396,8 @@ A: Yes. Everything is local. No data sent anywhere unless your AI agent itself c
 **Q: What if my team uses different AI agents?**
 A: That's the whole point. Install per-client: `memory-bank install --clients cursor,windsurf,claude-code`. One memory bank, everyone reads it.
 
-**Q: Cursor hooks are experimental / Codex hooks are experimental — is that a problem?**
-A: Partial — where native hooks don't exist or aren't stable, we ship graceful fallbacks or conservative integration. For Codex, global support means skill discovery + `~/.codex/AGENTS.md` hints; hook/config integration is still primarily project-level via `.codex/`. See [docs/cross-agent-setup.md](docs/cross-agent-setup.md) for specifics.
+**Q: Cursor hooks are experimental / Codex lifecycle hooks are evolving — is that a problem?**
+A: Partial — where native hooks don't exist or aren't stable, we ship graceful fallbacks or conservative integration. For Codex, global support means skill discovery + `~/.codex/AGENTS.md` hints; project integration includes `.codex/` config plus a `UserPromptSubmit` prompt guard. See [docs/cross-agent-setup.md](docs/cross-agent-setup.md) for specifics.
 
 **Q: My existing `AGENTS.md` / `.cursor/hooks.json` — will this overwrite them?**
 A: No. Adapters use a marker pattern (`<!-- memory-bank:start/end -->` for MD files, `_mb_owned: true` for JSON hooks) and merge idempotently. User content is preserved; uninstall only removes MB-owned sections.
@@ -416,7 +418,7 @@ A: Not by default. Project-local metrics overrides are disabled unless you expli
 A: Only as an explicit compatibility experiment. The supported path is `agents-md`. If you need to probe the native Pi Skills surface, gate it intentionally with `MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1` and expect breakage while the upstream API is still moving.
 
 **Q: Is this production-ready?**
-A: Yes. Current stable line is **v4.0.0** (released 2026-04-25), built on the v3.x architectural baseline (`3.0.0` was the first stable 3.x release). Daily used on real projects. Full test envelope green (bats + pytest, 663 passed). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.
+A: The source tree is being prepared as **v4.0.1** for a PR-ready patch release. The last published PyPI package is still **3.1.2** until the separate release/publish workflow runs. Treat current `main` as release-candidate quality only after local CI (`bats`, `pytest --cov`, `shellcheck`, `ruff`) is green.
 
 ---
 
