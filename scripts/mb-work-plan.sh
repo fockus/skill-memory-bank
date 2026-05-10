@@ -98,8 +98,9 @@ for rname, rspec in roles.items():
         ROLE_AGENT[rname] = rspec["agent"]
 
 # Stage parser: split body by mb-stage markers, capture heading + content
+# Accepts ## or ### heading level (scaffold uses ### Stage N: under ## Stages).
 pattern = re.compile(
-    r"<!--\s*mb-stage:(\d+)\s*-->\s*\n(##\s+Stage\s+\d+[^\n]*)\n(.*?)(?=<!--\s*mb-stage:\d+\s*-->|\Z)",
+    r"<!--\s*mb-stage:(\d+)\s*-->\s*\n(#{2,3}\s+Stage\s+\d+[^\n]*)\n(.*?)(?=<!--\s*mb-stage:\d+\s*-->|\Z)",
     re.S,
 )
 stage_records = {}
@@ -107,8 +108,8 @@ for m in pattern.finditer(text):
     n = int(m.group(1))
     heading_full = m.group(2).strip()
     body = m.group(3)
-    # Heading without "## Stage N: " prefix → pure heading text
-    heading_clean = re.sub(r"^##\s+Stage\s+\d+:\s*", "", heading_full).strip()
+    # Heading without "## Stage N: " / "### Stage N: " prefix → pure heading text
+    heading_clean = re.sub(r"^#{2,3}\s+Stage\s+\d+:\s*", "", heading_full).strip()
     stage_records[n] = (heading_clean, body)
 
 if not stage_records:
@@ -125,7 +126,10 @@ ROLE_RULES = [
     ("ios",       [r"\bios\b", r"\bswift\b", r"\bswiftui\b", r"\bcombine\b", r"\bxcode\b"]),
     ("android",   [r"\bandroid\b", r"\bkotlin\b", r"\bjetpack\b", r"\bcompose\b"]),
     ("frontend",  [r"\breact\b", r"\bvue\b", r"\bui component\b", r"\btailwind\b", r"\bcss\b", r"\b ui\b"]),
-    ("backend",   [r"\bapi\b", r"\bfastapi\b", r"\bdjango\b", r"\bpydantic\b", r"\bsqlalchemy\b", r"\bendpoint\b"]),
+    ("backend",   [r"\bapi\b", r"\bfastapi\b", r"\bdjango\b", r"\bpydantic\b", r"\bsqlalchemy\b", r"\bendpoint\b",
+                   r"\bsqlc\b", r"\bmigration\b", r"\bmigrations\b", r"\bgolang\b", r"\bgo\b",
+                   r"\bbackend\b", r"\bdomain\b", r"\brepository\b", r"\brepositories\b",
+                   r"\bnats\b", r"\bpostgres\b", r"\bfiber\b", r"\bgin\b", r"\becho\b"]),
     ("devops",    [r"\bdocker\b", r"\bdockerfile\b", r"\bk8s\b", r"\bkubernetes\b", r"\bci\b", r"\bcd\b", r"\binfrastructure\b", r"\bterraform\b"]),
     ("qa",        [r"\bred tests\b", r"\bpytest\b", r"\bbats\b", r"\btest cases\b", r"\bcoverage\b", r"\bedge case\b"]),
     ("architect", [r"\barchitecture\b", r"\badr\b", r"\bdesign doc\b", r"\bdomain model\b", r"\binterfaces\b"]),
