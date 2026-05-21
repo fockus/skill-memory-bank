@@ -48,6 +48,17 @@ MODE="${MB_PI_MODE:-agents-md}"
 PI_SKILL_DIR="$HOME/.pi/agent/skills/memory-bank"
 
 install_skill_mode() {
+  if [ -L "$PI_SKILL_DIR" ]; then
+    adapter_write_manifest \
+      "$MANIFEST" \
+      "pi" \
+      "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+      '[]' \
+      '{"mode": "skill", "pi_skill_dir": "", "global_skill_alias_detected": true}'
+    echo "[pi-adapter] global Pi skill alias already exists; leaving it unchanged"
+    return 0
+  fi
+
   mkdir -p "$PI_SKILL_DIR"
 
   # Minimal Agent Skills-compatible SKILL.md for Pi discovery.
@@ -92,7 +103,7 @@ install_skill_mode() {
 
 uninstall_skill_mode() {
   local skill_path
-  skill_path=$(jq -r '.pi_skill_dir' "$MANIFEST")
+  skill_path=$(jq -r '.pi_skill_dir // empty' "$MANIFEST")
   if [ -n "$skill_path" ] && [ -d "$skill_path" ]; then
     if mb_path_is_within "$skill_path" "$HOME/.pi/agent/skills"; then
       rm -rf "$skill_path"

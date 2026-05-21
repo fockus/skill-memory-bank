@@ -349,7 +349,7 @@ Flags:
 | `MB_AUTO_CAPTURE` | SessionEnd auto-capture mode: `auto` / `strict` / `off` | `auto` |
 | `MB_COMPACT_REMIND` | Weekly `/mb compact` reminder: `auto` / `off` | `auto` |
 | `MB_ALLOW_METRICS_OVERRIDE` | Allow executing project-local `.memory-bank/metrics.sh` overrides | `0` |
-| `MB_PI_MODE` | Pi project adapter mode. Supported: `agents-md` (project `AGENTS.md`) or `skill` (`~/.pi/agent/skills/memory-bank`) | `agents-md` |
+| `MB_PI_MODE` | Pi project adapter mode. Supported: `agents-md` (project `AGENTS.md`) or `skill` (`~/.pi/agent/skills/memory-bank`; leaves existing global symlink unchanged) | `agents-md` |
 | `MB_SKILL_BUNDLE` | Override bundle path (dev / testing) | auto-detected |
 | `MB_SKIP_DEPS_CHECK` | Skip preflight dep check in `install.sh` | `0` |
 
@@ -414,7 +414,7 @@ A: `memory-bank uninstall -y` removes global install without a prompt. Per-proje
 A: Not by default. Project-local metrics overrides are disabled unless you explicitly opt in with `MB_ALLOW_METRICS_OVERRIDE=1`. Without that env var, the shipped stack detection stays on the safe built-in path.
 
 **Q: Does Pi need a separate setup step?**
-A: `memory-bank install` now writes Pi global artifacts automatically: `~/.pi/agent/AGENTS.md`, `~/.pi/agent/skills/memory-bank`, and slash prompt templates in `~/.pi/agent/prompts/`. In an existing Pi session, run `/reload` after install. For a project-level shared `AGENTS.md`, additionally run `memory-bank install --clients pi --project-root <repo>`.
+A: `memory-bank install` now writes Pi global artifacts automatically: `~/.pi/agent/AGENTS.md`, `~/.pi/agent/skills/memory-bank`, and slash prompt templates in `~/.pi/agent/prompts/`. In an existing Pi session, run `/reload` after install. For a project-level shared `AGENTS.md`, additionally run `memory-bank install --clients pi --project-root <repo>`. Existing local Pi skill directories are backed up outside `~/.pi/agent/skills/` so Pi does not discover backup copies as duplicate skills.
 
 **Q: Is this production-ready?**
 A: Yes. Current stable line is **v4.0.0** (released 2026-04-25), built on the v3.x architectural baseline (`3.0.0` was the first stable 3.x release). Daily used on real projects. Full test envelope green (bats + pytest, 663 passed). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.

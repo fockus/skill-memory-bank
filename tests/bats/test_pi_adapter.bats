@@ -92,6 +92,21 @@ run_adapter() {
   jq -e '.mode == "skill"' "$PROJECT/.mb-pi-manifest.json" >/dev/null
 }
 
+@test "pi: MB_PI_MODE=skill does not overwrite global symlinked Pi skill" {
+  mkdir -p "$HOME/.claude/skills/skill-memory-bank" "$HOME/.pi/agent/skills"
+  cp "$REPO_ROOT/SKILL.md" "$HOME/.claude/skills/skill-memory-bank/SKILL.md"
+  ln -s "$HOME/.claude/skills/skill-memory-bank" "$HOME/.pi/agent/skills/memory-bank"
+  before=$(shasum "$HOME/.claude/skills/skill-memory-bank/SKILL.md" | awk '{print $1}')
+
+  MB_PI_MODE=skill run_adapter install "$PROJECT"
+
+  [ "$status" -eq 0 ]
+  after=$(shasum "$HOME/.claude/skills/skill-memory-bank/SKILL.md" | awk '{print $1}')
+  [ "$after" = "$before" ]
+  jq -e '.mode == "skill"' "$PROJECT/.mb-pi-manifest.json" >/dev/null
+  jq -e '.global_skill_alias_detected == true' "$PROJECT/.mb-pi-manifest.json" >/dev/null
+}
+
 @test "pi: skill mode uninstall rejects poisoned manifest path outside ~/.pi/agent/skills" {
   mkdir -p "$HOME/keep-me"
   echo "still here" > "$HOME/keep-me/file.txt"

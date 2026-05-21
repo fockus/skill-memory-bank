@@ -124,7 +124,7 @@ wait for stdin.
 ## Security-sensitive toggles
 
 - Project-local `.memory-bank/metrics.sh` overrides are **disabled by default**. To run one intentionally, use `MB_ALLOW_METRICS_OVERRIDE=1`.
-- Pi project adapter modes: default `MB_PI_MODE=agents-md` writes project `AGENTS.md`; `MB_PI_MODE=skill` writes `~/.pi/agent/skills/memory-bank`.
+- Pi project adapter modes: default `MB_PI_MODE=agents-md` writes project `AGENTS.md`; `MB_PI_MODE=skill` writes `~/.pi/agent/skills/memory-bank` only when the global Pi skill alias is not already present. Existing Pi skill backups are kept under `~/.pi/agent/.memory-bank-backups/`, outside the Pi skill discovery directory.
 
 ## Platform support
 

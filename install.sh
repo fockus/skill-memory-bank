@@ -307,14 +307,24 @@ backup_if_exists() {
     # Rotation: remove any previous .pre-mb-backup.* for this target.
     # Prevents the "backup creep" problem (hundreds of stale backups accumulating
     # across repeat installs). We keep only the freshest snapshot.
-    # Use shopt/compgen-free pattern that tolerates "no match" without nullglob.
-    local old
-    for old in "$target".pre-mb-backup.*; do
-      [ -e "$old" ] || [ -L "$old" ] || continue
-      rm -rf -- "$old"
-    done
-    local backup
-    backup="$target.pre-mb-backup.$(date +%s)"
+    # Pi scans ~/.pi/agent/skills/* as skills, so keep Pi skill backups outside
+    # that discovery directory to avoid duplicate "memory-bank" skill conflicts.
+    local old backup
+    if [ "$target" = "$PI_SKILL_ALIAS" ]; then
+      mkdir -p "$PI_AGENT_DIR/.memory-bank-backups"
+      for old in "$PI_AGENT_DIR/.memory-bank-backups/memory-bank.pre-mb-backup."*; do
+        [ -e "$old" ] || [ -L "$old" ] || continue
+        rm -rf -- "$old"
+      done
+      backup="$PI_AGENT_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.$(date +%s)"
+    else
+      # Use shopt/compgen-free pattern that tolerates "no match" without nullglob.
+      for old in "$target".pre-mb-backup.*; do
+        [ -e "$old" ] || [ -L "$old" ] || continue
+        rm -rf -- "$old"
+      done
+      backup="$target.pre-mb-backup.$(date +%s)"
+    fi
     mv "$target" "$backup"
     BACKED_UP_FILES+=("$target|$backup")
   fi

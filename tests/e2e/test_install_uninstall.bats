@@ -55,6 +55,24 @@ teardown() {
   [ -f "$HOME/.pi/agent/prompts/plan.md" ]
 }
 
+@test "install: backs up existing Pi skill outside skill discovery directory" {
+  mkdir -p "$HOME/.pi/agent/skills/memory-bank"
+  cat > "$HOME/.pi/agent/skills/memory-bank/SKILL.md" <<'EOF'
+---
+name: memory-bank
+---
+# old local Pi skill
+EOF
+
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  [ -L "$HOME/.pi/agent/skills/memory-bank" ]
+  [ -f "$HOME/.pi/agent/skills/memory-bank/SKILL.md" ]
+  [ -d "$HOME/.pi/agent/.memory-bank-backups" ]
+  find "$HOME/.pi/agent/.memory-bank-backups" -maxdepth 2 -name SKILL.md | grep -q .
+  ! find "$HOME/.pi/agent/skills" -maxdepth 2 -path '*pre-mb-backup*' -name SKILL.md | grep -q .
+}
+
 @test "install: default language is English in installed rules and config" {
   bash "$REPO_ROOT/install.sh" >/dev/null
 
@@ -389,6 +407,24 @@ PY
   if [ -f "$HOME/.pi/agent/AGENTS.md" ]; then
     ! grep -q "memory-bank-pi:start" "$HOME/.pi/agent/AGENTS.md"
   fi
+}
+
+@test "uninstall: restores pre-existing Pi skill from hidden backup" {
+  mkdir -p "$HOME/.pi/agent/skills/memory-bank"
+  cat > "$HOME/.pi/agent/skills/memory-bank/SKILL.md" <<'EOF'
+---
+name: memory-bank
+---
+# old local Pi skill
+EOF
+
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ -d "$HOME/.pi/agent/skills/memory-bank" ]
+  [ ! -L "$HOME/.pi/agent/skills/memory-bank" ]
+  grep -q "old local Pi skill" "$HOME/.pi/agent/skills/memory-bank/SKILL.md"
+  [ ! -d "$HOME/.pi/agent/.memory-bank-backups" ]
 }
 
 @test "uninstall: strips MEMORY-BANK-SKILL section from CLAUDE.md" {

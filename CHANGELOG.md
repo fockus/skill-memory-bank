@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - `memory_bank_skill.__version__` now matches `VERSION` (`4.0.0`).
 - Reinstalling refreshes the managed Claude/Pi Memory Bank sections instead of repeatedly localizing every quoted critical rule as a language rule.
 - Installer symlink replacement now safely replaces symlink aliases without following or backing up external symlink targets, preserving the symlink-attack guard for file targets.
+- Existing Pi skill directory backups are stored under `~/.pi/agent/.memory-bank-backups/` instead of `~/.pi/agent/skills/`, avoiding duplicate `memory-bank` skill discovery conflicts.
+- `MB_PI_MODE=skill` leaves an existing global Pi skill symlink unchanged, preventing accidental overwrite of the canonical bundled `SKILL.md`.
 
 ### Added — I-004 (auto-commit hook for `/mb done`)
 

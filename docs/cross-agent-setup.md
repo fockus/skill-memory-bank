@@ -192,7 +192,9 @@ adapters/pi.sh install ~/my-project
 
 The project adapter writes shared `AGENTS.md`. If the project is a git repo it
 also installs the git-hooks fallback; otherwise it safely installs only
-`AGENTS.md`.
+`AGENTS.md`. `MB_PI_MODE=skill` is supported for compatibility, but it leaves an
+existing global Pi skill symlink unchanged so it cannot overwrite the bundled
+`SKILL.md` installed by `memory-bank install`.
 
 ## Shared AGENTS.md coexistence
 
@@ -295,7 +297,10 @@ documents this.
 
 **Q: Pi doesn't show `/mb` after install.**
 A: Run `/reload` in the current Pi session. Pi prompt templates are installed to
-`~/.pi/agent/prompts/*.md`; new sessions pick them up automatically.
+`~/.pi/agent/prompts/*.md`; new sessions pick them up automatically. If you had
+an older local Pi skill directory, its backup is stored under
+`~/.pi/agent/.memory-bank-backups/` so Pi does not discover it as a duplicate
+skill.
 
 **Q: Kilo adapter fails with "requires git repo".**
 A: Kilo has no native hooks → git-hooks-fallback is mandatory. Run `git init`

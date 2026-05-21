@@ -144,6 +144,7 @@ rmdir "$CURSOR_DIR/commands" 2>/dev/null || true
 rmdir "$OPENCODE_DIR/commands" 2>/dev/null || true
 rmdir "$PI_AGENT_DIR/prompts" 2>/dev/null || true
 rmdir "$PI_AGENT_DIR/skills" 2>/dev/null || true
+rmdir "$PI_AGENT_DIR/.memory-bank-backups" 2>/dev/null || true
 rmdir "$PI_AGENT_DIR" 2>/dev/null || true
 rmdir "$HOME/.pi" 2>/dev/null || true
 rmdir "$OPENCODE_DIR" 2>/dev/null || true

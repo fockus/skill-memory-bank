@@ -63,6 +63,6 @@ We follow **coordinated disclosure**:
 - Backups (`.pre-mb-backup.<timestamp>`) are created only when content differs — see FAQ in README.
 - Uninstall removes only manifested files after canonical path validation; user content between markers is preserved.
 - Project-local `.memory-bank/metrics.sh` overrides are blocked by default and run only with explicit `MB_ALLOW_METRICS_OVERRIDE=1` opt-in.
-- Pi global install is first-class: `install.sh` registers only managed files under `~/.pi/agent/` (`AGENTS.md`, `skills/memory-bank`, and `prompts/*.md`); project `MB_PI_MODE=skill` cleanup validates paths under `~/.pi/agent/skills` before deleting.
+- Pi global install is first-class: `install.sh` registers only managed files under `~/.pi/agent/` (`AGENTS.md`, `skills/memory-bank`, and `prompts/*.md`); old Pi skill backups are stored outside the scanned `skills/` directory, and project `MB_PI_MODE=skill` leaves an existing global symlink unchanged before cleanup validates paths under `~/.pi/agent/skills`.
 - The skill does not make network calls at runtime (neither `install.sh` nor the Python CLI).
 - No telemetry. No analytics. No opt-in / opt-out to discuss.
