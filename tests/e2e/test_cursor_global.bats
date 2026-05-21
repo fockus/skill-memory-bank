@@ -3,7 +3,7 @@
 #
 # Verifies that `install.sh` installs Cursor as a first-class global target:
 #   - ~/.cursor/skills/memory-bank symlink on canonical bundle
-#   - ~/.cursor/hooks.json + ~/.cursor/hooks/*.sh with three _mb_owned bindings
+#   - ~/.cursor/hooks.json + ~/.cursor/hooks/*.sh with ten _mb_owned bindings
 #   - ~/.cursor/commands/*.md (slash commands mirrored)
 #   - ~/.cursor/AGENTS.md with marker section memory-bank-cursor:start/end
 #   - ~/.cursor/memory-bank-user-rules.md ready for Settings → Rules → User Rules paste
@@ -37,20 +37,33 @@ teardown() {
   [ "$cursor_alias" = "$canonical" ]
 }
 
-@test "cursor-global: install writes ~/.cursor/hooks.json with three _mb_owned entries" {
+@test "cursor-global: install writes ~/.cursor/hooks.json with ten _mb_owned entries" {
   bash "$REPO_ROOT/install.sh" >/dev/null
 
   [ -f "$HOME/.cursor/hooks.json" ]
   owned_count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$HOME/.cursor/hooks.json")
-  [ "$owned_count" -eq 3 ]
+  [ "$owned_count" -eq 10 ]
 }
 
-@test "cursor-global: install copies three hook scripts into ~/.cursor/hooks/" {
+@test "cursor-global: install copies ten hook scripts into ~/.cursor/hooks/" {
   bash "$REPO_ROOT/install.sh" >/dev/null
 
-  [ -x "$HOME/.cursor/hooks/session-end-autosave.sh" ]
-  [ -x "$HOME/.cursor/hooks/mb-compact-reminder.sh" ]
-  [ -x "$HOME/.cursor/hooks/block-dangerous.sh" ]
+  local hooks=(
+    session-end-autosave.sh
+    mb-compact-reminder.sh
+    block-dangerous.sh
+    mb-protected-paths-guard.sh
+    mb-ears-pre-write.sh
+    mb-context-slim-pre-agent.sh
+    mb-sprint-context-guard.sh
+    file-change-log.sh
+    mb-plan-sync-post-write.sh
+    mb-session-start-context.sh
+  )
+  local h
+  for h in "${hooks[@]}"; do
+    [ -x "$HOME/.cursor/hooks/$h" ]
+  done
 }
 
 @test "cursor-global: install copies slash commands into ~/.cursor/commands/" {
@@ -73,10 +86,9 @@ teardown() {
   bash "$REPO_ROOT/install.sh" >/dev/null
 
   [ -f "$HOME/.cursor/memory-bank-user-rules.md" ]
-  # Paste-ready file must not contain marker comments
-  ! grep -q "<!-- memory-bank-cursor:start -->" "$HOME/.cursor/memory-bank-user-rules.md"
-  # And should reference the skill location so the user knows where rules live
-  grep -q "~/.cursor/skills/memory-bank" "$HOME/.cursor/memory-bank-user-rules.md"
+  grep -q "<!-- memory-bank:start v" "$HOME/.cursor/memory-bank-user-rules.md"
+  grep -q "<!-- memory-bank:end -->" "$HOME/.cursor/memory-bank-user-rules.md"
+  grep -q "Settings → Rules → User Rules" "$HOME/.cursor/memory-bank-user-rules.md"
 }
 
 @test "cursor-global: install writes ~/.cursor/.mb-manifest.json with schema_version=1" {
@@ -91,12 +103,12 @@ teardown() {
 # Idempotency
 # ═══════════════════════════════════════════════════════════════
 
-@test "cursor-global: install is idempotent — two runs keep exactly three _mb_owned entries" {
+@test "cursor-global: install is idempotent — two runs keep exactly ten _mb_owned entries" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   bash "$REPO_ROOT/install.sh" >/dev/null
 
   owned_count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$HOME/.cursor/hooks.json")
-  [ "$owned_count" -eq 3 ]
+  [ "$owned_count" -eq 10 ]
 }
 
 @test "cursor-global: install is idempotent — two runs keep one memory-bank-cursor section" {
@@ -128,7 +140,7 @@ EOF
 
   grep -q "user-hook" "$HOME/.cursor/hooks.json"
   owned_count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$HOME/.cursor/hooks.json")
-  [ "$owned_count" -eq 3 ]
+  [ "$owned_count" -eq 10 ]
 }
 
 @test "cursor-global: install preserves pre-existing user content in ~/.cursor/AGENTS.md" {
@@ -161,9 +173,16 @@ EOF
   bash "$REPO_ROOT/install.sh" >/dev/null
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
 
-  [ ! -f "$HOME/.cursor/hooks/session-end-autosave.sh" ]
-  [ ! -f "$HOME/.cursor/hooks/mb-compact-reminder.sh" ]
-  [ ! -f "$HOME/.cursor/hooks/block-dangerous.sh" ]
+  local hooks=(
+    session-end-autosave.sh mb-compact-reminder.sh block-dangerous.sh
+    mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh
+    mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh
+    mb-session-start-context.sh
+  )
+  local h
+  for h in "${hooks[@]}"; do
+    [ ! -f "$HOME/.cursor/hooks/$h" ]
+  done
 
   if [ -f "$HOME/.cursor/hooks.json" ]; then
     owned_count=$(jq '[.. | objects | select(._mb_owned == true)] | length' "$HOME/.cursor/hooks.json")

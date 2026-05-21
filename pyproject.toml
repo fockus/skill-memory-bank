@@ -52,7 +52,8 @@ Changelog = "https://github.com/fockus/skill-memory-bank/blob/main/CHANGELOG.md"
 # ═══ Hatch build configuration ═══
 
 [tool.hatch.version]
-path = "memory_bank_skill/__init__.py"
+path = "VERSION"
+pattern = "^(?P<version>.+)$"
 
 [tool.hatch.build]
 include = [

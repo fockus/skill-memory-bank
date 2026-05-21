@@ -307,6 +307,7 @@ memory-bank install
 # paste the generated bundle into Settings → Rules → User Rules:
 pbcopy < ~/.cursor/memory-bank-user-rules.md           # macOS
 xclip -selection clipboard < ~/.cursor/memory-bank-user-rules.md   # Linux
+# The file is wrapped in <!-- memory-bank:start vX.Y.Z --> / <!-- memory-bank:end --> markers.
 
 # Step 3. Open any project in Cursor and run:
 /mb init                                # one-time per project
@@ -395,7 +396,7 @@ A: Yes. Everything is local. No data sent anywhere unless your AI agent itself c
 A: That's the whole point. Install per-client: `memory-bank install --clients cursor,windsurf,claude-code`. One memory bank, everyone reads it.
 
 **Q: Cursor hooks are experimental / Codex hooks are experimental — is that a problem?**
-A: Partial — where native hooks don't exist or aren't stable, we ship graceful fallbacks or conservative integration. For Codex, global support means skill discovery + `~/.codex/AGENTS.md` hints; hook/config integration is still primarily project-level via `.codex/`. See [docs/cross-agent-setup.md](docs/cross-agent-setup.md) for specifics.
+A: Partial — where native hooks don't exist or aren't stable, we ship graceful fallbacks or conservative integration. Cursor global install wires 10 hooks including `sessionStart`, matcher-aware `preToolUse`, and matcher-aware `postToolUse`. For Codex, global support means skill discovery + `~/.codex/AGENTS.md` hints; hook/config integration is still primarily project-level via `.codex/`. See [docs/cross-agent-setup.md](docs/cross-agent-setup.md) for specifics.
 
 **Q: My existing `AGENTS.md` / `.cursor/hooks.json` — will this overwrite them?**
 A: No. Adapters use a marker pattern (`<!-- memory-bank:start/end -->` for MD files, `_mb_owned: true` for JSON hooks) and merge idempotently. User content is preserved; uninstall only removes MB-owned sections.

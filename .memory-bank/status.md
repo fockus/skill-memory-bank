@@ -10,7 +10,7 @@ Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine,
 
 ## ⏭ Следующий шаг
 
-Audit-remediation закрыт. Следующая итерация — TBD (`/mb idea` при появлении сигнала). Кандидаты: refresh of legacy `plan.md` фикстур в bats тестах (11 pre-existing fails); Pi-mode skill telemetry; multi-language code graph extraction polish.
+Cursor adapter remediation (10 hooks, version sync, User Rules UX) — ✅ 2026-05-21. Audit-remediation закрыт. Следующая итерация — TBD (`/mb idea` при появлении сигнала). Кандидаты: refresh of legacy `plan.md` фикстур в bats тестах (11 pre-existing fails); Pi-mode skill telemetry; multi-language code graph extraction polish.
 
 ## Open backlog
 

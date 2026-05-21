@@ -162,7 +162,8 @@ Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Cl
 | `mb-plan-sync-post-write.sh` | PostToolUse (Write) | Auto-sync plan ↔ checklist + roadmap after editing a plan file |
 | `file-change-log.sh` | PostToolUse (Write/Edit) | Append change log + scan for placeholders / secrets in committed files |
 | `session-end-autosave.sh` | SessionEnd | Memory Bank auto-capture (`MB_AUTO_CAPTURE=auto\|strict\|off`) when `/mb done` was skipped |
-| `mb-compact-reminder.sh` | SessionEnd | Weekly `/mb compact` reminder (opt-in: triggers only after first `/mb compact --apply`) |
+| `mb-compact-reminder.sh` | preCompact (Cursor) / SessionEnd (Claude Code) | Weekly `/mb compact` reminder (opt-in: triggers only after first `/mb compact --apply`) |
+| `mb-session-start-context.sh` | sessionStart (Cursor) | Auto-inject compact Memory Bank context at session start (`MB_AUTOLOAD_CONTEXT=off` to disable) |
 
 ---
 
@@ -196,7 +197,7 @@ Cursor is a first-class global target. `install.sh` writes five artifacts to `~/
 | Artifact | Purpose |
 |----------|---------|
 | `~/.cursor/skills/memory-bank/` | Personal skill alias — Cursor auto-discovers it by description |
-| `~/.cursor/hooks.json` + `~/.cursor/hooks/*.sh` | Global hooks: `sessionEnd` (autosave), `preCompact` (reminder), `beforeShellExecution` (block-dangerous). Each entry tagged `_mb_owned: true` so user hooks are preserved |
+| `~/.cursor/hooks.json` + `~/.cursor/hooks/*.sh` | Global hooks (10 scripts): `sessionStart` (auto-context), `sessionEnd`, `preCompact`, `beforeShellExecution`, four `preToolUse` matchers (`Write|Edit`, `Write`, `Task`×2), two `postToolUse` matchers. Each entry tagged `_mb_owned: true` so user hooks are preserved |
 | `~/.cursor/commands/*.md` | User-level slash commands mirrored from the skill `commands/` directory |
 | `~/.cursor/AGENTS.md` | Marker section `memory-bank-cursor:start/end` — entrypoint for future Cursor versions that read global `AGENTS.md` |
 | `~/.cursor/memory-bank-user-rules.md` | Paste-ready rules bundle for **Settings → Rules → User Rules** (Cursor exposes no file API for global User Rules, so this is a one-time manual step) |

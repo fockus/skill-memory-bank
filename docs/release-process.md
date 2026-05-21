@@ -51,20 +51,19 @@ python3 -m pytest tests/pytest/
 ruff check .
 shellcheck -x --source-path=SCRIPTDIR scripts/*.sh adapters/*.sh hooks/*.sh install.sh uninstall.sh
 
-# 2. Update VERSION + memory_bank_skill/__init__.py + CHANGELOG
-#    (all three must match the tag exactly)
-echo "3.0.0" > VERSION
-# ...edit memory_bank_skill/__init__.py __version__...
+# 2. Bump VERSION (single canonical source) + CHANGELOG
+#    __version__ reads VERSION at runtime; PR tests enforce sync
+echo "X.Y.Z" > VERSION
 # ...add CHANGELOG section...
 
 # 3. Commit
-git add VERSION memory_bank_skill/__init__.py CHANGELOG.md
-git commit -m "release: v3.0.0"
+git add VERSION CHANGELOG.md
+git commit -m "release: vX.Y.Z"
 
 # 4. Tag + push — triggers publish.yml workflow
-git tag v3.0.0
+git tag vX.Y.Z
 git push origin main
-git push origin v3.0.0
+git push origin vX.Y.Z
 ```
 
 ### What the workflow does
@@ -72,7 +71,7 @@ git push origin v3.0.0
 On every pushed `v*` tag:
 
 1. **Build job**
-   - Verifies tag version === VERSION file === `__init__.__version__`
+   - Verifies tag version === VERSION file === `memory_bank_skill.__version__` (derived from VERSION)
    - Builds sdist + wheel via `python -m build`
    - Uploads artifact for downstream jobs
 2. **publish-pypi job** (needs build)

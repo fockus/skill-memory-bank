@@ -56,8 +56,10 @@ bash install.sh --non-interactive
 
 Creates under `~/.cursor/`:
 - `skills/memory-bank/` — symlink on canonical skill bundle (auto-discovered by Cursor)
-- `hooks.json` + `hooks/*.sh` — three hooks tagged `_mb_owned: true`:
-  `sessionEnd` (autosave), `preCompact` (reminder), `beforeShellExecution` (block-dangerous)
+- `hooks.json` + `hooks/*.sh` — ten hooks tagged `_mb_owned: true`:
+  `sessionStart` (auto-context), `sessionEnd` (autosave), `preCompact` (reminder),
+  `beforeShellExecution` (block-dangerous), four `preToolUse` entries (protected paths, EARS, context-slim, sprint-guard),
+  two `postToolUse` entries (file-change-log, plan-sync)
 - `commands/*.md` — user-level slash commands mirrored from the skill
 - `AGENTS.md` — marker section `memory-bank-cursor:start/end` (managed block,
   user content above/below is preserved)
@@ -74,6 +76,9 @@ xclip -selection clipboard < ~/.cursor/memory-bank-user-rules.md
 ```
 
 Then in Cursor: Settings → Rules → User Rules → paste.
+
+The paste file includes version markers `<!-- memory-bank:start vX.Y.Z -->` … `<!-- memory-bank:end -->`.
+Cursor cannot write User Rules via file API — manual paste only.
 
 **Optional project adapter:**
 

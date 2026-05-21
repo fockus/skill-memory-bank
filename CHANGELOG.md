@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — Cursor adapter remediation
+
+- `adapters/cursor.sh` registers the full 10-hook Cursor contract (matcher-aware `PreToolUse`/`PostToolUse`, project + global installs, idempotent append builder).
+- `hooks/mb-session-start-context.sh` — `sessionStart` hook injects capped `.memory-bank/` context (`MB_AUTOLOAD_CONTEXT=off` to disable).
+- `memory_bank_skill.__version__` reads canonical `VERSION` (wheel metadata fallback); `pyproject.toml` uses Hatch `version` source.
+- Cursor User Rules paste file uses `<!-- memory-bank:start vX.Y.Z -->` markers; TTY installs offer clipboard helper.
+
 ### Added — Pi Code first-class global support
 
 - `memory-bank install` now registers Pi globally under `~/.pi/agent/`: managed `AGENTS.md`, `skills/memory-bank` alias, and prompt templates in `prompts/*.md` (`/mb`, `/start`, `/done`, `/plan`, etc.).
@@ -96,9 +103,9 @@ Major release: Skill v2 architectural refactor. Phases 3 + 4 + I-033 ship the ex
     + 5 `test_hook_sprint_context_guard.py` + 6
     `test_phase4_sprint2_registration.py`). Total: 552 → 584 passed.
 
-  Phase 4 Sprint 3 will auto-register all five hooks during
-  `install.sh` and add a `superpowers:requesting-code-review` skill
-  detector that flips the reviewer override declared in
+  Phase 4 Sprint 3 auto-registers these hooks during `install.sh`
+  and adds a `superpowers:requesting-code-review` skill detector that
+  flips the reviewer override declared in
   `pipeline.yaml:roles.reviewer.override_if_skill_present`.
 
 - **Phase 4 Sprint 1: 4 critical hooks (spec §13).**

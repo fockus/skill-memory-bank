@@ -8,7 +8,9 @@ Three paths. Pick the one that fits.
 
 ```bash
 pipx install memory-bank-skill                      # installs the CLI only
+memory-bank install                                 # global install (Claude, Codex, Pi, Cursor, OpenCode)
 memory-bank install --clients claude-code,cursor    # wires agents, rules, commands, Pi prompts
+memory-bank install --clients cursor --project-root .  # optional project-level .cursor/ adapter
 memory-bank install --language ru                   # install Russian rule wording
 ```
 
@@ -32,7 +34,8 @@ memory-bank version
 ```bash
 brew tap fockus/tap
 brew install memory-bank
-memory-bank install --clients claude-code,cursor
+memory-bank install
+memory-bank install --clients cursor --project-root .  # optional project-level .cursor/ adapter
 memory-bank install --language en
 ```
 
@@ -101,6 +104,22 @@ If you also pass `--clients opencode`, project-level OpenCode files are added un
 - `<project>/.opencode/commands/*.md`
 
 See [cross-agent-setup.md](cross-agent-setup.md) for per-client details.
+
+
+## Cursor User Rules
+
+`memory-bank install` writes `~/.cursor/memory-bank-user-rules.md` with version markers:
+
+```text
+<!-- memory-bank:start vX.Y.Z -->
+<rules content>
+<!-- memory-bank:end -->
+```
+
+Cursor does not expose a file API for User Rules. Paste the file manually into
+Settings → Rules → User Rules. TTY installs offer a clipboard helper (`pbcopy`,
+`xclip`, or `wl-copy`); non-interactive installs only print the path and never
+wait for stdin.
 
 ## Security-sensitive toggles
 

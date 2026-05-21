@@ -1,8 +1,6 @@
 # Memory Bank Hooks — Installation & Reference
 
-This document covers the four critical hooks shipped by Phase 4 Sprint 1 (spec §13). They are deterministic shell scripts that Claude Code invokes around tool calls and subagent dispatches. They are independent of `/mb work` orchestration — they fire whenever the matching tool / file pattern is touched, even from manual edits.
-
-> **Sprint 1 = scripts shipped + manual install.** Phase 4 Sprint 3 will auto-register these hooks via `install.sh`. Until then, register them yourself in `~/.claude/settings.json` per the snippets below.
+This document covers the Memory Bank lifecycle hooks. The first five entries are Claude Code tool hooks that run around writes and subagent dispatches; the Cursor section at the end documents the 10-hook Cursor adapter contract. Hooks are installed automatically by `install.sh`; the JSON snippets below remain useful for manual debugging or custom hosts.
 
 ---
 
@@ -241,7 +239,25 @@ To register all five at once, merge the array entries above. Order does not matt
 - `commands/work.md` — `/mb work` workflow that complements these hooks (the loop runs the same checks deterministically).
 - `scripts/mb-work-protected-check.sh`, `scripts/mb-ears-validate.sh`, `scripts/mb-context-slim.py`, `scripts/mb-session-spend.sh` — underlying helpers.
 
-## Phase 4 follow-ups
+---
 
-- **Sprint 3** — auto-register all five hooks during `install.sh`; add a `superpowers:requesting-code-review` skill detector that flips the reviewer override declared in `pipeline.yaml:roles.reviewer.override_if_skill_present`.
-- **Sprint 3** — auto-register all four hooks during `install.sh`; add a `superpowers:requesting-code-review` skill detector that flips the reviewer override declared in `pipeline.yaml:roles.reviewer.override_if_skill_present`.
+## Cursor adapter wiring
+
+Cursor 1.7+ uses Claude-Code-compatible `hooks.json`. The `adapters/cursor.sh` installer registers **ten** Memory Bank hooks globally (`~/.cursor/hooks.json`) and in project `.cursor/hooks.json`:
+
+| Cursor event | Script | Matcher |
+|--------------|--------|---------|
+| `sessionStart` | `mb-session-start-context.sh` | — |
+| `sessionEnd` | `session-end-autosave.sh` | — |
+| `preCompact` | `mb-compact-reminder.sh` | — |
+| `beforeShellExecution` | `block-dangerous.sh` | — |
+| `preToolUse` | `mb-protected-paths-guard.sh` | `Write|Edit` |
+| `preToolUse` | `mb-ears-pre-write.sh` | `Write` |
+| `preToolUse` | `mb-context-slim-pre-agent.sh` | `Task` |
+| `preToolUse` | `mb-sprint-context-guard.sh` | `Task` |
+| `postToolUse` | `file-change-log.sh` | `Write|Edit` |
+| `postToolUse` | `mb-plan-sync-post-write.sh` | `Write` |
+
+Each entry is tagged `"_mb_owned": true` so reinstall/uninstall preserves user hooks. `mb-compact-reminder.sh` maps to Cursor `preCompact` (not `sessionEnd`) because Cursor fires compaction reminders on that event.
+
+Opt-out: `MB_AUTOLOAD_CONTEXT=off` disables `sessionStart` auto-context injection.

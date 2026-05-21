@@ -741,6 +741,13 @@ else
   echo -e "  ${YELLOW}~${NC} Cursor global adapter install failed" >&2
 fi
 
+if [ -f "$HOME/.cursor/memory-bank-user-rules.md" ]; then
+  echo -e "  ${BLUE}→${NC} Cursor User Rules: paste ~/.cursor/memory-bank-user-rules.md into Settings → Rules → User Rules"
+  if [ -t 0 ]; then
+    echo -e "       (interactive paste prompt runs at end of cursor adapter install-global)"
+  fi
+fi
+
 # ═══ Step 6: Settings hooks ═══
 echo -e "${BLUE}[6/7] Settings${NC}"
 if [ -f "$SOURCE_SKILL_DIR/settings/hooks.json" ] && command -v python3 &>/dev/null; then

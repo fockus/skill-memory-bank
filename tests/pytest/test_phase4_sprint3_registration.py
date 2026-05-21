@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
+import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
 
 
 def test_version_bumped_to_4_0_0() -> None:
@@ -53,3 +56,17 @@ def test_commands_work_md_references_resolver() -> None:
 def test_install_sh_probes_superpowers_skill() -> None:
     text = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
     assert "superpowers" in text.lower()
+
+
+def test_version_matches_package_init() -> None:
+    from memory_bank_skill import __version__
+
+    text = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    assert __version__ == text, f"VERSION={text!r} != __version__={__version__!r}"
+
+
+def test_hatch_version_metadata_uses_version_file() -> None:
+    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    hatch_version = pyproject["tool"]["hatch"]["version"]
+    assert hatch_version["path"] == "VERSION"
+    assert "version" in hatch_version["pattern"]

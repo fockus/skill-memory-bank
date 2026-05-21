@@ -56,14 +56,28 @@ MB_HOOKS=(
   "session-end-autosave.sh"
   "mb-compact-reminder.sh"
   "block-dangerous.sh"
+  "mb-protected-paths-guard.sh"
+  "mb-ears-pre-write.sh"
+  "mb-context-slim-pre-agent.sh"
+  "mb-sprint-context-guard.sh"
+  "file-change-log.sh"
+  "mb-plan-sync-post-write.sh"
+  "mb-session-start-context.sh"
 )
 
 # Event → script mapping (Cursor event names, CC-compat)
-# Format: "event:script"
+# Format: "event:script[:matcher]"
 EVENT_BINDINGS=(
+  "sessionStart:mb-session-start-context.sh"
   "sessionEnd:session-end-autosave.sh"
   "preCompact:mb-compact-reminder.sh"
   "beforeShellExecution:block-dangerous.sh"
+  "preToolUse:mb-protected-paths-guard.sh:Write|Edit"
+  "preToolUse:mb-ears-pre-write.sh:Write"
+  "preToolUse:mb-context-slim-pre-agent.sh:Task"
+  "preToolUse:mb-sprint-context-guard.sh:Task"
+  "postToolUse:file-change-log.sh:Write|Edit"
+  "postToolUse:mb-plan-sync-post-write.sh:Write"
 )
 
 run_texttool() {
@@ -104,20 +118,90 @@ localize_file_with_language() {
     --after-marker "$after_marker"
 }
 
+cursor_binding_events_json() {
+  printf '%s\n' "${EVENT_BINDINGS[@]}" | awk -F: '{print $1}' | sort -u | adapter_json_array_from_lines
+}
+
 cursor_build_hooks_json() {
   local command_prefix="$1"
-  local our_hooks_json binding event script cmd
+  local our_hooks_json binding event rest script matcher cmd entry
   our_hooks_json=$(jq -n '{hooks: {}}')
   for binding in "${EVENT_BINDINGS[@]}"; do
     event="${binding%%:*}"
-    script="${binding#*:}"
+    rest="${binding#*:}"
+    script="${rest%%:*}"
+    if [[ "$rest" == *:* ]]; then
+      matcher="${rest#*:}"
+    else
+      matcher=""
+    fi
     cmd="bash ${command_prefix}/${script}"
+    if [ -n "$matcher" ]; then
+      entry=$(jq -n --arg cmd "$cmd" --arg m "$matcher" '{command:$cmd, matcher:$m, _mb_owned:true}')
+    else
+      entry=$(jq -n --arg cmd "$cmd" '{command:$cmd, _mb_owned:true}')
+    fi
     our_hooks_json=$(echo "$our_hooks_json" | jq \
       --arg event "$event" \
-      --arg cmd "$cmd" \
-      '.hooks[$event] = [{command: $cmd, _mb_owned: true}]')
+      --argjson entry "$entry" \
+      '.hooks[$event] += [$entry]')
   done
   printf '%s' "$our_hooks_json"
+}
+
+copy_to_clipboard() {
+  local file="$1"
+  if command -v pbcopy >/dev/null 2>&1; then
+    pbcopy < "$file"
+    return 0
+  fi
+  if command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard < "$file"
+    return 0
+  fi
+  if command -v wl-copy >/dev/null 2>&1; then
+    wl-copy < "$file"
+    return 0
+  fi
+  return 1
+}
+
+prompt_user_rules_install() {
+  local rules_file="$1"
+  [ -t 0 ] || return 0
+  [ "${MB_USER_RULES_AUTO_PROMPT:-on}" = "off" ] && return 0
+
+  echo
+  echo "Cursor User Rules — manual paste required (Cursor has no file API)."
+  echo "  1) Copy to clipboard + open Cursor (Settings → Rules → Cmd+V) [default]"
+  echo "  2) Copy to clipboard only"
+  echo "  3) Open file in \$EDITOR"
+  echo "  4) Skip"
+  read -r -p "Choice [1-4]: " choice
+  case "${choice:-1}" in
+    1)
+      if copy_to_clipboard "$rules_file"; then
+        if command -v open >/dev/null 2>&1; then
+          open -a Cursor 2>/dev/null || true
+        fi
+        echo "→ Copied. Open Cursor → Settings → Rules → User Rules → Cmd+V"
+      else
+        echo "→ Clipboard unavailable. Paste manually from: $rules_file"
+      fi
+      ;;
+    2)
+      if copy_to_clipboard "$rules_file"; then
+        echo "→ Copied. Settings → Rules → User Rules → Cmd+V"
+      else
+        echo "→ Clipboard unavailable. Paste manually from: $rules_file"
+      fi
+      ;;
+    3)
+      ${EDITOR:-vi} "$rules_file"
+      ;;
+    4)
+      ;;
+  esac
 }
 
 cursor_merge_hooks_json() {
@@ -247,48 +331,15 @@ install_cursor() {
     chmod +x "$HOOKS_DIR/$h"
   done
 
-  # 3. Build our hook bindings for hooks.json
-  # Each event gets: { "command": "bash .cursor/hooks/<script>", "_mb_owned": true }
+  # 3–4. Build + merge hooks.json (shared builder with global install)
   local our_hooks_json
-  our_hooks_json=$(jq -n '{hooks: {}}')
-  local binding event script cmd
-  for binding in "${EVENT_BINDINGS[@]}"; do
-    event="${binding%%:*}"
-    script="${binding#*:}"
-    cmd="bash .cursor/hooks/$script"
-    our_hooks_json=$(echo "$our_hooks_json" | jq \
-      --arg event "$event" \
-      --arg cmd "$cmd" \
-      '.hooks[$event] = [{command: $cmd, _mb_owned: true}]')
-  done
-
-  # 4. Merge with existing hooks.json (preserve user hooks, dedupe ours)
-  local merged
-  if [ -f "$HOOKS_JSON" ]; then
-    # Remove any pre-existing _mb_owned entries to avoid dupes, then append ours
-    merged=$(jq --slurpfile new <(echo "$our_hooks_json") '
-      . as $existing |
-      (.hooks // {}) as $eh |
-      (.version // 1) as $ver |
-      reduce ($new[0].hooks | keys[]) as $evt (
-        $existing;
-        .version = $ver
-        | .hooks //= {}
-        | .hooks[$evt] = (
-            ((.hooks[$evt] // []) | map(select((._mb_owned // false) | not)))
-            + ($new[0].hooks[$evt])
-          )
-      )
-    ' "$HOOKS_JSON")
-  else
-    merged=$(echo "$our_hooks_json" | jq '.version = 1')
-  fi
-  echo "$merged" > "$HOOKS_JSON"
+  our_hooks_json=$(cursor_build_hooks_json ".cursor/hooks")
+  cursor_merge_hooks_json "$HOOKS_JSON" "$our_hooks_json"
 
   # 5. Manifest (files we own + events we registered)
   local files_json events_json
   files_json=$(printf '%s\n' "$RULES_FILE" "$HOOKS_DIR"/*.sh | adapter_json_array_from_lines)
-  events_json=$(printf '%s\n' "${EVENT_BINDINGS[@]}" | awk -F: '{print $1}' | adapter_json_array_from_lines)
+  events_json=$(cursor_binding_events_json)
 
   adapter_write_manifest \
     "$MANIFEST" \
@@ -395,17 +446,20 @@ install_cursor_global() {
   fi
   localize_file_with_language "$GLOBAL_AGENTS_FILE" "$CURSOR_START_MARKER"
 
+  local mb_version
+  mb_version="$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)"
   tmp="$(mktemp)"
   {
+    printf '%s\n' "<!-- memory-bank:start v${mb_version} -->"
     cat <<'EOF'
 # Memory Bank — User Rules (paste into Cursor → Settings → Rules → User Rules)
 
-> This content mirrors the global Memory Bank skill at `~/.cursor/skills/memory-bank/`.
-> Cursor does not expose a file API for global User Rules, so paste this block manually
-> into Settings → Rules → User Rules once per machine.
+> Cursor does not expose a file API for global User Rules.
+> Copy this file manually: Settings → Rules → User Rules → paste (Cmd+V).
 
 EOF
     cat "$SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+    printf '\n%s\n' "<!-- memory-bank:end -->"
   } > "$tmp"
   localize_file_with_language "$tmp"
   if [ -f "$GLOBAL_USER_RULES_FILE" ] && cmp -s "$tmp" "$GLOBAL_USER_RULES_FILE"; then
@@ -416,7 +470,7 @@ EOF
   fi
 
   files_json=$(printf '%s\n' ${managed_files[@]+"${managed_files[@]}"} | adapter_json_array_from_lines)
-  events_json=$(printf '%s\n' "${EVENT_BINDINGS[@]}" | awk -F: '{print $1}' | adapter_json_array_from_lines)
+  events_json=$(cursor_binding_events_json)
   backups_json=$(printf '%s\n' ${backups[@]+"${backups[@]}"} | adapter_json_array_from_lines)
 
   adapter_write_manifest \
@@ -427,6 +481,8 @@ EOF
     "{\"scope\": \"global\", \"hooks_events\": $events_json, \"backups\": $backups_json}"
 
   echo "[cursor-adapter] global install completed"
+  echo "[cursor-adapter] User Rules paste-file: $GLOBAL_USER_RULES_FILE"
+  prompt_user_rules_install "$GLOBAL_USER_RULES_FILE"
 }
 
 uninstall_cursor_global() {

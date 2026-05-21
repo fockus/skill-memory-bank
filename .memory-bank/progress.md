@@ -1641,3 +1641,16 @@ Real failure mode hit during the v4.0.0 release session: Phase 4 Sprint 3 commit
 - **Final totals:** pytest **649 passed × 14 skipped × 0 flake** (3 consecutive runs; baseline pre-Stage-1: 626/628 with 2 flaky); bats **532 ok / 11 not-ok** (pre-existing → I-035); ruff clean; shellcheck `-S warning` clean on touched files; `bash scripts/mb-drift.sh .` → `drift_check_terminology=ok`, only cosmetic `index_sync=warn` (auto-resolves on regen).
 - **Note:** [notes/2026-04-27_01-04_v4-audit-remediation-closeout.md](notes/2026-04-27_01-04_v4-audit-remediation-closeout.md).
 - **Next step:** TBD (`/mb idea` when next signal arrives). Candidates: I-035 (legacy bats fixtures refresh), I-023 (grep→find cleanup), I-034 (plugin-namespaced skill detection).
+
+### 2026-05-21 — Cursor adapter remediation
+
+- **Cursor hooks contract**: `adapters/cursor.sh` registers 10 hooks with matcher-aware append builder (project + global). Events: sessionStart, sessionEnd, preCompact, beforeShellExecution, preToolUse×4, postToolUse×2.
+- **sessionStart**: new `hooks/mb-session-start-context.sh` injects compact `[MEMORY BANK: ACTIVE]` context (`MB_AUTOLOAD_CONTEXT=off` opt-out).
+- **Version single source**: `VERSION` canonical; `memory_bank_skill.__version__` reads it; Hatch `[tool.hatch.version] path = VERSION`.
+- **User Rules UX**: paste-file markers `<!-- memory-bank:start vX.Y.Z -->`, TTY clipboard prompt, non-interactive hint in `install.sh`.
+- **Tests**: `test_cursor_hooks_registration.py`, bats/e2e updated (10 `_mb_owned`). Targeted verification green.
+
+### 2026-05-21 — Cursor adapter remediation gap audit
+
+- Compared implementation against the attached Cursor Adapter Remediation Plan DoD and fixed residual gaps: `sessionStart` invalid-JSON fail-open, context cap test, manifest script coverage, Hatch VERSION metadata invariant, stale hooks documentation, `docs/install.md` Cursor/User Rules UX, release-process version example consistency, and order-independent version test import path.
+- Verification after fixes: pytest targeted plan suite 59 passed; cursor adapter bats 16/16; cursor global e2e 18/18; shellcheck clean; wheel METADATA version equals VERSION (`4.0.0`).

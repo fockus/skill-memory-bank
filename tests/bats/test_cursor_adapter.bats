@@ -183,3 +183,54 @@ EOF
   # Since we were sole owner and had no user hooks, hooks.json should be gone
   [ ! -f "$PROJECT/.cursor/hooks.json" ]
 }
+
+@test "cursor: install registers sessionStart and tool hooks with matchers" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hjson="$PROJECT/.cursor/hooks.json"
+  jq -e '.hooks.sessionStart | length == 1' "$hjson" >/dev/null
+  jq -e '.hooks.preToolUse | length == 4' "$hjson" >/dev/null
+  jq -e '.hooks.postToolUse | length == 2' "$hjson" >/dev/null
+  jq -e '.hooks.preToolUse[] | select(.matcher == "Write|Edit")' "$hjson" >/dev/null
+  jq -e '.hooks.preToolUse[] | select(.matcher == "Task")' "$hjson" >/dev/null
+}
+
+@test "cursor: install copies all ten hook scripts" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hooks=(
+    session-end-autosave.sh
+    mb-compact-reminder.sh
+    block-dangerous.sh
+    mb-protected-paths-guard.sh
+    mb-ears-pre-write.sh
+    mb-context-slim-pre-agent.sh
+    mb-sprint-context-guard.sh
+    file-change-log.sh
+    mb-plan-sync-post-write.sh
+    mb-session-start-context.sh
+  )
+  local h
+  for h in "${hooks[@]}"; do
+    [ -x "$PROJECT/.cursor/hooks/$h" ]
+  done
+}
+
+@test "cursor: install has exactly ten _mb_owned entries" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local count
+  count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$PROJECT/.cursor/hooks.json")
+  [ "$count" -eq 10 ]
+}
+
+@test "cursor: idempotent install keeps ten _mb_owned entries" {
+  run_adapter install "$PROJECT"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local count
+  count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$PROJECT/.cursor/hooks.json")
+  [ "$count" -eq 10 ]
+  count=$(jq '.hooks.preToolUse | length' "$PROJECT/.cursor/hooks.json")
+  [ "$count" -eq 4 ]
+}
