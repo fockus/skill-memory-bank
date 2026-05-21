@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "delivery",
+  "name": "exploratory",
+  "description": "Exploratory prototype: time-boxed, no production wiring, must end with a plan or be discarded.",
+  "rules": [
+    {
+      "rule_id": "delivery.exploratory.time-boxed",
+      "severity": "warn",
+      "guidance": "Prototypes are explicitly time-boxed (1-3 days typical). The box end date must be stated upfront. If the goal is not reached in time, the prototype is discarded, not extended."
+    },
+    {
+      "rule_id": "delivery.exploratory.no-production-wiring",
+      "severity": "block",
+      "guidance": "Prototype code must not be wired into production paths (no feature flags pointing to prototype, no production DB connections). Prototype lives in a separate branch or directory."
+    },
+    {
+      "rule_id": "delivery.exploratory.plan-or-discard",
+      "severity": "warn",
+      "guidance": "At the end of the time box, the outcome is either: a formal plan to productionize the approach, or deletion of the prototype. Prototypes must not linger in main branches."
+    },
+    {
+      "rule_id": "delivery.exploratory.document-findings",
+      "severity": "advisory",
+      "guidance": "Record key findings, risks, and open questions in a short notes file before discarding or planning. The findings inform the next sprint even if the prototype code is deleted."
+    }
+  ],
+  "see_also": []
+}

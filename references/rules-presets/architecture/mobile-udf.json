@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "architecture",
+  "name": "mobile-udf",
+  "description": "Mobile UDF: View→ViewModel→UseCase→Repository→DataSource layering, single source of truth.",
+  "rules": [
+    {
+      "rule_id": "architecture.mobile-udf.layer-contracts",
+      "severity": "block",
+      "guidance": "Layer dependency: View depends on ViewModel; ViewModel depends on UseCase interfaces; UseCase depends on Repository interfaces; Repository depends on DataSource interfaces."
+    },
+    {
+      "rule_id": "architecture.mobile-udf.single-source-of-truth",
+      "severity": "warn",
+      "guidance": "Repository is the SSOT. UI state is derived from the repository stream/flow. No duplicate state held in ViewModel that diverges from the repository."
+    },
+    {
+      "rule_id": "architecture.mobile-udf.no-platform-in-usecase",
+      "severity": "block",
+      "guidance": "UseCase and Repository interfaces must not import platform types (Context, Activity, UIViewController). Platform dependencies belong in DataSource or ViewModel only."
+    },
+    {
+      "rule_id": "architecture.mobile-udf.reactive-streams",
+      "severity": "advisory",
+      "guidance": "Use reactive streams (Flow/StateFlow on Android, AsyncStream/@Observable on iOS) to propagate state changes from Repository through ViewModel to View."
+    }
+  ],
+  "see_also": []
+}

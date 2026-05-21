@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "delivery",
+  "name": "sdd",
+  "description": "Spec-Driven Development: REQ ids, specs/tasks traceability, covers_requirements in plans.",
+  "rules": [
+    {
+      "rule_id": "delivery.sdd.req-ids",
+      "severity": "warn",
+      "guidance": "Every requirement has a unique REQ-NNN id. Tests, tasks, and plan stages reference REQ ids in their descriptions. No untraced requirements."
+    },
+    {
+      "rule_id": "delivery.sdd.covers-requirements",
+      "severity": "warn",
+      "guidance": "Plan stages list `covers_requirements: [REQ-NNN, ...]`. Tests assert the associated REQ is satisfied. DoD checklist items map to REQ ids."
+    },
+    {
+      "rule_id": "delivery.sdd.specs-before-tasks",
+      "severity": "warn",
+      "guidance": "Specifications and acceptance criteria are written before tasks are created. Tasks reference the spec. Implementation changes that deviate from the spec require spec update first."
+    },
+    {
+      "rule_id": "delivery.sdd.traceability-in-tests",
+      "severity": "advisory",
+      "guidance": "Test names or docstrings include the REQ-NNN they verify. Traceability matrices can be generated from test annotations to show spec coverage."
+    }
+  ],
+  "see_also": []
+}

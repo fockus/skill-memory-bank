@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "architecture",
+  "name": "microservices",
+  "description": "Microservices: service boundaries, contract checks, distributed tracing, no cross-service DB sharing.",
+  "rules": [
+    {
+      "rule_id": "architecture.microservices.service-ownership",
+      "severity": "block",
+      "guidance": "Each service owns its data store. No service reads another service's database directly. Cross-service data access goes through the owning service's API or event."
+    },
+    {
+      "rule_id": "architecture.microservices.contract-path-check",
+      "severity": "warn",
+      "guidance": "Breaking API changes must update the published contract (OpenAPI/protobuf/AsyncAPI) before the implementation. Consumer contract tests must pass before deployment."
+    },
+    {
+      "rule_id": "architecture.microservices.distributed-tracing",
+      "severity": "advisory",
+      "guidance": "Propagate trace context (e.g. W3C traceparent) across all service calls. Each service must inject and extract trace headers at inbound/outbound boundaries."
+    },
+    {
+      "rule_id": "architecture.microservices.idempotent-consumers",
+      "severity": "warn",
+      "guidance": "Message consumers and event handlers must be idempotent. Duplicate delivery is expected in distributed systems; processing the same message twice must not corrupt state."
+    }
+  ],
+  "see_also": []
+}

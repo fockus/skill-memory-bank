@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "stack",
+  "name": "python",
+  "description": "Python stack: type hints, DI, pytest naming, no business logic in mocks, fail-fast tracebacks.",
+  "rules": [
+    {
+      "rule_id": "stack.python.type-hints",
+      "severity": "warn",
+      "guidance": "All public functions and methods must have type annotations. Use `from __future__ import annotations` for forward references. Avoid `Any` unless unavoidable."
+    },
+    {
+      "rule_id": "stack.python.dependency-injection",
+      "severity": "warn",
+      "guidance": "Pass dependencies as constructor or function arguments. Avoid module-level globals that hold service instances. Use protocols or ABCs for interface contracts."
+    },
+    {
+      "rule_id": "stack.python.pytest-naming",
+      "severity": "warn",
+      "guidance": "Test functions named test_<what>_<condition>_<result>. Use @pytest.mark.parametrize for multi-case tests. Fixtures > setUp; prefer function-scope for isolation."
+    },
+    {
+      "rule_id": "stack.python.no-business-logic-in-mocks",
+      "severity": "warn",
+      "guidance": "Mocks return fixed data or raise exceptions only. Do not encode domain rules inside mock return values. If logic is needed in a stub, extract a real in-memory implementation."
+    },
+    {
+      "rule_id": "stack.python.fail-fast-tracebacks",
+      "severity": "advisory",
+      "guidance": "Do not swallow exceptions silently. Use `raise ... from err` for cause chaining. Log at the boundary where the error is handled, not at every re-raise."
+    }
+  ],
+  "see_also": []
+}

@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "architecture",
+  "name": "hexagonal",
+  "description": "Hexagonal (Ports & Adapters): ports in domain, adapters in infra, no framework leakage into core.",
+  "rules": [
+    {
+      "rule_id": "architecture.hexagonal.ports-in-domain",
+      "severity": "block",
+      "guidance": "Inbound and outbound ports (interfaces) are defined inside the application core. No framework types in port signatures — only domain objects and stdlib primitives."
+    },
+    {
+      "rule_id": "architecture.hexagonal.adapters-in-infra",
+      "severity": "warn",
+      "guidance": "Adapters (HTTP controllers, DB repositories, message consumers) live outside the core and implement/use port interfaces. Each adapter has a single responsibility."
+    },
+    {
+      "rule_id": "architecture.hexagonal.no-framework-in-domain",
+      "severity": "block",
+      "guidance": "The application core must not import Spring/Express/Django/Rails or any ORM. Framework annotations are adapter concerns only."
+    },
+    {
+      "rule_id": "architecture.hexagonal.test-core-in-isolation",
+      "severity": "warn",
+      "guidance": "Test the core with fake/stub port implementations, not real adapters. Core tests run without a database or HTTP server."
+    }
+  ],
+  "see_also": []
+}

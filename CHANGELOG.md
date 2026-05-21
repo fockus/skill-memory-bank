@@ -4,6 +4,42 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — rule profiles & stack presets (Sprint 3)
+
+- **Configurable rule profiles** with immutable safety baseline. Profiles personalize Memory Bank rules across local / global / rules-only modes without weakening protected-files / no-placeholders / verification-before-completion / DRY/KISS/YAGNI guarantees.
+- `memory_bank_skill/rules_profile.py` — stdlib-only Python module with `parse_profile`, `parse_profile_safe`, `validate_profile`, `resolve_profile`. Frozen dataclasses `Profile`, `ResolvedProfile`, `ValidationError`. Built-in defaults plus layered precedence: `built-in → user → project → task` (task can only tighten, never weaken).
+- `scripts/mb-profile.sh` — shell CLI with subcommands `init / show / path / validate / set`. `--scope=user|project`, `--role`, `--stack`, `--architecture`, `--delivery`, `--strictness`, `--agent`, `--mb`. JSON-only persistence. User-scope profile path resolves through Sprint 1 `mb_agent_config_dir`; project-scope through `mb_resolve_path`.
+- **22 built-in presets** under `references/rules-presets/`:
+  - Roles: `backend`, `frontend`, `mobile`.
+  - Stacks: `go`, `python`, `javascript`, `typescript`, `java`, `generic`.
+  - Architectures: `clean`, `hexagonal`, `modular-monolith`, `microservices`, `ddd`, `fsd`, `mobile-udf`, `event-driven`.
+  - Delivery: `tdd`, `contract-first`, `api-first`, `sdd`, `legacy-safe`, `exploratory`.
+  - Each preset is declarative JSON (`rule_id`, `severity`, `guidance`, `see_also`) with unique global `rule_id` and ≤200-char guidance.
+- **Rules-check integration** — `scripts/mb-rules-check.sh` now reads the resolved profile, emits a `profile` block in JSON output (`role/stack/architecture/delivery/strictness/sources/prompt_summary`), tags violations with `rule_id` + `profile_source`, and honours `strictness`: `block` exits non-zero on CRITICAL, `warn` is backward-compatible, `advisory` never blocks.
+- **Stack-aware deterministic checks** (added to `mb-rules-check.sh`):
+  - `stack.go.context-propagation` (warn), `stack.go.goroutine-context` (advisory)
+  - `stack.python.type-hints` (advisory), `stack.python.no-business-mocks` (warn)
+  - `stack.typescript.no-any` (warn), `stack.javascript.strict-equality` (advisory)
+  - `stack.java.repository-interface` (advisory)
+  - `architecture.fsd.import-direction` (warn) fires only when architecture=fsd.
+- **`/mb profile` command surface** — new `commands/profile.md` (init/show/path/validate/set with copy-paste recipes), routed from `commands/mb.md` (now 25 commands). `/mb init` flow documents optional profile setup after storage choice.
+- **Docs** — new `docs/rule-profiles.md` (precedence model, schema, all 22 presets listed, 5 copy-paste recipes, immutable baseline table, JSON canonical / YAML docs-only). README adds "Rule profiles & stack presets" section; SKILL.md `## Tools` table gains `mb-profile.sh` and `## References` links `references/rules-profile.schema.md`.
+- **Contract coverage** — `tests/pytest/test_rules_profile_schema.py` (26 cases: parser/validator/resolver/precedence/4 KB cap), `tests/pytest/test_rules_presets.py` (12 cases: schema validation across all 22 presets + composition snapshots + immutable-baseline guards), `tests/bats/test_mb_profile.bats` (10 CLI cases), `tests/bats/test_rules_check_profile.bats` (8 integration cases incl. fsd/strictness).
+
+### Added — global-storage agent support (Sprint 2)
+
+- **Resolver-aware hooks** — `hooks/session-end-autosave.sh`, `hooks/mb-compact-reminder.sh`, `hooks/mb-session-start-context.sh` now honour an `MB_PATH` env override for global-storage mode. Tiering: `MB_PATH` env → local `<cwd>/.memory-bank/` → registry lookup via `scripts/_lib.sh` when `MB_AGENT` is set. `_lib.sh` is sourced in a subshell so its `set -euo pipefail` does not bleed into the hook.
+- **Git-hooks fallback** — `adapters/git-hooks-fallback.sh` post-commit body honours `MB_PATH` env so commits in global-storage projects append to the external bank.
+- **OpenCode plugin** — `adapters/opencode.sh` JS plugin reads `process.env.MB_PATH` instead of hard-coding `path.join(app.path.cwd, '.memory-bank')`.
+- **Cursor / Codex / Pi / Windsurf / Cline / Kilo adapters** — generated runtime hooks and inline scripts honour `MB_PATH`; AGENTS/rules snippets mention the resolver so users discover global mode.
+- **Codex global AGENTS.md** — `install.sh codex_agents_section` now embeds the full engineering baseline (TDD / SOLID / Clean Architecture / DRY / KISS / YAGNI / `[MEMORY BANK: ABSENT]`) via sed-merge from `rules/CLAUDE-GLOBAL.md`, matching the Pi pattern. Codex global installs get the same rules-only surface as Claude and Pi.
+- **Storage-modes docs** — `SKILL.md`, `README.md`, `docs/install.md`, `docs/cross-agent-setup.md` describe three modes:
+  - **Local** (default): `/mb init` or `/mb init --storage=local` — bank in the repo (team-shared).
+  - **Global** (opt-in personal storage): `/mb init --storage=global --agent=<agent>` — bank under `~/.<agent>/memory-bank/projects/<id>/.memory-bank/`, never committed.
+  - **Rules-only**: no `/mb init` — global engineering rules still apply; Memory Bank commands remain inactive.
+- **Contract & E2E coverage** — `tests/pytest/test_global_storage_contract.py` (11 cases) locks hook resolver-aware contract, OpenCode plugin contract, git-hooks fallback contract, and Codex global rules-only surface; `tests/e2e/test_global_storage.bats` (4 cases) covers cross-cutting story (context without local bank, uninstall preserves external bank, local mode default, install never creates a bank).
+- **Adapter uninstall safety** — adapter manifests never list the resolved Memory Bank path; uninstall removes only adapter-owned files. Verified by E2E "uninstall preserves external bank data" case.
+
 ### Added — Cursor adapter remediation
 
 - `adapters/cursor.sh` registers the full 10-hook Cursor contract (matcher-aware `PreToolUse`/`PostToolUse`, project + global installs, idempotent append builder).

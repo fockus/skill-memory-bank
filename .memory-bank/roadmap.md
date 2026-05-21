@@ -7,8 +7,6 @@ _None._
 
 ## Next (strict order — depends)
 
-- [global-storage-agent-support](plans/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
-- [rule-profiles-and-stack-presets](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
 - [sdd-task-model](plans/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
 - [sdd-traceability-docs](plans/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
 - [sdd-work-engine](plans/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -93,3 +97,219 @@ def test_rules_only_mode_documented_in_rules() -> None:
         assert "rules-only" in lower or (
             "[memory bank: absent]" in lower and "tdd" in lower
         ), f"rules/{name} must document rules-only mode (ABSENT + TDD still applies)"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sprint 2 / Stage 4 — Codex global AGENTS.md and docs storage-modes matrix
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "rule_token",
+    ["TDD", "SOLID", "Clean Architecture", "DRY", "KISS", "YAGNI"],
+)
+def test_codex_global_agents_md_includes_critical_rules_after_install(
+    tmp_path: Path,
+    rule_token: str,
+) -> None:
+    """Run install.sh in a sandboxed HOME and assert the generated
+    ~/.codex/AGENTS.md contains the always-on engineering rules.
+
+    Mirrors test_pi_install_embeds_guard_into_global_agents_prompt.
+    """
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "install.sh"), "--language", "en"],
+        env=env,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    agents_path = tmp_path / ".codex" / "AGENTS.md"
+    assert agents_path.is_file(), (
+        "install.sh must create ~/.codex/AGENTS.md on a fresh install"
+    )
+    agents = agents_path.read_text(encoding="utf-8")
+
+    assert "<!-- memory-bank-codex:start -->" in agents
+    assert "Codex loads this file at startup" in agents
+    assert "~/.codex/skills/memory-bank/rules/RULES.md" in agents
+    assert "`[MEMORY BANK: ABSENT]`" in agents
+    assert rule_token in agents, (
+        f"~/.codex/AGENTS.md must contain {rule_token!r} so the always-on "
+        "engineering baseline applies even without a project Memory Bank"
+    )
+
+
+def test_skill_md_documents_storage_modes_matrix() -> None:
+    """SKILL.md must mention --storage=local, --storage=global, and rules-only mode."""
+    skill = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    lower = skill.lower()
+
+    assert "--storage=local" in skill or "--storage local" in skill, (
+        "SKILL.md must document --storage=local (or --storage local) for local mode"
+    )
+    assert "--storage=global" in skill or "--storage global" in skill, (
+        "SKILL.md must document --storage=global (or --storage global) for global mode"
+    )
+    assert "rules-only" in lower or (
+        "[memory bank: absent]" in lower and "tdd" in lower
+    ), (
+        "SKILL.md must document rules-only mode "
+        "([MEMORY BANK: ABSENT] + TDD still applies)"
+    )
+
+
+def test_readme_documents_three_storage_modes() -> None:
+    """README.md must explain local mode, global mode, and rules-only mode."""
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    lower = readme.lower()
+
+    # Local mode
+    assert "/mb init" in readme, "README must mention /mb init for local mode"
+
+    # Global mode — must mention --storage=global
+    assert "--storage=global" in readme or "--storage global" in readme, (
+        "README.md must document global storage mode (--storage=global)"
+    )
+
+    # Rules-only mode — must say something about no init / absent / rules still apply
+    has_rules_only = (
+        "rules-only" in lower
+        or "[memory bank: absent]" in lower
+        or ("no init" in lower and "rules" in lower)
+        or ("without" in lower and "memory bank" in lower and "rules" in lower)
+    )
+    assert has_rules_only, (
+        "README.md must describe rules-only mode: no /mb init required, "
+        "engineering rules still apply"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sprint 3 / Stage 5 — Rule profiles & stack presets docs contract tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_commands_mb_md_lists_profile() -> None:
+    """commands/mb.md must route to profile subcommand."""
+    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    has_profile_route = (
+        "### profile" in text
+        or "profile.md" in text
+        or "| `profile`" in text
+        or "| profile" in text
+    )
+    assert has_profile_route, (
+        "commands/mb.md must contain a '### profile' section or route to profile.md"
+    )
+
+
+def test_commands_profile_md_exists_and_references_mb_profile_sh() -> None:
+    """commands/profile.md must exist and reference mb-profile.sh."""
+    profile_cmd = REPO_ROOT / "commands" / "profile.md"
+    assert profile_cmd.is_file(), "commands/profile.md must exist"
+    text = profile_cmd.read_text(encoding="utf-8")
+    assert "mb-profile.sh" in text, (
+        "commands/profile.md must reference mb-profile.sh"
+    )
+
+
+def test_readme_documents_role_and_stack_presets() -> None:
+    """README.md must mention backend/frontend/mobile roles AND go/python/typescript/javascript/java stacks."""
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    lower = readme.lower()
+    for role in ("backend", "frontend", "mobile"):
+        assert role in lower, f"README.md must mention role preset '{role}'"
+    for stack in ("go", "python", "typescript", "javascript", "java"):
+        assert stack in lower, f"README.md must mention stack preset '{stack}'"
+
+
+def test_rules_only_mode_docs_mention_user_global_profile() -> None:
+    """docs/rule-profiles.md or README must mention user-global profile without Memory Bank."""
+    candidates = [
+        REPO_ROOT / "docs" / "rule-profiles.md",
+        REPO_ROOT / "README.md",
+    ]
+    found = False
+    for path in candidates:
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8").lower()
+        if "user" in text and "global" in text and (
+            "without" in text or "absent" in text or "no memory bank" in text or "rules-only" in text
+        ):
+            found = True
+            break
+    assert found, (
+        "docs/rule-profiles.md or README.md must document user-global profile "
+        "working without a project Memory Bank"
+    )
+
+
+def test_docs_state_immutable_baseline_cannot_be_disabled() -> None:
+    """At least one doc surface must state immutable baseline cannot be disabled."""
+    candidates = [
+        REPO_ROOT / "README.md",
+        REPO_ROOT / "SKILL.md",
+        REPO_ROOT / "docs" / "rule-profiles.md",
+        REPO_ROOT / "commands" / "profile.md",
+    ]
+    found = False
+    for path in candidates:
+        if not path.is_file():
+            continue
+        lower = path.read_text(encoding="utf-8").lower()
+        if "immutable" in lower and (
+            "cannot be disabled" in lower
+            or "cannot be overridden" in lower
+            or "cannot be weakened" in lower
+            or "non-overridable" in lower
+        ):
+            found = True
+            break
+    assert found, (
+        "At least one of README/SKILL.md/docs/rule-profiles.md/commands/profile.md "
+        "must explicitly state the immutable baseline cannot be disabled"
+    )
+
+
+def test_docs_state_json_canonical_yaml_docs_only() -> None:
+    """At least one doc surface must state JSON is canonical and YAML is docs-only."""
+    candidates = [
+        REPO_ROOT / "README.md",
+        REPO_ROOT / "SKILL.md",
+        REPO_ROOT / "docs" / "rule-profiles.md",
+        REPO_ROOT / "commands" / "profile.md",
+    ]
+    found = False
+    for path in candidates:
+        if not path.is_file():
+            continue
+        lower = path.read_text(encoding="utf-8").lower()
+        if "json" in lower and (
+            "canonical" in lower
+            or "runtime format" in lower
+        ) and ("yaml" in lower and ("docs" in lower or "documentation" in lower)):
+            found = True
+            break
+    assert found, (
+        "At least one doc surface must state JSON is canonical runtime format "
+        "and YAML is for documentation only"
+    )
+
+
+def test_skill_md_links_rules_profile_schema_and_mb_profile_sh() -> None:
+    """SKILL.md must link rules-profile.schema.md in References and list mb-profile.sh in Tools."""
+    text = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    assert "rules-profile.schema.md" in text, (
+        "SKILL.md ## References must link references/rules-profile.schema.md"
+    )
+    assert "mb-profile.sh" in text, (
+        "SKILL.md ## Tools table must list mb-profile.sh"
+    )

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "scope": "project",
+  "role": "backend",
+  "stack": "java",
+  "architecture": "ddd",
+  "delivery": "api-first",
+  "strictness": "block"
+}

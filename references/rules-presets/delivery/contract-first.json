@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "delivery",
+  "name": "contract-first",
+  "description": "Contract-First: define proto/openapi/asyncapi contract, write contract tests, then implement.",
+  "rules": [
+    {
+      "rule_id": "delivery.contract-first.contract-before-impl",
+      "severity": "block",
+      "guidance": "The service contract (proto, OpenAPI, AsyncAPI, JSON Schema) must be committed before any implementation. No implementation without a reviewed contract."
+    },
+    {
+      "rule_id": "delivery.contract-first.contract-tests-before-code",
+      "severity": "warn",
+      "guidance": "Write consumer contract tests (Pact or equivalent) or server validation tests against the contract file before implementing the endpoint or message handler."
+    },
+    {
+      "rule_id": "delivery.contract-first.no-breaking-changes",
+      "severity": "warn",
+      "guidance": "Breaking contract changes (removing fields, changing types, renaming operations) require a new version and a migration plan. Backward-compatible additions are preferred."
+    },
+    {
+      "rule_id": "delivery.contract-first.contract-in-vcs",
+      "severity": "warn",
+      "guidance": "Contract files (*.proto, openapi.yaml, asyncapi.json) are versioned in the repository alongside the code. Generated code is derived from the contract, not the reverse."
+    }
+  ],
+  "see_also": []
+}

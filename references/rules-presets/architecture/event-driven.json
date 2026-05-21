@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "architecture",
+  "name": "event-driven",
+  "description": "Event-Driven Architecture: event versioning, idempotency, dead-letter handling.",
+  "rules": [
+    {
+      "rule_id": "architecture.event-driven.event-versioning",
+      "severity": "warn",
+      "guidance": "Events include a version field. Schema changes are additive/backward-compatible. Breaking changes require a new event type or version, not modification of existing consumers."
+    },
+    {
+      "rule_id": "architecture.event-driven.idempotency",
+      "severity": "warn",
+      "guidance": "All event consumers must be idempotent. Use event IDs + deduplication store or natural idempotency keys. Processing the same event twice must produce the same end state."
+    },
+    {
+      "rule_id": "architecture.event-driven.dead-letter-handling",
+      "severity": "warn",
+      "guidance": "Unprocessable events are routed to a dead-letter queue/topic with the original payload, error reason, and retry count. Silently discarding events is forbidden."
+    },
+    {
+      "rule_id": "architecture.event-driven.event-ordering",
+      "severity": "advisory",
+      "guidance": "Do not assume global event ordering unless your broker guarantees it per partition/key. Design consumers to tolerate out-of-order delivery or use ordering keys explicitly."
+    }
+  ],
+  "see_also": []
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "scope": "project",
+  "role": "frontend",
+  "stack": "typescript",
+  "architecture": "fsd",
+  "delivery": "sdd",
+  "strictness": "warn"
+}

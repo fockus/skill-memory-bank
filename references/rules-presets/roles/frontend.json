@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "role",
+  "name": "frontend",
+  "description": "Frontend developer: component composition, public-API boundaries, accessibility, component tests.",
+  "rules": [
+    {
+      "rule_id": "role.frontend.public-api-boundaries",
+      "severity": "warn",
+      "guidance": "Every feature/widget/entity slice exposes a public API through a single index file. Internal modules must not be imported directly from outside the slice."
+    },
+    {
+      "rule_id": "role.frontend.component-composition",
+      "severity": "warn",
+      "guidance": "Prefer composition over inheritance. Shared logic extracted to hooks or utility functions; components remain presentational with clear prop contracts."
+    },
+    {
+      "rule_id": "role.frontend.accessibility",
+      "severity": "warn",
+      "guidance": "Interactive elements need semantic HTML or ARIA roles. Keyboard navigation, focus management, and color contrast must be considered in code review."
+    },
+    {
+      "rule_id": "role.frontend.component-tests",
+      "severity": "warn",
+      "guidance": "Component tests use a real rendering environment (e.g. Testing Library). Test user-visible behavior, not internal implementation details or class names."
+    },
+    {
+      "rule_id": "role.frontend.no-side-effects-in-render",
+      "severity": "warn",
+      "guidance": "Data fetching and side effects belong in lifecycle hooks/effects, not during render. Render functions must be pure and produce consistent output given the same props."
+    }
+  ],
+  "see_also": []
+}

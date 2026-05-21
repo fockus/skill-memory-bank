@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "architecture",
+  "name": "ddd",
+  "description": "Domain-Driven Design: bounded contexts, aggregates, repositories as interfaces.",
+  "rules": [
+    {
+      "rule_id": "architecture.ddd.bounded-contexts",
+      "severity": "warn",
+      "guidance": "Each bounded context has its own domain model and ubiquitous language. Do not share domain entities across contexts; translate at the anti-corruption layer."
+    },
+    {
+      "rule_id": "architecture.ddd.aggregates",
+      "severity": "warn",
+      "guidance": "Aggregates enforce consistency within their boundary. External code accesses aggregates only through their root. IDs are the only cross-aggregate references allowed."
+    },
+    {
+      "rule_id": "architecture.ddd.repositories-as-interfaces",
+      "severity": "warn",
+      "guidance": "Repositories are interfaces in the domain layer; infrastructure provides implementations. Repository methods work with aggregate roots, not raw query results."
+    },
+    {
+      "rule_id": "architecture.ddd.ubiquitous-language",
+      "severity": "advisory",
+      "guidance": "Class, method, and variable names must reflect the domain's ubiquitous language. Rename when domain experts use different terms — code and language must match."
+    },
+    {
+      "rule_id": "architecture.ddd.domain-events",
+      "severity": "advisory",
+      "guidance": "Significant state transitions emit domain events. Events are named in past tense (OrderPlaced, PaymentConfirmed). Subscribers handle events without knowing the publisher."
+    }
+  ],
+  "see_also": []
+}

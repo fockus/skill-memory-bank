@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "stack",
+  "name": "typescript",
+  "description": "TypeScript stack: strictNullChecks, no any, branded types where useful, type tests for public API.",
+  "rules": [
+    {
+      "rule_id": "stack.typescript.strict-null-checks",
+      "severity": "block",
+      "guidance": "tsconfig must have strictNullChecks: true. Null/undefined must be handled explicitly. Optional chaining (?.) and nullish coalescing (??) over manual null checks."
+    },
+    {
+      "rule_id": "stack.typescript.no-any",
+      "severity": "warn",
+      "guidance": "Avoid `any`. Use `unknown` for truly dynamic input and narrow with type guards. Use generics or union types for polymorphic code."
+    },
+    {
+      "rule_id": "stack.typescript.branded-types",
+      "severity": "advisory",
+      "guidance": "Use branded/nominal types for IDs and domain primitives to prevent mixing unrelated string/number values at compile time. Useful for UserId, OrderId, etc."
+    },
+    {
+      "rule_id": "stack.typescript.type-tests-public-api",
+      "severity": "advisory",
+      "guidance": "Add type-level tests for public API types using expect-type or tsd to catch breaking type changes before runtime tests catch them."
+    },
+    {
+      "rule_id": "stack.typescript.explicit-return-types",
+      "severity": "advisory",
+      "guidance": "Exported functions should have explicit return type annotations. Inferred return types are acceptable for small private helpers but can mask breaking changes in public APIs."
+    }
+  ],
+  "see_also": []
+}

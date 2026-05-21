@@ -1,5 +1,32 @@
 # claude-skill-memory-bank — Progress Log
 
+## 2026-05-21 (global-storage Phase closeout — Sprints 1+2+3)
+
+### Sprint 2 `global-storage-agent-support` ✅
+
+- **Stage 1** — `tests/pytest/test_global_storage_contract.py`, 11 contract cases (hook hardcode audit, OpenCode plugin, git-hooks-fallback, Codex global rules-only baseline).
+- **Stage 2** — `MB_PATH` env override in `hooks/session-end-autosave.sh`, `hooks/mb-compact-reminder.sh`, `hooks/mb-session-start-context.sh`, `adapters/git-hooks-fallback.sh` post_commit_body. Tiering: `MB_PATH` → local `<cwd>/.memory-bank/` → registry lookup via `_lib.sh` (subshell-sourced to isolate `set -euo pipefail`). 38 bats cases for `test_auto_capture.bats` / `test_compact_reminder.bats` / `test_git_hooks_fallback.bats` including paths-with-spaces.
+- **Stage 3** — `adapters/opencode.sh` JS plugin reads `process.env.MB_PATH`; cline/windsurf inline hooks updated; cursor/codex/pi/kilo rules snippets mention resolver. 93 adapter bats cases pass.
+- **Stage 4** — `install.sh codex_agents_section` sed-merges `rules/CLAUDE-GLOBAL.md` into Codex global AGENTS.md (TDD/SOLID/Clean Architecture/DRY/KISS/YAGNI/`[MEMORY BANK: ABSENT]`). Storage-modes docs in SKILL/README/docs/install/docs/cross-agent-setup.
+- **Stage 5** — `tests/e2e/test_global_storage.bats`, 4 cross-cutting cases: context works without local bank, uninstall preserves external, local mode default, install never creates bank.
+- **Stage 6** — CHANGELOG entry, plan `status: done`, focused suites all GREEN (753 pytest + 705 bats + 27 e2e/storage focused), shellcheck SC2097/SC2098 fixed.
+
+### Sprint 3 `rule-profiles-and-stack-presets` ✅
+
+- **Stage 1** — `references/rules-profile.schema.md` schema doc; 7 fixture profiles (`backend-go`, `frontend-typescript`, `frontend-javascript`, `mobile-generic`, `python-modular`, `java-ddd`, `rules-only-global`); RED `tests/pytest/test_rules_profile_schema.py` (26 cases). Parser/validator/resolver API contract locked before implementation.
+- **Stage 2** — `memory_bank_skill/rules_profile.py` (+302 lines, stdlib-only): `parse_profile`, `parse_profile_safe`, `validate_profile`, `resolve_profile`. Built-in defaults + precedence `built-in → user → project → task` (task can only tighten). Frozen dataclasses `Profile`, `ResolvedProfile`, `ValidationError`. `scripts/mb-profile.sh` (+260 lines) shell CLI with `init/show/path/validate/set`. `tests/bats/test_mb_profile.bats` 10 cases.
+- **Stage 3** — `references/rules-presets/{roles,stacks,architecture,delivery}/` 22 declarative preset JSONs (3 roles, 6 stacks, 8 architectures, 6 delivery styles). Global-unique `rule_id`, severity ∈ {advisory/warn/block}, ≤200-char guidance. `tests/pytest/test_rules_presets.py` 12 cases: schema validation per preset, composition snapshots stay under 4 KB, `legacy-safe` cannot weaken immutable baseline.
+- **Stage 4** — `scripts/mb-rules-check.sh` +416/-71 lines: reads resolved profile, emits `profile` JSON block + `rule_id`/`profile_source` per violation, strictness-aware exit (`block`/`warn`/`advisory`). Stack-aware deterministic checks: go context-propagation/goroutine-context, python type-hints/no-business-mocks, ts no-any, js strict-equality, java repository-interface, fsd import-direction. `tests/bats/test_rules_check_profile.bats` 8 cases.
+- **Stage 5** — `commands/profile.md` new, `commands/mb.md` adds `### profile` route (24→25 commands), `docs/rule-profiles.md` (13 KB: precedence diagram, all 22 presets table, 5 copy-paste recipes, immutable baseline). README "Rule profiles & stack presets" section. SKILL.md `## Tools` gets `mb-profile.sh`, `## References` gets `rules-profile.schema.md`. 7 new runtime contract tests; both pre-existing `test_doc_counts.py` failures resolved.
+- **Stage 6** — CHANGELOG section, plan `status: done`, checklist entry, status.md updated to mark phase closed. **Final metrics: 798 pytest passed (only pre-existing GraphRAG-lite SRP fail untouched), ruff Sprint 3 surface clean, shellcheck `mb-profile.sh`/`mb-rules-check.sh` clean (only SC1091 info).**
+
+### Lessons & observations
+
+- Sub-agent дважды терял правки в фазе Stage 2 (Sprint 2: hooks). Контрмера на будущее — после background-агента всегда делать `git status` для проверки persisted файлов; не доверять только summary.
+- Stage 4 агент Sprint 3 завис на финальном reporting (`stream watchdog 600s`), но успел всё закоммитить на диск перед стопом — все 8 bats тестов passed.
+- Pattern с `_lib.sh` source в hook'ах: использовать subshell (`bash -c ". '$LIB' && fn"`) чтобы `set -euo pipefail` не пробрасывался в hook scope.
+- Contract test regex для hook hardcode проверяет file-level presence MB_PATH, не line-level. Это правильнее: позволяет `MB="$CWD/.memory-bank"` как fallback после `if [ -n "$MB_PATH" ]` блока.
+
 ## 2026-04-20 (Install Idempotency Fix — 3.0.0-rc3)
 
 ### Выполнено

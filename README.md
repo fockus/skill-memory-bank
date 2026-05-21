@@ -153,6 +153,54 @@ Full per-client details: [docs/cross-agent-setup.md](docs/cross-agent-setup.md).
 
 That's it. Rinse and repeat.
 
+### Storage modes
+
+Memory Bank supports three ways to store your bank — pick the one that fits your workflow:
+
+**Local mode (default)**
+```bash
+/mb init                       # same as /mb init --storage=local
+```
+The bank lives in the repo at `.memory-bank/`. Commit it to share with your team, or add it to `.gitignore` for solo use. This is the default and recommended mode for team projects.
+
+**Global mode (opt-in personal storage)**
+```bash
+/mb init --storage=global --agent=claude-code   # for Claude Code
+/mb init --storage=global --agent=cursor         # for Cursor
+/mb init --storage=global --agent=codex          # for Codex
+```
+The bank lives outside the repo under `~/.<agent>/memory-bank/projects/<id>/.memory-bank`. It is personal storage and must **not** be committed to the project repo. Use this when you want persistent memory across sessions but don't want to touch the repository.
+
+**Rules-only mode (no init required)**
+
+You can intentionally skip `/mb init` entirely. In this state:
+- The agent prints `[MEMORY BANK: ABSENT]` — Memory Bank lifecycle commands (`/mb start`, `/mb done`, etc.) stay inactive.
+- **All engineering rules still apply**: TDD, SOLID, Clean Architecture, DRY/KISS/YAGNI, Testing Trophy, protected files, no placeholders. The installed global rules (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, etc.) are always-on.
+- Run `/mb init` at any point to activate Memory Bank without losing any code.
+
+Existing local bank users can stay on local mode — there is no forced migration.
+
+### Rule profiles & stack presets
+
+Personalize the configurable rules layer without weakening the immutable safety baseline (TDD, no placeholders, protected files, destructive-confirm, fail-fast, DRY/KISS/YAGNI, verification before completion — these cannot be disabled by any profile).
+
+```bash
+# User-global profile (works even without a project Memory Bank):
+mb-profile.sh init --scope=user --role=backend --stack=go --architecture=microservices --delivery=contract-first
+
+# Project profile (stored in .memory-bank/ or global bank):
+mb-profile.sh init --scope=project --role=frontend --stack=typescript --architecture=fsd --delivery=sdd
+```
+
+Supported role presets: **backend**, **frontend**, **mobile**.
+Supported stack presets: **go**, **python**, **javascript**, **typescript**, **java**, **generic**.
+Supported architecture presets: clean, hexagonal, modular-monolith, microservices, ddd, fsd, mobile-udf, event-driven.
+Supported delivery presets: tdd, contract-first, api-first, sdd, legacy-safe, exploratory.
+
+Rules-only mode personalization: a user-global profile (`~/<agent-config>/memory-bank/rules-profile.json`) applies Go/backend/microservices presets even when no project Memory Bank exists. No project files are written. Use `/mb profile init --scope=user ...` or `mb-profile.sh init --scope=user ...`.
+
+Canonical machine format is **JSON**. YAML examples appear in documentation only and must be converted before storage. For full guidance see [docs/rule-profiles.md](docs/rule-profiles.md).
+
 ---
 
 ## What you get
@@ -183,7 +231,7 @@ The agent reads these rules at session start and follows them without you having
 
 ### 3. Dev-workflow commands
 
-**24 top-level slash-commands** (live in `commands/`):
+**25 top-level slash-commands** (live in `commands/`):
 
 | Command | Purpose |
 |---------|---------|
@@ -195,6 +243,7 @@ The agent reads these rules at session start and follows them without you having
 | `/sdd` | Kiro-style spec triple → `specs/<topic>/{requirements,design,tasks}.md` |
 | `/work` | Execute plan/spec stages with role-agents, review-loop, severity gate (Phase 3) |
 | `/config` | Manage `pipeline.yaml` engine config (init / show / validate / path) |
+| `/profile` | Manage rule profiles and stack presets (init / show / validate / set / path) |
 | `/commit` | Conventional-commit message with MB context |
 | `/pr` | Create pull request with structured description |
 | `/review` | Full code review (correctness + security + perf + style) |

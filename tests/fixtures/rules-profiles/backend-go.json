@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "scope": "project",
+  "role": "backend",
+  "stack": "go",
+  "architecture": "microservices",
+  "delivery": "contract-first",
+  "strictness": "warn",
+  "extras": {
+    "api": "protobuf"
+  }
+}

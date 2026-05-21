@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "stack",
+  "name": "java",
+  "description": "Java stack: package boundaries, interfaces for repositories/gateways, immutable DTOs, JUnit naming.",
+  "rules": [
+    {
+      "rule_id": "stack.java.package-boundaries",
+      "severity": "warn",
+      "guidance": "Each layer (domain, application, infrastructure) has its own package. Internal implementation classes are package-private where possible; only public API is exported."
+    },
+    {
+      "rule_id": "stack.java.interfaces-for-repositories",
+      "severity": "warn",
+      "guidance": "Repositories and external gateways are defined as interfaces in the application/domain layer. Infrastructure provides implementations. Inject the interface, not the implementation."
+    },
+    {
+      "rule_id": "stack.java.immutable-dtos",
+      "severity": "warn",
+      "guidance": "DTOs and value objects should be immutable (records in Java 16+, or final fields with no setters). Avoid mutable builder patterns that allow partial state."
+    },
+    {
+      "rule_id": "stack.java.junit-naming",
+      "severity": "advisory",
+      "guidance": "Test methods named should_<result>_when_<condition> or given_<context>_when_<action>_then_<result>. Use @DisplayName for human-readable descriptions."
+    },
+    {
+      "rule_id": "stack.java.checked-exceptions",
+      "severity": "advisory",
+      "guidance": "Prefer unchecked (runtime) exceptions for programming errors; use checked exceptions only for recoverable, caller-expected failure modes. Do not declare throws Exception broadly."
+    }
+  ],
+  "see_also": []
+}

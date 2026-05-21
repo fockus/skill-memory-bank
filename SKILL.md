@@ -9,7 +9,7 @@ Three-in-one skill for code agents:
 
 1. **Memory Bank** — long-term project memory through `.memory-bank/` (`STATUS`, `plan`, `checklist`, `RESEARCH`, `BACKLOG`, `progress`, `lessons`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
-3. **Dev toolkit** — 24 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`.
+3. **Dev toolkit** — 25 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`.
 
 Supported host model:
 - **Claude Code / OpenCode** — native command surface + global install.
@@ -22,8 +22,16 @@ Supported host model:
 ## Quick start
 
 ```bash
-# Initialization (stack auto-detect + CLAUDE.md generation)
-/mb init                 # same as /mb init --full
+# Storage modes — pick one per project:
+/mb init                                      # local mode (default) — bank in repo (.memory-bank/)
+/mb init --storage=local                      # explicit local mode — same as above
+/mb init --storage=global --agent=claude-code # global mode — bank in ~/.claude/memory-bank/...
+                                              # (personal, NOT committed to the repo)
+# Rules-only mode: no /mb init at all — [MEMORY BANK: ABSENT] state;
+# /mb lifecycle stays inactive; all TDD/SOLID/Clean Architecture/DRY/KISS/YAGNI rules still apply.
+
+# Initialization flags
+/mb init --full          # same as /mb init (stack auto-detect + CLAUDE.md generation)
 /mb init --minimal       # only the .memory-bank/ structure
 
 # Session flow
@@ -32,6 +40,11 @@ Supported host model:
 /mb verify               # verify plan alignment (if there was a plan)
 /mb done                 # actualize + note + progress
 ```
+
+# Personalize rules for your stack (optional):
+/mb profile init --scope=project --role=backend --stack=go --architecture=microservices --delivery=contract-first
+# or user-global (works even without a project Memory Bank):
+/mb profile init --scope=user --role=frontend --stack=typescript
 
 If the host does not support native slash commands, use:
 - `commands/mb.md` as the workflow entrypoint;
@@ -143,6 +156,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb_code_context_core.py` | Core evidence-pack orchestration for `mb-code-context.py` |
 | `mb-context-slim.py` | Slim a full agent prompt on stdin → terse version on stdout |
 | `mb-upgrade.sh [--check\|--force]` | Self-update the skill from GitHub |
+| `mb-profile.sh` | Rule profile manager: `init`, `show`, `path`, `validate`, `set` — user/project scopes |
 
 ---
 
@@ -322,6 +336,7 @@ The SessionEnd hook `hooks/mb-compact-reminder.sh` reminds the user to run `/mb 
 
 ## References
 
+- Rule profiles schema (dimensions, immutable baseline, precedence, validation): `references/rules-profile.schema.md`
 - Metadata protocol + `index.json` + 8 key rules: `references/metadata.md`
 - Plan decomposition (Phase / Sprint / Stage), templates, drift checks: `references/templates.md`
 - Planning + Plan Verifier workflow: `references/planning-and-verification.md`

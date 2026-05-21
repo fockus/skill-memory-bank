@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "delivery",
+  "name": "tdd",
+  "description": "Test-Driven Development: tests before code, RED→GREEN→REFACTOR, naming convention.",
+  "rules": [
+    {
+      "rule_id": "delivery.tdd.tests-first",
+      "severity": "block",
+      "guidance": "New behavior requires a failing test first. Do not write implementation code before at least one test exists and fails for the right reason."
+    },
+    {
+      "rule_id": "delivery.tdd.red-green-refactor",
+      "severity": "warn",
+      "guidance": "Follow the RED→GREEN→REFACTOR cycle. Refactor only after the test suite is green. Do not optimize prematurely or add abstractions during the RED phase."
+    },
+    {
+      "rule_id": "delivery.tdd.test-naming",
+      "severity": "warn",
+      "guidance": "Name tests test_<what>_<condition>_<result> (or equivalent for the stack). Test name must be a specification statement readable without the implementation."
+    },
+    {
+      "rule_id": "delivery.tdd.no-skip",
+      "severity": "warn",
+      "guidance": "Do not commit .skip/.only/xtest markers. Skipped tests are technical debt that hides regressions. If a test is flaky, fix or delete it — do not skip indefinitely."
+    }
+  ],
+  "see_also": []
+}

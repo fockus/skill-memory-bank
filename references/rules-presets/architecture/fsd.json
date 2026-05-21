@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "architecture",
+  "name": "fsd",
+  "description": "Feature-Sliced Design: layer direction app→pages→widgets→features→entities→shared, public slice API.",
+  "rules": [
+    {
+      "rule_id": "architecture.fsd.import-direction",
+      "severity": "block",
+      "guidance": "Imports flow downward only: app→pages→widgets→features→entities→shared. No slice may import from a higher layer. Cross-slice imports at the same layer go through widgets/pages."
+    },
+    {
+      "rule_id": "architecture.fsd.public-slice-api",
+      "severity": "block",
+      "guidance": "Each slice exposes its public API through a single index.ts. External code imports only from the index; internal modules are private to the slice."
+    },
+    {
+      "rule_id": "architecture.fsd.no-cross-slice-internals",
+      "severity": "warn",
+      "guidance": "Direct imports of internal slice files (e.g. features/auth/model/store.ts) from other features are forbidden. Use the public index API or lift shared logic to a lower layer."
+    },
+    {
+      "rule_id": "architecture.fsd.shared-layer-generic",
+      "severity": "advisory",
+      "guidance": "The shared layer contains only generic, reusable utilities with no business logic. Business logic belongs in entities, features, or higher layers."
+    }
+  ],
+  "see_also": []
+}

@@ -45,12 +45,12 @@ Phase 1 Foundation, Phase 2 (discuss + sdd + plan-lite), Phase 3 Sprint 1 (`/mb 
 - ✅ Stages 1-6: resolver contract tests + 6 `_lib.sh` helpers + `mb-init-bank.sh` global flags + `/mb init` UX + runtime docs/rules-only mode + full verification (735 pytest, 119 focused bats, 3 doc-regressions fixed, checklist 181→68 lines). Detail → `plans/2026-05-21_feature_global-storage.md`.
 
 <!-- mb-plan:2026-05-21_feature_global-storage-agent-support.md -->
-## global-storage-agent-support Sprint 2 — queued
-- ⬜ Stages 1-6: adapter/hook inventory tests, resolver-aware hooks, adapter matrix, install flow docs, E2E cross-agent smoke, final verification. Detail → `plans/2026-05-21_feature_global-storage-agent-support.md`.
+## global-storage-agent-support Sprint 2 — ✅ DONE
+- ✅ Stages 1-6: RED contract test (`test_global_storage_contract.py`, 11 cases) + resolver-aware hooks (3 hooks + git-hooks-fallback honour `MB_PATH`) + adapter matrix (opencode JS plugin, cursor/codex/pi/windsurf/cline/kilo runtime + docs) + Codex global AGENTS embeds TDD/SOLID/Clean Architecture/DRY/KISS/YAGNI/`[MEMORY BANK: ABSENT]` via sed-merge + storage modes docs (SKILL.md/README.md/docs/install.md/docs/cross-agent-setup.md) + E2E suite (`tests/e2e/test_global_storage.bats`, 4 cases). Detail → `plans/2026-05-21_feature_global-storage-agent-support.md`.
 
 <!-- mb-plan:2026-05-21_feature_rule-profiles-and-stack-presets.md -->
-## rule-profiles Sprint 3 — queued
-- ⬜ Stages 1-6: profile schema + RED tests, `mb-profile.sh` CLI, role/stack presets, rules-check integration, UX/docs, verification. Detail → `plans/2026-05-21_feature_rule-profiles-and-stack-presets.md`.
+## rule-profiles Sprint 3 — ✅ DONE
+- ✅ Stages 1-6: profile schema doc + 7 fixtures + RED pytest (26 cases) → `memory_bank_skill/rules_profile.py` + `scripts/mb-profile.sh` CLI (10 bats) → 22 built-in preset JSONs (roles/stacks/architecture/delivery, 12 composition tests) → `mb-rules-check.sh` profile integration (strictness-aware exit, rule_id/profile_source fields, stack-aware checks for go/python/typescript/javascript/java, fsd architecture hint, 8 bats) → `/mb profile` command + `commands/profile.md` + `docs/rule-profiles.md` + README/SKILL.md updates (7 new runtime tests) → CHANGELOG + verification (798 pytest, full bats, ruff clean). Detail → `plans/2026-05-21_feature_rule-profiles-and-stack-presets.md`.
 
 <!-- mb-plan:2026-05-21_refactor_sdd-task-model.md -->
 ## sdd-task-model Sprint 1 — stages 1-3 ✅

@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "role",
+  "name": "backend",
+  "description": "Backend service developer: interface boundaries, DI, repository abstractions, integration tests.",
+  "rules": [
+    {
+      "rule_id": "role.backend.interface-boundaries",
+      "severity": "warn",
+      "guidance": "Define repository and gateway interfaces in the application/domain layer; infrastructure implements them. No concrete DB/HTTP types leak into domain."
+    },
+    {
+      "rule_id": "role.backend.dependency-injection",
+      "severity": "warn",
+      "guidance": "Pass dependencies through constructors or function arguments. No global state or service locators. Enables testability without framework magic."
+    },
+    {
+      "rule_id": "role.backend.integration-tests-primary",
+      "severity": "warn",
+      "guidance": "Integration tests (real DB/infra in test containers or in-memory) are the primary test layer. Mock only external third-party HTTP services, not internal infra."
+    },
+    {
+      "rule_id": "role.backend.no-business-logic-in-controllers",
+      "severity": "warn",
+      "guidance": "Controllers/handlers parse input and delegate to use-cases or services. Business rules live in the domain/application layer, not in request handlers."
+    },
+    {
+      "rule_id": "role.backend.error-boundaries",
+      "severity": "warn",
+      "guidance": "Map domain errors to transport errors at the adapter boundary only. Domain layer must not import HTTP/gRPC status codes."
+    }
+  ],
+  "see_also": []
+}

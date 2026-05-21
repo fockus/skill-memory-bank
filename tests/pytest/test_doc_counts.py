@@ -184,8 +184,10 @@ def test_skill_md_references_link_existing_files() -> None:
     section = _section_lines(text, "## References")
     assert section, "SKILL.md must contain a '## References' section"
     section_text = "\n".join(section)
-    # Match `references/<name>.md` as inline ref or bare path
-    linked = set(re.findall(r"references/([A-Za-z0-9_\-]+\.md)", section_text))
+    # Match `references/<name>.md` as inline ref or bare path.
+    # Character class includes '.' to support filenames with multiple dots
+    # (e.g. rules-profile.schema.md).
+    linked = set(re.findall(r"references/([A-Za-z0-9_\-\.]+\.md)", section_text))
     missing = sorted(fs_refs - linked)
     nonexistent = sorted(linked - fs_refs)
     assert not missing, (

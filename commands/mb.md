@@ -46,6 +46,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `graph [--apply] [src_root]`                             | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in through `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache                       |
 | `tags [--apply] [--auto-merge]`                          | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 against a closed vocabulary and propose merges. `--auto-merge` only applies distance ≤1. Vocabulary is in `.memory-bank/tags-vocabulary.md` (fallback: `references/tags-vocabulary.md`). `mb-index-json.py` auto-normalizes to kebab-case |
 | `init [--minimal|--full]`                                | Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only                                                                                                                                                                                     |
+| `profile <subcommand>`                                   | Manage rule profiles: `init`, `show`, `path`, `validate`, `set`. See `commands/profile.md`. Example: `mb-profile.sh init --scope=user --role=backend --stack=go`                                                                                                                                        |
 | `install [<clients>]`                                    | Install Memory Bank for the project. If `<clients>` is empty, ask for an 8-client multiselect (`claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex`). Calls `memory-bank install --clients ... --project-root $PWD`                                                                                |
 | `help [subcommand]`                                      | Help. No argument → list all subcommands. With argument → show details for that specific one (`/mb help compact`, `/mb help tags`, ...)                                                                                                                                                                  |
 | `deps [--install-hints]`                                 | Dependency check (required: `python3`, `jq`, `git`; optional: `rg`, `shellcheck`, `tree-sitter`, `PyYAML`). `--install-hints` prints OS-specific install commands                                                                                                                                        |
@@ -888,6 +889,35 @@ If `y` — execute it. If `n` — leave everything as-is.
 
 ---
 
+#### Step 5.5: Optional profile setup (`--full` only)
+
+After the symlink step, offer to configure a project rule profile:
+
+```
+Would you like to configure a rule profile for this project now?
+  This personalizes stack/architecture/delivery rules on top of the immutable baseline.
+  Skipping keeps the immutable baseline active — you can run `/mb profile init` anytime.
+  (y/N)
+```
+
+If the answer is `y`, run:
+
+```bash
+mb-profile.sh init --scope=project [--role=...] [--stack=...] [--architecture=...] [--delivery=...]
+```
+
+Do **not** make profile setup mandatory. Skipping a profile keeps the immutable safety baseline active without any reduction in safety guarantees.
+
+If the user prefers a user-global profile (so it applies across all projects, even without Memory Bank):
+
+```bash
+mb-profile.sh init --scope=user --role=<role> --stack=<stack>
+```
+
+**Note:** `--profile-skip` documents that skipping is intentional. `--profile-auto` (future flag) would apply stack auto-detection as an advisory recommendation before user confirmation.
+
+---
+
 #### Step 6: Summary
 
 Print:
@@ -898,7 +928,36 @@ Print:
 - Suggest the next steps:
   - `/mb start` — load context in subsequent sessions
   - `/mb map` — populate `.memory-bank/codebase/` (STACK / ARCHITECTURE / CONVENTIONS / CONCERNS) if skipped in Step 1.5
+  - `/mb profile init --scope=project` — personalize rule profile (if skipped in Step 5.5)
   - (if the project needs planning) `/mb plan feature "<topic>"`
+
+---
+
+### profile <subcommand>
+
+Manage rule profiles — configurable role, stack, architecture, and delivery presets layered on top of the immutable safety baseline. See the full command documentation in `commands/profile.md`.
+
+**Quick examples:**
+
+```bash
+# User-global profile (no project Memory Bank required):
+mb-profile.sh init --scope=user --role=backend --stack=go \
+  --architecture=microservices --delivery=contract-first
+
+# Project profile:
+mb-profile.sh init --scope=project --role=frontend --stack=typescript \
+  --architecture=fsd --delivery=sdd
+
+# Show resolved profile:
+mb-profile.sh show
+
+# Validate:
+mb-profile.sh validate .memory-bank/rules-profile.json
+```
+
+**Dispatch:** run `scripts/mb-profile.sh <subcommand> [flags]` directly. Full subcommand reference: `commands/profile.md`.
+
+**Immutable baseline reminder:** skipping a profile keeps the immutable baseline active (no-placeholders, protected-files, destructive-confirm, fail-fast, DRY/KISS/YAGNI, verification-before-completion, explicit-storage-choice). The immutable baseline cannot be disabled by any profile.
 
 ---
 

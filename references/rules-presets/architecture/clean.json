@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "architecture",
+  "name": "clean",
+  "description": "Clean Architecture: Infra→App→Domain layer direction, pure domain, DIP.",
+  "rules": [
+    {
+      "rule_id": "architecture.clean.layer-direction",
+      "severity": "block",
+      "guidance": "Dependency direction: Infrastructure → Application → Domain. Domain layer has zero external (framework/DB/HTTP) imports. Violations are hard architecture errors."
+    },
+    {
+      "rule_id": "architecture.clean.domain-pure",
+      "severity": "block",
+      "guidance": "Domain entities and use-cases depend only on each other and stdlib. No ORM annotations, HTTP status codes, or framework annotations in domain classes."
+    },
+    {
+      "rule_id": "architecture.clean.dip",
+      "severity": "warn",
+      "guidance": "High-level modules define interfaces (ports). Low-level modules implement them (adapters). Dependency inversion enables replacing infrastructure without touching domain."
+    },
+    {
+      "rule_id": "architecture.clean.use-case-per-action",
+      "severity": "advisory",
+      "guidance": "Each use-case class or function represents a single business action. Avoid fat service classes with 10+ methods — split by cohesion."
+    }
+  ],
+  "see_also": []
+}

@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "role",
+  "name": "mobile",
+  "description": "Mobile developer: UDF, immutable UI state, offline-first, viewmodel/usecase/repo separation.",
+  "rules": [
+    {
+      "rule_id": "role.mobile.udf-flow",
+      "severity": "warn",
+      "guidance": "Follow unidirectional data flow: View emits events → ViewModel processes → UseCase executes → Repository returns → ViewModel publishes new state → View renders."
+    },
+    {
+      "rule_id": "role.mobile.immutable-ui-state",
+      "severity": "warn",
+      "guidance": "ViewModel exposes a single immutable state object (data class / struct). UI observes state; it does not mutate it directly. State changes are atomic."
+    },
+    {
+      "rule_id": "role.mobile.offline-first",
+      "severity": "advisory",
+      "guidance": "Repository returns cached data immediately, then refreshes from network. UI handles loading, success, and error states explicitly — no implicit blocking calls."
+    },
+    {
+      "rule_id": "role.mobile.layer-separation",
+      "severity": "warn",
+      "guidance": "ViewModel knows UseCase interfaces only; UseCase knows Repository interfaces only. Platform (Android/iOS) frameworks must not appear in UseCase or Repository domain logic."
+    },
+    {
+      "rule_id": "role.mobile.no-raw-network-in-viewmodel",
+      "severity": "warn",
+      "guidance": "ViewModels must not make direct HTTP/network calls. Network access is DataSource's responsibility, accessed through the Repository interface."
+    }
+  ],
+  "see_also": []
+}

@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "stack",
+  "name": "go",
+  "description": "Go stack: context propagation, goroutine safety, small interfaces, table-driven tests, error wrapping.",
+  "rules": [
+    {
+      "rule_id": "stack.go.context-propagation",
+      "severity": "warn",
+      "guidance": "Pass context.Context as the first argument to every function that performs I/O or calls across service boundaries. Never store context in a struct field."
+    },
+    {
+      "rule_id": "stack.go.goroutine-safety",
+      "severity": "warn",
+      "guidance": "Document goroutine safety on exported types. Shared mutable state must use sync primitives or channels. Prefer sharing memory by communicating."
+    },
+    {
+      "rule_id": "stack.go.small-interfaces",
+      "severity": "advisory",
+      "guidance": "Define interfaces at the point of use with the minimum methods needed (1-3 methods is idiomatic). Avoid large interfaces that embed unrelated behaviors."
+    },
+    {
+      "rule_id": "stack.go.table-driven-tests",
+      "severity": "advisory",
+      "guidance": "Use table-driven tests ([]struct{...}) for functions with multiple input/output combinations. Each case must have a name field for readable test output."
+    },
+    {
+      "rule_id": "stack.go.error-wrapping",
+      "severity": "warn",
+      "guidance": "Wrap errors with context using fmt.Errorf(\"...: %w\", err). Return errors; do not log and return. Callers decide how to handle or log."
+    }
+  ],
+  "see_also": []
+}

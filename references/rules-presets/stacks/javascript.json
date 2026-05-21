@@ -1,0 +1,34 @@
+{
+  "preset_version": 1,
+  "kind": "stack",
+  "name": "javascript",
+  "description": "JavaScript stack: ESM imports, strict mode, no implicit coercions, colocated test files.",
+  "rules": [
+    {
+      "rule_id": "stack.javascript.esm-imports",
+      "severity": "warn",
+      "guidance": "Use ES module syntax (import/export). Avoid CommonJS require() in new code unless the target runtime enforces it. Explicit file extensions in import paths."
+    },
+    {
+      "rule_id": "stack.javascript.strict-mode",
+      "severity": "warn",
+      "guidance": "Enable 'use strict' or use ESM (which is strict by default). Avoid implicit globals, with-statements, and delete on non-configurable properties."
+    },
+    {
+      "rule_id": "stack.javascript.no-implicit-coercions",
+      "severity": "warn",
+      "guidance": "Use strict equality (===, !==). Explicit type conversions (Number(), String(), Boolean()). Avoid truthiness checks on values that could be 0 or empty string unintentionally."
+    },
+    {
+      "rule_id": "stack.javascript.colocated-tests",
+      "severity": "advisory",
+      "guidance": "Test files live next to the source file they test (e.g. module.test.js). Integration and e2e tests may live in a dedicated __tests__ or tests directory."
+    },
+    {
+      "rule_id": "stack.javascript.async-error-handling",
+      "severity": "warn",
+      "guidance": "Always handle promise rejections (try/catch in async, .catch() on promise chains). Unhandled rejections must not be silently swallowed."
+    }
+  ],
+  "see_also": []
+}

@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "delivery",
+  "name": "legacy-safe",
+  "description": "Legacy-Safe: characterize-before-change, golden tests, test-after-remediation allowed for existing code.",
+  "rules": [
+    {
+      "rule_id": "delivery.legacy-safe.characterize-before-change",
+      "severity": "warn",
+      "guidance": "Before modifying legacy code, write characterization tests that document current (possibly incorrect) behavior. These tests prevent unintended regression during refactoring."
+    },
+    {
+      "rule_id": "delivery.legacy-safe.golden-tests",
+      "severity": "advisory",
+      "guidance": "Use golden (snapshot) tests for complex legacy output that is hard to assert inline. Golden tests must be reviewed and updated intentionally, not auto-accepted."
+    },
+    {
+      "rule_id": "delivery.legacy-safe.test-after-allowed",
+      "severity": "advisory",
+      "guidance": "For existing untested legacy code, adding tests after the fact is permitted and encouraged. New behavior added to legacy code still requires tests-first."
+    },
+    {
+      "rule_id": "delivery.legacy-safe.strangler-fig",
+      "severity": "advisory",
+      "guidance": "Replace legacy components incrementally using the Strangler Fig pattern. Tests must pass at every step of the replacement. Do not rewrite and swap in one large change."
+    }
+  ],
+  "see_also": []
+}

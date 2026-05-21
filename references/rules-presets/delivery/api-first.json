@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "delivery",
+  "name": "api-first",
+  "description": "API-First: schema before client/server, schema versioning, backward compatibility policy.",
+  "rules": [
+    {
+      "rule_id": "delivery.api-first.schema-before-code",
+      "severity": "block",
+      "guidance": "API schema (OpenAPI/protobuf/GraphQL SDL) is the source of truth. Client and server code is generated from or validated against the schema — never the reverse."
+    },
+    {
+      "rule_id": "delivery.api-first.schema-versioning",
+      "severity": "warn",
+      "guidance": "API schemas are versioned (semver or date-based). The version is part of the base path or package name. Changelogs document breaking vs. additive changes per version."
+    },
+    {
+      "rule_id": "delivery.api-first.backward-compat",
+      "severity": "warn",
+      "guidance": "New fields are optional with defaults. Removing or renaming fields is a breaking change requiring a major version. Deprecation annotations precede removal by at least one release."
+    },
+    {
+      "rule_id": "delivery.api-first.mock-server-for-consumers",
+      "severity": "advisory",
+      "guidance": "Provide a mock server or contract stubs from the schema so consumer teams can develop against the API before the server is implemented."
+    }
+  ],
+  "see_also": []
+}

@@ -1,0 +1,29 @@
+{
+  "preset_version": 1,
+  "kind": "architecture",
+  "name": "modular-monolith",
+  "description": "Modular Monolith: explicit module contracts, no cross-module internal access.",
+  "rules": [
+    {
+      "rule_id": "architecture.modular-monolith.explicit-module-boundaries",
+      "severity": "block",
+      "guidance": "Each module exposes only its public API (package, index, facade). Other modules import the public API, never internal packages or classes."
+    },
+    {
+      "rule_id": "architecture.modular-monolith.no-cross-module-internals",
+      "severity": "block",
+      "guidance": "Cross-module direct access to internal types or DB tables is forbidden. Cross-module calls go through the module's public interface only."
+    },
+    {
+      "rule_id": "architecture.modular-monolith.module-owned-data",
+      "severity": "warn",
+      "guidance": "Each module owns its data (schema, tables, storage). Other modules query through the module's service API or events, not by joining tables directly."
+    },
+    {
+      "rule_id": "architecture.modular-monolith.bounded-by-domain",
+      "severity": "advisory",
+      "guidance": "Module boundaries follow domain/business cohesion, not technical layers. Prefer modules named after capabilities (billing, inventory) over technical concerns (controllers, services)."
+    }
+  ],
+  "see_also": []
+}

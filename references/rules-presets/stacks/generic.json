@@ -1,0 +1,19 @@
+{
+  "preset_version": 1,
+  "kind": "stack",
+  "name": "generic",
+  "description": "Language-agnostic safety baseline: always present when stack is unrecognized or mixed.",
+  "rules": [
+    {
+      "rule_id": "stack.generic.fail-fast",
+      "severity": "warn",
+      "guidance": "Validate inputs at system boundaries. Return or raise errors early rather than propagating invalid state through layers."
+    },
+    {
+      "rule_id": "stack.generic.no-magic-values",
+      "severity": "advisory",
+      "guidance": "Replace bare literals with named constants or configuration values. Magic numbers and strings obscure intent and make changes error-prone."
+    }
+  ],
+  "see_also": []
+}
