@@ -109,6 +109,9 @@ def test_skill_md_command_count_matches_filesystem() -> None:
 def test_skill_md_script_table_lists_all_scripts() -> None:
     """Every shell + python script must appear in the SKILL.md script table."""
     fs_scripts = _filesystem_basenames(SCRIPTS_DIR, (".sh", ".py"))
+    # Python package marker is not a tool — only present so `from scripts.X import ...`
+    # works in tests after the sdd-unification Sprint 1.
+    fs_scripts.discard("__init__.py")
     text = SKILL_MD.read_text(encoding="utf-8")
     section = _section_lines(text, "## Tools")
     assert section, "SKILL.md must contain a '## Tools' section listing scripts"

@@ -166,21 +166,41 @@ cat > "$SPEC_DIR/tasks.md" <<EOF
 # Tasks: ${SAFE_TOPIC}
 
 > Numbered, checkbox-tracked work items. Each task references the
-> REQ-IDs it satisfies (covers_requirements: [...]).
+> REQ-IDs it satisfies via the Covers field.
 
-## 1. <!-- task title -->
+<!-- mb-task:1 -->
+## Task 1: <!-- task title -->
 
 **Covers:** REQ-NNN
+**Role:** developer
 
-- [ ] <!-- concrete sub-step -->
+**What to do:**
+- <!-- concrete implementation step -->
+
+**Testing (TDD — tests BEFORE implementation):**
+- <!-- unit or integration test to write first -->
+
+**DoD:**
+- [ ] <!-- concrete acceptance criterion -->
 - [ ] tests pass
 - [ ] lint clean
 
-## 2. <!-- next task -->
+<!-- mb-task:2 -->
+## Task 2: <!-- next task title -->
 
 **Covers:** REQ-NNN
+**Role:** developer
 
-- [ ]
+**What to do:**
+- <!-- implementation step -->
+
+**Testing (TDD — tests BEFORE implementation):**
+- <!-- test to write first -->
+
+**DoD:**
+- [ ] <!-- acceptance criterion -->
+- [ ] tests pass
+- [ ] lint clean
 EOF
 
 echo "$SPEC_DIR/requirements.md"

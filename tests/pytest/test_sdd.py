@@ -121,3 +121,61 @@ def test_sdd_force_overwrites(tmp_path: Path) -> None:
     text = req.read_text(encoding="utf-8")
     assert "overridden by user" not in text
     assert "Requirements" in text
+
+
+# ── Stage 3: new marker format tests ─────────────────────────────────────────
+
+
+def test_sdd_tasks_template_has_mb_task_marker(tmp_path: Path) -> None:
+    """tasks.md must contain the <!-- mb-task:1 --> comment marker."""
+    mb = _init_mb(tmp_path)
+    r = _run("foo", mb=mb)
+    assert r.returncode == 0, r.stderr
+    text = (mb / "specs" / "foo" / "tasks.md").read_text(encoding="utf-8")
+    assert "<!-- mb-task:1 -->" in text, "tasks.md must contain <!-- mb-task:1 -->"
+
+
+def test_sdd_tasks_template_has_role_field(tmp_path: Path) -> None:
+    """tasks.md must contain the **Role:** field."""
+    mb = _init_mb(tmp_path)
+    r = _run("foo", mb=mb)
+    assert r.returncode == 0, r.stderr
+    text = (mb / "specs" / "foo" / "tasks.md").read_text(encoding="utf-8")
+    assert "**Role:**" in text, "tasks.md must contain **Role:** field"
+
+
+def test_sdd_tasks_template_has_testing_section(tmp_path: Path) -> None:
+    """tasks.md must contain a **Testing section header."""
+    mb = _init_mb(tmp_path)
+    r = _run("foo", mb=mb)
+    assert r.returncode == 0, r.stderr
+    text = (mb / "specs" / "foo" / "tasks.md").read_text(encoding="utf-8")
+    assert "**Testing" in text, "tasks.md must contain a **Testing section"
+
+
+def test_sdd_tasks_template_dod_uses_checkboxes(tmp_path: Path) -> None:
+    """tasks.md DoD section must use unchecked checkbox items."""
+    mb = _init_mb(tmp_path)
+    r = _run("foo", mb=mb)
+    assert r.returncode == 0, r.stderr
+    text = (mb / "specs" / "foo" / "tasks.md").read_text(encoding="utf-8")
+    assert "- [ ]" in text, "tasks.md must contain - [ ] DoD checkboxes"
+
+
+def test_sdd_tasks_parseable_by_work_items(tmp_path: Path) -> None:
+    """parse_work_items() returns >= 2 WorkItems with kind==task and source==spec."""
+    import sys
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    from mb_work_items import parse_work_items  # noqa: PLC0415
+
+    mb = _init_mb(tmp_path)
+    r = _run("foo", mb=mb)
+    assert r.returncode == 0, r.stderr
+
+    tasks_path = mb / "specs" / "foo" / "tasks.md"
+    items = parse_work_items(tasks_path)
+
+    assert len(items) >= 2, f"Expected >= 2 WorkItems, got {len(items)}"
+    for item in items:
+        assert item.kind == "task", f"Expected kind='task', got '{item.kind}'"
+        assert item.source == "spec", f"Expected source='spec', got '{item.source}'"
