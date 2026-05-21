@@ -109,7 +109,7 @@ The codebase demonstrates positive patterns: atomic file writes in Python, PII r
 - **Exploit Scenario:**
   A malicious manifest placed before uninstall causes catastrophic data loss.
 - **Recommendation:**
-  Validate that `skill_path` is exactly `~/.pi/skills/memory-bank` or resolve and verify it is a subdirectory of `~/.pi/skills/`.
+  Validate that `skill_path` is exactly `~/.pi/agent/skills/memory-bank` or resolve and verify it is a subdirectory of `~/.pi/agent/skills/`.
 
 ---
 

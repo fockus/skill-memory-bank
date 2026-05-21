@@ -6,14 +6,17 @@ CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="$HOME/.codex"
 CURSOR_DIR="$HOME/.cursor"
 OPENCODE_DIR="$HOME/.config/opencode"
+PI_AGENT_DIR="$HOME/.pi/agent"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
+PI_START_MARKER="<!-- memory-bank-pi:start -->"
+PI_END_MARKER="<!-- memory-bank-pi:end -->"
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 
 # shellcheck disable=SC1091
 . "$SKILL_DIR/scripts/_lib.sh"
 
-managed_roots=("$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR" "$OPENCODE_DIR")
+managed_roots=("$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR" "$OPENCODE_DIR" "$PI_AGENT_DIR")
 NON_INTERACTIVE=0
 
 run_texttool() {
@@ -65,7 +68,7 @@ echo -e "\n${BLUE}Removing files...${NC}"
 MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
   [ -z "$filepath" ] && continue
   case "$filepath" in
-    "$CLAUDE_DIR/CLAUDE.md"|"$CLAUDE_DIR/settings.json"|"$OPENCODE_DIR/AGENTS.md"|"$CODEX_DIR/AGENTS.md"|"$CURSOR_DIR/AGENTS.md"|"$CURSOR_DIR/hooks.json")
+    "$CLAUDE_DIR/CLAUDE.md"|"$CLAUDE_DIR/settings.json"|"$OPENCODE_DIR/AGENTS.md"|"$CODEX_DIR/AGENTS.md"|"$CURSOR_DIR/AGENTS.md"|"$CURSOR_DIR/hooks.json"|"$PI_AGENT_DIR/AGENTS.md")
       echo "  keep $filepath (managed merged file)"
       continue
       ;;
@@ -124,6 +127,9 @@ PYEOF
 # Clean Codex AGENTS.md MB section
 [ -f "$CODEX_DIR/AGENTS.md" ] && grep -q "memory-bank-codex:start" "$CODEX_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$CODEX_DIR/AGENTS.md" --start-marker "$CODEX_START_MARKER" --end-marker "$CODEX_END_MARKER" 2>/dev/null && echo "  Codex AGENTS.md cleaned" || true
 
+# Clean Pi AGENTS.md MB section
+[ -f "$PI_AGENT_DIR/AGENTS.md" ] && grep -q "memory-bank-pi:start" "$PI_AGENT_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$PI_AGENT_DIR/AGENTS.md" --start-marker "$PI_START_MARKER" --end-marker "$PI_END_MARKER" 2>/dev/null && echo "  Pi AGENTS.md cleaned" || true
+
 # Cursor global cleanup lives in adapters/cursor.sh
 if [ -f "$CURSOR_DIR/.mb-manifest.json" ]; then
   bash "$SKILL_DIR/adapters/cursor.sh" uninstall-global >/dev/null && echo "  Cursor global adapter cleaned"
@@ -136,6 +142,10 @@ rmdir "$CURSOR_DIR/skills" 2>/dev/null || true
 rmdir "$CURSOR_DIR/hooks" 2>/dev/null || true
 rmdir "$CURSOR_DIR/commands" 2>/dev/null || true
 rmdir "$OPENCODE_DIR/commands" 2>/dev/null || true
+rmdir "$PI_AGENT_DIR/prompts" 2>/dev/null || true
+rmdir "$PI_AGENT_DIR/skills" 2>/dev/null || true
+rmdir "$PI_AGENT_DIR" 2>/dev/null || true
+rmdir "$HOME/.pi" 2>/dev/null || true
 rmdir "$OPENCODE_DIR" 2>/dev/null || true
 
 echo -e "\n${GREEN}═══ Uninstalled ═══${NC}\n  Project .memory-bank/ dirs untouched.\n"

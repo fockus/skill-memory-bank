@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 # adapters/pi.sh — Pi Code (pi-mono) cross-agent adapter.
 #
-# Pi Skills API is in active development (2026-04-20 research). Normal installs ship one supported mode:
+# Pi global install is handled by install.sh. This adapter adds project-local wiring.
 #
-#   MB_PI_MODE=agents-md  (default)  — AGENTS.md (shared, refcount) +
-#                                       git-hooks-fallback. Safe, stable today.
+#   MB_PI_MODE=agents-md  (default)  — project AGENTS.md (shared, refcount) +
+#                                       git-hooks-fallback when PROJECT_ROOT is a git repo.
+#                                       Safe, stable today.
 #
-# Experimental compatibility path (not part of the supported default surface):
-#   MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1 adapters/pi.sh install [PROJECT_ROOT]
-#                                       Native ~/.pi/skills/memory-bank/ package.
+# Compatibility path:
+#   MB_PI_MODE=skill adapters/pi.sh install [PROJECT_ROOT]
+#                                       Native ~/.pi/agent/skills/memory-bank/ package.
 #
 # Usage:
 #   adapters/pi.sh install [PROJECT_ROOT]
 #   adapters/pi.sh uninstall [PROJECT_ROOT]
 #
-# Switch: MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1 adapters/pi.sh install [PROJECT_ROOT]
+# Switch: MB_PI_MODE=skill adapters/pi.sh install [PROJECT_ROOT]
 
 set -euo pipefail
 
@@ -43,14 +44,13 @@ MODE="${MB_PI_MODE:-agents-md}"
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_contract.sh"
 
-# ═══ Skill mode (native ~/.pi/skills/memory-bank/) ═══
-PI_SKILL_DIR="$HOME/.pi/skills/memory-bank"
+# ═══ Skill mode (native ~/.pi/agent/skills/memory-bank/) ═══
+PI_SKILL_DIR="$HOME/.pi/agent/skills/memory-bank"
 
 install_skill_mode() {
   mkdir -p "$PI_SKILL_DIR"
 
-  # SKILL.md manifest (best-guess Pi format based on research; will need refinement
-  # once Pi Skills API stabilizes — see notes/2026-04-20_03-36_cross-agent-research.md)
+  # Minimal Agent Skills-compatible SKILL.md for Pi discovery.
   {
     echo '---'
     echo 'name: memory-bank'
@@ -94,7 +94,7 @@ uninstall_skill_mode() {
   local skill_path
   skill_path=$(jq -r '.pi_skill_dir' "$MANIFEST")
   if [ -n "$skill_path" ] && [ -d "$skill_path" ]; then
-    if mb_path_is_within "$skill_path" "$HOME/.pi/skills"; then
+    if mb_path_is_within "$skill_path" "$HOME/.pi/agent/skills"; then
       rm -rf "$skill_path"
     else
       echo "[pi-adapter] skip unsafe manifest path: $skill_path" >&2
@@ -102,29 +102,31 @@ uninstall_skill_mode() {
   fi
   rm -f "$MANIFEST"
   # Clean empty parent dirs
-  rmdir "$HOME/.pi/skills" 2>/dev/null || true
+  rmdir "$HOME/.pi/agent/skills" 2>/dev/null || true
+  rmdir "$HOME/.pi/agent" 2>/dev/null || true
   rmdir "$HOME/.pi" 2>/dev/null || true
 }
 
-# ═══ AGENTS.md mode (default, transitional) ═══
+# ═══ AGENTS.md mode (default) ═══
 install_agents_md_mode() {
-  if [ ! -d "$PROJECT_ROOT/.git" ]; then
-    echo "[pi-adapter] agents-md mode requires git repo (git-hooks-fallback mandatory)" >&2
-    exit 1
-  fi
-
-  local owned
+  local owned git_hooks_installed
   owned=$(agents_md_install "$PROJECT_ROOT" "pi" "$SKILL_DIR")
-  bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
+  git_hooks_installed=false
+  if [ -d "$PROJECT_ROOT/.git" ]; then
+    bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
+    git_hooks_installed=true
+  else
+    echo "[pi-adapter] project is not a git repo; installed AGENTS.md only" >&2
+  fi
 
   adapter_write_manifest \
     "$MANIFEST" \
     "pi" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     '[]' \
-    "{\"mode\": \"agents-md\", \"agents_md_owned\": $owned, \"git_hooks_installed\": true}"
+    "{\"mode\": \"agents-md\", \"agents_md_owned\": $owned, \"git_hooks_installed\": $git_hooks_installed}"
 
-  echo "[pi-adapter] installed (mode: agents-md, transitional)"
+  echo "[pi-adapter] installed (mode: agents-md)"
 }
 
 uninstall_agents_md_mode() {
@@ -145,11 +147,6 @@ install_pi() {
   adapter_require_jq "pi-adapter" || exit 1
   case "$MODE" in
     skill)
-      if [ "${MB_EXPERIMENTAL_PI_SKILL:-0}" != "1" ]; then
-        echo "[pi-adapter] MB_PI_MODE=skill is experimental and disabled by default" >&2
-        echo "[pi-adapter] use MB_EXPERIMENTAL_PI_SKILL=1 only for explicit compatibility testing" >&2
-        exit 1
-      fi
       install_skill_mode
       ;;
     agents-md) install_agents_md_mode ;;
@@ -184,7 +181,6 @@ case "$ACTION" in
   uninstall) uninstall_pi ;;
   *)
     echo "Usage: [MB_PI_MODE=agents-md|skill] $0 install|uninstall [PROJECT_ROOT]" >&2
-    echo "       skill mode additionally requires MB_EXPERIMENTAL_PI_SKILL=1" >&2
     exit 1
     ;;
 esac

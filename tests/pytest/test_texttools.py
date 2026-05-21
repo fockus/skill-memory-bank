@@ -36,7 +36,9 @@ def test_atomic_write_writes_file_without_leftover_tmp(tmp_path: Path) -> None:
     assert list(tmp_path.glob(".file.txt.*.tmp")) == []
 
 
-def test_atomic_write_preserves_original_on_replace_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_atomic_write_preserves_original_on_replace_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     target = tmp_path / "file.txt"
     target.write_text("old\n", encoding="utf-8")
 
@@ -108,6 +110,30 @@ comments in English
     assert "1. **Language**: Russian" in localized
     assert "> **Language** — respond in Russian" in localized
     assert "comments in Russian" in localized
+
+
+def test_localize_language_text_does_not_replace_other_critical_rules() -> None:
+    text = """# [MEMORY-BANK-SKILL]
+> **Contract-First** — Protocol/ABC → contract tests → implementation.
+> **TDD** — tests first, then code.
+> **Language** — respond in English; technical terms may remain in English.
+> **No placeholders** — no TODO, `...`, or pseudocode.
+"""
+
+    localized = _texttools.localize_language_text(
+        text,
+        rule_full="Russian — responses and code comments. Technical terms may remain in English.",
+        rule_short="respond in Russian; technical terms may remain in English.",
+        comments_language="Russian",
+        after_marker="# [MEMORY-BANK-SKILL]",
+    )
+
+    assert "> **Contract-First** — Protocol/ABC → contract tests → implementation." in localized
+    assert "> **TDD** — tests first, then code." in localized
+    assert (
+        "> **Language** — respond in Russian; technical terms may remain in English." in localized
+    )
+    assert "> **No placeholders** — no TODO, `...`, or pseudocode." in localized
 
 
 @pytest.mark.parametrize(

@@ -60,7 +60,8 @@ pipx install memory-bank-skill           # stable
 # or, for the latest release candidate:
 pipx install --pip-args='--pre' memory-bank-skill
 
-memory-bank install                      # global install for Claude Code + Cursor + Codex hints + OpenCode
+# pipx only installs the CLI. Run this once to wire agents, rules, commands, and Pi prompts:
+memory-bank install                      # global install for Claude Code + Cursor + Codex + OpenCode + Pi
 # optional: pick installed rule language explicitly
 memory-bank install --language ru
 ```
@@ -252,7 +253,7 @@ One `.memory-bank/` directory, 8 AI clients:
 | **Kilo** | ❌ (fallback to git hooks) | `.kilocode/rules/` + `.git/hooks/` |
 | **OpenCode** | ✅ TypeScript plugins + native commands | `~/.config/opencode/{AGENTS.md,commands/}` + project `AGENTS.md` + `opencode.json` + TS plugin |
 | **Codex** (OpenAI) | ✅ Conservative global support + experimental project hooks | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + project `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
-| **Pi Code** | Dual-mode (skill / AGENTS.md) | `~/.pi/skills/memory-bank/` or `AGENTS.md` |
+| **Pi Code** | Global skill + global prompts + `AGENTS.md` | `~/.pi/agent/skills/memory-bank`, `~/.pi/agent/prompts/*.md`, `~/.pi/agent/AGENTS.md` + optional project `AGENTS.md` |
 
 `AGENTS.md` is shared across OpenCode, Codex, Pi — ownership is refcount-tracked, so uninstalling one client doesn't break the others.
 
@@ -347,8 +348,7 @@ Flags:
 | `MB_AUTO_CAPTURE` | SessionEnd auto-capture mode: `auto` / `strict` / `off` | `auto` |
 | `MB_COMPACT_REMIND` | Weekly `/mb compact` reminder: `auto` / `off` | `auto` |
 | `MB_ALLOW_METRICS_OVERRIDE` | Allow executing project-local `.memory-bank/metrics.sh` overrides | `0` |
-| `MB_PI_MODE` | Pi adapter mode. Supported: `agents-md`; `skill` is experimental | `agents-md` |
-| `MB_EXPERIMENTAL_PI_SKILL` | Explicit gate for `MB_PI_MODE=skill` compatibility testing | `0` |
+| `MB_PI_MODE` | Pi project adapter mode. Supported: `agents-md` (project `AGENTS.md`) or `skill` (`~/.pi/agent/skills/memory-bank`) | `agents-md` |
 | `MB_SKILL_BUNDLE` | Override bundle path (dev / testing) | auto-detected |
 | `MB_SKIP_DEPS_CHECK` | Skip preflight dep check in `install.sh` | `0` |
 
@@ -412,8 +412,8 @@ A: `memory-bank uninstall -y` removes global install without a prompt. Per-proje
 **Q: Can a project-local `.memory-bank/metrics.sh` run arbitrary commands during install or doctor flows?**
 A: Not by default. Project-local metrics overrides are disabled unless you explicitly opt in with `MB_ALLOW_METRICS_OVERRIDE=1`. Without that env var, the shipped stack detection stays on the safe built-in path.
 
-**Q: Does Pi still support `MB_PI_MODE=skill`?**
-A: Only as an explicit compatibility experiment. The supported path is `agents-md`. If you need to probe the native Pi Skills surface, gate it intentionally with `MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1` and expect breakage while the upstream API is still moving.
+**Q: Does Pi need a separate setup step?**
+A: `memory-bank install` now writes Pi global artifacts automatically: `~/.pi/agent/AGENTS.md`, `~/.pi/agent/skills/memory-bank`, and slash prompt templates in `~/.pi/agent/prompts/`. In an existing Pi session, run `/reload` after install. For a project-level shared `AGENTS.md`, additionally run `memory-bank install --clients pi --project-root <repo>`.
 
 **Q: Is this production-ready?**
 A: Yes. Current stable line is **v4.0.0** (released 2026-04-25), built on the v3.x architectural baseline (`3.0.0` was the first stable 3.x release). Daily used on real projects. Full test envelope green (bats + pytest, 663 passed). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.

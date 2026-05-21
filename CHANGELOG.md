@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — Pi Code first-class global support
+
+- `memory-bank install` now registers Pi globally under `~/.pi/agent/`: managed `AGENTS.md`, `skills/memory-bank` alias, and prompt templates in `prompts/*.md` (`/mb`, `/start`, `/done`, `/plan`, etc.).
+- `memory-bank uninstall` removes Pi managed sections, prompts, and skill alias while preserving user content.
+- `adapters/pi.sh` now uses the native `~/.pi/agent/skills` path; `MB_PI_MODE=skill` no longer needs `MB_EXPERIMENTAL_PI_SKILL`, and default `agents-md` mode works outside git repos.
+- `memory-bank init` CLI help is client-neutral and reminds Pi users to run `/reload` after installing into an already-open session.
+
+### Fixed
+
+- `memory_bank_skill.__version__` now matches `VERSION` (`4.0.0`).
+- Reinstalling refreshes the managed Claude/Pi Memory Bank sections instead of repeatedly localizing every quoted critical rule as a language rule.
+- Installer symlink replacement now safely replaces symlink aliases without following or backing up external symlink targets, preserving the symlink-attack guard for file targets.
+
 ### Added — I-004 (auto-commit hook for `/mb done`)
 
 - `scripts/mb-auto-commit.sh` — opt-in (`MB_AUTO_COMMIT=1` env or `--force` flag) auto-commit of `.memory-bank/` changes after `/mb done`. 4 safety gates: bank clean → no-op; dirty source outside bank → skip with warning; rebase/merge/cherry-pick in progress → skip; detached HEAD → skip. Commit subject derives from the last `### ` heading in `progress.md` (truncated to 60 chars); fallback `chore(mb): session-end YYYY-MM-DD`. Never pushes — push remains an explicit user action.

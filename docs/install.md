@@ -7,8 +7,8 @@ Three paths. Pick the one that fits.
 **Requires:** Python 3.11+, `pipx` ([install guide](https://pipx.pypa.io/)).
 
 ```bash
-pipx install memory-bank-skill
-memory-bank install --clients claude-code,cursor    # global + per-project adapters
+pipx install memory-bank-skill                      # installs the CLI only
+memory-bank install --clients claude-code,cursor    # wires agents, rules, commands, Pi prompts
 memory-bank install --language ru                   # install Russian rule wording
 ```
 
@@ -56,7 +56,7 @@ Upgrade via `scripts/mb-upgrade.sh` (reads `git fetch origin`).
 | ------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `memory-bank install [--clients <list>] [--language <en|ru>] [--project-root <path>]` | Run global install + optional cross-agent adapters |
 | `memory-bank uninstall [-y|--non-interactive]`                                        | Remove global install                              |
-| `memory-bank init`                                                                    | Print `/mb init` hint (Claude Code command)        |
+| `memory-bank init`                                                                    | Print `/mb init` hint for your AI coding client    |
 | `memory-bank version`                                                                 | Print version                                      |
 | `memory-bank self-update`                                                             | Show upgrade command                               |
 | `memory-bank doctor`                                                                  | Resolve bundle path + platform info                |
@@ -78,6 +78,9 @@ Upgrade via `scripts/mb-upgrade.sh` (reads `git fetch origin`).
 - Claude runtime alias: `~/.claude/skills/memory-bank`
 - Codex runtime alias: `~/.codex/skills/memory-bank`
 - Codex global hints: `~/.codex/AGENTS.md`
+- Pi runtime alias: `~/.pi/agent/skills/memory-bank`
+- Pi global prompts: `~/.pi/agent/prompts/*.md`
+- Pi global hints/rules: `~/.pi/agent/AGENTS.md`
 
 It also performs a native OpenCode global install:
 
@@ -102,7 +105,7 @@ See [cross-agent-setup.md](cross-agent-setup.md) for per-client details.
 ## Security-sensitive toggles
 
 - Project-local `.memory-bank/metrics.sh` overrides are **disabled by default**. To run one intentionally, use `MB_ALLOW_METRICS_OVERRIDE=1`.
-- Pi's native skill mode is **not** part of the supported default surface. The supported path is `agents-md`. If you need to probe the native API, gate it explicitly: `MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1 adapters/pi.sh install <project>`.
+- Pi project adapter modes: default `MB_PI_MODE=agents-md` writes project `AGENTS.md`; `MB_PI_MODE=skill` writes `~/.pi/agent/skills/memory-bank`.
 
 ## Platform support
 

@@ -10,13 +10,17 @@ CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="$HOME/.codex"
 CURSOR_DIR="$HOME/.cursor"
 OPENCODE_DIR="$HOME/.config/opencode"
+PI_AGENT_DIR="$HOME/.pi/agent"
 CANONICAL_SKILL_DIR="$CLAUDE_DIR/skills/skill-memory-bank"
 CLAUDE_SKILL_ALIAS="$CLAUDE_DIR/skills/memory-bank"
 CODEX_SKILL_ALIAS="$CODEX_DIR/skills/memory-bank"
 CURSOR_SKILL_ALIAS="$CURSOR_DIR/skills/memory-bank"
+PI_SKILL_ALIAS="$PI_AGENT_DIR/skills/memory-bank"
 MANIFEST="$SOURCE_SKILL_DIR/.installed-manifest.json"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
+PI_START_MARKER="<!-- memory-bank-pi:start -->"
+PI_END_MARKER="<!-- memory-bank-pi:end -->"
 
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
 BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
@@ -286,6 +290,7 @@ backup_if_exists() {
         "$CODEX_DIR"/*) managed_root="$CODEX_DIR" ;;
         "$CURSOR_DIR"/*) managed_root="$CURSOR_DIR" ;;
         "$OPENCODE_DIR"/*) managed_root="$OPENCODE_DIR" ;;
+        "$PI_AGENT_DIR"/*) managed_root="$PI_AGENT_DIR" ;;
         *) managed_root="" ;;
       esac
       if [ -n "$managed_root" ]; then
@@ -429,7 +434,13 @@ install_symlink() {
     return
   fi
 
-  backup_if_exists "$dest"
+  if [ -L "$dest" ]; then
+    # Replacing a symlink is safe: remove the link itself, never its target.
+    # This supports upgrades from pipx/share aliases outside ~/.claude.
+    rm -f "$dest"
+  else
+    backup_if_exists "$dest"
+  fi
   ln -s "$source" "$dest"
   INSTALLED_FILES+=("$dest")
 }
@@ -439,7 +450,7 @@ resolve_dir() {
 }
 
 ensure_skill_aliases() {
-  mkdir -p "$CLAUDE_DIR/skills" "$CODEX_DIR/skills" "$CURSOR_DIR/skills"
+  mkdir -p "$CLAUDE_DIR/skills" "$CODEX_DIR/skills" "$CURSOR_DIR/skills" "$PI_AGENT_DIR/skills"
 
   local source_real canonical_real
   source_real="$(resolve_dir "$SOURCE_SKILL_DIR")"
@@ -459,7 +470,8 @@ ensure_skill_aliases() {
   install_symlink "$CANONICAL_SKILL_DIR" "$CLAUDE_SKILL_ALIAS"
   install_symlink "$CANONICAL_SKILL_DIR" "$CODEX_SKILL_ALIAS"
   install_symlink "$CANONICAL_SKILL_DIR" "$CURSOR_SKILL_ALIAS"
-  echo -e "  ${GREEN}✓${NC} Claude/Codex/Cursor skill aliases"
+  install_symlink "$CANONICAL_SKILL_DIR" "$PI_SKILL_ALIAS"
+  echo -e "  ${GREEN}✓${NC} Claude/Codex/Cursor/Pi skill aliases"
 }
 
 install_opencode_global_agents() {
@@ -568,6 +580,82 @@ install_codex_global_agents() {
   echo -e "  ${GREEN}✓${NC} Codex AGENTS.md (created)"
 }
 
+pi_agents_section() {
+  cat <<EOF
+$PI_START_MARKER
+
+# Memory Bank — Pi Global Entry Point
+
+Global Memory Bank skill is registered at:
+- \`~/.pi/agent/skills/memory-bank/SKILL.md\`
+
+Pi loads this file at startup. Treat the section below as always-on Memory Bank guidance.
+
+Bundled resources available to Pi:
+- Slash prompt templates: \`~/.pi/agent/prompts/\` (for \`/mb\`, \`/start\`, \`/done\`, \`/plan\`, etc.)
+- Skill resources: \`~/.pi/agent/skills/memory-bank/{commands,agents,hooks,scripts,references,rules}/\`
+
+Recommended workflow:
+- If \`./.memory-bank/\` exists, Memory Bank is active: read \`status.md\`, \`checklist.md\`, \`roadmap.md\`, and \`research.md\` at session start.
+- Use \`/mb start\` to restore project context and \`/mb done\` to save progress.
+- Before implementation, prefer \`/mb plan <feature|fix|refactor|experiment> <topic>\` and follow TDD.
+- Detailed rules live at \`~/.pi/agent/skills/memory-bank/rules/RULES.md\`.
+
+## Core Memory Bank rules
+
+EOF
+  sed 's#~/.claude/RULES.md#~/.pi/agent/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.pi/agent/skills/memory-bank#g' "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+  cat <<EOF
+
+$PI_END_MARKER
+EOF
+}
+
+install_pi_global_agents() {
+  local agents_file="$PI_AGENT_DIR/AGENTS.md"
+  local tmp section_tmp
+  mkdir -p "$PI_AGENT_DIR"
+  section_tmp="$(mktemp)"
+  pi_agents_section > "$section_tmp"
+  localize_path_inplace "$section_tmp" "$PI_START_MARKER"
+
+  if [ -f "$agents_file" ] && grep -q "$PI_START_MARKER" "$agents_file" 2>/dev/null; then
+    tmp="$agents_file.tmp"
+    awk -v s="$PI_START_MARKER" -v e="$PI_END_MARKER" '
+      BEGIN { inside=0 }
+      index($0, s) { inside=1; next }
+      index($0, e) { inside=0; next }
+      !inside { print }
+    ' "$agents_file" > "$tmp"
+    {
+      if grep -q '[^[:space:]]' "$tmp"; then
+        awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$tmp"
+        printf '\n\n'
+      fi
+      cat "$section_tmp"
+    } > "$agents_file"
+    rm -f "$tmp" "$section_tmp"
+    INSTALLED_FILES+=("$agents_file")
+    echo -e "  ${GREEN}✓${NC} Pi AGENTS.md (refreshed)"
+    return
+  fi
+
+  if [ -f "$agents_file" ]; then
+    {
+      printf '\n'
+      cat "$section_tmp"
+    } >> "$agents_file"
+    rm -f "$section_tmp"
+    INSTALLED_FILES+=("$agents_file")
+    echo -e "  ${GREEN}✓${NC} Pi AGENTS.md (merged)"
+    return
+  fi
+
+  mv "$section_tmp" "$agents_file"
+  INSTALLED_FILES+=("$agents_file")
+  echo -e "  ${GREEN}✓${NC} Pi AGENTS.md (created)"
+}
+
 # ═══ Step 1: Rules ═══
 echo -e "${BLUE}[1/7] Rules${NC}"
 install_file_localized "$SOURCE_SKILL_DIR/rules/RULES.md" "$CLAUDE_DIR/RULES.md"
@@ -582,9 +670,23 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
     INSTALLED_FILES+=("$CLAUDE_DIR/CLAUDE.md")
     echo -e "  ${GREEN}✓${NC} CLAUDE.md (merged)"
   else
+    tmp="$CLAUDE_DIR/CLAUDE.md.tmp"
+    awk -v marker="# [MEMORY-BANK-SKILL]" '
+      index($0, marker) { exit }
+      { print }
+    ' "$CLAUDE_DIR/CLAUDE.md" > "$tmp"
+    {
+      if grep -q '[^[:space:]]' "$tmp"; then
+        awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$tmp"
+        printf '\n\n'
+      fi
+      printf '# [MEMORY-BANK-SKILL]\n'
+      cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+    } > "$CLAUDE_DIR/CLAUDE.md"
+    rm -f "$tmp"
     localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "# [MEMORY-BANK-SKILL]"
     INSTALLED_FILES+=("$CLAUDE_DIR/CLAUDE.md")
-    echo -e "  ${YELLOW}~${NC} CLAUDE.md (already has MB section; language refreshed)"
+    echo -e "  ${YELLOW}~${NC} CLAUDE.md (MB section refreshed)"
   fi
 else
   mkdir -p "$CLAUDE_DIR"
@@ -602,6 +704,7 @@ echo -e "  ${GREEN}✓${NC} language preference ($LANGUAGE)"
 
 install_opencode_global_agents
 install_codex_global_agents
+install_pi_global_agents
 
 # ═══ Step 2: Agents ═══
 echo -e "${BLUE}[2/7] Agents${NC}"
@@ -625,8 +728,9 @@ for f in "$SOURCE_SKILL_DIR"/commands/*.md; do
   [ -f "$f" ] || continue
   install_file "$f" "$CLAUDE_DIR/commands/$(basename "$f")"
   install_file "$f" "$OPENCODE_DIR/commands/$(basename "$f")"
+  install_file "$f" "$PI_AGENT_DIR/prompts/$(basename "$f")"
 done
-echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/commands" '*.md') commands"
+echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/commands" '*.md') commands/prompts"
 
 # ═══ Step 5: Skill files ═══
 echo -e "${BLUE}[5/7] Skill registration${NC}"
@@ -727,6 +831,8 @@ echo "  Canonical skill: $CANONICAL_SKILL_DIR"
 echo "  Claude alias:    $CLAUDE_SKILL_ALIAS"
 echo "  Codex alias:     $CODEX_SKILL_ALIAS"
 echo "  Cursor alias:    $CURSOR_SKILL_ALIAS"
+echo "  Pi alias:        $PI_SKILL_ALIAS"
+echo "  Pi prompts:      $PI_AGENT_DIR/prompts/"
 echo "  Uninstall: $SOURCE_SKILL_DIR/uninstall.sh"
 echo ""
 echo "  Optional — multi-language code graph (Go/JS/TS/Rust/Java via tree-sitter):"

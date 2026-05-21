@@ -49,12 +49,12 @@ def localize_language_text(
         target = rest
 
     target = re.sub(
-        r"1\. \*\*[^*]+\*\*: .+",
+        r"1\. \*\*Language\*\*: .+",
         f"1. **Language**: {rule_full}",
         target,
     )
     target = re.sub(
-        r"> \*\*[^*]+\*\* — .+",
+        r"> \*\*Language\*\* — .+",
         f"> **Language** — {rule_short}",
         target,
     )

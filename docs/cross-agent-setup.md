@@ -19,7 +19,7 @@ Per-project adapters write client-specific configs + hooks.
 | 5 | Kilo | ❌ (FR #5827 open) — git-hooks fallback | `.kilocode/rules/*.md` |
 | 6 | OpenCode | TypeScript plugins (`session.*`, `tool.execute.*`, `experimental.session.compacting`) + native slash commands | `~/.config/opencode/{AGENTS.md,commands/}` + `AGENTS.md` + `opencode.json` |
 | 7 | Codex | Conservative global support + experimental project hooks | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
-| 8 | Pi Code | Dual-mode (Skills API in dev) | `~/.pi/skills/memory-bank/` or `AGENTS.md` |
+| 8 | Pi Code | Global skill + prompt templates + `AGENTS.md` | `~/.pi/agent/skills/memory-bank`, `~/.pi/agent/prompts/*.md`, `~/.pi/agent/AGENTS.md` + optional project `AGENTS.md` |
 
 ## Install
 
@@ -170,21 +170,24 @@ after upgrading Codex CLI.
 
 ### Pi Code
 
+Global Pi support is installed automatically by `memory-bank install`:
+
+- `~/.pi/agent/skills/memory-bank` — global Pi skill alias
+- `~/.pi/agent/prompts/*.md` — Pi slash prompt templates (`/mb`, `/start`, `/done`, `/plan`, etc.)
+- `~/.pi/agent/AGENTS.md` — always-loaded Memory Bank entrypoint + core rules
+
+After installing in a running Pi session, run `/reload`.
+
+Optional project adapter:
+
 ```bash
-# Supported path: AGENTS.md + git-hooks-fallback
 adapters/pi.sh install ~/my-project
+# or: memory-bank install --clients pi --project-root ~/my-project
 ```
 
-`agents-md` is the supported path because Pi Skills API is still in active
-development (2026-04-20 research). The native `skill` mode remains an explicit
-compatibility probe only:
-
-```bash
-MB_PI_MODE=skill MB_EXPERIMENTAL_PI_SKILL=1 adapters/pi.sh install ~/my-project
-```
-
-Do not use that path in normal installs or CI unless you are validating an
-upstream Pi API change.
+The project adapter writes shared `AGENTS.md`. If the project is a git repo it
+also installs the git-hooks fallback; otherwise it safely installs only
+`AGENTS.md`.
 
 ## Shared AGENTS.md coexistence
 
@@ -217,7 +220,7 @@ Ownership is refcounted in `.mb-agents-owners.json`:
 
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
-| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | git-fallback (supported), Skill (experimental) | project `.codex/hooks.json` only |
+| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | git-fallback when project is a git repo; global prompts otherwise | project `.codex/hooks.json` only |
 | PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — | guidance via `~/.codex/AGENTS.md`, project hook pending |
 | PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | native | project `userpromptsubmit` (exit 2) |
 | Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | fallback | guidance only |
@@ -285,12 +288,9 @@ A: The hooks API is experimental and **off by default**. Enable it in Codex CLI 
 per OpenAI docs, or wait for GA. The `_mb_warning` field in the generated file
 documents this.
 
-**Q: `MB_PI_MODE=skill` produced a Skill folder but Pi doesn't pick it up.**
-A: That path is experimental by design and is gated behind
-`MB_EXPERIMENTAL_PI_SKILL=1`. The supported adapter path is `agents-md`. If you
-are intentionally testing the native Pi API, check
-[pi-mono](https://github.com/badlogic/pi-mono) for current manifest/schema
-changes before relying on the generated `SKILL.md`.
+**Q: Pi doesn't show `/mb` after install.**
+A: Run `/reload` in the current Pi session. Pi prompt templates are installed to
+`~/.pi/agent/prompts/*.md`; new sessions pick them up automatically.
 
 **Q: Kilo adapter fails with "requires git repo".**
 A: Kilo has no native hooks → git-hooks-fallback is mandatory. Run `git init`

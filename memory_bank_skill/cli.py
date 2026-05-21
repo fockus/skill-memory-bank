@@ -192,16 +192,17 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    # `/mb init` is handled by Claude Code command; CLI just hints
+    # `/mb init` is handled by the active AI client command/prompt surface; CLI just hints.
     target = args.project_root or os.getcwd()
     lang = args.lang or "en"
     sys.stdout.write(
-        f"[memory-bank] To initialize Memory Bank for a project, run inside Claude Code:\n"
+        f"[memory-bank] To initialize Memory Bank for a project, run inside your AI coding client:\n"
         f"    /mb init --lang {lang}\n\n"
         f"  Target project: {target}\n"
         f"  Locale: lang={lang}\n"
         f"  This creates .memory-bank/ with status.md, roadmap.md, checklist.md, "
         f"backlog.md, research.md, progress.md, lessons.md.\n"
+        f"  For Pi Code, run /reload after `memory-bank install` if the session was already open.\n"
     )
     return 0
 
@@ -256,18 +257,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"memory-bank-skill {__version__}")
     sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
 
-    p_install = sub.add_parser("install", help="Install skill globally + optional cross-agent adapters")
+    p_install = sub.add_parser(
+        "install", help="Install skill globally + optional cross-agent adapters"
+    )
     p_install.add_argument(
         "--clients",
         help=f"Comma-separated client list. Valid: {', '.join(VALID_CLIENTS)}. "
-             "Omit to use interactive menu when running in a TTY.",
+        "Omit to use interactive menu when running in a TTY.",
     )
     p_install.add_argument(
         "--language",
         choices=VALID_LANGUAGES,
         help=f"Preferred installed rules language. Valid: {', '.join(VALID_LANGUAGES)}.",
     )
-    p_install.add_argument("--project-root", help="Target directory for cross-agent adapters (default: PWD)")
+    p_install.add_argument(
+        "--project-root", help="Target directory for cross-agent adapters (default: PWD)"
+    )
     p_install.add_argument(
         "--non-interactive",
         action="store_true",
@@ -284,14 +289,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_uninstall.set_defaults(func=cmd_uninstall)
 
-    p_init = sub.add_parser("init", help="Print initialization hint (use /mb init inside Claude Code)")
+    p_init = sub.add_parser(
+        "init", help="Print initialization hint (use /mb init inside your AI coding client)"
+    )
     p_init.add_argument("--project-root", help="Target project directory (default: PWD)")
     p_init.add_argument(
         "--lang",
         choices=VALID_LANGUAGES,
         default=None,
         help=f"Preferred locale for .memory-bank/ templates. "
-             f"Valid: {', '.join(VALID_LANGUAGES)}. Default: en.",
+        f"Valid: {', '.join(VALID_LANGUAGES)}. Default: en.",
     )
     p_init.set_defaults(func=cmd_init)
 

@@ -29,6 +29,7 @@ teardown() {
   [ -f "$HOME/.claude/memory-bank-config.json" ]
   [ -f "$HOME/.codex/AGENTS.md" ]
   [ -f "$HOME/.config/opencode/AGENTS.md" ]
+  [ -f "$HOME/.pi/agent/AGENTS.md" ]
   [ -d "$HOME/.claude/commands" ]
   [ -d "$HOME/.config/opencode/commands" ]
   [ -d "$HOME/.claude/agents" ]
@@ -36,6 +37,22 @@ teardown() {
   [ -L "$HOME/.claude/skills/skill-memory-bank" ]
   [ -L "$HOME/.claude/skills/memory-bank" ]
   [ -L "$HOME/.codex/skills/memory-bank" ]
+  [ -L "$HOME/.pi/agent/skills/memory-bank" ]
+}
+
+@test "install: creates Pi global skill, AGENTS.md, and prompt templates" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  [ -L "$HOME/.pi/agent/skills/memory-bank" ]
+  [ -f "$HOME/.pi/agent/skills/memory-bank/SKILL.md" ]
+  [ -f "$HOME/.pi/agent/AGENTS.md" ]
+  grep -q "<!-- memory-bank-pi:start -->" "$HOME/.pi/agent/AGENTS.md"
+  grep -q "<!-- memory-bank-pi:end -->" "$HOME/.pi/agent/AGENTS.md"
+  grep -q "~/.pi/agent/skills/memory-bank/SKILL.md" "$HOME/.pi/agent/AGENTS.md"
+  [ -f "$HOME/.pi/agent/prompts/mb.md" ]
+  [ -f "$HOME/.pi/agent/prompts/start.md" ]
+  [ -f "$HOME/.pi/agent/prompts/done.md" ]
+  [ -f "$HOME/.pi/agent/prompts/plan.md" ]
 }
 
 @test "install: default language is English in installed rules and config" {
@@ -62,6 +79,7 @@ teardown() {
   # Key commands must exist
   [ -f "$HOME/.claude/commands/mb.md" ]
   [ -f "$HOME/.config/opencode/commands/mb.md" ]
+  [ -f "$HOME/.pi/agent/prompts/mb.md" ]
   [ -f "$HOME/.claude/commands/commit.md" ]
   [ -f "$HOME/.claude/commands/review.md" ]
   [ -f "$HOME/.claude/commands/plan.md" ]
@@ -119,6 +137,9 @@ teardown() {
   [ -f "$HOME/.codex/skills/memory-bank/commands/mb.md" ]
   [ -f "$HOME/.codex/skills/memory-bank/agents/mb-manager.md" ]
   [ -f "$HOME/.codex/skills/memory-bank/hooks/session-end-autosave.sh" ]
+  [ -f "$HOME/.pi/agent/skills/memory-bank/commands/mb.md" ]
+  [ -f "$HOME/.pi/agent/skills/memory-bank/agents/mb-manager.md" ]
+  [ -f "$HOME/.pi/agent/skills/memory-bank/hooks/session-end-autosave.sh" ]
 }
 
 @test "install: Claude and Codex aliases resolve to canonical skill path" {
@@ -151,6 +172,12 @@ teardown() {
   grep -q "~/.codex/skills/memory-bank/SKILL.md" "$HOME/.codex/AGENTS.md"
 }
 
+@test "install: Pi AGENTS.md is localized with --language ru" {
+  bash "$REPO_ROOT/install.sh" --language ru >/dev/null
+  grep -q "<!-- memory-bank-pi:start -->" "$HOME/.pi/agent/AGENTS.md"
+  grep -q '\*\*Language\*\* — respond in Russian; technical terms may remain in English\.' "$HOME/.pi/agent/AGENTS.md"
+}
+
 @test "install: writes manifest" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   [ -f "$REPO_ROOT/.installed-manifest.json" ]
@@ -180,6 +207,8 @@ assert all("/.cursor/AGENTS.md" not in f for f in files)
 assert all("/.cursor/hooks.json" not in f for f in files)
 assert all("/.cursor/memory-bank-user-rules.md" not in f for f in files)
 assert all("/.cursor/commands/mb.md" not in f for f in files)
+assert any("/.pi/agent/prompts/mb.md" in f for f in files)
+assert any("/.pi/agent/skills/memory-bank" in f for f in files)
 PY
 }
 
@@ -199,6 +228,24 @@ PY
 
   count=$(grep -c "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md")
   [ "$count" -eq 1 ]
+  python3 - <<PY
+from pathlib import Path
+text = Path('$HOME/.claude/CLAUDE.md').read_text(encoding='utf-8')
+assert text.startswith('# [MEMORY-BANK-SKILL]')
+PY
+}
+
+@test "install: idempotent — two runs yield no duplicate Pi sections or leading blanks" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  count=$(grep -c "memory-bank-pi:start" "$HOME/.pi/agent/AGENTS.md")
+  [ "$count" -eq 1 ]
+  python3 - <<PY
+from pathlib import Path
+text = Path('$HOME/.pi/agent/AGENTS.md').read_text(encoding='utf-8')
+assert text.startswith('<!-- memory-bank-pi:start -->')
+PY
 }
 
 @test "install: idempotent — settings.json has no duplicate hooks" {
@@ -246,6 +293,8 @@ PY
   [ ! -e "$HOME/.claude/skills/skill-memory-bank" ]
   [ ! -e "$HOME/.claude/skills/memory-bank" ]
   [ ! -e "$HOME/.codex/skills/memory-bank" ]
+  [ ! -e "$HOME/.pi/agent/skills/memory-bank" ]
+  [ ! -f "$HOME/.pi/agent/prompts/mb.md" ]
 }
 
 @test "uninstall: -y removes installed files without stdin prompt" {
@@ -255,6 +304,7 @@ PY
   [ "$status" -eq 0 ]
   [ ! -f "$HOME/.claude/RULES.md" ]
   [ ! -e "$HOME/.claude/skills/memory-bank" ]
+  [ ! -e "$HOME/.pi/agent/skills/memory-bank" ]
 }
 
 @test "uninstall: skips poisoned manifest paths outside managed dirs" {
@@ -331,6 +381,16 @@ PY
   fi
 }
 
+@test "uninstall: strips Pi managed section from AGENTS.md and removes prompts" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ ! -f "$HOME/.pi/agent/prompts/mb.md" ]
+  if [ -f "$HOME/.pi/agent/AGENTS.md" ]; then
+    ! grep -q "memory-bank-pi:start" "$HOME/.pi/agent/AGENTS.md"
+  fi
+}
+
 @test "uninstall: strips MEMORY-BANK-SKILL section from CLAUDE.md" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
@@ -383,6 +443,22 @@ EOF
   grep -q "User Codex rules" "$HOME/.codex/AGENTS.md"
   grep -q "Respect existing workflows." "$HOME/.codex/AGENTS.md"
   ! grep -q "memory-bank-codex:start" "$HOME/.codex/AGENTS.md"
+}
+
+@test "uninstall: preserves user Pi AGENTS.md content above skill section" {
+  mkdir -p "$HOME/.pi/agent"
+  cat > "$HOME/.pi/agent/AGENTS.md" <<'EOF'
+# User Pi rules
+
+Keep Pi concise.
+EOF
+
+  bash "$REPO_ROOT/install.sh" >/dev/null
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  grep -q "User Pi rules" "$HOME/.pi/agent/AGENTS.md"
+  grep -q "Keep Pi concise." "$HOME/.pi/agent/AGENTS.md"
+  ! grep -q "memory-bank-pi:start" "$HOME/.pi/agent/AGENTS.md"
 }
 
 @test "uninstall: preserves user hooks in settings.json" {

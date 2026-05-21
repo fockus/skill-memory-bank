@@ -6,10 +6,10 @@
 #   adapters/pi.sh uninstall [PROJECT_ROOT]
 #
 # Modes (via MB_PI_MODE env, default = agents-md):
-#   agents-md  — AGENTS.md (shared, refcount) + git-hooks-fallback
-#   skill      — experimental compatibility path, gated out of normal installs
+#   agents-md  — AGENTS.md (shared, refcount) + git-hooks-fallback when git exists
+#   skill      — native ~/.pi/agent/skills/memory-bank package
 #
-# Pi Skills API is in active development (2026-04-20 research), so agents-md is default.
+# Pi global install is handled by install.sh; this adapter adds project-local wiring.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -69,26 +69,30 @@ run_adapter() {
   fi
 }
 
-@test "pi: default mode requires git repo (git-hooks-fallback mandatory)" {
+@test "pi: default mode works without git repo and skips git hooks" {
   local nongit
   nongit="$(mktemp -d)"
   mkdir -p "$nongit/.memory-bank"
   run_adapter install "$nongit"
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 0 ]
+  [ -f "$nongit/AGENTS.md" ]
+  [ ! -d "$nongit/.git/hooks" ]
+  jq -e '.git_hooks_installed == false' "$nongit/.mb-pi-manifest.json" >/dev/null
   rm -rf "$nongit"
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Experimental skill mode gate
+# Native Pi skill mode
 # ═══════════════════════════════════════════════════════════════
 
-@test "pi: MB_PI_MODE=skill is rejected without experimental gate" {
+@test "pi: MB_PI_MODE=skill installs native Pi skill under ~/.pi/agent/skills" {
   MB_PI_MODE=skill run_adapter install "$PROJECT"
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"experimental"* ]]
+  [ "$status" -eq 0 ]
+  [ -f "$HOME/.pi/agent/skills/memory-bank/SKILL.md" ]
+  jq -e '.mode == "skill"' "$PROJECT/.mb-pi-manifest.json" >/dev/null
 }
 
-@test "pi: skill mode uninstall rejects poisoned manifest path outside ~/.pi/skills" {
+@test "pi: skill mode uninstall rejects poisoned manifest path outside ~/.pi/agent/skills" {
   mkdir -p "$HOME/keep-me"
   echo "still here" > "$HOME/keep-me/file.txt"
   cat > "$PROJECT/.mb-pi-manifest.json" <<EOF

@@ -46,9 +46,15 @@ def _protect_repo_install_manifest():
         else:
             manifest.write_bytes(original)
 
+
 # ═══════════════════════════════════════════════════════════════
 # Version + basic argparse
 # ═══════════════════════════════════════════════════════════════
+
+
+def test_python_version_matches_bundle_version():
+    assert __version__ == (REPO_ROOT / "VERSION").read_text().strip()
+
 
 def test_version_subcommand(capsys):
     rc = cli.main(["version"])
@@ -82,6 +88,7 @@ def test_unknown_subcommand_errors(capsys):
 # Self-update + init + doctor
 # ═══════════════════════════════════════════════════════════════
 
+
 def test_self_update_prints_pipx_command(capsys):
     rc = cli.main(["self-update"])
     assert rc == 0
@@ -111,6 +118,7 @@ def test_doctor_reports_bundle_platform_and_bash(capsys):
 # Bundle resolution
 # ═══════════════════════════════════════════════════════════════
 
+
 def test_find_bundle_root_resolves_dev_layout():
     root = find_bundle_root()
     assert (root / "install.sh").is_file()
@@ -128,8 +136,9 @@ def test_bundle_override_env(tmp_path, monkeypatch):
 def test_bundle_not_found_raises(monkeypatch, tmp_path):
     monkeypatch.setenv("MB_SKILL_BUNDLE", str(tmp_path / "does-not-exist"))
     monkeypatch.setattr("sys.prefix", str(tmp_path / "nowhere"))
-    with patch("memory_bank_skill._bundle.__file__", str(tmp_path / "x.py")), pytest.raises(
-        FileNotFoundError
+    with (
+        patch("memory_bank_skill._bundle.__file__", str(tmp_path / "x.py")),
+        pytest.raises(FileNotFoundError),
     ):
         find_bundle_root()
 
@@ -137,6 +146,7 @@ def test_bundle_not_found_raises(monkeypatch, tmp_path):
 # ═══════════════════════════════════════════════════════════════
 # Platform + bash discovery
 # ═══════════════════════════════════════════════════════════════
+
 
 def test_is_windows_detects():
     with patch.object(platform, "system", return_value="Windows"):
@@ -176,7 +186,8 @@ def test_find_bash_windows_path_discovery(monkeypatch):
     monkeypatch.setattr(platform, "system", lambda: "Windows")
     monkeypatch.delenv("MB_BASH", raising=False)
     monkeypatch.setattr(
-        shutil, "which",
+        shutil,
+        "which",
         lambda name: r"C:\Program Files\Git\bin\bash.exe" if name == "bash.exe" else None,
     )
     assert cli.find_bash() == r"C:\Program Files\Git\bin\bash.exe"
@@ -191,7 +202,8 @@ def test_find_bash_windows_skips_system32(monkeypatch):
     monkeypatch.delenv("MB_BASH", raising=False)
     # system32 match from `which` ...
     monkeypatch.setattr(
-        shutil, "which",
+        shutil,
+        "which",
         lambda name: r"C:\Windows\System32\bash.exe" if name == "bash.exe" else None,
     )
     # ... and no Git Bash anywhere on disk ...
@@ -247,6 +259,7 @@ def test_require_bash_exits_on_posix_without_bash(monkeypatch, capsys):
 # ═══════════════════════════════════════════════════════════════
 # Shell invocation plumbing
 # ═══════════════════════════════════════════════════════════════
+
 
 def test_run_shell_invokes_install_help_via_bundle():
     """install.sh --help prints usage and exits 0 (real subprocess smoke test)."""
@@ -416,6 +429,7 @@ def test_run_shell_returns_bash_not_found_when_subprocess_spawn_fails(monkeypatc
 # Cursor global parity — end-to-end install/uninstall smoke test
 # ═══════════════════════════════════════════════════════════════
 
+
 def _run_install_sh(sandbox_home: Path, repo_root: Path) -> subprocess.CompletedProcess:
     """Run the real install.sh against a sandboxed $HOME."""
     env = {
@@ -505,7 +519,9 @@ def test_install_manifest_has_schema_version_and_stable_file_order(tmp_path):
     sandbox.mkdir()
 
     manifest_path = REPO_ROOT / ".installed-manifest.json"
-    original_manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else None
+    original_manifest = (
+        manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else None
+    )
 
     try:
         first = _run_install_sh(sandbox, REPO_ROOT)
