@@ -55,9 +55,13 @@ set -u
 _mb_backup="$(dirname "$0")/post-commit.pre-mb-backup"
 [ -x "$_mb_backup" ] && "$_mb_backup" "$@"
 
-# 2. Memory Bank auto-capture
+# 2. Memory Bank auto-capture — honour MB_PATH env override for global mode.
 _mb_repo="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-_mb_dir="$_mb_repo/.memory-bank"
+if [ -n "${MB_PATH:-}" ]; then
+  _mb_dir="$MB_PATH"
+else
+  _mb_dir="$_mb_repo/.memory-bank"
+fi
 [ -d "$_mb_dir" ] || exit 0
 
 # Respect MB_AUTO_CAPTURE env

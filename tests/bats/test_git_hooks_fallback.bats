@@ -194,3 +194,32 @@ EOF
   run_adapter uninstall "$PROJECT"
   [ "$status" -eq 0 ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Sprint 2 / Stage 2 — MB_PATH override for global-storage mode
+# ═══════════════════════════════════════════════════════════════
+
+@test "git-hooks: post-commit honours MB_PATH for external bank (path with spaces)" {
+  # External bank lives outside the repo, in a path containing a space.
+  EXT_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/ext bank.XXXXXX")"
+  EXT_BANK="$EXT_PARENT/.memory-bank"
+  mkdir -p "$EXT_BANK"
+  echo '# Progress' > "$EXT_BANK/progress.md"
+
+  # Remove the in-repo .memory-bank/ so only MB_PATH applies.
+  rm -rf "$PROJECT/.memory-bank"
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  # Make a commit to fire post-commit hook.
+  (cd "$PROJECT" && echo hello > a.txt && git add a.txt && \
+   MB_PATH="$EXT_BANK" git commit -q -m "test") || true
+
+  # External progress.md captured the entry.
+  grep -q "Auto-capture.*git-" "$EXT_BANK/progress.md"
+  # In-repo bank was not recreated.
+  [ ! -d "$PROJECT/.memory-bank" ]
+
+  rm -rf "$EXT_PARENT"
+}

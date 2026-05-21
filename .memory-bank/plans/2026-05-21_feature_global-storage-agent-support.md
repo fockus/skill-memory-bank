@@ -1,7 +1,7 @@
 ---
 type: feature
 topic: global-storage-agent-support
-status: queued
+status: done
 parallel_safe: false
 depends_on: [2026-05-21_feature_global-storage.md]
 linked_specs: []

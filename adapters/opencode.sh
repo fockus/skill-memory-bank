@@ -44,6 +44,9 @@ plugin_body() {
 // Memory Bank — OpenCode plugin
 // Registers hooks for session lifecycle + tool guard + compact-reminder.
 // Auto-captures session placeholder to .memory-bank/progress.md.
+// GraphRAG-lite native tool wrappers may expose code_context, graph_neighbors,
+// graph_impact, and graph_tests; CLI fallback is scripts/mb-code-context.py
+// plus scripts/mb-graph-query.py when native tool support is unavailable.
 // memory-bank: managed plugin (do not remove marker line)
 
 import { execSync } from 'node:child_process';
@@ -51,7 +54,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 export const MemoryBankPlugin = async ({ app }) => {
-  const mbDir = () => path.join(app.path.cwd, '.memory-bank');
+  // Resolve Memory Bank path: MB_PATH env override → local project bank
+  const mbDir = () => {
+    const override = process.env.MB_PATH;
+    if (override && fs.existsSync(override)) return override;
+    return path.resolve(app.path.cwd, '.memory-bank');
+  };
   const hasMb = () => {
     try { return fs.statSync(mbDir()).isDirectory(); } catch { return false; }
   };

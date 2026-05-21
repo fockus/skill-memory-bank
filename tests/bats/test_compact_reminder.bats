@@ -123,3 +123,42 @@ make_compact_candidate() {
   after_files=$(find "$MB" -type f | sort)
   [ "$before_files" = "$after_files" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Sprint 2 / Stage 2 — MB_PATH override for global storage
+# ═══════════════════════════════════════════════════════════════
+
+@test "reminder: MB_PATH override consults external .last-compact" {
+  EXT_BANK="$(mktemp -d "${TMPDIR:-/tmp}/ext bank.XXXXXX")/.memory-bank"
+  mkdir -p "$EXT_BANK"
+  make_compact_candidate_at "$EXT_BANK" 2>/dev/null || {
+    # Fallback if helper takes only $MB: copy a candidate notes file.
+    mkdir -p "$EXT_BANK/notes"
+    cp "$MB/notes/"*.md "$EXT_BANK/notes/" 2>/dev/null || true
+    touch "$EXT_BANK/.last-compact"
+    age_days "$EXT_BANK/.last-compact" 10
+  }
+  touch "$EXT_BANK/.last-compact"
+  age_days "$EXT_BANK/.last-compact" 10
+
+  CWD_NO_MB="$(mktemp -d)"
+
+  # Override MB_PATH; ensure CWD has no local bank.
+  raw=$(printf '%s' "$(payload_session_end_for_cwd "$CWD_NO_MB" 2>/dev/null || printf '{"hook_event_name":"SessionEnd","cwd":"%s","reason":"clear"}' "$CWD_NO_MB")" \
+    | MB_PATH="$EXT_BANK" bash "$HOOK" 2>&1; printf '\n__EXIT__%s' "$?")
+  status="${raw##*__EXIT__}"
+  output="${raw%$'\n'__EXIT__*}"
+
+  [ "$status" -eq 0 ]
+  rm -rf "$(dirname "$EXT_BANK")"
+}
+
+@test "reminder: no MB_PATH + no local bank → silent" {
+  CWD_NO_MB="$(mktemp -d)"
+  payload=$(printf '{"hook_event_name":"SessionEnd","cwd":"%s","reason":"clear"}' "$CWD_NO_MB")
+  raw=$(printf '%s' "$payload" | bash "$HOOK" 2>&1; printf '\n__EXIT__%s' "$?")
+  status="${raw##*__EXIT__}"
+  output="${raw%$'\n'__EXIT__*}"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}

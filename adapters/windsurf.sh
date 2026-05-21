@@ -76,8 +76,13 @@ INPUT=$(cat 2>/dev/null || true)
 CWD=$(printf '%s' "$INPUT" | jq -r '.workspaceRoot // .cwd // empty' 2>/dev/null || true)
 [ -z "$CWD" ] && CWD="$PWD"
 
-MB="$CWD/.memory-bank"
-[ -d "$MB" ] || exit 0
+# Resolve Memory Bank path: MB_PATH env override → local project bank → no-op
+if [ -n "${MB_PATH:-}" ]; then
+  MB="$MB_PATH"
+elif [ -d "$CWD/.memory-bank" ]; then
+  MB="$CWD/.memory-bank"
+fi
+[ -d "${MB:-}" ] || exit 0
 
 case "${MB_AUTO_CAPTURE:-auto}" in
   off|strict) exit 0 ;;

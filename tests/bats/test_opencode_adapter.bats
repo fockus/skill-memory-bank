@@ -183,3 +183,28 @@ EOF
   run_adapter uninstall "$PROJECT"
   [ "$status" -eq 0 ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Global storage support (Stage 3 — MB_PATH resolver-aware)
+# ═══════════════════════════════════════════════════════════════
+
+@test "opencode: plugin JS honours MB_PATH env override (resolver-aware)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
+  [ -f "$plugin" ]
+  # Plugin must NOT use hard-coded path.join(app.path.cwd, '.memory-bank') as sole resolver
+  ! grep -qF "path.join(app.path.cwd, '.memory-bank')" "$plugin"
+  # Plugin must check MB_PATH env override
+  grep -q "MB_PATH" "$plugin"
+}
+
+@test "opencode: plugin JS falls back to local .memory-bank when MB_PATH unset" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
+  [ -f "$plugin" ]
+  # Fallback to local path must still be present (via path.resolve)
+  grep -q "app.path.cwd" "$plugin"
+  grep -q '\.memory-bank' "$plugin"
+}

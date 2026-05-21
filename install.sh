@@ -532,20 +532,52 @@ $CODEX_START_MARKER
 Global Memory Bank skill is registered at:
 - \`~/.codex/skills/memory-bank/SKILL.md\`
 
+Codex loads this file at startup and injects it into the agent prompt. Treat the section below as always-on Memory Bank guidance.
+
 Bundled resources available to Codex:
 - Commands: \`~/.codex/skills/memory-bank/commands/\`
 - Agents: \`~/.codex/skills/memory-bank/agents/\`
 - Hooks: \`~/.codex/skills/memory-bank/hooks/\`
 
-Recommended workflow:
-- Start by reading \`.memory-bank/status.md\`, \`checklist.md\`, \`roadmap.md\`, \`research.md\`
-- Use \`~/.codex/skills/memory-bank/commands/mb.md\` as the entrypoint for Memory Bank flows
-- Resolve agent prompts from \`~/.codex/skills/memory-bank/agents/\`
+## Storage modes
+
+Memory Bank supports three storage modes — choose the right one for your workflow:
+
+- **Local** (default): \`/mb init\` or \`/mb init --storage=local\` — bank lives in the repo (\`./.memory-bank/\`), committable, team-shared.
+- **Global** (opt-in personal storage): \`/mb init --storage=global --agent=codex\` — bank lives under \`~/.codex/memory-bank/projects/<id>/.memory-bank\`, NOT in the repo, must not be committed.
+- **Rules-only**: no \`/mb init\` at all — \`[MEMORY BANK: ABSENT]\` state; \`/mb\` lifecycle commands stay inactive until explicit init; all engineering rules below still apply unconditionally.
+
+Resolve the active bank through \`scripts/_lib.sh::mb_resolve_path\` (precedence: explicit arg → \`MB_PATH\` env → local → registered global → legacy \`.claude-workspace\`).
+
+## Recommended workflow
+
+- Storage resolver determines active bank — do NOT assume \`./.memory-bank/\` is always the bank location.
+- If \`./.memory-bank/\` exists OR a global bank is registered, Memory Bank is active: read \`status.md\`, \`checklist.md\`, \`roadmap.md\`, and \`research.md\` at session start.
+- Use \`/mb start\` to restore project context and \`/mb done\` to save progress.
+- Before implementation, prefer \`/mb plan <feature|fix|refactor|experiment> <topic>\` and follow TDD.
+- Detailed rules live at \`~/.codex/skills/memory-bank/rules/RULES.md\`.
+
+## Engineering baseline — TDD, SOLID, Clean Architecture, DRY, KISS, YAGNI
+
+Always-on rules that apply regardless of Memory Bank state (including \`[MEMORY BANK: ABSENT]\`):
+
+- **TDD** — tests first, then code.
+- **SOLID** — SRP (≤300 lines/class), ISP (≤5 methods/interface), DIP (constructor injection).
+- **Clean Architecture** — Infrastructure → Application → Domain; never the reverse.
+- **DRY / KISS / YAGNI** — extract after 3+ duplications; simplest solution; no future-proofing.
+
+See "## Core Memory Bank rules" below for the full baseline.
 
 Codex hooks support is conservative:
-- Global Claude-style lifecycle parity is NOT guaranteed
-- Prefer project-level \`.codex/\` adapter files for Codex hook/config integration
-- Treat \`.codex/hooks.json\` as experimental unless documented otherwise
+- Global Claude-style lifecycle parity is NOT guaranteed.
+- Prefer project-level \`.codex/\` adapter files for Codex hook/config integration.
+- Treat \`.codex/hooks.json\` as experimental unless documented otherwise.
+
+## Core Memory Bank rules
+
+EOF
+  sed 's#~/.claude/RULES.md#~/.codex/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.codex/skills/memory-bank#g' "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+  cat <<EOF
 
 $CODEX_END_MARKER
 EOF
@@ -599,7 +631,7 @@ $PI_START_MARKER
 Global Memory Bank skill is registered at:
 - \`~/.pi/agent/skills/memory-bank/SKILL.md\`
 
-Pi loads this file at startup. Treat the section below as always-on Memory Bank guidance.
+Pi loads this file at startup and injects it into the agent prompt. Treat the section below as always-on Memory Bank guidance.
 
 Bundled resources available to Pi:
 - Slash prompt templates: \`~/.pi/agent/prompts/\` (for \`/mb\`, \`/start\`, \`/done\`, \`/plan\`, etc.)

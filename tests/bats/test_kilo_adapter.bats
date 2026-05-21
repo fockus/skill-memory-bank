@@ -118,3 +118,18 @@ run_adapter() {
   [ -f "$PROJECT/.kilocode/rules/user-custom.md" ]
   [ ! -f "$PROJECT/.kilocode/rules/memory-bank.md" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Global storage support (Stage 3 — rules mention resolver)
+# ═══════════════════════════════════════════════════════════════
+
+@test "kilo: rules file mentions global storage or resolver for bank path" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local rules="$PROJECT/.kilocode/rules/memory-bank.md"
+  [ -f "$rules" ]
+  # Kilo has no native hooks (uses git-hooks-fallback); rules doc must at least
+  # mention that the bank path is resolved (local OR global) so users searching
+  # this file understand the full picture
+  grep -qi "MB_PATH\|global storage\|resolver\|resolved\|local OR global\|local or global" "$rules"
+}

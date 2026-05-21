@@ -106,6 +106,50 @@ If you also pass `--clients opencode`, project-level OpenCode files are added un
 See [cross-agent-setup.md](cross-agent-setup.md) for per-client details.
 
 
+## Storage modes
+
+`memory-bank install` installs the global skill and rules. Creating a Memory Bank for a specific project is a separate step via `/mb init`. You have three options:
+
+### Local mode (default)
+
+```bash
+/mb init                       # same as /mb init --storage=local
+/mb init --storage=local
+```
+
+The bank lives in the repo at `.memory-bank/`. Commit it to share with your team. Recommended for most projects.
+
+### Global mode (opt-in personal storage)
+
+```bash
+/mb init --storage=global --agent=claude-code
+/mb init --storage=global --agent=cursor
+/mb init --storage=global --agent=codex
+/mb init --storage=global --agent=opencode
+/mb init --storage=global --agent=pi
+```
+
+The bank lives outside the repo under `~/.<agent>/memory-bank/projects/<id>/.memory-bank`. This is personal storage — **do not commit it to the project repo**. The project dir stays clean. Use this when you want persistent memory without touching the repository.
+
+| Agent | Global bank location |
+|-------|----------------------|
+| `claude-code` | `~/.claude/memory-bank/projects/<id>/.memory-bank` |
+| `cursor` | `~/.cursor/memory-bank/projects/<id>/.memory-bank` |
+| `codex` | `~/.codex/memory-bank/projects/<id>/.memory-bank` |
+| `opencode` | `~/.config/opencode/memory-bank/projects/<id>/.memory-bank` |
+| `pi` | `~/.pi/agent/memory-bank/projects/<id>/.memory-bank` |
+
+### Rules-only mode (no init required)
+
+You can intentionally skip `/mb init` entirely. In this state:
+
+- The agent prints `[MEMORY BANK: ABSENT]` — Memory Bank lifecycle commands (`/mb start`, `/mb done`, etc.) stay inactive until you run `/mb init`.
+- **All engineering rules still apply**: TDD, SOLID, Clean Architecture, DRY/KISS/YAGNI, Testing Trophy, protected files, no placeholders. The installed global rules are always-on regardless of Memory Bank state.
+- This is a valid steady state for projects where you want rules enforcement without bank overhead.
+
+Existing local bank users can stay on local mode — there is no forced migration.
+
+
 ## Cursor User Rules
 
 `memory-bank install` writes `~/.cursor/memory-bank-user-rules.md` with version markers:

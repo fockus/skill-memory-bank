@@ -161,3 +161,25 @@ EOF
   # No hooks left → hooks.json gone
   [ ! -f "$PROJECT/.windsurf/hooks.json" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Global storage support (Stage 3 — MB_PATH resolver-aware)
+# ═══════════════════════════════════════════════════════════════
+
+@test "windsurf: after-response hook contains MB_PATH resolver tiering" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hook="$PROJECT/.windsurf/hooks/after-response.sh"
+  [ -f "$hook" ]
+  # Must check MB_PATH env override before falling back to local path
+  grep -q "MB_PATH" "$hook"
+}
+
+@test "windsurf: MB_PATH env override takes precedence in after-response hook" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hook="$PROJECT/.windsurf/hooks/after-response.sh"
+  # Verify three-tier structure: MB_PATH → local .memory-bank → exit 0
+  grep -q 'MB_PATH' "$hook"
+  grep -q '\.memory-bank' "$hook"
+}

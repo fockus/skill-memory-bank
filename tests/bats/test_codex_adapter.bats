@@ -138,3 +138,17 @@ run_adapter() {
   grep -q "User preamble" "$PROJECT/AGENTS.md"
   ! grep -q "memory-bank:start" "$PROJECT/AGENTS.md"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Global storage support (Stage 3 — AGENTS.md mentions resolver)
+# ═══════════════════════════════════════════════════════════════
+
+@test "codex: AGENTS.md section mentions global storage or resolver for bank path" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local agents="$PROJECT/AGENTS.md"
+  [ -f "$agents" ]
+  # The shared AGENTS.md section must mention that Memory Bank path can be
+  # local OR global (resolved by skill), so users are not surprised in global mode
+  grep -qi "MB_PATH\|global storage\|resolver\|resolved\|local OR global\|local or global" "$agents"
+}

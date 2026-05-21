@@ -207,3 +207,41 @@ run_hook() {
   # Short session_id prefix (first 8 characters).
   grep -q "deadbeef" "$MB/progress.md"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Sprint 2 / Stage 2 — MB_PATH override for global storage
+# ═══════════════════════════════════════════════════════════════
+
+@test "auto-capture: MB_PATH override writes to external bank when local absent (path with spaces)" {
+  # Path intentionally contains spaces — verifies env propagation is robust.
+  EXT_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/external bank.XXXXXX")"
+  EXT_BANK="$EXT_PARENT/.memory-bank"
+  mkdir -p "$EXT_BANK"
+  printf '# Progress\n\nWork history.\n' > "$EXT_BANK/progress.md"
+
+  # CWD has NO local .memory-bank/
+  CWD_NO_MB="$(mktemp -d)"
+  PAYLOAD="$(payload_session_end "$CWD_NO_MB" "ext12345abcdef00")"
+
+  # Invoke directly so the path-with-spaces env value is preserved verbatim
+  # (the run_hook_env helper word-splits its env_assign argument).
+  raw=$(printf '%s' "$PAYLOAD" | MB_PATH="$EXT_BANK" MB_AUTO_CAPTURE=auto \
+    bash "$HOOK" 2>&1; printf '\n__EXIT__%s' "$?")
+  status="${raw##*__EXIT__}"
+  output="${raw%$'\n'__EXIT__*}"
+  [ "$status" -eq 0 ]
+
+  # External progress.md got the entry.
+  grep -q "Auto-capture.*ext12345" "$EXT_BANK/progress.md"
+  # CWD remained untouched (no local bank created).
+  [ ! -d "$CWD_NO_MB/.memory-bank" ]
+
+  rm -rf "$EXT_PARENT" "$CWD_NO_MB"
+}
+
+@test "auto-capture: no MB_PATH + no local bank → silent noop" {
+  CWD_NO_MB="$(mktemp -d)"
+  run_hook_env "MB_AUTO_CAPTURE=auto" "$(payload_session_end "$CWD_NO_MB")"
+  [ "$status" -eq 0 ]
+  [ ! -d "$CWD_NO_MB/.memory-bank" ]
+}

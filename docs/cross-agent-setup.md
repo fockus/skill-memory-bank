@@ -21,6 +21,27 @@ Per-project adapters write client-specific configs + hooks.
 | 7 | Codex | Conservative global support + experimental project hooks | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
 | 8 | Pi Code | Global skill + prompt templates + `AGENTS.md` | `~/.pi/agent/skills/memory-bank`, `~/.pi/agent/prompts/*.md`, `~/.pi/agent/AGENTS.md` + optional project `AGENTS.md` |
 
+## Storage modes per agent
+
+Memory Bank supports **local**, **global**, and **rules-only** storage modes. The table below shows per-agent support and global bank locations.
+
+| Agent | Global config dir | Local mode | Global mode | Rules-only |
+|-------|-------------------|------------|-------------|------------|
+| Claude Code | `~/.claude` | `/mb init --storage=local` | `/mb init --storage=global --agent=claude-code` | ✅ `[MEMORY BANK: ABSENT]` |
+| Cursor | `~/.cursor` | `/mb init --storage=local` | `/mb init --storage=global --agent=cursor` | ✅ `[MEMORY BANK: ABSENT]` |
+| Codex | `~/.codex` | `/mb init --storage=local` | `/mb init --storage=global --agent=codex` | ✅ `[MEMORY BANK: ABSENT]` |
+| OpenCode | `~/.config/opencode` | `/mb init --storage=local` | `/mb init --storage=global --agent=opencode` | ✅ `[MEMORY BANK: ABSENT]` |
+| Pi Code | `~/.pi/agent` | `/mb init --storage=local` | `/mb init --storage=global --agent=pi` | ✅ `[MEMORY BANK: ABSENT]` |
+| Windsurf | `~/.windsurf` | `/mb init --storage=local` | via `MB_AGENT=windsurf` (adapter-only) | ✅ rules via adapter |
+| Cline | `~/.cline` | `/mb init --storage=local` | via `MB_AGENT=cline` (adapter-only) | ✅ rules via adapter |
+| Kilo | `~/.kilocode` | `/mb init --storage=local` | via `MB_AGENT=kilo` (adapter-only) | ✅ rules via adapter |
+
+**Notes:**
+- **Local mode** — bank lives in the repo (`.memory-bank/`), committable, team-shared. Default of `/mb init`.
+- **Global mode** — bank lives under `~/.<agent>/memory-bank/projects/<id>/.memory-bank`, personal storage, **do not commit to the repo**. Requires `--storage=global --agent=<agent>` on init.
+- **Rules-only mode** — no `/mb init` at all; engineering rules (TDD, SOLID, Clean Architecture, DRY/KISS/YAGNI) are always-on via globally installed rules files; Memory Bank lifecycle commands stay inactive. Valid steady state for projects that want rules without bank overhead.
+- Native-skill agents (Claude Code, Cursor, Codex, OpenCode, Pi) support all three modes directly. Adapter-only agents (Windsurf, Cline, Kilo) support local and rules-only; global mode is available via `MB_AGENT` env override.
+
 ## Install
 
 ```bash

@@ -18,8 +18,25 @@ INPUT=$(cat)
 CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)
 [ -z "$CWD" ] && CWD="$PWD"
 
-MB="$CWD/.memory-bank"
-[ -d "$MB" ] || exit 0
+# Resolve Memory Bank path: MB_PATH override → local <cwd>/.memory-bank →
+# registry lookup via _lib.sh (only when MB_AGENT is set).
+if [ -n "${MB_PATH:-}" ]; then
+  MB="$MB_PATH"
+elif [ -d "$CWD/.memory-bank" ]; then
+  MB="$CWD/.memory-bank"
+else
+  MB=""
+  if [ -n "${MB_AGENT:-}" ]; then
+    HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)
+    LIB="$HOOK_DIR/../scripts/_lib.sh"
+    if [ -f "$LIB" ]; then
+      MB=$(bash -c \
+        ". '$LIB' >/dev/null 2>&1 && mb_registry_lookup '$MB_AGENT' '${MB_PROJECT_ROOT:-$CWD}' 2>/dev/null" \
+        2>/dev/null || true)
+    fi
+  fi
+fi
+[ -n "$MB" ] && [ -d "$MB" ] || exit 0
 
 MODE="${MB_COMPACT_REMIND:-auto}"
 [ "$MODE" = "off" ] && exit 0

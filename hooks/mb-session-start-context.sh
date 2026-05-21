@@ -25,8 +25,25 @@ if [ -z "$WORKSPACE" ]; then
   exit 0
 fi
 
-MB="$WORKSPACE/.memory-bank"
-if [ ! -d "$MB" ]; then
+# Resolve Memory Bank path: MB_PATH override → local <workspace>/.memory-bank →
+# registry lookup via _lib.sh (only when MB_AGENT is set).
+if [ -n "${MB_PATH:-}" ]; then
+  MB="$MB_PATH"
+elif [ -d "$WORKSPACE/.memory-bank" ]; then
+  MB="$WORKSPACE/.memory-bank"
+else
+  MB=""
+  if [ -n "${MB_AGENT:-}" ]; then
+    HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)
+    LIB="$HOOK_DIR/../scripts/_lib.sh"
+    if [ -f "$LIB" ]; then
+      MB=$(bash -c \
+        ". '$LIB' >/dev/null 2>&1 && mb_registry_lookup '$MB_AGENT' '${MB_PROJECT_ROOT:-$WORKSPACE}' 2>/dev/null" \
+        2>/dev/null || true)
+    fi
+  fi
+fi
+if [ -z "$MB" ] || [ ! -d "$MB" ]; then
   echo '{}'
   exit 0
 fi

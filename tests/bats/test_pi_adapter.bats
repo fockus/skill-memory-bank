@@ -153,3 +153,25 @@ EOF
   [ "$count" -eq 1 ]
   jq -e '.owners | contains(["opencode","pi"])' "$PROJECT/.mb-agents-owners.json" >/dev/null
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Global storage support (Stage 3 — resolver-aware guidance)
+# ═══════════════════════════════════════════════════════════════
+
+@test "pi: AGENTS.md section mentions global storage or resolver for bank path" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local agents="$PROJECT/AGENTS.md"
+  [ -f "$agents" ]
+  # Shared AGENTS.md section must mention path resolution (local OR global)
+  grep -qi "MB_PATH\|global storage\|resolver\|resolved\|local OR global\|local or global" "$agents"
+}
+
+@test "pi: MB_PI_MODE=skill SKILL.md mentions resolver or global storage guidance" {
+  MB_PI_MODE=skill run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local skill_md="$HOME/.pi/agent/skills/memory-bank/SKILL.md"
+  [ -f "$skill_md" ]
+  # SKILL.md must mention resolver or global storage so Pi users discover the option
+  grep -qi "MB_PATH\|global storage\|resolver\|resolved\|local OR global\|local or global" "$skill_md"
+}

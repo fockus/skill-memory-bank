@@ -234,3 +234,32 @@ EOF
   count=$(jq '.hooks.preToolUse | length' "$PROJECT/.cursor/hooks.json")
   [ "$count" -eq 4 ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Global storage support (Stage 3 — MB_PATH resolver-aware)
+# ═══════════════════════════════════════════════════════════════
+
+@test "cursor: adapter copies hooks that will support global storage via MB_PATH" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  # Cursor copies hooks from hooks/ directory rather than generating inline bodies.
+  # Resolver-aware updates to hooks/ (Stage 2) automatically propagate to Cursor
+  # projects on the next adapter install. Verify the hook directory is populated
+  # and the hooks.json wires them up correctly (structural contract).
+  local hooks_dir="$PROJECT/.cursor/hooks"
+  [ -d "$hooks_dir" ]
+  local n
+  n=$(find "$hooks_dir" -name '*.sh' | wc -l | tr -d ' ')
+  [ "$n" -ge 5 ]
+  # hooks.json must reference the hooks directory
+  grep -q "\.cursor/hooks" "$PROJECT/.cursor/hooks.json"
+}
+
+@test "cursor: rules file mentions resolver or global storage for bank path" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local mdc="$PROJECT/.cursor/rules/memory-bank.mdc"
+  [ -f "$mdc" ]
+  # Rules file must mention that path is resolved (not only local)
+  grep -qi "MB_PATH\|global storage\|resolver\|resolved" "$mdc"
+}

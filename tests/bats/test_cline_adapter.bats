@@ -147,3 +147,43 @@ run_adapter() {
   run_adapter uninstall "$PROJECT"
   [ "$status" -eq 0 ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Global storage support (Stage 3 — MB_PATH resolver-aware)
+# ═══════════════════════════════════════════════════════════════
+
+@test "cline: after-tool hook contains MB_PATH resolver tiering" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hook="$PROJECT/.clinerules/hooks/after-tool.sh"
+  [ -f "$hook" ]
+  # Must check MB_PATH env override before falling back to local path
+  grep -q "MB_PATH" "$hook"
+}
+
+@test "cline: on-notification hook contains MB_PATH resolver tiering" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hook="$PROJECT/.clinerules/hooks/on-notification.sh"
+  [ -f "$hook" ]
+  # Compact reminder must also resolve bank path via MB_PATH
+  grep -q "MB_PATH" "$hook"
+}
+
+@test "cline: after-tool hook with MB_PATH env uses overridden bank location" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  # Create a global bank in a separate location
+  local global_bank
+  global_bank="$(mktemp -d)"
+  echo '# Progress' > "$global_bank/progress.md"
+  # Remove local .memory-bank so it would normally be a no-op
+  rm -rf "$PROJECT/.memory-bank"
+  # Fire hook with MB_PATH pointing to global bank (env passed to bash, not echo)
+  # Use a short session ID so prefix truncation does not affect pattern matching
+  local payload='{"sessionId":"cline-glbl1234","toolName":"read_file"}'
+  (cd "$PROJECT" && printf '%s' "$payload" | MB_PATH="$global_bank" bash .clinerules/hooks/after-tool.sh)
+  # SID "cline-glbl1234" → strip "cline-" → "glbl1234" → prefix "glbl1234"
+  grep -q "Auto-capture.*cline-glbl1234" "$global_bank/progress.md"
+  rm -rf "$global_bank"
+}
