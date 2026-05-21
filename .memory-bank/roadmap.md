@@ -7,7 +7,11 @@ _None._
 
 ## Next (strict order — depends)
 
-_None._
+- [global-storage-agent-support](plans/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
+- [rule-profiles-and-stack-presets](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
+- [sdd-task-model](plans/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
+- [sdd-traceability-docs](plans/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
+- [sdd-work-engine](plans/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
 
 ## Parallel-safe (can run now)
 
@@ -26,9 +30,32 @@ _Last updated: auto-synced by mb-roadmap-sync.sh_
 
 ## Next intent (prose — not yet a plan file)
 
-Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Sprint 1+2+3 ✅ + I-033 ✅ (2026-04-25). **Skill v2 RELEASED как v4.0.0.** Дальше — по запросу (см. backlog).
+Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Sprint 1+2+3 ✅ + I-033 ✅ (2026-04-25). **Skill v2 RELEASED как v4.0.0.** Current focus: feature `global-storage` (Sprint 1 in progress, Sprint 2/3 queued) plus newly planned Phase `sdd-unification` (3 Sprint: task model, work engine, traceability + docs).
+
+## Phase: sdd-unification
+
+**Goal:** Сделать `specs/<topic>/tasks.md` first-class executable artifact для `/mb work`, с `plan.md` в роли тонкого execution wrapper. Единый SDD-flow: `/mb discuss → /mb sdd → /mb work <topic> → /mb verify`.
+
+**Sprints (strict order, depends_on):**
+
+1. ⬜ Sprint 1 — [refactor sdd-task-model](plans/2026-05-21_refactor_sdd-task-model.md): shared parser `scripts/mb_work_items.py` + `<!-- mb-task:N -->` marker format + `mb-sdd.sh` generator update + `mb-spec-validate.sh`. **Does not change `/mb work` behavior.**
+2. ⬜ Sprint 2 — [refactor sdd-work-engine](plans/2026-05-21_refactor_sdd-work-engine.md): wire `mb-work-resolve.sh` / `mb-work-range.sh` / `mb-work-plan.sh` to the shared parser; introduce plan-as-wrapper frontmatter (`linked_spec` + `tasks`); update `commands/work.md`. **Switches `/mb work` to spec-task execution.**
+3. ⬜ Sprint 3 — [refactor sdd-traceability-docs](plans/2026-05-21_refactor_sdd-traceability-docs.md): extend `mb-traceability-gen.sh` (new Spec Task column); update `SKILL.md` + `commands/{sdd,work,plan}.md` + `references/templates.md`; ship `mb-spec-tasks-migrate.sh` for legacy `tasks.md` upgrade.
+
+**Cross-Sprint dependencies:** Sprint 2 depends_on Sprint 1 (shared parser). Sprint 3 depends_on Sprint 2 (executable spec tasks). Ни один Sprint не parallel_safe внутри Phase.
+
+**Cross-Phase dependency:** Phase `sdd-unification` queued после Phase `global-storage` (или параллельно, если появится капаситет) — явных пересечений по файлам с global-storage нет (разные скрипты: `scripts/_lib.sh` vs `scripts/mb-work-*.sh` + `scripts/mb-sdd.sh`).
+
+**Phase Gate:** E2E сценарий `/mb discuss → /mb sdd → mb-spec-validate → /mb work <topic> → /mb verify → mb-traceability-gen` отрабатывает на tmp-проекте без получения ошибок; traceability matrix содержит Spec Task column; backward-compat для plain plans (`mb-stage:N`) сохранён.
 
 ## Recently completed
+
+- **✅ GraphRAG-lite code context — portable code intelligence layer** [2026-05-21]
+   - Portable CLI source of truth: `scripts/mb-graph-query.py` (`neighbors`, `impact`, `tests`, `explain`, `summary`) and `scripts/mb-code-context.py` evidence packs.
+   - SRP remediation split core/render/helper modules while preserving entrypoints: `mb_graph_query_core.py`, `mb_graph_query_render.py`, `mb_code_context_core.py`, `mb_rules_check_lib.sh`, `adapters/pi_graph_rag_extension.ts`.
+   - Cross-agent guidance shipped for Pi native project extension wrappers plus OpenCode/Codex/generic AGENTS.md CLI fallback.
+   - Verification: `/mb verify` PASS; rules-check 0 violations; focused pytest 40 passed; bats 17+9 ok; full `mb-test-run` 708 passed; ruff/scoped shellcheck clean.
+   - Plan: [plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md](plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md).
 
 - **✅ I-004 — `mb-auto-commit.sh` opt-in auto-commit for /mb done** [2026-04-25]
    - `scripts/mb-auto-commit.sh` — bash dispatcher. Triggers only when `MB_AUTO_COMMIT=1` env or `--force` flag.
@@ -175,6 +202,12 @@ Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Spri
 ## Active plans
 
 <!-- mb-active-plans -->
+- [2026-05-21] [plans/2026-05-21_feature_global-storage.md](plans/2026-05-21_feature_global-storage.md) — feature — global-storage-core
+- [2026-05-21] [plans/2026-05-21_feature_global-storage-agent-support.md](plans/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
+- [2026-05-21] [plans/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
+- [2026-05-21] [plans/2026-05-21_refactor_sdd-task-model.md](plans/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
+- [2026-05-21] [plans/2026-05-21_refactor_sdd-work-engine.md](plans/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
+- [2026-05-21] [plans/2026-05-21_refactor_sdd-traceability-docs.md](plans/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
 <!-- /mb-active-plans -->
 
 ## Ближайшие шаги

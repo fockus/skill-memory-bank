@@ -1,3 +1,28 @@
+## Mandatory first response guard
+
+This is an output-format invariant, not optional workflow advice.
+
+Before any substantive response in a project directory:
+1. Resolve the active Memory Bank through `scripts/_lib.sh::mb_resolve_path`. The bank may be **local** (`<project>/.memory-bank/`), **global** (registered under `<agent_config>/memory-bank/registry.json` via `/mb init --storage=global`), or **legacy** (`.claude-workspace`).
+2. If the resolver returns an existing bank, the first line of the response MUST be:
+   `[MEMORY BANK: ACTIVE]`
+3. If no bank is resolved, the first line of the response MUST be:
+   `[MEMORY BANK: ABSENT]`
+   Do not silently initialize Memory Bank for meta/install/debug questions.
+4. If the user explicitly asks to initialize Memory Bank, create it and print:
+   `[MEMORY BANK: INITIALIZED]`
+5. Never confuse global skill installation with project Memory Bank activation. A global skill install never implies an active bank — only an explicit `/mb init` does.
+6. Never omit this status line when Memory Bank skill/rules are discussed or project work starts.
+
+### Rules-only mode
+
+`[MEMORY BANK: ABSENT]` is a valid steady state. When the user chooses not to initialize a Memory Bank for a repository, **all engineering rules below still apply** — TDD, SOLID, Clean Architecture / FSD, DRY/KISS/YAGNI, Testing Trophy, protected files, no placeholders, verification before completion. Only the `/mb` lifecycle commands stay inactive. The agent must NOT skip discipline because of the absent state.
+
+Before final answer, verify:
+- Did I mention Memory Bank status when applicable?
+- Did I distinguish global skill installation from project Memory Bank activation?
+- Did I apply the coding rules below (TDD, Clean Architecture/FSD, SOLID, Testing Trophy) before claiming completion — including in rules-only mode?
+
 # CRITICAL RULES — DO NOT FORGET DURING COMPACTION
 
 > **Contract-First** — Protocol/ABC → contract tests → implementation. Tests must pass for ANY correct implementation.
@@ -61,7 +86,7 @@ When creating plans (including built-in plan mode):
 ## Memory Bank
 
 **If `./.memory-bank/` exists → `[MEMORY BANK: ACTIVE]`.**
-If it does not exist, initialize it and print `[MEMORY BANK: INITIALIZED]`.
+If it does not exist → `[MEMORY BANK: ABSENT]`; initialize only after an explicit `/mb init` or user request, then print `[MEMORY BANK: INITIALIZED]`.
 
 **Skill:** `memory-bank`. **Command:** `/mb`. **Path:** `./.memory-bank/`.
 

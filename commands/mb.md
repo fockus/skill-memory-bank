@@ -15,6 +15,12 @@ Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words ar
 
 ### Routing
 
+#### GraphRAG-lite retrieval routing
+
+`code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" and "find similar implementation". Exact structural questions use graph tools directly: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or impact analysis → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code`; respect explicit tool intent.
+
+Fail open: for missing graph or stale graph, explain the limitation and suggest `/mb graph --apply`; for missing semantic provider or unavailable native extension, use `scripts/mb-code-context.py`, `scripts/mb-graph-query.py`, `rg`, and `read` as CLI fallback instead of blocking.
+
 
 | Subcommand                                               | Action                                                                                                                                                                                                                                                                                                   |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -730,7 +736,7 @@ User: /mb help tags
 - `/help` — built-in Claude Code command (not a skill).
 - `commands/catchup.md` / `commands/start.md` / `commands/done.md` — standalone top-level slash commands (lightweight), not `/mb` subcommands.
 
-### init [--minimal|--full] [--lang=XX]
+### init [--minimal|--full] [--storage=local|global] [--agent=NAME] [--lang=XX]
 
 Initialize Memory Bank in a new project.
 
@@ -738,6 +744,35 @@ Initialize Memory Bank in a new project.
 
 - `--minimal` — only `.memory-bank/` structure + core files. For advanced users who will write `CLAUDE.md` themselves.
 - `--full` (default, if no flag is provided) — `.memory-bank/` + `RULES.md` copy + stack auto-detect + `CLAUDE.md` generation + optional `.planning/` symlink prompt.
+
+**Storage (`--storage`)** — since Sprint 1 / global-storage, Memory Bank supports two storage layouts. Default is local (backward compatible).
+
+- `--storage=local` (default) — bank lives at `<project>/.memory-bank/`. **Team-shared** layout: the directory is committable so the whole team shares status / plans / checklist / progress. Use this for any project where Memory Bank state is part of the codebase contract.
+- `--storage=global` — bank lives under the chosen agent config directory (`$HOME/.claude/memory-bank/projects/<id>/` for Claude Code, `$HOME/.pi/agent/memory-bank/projects/<id>/` for Pi, etc.) and is registered in `<agent_config>/memory-bank/registry.json`. **Repository stays clean** — no `.memory-bank/` appears in the project tree. Use this for personal storage in a third-party repo, where committing Memory Bank state would create noise for other contributors.
+
+When `--storage=global` is requested, the agent must also resolve `--agent=NAME` (one of `claude-code`, `cursor`, `codex`, `opencode`, `pi`, `windsurf`, `cline`, `kilo`). Default in non-interactive runs comes from `$MB_AGENT` or `claude-code`.
+
+**Interactive prompt** (when stdin is a TTY and `--storage` is not given):
+
+```
+Where should this project's Memory Bank live?
+  1. local  — .memory-bank/ inside the project (team-shared, default)
+  2. global — personal storage under the agent config dir (repo stays clean)
+(1/2, default = 1)
+```
+
+**Non-interactive shell equivalents** (CI, dotfile bootstrap, scripts):
+
+```bash
+# Local mode (team-shared):
+bash scripts/mb-init-bank.sh --storage=local --lang=ru
+
+# Global mode (personal, repo stays clean):
+bash scripts/mb-init-bank.sh --storage=global --agent=pi \
+                             --project-root "$PWD" --lang=ru
+```
+
+Safety contract: existing local `.memory-bank/` refuses an implicit local→global switch. The script exits non-zero with migration guidance unless `--force` is provided (and even with `--force` no data is moved — `--force` only allows a parallel global bank).
 
 **Locale (`--lang`)** — since v3.1.1 Memory Bank ships localized template bundles:
 
@@ -747,7 +782,9 @@ Initialize Memory Bank in a new project.
 
 Locale resolution (highest → lowest): `--lang` flag → `MB_LANG` env → `.memory-bank/.mb-config` (`lang=XX`) → auto-detect from existing bank content → `en`.
 
-The agent should invoke `scripts/mb-init-bank.sh --lang=<resolved>` to copy the correct `templates/locales/<lang>/.memory-bank/` bundle. Canonical anchors (`<!-- mb-active-plans -->`, `## Ideas`, `## ADR`) stay English across every locale — every `mb-*` script depends on them.
+The agent should invoke `scripts/mb-init-bank.sh --lang=<resolved> --storage=<resolved> [--agent=<resolved>]` to copy the correct `templates/locales/<lang>/.memory-bank/` bundle and wire the storage layout. Canonical anchors (`<!-- mb-active-plans -->`, `## Ideas`, `## ADR`) stay English across every locale — every `mb-*` script depends on them.
+
+> **Rules-only mode reminder.** A project may deliberately have *neither* local nor global Memory Bank (`[MEMORY BANK: ABSENT]`). In that case `/mb` lifecycle commands stay inactive, but the **engineering rules baseline still applies**: TDD, SOLID, Clean Architecture / FSD, DRY/KISS/YAGNI, Testing Trophy, protected files, no placeholders. Skipping `/mb init` is a valid user choice — never auto-initialize on first response.
 
 ---
 

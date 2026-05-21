@@ -19,6 +19,51 @@
 
 ---
 
+## Mandatory first response guard
+
+This is an output-format invariant for agents that load these rules into their prompt.
+
+Before any substantive response in a project directory:
+1. Resolve the active Memory Bank through `scripts/_lib.sh::mb_resolve_path`. The bank may be **local** (`<project>/.memory-bank/`), **global** (`<agent_config>/memory-bank/projects/<id>/.memory-bank/`, registered through `/mb init --storage=global --agent=<name>`), or **legacy** (`.claude-workspace`). Agent-agnostic global storage is the new recommended layout for personal use; local stays default and team-friendly.
+2. If the resolver returns an existing bank, start with `[MEMORY BANK: ACTIVE]` and read the core files at session start.
+3. If no bank is resolved, start with `[MEMORY BANK: ABSENT]`.
+4. Do not silently initialize Memory Bank for meta/install/debug questions.
+5. Print `[MEMORY BANK: INITIALIZED]` only after explicit `/mb init` or user request.
+6. Distinguish global skill installation from project Memory Bank activation. A global install never implies an active bank.
+
+### Rules-only mode
+
+`[MEMORY BANK: ABSENT]` is a deliberate user choice for many third-party repositories. In rules-only mode:
+
+- `/mb` lifecycle commands stay inactive — do not auto-initialize, do not write `.memory-bank/` files.
+- All engineering rules above (TDD, SOLID, Clean Architecture / FSD, DRY/KISS/YAGNI, Testing Trophy, protected files, no placeholders, verification before completion) **still apply** to ordinary code work. The agent must NOT relax discipline because Memory Bank is absent.
+
+---
+
+## GraphRAG-lite retrieval routing
+
+Use Memory Bank code intelligence in this order. `code_context is the default` for ambiguous code-understanding questions because it can combine semantic discovery, structural graph expansion, exact file reads, and test/impact hints.
+
+| Question shape | Preferred entry point | Fallback | Reason |
+|---|---|---|---|
+| "where is the logic for X?", "find similar implementation", natural-language code search | `code_context` | `search_code` → `rg/read` | Semantic discovery first, then structural validation. |
+| "who calls/imports/defines X?" | `graph_neighbors` | `rg/read` | Exact structural relationship; vector search adds noise. |
+| "reverse deps" or impact of changing a symbol/file | `graph_impact` | `rg/read` | Impact analysis must be deterministic and explainable. |
+| "what tests cover this file/symbol?" | `graph_tests` | `rg 'file|symbol' tests/` | Test links are structural evidence. |
+| User explicitly asks "semantic search" | `search_code` | `code_context --semantic-only` | Respect explicit tool intent. |
+| User explicitly asks for `rg` or exact text search | `rg/read` | `code_context` only if context remains unclear | Respect exact text-search intent. |
+
+Agent examples:
+- **Pi**: prefer native tools `code_context`, `graph_neighbors`, `graph_impact`, and `graph_tests` when installed; use CLI fallback otherwise.
+- **Claude Code**: use slash-command guidance and CLI fallback through `scripts/mb-code-context.py` and `scripts/mb-graph-query.py`.
+- **Codex**: follow `AGENTS.md` instructions and call the portable CLI scripts directly.
+- **OpenCode**: prefer native plugin tools when installed; use the same CLI fallback when plugin/native tool support is unavailable.
+- **generic AGENTS.md** agents: follow this routing table and call portable scripts directly.
+
+Fail open / fail open behavior: if the graph is missing graph or stale graph is suspected, say so and suggest `/mb graph --apply`; if there is a missing semantic provider or unavailable native extension, continue with graph + `rg/read` instead of blocking the task. Never make Milvus, Ollama, Docker, or `claude-context` mandatory for Memory Bank core.
+
+---
+
 ## Naming conventions
 
 **Plan hierarchy:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for the size thresholds and when to use which level. Cyrillic «Этап / Спринт / Фаза» — legacy alias, allowed only in `plans/done/*.md` and historical archives. New work uses the English triple.
@@ -284,7 +329,11 @@ assert loss < initial_loss * 0.8
 ### Response format
 
 - Structure: **Goal → Action → Result**
-- If Memory Bank is active: start with `[MEMORY BANK: ACTIVE]`
+- Before any substantive response in a project directory, check `./.memory-bank/` and start with the status line:
+  - `[MEMORY BANK: ACTIVE]` when `./.memory-bank/` exists
+  - `[MEMORY BANK: ABSENT]` when it does not exist
+  - `[MEMORY BANK: INITIALIZED]` only after explicit initialization
+- Do not confuse global skill installation with project `./.memory-bank/` activation
 - Code: full functions, copy-paste ready, complete imports
 
 ---
@@ -381,7 +430,9 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
 
 ### `/mb start` — start of session
 
-1. Check whether `.memory-bank/` exists → `[MEMORY BANK: ACTIVE]`
+1. Check whether `.memory-bank/` exists:
+  - if yes → `[MEMORY BANK: ACTIVE]`
+  - if no → `[MEMORY BANK: ABSENT]`; initialize only after explicit `/mb init` or user request
 2. Read the 4 core files:
   - `status.md` → where we are in the project, roadmap, gates
   - `checklist.md` → current tasks (⬜/✅)

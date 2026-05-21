@@ -104,6 +104,16 @@ def test_init_prints_claude_code_hint(capsys):
     assert "/mb init" in out
 
 
+def test_init_hint_documents_local_and_global_storage_modes(capsys):
+    rc = cli.main(["init"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "--storage" in out, "init hint must surface --storage flag"
+    assert "local" in out and "global" in out, (
+        "init hint must mention both local and global storage modes"
+    )
+
+
 def test_doctor_reports_bundle_platform_and_bash(capsys):
     cli.main(["doctor"])
     # rc == 0 on systems with bash (macOS/Linux CI); rc==1 on Windows w/o bash

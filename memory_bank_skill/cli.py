@@ -201,7 +201,15 @@ def cmd_init(args: argparse.Namespace) -> int:
         f"  Target project: {target}\n"
         f"  Locale: lang={lang}\n"
         f"  This creates .memory-bank/ with status.md, roadmap.md, checklist.md, "
-        f"backlog.md, research.md, progress.md, lessons.md.\n"
+        f"backlog.md, research.md, progress.md, lessons.md.\n\n"
+        f"  Storage modes (--storage flag, default = local):\n"
+        f"    local  — bank lives at <project>/.memory-bank/ and is shareable with the team.\n"
+        f"    global — bank lives under the chosen agent config directory; the project "
+        f"directory stays clean (personal storage, not committed).\n"
+        f"  Non-interactive shell equivalents:\n"
+        f"    bash scripts/mb-init-bank.sh --storage=local --lang={lang}\n"
+        f"    bash scripts/mb-init-bank.sh --storage=global --agent=pi "
+        f"--project-root \"$PWD\" --lang={lang}\n"
         f"  For Pi Code, run /reload after `memory-bank install` if the session was already open.\n"
     )
     return 0

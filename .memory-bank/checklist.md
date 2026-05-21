@@ -4,13 +4,16 @@
 
 ## ⏳ In flight
 
-_None._
+- ⬜ Sprint 1 — [feature global-storage-core](plans/2026-05-21_feature_global-storage.md): resolver, global init UX, command/rules active-state semantics.
 
 ## ⏭ Next planned
 
-_Skill v2 shipped (v4.0.0). Next iteration TBD — open via `/mb idea` when triggered._
+- ⬜ Sprint 2 — [feature global-storage-agent-support](plans/2026-05-21_feature_global-storage-agent-support.md): hooks, adapters, docs and E2E support for all supported code agents.
+- ⬜ Sprint 3 — [feature rule-profiles-and-stack-presets](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md): configurable architecture/delivery/role/stack profiles for rules-only and Memory Bank modes.
 
 ## ✅ Recently completed (last 3 sprints — full history → progress.md)
+
+### GraphRAG-lite code context ✅ (2026-05-21) — portable graph query CLI + `code_context` evidence pack + Pi/OpenCode/Codex/generic wrapper guidance. `/mb verify` PASS: rules-check 0 violations, focused pytest 40 passed, bats 17+9 ok, full `mb-test-run` 708 passed.
 
 ### Cursor adapter remediation ✅ (2026-05-21) — 10 Cursor hooks (sessionStart + tool matchers), VERSION single-source, User Rules paste UX + markers. pytest + bats green.
 
@@ -36,3 +39,29 @@ Phase 1 Foundation, Phase 2 (discuss + sdd + plan-lite), Phase 3 Sprint 1 (`/mb 
 - `backlog.md` — full ideas + ADR ledger
 - `plans/done/` — full per-sprint plan files (DoD, stages, retrospective)
 - `lessons.md` — recurring antipatterns + design lessons
+
+<!-- mb-plan:2026-05-21_feature_global-storage.md -->
+## global-storage Sprint 1 — ✅ DONE
+- ✅ Stages 1-6: resolver contract tests + 6 `_lib.sh` helpers + `mb-init-bank.sh` global flags + `/mb init` UX + runtime docs/rules-only mode + full verification (735 pytest, 119 focused bats, 3 doc-regressions fixed, checklist 181→68 lines). Detail → `plans/2026-05-21_feature_global-storage.md`.
+
+<!-- mb-plan:2026-05-21_feature_global-storage-agent-support.md -->
+## global-storage-agent-support Sprint 2 — queued
+- ⬜ Stages 1-6: adapter/hook inventory tests, resolver-aware hooks, adapter matrix, install flow docs, E2E cross-agent smoke, final verification. Detail → `plans/2026-05-21_feature_global-storage-agent-support.md`.
+
+<!-- mb-plan:2026-05-21_feature_rule-profiles-and-stack-presets.md -->
+## rule-profiles Sprint 3 — queued
+- ⬜ Stages 1-6: profile schema + RED tests, `mb-profile.sh` CLI, role/stack presets, rules-check integration, UX/docs, verification. Detail → `plans/2026-05-21_feature_rule-profiles-and-stack-presets.md`.
+
+<!-- mb-plan:2026-05-21_refactor_sdd-task-model.md -->
+## sdd-task-model Sprint 1 — stages 1-3 ✅
+- ✅ Stages 1-3: RED tests + `mb_work_items.py` parser (stdlib, JSON Lines CLI) + `mb-sdd.sh` emits new `<!-- mb-task:N -->` format (27/27 sdd+parser tests green, smoke OK). Detail → `plans/2026-05-21_refactor_sdd-task-model.md`.
+- ⬜ Stage 4: Implement `scripts/mb-spec-validate.sh`
+- ⬜ Stage 5: Sprint 1 verification + handoff
+
+<!-- mb-plan:2026-05-21_refactor_sdd-work-engine.md -->
+## sdd-work-engine Sprint 2 — queued
+- ⬜ Stages 1-6: RED tests + wire `/mb work` resolve/range/plan to `mb_work_items.py` + commands/work.md update + verification. Detail → `plans/2026-05-21_refactor_sdd-work-engine.md`.
+
+<!-- mb-plan:2026-05-21_refactor_sdd-traceability-docs.md -->
+## sdd-traceability-docs Sprint 3 — queued
+- ⬜ Stages 1-5: traceability spec-tasks scan + `mb-spec-tasks-migrate.sh` + docs update + Phase gate. Detail → `plans/2026-05-21_refactor_sdd-traceability-docs.md`.

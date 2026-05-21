@@ -77,10 +77,122 @@ mb_valid_workspace_project_id() {
   [[ "$project_id" =~ ^[A-Za-z0-9_-]+$ ]]
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Agent-agnostic storage resolver (Sprint 1 / global-storage-core)
+# ─────────────────────────────────────────────────────────────────────────────
+# Canonical config directory per supported code agent. Returns non-zero for
+# unknown agents so callers can fail closed.
+mb_agent_config_dir() {
+  local agent="${1:-}"
+  case "$agent" in
+    claude-code) printf '%s\n' "$HOME/.claude" ;;
+    cursor)      printf '%s\n' "$HOME/.cursor" ;;
+    codex)       printf '%s\n' "$HOME/.codex" ;;
+    opencode)    printf '%s\n' "$HOME/.config/opencode" ;;
+    pi)          printf '%s\n' "$HOME/.pi/agent" ;;
+    windsurf)    printf '%s\n' "$HOME/.windsurf" ;;
+    cline)       printf '%s\n' "$HOME/.cline" ;;
+    kilo)        printf '%s\n' "$HOME/.kilocode" ;;
+    *)           return 1 ;;
+  esac
+}
+
+# Path to the global Memory Bank registry JSON for an agent.
+mb_registry_path() {
+  local agent="${1:-}" base
+  base=$(mb_agent_config_dir "$agent") || return 1
+  printf '%s\n' "$base/memory-bank/registry.json"
+}
+
+# Deterministic key for a project — realpath plus optional git remote URL.
+# Used as the SHA256 input for `mb_project_id` and as the registry lookup key
+# basis. Stable across reruns; ignores the working tree state.
+mb_project_key() {
+  local project_root="${1:-$PWD}" real remote
+  real=$(mb_resolve_real_path "$project_root")
+  remote=""
+  if command -v git >/dev/null 2>&1 && [ -d "$project_root/.git" ]; then
+    remote=$(git -C "$project_root" config --get remote.origin.url 2>/dev/null || true)
+  fi
+  if [ -n "$remote" ]; then
+    printf '%s|%s\n' "$real" "$remote"
+  else
+    printf '%s\n' "$real"
+  fi
+}
+
+# Stable slug-hash id matching ^[A-Za-z0-9_-]+$. Slug = sanitized basename;
+# suffix = first 12 hex chars of sha256(mb_project_key).
+mb_project_id() {
+  local project_root="${1:-$PWD}" key slug hash
+  key=$(mb_project_key "$project_root")
+  slug=$(basename "$(mb_resolve_real_path "$project_root")")
+  slug=$(mb_sanitize_topic "$slug")
+  [ -z "$slug" ] && slug="project"
+  hash=$(printf '%s' "$key" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])')
+  printf '%s-%s\n' "$slug" "$hash"
+}
+
+# Look up the registered bank path for project_root in agent's registry.
+# Fails closed: missing file, malformed JSON or absent entry all return 1
+# with no stdout.
+mb_registry_lookup() {
+  local agent="${1:-}" project_root="${2:-$PWD}" registry real
+  registry=$(mb_registry_path "$agent") || return 1
+  [ -f "$registry" ] || return 1
+  real=$(mb_resolve_real_path "$project_root")
+  python3 - "$registry" "$real" <<'PY' || return 1
+import json
+import sys
+
+path, project = sys.argv[1], sys.argv[2]
+try:
+    with open(path) as fh:
+        data = json.load(fh)
+except Exception:
+    sys.exit(1)
+projects = data.get("projects") or {}
+entry = projects.get(project)
+if entry is None:
+    sys.exit(1)
+bank = entry.get("bank_path") if isinstance(entry, dict) else entry
+if not bank:
+    sys.exit(1)
+print(bank)
+PY
+}
+
+# Resolve effective Memory Bank path.
+#
+# Precedence (first match wins):
+#   1. explicit positional argument
+#   2. MB_PATH env override
+#   3. local <cwd>/.memory-bank/ directory
+#   4. global registry hit for MB_AGENT (only if MB_AGENT is set)
+#   5. legacy .claude-workspace `storage: external` pointer (backward compat)
+#   6. relative ".memory-bank" fallback
 mb_resolve_path() {
   if [ -n "${1:-}" ]; then
     printf '%s\n' "$1"
     return 0
+  fi
+
+  if [ -n "${MB_PATH:-}" ]; then
+    printf '%s\n' "$MB_PATH"
+    return 0
+  fi
+
+  if [ -d ".memory-bank" ]; then
+    printf '%s\n' ".memory-bank"
+    return 0
+  fi
+
+  if [ -n "${MB_AGENT:-}" ]; then
+    local hit
+    if hit=$(mb_registry_lookup "$MB_AGENT" "$PWD" 2>/dev/null) && [ -n "$hit" ]; then
+      printf '%s\n' "$hit"
+      return 0
+    fi
   fi
 
   if [ -f ".claude-workspace" ]; then

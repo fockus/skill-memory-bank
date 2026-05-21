@@ -8,6 +8,8 @@ argument-hint: <type> <topic>
 
 Canonical planning command. `/mb plan` is an alias that dispatches here.
 
+> **Storage note.** Resolve the active bank path through `mb_resolve_path` (in `scripts/_lib.sh`). The plan file ends up at `<resolved-bank>/plans/<YYYY-MM-DD>_<type>_<topic>.md` regardless of whether the bank is local, registered global storage, or legacy `.claude-workspace`. If `[MEMORY BANK: ABSENT]` (rules-only mode), refuse to plan and tell the user to run `/mb init` first — but do **not** auto-initialize.
+
 ## 0. Validate arguments
 
 Parse `$ARGUMENTS` into `<type> <topic>`. Allowed `type`: `feature`, `fix`, `refactor`, `experiment`. If `type` is missing or not in the allowed set, stop and ask the user. If `topic` is empty, stop and ask.

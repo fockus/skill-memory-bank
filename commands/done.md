@@ -5,6 +5,8 @@ allowed-tools: [Bash, Read, Edit, Write, Task]
 
 Canonical session-end command. `/mb done` is an alias that dispatches here.
 
+> **Storage note.** Resolve the active bank path through `mb_resolve_path` (in `scripts/_lib.sh`). Bank may be local (`./.memory-bank/`), global (`<agent_config>/memory-bank/projects/<id>/.memory-bank/`, registered via `--storage=global`), or legacy (`.claude-workspace`). All `mb-*` scripts called below already respect the resolver — pass `--mb <resolved-path>` when needed. If `[MEMORY BANK: ABSENT]`, this command is a no-op except for surfacing the absent state.
+
 ## 0. If work followed a plan — verify first
 
 If an active plan exists in `.memory-bank/plans/` (not in `done/`), run `/verify` (or `/mb verify`) before proceeding. Do not close out without verification when a plan was in use. Fix CRITICAL issues; surface WARNINGs to the user.

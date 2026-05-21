@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**v4.0.0 — RELEASED (2026-04-25). Audit-remediation план `refactor — v4-audit-remediation` закрыт 2026-04-27 (Stages 1-7 ✅).**
+**Active planning — feature `global-storage` (2026-05-21): optional project-local vs per-agent global Memory Bank storage plus rules-only personalization. Sprint 1 (`global-storage-core`) remains the primary active work; Sprint 2 (`global-storage-agent-support`) and Sprint 3 (`rule-profiles-and-stack-presets`) are queued. Architecture plan `graph-rag-lite-code-context` verified and closed. Newly planned Phase `sdd-unification` (3 Sprint: task-model → work-engine → traceability-docs) queued behind global-storage — makes `specs/<topic>/tasks.md` first-class executable target for `/mb work`.**
 
 Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine, `/mb config` + `/mb work`, 9 role-agents + reviewer + verifier, severity-gated review-loop, 5 critical Claude Code hooks, prompt-trimming `--slim` mode, sprint context guard, checklist hard-cap enforcement, installer auto-registration с `superpowers:requesting-code-review` skill detection. Post-release: I-004 ships `scripts/mb-auto-commit.sh` (opt-in `MB_AUTO_COMMIT=1`).
 
@@ -10,7 +10,9 @@ Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine,
 
 ## ⏭ Следующий шаг
 
-Cursor adapter remediation (10 hooks, version sync, User Rules UX) — ✅ 2026-05-21. Audit-remediation закрыт. Следующая итерация — TBD (`/mb idea` при появлении сигнала). Кандидаты: refresh of legacy `plan.md` фикстур в bats тестах (11 pre-existing fails); Pi-mode skill telemetry; multi-language code graph extraction polish.
+**Active:** Sprint 1 `global-storage-core`. Stage 1 ✅ done — `tests/bats/test_mb_storage_resolver.bats` (32 cases, 25 RED, 2 s). Next: Stage 2 — implement `mb_agent_config_dir` / `mb_project_key` / `mb_project_id` / `mb_registry_path` / `mb_registry_lookup` + extended `mb_resolve_path` precedence in `scripts/_lib.sh` so the resolver suite goes green without weakening existing `mb_resolve_path` users.
+
+Параллельный запуск `sdd-unification` Sprint 1 — отложен до момента, когда Sprint 1 `global-storage` дойдёт хотя бы до Stage 3 (исключает overlap по `_lib.sh`).
 
 ## Open backlog
 
@@ -22,21 +24,28 @@ Cursor adapter remediation (10 hooks, version sync, User Rules UX) — ✅ 2026-
 ## Ключевые метрики
 
 - VERSION: **4.0.0** (PyPI `memory-bank-skill==4.0.0` план; Homebrew tap bump план)
-- Shell-скрипты: **41**, Python-скрипты: **4**, Hooks: **9**
+- Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
 - Агенты: **16** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer)
 - Commands: **24** top-level (`/mb` hub + 23 dispatchers)
-- Tests: **pytest 663** (3 consecutive runs × 0 flake post-Stage-7), bats 532 ok / 11 pre-existing fails (legacy `plan.md` fixtures, separate refactor), shellcheck/ruff clean
+- Tests: **708** via `PATH="$PWD/.venv/bin:$PATH" bash scripts/mb-test-run.sh --dir . --out json` (`tests_pass=true`); GraphRAG focused pytest 40 passed; bats GraphRAG/rules 17 ok; Pi/OpenCode/Codex install filter 9 ok; scoped shellcheck/ruff clean
 - Public website: **https://fockus.github.io/skill-memory-bank/**
 - Текущий remote: `origin=https://github.com/fockus/skill-memory-bank.git`
 
 ## Active plans
 
 <!-- mb-active-plans -->
+- [2026-05-21] [plans/2026-05-21_feature_global-storage.md](plans/2026-05-21_feature_global-storage.md) — feature — global-storage-core
+- [2026-05-21] [plans/2026-05-21_feature_global-storage-agent-support.md](plans/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
+- [2026-05-21] [plans/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
+- [2026-05-21] [plans/2026-05-21_refactor_sdd-task-model.md](plans/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
+- [2026-05-21] [plans/2026-05-21_refactor_sdd-work-engine.md](plans/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
+- [2026-05-21] [plans/2026-05-21_refactor_sdd-traceability-docs.md](plans/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
 <!-- /mb-active-plans -->
 
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-05-21 — [plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md](plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md) — architecture — graph-rag-lite-code-context
 - 2026-04-27 — [plans/done/2026-04-25_refactor_v4-audit-remediation.md](plans/done/2026-04-25_refactor_v4-audit-remediation.md) — refactor — v4-audit-remediation
 - 2026-04-21 — [plans/done/2026-04-21_refactor_core-files-v3-1.md](plans/done/2026-04-21_refactor_core-files-v3-1.md) — refactor — core-files-v3-1
 - 2026-04-21 — [plans/done/2026-04-21_refactor_review-hardening-installer-boundaries.md](plans/done/2026-04-21_refactor_review-hardening-installer-boundaries.md) — refactor — review-hardening-installer-boundaries

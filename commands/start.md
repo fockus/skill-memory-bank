@@ -5,6 +5,16 @@ allowed-tools: [Bash, Read, Task]
 
 Canonical session-start command. `/mb start` is an alias that dispatches here.
 
+## Pre-flight: resolve Memory Bank path
+
+Memory Bank may live in one of three places. Always resolve the active bank through `mb_resolve_path` (in `scripts/_lib.sh`) — never assume `./.memory-bank/` is the only signal:
+
+1. **Local** — `<project>/.memory-bank/` (team-shared, default of `/mb init`).
+2. **Global** — `<agent_config>/memory-bank/projects/<id>/.memory-bank/` registered in `<agent_config>/memory-bank/registry.json` (personal storage chosen via `/mb init --storage=global --agent=<name>`).
+3. **Legacy** — `.claude-workspace` external pointer (still supported for backward compatibility).
+
+When **none** of the above resolves, surface `[MEMORY BANK: ABSENT]` and stop the lifecycle flow. Do **not** auto-initialize — the user may be in **rules-only mode** intentionally (TDD/SOLID/Clean Architecture/DRY/KISS/YAGNI/Testing Trophy still apply to code work; only Memory Bank commands stay inactive).
+
 ## Pre-flight: detect v1 layout
 
 Before loading context, check whether the project is still on v1 Memory Bank naming. Run:

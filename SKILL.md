@@ -40,12 +40,35 @@ If the host does not support native slash commands, use:
 
 ---
 
-## Workspace resolution
+## Workspace resolution — agent-agnostic storage
 
-Memory Bank supports external storage through `.claude-workspace`:
+Memory Bank resolves its active bank through `scripts/_lib.sh::mb_resolve_path`. The precedence is fixed and explicit:
 
-- If the project root contains `.claude-workspace` with `storage: external` and `project_id: <id>` → `mb_path = ~/.claude/workspaces/<id>/.memory-bank`
-- Otherwise → `mb_path = ./.memory-bank` (default)
+1. **Explicit argument** — `mb-*.sh <mb_path>` always wins.
+2. **`MB_PATH` env override** — for ad-hoc redirection in shell sessions.
+3. **Local mode** — `<project>/.memory-bank/` (default of `/mb init`, team-shared, committable).
+4. **Global mode** — registered in `<agent_config>/memory-bank/registry.json`. Requires `--storage=global --agent=<name>` on init (or `$MB_AGENT` env). Per supported agent:
+   - `claude-code` → `$HOME/.claude/memory-bank/projects/<id>/.memory-bank`
+   - `cursor` → `$HOME/.cursor/memory-bank/projects/<id>/.memory-bank`
+   - `codex` → `$HOME/.codex/memory-bank/projects/<id>/.memory-bank`
+   - `opencode` → `$HOME/.config/opencode/memory-bank/projects/<id>/.memory-bank`
+   - `pi` → `$HOME/.pi/agent/memory-bank/projects/<id>/.memory-bank`
+   - `windsurf`/`cline`/`kilo` → analogous under the respective config dir
+5. **Legacy `.claude-workspace`** — kept for backward compatibility (`storage: external` + `project_id: <id>` → `~/.claude/workspaces/<id>/.memory-bank`). New projects should use `--storage=global` instead.
+6. **Fallback** — relative `.memory-bank` (compat with existing scripts).
+
+### Active-state semantics
+
+- `[MEMORY BANK: ACTIVE]` — when the resolver returns an **existing** bank (local or registered global).
+- `[MEMORY BANK: ABSENT]` — when no bank exists for the current project. Surface this and **stop** the Memory Bank lifecycle — do **not** silently initialize.
+- `[MEMORY BANK: INITIALIZED]` — only after a successful explicit `/mb init`.
+
+### Rules-only mode
+
+A project may intentionally have no Memory Bank (`[MEMORY BANK: ABSENT]`). In that case:
+
+- `/mb` lifecycle commands stay inactive until the user explicitly runs `/mb init`.
+- The **engineering rules baseline still applies**: TDD, SOLID, Clean Architecture / FSD, DRY/KISS/YAGNI, Testing Trophy, protected files, no placeholders, verification before completion. Global skill installation never auto-enables Memory Bank state.
 
 When invoking MB Manager or scripts, always pass the resolved `mb_path`.
 
@@ -59,6 +82,12 @@ All scripts live in `scripts/` next to this `SKILL.md`. In global installs, the 
 - Cursor: `~/.cursor/skills/memory-bank/`
 
 Scripts work with `.memory-bank/` in the current directory or through the `mb_path` argument.
+
+### GraphRAG-lite retrieval routing
+
+`code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" or "find similar implementation". Exact structural questions route directly to graph tools: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or change impact → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code` because explicit tool intent wins.
+
+Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block the agent. Use `scripts/mb-graph-query.py` and `scripts/mb-code-context.py` as the universal CLI fallback; Pi and OpenCode may expose native tool wrappers, while Claude Code, Codex, and generic AGENTS.md agents can call the scripts directly.
 
 | Script | Purpose |
 |--------|---------|
@@ -79,6 +108,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-index-json.py` | Build `index.json` (frontmatter notes + lessons headings). Atomic write |
 | `mb-drift.sh` | 8 deterministic drift checkers (path, staleness, script coverage, dependency, cross-file, index sync, command, frontmatter) |
 | `mb-rules-check.sh` | Deterministic rules enforcement (SRP / Clean Architecture / TDD delta) |
+| `mb_rules_check_lib.sh` | Shared helper library for `mb-rules-check.sh` |
 | `mb-test-run.sh` | Structured test runner with per-stack output parsing → strict JSON |
 | `mb-deps-check.sh [--install-hints]` | Preflight dependency checker (python3, jq, git + optional tree-sitter) |
 | `mb-checklist-prune.sh [--apply]` | Collapse completed sections in `checklist.md` to one-liners (≤120-line cap) |
@@ -89,6 +119,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-ears-validate.sh <file>` | Validate REQ bullets against the 5 EARS patterns |
 | `mb-req-next-id.sh` | Emit the next monotonic `REQ-NNN` identifier |
 | `mb-sdd.sh <topic>` | Create a Kiro-style spec triple under `specs/<topic>/` (requirements / design / tasks) |
+| `mb_work_items.py` | Shared parser for plan stages (`<!-- mb-stage:N -->`) and spec tasks (`<!-- mb-task:N -->`); CLI emits JSON Lines |
 | `mb-pipeline.sh` | Manage the project's `pipeline.yaml` (spec §9) |
 | `mb-pipeline-validate.sh` | Structural validation for `pipeline.yaml` (spec §9) |
 | `mb-work-resolve.sh` | Resolve `<target>` arg into a plan/spec path (spec §8.2) |
@@ -105,6 +136,11 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-migrate-structure.sh` | One-shot v3.0 → v3.1 structure migrator for `.memory-bank/` |
 | `mb-import.py` | Claude Code JSONL → Memory Bank bootstrap importer |
 | `mb-codegraph.py` | Python AST-based code graph builder (multi-language via tree-sitter) |
+| `mb-graph-query.py` | Query `codebase/graph.json`: `neighbors`, `impact`, `tests`, `explain`, `summary` with JSON/markdown output |
+| `mb_graph_query_core.py` | Core graph loading, matching and payload builders for `mb-graph-query.py` |
+| `mb_graph_query_render.py` | Markdown summary renderers for graph-query output |
+| `mb-code-context.py` | GraphRAG-lite evidence pack: optional semantic candidates + graph expansion + text/read fallback |
+| `mb_code_context_core.py` | Core evidence-pack orchestration for `mb-code-context.py` |
 | `mb-context-slim.py` | Slim a full agent prompt on stdin → terse version on stdout |
 | `mb-upgrade.sh [--check\|--force]` | Self-update the skill from GitHub |
 
