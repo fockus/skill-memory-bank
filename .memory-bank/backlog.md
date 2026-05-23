@@ -250,6 +250,62 @@
 
 ### I-035 — Refresh bats fixtures referencing legacy plan.md after roadmap.md migration [MED, NEW, 2026-04-27]
 
+### I-036 — Worktree per item (sub-isolation within plan) [MED, NEW, 2026-05-23]
+
+**Problem:** parallel-pipeline (S5) использует worktree per plan, но items внутри одного плана работают в shared tree. Если два item'а в плане touch overlapping files (например оба правят `commands/work.md`) — implicit race condition.
+
+**Sketch:** опция `--isolate-items` для `/mb run`, или per-stage frontmatter marker `<!-- mb-stage:N isolate -->`. Создаёт sub-worktree per item внутри плана. Lead cherry-pick'ит результаты последовательно при merge phase. Cost: больше worktree management, дольше старт.
+
+**Trigger:** ждать пока появится реальный кейс с конфликтами; tracking — `pivot-log.jsonl` или новый `parallel-collision.jsonl`.
+
+### I-037 — DAG cycles вне `loop_target` (general cycles support) [LOW, NEW, 2026-05-23]
+
+**Problem:** parallel-pipeline (S5) разрешает только явные loops (фаза → фаза по условию failure). Не разрешает циклы вида A → B → C → A через произвольные триггеры.
+
+**Sketch:** расширить валидатор pipeline.yaml: разрешить named cycle groups с явным max_iterations. Сейчас планировщик это блокирует.
+
+**Trigger:** появится реальный сценарий, где нужен treble loop (например QA → security → arch-review → QA).
+
+### I-038 — Динамическое создание ролей на ходу [LOW, NEW, 2026-05-23]
+
+**Problem:** parallel-pipeline (S5) фиксирует все роли в pipeline.yaml до запуска. Невозможно создать ad-hoc роль по факту обнаруженной проблемы.
+
+**Sketch:** runtime API `spawn_role(name, prompt, model)` доступен из bash executor'а; роль existует только до конца текущего run'а. Use case: «mb-reviewer обнаружил security issue → spawn временную роль mb-security-auditor с узким контекстом».
+
+**Trigger:** появится паттерн где нужно эфемерное расширение ролей.
+
+### I-039 — Real-time UI / progress bars для `/mb run` [LOW, NEW, 2026-05-23]
+
+**Problem:** parallel-pipeline (S5) выводит только текстовый stderr log. На длинных run'ах (несколько часов, multi-plan) сложно отследить прогресс.
+
+**Sketch:** опциональный TUI dashboard (через `tput` или внешний `--watch` процесс) показывающий: текущая wave, items in-flight, items waiting, budget consumed. Не блокирует исполнение, чисто observability.
+
+**Trigger:** real-world feedback что текстовый log недостаточен.
+
+### I-040 — Auto-merge conflict resolution через mb-architect [MED, NEW, 2026-05-23]
+
+**Problem:** parallel-pipeline (S5) при cherry-pick conflict между worktree → main делает fail-fast (halt, surface to user). На multi-plan run'ах с большой степенью overlap это блокирует прогресс.
+
+**Sketch:** при cherry-pick conflict — автоматически dispatch'ить Task → mb-architect с conflict diff + контекст обоих планов, запрашивать resolution; если architect возвращает clean resolution — apply, otherwise — escalate to user.
+
+**Trigger:** появится паттерн где cross-plan conflicts частые (например когда несколько sub-projects одной phase'ы трогают один config).
+
+### I-041 — Engine sharing с claude-skill-build (extract to shared package) [LOW, NEW, 2026-05-23]
+
+**Problem:** parallel-pipeline (S5) и claude-skill-build реализуют схожий wave-pipeline engine независимо. Schema общая (по нашей договорённости), engine — нет. Дублирование maintenance.
+
+**Sketch:** вынести `mb_pipeline_plan.py` + `mb-pipeline-run.sh` в отдельный PyPI пакет или git-submodule `pipeline-engine`. Оба скила импортируют. Требует stable contract API между пакетом и скилами.
+
+**Trigger:** если оба скила будут активно эволюционировать engine — раньше; если один из них уйдёт в backlog — отпадает.
+
+### I-042 — Full Python re-write pipeline engine (Approach B) [LOW, NEW, 2026-05-23]
+
+**Problem:** parallel-pipeline (S5) реализован как hybrid (Python planner + bash executor). Marshalling через JSON-файлы — overhead и точка ошибок.
+
+**Sketch:** перенести executor в Python (asyncio для параллельного Task dispatch). Bash остаётся только как тонкие action-primitives (`mb-work-budget.sh`, `mb-work-protected-check.sh`).
+
+**Trigger:** если bash executor превысит 500 LOC и/или будут systematic bugs в JSON marshalling layer.
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
