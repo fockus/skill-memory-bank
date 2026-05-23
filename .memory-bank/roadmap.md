@@ -26,25 +26,63 @@ _Last updated: auto-synced by mb-roadmap-sync.sh_
 
 ## Next intent (prose — not yet a plan file)
 
-Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Sprint 1+2+3 ✅ + I-033 ✅ (2026-04-25). **Skill v2 RELEASED как v4.0.0.** Current focus: feature `global-storage` (Sprint 1 in progress, Sprint 2/3 queued) plus newly planned Phase `sdd-unification` (3 Sprint: task model, work engine, traceability + docs).
+Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ + Sprint `rule-profiles-and-stack-presets` ✅ — все три закрыты, перенесены в `plans/done/` 2026-05-24. **Skill cap: v4.0.0**, накопленные изменения уйдут v4.x bumps. Following sequence фиксирует execution-order двух больших активных линеек (`harness-upgrade` + `goal-driven-autopilot`) плюс standalone `skill-improvements-anthropic-audit`. Совокупный финальный gate = **v5.0.0**.
 
-## Phase: sdd-unification
+## Phase: harness-upgrade + goal-driven-autopilot (v5.0.0 target)
 
-**Goal:** Сделать `specs/<topic>/tasks.md` first-class executable artifact для `/mb work`, с `plan.md` в роли тонкого execution wrapper. Единый SDD-flow: `/mb discuss → /mb sdd → /mb work <topic> → /mb verify`.
+**Goal:** Превратить skill в полноценный autonomous agent harness. Две параллельно живущие линейки сводятся в одну последовательность из 12 wave'ов:
+- **harness-upgrade** — stack-aware reviewer + adaptive work-loop + handoff + multi-model + декларативный pipeline (`/mb run`).
+- **goal-driven-autopilot** — overlay/addons + mb-debugger + atomic-commit + goal-layer + worktree (MVP) + parallel-waves (MVP) + autopilot loop.
 
-**Sprints (strict order, depends_on):**
+Все промежуточные cuts — v4.x bumps. v5.0.0 — только после закрытия W12.
 
-1. ⬜ Sprint 1 — [refactor sdd-task-model](plans/2026-05-21_refactor_sdd-task-model.md): shared parser `scripts/mb_work_items.py` + `<!-- mb-task:N -->` marker format + `mb-sdd.sh` generator update + `mb-spec-validate.sh`. **Does not change `/mb work` behavior.**
-2. ⬜ Sprint 2 — [refactor sdd-work-engine](plans/2026-05-21_refactor_sdd-work-engine.md): wire `mb-work-resolve.sh` / `mb-work-range.sh` / `mb-work-plan.sh` to the shared parser; introduce plan-as-wrapper frontmatter (`linked_spec` + `tasks`); update `commands/work.md`. **Switches `/mb work` to spec-task execution.**
-3. ⬜ Sprint 3 — [refactor sdd-traceability-docs](plans/2026-05-21_refactor_sdd-traceability-docs.md): extend `mb-traceability-gen.sh` (new Spec Task column); update `SKILL.md` + `commands/{sdd,work,plan}.md` + `references/templates.md`; ship `mb-spec-tasks-migrate.sh` for legacy `tasks.md` upgrade.
+**Strict execution sequence (12 waves, dependency-ordered):**
 
-**Cross-Sprint dependencies:** Sprint 2 depends_on Sprint 1 (shared parser). Sprint 3 depends_on Sprint 2 (executable spec tasks). Ни один Sprint не parallel_safe внутри Phase.
+| Wave | Plan | Track | Depends on | Notes |
+|------|------|-------|------------|-------|
+| 1 | harness-upgrade S1 — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) | code | — | stack-aware reviewer + examples cache + golden calibration suite |
+| 1 | standalone — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) | docs | — | parallel-safe; запускается в W1, длится сколько успевает (W1-W2) |
+| 2 | harness-upgrade S2 — [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md) | code | W1 reviewer-v2 | `progress_trend`, `pivot_via_architect`, contract phase |
+| 3 | harness-upgrade S3 — [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) | code | — (parallel-safe) | capsule + PreCompact + mandatory done-gates + hash chain |
+| 4 | harness-upgrade S4 — [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md) | code | W1 + W2 | Haiku/Sonnet/Opus role assignment |
+| 5 | autopilot S1 — [prompt-overlay + addons](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md) | code | — | foundation для всего autopilot (C7) |
+| 6 | autopilot S2 — [mb-debugger + /mb debug](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md) | code | W5 | uses W5 addons; recovery primitive для W11 (C3) |
+| 7 | autopilot S4 — [atomic-commit per stage](plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md) | code | — | low-risk, полезно независимо (C5) |
+| 8 | autopilot S6 — [goal-layer + /goal](plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md) | code | — | low-risk, independent (C1) |
+| 9 | autopilot S3 — [worktree isolation (MVP)](plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md) | code | — | marker/`/mb work` MVP (C2); evolve в W12 |
+| 10 | autopilot S5 — [parallel-waves (MVP)](plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md) | code | — | marker-based DAG (C4); evolve в W12 |
+| 11 | autopilot S7 — [autopilot loop](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md) | code | W5..W10 | integrates всё (C6); end-to-end 3-stage test |
+| 12 | harness-upgrade S5 — [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) | code | W1+W2 (soft W3, W4); supersedes W9+W10 | `/mb run` + pipeline.yaml + worktree-per-plan + cross-agent adapter layer |
 
-**Cross-Phase dependency:** Phase `sdd-unification` queued после Phase `global-storage` (или параллельно, если появится капаситет) — явных пересечений по файлам с global-storage нет (разные скрипты: `scripts/_lib.sh` vs `scripts/mb-work-*.sh` + `scripts/mb-sdd.sh`).
+**Ordering rationale:**
+- W1+W2 закладывают фундамент review+loop, поверх которого живёт всё последующее — reviewer-v2 и work-loop-v2 пишет почти каждый sprint.
+- W3 (handoff) parallel-safe по frontmatter, но дешевле сделать в hold между W2 и W4, чем гнать pseudo-параллельно с code track'ом.
+- W4 (cost-multi-model) — оптимизация, нужна до больших фаз, чтобы autopilot сразу использовал Haiku/Sonnet routing.
+- W5+W6 — overlay + mb-debugger закладывают prompting инфру и recovery primitive для autopilot loop.
+- W7+W8 — low-risk independent improvements (atomic commit + goal layer). Делаются до medium-risk W9+W10.
+- W9+W10 — MVP worktree и parallel-waves. Сознательно делаются ДО W12 чтобы выпустить рабочий autopilot.
+- W11 — собирает всю autopilot цепочку end-to-end (зависит от W5..W10).
+- W12 — `parallel-pipeline` как evolution: декларативный `/mb run` + cross-agent adapters; не удаляет MVP из W9+W10 (`/mb work --parallel` и `/mb run` остаются параллельными UX).
 
-**Phase Gate:** E2E сценарий `/mb discuss → /mb sdd → mb-spec-validate → /mb work <topic> → /mb verify → mb-traceability-gen` отрабатывает на tmp-проекте без получения ошибок; traceability matrix содержит Spec Task column; backward-compat для plain plans (`mb-stage:N`) сохранён.
+**Cross-Phase invariants:**
+- Каждый wave landing: pytest GREEN, bats GREEN, rules-check 0 violations, traceability обновлён, plan перенесён в `plans/done/`.
+- Default behaviour byte-identical после каждой landing — всё новое опционально (opt-in flags/env vars).
+- Frontmatter `status: in_progress` ставится только на ОДНОМ плане в моменте (исключение: W1 + skill-improvements могут идти параллельно, т.к. docs/code track не пересекаются).
+
+**Phase gate (v5.0.0):**
+1. Все 12 wave'ов закрыты, плановые файлы в `plans/done/`.
+2. End-to-end autopilot test PASS: `/goal init` → `/mb run <plan>` → autopilot loop с mb-debugger auto-recovery → goal completion без supervision.
+3. `mb-traceability-gen` показывает 100% coverage REQ-NNN из specs/{goal-driven-autopilot, parallel-pipeline}.
+4. CHANGELOG `[5.0.0]` описывает обе линейки + migration guide для opt-in flags.
+5. PyPI `memory-bank-skill==5.0.0` + Homebrew bump synced.
 
 ## Recently completed
+
+- **✅ Phase `global-storage` (core + agent-support) + Sprint `rule-profiles-and-stack-presets`** [2026-05-24, plans archived]
+   - `global-storage-core`: resolver contract tests + 6 `_lib.sh` helpers + `mb-init-bank.sh` global flags + `/mb init` UX + rules-only mode docs. Verified: 735 pytest + 119 focused bats.
+   - `global-storage-agent-support`: resolver-aware hooks (3 hooks + git-hooks-fallback honour `MB_PATH`) + adapter matrix (opencode JS plugin, cursor/codex/pi/windsurf/cline/kilo) + Codex global AGENTS embed (TDD/SOLID/Clean Architecture/DRY/KISS/YAGNI/`[MEMORY BANK: ABSENT]`) + storage-modes docs + E2E suite (4 bats cases).
+   - `rule-profiles-and-stack-presets`: profile schema + 22 built-in presets (roles/stacks/architecture/delivery) + `memory_bank_skill/rules_profile.py` + `scripts/mb-profile.sh` CLI + `mb-rules-check.sh` profile integration (strictness-aware exit, rule_id/profile_source fields, stack-aware checks) + `/mb profile` command + `docs/rule-profiles.md`. Verified: 798 pytest + full bats + ruff clean.
+   - Plans: [done/global-storage](plans/done/2026-05-21_feature_global-storage.md), [done/global-storage-agent-support](plans/done/2026-05-21_feature_global-storage-agent-support.md), [done/rule-profiles-and-stack-presets](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md).
 
 - **✅ Phase `sdd-unification` — Spec-Driven Development end-to-end** [2026-05-23]
    - Three sprints landed: `sdd-task-model` (shared parser + new tasks.md format + spec-validate), `sdd-work-engine` (`/mb work` executes spec tasks; plan-as-wrapper via linked_spec frontmatter; additive JSON fields), `sdd-traceability-docs` (Spec Task column in matrix + migration script + unified SDD docs).
@@ -161,12 +199,14 @@ Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Spri
 - I-026 ✅ resolved в Sprint 2 (Phase/Sprint/Task parser)
 - I-023 (MED) — grep→find в start.md/mb-doctor
 
-## Roadmap high-level (из specs/mb-skill-v2/design.md §20)
+## Roadmap high-level
 
 - **Phase 1 — Foundation** ✅ COMPLETE (rename + autosync + traceability-gen infrastructure)
-- **Phase 2 — Discussion & SDD artifacts** (Sprint 1: discuss+EARS+context; Sprint 2: /mb sdd + specs/<topic>/ + SDD-lite)
-- **Phase 3 — Work engine** (Sprint 1: pipeline.yaml + /mb config; Sprint 2: /mb work + 9 role-agents; Sprint 3: review-loop + severity gates)
-- **Phase 4 — Hardening** (Sprint 1: plan-verifier + 4 critical hooks; Sprint 2: --auto/--range/--budget + sprint_context_guard; Sprint 3: superpowers overrides + installer update)
+- **Phase 2 — Discussion & SDD artifacts** ✅ COMPLETE (discuss+EARS+context, /mb sdd, SDD-lite)
+- **Phase 3 — Work engine** ✅ COMPLETE (pipeline.yaml + /mb config, /mb work + 9 role-agents, review-loop + severity gates)
+- **Phase 4 — Hardening** ✅ COMPLETE (plan-verifier + 4 critical hooks, --auto/--range/--budget + sprint_context_guard, installer + superpowers overrides)
+- **Phase 4.x — Storage + rules + SDD unification** ✅ COMPLETE (global-storage + rule-profiles + sdd-unification + GraphRAG-lite)
+- **Phase 5 — Autonomous agent harness** 🔄 ACTIVE → see `## Phase: harness-upgrade + goal-driven-autopilot` выше. 12 wave'ов, фінальный gate v5.0.0.
 
 ## See also
 - traceability.md — REQ coverage matrix (пока "No specs yet", Phase 2 заполнит)
@@ -203,9 +243,20 @@ Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Spri
 ## Active plans
 
 <!-- mb-active-plans -->
-- [2026-05-21] [plans/2026-05-21_feature_global-storage.md](plans/2026-05-21_feature_global-storage.md) — feature — global-storage-core
-- [2026-05-21] [plans/2026-05-21_feature_global-storage-agent-support.md](plans/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
-- [2026-05-21] [plans/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
+- [2026-05-23] [plans/2026-05-23_feature_reviewer-v2.md](plans/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0 (S1 of harness-upgrade)
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — goal-driven-autopilot (Phase roadmap)
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md) — feature — goal-driven-autopilot — Sprint 1: Prompt overlay + addons
+- [2026-05-23] [plans/2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0 (S2 of harness-upgrade)
+- [2026-05-23] [plans/2026-05-23_feature_handoff-v2.md](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
+- [2026-05-23] [plans/2026-05-23_feature_cost-multi-model.md](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md) — feature — goal-driven-autopilot — Sprint 2: mb-debugger + `/mb debug`
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md) — feature — goal-driven-autopilot — Sprint 3: Worktree isolation
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md) — feature — goal-driven-autopilot — Sprint 4: Atomic commit per stage
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md) — feature — goal-driven-autopilot — Sprint 5: Parallel waves (DAG)
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md) — feature — goal-driven-autopilot — Sprint 6: Goal layer + `/goal`
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md) — feature — goal-driven-autopilot — Sprint 7: Autopilot loop
+- [2026-05-23] [plans/2026-05-23_feature_skill-improvements-anthropic-audit.md](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
+- [2026-05-24] [plans/2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
 <!-- /mb-active-plans -->
 
 ## Ближайшие шаги

@@ -2,18 +2,17 @@
 
 ## Current phase
 
-**Phase `sdd-unification` COMPLETED — all 3 sprints landed: task-model + work-engine + traceability-docs. Sprint 1 (`sdd-task-model`) shipped the shared `mb_work_items.py` parser + new `<!-- mb-task:N -->` format + `mb-spec-validate.sh`. Sprint 2 (`sdd-work-engine`) made `/mb work` execute `specs/<topic>/tasks.md` as first-class source, with plan-as-wrapper UX via `linked_spec`/`tasks` frontmatter and additive JSON schema (`source`/`kind`/`covers`/`item_no`). Sprint 3 (`sdd-traceability-docs`) added the Spec Task column to the traceability matrix, shipped the idempotent `mb-spec-tasks-migrate.sh` legacy upgrade script, and unified SDD-flow docs across SKILL.md/sdd.md/plan.md/templates.md. Phase E2E gate (`mb-sdd → spec-validate → mb-work-plan → mb-traceability-gen → spec-tasks-migrate`) PASS on tmp project. Prior phase `global-storage` (Sprints 1+2+3) and architecture plan `graph-rag-lite-code-context` also closed.**
+**Phase 5 — Autonomous agent harness (v5.0.0 target).** Roadmap зафиксирован 2026-05-24 как последовательность из 12 wave'ов, объединяющая `harness-upgrade` (reviewer-v2 → work-loop-v2 → handoff-v2 → cost-multi-model → parallel-pipeline) с `goal-driven-autopilot` (overlay+addons → mb-debugger → atomic-commit → goal-layer → worktree-MVP → parallel-waves-MVP → autopilot-loop). Параллельно с W1+W2 идёт standalone `skill-improvements-anthropic-audit` (docs/evals track).
 
-Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine, `/mb config` + `/mb work`, 9 role-agents + reviewer + verifier, severity-gated review-loop, 5 critical Claude Code hooks, prompt-trimming `--slim` mode, sprint context guard, checklist hard-cap enforcement, installer auto-registration с `superpowers:requesting-code-review` skill detection. Post-release: I-004 ships `scripts/mb-auto-commit.sh` (opt-in `MB_AUTO_COMMIT=1`).
+Все промежуточные landings = v4.x bumps. v5.0.0 cut только после закрытия W12. Полная таблица последовательности + ordering rationale + gate criteria → `roadmap.md` секция `## Phase: harness-upgrade + goal-driven-autopilot`.
 
-Полный аудит skill'а проведён 2026-04-25 — обнаружено 7 групп drift (doc counts, status own-state, git hygiene, flaky tests, code-quality, security hardening, terminology canonicalization). Активный план закрывает все семь.
+**Predecessor phases ✅:** sdd-unification (3 sprints), global-storage core + agent-support, rule-profiles-and-stack-presets, GraphRAG-lite code intelligence.
 
 ## ⏭ Следующий шаг
 
-**Phase `global-storage` (Sprints 1+2+3) и Phase `sdd-unification` (Sprints 1+2+3) — обе ЗАКРЫТЫ.** Естественное продолжение (candidates, в порядке приоритета):
-- **Release cut v5.0.0** — scope теперь полностью оправдывает major bump: агент-агностик storage + rule profiles (22 built-in presets) + полный SDD-unification (shared parser + spec-task work engine + traceability matrix + migration script). Время сделать PyPI/Homebrew sync.
-- **I-005** — `/mb graph` plan-checklist-progress визуализация (graph-driven progress mapping поверх существующего `graph.json`).
-- **I-003** — native Claude Code auto-memory bridge (программная синхронизация с встроенной auto-memory, чтобы Memory Bank не дрейфовала от runtime memory).
+**Wave 1 — harness-upgrade S1 [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)** (code track) **+** standalone [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) (docs track, parallel-safe).
+
+Pre-flight: при старте reviewer-v2 поставить `status: in_progress` во frontmatter и прогнать `mb-roadmap-sync.sh` чтобы автосинк-блок начал отражать состояние. Закрытие каждого wave: `/mb verify` → `/mb done` → plan moves to `plans/done/`.
 
 ## Open backlog
 
@@ -35,14 +34,28 @@ Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine,
 ## Active plans
 
 <!-- mb-active-plans -->
-- [2026-05-21] [plans/2026-05-21_feature_global-storage.md](plans/2026-05-21_feature_global-storage.md) — feature — global-storage-core
-- [2026-05-21] [plans/2026-05-21_feature_global-storage-agent-support.md](plans/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
-- [2026-05-21] [plans/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
+- [2026-05-23] [plans/2026-05-23_feature_reviewer-v2.md](plans/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0 (S1 of harness-upgrade)
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — goal-driven-autopilot (Phase roadmap)
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md) — feature — goal-driven-autopilot — Sprint 1: Prompt overlay + addons
+- [2026-05-23] [plans/2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0 (S2 of harness-upgrade)
+- [2026-05-23] [plans/2026-05-23_feature_handoff-v2.md](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
+- [2026-05-23] [plans/2026-05-23_feature_cost-multi-model.md](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md) — feature — goal-driven-autopilot — Sprint 2: mb-debugger + `/mb debug`
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md) — feature — goal-driven-autopilot — Sprint 3: Worktree isolation
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md) — feature — goal-driven-autopilot — Sprint 4: Atomic commit per stage
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md) — feature — goal-driven-autopilot — Sprint 5: Parallel waves (DAG)
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md) — feature — goal-driven-autopilot — Sprint 6: Goal layer + `/goal`
+- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md) — feature — goal-driven-autopilot — Sprint 7: Autopilot loop
+- [2026-05-23] [plans/2026-05-23_feature_skill-improvements-anthropic-audit.md](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
+- [2026-05-24] [plans/2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
 <!-- /mb-active-plans -->
 
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-05-24 — [plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
+- 2026-05-24 — [plans/done/2026-05-21_feature_global-storage-agent-support.md](plans/done/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
+- 2026-05-24 — [plans/done/2026-05-21_feature_global-storage.md](plans/done/2026-05-21_feature_global-storage.md) — feature — global-storage-core
 - 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-traceability-docs.md](plans/done/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
 - 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-work-engine.md](plans/done/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
 - 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-task-model.md](plans/done/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model

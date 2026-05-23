@@ -1770,3 +1770,27 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - [plans/done/2026-05-21_refactor_sdd-traceability-docs.md](plans/done/2026-05-21_refactor_sdd-traceability-docs.md)
 
 **Next candidates:** Release cut v5.0.0 (now justified — scope: global-storage + rule profiles + full SDD unification = major bump), I-005 `/mb graph` plan-checklist-progress visualization, I-003 native Claude Code auto-memory bridge.
+
+## 2026-05-23
+
+### Auto-capture 2026-05-23 (session 3d9f753b)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-05-23
+
+### Auto-capture 2026-05-23 (session 8aa3d722)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-05-23
+
+### Auto-capture 2026-05-23 (session d646c361)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-05-24
+
+### Auto-capture 2026-05-24 (session 6f8eda52)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
