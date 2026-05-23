@@ -28,7 +28,7 @@ setup() {
   : > "$MB/STATUS.md"
   : > "$MB/plan.md"
   : > "$MB/checklist.md"
-  : > "$MB/BACKLOG.md"
+  : > "$MB/backlog.md"
   : > "$MB/progress.md"
 }
 

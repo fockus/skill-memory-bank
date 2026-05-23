@@ -3,7 +3,7 @@
 #
 # Contract (owned by mb-migrate-structure.sh):
 #   --apply on plan.md:
-#     • For each bullet under the localized `Deferred` section → move to BACKLOG.md as
+#     • For each bullet under the localized `Deferred` section → move to backlog.md as
 #       `### I-NNN — <text> [MED, DEFERRED, YYYY-MM-DD]`
 #     • For each bullet under the localized `Declined` section → move as
 #       `### I-NNN — <text> [LOW, DECLINED, YYYY-MM-DD]`
@@ -23,7 +23,7 @@ setup() {
   : > "$MB/RESEARCH.md"
   : > "$MB/checklist.md"
 
-  cat > "$MB/BACKLOG.md" <<'EOF'
+  cat > "$MB/backlog.md" <<'EOF'
 # Backlog
 
 ## Ideas
@@ -67,13 +67,13 @@ teardown() {
 @test "compact-plan-md: --apply moves Deferred bullets to BACKLOG as DEFERRED" {
   bash "$MIGRATE" --apply "$MB"
 
-  grep -qE '### I-00[0-9]+ — Telemetry opt-in \[MED, DEFERRED' "$MB/BACKLOG.md"
-  grep -qE '### I-00[0-9]+ — Remote backend sync \[MED, DEFERRED' "$MB/BACKLOG.md"
+  grep -qE '### I-00[0-9]+ — Telemetry opt-in \[MED, DEFERRED' "$MB/backlog.md"
+  grep -qE '### I-00[0-9]+ — Remote backend sync \[MED, DEFERRED' "$MB/backlog.md"
 }
 
 @test "compact-plan-md: --apply moves Declined bullets as DECLINED" {
   bash "$MIGRATE" --apply "$MB"
-  grep -qE '### I-00[0-9]+ — Auto-commit on save \(YAGNI\) \[LOW, DECLINED' "$MB/BACKLOG.md"
+  grep -qE '### I-00[0-9]+ — Auto-commit on save \(YAGNI\) \[LOW, DECLINED' "$MB/backlog.md"
 }
 
 @test "compact-plan-md: removes bullets from plan.md" {
@@ -105,6 +105,6 @@ EOF
   perl -0pi -e 's/__LOCALIZED_DEFERRED__/\x{041E}\x{0442}\x{043B}\x{043E}\x{0436}\x{0435}\x{043D}\x{043E}/g; s/__LOCALIZED_DECLINED__/\x{041E}\x{0442}\x{043A}\x{043B}\x{043E}\x{043D}\x{0435}\x{043D}\x{043E}/g' "$MB/plan.md"
 
   bash "$MIGRATE" --apply "$MB"
-  grep -qE '### I-00[0-9]+ — Later thing \[MED, DEFERRED' "$MB/BACKLOG.md"
-  grep -qE '### I-00[0-9]+ — Never thing \[LOW, DECLINED' "$MB/BACKLOG.md"
+  grep -qE '### I-00[0-9]+ — Later thing \[MED, DEFERRED' "$MB/backlog.md"
+  grep -qE '### I-00[0-9]+ — Never thing \[LOW, DECLINED' "$MB/backlog.md"
 }

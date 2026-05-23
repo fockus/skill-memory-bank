@@ -3,7 +3,7 @@
 <!-- mb-roadmap-auto -->
 ## Now (in progress)
 
-_None._
+- [ci-baseline-wave-0](plans/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1)
 
 ## Next (strict order — depends)
 
@@ -36,11 +36,12 @@ Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ 
 
 Все промежуточные cuts — v4.x bumps. v5.0.0 — только после закрытия W12.
 
-**Strict execution sequence (12 waves, dependency-ordered):**
+**Strict execution sequence (13 waves, dependency-ordered):**
 
 | Wave | Plan | Track | Depends on | Notes |
 |------|------|-------|------------|-------|
-| 1 | harness-upgrade S1 — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) | code | — | stack-aware reviewer + examples cache + golden calibration suite |
+| **0** | **[fix CI baseline](plans/2026-05-24_fix_ci-baseline-wave-0.md)** | **infra** | **—** | **`test.yml` red на main с 2026-04-25 (~1 месяц). Без green CI Wave 1 не имеет верификации. 6 stages: casing → init scaffold → go-skip → real bugs → graph-rag adapters → final green.** |
+| 1 | harness-upgrade S1 — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) | code | **W0** | stack-aware reviewer + examples cache + golden calibration suite |
 | 1 | standalone — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) | docs | — | parallel-safe; запускается в W1, длится сколько успевает (W1-W2) |
 | 2 | harness-upgrade S2 — [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md) | code | W1 reviewer-v2 | `progress_trend`, `pivot_via_architect`, contract phase |
 | 3 | harness-upgrade S3 — [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) | code | — (parallel-safe) | capsule + PreCompact + mandatory done-gates + hash chain |

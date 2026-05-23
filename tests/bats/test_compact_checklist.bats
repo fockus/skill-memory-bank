@@ -20,7 +20,7 @@ setup() {
   : > "$MB/plan.md"
   : > "$MB/progress.md"
   : > "$MB/RESEARCH.md"
-  : > "$MB/BACKLOG.md"
+  : > "$MB/backlog.md"
 
   # Done plan, 40 days old
   DONE_PLAN="$MB/plans/done/2026-03-01_feature_foo.md"

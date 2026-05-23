@@ -1,15 +1,15 @@
 #!/usr/bin/env bats
-# Tests for scripts/mb-idea.sh — capture idea in BACKLOG.md with I-NNN.
+# Tests for scripts/mb-idea.sh — capture idea in backlog.md with I-NNN.
 #
 # Contract:
 #   Usage: mb-idea.sh <title> [priority] [mb_path]
 #   priority ∈ HIGH|MED|LOW (default MED), case-insensitive input
-#   - Appends to `## Ideas` section in BACKLOG.md as
+#   - Appends to `## Ideas` section in backlog.md as
 #     `### I-NNN — <title> [<PRIORITY>, NEW, YYYY-MM-DD]`
 #   - `I-NNN` is monotonic across ENTIRE file (max existing + 1, zero-padded 3 digits).
 #   - Idempotent by title: second call with same title → no-op + warning.
 #   - Prints created ID on stdout: "I-NNN".
-#   - Exit 0 on success, 1 on missing BACKLOG.md, 2 on invalid priority.
+#   - Exit 0 on success, 1 on missing backlog.md, 2 on invalid priority.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -19,7 +19,7 @@ setup() {
   TMPBANK="$TMPROOT/.memory-bank"
   mkdir -p "$TMPBANK"
 
-  cat > "$TMPBANK/BACKLOG.md" <<'EOF'
+  cat > "$TMPBANK/backlog.md" <<'EOF'
 # Backlog
 
 ## Ideas
@@ -46,13 +46,13 @@ teardown() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"I-001"* ]]
 
-  grep -qE '### I-001 — First idea \[HIGH, NEW, [0-9]{4}-[0-9]{2}-[0-9]{2}\]' "$TMPBANK/BACKLOG.md"
+  grep -qE '### I-001 — First idea \[HIGH, NEW, [0-9]{4}-[0-9]{2}-[0-9]{2}\]' "$TMPBANK/backlog.md"
 }
 
 @test "idea: default priority is MED when omitted" {
   run bash "$IDEA" "Unspecified priority" "" "$TMPBANK"
   [ "$status" -eq 0 ]
-  grep -qE '### I-00[0-9]+ — Unspecified priority \[MED, NEW,' "$TMPBANK/BACKLOG.md"
+  grep -qE '### I-00[0-9]+ — Unspecified priority \[MED, NEW,' "$TMPBANK/backlog.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -63,18 +63,18 @@ teardown() {
   bash "$IDEA" "One" "HIGH" "$TMPBANK"
   bash "$IDEA" "Two" "LOW" "$TMPBANK"
 
-  grep -qE '### I-001 — One'  "$TMPBANK/BACKLOG.md"
-  grep -qE '### I-002 — Two'  "$TMPBANK/BACKLOG.md"
+  grep -qE '### I-001 — One'  "$TMPBANK/backlog.md"
+  grep -qE '### I-002 — Two'  "$TMPBANK/backlog.md"
 }
 
 @test "idea: auto-increment continues after user-added I-005" {
-  cat >> "$TMPBANK/BACKLOG.md" <<'EOF'
+  cat >> "$TMPBANK/backlog.md" <<'EOF'
 
 ### I-005 — manual injection [MED, NEW, 2026-04-01]
 EOF
 
   bash "$IDEA" "After gap" "MED" "$TMPBANK"
-  grep -qE '### I-006 — After gap' "$TMPBANK/BACKLOG.md"
+  grep -qE '### I-006 — After gap' "$TMPBANK/backlog.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -86,7 +86,7 @@ EOF
   bash "$IDEA" "Same title" "HIGH" "$TMPBANK"
 
   # Exactly one I-NNN line matching the title
-  count=$(grep -cE '### I-[0-9]{3} — Same title' "$TMPBANK/BACKLOG.md")
+  count=$(grep -cE '### I-[0-9]{3} — Same title' "$TMPBANK/backlog.md")
   [ "$count" -eq 1 ]
 }
 
@@ -101,5 +101,5 @@ EOF
 
 @test "idea: priority is case-insensitive input, uppercase in file" {
   bash "$IDEA" "case test" "low" "$TMPBANK"
-  grep -qE '### I-[0-9]{3} — case test \[LOW,' "$TMPBANK/BACKLOG.md"
+  grep -qE '### I-[0-9]{3} — case test \[LOW,' "$TMPBANK/backlog.md"
 }

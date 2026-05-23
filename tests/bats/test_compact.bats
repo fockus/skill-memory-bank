@@ -26,7 +26,7 @@ setup() {
   : > "$MB/progress.md"
   : > "$MB/lessons.md"
   : > "$MB/RESEARCH.md"
-  : > "$MB/BACKLOG.md"
+  : > "$MB/backlog.md"
 }
 
 teardown() {
@@ -286,8 +286,8 @@ EOF
   # File removed
   [ ! -f "$p" ]
   # BACKLOG received a line
-  grep -q "archive_me" "$MB/BACKLOG.md"
-  grep -q "Archived plans" "$MB/BACKLOG.md"
+  grep -q "archive_me" "$MB/backlog.md"
+  grep -q "Archived plans" "$MB/backlog.md"
 }
 
 @test "compact: --apply moves note to notes/archive/" {
@@ -316,13 +316,13 @@ EOF
   [ "$status" -eq 0 ]
 
   local backlog_size1
-  backlog_size1=$(wc -l < "$MB/BACKLOG.md")
+  backlog_size1=$(wc -l < "$MB/backlog.md")
 
   run_compact --apply
   [ "$status" -eq 0 ]
 
   local backlog_size2
-  backlog_size2=$(wc -l < "$MB/BACKLOG.md")
+  backlog_size2=$(wc -l < "$MB/backlog.md")
   [ "$backlog_size1" -eq "$backlog_size2" ]
 }
 
