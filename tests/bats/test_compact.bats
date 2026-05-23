@@ -231,7 +231,7 @@ importance: low
 Referenced from plan.
 EOF
   set_mtime_days_ago "$n" 120
-  cat > "$MB/plan.md" <<EOF
+  cat > "$MB/roadmap.md" <<EOF
 # Plan
 See also notes/2026-01-05_referenced.md
 EOF

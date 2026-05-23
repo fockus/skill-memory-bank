@@ -98,7 +98,7 @@ EOF
   rm -rf "$TMPBANK/codebase"
   run bash "$SCRIPT" --deep "$TMPBANK"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"STATUS.md"* ]]
+  [[ "$output" == *"status.md"* ]]
 }
 
 @test "context: --deep flag accepted before path" {

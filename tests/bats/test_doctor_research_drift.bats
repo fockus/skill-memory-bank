@@ -25,8 +25,8 @@ setup() {
   mkdir -p "$MB/experiments" "$MB/plans/done" "$MB/notes"
 
   # Minimal files so the other checkers do not short-circuit.
-  : > "$MB/STATUS.md"
-  : > "$MB/plan.md"
+  : > "$MB/status.md"
+  : > "$MB/roadmap.md"
   : > "$MB/checklist.md"
   : > "$MB/backlog.md"
   : > "$MB/progress.md"
@@ -37,7 +37,7 @@ teardown() {
 }
 
 @test "research: H-001 Confirmed + missing EXP-001 → warn" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 # Hypotheses
 
 | ID    | Hypothesis      | Status       | Experiment | Result | Conclusion |
@@ -50,7 +50,7 @@ EOF
 }
 
 @test "research: H-001 Refuted + missing EXP-001 → warn" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 # Hypotheses
 
 | ID    | Hypothesis      | Status     | Experiment | Result | Conclusion |
@@ -62,7 +62,7 @@ EOF
 }
 
 @test "research: H-001 Confirmed + existing EXP-001.md → ok" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 | ID    | Hypothesis      | Status       | Experiment | Result | Conclusion |
 | ----- | --------------- | ------------ | ---------- | ------ | ---------- |
 | H-001 | Cache is faster | ✅ Confirmed | EXP-001    | +15%   | ship       |
@@ -79,7 +79,7 @@ EOF
 }
 
 @test "research: all hypotheses Not tested → ok (no requirement)" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 | ID    | Hypothesis | Status         | Experiment | Result | Conclusion |
 | ----- | ---------- | -------------- | ---------- | ------ | ---------- |
 | H-001 | Foo        | ⬜ Not tested   | —          | —      | —          |
@@ -90,7 +90,7 @@ EOF
 }
 
 @test "research: mixed — one Confirmed missing EXP, one Confirmed with EXP → warn" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 | ID    | Hypothesis | Status       | Experiment | Result | Conclusion |
 | ----- | ---------- | ------------ | ---------- | ------ | ---------- |
 | H-001 | Foo        | ✅ Confirmed | EXP-001    | —      | —          |
@@ -111,7 +111,7 @@ EOF
 }
 
 @test "research: drift_warnings counter incremented on gap" {
-  cat > "$MB/RESEARCH.md" <<'EOF'
+  cat > "$MB/research.md" <<'EOF'
 | ID    | Hypothesis | Status       | Experiment | Result | Conclusion |
 | ----- | ---------- | ------------ | ---------- | ------ | ---------- |
 | H-042 | Foo        | ✅ Confirmed | —          | —      | —          |
