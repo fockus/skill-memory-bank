@@ -102,6 +102,8 @@ def test_contract_t1_t4_basic_matrix(tmp_path: Path) -> None:
     # Plan/Stage column points to the plan file. Substring-only checks
     # previously missed cases where a REQ appeared elsewhere in the doc
     # but had an empty Plan column.
+    # NOTE: Stage 2 added Spec Task column — schema is now 6 columns:
+    #   REQ | Spec | Spec Task | Plan / Stage | Tests | Status
     matrix_section = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
     expected_plan = "plans/2026-04-22_feature_demo.md"
     for req_id in ("REQ-001", "REQ-002", "REQ-003"):
@@ -111,8 +113,8 @@ def test_contract_t1_t4_basic_matrix(tmp_path: Path) -> None:
         ]
         assert len(rows) == 1, f"expected one matrix row for {req_id}, got: {rows}"
         cells = [c.strip() for c in rows[0].strip().strip("|").split("|")]
-        assert len(cells) == 5, f"expected 5 columns for {req_id}, got {len(cells)}: {cells}"
-        plan_cell = cells[2]
+        assert len(cells) == 6, f"expected 6 columns for {req_id}, got {len(cells)}: {cells}"
+        plan_cell = cells[3]
         assert expected_plan in plan_cell, (
             f"{req_id} Plan/Stage cell must reference {expected_plan}, got: {plan_cell!r}"
         )
@@ -209,10 +211,10 @@ def test_marker_only_path(tmp_path: Path) -> None:
     ]
     assert len(req001_rows) == 1, f"expected one matrix row for REQ-001, got: {req001_rows}"
     row = req001_rows[0]
-    # Structure: | REQ-001 | spec | plan | tests | status |
+    # Structure (Stage 2): | REQ-001 | spec | Spec Task | plan | tests | status |
     cells = [c.strip() for c in row.strip().strip("|").split("|")]
-    assert len(cells) == 5, f"expected 5 columns, got {len(cells)}: {cells}"
-    plan_cell = cells[2]
+    assert len(cells) == 6, f"expected 6 columns, got {len(cells)}: {cells}"
+    plan_cell = cells[3]
     assert plan_cell != "—", f"Plan/Stage column must be non-empty for marker-covered REQ-001, got: {plan_cell!r}"
     assert "marker_only" in plan_cell, f"expected plan filename in Plan cell, got: {plan_cell!r}"
 
@@ -261,8 +263,78 @@ def test_pytest_naming_convention(tmp_path: Path) -> None:
     ]
     assert len(req001_rows) == 1, f"expected one matrix row for REQ-001, got: {req001_rows}"
     row = req001_rows[0]
+    # Structure (Stage 2): | REQ-001 | spec | Spec Task | plan | tests | status |
     cells = [c.strip() for c in row.strip().strip("|").split("|")]
-    assert len(cells) == 5, f"expected 5 columns, got {len(cells)}: {cells}"
-    tests_cell = cells[3]
+    assert len(cells) == 6, f"expected 6 columns, got {len(cells)}: {cells}"
+    tests_cell = cells[4]
     assert tests_cell != "—", f"Tests column must be non-empty when test_REQ_001_* exists, got: {tests_cell!r}"
     assert "test_foo.py" in tests_cell, f"expected test filename in Tests cell, got: {tests_cell!r}"
+
+
+def test_traceability_gen_still_handles_plan_only_repos(tmp_path: Path) -> None:
+    """REG-C3: repo with plan coverage but no specs/tasks.md must still generate
+    traceability with `—` in the Spec Task column for every row.
+
+    This locks the Stage 2 backward-compat contract: the Spec Task column is
+    always present in the matrix, even when no tasks.md files exist.
+    """
+    mb = _init_mb(tmp_path)
+    # Plan covers all three REQs via frontmatter; no tasks.md exists
+    (mb / "plans" / "2026-04-22_feature_plan_only.md").write_text(
+        dedent("""\
+            ---
+            type: feature
+            topic: plan_only
+            status: in_progress
+            depends_on: []
+            parallel_safe: false
+            linked_specs: []
+            sprint: 1
+            phase_of: demo
+            created: 2026-04-22
+            covers_requirements: [REQ-001, REQ-002, REQ-003]
+            ---
+
+            # Plan: plan only — no tasks.md
+
+            ## Stage 1: implement everything
+
+            <!-- mb-stage:1 -->
+            - [ ] Step 1
+            """),
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+
+    trace = (mb / "traceability.md").read_text(encoding="utf-8")
+    matrix_section = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+
+    # Header must include Spec Task column
+    header_line = next(
+        (ln for ln in matrix_section.splitlines() if ln.startswith("|")),
+        "",
+    )
+    assert "Spec Task" in header_line, (
+        f"Matrix header must contain 'Spec Task' column even for plan-only repos, "
+        f"got: {header_line!r}"
+    )
+
+    # Every REQ row must have — in the Spec Task column (index 2)
+    for req_id in ("REQ-001", "REQ-002", "REQ-003"):
+        rows = [
+            line for line in matrix_section.splitlines()
+            if line.startswith(f"| {req_id} |")
+        ]
+        assert len(rows) == 1, f"expected one matrix row for {req_id}, got: {rows}"
+        cells = [c.strip() for c in rows[0].strip().strip("|").split("|")]
+        # New column order: REQ | Spec | Spec Task | Plan / Stage | Tests | Status
+        assert len(cells) == 6, (
+            f"expected 6 columns (with Spec Task) for {req_id}, got {len(cells)}: {cells}"
+        )
+        spec_task_cell = cells[2]
+        assert spec_task_cell == "—", (
+            f"{req_id} Spec Task cell must be '—' when no tasks.md exists, "
+            f"got: {spec_task_cell!r}"
+        )

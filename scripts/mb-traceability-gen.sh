@@ -5,6 +5,7 @@
 #
 # Scans:
 #   .memory-bank/specs/*/requirements.md  — REQ-NNN definitions
+#   .memory-bank/specs/*/tasks.md         — mb-task markers (via mb_work_items.py)
 #   .memory-bank/plans/*.md + plans/done/*.md — covers_requirements frontmatter
 #                                              + `<!-- covers: REQ-NNN -->` markers
 #   tests/ (project root) AND mb_path/tests/ — grep for `REQ_NNN` substrings
@@ -16,11 +17,16 @@ set -euo pipefail
 # shellcheck source=_lib.sh
 source "$(dirname "$0")/_lib.sh"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 MB_PATH=$(mb_resolve_path "${1:-}")
 [ -d "$MB_PATH" ] || { echo "[error] .memory-bank not found at: $MB_PATH" >&2; exit 1; }
 
-python3 - "$MB_PATH" <<'PY'
+MB_WORK_ITEMS="$SCRIPT_DIR/mb_work_items.py" python3 - "$MB_PATH" <<'PY'
+import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -28,6 +34,8 @@ mb = Path(sys.argv[1])
 specs_dir = mb / "specs"
 plans_dir = mb / "plans"
 out_path = mb / "traceability.md"
+
+mb_work_items_path = os.environ.get("MB_WORK_ITEMS", "")
 
 REQ_RE = re.compile(r"\bREQ-(\d{3,})\b")
 REQ_TEST_RE = re.compile(r"REQ_(\d{3,})")
@@ -44,7 +52,7 @@ if not specs_dir.is_dir() or not any(specs_dir.glob("*/requirements.md")):
     sys.exit(0)
 
 # T1: collect REQs from each spec
-reqs: dict[str, dict[str, str]] = {}
+reqs: dict[str, dict] = {}
 for req_file in sorted(specs_dir.glob("*/requirements.md")):
     spec_name = req_file.parent.name
     spec_rel = f"specs/{spec_name}/requirements.md"
@@ -60,7 +68,7 @@ for req_file in sorted(specs_dir.glob("*/requirements.md")):
             continue
         reqs.setdefault(
             req_id,
-            {"spec": spec_rel, "planned": "", "tests": ""},
+            {"spec": spec_rel, "spec_tasks": [], "planned": "", "tests": ""},
         )
 
 
@@ -112,6 +120,37 @@ for plan in plan_paths():
             existing = reqs[req]["planned"]
             reqs[req]["planned"] = (existing + " " if existing else "") + rel
 
+# T2.5: scan specs/*/tasks.md via mb_work_items.py
+if mb_work_items_path and Path(mb_work_items_path).is_file():
+    for tasks_file in sorted(specs_dir.glob("*/tasks.md")):
+        spec_topic = tasks_file.parent.name
+        proc = subprocess.run(
+            ["python3", mb_work_items_path, str(tasks_file)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            print(
+                f"[warn] mb_work_items.py failed for {tasks_file}: {proc.stderr.strip()}",
+                file=sys.stderr,
+            )
+            continue
+        for line in proc.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            for req_id in item.get("covers", []):
+                req_id = req_id.upper()
+                if req_id in reqs:
+                    reqs[req_id]["spec_tasks"].append(
+                        (spec_topic, item["item_no"])
+                    )
+
 # T3: grep tests at repo-root/tests and mb/tests
 test_roots = [mb.parent / "tests", mb / "tests"]
 for root in test_roots:
@@ -143,12 +182,31 @@ for root in test_roots:
 total = len(reqs)
 planned = sum(1 for r in reqs.values() if r["planned"])
 tested = sum(1 for r in reqs.values() if r["tests"])
+tasks_covered = sum(1 for r in reqs.values() if r["spec_tasks"])
 
 
-def status_for(r: dict[str, str]) -> str:
-    if r["planned"] and r["tests"]:
+def _spec_task_cell(spec_tasks: list) -> str:
+    if not spec_tasks:
+        return "—"
+    # Sort for idempotency, deduplicate
+    seen: set[tuple] = set()
+    unique = []
+    for t in spec_tasks:
+        key = (t[0], t[1])
+        if key not in seen:
+            seen.add(key)
+            unique.append(t)
+    unique.sort(key=lambda t: (t[0], t[1]))
+    refs = [f"specs/{topic}/tasks.md#task-{no}" for topic, no in unique]
+    return ", ".join(refs)
+
+
+def status_for(r: dict) -> str:
+    has_coverage = bool(r["spec_tasks"] or r["planned"])
+    has_tests = bool(r["tests"])
+    if has_coverage and has_tests:
         return "✅"
-    if r["planned"]:
+    if has_coverage:
         return "🏗️"
     return "⬜"
 
@@ -156,11 +214,17 @@ def status_for(r: dict[str, str]) -> str:
 rows = []
 for req_id in sorted(reqs):
     r = reqs[req_id]
+    spec_task_cell = _spec_task_cell(r["spec_tasks"])
     rows.append(
-        f"| {req_id} | {r['spec']} | {r['planned'] or '—'} | {r['tests'] or '—'} | {status_for(r)} |"
+        f"| {req_id} | {r['spec']} | {spec_task_cell} "
+        f"| {r['planned'] or '—'} | {r['tests'] or '—'} | {status_for(r)} |"
     )
 
-orphans = [req_id for req_id, r in sorted(reqs.items()) if not r["planned"]]
+orphans = [
+    req_id
+    for req_id, r in sorted(reqs.items())
+    if not r["spec_tasks"] and not r["planned"]
+]
 
 body = [
     "# Traceability Matrix",
@@ -171,13 +235,14 @@ body = [
     f"- Total REQs: {total}",
     f"- Planned: {planned}",
     f"- Tested: {tested}",
+    f"- Tasks-covered: {tasks_covered}",
     "",
     "## Matrix",
     "",
-    "| REQ | Spec | Plan / Stage | Tests | Status |",
-    "|-----|------|--------------|-------|--------|",
+    "| REQ | Spec | Spec Task | Plan / Stage | Tests | Status |",
+    "|-----|------|-----------|--------------|-------|--------|",
 ]
-body.extend(rows if rows else ["| _no REQs_ | — | — | — | — |"])
+body.extend(rows if rows else ["| _no REQs_ | — | — | — | — | — |"])
 
 body.extend(
     [
@@ -185,7 +250,7 @@ body.extend(
         "## Orphans",
         "",
         *(
-            [f"- {req} — in spec but no covering plan" for req in orphans]
+            [f"- {req} — in spec but no covering plan or task" for req in orphans]
             if orphans
             else ["_None._"]
         ),
@@ -194,5 +259,8 @@ body.extend(
 )
 
 out_path.write_text("\n".join(body), encoding="utf-8")
-print(f"[traceability-gen] total={total} planned={planned} tested={tested} orphans={len(orphans)}")
+print(
+    f"[traceability-gen] total={total} planned={planned} "
+    f"tested={tested} tasks_covered={tasks_covered} orphans={len(orphans)}"
+)
 PY

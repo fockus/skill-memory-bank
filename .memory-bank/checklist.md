@@ -52,15 +52,15 @@ Phase 1 Foundation, Phase 2 (discuss + sdd + plan-lite), Phase 3 Sprint 1 (`/mb 
 ## rule-profiles Sprint 3 — ✅ DONE
 - ✅ Stages 1-6: profile schema doc + 7 fixtures + RED pytest (26 cases) → `memory_bank_skill/rules_profile.py` + `scripts/mb-profile.sh` CLI (10 bats) → 22 built-in preset JSONs (roles/stacks/architecture/delivery, 12 composition tests) → `mb-rules-check.sh` profile integration (strictness-aware exit, rule_id/profile_source fields, stack-aware checks for go/python/typescript/javascript/java, fsd architecture hint, 8 bats) → `/mb profile` command + `commands/profile.md` + `docs/rule-profiles.md` + README/SKILL.md updates (7 new runtime tests) → CHANGELOG + verification (798 pytest, full bats, ruff clean). Detail → `plans/2026-05-21_feature_rule-profiles-and-stack-presets.md`.
 
-<!-- mb-plan:2026-05-21_refactor_sdd-task-model.md -->
+<!-- mb-plan:done/2026-05-21_refactor_sdd-task-model.md -->
 ## sdd-task-model Sprint 1 — DONE ✅
-- ✅ Stages 1-3: RED tests + `mb_work_items.py` parser (stdlib, JSON Lines CLI) + `mb-sdd.sh` emits new `<!-- mb-task:N -->` format (27/27 sdd+parser tests green, smoke OK). Detail → `plans/2026-05-21_refactor_sdd-task-model.md`.
+- ✅ Stages 1-3: RED tests + `mb_work_items.py` parser (stdlib, JSON Lines CLI) + `mb-sdd.sh` emits new `<!-- mb-task:N -->` format (27/27 sdd+parser tests green, smoke OK). Detail → `plans/done/2026-05-21_refactor_sdd-task-model.md`.
 - ✅ Stages 4-5: `scripts/mb-spec-validate.sh` (12 pytest cases GREEN, shellcheck clean) + Sprint 1 closeout. Sprint 2 (`sdd-work-engine`) unblocked.
 
-<!-- mb-plan:2026-05-21_refactor_sdd-work-engine.md -->
+<!-- mb-plan:done/2026-05-21_refactor_sdd-work-engine.md -->
 ## sdd-work-engine Sprint 2 — DONE ✅
-- ✅ Stages 1-6: RED tests + `mb-work-resolve.sh` (Form 3 markers/Form 4 specs candidates) + `mb-work-range.sh` (mb-stage/mb-task auto-detect, mixed-format reject) + `mb-work-plan.sh` refactor (inline parser deleted, uses `mb_work_items.py`, +source/kind/covers/item_no, plan-as-wrapper via linked_spec) + `commands/work.md` Sprint 2 docs + bats. 46/46 work-stack tests GREEN. Sprint 3 (`sdd-traceability-docs`) unblocked.
+- ✅ Stages 1-6: RED tests + `mb-work-resolve.sh` (Form 3 markers/Form 4 specs candidates) + `mb-work-range.sh` (mb-stage/mb-task auto-detect, mixed-format reject) + `mb-work-plan.sh` refactor (inline parser deleted, uses `mb_work_items.py`, +source/kind/covers/item_no, plan-as-wrapper via linked_spec) + `commands/work.md` Sprint 2 docs + bats. 46/46 work-stack tests GREEN. Sprint 3 (`sdd-traceability-docs`) unblocked. Detail → `plans/done/2026-05-21_refactor_sdd-work-engine.md`.
 
-<!-- mb-plan:2026-05-21_refactor_sdd-traceability-docs.md -->
-## sdd-traceability-docs Sprint 3 — queued
-- ⬜ Stages 1-5: traceability spec-tasks scan + `mb-spec-tasks-migrate.sh` + docs update + Phase gate. Detail → `plans/2026-05-21_refactor_sdd-traceability-docs.md`.
+<!-- mb-plan:done/2026-05-21_refactor_sdd-traceability-docs.md -->
+## sdd-traceability-docs Sprint 3 — DONE ✅
+- ✅ Stages 1-5: traceability scans specs/*/tasks.md (Spec Task column + Tasks-covered summary) + `scripts/mb-spec-tasks-migrate.sh` (9 pytest cases, idempotent, dry-run default) + SKILL.md/sdd.md/plan.md/templates.md unified SDD docs (7 pytest + 4 bats GREEN) + Phase E2E gate PASS. Phase `sdd-unification` closed.

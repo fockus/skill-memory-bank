@@ -108,6 +108,11 @@ Principle: one change per experiment (single-change policy).
 
 Formal 3-level hierarchy for planning. **Choose the level by the size of the work — not everything needs to be wrapped in a Phase.**
 
+> **Canonical decomposition note:** When a spec exists under `specs/<topic>/`, the
+> `tasks.md` file is the canonical decomposition. Plan files act as sprint slices
+> (via `linked_spec` frontmatter) or standalone tactical wrappers when no spec
+> exists. Do not duplicate task definitions in both plan stages and spec tasks.
+
 | Level | Purpose | Size threshold | Context |
 |-------|---------|----------------|---------|
 | **Stage** | Atomic unit of work. Marker `<!-- mb-stage:N -->` inside a plan file | 1-5 files, ~5-15 tests, 5-30 min | Fits in one tool series |
@@ -442,18 +447,59 @@ Architecture + interfaces + decisions backing `requirements.md`.
 |      | H/M/L       | H/M/L  |            |
 ```
 
-## Spec Tasks (`specs/<topic>/tasks.md`) — Phase 2 Sprint 2
+## Spec Tasks (`specs/<topic>/tasks.md`) — executable task format
 
-Numbered, checkbox-tracked work items linked to REQ-IDs they cover.
+`specs/<topic>/tasks.md` is a **first-class executable artifact**. Each task is wrapped
+in `<!-- mb-task:N -->` markers so `mb_work_items.py` (and `/mb work <topic>`) can parse
+and execute it. Spec tasks are the canonical decomposition; plan files may reference them
+as sprint slices via `linked_spec` frontmatter.
+
+Validate with `bash scripts/mb-spec-validate.sh <topic>` before running `/mb work`.
+Upgrade legacy `## N. ...` style with `bash scripts/mb-spec-tasks-migrate.sh <topic>`.
 
 ```markdown
 # Tasks: <topic>
 
+<!-- mb-task:1 -->
 ## 1. <task title>
 
 **Covers:** REQ-NNN
-
-- [ ] concrete sub-step
+**Role:** <implementer role, e.g. backend>
+**What:** <concrete actions — files, functions, behaviour>
+**Testing:** <unit tests: X; integration tests: Y>
+**DoD:**
+- [ ] concrete, measurable criterion (SMART)
 - [ ] tests pass
 - [ ] lint clean
+<!-- /mb-task:1 -->
+
+<!-- mb-task:2 -->
+## 2. <next task title>
+
+**Covers:** REQ-NNN
+**Role:** <role>
+**What:** ...
+**Testing:** ...
+**DoD:**
+- [ ] ...
+<!-- /mb-task:2 -->
 ```
+
+---
+
+## Plan as execution wrapper
+
+A plan file can be a thin sprint slice over an existing spec. Declare the link in
+YAML frontmatter at the top of the plan file:
+
+```yaml
+---
+linked_spec: specs/inventory-sync
+tasks: 1-3
+---
+```
+
+`linked_spec` — path to the spec directory (relative to `.memory-bank/`).
+`tasks` — optional range; limits `/mb work` to that task subset for sprint slicing.
+
+The plan basename is used for traceability only. Spec tasks remain the source of truth.

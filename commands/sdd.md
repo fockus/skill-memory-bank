@@ -61,6 +61,53 @@ User: edits design.md / tasks.md by hand, then runs:
 → next plan in the same Phase, also linked to the spec
 ```
 
+## tasks.md format — executable task blocks
+
+The generated `tasks.md` uses `<!-- mb-task:N -->` HTML comment markers so that
+`mb_work_items.py` (and `/mb work <topic>`) can parse tasks as structured work items:
+
+```markdown
+<!-- mb-task:1 -->
+## 1. <task title>
+
+**Covers:** REQ-NNN
+**Role:** <implementer role>
+**What:** <concrete actions>
+**Testing:** <unit / integration tests>
+**DoD:**
+- [ ] concrete criterion
+- [ ] tests pass
+- [ ] lint clean
+<!-- /mb-task:1 -->
+```
+
+Each `<!-- mb-task:N -->` block is a first-class executable artifact — it is NOT
+a scaffold for humans only. `/mb work <topic>` resolves and executes these blocks
+in order.
+
+## Validate & migrate
+
+After editing `tasks.md`, validate the spec triple with:
+
+```bash
+bash scripts/mb-spec-validate.sh <topic>
+```
+
+This checkpoint verifies EARS integrity, parseable `<!-- mb-task:N -->` markers,
+per-task Covers/DoD/Testing presence, and no orphaned REQ-IDs. Run it before
+invoking `/mb work <topic>` to catch format errors early.
+
+To upgrade a legacy `tasks.md` that uses the old `## N. ...` heading style (without
+`<!-- mb-task:N -->` markers), use:
+
+```bash
+# Dry-run first (default) — shows what would change:
+bash scripts/mb-spec-tasks-migrate.sh <topic>
+
+# Apply — writes a backup then rewrites tasks.md in-place (idempotent):
+bash scripts/mb-spec-tasks-migrate.sh <topic> --apply
+```
+
 ## Out of scope
 
 - Does not run `/mb discuss` — call that first if no context yet.

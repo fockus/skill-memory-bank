@@ -1722,3 +1722,51 @@ Real failure mode hit during the v4.0.0 release session: Phase 4 Sprint 3 commit
 - Backward-compatible JSON evolution: keep `stage_no` as an alias, ADD new fields. Existing consumers (driver `commands/work.md`) continue to read `stage_no`.
 
 **Sprint 3 handoff:** spec tasks fully executable end-to-end. Sprint 3 plan `.memory-bank/plans/2026-05-21_refactor_sdd-traceability-docs.md` is ready: traceability matrix task-level coverage, `mb-spec-tasks-migrate.sh` for legacy `## 1. ...` format migration, final docs (SKILL.md / commands/sdd.md / references/templates.md update), end-to-end gate.
+
+## 2026-05-23 (sdd-traceability-docs — Sprint 3 closeout)
+
+**What:** Closed Sprint 3 of phase `sdd-unification` (all 5 stages).
+- Stage 1: 8 RED contract tests in `test_traceability_spec_tasks.py` (Spec Task column, status logic, multi-task REQs, idempotency) + 1 regression in `test_traceability_gen.py`. RED phase confirmed.
+- Stage 2: `mb-traceability-gen.sh` extended (199→266 lines). New T2.5 scan iterates `specs/*/tasks.md` via `mb_work_items.py` subprocess. New `spec_tasks` field per REQ. Matrix gains `Spec Task` column (`specs/<topic>/tasks.md#task-N`, comma-separated for multi-task REQs). Coverage summary line `Tasks-covered: M`. Status logic: `✅` (has_coverage AND tests), `🏗️` (coverage no tests), `⬜` (orphan).
+- Stage 3: NEW `scripts/mb-spec-tasks-migrate.sh` (~250 lines). Legacy `## N. Title` → `<!-- mb-task:N -->\n## Task N: Title`. Dry-run default, `--apply` with timestamped backup, idempotent re-runs, atomic write via `.new` + `mv`. Adds `**Covers:** REQ-NNN` placeholder if missing. 9/9 pytest cases GREEN. Shellcheck clean.
+- Stage 4: Unified SDD-flow docs across `SKILL.md` (+Tools row + Quick start), `commands/sdd.md` (+Validate & migrate section, mb-task format), `commands/plan.md` (+Plan as execution wrapper section), `references/templates.md` (+Spec Tasks executable template + Plan-as-wrapper frontmatter example). 7/7 pytest doc-tests + 4/4 bats GREEN. No "tasks.md as scaffold-only" claims remain.
+- Stage 5: Phase end-to-end gate PASS (`/mb sdd → mb-spec-validate → mb-work-plan dry-run+range → mb-traceability-gen → mb-spec-tasks-migrate idempotent`). Full mb-test-run, shellcheck, ruff, mb-rules-check all clean on Sprint 3 surface.
+
+**Why:** Closes the last gap in Spec-Driven Development end-to-end. Traceability now reflects task-level coverage from `specs/<topic>/tasks.md`. Legacy projects can upgrade to the new format via the migration script without manual rework. Documentation is unified — no contradictory claims about tasks.md being scaffold-only.
+
+**Artifacts:**
+- `scripts/mb-traceability-gen.sh` (+67 lines)
+- `scripts/mb-spec-tasks-migrate.sh` (NEW, ~250 lines)
+- `SKILL.md`, `commands/sdd.md`, `commands/plan.md`, `references/templates.md` (doc updates)
+- 4 new test files: `test_traceability_spec_tasks.py` (8), `test_mb_spec_tasks_migrate.py` (9), `test_sdd_docs_unified.py` (7), `tests/bats/test_sdd_docs.bats` (4)
+- `.memory-bank/plans/2026-05-21_refactor_sdd-traceability-docs.md` → `status: done`
+
+**Lessons:**
+- Phase end-to-end gate (`/mb sdd → spec-validate → mb-work → traceability-gen`) on a tmp scratch project is cheap insurance — catches subtle integration issues that unit/integration tests can miss (e.g., a parser cross-reference between scripts).
+- Migration scripts benefit from dry-run-by-default + explicit `--apply` semantics: there's no muscle-memory disaster path.
+- When extending a matrix schema, update the test column-index assertions explicitly (count-based assertions become fragile in long-term doc-tests; named-cell assertions are safer).
+
+## 2026-05-23 (Phase sdd-unification — DONE)
+
+**Phase summary:** All 3 sprints of phase `sdd-unification` closed in a single session burst.
+
+- **Sprint 1 `sdd-task-model`**: shared parser (`scripts/mb_work_items.py` — stdlib, JSONL CLI), `mb-sdd.sh` emits new `<!-- mb-task:N -->` format, `mb-spec-validate.sh` checks spec triple integrity.
+- **Sprint 2 `sdd-work-engine`**: `/mb work` end-to-end spec-task execution. `mb-work-resolve.sh` Form 3 with marker check, Form 4 candidates from specs. `mb-work-range.sh` auto-detects mb-stage vs mb-task. `mb-work-plan.sh` refactored to use `mb_work_items.py` SSOT; new fields `source`/`kind`/`covers`/`item_no`; plan-as-wrapper via `linked_spec` + `tasks` frontmatter. `commands/work.md` rewrite.
+- **Sprint 3 `sdd-traceability-docs`**: Spec Task column in traceability matrix, legacy migration script, unified SDD-flow docs.
+
+**Architectural decisions (recap):**
+- Two marker formats (`mb-stage`, `mb-task`) share one parser via `kind` discriminator. Mixed-format file → `ValueError`. ([[mb_work_items]] is the SSOT.)
+- Plan-as-wrapper (`linked_spec` + `tasks: A-B` frontmatter) is the primitive for sprint slicing of large specs without duplicating tasks across plans.
+- Backward-compatible JSON evolution: keep `stage_no` as alias, ADD new fields (`item_no`, `source`, `kind`, `covers`). Existing consumers continue to read `stage_no`.
+- Wrapper bash scripts orchestrate; parsing lives in one Python module (SSOT). Resist re-adding inline parsing.
+- Migration: dry-run-default + atomic write + timestamped backup. Idempotency via marker presence detection.
+
+**Migration story:**
+Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --apply`. Existing `plans/*.md` with `<!-- mb-stage:N -->` markers continue to work unchanged (backward-compat preserved).
+
+**Sprint plans (archived):**
+- [plans/done/2026-05-21_refactor_sdd-task-model.md](plans/done/2026-05-21_refactor_sdd-task-model.md)
+- [plans/done/2026-05-21_refactor_sdd-work-engine.md](plans/done/2026-05-21_refactor_sdd-work-engine.md)
+- [plans/done/2026-05-21_refactor_sdd-traceability-docs.md](plans/done/2026-05-21_refactor_sdd-traceability-docs.md)
+
+**Next candidates:** Release cut v5.0.0 (now justified — scope: global-storage + rule profiles + full SDD unification = major bump), I-005 `/mb graph` plan-checklist-progress visualization, I-003 native Claude Code auto-memory bridge.

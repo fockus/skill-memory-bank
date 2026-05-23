@@ -7,7 +7,7 @@ _None._
 
 ## Next (strict order — depends)
 
-- [sdd-traceability-docs](plans/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
+_None._
 
 ## Parallel-safe (can run now)
 
@@ -45,6 +45,11 @@ Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Spri
 **Phase Gate:** E2E сценарий `/mb discuss → /mb sdd → mb-spec-validate → /mb work <topic> → /mb verify → mb-traceability-gen` отрабатывает на tmp-проекте без получения ошибок; traceability matrix содержит Spec Task column; backward-compat для plain plans (`mb-stage:N`) сохранён.
 
 ## Recently completed
+
+- **✅ Phase `sdd-unification` — Spec-Driven Development end-to-end** [2026-05-23]
+   - Three sprints landed: `sdd-task-model` (shared parser + new tasks.md format + spec-validate), `sdd-work-engine` (`/mb work` executes spec tasks; plan-as-wrapper via linked_spec frontmatter; additive JSON fields), `sdd-traceability-docs` (Spec Task column in matrix + migration script + unified SDD docs).
+   - Phase E2E gate PASS: `mb-sdd → mb-spec-validate → mb-work-plan → mb-traceability-gen → mb-spec-tasks-migrate`.
+   - Plans: [done/sdd-task-model](plans/done/2026-05-21_refactor_sdd-task-model.md), [done/sdd-work-engine](plans/done/2026-05-21_refactor_sdd-work-engine.md), [done/sdd-traceability-docs](plans/done/2026-05-21_refactor_sdd-traceability-docs.md).
 
 - **✅ GraphRAG-lite code context — portable code intelligence layer** [2026-05-21]
    - Portable CLI source of truth: `scripts/mb-graph-query.py` (`neighbors`, `impact`, `tests`, `explain`, `summary`) and `scripts/mb-code-context.py` evidence packs.
@@ -201,9 +206,6 @@ Phase 1 ✅ + Phase 2 (Sprint 1+2) ✅ + Phase 3 Sprint 1+2+3 ✅ + Phase 4 Spri
 - [2026-05-21] [plans/2026-05-21_feature_global-storage.md](plans/2026-05-21_feature_global-storage.md) — feature — global-storage-core
 - [2026-05-21] [plans/2026-05-21_feature_global-storage-agent-support.md](plans/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
 - [2026-05-21] [plans/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
-- [2026-05-21] [plans/2026-05-21_refactor_sdd-task-model.md](plans/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
-- [2026-05-21] [plans/2026-05-21_refactor_sdd-work-engine.md](plans/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
-- [2026-05-21] [plans/2026-05-21_refactor_sdd-traceability-docs.md](plans/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
 <!-- /mb-active-plans -->
 
 ## Ближайшие шаги

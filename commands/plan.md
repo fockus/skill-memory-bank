@@ -134,6 +134,30 @@ Re-run `mb-plan-sync.sh` while iterating on the plan — it will reconcile new s
 2. `status.md` — move relevant phase into "In progress"
 3. `notes/` — optional: create `YYYY-MM-DD_HH-MM_plan-<topic>.md` with a 5-10 line summary if the plan is non-trivial
 
+## Plan as execution wrapper
+
+A plan file can serve as a thin **sprint slice** over an existing spec, rather than
+the canonical decomposition itself. Declare the link in the plan's YAML frontmatter:
+
+```yaml
+---
+linked_spec: specs/inventory-sync
+tasks: 1-3
+---
+```
+
+When `/mb work` resolves `<target>`:
+- It detects `linked_spec` in the frontmatter and loads work-items from
+  `<linked_spec>/tasks.md` (parsed via `mb_work_items.py`).
+- The optional `tasks:` range (e.g., `1-3`) limits execution to that task subset —
+  useful for sprint slicing a large spec across multiple plan files.
+- The plan basename is used only for **traceability** (the `plan` field in JSON output
+  and in `mb-traceability-gen.sh` output) — not for work-item resolution.
+
+Spec tasks (`specs/<topic>/tasks.md`) are the **canonical decomposition**.
+Plan files act as sprint slices OR standalone tactical execution wrappers when
+no spec exists. Do not duplicate task definitions in both locations.
+
 ## 6. Next step
 
 Tell the user:

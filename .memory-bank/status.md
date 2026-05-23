@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Active planning — feature `global-storage` (2026-05-21): COMPLETED. All three sprints landed: Sprint 1 (`global-storage-core`) ships the agent-agnostic storage resolver + global init; Sprint 2 (`global-storage-agent-support`) propagates resolver-aware behaviour across all hooks/adapters and adds local/global/rules-only docs; Sprint 3 (`rule-profiles-and-stack-presets`) introduces configurable rule profiles (immutable safety baseline + role/stack/architecture/delivery presets, 22 built-in preset JSONs, `mb-profile.sh` CLI, `/mb profile` command, profile-aware `mb-rules-check.sh`). Architecture plan `graph-rag-lite-code-context` verified and closed. Phase `sdd-unification` (3 Sprint: task-model → work-engine → traceability-docs) — Sprint 1 + Sprint 2 DONE; Sprint 3 (`sdd-traceability-docs`) queued and unblocked.**
+**Phase `sdd-unification` COMPLETED — all 3 sprints landed: task-model + work-engine + traceability-docs. Sprint 1 (`sdd-task-model`) shipped the shared `mb_work_items.py` parser + new `<!-- mb-task:N -->` format + `mb-spec-validate.sh`. Sprint 2 (`sdd-work-engine`) made `/mb work` execute `specs/<topic>/tasks.md` as first-class source, with plan-as-wrapper UX via `linked_spec`/`tasks` frontmatter and additive JSON schema (`source`/`kind`/`covers`/`item_no`). Sprint 3 (`sdd-traceability-docs`) added the Spec Task column to the traceability matrix, shipped the idempotent `mb-spec-tasks-migrate.sh` legacy upgrade script, and unified SDD-flow docs across SKILL.md/sdd.md/plan.md/templates.md. Phase E2E gate (`mb-sdd → spec-validate → mb-work-plan → mb-traceability-gen → spec-tasks-migrate`) PASS on tmp project. Prior phase `global-storage` (Sprints 1+2+3) and architecture plan `graph-rag-lite-code-context` also closed.**
 
 Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine, `/mb config` + `/mb work`, 9 role-agents + reviewer + verifier, severity-gated review-loop, 5 critical Claude Code hooks, prompt-trimming `--slim` mode, sprint context guard, checklist hard-cap enforcement, installer auto-registration с `superpowers:requesting-code-review` skill detection. Post-release: I-004 ships `scripts/mb-auto-commit.sh` (opt-in `MB_AUTO_COMMIT=1`).
 
@@ -10,9 +10,10 @@ Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine,
 
 ## ⏭ Следующий шаг
 
-**Phase `global-storage` закрыта (Sprints 1+2+3 done). Phase `sdd-unification` Sprint 1 (`sdd-task-model`) + Sprint 2 (`sdd-work-engine`) закрыты — parser + sdd generator + spec validator + spec-task-aware `/mb work` (5 resolution forms + plan-as-wrapper UX) готовы.** Естественное продолжение:
-- `sdd-unification` Sprint 3 (`sdd-traceability-docs`) — traceability matrix task-level coverage, `mb-spec-tasks-migrate.sh` для legacy `## 1. ...` формата, финальные docs (SKILL.md / commands/sdd.md / references/templates.md), Phase end-to-end gate. Plan ready: `plans/2026-05-21_refactor_sdd-traceability-docs.md`. Unblocked by Sprint 2 closeout.
-- Release cut v5.0.0 — feature scope крупный (агент-агностик storage + rule profiles + SDD task model + spec-task work engine), может быть пора bump major + PyPI/Homebrew sync.
+**Phase `global-storage` (Sprints 1+2+3) и Phase `sdd-unification` (Sprints 1+2+3) — обе ЗАКРЫТЫ.** Естественное продолжение (candidates, в порядке приоритета):
+- **Release cut v5.0.0** — scope теперь полностью оправдывает major bump: агент-агностик storage + rule profiles (22 built-in presets) + полный SDD-unification (shared parser + spec-task work engine + traceability matrix + migration script). Время сделать PyPI/Homebrew sync.
+- **I-005** — `/mb graph` plan-checklist-progress визуализация (graph-driven progress mapping поверх существующего `graph.json`).
+- **I-003** — native Claude Code auto-memory bridge (программная синхронизация с встроенной auto-memory, чтобы Memory Bank не дрейфовала от runtime memory).
 
 ## Open backlog
 
@@ -37,19 +38,16 @@ Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine,
 - [2026-05-21] [plans/2026-05-21_feature_global-storage.md](plans/2026-05-21_feature_global-storage.md) — feature — global-storage-core
 - [2026-05-21] [plans/2026-05-21_feature_global-storage-agent-support.md](plans/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
 - [2026-05-21] [plans/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
-- [2026-05-21] [plans/2026-05-21_refactor_sdd-task-model.md](plans/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
-- [2026-05-21] [plans/2026-05-21_refactor_sdd-work-engine.md](plans/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
-- [2026-05-21] [plans/2026-05-21_refactor_sdd-traceability-docs.md](plans/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
 <!-- /mb-active-plans -->
 
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-traceability-docs.md](plans/done/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
+- 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-work-engine.md](plans/done/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
+- 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-task-model.md](plans/done/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
 - 2026-05-21 — [plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md](plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md) — architecture — graph-rag-lite-code-context
 - 2026-04-27 — [plans/done/2026-04-25_refactor_v4-audit-remediation.md](plans/done/2026-04-25_refactor_v4-audit-remediation.md) — refactor — v4-audit-remediation
-- 2026-04-21 — [plans/done/2026-04-21_refactor_core-files-v3-1.md](plans/done/2026-04-21_refactor_core-files-v3-1.md) — refactor — core-files-v3-1
-- 2026-04-21 — [plans/done/2026-04-21_refactor_review-hardening-installer-boundaries.md](plans/done/2026-04-21_refactor_review-hardening-installer-boundaries.md) — refactor — review-hardening-installer-boundaries
-- 2026-04-21 — [plans/done/2026-04-21_refactor_agents-quality.md](plans/done/2026-04-21_refactor_agents-quality.md) — refactor — agents-quality
 <!-- /mb-recent-done -->
 
 ---

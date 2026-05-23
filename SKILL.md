@@ -11,6 +11,8 @@ Three-in-one skill for code agents:
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
 3. **Dev toolkit** — 25 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`.
 
+> **Design contract.** Memory Bank rests on one inviolable promise — *agents remember* — and a stack of fully configurable, token-economical layers above it. Default behaviour never changes without explicit opt-in; user customisations survive upgrades; expensive paths are off by default. See [`references/design-principles.md`](references/design-principles.md) for the full contract.
+
 Supported host model:
 - **Claude Code / OpenCode** — native command surface + global install.
 - **Cursor** — native full support: global skill alias (`~/.cursor/skills/memory-bank/`), global hooks (`~/.cursor/hooks.json`), global slash commands (`~/.cursor/commands/`), `~/.cursor/AGENTS.md` with managed section, plus a paste-ready file for Settings → Rules → User Rules. Project-level `.cursor/` adapter remains available as an add-on via `--clients cursor`.
@@ -34,11 +36,20 @@ Supported host model:
 /mb init --full          # same as /mb init (stack auto-detect + CLAUDE.md generation)
 /mb init --minimal       # only the .memory-bank/ structure
 
-# Session flow
+# Session flow (basic)
 /mb start                # load context
 # ... work, checklist.md updates as tasks complete ...
 /mb verify               # verify plan alignment (if there was a plan)
 /mb done                 # actualize + note + progress
+
+# Unified SDD flow (spec-driven features)
+/mb discuss <topic>      # EARS-validated requirements → context/<topic>.md
+/mb sdd <topic>          # spec triple: requirements / design / tasks.md (executable)
+# specs/<topic>/tasks.md is a first-class executable artifact with <!-- mb-task:N --> markers,
+# NOT a scaffold — each block is resolved by /mb work <topic> as a work item.
+/mb work <topic>         # execute spec tasks one by one (reads <!-- mb-task:N --> blocks)
+/mb verify               # verify against spec + plan
+/mb done                 # actualize + progress
 ```
 
 # Personalize rules for your stack (optional):
@@ -134,6 +145,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-sdd.sh <topic>` | Create a Kiro-style spec triple under `specs/<topic>/` (requirements / design / tasks) |
 | `mb_work_items.py` | Shared parser for plan stages (`<!-- mb-stage:N -->`) and spec tasks (`<!-- mb-task:N -->`); CLI emits JSON Lines |
 | `mb-spec-validate.sh <topic\|spec-dir\|spec-file>` | Validate spec triple integrity (EARS, parseable tasks, per-task Covers/DoD/Testing, no REQ orphans). `--json` mode for structured output |
+| `mb-spec-tasks-migrate.sh <topic\|tasks-file> [--apply\|--dry-run]` | Migrate legacy `## N. ...` tasks to `<!-- mb-task:N -->` format. Dry-run default, --apply writes backup before changes, idempotent |
 | `mb-pipeline.sh` | Manage the project's `pipeline.yaml` (spec §9) |
 | `mb-pipeline-validate.sh` | Structural validation for `pipeline.yaml` (spec §9) |
 | `mb-work-resolve.sh` | Resolve `<target>` arg into a plan/spec path (spec §8.2) |
