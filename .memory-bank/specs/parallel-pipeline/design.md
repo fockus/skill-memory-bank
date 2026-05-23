@@ -32,9 +32,12 @@ Inspired by `fockus/claude-skill-build` (wave model + worktree isolation). Schem
 - **G8** — Cross-plan parallel execution. `/mb run plan-1 plan-2 plan-3` runs all in their own worktrees, then merges sequentially.
 - **G9** — Cross-agent dispatch via adapter layer. First cut: Claude Code (native parallel), Pi (native parallel), Codex/OpenCode (sequential fallback).
 - **G10** — `pivot_on_stagnant` integration with S2 (work-loop-v2): when reviewer's `progress_trend` is stagnant for N cycles, automatically escalate via `mb-architect`.
+- **G11** — **Multi-provider per-phase model dispatch.** Each phase can declare its own model (e.g., `judge` runs GPT-5.5 while `implement` runs Claude Sonnet). Cross-provider invocation goes through a host-agnostic resolver: in Claude Code via a wrapping skill (e.g., `openai-gpt-skill`), in Pi/Codex/OpenCode via their native CLI/SDK. Default behaviour preserved: empty `model:` field → host's default Anthropic model + Task tool.
 
 ### Non-goals
 
+- Native streaming of partial model outputs back into orchestrator state — backlog (I-043).
+- Auto-selection of cheapest passing model per phase via historical telemetry — backlog (I-044).
 - Worktree per item (sub-isolation within a plan) — backlog (I-036).
 - DAG cycles outside `loop_target` (e.g., A → B → C → A through arbitrary paths) — backlog (I-037).
 - Dynamic role creation at runtime — backlog (I-038).
@@ -139,7 +142,8 @@ Reused (unchanged) primitives:
 | `scripts/mb-work-budget-wave.sh` | bash | Wrap existing budget check for per-wave reservation |
 | `scripts/mb-pipeline-merge.sh` | bash | Sequential cherry-pick merge phase + conflict surface |
 | `scripts/mb-pipeline-state.sh` | bash | Read/write `.memory-bank/tmp/state-<plan>.json` for resume |
-| `adapters/claude-code/dispatch.md` | doc | Claude Code dispatch protocol — main agent reads dispatches.json, issues N Task() in one response |
+| `scripts/mb-pipeline-model-resolve.sh` | bash | **G11** — resolve `phases[].model` alias → JSON with provider/id/via/invocation_hint per §10.5 |
+| `adapters/claude-code/dispatch.md` | doc | Claude Code dispatch protocol — main agent reads dispatches.json, issues N Task() in one response; routes `via: skill:<name>` through Skill tool |
 | `adapters/pi/dispatch.ts` | TypeScript | Pi native parallel subagent dispatch |
 | `adapters/codex/dispatch.sh` | bash | Codex sequential CLI loop fallback |
 | `adapters/opencode/dispatch.sh` | bash | OpenCode sequential CLI loop fallback |
@@ -156,7 +160,10 @@ Reused (unchanged) primitives:
 | `tests/pytest/test_pipeline_plan_preset_resolution.py` | pytest | Layered merge of presets |
 | `tests/pytest/test_pipeline_plan_emit_exec_graph.py` | pytest | exec_graph.json shape |
 | `tests/pytest/test_pipeline_plan_merge_order.py` | pytest | depends_on → merge_order |
-| `docs/parallel-pipeline.md` | docs | User-facing guide |
+| `tests/pytest/test_pipeline_model_registry.py` | pytest | **G11** — registry parsing, alias validation, `via:` regex |
+| `tests/bats/test_mb_pipeline_model_resolve.bats` | bats | **G11** — resolver output JSON contract per §10.5 |
+| `tests/bats/test_mb_pipeline_model_fallback.bats` | bats | **G11** — `on_model_unsupported` policy across adapters |
+| `docs/parallel-pipeline.md` | docs | User-facing guide (includes G11 "judge via GPT-5.5" worked example) |
 
 ### Project-owned (runtime)
 
@@ -185,6 +192,23 @@ pipeline:
   version: 1
   default_pipeline: standard
 
+  # G11 — model registry. Aliases decouple phases from concrete model IDs
+  # and from the host-specific invocation mechanism. Empty / absent registry
+  # falls back to host default (Anthropic via native Task dispatch).
+  models:
+    judge_default:
+      provider: openai            # anthropic | openai | google | local | <custom>
+      id: gpt-5.5
+      via: skill:openai-gpt       # native | skill:<name> | cli:<cmd>
+    architect_premium:
+      provider: anthropic
+      id: claude-opus-4-7
+      via: native                 # default Task dispatch on Claude Code
+    fast_review:
+      provider: anthropic
+      id: claude-haiku-4-5
+      via: native
+
   presets:
 
     standard:
@@ -199,6 +223,7 @@ pipeline:
           on_failure: { kind: loop_back, to: implement, max_loops: 3 }
         - name: review
           role: architect-reviewer
+          model: architect_premium   # G11 — explicit per-phase model
           parallelism: single
           on_failure: { kind: loop_back, to: implement, max_loops: 2 }
         - name: fix
@@ -208,6 +233,7 @@ pipeline:
           on_failure: { kind: halt }
         - name: judge
           role: judge
+          model: judge_default       # G11 — cross-provider GPT-5.5 judge
           parallelism: none
           gate:
             kind: hard
@@ -218,7 +244,7 @@ pipeline:
     fast:
       phases:
         - { name: implement, role: developer, parallelism: per_item }
-        - { name: review, role: reviewer, parallelism: per_item,
+        - { name: review, role: reviewer, model: fast_review, parallelism: per_item,
             gate: { kind: hard, severity_blocker_max: 0 } }
 
     strict:
@@ -228,13 +254,13 @@ pipeline:
             on_failure: { kind: loop_back, to: implement, max_loops: 3 } }
         - { name: security, role: security-reviewer, parallelism: single,
             on_failure: { kind: loop_back, to: implement, max_loops: 2 } }
-        - { name: review, role: architect-reviewer, parallelism: single,
+        - { name: review, role: architect-reviewer, model: architect_premium, parallelism: single,
             on_failure: { kind: loop_back, to: implement, max_loops: 2 } }
         - { name: fix, role: developer, parallelism: per_issue,
             gate_on_entry: review_changes_requested }
         - { name: verify, role: plan-verifier, parallelism: per_item,
             gate: { kind: hard } }
-        - { name: judge, role: judge, parallelism: none,
+        - { name: judge, role: judge, model: judge_default, parallelism: none,
             gate: { kind: hard } }
 
   execution:
@@ -245,6 +271,9 @@ pipeline:
     cleanup_orphan_worktrees_days: 7
     active_adapter: claude-code
     fallback_to_sequential: true
+    # G11 — if a phase requests a model whose `via:` is unsupported by the
+    # active adapter (e.g., `skill:openai-gpt` on Codex), what should we do?
+    on_model_unsupported: fallback  # fallback | halt | warn
 ```
 
 ### Field semantics
@@ -257,6 +286,15 @@ pipeline:
 - `phases[].on_failure.kind ∈ {retry, loop_back, halt, escalate, pivot_on_stagnant}`
 - `phases[].gate.kind ∈ {hard, soft, none}`
 - `phases[].gate_on_entry` — phase is skipped if the named signal was not emitted by a previous phase (e.g., `review_changes_requested`).
+- `phases[].model` — optional alias from the top-level `pipeline.models:` registry. If absent → host default (Anthropic via native Task dispatch on Claude Code, native subagent API on Pi, default CLI model on Codex/OpenCode). See §10.5.
+- `pipeline.models.<alias>.via ∈ {native, skill:<name>, cli:<cmd>}`:
+  - `native` — use the host agent's native dispatch (Task tool / Pi subagent API / CLI flag).
+  - `skill:<name>` — invoke a named skill that wraps the model (e.g., `skill:openai-gpt` in Claude Code calls a user-installed wrapper skill).
+  - `cli:<cmd>` — shell out to a custom command (e.g., `cli:openai chat -m gpt-5.5`).
+- `execution.on_model_unsupported ∈ {fallback, halt, warn}` — adapter behaviour when the active host cannot honour a phase's `model.via:`:
+  - `fallback` — silently use host default + log to `state-<plan>.json`.
+  - `halt` — exit ≠ 0 before dispatching the phase.
+  - `warn` — fallback + stderr WARN per dispatch.
 
 ### Validation rules (planner exit ≠ 0 on violation)
 
@@ -265,6 +303,9 @@ pipeline:
 - Cycles allowed only when every step of the cycle has `max_loops`.
 - All referenced roles map to an entry in `pipeline.yaml:roles.<role>.agent`.
 - `parallelism` value in the allowed set.
+- Every `phases[].model` references an existing key in `pipeline.models`.
+- Every `pipeline.models.<alias>.via` matches `^(native|skill:[a-z0-9_\-]+|cli:.+)$`.
+- `execution.on_model_unsupported` ∈ allowed set.
 
 ### Layered merge
 
@@ -544,6 +585,99 @@ When `on_failure.kind == pivot_on_stagnant`:
 - Result captured into `expected_artifact`.
 - stderr WARN: `running in sequential mode — <agent> does not natively support parallel subagents`.
 
+## 10.5 Multi-provider model dispatch (G11)
+
+**Motivation.** Judge / reviewer phases benefit from an independent model than the implementer — both to avoid same-model rubber-stamping and to optimise cost (e.g., GPT-5.5 as judge over Claude Sonnet implementer; or Claude Opus as judge over Haiku implementer). The pipeline must support this without leaking provider details into role-agent prompts.
+
+### Three-layer resolution
+
+```
+phases[].model: <alias>                  ← phase declaration
+        │
+        ▼
+pipeline.models.<alias>:                 ← registry entry
+  provider: openai
+  id: gpt-5.5
+  via: skill:openai-gpt
+        │
+        ▼
+adapters/<active>/model-invoke.<ext>     ← host-specific implementation
+```
+
+### Resolver script
+
+`scripts/mb-pipeline-model-resolve.sh <plan> <phase-name>` outputs JSON:
+
+```json
+{
+  "alias": "judge_default",
+  "provider": "openai",
+  "id": "gpt-5.5",
+  "via": "skill:openai-gpt",
+  "host_supported": true,
+  "fallback_used": false,
+  "invocation_hint": {
+    "kind": "skill",
+    "name": "openai-gpt",
+    "args": { "model": "gpt-5.5" }
+  }
+}
+```
+
+Called by the executor before assembling each `dispatches.json`. Each dispatch entry gains a `model:` sub-object — the adapter decides what to do with it.
+
+### Per-adapter implementation
+
+| Adapter | `via: native` | `via: skill:<name>` | `via: cli:<cmd>` |
+|---------|---------------|---------------------|-------------------|
+| **Claude Code** | `Task()` with default Anthropic model | Main agent invokes the named skill via Skill tool, passing prompt + `expected_artifact` path | Adapter shells out and captures stdout → `expected_artifact` |
+| **Pi** | Pi native subagent API | Pi extension wrapping the skill (if Pi exposes skill bridge); else fallback per `on_model_unsupported` | Adapter shells out from Pi process |
+| **Codex** | `codex run` with default model | Not supported in S5 → fallback | `codex run --model-cmd=...` if Codex provides hook; else shell-out |
+| **OpenCode** | `opencode run` with default model | OpenCode plugin if available; else fallback | Shell-out |
+
+### Fallback behaviour
+
+When the active adapter cannot honour `via:`:
+1. Read `execution.on_model_unsupported`.
+2. If `fallback` (default) — use host default model + append `model_fallback: { alias, reason }` to `state-<plan>.json`.
+3. If `halt` — executor exits ≠ 0 before dispatching the phase.
+4. If `warn` — fallback + stderr WARN once per phase.
+
+### Claude Code "judge via OpenAI" worked example
+
+```yaml
+pipeline:
+  models:
+    judge_gpt:
+      provider: openai
+      id: gpt-5.5
+      via: skill:openai-gpt        # user has this skill installed globally
+  presets:
+    standard:
+      phases:
+        - { name: judge, role: judge, model: judge_gpt, parallelism: none,
+            gate: { kind: hard } }
+```
+
+Execution flow:
+1. Executor reaches the `judge` phase.
+2. `mb-pipeline-model-resolve.sh` returns `via: skill:openai-gpt`.
+3. Executor writes `wave-<plan>-judge-dispatches.json` with `invocation_hint.kind=skill`.
+4. Claude Code adapter (main agent) reads the file, sees one dispatch, calls `Skill(skill="openai-gpt", args={prompt: ..., output_path: ...})` instead of `Task(...)`.
+5. The skill writes verdict JSON to `expected_artifact`; executor proceeds.
+
+### Discovery and validation
+
+- `scripts/mb-pipeline-validate.sh` extended: for every `via: skill:<name>`, when run in Claude Code, probe `~/.claude/skills/<name>/` and emit `[warn]` if missing (not a hard error — user may install later).
+- For `via: cli:<cmd>`, `command -v <first-token>` check on validation.
+- For `via: native` with `provider != anthropic` on Claude Code → hard error (no native cross-provider path).
+
+### Security and cost
+
+- API keys for non-Anthropic providers live in the wrapping skill / CLI tool — pipeline.yaml NEVER stores credentials.
+- Per-phase tokens charged to whichever provider's account the `via:` targets — pipeline budget tracker (`mb-work-budget-wave.sh`) only sees the Anthropic side. Cross-provider cost telemetry → backlog (I-044).
+- `pipeline.models.<alias>` should support optional `cost_hint: { input_per_1k, output_per_1k }` (free-form metadata; not enforced) so docs can compute back-of-envelope projections.
+
 ## 11. Testing strategy
 
 ### Integration (≈65%)
@@ -583,7 +717,16 @@ One real run on a synthetic two-stage plan; verify git log shows the squashed co
 - [ ] `mb-doctor` has `check_orphan_worktrees`.
 - [ ] `dispatches.json` contract validated by bats.
 - [ ] Resume after halt works; `--restart` invalidates state.
-- [ ] All 9 bats files PASS; ≥4 pytest files PASS.
+- [ ] **G11 — multi-provider model dispatch:**
+  - [ ] `scripts/mb-pipeline-model-resolve.sh` exists; shellcheck clean; resolves alias → JSON per §10.5.
+  - [ ] `references/pipeline.default.yaml` ships an example `pipeline.models:` registry with `judge_default` (commented as opt-in for users with an OpenAI wrapping skill).
+  - [ ] Schema validator rejects unknown `model:` alias and malformed `via:` values.
+  - [ ] Claude Code adapter routes `via: skill:<name>` through `Skill(...)` instead of `Task(...)`.
+  - [ ] Codex / OpenCode adapters honour `execution.on_model_unsupported` (fallback/halt/warn).
+  - [ ] Pi adapter at minimum honours `via: native` + `via: cli:<cmd>`; `via: skill:<name>` documented as Pi-version-dependent.
+  - [ ] `docs/parallel-pipeline.md` has a worked "judge via GPT-5.5 from Claude Code" example end-to-end.
+  - [ ] At least 1 pytest case + 2 bats cases cover model resolution + fallback path.
+- [ ] All 11 bats files PASS; ≥5 pytest files PASS.
 - [ ] `docs/parallel-pipeline.md` exists, ≥250 lines, covers all design sections.
 - [ ] `CHANGELOG.md` `[Unreleased]` enumerates new command + yaml block + adapters.
 - [ ] `install.sh` distributes new scripts + adapters; idempotent.
@@ -598,7 +741,8 @@ One real run on a synthetic two-stage plan; verify git log shows the squashed co
 ## 14. Soft dependencies
 
 - **S3 (handoff-v2)** — if present, `/mb run` final step invokes `scripts/mb-done-gates.sh` before declaring the plan done. Otherwise falls back to `severity_gate` only.
-- **S4 (cost-multi-model)** — if present, dispatch resolver passes role-specific model. Otherwise dispatches without explicit model.
+- **S4 (cost-multi-model)** — if present, role-default model is sourced from `references/model-aliases.yaml` (Anthropic tiers per role). G11's `pipeline.models:` registry **extends** S4: phase-level `model:` field overrides role-default and adds cross-provider support (`via: skill:*` / `via: cli:*`). Without S4: G11 still works, registry entries simply have no role-default to layer on.
+- **User-installed model-wrapping skills** — when `pipeline.models.<alias>.via = skill:<name>` (G11), the host agent must have that skill available. In Claude Code: `~/.claude/skills/<name>/`. Missing skill → `on_model_unsupported` behaviour kicks in. Pipeline does NOT ship wrapping skills (separation of concerns: skill = provider integration; pipeline = orchestration).
 
 ## 15. Risks and mitigations
 
@@ -612,6 +756,11 @@ One real run on a synthetic two-stage plan; verify git log shows the squashed co
 | Loop counters allow infinite churn under noisy reviewer | S1 calibration suite verifies trend stability; planner forces `max_loops` on every cycle. |
 | State cache (`state-<plan>.json`) becomes stale on git operations | `--restart` always invalidates; `mb-doctor` can detect mismatch (worktree HEAD vs state). |
 | Worktrees accumulate during chaotic interrupted runs | `mb-doctor` orphan check; user-driven cleanup. |
+| **G11**: user references a `via: skill:<name>` that isn't installed on the host | `mb-pipeline-validate.sh` probes skill dirs, emits `[warn]`; runtime `on_model_unsupported` policy fires. |
+| **G11**: cross-provider judge produces verdicts incompatible with reviewer JSON schema | Wrapping skill MUST output strict schema; pipeline rejects malformed JSON via `mb-work-review-parse.sh`. Doc the schema contract in `docs/parallel-pipeline.md`. |
+| **G11**: cross-provider API key leakage via pipeline.yaml | Schema forbids credential fields; documented as "keys live in wrapping skill / shell env, never in registry". Validator scans for common key patterns and rejects. |
+| **G11**: cross-provider latency/timeout differs from Anthropic Task | Per-alias optional `timeout_sec:` (free-form); adapter enforces via `timeout` shell builtin or skill-level option. |
+| **G11**: cost asymmetry surprises user (judge phase 10× more expensive than implement) | `cost_hint:` metadata on aliases + dry-run shows projected wave cost. Telemetry → backlog I-044. |
 
 ## 16. Out-of-scope follow-ups (backlog)
 
@@ -622,6 +771,8 @@ One real run on a synthetic two-stage plan; verify git log shows the squashed co
 - I-040 — auto-merge conflict resolution via mb-architect.
 - I-041 — extract pipeline engine to a shared package with claude-skill-build.
 - I-042 — full Python re-write of the executor.
+- I-043 — native streaming of partial model outputs back into orchestrator state (G11 follow-up).
+- I-044 — auto-selection of cheapest passing model per phase via historical telemetry (G11 follow-up).
 
 ## 17. Open questions to resolve during implementation
 
@@ -629,3 +780,6 @@ One real run on a synthetic two-stage plan; verify git log shows the squashed co
 - Whether to lock `.memory-bank/handoff/` (S3) during multi-plan runs — likely yes, since multiple plans could trigger handoff actualize simultaneously.
 - Pi subagent API stability — verify before spec close; if unstable, downgrade to sequential fallback with a warning.
 - Exact cherry-pick squash strategy — `git merge --squash` vs `git rebase -i --autosquash` vs manual `git diff | git apply`; settle in implementation.
+- **G11**: canonical name of the OpenAI-wrapping skill we expect users to install (does it exist in the ecosystem already? if not, ship a reference one in a separate sister-skill or document the contract so users can write their own).
+- **G11**: should `pipeline.models.<alias>.via: cli:<cmd>` accept arbitrary shell or only a whitelist of known providers — security trade-off vs flexibility.
+- **G11**: per-phase `model:` precedence vs `roles.<role>.model` (from S4 cost-multi-model) — confirm phase-level wins (current spec assumption).

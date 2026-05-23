@@ -42,13 +42,18 @@ baseline_commit: 6fc6a504a6dfdb3ead9f98e0be569098fe6235a7
 
 **What to do:**
 - Add `pipeline:` top-level section to `references/pipeline.default.yaml` per spec §4 with 3 presets (`fast` / `standard` / `strict`) and `execution` block.
+- **G11 — model registry & per-phase model field (spec §4 + §10.5):**
+  - Schema includes `pipeline.models:` map (alias → `{provider, id, via, [timeout_sec], [cost_hint]}`) and optional `phases[].model: <alias>` field.
+  - Default yaml ships a **commented-out** `judge_default: { provider: openai, id: gpt-5.5, via: skill:openai-gpt }` block as opt-in reference for users who install an OpenAI-wrapping skill.
+  - Default `execution.on_model_unsupported: fallback`.
 - Create `scripts/mb_pipeline_plan.py`:
   - Argparse: `--plans <p1> [<p2>...] --preset <name> --out <path>`
   - Parse `pipeline.yaml` (project + skill defaults, layered merge)
   - Parse each plan/spec, extract items via existing `mb_work_items.py`
   - Validate DAG: phase name uniqueness, `on_failure.to` references real phases, cycles require `max_loops` on every edge
+  - **G11 validation:** every `phases[].model` references an existing key in `pipeline.models`; every `pipeline.models.<alias>.via` matches `^(native|skill:[a-z0-9_\-]+|cli:.+)$`; `execution.on_model_unsupported ∈ {fallback, halt, warn}`; registry rejects credential-looking keys (`api_key`, `secret`, `token`).
   - Resolve `baseline_commit` from plan frontmatter (fallback `HEAD~1`)
-  - Emit `exec_graph.json` per spec §6 schema
+  - Emit `exec_graph.json` per spec §6 schema (extended with per-phase `model:` propagated through)
 - Resolve `merge_order` from plan `depends_on` frontmatter (topological sort).
 
 **Testing (TDD — tests BEFORE implementation):**
@@ -56,12 +61,14 @@ baseline_commit: 6fc6a504a6dfdb3ead9f98e0be569098fe6235a7
 - `tests/pytest/test_pipeline_plan_preset_resolution.py` ≥4 cases: full preset replace; partial phase override; project pipeline.yaml wins; preset = fast minimal works.
 - `tests/pytest/test_pipeline_plan_emit_exec_graph.py` ≥3 cases: exec_graph.json shape matches schema_version=1; dispatches list correct cardinality; baseline_commit resolves; missing → HEAD~1.
 - `tests/pytest/test_pipeline_plan_merge_order.py` ≥2 cases: 2-plan dependency → correct order; cycle in plan deps → reject.
+- **G11**: `tests/pytest/test_pipeline_model_registry.py` ≥5 cases: unknown `model:` alias → reject; malformed `via:` → reject; credential-looking field → reject; `on_model_unsupported` enum guard; valid registry passes; `phases[].model` propagates into `exec_graph.json`.
 
 **DoD (SMART):**
-- [ ] `references/pipeline.default.yaml` carries new `pipeline:` block with 3 presets.
+- [ ] `references/pipeline.default.yaml` carries new `pipeline:` block with 3 presets + commented `models:` registry example (G11).
 - [ ] `scripts/mb_pipeline_plan.py` exists, executable; ruff + mypy clean.
-- [ ] All 4 pytest files PASS (≥15 tests total).
+- [ ] All 5 pytest files PASS (≥20 tests total).
 - [ ] `python scripts/mb_pipeline_plan.py --plans <fixture> --preset standard --out /tmp/g.json` produces valid JSON parseable by `jq`.
+- [ ] Each `dispatches[*]` entry in `exec_graph.json` contains a `model:` sub-object when the phase declares one (G11).
 - [ ] `mb-rules-check.sh` clean on new files.
 
 **Code rules:** SOLID — planner is a pure function. DRY — reuse `mb_work_items.py`. KISS — bash-shaped data shapes (no nested dataclass).
@@ -140,37 +147,53 @@ baseline_commit: 6fc6a504a6dfdb3ead9f98e0be569098fe6235a7
 ---
 
 <!-- mb-stage:4 -->
-### Stage 4: Cross-agent dispatch — adapter layer
+### Stage 4: Cross-agent dispatch + per-phase model routing — adapter layer
 
 **What to do:**
 - Create `adapters/claude-code/dispatch.md` documenting the protocol: executor writes `dispatches.json`, control returns to main agent (`commands/run.md` step), main agent reads JSON and issues N `Task()` calls in a single response.
+  - **G11**: when a dispatch entry has `model.via: skill:<name>`, main agent calls `Skill(skill=<name>, args=...)` instead of `Task(...)`. When `model.via: cli:<cmd>`, main agent issues `Bash(<cmd>)` capturing stdout → `expected_artifact`. Documented as a decision table in the adapter doc.
 - Create `adapters/pi/dispatch.ts` — TypeScript adapter for Pi:
   - Reads `dispatches.json` from path passed via argv.
   - For each dispatch, spawns Pi native subagent in parallel (Pi API).
+  - **G11**: honours `model.via: native` (Pi default model) and `model.via: cli:<cmd>` (shell out from Pi process). `model.via: skill:<name>` documented as Pi-version-dependent; if unsupported → `on_model_unsupported` policy fires.
   - Awaits all, writes `result-<dispatch_id>.json` per spec.
   - Existing `adapters/pi_graph_rag_extension.ts` is the integration pattern reference.
 - Create `adapters/codex/dispatch.sh` — bash sequential CLI loop:
   - For each dispatch in `dispatches[]`: `codex run` with assembled prompt, capture to `result-<id>.json`.
+  - **G11**: honours `model.via: native` (Codex default) and `model.via: cli:<cmd>` (passes through). `model.via: skill:<name>` → `on_model_unsupported`.
   - stderr WARN: "Codex does not natively support parallel subagents — running sequentially. Wall-clock time will be ~N× longer."
 - Create `adapters/opencode/dispatch.sh` — analogous to codex.
+- **G11 — create `scripts/mb-pipeline-model-resolve.sh`:**
+  - Args: `--plan <path> --phase <name>` (or `--alias <name>` for direct lookup).
+  - Reads merged `pipeline.yaml`, returns JSON per spec §10.5 (`alias`, `provider`, `id`, `via`, `host_supported`, `fallback_used`, `invocation_hint`).
+  - `host_supported` is computed by checking active adapter capability table.
+  - When `via: skill:<name>` and active adapter is Claude Code → probe `~/.claude/skills/<name>/` and set `host_supported` accordingly.
+- Wire `mb-pipeline-run.sh` to call the resolver before emitting each `dispatches.json` and embed `model:` sub-object per dispatch.
 - In `mb-pipeline-run.sh`, route `hand_off_to_adapter` based on `execution.active_adapter` from yaml:
-  - `claude-code` → emit dispatches.json + return; main agent picks it up.
+  - `claude-code` → emit dispatches.json + return; main agent picks it up (routes model via Task/Skill/Bash per G11).
   - `pi` → exec `adapters/pi/dispatch.ts` with dispatches.json path; wait for completion.
   - `codex` / `opencode` → exec corresponding sh script.
+- Implement `execution.on_model_unsupported` policy in the executor BEFORE dispatch: read each dispatch's `model.host_supported`, apply policy, emit WARN/halt/fallback per spec §10.5.
 
 **Testing (TDD):**
 - `tests/bats/test_mb_pipeline_dispatch_specs_format.bats` ≥3 cases: dispatches.json shape matches contract; expected_artifact paths valid; max_concurrent respected.
 - `tests/bats/test_mb_pipeline_adapter_routing.bats` ≥4 cases (with stubbed adapters): claude-code returns to main agent (no exec); pi adapter invoked; codex sequential loop runs; unknown adapter → exit ≠ 0.
+- **G11**: `tests/bats/test_mb_pipeline_model_resolve.bats` ≥4 cases: alias resolves to JSON per §10.5; missing alias → exit ≠ 0; `host_supported=true` when skill dir exists; `host_supported=false` when skill dir missing (Claude Code).
+- **G11**: `tests/bats/test_mb_pipeline_model_fallback.bats` ≥4 cases: `on_model_unsupported=fallback` → host default + state log; `halt` → exit ≠ 0 before dispatch; `warn` → fallback + stderr line; per-adapter capability matrix honoured.
 - `tests/pytest/test_pi_dispatch_unit.py` ≥2 cases for TypeScript dispatch logic — actually skip if Node not in CI; mark as manual-only.
 
 **DoD (SMART):**
 - [ ] `adapters/{claude-code/dispatch.md, pi/dispatch.ts, codex/dispatch.sh, opencode/dispatch.sh}` exist.
+- [ ] `scripts/mb-pipeline-model-resolve.sh` exists; shellcheck clean; resolves alias → JSON per spec §10.5 (G11).
 - [ ] `mb-pipeline-run.sh` routes correctly based on `execution.active_adapter`.
-- [ ] Both bats files PASS (≥7 tests).
+- [ ] `mb-pipeline-run.sh` applies `on_model_unsupported` policy before dispatch (G11).
+- [ ] `adapters/claude-code/dispatch.md` documents decision table for `model.via: native | skill:* | cli:*` (G11).
+- [ ] All 4 bats files PASS (≥15 tests).
 - [ ] Manual smoke for Pi adapter — invoke on a fixture dispatches.json, verify parallel execution.
-- [ ] Codex/OpenCode adapters emit WARN about sequential mode.
+- [ ] **G11 manual smoke**: in Claude Code, run `/mb run` on a 2-phase fixture where `judge` declares `model: judge_default` with `via: skill:openai-gpt` (use a no-op stub skill installed locally). Verify main agent calls `Skill(...)` not `Task(...)` for the judge phase.
+- [ ] Codex/OpenCode adapters emit WARN about sequential mode and about unsupported `via:` values.
 
-**Code rules:** DIP — executor depends on the adapter abstraction (a directory contract), not concrete agents. Open/Closed — adding a new agent = adding a new `adapters/<name>/dispatch.*` without touching the executor.
+**Code rules:** DIP — executor depends on the adapter abstraction (a directory contract), not concrete agents. Open/Closed — adding a new agent = adding a new `adapters/<name>/dispatch.*` without touching the executor. **G11**: adding a new provider = adding a registry entry; adapter only learns 3 dispatch shapes (`native`/`skill`/`cli`), not N providers.
 
 ---
 
@@ -221,13 +244,21 @@ baseline_commit: 6fc6a504a6dfdb3ead9f98e0be569098fe6235a7
   - Worktree lifecycle diagram.
   - Failure handling: loops, gates, pivot_on_stagnant.
   - Budget control.
-  - How to extend (add a custom adapter, add a new preset).
+  - **G11 — Multi-provider model dispatch section** (verbatim from spec §10.5):
+    - `pipeline.models:` registry — alias schema + `provider` / `id` / `via` fields.
+    - Per-phase `model:` field.
+    - `execution.on_model_unsupported` policy.
+    - Per-adapter capability table (`native` / `skill:*` / `cli:*`).
+    - **Worked example: "judge via GPT-5.5 from Claude Code"** — step-by-step (install wrapping skill → declare alias → set `judge` phase `model:` → run → verify Skill tool was invoked). Include the exact yaml snippet from spec §10.5.
+    - Security note: never put API keys in `pipeline.yaml`; they live in the wrapping skill / shell env.
+  - How to extend (add a custom adapter, add a new preset, **add a new model alias**).
 - Update `CHANGELOG.md` `[Unreleased]`:
   - Added: `/mb run` command (parallel pipeline mode).
   - Added: `pipeline:` top-level section in pipeline.yaml with `fast/standard/strict` presets.
   - Added: adapter layer for cross-agent dispatch (Claude Code, Pi, Codex, OpenCode).
   - Added: worktree-per-plan isolation; `mb-doctor` orphan check.
   - Added: `pivot_on_stagnant` on_failure kind (requires S2 deployed).
+  - **Added (G11): multi-provider per-phase model dispatch** — `pipeline.models:` registry + `phases[].model:` + `execution.on_model_unsupported` policy + Claude Code routing through Skill/Task/Bash per `via:` field.
   - Note: `/mb work` semantics unchanged.
 - Manual e2e smoke:
   - Create a 2-stage synthetic plan in a scratch git repo.
@@ -240,8 +271,8 @@ baseline_commit: 6fc6a504a6dfdb3ead9f98e0be569098fe6235a7
 
 **DoD (SMART):**
 - [ ] `install.sh` updated; idempotent re-run verified.
-- [ ] `docs/parallel-pipeline.md` ≥300 lines, covers spec sections §1.5, §4, §5, §8, §10.
-- [ ] `CHANGELOG.md` enumerates all S5 additions.
+- [ ] `docs/parallel-pipeline.md` ≥350 lines, covers spec sections §1.5, §4, §5, §8, §10, **§10.5 (G11)** including the "judge via GPT-5.5 from Claude Code" worked example.
+- [ ] `CHANGELOG.md` enumerates all S5 additions including G11.
 - [ ] Both bats files PASS.
 - [ ] Manual smoke completed; commit hash recorded in `progress.md` (via `/mb done`).
 - [ ] `/mb verify` clean on branch — no regression in existing bats + pytest suites.
@@ -263,18 +294,22 @@ baseline_commit: 6fc6a504a6dfdb3ead9f98e0be569098fe6235a7
 | State cache (`state-<plan>.json`) stale on git operations | L | `--restart` always invalidates; `mb-doctor` detects mismatch (worktree HEAD vs state). |
 | Worktrees accumulate from interrupted runs | L | `mb-doctor` orphan check (Stage 5 DoD); user-driven cleanup. |
 | `/mb work` semantics drift via shared code edits | L | Hard guarantee documented in spec §1.5; no edits to `commands/work.md` beyond a one-line note pointing to `commands/run.md`. |
+| **G11**: wrapping skill missing on host → silent dispatch with wrong model | M | `on_model_unsupported` policy + `mb-pipeline-validate.sh` probe + `model_fallback` log in `state-<plan>.json`. Manual smoke checks both branches. |
+| **G11**: cross-provider JSON verdict schema mismatch breaks gate | M | Wrapping skill contract documented in `docs/parallel-pipeline.md` §G11; `mb-work-review-parse.sh` rejects malformed JSON before gate evaluation. |
+| **G11**: credential leakage via pipeline.yaml | L | Planner validator rejects `api_key`/`secret`/`token` keys in registry; doc explicitly states keys live in wrapping skill / env. |
 
 ## Gate (plan success criterion)
 
 `/mb work 2026-05-24_feature_parallel-pipeline --max-cycles 3 --auto` completes all 6 stages with `plan-verifier` PASS on each, **and**:
 
-1. All new bats files PASS with 0 failures (~9 files, ~30+ tests).
-2. All new pytest files PASS with 0 failures (~4 files, ~15+ tests).
+1. All new bats files PASS with 0 failures (~11 files, ~37+ tests; G11 adds 2 bats files / ~8 tests).
+2. All new pytest files PASS with 0 failures (~5 files, ~20+ tests; G11 adds 1 pytest file / ~5 tests).
 3. Existing bats + pytest suites have 0 regressions.
 4. `shellcheck` clean on all new bash scripts.
 5. `ruff` + `mypy` clean on `mb_pipeline_plan.py`.
 6. `mb-rules-check.sh` clean.
-7. `docs/parallel-pipeline.md` + `CHANGELOG.md` updated.
+7. `docs/parallel-pipeline.md` + `CHANGELOG.md` updated (including G11).
 8. Manual smoke: `/mb run <synthetic-plan>` in Claude Code shows parallel Task dispatch in a single main-agent response; squashed commit appears on root branch; worktree removed cleanly.
 9. Manual smoke: orphan worktree (touch a fake dir under `.git/mb-worktrees/` with old mtime) → `/mb doctor` surfaces WARN.
 10. `/mb work` semantics confirmed unchanged: existing bats around `commands/work.md` PASS without modification.
+11. **G11 manual smoke**: pipeline with `phases[].model: judge_default` where `via: skill:openai-gpt` → Claude Code main agent invokes `Skill(...)` for the judge phase (verified via session log); fallback path tested by removing the stub skill dir and re-running with `on_model_unsupported: warn`.

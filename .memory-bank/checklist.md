@@ -360,8 +360,8 @@ Phase 1 Foundation, Phase 2 (discuss + sdd + plan-lite), Phase 3 Sprint 1 (`/mb 
 - ⬜ Wave control flow + gates + loops + pivot_on_stagnant
 
 <!-- mb-plan:2026-05-24_feature_parallel-pipeline.md -->
-## Stage 4: Cross-agent dispatch — adapter layer
-- ⬜ Cross-agent dispatch — adapter layer
+## Stage 4: Cross-agent dispatch + per-phase model routing — adapter layer
+- ⬜ Cross-agent dispatch + per-phase model routing — adapter layer
 
 <!-- mb-plan:2026-05-24_feature_parallel-pipeline.md -->
 ## Stage 5: Multi-plan orchestration + `mb-doctor` orphan check + `/mb run` entry point
