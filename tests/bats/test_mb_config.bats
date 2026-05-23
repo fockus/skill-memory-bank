@@ -84,7 +84,7 @@ teardown() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "get lang: auto-detects ru from cyrillic plan.md section" {
-  cat > "$TMPBANK/plan.md" <<'EOF'
+  cat > "$TMPBANK/roadmap.md" <<'EOF'
 # Проект — План
 
 ## Текущий фокус
@@ -103,7 +103,7 @@ EOF
 }
 
 @test "get lang: writes back detected locale so next run is deterministic" {
-  cat > "$TMPBANK/STATUS.md" <<'EOF'
+  cat > "$TMPBANK/status.md" <<'EOF'
 # Проект — Статус
 
 **Текущая фаза:** —
@@ -118,7 +118,7 @@ EOF
 }
 
 @test "get lang: returns 'en' for bank with only ASCII markers" {
-  cat > "$TMPBANK/plan.md" <<'EOF'
+  cat > "$TMPBANK/roadmap.md" <<'EOF'
 # Project — Plan
 
 ## Current focus
