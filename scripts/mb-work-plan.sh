@@ -26,7 +26,7 @@ WORK_ITEMS="$SCRIPT_DIR/mb_work_items.py"
 source "$SCRIPT_DIR/_lib.sh"
 
 usage() {
-  sed -n '2,16p' "$0" >&2
+	sed -n '2,16p' "$0" >&2
 }
 
 TARGET=""
@@ -34,35 +34,64 @@ RANGE=""
 DRY_RUN=0
 MB_ARG=""
 while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --target) TARGET="${2:-}"; shift 2 ;;
-    --target=*) TARGET="${1#--target=}"; shift ;;
-    --range) RANGE="${2:-}"; shift 2 ;;
-    --range=*) RANGE="${1#--range=}"; shift ;;
-    --dry-run) DRY_RUN=1; shift ;;
-    --mb) MB_ARG="${2:-}"; shift 2 ;;
-    --mb=*) MB_ARG="${1#--mb=}"; shift ;;
-    -h|--help) usage; exit 0 ;;
-    *) echo "[work-plan] unknown arg '$1'" >&2; usage; exit 2 ;;
-  esac
+	case "$1" in
+	--target)
+		TARGET="${2:-}"
+		shift 2
+		;;
+	--target=*)
+		TARGET="${1#--target=}"
+		shift
+		;;
+	--range)
+		RANGE="${2:-}"
+		shift 2
+		;;
+	--range=*)
+		RANGE="${1#--range=}"
+		shift
+		;;
+	--dry-run)
+		DRY_RUN=1
+		shift
+		;;
+	--mb)
+		MB_ARG="${2:-}"
+		shift 2
+		;;
+	--mb=*)
+		MB_ARG="${1#--mb=}"
+		shift
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	*)
+		echo "[work-plan] unknown arg '$1'" >&2
+		usage
+		exit 2
+		;;
+	esac
 done
 
 # Resolve target
 if [ -n "$TARGET" ]; then
-  PLAN=$(bash "$RESOLVE" "$TARGET" --mb "$MB_ARG") || exit $?
+	PLAN=$(bash "$RESOLVE" "$TARGET" --mb "$MB_ARG") || exit $?
 else
-  PLAN=$(bash "$RESOLVE" --mb "$MB_ARG") || exit $?
+	PLAN=$(bash "$RESOLVE" --mb "$MB_ARG") || exit $?
 fi
 
 if [ ! -f "$PLAN" ]; then
-  echo "[work-plan] resolved path is not a file: $PLAN" >&2
-  exit 1
+	echo "[work-plan] resolved path is not a file: $PLAN" >&2
+	exit 1
 fi
 
 # Detect plan-as-wrapper: parse linked_spec and tasks from frontmatter.
 # If present, redirect PLAN to the spec's tasks.md and override RANGE.
 WRAPPER_BASENAME=""
-WRAPPER_INFO=$(python3 - "$PLAN" "$MB_ARG" <<'PY'
+WRAPPER_INFO=$(
+	python3 - "$PLAN" "$MB_ARG" <<'PY'
 import re, os, sys
 
 plan_path = sys.argv[1]
@@ -107,14 +136,14 @@ PY
 ) || exit $?
 
 if [ "$WRAPPER_INFO" != "none" ]; then
-  SPEC_TASKS=$(printf '%s' "$WRAPPER_INFO" | cut -f2)
-  WRAPPER_BASENAME=$(printf '%s' "$WRAPPER_INFO" | cut -f3)
-  WRAPPER_RANGE=$(printf '%s' "$WRAPPER_INFO" | cut -f4)
-  # Redirect to spec; override range only when wrapper specifies it
-  PLAN="$SPEC_TASKS"
-  if [ -n "$WRAPPER_RANGE" ]; then
-    RANGE="$WRAPPER_RANGE"
-  fi
+	SPEC_TASKS=$(printf '%s' "$WRAPPER_INFO" | cut -f2)
+	WRAPPER_BASENAME=$(printf '%s' "$WRAPPER_INFO" | cut -f3)
+	WRAPPER_RANGE=$(printf '%s' "$WRAPPER_INFO" | cut -f4)
+	# Redirect to spec; override range only when wrapper specifies it
+	PLAN="$SPEC_TASKS"
+	if [ -n "$WRAPPER_RANGE" ]; then
+		RANGE="$WRAPPER_RANGE"
+	fi
 fi
 
 # Get filtered item indices via mb-work-range.sh
@@ -123,17 +152,17 @@ STAGES_RAW=$(bash "$RANGE_SH" "$PLAN" --range "$RANGE")
 # Get effective pipeline.yaml path (for role→agent mapping)
 PIPELINE_PATH=$(bash "$PIPELINE" path --mb "$MB_ARG" 2>/dev/null || true)
 if [ -z "$PIPELINE_PATH" ]; then
-  PIPELINE_PATH="$SCRIPT_DIR/../references/pipeline.default.yaml"
+	PIPELINE_PATH="$SCRIPT_DIR/../references/pipeline.default.yaml"
 fi
 
 PLAN_PATH="$PLAN" \
-PIPELINE_YAML="$PIPELINE_PATH" \
-STAGES="$STAGES_RAW" \
-DRY_RUN="$DRY_RUN" \
-PLAN_BASENAME="$(basename "$PLAN")" \
-WRAPPER_BASENAME="$WRAPPER_BASENAME" \
-WORK_ITEMS="$WORK_ITEMS" \
-python3 - <<'PY'
+	PIPELINE_YAML="$PIPELINE_PATH" \
+	STAGES="$STAGES_RAW" \
+	DRY_RUN="$DRY_RUN" \
+	PLAN_BASENAME="$(basename "$PLAN")" \
+	WRAPPER_BASENAME="$WRAPPER_BASENAME" \
+	WORK_ITEMS="$WORK_ITEMS" \
+	python3 - <<'PY'
 import json
 import os
 import re
@@ -187,21 +216,39 @@ def detect_role(heading: str, body: str) -> str:
     return "developer"
 
 
+def _plan_checkbox_states(body: str) -> list[str]:
+    """Return checkbox states from plan bodies.
+
+    Active plans historically used both emoji bullets (``- ⬜`` / ``- ✅``)
+    and Markdown task-list bullets (``- [ ]`` / ``- [x]``). Treat both as
+    executable DoD markers so ``/mb work`` does not drop stage acceptance
+    criteria when plans are authored with standard Markdown checkboxes.
+    """
+    states: list[str] = []
+    for match in re.finditer(r"^\s*-\s+(?:([⬜✅])|\[([ xX])\])", body, re.M):
+        emoji_state, markdown_state = match.groups()
+        if emoji_state is not None:
+            states.append("done" if emoji_state == "✅" else "pending")
+        else:
+            states.append("done" if markdown_state.lower() == "x" else "pending")
+    return states
+
+
 def detect_status_plan(body: str) -> str:
-    """Status detection for plan files using ⬜/✅ bullet style."""
-    bullets = re.findall(r"^\s*-\s+([⬜✅])", body, re.M)
-    if not bullets:
+    """Status detection for plan files using emoji or Markdown checkboxes."""
+    states = _plan_checkbox_states(body)
+    if not states:
         return "pending"
-    if all(b == "✅" for b in bullets):
+    if all(state == "done" for state in states):
         return "done"
-    if any(b == "✅" for b in bullets):
+    if any(state == "done" for state in states):
         return "in-progress"
     return "pending"
 
 
 def count_dod_plan(body: str) -> int:
-    """Count ⬜/✅ DoD bullets in plan-style body."""
-    return len(re.findall(r"^\s*-\s+[⬜✅]", body, re.M))
+    """Count emoji and Markdown DoD bullets in plan-style body."""
+    return len(_plan_checkbox_states(body))
 
 
 # Call mb_work_items.py via CLI to get parsed items
@@ -249,12 +296,18 @@ for n in requested:
     body = item["body"]
     covers = item["covers"]
 
-    # Role: always use our comprehensive heuristics.
-    # For spec items with explicit **Role:** the parser already set it;
-    # we respect it when our heuristic would produce "developer" fallback.
+    # Role selection is source-dependent.
+    # Spec tasks are parsed by mb_work_items.py, which already honors explicit
+    # **Role:** lines before applying its own heuristic. Trust that result so
+    # `**Role:** developer` is not re-routed to QA just because the task body
+    # mentions pytest in its Testing section. Plain plan stages keep the richer
+    # work-plan heuristic for backward compatibility.
     parsed_role = item.get("role", "developer")
-    detected_role = detect_role(heading, body)
-    role = parsed_role if parsed_role != "developer" else detected_role
+    if source == "spec":
+        role = parsed_role
+    else:
+        detected_role = detect_role(heading, body)
+        role = parsed_role if parsed_role != "developer" else detected_role
 
     agent = ROLE_AGENT.get(role) or ROLE_AGENT.get("developer") or f"mb-{role}"
 

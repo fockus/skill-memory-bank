@@ -19,10 +19,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 
 ## Sprint 1 — Prompt overlay + addons (Component C7)
 
-<!-- mb-task:1 -->
+<!-- mb-task:1 -->1
 ### Task 1: Build `scripts/mb-agent-resolve.sh`
 
 **Covers:** REQ-070, REQ-073
+**Role:** developer
 
 **Actions:**
 - New script that takes `<role>` and resolves prompt file in precedence
@@ -41,10 +42,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] All three precedence cases tested green.
 - [ ] Returns byte-identical skill-base path when no overlay exists.
 
-<!-- mb-task:2 -->
+<!-- mb-task:2 -->2
 ### Task 2: Create initial addon set under `agents/addons/`
 
 **Covers:** REQ-071, REQ-072
+**Role:** developer
 
 **Actions:**
 - `agents/addons/defensive.md` — isolation reminder.
@@ -62,10 +64,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] `agents/addons/index.json` generated and committed.
 - [ ] Each addon under 250 tokens.
 
-<!-- mb-task:3 -->
+<!-- mb-task:3 -->3
 ### Task 3: Extend `pipeline.yaml` schema for `agents.preamble_addons`
 
 **Covers:** REQ-002, REQ-003, REQ-071, REQ-072
+**Role:** developer
 
 **Actions:**
 - Add `agents.preamble_addons: []` to `references/pipeline.default.yaml`
@@ -85,10 +88,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] `pipeline.default.yaml` updated with commented example.
 - [ ] All bats tests green.
 
-<!-- mb-task:4 -->
+<!-- mb-task:4 -->4
 ### Task 4: Update `/mb work` dispatch to use resolver + addons
 
 **Covers:** REQ-001, REQ-071, REQ-073
+**Role:** developer
 
 **Actions:**
 - In `commands/work.md` dispatch step 3a, replace direct read of
@@ -109,10 +113,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] Addon-prepended dispatch verified by integration test.
 - [ ] Overlay precedence verified end-to-end.
 
-<!-- mb-task:5 -->
+<!-- mb-task:5 -->5
 ### Task 5: Documentation — overlay system
 
 **Covers:** REQ-080
+**Role:** analyst
 
 **Actions:**
 - Write `docs/concepts/overlay-system.md` — explains resolver
@@ -135,10 +140,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 
 ## Sprint 2 — `mb-debugger` agent + `/mb debug` command (Component C3)
 
-<!-- mb-task:6 -->
+<!-- mb-task:6 -->6
 ### Task 6: Write `agents/mb-debugger.md` prompt
 
 **Covers:** REQ-030, REQ-031, REQ-032, REQ-033
+**Role:** architect
 
 **Actions:**
 - Prompt structure: defensive + scope-lock + fail-loudly addons baked
@@ -157,10 +163,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] `agents/mb-debugger.md` shipped with full schema description.
 - [ ] Prompt under 4k tokens.
 
-<!-- mb-task:7 -->
+<!-- mb-task:7 -->7
 ### Task 7: Build `scripts/mb-debugger-parse.sh`
 
 **Covers:** REQ-031, EDGE-005
+**Role:** developer
 
 **Actions:**
 - Read mb-debugger stdout, validate JSON against schema (verdict
@@ -179,10 +186,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] Parser handles all 4 verdicts and 3 confidence levels.
 - [ ] bats coverage of malformed inputs green.
 
-<!-- mb-task:8 -->
+<!-- mb-task:8 -->8
 ### Task 8: Build `commands/debug.md`
 
 **Covers:** REQ-035
+**Role:** developer
 
 **Actions:**
 - Implement `/mb debug` flags: `--stage`, `--test`, `--file`, `--apply`,
@@ -199,10 +207,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] All flag combinations tested.
 - [ ] Persisted notes appear in `mb-index.sh` output.
 
-<!-- mb-task:9 -->
+<!-- mb-task:9 -->9
 ### Task 9: Extend `pipeline.yaml` schema for `agents.debugger.*`
 
 **Covers:** REQ-030, REQ-034
+**Role:** developer
 
 **Actions:**
 - Add `agents.debugger.{enabled, auto_on_fail, max_cycles, on_max_cycles, require_confidence}` to default config.
@@ -217,10 +226,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] All new keys documented in `references/pipeline.default.yaml`.
 - [ ] Validator coverage green.
 
-<!-- mb-task:10 -->
+<!-- mb-task:10 -->10
 ### Task 10: Integrate `/mb work` auto-trigger on verify FAIL
 
 **Covers:** REQ-030, REQ-032, REQ-033, REQ-034
+**Role:** developer
 
 **Actions:**
 - Extend `/mb work` step 3f: after FAIL verify, if
@@ -239,10 +249,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] All three e2e flows green.
 - [ ] Session state file documented and gitignored.
 
-<!-- mb-task:11 -->
+<!-- mb-task:11 -->11
 ### Task 11: Documentation — debugging workflow
 
 **Covers:** REQ-080
+**Role:** analyst
 
 **Actions:**
 - `docs/workflows/debugging.md` and `docs/commands/debug.md`.
@@ -259,10 +270,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 
 ## Sprint 3 — Worktree isolation (Component C2)
 
-<!-- mb-task:12 -->
+<!-- mb-task:12 -->12
 ### Task 12: Build `scripts/mb-work-worktree.sh`
 
 **Covers:** REQ-020, REQ-021, REQ-022, REQ-023, EDGE-002, EDGE-003
+**Role:** devops
 
 **Actions:**
 - Subcommands: `ensure`, `status`, `path`, `remove`, `clean`.
@@ -283,10 +295,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] All bats scenarios green.
 - [ ] Script handles Linux + macOS path semantics.
 
-<!-- mb-task:13 -->
+<!-- mb-task:13 -->13
 ### Task 13: Extend `pipeline.yaml` schema for `execution.use_worktree`
 
 **Covers:** REQ-020, REQ-021
+**Role:** developer
 
 **Actions:**
 - Add `execution.use_worktree` (enum off/auto/always) and
@@ -300,10 +313,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] Validator coverage green.
 - [ ] `pipeline.default.yaml` annotated with comments per value.
 
-<!-- mb-task:14 -->
+<!-- mb-task:14 -->14
 ### Task 14: Wire `/mb work` into worktree mode
 
 **Covers:** REQ-020, REQ-021, REQ-023
+**Role:** developer
 
 **Actions:**
 - In `commands/work.md`, before dispatch step 3a, call
@@ -322,10 +336,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] e2e flows green.
 - [ ] Cleanup behaviour matches `worktree_cleanup` enum.
 
-<!-- mb-task:15 -->
+<!-- mb-task:15 -->15
 ### Task 15: Documentation — worktree isolation
 
 **Covers:** REQ-080
+**Role:** analyst
 
 **Actions:**
 - `docs/features/worktree-isolation.md` — usage, cleanup, troubleshoot.
@@ -341,10 +356,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 
 ## Sprint 4 — Atomic commit per stage (Component C5)
 
-<!-- mb-task:16 -->
+<!-- mb-task:16 -->16
 ### Task 16: Template renderer + stage SHA snapshot
 
 **Covers:** REQ-050
+**Role:** developer
 
 **Actions:**
 - New helper `scripts/mb-commit-render.sh` renders mustache-like
@@ -360,10 +376,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] Renderer covered for all standard placeholders.
 - [ ] Session state schema documented.
 
-<!-- mb-task:17 -->
+<!-- mb-task:17 -->17
 ### Task 17: Reuse 4 safety gates from `mb-auto-commit.sh`
 
 **Covers:** REQ-051, REQ-052
+**Role:** developer
 
 **Actions:**
 - Extract shared gate library `scripts/mb-commit-gates.sh`.
@@ -382,10 +399,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] Both callers use the shared library.
 - [ ] No code duplication between the two commit flows.
 
-<!-- mb-task:18 -->
+<!-- mb-task:18 -->18
 ### Task 18: Integrate atomic commit into `/mb work` step 3g
 
 **Covers:** REQ-050, REQ-053
+**Role:** developer
 
 **Actions:**
 - After verify PASS, if `execution.auto_commit_code: stage`, compute
@@ -403,10 +421,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] All three e2e flows green.
 
-<!-- mb-task:19 -->
+<!-- mb-task:19 -->19
 ### Task 19: Extend `pipeline.yaml` schema for atomic commit
 
 **Covers:** REQ-050
+**Role:** developer
 
 **Actions:**
 - Add `execution.auto_commit_code` (enum off/stage),
@@ -420,10 +439,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Validator and defaults updated.
 
-<!-- mb-task:20 -->
+<!-- mb-task:20 -->20
 ### Task 20: Documentation — atomic commit
 
 **Covers:** REQ-080
+**Role:** analyst
 
 **Actions:**
 - `docs/features/atomic-commit.md` — template variables, safety gates,
@@ -440,10 +460,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 
 ## Sprint 5 — Parallel waves (DAG) (Component C4)
 
-<!-- mb-task:21 -->
+<!-- mb-task:21 -->21
 ### Task 21: Extend marker parser with `depends_on`
 
 **Covers:** REQ-040, REQ-041
+**Role:** developer
 
 **Actions:**
 - Extend `scripts/mb_work_items.py` to parse
@@ -462,10 +483,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] Parser handles old + new markers.
 - [ ] All error paths covered.
 
-<!-- mb-task:22 -->
+<!-- mb-task:22 -->22
 ### Task 22: Build `scripts/mb-work-dag.sh`
 
 **Covers:** REQ-040, REQ-041
+**Role:** developer
 
 **Actions:**
 - Wraps Python parser, outputs ASCII visualisation + JSON waves.
@@ -478,10 +500,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Both modes (ASCII + JSON) green.
 
-<!-- mb-task:23 -->
+<!-- mb-task:23 -->23
 ### Task 23: Extend `mb-work-plan.sh` JSON Lines with `wave`
 
 **Covers:** REQ-040
+**Role:** developer
 
 **Actions:**
 - Compute wave number per item via topological longest-path.
@@ -495,10 +518,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] `wave` field present in every emitted item.
 
-<!-- mb-task:24 -->
+<!-- mb-task:24 -->24
 ### Task 24: `/mb work --parallel` dispatch + file-conflict guard
 
 **Covers:** REQ-040, REQ-042, EDGE-006
+**Role:** devops
 
 **Actions:**
 - Add `--parallel` / `--no-parallel` flags.
@@ -518,10 +542,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] Wave dispatch verified.
 - [ ] Conflict guard surfaces correctly without halting wave (warn-only).
 
-<!-- mb-task:25 -->
+<!-- mb-task:25 -->25
 ### Task 25: Budget-aware sequential fallback
 
 **Covers:** REQ-043
+**Role:** developer
 
 **Actions:**
 - Before each wave, compute `estimated_wave_cost = sum(15k * (1 + dod_lines/10))`.
@@ -536,10 +561,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Fallback path verified.
 
-<!-- mb-task:26 -->
+<!-- mb-task:26 -->26
 ### Task 26: `pipeline.yaml` schema for parallel waves
 
 **Covers:** REQ-040, REQ-042
+**Role:** developer
 
 **Actions:**
 - Add `execution.parallel_waves` (enum off/explicit/auto) and
@@ -551,10 +577,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Validator green.
 
-<!-- mb-task:27 -->
+<!-- mb-task:27 -->27
 ### Task 27: Documentation — parallel waves
 
 **Covers:** REQ-080
+**Role:** analyst
 
 **Actions:**
 - `docs/features/parallel-waves.md` — `depends_on` syntax, file-conflict
@@ -571,10 +598,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 
 ## Sprint 6 — Goal layer + `/goal` (Component C1)
 
-<!-- mb-task:28 -->
+<!-- mb-task:28 -->28
 ### Task 28: Build `scripts/mb-goal.sh`
 
 **Covers:** REQ-011, REQ-012, REQ-013, REQ-014, REQ-015
+**Role:** developer
 
 **Actions:**
 - Subcommands: `init`, `set`, `done`, `list`, `status`, `refresh`.
@@ -593,10 +621,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] All subcommands tested.
 - [ ] Computed progress logic verified against checklist.
 
-<!-- mb-task:29 -->
+<!-- mb-task:29 -->29
 ### Task 29: Build `commands/goal.md`
 
 **Covers:** REQ-010, REQ-012, REQ-013, REQ-015
+**Role:** developer
 
 **Actions:**
 - Dispatcher mirroring `/mb` style: routes to `mb-goal.sh` subcommands.
@@ -609,10 +638,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Help text complete, examples included.
 
-<!-- mb-task:30 -->
+<!-- mb-task:30 -->30
 ### Task 30: `/goal init` interactive question flow
 
 **Covers:** REQ-010, REQ-011, EDGE-001
+**Role:** analyst
 
 **Actions:**
 - 6 questions: mission, conventions, architecture constraints, stack
@@ -630,10 +660,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 - [ ] All 6 questions exercised in tests.
 - [ ] Archive prompt verified.
 
-<!-- mb-task:31 -->
+<!-- mb-task:31 -->31
 ### Task 31: `pipeline.yaml` schema for `goals.*`
 
 **Covers:** REQ-013
+**Role:** developer
 
 **Actions:**
 - Add `goals.enabled` (bool, default false) and
@@ -646,10 +677,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Validator green.
 
-<!-- mb-task:32 -->
+<!-- mb-task:32 -->32
 ### Task 32: `/mb start` integration — surface active goal
 
 **Covers:** REQ-012
+**Role:** developer
 
 **Actions:**
 - When `goals.enabled` and `goal.md` exists, `/mb start` prints one
@@ -663,10 +695,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] One-line summary verified.
 
-<!-- mb-task:33 -->
+<!-- mb-task:33 -->33
 ### Task 33: Documentation — goal-driven workflow
 
 **Covers:** REQ-080
+**Role:** analyst
 
 **Actions:**
 - `docs/workflows/goal-driven.md`, `docs/commands/goal.md`.
@@ -682,10 +715,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 
 ## Sprint 7 — Autopilot (Component C6)
 
-<!-- mb-task:34 -->
+<!-- mb-task:34 -->34
 ### Task 34: Build autopilot driver
 
 **Covers:** REQ-060, REQ-061, REQ-062
+**Role:** developer
 
 **Actions:**
 - Either `/mb work --autopilot` flag or separate `commands/autopilot.md`
@@ -703,10 +737,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Both refusal paths and happy path tested.
 
-<!-- mb-task:35 -->
+<!-- mb-task:35 -->35
 ### Task 35: Goal-aware loop + iteration counters
 
 **Covers:** REQ-062, REQ-063, REQ-064, REQ-065
+**Role:** developer
 
 **Actions:**
 - Loop iterates pending items from linked plan/spec.
@@ -723,10 +758,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] All four scenarios green.
 
-<!-- mb-task:36 -->
+<!-- mb-task:36 -->36
 ### Task 36: Hard-stop integration
 
 **Covers:** REQ-063, REQ-064, NFR-003
+**Role:** developer
 
 **Actions:**
 - Wire existing hard stops: `protected_paths`, `budget`,
@@ -743,10 +779,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] All 5 hard stops covered.
 
-<!-- mb-task:37 -->
+<!-- mb-task:37 -->37
 ### Task 37: Auto-recovery via mb-debugger inside loop
 
 **Covers:** REQ-030, REQ-032, REQ-033, REQ-034
+**Role:** developer
 
 **Actions:**
 - On verify FAIL inside autopilot, dispatch mb-debugger (Sprint 2
@@ -761,10 +798,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Both e2e flows green.
 
-<!-- mb-task:38 -->
+<!-- mb-task:38 -->38
 ### Task 38: `pipeline.yaml` schema for autopilot
 
 **Covers:** REQ-063, REQ-064
+**Role:** developer
 
 **Actions:**
 - Add `execution.autopilot.{max_iterations, max_stall_iterations, cancel_on_goal_change}`.
@@ -776,10 +814,11 @@ Tasks are grouped by Sprint. Sprint plan files (one per group) live in
 **DoD:**
 - [ ] Validator green.
 
-<!-- mb-task:39 -->
+<!-- mb-task:39 -->39
 ### Task 39: Documentation — autopilot
 
 **Covers:** REQ-080
+**Role:** analyst
 
 **Actions:**
 - `docs/workflows/autopilot.md` — prerequisites, hard stops,

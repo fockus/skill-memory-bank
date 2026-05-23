@@ -1,14 +1,14 @@
 ---
 spec_id: work-loop-v2
 topic: Work loop 2.0 — sprint contract, strategic pivoting, fail-fast default
-status: draft
+status: ready
 author: brainstorming-session
 created: 2026-05-23
 parent_roadmap: harness-upgrade (S2 of S1..S4)
 addresses_gaps: [GAP-2, GAP-3, GAP-9]
 non_addresses: [GAP-1, GAP-4, GAP-5, GAP-6, GAP-7, GAP-8, GAP-10]
 depends_on_specs: [reviewer-2.0]
-breaking_changes: yes
+breaking_changes: no in v4 (v5 fail-fast default is gated by explicit migration)
 ---
 
 # Work loop 2.0 — Design

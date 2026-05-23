@@ -27,9 +27,8 @@ def _stage(no: int, heading: str, body: str = "- ✅ DoD bit\n") -> str:
 
 
 def _plan(stages: list[str]) -> str:
-    return (
-        "---\ntype: feature\ntopic: foo\nstatus: in-progress\n---\n\n# Plan\n\n"
-        + "".join(stages)
+    return "---\ntype: feature\ntopic: foo\nstatus: in-progress\n---\n\n# Plan\n\n" + "".join(
+        stages
     )
 
 
@@ -41,7 +40,9 @@ def _run(*args: str, mb: Path | None = None) -> subprocess.CompletedProcess[str]
 
 
 def _parse_jsonl(stdout: str) -> list[dict]:
-    return [json.loads(line) for line in stdout.strip().splitlines() if line.strip().startswith("{")]
+    return [
+        json.loads(line) for line in stdout.strip().splitlines() if line.strip().startswith("{")
+    ]
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -50,7 +51,9 @@ def _parse_jsonl(stdout: str) -> list[dict]:
 def test_emits_one_object_per_stage(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     plan = mb / "plans" / "p.md"
-    plan.write_text(_plan([_stage(1, "do A"), _stage(2, "do B"), _stage(3, "do C")]), encoding="utf-8")
+    plan.write_text(
+        _plan([_stage(1, "do A"), _stage(2, "do B"), _stage(3, "do C")]), encoding="utf-8"
+    )
     r = _run("--target", str(plan), mb=mb)
     assert r.returncode == 0, r.stderr
     objs = _parse_jsonl(r.stdout)
@@ -161,3 +164,17 @@ def test_dod_lines_count(tmp_path: Path) -> None:
     r = _run("--target", str(plan), mb=mb)
     obj = _parse_jsonl(r.stdout)[0]
     assert obj["dod_lines"] == 3
+
+
+def test_dod_lines_count_markdown_checkboxes(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    plan = mb / "plans" / "p.md"
+    plan.write_text(
+        _plan([_stage(1, "thing", "- [ ] first\n- [x] second\n- [ ] third\n")]),
+        encoding="utf-8",
+    )
+    r = _run("--target", str(plan), mb=mb)
+    assert r.returncode == 0, r.stderr
+    obj = _parse_jsonl(r.stdout)[0]
+    assert obj["dod_lines"] == 3
+    assert obj["status"] == "in-progress"

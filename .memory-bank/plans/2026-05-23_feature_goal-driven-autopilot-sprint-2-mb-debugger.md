@@ -1,13 +1,15 @@
 ---
 type: feature
 topic: goal-driven-autopilot-sprint-2-mb-debugger
-status: pending
+status: queued
 created: 2026-05-23
+baseline_commit: a9093ac535d14657d5a808d5a1a67134937d4135
 level: sprint
 phase_plan: 2026-05-23_feature_goal-driven-autopilot-phase.md
 linked_spec: specs/goal-driven-autopilot
 tasks: 6-11
-depends_on: sprint-1-prompt-overlay
+depends_on: ["2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md"]
+parallel_safe: false
 ---
 
 # Plan: feature — goal-driven-autopilot — Sprint 2: mb-debugger + `/mb debug`

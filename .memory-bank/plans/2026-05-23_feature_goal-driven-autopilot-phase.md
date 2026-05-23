@@ -1,10 +1,12 @@
 ---
 type: feature
 topic: goal-driven-autopilot-phase
-status: active
+status: paused
 created: 2026-05-23
+baseline_commit: a9093ac535d14657d5a808d5a1a67134937d4135
 level: phase
-linked_spec: specs/goal-driven-autopilot
+linked_specs: ["specs/goal-driven-autopilot"]
+roadmap_only: true
 sprints:
   - 2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md
   - 2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md
@@ -13,6 +15,8 @@ sprints:
   - 2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md
   - 2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md
   - 2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md
+depends_on: []
+parallel_safe: false
 ---
 
 # Plan: feature — goal-driven-autopilot (Phase roadmap)

@@ -1,11 +1,11 @@
 ---
 type: feature
 topic: parallel-pipeline
-status: planned
+status: queued
 depends_on: ["2026-05-23_feature_reviewer-v2.md", "2026-05-23_feature_work-loop-v2.md"]
 soft_depends_on: ["2026-05-23_feature_handoff-v2.md", "2026-05-23_feature_cost-multi-model.md"]
 parallel_safe: false
-linked_specs: []
+linked_specs: ["specs/parallel-pipeline/design.md"]
 sprint: 1
 phase_of: harness-upgrade
 created: 2026-05-24
@@ -32,6 +32,8 @@ baseline_commit: 6fc6a504a6dfdb3ead9f98e0be569098fe6235a7
 - Existing command (untouched): `commands/work.md`.
 
 **Sprint boundaries.** Source files in scope: ~13 (1 command + 6 scripts + 4 adapters + 2 modifications). Bats: ~9. Pytest: ~4. The new yaml section is sizeable but data, not code.
+
+**Scope correction (2026-05-24 audit).** External-provider model execution is split out of S5. This plan may validate phase-level model metadata and reject unsupported `skill:*` / `cli:*` routes, but it must not implement arbitrary shell/provider dispatch. Cross-provider model execution needs a separate follow-up spec with an explicit security policy.
 
 ---
 

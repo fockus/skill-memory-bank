@@ -223,8 +223,17 @@
       "summary": "**Phase scope:** Make `specs/<topic>/tasks.md` a first-class executable artifact for `/mb work`, with `plan.md` as optional thin execution wrapper. Single SDD-flow: `discuss → sdd → spec-validate → work → verify → traceability-gen → done`. **Sprints (all DONE):**",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-05-23_20-32_parallel-pipeline-non-goals.md",
+      "type": "note",
+      "tags": [],
+      "importance": null,
+      "summary": "Date: 2026-05-23 20:32 Зафиксирован первоначальный список non-goals в дизайне `parallel-pipeline` (S5). Часть пунктов потом перешла в Goals по решению пользователя — список сохранён как «контракт первого среза» и стартовая точка для будущих расширений.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-05-23T15:56:12Z"
+  "generated_at": "2026-05-23T22:38:28Z"
 }

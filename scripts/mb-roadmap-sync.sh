@@ -11,7 +11,7 @@
 #       ## Next (strict order — depends) — status: queued AND parallel_safe: false
 #       ## Parallel-safe (can run now)  — status: queued AND parallel_safe: true AND depends_on empty
 #       ## Paused / Archived             — status: paused|cancelled
-#       ## Linked Specs (active)        — distinct linked_specs entries from non-done plans
+#       ## Linked Specs (active)        — distinct linked_specs / linked_spec entries from non-done plans
 #   - Content OUTSIDE the fence is preserved byte-for-byte
 #   - If fence is missing, inject it after the `# Roadmap` H1 line
 #   - Idempotent
@@ -33,13 +33,22 @@ set -euo pipefail
 source "$(dirname "$0")/_lib.sh"
 
 MB_PATH=$(mb_resolve_path "${1:-}")
-[ -d "$MB_PATH" ] || { echo "[error] .memory-bank not found at: $MB_PATH" >&2; exit 1; }
+[ -d "$MB_PATH" ] || {
+	echo "[error] .memory-bank not found at: $MB_PATH" >&2
+	exit 1
+}
 
 ROADMAP="$MB_PATH/roadmap.md"
 PLANS_DIR="$MB_PATH/plans"
 
-[ -f "$ROADMAP" ] || { echo "[error] roadmap.md not found: $ROADMAP" >&2; exit 1; }
-[ -d "$PLANS_DIR" ] || { echo "[error] plans/ not found: $PLANS_DIR" >&2; exit 1; }
+[ -f "$ROADMAP" ] || {
+	echo "[error] roadmap.md not found: $ROADMAP" >&2
+	exit 1
+}
+[ -d "$PLANS_DIR" ] || {
+	echo "[error] plans/ not found: $PLANS_DIR" >&2
+	exit 1
+}
 
 # Delegate the heavy lifting to python3 — YAML-ish frontmatter + section composition.
 python3 - "$MB_PATH" <<'PY'
@@ -145,7 +154,8 @@ for path in sorted(plans_dir.glob("*.md")):
             "status": fm.get("status", "").strip(),
             "depends_on": parse_list(fm.get("depends_on", "[]")),
             "parallel_safe": parse_bool(fm.get("parallel_safe", "false"), "parallel_safe", f"plans/{path.name}"),
-            "linked_specs": parse_list(fm.get("linked_specs", "[]")),
+            "linked_specs": parse_list(fm.get("linked_specs", "[]"))
+            + ([fm["linked_spec"].strip()] if fm.get("linked_spec", "").strip() else []),
             "topic": fm.get("topic", path.stem).strip(),
             "sprint": fm.get("sprint", "").strip(),
             "phase_of": fm.get("phase_of", "").strip(),
@@ -160,8 +170,50 @@ def fmt_plan_line(p: dict[str, object], prefix: str = "- ") -> str:
 
 now_plans = [p for p in plans if p["status"] == "in_progress"]
 queued = [p for p in plans if p["status"] == "queued"]
-next_plans = [p for p in queued if not p["parallel_safe"]]
-parallel_plans = [p for p in queued if p["parallel_safe"] and not p["depends_on"]]
+
+
+def dependency_order(items: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Return queued plans with internal dependencies before dependents."""
+    by_key: dict[str, dict[str, object]] = {}
+    for item in items:
+        path = item["path"]  # type: ignore[assignment]
+        rel = str(item["rel"])
+        name = path.name  # type: ignore[union-attr]
+        by_key[name] = item
+        by_key[rel] = item
+        by_key[f"plans/{name}"] = item
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+    out: list[dict[str, object]] = []
+
+    def visit(item: dict[str, object]) -> None:
+        name = item["path"].name  # type: ignore[union-attr]
+        if name in visited:
+            return
+        if name in visiting:
+            print(
+                f"[warn] dependency cycle while sorting roadmap near {name}; keeping stable order",
+                file=sys.stderr,
+            )
+            return
+        visiting.add(name)
+        for dep in item.get("depends_on", []):
+            dep_name = str(dep).strip().strip('"\'')
+            dep_item = by_key.get(dep_name) or by_key.get(dep_name.removeprefix("plans/"))
+            if dep_item is not None:
+                visit(dep_item)
+        visiting.remove(name)
+        visited.add(name)
+        out.append(item)
+
+    for item in items:
+        visit(item)
+    return out
+
+
+next_plans = dependency_order([p for p in queued if (not p["parallel_safe"]) or p["depends_on"]])
+parallel_plans = dependency_order([p for p in queued if p["parallel_safe"] and not p["depends_on"]])
 paused_plans = [p for p in plans if p["status"] in ("paused", "cancelled")]
 
 linked_specs_set: list[str] = []

@@ -1,10 +1,10 @@
 ---
 type: feature
 topic: cost-multi-model
-status: planned
+status: queued
 depends_on: ["2026-05-23_feature_reviewer-v2.md", "2026-05-23_feature_work-loop-v2.md"]
 parallel_safe: false
-linked_specs: []
+linked_specs: ["specs/cost-multi-model/design.md"]
 sprint: 1
 phase_of: harness-upgrade
 created: 2026-05-23

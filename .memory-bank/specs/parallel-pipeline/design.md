@@ -1,7 +1,7 @@
 ---
 spec_id: parallel-pipeline
 topic: Parallel pipeline — configurable wave-based DAG executor with worktree isolation
-status: draft
+status: ready
 author: brainstorming-session
 created: 2026-05-24
 parent_roadmap: harness-upgrade (S5 of S1..S5)
@@ -32,10 +32,11 @@ Inspired by `fockus/claude-skill-build` (wave model + worktree isolation). Schem
 - **G8** — Cross-plan parallel execution. `/mb run plan-1 plan-2 plan-3` runs all in their own worktrees, then merges sequentially.
 - **G9** — Cross-agent dispatch via adapter layer. First cut: Claude Code (native parallel), Pi (native parallel), Codex/OpenCode (sequential fallback).
 - **G10** — `pivot_on_stagnant` integration with S2 (work-loop-v2): when reviewer's `progress_trend` is stagnant for N cycles, automatically escalate via `mb-architect`.
-- **G11** — **Multi-provider per-phase model dispatch.** Each phase can declare its own model (e.g., `judge` runs GPT-5.5 while `implement` runs Claude Sonnet). Cross-provider invocation goes through a host-agnostic resolver: in Claude Code via a wrapping skill (e.g., `openai-gpt-skill`), in Pi/Codex/OpenCode via their native CLI/SDK. Default behaviour preserved: empty `model:` field → host's default Anthropic model + Task tool.
+- **G11 (deferred boundary)** — Phase-level model aliases may be represented in schema metadata, but arbitrary external-provider execution (`skill:<name>` / `cli:<cmd>`) is **not** part of S5 implementation. S5 validates and rejects unsupported/unsafe provider routes; a separate follow-up spec owns cross-provider dispatch.
 
 ### Non-goals
 
+- Cross-provider model execution beyond safe native/adapter-supported dispatch — follow-up spec (I-045).
 - Native streaming of partial model outputs back into orchestrator state — backlog (I-043).
 - Auto-selection of cheapest passing model per phase via historical telemetry — backlog (I-044).
 - Worktree per item (sub-isolation within a plan) — backlog (I-036).

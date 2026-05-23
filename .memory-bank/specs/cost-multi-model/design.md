@@ -1,14 +1,14 @@
 ---
 spec_id: cost-multi-model
 topic: Cost — multi-model role assignment
-status: draft
+status: ready
 author: brainstorming-session
 created: 2026-05-23
 parent_roadmap: harness-upgrade (S4 of S1..S4)
 addresses_gaps: [GAP-10]
 non_addresses: [GAP-1, GAP-2, GAP-3, GAP-4, GAP-5, GAP-6, GAP-7, GAP-8, GAP-9]
 depends_on_specs: [reviewer-2.0, work-loop-v2]
-breaking_changes: yes (no version bump)
+breaking_changes: no (resolver falls back to host default when unsupported)
 ---
 
 # Cost — multi-model role assignment (S4)

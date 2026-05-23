@@ -1,10 +1,10 @@
 ---
 type: feature
 topic: reviewer-v2
-status: planned
-depends_on: []
+status: queued
+depends_on: ["2026-05-24_fix_ci-baseline-wave-0.md"]
 parallel_safe: false
-linked_specs: []
+linked_specs: ["specs/reviewer-2.0/design.md"]
 sprint: 1
 phase_of: harness-upgrade
 created: 2026-05-23

@@ -260,7 +260,7 @@
 
 ### I-037 — DAG cycles вне `loop_target` (general cycles support) [LOW, NEW, 2026-05-23]
 
-**Problem:** parallel-pipeline (S5) разрешает только явные loops (фаза → фаза по условию failure). Не разрешает циклы вида A → B → C → A через произвольные триггеры.
+**Problem:** parallel-pipeline (S5) разрешает только явные loops (phase → phase по условию failure). Не разрешает циклы вида A → B → C → A через произвольные триггеры.
 
 **Sketch:** расширить валидатор pipeline.yaml: разрешить named cycle groups с явным max_iterations. Сейчас планировщик это блокирует.
 

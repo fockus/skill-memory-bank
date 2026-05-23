@@ -1,13 +1,15 @@
 ---
 type: feature
 topic: goal-driven-autopilot-sprint-1-prompt-overlay
-status: active
+status: queued
 created: 2026-05-23
 level: sprint
 phase_plan: 2026-05-23_feature_goal-driven-autopilot-phase.md
 linked_spec: specs/goal-driven-autopilot
 tasks: 1-5
-baseline_commit: HEAD
+baseline_commit: a9093ac535d14657d5a808d5a1a67134937d4135
+depends_on: ["2026-05-23_feature_cost-multi-model.md"]
+parallel_safe: false
 ---
 
 # Plan: feature — goal-driven-autopilot — Sprint 1: Prompt overlay + addons

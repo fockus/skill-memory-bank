@@ -101,22 +101,24 @@ def _run_resolve(*args: str, mb: Path) -> subprocess.CompletedProcess[str]:
 def _run_range(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", str(RANGE_SH), *args],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
 
 def _run_plan(*args: str, mb: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", str(PLAN_SH), *args, "--mb", str(mb)],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
 
 def _parse_jsonl(stdout: str) -> list[dict]:
     return [
-        json.loads(line)
-        for line in stdout.strip().splitlines()
-        if line.strip().startswith("{")
+        json.loads(line) for line in stdout.strip().splitlines() if line.strip().startswith("{")
     ]
 
 
@@ -206,6 +208,30 @@ def test_work_plan_covers_field_extracted_from_spec_tasks(tmp_path: Path) -> Non
     covers = objs[0].get("covers", [])
     assert "REQ-001" in covers, f"REQ-001 missing from covers: {covers}"
     assert "REQ-002" in covers, f"REQ-002 missing from covers: {covers}"
+
+
+def test_work_plan_respects_explicit_developer_role_for_spec_tasks(tmp_path: Path) -> None:
+    """Spec tasks with explicit Role: developer must not be re-routed to qa by pytest text."""
+    mb = _init_mb(tmp_path)
+    spec_dir = mb / "specs" / "overlay"
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "tasks.md").write_text(
+        "# Tasks: overlay\n\n"
+        "<!-- mb-task:1 -->\n"
+        "## Task 1: build resolver\n\n"
+        "**Covers:** REQ-001\n"
+        "**Role:** developer\n\n"
+        "**Testing:** pytest validates resolver output.\n\n"
+        "**DoD:**\n- [ ] resolver implemented\n",
+        encoding="utf-8",
+    )
+
+    r = _run_plan("--target", str(spec_dir / "tasks.md"), mb=mb)
+
+    assert r.returncode == 0, r.stderr
+    obj = _parse_jsonl(r.stdout)[0]
+    assert obj["role"] == "developer"
+    assert obj["agent"] == "mb-developer"
 
 
 def test_work_plan_item_no_alias_equals_stage_no(tmp_path: Path) -> None:

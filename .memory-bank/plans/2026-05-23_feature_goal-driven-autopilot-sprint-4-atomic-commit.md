@@ -1,12 +1,15 @@
 ---
 type: feature
 topic: goal-driven-autopilot-sprint-4-atomic-commit
-status: pending
+status: queued
 created: 2026-05-23
+baseline_commit: a9093ac535d14657d5a808d5a1a67134937d4135
 level: sprint
 phase_plan: 2026-05-23_feature_goal-driven-autopilot-phase.md
 linked_spec: specs/goal-driven-autopilot
 tasks: 16-20
+depends_on: ["2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md"]
+parallel_safe: false
 ---
 
 # Plan: feature — goal-driven-autopilot — Sprint 4: Atomic commit per stage

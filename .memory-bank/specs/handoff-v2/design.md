@@ -1,14 +1,14 @@
 ---
 spec_id: handoff-v2
 topic: Handoff 2.0 — PreCompact actualize, mandatory done-gates, append-only integrity
-status: draft
+status: ready
 author: brainstorming-session
 created: 2026-05-23
 parent_roadmap: harness-upgrade (S3 of S1..S4)
 addresses_gaps: [GAP-4, GAP-6, GAP-8]
 non_addresses: [GAP-1, GAP-2, GAP-3, GAP-5, GAP-7, GAP-9, GAP-10]
 depends_on_specs: []
-breaking_changes: yes
+breaking_changes: no in v4 (mandatory gates staged behind config until v5)
 ---
 
 # Handoff 2.0 — Design

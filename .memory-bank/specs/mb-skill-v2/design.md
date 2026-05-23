@@ -1,6 +1,6 @@
 ---
 topic: mb-skill-v2
-status: draft
+status: archived
 created: 2026-04-22
 scope: major-refactor
 target-version: 2.0

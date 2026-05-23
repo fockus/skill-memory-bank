@@ -236,6 +236,35 @@ def test_paused_and_linked_specs_sections(tmp_path: Path) -> None:
     assert "specs/demo-spec" in roadmap
 
 
+def test_singular_linked_spec_is_rendered_as_active_spec(tmp_path: Path) -> None:
+    """Plan-as-wrapper frontmatter uses linked_spec; roadmap must not drop it."""
+    mb = _init_mb(tmp_path)
+    plan = mb / "plans" / "2026-04-22_feature_wrapper.md"
+    plan.write_text(
+        dedent("""\
+            ---
+            type: feature
+            topic: wrapper-demo
+            status: in_progress
+            parallel_safe: false
+            linked_spec: specs/wrapper-demo
+            tasks: 1-3
+            created: 2026-04-22
+            ---
+
+            # Plan: wrapper-demo
+            """),
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+
+    roadmap = (mb / "roadmap.md").read_text(encoding="utf-8")
+    linked_section = roadmap.split("## Linked Specs (active)", 1)[1]
+    assert "specs/wrapper-demo" in linked_section
+
+
 # ---------------------------------------------------------------------------
 # Batch B reviewer findings — regression tests (I1/I2/I3/I4)
 # ---------------------------------------------------------------------------
@@ -293,6 +322,59 @@ def test_queued_no_deps_not_parallel_lands_in_next(tmp_path: Path) -> None:
     assert "serial-queued" not in parallel_section
 
 
+def test_next_section_orders_queued_plans_by_dependencies(tmp_path: Path) -> None:
+    """Dependency order beats filename order in the strict Next section."""
+    mb = _init_mb(tmp_path)
+    _make_plan(
+        mb / "plans",
+        "2026-04-22_feature_b-dependent.md",
+        status="queued",
+        topic="b-dependent",
+        depends_on="[2026-04-22_feature_c-prereq.md]",
+    )
+    _make_plan(
+        mb / "plans",
+        "2026-04-22_feature_c-prereq.md",
+        status="queued",
+        topic="c-prereq",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+
+    roadmap = (mb / "roadmap.md").read_text(encoding="utf-8")
+    next_section = roadmap.split("## Next (strict order — depends)", 1)[1].split(
+        "## Parallel-safe", 1
+    )[0]
+    assert next_section.index("c-prereq") < next_section.index("b-dependent")
+
+
+def test_parallel_safe_with_dependencies_waits_in_next_section(tmp_path: Path) -> None:
+    """Parallel-safe plans are runnable now only when their depends_on list is empty."""
+    mb = _init_mb(tmp_path)
+    _make_plan(
+        mb / "plans",
+        "2026-04-22_feature_after-gate.md",
+        status="queued",
+        topic="after-gate",
+        parallel_safe="true",
+        depends_on="[2026-04-22_fix_gate.md]",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+
+    roadmap = (mb / "roadmap.md").read_text(encoding="utf-8")
+    next_section = roadmap.split("## Next (strict order — depends)", 1)[1].split(
+        "## Parallel-safe", 1
+    )[0]
+    parallel_section = roadmap.split("## Parallel-safe (can run now)", 1)[1].split("## Paused", 1)[
+        0
+    ]
+    assert "after-gate" in next_section
+    assert "after-gate" not in parallel_section
+
+
 def test_block_style_list_emits_warning(tmp_path: Path) -> None:
     """I3: block-style YAML list in frontmatter → stderr warning."""
     mb = _init_mb(tmp_path)
@@ -345,7 +427,7 @@ def test_empty_sections_render_none_placeholder(tmp_path: Path) -> None:
     ):
         idx = roadmap.index(title)
         # Expect the next non-blank content after the title to be `_None._`
-        tail = roadmap[idx + len(title):]
+        tail = roadmap[idx + len(title) :]
         assert "_None._" in tail.split("##", 1)[0], f"Missing _None._ under {title}"
 
 
@@ -423,6 +505,5 @@ def test_link_format_in_plan_line(tmp_path: Path) -> None:
     roadmap = (mb / "roadmap.md").read_text(encoding="utf-8")
     expected = "- [linkfmt-topic](plans/2026-04-22_feature_linkfmt.md) — linkfmt-topic"
     assert expected in roadmap, (
-        f"Expected link format not found.\nLooking for: {expected!r}\n"
-        f"Roadmap:\n{roadmap}"
+        f"Expected link format not found.\nLooking for: {expected!r}\nRoadmap:\n{roadmap}"
     )

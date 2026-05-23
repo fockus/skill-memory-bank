@@ -1,11 +1,13 @@
 ---
 type: feature
 topic: skill-improvements-anthropic-audit
-status: pending
+status: queued
 created: 2026-05-23
+baseline_commit: 6fc6a504a6dfdb3ead9f98e0be569098fe6235a7
 level: sprint
 linked_report: .memory-bank/reports/2026-05-23_anthropic-best-practices-audit.md
 parallel_safe: true
+depends_on: ["2026-05-24_fix_ci-baseline-wave-0.md"]
 ---
 
 # Plan: feature — skill-improvements-anthropic-audit
@@ -24,7 +26,7 @@ parallel_safe: true
 5. README дополнен разделом "Vibe coding mode" (rules-only режим как first-class).
 6. `install.sh` дополнен interactive prompt: `minimal` vs `full` install profile.
 
-После выполнения скил остаётся функционально неизменным; меняется только документация, onboarding и тестовая инфраструктура. Все P1-P3 рекомендации аудита, признанные актуальными после обсуждения, закрыты.
+После выполнения скил остаётся backward-compatible by default, но P1-риски больше не маскируются как «только документация»: plan должен либо реально снизить risk (install profile / autoload opt-in / slim global-rules source), либо явно записать accepted-risk с owner и revisit date.
 
 **Related files:**
 - `.memory-bank/reports/2026-05-23_anthropic-best-practices-audit.md` — источник рекомендаций
@@ -33,11 +35,11 @@ parallel_safe: true
 - `docs/` — новая директория для дизайн-документации
 
 **Non-goals (explicit):**
-- НЕ сокращать global `~/.claude/CLAUDE.md`.
-- НЕ сужать description trigger в `SKILL.md`.
-- НЕ менять дефолт `MB_AUTOLOAD_CONTEXT`.
-- НЕ удалять команды, subagents, хуки.
-- НЕ менять поведение `/mb work`, `/mb plan`, `/mb verify`, `/mb done`.
+- НЕ удалять команды, subagents, хуки в этом docs/evals sprint.
+- НЕ ломать поведение `/mb work`, `/mb plan`, `/mb verify`, `/mb done` без explicit opt-in.
+- НЕ редактировать user-local `~/.claude/CLAUDE.md` напрямую; изменения идут через repo-owned source/templates/install profile.
+
+**Scope correction (2026-05-24 audit):** P1 findings from the audit are in scope as risk-reduction work. At minimum Stage 1 must document accepted deviations, Stage 5 must make rules-only/vibe mode first-class, and Stage 6 must provide install profiles that make heavy context/hooks opt-in. If global rules slimming or `MB_AUTOLOAD_CONTEXT=off` is rejected, record it as accepted risk with owner + revisit date in `docs/DESIGN-DECISIONS.md`.
 
 ---
 

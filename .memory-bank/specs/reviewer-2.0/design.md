@@ -1,13 +1,13 @@
 ---
 spec_id: reviewer-2.0
 topic: Reviewer 2.0 — calibrated, tests-aware, golden-suite verified
-status: draft
+status: ready
 author: brainstorming-session
 created: 2026-05-23
 parent_roadmap: harness-upgrade (S1 of S1..S4)
 addresses_gaps: [GAP-1, GAP-5, GAP-7]
 non_addresses: [GAP-2, GAP-3, GAP-4, GAP-6, GAP-8, GAP-9, GAP-10]
-breaking_changes: yes (no version bump per project policy)
+breaking_changes: no (additive orchestrator; migration note required for custom reviewer wrappers)
 ---
 
 # Reviewer 2.0 — Design

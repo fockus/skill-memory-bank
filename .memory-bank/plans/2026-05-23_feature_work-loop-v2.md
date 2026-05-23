@@ -1,10 +1,10 @@
 ---
 type: feature
 topic: work-loop-v2
-status: planned
+status: queued
 depends_on: ["2026-05-23_feature_reviewer-v2.md"]
 parallel_safe: false
-linked_specs: []
+linked_specs: ["specs/work-loop-v2/design.md"]
 sprint: 1
 phase_of: harness-upgrade
 created: 2026-05-23

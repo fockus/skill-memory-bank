@@ -1,13 +1,15 @@
 ---
 type: feature
 topic: goal-driven-autopilot-sprint-7-autopilot
-status: pending
+status: queued
 created: 2026-05-23
+baseline_commit: a9093ac535d14657d5a808d5a1a67134937d4135
 level: sprint
 phase_plan: 2026-05-23_feature_goal-driven-autopilot-phase.md
 linked_spec: specs/goal-driven-autopilot
 tasks: 34-39
-depends_on: sprint-1, sprint-2, sprint-3, sprint-4, sprint-5, sprint-6
+depends_on: ["2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md", "2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md", "2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md", "2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md", "2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md", "2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md"]
+parallel_safe: false
 ---
 
 # Plan: feature — goal-driven-autopilot — Sprint 7: Autopilot loop
