@@ -58,8 +58,8 @@ Phase 1 Foundation, Phase 2 (discuss + sdd + plan-lite), Phase 3 Sprint 1 (`/mb 
 - ✅ Stages 4-5: `scripts/mb-spec-validate.sh` (12 pytest cases GREEN, shellcheck clean) + Sprint 1 closeout. Sprint 2 (`sdd-work-engine`) unblocked.
 
 <!-- mb-plan:2026-05-21_refactor_sdd-work-engine.md -->
-## sdd-work-engine Sprint 2 — queued
-- ⬜ Stages 1-6: RED tests + wire `/mb work` resolve/range/plan to `mb_work_items.py` + commands/work.md update + verification. Detail → `plans/2026-05-21_refactor_sdd-work-engine.md`.
+## sdd-work-engine Sprint 2 — DONE ✅
+- ✅ Stages 1-6: RED tests + `mb-work-resolve.sh` (Form 3 markers/Form 4 specs candidates) + `mb-work-range.sh` (mb-stage/mb-task auto-detect, mixed-format reject) + `mb-work-plan.sh` refactor (inline parser deleted, uses `mb_work_items.py`, +source/kind/covers/item_no, plan-as-wrapper via linked_spec) + `commands/work.md` Sprint 2 docs + bats. 46/46 work-stack tests GREEN. Sprint 3 (`sdd-traceability-docs`) unblocked.
 
 <!-- mb-plan:2026-05-21_refactor_sdd-traceability-docs.md -->
 ## sdd-traceability-docs Sprint 3 — queued

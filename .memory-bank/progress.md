@@ -1697,3 +1697,28 @@ Real failure mode hit during the v4.0.0 release session: Phase 4 Sprint 3 commit
 - `.memory-bank/plans/2026-05-21_refactor_sdd-task-model.md` → `status: done`
 
 **Sprint 2 handoff:** `mb_work_items.py` public API stable (`parse_work_items`, `WorkItem`). Plan file `2026-05-21_refactor_sdd-work-engine.md` is ready for `/mb work` once user picks it up.
+
+## 2026-05-23 (sdd-work-engine — Sprint 2 closeout)
+
+**What:** Closed Sprint 2 of phase `sdd-unification` (all 6 stages).
+- Stage 1: 18 RED contract tests — 13 new in `test_mb_work_spec_tasks.py`, +3 in `test_mb_work_resolve.py`, +2 in `test_mb_work_range.py`. RED phase confirmed: 13 failed due to missing fields / wrong exit codes, not syntax.
+- Stage 2: `mb-work-resolve.sh` Form 3 strengthened (requires `mb-task` or `mb-stage` marker), Form 4 candidates extended with `specs/*/tasks.md`. 12/12 resolve tests GREEN.
+- Stage 3: `mb-work-range.sh` auto-detects mb-stage vs mb-task; mixed-format → exit 1 stderr "mixed". Backward-compat "no stages" error preserved verbatim. 11/11 range tests GREEN.
+- Stage 4: `mb-work-plan.sh` refactored — deleted inline Python parser + role-detection heuristics (now in `mb_work_items.py` SSOT). Plan-as-wrapper UX via `linked_spec`/`tasks` frontmatter. JSON schema additive: `source`, `kind`, `covers`, `item_no` (alias on `stage_no`). 10/10 plan tests + 13/13 spec_tasks tests GREEN. File 180→284 lines, ≤300 SRP cap.
+- Stage 5: `commands/work.md` rewritten — 5 target resolution forms table, plan-as-wrapper UX, new JSON schema; no "plan-only execution" claims remain. `tests/bats/test_mb_work_command_doc.bats` 8/8 GREEN.
+- Stage 6: Full verification — work-stack 46/46 GREEN, shellcheck clean, mb-rules-check violations=0 on Sprint 2 surface.
+
+**Why:** `/mb work` is now Spec-Driven Development-aware end-to-end. `specs/<topic>/tasks.md` is a first-class executable source. Thin plan files can delegate execution to a linked spec via `linked_spec`/`tasks` frontmatter, preserving traceability via the `plan` field. Sprint 3 (`sdd-traceability-docs`) can now ship traceability matrix + migration script + final docs.
+
+**Artifacts:**
+- 3 modified production scripts (~120 net LOC added, 1 inline parser deleted)
+- 5 modified/new test files (18 new pytest cases + 8 new bats assertions)
+- `commands/work.md` rewrite (+119 lines)
+- `.memory-bank/plans/2026-05-21_refactor_sdd-work-engine.md` → `status: done`
+
+**Lessons:**
+- When a wrapper bash script delegates to a Python CLI, keep the wrapper thin: orchestrate (resolve → range → parse → enrich → emit), but never duplicate the parsing logic. The 100-line LOC growth in `mb-work-plan.sh` is justified — most of it is the new wrapper-frontmatter parser and the enrichment block that maps `mb_work_items.py` output to the consumer-facing JSON schema.
+- "Plan-as-wrapper" UX (thin plan file with `linked_spec` + `tasks` range) gives sprint slicing without duplicating spec tasks into multiple plans. Works for both Sprint plans and ad-hoc executions.
+- Backward-compatible JSON evolution: keep `stage_no` as an alias, ADD new fields. Existing consumers (driver `commands/work.md`) continue to read `stage_no`.
+
+**Sprint 3 handoff:** spec tasks fully executable end-to-end. Sprint 3 plan `.memory-bank/plans/2026-05-21_refactor_sdd-traceability-docs.md` is ready: traceability matrix task-level coverage, `mb-spec-tasks-migrate.sh` for legacy `## 1. ...` format migration, final docs (SKILL.md / commands/sdd.md / references/templates.md update), end-to-end gate.

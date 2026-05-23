@@ -136,7 +136,14 @@ path = os.environ["PLAN_PATH"]
 range_expr = os.environ["RANGE_EXPR"]
 text = open(path, encoding="utf-8").read()
 
-stages = sorted({int(m.group(1)) for m in re.finditer(r"<!--\s*mb-stage:(\d+)\s*-->", text)})
+stage_nums = sorted({int(m.group(1)) for m in re.finditer(r"<!--\s*mb-stage:(\d+)\s*-->", text)})
+task_nums  = sorted({int(m.group(1)) for m in re.finditer(r"<!--\s*mb-task:(\d+)\s*-->",  text)})
+
+if stage_nums and task_nums:
+    sys.stderr.write(f"[work-range] mixed-format markers in {path}: both mb-stage and mb-task present\n")
+    sys.exit(1)
+
+stages = stage_nums or task_nums
 if not stages:
     sys.stderr.write(f"[work-range] no stages in {path}\n")
     sys.exit(1)

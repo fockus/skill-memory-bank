@@ -159,9 +159,17 @@ fi
 words=$(count_words "$TARGET")
 if [ "$words" -ge 3 ]; then
   echo "[work-resolve] freeform target ($words words); driver must match against active plans" >&2
+  echo "candidates:" >&2
   if [ -d "$plans_dir" ]; then
-    echo "candidates:" >&2
     find "$plans_dir" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sed 's/^/  /' >&2 || true
+  fi
+  # Also include specs/*/tasks.md files that contain mb-task or mb-stage markers.
+  if [ -d "$BANK/specs" ]; then
+    while IFS= read -r spec_tasks; do
+      if grep -qE '<!--[[:space:]]*mb-(task|stage):[0-9]+[[:space:]]*-->' "$spec_tasks" 2>/dev/null; then
+        printf '  %s\n' "$spec_tasks" >&2
+      fi
+    done < <(find "$BANK/specs" -mindepth 2 -maxdepth 2 -name 'tasks.md' 2>/dev/null)
   fi
   exit 3
 fi

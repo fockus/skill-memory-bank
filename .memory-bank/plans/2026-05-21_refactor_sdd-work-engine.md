@@ -1,7 +1,7 @@
 ---
 type: refactor
 topic: sdd-work-engine
-status: queued
+status: done
 depends_on: [2026-05-21_refactor_sdd-task-model.md]
 parallel_safe: false
 linked_specs: []

@@ -125,3 +125,55 @@ def test_done_plans_excluded_from_substring(tmp_path: Path) -> None:
     done.write_text("---\nstatus: done\n---\n\n# old\n", encoding="utf-8")
     r = _run("old", mb=mb)
     assert r.returncode == 1, r.stdout
+
+
+# ── NEW: spec-task resolution (Stage 1 RED tests) ─────────────────────────
+
+
+def test_form3_topic_resolves_to_spec_tasks_when_marker_present(tmp_path: Path) -> None:
+    """Form 3: topic with mb-task markers in tasks.md → resolved to absolute spec path."""
+    mb = _init_mb(tmp_path)
+    spec_dir = mb / "specs" / "billing"
+    spec_dir.mkdir()
+    tasks = spec_dir / "tasks.md"
+    tasks.write_text(
+        "# Tasks: billing\n\n<!-- mb-task:1 -->\n## Task 1: setup\n\n- [ ] done\n",
+        encoding="utf-8",
+    )
+    r = _run("billing", mb=mb)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == str(tasks.resolve())
+
+
+def test_form1_direct_path_to_spec_tasks_returns_absolute_path(tmp_path: Path) -> None:
+    """Form 1: direct path to specs/foo/tasks.md returns its absolute path."""
+    mb = _init_mb(tmp_path)
+    spec_dir = mb / "specs" / "auth"
+    spec_dir.mkdir()
+    tasks = spec_dir / "tasks.md"
+    tasks.write_text(
+        "# Tasks: auth\n\n<!-- mb-task:1 -->\n## Task 1: login flow\n\n- [ ] done\n",
+        encoding="utf-8",
+    )
+    r = _run(str(tasks), mb=mb)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == str(tasks.resolve())
+
+
+def test_form4_candidates_include_specs_entries(tmp_path: Path) -> None:
+    """Form 4 freeform: stderr candidate list includes specs/ entries alongside plans/."""
+    mb = _init_mb(tmp_path)
+    _write_plan(mb, "some-plan")
+    spec_dir = mb / "specs" / "notifications"
+    spec_dir.mkdir()
+    (spec_dir / "tasks.md").write_text(
+        "<!-- mb-task:1 -->\n## Task 1: notify\n\n- [ ] done\n",
+        encoding="utf-8",
+    )
+    r = _run("resolve the notification spec issue please", mb=mb)
+    assert r.returncode == 3
+    combined = r.stderr + r.stdout
+    # Candidate list must mention specs/ paths, not only plans/
+    assert "specs" in combined.lower(), (
+        f"expected 'specs' in stderr candidates, got:\n{combined}"
+    )
