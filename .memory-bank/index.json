@@ -161,8 +161,70 @@
       "summary": "Date: 2026-04-27 01:04 - Closed all 7 stages of the `refactor — v4-audit-remediation` plan (2026-04-25 → 2026-04-27) — the v4.0.0 full-skill audit identified 7 drift groups; remediation now ships.",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-05-21_08-16_graph-rag-lite-closeout.md",
+      "type": "closeout",
+      "tags": [
+        "graph-rag-lite",
+        "code-context",
+        "verification",
+        "cross-agent"
+      ],
+      "importance": "high",
+      "summary": "- Закрыт architecture plan `graph-rag-lite-code-context`: portable graph query CLI, `code_context` evidence pack, Pi native project extension wrapper, OpenCode/Codex/generic AGENTS.md fallback guidance. - Review remediation выполнена: SRP blockers сняты через split core/render/helper modules; Bats ShellCheck SC2314 исправлен; documentation count updated.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-05-23_03-49_sdd-task-model.md",
+      "type": "note",
+      "tags": [
+        "sdd",
+        "parser",
+        "validator",
+        "sprint-closeout",
+        "work-items"
+      ],
+      "importance": "high",
+      "summary": "**Phase:** sdd-unification (3 sprints). **Sprint 1 of 3 — DONE.** **Closed:** Stages 1-5.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-05-23_05-00_sdd-work-engine.md",
+      "type": "note",
+      "tags": [
+        "sdd",
+        "work-engine",
+        "mb-work",
+        "spec-tasks",
+        "plan-wrapper",
+        "sprint-closeout"
+      ],
+      "importance": "high",
+      "summary": "**Phase:** sdd-unification (3 sprints). **Sprint 2 of 3 — DONE.** **Closed:** Stages 1-6.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-05-23_05-30_sdd-unification-phase-done.md",
+      "type": "note",
+      "tags": [
+        "sdd",
+        "phase-closeout",
+        "mb-work",
+        "spec-tasks",
+        "plan-wrapper",
+        "traceability",
+        "migration"
+      ],
+      "importance": "high",
+      "summary": "**Phase scope:** Make `specs/<topic>/tasks.md` a first-class executable artifact for `/mb work`, with `plan.md` as optional thin execution wrapper. Single SDD-flow: `discuss → sdd → spec-validate → work → verify → traceability-gen → done`. **Sprints (all DONE):**",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-04-26T22:05:54Z"
+  "generated_at": "2026-05-23T15:56:12Z"
 }
