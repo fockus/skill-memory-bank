@@ -93,6 +93,20 @@ _agents_md_section() {
   echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
   echo '- Before context window fill: manual actualize'
   echo ''
+  echo '## GraphRAG-lite routing'
+  echo ''
+  echo 'For code-understanding questions, prefer Memory Bank graph tools over `grep`:'
+  # shellcheck disable=SC2016
+  echo '- `code_context` — ambiguous "where is the logic for X?" / "find similar implementation". Default for fuzzy code-context lookups; runs semantic candidates + graph expansion + read fallback via `scripts/mb-code-context.py`.'
+  # shellcheck disable=SC2016
+  echo '- `graph_neighbors` — "who calls X?" / "what imports Y?" / "where is X defined?". Direct structural query via `scripts/mb-graph-query.py neighbors`.'
+  # shellcheck disable=SC2016
+  echo '- `graph_impact` — "change impact" / "reverse deps". `scripts/mb-graph-query.py impact`.'
+  # shellcheck disable=SC2016
+  echo '- `graph_tests` — "what tests cover this file/symbol?". `scripts/mb-graph-query.py tests`.'
+  echo ''
+  echo 'Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block work — CLI scripts are the universal fallback.'
+  echo ''
   if [ -f "$skill_dir/rules/RULES.md" ]; then
     echo '---'
     echo ''

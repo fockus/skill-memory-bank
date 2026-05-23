@@ -120,7 +120,7 @@ uninstall_skill_mode() {
 
 # ═══ AGENTS.md mode (default) ═══
 install_agents_md_mode() {
-  local owned git_hooks_installed
+  local owned git_hooks_installed graph_ext_installed
   owned=$(agents_md_install "$PROJECT_ROOT" "pi" "$SKILL_DIR")
   git_hooks_installed=false
   if [ -d "$PROJECT_ROOT/.git" ]; then
@@ -130,24 +130,50 @@ install_agents_md_mode() {
     echo "[pi-adapter] project is not a git repo; installed AGENTS.md only" >&2
   fi
 
+  graph_ext_installed=$(_install_graph_rag_extension)
+
   adapter_write_manifest \
     "$MANIFEST" \
     "pi" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    '[]' \
-    "{\"mode\": \"agents-md\", \"agents_md_owned\": $owned, \"git_hooks_installed\": $git_hooks_installed}"
+    "[\"$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts\"]" \
+    "{\"mode\": \"agents-md\", \"agents_md_owned\": $owned, \"git_hooks_installed\": $git_hooks_installed, \"graph_ext_installed\": $graph_ext_installed}"
 
   echo "[pi-adapter] installed (mode: agents-md)"
 }
 
+# Copy adapters/pi_graph_rag_extension.ts → $PROJECT_ROOT/.pi/extensions/.
+# Provides native Pi tool wrappers (code_context, graph_neighbors,
+# graph_impact, graph_tests) that delegate to scripts/mb-*-query.py and
+# scripts/mb-code-context.py. Fail-open contract: missing source file
+# is not fatal — returns "false" so caller can record skipped state.
+_install_graph_rag_extension() {
+  local src="$SKILL_DIR/adapters/pi_graph_rag_extension.ts"
+  local dest="$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts"
+  if [ ! -f "$src" ]; then
+    echo "false"
+    return 0
+  fi
+  mkdir -p "$(dirname "$dest")"
+  cp "$src" "$dest"
+  echo "true"
+}
+
 uninstall_agents_md_mode() {
-  local installed_git
+  local installed_git installed_graph_ext
   installed_git=$(jq -r '.git_hooks_installed // false' "$MANIFEST")
+  installed_graph_ext=$(jq -r '.graph_ext_installed // false' "$MANIFEST")
 
   agents_md_uninstall "$PROJECT_ROOT" "pi"
 
   if [ "$installed_git" = "true" ]; then
     bash "$GIT_FALLBACK" uninstall "$PROJECT_ROOT" >/dev/null
+  fi
+
+  if [ "$installed_graph_ext" = "true" ]; then
+    rm -f "$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts"
+    rmdir "$PROJECT_ROOT/.pi/extensions" 2>/dev/null || true
+    rmdir "$PROJECT_ROOT/.pi" 2>/dev/null || true
   fi
 
   rm -f "$MANIFEST"

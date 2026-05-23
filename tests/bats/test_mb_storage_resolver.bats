@@ -357,10 +357,10 @@ PY
 
   local bank="$HOME/.claude/memory-bank/projects/widgets-abc/.memory-bank"
   mkdir -p "$bank"
-  echo "# STATUS" > "$bank/STATUS.md"
-  echo "# plan"   > "$bank/plan.md"
-  echo "# check"  > "$bank/checklist.md"
-  echo "# rsr"    > "$bank/RESEARCH.md"
+  echo "# Status"  > "$bank/status.md"
+  echo "# Roadmap" > "$bank/roadmap.md"
+  echo "# check"   > "$bank/checklist.md"
+  echo "# rsr"     > "$bank/research.md"
 
   _write_registry claude-code "$PROJECT" "$bank"
 
@@ -370,5 +370,5 @@ PY
   run bash "$CONTEXT_SCRIPT"
   [ "$status" -eq 0 ]
   [[ "$output" == *"[MEMORY BANK: ACTIVE]"* ]]
-  [[ "$output" == *"STATUS"* ]]
+  [[ "$output" == *"status.md"* ]]
 }

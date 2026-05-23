@@ -9,6 +9,13 @@
 
 set -u
 
+# Tighten file-creation mode for the entire hook — log file may contain
+# paths the user is editing, so anything we create must be owner-only.
+# This prevents a race between `: > LOG_FILE` (creates with umask perms)
+# and the follow-up `chmod 600`, which on some Linux CI runners was
+# leaving the file with 644 if anything (e.g. teardown observer) raced.
+umask 077
+
 command -v jq >/dev/null 2>&1 || { echo "ERROR: jq required for hook" >&2; exit 1; }
 
 INPUT=$(cat)
