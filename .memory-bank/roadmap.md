@@ -7,7 +7,6 @@ _None._
 
 ## Next (strict order — depends)
 
-- [sdd-task-model](plans/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
 - [sdd-traceability-docs](plans/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
 - [sdd-work-engine](plans/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
 

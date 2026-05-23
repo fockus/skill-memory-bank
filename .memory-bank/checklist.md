@@ -53,10 +53,9 @@ Phase 1 Foundation, Phase 2 (discuss + sdd + plan-lite), Phase 3 Sprint 1 (`/mb 
 - ✅ Stages 1-6: profile schema doc + 7 fixtures + RED pytest (26 cases) → `memory_bank_skill/rules_profile.py` + `scripts/mb-profile.sh` CLI (10 bats) → 22 built-in preset JSONs (roles/stacks/architecture/delivery, 12 composition tests) → `mb-rules-check.sh` profile integration (strictness-aware exit, rule_id/profile_source fields, stack-aware checks for go/python/typescript/javascript/java, fsd architecture hint, 8 bats) → `/mb profile` command + `commands/profile.md` + `docs/rule-profiles.md` + README/SKILL.md updates (7 new runtime tests) → CHANGELOG + verification (798 pytest, full bats, ruff clean). Detail → `plans/2026-05-21_feature_rule-profiles-and-stack-presets.md`.
 
 <!-- mb-plan:2026-05-21_refactor_sdd-task-model.md -->
-## sdd-task-model Sprint 1 — stages 1-3 ✅
+## sdd-task-model Sprint 1 — DONE ✅
 - ✅ Stages 1-3: RED tests + `mb_work_items.py` parser (stdlib, JSON Lines CLI) + `mb-sdd.sh` emits new `<!-- mb-task:N -->` format (27/27 sdd+parser tests green, smoke OK). Detail → `plans/2026-05-21_refactor_sdd-task-model.md`.
-- ⬜ Stage 4: Implement `scripts/mb-spec-validate.sh`
-- ⬜ Stage 5: Sprint 1 verification + handoff
+- ✅ Stages 4-5: `scripts/mb-spec-validate.sh` (12 pytest cases GREEN, shellcheck clean) + Sprint 1 closeout. Sprint 2 (`sdd-work-engine`) unblocked.
 
 <!-- mb-plan:2026-05-21_refactor_sdd-work-engine.md -->
 ## sdd-work-engine Sprint 2 — queued

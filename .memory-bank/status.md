@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Active planning — feature `global-storage` (2026-05-21): COMPLETED. All three sprints landed: Sprint 1 (`global-storage-core`) ships the agent-agnostic storage resolver + global init; Sprint 2 (`global-storage-agent-support`) propagates resolver-aware behaviour across all hooks/adapters and adds local/global/rules-only docs; Sprint 3 (`rule-profiles-and-stack-presets`) introduces configurable rule profiles (immutable safety baseline + role/stack/architecture/delivery presets, 22 built-in preset JSONs, `mb-profile.sh` CLI, `/mb profile` command, profile-aware `mb-rules-check.sh`). Architecture plan `graph-rag-lite-code-context` verified and closed. Newly planned Phase `sdd-unification` (3 Sprint: task-model → work-engine → traceability-docs) — Sprint 1 stages 1-3 done; Sprint 1 stages 4-5 + Sprints 2-3 queued.**
+**Active planning — feature `global-storage` (2026-05-21): COMPLETED. All three sprints landed: Sprint 1 (`global-storage-core`) ships the agent-agnostic storage resolver + global init; Sprint 2 (`global-storage-agent-support`) propagates resolver-aware behaviour across all hooks/adapters and adds local/global/rules-only docs; Sprint 3 (`rule-profiles-and-stack-presets`) introduces configurable rule profiles (immutable safety baseline + role/stack/architecture/delivery presets, 22 built-in preset JSONs, `mb-profile.sh` CLI, `/mb profile` command, profile-aware `mb-rules-check.sh`). Architecture plan `graph-rag-lite-code-context` verified and closed. Phase `sdd-unification` (3 Sprint: task-model → work-engine → traceability-docs) — Sprint 1 DONE (stages 1-5); Sprints 2-3 queued and unblocked.**
 
 Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine, `/mb config` + `/mb work`, 9 role-agents + reviewer + verifier, severity-gated review-loop, 5 critical Claude Code hooks, prompt-trimming `--slim` mode, sprint context guard, checklist hard-cap enforcement, installer auto-registration с `superpowers:requesting-code-review` skill detection. Post-release: I-004 ships `scripts/mb-auto-commit.sh` (opt-in `MB_AUTO_COMMIT=1`).
 
@@ -10,9 +10,9 @@ Skill v2 architectural refactor завершён: `pipeline.yaml`-driven engine,
 
 ## ⏭ Следующий шаг
 
-**Phase `global-storage` закрыта (Sprints 1+2+3 done).** Возможные кандидаты на следующий phase:
-- `sdd-unification` Sprint 1 Stage 4-5 (`mb-spec-validate.sh` + verification) — небольшой остаток, разблокирует Sprints 2-3.
-- Release cut v5.0.0 — feature scope крупный (агент-агностик storage + rule profiles), может быть пора bump major + PyPI/Homebrew sync.
+**Phase `global-storage` закрыта (Sprints 1+2+3 done). Phase `sdd-unification` Sprint 1 (`sdd-task-model`) DONE — parser + sdd generator + spec validator готовы.** Естественное продолжение:
+- `sdd-unification` Sprint 2 (`sdd-work-engine`) — wires `/mb work` to spec tasks via `mb_work_items.py`. 6 stages. Plan ready: `plans/2026-05-21_refactor_sdd-work-engine.md`. Unblocked by Sprint 1 closeout.
+- Release cut v5.0.0 — feature scope крупный (агент-агностик storage + rule profiles + SDD task model), может быть пора bump major + PyPI/Homebrew sync.
 
 ## Open backlog
 

@@ -1681,3 +1681,19 @@ Real failure mode hit during the v4.0.0 release session: Phase 4 Sprint 3 commit
 
 - Compared implementation against the attached Cursor Adapter Remediation Plan DoD and fixed residual gaps: `sessionStart` invalid-JSON fail-open, context cap test, manifest script coverage, Hatch VERSION metadata invariant, stale hooks documentation, `docs/install.md` Cursor/User Rules UX, release-process version example consistency, and order-independent version test import path.
 - Verification after fixes: pytest targeted plan suite 59 passed; cursor adapter bats 16/16; cursor global e2e 18/18; shellcheck clean; wheel METADATA version equals VERSION (`4.0.0`).
+
+## 2026-05-23 (sdd-task-model — Sprint 1 closeout)
+
+**What:** Closed Sprint 1 of phase `sdd-unification` with Stages 4-5.
+- Stage 4: `scripts/mb-spec-validate.sh` — bash CLI with 6 spec-triple integrity checks (EARS validity, parseable tasks, per-task Covers/DoD/Testing, no REQ orphans), `--json` mode, exit 0/1/2 contract. Reuses `mb-ears-validate.sh` and `mb_work_items.py` (DIP). Shellcheck clean.
+- Stage 4 tests: `tests/pytest/test_mb_spec_validate.py` — 12 cases RED→GREEN (well-formed pass, orphan REQ, missing covers/DoD/Testing, bad EARS, --json structured output, topic resolution via mb_path, usage error, missing required files parametrized).
+- Stage 5: full verification (pytest + bats + ruff + shellcheck + mb-rules-check all green on Sprint 1 surface), smoke regression on `/mb work` parsing, plan frontmatter flipped to done.
+
+**Why:** Unlocks Sprint 2 (`sdd-work-engine`) which depends on `mb_work_items.py` as a runtime dependency. With validate-script in place, `specs/<topic>/` triple is now self-checking and ready to become first-class executable source in Sprint 2.
+
+**Artifacts:**
+- `scripts/mb-spec-validate.sh` (new, ~190 lines)
+- `tests/pytest/test_mb_spec_validate.py` (new, 12 cases)
+- `.memory-bank/plans/2026-05-21_refactor_sdd-task-model.md` → `status: done`
+
+**Sprint 2 handoff:** `mb_work_items.py` public API stable (`parse_work_items`, `WorkItem`). Plan file `2026-05-21_refactor_sdd-work-engine.md` is ready for `/mb work` once user picks it up.

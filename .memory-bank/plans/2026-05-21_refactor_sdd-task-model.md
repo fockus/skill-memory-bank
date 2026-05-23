@@ -1,7 +1,7 @@
 ---
 type: refactor
 topic: sdd-task-model
-status: queued
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: []

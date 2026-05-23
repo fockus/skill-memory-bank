@@ -133,6 +133,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-req-next-id.sh` | Emit the next monotonic `REQ-NNN` identifier |
 | `mb-sdd.sh <topic>` | Create a Kiro-style spec triple under `specs/<topic>/` (requirements / design / tasks) |
 | `mb_work_items.py` | Shared parser for plan stages (`<!-- mb-stage:N -->`) and spec tasks (`<!-- mb-task:N -->`); CLI emits JSON Lines |
+| `mb-spec-validate.sh <topic\|spec-dir\|spec-file>` | Validate spec triple integrity (EARS, parseable tasks, per-task Covers/DoD/Testing, no REQ orphans). `--json` mode for structured output |
 | `mb-pipeline.sh` | Manage the project's `pipeline.yaml` (spec §9) |
 | `mb-pipeline-validate.sh` | Structural validation for `pipeline.yaml` (spec §9) |
 | `mb-work-resolve.sh` | Resolve `<target>` arg into a plan/spec path (spec §8.2) |

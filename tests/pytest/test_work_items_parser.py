@@ -30,6 +30,7 @@ import pathlib
 import textwrap
 
 import pytest
+
 from scripts.mb_work_items import WorkItem, parse_work_items
 
 # ──────────────────────────────────────────────────────────────────────────────
