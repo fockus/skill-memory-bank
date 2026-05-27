@@ -37,6 +37,7 @@ sprint: 0
 ## Stages
 
 <!-- mb-stage:1 -->
+
 ### Stage 1: Casing — BACKLOG.md → backlog.md in 7 test files
 
 **What to do:**
@@ -60,6 +61,7 @@ sprint: 0
 - [ ] После push: `adr` tests 5-8 + `idea` tests 201-207 GREEN на Ubuntu CI.
 
 <!-- mb-stage:2 -->
+
 ### Stage 2: Init-bank scaffold expectations — STATUS/BACKLOG/RESEARCH lowercase + plan.md → roadmap.md
 
 **What to do:**
@@ -79,6 +81,7 @@ sprint: 0
 - [ ] Tests 341, 342 (get-lang cyrillic) GREEN.
 
 <!-- mb-stage:3 -->
+
 ### Stage 3: Go-skip TAP format (macOS)
 
 **What to do:**
@@ -91,6 +94,7 @@ sprint: 0
 - [ ] Tests 628-630 (go) на macOS показывают `ok N # skip` (зелёные), не `not ok`.
 
 <!-- mb-stage:4 -->
+
 ### Stage 4: Real bugs — compact / context --deep / drift / research / file-change-log
 
 **What to do:**
@@ -110,6 +114,7 @@ sprint: 0
 - [ ] Все ≥18 fail'ов из категории B зелёные.
 
 <!-- mb-stage:5 -->
+
 ### Stage 5: GraphRAG adapters #182-187
 
 **What to do:**
@@ -121,6 +126,7 @@ Pi extension wrapper тесты (5 fails). После split на core/render/hel
 - [ ] Manual smoke: Pi extension manifest содержит ожидаемые tool names.
 
 <!-- mb-stage:6 -->
+
 ### Stage 6: CI green + verify on PR
 
 **What to do:**
@@ -138,3 +144,4 @@ Pi extension wrapper тесты (5 fails). После split на core/render/hel
 ## Gate (plan success criterion)
 
 `gh run view <run-id-after-final-commit>` → conclusion: `success` на всех 4 матриц-комбинациях (ubuntu/macos × python 3.11/3.12).
+

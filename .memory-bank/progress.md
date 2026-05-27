@@ -1,3 +1,4 @@
+
 # claude-skill-memory-bank — Progress Log
 
 ## 2026-05-24 (OpenCode-first adaptation plan + spec updates)
@@ -837,6 +838,7 @@
 - Сессия завершилась без явного /mb done (git post-commit fallback)
 - Commit SHA: 47db1227
 - Детали будут восстановлены при следующем /mb start
+
 ## 2026-04-21
 
 ### Auto-capture 2026-04-21 (git-8a7d4624)
@@ -1849,3 +1851,11 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 ### Auto-capture 2026-05-24 (session 40bc5e85)
 - Session ended without an explicit /mb done
 - Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-05-27 — Wave 0 CI baseline closeout
+
+- Closed `plans/2026-05-24_fix_ci-baseline-wave-0.md` → `plans/done/2026-05-24_fix_ci-baseline-wave-0.md` after GitHub `test.yml` run `26527319286` passed on all required matrix jobs.
+- Final CI blockers fixed in follow-up commits: no-PyYAML runtime fallbacks, Linux/GNU grep terminology whitelist for historical Memory Bank archives, and policy-reference surfaces.
+- Local verification before final CI green: focused terminology/naming pytest `15 passed`, `LC_ALL=C.UTF-8` terminology pytest `9 passed`, full `bash scripts/mb-test-run.sh --dir . --out json` → `868/868`.
+- Wave 1 is no longer blocked by red baseline CI; next operational choice is active Cursor remediation vs W0.5 OpenCode-first infrastructure.
+

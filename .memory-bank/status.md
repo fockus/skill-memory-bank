@@ -1,8 +1,9 @@
+
 # claude-skill-memory-bank: Статус проекта
 
 ## Current phase
 
-**Phase 5 — Autonomous agent harness (v5.0.0 target).** Перед Wave 1 добавлен обязательный **Wave 0 — CI baseline**: пока `test.yml` не станет зелёным, feature waves остаются queued. Основной roadmap — 12 wave'ов: `harness-upgrade` (reviewer-v2 → work-loop-v2 → handoff-v2 → cost-multi-model → parallel-pipeline) + `goal-driven-autopilot` (overlay+addons → mb-debugger → atomic-commit → goal-layer → worktree-MVP → parallel-waves-MVP → autopilot-loop). Standalone `skill-improvements-anthropic-audit` — docs/evals track после Wave 0, параллельно с W1.
+**Phase 5 — Autonomous agent harness (v5.0.0 target).** Обязательный **Wave 0 — CI baseline** закрыт: `test.yml` на `main` зелёный (`26527319286`) для Ubuntu/macOS × Python 3.11/3.12. Основной roadmap — 12 wave'ов: `harness-upgrade` (reviewer-v2 → work-loop-v2 → handoff-v2 → cost-multi-model → parallel-pipeline) + `goal-driven-autopilot` (overlay+addons → mb-debugger → atomic-commit → goal-layer → worktree-MVP → parallel-waves-MVP → autopilot-loop). Standalone `skill-improvements-anthropic-audit` — docs/evals track после Wave 0, параллельно с W1.
 
 Все промежуточные landings = v4.x bumps. v5.0.0 cut только после закрытия W12. Полная таблица последовательности + ordering rationale + gate criteria → `roadmap.md` секция `## Phase: harness-upgrade + goal-driven-autopilot`.
 
@@ -10,9 +11,9 @@
 
 ## ⏭ Следующий шаг
 
-**Wave 0 — [CI baseline](plans/2026-05-24_fix_ci-baseline-wave-0.md)** сейчас единственный `in_progress` план. Цель: вернуть зелёный `test.yml` на Ubuntu/macOS × Python 3.11/3.12, чтобы Wave 1 регрессии отличались от накопленного drift'а.
+**Wave 0 — [CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** закрыт. Следующий operational focus: завершить активный **Cursor compatibility remediation** или стартовать **W0.5 — [OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)** как инфраструктурный unlock для W1–W12.
 
-После Wave 0: стартовать **W1 code — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)** и **W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)**. Закрытие каждого wave: `/mb verify` → `/mb done` → plan moves to `plans/done/`.
+После инфраструктурного unlock: стартовать **W1 code — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)** и **W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)**. Закрытие каждого wave: `/mb verify` → `/mb done` → plan moves to `plans/done/`.
 
 ## Open backlog
 
@@ -42,14 +43,13 @@
 - Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
 - Агенты: **16** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer)
 - Commands: **24** top-level (`/mb` hub + 23 dispatchers)
-- Tests: **861** via `PATH="$PWD/.venv/bin:$PATH" bash scripts/mb-test-run.sh --dir . --out json` (`tests_pass=true`); focused doc/SRP pytest passed; rules-check contract bats 38/38 passed
+- Tests: **868** via `PATH="$PWD/.venv/bin:$PATH" bash scripts/mb-test-run.sh --dir . --out json` (`tests_pass=true`); GitHub `test.yml` run `26527319286` passed on Ubuntu/macOS × Python matrix.
 - Public website: **https://fockus.github.io/skill-memory-bank/**
 - Текущий remote: `origin=https://github.com/fockus/skill-memory-bank.git`
 
 ## Active plans
 
 <!-- mb-active-plans -->
-- [2026-05-24] `in_progress` [2026-05-24_fix_ci-baseline-wave-0.md](plans/2026-05-24_fix_ci-baseline-wave-0.md) — fix — Plan: fix — CI baseline (Wave 0 before Wave 1)
 - [2026-05-24] `in_progress` [2026-05-24_fix_cursor-compatibility-remediation.md](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — fix — Cursor hook parity + adapter bundle paths (spec: cursor-extension)
 - [2026-05-24] `queued` [2026-05-24_feature_opencode-first-adaptation.md](plans/2026-05-24_feature_opencode-first-adaptation.md) — feature — Plan: feature — OpenCode-first adaptation (native plugin, dispatch abstraction, hook parity; cross-cutting infrastructure for W1–W12)
 - [2026-05-24] `queued` [2026-05-24_fix_pi-compatibility-remediation.md](plans/2026-05-24_fix_pi-compatibility-remediation.md) — fix — Plan: fix — Pi extension (subagents + hooks + commands + model providers)
@@ -72,6 +72,7 @@
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-05-27 — [plans/done/2026-05-24_fix_ci-baseline-wave-0.md](plans/done/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1)
 - 2026-05-24 — [plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage-agent-support.md](plans/done/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage.md](plans/done/2026-05-21_feature_global-storage.md) — feature — global-storage-core
@@ -112,3 +113,4 @@
 - i18n error-сообщений
 - Native memory bridge (программная синхронизация с Claude Code auto memory)
 - Viewer dashboard (если adoption потребует)
+
