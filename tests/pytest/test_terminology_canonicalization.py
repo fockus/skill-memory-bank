@@ -96,9 +96,16 @@ CYRILLIC_PLANNING_RE = re.compile(r"\b(Этап|Эпик|Спринт|Фаза)\
 # Files where Cyrillic planning terms are legitimate and must NOT trigger drift.
 WHITELIST_PATTERNS = (
     re.compile(r"^plans/done/"),
+    re.compile(r"^SKILL\.md$"),
+    re.compile(r"^commands/(mb|plan)\.md$"),
+    re.compile(r"^rules/RULES\.md$"),
     re.compile(r"^CHANGELOG\.md$"),
+    re.compile(r"^templates/locales/ru/"),
     re.compile(r"^\.memory-bank/progress\.md$"),
     re.compile(r"^\.memory-bank/lessons\.md$"),
+    re.compile(r"^\.memory-bank/notes/"),
+    re.compile(r"^\.memory-bank/reports/"),
+    re.compile(r"^\.memory-bank/specs/"),
     re.compile(r"^\.memory-bank/plans/done/"),
     re.compile(r"^\.memory-bank/\.migration-backup-"),
     re.compile(r"^\.memory-bank/\.pre-migrate(?:-|/)"),
@@ -116,6 +123,32 @@ def test_historical_migration_backups_are_legacy_whitelisted() -> None:
     )
 
     for path in legacy_paths:
+        assert any(pattern.search(path) for pattern in WHITELIST_PATTERNS), path
+
+
+def test_required_terminology_reference_surfaces_are_whitelisted() -> None:
+    """Policy references intentionally cite the Cyrillic legacy aliases."""
+    reference_paths = (
+        "SKILL.md",
+        "commands/mb.md",
+        "commands/plan.md",
+        "rules/RULES.md",
+        "templates/locales/ru/.memory-bank/status.md",
+    )
+
+    for path in reference_paths:
+        assert any(pattern.search(path) for pattern in WHITELIST_PATTERNS), path
+
+
+def test_memory_bank_historical_entries_are_whitelisted() -> None:
+    """Notes, reports, and specs preserve historical project language."""
+    historical_paths = (
+        ".memory-bank/notes/2026-05-23_20-32_parallel-pipeline-non-goals.md",
+        ".memory-bank/reports/2026-05-24_opencode-integration-audit.md",
+        ".memory-bank/specs/mb-skill-v2/design.md",
+    )
+
+    for path in historical_paths:
         assert any(pattern.search(path) for pattern in WHITELIST_PATTERNS), path
 
 
