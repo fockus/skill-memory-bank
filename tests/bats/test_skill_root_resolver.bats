@@ -2,7 +2,7 @@
 # Tests for hooks/_skill_root.sh — skill bundle resolution from hook scripts.
 
 setup() {
-  REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+  REPO_ROOT="$(cd "${BATS_TEST_DIRNAME:-$(dirname "$BATS_TEST_FILENAME")}/../.." && pwd)"
   SKILL_ROOT="$REPO_ROOT"
   HOOKS_DIR="$REPO_ROOT/hooks"
   SCRIPTS_DIR="$REPO_ROOT/scripts"

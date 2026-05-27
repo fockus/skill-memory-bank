@@ -4,7 +4,7 @@
 # Same JSON contract as the Python suite.
 
 setup() {
-  REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+  REPO_ROOT="$(cd "${BATS_TEST_DIRNAME:-$(dirname "$BATS_TEST_FILENAME")}/../.." && pwd)"
   RUN="$REPO_ROOT/scripts/mb-test-run.sh"
   command -v jq >/dev/null || skip "jq required"
   command -v go >/dev/null || skip "go required"
@@ -19,7 +19,9 @@ GO
 }
 
 teardown() {
-  [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ] && rm -rf "$TMPROOT"
+  if [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ]; then
+    rm -rf "$TMPROOT"
+  fi
 }
 
 @test "go: all-passing suite → tests_pass=true, tests_failed=0" {

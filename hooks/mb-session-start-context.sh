@@ -25,7 +25,7 @@ if [ -z "$WORKSPACE" ]; then
   exit 0
 fi
 
-HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)
+HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd)
 # shellcheck source=hooks/_skill_root.sh
 . "$HOOK_DIR/_skill_root.sh"
 

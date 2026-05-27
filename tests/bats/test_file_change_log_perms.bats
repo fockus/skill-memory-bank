@@ -4,7 +4,7 @@
 # owner-only (mode 600). The same goes for rotated log copies.
 
 setup() {
-  REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+  REPO_ROOT="$(cd "${BATS_TEST_DIRNAME:-$(dirname "$BATS_TEST_FILENAME")}/../.." && pwd)"
   HOOK="$REPO_ROOT/hooks/file-change-log.sh"
   TMP="$(mktemp -d)"
   export HOME="$TMP"
@@ -19,8 +19,8 @@ teardown() {
 }
 
 _perm() {
-  if stat -f '%Lp' "$1" 2>/dev/null; then return; fi
-  stat -c '%a' "$1" 2>/dev/null
+  if stat -c '%a' "$1" 2>/dev/null; then return; fi
+  stat -f '%Lp' "$1" 2>/dev/null
 }
 
 @test "file-change-log: created log has owner-only perms (600)" {
