@@ -231,22 +231,15 @@ EOF
 # ═══════════════════════════════════════════════════════════════
 
 @test "drift: broken fixture — ≥5 warning categories" {
-  # Combination of errors — use existing tests/fixtures/broken-mb/
-  # if present, otherwise synthesize inline.
-  FIXTURE="$REPO_ROOT/tests/fixtures/broken-mb"
-  if [ -d "$FIXTURE" ]; then
-    run_drift "$FIXTURE"
-  else
-    # Inline: at least 5 kinds of drift.
-    echo "See notes/missing.md" > "$MB/checklist.md"                                      # path
-    old=$(( $(date +%s) - 40 * 86400 ))
-    touch -t "$(date -r "$old" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$old" +%Y%m%d%H%M.%S)" "$MB/status.md" # staleness
-    echo "bash scripts/gone.sh" >> "$MB/roadmap.md"                                          # script-coverage
-    echo "Tests: 5 green" > "$MB/status.md"
-    echo "Tests: 999 green" > "$MB/progress.md"                                           # cross-file
-    printf -- '---\ntype: note\ntags: [broken\n' > "$MB/notes/2026-04-20_x.md"           # frontmatter
-    run_drift
-  fi
+  # Inline fixture: at least 5 deterministic warning categories across OSes.
+  printf 'See notes/missing.md\nTests: 5 bats green\n' > "$MB/checklist.md"              # path + cross-file
+  printf 'Stack: Python 3.11\nTests: 999 bats green\n' > "$MB/status.md"                  # dependency + cross-file
+  printf 'bash scripts/gone.sh\nnpm run missing-target\n' > "$MB/roadmap.md"              # script + command
+  printf '[project]\nname = "broken-fixture"\nrequires-python = ">=3.12"\n' > "$PROJECT/pyproject.toml"
+  printf '{"name":"broken-fixture","scripts":{"test":"true"}}\n' > "$PROJECT/package.json"
+  printf -- '---\ntype: note\ntags: [broken\n' > "$MB/notes/2026-04-20_x.md"             # frontmatter
+
+  run_drift
 
   # At least 5 warnings.
   warnings=$(echo "$output" | grep -oE 'drift_warnings=[0-9]+' | head -1 | cut -d= -f2)

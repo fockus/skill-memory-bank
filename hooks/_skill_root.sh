@@ -34,7 +34,15 @@ mb_skill_root_candidates() {
 # Resolve the best skill root for the calling hook.
 mb_skill_root_resolve() {
   local hook_dir="${1:-}"
-  mb_skill_root_candidates "$hook_dir" | head -1
+  local root
+  while IFS= read -r root; do
+    [ -n "$root" ] || continue
+    printf '%s' "$root"
+    return 0
+  done <<EOF
+$(mb_skill_root_candidates "$hook_dir")
+EOF
+  return 1
 }
 
 # Print absolute path to scripts/ or empty when unavailable.
