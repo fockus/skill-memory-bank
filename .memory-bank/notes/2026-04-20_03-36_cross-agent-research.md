@@ -253,6 +253,20 @@ OpenCode, Codex и Pi (fallback) используют `AGENTS.md`. При одн
 
 ---
 
+## Disclaimer — Pi hooks (2026-05-24 update)
+
+The original research note claimed "6 clients — full native hooks (including Pi)". This was aspirational and **incorrect** for Pi. Pi does **not** expose built-in hooks for:
+- `preToolUse` / `beforeShellExecution` — no native event; achieved via extension `tool_call` event
+- `preCompact` — no native event; achieved via extension `session_before_compact` event
+- `sessionEnd` auto-capture — no native event; achieved via extension `session_shutdown` event
+- Weekly compact reminder — no native event; achieved via extension `session_start` event
+
+Pi provides a rich **Extension API** (TypeScript) that covers all of the above through events (`tool_call`, `session_start`, `session_shutdown`, `session_before_compact`). The `memory-bank-pipeline` extension implements subagent spawn, hook guards, and custom commands for Pi. Extension-based support is first-class, not second-class.
+
+Updated recommendation: Pi adapter → `~/.pi/skills/memory-bank/` (skill) + `~/.pi/agent/extensions/memory-bank/` (extension for hooks + pipeline + commands). AGENTS.md + git-hooks-fallback remains as belt-and-suspenders for projects without the extension.
+
+---
+
 **Sources:**
 - [Cursor Rules docs](https://cursor.com/docs/context/rules)
 - **[Cursor Hooks docs](https://cursor.com/docs/hooks)** — **Cursor 1.7+ полный hooks API, совместимый с Claude Code**

@@ -13,10 +13,10 @@ setup() {
   mkdir -p "$TMPBANK"/{codebase,plans,notes}
 
   # Minimal core files
-  echo "# Status test" > "$TMPBANK/STATUS.md"
-  echo "# Plan test" > "$TMPBANK/plan.md"
+  echo "# Status test" > "$TMPBANK/status.md"
+  echo "# Roadmap test" > "$TMPBANK/roadmap.md"
   echo "# Checklist test" > "$TMPBANK/checklist.md"
-  echo "# Research test" > "$TMPBANK/RESEARCH.md"
+  echo "# Research test" > "$TMPBANK/research.md"
 }
 
 teardown() {

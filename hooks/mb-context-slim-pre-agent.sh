@@ -46,10 +46,12 @@ if [ ! -f "$PLAN_PATH" ]; then
   exit 0
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TRIMMER="$SCRIPT_DIR/../scripts/mb-context-slim.py"
-if [ ! -f "$TRIMMER" ]; then
-  echo "[context-slim] trimmer missing at $TRIMMER — staying advisory." >&2
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=hooks/_skill_root.sh
+. "$HOOK_DIR/_skill_root.sh"
+TRIMMER="$(mb_skill_script_path "mb-context-slim.py" "$HOOK_DIR" || true)"
+if [ -z "$TRIMMER" ] || [ ! -f "$TRIMMER" ]; then
+  echo "[context-slim] trimmer missing — staying advisory." >&2
   exit 0
 fi
 

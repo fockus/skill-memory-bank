@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # adapters/opencode.sh — OpenCode cross-agent adapter.
 #
-# OpenCode plugins are JS/TS modules registered in opencode.json.
+# OpenCode plugins are JS/TS modules auto-discovered from .opencode/plugins/.
 # Key events: session.created/idle/deleted, tool.execute.before/after,
 #             experimental.session.compacting (direct PreCompact equivalent).
 # AGENTS.md is the shared-format instructions file (used by OpenCode, Codex,
@@ -53,12 +53,12 @@ import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-export const MemoryBankPlugin = async ({ app }) => {
+export const MemoryBankPlugin = async ({ directory }) => {
   // Resolve Memory Bank path: MB_PATH env override → local project bank
   const mbDir = () => {
     const override = process.env.MB_PATH;
     if (override && fs.existsSync(override)) return override;
-    return path.resolve(app.path.cwd, '.memory-bank');
+    return path.resolve(directory, '.memory-bank');
   };
   const hasMb = () => {
     try { return fs.statSync(mbDir()).isDirectory(); } catch { return false; }
@@ -81,36 +81,35 @@ export const MemoryBankPlugin = async ({ app }) => {
   };
 
   return {
-    hooks: {
-      'session.idle': async ({ session }) => {
-        appendProgress(session?.id ?? 'oc-unknown');
-      },
-      'session.deleted': async ({ session }) => {
-        appendProgress(session?.id ?? 'oc-unknown');
-      },
-      'tool.execute.before': async ({ tool, args }) => {
-        // Block dangerous shell commands
-        const cmd = String(args?.command ?? '');
-        const dangerous = [
-          /rm\s+-rf\s+\//,
-          /rm\s+-rf\s+~/,
-          /:\(\)\s*\{\s*:\|:&\s*\};:/,
-        ];
-        if (dangerous.some((re) => re.test(cmd))) {
-          throw new Error(`[MB-opencode] BLOCKED dangerous command: ${cmd}`);
-        }
-      },
-      'experimental.session.compacting': async ({ session }) => {
-        // Direct PreCompact equivalent — actualize progress before compaction
-        if (!hasMb()) return;
-        const stamp = new Date().toISOString();
-        const progress = path.join(mbDir(), 'progress.md');
-        if (!fs.existsSync(progress)) return;
-        fs.appendFileSync(
-          progress,
-          `\n<!-- opencode-compacting-checkpoint ${stamp} session=${session?.id?.slice(0, 8) ?? '?'} -->\n`,
-        );
-      },
+    event: async ({ event }) => {
+      if (event?.type === 'session.idle' || event?.type === 'session.deleted') {
+        appendProgress(event?.properties?.info?.id ?? event?.properties?.sessionID ?? 'oc-unknown');
+      }
+    },
+    'tool.execute.before': async (input, output) => {
+      // Block dangerous shell commands.
+      const cmd = String(output?.args?.command ?? '');
+      const dangerous = [
+        /rm\s+-rf\s+\//,
+        /rm\s+-rf\s+~/,
+        /:\(\)\s*\{\s*:\|:&\s*\};:/,
+      ];
+      if (dangerous.some((re) => re.test(cmd))) {
+        throw new Error(`[MB-opencode] BLOCKED dangerous command: ${cmd}`);
+      }
+    },
+    'experimental.session.compacting': async (input, output) => {
+      // Direct PreCompact equivalent: persist a checkpoint and enrich compaction context.
+      if (!hasMb()) return;
+      const stamp = new Date().toISOString();
+      const progress = path.join(mbDir(), 'progress.md');
+      if (!fs.existsSync(progress)) return;
+      const sessionId = input?.session?.id ?? 'unknown';
+      const marker = `opencode-compacting-checkpoint ${stamp} session=${String(sessionId).slice(0, 8)}`;
+      fs.appendFileSync(progress, `\n<!-- ${marker} -->\n`);
+      if (Array.isArray(output?.context)) {
+        output.context.push(`Memory Bank checkpoint: ${marker}`);
+      }
     },
   };
 };
@@ -121,15 +120,16 @@ PLUGIN_EOF
 
 # ═══ opencode.json management ═══
 install_opencode_json() {
+  [ -f "$OC_JSON" ] || return 0
   local tmp
-  if [ -f "$OC_JSON" ]; then
-    tmp=$(jq --arg ref "$PLUGIN_REF" '
-      .plugin //= []
-      | .plugin = ((.plugin // []) - [$ref] + [$ref])
-    ' "$OC_JSON")
-    echo "$tmp" > "$OC_JSON"
+  tmp=$(jq --arg ref "$PLUGIN_REF" '
+    .plugin = ((.plugin // []) - [$ref])
+    | if (.plugin | length) == 0 then del(.plugin) else . end
+  ' "$OC_JSON")
+  if [ "$(echo "$tmp" | jq 'length')" = "0" ]; then
+    rm -f "$OC_JSON"
   else
-    jq -n --arg ref "$PLUGIN_REF" '{plugin: [$ref]}' > "$OC_JSON"
+    echo "$tmp" > "$OC_JSON"
   fi
 }
 

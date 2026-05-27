@@ -2,6 +2,16 @@
 
 ## Ideas
 
+
+### I-061 — Cursor compatibility remediation (hook bundle paths + global storage) [HIGH, PLANNED, 2026-05-24]
+
+**Context:** Audit `reports/2026-05-24_cursor-compatibility-audit.md`. Copied hooks in `.cursor/hooks/` break `scripts/` resolution; five hooks fail silently. Global storage not wired without `MB_AGENT=cursor`.
+
+**Plan:** `plans/2026-05-24_fix_cursor-compatibility-remediation.md`  
+**Spec:** `specs/cursor-extension/` (REQ-300..REQ-324)
+
+**Outcome:** Ten CC-compat hooks functional from skill bundle; docs accurate; optional W12 `adapters/cursor/dispatch.md`.
+
 ### I-033 — `mb-checklist-prune.sh` — auto-archive completed sections to progress.md [HIGH, DONE, 2026-04-25]
 
 **Outcome:** SHIPPED 2026-04-25. `scripts/mb-checklist-prune.sh` + 12 pytest tests + CI cap-test + wire-ins (`commands/done.md`, `mb-plan-done.sh`, `mb-compact.sh`). Repo checklist auto-pruned to 36 lines under hard cap of 120. Plan: `plans/done/2026-04-25_refactor_checklist-prune-i033.md`.

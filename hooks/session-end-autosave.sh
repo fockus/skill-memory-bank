@@ -17,24 +17,13 @@ INPUT=$(cat)
 CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)
 [ -z "$CWD" ] && CWD="$PWD"
 
-# Resolve Memory Bank path: MB_PATH override → local <cwd>/.memory-bank →
-# registry lookup via _lib.sh (only when MB_AGENT is set). _lib.sh is sourced
-# in a subshell so its `set -euo pipefail` does not bleed into this hook.
-if [ -n "${MB_PATH:-}" ]; then
-  MB="$MB_PATH"
-elif [ -d "$CWD/.memory-bank" ]; then
-  MB="$CWD/.memory-bank"
-else
-  MB=""
-  if [ -n "${MB_AGENT:-}" ]; then
-    HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)
-    LIB="$HOOK_DIR/../scripts/_lib.sh"
-    if [ -f "$LIB" ]; then
-      MB=$(bash -c \
-        ". '$LIB' >/dev/null 2>&1 && mb_registry_lookup '$MB_AGENT' '${MB_PROJECT_ROOT:-$CWD}' 2>/dev/null" \
-        2>/dev/null || true)
-    fi
-  fi
+HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)
+# shellcheck source=hooks/_skill_root.sh
+. "$HOOK_DIR/_skill_root.sh"
+
+MB=""
+if hit="$(mb_hook_resolve_mb_path "$CWD" 2>/dev/null || true)" && [ -n "$hit" ]; then
+  MB="$hit"
 fi
 [ -n "$MB" ] && [ -d "$MB" ] || exit 0
 

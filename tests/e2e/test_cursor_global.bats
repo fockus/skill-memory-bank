@@ -45,25 +45,14 @@ teardown() {
   [ "$owned_count" -eq 10 ]
 }
 
-@test "cursor-global: install copies ten hook scripts into ~/.cursor/hooks/" {
+@test "cursor-global: install wires hooks.json to skill bundle (no hook copies)" {
   bash "$REPO_ROOT/install.sh" >/dev/null
 
-  local hooks=(
-    session-end-autosave.sh
-    mb-compact-reminder.sh
-    block-dangerous.sh
-    mb-protected-paths-guard.sh
-    mb-ears-pre-write.sh
-    mb-context-slim-pre-agent.sh
-    mb-sprint-context-guard.sh
-    file-change-log.sh
-    mb-plan-sync-post-write.sh
-    mb-session-start-context.sh
-  )
-  local h
-  for h in "${hooks[@]}"; do
-    [ -x "$HOME/.cursor/hooks/$h" ]
-  done
+  local hjson="$HOME/.cursor/hooks.json"
+  [ -f "$hjson" ]
+  grep -q 'MB_AGENT=cursor' "$hjson"
+  grep -q 'memory-bank/hooks/session-end-autosave.sh' "$hjson"
+  [ ! -f "$HOME/.cursor/hooks/session-end-autosave.sh" ]
 }
 
 @test "cursor-global: install copies slash commands into ~/.cursor/commands/" {
@@ -169,20 +158,9 @@ EOF
   [ ! -e "$HOME/.cursor/skills/memory-bank" ]
 }
 
-@test "cursor-global: uninstall removes hook scripts and empties hooks.json" {
+@test "cursor-global: uninstall strips _mb_owned hooks from hooks.json" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
-
-  local hooks=(
-    session-end-autosave.sh mb-compact-reminder.sh block-dangerous.sh
-    mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh
-    mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh
-    mb-session-start-context.sh
-  )
-  local h
-  for h in "${hooks[@]}"; do
-    [ ! -f "$HOME/.cursor/hooks/$h" ]
-  done
 
   if [ -f "$HOME/.cursor/hooks.json" ]; then
     owned_count=$(jq '[.. | objects | select(._mb_owned == true)] | length' "$HOME/.cursor/hooks.json")

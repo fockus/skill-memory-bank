@@ -42,15 +42,19 @@ json_escape() {
 }
 
 emit_violation() {
-  # args: rule severity file line excerpt rationale
   local rule="$1" sev="$2" file="$3" line="$4" excerpt="$5" rationale="$6"
-  VIOLATIONS+=("$(printf '{"rule":%s,"severity":%s,"file":%s,"line":%s,"excerpt":%s,"rationale":%s}' \
+  local rule_id="${7:-$rule}"
+  local profile_source="${8:-baseline}"
+  VIOLATIONS+=("$(printf \
+    '{"rule":%s,"rule_id":%s,"severity":%s,"file":%s,"line":%s,"excerpt":%s,"rationale":%s,"profile_source":%s}' \
     "$(json_escape "$rule")" \
+    "$(json_escape "$rule_id")" \
     "$(json_escape "$sev")" \
     "$(json_escape "$file")" \
     "$line" \
     "$(json_escape "$excerpt")" \
-    "$(json_escape "$rationale")")")
+    "$(json_escape "$rationale")" \
+    "$(json_escape "$profile_source")")")
 }
 
 # ---- exclusions -------------------------------------------------------------
@@ -170,4 +174,3 @@ has_matching_test() {
   done
   return 1
 }
-

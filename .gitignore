@@ -40,3 +40,4 @@ htmlcov/
 .memory-bank/.session-lock
 .memory-bank/.auto-lock
 .memory-bank/.checklist.md.bak.*
+.memory-bank/codebase/.cache/

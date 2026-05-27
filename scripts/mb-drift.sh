@@ -272,6 +272,7 @@ check_terminology() {
     # Skip meta-references: lines that mark the term as legacy/alias, lines
     # quoting the term in `«...»` or backticks (regex literals or code spans
     # such as `\b(Этап|Спринт)\b`), and TDD jargon (`RED-фаза`, `GREEN-фаза`).
+    # shellcheck disable=SC2016 # Single quotes keep the regex literal for grep.
     hits=$(grep -iE '\b(Этап|Эпик|Спринт|Фаза)\b' "$f" 2>/dev/null \
             | grep -ivE 'legacy|alias|Cyrillic|«|»|deprecat' \
             | grep -vE '\\b\(' \

@@ -441,6 +441,12 @@ Within a wave, `/mb work` issues **one message with N `Task` calls** —
 true parallel via the Task tool. Each item runs its own
 implement → review → fix-cycle → verify loop. Main agent aggregates.
 
+**OpenCode adaptation:** OpenCode does not have a native `Task` tool.
+Parallel waves use the OpenCode plugin's `mb_pipeline_dispatch` tool
+which spawns N `opencode run --agent <role>` subprocesses in parallel
+via `Promise.all`. See `specs/parallel-pipeline/design.md` §10
+(OpenCode adapter) for details.
+
 Wave PASS = all items PASS. Any FAIL → wave halts according to
 `on_wave_failure`.
 
@@ -596,14 +602,14 @@ proceeds (graceful degradation per design principles).
 LOOP:
   resolve next pending item from linked_plan / linked_spec
   if none → mark goal as done, /mb done, exit 0
-  dispatch implement (role-agent)
+  dispatch implement (role-agent) via `mb-dispatch.sh`
   review (severity gate; fix-cycle as in /mb work)
   verify (plan-verifier)
   if verify PASS:
     atomic-commit-per-stage (if enabled)
     continue LOOP
   else:
-    dispatch mb-debugger
+    dispatch mb-debugger (via `mb-dispatch.sh` — OpenCode uses `opencode run --agent mb-debugger`)
     apply verdict gating (Component 3)
     if recovered → continue LOOP
     if halted → exit with reason
@@ -708,7 +714,8 @@ agents:
 
 #### `mb-work` integration
 
-When dispatching a Task, the engine builds:
+When dispatching a subagent (Task on Claude Code, `opencode run` on OpenCode,
+`codex run` on Codex, etc.), the engine builds:
 
 ```
 prompt = (

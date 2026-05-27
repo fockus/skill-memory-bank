@@ -85,3 +85,21 @@ def test_help_flag(tmp_path: Path) -> None:
     )
     assert r.returncode == 0
     assert "reviewer" in (r.stdout + r.stderr).lower()
+
+def test_override_from_cursor_skills_root_without_mb_skills_root(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    fake_home = tmp_path / "home"
+    (fake_home / ".cursor" / "skills" / "superpowers").mkdir(parents=True)
+    env = {
+        "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin",
+        "HOME": str(fake_home),
+    }
+    r = subprocess.run(
+        ["bash", str(SCRIPT), "--mb", str(mb)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip() == "superpowers:requesting-code-review"

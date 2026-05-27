@@ -4,6 +4,7 @@
 ## Now (in progress)
 
 - [ci-baseline-wave-0](plans/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1)
+- [2026-05-24_fix_cursor-compatibility-remediation](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation
 
 ## Next (strict order — depends)
 
@@ -20,6 +21,7 @@
 - [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
 - [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
 - [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
+- [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation
 
 ## Parallel-safe (can run now)
 
@@ -37,6 +39,8 @@ _None._
 - specs/reviewer-2.0/design.md
 - specs/work-loop-v2/design.md
 - specs/parallel-pipeline/design.md
+- specs/cursor-extension
+- specs/pi-extension
 <!-- /mb-roadmap-auto -->
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
@@ -58,6 +62,7 @@ Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ 
 | Wave | Plan | Track | Depends on | Notes |
 |------|------|-------|------------|-------|
 | **0** | **[fix CI baseline](plans/2026-05-24_fix_ci-baseline-wave-0.md)** | **infra** | **—** | **`test.yml` red на main с 2026-04-25 (~1 месяц). Без green CI Wave 1 не имеет верификации. 6 stages: casing → init scaffold → go-skip → real bugs → graph-rag adapters → final green.** |
+| **0.5** | **[OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)** | **infra** | **W0** | **Native OpenCode plugin, host-agnostic dispatch (`mb-dispatch.sh`), hook parity, provider-neutral aliases. Cross-cutting infrastructure required for W1–W12 on OpenCode. Parallel-safe with W1.** |
 | 1 | harness-upgrade S1 — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) | code | **W0** | stack-aware reviewer + examples cache + golden calibration suite |
 | 1 | standalone — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) | docs | **W0** | parallel-safe; запускается в W1, длится сколько успевает (W1-W2) |
 | 2 | harness-upgrade S2 — [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md) | code | W1 reviewer-v2 | `progress_trend`, `pivot_via_architect`, contract phase |

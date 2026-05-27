@@ -331,14 +331,36 @@ The two could coexist later (defense-in-depth) but the chain is sufficient for S
 | Hash chain lives in `index.json` which is rebuilt by other scripts | The Python `mb-index-rebuild.py` (existing) MUST preserve `progress_chain`. New test in `test_mb_index_rebuild.py` confirms round-trip. |
 | Conflict with parallel agents on `.memory-bank/handoff/` | Single-writer assumption: only `mb-pre-compact.sh` and `mb-manager` write. Lock file `.memory-bank/handoff/.lock` (fcntl) prevents concurrent writes from two PreCompact events. |
 
-## 10. Out-of-scope follow-ups
+## 10. OpenCode plugin hook mapping
+
+OpenCode does not use `settings/hooks.json` or bash hook files. Instead, it provides JS/TS plugin hooks. The following table maps each handoff-v2 hook to its OpenCode equivalent:
+
+| Handoff-v2 hook | Bash file | Claude Code event | OpenCode plugin hook | Implementation |
+|-----------------|-----------|-------------------|----------------------|----------------|
+| PreCompact actualize | `hooks/mb-pre-compact.sh` | `preCompact` | `experimental.session.compacting` | Plugin calls `bash scripts/mb-handoff.sh --actualize` on `compacting` event. |
+| SessionStart context | `hooks/mb-session-start-context.sh` | `session_start` | `onReady` | Plugin injects handoff capsule into context during `onReady`. |
+| Done-gates test runner | `scripts/mb-done-gates.sh` | `Task(mb-test-runner)` | `opencode run --agent mb-test-runner` | Plugin delegates to `mb-dispatch.sh` for test-runner invocation. |
+| Dangerous-command guard | N/A (implicit in Claude Code `PreToolUse`) | `PreToolUse` | `onBeforeToolExecute` | Plugin blocks dangerous commands via `(input, output)` guard. |
+| Protected-paths guard | `hooks/mb-protected-paths-guard.sh` | `PreToolUse` (write/edit) | `onBeforeToolExecute` | Plugin checks `output.args.path` against protected list. |
+| File-change-log | `hooks/file-change-log.sh` | `PostToolUse` (write/edit) | `onAfterToolExecute` | Plugin logs file changes after tool execution. |
+| Progress chain update | `scripts/mb-progress-chain.sh` | `PostToolUse` (write/edit) | `onAfterToolExecute` | Plugin triggers chain rebuild after `progress.md` append. |
+
+### OpenCode plugin implementation notes
+
+- The OpenCode plugin (`plugins/opencode/memory-bank.js`) is a thin wrapper around existing bash scripts. It does NOT reimplement logic in JS.
+- Plugin loads `.memory-bank/RULES.md` and injects it into context on `onReady`.
+- Plugin respects `MB_PATH` env for bank location.
+- Plugin guards use `output.blocked = true` and `output.reason = "..."` to block tools.
+- `experimental.session.compacting` receives `(input, output)` where `output.context[]` can receive new items (used to inject handoff capsule before compaction).
+
+## 11. Out-of-scope follow-ups
 
 - PreToolUse hook on `Edit progress.md` (defense in depth) — backlog.
 - Cryptographic signing of progress entries — backlog.
 - Multi-session handoff merge (when two agents work in parallel) — backlog.
 - Handoff capsule semantic diff vs previous capsule (highlight what changed) — backlog.
 
-## 11. Open questions to resolve during implementation
+## 12. Open questions to resolve during implementation
 
 - N for `tail` length in `progress_chain` (defaulting to 20; revisit if `progress.md` files routinely exceed several hundred entries).
 - Archive rotation threshold (N=10) — confirm via empirical look at `mb-compact.sh` defaults.

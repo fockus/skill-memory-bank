@@ -41,8 +41,10 @@ This spec covers three gaps: few-shot calibration (GAP-1), tests-aware reviewer 
 ## 2. Architecture overview
 
 ```
-┌──────────────────┐    invokes (Task)   ┌────────────────────────┐
+┌──────────────────┐    invokes subagent  ┌────────────────────────┐
 │   /mb work       │ ──────────────────► │ scripts/mb-review.sh   │
+│                  │    (Task / opencode  │                        │
+│                  │     run / codex run) │                        │
 │  step 3c review  │                     │ "Review Orchestrator"  │
 └──────────────────┘                     └────────────────────────┘
                                             │  (deterministic)
@@ -231,8 +233,9 @@ Path: `.memory-bank/tmp/last-tests.json`.
    → HIT: use cache as prior_evidence
    Else
    → MISS:
-      a. Dispatch Task(mb-test-runner) with hint `scope=touched`
-         (falls back to `scope=full` if framework lacks file-level selection)
+       a. Dispatch test-runner via `mb-dispatch.sh` with hint `scope=touched`
+          (Claude Code: Task(mb-test-runner); OpenCode: `opencode run --agent mb-test-runner`;
+          falls back to `scope=full` if framework lacks file-level selection)
       b. mb-test-runner writes fresh JSON to last-tests.json
       c. Re-read cache, proceed with HIT path
 4. If tests_pass == false:

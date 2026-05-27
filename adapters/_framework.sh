@@ -35,6 +35,6 @@ adapter_remove_manifest_files() {
   local manifest_path="$1"
   local file_path
   jq -r '.files[]?' "$manifest_path" | while IFS= read -r file_path; do
-    [ -n "$file_path" ] && [ -f "$file_path" ] && rm -f "$file_path"
+    [ -n "$file_path" ] && [ -f "$file_path" ] && rm -f "$file_path" || true
   done
 }

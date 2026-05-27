@@ -32,13 +32,15 @@ case "$FILE_PATH" in
     ;;
 esac
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SCRIPTS="$SCRIPT_DIR/../scripts"
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=hooks/_skill_root.sh
+. "$HOOK_DIR/_skill_root.sh"
+SCRIPTS="$(mb_skill_scripts_dir "$HOOK_DIR" || true)"
 
 run_chain_step() {
   local script="$1"
   local path="$SCRIPTS/$script"
-  if [ ! -f "$path" ]; then
+  if [ -z "$SCRIPTS" ] || [ ! -f "$path" ]; then
     echo "[plan-sync-post-write] skip: $script (not installed)" >&2
     return 0
   fi

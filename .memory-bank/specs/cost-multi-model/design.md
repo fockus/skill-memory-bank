@@ -58,6 +58,21 @@ commands/work.md step 3:
 
 The change surface is small: a resolver, a per-role mapping in defaults, a dispatch-site update in `commands/work.md`, and similar updates in `done.md` / `verify.md` / `review.md` for the agents they dispatch.
 
+### OpenCode dispatch
+
+OpenCode does not use `Task(subagent_type=role, model=model)`. Instead, dispatch routes through `scripts/mb-dispatch.sh` (see `plans/2026-05-24_feature_opencode-first-adaptation.md`):
+
+```
+commands/work.md step 3 (OpenCode):
+  for each item in plan/spec:
+    role = pipeline.yaml:roles.<role-key>.agent
+    model = bash scripts/mb-model-resolve.sh <role-key>
+    bash scripts/mb-dispatch.sh <role> <prompt-file> --model <model>
+      → opencode run --agent <role> --model <resolved> --prompt-file <prompt-file>
+```
+
+`mb-dispatch.sh` detects the active host and routes to the appropriate dispatch primitive. OpenCode uses `opencode run` CLI with `--agent` and `--model` flags.
+
 ## 3. File inventory
 
 ### New files
@@ -113,18 +128,29 @@ These defaults live in `references/pipeline.default.yaml`. Projects override per
 `references/model-aliases.yaml`:
 
 ```yaml
-schema_version: 1
+schema_version: 2
 aliases:
-  fast:     claude-haiku-4-5-20251001
-  balanced: claude-sonnet-4-6
-  powerful: claude-opus-4-7
+  fast:
+    claude: claude-haiku-4-5-20251001
+    opencode: kimi-k2-mini
+    codex: gpt-4o-mini
+  balanced:
+    claude: claude-sonnet-4-6
+    opencode: kimi-k2.5
+    codex: gpt-4o
+  powerful:
+    claude: claude-opus-4-7
+    opencode: kimi-k2.6
+    codex: gpt-4.5
 ```
+
+The resolver reads the active host (from `$MB_HOST` or `.memory-bank/.mb-host`) and resolves the alias to the concrete model ID for that host. If no host-specific entry exists, falls back to `claude` (backward compat).
 
 The resolver loads this once per invocation. When the model frontier shifts (e.g., Sonnet 4.7 ships), updating this single file is enough — every project benefits automatically.
 
 Project override: `.memory-bank/model-aliases.yaml` overrides per-alias entries (same precedence pattern as the rest of the skill's layered config).
 
-Verbatim model IDs in `pipeline.yaml:roles.<role>.model` are passed through unchanged; the resolver doesn't validate them (the `Task` tool will report an invalid id).
+Verbatim model IDs in `pipeline.yaml:roles.<role>.model` are passed through unchanged; the resolver doesn't validate them (the dispatch tool will report an invalid id).
 
 ## 6. Resolver — `scripts/mb-model-resolve.sh`
 
@@ -145,20 +171,22 @@ Exit codes:
 ### Resolution order
 
 ```
+0. Detect active host: $MB_HOST env → .memory-bank/.mb-host file → "claude" fallback.
+
 1. Read .memory-bank/pipeline.yaml: roles.<role>.model
    (yq if available, awk fallback)
    If a value exists:
-     If it matches an alias → resolve via aliases table → emit
+     If it matches an alias → resolve via aliases table for detected host → emit
      Else (assume verbatim model id) → emit
 
 2. Read references/pipeline.default.yaml: roles.<role>.model
    Same resolution.
 
 3. Read agents/<role>.md frontmatter: model_class
-   If present → resolve via aliases (key = model_class) → emit
+   If present → resolve via aliases (key = model_class) for detected host → emit
 
 4. Hardcoded fallback: balanced
-   Resolve via aliases → emit.
+   Resolve via aliases for detected host → emit.
 
 (yq absent + awk unable to read → exit 2)
 ```
@@ -172,13 +200,14 @@ The resolver is hot-path (called for every dispatch). Bash + yq/awk is fast, no 
 ### Integration (≈75%)
 
 - `test_mb_model_resolve.bats` —
-  - alias resolution: `fast` → expected model id
+  - alias resolution: `fast` → expected model id per host (Claude / OpenCode / Codex)
   - verbatim pass-through: `claude-sonnet-4-6` returned as-is
   - per-project override beats baseline
   - missing project pipeline → falls back to defaults
   - missing role in both → falls back to agent frontmatter `model_class`
   - missing everywhere → falls back to `balanced`
   - unknown role-key → exit 1
+  - OpenCode host: `fast` resolves to `kimi-k2-mini`
 - `test_pipeline_default_models.bats` —
   - every role-agent listed in §4 has a `model` entry in `pipeline.default.yaml`
   - all aliases used are defined in `model-aliases.yaml`
@@ -202,7 +231,7 @@ The resolver is hot-path (called for every dispatch). Bash + yq/awk is fast, no 
 - [ ] `references/model-aliases.yaml` exists with `fast/balanced/powerful` mapped to current Claude 4.x IDs.
 - [ ] `references/pipeline.default.yaml` has the full §4 default matrix; every role from the existing agents directory is covered.
 - [ ] Every agent file in `agents/*.md` has a `model_class` frontmatter entry consistent with §4.
-- [ ] All dispatch sites in `commands/{work,done,verify,review}.md` updated to call the resolver and pass `model=...` into `Task`.
+- [ ] All dispatch sites in `commands/{work,done,verify,review}.md` updated to call the resolver and pass `model=...` into `Task` (Claude Code) or `mb-dispatch.sh` (OpenCode/Codex/Pi).
 - [ ] `scripts/mb-reviewer-resolve.sh` augmented to also emit model (or its callers call `mb-model-resolve.sh` directly — pick one in implementation; documented in `docs/cost-multi-model.md`).
 - [ ] `tests/bats/test_mb_model_resolve.bats` ≥7 tests, all PASS.
 - [ ] `tests/bats/test_pipeline_default_models.bats` ≥2 tests, all PASS.

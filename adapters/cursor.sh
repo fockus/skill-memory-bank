@@ -3,8 +3,9 @@
 #
 # Cursor 1.7+ (October 2025) added a Claude-Code-compatible hooks API.
 # This adapter writes .cursor/rules/memory-bank.mdc (rules) + .cursor/hooks.json
-# (events → our hook scripts) and copies the hook scripts into .cursor/hooks/ so
-# the project is self-contained (no dependency on ~/.claude being present).
+# (events → bundled skill hooks under ~/.cursor/skills/memory-bank/hooks/ or the
+# repo/skill bundle). Hook scripts are NOT copied into .cursor/hooks/ — commands
+# reference the canonical skill bundle so bundled scripts/ resolve correctly.
 #
 # Usage:
 #   adapters/cursor.sh install [PROJECT_ROOT]
@@ -51,7 +52,7 @@ CURSOR_END_MARKER="<!-- memory-bank-cursor:end -->"
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_contract.sh"
 
-# Our hook scripts that get copied into .cursor/hooks/
+# Hook scripts registered from the skill bundle (not copied into .cursor/hooks/)
 MB_HOOKS=(
   "session-end-autosave.sh"
   "mb-compact-reminder.sh"
@@ -122,9 +123,45 @@ cursor_binding_events_json() {
   printf '%s\n' "${EVENT_BINDINGS[@]}" | awk -F: '{print $1}' | sort -u | adapter_json_array_from_lines
 }
 
+cursor_resolve_skill_hooks_dir() {
+  local candidate resolved=""
+  for candidate in \
+    "$HOME/.cursor/skills/memory-bank/hooks" \
+    "$SKILL_DIR/hooks"; do
+    if [ -d "$candidate" ]; then
+      resolved="$(cd "$candidate" && pwd)"
+      printf '%s' "$resolved"
+      return 0
+    fi
+  done
+  return 1
+}
+
+cursor_hook_env_prefix() {
+  local skills_root="$HOME/.cursor/skills"
+  if [ ! -d "$skills_root/memory-bank" ]; then
+    skills_root="$HOME/.claude/skills"
+  fi
+  printf 'MB_AGENT=cursor MB_SKILLS_ROOT=%s ' "$skills_root"
+}
+
+cursor_remove_legacy_hook_copies() {
+  local base dir h
+  for base in "$GLOBAL_HOOKS_DIR" "$HOOKS_DIR"; do
+    [ -d "$base" ] || continue
+    for h in "${MB_HOOKS[@]}"; do
+      if [ -f "$base/$h" ]; then
+        rm -f "$base/$h"
+      fi
+    done
+    rmdir "$base" 2>/dev/null || true
+  done
+}
+
 cursor_build_hooks_json() {
-  local command_prefix="$1"
-  local our_hooks_json binding event rest script matcher cmd entry
+  local hooks_dir="$1"
+  local our_hooks_json binding event rest script matcher cmd entry env_prefix
+  env_prefix="$(cursor_hook_env_prefix)"
   our_hooks_json=$(jq -n '{hooks: {}}')
   for binding in "${EVENT_BINDINGS[@]}"; do
     event="${binding%%:*}"
@@ -135,7 +172,7 @@ cursor_build_hooks_json() {
     else
       matcher=""
     fi
-    cmd="bash ${command_prefix}/${script}"
+    cmd="${env_prefix}bash \"${hooks_dir}/${script}\""
     if [ -n "$matcher" ]; then
       entry=$(jq -n --arg cmd "$cmd" --arg m "$matcher" '{command:$cmd, matcher:$m, _mb_owned:true}')
     else
@@ -273,7 +310,7 @@ Global Memory Bank skill is registered at:
 Bundled resources available to Cursor agents:
 - Commands: \`~/.cursor/commands/\` (mirror of skill \`commands/\`)
 - Agent prompts: \`~/.cursor/skills/memory-bank/agents/\`
-- Hooks: \`~/.cursor/hooks/\` wired via \`~/.cursor/hooks.json\`
+- Hooks: bundled at \`~/.cursor/skills/memory-bank/hooks/\` wired via \`~/.cursor/hooks.json\`
 
 Recommended workflow:
 - Start by reading \`.memory-bank/status.md\`, \`checklist.md\`, \`roadmap.md\`, \`research.md\`
@@ -295,7 +332,13 @@ EOF
 # ═══ Install ═══
 install_cursor() {
   adapter_require_jq "cursor-adapter" || exit 1
-  mkdir -p "$CURSOR_DIR/rules" "$HOOKS_DIR"
+  mkdir -p "$CURSOR_DIR/rules"
+
+  local skill_hooks_dir
+  skill_hooks_dir="$(cursor_resolve_skill_hooks_dir)" || {
+    echo "[cursor-adapter] cannot resolve skill hooks directory" >&2
+    exit 1
+  }
 
   # 1. Rules file (.mdc with YAML frontmatter)
   {
@@ -320,33 +363,36 @@ install_cursor() {
     fi
   } > "$RULES_FILE"
 
-  # 2. Copy hook scripts
+  # 2. Verify bundled hook scripts exist
   local h
   for h in "${MB_HOOKS[@]}"; do
-    if [ ! -f "$SKILL_DIR/hooks/$h" ]; then
-      echo "[cursor-adapter] missing hook: $SKILL_DIR/hooks/$h" >&2
+    if [ ! -f "$skill_hooks_dir/$h" ]; then
+      echo "[cursor-adapter] missing hook: $skill_hooks_dir/$h" >&2
       exit 1
     fi
-    cp "$SKILL_DIR/hooks/$h" "$HOOKS_DIR/$h"
-    chmod +x "$HOOKS_DIR/$h"
   done
 
-  # 3–4. Build + merge hooks.json (shared builder with global install)
+  # 3–4. Build + merge hooks.json (reference skill bundle, not local copies)
+  cursor_remove_legacy_hook_copies
   local our_hooks_json
-  our_hooks_json=$(cursor_build_hooks_json ".cursor/hooks")
+  our_hooks_json=$(cursor_build_hooks_json "$skill_hooks_dir")
   cursor_merge_hooks_json "$HOOKS_JSON" "$our_hooks_json"
 
-  # 5. Manifest (files we own + events we registered)
-  local files_json events_json
-  files_json=$(printf '%s\n' "$RULES_FILE" "$HOOKS_DIR"/*.sh | adapter_json_array_from_lines)
+  # 5. Manifest (project-owned files + hook metadata)
+  local files_json events_json extra_json
+  files_json=$(printf '%s\n' "$RULES_FILE" | adapter_json_array_from_lines)
   events_json=$(cursor_binding_events_json)
+  extra_json=$(jq -n \
+    --argjson events "$events_json" \
+    --arg bundle "$skill_hooks_dir" \
+    '{hooks_events: $events, hooks_bundle: $bundle}')
 
   adapter_write_manifest \
     "$MANIFEST" \
     "cursor" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
-    "{\"hooks_events\": $events_json}"
+    "$extra_json"
 
   echo "[cursor-adapter] installed to $PROJECT_ROOT"
 }
@@ -359,13 +405,10 @@ uninstall_cursor() {
   fi
   adapter_require_jq "cursor-adapter" || exit 1
 
-  # 1. Remove files listed in manifest
-  adapter_remove_manifest_files "$MANIFEST"
-
-  # 2. Strip our-owned entries from hooks.json
+  # 1. Strip our-owned entries from hooks.json before removing project files
   if [ -f "$HOOKS_JSON" ]; then
     local events
-    events=$(jq -r '.hooks_events[]' "$MANIFEST")
+    events=$(jq -r '.hooks_events[]?' "$MANIFEST")
     local cleaned="$HOOKS_JSON.tmp"
     cp "$HOOKS_JSON" "$cleaned"
     local evt
@@ -387,6 +430,9 @@ uninstall_cursor() {
     fi
   fi
 
+  # 2. Remove project-owned files from manifest
+  adapter_remove_manifest_files "$MANIFEST"
+
   # 3. Remove manifest itself
   rm -f "$MANIFEST"
 
@@ -400,26 +446,30 @@ uninstall_cursor() {
 
 install_cursor_global() {
   adapter_require_jq "cursor-adapter" || exit 1
-  mkdir -p "$GLOBAL_CURSOR_DIR" "$GLOBAL_HOOKS_DIR" "$GLOBAL_COMMANDS_DIR"
+  mkdir -p "$GLOBAL_CURSOR_DIR" "$GLOBAL_COMMANDS_DIR"
 
   local managed_files=()
   local backups=()
-  local h f tmp files_json events_json backups_json our_hooks_json
+  local h f tmp files_json events_json backups_json our_hooks_json skill_hooks_dir
 
+  skill_hooks_dir="$(cursor_resolve_skill_hooks_dir)" || {
+    echo "[cursor-adapter] cannot resolve skill hooks directory" >&2
+    exit 1
+  }
   for h in "${MB_HOOKS[@]}"; do
-    if [ ! -f "$SKILL_DIR/hooks/$h" ]; then
-      echo "[cursor-adapter] missing hook: $SKILL_DIR/hooks/$h" >&2
+    if [ ! -f "$skill_hooks_dir/$h" ]; then
+      echo "[cursor-adapter] missing hook: $skill_hooks_dir/$h" >&2
       exit 1
     fi
-    global_install_file "$SKILL_DIR/hooks/$h" "$GLOBAL_HOOKS_DIR/$h" managed_files backups
   done
+  cursor_remove_legacy_hook_copies
 
   for f in "$SKILL_DIR"/commands/*.md; do
     [ -f "$f" ] || continue
     global_install_file "$f" "$GLOBAL_COMMANDS_DIR/$(basename "$f")" managed_files backups
   done
 
-  our_hooks_json=$(cursor_build_hooks_json "$GLOBAL_HOOKS_DIR")
+  our_hooks_json=$(cursor_build_hooks_json "$skill_hooks_dir")
   cursor_merge_hooks_json "$GLOBAL_HOOKS_JSON" "$our_hooks_json"
 
   if [ -f "$GLOBAL_AGENTS_FILE" ] && grep -q "$CURSOR_START_MARKER" "$GLOBAL_AGENTS_FILE" 2>/dev/null; then
@@ -472,13 +522,19 @@ EOF
   files_json=$(printf '%s\n' ${managed_files[@]+"${managed_files[@]}"} | adapter_json_array_from_lines)
   events_json=$(cursor_binding_events_json)
   backups_json=$(printf '%s\n' ${backups[@]+"${backups[@]}"} | adapter_json_array_from_lines)
+  extra_json=$(jq -n \
+    --arg scope "global" \
+    --argjson events "$events_json" \
+    --argjson backups "$backups_json" \
+    --arg bundle "$skill_hooks_dir" \
+    '{scope: $scope, hooks_events: $events, backups: $backups, hooks_bundle: $bundle}')
 
   adapter_write_manifest \
     "$GLOBAL_MANIFEST" \
     "cursor-global" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
-    "{\"scope\": \"global\", \"hooks_events\": $events_json, \"backups\": $backups_json}"
+    "$extra_json"
 
   echo "[cursor-adapter] global install completed"
   echo "[cursor-adapter] User Rules paste-file: $GLOBAL_USER_RULES_FILE"

@@ -7,12 +7,12 @@
 #
 # Generates:
 #   <project>/AGENTS.md                     — shared format (uses markers)
-#   <project>/opencode.json                  — plugin registration
 #   <project>/.opencode/commands/*.md        — project slash commands
-#   <project>/.opencode/plugins/memory-bank.js — TypeScript plugin (compiled JS)
+#   <project>/.opencode/plugins/memory-bank.js — auto-discovered JS plugin
 #   <project>/.opencode/.mb-manifest.json    — ownership tracking
 #
-# OpenCode plugins: TS/JS modules with hooks object.
+# OpenCode plugins: TS/JS modules exporting a plugin function that returns
+# hook callbacks directly. Files under .opencode/plugins/ are auto-discovered.
 # Key events: session.created/idle/deleted, tool.execute.before/after,
 #             experimental.session.compacting (PreCompact equivalent).
 
@@ -48,20 +48,23 @@ run_adapter() {
   grep -q "<!-- memory-bank:end -->" "$PROJECT/AGENTS.md"
 }
 
-@test "opencode: install creates opencode.json with plugin registration" {
+@test "opencode: install relies on plugin directory auto-discovery" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
-  [ -f "$PROJECT/opencode.json" ]
-  jq . "$PROJECT/opencode.json" >/dev/null
-  jq -e '.plugin | length > 0' "$PROJECT/opencode.json" >/dev/null
+  [ -f "$PROJECT/.opencode/plugins/memory-bank.js" ]
+  [ ! -f "$PROJECT/opencode.json" ]
 }
 
-@test "opencode: install creates plugin JS file with hooks export" {
+@test "opencode: install creates plugin JS file with top-level hooks" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
-  # Plugin must reference key events
+  # Current OpenCode plugin contract returns hook callbacks directly,
+  # not nested under a stale { hooks: { ... } } wrapper.
+  ! grep -q "hooks:" "$plugin"
+  grep -q "event: async" "$plugin"
+  # Plugin must reference key events.
   grep -q "session.idle\|session.deleted" "$plugin"
   grep -q "experimental.session.compacting\|tool.execute.before" "$plugin"
 }
@@ -112,20 +115,20 @@ EOF
   jq -e '.agents_md_owned == false' "$PROJECT/.opencode/.mb-manifest.json" >/dev/null
 }
 
-@test "opencode: install merges with existing opencode.json" {
+@test "opencode: install removes stale legacy plugin registration" {
   cat > "$PROJECT/opencode.json" <<'EOF'
 {
-  "plugin": ["./user/my-plugin.js"],
-  "theme": "dark"
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["./user/my-plugin.js", "./.opencode/plugins/memory-bank.js"],
+  "share": "manual"
 }
 EOF
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
-  # User entries preserved
-  jq -e '.theme == "dark"' "$PROJECT/opencode.json" >/dev/null
+  # User entries preserved, stale Memory Bank registration removed.
+  jq -e '.share == "manual"' "$PROJECT/opencode.json" >/dev/null
   jq -e '.plugin | map(.) | index("./user/my-plugin.js")' "$PROJECT/opencode.json" >/dev/null
-  # Our plugin added
-  jq -e '.plugin | length >= 2' "$PROJECT/opencode.json" >/dev/null
+  ! jq -e '.plugin | map(.) | any(contains("memory-bank"))' "$PROJECT/opencode.json" >/dev/null
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -165,15 +168,16 @@ EOF
 @test "opencode: uninstall removes our plugin from opencode.json, preserves user entries" {
   cat > "$PROJECT/opencode.json" <<'EOF'
 {
-  "plugin": ["./user/my-plugin.js"],
-  "theme": "dark"
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["./user/my-plugin.js", "./.opencode/plugins/memory-bank.js"],
+  "share": "manual"
 }
 EOF
   run_adapter install "$PROJECT"
   run_adapter uninstall "$PROJECT"
   [ "$status" -eq 0 ]
   [ -f "$PROJECT/opencode.json" ]
-  jq -e '.theme == "dark"' "$PROJECT/opencode.json" >/dev/null
+  jq -e '.share == "manual"' "$PROJECT/opencode.json" >/dev/null
   jq -e '.plugin | map(.) | index("./user/my-plugin.js")' "$PROJECT/opencode.json" >/dev/null
   # Our plugin reference gone
   ! jq -e '.plugin | map(.) | any(contains("memory-bank"))' "$PROJECT/opencode.json" >/dev/null
@@ -204,7 +208,8 @@ EOF
   [ "$status" -eq 0 ]
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
-  # Fallback to local path must still be present (via path.resolve)
-  grep -q "app.path.cwd" "$plugin"
+  # Fallback to local path must use current OpenCode plugin input.
+  ! grep -q "app.path.cwd" "$plugin"
+  grep -q "directory" "$plugin"
   grep -q '\.memory-bank' "$plugin"
 }

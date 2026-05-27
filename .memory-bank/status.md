@@ -18,8 +18,23 @@
 
 - I-023 (MED) — `grep → find` cleanup в `start.md` / `mb-doctor` (low risk, дешёвый когда дойдут руки)
 - I-034 (MED) — plugin-namespaced skill detection в reviewer-resolve
+- I-061 (HIGH) — Cursor compatibility remediation: stages 1–6 implemented; bats 38/38 green on cursor suites; pytest pending local env. See `reports/2026-05-24_cursor-compatibility-audit.md`, spec `cursor-extension`.
+- I-045 (HIGH) — Pi compatibility remediation: fix docs, sequential fallback in S5 spec, GraphRAG extension decision. See `reports/2026-05-24_pi-compatibility-audit.md`
+- I-046 (MED) — `test_pi_adapter.bats` expansion: prompt install, skill content, hook body, MB_PATH propagation tests
+- I-047 (MED) — Pi `agents/*.md` global install path (currently only Claude gets agents globally)
+- I-048 (HIGH) — OpenCode global skill alias in `install.sh`
+- I-049 (HIGH) — Commands frontmatter OpenCode compatibility (`agent`/`subtask` fields)
+- I-050 (MED) — OpenCode plugin hooks parity (map bash hooks to TS plugin)
+- I-053 (MED) — Cross-agent research note Pi native hooks disclaimer
+- I-054 (HIGH) — `scripts/mb-dispatch.sh`: host-agnostic dispatch abstraction. Blocks W1–W12 on OpenCode. See `reports/2026-05-24_plans-specs-opencode-gap-analysis.md` §5.1.
+- I-055 (HIGH) — `references/opencode-hooks-mapping.md` + plugin guards (`onBeforeToolExecute`, `experimental.session.compacting`, `onReady`). Blocks W3 handoff-v2 on OpenCode.
+- I-056 (HIGH) — OpenCode plugin-first architecture: replace `adapters/opencode/dispatch.sh` bash loop with JS plugin. Blocks W12 parallel-pipeline on OpenCode.
+- I-057 (MED) — Model resolver OpenCode probe: `mb-pipeline-model-resolve.sh` should check `.opencode/skills/` and `~/.config/opencode/skills/`. Blocks W4.
+- I-058 (MED) — Provider-neutral model aliases: per-host resolution instead of hardcoded Anthropic IDs. Blocks W4 on OpenCode (Kimi defaults).
+- I-059 (MED) — OpenCode test fixtures: `test_opencode_*.bats` for dispatch/guards/hooks per wave.
+- I-060 (LOW) — Commands `*.md` OpenCode frontmatter for all 24+ command files.
 
-Все HIGH-приоритетные items закрыты на момент v4.0.0 ship + audit-remediation. Восстановить через `/mb idea` если регрессия обнаружится.
+Все HIGH-приоритетные items на момент v4.0.0 ship + audit-remediation: I-045 (Pi), I-048/I-049 (OpenCode inline fixes), I-054/I-055/I-056 (OpenCode structural gaps).
 
 ## Ключевые метрики
 
@@ -27,7 +42,7 @@
 - Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
 - Агенты: **16** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer)
 - Commands: **24** top-level (`/mb` hub + 23 dispatchers)
-- Tests: **708** via `PATH="$PWD/.venv/bin:$PATH" bash scripts/mb-test-run.sh --dir . --out json` (`tests_pass=true`); GraphRAG focused pytest 40 passed; bats GraphRAG/rules 17 ok; Pi/OpenCode/Codex install filter 9 ok; scoped shellcheck/ruff clean
+- Tests: **861** via `PATH="$PWD/.venv/bin:$PATH" bash scripts/mb-test-run.sh --dir . --out json` (`tests_pass=true`); focused doc/SRP pytest passed; rules-check contract bats 38/38 passed
 - Public website: **https://fockus.github.io/skill-memory-bank/**
 - Текущий remote: `origin=https://github.com/fockus/skill-memory-bank.git`
 
@@ -35,6 +50,9 @@
 
 <!-- mb-active-plans -->
 - [2026-05-24] `in_progress` [2026-05-24_fix_ci-baseline-wave-0.md](plans/2026-05-24_fix_ci-baseline-wave-0.md) — fix — Plan: fix — CI baseline (Wave 0 before Wave 1)
+- [2026-05-24] `in_progress` [2026-05-24_fix_cursor-compatibility-remediation.md](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — fix — Cursor hook parity + adapter bundle paths (spec: cursor-extension)
+- [2026-05-24] `queued` [2026-05-24_feature_opencode-first-adaptation.md](plans/2026-05-24_feature_opencode-first-adaptation.md) — feature — Plan: feature — OpenCode-first adaptation (native plugin, dispatch abstraction, hook parity; cross-cutting infrastructure for W1–W12)
+- [2026-05-24] `queued` [2026-05-24_fix_pi-compatibility-remediation.md](plans/2026-05-24_fix_pi-compatibility-remediation.md) — fix — Plan: fix — Pi extension (subagents + hooks + commands + model providers)
 - [2026-05-23] `queued` [2026-05-23_feature_cost-multi-model.md](plans/2026-05-23_feature_cost-multi-model.md) — feature — Plan: feature — Cost (multi-model role assignment, S4 of harness-upgrade)
 - [2026-05-23] `queued` [2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md) — feature — Plan: feature — goal-driven-autopilot — Sprint 1: Prompt overlay + addons
 - [2026-05-23] `queued` [2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md) — feature — Plan: feature — goal-driven-autopilot — Sprint 2: mb-debugger + `/mb debug`

@@ -30,7 +30,7 @@ Inspired by `fockus/claude-skill-build` (wave model + worktree isolation). Schem
 - **G6** — Schema-compatible with claude-skill-build (common keys `phases / role / parallelism / on_failure / gate`); the engine itself is independent.
 - **G7** — Budget control: per-wave reservation check + global `hard_stop_tokens` — fail-fast on exceed.
 - **G8** — Cross-plan parallel execution. `/mb run plan-1 plan-2 plan-3` runs all in their own worktrees, then merges sequentially.
-- **G9** — Cross-agent dispatch via adapter layer. First cut: Claude Code (native parallel), Pi (native parallel), Codex/OpenCode (sequential fallback).
+- **G9** — Cross-agent dispatch via adapter layer. First cut: Claude Code (native parallel), Pi (extension-based parallel via subagent tool), Codex/OpenCode (sequential fallback).
 - **G10** — `pivot_on_stagnant` integration with S2 (work-loop-v2): when reviewer's `progress_trend` is stagnant for N cycles, automatically escalate via `mb-architect`.
 - **G11 (deferred boundary)** — Phase-level model aliases may be represented in schema metadata, but arbitrary external-provider execution (`skill:<name>` / `cli:<cmd>`) is **not** part of S5 implementation. S5 validates and rejects unsupported/unsafe provider routes; a separate follow-up spec owns cross-provider dispatch.
 
@@ -287,9 +287,9 @@ pipeline:
 - `phases[].on_failure.kind ∈ {retry, loop_back, halt, escalate, pivot_on_stagnant}`
 - `phases[].gate.kind ∈ {hard, soft, none}`
 - `phases[].gate_on_entry` — phase is skipped if the named signal was not emitted by a previous phase (e.g., `review_changes_requested`).
-- `phases[].model` — optional alias from the top-level `pipeline.models:` registry. If absent → host default (Anthropic via native Task dispatch on Claude Code, native subagent API on Pi, default CLI model on Codex/OpenCode). See §10.5.
+- `phases[].model` — optional alias from the top-level `pipeline.models:` registry. If absent → host default (Anthropic via native Task dispatch on Claude Code, subagent tool via extension on Pi, default CLI model on Codex/OpenCode). See §10.5.
 - `pipeline.models.<alias>.via ∈ {native, skill:<name>, cli:<cmd>}`:
-  - `native` — use the host agent's native dispatch (Task tool / Pi subagent API / CLI flag).
+  - `native` — use the host agent's native dispatch (Task tool on Claude Code, subagent tool via extension on Pi, CLI flag on Codex/OpenCode).
   - `skill:<name>` — invoke a named skill that wraps the model (e.g., `skill:openai-gpt` in Claude Code calls a user-installed wrapper skill).
   - `cli:<cmd>` — shell out to a custom command (e.g., `cli:openai chat -m gpt-5.5`).
 - `execution.on_model_unsupported ∈ {fallback, halt, warn}` — adapter behaviour when the active host cannot honour a phase's `model.via:`:
@@ -459,7 +459,7 @@ for plan in plans[]:
         hand_off_to_adapter $active_adapter \
             < dispatches.json
             (Claude Code: returns to main agent which issues N Task())
-            (Pi: spawns native subagents)
+            (Pi: memory-bank-pipeline extension spawns pi --mode json subprocesses per dispatch, max 8 tasks / 4 concurrent)
             (Codex/OpenCode: sequential CLI loop)
 
         wait for all expected_artifact files
@@ -550,10 +550,11 @@ When `on_failure.kind == pivot_on_stagnant`:
 | Agent | Parallel dispatch | Worktree | Fallback |
 |-------|------------------|----------|----------|
 | **Claude Code** | ✅ native (multi-Task in one response) | ✅ | — |
-| **Pi** | ✅ native (Pi subagent API) | ✅ | — |
+| **Pi** | ✅ extension-based (subagent tool, max 8 tasks / 4 concurrent) | ✅ | — |
 | **Codex** | ⚠️ sequential CLI loop | ✅ | sequential |
-| **OpenCode** | ⚠️ sequential CLI loop | ✅ | sequential |
-| **Cursor / Windsurf / Cline / Kilo** | TBD (not in S5 scope) | ⚠️ | sequential |
+| **OpenCode** | ✅ plugin-based parallel subprocesses (Path A) / ⚠️ sequential CLI fallback (Path B) | ✅ | plugin preferred |
+| **Cursor** | ✅ orchestrator Task calls (see `adapters/cursor/dispatch.md`) | ✅ | sequential fallback |
+| **Windsurf / Cline / Kilo** | TBD (not in S5 scope) | ⚠️ | sequential |
 
 ### Adapter resolution
 
@@ -570,21 +571,55 @@ When `on_failure.kind == pivot_on_stagnant`:
 
 ### Pi adapter
 
-`adapters/pi/dispatch.ts` (TypeScript, native to Pi):
+Pi does **not** expose a built-in subagent API. Parallel execution is provided by the `memory-bank-pipeline` extension (TypeScript, installed to `~/.pi/agent/extensions/memory-bank/`):
 
-- Reads dispatches.json.
-- Calls Pi native subagent spawn API in parallel for each dispatch.
-- Writes results to `expected_artifact` paths.
-- Returns control to executor.
+- Extension registers a custom tool `mb_dispatch` callable by the LLM.
+- On pipeline invocation the executor writes `dispatches.json`, then the main agent calls `mb_dispatch` with the path.
+- The extension reads `dispatches.json` and spawns `pi --mode json --no-session` subprocesses for each dispatch:
+  - `--model <alias>` — honours the resolved model alias (native → current Pi model; `cli:<cmd>` → shell-out).
+  - `--append-system-prompt <agent-file>` — injects the role agent definition (`agents/<role>.md`).
+  - Task prompt passed as final argument.
+- Parallel mode uses `mapWithConcurrencyLimit` (max 8 tasks, 4 concurrent) — identical pattern to Pi's official `subagent/` example extension.
+- Each subprocess writes its result JSON to the `expected_artifact` path.
+- The extension waits for all, then returns aggregated results to the main agent.
+- **Fallback:** if the extension is not installed, Pi behaves as sequential CLI loop (analogous to Codex/OpenCode) with stderr WARN.
 
-### Codex / OpenCode adapters
+### Codex adapter
 
-`adapters/{codex,opencode}/dispatch.sh`:
+`adapters/codex/dispatch.sh`:
 
 - Sequential loop over `dispatches[]`.
-- Each iteration runs the CLI (`codex run` / `opencode run`) with the assembled prompt.
+- Each iteration runs `codex run` with the assembled prompt.
 - Result captured into `expected_artifact`.
-- stderr WARN: `running in sequential mode — <agent> does not natively support parallel subagents`.
+- stderr WARN: `running in sequential mode — Codex does not natively support parallel subagents`.
+
+### OpenCode adapter — plugin-first with sequential fallback
+
+OpenCode has two dispatch paths:
+
+**Path A — Native plugin (preferred):**
+`adapters/opencode/plugin.js` (auto-discovered from `.opencode/plugins/memory-bank.js`):
+
+- Plugin implements `onReady`, `onBeforeToolExecute`, `experimental.session.compacting`, and `event` hooks.
+- For pipeline dispatch, the plugin exposes a custom tool `mb_pipeline_dispatch` registered via OpenCode's plugin API.
+- Executor writes `dispatches.json`; the main agent calls `mb_pipeline_dispatch({ path: "..." })`.
+- The plugin reads `dispatches.json` and spawns `opencode run --agent <role> --prompt-file <tmp>` subprocesses.
+- Parallelism: OpenCode plugin can use `Promise.all` or `Promise.allSettled` for concurrent subprocesses (native OS parallelism, not subagent API).
+- Each subprocess writes result JSON to `expected_artifact`.
+- Plugin waits for all, then returns aggregated results.
+
+**Path B — Sequential CLI fallback:**
+`adapters/opencode/dispatch.sh` (used when plugin is not installed or fails):
+
+- Sequential loop over `dispatches[]`.
+- Each iteration runs `opencode run` with the assembled prompt.
+- stderr WARN: `running in sequential mode — install OpenCode plugin for parallel dispatch: https://...`
+
+**Why plugin-first?**
+OpenCode has the richest plugin API among all supported hosts (JS/TS, auto-discovery, hooks). A bash sequential loop underutilises the platform. The plugin path provides:
+- Native hook parity (`onBeforeToolExecute` guards, `experimental.session.compacting` actualize).
+- Parallel subprocess dispatch (OS-level, not subagent-level).
+- Better integration with OpenCode's command and skill system.
 
 ## 10.5 Multi-provider model dispatch (G11)
 
@@ -632,9 +667,9 @@ Called by the executor before assembling each `dispatches.json`. Each dispatch e
 | Adapter | `via: native` | `via: skill:<name>` | `via: cli:<cmd>` |
 |---------|---------------|---------------------|-------------------|
 | **Claude Code** | `Task()` with default Anthropic model | Main agent invokes the named skill via Skill tool, passing prompt + `expected_artifact` path | Adapter shells out and captures stdout → `expected_artifact` |
-| **Pi** | Pi native subagent API | Pi extension wrapping the skill (if Pi exposes skill bridge); else fallback per `on_model_unsupported` | Adapter shells out from Pi process |
+| **Pi** | `mb_dispatch` tool via `memory-bank-pipeline` extension (spawns `pi --mode json` subprocess with `--model`) | Not supported in S5 → fallback. Extension can use `registerProvider()` for cross-provider models | Adapter shells out via `child_process.exec()` |
 | **Codex** | `codex run` with default model | Not supported in S5 → fallback | `codex run --model-cmd=...` if Codex provides hook; else shell-out |
-| **OpenCode** | `opencode run` with default model | OpenCode plugin if available; else fallback | Shell-out |
+| **OpenCode** | `opencode run` with default model | Plugin loads skill context via `opencode run --agent <role>` with skill prompt injected; fallback to host default if skill dir not found | `opencode run` with `--cmd` wrapper or shell-out |
 
 ### Fallback behaviour
 
@@ -779,7 +814,7 @@ One real run on a synthetic two-stage plan; verify git log shows the squashed co
 
 - Exact `pivot_on_stagnant` threshold default — start at 2, tune via pivot-log telemetry from S2.
 - Whether to lock `.memory-bank/handoff/` (S3) during multi-plan runs — likely yes, since multiple plans could trigger handoff actualize simultaneously.
-- Pi subagent API stability — verify before spec close; if unstable, downgrade to sequential fallback with a warning.
+- Pi subagent API — Pi does not expose a built-in subagent API. Parallel execution is achieved through the `memory-bank-pipeline` extension using the official `subagent/` example pattern (spawn `pi --mode json` subprocesses, max 8 tasks / 4 concurrent). Sequential fallback is available if the extension is not installed.
 - Exact cherry-pick squash strategy — `git merge --squash` vs `git rebase -i --autosquash` vs manual `git diff | git apply`; settle in implementation.
 - **G11**: canonical name of the OpenAI-wrapping skill we expect users to install (does it exist in the ecosystem already? if not, ship a reference one in a separate sister-skill or document the contract so users can write their own).
 - **G11**: should `pipeline.models.<alias>.via: cli:<cmd>` accept arbitrary shell or only a whitelist of known providers — security trade-off vs flexibility.

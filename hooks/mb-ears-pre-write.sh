@@ -35,10 +35,12 @@ if [ -z "$CONTENT" ]; then
   exit 0
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VALIDATOR="$SCRIPT_DIR/../scripts/mb-ears-validate.sh"
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=hooks/_skill_root.sh
+. "$HOOK_DIR/_skill_root.sh"
+VALIDATOR="$(mb_skill_script_path "mb-ears-validate.sh" "$HOOK_DIR" || true)"
 
-if [ ! -f "$VALIDATOR" ]; then
+if [ -z "$VALIDATOR" ] || [ ! -f "$VALIDATOR" ]; then
   # Validator missing — fail open (don't block on infrastructure issue)
   exit 0
 fi

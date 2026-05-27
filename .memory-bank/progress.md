@@ -1,5 +1,47 @@
 # claude-skill-memory-bank — Progress Log
 
+## 2026-05-24 (OpenCode-first adaptation plan + spec updates)
+
+- **Создан план `2026-05-24_feature_opencode-first-adaptation.md`** — 5 stages:
+  - S1: OpenCode native plugin (`plugins/opencode/memory-bank.js`) — onReady, onBeforeToolExecute, onAfterToolExecute, experimental.session.compacting, event.
+  - S2: Host-agnostic dispatch (`scripts/mb-dispatch.sh`) — abstracts Task/opencode run/codex run/pi run.
+  - S3: Hook parity (`references/opencode-hooks-mapping.md`) — maps all bash hooks to OpenCode plugin hooks.
+  - S4: Install & commands & model resolver — `--clients opencode`, OpenCode frontmatter for all commands, provider-neutral aliases.
+  - S5: Documentation & e2e smoke.
+- **Обновлены спецификации** (OpenCode sections добавлены):
+  - `specs/parallel-pipeline/design.md` — OpenCode plugin adapter (Path A/B), capability matrix updated, per-adapter implementation table updated.
+  - `specs/handoff-v2/design.md` — OpenCode plugin hook mapping table (§10), implementation notes.
+  - `specs/cost-multi-model/design.md` — OpenCode dispatch via `mb-dispatch.sh`, provider-neutral aliases schema v2.
+  - `specs/goal-driven-autopilot/design.md` — OpenCode dispatch notes in Components 3, 4, 6, 7.
+  - `specs/reviewer-2.0/design.md` — OpenCode dispatch notes in architecture and test-cache.
+- **Memory Bank обновлён:**
+  - `checklist.md` — W0.5 queued, I-054..I-060 preserved.
+  - `status.md` — new plan added to active plans.
+  - `roadmap.md` — W0.5 inserted into wave sequence table.
+- **Верификация:** не требуется (planning-only session).
+
+## 2026-05-24 (OpenCode integration audit)
+
+- **Аудит интеграции Memory Bank × OpenCode** — полный обзор: текущая реализация (`adapters/opencode.sh`, `tests/bats/test_opencode_adapter.bats`), OpenCode plugin API (auto-discovery, top-level hooks, `directory` param, `event` hook, `tool.execute.before`), cross-agent research note.
+- **Найдено:** 8 продакшен-разрывов (2 HIGH, 4 MEDIUM, 2 LOW) + 2 gaps в планах/спецификациях.
+- **Исправлено inline:**
+  - `adapters/opencode.sh` — plugin возвращает top-level hooks (не `{ hooks: { ... } }`), использует `directory` param, не создаёт `opencode.json` (auto-discovery), cleanup stale legacy plugin entry.
+  - `tests/bats/test_opencode_adapter.bats` — 15/15 passed, проверяет текущий контракт.
+- **Отчёт:** `reports/2026-05-24_opencode-integration-audit.md` с полной матрицей gap'ов, приоритизацией и рекомендациями.
+- **Чеклист обновлён:** I-048..I-053 (HIGH/MED/LOW OpenCode gaps + cross-agent research fix).
+- **Верификация:** shellcheck clean, bats 15/15 passed.
+
+## 2026-05-24 (Pi compatibility audit)
+
+- **Аудит совместимости memory-bank × Pi Code** — полный обзор: текущая реализация (`adapters/pi.sh`, `install.sh`, `adapters/pi_graph_rag_extension.ts`), планы (`parallel-pipeline`, `goal-driven-autopilot`), спецификации, тесты (`test_pi_adapter.bats`), docs (`cross-agent-setup.md`, `notes/2026-04-20_03-36_cross-agent-research.md`).
+- **Найдено:** 2 блокера, 3 критических гэпа, 4 предупреждения, 7 работающих областей.
+- **Блокер B1:** Pi не имеет встроенного subagent API — `specs/parallel-pipeline/design.md` описывает "native Pi subagent API", которого не существует. S5 для Pi требует sequential fallback через extension/RPC, а не "native parallel".
+- **Блокер B2:** Pi не имеет hook API — 4 критических hook'а (PreToolUse block-dangerous, PreCompact actualize, Weekly compact reminder, SessionEnd context) не работают. Git-fallback покрывает только post-commit (SessionEnd placeholder).
+- **Критические гэпы:** G11 model dispatch на Pi ограничен `native`+`cli` (нет `skill:*`), prompt templates ≠ commands (нет аргумент-парсинга), GraphRAG extension существует но не подключён (`pi_graph_rag_extension.ts` — dead code), agents/ не устанавливаются глобально для Pi.
+- **Документация:** `reports/2026-05-24_pi-compatibility-audit.md` (15 KB) с ground-truth матрицей совместимости и планом ремедиации (Wave 0 docs fix → W1/W2 spec update → backlog extension decision).
+- **Чеклист обновлён:** I-045 (HIGH), I-046 (MED), I-047 (MED).
+- **Верификация:** `mb-drift` 0 warnings, `mb-spec-validate` PASS, Pi adapter bats 12/12 PASS, pytest 857/859 passed (2 pre-existing failures unrelated to audit).
+
 ## 2026-05-21 (global-storage Phase closeout — Sprints 1+2+3)
 
 ### Sprint 2 `global-storage-agent-support` ✅
@@ -1792,5 +1834,18 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 ## 2026-05-24
 
 ### Auto-capture 2026-05-24 (session 6f8eda52)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-05-24 — Cursor compatibility remediation (I-061)
+
+- Added `hooks/_skill_root.sh`; patched 10 hooks to resolve bundled scripts from skill install path.
+- Refactored `adapters/cursor.sh`: `hooks.json` references skill bundle + `MB_AGENT=cursor`; no `.cursor/hooks/` copies; fixed uninstall manifest (no deletion of bundle dir).
+- Tests: `test_skill_root_resolver.bats`, `test_cursor_adapter.bats`, `test_cursor_docs.bats`, `test_cursor_global.bats`, `test_cursor_global_storage.bats`, `test_parallel_pipeline_adapters.bats` — PASS.
+- Docs: `cross-agent-setup.md`, `SKILL.md`; `adapters/cursor/dispatch.md`; parallel-pipeline Cursor row updated.
+
+## 2026-05-24
+
+### Auto-capture 2026-05-24 (session 40bc5e85)
 - Session ended without an explicit /mb done
 - Details will be reconstructed on the next /mb start (MB Manager can read the transcript)

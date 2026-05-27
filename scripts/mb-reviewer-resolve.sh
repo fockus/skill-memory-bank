@@ -62,14 +62,20 @@ else
   exit 2
 fi
 
-SKILLS_ROOT="${MB_SKILLS_ROOT:-$HOME/.claude/skills}"
+if [ -n "${MB_SKILLS_ROOT:-}" ]; then
+  SKILLS_ROOTS="$MB_SKILLS_ROOT"
+else
+  SKILLS_ROOTS=""
+  [ -d "$HOME/.cursor/skills" ] && SKILLS_ROOTS="$HOME/.cursor/skills"
+  [ -d "$HOME/.claude/skills" ] && SKILLS_ROOTS="${SKILLS_ROOTS:+$SKILLS_ROOTS:}$HOME/.claude/skills"
+fi
 
-PIPELINE_PATH="$PIPELINE_PATH" SKILLS_ROOT="$SKILLS_ROOT" python3 - <<'PY'
+PIPELINE_PATH="$PIPELINE_PATH" SKILLS_ROOTS="$SKILLS_ROOTS" python3 - <<'PY'
 import os
 import sys
 
 pipeline = os.environ["PIPELINE_PATH"]
-skills_root = os.environ["SKILLS_ROOT"]
+skills_roots = [p for p in os.environ.get("SKILLS_ROOTS", "").split(":") if p]
 
 try:
     import yaml  # type: ignore
@@ -118,8 +124,13 @@ if isinstance(override, dict):
     skill = override.get("skill")
     override_agent = override.get("agent")
     if skill and override_agent:
-        skill_dir = os.path.join(skills_root, skill)
-        if os.path.isdir(skill_dir):
+        found = False
+        for skills_root in skills_roots:
+            skill_dir = os.path.join(skills_root, skill)
+            if os.path.isdir(skill_dir):
+                found = True
+                break
+        if found:
             print(override_agent)
             sys.exit(0)
 

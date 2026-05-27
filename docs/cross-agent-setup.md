@@ -77,7 +77,7 @@ bash install.sh --non-interactive
 
 Creates under `~/.cursor/`:
 - `skills/memory-bank/` — symlink on canonical skill bundle (auto-discovered by Cursor)
-- `hooks.json` + `hooks/*.sh` — ten hooks tagged `_mb_owned: true`:
+- `hooks.json` — ten hook commands tagged `_mb_owned: true` (scripts run from skill bundle `~/.cursor/skills/memory-bank/hooks/`, not copied to `~/.cursor/hooks/`):
   `sessionStart` (auto-context), `sessionEnd` (autosave), `preCompact` (reminder),
   `beforeShellExecution` (block-dangerous), four `preToolUse` entries (protected paths, EARS, context-slim, sprint-guard),
   two `postToolUse` entries (file-change-log, plan-sync)
@@ -111,8 +111,8 @@ bash install.sh --clients cursor --project-root ~/my-project
 
 Creates:
 - `.cursor/rules/memory-bank.mdc` — YAML frontmatter (`alwaysApply: true`) + RULES.md
-- `.cursor/hooks.json` — CC-compat, events: `sessionEnd`, `preCompact`, `beforeShellExecution`
-- `.cursor/hooks/*.sh` — self-contained copies of our hook scripts
+- `.cursor/hooks.json` — CC-compat, all ten events wired to skill-bundle hook scripts + `MB_AGENT=cursor`
+- No `.cursor/hooks/*.sh` copies — hooks execute from `~/.cursor/skills/memory-bank/hooks/` or repo skill bundle
 
 **Limitation:** Cursor CLI only fires `beforeShellExecution`/`afterShellExecution`;
 full event set works in IDE only.
@@ -248,10 +248,10 @@ Ownership is refcounted in `.mb-agents-owners.json`:
 
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
-| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | git-fallback when project is a git repo; global prompts otherwise | project `.codex/hooks.json` only |
-| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — | guidance via `~/.codex/AGENTS.md`, project hook pending |
-| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | native | project `userpromptsubmit` (exit 2) |
-| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | fallback | guidance only |
+| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | Extension `session_shutdown` event + git-fallback | project `.codex/hooks.json` only |
+| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | Extension `session_before_compact` event | guidance via `~/.codex/AGENTS.md`, project hook pending |
+| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | Extension `tool_call` event (blockable) | project `userpromptsubmit` (exit 2) |
+| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | Extension `session_start` event (check `.last-compact` age) | guidance only |
 
 ## Resource availability matrix
 
@@ -260,7 +260,7 @@ Ownership is refcounted in `.mb-agents-owners.json`:
 | `SKILL.md` | `~/.claude/skills/memory-bank/` | `~/.codex/skills/memory-bank/` | `~/.cursor/skills/memory-bank/` | Yes, via skill discovery |
 | `commands/` | bundled + Claude commands installed | bundled in Codex skill alias | bundled + mirrored to `~/.cursor/commands/` | No separate native slash-command install |
 | `agents/` | bundled + Claude global agents installed | bundled in Codex skill alias | bundled in skill (`~/.cursor/skills/memory-bank/agents/`) | No separate global agent registry assumed |
-| `hooks/` | bundled + Claude global hooks installed | bundled in Codex skill alias | bundled + three global bindings in `~/.cursor/hooks.json` (tagged `_mb_owned`) | Conservative/project-level only |
+| `hooks/` | bundled + Claude global hooks installed | bundled in Codex skill alias | bundled at `~/.cursor/skills/memory-bank/hooks/` + ten `_mb_owned` entries in `~/.cursor/hooks.json` | Conservative/project-level only |
 | Global rules | `~/.claude/CLAUDE.md` managed section | `~/.codex/AGENTS.md` managed section | `~/.cursor/AGENTS.md` managed section **+** paste-file for Settings → Rules → User Rules | n/a |
 
 ## Uninstall

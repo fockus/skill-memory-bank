@@ -33,10 +33,12 @@ if [ "${MB_ALLOW_PROTECTED:-0}" = "1" ]; then
   exit 0
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CHECKER="$SCRIPT_DIR/../scripts/mb-work-protected-check.sh"
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=hooks/_skill_root.sh
+. "$HOOK_DIR/_skill_root.sh"
+CHECKER="$(mb_skill_script_path "mb-work-protected-check.sh" "$HOOK_DIR" || true)"
 
-if [ ! -f "$CHECKER" ]; then
+if [ -z "$CHECKER" ] || [ ! -f "$CHECKER" ]; then
   # Cannot verify; fail open (do not block on infrastructure error)
   exit 0
 fi

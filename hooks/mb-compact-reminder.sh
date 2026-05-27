@@ -18,23 +18,13 @@ INPUT=$(cat)
 CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)
 [ -z "$CWD" ] && CWD="$PWD"
 
-# Resolve Memory Bank path: MB_PATH override → local <cwd>/.memory-bank →
-# registry lookup via _lib.sh (only when MB_AGENT is set).
-if [ -n "${MB_PATH:-}" ]; then
-  MB="$MB_PATH"
-elif [ -d "$CWD/.memory-bank" ]; then
-  MB="$CWD/.memory-bank"
-else
-  MB=""
-  if [ -n "${MB_AGENT:-}" ]; then
-    HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)
-    LIB="$HOOK_DIR/../scripts/_lib.sh"
-    if [ -f "$LIB" ]; then
-      MB=$(bash -c \
-        ". '$LIB' >/dev/null 2>&1 && mb_registry_lookup '$MB_AGENT' '${MB_PROJECT_ROOT:-$CWD}' 2>/dev/null" \
-        2>/dev/null || true)
-    fi
-  fi
+HOOK_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd || true)
+# shellcheck source=hooks/_skill_root.sh
+. "$HOOK_DIR/_skill_root.sh"
+
+MB=""
+if hit="$(mb_hook_resolve_mb_path "$CWD" 2>/dev/null || true)" && [ -n "$hit" ]; then
+  MB="$hit"
 fi
 [ -n "$MB" ] && [ -d "$MB" ] || exit 0
 
@@ -58,15 +48,9 @@ WEEK=$((7 * 24 * 3600))
 [ "$age" -lt "$WEEK" ] && exit 0
 
 # Stale → run dry-run and parse `candidates`
-COMPACT_SCRIPT="$HOME/.claude/skills/memory-bank/scripts/mb-compact.sh"
-# Fallback for in-repo tests: use the nearby script (`../scripts/`)
-if [ ! -x "$COMPACT_SCRIPT" ]; then
-  HOOK_DIR=$(cd "$(dirname "$0")" && pwd)
-  REPO_COMPACT="$HOOK_DIR/../scripts/mb-compact.sh"
-  [ -x "$REPO_COMPACT" ] && COMPACT_SCRIPT="$REPO_COMPACT"
-fi
+COMPACT_SCRIPT="$(mb_skill_script_path "mb-compact.sh" "$HOOK_DIR" || true)"
 
-[ -x "$COMPACT_SCRIPT" ] || exit 0   # script unavailable — silent skip
+[ -n "$COMPACT_SCRIPT" ] && [ -x "$COMPACT_SCRIPT" ] || exit 0   # script unavailable — silent skip
 
 # Run dry-run in CWD and parse `candidates=N`
 OUTPUT=$(cd "$CWD" && bash "$COMPACT_SCRIPT" --dry-run 2>/dev/null; true)

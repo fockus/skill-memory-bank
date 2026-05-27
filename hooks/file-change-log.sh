@@ -25,7 +25,11 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 [ -z "$FILE_PATH" ] && exit 0
 
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-LOG_FILE="$HOME/.claude/file-changes.log"
+if [ "${MB_AGENT:-}" = "cursor" ] || [ -d "$HOME/.cursor/skills/memory-bank" ]; then
+  LOG_FILE="$HOME/.cursor/file-changes.log"
+else
+  LOG_FILE="$HOME/.claude/file-changes.log"
+fi
 MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10 MB
 
 # ═══ Log rotation ═══

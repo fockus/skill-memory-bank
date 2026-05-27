@@ -133,6 +133,9 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-drift.sh` | 8 deterministic drift checkers (path, staleness, script coverage, dependency, cross-file, index sync, command, frontmatter) |
 | `mb-rules-check.sh` | Deterministic rules enforcement (SRP / Clean Architecture / TDD delta) |
 | `mb_rules_check_lib.sh` | Shared helper library for `mb-rules-check.sh` |
+| `mb_rules_check_profile.sh` | Profile resolution and output emitters for `mb-rules-check.sh` |
+| `mb_rules_check_baseline.sh` | Baseline SRP / Clean Architecture / TDD checks for `mb-rules-check.sh` |
+| `mb_rules_check_stack.sh` | Stack-aware and FSD checks for `mb-rules-check.sh` |
 | `mb-test-run.sh` | Structured test runner with per-stack output parsing → strict JSON |
 | `mb-deps-check.sh [--install-hints]` | Preflight dependency checker (python3, jq, git + optional tree-sitter) |
 | `mb-checklist-prune.sh [--apply]` | Collapse completed sections in `checklist.md` to one-liners (≤120-line cap) |
@@ -217,6 +220,7 @@ Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Cl
 
 | Hook | Trigger | Purpose |
 |------|---------|---------|
+| `_skill_root.sh` | sourced helper | Resolve bundled skill root and effective Memory Bank path for hook scripts |
 | `block-dangerous.sh` | PreToolUse (Bash) | Block dangerous shell patterns (`rm -rf /`, `~`, `/*`) — best-effort guardrail |
 | `mb-protected-paths-guard.sh` | PreToolUse (Write/Edit) | Block writes to `pipeline.yaml:protected_paths` (e.g. `.env`, CI configs) |
 | `mb-ears-pre-write.sh` | PreToolUse (Write) | Validate REQ bullets in `context/<topic>.md` against EARS patterns before save |
@@ -260,7 +264,7 @@ Cursor is a first-class global target. `install.sh` writes five artifacts to `~/
 | Artifact | Purpose |
 |----------|---------|
 | `~/.cursor/skills/memory-bank/` | Personal skill alias — Cursor auto-discovers it by description |
-| `~/.cursor/hooks.json` + `~/.cursor/hooks/*.sh` | Global hooks (10 scripts): `sessionStart` (auto-context), `sessionEnd`, `preCompact`, `beforeShellExecution`, four `preToolUse` matchers (`Write|Edit`, `Write`, `Task`×2), two `postToolUse` matchers. Each entry tagged `_mb_owned: true` so user hooks are preserved |
+| `~/.cursor/hooks.json` | Global hooks (10 commands → skill bundle `hooks/`): `sessionStart` (auto-context), `sessionEnd`, `preCompact`, `beforeShellExecution`, four `preToolUse` matchers (`Write|Edit`, `Write`, `Task`×2), two `postToolUse` matchers. Each command runs `~/.cursor/skills/memory-bank/hooks/<script>.sh` with `MB_AGENT=cursor`. Tagged `_mb_owned: true` so user hooks are preserved |
 | `~/.cursor/commands/*.md` | User-level slash commands mirrored from the skill `commands/` directory |
 | `~/.cursor/AGENTS.md` | Marker section `memory-bank-cursor:start/end` — entrypoint for future Cursor versions that read global `AGENTS.md` |
 | `~/.cursor/memory-bank-user-rules.md` | Paste-ready rules bundle for **Settings → Rules → User Rules** (Cursor exposes no file API for global User Rules, so this is a one-time manual step) |
@@ -350,6 +354,7 @@ The SessionEnd hook `hooks/mb-compact-reminder.sh` reminds the user to run `/mb 
 ## References
 
 - Rule profiles schema (dimensions, immutable baseline, precedence, validation): `references/rules-profile.schema.md`
+- Design principles (inviolable memory promise + configurable layers): `references/design-principles.md`
 - Metadata protocol + `index.json` + 8 key rules: `references/metadata.md`
 - Plan decomposition (Phase / Sprint / Stage), templates, drift checks: `references/templates.md`
 - Planning + Plan Verifier workflow: `references/planning-and-verification.md`

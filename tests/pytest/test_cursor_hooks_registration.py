@@ -98,23 +98,13 @@ def test_cursor_manifest_lists_all_hook_events(project_dir: Path) -> None:
     }
 
 
-def test_cursor_manifest_tracks_all_hook_scripts(project_dir: Path) -> None:
+def test_cursor_manifest_tracks_hooks_json_and_bundle(project_dir: Path) -> None:
     _install_project(project_dir)
     manifest = json.loads((project_dir / ".cursor/.mb-manifest.json").read_text(encoding="utf-8"))
-    files = "\n".join(manifest.get("files", []))
-    for script in (
-        "session-end-autosave.sh",
-        "mb-compact-reminder.sh",
-        "block-dangerous.sh",
-        "mb-protected-paths-guard.sh",
-        "mb-ears-pre-write.sh",
-        "mb-context-slim-pre-agent.sh",
-        "mb-sprint-context-guard.sh",
-        "file-change-log.sh",
-        "mb-plan-sync-post-write.sh",
-        "mb-session-start-context.sh",
-    ):
-        assert script in files
+    files = manifest.get("files", [])
+    assert files
+    assert all(f.endswith("memory-bank.mdc") for f in files)
+    assert "memory-bank/hooks" in manifest.get("hooks_bundle", "")
 
 
 def test_session_start_hook_returns_empty_without_memory_bank() -> None:
@@ -143,6 +133,17 @@ def test_session_start_hook_returns_empty_for_invalid_json() -> None:
     )
     assert r.returncode == 0
     assert json.loads(r.stdout.strip()) == {}
+
+
+def test_hooks_json_commands_use_bundle_paths(project_dir: Path) -> None:
+    hjson = _install_project(project_dir)
+    data = json.loads(hjson.read_text(encoding="utf-8"))
+    owned = [e for ev in data["hooks"].values() for e in ev if e.get("_mb_owned")]
+    assert owned
+    for entry in owned:
+        cmd = entry.get("command") or ""
+        assert "MB_AGENT=cursor" in cmd
+        assert "memory-bank/hooks/" in cmd
 
 
 def test_session_start_hook_injects_context_with_memory_bank() -> None:

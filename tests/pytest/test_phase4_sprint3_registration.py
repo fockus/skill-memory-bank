@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import os
 import sys
 import tomllib
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
@@ -44,7 +45,7 @@ def test_changelog_unreleased_section_is_empty_or_present_above() -> None:
 def test_reviewer_resolve_script_exists_and_executable() -> None:
     p = REPO_ROOT / "scripts" / "mb-reviewer-resolve.sh"
     assert p.exists()
-    import os
+
     assert os.access(p, os.X_OK), "mb-reviewer-resolve.sh must be executable"
 
 

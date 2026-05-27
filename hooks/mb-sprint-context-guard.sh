@@ -26,18 +26,21 @@ INPUT=$(cat)
 TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
 [ "$TOOL" = "Task" ] || exit 0
 
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=hooks/_skill_root.sh
+. "$HOOK_DIR/_skill_root.sh"
+
 # Resolve bank
 BANK=""
 if [ -n "${MB_SESSION_BANK:-}" ] && [ -d "$MB_SESSION_BANK" ]; then
   BANK="$MB_SESSION_BANK"
-elif [ -d "${PWD:-}/.memory-bank" ]; then
-  BANK="${PWD}/.memory-bank"
+elif hit="$(mb_hook_resolve_mb_path "${PWD:-}" 2>/dev/null || true)" && [ -n "$hit" ]; then
+  BANK="$hit"
 fi
 [ -z "$BANK" ] && exit 0
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SPEND_SH="$SCRIPT_DIR/../scripts/mb-session-spend.sh"
-if [ ! -f "$SPEND_SH" ]; then
+SPEND_SH="$(mb_skill_script_path "mb-session-spend.sh" "$HOOK_DIR" || true)"
+if [ -z "$SPEND_SH" ] || [ ! -f "$SPEND_SH" ]; then
   exit 0
 fi
 

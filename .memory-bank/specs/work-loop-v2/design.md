@@ -175,7 +175,7 @@ if implementation diverges from contract → reviewer flags as `scope` issue at 
 
 ### Per-stage cost
 
-One contract round adds roughly 1 Task dispatch to role-agent (draft) + 1 Task to reviewer (review). On simple items the contract converges in one cycle; budget guard counts these against the same `--budget TOK` ceiling.
+One contract round adds roughly 1 subagent dispatch to role-agent (draft) + 1 to reviewer (review). On Claude Code this is `Task()`; on OpenCode `opencode run`; on Codex `codex run`. Budget guard counts these against the same `--budget TOK` ceiling regardless of host.
 
 ## 5. Strategic pivoting
 
