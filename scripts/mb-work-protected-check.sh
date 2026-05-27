@@ -42,16 +42,63 @@ import os
 import re
 import sys
 
+def strip_comment(line: str) -> str:
+    in_single = False
+    in_double = False
+    for idx, char in enumerate(line):
+        if char == "'" and not in_double:
+            in_single = not in_single
+        elif char == '"' and not in_single:
+            in_double = not in_double
+        elif char == "#" and not in_single and not in_double:
+            return line[:idx]
+    return line
+
+
+def parse_scalar(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
+    return value
+
+
+def parse_protected_paths_without_yaml(path: str) -> list[str]:
+    globs: list[str] = []
+    in_section = False
+    section_indent = 0
+    for raw in open(path, encoding="utf-8"):
+        line = strip_comment(raw).rstrip()
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        stripped = line.strip()
+        if not in_section:
+            if stripped == "protected_paths:":
+                in_section = True
+                section_indent = indent
+            continue
+        if indent <= section_indent and not stripped.startswith("-"):
+            break
+        if stripped.startswith("- "):
+            globs.append(parse_scalar(stripped[2:]))
+    return globs
+
+
+pipeline_path = os.environ["PIPELINE_YAML"]
 try:
     import yaml  # type: ignore
-    cfg = yaml.safe_load(open(os.environ["PIPELINE_YAML"], encoding="utf-8")) or {}
-    globs = cfg.get("protected_paths") or []
-    if not isinstance(globs, list):
-        sys.stderr.write("[protected] protected_paths must be a list\n")
+except ImportError:
+    globs = parse_protected_paths_without_yaml(pipeline_path)
+else:
+    try:
+        cfg = yaml.safe_load(open(pipeline_path, encoding="utf-8")) or {}
+        globs = cfg.get("protected_paths") or []
+        if not isinstance(globs, list):
+            sys.stderr.write("[protected] protected_paths must be a list\n")
+            sys.exit(2)
+    except Exception as exc:
+        sys.stderr.write(f"[protected] failed to load pipeline.yaml: {exc}\n")
         sys.exit(2)
-except Exception as exc:
-    sys.stderr.write(f"[protected] failed to load pipeline.yaml: {exc}\n")
-    sys.exit(2)
 
 # Convert each glob to a regex.
 # Rules: `**` → match any path segments (including separators);

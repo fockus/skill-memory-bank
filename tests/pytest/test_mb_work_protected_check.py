@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -15,11 +16,24 @@ def _init_mb(tmp_path: Path) -> Path:
     return mb
 
 
-def _run(*files: str, mb: Path) -> subprocess.CompletedProcess[str]:
+def _run(
+    *files: str,
+    mb: Path,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", str(SCRIPT), *files, "--mb", str(mb)],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, check=False, env=env,
     )
+
+
+def _env_without_yaml(tmp_path: Path) -> dict[str, str]:
+    fake = tmp_path / "fake-pythonpath"
+    fake.mkdir()
+    (fake / "yaml.py").write_text("raise ModuleNotFoundError('yaml')\n", encoding="utf-8")
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(fake)
+    return env
 
 
 # Default `pipeline.yaml:protected_paths`:
@@ -67,3 +81,10 @@ def test_empty_file_list_passes(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     r = _run(mb=mb)
     assert r.returncode == 0
+
+
+def test_default_protected_paths_work_without_pyyaml(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    r = _run(".env.production", mb=mb, env=_env_without_yaml(tmp_path))
+    assert r.returncode == 1
+    assert "No module named" not in r.stderr

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -17,12 +18,25 @@ def _init_mb(tmp_path: Path) -> Path:
     return mb
 
 
-def _run(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+def _run(
+    *args: str,
+    stdin: str | None = None,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", str(SCRIPT), *args],
         input=stdin,
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True, check=False, env=env,
     )
+
+
+def _env_without_yaml(tmp_path: Path) -> dict[str, str]:
+    fake = tmp_path / "fake-pythonpath"
+    fake.mkdir()
+    (fake / "yaml.py").write_text("raise ModuleNotFoundError('yaml')\n", encoding="utf-8")
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(fake)
+    return env
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -98,3 +112,17 @@ def test_invalid_counts_json_usage(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     r = _run("--counts", "not-json", "--mb", str(mb))
     assert r.returncode == 2
+
+
+def test_default_gate_works_without_pyyaml(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    counts = {"blocker": 0, "major": 0, "minor": 2}
+    r = _run(
+        "--counts",
+        json.dumps(counts),
+        "--mb",
+        str(mb),
+        env=_env_without_yaml(tmp_path),
+    )
+    assert r.returncode == 0, r.stderr
+    assert "No module named" not in r.stderr

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import filecmp
+import os
 import subprocess
 from pathlib import Path
 
@@ -24,6 +25,15 @@ def _run(*args: str, mb: Path | None = None) -> subprocess.CompletedProcess[str]
     if mb is not None:
         cmd.append(str(mb))
     return subprocess.run(cmd, capture_output=True, text=True, check=False)
+
+
+def _env_without_yaml(tmp_path: Path) -> dict[str, str]:
+    fake = tmp_path / "fake-pythonpath"
+    fake.mkdir()
+    (fake / "yaml.py").write_text("raise ModuleNotFoundError('yaml')\n", encoding="utf-8")
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(fake)
+    return env
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -93,6 +103,19 @@ def test_validate_default_via_resolution(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     r = _run("validate", mb=mb)
     assert r.returncode == 0, r.stderr
+
+
+def test_validate_default_via_resolution_without_pyyaml(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    r = subprocess.run(
+        ["bash", str(SCRIPT), "validate", str(mb)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_env_without_yaml(tmp_path),
+    )
+    assert r.returncode == 0, r.stderr
+    assert "PyYAML not installed" not in r.stderr
 
 
 def test_validate_explicit_path(tmp_path: Path) -> None:

@@ -59,6 +59,59 @@ import json
 import os
 import sys
 
+
+def strip_comment(line: str) -> str:
+    in_single = False
+    in_double = False
+    for idx, char in enumerate(line):
+        if char == "'" and not in_double:
+            in_single = not in_single
+        elif char == '"' and not in_single:
+            in_double = not in_double
+        elif char == "#" and not in_single and not in_double:
+            return line[:idx]
+    return line
+
+
+def parse_int(value: str) -> int:
+    return int(value.strip().strip('"\''))
+
+
+def parse_review_gate_without_yaml(path: str) -> dict[str, int]:
+    gate: dict[str, int] = {}
+    in_stage_pipeline = False
+    in_review = False
+    in_gate = False
+    gate_indent = 0
+    for raw in open(path, encoding="utf-8"):
+        line = strip_comment(raw).rstrip()
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        stripped = line.strip()
+        if not in_stage_pipeline:
+            if stripped == "stage_pipeline:":
+                in_stage_pipeline = True
+            continue
+        if indent == 0 and not stripped.startswith("-"):
+            break
+        if indent == 2 and stripped.startswith("- "):
+            in_review = stripped == "- step: review"
+            in_gate = False
+            continue
+        if in_review and stripped == "severity_gate:":
+            in_gate = True
+            gate_indent = indent
+            continue
+        if in_gate:
+            if indent <= gate_indent:
+                in_gate = False
+                continue
+            key, sep, value = stripped.partition(":")
+            if sep:
+                gate[key.strip()] = parse_int(value)
+    return gate
+
 try:
     counts = json.loads(os.environ["COUNTS_JSON"])
     if not isinstance(counts, dict):
@@ -77,18 +130,22 @@ if gate_override:
 else:
     try:
         import yaml  # type: ignore
-        cfg = yaml.safe_load(open(os.environ["PIPELINE_YAML"], encoding="utf-8")) or {}
-    except Exception as exc:
-        sys.stderr.write(f"[severity-gate] failed to load pipeline.yaml: {exc}\n")
-        sys.exit(2)
-    review_step = next(
-        (s for s in (cfg.get("stage_pipeline") or []) if s.get("step") == "review"),
-        None,
-    )
-    if not review_step:
-        sys.stderr.write("[severity-gate] no 'review' step in stage_pipeline\n")
-        sys.exit(2)
-    gate = review_step.get("severity_gate") or {}
+    except ImportError:
+        gate = parse_review_gate_without_yaml(os.environ["PIPELINE_YAML"])
+    else:
+        try:
+            cfg = yaml.safe_load(open(os.environ["PIPELINE_YAML"], encoding="utf-8")) or {}
+        except Exception as exc:
+            sys.stderr.write(f"[severity-gate] failed to load pipeline.yaml: {exc}\n")
+            sys.exit(2)
+        review_step = next(
+            (s for s in (cfg.get("stage_pipeline") or []) if s.get("step") == "review"),
+            None,
+        )
+        if not review_step:
+            sys.stderr.write("[severity-gate] no 'review' step in stage_pipeline\n")
+            sys.exit(2)
+        gate = review_step.get("severity_gate") or {}
 
 breaches = []
 for sev in ("blocker", "major", "minor"):
