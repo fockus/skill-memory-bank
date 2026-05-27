@@ -3,6 +3,7 @@
 
 setup() {
   REPO_ROOT="$(cd "${BATS_TEST_DIRNAME:-$(dirname "$BATS_TEST_FILENAME")}/../.." && pwd)"
+  cd "$REPO_ROOT"
   SKILL_ROOT="$REPO_ROOT"
   HOOKS_DIR="$REPO_ROOT/hooks"
   SCRIPTS_DIR="$REPO_ROOT/scripts"
