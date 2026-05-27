@@ -100,9 +100,23 @@ WHITELIST_PATTERNS = (
     re.compile(r"^\.memory-bank/progress\.md$"),
     re.compile(r"^\.memory-bank/lessons\.md$"),
     re.compile(r"^\.memory-bank/plans/done/"),
+    re.compile(r"^\.memory-bank/\.migration-backup-"),
+    re.compile(r"^\.memory-bank/\.pre-migrate(?:-|/)"),
     re.compile(r"^references/templates\.md$"),  # the SSoT itself can cite legacy term
     re.compile(r"^tests/.*"),  # tests can reference the term they're checking
 )
+
+
+def test_historical_migration_backups_are_legacy_whitelisted() -> None:
+    """Tracked migration backups preserve old terminology as historical data."""
+    legacy_paths = (
+        ".memory-bank/.migration-backup-20260422-174417/roadmap.md",
+        ".memory-bank/.pre-migrate-20260421-163107/backlog.md",
+        ".memory-bank/.pre-migrate/20260421_091115/checklist.md",
+    )
+
+    for path in legacy_paths:
+        assert any(pattern.search(path) for pattern in WHITELIST_PATTERNS), path
 
 
 @pytest.mark.skipif(
