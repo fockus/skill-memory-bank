@@ -232,8 +232,30 @@
       "summary": "Date: 2026-05-23 20:32 Зафиксирован первоначальный список non-goals в дизайне `parallel-pipeline` (S5). Часть пунктов потом перешла в Goals по решению пользователя — список сохранён как «контракт первого среза» и стартовая точка для будущих расширений.",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-05-27_20-35_ci-baseline-wave-0.md",
+      "type": "note",
+      "tags": [],
+      "importance": null,
+      "summary": "- `test.yml` on `main` is green again: run `26527319286` passed lint plus Ubuntu/macOS × Python 3.11/3.12 matrix. - Last blockers were Linux-only pytest failures hidden locally by macOS grep behavior: GNU grep matched Cyrillic planning terms in historical Memory Bank data and required policy-reference surfaces.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-05-28_16-56_session-closeout.md",
+      "type": "note",
+      "tags": [
+        "session-closeout",
+        "ci-baseline",
+        "memory-bank"
+      ],
+      "importance": "low",
+      "summary": "- Reconstructed the latest project state for the user: Wave 0 CI baseline is closed, tracked files are clean, and only `.pi-lens/` remains untracked. - Confirmed GitHub `test.yml` latest runs: `26528106396` success after closeout commit, `26527319286` first full green, `26526626251` previous failure.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-05-23T22:38:28Z"
+  "generated_at": "2026-05-28T13:59:02Z"
 }

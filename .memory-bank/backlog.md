@@ -316,6 +316,21 @@
 
 **Trigger:** если bash executor превысит 500 LOC и/или будут systematic bugs в JSON marshalling layer.
 
+### I-062 — Ужесточить EARS-валидатор и spec-checking [MED, NEW, 2026-05-29]
+
+**Problem:** `scripts/mb-ears-validate.sh` проверяет лишь наличие слова-триггера (`The|When|While|Where|If`) И слова `shall` как отдельных токенов в `- **REQ-NNN** ...`. Строка `The when shall while` проходит. Структура EARS-паттерна не валидируется; нет проверок атомарности, уникальности REQ-ID, раннего REQ→task покрытия; traceability на regex молча промахивается при дрейфе формата. Замечено на реальном проходе `/mb discuss` во внешнем проекте-потребителе.
+
+**Sketch:**
+1. Per-pattern structural regex (ровно один из 5 шаблонов с порядком слов): Ubiquitous `^The .+ shall`, Event `^When .+, the .+ shall`, State `^While .+, the .+ shall`, Optional `^Where .+, the .+ shall`, Unwanted `^If .+, then the .+ shall`.
+2. Atomicity warning при >1 `shall` в одной REQ-строке.
+3. REQ-ID uniqueness/monotonic lint (дубли + пропуски).
+4. Ранний REQ→task coverage lint (каждый REQ упомянут в `tasks.md` `**Covers:** REQ-NNN`) — сейчас только в `/mb verify`.
+5. `mb-traceability-gen.sh`: warning, если REQ-подобные строки не попали в матрицу (drift-resistance).
+
+**Trigger:** при следующем касании SDD-тулинга (`discuss`/`sdd`/`verify`) — дешевле сделать вместе. Не блокер: текущий валидатор ловит главное.
+
+**Детали:** [`notes/2026-05-29_ears-validator-hardening.md`](notes/2026-05-29_ears-validator-hardening.md).
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

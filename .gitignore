@@ -17,6 +17,9 @@ htmlcov/
 # Claude Code harness runtime (local CLI state — never part of the skill).
 /.claude/
 
+# pi-lens ephemeral local state (cache, metrics, turn-state) — never tracked.
+/.pi-lens/
+
 # Build artifacts
 /dist/
 /build/

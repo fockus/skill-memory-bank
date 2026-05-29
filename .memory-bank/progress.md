@@ -1859,3 +1859,9 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - Local verification before final CI green: focused terminology/naming pytest `15 passed`, `LC_ALL=C.UTF-8` terminology pytest `9 passed`, full `bash scripts/mb-test-run.sh --dir . --out json` → `868/868`.
 - Wave 1 is no longer blocked by red baseline CI; next operational choice is active Cursor remediation vs W0.5 OpenCode-first infrastructure.
 
+## 2026-05-28 — Session closeout checkpoint
+
+- Answered the user-requested state recap and then ran `/mb done` in lightweight mode because no implementation work was performed in this session.
+- Verified latest GitHub workflow state with `gh run list`: `test.yml` run `26528106396` is the latest successful run after `chore(mb): close wave 0 ci baseline`; `26527319286` remains the first full green Wave 0 run.
+- Active plan `2026-05-24_fix_cursor-compatibility-remediation.md` remains open because Stage 4, Stage 5, Stage 6, and plan-level DoD still contain unchecked items.
+- Worktree tracked files were clean before Memory Bank closeout; untracked `.pi-lens/` remains intentionally untouched.

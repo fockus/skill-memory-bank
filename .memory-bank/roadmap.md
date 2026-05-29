@@ -61,7 +61,7 @@ Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ 
 
 | Wave | Plan | Track | Depends on | Notes |
 |------|------|-------|------------|-------|
-| **0** | **[fix CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** | **infra** | **—** | **DONE 2026-05-27: `test.yml` green on main (`26527319286`) for Ubuntu/macOS × Python 3.11/3.12.** |
+| **0** | **[fix CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** | **infra** | **—** | **DONE 2026-05-27: `test.yml` green on main (`26528106396`; first full green `26527319286`) for Ubuntu/macOS × Python 3.11/3.12.** |
 | **0.5** | **[OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)** | **infra** | **W0** | **Native OpenCode plugin, host-agnostic dispatch (`mb-dispatch.sh`), hook parity, provider-neutral aliases. Cross-cutting infrastructure required for W1–W12 on OpenCode. Parallel-safe with W1.** |
 | 1 | harness-upgrade S1 — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) | code | **W0** | stack-aware reviewer + examples cache + golden calibration suite |
 | 1 | standalone — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) | docs | **W0** | parallel-safe; запускается в W1, длится сколько успевает (W1-W2) |
@@ -311,4 +311,3 @@ Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ 
 - **i18n error-сообщений**
 - **Native memory bridge** (программная синхронизация с Claude Code auto memory)
 - **Viewer dashboard** (если adoption потребует)
-

@@ -3,7 +3,7 @@
 
 ## Current phase
 
-**Phase 5 — Autonomous agent harness (v5.0.0 target).** Обязательный **Wave 0 — CI baseline** закрыт: `test.yml` на `main` зелёный (`26527319286`) для Ubuntu/macOS × Python 3.11/3.12. Основной roadmap — 12 wave'ов: `harness-upgrade` (reviewer-v2 → work-loop-v2 → handoff-v2 → cost-multi-model → parallel-pipeline) + `goal-driven-autopilot` (overlay+addons → mb-debugger → atomic-commit → goal-layer → worktree-MVP → parallel-waves-MVP → autopilot-loop). Standalone `skill-improvements-anthropic-audit` — docs/evals track после Wave 0, параллельно с W1.
+**Phase 5 — Autonomous agent harness (v5.0.0 target).** Обязательный **Wave 0 — CI baseline** закрыт: `test.yml` на `main` зелёный (`26528106396`, после closeout commit; предыдущий full green `26527319286`) для Ubuntu/macOS × Python 3.11/3.12. Основной roadmap — 12 wave'ов: `harness-upgrade` (reviewer-v2 → work-loop-v2 → handoff-v2 → cost-multi-model → parallel-pipeline) + `goal-driven-autopilot` (overlay+addons → mb-debugger → atomic-commit → goal-layer → worktree-MVP → parallel-waves-MVP → autopilot-loop). Standalone `skill-improvements-anthropic-audit` — docs/evals track после Wave 0, параллельно с W1.
 
 Все промежуточные landings = v4.x bumps. v5.0.0 cut только после закрытия W12. Полная таблица последовательности + ordering rationale + gate criteria → `roadmap.md` секция `## Phase: harness-upgrade + goal-driven-autopilot`.
 
@@ -17,6 +17,7 @@
 
 ## Open backlog
 
+- I-062 (MED) — ужесточить EARS-валидатор и spec-checking (per-pattern regex, atomicity, REQ-ID uniqueness, ранний REQ→task lint, traceability drift). Замечено на реальном `/mb discuss` во внешнем проекте. См. `notes/2026-05-29_ears-validator-hardening.md`.
 - I-023 (MED) — `grep → find` cleanup в `start.md` / `mb-doctor` (low risk, дешёвый когда дойдут руки)
 - I-034 (MED) — plugin-namespaced skill detection в reviewer-resolve
 - I-061 (HIGH) — Cursor compatibility remediation: stages 1–6 implemented; bats 38/38 green on cursor suites; pytest pending local env. See `reports/2026-05-24_cursor-compatibility-audit.md`, spec `cursor-extension`.
@@ -43,7 +44,7 @@
 - Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
 - Агенты: **16** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer)
 - Commands: **24** top-level (`/mb` hub + 23 dispatchers)
-- Tests: **868** via `PATH="$PWD/.venv/bin:$PATH" bash scripts/mb-test-run.sh --dir . --out json` (`tests_pass=true`); GitHub `test.yml` run `26527319286` passed on Ubuntu/macOS × Python matrix.
+- Tests: **868** via `PATH="$PWD/.venv/bin:$PATH" bash scripts/mb-test-run.sh --dir . --out json` (`tests_pass=true`); GitHub `test.yml` run `26528106396` passed on Ubuntu/macOS × Python matrix after closeout commit (`26527319286` was the first full green).
 - Public website: **https://fockus.github.io/skill-memory-bank/**
 - Текущий remote: `origin=https://github.com/fockus/skill-memory-bank.git`
 
@@ -72,7 +73,7 @@
 ## Recently done
 
 <!-- mb-recent-done -->
-- 2026-05-27 — [plans/done/2026-05-24_fix_ci-baseline-wave-0.md](plans/done/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1)
+- 2026-05-27 — [plans/done/2026-05-24_fix_ci-baseline-wave-0.md](plans/done/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1; latest green `26528106396`)
 - 2026-05-24 — [plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage-agent-support.md](plans/done/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage.md](plans/done/2026-05-21_feature_global-storage.md) — feature — global-storage-core
@@ -113,4 +114,3 @@
 - i18n error-сообщений
 - Native memory bridge (программная синхронизация с Claude Code auto memory)
 - Viewer dashboard (если adoption потребует)
-

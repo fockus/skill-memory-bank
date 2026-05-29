@@ -5,7 +5,7 @@
 
 ## ⏳ In flight
 
-_No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26527319286`._
+_No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 
 ## ⏭ Queued waves after Wave 0
 
@@ -30,7 +30,7 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26527319286`._
 
 ## ✅ Recently completed
 
-- ✅ Wave 0 CI baseline — [plan](plans/done/2026-05-24_fix_ci-baseline-wave-0.md), GitHub `test.yml` run `26527319286` green on Ubuntu/macOS × Python matrix.
+- ✅ Wave 0 CI baseline — [plan](plans/done/2026-05-24_fix_ci-baseline-wave-0.md), GitHub `test.yml` run `26528106396` green after closeout commit; first full green was `26527319286`.
 - ✅ OpenCode integration audit — `adapters/opencode.sh` contract fixed (top-level hooks, `directory` param, auto-discovery, cleanup), tests 15/15 passed. Full audit report: [reports/2026-05-24_opencode-integration-audit.md](reports/2026-05-24_opencode-integration-audit.md).
 - ✅ GraphRAG-lite code context — [plan](plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md), verify PASS with rules-check 0 violations, focused pytest 40 passed, bats 17+9 ok, full `mb-test-run` 708 passed.
 - ✅ rule-profiles-and-stack-presets — [plan](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md), 22 presets + profile CLI + rules-check integration.
@@ -65,4 +65,3 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26527319286`._
 - `status.md` — current phase, active plan inventory, metrics.
 - `traceability.md` — generated REQ coverage matrix.
 - `progress.md` — append-only historical log.
-
