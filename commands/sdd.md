@@ -94,8 +94,21 @@ bash scripts/mb-spec-validate.sh <topic>
 ```
 
 This checkpoint verifies EARS integrity, parseable `<!-- mb-task:N -->` markers,
-per-task Covers/DoD/Testing presence, and no orphaned REQ-IDs. Run it before
-invoking `/mb work <topic>` to catch format errors early.
+per-task Covers/DoD/Testing presence, no orphaned REQ-IDs, and that any present
+GIVEN/WHEN/THEN scenarios are well-formed. Run it before invoking
+`/mb work <topic>` to catch format errors early.
+
+**Scenario gate (opt-in).** If the resolved `pipeline.yaml` sets
+`sdd.require_scenarios: true`, run the stricter form so every REQ must have at
+least one GIVEN/WHEN/THEN scenario:
+
+```bash
+bash scripts/mb-spec-validate.sh --require-scenarios <topic>
+```
+
+The default is off (`require_scenarios: false`), so EARS-only specs stay valid.
+Inspect the active value with
+`bash scripts/mb-pipeline.sh show .memory-bank | grep require_scenarios`.
 
 To upgrade a legacy `tasks.md` that uses the old `## N. ...` heading style (without
 `<!-- mb-task:N -->` markers), use:

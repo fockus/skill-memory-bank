@@ -202,3 +202,32 @@ def test_invalid_covers_requirements_policy_fails(tmp_path: Path) -> None:
     _write(p, cfg)
     r = _run(p)
     assert r.returncode == 1
+
+
+def test_require_scenarios_absent_is_valid(tmp_path: Path) -> None:
+    # Optional opt-in key — absence must not fail (backward compatible).
+    cfg = _valid_minimal()
+    assert "require_scenarios" not in cfg["sdd"]
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 0, r.stderr
+
+
+def test_require_scenarios_true_is_valid(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["sdd"]["require_scenarios"] = True
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 0, r.stderr
+
+
+def test_require_scenarios_non_bool_fails(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["sdd"]["require_scenarios"] = "yes"
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 1
+    assert "require_scenarios" in r.stderr

@@ -95,3 +95,6 @@ sdd:
   require_ears_in_plan_with_sdd_flag: true # /mb plan --sdd — hard
   covers_requirements_policy: warn        # warn | block | off
   full_mode_path: ".memory-bank/specs"
+  require_scenarios: false                # opt-in: /mb sdd runs mb-spec-validate --require-scenarios
+                                          # (every REQ must have >=1 GIVEN/WHEN/THEN scenario). Default off
+                                          # so EARS-only specs stay valid.

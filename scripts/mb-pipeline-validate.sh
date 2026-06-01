@@ -415,6 +415,9 @@ if policy not in ("warn", "block", "off"):
     err(f"sdd.covers_requirements_policy: must be one of warn|block|off (got {policy!r})")
 if "full_mode_path" not in sdd or not isinstance(sdd.get("full_mode_path"), str):
     err("sdd.full_mode_path: missing or not a string")
+# Optional opt-in gate: when present, must be boolean. Absent → treated as false.
+if "require_scenarios" in sdd and not isinstance(sdd["require_scenarios"], bool):
+    err("sdd.require_scenarios: must be boolean")
 
 # ── final ─────────────────────────────────────────────────────────
 if errors:
