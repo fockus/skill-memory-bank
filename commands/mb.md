@@ -241,7 +241,7 @@ Run a 5-phase requirements-elicitation interview that produces an EARS-validated
 
 **Related scripts:**
 
-- `bash scripts/mb-req-next-id.sh [mb_path]` — emits monotonic `REQ-NNN` (max+1 across `specs/*/requirements.md`, `specs/*/design.md`, `context/*.md`).
+- `bash scripts/mb-req-next-id.sh [--spec <name>] [mb_path]` — emits the next `REQ-NNN`. Default: project-wide max+1 across `specs/*/requirements.md`, `specs/*/design.md`, `context/*.md`. With `--spec <name>`: per-spec-local max+1 scoped to `specs/<name>/{requirements,design}.md` + `context/<name>.md` (a brand-new spec starts at `REQ-001`).
 - `bash scripts/mb-ears-validate.sh <file>|-` — exit 0 if every `- **REQ-NNN** ...` bullet matches an EARS pattern; exit 1 with violation list on stderr otherwise; exit 2 on usage error.
 
 ### sdd <topic> [--force]

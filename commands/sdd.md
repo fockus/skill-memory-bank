@@ -133,5 +133,5 @@ bash scripts/mb-spec-tasks-migrate.sh <topic> --apply
 - `/mb plan <type> <topic> --context <path>` — create a plan that links to either the spec's requirements.md or directly to `context/<topic>.md`.
 - `/mb plan <type> <topic> --sdd` — strict mode, refuses without an EARS-valid context.
 - `/mb traceability-gen` — regenerate `traceability.md` after edits to `specs/*/requirements.md`.
-- `bash scripts/mb-req-next-id.sh` — emit the next monotonic REQ-NNN.
+- `bash scripts/mb-req-next-id.sh --spec <topic>` — emit the next per-spec-local REQ-NNN (omit `--spec` for a project-wide max+1).
 - `bash scripts/mb-ears-validate.sh <file>|-` — verify REQ lines.

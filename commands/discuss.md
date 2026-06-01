@@ -39,7 +39,7 @@ After each phase, restate what was captured and ask the user to confirm before m
 
 #### Phase 2 — Functional Requirements (EARS-enforced)
 
-For each requirement, pick one of the 5 patterns and assign the next ID via `bash $SKILL_DIR/scripts/mb-req-next-id.sh "$MB_PATH"`:
+For each requirement, pick one of the 5 patterns and assign the next ID via `bash $SKILL_DIR/scripts/mb-req-next-id.sh --spec <topic> "$MB_PATH"` (per-spec-local: the topic owns its REQ namespace, so a brand-new topic starts at `REQ-001` regardless of other specs):
 
 | Pattern | Template |
 |---|---|
@@ -92,5 +92,5 @@ What breaks at boundaries? What happens when dependencies fail? What's the worst
 
 - `/mb plan <type> <topic>` — read `context/<topic>.md` to link stages to REQs.
 - `/mb traceability-gen` — regenerate `traceability.md` after edits.
-- `bash scripts/mb-req-next-id.sh` — get the next monotonic REQ-NNN.
+- `bash scripts/mb-req-next-id.sh --spec <topic>` — next per-spec-local REQ-NNN for this topic (omit `--spec` for a project-wide max+1).
 - `bash scripts/mb-ears-validate.sh <file>|-` — validate REQ lines against the 5 EARS patterns.

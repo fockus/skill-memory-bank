@@ -101,7 +101,7 @@ REQ_BODY=""
 if [ -n "$EARS_BLOCK" ]; then
   REQ_BODY="${EARS_BLOCK}"$'\n'
 else
-  REQ_BODY="<!-- Add EARS-formatted requirements. Use scripts/mb-req-next-id.sh to assign IDs. -->"$'\n'
+  REQ_BODY="<!-- Add EARS-formatted requirements. Use scripts/mb-req-next-id.sh --spec ${SAFE_TOPIC} to assign per-spec-local IDs. -->"$'\n'
   REQ_BODY+="<!-- Patterns: Ubiquitous / Event-driven / State-driven / Optional / Unwanted. -->"$'\n'
   REQ_BODY+=$'\n'
   REQ_BODY+="- **REQ-NNN** (ubiquitous): The system shall ..."$'\n'
