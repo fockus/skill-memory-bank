@@ -223,19 +223,87 @@ def test_marker_only_path(tmp_path: Path) -> None:
     assert "REQ-001" not in orphans_section, "REQ-001 is marker-covered — must not be orphan"
 
 
-def test_duplicate_req_across_specs_emits_warning(tmp_path: Path) -> None:
-    """If REQ-001 is defined in two specs, stderr must carry a collision warning."""
+def test_duplicate_req_across_specs_kept_per_spec(tmp_path: Path) -> None:
+    """REQ-IDs are per-spec-local: the same REQ-001 in two specs is NOT a collision.
+
+    Both definitions are kept as distinct ``(spec, REQ)`` rows (disambiguated by the
+    Spec column), no cross-spec collision warning is emitted, and both count toward
+    the total. This is the per-spec-local convention (specs number from their own
+    base; a bare REQ-NNN is scoped to its spec).
+    """
     mb = _init_mb(tmp_path)  # creates specs/demo/requirements.md with REQ-001..003
     (mb / "specs" / "other").mkdir()
     (mb / "specs" / "other" / "requirements.md").write_text(
-        "# other spec\n\n- REQ-001: Duplicate of demo's REQ-001.\n",
+        "# other spec\n\n- REQ-001: Independent REQ-001 in another spec.\n",
         encoding="utf-8",
     )
 
     result = _run(mb)
     assert result.returncode == 0, result.stderr
-    assert "REQ-001" in result.stderr
-    assert "multiple specs" in result.stderr or "defined in" in result.stderr
+    # No false cross-spec collision warning under per-spec-local numbering.
+    assert "multiple specs" not in result.stderr
+
+    trace = (mb / "traceability.md").read_text(encoding="utf-8")
+    # demo: REQ-001..003 + other: REQ-001 → 4 distinct (spec, REQ) entries.
+    assert "Total REQs: 4" in trace
+
+    # Both REQ-001 rows present, disambiguated by the Spec column.
+    matrix_section = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+    req001_rows = [
+        line for line in matrix_section.splitlines()
+        if line.startswith("| REQ-001 |")
+    ]
+    assert len(req001_rows) == 2, f"expected two REQ-001 rows (one per spec), got: {req001_rows}"
+    specs_in_rows = {
+        [c.strip() for c in row.strip().strip("|").split("|")][1]
+        for row in req001_rows
+    }
+    assert specs_in_rows == {
+        "specs/demo/requirements.md",
+        "specs/other/requirements.md",
+    }, f"each REQ-001 row must name its own spec, got: {specs_in_rows}"
+
+
+def test_plan_coverage_scoped_to_declared_spec(tmp_path: Path) -> None:
+    """A plan that declares its spec (topic / linked_spec) scopes a bare REQ-NNN to
+    that spec. A same-numbered REQ in another spec must NOT be falsely marked planned.
+    """
+    mb = _init_mb(tmp_path)  # demo: REQ-001..003
+    (mb / "specs" / "other").mkdir()
+    (mb / "specs" / "other" / "requirements.md").write_text(
+        "# other\n\n- REQ-001: other's own REQ-001.\n", encoding="utf-8"
+    )
+    (mb / "plans" / "2026-04-22_feature_demo.md").write_text(
+        dedent("""\
+            ---
+            topic: demo
+            linked_spec: specs/demo
+            covers_requirements: [REQ-001]
+            ---
+
+            # Plan: demo
+            """),
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+    trace = (mb / "traceability.md").read_text(encoding="utf-8")
+    matrix = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+
+    plan_cell_by_spec: dict[str, str] = {}
+    for line in matrix.splitlines():
+        if line.startswith("| REQ-001 |"):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            plan_cell_by_spec[cells[1]] = cells[3]
+
+    assert "feature_demo" in plan_cell_by_spec.get(
+        "specs/demo/requirements.md", ""
+    ), f"demo/REQ-001 must be planned by the demo plan, got: {plan_cell_by_spec}"
+    assert plan_cell_by_spec.get("specs/other/requirements.md") == "—", (
+        "other/REQ-001 must not be falsely planned by a demo-scoped plan, "
+        f"got: {plan_cell_by_spec.get('specs/other/requirements.md')!r}"
+    )
 
 
 def test_pytest_naming_convention(tmp_path: Path) -> None:
@@ -338,3 +406,86 @@ def test_traceability_gen_still_handles_plan_only_repos(tmp_path: Path) -> None:
             f"{req_id} Spec Task cell must be '—' when no tasks.md exists, "
             f"got: {spec_task_cell!r}"
         )
+
+
+# Hand-curated Test Evidence section that the generator cannot derive (it does
+# not parse `REQ-NNN` comments inside source-tree `*_test.go` files). Used by the
+# preservation tests below — represents a real REQ → test-function map.
+_EVIDENCE_BLOCK = dedent("""\
+    ## Test Evidence
+
+    > Hand-curated REQ -> test map; preserved across regenerations.
+
+    | REQ | Test function | File | Notes |
+    |-----|---------------|------|-------|
+    | REQ-001 | TestFoo_succeeds | services/x/foo_test.go:42 | curated, not auto-derivable |
+    | REQ-002 | _no direct test_ | — | covered indirectly |
+    """)
+
+
+def _append_evidence(trace_path: Path) -> None:
+    """Append the hand-curated Test Evidence block after the auto sections,
+    mirroring how a human (or `git show`) restores it onto a generated file."""
+    current = trace_path.read_text(encoding="utf-8").rstrip("\n")
+    trace_path.write_text(current + "\n\n" + _EVIDENCE_BLOCK, encoding="utf-8")
+
+
+def test_preserves_hand_curated_test_evidence_section(tmp_path: Path) -> None:
+    """REG-C4: a hand-curated `## Test Evidence` section appended after the
+    auto-generated matrix must survive a full regeneration.
+
+    The generator owns only the Coverage/Matrix/Orphans sections; everything from
+    the `## Test Evidence` header to EOF is human-maintained and must be preserved
+    verbatim. Before this contract, every regen silently dropped the section,
+    breaking downstream tests that enforce its presence.
+    """
+    mb = _init_mb(tmp_path)
+    first = _run(mb)
+    assert first.returncode == 0, first.stderr
+
+    trace_path = mb / "traceability.md"
+    _append_evidence(trace_path)
+
+    # Regenerate — auto sections are rebuilt; the evidence must remain.
+    second = _run(mb)
+    assert second.returncode == 0, second.stderr
+    after = trace_path.read_text(encoding="utf-8")
+
+    assert "## Test Evidence" in after, "Test Evidence section was wiped by regen"
+    assert "TestFoo_succeeds" in after, "claimed test function dropped"
+    assert (
+        "| REQ-001 | TestFoo_succeeds | services/x/foo_test.go:42 | curated, not auto-derivable |"
+        in after
+    ), "evidence row not preserved verbatim"
+    assert "_no direct test_" in after, "sentinel row dropped"
+
+    # The auto matrix is still rebuilt alongside the preserved section.
+    assert "## Matrix" in after
+    assert "Total REQs: 3" in after
+    # Ordering: auto sections first, hand-curated evidence last.
+    assert after.index("## Orphans") < after.index("## Test Evidence"), (
+        "Test Evidence must follow the auto-generated Orphans section"
+    )
+
+
+def test_preserved_evidence_regen_is_idempotent(tmp_path: Path) -> None:
+    """REG-C4 (idempotency): regenerating a file that already carries a preserved
+    `## Test Evidence` section must be byte-stable — the preserve-and-append step
+    must not accumulate blank lines or duplicate the section across runs."""
+    mb = _init_mb(tmp_path)
+    assert _run(mb).returncode == 0
+
+    trace_path = mb / "traceability.md"
+    _append_evidence(trace_path)
+
+    assert _run(mb).returncode == 0
+    after_first = trace_path.read_text(encoding="utf-8")
+
+    assert _run(mb).returncode == 0
+    after_second = trace_path.read_text(encoding="utf-8")
+
+    assert after_first == after_second, (
+        "regen with a preserved Test Evidence section must be idempotent"
+    )
+    # The section must appear exactly once — no duplication on repeated runs.
+    assert after_second.count("## Test Evidence") == 1, "Test Evidence duplicated"

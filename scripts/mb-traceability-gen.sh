@@ -51,25 +51,51 @@ if not specs_dir.is_dir() or not any(specs_dir.glob("*/requirements.md")):
     print("[traceability-gen] no specs — minimal output written")
     sys.exit(0)
 
-# T1: collect REQs from each spec
-reqs: dict[str, dict] = {}
+# T1: collect REQs from each spec.
+# REQ-IDs are PER-SPEC-LOCAL: each spec numbers from its own base, so the same
+# REQ-NNN may legitimately appear in two specs (e.g. identity-tenancy/REQ-007 and
+# request-usage-billing-spine/REQ-007 are different requirements). The matrix is
+# therefore keyed by (spec_name, req_id), not by the bare ID — no collision, no
+# dropping. A bare reference in a plan/test is scoped to its spec; cross-spec
+# precision is available via the `spec:REQ-NNN` qualified form (see _targets_for_ref).
+reqs: dict[tuple, dict] = {}  # (spec_name, req_id) -> data
 for req_file in sorted(specs_dir.glob("*/requirements.md")):
     spec_name = req_file.parent.name
     spec_rel = f"specs/{spec_name}/requirements.md"
     text = req_file.read_text(encoding="utf-8")
     for m in REQ_RE.finditer(text):
         req_id = f"REQ-{m.group(1)}"
-        if req_id in reqs and reqs[req_id]["spec"] != spec_rel:
-            print(
-                f"[warn] {req_id} defined in multiple specs: "
-                f"{reqs[req_id]['spec']} and {spec_rel}",
-                file=sys.stderr,
-            )
-            continue
         reqs.setdefault(
-            req_id,
-            {"spec": spec_rel, "spec_tasks": [], "planned": "", "tests": ""},
+            (spec_name, req_id),
+            {
+                "spec_name": spec_name,
+                "spec": spec_rel,
+                "req_id": req_id,
+                "spec_tasks": [],
+                "planned": "",
+                "tests": "",
+            },
         )
+
+
+def _targets_for_ref(ref: str, scope_specs=None) -> list:
+    """Resolve a covers/test reference to matching ``(spec_name, req_id)`` keys.
+
+    ``spec-name:REQ-NNN`` → that one spec's REQ (precise). A bare ``REQ-NNN`` is
+    ambiguous under per-spec-local numbering:
+      - if ``scope_specs`` is given (the referring plan declares its spec via
+        ``topic`` / ``linked_spec``), attribute only within that scope;
+      - otherwise attribute to every spec that defines it — over-attribution is
+        preferable to silently dropping coverage.
+    """
+    ref = ref.strip()
+    if ":" in ref:
+        sp, _, rq = ref.partition(":")
+        key = (sp.strip(), rq.strip())
+        return [key] if key in reqs else []
+    if scope_specs:
+        return [(s, ref) for s in scope_specs if (s, ref) in reqs]
+    return [k for k in reqs if k[1] == ref]
 
 
 def parse_list(raw: str) -> list[str]:
@@ -84,6 +110,8 @@ def parse_list(raw: str) -> list[str]:
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 COVERS_MARKER_RE = re.compile(r"<!--\s*covers:\s*(.+?)\s*-->")
+# A covers token is a bare REQ-NNN or a spec-qualified `spec-name:REQ-NNN`.
+COVERS_TOKEN_RE = re.compile(r"^(?:[A-Za-z0-9_.-]+:)?REQ-\d{3,}$")
 
 
 def plan_paths() -> list[Path]:
@@ -97,28 +125,54 @@ def plan_paths() -> list[Path]:
     return out
 
 
-# T2: collect plan coverage
+all_spec_names = {k[0] for k in reqs}
+
+# T2: collect plan coverage. A plan that declares its spec (frontmatter `topic`
+# or `linked_spec`/`linked_specs`) scopes bare REQ-NNN refs to that spec, so a
+# billing-spine plan covering REQ-007 attributes to billing-spine/REQ-007 only,
+# not to a same-numbered REQ-007 in another spec.
 for plan in plan_paths():
     text = plan.read_text(encoding="utf-8")
     covered: set[str] = set()
+    plan_specs: set[str] = set()
     fm = FRONTMATTER_RE.match(text)
     if fm:
         for line in fm.group(1).splitlines():
-            if line.strip().startswith("covers_requirements:"):
-                _, _, v = line.partition(":")
-                covered.update(parse_list(v))
+            s = line.strip()
+            if s.startswith("covers_requirements:"):
+                covered.update(parse_list(s.partition(":")[2]))
+            elif s.startswith("topic:"):
+                val = s.partition(":")[2].strip().strip("\"'")
+                if val:
+                    plan_specs.add(val)
+            elif s.split(":", 1)[0] in (
+                "linked_spec",
+                "linked_specs",
+                "spec_reference",
+                "spec_references",
+            ):
+                v = s.partition(":")[2].strip()
+                items = parse_list(v) if v.startswith("[") else [v]
+                for it in items:
+                    it = it.strip().strip("\"'")
+                    if it.startswith("specs/"):
+                        it = it[len("specs/"):]
+                    name = it.split("/")[0]
+                    if name:
+                        plan_specs.add(name)
     for m in COVERS_MARKER_RE.finditer(text):
         for item in m.group(1).split(","):
             item = item.strip()
-            if REQ_RE.fullmatch(item):
+            if COVERS_TOKEN_RE.match(item):
                 covered.add(item)
     if not covered:
         continue
+    scope = (plan_specs & all_spec_names) or None
     rel = plan.relative_to(mb).as_posix()
-    for req in covered:
-        if req in reqs:
-            existing = reqs[req]["planned"]
-            reqs[req]["planned"] = (existing + " " if existing else "") + rel
+    for ref in covered:
+        for key in _targets_for_ref(ref, scope):
+            existing = reqs[key]["planned"]
+            reqs[key]["planned"] = (existing + " " if existing else "") + rel
 
 # T2.5: scan specs/*/tasks.md via mb_work_items.py
 if mb_work_items_path and Path(mb_work_items_path).is_file():
@@ -146,8 +200,11 @@ if mb_work_items_path and Path(mb_work_items_path).is_file():
                 continue
             for req_id in item.get("covers", []):
                 req_id = req_id.upper()
-                if req_id in reqs:
-                    reqs[req_id]["spec_tasks"].append(
+                # A task is defined inside its spec, so its bare REQ-NNN is
+                # unambiguously that spec's requirement (per-spec-local).
+                key = (spec_topic, req_id)
+                if key in reqs:
+                    reqs[key]["spec_tasks"].append(
                         (spec_topic, item["item_no"])
                     )
 
@@ -174,9 +231,9 @@ for root in test_roots:
             continue
         rel = tf.relative_to(mb.parent if root == mb.parent / "tests" else mb).as_posix()
         for req in hits:
-            if req in reqs:
-                existing = reqs[req]["tests"]
-                reqs[req]["tests"] = (existing + " " if existing else "") + rel
+            for key in _targets_for_ref(req):
+                existing = reqs[key]["tests"]
+                reqs[key]["tests"] = (existing + " " if existing else "") + rel
 
 # Compose output
 total = len(reqs)
@@ -212,24 +269,32 @@ def status_for(r: dict) -> str:
 
 
 rows = []
-for req_id in sorted(reqs):
-    r = reqs[req_id]
+for key in sorted(reqs, key=lambda k: (k[0], k[1])):
+    r = reqs[key]
     spec_task_cell = _spec_task_cell(r["spec_tasks"])
     rows.append(
-        f"| {req_id} | {r['spec']} | {spec_task_cell} "
+        f"| {r['req_id']} | {r['spec']} | {spec_task_cell} "
         f"| {r['planned'] or '—'} | {r['tests'] or '—'} | {status_for(r)} |"
     )
 
+# Orphans are qualified by spec so the same REQ-NNN in two specs is unambiguous.
 orphans = [
-    req_id
-    for req_id, r in sorted(reqs.items())
+    f"{r['spec_name']}/{r['req_id']}"
+    for key, r in sorted(reqs.items(), key=lambda kv: (kv[0][0], kv[0][1]))
     if not r["spec_tasks"] and not r["planned"]
 ]
 
 body = [
     "# Traceability Matrix",
     "",
-    "_Autogenerated by mb-traceability-gen.sh. Do not edit manually._",
+    "_Autogenerated by mb-traceability-gen.sh (Coverage / Matrix / Orphans) — "
+    "do not edit those sections manually. A hand-curated \"Test Evidence\" "
+    "section, when present, is preserved verbatim across regenerations._",
+    "",
+    "_REQ-IDs are **per-spec-local**: the same REQ-NNN may appear in multiple specs "
+    "(rows are disambiguated by the Spec column). In a plan, a bare `REQ-NNN` is scoped "
+    "to the plan's declared spec (`topic` / `linked_spec` / `spec_reference`); use "
+    "`spec-name:REQ-NNN` to reference another spec's requirement explicitly._",
     "",
     "## Coverage",
     f"- Total REQs: {total}",
@@ -258,9 +323,27 @@ body.extend(
     ]
 )
 
-out_path.write_text("\n".join(body), encoding="utf-8")
+# Preserve the hand-curated "## Test Evidence" section (and any content after
+# it) across regenerations. The generator owns only the auto-sections above
+# (Coverage / Matrix / Orphans); everything from the Test Evidence header to EOF
+# is human-maintained — typically a REQ -> test-function map the scanner cannot
+# derive, because it greps `tests/` and `mb/tests/` only, not source-tree
+# `*_test.go` files. Without this step every regen silently dropped the section
+# and turned any test enforcing its presence red.
+preserved = ""
+if out_path.is_file():
+    existing = out_path.read_text(encoding="utf-8")
+    marker = re.search(r"(?m)^## Test Evidence", existing)
+    if marker:
+        preserved = existing[marker.start() :].strip("\n")
+
+output = "\n".join(body).rstrip("\n")
+if preserved:
+    output += "\n\n" + preserved
+out_path.write_text(output + "\n", encoding="utf-8")
 print(
     f"[traceability-gen] total={total} planned={planned} "
-    f"tested={tested} tasks_covered={tasks_covered} orphans={len(orphans)}"
+    f"tested={tested} tasks_covered={tasks_covered} orphans={len(orphans)} "
+    f"evidence_preserved={'yes' if preserved else 'no'}"
 )
 PY
