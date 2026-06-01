@@ -26,6 +26,7 @@ You implement one stage at a time. Inputs the orchestrator sends you:
 6. **No placeholders.** No TODO, no `...`, no pseudo-code. Imports complete, functions copy-paste ready. Exception: explicitly-staged stub behind a feature flag with a docstring.
 7. **Tests.** Integration > unit > e2e (Testing Trophy). Mock only external services. >5 mocks in a unit test = candidate for an integration test.
 8. **Coverage.** Target 85%+ overall, 95%+ for core/business logic, 70%+ for infrastructure. Do not chase coverage with trivial assertions.
+9. **Scenario test-plan (if linked).** If the plan/spec links a `## Linked scenarios (test-plan)` (GIVEN/WHEN/THEN, from `<!-- mb-scenario:N -->`), your RED tests cover one test per scenario `test_id` (GIVEN→Arrange, WHEN→Act, THEN→Assert) before implementation. No silent gaps.
 
 ## Self-review before exiting
 

@@ -122,6 +122,24 @@ cat > "$SPEC_DIR/requirements.md" <<EOF
 ## Requirements (EARS)
 
 ${REQ_BODY}
+
+## Scenarios
+
+<!-- OPTIONAL but recommended: GIVEN/WHEN/THEN acceptance scenarios.            -->
+<!-- Each scenario links to its REQ(s) via **Covers:** and becomes a test-plan  -->
+<!-- item (scripts/mb-scenario-extract.py) that /mb work turns into a real test -->
+<!-- in the project's own stack. Enforce "every REQ has a scenario" with         -->
+<!-- mb-spec-validate.sh --require-scenarios (off by default).                   -->
+
+<!-- mb-scenario:1 -->
+### Scenario: <name>
+**Covers:** REQ-NNN
+
+- GIVEN <initial state>
+- WHEN <action taken>
+- THEN <observable outcome>
+- AND <additional outcome — optional>
+<!-- /mb-scenario:1 -->
 EOF
 
 # ───────────────────────────────────────────────────────────────────────
@@ -138,15 +156,10 @@ cat > "$SPEC_DIR/design.md" <<EOF
 
 ## Interfaces
 
-<!-- Protocol/ABC/interface definitions that anchor contract tests. -->
-
-\`\`\`python
-# Example placeholder — replace with the real Protocol / ABC.
-from typing import Protocol
-
-class Foo(Protocol):
-    def bar(self, x: int) -> str: ...
-\`\`\`
+<!-- Define the ports/interfaces that anchor contract tests, in the project's   -->
+<!-- own language (Go interface, TypeScript interface, Python Protocol/ABC, ...).-->
+<!-- Keep dependencies pointing inward (Clean Arch); list inputs, outputs, and   -->
+<!-- error conditions — not step-by-step implementation.                         -->
 
 ## Decisions
 

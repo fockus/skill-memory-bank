@@ -13,9 +13,14 @@
 #   4. Each task has ≥ 1 DoD checkbox line.
 #   5. Each task body contains a `Testing` section (case-insensitive).
 #   6. Each REQ-NNN from requirements.md is referenced by ≥ 1 task's covers.
+#   7. Any GIVEN/WHEN/THEN scenarios present in requirements.md are well-formed
+#      (each has a name, Covers, and ≥1 GIVEN/WHEN/THEN). Specs WITHOUT scenarios
+#      are unaffected — this check is a no-op when no scenario blocks exist.
+#   8. (--require-scenarios, opt-in) Each REQ-NNN is covered by ≥ 1 scenario.
+#      OFF by default so existing EARS-only specs stay valid.
 #
 # Usage:
-#   mb-spec-validate.sh [--json] <topic|spec-dir|spec-file> [mb_path]
+#   mb-spec-validate.sh [--json] [--require-scenarios] <topic|spec-dir|spec-file> [mb_path]
 #
 # Resolver:
 #   - If the first non-flag argument points to an existing directory or file →
@@ -33,14 +38,16 @@ set -euo pipefail
 source "$(dirname "$0")/_lib.sh"
 
 JSON_MODE=0
+REQUIRE_SCENARIOS=0
 TARGET=""
 MB_ARG=""
 
 for arg in "$@"; do
   case "$arg" in
     --json) JSON_MODE=1 ;;
+    --require-scenarios) REQUIRE_SCENARIOS=1 ;;
     -h|--help)
-      sed -n '2,30p' "$0"
+      sed -n '2,34p' "$0"
       exit 0
       ;;
     *)
@@ -61,6 +68,7 @@ fi
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 EARS_SCRIPT="$SCRIPT_DIR/mb-ears-validate.sh"
 WORK_ITEMS_SCRIPT="$SCRIPT_DIR/mb_work_items.py"
+SCENARIO_SCRIPT="$SCRIPT_DIR/mb-scenario-extract.py"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Resolve the spec directory.
@@ -201,6 +209,49 @@ for req in sorted(req_ids):
     if req not in covered:
         print(f"REQ-{req} orphan (no task Covers)")
 PY
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Checks 7-8: GIVEN/WHEN/THEN scenarios.
+#   7 (always): present scenarios must be well-formed — no-op when none exist.
+#   8 (--require-scenarios): every REQ must be covered by ≥1 scenario.
+# ─────────────────────────────────────────────────────────────────────────────
+
+if [ -f "$REQ_FILE" ] && [ -f "$SCENARIO_SCRIPT" ]; then
+  SCEN_STDERR=$(python3 "$SCENARIO_SCRIPT" --validate "$REQ_FILE" 2>&1 >/dev/null) || SCEN_EXIT=$?
+  SCEN_EXIT="${SCEN_EXIT:-0}"
+  if [ "$SCEN_EXIT" -ne 0 ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] && record_violation "${line#\[scenario\] }"
+    done <<<"$SCEN_STDERR"
+  fi
+  unset SCEN_EXIT
+
+  if [ "$REQUIRE_SCENARIOS" -eq 1 ]; then
+    SCEN_JSONL=$(python3 "$SCENARIO_SCRIPT" "$REQ_FILE" 2>/dev/null || true)
+    REQ_PATH="$REQ_FILE" SCEN_DATA="$SCEN_JSONL" \
+      python3 - >>"$VIOLATIONS_FILE" <<'PY'
+import json, os, re
+req_text = open(os.environ["REQ_PATH"], encoding="utf-8").read()
+req_ids = set(re.findall(r"\bREQ-(\d{3,})\b", req_text))
+covered = set()
+for line in os.environ.get("SCEN_DATA", "").splitlines():
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        s = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    for c in s.get("covers") or []:
+        m = re.match(r"REQ-(\d{3,})$", str(c))
+        if m:
+            covered.add(m.group(1))
+for req in sorted(req_ids):
+    if req not in covered:
+        print(f"REQ-{req} has no scenario (--require-scenarios)")
+PY
+  fi
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────

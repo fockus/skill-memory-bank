@@ -47,6 +47,11 @@ Supported host model:
 /mb sdd <topic>          # spec triple: requirements / design / tasks.md (executable)
 # specs/<topic>/tasks.md is a first-class executable artifact with <!-- mb-task:N --> markers,
 # NOT a scaffold — each block is resolved by /mb work <topic> as a work item.
+# requirements.md may add an optional `## Scenarios` layer: <!-- mb-scenario:N --> blocks
+# (### Scenario: + **Covers:** REQ-x + GIVEN/WHEN/THEN). They become a test-plan
+# (mb-scenario-extract.py) that /mb plan links and /mb work turns into one real test
+# per scenario in the project's stack. Enforce coverage with
+# `mb-spec-validate.sh --require-scenarios`; off by default (EARS-only specs stay valid).
 /mb work <topic>         # execute spec tasks one by one (reads <!-- mb-task:N --> blocks)
 /mb verify               # verify against spec + plan
 /mb done                 # actualize + progress
@@ -145,9 +150,10 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-traceability-gen.sh` | Regenerate `traceability.md` from specs + plans + tests |
 | `mb-ears-validate.sh <file>` | Validate REQ bullets against the 5 EARS patterns |
 | `mb-req-next-id.sh` | Emit the next monotonic `REQ-NNN` identifier |
-| `mb-sdd.sh <topic>` | Create a Kiro-style spec triple under `specs/<topic>/` (requirements / design / tasks) |
+| `mb-sdd.sh <topic>` | Create a Kiro-style spec triple under `specs/<topic>/` (requirements / design / tasks). Scaffolds an optional `## Scenarios` (GIVEN/WHEN/THEN) section |
+| `mb-scenario-extract.py <file>` | Extract `<!-- mb-scenario:N -->` GIVEN/WHEN/THEN blocks → normalized test-plan (JSON Lines: covers + steps + stable `test_id`). `--validate` checks present scenarios are well-formed. Opt-in layer; absent scenarios → empty/no-op |
 | `mb_work_items.py` | Shared parser for plan stages (`<!-- mb-stage:N -->`) and spec tasks (`<!-- mb-task:N -->`); CLI emits JSON Lines |
-| `mb-spec-validate.sh <topic\|spec-dir\|spec-file>` | Validate spec triple integrity (EARS, parseable tasks, per-task Covers/DoD/Testing, no REQ orphans). `--json` mode for structured output |
+| `mb-spec-validate.sh <topic\|spec-dir\|spec-file>` | Validate spec triple integrity (EARS, parseable tasks, per-task Covers/DoD/Testing, no REQ orphans). Present GIVEN/WHEN/THEN scenarios are structure-checked; `--require-scenarios` (opt-in) also enforces ≥1 scenario per REQ. `--json` mode for structured output |
 | `mb-spec-tasks-migrate.sh <topic\|tasks-file> [--apply\|--dry-run]` | Migrate legacy `## N. ...` tasks to `<!-- mb-task:N -->` format. Dry-run default, --apply writes backup before changes, idempotent |
 | `mb-pipeline.sh` | Manage the project's `pipeline.yaml` (spec §9) |
 | `mb-pipeline-validate.sh` | Structural validation for `pipeline.yaml` (spec §9) |

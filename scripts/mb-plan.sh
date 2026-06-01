@@ -232,4 +232,40 @@ with open(path, "w", encoding="utf-8") as fh:
 PY
 fi
 
+# Scenario test-plan link: if the topic has an SDD spec with GIVEN/WHEN/THEN
+# scenarios, surface them in the plan so each stage maps tests to scenario IDs.
+SPEC_REQ="$MB_PATH/specs/$SAFE_TOPIC/requirements.md"
+SCEN_SCRIPT="$(dirname "$0")/mb-scenario-extract.py"
+if [ -f "$SPEC_REQ" ] && [ -f "$SCEN_SCRIPT" ]; then
+  SCEN_JSONL=$(python3 "$SCEN_SCRIPT" "$SPEC_REQ" 2>/dev/null || true)
+  if [ -n "$SCEN_JSONL" ]; then
+    PLAN_FILE="$FILEPATH" SCEN_DATA="$SCEN_JSONL" SPEC_REL="specs/$SAFE_TOPIC/requirements.md" \
+      python3 - <<'PY'
+import json, os
+plan = os.environ["PLAN_FILE"]
+rel = os.environ["SPEC_REL"]
+rows = []
+for line in os.environ.get("SCEN_DATA", "").splitlines():
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        s = json.loads(line)
+    except json.JSONDecodeError:
+        continue
+    covers = ", ".join(s.get("covers") or []) or "—"
+    rows.append(f"- `{s.get('test_id','?')}` ({covers}) — {s.get('name','')}")
+if rows:
+    block = (
+        "\n## Linked scenarios (test-plan)\n\n"
+        f"From [{rel}]({rel}). Each stage's **Testing** writes one test per "
+        "scenario below (Arrange=GIVEN, Act=WHEN, Assert=THEN), named after its id:\n\n"
+        + "\n".join(rows) + "\n"
+    )
+    with open(plan, "a", encoding="utf-8") as fh:
+        fh.write(block)
+PY
+  fi
+fi
+
 echo "$FILEPATH"

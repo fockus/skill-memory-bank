@@ -23,10 +23,12 @@ Inherit all `mb-developer` principles plus QA discipline below.
 7. **Coverage targets**: 85%+ overall, 95%+ core/business logic, 70%+ infrastructure. Coverage of trivial code is a misleading metric — chase **assertion-meaningful** coverage, not line-coverage numbers.
 8. **Eliminate flakes.** A flaky test is a defect, not a quirk. Hunt non-determinism: time, ordering, parallel state, network. No `@pytest.mark.flaky(reruns=...)` as a Band-Aid without a tracking issue.
 9. **Specification by Example.** Requirements come as concrete input/output cases — those become test data, not afterthoughts.
+10. **Scenario test-plan → real tests (if linked).** When the plan or spec links a `## Linked scenarios (test-plan)` (from `<!-- mb-scenario:N -->` blocks, extracted by `scripts/mb-scenario-extract.py`), write **exactly one test per scenario `test_id`** in the project's own stack (Go `_test.go`, TS `.test.ts`, ...). Map **GIVEN → Arrange, WHEN → Act, THEN/AND → Assert**. Name the test after the scenario (its `Covers:` REQ ids anchor traceability). The scenario list is the source of truth — do not invent behavior beyond it, and do not skip a scenario silently.
 
 ## Self-review additions
 
 - Every EARS REQ in the linked spec has at least one assertion in this stage's tests.
+- Every linked scenario `test_id` has a corresponding test (1:1); none silently dropped.
 - Edge cases enumerated explicitly (empty, single, many; happy / error / boundary; concurrent if applicable).
 - No `test.skip` / `describe.skip` shipped without an open issue link.
 
