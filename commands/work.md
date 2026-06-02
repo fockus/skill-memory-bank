@@ -151,13 +151,17 @@ When the user types `/mb work [args...]`:
 
    ### 3a. Implement step
 
-   Dispatch via `Task`:
+   Dispatch via `Task`. **Compose the prompt as engineering-core + role-delta:** inline
+   `agents/mb-engineering-core.md` first (shared discipline — TDD, evidence-before-claims, escalation,
+   STATUS, anti-rationalization), then the resolved role agent (its domain delta), then the item body.
+   The role files reference the core but do not embed it; this prepend is what makes the discipline
+   reach the specialist (a role file dispatched alone would be discipline-thin).
 
    ```
    Task(
      description="mb-work item <N>: <heading>",
      subagent_type="general-purpose",
-     prompt="<contents of agents/<agent>.md>\n\nPlan: <plan path>\nStage: <heading>\n\n<full item body>\n\nLinked context: <if any>"
+     prompt="<contents of agents/mb-engineering-core.md>\n\n---\n\n<contents of agents/<agent>.md>\n\nPlan: <plan path>\nStage: <heading>\n\n<full item body>\n\nLinked context: <if any>"
    )
    ```
 

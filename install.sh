@@ -750,11 +750,19 @@ install_pi_global_agents
 
 # ═══ Step 2: Agents ═══
 echo -e "${BLUE}[2/7] Agents${NC}"
+agents_installed=0
 for f in "$SOURCE_SKILL_DIR"/agents/*.md; do
   [ -f "$f" ] || continue
+  # Skip partials (frontmatter `partial: true`, e.g. mb-engineering-core): they are
+  # prepended by /mb work via the skill alias, not standalone subagents — keep them
+  # out of the ~/.claude/agents/ registry so they never show up as dispatchable.
+  if head -5 "$f" | grep -qiE '^partial:[[:space:]]*true[[:space:]]*$'; then
+    continue
+  fi
   install_file "$f" "$CLAUDE_DIR/agents/$(basename "$f")"
+  agents_installed=$((agents_installed + 1))
 done
-echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/agents" '*.md') agents"
+echo -e "  ${GREEN}✓${NC} ${agents_installed} agents (partials excluded from registry)"
 
 # ═══ Step 3: Hooks ═══
 echo -e "${BLUE}[3/7] Hooks${NC}"

@@ -22,6 +22,7 @@
 - [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
 - [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation
+- [subagent-strengthening](plans/2026-06-02_refactor_subagent-strengthening.md) — refactor — Subagent strengthening (engineering-core composition)
 
 ## Parallel-safe (can run now)
 

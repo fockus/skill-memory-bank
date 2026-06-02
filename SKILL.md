@@ -193,7 +193,8 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-rules-enforcer` | `/review`, `/commit`, `/pr`, `plan-verifier` step 3.6 — runs `mb-rules-check.sh` (solid/srp, clean_arch/direction, tdd/delta) + LLM ISP/DRY judgment. Returns strict JSON + summary | `agents/mb-rules-enforcer.md` |
 | `mb-test-runner` | `/test`, `plan-verifier` step 3.5 — runs `mb-test-run.sh`, correlates failures with session diff. Returns JSON `{stack, tests_pass, tests_total, failures[], coverage, duration_ms}` | `agents/mb-test-runner.md` |
 | `mb-reviewer` | `/mb work` review-loop — reads stage diff + `pipeline.yaml:review_rubric`, emits structured JSON verdict (APPROVED / CHANGES_REQUESTED) with severity-classified issues | `agents/mb-reviewer.md` |
-| `mb-developer` | `/mb work` — generic implementer when no specialist role matches. TDD discipline + Clean Architecture | `agents/mb-developer.md` |
+| `mb-engineering-core` | **[partial — not dispatched directly]** Prepended by `/mb work` ahead of every dev-role agent below. Carries the shared discipline: TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims (Iron Law), escalation, STATUS contract, anti-rationalization. Excluded from the `~/.claude/agents/` registry via `partial: true` frontmatter. | `agents/mb-engineering-core.md` |
+| `mb-developer` | `/mb work` — generic implementer when no specialist role matches. Discipline from `mb-engineering-core` + DoD-driven implementation | `agents/mb-developer.md` |
 | `mb-architect` | `/mb work` — architecture / ADR / system-design specialist. Domain modelling, interface definition, refactoring strategy | `agents/mb-architect.md` |
 | `mb-backend` | `/mb work` — APIs, services, database, async/concurrency, server-side business logic | `agents/mb-backend.md` |
 | `mb-frontend` | `/mb work` — React/Vue/Svelte/Solid components, browser UI, accessibility, responsive layouts | `agents/mb-frontend.md` |
@@ -202,6 +203,13 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-devops` | `/mb work` — CI/CD, Docker, Kubernetes, Terraform, observability, release engineering | `agents/mb-devops.md` |
 | `mb-qa` | `/mb work` — test design, coverage strategy, edge-case enumeration, flake elimination, contract tests | `agents/mb-qa.md` |
 | `mb-analyst` | `/mb work` — data / analytics / metrics: SQL, dashboards, cohorts, ETL pipelines, instrumentation | `agents/mb-analyst.md` |
+
+> **Composition (dev-role agents).** When `/mb work` dispatches a dev-role agent (developer / backend /
+> frontend / ios / android / architect / devops / qa / analyst), it inlines `mb-engineering-core.md`
+> **first**, then the role file, then the work item — `prompt = core + "\n---\n" + role + body`. The
+> role files carry only their domain delta and reference the core; the prepend is what delivers the
+> shared discipline. A role file dispatched alone (outside `/mb work`) is discipline-thin by design —
+> read the core first if you invoke one standalone.
 
 Do **NOT** delegate plan creation, architectural decisions, or ML-result evaluation to a subagent — that is main-agent work.
 

@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — dev-agent strengthening via engineering-core composition
+
+- **New shared partial `agents/mb-engineering-core.md`** — role-neutral, stack-agnostic engineering
+  discipline lifted to a single source of truth: TDD (Red→Green→Refactor), Contract-First (+ contract-drift),
+  Clean Architecture direction table, SOLID/DRY/KISS/YAGNI thresholds, **production-wiring awareness**,
+  **evidence-before-claims Iron Law** (no "tests pass" without the command output), **escalation rules**
+  (3 attempts → STOP, no thrashing), **STATUS contract** (DONE / DONE_WITH_CONCERNS / BLOCKED /
+  NEEDS_CONTEXT, evidence-backed), and an **anti-rationalization table**. Marked `partial: true` —
+  excluded from the `~/.claude/agents/` registry by `install.sh`, delivered via the skill symlink.
+- **`/mb work` composition** — the implement-step now inlines `mb-engineering-core` ahead of the
+  resolved role agent (`prompt = core + "\n---\n" + role + body`). Previously the specialist files said
+  "Inherit all `mb-developer` principles" but the orchestrator inlined only the role file, so that
+  discipline never reached the subagent. The prepend fixes the broken inheritance.
+- **9 dev-role agents refactored to thin deltas** — `mb-developer` (down to a generic-fallback delta)
+  and the 8 specialists (`mb-backend`, `mb-frontend`, `mb-ios`, `mb-android`, `mb-devops`, `mb-qa`,
+  `mb-analyst`, `mb-architect`): removed the non-functional "Inherit…" reference, kept the domain
+  principles, replaced thin "same shape as mb-developer" outputs with explicit STATUS-led contracts
+  that require the test-run output.
+- **Controllers hardened** — `mb-reviewer` and `plan-verifier` gained an **adversarial default**
+  ("assume the diff is wrong until the rubric is demonstrably upheld; an invariant with no test that
+  forces the failure mode is unproven = a finding"); `plan-verifier` reports now include a
+  **"Verified positively"** section (positive proof, not just absence of findings). `mb-reviewer`'s
+  strict-JSON contract is unchanged (parser verified intact).
+- **Validation** — before/after behavioural test on the same trap task (`sonnet`, sandboxed): both
+  `mb-backend` and `mb-developer` went from claiming "tests pass" with **no command output** to leading
+  with `STATUS: DONE` and pasting the **actual pytest output**; rubric ~3.0 → ~4.6. See
+  `.memory-bank/reports/2026-06-02_subagent-baseline.md`.
+
 ### Added — rule profiles & stack presets (Sprint 3)
 
 - **Configurable rule profiles** with immutable safety baseline. Profiles personalize Memory Bank rules across local / global / rules-only modes without weakening protected-files / no-placeholders / verification-before-completion / DRY/KISS/YAGNI guarantees.

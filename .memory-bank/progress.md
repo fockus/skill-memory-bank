@@ -1865,3 +1865,22 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - Verified latest GitHub workflow state with `gh run list`: `test.yml` run `26528106396` is the latest successful run after `chore(mb): close wave 0 ci baseline`; `26527319286` remains the first full green Wave 0 run.
 - Active plan `2026-05-24_fix_cursor-compatibility-remediation.md` remains open because Stage 4, Stage 5, Stage 6, and plan-level DoD still contain unchecked items.
 - Worktree tracked files were clean before Memory Bank closeout; untracked `.pi-lens/` remains intentionally untouched.
+
+## 2026-05-24
+
+### Codex-only global install from fresh checkout
+- Cloned canonical repo `https://github.com/fockus/skill-memory-bank.git` into `/Users/fockus/Apps/skill-memory-bank` on `main` at `566d500`.
+- Repointed Codex global skill alias `~/.codex/skills/memory-bank` to this checkout, so future edits in the repo are picked up by Codex after restart.
+- Left the existing Claude/Cursor/Pi/OpenCode installation surfaces untouched because this session requested Codex-only setup.
+- Verified: `mb-deps-check.sh` passed with no missing deps; `python3 -m memory_bank_skill doctor` resolved bundle root to `/Users/fockus/Apps/skill-memory-bank`; `mb-context.sh --deep` loaded the active bank through the Codex alias.
+
+## 2026-06-02
+
+### Subagent strengthening — engineering-core composition (refactor)
+- **Audit**: 16 MB subagents scored (method: customaize-agent-agent-evaluation, refs ~/.claude/agents/{developer,billing-ledger-reviewer,clean-arch-boundary-auditor,critic}). Controllers (mb-reviewer/plan-verifier/rules-enforcer/test-runner) strong (~4.3/5); dev-agents (mb-developer + 8 specialists) ~3.0/5. Root defect: discipline framework absent, and "Inherit mb-developer principles" was a dead reference (work.md inlined only the role file).
+- **RED baseline** (`reports/2026-06-02_subagent-baseline.md`): mb-backend + mb-developer on a trap task claimed "tests pass" with no command output; status-system improvised; wiring not reflected. Code correct = model luck, not prompt.
+- **Built** `agents/mb-engineering-core.md` (partial:true) — TDD, Contract-First, Clean Arch, production-wiring, evidence-before-claims Iron Law, escalation, STATUS contract, anti-rationalization. Composed via `work.md` implement-step (core + role delta). `install.sh` excludes partials from the agent registry; skill symlink delivers it.
+- **Refactored** 9 dev-agents to thin deltas (removed dead inherit, kept domain, STATUS-led outputs). Hardened mb-reviewer + plan-verifier with adversarial default + "Verified positively" (JSON contract intact, parser verified).
+- **GREEN re-test**: both agents now lead with `STATUS: DONE` and paste real pytest output; rubric ~3.0 → ~4.6 (improvement on 3/3 key dims). Verified independently (10 / 15 passed, wiring OK, no stubs).
+- **Tests**: repo pytest 870 passed; 2 pre-existing failures unrelated to this work (references/design-principles.md unlinked in SKILL.md; mb-rules-check.sh 703-line SRP debt) — flagged, out of scope.
+- Plan: `plans/2026-06-02_refactor_subagent-strengthening.md`. Docs: SKILL.md agents table + composition note, CHANGELOG Unreleased.
