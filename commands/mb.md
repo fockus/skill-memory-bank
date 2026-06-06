@@ -43,7 +43,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `upgrade`                                                | Update the skill from GitHub (`git pull + re-install`). Flags: `--check` (check only), `--force` (skip confirmation)                                                                                                                                                                                     |
 | `compact [--dry-run|--apply]`                            | Status-based decay: plans in `done/` older than 60d → BACKLOG archive, low-importance notes older than 90d → `notes/archive/`. Active plans are not touched. `--dry-run` (default) = reasoning only                                                                                                      |
 | `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB from Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extracts `progress.md` (daily), `notes/` (architecture-discussion heuristic), PII auto-wrap. Dedup via SHA256 + resume state                                                                                                  |
-| `graph [--apply] [src_root]`                             | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in through `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines) + `codebase/god-nodes.md` (top-20 by degree). Incremental SHA256 cache                       |
+| `graph [--apply] [src_root]`                             | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in through `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines, `community` ids) + `codebase/god-nodes.md` (Top symbols / Top modules + Communities & Bridge files via optional networkx). Incremental SHA256 cache |
 | `tags [--apply] [--auto-merge]`                          | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 against a closed vocabulary and propose merges. `--auto-merge` only applies distance ≤1. Vocabulary is in `.memory-bank/tags-vocabulary.md` (fallback: `references/tags-vocabulary.md`). `mb-index-json.py` auto-normalizes to kebab-case |
 | `init [--minimal|--full]`                                | Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only                                                                                                                                                                                     |
 | `profile <subcommand>`                                   | Manage rule profiles: `init`, `show`, `path`, `validate`, `set`. See `commands/profile.md`. Example: `mb-profile.sh init --scope=user --role=backend --stack=go`                                                                                                                                        |
@@ -544,9 +544,11 @@ Build a code graph for the Python part of the project through stdlib `ast` (0 ne
 
 **Output (`--apply`):**
 
-- `<mb>/codebase/graph.json` — JSON Lines (one node/edge per line, grep-friendly, streamable)
-- `<mb>/codebase/god-nodes.md` — top 20 nodes by degree (in + out), with `file:line` + kind
+- `<mb>/codebase/graph.json` — JSON Lines (one node/edge per line, grep-friendly, streamable). Node lines carry a `community` id when networkx is installed.
+- `<mb>/codebase/god-nodes.md` — analytics report: **Top symbols** + **Top modules** (degree, split so test-module hubs no longer drown real abstractions) and, when networkx is available, **Communities** (auto-detected module clusters + cohesion score) + **Bridge files** (highest betweenness — refactoring/risk hotspots).
 - `<mb>/codebase/.cache/<hash>.json` — per-file SHA256 → parsed entities
+
+**Analytics (optional `networkx`):** file-level community detection (Louvain, `seed=42` → deterministic), per-cluster cohesion, and betweenness all live in the pure module `memory_bank_skill/codegraph_analytics.py`. Without networkx the report degrades gracefully (Top symbols / Top modules still render; community/bridge sections are omitted with a one-line note). Install: `pip3 install networkx`.
 
 **Incremental:** if `sha256(file_content)` matches the cache — skip re-parse. On a large repo, the second run is near-instant.
 

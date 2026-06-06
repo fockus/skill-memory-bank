@@ -5,7 +5,7 @@
 #
 # Required:   bash, python3, jq, git
 # Optional:   rg (ripgrep), shellcheck, tree_sitter (Python package),
-#             PyYAML (Python package)
+#             PyYAML (Python package), networkx (Python package)
 #
 # Output (stdout, key=value — machine-parseable):
 #   dep_<name>=ok | missing | optional-missing
@@ -80,6 +80,7 @@ hint_for() {
     macos:shellcheck)  echo "brew install shellcheck" ;;
     macos:tree_sitter) echo "pip3 install tree-sitter tree-sitter-python tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java" ;;
     macos:PyYAML)      echo "pip3 install PyYAML" ;;
+    macos:networkx)    echo "pip3 install networkx" ;;
     debian:python3)     echo "sudo apt install python3" ;;
     debian:jq)          echo "sudo apt install jq" ;;
     debian:git)         echo "sudo apt install git" ;;
@@ -87,6 +88,7 @@ hint_for() {
     debian:shellcheck)  echo "sudo apt install shellcheck" ;;
     debian:tree_sitter) echo "pip3 install tree-sitter tree-sitter-python tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java" ;;
     debian:PyYAML)      echo "pip3 install PyYAML" ;;
+    debian:networkx)    echo "pip3 install networkx" ;;
     fedora:python3)     echo "sudo dnf install python3" ;;
     fedora:jq)          echo "sudo dnf install jq" ;;
     fedora:git)         echo "sudo dnf install git" ;;
@@ -166,6 +168,7 @@ check_optional "shellcheck" "shellcheck"
 # Optional Python modules
 check_pymod_optional "tree_sitter" "tree_sitter"
 check_pymod_optional "PyYAML"      "yaml"
+check_pymod_optional "networkx"    "networkx"
 
 echo "deps_required_missing=$REQUIRED_MISSING"
 echo "deps_optional_missing=$OPTIONAL_MISSING"
