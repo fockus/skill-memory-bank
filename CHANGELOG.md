@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — code-graph intelligence layer (opt-in: wiki, surprising connections, semantic search, suggested questions)
+
+- **Module decomposition** (behaviour-preserving): `scripts/mb-codegraph.py` 660 → 344 lines; extractors split into `memory_bank_skill/codegraph_{common,python,treesitter}.py`; shared `codegraph_loader.py` (one `graph.json` loader, both query/context cores delegate). Default output byte-identical.
+- **Git co-change edges** — `mb-codegraph.py --apply --cochange` adds deterministic `co_change` file edges from git history (`memory_bank_skill/codegraph_cochange.py`).
+- **Suggested questions** — `mb-codegraph.py --apply --questions` appends deterministic exploration questions to `god-nodes.md` (`codegraph_questions.py`), from god-nodes/bridges/communities/co-change. $0, no LLM.
+- **Semantic search** — `scripts/mb-semantic-search.py`: pluggable `Retriever` port, pure-Python **BM25** default ($0, zero deps), opt-in local embeddings (`sentence-transformers`, graceful fallback). Modules `semantic_search.py` + `semantic_embeddings.py`.
+- **LLM wiki + surprising connections** — `/mb wiki` (`commands/mb.md` § wiki + `scripts/mb-wiki.py`): per-community articles via **Haiku** subagents, cross-cutting `semantic` edges via **Sonnet** — host subagents, no API key. Deterministic prep in `wiki_evidence.py` + `wiki_store.py` (validated, idempotent edge merge). Agents `mb-wiki-author` / `mb-wiki-synthesizer`.
+- Optional dep `sentence_transformers` registered in `mb-deps-check.sh`. Default graph/search behaviour unchanged; all new capabilities opt-in with graceful degradation. Realizes backlog `I-063`.
+
 ### Changed — dev-agent strengthening via engineering-core composition
 
 - **New shared partial `agents/mb-engineering-core.md`** — role-neutral, stack-agnostic engineering

@@ -35,6 +35,7 @@ try:
     from memory_bank_skill import codegraph_analytics as cga
     from memory_bank_skill import codegraph_cochange as cgco
     from memory_bank_skill import codegraph_python as cgpy
+    from memory_bank_skill import codegraph_questions as cgq
     from memory_bank_skill import codegraph_treesitter as cgts
     from memory_bank_skill._io import atomic_write
     from memory_bank_skill.codegraph_common import rel, sha256
@@ -43,6 +44,7 @@ except ModuleNotFoundError:
     from memory_bank_skill import codegraph_analytics as cga
     from memory_bank_skill import codegraph_cochange as cgco
     from memory_bank_skill import codegraph_python as cgpy
+    from memory_bank_skill import codegraph_questions as cgq
     from memory_bank_skill import codegraph_treesitter as cgts
     from memory_bank_skill._io import atomic_write
     from memory_bank_skill.codegraph_common import rel, sha256
@@ -210,11 +212,14 @@ def _render_god_nodes(
     communities: dict[str, int] | None = None,
     betweenness: dict[str, float] | None = None,
     cochange_edges: list[dict[str, Any]] | None = None,
+    questions: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Delegate to analytics renderer; append the co-change section when present."""
+    """Delegate to analytics renderer; append co-change / questions sections when present."""
     body = cga.render_god_nodes_md(graph, communities, betweenness)
     if cochange_edges:
         body = body.rstrip("\n") + "\n\n" + cgco.render_cochange_section(cochange_edges) + "\n"
+    if questions:
+        body = body.rstrip("\n") + "\n\n" + cgq.render_questions_md(questions) + "\n"
     return body
 
 
@@ -242,6 +247,7 @@ def run(
     src_root: str,
     mode: str = "dry-run",
     cochange: bool = False,
+    questions: bool = False,
 ) -> dict[str, Any]:
     """Build graph, optionally write outputs. Returns summary dict."""
     mb = Path(mb_path)
@@ -294,9 +300,17 @@ def run(
     summary["communities"] = community_count
     print(f"communities={community_count}")
 
+    # Opt-in: deterministic suggested questions ($0). Default off keeps god-nodes.md
+    # byte-identical.
+    suggested: list[dict[str, Any]] | None = None
+    if questions:
+        suggested = cgq.suggest_questions(graph, communities=communities, betweenness=betweenness)
+        summary["questions"] = len(suggested)
+        print(f"questions={len(suggested)}")
+
     _write_graph_jsonl(graph, codebase / "graph.json", communities)
     atomic_write(codebase / "god-nodes.md",
-                 _render_god_nodes(graph, communities, betweenness, cochange_edges))
+                 _render_god_nodes(graph, communities, betweenness, cochange_edges, suggested))
 
     return summary
 
@@ -309,13 +323,17 @@ def main(argv: list[str]) -> int:
                         help="Stdout summary only (default)")
     parser.add_argument("--cochange", action="store_true",
                         help="Add git co-change file edges (opt-in; requires --apply)")
+    parser.add_argument("--questions", action="store_true",
+                        help="Append deterministic suggested questions to god-nodes.md "
+                             "(opt-in; requires --apply)")
     parser.add_argument("mb_path", nargs="?", default=".memory-bank")
     parser.add_argument("src_root", nargs="?", default=".")
     args = parser.parse_args(argv[1:])
 
     mode = "apply" if args.apply else "dry-run"
     try:
-        run(mb_path=args.mb_path, src_root=args.src_root, mode=mode, cochange=args.cochange)
+        run(mb_path=args.mb_path, src_root=args.src_root, mode=mode,
+            cochange=args.cochange, questions=args.questions)
     except FileNotFoundError as e:
         print(f"[error] {e}", file=sys.stderr)
         return 1

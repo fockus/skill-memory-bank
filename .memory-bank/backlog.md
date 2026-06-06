@@ -331,7 +331,10 @@
 
 **Детали:** [`notes/2026-05-29_ears-validator-hardening.md`](notes/2026-05-29_ears-validator-hardening.md).
 
-### I-063 — Code graph `--semantic` LLM code↔docs layer [LOW, NEW, 2026-06-06]
+### I-063 — Code graph `--semantic` LLM code↔docs layer [LOW, DONE, 2026-06-06]
+
+**Outcome (2026-06-06):** Realized as the opt-in LLM wiki + surprising-connections layer + semantic search, with the contract carve-out the user explicitly approved (opt-in commands, graceful degradation, LLM via host subagents — no API key; default path byte-identical). `semantic` edges + `/mb wiki` + `mb-semantic-search.py` (BM25 default, optional embeddings). Plan: [`plans/done/2026-06-06_feature_graph-wiki-semantic.md`](plans/done/2026-06-06_feature_graph-wiki-semantic.md).
+
 
 **Problem:** The code graph is purely structural (AST + tree-sitter + git co-change). It cannot link a concept described in a doc/spec to the code that implements it, nor surface "these two functions solve the same problem" without a shared call/import. graphify gets this from an LLM extraction pass.
 

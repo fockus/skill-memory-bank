@@ -1,6 +1,21 @@
 
 # claude-skill-memory-bank — Progress Log
 
+## 2026-06-06 (code graph — opt-in LLM wiki + surprising connections + semantic search + suggested questions)
+
+- **Plan:** [`plans/done/2026-06-06_feature_graph-wiki-semantic.md`](plans/done/2026-06-06_feature_graph-wiki-semantic.md) — feature, 6 stages, DONE. Supersedes `I-063`.
+- **Opt-in intelligence layer** on the deterministic graph — default `/mb graph` byte-identical; everything new behind explicit commands/flags with graceful degradation.
+- **Stage 0:** shared `codegraph_loader.py` (DRY); `mb_graph_query_core` + `mb_code_context_core` delegate (back-compat exact).
+- **Stage 1 — Suggested questions:** `codegraph_questions.py` + `/mb graph --questions` (deterministic, $0).
+- **Stage 2 — Semantic search:** `semantic_search.py` (`Retriever` port + pure-Python BM25 default, zero deps) + `semantic_embeddings.py` (opt-in sentence-transformers, graceful) + `scripts/mb-semantic-search.py`. Registered `sentence_transformers` optional dep.
+- **Stage 3 — Wiki halves:** `wiki_evidence.py` (per-community packs) + `wiki_store.py` (article IO + validated/idempotent semantic-edge merge).
+- **Stage 4 — `/mb wiki`:** `scripts/mb-wiki.py` (plan/packs/write-article/merge-edges/index) + `commands/mb.md` § wiki + `agents/mb-wiki-author.md` (Haiku) + `agents/mb-wiki-synthesizer.md` (Sonnet). LLM via host subagents — no API key.
+- **Stage 5:** docs (`commands/mb.md`, `SKILL.md`), deps, `I-063` realized.
+- **E2E:** `test_e2e_graph_intelligence.py` — real CLI subprocess + real git: graph→cochange→questions→semantic→wiki-merge, idempotent, default-path clean, exit codes.
+- **Independent review (Code Reviewer agent):** 0 Critical/High; 2 Medium + 3 Low **all fixed** with regression tests (CRLF-preserving merge, excerpt path-containment, `isfinite` confidence guard, Unicode tokenizer, bounded reads, orphan-symbol filter).
+- **Verification:** `pytest` **1049 passed** (+~67); `ruff` clean; `bash -n` clean; no changed file > 400 lines. (1 unrelated failure: untracked session-memory WIP hooks — not this feature.)
+- **Branch:** `feat/codegraph-wiki-semantic` → merged to `main`, pushed to `origin`.
+
 ## 2026-06-06 (code graph — git co-change edges + module decomposition)
 
 - **Plan:** [`plans/done/2026-06-06_feature_codegraph-cochange.md`](plans/done/2026-06-06_feature_codegraph-cochange.md) — feature, 3 stages, DONE.

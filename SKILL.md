@@ -177,6 +177,8 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb_graph_query_render.py` | Markdown summary renderers for graph-query output |
 | `mb-code-context.py` | GraphRAG-lite evidence pack: optional semantic candidates + graph expansion + text/read fallback |
 | `mb_code_context_core.py` | Core evidence-pack orchestration for `mb-code-context.py` |
+| `mb-semantic-search.py` | Semantic code search over `graph.json` (+ wiki): pure-Python BM25 default ($0, zero deps), opt-in local embeddings. Modules in `memory_bank_skill/`: `semantic_search`, `semantic_embeddings`, `codegraph_loader` |
+| `mb-wiki.py` | `/mb wiki` engine (deterministic prep): `plan`/`packs`/`write-article`/`merge-edges`/`index`. LLM articles + surprising-connection edges via host subagents. Modules: `wiki_evidence`, `wiki_store` |
 | `mb-context-slim.py` | Slim a full agent prompt on stdin → terse version on stdout |
 | `mb-upgrade.sh [--check\|--force]` | Self-update the skill from GitHub |
 | `mb-profile.sh` | Rule profile manager: `init`, `show`, `path`, `validate`, `set` — user/project scopes |
@@ -204,6 +206,8 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-devops` | `/mb work` — CI/CD, Docker, Kubernetes, Terraform, observability, release engineering | `agents/mb-devops.md` |
 | `mb-qa` | `/mb work` — test design, coverage strategy, edge-case enumeration, flake elimination, contract tests | `agents/mb-qa.md` |
 | `mb-analyst` | `/mb work` — data / analytics / metrics: SQL, dashboards, cohorts, ETL pipelines, instrumentation | `agents/mb-analyst.md` |
+| `mb-wiki-author` | `/mb wiki` — **Haiku tier.** Writes one codebase-wiki article per community from a deterministic evidence pack | `agents/mb-wiki-author.md` |
+| `mb-wiki-synthesizer` | `/mb wiki` — **Sonnet tier.** Finds surprising cross-community connections, emits strict-JSON `semantic` edges | `agents/mb-wiki-synthesizer.md` |
 
 > **Composition (dev-role agents).** When `/mb work` dispatches a dev-role agent (developer / backend /
 > frontend / ios / android / architect / devops / qa / analyst), it inlines `mb-engineering-core.md`

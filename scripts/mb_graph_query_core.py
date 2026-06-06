@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+try:
+    from memory_bank_skill.codegraph_loader import load_graph as _load_graph
+except ModuleNotFoundError:  # pragma: no cover - bootstrap when imported as a bare script module
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from memory_bank_skill.codegraph_loader import load_graph as _load_graph
 
 EXIT_OK = 0
 EXIT_NO_MATCH = 1
@@ -15,26 +22,8 @@ JsonObj = dict[str, Any]
 
 
 def load_graph(path: Path) -> tuple[list[JsonObj], list[JsonObj]]:
-    if not path.is_file():
-        raise FileNotFoundError(str(path))
-
-    nodes: list[JsonObj] = []
-    edges: list[JsonObj] = []
-    with path.open(encoding="utf-8") as stream:
-        for line_number, line in enumerate(stream, start=1):
-            stripped = line.strip()
-            if not stripped:
-                continue
-            try:
-                record = json.loads(stripped)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"line {line_number}: {exc.msg}") from exc
-            record_type = record.get("type")
-            if record_type == "node":
-                nodes.append(record)
-            elif record_type == "edge":
-                edges.append(record)
-    return nodes, edges
+    """Delegate to the canonical package loader (kept as back-compat surface)."""
+    return _load_graph(path)
 
 
 def short_name(value: str) -> str:

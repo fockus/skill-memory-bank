@@ -17,7 +17,7 @@ Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words ar
 
 #### GraphRAG-lite retrieval routing
 
-`code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" and "find similar implementation". Exact structural questions use graph tools directly: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or impact analysis → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code`; respect explicit tool intent.
+`code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" and "find similar implementation". Exact structural questions use graph tools directly: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or impact analysis → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code`, served by `scripts/mb-semantic-search.py` (BM25 by default, opt-in local embeddings); respect explicit tool intent.
 
 Fail open: for missing graph or stale graph, explain the limitation and suggest `/mb graph --apply`; for missing semantic provider or unavailable native extension, use `scripts/mb-code-context.py`, `scripts/mb-graph-query.py`, `rg`, and `read` as CLI fallback instead of blocking.
 
@@ -43,7 +43,8 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `upgrade`                                                | Update the skill from GitHub (`git pull + re-install`). Flags: `--check` (check only), `--force` (skip confirmation)                                                                                                                                                                                     |
 | `compact [--dry-run|--apply]`                            | Status-based decay: plans in `done/` older than 60d → BACKLOG archive, low-importance notes older than 90d → `notes/archive/`. Active plans are not touched. `--dry-run` (default) = reasoning only                                                                                                      |
 | `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB from Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extracts `progress.md` (daily), `notes/` (architecture-discussion heuristic), PII auto-wrap. Dedup via SHA256 + resume state                                                                                                  |
-| `graph [--apply] [--cochange] [src_root]`                | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in through `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines, `community` ids) + `codebase/god-nodes.md` (Top symbols / Top modules + Communities & Bridge files via optional networkx). Incremental SHA256 cache. Opt-in `--cochange` adds deterministic git co-change file edges (`co_change` kind) the static graph cannot see |
+| `graph [--apply] [--cochange] [--questions] [src_root]`  | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in through `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines, `community` ids) + `codebase/god-nodes.md` (Top symbols / Top modules + Communities & Bridge files via optional networkx). Incremental SHA256 cache. Opt-in `--cochange` adds deterministic git co-change file edges (`co_change` kind); `--questions` appends deterministic suggested questions to `god-nodes.md` |
+| `wiki [--dry-run] [src_root]`                            | **Opt-in LLM layer** (see `### wiki` below). Codebase wiki (one article per community, Haiku) + "surprising connection" `semantic` edges the static graph misses (Sonnet), via host subagents — no API key. Deterministic prep in `scripts/mb-wiki.py`. Default `/mb graph` untouched |
 | `tags [--apply] [--auto-merge]`                          | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 against a closed vocabulary and propose merges. `--auto-merge` only applies distance ≤1. Vocabulary is in `.memory-bank/tags-vocabulary.md` (fallback: `references/tags-vocabulary.md`). `mb-index-json.py` auto-normalizes to kebab-case |
 | `init [--minimal|--full]`                                | Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only                                                                                                                                                                                     |
 | `profile <subcommand>`                                   | Manage rule profiles: `init`, `show`, `path`, `validate`, `set`. See `commands/profile.md`. Example: `mb-profile.sh init --scope=user --role=backend --stack=go`                                                                                                                                        |
@@ -616,6 +617,47 @@ User: /mb graph --apply
 - Tree-sitter extractor is intentionally simplified (MVP): not all language edge cases are covered — if you notice a missing node, open an issue
 - `god-nodes.md` wiki/per-node documentation — deferred (YAGNI until there is real demand)
 - C/C++/Ruby/PHP/Kotlin/Swift are not supported (can be added on demand via a new entry in `LANG_CONFIG` in `memory_bank_skill/codegraph_treesitter.py`)
+
+### wiki [--dry-run] [src_root]
+
+**Opt-in LLM layer** over the deterministic graph — never runs implicitly. Builds a
+per-community codebase wiki and discovers **surprising connections** (semantic links
+the static import/call/inherit graph misses) using **host subagents**: no API key,
+cost only the subagent calls. Default `/mb graph` output is untouched.
+
+Model tiering: **Haiku** writes per-community articles (cheap, parallel); **Sonnet**
+synthesizes cross-cutting connections (one pass). All deterministic prep is in the
+tested `scripts/mb-wiki.py`; the LLM steps dispatch subagents via the `Agent` tool.
+
+**Pipeline:**
+
+1. Ensure graph + communities: `mb-codegraph.py --apply .memory-bank .` (communities
+   need `networkx`; absent → tell the user to `pip3 install networkx` and stop).
+2. `mb-wiki.py packs .memory-bank .` → writes `codebase/.wiki-packs.json` (per-community
+   files / key symbols / code excerpts).
+3. `mb-wiki.py plan --json .memory-bank .` → dispatch plan (Haiku count + 1 Sonnet).
+   **If `--dry-run`: STOP here and show the plan.**
+4. For each pack, dispatch a **Haiku** subagent (parallel, one message) with the prompt
+   from `agents/mb-wiki-author.md` + the pack JSON. Write each article:
+   `mb-wiki.py write-article --id <N> .memory-bank < article.md`.
+5. One **Sonnet** subagent with `agents/mb-wiki-synthesizer.md` over all articles+packs
+   → strict-JSON edges. Merge: `mb-wiki.py merge-edges --edges edges.json .memory-bank`
+   (validated, confidence-clamped, **idempotent**).
+6. `mb-wiki.py index .memory-bank` → `codebase/wiki/index.md`.
+
+**Outputs:** `codebase/wiki/community-<N>.md` + `index.md`; `graph.json` gains
+`{"kind":"semantic","confidence":x,"rationale":...}` edges. The wiki articles also
+feed semantic search.
+
+**Semantic search** (companion tool, not a `/mb` subcommand): `scripts/mb-semantic-search.py
+"<query>" [--backend auto|bm25|embeddings] [--k N]`. Default backend is pure-Python
+**BM25** ($0, zero deps, deterministic) over graph symbols + wiki articles; opt-in local
+embeddings (`sentence-transformers`) via `--backend embeddings`, graceful fallback to
+BM25. Use it for "where is the logic for X?" — it complements the structural `graph_*`
+queries.
+
+**Safety:** `--dry-run` stops after the plan; idempotent re-runs; 0 communities → no-op
+with a clear message.
 
 ### deps [--install-hints]
 
