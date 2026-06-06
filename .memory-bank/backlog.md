@@ -331,6 +331,16 @@
 
 **Детали:** [`notes/2026-05-29_ears-validator-hardening.md`](notes/2026-05-29_ears-validator-hardening.md).
 
+### I-063 — Code graph `--semantic` LLM code↔docs layer [LOW, NEW, 2026-06-06]
+
+**Problem:** The code graph is purely structural (AST + tree-sitter + git co-change). It cannot link a concept described in a doc/spec to the code that implements it, nor surface "these two functions solve the same problem" without a shared call/import. graphify gets this from an LLM extraction pass.
+
+**Sketch:** opt-in `--semantic` flag that runs an LLM pass over docs/specs + selected source to emit `semantically_similar_to` / `implements_concept` edges (INFERRED, with confidence). Reuse the `codegraph_*` module layout; new pure `codegraph_semantic.py` + an injectable LLM port so the core stays testable.
+
+**Why deferred:** Breaks the three contract pillars that are the skill's differentiator — **$0** (LLM tokens), **deterministic** (non-reproducible edges), **zero required deps** (needs an API/provider). Warrants its own ADR (contract carve-out) + plan, not a drive-by. Default path must remain byte-identical and offline.
+
+**Trigger:** explicit user demand for concept↔code linking that keyword + structural graph + co-change cannot satisfy. Decided alongside `feature_codegraph-cochange` (2026-06-06) where co-change + decomposition shipped and `--semantic` was scoped out.
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

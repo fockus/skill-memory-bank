@@ -171,7 +171,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-migrate-v2.sh` | One-shot v1 → v2 migrator for `.memory-bank/` |
 | `mb-migrate-structure.sh` | One-shot v3.0 → v3.1 structure migrator for `.memory-bank/` |
 | `mb-import.py` | Claude Code JSONL → Memory Bank bootstrap importer |
-| `mb-codegraph.py` | AST-based code graph builder (multi-language via tree-sitter). Analytics — communities, cohesion, betweenness — in `memory_bank_skill/codegraph_analytics.py` (optional networkx) |
+| `mb-codegraph.py` | Code graph orchestrator. Extractors in `memory_bank_skill/`: `codegraph_python` (stdlib `ast`), `codegraph_treesitter` (multi-language, opt-in), `codegraph_analytics` (communities/cohesion/betweenness, optional networkx), `codegraph_cochange` (git co-change edges via opt-in `--cochange`) |
 | `mb-graph-query.py` | Query `codebase/graph.json`: `neighbors`, `impact`, `tests`, `explain`, `summary` with JSON/markdown output |
 | `mb_graph_query_core.py` | Core graph loading, matching and payload builders for `mb-graph-query.py` |
 | `mb_graph_query_render.py` | Markdown summary renderers for graph-query output |

@@ -1,6 +1,15 @@
 
 # claude-skill-memory-bank — Progress Log
 
+## 2026-06-06 (code graph — git co-change edges + module decomposition)
+
+- **Plan:** [`plans/done/2026-06-06_feature_codegraph-cochange.md`](plans/done/2026-06-06_feature_codegraph-cochange.md) — feature, 3 stages, DONE.
+- **Stage 1 — decomposition (behaviour-preserving Strangler Fig):** `scripts/mb-codegraph.py` 660 → **326 lines** (under 400 hard gate). Extracted package modules: `memory_bank_skill/codegraph_common.py` (24), `codegraph_python.py` (142), `codegraph_treesitter.py` (251). Back-compat re-exports on the script (`parse_file`, `build_graph`, `run`, `HAS_TREE_SITTER`, `_get_ts_parser`). Byte-identical `graph.json`+`god-nodes.md` proven via fixed-fixture diff pre/post.
+- **Stage 2 — co-change feature:** new pure module `codegraph_cochange.py` (171). SRP split — `parse_git_log`/`count_pairs` (pure, mockless) + `co_change_edges` (real-git integration) + `render_cochange_section`. Deterministic; graceful `[]` outside git / git-missing. `git` already required → no new dep.
+- **Stage 3 — wiring + docs:** opt-in `--cochange` flag (`run`/`main`); default off ⇒ output byte-identical (roadmap invariant honoured). `commands/mb.md` graph section + router row updated; stale `_TS_LANG_CONFIG` ref fixed → `codegraph_treesitter.LANG_CONFIG`; `SKILL.md` row updated. Backlog `I-063` captures deferred `--semantic` LLM layer (breaks $0/deterministic/zero-dep contract → own ADR).
+- **Verification:** full `pytest` **982 passed** (959 → +23: 19 cochange + 4 modules). `ruff check` clean on all changed `.py`. No changed file > 400 lines. Dogfood `--cochange` on this repo: **8 edges**, surfacing impl↔test couplings the static graph misses (`cli.py↔test_cli.py` w=4, `mb-index-json.py↔test_index_json.py` w=3).
+- **Branch:** `feat/codegraph-cochange` (not merged/pushed yet).
+
 ## 2026-05-24 (OpenCode-first adaptation plan + spec updates)
 
 - **Создан план `2026-05-24_feature_opencode-first-adaptation.md`** — 5 stages:
