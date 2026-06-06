@@ -104,7 +104,21 @@
       "hooks": [
         {
           "type": "command",
+          "command": "~/.claude/hooks/mb-session-turn.sh # [memory-bank-skill]"
+        },
+        {
+          "type": "command",
           "command": "if [ -d .memory-bank ]; then echo '[MEMORY BANK] [memory-bank-skill] Recommendation: /mb done — update checklist, create a note, append progress'; fi"
+        }
+      ]
+    }
+  ],
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/mb-session-start.sh # [memory-bank-skill]"
         }
       ]
     }
@@ -112,6 +126,10 @@
   "SessionEnd": [
     {
       "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/mb-session-end.sh # [memory-bank-skill]"
+        },
         {
           "type": "command",
           "command": "~/.claude/hooks/session-end-autosave.sh # [memory-bank-skill]"

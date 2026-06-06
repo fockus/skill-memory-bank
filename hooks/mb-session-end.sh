@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# mb-session-end.sh — SessionEnd hook.
+#   Step 1 (Stage 3): generate a Haiku ## Summary for the session and update _recent.md.
+#   Step 2 (Stage 4): gated Sonnet judge → 0–2 auto-notes.
+# Idempotent by full session_id (frontmatter `summarized`). Fail-safe: any missing dependency
+# or unresolved bank → silent exit 0. Anti-recursion: our own claude -p runs with
+# CLAUDECODE= MB_CAPTURE_SUBPROCESS=1 + --no-session-persistence --strict-mcp-config --no-chrome.
+set -u
+
+[ -n "${MB_CAPTURE_SUBPROCESS:-}" ] && exit 0
+
+HOOK_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)" || exit 0
+JQ="${JQ:-jq}"
+CLAUDE="${CLAUDE:-claude}"
+HAIKU_MODEL="${HAIKU_MODEL:-haiku}"
+JUDGE_MODEL="${JUDGE_MODEL:-sonnet}"
+JUDGE_MIN_TURNS="${MB_JUDGE_MIN_TURNS:-4}"
+RECENT_KEEP="${MB_RECENT_KEEP:-5}"
+
+command -v "$JQ" >/dev/null 2>&1 || exit 0
+[ "${MB_SESSION_CAPTURE:-auto}" = "off" ] && exit 0
+
+INPUT="$(cat 2>/dev/null || true)"
+CWD="$(printf '%s' "$INPUT" | "$JQ" -r '.cwd // empty' 2>/dev/null || true)"
+SID="$(printf '%s' "$INPUT" | "$JQ" -r '.session_id // empty' 2>/dev/null || true)"
+[ -n "$CWD" ] || CWD="$PWD"
+
+# shellcheck source=lib/session-common.sh
+. "$HOOK_DIR/lib/session-common.sh"
+
+MB="$(sc_resolve_mb "$CWD")"
+[ -n "$MB" ] || exit 0
+[ -n "$SID" ] || exit 0
+
+# locate session file by full session_id (filename carries only sid8)
+sid8="${SID:0:8}"
+SF="$(sc_find_session_file "$MB" "$SID")"
+[ -n "$SF" ] || exit 0
+
+LOCK="$MB/session/.lock"
+sc_lock "$LOCK" 30 || exit 0
+trap 'sc_unlock "$LOCK"' EXIT INT TERM
+
+# idempotency
+[ "$(sc_fm_get "$SF" summarized)" = "true" ] && exit 0
+command -v "$CLAUDE" >/dev/null 2>&1 || exit 0
+
+# transcript source: frontmatter path, fallback to the Live-log section
+TRANSCRIPT="$(sc_fm_get "$SF" transcript)"
+if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
+  SRC="$(cat "$TRANSCRIPT")"
+else
+  SRC="$(awk '/^## Live log/{f=1} f{print}' "$SF")"
+fi
+[ -n "$SRC" ] || exit 0
+
+PROMPT="Summarize this Claude Code session in 3-6 plain sentences: what the user asked and what was actually done. Output only the summary text, no preamble.
+
+$SRC"
+
+SUMMARY="$(printf '%s' "$PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
+  --model "$HAIKU_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
+[ -n "$SUMMARY" ] || exit 0
+
+# append Summary section and mark summarized (under the held lock)
+printf '\n## Summary\n%s\n' "$SUMMARY" >> "$SF"
+sc_fm_set "$SF" summarized true
+
+# prepend to _recent.md, keep newest N sections
+RECENT="$MB/session/_recent.md"
+branch="$(sc_fm_get "$SF" branch)"
+[ -n "$branch" ] || branch="-"
+today="$(date +%Y-%m-%d)"
+hm="$(date +%H:%M)"
+tmp="$RECENT.tmp.$$"
+{
+  printf '## %s %s (%s) — %s\n%s\n\n' "$today" "$hm" "$branch" "$sid8" "$SUMMARY"
+  [ -f "$RECENT" ] && cat "$RECENT"
+} | awk -v keep="$RECENT_KEEP" '
+  /^## /{ n++ }
+  { if (n <= keep) print }
+' > "$tmp"
+mv "$tmp" "$RECENT"
+
+# ── Step 2: gated Sonnet judge → 0–2 auto-notes ──────────────────────────────
+# judge-gate: only spend Sonnet on "significant" sessions (had Write/Edit, or long enough).
+significant=false
+grep -qE 'tools: [^·]*(Edit|Write|NotebookEdit)' "$SF" && significant=true
+turns="$(sc_fm_get "$SF" turns)"
+[ -n "$turns" ] || turns=0
+[ "$turns" -ge "$JUDGE_MIN_TURNS" ] && significant=true
+[ "$significant" = true ] || exit 0
+
+# existing note titles (dedup signal for the judge)
+titles=""
+if [ -d "$MB/notes" ]; then
+  titles="$(grep -rh '^# ' "$MB/notes"/*.md 2>/dev/null | sed 's/^# //' | head -50)"
+fi
+
+JUDGE_PROMPT="You are a strict judge deciding whether this Claude Code session produced durable, reusable knowledge worth a Memory Bank note. Qualify ONLY for: a new reusable pattern; a non-trivial architectural decision with rationale; a gotcha that saves future time; a non-trivial bug fix with a non-obvious root cause; an important project convention/config. Exclude routine edits, renames, formatting, trivial answers/translations, and anything already covered by these existing note titles:
+${titles:-(none)}
+
+Output ONLY a JSON array (no prose, no code fences) of 0 to 2 objects, each {\"title\": short title, \"body\": 3-8 lines of markdown}. If nothing qualifies, output [].
+
+Session:
+$SRC"
+
+JUDGE_OUT="$(printf '%s' "$JUDGE_PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
+  --model "$JUDGE_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
+
+# tolerate surrounding prose: extract the first JSON array if present
+notes_json="$(printf '%s' "$JUDGE_OUT" | "$JQ" -c 'if type=="array" then . else empty end' 2>/dev/null || true)"
+if [ -z "$notes_json" ]; then
+  notes_json="$(printf '%s' "$JUDGE_OUT" | sed -n 's/.*\(\[.*\]\).*/\1/p' | "$JQ" -c '.' 2>/dev/null || true)"
+fi
+[ -n "$notes_json" ] || exit 0
+
+count="$(printf '%s' "$notes_json" | "$JQ" 'length' 2>/dev/null || echo 0)"
+[ "$count" -gt 2 ] && count=2
+
+linklist="$MB/session/.links.$$"
+: > "$linklist"
+mkdir -p "$MB/notes"
+i=0
+while [ "$i" -lt "$count" ]; do
+  title="$(printf '%s' "$notes_json" | "$JQ" -r ".[$i].title // empty")"
+  body="$(printf '%s' "$notes_json" | "$JQ" -r ".[$i].body // empty")"
+  if [ -n "$title" ]; then
+    slug="$(printf '%s' "$title" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' | cut -c1-50)"
+    [ -n "$slug" ] || slug="note"
+    notefile="$MB/notes/$(date +%Y-%m-%d)_$(date +%H%M)_${slug}.md"
+    [ -e "$notefile" ] && notefile="${notefile%.md}-$i.md"
+    {
+      printf '# %s\n\n' "$title"
+      printf '%s\n\n' "$body"
+      printf -- '---\n*Auto-captured by MB session-memory (session %s).*\n' "$sid8"
+    } > "$notefile"
+    printf -- '- notes/%s\n' "$(basename "$notefile")" >> "$linklist"
+  fi
+  i=$((i + 1))
+done
+
+if [ -s "$linklist" ]; then
+  { printf '\n## Auto-notes emitted\n'; cat "$linklist"; } >> "$SF"
+fi
+rm -f "$linklist"
+
+exit 0

@@ -130,7 +130,9 @@ jq -r 'select(.type=="edge" and .kind=="call" and .dst=="X") | .src' \
   .memory-bank/codebase/graph.json | sort -u
 ```
 
-Full jq query library + schema + decision table → `~/.claude/RULES.md § Code Graph — usage`.
+**Routing:** exact structural ("who calls/imports X?") → `jq` over `graph.json`; intent/fuzzy ("where is the logic for X?") → `scripts/mb-semantic-search.py "<query>"` (BM25 $0 default, optional embeddings). **Opt-in layers** (off by default): `/mb graph --questions` (suggested questions) · `/mb graph --cochange` (`co_change` edges from git history) · `/mb wiki` (LLM per-community wiki + "surprising connections" `semantic` edges, no API key). Cross-chat memory: `/mb recall <query>` over `session/` + `notes/`.
+
+Full jq query library + schema + decision table + intelligence layer → `~/.claude/RULES.md § Code Graph — usage`.
 
 ### Read detailed rules on demand
 

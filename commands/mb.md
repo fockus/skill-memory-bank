@@ -27,6 +27,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | (empty) or `context`                                     | Collect project context                                                                                                                                                                                                                                                                                  |
 | `start`                                                  | Extended session start                                                                                                                                                                                                                                                                                   |
 | `search <query>`                                         | Search information in the memory bank                                                                                                                                                                                                                                                                    |
+| `recall <query>`                                         | Lexical recall over session-memory log + notes (ripgrep over `session/` + `notes/`) — session-memory subsystem                                                                                                                                                                                           |
 | `note <topic>`                                           | Create a note                                                                                                                                                                                                                                                                                            |
 | `update`                                                 | Actualize core files (with real code-state analysis)                                                                                                                                                                                                                                                     |
 | `doctor`                                                 | Find and fix internal MB inconsistencies                                                                                                                                                                                                                                                                 |
@@ -73,6 +74,19 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 > **Plan hierarchy reminder:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for size thresholds. Cyrillic «Этап / Спринт / Фаза» — legacy alias, allowed only in archived `plans/done/`.
 
 Invoking `/mb start` = invoking `/start` — same scripts, same subagents, same outcome. Do not duplicate the logic here; read the primary command file and follow it.
+
+### recall <query>
+
+Lexical recall over the **session-memory** log + notes (distinct from semantic `search`). Part of the
+session-memory subsystem that auto-logs each session to `.memory-bank/session/` (Stop/SessionEnd/SessionStart
+hooks). Run directly (no subagent):
+
+```bash
+bash ~/.claude/hooks/mb-recall.sh $ARGS_AFTER_RECALL
+```
+
+Searches `.memory-bank/session/` + `.memory-bank/notes/` via ripgrep (fallback grep), prints `file:line`
++ context. Off-switch for capture: `MB_SESSION_CAPTURE=off`. Show results to the user.
 
 ### context / search / note / tasks
 

@@ -770,6 +770,15 @@ for f in "$SOURCE_SKILL_DIR"/hooks/*.sh; do
   [ -f "$f" ] || continue
   install_file "$f" "$CLAUDE_DIR/hooks/$(basename "$f")"
 done
+# Shared helpers sourced by the session-memory hooks via "$HOOK_DIR/lib/...".
+# The copied-path hooks (e.g. ~/.claude/hooks/mb-recall.sh) need lib/ as a sibling.
+if [ -d "$SOURCE_SKILL_DIR/hooks/lib" ]; then
+  mkdir -p "$CLAUDE_DIR/hooks/lib"
+  for f in "$SOURCE_SKILL_DIR"/hooks/lib/*.sh; do
+    [ -f "$f" ] || continue
+    install_file "$f" "$CLAUDE_DIR/hooks/lib/$(basename "$f")"
+  done
+fi
 echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/hooks" '*.sh') hooks"
 
 # ═══ Step 4: Commands ═══

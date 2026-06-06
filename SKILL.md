@@ -250,6 +250,10 @@ Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Cl
 | `session-end-autosave.sh` | SessionEnd | Memory Bank auto-capture (`MB_AUTO_CAPTURE=auto\|strict\|off`) when `/mb done` was skipped |
 | `mb-compact-reminder.sh` | preCompact (Cursor) / SessionEnd (Claude Code) | Weekly `/mb compact` reminder (opt-in: triggers only after first `/mb compact --apply`) |
 | `mb-session-start-context.sh` | sessionStart (Cursor) | Auto-inject compact Memory Bank context at session start (`MB_AUTOLOAD_CONTEXT=off` to disable) |
+| `mb-session-turn.sh` | Stop | Session memory: append one per-turn bullet (request + tools + files) to `session/*.md`, no LLM (`MB_SESSION_CAPTURE=off` to disable) |
+| `mb-session-end.sh` | SessionEnd | Session memory: Haiku summary + gated Sonnet auto-notes; updates `session/_recent.md` |
+| `mb-session-start.sh` | SessionStart | Session memory: inject `# Recent Sessions` from `session/_recent.md` (read-only) |
+| `mb-recall.sh` | `/mb recall <query>` | Session memory: ripgrep recall over `session/` + `notes/` (sourced helper, not a lifecycle hook) |
 
 ---
 
@@ -353,6 +357,33 @@ The SessionEnd hook automatically appends a placeholder entry to `progress.md` w
 - Idempotent by `session_id` — same session + same day = one entry
 
 **Opt-out:** `export MB_AUTO_CAPTURE=off` in `~/.zshrc` or disable the hook via `/mb upgrade` once that flag is available.
+
+---
+
+## Session memory — native session logging (session-memory subsystem)
+
+A richer, native alternative to the placeholder auto-capture above. Logs every session to
+`.memory-bank/session/*.md` (markdown, git-tracked) and auto-curates notes. Scripts live in
+`~/.claude/hooks/` (and the repo's `.memory-bank/bin/` when present); registered in `settings.json`.
+
+- **Stop → `mb-session-turn.sh`** — appends one `## Live log` bullet per turn (last user request,
+  tools, touched files) **without an LLM**; persists the transcript path to frontmatter; deduped by
+  turn `uuid` so duplicate (project + global) registration is safe. Guards: `stop_hook_active`,
+  `MB_CAPTURE_SUBPROCESS`, `MB_SESSION_CAPTURE=off`, missing jq → exit 0.
+- **SessionEnd → `mb-session-end.sh`** — a Haiku `claude -p` writes `## Summary` + updates
+  `_recent.md`; then a **gated** Sonnet judge (only if the session had Write/Edit or ≥4 turns) writes
+  0–2 durable `notes/`. Idempotent by `session_id` (`summarized` frontmatter flag). Anti-recursion:
+  `env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 claude -p --strict-mcp-config --no-session-persistence --no-chrome`.
+- **SessionStart → `mb-session-start.sh`** — injects `# Recent Sessions` from `_recent.md`;
+  drains stdin (`exec < /dev/null`) to avoid hanging on `claude --resume` (macOS). Read-only (runs
+  even while capture is `off`).
+- **Recall:** `/mb recall <query>` → ripgrep over `session/` + `notes/`.
+
+**Off-switch:** `export MB_SESSION_CAPTURE=off`. **Suppress the legacy stub** (above) with
+`MB_AUTO_CAPTURE=off` so `progress.md` is not double-written once this subsystem owns capture.
+**Cost:** a significant session spends 2 `claude -p` calls on SessionEnd (Haiku summary + Sonnet
+judge); trivial sessions spend only the summary. **Portable lock:** mkdir-based (no `flock` on macOS).
+Active only where an active Memory Bank resolves.
 
 ---
 

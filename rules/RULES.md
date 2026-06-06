@@ -585,10 +585,14 @@ Sequence performed by the MB Manager subagent:
 {"type":"node", "kind":"module",   "name":"path/to/file.ext", "file":"...", "line":1}
 {"type":"node", "kind":"function", "name":"FuncName",         "file":"...", "line":N}
 {"type":"node", "kind":"class",    "name":"ClassName",        "file":"...", "line":N}
+// Optional: "community":N — Louvain cluster id, added when networkx is installed.
 
 // Edges
 {"type":"edge", "kind":"import", "src":"path/to/src.file", "dst":"pkg/import/path"}
 {"type":"edge", "kind":"call",   "src":"path/to/src.file", "dst":"FuncOrMethodName"}
+// Opt-in edge kinds (off by default — base graph stays byte-identical):
+{"type":"edge", "kind":"co_change", "src":"file/a", "dst":"file/b", "weight":N}                       // git history (--cochange)
+{"type":"edge", "kind":"semantic",  "src":"file/a", "dst":"file/b", "confidence":0.0-1.0, "rationale":"..."}  // LLM wiki (/mb wiki)
 // IMPORTANT: src = source file path; dst = function name / import path
 // IMPORTANT: inherit edges — Python stdlib-ast only. Tree-sitter extractors for Go/JS/TS/Rust/Java do NOT emit inherit edges (type inference is absent).
 ```
@@ -676,6 +680,25 @@ jq -r 'select(.type=="edge" and .kind=="import" and (.dst|contains("internal/cor
 ### Automation
 
 For repeated queries, create project-local aliases/scripts under `.memory-bank/scripts/` — keep them project-scoped, never globalize.
+
+### Intelligence layer (opt-in) — suggested questions · semantic search · wiki
+
+Beyond the deterministic structural graph, three **opt-in** layers add what plain AST/import edges cannot see. All are off by default — base `/mb graph` output stays byte-identical, and none add a mandatory dependency (graceful degradation when an optional one is absent).
+
+- **Suggested questions** — `/mb graph --apply --questions`. Appends a *"Suggested questions"* section to `god-nodes.md`: deterministic, $0 starting points derived from graph structure (highest-degree symbols, bridge files by betweenness, large / low-cohesion clusters, co-changing pairs). Use it to orient in an unfamiliar codebase before diving in.
+- **Co-change edges** — `/mb graph --apply --cochange`. Adds `co_change` edges from **git history** (files that change together across commits) — coupling the static graph misses. Query: `jq -c 'select(.type=="edge" and .kind=="co_change")' .memory-bank/codebase/graph.json`. High co-change with **no** structural edge = hidden/implicit coupling worth a second look.
+- **Semantic search** — `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<query>" [--backend auto|bm25|embeddings] [--k N]`. Answers *"where is the logic for X?"* by ranking graph symbols (+ wiki articles, if built) by relevance. Default backend is pure-Python **BM25** ($0, zero deps, deterministic); `--backend embeddings` uses local `sentence-transformers` when installed, else falls back to BM25. Use it for fuzzy/intent queries; use `jq`/structural queries for exact "who-calls-X".
+- **Wiki + surprising connections** — `/mb wiki` (LLM, via host subagents — **no API key**). **Haiku** writes one article per community → `codebase/wiki/community-<N>.md` + `index.md`; **Sonnet** finds *surprising connections* (semantically related files with **no** import/call/inherit edge) and merges them as `semantic` edges (`confidence` + `rationale`, validated + **idempotent**). The wiki articles also feed semantic search. Run/refresh after a major feature when you want a navigable map + the non-obvious links the static graph cannot derive. `--dry-run` previews the dispatch plan without spending tokens.
+
+**Routing for the code-agent:** exact structural question ("who calls / imports / inherits X?") → `jq` over `graph.json`; intent/fuzzy ("where is the logic for X?", "find similar") → `mb-semantic-search.py`; "what else changes with this file?" → `co_change` edges; "give me a map / the non-obvious links" → `/mb wiki`. **Fail open:** missing/stale graph → suggest `/mb graph --apply`; missing optional dep (`networkx` for communities, `sentence-transformers` for embeddings) → degrade and surface the one-line install, never block the task.
+
+### Session memory — cross-session recall
+
+The skill logs every session to `.memory-bank/session/*.md` (git-tracked markdown) via lifecycle hooks (Stop → per-turn bullet, SessionEnd → Haiku summary + gated Sonnet auto-notes, SessionStart → injects recent sessions). This is **persistent project memory that carries across chats**, distinct from the codebase graph.
+
+- **`/mb recall <query>`** — lexical recall (ripgrep) over `session/` + `notes/`. Use for *"did we discuss X before?"*, *"why did we choose Y?"*, *"have we hit this error?"* — before re-deriving something from scratch.
+- Distinct from `/mb search` (searches core MB files) and from semantic code search (`mb-semantic-search.py`, searches the code graph). Session memory = conversation history; code graph = structure; core files = status/plan.
+- **Off-switch:** `export MB_SESSION_CAPTURE=off` disables capture. Recall stays read-only and safe even when capture is off.
 
 ---
 

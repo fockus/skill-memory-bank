@@ -1,6 +1,14 @@
 
 # claude-skill-memory-bank — Progress Log
 
+## 2026-06-07 (provision intelligence layer + session-memory into installed rules)
+
+- **Why:** `install.sh` Step 1 overwrites `~/.claude/RULES.md` from `rules/RULES.md` and refreshes the `[MEMORY-BANK-SKILL]` block in `~/.claude/CLAUDE.md` from `rules/CLAUDE-GLOBAL.md`. The graph intelligence layer + session-memory guidance lived only in hand-edited `~/.claude/*` → would be wiped on the next upgrade, and new users never got them. Fix = put them in the repo source-of-truth.
+- **Part A (rules):** added § Intelligence layer (`--questions`/`--cochange`/`mb-semantic-search.py`/`/mb wiki` + routing) and `co_change`/`semantic` edge kinds + session-memory `/mb recall` guidance to `rules/RULES.md`; opt-in one-liner + recall to `rules/CLAUDE-GLOBAL.md`; opt-in + routing to `references/claude-md-template.md`. Contract test `test_rules_cover_intelligence_layer.py` (11) — RED→GREEN.
+- **Part B (session-memory packaging):** git-tracked the 4 session hooks + `hooks/lib/`; `install.sh` now installs `hooks/lib/`; `settings/hooks.json` registers them (new SessionStart event + Stop/SessionEnd entries, marker-tagged); `SKILL.md` `## Hooks` documents all four. Contract test `test_session_memory_packaging.py` (12) — RED→GREEN.
+- **Verification:** full pytest **1072 passed, 0 failed** (was 1049 + 1 fail; the previously-failing `test_skill_md_hooks_table_lists_all_hooks` is now resolved because session-memory is properly shipped + documented). `hooks.json` valid JSON; `install.sh` `bash -n` clean; ruff clean. TDD throughout (tests RED before edits).
+- **Decision:** session hooks registered via copied-path `~/.claude/hooks/...` (consistent with `mb-recall.sh` doc + `session-end-autosave.sh`); `install.sh` copies `hooks/lib/` so `$HOOK_DIR/lib/` resolves.
+
 ## 2026-06-06 (code graph — opt-in LLM wiki + surprising connections + semantic search + suggested questions)
 
 - **Plan:** [`plans/done/2026-06-06_feature_graph-wiki-semantic.md`](plans/done/2026-06-06_feature_graph-wiki-semantic.md) — feature, 6 stages, DONE. Supersedes `I-063`.
