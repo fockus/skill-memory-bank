@@ -1884,3 +1884,9 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - **GREEN re-test**: both agents now lead with `STATUS: DONE` and paste real pytest output; rubric ~3.0 → ~4.6 (improvement on 3/3 key dims). Verified independently (10 / 15 passed, wiring OK, no stubs).
 - **Tests**: repo pytest 870 passed; 2 pre-existing failures unrelated to this work (references/design-principles.md unlinked in SKILL.md; mb-rules-check.sh 703-line SRP debt) — flagged, out of scope.
 - Plan: `plans/2026-06-02_refactor_subagent-strengthening.md`. Docs: SKILL.md agents table + composition note, CHANGELOG Unreleased.
+
+## 2026-06-02
+
+### Auto-capture 2026-06-02 (session cee07182)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)

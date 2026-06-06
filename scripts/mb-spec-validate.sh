@@ -18,9 +18,19 @@
 #      are unaffected — this check is a no-op when no scenario blocks exist.
 #   8. (--require-scenarios, opt-in) Each REQ-NNN is covered by ≥ 1 scenario.
 #      OFF by default so existing EARS-only specs stay valid.
+#   9. (--require-tests, opt-in) Each REQ-NNN is referenced by ≥ 1 test under
+#      `<repo>/tests/` or `<mb>/tests/` (the same scan traceability uses). Closes
+#      the REQ→test loop: a requirement with no covering test is a violation.
+#      OFF by default. Pair with `/mb verify` (which proves the tests pass).
+#      NOTE: the repo root is derived from the bank's parent (local-mode `.memory-bank`).
+#      For a GLOBAL-storage bank — or tests in a sub-package — pass an ABSOLUTE
+#      `MB_TEST_ROOTS` so the scan hits the real checkout. Coverage is matched on the
+#      canonical REQ-ID; under per-spec-local numbering a bare `REQ-NNN` shared by two
+#      specs can be satisfied by either spec's test — prefer prefixed schemes
+#      (`REQ-RS-008`) or spec-qualified markers to avoid cross-spec attribution.
 #
 # Usage:
-#   mb-spec-validate.sh [--json] [--require-scenarios] <topic|spec-dir|spec-file> [mb_path]
+#   mb-spec-validate.sh [--json] [--require-scenarios] [--require-tests] <topic|spec-dir|spec-file> [mb_path]
 #
 # Resolver:
 #   - If the first non-flag argument points to an existing directory or file →
@@ -39,6 +49,7 @@ source "$(dirname "$0")/_lib.sh"
 
 JSON_MODE=0
 REQUIRE_SCENARIOS=0
+REQUIRE_TESTS=0
 TARGET=""
 MB_ARG=""
 
@@ -46,8 +57,9 @@ for arg in "$@"; do
   case "$arg" in
     --json) JSON_MODE=1 ;;
     --require-scenarios) REQUIRE_SCENARIOS=1 ;;
+    --require-tests) REQUIRE_TESTS=1 ;;
     -h|--help)
-      sed -n '2,34p' "$0"
+      sed -n '2,44p' "$0"
       exit 0
       ;;
     *)
@@ -162,11 +174,15 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 
 if [ -n "$TASKS_JSONL" ] && [ -f "$REQ_FILE" ]; then
-  TASKS_DATA="$TASKS_JSONL" REQ_PATH="$REQ_FILE" \
+  TASKS_DATA="$TASKS_JSONL" REQ_PATH="$REQ_FILE" MB_SCRIPT_DIR="$SCRIPT_DIR" \
     python3 - >>"$VIOLATIONS_FILE" <<'PY'
 import json
 import os
 import re
+import sys
+
+sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
+import mb_req_id as rq  # shared REQ-ID grammar (scheme + slash + def-vs-mention)
 
 tasks_raw = os.environ.get("TASKS_DATA", "")
 req_path = os.environ.get("REQ_PATH", "")
@@ -186,19 +202,16 @@ req_text = ""
 if req_path and os.path.exists(req_path):
     with open(req_path, encoding="utf-8") as fh:
         req_text = fh.read()
-req_ids = set(re.findall(r"\bREQ-(\d{3,})\b", req_text))
+req_ids = set(rq.find_definitions(req_text))
 
-covered = set()
+covered: set[str] = set()
 testing_re = re.compile(r"\btesting\b", re.IGNORECASE)
 for item in tasks:
     no = item.get("item_no", "?")
     covers = item.get("covers") or []
     if not covers:
         print(f"task {no} missing Covers field")
-    for c in covers:
-        m = re.match(r"REQ-(\d{3,})$", str(c))
-        if m:
-            covered.add(m.group(1))
+    covered.update(rq.extract_req_ids(", ".join(str(c) for c in covers)))
     if not item.get("dod_lines"):
         print(f"task {no} missing DoD checkboxes")
     body = item.get("body") or ""
@@ -207,7 +220,7 @@ for item in tasks:
 
 for req in sorted(req_ids):
     if req not in covered:
-        print(f"REQ-{req} orphan (no task Covers)")
+        print(f"{req} orphan (no task Covers)")
 PY
 fi
 
@@ -229,12 +242,14 @@ if [ -f "$REQ_FILE" ] && [ -f "$SCENARIO_SCRIPT" ]; then
 
   if [ "$REQUIRE_SCENARIOS" -eq 1 ]; then
     SCEN_JSONL=$(python3 "$SCENARIO_SCRIPT" "$REQ_FILE" 2>/dev/null || true)
-    REQ_PATH="$REQ_FILE" SCEN_DATA="$SCEN_JSONL" \
+    REQ_PATH="$REQ_FILE" SCEN_DATA="$SCEN_JSONL" MB_SCRIPT_DIR="$SCRIPT_DIR" \
       python3 - >>"$VIOLATIONS_FILE" <<'PY'
-import json, os, re
+import json, os, sys
+sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
+import mb_req_id as rq
 req_text = open(os.environ["REQ_PATH"], encoding="utf-8").read()
-req_ids = set(re.findall(r"\bREQ-(\d{3,})\b", req_text))
-covered = set()
+req_ids = set(rq.find_definitions(req_text))
+covered: set[str] = set()
 for line in os.environ.get("SCEN_DATA", "").splitlines():
     line = line.strip()
     if not line:
@@ -243,15 +258,69 @@ for line in os.environ.get("SCEN_DATA", "").splitlines():
         s = json.loads(line)
     except json.JSONDecodeError:
         continue
-    for c in s.get("covers") or []:
-        m = re.match(r"REQ-(\d{3,})$", str(c))
-        if m:
-            covered.add(m.group(1))
+    covered.update(rq.extract_req_ids(", ".join(str(c) for c in s.get("covers") or [])))
 for req in sorted(req_ids):
     if req not in covered:
-        print(f"REQ-{req} has no scenario (--require-scenarios)")
+        print(f"{req} has no scenario (--require-scenarios)")
 PY
   fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Check 9: (--require-tests) every REQ referenced by ≥1 test file.
+#   Scans <repo>/tests and <mb>/tests by default; MB_TEST_ROOTS (colon-separated,
+#   relative to the repo root or absolute) points at a sub-package's tests.
+# ─────────────────────────────────────────────────────────────────────────────
+
+if [ "$REQUIRE_TESTS" -eq 1 ] && [ -f "$REQ_FILE" ]; then
+  # SPEC_DIR is <mb>/specs/<topic>; derive <mb> and the repo root from it.
+  MB_GUESS=$(cd "$SPEC_DIR/../.." 2>/dev/null && pwd || true)
+  REPO_GUESS=""
+  [ -n "$MB_GUESS" ] && REPO_GUESS=$(cd "$MB_GUESS/.." 2>/dev/null && pwd || true)
+  REQ_PATH="$REQ_FILE" MB_SCRIPT_DIR="$SCRIPT_DIR" \
+    MB_GUESS="$MB_GUESS" REPO_GUESS="$REPO_GUESS" \
+    python3 - >>"$VIOLATIONS_FILE" <<'PY'
+import os, sys
+from pathlib import Path
+sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
+import mb_req_id as rq
+
+req_text = open(os.environ["REQ_PATH"], encoding="utf-8").read()
+req_ids = set(rq.find_definitions(req_text))
+
+repo = os.environ.get("REPO_GUESS", "")
+mb = os.environ.get("MB_GUESS", "")
+env_roots = os.environ.get("MB_TEST_ROOTS", "").strip()
+roots: list[Path] = []
+if env_roots and repo:
+    for r in env_roots.split(":"):
+        r = r.strip()
+        if r:
+            roots.append(Path(r) if os.path.isabs(r) else Path(repo) / r)
+elif env_roots:
+    roots = [Path(r.strip()) for r in env_roots.split(":") if r.strip()]
+else:
+    if repo:
+        roots.append(Path(repo) / "tests")
+    if mb:
+        roots.append(Path(mb) / "tests")
+
+exts = {".py", ".ts", ".tsx", ".js", ".go", ".rs", ".sh", ".kt", ".swift", ".rb", ".java"}
+covered: set[str] = set()
+for root in roots:
+    if not root.is_dir():
+        continue
+    for tf in root.rglob("*"):
+        if tf.is_file() and tf.suffix in exts:
+            try:
+                covered.update(rq.find_test_ids(tf.read_text(encoding="utf-8", errors="ignore")))
+            except OSError:
+                continue
+
+for req in sorted(req_ids):
+    if req not in covered:
+        print(f"{req} has no covering test (--require-tests)")
+PY
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────

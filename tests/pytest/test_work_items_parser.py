@@ -323,6 +323,28 @@ def test_status_detection(
     assert items[0].status == expected_status
 
 
+@pytest.mark.parametrize(
+    "heading",
+    ["**DoD (SMART)**", "**DoD**", "**DoD (acceptance)**"],
+    ids=["smart_suffix", "bare", "acceptance_suffix"],
+)
+def test_dod_heading_accepts_qualifier_suffix(
+    tmp_path: pathlib.Path, heading: str
+) -> None:
+    """The DoD heading may carry a qualifier (``(SMART)``) — the global rules call
+    for ``DoD (SMART)`` — so checkboxes under it must parse like ``**DoD:**``.
+    """
+    body = f"**Covers:** REQ-020\n**Role:** developer\n\n{heading}\n- [x] first\n- [x] second\n"
+    plan = tmp_path / "2026-01-01_feature_dod_qualifier.md"
+    plan.write_text(PLAN_HEADER + _make_stage(1, "DoD qualifier", body), encoding="utf-8")
+
+    items = parse_work_items(plan)
+
+    assert len(items) == 1
+    assert len(items[0].dod_lines) == 2, f"DoD checkboxes not parsed under {heading!r}"
+    assert items[0].status == "done"
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Test 13 — topic from plan filename strips date prefix
 # ──────────────────────────────────────────────────────────────────────────────

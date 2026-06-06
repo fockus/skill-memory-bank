@@ -145,6 +145,70 @@ def test_mixed_3_valid_1_invalid_reports_only_invalid() -> None:
     assert "REQ-023" not in r.stderr
 
 
+def test_wrapped_requirement_with_shall_on_continuation_line_valid() -> None:
+    """A requirement that wraps across physical lines (``shall`` on the second
+    line) is still valid EARS — the validator must read the whole bullet.
+
+    Before the wrap-aware fix the line-oriented check saw only the first line
+    (``...the system``) and falsely reported a violation.
+    """
+    r = _run(
+        "- **REQ-RS-001** (event-driven): When research yields candidates, the system\n"
+        "  shall return three recommendations; when only two exist, it shall return two.\n"
+    )
+    assert r.returncode == 0, r.stderr
+
+
+def test_wrapped_requirement_without_shall_anywhere_invalid() -> None:
+    r = _run(
+        "- **REQ-RS-099** (event-driven): When research yields candidates, the system\n"
+        "  returns three recommendations without using the modal verb.\n"
+    )
+    assert r.returncode == 1
+    assert "REQ-RS-099" in r.stderr
+
+
+def test_wrapped_continuation_does_not_excuse_a_triggerless_requirement_line() -> None:
+    """The EARS trigger keyword must be on the requirement line itself; only the
+    ``shall`` clause may wrap. A title-only requirement whose continuation (e.g.
+    acceptance notes) merely contains 'When … shall' must still be flagged.
+    """
+    content = (
+        "- **REQ-001** This requirement is just a title placeholder.\n"
+        "  Acceptance: When the user does X the system shall eventually do Y.\n"
+    )
+    r = _run(content)
+    assert r.returncode == 1
+    assert "REQ-001" in r.stderr
+
+
+def test_wrap_stops_at_a_nested_sub_bullet_whose_shall_must_not_excuse() -> None:
+    """A nested sub-bullet under a requirement is a boundary, not a continuation:
+    its ``shall`` must not be absorbed to excuse a requirement line that lacks one.
+    """
+    content = (
+        "- **REQ-001** (event-driven): When X happens, the system records it.\n"
+        "  - a nested acceptance note that says the system shall do Y.\n"
+    )
+    r = _run(content)
+    assert r.returncode == 1
+    assert "REQ-001" in r.stderr
+
+
+def test_wrapped_valid_followed_by_invalid_does_not_mask_the_invalid() -> None:
+    """Aggregation must stop at the next REQ bullet so a preceding valid
+    requirement's ``shall`` cannot satisfy the following invalid one."""
+    content = (
+        "- **REQ-100** (event-driven): When X happens, the system\n"
+        "  shall do Y.\n"
+        "- **REQ-101** (event-driven): When Z happens, the system records it.\n"
+    )
+    r = _run(content)
+    assert r.returncode == 1
+    assert "REQ-101" in r.stderr
+    assert "REQ-100" not in r.stderr
+
+
 def test_usage_error_exits_2(tmp_path: Path) -> None:
     """File argument that does not exist → exit 2 (usage error)."""
     bogus = tmp_path / "does-not-exist.md"

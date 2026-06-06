@@ -339,6 +339,122 @@ def test_pytest_naming_convention(tmp_path: Path) -> None:
     assert "test_foo.py" in tests_cell, f"expected test filename in Tests cell, got: {tests_cell!r}"
 
 
+def test_prefixed_scheme_reqs_appear_in_matrix_with_tests(tmp_path: Path) -> None:
+    """REG-SCHEME: a spec using the ``REQ-RS-NNN`` scheme must land in the matrix,
+    and a test referencing it (pytest identifier form) must populate Tests.
+
+    Before the shared-grammar fix the digit-only regex matched neither the
+    ``REQ-RS-001`` definition nor the ``test_..._req_rs_008`` reference, so such
+    a spec was invisible to traceability.
+    """
+    mb = _init_mb(tmp_path)
+    (mb / "specs" / "stream").mkdir()
+    (mb / "specs" / "stream" / "requirements.md").write_text(
+        dedent("""\
+            # stream requirements
+
+            - **REQ-RS-001** (event-driven): When X, the system shall Y.
+            - **REQ-RS-008** (state-driven): While Z, the system shall cap concurrency.
+            """),
+        encoding="utf-8",
+    )
+    tests_root = mb / "tests" / "infra"
+    tests_root.mkdir(parents=True)
+    (tests_root / "test_cap.py").write_text(
+        "def test_browser_concurrency_cap_is_shared_req_rs_008():\n    pass\n",
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+    trace = (mb / "traceability.md").read_text(encoding="utf-8")
+    matrix = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+
+    for req_id in ("REQ-RS-001", "REQ-RS-008"):
+        rows = [ln for ln in matrix.splitlines() if ln.startswith(f"| {req_id} |")]
+        assert len(rows) == 1, f"expected one matrix row for {req_id}, got: {rows}"
+
+    cap_row = next(ln for ln in matrix.splitlines() if ln.startswith("| REQ-RS-008 |"))
+    cells = [c.strip() for c in cap_row.strip().strip("|").split("|")]
+    assert cells[4] != "—", f"REQ-RS-008 Tests column must be populated, got: {cells[4]!r}"
+    assert "test_cap.py" in cells[4]
+
+
+def test_plan_covers_slash_shorthand_is_expanded(tmp_path: Path) -> None:
+    """A plan that covers ``REQ-RS-002/003`` (slash-shorthand, frontmatter or inline
+    marker) must mark BOTH REQ-RS-002 and REQ-RS-003 as planned — consistent with
+    how task Covers fields are expanded.
+    """
+    mb = _init_mb(tmp_path)
+    (mb / "specs" / "stream").mkdir()
+    (mb / "specs" / "stream" / "requirements.md").write_text(
+        dedent("""\
+            # stream requirements
+
+            - **REQ-RS-002** (event-driven): When X, the system shall A.
+            - **REQ-RS-003** (event-driven): When Y, the system shall B.
+            """),
+        encoding="utf-8",
+    )
+    (mb / "plans" / "2026-06-04_feature_stream.md").write_text(
+        dedent("""\
+            ---
+            topic: stream
+            linked_spec: specs/stream
+            ---
+
+            # Plan: stream
+
+            ## Task 1
+
+            <!-- covers: REQ-RS-002/003 -->
+            - [ ] Step 1
+            """),
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+    trace = (mb / "traceability.md").read_text(encoding="utf-8")
+    matrix = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+    for req_id in ("REQ-RS-002", "REQ-RS-003"):
+        row = next(ln for ln in matrix.splitlines() if ln.startswith(f"| {req_id} |"))
+        cells = [c.strip() for c in row.strip().strip("|").split("|")]
+        assert "feature_stream" in cells[3], (
+            f"{req_id} must be planned via the slash-shorthand marker, got Plan cell: {cells[3]!r}"
+        )
+
+
+def test_mid_line_cross_reference_does_not_create_phantom_row(tmp_path: Path) -> None:
+    """REG-PHANTOM: a REQ named mid-sentence (a cross-reference to another spec's
+    requirement) must NOT register as a requirement of the referencing spec.
+    """
+    mb = _init_mb(tmp_path)
+    (mb / "specs" / "stream").mkdir()
+    (mb / "specs" / "stream" / "requirements.md").write_text(
+        dedent("""\
+            # stream requirements
+
+            - **REQ-RS-013** (state-driven): While streaming to Telegram, the system
+              shall throttle edits, preserving the single-edited-message invariant (REQ-015).
+            """),
+        encoding="utf-8",
+    )
+
+    result = _run(mb)
+    assert result.returncode == 0, result.stderr
+    trace = (mb / "traceability.md").read_text(encoding="utf-8")
+    matrix = trace.split("## Matrix", 1)[1].split("## Orphans", 1)[0]
+
+    stream_rows = [
+        ln for ln in matrix.splitlines() if "specs/stream/requirements.md" in ln
+    ]
+    assert any("REQ-RS-013" in ln for ln in stream_rows), "the real REQ-RS-013 must register"
+    assert not any("REQ-015" in ln for ln in stream_rows), (
+        "the mid-line cross-reference (REQ-015) must not create a phantom stream row"
+    )
+
+
 def test_traceability_gen_still_handles_plan_only_repos(tmp_path: Path) -> None:
     """REG-C3: repo with plan coverage but no specs/tasks.md must still generate
     traceability with `—` in the Spec Task column for every row.

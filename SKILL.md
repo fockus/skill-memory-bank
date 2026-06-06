@@ -142,7 +142,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb_rules_check_baseline.sh` | Baseline SRP / Clean Architecture / TDD checks for `mb-rules-check.sh` |
 | `mb_rules_check_stack.sh` | Stack-aware and FSD checks for `mb-rules-check.sh` |
 | `mb-test-run.sh` | Structured test runner with per-stack output parsing → strict JSON |
-| `mb-deps-check.sh [--install-hints]` | Preflight dependency checker (python3, jq, git + optional tree-sitter) |
+| `mb-deps-check.sh [--install-hints]` | Preflight dependency checker (python3, jq, git + optional tree-sitter, networkx) |
 | `mb-checklist-prune.sh [--apply]` | Collapse completed sections in `checklist.md` to one-liners (≤120-line cap) |
 | `mb-compact.sh [--apply]` | Status-based compaction decay — archive old done plans + low-importance notes |
 | `mb-tags-normalize.sh [--apply]` | Levenshtein-based tag synonym detection + merge across `notes/` |
@@ -153,7 +153,8 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-sdd.sh <topic>` | Create a Kiro-style spec triple under `specs/<topic>/` (requirements / design / tasks). Scaffolds an optional `## Scenarios` (GIVEN/WHEN/THEN) section |
 | `mb-scenario-extract.py <file>` | Extract `<!-- mb-scenario:N -->` GIVEN/WHEN/THEN blocks → normalized test-plan (JSON Lines: covers + steps + stable `test_id`). `--validate` checks present scenarios are well-formed. Opt-in layer; absent scenarios → empty/no-op |
 | `mb_work_items.py` | Shared parser for plan stages (`<!-- mb-stage:N -->`) and spec tasks (`<!-- mb-task:N -->`); CLI emits JSON Lines |
-| `mb-spec-validate.sh <topic\|spec-dir\|spec-file>` | Validate spec triple integrity (EARS, parseable tasks, per-task Covers/DoD/Testing, no REQ orphans). Present GIVEN/WHEN/THEN scenarios are structure-checked; `--require-scenarios` (opt-in) also enforces ≥1 scenario per REQ. `--json` mode for structured output |
+| `mb_req_id.py` | Shared REQ-ID grammar (single source of truth) used by traceability / spec-validate / ears-validate. Supports prefixed schemes (`REQ-RS-008`), distinguishes a definition from a mid-line mention, expands `REQ-RS-002/003` slash-shorthand, and maps pytest identifiers (`req_rs_008`) onto canonical ids |
+| `mb-spec-validate.sh <topic\|spec-dir\|spec-file>` | Validate spec triple integrity (EARS, parseable tasks, per-task Covers/DoD/Testing, no REQ orphans). Present GIVEN/WHEN/THEN scenarios are structure-checked; `--require-scenarios` (opt-in) enforces ≥1 scenario per REQ; `--require-tests` (opt-in) enforces ≥1 covering test per REQ (scans `<repo>/tests`, `<mb>/tests`, or `MB_TEST_ROOTS`). `--json` mode for structured output |
 | `mb-spec-tasks-migrate.sh <topic\|tasks-file> [--apply\|--dry-run]` | Migrate legacy `## N. ...` tasks to `<!-- mb-task:N -->` format. Dry-run default, --apply writes backup before changes, idempotent |
 | `mb-pipeline.sh` | Manage the project's `pipeline.yaml` (spec §9) |
 | `mb-pipeline-validate.sh` | Structural validation for `pipeline.yaml` (spec §9) |
@@ -170,7 +171,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-migrate-v2.sh` | One-shot v1 → v2 migrator for `.memory-bank/` |
 | `mb-migrate-structure.sh` | One-shot v3.0 → v3.1 structure migrator for `.memory-bank/` |
 | `mb-import.py` | Claude Code JSONL → Memory Bank bootstrap importer |
-| `mb-codegraph.py` | Python AST-based code graph builder (multi-language via tree-sitter) |
+| `mb-codegraph.py` | AST-based code graph builder (multi-language via tree-sitter). Analytics — communities, cohesion, betweenness — in `memory_bank_skill/codegraph_analytics.py` (optional networkx) |
 | `mb-graph-query.py` | Query `codebase/graph.json`: `neighbors`, `impact`, `tests`, `explain`, `summary` with JSON/markdown output |
 | `mb_graph_query_core.py` | Core graph loading, matching and payload builders for `mb-graph-query.py` |
 | `mb_graph_query_render.py` | Markdown summary renderers for graph-query output |

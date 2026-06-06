@@ -22,7 +22,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MB_PATH=$(mb_resolve_path "${1:-}")
 [ -d "$MB_PATH" ] || { echo "[error] .memory-bank not found at: $MB_PATH" >&2; exit 1; }
 
-MB_WORK_ITEMS="$SCRIPT_DIR/mb_work_items.py" python3 - "$MB_PATH" <<'PY'
+MB_WORK_ITEMS="$SCRIPT_DIR/mb_work_items.py" MB_SCRIPT_DIR="$SCRIPT_DIR" \
+  python3 - "$MB_PATH" <<'PY'
 import json
 import os
 import re
@@ -30,15 +31,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
+import mb_req_id as rq  # shared REQ-ID grammar (scheme + slash + def-vs-mention)
+
 mb = Path(sys.argv[1])
 specs_dir = mb / "specs"
 plans_dir = mb / "plans"
 out_path = mb / "traceability.md"
 
 mb_work_items_path = os.environ.get("MB_WORK_ITEMS", "")
-
-REQ_RE = re.compile(r"\bREQ-(\d{3,})\b")
-REQ_TEST_RE = re.compile(r"REQ_(\d{3,})")
 
 # T5: handle no-specs state
 if not specs_dir.is_dir() or not any(specs_dir.glob("*/requirements.md")):
@@ -63,8 +64,10 @@ for req_file in sorted(specs_dir.glob("*/requirements.md")):
     spec_name = req_file.parent.name
     spec_rel = f"specs/{spec_name}/requirements.md"
     text = req_file.read_text(encoding="utf-8")
-    for m in REQ_RE.finditer(text):
-        req_id = f"REQ-{m.group(1)}"
+    # Only REQs *defined* on a bullet/heading line register as this spec's
+    # requirements; a mid-line cross-reference (e.g. ``(REQ-015)``) is a mention,
+    # not a definition, so it never creates a phantom row.
+    for req_id in rq.find_definitions(text):
         reqs.setdefault(
             (spec_name, req_id),
             {
@@ -110,8 +113,9 @@ def parse_list(raw: str) -> list[str]:
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 COVERS_MARKER_RE = re.compile(r"<!--\s*covers:\s*(.+?)\s*-->")
-# A covers token is a bare REQ-NNN or a spec-qualified `spec-name:REQ-NNN`.
-COVERS_TOKEN_RE = re.compile(r"^(?:[A-Za-z0-9_.-]+:)?REQ-\d{3,}$")
+# A covers token is a bare REQ-NNN or a spec-qualified `spec-name:REQ-NNN`
+# (shared grammar — supports prefixed schemes like REQ-RS-008).
+COVERS_TOKEN_RE = rq.COVERS_TOKEN_RE
 
 
 def plan_paths() -> list[Path]:
@@ -163,16 +167,24 @@ for plan in plan_paths():
     for m in COVERS_MARKER_RE.finditer(text):
         for item in m.group(1).split(","):
             item = item.strip()
-            if COVERS_TOKEN_RE.match(item):
+            # Accept a bare/qualified token or a slash-shorthand range.
+            if COVERS_TOKEN_RE.match(item) or rq.extract_req_ids(item):
                 covered.add(item)
     if not covered:
         continue
     scope = (plan_specs & all_spec_names) or None
     rel = plan.relative_to(mb).as_posix()
     for ref in covered:
-        for key in _targets_for_ref(ref, scope):
-            existing = reqs[key]["planned"]
-            reqs[key]["planned"] = (existing + " " if existing else "") + rel
+        # Expand the REQ-RS-002/003 slash-shorthand while preserving any `spec:`
+        # qualifier, so a plan covering a shorthand range plans each member —
+        # consistent with how task Covers fields are expanded.
+        qual, sep, body = ref.partition(":")
+        prefix = qual + ":" if sep else ""
+        expanded = rq.extract_req_ids(body if sep else ref) or [body if sep else ref]
+        for eid in expanded:
+            for key in _targets_for_ref(prefix + eid, scope):
+                existing = reqs[key]["planned"]
+                reqs[key]["planned"] = (existing + " " if existing else "") + rel
 
 # T2.5: scan specs/*/tasks.md via mb_work_items.py
 if mb_work_items_path and Path(mb_work_items_path).is_file():
@@ -198,18 +210,29 @@ if mb_work_items_path and Path(mb_work_items_path).is_file():
                 item = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            for req_id in item.get("covers", []):
-                req_id = req_id.upper()
-                # A task is defined inside its spec, so its bare REQ-NNN is
-                # unambiguously that spec's requirement (per-spec-local).
+            # Covers fields are free-form (``REQ-RS-002/003 (rationale)``); pull
+            # clean ids out, expanding the slash-shorthand. A task is defined
+            # inside its spec, so its bare REQ-NNN is unambiguously that spec's
+            # requirement (per-spec-local).
+            for req_id in rq.extract_req_ids(", ".join(item.get("covers", []))):
                 key = (spec_topic, req_id)
                 if key in reqs:
                     reqs[key]["spec_tasks"].append(
                         (spec_topic, item["item_no"])
                     )
 
-# T3: grep tests at repo-root/tests and mb/tests
-test_roots = [mb.parent / "tests", mb / "tests"]
+# T3: grep tests. Default roots are repo-root/tests and mb/tests; a project whose
+# tests live in a sub-package (monorepo / `app/tests`) sets MB_TEST_ROOTS (a
+# colon-separated list, relative to the repo root = mb.parent, or absolute).
+_env_roots = os.environ.get("MB_TEST_ROOTS", "").strip()
+if _env_roots:
+    test_roots = [
+        Path(r) if Path(r).is_absolute() else mb.parent / r
+        for r in _env_roots.split(":")
+        if r.strip()
+    ]
+else:
+    test_roots = [mb.parent / "tests", mb / "tests"]
 for root in test_roots:
     if not root.is_dir():
         continue
@@ -222,14 +245,19 @@ for root in test_roots:
             content = tf.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        hits: set[str] = set()
-        for m in REQ_RE.finditer(content):
-            hits.add(f"REQ-{m.group(1)}")
-        for m in REQ_TEST_RE.finditer(content):
-            hits.add(f"REQ-{m.group(1)}")
+        # A test references a REQ either as a pytest identifier
+        # (``test_..._req_rs_008``) or in a docstring (``REQ-RS-002/011``).
+        hits: set[str] = set(rq.find_test_ids(content))
         if not hits:
             continue
-        rel = tf.relative_to(mb.parent if root == mb.parent / "tests" else mb).as_posix()
+        # Relativise to the repo root when possible, else the mb dir, else absolute.
+        try:
+            rel = tf.relative_to(mb.parent).as_posix()
+        except ValueError:
+            try:
+                rel = tf.relative_to(mb).as_posix()
+            except ValueError:
+                rel = tf.as_posix()
         for req in hits:
             for key in _targets_for_ref(req):
                 existing = reqs[key]["tests"]

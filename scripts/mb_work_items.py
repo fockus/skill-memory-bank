@@ -35,7 +35,9 @@ _DATE_PREFIX_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_")
 
 _COVERS_RE = re.compile(r"^\*\*covers:\*\*\s*(.+)$", re.IGNORECASE)
 _ROLE_RE = re.compile(r"^\*\*Role:\*\*\s*(\S+)", re.IGNORECASE)
-_DOD_HEADING_RE = re.compile(r"^\*\*DoD:\*\*", re.IGNORECASE)
+# Accept a qualifier after DoD (the global rules call for "DoD (SMART)"):
+# `**DoD:**`, `**DoD (SMART)**`, `**DoD**` all open the section.
+_DOD_HEADING_RE = re.compile(r"^\*\*DoD\b", re.IGNORECASE)
 _CHECKBOX_RE = re.compile(r"^- \[[ xX]\] .+")
 _CHECKED_RE = re.compile(r"^- \[[xX]\] ")
 
