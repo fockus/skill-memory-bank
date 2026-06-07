@@ -118,8 +118,59 @@ _TS_NODE_KINDS = {
 }
 
 
+_TS_DOC_MAX = 200  # match the Python extractor's docstring cap
+
+
 def _ts_node_text(node: Any, source: bytes) -> str:
     return source[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+
+
+def _ts_signature(node: Any, source: bytes) -> str | None:
+    """Declaration head (everything before the body block), collapsed + capped.
+
+    Uses the tree-sitter ``body`` child boundary so a ``{`` inside generic
+    constraints (``<T extends {…}>``) or default object params (``= {…}``) does
+    NOT truncate the signature. Falls back to a naive ``{``-split / first line
+    for body-less declarations (interfaces, method signatures).
+    e.g. ``function greet(u: User): string`` / ``class Service`` / ``interface User``.
+    """
+    body = node.child_by_field_name("body")
+    if body is not None:
+        head = source[node.start_byte:body.start_byte].decode("utf-8", errors="replace")
+    else:
+        text = _ts_node_text(node, source)
+        head = text.split("{", 1)[0] or (text.splitlines()[0] if text else "")
+    collapsed = " ".join(head.split())
+    return collapsed[:_TS_DOC_MAX] or None
+
+
+def _ts_leading_doc(node: Any, source: bytes) -> str | None:
+    """JSDoc (`/** … */`) immediately preceding the declaration, else None.
+
+    Gated on ``/**`` to skip banner/line comments. Degrades to None when the
+    binding lacks ``prev_named_sibling`` (older tree-sitter).
+    """
+    prev = getattr(node, "prev_named_sibling", None)
+    if prev is None or prev.type != "comment":
+        return None
+    raw = _ts_node_text(prev, source).strip()
+    if not raw.startswith("/**"):
+        return None
+    inner = raw.removeprefix("/**").removesuffix("*/")
+    parts = [ln.strip().lstrip("*").strip() for ln in inner.splitlines()]
+    text = " ".join(p for p in parts if p)
+    return text[:_TS_DOC_MAX] or None
+
+
+def _ts_enrich(node_dict: dict[str, Any], node: Any, source: bytes) -> dict[str, Any]:
+    """Add optional ``signature``/``doc`` to a function/class node (omit when empty)."""
+    sig = _ts_signature(node, source)
+    if sig:
+        node_dict["signature"] = sig
+    doc = _ts_leading_doc(node, source)
+    if doc:
+        node_dict["doc"] = doc
+    return node_dict
 
 
 def _ts_find_name(node: Any, source: bytes) -> str:
@@ -201,8 +252,13 @@ def _ts_find_inherit_targets(node: Any, source: bytes, lang: str) -> list[str]:
     return targets
 
 
-def parse_ts_file(py_path: Path, src_root: Path, lang_name: str, module_name: str) -> dict[str, Any]:
-    """Parse non-Python file via tree-sitter. Returns same schema as parse_file."""
+def parse_ts_file(py_path: Path, src_root: Path, lang_name: str, module_name: str,
+                  include_docs: bool = False) -> dict[str, Any]:
+    """Parse non-Python file via tree-sitter. Returns same schema as parse_file.
+
+    ``include_docs`` (opt-in) adds optional ``signature``/``doc`` to function and
+    class nodes; default off keeps graph.json output byte-identical.
+    """
     parser = get_ts_parser(lang_name, module_name)
     if parser is None:
         raise RuntimeError(f"tree-sitter parser unavailable for {lang_name}")
@@ -226,13 +282,15 @@ def parse_ts_file(py_path: Path, src_root: Path, lang_name: str, module_name: st
         if t in func_types:
             name = _ts_find_name(n, source)
             if name:
-                nodes.append({"kind": "function", "name": name, "file": file_rel,
-                              "line": n.start_point[0] + 1})
+                fn_node = {"kind": "function", "name": name, "file": file_rel,
+                           "line": n.start_point[0] + 1}
+                nodes.append(_ts_enrich(fn_node, n, source) if include_docs else fn_node)
         elif t in class_types:
             name = _ts_find_name(n, source)
             if name:
-                nodes.append({"kind": "class", "name": name, "file": file_rel,
-                              "line": n.start_point[0] + 1})
+                cls_node = {"kind": "class", "name": name, "file": file_rel,
+                            "line": n.start_point[0] + 1}
+                nodes.append(_ts_enrich(cls_node, n, source) if include_docs else cls_node)
         elif t in import_types:
             for target in _ts_find_import_target(n, source, lang_name):
                 edges.append({"src": file_rel, "dst": target, "kind": "import"})

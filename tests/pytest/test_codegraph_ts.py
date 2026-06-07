@@ -260,3 +260,87 @@ def test_broken_go_syntax_skipped(cg_mod, src_root, capsys):
     # The valid file must be in the graph
     files = {n["file"] for n in graph["nodes"] if "file" in n}
     assert "good.go" in files
+
+
+# ═══════════════════════════════════════════════════════════════
+# doc/signature enrichment — opt-in include_docs (Goal C)
+# ═══════════════════════════════════════════════════════════════
+
+
+def test_ts_signature_and_jsdoc_when_include_docs(cg_mod, src_root):
+    write_file(src_root, "svc.ts", """
+        /** Greets a user. */
+        function greet(u: User): string { return u.name; }
+    """)
+    graph = cg_mod.build_graph(src_root, include_docs=True)
+    fn = next(n for n in graph["nodes"] if n.get("name") == "greet")
+    assert fn["signature"].startswith("function greet") and "User" in fn["signature"]
+    assert "Greets a user" in fn["doc"]
+
+
+def test_ts_default_omits_doc_and_signature(cg_mod, src_root):
+    write_file(src_root, "svc.ts", """
+        function greet(): string { return "hi"; }
+    """)
+    graph = cg_mod.build_graph(src_root)  # default: no enrichment
+    fn = next(n for n in graph["nodes"] if n.get("name") == "greet")
+    assert "signature" not in fn and "doc" not in fn
+
+
+def test_ts_function_without_jsdoc_omits_doc(cg_mod, src_root):
+    write_file(src_root, "svc.ts", """
+        function plain(): void {}
+    """)
+    graph = cg_mod.build_graph(src_root, include_docs=True)
+    fn = next(n for n in graph["nodes"] if n.get("name") == "plain")
+    assert "signature" in fn and "doc" not in fn
+
+
+def test_ts_class_signature_when_include_docs(cg_mod, src_root):
+    write_file(src_root, "svc.ts", """
+        class Service extends Base { run(): void {} }
+    """)
+    graph = cg_mod.build_graph(src_root, include_docs=True)
+    cls = next(n for n in graph["nodes"] if n.get("name") == "Service")
+    assert cls["signature"].startswith("class Service") and "{" not in cls["signature"]
+
+
+def test_ts_interface_signature_when_include_docs(cg_mod, src_root):
+    write_file(src_root, "svc.ts", """
+        interface User { name: string; }
+    """)
+    graph = cg_mod.build_graph(src_root, include_docs=True)
+    iface = next(n for n in graph["nodes"] if n.get("name") == "User")
+    assert iface["signature"] == "interface User"
+
+
+def test_ts_signature_not_truncated_by_generic_constraint(cg_mod, src_root):
+    write_file(src_root, "svc.ts", """
+        function clamp<T extends { min: number }>(x: T): T { return x; }
+    """)
+    graph = cg_mod.build_graph(src_root, include_docs=True)
+    fn = next(n for n in graph["nodes"] if n.get("name") == "clamp")
+    assert "extends" in fn["signature"] and "): T" in fn["signature"]
+
+
+def test_ts_non_jsdoc_comment_yields_no_doc(cg_mod, src_root):
+    write_file(src_root, "svc.ts", """
+        // not a jsdoc comment
+        function f(): void {}
+    """)
+    graph = cg_mod.build_graph(src_root, include_docs=True)
+    fn = next(n for n in graph["nodes"] if n.get("name") == "f")
+    assert "doc" not in fn and "signature" in fn
+
+
+def test_ts_multiline_jsdoc_collapsed(cg_mod, src_root):
+    write_file(src_root, "svc.ts", """
+        /**
+         * line one
+         * line two
+         */
+        function f(): void {}
+    """)
+    graph = cg_mod.build_graph(src_root, include_docs=True)
+    fn = next(n for n in graph["nodes"] if n.get("name") == "f")
+    assert fn["doc"] == "line one line two"

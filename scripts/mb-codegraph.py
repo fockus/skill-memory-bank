@@ -124,10 +124,12 @@ def _filter_gitignored(files: list[Path], src_root: Path) -> list[Path]:
 def build_graph(
     src_root: Path,
     cache_dir: Path | None = None,
+    include_docs: bool = False,
 ) -> dict[str, Any]:
     """Walk src_root, parse each supported file, aggregate nodes+edges.
 
-    If cache_dir provided: skip re-parse when file hash matches cache.
+    If cache_dir provided: skip re-parse when file hash AND docs-mode match cache.
+    ``include_docs`` (opt-in) emits optional ``doc``/``signature`` node fields.
     Returns aggregated {"nodes": [...], "edges": [...], "reparsed": N, "cached": M}.
     """
     all_nodes: list[dict[str, Any]] = []
@@ -172,10 +174,11 @@ def build_graph(
         except (OSError, UnicodeDecodeError):
             continue
 
-        # Cache check
+        # Cache check (hash AND docs-mode must match, else re-parse)
         if cache_dir is not None:
             cached_data = _load_cache(cache_dir, rel_path)
-            if cached_data and cached_data.get("hash") == content_hash:
+            if (cached_data and cached_data.get("hash") == content_hash
+                    and bool(cached_data.get("docs", False)) == include_docs):
                 all_nodes.extend(cached_data.get("nodes", []))
                 all_edges.extend(cached_data.get("edges", []))
                 cached += 1
@@ -184,10 +187,11 @@ def build_graph(
         # Dispatch parser
         try:
             if ext == ".py":
-                result = cgpy.parse_file(src_file, src_root)
+                result = cgpy.parse_file(src_file, src_root, include_docs=include_docs)
             elif ext in cgts.LANG_CONFIG and cgts.HAS_TREE_SITTER:
                 lang_name, module_name = cgts.LANG_CONFIG[ext]
-                result = cgts.parse_ts_file(src_file, src_root, lang_name, module_name)
+                result = cgts.parse_ts_file(src_file, src_root, lang_name, module_name,
+                                            include_docs=include_docs)
             else:
                 continue
         except SyntaxError as e:
@@ -202,6 +206,7 @@ def build_graph(
         reparsed += 1
 
         if cache_dir is not None:
+            result["docs"] = include_docs  # stamp docs-mode so a flag toggle re-parses
             _save_cache(cache_dir, rel_path, result)
 
     return {"nodes": all_nodes, "edges": all_edges, "reparsed": reparsed, "cached": cached}
@@ -248,8 +253,12 @@ def run(
     mode: str = "dry-run",
     cochange: bool = False,
     questions: bool = False,
+    docs: bool = False,
 ) -> dict[str, Any]:
-    """Build graph, optionally write outputs. Returns summary dict."""
+    """Build graph, optionally write outputs. Returns summary dict.
+
+    ``docs`` (opt-in) enriches function/class/module nodes with ``doc``/``signature``.
+    """
     mb = Path(mb_path)
     src = Path(src_root)
     if not mb.is_dir():
@@ -263,7 +272,7 @@ def run(
     if cache_dir is not None:
         cache_dir.mkdir(exist_ok=True)
 
-    graph = build_graph(src, cache_dir)
+    graph = build_graph(src, cache_dir, include_docs=docs)
     node_count = len(graph["nodes"])
     edge_count = len(graph["edges"])
 
@@ -326,6 +335,9 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--questions", action="store_true",
                         help="Append deterministic suggested questions to god-nodes.md "
                              "(opt-in; requires --apply)")
+    parser.add_argument("--docs", action="store_true",
+                        help="Enrich nodes with doc/signature for richer semantic search "
+                             "(opt-in; changes graph.json — clears nothing, re-parses on toggle)")
     parser.add_argument("mb_path", nargs="?", default=".memory-bank")
     parser.add_argument("src_root", nargs="?", default=".")
     args = parser.parse_args(argv[1:])
@@ -333,7 +345,7 @@ def main(argv: list[str]) -> int:
     mode = "apply" if args.apply else "dry-run"
     try:
         run(mb_path=args.mb_path, src_root=args.src_root, mode=mode,
-            cochange=args.cochange, questions=args.questions)
+            cochange=args.cochange, questions=args.questions, docs=args.docs)
     except FileNotFoundError as e:
         print(f"[error] {e}", file=sys.stderr)
         return 1

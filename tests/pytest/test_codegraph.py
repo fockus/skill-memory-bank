@@ -334,3 +334,6 @@ def test_god_nodes_sorted_by_degree_desc(cg_mod, mb_path, src_root):
     lonely_idx = content.find("lonely")
     if lonely_idx > 0:
         assert pop_idx < lonely_idx
+
+# Note: opt-in --docs doc/signature enrichment tests live in test_codegraph_docs.py
+# (split out to keep this file under the 400-line gate).
