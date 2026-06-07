@@ -10,14 +10,24 @@ argument-hint: <decision-title>
 
 If `$ARGUMENTS` is empty, stop and ask the user for the decision title. Do not proceed with an empty title.
 
-## 1. Context
+## 1. When to record an ADR (3-gate)
+
+Offer an ADR **only when all three are true** (from `grill-with-docs`):
+
+1. **Hard to reverse** — the cost of changing your mind later is meaningful.
+2. **Surprising without context** — a future reader will look at the code and wonder "why on earth did they do it this way?"
+3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons.
+
+If any gate fails, skip the ADR: an easy-to-reverse decision will just be reversed; an unsurprising one needs no explanation; a no-alternative one records nothing beyond "we did the obvious thing." When the user explicitly asks for an ADR, honour it — but note which gate is weak.
+
+## 2. Context
 
 - Read `./.memory-bank/backlog.md` — existing ADRs live in the `## Architectural decisions (ADR)` section.
 - If no `## Architectural decisions` section exists, create it at the bottom of `backlog.md` under a `---` divider.
 - Study the relevant part of the codebase so the decision has real grounding.
 - Make sure this decision (or a close variant) has not already been recorded or rejected — search with `grep -i "<keyword>" .memory-bank/backlog.md`.
 
-## 2. Determine the next ADR number
+## 3. Determine the next ADR number
 
 ```bash
 grep -oE 'ADR-[0-9]+' .memory-bank/backlog.md | sort -V | tail -1
@@ -27,7 +37,7 @@ grep -oE 'ADR-[0-9]+' .memory-bank/backlog.md | sort -V | tail -1
 
 Numbering is monotonic — never reuse an ID, even if an ADR was later rejected or replaced.
 
-## 3. Draft the decision
+## 4. Draft the decision
 
 Show the user a draft before writing. Required parts:
 
@@ -38,7 +48,7 @@ Show the user a draft before writing. Required parts:
 
 Ask for confirmation.
 
-## 4. Append to `backlog.md`
+## 5. Append to `backlog.md`
 
 Use the ADR line format from `references/templates.md`:
 
@@ -48,7 +58,7 @@ Use the ADR line format from `references/templates.md`:
 
 Append under the `## Architectural decisions (ADR)` section. Do not rewrite existing ADRs. If the decision is long enough that one line is insufficient, split onto multiple bullet points under ADR-NNN (keep the header line as the identifier).
 
-## 5. Optional cross-link
+## 6. Optional cross-link
 
 If the decision is significant enough that future sessions will benefit from a full note:
 
@@ -58,7 +68,7 @@ bash ~/.claude/skills/memory-bank/scripts/mb-note.sh "adr-NNN-<slug>"
 
 Fill the returned file with frontmatter (`type: decision`, relevant `tags`, `importance: high`) and expand each section of the ADR.
 
-## 6. Summary
+## 7. Summary
 
 Report:
 - `ADR-NNN` identifier assigned

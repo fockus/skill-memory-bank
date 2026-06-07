@@ -38,6 +38,8 @@ The 5 phases below are the **coverage checklist**, not a rigid script. While wal
 1. **Recommend, don't just ask.** Every question carries your recommended answer + a one-line rationale. The user confirms or corrects — never fills a blank. (Inspired by `grill-me`.)
 2. **Code answers beat guesses.** If a question is answerable from the codebase, resolve it via the MB code graph / graphify / grep **before** asking, and cite `file:line`. Only ask the user what the code genuinely can't tell you: intent, priorities, trade-offs.
 3. **Follow the dependency tree.** When an answer unblocks a downstream decision, chase that branch to resolution before returning to the next phase — order questions by dependency, not strictly by phase number.
+4. **Stress-test with concrete scenarios.** Don't ask "any edge cases?" in the abstract — invent specific scenarios ("the feed has the product but `price` is null") and force a precise answer on the boundary. (From `grill-with-docs`.)
+5. **Surface contradictions with code.** When stated intent conflicts with what the code actually does, call it out: "the code does X, but you said Y — which is right?" Resolve the contradiction before recording the requirement.
 
 #### Phase 1 — Purpose & Users
 
@@ -76,7 +78,7 @@ Performance, security, scale, observability. Capture as `**NFR-NNN**: <descripti
 
 #### Phase 5 — Edge Cases & Failure Modes
 
-What breaks at boundaries? What happens when dependencies fail? What's the worst-case input?
+What breaks at boundaries? What happens when dependencies fail? What's the worst-case input? Apply grilling rule 4 — probe each with a **concrete scenario**, not an abstract category.
 
 ### Write & finalize
 
