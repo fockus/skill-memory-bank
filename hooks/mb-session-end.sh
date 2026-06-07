@@ -51,6 +51,19 @@ already_judged=false;     [ "$(sc_fm_get "$SF" judged)" = "true" ]     && alread
 [ "$already_summarized" = true ] && [ "$already_judged" = true ] && exit 0
 command -v "$CLAUDE" >/dev/null 2>&1 || exit 0
 
+# ── Empty-session guard ──────────────────────────────────────────────────────
+# Skip trivial sessions before spending any LLM call. A session is substantive only
+# if its Live log carries at least one non-empty user request OR at least one real
+# tool call (anything other than "(none)"). Empty-prompt turns (User: "" · tools:
+# (none)) would otherwise get a full Haiku summary and flood _recent.md and the
+# semantic index with "no substantive work" noise. Only gates not-yet-summarized
+# sessions, so a substantive session whose judge was killed can still be re-judged
+# on a later SessionEnd. Off-switch: MB_SESSION_EMPTY_GUARD=off.
+if [ "${MB_SESSION_EMPTY_GUARD:-on}" != "off" ] && [ "$already_summarized" != true ]; then
+  _livelog="$(awk '/^## Live log/{f=1; next} f && /^## /{f=0} f' "$SF")"
+  printf '%s\n' "$_livelog" | grep -qE 'User: "[^"]|tools: [A-Za-z]' || exit 0
+fi
+
 # Summary source. Prefer the full raw transcript only when it fits the summarizer's context
 # window. Oversized sessions (raw transcripts reach tens of MB) made `claude -p` emit
 # "Prompt is too long" — which used to be stored AS the summary. When the transcript is too
@@ -190,11 +203,16 @@ while [ "$i" -lt "$count" ]; do
   title="$(printf '%s' "$notes_json" | "$JQ" -r ".[$i].title // empty")"
   body="$(printf '%s' "$notes_json" | "$JQ" -r ".[$i].body // empty")"
   if [ -n "$title" ]; then
-    slug="$(printf '%s' "$title" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' | cut -c1-50)"
+    # Clean slug: lowercase, spaces→dash, drop non-[a-z0-9-], squeeze repeated dashes,
+    # trim leading/trailing dashes (before AND after the length cap so truncation never
+    # leaves a trailing "-"). Prevents junk slugs like "adr-3-gate-rule-----".
+    slug="$(printf '%s' "$title" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' \
+      | tr -s '-' | sed 's/^-*//; s/-*$//' | cut -c1-50 | sed 's/-*$//')"
     [ -n "$slug" ] || slug="note"
     notefile="$MB/notes/$(date +%Y-%m-%d)_$(date +%H%M)_${slug}.md"
     [ -e "$notefile" ] && notefile="${notefile%.md}-$i.md"
     {
+      printf -- '---\ntype: note\ntags: [session-memory]\nimportance: medium\nsource: session-memory\n---\n\n'
       printf '# %s\n\n' "$title"
       printf '%s\n\n' "$body"
       printf -- '---\n*Auto-captured by MB session-memory (session %s).*\n' "$sid8"
