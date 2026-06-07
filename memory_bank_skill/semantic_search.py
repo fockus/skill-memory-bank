@@ -25,6 +25,20 @@ _CAMEL = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|[0-9]+")
 _SNIPPET = 120
 _MAX_WIKI_CHARS = 8000  # bounded read for wiki article docs
 
+# A path is a test/spec file when a path segment is `tests/`/`__tests__/`, the
+# filename carries a `.test.`/`.spec.` infix or a `_test` suffix, or it is a
+# pytest `test_*.py` file. Anchored on segment/extension boundaries so
+# `latest.py` / `contest.py` are NOT matched.
+_TEST_PATH = re.compile(
+    r"(?:^|/)tests?/|(?:^|/)__tests__/|(?:^|/)test_[^/]*\.py$|\.(?:test|spec)\.|_test\b",
+    re.IGNORECASE,
+)
+
+
+def is_test_path(path: str) -> bool:
+    """True when *path* looks like a test/spec file rather than production source."""
+    return bool(_TEST_PATH.search(path))
+
 
 def tokenize(text: str) -> list[str]:
     """Code-aware tokenizer: split punctuation/underscore, then snake_case + camelCase.
@@ -114,6 +128,8 @@ class Bm25Retriever:
             "file": doc.get("file", ""),
             "score": round(score, 6),
             "snippet": doc["text"][:_SNIPPET],
+            "kind": doc.get("kind", ""),
+            "is_test": doc.get("is_test", False),
         } for score, doc in scored[:k]]
 
 
@@ -129,9 +145,13 @@ def build_corpus(
             continue
         name = str(n.get("name", ""))
         file_name = str(n.get("file", ""))
-        text = f"{name} {kind} {file_name.replace('/', ' ')}"
+        # Optional doc/signature (present only when graph built with `--docs`) enrich
+        # the indexed text so search matches intent words, not just identifiers.
+        extra = [str(n[f]) for f in ("signature", "doc") if n.get(f)]
+        text = " ".join([name, kind, file_name.replace("/", " "), *extra])
         doc_id = file_name if name == file_name else f"{file_name}:{name}"
-        docs.append({"id": doc_id, "file": file_name, "text": text})
+        docs.append({"id": doc_id, "file": file_name, "text": text,
+                     "kind": kind, "is_test": is_test_path(file_name)})
     if wiki_dir is not None:
         wd = Path(wiki_dir)
         if wd.is_dir():
@@ -142,21 +162,30 @@ def build_corpus(
                     "id": f"wiki/{md.name}",
                     "file": f"wiki/{md.name}",
                     "text": text,
+                    "kind": "wiki",
+                    "is_test": False,
                 })
     return docs
 
 
-def make_retriever(backend: str = "auto", *, warnings: list[str] | None = None) -> Retriever:
+def make_retriever(
+    backend: str = "auto",
+    *,
+    warnings: list[str] | None = None,
+    cache_dir: Path | str | None = None,
+) -> Retriever:
     """Resolve a retriever. ``auto`` = embeddings if available else BM25.
 
     Explicit ``embeddings`` with the optional dependency absent → warn + BM25.
+    ``cache_dir`` is forwarded ONLY to the embeddings retriever (on-disk vector
+    cache); the zero-dep BM25 path never receives it.
     """
     warns = warnings if warnings is not None else []
     if backend == "bm25":
         return Bm25Retriever()
 
     from memory_bank_skill.semantic_embeddings import EmbeddingRetriever
-    embedder = EmbeddingRetriever()
+    embedder = EmbeddingRetriever(cache_dir=cache_dir)
     if embedder.available:
         return embedder
     if backend == "embeddings":
@@ -171,8 +200,12 @@ def run_search(
     mb_path: str,
     backend: str = "auto",
     k: int = 10,
+    source_only: bool = False,
 ) -> dict[str, Any]:
-    """Load the graph, build the corpus, search. Returns a JSON-serialisable dict."""
+    """Load the graph, build the corpus, search. Returns a JSON-serialisable dict.
+
+    ``source_only`` drops test/spec docs before indexing (works for any backend).
+    """
     mb = Path(mb_path)
     graph_path = mb / "codebase" / "graph.json"
     warnings: list[str] = []
@@ -187,7 +220,10 @@ def run_search(
 
     wiki_dir = mb / "codebase" / "wiki"
     corpus = build_corpus(nodes, wiki_dir if wiki_dir.is_dir() else None)
-    retriever = make_retriever(backend, warnings=warnings)
+    if source_only:
+        corpus = [d for d in corpus if not d.get("is_test")]
+    cache_dir = mb / ".index" / "codesearch"
+    retriever = make_retriever(backend, warnings=warnings, cache_dir=cache_dir)
     retriever.index(corpus)
     hits = retriever.search(query, k)
     return {
@@ -195,6 +231,7 @@ def run_search(
         "query": query,
         "backend": retriever.name,
         "corpus_size": len(corpus),
+        "source_only": source_only,
         "hits": hits,
         "warnings": warnings,
     }
@@ -211,5 +248,6 @@ def render_hits_md(result: dict[str, Any]) -> str:
         lines.append("_No matches._")
         return "\n".join(lines)
     for i, h in enumerate(result["hits"], 1):
-        lines.append(f"{i}. `{h['file']}` — {h['id']}  (score {h['score']})")
+        tag = " [test]" if h.get("is_test") else ""
+        lines.append(f"{i}. `{h['file']}` — {h['id']}  (score {h['score']}){tag}")
     return "\n".join(lines)
