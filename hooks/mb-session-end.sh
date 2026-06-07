@@ -154,10 +154,28 @@ $SRC"
 JUDGE_OUT="$(printf '%s' "$JUDGE_PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
   --model "$JUDGE_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
 
-# tolerate surrounding prose: extract the first JSON array if present
-notes_json="$(printf '%s' "$JUDGE_OUT" | "$JQ" -c 'if type=="array" then . else empty end' 2>/dev/null || true)"
+# Extract the first top-level JSON array from the judge output. The output usually carries a
+# preamble: most often `[MEMORY BANK: ACTIVE]`, which the `claude -p` subprocess emits because
+# it obeys the project CLAUDE.md guard — also possibly ```json fences or prose. A plain jq
+# parse and a line-based sed both miss the array behind such a preamble, so we scan for the
+# first position that decodes as a JSON array. jq is the fallback when python3 is unavailable.
+notes_json="$(printf '%s' "$JUDGE_OUT" | python3 -c '
+import sys, json
+s = sys.stdin.read()
+dec = json.JSONDecoder()
+i, n = 0, len(s)
+while i < n:
+    if s[i] == "[":
+        try:
+            val, _ = dec.raw_decode(s, i)
+        except ValueError:
+            val = None
+        if isinstance(val, list):
+            sys.stdout.write(json.dumps(val)); break
+    i += 1
+' 2>/dev/null || true)"
 if [ -z "$notes_json" ]; then
-  notes_json="$(printf '%s' "$JUDGE_OUT" | sed -n 's/.*\(\[.*\]\).*/\1/p' | "$JQ" -c '.' 2>/dev/null || true)"
+  notes_json="$(printf '%s' "$JUDGE_OUT" | "$JQ" -c 'if type=="array" then . else empty end' 2>/dev/null || true)"
 fi
 [ -n "$notes_json" ] || exit 0
 

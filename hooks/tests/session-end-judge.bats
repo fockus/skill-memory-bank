@@ -177,3 +177,35 @@ _mksf_state() { # $1=tools $2=turns $3=summarized $4=judged(optional)
   grep -q '^summarized: true' "$SF"   # summary persisted...
   ! grep -q '^judged: true' "$SF"     # ...but judge stays retryable
 }
+
+@test "judge output prefixed with [MEMORY BANK: ACTIVE] preamble → array still extracted" {
+  # The `claude -p` judge subprocess runs inside a project with .memory-bank/, so it obeys the
+  # CLAUDE.md guard and prepends `[MEMORY BANK: ACTIVE]` before the JSON array. A plain jq parse
+  # and a line-based sed both miss the array behind that preamble → notes were silently lost.
+  _mksf "Bash,Edit" 2
+  printf '[MEMORY BANK: ACTIVE]\n\n[{"title":"Recovered","body":"works despite preamble"}]' > "$NOTES_JSON"
+  run bash -c "CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$MB/notes/"*.md 2>/dev/null | wc -l | tr -d ' ')" -eq 1 ]
+  grep -q '## Auto-notes emitted' "$SF"
+  grep -q '^judged: true' "$SF"
+}
+
+@test "judge output with [MEMORY BANK: ACTIVE] preamble + empty [] → judged set, 0 notes" {
+  _mksf "Bash,Edit" 2
+  printf '[MEMORY BANK: ACTIVE]\n\n[]' > "$NOTES_JSON"
+  run bash -c "CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$MB/notes/"*.md 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]
+  ! grep -q '## Auto-notes emitted' "$SF"
+  grep -q '^judged: true' "$SF"
+}
+
+@test "judge output wrapped in json code fences → array still extracted" {
+  _mksf "Bash,Edit" 2
+  printf '```json\n[{"title":"Fenced","body":"x"}]\n```' > "$NOTES_JSON"
+  run bash -c "CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$MB/notes/"*.md 2>/dev/null | wc -l | tr -d ' ')" -eq 1 ]
+  grep -q '^judged: true' "$SF"
+}
