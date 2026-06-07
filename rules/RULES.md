@@ -396,156 +396,28 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
 
 ## Subagents
 
-All subagents run on **sonnet** unless noted. Prompts live in `~/.claude/skills/memory-bank/agents/<name>.md`. Do **NOT** delegate plan creation, architectural decisions, or ML-result interpretation to a subagent — that is main-agent work.
+All subagents run on **sonnet** unless noted; prompts in `~/.claude/skills/memory-bank/agents/<name>.md`. **Full roster + when-to-invoke → `SKILL.md` § Agents** — lifecycle / quality-gate agents (`mb-manager`, `plan-verifier`, `mb-doctor`, `mb-codebase-mapper`, `mb-rules-enforcer`, `mb-test-runner`, `mb-reviewer`), the 9 `/mb work` dev-role agents (`mb-developer` / `mb-architect` / `mb-backend` / `mb-frontend` / `mb-ios` / `mb-android` / `mb-devops` / `mb-qa` / `mb-analyst`), and the `/mb wiki` agents.
 
-### Lifecycle & quality-gate agents
+`/mb work` prepends the **partial** `mb-engineering-core` before every dev-role agent (core + role + work-item): the core carries shared discipline (TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims / Iron Law, escalation), each role file only its domain delta — a role file invoked standalone is discipline-thin by design.
 
-| Agent | When invoked | Role |
-|-------|--------------|------|
-| `mb-manager` | `/mb context`, `search`, `note`, `tasks`, `done`, `update`, PreCompact hook | Mechanical actualization of core files (checklist ⬜→✅, progress append, status metrics) |
-| `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan | Rereads plan, inspects `git diff` (uses `**Baseline commit:**` from plan header), checks every DoD item against real code; delegates tests to `mb-test-runner`, RULES to `mb-rules-enforcer`; classifies CRITICAL / WARNING / OK |
-| `mb-doctor` | `/mb doctor` | Finds bank inconsistencies (plan ↔ checklist ↔ roadmap ↔ status). Runs `mb-plan-sync.sh` first, only edits for semantic drift |
-| `mb-codebase-mapper` | `/mb map [focus]` | Scans codebase → `codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md` |
-| `mb-rules-enforcer` | `/review`, `/commit`, `/pr`, `plan-verifier` step 3.6 | Runs `mb-rules-check.sh` (solid/srp, clean_arch/direction, tdd/delta) + LLM ISP/DRY judgment → strict JSON |
-| `mb-test-runner` | `/test`, `plan-verifier` step 3.5 | Runs `mb-test-run.sh`, correlates failures with session diff → JSON `{stack, tests_pass, tests_total, failures[], coverage, duration_ms}` |
-| `mb-reviewer` | `/mb work` review-loop | Reads stage diff + `pipeline.yaml:review_rubric` → JSON verdict APPROVED / CHANGES_REQUESTED with severity-classified issues |
-
-### `/mb work` dev-role agents
-
-`mb-engineering-core` is a **partial** prompt (`partial: true`, not in the registry, never dispatched alone). `/mb work` prepends it before every dev-role agent: `prompt = core + "\n---\n" + role + work_item`. The core carries the shared discipline (TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims / Iron Law, escalation, STATUS contract, anti-rationalization); each role file carries only its domain delta. A role file invoked standalone is discipline-thin by design — read the core first.
-
-| Agent | Domain |
-|-------|--------|
-| `mb-developer` | Generic implementer when no specialist matches |
-| `mb-architect` | Architecture / ADR / system-design, domain modelling, refactoring strategy |
-| `mb-backend` | APIs, services, database, async/concurrency, server-side logic |
-| `mb-frontend` | React/Vue/Svelte/Solid components, browser UI, a11y, responsive layouts |
-| `mb-ios` | SwiftUI/UIKit, Combine, async/await, Apple conventions |
-| `mb-android` | Jetpack Compose, Kotlin coroutines, Hilt/DI, Room, Material3 |
-| `mb-devops` | CI/CD, Docker, Kubernetes, Terraform, observability, release engineering |
-| `mb-qa` | Test design, coverage strategy, edge-case enumeration, flake elimination, contract tests |
-| `mb-analyst` | Data / analytics / metrics: SQL, dashboards, cohorts, ETL, instrumentation |
-
-### Wiki agents (`/mb wiki`)
-
-| Agent | Tier | Role |
-|-------|------|------|
-| `mb-wiki-author` | Haiku | One codebase-wiki article per community from a deterministic evidence pack |
-| `mb-wiki-synthesizer` | Sonnet | Finds surprising cross-community connections → strict-JSON `semantic` edges |
-
-### Invocation format
-
-```
-Agent(subagent_type="general-purpose", model="sonnet",
-      description="<desc>",
-      prompt="<contents of agents/<agent>.md>\n\naction: <action>\n\n<context>")
-```
+Do **NOT** delegate plan creation, architectural decisions, or ML-result interpretation to a subagent — that is main-agent work.
 
 ---
 
 ## `/mb` Commands
 
-The skill is **three-in-one**: long-term project memory (`.memory-bank/`) + the engineering RULES in this file + a dev toolkit of 25 commands. Below is the full surface, grouped by purpose.
+The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineering RULES in this file + a dev toolkit of 25 commands. **Full command reference → `/mb help` (or `commands/mb.md`); scripts table → `SKILL.md` § Tools.** Essentials:
 
-### Lifecycle & context
-
-| Command                   | Description                                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `/mb` or `/mb context`    | Gather project context (status, checklist, plan). `--deep` expands full `codebase/*.md`                       |
-| `/mb start`               | Extended session start (context + full active plan)                                                          |
-| `/mb search <query>`      | Search the bank by keywords (`--tag` filters via `index.json`)                                               |
-| `/mb recall <query>`      | Lexical recall over session-memory log + notes (ripgrep over `session/` + `notes/`); off: `MB_SESSION_CAPTURE=off` |
-| `/mb note <topic>`        | Create a note for the topic                                                                                  |
-| `/mb update`              | Actualize core files (`checklist`, `plan`, `status`) — no note, no progress entry                            |
-| `/mb tasks`               | Show unfinished tasks                                                                                        |
-| `/mb index`               | Registry of all bank entries (core files + notes/plans/experiments/reports with counts)                      |
-| `/mb done`                | End the session (actualize + note + progress)                                                                |
-| `/mb init`                | Initialize Memory Bank. Flags: `--storage=local` (default) \| `--storage=global --agent=<name>` (personal, not committed); `--full` (default, stack auto-detect + CLAUDE.md) \| `--minimal` (structure only) |
-
-### Planning & spec-driven (SDD)
-
-| Command                   | Description                                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `/mb plan <type> <topic>` | Create a plan (`type`: `feature` \| `fix` \| `refactor` \| `experiment` \| `architecture`) with `<!-- mb-stage:N -->` markers |
-| `/mb discuss <topic>`     | EARS-validated requirements interview → `context/<topic>.md`                                                 |
-| `/mb sdd <topic>`         | Create the spec triple `specs/<topic>/{requirements,design,tasks}.md`; `tasks.md` is executable (`<!-- mb-task:N -->`) |
-| `/mb work <topic>`        | Execute plan stages or spec tasks one by one (see `§ /mb work — execution engine`)                           |
-| `/mb verify`              | Verify execution (plan/spec vs code, all DoD items). **MANDATORY** before `/mb done` if work followed a plan |
-| `/mb idea "<title>" [HIGH\|MED\|LOW]` | Capture an idea in `backlog.md` with auto `I-NNN`                                                |
-| `/mb idea-promote I-NNN <type>` | Promote an idea into an active plan                                                                    |
-| `/mb adr "<title>"`       | Architecture Decision Record in `backlog.md` with auto `ADR-NNN`                                             |
-
-### Codebase intelligence & housekeeping
-
-| Command                   | Description                                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `/mb map [focus]`         | Scan codebase → `codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md` (subagent `mb-codebase-mapper`)      |
-| `/mb graph --apply`       | Build/refresh `codebase/graph.json` + `god-nodes.md`. Opt-in: `--questions`, `--cochange`                    |
-| `/mb wiki`                | LLM per-community wiki + "surprising connections" (`semantic` edges) via host subagents, no API key          |
-| `/mb doctor`              | Detect bank inconsistencies (plan ↔ checklist ↔ roadmap ↔ status); `mb-plan-sync.sh` first, then semantic fixes |
-| `/mb compact [--dry-run\|--apply]` | Status-based decay — archive old done plans + low-importance notes                                  |
-| `/mb config`              | Manage the project's `pipeline.yaml` (init / show / validate / path)                                         |
-| `/mb profile`             | Rule-profile manager (`init`/`show`/`path`/`validate`/`set`) — personalize rules per stack (see `§ Rule profiles`) |
-| `/mb roadmap-sync`        | Regenerate `roadmap.md` autosync block from `plans/*.md` frontmatter                                         |
-| `/mb traceability-gen`    | Regenerate `traceability.md` from specs + plans + tests                                                      |
-| `/mb upgrade [--check]`   | Self-update the skill from GitHub                                                                            |
-
-### Standalone dev-toolkit commands
-
-These are top-level slash commands shipped with the skill (not under `/mb`), usable in any Memory-Bank-aware session:
-
-`/start` · `/done` · `/plan` · `/discuss` · `/sdd` · `/work` · `/config` · `/profile` · `/commit` · `/pr` · `/review` · `/test` · `/refactor` · `/doc` · `/changelog` · `/catchup` · `/adr` · `/contract` · `/security-review` · `/api-contract` · `/db-migration` · `/observability` · `/roadmap-sync` · `/traceability-gen`.
-
-Most mirror the `/mb` equivalents; `/commit`, `/pr`, `/review`, `/test`, `/security-review`, `/contract`, `/db-migration`, `/observability` are dev workflow helpers that also run `mb-rules-enforcer` / `mb-test-runner` where relevant.
-
-### Key scripts — `~/.claude/skills/memory-bank/scripts/`
-
-Commands above are thin wrappers; when a host lacks native slash commands, call these directly (they accept `.memory-bank/` in CWD or an `mb_path` argument).
-
-| Script | Purpose |
-|--------|---------|
-| `mb-context.sh [--deep]` | Build context from core files |
-| `mb-plan.sh` / `mb-plan-sync.sh` / `mb-plan-done.sh` | Create / sync (plan↔checklist↔roadmap↔status) / close a plan |
-| `mb-sdd.sh` · `mb-spec-validate.sh` · `mb-scenario-extract.py` · `mb-ears-validate.sh` | SDD: scaffold triple · validate integrity · extract GIVEN/WHEN/THEN test-plan · EARS check |
-| `mb-rules-check.sh` | Deterministic SRP / Clean-Architecture / TDD-delta enforcement |
-| `mb-test-run.sh` | Structured test runner → strict JSON (per-stack parsing) |
-| `mb-metrics.sh [--run]` | Language-agnostic metrics across 12 stacks |
-| `mb-drift.sh` | 8 deterministic drift checkers (used by `/mb doctor`) |
-| `mb-codegraph.py` · `mb-graph-query.py` · `mb-code-context.py` · `mb-semantic-search.py` · `mb-wiki.py` | Code graph: build · query (`neighbors`/`impact`/`tests`/`explain`) · GraphRAG-lite evidence pack · semantic search · wiki engine |
-| `mb-roadmap-sync.sh` · `mb-traceability-gen.sh` | Regenerate roadmap autosync block / traceability matrix |
-| `mb-compact.sh` · `mb-checklist-prune.sh` · `mb-tags-normalize.sh` · `mb-index-json.py` | Housekeeping: decay · prune checklist · merge tag synonyms · build `index.json` |
-| `mb-pipeline.sh` · `mb-work-*.sh` | `/mb work` engine: pipeline config + range/budget/protected-paths/severity-gate helpers |
-| `mb-import.py` · `mb-migrate-v2.sh` · `mb-profile.sh` | Bootstrap from Claude Code JSONL · v1→v2 migration · rule-profile manager |
+- **Lifecycle / context:** `/mb` (context), `/mb start`, `/mb done`, `/mb update`, `/mb search`, `/mb recall`, `/mb index`, `/mb init` (`--storage=local` default | `--storage=global --agent=<name>`).
+- **Planning / SDD:** `/mb plan <type> <topic>`, `/mb discuss`, `/mb sdd`, `/mb work`, `/mb verify` (**MANDATORY before `/mb done` when work followed a plan**), `/mb idea`, `/mb idea-promote`, `/mb adr`.
+- **Codebase / housekeeping:** `/mb map`, `/mb graph --apply` (`--questions` / `--cochange`), `/mb wiki`, `/mb doctor`, `/mb compact`, `/mb config`, `/mb profile`, `/mb roadmap-sync`, `/mb traceability-gen`, `/mb upgrade`.
+- **Standalone toolkit** (top-level, not under `/mb`): `/commit` · `/pr` · `/review` · `/test` · `/refactor` · `/doc` · `/changelog` · `/catchup` · `/contract` · `/security-review` · `/api-contract` · `/db-migration` · `/observability` — most mirror the `/mb` equivalents and also run `mb-rules-enforcer` / `mb-test-runner` where relevant.
 
 ---
 
 ## `.memory-bank/` Structure
 
-**Core (read every session):**
-
-
-| File           | Purpose                                             | When to update                                          |
-| -------------- | --------------------------------------------------- | ------------------------------------------------------- |
-| `status.md`    | Where we are, roadmap, key metrics, gates           | Stage completed, roadmap shifted, metrics changed       |
-| `checklist.md` | Current tasks ✅/⬜                                   | Every session, immediately when a task is completed     |
-| `roadmap.md`      | Priorities and direction                            | When the focus/vector changes                           |
-| `research.md`  | Hypothesis registry + findings + current experiment | When hypothesis status changes or a new finding appears |
-
-
-**Detailed records (read on demand):**
-
-
-| File / Folder  | Purpose                                           | When to update                                    |
-| -------------- | ------------------------------------------------- | ------------------------------------------------- |
-| `backlog.md`   | Ideas, ADRs, rejected items                       | When a new idea or architectural decision appears |
-| `progress.md`  | Completed work by date                            | End of session (append-only)                      |
-| `lessons.md`   | Repeated mistakes, anti-patterns                  | When a pattern is noticed                         |
-| `experiments/` | `EXP-NNN_<n>.md` — detailed ML experiment records | When an experiment is completed                   |
-| `plans/`       | `YYYY-MM-DD_<type>_<n>.md` — detailed plans       | Before complex work                               |
-| `reports/`     | `YYYY-MM-DD_<type>_<n>.md` — reports              | When useful for future sessions                   |
-| `notes/`       | `YYYY-MM-DD_HH-MM_<topic>.md` — task notes        | After completing a task                           |
-| `codebase/`    | Codebase map: `STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `CONCERNS.md` (+ `graph.json`, `god-nodes.md`). Generated by `mb-codebase-mapper` subagent via `/mb map` / `/mb graph`, consumed by `/mb context` | After `/mb init`, stack change, or major refactor (`/mb map [focus]`) |
-
+**Full file/folder reference → `references/structure.md`.** Core (read every session): `status.md` (where we are, metrics, gates), `checklist.md` (tasks ✅/⬜ — update **immediately** on completion), `roadmap.md` (priorities / direction), `research.md` (hypotheses + findings). Detailed (read on demand): `backlog.md` (ideas / ADRs / rejected), `progress.md` (**append-only**, end of session), `lessons.md`, `experiments/`, `plans/`, `reports/`, `notes/`, `codebase/` (map + `graph.json` / `god-nodes.md`, via `/mb map` / `/mb graph`).
 
 ---
 

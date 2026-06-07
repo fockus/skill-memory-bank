@@ -63,7 +63,7 @@ Plans → `./.memory-bank/plans/` when Memory Bank is active. Every stage: SMART
 **Skill:** `memory-bank`. **Command:** `/mb`. **Path:** `./.memory-bank/`.
 **Three-in-one:** (1) long-term project memory (`.memory-bank/`), (2) the engineering RULES above, (3) a dev toolkit of 25 commands. **Design contract:** agents remember by default; everything above that is a configurable, token-economical layer — defaults never change without explicit opt-in, expensive paths are off by default.
 **`/mb context`** (alias `/mb`) — gather the current project context (status + checklist + active plan + codebase summary). Run it at the START of any project work; `/mb context --deep` expands the full `codebase/*.md`. `/mb start` = extended start (context + the full active plan read in).
-**Subagents (sonnet):** MB Manager (mechanical actualize) · plan-verifier (`/mb verify`) · mb-doctor · mb-codebase-mapper · mb-rules-enforcer · mb-test-runner · mb-reviewer · mb-engineering-core (discipline prepend) + 9 dev-role agents for `/mb work`. Full roster + when-to-invoke → `~/.claude/RULES.md § Subagents`.
+**Subagents (sonnet):** MB Manager (mechanical actualize) · plan-verifier (`/mb verify`) · mb-doctor · mb-codebase-mapper · mb-rules-enforcer · mb-test-runner · mb-reviewer · mb-engineering-core (discipline prepend) + 9 dev-role agents for `/mb work`. Full roster + when-to-invoke → `SKILL.md` § Agents.
 
 ### Session Pipeline
 ```

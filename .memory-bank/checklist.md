@@ -80,7 +80,7 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 4: Вынести MB operational reference (тип 2, ~225 строк) → /mb help + существующие references
-- ⬜ Вынести MB operational reference (тип 2, ~225 строк) → /mb help + существующие references
+- ✅ Subagents/Commands/Structure → pointer'ы (SKILL.md §Agents/§Tools, /mb help, references/structure.md). RULES.md 929→801 (−128). Ключевые правила сохранены (verify MANDATORY, no-delegate, checklist immediate, progress append-only). pytest 1135.
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 5: Сжать многословность Architecture (тип 4, ~90 строк) — опционально
