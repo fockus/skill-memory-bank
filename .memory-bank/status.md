@@ -68,12 +68,12 @@
 - [2026-05-23] `queued` [2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Plan: feature — Work loop 2.0 (S2 of harness-upgrade)
 - [2026-05-24] `queued` [2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Plan: feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
-- [2026-06-07] [plans/2026-06-07_refactor_rules-context-economy.md](plans/2026-06-07_refactor_rules-context-economy.md) — refactor — rules-context-economy
 <!-- /mb-active-plans -->
 
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-06-07 — [plans/done/2026-06-07_refactor_rules-context-economy.md](plans/done/2026-06-07_refactor_rules-context-economy.md) — refactor — rules-context-economy
 - 2026-05-27 — [plans/done/2026-05-24_fix_ci-baseline-wave-0.md](plans/done/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1; latest green `26528106396`)
 - 2026-05-24 — [plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage-agent-support.md](plans/done/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support

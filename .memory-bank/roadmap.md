@@ -281,7 +281,6 @@ Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ 
 - [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md) — feature — goal-driven-autopilot — Sprint 7: Autopilot loop
 - [2026-05-23] [plans/2026-05-23_feature_skill-improvements-anthropic-audit.md](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
 - [2026-05-24] [plans/2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
-- [2026-06-07] [plans/2026-06-07_refactor_rules-context-economy.md](plans/2026-06-07_refactor_rules-context-economy.md) — refactor — rules-context-economy
 <!-- /mb-active-plans -->
 
 ## Ближайшие шаги

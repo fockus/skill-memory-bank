@@ -254,8 +254,17 @@
       "summary": "- Reconstructed the latest project state for the user: Wave 0 CI baseline is closed, tracked files are clean, and only `.pi-lens/` remains untracked. - Confirmed GitHub `test.yml` latest runs: `26528106396` success after closeout commit, `26527319286` first full green, `26526626251` previous failure.",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-05-29_ears-validator-hardening.md",
+      "type": "note",
+      "tags": [],
+      "importance": null,
+      "summary": "Date: 2026-05-29 Замечено во время реального прохода `/mb discuss` → `context/<topic>.md` (внешний проект-потребитель скила). Пайплайн `discuss → context → sdd → plan → traceability` работает и полезен, но проверка спеки **поверхностная**. Фиксирую улучшения, чтобы не забыть.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-05-28T13:59:02Z"
+  "generated_at": "2026-06-07T19:48:06Z"
 }

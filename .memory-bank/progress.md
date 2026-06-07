@@ -1,6 +1,17 @@
 
 # claude-skill-memory-bank — Progress Log
 
+## 2026-06-07 (RULES.md context economy — autonomous /mb work)
+
+- **Plan:** [`plans/done/2026-06-07_refactor_rules-context-economy.md`](plans/done/2026-06-07_refactor_rules-context-economy.md) — refactor, DONE. `rules/RULES.md` **1073 → 801 lines (−25%)**.
+- **Stage 3 (main win):** Code Graph cookbook (jq library, `graph.json` schema, intelligence layer, semantic-search routing, `/mb recall`) → new on-demand `references/code-graph.md` (154 lines; installed via the `references/` dir copy to claude/codex/pi). RULES.md keeps a pointer. `test_rules_cover_intelligence_layer.py` re-pointed to the new file (+pointer assertion); `SKILL.md` References linked; `CLAUDE-GLOBAL.md` pointers updated.
+- **Stage 4:** Subagents / `/mb` Commands / `.memory-bank/` Structure compressed to pointer sections (heading anchors kept; inline rules preserved: verify-MANDATORY, no-delegate-plan/arch/ML, checklist-immediate, `progress.md` append-only).
+- **Deviations by fact:** Stage 2 dropped — guard + rules-only are test-enforced to stay in RULES.md (standalone install + Pi/Codex AGENTS.md). Stage 5 skipped — Architecture is the protected discipline core (plan non-goals). VERSION not bumped — `[Unreleased]` staging; release via `/harness-release`.
+- **/mb verify** (plan-verifier) caught a regression I'd missed (only re-ran bats after Stage 6-7, not pytest): CHANGELOG `[Unreleased]` used the forbidden word "shipped" → 1 pytest fail. Fixed ("shipped" → "installed").
+- **Verification:** pytest **1135 passed**; bats **744 ok / 0 fail** (full suite); `install.sh` validated in temp HOME; `~/.claude/RULES.md` synced (`diff -q` identical). Commits `20ede3c` `7a14a2c` `91adc11` `fb07e3a` `a55ebbd`.
+- **Also this session:** prior-session feature (`--docs` + semantic embeddings) landed via the user's parallel branch merge `72ddf40`; committed orphan MB-maintenance (`5b0d7ca` — drift checkers #11/#12, plan-done chaining); added personal auto-commit rule to `~/.claude/CLAUDE.md § Git policy` (per user request).
+- **Known pre-existing drift (out of scope):** `status.md` ↔ `roadmap.md` `mb-active-plans` blocks diverge (different generators/format; cursor/pi/opencode plans only in status). Flagged by the new drift checker #12; not introduced here.
+
 ## 2026-06-07 (provision intelligence layer + session-memory into installed rules)
 
 - **Why:** `install.sh` Step 1 overwrites `~/.claude/RULES.md` from `rules/RULES.md` and refreshes the `[MEMORY-BANK-SKILL]` block in `~/.claude/CLAUDE.md` from `rules/CLAUDE-GLOBAL.md`. The graph intelligence layer + session-memory guidance lived only in hand-edited `~/.claude/*` → would be wiped on the next upgrade, and new users never got them. Fix = put them in the repo source-of-truth.
