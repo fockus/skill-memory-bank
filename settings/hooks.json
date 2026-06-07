@@ -113,6 +113,16 @@
       ]
     }
   ],
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/mb-semantic-recall.sh # [memory-bank-skill]"
+        }
+      ]
+    }
+  ],
   "SessionStart": [
     {
       "hooks": [

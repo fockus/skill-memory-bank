@@ -13,7 +13,12 @@ sys.path.insert(0, str(LIB))
 
 
 def _mb_root() -> Path:
-    # CLI lives at .memory-bank/bin/mb-semantic.py → MB root is parent of bin/
+    # Data root = the project's .memory-bank/ (holds session/, notes/, .index/).
+    # Global install: hooks pass MB_ROOT (resolved per-project), since the CLI itself
+    # lives at ~/.claude/hooks/. Project-local fallback: parent of bin/.
+    env = os.environ.get("MB_ROOT")
+    if env:
+        return Path(env)
     return Path(__file__).resolve().parents[1]
 
 

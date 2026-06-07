@@ -20,9 +20,9 @@ content="$(cat "$RECENT")"
 
 # semantic: warm + catch-up reindex in background (never blocks startup)
 if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
-  _PY="$MB/.venv/bin/python"; [ -x "$_PY" ] || _PY="python3"
+  _PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
   if command -v "$_PY" >/dev/null 2>&1; then
-    ( "$_PY" "$MB/bin/mb-semantic.py" reindex --incremental >/dev/null 2>&1 & ) >/dev/null 2>&1
+    ( MB_ROOT="$MB" "$_PY" "$HOOK_DIR/mb-semantic.py" reindex --incremental >/dev/null 2>&1 & ) >/dev/null 2>&1
   fi
 fi
 

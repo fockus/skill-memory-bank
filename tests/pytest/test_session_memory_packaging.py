@@ -74,3 +74,42 @@ def test_install_sh_installs_hook_lib_dir() -> None:
     # for the copied-path hooks (e.g. ~/.claude/hooks/mb-recall.sh).
     assert "hooks/lib" in INSTALL_SH.read_text(encoding="utf-8"), \
         "install.sh must install hooks/lib/ alongside the hooks"
+
+
+# ── semantic-recall packaging contract (must ship + auto-register on install) ──
+
+SEMANTIC_FILES = [
+    "hooks/mb-semantic.py",
+    "hooks/mb-semantic-recall.sh",
+    "hooks/mb-semantic-bootstrap.sh",
+    "hooks/mb-reindex.sh",
+    "hooks/lib/semantic_chunk.py",
+    "hooks/lib/semantic_embed.py",
+    "hooks/lib/semantic_store.py",
+    "hooks/lib/indexer.py",
+    "hooks/lib/searcher.py",
+]
+
+
+@pytest.mark.parametrize("path", SEMANTIC_FILES)
+def test_semantic_file_is_git_tracked(path: str) -> None:
+    assert path in _tracked_files(), f"{path} must be git-tracked (a clone needs it)"
+
+
+def test_hooks_json_has_user_prompt_submit_event() -> None:
+    data = json.loads(HOOKS_JSON.read_text(encoding="utf-8"))
+    assert "UserPromptSubmit" in data, "hooks.json must define a UserPromptSubmit event"
+
+
+def test_hooks_json_registers_semantic_recall() -> None:
+    matching = [c for c in _all_commands() if "mb-semantic-recall.sh" in c]
+    assert matching, "settings/hooks.json must register mb-semantic-recall.sh (UserPromptSubmit)"
+    for c in matching:
+        assert "[memory-bank-skill]" in c, f"mb-semantic-recall.sh missing marker: {c}"
+
+
+def test_install_sh_copies_hook_python_files() -> None:
+    # install.sh must copy the semantic python (CLI + libs), not just *.sh.
+    txt = INSTALL_SH.read_text(encoding="utf-8")
+    assert "hooks/*.py" in txt, "install.sh must copy hooks/*.py (semantic CLI)"
+    assert "hooks/lib/*.py" in txt, "install.sh must copy hooks/lib/*.py (semantic libs)"

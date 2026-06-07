@@ -16,11 +16,12 @@ CWD="$(printf '%s' "$INPUT" | "$JQ" -r '.cwd // empty' 2>/dev/null)"; [ -n "$CWD
 [ -n "$PROMPT" ] || { printf '{}\n'; exit 0; }
 
 MB="$(sc_resolve_mb "$CWD")"; [ -n "$MB" ] || { printf '{}\n'; exit 0; }
-PY="$MB/.venv/bin/python"; [ -x "$PY" ] || PY="python3"
+PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
 command -v "$PY" >/dev/null 2>&1 || { printf '{}\n'; exit 0; }
 
 # Time budget is enforced inside the CLI (portable; GNU timeout/gtimeout absent on macOS).
-RESULT="$("$PY" "$MB/bin/mb-semantic.py" search "$PROMPT" \
+# CLI lives beside this hook ($HOOK_DIR); MB_ROOT points it at this project's data.
+RESULT="$(MB_ROOT="$MB" "$PY" "$HOOK_DIR/mb-semantic.py" search "$PROMPT" \
           --top-k "${MB_SEMANTIC_TOPK:-5}" --min-score "${MB_SEMANTIC_MIN_SCORE:-0.35}" \
           --timeout "${MB_SEMANTIC_TIMEOUT:-3}" --json 2>/dev/null || true)"
 [ -n "$RESULT" ] || { printf '{}\n'; exit 0; }

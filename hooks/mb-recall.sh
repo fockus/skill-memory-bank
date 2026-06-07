@@ -31,9 +31,9 @@ fi
 # semantic matches first (best-effort); lexical ripgrep always runs as fallback
 LEX_HEADER=""
 if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
-  PY="$MB/.venv/bin/python"; [ -x "$PY" ] || PY="python3"
+  PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
   if command -v "$PY" >/dev/null 2>&1; then
-    SEM="$("$PY" "$MB/bin/mb-semantic.py" search "$QUERY" --top-k 5 --min-score 0.3 \
+    SEM="$(MB_ROOT="$MB" "$PY" "$HOOK_DIR/mb-semantic.py" search "$QUERY" --top-k 5 --min-score 0.3 \
            --timeout "${MB_SEMANTIC_TIMEOUT:-5}" --json 2>/dev/null || true)"
     if [ -n "$SEM" ] && [ "$SEM" != "[]" ]; then
       echo "## Semantic matches"

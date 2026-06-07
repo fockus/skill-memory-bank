@@ -126,3 +126,16 @@ sc_capture_disabled() {
   [ "${MB_SESSION_CAPTURE:-auto}" = "off" ] && return 0
   return 1
 }
+
+# sc_semantic_py <hook_dir> <mb_root> — echo the python for the semantic CLI.
+# Prefers a venv beside the installed hooks (global ~/.claude/hooks/.venv, or a
+# project-local bin/.venv), then a legacy .memory-bank/.venv, then system python3.
+sc_semantic_py() {
+  if [ -x "$1/.venv/bin/python" ]; then
+    printf '%s' "$1/.venv/bin/python"
+  elif [ -n "${2:-}" ] && [ -x "$2/.venv/bin/python" ]; then
+    printf '%s' "$2/.venv/bin/python"
+  else
+    printf 'python3'
+  fi
+}

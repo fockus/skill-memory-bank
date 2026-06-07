@@ -3,13 +3,18 @@
 # Usage: mb-reindex.sh [--full|--incremental]   (default: --full)
 set -u
 HOOK_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)" || exit 1
-MB="$(cd "$HOOK_DIR/.." 2>/dev/null && pwd)" || exit 1
+# shellcheck source=lib/session-common.sh
+. "$HOOK_DIR/lib/session-common.sh" 2>/dev/null || { echo "session-common.sh missing"; exit 1; }
 MODE="${1:---full}"
 
+# Index the current project's Memory Bank (resolved from CWD), not the CLI's own dir.
+MB="$(sc_resolve_mb "${CLAUDE_PROJECT_DIR:-$PWD}")"
+[ -n "$MB" ] || { echo "no Memory Bank found"; exit 0; }
+
 bash "$HOOK_DIR/mb-semantic-bootstrap.sh"
-PY="$MB/.venv/bin/python"; [ -x "$PY" ] || PY="python3"
+PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
 command -v "$PY" >/dev/null 2>&1 || { echo "no python3 — cannot reindex"; exit 0; }
 
-"$PY" "$MB/bin/mb-semantic.py" reindex "$MODE"
-"$PY" "$MB/bin/mb-semantic.py" stats
+MB_ROOT="$MB" "$PY" "$HOOK_DIR/mb-semantic.py" reindex "$MODE"
+MB_ROOT="$MB" "$PY" "$HOOK_DIR/mb-semantic.py" stats
 exit 0

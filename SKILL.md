@@ -253,7 +253,10 @@ Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Cl
 | `mb-session-turn.sh` | Stop | Session memory: append one per-turn bullet (request + tools + files) to `session/*.md`, no LLM (`MB_SESSION_CAPTURE=off` to disable) |
 | `mb-session-end.sh` | SessionEnd | Session memory: Haiku summary + gated Sonnet auto-notes; updates `session/_recent.md` |
 | `mb-session-start.sh` | SessionStart | Session memory: inject `# Recent Sessions` from `session/_recent.md` + a how-to cheat-sheet (graph / `/mb recall` / `/mb context` quick ref), read-only (`MB_SESSION_CHEATSHEET=off` to drop the cheat-sheet) |
-| `mb-recall.sh` | `/mb recall <query>` | Session memory: ripgrep recall over `session/` + `notes/` (sourced helper, not a lifecycle hook) |
+| `mb-recall.sh` | `/mb recall <query>` | Session memory: hybrid recall — semantic matches first (when indexed) + ripgrep lexical fallback over `session/` + `notes/` |
+| `mb-semantic-recall.sh` | UserPromptSubmit | Session memory: inject `# Relevant Memory` — top-K semantically relevant past-chat snippets via a local fastembed index; fail-safe, falls back to lexical (`MB_SEMANTIC=off` to disable) |
+| `mb-reindex.sh` | `/mb reindex` | Session memory: (re)build the per-project semantic vector index (`--full`/`--incremental`); bootstraps the venv if needed |
+| `mb-semantic-bootstrap.sh` | sourced by `/mb reindex` | Session memory: idempotent venv + fastembed/numpy installer (opt-in; semantic layer falls back to lexical without it) |
 
 ---
 

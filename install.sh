@@ -766,20 +766,22 @@ echo -e "  ${GREEN}✓${NC} ${agents_installed} agents (partials excluded from r
 
 # ═══ Step 3: Hooks ═══
 echo -e "${BLUE}[3/7] Hooks${NC}"
-for f in "$SOURCE_SKILL_DIR"/hooks/*.sh; do
+# Bash hooks + the semantic-recall python CLI (mb-semantic.py) live side by side.
+for f in "$SOURCE_SKILL_DIR"/hooks/*.sh "$SOURCE_SKILL_DIR"/hooks/*.py; do
   [ -f "$f" ] || continue
   install_file "$f" "$CLAUDE_DIR/hooks/$(basename "$f")"
 done
-# Shared helpers sourced by the session-memory hooks via "$HOOK_DIR/lib/...".
-# The copied-path hooks (e.g. ~/.claude/hooks/mb-recall.sh) need lib/ as a sibling.
+# Shared helpers sourced/imported by the hooks via "$HOOK_DIR/lib/..." — bash session
+# helpers AND the semantic python libs (semantic_*.py, indexer.py, searcher.py). The
+# copied-path hooks (e.g. ~/.claude/hooks/mb-recall.sh) need lib/ as a sibling.
 if [ -d "$SOURCE_SKILL_DIR/hooks/lib" ]; then
   mkdir -p "$CLAUDE_DIR/hooks/lib"
-  for f in "$SOURCE_SKILL_DIR"/hooks/lib/*.sh; do
+  for f in "$SOURCE_SKILL_DIR"/hooks/lib/*.sh "$SOURCE_SKILL_DIR"/hooks/lib/*.py; do
     [ -f "$f" ] || continue
     install_file "$f" "$CLAUDE_DIR/hooks/lib/$(basename "$f")"
   done
 fi
-echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/hooks" '*.sh') hooks"
+echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/hooks" '*.sh') hooks + semantic CLI"
 
 # ═══ Step 4: Commands ═══
 echo -e "${BLUE}[4/7] Commands${NC}"
