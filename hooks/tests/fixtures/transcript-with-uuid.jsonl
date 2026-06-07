@@ -1,0 +1,3 @@
+{"type":"user","uuid":"u-1","message":{"role":"user","content":"hello there please help"}}
+{"type":"assistant","uuid":"a-1","message":{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{"file_path":"z.ts"}}]}}
+{"type":"assistant","uuid":"a-2","message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}

@@ -1,0 +1,3 @@
+{"type":"user","uuid":"user-7","message":{"role":"user","content":"do the thing please"}}
+{"type":"assistant","uuid":"asst-7","message":{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{"file_path":"x.ts"}}]}}
+{"type":"permission-mode","mode":"default"}

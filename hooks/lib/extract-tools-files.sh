@@ -7,15 +7,16 @@
 # tool_use blocks, so it cannot supply tools/files — hence our own implementation.
 #
 # Usage:   extract-tools-files.sh <transcript.jsonl>
-# Output:  three lines (always, even on error — fail-safe REQ-SM-007):
+# Output:  four lines (always, even on error — fail-safe REQ-SM-007):
 #            user=<last user prompt, single line, truncated>
 #            tools=<comma-joined, deduped, sorted>
 #            files=<comma-joined, deduped, sorted>
+#            turn=<uuid of the last REAL user message — the stable per-turn dedup anchor>
 set -u
 
 TRANSCRIPT="${1:-}"
 
-emit_empty() { printf 'user=\ntools=\nfiles=\n'; exit 0; }
+emit_empty() { printf 'user=\ntools=\nfiles=\nturn=\n'; exit 0; }
 
 [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] && [ -s "$TRANSCRIPT" ] || emit_empty
 command -v python3 >/dev/null 2>&1 || emit_empty
@@ -36,7 +37,7 @@ try:
             except Exception:
                 continue
 except Exception:
-    print("user=\ntools=\nfiles=")
+    print("user=\ntools=\nfiles=\nturn=")
     sys.exit(0)
 
 def msg(rec):
@@ -63,8 +64,10 @@ for i, rec in enumerate(recs):
         last_user = i
 
 user_text = ""
+user_uuid = ""
 if last_user >= 0:
     user_text = " ".join((text_of(recs[last_user]) or "").split())[:200]
+    user_uuid = recs[last_user].get("uuid", "") or ""
 
 tools, files = set(), set()
 start = last_user + 1 if last_user >= 0 else 0
@@ -90,4 +93,5 @@ for rec in recs[start:]:
 print("user=" + user_text)
 print("tools=" + ",".join(sorted(tools)))
 print("files=" + ",".join(sorted(files)))
+print("turn=" + user_uuid)
 PY

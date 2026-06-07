@@ -69,28 +69,29 @@ if [ -z "$(sc_fm_get "$SF" transcript)" ] && [ -n "$TRANSCRIPT" ]; then
   sc_fm_set "$SF" transcript "$TRANSCRIPT"
 fi
 
-# dedup: skip if this exact turn was already captured (e.g. duplicate hook
-# registration from project-local + global settings firing the same Stop event)
-turn_uuid=""
-if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
-  turn_uuid="$(tail -n 1 "$TRANSCRIPT" 2>/dev/null | "$JQ" -r '.uuid // empty' 2>/dev/null || true)"
-fi
+# extract this turn's user text + tools + files (no LLM). The extractor also yields the turn
+# ANCHOR — the uuid of the last REAL user message — which is the dedup key. The previous key
+# (uuid of the transcript's LAST line) is empty whenever that line is a uuid-less record such
+# as `permission-mode`/`summary`, so duplicate Stop firings from project-local + global hook
+# registration slipped past the dedup and double-logged the same turn.
+fields="$(bash "$HOOK_DIR/lib/extract-tools-files.sh" "$TRANSCRIPT" 2>/dev/null || true)"
+user_line="$(printf '%s\n' "$fields" | sed -n 's/^user=//p')"
+tools="$(printf '%s\n' "$fields" | sed -n 's/^tools=//p')"
+files="$(printf '%s\n' "$fields" | sed -n 's/^files=//p')"
+turn_uuid="$(printf '%s\n' "$fields" | sed -n 's/^turn=//p')"
+[ -n "$tools" ] || tools="(none)"
+[ -n "$files" ] || files="(none)"
+
+# dedup: skip if this turn anchor was already captured (duplicate hook registration from
+# project-local + global settings firing the same Stop event, or a re-fire)
 if [ -n "$turn_uuid" ] && [ "$(sc_fm_get "$SF" last_turn)" = "$turn_uuid" ]; then
   printf '{}\n'
   exit 0
 fi
 
-# extract this turn's user text + tools + files (no LLM)
-fields="$(bash "$HOOK_DIR/lib/extract-tools-files.sh" "$TRANSCRIPT" 2>/dev/null || true)"
-user_line="$(printf '%s\n' "$fields" | sed -n 's/^user=//p')"
-tools="$(printf '%s\n' "$fields" | sed -n 's/^tools=//p')"
-files="$(printf '%s\n' "$fields" | sed -n 's/^files=//p')"
-[ -n "$tools" ] || tools="(none)"
-[ -n "$files" ] || files="(none)"
-
 printf -- '- %s — User: "%s" · tools: %s · files: %s\n' "$hm" "$user_line" "$tools" "$files" >> "$SF"
 
-# bump turn counter + record this turn's uuid for dedup
+# bump turn counter + record this turn's anchor uuid for dedup
 cur="$(sc_fm_get "$SF" turns)"
 [ -n "$cur" ] || cur=0
 sc_fm_set "$SF" turns "$((cur + 1))"
