@@ -375,6 +375,8 @@ echo "[done] plan=$BASENAME removed_sections=$removed_sections → plans/done/"
 # Chain: roadmap-sync + traceability-gen (best-effort — warn, don't fail)
 # ═══════════════════════════════════════════════════════════════
 SCRIPT_DIR=$(dirname "$0")
+# Project-local MB env overrides (e.g. MB_TEST_ROOTS for monorepo test layout) — opt-in per project.
+[ -f "$MB_PATH/.mbenv" ] && . "$MB_PATH/.mbenv"
 if [ -x "$SCRIPT_DIR/mb-roadmap-sync.sh" ]; then
   "$SCRIPT_DIR/mb-roadmap-sync.sh" "$MB_PATH" || echo "[warn] mb-roadmap-sync.sh failed (non-fatal)" >&2
 fi
@@ -384,4 +386,16 @@ fi
 if [ -x "$SCRIPT_DIR/mb-checklist-prune.sh" ]; then
   "$SCRIPT_DIR/mb-checklist-prune.sh" --apply --mb "$MB_PATH" >/dev/null \
     || echo "[warn] mb-checklist-prune.sh failed (non-fatal)" >&2
+fi
+# Regenerate index.json only if a note/lesson changed since last index (idempotent — no churn on clean reruns).
+if [ -f "$SCRIPT_DIR/mb-index-json.py" ]; then
+  _idx="$MB_PATH/index.json"
+  if [ ! -f "$_idx" ] || [ -n "$(find "$MB_PATH/notes" "$MB_PATH/lessons.md" -type f -newer "$_idx" 2>/dev/null | head -1)" ]; then
+    python3 "$SCRIPT_DIR/mb-index-json.py" "$MB_PATH" >/dev/null 2>&1 \
+      || echo "[warn] mb-index-json.py failed (non-fatal)" >&2
+  fi
+fi
+# Surface ground-truth drift to the human at this single-writer moment (warn-only, never blocks).
+if [ -x "$SCRIPT_DIR/mb-drift.sh" ]; then
+  "$SCRIPT_DIR/mb-drift.sh" "$(dirname "$MB_PATH")" >/dev/null || true
 fi

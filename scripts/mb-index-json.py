@@ -35,7 +35,7 @@ except ModuleNotFoundError:
     from memory_bank_skill._io import atomic_write
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.DOTALL)
-LESSON_RE = re.compile(r"^###\s+(L-\d+)[:\-\s]+(.+?)\s*$", re.MULTILINE)
+LESSON_RE = re.compile(r"^#{2,3}\s+(L-\d+)[:\-\s]+(.+?)\s*$", re.MULTILINE)
 _KEBAB_RE_1 = re.compile(r"(.)([A-Z][a-z]+)")
 _KEBAB_RE_2 = re.compile(r"([a-z0-9])([A-Z])")
 

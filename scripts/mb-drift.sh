@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mb-drift.sh — 8 deterministic drift checkers for Memory Bank (no AI required).
+# mb-drift.sh — 12 deterministic drift checkers for Memory Bank (no AI required).
 #
 # Usage:
 #   mb-drift.sh [project-dir]
@@ -292,6 +292,47 @@ check_terminology() {
   fi
 }
 
+# ═══ 11. uncommitted — stale "uncommitted/не закоммичено" tags (verify vs git) ═══
+check_uncommitted() {
+  local hits
+  # `|| true` keeps a no-match grep (exit 1) from tripping `set -euo pipefail`.
+  hits=$( { grep -ihE 'uncommitted|не закоммич|не коммичено' \
+           "$MB/status.md" "$MB/checklist.md" 2>/dev/null || true; } | wc -l | tr -d ' ')
+  if [ "${hits:-0}" -gt 0 ]; then
+    warn uncommitted "$hits 'uncommitted' tag(s) in status/checklist — verify vs git (git log -S<token> --all -- <path>); strip if committed"
+  else
+    ok uncommitted
+  fi
+}
+
+# ═══ 12. active_plans — status.md vs roadmap.md divergence + done-plan still listed ═══
+check_active_plans() {
+  local issues=0 s_block r_block listed p base
+  # `|| true` keeps no-match grep (exit 1) from tripping `set -euo pipefail`.
+  s_block=$(sed -n '/<!-- mb-active-plans -->/,/<!-- \/mb-active-plans -->/p' "$MB/status.md" 2>/dev/null \
+              | { grep -oE 'plans/[A-Za-z0-9_./-]+\.md' || true; } | sort -u)
+  r_block=$(sed -n '/<!-- mb-active-plans -->/,/<!-- \/mb-active-plans -->/p' "$MB/roadmap.md" 2>/dev/null \
+              | { grep -oE 'plans/[A-Za-z0-9_./-]+\.md' || true; } | sort -u)
+  if [ -n "$s_block" ] && [ -n "$r_block" ] && [ "$s_block" != "$r_block" ]; then
+    issues=$(( issues + 1 ))
+    echo "  - status.md and roadmap.md mb-active-plans blocks diverge" >&2
+  fi
+  listed=$(printf '%s\n%s\n' "$s_block" "$r_block" | sort -u)
+  while read -r p; do
+    [ -z "$p" ] && continue
+    base=$(basename "$p")
+    if [ -f "$MB/plans/done/$base" ]; then
+      issues=$(( issues + 1 ))
+      echo "  - $base is in plans/done/ but still listed as active" >&2
+    fi
+  done <<< "$listed"
+  if [ "$issues" -gt 0 ]; then
+    warn active_plans "$issues active-plans inconsistency(ies) — regenerate via mb-roadmap-sync.sh / drop done plans"
+  else
+    ok active_plans
+  fi
+}
+
 # ═══ Run all checks ═══
 check_path
 check_staleness
@@ -303,6 +344,8 @@ check_command
 check_frontmatter
 check_research_experiments
 check_terminology
+check_uncommitted
+check_active_plans
 
 echo "drift_warnings=$WARNINGS"
 
