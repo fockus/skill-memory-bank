@@ -107,6 +107,14 @@ tmp="$RECENT.tmp.$$"
 ' > "$tmp"
 mv "$tmp" "$RECENT"
 
+# semantic: incremental reindex (picks up this new session) — best-effort, backgrounded
+if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
+  _PY="$MB/.venv/bin/python"; [ -x "$_PY" ] || _PY="python3"
+  if command -v "$_PY" >/dev/null 2>&1; then
+    ( "$_PY" "$MB/bin/mb-semantic.py" reindex --incremental >/dev/null 2>&1 & ) >/dev/null 2>&1
+  fi
+fi
+
 # ── Step 2: gated Sonnet judge → 0–2 auto-notes ──────────────────────────────
 # Operator kill-switch for note-noise: MB_SESSION_JUDGE=off skips the judge (summary still ran).
 [ "${MB_SESSION_JUDGE:-on}" = "off" ] && exit 0

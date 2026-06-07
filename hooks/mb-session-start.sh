@@ -18,6 +18,14 @@ RECENT="$MB/session/_recent.md"
 content="$(cat "$RECENT")"
 [ -n "$content" ] || { printf '{}\n'; exit 0; }
 
+# semantic: warm + catch-up reindex in background (never blocks startup)
+if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
+  _PY="$MB/.venv/bin/python"; [ -x "$_PY" ] || _PY="python3"
+  if command -v "$_PY" >/dev/null 2>&1; then
+    ( "$_PY" "$MB/bin/mb-semantic.py" reindex --incremental >/dev/null 2>&1 & ) >/dev/null 2>&1
+  fi
+fi
+
 # Quick-reference cheat-sheet on how to use the project's memory tools.
 # Rides along with the Recent Sessions injection; disable with MB_SESSION_CHEATSHEET=off.
 recent_block="$(printf '# Recent Sessions\n\n%s' "$content")"
