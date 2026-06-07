@@ -84,12 +84,12 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 5: Сжать многословность Architecture (тип 4, ~90 строк) — опционально
-- ⬜ Сжать многословность Architecture (тип 4, ~90 строк) — опционально
+- ✅ ПРОПУЩЕН (по non-goals): Architecture (102–243) входит в «ядро дисциплины 1–383, не трогать». Это правила (Clean Arch direction, FSD, Mobile UDF), не reference. Осознанный скип.
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 6: E2E установка + локализация Codex/Pi
-- ⬜ E2E установка + локализация Codex/Pi
+- ✅ install.sh exit=0 в temp HOME; `~/.claude/RULES.md`=801; `references/code-graph.md` ставится в claude/codex/pi; CRITICAL Language + pointer на месте. Relative-ссылка агент-агностична (локализация не нужна).
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 7: Синхронизация установленной копии + CHANGELOG + VERSION
-- ⬜ Синхронизация установленной копии + CHANGELOG + VERSION
+- ✅ `cp rules/RULES.md ~/.claude/RULES.md` (1073→801, diff -q идентично); CHANGELOG [Unreleased] запись добавлена. VERSION НЕ бампнут (осознанно: [Unreleased]-staging, релиз через /harness-release). CLAUDE.md не трогал (там личный # Git policy).

@@ -215,4 +215,24 @@ created: 2026-06-07
 
 **Stage 3 — DONE:** Code Graph usage (760–907, 145 строк тела) → `references/code-graph.md` (154 строки, shipped через копирование `references/`). `rules/RULES.md` 1073 → **929** (−144), секция заменена pointer'ом. Тесты переориентированы (`test_rules_cover_intelligence_layer.py` → `references/code-graph.md` + новый pointer-ассерт), `SKILL.md` References залинкован, `CLAUDE-GLOBAL.md` указатели обновлены. **pytest 1135 passed, bats 669 ok / 0 fail.** Commit `20ede3c`.
 
-**Stage 4 — DONE:** Subagents (397–444), `/mb` Commands (446–520), `.memory-bank/` Structure (522–550) сжаты в pointer-секции (якоря-заголовки сохранены) → `SKILL.md` §Agents/§Tools, `/mb help`/`commands/mb.md`, `references/structure.md`. Ключевые ПРАВИЛА (не reference) оставлены inline: «verify MANDATORY before done», «не делегировать план/архитектуру/ML субагенту», «checklist update immediately», «progress append-only». `CLAUDE-GLOBAL.md` «§ Subagents» → `SKILL.md § Agents`. Тест-границы проверены (grep tests/: секции не закреплены; `test_plan_verifier_rules.bats` проверяет промпт агента, не RULES.md). `rules/RULES.md` 929 → **801** (−128). **pytest 1135 passed; RULES bats ok.** Итого 1073 → 801 (−25%).
+**Stage 4 — DONE:** Subagents (397–444), `/mb` Commands (446–520), `.memory-bank/` Structure (522–550) сжаты в pointer-секции (якоря-заголовки сохранены) → `SKILL.md` §Agents/§Tools, `/mb help`/`commands/mb.md`, `references/structure.md`. Ключевые ПРАВИЛА (не reference) оставлены inline: «verify MANDATORY before done», «не делегировать план/архитектуру/ML субагенту», «checklist update immediately», «progress append-only». `CLAUDE-GLOBAL.md` «§ Subagents» → `SKILL.md § Agents`. Тест-границы проверены (grep tests/: секции не закреплены; `test_plan_verifier_rules.bats` проверяет промпт агента, не RULES.md). `rules/RULES.md` 929 → **801** (−128). **pytest 1135 passed; RULES bats ok.** Commit `7a14a2c`.
+
+**Stage 5 — ПРОПУЩЕН:** Architecture (102–243) входит в защищённое «ядро дисциплины 1–383» (non-goals). Сжатие реальных правил (Clean Arch direction / FSD / Mobile UDF) противоречит собственным non-goals плана. Осознанный скип, не урезание.
+
+**Stage 6 — DONE:** install.sh exit=0 в чистом temp HOME; установленный `~/.claude/RULES.md`=801; `references/code-graph.md` ставится в **claude + codex + pi** (через копирование `references/`); CRITICAL Language line + code-graph pointer присутствуют. Pointer'ы — relative-ссылки (`references/code-graph.md`), агент-агностичны → sed-локализация Codex/Pi не требуется. Бонус: pytest install-тесты (`test_pi_install_embeds_guard`, `test_codex_global_agents_md`) зелёные на Stage 3/4.
+
+**Stage 7 — DONE:** `~/.claude/RULES.md` синхронизирован (`cp`, 1073→801, `diff -q` идентично; skill-dir — симлинк на репо, `code-graph.md` уже живой). CHANGELOG `[Unreleased]` → запись «RULES.md context economy». **VERSION НЕ бампнут** осознанно: `[Unreleased]` — staging-зона, в ней уже копятся фичи (code-graph intelligence layer, session-memory); бамп 4.0.0→4.0.1 для нерелизнутой работы исказил бы SemVer. Релиз/бамп — через `/harness-release` по решению пользователя. `~/.claude/CLAUDE.md` НЕ трогал (там личный `# Git policy`; managed-блок стал косметически устаревшим на 2 указателя — резолвятся через якоря-pointer'ы, синхронизируются на следующем полном upgrade).
+
+---
+
+## Итог рефакторинга
+
+| Метрика | До | После | Δ |
+|---|---|---|---|
+| `rules/RULES.md` | 1073 строки | **801** | **−272 (−25%)** |
+| Code Graph секция (читается при структурном анализе) | ~148 строк inline | `references/code-graph.md` on-demand | вынесено |
+| Новый файл | — | `references/code-graph.md` (154) | shipped (claude/codex/pi) |
+| pytest | 1134 | **1135** | +1 (новый pointer-ассерт) |
+| bats | 669 / 0 fail | финальный прогон | см. Gate |
+
+**Информация не потеряна:** весь вынесенный контент доступен через `references/code-graph.md` + `SKILL.md` + `/mb help` + `references/structure.md`. Ядро дисциплины (1–383) нетронуто. Главная цель достигнута: «read § Code Graph» больше не тащит ~16K токенов в always-read правила.
