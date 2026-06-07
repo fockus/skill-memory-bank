@@ -41,8 +41,14 @@ LOCK="$MB/session/.lock"
 sc_lock "$LOCK" 30 || exit 0
 trap 'sc_unlock "$LOCK"' EXIT INT TERM
 
-# idempotency
-[ "$(sc_fm_get "$SF" summarized)" = "true" ] && exit 0
+# Decoupled idempotency. `summarized` gates the Haiku summary; `judged` gates the Sonnet
+# judge — independently. Older hook versions (and runs whose judge was killed by the
+# SessionEnd 180s budget) leave summarized=true but judged unset; a single shared flag used
+# to short-circuit the judge forever. Tracking them apart lets a later SessionEnd re-run ONLY
+# the still-pending judge with the full budget.
+already_summarized=false; [ "$(sc_fm_get "$SF" summarized)" = "true" ] && already_summarized=true
+already_judged=false;     [ "$(sc_fm_get "$SF" judged)" = "true" ]     && already_judged=true
+[ "$already_summarized" = true ] && [ "$already_judged" = true ] && exit 0
 command -v "$CLAUDE" >/dev/null 2>&1 || exit 0
 
 # Summary source. Prefer the full raw transcript only when it fits the summarizer's context
@@ -67,55 +73,60 @@ if [ "${#SRC}" -gt "$MAX_CHARS" ]; then
   SRC="$(printf '%s\n…[transcript truncated for summary]…\n%s' "${SRC:0:head_n}" "${SRC:tail_start}")"
 fi
 
-PROMPT="Summarize this Claude Code session in 3-6 plain sentences: what the user asked and what was actually done. Output only the summary text, no preamble.
+# ── Step 1: Haiku summary + _recent rotation (only when not already summarized) ──────────────
+if [ "$already_summarized" != true ]; then
+  PROMPT="Summarize this Claude Code session in 3-6 plain sentences: what the user asked and what was actually done. Output only the summary text, no preamble.
 
 $SRC"
 
-SUMMARY="$(printf '%s' "$PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
-  --model "$HAIKU_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
-[ -n "$SUMMARY" ] || exit 0
+  SUMMARY="$(printf '%s' "$PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
+    --model "$HAIKU_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
+  [ -n "$SUMMARY" ] || exit 0
 
-# Reject error-shaped output (context overflow, API/auth/rate errors). Defense-in-depth on
-# top of the cap above: never store an error string as a summary, and leave summarized=false
-# so a later SessionEnd can retry. Patterns are error signatures, not prose, to avoid
-# false-rejecting a legitimate summary that merely discusses limits or errors.
-_sl="$(printf '%s' "$SUMMARY" | tr '[:upper:]' '[:lower:]')"
-case "$_sl" in
-  *"prompt is too long"*|*"tokens (limit "*|*"execution error"*|*"api error:"*|\
-  *"overloaded_error"*|*"rate_limit_error"*|*"authentication_error"*|*"invalid api key"*|\
-  *"context_length_exceeded"*)
-    exit 0 ;;
-esac
+  # Reject error-shaped output (context overflow, API/auth/rate errors). Defense-in-depth on
+  # top of the cap above: never store an error string as a summary, and leave summarized=false
+  # so a later SessionEnd can retry. Patterns are error signatures, not prose, to avoid
+  # false-rejecting a legitimate summary that merely discusses limits or errors.
+  _sl="$(printf '%s' "$SUMMARY" | tr '[:upper:]' '[:lower:]')"
+  case "$_sl" in
+    *"prompt is too long"*|*"tokens (limit "*|*"execution error"*|*"api error:"*|\
+    *"overloaded_error"*|*"rate_limit_error"*|*"authentication_error"*|*"invalid api key"*|\
+    *"context_length_exceeded"*)
+      exit 0 ;;
+  esac
 
-# append Summary section and mark summarized (under the held lock)
-printf '\n## Summary\n%s\n' "$SUMMARY" >> "$SF"
-sc_fm_set "$SF" summarized true
+  # append Summary section and mark summarized (under the held lock)
+  printf '\n## Summary\n%s\n' "$SUMMARY" >> "$SF"
+  sc_fm_set "$SF" summarized true
 
-# prepend to _recent.md, keep newest N sections
-RECENT="$MB/session/_recent.md"
-branch="$(sc_fm_get "$SF" branch)"
-[ -n "$branch" ] || branch="-"
-today="$(date +%Y-%m-%d)"
-hm="$(date +%H:%M)"
-tmp="$RECENT.tmp.$$"
-{
-  printf '## %s %s (%s) — %s\n%s\n\n' "$today" "$hm" "$branch" "$sid8" "$SUMMARY"
-  [ -f "$RECENT" ] && cat "$RECENT"
-} | awk -v keep="$RECENT_KEEP" '
+  # prepend to _recent.md, keep newest N sections
+  RECENT="$MB/session/_recent.md"
+  branch="$(sc_fm_get "$SF" branch)"
+  [ -n "$branch" ] || branch="-"
+  today="$(date +%Y-%m-%d)"
+  hm="$(date +%H:%M)"
+  tmp="$RECENT.tmp.$$"
+  {
+    printf '## %s %s (%s) — %s\n%s\n\n' "$today" "$hm" "$branch" "$sid8" "$SUMMARY"
+    [ -f "$RECENT" ] && cat "$RECENT"
+  } | awk -v keep="$RECENT_KEEP" '
   /^## /{ n++ }
   { if (n <= keep) print }
 ' > "$tmp"
-mv "$tmp" "$RECENT"
+  mv "$tmp" "$RECENT"
 
-# semantic: incremental reindex (picks up this new session) — best-effort, backgrounded
-if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
-  _PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
-  if command -v "$_PY" >/dev/null 2>&1; then
-    ( MB_ROOT="$MB" "$_PY" "$HOOK_DIR/mb-semantic.py" reindex --incremental >/dev/null 2>&1 & ) >/dev/null 2>&1
+  # semantic: incremental reindex (picks up this new session) — best-effort, backgrounded
+  if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
+    _PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
+    if command -v "$_PY" >/dev/null 2>&1; then
+      ( MB_ROOT="$MB" "$_PY" "$HOOK_DIR/mb-semantic.py" reindex --incremental >/dev/null 2>&1 & ) >/dev/null 2>&1
+    fi
   fi
 fi
 
 # ── Step 2: gated Sonnet judge → 0–2 auto-notes ──────────────────────────────
+# Already judged on an earlier SessionEnd → nothing left to do (decoupled idempotency).
+[ "$already_judged" = true ] && exit 0
 # Operator kill-switch for note-noise: MB_SESSION_JUDGE=off skips the judge (summary still ran).
 [ "${MB_SESSION_JUDGE:-on}" = "off" ] && exit 0
 # judge-gate: only spend Sonnet on "significant" sessions (had Write/Edit, or long enough).
@@ -179,5 +190,10 @@ if [ -s "$linklist" ]; then
   { printf '\n## Auto-notes emitted\n'; cat "$linklist"; } >> "$SF"
 fi
 rm -f "$linklist"
+
+# Judge produced a valid verdict (notes, or a deliberate empty []) — mark judged so it is not
+# re-run. An errored/killed judge returns no parseable array and exits above WITHOUT this flag,
+# leaving the judge retryable on a later SessionEnd.
+sc_fm_set "$SF" judged true
 
 exit 0

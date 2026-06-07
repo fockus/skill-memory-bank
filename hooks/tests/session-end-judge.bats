@@ -104,3 +104,76 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(ls "$MB/notes/"*.md 2>/dev/null | wc -l | tr -d ' ')" -eq 2 ]
 }
+
+# ── Decoupled idempotency: `summarized` (Haiku) and `judged` (Sonnet) are independent flags ──
+# Regression for the coupling bug: a session summarized by an older hook version, or one whose
+# judge was killed by the SessionEnd 180s budget, had summarized=true but was never judged —
+# and the single shared `summarized` flag short-circuited the judge forever.
+
+# write a session file with explicit summarized/judged state (+ a pre-existing ## Summary)
+_mksf_state() { # $1=tools $2=turns $3=summarized $4=judged(optional)
+  SF="$MB/session/2026-06-06_1835_af0a3685.md"
+  {
+    printf -- '---\n'
+    printf 'session_id: af0a3685-3ee9-4db8\n'
+    printf 'transcript:\n'
+    printf 'started: 2026-06-06T18:35Z\n'
+    printf 'branch: dev\n'
+    printf 'turns: %s\n' "$2"
+    printf 'summarized: %s\n' "$3"
+    [ -n "${4:-}" ] && printf 'judged: %s\n' "$4"
+    printf -- '---\n\n'
+    printf '## Live log\n'
+    printf -- '- 18:36 — User: "x" · tools: %s · files: (none)\n' "$1"
+    [ "$3" = "true" ] && printf '\n## Summary\nPRE-EXISTING SUMMARY\n'
+  } > "$SF"
+}
+
+@test "summarized=true but not judged → judge still runs, summary NOT regenerated (decoupled idempotency)" {
+  _mksf_state "Bash,Edit" 2 true
+  printf '[{"title":"Late Note","body":"recovered"}]' > "$NOTES_JSON"
+  run bash -c "CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$MB/notes/"*.md 2>/dev/null | wc -l | tr -d ' ')" -eq 1 ]
+  grep -q '## Auto-notes emitted' "$SF"
+  grep -q sonnet "$CALLS"
+  ! grep -q haiku "$CALLS"                      # summary already done → not regenerated
+  [ "$(grep -c '^## Summary' "$SF")" -eq 1 ]    # original summary not duplicated
+  grep -q '^judged: true' "$SF"
+}
+
+@test "judged=true → judge NOT re-run, no duplicate notes (idempotent)" {
+  _mksf_state "Bash,Edit" 2 true true
+  printf '[{"title":"dup","body":"x"}]' > "$NOTES_JSON"
+  run bash -c "CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$MB/notes/"*.md 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]
+  ! grep -q sonnet "$CALLS"
+}
+
+@test "fresh significant session is marked judged=true after the judge runs" {
+  _mksf "Bash,Edit" 2
+  printf '[{"title":"X","body":"y"}]' > "$NOTES_JSON"
+  run bash -c "CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  grep -q '^judged: true' "$SF"
+}
+
+@test "judge returns [] still marks judged=true (no infinite retry on a valid empty verdict)" {
+  _mksf "Bash,Edit" 2
+  printf '[]' > "$NOTES_JSON"
+  run bash -c "CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$MB/notes/"*.md 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]
+  grep -q '^judged: true' "$SF"
+}
+
+@test "unparseable judge output leaves judged unset (retry path for a killed/errored judge)" {
+  _mksf "Bash,Edit" 2
+  printf 'API Error: overloaded' > "$NOTES_JSON"   # sonnet emits garbage, not a JSON array
+  run bash -c "CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$MB/notes/"*.md 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]
+  grep -q '^summarized: true' "$SF"   # summary persisted...
+  ! grep -q '^judged: true' "$SF"     # ...but judge stays retryable
+}
