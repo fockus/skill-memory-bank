@@ -202,3 +202,15 @@ created: 2026-06-07
 | .memory-bank Structure (522–550) | pointer → `references/structure.md` | — |
 | first-response-guard/rules-only (22–40) | pointer → `CLAUDE-GLOBAL.md` | install bats (CRITICAL стр 10 защищён) |
 | Mobile+FSD (155–243) | сжать ~2× in-place | `test_rules_enforcer_*` |
+
+---
+
+## Execution log (2026-06-07, autonomous /mb work)
+
+**Baseline (Stage 1):** `rules/RULES.md` = 1073 строки; `pytest tests/pytest` = 1134 passed; `bats tests/bats tests/e2e` = 669 ok / 0 fail. Тесты-границы: `test_rules_cover_intelligence_layer.py`, `test_graph_rag_guidance.py`, `test_global_prompt_guard.py`, `test_runtime_contract.py`, `test_terminology_canonicalization.py`, `test_doc_counts.py` (References-линки) + bats `test_plan_verifier_rules`, `test_rules_enforcer_tdd`, install-bats.
+
+**Stage 2 — СНЯТ (revision by fact):** план предполагал удалить дубль guard/rules-only (~40 строк). По факту это **невозможно**: `test_global_prompt_guard::test_detailed_rules_repeat_first_response_guard` и `test_runtime_contract::test_rules_only_mode_documented_in_rules` **требуют** guard + rules-only ИМЕННО в `rules/RULES.md` — потому что RULES.md самостоятельно устанавливается в `~/.claude/RULES.md` и встраивается в Pi/Codex `AGENTS.md`. Дублирование намеренное. Stage 2 даёт ~0 строк экономии.
+
+**Gate revision:** так как Stage 2 (−40) выпал, цель «≤550» пересматривается на **realistic floor**: основная экономия идёт из Stage 3 (Code Graph −144) + Stage 4 (MB operational reference) + Stage 5 (Architecture). Критерий успеха = максимальная безопасная экономия при зелёном сьюте, Code Graph доступен on-demand. Точную цифру фиксируем после Stage 4/5.
+
+**Stage 3 — DONE:** Code Graph usage (760–907, 145 строк тела) → `references/code-graph.md` (154 строки, shipped через копирование `references/`). `rules/RULES.md` 1073 → **929** (−144), секция заменена pointer'ом. Тесты переориентированы (`test_rules_cover_intelligence_layer.py` → `references/code-graph.md` + новый pointer-ассерт), `SKILL.md` References залинкован, `CLAUDE-GLOBAL.md` указатели обновлены. **pytest 1135 passed, bats 669 ok / 0 fail.** Commit: см. git log.

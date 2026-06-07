@@ -68,15 +68,15 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 1: Safety net — baseline-замер + зелёный тест-сьют
-- ⬜ Safety net — baseline-замер + зелёный тест-сьют
+- ✅ Baseline: RULES.md 1073 строк; pytest 1134 passed; bats 669 ok / 0 fail. Тесты-границы выписаны в план.
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 2: Устранить дубли с CLAUDE-GLOBAL.md (тип 1, ~40 строк)
-- ⬜ Устранить дубли с CLAUDE-GLOBAL.md (тип 1, ~40 строк)
+- ✅ СНЯТ (по факту): guard + rules-only тест-защищены (`test_global_prompt_guard::test_detailed_rules_repeat_first_response_guard`, `test_runtime_contract::test_rules_only_mode_documented_in_rules`) — RULES.md самостоятельный артефакт (ставится в ~/.claude + Pi AGENTS.md). Дубль намеренный, не удаляем.
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 3: Вынести Code Graph → references/code-graph.md (тип 3, ~150 строк) — ГЛАВНЫЙ выигрыш
-- ⬜ Вынести Code Graph → references/code-graph.md (тип 3, ~150 строк) — ГЛАВНЫЙ выигрыш
+- ✅ Code Graph → `references/code-graph.md` (154 стр). RULES.md 1073→929 (−144). Тесты переориентированы. pytest 1135, bats 669, 0 fail.
 
 <!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
 ## Stage 4: Вынести MB operational reference (тип 2, ~225 строк) → /mb help + существующие references

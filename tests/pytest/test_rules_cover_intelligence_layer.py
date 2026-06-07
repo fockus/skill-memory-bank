@@ -8,6 +8,9 @@ Source-of-truth files (install.sh Step 1):
   rules/RULES.md          → ~/.claude/RULES.md   (full overwrite)
   rules/CLAUDE-GLOBAL.md  → ~/.claude/CLAUDE.md  ([MEMORY-BANK-SKILL] block)
   references/claude-md-template.md → project CLAUDE.md (/mb init --full)
+  references/code-graph.md → shipped via the references/ skill-resource dir copy
+                             (install.sh) — the intelligence-layer cookbook was
+                             extracted here from RULES.md for context economy.
 """
 
 from __future__ import annotations
@@ -20,13 +23,16 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RULES = REPO_ROOT / "rules" / "RULES.md"
 CLAUDE_GLOBAL = REPO_ROOT / "rules" / "CLAUDE-GLOBAL.md"
 PROJECT_TEMPLATE = REPO_ROOT / "references" / "claude-md-template.md"
+CODE_GRAPH = REPO_ROOT / "references" / "code-graph.md"
 
 
 def _text(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
 
-# ── rules/RULES.md — the detailed global rules ───────────────────────────
+# ── references/code-graph.md — extracted intelligence-layer cookbook ──────
+# (Moved out of rules/RULES.md for context economy; still shipped by the
+#  installer via the references/ dir copy, so a fresh install/upgrade has it.)
 
 @pytest.mark.parametrize("needle", [
     "Intelligence layer",      # the subsection tying the features together
@@ -36,14 +42,21 @@ def _text(p: Path) -> str:
     "/mb wiki",                # opt-in LLM wiki + surprising connections
     "/mb recall",              # session-memory lexical recall
 ])
-def test_rules_md_documents_intelligence_layer(needle: str):
-    assert needle in _text(RULES), f"rules/RULES.md is missing '{needle}'"
+def test_code_graph_ref_documents_intelligence_layer(needle: str):
+    assert needle in _text(CODE_GRAPH), f"references/code-graph.md is missing '{needle}'"
 
 
 @pytest.mark.parametrize("edge_kind", ['"co_change"', '"semantic"'])
-def test_rules_md_schema_lists_new_edge_kinds(edge_kind: str):
+def test_code_graph_ref_schema_lists_new_edge_kinds(edge_kind: str):
     # the jq Data schema block must describe the opt-in edge kinds
-    assert edge_kind in _text(RULES), f"rules/RULES.md jq schema missing kind {edge_kind}"
+    assert edge_kind in _text(CODE_GRAPH), \
+        f"references/code-graph.md jq schema missing kind {edge_kind}"
+
+
+def test_rules_md_points_to_code_graph_reference():
+    # RULES.md must keep a discoverable pointer to the extracted reference.
+    assert "references/code-graph.md" in _text(RULES), \
+        "rules/RULES.md must point to references/code-graph.md"
 
 
 # ── rules/CLAUDE-GLOBAL.md — the injected CLAUDE.md block ─────────────────

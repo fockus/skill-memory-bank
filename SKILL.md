@@ -412,6 +412,7 @@ The SessionEnd hook `hooks/mb-compact-reminder.sh` reminds the user to run `/mb 
 - Plan decomposition (Phase / Sprint / Stage), templates, drift checks: `references/templates.md`
 - Planning + Plan Verifier workflow: `references/planning-and-verification.md`
 - Structure of `.memory-bank/`: `references/structure.md`
+- Code graph cookbook (jq library, `graph.json` schema, intelligence layer, semantic-search routing): `references/code-graph.md`
 - Workflow (session lifecycle): `references/workflow.md`
 - Command file template: `references/command-template.md`
 - Hooks (per-host wiring + lifecycle): `references/hooks.md`
