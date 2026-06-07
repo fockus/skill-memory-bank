@@ -45,14 +45,27 @@ trap 'sc_unlock "$LOCK"' EXIT INT TERM
 [ "$(sc_fm_get "$SF" summarized)" = "true" ] && exit 0
 command -v "$CLAUDE" >/dev/null 2>&1 || exit 0
 
-# transcript source: frontmatter path, fallback to the Live-log section
+# Summary source. Prefer the full raw transcript only when it fits the summarizer's context
+# window. Oversized sessions (raw transcripts reach tens of MB) made `claude -p` emit
+# "Prompt is too long" — which used to be stored AS the summary. When the transcript is too
+# large, summarize the complete distilled Live-log instead: a lossless per-turn record,
+# far better signal than a lossy head/tail slice of raw JSONL — and never slurped wholesale.
+MAX_CHARS="${MB_SUMMARY_MAX_CHARS:-200000}"
 TRANSCRIPT="$(sc_fm_get "$SF" transcript)"
-if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
+if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] && [ "$(wc -c < "$TRANSCRIPT")" -le "$MAX_CHARS" ]; then
   SRC="$(cat "$TRANSCRIPT")"
 else
   SRC="$(awk '/^## Live log/{f=1} f{print}' "$SF")"
 fi
 [ -n "$SRC" ] || exit 0
+
+# Final guard: bound even the Live-log (cheap no-op when already small) so the prompt always fits.
+if [ "${#SRC}" -gt "$MAX_CHARS" ]; then
+  head_n=$(( MAX_CHARS * 6 / 10 ))
+  tail_n=$(( MAX_CHARS - head_n ))
+  tail_start=$(( ${#SRC} - tail_n ))
+  SRC="$(printf '%s\n…[transcript truncated for summary]…\n%s' "${SRC:0:head_n}" "${SRC:tail_start}")"
+fi
 
 PROMPT="Summarize this Claude Code session in 3-6 plain sentences: what the user asked and what was actually done. Output only the summary text, no preamble.
 
@@ -61,6 +74,18 @@ $SRC"
 SUMMARY="$(printf '%s' "$PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
   --model "$HAIKU_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
 [ -n "$SUMMARY" ] || exit 0
+
+# Reject error-shaped output (context overflow, API/auth/rate errors). Defense-in-depth on
+# top of the cap above: never store an error string as a summary, and leave summarized=false
+# so a later SessionEnd can retry. Patterns are error signatures, not prose, to avoid
+# false-rejecting a legitimate summary that merely discusses limits or errors.
+_sl="$(printf '%s' "$SUMMARY" | tr '[:upper:]' '[:lower:]')"
+case "$_sl" in
+  *"prompt is too long"*|*"tokens (limit "*|*"execution error"*|*"api error:"*|\
+  *"overloaded_error"*|*"rate_limit_error"*|*"authentication_error"*|*"invalid api key"*|\
+  *"context_length_exceeded"*)
+    exit 0 ;;
+esac
 
 # append Summary section and mark summarized (under the held lock)
 printf '\n## Summary\n%s\n' "$SUMMARY" >> "$SF"
@@ -83,6 +108,8 @@ tmp="$RECENT.tmp.$$"
 mv "$tmp" "$RECENT"
 
 # ── Step 2: gated Sonnet judge → 0–2 auto-notes ──────────────────────────────
+# Operator kill-switch for note-noise: MB_SESSION_JUDGE=off skips the judge (summary still ran).
+[ "${MB_SESSION_JUDGE:-on}" = "off" ] && exit 0
 # judge-gate: only spend Sonnet on "significant" sessions (had Write/Edit, or long enough).
 significant=false
 grep -qE 'tools: [^·]*(Edit|Write|NotebookEdit)' "$SF" && significant=true
