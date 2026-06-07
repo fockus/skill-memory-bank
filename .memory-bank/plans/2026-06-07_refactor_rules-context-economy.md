@@ -232,7 +232,9 @@ created: 2026-06-07
 | `rules/RULES.md` | 1073 строки | **801** | **−272 (−25%)** |
 | Code Graph секция (читается при структурном анализе) | ~148 строк inline | `references/code-graph.md` on-demand | вынесено |
 | Новый файл | — | `references/code-graph.md` (154) | shipped (claude/codex/pi) |
-| pytest | 1134 | **1135** | +1 (новый pointer-ассерт) |
-| bats | 669 / 0 fail | финальный прогон | см. Gate |
+| pytest | 1134 | **1135 passed** | +1 (новый pointer-ассерт) |
+| bats (tests/bats + tests/e2e) | 669 / 0 | **744 ok / 0 fail** (exit 0) | весь сьют зелёный |
+
+**Gate — ВЫПОЛНЕН:** RULES.md ≤ realistic-floor (801, −25%); вынесенный контент доступен через `references/code-graph.md` + `SKILL.md` + `/mb help`; **весь сьют зелёный (pytest 1135, bats 744/0)**; e2e install (claude/codex/pi) ставит ужатый RULES.md + `references/code-graph.md`; `~/.claude/RULES.md` синхронизирован; CHANGELOG обновлён. Стадии: 1✅ 2✅(снят) 3✅ 4✅ 5✅(скип) 6✅ 7✅. Готов к `/mb verify` → `/mb done`.
 
 **Информация не потеряна:** весь вынесенный контент доступен через `references/code-graph.md` + `SKILL.md` + `/mb help` + `references/structure.md`. Ядро дисциплины (1–383) нетронуто. Главная цель достигнута: «read § Code Graph» больше не тащит ~16K токенов в always-read правила.
