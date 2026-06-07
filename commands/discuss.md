@@ -31,6 +31,14 @@ Before creating a non-trivial plan (`/mb plan feature/refactor/...`). Skip for t
 
 After each phase, restate what was captured and ask the user to confirm before moving on.
 
+#### Grilling rules — apply to every question
+
+The 5 phases below are the **coverage checklist**, not a rigid script. While walking them, grill the design:
+
+1. **Recommend, don't just ask.** Every question carries your recommended answer + a one-line rationale. The user confirms or corrects — never fills a blank. (Inspired by `grill-me`.)
+2. **Code answers beat guesses.** If a question is answerable from the codebase, resolve it via the MB code graph / graphify / grep **before** asking, and cite `file:line`. Only ask the user what the code genuinely can't tell you: intent, priorities, trade-offs.
+3. **Follow the dependency tree.** When an answer unblocks a downstream decision, chase that branch to resolution before returning to the next phase — order questions by dependency, not strictly by phase number.
+
 #### Phase 1 — Purpose & Users
 
 - Who uses this?
