@@ -238,3 +238,7 @@ created: 2026-06-07
 **Gate — ВЫПОЛНЕН:** RULES.md ≤ realistic-floor (801, −25%); вынесенный контент доступен через `references/code-graph.md` + `SKILL.md` + `/mb help`; **весь сьют зелёный (pytest 1135, bats 744/0)**; e2e install (claude/codex/pi) ставит ужатый RULES.md + `references/code-graph.md`; `~/.claude/RULES.md` синхронизирован; CHANGELOG обновлён. Стадии: 1✅ 2✅(снят) 3✅ 4✅ 5✅(скип) 6✅ 7✅. Готов к `/mb verify` → `/mb done`.
 
 **Информация не потеряна:** весь вынесенный контент доступен через `references/code-graph.md` + `SKILL.md` + `/mb help` + `references/structure.md`. Ядро дисциплины (1–383) нетронуто. Главная цель достигнута: «read § Code Graph» больше не тащит ~16K токенов в always-read правила.
+
+## /mb verify (plan-verifier, sonnet)
+
+Plan-verifier поймал регрессию, которую я пропустил: запись в CHANGELOG `[Unreleased]` содержала запрещённое слово **«shipped»** (`test_changelog_no_orphan_section.py` запрещает `shipped/released/RELEASED` в `[Unreleased]`). После Stage 6-7 я гонял только bats, не pytest, → не заметил `1134 passed, 1 failed`. **Фикс:** «shipped» → «installed» (commit после verify). **Перепрогон: pytest 1135 passed.** Прочие пункты verify — OK (guard/rules-only на месте, anchors сохранены, inline-правила сохранены, RULES.md=801, `~/.claude/RULES.md` идентично, code-graph.md ships). Замечание verify про «bats 669→744» снято: baseline-прогон bats был усечён (я прибил его `pkill` во время отладки e2e), финальный прогон 744/0 (exit 0) — полный и авторитетный.
