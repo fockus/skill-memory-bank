@@ -57,6 +57,7 @@ Integration > unit > e2e; mock only external boundaries; 5+ mocks = integration 
 
 ## Planning
 Plans → `./.memory-bank/plans/` when Memory Bank is active. Every stage: SMART DoD + test requirements BEFORE implementation (TDD), atomic, dependency-ordered.
+**Agent routing (default — override only when explicitly told otherwise):** author plans with **`/mb plan` (or the `planner` subagent)** — NOT `general-purpose`. The MB planner applies these rules (TDD-first, SOLID, Clean Architecture/FSD, file-size ≤400, SMART DoD) by construction. Execute plans/specs via **`/mb work`** with role agents (`mb-backend`/`mb-frontend`/`mb-developer`/`mb-qa`/`mb-architect`), gated by `mb-reviewer` + `mb-rules-enforcer`. `general-purpose` and research subagents (e.g. `mb-research`, codebase-research) are for **research only** — never plan-authoring or code.
 
 ## Memory Bank
 **If `./.memory-bank/` exists → `[MEMORY BANK: ACTIVE]`.** Else `[MEMORY BANK: ABSENT]`; initialize only after an explicit `/mb init` or user request → `[MEMORY BANK: INITIALIZED]`.
