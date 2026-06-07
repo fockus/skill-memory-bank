@@ -65,3 +65,31 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 - `status.md` — current phase, active plan inventory, metrics.
 - `traceability.md` — generated REQ coverage matrix.
 - `progress.md` — append-only historical log.
+
+<!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
+## Stage 1: Safety net — baseline-замер + зелёный тест-сьют
+- ⬜ Safety net — baseline-замер + зелёный тест-сьют
+
+<!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
+## Stage 2: Устранить дубли с CLAUDE-GLOBAL.md (тип 1, ~40 строк)
+- ⬜ Устранить дубли с CLAUDE-GLOBAL.md (тип 1, ~40 строк)
+
+<!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
+## Stage 3: Вынести Code Graph → references/code-graph.md (тип 3, ~150 строк) — ГЛАВНЫЙ выигрыш
+- ⬜ Вынести Code Graph → references/code-graph.md (тип 3, ~150 строк) — ГЛАВНЫЙ выигрыш
+
+<!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
+## Stage 4: Вынести MB operational reference (тип 2, ~225 строк) → /mb help + существующие references
+- ⬜ Вынести MB operational reference (тип 2, ~225 строк) → /mb help + существующие references
+
+<!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
+## Stage 5: Сжать многословность Architecture (тип 4, ~90 строк) — опционально
+- ⬜ Сжать многословность Architecture (тип 4, ~90 строк) — опционально
+
+<!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
+## Stage 6: E2E установка + локализация Codex/Pi
+- ⬜ E2E установка + локализация Codex/Pi
+
+<!-- mb-plan:2026-06-07_refactor_rules-context-economy.md -->
+## Stage 7: Синхронизация установленной копии + CHANGELOG + VERSION
+- ⬜ Синхронизация установленной копии + CHANGELOG + VERSION
