@@ -24,6 +24,8 @@ Before final answer, verify:
 > **TDD** — tests first, then code. Allowed skips: typos, formatting, exploratory prototypes.
 > **Clean Architecture (backend)** — `Infrastructure → Application → Domain` (never the other way around). Domain = 0 external dependencies.
 > **FSD (frontend)** — Feature-Sliced Design for React/Vue/Angular. Layers top-down: `app → pages → widgets → features → entities → shared`. Imports only downward; cross-slice communication inside a layer goes through widget/page; every slice exposes its public API through `index.ts`.
+> **DDD folder structure (backend + frontend)** — group modules into coherent sub-packages by responsibility / bounded context across ALL layers, never a flat dump. No single-file folders (KISS). Backend layers: `domain/ application/ infrastructure/ interfaces/ di/`. Frontend: FSD slices ARE the DDD grouping (`entities/<context>`, `features/<action>`).
+> **Backend macro-architecture (pick one)** — serverless (FaaS) · microservices · modular monolith. In a modular monolith, modules MUST NOT depend on each other directly — cross-module communication goes ONLY through a shared layer / explicit contracts. Clean Architecture direction still holds inside each function/service/module.
 > **Mobile (iOS/Android)** — UDF + Clean layers: `View → ViewModel → UseCase → Repository (SSOT) → DataSource`. iOS: SwiftUI + `@Observable`, `async/await`, SwiftData, SPM feature modules. Android: Jetpack Compose + StateFlow + Hilt + Room, Gradle multi-module. Immutable UI state, DI through protocols/interfaces.
 > **SOLID thresholds** — SRP: >300 lines or >3 public methods of different nature = split candidate. ISP: interface ≤5 methods. DIP: constructor takes abstractions.
 > **DRY / KISS / YAGNI** — duplicate >2 times → extract. Three identical lines are better than premature abstraction. Do not write code "for the future."
@@ -58,24 +60,33 @@ Plans → `./.memory-bank/plans/` when Memory Bank is active. Every stage: SMART
 
 ## Memory Bank
 **If `./.memory-bank/` exists → `[MEMORY BANK: ACTIVE]`.** Else `[MEMORY BANK: ABSENT]`; initialize only after an explicit `/mb init` or user request → `[MEMORY BANK: INITIALIZED]`.
-**Skill:** `memory-bank`. **Command:** `/mb`. **Subagent:** MB Manager (sonnet). **Path:** `./.memory-bank/`.
+**Skill:** `memory-bank`. **Command:** `/mb`. **Path:** `./.memory-bank/`.
+**Three-in-one:** (1) long-term project memory (`.memory-bank/`), (2) the engineering RULES above, (3) a dev toolkit of 25 commands. **Design contract:** agents remember by default; everything above that is a configurable, token-economical layer — defaults never change without explicit opt-in, expensive paths are off by default.
+**`/mb context`** (alias `/mb`) — gather the current project context (status + checklist + active plan + codebase summary). Run it at the START of any project work; `/mb context --deep` expands the full `codebase/*.md`. `/mb start` = extended start (context + the full active plan read in).
+**Subagents (sonnet):** MB Manager (mechanical actualize) · plan-verifier (`/mb verify`) · mb-doctor · mb-codebase-mapper · mb-rules-enforcer · mb-test-runner · mb-reviewer · mb-engineering-core (discipline prepend) + 9 dev-role agents for `/mb work`. Full roster + when-to-invoke → `~/.claude/RULES.md § Subagents`.
 
 ### Session Pipeline
 ```
-/mb start  →  /mb plan <type> <topic>  →  [work]  →  /mb verify  →  /mb done
+plan-based:  /mb start → /mb plan <type> <topic> → [work] → /mb verify → /mb done
+spec-driven: /mb start → /mb discuss <topic> → /mb sdd <topic> → /mb work <topic> → /mb verify → /mb done
 ```
-**`/mb verify` is MANDATORY before `/mb done` when work followed a plan.** Full `/mb` command reference → `~/.claude/RULES.md` or `/mb help`.
+**`/mb verify` is MANDATORY before `/mb done` when work followed a plan.** SDD adds EARS-validated requirements + optional GIVEN/WHEN/THEN scenarios → executable `tasks.md` (`<!-- mb-task:N -->`). `/mb work` is the executor: drives plan stages or spec tasks through a per-item implement→review→fix→verify loop with severity-gates + `pipeline.yaml` protected-paths/budget. Full `/mb` reference (all 25 commands) + SDD + work engine → `~/.claude/RULES.md` or `/mb help`.
 
 ### Key invariants
 - `progress.md` = **append-only** (never rewrite old entries); IDs monotonic (I-/EXP-/ADR-NNN, never reused); `checklist.md` ✅/⬜ updated **immediately**; `notes/` = patterns (5–15 lines), not chronology.
 
 ### Codebase Map & Code Graph
 `.memory-bank/codebase/`: 4 MD docs (`STACK`/`ARCHITECTURE`/`CONVENTIONS`/`CONCERNS`, via `/mb map`, auto-loaded by `/mb context`) + `graph.json` + `god-nodes.md` (`/mb graph --apply`). Prefer the graph over `grep -rn` for structural questions. Example: `jq -c 'select(.type=="edge" and .dst=="WriteFile")' .memory-bank/codebase/graph.json`.
-- **Opt-in layers** (off by default, base output byte-identical): `/mb graph --questions` (suggested questions in `god-nodes.md`) · `/mb graph --cochange` (`co_change` edges from git history) · `mb-semantic-search.py "<query>"` (semantic search — BM25 $0 default, optional embeddings) · `/mb wiki` (LLM per-community wiki + "surprising connections" = `semantic` edges, Haiku/Sonnet subagents, no API key).
+- **Opt-in layers** (off by default, base output byte-identical): `/mb graph --questions` (suggested questions in `god-nodes.md`) · `/mb graph --cochange` (`co_change` edges from git history) · `/mb graph --docs` (enrich nodes with `signature`+`doc` for richer semantic search) · `mb-semantic-search.py "<query>" [--backend embeddings] [--source-only]` (semantic search — embeddings for concepts, BM25 for exact names; cached under `.index/codesearch/`) · `/mb wiki` (LLM per-community wiki + "surprising connections" = `semantic` edges, Haiku/Sonnet subagents, no API key). **Routing:** concept→embeddings · exact name→bm25 · impact/god-node→`mb-graph-query` · why→wiki/`recall`. Table → `~/.claude/RULES.md § Code Graph — usage`.
 - **Session memory (cross-chat):** lifecycle hooks log each session to `.memory-bank/session/*.md`; **`/mb recall <query>`** does lexical recall over `session/` + `notes/`. Off: `MB_SESSION_CAPTURE=off`. Distinct from `/mb search` (core files) and `mb-semantic-search.py` (code graph).
 - Routing + jq library + schema → `~/.claude/RULES.md § Code Graph — usage`.
 
+### Personalization, privacy, native memory
+- **Rule profiles:** `/mb profile init --scope=user|project --role --stack --architecture --delivery` tunes the configurable rules layer (the immutable safety baseline always stays). Works even without a bank (user scope).
+- **Private content:** wrap secrets/PII in `<private>…</private>` — excluded from `index.json` + redacted in `/mb search` output (does NOT filter `git diff`; use `.gitattributes` for that).
+- **`.memory-bank/` vs native auto-memory:** project/team/git-tracked facts (status, plans, ADRs, lessons) → `.memory-bank/`; personal cross-project facts (preferences, role, feedback) → native `~/.claude/projects/.../memory/`. They coexist — don't duplicate one into the other.
+
 ### When to read the detailed rules
-Before these, read the matching `~/.claude/RULES.md` section: `/mb plan` → `§ Session Pipeline` + `§ Planning chain`; `/mb verify` / `/mb done` → `§ Session Pipeline`; `/mb graph` / `/mb map` / jq → `§ Code Graph — usage`; tests → `§ Tests — Testing Trophy`; ADR → `§ Architecture`.
+Before these, read the matching `~/.claude/RULES.md` section: `/mb plan` → `§ Session Pipeline` + `§ Planning chain`; `/mb discuss` / `/mb sdd` → `§ SDD — spec-driven flow`; `/mb work` → `§ /mb work — execution engine`; `/mb verify` / `/mb done` → `§ Session Pipeline`; `/mb graph` / `/mb map` / jq → `§ Code Graph — usage`; `/mb profile` → `§ Rule profiles`; subagents → `§ Subagents`; tests → `§ Tests — Testing Trophy`; ADR → `§ Architecture`.
 
 Project-specific overrides live in `<project-root>/RULES.md` (or `.memory-bank/RULES.md`). Read them **in addition to** the global ones, not instead.

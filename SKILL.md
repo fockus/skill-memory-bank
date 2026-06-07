@@ -177,7 +177,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb_graph_query_render.py` | Markdown summary renderers for graph-query output |
 | `mb-code-context.py` | GraphRAG-lite evidence pack: optional semantic candidates + graph expansion + text/read fallback |
 | `mb_code_context_core.py` | Core evidence-pack orchestration for `mb-code-context.py` |
-| `mb-semantic-search.py` | Semantic code search over `graph.json` (+ wiki): pure-Python BM25 default ($0, zero deps), opt-in local embeddings. Modules in `memory_bank_skill/`: `semantic_search`, `semantic_embeddings`, `codegraph_loader` |
+| `mb-semantic-search.py` | Semantic code search over `graph.json` (+ wiki): `--backend auto` (embeddings when `sentence-transformers` installed, else pure-Python BM25 — the $0 zero-dep base), `--source-only`, disk cache in `.index/codesearch/`. Modules in `memory_bank_skill/`: `semantic_search`, `semantic_embeddings`, `codegraph_loader` |
 | `mb-wiki.py` | `/mb wiki` engine (deterministic prep): `plan`/`packs`/`write-article`/`merge-edges`/`index`. LLM articles + surprising-connection edges via host subagents. Modules: `wiki_evidence`, `wiki_store` |
 | `mb-context-slim.py` | Slim a full agent prompt on stdin → terse version on stdout |
 | `mb-upgrade.sh [--check\|--force]` | Self-update the skill from GitHub |

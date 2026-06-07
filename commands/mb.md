@@ -548,7 +548,7 @@ User: /mb import --project ~/.claude/projects/-Users-fockus-Apps-myproject/ --si
 - Debug-session detection for `lessons.md` — TODO (v2.2+)
 - `status.md` seed — manual only
 
-### graph [--apply] [--cochange] [src_root]
+### graph [--apply] [--cochange] [--questions] [--docs] [src_root]
 
 Build a code graph for the Python part of the project through stdlib `ast` (0 new deps). Replaces `grep` for questions like "where is X called?", "which classes inherit from Y?", "what is imported from model.py?" — deterministic, fast, incremental.
 
@@ -561,7 +561,7 @@ Extraction engines live in the `memory_bank_skill` package: `codegraph_python` (
 
 **Output (`--apply`):**
 
-- `<mb>/codebase/graph.json` — JSON Lines (one node/edge per line, grep-friendly, streamable). Node lines carry a `community` id when networkx is installed. With `--cochange`, additional `{"kind":"co_change","weight":N}` edges are appended.
+- `<mb>/codebase/graph.json` — JSON Lines (one node/edge per line, grep-friendly, streamable). Node lines carry a `community` id when networkx is installed. With `--cochange`, additional `{"kind":"co_change","weight":N}` edges are appended. With `--docs`, function/class/module nodes gain optional `signature`+`doc` fields (richer semantic search).
 - `<mb>/codebase/god-nodes.md` — analytics report: **Top symbols** + **Top modules** (degree, split so test-module hubs no longer drown real abstractions) and, when networkx is available, **Communities** (auto-detected module clusters + cohesion score) + **Bridge files** (highest betweenness — refactoring/risk hotspots). With `--cochange`, a **Co-changing file pairs** section is appended.
 - `<mb>/codebase/.cache/<hash>.json` — per-file SHA256 → parsed entities
 
@@ -576,6 +576,8 @@ Extraction engines live in the `memory_bank_skill` package: `codegraph_python` (
 - `--dry-run` (default) — stdout summary (nodes/edges/reparsed/cached), 0 file changes
 - `--apply` — writes all outputs + updates cache
 - `--cochange` — appends git co-change edges (opt-in; requires `--apply`; no-op outside a git repo)
+- `--questions` — appends deterministic suggested questions to god-nodes.md (opt-in; requires `--apply`)
+- `--docs` — enrich function/class/module nodes with `signature`/`doc` for richer semantic search (opt-in; requires `--apply`; re-parses on toggle; default off keeps `graph.json` byte-identical)
 - Broken syntax → skip with warning, batch continues
 - `.venv/`, `__pycache__/`, `.*/` — excluded
 
@@ -664,11 +666,14 @@ tested `scripts/mb-wiki.py`; the LLM steps dispatch subagents via the `Agent` to
 feed semantic search.
 
 **Semantic search** (companion tool, not a `/mb` subcommand): `scripts/mb-semantic-search.py
-"<query>" [--backend auto|bm25|embeddings] [--k N]`. Default backend is pure-Python
-**BM25** ($0, zero deps, deterministic) over graph symbols + wiki articles; opt-in local
-embeddings (`sentence-transformers`) via `--backend embeddings`, graceful fallback to
-BM25. Use it for "where is the logic for X?" — it complements the structural `graph_*`
-queries.
+"<query>" [mb_path] [--backend auto|bm25|embeddings] [--source-only] [--k N]`. Default backend
+`auto` = local `sentence-transformers` **embeddings** when installed (best for concept/synonym
+queries), else pure-Python **BM25** ($0, zero deps, deterministic — best for exact identifiers),
+over graph symbols + wiki articles. `--source-only` drops test/spec files. First embeddings query
+loads the model (~5-15s); subsequent queries reuse a cached vector matrix under
+`.memory-bank/.index/codesearch/`. Build with `/mb graph --apply --docs` to index
+docstrings+signatures. Use it for "where is the logic for X?" — it complements the structural
+`graph_*` queries.
 
 **Safety:** `--dry-run` stops after the plan; idempotent re-runs; 0 communities → no-op
 with a clear message.
