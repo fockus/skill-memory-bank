@@ -400,3 +400,47 @@ def test_direct_call_preserves_user_hook_in_mixed_entry(merge_mod, tmp_settings,
     ]
     assert "echo user-custom-guard" in cmds
     assert sum("block-dangerous" in cmd for cmd in cmds) == 1
+
+
+# ═══════════════════════════════════════════════════════════════
+# Legacy marker variants — suffixed markers from older installers
+# ═══════════════════════════════════════════════════════════════
+
+
+def test_is_mb_managed_recognizes_suffixed_marker(merge_mod):
+    """An older installer wrote `# [memory-bank-skill session-memory]`. The exact-substring
+    check `[memory-bank-skill]` misses it (the `]` sits after the suffix), so it was never
+    stripped and coexisted with the fresh entry → duplicate Stop registration."""
+    suffixed = "~/.claude/hooks/mb-session-turn.sh # [memory-bank-skill session-memory]"
+    assert merge_mod._is_mb_managed(suffixed)
+
+
+def test_strips_stale_suffixed_marker_so_no_duplicate(merge_mod, tmp_settings, tmp_hooks_minimal):
+    """A stale suffixed-marker Stop entry must be removed on merge, leaving exactly the
+    fresh canonical Stop hook — never two mb-managed Stop hooks (the real duplicate-capture bug)."""
+    tmp_settings.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "Stop": [
+                        {
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "~/.claude/hooks/mb-session-turn.sh # [memory-bank-skill session-memory]",
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        )
+    )
+    merge_mod.merge_hooks(str(tmp_settings), str(tmp_hooks_minimal))
+
+    data = json.loads(tmp_settings.read_text())
+    stop_cmds = [h["command"] for entry in data["hooks"]["Stop"] for h in entry.get("hooks", [])]
+    # the stale suffixed-marker entry is gone...
+    assert not any("session-memory" in c for c in stop_cmds)
+    # ...and the fresh canonical Stop hook is present exactly once
+    assert sum("[MB] done" in c for c in stop_cmds) == 1

@@ -19,6 +19,12 @@ import tempfile
 
 MARKER = "[memory-bank-skill]"
 
+# Match the marker AND any suffixed variant a previous installer may have written, e.g.
+# `[memory-bank-skill session-memory]`. The plain `MARKER in cmd` substring check misses
+# suffixed forms (the `]` sits after the suffix), so stale variants were never stripped and
+# coexisted with the fresh entry → duplicate hook registration (double session-turn capture).
+_MARKER_RE = re.compile(r"\[memory-bank-skill[^\]]*\]")
+
 # Legacy signatures — commands that previous installer versions wrote WITHOUT
 # the [memory-bank-skill] marker. Matched as plain substrings against the
 # first hook's command. Keep these in sync with anything that ever shipped.
@@ -45,7 +51,7 @@ LEGACY_BARE_PATHS: set[str] = {
     "~/.claude/hooks/mb-compact-reminder.sh",
 }
 
-_STRIP_MARKER_RE = re.compile(r"\s*#\s*\[memory-bank-skill\]\s*$")
+_STRIP_MARKER_RE = re.compile(r"\s*#\s*\[memory-bank-skill[^\]]*\]\s*$")
 
 
 def _first_cmd(entry: object) -> str:
@@ -62,7 +68,7 @@ def _first_cmd(entry: object) -> str:
 
 def _is_mb_managed(cmd: str) -> bool:
     """True if a hook command is owned by the memory-bank skill."""
-    if MARKER in cmd:
+    if _MARKER_RE.search(cmd):
         return True
     stripped = _STRIP_MARKER_RE.sub("", cmd).strip()
     if stripped in LEGACY_BARE_PATHS:
