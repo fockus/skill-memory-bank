@@ -88,6 +88,13 @@ bash ~/.claude/hooks/mb-recall.sh $ARGS_AFTER_RECALL
 Searches `.memory-bank/session/` + `.memory-bank/notes/` via ripgrep (fallback grep), prints `file:line`
 + context. Off-switch for capture: `MB_SESSION_CAPTURE=off`. Show results to the user.
 
+**Rebuild `_recent.md`** (after pruning empty sessions, or to re-curate the rolling window from existing
+session files — `_recent.md` is otherwise only updated incrementally on SessionEnd):
+
+```bash
+bash "$(dirname "$0")/../scripts/mb-session-recent-rebuild.sh"   # newest MB_RECENT_KEEP (default 5) with a ## Summary
+```
+
 ### context / search / note / tasks
 
 **Soft v1-layout detection.** Before invoking the subagent for `context` (or `(empty)`), run the v1-layout probe from `commands/start.md` (Pre-flight section). If v1 files are found without v2 counterparts, surface a one-line warning to the user:
