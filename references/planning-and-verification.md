@@ -80,7 +80,8 @@ Plan Verifier is a Sonnet subagent that checks code against the plan. Prompt: `a
 | 3 | DoD items against real code (file existence, tests, lint, no TODO/FIXME/placeholder) | Plan stages |
 | 3.5 | `bash mb-metrics.sh --run` → `test_status=pass\|fail` + coverage when exposed | Live execution |
 | 3.6 | RULES.md enforcement (SRP ≥300 lines, Clean Arch direction, TDD delta, ISP, DRY) | `.memory-bank/RULES.md` → `~/.claude/RULES.md` |
-| 4 | Categorize findings into CRITICAL / WARNING / INFO | Step 3 + 3.5 + 3.6 output |
+| 3.7 | `bash scripts/mb-drift.sh .` → `drift_warnings`. **`drift_check_plan_vs_git=warn` ⇒ CRITICAL** — MB claims a plan is `queued`/`in_progress` while git shows its declared files committed after the plan (the bank is lying about completion). Other drift checks ⇒ WARNING. | Deterministic (MB vs git) |
+| 4 | Categorize findings into CRITICAL / WARNING / INFO | Step 3 + 3.5 + 3.6 + 3.7 output |
 | 5 | Produce structured report with `Tests run:` and `RULES violations:` rows | — |
 
 ### Invocation format

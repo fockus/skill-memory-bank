@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mb-drift.sh — 13 deterministic drift checkers for Memory Bank (no AI required).
+# mb-drift.sh — 14 deterministic drift checkers for Memory Bank (no AI required).
 #
 # Usage:
 #   mb-drift.sh [project-dir]
@@ -361,6 +361,66 @@ check_plan_status() {
   fi
 }
 
+# ═══ 14. plan_vs_git — MB plan claims vs git reality (shipped-but-not-closed) ═══
+# A plan whose frontmatter says status: queued|in_progress while its declared target files
+# already have commits dated AFTER the plan is almost certainly implemented-but-not-closed —
+# the exact drift that left deep-search-v2 reading as "code NOT touched / queued" after the
+# epic had shipped. This is the fail-loud guardrail for Memory Bank itself: such drift becomes
+# a deterministic warn (exit≠0) instead of a silent state a fresh agent reads as "not started".
+#
+# Signal (low false-positive): declared file = backtick-wrapped path token containing a '/' and an
+# extension (the `Create:`/`Modify:` convention). "After the plan" is keyed off the plan's
+# YYYY-MM-DD filename prefix, so pre-existing modify-targets (committed before the plan) do NOT
+# trip it. Advisory only. Requires a git repo and a dated plan filename; otherwise skip the plan.
+# NOTE: only canonical YAML-frontmatter `status:` plans are assessed; legacy bold-field
+# («**Статус:**») plans are invisible here by design (migrate them to frontmatter).
+check_plan_vs_git() {
+  if ! git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    skip plan_vs_git "not a git repo"
+    return
+  fi
+  local dir_abs count=0 f st base plan_date tok rel impl
+  dir_abs=$(cd "$DIR" && pwd)
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    st=$(awk 'NR==1&&/^---$/{i=1;next} i&&/^---$/{exit} i&&/^status:/{sub(/^status:[[:space:]]*/,"");gsub(/["'\'' ]/,"");print;exit}' "$f")
+    case "$st" in
+      queued | in_progress) : ;;
+      *) continue ;;
+    esac
+    base=$(basename "$f")
+    plan_date=$(printf '%s' "$base" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)
+    [ -n "$plan_date" ] || continue
+    impl=0
+    while IFS= read -r tok; do
+      [ -z "$tok" ] && continue
+      if [ -f "$DIR/$tok" ]; then
+        rel="$tok"
+      elif [ "${tok#/}" != "$tok" ] && [ -f "$tok" ]; then
+        case "$tok" in
+          "$dir_abs"/*) rel="${tok#"$dir_abs"/}" ;;
+          *) continue ;;
+        esac
+      else
+        continue
+      fi
+      if [ -n "$(git -C "$DIR" log --since="$plan_date 00:00:00" --pretty=%h -- "$rel" 2>/dev/null)" ]; then
+        impl=$(( impl + 1 ))
+      fi
+      # shellcheck disable=SC2016 # Single quotes keep the backtick literal for the grep regex.
+    done < <(grep -oE '`[A-Za-z0-9_./-]+/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+`' "$f" 2>/dev/null | tr -d '`' | sort -u)
+    if [ "$impl" -gt 0 ]; then
+      count=$(( count + 1 ))
+      echo "  - $base: status=$st but $impl declared file(s) committed after plan date ($plan_date) — likely done; run /mb done or correct status" >&2
+    fi
+  done < <(find "$MB/plans" -maxdepth 1 -type f -name '*.md' 2>/dev/null || true)
+  if [ "$count" -gt 0 ]; then
+    warn plan_vs_git "$count plan(s) shipped-but-not-closed (MB status vs git) — fail-loud guard"
+  else
+    ok plan_vs_git
+  fi
+}
+
 # ═══ Run all checks ═══
 check_path
 check_staleness
@@ -375,6 +435,7 @@ check_terminology
 check_uncommitted
 check_active_plans
 check_plan_status
+check_plan_vs_git
 
 echo "drift_warnings=$WARNINGS"
 
