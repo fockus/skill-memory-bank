@@ -19,6 +19,7 @@ source "$(dirname "$0")/_lib.sh"
 PLAN_AGE_DAYS=60
 NOTE_AGE_DAYS=90
 ACTIVE_WARN_DAYS=180
+SESSION_AGE_DAYS="${MB_SESSION_AGE_DAYS:-30}"
 
 MODE="dry-run"
 MB_ARG=""
@@ -200,6 +201,34 @@ collect_note_candidates() {
   done < <(find "$MB_PATH/notes" -type f -name '*.md' -print0 2>/dev/null)
 }
 
+# Stale session logs: session/*.md older than SESSION_AGE_DAYS, excluding the
+# rolling-window file `_recent.md` and anything already in session/archive/.
+collect_session_candidates() {
+  [ -d "$MB_PATH/session" ] || return 0
+  while IFS= read -r -d '' f; do
+    local rel age
+    rel="${f#"$MB_PATH"/}"
+    [[ "$rel" == session/archive/* ]] && continue
+    [ "$(basename "$f")" = "_recent.md" ] && continue
+    age=$(mtime_days "$f")
+    [ "$age" -gt "$SESSION_AGE_DAYS" ] || continue
+    printf '%s\tstale_age\t%s\n' "$rel" "$age"
+  done < <(find "$MB_PATH/session" -type f -name '*.md' -print0 2>/dev/null)
+}
+
+apply_session_archive() {
+  local rel="$1" f="$MB_PATH/$1" archive_dir="$MB_PATH/session/archive" base dest
+  [ -f "$f" ] || return 0
+  mkdir -p "$archive_dir"
+  base=$(basename "$rel")
+  dest="$archive_dir/$base"
+  if [ -e "$dest" ]; then
+    echo "[warn] archive target exists, skip: $dest" >&2; return 0
+  fi
+  mv "$f" "$dest"
+  echo "[apply] archived session: $rel → session/archive/"
+}
+
 apply_plan_archive() {
   local rel="$1" reason="$2" f="$MB_PATH/$1"
   [ -f "$f" ] || return 0
@@ -240,17 +269,21 @@ apply_note_archive() {
 # ═══ Main ═══
 plan_candidates=$(collect_plan_candidates)
 note_candidates=$(collect_note_candidates)
+session_candidates=$(collect_session_candidates)
 active_warnings=$(collect_active_plan_warnings)
 
 plan_count=0
 note_count=0
+session_count=0
 [ -n "$plan_candidates" ] && plan_count=$(echo "$plan_candidates" | grep -c .)
 [ -n "$note_candidates" ] && note_count=$(echo "$note_candidates" | grep -c .)
+[ -n "$session_candidates" ] && session_count=$(echo "$session_candidates" | grep -c .)
 
 echo "mode=$MODE"
 echo "plans_candidates=$plan_count"
 echo "notes_candidates=$note_count"
-echo "candidates=$((plan_count + note_count))"
+echo "sessions_candidates=$session_count"
+echo "candidates=$((plan_count + note_count + session_count))"
 
 if [ "$plan_count" -gt 0 ]; then
   echo ""
@@ -268,6 +301,15 @@ if [ "$note_count" -gt 0 ]; then
     [ -z "$rel" ] && continue
     echo "  archive: $rel (reason=$reason, age=${age}d)"
   done <<< "$note_candidates"
+fi
+
+if [ "$session_count" -gt 0 ]; then
+  echo ""
+  echo "# Sessions to archive:"
+  while IFS=$'\t' read -r rel reason age; do
+    [ -z "$rel" ] && continue
+    echo "  archive: $rel (reason=$reason, age=${age}d)"
+  done <<< "$session_candidates"
 fi
 
 if [ -n "$active_warnings" ]; then
@@ -291,6 +333,12 @@ if [ "$MODE" = "apply" ]; then
       [ -z "$rel" ] && continue
       apply_note_archive "$rel"
     done <<< "$note_candidates"
+  fi
+  if [ -n "$session_candidates" ]; then
+    while IFS=$'\t' read -r rel _reason _age; do
+      [ -z "$rel" ] && continue
+      apply_session_archive "$rel"
+    done <<< "$session_candidates"
   fi
   touch "$MB_PATH/.last-compact"
   # Best-effort checklist prune (collapses fully-✅+plans/done sections to one-liners).
