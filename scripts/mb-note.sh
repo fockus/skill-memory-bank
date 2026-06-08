@@ -27,7 +27,9 @@ FILEPATH=$(mb_collision_safe_filename "$NOTES_DIR/$FILENAME")
 mkdir -p "$NOTES_DIR"
 
 DATE_NOW=$(date +"%Y-%m-%d %H:%M")
-printf '# %s\nDate: %s\n' "$TOPIC" "$DATE_NOW" > "$FILEPATH"
+# YAML frontmatter so mb-index-json.py records type/tags/importance (not null).
+printf -- '---\ntype: note\ntags: []\nimportance: medium\nsource: manual\n---\n\n' > "$FILEPATH"
+printf '# %s\nDate: %s\n' "$TOPIC" "$DATE_NOW" >> "$FILEPATH"
 cat >> "$FILEPATH" << 'EOF'
 
 ## What was done
