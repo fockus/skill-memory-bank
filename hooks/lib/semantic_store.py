@@ -5,6 +5,29 @@ import os
 import numpy as np
 from pathlib import Path
 
+# Default per-`kind` ranking multipliers: curated notes/sessions out-rank raw
+# transcripts at comparable cosine, so recall surfaces durable knowledge first.
+_DEFAULT_SOURCE_WEIGHTS = {"note": 1.0, "session": 0.95, "transcript": 0.85}
+
+
+def _source_weights():
+    """Resolve per-kind ranking weights. ``MB_RECALL_SOURCE_WEIGHTS=off`` → None
+    (legacy pure cosine). Otherwise the defaults, overlaid with any
+    ``kind=factor`` pairs from the env (comma-separated). Unset → defaults."""
+    raw = os.environ.get("MB_RECALL_SOURCE_WEIGHTS")
+    if raw is not None and raw.strip().lower() == "off":
+        return None
+    weights = dict(_DEFAULT_SOURCE_WEIGHTS)
+    if raw:
+        for pair in raw.split(","):
+            if "=" in pair:
+                k, _, v = pair.partition("=")
+                try:
+                    weights[k.strip()] = float(v.strip())
+                except ValueError:
+                    pass
+    return weights
+
 
 class Store:
     def __init__(self, index_dir):
@@ -94,7 +117,17 @@ class Store:
         if matrix.shape[1] != q.shape[0]:
             return []
         scores = matrix @ q                       # vectors are L2-normalized → cosine
-        order = np.argsort(-scores)[:top_k]
+        # Rank by cosine optionally scaled per source `kind` (notes > transcripts).
+        # The min_score gate and the reported score stay on the RAW cosine, so
+        # weighting only re-orders comparable hits — it never admits weak matches.
+        weights = _source_weights()
+        if weights is not None:
+            wv = np.array([weights.get(str(m.get("kind", "")), 1.0) for m in flat_m],
+                          dtype=np.float32)
+            ranking = scores * wv
+        else:
+            ranking = scores
+        order = np.argsort(-ranking)[:top_k]
         out = []
         for i in order:
             sc = float(scores[int(i)])
