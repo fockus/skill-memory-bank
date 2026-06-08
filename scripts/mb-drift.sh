@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mb-drift.sh — 12 deterministic drift checkers for Memory Bank (no AI required).
+# mb-drift.sh — 13 deterministic drift checkers for Memory Bank (no AI required).
 #
 # Usage:
 #   mb-drift.sh [project-dir]
@@ -262,21 +262,24 @@ check_terminology() {
     [ -n "$f" ] && files+=("$f")
   done < <(find "$MB/plans" -maxdepth 1 -type f -name '*.md' 2>/dev/null || true)
 
-  # Lines that explicitly mark the term as legacy / alias / Cyrillic, or that
-  # quote it via French quotes «...», are meta-references documenting the
-  # convention itself — not drift. We skip them before counting.
+  # Only flag the terms when used as a decomposition MARKER — a markdown heading
+  # (`## Этап 1`) or a table row (`| Фаза | … |`). Incidental Russian prose nouns
+  # and their declensions ("каждый этап", "эта фаза", "этапы") are NOT drift and
+  # must not be flagged — BSD grep `\b` cannot word-boundary Cyrillic, so a plain
+  # whole-word match false-positives on every Russian sentence. Heading/table
+  # anchoring is the deterministic signal of an actual hierarchy marker.
   for f in "${files[@]:-}"; do
     [ -z "$f" ] && continue
     [ -f "$f" ] || continue
     local hits
-    # Skip meta-references: lines that mark the term as legacy/alias, lines
-    # quoting the term in `«...»` or backticks (regex literals or code spans
-    # such as `\b(Этап|Спринт)\b`), and TDD jargon (`RED-фаза`, `GREEN-фаза`).
+    # Skip meta-references: lines marking the term as legacy/alias/Cyrillic, or
+    # quoting it in `«...»` / backticks (regex literals or code spans).
     # shellcheck disable=SC2016 # Single quotes keep the regex literal for grep.
-    hits=$(grep -iE '\b(Этап|Эпик|Спринт|Фаза)\b' "$f" 2>/dev/null \
+    # Marker = the term as the FIRST word of a heading (`## Этап 1`), or a table
+    # cell that STARTS with the term (`| Фаза |`, `| Этапы |`). Prose inside a
+    # heading tail or a data cell (e.g. `… **КРОСС-ФАЗА:** …`) is NOT a marker.
+    hits=$(grep -inE '^#{1,6}[[:space:]]+(Этап|Эпик|Спринт|Фаза)|\|[[:space:]]*(Этап|Эпик|Спринт|Фаза)[^|]*\|' "$f" 2>/dev/null \
             | grep -ivE 'legacy|alias|Cyrillic|«|»|deprecat' \
-            | grep -vE '\\b\(' \
-            | grep -ivE 'red-фаза|green-фаза|refactor-фаза|test-фаза' \
             | grep -vE '`[^`]*(Этап|Эпик|Спринт|[Фф]аза)[^`]*`' \
             || true)
     if [ -n "$hits" ]; then
@@ -333,6 +336,31 @@ check_active_plans() {
   fi
 }
 
+# ═══ 13. plan_status — frontmatter status: outside canonical vocabulary ═══
+# Canonical plan statuses: queued | in_progress | done | blocked. roadmap-sync
+# only renders Now/Next from in_progress/queued, so non-canonical values
+# (active/planned/…) silently drop a plan off the roadmap. Deterministic; the
+# "prose says X but reality is Y" semantic lie stays a /mb verify / mb-doctor job.
+check_plan_status() {
+  local count=0 f st base
+  local canon="queued in_progress done blocked paused"
+  while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    st=$(awk 'NR==1&&/^---$/{i=1;next} i&&/^---$/{exit} i&&/^status:/{sub(/^status:[[:space:]]*/,"");gsub(/["'\'' ]/,"");print;exit}' "$f")
+    [ -n "$st" ] || continue
+    case " $canon " in
+      *" $st "*) : ;;
+      *) count=$(( count + 1 )); base=$(basename "$f")
+         echo "  - $base: non-canonical status '$st' (use one of: $canon)" >&2 ;;
+    esac
+  done < <(find "$MB/plans" -maxdepth 1 -type f -name '*.md' 2>/dev/null || true)
+  if [ "$count" -gt 0 ]; then
+    warn plan_status "$count plan(s) with non-canonical status: (canonical: $canon)"
+  else
+    ok plan_status
+  fi
+}
+
 # ═══ Run all checks ═══
 check_path
 check_staleness
@@ -346,6 +374,7 @@ check_research_experiments
 check_terminology
 check_uncommitted
 check_active_plans
+check_plan_status
 
 echo "drift_warnings=$WARNINGS"
 
