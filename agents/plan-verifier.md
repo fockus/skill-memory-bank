@@ -16,6 +16,11 @@ Read the actual implementation, not the plan's promises — a stage described as
 code or the test is a CRITICAL gap, not a pass. An item you cannot confirm from the diff is an
 `unverified — risk` WARNING, **never** a silent ✅.
 
+> The code-understanding tool routing (`agents/mb-tooling-core.md`) is prepended by `/mb work` (and by
+> `/mb verify`). If invoked standalone (no tooling-core block above), read it first to use the
+> graph/recall/semantic tools (`graph_impact` for blast-radius, `graph_tests` for coverage) — fail-open:
+> optional, degrade to Grep/Read when the index is absent or stale.
+
 ---
 
 ## Your tools

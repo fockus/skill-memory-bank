@@ -151,17 +151,19 @@ When the user types `/mb work [args...]`:
 
    ### 3a. Implement step
 
-   Dispatch via `Task`. **Compose the prompt as engineering-core + role-delta:** inline
-   `agents/mb-engineering-core.md` first (shared discipline — TDD, evidence-before-claims, escalation,
-   STATUS, anti-rationalization), then the resolved role agent (its domain delta), then the item body.
-   The role files reference the core but do not embed it; this prepend is what makes the discipline
-   reach the specialist (a role file dispatched alone would be discipline-thin).
+   Dispatch via `Task`. **Compose the prompt as engineering-core + tooling-core + role-delta:** inline
+   `agents/mb-engineering-core.md` FIRST (shared discipline — TDD, evidence-before-claims, escalation,
+   STATUS, anti-rationalization; its primacy / "stricter wins" must stay on top), then
+   `agents/mb-tooling-core.md` (graph-first, fail-open code-understanding routing the agent uses to
+   understand code before touching it), then the resolved role agent (its domain delta), then the item
+   body. The role files reference both cores but do not embed them; this prepend is what makes the
+   discipline reach the specialist (a role file dispatched alone would be discipline-thin).
 
    ```
    Task(
      description="mb-work item <N>: <heading>",
      subagent_type="general-purpose",
-     prompt="<contents of agents/mb-engineering-core.md>\n\n---\n\n<contents of agents/<agent>.md>\n\nPlan: <plan path>\nStage: <heading>\n\n<full item body>\n\nLinked context: <if any>"
+     prompt="<contents of agents/mb-engineering-core.md>\n\n---\n\n<contents of agents/mb-tooling-core.md>\n\n---\n\n<contents of agents/<agent>.md>\n\nPlan: <plan path>\nStage: <heading>\n\n<full item body>\n\nLinked context: <if any>"
    )
    ```
 
@@ -182,13 +184,13 @@ When the user types `/mb work [args...]`:
 
    The resolver reads `pipeline.yaml:roles.reviewer.agent` (default `mb-reviewer`) and honours `roles.reviewer.override_if_skill_present` when the named skill directory exists in `MB_SKILLS_ROOT` (default `~/.claude/skills`). With the `superpowers` skill installed it returns `superpowers:requesting-code-review`; otherwise it returns `mb-reviewer`.
 
-   Dispatch the reviewer through `Task` with `$REVIEWER` as `subagent_type` (or as the agent prompt path when the resolver returns an `mb-`-prefixed local agent):
+   Dispatch the reviewer through `Task` with `$REVIEWER` as `subagent_type` (or as the agent prompt path when the resolver returns an `mb-`-prefixed local agent). Inline `agents/mb-tooling-core.md` ahead of the reviewer prompt so the reviewer can use the graph tools (`graph_impact` for blast-radius, `graph_tests` for coverage) when scoring the diff:
 
    ```
    Task(
      description="mb-work review item <N>",
      subagent_type="general-purpose",
-     prompt="<contents of agents/mb-reviewer.md>\n\nPlan: <plan path>\nItem: <heading>\n\nDiff:\n<git diff output>\n\nReview rubric:\n<pipeline.yaml review_rubric section>\n\n<previous issue list, on fix-cycle>"
+     prompt="<contents of agents/mb-tooling-core.md>\n\n---\n\n<contents of agents/mb-reviewer.md>\n\nPlan: <plan path>\nItem: <heading>\n\nDiff:\n<git diff output>\n\nReview rubric:\n<pipeline.yaml review_rubric section>\n\n<previous issue list, on fix-cycle>"
    )
    ```
 

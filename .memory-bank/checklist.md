@@ -72,7 +72,7 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 
 <!-- mb-plan:2026-06-09_feature_mb-research-tooling-core.md -->
 ## Stage 2: Wire `tooling-core` into dispatch points + specialist fallback notes
-- ⬜ Wire `tooling-core` into dispatch points + specialist fallback notes
+- ✅ Wire `tooling-core` into dispatch points + specialist fallback notes
 
 <!-- mb-plan:2026-06-09_feature_mb-research-tooling-core.md -->
 ## Stage 3: `mb-research` agent — generalized, de-FaberlicApp'd port

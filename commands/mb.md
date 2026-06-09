@@ -346,12 +346,18 @@ Plan verification — confirm that code matches the plan, all DoD items are sati
 1. Find the active plan in `.memory-bank/plans/` (not in `done/`). If there are several, use the most recent one or the one specified in the arguments.
 2. Run the Plan Verifier subagent:
 
+Inline `agents/mb-tooling-core.md` ahead of the plan-verifier prompt so it can use the graph tools (`graph_impact` for blast-radius, `graph_tests` for coverage) while auditing DoD coverage:
+
 ```
 Agent(
   subagent_type="general-purpose",
   model="sonnet",
   description="Plan Verifier: plan verification",
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/plan-verifier.md>
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-tooling-core.md>
+
+---
+
+<contents of ~/.claude/skills/memory-bank/agents/plan-verifier.md>
 
 Plan file: <path to plan>
 

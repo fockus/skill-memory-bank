@@ -87,10 +87,10 @@ semantic index exists.
   - `agents/mb-reviewer.md` AND `agents/plan-verifier.md` each contain the `mb-tooling-core.md` fallback note.
 
 **DoD (SMART):**
-- [ ] 4 surfaces updated (work.md ×2, mb.md ×1, reviewer + verifier notes ×2); each asserted by a passing grep-based pytest.
-- [ ] prepend order verified core → tooling-core → role (test asserts index ordering).
-- [ ] `pytest tests/pytest/test_tooling_core_wiring.py -q` green (output pasted).
-- [ ] existing `work.md` / `mb.md` tests still pass (no regression).
+- [x] 4 surfaces updated (work.md §3a + §3c, mb.md ### verify, reviewer + verifier fallback notes); each asserted by a passing grep-based pytest.
+- [x] prepend order verified core → tooling-core → role (test asserts index ordering; empirically eng-core@8125 < tooling-core@8315).
+- [x] `pytest tests/pytest/test_tooling_core_wiring.py -q` → 6 passed (RED 0/6 → GREEN 6/6).
+- [x] existing work.md/mb.md guards still pass (doc_counts + mb_work_agents + phase3_sprint2 = 58 passed). Reviewer APPROVED (0/0/0), gate PASS, plan-verifier PASS.
 
 **Code rules:** DRY (reference the one partial; never duplicate the tool text into each file), KISS.
 

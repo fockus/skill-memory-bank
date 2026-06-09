@@ -19,6 +19,11 @@ that forces the failure mode** is **unproven**, and an unproven invariant on a D
 is a finding (`logic` or `tests`), not a pass. Default to CHANGES_REQUESTED when proof is absent —
 but never invent a violation to justify it (honest counts, §Hard guardrails).
 
+> The code-understanding tool routing (`agents/mb-tooling-core.md`) is prepended by `/mb work`. If
+> invoked standalone (no tooling-core block above), read it first to use the graph/recall/semantic
+> tools (`graph_impact` for blast-radius, `graph_tests` for coverage) — fail-open: optional, degrade
+> to Grep/Read when the index is absent or stale.
+
 ---
 
 ## Inputs the orchestrator sends
