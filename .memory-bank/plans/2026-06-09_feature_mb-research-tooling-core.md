@@ -160,10 +160,10 @@ semantic index exists.
 - pytest (reuse `_protect_repo_install_manifest` autouse fixture, L64): `SKILL.md` roster lists `mb-research`.
 
 **DoD (SMART):**
-- [ ] install ships both new files (bats green for claude alias; codex/pi symlink-resolved).
-- [ ] `SKILL.md` roster lists `mb-research` (asserted).
-- [ ] no install-manifest flake — `_protect_repo_install_manifest` honored; 2× consecutive bats runs stable (L64).
-- [ ] `bats tests/bats/test_install_ships_research_tooling.bats` green (output pasted).
+- [x] install ships both new files (bats 4/4 green; claude alias + codex/pi via symlinked canonical dir).
+- [x] `SKILL.md` roster lists `mb-research` + `mb-tooling-core` (test_doc_counts green). install.sh AGENT_COUNT dynamic (19→21); `_lib_agents_md.sh` has no per-agent enumeration → no-change (verified).
+- [x] no install-manifest flake — test installs from tmp rsync copy + sandboxed $HOME; repo `.installed-manifest.json` byte-identical; 2× bats runs stable (L64).
+- [x] `bats tests/bats/test_install_ships_research_tooling.bats` → 4/4 green ×2. Reviewer APPROVED (0/0/0), gate PASS, plan-verifier PASS.
 
 **Code rules:** L64 (test isolation), L18 (assert real strings), KISS.
 

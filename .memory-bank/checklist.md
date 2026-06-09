@@ -84,4 +84,4 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 
 <!-- mb-plan:2026-06-09_feature_mb-research-tooling-core.md -->
 ## Stage 5: Roster, install & cross-agent surfaces
-- ⬜ Roster, install & cross-agent surfaces
+- ✅ Roster, install & cross-agent surfaces
