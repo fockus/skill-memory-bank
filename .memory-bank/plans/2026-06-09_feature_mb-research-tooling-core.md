@@ -114,10 +114,10 @@ semantic index exists.
   - anti-hallucination discipline present (`file:line`).
 
 **DoD (SMART):**
-- [ ] `agents/mb-research.md` present, valid frontmatter, `name: mb-research`, `tools` excludes Write/Edit.
-- [ ] `grep -c FaberlicApp agents/mb-research.md` == 0; no hardcoded non-portable path (asserted).
-- [ ] ≥ 7 pytest cases in `test_mb_research_agent.py` green (output pasted).
-- [ ] file ≤ ~120 lines (KISS — trim project-specific examples).
+- [x] `agents/mb-research.md` present, valid frontmatter, `name: mb-research`, `tools` excludes Write/Edit (89 lines).
+- [x] `grep -ci faberlic agents/mb-research.md` == 0; no hardcoded non-portable path (asserted).
+- [x] 8 pytest cases in `test_mb_research_agent.py` (RED 0/8 → GREEN 8/8); listed in SKILL.md ## Agents (doc-counts green).
+- [x] file ≤ ~120 lines (89). Reviewer APPROVED (0/0/0), gate PASS, plan-verifier PASS (full suite 1156 passed).
 
 **Code rules:** L40 (verify name/paths/integration on port), KISS, portability, no placeholders.
 

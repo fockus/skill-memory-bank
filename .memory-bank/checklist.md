@@ -76,7 +76,7 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 
 <!-- mb-plan:2026-06-09_feature_mb-research-tooling-core.md -->
 ## Stage 3: `mb-research` agent — generalized, de-FaberlicApp'd port
-- ⬜ `mb-research` agent — generalized, de-FaberlicApp'd port
+- ✅ `mb-research` agent — generalized, de-FaberlicApp'd port
 
 <!-- mb-plan:2026-06-09_feature_mb-research-tooling-core.md -->
 ## Stage 4: `/mb research` entrypoint
