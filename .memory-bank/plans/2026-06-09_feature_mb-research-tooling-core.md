@@ -61,10 +61,10 @@ semantic index exists.
   - "Do not dispatch directly" marker present (not a standalone agent).
 
 **DoD (SMART):**
-- [ ] `agents/mb-tooling-core.md` exists, `partial: true`, ≤ 80 lines (KISS — one section only).
-- [ ] ≥ 6 pytest cases in `test_tooling_core.py` assert tokens + paths + fail-open; all green (`pytest tests/pytest/test_tooling_core.py -q`, output pasted).
-- [ ] RED→GREEN shown: failing run committed/recorded before the file is created.
-- [ ] markdown/lint clean; no `Write`/`Edit` to production code (doc-only stage).
+- [x] `agents/mb-tooling-core.md` exists, `partial: true`, ≤ 80 lines (KISS — one section only). *(27 lines)*
+- [x] ≥ 6 pytest cases in `test_tooling_core.py` assert tokens + paths + fail-open; all green (`pytest tests/pytest/test_tooling_core.py -q` → 7 passed).
+- [x] RED→GREEN shown: 7 failed (file absent) → 7 passed after creating the partial.
+- [x] markdown/lint clean; doc-only (only the new partial + new test touched). Reviewer APPROVED (minor×1, non-blocking), severity-gate PASS, plan-verifier PASS.
 
 **Code rules:** KISS (single section), DRY (one SSoT for tool vocabulary, reused from `_lib_agents_md.sh`), no placeholders.
 

@@ -68,7 +68,7 @@ _No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
 
 <!-- mb-plan:2026-06-09_feature_mb-research-tooling-core.md -->
 ## Stage 1: `mb-tooling-core` shared partial (single injection point)
-- ⬜ `mb-tooling-core` shared partial (single injection point)
+- ✅ `mb-tooling-core` shared partial (single injection point)
 
 <!-- mb-plan:2026-06-09_feature_mb-research-tooling-core.md -->
 ## Stage 2: Wire `tooling-core` into dispatch points + specialist fallback notes
