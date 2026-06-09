@@ -68,6 +68,7 @@
 - [2026-05-23] `queued` [2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Plan: feature — Work loop 2.0 (S2 of harness-upgrade)
 - [2026-05-24] `queued` [2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Plan: feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
+- [2026-06-09] [plans/2026-06-09_feature_mb-research-tooling-core.md](plans/2026-06-09_feature_mb-research-tooling-core.md) — feature — mb-research-tooling-core
 <!-- /mb-active-plans -->
 
 ## Recently done

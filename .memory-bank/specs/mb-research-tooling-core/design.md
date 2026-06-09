@@ -162,8 +162,18 @@ in-repo agent supersedes it — the user should delete the standalone skill to a
 double-trigger. The skill-form install was deliberately **not** chosen, so install will not
 overwrite that directory.
 
-## 9. Open verification items carried into the plan
+## 9. Verification items — RESOLVED (grounded before planning)
 
-1. Does `install.sh` localize `agents/*.md` paths for codex/pi? (§6 — add to localized set if not.)
-2. Exact prepend marker/format in `work.md` §3a so the test asserts the real mechanism.
-3. `commands/verify.md` plan-verifier dispatch shape (to inline tooling-core correctly).
+1. **Agent path localization** — RESOLVED. Install ships the skill body via **symlinks**
+   (`install_symlink $CANONICAL_SKILL_DIR → claude/codex/cursor/pi` aliases), not per-client
+   copies. The canonical `~/.claude/skills/memory-bank/scripts/…` path is already used by
+   `mb.md` and the current `mb-research` SKILL in the green product. New files follow the same
+   convention — **no special localization needed**; §6's "add to localized set" branch is moot.
+2. **`work.md` §3a prepend format** — RESOLVED. Implement-step composes
+   `<core>\n\n---\n\n<role>\n\n<item>` via `Task(subagent_type="general-purpose")`
+   (`commands/work.md` ~L154–166). New prepend inserts `tooling-core` between core and role.
+3. **plan-verifier dispatch** — RESOLVED. `/mb verify` is a subcommand **inside
+   `commands/mb.md`** (`### verify`, ~L342), dispatching
+   `prompt="<contents of …/agents/plan-verifier.md> …"` (~L354). Inline `tooling-core` there.
+   `mb-reviewer` is dispatched in `commands/work.md` §3c (review step) — inline there.
+   (`commands/verify.md` does not exist; verify lives in `mb.md`.)
