@@ -1933,3 +1933,28 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 ### Auto-capture 2026-06-02 (session cee07182)
 - Session ended without an explicit /mb done
 - Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-07
+
+### Auto-capture 2026-06-07 (session 935cc833)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-07
+
+### Auto-capture 2026-06-07 (session 66a7f295)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-09
+
+### mb-research-tooling-core — feature shipped (5 stages, /mb work --auto)
+- Closed `plans/2026-06-09_feature_mb-research-tooling-core.md` end-to-end; all 5 stages passed mb-reviewer APPROVED + severity-gate PASS + plan-verifier PASS; plan-wide Gate MET.
+- S1: `agents/mb-tooling-core.md` — new `partial: true` shared block teaching 6 graph-first retrieval tools (`code_context`/`graph_neighbors`/`graph_impact`/`graph_tests`/`search_code`/`recall`) with fail-open doctrine; `tests/pytest/test_tooling_core.py` (7).
+- S2: wired tooling-core into `commands/work.md` §3a (prepend order engineering-core→tooling-core→role) + §3c review, and `commands/mb.md` `### verify`; standalone fallback notes added to `agents/mb-reviewer.md` + `agents/plan-verifier.md`; `test_tooling_core_wiring.py` (6).
+- S3: `agents/mb-research.md` — portable first-class MB research agent (tools Bash/Read/Grep/Glob, no Write/Edit; graph-first multi-source routing; fail-open; 0× FaberlicApp residue), listed in SKILL.md `## Agents`; `test_mb_research_agent.py` (8).
+- S4: `/mb research <query>` entrypoint in `commands/mb.md` (table row + `### research` dispatch: narrow→single / broad→fan-out); `test_mb_research_command.py` (5).
+- S5: `tests/bats/test_install_ships_research_tooling.bats` — guards install ships both new agents (claude alias + codex/pi via symlinked canonical dir), L64-safe; install.sh AGENT_COUNT dynamic 19→21.
+- Pre-existing fixes (committed separately): `.venv/` excluded from `test_skill_naming_v2` naming-guard; `mb-session-recent-rebuild.sh` added to SKILL.md `## Tools`. True baseline was pytest 1134/1, NOT the "1135 passed" the plan claimed.
+- Tests: pytest 1161 passed / 0 failed · bats 688 ok / 0 failures. Commits f85cf34→fb74238 (stage closures) + dc4472c (bats). Design spec: `specs/mb-research-tooling-core/design.md`.
+- Next step: pick the next infrastructure unlock (W0.5 OpenCode-first adaptation) or resume the active Cursor compatibility remediation; both still queued ahead of W1–W12.

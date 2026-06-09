@@ -42,9 +42,9 @@
 
 - VERSION: **4.0.0** (PyPI `memory-bank-skill==4.0.0` план; Homebrew tap bump план)
 - Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
-- Агенты: **16** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer)
-- Commands: **24** top-level (`/mb` hub + 23 dispatchers)
-- Tests: **868** via `PATH="$PWD/.venv/bin:$PATH" bash scripts/mb-test-run.sh --dir . --out json` (`tests_pass=true`); GitHub `test.yml` run `26528106396` passed on Ubuntu/macOS × Python matrix after closeout commit (`26527319286` was the first full green).
+- Агенты: **17 dispatchable** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer + 1 research: `mb-research`) + **partials** (`mb-engineering-core`, `mb-tooling-core` — prepended, never dispatched). `install.sh` `AGENT_COUNT` glob = **21**.
+- Commands: **24** top-level (`/mb` hub + 23 dispatchers; `/mb research` added 2026-06-09).
+- Tests: **pytest 1161 passed / 0 failed · bats 688 ok / 0 failures** (2026-06-09, after `mb-research-tooling-core`). True pre-feature baseline was pytest 1134/1 (NOT the "1135 passed" the plan inherited — two pre-existing defects masked it). GitHub `test.yml` run `26528106396` passed on Ubuntu/macOS × Python matrix after closeout commit (`26527319286` was the first full green).
 - Public website: **https://fockus.github.io/skill-memory-bank/**
 - Текущий remote: `origin=https://github.com/fockus/skill-memory-bank.git`
 
@@ -68,12 +68,12 @@
 - [2026-05-23] `queued` [2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Plan: feature — Work loop 2.0 (S2 of harness-upgrade)
 - [2026-05-24] `queued` [2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Plan: feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
-- [2026-06-09] [plans/2026-06-09_feature_mb-research-tooling-core.md](plans/2026-06-09_feature_mb-research-tooling-core.md) — feature — mb-research-tooling-core
 <!-- /mb-active-plans -->
 
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-06-09 — [plans/done/2026-06-09_feature_mb-research-tooling-core.md](plans/done/2026-06-09_feature_mb-research-tooling-core.md) — feature — mb-research-tooling-core
 - 2026-06-07 — [plans/done/2026-06-07_refactor_rules-context-economy.md](plans/done/2026-06-07_refactor_rules-context-economy.md) — refactor — rules-context-economy
 - 2026-05-27 — [plans/done/2026-05-24_fix_ci-baseline-wave-0.md](plans/done/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1; latest green `26528106396`)
 - 2026-05-24 — [plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
@@ -83,7 +83,6 @@
 - 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-work-engine.md](plans/done/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
 - 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-task-model.md](plans/done/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
 - 2026-05-21 — [plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md](plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md) — architecture — graph-rag-lite-code-context
-- 2026-04-27 — [plans/done/2026-04-25_refactor_v4-audit-remediation.md](plans/done/2026-04-25_refactor_v4-audit-remediation.md) — refactor — v4-audit-remediation
 <!-- /mb-recent-done -->
 
 ---

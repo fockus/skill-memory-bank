@@ -263,8 +263,22 @@
       "summary": "Date: 2026-05-29 Замечено во время реального прохода `/mb discuss` → `context/<topic>.md` (внешний проект-потребитель скила). Пайплайн `discuss → context → sdd → plan → traceability` работает и полезен, но проверка спеки **поверхностная**. Фиксирую улучшения, чтобы не забыть.",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-06-09_21-20_mb-research-tooling-core-feature.md",
+      "type": "feature",
+      "tags": [
+        "agents",
+        "research",
+        "tooling-core",
+        "work-engine"
+      ],
+      "importance": "medium",
+      "summary": "Date: 2026-06-09 21:20 - Shipped 5-stage feature `mb-research-tooling-core` via `/mb work --auto`; every stage cleared mb-reviewer APPROVED + severity-gate PASS + plan-verifier PASS, plan-wide Gate MET.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-06-07T19:48:06Z"
+  "generated_at": "2026-06-09T18:21:25Z"
 }

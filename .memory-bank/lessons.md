@@ -70,3 +70,11 @@ Root cause: **the artifact path was bound to the source dir, not `$HOME`.** `ins
 **Fix:** module-level autouse fixture `_protect_repo_install_manifest` in `test_cli.py` — backs up `REPO_ROOT/.installed-manifest.json` bytes before each test, restores after. After the fix: 3 consecutive full pytest runs → 648/648 × 0 flake.
 
 **Pattern:** when sandboxing for tests, **`$HOME` isolation is necessary but not sufficient.** Audit every artifact path that the system-under-test writes to: hard-coded paths bound to source-dir / repo-root / `/tmp/known-name` are all shared-state hazards even with `$HOME` swapped. Either (a) parameterize the path via env var (`MB_INSTALL_MANIFEST_PATH`-style), (b) wrap all callers in autouse save/restore, or (c) make the path derive from `$HOME` so sandboxing alone protects it. We chose (b) here because (a) requires modifying production code with an env override solely for tests (YAGNI for a single artifact).
+
+### Adding an `agents/*.md` requires same-change SKILL.md roster update (2026-06-09 / mb-research-tooling-core Stage 5)
+
+Adding any `agents/*.md` file — **even a `partial: true` block** like `mb-tooling-core` that is never dispatched directly — REQUIRES listing it in `SKILL.md` `## Agents` within the SAME change. The `test_doc_counts` guard derives the expected agent count from the `agents/` glob and asserts the roster matches; a new agent file without a matching roster line fails the guard immediately.
+
+**Lesson:** do not defer roster/doc updates to "a later stage" — the doc-count contract treats roster drift as a hard failure, so the SKILL.md edit is part of the deliverable, not follow-up cleanup. Same discipline applies to `install.sh` `AGENT_COUNT` (dynamic glob count) and any per-agent enumeration in `_lib_agents_md.sh`. Extends L40 (orphan-agents on port): a correctly-named agent is still "orphaned" if no surface registers it.
+
+**Honest-baseline corollary:** the plan's Gate quoted a baseline of "pytest 1135 passed", but the true pre-work baseline was **pytest 1134 / 1 failed** — two pre-existing defects (`.venv/` not excluded from `test_skill_naming_v2`; `mb-session-recent-rebuild.sh` missing from SKILL.md `## Tools`) were silently inflating the assumed-green number. Establish the real RED baseline by running the suite BEFORE trusting any "N passed" figure a plan inherited.
