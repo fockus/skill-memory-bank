@@ -136,10 +136,10 @@ semantic index exists.
   - section mentions fan-out for broad sweeps.
 
 **DoD (SMART):**
-- [ ] `/mb research` registered (table row + `### research` section) — asserted by passing grep pytest (L18).
-- [ ] section literally references `mb-research.md` and `Task` dispatch.
-- [ ] `pytest tests/pytest/test_mb_research_command.py -q` green (output pasted).
-- [ ] section style consistent with sibling `### <cmd>` sections in `mb.md`.
+- [x] `/mb research` registered (table row + `### research` section) — asserted by passing grep pytest (L18).
+- [x] section literally references `mb-research.md` and `Task` dispatch.
+- [x] `pytest tests/pytest/test_mb_research_command.py -q` → 5 passed (RED 0/5 → GREEN 5/5).
+- [x] section style consistent with sibling `### verify`/`### map` sections. Reviewer APPROVED (0/0/0), gate PASS, plan-verifier PASS (full suite 1161).
 
 **Code rules:** consistency with existing `mb.md` command sections, KISS.
 

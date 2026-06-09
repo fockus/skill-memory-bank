@@ -28,6 +28,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `start`                                                  | Extended session start                                                                                                                                                                                                                                                                                   |
 | `search <query>`                                         | Search information in the memory bank                                                                                                                                                                                                                                                                    |
 | `recall <query>`                                         | Lexical recall over session-memory log + notes (ripgrep over `session/` + `notes/`) — session-memory subsystem                                                                                                                                                                                           |
+| `research <query>`                                       | Graph-first multi-source research — codebase / memory / library / prior-art / web; dispatches the `mb-research` agent and returns `file:line`-grounded findings (narrow → single dispatch; broad → fan-out parallel subagents). Fail-open: graph/index optional, degrades to Grep/Read                    |
 | `note <topic>`                                           | Create a note                                                                                                                                                                                                                                                                                            |
 | `update`                                                 | Actualize core files (with real code-state analysis)                                                                                                                                                                                                                                                     |
 | `doctor`                                                 | Find and fix internal MB inconsistencies                                                                                                                                                                                                                                                                 |
@@ -94,6 +95,41 @@ session files — `_recent.md` is otherwise only updated incrementally on Sessio
 ```bash
 bash "$(dirname "$0")/../scripts/mb-session-recent-rebuild.sh"   # newest MB_RECENT_KEEP (default 5) with a ## Summary
 ```
+
+### research <query>
+
+Graph-first, multi-source research over **this** codebase, project memory, library docs, GitHub
+prior-art, and the open web. Routes each question to the right index first (MB code graph → semantic
+search → `/mb recall` → context7 → `gh` → web), then drills into source, and returns conclusions
+grounded in `file:line` or a cited source — never blind grep guessing. Dispatch the `mb-research`
+agent (it researches; it never writes code):
+
+```
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  description="mb-research: <query>",
+  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-research.md>
+
+Question: <the remainder of $ARGUMENTS after `research`>
+
+Context: <current work / what is already known>"
+)
+```
+
+**Execution model:**
+
+- **Narrow question** (one symbol / concept / library) → a **single dispatch** of the agent above;
+  it runs the one routed command, drills into source, and reports with `file:line` / source citations.
+- **Broad or multi-area sweep** → instruct the agent to **fan-out parallel subagents** (one Task per
+  area), each handed its slice of the question + the routing table, then synthesize. This replaces the
+  plain `general-purpose` multi-grep sweep.
+
+**Fail-open:** the MB code graph / semantic index / context7 / `gh` are all optional — when an index
+is stale or absent, `mb-research` degrades to plain `Grep` / `Glob` / `Read` (+ web) and still works
+in a repo with no Memory Bank. Never block on a missing index.
+
+Show the agent's findings (with their citations) to the user.
 
 ### context / search / note / tasks
 
