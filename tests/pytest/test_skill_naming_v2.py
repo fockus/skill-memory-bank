@@ -16,6 +16,7 @@ Exclusions:
 - commands/mb.md (delegates to v1 detection; may reference legacy names)
 - agents/mb-doctor.md (contains v1 detection patterns in "Check: v2 naming migration")
 """
+
 from __future__ import annotations
 
 import re
@@ -42,6 +43,7 @@ EXCLUDED_PATHS = (
     "dist/",
     "site/",
     ".git/",
+    ".venv/",  # installed skill copy/symlink (migration & detection files use v1 names by design)
     ".pytest_cache/",
     ".ruff_cache/",
     "__pycache__/",
@@ -76,8 +78,7 @@ def test_no_v1_uppercase_names(suffix: str) -> None:
         if OLD_NAMES.search(text):
             offenders.append(f.relative_to(REPO_ROOT).as_posix())
     assert not offenders, (
-        "Files still reference STATUS.md/BACKLOG.md/RESEARCH.md:\n  "
-        + "\n  ".join(offenders)
+        "Files still reference STATUS.md/BACKLOG.md/RESEARCH.md:\n  " + "\n  ".join(offenders)
     )
 
 
@@ -93,7 +94,6 @@ def test_no_v1_plan_md(suffix: str) -> None:
             continue
         if OLD_PLAN.search(text):
             offenders.append(f.relative_to(REPO_ROOT).as_posix())
-    assert not offenders, (
-        "Files still reference plan.md (expected roadmap.md):\n  "
-        + "\n  ".join(offenders)
+    assert not offenders, "Files still reference plan.md (expected roadmap.md):\n  " + "\n  ".join(
+        offenders
     )
