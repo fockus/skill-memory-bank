@@ -1,11 +1,11 @@
 ---
-description: Execute stages or spec tasks from a plan/spec with auto-selected role-agents and a per-item implement → review → fix → verify loop with severity gates and budget/protected-path hard stops.
+description: Execute Memory Bank workflow modes from pipeline.yaml — existing plan/spec execution by default, optional full-cycle requirements→plan→implementation→review flows.
 allowed-tools: [Bash, Read, Task]
 ---
 
-# /mb work [target] [--range A-B] [--auto] [--dry-run] [--budget TOK] [--max-cycles N] [--allow-protected]
+# /mb work [target] [--workflow NAME] [--range A-B] [--auto] [--dry-run] [--budget TOK] [--max-cycles N] [--allow-protected]
 
-Run the executable engine over a plan or spec. Per work item, the engine dispatches an **implement** step to the auto-selected role-agent, an **mb-reviewer** review step, looped fix steps when the reviewer requests changes (capped at `max_cycles`), and a **plan-verifier** verify step before marking the item done. Severity gates, token budgets, protected-path checks, and the sprint context guard provide hard stops for `--auto` mode.
+Run the executable engine using a workflow mode resolved from `pipeline.yaml`. By default, `/mb work` is intentionally simple: **implement → verify → done** from an already-created plan/spec. Projects can opt into stricter local modes such as **governed-execution** (`implement → verify → review ensemble → judge → fix/backlog → done`), **full-cycle** (`discuss → sdd → plan → implement → verify → done`), **requirements-plan**, **implement-only**, **review-fix**, or **review-only**. Severity gates, judge gates, token budgets, protected-path checks, and the sprint context guard provide hard stops for `--auto` mode.
 
 > **Scope.** Phase 3 Sprint 1 shipped `pipeline.yaml`. Sprint 2 shipped target resolution, range parsing, role-detection, plan emission, implement-step dispatch — and extended execution to spec tasks (`specs/<topic>/tasks.md`) as a first-class source alongside plan stages. **Sprint 3 (this command)** wires the review-loop, severity gates, fix-cycle, plan-verifier integration, `--auto` hard stops, `--budget` token tracking, and protected-path enforcement.
 >
@@ -13,7 +13,69 @@ Run the executable engine over a plan or spec. Per work item, the engine dispatc
 
 ## Why /mb work?
 
-Plans declared with `/mb plan` carry stage markers, DoD, and TDD instructions. Specs created with `/mb sdd` carry `<!-- mb-task:N -->` markers in `specs/<topic>/tasks.md`, each linked to REQ-IDs. `/mb work` is the runtime that consumes both: pick a work item (stage or task), route it to the right role-agent (mb-backend, mb-frontend, mb-ios, mb-android, mb-architect, mb-devops, mb-qa, mb-analyst, with mb-developer as fallback), let the agent implement against the DoD, then put the diff through a real review-loop instead of trusting the implementer's self-assessment.
+Plans declared with `/mb plan` carry stage markers, DoD, and TDD instructions. Specs created with `/mb sdd` carry `<!-- mb-task:N -->` markers in `specs/<topic>/tasks.md`, each linked to REQ-IDs. `/mb work` consumes both for execution modes: pick a work item (stage or task), route it to the right role-agent (mb-backend, mb-frontend, mb-ios, mb-android, mb-architect, mb-devops, mb-qa, mb-analyst, with mb-developer as fallback), let the agent implement against the DoD, verify the result, then put the verified diff through a real reviewer-approval loop instead of trusting the implementer's self-assessment. For full-cycle modes, `/mb work` first delegates to the same contracts as `/mb discuss`, `/mb sdd`, and `/mb plan` before executing work items.
+
+## Workflow modes from pipeline.yaml
+
+`/mb work` is locally configurable through the effective `pipeline.yaml`:
+
+```yaml
+workflow:
+  default: execution
+  aliases:
+    full: full-cycle
+
+workflows:
+  execution:
+    steps: [implement, verify, done]
+
+governed-execution:
+  steps: [implement, verify, review, judge, fix, done]
+  review_profile: ensemble
+  judge_profile: independent
+  loop:
+    after: judge
+    until: judge_go
+    returns_to: verify
+    max_cycles: 2
+    on_max_cycles: judge_decides
+```
+
+Resolution rules:
+
+1. `--workflow NAME` wins.
+2. If omitted, use `workflow.default`; if absent, use `execution`.
+3. Apply `workflow.aliases.NAME` when present.
+4. Resolve `workflows.<name>`.
+5. If no `workflows` block exists, fall back to legacy `stage_pipeline`.
+
+Use the helper instead of hand-parsing YAML:
+
+```bash
+bash scripts/mb-workflow.sh --mb <bank> --workflow execution --json
+bash scripts/mb-workflow.sh --mb <bank> --workflow full --steps
+bash scripts/mb-workflow.sh --mb <bank> --workflow review --max-cycles
+```
+
+Built-in default modes:
+
+| Workflow | Steps | Use when |
+|---|---|---|
+| `execution` | `implement → verify → done` | Plan/spec already exists; this is the simple default `/mb work` path. |
+| `governed-execution` | `implement → verify → review ensemble → judge → fix/backlog → done` | Project opts into stronger gates without endless review/fix loops. |
+| `full-cycle` | `discuss → sdd → plan → implement → verify → done` | One interactive pass from fuzzy idea to verified work. |
+| `requirements-plan` | `discuss → sdd → plan` | Requirements and plans only; stop before implementation. |
+| `implement-only` | `implement → verify` | Implement and structurally verify; stop before reviewer. |
+| `review-fix` | `verify → review ensemble → judge → fix/backlog → done` | Existing changes need governed review/fix. |
+| `review-only` | `verify → review ensemble → judge` | Audit and judge only; no automatic fix dispatch. |
+
+Existing standalone commands remain first-class:
+
+- `/mb discuss <topic>` — interactive requirements session.
+- `/mb sdd <topic>` — create/update spec triple.
+- `/mb plan <type> <topic>` — create plan/wrapper.
+- `/mb review` — full uncommitted-code review outside the `/mb work` loop.
+- `/mb verify` — explicit verifier run outside the loop.
 
 ## How `/mb work` resolves your input
 
@@ -109,6 +171,8 @@ Underlying script: `bash scripts/mb-work-range.sh <plan-or-spec> [--range expr]`
   "heading": "Task 2: Add persistence layer",
   "role": "backend",
   "agent": "mb-backend",
+  "model": "opencode-go/qwen3.7-max",
+  "thinking": "high",
   "status": "pending",
   "dod_lines": 5,
   "source": "spec",
@@ -127,6 +191,8 @@ Field reference:
 | `heading` | string | Stage or task heading text |
 | `role` | string | Detected role (backend, frontend, etc.) |
 | `agent` | string | Resolved agent name (from `pipeline.yaml:roles.<role>.agent`) |
+| `model` | string | Resolved model id (from `pipeline.yaml:roles.<role>.model`, if configured) |
+| `thinking` | string | Resolved thinking level (from `pipeline.yaml:roles.<role>.thinking`, if configured) |
 | `status` | string | `pending`, `in-progress`, or `done` |
 | `dod_lines` | int | Number of DoD checkbox lines in the item body |
 | `source` | string | `plan` for `<!-- mb-stage:N -->` items; `spec` for `<!-- mb-task:N -->` items |
@@ -139,17 +205,39 @@ Existing consumers that read `stage_no` continue to work — `item_no` is an ali
 
 When the user types `/mb work [args...]`:
 
-1. **Resolve + range + plan emission.** Run `bash scripts/mb-work-plan.sh [--target ...] [--range ...] --mb <bank>`. The script outputs JSON Lines as described above.
+1. **Resolve workflow mode.** Resolve the effective pipeline and selected workflow:
 
-   On `--dry-run`, prepend a `## Execution Plan` summary header and **stop**; do not dispatch.
+   ```bash
+   bash scripts/mb-workflow.sh --mb <bank> --workflow <name-or-empty> --json
+   ```
 
-2. **Initialise budget (if `--budget TOK` given).** Run `bash scripts/mb-work-budget.sh init <TOK> --mb <bank>`. Subsequent steps call `bash scripts/mb-work-budget.sh check --mb <bank>` after each Task dispatch; exit 1 = warn (log and continue), exit 2 = stop (halt the loop). Add tokens after each Task with `bash scripts/mb-work-budget.sh add <delta> --mb <bank>`.
+   The returned JSON contains `steps`, `entrypoint`, `interactive`, and `loop`. The orchestrator MUST follow this workflow instead of hard-coding one order. `--max-cycles N` overrides `workflow.loop.max_cycles` for this run only.
 
-3. **For each pending item** (iterate over the JSON Lines output):
+2. **Run planning steps only when selected.** If the selected workflow contains:
+
+   - `discuss` — run the `/mb discuss <topic>` contract: one-question-at-a-time interview, write `context/<topic>.md`, EARS-validate it. This is interactive; do not pretend it happened without user answers.
+   - `sdd` — run the `/mb sdd <topic>` contract: create/update `specs/<topic>/{requirements.md,design.md,tasks.md}` and validate with `mb-spec-validate.sh`.
+   - `plan` — run the `/mb plan <type> <topic>` contract or create a plan-as-wrapper linked to the spec.
+
+   If the selected workflow has only planning steps (for example `requirements-plan`), stop after these artifacts are created and summarize paths. Do not dispatch implementers.
+
+3. **Resolve execution target when execution/review steps are present.** If the workflow contains any of `implement`, `verify`, `review`, `fix`, or `done`, resolve the target and range:
+
+   ```bash
+   bash scripts/mb-work-plan.sh [--target ...] [--range ...] --mb <bank>
+   ```
+
+   The script outputs JSON Lines as described above, including resolved `agent`, `model`, and `thinking` values from `pipeline.yaml`.
+
+   On `--dry-run`, print the selected workflow + `## Execution Plan` summary and **stop**; do not dispatch.
+
+4. **Initialise budget (if `--budget TOK` given).** Run `bash scripts/mb-work-budget.sh init <TOK> --mb <bank>`. Subsequent steps call `bash scripts/mb-work-budget.sh check --mb <bank>` after each Task dispatch; exit 1 = warn (log and continue), exit 2 = stop (halt the loop). Add tokens after each Task with `bash scripts/mb-work-budget.sh add <delta> --mb <bank>`.
+
+5. **For each pending item** (iterate over the JSON Lines output):
 
    The stage body is read from the markers in the source file. For `kind=task` items, read between `<!-- mb-task:N -->` markers. For `kind=stage` items, read between `<!-- mb-stage:N -->` markers.
 
-   ### 3a. Implement step
+   ### 5a. Implement step (only if workflow includes `implement`)
 
    Dispatch via `Task`. **Compose the prompt as engineering-core + tooling-core + role-delta:** inline
    `agents/mb-engineering-core.md` FIRST (shared discipline — TDD, evidence-before-claims, escalation,
@@ -158,91 +246,82 @@ When the user types `/mb work [args...]`:
    understand code before touching it), then the resolved role agent (its domain delta), then the item
    body. The role files reference both cores but do not embed them; this prepend is what makes the
    discipline reach the specialist (a role file dispatched alone would be discipline-thin).
+   Pass the resolved `model` and `thinking` from the JSON Line to the Agent/Task call; do not rely on agent frontmatter defaults.
 
    ```
    Task(
      description="mb-work item <N>: <heading>",
      subagent_type="general-purpose",
-     prompt="<contents of agents/mb-engineering-core.md>\n\n---\n\n<contents of agents/mb-tooling-core.md>\n\n---\n\n<contents of agents/<agent>.md>\n\nPlan: <plan path>\nStage: <heading>\n\n<full item body>\n\nLinked context: <if any>"
+      prompt="<contents of agents/mb-engineering-core.md>\n\n---\n\n<contents of agents/mb-tooling-core.md>\n\n---\n\n<contents of agents/<agent>.md>\n\nPlan: <plan path>\nStage: <heading>\n\n<full item body>\n\nLinked context: <if any>",
+      model="<json.model>",
+      thinking="<json.thinking>",
    )
    ```
 
-   ### 3b. Protected-path check
+   ### 5b. Protected-path check (after every implement/fix dispatch)
 
-   After the implement Task returns, gather the list of files it touched. Run `bash scripts/mb-work-protected-check.sh <files...> --mb <bank>`:
+   After an implement/fix Task returns, gather the list of files it touched. Run `bash scripts/mb-work-protected-check.sh <files...> --mb <bank>`:
 
    - Exit 0 → proceed.
    - Exit 1 → if `--allow-protected` was passed, log a warning and continue; otherwise **halt** the loop and report which file violated which glob.
 
-   ### 3c. Review step
+   ### 5c. Verify step (only if workflow includes `verify`)
 
-   Resolve the reviewer agent name first:
-
-   ```bash
-   REVIEWER=$(bash scripts/mb-reviewer-resolve.sh --mb <bank>)
-   ```
-
-   The resolver reads `pipeline.yaml:roles.reviewer.agent` (default `mb-reviewer`) and honours `roles.reviewer.override_if_skill_present` when the named skill directory exists in `MB_SKILLS_ROOT` (default `~/.claude/skills`). With the `superpowers` skill installed it returns `superpowers:requesting-code-review`; otherwise it returns `mb-reviewer`.
-
-   Dispatch the reviewer through `Task` with `$REVIEWER` as `subagent_type` (or as the agent prompt path when the resolver returns an `mb-`-prefixed local agent). Inline `agents/mb-tooling-core.md` ahead of the reviewer prompt so the reviewer can use the graph tools (`graph_impact` for blast-radius, `graph_tests` for coverage) when scoring the diff:
-
-   ```
-   Task(
-     description="mb-work review item <N>",
-     subagent_type="general-purpose",
-     prompt="<contents of agents/mb-tooling-core.md>\n\n---\n\n<contents of agents/mb-reviewer.md>\n\nPlan: <plan path>\nItem: <heading>\n\nDiff:\n<git diff output>\n\nReview rubric:\n<pipeline.yaml review_rubric section>\n\n<previous issue list, on fix-cycle>"
-   )
-   ```
-
-   The reviewer returns strict JSON.
-
-   ### 3d. Parse & gate
-
-   Parse the reviewer's stdout:
-
-   ```bash
-   bash scripts/mb-work-review-parse.sh < reviewer-stdout
-   ```
-
-   Then apply the severity gate:
-
-   ```bash
-   bash scripts/mb-work-severity-gate.sh --counts-stdin --mb <bank>
-   ```
-
-   - **Exit 0 (PASS)** → go to 3f (verify step).
-   - **Exit 1 (FAIL)** → fix-cycle (3e).
-
-   ### 3e. Fix-cycle
-
-   - If `cycle < max_cycles` (from `pipeline.yaml:stage_pipeline[step=review].max_cycles`, override with `--max-cycles N`): re-dispatch the implementer Task with the issue list appended to the prompt. Increment `cycle`. Return to 3c.
-   - If `cycle == max_cycles` and `pipeline.yaml:stage_pipeline[step=review].on_max_cycles == "stop_for_human"`: **halt** the loop, surface the open issues, ask the user how to proceed.
-   - If `on_max_cycles == "continue_with_warning"`: log the unresolved issues, mark the item as `WARN`, proceed to 3f anyway.
-
-   ### 3f. Verify step
-
-   Dispatch the plan-verifier:
+   Dispatch the plan-verifier before code review when both are present. The verifier catches missing tests, incomplete DoD, broken traceability, and architecture drift before reviewer cycles are spent.
 
    ```
    Task(
      description="mb-work verify item <N>",
      subagent_type="general-purpose",
-     prompt="<contents of agents/plan-verifier.md>\n\nSource file: <plan or spec path>\nItem just completed: <N> — <heading>"
+     model="<pipeline.yaml roles.verifier.model>",
+     thinking="<pipeline.yaml roles.verifier.thinking>",
+     prompt="<contents of agents/plan-verifier.md>\n\nSource file: <plan or spec path>\nItem just completed: <N> — <heading>\nDiff:\n<git diff output>"
    )
    ```
 
-   The verifier returns its 7-check structured report.
+   - **Verdict PASS** → continue.
+   - **Verdict FAIL** → **halt** the loop. Surface findings. Do not spend reviewer cycles on a verifier-failing item unless the selected workflow explicitly omits `verify`.
 
-   - **Verdict PASS** → proceed to 3g.
-   - **Verdict FAIL** → **halt** the loop. Surface the verifier's findings. The user decides whether to re-implement or abandon.
+   ### 5d. Review step (only if workflow includes `review`)
 
-   ### 3g. Item done
+   If the workflow has no `review_profile`, dispatch the legacy single `roles.reviewer` and parse it with `mb-work-review-parse.sh`.
 
-   - Mark DoD items satisfied in the source file (plan or spec tasks.md).
+   If `review_profile: ensemble`, dispatch 3-5 aspect reviewers from `review_ensemble.reviewers` in parallel with fresh scoped context only: plan/spec, verifier report, diff, previous lead report. Then dispatch `review_ensemble.lead_role` to synthesize one canonical report. The lead reviewer must verify previous-cycle issues first, deduplicate aspect findings, separate blocking issues from backlog candidates, and emit strict JSON.
+
+   - Reviewers report findings; they do **not** decide final completion.
+   - The lead report is input to the `judge` step.
+   - A reviewer finding is not automatically a fix-loop trigger.
+
+   ### 5e. Judge step (only if workflow includes `judge`)
+
+   Dispatch `roles.judge` with a different model when the project config provides one. Give it: plan/spec/DoD, verifier report, lead-review report, previous judge decision, diff, and verification evidence.
+
+   The judge returns strict JSON with `decision`:
+
+   - `GO` — acceptance criteria met; proceed to done.
+   - `GO_WITH_BACKLOG` — acceptance criteria met; register non-blocking `backlog_items` before done.
+   - `NO_GO` — only `blocking_issues` return to implementation.
+
+   This is the anti-infinite-loop gate: review can keep discovering improvements, but only judge-blocking issues trigger another fix cycle. Non-blocking findings become backlog.
+
+   ### 5f. Fix-cycle (only if workflow includes `fix`)
+
+   - Use `workflow.loop.max_cycles` (or CLI `--max-cycles N`).
+   - Re-dispatch the implementer only with judge `blocking_issues`, not every reviewer/backlog finding.
+   - Run protected-path check after the fix.
+   - Return to `workflow.loop.returns_to` (normally `verify`), then review/judge again.
+   - If max cycles are exhausted and `on_max_cycles=judge_decides`, run judge once more: `GO_WITH_BACKLOG` may close, `NO_GO` stops for human.
+   - If max cycles are exhausted and `on_max_cycles=stop_for_human`, halt and ask the user.
+   - If `on_max_cycles=continue_with_warning`, require explicit human confirmation before marking WARN; do not silently mark done.
+
+   ### 5g. Item done
+
+   Mark DoD items satisfied in the source file (plan or spec tasks.md) only after all steps in the selected workflow have passed. For governed workflows, `GO` or `GO_WITH_BACKLOG` from judge is required; backlog items must be registered before marking done.
+
    - Without `--auto`: prompt the user to confirm before moving to the next item.
    - With `--auto`: continue to the next item unless one of the hard stops (below) fired.
 
-4. **End-of-run summary.** When all requested items are processed, summarise: items attempted, items PASS / WARN / FAIL, files touched, total budget spent. Run `bash scripts/mb-work-budget.sh clear --mb <bank>` to remove the budget state.
+6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used. Run `bash scripts/mb-work-budget.sh clear --mb <bank>` to remove the budget state.
 
 ## Hard stops for `--auto`
 
@@ -250,9 +329,9 @@ The autopilot continues without per-item prompts **except** when:
 
 | Trigger | Surfaced via | Halt? |
 |---------|--------------|-------|
-| `max_cycles` reached without `APPROVED` | step 3e + `on_max_cycles=stop_for_human` | yes |
-| `plan-verifier` returns FAIL | step 3f | yes |
-| `Write` / `Edit` attempt at a `protected_paths` glob without `--allow-protected` | step 3b (`mb-work-protected-check.sh`) | yes |
+| `max_cycles` reached without `APPROVED` | step 5e + `on_max_cycles=stop_for_human` | yes |
+| `plan-verifier` returns FAIL | step 5c | yes |
+| `Write` / `Edit` attempt at a `protected_paths` glob without `--allow-protected` | step 5b (`mb-work-protected-check.sh`) | yes |
 | `--budget` exhausted | `mb-work-budget.sh check` exit 2 after Task | yes |
 | `sprint_context_guard.hard_stop_tokens` reached (190k default) | manual observation; halt and ask user to compact | yes |
 
@@ -263,8 +342,9 @@ When any hard stop fires, the loop halts even under `--auto`. The orchestrator s
 | Flag | Meaning | Sprint |
 |------|---------|--------|
 | `<target>` | Plan / spec topic / freeform / empty | 2 |
+| `--workflow NAME` | Select a named workflow from `pipeline.yaml:workflows` | 4 |
 | `--range A-B` | Range over stages (plan) or tasks (spec) or sprints (phase) | 2 |
-| `--dry-run` | Print execution plan, don't dispatch | 2 |
+| `--dry-run` | Print selected workflow + execution plan, don't dispatch | 2 |
 | `--auto` | Skip per-item confirmation prompts; obey hard stops | 3 |
 | `--max-cycles N` | Override `pipeline.yaml` review `max_cycles` | 3 |
 | `--budget TOK` | Initialise token budget; halt at `stop_at_percent` | 3 |
@@ -300,10 +380,22 @@ When any hard stop fires, the loop halts even under `--auto`. The orchestrator s
 # Classic plan with stage range
 /mb work auth-refactor --range 2-4
 
-# Autopilot with budget cap
+# Autopilot with budget cap using workflow.default (usually execution)
 /mb work --auto --budget 200000
 
-# Allow up to 5 review cycles per item
+# Full interactive one-pass flow: discuss -> sdd -> plan -> implement -> verify -> review -> fix
+/mb work "inventory sync" --workflow full-cycle
+
+# Requirements/planning only, then stop
+/mb work "inventory sync" --workflow requirements-plan
+
+# Implement and verify only, no reviewer
+/mb work inventory-sync --workflow implement-only --range 2
+
+# Review existing changes and loop fixes until approval
+/mb work inventory-sync --workflow review-fix
+
+# Allow up to 5 review cycles per item (overrides workflow.loop.max_cycles)
 /mb work --auto --max-cycles 5
 ```
 
@@ -313,11 +405,12 @@ When any hard stop fires, the loop halts even under `--auto`. The orchestrator s
 # Resolution + range + plan emission (Sprint 2)
 bash scripts/mb-work-resolve.sh [target] [--mb <path>]
 bash scripts/mb-work-range.sh <plan-or-spec> [--range <expr>]
+bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--json|--steps|--loop|max-cycles]
 bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
 
 # Review-loop helpers (Sprint 3)
 bash scripts/mb-work-review-parse.sh [--lenient] < reviewer-stdout
-bash scripts/mb-work-severity-gate.sh --counts <json> | --counts-stdin [--mb <path>]
+bash scripts/mb-work-severity-gate.sh --counts <json> | --counts-stdin [--mb <path>] [--workflow <name>]
 bash scripts/mb-work-budget.sh init <total> | add <delta> | status | check | clear [--mb <path>]
 bash scripts/mb-work-protected-check.sh <files...> [--mb <path>]
 ```

@@ -13,7 +13,9 @@ roles:
   frontend:  { agent: mb-frontend,  fallback: mb-developer }
   ios:       { agent: mb-ios,       fallback: mb-developer }
   android:   { agent: mb-android,   fallback: mb-developer }
+  planner:   { agent: mb-architect }
   architect: { agent: mb-architect }
+  researcher: { agent: mb-researcher, fallback: mb-analyst }
   devops:    { agent: mb-devops,    fallback: mb-developer }
   qa:        { agent: mb-qa,        fallback: mb-developer }
   analyst:   { agent: mb-analyst }
@@ -22,22 +24,101 @@ roles:
     override_if_skill_present:
       skill: superpowers
       agent: superpowers:requesting-code-review
+  reviewer_logic:       { agent: mb-reviewer-logic }
+  reviewer_tests:       { agent: mb-reviewer-tests }
+  reviewer_quality:     { agent: mb-reviewer-quality }
+  reviewer_security:    { agent: mb-reviewer-security }
+  reviewer_scalability: { agent: mb-reviewer-scalability }
+  reviewer_lead:        { agent: mb-reviewer-lead }
+  judge:                { agent: mb-judge }
   verifier:  { agent: plan-verifier }
 
-# ===== Pipeline applied per stage =====
+# ===== Workflow modes for /mb work =====
+# Projects may override workflow.default or any workflows.<name> block locally.
+# The default /mb work mode starts from an already-created plan/spec.
+workflow:
+  default: execution
+  aliases:
+    full: full-cycle
+    from-scratch: full-cycle
+    requirements: requirements-plan
+    planning: requirements-plan
+    implement: implement-only
+    review: review-fix
+    governed: governed-execution
+    strict: governed-execution
+
+workflows:
+  full-cycle:
+    description: Interactive simple path from idea to verified work.
+    steps: [discuss, sdd, plan, implement, verify, done]
+    entrypoint: freeform_or_topic
+    interactive: true
+
+  requirements-plan:
+    description: Requirements/planning only; produces context/spec/plan artifacts.
+    steps: [discuss, sdd, plan]
+    entrypoint: freeform_or_topic
+    interactive: true
+
+  execution:
+    description: Simple default /mb work path from an existing plan/spec.
+    steps: [implement, verify, done]
+    entrypoint: plan_or_spec
+
+  governed-execution:
+    description: Advanced quality gate with verifier, review ensemble, lead reviewer, independent judge, bounded fix loop, and backlog handoff.
+    steps: [implement, verify, review, judge, fix, done]
+    entrypoint: plan_or_spec
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  implement-only:
+    description: Implement and verify a work item, then stop before review.
+    steps: [implement, verify]
+    entrypoint: plan_or_spec
+
+  review-fix:
+    description: Governed review of existing changes with judge-controlled fixes/backlog.
+    steps: [verify, review, judge, fix, done]
+    entrypoint: plan_or_spec_or_diff
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  review-only:
+    description: Verify, run review ensemble, and ask judge without automatic fixes.
+    steps: [verify, review, judge]
+    entrypoint: plan_or_spec_or_diff
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      max_cycles: 1
+      on_max_cycles: stop_for_human
+      approval_required: false
+
+# Backward-compatible per-item pipeline for older /mb work orchestrators that
+# only understand stage_pipeline. New orchestrators SHOULD read workflow.default
+# and workflows.<name>; this block mirrors simple workflows.execution.
 stage_pipeline:
   - step: implement
     role: auto                # auto-select based on stage context
     tdd: true
-  - step: review
-    role: reviewer
-    categories: [logic, code_rules, security, scalability, tests]
-    severity_gate:
-      blocker: 0
-      major: 0
-      minor: 3
-    max_cycles: 3
-    on_max_cycles: stop_for_human   # | continue_with_warning
   - step: verify
     role: verifier
     checks:
@@ -48,6 +129,43 @@ stage_pipeline:
       - architecture_drift
       - no_placeholders
       - protocol_abc_defined
+  - step: done
+    role: verifier
+    require_review_approval: false
+
+# ===== Governed review profile (used only by workflows with review_profile: ensemble) =====
+review_ensemble:
+  min_reviewers: 3
+  max_reviewers: 5
+  reviewers:
+    - role: reviewer_logic
+      focus: logic
+    - role: reviewer_tests
+      focus: tests
+    - role: reviewer_quality
+      focus: code_rules
+    - role: reviewer_security
+      focus: security
+    - role: reviewer_scalability
+      focus: scalability
+  lead_role: reviewer_lead
+  previous_report_required_after_cycle: 1
+
+# ===== Judge gate (used only by workflows with judge_profile: independent) =====
+judge:
+  role: judge
+  decisions: [GO, GO_WITH_BACKLOG, NO_GO]
+  fix_only_decision: NO_GO
+  backlog_decision: GO_WITH_BACKLOG
+  backlog_destination: backlog.md
+  register_backlog_before_done: true
+  blocking_policy:
+    - unmet_acceptance_criteria
+    - failed_verification
+    - security_or_data_loss_risk
+    - broken_build_or_tests
+    - protected_path_violation
+    - normal_user_behavior_contradicts_spec
 
 # ===== Budget / risk =====
 budget:

@@ -1958,3 +1958,21 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - Pre-existing fixes (committed separately): `.venv/` excluded from `test_skill_naming_v2` naming-guard; `mb-session-recent-rebuild.sh` added to SKILL.md `## Tools`. True baseline was pytest 1134/1, NOT the "1135 passed" the plan claimed.
 - Tests: pytest 1161 passed / 0 failed · bats 688 ok / 0 failures. Commits f85cf34→fb74238 (stage closures) + dc4472c (bats). Design spec: `specs/mb-research-tooling-core/design.md`.
 - Next step: pick the next infrastructure unlock (W0.5 OpenCode-first adaptation) or resume the active Cursor compatibility remediation; both still queued ahead of W1–W12.
+
+## 2026-06-09 — Pi installer enforces Memory Bank `/mb work` gate
+
+- Request: make the Memory Bank repo installer/adapter install the strengthened Pi global prompt rules automatically, without overwriting user settings.
+- Changes:
+  - `install.sh` Pi global `AGENTS.md` section now includes the Mandatory `/mb work` execution gate.
+  - `install.sh` now hybrid-merges `~/.pi/agent/settings.json`: preserves all existing fields and skills, inserts `~/.pi/agent/skills/memory-bank` at the front, and deduplicates.
+  - `adapters/pi.sh` standalone `MB_PI_MODE=skill` now also merges Pi global `AGENTS.md` and `settings.json`, so direct Pi adapter installs get the same behavior.
+  - Added e2e Bats tests for preserving user Pi `AGENTS.md` content, idempotent managed section refresh, and settings merge without duplicate skills.
+- Verification:
+  - `bats tests/e2e/test_install_clients.bats --filter 'Pi global AGENTS|Pi settings'` — 2 passed.
+  - `bats tests/bats/test_pi_adapter.bats --filter 'global AGENTS|settings.json skills|native Pi skill'` — 3 passed.
+  - `bats tests/bats/test_pi_adapter.bats` — 14 passed.
+  - `bats tests/e2e/test_install_clients.bats` — 13 passed.
+  - `bats tests/e2e/test_install_idempotent.bats` — 5 passed.
+  - `bats tests/e2e/test_install_uninstall.bats` — 41 passed.
+  - `shellcheck -S warning install.sh adapters/pi.sh` — clean.
+  - Sandbox `HOME=$(mktemp -d) MB_SKIP_DEPS_CHECK=1 bash install.sh --non-interactive` produced Pi `AGENTS.md` with mandatory gate and valid Pi `settings.json` with memory-bank skill first.

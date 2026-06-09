@@ -5,11 +5,11 @@ allowed-tools: [Bash, Read]
 
 # /mb config <subcommand>
 
-Manage the project's execution `pipeline.yaml` — the declarative config consumed by `/mb work` (Phase 3 Sprint 2). Defines roles → agents mapping, per-stage review loop, severity gates, sprint context guard, review rubric, and SDD enforcement policy.
+Manage the project's execution `pipeline.yaml` — the declarative config consumed by `/mb work`. Defines roles → agents mapping, local workflow modes (`workflow.default` + `workflows.*`), per-item loops, severity gates, sprint context guard, review rubric, and SDD enforcement policy.
 
 ## Why pipeline.yaml?
 
-`/mb work <target>` runs each stage through a configurable `implement → review → verify` loop. Different teams need different defaults — review severity tolerance, max review cycles, role-to-agent mapping, protected-paths policy. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project and version-controlled.
+`/mb work <target>` resolves a named workflow from `pipeline.yaml`, defaulting to `execution` (`implement → verify → review → fix-loop → done`). Projects can add `full-cycle`, planning-only, review-only, or custom loops with different `max_cycles`. Different teams need different defaults — review severity tolerance, max review cycles, role-to-agent mapping, protected-paths policy. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project and version-controlled.
 
 ## Resolution
 
@@ -53,7 +53,9 @@ See spec §9 for the full breakdown. Required top-level keys:
 
 - `version` — currently `1`
 - `roles` — `<name>: { agent: <agent-id>, fallback?: <agent-id>, override_if_skill_present?: ... }`
-- `stage_pipeline` — list of `implement` / `review` / `verify` step definitions
+- `workflow` — default workflow name and aliases for `/mb work --workflow`
+- `workflows` — named local workflow modes; each has `steps` and optional `loop`
+- `stage_pipeline` — backward-compatible per-item execution pipeline for older orchestrators
 - `budget` — token budget guards (`warn_at_percent`, `stop_at_percent`)
 - `protected_paths` — glob list refused by `/mb work` without `--allow-protected`
 - `sprint_context_guard` — `soft_warn_tokens` / `hard_stop_tokens` (190k default hard stop)
@@ -69,14 +71,14 @@ User: /mb config show
 User: /mb config init
 → copies default into .memory-bank/pipeline.yaml
 
-User: edits .memory-bank/pipeline.yaml — bumps minor severity_gate
-      from 3 to 5 for this project's tolerance.
+User: edits .memory-bank/pipeline.yaml — sets workflow.default=execution,
+      adds a full-cycle mode, or changes workflows.execution.loop.max_cycles.
 
 User: /mb config validate
 → exit 0 (schema-clean)
 
 User: /mb work auth-refactor --auto
-→ engine reads .memory-bank/pipeline.yaml; review-loop uses minor=5.
+→ engine reads .memory-bank/pipeline.yaml, resolves workflow.default, and runs that loop.
 ```
 
 ## Out of scope
@@ -87,7 +89,7 @@ User: /mb work auth-refactor --auto
 
 ## Related
 
-- `/mb work <target>` — Phase 3 Sprint 2; consumes the resolved pipeline.
-- `/mb verify` — uses the same `verify` step defined in `stage_pipeline`.
+- `/mb work <target>` — consumes the resolved pipeline and selected workflow.
+- `/mb verify` — can be run standalone or as a workflow step.
 - `references/pipeline.default.yaml` — bundled defaults.
 - `scripts/mb-pipeline-validate.sh` — standalone schema check (also called by `/mb doctor`).

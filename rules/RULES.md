@@ -608,15 +608,15 @@ REQ-ID grammar is single-sourced in `mb_req_id.py` (definition vs mention, slash
 
 ## `/mb work` — execution engine
 
-`/mb work <target>` is the executor that drives **plan stages** (`<!-- mb-stage:N -->`) or **spec tasks** (`<!-- mb-task:N -->`) through a per-item loop with quality gates. `<target>` resolves to a plan or spec path via `mb-work-resolve.sh`.
+`/mb work <target>` is the executor that drives selected workflow modes from `pipeline.yaml`. In the default `execution` workflow, it drives **plan stages** (`<!-- mb-stage:N -->`) or **spec tasks** (`<!-- mb-task:N -->`) through a per-item loop with quality gates. `<target>` resolves to a plan or spec path via `mb-work-resolve.sh`.
 
 ### Per-item loop
 
-For each stage/task: **implement → review → fix → verify**, with auto-selected role-agent (see `§ Subagents` → dev-role agents) preceded by the `mb-engineering-core` discipline prepend.
+For each stage/task in `execution`: **implement → verify → review → fix-loop → done**, with auto-selected role-agent (see `§ Subagents` → dev-role agents) preceded by the `mb-engineering-core` discipline prepend. Full-cycle workflows can prepend **discuss → sdd → plan**; planning-only and review-only workflows are also valid when declared in `pipeline.yaml:workflows`.
 
-- **Review** — `mb-reviewer` reads the item diff + `pipeline.yaml:review_rubric` → APPROVED / CHANGES_REQUESTED with severity-classified issues (`mb-work-review-parse.sh` validates the output).
-- **Severity gate** — `mb-work-severity-gate.sh` applies `pipeline.yaml:severity_gate` to the review counts; CHANGES_REQUESTED above threshold loops back to fix.
-- **Verify** — tests via `mb-test-runner`, RULES via `mb-rules-enforcer`.
+- **Verify** — `plan-verifier` checks EARS/DoD/TDD/architecture/no-placeholder evidence before review cycles are spent.
+- **Review** — `mb-reviewer` reads the verified item diff + `pipeline.yaml:review_rubric` → APPROVED / CHANGES_REQUESTED with severity-classified issues (`mb-work-review-parse.sh` validates the output).
+- **Severity gate** — `mb-work-severity-gate.sh --workflow <name>` applies the selected workflow loop policy plus `severity_gate` and `approval_required`; CHANGES_REQUESTED loops back to fix when the workflow includes `fix`, and every fix returns to the configured `returns_to` step before the next review.
 
 ### Hard stops (guardrails)
 
@@ -625,7 +625,7 @@ For each stage/task: **implement → review → fix → verify**, with auto-sele
 
 ### Config — `pipeline.yaml`
 
-Managed by `/mb config` (`mb-pipeline.sh`), validated by `mb-pipeline-validate.sh`. Holds `review_rubric`, `severity_gate`, `protected_paths`, and the active reviewer (`mb-reviewer-resolve.sh`). Plan/sprint/stage decomposition follows the **Phase → Sprint → Stage** hierarchy (`references/templates.md § Plan decomposition`).
+Managed by `/mb config` (`mb-pipeline.sh`), validated by `mb-pipeline-validate.sh`, and resolved for work modes by `mb-workflow.sh`. Holds `workflow.default`, `workflows.*`, `review_rubric`, `protected_paths`, and the active reviewer (`mb-reviewer-resolve.sh`). Plan/sprint/stage decomposition follows the **Phase → Sprint → Stage** hierarchy (`references/templates.md § Plan decomposition`).
 
 ---
 

@@ -18,11 +18,12 @@ Usage: mb-pipeline-validate.sh <path-to-pipeline.yaml>
 Validates the file against the spec §9 schema:
   - required top-level keys (version, roles, stage_pipeline, budget,
     protected_paths, sprint_context_guard, review_rubric, sdd)
-  - version == 1
+  - version == 1 (string "1" is also accepted for YAML-schema compatibility)
   - roles entries have an 'agent' field
-  - stage_pipeline references only declared roles ('auto' permitted on implement)
-  - severity_gate keys ⊆ {blocker, major, minor}, values int >= 0
-  - max_cycles >= 1, on_max_cycles ∈ {stop_for_human, continue_with_warning}
+  - stage_pipeline references only declared roles ('auto' permitted for implement/fix dispatch)
+  - optional workflow/workflows local override profiles are structurally valid
+  - review severity_gate keys ⊆ {blocker, major, minor}, values int >= 0
+  - max_cycles >= 1, on_max_cycles ∈ {stop_for_human, continue_with_warning, judge_decides}
   - sprint_context_guard.hard_stop_tokens > soft_warn_tokens, both > 0
   - budget.warn_at_percent / stop_at_percent ∈ [0, 100]
   - review_rubric: 5 sections, each non-empty list of strings
@@ -196,11 +197,12 @@ def parse_stage_pipeline(lines: list[str]) -> list[dict]:
             if not sep:
                 continue
             nested_key = None
+            key_name = key.strip()
             if value.strip():
-                current[key.strip()] = parse_value(value)
+                current[key_name] = parse_value(value)
             else:
-                current[key.strip()] = [] if key.strip() in {"checks"} else {}
-                nested_key = key.strip()
+                current[key_name] = [] if key_name in {"checks", "required_artifacts"} else {}
+                nested_key = key_name
         elif indent == 6 and current is not None and nested_key:
             if stripped.startswith("- ") and isinstance(current[nested_key], list):
                 current[nested_key].append(parse_value(stripped[2:]))
@@ -286,8 +288,8 @@ for k in REQUIRED:
     if k not in cfg:
         err(f"missing required top-level key: {k}")
 
-if cfg.get("version") != 1:
-    err(f"version: expected 1, got {cfg.get('version')!r}")
+if cfg.get("version") not in (1, "1"):
+    err(f"version: expected 1 or '1', got {cfg.get('version')!r}")
 
 # ── roles ────────────────────────────────────────────────────────────
 roles = cfg.get("roles") or {}
@@ -307,21 +309,34 @@ if not isinstance(sp, list) or not sp:
     err("stage_pipeline: must be a non-empty list")
     sp = []
 
-valid_max_cycles = {"stop_for_human", "continue_with_warning"}
+valid_max_cycles = {"stop_for_human", "continue_with_warning", "judge_decides"}
 SEVERITY_KEYS = {"blocker", "major", "minor"}
 ALLOWED_ROLE_NAMES = set(roles.keys()) | {"auto"}
+step_positions: dict[str, int] = {}
 
 for idx, step in enumerate(sp):
     if not isinstance(step, dict):
         err(f"stage_pipeline[{idx}]: must be a mapping")
         continue
     name = step.get("step", f"<idx{idx}>")
+    if isinstance(name, str):
+        step_positions.setdefault(name, idx)
     role = step.get("role")
     if role is None:
         err(f"stage_pipeline[{name}]: missing 'role'")
     elif role not in ALLOWED_ROLE_NAMES:
         err(f"stage_pipeline[{name}]: role '{role}' not declared in roles")
+    elif role == "auto" and name not in {"implement", "fix"}:
+        err(f"stage_pipeline[{name}]: role 'auto' is only permitted for implement/fix")
+    if name == "sdd":
+        required = step.get("required_artifacts")
+        if required is not None:
+            if not isinstance(required, list) or not all(isinstance(x, str) and x for x in required):
+                err("stage_pipeline[sdd].required_artifacts: must be a list of non-empty strings")
     if name == "review":
+        approval_required = step.get("approval_required")
+        if approval_required is not None and not isinstance(approval_required, bool):
+            err(f"stage_pipeline[review].approval_required: must be boolean (got {approval_required!r})")
         gate = step.get("severity_gate") or {}
         if not isinstance(gate, dict):
             err(f"stage_pipeline[review].severity_gate: must be a mapping")
@@ -338,6 +353,122 @@ for idx, step in enumerate(sp):
         omc = step.get("on_max_cycles")
         if omc not in valid_max_cycles:
             err(f"stage_pipeline[review].on_max_cycles: '{omc}' not in {sorted(valid_max_cycles)}")
+    if name == "fix":
+        returns_to = step.get("returns_to")
+        if returns_to != "verify":
+            err(f"stage_pipeline[fix].returns_to: expected 'verify' (got {returns_to!r})")
+    if name == "done":
+        require_review_approval = step.get("require_review_approval")
+        if require_review_approval is not None and not isinstance(require_review_approval, bool):
+            err(f"stage_pipeline[done].require_review_approval: must be boolean (got {require_review_approval!r})")
+
+for required_step in ("implement", "verify"):
+    if required_step not in step_positions:
+        err(f"stage_pipeline: missing required step '{required_step}'")
+if "verify" in step_positions and "review" in step_positions:
+    if step_positions["verify"] > step_positions["review"]:
+        err("stage_pipeline: verify must run before review")
+if "fix" in step_positions and "verify" not in step_positions:
+    err("stage_pipeline: fix step requires verify step")
+
+# ── workflow / workflows (optional named /mb work modes) ─────────────
+workflow_cfg = cfg.get("workflow") or {}
+workflows_cfg = cfg.get("workflows") or {}
+ALLOWED_WORKFLOW_STEPS = {"discuss", "sdd", "plan", "implement", "verify", "review", "judge", "fix", "done"}
+VALID_UNTIL = {"reviewer_approved", "severity_gate_pass", "verification_pass", "judge_go", "manual"}
+VALID_ENTRYPOINTS = {"freeform_or_topic", "plan_or_spec", "plan_or_spec_or_diff", "diff", "topic"}
+
+if workflow_cfg is not None and not isinstance(workflow_cfg, dict):
+    err("workflow: must be a mapping")
+    workflow_cfg = {}
+if workflows_cfg is not None and not isinstance(workflows_cfg, dict):
+    err("workflows: must be a mapping")
+    workflows_cfg = {}
+
+if workflows_cfg:
+    default_workflow = workflow_cfg.get("default", "execution") if isinstance(workflow_cfg, dict) else "execution"
+    aliases = workflow_cfg.get("aliases", {}) if isinstance(workflow_cfg, dict) else {}
+    if aliases is not None and not isinstance(aliases, dict):
+        err("workflow.aliases: must be a mapping")
+        aliases = {}
+    for alias_name, target_name in aliases.items():
+        if not isinstance(alias_name, str) or not alias_name:
+            err("workflow.aliases: alias names must be non-empty strings")
+        if not isinstance(target_name, str) or not target_name:
+            err(f"workflow.aliases.{alias_name}: target must be a non-empty string")
+        elif target_name not in workflows_cfg:
+            err(f"workflow.aliases.{alias_name}: target workflow '{target_name}' is not declared")
+    resolved_default = aliases.get(default_workflow, default_workflow) if isinstance(aliases, dict) else default_workflow
+    if not isinstance(default_workflow, str) or not default_workflow:
+        err("workflow.default: must be a non-empty string")
+    elif resolved_default not in workflows_cfg:
+        err(f"workflow.default: workflow '{default_workflow}' is not declared")
+
+    for wname, wspec in workflows_cfg.items():
+        if not isinstance(wname, str) or not wname:
+            err("workflows: workflow names must be non-empty strings")
+            continue
+        if not isinstance(wspec, dict):
+            err(f"workflows.{wname}: must be a mapping")
+            continue
+        steps = wspec.get("steps")
+        if not isinstance(steps, list) or not steps:
+            err(f"workflows.{wname}.steps: must be a non-empty list")
+            steps = []
+        else:
+            for i, step_name in enumerate(steps):
+                if not isinstance(step_name, str) or not step_name:
+                    err(f"workflows.{wname}.steps[{i}]: must be a non-empty string")
+                elif step_name not in ALLOWED_WORKFLOW_STEPS:
+                    err(f"workflows.{wname}.steps[{i}]: unknown step '{step_name}'")
+        entrypoint = wspec.get("entrypoint")
+        if entrypoint is not None and entrypoint not in VALID_ENTRYPOINTS:
+            err(f"workflows.{wname}.entrypoint: '{entrypoint}' not in {sorted(VALID_ENTRYPOINTS)}")
+        interactive = wspec.get("interactive")
+        if interactive is not None and not isinstance(interactive, bool):
+            err(f"workflows.{wname}.interactive: must be boolean")
+        loop = wspec.get("loop")
+        if loop is not None:
+            if not isinstance(loop, dict):
+                err(f"workflows.{wname}.loop: must be a mapping")
+                loop = {}
+            after = loop.get("after")
+            if after is not None and after not in steps:
+                err(f"workflows.{wname}.loop.after: step '{after}' is not in workflow steps")
+            until = loop.get("until")
+            if until is not None and until not in VALID_UNTIL:
+                err(f"workflows.{wname}.loop.until: '{until}' not in {sorted(VALID_UNTIL)}")
+            returns_to = loop.get("returns_to")
+            if returns_to is not None and returns_to not in steps:
+                err(f"workflows.{wname}.loop.returns_to: step '{returns_to}' is not in workflow steps")
+            max_cycles = loop.get("max_cycles")
+            if max_cycles is not None:
+                if not isinstance(max_cycles, int) or isinstance(max_cycles, bool) or max_cycles < 1:
+                    err(f"workflows.{wname}.loop.max_cycles: must be int >= 1")
+            on_max_cycles = loop.get("on_max_cycles")
+            if on_max_cycles is not None and on_max_cycles not in valid_max_cycles:
+                err(f"workflows.{wname}.loop.on_max_cycles: '{on_max_cycles}' not in {sorted(valid_max_cycles)}")
+            approval_required = loop.get("approval_required")
+            if approval_required is not None and not isinstance(approval_required, bool):
+                err(f"workflows.{wname}.loop.approval_required: must be boolean")
+            workflow_gate = loop.get("severity_gate")
+            if workflow_gate is not None:
+                if not isinstance(workflow_gate, dict):
+                    err(f"workflows.{wname}.loop.severity_gate: must be a mapping")
+                else:
+                    unknown = set(workflow_gate.keys()) - SEVERITY_KEYS
+                    if unknown:
+                        err(f"workflows.{wname}.loop.severity_gate: unknown keys {sorted(unknown)}; allowed {sorted(SEVERITY_KEYS)}")
+                    for sev_k, sev_v in workflow_gate.items():
+                        if not isinstance(sev_v, int) or isinstance(sev_v, bool) or sev_v < 0:
+                            err(f"workflows.{wname}.loop.severity_gate.{sev_k}: must be int >= 0")
+        if "fix" in steps:
+            if "review" not in steps and "judge" not in steps:
+                err(f"workflows.{wname}: fix step requires review or judge step")
+            if "verify" not in steps:
+                err(f"workflows.{wname}: fix step requires verify step")
+        if "judge" in steps and "verify" not in steps:
+            err(f"workflows.{wname}: judge step requires verify step")
 
 # ── budget ──────────────────────────────────────────────────────────
 budget = cfg.get("budget") or {}

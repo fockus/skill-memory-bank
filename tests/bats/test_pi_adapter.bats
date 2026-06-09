@@ -92,6 +92,48 @@ run_adapter() {
   jq -e '.mode == "skill"' "$PROJECT/.mb-pi-manifest.json" >/dev/null
 }
 
+@test "pi: MB_PI_MODE=skill merges global AGENTS.md with mandatory mb-work gate" {
+  mkdir -p "$HOME/.pi/agent"
+  cat > "$HOME/.pi/agent/AGENTS.md" <<'EOF'
+# Existing Pi Rules
+
+Keep this.
+EOF
+
+  MB_PI_MODE=skill run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  MB_PI_MODE=skill run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  grep -q '^# Existing Pi Rules$' "$HOME/.pi/agent/AGENTS.md"
+  grep -q 'Mandatory `/mb work` execution gate' "$HOME/.pi/agent/AGENTS.md"
+  grep -q 'mb-workflow.sh' "$HOME/.pi/agent/AGENTS.md"
+  local count
+  count=$(grep -c 'memory-bank-pi:start' "$HOME/.pi/agent/AGENTS.md")
+  [ "$count" -eq 1 ]
+}
+
+@test "pi: MB_PI_MODE=skill merges settings.json skills without overwriting user settings" {
+  mkdir -p "$HOME/.pi/agent"
+  cat > "$HOME/.pi/agent/settings.json" <<'EOF'
+{
+  "theme": "dark",
+  "skills": ["~/.pi/agent/skills/custom-skill"]
+}
+EOF
+
+  MB_PI_MODE=skill run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  MB_PI_MODE=skill run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  python3 -m json.tool "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '.theme == "dark"' "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '.skills[0] == "~/.pi/agent/skills/memory-bank"' "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '.skills | index("~/.pi/agent/skills/custom-skill") != null' "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '[.skills[] | select(. == "~/.pi/agent/skills/memory-bank")] | length == 1' "$HOME/.pi/agent/settings.json" >/dev/null
+}
+
 @test "pi: MB_PI_MODE=skill does not overwrite global symlinked Pi skill" {
   mkdir -p "$HOME/.claude/skills/skill-memory-bank" "$HOME/.pi/agent/skills"
   cp "$REPO_ROOT/SKILL.md" "$HOME/.claude/skills/skill-memory-bank/SKILL.md"

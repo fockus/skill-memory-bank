@@ -85,7 +85,17 @@ After every significant change, run for the detected stack and paste the tail of
 type-check (0 errors), lint (0 new warnings), tests (all green). A claim without its command output
 is not a status — it is a guess. If something fails, fix it before exiting; do not hand off broken code.
 
-## 8. Escalation — no thrashing
+## 8. Review reception and escalation — no thrashing
+
+Treat review feedback as technical claims to verify, not orders to blindly follow.
+
+- Read the full feedback.
+- Restate the concrete requirement if unclear.
+- Verify it against the codebase and plan.
+- Fix **one item at a time**, with a targeted RED test when behavior changes.
+- In governed workflows, fix only judge `blocking_issues`; backlog items are recorded, not fixed in the same loop.
+
+No performative agreement. No "you're right" reflex. Technical correctness over social comfort.
 
 - **Fix attempt 1:** fix and re-run.
 - **Fix attempt 2:** find the root cause, fix systemically.
@@ -125,5 +135,6 @@ test per scenario `test_id` (GIVEN→Arrange, WHEN→Act, THEN→Assert) before 
 | "One TODO won't hurt" | One → ten → a codebase of stubs. |
 | "One more attempt at the same fix" (3+) | Thrashing ≠ work. STOP, escalate. |
 | "The reviewer will catch it" | Self-review first. Don't outsource your discipline. |
+| "Reviewer found something, so it must block" | Verify against plan/DoD; judge decides blockers vs backlog. |
 | "Scope is small, no plan needed" | Small scope = fast plan. Not an exemption. |
 | "It's basically done" | Basically done = not done. Show the evidence or pick BLOCKED. |

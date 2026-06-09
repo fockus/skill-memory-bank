@@ -150,7 +150,7 @@ fi
 STAGES_RAW=$(bash "$RANGE_SH" "$PLAN" --range "$RANGE")
 
 # Get effective pipeline.yaml path (for role→agent mapping)
-PIPELINE_PATH=$(bash "$PIPELINE" path --mb "$MB_ARG" 2>/dev/null || true)
+PIPELINE_PATH=$(bash "$PIPELINE" path "$MB_ARG" 2>/dev/null || true)
 if [ -z "$PIPELINE_PATH" ]; then
 	PIPELINE_PATH="$SCRIPT_DIR/../references/pipeline.default.yaml"
 fi
@@ -189,9 +189,15 @@ except Exception:
     roles = {}
 
 ROLE_AGENT: dict[str, str] = {}
+ROLE_MODEL: dict[str, str] = {}
+ROLE_THINKING: dict[str, str] = {}
 for rname, rspec in roles.items():
     if isinstance(rspec, dict) and rspec.get("agent"):
         ROLE_AGENT[rname] = rspec["agent"]
+        if rspec.get("model"):
+            ROLE_MODEL[rname] = rspec["model"]
+        if rspec.get("thinking"):
+            ROLE_THINKING[rname] = rspec["thinking"]
 
 # Role auto-detection heuristics (applied to heading + body, lowercase).
 # Order matters — first match wins.
@@ -203,6 +209,7 @@ ROLE_RULES = [
     ("devops",    [r"\bdocker\b", r"\bdockerfile\b", r"\bk8s\b", r"\bkubernetes\b", r"\bci\b", r"\bcd\b", r"\binfrastructure\b", r"\bterraform\b"]),
     ("qa",        [r"\bred tests\b", r"\bpytest\b", r"\bbats\b", r"\btest cases\b", r"\bcoverage\b", r"\bedge case\b"]),
     ("architect", [r"\barchitecture\b", r"\badr\b", r"\bdesign doc\b", r"\bdomain model\b", r"\binterfaces\b"]),
+    ("researcher", [r"\bresearch\b", r"\binvestigate\b", r"\bsource extraction\b", r"\bbenchmark\b", r"\bcomparison\b", r"\btrade[- ]off\b", r"\boption matrix\b"]),
     ("analyst",   [r"\bmetric\b", r"\bsql\b", r"\banalytics\b", r"\bdata pipeline\b", r"\bdashboard\b"]),
 ]
 
@@ -310,6 +317,8 @@ for n in requested:
         role = parsed_role if parsed_role != "developer" else detected_role
 
     agent = ROLE_AGENT.get(role) or ROLE_AGENT.get("developer") or f"mb-{role}"
+    model = ROLE_MODEL.get(role) or ROLE_MODEL.get("developer", "")
+    thinking = ROLE_THINKING.get(role) or ROLE_THINKING.get("developer", "")
 
     # dod_lines and status: source-dependent
     if source == "plan":
@@ -327,6 +336,8 @@ for n in requested:
         "heading": heading,
         "role": role,
         "agent": agent,
+        "model": model,
+        "thinking": thinking,
         "status": status,
         "dod_lines": dod_count,
         "source": source,

@@ -38,6 +38,52 @@ teardown() {
   [ ! -d "$PROJECT/.windsurf" ]
 }
 
+@test "install.sh merges Pi global AGENTS.md with mandatory mb-work gate" {
+  mkdir -p "$HOME/.pi/agent"
+  cat > "$HOME/.pi/agent/AGENTS.md" <<'EOF'
+# User Pi Rules
+
+Keep my custom instructions.
+EOF
+
+  bash "$REPO_ROOT/install.sh" --non-interactive >/dev/null
+  bash "$REPO_ROOT/install.sh" --non-interactive >/dev/null
+
+  [ -f "$HOME/.pi/agent/AGENTS.md" ]
+  grep -q '^# User Pi Rules$' "$HOME/.pi/agent/AGENTS.md"
+  grep -q 'Mandatory `/mb work` execution gate' "$HOME/.pi/agent/AGENTS.md"
+  grep -q 'mb-workflow.sh' "$HOME/.pi/agent/AGENTS.md"
+  grep -q 'mb-work-plan.sh' "$HOME/.pi/agent/AGENTS.md"
+  local count
+  count=$(grep -c 'memory-bank-pi:start' "$HOME/.pi/agent/AGENTS.md")
+  [ "$count" -eq 1 ]
+}
+
+@test "install.sh merges Pi settings.json skills without overwriting user settings" {
+  mkdir -p "$HOME/.pi/agent"
+  cat > "$HOME/.pi/agent/settings.json" <<'EOF'
+{
+  "defaultProvider": "custom-provider",
+  "theme": "dark",
+  "skills": [
+    "~/.pi/agent/skills/custom-skill"
+  ],
+  "packages": ["npm:example"]
+}
+EOF
+
+  bash "$REPO_ROOT/install.sh" --non-interactive >/dev/null
+  bash "$REPO_ROOT/install.sh" --non-interactive >/dev/null
+
+  python3 -m json.tool "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '.defaultProvider == "custom-provider"' "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '.theme == "dark"' "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '.packages == ["npm:example"]' "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '.skills | index("~/.pi/agent/skills/custom-skill") != null' "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '.skills[0] == "~/.pi/agent/skills/memory-bank"' "$HOME/.pi/agent/settings.json" >/dev/null
+  jq -e '[.skills[] | select(. == "~/.pi/agent/skills/memory-bank")] | length == 1' "$HOME/.pi/agent/settings.json" >/dev/null
+}
+
 @test "install.sh --clients cursor installs Cursor adapter into project" {
   bash "$REPO_ROOT/install.sh" --clients cursor --project-root "$PROJECT" >/dev/null
   [ -f "$HOME/.claude/RULES.md" ]

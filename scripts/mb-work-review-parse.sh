@@ -23,7 +23,7 @@
 #
 # Cross-checks:
 #   - verdict == CHANGES_REQUESTED requires len(issues) > 0
-#   - verdict == APPROVED allows 0+ issues
+#   - verdict == APPROVED requires len(issues) == 0 and all counts == 0
 #
 # Lenient mode (--lenient): if JSON parse fails, attempt Markdown fallback —
 # regex `verdict:` and `counts:` lines, with empty issues list.
@@ -139,6 +139,13 @@ for idx, raw in enumerate(issues):
 
 if verdict == "CHANGES_REQUESTED" and len(normalized_issues) == 0:
     fail("CHANGES_REQUESTED verdict requires non-empty issues list")
+
+if verdict == "APPROVED":
+    if normalized_issues:
+        fail("APPROVED verdict requires an empty issues list")
+    nonzero = {k: v for k, v in normalized_counts.items() if v != 0}
+    if nonzero:
+        fail(f"APPROVED verdict requires zero counts (got {nonzero})")
 
 print(json.dumps({
     "verdict": verdict,

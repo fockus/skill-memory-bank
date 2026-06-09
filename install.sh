@@ -643,6 +643,19 @@ Recommended workflow:
 - Before implementation, prefer \`/mb plan <feature|fix|refactor|experiment> <topic>\` and follow TDD.
 - Detailed rules live at \`~/.pi/agent/skills/memory-bank/rules/RULES.md\`.
 
+### Mandatory \`/mb work\` execution gate
+
+When Memory Bank is ACTIVE and the user asks to implement, fix, continue, resume, "do the next step", "go by the plan", or work from an existing plan/spec, **do not implement manually first**. Before editing production code or restoring paused WIP, resolve the Memory Bank work item and workflow:
+
+1. Resolve the effective workflow from \`<bank>/pipeline.yaml\` via \`mb-workflow.sh\` (default may be project-specific, e.g. governed execution).
+2. Resolve the target/range via \`mb-work-resolve.sh\` and \`mb-work-plan.sh\`; spec tasks with \`<!-- mb-task:N -->\` are executable source of truth.
+3. If a wrapper plan points to a spec, ensure \`linked_spec\` is present; if no executable \`mb-stage\`/\`mb-task\` exists, stop and repair the plan/spec before implementation.
+4. Follow the resolved workflow steps exactly (\`implement\`, \`verify\`, \`review\`, \`judge\`, \`fix\`, \`done\`). If \`review\`/\`judge\` are configured, do not claim completion before those gates or an explicit user-approved workflow override.
+5. Dispatch agents with the exact \`model\` and \`thinking\` from the JSON line / \`pipeline.yaml\`; never rely on fuzzy model aliases or agent frontmatter defaults.
+6. Manual inline work is allowed only for trivial non-plan tasks or when the user explicitly says to skip \`/mb work\`; still apply TDD and verification.
+
+This gate exists to prevent the agent from rationalizing around Memory Bank after compaction, stash restores, or mid-session pivots.
+
 ## Core Memory Bank rules
 
 EOF
@@ -698,6 +711,47 @@ install_pi_global_agents() {
   echo -e "  ${GREEN}✓${NC} Pi AGENTS.md (created)"
 }
 
+install_pi_settings_skill() {
+  local settings_file="$PI_AGENT_DIR/settings.json"
+  mkdir -p "$PI_AGENT_DIR"
+
+  SETTINGS_FILE="$settings_file" python3 <<'PYEOF'
+import json
+import os
+from pathlib import Path
+
+path = Path(os.environ["SETTINGS_FILE"])
+skill = "~/.pi/agent/skills/memory-bank"
+
+if path.exists():
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"invalid Pi settings.json, refusing to overwrite: {exc}")
+    if not isinstance(data, dict):
+        raise SystemExit("invalid Pi settings.json: root must be an object")
+else:
+    data = {}
+
+raw_skills = data.get("skills", [])
+if raw_skills is None:
+    raw_skills = []
+if not isinstance(raw_skills, list):
+    raise SystemExit("invalid Pi settings.json: skills must be an array")
+
+skills = []
+for item in [skill, *raw_skills]:
+    if item not in skills:
+        skills.append(item)
+
+data["skills"] = skills
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+PYEOF
+
+  INSTALLED_FILES+=("$settings_file")
+  echo -e "  ${GREEN}✓${NC} Pi settings.json (memory-bank skill merged)"
+}
+
 # ═══ Step 1: Rules ═══
 echo -e "${BLUE}[1/7] Rules${NC}"
 install_file_localized "$SOURCE_SKILL_DIR/rules/RULES.md" "$CLAUDE_DIR/RULES.md"
@@ -747,6 +801,7 @@ echo -e "  ${GREEN}✓${NC} language preference ($LANGUAGE)"
 install_opencode_global_agents
 install_codex_global_agents
 install_pi_global_agents
+install_pi_settings_skill
 
 # ═══ Step 2: Agents ═══
 echo -e "${BLUE}[2/7] Agents${NC}"

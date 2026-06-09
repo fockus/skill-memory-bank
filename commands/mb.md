@@ -326,7 +326,7 @@ Create the Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`
 
 ### config <subcommand>
 
-Manage the project's execution `pipeline.yaml` (spec §9) — the declarative config consumed by `/mb work` (Phase 3 Sprint 2). Defines roles → agents mapping, per-stage `implement → review → verify` loop, severity gates, sprint context guard, review rubric, and SDD enforcement policy.
+Manage the project's execution `pipeline.yaml` (spec §9) — the declarative config consumed by `/mb work`. Defines roles → agents mapping, local workflow modes (`workflow.default` + `workflows.*`), per-item loops, severity gates, sprint context guard, review rubric, and SDD enforcement policy.
 
 **Alias** for `/config` — dispatch to `commands/config.md` for the canonical doc.
 
@@ -349,31 +349,34 @@ All subcommands accept a trailing `[mb_path]` arg pointing at an alternative ban
 
 **Underlying:** `bash scripts/mb-pipeline.sh <subcommand> [args...]`.
 
-**Why pipeline.yaml?** Different teams need different defaults — review tolerance, max review cycles, role-to-agent mapping, protected paths. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project, version-controlled, and reviewable. Until `/mb work` lands (Phase 3 Sprint 2), `/mb config` is mostly self-documentation; once `/mb work` is live, the resolved config drives every stage.
+**Why pipeline.yaml?** Different teams need different defaults — workflow modes, review tolerance, max review cycles, role-to-agent mapping, protected paths. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project, version-controlled, and reviewable.
 
-### work [target] [--range A-B] [--dry-run]
+### work [target] [--workflow NAME] [--range A-B] [--dry-run]
 
-Execute stages from a plan with auto-selected role-agents. Phase 3 Sprint 2 ships target resolution + range parsing + execution-plan emission + implement-step dispatch. Review-loop, severity gates, fix-cycle, and verifier integration land in Phase 3 Sprint 3.
+Execute a selected workflow from `pipeline.yaml:workflows`. Default mode is `execution`: start from an existing plan/spec, implement with TDD, verify before review, loop fixes until reviewer approval or `max_cycles`, then mark done. Other modes can run full-cycle (`discuss → sdd → plan → ...`), planning-only, implement-only, review-fix, or review-only flows.
 
 **Alias** for `/work` — dispatch to `commands/work.md` for the canonical workflow.
 
 **Behavior:**
 
-1. **Resolve target** (5 forms — see spec §8.2): existing path → substring in `plans/` → topic name → freeform (≥3 words, exit 3 → orchestrator confirms with user) → empty (active plan from `<!-- mb-active-plans -->` block in `roadmap.md`).
-2. **Apply `--range`**: detects level automatically. Plan input → range over `<!-- mb-stage:N -->` markers. Phase input (multiple sprint-plans with `sprint:` frontmatter) → range over sprint numbers.
-3. **Emit JSON Lines**: one object per stage with fields `plan`, `stage_no`, `heading`, `role` (auto-detected from heading + body keywords: ios / android / frontend / backend / devops / qa / architect / analyst, fallback `developer`), `agent` (mapped via `pipeline.yaml:roles`), `status`, `dod_lines`. `--dry-run` adds a human-readable header and stops here.
-4. **Dispatch**: for each pending stage, invoke `Task` tool with `subagent_type="general-purpose"` and prompt = `<contents of agents/<agent>.md>` + plan path + stage body. The role-agent (mb-developer / mb-backend / mb-frontend / mb-ios / mb-android / mb-architect / mb-devops / mb-qa / mb-analyst) implements against the stage DoD.
-5. **Stage close-out**: prompt the user (auto-confirm with `--auto`, deferred to Sprint 3); mark DoD items.
+1. **Resolve workflow** with `mb-workflow.sh` (`--workflow` wins; otherwise `workflow.default`).
+2. **Planning steps** (`discuss`, `sdd`, `plan`) run only if the selected workflow includes them.
+3. **Resolve target** for execution/review steps (5 forms — see spec §8.2): existing path → substring in `plans/` → topic name → freeform → empty active plan.
+4. **Apply `--range`** over plan stages or spec tasks.
+5. **Emit JSON Lines** with role/agent/model/thinking/status/DoD metadata.
+6. **Dispatch / quality loop** according to selected workflow steps and `workflow.loop`.
+7. **Stage close-out** only after all selected workflow gates pass.
 
 **Underlying scripts:**
 
 ```bash
+bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--json|--steps|--loop|max-cycles]
 bash scripts/mb-work-resolve.sh [target] [--mb <path>]
 bash scripts/mb-work-range.sh <plan> [--range <expr>]
 bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
 ```
 
-**Out of scope (Sprint 3):** review-loop after implement step, severity gates, fix-cycle on `CHANGES_REQUESTED`, `plan-verifier` as the verify step, `--auto` end-to-end with hard stops, `--budget` token tracking, `--slim`/`--full` context strategy (needs hooks from Phase 4), `--allow-protected` enforcement, `superpowers:requesting-code-review` skill override.
+**Out of scope:** fully deterministic host-side orchestration for every client UI. The command contract defines the required loop; clients/orchestrators must follow it and use the helper scripts for target resolution, review parsing, severity gates, budget tracking, and protected-path checks.
 
 ### verify
 
