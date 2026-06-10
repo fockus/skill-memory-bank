@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>memory-bank-skill — Persistent memory for AI coding agents</title>
+    <title>memory-bank-skill v5 — Persistent memory for AI coding agents</title>
     <meta
       name="description"
-      content="Long-term project memory, engineering rules, and workflow commands for AI coding agents across Claude Code, Cursor, Codex, OpenCode, and more."
+      content="Long-term project memory, engineering rules, a composable work pipeline, code-graph intelligence, and cross-session recall for 8 AI coding agents: Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, Kilo, Pi Code."
     />
     <meta name="theme-color" content="#f4efe3" />
-    <meta property="og:title" content="memory-bank-skill" />
+    <meta property="og:title" content="memory-bank-skill v5" />
     <meta
       property="og:description"
-      content="Persistent project memory for 8 AI coding agents with GitHub-ready workflow."
+      content="Your AI agent remembers the project between sessions, follows your engineering rules, and picks up exactly where you left off. 8 agents, one memory model."
     />
     <meta property="og:type" content="website" />
     <link rel="stylesheet" href="styles.css" />
@@ -31,8 +31,9 @@
 
         <nav class="topnav" aria-label="Primary">
           <a href="#problem">Problem</a>
+          <a href="#features">Features</a>
+          <a href="#v5">v5</a>
           <a href="#workflow">Workflow</a>
-          <a href="#agents">Agents</a>
           <a href="#install">Install</a>
           <a href="#docs">Docs</a>
           <a href="https://github.com/fockus/skill-memory-bank">GitHub</a>
@@ -41,8 +42,8 @@
 
       <main>
         <section class="hero" id="hero">
-          <div class="hero-copy">
-            <p class="eyebrow">Open source · MIT · GitHub Pages</p>
+          <div class="hero-copy reveal">
+            <p class="eyebrow">Open source · MIT · v5.0.0</p>
             <h1>AI coding agents should not wake up with amnesia.</h1>
             <p class="hero-badges" aria-label="Project status">
               <a href="https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml">
@@ -71,9 +72,11 @@
               </a>
             </p>
             <p class="hero-lead">
-              <span>memory-bank-skill</span> gives Claude Code, Cursor, Codex, OpenCode,
-              Windsurf, Cline, Kilo, and Pi Code a shared project memory, a shared ruleset,
-              and a shared operating rhythm.
+              Every new session starts with re-explaining the project, re-stating the plan, and
+              watching your rules get forgotten. <span>memory-bank-skill</span> ends that: a
+              <code>.memory-bank/</code> directory next to your code that the agent reads at session
+              start, updates as it works, and hands to the next session — or the next agent —
+              intact.
             </p>
 
             <div class="hero-actions">
@@ -89,17 +92,17 @@
                 <span>One memory model</span>
               </div>
               <div>
-                <strong>.memory-bank/</strong>
-                <span>Portable project context</span>
+                <strong>50+ commands</strong>
+                <span>Plan, work, verify, recall</span>
               </div>
               <div>
-                <strong>21 /mb flows</strong>
-                <span>Plan, verify, update, compact</span>
+                <strong>$0 by default</strong>
+                <span>Local files, no API keys</span>
               </div>
             </div>
           </div>
 
-          <div class="hero-stage">
+          <div class="hero-stage reveal reveal-delay-1">
             <div class="signal-card">
               <p class="signal-label">Session signal</p>
               <div class="signal-orbit" aria-hidden="true">
@@ -109,8 +112,8 @@
                 <span class="ring ring-three"></span>
               </div>
               <p class="signal-copy">
-                Project status, plan, checklist, research, notes, and codebase context stay
-                navigable between sessions.
+                Status, plans, specs, research, lessons, code graph, and past sessions stay
+                navigable between chats — across compaction events and across agents.
               </p>
             </div>
 
@@ -121,16 +124,16 @@
                 <span></span>
               </div>
               <pre class="terminal-copy"><code>$ pipx install memory-bank-skill
-$ memory-bank install --clients claude-code,cursor,codex
+$ memory-bank install   # Claude Code · Cursor · Codex · …
 
 .memory-bank/
-├── STATUS.md
-├── checklist.md
-├── plan.md
-├── RESEARCH.md
-├── BACKLOG.md
-├── progress.md
-└── notes/
+├── status.md      ← where we are, what's next
+├── checklist.md   ← tasks ✅ / ⬜
+├── roadmap.md     ← priorities, direction
+├── plans/ specs/  ← executable plans &amp; SDD specs
+├── notes/ lessons.md
+├── session/       ← cross-chat memory (/mb recall)
+└── codebase/      ← stack map + code graph
 
 $ /mb start
 [context] active plan loaded
@@ -152,145 +155,382 @@ $ /mb start
         </section>
 
         <section class="problem section" id="problem">
-          <div class="section-heading">
+          <div class="section-heading reveal">
             <p class="eyebrow">The problem</p>
             <h2>The tooling is smart. The memory model is fragile.</h2>
             <p>
-              Most teams rebuild project context from scratch every session. memory-bank-skill
-              fixes the cold start without forcing you into a proprietary app or a giant prompt.
+              LLM agents are stateless by design. Without a durable memory layer you pay the same
+              tax every single day — in tokens, in time, and in architecture drift.
             </p>
           </div>
 
           <div class="problem-grid">
-            <article class="feature-card accent-sand">
+            <article class="feature-card accent-sand reveal">
               <h3>Session cold starts</h3>
               <p>
-                Yesterday's decisions disappear. Today's agent re-asks the same questions, burns
-                tokens, and repeats preventable mistakes.
+                Yesterday's decisions disappear. Today's agent re-asks the same questions, re-reads
+                half the repo, burns tokens, and repeats mistakes you already fixed once.
               </p>
             </article>
 
-            <article class="feature-card accent-lime">
+            <article class="feature-card accent-lime reveal reveal-delay-1">
               <h3>Rule drift</h3>
               <p>
-                TDD, architecture boundaries, review rituals, and release rules stop being shared
-                constraints and become wishful thinking.
+                TDD, architecture boundaries, review rituals — repeated in chat, forgotten by the
+                next session. Shared constraints decay into wishful thinking.
               </p>
             </article>
 
-            <article class="feature-card accent-ink">
-              <h3>Tool fragmentation</h3>
+            <article class="feature-card accent-ink reveal reveal-delay-2">
+              <h3>Tool lock-in</h3>
               <p>
-                Claude Code, Cursor, Codex, and OpenCode all need different glue. Your project
-                memory should outlive the agent you used this week.
+                Claude Code, Cursor, Codex, and OpenCode each invent their own glue. Your project
+                memory should outlive the agent you happen to use this week.
               </p>
             </article>
           </div>
         </section>
 
-        <section class="workflow section" id="workflow">
-          <div class="section-heading">
-            <p class="eyebrow">How it works</p>
-            <h2>Navigate the project. Do not dump the whole codebase.</h2>
+        <section class="features section" id="features">
+          <div class="section-heading reveal">
+            <p class="eyebrow">Everything inside</p>
+            <h2>Not a notes folder. A full operating system for AI-assisted work.</h2>
             <p>
-              The system keeps context structured, small, and durable. Agents load only what is
-              needed and update the memory bank as real work lands.
+              Three layers in one skill: long-term project memory, an always-on engineering
+              ruleset, and a 50+ command dev toolkit — all plain files in your repo, all working
+              offline, all free by default.
+            </p>
+          </div>
+
+          <div class="features-grid">
+            <article class="capability-card reveal">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3Z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+              </span>
+              <h3>Persistent project memory</h3>
+              <p>
+                <code>.memory-bank/</code> holds status, checklist, roadmap, plans, research,
+                lessons, and notes. It survives compaction, restarts, and agent switches. Commit it
+                and your teammate's agent catches up without a single question.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-1">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 4.6-3.2 7.9-8 9-4.8-1.1-8-4.4-8-9V7l8-4Z"/><path d="m9 12 2 2 4-4"/></svg>
+              </span>
+              <h3>Engineering rules, always on</h3>
+              <p>
+                TDD, SOLID, Clean Architecture, Feature-Sliced Design, Testing Trophy, coverage
+                targets — installed as global rules the agent reads at every session start. No more
+                reminding. Works even without a bank (rules-only mode).
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-2">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m7 9-3 3 3 3"/><path d="m17 9 3 3-3 3"/><path d="m13 5-2 14"/></svg>
+              </span>
+              <h3>50+ workflow commands</h3>
+              <p>
+                25 top-level commands (<code>/plan</code>, <code>/review</code>,
+                <code>/commit</code>, <code>/adr</code>, <code>/security-review</code>…) plus 25+
+                <code>/mb</code> sub-commands for the full memory lifecycle. <code>/mb help</code>
+                shows them live inside any agent.
+              </p>
+            </article>
+
+            <article class="capability-card reveal">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="12" height="4" rx="1.5"/><rect x="3" y="16" width="16" height="4" rx="1.5"/></svg>
+              </span>
+              <h3>Composable work pipeline <em class="chip-new">new in v5</em></h3>
+              <p>
+                <code>/mb work</code> drives plans and specs through
+                <code>implement → verify → done</code> by default. Need more rigor? Flip on
+                <code>--review</code>, <code>--judge</code>, or the full 8-stage chain. You pay for
+                exactly the process you ask for.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-1">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8"/><path d="M5 4v16"/><path d="m11 9 2 2-2 2"/></svg>
+              </span>
+              <h3>Spec-driven development</h3>
+              <p>
+                <code>/mb discuss</code> interviews you into EARS-validated requirements,
+                <code>/mb sdd</code> turns them into a Kiro-style spec triple
+                (requirements / design / tasks), and <code>/mb work</code> executes the tasks one by
+                one — with verification gates between them.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-2">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="8" r="2.4"/><circle cx="9" cy="18" r="2.4"/><path d="M8 7.2 15.7 8M7 16.1 6.4 8.4M11.2 16.9l5.2-7"/></svg>
+              </span>
+              <h3>Code graph &amp; semantic search</h3>
+              <p>
+                <code>/mb graph</code> builds a multi-language code graph (Python, Go, JS/TS, Rust,
+                Java) with god-node detection, git co-change edges, and suggested questions.
+                Semantic search runs on free local BM25, with opt-in embeddings for concept queries.
+              </p>
+            </article>
+
+            <article class="capability-card reveal">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h13v14H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h13"/><path d="M9 7h6"/></svg>
+              </span>
+              <h3>LLM codebase wiki</h3>
+              <p>
+                <code>/mb wiki</code> writes a per-community wiki of your codebase and hunts for
+                surprising cross-module connections — using your host agent's subagents. No API key,
+                no external service.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-1">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>
+              </span>
+              <h3>Cross-session recall</h3>
+              <p>
+                Lifecycle hooks log every session automatically. <code>/mb recall "why did we pick
+                postgres"</code> searches past chats and notes — so decisions made three weeks ago
+                are one query away, not lost in a closed tab.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-2">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 4.3a2 2 0 0 1 3.4 0l1 1.6 1.9-.3a2 2 0 0 1 2.3 2.3l-.3 1.9 1.6 1a2 2 0 0 1 0 3.4l-1.6 1 .3 1.9a2 2 0 0 1-2.3 2.3l-1.9-.3-1 1.6a2 2 0 0 1-3.4 0l-1-1.6-1.9.3a2 2 0 0 1-2.3-2.3l.3-1.9-1.6-1a2 2 0 0 1 0-3.4l1.6-1-.3-1.9A2 2 0 0 1 7.4 5.6l1.9.3 1-1.6Z"/><circle cx="12" cy="12" r="2.6"/></svg>
+              </span>
+              <h3>Rule profiles &amp; presets</h3>
+              <p>
+                22 built-in presets tune the rules to your world — backend / frontend / mobile, Go
+                to TypeScript, microservices to FSD, TDD to legacy-safe. The safety baseline (no
+                placeholders, protected files, verify before done) can never be switched off.
+              </p>
+            </article>
+
+            <article class="capability-card reveal">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-2.8 2.9-4.5 5.5-4.5s4.9 1.7 5.5 4.5"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M15.8 14.7c2.3.2 4.2 1.7 4.7 4.3"/></svg>
+              </span>
+              <h3>A roster of subagents</h3>
+              <p>
+                Planner, plan-verifier, doctor, reviewer ensemble, test-runner, rules-enforcer, and
+                9 dev-role agents (backend, frontend, iOS, Android, QA, DevOps…) — each carrying an
+                evidence-before-claims discipline: no "tests pass" without the actual output.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-1">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>
+              </span>
+              <h3>8 agents, zero lock-in</h3>
+              <p>
+                One install wires Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, Kilo, and
+                Pi Code to the same memory model. Adapters merge idempotently into your existing
+                <code>AGENTS.md</code> and hooks — uninstalling one client never breaks another.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-2">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>
+              </span>
+              <h3>Private &amp; local by design</h3>
+              <p>
+                Everything is markdown and JSON on your disk. Nothing is sent anywhere. Wrap secrets
+                in <code>&lt;private&gt;</code> tags and they're excluded from indexes and redacted
+                in search. Local / global / rules-only storage modes — your call.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="v5 section" id="v5">
+          <div class="section-heading reveal">
+            <p class="eyebrow">New in v5.0.0</p>
+            <h2>The pipeline is now yours to compose.</h2>
+            <p>
+              v5 makes process a dial, not a tax. The default flow is lean — review and judge are
+              opt-in stages you add per run, per project, or per preset. Canonical order is fixed;
+              invalid chains fail fast before any code is touched.
+            </p>
+          </div>
+
+          <div class="v5-panel reveal">
+            <div class="pipeline-track" role="img" aria-label="Pipeline stages: discuss, sdd, plan are optional; implement, verify are default; review, judge are optional; done is default.">
+              <span class="stage opt">discuss</span>
+              <span class="stage-arrow" aria-hidden="true">→</span>
+              <span class="stage opt">sdd</span>
+              <span class="stage-arrow" aria-hidden="true">→</span>
+              <span class="stage opt">plan</span>
+              <span class="stage-arrow" aria-hidden="true">→</span>
+              <span class="stage core">implement</span>
+              <span class="stage-arrow" aria-hidden="true">→</span>
+              <span class="stage core">verify</span>
+              <span class="stage-arrow" aria-hidden="true">→</span>
+              <span class="stage opt">review</span>
+              <span class="stage-arrow" aria-hidden="true">→</span>
+              <span class="stage opt">judge</span>
+              <span class="stage-arrow" aria-hidden="true">→</span>
+              <span class="stage core">done</span>
+            </div>
+            <p class="pipeline-legend">
+              <span><i class="dot dot-core"></i> default (<code>execution</code> preset)</span>
+              <span><i class="dot dot-opt"></i> opt-in via flags, <code>pipeline.yaml</code>, or presets</span>
+            </p>
+
+            <div class="v5-grid">
+              <article class="v5-card">
+                <h3>Lean by default</h3>
+                <pre><code>/mb work my-feature
+# implement → verify → done</code></pre>
+                <p>Review is off by default. Fast iteration stays fast.</p>
+              </article>
+              <article class="v5-card">
+                <h3>Rigor on demand</h3>
+                <pre><code>/mb work payments --review --judge
+# + reviewer + independent judge
+# severity gate: blocker 0 · major 0</code></pre>
+                <p>Add a reviewer and an independent judge for the code that matters.</p>
+              </article>
+              <article class="v5-card">
+                <h3>The whole chain</h3>
+                <pre><code>/mb work checkout --workflow full
+# discuss → sdd → plan → implement
+# → verify → review → judge → done</code></pre>
+                <p>From requirements interview to judged delivery — one command.</p>
+              </article>
+            </div>
+
+            <p class="v5-footnote">
+              Three precedence layers: launch flags &gt; project <code>pipeline.yaml</code> &gt;
+              built-in default. The heavyweight 5-reviewer ensemble stays available as
+              <code>--workflow governed-execution</code>. Upgrading from v4?
+              <a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/MIGRATION-v4-v5.md">One-page migration guide</a> — no file migration needed.
+            </p>
+          </div>
+        </section>
+
+        <section class="workflow section" id="workflow">
+          <div class="section-heading reveal">
+            <p class="eyebrow">How it works</p>
+            <h2>Navigate the project. Don't dump the whole codebase.</h2>
+            <p>
+              Context stays structured, small, and durable. The agent loads only what's needed and
+              writes the memory back as real work lands — so the next session starts warm.
             </p>
           </div>
 
           <div class="workflow-grid">
-            <article class="workflow-step">
+            <article class="workflow-step reveal">
               <span class="step-index">01</span>
-              <h3>Initialize</h3>
+              <h3>Initialize once</h3>
               <p>
-                `/mb init` creates `.memory-bank/` with status, checklist, plan, research,
-                progress, notes, reports, and codebase docs.
+                <code>/mb init</code> creates <code>.memory-bank/</code>, detects your stack, and
+                points the agent at it. <code>/mb map</code> and <code>/mb graph</code> add a
+                codebase map and code graph on top.
               </p>
             </article>
 
-            <article class="workflow-step">
+            <article class="workflow-step reveal reveal-delay-1">
               <span class="step-index">02</span>
               <h3>Resume instantly</h3>
               <p>
-                `/mb start` loads the current state first, so the agent sees roadmap, blockers,
-                and the active plan before it writes code.
+                <code>/mb start</code> loads status, checklist, roadmap, and the active plan before
+                a single line of code — the agent knows the blockers and the next step in seconds.
               </p>
             </article>
 
-            <article class="workflow-step">
+            <article class="workflow-step reveal reveal-delay-2">
               <span class="step-index">03</span>
-              <h3>Ship with discipline</h3>
+              <h3>Work with discipline</h3>
               <p>
-                Rules are bundled with the skill: TDD, SOLID, Clean Architecture, FSD, Testing
-                Trophy, verification order, and Memory Bank hygiene.
+                <code>/mb plan</code> or <code>/mb sdd</code> produce executable plans and specs;
+                <code>/mb work</code> drives them stage by stage under TDD, Clean Architecture, and
+                your chosen pipeline.
               </p>
             </article>
 
-            <article class="workflow-step">
+            <article class="workflow-step reveal reveal-delay-3">
               <span class="step-index">04</span>
               <h3>Close the loop</h3>
               <p>
-                `/mb verify` and `/mb done` reconcile plan vs code vs checklist, append progress,
-                and preserve the knowledge for the next session.
+                <code>/mb verify</code> audits the diff against the plan's DoD; <code>/mb done</code>
+                appends progress, updates status, and preserves the knowledge for tomorrow — and for
+                <code>/mb recall</code>.
               </p>
             </article>
           </div>
         </section>
 
         <section class="agents section" id="agents">
-          <div class="section-heading">
+          <div class="section-heading reveal">
             <p class="eyebrow">Cross-agent portability</p>
             <h2>One repo, one memory bank, eight coding agents.</h2>
             <p>
-              The project state stays in your repo. Adapters and hints make each host understand
-              the same memory model instead of inventing a different one.
+              The project state lives in your repo, not in a vendor's cloud. Adapters teach each
+              host the same memory model — switch tools mid-project and nothing is lost.
             </p>
           </div>
 
           <div class="agents-grid">
-            <article class="agent-card"><h3>Claude Code</h3><p>Native commands and hooks.</p></article>
-            <article class="agent-card"><h3>Cursor</h3><p>Global rules, hooks, commands, and skill alias.</p></article>
-            <article class="agent-card"><h3>Codex</h3><p>Skill discovery plus `AGENTS.md` guidance and project adapter.</p></article>
-            <article class="agent-card"><h3>OpenCode</h3><p>Global AGENTS surface and native commands.</p></article>
-            <article class="agent-card"><h3>Windsurf</h3><p>Cascade hooks and project rules.</p></article>
-            <article class="agent-card"><h3>Cline</h3><p>`.clinerules` integration and hooks.</p></article>
-            <article class="agent-card"><h3>Kilo</h3><p>Rules plus git-hook fallback where native hooks are absent.</p></article>
-            <article class="agent-card"><h3>Pi Code</h3><p>Dual-mode install: native skill or shared `AGENTS.md`.</p></article>
+            <article class="agent-card reveal"><h3>Claude Code</h3><p>Native commands, full lifecycle hooks, subagents, session memory.</p></article>
+            <article class="agent-card reveal reveal-delay-1"><h3>Cursor</h3><p>Global rules, 10 hooks, commands, and skill alias — auto-wired.</p></article>
+            <article class="agent-card reveal reveal-delay-2"><h3>Codex</h3><p>Skill discovery plus <code>AGENTS.md</code> guidance and project adapter.</p></article>
+            <article class="agent-card reveal reveal-delay-3"><h3>OpenCode</h3><p>Native commands, TypeScript plugins, global AGENTS surface.</p></article>
+            <article class="agent-card reveal"><h3>Windsurf</h3><p>Cascade hooks and project rules.</p></article>
+            <article class="agent-card reveal reveal-delay-1"><h3>Cline</h3><p><code>.clinerules</code> integration and hooks.</p></article>
+            <article class="agent-card reveal reveal-delay-2"><h3>Kilo</h3><p>Rules plus git-hook fallback where native hooks are absent.</p></article>
+            <article class="agent-card reveal reveal-delay-3"><h3>Pi Code</h3><p>Dual-mode install: native skill or shared <code>AGENTS.md</code>.</p></article>
           </div>
         </section>
 
         <section class="install section" id="install">
-          <div class="section-heading">
+          <div class="section-heading reveal">
             <p class="eyebrow">Install</p>
-            <h2>Fast to add. Easy to keep.</h2>
+            <h2>Fast to add. Easy to keep. Trivial to remove.</h2>
             <p>
-              Start with `pipx`, add the clients you actually use, then initialize memory inside
-              any repo. No framework lock-in, no hosted dependency, no hidden state.
+              Plain files, marker-based merges, byte-level idempotent installs. No framework
+              lock-in, no hosted dependency, no hidden state. macOS, Linux, and Windows
+              (Git Bash / WSL).
             </p>
           </div>
 
           <div class="install-grid">
-            <article class="install-card">
-              <h3>Recommended</h3>
+            <article class="install-card reveal">
+              <h3>Recommended — pipx</h3>
               <pre><code>pipx install memory-bank-skill
-memory-bank install --clients claude-code,cursor,codex
-memory-bank install --language ru</code></pre>
+memory-bank install
+# or pick clients explicitly:
+memory-bank install \
+  --clients claude-code,cursor,codex</code></pre>
             </article>
 
-            <article class="install-card">
-              <h3>In the project</h3>
-              <pre><code>/mb init
-/mb start
-/mb plan feature landing-page
-/mb verify
-/mb done</code></pre>
+            <article class="install-card reveal reveal-delay-1">
+              <h3>First session in a project</h3>
+              <pre><code>/mb init        # create the bank
+/mb start       # load context
+/mb plan feature user-auth
+/mb work user-auth
+/mb verify &amp;&amp; /mb done</code></pre>
             </article>
 
-            <article class="install-card">
+            <article class="install-card reveal reveal-delay-2">
               <h3>Alt paths</h3>
-              <pre><code>brew tap fockus/tap
-brew install memory-bank
+              <pre><code># Homebrew
+brew tap fockus/tap &amp;&amp; brew install memory-bank
 
+# One-shot skill copy
+npx skills add fockus/skill-memory-bank
+
+# Developers
 git clone https://github.com/fockus/skill-memory-bank.git \
   ~/.claude/skills/skill-memory-bank</code></pre>
             </article>
@@ -298,53 +538,133 @@ git clone https://github.com/fockus/skill-memory-bank.git \
         </section>
 
         <section class="docs section" id="docs">
-          <div class="section-heading">
+          <div class="section-heading reveal">
             <p class="eyebrow">Documentation</p>
-            <h2>Read the guides, then install with confidence.</h2>
+            <h2>Learn the rhythm in ten minutes.</h2>
             <p>
-              Every doc lives next to the code on GitHub and renders in your editor too. Start with
-              install, move to the cross-agent setup for your tool, then the command reference.
+              The daily loop is three commands. Everything else is there when you need it — and
+              every doc lives next to the code on GitHub.
             </p>
           </div>
 
-          <div class="install-grid">
-            <article class="install-card">
+          <div class="howto-grid">
+            <article class="howto-card reveal">
+              <span class="howto-step">Every session</span>
+              <h3>start → work → done</h3>
+              <p>
+                Open the project, run <code>/mb start</code>, do the work, finish with
+                <code>/mb done</code>. The agent keeps <code>checklist.md</code> and
+                <code>progress.md</code> current as tasks complete — you never write a status
+                report again.
+              </p>
+            </article>
+            <article class="howto-card reveal reveal-delay-1">
+              <span class="howto-step">Bigger features</span>
+              <h3>discuss → sdd → work</h3>
+              <p>
+                <code>/mb discuss</code> turns a vague idea into validated requirements,
+                <code>/mb sdd</code> produces the spec triple, and <code>/mb work</code> executes
+                its tasks with verification — and review/judge gates when you opt in.
+              </p>
+            </article>
+            <article class="howto-card reveal reveal-delay-2">
+              <span class="howto-step">When you forget</span>
+              <h3>search → recall → wiki</h3>
+              <p>
+                <code>/mb search</code> scans the bank, <code>/mb recall</code> digs through past
+                sessions, semantic search finds code by concept, and <code>/mb wiki</code> explains
+                how the modules actually fit together.
+              </p>
+            </article>
+          </div>
+
+          <div class="install-grid docs-links">
+            <article class="install-card reveal">
               <h3>Getting started</h3>
               <ul>
-                <li><a href="https://github.com/fockus/skill-memory-bank#-quick-start-10-minutes">Quick start (10 min)</a></li>
+                <li><a href="https://github.com/fockus/skill-memory-bank#5-minute-quick-start">Quick start (5 min)</a></li>
                 <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/install.md">Install guide</a></li>
                 <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/cross-agent-setup.md">Cross-agent setup</a></li>
+                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/concepts/overview.md">Overview — the mental model</a></li>
               </ul>
             </article>
 
-            <article class="install-card">
-              <h3>Reference</h3>
+            <article class="install-card reveal reveal-delay-1">
+              <h3>Concepts &amp; reference</h3>
               <ul>
                 <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/commands/mb.md">/mb command reference</a></li>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/SKILL.md">SKILL.md spec</a></li>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/rules/">Engineering rules bundle</a></li>
+                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/commands/work.md">Composable /mb work pipeline</a></li>
+                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/concepts/code-graph.md">Code graph &amp; semantic search</a></li>
+                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/concepts/session-memory.md">Cross-session memory</a></li>
+                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/rule-profiles.md">Rule profiles &amp; presets</a></li>
               </ul>
             </article>
 
-            <article class="install-card">
-              <h3>Project & release</h3>
+            <article class="install-card reveal reveal-delay-2">
+              <h3>Project &amp; release</h3>
               <ul>
+                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/MIGRATION-v4-v5.md">v4 → v5 migration</a></li>
                 <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/CHANGELOG.md">CHANGELOG</a></li>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/release-process.md">Release process</a></li>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/MIGRATION-v1-v2.md">Migration v1 → v2/v3</a></li>
+                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/rules/">Engineering rules bundle</a></li>
+                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/SKILL.md">SKILL.md spec</a></li>
               </ul>
             </article>
+          </div>
+
+          <div class="faq reveal">
+            <h3 class="faq-title">Honest answers</h3>
+            <details>
+              <summary>Does this replace my agent's built-in memory?</summary>
+              <p>
+                No — it complements it. Native memory is per-user and cross-project (your
+                preferences, your style). <code>.memory-bank/</code> is per-project and team-shared
+                (status, plans, decisions). Both load simultaneously.
+              </p>
+            </details>
+            <details>
+              <summary>Do I have to commit <code>.memory-bank/</code>?</summary>
+              <p>
+                Your call. Commit it to share state with your team — a colleague clones the repo,
+                runs <code>/mb start</code>, and has full context. Solo? <code>.gitignore</code> it,
+                or use global storage mode and keep the repo untouched.
+              </p>
+            </details>
+            <details>
+              <summary>Is my code sent anywhere?</summary>
+              <p>
+                No. Everything is local markdown and JSON. The code graph, BM25 search, co-change
+                analysis, and recall index all run on your machine for $0. The only LLM calls are
+                the ones your agent already makes.
+              </p>
+            </details>
+            <details>
+              <summary>Will it overwrite my existing <code>AGENTS.md</code> or hooks?</summary>
+              <p>
+                No. Adapters use marker blocks (<code>&lt;!-- memory-bank:start/end --&gt;</code>)
+                and merge idempotently. Your content is preserved; uninstall removes only MB-owned
+                sections.
+              </p>
+            </details>
+            <details>
+              <summary>Is it production-ready?</summary>
+              <p>
+                v5.0.0 is the current stable line, used daily on real projects, with a green test
+                envelope of 1,800+ tests (pytest + bats) on Python 3.11/3.12 × Ubuntu and macOS.
+                The skill develops itself with its own memory bank — dogfooding all the way down.
+              </p>
+            </details>
           </div>
         </section>
 
         <section class="cta section" id="cta">
-          <div class="cta-panel">
+          <div class="cta-panel reveal">
             <div>
               <p class="eyebrow">Ready to keep the context?</p>
               <h2>Put the project memory next to the code.</h2>
               <p>
-                Install the skill, initialize `.memory-bank/`, and let every new session start
-                from the actual state of the project instead of guesswork.
+                Install the skill, run <code>/mb init</code>, and let every session start from the
+                actual state of the project instead of guesswork. Five minutes now, zero cold
+                starts after.
               </p>
             </div>
 
@@ -359,7 +679,7 @@ git clone https://github.com/fockus/skill-memory-bank.git \
       </main>
 
       <footer class="footer">
-        <p>memory-bank-skill for serious AI-assisted software work.</p>
+        <p>memory-bank-skill v5 — for serious AI-assisted software work.</p>
         <a href="https://github.com/fockus/skill-memory-bank">github.com/fockus/skill-memory-bank</a>
       </footer>
     </div>
