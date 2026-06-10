@@ -78,14 +78,16 @@ def test_landing_page_contains_core_sections_and_assets() -> None:
 
     title, parsed = _parse_html()
 
-    assert title == "memory-bank-skill — Persistent memory for AI coding agents"
+    assert title == "memory-bank-skill v5 — Persistent memory for AI coding agents"
     assert parsed.description.startswith("Long-term project memory")
     assert {"problem", "workflow", "agents", "install", "cta"} <= parsed.sections
     assert "#install" in parsed.anchors
     assert any("github.com/fockus/skill-memory-bank" in href for href in parsed.anchors)
 
     for asset_path in [*parsed.stylesheets, *parsed.scripts]:
-        assert not asset_path.startswith("http"), f"Expected a local asset, not a remote one: {asset_path}"
+        assert not asset_path.startswith("http"), (
+            f"Expected a local asset, not a remote one: {asset_path}"
+        )
         candidate = (SITE_ROOT / asset_path).resolve()
         assert candidate.is_file(), f"Asset referenced from HTML is missing on disk: {asset_path}"
 
