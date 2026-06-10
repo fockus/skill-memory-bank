@@ -2038,3 +2038,19 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 ### Auto-capture 2026-06-11 (session c5e9f541)
 - Session ended without an explicit /mb done
 - Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-11
+
+### Session: README/site redesign + docs backfill + promotion playbook + CI greening
+- Committed the MB_PYTHON interpreter fix (pipx/pip/brew installs) with regression tests.
+- README v5 redesign: centered hero + og-image banner, nav anchors, "New in v5" callout,
+  TL;DR install, stats table, Diátaxis-grouped docs, star-history footer, stale v4 FAQ fixed.
+- Site: og-image.png (+ generator in site/tools/), favicon.svg, og/twitter/canonical meta,
+  doc links updated, test-count claim corrected to 1,900+.
+- New docs: first-feature.md (worked example), troubleshooting.md, agents-reference.md;
+  docs/README.md index updated; SECURITY_AUDIT_REPORT.md archived to docs/security/.
+- PyPI metadata: Production/Stable classifier + expanded keywords.
+- GitHub repo: tightened description, +persistent-memory/+llm-memory topics (20 total).
+- CI greening (with parallel user fixes): wiki_store.py read_text(newline=) py3.11/3.12
+  compat; mb-semantic-search.py parse_intermixed_args.
+- Promotion playbook saved to reports/2026-06-11_promotion-playbook.md (channels verified).
