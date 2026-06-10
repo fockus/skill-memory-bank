@@ -28,6 +28,12 @@ Background reading on how the skill is structured.
 - **[Overview](concepts/overview.md)** — high-level picture of the layers.
 - **[Design principles](../references/design-principles.md)** — inviolable
   core + configurability invariants + token economy.
+- **[Composable `/mb work` pipeline](../commands/work.md)** — review off by
+  default; per-stage flags, the `full` preset, three-layer precedence.
+- **[Code graph & semantic search](concepts/code-graph.md)** — `/mb map`,
+  `/mb graph` (+ opt-in layers), `mb-semantic-search.py`, `/mb wiki`.
+- **[Cross-session memory](concepts/session-memory.md)** — `/mb recall`,
+  session hooks, the local semantic index.
 - **Memory model** *(coming)* — `status.md` / `checklist.md` / `plans/` /
   `progress.md` / `lessons.md` / `notes/` and how they fit together.
 - **Pipeline config** *(coming)* — `pipeline.yaml` schema with examples.

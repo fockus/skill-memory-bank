@@ -261,7 +261,7 @@ The agent reads these rules at session start and follows them without you having
 | `/roadmap-sync` | Regenerate `roadmap.md` autosync block from plan frontmatter |
 | `/traceability-gen` | Regenerate REQ → Plan → Test traceability matrix |
 
-**21 `/mb` sub-commands** (live in `commands/mb.md`):
+**Key `/mb` sub-commands** (full list lives in `commands/mb.md`):
 
 | Sub-command | Purpose |
 |-------------|---------|
@@ -277,7 +277,10 @@ The agent reads these rules at session start and follows them without you having
 | `/mb tasks` | Show pending tasks from checklist |
 | `/mb index` | Registry of all entries (core + notes/plans/experiments/reports) |
 | `/mb map [focus]` | Scan codebase, write MD docs to `.memory-bank/codebase/` (stack/arch/quality/concerns/all) |
-| `/mb graph [--apply]` | Multi-language code graph: Python (stdlib `ast`) + Go/JS/TS/Rust/Java (tree-sitter, opt-in) |
+| `/mb graph [--apply]` | Multi-language code graph (Python `ast` + Go/JS/TS/Rust/Java tree-sitter); opt-in `--questions` / `--cochange` / `--docs`. See [code-graph docs](docs/concepts/code-graph.md) |
+| `/mb wiki [--dry-run]` | LLM per-community codebase wiki + surprising-connection edges (Haiku/Sonnet subagents, no API key) |
+| `/mb recall <query>` | Cross-session recall over past chats (`session/` + `notes/`). See [session-memory docs](docs/concepts/session-memory.md) |
+| `/mb reindex [--full]` | Build/refresh the local semantic index for `/mb recall` (fastembed, $0; degrades to lexical) |
 | `/mb compact [--apply]` | Status-based decay — archive old done plans + low-importance notes |
 | `/mb import --project <path>` | Bootstrap MB from Claude Code JSONL transcripts |
 | `/mb tags [--apply]` | Normalize frontmatter tags (Levenshtein-based synonym merge) |
@@ -471,6 +474,15 @@ A: Yes. Current stable line is **v4.0.0** (released 2026-04-25), built on the v3
 ---
 
 ## Documentation
+
+**Concepts**
+
+- **[Composable `/mb work` pipeline](commands/work.md)** — review off by default; `--review`/`--judge`/`--stages` + the `full` preset
+- **[Code graph & semantic search](docs/concepts/code-graph.md)** — `/mb map`, `/mb graph` (+`--questions`/`--cochange`/`--docs`), `mb-semantic-search.py`, `/mb wiki`
+- **[Cross-session memory](docs/concepts/session-memory.md)** — `/mb recall`, session hooks, the local semantic index
+- **[Overview](docs/concepts/overview.md)** — the mental model in one page
+
+**Guides**
 
 - **[Cross-agent setup](docs/cross-agent-setup.md)** — per-client cheatsheet + hook capability matrix
 - **[Install guide](docs/install.md)** — pipx / Homebrew / git-clone with troubleshooting
