@@ -1,4 +1,13 @@
+<div align="center">
+
 # memory-bank-skill
+
+**Persistent project memory + dev toolkit for AI coding agents.**
+
+Your AI remembers the project between sessions, follows the same engineering rules,
+and picks up exactly where you left off.
+
+Claude Code · Cursor · Windsurf · Cline · Kilo · OpenCode · Codex · Pi Code
 
 [![CI](https://img.shields.io/github/actions/workflow/status/fockus/skill-memory-bank/test.yml?branch=main&label=tests&style=flat-square&color=brightgreen&v=300)](https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml)
 [![PyPI version](https://img.shields.io/pypi/v/memory-bank-skill?style=flat-square&color=brightgreen&label=pypi&v=300)](https://pypi.org/project/memory-bank-skill/)
@@ -6,26 +15,42 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/memory-bank-skill?style=flat-square&color=brightgreen&v=300)](https://pypi.org/project/memory-bank-skill/)
 [![Homebrew tap](https://img.shields.io/badge/homebrew-fockus%2Ftap-brightgreen?style=flat-square&v=300)](https://github.com/fockus/homebrew-tap)
 [![Downloads](https://img.shields.io/pypi/dm/memory-bank-skill?style=flat-square&color=brightgreen&v=300)](https://pypi.org/project/memory-bank-skill/)
-[![Last commit](https://img.shields.io/github/last-commit/fockus/skill-memory-bank?style=flat-square&color=brightgreen&v=300)](https://github.com/fockus/skill-memory-bank/commits/main)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square&v=300)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/fockus/skill-memory-bank?style=social)](https://github.com/fockus/skill-memory-bank/stargazers)
 
-**Long-term project memory + dev toolkit for 8 AI coding agents.** Your AI remembers the project between sessions, follows the same engineering rules, and picks up exactly where you left off.
+[Install](#install) · [Quick start](#5-minute-quick-start) · [What you get](#what-you-get) · [Commands](#3-dev-workflow-commands) · [Cross-agent](#4-cross-agent-portability) · [FAQ](#faq) · [Docs](#documentation) · [Website](https://fockus.github.io/skill-memory-bank/)
 
-Works with: **Claude Code · Cursor · Windsurf · Cline · Kilo · OpenCode · Codex · Pi Code**.
+<a href="https://fockus.github.io/skill-memory-bank/"><img src="https://raw.githubusercontent.com/fockus/skill-memory-bank/main/site/og-image.png" alt="memory-bank-skill — persistent memory for AI coding agents" width="720"></a>
+
+</div>
+
+> **New in v5.0** — the `/mb work` pipeline is now composable: the default flow is a lean `implement → verify → done`, with review and judge as opt-in stages (`--review`, `--judge`, `--workflow full`). [CHANGELOG](CHANGELOG.md) · [v4 → v5 migration](docs/MIGRATION-v4-v5.md)
+
+```bash
+pipx install memory-bank-skill && memory-bank install
+```
+
+```text
+# then, inside your agent:
+/mb init     # once per project
+/mb start    # every session — full context restored
+```
+
+| Slash commands | `/mb` sub-commands | Subagents | AI clients | Automated tests |
+|:--------------:|:------------------:|:---------:|:----------:|:---------------:|
+| 25             | 25+                | 29        | 8          | 1,900+          |
 
 ---
 
 ## The problem it solves
 
-Every new AI coding session is amnesia. You re-explain the project, re-state the plan, re-list what's done. Rules get forgotten. Architecture drifts. Context compaction erases whatever the agent finally learned.
-
-**memory-bank-skill** fixes this by making AI memory a first-class citizen — a simple `.memory-bank/` directory inside your project that the agent reads at the start of every session and updates as it works.
+Every new AI coding session is amnesia: you re-explain the project, re-state the plan, re-list what's done — and context compaction erases whatever the agent finally learned. **memory-bank-skill** makes project memory a first-class citizen: a `.memory-bank/` directory next to your code that the agent reads at session start and updates as it works.
 
 ```
 .memory-bank/
 ├── status.md          ← where we are, what's next
 ├── checklist.md       ← current tasks (✅ / ⬜)
-├── roadmap.md            ← priorities, direction
+├── roadmap.md         ← priorities, direction
 ├── research.md        ← hypotheses log (H-NNN) + current experiment
 ├── backlog.md         ← parking lot for ideas + ADRs
 ├── progress.md        ← work log (append-only)
@@ -469,29 +494,40 @@ A: Not by default. Project-local metrics overrides are disabled unless you expli
 A: `memory-bank install` now writes Pi global artifacts automatically: `~/.pi/agent/AGENTS.md`, `~/.pi/agent/skills/memory-bank`, and slash prompt templates in `~/.pi/agent/prompts/`. In an existing Pi session, run `/reload` after install. For a project-level shared `AGENTS.md`, additionally run `memory-bank install --clients pi --project-root <repo>`. Existing local Pi skill directories are backed up outside `~/.pi/agent/skills/` so Pi does not discover backup copies as duplicate skills.
 
 **Q: Is this production-ready?**
-A: Yes. Current stable line is **v4.0.0** (released 2026-04-25), built on the v3.x architectural baseline (`3.0.0` was the first stable 3.x release). Daily used on real projects. Full test envelope green (bats + pytest, 663 passed). Stable API. Prior pre-release tags (`3.0.0-rc1`/`rc2`/`rc3`) are still published on PyPI as pre-releases for reference.
+A: Yes. Current stable line is **v5.0.0** (released 2026-06-10). Daily used on real projects — including on this repository itself (the skill maintains its own `.memory-bank/`). Full test envelope green: 1,900+ automated tests (pytest + bats) on Python 3.11/3.12 × Ubuntu and macOS. Stable API.
 
 ---
 
 ## Documentation
 
-**Concepts**
+**Get started** *(learning)*
+
+- **[5-minute quick start](#5-minute-quick-start)** — install → `/mb init` → `/mb start` → work → `/mb done`
+- **[Your first feature, end to end](docs/first-feature.md)** — a worked example: plan → TDD → verify → done
+- **[Install guide](docs/install.md)** — pipx / Homebrew / git-clone with troubleshooting
+- **[Overview](docs/concepts/overview.md)** — the mental model in one page
+
+**Concepts** *(understanding)*
 
 - **[Composable `/mb work` pipeline](commands/work.md)** — review off by default; `--review`/`--judge`/`--stages` + the `full` preset
 - **[Code graph & semantic search](docs/concepts/code-graph.md)** — `/mb map`, `/mb graph` (+`--questions`/`--cochange`/`--docs`), `mb-semantic-search.py`, `/mb wiki`
 - **[Cross-session memory](docs/concepts/session-memory.md)** — `/mb recall`, session hooks, the local semantic index
-- **[Overview](docs/concepts/overview.md)** — the mental model in one page
+- **[Rule profiles & presets](docs/rule-profiles.md)** — tune the rules to your role/stack without weakening the safety baseline
 
-**Guides**
+**How-to** *(tasks)*
 
 - **[Cross-agent setup](docs/cross-agent-setup.md)** — per-client cheatsheet + hook capability matrix
-- **[Install guide](docs/install.md)** — pipx / Homebrew / git-clone with troubleshooting
+- **[Troubleshooting](docs/troubleshooting.md)** — common issues and fixes
 - **[v4 → v5 migration](docs/MIGRATION-v4-v5.md)** — review now off by default; composable `/mb work` pipeline
-- **[v3.0 → v3.1 migration](docs/MIGRATION-v3-v3.1.md)** — automatic structural upgrade (multi-active plans, `I-NNN` ideas, `ADR-NNN`)
-- **[v1 → v2 migration](docs/MIGRATION-v1-v2.md)** — older structural migration
+- **[v3.0 → v3.1 migration](docs/MIGRATION-v3-v3.1.md)** · **[v1 → v2 migration](docs/MIGRATION-v1-v2.md)** — older structural upgrades
 - **[Repository migration](docs/repo-migration.md)** — for users upgrading from `claude-skill-memory-bank`
+
+**Reference**
+
+- **[Agents reference](docs/agents-reference.md)** — all 29 subagents and when each one is invoked
 - **[Release process](docs/release-process.md)** — PyPI OIDC setup + tag workflow
 - **[CHANGELOG](CHANGELOG.md)** — version history
+- **[Security policy](SECURITY.md)** — reporting, scope, design decisions
 
 ---
 
@@ -509,7 +545,24 @@ MIT. See [LICENSE](LICENSE).
 
 ## Links
 
+- **Website:** https://fockus.github.io/skill-memory-bank/
 - **Repo:** https://github.com/fockus/skill-memory-bank
 - **PyPI:** https://pypi.org/project/memory-bank-skill/
 - **Homebrew tap:** https://github.com/fockus/homebrew-tap
 - **Issues:** https://github.com/fockus/skill-memory-bank/issues
+
+---
+
+<div align="center">
+
+<a href="https://www.star-history.com/#fockus/skill-memory-bank&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=fockus/skill-memory-bank&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=fockus/skill-memory-bank&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=fockus/skill-memory-bank&type=Date" width="600" />
+  </picture>
+</a>
+
+**Your agent is already smart. memory-bank-skill makes it remember.**
+
+</div>

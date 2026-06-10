@@ -12,9 +12,13 @@ requires-python = ">=3.11"
 authors = [
   { name = "Anton Ivanov", email = "ruzaliasib1705@gmail.com" }
 ]
-keywords = ["memory-bank", "claude-code", "cursor", "ai-coding", "dev-tools", "llm-memory"]
+keywords = [
+  "memory-bank", "claude-code", "cursor", "windsurf", "cline", "opencode", "codex",
+  "ai-coding", "dev-tools", "llm-memory", "persistent-memory", "coding-agent",
+  "agent-skill", "tdd", "clean-architecture", "spec-driven-development",
+]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "Operating System :: MacOS",
@@ -24,6 +28,8 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development",
   "Topic :: Software Development :: Documentation",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Utilities",
 ]
 dependencies = []
 
