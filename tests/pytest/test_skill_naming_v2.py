@@ -38,6 +38,7 @@ EXCLUDED_PATHS = (
     "tests/pytest/test_migrate_v2_e2e.py",
     "tests/pytest/test_skill_naming_v2.py",
     ".memory-bank/",
+    ".memsearch/",  # local memsearch-plugin session memory (gitignored)
     ".pre-migrate",
     "docs/security/",  # archived historical audits quote v1 names verbatim
     "dist/",

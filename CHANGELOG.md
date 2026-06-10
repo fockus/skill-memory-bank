@@ -6,6 +6,41 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - _Nothing yet._
 
+## [5.0.1] — 2026-06-11
+
+### Fixed
+
+- **pipx / pip / Homebrew installs no longer abort.** The `memory-bank` CLI now
+  exports `MB_PYTHON=sys.executable` (plus `MB_SKILL_BUNDLE`), and
+  `install.sh`/`uninstall.sh` run every embedded Python step through it. A bare
+  system `python3` cannot import `memory_bank_skill` from a pipx/venv install
+  and — under `set -euo pipefail` — aborted the whole install. Direct
+  `bash install.sh` from a git checkout is unaffected (falls back to `python3`).
+- **`/mb wiki` merge on Python 3.11/3.12.** `merge_semantic_edges()` used
+  `Path.read_text(newline=...)`, which only exists on Python 3.13; replaced
+  with `open(newline="")` so supported interpreters don't raise `TypeError`.
+- **`mb-semantic-search.py` argument order.** The optional `mb_path` positional
+  is now accepted after options (`query --json <mb_path>`) via
+  `parse_intermixed_args`.
+
+### Changed
+
+- README redesigned (centered hero + banner, nav anchors, v5 callout, stats
+  table, Diátaxis-grouped docs section, star-history footer); stale v4-era
+  claims fixed.
+- Landing page: `og-image.png` + `favicon.svg`, Open Graph / Twitter-card /
+  canonical metadata, refreshed documentation links.
+- PyPI metadata: `Development Status :: 5 - Production/Stable` + expanded
+  keywords.
+
+### Added
+
+- New docs: `docs/first-feature.md` (worked end-to-end example),
+  `docs/troubleshooting.md`, `docs/agents-reference.md` (all 29 subagents).
+- `SECURITY_AUDIT_REPORT.md` archived to `docs/security/audit-2026-04-21.md`
+  with a historical-snapshot note; `SECURITY.md` supported-versions table
+  refreshed.
+
 ## [5.0.0] — 2026-06-10
 
 > **First PyPI release since 3.1.2.** Supersedes the tagged-but-never-published

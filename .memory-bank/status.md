@@ -42,7 +42,7 @@
 
 ## Ключевые метрики
 
-- VERSION: **5.0.0** (PyPI `memory-bank-skill==5.0.0` — first publish since 3.1.2, supersedes unpublished 4.0.0; Homebrew tap bump план)
+- VERSION: **5.0.1** (patch: MB_PYTHON install fix + py3.11/3.12 wiki fix + README/site redesign; 5.0.0 был first publish since 3.1.2; Homebrew tap bump план)
 - Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
 - Агенты: **17 dispatchable** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer + 1 research: `mb-research`) + **partials** (`mb-engineering-core`, `mb-tooling-core` — prepended, never dispatched). `install.sh` `AGENT_COUNT` glob = **21**.
 - Commands: **24** top-level (`/mb` hub + 23 dispatchers; `/mb research` added 2026-06-09).

@@ -8,7 +8,7 @@ opening an [issue](https://github.com/fockus/skill-memory-bank/issues).
 
 **`memory-bank install` fails with `ModuleNotFoundError: No module named 'memory_bank_skill'`**
 You're on a version where the bundled scripts called a bare system `python3`, which can't see a
-pipx/Homebrew virtualenv. Fixed in releases after 5.0.0 (scripts now run through `MB_PYTHON`).
+pipx/Homebrew virtualenv. Fixed in 5.0.1 (scripts now run through `MB_PYTHON`).
 Upgrade: `pipx upgrade memory-bank-skill` (or `brew upgrade memory-bank`).
 
 **`jq: command not found` during install or `/mb` commands**
