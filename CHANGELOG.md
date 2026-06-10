@@ -4,6 +4,63 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- _Nothing yet._
+
+## [5.0.0] — 2026-06-10
+
+> **First PyPI release since 3.1.2.** Supersedes the tagged-but-never-published
+> 4.0.0 (its CI publish failed on a `__version__` drift, since fixed by reading
+> the canonical `VERSION` at runtime). 5.0.0 bundles all 4.0.0 content plus
+> everything below. See `docs/MIGRATION-v4-v5.md` for the breaking changes.
+
+### Changed — BREAKING
+
+- **Review is now OFF by default.** The default `/mb work` path is `execution`
+  (`implement → verify → done`) with no reviewer. The shipped
+  `references/pipeline.default.yaml` `stage_pipeline` no longer contains a
+  `review` step; the review policy moved to an opt-in top-level `review:` block
+  (`enabled: false`). Restore review per-run with `/mb work --review`, persist it
+  with `review.enabled: true`, or use a governed preset
+  (`--workflow governed-execution`). Migration: `docs/MIGRATION-v4-v5.md`.
+- **`mb-work-severity-gate.sh` PASSes as a no-op when no review is configured**
+  (previously `exit 2 "no 'review' step in stage_pipeline"`). The gate now reads
+  the `review:` block ▸ legacy `stage_pipeline[review]` ▸ active workflow
+  `loop.severity_gate`, on both the PyYAML and no-PyYAML paths.
+- **`full` is now a first-class preset, not an alias.** `workflow.aliases.full`
+  (→ `full-cycle`) is removed; `--workflow full` now resolves to the complete
+  8-stage chain `discuss → sdd → plan → implement → verify → review → judge → done`.
+  The old 6-stage interactive flow is still available as `--workflow full-cycle`.
+  A new `everything` alias points at `full`.
+
+### Added — composable `/mb work` pipeline
+
+- **3-layer stage composition** (precedence: launch flags > `pipeline.yaml` >
+  built-in default), resolved in `scripts/mb-workflow.sh` into one canonically
+  ordered stage list (`discuss → sdd → plan → implement → verify → review →
+  judge → done`; `fix` stays an internal loop mechanic).
+- **Per-stage launch flags** — `--review/--no-review`, `--judge/--no-judge`,
+  `--brainstorm/--no-brainstorm` (alias of `discuss`), `--sdd/--no-sdd`,
+  `--plan/--no-plan`; `--stages a,b,c` is an escape hatch that overrides the
+  preset and every flag. Launch flags win over `pipeline.yaml`; `pipeline.yaml`
+  per-stage `<stage>.enabled: true` adds a stage on top of the resolved preset.
+- **Deterministic merge** — the composed set is re-sorted into canonical order
+  only when composition changes it; an un-modified preset (or a legacy
+  `stage_pipeline`-only project) keeps its own order verbatim (back-compat).
+- **`full` preset** (`workflows.full`) spans the whole chain; per-stage opt-in
+  `enabled` blocks for `review`/`judge`/`discuss`/`sdd`/`plan` ship in the
+  default `pipeline.yaml` (all `false`).
+- **Fail-fast on invalid chains** — `scripts/mb-pipeline-validate.sh` gains a
+  `--stages <csv> [--input …]` mode and rejects `judge` without `review` and
+  `sdd`/`plan` with no upstream input; the composer (`mb-workflow.sh`) enforces
+  the judge⟹review rule before execution. `commands/work.md` documents the flags,
+  the three-layer precedence, and the `full` preset.
+- **`--review` is the single-reviewer path** (resolved via
+  `mb-reviewer-resolve.sh`, gated by `mb-work-severity-gate.sh`); the heavyweight
+  5-reviewer ensemble stays behind `--workflow governed-execution`.
+- SDD-specified via the skill's own engine (dogfooding):
+  `.memory-bank/specs/composable-work-pipeline/`. +29 tests (default-no-review
+  contract, gate no-op, composer matrix, `--stages` validation, doc contract).
+
 ### Added — code-graph intelligence layer (opt-in: wiki, surprising connections, semantic search, suggested questions)
 
 - **Module decomposition** (behaviour-preserving): `scripts/mb-codegraph.py` 660 → 344 lines; extractors split into `memory_bank_skill/codegraph_{common,python,treesitter}.py`; shared `codegraph_loader.py` (one `graph.json` loader, both query/context cores delegate). Default output byte-identical.
@@ -106,7 +163,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-- `memory_bank_skill.__version__` now matches `VERSION` (`4.0.0`).
+- `memory_bank_skill.__version__` reads the canonical `VERSION` at runtime, so the
+  tag == VERSION == `__version__` publish gate no longer drifts (the failure that
+  blocked the 4.0.0 PyPI publish). This is what unblocks the 5.0.0 release.
+- **CI green** — `.shellcheckrc` (`disable=SC1091`, since shellcheck won't follow
+  sourced libs without `-x`); `adapters/pi.sh` SRP split → `adapters/_lib_pi_global.sh`
+  (351 → 236 lines); ruff import-sort normalization across `hooks/`; `SKILL.md`
+  reviewer/tooling table refresh.
 - Reinstalling refreshes the managed Claude/Pi Memory Bank sections instead of repeatedly localizing every quoted critical rule as a language rule.
 - Installer symlink replacement now safely replaces symlink aliases without following or backing up external symlink targets, preserving the symlink-attack guard for file targets.
 - Existing Pi skill directory backups are stored under `~/.pi/agent/.memory-bank-backups/` instead of `~/.pi/agent/skills/`, avoiding duplicate `memory-bank` skill discovery conflicts.

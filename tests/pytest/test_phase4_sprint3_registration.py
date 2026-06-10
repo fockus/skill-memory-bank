@@ -11,9 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 
-def test_version_bumped_to_4_0_0() -> None:
+def test_version_bumped_to_5_0_0() -> None:
     text = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    assert text == "4.0.0", f"expected 4.0.0, got {text!r}"
+    assert text == "5.0.0", f"expected 5.0.0, got {text!r}"
 
 
 def test_changelog_has_4_0_0_section() -> None:
@@ -26,7 +26,7 @@ def test_changelog_4_0_0_mentions_phase3_phase4_and_i033() -> None:
     # Slice the [4.0.0] section.
     start = text.index("## [4.0.0]")
     end = text.find("\n## [", start + 1)
-    section = text[start: end if end != -1 else len(text)]
+    section = text[start : end if end != -1 else len(text)]
     assert "Phase 3" in section
     assert "Phase 4" in section
     assert "I-033" in section or "checklist-prune" in section
