@@ -11,7 +11,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
+import pytest
+
+# PyYAML is an optional dependency (the `yaml`/`dev` extras); CI installs only
+# `[codegraph]`. Skip — never crash collection — when it is absent, mirroring
+# test_pipeline_default_yaml.py and the scripts' fail-open-without-PyYAML stance.
+yaml = pytest.importorskip("yaml")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TOOLING_CORE = REPO_ROOT / "agents" / "mb-tooling-core.md"

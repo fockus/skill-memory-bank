@@ -274,9 +274,11 @@ fi
 
 if [ "$REQUIRE_TESTS" -eq 1 ] && [ -f "$REQ_FILE" ]; then
   # SPEC_DIR is <mb>/specs/<topic>; derive <mb> and the repo root from it.
-  MB_GUESS=$(cd "$SPEC_DIR/../.." 2>/dev/null && pwd || true)
+  MB_GUESS=$(cd "$SPEC_DIR/../.." 2>/dev/null && pwd) || MB_GUESS=""
   REPO_GUESS=""
-  [ -n "$MB_GUESS" ] && REPO_GUESS=$(cd "$MB_GUESS/.." 2>/dev/null && pwd || true)
+  if [ -n "$MB_GUESS" ]; then
+    REPO_GUESS=$(cd "$MB_GUESS/.." 2>/dev/null && pwd) || REPO_GUESS=""
+  fi
   REQ_PATH="$REQ_FILE" MB_SCRIPT_DIR="$SCRIPT_DIR" \
     MB_GUESS="$MB_GUESS" REPO_GUESS="$REPO_GUESS" \
     python3 - >>"$VIOLATIONS_FILE" <<'PY'
