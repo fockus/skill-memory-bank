@@ -23,7 +23,7 @@ Plans declared with `/mb plan` carry stage markers, DoD, and TDD instructions. S
 workflow:
   default: execution
   aliases:
-    full: full-cycle
+    everything: full
 
 workflows:
   execution:
@@ -61,13 +61,50 @@ Built-in default modes:
 
 | Workflow | Steps | Use when |
 |---|---|---|
-| `execution` | `implement → verify → done` | Plan/spec already exists; this is the simple default `/mb work` path. |
+| `execution` | `implement → verify → done` | Plan/spec already exists; this is the simple default `/mb work` path. **Review is OFF by default.** |
+| `full` | `discuss → sdd → plan → implement → verify → review → judge → done` | The complete composable chain — brainstorm to verified, reviewed, judged work. Alias: `everything`. |
 | `governed-execution` | `implement → verify → review ensemble → judge → fix/backlog → done` | Project opts into stronger gates without endless review/fix loops. |
 | `full-cycle` | `discuss → sdd → plan → implement → verify → done` | One interactive pass from fuzzy idea to verified work. |
 | `requirements-plan` | `discuss → sdd → plan` | Requirements and plans only; stop before implementation. |
 | `implement-only` | `implement → verify` | Implement and structurally verify; stop before reviewer. |
 | `review-fix` | `verify → review ensemble → judge → fix/backlog → done` | Existing changes need governed review/fix. |
 | `review-only` | `verify → review ensemble → judge` | Audit and judge only; no automatic fix dispatch. |
+
+### Composing the pipeline (per-stage flags + precedence)
+
+The stage list is composed from **three layers**, in increasing precedence:
+
+1. **Built-in default** — the `execution` preset (`implement → verify → done`). **Review and judge are OFF by default.**
+2. **`pipeline.yaml`** (project-persistent) — `workflow.default: <preset>` selects a preset; per-stage `<stage>.enabled: true` adds a composable stage on top of it.
+3. **Launch flags** (per-run, highest) — these win over `pipeline.yaml`.
+
+| Flag | Effect |
+|---|---|
+| `--workflow <preset>` | Select a preset (e.g. `full`, `governed-execution`). |
+| `--review` / `--no-review` | Add / remove the single-reviewer stage. |
+| `--judge` / `--no-judge` | Add / remove the independent judge (requires review). |
+| `--brainstorm` / `--no-brainstorm` | Add / remove the `discuss` stage (brainstorm is an alias of discuss). |
+| `--sdd` / `--no-sdd` | Add / remove the `sdd` stage. |
+| `--plan` / `--no-plan` | Add / remove the `plan` stage. |
+| `--stages a,b,c` | **Escape hatch** — use exactly this ordered list, overriding the preset and every flag. |
+
+Rules:
+
+- **Canonical order** is fixed: `discuss → sdd → plan → implement → verify → review → judge → done`. Composition only adds/removes stages; it never reorders them (except `--stages`, which sets an explicit order).
+- **`pipeline.yaml` turns stages ON** (`<stage>.enabled: true`); **launch flags turn them ON or OFF** and win over `pipeline.yaml`. The shipped `enabled: false` entries are the off-baseline.
+- **`--review` is the single-reviewer path** (resolved via `mb-reviewer-resolve.sh`, gated by `mb-work-severity-gate.sh`). The heavyweight 5-reviewer ensemble stays behind `--workflow governed-execution`.
+- **Fail-fast** — `--judge` without review, or `--stages` naming `sdd`/`plan` with no topic/spec input, aborts before execution with a message naming the missing prerequisite.
+
+```bash
+# Default flow plus a review:
+/mb work my-feature --review
+# Full chain minus the sdd stage:
+/mb work my-feature --workflow full --no-sdd
+# Exactly implement + verify, ignoring the project's default preset:
+/mb work my-feature --stages implement,verify
+# Validate a composed stage list before running it:
+bash scripts/mb-pipeline-validate.sh --stages implement,verify,review,judge,done
+```
 
 Existing standalone commands remain first-class:
 
@@ -284,7 +321,7 @@ When the user types `/mb work [args...]`:
 
    ### 5d. Review step (only if workflow includes `review`)
 
-   If the workflow has no `review_profile`, dispatch the legacy single `roles.reviewer` and parse it with `mb-work-review-parse.sh`.
+   If the workflow has no `review_profile`, resolve the single reviewer agent with `mb-reviewer-resolve.sh` (it reads `roles.reviewer.agent` and applies `override_if_skill_present`, e.g. routing to `superpowers:requesting-code-review` when that skill is installed), dispatch it, and parse the verdict with `mb-work-review-parse.sh`.
 
    If `review_profile: ensemble`, dispatch 3-5 aspect reviewers from `review_ensemble.reviewers` in parallel with fresh scoped context only: plan/spec, verifier report, diff, previous lead report. Then dispatch `review_ensemble.lead_role` to synthesize one canonical report. The lead reviewer must verify previous-cycle issues first, deduplicate aspect findings, separate blocking issues from backlog candidates, and emit strict JSON.
 

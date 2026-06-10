@@ -26,6 +26,15 @@ def _run(path: Path | str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _run_args(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", str(SCRIPT), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 def _write(p: Path, data: dict) -> None:
     p.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
 
@@ -231,3 +240,71 @@ def test_require_scenarios_non_bool_fails(tmp_path: Path) -> None:
     r = _run(p)
     assert r.returncode == 1
     assert "require_scenarios" in r.stderr
+
+
+# ── default-no-review contract ─────────────────────────────────────────────
+
+
+def test_minimal_no_review_is_valid(tmp_path: Path) -> None:
+    """A review-free default pipeline (implement → verify → done) validates."""
+    cfg = _valid_minimal()
+    cfg["stage_pipeline"] = [
+        {"step": "implement", "role": "developer", "tdd": True},
+        {"step": "verify", "role": "verifier", "checks": ["dod_checkboxes"]},
+        {"step": "done", "role": "verifier"},
+    ]
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 0, r.stderr
+
+
+def test_judge_without_review_fails(tmp_path: Path) -> None:
+    """A workflow with judge but no review is rejected, naming review (REQ-013)."""
+    cfg = _valid_minimal()
+    cfg["workflow"] = {"default": "bad"}
+    cfg["workflows"] = {
+        "bad": {"steps": ["implement", "verify", "judge", "done"]},
+    }
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 1
+    assert "review" in r.stderr.lower()
+
+
+# ── composed stage-list validation (`--stages`) ────────────────────────────
+
+
+def test_stages_minimal_valid() -> None:
+    r = _run_args("--stages", "implement,verify,done")
+    assert r.returncode == 0, r.stderr
+
+
+def test_stages_full_chain_valid() -> None:
+    r = _run_args("--stages", "discuss,sdd,plan,implement,verify,review,judge,done")
+    assert r.returncode == 0, r.stderr
+
+
+def test_stages_judge_without_review_fails() -> None:
+    r = _run_args("--stages", "implement,verify,judge,done")
+    assert r.returncode == 1
+    assert "review" in r.stderr.lower()
+
+
+def test_stages_unknown_stage_fails() -> None:
+    r = _run_args("--stages", "implement,bogus,done")
+    assert r.returncode == 1
+    assert "bogus" in r.stderr.lower()
+
+
+def test_stages_sdd_without_input_fails() -> None:
+    r = _run_args("--stages", "sdd,plan,implement", "--input", "none")
+    assert r.returncode == 1
+    combined = (r.stderr + r.stdout).lower()
+    assert "input" in combined or "topic" in combined or "spec" in combined
+
+
+def test_stages_sdd_with_input_passes() -> None:
+    r = _run_args("--stages", "sdd,plan,implement,verify", "--input", "topic")
+    assert r.returncode == 0, r.stderr

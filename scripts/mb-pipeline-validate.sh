@@ -14,8 +14,14 @@ set -eu
 usage() {
   cat >&2 <<'USAGE'
 Usage: mb-pipeline-validate.sh <path-to-pipeline.yaml>
+       mb-pipeline-validate.sh --stages <csv> [--input none|topic|spec|plan|diff]
 
-Validates the file against the spec §9 schema:
+In --stages mode, validates a composed /mb work stage list:
+  - every stage ∈ {discuss,sdd,plan,implement,verify,review,judge,fix,done}
+  - judge requires review (fail-fast)
+  - sdd/plan require an upstream input (errors when --input none)
+
+In file mode, validates the file against the spec §9 schema:
   - required top-level keys (version, roles, stage_pipeline, budget,
     protected_paths, sprint_context_guard, review_rubric, sdd)
   - version == 1 (string "1" is also accepted for YAML-schema compatibility)
@@ -31,16 +37,79 @@ Validates the file against the spec §9 schema:
 USAGE
 }
 
-if [ "$#" -ne 1 ]; then
+STAGES=""
+INPUT_KIND=""
+PATH_ARG=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --stages) STAGES="${2:-}"; shift 2 ;;
+    --stages=*) STAGES="${1#--stages=}"; shift ;;
+    --input) INPUT_KIND="${2:-}"; shift 2 ;;
+    --input=*) INPUT_KIND="${1#--input=}"; shift ;;
+    -*) echo "[validate] unknown option '$1'" >&2; usage; exit 2 ;;
+    *)
+      if [ -n "$PATH_ARG" ]; then
+        echo "[validate] unexpected argument '$1'" >&2
+        exit 2
+      fi
+      PATH_ARG="$1"
+      shift
+      ;;
+  esac
+done
+
+# ── composed stage-list validation mode (--stages) ──────────────────────────
+if [ -n "$STAGES" ]; then
+  STAGES_CSV="$STAGES" INPUT_KIND="$INPUT_KIND" python3 - <<'PY'
+import os
+import sys
+
+CANONICAL = ["discuss", "sdd", "plan", "implement", "verify", "review", "judge", "fix", "done"]
+VALID_INPUT = {"", "none", "topic", "spec", "plan", "diff"}
+
+stages = [s.strip() for s in os.environ["STAGES_CSV"].split(",") if s.strip()]
+input_kind = (os.environ.get("INPUT_KIND", "") or "").strip()
+errors = []
+
+if not stages:
+    errors.append("--stages: empty stage list")
+
+unknown = [s for s in stages if s not in CANONICAL]
+if unknown:
+    errors.append(
+        f"--stages: unknown stage(s) {sorted(set(unknown))}; allowed {CANONICAL}"
+    )
+
+if input_kind not in VALID_INPUT:
+    errors.append(f"--input: '{input_kind}' not in {sorted(VALID_INPUT - {''})}")
+
+# REQ-013: judge evaluates review output → judge requires review.
+if "judge" in stages and "review" not in stages:
+    errors.append("judge requires review — add review or drop judge")
+
+# REQ-014: sdd/plan need an upstream topic/spec input.
+needs_input = [s for s in ("sdd", "plan") if s in stages]
+if needs_input and input_kind == "none":
+    errors.append(
+        f"{'/'.join(needs_input)} requires an upstream input "
+        "(a topic or spec) but none is available"
+    )
+
+if errors:
+    for e in errors:
+        sys.stderr.write(f"[validate] {e}\n")
+    sys.exit(1)
+sys.exit(0)
+PY
+  exit $?
+fi
+
+if [ -z "$PATH_ARG" ]; then
   usage
   exit 2
 fi
-
-case "$1" in
-  -h|--help) usage; exit 0 ;;
-esac
-
-PATH_ARG="$1"
 
 if [ ! -f "$PATH_ARG" ]; then
   echo "[validate] file not found: $PATH_ARG" >&2
@@ -365,9 +434,8 @@ for idx, step in enumerate(sp):
 for required_step in ("implement", "verify"):
     if required_step not in step_positions:
         err(f"stage_pipeline: missing required step '{required_step}'")
-if "verify" in step_positions and "review" in step_positions:
-    if step_positions["verify"] > step_positions["review"]:
-        err("stage_pipeline: verify must run before review")
+# stage_pipeline runs implement → review → verify (review before verify); the
+# governed workflows.<name> blocks carry their own verify→review→judge ordering.
 if "fix" in step_positions and "verify" not in step_positions:
     err("stage_pipeline: fix step requires verify step")
 
@@ -469,6 +537,8 @@ if workflows_cfg:
                 err(f"workflows.{wname}: fix step requires verify step")
         if "judge" in steps and "verify" not in steps:
             err(f"workflows.{wname}: judge step requires verify step")
+        if "judge" in steps and "review" not in steps:
+            err(f"workflows.{wname}: judge step requires review step")
 
 # ── budget ──────────────────────────────────────────────────────────
 budget = cfg.get("budget") or {}

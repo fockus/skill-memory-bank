@@ -10,12 +10,13 @@
 # or normalized reviewer JSON from mb-work-review-parse.sh:
 #   {"verdict":"APPROVED","counts":{"blocker":0,"major":0,"minor":0},"issues":[]}
 #
-# Reads workflows.<name>.loop approval policy when --workflow (or workflow.default)
-# is configured, falling back to stage_pipeline[step=review]. --gate overrides
-# severity limits only.
+# Resolves the severity gate from the opt-in `review:` block ▸ legacy
+# stage_pipeline[step=review] ▸ active workflow loop.severity_gate. When no
+# review is configured anywhere the gate is a PASS no-op (review is opt-in).
+# --gate overrides severity limits only.
 #
 # Exit codes:
-#   0  PASS  — reviewer approval policy and severity limits pass
+#   0  PASS  — no review configured, or approval policy and severity limits pass
 #   1  FAIL  — reviewer did not approve or a severity exceeds its limit
 #   2  usage error / parse error
 
@@ -95,9 +96,47 @@ def parse_scalar(value: str):
         return raw
 
 
-def parse_review_policy_without_yaml(path: str) -> tuple[dict[str, int], bool]:
+def _read_top_level_review_gate(path: str):
+    """Parse the opt-in top-level `review:` block → severity_gate dict, or None."""
+    in_review = False
+    in_gate = False
+    gate_indent = -1
+    gate: dict[str, int] = {}
+    found_gate = False
+    for raw in open(path, encoding="utf-8"):
+        line = strip_comment(raw).rstrip()
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        stripped = line.strip()
+        if indent == 0:
+            in_review = stripped == "review:"
+            in_gate = False
+            continue
+        if not in_review:
+            continue
+        if not in_gate:
+            if stripped == "severity_gate:":
+                in_gate = True
+                found_gate = True
+                gate_indent = indent
+            continue
+        if indent <= gate_indent:
+            in_gate = False
+            continue
+        key, sep, value = stripped.partition(":")
+        if sep:
+            parsed = parse_scalar(value)
+            if isinstance(parsed, int) and not isinstance(parsed, bool):
+                gate[key.strip()] = parsed
+    return gate if found_gate else None
+
+
+def _parse_stage_review_without_yaml(path: str) -> tuple[dict[str, int], bool, bool]:
+    """Parse a legacy stage_pipeline `- step: review` → (gate, approval, found)."""
     gate: dict[str, int] = {}
     approval_required = False
+    found = False
     in_stage_pipeline = False
     in_review = False
     in_gate = False
@@ -116,6 +155,8 @@ def parse_review_policy_without_yaml(path: str) -> tuple[dict[str, int], bool]:
             break
         if indent == 2 and stripped.startswith("- "):
             in_review = stripped == "- step: review"
+            if in_review:
+                found = True
             in_gate = False
             continue
         if not in_review:
@@ -137,10 +178,25 @@ def parse_review_policy_without_yaml(path: str) -> tuple[dict[str, int], bool]:
         key, sep, value = stripped.partition(":")
         if sep and key.strip() == "approval_required":
             approval_required = bool(parse_scalar(value))
-    return gate, approval_required
+    return gate, approval_required, found
 
 
-def load_review_policy(path: str) -> tuple[dict[str, int], bool]:
+def parse_review_policy_without_yaml(path: str):
+    """No-PyYAML fallback. Returns (gate, approval) or (None, False) when no
+    review policy is configured anywhere (review: block ▸ stage_pipeline review)."""
+    gate = _read_top_level_review_gate(path)
+    if gate is not None:
+        return gate, False
+    stage_gate, approval_required, found = _parse_stage_review_without_yaml(path)
+    if found:
+        return stage_gate, approval_required
+    return None, False
+
+
+def load_review_policy(path: str):
+    """Resolve the severity gate from review.severity_gate ▸ stage_pipeline[review]
+    ▸ active workflow loop.severity_gate. Returns (None, False) when no review
+    policy is configured anywhere (REQ-011 — caller treats it as a PASS no-op)."""
     try:
         import yaml  # type: ignore
     except ImportError:
@@ -151,17 +207,26 @@ def load_review_policy(path: str) -> tuple[dict[str, int], bool]:
         sys.stderr.write(f"[severity-gate] failed to load pipeline.yaml: {exc}\n")
         sys.exit(2)
 
-    review_step = next(
-        (s for s in (cfg.get("stage_pipeline") or []) if s.get("step") == "review"),
-        None,
-    )
-    if not review_step:
-        sys.stderr.write("[severity-gate] no 'review' step in stage_pipeline\n")
-        sys.exit(2)
+    gate = None
+    approval_required = False
 
-    gate = review_step.get("severity_gate") or {}
-    approval_required = bool(review_step.get("approval_required", False))
+    # 1. Modern opt-in top-level review: block.
+    review_block = cfg.get("review")
+    if isinstance(review_block, dict) and isinstance(review_block.get("severity_gate"), dict):
+        gate = review_block["severity_gate"]
 
+    # 2. Legacy stage_pipeline review step.
+    if gate is None:
+        review_step = next(
+            (s for s in (cfg.get("stage_pipeline") or [])
+             if isinstance(s, dict) and s.get("step") == "review"),
+            None,
+        )
+        if review_step is not None:
+            gate = review_step.get("severity_gate") or {}
+            approval_required = bool(review_step.get("approval_required", False))
+
+    # 3. Active workflow loop severity_gate (governed workflows override).
     workflow_cfg = cfg.get("workflow") or {}
     if not isinstance(workflow_cfg, dict):
         workflow_cfg = {}
@@ -204,12 +269,17 @@ if not isinstance(counts, dict):
     sys.exit(2)
 
 gate, approval_required = load_review_policy(os.environ["PIPELINE_YAML"])
-if os.environ.get("GATE_JSON_OVERRIDE", ""):
+override = os.environ.get("GATE_JSON_OVERRIDE", "")
+if override:
     try:
-        gate = json.loads(os.environ["GATE_JSON_OVERRIDE"])
+        gate = json.loads(override)
     except json.JSONDecodeError as exc:
         sys.stderr.write(f"[severity-gate] invalid --gate JSON: {exc}\n")
         sys.exit(2)
+elif gate is None:
+    # REQ-011: no review configured anywhere → the gate is a PASS no-op.
+    print("[severity-gate] PASS (no review configured)")
+    sys.exit(0)
 
 if approval_required:
     if verdict != "APPROVED":

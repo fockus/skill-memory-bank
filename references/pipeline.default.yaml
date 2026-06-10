@@ -39,7 +39,7 @@ roles:
 workflow:
   default: execution
   aliases:
-    full: full-cycle
+    everything: full
     from-scratch: full-cycle
     requirements: requirements-plan
     planning: requirements-plan
@@ -49,6 +49,21 @@ workflow:
     strict: governed-execution
 
 workflows:
+  full:
+    description: Complete composable chain — brainstorm to verified, reviewed, judged work.
+    steps: [discuss, sdd, plan, implement, verify, review, judge, done]
+    entrypoint: freeform_or_topic
+    interactive: true
+    review_profile: single
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
   full-cycle:
     description: Interactive simple path from idea to verified work.
     steps: [discuss, sdd, plan, implement, verify, done]
@@ -113,8 +128,10 @@ workflows:
       approval_required: false
 
 # Backward-compatible per-item pipeline for older /mb work orchestrators that
-# only understand stage_pipeline. New orchestrators SHOULD read workflow.default
-# and workflows.<name>; this block mirrors simple workflows.execution.
+# only understand stage_pipeline. The DEFAULT is review-free: implement → verify →
+# done. Enable review with `/mb work --review` or by setting `review.enabled: true`
+# in the project pipeline.yaml (see the `review:` block below). New orchestrators
+# SHOULD read workflow.default and workflows.<name>.
 stage_pipeline:
   - step: implement
     role: auto                # auto-select based on stage context
@@ -132,6 +149,34 @@ stage_pipeline:
   - step: done
     role: verifier
     require_review_approval: false
+
+# Opt-in single-reviewer review step — OFF by default. Turn it on per-run with
+# `/mb work --review`, or persist it for a project by setting `enabled: true`
+# here. When active, `/mb work` runs implement → verify → review → done: the
+# reviewer agent is resolved via mb-reviewer-resolve.sh and its findings are gated
+# by mb-work-severity-gate.sh against severity_gate below. (The heavyweight
+# multi-reviewer ensemble lives in workflows.governed-execution / review_ensemble.)
+review:
+  enabled: false
+  role: reviewer
+  categories: [logic, code_rules, security, scalability, tests]
+  severity_gate:
+    blocker: 0
+    major: 0
+    minor: 3
+  max_cycles: 3
+  on_max_cycles: stop_for_human   # | continue_with_warning
+
+# ===== Per-stage opt-in toggles for composable /mb work pipelines =====
+# Each stage below is OFF by default. Turn one on per-run with its launch flag
+# (`--brainstorm`/`--sdd`/`--plan`/`--review`/`--judge`) or persist it here by
+# setting `enabled: true`. Launch flags win over these values; both add/remove a
+# stage on top of the resolved preset (`workflow.default` or `--workflow`).
+# `review:` (above) and `judge:`/`sdd:` (below) carry the same `enabled` toggle.
+discuss:
+  enabled: false   # brainstorm/requirements interview stage (alias: --brainstorm)
+plan:
+  enabled: false   # planning stage
 
 # ===== Governed review profile (used only by workflows with review_profile: ensemble) =====
 review_ensemble:
@@ -153,6 +198,7 @@ review_ensemble:
 
 # ===== Judge gate (used only by workflows with judge_profile: independent) =====
 judge:
+  enabled: false                 # opt-in composable stage (flag: --judge); requires review
   role: judge
   decisions: [GO, GO_WITH_BACKLOG, NO_GO]
   fix_only_decision: NO_GO
@@ -208,6 +254,7 @@ review_rubric:
 
 # ===== SDD enforcement =====
 sdd:
+  enabled: false                          # opt-in composable stage (flag: --sdd)
   require_ears_in_sdd_command: true       # /mb sdd — hard requirement
   require_ears_in_plan_command: false     # /mb plan — soft (warning)
   require_ears_in_plan_with_sdd_flag: true # /mb plan --sdd — hard

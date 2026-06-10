@@ -26,7 +26,10 @@ def _run(
     return subprocess.run(
         ["bash", str(SCRIPT), *args],
         input=stdin,
-        capture_output=True, text=True, check=False, env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
     )
 
 
@@ -83,11 +86,14 @@ def test_project_pipeline_overrides_default(tmp_path: Path) -> None:
     # Init project pipeline.yaml with stricter minor=0
     subprocess.run(
         ["bash", str(PIPELINE_INIT), "init", str(mb)],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     yaml_path = mb / "pipeline.yaml"
     text = yaml_path.read_text(encoding="utf-8")
-    text = text.replace("      minor: 3", "      minor: 0")
+    # The opt-in `review:` block nests severity_gate at 4-space indent.
+    text = text.replace("    minor: 3", "    minor: 0")
     yaml_path.write_text(text, encoding="utf-8")
     counts = {"blocker": 0, "major": 0, "minor": 1}
     r = _run("--counts", json.dumps(counts), "--mb", str(mb))
@@ -117,6 +123,55 @@ def test_invalid_counts_json_usage(tmp_path: Path) -> None:
 def test_default_gate_works_without_pyyaml(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     counts = {"blocker": 0, "major": 0, "minor": 2}
+    r = _run(
+        "--counts",
+        json.dumps(counts),
+        "--mb",
+        str(mb),
+        env=_env_without_yaml(tmp_path),
+    )
+    assert r.returncode == 0, r.stderr
+    assert "No module named" not in r.stderr
+
+
+def test_no_review_configured_passes(tmp_path: Path) -> None:
+    """REQ-011: no review anywhere in the pipeline → gate PASSes no-op."""
+    mb = _init_mb(tmp_path)
+    pipeline = mb / "pipeline.yaml"
+    pipeline.write_text(
+        "version: 1\n"
+        "stage_pipeline:\n"
+        "  - step: implement\n"
+        "    role: auto\n"
+        "  - step: verify\n"
+        "    role: verifier\n"
+        "  - step: done\n"
+        "    role: verifier\n",
+        encoding="utf-8",
+    )
+    # High counts must still PASS because no review policy is configured.
+    counts = {"blocker": 9, "major": 9, "minor": 9}
+    r = _run("--counts", json.dumps(counts), "--mb", str(mb))
+    assert r.returncode == 0, r.stderr
+    assert "PASS" in r.stdout
+
+
+def test_no_review_configured_passes_without_pyyaml(tmp_path: Path) -> None:
+    """NFR-005: the no-review PASS no-op holds on the no-PyYAML fallback path."""
+    mb = _init_mb(tmp_path)
+    pipeline = mb / "pipeline.yaml"
+    pipeline.write_text(
+        "version: 1\n"
+        "stage_pipeline:\n"
+        "  - step: implement\n"
+        "    role: auto\n"
+        "  - step: verify\n"
+        "    role: verifier\n"
+        "  - step: done\n"
+        "    role: verifier\n",
+        encoding="utf-8",
+    )
+    counts = {"blocker": 9, "major": 9, "minor": 9}
     r = _run(
         "--counts",
         json.dumps(counts),

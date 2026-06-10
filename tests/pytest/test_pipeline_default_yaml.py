@@ -76,16 +76,20 @@ def test_roles_contain_required_role(cfg: dict, role: str) -> None:
     assert "agent" in spec, f"role '{role}' missing 'agent'"
 
 
-def test_stage_pipeline_has_three_steps(cfg: dict) -> None:
+def test_stage_pipeline_is_default_no_review(cfg: dict) -> None:
+    """Default per-item pipeline is review-free: implement → verify → done."""
     sp = cfg["stage_pipeline"]
     assert isinstance(sp, list)
-    assert len(sp) == 3
     steps = [s["step"] for s in sp]
-    assert steps == ["implement", "review", "verify"]
+    assert steps == ["implement", "verify", "done"]
+    assert "review" not in steps, "review must be opt-in, not in the default pipeline"
 
 
-def test_review_step_has_severity_gate_and_max_cycles(cfg: dict) -> None:
-    review = next(s for s in cfg["stage_pipeline"] if s["step"] == "review")
+def test_review_block_is_opt_in_with_gate(cfg: dict) -> None:
+    """The opt-in top-level `review:` block carries the gate; OFF by default."""
+    review = cfg["review"]
+    assert isinstance(review, dict)
+    assert review["enabled"] is False, "review must be OFF by default"
     gate = review["severity_gate"]
     assert set(gate.keys()) == {"blocker", "major", "minor"}
     for key, val in gate.items():
@@ -93,6 +97,30 @@ def test_review_step_has_severity_gate_and_max_cycles(cfg: dict) -> None:
     assert isinstance(review["max_cycles"], int)
     assert review["max_cycles"] >= 1
     assert review["on_max_cycles"] in ("stop_for_human", "continue_with_warning")
+
+
+def test_full_preset_spans_the_whole_chain(cfg: dict) -> None:
+    """The new `full` preset spans discuss → … → done (composable end-to-end)."""
+    workflows = cfg["workflows"]
+    assert "full" in workflows, "missing `full` preset"
+    assert workflows["full"]["steps"] == [
+        "discuss",
+        "sdd",
+        "plan",
+        "implement",
+        "verify",
+        "review",
+        "judge",
+        "done",
+    ]
+
+
+@pytest.mark.parametrize("stage", ["review", "judge", "discuss", "sdd", "plan"])
+def test_per_stage_opt_in_block_present(cfg: dict, stage: str) -> None:
+    """Each composable stage exposes an `enabled` toggle, OFF by default."""
+    block = cfg[stage]
+    assert isinstance(block, dict), f"{stage} block must be a mapping"
+    assert block["enabled"] is False, f"{stage}.enabled must default to false"
 
 
 def test_verify_step_has_checks(cfg: dict) -> None:
