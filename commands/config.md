@@ -9,7 +9,7 @@ Manage the project's execution `pipeline.yaml` — the declarative config consum
 
 ## Why pipeline.yaml?
 
-`/mb work <target>` resolves a named workflow from `pipeline.yaml`, defaulting to `execution` (`implement → verify → review → fix-loop → done`). Projects can add `full-cycle`, planning-only, review-only, or custom loops with different `max_cycles`. Different teams need different defaults — review severity tolerance, max review cycles, role-to-agent mapping, protected-paths policy. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project and version-controlled.
+`/mb work <target>` resolves a named workflow from `pipeline.yaml`, defaulting to `execution` (`implement → verify → done` — **review is off by default**). Opt into review/judge per run (`--review`/`--judge`) or persist with `review.enabled: true` / `<stage>.enabled: true`; projects can also select `full` (the whole chain), `governed-execution`, `full-cycle`, planning-only, review-only, or custom loops with different `max_cycles`. Different teams need different defaults — review severity tolerance, max review cycles, role-to-agent mapping, protected-paths policy. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project and version-controlled.
 
 ## Resolution
 
@@ -54,8 +54,9 @@ See spec §9 for the full breakdown. Required top-level keys:
 - `version` — currently `1`
 - `roles` — `<name>: { agent: <agent-id>, fallback?: <agent-id>, override_if_skill_present?: ... }`
 - `workflow` — default workflow name and aliases for `/mb work --workflow`
-- `workflows` — named local workflow modes; each has `steps` and optional `loop`
-- `stage_pipeline` — backward-compatible per-item execution pipeline for older orchestrators
+- `workflows` — named local workflow modes; each has `steps` and optional `loop` (includes the `full` preset = the whole chain)
+- `review` — opt-in single-reviewer block (`enabled: false` default) carrying `severity_gate` / `max_cycles`; per-stage `discuss`/`sdd`/`plan`/`judge` blocks expose the same `enabled` toggle for composing the pipeline
+- `stage_pipeline` — backward-compatible per-item execution pipeline for older orchestrators (review-free default: `implement → verify → done`)
 - `budget` — token budget guards (`warn_at_percent`, `stop_at_percent`)
 - `protected_paths` — glob list refused by `/mb work` without `--allow-protected`
 - `sprint_context_guard` — `soft_warn_tokens` / `hard_stop_tokens` (190k default hard stop)

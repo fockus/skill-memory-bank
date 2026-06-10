@@ -351,9 +351,9 @@ All subcommands accept a trailing `[mb_path]` arg pointing at an alternative ban
 
 **Why pipeline.yaml?** Different teams need different defaults — workflow modes, review tolerance, max review cycles, role-to-agent mapping, protected paths. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project, version-controlled, and reviewable.
 
-### work [target] [--workflow NAME] [--range A-B] [--dry-run]
+### work [target] [--workflow NAME] [--review|--judge|--brainstorm|--sdd|--plan (+ --no-*)] [--stages CSV] [--range A-B] [--dry-run]
 
-Execute a selected workflow from `pipeline.yaml:workflows`. Default mode is `execution`: start from an existing plan/spec, implement with TDD, verify before review, loop fixes until reviewer approval or `max_cycles`, then mark done. Other modes can run full-cycle (`discuss → sdd → plan → ...`), planning-only, implement-only, review-fix, or review-only flows.
+Execute a composable workflow. **Default mode is `execution`: implement (TDD) → verify → done — review is OFF by default.** Compose per run with launch flags (precedence: flags > `pipeline.yaml` > default): add `--review`/`--judge`/`--brainstorm`/`--sdd`/`--plan` (or remove with `--no-*`), pick a preset with `--workflow` (`full` = the whole `discuss → sdd → plan → implement → verify → review → judge → done` chain; `governed-execution`, `full-cycle`, `review-fix`, `review-only`, …), or set an exact list with `--stages a,b,c`. Persist toggles in `pipeline.yaml` (`<stage>.enabled: true`, `review.enabled: true`). `--judge` requires review; invalid chains fail fast.
 
 **Alias** for `/work` — dispatch to `commands/work.md` for the canonical workflow.
 
@@ -370,7 +370,7 @@ Execute a selected workflow from `pipeline.yaml:workflows`. Default mode is `exe
 **Underlying scripts:**
 
 ```bash
-bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--json|--steps|--loop|max-cycles]
+bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--review|--no-review] [--judge|--no-judge] [--brainstorm|--sdd|--plan] [--stages <csv>] [--json|--steps|--loop|--max-cycles]
 bash scripts/mb-work-resolve.sh [target] [--mb <path>]
 bash scripts/mb-work-range.sh <plan> [--range <expr>]
 bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]

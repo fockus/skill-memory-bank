@@ -612,11 +612,13 @@ REQ-ID grammar is single-sourced in `mb_req_id.py` (definition vs mention, slash
 
 ### Per-item loop
 
-For each stage/task in `execution`: **implement → verify → review → fix-loop → done**, with auto-selected role-agent (see `§ Subagents` → dev-role agents) preceded by the `mb-engineering-core` discipline prepend. Full-cycle workflows can prepend **discuss → sdd → plan**; planning-only and review-only workflows are also valid when declared in `pipeline.yaml:workflows`.
+For each stage/task in the default `execution` workflow: **implement → verify → done** — **review is OFF by default**. Each item runs the auto-selected role-agent (see `§ Subagents` → dev-role agents) preceded by the `mb-engineering-core` discipline prepend.
 
-- **Verify** — `plan-verifier` checks EARS/DoD/TDD/architecture/no-placeholder evidence before review cycles are spent.
-- **Review** — `mb-reviewer` reads the verified item diff + `pipeline.yaml:review_rubric` → APPROVED / CHANGES_REQUESTED with severity-classified issues (`mb-work-review-parse.sh` validates the output).
-- **Severity gate** — `mb-work-severity-gate.sh --workflow <name>` applies the selected workflow loop policy plus `severity_gate` and `approval_required`; CHANGES_REQUESTED loops back to fix when the workflow includes `fix`, and every fix returns to the configured `returns_to` step before the next review.
+**Composable pipeline** (precedence: launch flags > `pipeline.yaml` > built-in default). Canonical order `discuss → sdd → plan → implement → verify → review → judge → done`; composition adds/removes stages but never reorders (except `--stages`). Opt in per run with `--review`/`--judge`/`--brainstorm`/`--sdd`/`--plan` (+ `--no-*`), persist with `pipeline.yaml` `<stage>.enabled: true`, or pick a preset with `--workflow` (`full` = the whole chain; `governed-execution` = the 5-reviewer ensemble; `--stages a,b,c` = exact list). `--judge` requires review; `mb-workflow.sh` composes and `mb-pipeline-validate.sh --stages` fails fast on invalid chains.
+
+- **Verify** — `plan-verifier` checks EARS/DoD/TDD/architecture/no-placeholder evidence before any review cycles are spent.
+- **Review (opt-in)** — when enabled, `mb-reviewer` reads the verified item diff + `pipeline.yaml:review_rubric` → APPROVED / CHANGES_REQUESTED with severity-classified issues (`mb-work-review-parse.sh` validates the output). `--review` is the single-reviewer path; the 5-reviewer ensemble lives behind `--workflow governed-execution`.
+- **Severity gate** — `mb-work-severity-gate.sh --workflow <name>` resolves limits from the opt-in `review:` block ▸ legacy `stage_pipeline[review]` ▸ workflow `loop.severity_gate`, and **PASSes no-op when no review is configured**; CHANGES_REQUESTED loops back to fix when the workflow includes `fix`, returning to the configured `returns_to` step before the next review.
 
 ### Hard stops (guardrails)
 
@@ -625,7 +627,7 @@ For each stage/task in `execution`: **implement → verify → review → fix-lo
 
 ### Config — `pipeline.yaml`
 
-Managed by `/mb config` (`mb-pipeline.sh`), validated by `mb-pipeline-validate.sh`, and resolved for work modes by `mb-workflow.sh`. Holds `workflow.default`, `workflows.*`, `review_rubric`, `protected_paths`, and the active reviewer (`mb-reviewer-resolve.sh`). Plan/sprint/stage decomposition follows the **Phase → Sprint → Stage** hierarchy (`references/templates.md § Plan decomposition`).
+Managed by `/mb config` (`mb-pipeline.sh`), validated by `mb-pipeline-validate.sh`, and resolved for work modes by `mb-workflow.sh`. Holds `workflow.default`, `workflows.*` (incl. the `full` preset), the opt-in top-level `review:` block (`enabled: false` by default) + per-stage `<stage>.enabled` toggles, `review_rubric`, `protected_paths`, and the active reviewer (`mb-reviewer-resolve.sh`). Plan/sprint/stage decomposition follows the **Phase → Sprint → Stage** hierarchy (`references/templates.md § Plan decomposition`).
 
 ---
 

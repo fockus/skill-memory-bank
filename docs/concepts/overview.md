@@ -108,9 +108,11 @@ is owned by the project.
 /mb done                        actualize + note + progress
 ```
 
-Each `/mb work` stage goes through: implement → review (severity gate)
-→ fix-cycle (capped) → verify. Hard stops on protected paths, budget,
-context exhaustion.
+By default each `/mb work` stage goes through: implement → verify → done
+(**review is off by default**). Opt into review/judge per run with
+`--review` / `--judge` (or persist via `pipeline.yaml`), which add the
+review (severity gate) → fix-cycle (capped) stages. Hard stops on
+protected paths, budget, context exhaustion.
 
 ### 2. Spec-driven session
 

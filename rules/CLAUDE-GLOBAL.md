@@ -71,7 +71,7 @@ Plans → `./.memory-bank/plans/` when Memory Bank is active. Every stage: SMART
 plan-based:  /mb start → /mb plan <type> <topic> → [work] → /mb verify → /mb done
 spec-driven: /mb start → /mb discuss <topic> → /mb sdd <topic> → /mb work <topic> → /mb verify → /mb done
 ```
-**`/mb verify` is MANDATORY before `/mb done` when work followed a plan.** SDD adds EARS-validated requirements + optional GIVEN/WHEN/THEN scenarios → executable `tasks.md` (`<!-- mb-task:N -->`). `/mb work` is the executor: drives plan stages or spec tasks through a per-item implement→review→fix→verify loop with severity-gates + `pipeline.yaml` protected-paths/budget. Full `/mb` reference (all 25 commands) + SDD + work engine → `~/.claude/RULES.md` or `/mb help`.
+**`/mb verify` is MANDATORY before `/mb done` when work followed a plan.** SDD adds EARS-validated requirements + optional GIVEN/WHEN/THEN scenarios → executable `tasks.md` (`<!-- mb-task:N -->`). `/mb work` is the executor: drives plan stages or spec tasks through a per-item **implement→verify→done** loop (composable — **review off by default**, opt in with `--review`/`--judge` or `pipeline.yaml`) with severity-gates + `pipeline.yaml` protected-paths/budget. Full `/mb` reference (all 25 commands) + SDD + work engine → `~/.claude/RULES.md` or `/mb help`.
 
 ### Key invariants
 - `progress.md` = **append-only** (never rewrite old entries); IDs monotonic (I-/EXP-/ADR-NNN, never reused); `checklist.md` ✅/⬜ updated **immediately**; `notes/` = patterns (5–15 lines), not chronology.
