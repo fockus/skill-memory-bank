@@ -6,6 +6,11 @@
 set -euo pipefail
 
 SOURCE_SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Interpreter that owns the memory_bank_skill package. The `memory-bank` CLI
+# exports MB_PYTHON=sys.executable so pipx/pip/Homebrew installs invoke the
+# venv's python (a bare system python3 cannot import the package). Falls back
+# to python3 for a direct `bash install.sh` from a git checkout.
+MB_PY="${MB_PYTHON:-python3}"
 CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="$HOME/.codex"
 CURSOR_DIR="$HOME/.cursor"
@@ -370,7 +375,7 @@ comments_language_name() {
 
 run_texttool() {
   PYTHONPATH="$SOURCE_SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -m memory_bank_skill._texttools "$@"
+    "$MB_PY" -m memory_bank_skill._texttools "$@"
 }
 
 localize_installed_file() {
@@ -715,7 +720,7 @@ install_pi_settings_skill() {
   local settings_file="$PI_AGENT_DIR/settings.json"
   mkdir -p "$PI_AGENT_DIR"
 
-  SETTINGS_FILE="$settings_file" python3 <<'PYEOF'
+  SETTINGS_FILE="$settings_file" "$MB_PY" <<'PYEOF'
 import json
 import os
 from pathlib import Path
@@ -866,8 +871,8 @@ fi
 
 # ═══ Step 6: Settings hooks ═══
 echo -e "${BLUE}[6/7] Settings${NC}"
-if [ -f "$SOURCE_SKILL_DIR/settings/hooks.json" ] && command -v python3 &>/dev/null; then
-  python3 "$SOURCE_SKILL_DIR/settings/merge-hooks.py" \
+if [ -f "$SOURCE_SKILL_DIR/settings/hooks.json" ] && command -v "$MB_PY" &>/dev/null; then
+  "$MB_PY" "$SOURCE_SKILL_DIR/settings/merge-hooks.py" \
     "$CLAUDE_DIR/settings.json" \
     "$SOURCE_SKILL_DIR/settings/hooks.json" \
     2>/dev/null && echo -e "  ${GREEN}✓${NC} Hooks merged" \
@@ -897,7 +902,7 @@ INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}
 BACKED_UP_STR="$(printf '%s\n' ${BACKED_UP_FILES[@]+"${BACKED_UP_FILES[@]}"})" \
 MANIFEST_PATH="$MANIFEST" \
 INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-python3 << 'PYEOF' 2>/dev/null || echo '  Manifest write failed'
+"$MB_PY" << 'PYEOF' 2>/dev/null || echo '  Manifest write failed'
 import json, os
 files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
 raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]

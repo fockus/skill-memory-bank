@@ -125,7 +125,18 @@ def require_bash() -> str:
 
 # ═══ Shell invocation ═══
 def run_shell(script: str, *args: str) -> int:
-    """Execute a bundled shell script, returning its exit code."""
+    """Execute a bundled shell script, returning its exit code.
+
+    The bundled installer/runtime scripts shell out to Python
+    (``python3 -m memory_bank_skill._texttools``, inline ``python3`` blocks).
+    When the package is installed in a pipx/pip/Homebrew virtualenv, a bare
+    system ``python3`` cannot import ``memory_bank_skill`` and — under the
+    scripts' ``set -euo pipefail`` — aborts the whole install. We therefore
+    export ``MB_PYTHON=sys.executable`` (the interpreter that demonstrably owns
+    this package) plus ``MB_SKILL_BUNDLE`` so the scripts use the right
+    interpreter and bundle root. A direct ``bash install.sh`` (git checkout) is
+    unaffected: the scripts fall back to ``python3`` when ``MB_PYTHON`` is unset.
+    """
     bundle = find_bundle_root()
     script_path = bundle / script
     if not script_path.is_file():
@@ -143,8 +154,12 @@ def run_shell(script: str, *args: str) -> int:
     else:
         cmd = [bash, str(script_path), *args]
 
+    env = os.environ.copy()
+    env["MB_PYTHON"] = sys.executable
+    env.setdefault("MB_SKILL_BUNDLE", str(bundle))
+
     try:
-        result = subprocess.run(cmd, check=False)  # noqa: S603
+        result = subprocess.run(cmd, check=False, env=env)  # noqa: S603
     except FileNotFoundError:
         sys.stderr.write(f"[memory-bank] `{bash}` not found on PATH\n")
         return EXIT_BASH_NOT_FOUND
@@ -209,7 +224,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         f"  Non-interactive shell equivalents:\n"
         f"    bash scripts/mb-init-bank.sh --storage=local --lang={lang}\n"
         f"    bash scripts/mb-init-bank.sh --storage=global --agent=pi "
-        f"--project-root \"$PWD\" --lang={lang}\n"
+        f'--project-root "$PWD" --lang={lang}\n'
         f"  For Pi Code, run /reload after `memory-bank install` if the session was already open.\n"
     )
     return 0

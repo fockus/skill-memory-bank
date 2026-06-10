@@ -284,6 +284,32 @@ def test_run_shell_missing_script(capsys):
     assert "missing bundled script" in err
 
 
+def test_run_shell_passes_interpreter_via_env(monkeypatch):
+    """run_shell must hand the bundled script the interpreter that owns the
+    package (``sys.executable``) through ``MB_PYTHON``.
+
+    Regression for the pipx/pip/brew install bug: install.sh shells out to
+    ``python3 -m memory_bank_skill._texttools``; when the package lives in a
+    pipx/venv and only the CLI's own interpreter can import it, a bare system
+    ``python3`` raises ModuleNotFoundError and (under ``set -euo pipefail``)
+    aborts the whole install. Propagating ``sys.executable`` lets the script
+    use the right interpreter, while leaving the env's PATH untouched.
+    """
+    captured: dict = {}
+
+    def fake_run(cmd, check, **kw):
+        captured["env"] = kw.get("env")
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    rc = cli.run_shell("install.sh", "--help")
+    assert rc == 0
+    assert captured["env"] is not None, "run_shell must pass an explicit env"
+    assert captured["env"].get("MB_PYTHON") == sys.executable
+    # The rest of the environment must be preserved (PATH, HOME, …).
+    assert "PATH" in captured["env"]
+
+
 def test_install_cmd_passes_clients_flag(tmp_path, monkeypatch):
     captured: dict = {}
 
@@ -509,6 +535,46 @@ def test_cli_install_uninstall_smoke_with_cursor_global(tmp_path):
     assert not (sandbox / ".cursor" / "skills" / "memory-bank").exists()
     assert not (sandbox / ".cursor" / "memory-bank-user-rules.md").exists()
     assert not (sandbox / ".cursor" / "commands" / "mb.md").exists()
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash required")
+def test_install_sh_routes_python_through_mb_python(tmp_path):
+    """install.sh must run Python through ``$MB_PYTHON`` (the interpreter the
+    CLI hands it), not a bare system ``python3``.
+
+    Deterministic regression for the pipx/pip/brew bug: when the package lives
+    only in a venv, the bundled installer must use that venv's interpreter. We
+    point ``MB_PYTHON`` at a sentinel wrapper that records its use and then
+    delegates to a real python3; if install.sh ignored ``MB_PYTHON`` the marker
+    would never appear.
+    """
+    sandbox = tmp_path / "home"
+    sandbox.mkdir()
+    marker = tmp_path / "mb_python_was_used"
+    fake_py = tmp_path / "mb-python.sh"
+    fake_py.write_text(f'#!/usr/bin/env bash\ntouch "{marker}"\nexec python3 "$@"\n')
+    fake_py.chmod(0o755)
+
+    env = {
+        "HOME": str(sandbox),
+        "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "MB_PYTHON": str(fake_py),
+    }
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "install.sh"), "--non-interactive"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"install.sh failed under MB_PYTHON (rc={result.returncode})\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+    assert marker.exists(), (
+        "install.sh did not route Python through MB_PYTHON — a bare system "
+        "python3 would break pipx/pip/brew installs"
+    )
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash required")

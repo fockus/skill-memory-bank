@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Interpreter that owns the memory_bank_skill package (set by the `memory-bank`
+# CLI to sys.executable); falls back to python3 for a direct `bash uninstall.sh`.
+MB_PY="${MB_PYTHON:-python3}"
 MANIFEST="$SKILL_DIR/.installed-manifest.json"
 CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="$HOME/.codex"
@@ -21,7 +24,7 @@ NON_INTERACTIVE=0
 
 run_texttool() {
   PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -m memory_bank_skill._texttools "$@"
+    "$MB_PY" -m memory_bank_skill._texttools "$@"
 }
 
 while [ $# -gt 0 ]; do
@@ -65,7 +68,7 @@ if [ "$NON_INTERACTIVE" -eq 0 ]; then
 fi
 
 echo -e "\n${BLUE}Removing files...${NC}"
-MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
+MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
   [ -z "$filepath" ] && continue
   case "$filepath" in
     "$CLAUDE_DIR/CLAUDE.md"|"$CLAUDE_DIR/settings.json"|"$OPENCODE_DIR/AGENTS.md"|"$CODEX_DIR/AGENTS.md"|"$CURSOR_DIR/AGENTS.md"|"$CURSOR_DIR/hooks.json"|"$PI_AGENT_DIR/AGENTS.md")
@@ -83,7 +86,7 @@ MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(f) for f in json.l
 done
 
 echo -e "\n${BLUE}Restoring backups...${NC}"
-MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(b) for b in json.load(open(os.environ['MANIFEST_PATH'])).get('backups',[])]" 2>/dev/null | while read -r bp; do
+MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(b) for b in json.load(open(os.environ['MANIFEST_PATH'])).get('backups',[])]" 2>/dev/null | while read -r bp; do
   [ -n "$bp" ] && echo "$bp" | grep -q '|' && {
     orig="${bp%%|*}"; bak="${bp##*|}"
     if mb_path_is_within "$orig" "${managed_roots[@]}"; then
@@ -95,7 +98,7 @@ MANIFEST_PATH="$MANIFEST" python3 -c "import json, os; [print(b) for b in json.l
 done
 
 echo -e "\n${BLUE}Cleaning settings.json...${NC}"
-[ -f "$CLAUDE_DIR/settings.json" ] && SETTINGS_PATH="$CLAUDE_DIR/settings.json" python3 << 'PYEOF' 2>/dev/null || true
+[ -f "$CLAUDE_DIR/settings.json" ] && SETTINGS_PATH="$CLAUDE_DIR/settings.json" "$MB_PY" << 'PYEOF' 2>/dev/null || true
 import json, os
 settings_path = os.environ["SETTINGS_PATH"]
 with open(settings_path) as f: s=json.load(f)
