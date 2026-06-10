@@ -1,4 +1,7 @@
-import json, subprocess, sys, os
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 BIN = Path(__file__).resolve().parents[1]
@@ -25,8 +28,9 @@ def test_stats_without_deps_is_graceful():
 
 def test_index_then_search_returns_relevant(tmp_path, monkeypatch):
     sys.path.insert(0, str(BIN / "lib"))
+    import indexer
     import numpy as np
-    import indexer, semantic_embed
+    import semantic_embed
     # deterministic fake embedder: bag-of-words over a tiny vocab
     vocab = ["deploy", "kamal", "expo", "webview", "цена", "faberlic"]
 

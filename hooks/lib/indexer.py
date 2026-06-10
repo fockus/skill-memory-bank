@@ -1,11 +1,12 @@
 """Discover sources, chunk, embed, and persist into the Store (incrementally)."""
 from __future__ import annotations
+
 import hashlib
 import os
 from pathlib import Path
 
 from semantic_chunk import chunk_markdown, chunk_transcript
-from semantic_embed import Embedder, DEFAULT_MODEL
+from semantic_embed import DEFAULT_MODEL, Embedder
 from semantic_store import Store
 
 

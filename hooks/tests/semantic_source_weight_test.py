@@ -1,8 +1,10 @@
 """A4 — recall source-type weighting: curated note/session out-rank raw transcript
 at comparable cosine; MB_RECALL_SOURCE_WEIGHTS=off restores pure-cosine order."""
 import sys
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
 from semantic_store import Store
 

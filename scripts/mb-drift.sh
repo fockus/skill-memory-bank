@@ -392,6 +392,7 @@ check_plan_vs_git() {
     plan_date=$(printf '%s' "$base" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}' || true)
     [ -n "$plan_date" ] || continue
     impl=0
+    # shellcheck disable=SC2016 # Single quotes keep the backtick literal for the grep regex.
     while IFS= read -r tok; do
       [ -z "$tok" ] && continue
       if [ -f "$DIR/$tok" ]; then
@@ -407,7 +408,6 @@ check_plan_vs_git() {
       if [ -n "$(git -C "$DIR" log --since="$plan_date 00:00:00" --pretty=%h -- "$rel" 2>/dev/null)" ]; then
         impl=$(( impl + 1 ))
       fi
-      # shellcheck disable=SC2016 # Single quotes keep the backtick literal for the grep regex.
     done < <(grep -oE '`[A-Za-z0-9_./-]+/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+`' "$f" 2>/dev/null | tr -d '`' | sort -u)
     if [ "$impl" -gt 0 ]; then
       count=$(( count + 1 ))

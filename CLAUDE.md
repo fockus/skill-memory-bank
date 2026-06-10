@@ -10,7 +10,7 @@ Long-term project memory through `.memory-bank/`, engineering rules, SDD specs, 
 2. Read the project rules and Memory Bank context before implementation:
    - global rules: `rules/RULES.md` from this skill bundle;
    - project overrides: `<repo>/AGENTS.md`, `<repo>/RULES.md` or `<bank>/RULES.md` when present;
-   - core context: `<bank>/STATUS.md` or `status.md`, `checklist.md`, `plan.md`, `research.md`/`RESEARCH.md` when present.
+   - core context: `<bank>/status.md`, `checklist.md`, `roadmap.md`, `research.md` when present (the resolver also detects legacy-cased layouts).
 3. New logic requires TDD: failing test first, then implementation, then verification.
 4. Do not bypass an existing plan/spec. If work comes from Memory Bank, execute through `/mb work` or the equivalent scripts.
 

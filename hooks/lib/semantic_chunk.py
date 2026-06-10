@@ -1,7 +1,8 @@
 """Split markdown and JSONL transcripts into embedding-sized text chunks."""
 from __future__ import annotations
+
 import json
-from typing import Iterable
+from collections.abc import Iterable
 
 CHUNK_CHARS = 1600          # ~400-512 tokens
 OVERLAP_CHARS = 200

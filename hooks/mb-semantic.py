@@ -2,6 +2,7 @@
 # mb-semantic.py — semantic recall CLI for MB session-memory.
 # Subcommands: index | reindex | search | stats | prune. Fail-safe: never raises to the hook.
 from __future__ import annotations
+
 import argparse
 import json
 import os

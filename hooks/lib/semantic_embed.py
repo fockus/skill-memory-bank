@@ -1,5 +1,6 @@
 """Wrapper around fastembed with an injectable backend for testing."""
 from __future__ import annotations
+
 import numpy as np
 
 DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"

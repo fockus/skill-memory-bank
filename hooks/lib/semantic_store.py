@@ -1,9 +1,13 @@
 """Numpy-backed vector store: per-source blocks, cosine search, incremental manifest."""
+
 from __future__ import annotations
+
+import contextlib
 import json
 import os
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 # Default per-`kind` ranking multipliers: curated notes/sessions out-rank raw
 # transcripts at comparable cosine, so recall surfaces durable knowledge first.
@@ -22,10 +26,8 @@ def _source_weights():
         for pair in raw.split(","):
             if "=" in pair:
                 k, _, v = pair.partition("=")
-                try:
+                with contextlib.suppress(ValueError):
                     weights[k.strip()] = float(v.strip())
-                except ValueError:
-                    pass
     return weights
 
 
@@ -39,7 +41,7 @@ class Store:
     # ---- lifecycle ----
     def set_model(self, name: str):
         if self.model_name is not None and name != self.model_name:
-            self._blocks = {}          # incompatible index → reset
+            self._blocks = {}  # incompatible index → reset
         self.model_name = name
 
     def load(self) -> bool:
@@ -48,7 +50,7 @@ class Store:
             return False
         try:
             vectors = np.load(vpath)
-            meta = [json.loads(l) for l in mpath.read_text().splitlines() if l.strip()]
+            meta = [json.loads(line) for line in mpath.read_text().splitlines() if line.strip()]
             manifest = json.loads(man.read_text())
             self.model_name = mod.read_text().strip() if mod.exists() else None
         except Exception:
@@ -58,7 +60,8 @@ class Store:
         for src, info in manifest.items():
             rows = info.get("rows", [])
             self._blocks[src] = {
-                "mtime": info["mtime"], "sha": info["sha"],
+                "mtime": info["mtime"],
+                "sha": info["sha"],
                 "meta": [meta[i] for i in rows],
                 "vectors": vectors[rows] if rows else np.zeros((0, dim), np.float32),
             }
@@ -72,8 +75,11 @@ class Store:
         for src in sorted(self._blocks):
             blk = self._blocks[src]
             n = len(blk["meta"])
-            manifest[src] = {"mtime": blk["mtime"], "sha": blk["sha"],
-                             "rows": list(range(cursor, cursor + n))}
+            manifest[src] = {
+                "mtime": blk["mtime"],
+                "sha": blk["sha"],
+                "rows": list(range(cursor, cursor + n)),
+            }
             meta.extend(blk["meta"])
             if n:
                 rows_blocks.append(np.asarray(blk["vectors"], np.float32))
@@ -90,8 +96,12 @@ class Store:
         return not (blk and blk["sha"] == sha and blk["mtime"] == mtime)
 
     def upsert(self, source, mtime, sha, chunks, vectors):
-        self._blocks[source] = {"mtime": mtime, "sha": sha,
-                                "meta": list(chunks), "vectors": np.asarray(vectors, np.float32)}
+        self._blocks[source] = {
+            "mtime": mtime,
+            "sha": sha,
+            "meta": list(chunks),
+            "vectors": np.asarray(vectors, np.float32),
+        }
 
     def remove(self, source):
         self._blocks.pop(source, None)
@@ -116,14 +126,15 @@ class Store:
         q = np.asarray(qvec, np.float32).reshape(-1)
         if matrix.shape[1] != q.shape[0]:
             return []
-        scores = matrix @ q                       # vectors are L2-normalized → cosine
+        scores = matrix @ q  # vectors are L2-normalized → cosine
         # Rank by cosine optionally scaled per source `kind` (notes > transcripts).
         # The min_score gate and the reported score stay on the RAW cosine, so
         # weighting only re-orders comparable hits — it never admits weak matches.
         weights = _source_weights()
         if weights is not None:
-            wv = np.array([weights.get(str(m.get("kind", "")), 1.0) for m in flat_m],
-                          dtype=np.float32)
+            wv = np.array(
+                [weights.get(str(m.get("kind", "")), 1.0) for m in flat_m], dtype=np.float32
+            )
             ranking = scores * wv
         else:
             ranking = scores
@@ -139,13 +150,20 @@ class Store:
         return out
 
     def stats(self) -> dict:
-        return {"chunks": sum(len(b["meta"]) for b in self._blocks.values()),
-                "sources": len(self._blocks), "model": self.model_name}
+        return {
+            "chunks": sum(len(b["meta"]) for b in self._blocks.values()),
+            "sources": len(self._blocks),
+            "model": self.model_name,
+        }
 
     # ---- internals ----
     def _paths(self):
-        return (self.dir / "vectors.npy", self.dir / "meta.jsonl",
-                self.dir / "manifest.json", self.dir / "model.txt")
+        return (
+            self.dir / "vectors.npy",
+            self.dir / "meta.jsonl",
+            self.dir / "manifest.json",
+            self.dir / "model.txt",
+        )
 
     def _atomic_npy(self, path: Path, matrix: np.ndarray):
         tmp = path.with_name(path.name + f".tmp{os.getpid()}")

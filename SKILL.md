@@ -165,6 +165,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-protected-check.sh` | Match files against `pipeline.yaml:protected_paths` |
 | `mb-work-review-parse.sh` | Validate reviewer output for `/mb work` review-loop |
 | `mb-work-severity-gate.sh` | Apply `pipeline.yaml:severity_gate` to review counts |
+| `mb-workflow.sh` | Resolve the active workflow + per-step `model`/`thinking` config from `pipeline.yaml` for `/mb work` |
 | `mb-reviewer-resolve.sh` | Pick the active reviewer agent name |
 | `mb-session-spend.sh` | Session token-spend tracker (sprint context guard) |
 | `mb-session-recent-rebuild.sh` | Regenerate `session/_recent.md` from `session/*.md` (keeps newest `MB_RECENT_KEEP`; deterministic, idempotent) |
@@ -197,7 +198,11 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-rules-enforcer` | `/review`, `/commit`, `/pr`, `plan-verifier` step 3.6 — runs `mb-rules-check.sh` (solid/srp, clean_arch/direction, tdd/delta) + LLM ISP/DRY judgment. Returns strict JSON + summary | `agents/mb-rules-enforcer.md` |
 | `mb-test-runner` | `/test`, `plan-verifier` step 3.5 — runs `mb-test-run.sh`, correlates failures with session diff. Returns JSON `{stack, tests_pass, tests_total, failures[], coverage, duration_ms}` | `agents/mb-test-runner.md` |
 | `mb-reviewer` | `/mb work` legacy single-reviewer fallback — reads stage diff + `pipeline.yaml:review_rubric`, emits structured JSON verdict | `agents/mb-reviewer.md` |
-| `mb-reviewer-logic` / `mb-reviewer-tests` / `mb-reviewer-quality` / `mb-reviewer-security` / `mb-reviewer-scalability` | `/mb work` governed review ensemble — parallel aspect reviewers with scoped context | `agents/mb-reviewer-*.md` |
+| `mb-reviewer-logic` | `/mb work` governed review ensemble — correctness / logic aspect reviewer with scoped context | `agents/mb-reviewer-logic.md` |
+| `mb-reviewer-tests` | `/mb work` governed review ensemble — test-coverage / quality-of-tests aspect reviewer | `agents/mb-reviewer-tests.md` |
+| `mb-reviewer-quality` | `/mb work` governed review ensemble — code-quality / maintainability aspect reviewer | `agents/mb-reviewer-quality.md` |
+| `mb-reviewer-security` | `/mb work` governed review ensemble — security aspect reviewer | `agents/mb-reviewer-security.md` |
+| `mb-reviewer-scalability` | `/mb work` governed review ensemble — performance / scalability aspect reviewer | `agents/mb-reviewer-scalability.md` |
 | `mb-reviewer-lead` | `/mb work` governed review — synthesizes aspect reports, verifies previous master report closure, separates blockers from backlog | `agents/mb-reviewer-lead.md` |
 | `mb-judge` | `/mb work` governed final gate — decides GO / GO_WITH_BACKLOG / NO_GO from plan, verifier, lead-review, and evidence | `agents/mb-judge.md` |
 | `mb-engineering-core` | **[partial — not dispatched directly]** Prepended by `/mb work` ahead of every dev-role agent below. Carries the shared discipline: TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims (Iron Law), escalation, STATUS contract, anti-rationalization. Excluded from the `~/.claude/agents/` registry via `partial: true` frontmatter. | `agents/mb-engineering-core.md` |
@@ -212,6 +217,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-qa` | `/mb work` — test design, coverage strategy, edge-case enumeration, flake elimination, contract tests | `agents/mb-qa.md` |
 | `mb-analyst` | `/mb work` — data / analytics / metrics: SQL, dashboards, cohorts, ETL pipelines, instrumentation | `agents/mb-analyst.md` |
 | `mb-research` | `/mb research` (and broad `/mb work` research steps) — graph-first, multi-source research over codebase + project memory + library docs + GitHub prior-art + open web; read-only (no Write/Edit), returns `file:line` / source-grounded conclusions, degrades to `Grep` when indexes are absent | `agents/mb-research.md` |
+| `mb-researcher` | `/mb work` governed research role (wired in `pipeline.default.yaml`) — ecosystem research, implementation reconnaissance, source comparisons, technical due diligence, and evidence-backed option matrices before planning or implementation | `agents/mb-researcher.md` |
 | `mb-wiki-author` | `/mb wiki` — **Haiku tier.** Writes one codebase-wiki article per community from a deterministic evidence pack | `agents/mb-wiki-author.md` |
 | `mb-wiki-synthesizer` | `/mb wiki` — **Sonnet tier.** Finds surprising cross-community connections, emits strict-JSON `semantic` edges | `agents/mb-wiki-synthesizer.md` |
 

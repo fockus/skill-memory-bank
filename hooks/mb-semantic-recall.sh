@@ -35,6 +35,7 @@ CTX="$(printf '%s' "$RESULT" | "$JQ" -r '
     (.text | gsub("\n";" ") | .[0:280])] | join("\n"))' 2>/dev/null)"
 [ -n "$CTX" ] || { printf '{}\n'; exit 0; }
 
+# shellcheck disable=SC2016 # $c is a jq variable bound via --arg, not a shell expansion.
 "$JQ" -n --arg c "$CTX" \
   '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$c}}'
 exit 0

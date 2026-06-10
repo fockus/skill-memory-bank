@@ -1,0 +1,9 @@
+# ShellCheck configuration — read from the repo root (where CI invokes shellcheck).
+#
+# SC1091 (cannot follow sourced file): the hooks and scripts source helper
+# libraries via runtime-resolved paths ("$HOOK_DIR/lib/session-common.sh",
+# "$MB_PATH/.mbenv", "$HOOK_DIR/_skill_root.sh"). Those files exist at execution
+# time but cannot be statically followed without `-x` (the CI `hooks/*.sh` step
+# runs without it), and `.mbenv` is an optional per-project file generated at
+# runtime. The source directives are kept for `-x` runs; this disables the noise.
+disable=SC1091

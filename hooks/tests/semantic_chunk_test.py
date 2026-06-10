@@ -1,7 +1,8 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
-from semantic_chunk import chunk_markdown, chunk_transcript, CHUNK_CHARS
+from semantic_chunk import CHUNK_CHARS, chunk_markdown, chunk_transcript
 
 
 def test_markdown_splits_into_nonempty_chunks_carrying_source():
