@@ -37,14 +37,24 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--backend", choices=["auto", "bm25", "embeddings"], default="auto")
     parser.add_argument("--k", type=int, default=10)
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of markdown")
-    parser.add_argument("--source-only", action="store_true",
-                        help="Exclude test/spec files from results (find the implementation)")
+    parser.add_argument(
+        "--source-only",
+        action="store_true",
+        help="Exclude test/spec files from results (find the implementation)",
+    )
     parser.add_argument("mb_path", nargs="?", default=".memory-bank")
-    args = parser.parse_args(argv[1:])
+    # parse_intermixed_args so the optional `mb_path` positional is accepted even
+    # when it trails the options (`query --backend bm25 --json <mb_path>`). Plain
+    # parse_args rejects that ordering on argparse < 3.13 ("unrecognized arguments").
+    args = parser.parse_intermixed_args(argv[1:])
 
-    result = ss.run_search(query=args.query, mb_path=args.mb_path,
-                           backend=args.backend, k=args.k,
-                           source_only=args.source_only)
+    result = ss.run_search(
+        query=args.query,
+        mb_path=args.mb_path,
+        backend=args.backend,
+        k=args.k,
+        source_only=args.source_only,
+    )
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     else:

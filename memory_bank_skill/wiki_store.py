@@ -82,8 +82,12 @@ def validate_semantic_edges(raw: Any) -> list[dict[str, Any]]:
             if not math.isfinite(confidence):
                 confidence = 0.5
         confidence = max(0.0, min(1.0, confidence))
-        edge: dict[str, Any] = {"src": src, "dst": dst, "kind": "semantic",
-                                "confidence": round(confidence, 3)}
+        edge: dict[str, Any] = {
+            "src": src,
+            "dst": dst,
+            "kind": "semantic",
+            "confidence": round(confidence, 3),
+        }
         rationale = item.get("rationale")
         if isinstance(rationale, str) and rationale:
             edge["rationale"] = rationale
@@ -112,8 +116,11 @@ def merge_semantic_edges(graph_path: Path | str, edges: list[dict[str, Any]]) ->
     if not appended:
         return 0
     # newline="" preserves existing line endings (CRLF stays CRLF) — the merge is a
-    # pure append, never a whole-file newline rewrite.
-    raw = path.read_text(encoding="utf-8", newline="")
+    # pure append, never a whole-file newline rewrite. Use open() rather than
+    # Path.read_text(newline=...): the latter only gained `newline` in Python 3.13
+    # and this package supports 3.11+.
+    with path.open(encoding="utf-8", newline="") as fh:
+        raw = fh.read()
     if not raw.endswith(("\n", "\r")):
         raw += "\n"
     atomic_write(path, raw + "\n".join(appended) + "\n")
