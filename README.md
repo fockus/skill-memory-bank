@@ -241,7 +241,7 @@ The agent reads these rules at session start and follows them without you having
 | `/plan` | Implementation plan generator with DoD/TDD scaffolding (Phase / Sprint / Stage) |
 | `/discuss` | 5-phase requirements-elicitation interview → `context/<topic>.md` (EARS-validated) |
 | `/sdd` | Kiro-style spec triple → `specs/<topic>/{requirements,design,tasks}.md` |
-| `/work` | Execute plan/spec stages with role-agents, review-loop, severity gate (Phase 3) |
+| `/work` | Execute plan/spec stages with role-agents; composable pipeline (`--review`/`--judge`/`--stages`, review **off by default**) |
 | `/config` | Manage `pipeline.yaml` engine config (init / show / validate / path) |
 | `/profile` | Manage rule profiles and stack presets (init / show / validate / set / path) |
 | `/commit` | Conventional-commit message with MB context |
@@ -474,6 +474,7 @@ A: Yes. Current stable line is **v4.0.0** (released 2026-04-25), built on the v3
 
 - **[Cross-agent setup](docs/cross-agent-setup.md)** — per-client cheatsheet + hook capability matrix
 - **[Install guide](docs/install.md)** — pipx / Homebrew / git-clone with troubleshooting
+- **[v4 → v5 migration](docs/MIGRATION-v4-v5.md)** — review now off by default; composable `/mb work` pipeline
 - **[v3.0 → v3.1 migration](docs/MIGRATION-v3-v3.1.md)** — automatic structural upgrade (multi-active plans, `I-NNN` ideas, `ADR-NNN`)
 - **[v1 → v2 migration](docs/MIGRATION-v1-v2.md)** — older structural migration
 - **[Repository migration](docs/repo-migration.md)** — for users upgrading from `claude-skill-memory-bank`
