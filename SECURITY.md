@@ -4,10 +4,10 @@
 
 | Version | Supported           |
 | ------- | ------------------- |
-| 3.0.x   | ✅ Actively maintained |
-| 2.x     | ⚠️ Critical fixes only (until 2026-10-01) |
-| 1.x     | ❌ End of life      |
-| < 1.0   | ❌ End of life      |
+| 5.x     | ✅ Actively maintained |
+| 4.x     | ⚠️ Critical fixes only |
+| 3.x     | ⚠️ Critical fixes only (until 2026-10-01) |
+| ≤ 2.x   | ❌ End of life      |
 
 ## Reporting a Vulnerability
 
@@ -66,3 +66,9 @@ We follow **coordinated disclosure**:
 - Pi global install is first-class: `install.sh` registers only managed files under `~/.pi/agent/` (`AGENTS.md`, `skills/memory-bank`, and `prompts/*.md`); old Pi skill backups are stored outside the scanned `skills/` directory, and project `MB_PI_MODE=skill` leaves an existing global symlink unchanged before cleanup validates paths under `~/.pi/agent/skills`.
 - The skill does not make network calls at runtime (neither `install.sh` nor the Python CLI).
 - No telemetry. No analytics. No opt-in / opt-out to discuss.
+
+## Past audits
+
+- [Third-party audit, 2026-04-21](docs/security/audit-2026-04-21.md) — archived snapshot.
+  Key findings (uninstall path validation, manifest handling, metrics-override execution)
+  were addressed in subsequent 3.x/4.x releases; see the design decisions above.

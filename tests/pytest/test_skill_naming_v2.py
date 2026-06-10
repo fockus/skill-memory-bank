@@ -11,7 +11,7 @@ Exclusions:
 - .memory-bank/** (may contain user data during dogfood migration)
 - .pre-migrate*/** (pre-migration backups)
 - dist/, site/, .git/, .pytest_cache/, .ruff_cache/, __pycache__/
-- SECURITY_AUDIT_REPORT.md (historical)
+- docs/security/** (archived historical audits quote v1 names verbatim)
 - commands/start.md (contains v1 detection patterns for Pre-flight check)
 - commands/mb.md (delegates to v1 detection; may reference legacy names)
 - agents/mb-doctor.md (contains v1 detection patterns in "Check: v2 naming migration")
@@ -39,7 +39,7 @@ EXCLUDED_PATHS = (
     "tests/pytest/test_skill_naming_v2.py",
     ".memory-bank/",
     ".pre-migrate",
-    "SECURITY_AUDIT_REPORT.md",
+    "docs/security/",  # archived historical audits quote v1 names verbatim
     "dist/",
     "site/",
     ".git/",
