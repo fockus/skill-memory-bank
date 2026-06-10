@@ -2002,3 +2002,39 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - **Release prep:** VERSION 4.0.0 → **5.0.0** (early cut — see status.md ⚠️); `__version__` resolves 5.0.0; `python -m build` → `memory_bank_skill-5.0.0` (`.memory-bank/` excluded, feature files included). Fixed 3 release tests (changelog `[Unreleased]` placeholder, version-bump assertion → 5.0.0, status.md drift).
 - **Verification:** pytest **1190 passed** (+29), bats **779 exit 0**, shellcheck/ruff clean, `mb-spec-validate.sh composable-work-pipeline` OK, build OK. All 7 task DoD ✅.
 - **Commits (local, unpushed):** `d3c712a` greening · `828ee22` feat · `986e9fa`+`22abd83`+`382610e` docs · `298241e` release: v5.0.0 (tip). **Push HELD by user for review** — `v5.0.0` tag triggers `publish.yml` → PyPI (first publish since 3.1.2).
+
+## 2026-06-10
+
+### Auto-capture 2026-06-10 (session 8d11e2c2)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-10
+
+### Auto-capture 2026-06-10 (session b4e082d0)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-10
+
+### Auto-capture 2026-06-10 (session 88be9227)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-10
+
+### Auto-capture 2026-06-10 (session 7874a690)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-10
+
+### Auto-capture 2026-06-10 (session f308f14b)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-11
+
+### Auto-capture 2026-06-11 (session c5e9f541)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
