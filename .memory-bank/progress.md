@@ -1976,3 +1976,29 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
   - `bats tests/e2e/test_install_uninstall.bats` — 41 passed.
   - `shellcheck -S warning install.sh adapters/pi.sh` — clean.
   - Sandbox `HOME=$(mktemp -d) MB_SKIP_DEPS_CHECK=1 bash install.sh --non-interactive` produced Pi `AGENTS.md` with mandatory gate and valid Pi `settings.json` with memory-bank skill first.
+
+### Auto-capture 2026-06-09 (session d3f2fefd)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-10
+
+### Auto-capture 2026-06-10 (session 9ebf49fb)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+### composable-work-pipeline + v5.0.0 release prep (2026-06-10)
+
+- **Feature (SDD, dogfooded):** made `/mb work` pipeline composable end-to-end. Spec `specs/composable-work-pipeline/` (16 EARS REQ, design, 7 TDD tasks). Canonical chain `discuss → sdd → plan → implement → verify → review → judge → done`; **review OFF by default** (default = `execution` = implement→verify→done). 3-layer resolution (launch flags > pipeline.yaml > built-in default).
+  - `references/pipeline.default.yaml`: `full` preset + opt-in `review:` block (`enabled:false`) + per-stage `discuss/plan/judge/sdd.enabled`; removed `full→full-cycle` alias (`full` now a real preset; `everything` alias added).
+  - `scripts/mb-workflow.sh`: flags `--review/--judge/--brainstorm/--sdd/--plan` (+`--no-*`), `--stages`, deterministic merge + canonical re-sort **only when the set changes** (legacy `stage_pipeline` order preserved verbatim — NFR-001 fix), judge⟹review fail-fast.
+  - `scripts/mb-work-severity-gate.sh`: reads gate from `review:` block ▸ legacy stage review ▸ workflow loop; **PASS no-op when no review configured** (was `exit 2`), yaml + no-PyYAML paths.
+  - `scripts/mb-pipeline-validate.sh`: `--stages <csv> [--input]` mode + judge-without-review / sdd-plan-without-input fail-fast; workflows.* judge⟹review rule.
+- **Greening (pre-pivot):** cleared CI red — `.shellcheckrc` SC1091, `adapters/pi.sh` SRP split → `adapters/_lib_pi_global.sh` (351→236), ruff import-sort, SKILL.md tables. Commit `d3c712a`.
+- **Docs (thorough sweep per user request):**
+  - `commands/work.md` composition section; `docs/MIGRATION-v4-v5.md` (new); CHANGELOG `[5.0.0]` + BREAKING; README `/work` row.
+  - Propagated review-off-default across `rules/RULES.md`, `rules/CLAUDE-GLOBAL.md`, `commands/mb.md`, `commands/config.md`, `docs/concepts/overview.md` (fixed stale `execution = implement→review→verify`).
+  - **New user guides:** `docs/concepts/code-graph.md` (graph + `mb-semantic-search.py` + `/mb wiki`) and `docs/concepts/session-memory.md` (`/mb recall`, session hooks, reindex); README + `docs/README` index wired (Concepts/Guides split).
+- **Release prep:** VERSION 4.0.0 → **5.0.0** (early cut — see status.md ⚠️); `__version__` resolves 5.0.0; `python -m build` → `memory_bank_skill-5.0.0` (`.memory-bank/` excluded, feature files included). Fixed 3 release tests (changelog `[Unreleased]` placeholder, version-bump assertion → 5.0.0, status.md drift).
+- **Verification:** pytest **1190 passed** (+29), bats **779 exit 0**, shellcheck/ruff clean, `mb-spec-validate.sh composable-work-pipeline` OK, build OK. All 7 task DoD ✅.
+- **Commits (local, unpushed):** `d3c712a` greening · `828ee22` feat · `986e9fa`+`22abd83`+`382610e` docs · `298241e` release: v5.0.0 (tip). **Push HELD by user for review** — `v5.0.0` tag triggers `publish.yml` → PyPI (first publish since 3.1.2).

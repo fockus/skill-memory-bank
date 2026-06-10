@@ -5,11 +5,13 @@
 
 **Phase 5 — Autonomous agent harness (v5.0.0 target).** Обязательный **Wave 0 — CI baseline** закрыт: `test.yml` на `main` зелёный (`26528106396`, после closeout commit; предыдущий full green `26527319286`) для Ubuntu/macOS × Python 3.11/3.12. Основной roadmap — 12 wave'ов: `harness-upgrade` (reviewer-v2 → work-loop-v2 → handoff-v2 → cost-multi-model → parallel-pipeline) + `goal-driven-autopilot` (overlay+addons → mb-debugger → atomic-commit → goal-layer → worktree-MVP → parallel-waves-MVP → autopilot-loop). Standalone `skill-improvements-anthropic-audit` — docs/evals track после Wave 0, параллельно с W1.
 
-Все промежуточные landings = v4.x bumps. v5.0.0 cut только после закрытия W12. Полная таблица последовательности + ordering rationale + gate criteria → `roadmap.md` секция `## Phase: harness-upgrade + goal-driven-autopilot`.
+**⚠️ Versioning change (2026-06-10):** v5.0.0 cut **early** — не после W12. Причина: 4.0.0 получил git-тег, но публикация в PyPI провалилась (`__version__` drift, исправлено runtime-чтением VERSION), а с тех пор накопился крупный пласт (GraphRAG-lite intelligence layer, session-memory, rules-economy, composable `/mb work` pipeline с review-off-by-default = BREAKING). Это первый PyPI-релиз с 3.1.2. Harness-waves (W1–W12) становятся пост-5.0.0 работой (5.x/6.0). Полная таблица последовательности waves → `roadmap.md` секция `## Phase: harness-upgrade + goal-driven-autopilot`.
 
 **Predecessor phases ✅:** sdd-unification (3 sprints), global-storage core + agent-support, rule-profiles-and-stack-presets, GraphRAG-lite code intelligence.
 
 ## ⏭ Следующий шаг
+
+**🚀 v5.0.0 застейджен локально (6 коммитов впереди `origin/main`, тип — `release: v5.0.0`), ожидает явного `git push origin main` + `git tag v5.0.0` + push тега → `publish.yml` → PyPI.** Пользователь держит push для ревью.
 
 **Wave 0 — [CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** закрыт. Следующий operational focus: завершить активный **Cursor compatibility remediation** или стартовать **W0.5 — [OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)** как инфраструктурный unlock для W1–W12.
 
@@ -40,11 +42,11 @@
 
 ## Ключевые метрики
 
-- VERSION: **4.0.0** (PyPI `memory-bank-skill==4.0.0` план; Homebrew tap bump план)
+- VERSION: **5.0.0** (PyPI `memory-bank-skill==5.0.0` — first publish since 3.1.2, supersedes unpublished 4.0.0; Homebrew tap bump план)
 - Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
 - Агенты: **17 dispatchable** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer + 1 research: `mb-research`) + **partials** (`mb-engineering-core`, `mb-tooling-core` — prepended, never dispatched). `install.sh` `AGENT_COUNT` glob = **21**.
 - Commands: **24** top-level (`/mb` hub + 23 dispatchers; `/mb research` added 2026-06-09).
-- Tests: **pytest 1161 passed / 0 failed · bats 688 ok / 0 failures** (2026-06-09, after `mb-research-tooling-core`). True pre-feature baseline was pytest 1134/1 (NOT the "1135 passed" the plan inherited — two pre-existing defects masked it). GitHub `test.yml` run `26528106396` passed on Ubuntu/macOS × Python matrix after closeout commit (`26527319286` was the first full green).
+- Tests: **pytest 1190 passed / 0 failed · bats 779 ok / 0 failures** (2026-06-10, after `composable-work-pipeline` + v5.0.0 docs; +29 vs the 1161 post-`mb-research-tooling-core` baseline). shellcheck/ruff clean; `python -m build` → `memory_bank_skill-5.0.0` sdist+wheel (`.memory-bank/` excluded). GitHub `test.yml` last green `26528106396` (pre-5.0.0); re-run on push.
 - Public website: **https://fockus.github.io/skill-memory-bank/**
 - Текущий remote: `origin=https://github.com/fockus/skill-memory-bank.git`
 
@@ -73,6 +75,7 @@
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-06-10 — [specs/composable-work-pipeline/](specs/composable-work-pipeline/) — feature — composable `/mb work` pipeline (review off by default) + v5.0.0 release prep
 - 2026-06-09 — [plans/done/2026-06-09_feature_mb-research-tooling-core.md](plans/done/2026-06-09_feature_mb-research-tooling-core.md) — feature — mb-research-tooling-core
 - 2026-06-07 — [plans/done/2026-06-07_refactor_rules-context-economy.md](plans/done/2026-06-07_refactor_rules-context-economy.md) — refactor — rules-context-economy
 - 2026-05-27 — [plans/done/2026-05-24_fix_ci-baseline-wave-0.md](plans/done/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1; latest green `26528106396`)
