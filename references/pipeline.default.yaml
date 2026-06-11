@@ -263,3 +263,30 @@ sdd:
   require_scenarios: false                # opt-in: /mb sdd runs mb-spec-validate --require-scenarios
                                           # (every REQ must have >=1 GIVEN/WHEN/THEN scenario). Default off
                                           # so EARS-only specs stay valid.
+
+# ===== Capability-aware dispatch (mb-agent-caps.sh / mb-agent-dispatch.sh) =====
+# Picks the CLI transport + model for each governed step, honouring BOTH that the
+# CLI agent is installed AND that the model is actually offered by it
+# (`opencode models` / `pi --list-models`). Walks `priority`; the first transport
+# whose CLI is present and whose (mapped) model is available wins; otherwise falls
+# back to the Claude Code Agent tool. Optional block — when absent, defaults below
+# apply. Projects override `model_map` with their concrete provider/model ids.
+dispatch:
+  priority: [pi, opencode, claude-agent]  # global order, tried after any `prefer` match
+  on_none_available: fallback             # fallback (use claude-agent) | error (fail the step)
+  # Model-family preference: if a role's contract model matches a glob, that
+  # transport is tried FIRST (before `priority`). Example: a ChatGPT/codex model
+  # routes to the `codex` CLI; if codex is absent it falls through to
+  # pi -> opencode -> claude-agent.
+  prefer: {}                              # e.g. { "openai-codex/*": codex, "gpt-*": codex }
+  # Transports whose model list is enumerable (strict availability check via
+  # `opencode models` / `pi --list-models`). Others (e.g. codex) are "trusted":
+  # if the CLI is installed, the mapped/contract model is assumed available.
+  enumerable: [pi, opencode]
+  # Map a role's contract model -> the concrete id per transport. Omit a transport
+  # to use the contract id verbatim on it (pi often accepts provider/id as-is).
+  model_map: {}                           # e.g. { "openai-codex/gpt-5.5": { codex: gpt-5.5, opencode: opencode/gpt-5.2 } }
+  # Claude Code Agent tool model used when no contract transport is available.
+  # Unlisted roles default by tier: reviewer/judge/planner/architect -> opus, else sonnet.
+  fallback:
+    claude-agent: {}
