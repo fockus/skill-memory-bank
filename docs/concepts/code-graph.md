@@ -107,6 +107,29 @@ install, never block the task.
 
 ---
 
+## How it compares with other approaches
+
+| Tool | Approach | Structural queries | Persistent artifact | Cost |
+|---|---|---|---|---|
+| **memory-bank-skill** | AST/tree-sitter → JSONL graph + analytics + LLM wiki | ✅ jq / CLI | ✅ `graph.json` on disk, committable | $0 default |
+| Aider repo-map | tree-sitter + personalized PageRank → ranked text into the prompt | ❌ (text, not edges) | ❌ per-request | $0 parse |
+| Serena MCP | LSP servers (40+ langs) | ✅ compiler-precise | ❌ live server state | $0, server process |
+| Cursor indexing | server-side embeddings | ❌ similarity only | ❌ vendor cloud | subscription |
+| CodeGraphContext | tree-sitter → embedded graph DB | ✅ MCP tools | ✅ graph DB | $0, DB process |
+| Cline | none by design — reads files on demand | ❌ | ❌ | $0 |
+
+What's deliberately different here: the graph is a **plain file living next to your
+plans, ADRs, and session memory** — any agent (or you, with `jq`) can query it with
+no server, no API key, and no vendor. Unique extras: git **co-change edges**
+(coupling invisible to AST) and the **LLM wiki** whose `semantic` edges carry
+`confidence` + `rationale` and merge idempotently into the same graph.
+
+Honest limits: 6 languages (Python/Go/JS/TS/Rust/Java); name-based call resolution
+(an LSP like Serena is more precise on dynamic dispatch and aliases); no automatic
+PageRank-style context packing — agents query explicitly instead.
+
+---
+
 ## See also
 
 - **[Cross-session memory](session-memory.md)** — `/mb recall` over past chats (a different index).

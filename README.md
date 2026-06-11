@@ -18,7 +18,7 @@ Claude Code · Cursor · Windsurf · Cline · Kilo · OpenCode · Codex · Pi Co
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square&v=300)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/fockus/skill-memory-bank?style=social)](https://github.com/fockus/skill-memory-bank/stargazers)
 
-[Install](#install) · [Quick start](#5-minute-quick-start) · [What you get](#what-you-get) · [Commands](#3-dev-workflow-commands) · [Cross-agent](#4-cross-agent-portability) · [FAQ](#faq) · [Docs](#documentation) · [Website](https://fockus.github.io/skill-memory-bank/)
+[Install](#install) · [Quick start](#5-minute-quick-start) · [What you get](#what-you-get) · [Code graph](#the-code-graph) · [Commands](#3-dev-workflow-commands) · [Cross-agent](#4-cross-agent-portability) · [FAQ](#faq) · [Docs](#documentation) · [Website](https://fockus.github.io/skill-memory-bank/)
 
 <a href="https://fockus.github.io/skill-memory-bank/"><img src="https://raw.githubusercontent.com/fockus/skill-memory-bank/main/site/og-image.png" alt="memory-bank-skill — persistent memory for AI coding agents" width="720"></a>
 
@@ -336,6 +336,65 @@ One `.memory-bank/` directory, 8 AI clients:
 
 ---
 
+## The code graph
+
+`grep -rn` burns tokens and lies — it matches strings, comments, and shadowed names. `/mb graph` builds a **deterministic, queryable map of your codebase** instead, with three different ways to ask it questions.
+
+```bash
+/mb graph --apply    # → .memory-bank/codebase/graph.json + god-nodes.md
+```
+
+- **Languages:** Python via stdlib `ast` (zero extra deps) + Go, JavaScript, TypeScript, Rust, Java via tree-sitter (`pip install 'memory-bank-skill[codegraph]'`).
+- **`graph.json`** — JSON Lines: one node (module / function / class) or edge (import / call / inherit) per line. Greppable, `jq`-queryable, diffable, committable.
+- **`god-nodes.md`** — refactoring hotspots: top symbols and modules by degree, **bridge files** by betweenness centrality, Louvain module communities.
+- **Incremental:** SHA256 per-file cache — the first build takes minutes on a 1000-file repo, rebuilds take seconds.
+
+### Three ways to use it
+
+| Mode | Tool | Question it answers | Cost |
+|------|------|---------------------|------|
+| **1. Structural queries** | `mb-graph-query.py` (`neighbors` / `impact` / `tests`) or raw `jq` | "Who calls X?" · "What breaks if I change X?" · "Which tests cover X?" | $0, <1 s |
+| **2. Semantic search** | `mb-semantic-search.py` — BM25 by default, local embeddings opt-in | "Where is the rate-limiting logic?" — concept queries, tolerant to naming | $0, fully local |
+| **3. LLM wiki** | `/mb wiki` — Haiku writes one article per module community, Sonnet hunts cross-community "surprising connections" | "Give me the map" · "What non-obvious links exist?" | your agent's own subagents — **no extra API key** |
+
+```bash
+# 1 — impact analysis before a refactor: deterministic, zero tokens
+python3 scripts/mb-graph-query.py impact --graph .memory-bank/codebase/graph.json --symbol WriteFile
+jq -r 'select(.type=="edge" and .kind=="call" and .dst=="WriteFile") | .src' \
+   .memory-bank/codebase/graph.json
+
+# 2 — find code by meaning, not by name
+python3 scripts/mb-semantic-search.py "how does auth token refresh work" --source-only
+
+# 3 — a written wiki of your architecture + semantic edges with confidence + rationale
+/mb wiki
+```
+
+**Opt-in layers** (without them the base output stays byte-identical):
+
+- `--cochange` — git-history co-change edges: files that change together *without importing each other* (test ↔ subject, config ↔ reader). Coupling no AST can see.
+- `--questions` — deterministic suggested questions appended to `god-nodes.md` ("what should I look at first?").
+- `--docs` — signatures + docstrings on nodes, so semantic search matches intent, not just identifiers.
+
+The dev-role subagents are wired to the graph automatically (`graph_neighbors` / `graph_impact` / `graph_tests` routing): before editing they check the blast radius instead of guessing, and fall back to plain `grep` when the graph is missing or stale — the graph never blocks work.
+
+### How it compares
+
+| | memory-bank-skill | Aider repo-map | Serena MCP | Cursor indexing | Cline |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Persistent queryable graph on disk | ✅ JSONL | ❌ ranked text per request | ❌ live LSP | ❌ server-side vectors | ❌ no index |
+| Structural queries ("who calls X?") | ✅ jq / CLI | ❌ | ✅ LSP-precise | ❌ similarity only | ❌ |
+| Works offline, $0, no server process | ✅ | ✅ | ⚠️ local server | ❌ cloud embeddings | ✅ |
+| Git co-change edges | ✅ opt-in | ❌ | ❌ | ❌ | ❌ |
+| LLM codebase wiki + semantic edges | ✅ no extra API key | ❌ | ❌ | ❌ | ❌ |
+| Lives next to project memory (plans / ADRs / sessions) | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+Honest trade-offs: language coverage is 6 vs Aider's 130+; call resolution is name-based (no LSP / type-checker precision — Serena wins there); and there is no PageRank-ranked automatic context packing like Aider's repo-map. We trade those for a persistent, $0, locally queryable artifact that lives next to the rest of your project memory.
+
+Full reference: [code-graph concepts](docs/concepts/code-graph.md) · [jq cookbook](references/code-graph.md).
+
+---
+
 ## Usage examples
 
 ### Starting a new feature
@@ -424,6 +483,7 @@ Flags:
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `MB_AUTO_CAPTURE` | SessionEnd auto-capture mode: `auto` / `strict` / `off` | `auto` |
+| `MB_REDACT_SECRETS` | Redact API keys/tokens (sk-…, ghp\_…, AKIA…, JWT, `*_API_KEY=` values…) from session capture and the semantic index before they reach disk | `on` |
 | `MB_COMPACT_REMIND` | Weekly `/mb compact` reminder: `auto` / `off` | `auto` |
 | `MB_ALLOW_METRICS_OVERRIDE` | Allow executing project-local `.memory-bank/metrics.sh` overrides | `0` |
 | `MB_PI_MODE` | Pi project adapter mode. Supported: `agents-md` (project `AGENTS.md`) or `skill` (`~/.pi/agent/skills/memory-bank`; leaves existing global symlink unchanged) | `agents-md` |

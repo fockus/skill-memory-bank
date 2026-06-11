@@ -46,6 +46,7 @@
           <a href="#problem">Problem</a>
           <a href="#features">Features</a>
           <a href="#v5">v5</a>
+          <a href="#graph">Code graph</a>
           <a href="#workflow">Workflow</a>
           <a href="#install">Install</a>
           <a href="#docs">Docs</a>
@@ -357,9 +358,10 @@ $ /mb start
               </span>
               <h3>Private &amp; local by design</h3>
               <p>
-                Everything is markdown and JSON on your disk. Nothing is sent anywhere. Wrap secrets
-                in <code>&lt;private&gt;</code> tags and they're excluded from indexes and redacted
-                in search. Local / global / rules-only storage modes — your call.
+                Everything is markdown and JSON on your disk. Nothing is sent anywhere. API keys and
+                tokens (<code>sk-…</code>, <code>ghp_…</code>, JWTs…) are auto-redacted from session
+                capture before they ever reach disk; wrap anything else in
+                <code>&lt;private&gt;</code> tags to keep it out of every index and search.
               </p>
             </article>
           </div>
@@ -427,6 +429,73 @@ $ /mb start
               built-in default. The heavyweight 5-reviewer ensemble stays available as
               <code>--workflow governed-execution</code>. Upgrading from v4?
               <a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/MIGRATION-v4-v5.md">One-page migration guide</a> — no file migration needed.
+            </p>
+          </div>
+        </section>
+
+        <section class="graph section" id="graph">
+          <div class="section-heading reveal">
+            <p class="eyebrow">Code-graph intelligence</p>
+            <h2>Stop grepping. Query the codebase like a database.</h2>
+            <p>
+              <code>/mb graph</code> parses Python (stdlib <code>ast</code>) and Go, JS, TS, Rust,
+              Java (tree-sitter) into a deterministic JSON-Lines graph next to your code — with
+              god-node analytics, bridge-file detection, Louvain communities, and an incremental
+              cache that rebuilds in seconds. Then it gives you three different ways to ask
+              questions, all local.
+            </p>
+          </div>
+
+          <div class="v5-panel reveal">
+            <div class="v5-grid">
+              <article class="v5-card">
+                <h3>1 · Structural queries — $0, &lt;1s</h3>
+                <pre><code>$ mb-graph-query.py impact \
+    --symbol WriteFile
+# every caller, transitively —
+# the blast radius before you edit</code></pre>
+                <p>
+                  "Who calls X?" · "What breaks if I change X?" · "Which tests cover X?" —
+                  deterministic answers from <code>graph.json</code>, queryable with plain
+                  <code>jq</code>. No false positives from strings and comments.
+                </p>
+              </article>
+
+              <article class="v5-card">
+                <h3>2 · Semantic search — local, no API key</h3>
+                <pre><code>$ mb-semantic-search.py \
+    "how does auth token refresh work" \
+    --source-only</code></pre>
+                <p>
+                  Find code by meaning, not by name. Pure-Python BM25 always works; opt-in local
+                  embeddings handle concept queries. A code-aware tokenizer splits
+                  <code>camelCase</code> and <code>snake_case</code> for precision.
+                </p>
+              </article>
+
+              <article class="v5-card">
+                <h3>3 · LLM wiki — your agent's own subagents</h3>
+                <pre><code>$ /mb wiki
+# one article per module community
+# + "surprising connections" edges
+#   with confidence & rationale</code></pre>
+                <p>
+                  Haiku writes a wiki article per module cluster; Sonnet hunts non-obvious
+                  cross-module links and merges them into the graph idempotently. No extra API
+                  key — it reuses the agent you're already running.
+                </p>
+              </article>
+            </div>
+
+            <p class="v5-footnote">
+              Opt-in layers keep the base output byte-identical: <code>--cochange</code> mines git
+              history for files that change together without importing each other — coupling no AST
+              can see; <code>--questions</code> appends data-ranked "what to look at first"
+              questions; <code>--docs</code> enriches nodes with signatures and docstrings. Unlike
+              Aider's per-request repo-map or Cursor's server-side index, the graph is a
+              <strong>persistent, committable file living next to your plans and ADRs</strong> —
+              and the dev-role subagents check the blast radius through it before every edit.
+              <a href="https://github.com/fockus/skill-memory-bank/blob/main/docs/concepts/code-graph.md">How it works &amp; honest comparison</a>.
             </p>
           </div>
         </section>
