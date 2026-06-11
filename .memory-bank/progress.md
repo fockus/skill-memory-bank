@@ -2054,3 +2054,29 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - CI greening (with parallel user fixes): wiki_store.py read_text(newline=) py3.11/3.12
   compat; mb-semantic-search.py parse_intermixed_args.
 - Promotion playbook saved to reports/2026-06-11_promotion-playbook.md (channels verified).
+
+## 2026-06-11
+
+### Auto-capture 2026-06-11 (session fb7027d7)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-11
+
+### Auto-capture 2026-06-11 (session 975e084e)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-11
+
+### Session: v5.0.1 release + secret redaction + graph deep-dive content
+- Released v5.0.1: CI green → tag → publish.yml → PyPI 5.0.1 + GitHub Release verified.
+- Security: default secret redaction in session capture (hooks/lib/redact.py +
+  sc_redact_secrets; 3 layers: Live log, summarizer input, semantic chunker) +
+  <private> stripping in chunks; MB_REDACT_SECRETS=off. TDD: 23 pytest + 9 bats.
+- Honest auto-capture stub (removed false "will be reconstructed" promise).
+- Code graph: deep README section (3 usage modes, opt-in layers, honest comparison
+  vs Aider/Serena/Cursor/Cline), comparison block in docs/concepts/code-graph.md,
+  new #graph section on the landing page.
+- Improvement roadmap (graph + session memory) → reports/2026-06-11_graph-memory-improvements.md
+  (RRF, import-aware binding, PageRank, community retrieval, consolidate, entities).
