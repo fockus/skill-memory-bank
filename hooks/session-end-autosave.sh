@@ -96,7 +96,7 @@ fi
   printf '\n## %s\n\n' "$TODAY"
   printf '### Auto-capture %s (session %s)\n' "$TODAY" "$SID_PREFIX"
   printf -- '- Session ended without an explicit /mb done\n'
-  printf -- '- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)\n'
+  printf -- '- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized\n'
 } >> "$PROGRESS"
 
 exit 0

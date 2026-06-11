@@ -70,13 +70,25 @@ Everything stays on your machine, and every layer has an off-switch:
 
 | Variable | Default | Effect |
 |---|---|---|
+| `MB_REDACT_SECRETS` | on | `off` disables automatic secret redaction (below). |
 | `MB_SESSION_CAPTURE` | on | `off` disables the per-turn / session-end capture entirely. |
 | `MB_SEMANTIC` | on | `off` disables the semantic UserPromptSubmit injection (lexical only). |
 | `MB_SESSION_CHEATSHEET` | on | `off` drops the how-to cheat-sheet from the SessionStart injection. |
 | `MB_RECENT_KEEP` | `5` | How many sessions the rolling `_recent.md` window keeps. |
 
+**Automatic secret redaction (default on).** Session capture redacts recognizable
+API keys and tokens **before anything reaches disk**: vendor-prefixed keys
+(`sk-…` — OpenAI/Anthropic/OpenRouter, `ghp_…`/`github_pat_…`, `AKIA…`,
+`xox?-…`, `AIza…`, `hf_…`, `npm_…`, `pypi-…`), JWTs, `Bearer <token>` values, and
+`*_API_KEY=` / `*_TOKEN=` / `*_SECRET=` env-style assignments. Redaction applies
+at three layers: the per-turn Live-log bullet, the transcript fed to the
+summarizer/judge (a secret that never enters the prompt cannot reappear in a
+summary), and the semantic-index chunker. Implementation:
+`hooks/lib/redact.py` + `sc_redact_secrets` in `hooks/lib/session-common.sh`.
+
 Wrap secrets/PII in `<private>…</private>` in any bank file to keep them out of
-`index.json` and redacted from `/mb search` output.
+`index.json`, redacted from `/mb search` output, and excluded from
+semantic-index chunks.
 
 > **Related but distinct:** the `session-end-autosave.sh` hook
 > (`MB_AUTO_CAPTURE=auto|strict|off`) appends a placeholder entry to

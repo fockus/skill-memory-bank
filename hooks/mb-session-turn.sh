@@ -89,7 +89,10 @@ if [ -n "$turn_uuid" ] && [ "$(sc_fm_get "$SF" last_turn)" = "$turn_uuid" ]; the
   exit 0
 fi
 
-printf -- '- %s — User: "%s" · tools: %s · files: %s\n' "$hm" "$user_line" "$tools" "$files" >> "$SF"
+# Redact API keys/tokens before the bullet reaches disk (regression: an OpenRouter
+# key quoted in a user message was persisted verbatim). MB_REDACT_SECRETS=off disables.
+printf -- '- %s — User: "%s" · tools: %s · files: %s\n' "$hm" "$user_line" "$tools" "$files" \
+  | sc_redact_secrets >> "$SF"
 
 # bump turn counter + record this turn's anchor uuid for dedup
 cur="$(sc_fm_get "$SF" turns)"

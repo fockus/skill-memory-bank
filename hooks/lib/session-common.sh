@@ -127,6 +127,31 @@ sc_capture_disabled() {
   return 1
 }
 
+# Redact API keys/tokens from stdin before persisting session text.
+# Default ON; disable with MB_REDACT_SECRETS=off. Keep the pattern set in sync
+# with hooks/lib/redact.py (the python side used by the semantic chunker).
+# POSIX ERE only (BSD sed on macOS): no \b, no case-insensitive flag — the
+# env-var pattern intentionally covers uppercase env-style names only.
+sc_redact_secrets() {
+  if [ "${MB_REDACT_SECRETS:-on}" = "off" ]; then
+    cat
+    return 0
+  fi
+  sed -E \
+    -e 's/sk-[A-Za-z0-9_-]{20,}/[REDACTED]/g' \
+    -e 's/gh[pousr]_[A-Za-z0-9]{20,}/[REDACTED]/g' \
+    -e 's/github_pat_[A-Za-z0-9_]{22,}/[REDACTED]/g' \
+    -e 's/(AKIA|ASIA)[A-Z0-9]{16}/[REDACTED]/g' \
+    -e 's/xox[baprs]-[A-Za-z0-9-]{10,}/[REDACTED]/g' \
+    -e 's/AIza[A-Za-z0-9_-]{30,}/[REDACTED]/g' \
+    -e 's/hf_[A-Za-z0-9]{30,}/[REDACTED]/g' \
+    -e 's/npm_[A-Za-z0-9]{30,}/[REDACTED]/g' \
+    -e 's/pypi-[A-Za-z0-9_-]{20,}/[REDACTED]/g' \
+    -e 's|eyJ[A-Za-z0-9_=-]{10,}\.[A-Za-z0-9_=-]{10,}\.[A-Za-z0-9_.+/=-]{5,}|[REDACTED]|g' \
+    -e 's/([Bb]earer[[:space:]]+)[A-Za-z0-9._~+/=-]{20,}/\1[REDACTED]/g' \
+    -e "s/([A-Z0-9_]*(API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD)[A-Z0-9_]*[[:space:]]*[=:][[:space:]]*)['\"]?[^[:space:]'\"]{8,}['\"]?/\1[REDACTED]/g"
+}
+
 # sc_semantic_py <hook_dir> <mb_root> — echo the python for the semantic CLI.
 # Prefers a venv beside the installed hooks (global ~/.claude/hooks/.venv, or a
 # project-local bin/.venv), then a legacy .memory-bank/.venv, then system python3.

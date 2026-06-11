@@ -78,6 +78,12 @@ else
 fi
 [ -n "$SRC" ] || exit 0
 
+# Redact API keys/tokens BEFORE the source ever reaches the summarizer or the judge —
+# a secret that never enters the prompt cannot reappear in a persisted summary/note.
+# MB_REDACT_SECRETS=off disables. (Live-log lines are already redacted at write time;
+# this covers the raw-transcript path.)
+SRC="$(printf '%s' "$SRC" | sc_redact_secrets)"
+
 # Final guard: bound even the Live-log (cheap no-op when already small) so the prompt always fits.
 if [ "${#SRC}" -gt "$MAX_CHARS" ]; then
   head_n=$(( MAX_CHARS * 6 / 10 ))
@@ -107,6 +113,10 @@ $SRC"
     *"context_length_exceeded"*)
       exit 0 ;;
   esac
+
+  # Defense-in-depth: redact the summary too before persisting (the model could in
+  # principle echo a secret it saw in an earlier, unredacted context).
+  SUMMARY="$(printf '%s' "$SUMMARY" | sc_redact_secrets)"
 
   # append Summary section and mark summarized (under the held lock)
   printf '\n## Summary\n%s\n' "$SUMMARY" >> "$SF"

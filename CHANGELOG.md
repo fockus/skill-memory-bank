@@ -4,7 +4,27 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-- _Nothing yet._
+### Added — security
+
+- **Automatic secret redaction in session capture (default on).** Recognizable
+  API keys/tokens (`sk-…`, `ghp_…`/`github_pat_…`, `AKIA…`/`ASIA…`, `xox?-…`,
+  `AIza…`, `hf_…`, `npm_…`, `pypi-…`, JWTs, `Bearer <token>`, `*_API_KEY=`-style
+  env assignments) are replaced with `[REDACTED]` before they reach
+  `.memory-bank/session/*.md` or the semantic index. Applies at three layers:
+  the per-turn Live-log bullet, the transcript fed to the Haiku summarizer /
+  Sonnet judge, and the semantic chunker. Off-switch: `MB_REDACT_SECRETS=off`.
+  Implementation: `hooks/lib/redact.py` + `sc_redact_secrets` in
+  `hooks/lib/session-common.sh`. Regression for a real leak: an OpenRouter key
+  quoted in a transcript error was persisted verbatim.
+- Semantic-index chunker now also strips `<private>…</private>` blocks
+  (mirrors `mb-index-json.py`), closing the gap where private content was
+  excluded from `index.json` but still indexed for `/mb recall`.
+
+### Fixed
+
+- `session-end-autosave.sh` progress stub no longer promises a reconstruction
+  that never happened ("Details will be reconstructed on the next /mb start");
+  it now points at the actually-captured session summary (`/mb recall`).
 
 ## [5.0.1] — 2026-06-11
 

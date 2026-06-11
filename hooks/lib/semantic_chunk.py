@@ -1,11 +1,26 @@
 """Split markdown and JSONL transcripts into embedding-sized text chunks."""
+
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable
 
-CHUNK_CHARS = 1600          # ~400-512 tokens
+from redact import redact_secrets
+
+CHUNK_CHARS = 1600  # ~400-512 tokens
 OVERLAP_CHARS = 200
+
+# <private>…</private> blocks never reach the index (mirrors mb-index-json.py).
+_PRIVATE_CLOSED_RE = re.compile(r"<private>.*?</private>", re.DOTALL)
+_PRIVATE_OPEN_RE = re.compile(r"<private>.*\Z", re.DOTALL)
+
+
+def _sanitize(text: str) -> str:
+    """Strip <private> blocks and redact API keys/tokens before chunking."""
+    text = _PRIVATE_CLOSED_RE.sub("", text)
+    text = _PRIVATE_OPEN_RE.sub("", text)
+    return redact_secrets(text)
 
 
 def _split_long(text: str, limit: int) -> list[str]:
@@ -15,7 +30,7 @@ def _split_long(text: str, limit: int) -> list[str]:
     out: list[str] = []
     buf = ""
     for word in text.split(" "):
-        while len(word) > limit:                # a single word longer than limit → hard char split
+        while len(word) > limit:  # a single word longer than limit → hard char split
             if buf:
                 out.append(buf)
                 buf = ""
@@ -54,12 +69,12 @@ def _strip_frontmatter(text: str) -> str:
     if text.startswith("---"):
         end = text.find("\n---", 3)
         if end != -1:
-            return text[end + 4:]
+            return text[end + 4 :]
     return text
 
 
 def chunk_markdown(text: str, source: str, kind: str) -> list[dict]:
-    body = _strip_frontmatter(text)
+    body = _sanitize(_strip_frontmatter(text))
     paras = body.split("\n\n")
     out = []
     for i, ck in enumerate(_pack(paras)):
@@ -93,7 +108,7 @@ def chunk_transcript(jsonl_text: str, source: str) -> list[dict]:
         role = msg.get("role") or obj.get("type")
         if role not in ("user", "assistant"):
             continue
-        txt = _msg_text(msg.get("content"))
+        txt = _sanitize(_msg_text(msg.get("content")))
         if txt.strip():
             turns.append(f"{role}: {txt.strip()}")
     out = []
