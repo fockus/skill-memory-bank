@@ -36,7 +36,7 @@ Usage:
   mb-pipeline use  NAME            [mb_path]
   mb-pipeline show     [--pipeline NAME] [mb_path]
   mb-pipeline path     [--pipeline NAME] [mb_path]
-  mb-pipeline validate [--pipeline NAME] [path] [mb_path]
+  mb-pipeline validate [--pipeline NAME | --all] [path] [mb_path]
   mb-pipeline --help
 
 Selection ladder (path/show/validate):
@@ -246,12 +246,92 @@ cmd_path() {
   printf '%s\n' "$out"
 }
 
+# validate --all: schema-check every <bank>/pipelines/*.yaml + detect cross-file
+# conflicts (duplicate names, >1 default, an agent bound to multiple pipelines).
+cmd_validate_all() {
+  local mb_arg="${1:-}"
+  local mb pdir
+  mb=$(mb_resolve_path "$mb_arg")
+  pdir="$mb/pipelines"
+  if [ ! -d "$pdir" ]; then
+    echo "[pipeline] no pipelines directory: $pdir" >&2
+    exit 1
+  fi
+  if [ ! -f "$VALIDATOR" ]; then
+    echo "[pipeline] validator missing: $VALIDATOR" >&2
+    exit 1
+  fi
+
+  local had_error=0 f
+  for f in "$pdir"/*.yaml; do
+    [ -f "$f" ] || continue
+    if ! bash "$VALIDATOR" "$f" >&2; then
+      echo "[pipeline] schema error in $(basename "$f")" >&2
+      had_error=1
+    fi
+  done
+
+  MB_PDIR="$pdir" python3 - <<'PY' || had_error=1
+import os, glob, sys
+try:
+    import yaml
+except Exception:
+    yaml = None
+
+pdir = os.environ["MB_PDIR"]
+names = {}
+defaults = []
+agent_owner = {}
+errors = []
+for path in sorted(glob.glob(os.path.join(pdir, "*.yaml"))):
+    base = os.path.splitext(os.path.basename(path))[0]
+    data = {}
+    if yaml is not None:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = yaml.safe_load(fh) or {}
+        except Exception:
+            data = {}
+    name = data.get("pipeline_name") or base
+    if name in names:
+        errors.append(f"duplicate pipeline_name '{name}': {names[name]} and {os.path.basename(path)}")
+    else:
+        names[name] = os.path.basename(path)
+    if data.get("default") is True:
+        defaults.append(name)
+    for a in (data.get("agents") or []):
+        if a in agent_owner:
+            errors.append(f"agent '{a}' bound to multiple pipelines: {agent_owner[a]} and {name}")
+        else:
+            agent_owner[a] = name
+if len(defaults) > 1:
+    errors.append(f"more than one default pipeline: {', '.join(defaults)}")
+for e in errors:
+    sys.stderr.write(f"[pipeline] conflict: {e}\n")
+sys.exit(1 if errors else 0)
+PY
+
+  if [ "$had_error" -ne 0 ]; then
+    exit 1
+  fi
+  echo "[pipeline] all named pipelines valid; no conflicts"
+}
+
 cmd_validate() {
   # Forms:
   #   validate                          — resolve project/default, validate
   #   validate <yaml_file>              — validate explicit file
   #   validate <mb_path>                — resolve under bank, validate
   #   validate --pipeline NAME [mb_path]— validate a named pipeline via the ladder
+  #   validate --all [mb_path]          — validate every named pipeline + cross-file conflicts
+  local all=0 rest=() a
+  for a in "$@"; do
+    if [ "$a" = "--all" ]; then all=1; else rest+=("$a"); fi
+  done
+  if [ "$all" -eq 1 ]; then
+    cmd_validate_all "${rest[@]+"${rest[@]}"}"
+    return 0
+  fi
   parse_select_args "$@"
 
   local target rc=0

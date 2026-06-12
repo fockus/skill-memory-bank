@@ -308,3 +308,67 @@ def test_stages_sdd_without_input_fails() -> None:
 def test_stages_sdd_with_input_passes() -> None:
     r = _run_args("--stages", "sdd,plan,implement,verify", "--input", "topic")
     assert r.returncode == 0, r.stderr
+
+
+# ── named-pipeline metadata (optional keys) — Stage 4 ───────────────────────
+
+
+def test_optional_metadata_valid_passes(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["pipeline_name"] = "claude-fast"
+    cfg["default"] = True
+    cfg["agents"] = ["claude-code", "pi"]
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 0, r.stderr
+
+
+def test_default_non_bool_fails(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["default"] = "yes"  # string, not bool
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 1
+    assert "default" in r.stderr.lower()
+
+
+def test_agents_not_a_list_fails(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["agents"] = "claude-code"  # scalar, not a list
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 1
+    assert "agents" in r.stderr.lower()
+
+
+def test_agents_empty_list_fails(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["agents"] = []
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 1
+    assert "agents" in r.stderr.lower()
+
+
+def test_agents_unknown_client_fails(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["agents"] = ["frobnicator"]
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 1
+    assert "frobnicator" in (r.stderr + r.stdout)
+
+
+def test_pipeline_name_empty_fails(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["pipeline_name"] = "   "
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 1
+    assert "pipeline_name" in r.stderr.lower()

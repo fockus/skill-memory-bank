@@ -620,6 +620,33 @@ if "full_mode_path" not in sdd or not isinstance(sdd.get("full_mode_path"), str)
 if "require_scenarios" in sdd and not isinstance(sdd["require_scenarios"], bool):
     err("sdd.require_scenarios: must be boolean")
 
+# ── named-pipeline metadata (optional keys; validated only with PyYAML) ──
+# pipeline_name / default / agents are an opt-in layer used by named pipelines.
+# The minimal no-PyYAML loader does not model list values, so we validate these
+# only when a real YAML parse is available — absence stays valid (back-compat).
+if yaml is not None:
+    KNOWN_AGENTS = {
+        "claude-code", "cursor", "codex", "opencode",
+        "pi", "windsurf", "cline", "kilo",
+    }
+    if "pipeline_name" in cfg:
+        pn = cfg.get("pipeline_name")
+        if not isinstance(pn, str) or not pn.strip():
+            err("pipeline_name: must be a non-empty string when present")
+    if "default" in cfg and not isinstance(cfg.get("default"), bool):
+        err(f"default: must be boolean when present (got {cfg.get('default')!r})")
+    if "agents" in cfg:
+        agents_val = cfg.get("agents")
+        if not isinstance(agents_val, list) or not agents_val:
+            err("agents: must be a non-empty list of code-agent ids when present")
+        else:
+            for i, a in enumerate(agents_val):
+                if not isinstance(a, str) or not a.strip():
+                    err(f"agents[{i}]: must be a non-empty string")
+                elif a not in KNOWN_AGENTS:
+                    err(f"agents[{i}]: unknown code-agent '{a}' "
+                        f"(known: {', '.join(sorted(KNOWN_AGENTS))})")
+
 # ── final ─────────────────────────────────────────────────────────
 if errors:
     for e in errors:

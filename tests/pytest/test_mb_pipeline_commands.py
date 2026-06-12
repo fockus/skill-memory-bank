@@ -176,3 +176,42 @@ def test_list_graceful_when_no_pipelines(tmp_path: Path) -> None:
     r = _run("list", str(mb))
     assert r.returncode == 0, r.stderr
     assert "no named pipelines" in r.stdout.lower()
+
+
+# ── validate --all (cross-file conflicts) — Stage 4 ─────────────────────────
+
+
+def test_validate_all_clean_passes(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    assert _run("new", "solo", "--default", str(mb)).returncode == 0
+    assert _run("new", "pi-gov", "--agent", "pi", str(mb)).returncode == 0
+    r = _run("validate", "--all", str(mb))
+    assert r.returncode == 0, r.stderr + r.stdout
+
+
+def test_validate_all_detects_two_defaults(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    assert _run("new", "a", "--default", str(mb)).returncode == 0
+    assert _run("new", "b", "--default", str(mb)).returncode == 0
+    r = _run("validate", "--all", str(mb))
+    assert r.returncode != 0
+    assert "default" in (r.stderr + r.stdout).lower()
+
+
+def test_validate_all_detects_agent_bound_twice(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    assert _run("new", "a", "--agent", "claude-code", str(mb)).returncode == 0
+    assert _run("new", "b", "--agent", "claude-code", str(mb)).returncode == 0
+    r = _run("validate", "--all", str(mb))
+    assert r.returncode != 0
+    assert "claude-code" in (r.stderr + r.stdout)
+
+
+def test_validate_all_propagates_schema_error(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    assert _run("new", "ok", str(mb)).returncode == 0
+    bad = mb / "pipelines" / "bad.yaml"
+    bad.write_text("pipeline_name: bad\nversion: 1\n", encoding="utf-8")  # missing required keys
+    r = _run("validate", "--all", str(mb))
+    assert r.returncode != 0
+    assert "bad" in (r.stderr + r.stdout)
