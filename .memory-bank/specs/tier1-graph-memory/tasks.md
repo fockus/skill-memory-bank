@@ -242,10 +242,10 @@
   exists; no `claude` binary → hint + no writes.
 
 **DoD:**
-- [ ] scenario 8 green; progress.md only ever loses the stub line
-- [ ] command documented (mb.md + scripts table)
-- [ ] tests pass
-- [ ] shellcheck clean
+- [x] scenario 8 green; progress.md only ever loses the stub line
+- [x] command documented (mb.md + scripts table)
+- [x] tests pass
+- [x] shellcheck clean
 
 <!-- mb-task:11 -->
 ## Task 11: `/mb conflicts`

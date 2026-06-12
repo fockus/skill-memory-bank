@@ -169,6 +169,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-reviewer-resolve.sh` | Pick the active reviewer agent name |
 | `mb-session-spend.sh` | Session token-spend tracker (sprint context guard) |
 | `mb-session-recent-rebuild.sh` | Regenerate `session/_recent.md` from `session/*.md` (keeps newest `MB_RECENT_KEEP`; deterministic, idempotent) |
+| `mb-recap.sh <sid>` | `/mb recap`: reconstruct a full `progress.md` entry from `session/<sid>*.md` via one Haiku call, replacing that session's auto-capture stub idempotently (`recapped` frontmatter). Missing session → exit non-zero, no writes; real entry already present → refuse |
 | `mb-auto-commit.sh` | Opt-in auto-commit of `.memory-bank/` after `/mb done` (`MB_AUTO_COMMIT=1`) — 4 safety gates |
 | `mb-migrate-v2.sh` | One-shot v1 → v2 migrator for `.memory-bank/` |
 | `mb-migrate-structure.sh` | One-shot v3.0 → v3.1 structure migrator for `.memory-bank/` |
