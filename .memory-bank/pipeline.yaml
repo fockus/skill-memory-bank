@@ -1,0 +1,281 @@
+# memory-bank — default execution pipeline (spec §9)
+#
+# This file is shipped with the skill. `/mb config init` copies it into
+# `<bank>/pipeline.yaml` so the project can override per-project values.
+# `/mb work` consumes the resolved file (project override → this default).
+
+version: 1
+
+# ===== Roles — mapping role → agent (plugin-style overrides supported) =====
+roles:
+  developer: { agent: mb-developer }
+  backend:   { agent: mb-backend,   fallback: mb-developer }
+  frontend:  { agent: mb-frontend,  fallback: mb-developer }
+  ios:       { agent: mb-ios,       fallback: mb-developer }
+  android:   { agent: mb-android,   fallback: mb-developer }
+  planner:   { agent: mb-architect }
+  architect: { agent: mb-architect }
+  researcher: { agent: mb-researcher, fallback: mb-analyst }
+  devops:    { agent: mb-devops,    fallback: mb-developer }
+  qa:        { agent: mb-qa,        fallback: mb-developer }
+  analyst:   { agent: mb-analyst }
+  # Reviewer routed to external Codex CLI (user decision 2026-06-12):
+  # dispatched via `codex exec` with the exact model below, NOT a host subagent.
+  # No override_if_skill_present — routing must stay on Codex.
+  reviewer:
+    agent: codex-cli
+    model: gpt-5.5
+    thinking: xhigh
+  reviewer_logic:       { agent: mb-reviewer-logic }
+  reviewer_tests:       { agent: mb-reviewer-tests }
+  reviewer_quality:     { agent: mb-reviewer-quality }
+  reviewer_security:    { agent: mb-reviewer-security }
+  reviewer_scalability: { agent: mb-reviewer-scalability }
+  reviewer_lead:        { agent: mb-reviewer-lead }
+  judge:                { agent: mb-judge }
+  verifier:  { agent: plan-verifier }
+
+# ===== Workflow modes for /mb work =====
+# Projects may override workflow.default or any workflows.<name> block locally.
+# The default /mb work mode starts from an already-created plan/spec.
+workflow:
+  default: codex-governed
+  aliases:
+    everything: full
+    from-scratch: full-cycle
+    requirements: requirements-plan
+    planning: requirements-plan
+    implement: implement-only
+    review: review-fix
+    governed: governed-execution
+    strict: governed-execution
+
+workflows:
+  codex-governed:
+    description: Single external reviewer on Codex CLI (gpt-5.5) + independent judge gate; bounded fix loop (no endless review cycles).
+    steps: [implement, verify, review, judge, fix, done]
+    entrypoint: plan_or_spec
+    review_profile: single
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  full:
+    description: Complete composable chain — brainstorm to verified, reviewed, judged work.
+    steps: [discuss, sdd, plan, implement, verify, review, judge, done]
+    entrypoint: freeform_or_topic
+    interactive: true
+    review_profile: single
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  full-cycle:
+    description: Interactive simple path from idea to verified work.
+    steps: [discuss, sdd, plan, implement, verify, done]
+    entrypoint: freeform_or_topic
+    interactive: true
+
+  requirements-plan:
+    description: Requirements/planning only; produces context/spec/plan artifacts.
+    steps: [discuss, sdd, plan]
+    entrypoint: freeform_or_topic
+    interactive: true
+
+  execution:
+    description: Simple default /mb work path from an existing plan/spec.
+    steps: [implement, verify, done]
+    entrypoint: plan_or_spec
+
+  governed-execution:
+    description: Advanced quality gate with verifier, review ensemble, lead reviewer, independent judge, bounded fix loop, and backlog handoff.
+    steps: [implement, verify, review, judge, fix, done]
+    entrypoint: plan_or_spec
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  implement-only:
+    description: Implement and verify a work item, then stop before review.
+    steps: [implement, verify]
+    entrypoint: plan_or_spec
+
+  review-fix:
+    description: Governed review of existing changes with judge-controlled fixes/backlog.
+    steps: [verify, review, judge, fix, done]
+    entrypoint: plan_or_spec_or_diff
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  review-only:
+    description: Verify, run review ensemble, and ask judge without automatic fixes.
+    steps: [verify, review, judge]
+    entrypoint: plan_or_spec_or_diff
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      max_cycles: 1
+      on_max_cycles: stop_for_human
+      approval_required: false
+
+# Backward-compatible per-item pipeline for older /mb work orchestrators that
+# only understand stage_pipeline. The DEFAULT is review-free: implement → verify →
+# done. Enable review with `/mb work --review` or by setting `review.enabled: true`
+# in the project pipeline.yaml (see the `review:` block below). New orchestrators
+# SHOULD read workflow.default and workflows.<name>.
+stage_pipeline:
+  - step: implement
+    role: auto                # auto-select based on stage context
+    tdd: true
+  - step: verify
+    role: verifier
+    checks:
+      - ears_format
+      - contract_first_tests
+      - test_red_green
+      - dod_checkboxes
+      - architecture_drift
+      - no_placeholders
+      - protocol_abc_defined
+  - step: done
+    role: verifier
+    require_review_approval: false
+
+# Opt-in single-reviewer review step — OFF by default. Turn it on per-run with
+# `/mb work --review`, or persist it for a project by setting `enabled: true`
+# here. When active, `/mb work` runs implement → verify → review → done: the
+# reviewer agent is resolved via mb-reviewer-resolve.sh and its findings are gated
+# by mb-work-severity-gate.sh against severity_gate below. (The heavyweight
+# multi-reviewer ensemble lives in workflows.governed-execution / review_ensemble.)
+review:
+  enabled: true
+  role: reviewer
+  categories: [logic, code_rules, security, scalability, tests]
+  severity_gate:
+    blocker: 0
+    major: 0
+    minor: 3
+  max_cycles: 3
+  on_max_cycles: stop_for_human   # | continue_with_warning
+
+# ===== Per-stage opt-in toggles for composable /mb work pipelines =====
+# Each stage below is OFF by default. Turn one on per-run with its launch flag
+# (`--brainstorm`/`--sdd`/`--plan`/`--review`/`--judge`) or persist it here by
+# setting `enabled: true`. Launch flags win over these values; both add/remove a
+# stage on top of the resolved preset (`workflow.default` or `--workflow`).
+# `review:` (above) and `judge:`/`sdd:` (below) carry the same `enabled` toggle.
+discuss:
+  enabled: false   # brainstorm/requirements interview stage (alias: --brainstorm)
+plan:
+  enabled: false   # planning stage
+
+# ===== Governed review profile (used only by workflows with review_profile: ensemble) =====
+review_ensemble:
+  min_reviewers: 3
+  max_reviewers: 5
+  reviewers:
+    - role: reviewer_logic
+      focus: logic
+    - role: reviewer_tests
+      focus: tests
+    - role: reviewer_quality
+      focus: code_rules
+    - role: reviewer_security
+      focus: security
+    - role: reviewer_scalability
+      focus: scalability
+  lead_role: reviewer_lead
+  previous_report_required_after_cycle: 1
+
+# ===== Judge gate (used only by workflows with judge_profile: independent) =====
+judge:
+  enabled: true                  # ON for this project (codex-governed workflow)
+  role: judge
+  decisions: [GO, GO_WITH_BACKLOG, NO_GO]
+  fix_only_decision: NO_GO
+  backlog_decision: GO_WITH_BACKLOG
+  backlog_destination: backlog.md
+  register_backlog_before_done: true
+  blocking_policy:
+    - unmet_acceptance_criteria
+    - failed_verification
+    - security_or_data_loss_risk
+    - broken_build_or_tests
+    - protected_path_violation
+    - normal_user_behavior_contradicts_spec
+
+# ===== Budget / risk =====
+budget:
+  default_limit: null            # null = unlimited; CLI --budget overrides
+  warn_at_percent: 80
+  stop_at_percent: 100
+
+protected_paths:
+  - ".env*"
+  - "ci/**"
+  - ".github/workflows/**"
+  - "Dockerfile*"
+  - "k8s/**"
+  - "terraform/**"
+
+sprint_context_guard:
+  soft_warn_tokens: 150000
+  hard_stop_tokens: 190000
+
+# ===== Review rubric — fixed keys, extensible items =====
+review_rubric:
+  logic:
+    - "Every EARS requirement has at least one assertion in tests"
+    - "Edge cases from requirements covered"
+  code_rules:
+    - "SOLID: SRP — files <300 lines OR <=3 public methods"
+    - "No placeholders (TODO/...)"
+    - "Imports complete, functions copy-paste ready"
+  security:
+    - "Input validation at boundaries"
+    - "No secrets in code"
+    - "No raw SQL string concat"
+  scalability:
+    - "No N+1 queries introduced"
+    - "Async where IO-bound"
+  tests:
+    - "Contract-first: Protocol/ABC defined before impl"
+    - "Integration tests > unit tests (Testing Trophy)"
+    - "No test.skip / describe.skip"
+
+# ===== SDD enforcement =====
+sdd:
+  enabled: false                          # opt-in composable stage (flag: --sdd)
+  require_ears_in_sdd_command: true       # /mb sdd — hard requirement
+  require_ears_in_plan_command: false     # /mb plan — soft (warning)
+  require_ears_in_plan_with_sdd_flag: true # /mb plan --sdd — hard
+  covers_requirements_policy: warn        # warn | block | off
+  full_mode_path: ".memory-bank/specs"
+  require_scenarios: false                # opt-in: /mb sdd runs mb-spec-validate --require-scenarios
+                                          # (every REQ must have >=1 GIVEN/WHEN/THEN scenario). Default off
+                                          # so EARS-only specs stay valid.
