@@ -168,10 +168,10 @@
   green).
 
 **DoD:**
-- [ ] outcome + diffstat in bullets, $0 (no LLM call added)
-- [ ] non-git and no-jq guards keep exit 0
-- [ ] tests pass (bats + existing redaction e2e)
-- [ ] shellcheck clean
+- [x] outcome + diffstat in bullets, $0 (no LLM call added)
+- [x] non-git and no-jq guards keep exit 0
+- [x] tests pass (bats + existing redaction e2e)
+- [x] shellcheck clean
 
 <!-- mb-task:8 -->
 ## Task 8: Structured session summary (schema v2)

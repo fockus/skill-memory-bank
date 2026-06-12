@@ -1,0 +1,4 @@
+{"type":"user","uuid":"ue-1","message":{"role":"user","content":"run the failing command"}}
+{"type":"assistant","uuid":"ae-1","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"false"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"te-1","is_error":true,"content":"command failed"}]}}
+{"type":"assistant","uuid":"ae-2","message":{"role":"assistant","content":[{"type":"text","text":"that failed, retrying"}]}}

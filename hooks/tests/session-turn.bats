@@ -94,6 +94,79 @@ _payload() { # $1=stop_hook_active
   grep -q 'turns: 2' "$pre"
 }
 
+@test "clean turn bullet carries outcome 'ok' (REQ-009)" {
+  _payload false
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  grep -q '· ok' "$sf"
+  # no failed tool calls in this transcript → never err(N)
+  if grep -q '· err(' "$sf"; then false; fi
+}
+
+@test "failed tool call → bullet carries err(N) outcome (REQ-009)" {
+  cp "$FIX/transcript-tool-error.jsonl" "$TMP/e.jsonl"
+  printf '{"cwd":"%s","session_id":"af0a3685-3ee9-4db8","transcript_path":"%s","stop_hook_active":false}' \
+    "$PROJ" "$TMP/e.jsonl" > "$TMP/ine.json"
+  run bash -c "bash '$HOOK' < '$TMP/ine.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  grep -q '· err(1)' "$sf"
+  if grep -q '· ok' "$sf"; then false; fi
+}
+
+@test "non-git project → no diffstat segment, exit 0 (REQ-009)" {
+  # $PROJ has a .memory-bank but is NOT a git work tree → diffstat must be absent.
+  _payload false
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  # no aggregate diffstat segment when outside a git repo
+  if grep -qE '· \+[0-9]+/-[0-9]+' "$sf"; then false; fi
+}
+
+@test "git work tree with changes → bullet carries EXACT +A/-B diffstat (REQ-009)" {
+  command -v git >/dev/null || skip "git required"
+  git -C "$PROJ" init -q
+  git -C "$PROJ" config user.email t@t.t
+  git -C "$PROJ" config user.name t
+  printf 'line one\nline two\n' > "$PROJ/tracked.txt"
+  git -C "$PROJ" add tracked.txt
+  git -C "$PROJ" commit -qm init
+  # Unstaged edit with KNOWN counts: numstat reports the file as +2/-1
+  # (git numstat counts modified-line as one add + one delete, plus the new line):
+  #   - "line one"  → "line one CHANGED"  (1 del, 1 add)
+  #   - "line three" appended             (1 add)
+  # → +2/-1. Assert the EXACT value so an always-"+0/-0" impl fails.
+  printf 'line one CHANGED\nline two\nline three\n' > "$PROJ/tracked.txt"
+  expected="$(git -C "$PROJ" diff --numstat \
+    | awk '{a+=($1=="-"?0:$1); d+=($2=="-"?0:$2)} END{printf "+%d/-%d", a, d}')"
+  [ "$expected" = "+2/-1" ]
+  _payload false
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  grep -qF "· +2/-1" "$sf"
+}
+
+@test "bare repo → no diffstat segment, exit 0 (REQ-009)" {
+  # A bare repo is not a work tree → `git diff` fails there, so the segment must be
+  # omitted entirely (an --is-inside-work-tree probe wrongly prints "false" + exits 0,
+  # which would emit a spurious +0/-0). CWD points AT the bare repo dir.
+  command -v git >/dev/null || skip "git required"
+  bare="$TMP/bare.git"
+  git init --bare -q "$bare"
+  mkdir -p "$bare/.memory-bank"
+  printf '{"cwd":"%s","session_id":"af0a3685-3ee9-4db8","transcript_path":"%s","stop_hook_active":false}' \
+    "$bare" "$TMP/t.jsonl" > "$TMP/inb.json"
+  run bash -c "bash '$HOOK' < '$TMP/inb.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$bare/.memory-bank/session/"*.md)"
+  # bullet present, but NO diffstat segment in a bare repo
+  [ "$(grep -c '^- ' "$sf")" -eq 1 ]
+  if grep -qE '· \+[0-9]+/-[0-9]+' "$sf"; then false; fi
+}
+
 @test "stop_hook_active=true → exit 0, nothing written (REQ-SM-014)" {
   _payload true
   run bash -c "bash '$HOOK' < '$TMP/in.json'"

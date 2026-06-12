@@ -7,16 +7,17 @@
 # tool_use blocks, so it cannot supply tools/files — hence our own implementation.
 #
 # Usage:   extract-tools-files.sh <transcript.jsonl>
-# Output:  four lines (always, even on error — fail-safe REQ-SM-007):
+# Output:  five lines (always, even on error — fail-safe REQ-SM-007):
 #            user=<last user prompt, single line, truncated>
 #            tools=<comma-joined, deduped, sorted>
 #            files=<comma-joined, deduped, sorted>
 #            turn=<uuid of the last REAL user message — the stable per-turn dedup anchor>
+#            errors=<count of failed tool calls this turn — tool_result blocks with is_error:true>
 set -u
 
 TRANSCRIPT="${1:-}"
 
-emit_empty() { printf 'user=\ntools=\nfiles=\nturn=\n'; exit 0; }
+emit_empty() { printf 'user=\ntools=\nfiles=\nturn=\nerrors=0\n'; exit 0; }
 
 [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] && [ -s "$TRANSCRIPT" ] || emit_empty
 command -v python3 >/dev/null 2>&1 || emit_empty
@@ -37,7 +38,7 @@ try:
             except Exception:
                 continue
 except Exception:
-    print("user=\ntools=\nfiles=\nturn=")
+    print("user=\ntools=\nfiles=\nturn=\nerrors=0")
     sys.exit(0)
 
 def msg(rec):
@@ -70,28 +71,35 @@ if last_user >= 0:
     user_uuid = recs[last_user].get("uuid", "") or ""
 
 tools, files = set(), set()
+errors = 0  # failed tool calls this turn = tool_result blocks with is_error:true
 start = last_user + 1 if last_user >= 0 else 0
 for rec in recs[start:]:
-    if rec.get("type") != "assistant":
-        continue
+    rtype = rec.get("type")
     content = msg(rec).get("content")
     if not isinstance(content, list):
         continue
     for b in content:
-        if not isinstance(b, dict) or b.get("type") != "tool_use":
+        if not isinstance(b, dict):
             continue
-        name = b.get("name")
-        if name:
-            tools.add(name)
-        inp = b.get("input") or {}
-        if isinstance(inp, dict):
-            for key in ("file_path", "path", "notebook_path"):
-                v = inp.get(key)
-                if isinstance(v, str) and v:
-                    files.add(v)
+        btype = b.get("type")
+        # tool_use blocks live in assistant records → tool + file names
+        if rtype == "assistant" and btype == "tool_use":
+            name = b.get("name")
+            if name:
+                tools.add(name)
+            inp = b.get("input") or {}
+            if isinstance(inp, dict):
+                for key in ("file_path", "path", "notebook_path"):
+                    v = inp.get(key)
+                    if isinstance(v, str) and v:
+                        files.add(v)
+        # tool_result blocks live in user records → outcome signal (REQ-009)
+        elif rtype == "user" and btype == "tool_result" and b.get("is_error") is True:
+            errors += 1
 
 print("user=" + user_text)
 print("tools=" + ",".join(sorted(tools)))
 print("files=" + ",".join(sorted(files)))
 print("turn=" + user_uuid)
+print("errors=" + str(errors))
 PY

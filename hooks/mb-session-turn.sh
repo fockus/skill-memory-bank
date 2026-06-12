@@ -79,8 +79,32 @@ user_line="$(printf '%s\n' "$fields" | sed -n 's/^user=//p')"
 tools="$(printf '%s\n' "$fields" | sed -n 's/^tools=//p')"
 files="$(printf '%s\n' "$fields" | sed -n 's/^files=//p')"
 turn_uuid="$(printf '%s\n' "$fields" | sed -n 's/^turn=//p')"
+errors="$(printf '%s\n' "$fields" | sed -n 's/^errors=//p')"
 [ -n "$tools" ] || tools="(none)"
 [ -n "$files" ] || files="(none)"
+
+# Outcome signal (REQ-009): `ok` when every tool call succeeded, `err(N)` when N
+# tool_result blocks this turn carried is_error:true (counted by the extractor in
+# the same turn-scoped window). No LLM call.
+case "$errors" in
+  ''|0|*[!0-9]*) outcome="ok" ;;
+  *)             outcome="err($errors)" ;;
+esac
+
+# Aggregate diffstat (REQ-009): `+A/-B` summed from `git diff --numstat` (unstaged
+# tracked changes). Contract via a SINGLE git invocation: `git diff` FAILS outside a
+# work tree AND in a bare repo, so the segment is omitted entirely there (and on any
+# git/missing-git failure) — those turns stay exit 0. Inside a repo it succeeds; empty
+# output ⇒ `+0/-0`, which correctly means "nothing changed". Exactly one git call,
+# zero git calls outside repos. Binary files report `-` in numstat; awk treats as 0.
+diffstat=""
+if out="$(git -C "$CWD" diff --numstat 2>/dev/null)"; then
+  diffstat="$(printf '%s' "$out" | awk '{a+=($1=="-"?0:$1); d+=($2=="-"?0:$2)} END{printf "+%d/-%d", a, d}')"
+fi
+
+# Final bullet format (documented for downstream parsers — B2/C1 consume it):
+#   - HH:MM — User: "<text>" · tools: <T> · files: <F> · <ok|err(N)>[ · +A/-B]
+# The diffstat segment is appended only when inside a git work tree.
 
 # dedup: skip if this turn anchor was already captured (duplicate hook registration from
 # project-local + global settings firing the same Stop event, or a re-fire)
@@ -91,8 +115,10 @@ fi
 
 # Redact API keys/tokens before the bullet reaches disk (regression: an OpenRouter
 # key quoted in a user message was persisted verbatim). MB_REDACT_SECRETS=off disables.
-printf -- '- %s — User: "%s" · tools: %s · files: %s\n' "$hm" "$user_line" "$tools" "$files" \
-  | sc_redact_secrets >> "$SF"
+bullet="$(printf -- '- %s — User: "%s" · tools: %s · files: %s · %s' \
+  "$hm" "$user_line" "$tools" "$files" "$outcome")"
+[ -n "$diffstat" ] && bullet="$bullet · $diffstat"
+printf -- '%s\n' "$bullet" | sc_redact_secrets >> "$SF"
 
 # bump turn counter + record this turn's anchor uuid for dedup
 cur="$(sc_fm_get "$SF" turns)"
