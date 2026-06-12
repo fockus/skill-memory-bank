@@ -125,10 +125,10 @@
   ranking shifts for hot file when attribute present.
 
 **DoD:**
-- [ ] churn computed from the same git pass (no extra subprocess; assert call count)
-- [ ] fail-open without git history
-- [ ] tests pass
-- [ ] lint clean
+- [x] churn computed from the same git pass (no extra subprocess; assert call count)
+- [x] fail-open without git history
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:6 -->
 ## Task 6: Community-summary retrieval

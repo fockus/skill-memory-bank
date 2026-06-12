@@ -6,8 +6,17 @@ is information the AST/tree-sitter graph cannot see (e.g. a config file and the
 code that reads it, a test and its subject).
 
 Public surface (consumed by ``mb-codegraph.py``):
-    ``co_change_edges`` · ``render_cochange_section``
-    ``parse_git_log`` · ``count_pairs`` (pure, exported for testing)
+    ``co_change_edges`` · ``co_change_and_churn`` · ``render_cochange_section``
+    ``parse_git_log`` · ``parse_git_log_with_dates`` · ``count_pairs`` ·
+    ``count_churn`` (pure, exported for testing)
+
+The opt-in ``--cochange`` build also derives a per-file ``churn_30d`` recency
+signal (commits touching a file in the last 30 days) from the SAME ``git log``
+pass — no extra subprocess. Churn is inherently time-dependent (it shifts as
+``now`` advances and as history grows); that is acceptable and only ever affects
+the explicitly opt-in path. The signal is emitted as additive
+``{"type": "node-attr", "file": ..., "churn_30d": N}`` JSONL rows (graph schema
+is additive-only — unknown row types are ignored by every existing consumer).
 
 Gracefully degrades to ``[]`` outside a git repo or when ``git`` is absent —
 never raises. ``git`` is already a required Memory Bank dependency, so this adds
@@ -17,16 +26,18 @@ no new requirement.
 from __future__ import annotations
 
 import subprocess
+import time
 from collections import Counter
 from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-_WINDOW = 200               # commits scanned (most recent)
-_MIN_SHARED = 2             # a pair needs ≥2 shared commits to be an edge
+_WINDOW = 200  # commits scanned (most recent)
+_MIN_SHARED = 2  # a pair needs ≥2 shared commits to be an edge
 _MAX_FILES_PER_COMMIT = 25  # commits touching more files are bulk noise → skipped
-_MAX_PAIRS = 100            # cap edges emitted (highest weight kept)
-_TOP_DISPLAY = 20           # rows in the markdown section
+_MAX_PAIRS = 100  # cap edges emitted (highest weight kept)
+_TOP_DISPLAY = 20  # rows in the markdown section
+_CHURN_WINDOW_DAYS = 30  # recency window for the churn signal
 _NUL = "\x00"
 
 
@@ -41,6 +52,27 @@ def parse_git_log(raw: str) -> list[set[str]]:
         files = {line.strip() for line in record.splitlines() if line.strip()}
         if files:
             commits.append(files)
+    return commits
+
+
+def parse_git_log_with_dates(raw: str) -> list[tuple[int | None, set[str]]]:
+    """Split ``git log --name-only --format=%x00%ct`` into ``(timestamp, files)``.
+
+    Each commit record starts with a NUL marker immediately followed by the
+    committer unix timestamp (``%ct``); the changed file names follow on their
+    own lines. The leading timestamp line is consumed as the date, NOT as a file,
+    so the file-sets are identical to :func:`parse_git_log` for the file-only
+    format. A non-numeric / missing timestamp degrades to ``None`` (that commit
+    is then ignored by churn but still usable for co-change pairing).
+    """
+    commits: list[tuple[int | None, set[str]]] = []
+    for record in raw.split(_NUL):
+        lines = [line.strip() for line in record.splitlines() if line.strip()]
+        if not lines:
+            continue
+        head, files = lines[0], set(lines[1:])
+        ts: int | None = int(head) if head.isdigit() else None
+        commits.append((ts, files))
     return commits
 
 
@@ -73,13 +105,56 @@ def count_pairs(
     return pairs[:max_pairs]
 
 
+def count_churn(
+    commits: list[tuple[int | None, set[str]]],
+    known_files: set[str],
+    *,
+    now: int,
+    window_days: int = _CHURN_WINDOW_DAYS,
+) -> dict[str, int]:
+    """Per-file commit count within the last ``window_days``.
+
+    Counts each commit at or after ``now - window_days`` once per touched file
+    that is a known graph node. Commits without a timestamp (``None``) and files
+    outside ``known_files`` are ignored. Pure — ``now`` is injected for
+    deterministic tests.
+    """
+    known = set(known_files)
+    cutoff = now - window_days * 86_400
+    churn: Counter[str] = Counter()
+    for ts, files in commits:
+        if ts is None or ts < cutoff:
+            continue
+        for f in files:
+            if f in known:
+                churn[f] += 1
+    return dict(churn)
+
+
 def _git_log(src_root: Path, window: int) -> str | None:
-    """Run ``git log`` for ``window`` commits. Returns None when git unavailable."""
+    """Run ``git log`` for ``window`` commits. Returns None when git unavailable.
+
+    The format is ``%x00%ct`` — a NUL record marker followed by the committer
+    unix timestamp — so a single pass feeds BOTH co-change pairing (file-sets)
+    and the churn signal (per-file recency). See :func:`parse_git_log_with_dates`.
+    """
     try:
         result = subprocess.run(
-            ["git", "-C", str(src_root), "log", "--no-merges", "--name-only",
-             "-n", str(window), "--format=%x00"],
-            capture_output=True, text=True, timeout=60, check=False,
+            [
+                "git",
+                "-C",
+                str(src_root),
+                "log",
+                "--no-merges",
+                "--name-only",
+                "-n",
+                str(window),
+                "--format=%x00%ct",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
         )
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
         return None
@@ -92,7 +167,10 @@ def _git_toplevel(src_root: Path) -> Path | None:
     try:
         result = subprocess.run(
             ["git", "-C", str(src_root), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=5, check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
         )
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
         return None
@@ -112,8 +190,30 @@ def _reroot(commits: list[set[str]], prefix: str) -> list[set[str]]:
     head = prefix + "/"
     out: list[set[str]] = []
     for files in commits:
-        out.append({f[len(head):] for f in files if f.startswith(head)})
+        out.append({f[len(head) :] for f in files if f.startswith(head)})
     return out
+
+
+def _reroot_dated(
+    commits: list[tuple[int | None, set[str]]], prefix: str
+) -> list[tuple[int | None, set[str]]]:
+    """``_reroot`` for ``(timestamp, files)`` commits — timestamps preserved."""
+    if not prefix:
+        return commits
+    head = prefix + "/"
+    return [(ts, {f[len(head) :] for f in files if f.startswith(head)}) for ts, files in commits]
+
+
+def _prefix_for(root: Path) -> str:
+    """src_root path relative to the git toplevel (``""`` when at the top)."""
+    toplevel = _git_toplevel(root)
+    if toplevel is None:
+        return ""
+    try:
+        prefix = root.resolve().relative_to(toplevel.resolve()).as_posix()
+    except ValueError:
+        return ""
+    return prefix if prefix and prefix != "." else ""
 
 
 def co_change_edges(
@@ -130,26 +230,63 @@ def co_change_edges(
     Returns ``[{"src": a, "dst": b, "kind": "co_change", "weight": n}]`` with
     ``a < b``. Empty when ``src_root`` is not in a git repo or git is missing.
     """
-    root = Path(src_root)
-    raw = _git_log(root, window)
-    if raw is None:
-        return []
-    commits = parse_git_log(raw)
-    toplevel = _git_toplevel(root)
-    if toplevel is not None:
-        try:
-            prefix = root.resolve().relative_to(toplevel.resolve()).as_posix()
-        except ValueError:
-            prefix = ""
-        if prefix and prefix != ".":
-            commits = _reroot(commits, prefix)
-    pairs = count_pairs(
-        commits, known_files,
+    edges, _ = co_change_and_churn(
+        src_root,
+        known_files,
+        window=window,
         min_shared=min_shared,
         max_files_per_commit=max_files_per_commit,
         max_pairs=max_pairs,
     )
-    return [{"src": a, "dst": b, "kind": "co_change", "weight": n} for a, b, n in pairs]
+    return edges
+
+
+def co_change_and_churn(
+    src_root: Path | str,
+    known_files: set[str],
+    *,
+    window: int = _WINDOW,
+    min_shared: int = _MIN_SHARED,
+    max_files_per_commit: int = _MAX_FILES_PER_COMMIT,
+    max_pairs: int = _MAX_PAIRS,
+    churn_window_days: int = _CHURN_WINDOW_DAYS,
+    now: int | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Co-change edges AND per-file churn attrs from a SINGLE ``git log`` pass.
+
+    Returns ``(edges, attrs)`` where ``attrs`` is a list of additive
+    ``{"type": "node-attr", "file": f, "churn_30d": n}`` rows (deterministically
+    ordered by file). Both are empty when ``src_root`` is not in a git repo or
+    git is missing (fail-open). ``now`` defaults to wall-clock time; it is
+    injectable for deterministic tests.
+    """
+    root = Path(src_root)
+    raw = _git_log(root, window)
+    if raw is None:
+        return [], []
+    commits = parse_git_log_with_dates(raw)
+    prefix = _prefix_for(root)
+    if prefix:
+        commits = _reroot_dated(commits, prefix)
+
+    file_sets = [files for _, files in commits]
+    pairs = count_pairs(
+        file_sets,
+        known_files,
+        min_shared=min_shared,
+        max_files_per_commit=max_files_per_commit,
+        max_pairs=max_pairs,
+    )
+    edges = [{"src": a, "dst": b, "kind": "co_change", "weight": n} for a, b, n in pairs]
+
+    churn = count_churn(
+        commits,
+        known_files,
+        now=int(time.time()) if now is None else now,
+        window_days=churn_window_days,
+    )
+    attrs = [{"type": "node-attr", "file": f, "churn_30d": churn[f]} for f in sorted(churn)]
+    return edges, attrs
 
 
 def render_cochange_section(edges: list[dict[str, Any]]) -> str:

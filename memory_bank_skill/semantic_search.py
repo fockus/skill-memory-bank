@@ -12,6 +12,7 @@ if ``/mb wiki`` has been run). A code-aware tokenizer splits ``snake_case`` and
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from collections import Counter
@@ -181,6 +182,57 @@ def build_corpus(
     return docs
 
 
+def load_churn(graph_path: Path | str) -> dict[str, int]:
+    """Read additive ``node-attr`` churn rows from ``graph.json`` → ``{file: churn_30d}``.
+
+    Churn rows exist only when the graph was built with ``/mb graph --apply
+    --cochange``. Absent file / no rows / malformed lines → ``{}`` (fail-open).
+    The canonical graph loader ignores ``node-attr`` rows, so this reads the raw
+    JSONL directly.
+    """
+    path = Path(graph_path)
+    if not path.is_file():
+        return {}
+    churn: dict[str, int] = {}
+    with path.open(encoding="utf-8") as stream:
+        for line in stream:
+            stripped = line.strip()
+            if not stripped or '"node-attr"' not in stripped:
+                continue
+            try:
+                record = json.loads(stripped)
+            except json.JSONDecodeError:
+                continue
+            if record.get("type") != "node-attr":
+                continue
+            file_name = record.get("file")
+            value = record.get("churn_30d")
+            if isinstance(file_name, str) and isinstance(value, int):
+                churn[file_name] = value
+    return churn
+
+
+def apply_churn_multiplier(
+    hits: list[dict[str, Any]], churn: dict[str, int]
+) -> list[dict[str, Any]]:
+    """Scale each hit's score by ``1 + 0.1*log1p(churn_30d)`` for its file, re-sort.
+
+    Applied AFTER ranking/fusion to final scores so it behaves identically for
+    BM25, embeddings, and the RRF-fused path. A hit whose file has no churn
+    attribute keeps its score unchanged. Empty ``churn`` → input returned
+    untouched (order and scores byte-identical). Re-sorts by ``(score desc, id
+    asc)`` to match the engine's deterministic tie-break.
+    """
+    if not churn:
+        return hits
+    for hit in hits:
+        n = churn.get(hit.get("file", ""))
+        if n:
+            hit["score"] = round(hit["score"] * (1 + 0.1 * math.log1p(n)), 6)
+    hits.sort(key=lambda h: (-h["score"], str(h["id"])))
+    return hits
+
+
 class FusedRetriever:
     """RRF fusion of BM25 + embeddings. Used by ``auto`` when both are available.
 
@@ -303,7 +355,15 @@ def run_search(
     cache_dir = mb / ".index" / "codesearch"
     retriever = make_retriever(backend, warnings=warnings, cache_dir=cache_dir)
     retriever.index(corpus)
-    hits = retriever.search(query, k)
+    # Churn re-rank (design §A4) multiplies final scores then re-sorts, so it must
+    # run over the FULL candidate set — a hot file below an arbitrary k*N window
+    # could otherwise never be promoted into top-k. Fetch the whole corpus when
+    # churn is present (graph nodes are a small corpus; retrievers already score
+    # everything internally). No churn → fetch_k = k stays byte-identical.
+    churn = load_churn(graph_path)
+    fetch_k = len(corpus) if churn else k
+    hits = retriever.search(query, fetch_k)
+    hits = apply_churn_multiplier(hits, churn)[:k]
     return {
         "ok": True,
         "query": query,

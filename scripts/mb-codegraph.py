@@ -293,6 +293,7 @@ def _write_graph_jsonl(
     graph: dict[str, Any],
     target: Path,
     communities: dict[str, int] | None = None,
+    node_attrs: list[dict[str, Any]] | None = None,
 ) -> None:
     communities = communities or {}
     lines: list[str] = []
@@ -304,6 +305,10 @@ def _write_graph_jsonl(
         lines.append(json.dumps(record, ensure_ascii=False))
     for e in graph["edges"]:
         lines.append(json.dumps({"type": "edge", **e}, ensure_ascii=False))
+    # Additive ``node-attr`` rows (e.g. churn_30d) — a new, opt-in row type that
+    # existing consumers ignore. Default build emits none → byte-identical.
+    for a in node_attrs or []:
+        lines.append(json.dumps(a, ensure_ascii=False))
     atomic_write(target, "\n".join(lines) + "\n")
 
 
@@ -354,15 +359,19 @@ def run(
     if mode != "apply":
         return summary
 
-    # Opt-in: append git co-change file edges (deterministic, $0). Default off
-    # keeps graph.json byte-identical.
+    # Opt-in: append git co-change file edges + per-file churn attrs
+    # (deterministic, $0, single git pass). Default off keeps graph.json
+    # byte-identical.
     cochange_edges: list[dict[str, Any]] = []
+    churn_attrs: list[dict[str, Any]] = []
     if cochange:
         known_files = {n["file"] for n in graph["nodes"] if n.get("file")}
-        cochange_edges = cgco.co_change_edges(src, known_files)
+        cochange_edges, churn_attrs = cgco.co_change_and_churn(src, known_files)
         graph["edges"].extend(cochange_edges)
         summary["cochange_edges"] = len(cochange_edges)
+        summary["churn_files"] = len(churn_attrs)
         print(f"cochange_edges={len(cochange_edges)}")
+        print(f"churn_files={len(churn_attrs)}")
 
     communities = cga.detect_communities(graph)
     betweenness = cga.file_betweenness(graph)
@@ -379,7 +388,7 @@ def run(
         summary["questions"] = len(suggested)
         print(f"questions={len(suggested)}")
 
-    _write_graph_jsonl(graph, codebase / "graph.json", communities)
+    _write_graph_jsonl(graph, codebase / "graph.json", communities, churn_attrs)
     atomic_write(
         codebase / "god-nodes.md",
         _render_god_nodes(graph, communities, betweenness, cochange_edges, suggested, pagerank),
