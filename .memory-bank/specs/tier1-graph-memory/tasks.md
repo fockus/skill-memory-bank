@@ -314,10 +314,10 @@
   ref → warning, exit code per drift conventions; no markers → silent.
 
 **DoD:**
-- [ ] convention documented in both files
-- [ ] drift checker wired into `mb-drift.sh` roster
-- [ ] tests pass
-- [ ] shellcheck clean
+- [x] convention documented in both files
+- [x] drift checker wired into `mb-drift.sh` roster
+- [x] tests pass
+- [x] shellcheck clean
 
 <!-- mb-task:14 -->
 ## Task 14: `--sessions` graph layer

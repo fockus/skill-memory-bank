@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mb-drift.sh — 14 deterministic drift checkers for Memory Bank (no AI required).
+# mb-drift.sh — 15 deterministic drift checkers for Memory Bank (no AI required).
 #
 # Usage:
 #   mb-drift.sh [project-dir]
@@ -421,6 +421,97 @@ check_plan_vs_git() {
   fi
 }
 
+# ═══ 15. supersedes — `[SUPERSEDED: YYYY-MM-DD -> <ref>]` markers are well-formed ═══
+# Convention (design.md §B4 / agents/mb-manager.md / references/metadata.md): a
+# superseded fact is never edited in place — the new fact is appended and the old
+# one is tagged `[SUPERSEDED: YYYY-MM-DD -> notes/<file>#<heading>]`. This checker
+# scans notes/, lessons.md, progress.md and session/ for those markers and flags:
+#   - malformed: missing `-> <ref>`, or a date that is not a YYYY-MM-DD literal;
+#   - dangling: <ref>'s file part (anchor stripped) does not exist under the bank.
+# Valid markers and zero markers are silent — same drift conventions as above.
+check_supersedes() {
+  local malformed=0 dangling=0 file line seg marker date ref target
+  local sources=("$MB/lessons.md" "$MB/progress.md")
+  for file in "$MB"/notes/*.md "$MB"/session/*.md; do
+    [ -f "$file" ] && sources+=("$file")
+  done
+  for file in "${sources[@]}"; do
+    [ -f "$file" ] || continue
+    # A single line may carry SEVERAL `[SUPERSEDED…` openers — validate EVERY one,
+    # not just the first. Split the line so each opener starts its own segment
+    # (newline before each `[SUPERSEDED`), then validate each segment in turn. A
+    # segment that does not match the strict shape is a malformed/dangling opener.
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      while IFS= read -r seg; do
+        case "$seg" in
+          '[SUPERSEDED'*) : ;;            # a marker opener begins this segment
+          *) continue ;;                  # leading text before the first opener
+        esac
+        # Strict shape, anchored at the opener: `[SUPERSEDED: YYYY-MM-DD -> <ref>]`.
+        marker=$(printf '%s\n' "$seg" \
+          | grep -oE '^\[SUPERSEDED:[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]*->[[:space:]]*[^]]+\]' \
+          | head -1 || true)
+        if [ -z "$marker" ]; then
+          malformed=$(( malformed + 1 ))
+          echo "  - $(basename "$file"): malformed SUPERSEDED marker (need [SUPERSEDED: YYYY-MM-DD -> <ref>])" >&2
+          continue
+        fi
+        # Extract date + ref from the well-formed marker.
+        date=$(printf '%s' "$marker" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
+        ref=$(printf '%s' "$marker" | sed -E 's/^\[SUPERSEDED:[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]*->[[:space:]]*//; s/[[:space:]]*\]$//')
+        # Reject impossible months/days that the shape regex still admits.
+        if ! date_ok "$date"; then
+          malformed=$(( malformed + 1 ))
+          echo "  - $(basename "$file"): SUPERSEDED date '$date' is not a valid calendar date" >&2
+          continue
+        fi
+        # Drop a `#heading` anchor and any trailing whitespace before resolving.
+        target="${ref%%#*}"
+        target="${target%"${target##*[![:space:]]}"}"
+        if [ -z "$target" ] || { [ ! -e "$MB/$target" ] && [ ! -e "$DIR/$target" ]; }; then
+          dangling=$(( dangling + 1 ))
+          echo "  - $(basename "$file"): SUPERSEDED ref '$ref' points at a missing target" >&2
+        fi
+      done < <(printf '%s\n' "$line" | awk '{gsub(/\[SUPERSEDED/,"\n&"); print}')
+    done < <(grep -nE '\[SUPERSEDED:' "$file" 2>/dev/null | sed -E 's/^[0-9]+://')
+  done
+  if [ $(( malformed + dangling )) -gt 0 ]; then
+    warn supersedes "$malformed malformed + $dangling dangling SUPERSEDED marker(s)"
+  else
+    ok supersedes
+  fi
+}
+
+# Calendar-validate a YYYY-MM-DD string (the shape regex admits e.g. 2026-13-40,
+# 2026-02-30 or a non-leap 2026-02-29). Real validation: per-month day count plus
+# the Gregorian leap rule (÷4, except centuries unless ÷400). Pure-shell arithmetic
+# — no `date -d`/`date -j`, so it is portable across macOS bash 3.2 and GNU.
+date_ok() {
+  local y m d max
+  y=$(printf '%s' "$1" | cut -d- -f1)
+  m=$(printf '%s' "$1" | cut -d- -f2)
+  d=$(printf '%s' "$1" | cut -d- -f3)
+  # Force base-10 so a leading zero (e.g. "09") is not read as octal.
+  y=$((10#$y)); m=$((10#$m)); d=$((10#$d)) 2>/dev/null || return 1
+  [ "$m" -ge 1 ] && [ "$m" -le 12 ] || return 1
+  [ "$d" -ge 1 ] || return 1
+  case "$m" in
+    1|3|5|7|8|10|12) max=31 ;;
+    4|6|9|11)        max=30 ;;
+    2)
+      # Leap year: divisible by 4, but centuries only if divisible by 400.
+      if [ $(( y % 4 )) -eq 0 ] && { [ $(( y % 100 )) -ne 0 ] || [ $(( y % 400 )) -eq 0 ]; }; then
+        max=29
+      else
+        max=28
+      fi
+      ;;
+    *) return 1 ;;
+  esac
+  [ "$d" -le "$max" ]
+}
+
 # ═══ Run all checks ═══
 check_path
 check_staleness
@@ -436,6 +527,7 @@ check_uncommitted
 check_active_plans
 check_plan_status
 check_plan_vs_git
+check_supersedes
 
 echo "drift_warnings=$WARNINGS"
 

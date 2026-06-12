@@ -99,4 +99,35 @@ Agent reads `index.json` → filters by `tags` / `importance` → reads only rel
 6. **Do not paste logs, stack traces, or large code blocks.** Only distilled notes.
 7. **ML experiments**: hypothesis (SMART) → baseline → one change → run → result (p-value, Cohen's d).
 8. **Architectural decisions** → ADR in `backlog.md` (context → decision → alternatives → consequences).
+9. **Supersede convention**: when a fact is invalidated, append the new entry and
+   mark the old one in place with `[SUPERSEDED: YYYY-MM-DD -> <ref>]` — never edit
+   or delete the old fact's substance.
+
+---
+
+## Supersede convention
+
+When a note, lesson, or progress/session entry is invalidated by a newer fact,
+**do not edit or delete it in place** (the append-only / knowledge-trail invariant).
+Instead:
+
+1. **Append** the new fact to its proper home (`notes/`, `lessons.md`, etc.).
+2. **Mark the old entry** by inserting a `[SUPERSEDED: YYYY-MM-DD -> <ref>]` tag on it.
+
+```text
+[SUPERSEDED: YYYY-MM-DD -> notes/<file>#<heading>]
+```
+
+- `YYYY-MM-DD` — the date the fact was superseded (a valid calendar date).
+- `<ref>` — a pointer to the **superseding** entry: a path under the bank, optionally
+  with a `#<heading>` anchor (e.g. `notes/2026-06-12_ledger.md#decision`).
+- Scope: `notes/`, `lessons.md`, `progress.md`, `session/`.
+
+**Validation.** `scripts/mb-drift.sh` (checker `supersedes`) scans the bank and warns on:
+
+- **malformed** markers — a missing `-> <ref>` arrow or a date that is not a valid
+  `YYYY-MM-DD` literal;
+- **dangling** markers — a `<ref>` whose target file (anchor stripped) does not exist.
+
+Valid markers and a bank with zero markers stay silent (no warning).
 

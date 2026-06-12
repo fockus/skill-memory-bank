@@ -83,7 +83,14 @@ Use Read to inspect files, Edit to update existing files, and Write to create ne
 4. **If a file does not exist — create it** with a minimal header.
 5. **Checklist markers**: `✅` = done, `⬜` = not done.
 6. **Do not insert logs, stack traces, or large code blocks.** Only distilled notes.
-7. **Return a structured response**: what was updated, file links, short summary.
+7. **Supersede, never overwrite.** When a note or lesson is invalidated by a new
+   fact, **append the new entry** and **mark the old one in place** with a
+   `[SUPERSEDED: YYYY-MM-DD -> <ref>]` tag — never delete or edit the old fact's
+   substance. `<ref>` points at the superseding entry (e.g.
+   `notes/2026-06-12_topic.md#heading`). Applies to `notes/`, `lessons.md`,
+   `progress.md`, and `session/`. Malformed (bad date / missing `-> <ref>`) or
+   dangling (ref target missing) markers are flagged by `scripts/mb-drift.sh`.
+8. **Return a structured response**: what was updated, file links, short summary.
 
 ### Plan consistency — REQUIRED
 
