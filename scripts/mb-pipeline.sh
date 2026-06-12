@@ -31,6 +31,9 @@ mb-pipeline — manage execution pipeline.yaml
 
 Usage:
   mb-pipeline init  [--force] [mb_path]
+  mb-pipeline list                 [mb_path]
+  mb-pipeline new  NAME [--agent a,b] [--from NAME|default] [--default] [--force] [mb_path]
+  mb-pipeline use  NAME            [mb_path]
   mb-pipeline show     [--pipeline NAME] [mb_path]
   mb-pipeline path     [--pipeline NAME] [mb_path]
   mb-pipeline validate [--pipeline NAME] [path] [mb_path]
@@ -268,6 +271,172 @@ cmd_validate() {
   bash "$VALIDATOR" "$target"
 }
 
+# Validate a pipeline name: filename-safe, no path traversal.
+valid_pipeline_name() {
+  case "$1" in
+    ""|*"/"*|*".."*) return 1 ;;
+  esac
+  [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]]
+}
+
+# new <name> [--agent a,b] [--from NAME|default] [--default] [--force] [mb_path]
+cmd_new() {
+  local name="" agents="" from="default" mkdefault=0 force=0 mb_arg=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --agent|--agents)
+        if [ "$#" -ge 2 ]; then agents="$2"; shift 2;
+        else echo "[pipeline] $1 requires a value" >&2; exit 2; fi ;;
+      --agent=*|--agents=*) agents="${1#*=}"; shift ;;
+      --from)
+        if [ "$#" -ge 2 ]; then from="$2"; shift 2;
+        else echo "[pipeline] --from requires a value" >&2; exit 2; fi ;;
+      --from=*) from="${1#*=}"; shift ;;
+      --default) mkdefault=1; shift ;;
+      --force) force=1; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) if [ -z "$name" ]; then name="$1"; elif [ -z "$mb_arg" ]; then mb_arg="$1"; fi; shift ;;
+    esac
+  done
+  if [ -z "$name" ]; then echo "[pipeline] new requires a name" >&2; exit 2; fi
+  if ! valid_pipeline_name "$name"; then
+    echo "[pipeline] invalid pipeline name: '$name' (allowed: A-Z a-z 0-9 . _ -)" >&2; exit 2
+  fi
+
+  local mb pdir
+  mb=$(mb_resolve_path "$mb_arg")
+  if [ ! -d "$mb" ]; then echo "[pipeline] bank directory does not exist: $mb" >&2; exit 1; fi
+  pdir="$mb/pipelines"
+  mkdir -p "$pdir"
+  local target="$pdir/$name.yaml"
+  if [ -f "$target" ] && [ "$force" -eq 0 ]; then
+    echo "[pipeline] $target already exists (use --force to overwrite)" >&2; exit 1
+  fi
+
+  local base
+  if [ "$from" = "default" ]; then
+    base="$DEFAULT_YAML"
+  else
+    base="$pdir/$from.yaml"
+  fi
+  if [ ! -f "$base" ]; then echo "[pipeline] base pipeline not found: $base" >&2; exit 1; fi
+
+  MB_NEW_NAME="$name" MB_NEW_AGENTS="$agents" MB_NEW_DEFAULT="$mkdefault" \
+    python3 - "$base" "$target" <<'PY'
+import os, sys
+
+base, target = sys.argv[1], sys.argv[2]
+name = os.environ["MB_NEW_NAME"]
+agents_raw = os.environ.get("MB_NEW_AGENTS", "")
+is_default = os.environ.get("MB_NEW_DEFAULT") == "1"
+
+with open(base, encoding="utf-8") as fh:
+    lines = fh.readlines()
+
+META = ("pipeline_name:", "default:", "agents:")
+cleaned = []
+skip_block = False
+for line in lines:
+    stripped = line.strip()
+    if skip_block:
+        if line[:1] in (" ", "\t") or stripped.startswith("- "):
+            continue
+        skip_block = False
+    # drop any prior generated metadata header comment
+    if stripped.startswith("# Named pipeline:"):
+        continue
+    # drop top-level metadata keys (and an agents: block list body)
+    if line[:1] not in (" ", "\t") and any(stripped.startswith(k) for k in META):
+        if stripped.startswith("agents:") and not stripped.split(":", 1)[1].strip():
+            skip_block = True
+        continue
+    cleaned.append(line)
+
+while cleaned and not cleaned[0].strip():
+    cleaned.pop(0)
+
+agents_list = [a for a in agents_raw.replace(",", " ").split() if a]
+header = [
+    f"# Named pipeline: {name} (created by /mb pipeline new)\n",
+    f"pipeline_name: {name}\n",
+    f"default: {'true' if is_default else 'false'}\n",
+]
+if agents_list:
+    header.append("agents: [" + ", ".join(agents_list) + "]\n")
+header.append("\n")
+
+with open(target, "w", encoding="utf-8") as fh:
+    fh.writelines(header + cleaned)
+PY
+  echo "[pipeline] created $target"
+}
+
+# use <name> [mb_path] — set <bank>/.mb-config pipeline=<name> (non-destructive default switch).
+cmd_use() {
+  local name="" mb_arg=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -h|--help) usage; exit 0 ;;
+      *) if [ -z "$name" ]; then name="$1"; elif [ -z "$mb_arg" ]; then mb_arg="$1"; fi; shift ;;
+    esac
+  done
+  if [ -z "$name" ]; then echo "[pipeline] use requires a name" >&2; exit 2; fi
+  local mb pdir
+  mb=$(mb_resolve_path "$mb_arg")
+  pdir="$mb/pipelines"
+  if [ ! -f "$pdir/$name.yaml" ]; then
+    echo "[pipeline] no such pipeline: $pdir/$name.yaml" >&2; exit 1
+  fi
+  local cfg="$mb/.mb-config"
+  if [ -f "$cfg" ] && grep -qE '^pipeline=' "$cfg" 2>/dev/null; then
+    local tmp; tmp=$(mktemp)
+    grep -vE '^pipeline=' "$cfg" > "$tmp" || true
+    printf 'pipeline=%s\n' "$name" >> "$tmp"
+    mv "$tmp" "$cfg"
+  else
+    printf 'pipeline=%s\n' "$name" >> "$cfg"
+  fi
+  echo "[pipeline] default pipeline set to '$name' ($cfg)"
+}
+
+# list [mb_path] — table of named pipelines (name · default · agents · file), marking the active one.
+cmd_list() {
+  local mb_arg=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -h|--help) usage; exit 0 ;;
+      *) if [ -z "$mb_arg" ]; then mb_arg="$1"; fi; shift ;;
+    esac
+  done
+  local mb pdir host active
+  mb=$(mb_resolve_path "$mb_arg")
+  pdir="$mb/pipelines"
+  host=$(mb_detect_host)
+  active=$(resolve_selected_pipeline_path "$mb_arg" "" 2>/dev/null || true)
+
+  if [ ! -d "$pdir" ] || ! ls "$pdir"/*.yaml >/dev/null 2>&1; then
+    echo "(no named pipelines under $pdir)"
+    echo "active (resolved now): ${active:-<none>}"
+    return 0
+  fi
+
+  printf '%-20s %-8s %-26s %s\n' "NAME" "DEFAULT" "AGENTS" "FILE"
+  local f name def agents mark
+  for f in "$pdir"/*.yaml; do
+    [ -f "$f" ] || continue
+    name=$(mb_pipeline_meta "$f" pipeline_name)
+    if [ -z "$name" ]; then name=$(basename "$f" .yaml); fi
+    def=$(mb_pipeline_meta "$f" default)
+    agents=$(mb_pipeline_meta "$f" agents)
+    mark=""
+    if [ "$(abspath "$f")" = "$active" ]; then mark=" *"; fi
+    printf '%-20s %-8s %-26s %s%s\n' "$name" "$def" "${agents:-—}" "$f" "$mark"
+  done
+  echo
+  echo "detected host: ${host:-<none>}"
+  echo "active (resolved now): ${active:-<none>}   (* = selected)"
+}
+
 main() {
   if [ "$#" -lt 1 ]; then
     usage >&2
@@ -276,6 +445,9 @@ main() {
   case "$1" in
     -h|--help) usage; exit 0 ;;
     init) shift; cmd_init "$@" ;;
+    new) shift; cmd_new "$@" ;;
+    use) shift; cmd_use "$@" ;;
+    list) shift; cmd_list "$@" ;;
     show) shift; cmd_show "$@" ;;
     path) shift; cmd_path "$@" ;;
     validate) shift; cmd_validate "$@" ;;
