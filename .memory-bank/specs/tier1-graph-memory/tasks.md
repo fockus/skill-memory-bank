@@ -76,11 +76,11 @@
   unique-fallback kept, same-module call unchanged.
 
 **DoD:**
-- [ ] scenarios 3-4 green
-- [ ] edge delta on this repo measured and reported (false-edge reduction)
-- [ ] cache version bumped; stale cache rebuilds automatically (test)
-- [ ] tests pass
-- [ ] lint clean
+- [x] scenarios 3-4 green
+- [x] edge delta on this repo measured and reported (false-edge reduction) — see progress.md 2026-06-12 (incl. honest correction: precision feature, not edge-count reduction)
+- [x] cache version bumped; stale cache rebuilds automatically (test)
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:4 -->
 ## Task 4: Personalized PageRank god-nodes

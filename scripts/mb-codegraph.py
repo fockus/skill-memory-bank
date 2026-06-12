@@ -86,7 +86,10 @@ def _filter_gitignored(files: list[Path], src_root: Path) -> list[Path]:
     try:
         toplevel = subprocess.run(
             ["git", "-C", str(src_root), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=5, check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
         )
         if toplevel.returncode != 0:
             return files
@@ -107,7 +110,11 @@ def _filter_gitignored(files: list[Path], src_root: Path) -> list[Path]:
     try:
         check = subprocess.run(
             ["git", "-C", str(git_root), "check-ignore", "--stdin"],
-            input=payload, capture_output=True, text=True, timeout=60, check=False,
+            input=payload,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
         )
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
         return files
@@ -117,8 +124,11 @@ def _filter_gitignored(files: list[Path], src_root: Path) -> list[Path]:
         return files
 
     ignored = set(check.stdout.splitlines())
-    return [f for f, rel_path in zip(files, rel_inputs, strict=True)
-            if not rel_path or rel_path not in ignored]
+    return [
+        f
+        for f, rel_path in zip(files, rel_inputs, strict=True)
+        if not rel_path or rel_path not in ignored
+    ]
 
 
 def build_graph(
@@ -128,12 +138,21 @@ def build_graph(
 ) -> dict[str, Any]:
     """Walk src_root, parse each supported file, aggregate nodes+edges.
 
-    If cache_dir provided: skip re-parse when file hash AND docs-mode match cache.
+    If cache_dir provided: skip re-parse when file hash AND docs-mode AND
+    cache_version all match; any mismatch forces a re-parse.
     ``include_docs`` (opt-in) emits optional ``doc``/``signature`` node fields.
     Returns aggregated {"nodes": [...], "edges": [...], "reparsed": N, "cached": M}.
+
+    After all files are parsed, import-aware call resolution is applied via
+    ``cgpy.bind_calls``: bare-name cross-module calls are resolved against the
+    per-file import map; ambiguous unimported homonyms are suppressed.
     """
     all_nodes: list[dict[str, Any]] = []
     all_edges: list[dict[str, Any]] = []
+    # per-file import bindings: {file_rel: {local_name: "mod.symbol"}}
+    all_import_bindings: dict[str, dict[str, str]] = {}
+    # per-file star imports: {file_rel: ["module", ...]} from `from mod import *`
+    all_star_imports: dict[str, list[str]] = {}
     reparsed = 0
     cached = 0
 
@@ -168,19 +187,28 @@ def build_graph(
                 text = src_file.read_text(encoding="utf-8")
                 content_hash = sha256(text)
             else:
-                content_hash = sha256(
-                    src_file.read_bytes().decode("utf-8", errors="replace")
-                )
+                content_hash = sha256(src_file.read_bytes().decode("utf-8", errors="replace"))
         except (OSError, UnicodeDecodeError):
             continue
 
-        # Cache check (hash AND docs-mode must match, else re-parse)
+        # Cache check: hash AND docs-mode AND cache_version must all match.
         if cache_dir is not None:
             cached_data = _load_cache(cache_dir, rel_path)
-            if (cached_data and cached_data.get("hash") == content_hash
-                    and bool(cached_data.get("docs", False)) == include_docs):
+            if (
+                cached_data
+                and cached_data.get("hash") == content_hash
+                and bool(cached_data.get("docs", False)) == include_docs
+                and cached_data.get("cache_version") == cgpy.CACHE_VERSION
+            ):
                 all_nodes.extend(cached_data.get("nodes", []))
                 all_edges.extend(cached_data.get("edges", []))
+                # Restore import_bindings from cache (needed for bind_calls pass)
+                file_bindings = cached_data.get("import_bindings")
+                if isinstance(file_bindings, dict):
+                    all_import_bindings[rel_path] = file_bindings
+                file_stars = cached_data.get("star_imports")
+                if isinstance(file_stars, list):
+                    all_star_imports[rel_path] = file_stars
                 cached += 1
                 continue
 
@@ -190,8 +218,9 @@ def build_graph(
                 result = cgpy.parse_file(src_file, src_root, include_docs=include_docs)
             elif ext in cgts.LANG_CONFIG and cgts.HAS_TREE_SITTER:
                 lang_name, module_name = cgts.LANG_CONFIG[ext]
-                result = cgts.parse_ts_file(src_file, src_root, lang_name, module_name,
-                                            include_docs=include_docs)
+                result = cgts.parse_ts_file(
+                    src_file, src_root, lang_name, module_name, include_docs=include_docs
+                )
             else:
                 continue
         except SyntaxError as e:
@@ -203,11 +232,42 @@ def build_graph(
 
         all_nodes.extend(result["nodes"])
         all_edges.extend(result["edges"])
+        # Collect per-file import bindings for the bind_calls pass
+        file_bindings = result.get("import_bindings")
+        if isinstance(file_bindings, dict):
+            all_import_bindings[rel_path] = file_bindings
+        file_stars = result.get("star_imports")
+        if isinstance(file_stars, list):
+            all_star_imports[rel_path] = file_stars
         reparsed += 1
 
         if cache_dir is not None:
             result["docs"] = include_docs  # stamp docs-mode so a flag toggle re-parses
+            result["cache_version"] = cgpy.CACHE_VERSION
             _save_cache(cache_dir, rel_path, result)
+
+    # ── Import-aware call resolution (Python files only) ──────────────────────
+    # Build definitions map: bare_name → [list of file_rel that define it].
+    # Only considers function and class nodes (not modules) AND only Python
+    # files: a Python bare call must never bind to a Go/JS/TS/Rust/Java homonym
+    # (design.md § A2 — Python-first; non-Python keeps name-matching unchanged).
+    definitions: dict[str, list[str]] = {}
+    for node in all_nodes:
+        if node.get("kind") not in ("function", "class"):
+            continue
+        file_rel = node.get("file", "")
+        if not file_rel.endswith(".py"):
+            continue
+        name: str = node.get("name", "")
+        # Use the simple (non-qualified) name for lookup — qualnames like
+        # "MyClass.method" are not relevant for bare-name resolution.
+        bare = name.split(".")[-1] if "." in name else name
+        if bare:
+            definitions.setdefault(bare, [])
+            if file_rel and file_rel not in definitions[bare]:
+                definitions[bare].append(file_rel)
+
+    all_edges = cgpy.bind_calls(all_edges, all_import_bindings, definitions, all_star_imports)
 
     return {"nodes": all_nodes, "edges": all_edges, "reparsed": reparsed, "cached": cached}
 
@@ -318,34 +378,50 @@ def run(
         print(f"questions={len(suggested)}")
 
     _write_graph_jsonl(graph, codebase / "graph.json", communities)
-    atomic_write(codebase / "god-nodes.md",
-                 _render_god_nodes(graph, communities, betweenness, cochange_edges, suggested))
+    atomic_write(
+        codebase / "god-nodes.md",
+        _render_god_nodes(graph, communities, betweenness, cochange_edges, suggested),
+    )
 
     return summary
 
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Code graph builder for Memory Bank")
-    parser.add_argument("--apply", action="store_true",
-                        help="Write graph.json + god-nodes.md (default: dry-run)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Stdout summary only (default)")
-    parser.add_argument("--cochange", action="store_true",
-                        help="Add git co-change file edges (opt-in; requires --apply)")
-    parser.add_argument("--questions", action="store_true",
-                        help="Append deterministic suggested questions to god-nodes.md "
-                             "(opt-in; requires --apply)")
-    parser.add_argument("--docs", action="store_true",
-                        help="Enrich nodes with doc/signature for richer semantic search "
-                             "(opt-in; changes graph.json — clears nothing, re-parses on toggle)")
+    parser.add_argument(
+        "--apply", action="store_true", help="Write graph.json + god-nodes.md (default: dry-run)"
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Stdout summary only (default)")
+    parser.add_argument(
+        "--cochange",
+        action="store_true",
+        help="Add git co-change file edges (opt-in; requires --apply)",
+    )
+    parser.add_argument(
+        "--questions",
+        action="store_true",
+        help="Append deterministic suggested questions to god-nodes.md (opt-in; requires --apply)",
+    )
+    parser.add_argument(
+        "--docs",
+        action="store_true",
+        help="Enrich nodes with doc/signature for richer semantic search "
+        "(opt-in; changes graph.json — clears nothing, re-parses on toggle)",
+    )
     parser.add_argument("mb_path", nargs="?", default=".memory-bank")
     parser.add_argument("src_root", nargs="?", default=".")
     args = parser.parse_args(argv[1:])
 
     mode = "apply" if args.apply else "dry-run"
     try:
-        run(mb_path=args.mb_path, src_root=args.src_root, mode=mode,
-            cochange=args.cochange, questions=args.questions, docs=args.docs)
+        run(
+            mb_path=args.mb_path,
+            src_root=args.src_root,
+            mode=mode,
+            cochange=args.cochange,
+            questions=args.questions,
+            docs=args.docs,
+        )
     except FileNotFoundError as e:
         print(f"[error] {e}", file=sys.stderr)
         return 1

@@ -350,6 +350,12 @@
 
 ### I-065 — rrf.py:47 docstring example — replace ellipsis with concrete tuples (review tier1 task1 #2) [LOW, NEW, 2026-06-12]
 
+
+### I-066 — BEFORE 5.1.0: bind_calls unique-fallback — build definitions from module-level symbols only (exclude methods/nested; Codex tier1-task3 r3 major) [HIGH, NEW, 2026-06-12]
+
+
+### I-067 — BEFORE 5.1.0: unique-fallback dst for root __init__.py formats as '.foo' — guard empty module prefix (Codex tier1-task3 r3 minor) [MED, NEW, 2026-06-12]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

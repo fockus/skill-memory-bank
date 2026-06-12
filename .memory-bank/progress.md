@@ -2095,3 +2095,30 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 
 ### 2026-06-12 — tier1 task 3: import-aware call resolution, edge delta
 - Measured on this repo at HEAD 491b717: call edges 8567 (name-matching, v1) → 7729 (import-aware, CACHE_VERSION=2) = **−838 false cross-module edges (−9.8%)**. Method: `git stash` around `python3 scripts/mb-codegraph.py --dry-run .memory-bank .`.
+
+### 2026-06-12 — correction: tier1 task 3 edge delta
+- The earlier "−838 false edges" measurement was inflated by the local-shadowing bug (legitimate same-module calls were suppressed/rewritten). After fix cycle 1 (Rule 0 local-wins, relative-import level resolution, star-import binding, dotted dst namespace): name-matching 8604 → import-aware 8652 (+48; qualified dsts reduce dedup collisions). Honest claim: import-aware binding REBINDS bare calls to qualified definitions and suppresses only genuinely ambiguous homonyms; it is a precision feature, not an edge-count reduction.
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 6bfe515c)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session bfc39197)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session bce0a41f)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session b3bf7d77)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
