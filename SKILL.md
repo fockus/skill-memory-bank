@@ -166,6 +166,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-review-parse.sh` | Validate reviewer output for `/mb work` review-loop |
 | `mb-work-severity-gate.sh` | Apply `pipeline.yaml:severity_gate` to review counts |
 | `mb-workflow.sh` | Resolve the active workflow + per-step `model`/`thinking` config from `pipeline.yaml` for `/mb work` |
+| `mb-agent-caps.sh` | Capability-aware dispatch: resolve CLI transport (pi/opencode/codex/claude-agent) + concrete model per role by probing CLI presence and model availability |
 | `mb-reviewer-resolve.sh` | Pick the active reviewer agent name |
 | `mb-session-spend.sh` | Session token-spend tracker (sprint context guard) |
 | `mb-session-recent-rebuild.sh` | Regenerate `session/_recent.md` from `session/*.md` (keeps newest `MB_RECENT_KEEP`; deterministic, idempotent) |
