@@ -64,17 +64,40 @@ if [ "${MB_SESSION_EMPTY_GUARD:-on}" != "off" ] && [ "$already_summarized" != tr
   printf '%s\n' "$_livelog" | grep -qE 'User: "[^"]|tools: [A-Za-z]' || exit 0
 fi
 
-# Summary source. Prefer the full raw transcript only when it fits the summarizer's context
-# window. Oversized sessions (raw transcripts reach tens of MB) made `claude -p` emit
-# "Prompt is too long" — which used to be stored AS the summary. When the transcript is too
-# large, summarize the complete distilled Live-log instead: a lossless per-turn record,
-# far better signal than a lossy head/tail slice of raw JSONL — and never slurped wholesale.
+# Summary source (REQ-011). The PRIMARY input is the session's own distilled `## Live log`
+# (frontmatter + per-turn bullets: request · tools · files · ok|err(N)[ · +A/-B]) plus the
+# outcome signals it already carries — a structured, deterministic, redacted-at-write-time
+# record. We deliberately do NOT feed the raw transcript tail: it is lossy, oversized (raw
+# JSONL reaches tens of MB, which made `claude -p` emit "Prompt is too long"), and unstructured.
+# Raw-transcript fallback: a session whose Live log is contentless falls back to the raw
+# transcript. Under the DEFAULT config this branch is unreachable — the empty-session guard
+# above (MB_SESSION_EMPTY_GUARD=on) already exits for exactly the same condition (no real
+# request and no real tool in the Live log). The fallback therefore serves only the documented
+# MB_SESSION_EMPTY_GUARD=off toggle: with the guard disabled, a contentless Live log still gets
+# summarized from the raw transcript instead of being silently dropped.
 MAX_CHARS="${MB_SUMMARY_MAX_CHARS:-200000}"
-TRANSCRIPT="$(sc_fm_get "$SF" transcript)"
-if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] && [ "$(wc -c < "$TRANSCRIPT")" -le "$MAX_CHARS" ]; then
-  SRC="$(cat "$TRANSCRIPT")"
+# Frontmatter block (between the first two `---`) + the `## Live log` section ONLY.
+# Stop printing at the NEXT `## ` heading after Live log: a re-run session file may already
+# carry a generated `## Summary` / `## Auto-notes emitted` section below the Live log, and
+# feeding those back in would let a previously generated summary masquerade as per-turn bullets.
+LIVELOG="$(awk '
+  NR==1 && /^---$/ { print; fm=1; next }
+  fm && /^---$/    { print; fm=0; next }
+  fm               { print; next }
+  ll && /^## / && !/^## Live log/ { ll=0 }
+  /^## Live log/   { ll=1 }
+  ll               { print }
+' "$SF")"
+if printf '%s\n' "$LIVELOG" | grep -qE 'User: "[^"]|tools: [A-Za-z]'; then
+  SRC="$LIVELOG"
 else
-  SRC="$(awk '/^## Live log/{f=1} f{print}' "$SF")"
+  # Empty/contentless Live log → fall back to the raw transcript when it fits the window.
+  TRANSCRIPT="$(sc_fm_get "$SF" transcript)"
+  if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] && [ "$(wc -c < "$TRANSCRIPT")" -le "$MAX_CHARS" ]; then
+    SRC="$(cat "$TRANSCRIPT")"
+  else
+    SRC="$LIVELOG"
+  fi
 fi
 [ -n "$SRC" ] || exit 0
 
@@ -94,7 +117,16 @@ fi
 
 # ── Step 1: Haiku summary + _recent rotation (only when not already summarized) ──────────────
 if [ "$already_summarized" != true ]; then
-  PROMPT="Summarize this Claude Code session in 3-6 plain sentences: what the user asked and what was actually done. Output only the summary text, no preamble.
+  # Structured summary (REQ-010): demand EXACTLY these four markdown sections so downstream
+  # consumers can parse the result deterministically. The input below is the distilled Live log.
+  PROMPT="Summarize this Claude Code session for a project Memory Bank. The input is a distilled per-turn log (each turn: the user request, the tools used, the files touched, the outcome, and the diffstat). Output ONLY these four markdown sections, in this exact order, with these exact headings — no preamble, no other text:
+
+### What changed
+### Decisions
+### Open questions
+### Files
+
+Rules: one concise bullet per item (or a short line); be specific and factual; under each heading write \"(none)\" if there is nothing to report; never invent content not supported by the log. List concrete file paths under ### Files.
 
 $SRC"
 
@@ -118,9 +150,39 @@ $SRC"
   # principle echo a secret it saw in an earlier, unredacted context).
   SUMMARY="$(printf '%s' "$SUMMARY" | sc_redact_secrets)"
 
+  # ── Schema validation (REQ-010): the `summary_schema: v2` flag must never lie ─────────────
+  # The flag's contract is "present ⇒ the stored summary really carries the four headings, in
+  # order", so downstream consumers (the _recent rebuild, the code-graph wiki) can parse it
+  # deterministically. The summarizer output is NOT trusted blindly: a known preamble such as
+  # `[MEMORY BANK: ACTIVE]` (the user's global CLAUDE.md mandates it as the first response line)
+  # or any malformed response would otherwise be stamped v2 and break that parser contract.
+  #
+  # When the four headings appear in the exact required order, strip any leading preamble lines
+  # before the first `### What changed` (status line / stray prose) and accept as v2. Otherwise
+  # store the summary as-is with NO flag — legacy treatment, fully parseable, the flag stays
+  # honest. Pure awk; no new dependency, no extra LLM call.
+  SUMMARY_V2=false
+  if STRIPPED="$(printf '%s\n' "$SUMMARY" | awk '
+      # Print only from the first "### What changed" onward (drops leading preamble), and verify
+      # the four headings appear in the exact required order. Exit non-zero unless all four matched.
+      !started && $0 == "### What changed" { started=1; want=2 }   # next wanted = Decisions
+      started
+      started && want==2 && $0 == "### Decisions"      { want=3 }
+      started && want==3 && $0 == "### Open questions"  { want=4 }
+      started && want==4 && $0 == "### Files"           { want=5 }
+      END { exit (want==5 ? 0 : 1) }
+  ')"; then
+    SUMMARY="$STRIPPED"
+    SUMMARY_V2=true
+  fi
+
   # append Summary section and mark summarized (under the held lock)
   printf '\n## Summary\n%s\n' "$SUMMARY" >> "$SF"
   sc_fm_set "$SF" summarized true
+  # Mark the schema ONLY for a validated four-section summary so consumers know it follows the
+  # fixed template. Malformed/legacy-shaped output is stored as-is and carries no flag (it stays
+  # fully parseable); the flag must never advertise a structure that is not actually present.
+  [ "$SUMMARY_V2" = true ] && sc_fm_set "$SF" summary_schema v2
 
   # prepend to _recent.md, keep newest N sections
   RECENT="$MB/session/_recent.md"

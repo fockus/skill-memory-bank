@@ -192,10 +192,10 @@
   `_recent.md` rebuild.
 
 **DoD:**
-- [ ] summarizer input is the redacted structured log (asserted via stub)
-- [ ] v2 frontmatter flag present; legacy files unaffected
-- [ ] tests pass
-- [ ] shellcheck clean
+- [x] summarizer input is the redacted structured log (asserted via stub)
+- [x] v2 frontmatter flag present; legacy files unaffected
+- [x] tests pass
+- [x] shellcheck clean
 
 <!-- mb-task:9 -->
 ## Task 9: Progressive disclosure + age + fusion in recall

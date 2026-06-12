@@ -359,6 +359,9 @@
 
 ### I-068 — Flaky test: session-end-judge.bats 'judge returns [] still marks judged=true' fails ~1/6 (pre-existing, reproduced on pristine hook; found during tier1 task 8) [MED, NEW, 2026-06-12]
 
+
+### I-069 — BEFORE 5.1.0: strict v2 heading state machine in mb-session-end.sh — reject duplicate/out-of-order recognized headings inside the summary body (Codex r3 finding, task 8); add duplicate+out-of-order bats tests [HIGH, NEW, 2026-06-12]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
