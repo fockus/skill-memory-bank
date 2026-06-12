@@ -24,10 +24,10 @@
   (two runs → identical order); k parameter effect.
 
 **DoD:**
-- [ ] `rrf_merge` returns hand-verifiable RRF scores (scenario 2 math)
-- [ ] empty/one-ranking inputs degrade without error
-- [ ] tests pass
-- [ ] lint clean
+- [x] `rrf_merge` returns hand-verifiable RRF scores (scenario 2 math)
+- [x] empty/one-ranking inputs degrade without error
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:2 -->
 ## Task 2: RRF as the auto-backend default in code search

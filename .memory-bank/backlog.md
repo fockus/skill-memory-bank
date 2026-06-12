@@ -344,6 +344,12 @@
 
 **Trigger:** explicit user demand for concept↔code linking that keyword + structural graph + co-change cannot satisfy. Decided alongside `feature_codegraph-cochange` (2026-06-06) where co-change + decomposition shipped and `--semantic` was scoped out.
 
+
+### I-064 — rrf.py: test + docstring for duplicate-keys-in-one-ranking semantics (review tier1 task1 #1) [MED, NEW, 2026-06-12]
+
+
+### I-065 — rrf.py:47 docstring example — replace ellipsis with concrete tuples (review tier1 task1 #2) [LOW, NEW, 2026-06-12]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
