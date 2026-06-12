@@ -49,10 +49,10 @@
   (regression).
 
 **DoD:**
-- [ ] scenarios 1-2 implemented as tests and green
-- [ ] explicit `--backend` paths byte-identical to 5.0.x output (regression test)
-- [ ] tests pass
-- [ ] lint clean
+- [x] scenarios 1-2 implemented as tests and green
+- [x] explicit `--backend` paths byte-identical to 5.0.x output (regression test)
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:3 -->
 ## Task 3: Import-aware call resolution (Python extractor)

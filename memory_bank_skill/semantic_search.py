@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from memory_bank_skill.codegraph_loader import load_graph
+from memory_bank_skill.rrf import rrf_merge
 
 _TOKEN_SPLIT = re.compile(r"[\W_]+")  # split on underscore + non-(unicode word char)
 _CAMEL = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|[0-9]+")
@@ -123,14 +124,17 @@ class Bm25Retriever:
             if score > 0:
                 scored.append((score, doc))
         scored.sort(key=lambda s: (-s[0], str(s[1]["id"])))
-        return [{
-            "id": doc["id"],
-            "file": doc.get("file", ""),
-            "score": round(score, 6),
-            "snippet": doc["text"][:_SNIPPET],
-            "kind": doc.get("kind", ""),
-            "is_test": doc.get("is_test", False),
-        } for score, doc in scored[:k]]
+        return [
+            {
+                "id": doc["id"],
+                "file": doc.get("file", ""),
+                "score": round(score, 6),
+                "snippet": doc["text"][:_SNIPPET],
+                "kind": doc.get("kind", ""),
+                "is_test": doc.get("is_test", False),
+            }
+            for score, doc in scored[:k]
+        ]
 
 
 def build_corpus(
@@ -150,22 +154,82 @@ def build_corpus(
         extra = [str(n[f]) for f in ("signature", "doc") if n.get(f)]
         text = " ".join([name, kind, file_name.replace("/", " "), *extra])
         doc_id = file_name if name == file_name else f"{file_name}:{name}"
-        docs.append({"id": doc_id, "file": file_name, "text": text,
-                     "kind": kind, "is_test": is_test_path(file_name)})
+        docs.append(
+            {
+                "id": doc_id,
+                "file": file_name,
+                "text": text,
+                "kind": kind,
+                "is_test": is_test_path(file_name),
+            }
+        )
     if wiki_dir is not None:
         wd = Path(wiki_dir)
         if wd.is_dir():
             for md in sorted(wd.glob("*.md")):
                 with md.open(encoding="utf-8", errors="replace") as handle:
                     text = handle.read(_MAX_WIKI_CHARS)  # bounded read
-                docs.append({
-                    "id": f"wiki/{md.name}",
-                    "file": f"wiki/{md.name}",
-                    "text": text,
-                    "kind": "wiki",
-                    "is_test": False,
-                })
+                docs.append(
+                    {
+                        "id": f"wiki/{md.name}",
+                        "file": f"wiki/{md.name}",
+                        "text": text,
+                        "kind": "wiki",
+                        "is_test": False,
+                    }
+                )
     return docs
+
+
+class FusedRetriever:
+    """RRF fusion of BM25 + embeddings. Used by ``auto`` when both are available.
+
+    Indexes both retrievers over the same corpus, then fuses their rankings with
+    ``rrf_merge`` at query time.  The ``name`` is ``"auto"`` so callers can
+    identify the fusion path in result metadata.
+    """
+
+    name = "auto"
+    available = True
+
+    def __init__(self, bm25: Bm25Retriever, emb: Retriever) -> None:
+        self._bm25 = bm25
+        self._emb = emb
+        self._docs: list[dict[str, Any]] = []
+        self._by_id: dict[str, dict[str, Any]] = {}
+
+    def index(self, docs: list[dict[str, Any]]) -> None:
+        self._docs = list(docs)
+        # Build the id→doc map once at index time so query-time fusion stays
+        # O(k) over the result lists (NFR-005), not O(corpus) per search.
+        self._by_id = {d["id"]: d for d in self._docs}
+        self._bm25.index(docs)
+        self._emb.index(docs)
+
+    def search(self, query: str, k: int = 10) -> list[dict[str, Any]]:
+        # Retrieve from each backend with headroom so RRF can rerank properly.
+        fetch_k = min(k * 3, len(self._docs)) if self._docs else k
+        bm25_hits = self._bm25.search(query, k=fetch_k)
+        emb_hits = self._emb.search(query, k=fetch_k)
+        bm25_ranking = [h["id"] for h in bm25_hits]
+        emb_ranking = [h["id"] for h in emb_hits]
+        fused = rrf_merge([bm25_ranking, emb_ranking])
+        results: list[dict[str, Any]] = []
+        for doc_id, score in fused[:k]:
+            doc = self._by_id.get(doc_id)
+            if doc is None:
+                continue
+            results.append(
+                {
+                    "id": doc["id"],
+                    "file": doc.get("file", ""),
+                    "score": round(score, 6),
+                    "snippet": doc["text"][:_SNIPPET],
+                    "kind": doc.get("kind", ""),
+                    "is_test": doc.get("is_test", False),
+                }
+            )
+        return results
 
 
 def make_retriever(
@@ -174,23 +238,29 @@ def make_retriever(
     warnings: list[str] | None = None,
     cache_dir: Path | str | None = None,
 ) -> Retriever:
-    """Resolve a retriever. ``auto`` = embeddings if available else BM25.
+    """Resolve a retriever.
 
-    Explicit ``embeddings`` with the optional dependency absent → warn + BM25.
-    ``cache_dir`` is forwarded ONLY to the embeddings retriever (on-disk vector
-    cache); the zero-dep BM25 path never receives it.
+    ``auto`` with embeddings available → ``FusedRetriever`` (RRF of BM25 +
+    embeddings).  ``auto`` without embeddings → pure BM25 (fail-open, no
+    warning).  Explicit ``embeddings`` with the optional dependency absent →
+    warn + BM25.  ``cache_dir`` is forwarded ONLY to the embeddings retriever.
     """
     warns = warnings if warnings is not None else []
     if backend == "bm25":
         return Bm25Retriever()
 
     from memory_bank_skill.semantic_embeddings import EmbeddingRetriever
+
     embedder = EmbeddingRetriever(cache_dir=cache_dir)
     if embedder.available:
-        return embedder
+        if backend == "embeddings":
+            return embedder
+        # auto: fuse BM25 + embeddings via RRF
+        return FusedRetriever(Bm25Retriever(), embedder)
     if backend == "embeddings":
-        warns.append("embeddings backend unavailable (install sentence-transformers); "
-                     "falling back to bm25")
+        warns.append(
+            "embeddings backend unavailable (install sentence-transformers); falling back to bm25"
+        )
     return Bm25Retriever()
 
 
@@ -212,11 +282,19 @@ def run_search(
     try:
         nodes, _ = load_graph(graph_path)
     except FileNotFoundError:
-        return {"ok": False, "query": query, "hits": [],
-                "warnings": [f"missing graph: {graph_path} (run /mb graph --apply)"]}
+        return {
+            "ok": False,
+            "query": query,
+            "hits": [],
+            "warnings": [f"missing graph: {graph_path} (run /mb graph --apply)"],
+        }
     except ValueError as exc:
-        return {"ok": False, "query": query, "hits": [],
-                "warnings": [f"invalid/stale graph: {exc}"]}
+        return {
+            "ok": False,
+            "query": query,
+            "hits": [],
+            "warnings": [f"invalid/stale graph: {exc}"],
+        }
 
     wiki_dir = mb / "codebase" / "wiki"
     corpus = build_corpus(nodes, wiki_dir if wiki_dir.is_dir() else None)
@@ -240,7 +318,9 @@ def run_search(
 def render_hits_md(result: dict[str, Any]) -> str:
     """Render search hits as a markdown list (CLI human output)."""
     if not result.get("ok"):
-        return "\n".join(f"[warn] {w}" for w in result.get("warnings", [])) or "[warn] search failed"
+        return (
+            "\n".join(f"[warn] {w}" for w in result.get("warnings", [])) or "[warn] search failed"
+        )
     lines = [f"# Semantic search: `{result['query']}`  (backend: {result['backend']})", ""]
     for w in result.get("warnings", []):
         lines.append(f"_warning: {w}_")
