@@ -356,6 +356,9 @@
 
 ### I-067 — BEFORE 5.1.0: unique-fallback dst for root __init__.py formats as '.foo' — guard empty module prefix (Codex tier1-task3 r3 minor) [MED, NEW, 2026-06-12]
 
+
+### I-068 — Flaky test: session-end-judge.bats 'judge returns [] still marks judged=true' fails ~1/6 (pre-existing, reproduced on pristine hook; found during tier1 task 8) [MED, NEW, 2026-06-12]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
