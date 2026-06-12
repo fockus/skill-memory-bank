@@ -101,11 +101,11 @@
   across runs.
 
 **DoD:**
-- [ ] toy-graph PageRank order asserted; scenario 5 green
-- [ ] god-nodes.md format updated + existing doc/contract tests updated in
+- [x] toy-graph PageRank order asserted; scenario 5 green
+- [x] god-nodes.md format updated + existing doc/contract tests updated in
       the same change
-- [ ] tests pass
-- [ ] lint clean
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:5 -->
 ## Task 5: Git churn ranking signal

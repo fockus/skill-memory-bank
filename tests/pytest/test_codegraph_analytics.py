@@ -10,6 +10,9 @@ mb-codegraph.build_graph returns):
   - file_cohesion       → intra-community edge density in [0, 1]
   - file_betweenness    → file -> betweenness; None without networkx
   - split_god_nodes     → {"modules": [...], "symbols": [...]} ranked by degree
+                          (or by PageRank when a pagerank map is
+                          supplied — see test_codegraph_analytics_pagerank.py)
+  - compute_pagerank    → name-keyed PageRank score; None without networkx
   - render_god_nodes_md → markdown report (graceful without networkx)
 
 networkx is an OPTIONAL dependency — graceful degradation is part of the contract.
@@ -30,6 +33,7 @@ from memory_bank_skill import codegraph_analytics as cga  # noqa: E402
 # ═══════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════
+
 
 def _module(file: str) -> dict:
     return {"kind": "module", "name": file, "file": file, "line": 1}
@@ -54,13 +58,17 @@ def _two_cluster_graph() -> dict:
         nodes.append(_module(f"{f}.py"))
         nodes.append(_fn(f"{f}.py", f"fn_{f}"))
     # triangle A
-    edges += [_call("a1.py", "fn_a1", "fn_a2"),
-              _call("a2.py", "fn_a2", "fn_a3"),
-              _call("a3.py", "fn_a3", "fn_a1")]
+    edges += [
+        _call("a1.py", "fn_a1", "fn_a2"),
+        _call("a2.py", "fn_a2", "fn_a3"),
+        _call("a3.py", "fn_a3", "fn_a1"),
+    ]
     # triangle B
-    edges += [_call("b1.py", "fn_b1", "fn_b2"),
-              _call("b2.py", "fn_b2", "fn_b3"),
-              _call("b3.py", "fn_b3", "fn_b1")]
+    edges += [
+        _call("b1.py", "fn_b1", "fn_b2"),
+        _call("b2.py", "fn_b2", "fn_b3"),
+        _call("b3.py", "fn_b3", "fn_b1"),
+    ]
     # bridge
     edges += [_call("a1.py", "fn_a1", "fn_b1")]
     return {"nodes": nodes, "edges": edges}
@@ -70,10 +78,10 @@ def _two_cluster_graph() -> dict:
 # compute_degree
 # ═══════════════════════════════════════════════════════════════
 
+
 def test_compute_degree_counts_in_and_out():
     graph = {
-        "nodes": [_module("hub.py"), _fn("hub.py", "hub"),
-                  _module("a.py"), _fn("a.py", "a")],
+        "nodes": [_module("hub.py"), _fn("hub.py", "hub"), _module("a.py"), _fn("a.py", "a")],
         "edges": [_call("a.py", "a", "hub")],
     }
     degree = cga.compute_degree(graph)
@@ -86,14 +94,66 @@ def test_compute_degree_empty_graph_is_empty():
     assert cga.compute_degree({"nodes": [], "edges": []}) == {}
 
 
+def test_compute_degree_homonym_indegree_is_deterministic():
+    """In-degree credit for an ambiguous target is stable, not node-order/hash-dependent.
+
+    When two qualified names share a short name (``A.run`` / ``B.run``), the
+    edge ``dst="run"`` resolves to whichever node the matching loop hits first.
+    Iterating a set makes that order depend on ``PYTHONHASHSEED`` → the rendered
+    Degree column flips across processes (NFR-002 violation). The resolver must
+    pick the alphabetically-first definition regardless of node insertion order.
+    """
+    nodes_fwd = [
+        _module("a.py"),
+        _cls("a.py", "A.run"),
+        _module("b.py"),
+        _cls("b.py", "B.run"),
+        _module("c.py"),
+        _fn("c.py", "caller"),
+    ]
+    nodes_rev = list(reversed(nodes_fwd))
+    edges = [_call("c.py", "caller", "run")]
+    deg_fwd = cga.compute_degree({"nodes": nodes_fwd, "edges": edges})
+    deg_rev = cga.compute_degree({"nodes": nodes_rev, "edges": edges})
+    # same credited node regardless of node ordering → identical degree maps
+    assert deg_fwd == deg_rev, (deg_fwd, deg_rev)
+    # credit goes to the alphabetically-first match ("A.run")
+    assert deg_fwd.get("A.run") == 1
+    assert "B.run" not in deg_fwd
+
+
+def test_compute_degree_qualified_dst_credits_exact_node():
+    """In-degree for a qualified dst goes to the EXACT node, not a homonym.
+
+    With import-aware binding (task 3) edges carry qualified dotted dsts like
+    ``b.process``. Two definitions share the short name ``process``
+    (``a.process`` / ``b.process``). A single-pass match that fires the suffix
+    fallback (``dst.endswith('.process')``) before the exact name comparison
+    credits the alphabetically-first ``a.process`` instead of the named
+    ``b.process``. Exact-first resolution must credit ``b.process``.
+    """
+    nodes = [
+        _module("a.py"),
+        _cls("a.py", "a.process"),
+        _module("b.py"),
+        _cls("b.py", "b.process"),
+        _module("c.py"),
+        _fn("c.py", "caller"),
+    ]
+    edges = [_call("c.py", "caller", "b.process")]
+    degree = cga.compute_degree({"nodes": nodes, "edges": edges})
+    assert degree.get("b.process") == 1, degree
+    assert "a.process" not in degree, degree
+
+
 # ═══════════════════════════════════════════════════════════════
 # build_file_graph
 # ═══════════════════════════════════════════════════════════════
 
+
 def test_build_file_graph_links_caller_to_definer_file():
     graph = {
-        "nodes": [_module("a.py"), _fn("a.py", "fa"),
-                  _module("b.py"), _fn("b.py", "fb")],
+        "nodes": [_module("a.py"), _fn("a.py", "fa"), _module("b.py"), _fn("b.py", "fb")],
         "edges": [_call("a.py", "fa", "fb")],
     }
     files, fedges = cga.build_file_graph(graph)
@@ -134,6 +194,7 @@ def test_build_file_graph_skips_overambiguous_names():
 # detect_communities  (optional networkx)
 # ═══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.skipif(not cga.HAS_NETWORKX, reason="networkx not installed")
 def test_detect_communities_groups_dense_clusters():
     mapping = cga.detect_communities(_two_cluster_graph())
@@ -151,9 +212,13 @@ def test_detect_communities_ids_largest_first():
     nodes, edges = [], []
     for f in ("a1", "a2", "a3", "b1", "b2"):
         nodes += [_module(f"{f}.py"), _fn(f"{f}.py", f"fn_{f}")]
-    edges += [_call("a1.py", "fn_a1", "fn_a2"), _call("a2.py", "fn_a2", "fn_a3"),
-              _call("a3.py", "fn_a3", "fn_a1"), _call("b1.py", "fn_b1", "fn_b2"),
-              _call("b2.py", "fn_b2", "fn_b1")]
+    edges += [
+        _call("a1.py", "fn_a1", "fn_a2"),
+        _call("a2.py", "fn_a2", "fn_a3"),
+        _call("a3.py", "fn_a3", "fn_a1"),
+        _call("b1.py", "fn_b1", "fn_b2"),
+        _call("b2.py", "fn_b2", "fn_b1"),
+    ]
     mapping = cga.detect_communities({"nodes": nodes, "edges": edges})
     assert mapping["a1.py"] == 0  # largest community gets id 0
 
@@ -166,6 +231,7 @@ def test_detect_communities_none_without_networkx(monkeypatch):
 # ═══════════════════════════════════════════════════════════════
 # file_cohesion
 # ═══════════════════════════════════════════════════════════════
+
 
 def test_file_cohesion_full_clique_is_one():
     edges = {frozenset(("a", "b")), frozenset(("b", "c")), frozenset(("a", "c"))}
@@ -185,6 +251,7 @@ def test_file_cohesion_single_file_is_one():
 # file_betweenness  (optional networkx)
 # ═══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.skipif(not cga.HAS_NETWORKX, reason="networkx not installed")
 def test_file_betweenness_bridge_files_rank_highest():
     bt = cga.file_betweenness(_two_cluster_graph())
@@ -203,6 +270,7 @@ def test_file_betweenness_none_without_networkx(monkeypatch):
 # ═══════════════════════════════════════════════════════════════
 # split_god_nodes
 # ═══════════════════════════════════════════════════════════════
+
 
 def test_split_god_nodes_separates_modules_from_symbols():
     graph = {
@@ -231,10 +299,10 @@ def test_split_god_nodes_sorted_desc_and_capped():
 # render_god_nodes_md
 # ═══════════════════════════════════════════════════════════════
 
+
 def test_render_contains_module_and_symbol_sections():
     graph = {
-        "nodes": [_module("hub.py"), _fn("hub.py", "hub"),
-                  _module("a.py"), _fn("a.py", "a")],
+        "nodes": [_module("hub.py"), _fn("hub.py", "hub"), _module("a.py"), _fn("a.py", "a")],
         "edges": [_call("a.py", "a", "hub")],
     }
     md = cga.render_god_nodes_md(graph)

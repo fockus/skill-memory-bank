@@ -42,6 +42,7 @@ codegraph = [
   "tree-sitter-typescript>=0.21",
   "tree-sitter-rust>=0.21",
   "tree-sitter-java>=0.21",
+  "networkx>=3.0",
 ]
 yaml = ["PyYAML>=6.0"]
 dev = ["pytest>=7", "pytest-cov>=4", "PyYAML>=6.0", "ruff>=0.5"]

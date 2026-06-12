@@ -30,9 +30,12 @@ stack and architecture. This is prose, not a graph — the orientation layer.
 - **Output (`--apply`):**
   - `codebase/graph.json` — JSON Lines (one node/edge per line, grep- and
     stream-friendly).
-  - `codebase/god-nodes.md` — **Top symbols** + **Top modules** by degree, and
-    (with `networkx`) auto-detected **communities** + **bridge files** (the
-    highest-betweenness refactoring/risk hotspots).
+  - `codebase/god-nodes.md` — **Top symbols** + **Top modules** ranked by
+    **PageRank** (transitive importance) with degree as a secondary
+    column when `networkx` is available, plus auto-detected **communities** +
+    **bridge files** (the highest-betweenness refactoring/risk hotspots). Without
+    `networkx` the report degrades to degree-only ranking and prints a one-line
+    install hint.
 - `--dry-run` (default) prints a summary and writes nothing; `--apply` writes
   the graph + an incremental per-file SHA256 cache (second run is near-instant).
 

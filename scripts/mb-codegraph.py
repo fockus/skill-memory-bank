@@ -278,9 +278,10 @@ def _render_god_nodes(
     betweenness: dict[str, float] | None = None,
     cochange_edges: list[dict[str, Any]] | None = None,
     questions: list[dict[str, Any]] | None = None,
+    pagerank: dict[str, float] | None = None,
 ) -> str:
     """Delegate to analytics renderer; append co-change / questions sections when present."""
-    body = cga.render_god_nodes_md(graph, communities, betweenness)
+    body = cga.render_god_nodes_md(graph, communities, betweenness, pagerank=pagerank)
     if cochange_edges:
         body = body.rstrip("\n") + "\n\n" + cgco.render_cochange_section(cochange_edges) + "\n"
     if questions:
@@ -365,6 +366,7 @@ def run(
 
     communities = cga.detect_communities(graph)
     betweenness = cga.file_betweenness(graph)
+    pagerank = cga.compute_pagerank(graph)
     community_count = len(set(communities.values())) if communities else 0
     summary["communities"] = community_count
     print(f"communities={community_count}")
@@ -380,7 +382,7 @@ def run(
     _write_graph_jsonl(graph, codebase / "graph.json", communities)
     atomic_write(
         codebase / "god-nodes.md",
-        _render_god_nodes(graph, communities, betweenness, cochange_edges, suggested),
+        _render_god_nodes(graph, communities, betweenness, cochange_edges, suggested, pagerank),
     )
 
     return summary
