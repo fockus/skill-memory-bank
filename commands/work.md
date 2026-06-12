@@ -87,6 +87,7 @@ The stage list is composed from **three layers**, in increasing precedence:
 | `--sdd` / `--no-sdd` | Add / remove the `sdd` stage. |
 | `--plan` / `--no-plan` | Add / remove the `plan` stage. |
 | `--stages a,b,c` | **Escape hatch** — use exactly this ordered list, overriding the preset and every flag. |
+| `--pipeline <name>` | Run a **named pipeline** (`<bank>/pipelines/<name>.yaml`) with its own model routing + workflow. Overrides host auto-binding. See *Selecting a named pipeline* below. |
 
 Rules:
 
@@ -94,6 +95,32 @@ Rules:
 - **`pipeline.yaml` turns stages ON** (`<stage>.enabled: true`); **launch flags turn them ON or OFF** and win over `pipeline.yaml`. The shipped `enabled: false` entries are the off-baseline.
 - **`--review` is the single-reviewer path** (resolved via `mb-reviewer-resolve.sh`, gated by `mb-work-severity-gate.sh`). The heavyweight 5-reviewer ensemble stays behind `--workflow governed-execution`.
 - **Fail-fast** — `--judge` without review, or `--stages` naming `sdd`/`plan` with no topic/spec input, aborts before execution with a message naming the missing prerequisite.
+
+#### Selecting a named pipeline (multi-pipeline projects)
+
+A project may keep several pipelines under `<bank>/pipelines/<name>.yaml`, each
+with its own model routing and workflow, managed by `/mb pipeline` (`list` /
+`new` / `use` / `show`). `/mb work` picks one through this ladder (first match wins):
+
+1. `--pipeline <name>` (or the `$MB_PIPELINE` env var).
+2. **Host binding** — the pipeline whose `agents:` list includes the current
+   code-agent host (`claude-code` / `pi` / `opencode` / `codex` …), auto-detected.
+   This is what lets one project run a different pipeline under Claude Code than
+   under pi/opencode **without any flag**.
+3. `<bank>/.mb-config` `pipeline=<name>` (set by `/mb pipeline use`).
+4. the pipeline marked `default: true`.
+5. legacy `<bank>/pipeline.yaml`, then the bundled `references/pipeline.default.yaml`.
+
+**Threading.** Resolve the selection once, then prefix every `mb-work-*.sh` /
+`mb-workflow.sh` / `mb-reviewer-resolve.sh` invocation with `MB_PIPELINE=<name>`
+so all consumers read the same pipeline — they each resolve their config through
+`mb-pipeline.sh path`, which honors `$MB_PIPELINE`. Host binding needs no env;
+it is detected per call. Confirm the selection up front:
+
+```bash
+bash scripts/mb-pipeline.sh list                    # all pipelines; (*) marks the active one
+bash scripts/mb-pipeline.sh path --pipeline <name>  # the exact file that will drive this run
+```
 
 ```bash
 # Default flow plus a review:
