@@ -386,10 +386,10 @@
   ref; unrelated notes absent; empty notes/ → section omitted, no error.
 
 **DoD:**
-- [ ] decisions matched deterministically, capped at 5, with refs
-- [ ] empty/missing notes fail open
-- [ ] tests pass
-- [ ] lint clean
+- [x] decisions matched deterministically, capped at 5, with refs
+- [x] empty/missing notes fail open
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:17 -->
 ## Task 17: Docs & 5.1.0 release prep (defaults change + confidence semantics)
