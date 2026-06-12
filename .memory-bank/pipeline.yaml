@@ -8,7 +8,10 @@ version: 1
 
 # ===== Roles — mapping role → agent (plugin-style overrides supported) =====
 roles:
-  developer: { agent: mb-developer }
+  # User decision 2026-06-12: implementers run on OPUS (sonnet quality
+  # insufficient); plan-verifier stays sonnet; review is done INLINE by the
+  # main agent (Fable) — no reviewer subagent dispatch; judge on opus.
+  developer: { agent: mb-developer, model: opus }
   backend:   { agent: mb-backend,   fallback: mb-developer }
   frontend:  { agent: mb-frontend,  fallback: mb-developer }
   ios:       { agent: mb-ios,       fallback: mb-developer }
@@ -19,13 +22,16 @@ roles:
   devops:    { agent: mb-devops,    fallback: mb-developer }
   qa:        { agent: mb-qa,        fallback: mb-developer }
   analyst:   { agent: mb-analyst }
-  # Reviewer routed to external Codex CLI (user decision 2026-06-12):
-  # dispatched via `codex exec` with the exact model below, NOT a host subagent.
-  # No override_if_skill_present — routing must stay on Codex.
+  # DUAL parallel review (user decision 2026-06-12, final): codex-cli
+  # (gpt-5.5 via `codex exec`) AND the main agent (Fable) inline review the
+  # same diff in parallel. Judge = the MAIN agent (Fable): merges both
+  # reports, decides GO / GO_WITH_BACKLOG / NO_GO (bounded fix loop).
   reviewer:
     agent: codex-cli
     model: gpt-5.5
     thinking: xhigh
+    parallel_with: main-agent
+  judge:                { agent: main-agent }
   reviewer_logic:       { agent: mb-reviewer-logic }
   reviewer_tests:       { agent: mb-reviewer-tests }
   reviewer_quality:     { agent: mb-reviewer-quality }
