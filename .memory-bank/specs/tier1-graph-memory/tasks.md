@@ -365,10 +365,10 @@
   records hashes idempotently.
 
 **DoD:**
-- [ ] scenario 10 green; staleness check itself is $0 (no LLM in `plan`)
-- [ ] `--force` and no-cache paths covered
-- [ ] tests pass
-- [ ] lint clean
+- [x] scenario 10 green; staleness check itself is $0 (no LLM in `plan`)
+- [x] `--force` and no-cache paths covered
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:16 -->
 ## Task 16: Decisions in wiki evidence packs
