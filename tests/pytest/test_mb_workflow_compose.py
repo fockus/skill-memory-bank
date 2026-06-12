@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -17,11 +18,15 @@ PIPELINE_INIT = REPO_ROOT / "scripts" / "mb-pipeline.sh"
 
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
+    # Isolated cwd: without --mb the script resolves the bank from the
+    # current directory, and running from the repo root would leak this
+    # project's live .memory-bank/pipeline.yaml into "built-in default" tests.
     return subprocess.run(
         ["bash", str(SCRIPT), *args],
         capture_output=True,
         text=True,
         check=False,
+        cwd=tempfile.mkdtemp(prefix="mb-workflow-isolated-"),
     )
 
 

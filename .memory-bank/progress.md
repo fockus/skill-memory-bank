@@ -2080,3 +2080,18 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
   new #graph section on the landing page.
 - Improvement roadmap (graph + session memory) → reports/2026-06-11_graph-memory-improvements.md
   (RRF, import-aware binding, PageRank, community retrieval, consolidate, entities).
+
+## 2026-06-11
+
+### Auto-capture 2026-06-11 (session 8b602284)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session c985acdb)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+### 2026-06-12 — tier1 task 3: import-aware call resolution, edge delta
+- Measured on this repo at HEAD 491b717: call edges 8567 (name-matching, v1) → 7729 (import-aware, CACHE_VERSION=2) = **−838 false cross-module edges (−9.8%)**. Method: `git stash` around `python3 scripts/mb-codegraph.py --dry-run .memory-bank .`.
