@@ -140,6 +140,47 @@ fixture() { # write fixture lines to a temp file, echo its path
   [[ "$output" == *"transport=codex available=true"* ]]
 }
 
+# Integration (no MB_CAPS_FIXTURE): exercises the REAL caps_models pi parser via a
+# fake `pi` on PATH. `pi --list-models` prints a 2-column `provider  model` table
+# with a header — the resolver must join columns into the `provider/model` contract
+# id pi itself accepts, not read only the first (provider) column.
+@test "resolve: real pi 2-column --list-models is joined into provider/model" {
+  local bin="$BATS_TEST_TMPDIR/bin"; mkdir -p "$bin"
+  cat > "$bin/pi" <<'SH'
+#!/usr/bin/env bash
+[ "$1" = "--list-models" ] || exit 0
+printf '%s\n' \
+  "provider      model            context  max-out  thinking  images" \
+  "openai-codex  gpt-5.5          272K     128K     yes       yes" \
+  "opencode-go   deepseek-v4-pro  1M       384K     yes       no"
+SH
+  chmod +x "$bin/pi"
+  # reviewer contract in $BANK is openai-codex/gpt-5.5. Fake pi shadows the real one;
+  # rest of PATH kept so python3/awk resolve. codex absent → prefer falls through; pi
+  # is first in priority, so it wins before any real opencode is probed.
+  run env -u MB_CAPS_FIXTURE PATH="$bin:$PATH" bash "$CAPS" resolve --role reviewer --mb "$BANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"transport=pi"* ]]
+  [[ "$output" == *"model=openai-codex/gpt-5.5"* ]]
+  [[ "$output" == *"substituted=false"* ]]
+}
+
+@test "detect: real pi 2-column output counts models excluding the header row" {
+  local bin="$BATS_TEST_TMPDIR/bin"; mkdir -p "$bin"
+  cat > "$bin/pi" <<'SH'
+#!/usr/bin/env bash
+[ "$1" = "--list-models" ] || exit 0
+printf '%s\n' \
+  "provider      model            context  max-out  thinking  images" \
+  "openai-codex  gpt-5.5          272K     128K     yes       yes" \
+  "opencode-go   deepseek-v4-pro  1M       384K     yes       no"
+SH
+  chmod +x "$bin/pi"
+  run env -u MB_CAPS_FIXTURE PATH="$bin:/usr/bin:/bin" bash "$CAPS" detect --mb "$BANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"transport=pi available=true models=2"* ]]
+}
+
 @test "unknown subcommand → exit 1" {
   run bash "$CAPS" frobnicate
   [ "$status" -eq 1 ]

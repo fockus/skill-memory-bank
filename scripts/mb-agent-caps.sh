@@ -57,7 +57,9 @@ caps_models() { # print available model ids for transport, one id per line
   fi
   case "$t" in
     opencode) opencode models 2>/dev/null || true ;;
-    pi) pi --list-models 2>/dev/null || true ;;
+    # `pi --list-models` is a 2-column `provider  model …` table with a header.
+    # Rebuild the `provider/model` id pi itself accepts (`pi -p --model provider/model`).
+    pi) pi --list-models 2>/dev/null | awk 'NR==1 && $1=="provider"{next} NF>=2{print $1"/"$2}' || true ;;
     codex) codex --list-models 2>/dev/null || codex models 2>/dev/null || true ;;
     claude-agent) printf '%s\n' opus sonnet haiku ;;
     *) : ;;
