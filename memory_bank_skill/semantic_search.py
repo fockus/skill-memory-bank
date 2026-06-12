@@ -19,6 +19,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
+from memory_bank_skill import community_expand as ce
 from memory_bank_skill.codegraph_loader import load_graph
 from memory_bank_skill.rrf import rrf_merge
 
@@ -364,7 +365,7 @@ def run_search(
     fetch_k = len(corpus) if churn else k
     hits = retriever.search(query, fetch_k)
     hits = apply_churn_multiplier(hits, churn)[:k]
-    return {
+    result: dict[str, Any] = {
         "ok": True,
         "query": query,
         "backend": retriever.name,
@@ -373,6 +374,11 @@ def run_search(
         "hits": hits,
         "warnings": warnings,
     }
+    # Community-summary retrieval (design §A5): top-3 wiki article → community files.
+    blocks = ce.expand_hits(hits, ce.load_community_files(mb / "codebase"))
+    if blocks:
+        result["community_files"] = blocks
+    return result
 
 
 def render_hits_md(result: dict[str, Any]) -> str:
@@ -390,4 +396,5 @@ def render_hits_md(result: dict[str, Any]) -> str:
     for i, h in enumerate(result["hits"], 1):
         tag = " [test]" if h.get("is_test") else ""
         lines.append(f"{i}. `{h['file']}` — {h['id']}  (score {h['score']}){tag}")
+    lines.extend(ce.render_blocks_md(result.get("community_files", [])))
     return "\n".join(lines)

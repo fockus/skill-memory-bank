@@ -145,10 +145,10 @@
   present, capped at 10; no wiki → output identical to pre-change (regression).
 
 **DoD:**
-- [ ] expansion appears only on wiki hits, capped and labeled
-- [ ] no-wiki path byte-identical (regression test)
-- [ ] tests pass
-- [ ] lint clean
+- [x] expansion appears only on wiki hits, capped and labeled
+- [x] no-wiki path byte-identical (regression test)
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:7 -->
 ## Task 7: Per-turn capture upgrade (outcomes + diffstat)
