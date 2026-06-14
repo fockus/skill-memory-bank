@@ -3,9 +3,9 @@
 
 ## Current phase
 
-**Phase 5 — Autonomous agent harness (v5.0.0 target).** Обязательный **Wave 0 — CI baseline** закрыт: `test.yml` на `main` зелёный (`26528106396`, после closeout commit; предыдущий full green `26527319286`) для Ubuntu/macOS × Python 3.11/3.12. Основной roadmap — 12 wave'ов: `harness-upgrade` (reviewer-v2 → work-loop-v2 → handoff-v2 → cost-multi-model → parallel-pipeline) + `goal-driven-autopilot` (overlay+addons → mb-debugger → atomic-commit → goal-layer → worktree-MVP → parallel-waves-MVP → autopilot-loop). Standalone `skill-improvements-anthropic-audit` — docs/evals track после Wave 0, параллельно с W1.
+**Phase 6 — Harness + adaptive orchestration.** Phase 5 (`tier1-graph-memory` 17/17 → **v5.1.0**) закрыт. Roadmap переприоритизирован по **ICE** (см. `roadmap.md § ICE-prioritised roadmap`). `goal-driven-autopilot` **снят** — заменён на `specs/dynamic-flow/` (8 мёртвых планов → `plans/superseded/`). Последовательность (dependency-resolved): **cursor-finish → handoff-v2 → dynamic-flow Phase 1 → reviewer-2.0 → work-loop-v2 → cost-multi-model**; docs-лейн `skill-improvements-anthropic-audit` параллельно. XL-хвост (`parallel-pipeline` / `parallel-team-execution`) — после арх-решения host-native vs orchestrator-owned.
 
-**⚠️ Versioning change (2026-06-10):** v5.0.0 cut **early** — не после W12. Причина: 4.0.0 получил git-тег, но публикация в PyPI провалилась (`__version__` drift, исправлено runtime-чтением VERSION), а с тех пор накопился крупный пласт (GraphRAG-lite intelligence layer, session-memory, rules-economy, composable `/mb work` pipeline с review-off-by-default = BREAKING). Это первый PyPI-релиз с 3.1.2. Harness-waves (W1–W12) становятся пост-5.0.0 работой (5.x/6.0). Полная таблица последовательности waves → `roadmap.md` секция `## Phase: harness-upgrade + goal-driven-autopilot`.
+**⚠️ Versioning change (2026-06-10):** v5.0.0 cut **early** — не после W12. Причина: 4.0.0 получил git-тег, но публикация в PyPI провалилась (`__version__` drift, исправлено runtime-чтением VERSION), а с тех пор накопился крупный пласт (GraphRAG-lite intelligence layer, session-memory, rules-economy, composable `/mb work` pipeline с review-off-by-default = BREAKING). Это первый PyPI-релиз с 3.1.2. Harness-работа становится пост-5.1.0 (5.x/6.0). Актуальная последовательность → `roadmap.md § ICE-prioritised roadmap`.
 
 **Predecessor phases ✅:** sdd-unification (3 sprints), global-storage core + agent-support, rule-profiles-and-stack-presets, GraphRAG-lite code intelligence.
 
@@ -15,7 +15,7 @@
 
 **Next — explicit user "go" required for: PyPI publish + git tag of 5.1.0.** Release is PREP-only (committed VERSION + CHANGELOG); publish/tag are NOT done. Remaining open backlog from the sprint stays out of the gate: I-064/I-065 (LOW/MED docstrings) + I-068 (pre-existing flaky `session-end-judge.bats`).
 
-**Wave 0 — [CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** закрыт. After the 5.1.0 publish: завершить **Cursor compatibility remediation** или стартовать **W0.5 — [OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)**.
+**Roadmap hygiene done — 2026-06-14.** Закрыты готовые планы (subagent-strengthening, codegraph-analytics), 8× goal-driven + opencode-first → `plans/superseded/`, roadmap/status переписаны под ICE. **Следующий код-wave: дофиниш [cursor-extension](specs/cursor-extension/) (~7/9 done) → затем [handoff-v2](specs/handoff-v2/)** (top ICE 432, parallel-safe).
 
 После инфраструктурного unlock: стартовать **W1 code — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)** и **W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)**. Закрытие каждого wave: `/mb verify` → `/mb done` → plan moves to `plans/done/`.
 

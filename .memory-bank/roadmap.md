@@ -11,18 +11,10 @@
 - [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0 (S1 of harness-upgrade)
 - [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0 (S2 of harness-upgrade)
 - [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
-- [goal-driven-autopilot-sprint-1-prompt-overlay](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md) — feature — goal-driven-autopilot — Sprint 1: Prompt overlay + addons
-- [goal-driven-autopilot-sprint-2-mb-debugger](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md) — feature — goal-driven-autopilot — Sprint 2: mb-debugger + `/mb debug`
-- [goal-driven-autopilot-sprint-4-atomic-commit](plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md) — feature — goal-driven-autopilot — Sprint 4: Atomic commit per stage
-- [goal-driven-autopilot-sprint-6-goal-layer](plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md) — feature — goal-driven-autopilot — Sprint 6: Goal layer + `/goal`
-- [goal-driven-autopilot-sprint-3-worktree](plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md) — feature — goal-driven-autopilot — Sprint 3: Worktree isolation
-- [goal-driven-autopilot-sprint-5-parallel-waves](plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md) — feature — goal-driven-autopilot — Sprint 5: Parallel waves (DAG)
-- [goal-driven-autopilot-sprint-7-autopilot](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md) — feature — goal-driven-autopilot — Sprint 7: Autopilot loop
 - [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
 - [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
 - [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation
-- [subagent-strengthening](plans/2026-06-02_refactor_subagent-strengthening.md) — refactor — Subagent strengthening (engineering-core composition)
 
 ## Parallel-safe (can run now)
 
@@ -30,12 +22,11 @@ _None._
 
 ## Paused / Archived
 
-- [goal-driven-autopilot-phase](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — goal-driven-autopilot (Phase roadmap)
+_None._
 
 ## Linked Specs (active)
 
 - specs/cost-multi-model/design.md
-- specs/goal-driven-autopilot
 - specs/handoff-v2/design.md
 - specs/reviewer-2.0/design.md
 - specs/work-loop-v2/design.md
@@ -46,61 +37,54 @@ _None._
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
 
-## Next intent (prose — not yet a plan file)
+## Current focus (2026-06-14, v5.1.0 shipped)
 
-Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ + Sprint `rule-profiles-and-stack-presets` ✅ — все три закрыты, перенесены в `plans/done/` 2026-05-24. **Skill cap: v4.0.0**, накопленные изменения уйдут v4.x bumps. Following sequence фиксирует execution-order двух больших активных линеек (`harness-upgrade` + `goal-driven-autopilot`) плюс standalone `skill-improvements-anthropic-audit`. Совокупный финальный gate = **v5.0.0**.
+`tier1-graph-memory` (17/17) отгружен → **v5.1.0** (PyPI publish + git tag pending explicit go). `goal-driven-autopilot` **снят с roadmap** — заменён на `specs/dynamic-flow/` (мёртвые планы в `plans/superseded/`). Ниже — переприоритизированный по ICE план оставшейся специфицированной работы. Источник истины по последовательности — этот раздел; авто-блок выше отражает лишь «что активно по фронтматтеру планов».
 
-## Phase: harness-upgrade + goal-driven-autopilot (v5.0.0 target)
+## ICE-prioritised roadmap (remaining specced work)
 
-**Goal:** Превратить skill в полноценный autonomous agent harness. Две параллельно живущие линейки сводятся в последовательность из Wave 0 + 12 feature wave'ов:
-- **harness-upgrade** — stack-aware reviewer + adaptive work-loop + handoff + multi-model + декларативный pipeline (`/mb run`).
-- **goal-driven-autopilot** — overlay/addons + mb-debugger + atomic-commit + goal-layer + worktree (MVP) + parallel-waves (MVP) + autopilot loop.
+ICE = Impact × Confidence × Ease (каждый 1–10). Последовательность = ICE, поправленный на граф зависимостей.
 
-Все промежуточные cuts — v4.x bumps. v5.0.0 — только после закрытия W12.
+| Работа | Spec / Plan | I | C | E | ICE | Size | Blockers |
+|--------|-------------|---|---|---|-----|------|----------|
+| handoff-v2 | specs/handoff-v2 | 8 | 9 | 6 | **432** | M | — (parallel-safe) |
+| dynamic-flow Phase 1 | specs/dynamic-flow | 9 | 7 | 6 | **378** | M | — |
+| cursor-extension finish | specs/cursor-extension | 4 | 9 | 9 | **324** | S | — (~7/9 done) |
+| work-loop-v2 | specs/work-loop-v2 | 7 | 7 | 6 | **294** | M | ← reviewer-2.0 |
+| reviewer-2.0 | specs/reviewer-2.0 | 8 | 7 | 4 | **224** | L | — (head of chain) |
+| cost-multi-model | specs/cost-multi-model | 6 | 6 | 6 | **216** | M | ← reviewer+loop, I-057/058 |
+| skill-improvements-audit | plans/…anthropic-audit | 6 | 6 | 6 | **216** | M | parallel-safe (docs) |
+| dynamic-flow Phase 2–3 | specs/dynamic-flow | 7 | 6 | 4 | **168** | L | ← Phase 1 |
+| pi-extension | specs/pi-extension | 5 | 5 | 4 | **100** | L | external Pi API |
+| parallel-pipeline | specs/parallel-pipeline | 6 | 4 | 2 | **48** | XL | ⚠️ arch decision |
+| parallel-team-execution | specs/parallel-team-execution | 7 | 3 | 2 | **42** | XL | ← dynamic-flow + parallel-pipeline |
 
-**Strict execution sequence (13 waves, dependency-ordered):**
+**Strict execution sequence (dependency-resolved):**
 
-| Wave | Plan | Track | Depends on | Notes |
-|------|------|-------|------------|-------|
-| **0** | **[fix CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** | **infra** | **—** | **DONE 2026-05-27: `test.yml` green on main (`26528106396`; first full green `26527319286`) for Ubuntu/macOS × Python 3.11/3.12.** |
-| **0.5** | **[OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)** | **infra** | **W0** | **Native OpenCode plugin, host-agnostic dispatch (`mb-dispatch.sh`), hook parity, provider-neutral aliases. Cross-cutting infrastructure required for W1–W12 on OpenCode. Parallel-safe with W1.** |
-| 1 | harness-upgrade S1 — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) | code | **W0** | stack-aware reviewer + examples cache + golden calibration suite |
-| 1 | standalone — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) | docs | **W0** | parallel-safe; запускается в W1, длится сколько успевает (W1-W2) |
-| 2 | harness-upgrade S2 — [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md) | code | W1 reviewer-v2 | `progress_trend`, `pivot_via_architect`, contract phase |
-| 3 | harness-upgrade S3 — [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) | code | W0 (parallel-safe after CI baseline) | capsule + PreCompact + mandatory done-gates + hash chain |
-| 4 | harness-upgrade S4 — [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md) | code | W1 + W2 | Haiku/Sonnet/Opus role assignment |
-| 5 | autopilot S1 — [prompt-overlay + addons](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md) | code | W4 | foundation для всего autopilot (C7) |
-| 6 | autopilot S2 — [mb-debugger + /mb debug](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md) | code | W5 | uses W5 addons; recovery primitive для W11 (C3) |
-| 7 | autopilot S4 — [atomic-commit per stage](plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md) | code | W6 | low-risk, полезно независимо (C5) |
-| 8 | autopilot S6 — [goal-layer + /goal](plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md) | code | W7 | low-risk, independent (C1) |
-| 9 | autopilot S3 — [worktree isolation (MVP)](plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md) | code | W8 | marker/`/mb work` MVP (C2); evolve в W12 |
-| 10 | autopilot S5 — [parallel-waves (MVP)](plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md) | code | W9 | marker-based DAG (C4); evolve в W12 |
-| 11 | autopilot S7 — [autopilot loop](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md) | code | W5..W10 | integrates всё (C6); end-to-end 3-stage test |
-| 12 | harness-upgrade S5 — [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) | code | W1+W2 (soft W3, W4); supersedes W9+W10 | `/mb run` + pipeline.yaml + worktree-per-plan + cross-agent adapter layer |
+| Wave | Item | Why here |
+|------|------|----------|
+| 0 | Hygiene (roadmap honesty) | ✅ DONE 2026-06-14 — закрыты готовые планы, 8× goal-driven + opencode-first → `plans/superseded/` |
+| 1 | cursor-extension finish (S) | quick win, ~7/9 уже сделано |
+| 2 | handoff-v2 (M) | top ICE, parallel-safe, ядро надёжности |
+| 3 | dynamic-flow Phase 1 (M) | стратегический firewall — детерминированный «нельзя соврать про done» |
+| 4 | reviewer-2.0 (L) | голова harness-цепочки |
+| 5 | work-loop-v2 (M) | нужен сигнал `progress_trend` из reviewer-2.0 |
+| 6 | cost-multi-model (M) | нужен reviewer+loop; сначала закрыть I-057/I-058 |
+| ∥ | skill-improvements-anthropic-audit (M) | docs-лейн, идёт параллельно любому code-wave |
+| tail | dynamic-flow Phase 2–3 → pi-extension → (XL) parallel-* | после арх-решения ниже |
 
-**Ordering rationale:**
-- W1+W2 закладывают фундамент review+loop, поверх которого живёт всё последующее — reviewer-v2 и work-loop-v2 пишет почти каждый sprint.
-- W3 (handoff) parallel-safe по frontmatter, но дешевле сделать в hold между W2 и W4, чем гнать pseudo-параллельно с code track'ом.
-- W4 (cost-multi-model) — оптимизация, нужна до больших фаз, чтобы autopilot сразу использовал Haiku/Sonnet routing.
-- W5+W6 — overlay + mb-debugger закладывают prompting инфру и recovery primitive для autopilot loop.
-- W7+W8 — low-risk independent improvements (atomic commit + goal layer). Делаются до medium-risk W9+W10.
-- W9+W10 — MVP worktree и parallel-waves. Сознательно делаются ДО W12 чтобы выпустить рабочий autopilot.
-- W11 — собирает всю autopilot цепочку end-to-end (зависит от W5..W10).
-- W12 — `parallel-pipeline` как evolution: декларативный `/mb run` + cross-agent adapters; не удаляет MVP из W9+W10 (`/mb work --parallel` и `/mb run` остаются параллельными UX).
+**⚠️ Architecture decision required before the XL tail.** `parallel-pipeline` (orchestrator-owned `/mb run`) и `dynamic-flow` (host-native; ADR-1 убивает standalone-runner) философски несовместимы; `parallel-team-execution` сидит downstream обоих. Рекомендация: взять host-native модель dynamic-flow, ценность worktree-изоляции из parallel-pipeline свернуть в шаблоны dynamic-flow, тяжёлый `/mb run` заморозить. Требует явного sign-off (XL-расход).
 
-**Cross-Phase invariants:**
-- Каждый wave landing: pytest GREEN, bats GREEN, rules-check 0 violations, traceability обновлён, plan перенесён в `plans/done/`.
-- Default behaviour byte-identical после каждой landing — всё новое опционально (opt-in flags/env vars).
-- Frontmatter `status: in_progress` ставится только на ОДНОМ плане в моменте (исключение: W1 + skill-improvements могут идти параллельно, т.к. docs/code track не пересекаются).
-
-**Phase gate (v5.0.0):**
-1. Wave 0 + все 12 feature wave'ов закрыты, плановые файлы в `plans/done/`.
-2. End-to-end autopilot test PASS: `/goal init` → `/mb run <plan>` → autopilot loop с mb-debugger auto-recovery → goal completion без supervision.
-3. `mb-traceability-gen` показывает 100% coverage REQ-NNN из specs/{goal-driven-autopilot, parallel-pipeline}.
-4. CHANGELOG `[5.0.0]` описывает обе линейки + migration guide для opt-in flags.
-5. PyPI `memory-bank-skill==5.0.0` + Homebrew bump synced.
+**Cross-wave invariants:**
+- Каждый landing: pytest GREEN, bats GREEN, rules-check 0 violations, traceability обновлён, plan → `plans/done/`.
+- Default behaviour byte-identical после каждой landing — всё новое opt-in (flags/env vars).
+- Frontmatter `status: in_progress` только на ОДНОМ плане в моменте (исключение: docs-лейн skill-improvements может идти параллельно code-лейну).
 
 ## Recently completed
+
+- **✅ `tier1-graph-memory` — code-graph + session-memory tier (17/17)** [2026-06-14 → v5.1.0]
+   - 17 задач через governed `/mb work` (implement Opus → verify → dual-review Codex gpt-5.5 + main-agent → judge → fix-loop ≤2): RRF auto-backend, import-aware Python call-resolution (CACHE_VERSION=2), PageRank god-nodes, progressive-disclosure `/mb recall`, community-summary retrieval, per-community wiki + `semantic` edges (confidence bands), `--sessions` graph layer, `/mb consolidate`/`/mb recap`/`/mb conflicts`, `[SUPERSEDED]` drift checker, v2 session-summary state machine.
+   - Backlog closed: I-066/I-067 (bind-fallback, 306835a), I-069 (heading SM, 07221e9). VERSION 5.0.1 → 5.1.0; full suite 1423 passed / 7 skipped. PyPI publish + git tag — pending explicit go.
 
 - **✅ Phase `global-storage` (core + agent-support) + Sprint `rule-profiles-and-stack-presets`** [2026-05-24, plans archived]
    - `global-storage-core`: resolver contract tests + 6 `_lib.sh` helpers + `mb-init-bank.sh` global flags + `/mb init` UX + rules-only mode docs. Verified: 735 pytest + 119 focused bats.
@@ -230,7 +214,8 @@ Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ 
 - **Phase 3 — Work engine** ✅ COMPLETE (pipeline.yaml + /mb config, /mb work + 9 role-agents, review-loop + severity gates)
 - **Phase 4 — Hardening** ✅ COMPLETE (plan-verifier + 4 critical hooks, --auto/--range/--budget + sprint_context_guard, installer + superpowers overrides)
 - **Phase 4.x — Storage + rules + SDD unification** ✅ COMPLETE (global-storage + rule-profiles + sdd-unification + GraphRAG-lite)
-- **Phase 5 — Autonomous agent harness** 🔄 ACTIVE → see `## Phase: harness-upgrade + goal-driven-autopilot` выше. 12 wave'ов, фінальный gate v5.0.0.
+- **Phase 5 — Code-graph + session memory** ✅ COMPLETE (`tier1-graph-memory` 17/17 → v5.1.0; codegraph-analytics; mb-research-tooling-core)
+- **Phase 6 — Harness + adaptive orchestration** 🔄 ACTIVE → see `## ICE-prioritised roadmap` выше. `goal-driven-autopilot` снят (→ `dynamic-flow`). Sequence: cursor-finish → handoff-v2 → dynamic-flow → reviewer/work-loop/cost chain.
 
 ## See also
 - traceability.md — REQ coverage matrix (пока "No specs yet", Phase 2 заполнит)
@@ -267,20 +252,14 @@ Phase `sdd-unification` ✅ + Phase `global-storage` (core + agent-support) ✅ 
 ## Active plans
 
 <!-- mb-active-plans -->
-- [2026-05-23] [plans/2026-05-23_feature_reviewer-v2.md](plans/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0 (S1 of harness-upgrade)
-- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — goal-driven-autopilot (Phase roadmap)
-- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md) — feature — goal-driven-autopilot — Sprint 1: Prompt overlay + addons
-- [2026-05-23] [plans/2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0 (S2 of harness-upgrade)
-- [2026-05-23] [plans/2026-05-23_feature_handoff-v2.md](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
-- [2026-05-23] [plans/2026-05-23_feature_cost-multi-model.md](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
-- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md) — feature — goal-driven-autopilot — Sprint 2: mb-debugger + `/mb debug`
-- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md) — feature — goal-driven-autopilot — Sprint 3: Worktree isolation
-- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md) — feature — goal-driven-autopilot — Sprint 4: Atomic commit per stage
-- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md) — feature — goal-driven-autopilot — Sprint 5: Parallel waves (DAG)
-- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md) — feature — goal-driven-autopilot — Sprint 6: Goal layer + `/goal`
-- [2026-05-23] [plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md) — feature — goal-driven-autopilot — Sprint 7: Autopilot loop
-- [2026-05-23] [plans/2026-05-23_feature_skill-improvements-anthropic-audit.md](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
-- [2026-05-24] [plans/2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
+- [2026-05-24] [plans/2026-05-24_fix_cursor-compatibility-remediation.md](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — fix — Cursor Compatibility Remediation (in progress)
+- [2026-05-23] [plans/2026-05-23_feature_handoff-v2.md](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0
+- [2026-05-23] [plans/2026-05-23_feature_reviewer-v2.md](plans/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0
+- [2026-05-23] [plans/2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0
+- [2026-05-23] [plans/2026-05-23_feature_cost-multi-model.md](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment)
+- [2026-05-23] [plans/2026-05-23_feature_skill-improvements-anthropic-audit.md](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit (docs, parallel-safe)
+- [2026-05-24] [plans/2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (⚠️ arch decision vs dynamic-flow)
+- [2026-05-24] [plans/2026-05-24_fix_pi-compatibility-remediation.md](plans/2026-05-24_fix_pi-compatibility-remediation.md) — fix — Pi Compatibility Remediation
 <!-- /mb-active-plans -->
 
 ## Ближайшие шаги

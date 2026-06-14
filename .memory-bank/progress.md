@@ -2335,3 +2335,27 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 ### Auto-capture 2026-06-14 (session f4e963ac)
 - Session ended without an explicit /mb done
 - Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 2b2c46c5)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session fae350dc)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+### Roadmap re-prioritisation (ICE) + Wave 0 hygiene — 2026-06-15
+- **Context:** после отгрузки `tier1-graph-memory` (v5.1.0) проведён аудит всех спеков/планов — что реально не имплементировано. 4 параллельных research-агента сверили статус на диске (не доверяя чекбоксам/фронтматтеру).
+- **Ключевая находка:** `goal-driven-autopilot` мёртв — спека в `specs/superseded/`, заменена на `specs/dynamic-flow/` (c4c6740). Roadmap всё ещё держал 8 его планов в «Next». Плюс 3 плана уже сделаны, но фронтматтер врал (`subagent-strengthening` 4544f97, `codegraph-analytics` 56f4711, `mb-research-tooling-core` агенты shipped); `opencode-first-adaptation` заменён слоем `adapters/`.
+- **Wave 0 hygiene выполнен:**
+  - `git mv` 8× goal-driven-autopilot + `opencode-first-adaptation` → `plans/superseded/` (+ `SUPERSEDED.md` с указателями на `dynamic-flow` / `adapters/`). Подкаталог невидим для roadmap-sync (`glob("*.md")` non-recursive) и всех `-maxdepth 1` сканеров.
+  - `subagent-strengthening` (queued→done, 4544f97) + `codegraph-analytics` → `plans/done/`.
+  - `roadmap.md`: авто-блок регенерён (`plans=8 next=7`); прозу «12 wave / v5.0.0 / goal-driven» заменил на `## ICE-prioritised roadmap` (ICE-таблица 11 позиций + dependency-resolved sequence + флаг арх-развилки parallel-pipeline vs dynamic-flow). `tier1` добавлен в Recently completed. `mb-active-plans` блок почищен (8 реальных планов). Phase 5 ✅ / Phase 6 🔄.
+  - `status.md`: Current phase → «Phase 6 — Harness + adaptive orchestration»; следующий код-wave = cursor-finish → handoff-v2. `index.json` регенерён.
+- **ICE-последовательность (источник истины — roadmap):** cursor-finish (S) → handoff-v2 (M, ICE 432) → dynamic-flow Phase 1 (M, 378) → reviewer-2.0 (L) → work-loop-v2 (M) → cost-multi-model (M); docs-лейн skill-improvements параллельно. XL-хвост (parallel-*) — после арх-решения.
+- **Verification:** 30/30 guarding tests (roadmap_sync + status_drift + doc_counts + landing_page) green; roadmap-sync идемпотентен.
+- **Next:** Wave 1 — дофиниш `cursor-extension` (~7/9), затем `handoff-v2`.

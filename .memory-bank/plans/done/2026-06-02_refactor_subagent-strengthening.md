@@ -1,7 +1,9 @@
 ---
 type: refactor
 topic: subagent-strengthening
-status: queued
+status: done
+completed: 2026-06-14
+completed_commit: 4544f97
 depends_on: []
 parallel_safe: false
 linked_specs: []
