@@ -11,15 +11,11 @@
 
 ## ⏭ Следующий шаг
 
-**Current focus: spec `tier1-graph-memory` (17 tasks) — governed `/mb work` (implement Opus → verify → DUAL review Codex+inline → judge → fix loop ≤2).** 5/17 tasks committed, 2 in review/fix gates, 10 pending.
+**✅ spec `tier1-graph-memory` (17/17 tasks) COMPLETE — 2026-06-14.** Delivered end-to-end through the governed `/mb work` machine: implement (Opus subagents) → verify → DUAL parallel review (Codex gpt-5.5 + main-agent) → judge (GO / GO_WITH_BACKLOG / NO_GO) → fix loop ≤2 then `judge_decides`. All 17 tasks committed on `main` (c015831, 491b717, 21ba225, ca6a358, 74f14a1, 3434cb3, a0d6711, e1bbff1, 5a041d2, 8c8d900, b365e59, 73a095e, 7ba7174, 4bca7f6, 1e94d6d, 0ac97f2, 8ff17bb). Three release-gated backlog items closed: I-069 (07221e9), I-066+I-067 (306835a). Version bumped 5.0.1 → 5.1.0.
 
-- Tasks 1 (RRF module, c015831), 2 (RRF auto default, 491b717), 3 (import-aware binding, 21ba225), 4 (PageRank god-nodes, ca6a358+f5e0d15), 7 (per-turn capture ok|err+diffstat, a0d6711) — **closed through dual-review + judge gates**.
-- Task 5 (git churn signal): implement + verify PASS (1318 passed full suite), **awaiting Codex review verdict + judge**. Uncommitted: codegraph_cochange.py, semantic_search.py, scripts/mb-codegraph.py, tests/pytest/test_codegraph_cochange_churn.py, tests/pytest/test_semantic_search_churn.py.
-- Task 8 (summary schema v2): fix cycle 1 complete (Live-log awk stops at next ## heading; honest fallback comment), **in re-verify + Codex round 2**. Uncommitted: hooks/mb-session-end.sh, hooks/tests/session-end-summary-v2.bats.
-- Pending: tasks 6, 9–17.
-- Backlog I-064..I-068 registered this sprint (I-066 HIGH: bind_calls unique-fallback must use module-level symbols only, BEFORE 5.1.0; I-067 MED: root __init__ '.foo' dst guard).
+**Next — explicit user "go" required for: PyPI publish + git tag of 5.1.0.** Release is PREP-only (committed VERSION + CHANGELOG); publish/tag are NOT done. Remaining open backlog from the sprint stays out of the gate: I-064/I-065 (LOW/MED docstrings) + I-068 (pre-existing flaky `session-end-judge.bats`).
 
-**Wave 0 — [CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** закрыт. Post-5.1.0 focus: завершить **Cursor compatibility remediation** или стартовать **W0.5 — [OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)**.
+**Wave 0 — [CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** закрыт. After the 5.1.0 publish: завершить **Cursor compatibility remediation** или стартовать **W0.5 — [OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)**.
 
 После инфраструктурного unlock: стартовать **W1 code — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)** и **W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)**. Закрытие каждого wave: `/mb verify` → `/mb done` → plan moves to `plans/done/`.
 
@@ -81,6 +77,7 @@
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-06-14 — [specs/tier1-graph-memory/](specs/tier1-graph-memory/) — feature — Tier-1 graph + session memory (17/17): RRF/import-aware/PageRank graph, progressive-disclosure recall, `/mb recap`+`/mb conflicts`+`/mb consolidate`, `--sessions` graph layer, wiki staleness+decisions; + 5.1.0 release prep
 - 2026-06-10 — [specs/composable-work-pipeline/](specs/composable-work-pipeline/) — feature — composable `/mb work` pipeline (review off by default) + v5.0.0 release prep
 - 2026-06-09 — [plans/done/2026-06-09_feature_mb-research-tooling-core.md](plans/done/2026-06-09_feature_mb-research-tooling-core.md) — feature — mb-research-tooling-core
 - 2026-06-07 — [plans/done/2026-06-07_refactor_rules-context-economy.md](plans/done/2026-06-07_refactor_rules-context-economy.md) — refactor — rules-context-economy

@@ -2122,3 +2122,216 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 ### Auto-capture 2026-06-12 (session b3bf7d77)
 - Session ended without an explicit /mb done
 - Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session bd24b986)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 1d9b5e61)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session ff100b2c)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### tier1-graph-memory: tasks 1-4+7 closed, tasks 5+8 in review gates
+- Tasks 1 (RRF module, c015831), 2 (RRF auto default, 491b717), 3 (import-aware binding, 21ba225), 4 (PageRank god-nodes, ca6a358+f5e0d15), 7 (per-turn capture ok|err+diffstat, a0d6711) all passed dual-review (Codex gpt-5.5 + main agent inline) + judge gates and committed.
+- Task 5 (git churn signal): implement + verify PASS (1318 passed full suite); awaiting Codex review verdict + judge. Uncommitted: codegraph_cochange.py, semantic_search.py, scripts/mb-codegraph.py, tests/pytest/test_codegraph_cochange_churn.py, tests/pytest/test_semantic_search_churn.py.
+- Task 8 (summary schema v2): fix cycle 1 complete (Live-log awk stop at next ## heading; honest fallback comment); in re-verify + Codex round 2. Uncommitted: hooks/mb-session-end.sh, hooks/tests/session-end-summary-v2.bats.
+- Backlog: I-064..I-068 registered (I-066 HIGH bind_calls unique-fallback module-level only BEFORE 5.1.0; I-067 MED root __init__ '.foo' dst guard).
+- Next step: complete task 5 judge → commit → proceed to task 6; complete task 8 re-verify → Codex round 2 → judge → commit.
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 97867551)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session e96294df)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 67ebe596)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 397620e4)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session c2b32bf0)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 61c2a45a)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session dfff5cf9)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 16a4255d)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session d9c957ad)
+- Session ended without an explicit /mb done
+- Details will be reconstructed on the next /mb start (MB Manager can read the transcript)
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 20afdc37)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 4309d916)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 65264974)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session d91c3e0f)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-12
+
+### Auto-capture 2026-06-12 (session 40d29769)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session ea25f60e)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 2cbe53d9)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 9a3725df)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 4a6a4431)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session dfa1af13)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 37207007)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session a507b0d7)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session a4e9c548)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 7a54662f)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 2875e542)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 1829b7e4)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 7672df00)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session 70b6f1a6)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-14 — Capstone: spec `tier1-graph-memory` fully delivered (17/17) + 5.1.0 release prep
+
+### I-070 — tier1-graph-memory shipped end-to-end via the governed dual-review + judge machine
+
+- **Spec COMPLETE — all 17 tasks committed on `main`** (Tier-1 = code-graph quality + cross-session memory):
+  - T1 RRF fusion module `rrf_merge(rankings, k=60)` (c015831) · T2 RRF is the auto-backend default in semantic search (491b717) · T3 import-aware Python call resolution, `CACHE_VERSION=2` (21ba225) · T4 PageRank-ranked god-nodes, networkx-gated, degree secondary (ca6a358 + uv.lock follow-on f5e0d15) · T5 `churn_30d` ranking signal from the single co-change git pass (74f14a1) · T6 community-summary retrieval — top-3 wiki hit expands member files (3434cb3) · T7 per-turn capture upgrade `outcome ok|err(N)` + diffstat (a0d6711) · T8 structured summary schema v2 — validated four-section template (e1bbff1).
+  - T9 progressive-disclosure compact index + RRF fusion in `/mb recall` (5a041d2) · T10 `/mb recap <sid>` — rebuild a full progress entry from a session stub (8c8d900) · T11 `/mb conflicts` — $0 Jaccard + negation-marker finder (b365e59) · T12 `/mb consolidate` — $0 fold of old sessions + stubs into `notes/archives` (73a095e) · T13 `[SUPERSEDED]` convention + drift checker (7ba7174) · T14 `--sessions` layer bridges session memory into the code graph (4bca7f6) · T15 wiki staleness-aware incremental rebuild — per-community graph hashes (1e94d6d) · T16 deterministic Decisions section in wiki evidence packs (0ac97f2) · T17 tier1 docs + 5.1.0 release prep (8ff17bb).
+- **Execution machine:** every task ran `implement` (Opus subagents) → `verify` → **DUAL parallel review** (Codex gpt-5.5 + main-agent, independent verdicts) → `judge` (GO / GO_WITH_BACKLOG / NO_GO) → fix loop ≤2 then `judge_decides`. Pipeline config landed in `d237694` (opus implementers, dual review, main-agent judge).
+- **Release-gated backlog fixes** (caught by review, fixed before tagging 5.1.0): I-069 — strict v2 heading state machine in `mb-session-end.sh`, rejects duplicate / out-of-order recognized headings (07221e9); I-066 — `bind_calls` unique-fallback binds **module-level defs only** (excludes methods/nested); I-067 — no leading-dot `dst` for root `__init__.py` (both 306835a). Version bumped 5.0.1 → 5.1.0 (**release PREP only — PyPI publish + git tag pending explicit user "go", NOT done**).
+- **High-value convergence findings the dual review caught** (would have shipped silently otherwise):
+  - **Modern-bullet files-tail parse bug** surfaced in T12 + T14 — the consolidation/session parser mishandled the trailing files list under modern-bullet summaries; fixed so member-file extraction stays exact.
+  - **Byte-verbatim splitter + module extraction in T12** — `/mb consolidate` must fold sessions without mutating content; review forced a byte-verbatim splitter and clean module extraction instead of an in-place rewrite.
+  - **Relative-bank-path dispatch regression** — a code path broke when the bank was addressed by a relative (non-absolute) path; review caught and restored absolute-path dispatch.
+  - **Stale pre-5.1 doc claims in T17** — release docs still asserted pre-5.1 behaviour/counts; corrected during the docs task so 5.1.0 ships truthful documentation.
+- **Backlog status:** I-066 / I-067 / I-069 → RESOLVED (2026-06-14). Left OPEN (not release-gated): I-064 (MED) + I-065 (LOW) rrf.py docstring/test polish; I-068 (MED) pre-existing flaky `session-end-judge.bats` (not introduced by tier1).
+- **Memory Bank actualized this session:** `checklist.md` (17/17 ✅ + backlog-fix line), `status.md` (focus = tier1 COMPLETE + 5.1.0 prepped, publish pending go; Recently-done +tier1), `backlog.md` (I-066/067/069 RESOLVED, I-064/065/068 annotated open). `traceability.md` already maps REQ-001..REQ-029 → tier1 tasks (autogenerated, current). VERSION metric line already 5.1.0 (committed) — kept.
+- **Next step:** await explicit user "go" to publish 5.1.0 to PyPI + push the git tag; then resume Cursor compatibility remediation or W0.5 OpenCode-first adaptation.
+
+## 2026-06-14
+
+### Auto-capture 2026-06-14 (session f4e963ac)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized

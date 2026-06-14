@@ -3,9 +3,30 @@
 
 > **Convention.** Short active list only; hard cap ≤120 lines. Detailed history lives in `progress.md`, `roadmap.md`, and `plans/done/`.
 
-## ⏳ In flight
+## ✅ Done — spec: tier1-graph-memory (17/17)
 
-_No Wave 0 blockers. Latest `test.yml` on `main`: ✅ `26528106396`._
+_Governed `/mb work`: implement (Opus) → verify → DUAL review (Codex gpt-5.5 + main-agent) → judge (GO/GO_WITH_BACKLOG/NO_GO) → fix loop ≤2 then judge_decides. Spec COMPLETE 2026-06-14; 5.1.0 prepped (PyPI publish + git tag pending explicit go)._
+
+- ✅ Task 1 — RRF fusion module (c015831)
+- ✅ Task 2 — RRF auto default (491b717)
+- ✅ Task 3 — import-aware call binding (21ba225)
+- ✅ Task 4 — PageRank god-nodes signal (ca6a358 + f5e0d15)
+- ✅ Task 5 — git churn signal (74f14a1)
+- ✅ Task 6 — community retrieval (3434cb3)
+- ✅ Task 7 — per-turn capture ok|err + diffstat (a0d6711)
+- ✅ Task 8 — summary schema v2 (e1bbff1)
+- ✅ Task 9 — progressive-disclosure recall + RRF fusion (5a041d2)
+- ✅ Task 10 — `/mb recap <sid>` (8c8d900)
+- ✅ Task 11 — `/mb conflicts` Jaccard + negation finder (b365e59)
+- ✅ Task 12 — `/mb consolidate` $0 session fold (73a095e)
+- ✅ Task 13 — [SUPERSEDED] convention + drift checker (7ba7174)
+- ✅ Task 14 — `--sessions` graph layer (4bca7f6)
+- ✅ Task 15 — wiki staleness-aware incremental rebuild (1e94d6d)
+- ✅ Task 16 — deterministic wiki Decisions section (0ac97f2)
+- ✅ Task 17 — tier1 docs + 5.1.0 release prep (8ff17bb)
+- ✅ Release-gated backlog fixes — I-069 (07221e9), I-066+I-067 (306835a)
+
+_Wave queues unchanged below._
 
 ## ⏭ Queued waves after Wave 0
 

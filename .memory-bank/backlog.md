@@ -347,20 +347,23 @@
 
 ### I-064 — rrf.py: test + docstring for duplicate-keys-in-one-ranking semantics (review tier1 task1 #1) [MED, NEW, 2026-06-12]
 
+_Still OPEN — LOW/MED, not release-gated; deferred past 5.1.0._
 
 ### I-065 — rrf.py:47 docstring example — replace ellipsis with concrete tuples (review tier1 task1 #2) [LOW, NEW, 2026-06-12]
 
+_Still OPEN — LOW/MED, not release-gated; deferred past 5.1.0._
 
-### I-066 — BEFORE 5.1.0: bind_calls unique-fallback — build definitions from module-level symbols only (exclude methods/nested; Codex tier1-task3 r3 major) [HIGH, NEW, 2026-06-12]
+### I-066 — BEFORE 5.1.0: bind_calls unique-fallback — build definitions from module-level symbols only (exclude methods/nested; Codex tier1-task3 r3 major) [HIGH, RESOLVED 2026-06-14 — 306835a]
 
 
-### I-067 — BEFORE 5.1.0: unique-fallback dst for root __init__.py formats as '.foo' — guard empty module prefix (Codex tier1-task3 r3 minor) [MED, NEW, 2026-06-12]
+### I-067 — BEFORE 5.1.0: unique-fallback dst for root __init__.py formats as '.foo' — guard empty module prefix (Codex tier1-task3 r3 minor) [MED, RESOLVED 2026-06-14 — 306835a]
 
 
 ### I-068 — Flaky test: session-end-judge.bats 'judge returns [] still marks judged=true' fails ~1/6 (pre-existing, reproduced on pristine hook; found during tier1 task 8) [MED, NEW, 2026-06-12]
 
+_Still OPEN — pre-existing flaky test, not introduced by tier1; not release-gated._
 
-### I-069 — BEFORE 5.1.0: strict v2 heading state machine in mb-session-end.sh — reject duplicate/out-of-order recognized headings inside the summary body (Codex r3 finding, task 8); add duplicate+out-of-order bats tests [HIGH, NEW, 2026-06-12]
+### I-069 — BEFORE 5.1.0: strict v2 heading state machine in mb-session-end.sh — reject duplicate/out-of-order recognized headings inside the summary body (Codex r3 finding, task 8); add duplicate+out-of-order bats tests [HIGH, RESOLVED 2026-06-14 — 07221e9]
 
 ## ADR
 
