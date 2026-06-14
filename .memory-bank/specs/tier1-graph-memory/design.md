@@ -159,6 +159,11 @@ execute/review per group (3 sprints) via `/mb work tier1-graph-memory --range`.
   graph-write time (import from `hooks/lib/redact.py`).
 - Opt-in `--sessions` on `mb-codegraph.py`; base output byte-identical
   without it. Docs carry a privacy note (graph.json is committable).
+- Applied as the LAST graph mutation — after `detect_communities` /
+  `file_betweenness` / `compute_pagerank` and after god-nodes.md is rendered —
+  so session/`worked_on` rows never skew structural god-node ranking (work
+  history ≠ code structure). graph.json carries the session rows + doc appends;
+  god-nodes.md stays byte-identical with and without `--sessions`.
 
 ### C2. Wiki staleness (REQ-027)
 

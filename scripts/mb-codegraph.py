@@ -36,6 +36,7 @@ try:
     from memory_bank_skill import codegraph_cochange as cgco
     from memory_bank_skill import codegraph_python as cgpy
     from memory_bank_skill import codegraph_questions as cgq
+    from memory_bank_skill import codegraph_sessions as cgs
     from memory_bank_skill import codegraph_treesitter as cgts
     from memory_bank_skill._io import atomic_write
     from memory_bank_skill.codegraph_common import rel, sha256
@@ -45,6 +46,7 @@ except ModuleNotFoundError:
     from memory_bank_skill import codegraph_cochange as cgco
     from memory_bank_skill import codegraph_python as cgpy
     from memory_bank_skill import codegraph_questions as cgq
+    from memory_bank_skill import codegraph_sessions as cgs
     from memory_bank_skill import codegraph_treesitter as cgts
     from memory_bank_skill._io import atomic_write
     from memory_bank_skill.codegraph_common import rel, sha256
@@ -312,6 +314,41 @@ def _write_graph_jsonl(
     atomic_write(target, "\n".join(lines) + "\n")
 
 
+def _apply_session_layer(mb: Path, graph: dict[str, Any], summary: dict[str, Any]) -> None:
+    """Merge the ``--sessions`` layer into ``graph`` in place (apply-mode only).
+
+    Adds ``session`` nodes + ``worked_on`` edges and appends each session summary
+    to the touched ``module`` node's ``doc`` (so it feeds the embedding corpus).
+    Heavy lifting + redaction lives in ``codegraph_sessions``; this keeps the
+    orchestrator thin.
+    """
+    module_files = {
+        n["file"] for n in graph["nodes"] if n.get("kind") == "module" and n.get("file")
+    }
+    layer = cgs.extract_session_layer(mb, module_files)
+    if not layer.nodes:
+        summary["session_nodes"] = 0
+        summary["worked_on_edges"] = 0
+        print("session_nodes=0")
+        print("worked_on_edges=0")
+        return
+    # Append summaries to the matching module node's doc field.
+    for node in graph["nodes"]:
+        if node.get("kind") != "module":
+            continue
+        appends = layer.doc_appends.get(node.get("file", ""))
+        if not appends:
+            continue
+        suffix = " | ".join(appends)
+        node["doc"] = f"{node['doc']} | {suffix}" if node.get("doc") else suffix
+    graph["nodes"].extend(layer.nodes)
+    graph["edges"].extend(layer.edges)
+    summary["session_nodes"] = len(layer.nodes)
+    summary["worked_on_edges"] = len(layer.edges)
+    print(f"session_nodes={len(layer.nodes)}")
+    print(f"worked_on_edges={len(layer.edges)}")
+
+
 def run(
     *,
     mb_path: str,
@@ -320,10 +357,16 @@ def run(
     cochange: bool = False,
     questions: bool = False,
     docs: bool = False,
+    sessions: bool = False,
 ) -> dict[str, Any]:
     """Build graph, optionally write outputs. Returns summary dict.
 
     ``docs`` (opt-in) enriches function/class/module nodes with ``doc``/``signature``.
+    ``sessions`` (opt-in) bridges ``session/*.md`` work history into the graph as
+    ``session`` nodes + ``worked_on`` edges and module ``doc`` appends. All
+    session-derived strings are secret-redacted and ``<private>``-stripped at
+    write time (privacy: ``graph.json`` is committable). Base output without the
+    flag is byte-identical.
     """
     mb = Path(mb_path)
     src = Path(src_root)
@@ -373,6 +416,10 @@ def run(
         print(f"cochange_edges={len(cochange_edges)}")
         print(f"churn_files={len(churn_attrs)}")
 
+    # Structural analytics run on the CODE graph (base + co-change). Co-change
+    # edges are module↔module, so they legitimately shape communities/centrality;
+    # the session layer (session↔module) is applied later so work history never
+    # skews structural god-node ranking.
     communities = cga.detect_communities(graph)
     betweenness = cga.file_betweenness(graph)
     pagerank = cga.compute_pagerank(graph)
@@ -388,11 +435,24 @@ def run(
         summary["questions"] = len(suggested)
         print(f"questions={len(suggested)}")
 
-    _write_graph_jsonl(graph, codebase / "graph.json", communities, churn_attrs)
-    atomic_write(
-        codebase / "god-nodes.md",
-        _render_god_nodes(graph, communities, betweenness, cochange_edges, suggested, pagerank),
+    # Render god-nodes.md from the structural graph BEFORE the session layer, so a
+    # busy session never appears as a structural god-node (work history ≠ code
+    # structure). graph.json (written below) still carries the session rows.
+    god_nodes_md = _render_god_nodes(
+        graph, communities, betweenness, cochange_edges, suggested, pagerank
     )
+
+    # Opt-in: bridge session work-history into the graph (session nodes +
+    # worked_on edges + module doc appends) as the LAST mutation — after analytics
+    # and god-node rendering — so it enriches graph.json's embedding corpus without
+    # skewing structural ranking. All session-derived strings are secret-redacted
+    # and <private>-stripped (graph.json is committable). Default off keeps
+    # graph.json byte-identical.
+    if sessions:
+        _apply_session_layer(mb, graph, summary)
+
+    _write_graph_jsonl(graph, codebase / "graph.json", communities, churn_attrs)
+    atomic_write(codebase / "god-nodes.md", god_nodes_md)
 
     return summary
 
@@ -419,6 +479,15 @@ def main(argv: list[str]) -> int:
         help="Enrich nodes with doc/signature for richer semantic search "
         "(opt-in; changes graph.json — clears nothing, re-parses on toggle)",
     )
+    parser.add_argument(
+        "--sessions",
+        action="store_true",
+        help="Bridge session/*.md work history into the graph as session nodes + "
+        "worked_on edges + module doc appends (opt-in; requires --apply). "
+        "Privacy: like --cochange, this writes session-derived text into the "
+        "committable graph.json — every string is secret-redacted and "
+        "<private>-stripped at write time (REQ-026 defense-in-depth).",
+    )
     parser.add_argument("mb_path", nargs="?", default=".memory-bank")
     parser.add_argument("src_root", nargs="?", default=".")
     args = parser.parse_args(argv[1:])
@@ -432,6 +501,7 @@ def main(argv: list[str]) -> int:
             cochange=args.cochange,
             questions=args.questions,
             docs=args.docs,
+            sessions=args.sessions,
         )
     except FileNotFoundError as e:
         print(f"[error] {e}", file=sys.stderr)

@@ -340,12 +340,12 @@
   skipped; without `--sessions` → graph byte-identical (regression).
 
 **DoD:**
-- [ ] scenario 9 green (e2e: secret never reaches graph.json)
-- [ ] base build without flag byte-identical (regression test)
-- [ ] embedding corpus picks up doc appends (search finds module by
+- [x] scenario 9 green (e2e: secret never reaches graph.json)
+- [x] base build without flag byte-identical (regression test)
+- [x] embedding corpus picks up doc appends (search finds module by
       work-history query in fixture)
-- [ ] tests pass
-- [ ] lint clean
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:15 -->
 ## Task 15: Wiki staleness — incremental rebuild
