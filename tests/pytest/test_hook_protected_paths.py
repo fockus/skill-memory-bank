@@ -18,7 +18,10 @@ def _run(payload: dict, env: dict | None = None) -> subprocess.CompletedProcess[
     return subprocess.run(
         ["bash", str(HOOK)],
         input=json.dumps(payload),
-        capture_output=True, text=True, env=e, check=False,
+        capture_output=True,
+        text=True,
+        env=e,
+        check=False,
     )
 
 
@@ -34,14 +37,33 @@ def test_unprotected_file_passes() -> None:
     assert r.returncode == 0
 
 
-def test_dotenv_blocked() -> None:
+def test_dotenv_default_asks() -> None:
+    # G13 (2026-06-13): default mode escalates to a user "ask" (exit 0 + JSON
+    # permissionDecision) instead of a hard deny, keeping the Write/Edit hook path live.
     r = _run(_write_payload(".env.production"))
+    assert r.returncode == 0
+    hso = json.loads(r.stdout)["hookSpecificOutput"]
+    assert hso["permissionDecision"] == "ask"
+    assert ".env.production" in hso["permissionDecisionReason"]
+
+
+def test_dotenv_deny_mode_blocks() -> None:
+    # Legacy hard-block path is preserved for unattended/CI runs via MB_PROTECTED_MODE=deny.
+    r = _run(_write_payload(".env.production"), env={"MB_PROTECTED_MODE": "deny"})
     assert r.returncode == 2
     assert ".env" in r.stderr or "protected" in r.stderr.lower()
 
 
-def test_ci_glob_blocked() -> None:
+def test_ci_glob_default_asks() -> None:
     r = _run(_write_payload("ci/build.yaml"))
+    assert r.returncode == 0
+    hso = json.loads(r.stdout)["hookSpecificOutput"]
+    assert hso["permissionDecision"] == "ask"
+    assert "ci/build.yaml" in hso["permissionDecisionReason"]
+
+
+def test_ci_glob_deny_mode_blocks() -> None:
+    r = _run(_write_payload("ci/build.yaml"), env={"MB_PROTECTED_MODE": "deny"})
     assert r.returncode == 2
 
 

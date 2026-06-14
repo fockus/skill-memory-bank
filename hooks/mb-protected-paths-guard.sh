@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 # mb-protected-paths-guard.sh — PreToolUse hook for Write/Edit.
 #
-# Blocks writes to paths matching pipeline.yaml:protected_paths globs unless
-# `MB_ALLOW_PROTECTED=1` is set in the environment (mirrors `--allow-protected`
-# flag from /mb work).
+# Escalates writes to paths matching pipeline.yaml:protected_paths globs to an
+# explicit user confirmation (permissionDecision "ask") instead of hard-denying.
+# Rationale (G13, 2026-06-13): a hard deny is intent-blind — sanctioned work on
+# .env/Dockerfile/etc. was forced into `bash cat >` workarounds, which silently
+# disables ALL Write/Edit hooks. An "ask" keeps the human in the loop while
+# keeping the safe Write/Edit path (and every other hook) active.
+#
+# Modes:
+#   default                 → protected path => permissionDecision "ask" + reason
+#   MB_ALLOW_PROTECTED=1    → allow silently (mirrors /mb work --allow-protected)
+#   MB_PROTECTED_MODE=deny  → legacy hard block (exit 2) for unattended runs
 #
 # Exit codes:
-#   0  allow (path is not protected, or override flag set, or unrelated tool)
-#   2  hard block (path is protected and no override)
+#   0  allow / ask (decision carried in stdout JSON)
+#   2  hard block (only when MB_PROTECTED_MODE=deny)
 
 set -eu
 
@@ -47,8 +55,23 @@ if bash "$CHECKER" "$FILE_PATH" >/dev/null 2>&1; then
   exit 0
 fi
 
-# Re-run to capture stderr for the user
-bash "$CHECKER" "$FILE_PATH" 2>&1 >/dev/null | sed 's/^/[protected-paths-guard] /' >&2
-echo "[protected-paths-guard] BLOCKED: '$FILE_PATH' is in pipeline.yaml:protected_paths." >&2
-echo "[protected-paths-guard] Set MB_ALLOW_PROTECTED=1 to override (or pass --allow-protected to /mb work)." >&2
-exit 2
+# Path IS protected. Legacy hard-deny only when explicitly requested
+# (e.g. unattended/CI runs where no human can answer an "ask").
+if [ "${MB_PROTECTED_MODE:-ask}" = "deny" ]; then
+  bash "$CHECKER" "$FILE_PATH" 2>&1 >/dev/null | sed 's/^/[protected-paths-guard] /' >&2
+  echo "[protected-paths-guard] BLOCKED: '$FILE_PATH' is in pipeline.yaml:protected_paths." >&2
+  echo "[protected-paths-guard] Set MB_ALLOW_PROTECTED=1 to override (or pass --allow-protected to /mb work)." >&2
+  exit 2
+fi
+
+# Default: escalate to the user with a reason instead of denying. The agent's
+# Write/Edit proceeds only after explicit human approval in the UI.
+DETAIL="$(bash "$CHECKER" "$FILE_PATH" 2>&1 >/dev/null | head -3 | tr '\n' ' ' || true)"
+jq -cn --arg path "$FILE_PATH" --arg detail "$DETAIL" '{
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "ask",
+    permissionDecisionReason: ("Protected path (pipeline.yaml:protected_paths): " + $path + (if $detail != "" then " — " + $detail else "" end) + ". Approve to write via the normal hooked path; deny to keep it untouched.")
+  }
+}'
+exit 0
