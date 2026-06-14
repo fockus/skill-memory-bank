@@ -161,16 +161,40 @@ $SRC"
   # before the first `### What changed` (status line / stray prose) and accept as v2. Otherwise
   # store the summary as-is with NO flag — legacy treatment, fully parseable, the flag stays
   # honest. Pure awk; no new dependency, no extra LLM call.
+  #
+  # Strict heading state machine (I-069): the four recognized v2 headings must each appear AT
+  # MOST ONCE and in the canonical order What changed → Decisions → Open questions → Files. A
+  # duplicate recognized heading, or a recognized heading that appears out of canonical position
+  # (e.g. ### Decisions before ### What changed, or ### Files before ### Decisions), rejects v2 —
+  # otherwise the lying flag would break the deterministic single-section parser downstream.
+  # Unrecognized `### ...` lines and ordinary prose are NOT headings: they are printed through
+  # and never advance or trip the machine.
   SUMMARY_V2=false
   if STRIPPED="$(printf '%s\n' "$SUMMARY" | awk '
-      # Print only from the first "### What changed" onward (drops leading preamble), and verify
-      # the four headings appear in the exact required order. Exit non-zero unless all four matched.
-      !started && $0 == "### What changed" { started=1; want=2 }   # next wanted = Decisions
-      started
-      started && want==2 && $0 == "### Decisions"      { want=3 }
-      started && want==3 && $0 == "### Open questions"  { want=4 }
-      started && want==4 && $0 == "### Files"           { want=5 }
-      END { exit (want==5 ? 0 : 1) }
+      BEGIN {
+        rank["### What changed"]=1
+        rank["### Decisions"]=2
+        rank["### Open questions"]=3
+        rank["### Files"]=4
+        want=1   # canonical rank of the next recognized heading we expect
+      }
+      # A line is a recognized v2 heading only if it matches one of the four exactly.
+      ($0 in rank) {
+        r = rank[$0]
+        # Start at the first "### What changed"; any recognized heading before it is out of order.
+        if (!started) {
+          if (r != 1) { bad=1 }
+          else        { started=1; want=2; print; next }
+        } else {
+          if (seen[r])      { bad=1 }   # duplicate recognized heading
+          else if (r != want) { bad=1 } # out-of-canonical-order recognized heading
+          else { seen[r]=1; want++ }
+        }
+      }
+      # Print only from the first recognized "### What changed" onward (drops leading preamble).
+      started { print }
+      # Reject as soon as any rule is violated, or unless all four were consumed in order.
+      END { exit ((bad || want != 5) ? 1 : 0) }
   ')"; then
     SUMMARY="$STRIPPED"
     SUMMARY_V2=true

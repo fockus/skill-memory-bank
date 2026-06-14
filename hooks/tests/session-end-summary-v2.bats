@@ -247,6 +247,96 @@ EOF
   [ "$output" = '### What changed' ]
 }
 
+# ── I-069 (r3): strict v2 heading state machine ──────────────────────────────
+# The schema-v2 validator must REJECT a body where a recognized heading is duplicated
+# or appears out of canonical order. Rejection = stored as-is WITHOUT summary_schema: v2
+# (the same honest-flag mechanism as the malformed-output case), never a hard crash.
+
+@test "duplicate recognized heading is REJECTED — stored WITHOUT summary_schema flag (I-069)" {
+  # ### Decisions appears twice. The four-in-order check used to pass it (want stayed 5),
+  # falsely stamping v2 and breaking the deterministic single-section parser contract.
+  cat > "$STUB/claude" <<EOF
+#!/usr/bin/env bash
+echo call >> "$CALLS"
+cat > "$STDIN_SEEN"
+echo "### What changed"
+echo "edited the hook"
+echo "### Decisions"
+echo "use v2 schema"
+echo "### Decisions"
+echo "a duplicate decisions heading"
+echo "### Open questions"
+echo "none"
+echo "### Files"
+echo "hooks/mb-session-end.sh"
+EOF
+  chmod +x "$STUB/claude"
+  run bash -c "MB_SESSION_JUDGE=off CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  # Summary is still stored (fail-open: non-empty, non-error output is never dropped).
+  grep -q '## Summary' "$SF"
+  grep -q 'a duplicate decisions heading' "$SF"
+  # ...but the v2 flag must be ABSENT (assert the negative via run/status so it genuinely fails).
+  run grep -q '^summary_schema' "$SF"
+  [ "$status" -ne 0 ]
+}
+
+@test "out-of-order recognized headings are REJECTED — stored WITHOUT summary_schema flag (I-069)" {
+  # A recognized heading (### Decisions) appears BEFORE its canonical predecessor
+  # (### What changed). The canonical order is What changed → Decisions → Open questions →
+  # Files; the lenient four-in-order check silently treats the early ### Decisions as prose
+  # and still reaches want==5, falsely stamping v2. A strict machine must reject it.
+  cat > "$STUB/claude" <<EOF
+#!/usr/bin/env bash
+echo call >> "$CALLS"
+cat > "$STDIN_SEEN"
+echo "### Decisions"
+echo "an out-of-order decisions heading before What changed"
+echo "### What changed"
+echo "edited the hook"
+echo "### Decisions"
+echo "use v2 schema"
+echo "### Open questions"
+echo "none"
+echo "### Files"
+echo "hooks/mb-session-end.sh"
+EOF
+  chmod +x "$STUB/claude"
+  run bash -c "MB_SESSION_JUDGE=off CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  # Summary is still stored (fail-open).
+  grep -q '## Summary' "$SF"
+  # ...but the v2 flag must be ABSENT.
+  run grep -q '^summary_schema' "$SF"
+  [ "$status" -ne 0 ]
+}
+
+@test "valid in-order body with unrecognized ### lines + prose still passes as v2 (I-069 regression)" {
+  # Unrecognized ### lines (e.g. a sub-heading the model invented) and ordinary prose must
+  # NOT trip the state machine: a correctly-ordered, no-duplicate v2 body still earns the flag.
+  cat > "$STUB/claude" <<EOF
+#!/usr/bin/env bash
+echo call >> "$CALLS"
+cat > "$STDIN_SEEN"
+echo "### What changed"
+echo "edited the hook"
+echo "### Some other note"
+echo "an unrecognized sub-heading that is just prose"
+echo "### Decisions"
+echo "use v2 schema"
+echo "### Open questions"
+echo "none"
+echo "### Files"
+echo "hooks/mb-session-end.sh"
+EOF
+  chmod +x "$STUB/claude"
+  run bash -c "MB_SESSION_JUDGE=off CLAUDE='$CLAUDE' bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  grep -q '^summary_schema: v2' "$SF"
+  grep -q '### What changed' "$SF"
+  grep -q 'an unrecognized sub-heading that is just prose' "$SF"
+}
+
 @test "rebuild handles mixed legacy + v2 summaries (both appear in _recent.md)" {
   rm -f "$SF"
   legacy="$MB/session/2026-06-05_1000_deadbeef.md"
