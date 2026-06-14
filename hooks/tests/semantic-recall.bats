@@ -31,24 +31,36 @@ teardown() { rm -rf "$TMP"; }
   [ "$output" = "{}" ]
 }
 
-@test "injects Relevant Memory when CLI returns matches" {
-  cat > "$STUB/python3" <<'EOF'
+# Stub `python3`: return semantic JSON for a `search` subcommand, otherwise delegate
+# to the real interpreter so the recall-index bridge (compact render) still runs.
+_stub_python3() {
+  local json="$1" real; real="$(command -v python3)"
+  cat > "$STUB/python3" <<EOF
 #!/usr/bin/env bash
-echo '[{"score":0.9,"source":"notes/a.md","kind":"note","text":"kamal proxy host"}]'
+for a in "\$@"; do [ "\$a" = "search" ] && { printf '%s\n' '$json'; exit 0; }; done
+exec "$real" "\$@"
 EOF
   chmod +x "$STUB/python3"
+}
+
+@test "injects the COMPACT Relevant Memory form when CLI returns matches" {
+  body='kamal proxy host stored in keyring — then a very long trailing remainder padded out well past any summary cap so the index never carries the FORBIDDENTAILMARKER token verbatim into the prompt context window at all not even once here'
+  printf '# a\n%s\n' "$body" > "$MB/notes/a.md"
+  _stub_python3 '[{"score":0.9,"source":"notes/a.md","kind":"note","text":"'"$body"'","anchor":"p0"}]'
   run env PATH="$STUB:$PATH" MB_SEMANTIC=auto bash "$HOOK" <<< '{"prompt":"deploy","cwd":"'"$PROJ"'"}'
   [ "$status" -eq 0 ]
   [[ "$output" == *"Relevant Memory"* ]]
+  # Compact form: the stable id (human-readable slug + short hash, anchor :p0), the
+  # ' · ' separator, AND the relevant summary text.
+  [[ "$output" =~ a-[0-9a-f]+:p0 ]]
+  [[ "$output" == *" · "* ]]
   [[ "$output" == *"kamal proxy host"* ]]
+  # Full chunk bodies are NOT injected verbatim — only the summarised compact line.
+  [[ "$output" != *"FORBIDDENTAILMARKER"* ]]
 }
 
 @test "empty results → empty object" {
-  cat > "$STUB/python3" <<'EOF'
-#!/usr/bin/env bash
-echo '[]'
-EOF
-  chmod +x "$STUB/python3"
+  _stub_python3 '[]'
   run env PATH="$STUB:$PATH" MB_SEMANTIC=auto bash "$HOOK" <<< '{"prompt":"zzz","cwd":"'"$PROJ"'"}'
   [ "$status" -eq 0 ]
   [ "$output" = "{}" ]

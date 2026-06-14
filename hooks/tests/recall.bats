@@ -42,30 +42,37 @@ teardown() { rm -rf "$TMP"; }
   [ "$status" -eq 0 ]
 }
 
-@test "hybrid: semantic section shown when CLI returns results, lexical kept (REQ-SM-024)" {
-  STUB="$TMP/stub"; mkdir -p "$STUB"
-  cat > "$STUB/python3" <<'EOF'
+# Stub `python3`: return semantic JSON for a `search` subcommand, otherwise delegate
+# to the real interpreter so the recall-index bridge still runs.
+_stub_python3() {
+  local json="$1" real; real="$(command -v python3)"; mkdir -p "$STUB"
+  cat > "$STUB/python3" <<EOF
 #!/usr/bin/env bash
-echo '[{"score":0.8,"source":"notes/x.md","kind":"note","text":"semantic hit about kamal"}]'
+for a in "\$@"; do [ "\$a" = "search" ] && { printf '%s\n' '$json'; exit 0; }; done
+exec "$real" "\$@"
 EOF
   chmod +x "$STUB/python3"
-  run env PATH="$STUB:$PATH" CLAUDE_PROJECT_DIR="$PROJ" MB_SEMANTIC=auto bash "$HOOK" kamal
-  [ "$status" -eq 0 ]
-  echo "$output" | grep -q '## Semantic matches'
-  echo "$output" | grep -q 'semantic hit about kamal'
-  echo "$output" | grep -q '## Lexical matches'
-  echo "$output" | grep -q 'kamal deploy ssl'
 }
 
-@test "MB_SEMANTIC=off → no semantic section, lexical only (REQ-SM-021)" {
-  STUB="$TMP/stub"; mkdir -p "$STUB"
-  cat > "$STUB/python3" <<'EOF'
-#!/usr/bin/env bash
-echo '[{"score":0.8,"source":"notes/x.md","kind":"note","text":"should not appear"}]'
-EOF
-  chmod +x "$STUB/python3"
+@test "hybrid: semantic + lexical hits are fused into one compact index (REQ-SM-024, REQ-001)" {
+  STUB="$TMP/stub"
+  _stub_python3 '[{"score":0.8,"source":"notes/semx.md","kind":"note","text":"semantic hit about kamal","anchor":"p0"}]'
+  printf '# semx\nsemantic hit about kamal\n' > "$MB/notes/semx.md"
+  run env PATH="$STUB:$PATH" CLAUDE_PROJECT_DIR="$PROJ" MB_SEMANTIC=auto bash "$HOOK" kamal
+  [ "$status" -eq 0 ]
+  # Fused compact index: both the semantic-only entry and the lexical entry appear.
+  echo "$output" | grep -q 'semx'
+  echo "$output" | grep -q 'kamal deploy ssl'
+  echo "$output" | grep -q ' · '
+  # The semantic hit's one-line summary must carry its RELEVANT text, not just the stem.
+  echo "$output" | grep -q 'semantic hit about kamal'
+}
+
+@test "MB_SEMANTIC=off → semantic content suppressed, lexical kept (REQ-SM-021)" {
+  STUB="$TMP/stub"
+  _stub_python3 '[{"score":0.8,"source":"notes/semx.md","kind":"note","text":"should not appear","anchor":"p0"}]'
   run env PATH="$STUB:$PATH" CLAUDE_PROJECT_DIR="$PROJ" MB_SEMANTIC=off bash "$HOOK" kamal
   [ "$status" -eq 0 ]
-  ! echo "$output" | grep -q '## Semantic matches'
+  [[ "$output" != *"should not appear"* ]]
   echo "$output" | grep -q 'kamal deploy ssl'
 }

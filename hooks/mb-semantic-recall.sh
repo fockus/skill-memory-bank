@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # mb-semantic-recall.sh — UserPromptSubmit: inject semantically relevant past-chat snippets.
-# Fail-safe: any problem → print {} and exit 0; never block the prompt.
+# Injects the COMPACT recall form (id · age · summary · source) — the ~10× token saving over
+# full chunk bodies. Fail-safe: any problem → print {} and exit 0; never block the prompt.
 set -u
 exec 2>/dev/null
 [ -n "${MB_CAPTURE_SUBPROCESS:-}" ] && { printf '{}\n'; exit 0; }
@@ -25,14 +26,17 @@ RESULT="$(MB_ROOT="$MB" "$PY" "$HOOK_DIR/mb-semantic.py" search "$PROMPT" \
           --top-k "${MB_SEMANTIC_TOPK:-5}" --min-score "${MB_SEMANTIC_MIN_SCORE:-0.35}" \
           --timeout "${MB_SEMANTIC_TIMEOUT:-3}" --json 2>/dev/null || true)"
 [ -n "$RESULT" ] || { printf '{}\n'; exit 0; }
+printf '%s' "$RESULT" | "$JQ" -e 'type=="array"' >/dev/null 2>&1 || { printf '{}\n'; exit 0; }
 
 COUNT="$(printf '%s' "$RESULT" | "$JQ" 'length' 2>/dev/null || echo 0)"
 [ "$COUNT" -gt 0 ] 2>/dev/null || { printf '{}\n'; exit 0; }
 
-CTX="$(printf '%s' "$RESULT" | "$JQ" -r '
-  "# Relevant Memory\n\n(from past sessions — semantic match)\n" +
-  ([.[] | "- [" + (.kind) + "] " + (.source) + " (" + (.score|tostring) + ")\n  " +
-    (.text | gsub("\n";" ") | .[0:280])] | join("\n"))' 2>/dev/null)"
+# Render the COMPACT index via the shared recall-index bridge (token-economical).
+# shellcheck disable=SC2016 # $mb/$sem are jq variables bound via --arg/--argjson.
+REQ="$("$JQ" -n --arg mb "$MB" --argjson sem "$RESULT" \
+       '{mb:$mb, mode:"inject", limit:5, semantic:$sem, lexical:[]}' 2>/dev/null)"
+[ -n "$REQ" ] || { printf '{}\n'; exit 0; }
+CTX="$(printf '%s' "$REQ" | "$PY" "$HOOK_DIR/lib/recall_index.py" 2>/dev/null || true)"
 [ -n "$CTX" ] || { printf '{}\n'; exit 0; }
 
 # shellcheck disable=SC2016 # $c is a jq variable bound via --arg, not a shell expansion.

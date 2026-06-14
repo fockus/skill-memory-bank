@@ -218,10 +218,10 @@
   (compact line < 200 chars/hit).
 
 **DoD:**
-- [ ] scenarios 6-7 green
-- [ ] UserPromptSubmit injection uses compact form
-- [ ] tests pass
-- [ ] shellcheck clean
+- [x] scenarios 6-7 green
+- [x] UserPromptSubmit injection uses compact form
+- [x] tests pass
+- [x] shellcheck clean
 
 <!-- mb-task:10 -->
 ## Task 10: `/mb recap <sid>`
