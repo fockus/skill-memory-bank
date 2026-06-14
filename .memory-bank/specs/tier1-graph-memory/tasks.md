@@ -267,10 +267,10 @@
   candidates still printed.
 
 **DoD:**
-- [ ] scenario 12 green with zero LLM calls (assert no `claude` invocation)
-- [ ] `--judge` is print-only (no file writes; test asserts)
-- [ ] tests pass
-- [ ] shellcheck clean
+- [x] scenario 12 green with zero LLM calls (assert no `claude` invocation)
+- [x] `--judge` is print-only (no file writes; test asserts)
+- [x] tests pass
+- [x] shellcheck clean
 
 <!-- mb-task:12 -->
 ## Task 12: `/mb consolidate`

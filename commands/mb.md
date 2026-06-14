@@ -29,6 +29,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `search <query>`                                         | Search information in the memory bank                                                                                                                                                                                                                                                                    |
 | `recall <query>`                                         | Lexical recall over session-memory log + notes (ripgrep over `session/` + `notes/`) — session-memory subsystem                                                                                                                                                                                           |
 | `recap <sid>`                                            | Reconstruct a full `progress.md` entry from `session/<sid>*.md` via one Haiku call, replacing that session's auto-capture stub idempotently. Missing session → exit non-zero, no writes; a real (non-stub) entry already present → refuse. `recapped` frontmatter makes a rerun a no-op                  |
+| `conflicts [--judge] [--threshold N]`                    | Surface memory entries with high lexical overlap **and** opposing/replacement assertions (en+ru markers) as conflict candidates — `$0` pass (token-set Jaccard > `N`, default 0.3) over `notes/` + `lessons.md` + recent `progress.md`, zero LLM calls. `--judge` confirms/rejects each pair via one Sonnet call and prints a suggested `[SUPERSEDED: YYYY-MM-DD -> <ref>]` marker. PRINT-ONLY — never writes to any bank file                 |
 | `research <query>`                                       | Graph-first multi-source research — codebase / memory / library / prior-art / web; dispatches the `mb-research` agent and returns `file:line`-grounded findings (narrow → single dispatch; broad → fan-out parallel subagents). Fail-open: graph/index optional, degrades to Grep/Read                    |
 | `note <topic>`                                           | Create a note                                                                                                                                                                                                                                                                                            |
 | `update`                                                 | Actualize core files (with real code-state analysis)                                                                                                                                                                                                                                                     |
@@ -114,6 +115,28 @@ present for that session → refuse with a hint, no writes; no `claude` on PATH 
 no writes. Idempotent — `recapped: true` frontmatter on the session file makes a rerun a no-op.
 Same anti-recursion env as the SessionEnd summarizer (`CLAUDECODE` unset, `MB_CAPTURE_SUBPROCESS=1`,
 `--no-session-persistence --strict-mcp-config --no-chrome`). Show the result to the user.
+
+### conflicts [--judge] [--threshold N]
+
+Surface pairs of memory entries that both describe the same subject **and** carry an
+opposing/replacement assertion — the typical "this fact was superseded but never marked" drift.
+The default pass is **$0** (zero LLM calls): token-set Jaccard overlap (`> N`, default `0.3`)
+across `notes/*.md` + `lessons.md` + recent `progress.md` entries, filtered to pairs where at
+least one side contains a negation/replacement marker (`no longer | instead | replaced | moved to |
+deprecated | вместо | больше не | заменили | устарело`, en+ru). Fewer than two entries → empty
+output, exit 0. Run directly (no subagent):
+
+```bash
+bash "$(dirname "$0")/../scripts/mb-conflicts.sh" $ARGS_AFTER_CONFLICTS
+```
+
+`--judge` adds one Sonnet `claude -p` call per candidate to confirm or reject the conflict, and for
+confirmed pairs prints a suggested `[SUPERSEDED: YYYY-MM-DD -> <ref>]` marker line (format:
+`references/metadata.md`). The judge is **PRINT-ONLY** — the command never writes to any bank file;
+apply suggested markers yourself if you agree. No `claude` on PATH → hint on stderr, the `$0`
+candidates are still printed, exit 0. Same anti-recursion env as the SessionEnd summarizer
+(`CLAUDECODE` unset, `MB_CAPTURE_SUBPROCESS=1`, `--no-session-persistence --strict-mcp-config
+--no-chrome`). Show the result to the user.
 
 ### research <query>
 

@@ -131,12 +131,19 @@ execute/review per group (3 sprints) via `/mb work tier1-graph-memory --range`.
 
 ### B7. `/mb conflicts` (REQ-022, REQ-023) — NEW `scripts/mb-conflicts.sh`
 
-- Pass 1 ($0): token-set Jaccard > 0.4 between entries of `notes/` +
-  `lessons.md` + recent progress entries, filtered to pairs with
-  negation/replacement markers (`not|no longer|instead|replaced|moved to|
-  deprecated|вместо|перешли|больше не`). Output: candidate pairs with paths.
+- Pass 1 ($0): token-set Jaccard > 0.3 between entries of `notes/` +
+  `lessons.md` + recent progress entries (newest-first window), filtered to
+  pairs with negation/replacement markers (`not|no longer|instead|replaced|
+  moved to|deprecated|вместо|перешли|больше не`). Marker/glue words and pure
+  numerics are stopworded out of the token sets so overlap reflects the shared
+  subject. Output: candidate pairs with paths.
+  <!-- judge sync 2026-06-12: default lowered 0.4 → 0.3 — the literal Scenario 12
+       sentences score 0.333; 0.4 contradicted the spec's own example. -->
 - `--judge`: one Sonnet subagent per candidate confirms/rejects + suggests
-  `[SUPERSEDED]` marker text. Prints suggestions only — never auto-writes.
+  `[SUPERSEDED]` marker text (targeting the OLDER entry when dates are known;
+  otherwise no target is named). Prints suggestions only — never auto-writes.
+  Calls are capped (`MB_CONFLICTS_MAX_CANDIDATES`, default 10) with a printed
+  truncation notice.
 
 ### C1. `--sessions` graph layer (REQ-024..026) — NEW `memory_bank_skill/codegraph_sessions.py`
 
@@ -193,7 +200,7 @@ def extract_session_layer(mb_path: Path, modules: set[str]) -> SessionLayer:
 # New scripts (all: dry-run default where mutating, --help, exit 0/1/2)
 mb-consolidate.sh [mb_path] [--apply] [--days N]
 mb-recap.sh <sid> [mb_path]
-mb-conflicts.sh [mb_path] [--judge] [--threshold 0.4]
+mb-conflicts.sh [mb_path] [--judge] [--threshold 0.3]
 mb-recall.sh <query> [--expand <id>] [--full] [-k N]   # extended
 ```
 
