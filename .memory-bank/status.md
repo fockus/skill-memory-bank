@@ -11,9 +11,15 @@
 
 ## ⏭ Следующий шаг
 
-**🚀 v5.0.0 застейджен локально (6 коммитов впереди `origin/main`, тип — `release: v5.0.0`), ожидает явного `git push origin main` + `git tag v5.0.0` + push тега → `publish.yml` → PyPI.** Пользователь держит push для ревью.
+**Current focus: spec `tier1-graph-memory` (17 tasks) — governed `/mb work` (implement Opus → verify → DUAL review Codex+inline → judge → fix loop ≤2).** 5/17 tasks committed, 2 in review/fix gates, 10 pending.
 
-**Wave 0 — [CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** закрыт. Следующий operational focus: завершить активный **Cursor compatibility remediation** или стартовать **W0.5 — [OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)** как инфраструктурный unlock для W1–W12.
+- Tasks 1 (RRF module, c015831), 2 (RRF auto default, 491b717), 3 (import-aware binding, 21ba225), 4 (PageRank god-nodes, ca6a358+f5e0d15), 7 (per-turn capture ok|err+diffstat, a0d6711) — **closed through dual-review + judge gates**.
+- Task 5 (git churn signal): implement + verify PASS (1318 passed full suite), **awaiting Codex review verdict + judge**. Uncommitted: codegraph_cochange.py, semantic_search.py, scripts/mb-codegraph.py, tests/pytest/test_codegraph_cochange_churn.py, tests/pytest/test_semantic_search_churn.py.
+- Task 8 (summary schema v2): fix cycle 1 complete (Live-log awk stops at next ## heading; honest fallback comment), **in re-verify + Codex round 2**. Uncommitted: hooks/mb-session-end.sh, hooks/tests/session-end-summary-v2.bats.
+- Pending: tasks 6, 9–17.
+- Backlog I-064..I-068 registered this sprint (I-066 HIGH: bind_calls unique-fallback must use module-level symbols only, BEFORE 5.1.0; I-067 MED: root __init__ '.foo' dst guard).
+
+**Wave 0 — [CI baseline](plans/done/2026-05-24_fix_ci-baseline-wave-0.md)** закрыт. Post-5.1.0 focus: завершить **Cursor compatibility remediation** или стартовать **W0.5 — [OpenCode-first adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md)**.
 
 После инфраструктурного unlock: стартовать **W1 code — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)** и **W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)**. Закрытие каждого wave: `/mb verify` → `/mb done` → plan moves to `plans/done/`.
 
@@ -42,7 +48,7 @@
 
 ## Ключевые метрики
 
-- VERSION: **5.0.1** (patch: MB_PYTHON install fix + py3.11/3.12 wiki fix + README/site redesign; 5.0.0 был first publish since 3.1.2; Homebrew tap bump план)
+- VERSION: **5.1.0** (minor: tier1-graph-memory — RRF/import-aware/PPR defaults, `--sessions` graph layer, progressive-disclosure recall, `/mb recap`+`/mb conflicts`+`/mb consolidate`, wiki staleness+decisions, REQ-029 confidence bands; + backlog I-066/I-067/I-069. Release prep — publish/tag pending explicit go)
 - Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
 - Агенты: **17 dispatchable** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer + 1 research: `mb-research`) + **partials** (`mb-engineering-core`, `mb-tooling-core` — prepended, never dispatched). `install.sh` `AGENT_COUNT` glob = **21**.
 - Commands: **24** top-level (`/mb` hub + 23 dispatchers; `/mb research` added 2026-06-09).

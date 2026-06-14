@@ -2,7 +2,120 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.1.0] — 2026-06-14
+
+> **tier1-graph-memory.** Sharper code-graph retrieval (RRF fusion, import-aware
+> Python call resolution, PageRank god-nodes), richer session memory
+> (progressive-disclosure recall, per-turn outcomes, structured summaries), and
+> three new `$0` memory-hygiene commands (`/mb recap`, `/mb conflicts`,
+> `/mb consolidate`). Every new opt-in layer keeps base output byte-identical.
+
+### Changed — defaults
+
+- **RRF fusion is the default auto-backend in code search.** With embeddings
+  installed, `mb-semantic-search.py --backend auto` now fuses the embeddings and
+  BM25 rankings via Reciprocal Rank Fusion (`rrf_merge`, `by_id` built at index
+  time, `O(k)` query fusion) instead of using embeddings alone. `auto` without
+  embeddings stays pure BM25 (byte-identical to before); explicit `--backend
+  bm25`/`embeddings` are regression-locked. (REQ-001/REQ-002)
+- **Import-aware call resolution for Python.** `call` edges in `.py` files now
+  resolve through the file's actual imports — binding order is: local `def` wins
+  > explicit import (relative level + `as`-alias aware) > single star-import
+  match > unique project-wide fallback > suppress homonyms. Dotted `dst`
+  namespacing via the new `codegraph_binding.py`. Non-`.py` edges pass through
+  verbatim; the graph cache is bumped to `CACHE_VERSION=2`. Resolution for the
+  tree-sitter languages (Go/JS/TS/Rust/Java) stays name-based. (REQ-003/REQ-004)
+- **`god-nodes.md` is ranked by PageRank, with degree as a secondary column**
+  (was degree-only). Pure-stdlib power iteration (`networkx.pagerank` semantics,
+  no numpy/scipy) in `codegraph_rank.py`, full-precision sort with 6-dp display,
+  cross-process deterministic. Without `networkx` the report degrades to
+  degree-only and prints a one-line install hint. (REQ-005/REQ-006)
+
+### Added
+
+- **`rrf_merge(rankings, k=60)`** — standalone Reciprocal Rank Fusion module
+  (`memory_bank_skill/rrf.py`), the single source of truth for rank fusion across
+  code search and `/mb recall`. (REQ-001)
+- **`churn_30d` ranking signal** under `/mb graph --cochange`. Per-file 30-day
+  churn is derived from the *same* git-log pass as co-change mining (one
+  subprocess, asserted) and emitted as additive `{"type":"node-attr"}` JSONL
+  rows only under `--cochange`; semantic search applies a `1+0.1·log1p(churn)`
+  boost after ranking/fusion over the full candidate set, then truncates. No
+  churn attrs → ranking byte-identical. (REQ-007)
+- **Community-summary retrieval in code search.** When a `/mb wiki` article lands
+  in the top-3 final hits, `mb-semantic-search.py` appends a labeled
+  `community_files` block (member files from `.wiki-packs.json`, sorted, capped
+  at 10). Fail-open: missing/malformed packs or non-article hits → byte-identical
+  no-wiki output. (REQ-008)
+- **Per-turn capture upgrade — `outcome` + diffstat.** Each session Live-log
+  bullet now records an `ok | err(N)` outcome (turn-scoped `is_error` count) and
+  an aggregate `+A/-B` diffstat from a single `git diff --numstat`; fails closed
+  outside work trees / bare repos. (REQ-009)
+- **Structured summary schema v2.** The session-end Haiku summarizer now consumes
+  the session's own distilled Live log (never the raw transcript tail) and is
+  prompted for exactly four sections — *What changed / Decisions / Open questions
+  / Files*. `summary_schema: v2` is stamped only after a strict in-order heading
+  validation passes (duplicate/out-of-order headings are rejected, see I-069);
+  non-conforming output is stored unflagged. (REQ-010/REQ-011)
+- **Progressive-disclosure `/mb recall`.** Default output is now a compact index
+  — one `id · age · summary · source` line per hit (~15 tokens/line, no chunk
+  bodies). `--expand <id>` returns one full chunk (exit 3 on unknown id),
+  `--full` keeps the legacy bodies. Semantic + lexical hits are fused via RRF
+  when the semantic backend is available (fail-open to lexical-only otherwise);
+  `[SUPERSEDED]` chunks sort last with a `⊘` label. (REQ-001/REQ-016–019)
+- **`/mb recap <sid>`** — rebuild a full `progress.md` entry from a session stub
+  via one Haiku call (`scripts/mb-recap.sh`). Surgically replaces only that
+  session's auto-capture stub (atomic temp→mv, neighbors byte-identical),
+  idempotent via `recapped` frontmatter; strict no-write refuse paths with pinned
+  exit codes (missing session/progress → 2, no claude → 3, no stub → 4,
+  error-shaped output → 5); ambiguous prefix → refuse and list candidates.
+  (REQ-020/REQ-021)
+- **`/mb conflicts [--judge] [--threshold N]`** — surface memory entries with
+  high lexical overlap *and* opposing/replacement assertions (en+ru negation
+  markers) as conflict candidates over `notes/` + `lessons.md` + recent
+  `progress.md`. `$0` default pass (token-set Jaccard > `N`, default 0.3, zero
+  LLM calls); `--judge` confirms/rejects each candidate via one Sonnet call and
+  prints a suggested `[SUPERSEDED: YYYY-MM-DD -> <ref>]` marker. PRINT-ONLY —
+  never writes to any bank file. (REQ-022/REQ-023)
+- **`/mb consolidate [--apply] [--days N]`** — fold sessions older than `N` days
+  (default 30) that cluster by shared files / lexical overlap into 5–15 line
+  `notes/` candidates, archive those session files verbatim → `session/archive/`,
+  and move only their contiguous auto-capture progress stubs verbatim →
+  `progress-archive.md`. Zero LLM calls; dry-run is the default (bank
+  byte-identical); real progress entries never move. (REQ-012/013/014)
+- **`[SUPERSEDED]` convention + drift checker.** The append-new + mark-old
+  `[SUPERSEDED: YYYY-MM-DD -> <ref>]` convention is documented in
+  `agents/mb-manager.md` + `references/metadata.md` and enforced by a new
+  `mb-drift.sh` checker: malformed markers and dangling refs across `notes/`,
+  `lessons.md`, `progress.md`, `session/` → greppable warnings + exit 1 (with
+  real Gregorian calendar validation). (REQ-015)
+- **`/mb graph --sessions` layer.** Bridges session memory into the code graph:
+  one `session` node per session that touched a graph module, a `worked_on` edge
+  to each touched module carrying a one-line work summary, and an append of that
+  summary to the module node's `doc` (capped at the 3 most recent sessions per
+  module) so semantic search answers work-history queries. Every
+  session-derived string is `redact_secrets`'d **and** `<private>`-stripped at
+  graph-write time (`graph.json` stays committable). The layer is applied as the
+  last mutation — after community/betweenness/PageRank analytics — so god-node
+  ranking is never skewed (`god-nodes.md` is byte-identical with or without the
+  flag). (REQ-024/025/026)
+- **Staleness-aware incremental `/mb wiki` rebuild.** `wiki/index.md` records a
+  per-article SHA256 over the canonical graph records touching each community's
+  files; a `$0` plan splits communities into scheduled vs fresh and filters the
+  dispatch — a fully-fresh cache → zero Haiku/Sonnet dispatches, `--force` or a
+  legacy/no cache → full rebuild. Hash recording is idempotent. (REQ-027)
+- **Deterministic Decisions section in wiki evidence packs.** Each community pack
+  can carry a `decisions` list — `notes/` entries + session summaries matched
+  against the community's file basenames (token-bounded matching), top-5 with
+  source refs, `$0`, deterministic order. Session files contribute only their
+  `## Summary` body (frontmatter / Live log / `### Files` path list never leak).
+  (REQ-028)
+- **`semantic` edge confidence bands documented + a 0.5 floor enforced.** The
+  `references/code-graph.md` reference now defines the meaning of `confidence` on
+  `semantic` edges (High ≥ 0.9 / Medium 0.7–0.9 / Low 0.5–0.7 / dropped < 0.5) as
+  the single source of truth; the wiki synthesizer assigns by these bands and
+  `merge-edges` enforces the `< 0.5` drop, so a `semantic` edge in `graph.json`
+  always means `confidence ≥ 0.5`. (REQ-029)
 
 ### Added — security
 
@@ -22,6 +135,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **I-069 — strict v2 heading state machine.** The schema-v2 summary validator
+  now rejects a duplicate or out-of-order `### …` heading instead of stamping
+  `summary_schema: v2` on it; a rejected body is still stored, just without the
+  (now-honest) flag.
+- **I-066 — unique-fallback binds module-level defs only.** Rule 3 of the
+  import-aware binder no longer collapses a class method (`Worker.process`) or
+  nested function to its bare suffix, so it can no longer invent a false `call`
+  edge to a non-module-level definition.
+- **I-067 — no leading-dot `dst` for root `__init__.py`.** A unique definition in
+  a root `__init__.py` (empty module prefix) now emits a bare `dst` instead of a
+  leading-dot `.foo`.
 - `session-end-autosave.sh` progress stub no longer promises a reconstruction
   that never happened ("Details will be reconstructed on the next /mb start");
   it now points at the actually-captured session summary (`/mb recall`).

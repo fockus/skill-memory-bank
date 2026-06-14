@@ -29,8 +29,11 @@ Return a JSON array (no prose, no markdown fences) of edges:
 - `src` and `dst` are **file paths that appear in the packs** — never invent paths.
 - Only emit a pair when the connection is **genuinely non-obvious** and cross-cutting.
   Skip pairs already linked by import/call/inherit (those are in the static graph).
-- `confidence`: 0.85+ strong semantic alignment; 0.65-0.84 reasonable; below 0.6 → omit.
+- `confidence` bands (single-sourced — `references/code-graph.md`): **≥0.9** strong
+  semantic alignment; **0.7–0.9** reasonable; **0.5–0.7** weak-but-worth-noting;
+  **below 0.5 → omit**.
 - `rationale` is one sentence, grounded in the evidence — no speculation beyond it.
 - Emit **at most 20** edges. If nothing qualifies, return `[]`.
-- Output is parsed by `mb-wiki.py merge-edges` (validates, clamps confidence, dedupes,
-  drops anything malformed). Malformed JSON ⇒ your whole result is discarded — be exact.
+- Output is parsed by `mb-wiki.py merge-edges` (validates, clamps confidence to
+  [0, 1], **drops anything below the 0.5 floor**, dedupes, drops malformed).
+  Malformed JSON ⇒ your whole result is discarded — be exact.

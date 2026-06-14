@@ -23,24 +23,42 @@ Each session is logged to `.memory-bank/session/*.md` automatically:
 
 | Hook | Event | What it does |
 |---|---|---|
-| `mb-session-turn.sh` | Stop | Appends one per-turn bullet (your request + tools used + files touched) — **no LLM, $0**. |
-| `mb-session-end.sh` | SessionEnd | Writes a **Haiku** summary + gated Sonnet auto-notes; refreshes the rolling `session/_recent.md` window. |
+| `mb-session-turn.sh` | Stop | Appends one per-turn bullet (your request + tools used + files touched, plus the turn **outcome** `ok \| err(N)` and an aggregate `+A/-B` diffstat) — **no LLM, $0**. |
+| `mb-session-end.sh` | SessionEnd | Writes a structured **Haiku** summary (schema v2 — see below) + gated Sonnet auto-notes; refreshes the rolling `session/_recent.md` window. |
 | `mb-session-start.sh` | SessionStart | Injects `# Recent Sessions` (from `_recent.md`) + a how-to cheat-sheet (graph / `/mb recall` / `/mb context` quick ref). |
 | `mb-semantic-recall.sh` | UserPromptSubmit | Injects `# Relevant Memory` — top-K semantically relevant past-chat snippets via a local index; fail-safe lexical fallback. |
 
 So with zero effort the next session already opens with a digest of recent work,
 and every prompt is silently augmented with the most relevant past context.
 
+### Structured summary schema v2
+
+The session-end summarizer reads the session's own distilled Live log (never the
+raw transcript tail) and is prompted for exactly four sections — **What changed /
+Decisions / Open questions / Files**. The frontmatter is stamped
+`summary_schema: v2` **only after** a strict in-order heading validation passes
+(a duplicate or out-of-order `### …` heading is rejected); non-conforming output
+is still stored, just without the flag — so the flag never lies and downstream
+parsers can trust a v2-stamped summary.
+
 ## How to recall — `/mb recall <query>`
 
 ```bash
-/mb recall "auth token refresh"
+/mb recall "auth token refresh"          # compact index (default)
+/mb recall --expand <id> "auth token"    # one full chunk for that hit id
+/mb recall --full "auth token refresh"   # legacy full bodies for every hit
 ```
 
-Hybrid recall over `.memory-bank/session/` + `notes/`: **semantic matches first**
-(when the vector index is built), then a ripgrep lexical fallback, printing
-`file:line` + context. Use it to answer "did we already discuss X?", "what did we
-decide about Y?", "which session touched Z?".
+Hybrid recall over `.memory-bank/session/` + `notes/`: semantic and lexical hits
+are **fused via Reciprocal Rank Fusion** when the semantic backend is available
+(fail-open to **lexical-only** otherwise). Use it to answer "did we already
+discuss X?", "what did we decide about Y?", "which session touched Z?".
+
+**Progressive disclosure** keeps recall token-cheap. The default output is a
+**compact index** — one `id · age · summary · source` line per hit (~15
+tokens/line, no chunk bodies). Drill into a single hit with `--expand <id>`
+(exit code `3` on an unknown id); `--full` restores the legacy behaviour of
+printing every chunk body. `[SUPERSEDED]` chunks sort last, marked with a `⊘`.
 
 ## The semantic layer (optional, $0, local)
 
@@ -98,8 +116,26 @@ semantic-index chunks.
 
 ---
 
+## Curating the memory — `$0` hygiene commands
+
+Three commands turn the raw capture stream into durable, de-duplicated memory.
+All three are **deterministic, zero-LLM by default** (no API key), and only the
+ones that write do so when you explicitly ask.
+
+| Command | What it does | Writes? |
+|---|---|---|
+| `/mb recap <sid>` | Rebuilds a full `progress.md` entry from a session's auto-capture **stub** via one Haiku call, replacing only that stub in place (neighbors byte-identical, idempotent via `recapped` frontmatter). Missing session or an already-real entry → refuse without writing; an ambiguous `<sid>` → list candidates instead of guessing. | yes (one stub) |
+| `/mb conflicts [--judge]` | Surfaces pairs of memory entries with high lexical overlap **and** an opposing/replacement assertion (en+ru negation markers) over `notes/` + `lessons.md` + recent `progress.md` — `$0`, zero LLM. `--judge` confirms each via one Sonnet call and prints a suggested `[SUPERSEDED: YYYY-MM-DD -> <ref>]` marker. **PRINT-ONLY** — never writes. | no |
+| `/mb consolidate [--apply]` | Folds sessions older than `--days N` (default 30) that cluster by shared files / lexical overlap into 5–15 line `notes/` candidates, archives those session files verbatim → `session/archive/`, and moves only their auto-capture progress **stubs** verbatim → `progress-archive.md`. Zero LLM. **Dry-run is the default**; `--apply` performs it. Real progress entries never move. | only with `--apply` |
+
+The `[SUPERSEDED: YYYY-MM-DD -> <ref>]` convention (append the new fact, mark the
+old one — never edit in place) is enforced by `mb-drift.sh`, which flags
+malformed markers and dangling references.
+
+---
+
 ## See also
 
 - **[Code graph & semantic search](code-graph.md)** — searching your *source* (a different index).
-- `commands/mb.md` — `/mb recall`, `/mb reindex` reference.
+- `commands/mb.md` — `/mb recall`, `/mb reindex`, `/mb recap`, `/mb conflicts`, `/mb consolidate` reference.
 - `SKILL.md` `## Hooks` — the full hook registry + events.

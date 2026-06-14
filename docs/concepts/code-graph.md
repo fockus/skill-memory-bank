@@ -26,7 +26,10 @@ stack and architecture. This is prose, not a graph — the orientation layer.
 - **Languages:** Python via stdlib `ast` (zero new deps); Go / JS / TS / Rust /
   Java via tree-sitter (opt-in).
 - **Nodes:** module (per file), function (top-level + nested), class.
-- **Edges:** `import`, `call`, `inherit`.
+- **Edges:** `import`, `call`, `inherit`. Python `call` edges are
+  **import-aware** — resolved through the file's actual imports (local `def` >
+  explicit/relative/aliased import > star-import > unique project-wide fallback,
+  homonyms suppressed). The tree-sitter languages stay name-based.
 - **Output (`--apply`):**
   - `codebase/graph.json` — JSON Lines (one node/edge per line, grep- and
     stream-friendly).
@@ -54,8 +57,18 @@ python3 scripts/mb-graph-query.py impact WriteFile --mb .memory-bank
 | Flag | Adds |
 |---|---|
 | `/mb graph --apply --questions` | Deterministic **suggested exploration questions** appended to `god-nodes.md` (from god-nodes / bridges / communities / co-change). $0, no LLM. |
-| `/mb graph --apply --cochange` | **`co_change` edges** — files that change together across git history (last 200 commits), a coupling signal the static graph can't see (e.g. a config and its reader, a test and its subject). |
+| `/mb graph --apply --cochange` | **`co_change` edges** — files that change together across git history (last 200 commits), a coupling signal the static graph can't see (e.g. a config and its reader, a test and its subject). Also emits a per-file **`churn_30d`** signal (from the *same* git-log pass) that gives recently-hot files a small ranking boost in semantic search. |
 | `/mb graph --apply --docs` | Enriches function/class/module nodes with `signature` + `doc`, so **semantic search** matches intent, not just names. |
+| `/mb graph --apply --sessions` | Bridges **session memory** into the graph: one `session` node per session that touched a graph module, a `worked_on` edge to each touched module with a one-line work summary, and an append of that summary to the module's `doc` (3 most recent sessions per module) so semantic search answers work-history queries. See the privacy note below. |
+
+> **`--sessions` privacy & ranking note.** `graph.json` is meant to be
+> committable, so every session-derived string is **`<private>`-stripped and
+> secret-redacted at graph-write time** (defense-in-depth on top of capture-time
+> redaction). The session layer is applied as the **last mutation** — after the
+> structural community / betweenness / PageRank analytics — so it never skews
+> god-node ranking: `god-nodes.md` is byte-identical with or without `--sessions`,
+> while `graph.json` carries the extra `session` nodes + `worked_on` edges +
+> `doc` appends.
 
 ## 3. Semantic search & wiki — meaning, not just names
 
@@ -68,9 +81,12 @@ python3 scripts/mb-semantic-search.py "<query>" .memory-bank \
 
 Ranks graph symbols (+ wiki articles, if built) by relevance.
 
-- **`--backend auto`** (default) = local `sentence-transformers` **embeddings**
-  when installed (best for concept/synonym queries), else pure-Python **BM25**
-  (\$0, zero deps, deterministic — best for exact identifiers).
+- **`--backend auto`** (default) = when local `sentence-transformers`
+  **embeddings** are installed, the embeddings and BM25 rankings are fused via
+  **Reciprocal Rank Fusion** (RRF) — combining concept recall with exact-name
+  precision; without embeddings it stays pure-Python **BM25** (\$0, zero deps,
+  deterministic, byte-identical to the embeddings-absent path). Explicit
+  `--backend bm25` / `embeddings` skip the fusion.
 - `--source-only` drops test/spec files (find the implementation, not its tests).
 - First embeddings query loads the model (~5–15 s); subsequent queries reuse a
   cached vector matrix under `.memory-bank/.index/codesearch/` (sub-second).
@@ -85,7 +101,15 @@ using **host subagents** (no API key; cost is only the subagent calls):
 
 - **Haiku** subagents write per-community articles (cheap, parallel);
 - one **Sonnet** subagent synthesizes cross-cutting connections into validated,
-  idempotent `{"kind":"semantic",…}` edges on `graph.json`.
+  idempotent `{"kind":"semantic",…}` edges on `graph.json`, each carrying a
+  `confidence` + `rationale`
+  ([bands & the `< 0.5` drop floor](../../references/code-graph.md#semantic-edge-confidence-bands)).
+- Each pack also gets a deterministic, `$0` **Decisions** section — `notes/`
+  entries + session summaries matched to the community's files.
+- **Incremental rebuild:** `index.md` records a per-article SHA256 over the graph
+  records touching each community, so a refresh re-dispatches only the
+  communities whose member files changed since the last build (`--force` rebuilds
+  everything). A fully-fresh cache → zero subagent dispatches.
 - Outputs: `codebase/wiki/community-<N>.md` + `index.md`. The articles also feed
   semantic search. `--dry-run` stops after printing the dispatch plan.
 - Communities need `networkx` (`pip3 install networkx`); 0 communities → no-op.
@@ -124,12 +148,16 @@ install, never block the task.
 What's deliberately different here: the graph is a **plain file living next to your
 plans, ADRs, and session memory** — any agent (or you, with `jq`) can query it with
 no server, no API key, and no vendor. Unique extras: git **co-change edges**
-(coupling invisible to AST) and the **LLM wiki** whose `semantic` edges carry
-`confidence` + `rationale` and merge idempotently into the same graph.
+(coupling invisible to AST) and the **LLM wiki** whose `semantic` edges carry a
+`confidence` + `rationale` and merge idempotently into the same graph — the
+`confidence` bands (and the deterministic `< 0.5` drop floor) are defined in
+[`references/code-graph.md`](../../references/code-graph.md#semantic-edge-confidence-bands).
 
-Honest limits: 6 languages (Python/Go/JS/TS/Rust/Java); name-based call resolution
-(an LSP like Serena is more precise on dynamic dispatch and aliases); no automatic
-PageRank-style context packing — agents query explicitly instead.
+Honest limits: 6 languages (Python/Go/JS/TS/Rust/Java); call resolution is
+**import-aware for Python** (stdlib `ast` — follows the file's imports) but
+**name-based** for the tree-sitter languages (Go/JS/TS/Rust/Java), so an LSP like
+Serena is still more precise on dynamic dispatch and cross-language aliases; no
+automatic PageRank-style context packing — agents query explicitly instead.
 
 ---
 

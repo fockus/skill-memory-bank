@@ -18,23 +18,45 @@ from memory_bank_skill import wiki_store as wstore  # noqa: E402
 
 # ── validate_semantic_edges ──────────────────────────────────────────
 
+
 def test_validate_accepts_well_formed_edges():
     raw = [{"src": "a.py", "dst": "b.py", "confidence": 0.8, "rationale": "both parse config"}]
     out = wstore.validate_semantic_edges(raw)
-    assert out == [{"src": "a.py", "dst": "b.py", "kind": "semantic",
-                    "confidence": 0.8, "rationale": "both parse config"}]
+    assert out == [
+        {
+            "src": "a.py",
+            "dst": "b.py",
+            "kind": "semantic",
+            "confidence": 0.8,
+            "rationale": "both parse config",
+        }
+    ]
 
 
 def test_validate_drops_malformed_and_clamps_confidence():
     raw = [
-        {"src": "a.py"},                                  # missing dst → dropped
+        {"src": "a.py"},  # missing dst → dropped
         {"src": "a.py", "dst": "b.py", "confidence": 5},  # clamp → 1.0
-        {"dst": "c.py"},                                  # missing src → dropped
-        "garbage",                                        # not a dict → dropped
+        {"dst": "c.py"},  # missing src → dropped
+        "garbage",  # not a dict → dropped
     ]
     out = wstore.validate_semantic_edges(raw)
     assert len(out) == 1
     assert out[0]["confidence"] == 1.0
+
+
+def test_validate_drops_sub_floor_confidence_keeps_exactly_floor():
+    """REQ-029 confidence floor: edges below the 0.5 low band are NOT emitted;
+    exactly 0.5 is the low band and survives."""
+    raw = [
+        {"src": "a.py", "dst": "b.py", "confidence": 0.49},  # below floor → dropped
+        {"src": "a.py", "dst": "c.py", "confidence": 0.5},  # exactly the low band → kept
+        {"src": "a.py", "dst": "d.py", "confidence": 0.0},  # floor edge case → dropped
+    ]
+    out = wstore.validate_semantic_edges(raw)
+    dsts = {e["dst"] for e in out}
+    assert dsts == {"c.py"}
+    assert out[0]["confidence"] == 0.5
 
 
 def test_validate_parses_json_string():
@@ -49,12 +71,14 @@ def test_validate_bad_json_string_returns_empty():
 
 # ── merge_semantic_edges ─────────────────────────────────────────────
 
+
 def _seed_graph(tmp_path: Path) -> Path:
     g = tmp_path / "graph.json"
     g.write_text(
         '{"type": "node", "kind": "function", "name": "f", "file": "a.py", "line": 1}\n'
         '{"type": "edge", "kind": "call", "src": "a.py:f", "dst": "g"}\n',
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     return g
 
 
@@ -85,6 +109,7 @@ def test_merge_keeps_graph_valid_jsonlines(tmp_path: Path):
 
 # ── article / index IO ───────────────────────────────────────────────
 
+
 def test_write_article_round_trip(tmp_path: Path):
     wiki = tmp_path / "wiki"
     p = wstore.write_article(wiki, 3, "# Community 3\nstuff")
@@ -102,12 +127,15 @@ def test_write_index_lists_communities(tmp_path: Path):
 
 # ── review-fix regressions ───────────────────────────────────────────
 
+
 def test_validate_rejects_nan_and_inf_confidence():
-    out = wstore.validate_semantic_edges([
-        {"src": "a", "dst": "b", "confidence": float("nan")},
-        {"src": "c", "dst": "d", "confidence": float("inf")},
-        {"src": "e", "dst": "f", "confidence": float("-inf")},
-    ])
+    out = wstore.validate_semantic_edges(
+        [
+            {"src": "a", "dst": "b", "confidence": float("nan")},
+            {"src": "c", "dst": "d", "confidence": float("inf")},
+            {"src": "e", "dst": "f", "confidence": float("-inf")},
+        ]
+    )
     assert [e["confidence"] for e in out] == [0.5, 0.5, 0.5]
     # serialises to valid JSON (no bare NaN/Infinity)
     json.loads(json.dumps(out))
@@ -122,7 +150,8 @@ def test_merge_preserves_crlf_line_endings(tmp_path: Path):
     g = tmp_path / "graph.json"
     g.write_bytes(
         b'{"type": "node", "kind": "function", "name": "f", "file": "a.py", "line": 1}\r\n'
-        b'{"type": "edge", "kind": "call", "src": "a.py:f", "dst": "g"}\r\n')
+        b'{"type": "edge", "kind": "call", "src": "a.py:f", "dst": "g"}\r\n'
+    )
     wstore.merge_semantic_edges(g, [{"src": "a.py", "dst": "b.py", "kind": "semantic"}])
     data = g.read_bytes()
     assert b"\r\n" in data  # existing CRLF lines preserved (no full-file rewrite)

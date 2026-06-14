@@ -302,9 +302,12 @@ The agent reads these rules at session start and follows them without you having
 | `/mb tasks` | Show pending tasks from checklist |
 | `/mb index` | Registry of all entries (core + notes/plans/experiments/reports) |
 | `/mb map [focus]` | Scan codebase, write MD docs to `.memory-bank/codebase/` (stack/arch/quality/concerns/all) |
-| `/mb graph [--apply]` | Multi-language code graph (Python `ast` + Go/JS/TS/Rust/Java tree-sitter); opt-in `--questions` / `--cochange` / `--docs`. See [code-graph docs](docs/concepts/code-graph.md) |
-| `/mb wiki [--dry-run]` | LLM per-community codebase wiki + surprising-connection edges (Haiku/Sonnet subagents, no API key) |
-| `/mb recall <query>` | Cross-session recall over past chats (`session/` + `notes/`). See [session-memory docs](docs/concepts/session-memory.md) |
+| `/mb graph [--apply]` | Multi-language code graph (Python `ast`, import-aware calls + Go/JS/TS/Rust/Java tree-sitter, name-based); PageRank god-nodes; opt-in `--questions` / `--cochange` / `--docs` / `--sessions`. See [code-graph docs](docs/concepts/code-graph.md) |
+| `/mb wiki [--dry-run]` | LLM per-community codebase wiki + surprising-connection edges (Haiku/Sonnet subagents, no API key); staleness-aware incremental rebuild |
+| `/mb recall <query>` | Cross-session recall over past chats (`session/` + `notes/`); compact index by default, `--expand <id>` / `--full`. See [session-memory docs](docs/concepts/session-memory.md) |
+| `/mb recap <sid>` | Rebuild a full `progress.md` entry from a session's auto-capture stub (one Haiku call, idempotent) |
+| `/mb conflicts [--judge]` | Surface contradicting memory entries ($0 lexical overlap + negation markers); `--judge` suggests `[SUPERSEDED]` markers (print-only) |
+| `/mb consolidate [--apply]` | Fold old clustered sessions into `notes/` + archive their stubs ($0, dry-run by default) |
 | `/mb reindex [--full]` | Build/refresh the local semantic index for `/mb recall` (fastembed, $0; degrades to lexical) |
 | `/mb compact [--apply]` | Status-based decay — archive old done plans + low-importance notes |
 | `/mb import --project <path>` | Bootstrap MB from Claude Code JSONL transcripts |
@@ -346,7 +349,7 @@ One `.memory-bank/` directory, 8 AI clients:
 
 - **Languages:** Python via stdlib `ast` (zero extra deps) + Go, JavaScript, TypeScript, Rust, Java via tree-sitter (`pip install 'memory-bank-skill[codegraph]'`).
 - **`graph.json`** — JSON Lines: one node (module / function / class) or edge (import / call / inherit) per line. Greppable, `jq`-queryable, diffable, committable.
-- **`god-nodes.md`** — refactoring hotspots: top symbols and modules by degree, **bridge files** by betweenness centrality, Louvain module communities.
+- **`god-nodes.md`** — refactoring hotspots: top symbols and modules ranked by **PageRank** (transitive importance, degree as a secondary column), **bridge files** by betweenness centrality, Louvain module communities. Degrades to degree-only without `networkx`.
 - **Incremental:** SHA256 per-file cache — the first build takes minutes on a 1000-file repo, rebuilds take seconds.
 
 ### Three ways to use it
@@ -354,7 +357,7 @@ One `.memory-bank/` directory, 8 AI clients:
 | Mode | Tool | Question it answers | Cost |
 |------|------|---------------------|------|
 | **1. Structural queries** | `mb-graph-query.py` (`neighbors` / `impact` / `tests`) or raw `jq` | "Who calls X?" · "What breaks if I change X?" · "Which tests cover X?" | $0, <1 s |
-| **2. Semantic search** | `mb-semantic-search.py` — BM25 by default, local embeddings opt-in | "Where is the rate-limiting logic?" — concept queries, tolerant to naming | $0, fully local |
+| **2. Semantic search** | `mb-semantic-search.py` — pure BM25 by default, or **RRF-fused** BM25 + local embeddings when installed | "Where is the rate-limiting logic?" — concept queries, tolerant to naming | $0, fully local |
 | **3. LLM wiki** | `/mb wiki` — Haiku writes one article per module community, Sonnet hunts cross-community "surprising connections" | "Give me the map" · "What non-obvious links exist?" | your agent's own subagents — **no extra API key** |
 
 ```bash
@@ -372,9 +375,10 @@ python3 scripts/mb-semantic-search.py "how does auth token refresh work" --sourc
 
 **Opt-in layers** (without them the base output stays byte-identical):
 
-- `--cochange` — git-history co-change edges: files that change together *without importing each other* (test ↔ subject, config ↔ reader). Coupling no AST can see.
+- `--cochange` — git-history co-change edges: files that change together *without importing each other* (test ↔ subject, config ↔ reader). Coupling no AST can see. Also emits a per-file `churn_30d` signal that gives recently-hot files a small semantic-search boost.
 - `--questions` — deterministic suggested questions appended to `god-nodes.md` ("what should I look at first?").
 - `--docs` — signatures + docstrings on nodes, so semantic search matches intent, not just identifiers.
+- `--sessions` — bridges session memory into the graph (`session` nodes + `worked_on` edges + `doc` appends) so semantic search answers work-history queries. Session strings are `<private>`-stripped + secret-redacted at write time, and the layer is applied last so god-node ranking is unaffected.
 
 The dev-role subagents are wired to the graph automatically (`graph_neighbors` / `graph_impact` / `graph_tests` routing): before editing they check the blast radius instead of guessing, and fall back to plain `grep` when the graph is missing or stale — the graph never blocks work.
 
@@ -389,7 +393,7 @@ The dev-role subagents are wired to the graph automatically (`graph_neighbors` /
 | LLM codebase wiki + semantic edges | ✅ no extra API key | ❌ | ❌ | ❌ | ❌ |
 | Lives next to project memory (plans / ADRs / sessions) | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-Honest trade-offs: language coverage is 6 vs Aider's 130+; call resolution is name-based (no LSP / type-checker precision — Serena wins there); and there is no PageRank-ranked automatic context packing like Aider's repo-map. We trade those for a persistent, $0, locally queryable artifact that lives next to the rest of your project memory.
+Honest trade-offs: language coverage is 6 vs Aider's 130+; call resolution is **import-aware for Python** (stdlib `ast`, follows the file's imports) but **name-based** for the tree-sitter languages (Go/JS/TS/Rust/Java) — an LSP / type-checker like Serena is still more precise on dynamic dispatch and cross-language aliases; and there is no automatic PageRank-ranked context packing like Aider's repo-map (god-nodes *are* PageRank-ranked, but you query the graph explicitly). We trade those for a persistent, $0, locally queryable artifact that lives next to the rest of your project memory.
 
 Full reference: [code-graph concepts](docs/concepts/code-graph.md) · [jq cookbook](references/code-graph.md).
 

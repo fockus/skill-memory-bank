@@ -184,8 +184,16 @@ def write_index(
     return path
 
 
+# Confidence bands (REQ-029, single-sourced — references/code-graph.md +
+# agents/mb-wiki-synthesizer.md cite the same numbers): >=0.9 high, >=0.7 medium,
+# >=0.5 low, <0.5 not emitted. The floor is enforced here so graph.json never
+# carries a sub-threshold semantic edge even if the model ignores the prompt.
+MIN_SEMANTIC_CONFIDENCE = 0.5
+
+
 def validate_semantic_edges(raw: Any) -> list[dict[str, Any]]:
-    """Parse/validate LLM-produced edges. Drops malformed; clamps confidence ∈ [0, 1]."""
+    """Parse/validate LLM-produced edges. Drops malformed + sub-0.5 confidence;
+    clamps confidence ∈ [0, 1]."""
     items = raw
     if isinstance(raw, str):
         try:
@@ -216,6 +224,10 @@ def validate_semantic_edges(raw: Any) -> list[dict[str, Any]]:
             if not math.isfinite(confidence):
                 confidence = 0.5
         confidence = max(0.0, min(1.0, confidence))
+        # Confidence floor (REQ-029): the low band is 0.5; anything below it is "not
+        # emitted" — drop it so the documented band table stays honest end-to-end.
+        if confidence < MIN_SEMANTIC_CONFIDENCE:
+            continue
         edge: dict[str, Any] = {
             "src": src,
             "dst": dst,

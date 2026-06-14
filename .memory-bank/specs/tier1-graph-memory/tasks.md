@@ -413,8 +413,8 @@
   edited docs.
 
 **DoD:**
-- [ ] confidence table single-sourced (reference + synthesizer prompt)
-- [ ] all touched docs consistent with shipped behavior (no premature claims)
-- [ ] CHANGELOG entries complete for every task in this spec
-- [ ] tests pass
-- [ ] lint clean
+- [x] confidence table single-sourced (reference + synthesizer prompt)
+- [x] all touched docs consistent with shipped behavior (no premature claims)
+- [x] CHANGELOG entries complete for every task in this spec
+- [x] tests pass
+- [x] lint clean

@@ -100,7 +100,7 @@ jq -r 'select(.type=="edge" and .kind=="import" and (.dst|contains("internal/cor
 
 ### Caveats
 
-- **Name-only resolution.** The graph matches calls by name only (no type inference). Generic names (`Error`, `New`, `String`, `Run`, `Close`, `Background`, `Now`, `Execute`) in `god-nodes.md` are lexical false-positives — they catch stdlib interface calls. Filter generics when analysing top-degree nodes.
+- **Call resolution.** Python `call` edges are **import-aware** — resolved through the file's actual imports (local `def` > explicit/relative/aliased import > star-import > unique project-wide fallback; homonyms suppressed). The tree-sitter languages (Go/JS/TS/Rust/Java) stay **name-based** (no type inference): generic names (`Error`, `New`, `String`, `Run`, `Close`, `Background`, `Now`, `Execute`) in `god-nodes.md` are lexical false-positives there — filter generics when analysing top-degree nodes.
 - **Vendored code.** By default `skip_dirs = {.venv, __pycache__, node_modules, .git, target, dist, build}`. Projects with `vendor/` or `third_party/` (e.g. Go projects vendoring langchaingo) need a **project-local patched copy** in `.memory-bank/scripts/mb-codegraph-local.py` that adds those paths to `skip_dirs`. Run with: `PYTHONPATH="$HOME/.claude/skills/memory-bank" python3 .memory-bank/scripts/mb-codegraph-local.py --apply`.
 - **Language coverage.** Python always works (stdlib `ast`). Go / JS / TS / Rust / Java require `pip install tree-sitter tree-sitter-<lang>` (opt-in). Without tree-sitter, non-Python files are silently skipped (graceful degradation).
 - **Rebuild cost.** Incremental via SHA256 cache in `.cache/` — unchanged files are skipped. First run on a 1000-file project: ~3-5 min. Subsequent runs: seconds.
@@ -121,8 +121,24 @@ Beyond the deterministic structural graph, three **opt-in** layers add what plai
 
 - **Suggested questions** — `/mb graph --apply --questions`. Appends a *"Suggested questions"* section to `god-nodes.md`: deterministic, $0 starting points derived from graph structure (highest-degree symbols, bridge files by betweenness, large / low-cohesion clusters, co-changing pairs). Use it to orient in an unfamiliar codebase before diving in.
 - **Co-change edges** — `/mb graph --apply --cochange`. Adds `co_change` edges from **git history** (files that change together across commits) — coupling the static graph misses. Query: `jq -c 'select(.type=="edge" and .kind=="co_change")' .memory-bank/codebase/graph.json`. High co-change with **no** structural edge = hidden/implicit coupling worth a second look.
-- **Semantic search** — `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<query>" [--backend auto|bm25|embeddings] [--source-only] [--k N]`. Answers *"where is the logic for X?"* by ranking graph symbols (+ wiki articles, if built) by relevance. `--backend auto` (default) = local `sentence-transformers` **embeddings** when installed (best for concept/synonym queries), else pure-Python **BM25** ($0, zero deps — best for exact identifiers). `--source-only` drops test/spec files (find the implementation, not its tests). First embeddings query loads the model (~5-15s); subsequent queries reuse a cached vector matrix under `.memory-bank/.index/codesearch/` (sub-second). Build the graph with `/mb graph --apply --docs` so nodes carry `signature`+`doc` and the index matches intent, not just names. See the routing table below.
+- **Semantic search** — `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<query>" [--backend auto|bm25|embeddings] [--source-only] [--k N]`. Answers *"where is the logic for X?"* by ranking graph symbols (+ wiki articles, if built) by relevance. `--backend auto` (default) = when local `sentence-transformers` **embeddings** are installed, the embeddings and BM25 rankings are **fused via Reciprocal Rank Fusion (RRF)** (concept recall + exact-name precision); without embeddings it stays pure-Python **BM25** ($0, zero deps, byte-identical to the embeddings-absent path). Explicit `--backend bm25`/`embeddings` skip the fusion. `--source-only` drops test/spec files (find the implementation, not its tests). First embeddings query loads the model (~5-15s); subsequent queries reuse a cached vector matrix under `.memory-bank/.index/codesearch/` (sub-second). Build the graph with `/mb graph --apply --docs` so nodes carry `signature`+`doc` and the index matches intent, not just names. See the routing table below.
 - **Wiki + surprising connections** — `/mb wiki` (LLM, via host subagents — **no API key**). **Haiku** writes one article per community → `codebase/wiki/community-<N>.md` + `index.md`; **Sonnet** finds *surprising connections* (semantically related files with **no** import/call/inherit edge) and merges them as `semantic` edges (`confidence` + `rationale`, validated + **idempotent**). The wiki articles also feed semantic search. Run/refresh after a major feature when you want a navigable map + the non-obvious links the static graph cannot derive. `--dry-run` previews the dispatch plan without spending tokens.
+
+#### `semantic` edge confidence bands
+
+Every `semantic` edge carries a `confidence ∈ [0, 1]`. The bands below are the single
+source of truth — the wiki synthesizer prompt (`agents/mb-wiki-synthesizer.md`) assigns
+confidence by them, and `mb-wiki.py merge-edges` enforces the floor (`wiki_store.py`):
+
+| Band | Range | Meaning |
+| --- | --- | --- |
+| **High** | `≥ 0.9` | strong, unambiguous semantic alignment |
+| **Medium** | `0.7 – 0.9` | reasonable connection worth surfacing |
+| **Low** | `0.5 – 0.7` | weak but non-obvious — kept, read with care |
+| **Not emitted** | `< 0.5` | dropped at merge time; never reaches `graph.json` |
+
+The `< 0.5` floor is enforced deterministically, so a `semantic` edge in `graph.json`
+always means `confidence ≥ 0.5` regardless of what the model proposed.
 
 **Routing for the code-agent:** exact structural question ("who calls / imports / inherits X?") → `jq` over `graph.json`; intent/fuzzy ("where is the logic for X?", "find similar") → `mb-semantic-search.py`; "what else changes with this file?" → `co_change` edges; "give me a map / the non-obvious links" → `/mb wiki`. **Fail open:** missing/stale graph → suggest `/mb graph --apply`; missing optional dep (`networkx` for communities, `sentence-transformers` for embeddings) → degrade and surface the one-line install, never block the task.
 
@@ -149,6 +165,6 @@ Shorthand below: `$G = .memory-bank/codebase/graph.json` (mb-graph-query require
 
 The skill logs every session to `.memory-bank/session/*.md` (git-tracked markdown) via lifecycle hooks (Stop → per-turn bullet, SessionEnd → Haiku summary + gated Sonnet auto-notes, SessionStart → injects recent sessions). This is **persistent project memory that carries across chats**, distinct from the codebase graph.
 
-- **`/mb recall <query>`** — lexical recall (ripgrep) over `session/` + `notes/`. Use for *"did we discuss X before?"*, *"why did we choose Y?"*, *"have we hit this error?"* — before re-deriving something from scratch.
+- **`/mb recall <query>`** — **progressive-disclosure** recall over `session/` + `notes/`: the default is a compact index (one `id · age · summary · source` line per hit, no chunk bodies), `--expand <id>` returns one full chunk, `--full` keeps the legacy bodies. Semantic + lexical hits are **RRF-fused** when the semantic backend is available (fail-open to **lexical-only** otherwise); `[SUPERSEDED]` chunks sort last. Use for *"did we discuss X before?"*, *"why did we choose Y?"*, *"have we hit this error?"* — before re-deriving something from scratch.
 - Distinct from `/mb search` (searches core MB files) and from semantic code search (`mb-semantic-search.py`, searches the code graph). Session memory = conversation history; code graph = structure; core files = status/plan.
 - **Off-switch:** `export MB_SESSION_CAPTURE=off` disables capture. Recall stays read-only and safe even when capture is off.
