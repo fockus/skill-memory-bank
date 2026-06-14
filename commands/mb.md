@@ -30,6 +30,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `recall <query>`                                         | Lexical recall over session-memory log + notes (ripgrep over `session/` + `notes/`) — session-memory subsystem                                                                                                                                                                                           |
 | `recap <sid>`                                            | Reconstruct a full `progress.md` entry from `session/<sid>*.md` via one Haiku call, replacing that session's auto-capture stub idempotently. Missing session → exit non-zero, no writes; a real (non-stub) entry already present → refuse. `recapped` frontmatter makes a rerun a no-op                  |
 | `conflicts [--judge] [--threshold N]`                    | Surface memory entries with high lexical overlap **and** opposing/replacement assertions (en+ru markers) as conflict candidates — `$0` pass (token-set Jaccard > `N`, default 0.3) over `notes/` + `lessons.md` + recent `progress.md`, zero LLM calls. `--judge` confirms/rejects each pair via one Sonnet call and prints a suggested `[SUPERSEDED: YYYY-MM-DD -> <ref>]` marker. PRINT-ONLY — never writes to any bank file                 |
+| `consolidate [--apply] [--days N]`                       | Fold sessions older than `N` days (default 30) that cluster by shared files / lexical overlap into 5–15 line `notes/` candidates, archive those session files VERBATIM → `session/archive/`, and move their contiguous auto-capture progress STUBS VERBATIM → `progress-archive.md`. Zero LLM calls. Dry-run is the DEFAULT (writes nothing — bank byte-identical); `--apply` performs it. Real progress entries are immutable and never move |
 | `research <query>`                                       | Graph-first multi-source research — codebase / memory / library / prior-art / web; dispatches the `mb-research` agent and returns `file:line`-grounded findings (narrow → single dispatch; broad → fan-out parallel subagents). Fail-open: graph/index optional, degrades to Grep/Read                    |
 | `note <topic>`                                           | Create a note                                                                                                                                                                                                                                                                                            |
 | `update`                                                 | Actualize core files (with real code-state analysis)                                                                                                                                                                                                                                                     |
@@ -137,6 +138,25 @@ apply suggested markers yourself if you agree. No `claude` on PATH → hint on s
 candidates are still printed, exit 0. Same anti-recursion env as the SessionEnd summarizer
 (`CLAUDECODE` unset, `MB_CAPTURE_SUBPROCESS=1`, `--no-session-persistence --strict-mcp-config
 --no-chrome`). Show the result to the user.
+
+### consolidate [--apply] [--days N]
+
+Fold **old** session memory into durable form, **$0** (zero LLM calls). Sessions whose file mtime is
+older than `N` days (default `30`, `MB_CONSOLIDATE_DAYS`) are clustered by shared files-touched or
+lexical overlap; any cluster of ≥2 sessions that carries a recurring fact becomes a 5–15 line note
+candidate under `notes/`. On `--apply` the command (a) writes the note candidate(s); (b) moves the
+windowed session files **verbatim** (byte-for-byte `mv`) to `session/archive/`; (c) moves **only** the
+contiguous auto-capture progress STUBS that belong to the archived sessions **verbatim** to
+`progress-archive.md` (a byte-preserving splitter — real progress entries are immutable and never
+move); (d) rebuilds `session/_recent.md`. Fewer than two windowed sessions, or nothing that clusters →
+empty output, exit 0, no writes.
+
+Dry-run is the **DEFAULT** — it prints the plan and writes nothing (the bank stays byte-identical);
+pass `--apply` to perform it. Run directly (no subagent):
+
+```bash
+bash "$(dirname "$0")/../scripts/mb-consolidate.sh" $ARGS_AFTER_CONSOLIDATE
+```
 
 ### research <query>
 

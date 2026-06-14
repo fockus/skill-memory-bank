@@ -293,10 +293,10 @@
   refs; real progress entries never move (assert).
 
 **DoD:**
-- [ ] scenario 11 green; dry-run provably writes nothing
-- [ ] verbatim moves verified by checksum; append-only preserved
-- [ ] tests pass
-- [ ] shellcheck clean
+- [x] scenario 11 green; dry-run provably writes nothing
+- [x] verbatim moves verified by checksum; append-only preserved
+- [x] tests pass
+- [x] shellcheck clean
 
 <!-- mb-task:13 -->
 ## Task 13: supersedes convention + drift checker
