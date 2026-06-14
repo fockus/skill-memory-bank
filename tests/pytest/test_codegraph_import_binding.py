@@ -663,3 +663,127 @@ def test_build_graph_go_edges_survive_python_homonyms(cg_mod, src_root):
         f"Go caller edge must survive verbatim: {out}"
     )
     assert py_edges == [], f"Python ambiguous homonym call must still be suppressed: {out}"
+
+
+# ── I-066: unique-fallback candidate set is MODULE-LEVEL definitions only ──────
+
+
+def test_unique_fallback_ignores_method_only_definition(cg_mod, src_root):
+    """GIVEN a name that exists ONLY as a class METHOD (``Worker.process``) in
+    b.py, and a.py calls bare ``process()`` without importing it; WHEN the graph
+    is built; THEN no unique-fallback call edge a→b.process is created — a method
+    is not a module-level definition and must never be a fallback bind target.
+    """
+    write_py(
+        src_root,
+        "b.py",
+        """\
+        class Worker:
+            def process(self):
+                pass
+    """,
+    )
+    write_py(
+        src_root,
+        "a.py",
+        """\
+        def runner():
+            process()
+    """,
+    )
+
+    graph = cg_mod.build_graph(src_root)
+    a_calls = [e for e in _call_edges(graph) if "a.py" in e["src"]]
+
+    false_edges = [e for e in a_calls if "process" in e["dst"] and e["dst"] != "process"]
+    assert false_edges == [], (
+        "A bare call must NOT bind to a method-only definition via the "
+        f"unique-fallback, but got false edges: {false_edges}"
+    )
+
+
+def test_unique_fallback_ignores_nested_function_definition(cg_mod, src_root):
+    """GIVEN a name that exists ONLY as a NESTED function (``outer.helper``)
+    inside another function in b.py, and a.py calls bare ``helper()`` without
+    importing; WHEN the graph is built; THEN no fallback edge a→b.helper — a
+    nested function is not module-level and is not a valid fallback target.
+    """
+    write_py(
+        src_root,
+        "b.py",
+        """\
+        def outer():
+            def helper():
+                pass
+            return helper
+    """,
+    )
+    write_py(
+        src_root,
+        "a.py",
+        """\
+        def runner():
+            helper()
+    """,
+    )
+
+    graph = cg_mod.build_graph(src_root)
+    a_calls = [e for e in _call_edges(graph) if "a.py" in e["src"]]
+
+    false_edges = [e for e in a_calls if "helper" in e["dst"] and e["dst"] != "helper"]
+    assert false_edges == [], (
+        "A bare call must NOT bind to a nested-function-only definition via the "
+        f"unique-fallback, but got false edges: {false_edges}"
+    )
+
+
+def test_unique_fallback_still_binds_genuine_module_level_function(cg_mod, src_root):
+    """GIVEN a GENUINE unique module-level function ``modlevel()`` defined once
+    in b.py, and a.py calls it bare without importing; WHEN the graph is built;
+    THEN the unique-fallback edge a→b.modlevel is preserved (the I-066 fix must
+    not over-suppress real module-level definitions).
+    """
+    write_py(src_root, "b.py", "def modlevel(): pass\n")
+    write_py(
+        src_root,
+        "a.py",
+        """\
+        def runner():
+            modlevel()
+    """,
+    )
+
+    graph = cg_mod.build_graph(src_root)
+    a_calls = [e for e in _call_edges(graph) if "a.py" in e["src"]]
+
+    bound = [e for e in a_calls if e["dst"] == "b.modlevel"]
+    assert len(bound) == 1, (
+        f"Genuine module-level unique fallback must still bind a→b.modlevel: {a_calls}"
+    )
+
+
+# ── I-067: root __init__.py unique-fallback dst has no leading dot ─────────────
+
+
+def test_unique_fallback_root_init_dst_has_no_leading_dot(cg_mod):
+    """GIVEN the sole project-wide definition of ``boot()`` lives in a ROOT
+    ``__init__.py`` (whose module prefix is the empty string), and a.py calls
+    bare ``boot()``; WHEN ``bind_calls`` runs the unique-fallback; THEN the
+    bound dst is ``boot`` — NOT ``.boot`` (no leading dot from an empty prefix).
+    """
+    cgpy = _load_cgpy()
+    edges = [
+        {"src": "a.py:runner", "dst": "boot", "kind": "call"},
+    ]
+    definitions = {"boot": ["__init__.py"]}
+    out = cgpy.bind_calls(edges, {}, definitions, {})
+
+    boot_edges = [e for e in out if "boot" in e["dst"]]
+    assert boot_edges, f"Expected the boot() unique-fallback edge to survive: {out}"
+    assert boot_edges[0]["dst"] == "boot", (
+        "Root __init__.py fallback dst must be 'boot' with no leading dot, "
+        f"got: {boot_edges[0]['dst']!r}"
+    )
+    assert not boot_edges[0]["dst"].startswith("."), (
+        f"dst must not start with a leading dot: {boot_edges[0]['dst']!r}"
+    )

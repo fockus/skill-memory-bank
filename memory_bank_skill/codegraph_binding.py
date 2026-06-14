@@ -176,7 +176,12 @@ def bind_calls(
         external_files = [f for f in defining_files if f != caller_file]
         if len(external_files) == 1:
             # Unique external definition — keep, bound to the dotted module form.
-            result.append({**edge, "dst": f"{file_to_module(external_files[0])}.{dst}"})
+            # A ROOT-level ``__init__.py`` has an EMPTY module prefix; joining it
+            # with a leading dot would emit ``.foo`` (I-067). Guard the empty
+            # prefix so the dst is the bare ``foo`` (package-root symbol).
+            module_prefix = file_to_module(external_files[0])
+            bound_dst = f"{module_prefix}.{dst}" if module_prefix else dst
+            result.append({**edge, "dst": bound_dst})
             continue
         if external_files:
             # --- Rule 4: multiple external definitions, none resolved → suppress.

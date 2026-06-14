@@ -249,10 +249,16 @@ def build_graph(
             _save_cache(cache_dir, rel_path, result)
 
     # ── Import-aware call resolution (Python files only) ──────────────────────
-    # Build definitions map: bare_name → [list of file_rel that define it].
-    # Only considers function and class nodes (not modules) AND only Python
-    # files: a Python bare call must never bind to a Go/JS/TS/Rust/Java homonym
-    # (design.md § A2 — Python-first; non-Python keeps name-matching unchanged).
+    # Build the unique-fallback candidate map: bare_name → [file_rel, ...].
+    # Constraints (so the fallback never invents a false edge):
+    #   * function/class nodes only (never modules);
+    #   * Python files only — a Python bare call must never bind to a
+    #     Go/JS/TS/Rust/Java homonym (design.md § A2 — Python-first);
+    #   * MODULE-LEVEL definitions only (I-066): a node whose qualified ``name``
+    #     contains a dot is a class method (``Worker.process``) or a nested
+    #     function (``outer.helper``) — neither is reachable by a bare unqualified
+    #     call, so including it would let the unique-fallback bind to a method /
+    #     nested def that merely happens to be the only one of that name.
     definitions: dict[str, list[str]] = {}
     for node in all_nodes:
         if node.get("kind") not in ("function", "class"):
@@ -261,13 +267,14 @@ def build_graph(
         if not file_rel.endswith(".py"):
             continue
         name: str = node.get("name", "")
-        # Use the simple (non-qualified) name for lookup — qualnames like
-        # "MyClass.method" are not relevant for bare-name resolution.
-        bare = name.split(".")[-1] if "." in name else name
-        if bare:
-            definitions.setdefault(bare, [])
-            if file_rel and file_rel not in definitions[bare]:
-                definitions[bare].append(file_rel)
+        # Skip non-module-level definitions: a dotted qualname is a method or a
+        # nested function and must never seed the bare-name fallback set.
+        if "." in name:
+            continue
+        if name:
+            definitions.setdefault(name, [])
+            if file_rel and file_rel not in definitions[name]:
+                definitions[name].append(file_rel)
 
     all_edges = cgpy.bind_calls(all_edges, all_import_bindings, definitions, all_star_imports)
 
