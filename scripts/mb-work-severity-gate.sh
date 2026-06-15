@@ -2,8 +2,8 @@
 # mb-work-severity-gate.sh — apply /mb work reviewer approval + severity gate.
 #
 # Usage:
-#   mb-work-severity-gate.sh --counts <json> [--mb <path>] [--workflow <name>] [--gate <json>]
-#   mb-work-severity-gate.sh --counts-stdin [--mb <path>] [--workflow <name>] [--gate <json>]
+#   mb-work-severity-gate.sh --counts <json> [--mb <path>] [--workflow <name>] [--gate <json>] [--ignore-approval]
+#   mb-work-severity-gate.sh --counts-stdin [--mb <path>] [--workflow <name>] [--gate <json>] [--ignore-approval]
 #
 # Input can be either raw counts:
 #   {"blocker":0,"major":0,"minor":0}
@@ -14,6 +14,11 @@
 # stage_pipeline[step=review] ▸ active workflow loop.severity_gate. When no
 # review is configured anywhere the gate is a PASS no-op (review is opt-in).
 # --gate overrides severity limits only.
+#
+# --ignore-approval skips reviewer-approval enforcement (approval_required) and
+# applies ONLY the severity arithmetic. For non-reviewer callers — e.g. the
+# dynamic-flow firewall (mb-flow-verify.sh) — that supply raw counts with no
+# reviewer verdict and must not inherit the work-loop's approval policy.
 #
 # Exit codes:
 #   0  PASS  — no review configured, or approval policy and severity limits pass
@@ -30,6 +35,7 @@ COUNTS_FROM_STDIN=0
 MB_ARG=""
 WORKFLOW_NAME=""
 GATE_JSON=""
+IGNORE_APPROVAL=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -38,11 +44,12 @@ while [ "$#" -gt 0 ]; do
     --counts-stdin) COUNTS_FROM_STDIN=1; shift ;;
     --gate) GATE_JSON="${2:-}"; shift 2 ;;
     --gate=*) GATE_JSON="${1#--gate=}"; shift ;;
+    --ignore-approval) IGNORE_APPROVAL=1; shift ;;
     --mb) MB_ARG="${2:-}"; shift 2 ;;
     --mb=*) MB_ARG="${1#--mb=}"; shift ;;
     --workflow) WORKFLOW_NAME="${2:-}"; shift 2 ;;
     --workflow=*) WORKFLOW_NAME="${1#--workflow=}"; shift ;;
-    -h|--help) sed -n '2,19p' "$0" >&2; exit 0 ;;
+    -h|--help) sed -n '2,26p' "$0" >&2; exit 0 ;;
     *) echo "[severity-gate] unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
@@ -65,6 +72,7 @@ PIPELINE_YAML="$PIPELINE_PATH" \
 COUNTS_JSON="$COUNTS_JSON" \
 GATE_JSON_OVERRIDE="$GATE_JSON" \
 WORKFLOW_NAME="$WORKFLOW_NAME" \
+IGNORE_APPROVAL="$IGNORE_APPROVAL" \
 python3 - <<'PY'
 import json
 import os
@@ -268,6 +276,20 @@ if not isinstance(counts, dict):
     sys.stderr.write("[severity-gate] counts must be an object\n")
     sys.exit(2)
 
+ignore_approval = os.environ.get("IGNORE_APPROVAL") == "1"
+
+# --ignore-approval is for raw-count (no-verdict) CLOSURE callers only — e.g. the
+# dynamic-flow firewall. It must NOT double as a way to override a reviewer's
+# explicit verdict: a verdict-bearing payload combined with the flag is a usage
+# error, never a silent fall-through PASS over a CHANGES_REQUESTED. Checked BEFORE
+# the no-op short-circuit so the rejection is unconditional, not policy-dependent.
+if ignore_approval and verdict is not None:
+    sys.stderr.write(
+        "[severity-gate] --ignore-approval is only valid for raw-count payloads "
+        "(no verdict); refusing to override a reviewer verdict\n"
+    )
+    sys.exit(2)
+
 gate, approval_required = load_review_policy(os.environ["PIPELINE_YAML"])
 override = os.environ.get("GATE_JSON_OVERRIDE", "")
 if override:
@@ -281,7 +303,7 @@ elif gate is None:
     print("[severity-gate] PASS (no review configured)")
     sys.exit(0)
 
-if approval_required:
+if approval_required and not ignore_approval:
     if verdict != "APPROVED":
         shown = verdict if verdict is not None else "<missing>"
         sys.stderr.write(f"[severity-gate] FAIL: approval_required=true but verdict={shown}\n")

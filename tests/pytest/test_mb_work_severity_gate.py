@@ -181,3 +181,101 @@ def test_no_review_configured_passes_without_pyyaml(tmp_path: Path) -> None:
     )
     assert r.returncode == 0, r.stderr
     assert "No module named" not in r.stderr
+
+
+def _approval_pipeline(mb: Path) -> None:
+    """A pipeline whose review step requires reviewer approval. Resolved on BOTH
+    the PyYAML and the no-PyYAML fallback parsers (stage_pipeline review step)."""
+    (mb / "pipeline.yaml").write_text(
+        "version: 1\n"
+        "stage_pipeline:\n"
+        "  - step: review\n"
+        "    role: reviewer\n"
+        "    approval_required: true\n"
+        "    severity_gate: {blocker: 0, major: 0, minor: 0}\n",
+        encoding="utf-8",
+    )
+
+
+def test_approval_required_without_verdict_fails_by_default(tmp_path: Path) -> None:
+    """Baseline (unchanged): a raw-counts call (no verdict) against an
+    approval-required policy fails — the work-loop reviewer contract is intact."""
+    mb = _init_mb(tmp_path)
+    _approval_pipeline(mb)
+    counts = {"blocker": 0, "major": 0, "minor": 0}
+    r = _run("--counts", json.dumps(counts), "--mb", str(mb))
+    assert r.returncode == 1
+    assert "approval_required" in (r.stderr + r.stdout).lower()
+
+
+def test_ignore_approval_skips_approval_enforcement(tmp_path: Path) -> None:
+    """--ignore-approval: a firewall-style raw-counts call (no verdict) passes the
+    approval check, so a closure gate is never subject to reviewer-approval policy."""
+    mb = _init_mb(tmp_path)
+    _approval_pipeline(mb)
+    counts = {"blocker": 0, "major": 0, "minor": 0}
+    r = _run(
+        "--counts",
+        json.dumps(counts),
+        "--mb",
+        str(mb),
+        "--gate",
+        json.dumps({"blocker": 0, "major": 0, "minor": 0}),
+        "--ignore-approval",
+    )
+    assert r.returncode == 0, r.stderr
+
+
+def test_ignore_approval_still_enforces_severity(tmp_path: Path) -> None:
+    """--ignore-approval bypasses ONLY approval — a severity breach still fails."""
+    mb = _init_mb(tmp_path)
+    _approval_pipeline(mb)
+    counts = {"blocker": 1, "major": 0, "minor": 0}
+    r = _run(
+        "--counts",
+        json.dumps(counts),
+        "--mb",
+        str(mb),
+        "--gate",
+        json.dumps({"blocker": 0, "major": 0, "minor": 0}),
+        "--ignore-approval",
+    )
+    assert r.returncode == 1
+    assert "blocker" in (r.stderr + r.stdout).lower()
+
+
+def test_ignore_approval_rejects_verdict_bearing_payload(tmp_path: Path) -> None:
+    """--ignore-approval is for raw-count (no-verdict) closure callers ONLY. It must
+    NOT be usable to silently override a reviewer's explicit CHANGES_REQUESTED — a
+    verdict-bearing payload combined with the flag is a usage error (exit 2), never
+    a fall-through PASS."""
+    mb = _init_mb(tmp_path)
+    _approval_pipeline(mb)
+    payload = {"verdict": "CHANGES_REQUESTED", "counts": {"blocker": 0, "major": 0, "minor": 0}}
+    r = _run(
+        "--counts",
+        json.dumps(payload),
+        "--mb",
+        str(mb),
+        "--gate",
+        json.dumps({"blocker": 0, "major": 0, "minor": 0}),
+        "--ignore-approval",
+    )
+    assert r.returncode == 2, (r.returncode, r.stderr, r.stdout)
+    assert "ignore-approval" in (r.stderr + r.stdout).lower()
+
+
+def test_ignore_approval_rejects_verdict_even_with_no_review_policy(tmp_path: Path) -> None:
+    """The verdict guard is UNCONDITIONAL — it fires BEFORE the no-review PASS no-op,
+    so a verdict-bearing payload + --ignore-approval is rejected (exit 2) even when
+    the bank has no review policy and no --gate override (which would otherwise
+    silently no-op PASS, bypassing the guard)."""
+    mb = _init_mb(tmp_path)
+    (mb / "pipeline.yaml").write_text(
+        "version: 1\nstage_pipeline:\n  - step: implement\n    role: auto\n",
+        encoding="utf-8",
+    )
+    payload = {"verdict": "CHANGES_REQUESTED", "counts": {"blocker": 0, "major": 0, "minor": 0}}
+    r = _run("--counts", json.dumps(payload), "--mb", str(mb), "--ignore-approval")
+    assert r.returncode == 2, (r.returncode, r.stderr, r.stdout)
+    assert "ignore-approval" in (r.stderr + r.stdout).lower()
