@@ -2430,3 +2430,93 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - **Final verification (lead, independently re-run):** full pytest **1461 passed** (3.11 + 3.13), handoff-v2 bats **121 ok / 0 fail**, shellcheck + ruff clean, both code fixes proven RED→GREEN by reverting each in isolation, live `mb-progress-chain.sh --verify` returns `{ok:true, stale:true}` (the new legal-append indicator) exit 0.
 - **Judge verdict: GO.** All criticals (never-block contract across the full `MB_PRECOMPACT_BUDGET` domain) and majors (falsy-tail `chain_malformed`, hardened deep-kill test) resolved and independently confirmed. Backlog I-072/073/074 remain as calibration downgrades (repo-convention parity), not blockers.
 - **Takeaway for the machine:** "implement → verify → dual-review → judge → fix" is not done at the first GO — a fix-cycle's output must itself face an independent reviewer. Loop until an independent round stops finding criticals/majors (or the cap forces an explicit judge ruling with residuals → backlog), never on lead self-review alone.
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 47b7134f)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session e74299af)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session b97b3087)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 302a6833)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 9650eae2)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session bc9b9abf)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 6bc447cb)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-16
+
+### Auto-capture 2026-06-16 (session 427a0172)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-16
+
+### Auto-capture 2026-06-16 (session 3c8a822b)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-16
+
+### Auto-capture 2026-06-16 (session da3ace17)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-16
+
+### Auto-capture 2026-06-16 (session 1ae51a59)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-16
+
+### Auto-capture 2026-06-16 (session b2849122)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-16
+
+### Auto-capture 2026-06-16 (session 6b50476d)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-16 (dynamic-flow Phase 1 — firewall closed; T5/T6/T7 governed)
+
+**I-077 — dynamic-flow Phase 1 COMPLETE (ICE 378).** Все 7 задач Phase 1 отгружены через HEAVY governed-машину: implement (Opus-сабагенты) → verify (lead) → НЕЗАВИСИМОЕ ревью (Codex gpt-5.5 `codex exec` + lead) → judge (GO) → fix-loop. Применён binding principle: финальный GO НИКОГДА не на lead self-review — исправленный код каждой задачи проходил свежий независимый раунд, цикл «пока независимый проход не перестанет находить critical/major».
+
+- **Task 5 — verifier fan-out firewall** (`a191aa3`): `scripts/mb-flow-verify.sh` — единственный авторитет exit-кода; трихотомия 0=pass / 1=fail / 2=broke (precedence broke≻fail≻pass). Firewall — closure-gate, не ревью: форсит strict `--gate {0,0,0}` + новый `--ignore-approval` в SSOT `mb-work-severity-gate.sh` (default OFF → work-loop байт-неизменен), чтобы не наследовать no-op PASS и `approval_required`. 7 независимых раундов Codex (каждый #1-6 нашёл реальный эмпирически подтверждённый дефект; bash 3.2 `printf %q` leading-`~`, no-review-bank clean-red exit 0, approval-regression, verdict-override footgun; #7 clean).
+- **Task 6 — closure wiring** (`947a506`): CC Stop-hook `hooks/mb-flow-closure-guard.sh` + commit-time `adapters/git-hooks-fallback.sh` для hookless-агентов. Agent-identity детерминирован на ВСЕХ точках входа (CC Stop pin `MB_AGENT=claude-code`; git-hooks bake `${MB_AGENT:-claude-code}`; `pi.sh`→`MB_AGENT=pi`, `kilo.sh`→`MB_AGENT=kilo`) → корректный per-agent registry (`mb_hook_default_agent` не угадывает pi/kilo). Оба гейта inert без `goal.md`; fail-safe тотальный. 4 независимых раунда (bank-resolution → dead `_skill_root` path → cursor-misdetect → Pi/Kilo adapter agent-baking); #4 clean. 73 теста (closure-guard 16 / git-hooks 25 / agents-md 6 / pi 15 / kilo 11).
+- **Task 7 — AGENTS.md Phase-1 contract** (`9ee43e9`): `_agents_md_section()` несёт firewall loop-rule — flow активен ⇔ `goal.md` существует; завершение гейтится exit-кодом `mb-flow-verify.sh`, не самооценкой (REQ-DF-060); на красном → repair + re-run. Anti-vapor guard (тест #8) сканирует всю секцию, проверяет существование каждого `scripts|hooks|adapters/*.{sh,py}` — доказанно genuine (фантом `mb-flow.sh` → RED). agents-md 8/8. Codex review: GO.
+
+Покрыты REQ-DF-010..062 (firewall + closure) + REQ-DF-050/070 (contract). Phase 1 — независимо ценный инкремент, усиливающий `work.md`-loop на Claude Code. **Следующее по ICE: reviewer-2.0** (голова harness-цепочки). Phase 2-3 dynamic-flow (mini-router + templates + adapters) deferred до доказанности firewall.
+
+**Pending explicit "go":** `git push` (main ≫ origin), PyPI publish + git tag.

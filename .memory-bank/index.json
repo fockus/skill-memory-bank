@@ -285,62 +285,6 @@
     "version": 1,
     "tail": [
       {
-        "heading": "## 2026-06-14",
-        "sha256": "df327389574a9be35ecf478b74f5521d8c48f013a5bd7bb87e4b1adafacc8a37"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "e8cfe77ab9e0682cfd498a6e6dd28d58d436b90d9a640ff267e4acbf1b5ba9d0"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "70e77386184d07153bce6d3e2334768ffd93fff2772f34e2531146fadc625a9c"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "7916b95b289510564ddabee793112b8916d3f4f1757c633908ed262f970317de"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "74f50df60b2172e29b05b6db73302460c4083e5262553384f768839b37bb8dc9"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "cc9f95f28fa31c67c76b3d50915297c0a8208d0da5bb66d2bc60e48740dd1851"
-      },
-      {
-        "heading": "## 2026-06-14 — Capstone: spec `tier1-graph-memory` fully delivered (17/17) + 5.1.0 release prep",
-        "sha256": "98b12b2129cabe8e826bdb276176b0213d16559727f9b450771dd155885b6c63"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "c0f10b99b9b66e870d9dc8732d0a9e98d57926ae6a06cd8c99aa16561b8e7c53"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "c9b00d31e201149f4dd227f2dd047ad973a9d9db9620f9c59febc946d67bbac6"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "44e9e39e06f2873430c8ea021e51ae73d139572e6a15fbe37827001eaba86672"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "0d47240a37bafac1d0fe64c07746d8d3acaea4a1f8131ba995e5c08608a5a4ff"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "6018abaaab4090eafca2ff7613ffe3d7fec62711d8575b89d70b55fda4321ed7"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "495095839a96a40bc02ed25dc72c0e641f1d385c9edbac5381ec62a0dccf62cc"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "ec4c616dfe248b499cdb5e8ab61e0c6be37669fc66b208387a575a3e6277b7c5"
-      },
-      {
         "heading": "## 2026-06-15",
         "sha256": "7eb7d6a571300852d26458059a3958918b6ac8157d99e528803abd15e31640cc"
       },
@@ -363,8 +307,64 @@
       {
         "heading": "## 2026-06-15 — handoff-v2 closed: second-pass independent review caught what lead re-verification missed",
         "sha256": "f9e0cd73a80669f7efa2e2c9b2c64bdcaa4adaf8a65a2026d2d3caf24b4fe5cc"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "ce4ce7178286f7f6ee359fa0909c6ced2e9a06558fae65d245e8f542c09695fc"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "e35c0f88756dd1ce920fbc775393a13b88abd31369a35b7cfca4b9b569eafb28"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "68d6926a39d21261f1cc93641b18d74290b46a26b67b210514bf9028bcb53ee6"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "a394990a25938fa4aaf2996807a290f0a94835020b0c9fcfa33a5876cd75c59b"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "9a32d40d54bb4e6668758c517eb472cfcb850121db897f191523776cdd47f66f"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "5ead7620d4bb541afdde42c9c973bde893c101cc086cb4250ed8ab70beae4a49"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "dbad2f6571e730fe71af3b8dffac33c778a0ccc901fa481dd9122daedc7187f3"
+      },
+      {
+        "heading": "## 2026-06-16",
+        "sha256": "46304235cdfeb300b6faa943eb3f61c3d5c31f7c59d7f75f5b1399631f692891"
+      },
+      {
+        "heading": "## 2026-06-16",
+        "sha256": "71ee7b4ebbb862c620f90e3079e29356fca78ed59ef65f4d1b6b6ee4d56a3426"
+      },
+      {
+        "heading": "## 2026-06-16",
+        "sha256": "41a9f1d956107aea42ac51440667911306b0b3c3ecb716cf91f2d014266951fd"
+      },
+      {
+        "heading": "## 2026-06-16",
+        "sha256": "1984c85871b95c72e708255706d211176be50395511a09bc69c4bd732bc85917"
+      },
+      {
+        "heading": "## 2026-06-16",
+        "sha256": "d014ade0274e59963c719732ac926b13f4b604d1c09fcc4db6bbf7c771f5a9c9"
+      },
+      {
+        "heading": "## 2026-06-16",
+        "sha256": "621966f2c2df3d6ba24671c526a60318585e79a535dc230fc2239b1be36c7b5c"
+      },
+      {
+        "heading": "## 2026-06-16 (dynamic-flow Phase 1 — firewall closed; T5/T6/T7 governed)",
+        "sha256": "6021e30b5d6ad42f03839bc3f38ef406b45354bbdc87f2c347b895686e831ab0"
       }
     ],
-    "last_synced_at": "2026-06-15T09:19:12Z"
+    "last_synced_at": "2026-06-15T23:35:34Z"
   }
 }

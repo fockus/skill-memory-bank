@@ -65,8 +65,8 @@ ICE = Impact × Confidence × Ease (каждый 1–10). Последовате
 | 0 | Hygiene (roadmap honesty) | ✅ DONE 2026-06-14 — закрыты готовые планы, 8× goal-driven + opencode-first → `plans/superseded/` |
 | 1 | cursor-extension finish (S) | ✅ DONE 2026-06-15 (f86247c) — Stages 4-5 + spec hygiene |
 | 2 | handoff-v2 (M) | ✅ DONE 2026-06-15 — 5/5 tasks, governed dual-review + judge, fix-cycle per task |
-| 3 | dynamic-flow Phase 1 (M) | ◀ NEXT — стратегический firewall: детерминированный «нельзя соврать про done» |
-| 4 | reviewer-2.0 (L) | голова harness-цепочки |
+| 3 | dynamic-flow Phase 1 (M) | ✅ DONE 2026-06-16 (a191aa3·947a506·9ee43e9) — 7 tasks, governed dual-review + judge, фирвол «нельзя соврать про done» (I-077) |
+| 4 | reviewer-2.0 (L) | ◀ NEXT — голова harness-цепочки |
 | 5 | work-loop-v2 (M) | нужен сигнал `progress_trend` из reviewer-2.0 |
 | 6 | cost-multi-model (M) | нужен reviewer+loop; сначала закрыть I-057/I-058 |
 | ∥ | skill-improvements-anthropic-audit (M) | docs-лейн, идёт параллельно любому code-wave |

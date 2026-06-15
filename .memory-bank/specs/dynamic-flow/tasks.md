@@ -38,9 +38,9 @@ Testing: manual — confirm both moved dirs carry `SUPERSEDED.md` and no longer 
 Testing: bats for the goal validator — valid goal passes; missing acceptance criteria fails; missing/unresolvable `progress_source` fails; adaptive mode without `replan_with` fails.
 
 **DoD:**
-- [ ] `goal.md` template (end-state + `## Acceptance criteria` `- [ ]`) and `project.md` template exist (shapes lifted from superseded goal-driven-autopilot).
-- [ ] `commands/goal.md` thin scaffolder creates them.
-- [ ] A goal with no adaptive fields reproduces today's static behaviour byte-identically.
+- [x] `goal.md` template (end-state + `## Acceptance criteria` `- [ ]`) and `project.md` template exist (shapes lifted from superseded goal-driven-autopilot).
+- [x] `commands/goal.md` thin scaffolder creates them.
+- [x] A goal with no adaptive fields reproduces today's static behaviour byte-identically.
 
 <!-- mb-task:3 -->
 ### Task 3: `mb-flow` fence writer (status.md)
@@ -51,9 +51,9 @@ Testing: bats for the goal validator — valid goal passes; missing acceptance c
 Testing: bats — first write creates the fence; rewrite is idempotent; content outside the fence is byte-preserved; `goal.md` is never written to.
 
 **DoD:**
-- [ ] `mb-flow-sync.sh` regenerates the `<!-- mb-flow -->` block in `status.md` idempotently.
-- [ ] `goal.md` stays durable-only (no live check-results).
-- [ ] No standalone `flow-state.json` authored as primary state.
+- [x] `mb-flow-sync.sh` regenerates the `<!-- mb-flow -->` block in `status.md` idempotently.
+- [x] `goal.md` stays durable-only (no live check-results).
+- [x] No standalone `flow-state.json` authored as primary state.
 
 <!-- mb-task:4 -->
 ### Task 4: Thin check runners (lint / no-TODO / diff-scope / acceptance)
@@ -64,9 +64,9 @@ Testing: bats — first write creates the fence; rewrite is idempotent; content 
 Testing: pytest/bats per runner — pass case, fail case, and `null`/skip case; all stay exit-0 + JSON like `mb-test-run.sh`.
 
 **DoD:**
-- [ ] `mb-lint-run.sh`, `no-TODO` scanner, `diff-scope` comparator, `goal-acceptance` aggregator each emit `{name, ok, findings[]}`.
-- [ ] Each runner exits 0 and reports pass/fail only via JSON (no fail-loud in the runner).
-- [ ] No build-runner is added (build resolves to `skip`).
+- [x] `mb-lint-run.sh`, `no-TODO` scanner, `diff-scope` comparator, `goal-acceptance` aggregator each emit `{name, ok, findings[]}`.
+- [x] Each runner exits 0 and reports pass/fail only via JSON (no fail-loud in the runner).
+- [x] No build-runner is added (build resolves to `skip`).
 
 <!-- mb-task:5 -->
 ### Task 5: Verifier fan-out — THE firewall (`mb-flow-verify.sh`)
@@ -77,9 +77,9 @@ Testing: pytest/bats per runner — pass case, fail case, and `null`/skip case; 
 Testing: bats — all-green → exit 0; one blocker → exit 1 naming the breach; a check script that itself errors → exit 2. This is the load-bearing test of the whole spec.
 
 **DoD:**
-- [ ] `mb-flow-verify.sh` runs route-relevant checks, normalizes to `{blocker,major,minor}`, calls `mb-work-severity-gate.sh`.
-- [ ] The fan-out is the sole exit-code authority and propagates 0/1/2 as its own exit.
-- [ ] A red result triggers a repair-loop; the flow is never declared finished on red.
+- [x] `mb-flow-verify.sh` runs route-relevant checks, normalizes to `{blocker,major,minor}`, calls `mb-work-severity-gate.sh`.
+- [x] The fan-out is the sole exit-code authority and propagates 0/1/2 as its own exit.
+- [x] A red result triggers a repair-loop; the flow is never declared finished on red.
 
 <!-- mb-task:6 -->
 ### Task 6: Closure wiring (Claude Code Stop-hook + git-hooks fallback)
@@ -90,9 +90,9 @@ Testing: bats — all-green → exit 0; one blocker → exit 1 naming the breach
 Testing: bats/manual — a deliberately-red flow cannot be declared done on Claude Code; on a hookless agent the git pre-commit fallback catches it at commit-time.
 
 **DoD:**
-- [ ] CC Stop-hook gates "finished" on the `mb-flow-verify.sh` exit code.
-- [ ] `git-hooks-fallback.sh` enforces closure at commit-time for hookless agents.
-- [ ] The no-commit false-done limitation on Pi is documented in `AGENTS.md`.
+- [x] CC Stop-hook gates "finished" on the `mb-flow-verify.sh` exit code.
+- [x] `git-hooks-fallback.sh` enforces closure at commit-time for hookless agents.
+- [x] The no-commit false-done limitation on Pi is documented in `AGENTS.md`.
 
 <!-- mb-task:7 -->
 ### Task 7: AGENTS.md Phase-1 contract
@@ -103,8 +103,8 @@ Testing: bats/manual — a deliberately-red flow cannot be declared done on Clau
 Testing: manual — the rendered AGENTS.md block references only scripts that exist after T2–T6; validates on Claude Code.
 
 **DoD:**
-- [ ] `_lib_agents_md.sh` fenced block carries the goal+firewall loop rule ("do not finish until `mb-flow-verify.sh` exits 0; on red → repair, re-run").
-- [ ] The block documents only shipped scripts (no vapor).
+- [x] `_lib_agents_md.sh` fenced block carries the goal+firewall loop rule ("do not finish until `mb-flow-verify.sh` exits 0; on red → repair, re-run").
+- [x] The block documents only shipped scripts (no vapor).
 
 ## Phase 2 — Mini-router (deferred; after Phase 1 firewall is proven)
 
