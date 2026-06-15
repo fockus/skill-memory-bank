@@ -369,6 +369,10 @@ _Still OPEN — pre-existing flaky test, not introduced by tier1; not release-ga
 
 _Pre-existing, not introduced by the cursor-finish work (`mb-spec-validate cursor-extension` already exit=1 on HEAD before the 2026-06-15 changes). REQ-308, 309, 310, 311–316, 318, 319, 320, 322 use "On `<event>`, when `<cond>`, the hook shall …" phrasing, which the EARS validator rejects because the bullet does not START with an EARS keyword (When/While/Where/If/The). Fix = mechanical rephrase "On X, when Y, the hook shall Z" → "When X and Y, the hook shall Z", preserving meaning, then re-run to exit 0. Deferred from cursor-finish (S, light gate): rewording normative requirements warrants its own review pass. Orphan-coverage (REQ-310→Task 2, REQ-312–317) and Task 9 missing-Testing were fixed in the 2026-06-15 pass; EARS phrasing is the only remaining validator failure._
 
+### I-072 — sc_lock stale-break is not single-writer-safe repo-wide (mkdir lock TOCTOU) [MEDIUM, NEW, 2026-06-15]
+
+_The shared lock primitive `hooks/lib/session-common.sh::sc_lock` (and its mirror in `scripts/mb-handoff.sh`) breaks a stale lock with `mkdir` + `rm -rf` on TTL expiry — a TOCTOU window where a slow original writer can delete a newer owner's lock. `mb-handoff.sh` now writes an owner token (`<pid>-<rand>`) at acquire and only `rm -rf`s on release when the on-disk token still matches (handoff-v2 Stage 1, MAJOR #6). The acquire-loop stale-break itself was left at `sc_lock` parity (out of scope for Stage 1). Follow-up: apply the same owner-token stale-break consistently in `session-common.sh::sc_lock` AND make handoff's TTL-break path verify the token before deleting, so the fix lands repo-wide in one pass._
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
