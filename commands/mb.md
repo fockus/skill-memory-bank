@@ -59,6 +59,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `idea <title> [HIGH\|MED\|LOW]`                          | Capture new idea in `backlog.md` with auto-generated monotonic `I-NNN` ID (priority defaults to `MED`)                                                                                                                                                                                                    |
 | `idea-promote <I-NNN> <type>`                            | Promote an idea → plan. Creates plan file via `mb-plan.sh`, flips idea status `NEW\|TRIAGED → PLANNED`, adds `**Plan:** [plans/...]` link, runs plan-sync. `type ∈ feature\|fix\|refactor\|experiment`                                                                                                    |
 | `adr <title>`                                            | Capture Architecture Decision Record with auto-generated monotonic `ADR-NNN` ID inside `backlog.md ## ADR` section — skeleton includes Context / Options / Decision / Rationale / Consequences                                                                                                           |
+| `goal`                                                   | Scaffold `.memory-bank/goal.md` + `.memory-bank/project.md` from templates (copy-if-absent), then validate the goal with `scripts/mb-goal-validate.sh`. Phase-1 Dynamic Flow primitive (REQ-DF-001..005). See `commands/goal.md`                                                                          |
 | `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `status.md`, restructures `backlog.md` to `## Ideas` + `## ADR` skeleton. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
 | (unrecognized)                                           | Search by `$ARGUMENTS`                                                                                                                                                                                                                                                                                   |
 
@@ -1365,6 +1366,32 @@ User: /mb adr "Use OIDC for PyPI publishing"
 ```
 
 After capture, open `backlog.md` and fill in Context / Options / Decision / Rationale / Consequences. The skeleton is intentionally short — the value is in the completed reasoning, not the template.
+
+---
+
+### goal
+
+Scaffold and validate the durable Dynamic Flow goal artifacts. See `commands/goal.md` for the full spec.
+
+**Arguments:** none (always acts on `<bank>/goal.md` + `<bank>/project.md`).
+
+**Effect:**
+
+- If `.memory-bank/goal.md` is absent → copy `templates/goal.md` to it. Never overwrites.
+- If `.memory-bank/project.md` is absent → copy `templates/project.md` to it. Never overwrites.
+- Validate the goal with `scripts/mb-goal-validate.sh`. Valid → `{"ok":true}`; invalid → concrete fix-hint per problem on stderr.
+
+Run directly (no LLM needed — validation is deterministic):
+
+```bash
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BANK=".memory-bank"
+[ -f "$BANK/goal.md" ]    || cp "$SKILL_DIR/templates/goal.md"    "$BANK/goal.md"
+[ -f "$BANK/project.md" ] || cp "$SKILL_DIR/templates/project.md" "$BANK/project.md"
+bash "$SKILL_DIR/scripts/mb-goal-validate.sh" "$BANK/goal.md"
+```
+
+After scaffolding, fill in `## Description` + `## Acceptance criteria` + `progress_source` in `goal.md`, then re-run until it exits `0`.
 
 ---
 
