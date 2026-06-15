@@ -225,14 +225,23 @@ def verify(mb_path: Path) -> dict[str, Any]:
     """Verify the recorded chain against the current ``progress.md``.
 
     Returns a structured report ``{ok, error, mismatches, missing}``.
-    ``ok`` is ``True`` only when the recorded ``tail`` matches a **unique**
-    contiguous run in the file's current ordered entry list.
+    ``ok`` is ``True`` when the recorded ``tail`` matches a **unique**
+    contiguous run in the file's current ordered entry list (either exact-suffix
+    or stale-but-intact).
+
+    When ``ok`` is ``True`` and the matched run is NOT the suffix (new entries were
+    appended since the last rebuild), the report additionally contains::
+
+        "stale": true, "untracked_appends": <N>
+
+    Stale is NOT tamper — callers must not treat it as a critical error.
 
     Error codes (``error`` field when ``ok`` is ``False``):
     - ``index_missing``  — ``index.json`` does not exist
     - ``index_malformed``— ``index.json`` exists but is not valid JSON / not a dict
     - ``chain_missing``  — ``index.json`` has no ``progress_chain`` key
-    - ``chain_malformed``— ``progress_chain.tail`` is not a list
+    - ``chain_malformed``— ``progress_chain.tail`` is not a list, or contains a row
+                           that is not a ``{heading: str, sha256: str}`` dict
     - ``ambiguous_match``— recorded tail matches at more than one position in the file
     - ``None``           — a normal mismatch/deletion (``mismatches``/``missing`` populated)
     """
@@ -250,9 +259,25 @@ def verify(mb_path: Path) -> dict[str, Any]:
     if not isinstance(chain, dict) or "tail" not in chain:
         return {"ok": False, "error": "chain_missing", "mismatches": [], "missing": []}
 
-    recorded = chain.get("tail") or []
+    # Read the raw value BEFORE any truthiness coercion: a falsy non-list such as
+    # null/false/0/"" is a CORRUPT chain, not an empty one.  `chain.get("tail") or []`
+    # would silently turn those into [] and pass verification — disabling integrity
+    # checks on a valid-JSON-but-corrupt index.  Distinguish them explicitly.
+    recorded = chain.get("tail")
     if not isinstance(recorded, list):
         return {"ok": False, "error": "chain_malformed", "mismatches": [], "missing": []}
+
+    # Validate every row BEFORE passing to _find_run_positions which assumes dicts.
+    # A non-dict row (or a dict with a non-string heading/sha256) signals a corrupt
+    # index.json — return chain_malformed immediately rather than crashing with
+    # AttributeError (NEW MAJOR finding — malformed tail row).
+    for row in recorded:
+        if (
+            not isinstance(row, dict)
+            or not isinstance(row.get("heading"), str)
+            or not isinstance(row.get("sha256"), str)
+        ):
+            return {"ok": False, "error": "chain_malformed", "mismatches": [], "missing": []}
 
     # An empty recorded tail (e.g. a freshly-initialised empty progress.md) makes
     # no integrity claim — nothing to verify, so it passes.
@@ -314,8 +339,28 @@ def verify(mb_path: Path) -> dict[str, Any]:
                 }
             )
 
-    ok = not mismatches and not missing
-    return {"ok": ok, "error": None, "mismatches": mismatches, "missing": missing}
+    if mismatches or missing:
+        return {"ok": False, "error": None, "mismatches": mismatches, "missing": missing}
+
+    # Integrity check passed.  Detect whether the recorded tail is the SUFFIX of
+    # the current entry list (exact-suffix) or a contiguous run that is followed by
+    # newer untracked entries (stale).
+    #
+    # Stale is NOT tamper — append-only growth is expected behaviour.  Callers
+    # (e.g. drift) must treat stale as informational, not critical.
+    run_end = anchor + n  # index one past the last matched entry
+    untracked = len(current) - run_end  # entries appended since last rebuild
+    if untracked > 0:
+        return {
+            "ok": True,
+            "error": None,
+            "mismatches": [],
+            "missing": [],
+            "stale": True,
+            "untracked_appends": untracked,
+        }
+
+    return {"ok": True, "error": None, "mismatches": [], "missing": []}
 
 
 _USAGE = "usage: mb-progress-chain (--rebuild-tail | --verify) [mb_path]"

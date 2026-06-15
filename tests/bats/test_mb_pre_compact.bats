@@ -117,31 +117,90 @@ STUB
 }
 
 @test "pre-compact: orphan grandchild killed after timeout, not alive after hook returns" {
-  # Stub spawns a child process that writes a sentinel file each second.
-  # The hook times out, and after it returns the grandchild must be dead —
-  # it must NOT keep writing (proving the whole process group is killed).
-  local sentinel="$PROJECT/grandchild_alive"
-  local stub="$PROJECT/spawning-handoff.sh"
-  cat > "$stub" <<STUB
-#!/usr/bin/env bash
-# Grandchild loop: prove it was killed by recording touches.
-( while true; do touch "$sentinel"; sleep 0.5; done ) &
-sleep 30
-STUB
+  # Stub spawns TWO levels of child using explicit bash -c subshells so each
+  # process correctly records its OWN PID (not the parent's).
+  # Tree structure: hook-worker (stub) → C1 (bash grandchild) → C2 (bash great-grandchild).
+  # After hook times out, BOTH C1 and C2 must be dead — verified via kill -0 liveness.
+  # With the buggy pkill-P-only implementation, killing the stub (direct worker) leaves
+  # C1 alive, so C2 is never reached.  The correct recursive-BFS kill kills all levels.
+  local pid_c1="$PROJECT/pid_c1"
+  local pid_c2="$PROJECT/pid_c2"
+  local stub="$PROJECT/deep-spawning-handoff.sh"
+  # Use printf not heredoc to avoid quoting landmines with nested $$ expansions.
+  printf '#!/usr/bin/env bash\n' > "$stub"
+  printf '# Level 1: spawn a grandchild that spawns a great-grandchild.\n' >> "$stub"
+  printf 'bash -c "echo \$\$ > %s; bash -c '"'"'echo \$\$ > %s; sleep 60'"'"' & sleep 60" &\n' \
+    "$pid_c1" "$pid_c2" >> "$stub"
+  printf 'sleep 60\n' >> "$stub"
   chmod +x "$stub"
+
   # Run hook with a 1s budget so it times out.
   run_hook_split MB_HANDOFF_SCRIPT="$stub" MB_PRECOMPACT_BUDGET=1
   [ "$status" -eq 0 ]
   [[ "$stderr_text" == *"WARN"* ]] || [[ "$stderr_text" == *"warn"* ]]
-  # Give the grandchild one polling interval to prove it's truly dead, then check.
-  sleep 0.6
-  # Record sentinel mtime before waiting.
-  local snap_before snap_after
-  snap_before=$(stat -f %m "$sentinel" 2>/dev/null || stat -c %Y "$sentinel" 2>/dev/null || echo 0)
-  sleep 0.7
-  snap_after=$(stat -f %m "$sentinel" 2>/dev/null || stat -c %Y "$sentinel" 2>/dev/null || echo 0)
-  # If the grandchild is still alive it would update the sentinel; if dead, mtime is unchanged.
-  [ "$snap_before" -eq "$snap_after" ]
+
+  # Wait up to 2 s for the stub to write PID files (it has 1s budget + kill latency).
+  local i=0
+  while [ "$i" -lt 20 ] && { [ ! -f "$pid_c1" ] || [ ! -f "$pid_c2" ]; }; do
+    sleep 0.1
+    i=$(( i + 1 ))
+  done
+
+  local c1 c2
+  c1="$(cat "$pid_c1" 2>/dev/null || true)"
+  c2="$(cat "$pid_c2" 2>/dev/null || true)"
+
+  # The test proves NOTHING unless both PIDs were actually captured.  Without these
+  # hard assertions the kill -0 checks could be skipped (empty PID) and the test
+  # would pass even if the deep-kill were broken — a tautological test.
+  [ -n "$c1" ] || { echo "C1 PID never captured — test cannot prove deep kill" >&2; false; }
+  [ -n "$c2" ] || { echo "C2 PID never captured — test cannot prove deep kill" >&2; false; }
+  [[ "$c1" =~ ^[0-9]+$ ]] || { echo "C1 PID not numeric: '$c1'" >&2; false; }
+  [[ "$c2" =~ ^[0-9]+$ ]] || { echo "C2 PID not numeric: '$c2'" >&2; false; }
+
+  # Brief grace period for any remaining cleanup to propagate.
+  sleep 0.3
+
+  # Assert BOTH levels are dead (unconditional — PIDs are proven captured above).
+  # kill -0 returns non-zero for a dead PID.
+  ! kill -0 "$c1" 2>/dev/null || { echo "C1 (pid $c1) still alive — tree kill failed" >&2; false; }
+  ! kill -0 "$c2" 2>/dev/null || { echo "C2 (pid $c2) still alive — deep grandchild not killed" >&2; false; }
+}
+
+@test "pre-compact: invalid MB_PRECOMPACT_BUDGET (non-numeric) → exit 0, WARN, never aborts" {
+  # Non-numeric budget must NOT cause an arithmetic error under set -uo pipefail.
+  # A broken hook would exit 127 (unbound-var) or exit 1 (arithmetic fail),
+  # violating the never-block contract.  A correct hook validates first and
+  # falls back to the default budget, staying on the exit-0 path.
+  run_hook_split MB_HANDOFF_SCRIPT="$REPO_ROOT/scripts/mb-handoff.sh" MB_PRECOMPACT_BUDGET=abc
+  [ "$status" -eq 0 ]
+  # Must emit a WARN about the invalid budget value.
+  [[ "$stderr_text" == *"WARN"* ]] || [[ "$stderr_text" == *"warn"* ]]
+}
+
+@test "pre-compact: multi-line MB_PRECOMPACT_BUDGET → exit 0, WARN, never aborts" {
+  # A multi-line value like $'1\nabc' would PASS a line-based grep -qE '^[0-9]+$'
+  # (the first line "1" matches), then reach `$(( BUDGET * 100 ))` and abort under
+  # set -uo pipefail.  Whole-string `case` validation must reject it and fall back
+  # to the default budget, staying on the exit-0 path (never-block contract).
+  local multiline=$'1\nabc'
+  run_hook_split MB_HANDOFF_SCRIPT="$REPO_ROOT/scripts/mb-handoff.sh" MB_PRECOMPACT_BUDGET="$multiline"
+  [ "$status" -eq 0 ]
+  [[ "$stderr_text" == *"WARN"* ]] || [[ "$stderr_text" == *"warn"* ]]
+}
+
+@test "pre-compact: every pathological MB_PRECOMPACT_BUDGET → exit 0 (never aborts)" {
+  # Exhaustive sweep over the input domain that could abort `$(( BUDGET * 100 ))`:
+  #   - leading-zero octal (08, 09): all-digit but invalid octal → "value too great
+  #     for base" → unbound `deadline` → abort.  Must normalize with 10#.
+  #   - overflow (7+ digits): exceeds bash 64-bit arithmetic.  Must reject by length.
+  #   - zero forms (0, 00): not a positive integer.
+  # Each MUST stay on the exit-0 never-block path.  A valid budget (3) is the control.
+  local v
+  for v in 08 09 010 099999 0000 00 7654321 99999999999999999999 3; do
+    run_hook_split MB_HANDOFF_SCRIPT="$REPO_ROOT/scripts/mb-handoff.sh" MB_PRECOMPACT_BUDGET="$v"
+    [ "$status" -eq 0 ] || { echo "MB_PRECOMPACT_BUDGET='$v' aborted hook (status=$status)" >&2; false; }
+  done
 }
 
 # ═══════════════════════════════════════════════════════════════

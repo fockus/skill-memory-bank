@@ -640,3 +640,144 @@ PY
   run bash "$DRIFT" "$PROJECT" 2>&1
   [[ "$output" == *"drift_check_progress_chain=critical"* ]]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# NEW MAJOR — build_index .bak on malformed existing index.json
+# (finding #2 residual — second writer not covered)
+# ═══════════════════════════════════════════════════════════════
+
+@test "build_index: malformed existing index.json → .bak written, notes indexed" {
+  seed_three_entries
+  bash "$SCRIPT" --rebuild-tail "$MB"
+  # Corrupt the index (truncated JSON — simulates a partial write/crash).
+  printf '{"progress_chain": {' > "$INDEX"
+  # Run index rebuild via mb-index-json.py — the OTHER writer.
+  run python3 "$REPO_ROOT/scripts/mb-index-json.py" "$MB"
+  [ "$status" -eq 0 ]
+  # .bak must have been written to preserve the corrupt bytes.
+  [ -f "${INDEX}.bak" ]
+  # The new index must be valid JSON.
+  python3 -c "import json; json.load(open('$INDEX'))"
+}
+
+@test "build_index: after malformed-to-bak rebuild, progress_chain absent (starts fresh)" {
+  # When the index is malformed, the chain is unrecoverable from that corrupt file.
+  # After rebuild: no progress_chain key (requires explicit --rebuild-tail to re-seed).
+  seed_three_entries
+  bash "$SCRIPT" --rebuild-tail "$MB"
+  printf '{"broken":' > "$INDEX"
+  python3 "$REPO_ROOT/scripts/mb-index-json.py" "$MB"
+  run python3 -c "import json; d=json.load(open('$INDEX')); print('chain' if 'progress_chain' in d else 'no_chain')"
+  [ "$output" = "no_chain" ]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# NEW MAJOR — stale tail: unique match but NOT the suffix
+# ═══════════════════════════════════════════════════════════════
+
+@test "stale: append after rebuild → ok=true stale=true (NOT tamper, NOT critical)" {
+  seed_three_entries
+  bash "$SCRIPT" --rebuild-tail "$MB"
+  # Append a new legitimate entry.
+  cat >> "$PROGRESS" <<'EOF'
+
+## 2026-06-13
+
+### Topic D
+- did zeta
+EOF
+  run bash "$SCRIPT" --verify "$MB"
+  # Must NOT exit 2 — append-only growth is not tamper.
+  [ "$status" -eq 0 ]
+  # Must report stale=true and untracked_appends>=1.
+  echo "$output" | python3 -c "
+import json, sys
+d = json.loads(sys.stdin.read())
+assert d['ok'] is True, f'ok must be True, got: {d}'
+assert d.get('stale') is True, f'stale must be True, got: {d}'
+assert d.get('untracked_appends', 0) >= 1, f'untracked_appends must be >=1, got: {d}'
+"
+}
+
+@test "stale: suffix match (rebuild then no change) → ok=true stale absent or false" {
+  seed_three_entries
+  bash "$SCRIPT" --rebuild-tail "$MB"
+  run bash "$SCRIPT" --verify "$MB"
+  [ "$status" -eq 0 ]
+  echo "$output" | python3 -c "
+import json, sys
+d = json.loads(sys.stdin.read())
+assert d['ok'] is True
+assert d.get('stale') is not True, f'must NOT be stale on exact suffix: {d}'
+"
+}
+
+@test "stale: drift on stale tail → ok NOT critical (at most info, not error token)" {
+  DRIFT="$REPO_ROOT/scripts/mb-drift.sh"
+  for f in status checklist roadmap progress lessons research backlog; do
+    : > "$MB/$f.md"
+  done
+  seed_three_entries
+  bash "$SCRIPT" --rebuild-tail "$MB"
+  # Legitimate append — stale but not tamper.
+  cat >> "$PROGRESS" <<'EOF'
+
+## 2026-06-13
+
+### New
+- new work
+EOF
+  run bash "$DRIFT" "$PROJECT" 2>&1
+  # Must NOT emit critical for stale.
+  [[ "$output" != *"drift_check_progress_chain=critical"* ]]
+  # Must emit ok (stale appends handled gracefully).
+  [[ "$output" == *"drift_check_progress_chain=ok"* ]]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# NEW MAJOR — malformed tail row → structured error, not crash
+# ═══════════════════════════════════════════════════════════════
+
+@test "chain_malformed: non-dict tail row → exit 2 + error=chain_malformed (no traceback)" {
+  seed_three_entries
+  bash "$SCRIPT" --rebuild-tail "$MB"
+  # Inject a non-dict row into the tail (string instead of object).
+  python3 - "$INDEX" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+chain = data.get("progress_chain", {})
+# Append a string (not a dict) to the tail — simulates an invalid index.json.
+chain["tail"].append("INVALID_ROW")
+data["progress_chain"] = chain
+json.dump(data, open(sys.argv[1], "w"), indent=2)
+PY
+  run bash "$SCRIPT" --verify "$MB"
+  [ "$status" -eq 2 ]
+  echo "$output" | python3 -c "
+import json, sys
+d = json.loads(sys.stdin.read())
+assert d['ok'] is False, f'ok must be False'
+assert d['error'] == 'chain_malformed', f'expected chain_malformed, got: {d[\"error\"]}'
+"
+}
+
+@test "chain_malformed: integer tail row → structured error not AttributeError crash" {
+  seed_three_entries
+  bash "$SCRIPT" --rebuild-tail "$MB"
+  python3 - "$INDEX" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+data["progress_chain"]["tail"] = [42]
+json.dump(data, open(sys.argv[1], "w"), indent=2)
+PY
+  run bash "$SCRIPT" --verify "$MB"
+  [ "$status" -eq 2 ]
+  # stdout must be valid JSON with chain_malformed error, not a Python traceback.
+  echo "$output" | python3 -c "
+import json, sys
+raw = sys.stdin.read()
+assert 'Traceback' not in raw, f'must not traceback, got: {raw}'
+d = json.loads(raw)
+assert d['error'] == 'chain_malformed', f'expected chain_malformed, got: {d}'
+"
+}

@@ -22,7 +22,35 @@ set -uo pipefail
 [ "${MB_PRECOMPACT_HANDOFF:-on}" = "off" ] && exit 0
 
 # Time budget (seconds) for the actualize subprocess.
-BUDGET="${MB_PRECOMPACT_BUDGET:-2}"
+# Validate that the budget is a positive integer before using it in arithmetic.
+# Any value that survives validation MUST be safe for `$(( BUDGET * 100 ))`, else a
+# fatal arithmetic error leaves `deadline` unbound and aborts under `set -u` —
+# violating the never-block-compaction contract.  Three traps must all be closed:
+#   1. non-digit chars — use a WHOLE-STRING `case` glob, NOT line-based
+#      `grep -qE '^[0-9]+$'` (grep matches per line, so $'1\nabc' would pass).
+#   2. overflow — a value with >6 digits can exceed bash's 64-bit `$(( ))`
+#      (wraps to garbage, no error).  Reject by STRING LENGTH (never errors) first.
+#   3. octal — a leading-zero all-digit value like 08/09 is parsed as octal by
+#      `$(( ))` ("value too great for base") → abort.  Normalize with `10#`.
+_DEFAULT_BUDGET=2
+BUDGET="${MB_PRECOMPACT_BUDGET:-$_DEFAULT_BUDGET}"
+_budget_raw="$BUDGET"   # preserve the original for the warning before normalization
+_budget_valid=1
+case "$BUDGET" in
+  '' | *[!0-9]*) _budget_valid=0 ;;   # empty or any non-digit char (newlines included)
+esac
+# Reject absurd lengths BEFORE any numeric op — `${#BUDGET}` (length) never errors.
+[ "$_budget_valid" -eq 1 ] && [ "${#BUDGET}" -gt 6 ] && _budget_valid=0
+if [ "$_budget_valid" -eq 1 ]; then
+  # All-digit, ≤6 chars: force base-10 so a leading zero is not read as octal,
+  # then reject zero (0 / 00 / 000).
+  BUDGET=$(( 10#$BUDGET ))
+  [ "$BUDGET" -le 0 ] && _budget_valid=0
+fi
+if [ "$_budget_valid" -eq 0 ]; then
+  echo "[mb] WARN pre-compact: MB_PRECOMPACT_BUDGET='$_budget_raw' is not a positive integer; using default ${_DEFAULT_BUDGET}s" >&2
+  BUDGET="$_DEFAULT_BUDGET"
+fi
 
 # Read the hook payload (JSON). Tolerate missing jq / empty input.
 INPUT=$(cat 2>/dev/null || true)
@@ -56,19 +84,41 @@ if [ -z "$HANDOFF_SCRIPT" ] || [ ! -f "$HANDOFF_SCRIPT" ]; then
   exit 0
 fi
 
-# Kill an entire process group/tree portably (macOS + Linux, no flock/timeout).
-# Tries: SIGTERM the group (setsid was used) → SIGKILL descendants via pkill -P
-# (Linux) or pgrep/kill tree walk → finally SIGKILL the direct PID.  Always
-# returns 0; callers must `wait` to reap.
+# Kill an entire process tree portably (macOS + Linux, no flock/timeout/setsid).
+# Uses a BFS walk via `pgrep -P` to collect ALL descendants at every depth level,
+# then SIGTERMs the whole set, waits briefly, then SIGKILLs any survivors.
+# `pkill -P` only kills DIRECT children — that is NOT used here because it leaves
+# deeper grandchildren alive when the direct child spawns its own children.
+# Always returns 0; callers must `wait` the original PID to reap it.
 _kill_tree() {
-  local pid="$1"
-  # 1. Try SIGTERM to the process group (set via setsid below).
-  kill -- "-$pid" 2>/dev/null || true
+  local root="$1"
+  # BFS: accumulate the full descendant list level by level.
+  local all_pids="$root"
+  local frontier="$root"
+  local next_level
+  while [ -n "$frontier" ]; do
+    next_level=""
+    for p in $frontier; do
+      local children
+      children=$(pgrep -P "$p" 2>/dev/null || true)
+      if [ -n "$children" ]; then
+        all_pids="$all_pids $children"
+        next_level="$next_level $children"
+      fi
+    done
+    frontier="$next_level"
+  done
+
+  # 1. SIGTERM the whole set (graceful shutdown attempt).
+  for p in $all_pids; do
+    kill -TERM "$p" 2>/dev/null || true
+  done
   sleep 0.1 2>/dev/null || true
-  # 2. Kill descendants by parent PID (pkill -P is available on both platforms).
-  pkill -9 -P "$pid" 2>/dev/null || true
-  # 3. SIGKILL the direct PID in case it was not in its own group.
-  kill -9 "$pid" 2>/dev/null || true
+
+  # 2. SIGKILL survivors.
+  for p in $all_pids; do
+    kill -9 "$p" 2>/dev/null || true
+  done
   return 0
 }
 

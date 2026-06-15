@@ -2407,3 +2407,26 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - **Task 5** (docs): `docs/handoff-2.0.md` + CHANGELOG `[Unreleased]`.
 - Verification (independently re-run by the lead): full pytest **1448 passed**, full bats **861 ok / 0 failures**, shellcheck + ruff clean, integration smoke (pre-compact → capsule → chain verify) green on the live bank.
 - Backlog filed: I-072 (sc_lock repo-wide TOCTOU), I-073 (session-start `⬜` grep), I-074 (placeholder staged-blob scan). Tasks 2-5 commit on this push.
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 030f6aad)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 58fe571b)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15 — handoff-v2 closed: second-pass independent review caught what lead re-verification missed
+
+### I-076 — fix-cycle 2 + remediation after THREE further independent review rounds; final judge GO
+- **Process correction (the lesson):** I-075 declared GO after fix-cycle 1 on the strength of lead-only re-verification (full pytest/bats/shellcheck/ruff + self-host). That was premature — the governed machine REQUIRES a second independent review of the *fixed* code before final GO. User challenged it directly ("был ли судья, который сказал GO? почему не больше циклов?"). Re-opening the machine vindicated the challenge: every additional independent round found REAL defects a green build hid.
+- **Round 2** (2nd independent Codex re-review of fix-cycle-1 code) → fix-cycle 2: T2 process-tree kill not portable without `setsid` (macOS grandchildren survived) → recursive BFS via `pgrep -P`; `MB_PRECOMPACT_BUDGET` arithmetic crash; fragile prepend-order test → `grep -abo` byte offsets; broken GNU-stat shim → `python3 os.path.getmtime`. T3: fail-closed config tests asserted `-ne 0` not exact `-eq 2`. T4: `mb-index-json.py` second writer still clobbered a malformed `index.json` → write `index.json.bak`; stale-suffix verify accepted a non-suffix tail → `{ok:true, stale:true, untracked_appends:N}` (appends are LEGAL, not tamper); malformed tail row crashed verify → `chain_malformed` guard.
+- **Round 3** (spot-check of fix-cycle-2 diff) → remediation: 1 critical + 2 majors. (a) budget validation `grep -qE '^[0-9]+$'` is line-based → `$'1\nabc'` passed then aborted arithmetic under `set -u` (never-block violation); (b) `chain.get("tail") or []` coerced falsy non-lists (null/false/0/"") to `[]` → silently disabled verification → `chain_malformed`; (c) grandchild-kill test hid `kill -0` behind `if [ -n "$pid" ]` → tautological → hard numeric-PID assertions.
+- **Round 4** (bounded confirmation of remediation) → confirmed (b)+(c) genuinely resolved, found 1 more critical of the SAME class: leading-zero all-digit budgets `08`/`09` pass `*[!0-9]*` but `$(( 08 * 100 ))` is parsed as OCTAL ("value too great for base") → abort. Closed EXHAUSTIVELY over the input domain: whole-string `case` (non-digit) + string-length cap ≤6 (overflow) + `10#$BUDGET` base-10 normalize (octal) + zero rejection. Proven by a parametrized bats sweep (`08 09 010 099999 0000 00 7654321 99999999999999999999 3`).
+- **Final verification (lead, independently re-run):** full pytest **1461 passed** (3.11 + 3.13), handoff-v2 bats **121 ok / 0 fail**, shellcheck + ruff clean, both code fixes proven RED→GREEN by reverting each in isolation, live `mb-progress-chain.sh --verify` returns `{ok:true, stale:true}` (the new legal-append indicator) exit 0.
+- **Judge verdict: GO.** All criticals (never-block contract across the full `MB_PRECOMPACT_BUDGET` domain) and majors (falsy-tail `chain_malformed`, hardened deep-kill test) resolved and independently confirmed. Backlog I-072/073/074 remain as calibration downgrades (repo-convention parity), not blockers.
+- **Takeaway for the machine:** "implement → verify → dual-review → judge → fix" is not done at the first GO — a fix-cycle's output must itself face an independent reviewer. Loop until an independent round stops finding criticals/majors (or the cap forces an explicit judge ruling with residuals → backlog), never on lead self-review alone.

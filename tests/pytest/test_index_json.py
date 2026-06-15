@@ -547,14 +547,41 @@ def test_rebuild_without_existing_chain_omits_key(index_mod, mb_path):
     assert "progress_chain" not in data
 
 
-def test_rebuild_preserves_chain_when_index_malformed_is_ignored(index_mod, mb_path):
-    """A corrupt prior index.json must not crash the rebuild (chain simply lost)."""
+def test_rebuild_preserves_chain_when_index_malformed_writes_bak(index_mod, mb_path):
+    """build_index on a malformed existing index.json must write .bak and not crash.
+
+    The corrupt file must be preserved as index.json.bak so post-mortem inspection
+    is possible (mirrors progress_chain.rebuild_tail backup behaviour — finding #2
+    residual in mb-index-json.py).
+    """
     make_note(mb_path, "a.md", "---\ntype: note\n---\nbody\n")
     (mb_path / "index.json").write_text("{ this is not valid json")
     # Must not raise.
     index_mod.build_index(str(mb_path))
     data = json.loads((mb_path / "index.json").read_text())
     assert len(data["notes"]) == 1
+    # .bak must have been written so the corrupt bytes are not silently discarded.
+    assert (mb_path / "index.json.bak").exists(), (
+        "build_index must write index.json.bak when the existing index is malformed"
+    )
+
+
+def test_rebuild_preserves_chain_when_index_malformed_chain_content_in_bak(index_mod, mb_path):
+    """When a malformed index contains a valid progress_chain, the .bak preserves it.
+
+    After a corrupt overwrite (e.g. partial disk write), the chain is recoverable
+    from the .bak even though the new index starts fresh.
+    """
+    make_note(mb_path, "a.md", "---\ntype: note\n---\nbody\n")
+    # Write an index that has valid chain data but truncated JSON overall.
+    corrupt_with_chain = '{"progress_chain": {"version": 1, "tail": [{"heading": "## 2026-06-10", "sha256": "abc"}]}, "notes": ['
+    (mb_path / "index.json").write_text(corrupt_with_chain)
+    index_mod.build_index(str(mb_path))
+    bak_path = mb_path / "index.json.bak"
+    assert bak_path.exists(), "corrupt index must be saved to .bak"
+    # .bak preserves original corrupt bytes — they contain the chain data.
+    bak_content = bak_path.read_text()
+    assert "progress_chain" in bak_content
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -642,6 +669,199 @@ def test_rebuild_tail_writes_bak_on_malformed_index(chain_mod, tmp_path):
     # New index must be valid.
     data = json.loads((mb / "index.json").read_text())
     assert "progress_chain" in data
+
+
+# ═══════════════════════════════════════════════════════════════
+# NEW MAJOR — stale tail: unique run found but not the suffix
+# ═══════════════════════════════════════════════════════════════
+
+
+def test_verify_suffix_match_is_clean_ok(chain_mod, tmp_path):
+    """verify() when tail IS the exact suffix → ok=True, stale absent or False."""
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- alpha\n\n## 2026-06-11\n\n- beta\n")
+    chain_mod.rebuild_tail(mb)
+    report = chain_mod.verify(mb)
+    assert report["ok"] is True
+    assert report.get("stale") is not True, "exact-suffix match must not be stale"
+
+
+def test_verify_stale_when_new_entry_appended_after_rebuild(chain_mod, tmp_path):
+    """verify() when tail is a unique run but NOT the suffix → ok=True, stale=True.
+
+    An append-only log is allowed to grow. The recorded tail is still a valid
+    contiguous run (not tampered), but newer entries exist that are untracked.
+    verify must return ok=true, stale=true, untracked_appends=N (NEW MAJOR finding).
+    """
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- alpha\n\n## 2026-06-11\n\n- beta\n")
+    chain_mod.rebuild_tail(mb)
+    # Append a new entry — legitimate append-only growth.
+    with (mb / "progress.md").open("a") as f:
+        f.write("\n## 2026-06-12\n\n- gamma\n")
+    report = chain_mod.verify(mb)
+    assert report["ok"] is True, "append-only growth must not be tamper"
+    assert report.get("stale") is True, "stale must be True when newer entries exist"
+    assert report.get("untracked_appends", 0) >= 1, "must report count of untracked appends"
+
+
+def test_verify_stale_multiple_untracked(chain_mod, tmp_path):
+    """verify() reports correct untracked_appends count for multiple new entries."""
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- alpha\n")
+    chain_mod.rebuild_tail(mb)
+    with (mb / "progress.md").open("a") as f:
+        f.write("\n## 2026-06-11\n\n- beta\n")
+        f.write("\n## 2026-06-12\n\n- gamma\n")
+        f.write("\n## 2026-06-13\n\n- delta\n")
+    report = chain_mod.verify(mb)
+    assert report["ok"] is True
+    assert report.get("stale") is True
+    assert report.get("untracked_appends") == 3
+
+
+# ═══════════════════════════════════════════════════════════════
+# NEW MAJOR — malformed tail row causes AttributeError in verify
+# ═══════════════════════════════════════════════════════════════
+
+
+def test_verify_chain_malformed_non_dict_tail_row(chain_mod, tmp_path):
+    """verify() when a tail row is not a dict → chain_malformed error, not crash.
+
+    A valid-JSON index whose tail contains a non-object item (e.g. a string or int)
+    previously caused AttributeError in _find_run_positions. Must return structured
+    {ok: false, error: 'chain_malformed'} and exit 2.
+    """
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- work\n")
+    # Write an index with a non-dict tail row (string item).
+    index_data = {
+        "progress_chain": {
+            "version": 1,
+            "tail": [{"heading": "## 2026-06-10", "sha256": "abc"}, "INVALID_ROW"],
+            "last_synced_at": "2026-06-10T00:00:00Z",
+        }
+    }
+    (mb / "index.json").write_text(json.dumps(index_data))
+    report = chain_mod.verify(mb)
+    assert report["ok"] is False
+    assert report["error"] == "chain_malformed"
+
+
+def test_verify_chain_malformed_missing_sha_field(chain_mod, tmp_path):
+    """verify() when a tail row is a dict but missing 'sha256' → chain_malformed."""
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- work\n")
+    index_data = {
+        "progress_chain": {
+            "version": 1,
+            "tail": [{"heading": "## 2026-06-10"}],  # missing sha256
+            "last_synced_at": "2026-06-10T00:00:00Z",
+        }
+    }
+    (mb / "index.json").write_text(json.dumps(index_data))
+    report = chain_mod.verify(mb)
+    assert report["ok"] is False
+    assert report["error"] == "chain_malformed"
+
+
+def test_verify_chain_malformed_non_string_heading(chain_mod, tmp_path):
+    """verify() when heading is not a string → chain_malformed."""
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- work\n")
+    index_data = {
+        "progress_chain": {
+            "version": 1,
+            "tail": [{"heading": 42, "sha256": "abc"}],  # int heading
+            "last_synced_at": "2026-06-10T00:00:00Z",
+        }
+    }
+    (mb / "index.json").write_text(json.dumps(index_data))
+    report = chain_mod.verify(mb)
+    assert report["ok"] is False
+    assert report["error"] == "chain_malformed"
+
+
+def test_verify_chain_integer_item_no_crash(chain_mod, tmp_path):
+    """verify() with integer tail row does not traceback — returns structured error."""
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- work\n")
+    index_data = {
+        "progress_chain": {
+            "version": 1,
+            "tail": [42],  # integer — no .get() method
+            "last_synced_at": "2026-06-10T00:00:00Z",
+        }
+    }
+    (mb / "index.json").write_text(json.dumps(index_data))
+    # Must not raise AttributeError.
+    report = chain_mod.verify(mb)
+    assert isinstance(report, dict)
+    assert report["ok"] is False
+    assert report["error"] == "chain_malformed"
+
+
+# ═══════════════════════════════════════════════════════════════
+# NEW MAJOR — falsy non-list tail (null/false/0/"") must be chain_malformed,
+# NOT silently coerced to [] and treated as a valid empty chain.
+# ═══════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize(
+    ("tail_value", "label"),
+    [
+        (None, "null"),
+        (False, "false"),
+        (0, "zero"),
+        ("", "empty_string"),
+    ],
+)
+def test_verify_falsy_tail_is_chain_malformed_not_empty(chain_mod, tmp_path, tail_value, label):
+    """A present-but-falsy `tail` is a corrupt chain, not an empty one.
+
+    `chain.get("tail") or []` would coerce null/false/0/"" into [] and return ok:true,
+    silently disabling chain verification on a valid-JSON-but-corrupt index. Each of
+    these must instead return {ok: false, error: 'chain_malformed'} and exit 2.
+    """
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- work\n")
+    index_data = {
+        "progress_chain": {
+            "version": 1,
+            "tail": tail_value,
+            "last_synced_at": "2026-06-10T00:00:00Z",
+        }
+    }
+    (mb / "index.json").write_text(json.dumps(index_data))
+    report = chain_mod.verify(mb)
+    assert report["ok"] is False, f"falsy tail {label!r} must NOT be accepted as empty"
+    assert report["error"] == "chain_malformed"
+
+
+def test_verify_empty_list_tail_still_ok(chain_mod, tmp_path):
+    """A genuinely empty list tail (fresh bank) remains a valid no-op — ok:true."""
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- work\n")
+    index_data = {
+        "progress_chain": {
+            "version": 1,
+            "tail": [],
+            "last_synced_at": "2026-06-10T00:00:00Z",
+        }
+    }
+    (mb / "index.json").write_text(json.dumps(index_data))
+    report = chain_mod.verify(mb)
+    assert report["ok"] is True
+    assert report["error"] is None
 
 
 # ═══════════════════════════════════════════════════════════════

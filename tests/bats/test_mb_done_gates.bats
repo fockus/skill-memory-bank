@@ -250,7 +250,7 @@ EOF
   printf 'done_gates:\n  allow_force: !!binary |\n  : not valid yaml at all\n{{{bad}}}' \
     > "$MB/pipeline.yaml"
   run_gates --force --reason "sneaky bypass"
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 2 ]
 }
 
 @test "done-gates: #2 unparseable project pipeline.yaml → no progress.md mutation" {
@@ -259,7 +259,7 @@ EOF
   printf 'done_gates:\n  allow_force: !!binary |\n  : not valid yaml at all\n{{{bad}}}' \
     > "$MB/pipeline.yaml"
   run_gates --force --reason "sneaky bypass"
-  [ "$status" -ne 0 ]
+  [ "$status" -eq 2 ]
   run grep -c "gates failed" "$MB/progress.md"
   [ "$output" -eq 0 ]
 }

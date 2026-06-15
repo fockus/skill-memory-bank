@@ -96,14 +96,17 @@ trigger: pre_compact
   set_capsule_mtime 202606141200
   run_hook_split
   [ "$status" -eq 0 ]
-  local ctx cap_pos status_pos
+  local ctx cap_byte status_byte
   ctx="$(injected_context)"
-  # Position of the handoff section must come before the status.md section.
-  cap_pos=$(printf '%s' "$ctx" | grep -n "Handoff capsule" | head -1 | cut -d: -f1)
-  status_pos=$(printf '%s' "$ctx" | grep -n "status.md" | head -1 | cut -d: -f1)
-  [ -n "$cap_pos" ]
-  [ -n "$status_pos" ]
-  [ "$cap_pos" -lt "$status_pos" ]
+  # Use byte offsets (grep -abo) — immune to the literal \n sequences used
+  # in the CONTEXT wrapper string where "Handoff capsule" header and the
+  # "status.md" section header might appear on the same physical line from
+  # grep -n's perspective.
+  cap_byte=$(printf '%s' "$ctx" | grep -abo "Handoff capsule" | head -1 | cut -d: -f1)
+  status_byte=$(printf '%s' "$ctx" | grep -abo "status\.md" | head -1 | cut -d: -f1)
+  [ -n "$cap_byte" ] || { echo "Handoff capsule not found in context" >&2; false; }
+  [ -n "$status_byte" ] || { echo "status.md section not found in context" >&2; false; }
+  [ "$cap_byte" -lt "$status_byte" ]
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -172,14 +175,16 @@ trigger: pre_compact
   real_stat="$(command -v stat)"
   cat > "$shimdir/stat" <<SHIM
 #!/usr/bin/env bash
-# Shim: -f %m → non-numeric "?" (mimics GNU stat). -c %Y → real mtime via BSD.
+# Shim: -f %m → non-numeric "?" (mimics GNU stat). -c %Y → real mtime via python3.
+# Using python3 for -c %Y so the shim is portable on both macOS and Linux
+# (avoids calling the real stat with BSD flags on a GNU-stat Linux system).
 if [ "\${1:-}" = "-f" ] && [ "\${2:-}" = "%m" ]; then
   printf '?\n'
   exit 0
 fi
-# -c %Y: translate to BSD stat so this works on macOS and Linux alike.
+# -c %Y: use python3 for portable numeric mtime (avoids BSD-vs-GNU stat flag conflict).
 if [ "\${1:-}" = "-c" ] && [ "\${2:-}" = "%Y" ]; then
-  "$real_stat" -f %m "\${3:-}" 2>/dev/null
+  python3 -c 'import os,sys; print(int(os.path.getmtime(sys.argv[1])))' "\${3:-}"
   exit \$?
 fi
 exec "$real_stat" "\$@"

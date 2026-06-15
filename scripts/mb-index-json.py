@@ -21,7 +21,9 @@ Shape::
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import re
 import sys
 from datetime import UTC, datetime
@@ -179,16 +181,31 @@ def _preserved_keys(mb_path: Path) -> dict[str, Any]:
 
     The hash chain (``progress_chain``, handoff-v2 §6) lives in index.json but is
     owned by ``mb-progress-chain.sh``, not this builder. A rebuild must NOT clobber
-    it (design §9 risk row). A corrupt/absent index.json yields ``{}`` — never raises.
+    it (design §9 risk row).
+
+    If the existing ``index.json`` is **malformed** (present but not parseable as a
+    dict), the corrupt file is preserved as ``index.json.bak`` before being
+    overwritten.  This mirrors ``progress_chain.rebuild_tail``'s backup behaviour
+    and keeps the chain recoverable for post-mortem inspection (finding #2 residual).
+
+    Returns ``{}`` on absent or malformed files — never raises.
     """
     target = mb_path / "index.json"
     if not target.is_file():
         return {}
     try:
-        prior = json.loads(target.read_text(encoding="utf-8"))
+        raw = target.read_text(encoding="utf-8")
+        prior = json.loads(raw)
     except (OSError, ValueError):
+        # Malformed: back up the corrupt file so chain data is not silently lost.
+        bak = Path(str(target) + ".bak")
+        with contextlib.suppress(OSError):
+            os.replace(str(target), str(bak))
         return {}
     if not isinstance(prior, dict):
+        bak = Path(str(target) + ".bak")
+        with contextlib.suppress(OSError):
+            os.replace(str(target), str(bak))
         return {}
     preserved: dict[str, Any] = {}
     if "progress_chain" in prior:

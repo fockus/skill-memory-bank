@@ -286,18 +286,6 @@
     "tail": [
       {
         "heading": "## 2026-06-14",
-        "sha256": "1ee18967a1bc43de1523d2f3bbbe2073b35ad37c5391e00b87234a8b33b369ea"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "fd6b8b0d63d2a505f2a668dd16a28f8c9271e13da8434b5975d43a5fbae9d6b9"
-      },
-      {
-        "heading": "## 2026-06-14",
-        "sha256": "8f4ee655e81a19f3bbef24f8fff7965707fd33f968ba697cc2fe04321bbfac7b"
-      },
-      {
-        "heading": "## 2026-06-14",
         "sha256": "df327389574a9be35ecf478b74f5521d8c48f013a5bd7bb87e4b1adafacc8a37"
       },
       {
@@ -363,8 +351,20 @@
       {
         "heading": "## 2026-06-15 — handoff-v2 (Handoff 2.0) shipped end-to-end via the governed dual-review + judge machine",
         "sha256": "3c67664400acbae5fd3e3c6ce1f4a680d89196fcd42ab2febf59f0099758b817"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "f22e8f6d77b569cc78b4f9b8567000c83c8306387c4f6b13d7433ae6cb995c19"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "2eb8e7b255b608dbe2eee2a42918f785f596e6ab90c6d8b19c49fa4ec2ba0c72"
+      },
+      {
+        "heading": "## 2026-06-15 — handoff-v2 closed: second-pass independent review caught what lead re-verification missed",
+        "sha256": "f9e0cd73a80669f7efa2e2c9b2c64bdcaa4adaf8a65a2026d2d3caf24b4fe5cc"
       }
     ],
-    "last_synced_at": "2026-06-15T01:55:40Z"
+    "last_synced_at": "2026-06-15T09:19:12Z"
   }
 }
