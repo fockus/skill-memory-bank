@@ -64,6 +64,20 @@ teardown() {
   [ "$tmp_count" -eq 0 ]
 }
 
+@test "agents-md: section documents the Pi no-commit false-done closure limitation (DF Task 6)" {
+  # REQ-DF-062 DoD-3: the emitted block must warn that a hookless agent's (Pi)
+  # no-commit false-done is only detectable after the fact via the git-hooks
+  # fallback at commit-time. Distinct from Task 7's firewall-loop rule.
+  agents_md_install "$PROJECT" "pi" "$SKILL_DIR" >/dev/null
+  local body
+  body="$(cat "$PROJECT/AGENTS.md")"
+  # Names the limitation: a hookless/Pi agent + no-commit false-done.
+  [[ "$body" == *"no-commit"* ]] || [[ "$body" == *"no commit"* ]]
+  [[ "$body" == *"false-done"* ]] || [[ "$body" == *"false done"* ]]
+  # The detection channel is the commit-time git-hooks fallback.
+  [[ "$body" == *"commit-time"* ]] || [[ "$body" == *"git-hooks"* ]]
+}
+
 @test "agents-md: uninstall preserves user content when MB section was appended" {
   cat > "$PROJECT/AGENTS.md" <<'EOF'
 # User content

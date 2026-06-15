@@ -199,6 +199,228 @@ EOF
 # Sprint 2 / Stage 2 — MB_PATH override for global-storage mode
 # ═══════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════
+# dynamic-flow Task 6 — pre-commit closure enforcement (REQ-DF-062)
+#
+# A hookless agent (Pi/Kilo) has no Stop-hook, so closure is enforced at
+# commit-time: when a flow is active (goal.md present) the pre-commit hook runs
+# THE firewall (mb-flow-verify.sh) and BLOCKS the commit on a non-zero verify.
+# Inert (allow) when no goal.md. MB_FLOW_CLOSURE=off is the emergency bypass.
+# All pre-existing pre-commit behavior (<private> warn, chaining, idempotency,
+# uninstall) MUST stay intact.
+# ═══════════════════════════════════════════════════════════════
+
+# Author goal.md in the bank. $1='x' (met → firewall exit 0) | ' ' (unmet → 1).
+_write_flow_goal() {
+  cat > "$PROJECT/.memory-bank/goal.md" <<EOF
+# Goal
+Ship it.
+
+## Acceptance criteria
+
+- [$1] the only criterion
+EOF
+}
+
+@test "git-hooks: pre-commit BLOCKS the commit when a flow is RED (unmet acceptance)" {
+  run_adapter install "$PROJECT"
+  _write_flow_goal ' '   # unmet → firewall exit 1
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && git -c user.email=t@t -c user.name=t commit -q -m red' _ "$PROJECT"
+  [ "$status" -ne 0 ]
+  # No commit was created beyond any pre-existing ones: the working file stays staged.
+  run bash -c 'cd "$1" && git log --oneline 2>/dev/null | wc -l | tr -d " "' _ "$PROJECT"
+  [ "$output" = "0" ]
+}
+
+@test "git-hooks: pre-commit ALLOWS the commit when the flow is GREEN (met acceptance)" {
+  run_adapter install "$PROJECT"
+  _write_flow_goal 'x'   # met → firewall exit 0
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && git -c user.email=t@t -c user.name=t commit -q -m green' _ "$PROJECT"
+  [ "$status" -eq 0 ]
+}
+
+@test "git-hooks: pre-commit ALLOWS the commit when no flow is active (no goal.md)" {
+  run_adapter install "$PROJECT"
+  # No goal.md authored → closure section is inert.
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && git -c user.email=t@t -c user.name=t commit -q -m nogoal' _ "$PROJECT"
+  [ "$status" -eq 0 ]
+}
+
+@test "git-hooks: MB_FLOW_CLOSURE=off bypasses closure enforcement even on a RED flow" {
+  run_adapter install "$PROJECT"
+  _write_flow_goal ' '   # red flow
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && MB_FLOW_CLOSURE=off git -c user.email=t@t -c user.name=t commit -q -m forced' _ "$PROJECT"
+  [ "$status" -eq 0 ]
+}
+
+@test "git-hooks: closure block message names mb-flow-verify (stderr is actionable)" {
+  run_adapter install "$PROJECT"
+  _write_flow_goal ' '
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && git -c user.email=t@t -c user.name=t commit -q -m red 2>&1' _ "$PROJECT"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"mb-flow-verify"* ]]
+}
+
+@test "git-hooks: closure enforcement leaves the <private> warn intact (no goal.md)" {
+  run_adapter install "$PROJECT"
+  mkdir -p "$PROJECT/.memory-bank/notes"
+  cat > "$PROJECT/.memory-bank/notes/secret.md" <<'EOF'
+Some content <private>api_key=sk-xxx</private> here.
+EOF
+  (cd "$PROJECT" && git add . 2>/dev/null || true)
+  local out
+  out=$(cd "$PROJECT" && bash .git/hooks/pre-commit 2>&1 || true)
+  [[ "$out" == *"private"* ]] || [[ "$out" == *"PRIVATE"* ]]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Defect 1 — global/registry-resolved bank via MB_PATH (no local .memory-bank)
+# ═══════════════════════════════════════════════════════════════
+
+@test "git-hooks: pre-commit BLOCKS when bank is global (MB_PATH, no local .memory-bank)" {
+  # Defect 1: when the Memory Bank is global (no <repo>/.memory-bank), the
+  # old code resolved only MB_PATH or <repo>/.memory-bank. MB_PATH covers the
+  # global-storage case in the generated hook. Prove MB_PATH is honored.
+  local ext_bank="$PROJECT/../ext_global_bank"
+  mkdir -p "$ext_bank"
+  cat > "$ext_bank/goal.md" <<'EOF'
+# Goal
+
+## Acceptance criteria
+
+- [ ] pending
+EOF
+  # No local .memory-bank in the project.
+  rm -rf "$PROJECT/.memory-bank"
+  run_adapter install "$PROJECT"
+
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && MB_PATH="$2" git -c user.email=t@t -c user.name=t commit -q -m red 2>&1' \
+    _ "$PROJECT" "$ext_bank"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"mb-flow-verify"* ]]
+}
+
+@test "git-hooks: pre-commit BLOCKS a registry-only global bank (no MB_PATH, no local .memory-bank)" {
+  command -v python3 >/dev/null 2>&1 || skip "python3 required for registry setup"
+  # Defect 1 — REGISTRY variant (the MB_PATH test above does NOT exercise it).
+  # The generated hook must resolve a global bank via the registry
+  # (mb_hook_resolve_mb_path → registry), which means it must source the REAL
+  # hooks/_skill_root.sh. If the baked _skill_root.sh path is wrong the registry
+  # lookup is dead and a red global flow commits freely.
+  local ext_bank="$PROJECT/../reg_ext_bank/.memory-bank"
+  mkdir -p "$ext_bank"
+  cat > "$ext_bank/goal.md" <<'EOF'
+# Goal
+
+## Acceptance criteria
+
+- [ ] pending
+EOF
+  rm -rf "$PROJECT/.memory-bank"          # no local bank
+  run_adapter install "$PROJECT"          # installs from the REPO adapter (hooks/ present)
+
+  # Registry under a sandboxed HOME pointing the project → ext_bank.
+  local fake_home="$PROJECT/../reg_home"
+  mkdir -p "$fake_home/.claude/memory-bank"
+  local real_prj; real_prj="$(cd "$PROJECT" && pwd -P)"
+  python3 - "$fake_home/.claude/memory-bank/registry.json" "$real_prj" "$ext_bank" <<'PY'
+import json, sys
+json.dump({"projects": {sys.argv[2]: {"bank_path": sys.argv[3]}}}, open(sys.argv[1], "w"))
+PY
+
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && HOME="$2" MB_AGENT=claude-code MB_SKILL_ROOT="$3" git -c user.email=t@t -c user.name=t commit -q -m red 2>&1' \
+    _ "$PROJECT" "$fake_home" "$REPO_ROOT"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"mb-flow-verify"* ]] || [[ "$output" == *"MB BLOCK"* ]]
+}
+
+@test "git-hooks: pre-commit blocks a registry global bank with a cursor alias present and MB_AGENT UNSET (no misdetect)" {
+  command -v python3 >/dev/null 2>&1 || skip "python3 required for registry setup"
+  # Defect (cursor misdetect): mb_hook_default_agent prefers 'cursor' when
+  # ~/.cursor/skills/memory-bank exists and MB_AGENT is unset → a claude-code
+  # global bank is looked up in the WRONG (cursor) registry → red flow commits
+  # freely. The generated hook must bake a DETERMINISTIC agent at install time so
+  # the agent is not guessed at commit time. This mirrors the real installed
+  # layout where install.sh creates the cursor skill alias.
+  local ext_bank="$PROJECT/../mis_ext_bank/.memory-bank"
+  mkdir -p "$ext_bank"
+  cat > "$ext_bank/goal.md" <<'EOF'
+# Goal
+
+## Acceptance criteria
+
+- [ ] pending
+EOF
+  rm -rf "$PROJECT/.memory-bank"          # no local bank
+  # Install with MB_AGENT UNSET so the hook bakes its deterministic default.
+  ( unset MB_AGENT; bash "$ADAPTER" install "$PROJECT" >/dev/null 2>&1 )
+
+  local fake_home="$PROJECT/../mis_home"
+  mkdir -p "$fake_home/.claude/memory-bank"
+  mkdir -p "$fake_home/.cursor/skills/memory-bank"   # trigger the cursor misdetect
+  local real_prj; real_prj="$(cd "$PROJECT" && pwd -P)"
+  # The bank is registered under the CLAUDE registry; the cursor registry is absent.
+  python3 - "$fake_home/.claude/memory-bank/registry.json" "$real_prj" "$ext_bank" <<'PY'
+import json, sys
+json.dump({"projects": {sys.argv[2]: {"bank_path": sys.argv[3]}}}, open(sys.argv[1], "w"))
+PY
+
+  # Commit with MB_AGENT UNSET — the hook must use its baked agent, not guess cursor.
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && HOME="$2" MB_SKILL_ROOT="$3" git -c user.email=t@t -c user.name=t commit -q -m red 2>&1' \
+    _ "$PROJECT" "$fake_home" "$REPO_ROOT"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"MB BLOCK"* ]] || [[ "$output" == *"mb-flow-verify"* ]]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Defect 2 — baked path with space AND $ must survive in the generated hook
+# ═══════════════════════════════════════════════════════════════
+
+@test "git-hooks: pre-commit blocks red flow even when adapter installed from path with space and dollar" {
+  # Defect 2: the baked firewall path was emitted inside double quotes, so a $
+  # in the install path is re-expanded at hook runtime → wrong path → silently
+  # inert (never blocks). Fix: shell-quote with printf '%q' at install time.
+  local weird_dir
+  weird_dir="$(mktemp -d "${TMPDIR:-/tmp}/ad\$pt er.XXXXXX")"
+  # Copy the full skill bundle so mb-flow-verify.sh has all its dependencies.
+  cp -R "$REPO_ROOT/adapters"   "$weird_dir/adapters"
+  cp -R "$REPO_ROOT/scripts"    "$weird_dir/scripts"
+  cp -R "$REPO_ROOT/references" "$weird_dir/references"
+
+  local adapter="$weird_dir/adapters/git-hooks-fallback.sh"
+  local red_project
+  red_project="$(mktemp -d)"
+  (cd "$red_project" && git init -q && git config user.email t@t && git config user.name t)
+  mkdir -p "$red_project/.memory-bank"
+  echo '# Progress' > "$red_project/.memory-bank/progress.md"
+
+  # Commit initial state BEFORE installing the hook, so the hook does not fire
+  # during the goal.md setup commit.
+  cat > "$red_project/.memory-bank/goal.md" <<'EOF'
+# Goal
+
+## Acceptance criteria
+
+- [ ] pending
+EOF
+  git -C "$red_project" -c user.email=t@t -c user.name=t add -A
+  git -C "$red_project" -c user.email=t@t -c user.name=t commit -q -m init
+
+  # Now install the hook — the next commit will trigger closure enforcement.
+  bash "$adapter" install "$red_project" >/dev/null
+
+  # Verify baked path has the shell-quoted $ and space characters.
+  grep -q 'ad\\$pt' "$red_project/.git/hooks/pre-commit" || \
+    grep -q 'ad\\\$pt' "$red_project/.git/hooks/pre-commit" || \
+    grep -q '_mb_verify=' "$red_project/.git/hooks/pre-commit"
+
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && git -c user.email=t@t -c user.name=t commit -q -m red 2>&1' _ "$red_project"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"mb-flow-verify"* ]]
+
+  rm -rf "$weird_dir" "$red_project"
+}
+
 @test "git-hooks: post-commit honours MB_PATH for external bank (path with spaces)" {
   # External bank lives outside the repo, in a path containing a space.
   EXT_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/ext bank.XXXXXX")"

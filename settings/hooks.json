@@ -108,6 +108,10 @@
       "hooks": [
         {
           "type": "command",
+          "command": "MB_AGENT=claude-code ~/.claude/skills/memory-bank/hooks/mb-flow-closure-guard.sh # [memory-bank-skill]"
+        },
+        {
+          "type": "command",
           "command": "~/.claude/hooks/mb-session-turn.sh # [memory-bank-skill]"
         },
         {

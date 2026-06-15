@@ -217,3 +217,39 @@ EOF
   # SKILL.md must mention resolver or global storage so Pi users discover the option
   grep -qi "MB_PATH\|global storage\|resolver\|resolved\|local OR global\|local or global" "$skill_md"
 }
+
+@test "pi: git-hooks closure resolves the PI registry (cursor alias present, MB_AGENT unset at commit)" {
+  command -v python3 >/dev/null 2>&1 || skip "python3 required"
+  # The fallback is FOR hookless agents like Pi. pi.sh must install it with
+  # MB_AGENT=pi so the generated hook bakes 'pi' and resolves the PI registry —
+  # not the claude-code default — for a registry-only global bank. Otherwise a
+  # red Pi global flow commits freely (mb_hook_default_agent never guesses 'pi',
+  # and with a ~/.cursor alias present it would guess 'cursor').
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  rm -rf "$PROJECT/.memory-bank"            # global storage: no local bank
+
+  local ext_bank="$SANDBOX_HOME/pi_ext/.memory-bank"
+  mkdir -p "$ext_bank"
+  cat > "$ext_bank/goal.md" <<'EOF'
+# Goal
+
+## Acceptance criteria
+
+- [ ] pending
+EOF
+  mkdir -p "$SANDBOX_HOME/.pi/agent/memory-bank"
+  mkdir -p "$SANDBOX_HOME/.cursor/skills/memory-bank"   # cursor misdetect trap
+  local real_prj; real_prj="$(cd "$PROJECT" && pwd -P)"
+  python3 - "$SANDBOX_HOME/.pi/agent/memory-bank/registry.json" "$real_prj" "$ext_bank" <<'PY'
+import json, sys
+json.dump({"projects": {sys.argv[2]: {"bank_path": sys.argv[3]}}}, open(sys.argv[1], "w"))
+PY
+
+  # Commit with MB_AGENT UNSET; HOME is the pi sandbox. The hook must use its
+  # baked 'pi' agent and block the red bank registered only in the pi registry.
+  run bash -c 'cd "$1" && echo x > a.txt && git add -A && unset MB_AGENT && MB_SKILL_ROOT="$2" git -c user.email=t@t -c user.name=t commit -q -m red 2>&1' \
+    _ "$PROJECT" "$REPO_ROOT"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"MB BLOCK"* ]]
+}

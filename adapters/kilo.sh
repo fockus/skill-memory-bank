@@ -66,7 +66,9 @@ install_kilo() {
   } > "$RULES_FILE"
 
   # 2. Install git-hooks-fallback (mandatory — Kilo has no native hooks)
-  bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
+  # Pass MB_AGENT=kilo so the closure pre-commit bakes the KILO agent and resolves
+  # the Kilo registry for global banks (mb_hook_default_agent never guesses 'kilo').
+  MB_AGENT=kilo bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
 
   # 3. Manifest
   local files_json

@@ -107,6 +107,11 @@ _agents_md_section() {
   echo ''
   echo 'Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block work — CLI scripts are the universal fallback.'
   echo ''
+  echo '## Dynamic-flow closure (hookless agents)'
+  echo ''
+  # shellcheck disable=SC2016
+  echo 'On a hookless agent (e.g. Pi) with no live Stop-hook, a no-commit false-done cannot be blocked live — it is only detectable after the fact via the commit-time git-hooks fallback (`mb-flow-verify.sh` runs in `pre-commit` and blocks a red flow).'
+  echo ''
   if [ -f "$skill_dir/rules/RULES.md" ]; then
     echo '---'
     echo ''

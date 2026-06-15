@@ -133,3 +133,12 @@ run_adapter() {
   # this file understand the full picture
   grep -qi "MB_PATH\|global storage\|resolver\|resolved\|local OR global\|local or global" "$rules"
 }
+
+@test "kilo: install bakes MB_AGENT=kilo into the closure pre-commit (registry determinism)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  # kilo.sh must install git-hooks-fallback with MB_AGENT=kilo so the generated
+  # closure hook resolves the KILO registry (not the claude-code default) for a
+  # global bank. Without it, a red Kilo global flow commits freely.
+  grep -q 'MB_AGENT:=kilo' "$PROJECT/.git/hooks/pre-commit"
+}

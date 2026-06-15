@@ -22,6 +22,46 @@ set -euo pipefail
 ACTION="${1:-}"
 PROJECT_ROOT_RAW="${2:-$(pwd)}"
 
+# Absolute dir of THIS adapter, resolved at install time. The bundled check
+# runners live in ../scripts; we bake the resolved, absolute firewall path and
+# the _skill_root.sh path into the generated pre-commit hook so closure
+# enforcement works from any cwd the git hook runs in (REQ-DF-062). Install
+# runs with the skill present, so these resolve correctly; if scripts/ is ever
+# absent the hook degrades to inert (fail-safe).
+#
+# Defect 2 fix: baked paths are shell-quoted with printf '%q' so a space or $
+# in the install path cannot be re-interpreted at hook runtime. The quoted
+# string is emitted UNQUOTED into the heredoc so bash evaluates it literally.
+ADAPTER_DIR="$(cd "$(dirname "$0")" && pwd)"
+MB_FLOW_VERIFY="$ADAPTER_DIR/../scripts/mb-flow-verify.sh"
+if [ -f "$MB_FLOW_VERIFY" ]; then
+  MB_FLOW_VERIFY="$(cd "$(dirname "$MB_FLOW_VERIFY")" && pwd)/mb-flow-verify.sh"
+fi
+# Shell-quote both baked paths for safe embedding in the unquoted heredoc.
+MB_FLOW_VERIFY_Q="$(printf '%q' "$MB_FLOW_VERIFY")"
+# The global-aware resolver (mb_hook_resolve_mb_path) lives in hooks/_skill_root.sh,
+# a SIBLING of this adapter's dir (both adapters/ and hooks/ sit under the skill
+# root, in the repo AND the installed bundle) — it is NOT in adapters/. Resolve +
+# normalize it for the generated hook's global-storage bank lookup (Defect 1 fix).
+# A baked adapters/_skill_root.sh path is dead and silently disables registry
+# resolution, so a red global flow would commit freely.
+MB_SKILL_ROOT_SH="$ADAPTER_DIR/../hooks/_skill_root.sh"
+if [ -f "$MB_SKILL_ROOT_SH" ]; then
+  MB_SKILL_ROOT_SH="$(cd "$(dirname "$MB_SKILL_ROOT_SH")" && pwd)/_skill_root.sh"
+fi
+MB_SKILL_ROOT_SH_Q="$(printf '%q' "$MB_SKILL_ROOT_SH")"
+
+# Bake a DETERMINISTIC Memory Bank agent at install time. The global-aware
+# resolver (mb_hook_resolve_mb_path) and the firewall both fall back to
+# mb_hook_default_agent when MB_AGENT is unset, which GUESSES 'cursor' whenever
+# ~/.cursor/skills/memory-bank exists (install.sh creates that alias) — so a
+# claude-code global bank would be looked up in the wrong registry and a red
+# global flow would commit freely. Capture the installing agent now (default
+# claude-code) and seed MB_AGENT in the hook so commit-time resolution never
+# guesses. A commit-time MB_AGENT still wins (`:=` only sets when unset).
+MB_AGENT_BAKED="${MB_AGENT:-claude-code}"
+MB_AGENT_BAKED_Q="$(printf '%q' "$MB_AGENT_BAKED")"
+
 if [ ! -d "$PROJECT_ROOT_RAW" ]; then
   echo "[git-hooks] project root not found: $PROJECT_ROOT_RAW" >&2
   exit 1
@@ -149,6 +189,68 @@ if [ -d "$_mb_repo/.memory-bank" ]; then
 fi
 
 [ "$_hits" -gt 0 ] && printf '[MB WARNING] review %d file(s) with <private> blocks before committing\n' "$_hits" >&2
+HOOK_EOF
+
+  # --- dynamic-flow closure enforcement (Task 6, REQ-DF-062) ---------------
+  # Paths baked at install time are shell-quoted with printf '%q' (Defect 2 fix)
+  # so spaces, $, backticks, and " in the install path cannot be re-interpreted
+  # at hook runtime. The quoted strings are emitted UNQUOTED into this heredoc
+  # so they expand NOW (at install); every runtime variable below uses \$ so it
+  # expands later inside the hook.
+  # _skill_root.sh is sourced in the hook for the global-aware bank resolver
+  # (mb_hook_resolve_mb_path) so global-storage banks are visible (Defect 1 fix).
+  cat <<HOOK_EOF
+
+# ═══ dynamic-flow closure gate (memory-bank: managed) ═══
+# Emergency bypass: MB_FLOW_CLOSURE=off skips the gate entirely.
+if [ "\${MB_FLOW_CLOSURE:-on}" != "off" ]; then
+  # Baked paths (shell-quoted at install time — safe for spaces and metacharacters).
+  _mb_verify=$MB_FLOW_VERIFY_Q
+  _mb_skill_root_sh=$MB_SKILL_ROOT_SH_Q
+
+  # Seed a DETERMINISTIC agent so registry resolution is not guessed (cursor
+  # misdetect). A commit-time MB_AGENT still wins (:= only sets when unset).
+  : "\${MB_AGENT:=$MB_AGENT_BAKED_Q}"
+  export MB_AGENT
+
+  # Resolve the bank via the global-aware resolver when available (Defect 1),
+  # otherwise fall back to MB_PATH → <repo>/.memory-bank.
+  _mb_flow_dir=""
+  if [ -f "\$_mb_skill_root_sh" ]; then
+    # shellcheck source=/dev/null
+    . "\$_mb_skill_root_sh"
+    if command -v mb_hook_resolve_mb_path >/dev/null 2>&1; then
+      _mb_flow_dir="\$(mb_hook_resolve_mb_path "\$_mb_repo" 2>/dev/null || true)"
+    fi
+  fi
+  if [ -z "\$_mb_flow_dir" ]; then
+    if [ -n "\${MB_PATH:-}" ]; then
+      _mb_flow_dir="\$MB_PATH"
+    else
+      _mb_flow_dir="\$_mb_repo/.memory-bank"
+    fi
+  fi
+
+  # Flow-active predicate: only gate when goal.md exists AND the firewall is present.
+  if [ -f "\$_mb_flow_dir/goal.md" ] && [ -f "\$_mb_verify" ]; then
+    bash "\$_mb_verify" "\$_mb_flow_dir" >/dev/null 2>&1
+    _mb_fw_rc=\$?
+    if [ "\$_mb_fw_rc" -eq 1 ]; then
+      printf '[MB BLOCK] dynamic-flow is RED — mb-flow-verify exited 1.\n' >&2
+      printf '[MB BLOCK] The flow is NOT finished; repair the breach and re-run mb-flow-verify before committing.\n' >&2
+      printf '[MB BLOCK] (emergency bypass: MB_FLOW_CLOSURE=off git commit ...)\n' >&2
+      exit 1
+    elif [ "\$_mb_fw_rc" -eq 2 ]; then
+      printf '[MB BLOCK] a check script broke (mb-flow-verify exit 2) — cannot certify closure.\n' >&2
+      printf '[MB BLOCK] Fix the broken check, then re-run mb-flow-verify before committing.\n' >&2
+      printf '[MB BLOCK] (emergency bypass: MB_FLOW_CLOSURE=off git commit ...)\n' >&2
+      exit 1
+    fi
+    # rc 0 (certified) or any unexpected code (firewall itself unrunnable → fail
+    # safe) falls through: a broken toolchain must not wedge every commit.
+  fi
+fi
+
 exit 0
 HOOK_EOF
 }

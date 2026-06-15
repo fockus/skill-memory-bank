@@ -135,7 +135,9 @@ install_agents_md_mode() {
   owned=$(agents_md_install "$PROJECT_ROOT" "pi" "$SKILL_DIR")
   git_hooks_installed=false
   if [ -d "$PROJECT_ROOT/.git" ]; then
-    bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
+    # Pass MB_AGENT=pi so the closure pre-commit bakes the PI agent and resolves
+    # the Pi registry for global banks (mb_hook_default_agent never guesses 'pi').
+    MB_AGENT=pi bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
     git_hooks_installed=true
   else
     echo "[pi-adapter] project is not a git repo; installed AGENTS.md only" >&2
