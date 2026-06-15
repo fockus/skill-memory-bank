@@ -92,3 +92,42 @@ EOF
   grep -q '^# User content$' "$PROJECT/AGENTS.md"
   ! grep -q 'memory-bank:start' "$PROJECT/AGENTS.md"
 }
+
+@test "agents-md: section carries the dynamic-flow firewall-loop rule (DF Task 7)" {
+  # REQ-DF-070 + REQ-DF-060: when a flow is active (goal.md exists) completion is
+  # gated by the firewall EXIT CODE, never self-certified by the model. The
+  # contract must instruct the agent to LOOP — do not finish until
+  # mb-flow-verify.sh exits 0; on a red exit, repair and re-run. Distinct from
+  # Task 6's hookless no-commit-false-done limitation note.
+  agents_md_install "$PROJECT" "codex" "$SKILL_DIR" >/dev/null
+  local body
+  body="$(cat "$PROJECT/AGENTS.md")"
+  # Flow-active predicate + the firewall named explicitly.
+  [[ "$body" == *"goal.md"* ]]
+  [[ "$body" == *"mb-flow-verify.sh"* ]]
+  # Completion gated on a green (exit 0) firewall result.
+  [[ "$body" == *"exit 0"* ]] || [[ "$body" == *"exits 0"* ]]
+  # Repair-and-rerun loop on a red exit.
+  [[ "$body" == *"re-run"* ]] || [[ "$body" == *"rerun"* ]] || [[ "$body" == *"re-running"* ]]
+  # No self-certification — the exit code, not the model, decides done.
+  [[ "$body" == *"self-certif"* ]] || [[ "$body" == *"self-assess"* ]] || [[ "$body" == *"do not"* ]]
+}
+
+@test "agents-md: dynamic-flow contract references only shipped scripts (no vapor, DF Task 7)" {
+  # DoD-2: the emitted block must document only scripts that actually ship in the
+  # skill. Scan the whole MB section for every scripts|hooks|adapters/<name>.(sh|py)
+  # path it cites and assert each exists in the real repo. Guards against citing a
+  # phantom like mb-flow.sh / mb-flow-goal.sh.
+  agents_md_install "$PROJECT" "codex" "$SKILL_DIR" >/dev/null
+  local section refs p
+  section="$(awk '/memory-bank:start/{f=1} f{print} /memory-bank:end/{f=0}' "$PROJECT/AGENTS.md")"
+  refs="$(printf '%s\n' "$section" | grep -oE '(scripts|hooks|adapters)/[A-Za-z0-9._-]+\.(sh|py)' | sort -u)"
+  [ -n "$refs" ]   # sanity: the contract cites at least one concrete script
+  while IFS= read -r p; do
+    [ -z "$p" ] && continue
+    if [ ! -f "$REPO_ROOT/$p" ]; then
+      echo "VAPOR: contract references non-shipped script: $p" >&2
+      return 1
+    fi
+  done <<< "$refs"
+}

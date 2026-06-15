@@ -107,10 +107,17 @@ _agents_md_section() {
   echo ''
   echo 'Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block work — CLI scripts are the universal fallback.'
   echo ''
-  echo '## Dynamic-flow closure (hookless agents)'
+  echo '## Dynamic-flow firewall (completion gate)'
   echo ''
   # shellcheck disable=SC2016
-  echo 'On a hookless agent (e.g. Pi) with no live Stop-hook, a no-commit false-done cannot be blocked live — it is only detectable after the fact via the commit-time git-hooks fallback (`mb-flow-verify.sh` runs in `pre-commit` and blocks a red flow).'
+  echo 'When a dynamic-flow is active — i.e. `.memory-bank/goal.md` exists — completion is gated by a deterministic firewall, NOT by your own judgement. The firewall exit code, not your self-assessment, decides "done".'
+  echo ''
+  # shellcheck disable=SC2016
+  echo '- Run `scripts/mb-flow-verify.sh <bank>` and treat ONLY exit 0 as finished.'
+  # shellcheck disable=SC2016
+  echo '- On a red (non-zero) exit, repair the failing check and re-run the firewall; loop until it exits 0. Never self-certify completion over a red firewall.'
+  # shellcheck disable=SC2016
+  echo '- Hookless agent (e.g. Pi) with no live Stop-hook: a no-commit false-done cannot be blocked live — it is only detectable after the fact via the commit-time git-hooks fallback (`mb-flow-verify.sh` runs in `pre-commit` and blocks a red flow).'
   echo ''
   if [ -f "$skill_dir/rules/RULES.md" ]; then
     echo '---'
