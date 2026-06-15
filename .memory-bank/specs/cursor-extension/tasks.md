@@ -29,15 +29,15 @@ Implement shared resolver: candidate roots, `mb_skill_script_path`, `mb_hook_res
   - default agent is `cursor` when Cursor skill dir exists
 
 **DoD:**
-- [ ] `_skill_root.sh` exists, shellcheck-clean
-- [ ] bats tests PASS (≥4 scenarios)
+- [x] `_skill_root.sh` exists, shellcheck-clean
+- [x] bats tests PASS (≥4 scenarios)
 
 ---
 
 <!-- mb-task:2 -->
 ### Task 2: Patch script-dependent hooks to use `_skill_root.sh`
 
-**Covers:** REQ-301, REQ-302, REQ-311..REQ-316
+**Covers:** REQ-301, REQ-302, REQ-310, REQ-311, REQ-312, REQ-313, REQ-314, REQ-315, REQ-316, REQ-317
 
 **What to do:**
 Update: `mb-plan-sync-post-write.sh`, `mb-protected-paths-guard.sh`, `mb-ears-pre-write.sh`, `mb-context-slim-pre-agent.sh`, `mb-sprint-context-guard.sh`, `session-end-autosave.sh`, `mb-session-start-context.sh`, `mb-compact-reminder.sh`, `file-change-log.sh`.
@@ -47,9 +47,9 @@ Update: `mb-plan-sync-post-write.sh`, `mb-protected-paths-guard.sh`, `mb-ears-pr
 - Existing `test_hook_ears_pre_write.py` still PASS
 
 **DoD:**
-- [ ] No hook uses `$SCRIPT_DIR/../scripts` without `_skill_root.sh`
-- [ ] Cursor log path when `MB_AGENT=cursor`
-- [ ] Tests PASS
+- [x] No hook uses `$SCRIPT_DIR/../scripts` without `_skill_root.sh`
+- [x] Cursor log path when `MB_AGENT=cursor`
+- [x] Tests PASS
 
 ---
 
@@ -69,9 +69,9 @@ Stop copying hooks to `.cursor/hooks/`. Build `hooks.json` with absolute bundle 
   - legacy copies removed on reinstall
 
 **DoD:**
-- [ ] Project + global install use bundle paths
-- [ ] Manifest tracks hooks.json + skill hooks dir
-- [ ] Adapter bats PASS
+- [x] Project + global install use bundle paths
+- [x] Manifest tracks hooks.json + skill hooks dir
+- [x] Adapter bats PASS
 
 ---
 
@@ -88,8 +88,8 @@ Update `tests/e2e/test_cursor_global.bats` and `tests/pytest/test_cursor_hooks_r
 - pytest: manifest lists skill hooks dir, not ten copied files
 
 **DoD:**
-- [ ] E2E + pytest PASS
-- [ ] `install.sh` filter for cursor still green
+- [x] E2E + pytest PASS
+- [x] `install.sh` filter for cursor still green
 
 ---
 
@@ -105,8 +105,8 @@ Probe `~/.cursor/skills` and `~/.claude/skills` for `override_if_skill_present`.
 - `tests/bats/test_mb_reviewer_resolve.bats` (extend): override found under Cursor skills root only
 
 **DoD:**
-- [ ] Multi-root resolution implemented
-- [ ] Test PASS
+- [x] Multi-root resolution implemented
+- [x] Test PASS
 
 ---
 
@@ -124,8 +124,8 @@ Optional: `docs/cursor-extension.md` troubleshooting (hook debug, legacy migrati
 - `tests/bats/test_cursor_docs.bats`: grep cross-agent-setup for ten events + skill-bundle path
 
 **DoD:**
-- [ ] Docs match implementation
-- [ ] Doc test PASS
+- [x] Docs match implementation
+- [x] Doc test PASS
 
 ---
 
@@ -141,8 +141,8 @@ E2E test: sandbox HOME, global bank via registry, run `mb-session-start-context.
 - `tests/e2e/test_cursor_global_storage.bats` (new)
 
 **DoD:**
-- [ ] Global bank context injection verified
-- [ ] E2E PASS
+- [x] Global bank context injection verified
+- [x] E2E PASS (sessionStart context + sessionEnd auto-capture)
 
 ---
 
@@ -158,9 +158,9 @@ Document Cursor Task-orchestrator dispatch. Update `parallel-pipeline/design.md`
 - `tests/bats/test_parallel_pipeline_adapters.bats`: Cursor row not TBD; dispatch.md exists
 
 **DoD:**
-- [ ] dispatch.md committed
-- [ ] parallel-pipeline design updated
-- [ ] Test PASS
+- [x] dispatch.md committed
+- [x] parallel-pipeline design updated
+- [x] Test PASS
 
 ---
 
@@ -173,6 +173,9 @@ Document Cursor Task-orchestrator dispatch. Update `parallel-pipeline/design.md`
 When `handoff-v2` lands, update Cursor `EVENT_BINDINGS` + docs for `mb-pre-compact.sh`.
 
 **Depends on:** handoff-v2 plan merge
+
+**Testing (TDD):**
+- When handoff-v2 lands: extend `tests/bats/test_cursor_adapter.bats` to assert the renamed hook (`mb-pre-compact.sh`) is registered in `hooks.json` and the old name is absent from the generated bindings.
 
 **DoD:**
 - [ ] Cursor adapter registers renamed hook

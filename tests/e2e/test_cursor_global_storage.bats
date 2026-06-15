@@ -42,3 +42,30 @@ resolve_bank_for_agent() {
   echo "$out" | jq -e '.additional_context | contains("[MEMORY BANK: ACTIVE]")' >/dev/null
   echo "$out" | jq -e '.additional_context | contains("cursor-global-task")' >/dev/null
 }
+
+@test "cursor global storage: sessionEnd auto-capture appends to registry bank progress.md" {
+  bash "$REPO_ROOT/install.sh" --clients cursor --project-root "$PROJECT" >/dev/null
+  (cd "$PROJECT" && bash "$REPO_ROOT/scripts/mb-init-bank.sh" \
+      --storage=global --agent=cursor --lang en --project-root "$PROJECT" >/dev/null)
+
+  bank=$(resolve_bank_for_agent cursor "$PROJECT")
+  [ -n "$bank" ]
+  [ -d "$bank" ]
+  [ -f "$bank/progress.md" ]
+  [ ! -d "$PROJECT/.memory-bank" ]
+
+  # SessionEnd with no .session-lock ⇒ auto-capture path. The stub must land in the
+  # external registry bank (resolved via MB_AGENT), not a stray local .memory-bank/.
+  sid="deadbeefcafe1234"
+  payload=$(jq -n --arg cwd "$PROJECT" --arg sid "$sid" '{cwd: $cwd, session_id: $sid}')
+  run env MB_AGENT=cursor bash "$REPO_ROOT/hooks/session-end-autosave.sh" <<<"$payload"
+  [ "$status" -eq 0 ]
+
+  grep -q "Auto-capture.*deadbeef" "$bank/progress.md"
+  [ ! -d "$PROJECT/.memory-bank" ]
+
+  # Idempotent: a second SessionEnd for the same session adds no duplicate stub.
+  run env MB_AGENT=cursor bash "$REPO_ROOT/hooks/session-end-autosave.sh" <<<"$payload"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c "Auto-capture.*deadbeef" "$bank/progress.md")" -eq 1 ]
+}

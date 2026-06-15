@@ -2359,3 +2359,9 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - **ICE-последовательность (источник истины — roadmap):** cursor-finish (S) → handoff-v2 (M, ICE 432) → dynamic-flow Phase 1 (M, 378) → reviewer-2.0 (L) → work-loop-v2 (M) → cost-multi-model (M); docs-лейн skill-improvements параллельно. XL-хвост (parallel-*) — после арх-решения.
 - **Verification:** 30/30 guarding tests (roadmap_sync + status_drift + doc_counts + landing_page) green; roadmap-sync идемпотентен.
 - **Next:** Wave 1 — дофиниш `cursor-extension` (~7/9), затем `handoff-v2`.
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 878d6575)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized

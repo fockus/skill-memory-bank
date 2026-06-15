@@ -365,6 +365,10 @@ _Still OPEN — pre-existing flaky test, not introduced by tier1; not release-ga
 
 ### I-069 — BEFORE 5.1.0: strict v2 heading state machine in mb-session-end.sh — reject duplicate/out-of-order recognized headings inside the summary body (Codex r3 finding, task 8); add duplicate+out-of-order bats tests [HIGH, RESOLVED 2026-06-14 — 07221e9]
 
+### I-071 — cursor-extension requirements.md: 13 REQ bullets fail EARS validation (pre-existing) [LOW, NEW, 2026-06-15]
+
+_Pre-existing, not introduced by the cursor-finish work (`mb-spec-validate cursor-extension` already exit=1 on HEAD before the 2026-06-15 changes). REQ-308, 309, 310, 311–316, 318, 319, 320, 322 use "On `<event>`, when `<cond>`, the hook shall …" phrasing, which the EARS validator rejects because the bullet does not START with an EARS keyword (When/While/Where/If/The). Fix = mechanical rephrase "On X, when Y, the hook shall Z" → "When X and Y, the hook shall Z", preserving meaning, then re-run to exit 0. Deferred from cursor-finish (S, light gate): rewording normative requirements warrants its own review pass. Orphan-coverage (REQ-310→Task 2, REQ-312–317) and Task 9 missing-Testing were fixed in the 2026-06-15 pass; EARS phrasing is the only remaining validator failure._
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

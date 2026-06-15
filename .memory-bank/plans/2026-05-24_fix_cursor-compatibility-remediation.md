@@ -55,7 +55,7 @@ TypeScript extension required (unlike Pi).
 **Tasks:** cursor-extension Task 7  
 **DoD:**
 - [x] `sessionStart` injects context for global bank without local `.memory-bank/`
-- [ ] `sessionEnd` auto-capture works with registry path
+- [x] `sessionEnd` auto-capture works with registry path
 
 <!-- mb-stage:5 -->
 ### Stage 5: Documentation
@@ -64,7 +64,7 @@ TypeScript extension required (unlike Pi).
 **DoD:**
 - [x] `cross-agent-setup.md` lists 10 hooks + bundle path semantics
 - [x] `SKILL.md` Cursor section accurate
-- [ ] Optional `docs/cursor-extension.md`
+- [x] Optional `docs/cursor-extension.md` (engineering reference — bundle resolution, global registry, testing surface, limitations)
 
 <!-- mb-stage:6 -->
 ### Stage 6: Parallel pipeline Cursor dispatch (W12 dependency)
@@ -73,7 +73,7 @@ TypeScript extension required (unlike Pi).
 **DoD:**
 - [x] `adapters/cursor/dispatch.md` exists
 - [x] `parallel-pipeline/design.md` Cursor row updated from TBD
-- [ ] handoff-v2 hook rename synced when that plan lands
+- [ ] handoff-v2 hook rename synced when that plan lands — **deferred: blocked on handoff-v2 (Wave 2); falls out of that spec's hook-rename task**
 
 ## Verification
 
@@ -84,7 +84,9 @@ TypeScript extension required (unlike Pi).
 
 ## DoD (plan-level)
 
-- [ ] All six stages complete
-- [ ] Audit blockers B1 and gaps C1–C3 closed
-- [ ] Docs drift W1 resolved
-- [ ] `/mb verify` PASS against this plan
+- [x] Stages 1–5 complete (Stage 6: dispatch.md + design done; Task 9 hook-rename **deferred to handoff-v2**)
+- [x] Audit blockers B1 and gaps C1–C3 closed
+- [x] Docs drift W1 resolved
+- [x] Verified via tests (2026-06-15): full pytest **1430 passed**; cursor bats (skill_root 5, adapter 8, docs 2) + e2e (global, global_storage incl. new sessionEnd case) + reviewer-resolve 6 + parallel-adapters 2 — all green
+- [ ] `mb-spec-validate cursor-extension` clean — orphans (REQ-310→Task 2, 312–317) + Task 9 missing-Testing **fixed** this pass; remaining 13 EARS-phrasing warnings are **pre-existing** (HEAD already exit=1) → backlog **I-071**
+- [ ] Stage 6 Task 9 (hook-rename sync) — deferred to handoff-v2 (Wave 2)
