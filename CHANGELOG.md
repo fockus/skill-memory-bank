@@ -2,6 +2,61 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+> **handoff-v2.** A persistence layer that lets a long-running agent survive
+> context compaction and session boundaries: a small handoff capsule written
+> before compaction and restored at the next session, mandatory `/mb done`
+> gates that run even without an active plan, and a sha256 hash chain that makes
+> tampering of historic `progress.md` entries a CRITICAL drift. Shipped through
+> the governed dual-review (Codex + lead) + judge pipeline, with a fix-cycle per
+> task.
+
+### Added
+
+- **Handoff capsule** (`scripts/mb-handoff.sh` + `memory_bank_skill/handoff_capsule.py`).
+  `--actualize`/`--read`/`--rotate` a ≤1500-byte capsule under
+  `.memory-bank/handoff/`. The five sections (Now / Done / Open blockers / Next
+  concrete step / Pointers) always survive truncation — the skeleton is reserved
+  first and only the bullet lists are byte-fit, so the most important section is
+  never dropped. UTF-8-safe byte cap; colon-free archive names;
+  copy-then-atomic-rename so a capsule is never lost on interrupt; owner-token
+  `mkdir` lock for single-writer safety. (REQ-120)
+- **PreCompact actualize** (`hooks/mb-pre-compact.sh`, renamed from
+  `mb-compact-reminder.sh`). On `preCompact`, refreshes the capsule within a ~2s
+  portable budget and **never blocks compaction** — on timeout/failure/no-bank it
+  WARNs and exits 0, killing the whole actualize process tree (no orphans). Opt
+  out with `MB_PRECOMPACT_HANDOFF=off`. (REQ-120, REQ-121)
+- **SessionStart capsule consumption** (`hooks/mb-session-start-context.sh`).
+  Prepends the capsule only when it is newer than the *most recent* `progress.md`
+  date heading; otherwise the normal context is unchanged. (REQ-121)
+- **Mandatory `/mb done` gates** (`scripts/mb-done-gates.sh`). Tests + rules
+  (with `--diff-files` so the CRITICAL TDD-delta check runs) + placeholder scan,
+  honouring `done_gates.required`. `--force` requires a single-line `--reason`
+  (newline-injection rejected), records a NOTE in `progress.md` + a failure JSON,
+  and **fails closed** when `allow_force:false` or a project `pipeline.yaml`
+  cannot be parsed. Configurable via `pipeline.yaml:done_gates`. (REQ-122, REQ-123)
+- **Append-only hash chain** (`scripts/mb-progress-chain.sh` +
+  `memory_bank_skill/progress_chain.py`). `--rebuild-tail`/`--verify` a sha256
+  chain of the last 20 `progress.md` entries in `index.json:progress_chain`;
+  `mb-drift.sh` raises CRITICAL on a mismatch, deletion, ambiguous match, or a
+  **malformed** index.json. Canonical-form hashing (LF-normalised, trailing
+  separators excluded) keeps legitimate appends stable while in-body content and
+  whitespace edits remain tamper. (REQ-124)
+- **`scripts/mb-rules-check.sh --placeholders-only`** — scan-only mode for the
+  done-gate, with `tests/`-path and `# mb-rules-check: allow-placeholder`
+  exemptions.
+- **Docs** — `docs/handoff-2.0.md` (capsule lifecycle, done-gate + force
+  semantics, hash-chain limits).
+
+### Changed — defaults
+
+- `/mb done` now runs the done-gate set as step 0 (enabled by default; failures
+  require `--force --reason`). Existing plan/spec verification is unaffected.
+- `settings/hooks.json` registers `mb-pre-compact.sh` on `preCompact` (replacing
+  the old weekly compact reminder, which remains available in `adapters/cline.sh`
+  via `MB_COMPACT_REMIND`). Re-registration stays idempotent.
+
 ## [5.1.0] — 2026-06-14
 
 > **tier1-graph-memory.** Sharper code-graph retrieval (RRF fusion, import-aware

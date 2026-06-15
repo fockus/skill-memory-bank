@@ -2365,3 +2365,45 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 ### Auto-capture 2026-06-15 (session 878d6575)
 - Session ended without an explicit /mb done
 - Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session c41f932b)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 6c2a1ecb)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session e7301f2a)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session dbb11f49)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15
+
+### Auto-capture 2026-06-15 (session 264eaa5a)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-06-15 — handoff-v2 (Handoff 2.0) shipped end-to-end via the governed dual-review + judge machine
+
+### I-075 — spec `handoff-v2` delivered (5/5 tasks): capsule + PreCompact/SessionStart + done-gates + progress hash-chain + docs
+- All 5 tasks via the governed pipeline: implement (Opus mb-developer/mb-qa) → verify → DUAL review (Codex gpt-5.5 + lead, independent) → judge (every task NO_GO on first pass → fix-cycle 1 → GO). The dual review caught real defects the green build hid; all were empirically confirmed against this repo's own `.memory-bank/` before fixing.
+- **Task 1** (capsule writer `mb-handoff.sh` + builder `handoff_capsule.py`, committed e70dffb): 5-section ≤1500-byte capsule, skeleton-reserved truncation (never drops a section), UTF-8 byte cap, owner-token mkdir lock, colon-free archive, copy-then-atomic-rename. Fix-cycle closed 6 majors: truncation dropping 3 sections, `⬜`-checklist matching, DONE-as-blocker filter, colon archive names, destructive archive, lock ownership.
+- **Task 2** (hooks): `mb-compact-reminder.sh` → `mb-pre-compact.sh` (never blocks compaction; ≤2s portable budget; whole process-tree kill on timeout); SessionStart prepends a fresh capsule using MAX-date freshness. Fix-cycle: head-1→max-date, `stat` numeric-guard, orphan-tree kill, no-bank WARN, cursor legacy-copy cleanup.
+- **Task 3** (`mb-done-gates.sh`): tests + rules + placeholder gate; honours `done_gates.required`; `--force` requires single-line `--reason` (CR/LF injection rejected, fail-closed on unparseable config); passes `--diff-files` so the TDD-delta CRITICAL runs; `tests/` + `# mb-rules-check: allow-placeholder` exemptions.
+- **Task 4** (`mb-progress-chain.sh` + `progress_chain.py`): canonical-form sha256 chain (LF-normalised, trailing-separator-excluded), unique-contiguous-run anchor (ambiguous → fail), malformed-index → CRITICAL via `mb-drift.sh`; `index.json` keys preserved (round-trip test). design.md §6/§9 reconciled to document the canonical form.
+- **Task 5** (docs): `docs/handoff-2.0.md` + CHANGELOG `[Unreleased]`.
+- Verification (independently re-run by the lead): full pytest **1448 passed**, full bats **861 ok / 0 failures**, shellcheck + ruff clean, integration smoke (pre-compact → capsule → chain verify) green on the live bank.
+- Backlog filed: I-072 (sc_lock repo-wide TOCTOU), I-073 (session-start `⬜` grep), I-074 (placeholder staged-blob scan). Tasks 2-5 commit on this push.

@@ -15,7 +15,9 @@
 
 **Next — explicit user "go" required for: PyPI publish + git tag of 5.1.0.** Release is PREP-only (committed VERSION + CHANGELOG); publish/tag are NOT done. Remaining open backlog from the sprint stays out of the gate: I-064/I-065 (LOW/MED docstrings) + I-068 (pre-existing flaky `session-end-judge.bats`).
 
-**Roadmap hygiene done — 2026-06-14.** Закрыты готовые планы (subagent-strengthening, codegraph-analytics), 8× goal-driven + opencode-first → `plans/superseded/`, roadmap/status переписаны под ICE. **Следующий код-wave: дофиниш [cursor-extension](specs/cursor-extension/) (~7/9 done) → затем [handoff-v2](specs/handoff-v2/)** (top ICE 432, parallel-safe).
+**Roadmap hygiene done — 2026-06-14.** Закрыты готовые планы (subagent-strengthening, codegraph-analytics), 8× goal-driven + opencode-first → `plans/superseded/`, roadmap/status переписаны под ICE.
+
+**✅ Wave 1 [cursor-extension] DONE (f86247c) + ✅ Wave 2 [handoff-v2] DONE (2026-06-15).** handoff-v2 — 5/5 tasks через governed dual-review (Codex gpt-5.5 + lead) + judge, fix-cycle на каждую задачу: handoff-капсула, PreCompact/SessionStart хуки, обязательные `/mb done` gates, append-only sha256-цепочка `progress.md`, docs. Full pytest 1448 / full bats 861, shellcheck+ruff clean. **Следующий код-wave: [dynamic-flow Phase 1](specs/dynamic-flow/)** (ICE 378 — детерминированный «нельзя соврать про done»). Tasks 2-5 коммитятся этим пушем.
 
 После инфраструктурного unlock: стартовать **W1 code — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)** и **W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)**. Закрытие каждого wave: `/mb verify` → `/mb done` → plan moves to `plans/done/`.
 
@@ -66,7 +68,6 @@
 - [2026-05-23] `queued` [2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md) — feature — Plan: feature — goal-driven-autopilot — Sprint 5: Parallel waves (DAG)
 - [2026-05-23] `queued` [2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md) — feature — Plan: feature — goal-driven-autopilot — Sprint 6: Goal layer + `/goal`
 - [2026-05-23] `queued` [2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md) — feature — Plan: feature — goal-driven-autopilot — Sprint 7: Autopilot loop
-- [2026-05-23] `queued` [2026-05-23_feature_handoff-v2.md](plans/2026-05-23_feature_handoff-v2.md) — feature — Plan: feature — Handoff 2.0 (S3 of harness-upgrade)
 - [2026-05-23] `queued` [2026-05-23_feature_reviewer-v2.md](plans/2026-05-23_feature_reviewer-v2.md) — feature — Plan: feature — Reviewer 2.0 (S1 of harness-upgrade)
 - [2026-05-23] `queued` [2026-05-23_feature_skill-improvements-anthropic-audit.md](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — Plan: feature — skill-improvements-anthropic-audit
 - [2026-05-23] `queued` [2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Plan: feature — Work loop 2.0 (S2 of harness-upgrade)
@@ -77,6 +78,7 @@
 ## Recently done
 
 <!-- mb-recent-done -->
+- 2026-06-15 — [specs/handoff-v2/](specs/handoff-v2/) — feature — Handoff 2.0 (5/5): handoff capsule + PreCompact/SessionStart hooks + mandatory `/mb done` gates + append-only sha256 progress chain + docs; governed dual-review (Codex + lead) + judge, fix-cycle per task
 - 2026-06-14 — [specs/tier1-graph-memory/](specs/tier1-graph-memory/) — feature — Tier-1 graph + session memory (17/17): RRF/import-aware/PageRank graph, progressive-disclosure recall, `/mb recap`+`/mb conflicts`+`/mb consolidate`, `--sessions` graph layer, wiki staleness+decisions; + 5.1.0 release prep
 - 2026-06-10 — [specs/composable-work-pipeline/](specs/composable-work-pipeline/) — feature — composable `/mb work` pipeline (review off by default) + v5.0.0 release prep
 - 2026-06-09 — [plans/done/2026-06-09_feature_mb-research-tooling-core.md](plans/done/2026-06-09_feature_mb-research-tooling-core.md) — feature — mb-research-tooling-core

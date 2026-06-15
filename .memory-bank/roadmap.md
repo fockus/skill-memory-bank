@@ -11,7 +11,6 @@
 - [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0 (S1 of harness-upgrade)
 - [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0 (S2 of harness-upgrade)
 - [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
-- [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
 - [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
 - [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation
@@ -64,9 +63,9 @@ ICE = Impact × Confidence × Ease (каждый 1–10). Последовате
 | Wave | Item | Why here |
 |------|------|----------|
 | 0 | Hygiene (roadmap honesty) | ✅ DONE 2026-06-14 — закрыты готовые планы, 8× goal-driven + opencode-first → `plans/superseded/` |
-| 1 | cursor-extension finish (S) | quick win, ~7/9 уже сделано |
-| 2 | handoff-v2 (M) | top ICE, parallel-safe, ядро надёжности |
-| 3 | dynamic-flow Phase 1 (M) | стратегический firewall — детерминированный «нельзя соврать про done» |
+| 1 | cursor-extension finish (S) | ✅ DONE 2026-06-15 (f86247c) — Stages 4-5 + spec hygiene |
+| 2 | handoff-v2 (M) | ✅ DONE 2026-06-15 — 5/5 tasks, governed dual-review + judge, fix-cycle per task |
+| 3 | dynamic-flow Phase 1 (M) | ◀ NEXT — стратегический firewall: детерминированный «нельзя соврать про done» |
 | 4 | reviewer-2.0 (L) | голова harness-цепочки |
 | 5 | work-loop-v2 (M) | нужен сигнал `progress_trend` из reviewer-2.0 |
 | 6 | cost-multi-model (M) | нужен reviewer+loop; сначала закрыть I-057/I-058 |
@@ -81,6 +80,9 @@ ICE = Impact × Confidence × Ease (каждый 1–10). Последовате
 - Frontmatter `status: in_progress` только на ОДНОМ плане в моменте (исключение: docs-лейн skill-improvements может идти параллельно code-лейну).
 
 ## Recently completed
+
+- **✅ `handoff-v2` — Handoff 2.0 (5/5 tasks)** [2026-06-15]
+   - Governed pipeline per task (implement Opus → verify → DUAL review Codex gpt-5.5 + lead → judge NO_GO → fix-cycle 1 → GO): handoff capsule (`mb-handoff.sh`/`handoff_capsule.py`, skeleton-reserved ≤1500-byte truncation, owner-token lock), PreCompact `mb-pre-compact.sh` (never blocks compaction, process-tree kill), SessionStart fresh-capsule prepend (max-date), mandatory `/mb done` gates (`mb-done-gates.sh`, required-list + fail-closed force + CR/LF reason guard + `--diff-files` TDD-delta), append-only sha256 chain (`mb-progress-chain.sh`/`progress_chain.py`, canonical form, unique-run anchor, malformed-index→CRITICAL), docs (`docs/handoff-2.0.md` + CHANGELOG). Full pytest 1448 / full bats 861, shellcheck+ruff clean. Backlog: I-072/I-073/I-074. Commits e70dffb (Task 1) + this push (Tasks 2-5).
 
 - **✅ `tier1-graph-memory` — code-graph + session-memory tier (17/17)** [2026-06-14 → v5.1.0]
    - 17 задач через governed `/mb work` (implement Opus → verify → dual-review Codex gpt-5.5 + main-agent → judge → fix-loop ≤2): RRF auto-backend, import-aware Python call-resolution (CACHE_VERSION=2), PageRank god-nodes, progressive-disclosure `/mb recall`, community-summary retrieval, per-community wiki + `semantic` edges (confidence bands), `--sessions` graph layer, `/mb consolidate`/`/mb recap`/`/mb conflicts`, `[SUPERSEDED]` drift checker, v2 session-summary state machine.

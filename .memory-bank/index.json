@@ -280,5 +280,91 @@
     }
   ],
   "lessons": [],
-  "generated_at": "2026-06-14T22:29:06Z"
+  "generated_at": "2026-06-14T22:29:06Z",
+  "progress_chain": {
+    "version": 1,
+    "tail": [
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "1ee18967a1bc43de1523d2f3bbbe2073b35ad37c5391e00b87234a8b33b369ea"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "fd6b8b0d63d2a505f2a668dd16a28f8c9271e13da8434b5975d43a5fbae9d6b9"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "8f4ee655e81a19f3bbef24f8fff7965707fd33f968ba697cc2fe04321bbfac7b"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "df327389574a9be35ecf478b74f5521d8c48f013a5bd7bb87e4b1adafacc8a37"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "e8cfe77ab9e0682cfd498a6e6dd28d58d436b90d9a640ff267e4acbf1b5ba9d0"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "70e77386184d07153bce6d3e2334768ffd93fff2772f34e2531146fadc625a9c"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "7916b95b289510564ddabee793112b8916d3f4f1757c633908ed262f970317de"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "74f50df60b2172e29b05b6db73302460c4083e5262553384f768839b37bb8dc9"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "cc9f95f28fa31c67c76b3d50915297c0a8208d0da5bb66d2bc60e48740dd1851"
+      },
+      {
+        "heading": "## 2026-06-14 — Capstone: spec `tier1-graph-memory` fully delivered (17/17) + 5.1.0 release prep",
+        "sha256": "98b12b2129cabe8e826bdb276176b0213d16559727f9b450771dd155885b6c63"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "c0f10b99b9b66e870d9dc8732d0a9e98d57926ae6a06cd8c99aa16561b8e7c53"
+      },
+      {
+        "heading": "## 2026-06-14",
+        "sha256": "c9b00d31e201149f4dd227f2dd047ad973a9d9db9620f9c59febc946d67bbac6"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "44e9e39e06f2873430c8ea021e51ae73d139572e6a15fbe37827001eaba86672"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "0d47240a37bafac1d0fe64c07746d8d3acaea4a1f8131ba995e5c08608a5a4ff"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "6018abaaab4090eafca2ff7613ffe3d7fec62711d8575b89d70b55fda4321ed7"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "495095839a96a40bc02ed25dc72c0e641f1d385c9edbac5381ec62a0dccf62cc"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "ec4c616dfe248b499cdb5e8ab61e0c6be37669fc66b208387a575a3e6277b7c5"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "7eb7d6a571300852d26458059a3958918b6ac8157d99e528803abd15e31640cc"
+      },
+      {
+        "heading": "## 2026-06-15",
+        "sha256": "753f9d0a83226364de39c6122f1295764029c6d4c46324f1545306306eb41937"
+      },
+      {
+        "heading": "## 2026-06-15 — handoff-v2 (Handoff 2.0) shipped end-to-end via the governed dual-review + judge machine",
+        "sha256": "3c67664400acbae5fd3e3c6ce1f4a680d89196fcd42ab2febf59f0099758b817"
+      }
+    ],
+    "last_synced_at": "2026-06-15T01:55:40Z"
+  }
 }

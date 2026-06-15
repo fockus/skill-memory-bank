@@ -58,6 +58,55 @@ if [ -f "$MB/roadmap.md" ]; then
   fi
 fi
 
+# ── Handoff capsule (handoff-v2 §4 "SessionStart consumption") ──
+# If a handoff capsule exists AND it is newer than the most recent progress.md
+# entry, PREPEND its body (truncated) ahead of everything above so the next
+# session restores from a fresh capsule instead of stale progress. Otherwise
+# the existing fallback context is used unchanged.
+HANDOFF_LATEST="$MB/handoff/latest.md"
+HANDOFF_CAP=1500
+if [ -f "$HANDOFF_LATEST" ]; then
+  # Portable mtime (epoch seconds) of the capsule — must be strictly numeric.
+  # GNU `stat -f %m` interprets the format string as a FILE path and may print
+  # '?' (exit 0) instead of an epoch, so we validate the result and fall through
+  # to the GNU form when it is not a plain integer.
+  capsule_mtime=""
+  _bsd_mtime=$(stat -f %m "$HANDOFF_LATEST" 2>/dev/null || true)
+  if printf '%s' "$_bsd_mtime" | grep -qE '^[0-9]+$'; then
+    capsule_mtime="$_bsd_mtime"
+  else
+    _gnu_mtime=$(stat -c %Y "$HANDOFF_LATEST" 2>/dev/null || true)
+    if printf '%s' "$_gnu_mtime" | grep -qE '^[0-9]+$'; then
+      capsule_mtime="$_gnu_mtime"
+    fi
+  fi
+  capsule_mtime="${capsule_mtime:-0}"
+
+  # Epoch (UTC midnight) of the MOST RECENT `## YYYY-MM-DD` heading in
+  # progress.md.  progress.md is OLDEST-FIRST (newest appended at the bottom),
+  # so `head -1` returns the OLDEST date — wrong.  Sort all heading dates
+  # lexicographically descending (`sort -r`) and take the first to get the MAX.
+  # A heading may carry a trailing parenthetical, e.g. `## 2026-06-07 (topic)`.
+  last_progress_epoch=0
+  if [ -f "$MB/progress.md" ]; then
+    last_date=$(grep -oE '^## [0-9]{4}-[0-9]{2}-[0-9]{2}' "$MB/progress.md" 2>/dev/null \
+      | sed -E 's/^## //' | sort -r | head -1 || true)
+    if [ -n "$last_date" ]; then
+      # BSD date (-j -f) then GNU date (-d); fall back to 0 on parse failure.
+      last_progress_epoch=$(date -u -j -f '%Y-%m-%d' "$last_date" +%s 2>/dev/null \
+        || date -u -d "$last_date" +%s 2>/dev/null || echo 0)
+    fi
+  fi
+
+  if [ "$capsule_mtime" -gt "$last_progress_epoch" ]; then
+    capsule_body=$(head -c "$HANDOFF_CAP" "$HANDOFF_LATEST" 2>/dev/null || true)
+    if [ -n "$capsule_body" ]; then
+      CONTEXT="[MEMORY BANK: ACTIVE]\n\n## Handoff capsule (fresh — restored from PreCompact)\n${capsule_body}\n\n${CONTEXT#\[MEMORY BANK: ACTIVE\]\\n\\n}"
+      echo "[mb] using fresh handoff capsule" >&2
+    fi
+  fi
+fi
+
 # Hard cap to avoid blowing the context window on large banks.
 if [ "${#CONTEXT}" -gt 2500 ]; then
   CONTEXT="${CONTEXT:0:2500}"

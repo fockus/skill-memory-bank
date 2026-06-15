@@ -136,15 +136,18 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-index.sh` | Registry of all entries (core + notes/plans/experiments/reports) |
 | `mb-index-json.py` | Build `index.json` (frontmatter notes + lessons headings). Atomic write |
 | `mb-drift.sh` | 8 deterministic drift checkers (path, staleness, script coverage, dependency, cross-file, index sync, command, frontmatter) |
+| `mb-progress-chain.sh` | `--rebuild-tail` / `--verify` the `progress.md` append-only hash chain (`index.json:progress_chain`); CRITICAL drift on tamper (handoff-v2) |
 | `mb-rules-check.sh` | Deterministic rules enforcement (SRP / Clean Architecture / TDD delta) |
 | `mb_rules_check_lib.sh` | Shared helper library for `mb-rules-check.sh` |
 | `mb_rules_check_profile.sh` | Profile resolution and output emitters for `mb-rules-check.sh` |
 | `mb_rules_check_baseline.sh` | Baseline SRP / Clean Architecture / TDD checks for `mb-rules-check.sh` |
 | `mb_rules_check_stack.sh` | Stack-aware and FSD checks for `mb-rules-check.sh` |
+| `mb-done-gates.sh` | Mandatory `/mb done` gate set (tests + rules + placeholder scan); `--force --reason` records a NOTE in `progress.md` (handoff-v2) |
 | `mb-test-run.sh` | Structured test runner with per-stack output parsing → strict JSON |
 | `mb-deps-check.sh [--install-hints]` | Preflight dependency checker (python3, jq, git + optional tree-sitter, networkx) |
 | `mb-checklist-prune.sh [--apply]` | Collapse completed sections in `checklist.md` to one-liners (≤120-line cap) |
 | `mb-compact.sh [--apply]` | Status-based compaction decay — archive old done plans + low-importance notes |
+| `mb-handoff.sh` | Handoff capsule manager — `--actualize` / `--read` / `--rotate` a ≤1500-byte session capsule under `handoff/` (handoff-v2) |
 | `mb-tags-normalize.sh [--apply]` | Levenshtein-based tag synonym detection + merge across `notes/` |
 | `mb-roadmap-sync.sh` | Regenerate `roadmap.md` autosync block from `plans/*.md` frontmatter |
 | `mb-traceability-gen.sh` | Regenerate `traceability.md` from specs + plans + tests |
@@ -263,7 +266,7 @@ Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Cl
 | `mb-plan-sync-post-write.sh` | PostToolUse (Write) | Auto-sync plan ↔ checklist + roadmap after editing a plan file |
 | `file-change-log.sh` | PostToolUse (Write/Edit) | Append change log + scan for placeholders / secrets in committed files |
 | `session-end-autosave.sh` | SessionEnd | Memory Bank auto-capture (`MB_AUTO_CAPTURE=auto\|strict\|off`) when `/mb done` was skipped |
-| `mb-compact-reminder.sh` | preCompact (Cursor) / SessionEnd (Claude Code) | Weekly `/mb compact` reminder (opt-in: triggers only after first `/mb compact --apply`) |
+| `mb-pre-compact.sh` | PreCompact (Claude Code) / preCompact (Cursor) | Handoff-v2: runs `mb-handoff.sh --actualize` to write a fresh `handoff/latest.md` capsule before compaction. Bounded to ~2s, never blocks (`MB_PRECOMPACT_HANDOFF=off` to disable) |
 | `mb-session-start-context.sh` | sessionStart (Cursor) | Auto-inject compact Memory Bank context at session start (`MB_AUTOLOAD_CONTEXT=off` to disable) |
 | `mb-session-turn.sh` | Stop | Session memory: append one per-turn bullet (request + tools + files) to `session/*.md`, no LLM (`MB_SESSION_CAPTURE=off` to disable) |
 | `mb-session-end.sh` | SessionEnd | Session memory: Haiku summary + gated Sonnet auto-notes; updates `session/_recent.md` |
@@ -405,17 +408,21 @@ Active only where an active Memory Bank resolves.
 
 ---
 
-## Weekly compact reminder (since v2.2.1)
+## PreCompact handoff capsule (handoff-v2)
 
-The SessionEnd hook `hooks/mb-compact-reminder.sh` reminds the user to run `/mb compact` once a week — **only if the user has explicitly run `/mb compact --apply` at least once** (which creates `.memory-bank/.last-compact`). It is opt-in by design, so new installs stay silent.
+The PreCompact hook `hooks/mb-pre-compact.sh` runs just before context compaction. It invokes
+`scripts/mb-handoff.sh --actualize <bank> pre_compact`, which writes a fresh handoff capsule to
+`.memory-bank/handoff/latest.md`. The NEXT session's SessionStart hook
+(`hooks/mb-session-start-context.sh`) prepends that capsule when it is newer than the most recent
+`progress.md` entry, so the agent resumes from an up-to-date snapshot instead of stale state.
 
-**Logic:**
-- `.last-compact` missing → silent (user not subscribed)
-- `.last-compact` < 7 days → silent
-- `.last-compact` ≥ 7 days + `mb-compact.sh --dry-run` shows `candidates > 0` → reminder to stderr with a `/mb compact` hint
-- `.last-compact` ≥ 7 days + `candidates=0` → silent (nothing to compact)
+**Never blocks compaction (design §9):**
+- bounded to ~2s via a portable background-poll-and-kill loop (no `timeout`/`flock`, macOS-safe)
+- on timeout, actualize failure, or missing handoff script → one-line stderr WARN and `exit 0`
+- on no resolvable bank → silent `exit 0`
+- on success → one-line stderr marker `[mb] handoff capsule actualized (pre_compact)`
 
-**Opt-out:** `export MB_COMPACT_REMIND=off`. Read-only — it never changes files.
+**Opt-out:** `export MB_PRECOMPACT_HANDOFF=off`.
 
 ---
 

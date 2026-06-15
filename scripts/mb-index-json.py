@@ -42,10 +42,12 @@ _KEBAB_RE_2 = re.compile(r"([a-z0-9])([A-Z])")
 
 def _kebab_case(s: str) -> str:
     """camelCase/PascalCase/UPPER → kebab-case (lowercase with hyphens)."""
-    s = str(s).strip().strip('"\'')
+    s = str(s).strip().strip("\"'")
     s = _KEBAB_RE_1.sub(r"\1-\2", s)
     s = _KEBAB_RE_2.sub(r"\1-\2", s)
     return s.lower()
+
+
 # PII markers: `<private>...</private>` — content must not enter the index.
 # Closed blocks are fully removed; open blocks without closing tag extend to EOF
 # (protects against leaks when `</private>` is forgotten).
@@ -169,10 +171,29 @@ def _index_lessons(mb_path: Path) -> list[dict[str, str]]:
         return []
 
     text = lessons_file.read_text(encoding="utf-8")
-    return [
-        {"id": m.group(1), "title": m.group(2).strip()}
-        for m in LESSON_RE.finditer(text)
-    ]
+    return [{"id": m.group(1), "title": m.group(2).strip()} for m in LESSON_RE.finditer(text)]
+
+
+def _preserved_keys(mb_path: Path) -> dict[str, Any]:
+    """Read keys that must survive a full rebuild from the existing index.json.
+
+    The hash chain (``progress_chain``, handoff-v2 §6) lives in index.json but is
+    owned by ``mb-progress-chain.sh``, not this builder. A rebuild must NOT clobber
+    it (design §9 risk row). A corrupt/absent index.json yields ``{}`` — never raises.
+    """
+    target = mb_path / "index.json"
+    if not target.is_file():
+        return {}
+    try:
+        prior = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(prior, dict):
+        return {}
+    preserved: dict[str, Any] = {}
+    if "progress_chain" in prior:
+        preserved["progress_chain"] = prior["progress_chain"]
+    return preserved
 
 
 def build_index(mb_path_str: str) -> dict[str, Any]:
@@ -181,11 +202,13 @@ def build_index(mb_path_str: str) -> dict[str, Any]:
     if not mb_path.is_dir():
         raise FileNotFoundError(f"Memory Bank path not found: {mb_path}")
 
-    data = {
+    data: dict[str, Any] = {
         "notes": _index_notes(mb_path),
         "lessons": _index_lessons(mb_path),
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
+    # Preserve externally-owned keys (e.g. progress_chain) across the rebuild.
+    data.update(_preserved_keys(mb_path))
 
     target = mb_path / "index.json"
     atomic_write(target, json.dumps(data, indent=2, ensure_ascii=False, sort_keys=False))

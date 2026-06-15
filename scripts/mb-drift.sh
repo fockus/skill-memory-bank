@@ -39,6 +39,15 @@ warn() {
 ok()   { echo "drift_check_${1}=ok"; }
 skip() { echo "drift_check_${1}=skip"; echo "[drift:${1} skipped] ${2}" >&2; }
 
+# CRITICAL severity — same exit semantics as `warn` (counts toward drift_warnings
+# so exit stays non-zero) but the status token signals a hard integrity failure
+# rather than soft staleness. Used by check_progress_chain (handoff-v2 §6).
+critical() {
+  echo "drift_check_${1}=critical"
+  echo "[drift:${1}] CRITICAL: ${2}" >&2
+  WARNINGS=$(( WARNINGS + 1 ))
+}
+
 # ═══ 1. path — linked MB files exist ═══
 check_path() {
   local count=0 file
@@ -483,6 +492,52 @@ check_supersedes() {
   fi
 }
 
+# ═══ 16. progress_chain — append-only physical integrity (handoff-v2 §6) ═══
+# Verifies the hash chain recorded in `index.json:progress_chain` against the
+# current `progress.md`. A mismatch (edited historic entry) or a deletion is a
+# hard append-only violation → CRITICAL drift. If the chain is not yet
+# initialised (fresh bank / pre-upgrade), this is a `skip`, not a failure —
+# the chain makes no retroactive integrity claim (design §9 migration row).
+check_progress_chain() {
+  local chain_script="$DIR/scripts/mb-progress-chain.sh"
+  # Fall back to the installed skill location, mirroring check_script_coverage.
+  if [ ! -f "$chain_script" ]; then
+    chain_script="$HOME/.claude/skills/memory-bank/scripts/mb-progress-chain.sh"
+  fi
+  if [ ! -f "$chain_script" ]; then
+    skip progress_chain "mb-progress-chain.sh not found"
+    return
+  fi
+  if [ ! -f "$MB/progress.md" ]; then
+    skip progress_chain "no progress.md"
+    return
+  fi
+
+  local report rc
+  report=$(bash "$chain_script" --verify "$MB" 2>/dev/null) && rc=0 || rc=$?
+  if [ "${rc:-0}" -eq 0 ]; then
+    ok progress_chain
+    return
+  fi
+
+  # Three-way routing on the JSON error field:
+  #   chain_missing / index_missing  → chain never initialised; SKIP (no integrity claim yet)
+  #   index_malformed                → index.json corrupt/truncated; CRITICAL (integrity disabled)
+  #   anything else                  → tamper/deletion/ambiguity;   CRITICAL
+  case "$report" in
+    *'"error": "chain_missing"'*  | *'"error":"chain_missing"'*  | \
+    *'"error": "index_missing"'*  | *'"error":"index_missing"'*)
+      skip progress_chain "chain not initialised — run mb-progress-chain.sh --rebuild-tail"
+      ;;
+    *'"error": "index_malformed"'* | *'"error":"index_malformed"'*)
+      critical progress_chain "index.json is malformed — progress_chain integrity cannot be verified (inspect/restore index.json)"
+      ;;
+    *)
+      critical progress_chain "progress.md append-only violation — historic entry edited, deleted, or ambiguous (run: bash scripts/mb-progress-chain.sh --verify $MB)"
+      ;;
+  esac
+}
+
 # Calendar-validate a YYYY-MM-DD string (the shape regex admits e.g. 2026-13-40,
 # 2026-02-30 or a non-leap 2026-02-29). Real validation: per-month day count plus
 # the Gregorian leap rule (÷4, except centuries unless ÷400). Pure-shell arithmetic
@@ -528,6 +583,7 @@ check_active_plans
 check_plan_status
 check_plan_vs_git
 check_supersedes
+check_progress_chain
 
 echo "drift_warnings=$WARNINGS"
 

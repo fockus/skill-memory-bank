@@ -240,7 +240,14 @@ If absent, the orchestrator falls back to `enabled: true` with the default requi
 }
 ```
 
-`sha256` covers the contents from the heading line through the line before the next `## YYYY-MM-DD` heading (or EOF).
+`sha256` covers the **canonical form** of each entry's content — the heading line plus
+the body lines up to (but NOT including) the next `## YYYY-MM-DD` heading, with:
+
+- **Line endings normalised to `\n`** (CRLF → LF) for macOS/Ubuntu portability. A CRLF↔LF-only change does NOT trigger a mismatch.
+- **Trailing blank separator lines excluded** — blank lines between adjacent dated entries are treated as inter-entry separators, not as part of either entry's body. This keeps a historic entry's hash stable when a new dated entry is appended immediately after it (legitimate append-only growth). A trailing-blank-only change does NOT trigger a mismatch.
+- **All other whitespace is part of the body** — an extra space, tab, or blank line *inside* the body (before the final non-blank line) changes the sha256 and is treated as tamper.
+
+In short: only append-only-safe formatting differences (line endings, inter-entry blank separators) are forgiven. Any edit to the actual content OR to in-body whitespace triggers CRITICAL drift.
 
 ### Update flow
 
@@ -326,7 +333,7 @@ The two could coexist later (defense-in-depth) but the chain is sufficient for S
 | PreCompact hook exceeds time budget and blocks UI | Hard 2-second timeout inside `mb-pre-compact.sh`; on timeout, emit a one-line stderr WARN and exit 0 (never block compaction). |
 | Handoff capsule grows past 1500 chars and harms SessionStart context budget | `mb-handoff.sh --actualize` hard-truncates each section to a per-section char limit; total assembly checks final size. |
 | `mb-done-gates.sh` fails on stacks without a test framework configured | `mb-test-runner` already detects "no stack" and returns `not_applicable: true`; gate treats this as PASS for tests check (logged WARN). |
-| Hash chain false positives on formatting-only edits (whitespace) | sha256 covers raw bytes; users editing past entries (even whitespace) trigger CRITICAL drift. This is INTENTIONAL — old entries are immutable. |
+| Hash chain false positives on formatting-only edits (whitespace) | sha256 covers the **canonical entry form** (§6), not raw bytes. Line endings are normalised to `\n` and trailing inter-entry blank separator lines are excluded, so a CRLF↔LF-only editor normalisation or an extra trailing blank between entries does NOT trigger a false positive. However, any whitespace change *inside* the body (added space, extra blank line in the middle of the entry, etc.) IS detected and raises CRITICAL drift — this is INTENTIONAL, because in-body whitespace is part of the entry's immutable content. |
 | Migration: existing `progress.md` has no chain yet | First run of `mb-progress-chain.sh --rebuild-tail` (called automatically by `mb-doctor` on upgrade or by `mb-manager` on next append) initialises the chain from the current state. No retroactive integrity claim. |
 | Hash chain lives in `index.json` which is rebuilt by other scripts | The Python `mb-index-rebuild.py` (existing) MUST preserve `progress_chain`. New test in `test_mb_index_rebuild.py` confirms round-trip. |
 | Conflict with parallel agents on `.memory-bank/handoff/` | Single-writer assumption: only `mb-pre-compact.sh` and `mb-manager` write. Lock file `.memory-bank/handoff/.lock` (fcntl) prevents concurrent writes from two PreCompact events. |

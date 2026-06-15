@@ -78,6 +78,17 @@ Use Read to inspect files, Edit to update existing files, and Write to create ne
 ## Rules
 
 1. **`progress.md` = APPEND-ONLY.** Never delete or edit old entries. Only append.
+   After EVERY append to `progress.md`, refresh the hash chain that physically
+   enforces this invariant:
+  ```bash
+   bash ~/.claude/skills/memory-bank/scripts/mb-progress-chain.sh --rebuild-tail <MB_PATH>
+  ```
+   This recomputes `index.json:progress_chain` (the sha256 of the last N=20 dated
+   entries). It is idempotent and safe to re-run. The chain MUST stay in sync with
+   `progress.md` — `scripts/mb-drift.sh` verifies it on every drift run and a
+   mismatch (an edited or deleted historic entry) raises a CRITICAL drift. Run the
+   rebuild AFTER the index regeneration in step 8 (the rebuild reads-modifies-writes
+   `index.json`, preserving the keys the index builder wrote).
 2. **Monotonic numbering**: H-NNN (hypotheses), EXP-NNN (experiments), ADR-NNN (decisions). New number = current max + 1.
 3. **`notes/` = knowledge, not chronology.** 5-15 lines. Focus on conclusions, patterns, reusable solutions.
 4. **If a file does not exist — create it** with a minimal header.
@@ -270,14 +281,22 @@ Actualize core files based on the provided description of completed work.
   - parses `lessons.md` by `^### L-NNN:` markers
   - uses PyYAML if available, otherwise a simple fallback parser
   - writes atomically (`tmp` + `os.replace`) — never leaves a corrupted `index.json`
+  - the rebuild PRESERVES `index.json:progress_chain` (it never clobbers the hash chain)
    Never Write `index.json` manually.
+9. **`progress_chain`** — if step 3 appended to `progress.md`, refresh the hash chain
+   AFTER the index regeneration so the append-only ledger stays physically enforced:
+  ```bash
+   bash ~/.claude/skills/memory-bank/scripts/mb-progress-chain.sh --rebuild-tail <MB_PATH>
+  ```
+   Idempotent; skip it only when `progress.md` was not touched this session.
 
 **Rules:**
 
 - Update ONLY the files that truly need changes. Do not touch a file without reason.
 - `progress.md` = APPEND-ONLY. Never rewrite old entries.
+- After any `progress.md` append, `mb-progress-chain.sh --rebuild-tail` MUST run so the chain matches.
 - Preserve the existing format and style of each file.
-- `index.json` is always regenerated completely (never appended).
+- `index.json` is always regenerated completely (never appended); `progress_chain` survives the rebuild.
 - After updating, list which files changed and what changed in them.
 
 **Response format:**
@@ -379,14 +398,15 @@ Extract and structure all unfinished tasks from `checklist.md`.
 
 This supersedes the earlier ad-hoc bundling and replaces any prose that called this a "combined flow". The order below is normative — do not reorder or skip steps.
 
-**Steps (6-step flow, in order):**
+**Steps (7-step flow, in order):**
 
 1. **`actualize`** — run the `action: actualize` flow above to reconcile `checklist.md` (⬜→✅ for completed items), append a new entry to `progress.md` (APPEND-ONLY), and update `status.md` / `research.md` / `lessons.md` / `backlog.md` / `roadmap.md` only when the session description genuinely changed them (no-op updates are noise).
 2. **`note`** — run the `action: note` flow above to create `notes/YYYY-MM-DD_HH-MM_<topic>.md` via `bash ~/.claude/skills/memory-bank/scripts/mb-note.sh "<topic>"` with YAML frontmatter + "What was done" + "New knowledge" sections.
 3. **Plan closure (conditional)** — if the session closed a plan, run `bash ~/.claude/skills/memory-bank/scripts/mb-plan-done.sh <plan-file>` to flip remaining `⬜→✅` in the plan's checklist sections, move the plan file into `plans/done/`, and clear the `<!-- mb-active-plans -->` entry.
 4. **Session lock** — `touch .memory-bank/.session-lock` so the SessionEnd auto-capture hook knows this session closed cleanly and does not append a duplicate placeholder to `progress.md`.
-5. **Regenerate index** — `python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py .memory-bank` to rebuild `index.json` after the new note / lessons / plan moves landed. Atomic write — safe to run even under concurrent readers.
-6. **Report** — emit a structured summary listing which files changed, the new note path + frontmatter, plan closure (if any), index regeneration confirmation, and the touched `.session-lock`.
+5. **Regenerate index** — `python3 ~/.claude/skills/memory-bank/scripts/mb-index-json.py .memory-bank` to rebuild `index.json` after the new note / lessons / plan moves landed. Atomic write — safe to run even under concurrent readers. The rebuild preserves the existing `index.json:progress_chain`.
+6. **Refresh the progress hash chain** — `bash ~/.claude/skills/memory-bank/scripts/mb-progress-chain.sh --rebuild-tail .memory-bank` so the append from step 1 is recorded in `index.json:progress_chain`. Run it AFTER step 5 (it read-modify-writes `index.json`). Idempotent. This keeps the append-only invariant physically verifiable — `scripts/mb-drift.sh` will raise a CRITICAL drift if a historic `progress.md` entry is later edited or deleted.
+7. **Report** — emit a structured summary listing which files changed, the new note path + frontmatter, plan closure (if any), index regeneration + chain refresh confirmation, and the touched `.session-lock`.
 
 **Actualize conflict resolution:**
 

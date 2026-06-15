@@ -7,7 +7,31 @@ Canonical session-end command. `/mb done` is an alias that dispatches here.
 
 > **Storage note.** Resolve the active bank path through `mb_resolve_path` (in `scripts/_lib.sh`). Bank may be local (`./.memory-bank/`), global (`<agent_config>/memory-bank/projects/<id>/.memory-bank/`, registered via `--storage=global`), or legacy (`.claude-workspace`). All `mb-*` scripts called below already respect the resolver — pass `--mb <resolved-path>` when needed. If `[MEMORY BANK: ABSENT]`, this command is a no-op except for surfacing the absent state.
 
-## 0. If work followed a plan — verify first
+## 0. Mandatory done-gates (runs even without a plan)
+
+Run the gate set first — these are mandatory whether or not a plan was active:
+
+```bash
+bash scripts/mb-done-gates.sh --mb .memory-bank
+```
+
+It runs three independent checks in sequence (each emits a structured JSON line):
+
+1. **Tests** — dispatches the test runner (scope=touched if a baseline commit is inferable, else scope=full). `not_applicable` (no stack detected) counts as PASS with a logged WARN.
+2. **Rules (deterministic)** — `scripts/mb-rules-check.sh` on the working tree; a CRITICAL violation fails the gate.
+3. **Placeholders** — `scripts/mb-rules-check.sh --placeholders-only` scans staged + uncommitted source for `TODO|FIXME|XXX|...|pseudocode`; any hit fails the gate. The deny list is configurable via `pipeline.yaml:done_placeholders.deny`.
+
+**Exit semantics:** exit `0` only when every required gate passes. On any failure the script **exits `2`** and `/mb done` must stop — do not close the session.
+
+**Force override** — `bash scripts/mb-done-gates.sh --mb .memory-bank --force --reason "<one-line>"`:
+
+- `--reason` is mandatory when forcing; the script refuses `--force` without it (non-zero exit, no mutation).
+- On a forced run with failures the script appends `### NOTE: /mb done --force — gates failed: <gates>: <reason>` to `progress.md` under today's `## YYYY-MM-DD` heading (creating the heading if absent), writes the failure detail to `.memory-bank/tmp/done-gate-failure-<ts>.json`, then exits `0` so the close can proceed on the record.
+- Config lives in `pipeline.yaml:done_gates` (`enabled`, `required`, `allow_force`). When `allow_force: false`, `--force` is rejected outright.
+
+If gates pass (or are forced), continue with the rest of this flow.
+
+## 0b. If work followed a plan — verify first
 
 If an active plan exists in `.memory-bank/plans/` (not in `done/`), run `/verify` (or `/mb verify`) before proceeding. Do not close out without verification when a plan was in use. Fix CRITICAL issues; surface WARNINGs to the user.
 

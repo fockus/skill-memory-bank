@@ -263,3 +263,20 @@ sdd:
   require_scenarios: false                # opt-in: /mb sdd runs mb-spec-validate --require-scenarios
                                           # (every REQ must have >=1 GIVEN/WHEN/THEN scenario). Default off
                                           # so EARS-only specs stay valid.
+
+# ===== Mandatory /mb done gate set (handoff-v2 §5, GAP-4) =====
+# scripts/mb-done-gates.sh runs three independent checks before /mb done closes a
+# session, even without an active plan: tests (mb-test-runner), deterministic
+# rules (mb-rules-check.sh), and a placeholder scan. Exit 2 on failure unless
+# `/mb done --force --reason "<line>"` is used (which appends a NOTE to
+# progress.md and stores the failure detail under .memory-bank/tmp/).
+done_gates:
+  enabled: true                          # gate set runs as /mb done step 0
+  required: [tests_pass, no_critical_violations, no_placeholders]
+  allow_force: true                      # if false, --force is rejected outright
+
+# Deny list for the placeholder gate (gate 3). Each token is an ERE fragment
+# matched against staged + uncommitted source lines. Override per-project to add
+# or remove markers; falls back to this default set when absent.
+done_placeholders:
+  deny: [TODO, FIXME, XXX, '\.\.\.', pseudocode]

@@ -373,6 +373,14 @@ _Pre-existing, not introduced by the cursor-finish work (`mb-spec-validate curso
 
 _The shared lock primitive `hooks/lib/session-common.sh::sc_lock` (and its mirror in `scripts/mb-handoff.sh`) breaks a stale lock with `mkdir` + `rm -rf` on TTL expiry — a TOCTOU window where a slow original writer can delete a newer owner's lock. `mb-handoff.sh` now writes an owner token (`<pid>-<rand>`) at acquire and only `rm -rf`s on release when the on-disk token still matches (handoff-v2 Stage 1, MAJOR #6). The acquire-loop stale-break itself was left at `sc_lock` parity (out of scope for Stage 1). Follow-up: apply the same owner-token stale-break consistently in `session-common.sh::sc_lock` AND make handoff's TTL-break path verify the token before deleting, so the fix lands repo-wide in one pass._
 
+### I-073 — session-start hook checklist grep misses ⬜ emoji items [LOW, NEW, 2026-06-15]
+
+_`hooks/mb-session-start-context.sh:48` greps `^- \[ \]` for unfinished checklist items, but the live checklist format uses `⬜` (the same emoji dialect the handoff capsule's `unchecked_items` now handles). On real banks the "checklist (unfinished)" injection is therefore empty. Fix: match `⬜` (and `- [ ]` for back-compat), mirroring `handoff_capsule.unchecked_items`. Found independently by the Task 2 and Task 4 reviewers during handoff-v2; cosmetic (context-injection only), out of scope for the hook-rename task._
+
+### I-074 — done-gate placeholder scan reads working-tree, not the staged blob [LOW, NEW, 2026-06-15]
+
+_`mb_rules_check_lib.sh::scan_placeholders` greps the working-tree file, so a placeholder staged in the index but already removed from the working tree is not seen (Codex handoff-v2 Task 3 finding). Consistent with the rest of `mb-rules-check.sh`, which reads working-tree content everywhere — fixing only the placeholder scan would be inconsistent. Follow-up: decide whether the whole rules checker should scan staged blobs (`git show :path`) and apply uniformly._
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

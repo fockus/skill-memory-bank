@@ -59,7 +59,7 @@ run_adapter() {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local hjson="$PROJECT/.cursor/hooks.json"
-  local hooks=(session-end-autosave.sh mb-compact-reminder.sh block-dangerous.sh mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh mb-session-start-context.sh)
+  local hooks=(session-end-autosave.sh mb-pre-compact.sh block-dangerous.sh mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh mb-session-start-context.sh)
   local h
   for h in "${hooks[@]}"; do
     grep -q "memory-bank/hooks/$h" "$hjson"
@@ -87,4 +87,16 @@ run_adapter() {
   [ "$status" -eq 0 ]
   grep -q 'MB_AGENT=cursor' "$PROJECT/.cursor/hooks.json"
   grep -q 'MB_SKILLS_ROOT=' "$PROJECT/.cursor/hooks.json"
+}
+
+@test "cursor: reinstall removes legacy mb-compact-reminder.sh copy left by old install" {
+  # Simulate an old install that left a physical copy of the renamed hook.
+  run_adapter install "$PROJECT"
+  mkdir -p "$PROJECT/.cursor/hooks"
+  echo '#!/usr/bin/env bash' > "$PROJECT/.cursor/hooks/mb-compact-reminder.sh"
+  chmod +x "$PROJECT/.cursor/hooks/mb-compact-reminder.sh"
+  # Reinstall must clean up the stale legacy copy.
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ ! -f "$PROJECT/.cursor/hooks/mb-compact-reminder.sh" ]
 }

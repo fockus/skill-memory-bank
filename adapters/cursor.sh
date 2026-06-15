@@ -55,7 +55,7 @@ CURSOR_END_MARKER="<!-- memory-bank-cursor:end -->"
 # Hook scripts registered from the skill bundle (not copied into .cursor/hooks/)
 MB_HOOKS=(
   "session-end-autosave.sh"
-  "mb-compact-reminder.sh"
+  "mb-pre-compact.sh"
   "block-dangerous.sh"
   "mb-protected-paths-guard.sh"
   "mb-ears-pre-write.sh"
@@ -71,7 +71,7 @@ MB_HOOKS=(
 EVENT_BINDINGS=(
   "sessionStart:mb-session-start-context.sh"
   "sessionEnd:session-end-autosave.sh"
-  "preCompact:mb-compact-reminder.sh"
+  "preCompact:mb-pre-compact.sh"
   "beforeShellExecution:block-dangerous.sh"
   "preToolUse:mb-protected-paths-guard.sh:Write|Edit"
   "preToolUse:mb-ears-pre-write.sh:Write"
@@ -145,11 +145,26 @@ cursor_hook_env_prefix() {
   printf 'MB_AGENT=cursor MB_SKILLS_ROOT=%s ' "$skills_root"
 }
 
+# Hook names that were registered in previous versions but are no longer current.
+# These must be removed from any copy directories on reinstall so stale binaries
+# do not shadow the canonical bundled scripts.  Currently includes the
+# handoff-v2 rename (mb-compact-reminder.sh → mb-pre-compact.sh).
+LEGACY_MB_HOOKS=(
+  "mb-compact-reminder.sh"
+)
+
 cursor_remove_legacy_hook_copies() {
-  local base dir h
+  local base h
   for base in "$GLOBAL_HOOKS_DIR" "$HOOKS_DIR"; do
     [ -d "$base" ] || continue
+    # Remove current hook names (in case old installs left copies here).
     for h in "${MB_HOOKS[@]}"; do
+      if [ -f "$base/$h" ]; then
+        rm -f "$base/$h"
+      fi
+    done
+    # Remove legacy hook names from old installs.
+    for h in "${LEGACY_MB_HOOKS[@]}"; do
       if [ -f "$base/$h" ]; then
         rm -f "$base/$h"
       fi

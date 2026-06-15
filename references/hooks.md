@@ -249,7 +249,7 @@ Cursor 1.7+ uses Claude-Code-compatible `hooks.json`. The `adapters/cursor.sh` i
 |--------------|--------|---------|
 | `sessionStart` | `mb-session-start-context.sh` | — |
 | `sessionEnd` | `session-end-autosave.sh` | — |
-| `preCompact` | `mb-compact-reminder.sh` | — |
+| `preCompact` | `mb-pre-compact.sh` | — |
 | `beforeShellExecution` | `block-dangerous.sh` | — |
 | `preToolUse` | `mb-protected-paths-guard.sh` | `Write|Edit` |
 | `preToolUse` | `mb-ears-pre-write.sh` | `Write` |
@@ -258,6 +258,6 @@ Cursor 1.7+ uses Claude-Code-compatible `hooks.json`. The `adapters/cursor.sh` i
 | `postToolUse` | `file-change-log.sh` | `Write|Edit` |
 | `postToolUse` | `mb-plan-sync-post-write.sh` | `Write` |
 
-Each entry is tagged `"_mb_owned": true` so reinstall/uninstall preserves user hooks. `mb-compact-reminder.sh` maps to Cursor `preCompact` (not `sessionEnd`) because Cursor fires compaction reminders on that event.
+Each entry is tagged `"_mb_owned": true` so reinstall/uninstall preserves user hooks. `mb-pre-compact.sh` maps to Cursor `preCompact`: on compaction it runs `scripts/mb-handoff.sh --actualize` to write a fresh `handoff/latest.md` capsule (handoff-v2). It is bounded to ~2s and never blocks compaction (on timeout/failure it WARNs and exits 0).
 
 Opt-out: `MB_AUTOLOAD_CONTEXT=off` disables `sessionStart` auto-context injection.

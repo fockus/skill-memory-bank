@@ -8,7 +8,7 @@ _REQ-IDs are **per-spec-local**: the same REQ-NNN may appear in multiple specs (
 - Total REQs: 188
 - Planned: 0
 - Tested: 39
-- Tasks-covered: 179
+- Tasks-covered: 185
 
 ## Matrix
 
@@ -44,14 +44,14 @@ _REQ-IDs are **per-spec-local**: the same REQ-NNN may appear in multiple specs (
 | REQ-307 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-3, specs/cursor-extension/tasks.md#task-4 | — | — | 🏗️ |
 | REQ-308 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-7 | — | — | 🏗️ |
 | REQ-309 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-7 | — | — | 🏗️ |
-| REQ-310 | specs/cursor-extension/requirements.md | — | — | — | ⬜ |
+| REQ-310 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-2 | — | — | 🏗️ |
 | REQ-311 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-2 | — | — | 🏗️ |
-| REQ-312 | specs/cursor-extension/requirements.md | — | — | — | ⬜ |
-| REQ-313 | specs/cursor-extension/requirements.md | — | — | — | ⬜ |
-| REQ-314 | specs/cursor-extension/requirements.md | — | — | — | ⬜ |
-| REQ-315 | specs/cursor-extension/requirements.md | — | — | — | ⬜ |
+| REQ-312 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-2 | — | — | 🏗️ |
+| REQ-313 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-2 | — | — | 🏗️ |
+| REQ-314 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-2 | — | — | 🏗️ |
+| REQ-315 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-2 | — | — | 🏗️ |
 | REQ-316 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-2 | — | — | 🏗️ |
-| REQ-317 | specs/cursor-extension/requirements.md | — | — | — | ⬜ |
+| REQ-317 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-2 | — | — | 🏗️ |
 | REQ-318 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-5 | — | — | 🏗️ |
 | REQ-319 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-6 | — | — | 🏗️ |
 | REQ-320 | specs/cursor-extension/requirements.md | specs/cursor-extension/tasks.md#task-6 | — | — | 🏗️ |
@@ -205,12 +205,6 @@ _REQ-IDs are **per-spec-local**: the same REQ-NNN may appear in multiple specs (
 
 ## Orphans
 
-- cursor-extension/REQ-310 — in spec but no covering plan or task
-- cursor-extension/REQ-312 — in spec but no covering plan or task
-- cursor-extension/REQ-313 — in spec but no covering plan or task
-- cursor-extension/REQ-314 — in spec but no covering plan or task
-- cursor-extension/REQ-315 — in spec but no covering plan or task
-- cursor-extension/REQ-317 — in spec but no covering plan or task
 - parallel-team-execution/REQ-PTE-070 — in spec but no covering plan or task
 - parallel-team-execution/REQ-PTE-071 — in spec but no covering plan or task
 - parallel-team-execution/REQ-PTE-072 — in spec but no covering plan or task

@@ -53,6 +53,8 @@ hooks/.venv/
 .memory-bank/.index/
 .memsearch/
 .memory-bank/session/
+.memory-bank/handoff/
+.memory-bank/tmp/
 
 # One-off migration backups (session-memory rollout) — local only, never tracked.
 *.bak-*-sessionmem

@@ -34,7 +34,7 @@ _Wave queues unchanged below._
 - ⬜ W1 code — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)
 - ⬜ W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)
 - ⬜ W2 — [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md)
-- ⬜ W3 — [handoff-v2](plans/2026-05-23_feature_handoff-v2.md)
+- ✅ W3 — [handoff-v2](specs/handoff-v2/) — 5/5 tasks, governed dual-review + judge (2026-06-15)
 - ⬜ W4 — [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md)
 - ⬜ W5 — [goal-driven-autopilot sprint 1](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md)
 - ⬜ W6 — [goal-driven-autopilot sprint 2](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md)

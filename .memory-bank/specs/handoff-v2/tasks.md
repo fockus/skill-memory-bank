@@ -20,8 +20,8 @@ Executable task list for traceability. Detailed implementation steps remain in t
 Testing: bats verifies capsule creation, freshness metadata, and atomic write behavior.
 
 **DoD:**
-- [ ] Capsule writer records now, done, blockers, next step, and pointers.
-- [ ] Latest symlink or copy is updated idempotently.
+- [x] Capsule writer records now, done, blockers, next step, and pointers.
+- [x] Latest symlink or copy is updated idempotently.
 
 <!-- mb-task:2 -->
 ### Task 2: PreCompact and SessionStart integration
@@ -32,8 +32,8 @@ Testing: bats verifies capsule creation, freshness metadata, and atomic write be
 Testing: bats simulates PreCompact and SessionStart with fresh and stale capsules.
 
 **DoD:**
-- [ ] PreCompact writes a capsule without blocking compaction on failure.
-- [ ] SessionStart prefers a fresh capsule and falls back cleanly.
+- [x] PreCompact writes a capsule without blocking compaction on failure.
+- [x] SessionStart prefers a fresh capsule and falls back cleanly.
 
 <!-- mb-task:3 -->
 ### Task 3: Mandatory done gates
@@ -44,8 +44,8 @@ Testing: bats simulates PreCompact and SessionStart with fresh and stale capsule
 Testing: bats covers green gates, red tests, rule violations, placeholder hits, and force reason logging.
 
 **DoD:**
-- [ ] Done command invokes tests, rules, and placeholder scan.
-- [ ] Force bypass records a reason in progress history.
+- [x] Done command invokes tests, rules, and placeholder scan.
+- [x] Force bypass records a reason in progress history.
 
 <!-- mb-task:4 -->
 ### Task 4: Progress hash chain and drift check
@@ -56,8 +56,8 @@ Testing: bats covers green gates, red tests, rule violations, placeholder hits, 
 Testing: pytest verifies chain update and drift failure when historical progress content is modified.
 
 **DoD:**
-- [ ] `index.json` stores progress chain metadata.
-- [ ] `mb-drift.sh` reports tampering as a critical drift.
+- [x] `index.json` stores progress chain metadata.
+- [x] `mb-drift.sh` reports tampering as a critical drift.
 
 <!-- mb-task:5 -->
 ### Task 5: Docs and integration verification
@@ -68,5 +68,5 @@ Testing: pytest verifies chain update and drift failure when historical progress
 Testing: docs checks verify command references and handoff lifecycle sections.
 
 **DoD:**
-- [ ] User docs explain capsule lifecycle, done gates, force semantics, and hash-chain limits.
-- [ ] `CHANGELOG.md` lists the handoff-v2 behavior behind its config gate.
+- [x] User docs explain capsule lifecycle, done gates, force semantics, and hash-chain limits.
+- [x] `CHANGELOG.md` lists the handoff-v2 behavior behind its config gate.

@@ -94,6 +94,10 @@
       "hooks": [
         {
           "type": "command",
+          "command": "~/.claude/hooks/mb-pre-compact.sh # [memory-bank-skill]"
+        },
+        {
+          "type": "command",
           "command": "echo '[COMPACTION] [memory-bank-skill] Before compaction, run MB Manager (Agent, model: sonnet) to actualize .memory-bank/ — checklist, progress, STATUS. Then preserve key principles from CLAUDE.md and the current task context.'"
         }
       ]
@@ -143,10 +147,6 @@
         {
           "type": "command",
           "command": "~/.claude/hooks/session-end-autosave.sh # [memory-bank-skill]"
-        },
-        {
-          "type": "command",
-          "command": "~/.claude/hooks/mb-compact-reminder.sh # [memory-bank-skill]"
         }
       ]
     }

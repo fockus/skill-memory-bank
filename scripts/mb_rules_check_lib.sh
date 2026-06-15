@@ -108,6 +108,73 @@ is_tdd_exempt() {
   return 1
 }
 
+# ---- placeholder scan -------------------------------------------------------
+
+# Default deny list for the placeholder gate (§5). Each entry is an ERE token.
+# Override via the MB_PLACEHOLDER_DENY env (comma-separated) which the caller
+# populates from pipeline.yaml:done_placeholders.deny.
+MB_PLACEHOLDER_DENY_DEFAULT='TODO,FIXME,XXX,\.\.\.,pseudocode' # mb-rules-check: allow-placeholder
+
+# Returns 0 if the file should be skipped by the placeholder scan: binary/data
+# files and markdown/docs where these markers are legitimate prose, test fixtures
+# where markers are intentional examples, and vendor/generated paths.
+is_placeholder_exempt() {
+  local f="$1"
+  case "$f" in
+    *.md|*.lock|*.json|*.svg|*.png|*.jpg|*.jpeg|*.gif|*.ico|*.pdf) return 0 ;;
+    *.yaml|*.yml|*.toml) return 0 ;;
+  esac
+  case "$f" in
+    # Test fixtures legitimately carry placeholder markers as examples.
+    # This is consistent with is_tdd_exempt / is_fully_excluded which also
+    # exempt tests/ paths from structural checks.
+    tests/*|*/tests/*) return 0 ;;
+    test_*.bats|test_*.py|test_*.sh|test_*.ts|test_*.js) return 0 ;;
+    *.test.*|*.spec.*|*_test.*) return 0 ;;
+    */vendor/*|vendor/*) return 0 ;;
+    */node_modules/*|node_modules/*) return 0 ;;
+    */__pycache__/*|__pycache__/*) return 0 ;;
+  esac
+  return 1
+}
+
+# Scan FILES[] for placeholder markers. Populates VIOLATIONS[] with one entry
+# per matching line. Honours MB_PLACEHOLDER_DENY when set. Returns the number of
+# hits via the global PLACEHOLDER_HITS.
+#
+# Line-level pragma: any source line that ends with the comment marker
+#   # mb-rules-check: allow-placeholder
+# is silently skipped. This lets a single canonical deny-list definition
+# (the constant above) avoid self-tripping the gate it defines.
+scan_placeholders() {
+  local deny="${MB_PLACEHOLDER_DENY:-$MB_PLACEHOLDER_DENY_DEFAULT}"
+  local pattern
+  # Convert comma-separated tokens into an ERE alternation.
+  pattern="$(printf '%s' "$deny" | sed 's/,/|/g')"
+  PLACEHOLDER_HITS=0
+
+  local f line_no line
+  for f in "${FILES[@]+"${FILES[@]}"}"; do
+    [[ -z "$f" ]] && continue
+    [[ -f "$f" ]] || continue
+    is_placeholder_exempt "$f" && continue
+    CHECKS_RUN=$((CHECKS_RUN + 1))
+    # grep -n: emit "lineno:content"; -E for the alternation.
+    while IFS= read -r hit; do
+      [[ -z "$hit" ]] && continue
+      line_no="${hit%%:*}"
+      line="${hit#*:}"
+      # Skip lines carrying the allow pragma (canonical deny-list definitions).
+      [[ "$line" == *"# mb-rules-check: allow-placeholder"* ]] && continue
+      PLACEHOLDER_HITS=$((PLACEHOLDER_HITS + 1))
+      emit_violation \
+        "no-placeholders" "CRITICAL" "$f" "$line_no" "$line" \
+        "Placeholder marker found in shipped source (deny: $deny)" \
+        "no-placeholders" "baseline"
+    done < <(grep -nE "$pattern" "$f" 2>/dev/null || true)
+  done
+}
+
 # Identify if a path looks like a test file (for matching).
 is_test_file() {
   local f="$1"

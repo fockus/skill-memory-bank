@@ -107,8 +107,8 @@ def test_missing_frontmatter_uses_defaults(index_mod, mb_path):
 
     data = json.loads((mb_path / "index.json").read_text())
     entry = data["notes"][0]
-    assert entry["type"] == "note"       # default
-    assert entry["tags"] == []           # default
+    assert entry["type"] == "note"  # default
+    assert entry["tags"] == []  # default
     assert entry.get("importance") in (None, "medium")
 
 
@@ -212,6 +212,7 @@ def test_atomic_rewrite_preserves_on_failure(index_mod, mb_path, monkeypatch):
 
     # Now patch os.replace to raise, then call build_index again
     import os
+
     original_replace = os.replace
 
     def failing_replace(*args, **kwargs):
@@ -305,9 +306,7 @@ def test_simple_yaml_handles_empty_list(index_mod):
 
 
 def test_simple_yaml_skips_comment_and_blank(index_mod):
-    meta = index_mod._simple_yaml_parse(
-        "# leading comment\n\ntype: note\n: no-key-line\n"
-    )
+    meta = index_mod._simple_yaml_parse("# leading comment\n\ntype: note\n: no-key-line\n")
     assert meta == {"type": "note"}
 
 
@@ -466,7 +465,7 @@ def test_private_in_tags_field_ignored(index_mod, mb_path):
     make_note(
         mb_path,
         "paranoia.md",
-        "---\ntype: note\ntags: [public, \"<private>leak</private>\"]\n---\n\nbody\n",
+        '---\ntype: note\ntags: [public, "<private>leak</private>"]\n---\n\nbody\n',
     )
     index_mod.build_index(str(mb_path))
 
@@ -485,9 +484,7 @@ def test_archived_flag_true_for_notes_archive_subdir(index_mod, mb_path):
     """notes/archive/X.md → entry.archived: True."""
     archive = mb_path / "notes" / "archive"
     archive.mkdir(parents=True, exist_ok=True)
-    (archive / "old.md").write_text(
-        "---\ntype: note\nimportance: low\n---\n\nArchived summary.\n"
-    )
+    (archive / "old.md").write_text("---\ntype: note\nimportance: low\n---\n\nArchived summary.\n")
     index_mod.build_index(str(mb_path))
 
     data = json.loads((mb_path / "index.json").read_text())
@@ -507,6 +504,144 @@ def test_archived_flag_false_for_regular_notes(index_mod, mb_path):
 
     data = json.loads((mb_path / "index.json").read_text())
     assert data["notes"][0]["archived"] is False
+
+
+# ═══════════════════════════════════════════════════════════════
+# progress_chain round-trip preservation (handoff-v2 §6 / §9 risk row)
+# ═══════════════════════════════════════════════════════════════
+
+
+def test_rebuild_preserves_existing_progress_chain(index_mod, mb_path):
+    """A rebuild MUST NOT clobber an existing index.json:progress_chain.
+
+    The hash chain lives in index.json (handoff-v2 §6) but index.json is
+    rebuilt by mb-index-json.py on every actualize. Design §9 risk row
+    ("Hash chain lives in index.json which is rebuilt") requires round-trip.
+    """
+    make_note(mb_path, "a.md", "---\ntype: note\n---\nbody\n")
+    chain = {
+        "version": 1,
+        "tail": [
+            {"heading": "## 2026-06-12", "sha256": "a" * 64},
+            {"heading": "## 2026-06-11", "sha256": "b" * 64},
+        ],
+        "last_synced_at": "2026-06-12T10:00:00Z",
+    }
+    # Seed an index.json that already carries a progress_chain.
+    index_path = mb_path / "index.json"
+    index_path.write_text(json.dumps({"notes": [], "lessons": [], "progress_chain": chain}))
+
+    index_mod.build_index(str(mb_path))
+
+    data = json.loads(index_path.read_text())
+    assert data.get("progress_chain") == chain, "progress_chain must survive a rebuild"
+    # And the rebuild still did its real job.
+    assert len(data["notes"]) == 1
+
+
+def test_rebuild_without_existing_chain_omits_key(index_mod, mb_path):
+    """No prior chain → rebuild does not invent a progress_chain key."""
+    make_note(mb_path, "a.md", "---\ntype: note\n---\nbody\n")
+    index_mod.build_index(str(mb_path))
+    data = json.loads((mb_path / "index.json").read_text())
+    assert "progress_chain" not in data
+
+
+def test_rebuild_preserves_chain_when_index_malformed_is_ignored(index_mod, mb_path):
+    """A corrupt prior index.json must not crash the rebuild (chain simply lost)."""
+    make_note(mb_path, "a.md", "---\ntype: note\n---\nbody\n")
+    (mb_path / "index.json").write_text("{ this is not valid json")
+    # Must not raise.
+    index_mod.build_index(str(mb_path))
+    data = json.loads((mb_path / "index.json").read_text())
+    assert len(data["notes"]) == 1
+
+
+# ═══════════════════════════════════════════════════════════════
+# progress_chain module — malformed index handling (finding #2)
+# ═══════════════════════════════════════════════════════════════
+
+REPO_ROOT_FOR_CHAIN = Path(__file__).resolve().parents[2]
+
+
+def _load_chain_module():
+    """Load memory_bank_skill.progress_chain (sibling package)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "progress_chain",
+        REPO_ROOT_FOR_CHAIN / "memory_bank_skill" / "progress_chain.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.fixture(scope="module")
+def chain_mod():
+    try:
+        return _load_chain_module()
+    except Exception:
+        pytest.skip("memory_bank_skill/progress_chain.py not importable")
+
+
+def test_load_index_absent(chain_mod, tmp_path):
+    """_load_index on a missing file → absent=True."""
+    result = chain_mod._load_index(tmp_path / "nonexistent.json")
+    assert result.absent is True
+    assert result.malformed is False
+    assert result.data is None
+
+
+def test_load_index_malformed_truncated(chain_mod, tmp_path):
+    """_load_index on truncated JSON → malformed=True."""
+    f = tmp_path / "index.json"
+    f.write_text('{"broken":')
+    result = chain_mod._load_index(f)
+    assert result.malformed is True
+    assert result.absent is False
+
+
+def test_load_index_malformed_empty(chain_mod, tmp_path):
+    """_load_index on empty file → malformed=True."""
+    f = tmp_path / "index.json"
+    f.write_text("")
+    result = chain_mod._load_index(f)
+    assert result.malformed is True
+
+
+def test_load_index_ok(chain_mod, tmp_path):
+    """_load_index on valid JSON dict → data populated."""
+    f = tmp_path / "index.json"
+    f.write_text('{"notes": [], "progress_chain": {"version": 1}}')
+    result = chain_mod._load_index(f)
+    assert result.absent is False
+    assert result.malformed is False
+    assert result.data == {"notes": [], "progress_chain": {"version": 1}}
+
+
+def test_verify_malformed_index_returns_index_malformed(chain_mod, tmp_path):
+    """verify() on a malformed index.json → ok=False, error='index_malformed'."""
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- work\n")
+    (mb / "index.json").write_text('{"incomplete":')
+    report = chain_mod.verify(mb)
+    assert report["ok"] is False
+    assert report["error"] == "index_malformed"
+
+
+def test_rebuild_tail_writes_bak_on_malformed_index(chain_mod, tmp_path):
+    """rebuild_tail with a malformed existing index writes index.json.bak."""
+    mb = tmp_path / ".memory-bank"
+    mb.mkdir()
+    (mb / "progress.md").write_text("## 2026-06-10\n\n- work\n")
+    (mb / "index.json").write_text("{bad json")
+    chain_mod.rebuild_tail(mb)
+    assert (mb / "index.json.bak").exists(), "corrupt index must be backed up"
+    # New index must be valid.
+    data = json.loads((mb / "index.json").read_text())
+    assert "progress_chain" in data
 
 
 # ═══════════════════════════════════════════════════════════════
