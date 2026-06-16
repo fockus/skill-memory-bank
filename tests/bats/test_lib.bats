@@ -427,6 +427,38 @@ teardown() {
   [ "$output" = "cafe" ]
 }
 
+@test "mb_sanitize_topic: preserves internal dots (dotted spec names)" {
+  # Regression: dotted spec topics like reviewer-2.0 must round-trip so
+  # <mb>/specs/reviewer-2.0 resolves (was mangled to reviewer-20).
+  run mb_sanitize_topic "reviewer-2.0"
+  [ "$status" -eq 0 ]
+  [ "$output" = "reviewer-2.0" ]
+}
+
+@test "mb_sanitize_topic: preserves version-like dots" {
+  run mb_sanitize_topic "v1.2.3"
+  [ "$status" -eq 0 ]
+  [ "$output" = "v1.2.3" ]
+}
+
+@test "mb_sanitize_topic: parent-traversal '..' collapses to empty (security)" {
+  run mb_sanitize_topic ".."
+  [ "$status" -eq 0 ]
+  [ "$output" = "" ]
+}
+
+@test "mb_sanitize_topic: strips leading traversal dots (security)" {
+  run mb_sanitize_topic "../etc"
+  [ "$status" -eq 0 ]
+  [ "$output" = "etc" ]
+}
+
+@test "mb_sanitize_topic: strips leading and trailing dots" {
+  run mb_sanitize_topic ".hidden."
+  [ "$status" -eq 0 ]
+  [ "$output" = "hidden" ]
+}
+
 # ═══ mb_collision_safe_filename ═══
 
 @test "mb_collision_safe_filename: non-existing returns as-is" {

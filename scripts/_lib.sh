@@ -360,14 +360,20 @@ mb_detect_src_glob() {
 }
 
 # Sanitize a free-form topic into a filename-safe slug.
-# Lowercase, spaces → dashes, keep only [a-z0-9-], squeeze repeated dashes.
+# Lowercase, spaces → dashes, keep only [a-z0-9.-], squeeze repeated dashes.
+# Internal dots are preserved (dotted spec names like `reviewer-2.0`, version
+# strings like `v1.2.3`). Leading/trailing dots are stripped so a pure-dot
+# input (`.`, `..`) collapses to empty and `../x` → `x` — no path traversal:
+# slashes are already removed by the charset filter, and `.`/`..` as a whole
+# component is the only filesystem-special case, which the strip neutralizes.
 mb_sanitize_topic() {
   local input="${1:-}"
   printf '%s' "$input" \
     | tr '[:upper:]' '[:lower:]' \
     | tr ' ' '-' \
-    | tr -cd 'a-z0-9-' \
-    | tr -s '-'
+    | tr -cd 'a-z0-9.-' \
+    | tr -s '-' \
+    | sed 's/^\.*//; s/\.*$//'
 }
 
 # Return a collision-free filename by appending _2, _3, ... before the extension.
