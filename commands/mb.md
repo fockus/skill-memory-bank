@@ -60,6 +60,8 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `idea-promote <I-NNN> <type>`                            | Promote an idea → plan. Creates plan file via `mb-plan.sh`, flips idea status `NEW\|TRIAGED → PLANNED`, adds `**Plan:** [plans/...]` link, runs plan-sync. `type ∈ feature\|fix\|refactor\|experiment`                                                                                                    |
 | `adr <title>`                                            | Capture Architecture Decision Record with auto-generated monotonic `ADR-NNN` ID inside `backlog.md ## ADR` section — skeleton includes Context / Options / Decision / Rationale / Consequences                                                                                                           |
 | `goal`                                                   | Scaffold `.memory-bank/goal.md` + `.memory-bank/project.md` from templates (copy-if-absent), then validate the goal with `scripts/mb-goal-validate.sh`. Phase-1 Dynamic Flow primitive (REQ-DF-001..005). See `commands/goal.md`                                                                          |
+| `analyze-task`                                           | Auto-classify goal + git-diff scope into ONE route and write it into the `mb-flow` fence (default Dynamic Flow router). See `commands/analyze-task.md` (REQ-DF-020/022)                                                                                                                                   |
+| `flow <route>`                                           | Explicitly select a route (skip auto-classification); the deterministic route-floor + firewall STILL apply. Escape-hatch. See `commands/flow.md` (REQ-DF-025)                                                                                                                                            |
 | `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `status.md`, restructures `backlog.md` to `## Ideas` + `## ADR` skeleton. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
 | (unrecognized)                                           | Search by `$ARGUMENTS`                                                                                                                                                                                                                                                                                   |
 
@@ -1392,6 +1394,32 @@ bash "$SKILL_DIR/scripts/mb-goal-validate.sh" "$BANK/goal.md"
 ```
 
 After scaffolding, fill in `## Description` + `## Acceptance criteria` + `progress_source` in `goal.md`, then re-run until it exits `0`.
+
+---
+
+### analyze-task
+
+**Alias** for `/analyze-task` — dispatch to `commands/analyze-task.md` for the canonical workflow. The **default** Dynamic Flow router (REQ-DF-020): read `goal.md` + `git diff --name-only`, classify ONE candidate route (`bugfix | code-change | arch | migration | research`), then call the resolver, which applies the deterministic route-floor (REQ-DF-022) and writes the resolved `route:` into the `<!-- mb-flow -->` fence in `status.md`.
+
+```bash
+# <pick> = the route you classified from goal.md + the diff scope.
+bash "$(dirname "$0")/../scripts/mb-flow-route.sh" --candidate <pick>
+```
+
+Report the **resolved** route from the JSON the resolver prints; if `floor_triggered` is `true`, name the `reasons` (the floor overrode your candidate on purpose). On a red phase-boundary `mb-flow-verify.sh` (diff-scope breach / unmet acceptance, REQ-DF-024) HALT and re-run `analyze-task`; on a mid-flight goal change rewrite `goal.md` and re-run (REQ-DF-023).
+
+---
+
+### flow <route>
+
+**Alias** for `/flow` — dispatch to `commands/flow.md` for the canonical workflow. The explicit override escape-hatch (REQ-DF-025), mirroring `/mb work --workflow`: select `<route>` directly and **skip auto-classification** (no LLM step). The deterministic route-floor (REQ-DF-022) and the firewall (REQ-DF-040) STILL apply — an override below the floor is raised to the floor, never honored blindly.
+
+```bash
+# <route> ∈ bugfix | code-change | arch | migration | research
+bash "$(dirname "$0")/../scripts/mb-flow-route.sh" --route <route>
+```
+
+Auto-routing (`/mb analyze-task`) is the default; reach for `/mb flow <route>` only to deliberately pin a route.
 
 ---
 

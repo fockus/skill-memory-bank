@@ -123,10 +123,10 @@ Testing: manual — the rendered AGENTS.md block references only scripts that ex
 Testing: bats — diff under `domain/`/`*Protocol`/`protected_paths` → forced `arch`; `depends_on>0` → forced `arch`; trivial single-file change → `bugfix`/`code-change`; goal-change re-runs analyze-task; `/mb flow arch` override skips classification yet STILL writes `route: arch` + applies floor; an override BELOW the floor is raised to the floor (not honored blindly).
 
 **DoD:**
-- [ ] `analyze-task` auto-classifies goal + `git diff` scope and writes one `route:` into the `mb-flow` fence (default path).
-- [ ] The path-glob + `depends_on` route-floor forces route ≥ `arch` independent of the LLM AND of any explicit override.
-- [ ] `/mb flow <route>` / `--route <route>` selects a route directly, skips classification, still applies floor + firewall.
-- [ ] A red diff-scope / unmet-acceptance halts and re-runs `analyze-task` rather than advancing.
+- [x] `analyze-task` auto-classifies goal + `git diff` scope and writes one `route:` into the `mb-flow` fence (default path).
+- [x] The path-glob + `depends_on` route-floor forces route ≥ `arch` independent of the LLM AND of any explicit override.
+- [x] `/mb flow <route>` / `--route <route>` selects a route directly, skips classification, still applies floor + firewall.
+- [x] A red diff-scope / unmet-acceptance halts and re-runs `analyze-task` rather than advancing.
 
 ### Sub-wave 2B — Pattern engine core (`mb-fanout.sh`)
 
