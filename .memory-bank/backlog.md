@@ -3,6 +3,16 @@
 ## Ideas
 
 
+### I-080 — Architect / Decomposition-as-Artifact stage перед параллельным исполнением [MED, PROPOSED, 2026-06-16]
+
+**Context:** Сейчас раскладку фичи на параллельные потоки делает сам оркестратор (main-loop) — декомпозиция эфемерна (не аудируется/не реплеится), на сам план нет независимого гейта, и параллелизм небезопасен без декларации владения файлами. Предложение: промотировать декомпозицию в явный **execution-DAG** (deps + `owns_paths` + контракт) с одним ревью-гейтом до фан-аута; исполнители — по фиксированным role-контрактам (Contract-First); per-item verify + integration-reviewer (barrier) → `mb-judge`. Off by default, threshold-gated. Достраивает планировочную половину к runtime фан-аута (`mb-fanout.sh` / паттерн `fanout-synthesize`); `owns_paths` — верхняя половина гарантии к fence из dynamic-flow Task 12.
+
+**Proposal (детально):** `reports/2026-06-16_parallel-architect-decomposition-proposal.md` — мотивация, дизайн (§4), связка с Task 12 (§6), open questions (§7), EARS-seeds (§8), ICE (§9), риски (§10).
+
+**Spec:** TBD — кандидат в `specs/<topic>/` (Phase 3, после fanout/sub-invoke Task 12–14). Базировать на §8 (acceptance/EARS-seeds) и §7 (open questions).
+
+**Outcome (целевой):** Декомпозиция = durable ревьюируемый артефакт; гейт на план до траты токенов исполнителей; безопасный параллелизм by construction (непересекающиеся `owns_paths`).
+
 ### I-061 — Cursor compatibility remediation (hook bundle paths + global storage) [HIGH, PLANNED, 2026-05-24]
 
 **Context:** Audit `reports/2026-05-24_cursor-compatibility-audit.md`. Copied hooks in `.cursor/hooks/` break `scripts/` resolution; five hooks fail silently. Global storage not wired without `MB_AGENT=cursor`.
