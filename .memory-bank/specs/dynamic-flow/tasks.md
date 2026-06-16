@@ -106,60 +106,116 @@ Testing: manual — the rendered AGENTS.md block references only scripts that ex
 - [x] `_lib_agents_md.sh` fenced block carries the goal+firewall loop rule ("do not finish until `mb-flow-verify.sh` exits 0; on red → repair, re-run").
 - [x] The block documents only shipped scripts (no vapor).
 
-## Phase 2 — Mini-router (deferred; after Phase 1 firewall is proven)
+## Phase 2 — Router + explicit pattern engine + full catalogue (CONFIRMED 2026-06-16; dependency-ordered sub-waves)
+
+> Scope confirmed via discussion (2026-06-16): **Q1** auto-router default + `/mb flow <route>` override · **Q2** DF-owned
+> explicit, stateless pattern engine (ADR-1′/ADR-9), NOT native-only delegation · **Q3** full five-route catalogue. Sub-waves run
+> in order 2A→2E; each ships behind the proven Phase-1 firewall. Build only after explicit `go` (currently paused at Phase-1 milestone).
+
+### Sub-wave 2A — Router (auto-classify + explicit override)
 
 <!-- mb-task:8 -->
-### Task 8: `analyze-task` skill + deterministic route-floor
+### Task 8: `analyze-task` router + deterministic route-floor + explicit `/mb flow` override
 
-**Covers:** REQ-DF-020, REQ-DF-022, REQ-DF-023, REQ-DF-024, REQ-DF-071
+**Covers:** REQ-DF-020, REQ-DF-022, REQ-DF-023, REQ-DF-024, REQ-DF-025, REQ-DF-071
 **Role:** developer
 
-Testing: bats — diff under `domain/`/`*Protocol`/`protected_paths` → forced `arch`; `depends_on>0` → forced `arch`; trivial single-file change → `bugfix`/`code-change`; goal-change re-runs analyze-task.
+Testing: bats — diff under `domain/`/`*Protocol`/`protected_paths` → forced `arch`; `depends_on>0` → forced `arch`; trivial single-file change → `bugfix`/`code-change`; goal-change re-runs analyze-task; `/mb flow arch` override skips classification yet STILL writes `route: arch` + applies floor; an override BELOW the floor is raised to the floor (not honored blindly).
 
 **DoD:**
-- [ ] `analyze-task` classifies the goal and names one route, writing `route:` into the fence.
-- [ ] The path-glob + `depends_on` route-floor forces route ≥ arch independent of the LLM.
-- [ ] A red diff-scope / unmet-acceptance halts and re-runs analyze-task.
+- [ ] `analyze-task` auto-classifies goal + `git diff` scope and writes one `route:` into the `mb-flow` fence (default path).
+- [ ] The path-glob + `depends_on` route-floor forces route ≥ `arch` independent of the LLM AND of any explicit override.
+- [ ] `/mb flow <route>` / `--route <route>` selects a route directly, skips classification, still applies floor + firewall.
+- [ ] A red diff-scope / unmet-acceptance halts and re-runs `analyze-task` rather than advancing.
+
+### Sub-wave 2B — Pattern engine core (`mb-fanout.sh`)
 
 <!-- mb-task:9 -->
-### Task 9: Two flow-templates (code-change, bugfix)
+### Task 9: `mb-fanout.sh` — stateless, agent-invoked fan-out helper
+
+**Covers:** REQ-DF-081, REQ-DF-084, REQ-DF-085
+**Role:** backend
+
+Testing: bats — N branch prompts + a stub sub-invoke command run concurrently and each branch's JSON is collected; a failing/non-JSON branch → exit 2 + per-branch error marker (never silent drop); helper holds no cross-invocation state (no journal survives); bash-3.2 portable; a branch-count cap + `mb-work-budget.sh` pre-check rejects an over-budget fan-out (exit 2) BEFORE spawning.
+
+**DoD:**
+- [ ] `mb-fanout.sh` takes N branch prompts + a per-agent sub-invoke command, runs them via background jobs + `wait`, collects per-branch JSON.
+- [ ] A failed/non-JSON branch → exit 2 + per-branch error marker; no branch silently dropped (REQ-DF-084).
+- [ ] No daemon, no durable journal, no persisted cross-invocation state; agent always initiates (REQ-DF-085); bash-3.2 clean.
+- [ ] Branch-count cap + budget pre-check (`mb-work-budget.sh`) fail-loud BEFORE spawning when N×cost exceeds budget.
+
+### Sub-wave 2C — Six pattern templates
+
+<!-- mb-task:10 -->
+### Task 10: `flow-templates/patterns/*.md` — the six workflow patterns
+
+**Covers:** REQ-DF-080, REQ-DF-083, REQ-DF-086
+**Role:** developer
+
+Testing: per-pattern manual + a lint test — each of the six templates declares {fan-out shape, per-branch skill, aggregation/judge step, termination rule} and routes its aggregated result through `mb-flow-verify.sh`; aggregation/judge steps reference only existing assets (`mb-reviewer*`/`judge`/reflexion/sadd), no new rubric dimensions; a CC template may note the native-Task optimization while keeping `mb-fanout` the portable default.
+
+**DoD:**
+- [ ] Six templates exist: `classify-and-act`, `fanout-synthesize`, `adversarial-verify`, `generate-filter`, `tournament`, `loop-until-done`.
+- [ ] Each declares fan-out shape + per-branch skill + aggregation/judge + termination rule; composition documented (Tournament = fanout + pairwise-judge aggregation; Loop-Until-Done wraps a body until a stop predicate).
+- [ ] Each pattern's aggregated result passes `mb-flow-verify.sh` before "done" (REQ-DF-086); no new LLM-judge rubric dimensions.
+
+### Sub-wave 2D — Five route templates
+
+<!-- mb-task:11 -->
+### Task 11: `flow-templates/<route>.md` — full five-route catalogue
 
 **Covers:** REQ-DF-012, REQ-DF-013, REQ-DF-021
 **Role:** developer
 
-Testing: manual — `code-change` reproduces the current `work.md` loop; `bugfix` runs reproduce→debug→patch→verify; each declares its boundary-checks and sequential fallback.
+Testing: per-route manual — `code-change` reproduces the current `work.md` loop verbatim; `bugfix` = reproduce→debug→patch→verify; `arch`/`migration`/`research` expand their phases; each route declares phases→skill→boundary-checks→retry→sequential-fallback AND names which pattern(s) it invokes; `arch` exists so the route-floor's forced target is real.
 
 **DoD:**
-- [ ] `flow-templates/code-change.md` reuses the `work.md` loop verbatim (one skill, no over-split).
-- [ ] `flow-templates/bugfix.md` lists phases → skill → boundary-checks → retry → sequential-fallback.
+- [ ] `code-change.md` reuses the `work.md` loop verbatim (one skill, no over-split, ADR-7).
+- [ ] `bugfix.md`, `arch.md`, `migration.md`, `research.md` each list phases → skill → boundary-checks → retry → sequential-fallback and name the pattern(s) they use.
+- [ ] `arch.md` is present (mandatory: route-floor can force `arch` — REQ-DF-022).
 
-## Phase 3 — Cross-agent + full catalogue (deferred; on confirmed multi-agent use)
+### Sub-wave 2E — Per-agent sub-invoke (Claude Code + Codex) + fence concurrency
 
-<!-- mb-task:10 -->
-### Task 10: Cross-agent adapters
+<!-- mb-task:12 -->
+### Task 12: Per-agent sub-invoke contract (CC + Codex) + parallel fence discipline
 
-**Covers:** REQ-DF-051, REQ-DF-052, REQ-DF-053, REQ-DF-072
+**Covers:** REQ-DF-082, REQ-DF-030, REQ-DF-051
 **Role:** devops
 
-Testing: per-agent smoke — flow-templates + fence rules install on Codex/OpenCode/Pi; no-parallel hosts run sequentially and emit a stderr WARN.
+Testing: bats — the adapter bakes a per-agent sub-invoke command (CC Task/background + `codex exec`); `mb-fanout.sh` discovers it; parallel branches each write `.mb-flow/branch-<i>.json` and the fence is written once, serially, by the initiating agent (never by a branch) — no race, content outside the fence byte-preserved.
 
 **DoD:**
-- [ ] `adapters/{codex,opencode,pi}.sh` ship `flow-templates/` + the fence rules.
-- [ ] Hosts without parallel dispatch degrade to sequential + WARN (no standalone dispatcher rebuilt).
+- [ ] The adapter declares a per-agent shell sub-invoke command for Claude Code + Codex (REQ-DF-082).
+- [ ] `mb-fanout.sh` resolves the sub-invoke command for the active agent (baked env / resolver).
+- [ ] Parallel branches write per-branch JSON sinks; the `mb-flow` fence is written once serially by the initiator; no concurrent-fence race (open-Q2).
 
-<!-- mb-task:11 -->
-### Task 11: Remaining templates + composable skills
+## Phase 3 — Broaden sub-invoke + composable skills (deferred)
+
+<!-- mb-task:13 -->
+### Task 13: Broaden per-agent sub-invoke (Pi/OpenCode) + native-feature preference + sequential fallback
+
+**Covers:** REQ-DF-052, REQ-DF-053, REQ-DF-083, REQ-DF-072
+**Role:** devops
+
+Testing: per-agent smoke — Pi/OpenCode sub-invoke commands fan out via `mb-fanout`; where a native parallel feature exists it MAY be preferred; where no sub-invoke is resolvable → sequential + stderr WARN (last resort, not the default).
+
+**DoD:**
+- [ ] `adapters/{pi,opencode}.sh` declare their sub-invoke command; `flow-templates/` + fence rules ship in the install payload.
+- [ ] A host with a native feature MAY prefer it (REQ-DF-083); the explicit helper stays the portable default.
+- [ ] No sub-invoke resolvable → sequential + WARN; no standalone dispatcher rebuilt (ADR-1′).
+
+<!-- mb-task:14 -->
+### Task 14: Composable skills — `critique` / `risk-find` / `final-report`
 
 **Covers:** REQ-DF-010, REQ-DF-011
 **Role:** developer
 
-Testing: per-skill — `critique`/`risk-find`/`final-report` produce their artifacts; arch/migration/research templates expand; parallel dispatch uses host-native subagents.
+Testing: per-skill — `critique` (wraps reflexion/sadd), `risk-find`, `final-report` each produce their artifact without duplicating the role-agents or `mb-reviewer`.
 
 **DoD:**
-- [ ] `arch.md` / `migration.md` / `research.md` templates exist.
-- [ ] `critique` (wraps reflexion/sadd), `risk-find`, `final-report` skills exist without duplicating role-agents.
-- [ ] Parallel dispatch uses host-native subagents; collision-DAG ships only as an optional CLI.
+- [ ] `critique`/`risk-find`/`final-report` skills exist with a file-based I/O contract.
+- [ ] None duplicates an existing role-agent or `mb-reviewer`; `critique` wraps the existing reflexion/sadd skills.
 
 ## Gate (whole spec)
 
-Phase 1 ships when: `mb-flow-verify.sh` propagates 0/1/2 (tested), a red flow is blockable on Claude Code, `goal.md`/`project.md` exist with deterministic acceptance, and behaviour with no `goal.md` is byte-identical to today. Phases 2–3 are not started without explicit scope reconfirmation.
+Phase 1 ships when: `mb-flow-verify.sh` propagates 0/1/2 (tested), a red flow is blockable on Claude Code, `goal.md`/`project.md` exist with deterministic acceptance, and behaviour with no `goal.md` is byte-identical to today. **Phase 1 = DONE (2026-06-16).** Phase 2 (CONFIRMED scope above) ships sub-wave by sub-wave behind the firewall; each sub-wave: TDD → `mb-flow-verify.sh` green → governed review → judge. Phase 2/3 build starts only on explicit `go` (paused at the Phase-1 milestone).

@@ -23,15 +23,18 @@ ONLY in scripts (exit codes); the LLM never self-certifies "done".
   L2  SKILLS          analyze-task · write-spec · plan · implement · review · critique ·  ← composable units
         │             risk-find · verify · update-MB · final-report
         │
-  L3  ROUTER          analyze-task → names route → agent expands flow-templates/<route>.md ← goal-conditioned route
-        │             (+ deterministic route-floor guard)
+  L3  ROUTER          analyze-task → names route → agent expands flow-templates/<route>.md ← goal-conditioned route (default)
+        │             (+ deterministic route-floor guard)  ·  /mb flow <route> = override   (ADR-10)
+        │
+  L3a PATTERN ENGINE  flow-templates/patterns/<6>.md + mb-fanout.sh (stateless, agent-      ← explicit portable orchestration
+        │             invoked) + per-agent shell sub-invoke   (ADR-1′/ADR-9)                   (Codex/Pi/OpenCode, not native-only)
         │
   L4  FLOW-STATE      <!-- mb-flow --> fence in status.md (route, current_phase, checks)   ← working map (retry/resume)
         │
   L5  VERIFIER        mb-flow-verify.sh fan-out → severity-gate → exit 0/1/2               ← the firewall (fail-loud)
         │
-  L6  ADAPTERS        AGENTS.md + skills/ + scripts/ + flow-templates/ (LCD)               ← cross-agent install
-                      host-native parallel where present; sequential + WARN where absent
+  L6  ADAPTERS        AGENTS.md + skills/ + scripts/ + flow-templates/ + per-agent sub-    ← cross-agent install
+                      invoke (LCD); explicit mb-fanout default, host-native optional        (ADR-1′/ADR-8′)
 ```
 
 The agent reads `goal.md`, runs `analyze-task`, opens `flow-templates/<route>.md`, and walks its phases — **it is the
@@ -68,6 +71,18 @@ pipeline.yaml protected_paths; tasks→checklist.md; decisions→backlog ADR; st
 **Decision.** The host code-agent is the runtime. Dynamic Flow is skills + scripts + templates + memory-files; we never own a
 dispatch loop. **Rationale.** The user's hard constraint (twice stated): usable INSIDE Codex/OpenCode/Pi/Claude Code, not as a
 library that runs without an agent. **Consequence.** Kills the prior `mb-pipeline-run.py` runner and `HostAdapter.dispatch`.
+
+> **ADR-1′ — Sharpened 2026-06-16 (explicit fan-out is in; daemon stays out).** The user chose (Q2) to ship the six workflow
+> patterns as EXPLICIT orchestration that runs on every code-agent (Codex/Pi/OpenCode), not delegated to a host-only native
+> feature — because portability across agents is the whole point of Dynamic Flow; delegating to a native-only tool would forfeit
+> it on exactly the agents that need it most. This sharpens ADR-1's blanket "no orchestration code" into a precise line:
+> **DF now OWNS** an explicit, *stateless*, *agent-invoked* fan-out (the six `flow-templates/patterns/*.md` + a POSIX
+> `mb-fanout.sh` + a per-agent shell sub-invocation command). **DF still OWNS NO**: standalone daemon that owns the loop without
+> an agent, durable-execution / resumable-state journal, JS/TS runtime on the critical path, or any process the agent does not
+> itself initiate. The good things ADR-1 protected are preserved by the *statelessness* + *agent-initiation* invariants
+> (REQ-DF-085); only the over-broad reading ("therefore zero fan-out code") is lifted. The empirical proof it works without a
+> runtime: this very session fanned out Codex reviews via `codex exec … </dev/null &` background jobs — agent-invoked, stateless,
+> portable. See ADR-9.
 
 ### ADR-2 — Supersede universal-orchestrator + goal-driven-autopilot
 **Decision.** Refocus `universal-orchestrator` into this `dynamic-flow` spec; recast `goal-driven-autopilot`'s single
@@ -117,6 +132,33 @@ costs context-marshalling on agents without subagent context inheritance (Pi).
 sequentially + WARN (Codex/Pi). The heartbeat-TTL registry is built ONLY for the cron/CI multi-runner path, off the v1 critical
 path. **Rationale.** The host owns dispatch (ADR-1); a standalone scheduler/registry would re-introduce the killed runtime.
 
+> **ADR-8′ — Revised by ADR-1′/ADR-9.** "Host-native OR sequential+WARN" is replaced by "explicit `mb-fanout.sh` is the portable
+> default everywhere; host-native is an optional optimization; sequential+WARN is the last resort only when no shell
+> sub-invocation is resolvable" (REQ-DF-051/052). Codex/Pi no longer lose parallelism by default — they fan out via the helper.
+
+### ADR-9 — Explicit, stateless pattern engine (the six patterns)
+**Decision.** Ship the six Anthropic workflow patterns (Classify-And-Act, Fanout-And-Synthesize, Adversarial-Verification,
+Generate-And-Filter, Tournament, Loop-Until-Done) as declarative `flow-templates/patterns/<pattern>.md` plus a single POSIX
+`mb-fanout.sh`. **Mechanism.** The agent calls `mb-fanout.sh` with N branch prompts + the adapter's per-agent sub-invocation
+command; the helper runs the branches as background jobs, `wait`s, and collects each branch's JSON (fail-loud: a failed/non-JSON
+branch → exit 2 + per-branch error marker, never a silent drop). Patterns compose: e.g. Tournament = Fanout-And-Synthesize whose
+aggregation step is pairwise judges; Loop-Until-Done wraps a body until a stop predicate. **Aggregation / judge** steps reuse
+existing assets (`mb-reviewer*`, `judge`, reflexion/sadd) — no new rubric dimensions (ADR-3 scope). **Firewall still gates the
+result** (REQ-DF-086): a pattern's aggregated output passes `mb-flow-verify.sh` before "done". **On Claude Code** a template may
+prefer native Task/Workflow (REQ-DF-083), but the helper path is identical-in-contract and is the portable default.
+**Rationale.** Realizes Dynamic Flow's value-(B) — the patterns work explicitly on agents with no native orchestration — which is
+the user's stated reason for owning the engine. **Consequence.** The per-agent shell sub-invocation command becomes a first-class
+adapter field; `mb-fanout.sh` must stay stateless (ADR-1′) and bash-3.2-portable; fence concurrency (open-Q2) is now load-bearing
+because branches may write results in parallel.
+
+### ADR-10 — Router auto-picks by default; explicit override is an escape-hatch
+**Decision.** `analyze-task` auto-classifies and names one route by default (Classify-And-Act, system-driven — faithful to the
+pattern: the SYSTEM routes, not the human). An explicit `/mb flow <route>` / `--route <route>` override skips classification but
+STILL applies the deterministic route-floor (ADR-4) and the firewall (REQ-DF-025). **Rationale.** Gives the user the explicit
+per-type command they asked for (Q1) without contradicting the article's own principle and without bloating the surface into six
+pattern-named commands; mirrors the proven `/mb work --workflow` override precedent. **Consequence.** The override is a thin
+selector, not a parallel code path — it feeds the same template interpreter the router would have chosen.
+
 ## Risks & mitigation
 
 | Risk | Prob | Impact | Mitigation |
@@ -129,14 +171,30 @@ path. **Rationale.** The host owns dispatch (ADR-1); a standalone scheduler/regi
 | Acceptance criteria are themselves an unchecked LLM act | M | M | route-floor + diff-scope backstop; acceptance is necessary not sufficient |
 | Splitting skills breaks the context-preserving flow the user values | L | H | ADR-7 context contract; keep code-change as one work.md loop |
 | Two superseded specs re-litigated (tasks all `[ ]`) | L | M | move to specs/superseded/ + status flip + banner BEFORE any code |
+| Explicit `mb-fanout` spawns unbounded / expensive sub-invocations | M | H | per-run branch-count cap + `mb-work-budget.sh` pre-check at fan-out entry; fail-loud if N×cost > budget (open-Q3) |
+| Parallel branches race on the `mb-flow` fence / shared sink | M | M | ADR-9: per-branch `.mb-flow/branch-<i>.json`; fence written once, serially, by the initiating agent — never by a branch (open-Q2) |
+| ADR-1′ misread as license to rebuild the killed standalone runner | M | H | REQ-DF-085 invariants (stateless + agent-initiated); contract test that `mb-fanout.sh` holds no cross-invocation state + no daemon |
+| Per-agent sub-invoke missing for an agent → fan-out silently serial | L | M | REQ-DF-052 stderr WARN on missing sub-invoke; document per-agent coverage matrix |
 
 ## Open questions
 
 1. **replan-noop / re-route convergence** — what counts as "analyze-task produced nothing new" so adaptive re-routing can't loop?
    (Proposal: hash the normalized set of pending items × their touches-files; no-op = empty symmetric-difference vs last batch.)
-2. **Fence concurrency** — single serialized `mb-flow` fence vs per-track sections once parallel dispatch lands (Phase 3).
+2. **Fence concurrency** — NOW LOAD-BEARING (ADR-9): `mb-fanout.sh` runs branches in parallel, so the single `mb-flow` fence and
+   any shared result sink need a write discipline from Phase 2, not Phase 3. (Proposal: each branch writes its JSON to its own
+   `.mb-flow/branch-<i>.json`; the agent aggregates; the fence is written once, serially, by the initiating agent — never by a
+   branch.) Resolve in the `mb-fanout` sub-wave.
 3. **Check-cost scoping** — changed-files-only check execution to keep long routes practical; where does the budget gate sit?
-4. **Route catalogue depth** — confirm v2 ships only `code-change`+`bugfix`; arch/migration/research deferred to Phase 3.
+   With explicit fan-out, also: a per-run branch-count cap + `mb-work-budget.sh` pre-check at fan-out entry (fail-loud if N×cost
+   exceeds budget) so a pattern can't spawn unbounded sub-invocations.
+4. **Route catalogue depth** — RESOLVED 2026-06-16 (Q3): Phase 2 ships the FULL five-route catalogue
+   (`code-change | bugfix | arch | migration | research`), delivered in sub-waves; `arch` is mandatory in Phase 2 because the
+   route-floor (ADR-4) can force a route to `arch`, so its template must exist or the floor points at nothing.
 5. **Closure on hookful hosts** — how many `stall_count` iterations before a Stop-hook hands back to a human on a flaky check?
+6. **Per-agent sub-invoke contract** — exact shape of the adapter field (`codex exec …` / Pi / OpenCode / CC) and how
+   `mb-fanout.sh` discovers it (adapter-baked env var vs a resolver); how a branch's model/thinking is passed. Resolve in the
+   per-agent-sub-invoke sub-wave.
 
-> `tasks.md` carries the phased MVP. Phases 2–3 stay deferred until Phase 1's firewall is proven and the user confirms scope.
+> `tasks.md` carries the phased MVP. Phase 2 scope is CONFIRMED (2026-06-16): router (auto + `/mb flow` override) + route-floor +
+> explicit pattern engine (`mb-fanout.sh` + six pattern templates) + full five-route catalogue, in dependency-ordered sub-waves.
+> Phase 3 broadens per-agent sub-invocation + ships the `critique`/`risk-find`/`final-report` skills.
