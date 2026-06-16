@@ -139,10 +139,10 @@ Testing: bats — diff under `domain/`/`*Protocol`/`protected_paths` → forced 
 Testing: bats — N branch prompts + a stub sub-invoke command run concurrently and each branch's JSON is collected; a failing/non-JSON branch → exit 2 + per-branch error marker (never silent drop); helper holds no cross-invocation state (no journal survives); bash-3.2 portable; a branch-count cap + `mb-work-budget.sh` pre-check rejects an over-budget fan-out (exit 2) BEFORE spawning.
 
 **DoD:**
-- [ ] `mb-fanout.sh` takes N branch prompts + a per-agent sub-invoke command, runs them via background jobs + `wait`, collects per-branch JSON.
-- [ ] A failed/non-JSON branch → exit 2 + per-branch error marker; no branch silently dropped (REQ-DF-084).
-- [ ] No daemon, no durable journal, no persisted cross-invocation state; agent always initiates (REQ-DF-085); bash-3.2 clean.
-- [ ] Branch-count cap + budget pre-check (`mb-work-budget.sh`) fail-loud BEFORE spawning when N×cost exceeds budget.
+- [x] `mb-fanout.sh` takes N branch prompts + a per-agent sub-invoke command, runs them via background jobs + `wait`, collects per-branch JSON.
+- [x] A failed/non-JSON branch → exit 2 + per-branch error marker; no branch silently dropped (REQ-DF-084).
+- [x] No daemon, no durable journal, no persisted cross-invocation state; agent always initiates (REQ-DF-085); bash-3.2 clean.
+- [x] Branch-count cap + budget pre-check (`mb-work-budget.sh`) fail-loud BEFORE spawning when N×cost exceeds budget.
 
 ### Sub-wave 2C — Six pattern templates
 
