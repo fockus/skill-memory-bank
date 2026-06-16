@@ -386,6 +386,10 @@ _`mb_rules_check_lib.sh::scan_placeholders` greps the working-tree file, so a pl
 
 _`tests/pytest/test_flow_route_templates.py::_phase_makes_false_claim` guards a ROUTE template from falsely claiming the firewall `--phase` flag is load-bearing (it is informational — `scripts/mb-flow-verify.sh`). The detector is now broad (14+ active verbs + passive voice + two-sided negation-awareness, pinned by 22 good/bad examples), but open-ended NL claim-detection can always be probed with an unregistered verb/construction. No actual route template contains such a claim today, so this is hardening for future template authors, not a shipped defect. Backlog raised by the `mb-judge` GO_WITH_BACKLOG verdict on dynamic-flow Task 11 (independent Codex review rounds R3–R5). Follow-up: add parametrized examples (e.g. `restricts which checks`, `governs the gate`) as new routes are introduced, or replace the verb-blocklist with a disclaimer-required inversion if drift recurs._
 
+### I-079 — `mb-idea.sh` allocates next `I-NNN` from backlog.md only → collides with progress.md IDs [MED, NEW, 2026-06-16]
+
+_`scripts/mb-idea.sh` computes the next idea id by scanning `backlog.md` alone. But the `I-NNN` sequence is GLOBAL across the bank — `progress.md` carries implementation entries `I-075/076/077` that the script never sees. On Task 11 it emitted `I-075` (backlog max was `I-074`) which collided with the existing `progress.md` I-075 "handoff-v2 delivered" entry; had to be hand-corrected to I-078. This violates the never-reused-ID invariant. Fix: `mb-idea.sh` (and any `I-`/`EXP-`/`ADR-` allocator) must take the max id across BOTH `backlog.md` AND `progress.md` (and ideally `index.json`) before incrementing — a single shared next-id helper in `_lib.sh`. Found while recording the Task 11 judge backlog._
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
