@@ -485,3 +485,21 @@ If any helper grows past ~50 lines of bash with structural complexity, port to P
 - Exact baseline-commit resolution rule when no active plan exists (current orchestrator falls back to `HEAD~1`; may need richer detection).
 - Whether `--scope=touched` works uniformly across `pytest`, `go test`, `jest`, `vitest`, `cargo test`. Where it doesn't, document the fallback to `--scope=full` in `docs/reviewer-2.0.md`.
 - Initial example-pool size per stack: target ≥3 per category at S1 close; the right ceiling lives in S2 (backlog).
+
+## Alignment with dynamic-flow & six-pattern (2026-06-16)
+
+reviewer-2.0 was authored before dynamic-flow Phase 1 shipped. Its scope is unchanged; these are the load-bearing seams that keep
+the two specs coherent (forward-references only — no new in-scope requirements added here, so the EARS set + task list stay frozen):
+
+- **Deterministic payload → Adversarial-Verification branch input.** `scripts/mb-review.sh` (Task 1) produces a deterministic,
+  cache-keyed review payload. That payload is exactly the per-branch input the dynamic-flow **Adversarial-Verification** pattern
+  (`flow-templates/patterns/adversarial-verify.md`, dynamic-flow Task 10) fans out via `mb-fanout.sh` to N independent reviewers.
+  reviewer-2.0 owns single-verdict reliability; the pattern owns the ensemble — compose, do not duplicate the payload builder
+  inside the pattern.
+- **Binding review principle** (this session's lesson — memory `governed-review-independent-refix.md`). A fix-cycle's FIXED code
+  MUST face a fresh INDEPENDENT review before GO; never render a final GO on a lead/self-review alone; loop until an independent
+  round stops finding criticals/majors. reviewer-2.0's golden suite (GAP-7) calibrates a single verdict; this principle governs the
+  *loop* around it and lives in the work-loop / pattern layer (work-loop-v2 pivoting + dynamic-flow Loop-Until-Done). The golden
+  suite SHOULD include at least one case asserting a self-review GO is rejected when the fixed diff was not re-reviewed independently.
+- **Completion authority.** Whatever verdict the reviewer emits, "done" is gated by the dynamic-flow firewall (`mb-flow-verify.sh`,
+  exit code), never by the reviewer's own assessment (REQ-DF-060). reviewer-2.0 feeds the gate; it is not the gate.

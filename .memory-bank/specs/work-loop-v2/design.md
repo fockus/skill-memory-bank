@@ -337,3 +337,20 @@ Same JSON schema as implementation mode; orchestrator routes the verdict appropr
 - Exact archive policy for superseded contracts (rotate by count vs by age).
 - Whether the contract should reference the spec's `linked_spec` when applicable (likely yes — pulls EARS requirements into scope discussion).
 - Whether pivot triggers should also bump severity gate slightly downward (e.g., allow 1 extra minor on pivot cycle) — left for empirical tuning post-S2.
+
+## Alignment with dynamic-flow & six-pattern (2026-06-16)
+
+work-loop-v2 (S2) and dynamic-flow both model "loop until done with a stall guard"; they must share one SSOT, not diverge
+(forward-references only — EARS set + task list stay frozen):
+
+- **Loop-Until-Done = the same pattern.** The implement→review→fix cycle with `progress_trend` + `pivot_after_cycles` IS the
+  dynamic-flow **Loop-Until-Done** pattern (`flow-templates/patterns/loop-until-done.md`) specialized to the `code-change` route.
+  The route template reuses the `work.md` loop verbatim (dynamic-flow ADR-7 / REQ-DF-013) — it does not re-implement pivoting.
+- **Done is gated by the firewall.** `on_max_cycles: stop_for_human` (G3) and the firewall (`mb-flow-verify.sh` exit code,
+  REQ-DF-040/044/060) are complementary: the firewall is the deterministic completion authority; the loop's stall/pivot logic
+  decides WHEN to keep iterating vs hand back to a human. The loop never declares "done" over a red firewall.
+- **`stall_count` SSOT.** work-loop-v2's cycle counter and dynamic-flow open-Q5 (`stall_count` before a Stop-hook hands back to a
+  human) are the same counter — surfaced in the `mb-flow` fence (`stall_count`, REQ-DF-030). Implement it once, in the loop, and
+  read it from the fence; do not author a second counter.
+- **`progress_trend` triggers route re-evaluation.** A `regressing`/`stagnant` trend (REQ-111/112) is a natural trigger to re-run
+  `analyze-task` (dynamic-flow REQ-DF-023/024) — a wrong route is self-correcting at this boundary.

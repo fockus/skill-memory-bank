@@ -52,7 +52,8 @@ commands/work.md step 3:
                                     │ aliases:
                                     │   fast     → claude-haiku-4-5-20251001
                                     │   balanced → claude-sonnet-4-6
-                                    │   powerful → claude-opus-4-7
+                                    │   powerful → claude-opus-4-8   (frontier 2026-06; was opus-4-7)
+                                    │   nimble   → claude-fable-5     (new fast-but-capable tier)
                                     │   <verbatim model id>: passed through
 ```
 
@@ -139,9 +140,13 @@ aliases:
     opencode: kimi-k2.5
     codex: gpt-4o
   powerful:
-    claude: claude-opus-4-7
+    claude: claude-opus-4-8
     opencode: kimi-k2.6
-    codex: gpt-4.5
+    codex: gpt-5.5
+  nimble:                       # new fast-but-capable Claude tier (2026-06)
+    claude: claude-fable-5
+    opencode: TBD               # no confirmed equivalent — do not invent
+    codex: TBD                  # no confirmed equivalent — do not invent
 ```
 
 The resolver reads the active host (from `$MB_HOST` or `.memory-bank/.mb-host`) and resolves the alias to the concrete model ID for that host. If no host-specific entry exists, falls back to `claude` (backward compat).
@@ -261,3 +266,22 @@ The resolver is hot-path (called for every dispatch). Bash + yq/awk is fast, no 
 - Whether to depend on `yq` being installed or always fall back to awk (existing skill scripts already prefer the latter for portability — likely settle on awk-first).
 - Whether the resolver should warn (stderr) when a project-level override picks a deprecated alias.
 - Exact aliases for the next model frontier (currently using known 4.x IDs; update in implementation if Anthropic ships a 4.8 between S1 and S4).
+
+## Alignment with dynamic-flow & six-pattern (2026-06-16)
+
+cost-multi-model (S4) is the model-tier policy; dynamic-flow is the orchestration mechanism. The seams (forward-references only —
+EARS set + task list stay frozen):
+
+- **Model-frontier refresh.** The `powerful` alias target was `claude-opus-4-7`; the current frontier is **Opus 4.8**
+  (`claude-opus-4-8`), with **Fable 5** (`claude-fable-5`) as a new fast-but-capable tier; Sonnet 4.6 / Haiku 4.5 unchanged. G3
+  (aliases decouple defaults from concrete IDs) is exactly why this is a one-line bundled-default bump, not a per-project edit.
+- **Resolver feeds `mb-fanout` branch models.** `scripts/mb-model-resolve.sh <role>` is the natural source for the per-branch model
+  when the dynamic-flow **explicit pattern engine** (`mb-fanout.sh`, REQ-DF-081/082) fans out N sub-invocations: each branch carries
+  its role's resolved model + thinking via the per-agent sub-invoke command. cost-multi-model owns role→model policy; dynamic-flow
+  owns the fan-out mechanism — compose, don't duplicate.
+- **Cross-agent sub-invoke ≠ cross-provider.** dynamic-flow's per-agent sub-invoke (`codex exec`, Pi/OpenCode CLI) spawns a
+  sub-AGENT on its own host model; it does NOT make cost-multi-model route across providers (still a non-goal). Orthogonal axes:
+  model-tier policy within a host vs which host runs a branch.
+- **Empirical tiering precedent.** This session's governed machine ran Opus subagents for implementation + Codex gpt-5.5 for
+  independent review + an Opus lead/judge — a concrete instance of role→model tiering (generator=powerful, independent
+  reviewer=external, judge=powerful) the resolver's defaults should reflect.
