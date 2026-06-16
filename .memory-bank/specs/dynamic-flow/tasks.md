@@ -170,9 +170,9 @@ Testing: per-pattern manual + a lint test — each of the six templates declares
 Testing: per-route manual — `code-change` reproduces the current `work.md` loop verbatim; `bugfix` = reproduce→debug→patch→verify; `arch`/`migration`/`research` expand their phases; each route declares phases→skill→boundary-checks→retry→sequential-fallback AND names which pattern(s) it invokes; `arch` exists so the route-floor's forced target is real.
 
 **DoD:**
-- [ ] `code-change.md` reuses the `work.md` loop verbatim (one skill, no over-split, ADR-7).
-- [ ] `bugfix.md`, `arch.md`, `migration.md`, `research.md` each list phases → skill → boundary-checks → retry → sequential-fallback and name the pattern(s) they use.
-- [ ] `arch.md` is present (mandatory: route-floor can force `arch` — REQ-DF-022).
+- [x] `code-change.md` reuses the `work.md` loop verbatim (one skill, no over-split, ADR-7).
+- [x] `bugfix.md`, `arch.md`, `migration.md`, `research.md` each list phases → skill → boundary-checks → retry → sequential-fallback and name the pattern(s) they use.
+- [x] `arch.md` is present (mandatory: route-floor can force `arch` — REQ-DF-022).
 
 ### Sub-wave 2E — Per-agent sub-invoke (Claude Code + Codex) + fence concurrency
 

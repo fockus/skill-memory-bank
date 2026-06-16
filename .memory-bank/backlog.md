@@ -381,6 +381,11 @@ _`hooks/mb-session-start-context.sh:48` greps `^- \[ \]` for unfinished checklis
 
 _`mb_rules_check_lib.sh::scan_placeholders` greps the working-tree file, so a placeholder staged in the index but already removed from the working tree is not seen (Codex handoff-v2 Task 3 finding). Consistent with the rest of `mb-rules-check.sh`, which reads working-tree content everywhere — fixing only the placeholder scan would be inconsistent. Follow-up: decide whether the whole rules checker should scan staged blobs (`git show :path`) and apply uniformly._
 
+
+### I-078 — Harden `_phase_makes_false_claim` against exotic verbs/phrasing [LOW, NEW, 2026-06-16]
+
+_`tests/pytest/test_flow_route_templates.py::_phase_makes_false_claim` guards a ROUTE template from falsely claiming the firewall `--phase` flag is load-bearing (it is informational — `scripts/mb-flow-verify.sh`). The detector is now broad (14+ active verbs + passive voice + two-sided negation-awareness, pinned by 22 good/bad examples), but open-ended NL claim-detection can always be probed with an unregistered verb/construction. No actual route template contains such a claim today, so this is hardening for future template authors, not a shipped defect. Backlog raised by the `mb-judge` GO_WITH_BACKLOG verdict on dynamic-flow Task 11 (independent Codex review rounds R3–R5). Follow-up: add parametrized examples (e.g. `restricts which checks`, `governs the gate`) as new routes are introduced, or replace the verb-blocklist with a disclaimer-required inversion if drift recurs._
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

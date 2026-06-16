@@ -54,7 +54,7 @@ analyze-task: reads goal.md + `git diff --name-only` → writes `route:` into th
 # Flow-state fence (in status.md) — only genuinely-new fields; everything else is a POINTER to its SSOT
 <!-- mb-flow -->
 route: <r>          current_phase: k/n     phases: [...]
-checks: { tests, rules, lint, build, mb_updated, no_todo, diff_scope, acceptance }   gate: PASS|FAIL
+checks: { tests, lint, no_todo, diff_scope, acceptance (+rules when injected) }   gate: PASS|FAIL
 last_verify_sha: <sha>   stall_count: <n>
 <!-- /mb-flow -->
 
