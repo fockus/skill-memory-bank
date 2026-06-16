@@ -155,9 +155,9 @@ Testing: bats — N branch prompts + a stub sub-invoke command run concurrently 
 Testing: per-pattern manual + a lint test — each of the six templates declares {fan-out shape, per-branch skill, aggregation/judge step, termination rule} and routes its aggregated result through `mb-flow-verify.sh`; aggregation/judge steps reference only existing assets (`mb-reviewer*`/`judge`/reflexion/sadd), no new rubric dimensions; a CC template may note the native-Task optimization while keeping `mb-fanout` the portable default.
 
 **DoD:**
-- [ ] Six templates exist: `classify-and-act`, `fanout-synthesize`, `adversarial-verify`, `generate-filter`, `tournament`, `loop-until-done`.
-- [ ] Each declares fan-out shape + per-branch skill + aggregation/judge + termination rule; composition documented (Tournament = fanout + pairwise-judge aggregation; Loop-Until-Done wraps a body until a stop predicate).
-- [ ] Each pattern's aggregated result passes `mb-flow-verify.sh` before "done" (REQ-DF-086); no new LLM-judge rubric dimensions.
+- [x] Six templates exist: `classify-and-act`, `fanout-synthesize`, `adversarial-verify`, `generate-filter`, `tournament`, `loop-until-done`.
+- [x] Each declares fan-out shape + per-branch skill + aggregation/judge + termination rule; composition documented (Tournament = fanout + pairwise-judge aggregation; Loop-Until-Done wraps a body until a stop predicate).
+- [x] Each pattern's aggregated result passes `mb-flow-verify.sh` before "done" (REQ-DF-086); no new LLM-judge rubric dimensions.
 
 ### Sub-wave 2D — Five route templates
 
