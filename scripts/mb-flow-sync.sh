@@ -104,6 +104,18 @@ usage() {
 # we never expand an empty array under set -u (bash 3.2 "unbound variable" bug).
 sync_flow() {
   local mb="$1"; shift
+  # open-Q2 WRITER-BOUNDARY guard (DoD#3): the <!-- mb-flow --> fence is written
+  # ONCE, serially, by the INITIATOR — NEVER by a fan-out branch. mb-fanout.sh
+  # exports MB_FANOUT_BRANCH_INDEX into every branch, so its presence here means a
+  # branch reached the fence WRITER directly — via this script's CLI, via
+  # mb-flow-route.sh, or via the mb-flow-branch-sink.sh wrapper. Refuse at the
+  # writer itself so the guard is airtight regardless of entry path. We return
+  # BEFORE acquiring the lock or touching status.md. The initiator has no such var
+  # and is unaffected; this is a no-op in every non-fan-out flow.
+  if [ -n "${MB_FANOUT_BRANCH_INDEX:-}" ]; then
+    printf '[mb-flow-sync] refusing to write the mb-flow fence from a fan-out branch context (MB_FANOUT_BRANCH_INDEX=%s) — the fence is initiator-only, written once serially (open-Q2/DoD#3)\n' "$MB_FANOUT_BRANCH_INDEX" >&2
+    return 1
+  fi
   local status_file="$mb/status.md"
   local lock="$mb/.flow.lock"
 

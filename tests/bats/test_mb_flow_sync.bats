@@ -884,3 +884,29 @@ EOF
   [ "$(grep -c '<!-- mb-flow -->' "$STATUS")" -eq 2 ]
   [ "$(grep -c '<!-- /mb-flow -->' "$STATUS")" -eq 2 ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# open-Q2 writer-boundary guard (dynamic-flow Task 12, DoD#3)
+# The fence is written ONCE, serially, by the INITIATOR — never by a fan-out
+# branch. mb-fanout exports MB_FANOUT_BRANCH_INDEX into every branch, so a branch
+# reaching THIS writer directly (bypassing the branch-sink wrapper) must be refused.
+# ═══════════════════════════════════════════════════════════════
+
+@test "flow-sync: refuses to write the fence from a fan-out BRANCH context (MB_FANOUT_BRANCH_INDEX set)" {
+  before="$(cat "$STATUS")"
+  run env MB_FANOUT_BRANCH_INDEX=2 bash "$SYNC" "$TMPBANK" --route arch --gate PASS
+  # Non-zero, and NOT the lock-timeout 2 — a deliberate branch-context refusal.
+  [ "$status" -ne 0 ]
+  # status.md is byte-untouched; no fence was written by the branch.
+  [ "$(cat "$STATUS")" = "$before" ]
+  [[ "$(cat "$STATUS")" != *"mb-flow"* ]]
+  [[ "$output" == *"branch"* ]]
+}
+
+@test "flow-sync: the INITIATOR (no MB_FANOUT_BRANCH_INDEX) still writes the fence normally" {
+  # Regression guard for the branch refusal above: a normal initiator write works.
+  run env -u MB_FANOUT_BRANCH_INDEX bash "$SYNC" "$TMPBANK" --route arch --gate PASS
+  [ "$status" -eq 0 ]
+  grep -q '<!-- mb-flow -->' "$STATUS"
+  grep -q 'route: arch' "$STATUS"
+}

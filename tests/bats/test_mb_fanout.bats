@@ -59,9 +59,77 @@ json_line() {
   [[ "$output" == *"--branch"* ]]
 }
 
-@test "fanout: missing --cmd → exit 2 usage" {
-  run bash "$FANOUT" "$TMPBANK" --branch "do a thing"
+@test "fanout: missing --cmd AND no resolvable sub-invoke → exit 2 usage" {
+  # No --cmd, no MB_SUBINVOKE_CMD override, and an agent the resolver does not
+  # know → the resolve-fallback fails loud, mb-fanout stays exit 2 (never 1).
+  MB_AGENT=totally-unknown run bash "$FANOUT" "$TMPBANK" --branch "do a thing"
   [ "$status" -eq 2 ]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Task 12 — resolve --cmd from the per-agent sub-invoke resolver (DoD#2)
+# ═══════════════════════════════════════════════════════════════
+
+@test "fanout: no --cmd but MB_SUBINVOKE_CMD baked → resolves it and runs (exit 0)" {
+  # The baked env template echoes a JSON object with the env-supplied prompt —
+  # proving the resolved command flows through MB_FANOUT_PROMPT, not interpolation.
+  local tmpl='python3 -c "import json,os;print(json.dumps({\"prompt\":os.environ[\"MB_FANOUT_PROMPT\"]}))"'
+  MB_SUBINVOKE_CMD="$tmpl" run bash "$FANOUT" "$TMPBANK" \
+    --branch "alpha" --branch "beta"
+  [ "$status" -eq 0 ]
+  json_line "$output" | python3 -c '
+import json,sys
+o=json.load(sys.stdin)
+assert o["count"]==2, o
+assert o["ok"] is True, o
+by={b["index"]:b for b in o["branches"]}
+assert by[0]["result"]["prompt"]=="alpha", o
+assert by[1]["result"]["prompt"]=="beta", o
+'
+}
+
+@test "fanout: no --cmd, MB_AGENT=codex resolves a template → exit 0|2 only (never 1)" {
+  # The codex template (`codex exec …`) won't exist in CI, so each branch's
+  # sub-invocation fails — but mb-fanout must surface that as the loud exit 2,
+  # NEVER a bare exit 1, and still emit a strict aggregate.
+  MB_AGENT=codex run bash "$FANOUT" "$TMPBANK" --branch a
+  [ "$status" -eq 0 ] || [ "$status" -eq 2 ]
+  # Never the forbidden bare exit 1.
+  [ "$status" -ne 1 ]
+}
+
+@test "fanout: no --cmd, MB_AGENT=codex actually RESOLVES the codex template and runs it (stubbed)" {
+  # Stronger than the exit-class check above: stub `codex` on PATH so the resolved
+  # `codex exec …` template REALLY runs, proving resolution happened (not an
+  # accidental exit-2 from an unrelated failure) and that the prompt flowed via env.
+  local stub="$TMPROOT/stubbin"
+  mkdir -p "$stub"
+  printf '#!/bin/sh\nprintf "{\\"engine\\":\\"codex\\",\\"prompt\\":\\"%%s\\"}" "$MB_FANOUT_PROMPT"\n' > "$stub/codex"
+  chmod +x "$stub/codex"
+  MB_AGENT=codex PATH="$stub:$PATH" run bash "$FANOUT" "$TMPBANK" --branch "resolved-branch"
+  [ "$status" -eq 0 ]
+  json_line "$output" | python3 -c '
+import json,sys
+o=json.load(sys.stdin)
+assert o["count"]==1, o
+assert o["ok"] is True, o
+r=o["branches"][0]["result"]
+assert r["engine"]=="codex", o
+assert r["prompt"]=="resolved-branch", o
+'
+}
+
+@test "fanout: explicit --cmd still wins over a baked MB_SUBINVOKE_CMD" {
+  # Operator-supplied --cmd is authoritative; the baked env must not shadow it.
+  local explicit='printf "{\"src\":\"explicit\"}\n"'
+  MB_SUBINVOKE_CMD='printf "{\"src\":\"baked\"}\n"' run bash "$FANOUT" "$TMPBANK" \
+    --cmd "$explicit" --branch a
+  [ "$status" -eq 0 ]
+  json_line "$output" | python3 -c '
+import json,sys
+o=json.load(sys.stdin)
+assert o["branches"][0]["result"]=={"src":"explicit"}, o
+'
 }
 
 @test "fanout: zero branches → exit 2 usage" {

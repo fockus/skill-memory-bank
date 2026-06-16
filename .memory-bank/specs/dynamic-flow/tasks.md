@@ -185,9 +185,9 @@ Testing: per-route manual — `code-change` reproduces the current `work.md` loo
 Testing: bats — the adapter bakes a per-agent sub-invoke command (CC Task/background + `codex exec`); `mb-fanout.sh` discovers it; parallel branches each write `.mb-flow/branch-<i>.json` and the fence is written once, serially, by the initiating agent (never by a branch) — no race, content outside the fence byte-preserved.
 
 **DoD:**
-- [ ] The adapter declares a per-agent shell sub-invoke command for Claude Code + Codex (REQ-DF-082).
-- [ ] `mb-fanout.sh` resolves the sub-invoke command for the active agent (baked env / resolver).
-- [ ] Parallel branches write per-branch JSON sinks; the `mb-flow` fence is written once serially by the initiator; no concurrent-fence race (open-Q2).
+- [x] The adapter declares a per-agent shell sub-invoke command for Claude Code + Codex (REQ-DF-082).
+- [x] `mb-fanout.sh` resolves the sub-invoke command for the active agent (baked env / resolver).
+- [x] Parallel branches write per-branch JSON sinks; the `mb-flow` fence is written once serially by the initiator; no concurrent-fence race (open-Q2).
 
 ## Phase 3 — Broaden sub-invoke + composable skills (deferred)
 

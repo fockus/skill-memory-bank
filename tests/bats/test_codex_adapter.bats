@@ -21,6 +21,9 @@ setup() {
   mkdir -p "$PROJECT/.memory-bank"
   echo '# Progress' > "$PROJECT/.memory-bank/progress.md"
   command -v jq >/dev/null || skip "jq required"
+  # The adapter DECLARATION must be a stable Codex contract, independent of any
+  # inherited operator override — neutralise it so the clean tests are truly clean.
+  unset MB_SUBINVOKE_CMD MB_SUBINVOKE_MODEL 2>/dev/null || true
 }
 
 teardown() {
@@ -151,4 +154,59 @@ run_adapter() {
   # The shared AGENTS.md section must mention that Memory Bank path can be
   # local OR global (resolved by skill), so users are not surprised in global mode
   grep -qi "MB_PATH\|global storage\|resolver\|resolved\|local OR global\|local or global" "$agents"
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Per-agent sub-invoke declaration (dynamic-flow Task 12, DoD#1 — REQ-DF-082)
+# The adapter DECLARES the shell sub-invoke command mb-fanout uses on Codex.
+# ═══════════════════════════════════════════════════════════════
+
+@test "codex: 'subinvoke' action declares the codex sub-invoke command (codex exec, env prompt)" {
+  run_adapter subinvoke
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"codex exec"* ]]
+  # The prompt flows ONLY via $MB_FANOUT_PROMPT — never an interpolated literal.
+  [[ "$output" == *"\$MB_FANOUT_PROMPT"* ]]
+  [[ "$output" == *"read-only"* ]]
+}
+
+@test "codex: the adapter's declared sub-invoke MATCHES the resolver's codex table entry" {
+  # DoD#1 + DoD#2 coherence: the adapter declaration and the resolver table are
+  # the SAME command, so what the adapter declares is exactly what mb-fanout bakes.
+  local from_adapter from_resolver
+  from_adapter="$(bash "$ADAPTER" subinvoke)"
+  from_resolver="$(MB_AGENT=codex bash "$REPO_ROOT/scripts/mb-subinvoke-resolve.sh")"
+  [ "$from_adapter" = "$from_resolver" ]
+}
+
+@test "codex: the adapter DECLARATION ignores a polluted MB_SUBINVOKE_CMD (stable Codex contract, not an override)" {
+  # DoD#1 is an adapter DECLARATION: `codex subinvoke` must always declare the
+  # Codex table command, even if an operator override is exported in the env (the
+  # override belongs to mb-fanout's RESOLVE path, not the adapter's declaration).
+  # Without this, the declaration is non-tautologically distinct from the resolver
+  # under a polluted env — which is exactly the contract we assert.
+  local declared
+  declared="$(MB_SUBINVOKE_CMD='evil-runner "$MB_FANOUT_PROMPT"' bash "$ADAPTER" subinvoke)"
+  [[ "$declared" == *"codex exec"* ]]
+  [[ "$declared" != *"evil-runner"* ]]
+  # And the resolver (RESOLVE path) DOES honour the override — proving the two
+  # paths intentionally differ, so the MATCHES test above is not tautological.
+  local resolved
+  resolved="$(MB_AGENT=codex MB_SUBINVOKE_CMD='evil-runner "$MB_FANOUT_PROMPT"' bash "$REPO_ROOT/scripts/mb-subinvoke-resolve.sh")"
+  [[ "$resolved" == *"evil-runner"* ]]
+}
+
+@test "codex: declared sub-invoke is consumable by bash -c with an env prompt (seam)" {
+  # Prove the declared template runs under mb-fanout's `bash -c "$CMD"` seam with
+  # the prompt supplied via env — never interpolated. We stub `codex` on PATH so
+  # the round-trip needs no real Codex CLI.
+  local stub="$PROJECT/stubbin"
+  mkdir -p "$stub"
+  printf '#!/bin/sh\nprintf "{\\"got\\":\\"%%s\\"}" "$MB_FANOUT_PROMPT"\n' > "$stub/codex"
+  chmod +x "$stub/codex"
+  local tmpl
+  tmpl="$(bash "$ADAPTER" subinvoke)"
+  run env PATH="$stub:$PATH" MB_FANOUT_PROMPT="hi-there" bash -c "$tmpl"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"hi-there"* ]]
 }

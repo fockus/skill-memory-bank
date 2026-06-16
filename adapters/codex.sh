@@ -123,6 +123,23 @@ install_codex() {
   echo "[codex-adapter] installed to $PROJECT_ROOT (hooks API: experimental)"
 }
 
+# ═══ Per-agent sub-invoke declaration (dynamic-flow Task 12, REQ-DF-082) ═══
+# Codex's shell sub-invoke command for the explicit fan-out engine (mb-fanout.sh).
+# The adapter DECLARES the command (DoD#1) by delegating to the single source of
+# truth — scripts/mb-subinvoke-resolve.sh's codex TABLE entry (with the operator
+# override env-u'd out, see below) — so what the adapter declares is byte-identical
+# to the codex table command mb-fanout bakes when --cmd is omitted and no override
+# is set (no duplicated template to drift). The branch prompt flows ONLY through the
+# exported MB_FANOUT_PROMPT env var (never interpolated): the resolver emits the
+# literal $MB_FANOUT_PROMPT token, preserving mb-fanout's security seam.
+codex_subinvoke_cmd() {
+  # `env -u MB_SUBINVOKE_CMD`: the adapter DECLARATION is a STABLE Codex contract —
+  # always the resolver's codex TABLE entry, never an inherited operator override.
+  # The MB_SUBINVOKE_CMD override belongs to mb-fanout's RESOLVE path (baking a
+  # custom --cmd), NOT to what the adapter declares as the canonical Codex command.
+  env -u MB_SUBINVOKE_CMD MB_AGENT=codex bash "$SKILL_DIR/scripts/mb-subinvoke-resolve.sh" --agent codex
+}
+
 # ═══ Uninstall ═══
 uninstall_codex() {
   if [ ! -f "$MANIFEST" ]; then
@@ -150,10 +167,11 @@ uninstall_codex() {
 case "$ACTION" in
   install)   install_codex ;;
   uninstall) uninstall_codex ;;
+  subinvoke) codex_subinvoke_cmd ;;
   *)
-    echo "Usage: $0 install|uninstall [PROJECT_ROOT]" >&2
+    echo "Usage: $0 install|uninstall|subinvoke [PROJECT_ROOT]" >&2
     exit 1
     ;;
 esac
 
-adapter_contract_require_functions install_codex uninstall_codex >/dev/null
+adapter_contract_require_functions install_codex uninstall_codex codex_subinvoke_cmd >/dev/null

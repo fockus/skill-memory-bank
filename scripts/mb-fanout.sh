@@ -78,6 +78,12 @@ source "$SCRIPT_DIR/_lib.sh"
 # Injectable for tests; defaults to the real budget tracker (the SSOT for budget).
 BUDGET_BIN="${MB_BUDGET_BIN:-$SCRIPT_DIR/mb-work-budget.sh}"
 
+# Injectable for tests; defaults to the real per-agent sub-invoke resolver. Used
+# ONLY when --cmd is omitted: it bakes the active agent's sub-invoke command
+# (MB_SUBINVOKE_CMD override → built-in table). A resolved template is TRUSTED
+# exactly as an operator --cmd is (Task 12, REQ-DF-082/051/052).
+RESOLVE_BIN="${MB_SUBINVOKE_RESOLVE_BIN:-$SCRIPT_DIR/mb-subinvoke-resolve.sh}"
+
 DEFAULT_MAX_BRANCHES=16
 
 usage() {
@@ -182,7 +188,29 @@ while [ "$#" -gt 0 ]; do
 done
 
 # --- validate required inputs ------------------------------------------------
-[ "$CMD_SET" -eq 1 ] || die_usage "--cmd is required"
+# DoD#2 (Task 12, REQ-DF-082/051/052): if --cmd was omitted, RESOLVE the active
+# agent's sub-invoke command (MB_SUBINVOKE_CMD override → built-in table) via the
+# resolver. An operator-supplied --cmd ALWAYS wins (we never resolve when CMD is
+# set). Invariants preserved EXACTLY:
+#   • the resolved template is TRUSTED identically to an operator --cmd (run via
+#     `bash -c "$CMD"` below) — the resolver only emits env-prompt templates that
+#     carry the literal $MB_FANOUT_PROMPT token, never an interpolated prompt;
+#   • the prompt STILL flows ONLY through MB_FANOUT_PROMPT (unchanged downstream);
+#   • a FAILURE to resolve takes the SAME die_usage path → exit 2 (NEVER exit 1):
+#     `set +e` brackets the resolver call so its non-zero rc can't trip set -e,
+#     and `die_usage` is the contracted loud exit 2;
+#   • still STATELESS — the resolver only reads env + prints a template, writes
+#     nothing to the bank.
+if [ "$CMD_SET" -ne 1 ]; then
+  set +e
+  CMD="$(bash "$RESOLVE_BIN" 2>/dev/null)"
+  _resolve_rc=$?
+  set -e
+  if [ "$_resolve_rc" -ne 0 ] || [ -z "$CMD" ]; then
+    die_usage "--cmd omitted and no sub-invoke command resolvable for the active agent (set --cmd / MB_SUBINVOKE_CMD / MB_AGENT)"
+  fi
+  CMD_SET=1
+fi
 
 N="${#PROMPTS[@]}"
 [ "$N" -ge 1 ] || die_usage "need at least one --branch / --branch-file"
