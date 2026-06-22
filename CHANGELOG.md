@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [5.1.0] — 2026-06-22
+
+> **Consolidated 5.1.0.** The tier1 graph/session-intelligence layer ships
+> together with handoff-v2 persistence, the dynamic-flow firewall + router,
+> named pipelines, capability-aware dispatch, and the session-lifecycle
+> catch-up/summarizer. First PyPI publish since 5.0.1.
+
+### Added — dynamic-flow, session-lifecycle, SDD
+
+- **Dynamic-flow firewall + closure** (Phase 1): `scripts/mb-flow-verify.sh` is
+  the sole exit-code authority (0=pass / 1=fail / 2=broke); Stop-hook
+  (`mb-flow-closure-guard.sh`) + git-hooks closure guards gated on a `goal.md`
+  predicate; AGENTS.md firewall contract; goal primitive + validator. Shipped
+  through the governed dual-review (Codex + lead) + judge pipeline. (REQ-DF-010..062)
+- **Dynamic-flow router + patterns** (Phase 2): `analyze-task` deterministic
+  router, five-route catalogue, six workflow pattern templates, stateless
+  `mb-fanout.sh` agent-invoke + per-agent sub-invoke contract with
+  parallel-fence write-once discipline. (REQ-DF-070..084)
+- **Session-lifecycle**: `mb-session-catchup.sh` (SessionStart lazy-summarize of
+  sessions left `summarized:false` by a SIGKILLed SessionEnd), extracted DRY
+  `mb-session-summarize.sh`, `mb-session-prune.sh` (archive contentless stubs),
+  `mb-settings-ensure-timeout.py` (inject the SessionEnd timeout). All fail-safe.
+- **SDD hybrid requirements**: `requirements.md` now pairs Kiro User Stories with
+  EARS acceptance criteria; `mb-ears-validate.sh` is case-insensitive and
+  validates only the REQ bullets; `mb-plan.sh` plan template gains YAML
+  frontmatter (type/topic/status/depends_on/parallel_safe/linked_specs/created).
+- **Cursor extension** finished — sessionEnd registry auto-capture.
+
 > **handoff-v2.** A persistence layer that lets a long-running agent survive
 > context compaction and session boundaries: a small handoff capsule written
 > before compaction and restored at the next session, mandatory `/mb done`
@@ -57,7 +85,7 @@ All notable changes to this project are documented here. The format follows [Kee
   the old weekly compact reminder, which remains available in `adapters/cline.sh`
   via `MB_COMPACT_REMIND`). Re-registration stays idempotent.
 
-## [5.1.0] — 2026-06-14
+### tier1-graph-memory (Phase 5) — 2026-06-14
 
 > **tier1-graph-memory.** Sharper code-graph retrieval (RRF fusion, import-aware
 > Python call resolution, PageRank god-nodes), richer session memory
