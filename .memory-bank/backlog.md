@@ -3,6 +3,96 @@
 ## Ideas
 
 
+<!-- Cluster I-082..I-086 — codex/GPT-5.5 adversarial review 2026-06-23. Source: reports/2026-06-23_codex-gpt5.5-skill-review.md (9 read-only sessions). -->
+
+### I-082 — Security hardening: code-exec + path traversal + private/secret leak [HIGH, OPEN, 2026-06-23]
+
+**Context:** codex/GPT-5.5 security pass (`reports/2026-06-23_codex-gpt5.5-skill-review.md` §05). Affects SHIPPED 5.1.0 code — 5.1.1 candidate. Threat model: `/mb` run on a cloned/untrusted repo, or a project path/bank path containing a `'`.
+
+- `hooks/_skill_root.sh:110` [BLOCKER] `bash -c` built by interpolating `cwd`/`MB_PROJECT_ROOT`/`agent` without quoting → project path with `'` = command injection on hook fire. (corroborated by §01) Fix: source `_lib.sh` in-process, call with quoted positional args — no shell-string.
+- `scripts/mb-plan-done.sh:379` [BLOCKER] `.` (source) of repo-controlled `.memory-bank/.mbenv` → arbitrary code. Fix: whitelist `KEY=value` parser, no `source`.
+- `scripts/mb-work-resolve.sh:51,110` [MAJOR] active-plan link from `roadmap.md` may be `../../…`; realpath'd → read/exfil outside bank. Fix: accept only canonical paths under `$BANK/plans/*.md` | `$BANK/specs/*/tasks.md`.
+- `scripts/mb-pipeline.sh:130,169` [MAJOR] `MB_PIPELINE` / `.mb-config pipeline=` skip `valid_pipeline_name` → `../../x` selects YAML outside `<bank>/pipelines` → bypass protected_paths/gates. Fix: validate name before path-join + realpath inside bank.
+- `scripts/mb-work-protected-check.sh:138` [MAJOR] absolute paths bypass `ci/**`/`.github/workflows/**`; basename fallback only catches `.env`/`Dockerfile`. Fix: canonicalize candidate path, derive repo root, match repo-relative + basename.
+- `hooks/mb-protected-paths-guard.sh:31`, `hooks/block-dangerous.sh:67` [MAJOR] guard only on `Write|Edit`; Bash `tee`/`sed -i`/redirect into `.env`/`ci/**`/`.pem` bypasses. Fix: Bash PreToolUse protected-path parser routing extracted write targets through `mb-work-protected-check.sh`.
+- `hooks/mb-session-turn.sh:128`, `hooks/lib/session-common.sh:140` [MAJOR] `<private>…</private>` NOT stripped before `session/*.md` persist or LLM summary — documented privacy feature is broken. Fix: shared sanitizer strips `<private>` before persist + summary.
+- `scripts/mb-context.sh:39` [MAJOR] `cat` follows symlinks → `status.md -> ~/.ssh/config` exfil into context. Fix: reject symlinks, realpath under bank, regular-files only.
+- `scripts/mb-search.sh:107,127` [MAJOR] tag mode trusts `index.json` path, `head "$MB_PATH/$rel"` → `../../` traversal. Fix: canonicalize each indexed path under `$MB_PATH`.
+- `scripts/mb-flow-sync.sh:130`, `scripts/mb-handoff.sh:111` [MAJOR] trap-string interpolates lock path → exec on `EXIT` for a path with `'`. Fix: cleanup function + globals, `trap _cleanup EXIT`.
+- `hooks/file-change-log.sh:127` [MAJOR] prints full secret line to stderr → transcript/log leak. Fix: emit only `file:line`+var name, value `[REDACTED]`.
+
+**Plan:** `plans/2026-06-23_fix_security-hardening.md`
+**Outcome:** no shell-string interpolation of untrusted paths; no `source` of repo-controlled files; all bank/pipeline/index paths canonicalized under their root; `<private>` honored on persist; protected-path guard covers Bash writes.
+
+### I-083 — Verification gates fail-closed + multi-stack test runner + CI surface [HIGH, OPEN, 2026-06-23]
+
+**Context:** §04. Gates can silently pass un-run/crashed checks — undermines trust in `/mb done` and `/mb work`.
+
+- `scripts/mb-done-gates.sh:227,261` [BLOCKER] runner crash / malformed JSON / `tests_pass=null` silently → WARN/pass via `|| true`. Fix: fail when runner exits non-zero, output is invalid JSON, or `tests_pass=null` without explicit `not_applicable=true`; bats per path.
+- `scripts/mb-test-run.sh:10,84` [BLOCKER] only Python+Go; exits 0 for bats/node/rust → project with red shell tests passes `/mb done`. Fix: consistent stack detection via `_lib.sh` or require `test_command`; cover bats/node/rust/no-pytest/failing-cmd.
+- `.github/workflows/test.yml:44` + `hooks/tests/*.bats` [MAJOR] tracked `hooks/tests/` not run in CI. Fix: add `bats hooks/tests/*.bats` (+ any pytest) to CI + README verification commands.
+- `.github/workflows/test.yml:77` [MINOR] shellcheck skips `hooks/lib/*.sh`, adapters, install; ruff skips `scripts/*.py`, `hooks/lib/*.py`, `memory_bank_skill/`. Fix: expand static-analysis targets.
+
+**Plan:** `plans/2026-06-23_fix_verification-gates.md`
+**Outcome:** gates fail-closed on un-run/crashed/null; runner covers the project's real stacks incl. bats; CI runs the full test+lint surface.
+
+### I-084 — Capability dispatcher: wire into execution + transports + default routing [HIGH, OPEN, 2026-06-23]
+
+**Context:** §01/02/06/07/08/09 — dominant root cause (6/9 reviewers). `mb-agent-caps.sh` (pi/opencode/codex resolver) is NOT called by the execution path; transports are not executable end-to-end. Likely the next unfinished dynamic-flow Phase 2 task (relates to [[I-080]], `mb-fanout.sh`, Task 12 sub-invoke).
+
+- `scripts/mb-work-plan.sh:319` [BLOCKER] caps not wired: reads `agent/model/thinking` from YAML directly; nothing calls `mb-agent-caps.sh resolve` → `dispatch.priority/prefer/model_map` inert. Fix: resolve each role via caps, emit `transport` into JSONL, route CLI transports through subinvoke.
+- `scripts/mb-subinvoke-resolve.sh:114` [BLOCKER] only `codex`+`claude-code`; `pi`/`opencode` fail unless `--cmd`. Fix: add tested `pi` (`pi -p --no-session --model …`) + `opencode` templates; `adapters/opencode.sh` `subinvoke` action.
+- `references/pipeline.default.yaml:10` + `mb-agent-caps.sh:210` [MAJOR] default roles have no `model` → `resolve` exits 1 (no tier fallback). Fix: default contract models OR empty-contract → `claude-agent` tier default.
+- `references/pipeline.default.yaml:292,298,305` [MAJOR] default `prefer={}`/`model_map={}`/priority excludes codex → codex-family not routed by default. Fix: ship real defaults (`prefer: {"openai-codex/*": codex, "gpt-*": codex}`, matching `model_map`).
+- `scripts/mb-agent-caps.sh:124` [MAJOR] `roles.<role>.agent` ignored; `agent: codex-cli` → resolves to `claude-agent/opus` (`.memory-bank/pipeline.yaml:29`). Fix: translate transport-like agents into `prefer`.
+- `scripts/mb-agent-caps.sh:63` [MAJOR] `codex --list-models`/`codex models` are non-existent CLI commands (actual `codex debug models`); codex is trusted → should not probe. Fix: return empty for codex unless `codex debug models --bundled` parsed.
+- `scripts/mb-agent-caps.sh:89` + `scripts/mb-reviewer-resolve.sh:47` [MAJOR] caps/reviewer resolvers bypass `mb-pipeline.sh path` → ignore `MB_PIPELINE`/named pipelines/host-binding. Fix: resolve pipeline only via `mb-pipeline.sh path`.
+- `scripts/mb-agent-caps.sh:118,121` [MAJOR] YAML parse error swallowed as `{}` → misleading "no model" exit 1 instead of documented parse-fail exit 2. Fix: emit error, return 2; bats with invalid YAML.
+- `scripts/mb-agent-caps.sh:59` [MAJOR] `opencode models` errors silenced → indistinguishable from missing model; strict gating falls through silently. Fix: distinguish empty-list vs command-failure; on `on_none_available: error` fail.
+- `scripts/mb-agent-caps.sh:134` [MINOR] `dispatch.enumerable: []` impossible (empty → default). Fix: check key presence, not truthiness.
+- `scripts/mb-agent-caps.sh:62` [MINOR] pi parser: malformed stdout (`NF>=2`) parsed as models; header skip only `NR==1`. Fix: parse only after `provider model` header, validate provider/model regex.
+
+**Plan:** `plans/2026-06-23_feature_dispatcher-wiring-transports.md`
+**Outcome:** `/mb work` resolves transport+model via caps; pi/opencode/codex executable end-to-end; shipped default pipeline usable + routes codex-family; single pipeline-resolution path. (Or: gate transports as experimental and de-advertise.)
+
+### I-085 — Logic correctness & GNU/BSD portability [MED, OPEN, 2026-06-23]
+
+**Context:** §01/02/04. Correctness bugs + latent Linux portability in product helpers (the deferred mtime issue).
+
+- `scripts/mb-work-range.sh:151` + `mb-work-plan.sh:285` [BLOCKER] empty `--range N` (marker gaps) → treated as "all" → whole plan executes. Fix: range emitting no existing item → non-zero; default-to-all only when no range requested.
+- `scripts/mb-flow-route.sh:428` [MAJOR] route-floor misses lowercase `*interface*`/`*contract*`/`*protocol*`/`*abc*`. Fix: normalize lowercase basename/path + tests.
+- `scripts/mb-flow-route.sh:390` [MAJOR] changed-file detection ignores untracked. Fix: add `git ls-files --others --exclude-standard`.
+- `scripts/mb-work-plan.sh:108` [MAJOR] regex frontmatter misses `tasks: 1-3 # comment` / quoted `linked_spec` → runs all spec tasks. Fix: comment-aware scalar / YAML frontmatter parse.
+- `scripts/mb-conflicts.sh:342` [MAJOR] `base64 --decode` not BSD-portable + `|| true` masks → empty bodies to judge. Fix: decode via Python stdlib or `base64 -d || base64 -D`.
+- `scripts/mb-handoff.sh:35`, `scripts/mb-flow-sync.sh:56`, `scripts/_lib.sh:66` [MAJOR] BSD-first `stat -f %m || stat -c %Y` broken on GNU when `stat -f` exits 0 non-numeric; helpers lack the regression test the hook has. Fix: centralize numeric mtime (GNU-first + validation); stat-shim tests for all call sites.
+- `scripts/mb-fanout.sh:393` [MINOR] branch stderr discarded → aggregate only `exit N`. Fix: capture `err.<i>`, include truncated snippet.
+- `scripts/mb-conflicts.sh:81` [MINOR] `--threshold nan/inf` accepted. Fix: require finite `0<=t<=1`, else exit 64.
+- `scripts/mb-work-resolve.sh:124` [MINOR] bank-relative `specs/<topic>/tasks.md` targets fail. Fix: resolve `plans/*`/`specs/*` relative to `BANK` before sanitization.
+
+**Plan:** `plans/2026-06-23_fix_logic-correctness-portability.md`
+**Outcome:** range/route/frontmatter false-positives eliminated; conflict bodies decoded portably; one validated mtime helper across all call sites.
+
+### I-086 — Config validation, executable defaults & doc-vs-code drift [MED, OPEN, 2026-06-23]
+
+**Context:** §06/03. Config knobs documented but unenforced/ignored; public docs drift from `commands/*.md` + `settings/hooks.json`.
+
+Config:
+- `scripts/mb-pipeline-validate.sh:442` [MAJOR] validator skips runtime blocks (`review`/`judge`/`review_ensemble`/`done_gates`/`dispatch.*`); bad enum/type reach runtime. Fix: schema-check all top-level knobs.
+- `.memory-bank/pipeline.yaml:34,41` [MAJOR] duplicate YAML key `judge`; `validate` returns 0 (PyYAML keeps last). Fix: duplicate-key-rejecting loader in validator + runtime.
+- `references/pipeline.default.yaml:217` + `scripts/mb-work-budget.sh:41` [MAJOR] `budget.default_limit` documented but ignored when no `--budget` (`commands/work.md:298`). Fix: apply non-null `default_limit` when CLI budget absent.
+- `memory_bank_skill/rules_profile.py:125` [MINOR] profile validation skips `scope` (docs: `user|project`). Fix: validate, reject unknown.
+- `scripts/mb-rules-check.sh:39` [MINOR] `mb-profile.sh init --scope=project` profiles not auto-consumed (only `MB_PROFILE`/`--profile`). Fix: default to `<bank>/rules-profile.json` + user profile, CLI override wins.
+- `scripts/mb-config.sh:9` [MINOR] `mb-config` only `lang`, while `mb-pipeline.sh:96` stores `pipeline=` in same `.mb-config` — split ownership. Fix: add `pipeline` get/set/validate or rename.
+
+Docs:
+- `README.md:39` vs `:259` [MAJOR] `25` vs `29` commands; table omits `/analyze-task`, `/flow`, `/goal`. Fix: regenerate count/table from `commands/*.md` + add generated consistency check.
+- `/mb reindex` [MAJOR] documented (`README:312`, `SKILL:290`) but absent from `commands/mb.md` router (only `hooks/mb-reindex.sh`). Fix: route+doc or remove from public docs.
+- `references/hooks.md` [MAJOR] says "five hooks" but `settings/hooks.json` has many lifecycle hooks. Fix: regenerate from `settings/hooks.json`; split tool vs lifecycle.
+- [MINOR/NIT] stale counts: `commands/mb.md:52` graph flags (`--docs`/`--sessions`), `work.md:12` `--slim`/`--full`/"Phase 4", `mb.md:929` "18 subcommands", `done.md:42` "6-step"=8 steps, `SKILL.md:219` missing `tests_failed`, `work.md:472` `max-cycles` vs `--max-cycles`, `structure.md:269` god-nodes PageRank-vs-degree.
+
+**Plan:** `plans/2026-06-23_fix_config-validation-docs.md`
+**Outcome:** validator covers runtime config + rejects duplicate keys; documented defaults (budget/profile) actually apply; public docs generated from source-of-truth with a consistency test.
+
 ### I-081 — session-lifecycle review residuals (3 minor, APPROVED) [LOW, OPEN, 2026-06-22]
 
 **Context:** независимое ревью session-lifecycle (catchup/summarize/prune/timeout) дало APPROVED — 0 blocker / 0 major / 3 minor. Логика error-rejection присутствует и покрыта end-to-end в `session-end-summary.bats`; пункты ниже — упрочнение, не баги.

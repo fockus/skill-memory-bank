@@ -15,6 +15,11 @@
 - [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
 - [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation
+- [2026-06-23_feature_dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) — Capability Dispatcher Wiring + Transports
+- [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency
+- [2026-06-23_fix_logic-correctness-portability](plans/2026-06-23_fix_logic-correctness-portability.md) — Logic Correctness & Portability
+- [2026-06-23_fix_security-hardening](plans/2026-06-23_fix_security-hardening.md) — Security Hardening
+- [2026-06-23_fix_verification-gates](plans/2026-06-23_fix_verification-gates.md) — Verification Gates Fail-Closed
 
 ## Parallel-safe (can run now)
 
@@ -33,6 +38,7 @@ _None._
 - specs/parallel-pipeline/design.md
 - specs/cursor-extension
 - specs/pi-extension
+- specs/dynamic-flow
 <!-- /mb-roadmap-auto -->
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
