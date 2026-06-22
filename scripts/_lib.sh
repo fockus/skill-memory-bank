@@ -210,6 +210,138 @@ mb_resolve_path() {
   printf '%s\n' ".memory-bank"
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Named pipelines — selection + host binding (project pipeline isolation)
+# ─────────────────────────────────────────────────────────────────────────────
+# Detect the current code-agent host id, used to auto-select the pipeline whose
+# `agents:` list binds it. Always exits 0; prints the id or an empty line.
+# Precedence (first match wins):
+#   1. MB_PIPELINE_HOST env  (explicit per-run override)
+#   2. MB_AGENT env          (canonical agent var, also used for global storage)
+#   3. host environment signatures (claude-code / opencode / codex / cursor / windsurf / pi)
+#   4. empty string          (unknown host — callers fall back to the declared default)
+mb_detect_host() {
+  if [ -n "${MB_PIPELINE_HOST:-}" ]; then
+    printf '%s\n' "$MB_PIPELINE_HOST"
+    return 0
+  fi
+  if [ -n "${MB_AGENT:-}" ]; then
+    printf '%s\n' "$MB_AGENT"
+    return 0
+  fi
+  if [ -n "${CLAUDECODE:-}" ] || [ -n "${CLAUDE_CODE_ENTRYPOINT:-}" ]; then
+    printf '%s\n' "claude-code"
+    return 0
+  fi
+  if [ -n "${OPENCODE:-}" ] || [ -n "${OPENCODE_BIN:-}" ]; then
+    printf '%s\n' "opencode"
+    return 0
+  fi
+  if [ -n "${CODEX_SANDBOX:-}" ] || [ -n "${CODEX_HOME:-}" ]; then
+    printf '%s\n' "codex"
+    return 0
+  fi
+  if [ -n "${CURSOR_TRACE_ID:-}" ] || [ -n "${CURSOR_AGENT:-}" ]; then
+    printf '%s\n' "cursor"
+    return 0
+  fi
+  if [ -n "${WINDSURF_AGENT:-}" ]; then
+    printf '%s\n' "windsurf"
+    return 0
+  fi
+  if [ -n "${PI_AGENT:-}" ]; then
+    printf '%s\n' "pi"
+    return 0
+  fi
+  printf '%s\n' ""
+}
+
+# Path to the named-pipelines directory of a bank: <bank>/pipelines.
+# Resolves the bank via mb_resolve_path when no explicit arg is given.
+mb_pipeline_dir() {
+  local mb
+  mb=$(mb_resolve_path "${1:-}")
+  printf '%s/pipelines\n' "$mb"
+}
+
+# Read a top-level metadata field from a pipeline file.
+#   pipeline_name → string (empty if absent)
+#   default       → "true" / "false" (false if absent)
+#   agents        → space-separated client ids (empty if absent)
+# Uses PyYAML when present; degrades to a minimal parser for just these three
+# keys when PyYAML is unavailable.
+mb_pipeline_meta() {
+  local file="${1:-}" field="${2:-}"
+  if [ ! -f "$file" ]; then
+    [ "$field" = "default" ] && printf 'false\n'
+    return 0
+  fi
+  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" python3 - <<'PY'
+import os
+
+path = os.environ["MB_PIPE_FILE"]
+field = os.environ["MB_PIPE_FIELD"]
+
+data = None
+try:
+    import yaml
+    with open(path, encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) or {}
+except ModuleNotFoundError:
+    data = None
+except Exception:
+    data = {}
+
+if data is None:
+    # Minimal fallback: parse only pipeline_name / default / agents.
+    data = {}
+    agents = []
+    in_agents = False
+    with open(path, encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.rstrip("\n")
+            stripped = line.strip()
+            if in_agents:
+                if stripped.startswith("- "):
+                    agents.append(stripped[2:].strip().strip('"').strip("'"))
+                    continue
+                if line[:1] not in (" ", "\t") and stripped:
+                    in_agents = False
+                else:
+                    continue
+            if stripped.startswith("pipeline_name:"):
+                data["pipeline_name"] = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+            elif stripped.startswith("default:"):
+                data["default"] = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+            elif stripped.startswith("agents:"):
+                rest = stripped.split(":", 1)[1].strip()
+                if rest.startswith("[") and rest.endswith("]"):
+                    inner = rest[1:-1].strip()
+                    agents = [a.strip().strip('"').strip("'") for a in inner.split(",") if a.strip()]
+                elif rest:
+                    agents = [a.strip().strip('"').strip("'") for a in rest.split(",") if a.strip()]
+                else:
+                    in_agents = True
+    if agents:
+        data["agents"] = agents
+
+if field == "default":
+    val = data.get("default", False)
+    if isinstance(val, bool):
+        print("true" if val else "false")
+    else:
+        print("true" if str(val).strip().lower() in ("true", "yes", "1", "on") else "false")
+elif field == "agents":
+    val = data.get("agents") or []
+    if isinstance(val, str):
+        val = [val]
+    print(" ".join(str(x) for x in val))
+else:
+    val = data.get(field)
+    print("" if val is None else str(val))
+PY
+}
+
 # Detect project stack by scanning manifest files in a directory.
 # Outputs one of: python, go, rust, node, java, kotlin, swift, cpp, multi, unknown.
 #

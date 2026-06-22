@@ -42,6 +42,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `discuss <topic>`                                        | 5-phase requirements-elicitation interview → EARS-validated `context/<topic>.md` (Phase 1 Purpose & Users / Phase 2 Functional EARS / Phase 3 Non-Functional / Phase 4 Constraints / Phase 5 Edge Cases). Feeds traceability matrix.                                                                     |
 | `sdd <topic> [--force]`                                  | Create Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`. If `context/<topic>.md` exists, EARS section copied verbatim into `requirements.md`. `--force` overwrites.                                                                                                                 |
 | `config <init\|show\|validate\|path>`                    | Manage execution `pipeline.yaml` (spec §9). `init` copies bundled default into `<bank>/pipeline.yaml`; `show` prints resolved config; `validate` runs schema check; `path` prints absolute path of resolved file.                                                                                       |
+| `pipeline <list\|new\|use\|show\|path\|validate>`        | Manage **multiple named pipelines** under `<bank>/pipelines/<name>.yaml` (different models + workflow per pipeline). `list` shows all + active; `new NAME [--agent a,b] [--from NAME] [--default]` scaffolds one; `use NAME` switches the default; `show`/`path`/`validate [--all]` inspect. Each can bind a code-agent host (`agents:`) for auto-selection by `/mb work`.                                                       |
 | `work [target] [--range A-B] [--dry-run]`                | Execute stages from a plan. Auto-selects role-agent per stage (mb-backend / mb-frontend / mb-ios / mb-android / mb-architect / mb-devops / mb-qa / mb-analyst, fallback mb-developer). Sprint 2: implement-step dispatch + dry-run; Sprint 3 adds review-loop, severity gates, verifier integration.    |
 | `verify`                                                 | Verify plan execution (plan vs code)                                                                                                                                                                                                                                                                     |
 | `map [focus]`                                            | Scan the codebase and write MD documents to `.memory-bank/codebase/`. Focus: `stack / arch / quality / concerns / all` (default: `all`)                                                                                                                                                                  |
@@ -416,7 +417,25 @@ All subcommands accept a trailing `[mb_path]` arg pointing at an alternative ban
 
 **Why pipeline.yaml?** Different teams need different defaults — workflow modes, review tolerance, max review cycles, role-to-agent mapping, protected paths. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project, version-controlled, and reviewable.
 
-### work [target] [--workflow NAME] [--review|--judge|--brainstorm|--sdd|--plan (+ --no-*)] [--stages CSV] [--range A-B] [--dry-run]
+### pipeline <subcommand>
+
+Manage **multiple named pipelines** in one project. Each `<bank>/pipelines/<name>.yaml` is a full, standalone pipeline (same schema and validator as `pipeline.yaml`) with its own model routing and workflow, plus optional metadata: `pipeline_name`, `default: true`, and `agents: [<host>…]` to bind it to a code-agent. `/mb work` then auto-selects per host (e.g. one pipeline under Claude Code, another under pi/opencode). See `commands/pipeline.md` for the canonical doc.
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `list` | Table of named pipelines (name · default · agents · file); marks the active one (`*`) and the detected host. |
+| `new NAME [--agent a,b] [--from NAME\|default] [--default] [--force]` | Scaffold `<bank>/pipelines/NAME.yaml` from the bundled default (or another named pipeline), injecting fresh metadata. |
+| `use NAME` | Switch the project default by writing `pipeline=NAME` to `<bank>/.mb-config` (non-destructive). |
+| `show [NAME]` / `path [NAME]` | Print the resolved pipeline body / absolute path (with `--pipeline NAME` or via the selection ladder). |
+| `validate [NAME \| --all]` | Schema-check one pipeline, or every named pipeline + cross-file conflicts (duplicate names, >1 default, an agent bound twice). |
+
+**Selection ladder** (used by `path`/`show` and `/mb work`): `--pipeline NAME` / `$MB_PIPELINE` → host binding (`agents:`) → `.mb-config pipeline=NAME` → in-file `default: true` → legacy `<bank>/pipeline.yaml` → bundled default. All subcommands accept a trailing `[mb_path]`.
+
+**Underlying:** `bash scripts/mb-pipeline.sh <list|new|use|show|path|validate> [args...]`.
+
+### work [target] [--workflow NAME] [--pipeline NAME] [--review|--judge|--brainstorm|--sdd|--plan (+ --no-*)] [--stages CSV] [--range A-B] [--dry-run]
 
 Execute a composable workflow. **Default mode is `execution`: implement (TDD) → verify → done — review is OFF by default.** Compose per run with launch flags (precedence: flags > `pipeline.yaml` > default): add `--review`/`--judge`/`--brainstorm`/`--sdd`/`--plan` (or remove with `--no-*`), pick a preset with `--workflow` (`full` = the whole `discuss → sdd → plan → implement → verify → review → judge → done` chain; `governed-execution`, `full-cycle`, `review-fix`, `review-only`, …), or set an exact list with `--stages a,b,c`. Persist toggles in `pipeline.yaml` (`<stage>.enabled: true`, `review.enabled: true`). `--judge` requires review; invalid chains fail fast.
 

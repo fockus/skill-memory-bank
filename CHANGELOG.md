@@ -172,6 +172,33 @@ All notable changes to this project are documented here. The format follows [Kee
   `merge-edges` enforces the `< 0.5` drop, so a `semantic` edge in `graph.json`
   always means `confidence ≥ 0.5`. (REQ-029)
 
+### Added — named pipelines
+
+- **Multiple named pipelines per project.** A project can keep several pipelines
+  under `.memory-bank/pipelines/<name>.yaml`, each a full standalone config (same
+  schema + validator as `pipeline.yaml`) with its own model routing and workflow.
+  `/mb work --pipeline NAME` (or `$MB_PIPELINE`) selects one explicitly; a
+  pipeline whose `agents:` lists the current code-agent host
+  (`claude-code`/`pi`/`opencode`/`codex`/…) is **auto-selected per host**, so one
+  repo can run a fast solo loop under Claude Code and a governed review-ensemble
+  under pi/opencode with no flag. Selection ladder: flag/env → host binding →
+  `.mb-config pipeline=NAME` → in-file `default: true` → legacy `pipeline.yaml` →
+  bundled default.
+- **`/mb pipeline` command** (`commands/pipeline.md`): `list` ·
+  `new NAME [--agent a,b] [--from NAME|default] [--default] [--force]` ·
+  `use NAME` (non-destructive default switch via `<bank>/.mb-config`) · `show` ·
+  `path` · `validate [--all]` (cross-file conflict detection: duplicate
+  `pipeline_name`, more than one `default`, an agent bound to multiple pipelines).
+- `scripts/_lib.sh`: `mb_detect_host` (host from `$MB_PIPELINE_HOST` → `$MB_AGENT`
+  → env signatures), `mb_pipeline_dir`, `mb_pipeline_meta`. `mb-pipeline.sh`
+  selection ladder; `mb-pipeline-validate.sh` validates the optional
+  `pipeline_name`/`default`/`agents` metadata keys.
+- Consumers (`mb-work-*.sh`, `mb-workflow.sh`) read the selected pipeline with no
+  changes — they already resolve through `mb-pipeline.sh path`, which now honors
+  `$MB_PIPELINE` and host binding.
+- Backward compatible: with no `pipelines/` directory and no `--pipeline`,
+  resolution is byte-for-byte identical to the prior single-`pipeline.yaml` path.
+
 ### Added — security
 
 - **Automatic secret redaction in session capture (default on).** Recognizable

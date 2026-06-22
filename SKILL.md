@@ -9,7 +9,7 @@ Three-in-one skill for code agents:
 
 1. **Memory Bank** — long-term project memory through `.memory-bank/` (`STATUS`, `plan`, `checklist`, `RESEARCH`, `BACKLOG`, `progress`, `lessons`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
-3. **Dev toolkit** — 28 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`.
+3. **Dev toolkit** — 29 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/pipeline`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`.
 
 > **Design contract.** Memory Bank rests on one inviolable promise — *agents remember* — and a stack of fully configurable, token-economical layers above it. Default behaviour never changes without explicit opt-in; user customisations survive upgrades; expensive paths are off by default. See [`references/design-principles.md`](references/design-principles.md) for the full contract.
 
@@ -169,6 +169,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-review-parse.sh` | Validate reviewer output for `/mb work` review-loop |
 | `mb-work-severity-gate.sh` | Apply `pipeline.yaml:severity_gate` to review counts |
 | `mb-workflow.sh` | Resolve the active workflow + per-step `model`/`thinking` config from `pipeline.yaml` for `/mb work` |
+| `mb-agent-caps.sh` | Capability-aware dispatch: resolve CLI transport (pi/opencode/codex/claude-agent) + concrete model per role by probing CLI presence and model availability |
 | `mb-reviewer-resolve.sh` | Pick the active reviewer agent name |
 | `mb-session-spend.sh` | Session token-spend tracker (sprint context guard) |
 | `mb-session-recent-rebuild.sh` | Regenerate `session/_recent.md` from `session/*.md` (keeps newest `MB_RECENT_KEEP`; deterministic, idempotent) |
