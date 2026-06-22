@@ -3,6 +3,14 @@
 ## Ideas
 
 
+### I-081 — session-lifecycle review residuals (3 minor, APPROVED) [LOW, OPEN, 2026-06-22]
+
+**Context:** независимое ревью session-lifecycle (catchup/summarize/prune/timeout) дало APPROVED — 0 blocker / 0 major / 3 minor. Логика error-rejection присутствует и покрыта end-to-end в `session-end-summary.bats`; пункты ниже — упрочнение, не баги.
+
+- **Test-coverage:** `session-summarize.bats` заявляет «proven identical» после DRY-extraction, но не портировал 3 кейса из `session-end-summary.bats` — (1) error-shaped LLM output → `summarized:false`, no `## Summary`; (2) `_recent` keeps newest `MB_RECENT_KEEP`; (3) oversized transcript → distilled Live-log fallback.
+- **Edge (theoretical):** `mb-settings-ensure-timeout.py` `LINE_RE` требует `command` последним ключом объекта; нет теста на trailing-comma случай (exit 1 с понятным сообщением — текущее поведение).
+- **Hygiene (low-prob):** `mb-session-summarize.sh` `_recent.md` пишет через `$RECENT.tmp.$$` + `mv` без cleanup-trap на сбой `mv` (disk-full); `$$`-суффикс исключает коллизии.
+
 ### I-080 — Architect / Decomposition-as-Artifact stage перед параллельным исполнением [MED, PROPOSED, 2026-06-16]
 
 **Context:** Сейчас раскладку фичи на параллельные потоки делает сам оркестратор (main-loop) — декомпозиция эфемерна (не аудируется/не реплеится), на сам план нет независимого гейта, и параллелизм небезопасен без декларации владения файлами. Предложение: промотировать декомпозицию в явный **execution-DAG** (deps + `owns_paths` + контракт) с одним ревью-гейтом до фан-аута; исполнители — по фиксированным role-контрактам (Contract-First); per-item verify + integration-reviewer (barrier) → `mb-judge`. Off by default, threshold-gated. Достраивает планировочную половину к runtime фан-аута (`mb-fanout.sh` / паттерн `fanout-synthesize`); `owns_paths` — верхняя половина гарантии к fence из dynamic-flow Task 12.

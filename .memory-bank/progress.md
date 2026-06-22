@@ -2520,3 +2520,15 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 Покрыты REQ-DF-010..062 (firewall + closure) + REQ-DF-050/070 (contract). Phase 1 — независимо ценный инкремент, усиливающий `work.md`-loop на Claude Code. **Следующее по ICE: reviewer-2.0** (голова harness-цепочки). Phase 2-3 dynamic-flow (mini-router + templates + adapters) deferred до доказанности firewall.
 
 **Pending explicit "go":** `git push` (main ≫ origin), PyPI publish + git tag.
+
+## 2026-06-22 (session-lifecycle завершён + release-prep doc-sync — v5.1.0 gate)
+
+**Release-prep к v5.1.0.** Завершён незакоммиченный пласт session-lifecycle и закрыт накопленный doc-drift перед тегом.
+
+- **session-lifecycle** (catchup/summarize/prune/timeout): `mb-session-catchup.sh` (SessionStart, фоновое lazy-summarize сессий, оставшихся `summarized:false` после SIGKILL-нутого SessionEnd), `mb-session-summarize.sh` (Haiku `## Summary` для одной сессии + ротация `_recent.md`, извлечён из `mb-session-end.sh` по DRY), `mb-session-prune.sh` (архивация contentless-стабов, dry-run по умолчанию), `mb-settings-ensure-timeout.py` (хирургическая вставка `timeout` в SessionEnd-хук). `mb-session-end.sh` ужат на ~180 строк — делегирует summarizer'у, lock держит только summarizer (нет self-deadlock). 40/40 session bats, shellcheck rc=0, `bash -n` clean. Независимое ревью (mb-reviewer): **APPROVED** (0 blocker / 0 major / 3 minor → I-081).
+- **release-prep doc-sync** (`SKILL.md` + `README.md`): закрыт накопленный pre-existing doc-drift (был красным в HEAD) — счётчик команд 25→28 (+`/analyze-task` `/flow` `/goal`), `## Tools` +13 скриптов (dynamic-flow `mb-flow-*`/`mb-goal-*`/`mb-fanout`/`mb-subinvoke`/`mb-diff-scope`/`mb-lint-run`/`mb-no-todo` + session-lifecycle), `## Hooks` +3. `test_doc_counts.py` 10/10.
+- **SDD hybrid format + plan frontmatter**: `requirements.md` теперь Kiro User Stories + EARS acceptance criteria (две конвенции вместе); `mb-ears-validate.sh` стал case-insensitive (валидирует только REQ-буллеты, User-Story-строки игнорирует); `mb-plan.sh` добавляет YAML-frontmatter (type/topic/status/depends_on/parallel_safe/linked_specs/created) в шаблон плана.
+
+Полный прогон: **1738 passed** (4 doc_counts были pre-existing red → теперь green). Незакоммиченный progress-хвост (16 auto-capture стабов от dev-сессий 2026-06-16) свёрнут в эту запись.
+
+**Pending explicit "go":** `git push` (main ≫ origin, ahead 51+), git tag `v5.1.0`, PyPI publish. Незавершённые feature-ветки: `feat/named-pipelines` (свежая, ~2 конфликта) → завершить; `fix/work-plan-heading-level-and-go-rules` (устарела, спасти только Go role-маркеры).
