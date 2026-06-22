@@ -98,18 +98,18 @@ the existing resolver, we do not build a daemon).
 ## Assumptions
 - `python3` + PyYAML are present in CI (the existing caps tests assume it; CI
   pins 3.11/3.12, local is 3.13 — verify fixes under 3.11 before claiming green).
-- `codex debug models --bundled` is the real enumeration command; `codex
-  --list-models` / `codex models` do NOT exist. **UNCONFIRMED against a live
-  codex binary** — treated as a documented fact from the review; Stage 2.4
-  hides it behind the trusted-non-enumerable path so a wrong subcommand never
-  blocks resolution. If a live codex contradicts this, only the probe arm
-  changes, not the contract.
-- pi headless form is `pi -p --no-session --model <provider/model> "<prompt>"`
-  and opencode is `opencode run --model <model> "<prompt>"`. **UNCONFIRMED
-  against live binaries** — modelled on the existing CC/Codex templates and the
-  pi/opencode adapter conventions; Stage 4 ships them behind the same
-  single-quoted-heredoc seam so a wrong flag is a one-line fix, never a security
-  hole.
+- codex model enumeration is `codex debug models` → JSON, slugs at
+  `.models[].slug` (gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark,
+  codex-auto-review). **CONFIRMED against live codex 0.137.0 (2026-06-23).** NOT
+  `codex debug models --bundled` (no such flag), and NOT `codex --list-models` /
+  `codex models` (do not exist — the current code in `mb-agent-caps.sh:63` is
+  wrong). Since codex stays trusted/non-enumerable by default (Stage 2.4), the
+  probe is normally unused; when needed, parse `codex debug models` JSON, never
+  the legacy commands. Run form `codex exec -m <model> "<prompt>"` also confirmed.
+- pi headless = `pi -p --no-session --model <provider/id[:thinking]> "<prompt>"`
+  (`--mode json` for structured); opencode = `opencode run -m <provider/model>
+  "<message>"` (`--format json`, optional `--agent`). **CONFIRMED against live
+  pi + opencode (2026-06-23)** — the Stage 4 templates are correct as written.
 - bash 3.2 (macOS default) AND bash 5.x must both pass; no associative arrays,
   no `${v^^}`.
 

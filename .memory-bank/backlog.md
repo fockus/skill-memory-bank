@@ -45,7 +45,7 @@
 - `references/pipeline.default.yaml:10` + `mb-agent-caps.sh:210` [MAJOR] default roles have no `model` → `resolve` exits 1 (no tier fallback). Fix: default contract models OR empty-contract → `claude-agent` tier default.
 - `references/pipeline.default.yaml:292,298,305` [MAJOR] default `prefer={}`/`model_map={}`/priority excludes codex → codex-family not routed by default. Fix: ship real defaults (`prefer: {"openai-codex/*": codex, "gpt-*": codex}`, matching `model_map`).
 - `scripts/mb-agent-caps.sh:124` [MAJOR] `roles.<role>.agent` ignored; `agent: codex-cli` → resolves to `claude-agent/opus` (`.memory-bank/pipeline.yaml:29`). Fix: translate transport-like agents into `prefer`.
-- `scripts/mb-agent-caps.sh:63` [MAJOR] `codex --list-models`/`codex models` are non-existent CLI commands (actual `codex debug models`); codex is trusted → should not probe. Fix: return empty for codex unless `codex debug models --bundled` parsed.
+- `scripts/mb-agent-caps.sh:63` [MAJOR] `codex --list-models`/`codex models` are non-existent CLI commands; codex is trusted → should not probe. Fix: drop the bad probe; when enumeration is needed parse `codex debug models` JSON (`.models[].slug`). VERIFIED 2026-06-23 vs live codex 0.137.0 (`--bundled` is NOT a flag).
 - `scripts/mb-agent-caps.sh:89` + `scripts/mb-reviewer-resolve.sh:47` [MAJOR] caps/reviewer resolvers bypass `mb-pipeline.sh path` → ignore `MB_PIPELINE`/named pipelines/host-binding. Fix: resolve pipeline only via `mb-pipeline.sh path`.
 - `scripts/mb-agent-caps.sh:118,121` [MAJOR] YAML parse error swallowed as `{}` → misleading "no model" exit 1 instead of documented parse-fail exit 2. Fix: emit error, return 2; bats with invalid YAML.
 - `scripts/mb-agent-caps.sh:59` [MAJOR] `opencode models` errors silenced → indistinguishable from missing model; strict gating falls through silently. Fix: distinguish empty-list vs command-failure; on `on_none_available: error` fail.
@@ -78,7 +78,7 @@
 
 Config:
 - `scripts/mb-pipeline-validate.sh:442` [MAJOR] validator skips runtime blocks (`review`/`judge`/`review_ensemble`/`done_gates`/`dispatch.*`); bad enum/type reach runtime. Fix: schema-check all top-level knobs.
-- `.memory-bank/pipeline.yaml:34,41` [MAJOR] duplicate YAML key `judge`; `validate` returns 0 (PyYAML keeps last). Fix: duplicate-key-rejecting loader in validator + runtime.
+- `.memory-bank/pipeline.yaml:34,41` [MAJOR] duplicate YAML key `judge`; `validate` returns 0 (PyYAML keeps last). Fix: duplicate-key-rejecting loader in validator + runtime. DECIDED 2026-06-23: canonical judge = `mb-judge` (delete line 34 `{ agent: main-agent }` + its stale comment; behavior-preserving).
 - `references/pipeline.default.yaml:217` + `scripts/mb-work-budget.sh:41` [MAJOR] `budget.default_limit` documented but ignored when no `--budget` (`commands/work.md:298`). Fix: apply non-null `default_limit` when CLI budget absent.
 - `memory_bank_skill/rules_profile.py:125` [MINOR] profile validation skips `scope` (docs: `user|project`). Fix: validate, reject unknown.
 - `scripts/mb-rules-check.sh:39` [MINOR] `mb-profile.sh init --scope=project` profiles not auto-consumed (only `MB_PROFILE`/`--profile`). Fix: default to `<bank>/rules-profile.json` + user profile, CLI override wins.
@@ -86,7 +86,7 @@ Config:
 
 Docs:
 - `README.md:39` vs `:259` [MAJOR] `25` vs `29` commands; table omits `/analyze-task`, `/flow`, `/goal`. Fix: regenerate count/table from `commands/*.md` + add generated consistency check.
-- `/mb reindex` [MAJOR] documented (`README:312`, `SKILL:290`) but absent from `commands/mb.md` router (only `hooks/mb-reindex.sh`). Fix: route+doc or remove from public docs.
+- `/mb reindex` [MAJOR] documented (`README:312`, `SKILL:290`) but absent from `commands/mb.md` router (only `hooks/mb-reindex.sh`). Fix (DECIDED 2026-06-23): ADD `reindex [--full|--incremental]` route in `commands/mb.md` → `hooks/mb-reindex.sh`; keep README/SKILL; generated pytest enforces router↔docs consistency.
 - `references/hooks.md` [MAJOR] says "five hooks" but `settings/hooks.json` has many lifecycle hooks. Fix: regenerate from `settings/hooks.json`; split tool vs lifecycle.
 - [MINOR/NIT] stale counts: `commands/mb.md:52` graph flags (`--docs`/`--sessions`), `work.md:12` `--slim`/`--full`/"Phase 4", `mb.md:929` "18 subcommands", `done.md:42` "6-step"=8 steps, `SKILL.md:219` missing `tests_failed`, `work.md:472` `max-cycles` vs `--max-cycles`, `structure.md:269` god-nodes PageRank-vs-degree.
 

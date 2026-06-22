@@ -142,10 +142,10 @@ heredoc comment); empty `dispatch: {}` (valid — all sub-keys absent); `prefer:
 1. Decide the canonical `judge` role for THIS project. The two values are
    `{ agent: main-agent }` (line 34) and `{ agent: mb-judge }` (line 41). Per memory note
    "Judge terminates the review loop" + the active `codex-governed` workflow, the intended
-   judge is `mb-judge`. **DECISION (confirm with maintainer if unsure → mark UNCONFIRMED):**
+   judge is `mb-judge`. **DECISION (RESOLVED 2026-06-23 by maintainer — `mb-judge` only):**
    keep `judge: { agent: mb-judge }` (the later, currently-effective value), delete the
-   earlier `judge: { agent: main-agent }` at line 34. This is behavior-preserving (PyYAML
-   already used the last value).
+   earlier `judge: { agent: main-agent }` at line 34 AND its now-stale "Judge = MAIN agent"
+   comment block (lines 25-28). This is behavior-preserving (PyYAML already used the last value).
 2. Introduce a single shared duplicate-key-rejecting loader used by the runtime parsers
    that currently call `yaml.safe_load` on pipeline files. Confirmed callers (13):
    `scripts/_lib.sh`, `mb-pipeline.sh`, `mb-workflow.sh`, `mb-work-plan.sh`,
@@ -317,12 +317,10 @@ bash scripts/mb-config.sh get lang; bash scripts/mb-config.sh set pipeline defau
 1. `README.md`: change the summary-table cell `25` (:41) → `29`; add three rows to the
    command table (`/analyze-task`, `/flow`, `/goal` with one-line purposes pulled from each
    command file's intro). Keep `**29 top-level slash-commands**` at :259.
-2. `commands/mb.md`: **DECISION — ADD routing** (impl `hooks/mb-reindex.sh` exists and the
-   semantic-index layer is a real, documented feature; removing public docs would lose a
-   working capability). Add a `reindex [--full|--incremental]` row to the router table and a
-   short `### reindex` section pointing at `hooks/mb-reindex.sh` + `mb-semantic-bootstrap.sh`.
-   (If maintainer prefers removal instead → delete README:312 + SKILL:290-291 rows; the
-   pytest enforces consistency either way. Mark this as the one open DECISION.)
+2. `commands/mb.md`: **DECISION — ADD routing (RESOLVED 2026-06-23 by maintainer).** Add a
+   `reindex [--full|--incremental]` row to the router table and a short `### reindex` section
+   pointing at `hooks/mb-reindex.sh` + `mb-semantic-bootstrap.sh`. Keep README:312 +
+   SKILL:290-291; the generated pytest enforces router ↔ docs consistency.
 3. `references/hooks.md`: add a generator (`scripts/mb-hooks-doc.py`, stdlib-only) that reads
    `settings/hooks.json`, emits a markdown table grouped into **tool hooks** (PreToolUse/
    PostToolUse) vs **lifecycle hooks** (Setup/SessionStart/SessionEnd/Stop/PreCompact/
@@ -455,13 +453,17 @@ python3 scripts/mb-hooks-doc.py --check
 - [ ] Drift cannot silently recur: every count/table/hooks claim is asserted from the
       source of truth (filesystem / `settings/hooks.json` / `mb-test-run.sh`).
 
-## Open decisions / UNCONFIRMED
+## Decisions (RESOLVED 2026-06-23 by maintainer)
 
-- **`/mb reindex` (Stage 5):** ADD routing to `commands/mb.md` (recommended — impl exists)
-  vs REMOVE from README/SKILL. Plan assumes ADD; the generated pytest enforces whichever is
-  chosen. **Maintainer confirmation requested.**
-- **`judge` role value (Stage 2):** plan keeps `mb-judge` (the currently-effective last
-  value). If the intent was `main-agent`, flip the deletion — behavior would then change.
-  Marked as a confirm-if-unsure decision.
+- **`/mb reindex` (Stage 5): ADD routing to `commands/mb.md`** → `hooks/mb-reindex.sh`
+  (alongside `/mb map`, `/mb graph`). Keep README:312 + SKILL:290-291. The generated
+  pytest asserts router ↔ docs consistency. CONFIRMED — not a removal.
+- **`judge` role value (Stage 2): `mb-judge` only.** Delete the earlier
+  `judge: { agent: main-agent }` at line 34 + its now-stale comment; keep
+  `judge: { agent: mb-judge }`. CONFIRMED (matches the currently-effective value and the
+  memory lessons on an independent terminating judge) — behavior-preserving.
+
+## Deferred
+
 - Full propagation of the duplicate-key-rejecting loader to ALL 13 `safe_load` callers is
   deferred to a follow-up BACKLOG item (Stage 2 scopes it to the validate path).
