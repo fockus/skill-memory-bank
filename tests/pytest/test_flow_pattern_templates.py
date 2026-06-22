@@ -349,11 +349,19 @@ def test_cited_slash_skills_are_known(name: str) -> None:
     membership is the guard."""
     text = _read(name)
     skill_roots = _global_skill_dirs()
+    # The resolution check below is only authoritative when the global dir actually
+    # carries the reflexion/SADD family. A bare/partial dir EXISTS on some CI runners
+    # (e.g. /home/runner/.claude/skills) but holds none of these skills — there the
+    # allowlist is the sole portable guard. Requiring at least one allowlisted skill
+    # to resolve keeps the rename/removal catch alive on a real dev toolkit.
+    toolkit_present = any(
+        (root / s.lstrip("/")).exists() for root in skill_roots for s in ALLOWED_SLASH_SKILLS
+    )
     for ref in set(_SLASH_SKILL_RE.findall(text)):
         assert ref in ALLOWED_SLASH_SKILLS, (
             f"{name} cites unknown slash-skill `{ref}` (allowed: {sorted(ALLOWED_SLASH_SKILLS)})"
         )
-        if skill_roots:
+        if toolkit_present:
             slug = ref.lstrip("/")
             resolved = any((root / slug).exists() for root in skill_roots)
             assert resolved, (
