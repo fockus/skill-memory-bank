@@ -137,6 +137,10 @@
         {
           "type": "command",
           "command": "~/.claude/hooks/mb-session-start.sh # [memory-bank-skill]"
+        },
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/mb-session-catchup.sh # [memory-bank-skill]"
         }
       ]
     }
@@ -146,7 +150,8 @@
       "hooks": [
         {
           "type": "command",
-          "command": "~/.claude/hooks/mb-session-end.sh # [memory-bank-skill]"
+          "command": "~/.claude/hooks/mb-session-end.sh # [memory-bank-skill]",
+          "timeout": 240
         },
         {
           "type": "command",

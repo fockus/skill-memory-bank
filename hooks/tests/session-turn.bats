@@ -202,3 +202,31 @@ _payload() { # $1=stop_hook_active
   run bash -c "bash '$HOOK' < '$TMP/in.json'"
   [ "$status" -eq 0 ]
 }
+
+@test "stub guard: contentless first turn creates NO session file (Stage 4)" {
+  : > "$TMP/empty.jsonl"
+  printf '{"cwd":"%s","session_id":"af0a3685-3ee9-4db8","transcript_path":"%s","stop_hook_active":false}' \
+    "$PROJ" "$TMP/empty.jsonl" > "$TMP/ine.json"
+  run bash -c "bash '$HOOK' < '$TMP/ine.json'"
+  [ "$status" -eq 0 ]
+  [ -z "$(ls "$PROJ/.memory-bank/session/"*.md 2>/dev/null)" ]
+}
+
+@test "stub guard OFF: contentless first turn still creates the file (back-compat)" {
+  : > "$TMP/empty.jsonl"
+  printf '{"cwd":"%s","session_id":"af0a3685-3ee9-4db8","transcript_path":"%s","stop_hook_active":false}' \
+    "$PROJ" "$TMP/empty.jsonl" > "$TMP/ine.json"
+  run bash -c "MB_SESSION_STUB_GUARD=off bash '$HOOK' < '$TMP/ine.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  [ -f "$sf" ]
+}
+
+@test "stub guard: substantive first turn DOES create the file" {
+  _payload false
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  [ -f "$sf" ]
+  grep -q 'User: "second request please"' "$sf"
+}

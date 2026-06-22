@@ -152,6 +152,48 @@ sc_redact_secrets() {
     -e "s/([A-Z0-9_]*(API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD)[A-Z0-9_]*[[:space:]]*[=:][[:space:]]*)['\"]?[^[:space:]'\"]{8,}['\"]?/\1[REDACTED]/g"
 }
 
+# sc_build_summary_src <session_file> — echo the SRC fed to the summarizer/judge:
+# the frontmatter + `## Live log` section (preferred), falling back to the raw transcript
+# when the Live log is contentless, then redacted and capped to MB_SUMMARY_MAX_CHARS.
+# Single source of truth shared by mb-session-summarize.sh (summary) and mb-session-end.sh
+# (judge) so the "what gets summarized" formula is defined in exactly one place (DRY).
+sc_build_summary_src() {
+  local SF="$1"
+  local MAX_CHARS="${MB_SUMMARY_MAX_CHARS:-200000}"
+  local LIVELOG SRC TRANSCRIPT head_n tail_n tail_start
+  # Frontmatter block + the `## Live log` section ONLY. Stop at the NEXT `## ` heading after
+  # Live log so an already-generated `## Summary`/`## Auto-notes` cannot masquerade as bullets.
+  LIVELOG="$(awk '
+    NR==1 && /^---$/ { print; fm=1; next }
+    fm && /^---$/    { print; fm=0; next }
+    fm               { print; next }
+    ll && /^## / && !/^## Live log/ { ll=0 }
+    /^## Live log/   { ll=1 }
+    ll               { print }
+  ' "$SF")"
+  if printf '%s\n' "$LIVELOG" | grep -qE 'User: "[^"]|tools: [A-Za-z]'; then
+    SRC="$LIVELOG"
+  else
+    # Contentless Live log → fall back to the raw transcript when it fits the window.
+    TRANSCRIPT="$(sc_fm_get "$SF" transcript)"
+    if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] && [ "$(wc -c < "$TRANSCRIPT")" -le "$MAX_CHARS" ]; then
+      SRC="$(cat "$TRANSCRIPT")"
+    else
+      SRC="$LIVELOG"
+    fi
+  fi
+  # Redact secrets BEFORE the source ever reaches an LLM prompt.
+  SRC="$(printf '%s' "$SRC" | sc_redact_secrets)"
+  # Final cap so the prompt always fits (cheap no-op when already small).
+  if [ "${#SRC}" -gt "$MAX_CHARS" ]; then
+    head_n=$(( MAX_CHARS * 6 / 10 ))
+    tail_n=$(( MAX_CHARS - head_n ))
+    tail_start=$(( ${#SRC} - tail_n ))
+    SRC="$(printf '%s\n…[transcript truncated for summary]…\n%s' "${SRC:0:head_n}" "${SRC:tail_start}")"
+  fi
+  printf '%s' "$SRC"
+}
+
 # sc_semantic_py <hook_dir> <mb_root> — echo the python for the semantic CLI.
 # Prefers a venv beside the installed hooks (global ~/.claude/hooks/.venv, or a
 # project-local bin/.venv), then a legacy .memory-bank/.venv, then system python3.

@@ -48,6 +48,31 @@ trap 'sc_unlock "$LOCK"' EXIT INT TERM
 SF="$(sc_find_session_file "$MB" "$SID")"
 [ -n "$SF" ] || SF="$(sc_session_file "$MB" "$SID" "$date_s" "$hhmm")"
 
+# extract this turn's user text + tools + files (no LLM). The extractor also yields the turn
+# ANCHOR — the uuid of the last REAL user message — which is the dedup key. The previous key
+# (uuid of the transcript's LAST line) is empty whenever that line is a uuid-less record such
+# as `permission-mode`/`summary`, so duplicate Stop firings from project-local + global hook
+# registration slipped past the dedup and double-logged the same turn.
+fields="$(bash "$HOOK_DIR/lib/extract-tools-files.sh" "$TRANSCRIPT" 2>/dev/null || true)"
+user_line="$(printf '%s\n' "$fields" | sed -n 's/^user=//p')"
+tools="$(printf '%s\n' "$fields" | sed -n 's/^tools=//p')"
+files="$(printf '%s\n' "$fields" | sed -n 's/^files=//p')"
+turn_uuid="$(printf '%s\n' "$fields" | sed -n 's/^turn=//p')"
+errors="$(printf '%s\n' "$fields" | sed -n 's/^errors=//p')"
+[ -n "$tools" ] || tools="(none)"
+[ -n "$files" ] || files="(none)"
+
+# Stub guard: do NOT create a session file for a contentless first turn (empty user request,
+# no real tool, no file). These are short/aborted/sub-agent sessions whose transcripts are
+# often already gone; a 340-byte stub per such turn just floods session/ with noise and buries
+# real sessions. Once a real turn exists the file is created and every later turn is logged as
+# before. Off-switch: MB_SESSION_STUB_GUARD=off.
+if [ "${MB_SESSION_STUB_GUARD:-on}" != "off" ] && [ ! -f "$SF" ] \
+   && [ -z "$user_line" ] && [ "$tools" = "(none)" ] && [ "$files" = "(none)" ]; then
+  printf '{}\n'
+  exit 0
+fi
+
 # create session file with frontmatter on first turn
 if [ ! -f "$SF" ]; then
   branch="$(git -C "$CWD" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '-')"
@@ -69,19 +94,6 @@ if [ -z "$(sc_fm_get "$SF" transcript)" ] && [ -n "$TRANSCRIPT" ]; then
   sc_fm_set "$SF" transcript "$TRANSCRIPT"
 fi
 
-# extract this turn's user text + tools + files (no LLM). The extractor also yields the turn
-# ANCHOR — the uuid of the last REAL user message — which is the dedup key. The previous key
-# (uuid of the transcript's LAST line) is empty whenever that line is a uuid-less record such
-# as `permission-mode`/`summary`, so duplicate Stop firings from project-local + global hook
-# registration slipped past the dedup and double-logged the same turn.
-fields="$(bash "$HOOK_DIR/lib/extract-tools-files.sh" "$TRANSCRIPT" 2>/dev/null || true)"
-user_line="$(printf '%s\n' "$fields" | sed -n 's/^user=//p')"
-tools="$(printf '%s\n' "$fields" | sed -n 's/^tools=//p')"
-files="$(printf '%s\n' "$fields" | sed -n 's/^files=//p')"
-turn_uuid="$(printf '%s\n' "$fields" | sed -n 's/^turn=//p')"
-errors="$(printf '%s\n' "$fields" | sed -n 's/^errors=//p')"
-[ -n "$tools" ] || tools="(none)"
-[ -n "$files" ] || files="(none)"
 
 # Outcome signal (REQ-009): `ok` when every tool call succeeded, `err(N)` when N
 # tool_result blocks this turn carried is_error:true (counted by the extractor in
