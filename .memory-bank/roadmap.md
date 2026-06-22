@@ -43,6 +43,22 @@ _None._
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
 
+## Current focus (2026-06-23 — codex/GPT-5.5 remediation)
+
+**v5.1.0 SHIPPED** (PyPI + GitHub Release) and `main` CI is GREEN (post-release red fixed: `3c16381` bats portability + shellcheck 0.9.0, `e04c4e7` pytest CI-portability). A 9-agent codex/GPT-5.5 read-only review (6 aspects + 3 transports → `reports/2026-06-23_codex-gpt5.5-skill-review.md`) produced backlog **I-082..I-086** and 5 fix-plans. **Sequence source of truth: `plans/2026-06-23_SEQUENCE_codex-remediation.md`.**
+
+**Ordered execution (dependency-resolved):**
+
+| Wave | # | Plan | Backlog | Release |
+|------|---|------|---------|---------|
+| 1 (urgent patch) | 1 | [security-hardening](plans/2026-06-23_fix_security-hardening.md) | I-082 | 5.1.1 |
+| 1 | 2 | [verification-gates](plans/2026-06-23_fix_verification-gates.md) | I-083 | 5.1.1 |
+| 1 | 3 | [logic-correctness-portability](plans/2026-06-23_fix_logic-correctness-portability.md) | I-085 | 5.1.1 |
+| 2 (minor feature) | 4 | [config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) | I-086 | 5.2.0 |
+| 2 | 5 | [dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) | I-084 | 5.2.0 |
+
+**Why this order:** security/correctness before features (I-082 code-exec is in shipped 5.1.0); fix verification gates (I-083) so `/mb done`/`/mb work` are trustworthy before landing the rest; fix the empty-`--range`→whole-plan BLOCKER (I-085) early since we execute these plans *with* `/mb work --range`. Hard deps: I-082 → I-085 (shared `_lib.sh::mb_canonical_under` + `mb-work-resolve.sh`); I-086 → I-084 (validator + single pipeline-resolution path the dispatcher relies on). Each plan runs governed (`codex-governed`: implement → verify → dual review → **judge=mb-judge** → fix-cycle → done), TDD-first, tested under bash 3.2 + 5.x and Python 3.11.
+
 ## Current focus (2026-06-14, v5.1.0 shipped)
 
 `tier1-graph-memory` (17/17) отгружен → **v5.1.0** (PyPI publish + git tag pending explicit go). `goal-driven-autopilot` **снят с roadmap** — заменён на `specs/dynamic-flow/` (мёртвые планы в `plans/superseded/`). Ниже — переприоритизированный по ICE план оставшейся специфицированной работы. Источник истины по последовательности — этот раздел; авто-блок выше отражает лишь «что активно по фронтматтеру планов».

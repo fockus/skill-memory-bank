@@ -11,6 +11,12 @@
 
 ## ⏭ Следующий шаг
 
+**🔄 codex/GPT-5.5 remediation — 2026-06-23.** v5.1.0 **отгружен** (PyPI + GitHub Release), `main` CI **зелёный** (post-release red закрыт: `3c16381` + `e04c4e7`). 9-агентное codex-ревью (6 аспектов + 3 транспорта) → backlog **I-082..I-086** + 5 fix-планов + sequence-документ. **Порядок исполнения — `plans/2026-06-23_SEQUENCE_codex-remediation.md` (= `roadmap.md § Current focus 2026-06-23`):**
+- **Wave 1 (→5.1.1, urgent):** I-082 security-hardening (code-exec в отгруженном коде) → I-083 verification-gates (fail-closed) → I-085 logic+portability (empty-`--range`→весь план BLOCKER).
+- **Wave 2 (→5.2.0):** I-086 config-validation+docs → I-084 dispatcher-wiring+transports (pi/opencode/codex executable end-to-end).
+
+Каждый план — governed `/mb work` (`codex-governed`: implement → verify → dual review → **judge=mb-judge** → fix-cycle → done), TDD-first, bash 3.2+5.x, Python 3.11. Hard deps: I-082→I-085 (общий `_lib.sh::mb_canonical_under`), I-086→I-084 (validator + единый pipeline-resolution path). **Следующий шаг: запустить Wave 1 / I-082** по явному go.
+
 **✅ spec `tier1-graph-memory` (17/17 tasks) COMPLETE — 2026-06-14.** Delivered end-to-end through the governed `/mb work` machine: implement (Opus subagents) → verify → DUAL parallel review (Codex gpt-5.5 + main-agent) → judge (GO / GO_WITH_BACKLOG / NO_GO) → fix loop ≤2 then `judge_decides`. All 17 tasks committed on `main` (c015831, 491b717, 21ba225, ca6a358, 74f14a1, 3434cb3, a0d6711, e1bbff1, 5a041d2, 8c8d900, b365e59, 73a095e, 7ba7174, 4bca7f6, 1e94d6d, 0ac97f2, 8ff17bb). Three release-gated backlog items closed: I-069 (07221e9), I-066+I-067 (306835a). Version bumped 5.0.1 → 5.1.0.
 
 **Next — explicit user "go" required for: PyPI publish + git tag of 5.1.0.** Release is PREP-only (committed VERSION + CHANGELOG); publish/tag are NOT done. Remaining open backlog from the sprint stays out of the gate: I-064/I-065 (LOW/MED docstrings) + I-068 (pre-existing flaky `session-end-judge.bats`).

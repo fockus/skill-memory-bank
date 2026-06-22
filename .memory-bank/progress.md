@@ -2532,3 +2532,28 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 Полный прогон: **1738 passed** (4 doc_counts были pre-existing red → теперь green). Незакоммиченный progress-хвост (16 auto-capture стабов от dev-сессий 2026-06-16) свёрнут в эту запись.
 
 **Pending explicit "go":** `git push` (main ≫ origin, ahead 51+), git tag `v5.1.0`, PyPI publish. Незавершённые feature-ветки: `feat/named-pipelines` (свежая, ~2 конфликта) → завершить; `fix/work-plan-heading-level-and-go-rules` (устарела, спасти только Go role-маркеры).
+
+## 2026-06-23
+
+### Auto-capture 2026-06-23 (session 4d7db269)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+### v5.1.0 confirmed shipped + CI green + codex/GPT-5.5 review → remediation backlog & plans
+
+**Release closed out.** v5.1.0 live on PyPI + GitHub Release (tag `v5.1.0`). Post-release `test` job was RED from environment-masked failures; fixed and pushed → CI GREEN:
+- `3c16381` fix(ci): `mb-session-prune.sh` `set -u` guard (ubuntu bash 5.x); GNU-first `stat -c %Y` in `test_mb_pre_compact.bats` + `test_mb_flow_sync.bats`; `.shellcheckrc` disable SC2015/SC2317 (CI shellcheck 0.9.0); `mb-conflicts.sh` heredoc backtick via `chr(96)` (macOS bash 3.2); hermetic `test_mb_agent_caps.bats` test-15 (symlink python3, pinned PATH — host codex/pi/opencode leak).
+- `e04c4e7` fix(ci): `test_flow_pattern_templates.py::test_cited_slash_skills_are_known` — gate the reflexion/SADD resolution check on `toolkit_present` (CI's bare `~/.claude/skills` made it fail for all 6 templates).
+
+**Lesson reinforced:** the "verify under Python 3.11" lesson generalizes — verify under CI's exact bash (3.2 macOS / 5.x Linux), shellcheck (0.9.0), and clean env, not just the dev box.
+
+**codex/GPT-5.5 adversarial review** — 9 read-only `codex exec` sessions (gpt-5.5, xhigh): 6 aspects (functionality/logic/consistency/gaps/security/configurability) + 3 transports (codex/opencode/pi). Saved verbatim → `reports/2026-06-23_codex-gpt5.5-skill-review.md`. Clustered by root cause into backlog **I-082..I-086**, each with a planner-authored, code-verified, TDD-first fix-plan (`plans/2026-06-23_*.md`) + master ordering `plans/2026-06-23_SEQUENCE_codex-remediation.md`.
+- Dominant root cause (6/9 reviewers): `mb-agent-caps` dispatcher not wired into `/mb work` → pi/opencode/codex not executable end-to-end (I-084).
+- Security (shipped 5.1.0 → 5.1.1): `_skill_root.sh` `bash -c` injection, `.mbenv` source, path traversal, symlink read, `<private>` leak (I-082).
+- Verification gates fail-open on null/crash/bad-JSON tests result (I-083).
+
+**Decisions locked (maintainer, 2026-06-23):** judge = `mb-judge` only; `/mb reindex` → ADD to router. **Verified vs live binaries:** codex enumerate = `codex debug models` (JSON `.models[].slug`); pi `-p --no-session --model`; opencode `run -m`.
+
+**Sequence:** Wave 1 (5.1.1) I-082 → I-083 → I-085; Wave 2 (5.2.0) I-086 → I-084. Each via governed `/mb work` (judge=mb-judge), TDD-first, bash 3.2+5.x, Python 3.11. Status/roadmap updated. **Next: run Wave 1 / I-082 on explicit go.**
+
+**Pending explicit "go":** push the planning commits to origin; start `/mb work` on I-082.
