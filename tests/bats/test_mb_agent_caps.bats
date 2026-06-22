@@ -155,10 +155,13 @@ printf '%s\n' \
   "opencode-go   deepseek-v4-pro  1M       384K     yes       no"
 SH
   chmod +x "$bin/pi"
-  # reviewer contract in $BANK is openai-codex/gpt-5.5. Fake pi shadows the real one;
-  # rest of PATH kept so python3/awk resolve. codex absent → prefer falls through; pi
-  # is first in priority, so it wins before any real opencode is probed.
-  run env -u MB_CAPS_FIXTURE PATH="$bin:$PATH" bash "$CAPS" resolve --role reviewer --mb "$BANK"
+  # reviewer contract in $BANK is openai-codex/gpt-5.5 → dispatch.prefer routes it to
+  # codex FIRST. This test asserts the FAKE pi wins, so the host's real codex/opencode/pi
+  # must NOT leak in via PATH. We symlink the real python3 (the resolver's YAML parser
+  # needs its pyyaml) into $bin and pin PATH to $bin:/usr/bin:/bin — codex/opencode/real-pi
+  # live elsewhere and stay absent, so prefer→codex falls through and the fake pi wins.
+  ln -sf "$(command -v python3)" "$bin/python3"
+  run env -u MB_CAPS_FIXTURE PATH="$bin:/usr/bin:/bin" bash "$CAPS" resolve --role reviewer --mb "$BANK"
   [ "$status" -eq 0 ]
   [[ "$output" == *"transport=pi"* ]]
   [[ "$output" == *"model=openai-codex/gpt-5.5"* ]]

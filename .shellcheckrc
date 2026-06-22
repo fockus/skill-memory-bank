@@ -7,3 +7,12 @@
 # runs without it), and `.mbenv` is an optional per-project file generated at
 # runtime. The source directives are kept for `-x` runs; this disables the noise.
 disable=SC1091
+
+# SC2015 (A && B || C is not if-then-else): the scripts deliberately use the
+# `cmd && action || true` guard idiom (info-level style). SC2317 (command appears
+# unreachable): a known false-positive for trap-invoked / sourced-only helper
+# functions (mb-fanout `_cleanup`, mb-flow-verify check runners). Both are
+# info-level and flagged inconsistently across shellcheck versions (CI pins the
+# apt 0.9.0 build); disable repo-wide to keep CI stable.
+disable=SC2015
+disable=SC2317

@@ -34,7 +34,7 @@ MB_PATH="$(mb_resolve_path "$MB_ARG")"
 SESS="$MB_PATH/session"
 [ -d "$SESS" ] || { echo "[prune] no session dir: $SESS"; exit 0; }
 
-cur8="${CLAUDE_CODE_SESSION_ID:0:8}"
+cur8="${CLAUDE_CODE_SESSION_ID:-}"; cur8="${cur8:0:8}"   # set -u safe when unset (e.g. CI)
 ARCHIVE="$SESS/archive/stubs"
 
 stubs=0

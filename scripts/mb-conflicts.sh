@@ -163,7 +163,12 @@ def date_from_heading(heading: str):
     return d.group(1) if d else ""
 
 
-FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
+# _BT is the backtick, built with chr(96) rather than a literal char. Reason:
+# bash 3.2 (macOS CI) scans backtick pairs even inside a quoted <<'PY' heredoc
+# and aborts parsing if the body has an ODD backtick count. Keeping literal
+# backticks out of this line (and every line backtick-balanced) keeps it parseable.
+_BT = chr(96)
+FENCE_RE = re.compile(r"^\s*(" + _BT + r"{3,}|~{3,})(.*)$")
 H2_RE = re.compile(r"^## ")
 
 
@@ -182,7 +187,7 @@ def split_progress_entries(ptext: str):
     """
     blocks: list[str] = []
     cur: list[str] = []
-    fence_char = ""  # "" → not inside a fence; else the opener's char (` or ~)
+    fence_char = ""  # "" → not inside a fence; else the opener's char (backtick or tilde)
     fence_len = 0
     for ln in ptext.splitlines(keepends=True):
         m = FENCE_RE.match(ln)
@@ -236,7 +241,7 @@ if lessons.is_file():
 # subsections (Done / Files changed / Follow-up …) inside each dated "## YYYY-MM-DD"
 # block, AND may embed fenced code snippets that themselves contain "## " lines. We
 # split on TOP-LEVEL "## " headings ONLY, fence-aware: nested "### " content and any
-# "## " inside a ``` / ~~~ fence stay in the parent body, and the parent heading's
+# "## " inside a triple-backtick / ~~~ fence stay in the parent body, and the parent heading's
 # date applies to the whole entry. This keeps the newest-10 window counting WHOLE
 # dated entries, never subsection/snippet fragments (which carry no date and would
 # otherwise flood the window and produce spurious "ordering unknown").

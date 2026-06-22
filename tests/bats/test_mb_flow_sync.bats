@@ -57,9 +57,11 @@ teardown() {
   [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ] && rm -rf "$TMPROOT"
 }
 
-# Portable mtime (epoch seconds).
+# Portable mtime (epoch seconds). GNU-first: `stat -c %Y` (Linux) before `-f %m`
+# (BSD/macOS) — the reverse breaks on Linux where GNU `stat -f %m` prints verbose
+# filesystem info, not the epoch.
 _mtime() {
-  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null
+  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null
 }
 
 # ═══════════════════════════════════════════════════════════════

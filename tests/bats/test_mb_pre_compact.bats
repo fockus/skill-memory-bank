@@ -70,10 +70,12 @@ run_hook_split() {
   # Backdate so the refresh is observable.
   touch -t 202001010000 "$MB/handoff/latest.md"
   local before after
-  before=$(stat -f %m "$MB/handoff/latest.md" 2>/dev/null || stat -c %Y "$MB/handoff/latest.md")
+  # GNU-first: `stat -c %Y` (Linux) before `-f %m` (BSD/macOS). Reverse order breaks
+  # on Linux — GNU `stat -f %m` prints verbose filesystem info to stdout, not the epoch.
+  before=$(stat -c %Y "$MB/handoff/latest.md" 2>/dev/null || stat -f %m "$MB/handoff/latest.md")
   run_hook
   [ "$status" -eq 0 ]
-  after=$(stat -f %m "$MB/handoff/latest.md" 2>/dev/null || stat -c %Y "$MB/handoff/latest.md")
+  after=$(stat -c %Y "$MB/handoff/latest.md" 2>/dev/null || stat -f %m "$MB/handoff/latest.md")
   [ "$after" -gt "$before" ]
   grep -q "Handoff capsule" "$MB/handoff/latest.md"
 }
