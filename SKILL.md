@@ -9,7 +9,7 @@ Three-in-one skill for code agents:
 
 1. **Memory Bank** — long-term project memory through `.memory-bank/` (`STATUS`, `plan`, `checklist`, `RESEARCH`, `BACKLOG`, `progress`, `lessons`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
-3. **Dev toolkit** — 25 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`.
+3. **Dev toolkit** — 28 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`.
 
 > **Design contract.** Memory Bank rests on one inviolable promise — *agents remember* — and a stack of fully configurable, token-economical layers above it. Default behaviour never changes without explicit opt-in; user customisations survive upgrades; expensive paths are off by default. See [`references/design-principles.md`](references/design-principles.md) for the full contract.
 
@@ -190,6 +190,19 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-context-slim.py` | Slim a full agent prompt on stdin → terse version on stdout |
 | `mb-upgrade.sh [--check\|--force]` | Self-update the skill from GitHub |
 | `mb-profile.sh` | Rule profile manager: `init`, `show`, `path`, `validate`, `set` — user/project scopes |
+| `mb-diff-scope.sh` | L5 diff-scope backstop: compare changed files against an allowed glob scope and report out-of-scope changes (exits 0, JSON report; ADR-4) |
+| `mb-fanout.sh` | Stateless fan-out helper: run N branch prompts concurrently via background jobs, capture JSON results, and aggregate into one object — exit-code authority for failed branches (REQ-DF-084) |
+| `mb-flow-branch-sink.sh` | Per-branch result sinks with write-once discipline for `<!-- mb-flow -->` fence: each parallel branch writes to its own `.mb-flow/branch-<i>.json` to prevent races (ADR-9) |
+| `mb-flow-route.sh` | Deterministic route resolver: apply route-floor rules (REQ-DF-022) to an LLM-proposed or user-supplied route and write the resolved `route:` into the `<!-- mb-flow -->` fence in status.md |
+| `mb-flow-sync.sh` | Regenerate the `<!-- mb-flow -->` runtime fence in status.md: emit route, phase, checks, gate, last-verify-sha, and stall-count fields (REQ-DF-030/031/032) |
+| `mb-flow-verify.sh` | THE firewall fan-out: run route-relevant check runners, normalize verdicts via `mb-work-severity-gate.sh`, and exit 0/1/2 — the sole exit-code authority of the dynamic-flow firewall (ADR-3) |
+| `mb-goal-acceptance.sh` | L5 goal-acceptance aggregator: parse `## Acceptance criteria` checkboxes in goal.md and report whether every criterion is satisfied (exits 0, JSON report; REQ-DF-042) |
+| `mb-goal-validate.sh` | Validate a goal.md before a Dynamic Flow run: enforce required sections, acceptance-criteria items, and field completeness — fail-loud exit 1 on malformed goals (REQ-DF-004) |
+| `mb-lint-run.sh` | L5 lint runner: auto-detect project stack via `mb-metrics.sh`, map to linter (ruff/shellcheck), run it, and report findings (exits 0, JSON report; ADR-3; unknown stack = SKIP) |
+| `mb-no-todo.sh` | L5 residual-placeholder runner: scan target files for TODO/FIXME/HACK markers, reusing `mb_rules_check_lib.sh::scan_placeholders` patterns and exemptions (exits 0, JSON report; REQ-DF-042) |
+| `mb-session-prune.sh` | Archive contentless session stubs out of `<bank>/session/` into `session/archive/stubs/`; dry-run is the default, `--apply` performs the move |
+| `mb-settings-ensure-timeout.py` | Surgically ensure the SessionEnd `mb-session-end.sh` hook command carries a per-command `timeout` so the Haiku summarizer is not SIGKILLed before writing `## Summary` |
+| `mb-subinvoke-resolve.sh` | Resolve the per-agent shell sub-invoke command template for the active agent (mirrors `mb-reviewer-resolve.sh`); used by `mb-fanout.sh` to bake `--cmd` when the operator does not supply one (REQ-DF-082) |
 
 ---
 
@@ -275,6 +288,9 @@ Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Cl
 | `mb-semantic-recall.sh` | UserPromptSubmit | Session memory: inject `# Relevant Memory` — top-K semantically relevant past-chat snippets via a local fastembed index; fail-safe, falls back to lexical (`MB_SEMANTIC=off` to disable) |
 | `mb-reindex.sh` | `/mb reindex` | Session memory: (re)build the per-project semantic vector index (`--full`/`--incremental`); bootstraps the venv if needed |
 | `mb-semantic-bootstrap.sh` | sourced by `/mb reindex` | Session memory: idempotent venv + fastembed/numpy installer (opt-in; semantic layer falls back to lexical without it) |
+| `mb-flow-closure-guard.sh` | Stop | Dynamic-flow closure gate: when a flow is active, blocks the Stop event if `mb-flow-verify.sh` exits non-zero, preventing the agent from declaring done on a red firewall (REQ-DF-045) |
+| `mb-session-catchup.sh` | SessionStart | Lazy summarize sessions left `summarized:false` by a prior SIGKILLed SessionEnd; dispatched in the background so session startup is never delayed (`MB_CATCHUP_MAX` tuneable, off via `MB_SESSION_CAPTURE=off`) |
+| `mb-session-summarize.sh` | sourced/dispatched (not directly registered) | Generate the Haiku `## Summary` for one session file and rotate `_recent.md`; extracted from `mb-session-end.sh` (DRY) and driven by both the SessionEnd hook and `mb-session-catchup.sh` |
 
 ---
 

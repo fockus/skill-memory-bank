@@ -256,7 +256,7 @@ The agent reads these rules at session start and follows them without you having
 
 ### 3. Dev-workflow commands
 
-**25 top-level slash-commands** (live in `commands/`):
+**28 top-level slash-commands** (live in `commands/`):
 
 | Command | Purpose |
 |---------|---------|
