@@ -402,23 +402,29 @@ Validate REQ lines via `bash scripts/mb-ears-validate.sh context/<topic>.md`. Ex
 
 ## Spec Requirements (`specs/<topic>/requirements.md`) — Phase 2 Sprint 2
 
-EARS-only requirement list. Created by `bash scripts/mb-sdd.sh <topic>`. If `context/<topic>.md` exists, the EARS section is copied verbatim.
+Hybrid requirement list: **Kiro User Stories** + **EARS acceptance criteria**. Created by `bash scripts/mb-sdd.sh <topic>`. If `context/<topic>.md` exists, the EARS section is copied verbatim into the acceptance criteria. `mb-ears-validate.sh` validates only the `- **REQ-NNN** ...` bullets; the `**User Story:**` lines are ignored, so the two layers coexist.
 
 ```markdown
 # Requirements: <topic>
 
 > Spec triple — see also: design.md, tasks.md.
 >
-> EARS patterns:
-> - Ubiquitous:        `The <system> shall <response>`
-> - Event-driven:      `When <trigger>, the <system> shall <response>`
-> - State-driven:      `While <state>, the <system> shall <response>`
-> - Optional feature:  `Where <feature>, the <system> shall <response>`
-> - Unwanted:          `If <trigger>, then the <system> shall <response>`
+> EARS acceptance criteria (uppercase keywords, REQ-ID bullets):
+> - Ubiquitous:        `THE SYSTEM SHALL <response>`
+> - Event-driven:      `WHEN <trigger> THE SYSTEM SHALL <response>`
+> - State-driven:      `WHILE <state> THE SYSTEM SHALL <response>`
+> - Optional feature:  `WHERE <feature> THE SYSTEM SHALL <response>`
+> - Unwanted:          `IF <trigger> THEN THE SYSTEM SHALL <response>`
 
 ## Requirements (EARS)
 
-- **REQ-NNN** (ubiquitous): The system shall ...
+### Requirement 1: <short title>
+
+**User Story:** As a <role>, I want <feature>, so that <benefit>.
+
+#### Acceptance Criteria
+
+- **REQ-NNN**: THE SYSTEM SHALL ...
 ```
 
 ## Spec Design (`specs/<topic>/design.md`) — Phase 2 Sprint 2

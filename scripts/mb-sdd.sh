@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# mb-sdd.sh — create a Kiro-style spec triple under specs/<topic>/.
+# mb-sdd.sh — create a hybrid Kiro spec triple under specs/<topic>/.
 #
 # Files created:
-#   specs/<topic>/requirements.md  — EARS-only REQ list
+#   specs/<topic>/requirements.md  — User Stories + EARS acceptance criteria
 #   specs/<topic>/design.md        — Architecture / Interfaces / Decisions / Risks
 #   specs/<topic>/tasks.md         — numbered task checkboxes (refs to REQ-IDs)
 #
+# requirements.md uses the HYBRID format: each requirement is one Kiro User Story
+# ("As a <role>, I want <feature>, so that <benefit>") followed by its EARS
+# acceptance criteria (the REQ-NNN bullets). EARS validation (mb-ears-validate.sh)
+# checks only the REQ bullets; the User-Story lines are ignored, so the two layers
+# coexist. The spec triple stays Kiro/Kilo-exportable.
+#
 # If `<mb>/context/<topic>.md` exists, the `## Functional Requirements (EARS)`
-# section is copied verbatim into requirements.md (preserving REQ-IDs).
+# section is copied verbatim into the acceptance criteria (preserving REQ-IDs).
 #
 # Usage:
 #   mb-sdd.sh <topic> [--force] [mb_path]
@@ -104,7 +110,7 @@ else
   REQ_BODY="<!-- Add EARS-formatted requirements. Use scripts/mb-req-next-id.sh --spec ${SAFE_TOPIC} to assign per-spec-local IDs. -->"$'\n'
   REQ_BODY+="<!-- Patterns: Ubiquitous / Event-driven / State-driven / Optional / Unwanted. -->"$'\n'
   REQ_BODY+=$'\n'
-  REQ_BODY+="- **REQ-NNN** (ubiquitous): The system shall ..."$'\n'
+  REQ_BODY+="- **REQ-NNN**: THE SYSTEM SHALL ..."$'\n'
 fi
 
 cat > "$SPEC_DIR/requirements.md" <<EOF
@@ -112,14 +118,25 @@ cat > "$SPEC_DIR/requirements.md" <<EOF
 
 > Spec triple — see also: design.md, tasks.md.
 >
-> EARS patterns:
-> - Ubiquitous:        \`The <system> shall <response>\`
-> - Event-driven:      \`When <trigger>, the <system> shall <response>\`
-> - State-driven:      \`While <state>, the <system> shall <response>\`
-> - Optional feature:  \`Where <feature>, the <system> shall <response>\`
-> - Unwanted:          \`If <trigger>, then the <system> shall <response>\`
+> EARS acceptance criteria (uppercase keywords, REQ-ID bullets):
+> - Ubiquitous:        \`THE SYSTEM SHALL <response>\`
+> - Event-driven:      \`WHEN <trigger> THE SYSTEM SHALL <response>\`
+> - State-driven:      \`WHILE <state> THE SYSTEM SHALL <response>\`
+> - Optional feature:  \`WHERE <feature> THE SYSTEM SHALL <response>\`
+> - Unwanted:          \`IF <trigger> THEN THE SYSTEM SHALL <response>\`
 
 ## Requirements (EARS)
+
+<!-- Hybrid SDD format: each requirement = ONE Kiro User Story + its EARS acceptance -->
+<!-- criteria. Group the REQ-NNN bullets below under user stories; split into multiple -->
+<!-- ### Requirement N blocks as the topic needs. REQ-IDs stay unique and EARS-valid   -->
+<!-- (mb-ears-validate.sh validates only REQ bullets; User-Story lines are ignored).   -->
+
+### Requirement 1: <!-- short title -->
+
+**User Story:** As a <role>, I want <feature>, so that <benefit>.
+
+#### Acceptance Criteria
 
 ${REQ_BODY}
 

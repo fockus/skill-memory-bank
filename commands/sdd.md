@@ -5,7 +5,16 @@ allowed-tools: [Bash, Read, Write]
 
 # /mb sdd <topic>
 
-Create a Kiro/Kilo-compatible spec triple under `.memory-bank/specs/<topic>/`. Each file has a single concern: **requirements** (EARS-only), **design** (architecture + interfaces + decisions), **tasks** (numbered checkbox work items).
+Create a Kiro/Kilo-compatible spec triple under `.memory-bank/specs/<topic>/`. Each file has a single concern: **requirements** (Kiro User Stories + EARS acceptance criteria — hybrid format), **design** (architecture + interfaces + decisions), **tasks** (numbered checkbox work items).
+
+## Hybrid requirements format
+
+`requirements.md` pairs the two industry conventions instead of choosing one:
+
+- **Kiro User Story** per requirement — `### Requirement N` + `**User Story:** As a <role>, I want <feature>, so that <benefit>.` (the "who / why").
+- **EARS acceptance criteria** under each — a `#### Acceptance Criteria` heading with `- **REQ-NNN**: WHEN ... THE SYSTEM SHALL ...` bullets in the 5 EARS patterns, uppercase keywords (the testable "what"). `mb-ears-validate.sh` is case-insensitive and validates only these bullets; User-Story lines are ignored, so the two layers coexist with zero tooling conflict.
+
+REQ-IDs stay unique and traceable; `mb-traceability-gen.sh` and `**Covers:** REQ-NNN` in `tasks.md` are unaffected by the grouping.
 
 ## Why split into three?
 
@@ -29,7 +38,7 @@ After `/mb discuss <topic>` produced an EARS-validated `context/<topic>.md`, whe
 2. Sanitize topic to ASCII slug.
 3. Refuse if `specs/<safe_topic>/` already exists and `--force` was not given.
 4. Create `specs/<safe_topic>/` and write three files:
-   - `requirements.md` — header + EARS reference + `## Requirements (EARS)` section. If `<mb>/context/<safe_topic>.md` exists, the `## Functional Requirements (EARS)` block is copied verbatim (REQ-IDs preserved).
+   - `requirements.md` — header + EARS reference + `## Requirements (EARS)` with a `### Requirement 1` **User Story** scaffold and a `#### Acceptance Criteria` block. If `<mb>/context/<safe_topic>.md` exists, the `## Functional Requirements (EARS)` block is copied verbatim into the acceptance criteria (REQ-IDs preserved); the author groups the bullets under user stories and splits into more `### Requirement N` blocks as needed.
    - `design.md` — Architecture / Interfaces / Decisions / Risks scaffold with a Protocol example.
    - `tasks.md` — numbered tasks with `**Covers:** REQ-NNN` placeholders and unchecked checkboxes.
 5. Print the three created paths to stdout.

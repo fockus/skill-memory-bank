@@ -55,10 +55,7 @@ def test_event_driven_valid() -> None:
 
 
 def test_state_driven_valid() -> None:
-    r = _run(
-        "- **REQ-003** (state-driven): While the door is open, "
-        "the alarm shall stay active.\n"
-    )
+    r = _run("- **REQ-003** (state-driven): While the door is open, the alarm shall stay active.\n")
     assert r.returncode == 0, r.stderr
 
 
@@ -207,6 +204,31 @@ def test_wrapped_valid_followed_by_invalid_does_not_mask_the_invalid() -> None:
     assert r.returncode == 1
     assert "REQ-101" in r.stderr
     assert "REQ-100" not in r.stderr
+
+
+def test_canonical_kiro_uppercase_ears_valid() -> None:
+    """Canonical-Kiro uppercase EARS keywords (WHEN/IF/THE SYSTEM SHALL) are valid.
+
+    The validator is case-insensitive on the trigger keyword and ``shall`` so the
+    hybrid Kiro-cosmetic form (``- **REQ-NNN**: WHEN ... THE SYSTEM SHALL ...``)
+    passes alongside the lowercase form.
+    """
+    content = (
+        "- **REQ-001**: THE SYSTEM SHALL log every transaction.\n"
+        "- **REQ-002**: WHEN the user logs in THE SYSTEM SHALL record the timestamp.\n"
+        "- **REQ-003**: WHILE the door is open THE SYSTEM SHALL keep the alarm active.\n"
+        "- **REQ-004**: WHERE biometric auth is enabled THE SYSTEM SHALL require a fingerprint.\n"
+        "- **REQ-005**: IF the connection times out THEN THE SYSTEM SHALL retry up to 3 times.\n"
+    )
+    r = _run(content)
+    assert r.returncode == 0, r.stderr
+
+
+def test_uppercase_missing_shall_still_invalid() -> None:
+    """Case-insensitivity widens acceptance but does not excuse a missing modal verb."""
+    r = _run("- **REQ-009**: THE SYSTEM WILL log every transaction.\n")
+    assert r.returncode == 1
+    assert "REQ-009" in r.stderr
 
 
 def test_usage_error_exits_2(tmp_path: Path) -> None:

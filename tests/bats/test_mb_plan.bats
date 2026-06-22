@@ -23,6 +23,30 @@ teardown() {
   grep -q '<!-- mb-stage:2 -->' "$output"
 }
 
+@test "mb-plan: emits roadmap-sync frontmatter (status/type/topic) so the plan is not skipped" {
+  run bash "$SCRIPT" fix "Roadmap Visible" "$MB"
+  [ "$status" -eq 0 ]
+  # First line must open a YAML frontmatter block.
+  [ "$(head -1 "$output")" = "---" ]
+  # Keys mb-roadmap-sync.sh reads.
+  grep -Eq '^status: in_progress$' "$output"
+  grep -Eq '^type: fix$' "$output"
+  grep -Eq '^topic: roadmap-visible$' "$output"
+  grep -Eq '^parallel_safe: false$' "$output"
+  grep -Eq '^depends_on: \[\]$' "$output"
+  # The `# Plan:` heading still present after the frontmatter.
+  grep -q '^# Plan: fix — roadmap-visible$' "$output"
+}
+
+@test "mb-plan: roadmap-sync ingests the scaffolded plan (no skip warning; appears under Now)" {
+  printf '# Roadmap\n' > "$MB/roadmap.md"
+  plan="$(bash "$SCRIPT" fix "Sync Me" "$MB")"
+  run bash "$REPO_ROOT/scripts/mb-roadmap-sync.sh" "$MB"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"skipping plan without frontmatter: $plan"* ]]
+  grep -q 'sync-me' "$MB/roadmap.md"
+}
+
 @test "mb-plan: rejects invalid plan type" {
   run bash "$SCRIPT" invalid "Topic" "$MB"
   [ "$status" -ne 0 ]

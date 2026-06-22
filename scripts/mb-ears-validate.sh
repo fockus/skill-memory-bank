@@ -51,8 +51,8 @@ sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
 import mb_req_id as rq  # shared REQ-ID grammar (supports REQ-RS-NNN schemes)
 
 REQ_LINE = rq.EARS_REQ_LINE_RE  # bold-bullet REQ line; group(1) = scheme
-TRIGGER = re.compile(r"\b(The|When|While|Where|If)\b")
-SHALL = re.compile(r"\bshall\b")
+TRIGGER = re.compile(r"\b(The|When|While|Where|If)\b", re.IGNORECASE)
+SHALL = re.compile(r"\bshall\b", re.IGNORECASE)
 
 text = os.environ.get("EARS_INPUT", "")
 lines = text.splitlines()

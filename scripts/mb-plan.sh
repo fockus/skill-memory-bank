@@ -136,6 +136,15 @@ fi
 mkdir -p "$PLANS_DIR"
 
 cat > "$FILEPATH" << 'TEMPLATE'
+---
+type: TYPE
+topic: TOPIC
+status: in_progress
+depends_on: []
+parallel_safe: false
+linked_specs: []
+created: DATE_PLACEHOLDER
+---
 # Plan: TYPE — TOPIC
 
 **Baseline commit:** BASELINE_COMMIT_PLACEHOLDER
@@ -199,9 +208,9 @@ TEMPLATE
 
 # Substitute type, topic, and baseline commit into the title (portable `sed`: macOS vs GNU)
 if sed --version >/dev/null 2>&1; then
-  sed -i "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g; s|BASELINE_COMMIT_PLACEHOLDER|$BASELINE_COMMIT|g" "$FILEPATH"
+  sed -i "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g; s|BASELINE_COMMIT_PLACEHOLDER|$BASELINE_COMMIT|g; s|DATE_PLACEHOLDER|$DATE|g" "$FILEPATH"
 else
-  sed -i '' "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g; s|BASELINE_COMMIT_PLACEHOLDER|$BASELINE_COMMIT|g" "$FILEPATH"
+  sed -i '' "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g; s|BASELINE_COMMIT_PLACEHOLDER|$BASELINE_COMMIT|g; s|DATE_PLACEHOLDER|$DATE|g" "$FILEPATH"
 fi
 
 # Phase 2 Sprint 2 (SDD-lite): inject `## Linked context` section right after

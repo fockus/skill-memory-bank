@@ -165,6 +165,7 @@ def test_sdd_tasks_template_dod_uses_checkboxes(tmp_path: Path) -> None:
 def test_sdd_tasks_parseable_by_work_items(tmp_path: Path) -> None:
     """parse_work_items() returns >= 2 WorkItems with kind==task and source==spec."""
     import sys
+
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
     from mb_work_items import parse_work_items  # noqa: PLC0415
 
@@ -179,3 +180,53 @@ def test_sdd_tasks_parseable_by_work_items(tmp_path: Path) -> None:
     for item in items:
         assert item.kind == "task", f"Expected kind='task', got '{item.kind}'"
         assert item.source == "spec", f"Expected source='spec', got '{item.source}'"
+
+
+# ── Hybrid SDD format: Kiro User Stories + EARS acceptance criteria ───────────
+
+
+def test_sdd_requirements_has_user_story_scaffold(tmp_path: Path) -> None:
+    """requirements.md must scaffold a Kiro 'User Story' alongside EARS."""
+    mb = _init_mb(tmp_path)
+    r = _run("foo", mb=mb)
+    assert r.returncode == 0, r.stderr
+    text = (mb / "specs" / "foo" / "requirements.md").read_text(encoding="utf-8")
+    assert "User Story" in text, "requirements.md must scaffold a Kiro User Story"
+    assert "As a <role>" in text, "User Story must use the As a/I want/so that shape"
+
+
+def test_sdd_requirements_has_acceptance_criteria_and_requirement_heading(
+    tmp_path: Path,
+) -> None:
+    """requirements.md groups EARS bullets under a Requirement + Acceptance Criteria."""
+    mb = _init_mb(tmp_path)
+    r = _run("foo", mb=mb)
+    assert r.returncode == 0, r.stderr
+    text = (mb / "specs" / "foo" / "requirements.md").read_text(encoding="utf-8")
+    assert "### Requirement 1" in text, "requirements.md must scaffold a Requirement heading"
+    assert "#### Acceptance Criteria" in text, (
+        "EARS bullets must sit under an Acceptance Criteria heading"
+    )
+
+
+def test_sdd_copied_ears_live_under_acceptance_criteria(tmp_path: Path) -> None:
+    """Context-copied EARS bullets land under the User Story acceptance criteria."""
+    mb = _init_mb(tmp_path)
+    (mb / "context" / "foo.md").write_text(
+        "---\ntopic: foo\nstatus: ready\n---\n\n"
+        "# Context: foo\n\n"
+        "## Purpose & Users\n\nstuff\n\n"
+        "## Functional Requirements (EARS)\n\n"
+        "- **REQ-007** (ubiquitous): The system shall do X.\n\n"
+        "## Non-Functional Requirements\n\n- NFR-1\n",
+        encoding="utf-8",
+    )
+    r = _run("foo", mb=mb)
+    assert r.returncode == 0, r.stderr
+    text = (mb / "specs" / "foo" / "requirements.md").read_text(encoding="utf-8")
+    ac_idx = text.index("#### Acceptance Criteria")
+    req_idx = text.index("REQ-007")
+    assert req_idx > ac_idx, "copied REQ bullets must appear under Acceptance Criteria"
+    # The hybrid layer must not leak non-EARS context sections.
+    assert "NFR-1" not in text
+    assert "Purpose & Users" not in text
