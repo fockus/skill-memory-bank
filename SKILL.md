@@ -122,6 +122,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 |--------|---------|
 | `_lib.sh` | Shared helpers sourced by other scripts |
 | `mb-context.sh [--deep]` | Build context from core files (`STATUS` + `plan` + `checklist` + `RESEARCH` + codebase summary). `--deep` shows full codebase docs |
+| `mb-statusline.py [--install]` | Claude Code statusline showing context-window fill `%` (`used/limit`, 1M-aware) + model · branch · project. Reads the status JSON on stdin; `--install` wires it into `~/.claude/settings.json` (backup, no clobber) |
 | `mb-search.sh <q> [--tag t]` | Keyword search across the memory bank. `--tag` filters via `index.json` |
 | `mb-note.sh <topic>` | Create `notes/YYYY-MM-DD_HH-MM_<topic>.md`. Collision-safe (`_2` / `_3`) |
 | `mb-plan.sh <type> <topic>` | Create `plans/YYYY-MM-DD_<type>_<topic>.md` with `<!-- mb-stage:N -->` markers |
