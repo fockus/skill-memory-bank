@@ -11,9 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 
-def test_version_bumped_to_5_1_0() -> None:
+def test_version_bumped_to_5_2_0() -> None:
     text = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    assert text == "5.1.0", f"expected 5.1.0, got {text!r}"
+    assert text == "5.2.0", f"expected 5.2.0, got {text!r}"
 
 
 def test_changelog_has_4_0_0_section() -> None:

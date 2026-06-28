@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [5.2.0] — 2026-06-28
+
+### Added
+
+- **Context-window statusline** (`scripts/mb-statusline.py`): a Claude Code
+  statusline that shows how much of the context window is filled (`used/limit`,
+  1M-aware) alongside model · git branch · project. Reads Claude Code's status
+  JSON on stdin, counts the latest main-chain usage, and skips sidechain
+  (subagent) usage so subagent tokens never inflate the count. `/mb statusline`
+  (→ `mb-statusline.py --install`) wires it into `~/.claude/settings.json` with
+  a backup and refuses to clobber an existing `statusLine` unless `--force`.
+
 ## [5.1.0] — 2026-06-22
 
 > **Consolidated 5.1.0.** The tier1 graph/session-intelligence layer ships
