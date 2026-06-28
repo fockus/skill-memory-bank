@@ -98,7 +98,7 @@ install_pi_settings_skill() {
   local settings_file="$PI_AGENT_DIR/settings.json"
   mkdir -p "$PI_AGENT_DIR"
 
-  SETTINGS_FILE="$settings_file" python3 <<'PYEOF'
+  SETTINGS_FILE="$settings_file" "${MB_PYTHON:-python3}" <<'PYEOF'
 import json
 import os
 from pathlib import Path

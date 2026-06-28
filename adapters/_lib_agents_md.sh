@@ -46,14 +46,16 @@ mb_emit_rules_file() {
     return 1
   fi
 
-  if ! command -v python3 >/dev/null 2>&1; then
+  # Prefer the interpreter the CLI handed us (MB_PYTHON); fall back to python3.
+  local py="${MB_PYTHON:-python3}"
+  if ! command -v "$py" >/dev/null 2>&1; then
     cat "$rules_file"
     return 0
   fi
 
   TARGET_RULES_FILE="$rules_file" \
   MB_RULE_LANGUAGE="$lang" \
-  python3 <<'PYEOF'
+  "$py" <<'PYEOF'
 from pathlib import Path
 import os
 import re
