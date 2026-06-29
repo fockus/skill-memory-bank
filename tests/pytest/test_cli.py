@@ -578,6 +578,83 @@ def test_install_sh_routes_python_through_mb_python(tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash required")
+def test_cross_agent_adapters_route_python_through_mb_python(tmp_path):
+    """Cross-agent adapters (e.g. cursor.sh ``run_texttool``) must run Python
+    through ``$MB_PYTHON``, not a bare ``python3``.
+
+    Regression for the pipx/pyenv break: ``memory_bank_skill`` lives only in the
+    interpreter the CLI hands the installer via ``MB_PYTHON``. A bare ``python3``
+    resolves to whatever is first on PATH (under pyenv: a shim without the
+    package), so ``python3 -m memory_bank_skill._texttools`` raises
+    ``ModuleNotFoundError``. cursor.sh swallows that error (``|| true``), so the
+    install still returns 0 but silently skips AGENTS.md localization. We poison
+    the bare ``python3`` so any package import through it fails loudly, and
+    assert the install never falls back to it.
+    """
+    sandbox = tmp_path / "home"
+    sandbox.mkdir()
+    project = tmp_path / "project"
+    project.mkdir()
+
+    # MB_PYTHON: the real interpreter that owns the package (this test's python),
+    # with the repo on PYTHONPATH so `-m memory_bank_skill...` resolves.
+    real_py = tmp_path / "mb-python.sh"
+    real_py.write_text(
+        f'#!/usr/bin/env bash\n'
+        f'exec env PYTHONPATH="{REPO_ROOT}${{PYTHONPATH:+:$PYTHONPATH}}" '
+        f'"{sys.executable}" "$@"\n'
+    )
+    real_py.chmod(0o755)
+
+    # Poisoned bare python3: fails on any memory_bank_skill import, else delegates.
+    poison_dir = tmp_path / "poison"
+    poison_dir.mkdir()
+    bare_py = poison_dir / "python3"
+    bare_py.write_text(
+        '#!/usr/bin/env bash\n'
+        'case " $* " in\n'
+        '  *memory_bank_skill*) echo "bare python3 used for memory_bank_skill" >&2; exit 1 ;;\n'
+        'esac\n'
+        f'exec "{sys.executable}" "$@"\n'
+    )
+    bare_py.chmod(0o755)
+
+    env = {
+        "HOME": str(sandbox),
+        "PATH": f"{poison_dir}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "MB_PYTHON": str(real_py),
+    }
+    result = subprocess.run(
+        [
+            "bash",
+            str(REPO_ROOT / "install.sh"),
+            "--non-interactive",
+            "--clients",
+            "claude-code,cursor",
+            "--project-root",
+            str(project),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"install.sh failed (rc={result.returncode})\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+    combined = result.stdout + result.stderr
+    assert "No module named 'memory_bank_skill'" not in combined, (
+        "a cross-agent adapter imported memory_bank_skill through a bare "
+        f"python3 instead of MB_PYTHON\n{combined}"
+    )
+    assert "bare python3 used for memory_bank_skill" not in combined, (
+        "a cross-agent adapter ran `python3 -m memory_bank_skill` through the "
+        f"bare PATH interpreter instead of MB_PYTHON\n{combined}"
+    )
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash required")
 def test_uninstall_non_interactive_flag_works_without_stdin(tmp_path):
     sandbox = tmp_path / "home"
     sandbox.mkdir()

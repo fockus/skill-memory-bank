@@ -82,8 +82,12 @@ EVENT_BINDINGS=(
 )
 
 run_texttool() {
+  # Use the interpreter that owns the memory_bank_skill package (exported by the
+  # CLI as MB_PYTHON). A bare `python3` resolves to whatever is first on PATH —
+  # under pipx/pyenv that is NOT the venv holding the package, so the import of
+  # memory_bank_skill._texttools fails. Fall back to python3 for git checkouts.
   PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -m memory_bank_skill._texttools "$@"
+    "${MB_PYTHON:-python3}" -m memory_bank_skill._texttools "$@"
 }
 
 language_rule_full() {
