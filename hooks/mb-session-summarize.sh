@@ -14,6 +14,7 @@ HOOK_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)" || exit 0
 JQ="${JQ:-jq}"
 CLAUDE="${CLAUDE:-claude}"
 HAIKU_MODEL="${HAIKU_MODEL:-haiku}"
+SUMMARIZE_BIN="${MB_SUMMARIZE_BIN:-}"
 RECENT_KEEP="${MB_RECENT_KEEP:-5}"
 
 command -v "$JQ" >/dev/null 2>&1 || exit 0
@@ -34,7 +35,27 @@ trap 'sc_unlock "$LOCK"' EXIT INT TERM
 
 # Idempotency: `summarized` gates the Haiku summary.
 [ "$(sc_fm_get "$SF" summarized)" = "true" ] && exit 0
-command -v "$CLAUDE" >/dev/null 2>&1 || exit 0
+
+# Resolve summarizer backend
+AGENT="$(sc_agent_from_file "$SF")"
+BACKEND="$(sc_summary_backend "$AGENT")"
+
+case "$BACKEND" in
+  none)
+    sc_fm_set "$SF" summarized false
+    exit 0
+    ;;
+  claude-code)
+    command -v "$CLAUDE" >/dev/null 2>&1 || exit 0
+    ;;
+  command)
+    command -v "$SUMMARIZE_BIN" >/dev/null 2>&1 || exit 0
+    ;;
+  pi)
+    # Pi summarizer not yet available — skip for now, catchup will retry
+    exit 0
+    ;;
+esac
 
 # ── Empty-session guard ──────────────────────────────────────────────────────
 # Skip trivial sessions before spending any LLM call: substantive only if the Live log
@@ -49,8 +70,8 @@ fi
 SRC="$(sc_build_summary_src "$SF")"
 [ -n "$SRC" ] || exit 0
 
-# Structured summary (REQ-010): demand EXACTLY these four markdown sections, in order.
-PROMPT="Summarize this Claude Code session for a project Memory Bank. The input is a distilled per-turn log (each turn: the user request, the tools used, the files touched, the outcome, and the diffstat). Output ONLY these four markdown sections, in this exact order, with these exact headings — no preamble, no other text:
+# Structured summary prompt
+PROMPT="Summarize this coding session for a project Memory Bank. The input is a distilled per-turn log (each turn: the user request, the tools used, the files touched, the outcome, and the diffstat). Output ONLY these four markdown sections, in this exact order, with these exact headings — no preamble, no other text:
 
 ### What changed
 ### Decisions
@@ -61,8 +82,16 @@ Rules: one concise bullet per item (or a short line); be specific and factual; u
 
 $SRC"
 
-SUMMARY="$(printf '%s' "$PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
-  --model "$HAIKU_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
+SUMMARY=""
+case "$BACKEND" in
+  claude-code)
+    SUMMARY="$(printf '%s' "$PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
+      --model "$HAIKU_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
+    ;;
+  command)
+    SUMMARY="$(printf '%s' "$PROMPT" | env MB_CAPTURE_SUBPROCESS=1 "$SUMMARIZE_BIN" 2>/dev/null || true)"
+    ;;
+esac
 [ -n "$SUMMARY" ] || exit 0
 
 # Reject error-shaped output (context overflow, API/auth/rate errors): never store an error

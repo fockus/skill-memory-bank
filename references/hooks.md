@@ -236,8 +236,50 @@ To register all five at once, merge the array entries above. Order does not matt
 ## Related
 
 - `references/pipeline.default.yaml` — declares `protected_paths` and the rest of the engine config the hooks consume.
+- `references/session-memory.md` — session-memory contract v2, lifecycle, adapter contracts, recall, doctor checks, environment variables.
 - `commands/work.md` — `/mb work` workflow that complements these hooks (the loop runs the same checks deterministically).
 - `scripts/mb-work-protected-check.sh`, `scripts/mb-ears-validate.sh`, `scripts/mb-context-slim.py`, `scripts/mb-session-spend.sh` — underlying helpers.
+
+---
+
+## Session-memory lifecycle hooks
+
+Memory Bank records every agent session to `.memory-bank/session/*.md`. The core hooks below implement the session-memory contract v2 (defined in `references/session-memory.md`).
+
+### Claude Code hooks
+
+| Hook script | Event | Purpose |
+|-------------|-------|---------|
+| `mb-session-start.sh` | `SessionStart` | Inject `_recent.md` context + dispatch catchup |
+| `mb-session-turn.sh` | `Stop` | Append turn entry to Live log |
+| `mb-session-end.sh` | `SessionEnd` | Finalize log + summarize + rebuild `_recent.md` |
+| `mb-session-catchup.sh` | `SessionStart` (before start) | Summarize stale `summarized:false` sessions in background |
+| `mb-session-summarize.sh` | sourced by end/catchup | Generate Haiku/CLI summary for one session file |
+| `mb-pre-compact.sh` | `PreCompact` | Write handoff capsule before context compaction |
+| `mb-semantic-recall.sh` | `UserPromptSubmit` | Semantic recall with lexical fallback |
+| `session-end-autosave.sh` | `SessionEnd` (legacy) | Writes progress.md auto-capture stub; disabled in modern setup via `MB_AUTO_CAPTURE=off` |
+
+### Pi adapter hooks
+
+The Pi adapter is a TypeScript extension (`adapters/pi_session_memory_extension.ts`) that listens to Pi lifecycle events and calls the same core scripts:
+
+| Pi event | Session-memory action |
+|----------|----------------------|
+| `session_start` | Resolve bank, run catchup, rebuild `_recent.md`, inject into context |
+| `input` | Append user prompt to Live log |
+| `tool_execution_end` | Append tool name, files, outcome to Live log |
+| `agent_end` / `turn_end` | Finalize turn entry |
+| `session_before_compact` | Write handoff capsule via `mb-pre-compact.sh` |
+| `session_shutdown` | Finalize session, summarize, rebuild `_recent.md`, background reindex |
+
+### Doctor diagnostics
+
+`mb-session-doctor.sh` (called by `/mb doctor`) inspects:
+- Unsummarized sessions (`summarized:false`)
+- Missing/stale `_recent.md`
+- Empty semantic index
+- Missing adapter files (catchup, precompact, Pi extension)
+- Legacy auto-capture stubs in `progress.md`
 
 ---
 

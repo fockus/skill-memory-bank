@@ -206,3 +206,43 @@ sc_semantic_py() {
     printf 'python3'
   fi
 }
+
+# sc_agent_from_file <session_file> — echo the agent name from frontmatter field 'agent'.
+# Fallback: heuristically detect from session_id or transcript path. Returns 'claude' if unknown.
+sc_agent_from_file() {
+  local sf="$1" agent
+  agent="$(sc_fm_get "$sf" agent)"
+  if [ -n "$agent" ]; then
+    printf '%s\n' "$agent"
+    return 0
+  fi
+  # Heuristic: pi sessions have session_id matching UUID pattern from Pi session files
+  local sid="$(sc_fm_get "$sf" session_id)"; local transcript="$(sc_fm_get "$sf" transcript)"
+  case "$sid" in
+    */.pi/agent/sessions/*) printf 'pi\n'; return 0 ;;
+  esac
+  case "$transcript" in
+    */.pi/agent/sessions/*) printf 'pi\n'; return 0 ;;
+  esac
+  printf 'claude\n'
+}
+
+# sc_summary_backend — resolve the effective summarizer backend.
+# Precedence: MB_SUMMARY_BACKEND env → MB_SUMMARY_BIN env → agent-default.
+# Returns: claude-code | pi | command | none
+sc_summary_backend() {
+  local agent="${1:-claude}"
+  # Explicit override wins
+  case "${MB_SUMMARY_BACKEND:-}" in
+    claude-code|pi|command|none) printf '%s\n' "$MB_SUMMARY_BACKEND"; return 0 ;;
+  esac
+  # If MB_SUMMARIZE_BIN is set, treat as 'command'
+  if [ -n "${MB_SUMMARIZE_BIN:-}" ]; then
+    printf 'command\n'; return 0
+  fi
+  # Agent-appropriate default
+  case "$agent" in
+    pi)     printf 'pi\n' ;;
+    *)      printf 'claude-code\n' ;;
+  esac
+}

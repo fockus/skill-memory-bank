@@ -76,6 +76,16 @@ teardown() { rm -rf "$TMP"; }
   grep -q 'aaaaaaaa' "$DISPATCHED"
 }
 
+@test "RED: current broken state — unsummarized sessions exist and are not caught up" {
+  local unsummarized=0
+  for f in "$MB/session/"*.md; do
+    [ -f "$f" ] || continue
+    grep -q '^summarized: false$' "$f" && unsummarized=$((unsummarized + 1))
+  done
+  [ "$unsummarized" -gt 0 ]
+  # After fix: unsummarized should be 0 after catchup processes them
+}
+
 @test "non-blocking: a slow summarizer does not delay the hook (background dispatch)" {
   cat > "$STUB/slow" <<'EOF'
 #!/usr/bin/env bash

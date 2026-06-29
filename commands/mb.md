@@ -286,6 +286,23 @@ Update core files (STATUS metrics, checklist, plan focus) using REAL data from t
 
 Diagnose and fix inconsistencies INSIDE Memory Bank.
 
+**Session-memory checks** run first, before the subagent. Run `mb-session-doctor.sh` if it exists (implemented in Stage 2):
+
+```bash
+if [ -x ~/.claude/skills/memory-bank/scripts/mb-session-doctor.sh ]; then
+  bash ~/.claude/skills/memory-bank/scripts/mb-session-doctor.sh "$PWD"
+fi
+```
+
+If the script is not yet implemented, the agent must manually check the items from `references/session-memory.md` § "Doctor checks":
+
+- `.memory-bank/session/*.md` files with `summarized:false` (WARN — suggest catchup).
+- Missing `.memory-bank/session/_recent.md` (WARN — suggest recent-rebuild).
+- Empty semantic index (INFO — suggest reindex).
+- Installed Claude hooks missing `mb-session-catchup.sh`/`mb-session-summarize.sh`/`mb-pre-compact.sh` (WARN — suggest adapter install).
+- Pi session adapter extension not present (INFO — suggest `adapters/pi.sh install`).
+- `progress.md` contains `### Auto-capture` stubs (WARN — suggest consolidation or `MB_AUTO_CAPTURE=off`).
+
 **v2 naming migration check** is delegated to the subagent — see `agents/mb-doctor.md` → "Check: v2 naming migration". The agent will flag v1 files missing their v2 counterpart (WARN) or coexisting v1+v2 pairs (ERROR, manual resolution required) and point the user to `scripts/mb-migrate-v2.sh`.
 
 Run the MB Doctor subagent:
