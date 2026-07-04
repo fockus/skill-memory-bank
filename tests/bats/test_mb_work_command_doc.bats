@@ -219,3 +219,43 @@ setup() {
   run grep -qi "parallel run" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── I-094 S8: baseline diff + claim-aware resolve + worktree rule ─────────
+
+@test "doc's 5c/5d build the verify/review diff with mb-work-diff.sh --run-id and --files" {
+  run grep -q -- "mb-work-diff.sh --run-id" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "--files" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "bare.*git diff\|not a bare" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc says the diff file list is the stage's Files: intersected with changed-since-baseline, single-arg fallback" {
+  run grep -qi "changed.since.baseline\|changed since baseline" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "git diff <baseline>" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "git diff <baseline>..HEAD" "$DOC"
+  [ "$status" -ne 0 ]
+}
+
+@test "doc's resolve step passes --skip-claimed under MB_WORK_PARALLEL for empty-target" {
+  run grep -q -- "mb-work-resolve.sh" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "--skip-claimed" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "MB_WORK_PARALLEL" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc states the inter-plan-worktree / intra-plan-single-owner rule" {
+  run grep -qi "separate git worktrees\|separate worktrees" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "single owner\|single-owner" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "intra-plan" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "inter-plan" "$DOC"
+  [ "$status" -eq 0 ]
+}
