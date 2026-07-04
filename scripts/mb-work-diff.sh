@@ -11,9 +11,16 @@
 # item's files, so a co-running run's edits leak into the judged diff. This
 # scopes the diff to the run's `baseline_ref` (recorded by
 # `mb-work-state.sh init`, I-094 S1) instead:
-#   - non-empty baseline → `git diff [--name-only] <baseline>..HEAD [-- <files>]`
+#   - non-empty baseline → `git diff [--name-only] <baseline> [-- <files>]`
 #   - empty baseline      → `git diff [--name-only] [-- <files>]` (working tree,
 #                            still scoped to <files> when given)
+#
+# Single-arg form deliberately, NOT `<baseline>..HEAD`: /mb work only commits
+# a stage at step 5g (`done`), so verify/review (5c/5d) run against a stage
+# whose work is still uncommitted. `<baseline>..HEAD` is commit-to-commit and
+# would show an empty diff for in-progress work; `git diff <baseline>` diffs
+# the baseline commit against the working tree, which sees both commits made
+# since baseline AND uncommitted edits (I-094 S4-fix).
 #
 # --baseline overrides the run's recorded baseline_ref (ad-hoc use / testing).
 # --files is a single space-separated string of paths; omitted ⇒ the full
@@ -111,7 +118,7 @@ if [ -n "$BASELINE" ]; then
     echo "[work-diff] baseline '$BASELINE' unreachable; degrading to empty diff" >&2
     exit 0
   fi
-  GIT_ARGS+=("${BASELINE}..HEAD")
+  GIT_ARGS+=("${BASELINE}")
 fi
 
 if [ "${#FILES[@]}" -gt 0 ]; then
