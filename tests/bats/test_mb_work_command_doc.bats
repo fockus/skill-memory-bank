@@ -290,3 +290,45 @@ setup() {
   run grep -q ".work-state" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── I-094 S10: "Parallel runs" section (T5) ───────────────────────────────
+
+@test "doc has a Parallel runs section naming intra-plan waves and inter-plan worktrees" {
+  run grep -qi "^## Parallel runs" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "intra-plan wave" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "inter-plan worktree" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's spawn rule: sync when the next step depends on the result, async only for independent waves" {
+  run grep -qi "\bsync\b" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "\basync\b" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "depends on the result\|next step depends" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "truly independent" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc mandates background report delivery via SendMessage or .reports/ else only idle notification reaches lead" {
+  run grep -q "SendMessage" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- ".reports/" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "idle notification" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc describes optional self-claim pull mode: publish before spawn, self-claim via init exit-4, single-writer" {
+  run grep -qi "self-claim" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "publish.*before spawn\|publish all tasks before spawn" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "mb-work-state.sh init" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "single.writer\|single owner" "$DOC"
+  [ "$status" -eq 0 ]
+}
