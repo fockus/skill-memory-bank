@@ -176,3 +176,46 @@ setup() {
   run grep -qi "explicit user confirmation\|explicit confirmation" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── I-094 S7: parallel state+budget+claim wired into commands/work.md ─────
+
+@test "doc mentions MB_WORK_PARALLEL and per-run state/budget slot paths" {
+  run grep -q "MB_WORK_PARALLEL" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q ".work-state/<run_id>.json" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q ".work-budget/<run_id>.json" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc says a parallel run mints its id via new-run-id and threads --run-id" {
+  run grep -q "mb-work-state.sh new-run-id" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "--run-id" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "thread.*--run-id\|--run-id.*to (state|budget|checkbox)\|--run-id.*budget.*checkbox" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc states mb-work-state.sh init returns exit 4 when claimed, halting unless --takeover" {
+  run grep -qi "exit 4" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "--takeover" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "claimed" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's Hard-stops table lists the claim-refused (exit 4) trigger" {
+  run grep -qi "claim.refused\|claim refused" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "exit 4" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's resume section reads status --all to enumerate live parallel runs" {
+  run grep -q "mb-work-state.sh status --all" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "parallel run" "$DOC"
+  [ "$status" -eq 0 ]
+}
