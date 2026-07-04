@@ -14,7 +14,9 @@ def _run(stdin: str, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", str(SCRIPT), *args],
         input=stdin,
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
 
@@ -28,7 +30,14 @@ def _approved(issues: list | None = None) -> dict:
 
 def _changes(issues: list | None = None, counts: dict | None = None) -> dict:
     default_issues = [
-        {"severity": "blocker", "category": "logic", "file": "foo.py", "line": 10, "message": "bad", "fix": "fix it"}
+        {
+            "severity": "blocker",
+            "category": "logic",
+            "file": "foo.py",
+            "line": 10,
+            "message": "bad",
+            "fix": "fix it",
+        }
     ]
     return {
         "verdict": "CHANGES_REQUESTED",
@@ -86,7 +95,11 @@ def test_issue_missing_severity_fails() -> None:
 
 
 def test_invalid_severity_fails() -> None:
-    bad = _changes(issues=[{"severity": "fatal", "category": "logic", "file": "foo.py", "line": 1, "message": "x"}])
+    bad = _changes(
+        issues=[
+            {"severity": "fatal", "category": "logic", "file": "foo.py", "line": 1, "message": "x"}
+        ]
+    )
     r = _run(json.dumps(bad))
     assert r.returncode == 1
 
@@ -109,3 +122,88 @@ def test_lenient_markdown_fallback() -> None:
     """
     r = _run(md, "--lenient")
     assert r.returncode == 0, r.stderr
+
+
+# ── --external (cross-model reviewer normalization, Этап 6) ────────────────
+
+
+def test_external_approved_with_issues_normalizes_to_changes() -> None:
+    payload = {
+        "status": "OK",
+        "verdict": "APPROVED",
+        "issues": [
+            {"severity": "minor", "file": "foo.py", "line": 3, "message": "nit: rename var"}
+        ],
+        "counts": {"blocker": 0, "major": 0, "minor": 0, "info": 0},
+    }
+    r = _run(json.dumps(payload), "--external")
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout)
+    assert out["verdict"] == "CHANGES_REQUESTED"
+    assert out["counts"]["minor"] == 1
+
+
+def test_external_maps_codex_schema() -> None:
+    payload = {
+        "status": "OK",
+        "verdict": "CHANGES_REQUESTED",
+        "issues": [
+            {
+                "severity": "info",
+                "file": "src/x.py",
+                "line": None,
+                "description": "should rename",
+                "recommendation": "rename to foo",
+            }
+        ],
+        "counts": {"blocker": 0, "major": 0, "minor": 0, "info": 1},
+    }
+    r = _run(json.dumps(payload), "--external")
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout)
+    issue = out["issues"][0]
+    assert issue["message"] == "should rename"
+    assert issue["fix"] == "rename to foo"
+    assert issue["line"] == 0
+    assert issue["severity"] == "minor"
+
+
+def test_external_skipped_passthrough() -> None:
+    payload = {"status": "SKIPPED", "reason": "codex CLI 403 auth"}
+    r = _run(json.dumps(payload), "--external")
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout)
+    assert out["verdict"] == "SKIPPED"
+    assert out["reason"] == "codex CLI 403 auth"
+    assert out["counts"] == {"blocker": 0, "major": 0, "minor": 0}
+    assert out["issues"] == []
+
+
+def test_external_status_ok_approved_clean_stays_approved() -> None:
+    payload = {
+        "status": "OK",
+        "verdict": "APPROVED",
+        "issues": [],
+        "counts": {"blocker": 0, "major": 0, "minor": 0, "info": 0},
+    }
+    r = _run(json.dumps(payload), "--external")
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout)
+    assert out["verdict"] == "APPROVED"
+    assert out["issues"] == []
+
+
+def test_strict_mode_unchanged_backcompat() -> None:
+    bad = _approved(
+        issues=[
+            {
+                "severity": "minor",
+                "category": "style",
+                "file": "foo.py",
+                "line": 1,
+                "message": "nit",
+            }
+        ]
+    )
+    r = _run(json.dumps(bad))
+    assert r.returncode == 1
