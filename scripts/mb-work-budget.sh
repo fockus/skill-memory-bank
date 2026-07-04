@@ -1,22 +1,34 @@
 #!/usr/bin/env bash
-# mb-work-budget.sh — token budget tracker for /mb work --budget.
+# mb-work-budget.sh — token budget tracker for /mb work --budget, with
+# optional per-run isolation under MB_WORK_PARALLEL=1. Plans:
+#   .memory-bank/plans/2026-07-04_fix_mb-work-parallel-runs.md (I-094 S2)
 #
 # Subcommands (each takes [--mb <path>] for bank override):
 #   init <total_tokens> [--warn-at PCT] [--stop-at PCT] [--run-id ID]  start tracking
 #   add <tokens> [--run-id ID]                            increment spent
-#   status                                                show current state
+#   status [--run-id ID]                                  show current state
 #   check [--run-id ID]                                   0=ok, 1=warn, 2=stop
-#   clear                                                 remove state
+#   clear [--run-id ID]                                   remove state
 #
-# State file: <bank>/.work-budget.json
+# State file: <bank>/.work-budget.json, or under MB_WORK_PARALLEL=1 with a
+# non-empty --run-id, <bank>/.work-budget/<run_id>.json —
 #   { total, spent, warn_at_percent, stop_at_percent, started, run_id }
 #
 # Defaults are read from pipeline.yaml:budget.{warn_at_percent, stop_at_percent}.
 #
+# Parallel runs (I-094 S2, opt-in MB_WORK_PARALLEL=1): every subcommand
+# resolves its state path via scripts/mb-work-slots.sh:mbw_budget_slot, which
+# routes to a per-run slot only when MB_WORK_PARALLEL is truthy AND a run_id
+# is given — otherwise it always returns the legacy singleton
+# <bank>/.work-budget.json (mb-fanout.sh reads this exact path; unaffected).
+# Per-run slots are physically separate files, so each run's `check` is now a
+# real gate against its own spend — never the old cross-run warn-not-stop.
+#
 # run_id binding (I-093 S2): `init --run-id ID` stamps the budget with the
 # owning run. `add`/`check --run-id ID` compare against the stamped run_id —
 # a mismatch means the on-disk budget is orphaned from an aborted run, so it
-# is treated as stale: exit 1 (warn), zero mutation, never a false stop.
+# is treated as stale: exit 1 (warn), zero mutation, never a false stop. This
+# stays as a second safety net (now rarely hit once slots are separate).
 # Omitting `--run-id` on `add`/`check` keeps today's behaviour byte-identical
 # (back-compat: no binding is enforced).
 
@@ -27,9 +39,11 @@ PIPELINE="$SCRIPT_DIR/mb-pipeline.sh"
 
 # shellcheck source=_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
+# shellcheck source=mb-work-slots.sh
+source "$SCRIPT_DIR/mb-work-slots.sh"
 
 usage() {
-  sed -n '2,21p' "$0" >&2
+  sed -n '2,17p' "$0" >&2
 }
 
 resolve_pipeline_defaults() {
@@ -99,7 +113,9 @@ cmd_init() {
 
   local bank
   bank=$(mb_resolve_path "$mb_arg")
-  local state="$bank/.work-budget.json"
+  local state
+  state=$(mbw_budget_slot "$bank" "$run_id")
+  mkdir -p "$(dirname "$state")"
 
   # init always writes a fresh state (spent=0) — this is also how a stale
   # run_id from an aborted run gets auto-reset when a new run_id is passed.
@@ -137,7 +153,8 @@ cmd_add() {
   fi
   local bank
   bank=$(mb_resolve_path "$mb_arg")
-  local state="$bank/.work-budget.json"
+  local state
+  state=$(mbw_budget_slot "$bank" "$run_id")
   if [ ! -f "$state" ]; then
     echo "[budget] no active budget (run 'init' first)" >&2
     exit 1
@@ -161,8 +178,11 @@ PY
 
 cmd_status() {
   local mb_arg=""
+  local run_id=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --run-id) run_id="${2:-}"; shift 2 ;;
+      --run-id=*) run_id="${1#--run-id=}"; shift ;;
       --mb) mb_arg="${2:-}"; shift 2 ;;
       --mb=*) mb_arg="${1#--mb=}"; shift ;;
       *) shift ;;
@@ -170,7 +190,8 @@ cmd_status() {
   done
   local bank
   bank=$(mb_resolve_path "$mb_arg")
-  local state="$bank/.work-budget.json"
+  local state
+  state=$(mbw_budget_slot "$bank" "$run_id")
   if [ ! -f "$state" ]; then
     echo "[budget] no active budget" >&2
     exit 1
@@ -203,7 +224,8 @@ cmd_check() {
   done
   local bank
   bank=$(mb_resolve_path "$mb_arg")
-  local state="$bank/.work-budget.json"
+  local state
+  state=$(mbw_budget_slot "$bank" "$run_id")
   if [ ! -f "$state" ]; then
     echo "[budget] no active budget" >&2
     exit 1
@@ -238,8 +260,11 @@ PY
 
 cmd_clear() {
   local mb_arg=""
+  local run_id=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --run-id) run_id="${2:-}"; shift 2 ;;
+      --run-id=*) run_id="${1#--run-id=}"; shift ;;
       --mb) mb_arg="${2:-}"; shift 2 ;;
       --mb=*) mb_arg="${1#--mb=}"; shift ;;
       *) shift ;;
@@ -247,7 +272,8 @@ cmd_clear() {
   done
   local bank
   bank=$(mb_resolve_path "$mb_arg")
-  local state="$bank/.work-budget.json"
+  local state
+  state=$(mbw_budget_slot "$bank" "$run_id")
   rm -f "$state"
 }
 
