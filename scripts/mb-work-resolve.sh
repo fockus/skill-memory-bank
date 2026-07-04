@@ -10,15 +10,29 @@
 #
 # Exit codes:
 #   0  resolved (single absolute path printed to stdout)
-#   1  not found / no active plan / parse error
+#   1  not found / no active plan / parse error / all active plans claimed
 #   2  ambiguous (multiple substring matches; list printed to stderr)
 #   3  freeform target (driver must resolve via LLM; candidate list to stderr)
+#
+# Parallel runs (I-094 T2, opt-in MB_WORK_PARALLEL=1): `--skip-claimed` makes
+# the empty-target branch (Form 5) skip active-plan links whose source is
+# claimed by a live (phase != done) foreign run — see scripts/mb-work-slots.sh
+# — returning the first unclaimed one; if every active plan is claimed, exits
+# 1 with "all active plans claimed" on stderr. Independently, whenever
+# MB_WORK_PARALLEL is on, any successfully resolved path (any form) that is
+# claimed by a live foreign run gets an informational stderr claim-note
+# ("claimed by run <id>; pass --takeover") — the hard enforcement gate stays
+# `mb-work-state.sh init` exit 4; this script never refuses on its own.
+# Without `--skip-claimed`/`MB_WORK_PARALLEL`, resolution is byte-identical
+# to pre-I-094 behaviour.
 
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
+# shellcheck source=mb-work-slots.sh
+source "$SCRIPT_DIR/mb-work-slots.sh"
 
 abs() {
   if command -v python3 >/dev/null 2>&1; then
@@ -33,6 +47,20 @@ PY
 
 count_words() {
   echo "$1" | awk '{print NF}'
+}
+
+# $1 = bank, $2 = resolved absolute path → prints an informational
+# claim-note to stderr when $2 is claimed by a live foreign run under
+# MB_WORK_PARALLEL. No-op (and never fails) when parallel mode is off, or
+# when the path is unclaimed/self-claimed/claimed by a finished run.
+claim_note() {
+  local bank="$1" path="$2" claimant
+  mbw_parallel_on || return 0
+  claimant=$(mbw_claim_conflict "$bank" "$path" "")
+  if [ -n "$claimant" ]; then
+    echo "[work-resolve] claimed by run $claimant; pass --takeover" >&2
+  fi
+  return 0
 }
 
 list_active_plan_links_portable() {
@@ -56,13 +84,15 @@ PY
 
 TARGET=""
 MB_ARG=""
+SKIP_CLAIMED=0
 positional=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --mb) MB_ARG="${2:-}"; shift 2 ;;
     --mb=*) MB_ARG="${1#--mb=}"; shift ;;
+    --skip-claimed) SKIP_CLAIMED=1; shift ;;
     -h|--help)
-      sed -n '2,17p' "$0"
+      sed -n '2,27p' "$0"
       exit 0
       ;;
     *) positional+=("$1"); shift ;;
@@ -105,13 +135,36 @@ if [ -z "$TARGET" ]; then
   if [ "$count" -eq 0 ]; then
     echo "[work-resolve] no active plan in $BANK/roadmap.md" >&2
     exit 1
-  elif [ "$count" -eq 1 ]; then
+  fi
+
+  # --skip-claimed (only honored under MB_WORK_PARALLEL): drop links whose
+  # source is claimed by a live foreign run before picking one.
+  if mbw_parallel_on && [ "$SKIP_CLAIMED" = "1" ]; then
+    unclaimed=""
+    while IFS= read -r rel; do
+      [ -z "$rel" ] && continue
+      cand_abs=$(abs "$BANK/$rel")
+      if [ -z "$(mbw_claim_conflict "$BANK" "$cand_abs" "")" ]; then
+        unclaimed="${unclaimed}${rel}
+"
+      fi
+    done < <(printf '%s\n' "$links")
+    if [ -z "$unclaimed" ]; then
+      echo "[work-resolve] all active plans claimed" >&2
+      exit 1
+    fi
+    links="$unclaimed"
+    count=$(printf '%s\n' "$links" | grep -c .)
+  fi
+
+  if [ "$count" -eq 1 ]; then
     rel=$(printf '%s' "$links" | head -1)
     abs_path=$(abs "$BANK/$rel")
     if [ ! -f "$abs_path" ]; then
       echo "[work-resolve] active plan link points at missing file: $abs_path" >&2
       exit 1
     fi
+    claim_note "$BANK" "$abs_path"
     printf '%s\n' "$abs_path"
     exit 0
   else
@@ -123,7 +176,9 @@ fi
 
 # ── Form 1: existing path ───────────────────────────────────────────
 if [ -f "$TARGET" ]; then
-  abs "$TARGET"
+  target_abs=$(abs "$TARGET")
+  claim_note "$BANK" "$target_abs"
+  printf '%s\n' "$target_abs"
   exit 0
 fi
 
@@ -136,7 +191,9 @@ if [ -d "$plans_dir" ]; then
     count=$(printf '%s\n' "$matches" | grep -c .)
   fi
   if [ "$count" -eq 1 ]; then
-    abs "$matches"
+    match_abs=$(abs "$matches")
+    claim_note "$BANK" "$match_abs"
+    printf '%s\n' "$match_abs"
     exit 0
   elif [ "$count" -gt 1 ]; then
     echo "[work-resolve] ambiguous substring '$TARGET' matches:" >&2
@@ -150,7 +207,9 @@ safe=$(mb_sanitize_topic "$TARGET")
 if [ -n "$safe" ]; then
   tasks="$BANK/specs/$safe/tasks.md"
   if [ -f "$tasks" ]; then
-    abs "$tasks"
+    tasks_abs=$(abs "$tasks")
+    claim_note "$BANK" "$tasks_abs"
+    printf '%s\n' "$tasks_abs"
     exit 0
   fi
 fi
