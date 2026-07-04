@@ -2544,3 +2544,25 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 ### Auto-capture 2026-06-25 (session f2398e08)
 - Session ended without an explicit /mb done
 - Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-07-04
+
+### Auto-capture 2026-07-04 (session f7c3e32a)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-07-04
+
+### Auto-capture 2026-07-04 (session c41acbf6)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+### I-093 close-out — /mb work engine resilience (2026-07-04)
+
+- Plan `2026-07-04_fix_mb-work-resilience.md` executed in full: 9/9 stages, 4 themes (durable
+  loop-state, deterministic checkbox flip, external-reviewer lenient parse, codex preflight).
+- TDD evidence in history: red test commit precedes every feat commit (18 commits, 6 parallel
+  mb-developer agents, single-owner chain for commands/work.md S3->S5->S7->S9).
+- Verification: 49 pytest + 22 bats green; shellcheck clean; new scripts +x, <=400 lines.
+- Origin: taskloom harness audit 2026-07-04 (governed phase71 runs exceeded max_cycles from
+  orchestrator memory; codex 403 silently dropped the cross-model gate; checkbox self-reporting).

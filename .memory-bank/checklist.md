@@ -96,6 +96,18 @@ _Wave queues unchanged below._
 - ✅ C2 swarmline: session repaired, MB tail committed (MB-only); ⏸ content-archiving + stray-dir → I-092
 - Follow-ups: I-088 (A7 test), I-089 (memsearch smoke), I-090 (agent-caps flaky), I-091 (flat-checklist prune), I-092 (Track C residue)
 
+## I-093 — /mb work engine resilience (2026-07-04, plans/2026-07-04_fix_mb-work-resilience.md)
+
+- ✅ I-093 S1 (T1): mb-work-state.sh durable loop-state + max_cycles exit-3 enforcement
+- ✅ I-093 S2 (T1): bind mb-work-budget.sh to run_id (ignore orphaned budget)
+- ✅ I-093 S3 (T1): wire durable state + budget run_id into commands/work.md + resume + hard-stops
+- ✅ I-093 S4 (T2): mb-work-checkbox.sh deterministic flip gated on .work-state.json phase=done
+- ✅ I-093 S5 (T2): forbid implementers editing checkboxes + state-based resume in commands/work.md
+- ✅ I-093 S6 (T3): mb-work-review-parse.sh --external normalization + codex SKIPPED passthrough
+- ✅ I-093 S7 (T3): wire external-reviewer --external + one auto-retry into commands/work.md 5d
+- ✅ I-093 S8 (T4): mb-work-codex-preflight.sh fail-safe codex health-check
+- ✅ I-093 S9 (T4): wire preflight + SKIPPED consumption + loud degradation into commands/work.md 5d
+
 ## See also
 
 - `roadmap.md` — full wave order and release gate.
