@@ -167,6 +167,62 @@ _payload() { # $1=stop_hook_active
   if grep -qE '· \+[0-9]+/-[0-9]+' "$sf"; then false; fi
 }
 
+# --- A1: bullets splice into Live log before ## Summary; resumed sessions re-summarize ---
+
+# Seed an already-summarized session file for this session_id (af0a3685-3ee9-4db8).
+# $1 extra frontmatter line (e.g. "judged: true") is optional.
+_seed_summarized() {
+  mkdir -p "$PROJ/.memory-bank/session"
+  SEED="$PROJ/.memory-bank/session/2026-06-06_0900_af0a3685.md"
+  {
+    printf -- '---\n'
+    printf 'session_id: af0a3685-3ee9-4db8\n'
+    printf 'transcript: %s\n' "$TMP/t.jsonl"
+    printf 'started: 2026-06-06T09:00Z\nbranch: -\nturns: 1\nlast_turn: zzz-old\n'
+    printf 'summarized: true\n'
+    [ -n "${1:-}" ] && printf '%s\n' "$1"
+    printf -- '---\n\n## Live log\n'
+    printf -- '- 09:00 — User: "first request" · tools: (none) · files: (none) · ok\n'
+    printf -- '\n## Summary\nA one-line summary of turn 1 only.\n'
+  } > "$SEED"
+}
+
+@test "A1: new bullet inserted INSIDE Live log, before ## Summary (not after EOF)" {
+  _seed_summarized
+  _payload false
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  # the new turn's bullet exists
+  grep -q 'User: "second request please"' "$SEED"
+  # and it lands BEFORE the ## Summary heading, not after it (line-number check)
+  new_ln="$(grep -n 'second request please' "$SEED" | head -1 | cut -d: -f1)"
+  sum_ln="$(grep -n '^## Summary' "$SEED" | head -1 | cut -d: -f1)"
+  [ -n "$new_ln" ] && [ -n "$sum_ln" ]
+  [ "$new_ln" -lt "$sum_ln" ]
+  # nothing appended after the Summary body (last non-empty line is the summary text)
+  [ "$(tail -1 "$SEED")" = "A one-line summary of turn 1 only." ]
+}
+
+@test "A1: resumed append resets summarized=false, leaves judged untouched" {
+  _seed_summarized "judged: true"
+  _payload false
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  grep -q '^summarized: false' "$SEED"
+  grep -q '^judged: true' "$SEED"
+}
+
+@test "A1: fresh session (no ## Summary) still appends to Live log at EOF (regression)" {
+  _payload false
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  [ "$(grep -c '^- ' "$sf")" -eq 1 ]
+  grep -q 'turns: 1' "$sf"
+  # fresh sessions start summarized:false and stay so (no reset side effect)
+  grep -q '^summarized: false' "$sf"
+}
+
 @test "stop_hook_active=true → exit 0, nothing written (REQ-SM-014)" {
   _payload true
   run bash -c "bash '$HOOK' < '$TMP/in.json'"

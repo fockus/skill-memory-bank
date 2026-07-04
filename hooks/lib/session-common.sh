@@ -85,6 +85,27 @@ sc_fm_set() {
   ' "$file" > "$tmp" && mv "$tmp" "$file"
 }
 
+# sc_livelog_append <file> <text> — insert <text> as a new line inside the `## Live log`
+# section, immediately BEFORE the first `## ` heading that follows Live log (e.g. an
+# already-generated `## Summary` from a resumed session). If no such heading exists — the
+# common fresh-session path — append <text> to EOF. <text> arrives already redacted by the
+# caller. Atomic temp->mv, bash-3.2 safe (awk only). Keeps ALL bullets in one contiguous
+# Live log so `sc_build_summary_src` (which stops at the next `## `) always sees every turn.
+sc_livelog_append() {
+  local file="$1" text="$2"
+  local tmp="${file}.tmp.$$"
+  awk -v t="$text" '
+    BEGIN { inserted=0; ll=0 }
+    /^## Live log/ { print; ll=1; next }
+    ll && /^## / {
+      if (!inserted) { print t; inserted=1 }
+      ll=0; print; next
+    }
+    { print }
+    END { if (!inserted) print t }
+  ' "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
 # Portable mtime (seconds since epoch) of a path; empty if missing.
 _sc_mtime() {
   stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null

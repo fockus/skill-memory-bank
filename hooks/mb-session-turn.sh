@@ -130,7 +130,17 @@ fi
 bullet="$(printf -- '- %s — User: "%s" · tools: %s · files: %s · %s' \
   "$hm" "$user_line" "$tools" "$files" "$outcome")"
 [ -n "$diffstat" ] && bullet="$bullet · $diffstat"
-printf -- '%s\n' "$bullet" | sc_redact_secrets >> "$SF"
+# Splice the bullet INSIDE `## Live log` (before any `## Summary` from a resumed session),
+# never blindly at EOF. On a fresh session this is a plain EOF append (identical output).
+redacted_bullet="$(printf -- '%s\n' "$bullet" | sc_redact_secrets)"
+sc_livelog_append "$SF" "$redacted_bullet"
+
+# A resumed session was already summarized before this new turn arrived → invalidate the
+# stale summary so the SessionStart lazy catch-up rebuilds it from the full Live log.
+# `judged` is deliberately NOT reset (avoids re-spending Sonnet).
+if [ "$(sc_fm_get "$SF" summarized)" = "true" ]; then
+  sc_fm_set "$SF" summarized false
+fi
 
 # bump turn counter + record this turn's anchor uuid for dedup
 cur="$(sc_fm_get "$SF" turns)"
