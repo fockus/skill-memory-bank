@@ -212,6 +212,19 @@ _seed_summarized() {
   grep -q '^judged: true' "$SEED"
 }
 
+@test "A1: sc_livelog_append preserves backslash sequences verbatim (byte-stable contract)" {
+  # A bullet whose User text contains literal backslashes (regex/Windows path) must land
+  # on ONE line with the backslashes intact — awk -v would interpret \n/\t/\d and corrupt it.
+  . "$BIN/lib/session-common.sh"
+  f="$TMP/ll.md"
+  printf -- '---\ns: 1\n---\n\n## Live log\n' > "$f"
+  txt='- 10:00 — User: "match \d+\n and C:\Users\x" · tools: Edit · files: a.go · ok'
+  sc_livelog_append "$f" "$txt"
+  # exactly one bullet line, byte-identical to the input (no escape interpretation, no split)
+  [ "$(grep -c '^- ' "$f")" -eq 1 ]
+  [ "$(grep '^- ' "$f")" = "$txt" ]
+}
+
 @test "A1: fresh session (no ## Summary) still appends to Live log at EOF (regression)" {
   _payload false
   run bash -c "bash '$HOOK' < '$TMP/in.json'"

@@ -94,8 +94,11 @@ sc_fm_set() {
 sc_livelog_append() {
   local file="$1" text="$2"
   local tmp="${file}.tmp.$$"
-  awk -v t="$text" '
-    BEGIN { inserted=0; ll=0 }
+  # Pass the bullet via ENVIRON, NOT `-v t=`: awk's -v interprets backslash escapes (\n, \t,
+  # \d…), which would corrupt or split a bullet whose User text contains a regex/Windows path.
+  # ENVIRON is byte-verbatim, preserving the public bullet-format contract.
+  MB_LL_TEXT="$text" awk '
+    BEGIN { inserted=0; ll=0; t=ENVIRON["MB_LL_TEXT"] }
     /^## Live log/ { print; ll=1; next }
     ll && /^## / {
       if (!inserted) { print t; inserted=1 }
