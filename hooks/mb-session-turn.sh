@@ -62,6 +62,17 @@ errors="$(printf '%s\n' "$fields" | sed -n 's/^errors=//p')"
 [ -n "$tools" ] || tools="(none)"
 [ -n "$files" ] || files="(none)"
 
+# A2: cap the file list to MB_SESSION_MAX_FILES entries (default 12); if more, keep the
+# first N and append ` +K more` (K = remainder). Paths (not basenames) are kept — the
+# `files:` segment is a parser contract. Opt-out with a large MB_SESSION_MAX_FILES.
+if [ "$files" != "(none)" ]; then
+  files="$(printf '%s' "$files" | awk -F, -v max="${MB_SESSION_MAX_FILES:-12}" '{
+    if (NF <= max) { print; next }
+    out=$1; for (i=2; i<=max; i++) out=out","$i
+    printf "%s +%d more\n", out, NF-max
+  }')"
+fi
+
 # Stub guard: do NOT create a session file for a contentless first turn (empty user request,
 # no real tool, no file). These are short/aborted/sub-agent sessions whose transcripts are
 # often already gone; a 340-byte stub per such turn just floods session/ with noise and buries
@@ -133,6 +144,14 @@ bullet="$(printf -- '- %s — User: "%s" · tools: %s · files: %s · %s' \
 # Splice the bullet INSIDE `## Live log` (before any `## Summary` from a resumed session),
 # never blindly at EOF. On a fresh session this is a plain EOF append (identical output).
 redacted_bullet="$(printf -- '%s\n' "$bullet" | sc_redact_secrets)"
+# A2: cap the whole bullet to MB_SESSION_BULLET_MAX chars (default 600) + `…`. Applied
+# AFTER redaction so a secret can never be split across the cut (the token is already
+# `[REDACTED]`). The leading `- HH:MM — User: "` prefix is preserved (cut from the tail).
+# Byte/char cut is acceptable for a multibyte tail (documented edge). Opt-out with a large cap.
+bmax="${MB_SESSION_BULLET_MAX:-600}"
+if [ "${#redacted_bullet}" -gt "$bmax" ]; then
+  redacted_bullet="${redacted_bullet:0:$bmax}…"
+fi
 sc_livelog_append "$SF" "$redacted_bullet"
 
 # A resumed session was already summarized before this new turn arrived → invalidate the

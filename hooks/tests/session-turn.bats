@@ -223,6 +223,70 @@ _seed_summarized() {
   grep -q '^summarized: false' "$sf"
 }
 
+# --- A2: hard caps on file-list length and whole-bullet length ---
+
+# Write a transcript whose single turn touches $1 files named "<$2>NN.ts".
+_make_files_jsonl() { # $1=count $2=name_prefix $3=prompt
+  python3 - "$1" "$2" "$3" > "$TMP/mf.jsonl" <<'PY'
+import json, sys
+n = int(sys.argv[1]); pre = sys.argv[2]; prompt = sys.argv[3]
+print(json.dumps({"type": "user", "uuid": "u-1",
+                  "message": {"role": "user", "content": [{"type": "text", "text": prompt}]}}))
+blocks = [{"type": "tool_use", "name": "Edit",
+           "input": {"file_path": f"{pre}{i:02d}.ts"}} for i in range(n)]
+print(json.dumps({"type": "assistant", "uuid": "a-1",
+                  "message": {"role": "assistant", "content": blocks}}))
+PY
+}
+_payload_mf() {
+  printf '{"cwd":"%s","session_id":"af0a3685-3ee9-4db8","transcript_path":"%s","stop_hook_active":false}' \
+    "$PROJ" "$TMP/mf.jsonl" > "$TMP/in.json"
+}
+
+@test "A2: files list capped to 12 entries + accurate '+K more' suffix" {
+  _make_files_jsonl 25 "a" "short prompt"   # short paths → bullet stays well under 600
+  _payload_mf
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  bl="$(grep '^- ' "$sf" | tail -1)"
+  # 25 files, cap 12 → 13 dropped
+  printf '%s' "$bl" | grep -q ' +13 more'
+  # the 12th kept file present, the 13th (a12.ts) dropped
+  printf '%s' "$bl" | grep -q 'a11.ts'
+  if printf '%s' "$bl" | grep -q 'a12.ts'; then false; fi
+}
+
+@test "A2: whole bullet truncated to MB_SESSION_BULLET_MAX with trailing …, prefix intact" {
+  _make_files_jsonl 25 "/Users/fockus/Apps/proj/src/module/component/verylongfilename_" "short"
+  _payload_mf
+  run bash -c "bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  bl="$(grep '^- ' "$sf" | tail -1)"
+  # ends with the ellipsis (truncation happened), prefix contract preserved
+  case "$bl" in *…) : ;; *) false ;; esac
+  case "$bl" in '- '*'User: "'*) : ;; *) false ;; esac
+  # the pre-ellipsis body is EXACTLY the cap (measured with bash's own unit, so this holds
+  # whether the cut was char- or byte-based — same measure the hook uses to slice)
+  stripped="${bl%…}"
+  [ "$bl" != "$stripped" ]
+  [ "${#stripped}" -eq 600 ]
+}
+
+@test "A2: caps are opt-out via MB_SESSION_MAX_FILES / MB_SESSION_BULLET_MAX" {
+  _make_files_jsonl 25 "/Users/fockus/Apps/proj/src/module/component/verylongfilename_" "short"
+  _payload_mf
+  run bash -c "MB_SESSION_MAX_FILES=999 MB_SESSION_BULLET_MAX=99999 bash '$HOOK' < '$TMP/in.json'"
+  [ "$status" -eq 0 ]
+  sf="$(ls "$PROJ/.memory-bank/session/"*.md)"
+  bl="$(grep '^- ' "$sf" | tail -1)"
+  # all 25 files present, no truncation, no '+K more'
+  printf '%s' "$bl" | grep -q 'verylongfilename_24.ts'
+  if printf '%s' "$bl" | grep -q ' more'; then false; fi
+  if printf '%s' "$bl" | grep -q '…'; then false; fi
+}
+
 @test "stop_hook_active=true → exit 0, nothing written (REQ-SM-014)" {
   _payload true
   run bash -c "bash '$HOOK' < '$TMP/in.json'"
