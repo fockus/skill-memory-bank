@@ -57,3 +57,44 @@ setup() {
   run grep -q '"item_no"' "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── I-093 S3: durable loop-state + budget run_id wiring ────────────────────
+
+@test "doc mentions mb-work-state.sh and .work-state.json" {
+  run grep -q "mb-work-state.sh" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q ".work-state.json" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc states 5f calls mb-work-state.sh cycle and halts on exit 3" {
+  run grep -q "mb-work-state.sh cycle" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "exit 3" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "cycle budget exhausted" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's Hard-stops table lists the cycle-exhausted trigger via mb-work-state.sh cycle" {
+  run grep -qi "cycle-exhausted" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "mb-work-state.sh cycle" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc threads budget init/check with --run-id from mb-work-state.sh init" {
+  run grep -q -- "--run-id" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "RUN_ID=\$(bash scripts/mb-work-state.sh init" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc describes resume path trusting work-state phase over checkboxes" {
+  run grep -q "mb-work-state.sh status" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "phase.*in-progress" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "mid-flight" "$DOC"
+  [ "$status" -eq 0 ]
+}
