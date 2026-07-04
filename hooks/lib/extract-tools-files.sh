@@ -23,7 +23,14 @@ emit_empty() { printf 'user=\ntools=\nfiles=\nturn=\nerrors=0\n'; exit 0; }
 command -v python3 >/dev/null 2>&1 || emit_empty
 
 python3 - "$TRANSCRIPT" <<'PY' || emit_empty
-import json, sys
+import json, os, re, sys
+
+# A3: user-prompt cap (default 1000, was a silent 200 that made Haiku report
+# "user request was truncated"). Truncation appends a single `…`. Fail-safe on bad env.
+try:
+    USER_MAX = int(os.environ.get("MB_SESSION_USER_MAX", "1000"))
+except ValueError:
+    USER_MAX = 1000
 
 path = sys.argv[1]
 recs = []
@@ -45,19 +52,43 @@ def msg(rec):
     m = rec.get("message")
     return m if isinstance(m, dict) else {}
 
+# A4: service payloads the harness injects as `type=user` records are NOT human turns.
+# A message wholly composed of these wrappers is dropped; a leading wrapper block on
+# otherwise-human text is stripped. Conservative — only whole `<tag>…</tag>` blocks at
+# the START match, so prose that merely mentions a tag name is preserved.
+_WRAP_TAGS = ("task-notification", "system-reminder", "command-name",
+              "command-message", "command-args", "local-command-stdout")
+_WRAP_RE = [re.compile(rf"^\s*<{t}(?:\s[^>]*)?>.*?</{t}>\s*", re.DOTALL)
+            for t in _WRAP_TAGS]
+
+def _strip_wrappers(text):
+    """Strip leading whole service-wrapper blocks; return the human remainder (may be '')."""
+    prev = None
+    while text and text != prev:
+        prev = text
+        for rx in _WRAP_RE:
+            m = rx.match(text)
+            if m:
+                text = text[m.end():]
+                break
+    return text.strip()
+
 def text_of(rec):
     """Return prompt text if this record is a REAL user message, else None."""
     if rec.get("type") != "user" or rec.get("isMeta"):
         return None
     content = msg(rec).get("content")
     if isinstance(content, str):
-        return content.strip() or None
-    if isinstance(content, list):
+        raw = content.strip()
+    elif isinstance(content, list):
         parts = [b.get("text", "") for b in content
                  if isinstance(b, dict) and b.get("type") == "text"]
-        joined = " ".join(p for p in parts if p).strip()
-        return joined or None  # tool_result-only user messages -> None
-    return None
+        raw = " ".join(p for p in parts if p).strip()  # tool_result-only user messages -> ''
+    else:
+        return None
+    if not raw:
+        return None
+    return _strip_wrappers(raw) or None
 
 last_user = -1
 for i, rec in enumerate(recs):
@@ -67,7 +98,10 @@ for i, rec in enumerate(recs):
 user_text = ""
 user_uuid = ""
 if last_user >= 0:
-    user_text = " ".join((text_of(recs[last_user]) or "").split())[:200]
+    full_text = " ".join((text_of(recs[last_user]) or "").split())
+    user_text = full_text[:USER_MAX]
+    if len(full_text) > USER_MAX:
+        user_text += "…"
     user_uuid = recs[last_user].get("uuid", "") or ""
 
 tools, files = set(), set()
