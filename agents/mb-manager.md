@@ -1,7 +1,7 @@
 ---
 name: mb-manager
 description: Memory Bank manager — maintains `.memory-bank/` (context, search, note, tasks, actualize). Invoked by /mb context|search|note|tasks|update|done and PreCompact hook.
-tools: Read, Edit, Write, Bash, Grep, Glob
+tools: Read, Edit, Write, Bash, Grep, Glob, SendMessage
 color: blue
 ---
 
@@ -451,3 +451,12 @@ action: <context|search|note|actualize|tasks>
 ```
 
 Dispatch to the matching `### action:` section above and follow its Steps + Response format.
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.

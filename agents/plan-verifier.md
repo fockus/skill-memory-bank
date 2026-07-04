@@ -1,7 +1,7 @@
 ---
 name: plan-verifier
 description: Plan execution auditor — rereads the plan, inspects git diff, validates every DoD item against real code. Invoked by /mb verify; REQUIRED before /mb done when work followed a plan.
-tools: Read, Bash, Grep, Glob
+tools: Read, Bash, Grep, Glob, SendMessage
 color: yellow
 ---
 
@@ -236,3 +236,12 @@ Before structural greps, check `/mb context`'s "Code graph" line. If fresh:
 - neighbors / relates-to → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py neighbors --graph .memory-bank/codebase/graph.json --symbol <Name>`
 - concept / "where is the logic for X" → `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<question>" .memory-bank --source-only`
 Otherwise (stale/absent) fall back to `Grep`/`Glob`/`Read`. Never block on the graph.
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.
