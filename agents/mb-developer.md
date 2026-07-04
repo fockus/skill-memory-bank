@@ -32,3 +32,10 @@ End with your core **STATUS** (DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTE
 - Any deviations from the stage spec + rationale
 
 Do not invoke other subagents from within this role unless the stage explicitly says to.
+
+## Code-graph routing (when the graph is fresh)
+Before structural greps, check `/mb context`'s "Code graph" line. If fresh:
+- who-calls / blast-radius / which-tests → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph .memory-bank/codebase/graph.json --symbol <Name>`
+- neighbors / relates-to → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py neighbors --graph .memory-bank/codebase/graph.json --symbol <Name>`
+- concept / "where is the logic for X" → `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<question>" .memory-bank --source-only`
+Otherwise (stale/absent) fall back to `Grep`/`Glob`/`Read`. Never block on the graph.

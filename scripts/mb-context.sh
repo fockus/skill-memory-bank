@@ -80,6 +80,56 @@ if [[ -d "$MB_PATH/codebase" ]]; then
   fi
 fi
 
+# Code graph (freshness + counts + ready commands; never injects graph contents)
+# Fail-open: any error skips the section without aborting mb-context.sh (set -e safe).
+_graph_section() {
+  local graph_json="$MB_PATH/codebase/graph.json"
+  local gq
+  gq="$(dirname "$0")/mb-graph-query.py"
+  local build_cmd="python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply --docs $MB_PATH ."
+  echo "--- Code graph ---"
+  if [[ ! -f "$graph_json" ]]; then
+    echo "  not built → build: $build_cmd"
+    echo ""
+    return 0
+  fi
+  local status_json=""
+  if command -v python3 >/dev/null 2>&1 && [[ -f "$gq" ]]; then
+    status_json=$(python3 "$gq" status --graph "$graph_json" --src-root . --json 2>/dev/null || true)
+  fi
+  if [[ -n "$status_json" ]]; then
+    printf '%s' "$status_json" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+age = d.get("age_hours")
+behind = d.get("commits_behind")
+age_s = "age %.0fh" % age if isinstance(age, (int, float)) else "age n/a"
+behind_s = "" if behind is None else ", %d commits behind" % behind
+rebuild = "python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply --docs . ."
+if d.get("stale"):
+    print("  stale (%s%s) -> rebuild: %s" % (age_s, behind_s, rebuild))
+else:
+    print("  fresh (%s%s)" % (age_s, behind_s))
+n = d.get("nodes")
+e = d.get("edges")
+n = "?" if n is None else n
+e = "?" if e is None else e
+print("  nodes=%s edges=%s" % (n, e))
+' 2>/dev/null || echo "  (freshness parse unavailable)"
+  else
+    # Degrade to existence + mtime only (no python3 / no query script).
+    echo "  present (freshness unavailable — needs python3); rebuild: $build_cmd"
+    echo "  nodes=? edges=?"
+  fi
+  echo "  god-nodes: $MB_PATH/codebase/god-nodes.md"
+  echo "  impact before refactor: python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph $graph_json --symbol <Name>"
+  echo "  concept search: python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py \"<question>\" $MB_PATH --source-only"
+  echo ""
+}
+if [[ -d "$MB_PATH/codebase" ]]; then
+  _graph_section || true
+fi
+
 # Latest note
 if [[ -d "$MB_PATH/notes" ]]; then
   latest_note=$(find "$MB_PATH/notes" -name "*.md" -type f 2>/dev/null | sort -r | head -1)

@@ -51,6 +51,27 @@ def test_load_churn_reads_node_attr_rows(tmp_path: Path):
     assert churn == {"a.py": 3, "b.py": 7}
 
 
+def test_load_churn_ignores_leading_meta_row(tmp_path: Path):
+    """Stage 3 backward-compat: a leading always-on `meta` row must not perturb the
+    churn map (load_churn filters by row type, like every other graph.json reader)."""
+    graph = tmp_path / "graph.json"
+    graph.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {"type": "meta", "generated_at": "2026-07-04T00:00:00Z", "nodes": 1, "edges": 0}
+                ),
+                json.dumps({"type": "node", "kind": "function", "name": "f", "file": "a.py"}),
+                json.dumps({"type": "node-attr", "file": "a.py", "churn_30d": 3}),
+                json.dumps({"type": "node-attr", "file": "b.py", "churn_30d": 7}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert ss.load_churn(graph) == {"a.py": 3, "b.py": 7}
+
+
 def test_load_churn_absent_rows_returns_empty(tmp_path: Path):
     graph = tmp_path / "graph.json"
     graph.write_text(

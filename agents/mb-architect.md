@@ -36,3 +36,10 @@ Lead with your core **STATUS** (DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONT
 - Interface stubs (Protocol / ABC / TypeScript interface / Swift protocol etc.) at the right layer.
 - Refactor sequencing as a numbered list of safe steps that keep tests green.
 - Open questions explicitly listed; don't pretend a closed decision when one stakeholder hasn't weighed in.
+
+## Code-graph routing (when the graph is fresh)
+Before structural greps, check `/mb context`'s "Code graph" line. If fresh:
+- who-calls / blast-radius / which-tests → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph .memory-bank/codebase/graph.json --symbol <Name>`
+- neighbors / relates-to → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py neighbors --graph .memory-bank/codebase/graph.json --symbol <Name>`
+- concept / "where is the logic for X" → `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<question>" .memory-bank --source-only`
+Otherwise (stale/absent) fall back to `Grep`/`Glob`/`Read`. Never block on the graph.

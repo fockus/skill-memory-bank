@@ -13,6 +13,45 @@ CWD="${CLAUDE_PROJECT_DIR:-$PWD}"
 MB="$(sc_resolve_mb "$CWD")"
 [ -n "$MB" ] || { printf '{}\n'; exit 0; }
 
+# Opt-in background code-graph rebuild (MB_GRAPH_AUTO, default off). Runs BEFORE the
+# _recent.md early-exit so it fires on any active bank, not just ones with session
+# history. Unlike the gitignored semantic index, graph.json is a committable /
+# git-tracked artifact — a surprise background mutation would dirty the working tree,
+# so this is OFF by default. When on, rebuild ONLY an existing + stale graph,
+# incrementally, against the SAME tree freshness was checked against ($CWD), under a
+# lock, in the background. Fail-safe: never blocks startup, always continues.
+_mb_graph_auto_should_rebuild() {
+  case "${MB_GRAPH_AUTO:-off}" in
+    on | auto) ;;
+    *) return 1 ;;
+  esac
+  [ -f "$MB/codebase/graph.json" ] || return 1        # first build stays manual
+  command -v python3 >/dev/null 2>&1 || return 1
+  local gq="$HOOK_DIR/../scripts/mb-graph-query.py"
+  [ -f "$gq" ] || gq="$HOME/.claude/skills/memory-bank/scripts/mb-graph-query.py"
+  [ -f "$gq" ] || return 1
+  python3 "$gq" status --graph "$MB/codebase/graph.json" --src-root "$CWD" --json 2>/dev/null \
+    | "${JQ:-jq}" -e '.stale==true' >/dev/null 2>&1 || return 1
+  return 0
+}
+if _mb_graph_auto_should_rebuild; then
+  _cg="$HOOK_DIR/../scripts/mb-codegraph.py"
+  [ -f "$_cg" ] || _cg="$HOME/.claude/skills/memory-bank/scripts/mb-codegraph.py"
+  if [ -n "${MB_GRAPH_AUTO_DRYRUN:-}" ]; then
+    printf 'python3 %s --apply --docs %s %s\n' "$_cg" "$MB" "$CWD"
+  else
+    LOCK="$MB/.index/.graph-rebuild.lock"
+    mkdir -p "$MB/.index" 2>/dev/null || true
+    # mkdir is atomic → lock; a stale lock from a prior crash just skips this session
+    # (a TTL cleanup is a follow-up — do NOT delete a possibly-live lock here).
+    if mkdir "$LOCK" 2>/dev/null; then
+      ( trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+        python3 "$_cg" --apply --docs "$MB" "$CWD" >/dev/null 2>&1
+      ) >/dev/null 2>&1 &
+    fi
+  fi
+fi
+
 RECENT="$MB/session/_recent.md"
 [ -f "$RECENT" ] || { printf '{}\n'; exit 0; }
 content="$(cat "$RECENT")"

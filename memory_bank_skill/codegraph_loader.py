@@ -42,3 +42,26 @@ def load_graph(path: Path) -> tuple[list[JsonObj], list[JsonObj]]:
             elif record_type == "edge":
                 edges.append(record)
     return nodes, edges
+
+
+def read_meta(path: Path) -> JsonObj | None:
+    """Return the graph's freshness stamp (the leading ``meta`` row) or ``None``.
+
+    Reads only the FIRST non-blank line: if it parses to a JSON object with
+    ``type == "meta"`` the record is returned, otherwise ``None``. Any error
+    (missing file, malformed line) fails open to ``None`` — freshness checks must
+    never raise on a legacy or truncated graph.
+    """
+    try:
+        with path.open(encoding="utf-8") as stream:
+            for line in stream:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                record = json.loads(stripped)
+                if isinstance(record, dict) and record.get("type") == "meta":
+                    return record
+                return None
+    except (OSError, json.JSONDecodeError):
+        return None
+    return None

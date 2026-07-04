@@ -280,6 +280,7 @@ Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Cl
 | `mb-ears-pre-write.sh` | PreToolUse (Write) | Validate REQ bullets in `context/<topic>.md` against EARS patterns before save |
 | `mb-context-slim-pre-agent.sh` | PreToolUse (Task) | Slim oversized agent prompts on subagent dispatch |
 | `mb-sprint-context-guard.sh` | PreToolUse (Task) | Hard-stop subagent dispatch if `mb-session-spend.sh` shows budget exhaustion |
+| `mb-graph-nudge.sh` | PreToolUse (Grep/Bash) | Non-blocking nudge toward `mb-graph-query` on structural greps, only when the code graph is fresh; throttled 1×/session, `MB_GRAPH_NUDGE=off`, fail-safe |
 | `mb-plan-sync-post-write.sh` | PostToolUse (Write) | Auto-sync plan ↔ checklist + roadmap after editing a plan file |
 | `file-change-log.sh` | PostToolUse (Write/Edit) | Append change log + scan for placeholders / secrets in committed files |
 | `session-end-autosave.sh` | SessionEnd | Memory Bank auto-capture (`MB_AUTO_CAPTURE=auto\|strict\|off`) when `/mb done` was skipped |

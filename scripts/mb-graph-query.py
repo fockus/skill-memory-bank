@@ -53,10 +53,47 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Directory for GRAPH_SUMMARY.md, IMPACT_MAP.md, TEST_LINKS.md",
     )
+
+    status = sub.add_parser("status")
+    status.add_argument("--graph", required=True, help="Path to graph.json")
+    status.add_argument("--src-root", default=".", help="Repo root for git-HEAD staleness")
+    status.add_argument("--json", action="store_true", help="Emit JSON")
     return parser
 
 
+def _render_status_md(info: dict) -> str:
+    if not info["exists"]:
+        return "Code graph: not built"
+    if info["stale"]:
+        detail = info["reason"]
+        if info["reason"] == "age" and info["age_hours"] is not None:
+            detail = f"age {info['age_hours']:.0f}h"
+        elif info["reason"] == "commits" and info["commits_behind"] is not None:
+            detail = f"{info['commits_behind']} commits behind"
+        return f"Code graph: stale ({detail})"
+    age = f"age {info['age_hours']:.0f}h" if info["age_hours"] is not None else "age n/a"
+    behind = "" if info["commits_behind"] is None else f", {info['commits_behind']} commits behind"
+    return f"Code graph: fresh ({age}{behind})"
+
+
+def _run_status(args: argparse.Namespace) -> int:
+    # Lazy import: only the `status` subcommand needs freshness, so an older
+    # installed package that has codegraph_loader but not codegraph_freshness still
+    # runs neighbors/impact/tests/summary — only `status` degrades, never all of them.
+    from memory_bank_skill.codegraph_freshness import env_thresholds, graph_freshness
+
+    hours, commits = env_thresholds()
+    info = graph_freshness(args.graph, args.src_root, stale_hours=hours, stale_commits=commits)
+    if args.json:
+        print_json(info)
+    else:
+        print(_render_status_md(info))
+    return EXIT_OK if info["exists"] else EXIT_MISSING_GRAPH
+
+
 def run(args: argparse.Namespace) -> int:
+    if args.command == "status":
+        return _run_status(args)
     try:
         nodes, edges = load_graph(Path(args.graph))
     except FileNotFoundError as exc:

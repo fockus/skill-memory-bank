@@ -53,6 +53,15 @@
           "command": "~/.claude/skills/memory-bank/hooks/mb-sprint-context-guard.sh # [memory-bank-skill]"
         }
       ]
+    },
+    {
+      "matcher": "Grep|Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/mb-graph-nudge.sh # [memory-bank-skill]"
+        }
+      ]
     }
   ],
   "PostToolUse": [

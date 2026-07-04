@@ -115,6 +115,26 @@ jq -r 'select(.type=="edge" and .kind=="import" and (.dst|contains("internal/cor
 
 For repeated queries, create project-local aliases/scripts under `.memory-bank/scripts/` — keep them project-scoped, never globalize.
 
+### Keep the graph fresh on commit (opt-in)
+
+An opt-in git `post-commit` hook refreshes the graph incrementally after every
+commit. It is **not** auto-installed (it mutates the tracked `graph.json` and
+lives outside the skill's Claude-Code hook system). Enable it per-repo:
+
+```bash
+ln -sf ~/.claude/skills/memory-bank/hooks/git/post-commit-codegraph.sh \
+       .git/hooks/post-commit
+```
+
+`post-commit` (not pre-commit) never slows a commit; it refreshes an already-built
+graph in the background under a lock, and is fail-safe (always exits 0).
+
+> ⚠️ **Warning:** this hook writes to `.memory-bank/codebase/graph.json`, which is
+> git-tracked — expect the graph to show up as a working-tree change after commits.
+> Prefer it only where you commit the graph deliberately, or add `graph.json` to
+> `.gitignore` first. Alternatively, enable the SessionStart auto-rebuild with
+> `MB_GRAPH_AUTO=on` (also off by default, same tracked-file caveat).
+
 ### Intelligence layer (opt-in) — suggested questions · semantic search · wiki
 
 Beyond the deterministic structural graph, three **opt-in** layers add what plain AST/import edges cannot see. All are off by default — base `/mb graph` output stays byte-identical, and none add a mandatory dependency (graceful degradation when an optional one is absent).

@@ -72,11 +72,69 @@ def test_load_graph_malformed_line_raises_valueerror_with_line_number(tmp_path: 
         loader.load_graph(g)
 
 
+def test_load_graph_ignores_meta_row(tmp_path: Path):
+    """A leading meta row must not change the parsed (nodes, edges) at all."""
+    with_meta = _write(
+        tmp_path / "with.json",
+        '{"type": "meta", "generated_at": "2026-07-04T00:00:00Z", "commit": "abc1234", "nodes": 2, "edges": 1}',
+        '{"type": "node", "kind": "function", "name": "foo", "file": "a.py", "line": 1}',
+        '{"type": "node", "kind": "module", "name": "a.py", "file": "a.py", "line": 1}',
+        '{"type": "edge", "kind": "call", "src": "a.py:bar", "dst": "foo"}',
+    )
+    without_meta = _write(
+        tmp_path / "without.json",
+        '{"type": "node", "kind": "function", "name": "foo", "file": "a.py", "line": 1}',
+        '{"type": "node", "kind": "module", "name": "a.py", "file": "a.py", "line": 1}',
+        '{"type": "edge", "kind": "call", "src": "a.py:bar", "dst": "foo"}',
+    )
+    assert loader.load_graph(with_meta) == loader.load_graph(without_meta)
+    nodes, edges = loader.load_graph(with_meta)
+    assert len(nodes) == 2 and len(edges) == 1
+
+
+def test_read_meta_returns_stamp(tmp_path: Path):
+    g = _write(
+        tmp_path / "graph.json",
+        '{"type": "meta", "generated_at": "2026-07-04T12:00:00Z", "commit": "abc1234", "nodes": 5, "edges": 9}',
+        '{"type": "node", "name": "x", "file": "x.py"}',
+    )
+    meta = loader.read_meta(g)
+    assert meta is not None
+    assert meta["generated_at"] == "2026-07-04T12:00:00Z"
+    assert meta["commit"] == "abc1234"
+    assert meta["nodes"] == 5
+    assert meta["edges"] == 9
+
+
+def test_read_meta_absent_returns_none(tmp_path: Path):
+    g = _write(
+        tmp_path / "graph.json",
+        '{"type": "node", "name": "x", "file": "x.py"}',
+        '{"type": "edge", "src": "x.py", "dst": "y", "kind": "import"}',
+    )
+    assert loader.read_meta(g) is None
+
+
+def test_read_meta_malformed_returns_none(tmp_path: Path):
+    g = _write(
+        tmp_path / "graph.json",
+        "{not valid json",
+        '{"type": "node", "name": "x", "file": "x.py"}',
+    )
+    assert loader.read_meta(g) is None
+
+
+def test_read_meta_missing_file_returns_none(tmp_path: Path):
+    assert loader.read_meta(tmp_path / "nope.json") is None
+
+
 def test_graph_query_core_delegates_to_loader(tmp_path: Path):
     """scripts/mb_graph_query_core.load_graph must keep its contract via delegation."""
     import importlib.util
+
     spec = importlib.util.spec_from_file_location(
-        "mb_graph_query_core", REPO_ROOT / "scripts" / "mb_graph_query_core.py")
+        "mb_graph_query_core", REPO_ROOT / "scripts" / "mb_graph_query_core.py"
+    )
     gqc = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gqc)
     g = _write(tmp_path / "graph.json", '{"type": "node", "name": "z", "file": "z.py"}')

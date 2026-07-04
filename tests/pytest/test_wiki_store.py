@@ -107,6 +107,33 @@ def test_merge_keeps_graph_valid_jsonlines(tmp_path: Path):
     assert nodes and edges
 
 
+def test_merge_bumps_meta_edge_count(tmp_path: Path):
+    """Appending semantic edges must keep the leading meta row's edge count in sync
+    so status/context counts never drift from the actual edge rows."""
+    g = tmp_path / "graph.json"
+    g.write_text(
+        '{"type": "meta", "generated_at": "2026-07-04T00:00:00Z", "commit": null, "nodes": 1, "edges": 1}\n'
+        '{"type": "node", "kind": "function", "name": "f", "file": "a.py", "line": 1}\n'
+        '{"type": "edge", "kind": "call", "src": "a.py:f", "dst": "g"}\n',
+        encoding="utf-8",
+    )
+    added = wstore.merge_semantic_edges(
+        g, [{"src": "a.py", "dst": "b.py", "kind": "semantic", "confidence": 0.7}]
+    )
+    assert added == 1
+    meta = loader.read_meta(g)
+    _, all_edges = loader.load_graph(g)
+    assert meta is not None
+    assert meta["edges"] == len(all_edges) == 2  # was 1, +1 semantic
+
+
+def test_merge_without_meta_row_is_unchanged(tmp_path: Path):
+    """Legacy graph (no meta row) → merge still works, no meta fabricated."""
+    g = _seed_graph(tmp_path)
+    wstore.merge_semantic_edges(g, [{"src": "x", "dst": "y", "kind": "semantic"}])
+    assert loader.read_meta(g) is None
+
+
 # ── article / index IO ───────────────────────────────────────────────
 
 

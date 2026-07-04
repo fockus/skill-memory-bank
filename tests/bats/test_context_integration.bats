@@ -112,3 +112,45 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"TypeScript"* ]]
 }
+
+# ═══ Code graph section (Stage 7) ═══
+
+_write_graph() {
+  # $1 = generated_at ISO timestamp
+  cat > "$TMPBANK/codebase/graph.json" <<EOF
+{"type": "meta", "generated_at": "$1", "commit": null, "nodes": 2, "edges": 1}
+{"type": "node", "kind": "function", "name": "foo", "file": "a.py", "line": 1}
+{"type": "node", "kind": "module", "name": "a.py", "file": "a.py", "line": 1}
+{"type": "edge", "kind": "call", "src": "a.py:bar", "dst": "foo"}
+EOF
+  echo "# God nodes" > "$TMPBANK/codebase/god-nodes.md"
+}
+
+@test "context: shows fresh graph line with counts and god-nodes pointer" {
+  _write_graph "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  run bash "$SCRIPT" "$TMPBANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Code graph"* ]]
+  [[ "$output" == *"nodes="* ]]
+  [[ "$output" == *"edges="* ]]
+  [[ "$output" == *"god-nodes.md"* ]]
+  # Never injects graph.json contents
+  [[ "$output" != *'"type": "node"'* ]]
+}
+
+@test "context: shows stale graph hint with rebuild command" {
+  _write_graph "2020-01-01T00:00:00Z"
+  run bash "$SCRIPT" "$TMPBANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stale"* ]]
+  [[ "$output" == *"mb-codegraph.py --apply"* ]]
+}
+
+@test "context: absent graph shows build hint, never errors" {
+  rm -f "$TMPBANK/codebase/graph.json"
+  run bash "$SCRIPT" "$TMPBANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Code graph"* ]]
+  [[ "$output" == *"not built"* ]]
+  [[ "$output" == *"mb-codegraph.py --apply"* ]]
+}

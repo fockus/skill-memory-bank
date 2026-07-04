@@ -28,6 +28,7 @@ import argparse
 import json
 import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -298,14 +299,43 @@ def _render_god_nodes(
     return body
 
 
+def _git_head_commit(src_root: Path) -> str | None:
+    """Return the short HEAD commit of ``src_root``'s repo, or ``None``.
+
+    Fail-open (mirrors the ``rev-parse --show-toplevel`` guard): detached HEAD,
+    no commits yet, git missing, or src outside a repo all degrade to ``None`` so
+    freshness falls back to age-only. Never raises, never prints git noise.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(src_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    commit = result.stdout.strip()
+    return commit[:12] if commit else None
+
+
 def _write_graph_jsonl(
     graph: dict[str, Any],
     target: Path,
     communities: dict[str, int] | None = None,
     node_attrs: list[dict[str, Any]] | None = None,
+    meta: dict[str, Any] | None = None,
 ) -> None:
     communities = communities or {}
     lines: list[str] = []
+    # Always-on ``meta`` freshness row (PREPENDED, first line). Additive +
+    # backward-compatible: every reader filters by row ``type``, so node/edge
+    # bytes after it are unchanged. Freshness must exist on every graph.
+    if meta is not None:
+        lines.append(json.dumps(meta, ensure_ascii=False))
     for n in graph["nodes"]:
         record = {"type": "node", **n}
         cid = communities.get(n.get("file", ""))
@@ -458,7 +488,16 @@ def run(
     if sessions:
         _apply_session_layer(mb, graph, summary)
 
-    _write_graph_jsonl(graph, codebase / "graph.json", communities, churn_attrs)
+    meta = {
+        "type": "meta",
+        "schema": 1,
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "commit": _git_head_commit(src),
+        "nodes": len(graph["nodes"]),
+        "edges": len(graph["edges"]),
+        "src_root": str(src),
+    }
+    _write_graph_jsonl(graph, codebase / "graph.json", communities, churn_attrs, meta=meta)
     atomic_write(codebase / "god-nodes.md", god_nodes_md)
 
     return summary

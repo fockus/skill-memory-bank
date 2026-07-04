@@ -67,7 +67,9 @@ def write_py(dir_path: Path, name: str, body: str) -> Path:
 def _run_cli(args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(CODEGRAPH_SCRIPT), *args],
-        capture_output=True, text=True, check=False,
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
 
@@ -78,10 +80,14 @@ def _run_cli(args: list[str]) -> subprocess.CompletedProcess:
 
 def test_parse_single_function(cg_mod, src_root):
     """One function → 1 node of kind function."""
-    write_py(src_root, "m.py", """
+    write_py(
+        src_root,
+        "m.py",
+        """
         def hello():
             pass
-    """)
+    """,
+    )
     result = cg_mod.parse_file(src_root / "m.py", src_root)
     funcs = [n for n in result["nodes"] if n["kind"] == "function"]
     assert any(n["name"] == "hello" for n in funcs)
@@ -89,13 +95,17 @@ def test_parse_single_function(cg_mod, src_root):
 
 def test_parse_class_with_methods(cg_mod, src_root):
     """Class with methods → class node + method nodes."""
-    write_py(src_root, "m.py", """
+    write_py(
+        src_root,
+        "m.py",
+        """
         class Foo:
             def bar(self):
                 pass
             def baz(self):
                 pass
-    """)
+    """,
+    )
     result = cg_mod.parse_file(src_root / "m.py", src_root)
     classes = [n for n in result["nodes"] if n["kind"] == "class"]
     funcs = [n for n in result["nodes"] if n["kind"] == "function"]
@@ -105,11 +115,15 @@ def test_parse_class_with_methods(cg_mod, src_root):
 
 def test_parse_imports(cg_mod, src_root):
     """import X / from X import Y → edges of kind import."""
-    write_py(src_root, "m.py", """
+    write_py(
+        src_root,
+        "m.py",
+        """
         import os
         from pathlib import Path
         from .sibling import helper
-    """)
+    """,
+    )
     result = cg_mod.parse_file(src_root / "m.py", src_root)
     imports = [e for e in result["edges"] if e["kind"] == "import"]
     targets = {e["dst"] for e in imports}
@@ -119,11 +133,15 @@ def test_parse_imports(cg_mod, src_root):
 
 def test_parse_function_calls(cg_mod, src_root):
     """Function call → edge of kind call."""
-    write_py(src_root, "m.py", """
+    write_py(
+        src_root,
+        "m.py",
+        """
         def worker():
             helper()
             other.method()
-    """)
+    """,
+    )
     result = cg_mod.parse_file(src_root / "m.py", src_root)
     calls = [e for e in result["edges"] if e["kind"] == "call"]
     targets = {e["dst"] for e in calls}
@@ -132,13 +150,17 @@ def test_parse_function_calls(cg_mod, src_root):
 
 def test_parse_class_inheritance(cg_mod, src_root):
     """class Child(Parent) → edge inherit."""
-    write_py(src_root, "m.py", """
+    write_py(
+        src_root,
+        "m.py",
+        """
         class Parent:
             pass
 
         class Child(Parent):
             pass
-    """)
+    """,
+    )
     result = cg_mod.parse_file(src_root / "m.py", src_root)
     inherits = [e for e in result["edges"] if e["kind"] == "inherit"]
     assert any(e["dst"] == "Parent" for e in inherits)
@@ -208,6 +230,33 @@ def test_apply_writes_graph_json_lines(cg_mod, mb_path, src_root):
     # Each line is valid JSON
     for line in lines:
         json.loads(line)
+
+
+def test_writer_prepends_meta_row(cg_mod, mb_path, src_root):
+    """First line of graph.json is a meta row (type=meta) with matching counts,
+    an ISO-8601 Z-suffixed generated_at, and a commit (hex or null)."""
+    import re
+
+    write_py(src_root, "m.py", "def f(): pass\nclass C: pass\n")
+    cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
+    graph_file = mb_path / "codebase" / "graph.json"
+    lines = [line for line in graph_file.read_text().splitlines() if line.strip()]
+    meta = json.loads(lines[0])
+    assert meta["type"] == "meta"
+    node_rows = [
+        json.loads(line)
+        for line in lines[1:]
+        if '"type": "node"' in line or '"type":"node"' in line
+    ]
+    edge_rows = [
+        json.loads(line)
+        for line in lines[1:]
+        if '"type": "edge"' in line or '"type":"edge"' in line
+    ]
+    assert meta["nodes"] == len(node_rows)
+    assert meta["edges"] == len(edge_rows)
+    assert re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", meta["generated_at"])
+    assert meta["commit"] is None or re.match(r"^[0-9a-f]{7,40}$", meta["commit"])
 
 
 def test_apply_writes_god_nodes_md(cg_mod, mb_path, src_root):
@@ -334,6 +383,7 @@ def test_god_nodes_sorted_by_degree_desc(cg_mod, mb_path, src_root):
     lonely_idx = content.find("lonely")
     if lonely_idx > 0:
         assert pop_idx < lonely_idx
+
 
 # Note: opt-in --docs doc/signature enrichment tests live in test_codegraph_docs.py
 # (split out to keep this file under the 400-line gate).

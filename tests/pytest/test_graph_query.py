@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -291,3 +292,38 @@ def test_missing_selector_exits_two(tmp_path: Path) -> None:
     payload = _json(result)
     assert payload["ok"] is False
     assert payload["error"] == "invalid_input"
+
+
+def _fixture_graph_with_meta(tmp_path: Path) -> Path:
+    from datetime import datetime
+
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return _write_graph(
+        tmp_path / ".memory-bank" / "codebase" / "graph.json",
+        [
+            {"type": "meta", "generated_at": now, "commit": None, "nodes": 1, "edges": 0},
+            {"type": "node", "kind": "module", "name": "a.py", "file": "a.py", "line": 1},
+        ],
+    )
+
+
+def test_status_subcommand_json_reports_freshness(tmp_path: Path) -> None:
+    graph = _fixture_graph_with_meta(tmp_path)
+
+    result = _run(["status", "--graph", str(graph), "--src-root", str(tmp_path), "--json"])
+
+    assert result.returncode == 0, result.stderr
+    payload = _json(result)
+    assert payload["exists"] is True
+    assert "stale" in payload
+    assert "commits_behind" in payload
+
+
+def test_status_subcommand_missing_graph_exit3(tmp_path: Path) -> None:
+    result = _run(
+        ["status", "--graph", str(tmp_path / "absent.json"), "--src-root", str(tmp_path), "--json"]
+    )
+
+    assert result.returncode == 3
+    payload = _json(result)
+    assert payload["exists"] is False

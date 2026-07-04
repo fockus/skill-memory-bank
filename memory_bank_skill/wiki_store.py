@@ -269,5 +269,27 @@ def merge_semantic_edges(graph_path: Path | str, edges: list[dict[str, Any]]) ->
         raw = fh.read()
     if not raw.endswith(("\n", "\r")):
         raw += "\n"
+    # Keep the always-on freshness ``meta`` row's edge count in sync with the rows we
+    # append, so status/context counts never drift from the actual edge rows. Only the
+    # leading meta line is touched; every other line (and its line ending) is preserved.
+    raw = _bump_meta_edges(raw, len(appended))
     atomic_write(path, raw + "\n".join(appended) + "\n")
     return len(appended)
+
+
+def _bump_meta_edges(raw: str, delta: int) -> str:
+    """Increment ``edges`` on the leading ``meta`` row by ``delta`` (no-op if the
+    first line is not a meta row, e.g. a legacy graph without a stamp)."""
+    newline_at = raw.find("\n")
+    first = raw[:newline_at] if newline_at != -1 else raw
+    rest = raw[newline_at:] if newline_at != -1 else ""
+    stripped = first.rstrip("\r")
+    try:
+        record = json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        return raw
+    if not isinstance(record, dict) or record.get("type") != "meta":
+        return raw
+    record["edges"] = int(record.get("edges", 0)) + delta
+    trailing_cr = "\r" if first.endswith("\r") else ""
+    return json.dumps(record, ensure_ascii=False) + trailing_cr + rest
