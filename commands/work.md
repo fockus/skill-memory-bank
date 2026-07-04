@@ -324,11 +324,13 @@ When the user types `/mb work [args...]`:
    discipline reach the specialist (a role file dispatched alone would be discipline-thin).
    Pass the resolved `model` and `thinking` from the JSON Line to the Agent/Task call; do not rely on agent frontmatter defaults.
 
+   **Do NOT edit DoD checkboxes** (`⬜`/`[ ]` → `✅`/`[x]`); the loop flips them deterministically via `mb-work-checkbox.sh` only after judge-GO — append this line verbatim to the dispatched prompt so the implementer never self-marks DoD items done.
+
    ```
    Task(
      description="mb-work item <N>: <heading>",
      subagent_type="general-purpose",
-      prompt="<contents of agents/mb-engineering-core.md>\n\n---\n\n<contents of agents/mb-tooling-core.md>\n\n---\n\n<contents of agents/<agent>.md>\n\nPlan: <plan path>\nStage: <heading>\n\n<full item body>\n\nLinked context: <if any>",
+      prompt="<contents of agents/mb-engineering-core.md>\n\n---\n\n<contents of agents/mb-tooling-core.md>\n\n---\n\n<contents of agents/<agent>.md>\n\nPlan: <plan path>\nStage: <heading>\n\n<full item body>\n\nDo NOT edit DoD checkboxes (⬜/[ ] → ✅/[x]); the loop flips them deterministically via mb-work-checkbox.sh only after judge-GO.\n\nLinked context: <if any>",
       model="<json.model>",
       thinking="<json.thinking>",
    )
@@ -394,13 +396,16 @@ When the user types `/mb work [args...]`:
 
    ### 5g. Item done
 
-   Only after all steps in the selected workflow have passed for this item — for governed workflows, `GO` or `GO_WITH_BACKLOG` from judge is required, and backlog items must be registered before marking done — call:
+   Only after all steps in the selected workflow have passed for this item — for governed workflows, `GO` or `GO_WITH_BACKLOG` from judge is required, and backlog items must be registered before marking done — run this deterministic sequence (never hand-edit the checkboxes yourself):
 
    ```bash
    bash scripts/mb-work-state.sh done --mb <bank>
+   bash scripts/mb-work-checkbox.sh flip <source> <item_no> --mb <bank>
    ```
 
-   This sets `phase: "done"` for the current `item_no`, the completion gate the deterministic checkbox flip (wired in a later stage) requires before it will touch the source file's DoD bullets.
+   `mb-work-state.sh done` sets `phase: "done"` for the current `item_no` — the completion gate `mb-work-checkbox.sh flip` requires before it will touch the source file's DoD bullets. `flip` then converts that item's `⬜`/`[ ]` DoD bullets to `✅`/`[x]`, scoped to its `<!-- mb-stage:N -->` / `<!-- mb-task:N -->` marker block only. **A refused flip (exit 1) means the gate did not truly pass** — treat it as a bug in the loop (state/item mismatch), not as something to work around by editing the file directly.
+
+   Workflows without a `judge` step (e.g. `execution`) still route through this exact sequence: `mb-work-state.sh done` is called once `verify` reports PASS (there is no judge decision to wait for), so the flip stays fully deterministic even without a judge gate.
 
    - Without `--auto`: prompt the user to confirm before moving to the next item.
    - With `--auto`: continue to the next item unless one of the hard stops (below) fired.
@@ -513,6 +518,9 @@ bash scripts/mb-work-protected-check.sh <files...> [--mb <path>]
 # Durable loop-state (I-093): max_cycles enforcement by exit code + resume across compaction/abort
 bash scripts/mb-work-state.sh init <source> <item_no> [--run-id ID] [--max-cycles N] [--mb <path>]
 bash scripts/mb-work-state.sh step <name> | cycle | status | done | clear [--mb <path>]
+
+# Deterministic DoD-checkbox flip (I-093): only fires once .work-state.json phase == done
+bash scripts/mb-work-checkbox.sh flip <plan-or-spec> <item_no> [--mb <path>]
 ```
 
 ## Out of scope (Phase 4)
