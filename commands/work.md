@@ -366,6 +366,8 @@ When the user types `/mb work [args...]`:
 
    If `review_profile: ensemble`, dispatch 3-5 aspect reviewers from `review_ensemble.reviewers` in parallel with fresh scoped context only: plan/spec, verifier report, diff, previous lead report. Then dispatch `review_ensemble.lead_role` to synthesize one canonical report. The lead reviewer must verify previous-cycle issues first, deduplicate aspect findings, separate blocking issues from backlog candidates, and emit strict JSON.
 
+   **Pre-wave codex health-check (only when a reviewer is external/cross-model):** before dispatching an external review wave — an aspect reviewer or the whole review step routed through the `codex` CLI — run `bash scripts/mb-work-codex-preflight.sh --json --mb <bank>` first. In-model-only review (no external reviewer configured for this run) never runs the preflight at all — it is skipped entirely, so no false SKIPPED note is ever written. If the preflight reports `available:false`, **or** the reviewer's own output later parses (via `--external`, below) as `verdict:"SKIPPED"` (the `codex-reviewer` subagent tripped its own preflight and returned `{"status":"SKIPPED"}`), do not let the judge close a governed item alone silently: write `cross-model review SKIPPED (<reason>)` into this item's stage report **and** append a `NOTE` entry to `<bank>/progress.md` — loud, never silent. Treat the gate as **degraded**, not failed — the in-model reviewer/judge (if any) may still complete the item on the remaining evidence, but the cross-model coverage that would have caught a cross-model-only class of issue simply did not run this cycle.
+
    **Parsing mode — `--external` for cross-model reviewers:** when the resolved reviewer is external / cross-model (a reviewer dispatched through the `codex` CLI transport, e.g. the global `codex-reviewer` subagent), parse its output with `mb-work-review-parse.sh --external` instead of the strict default — it normalizes a real GPT reviewer's "APPROVED with issues" down to `CHANGES_REQUESTED` (recomputing counts from issues, never trusting self-reported ones), maps the codex-reviewer issue schema (`description`/`recommendation`/`info` severity/`line:null`), and passes a `{"status":"SKIPPED"}` payload straight through as `verdict:"SKIPPED"`. The in-model `mb-reviewer`, and the ensemble's `lead_role` (which always stays in-model even when its aspect reviewers are external), keep the strict parse — no `--external` there.
 
    If the parse exits non-zero (genuinely unparseable reviewer output, not a schema mismatch `--external` already tolerates), perform **exactly one** automatic retry before failing the step: re-dispatch the same reviewer once, appending the parser's stderr text to its prompt so the reviewer can self-correct its output, then re-parse. A second parse failure surfaces the raw reviewer output verbatim and halts the review step — never a second automatic retry.
@@ -439,6 +441,7 @@ The autopilot continues without per-item prompts **except** when:
 | `Write` / `Edit` attempt at a `protected_paths` glob without `--allow-protected` | step 5b (`mb-work-protected-check.sh`) | yes |
 | `--budget` exhausted | `mb-work-budget.sh check` exit 2 after Task | yes |
 | `sprint_context_guard.hard_stop_tokens` reached (190k default) | manual observation; halt and ask user to compact | yes |
+| `cross-model review SKIPPED` under `--auto` (`mb-work-codex-preflight.sh` reports `available:false`, or the reviewer parses as `verdict:"SKIPPED"`) | step 5d preamble | yes — a skipped cross-model gate requires explicit user confirmation before the loop proceeds, even under `--auto` |
 
 When any hard stop fires, the loop halts even under `--auto`. The orchestrator surfaces the trigger, the item state, and the next reasonable action (rerun with adjusted flags, edit pipeline.yaml, compact, etc.).
 
@@ -525,6 +528,10 @@ bash scripts/mb-work-state.sh step <name> | cycle | status | done | clear [--mb 
 
 # Deterministic DoD-checkbox flip (I-093): only fires once .work-state.json phase == done
 bash scripts/mb-work-checkbox.sh flip <plan-or-spec> <item_no> [--mb <path>]
+
+# Codex preflight (I-093): fail-safe availability/auth health-check run before an
+# external/cross-model review wave (step 5d preamble). Always exits 0 (advisory only).
+bash scripts/mb-work-codex-preflight.sh [--json] [--mb <path>]
 ```
 
 ## Out of scope (Phase 4)
