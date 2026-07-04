@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -16,12 +17,19 @@ def _init_mb(tmp_path: Path) -> Path:
     return mb
 
 
-def _run(*args: str, mb: Path) -> subprocess.CompletedProcess[str]:
+def _run(
+    *args: str, mb: Path, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    run_env = None
+    if env:
+        run_env = dict(os.environ)
+        run_env.update(env)
     return subprocess.run(
         ["bash", str(SCRIPT), *args, "--mb", str(mb)],
         capture_output=True,
         text=True,
         check=False,
+        env=run_env,
     )
 
 
@@ -152,3 +160,52 @@ def test_add_no_run_id_backcompat(tmp_path: Path) -> None:
     assert r.returncode == 0, r.stderr
     state = json.loads((mb / ".work-budget.json").read_text())
     assert state["spent"] == 10000
+
+
+# ── I-094 S2: per-run budget slot under MB_WORK_PARALLEL ─────────────────────
+
+
+def test_parallel_budget_writes_perrun_slot(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    r = _run("init", "100000", "--run-id", "r1", mb=mb, env={"MB_WORK_PARALLEL": "1"})
+    assert r.returncode == 0, r.stderr
+    slot = mb / ".work-budget" / "r1.json"
+    assert slot.is_file()
+    assert not (mb / ".work-budget.json").exists()
+
+
+def test_two_parallel_budgets_are_independent(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    env = {"MB_WORK_PARALLEL": "1"}
+    _run("init", "100000", "--run-id", "r1", mb=mb, env=env)
+    _run("init", "100000", "--run-id", "r2", mb=mb, env=env)
+    _run("add", "90000", "--run-id", "r1", mb=mb, env=env)  # r1 at 90%
+
+    r2_check = _run("check", "--run-id", "r2", mb=mb, env=env)
+    assert r2_check.returncode == 0  # r2 untouched at 0%
+
+    r1_check = _run("check", "--run-id", "r1", mb=mb, env=env)
+    assert r1_check.returncode == 1  # r1 at 90% >= warn 80%, < stop 100%
+
+    r1_state = json.loads((mb / ".work-budget" / "r1.json").read_text())
+    r2_state = json.loads((mb / ".work-budget" / "r2.json").read_text())
+    assert r1_state["spent"] == 90000
+    assert r2_state["spent"] == 0
+
+
+def test_parallel_check_own_run_stops_correctly(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    env = {"MB_WORK_PARALLEL": "1"}
+    _run("init", "100000", "--run-id", "r1", mb=mb, env=env)
+    _run("add", "100001", "--run-id", "r1", mb=mb, env=env)  # >100%
+    r = _run("check", "--run-id", "r1", mb=mb, env=env)
+    assert r.returncode == 2  # a real gate, not a cross-run warn-not-stop
+
+
+def test_default_singleton_path_unchanged(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    r = _run("init", "100000", "--run-id", "r1", mb=mb)  # no MB_WORK_PARALLEL
+    assert r.returncode == 0, r.stderr
+    state = mb / ".work-budget.json"
+    assert state.is_file()
+    assert not (mb / ".work-budget").exists()
