@@ -295,11 +295,23 @@ When the user types `/mb work [args...]`:
 
    On `--dry-run`, print the selected workflow + `## Execution Plan` summary and **stop**; do not dispatch.
 
-4. **Initialise budget (if `--budget TOK` given).** Run `bash scripts/mb-work-budget.sh init <TOK> --mb <bank>`. Subsequent steps call `bash scripts/mb-work-budget.sh check --mb <bank>` after each Task dispatch; exit 1 = warn (log and continue), exit 2 = stop (halt the loop). Add tokens after each Task with `bash scripts/mb-work-budget.sh add <delta> --mb <bank>`.
+4. **Establish durable run-state, then initialise budget (if `--budget TOK` given).** Mint the session's `run_id` once, using the first pending item's `source`/`item_no` from step 3's JSON Lines, and reuse it for every item and every budget call for the rest of this run (this is what survives a compaction/abort — see *Resume after interruption* below):
+
+   ```bash
+   RUN_ID=$(bash scripts/mb-work-state.sh init <source> <first_item_no> --mb <bank>)
+   ```
+
+   `mb-work-state.sh init` resolves `max_cycles` from `workflow.loop.max_cycles` (or CLI `--max-cycles N`) when neither is passed explicitly — pass `--max-cycles N` to `init` when the CLI flag was given. If `--budget TOK` was given, run `bash scripts/mb-work-budget.sh init <TOK> --run-id "$RUN_ID" --mb <bank>`. Subsequent steps call `bash scripts/mb-work-budget.sh check --run-id "$RUN_ID" --mb <bank>` after each Task dispatch; exit 1 = warn (log and continue), exit 2 = stop (halt the loop). Add tokens after each Task with `bash scripts/mb-work-budget.sh add <delta> --run-id "$RUN_ID" --mb <bank>`. Threading `--run-id` means an orphaned `.work-budget.json` left over from a different, aborted run is recognised as stale (warn, exit 1) instead of silently throttling this run.
 
 5. **For each pending item** (iterate over the JSON Lines output):
 
    The stage body is read from the markers in the source file. For `kind=task` items, read between `<!-- mb-task:N -->` markers. For `kind=stage` items, read between `<!-- mb-stage:N -->` markers.
+
+   For every item after the first, re-arm the per-item loop-state (this resets the item's `cycle` counter and `phase` back to `in-progress` while keeping the same session `run_id`):
+
+   ```bash
+   bash scripts/mb-work-state.sh init <source> <item_no> --run-id "$RUN_ID" --mb <bank>
+   ```
 
    ### 5a. Implement step (only if workflow includes `implement`)
 
@@ -370,22 +382,42 @@ When the user types `/mb work [args...]`:
 
    ### 5f. Fix-cycle (only if workflow includes `fix`)
 
-   - Use `workflow.loop.max_cycles` (or CLI `--max-cycles N`).
+   - Call `bash scripts/mb-work-state.sh cycle --mb <bank>` — this is the deterministic, crash-surviving cycle counter (it enforces `workflow.loop.max_cycles` / CLI `--max-cycles N`, resolved once at step 4, **not** the orchestrator's memory of how many fix-cycles have run):
+     - **exit 0** — cycle is still within `max_cycles`; proceed with the fix.
+     - **exit 3** — **cycle budget exhausted** ("cycle budget exhausted" on stderr). This is a hard stop **even under `--auto`**: do not silently re-dispatch another fix; fall through to the `on_max_cycles` handling below instead.
    - Re-dispatch the implementer only with judge `blocking_issues`, not every reviewer/backlog finding.
    - Run protected-path check after the fix.
    - Return to `workflow.loop.returns_to` (normally `verify`), then review/judge again.
-   - If max cycles are exhausted and `on_max_cycles=judge_decides`, run judge once more: `GO_WITH_BACKLOG` may close, `NO_GO` stops for human.
-   - If max cycles are exhausted and `on_max_cycles=stop_for_human`, halt and ask the user.
+   - If cycle-exhausted (exit 3) and `on_max_cycles=judge_decides`, run judge once more: `GO_WITH_BACKLOG` may close, `NO_GO` stops for human.
+   - If cycle-exhausted (exit 3) and `on_max_cycles=stop_for_human`, halt and ask the user.
    - If `on_max_cycles=continue_with_warning`, require explicit human confirmation before marking WARN; do not silently mark done.
 
    ### 5g. Item done
 
-   Mark DoD items satisfied in the source file (plan or spec tasks.md) only after all steps in the selected workflow have passed. For governed workflows, `GO` or `GO_WITH_BACKLOG` from judge is required; backlog items must be registered before marking done.
+   Only after all steps in the selected workflow have passed for this item — for governed workflows, `GO` or `GO_WITH_BACKLOG` from judge is required, and backlog items must be registered before marking done — call:
+
+   ```bash
+   bash scripts/mb-work-state.sh done --mb <bank>
+   ```
+
+   This sets `phase: "done"` for the current `item_no`, the completion gate the deterministic checkbox flip (wired in a later stage) requires before it will touch the source file's DoD bullets.
 
    - Without `--auto`: prompt the user to confirm before moving to the next item.
    - With `--auto`: continue to the next item unless one of the hard stops (below) fired.
 
-6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used. Run `bash scripts/mb-work-budget.sh clear --mb <bank>` to remove the budget state.
+6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used. Run `bash scripts/mb-work-budget.sh clear --mb <bank>` and `bash scripts/mb-work-state.sh clear --mb <bank>` to remove the budget and loop-state.
+
+## Resume after interruption
+
+`.work-state.json` is the durable source of truth for "is this item actually done", surviving compaction and abort — checkbox appearance in the plan/spec is not. Before resolving items on a fresh invocation (a new session picking the same target back up):
+
+```bash
+bash scripts/mb-work-state.sh status --mb <bank>
+```
+
+- Empty `{}` (no state, or state cleared by a prior clean end-of-run) — start fresh from step 3.
+- `phase: "in-progress"` for the item currently at `item_no` — this item is **mid-flight**: do **not** treat it as done even if its DoD checkboxes look flipped in the source file. The loop flips checkboxes deterministically only after judge-GO (`mb-work-state.sh done`, wired in a later stage) — `phase` in `.work-state.json`, not checkbox appearance, is the source of truth. Resume by re-entering the loop for that item at the next unresolved step (inspect `steps[]`), or, if in doubt, safely restart from `implement` for that item.
+- `phase: "done"` — the item completed cleanly; proceed to the next pending item.
 
 ## Hard stops for `--auto`
 
@@ -393,7 +425,7 @@ The autopilot continues without per-item prompts **except** when:
 
 | Trigger | Surfaced via | Halt? |
 |---------|--------------|-------|
-| `max_cycles` reached without `APPROVED` | step 5e + `on_max_cycles=stop_for_human` | yes |
+| `max_cycles` reached (cycle-exhausted) | `mb-work-state.sh cycle` exit 3 at step 5f + `on_max_cycles` handling | yes |
 | `plan-verifier` returns FAIL | step 5c | yes |
 | `Write` / `Edit` attempt at a `protected_paths` glob without `--allow-protected` | step 5b (`mb-work-protected-check.sh`) | yes |
 | `--budget` exhausted | `mb-work-budget.sh check` exit 2 after Task | yes |
@@ -475,8 +507,12 @@ bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb
 # Review-loop helpers (Sprint 3)
 bash scripts/mb-work-review-parse.sh [--lenient] < reviewer-stdout
 bash scripts/mb-work-severity-gate.sh --counts <json> | --counts-stdin [--mb <path>] [--workflow <name>]
-bash scripts/mb-work-budget.sh init <total> | add <delta> | status | check | clear [--mb <path>]
+bash scripts/mb-work-budget.sh init <total> [--run-id ID] | add <delta> [--run-id ID] | status | check [--run-id ID] | clear [--mb <path>]
 bash scripts/mb-work-protected-check.sh <files...> [--mb <path>]
+
+# Durable loop-state (I-093): max_cycles enforcement by exit code + resume across compaction/abort
+bash scripts/mb-work-state.sh init <source> <item_no> [--run-id ID] [--max-cycles N] [--mb <path>]
+bash scripts/mb-work-state.sh step <name> | cycle | status | done | clear [--mb <path>]
 ```
 
 ## Out of scope (Phase 4)
