@@ -280,9 +280,12 @@ assert guard_cmds, "guard not registered in Stop"
 # memory-bank exists (mb_hook_default_agent would otherwise guess 'cursor').
 assert all("MB_AGENT=claude-code" in c for c in guard_cmds), \
     "guard registration must pin MB_AGENT=claude-code"
-# The two pre-existing Stop hooks must survive.
+# The two pre-existing Stop hooks must survive. The session-turn capture hook is
+# unchanged; the old unconditional "/mb done" recommendation echo was intentionally
+# replaced (I-087 B1) by the drift-gated mb-freshness.sh --stop-nudge (silent when the
+# bank is fresh), so pin the new wiring instead of the retired literal text.
 joined = "\n".join(cmds)
 assert "mb-session-turn.sh" in joined, "mb-session-turn.sh removed"
-assert "/mb done" in joined, "the /mb done recommendation echo removed"
+assert "mb-freshness.sh" in joined, "the drift-gated Stop nudge (mb-freshness.sh) removed"
 PY
 }
