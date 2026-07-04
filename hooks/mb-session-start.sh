@@ -51,6 +51,17 @@ EOF
   ctx="$(printf '%s\n\n%s' "$cheat" "$recent_block")"
 fi
 
+# B1: prepend a drift banner when the bank is materially behind code / dirty (empty when
+# fresh — mirrors the MB_SESSION_CHEATSHEET opt-out pattern). Fail-safe: any error → no banner.
+if [ "${MB_FRESHNESS_BANNER:-on}" != "off" ]; then
+  FRESH="$HOOK_DIR/../scripts/mb-freshness.sh"
+  [ -f "$FRESH" ] || FRESH="$HOME/.claude/skills/memory-bank/scripts/mb-freshness.sh"
+  if [ -f "$FRESH" ]; then
+    banner="$(bash "$FRESH" --banner "$MB" 2>/dev/null || true)"
+    [ -n "$banner" ] && ctx="$(printf '%s\n\n%s' "$banner" "$ctx")"
+  fi
+fi
+
 JQ="${JQ:-jq}"
 if command -v "$JQ" >/dev/null 2>&1; then
   # shellcheck disable=SC2016  # $c is a jq variable (--arg c), not a shell expansion

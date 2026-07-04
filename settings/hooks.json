@@ -116,7 +116,7 @@
         },
         {
           "type": "command",
-          "command": "if [ -d .memory-bank ]; then echo '[MEMORY BANK] [memory-bank-skill] Recommendation: /mb done — update checklist, create a note, append progress'; fi"
+          "command": "if [ -d .memory-bank ]; then bash ~/.claude/skills/memory-bank/scripts/mb-freshness.sh --stop-nudge; fi # [memory-bank-skill]"
         }
       ]
     }
