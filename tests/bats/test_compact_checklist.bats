@@ -109,3 +109,59 @@ EOF
   sum2=$(shasum "$MB/checklist.md" | awk '{print $1}')
   [ "$sum1" = "$sum2" ]
 }
+
+# --- B3: opt-in SessionEnd checklist autoprune hook ---
+
+AUTOPRUNE="$REPO_ROOT/hooks/mb-checklist-autoprune.sh"
+
+_big_collapsible_checklist() {  # $1 = number of done sections
+  { printf '# Checklist\n\n## ⏳ In flight\n- ⬜ keep this open TODO\n\n'
+    local i
+    for i in $(seq 1 "$1"); do
+      printf '### Stage %s: task-%s\n' "$i" "$i"
+      printf -- '- ✅ implemented part %s\n' "$i"
+      printf -- '- ✅ Plan: [done-%s](plans/done/2026-01-01_feature_x_%s.md)\n\n' "$i" "$i"
+    done
+  } > "$MB/checklist.md"
+}
+
+@test "B3: autoprune runs when enabled AND over the 120-line cap" {
+  AUTOPRUNE="$REPO_ROOT/hooks/mb-checklist-autoprune.sh"
+  _big_collapsible_checklist 40           # ~168 lines, all collapsible
+  before="$(wc -l < "$MB/checklist.md" | tr -d ' ')"
+  [ "$before" -gt 120 ]
+  run env MB_CHECKLIST_AUTOPRUNE=on CLAUDE_PROJECT_DIR="$PROJECT" bash "$AUTOPRUNE"
+  [ "$status" -eq 0 ]
+  after="$(wc -l < "$MB/checklist.md" | tr -d ' ')"
+  [ "$after" -lt "$before" ]              # collapsed
+  ls "$MB/.checklist.md.bak."* >/dev/null # backup written
+  grep -q 'keep this open TODO' "$MB/checklist.md"   # In-flight preserved
+}
+
+@test "B3: autoprune is a no-op when disabled (default off)" {
+  AUTOPRUNE="$REPO_ROOT/hooks/mb-checklist-autoprune.sh"
+  _big_collapsible_checklist 40
+  before="$(shasum "$MB/checklist.md" | awk '{print $1}')"
+  run env -u MB_CHECKLIST_AUTOPRUNE CLAUDE_PROJECT_DIR="$PROJECT" bash "$AUTOPRUNE"
+  [ "$status" -eq 0 ]
+  after="$(shasum "$MB/checklist.md" | awk '{print $1}')"
+  [ "$before" = "$after" ]
+  if ls "$MB/.checklist.md.bak."* >/dev/null 2>&1; then false; fi
+}
+
+@test "B3: autoprune is a no-op when under the cap" {
+  AUTOPRUNE="$REPO_ROOT/hooks/mb-checklist-autoprune.sh"
+  _big_collapsible_checklist 3            # small, well under 120
+  before="$(shasum "$MB/checklist.md" | awk '{print $1}')"
+  run env MB_CHECKLIST_AUTOPRUNE=on CLAUDE_PROJECT_DIR="$PROJECT" bash "$AUTOPRUNE"
+  [ "$status" -eq 0 ]
+  after="$(shasum "$MB/checklist.md" | awk '{print $1}')"
+  [ "$before" = "$after" ]
+}
+
+@test "B3: autoprune fail-safe when checklist is missing" {
+  AUTOPRUNE="$REPO_ROOT/hooks/mb-checklist-autoprune.sh"
+  rm -f "$MB/checklist.md"
+  run env MB_CHECKLIST_AUTOPRUNE=on CLAUDE_PROJECT_DIR="$PROJECT" bash "$AUTOPRUNE"
+  [ "$status" -eq 0 ]
+}

@@ -146,7 +146,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-done-gates.sh` | Mandatory `/mb done` gate set (tests + rules + placeholder scan); `--force --reason` records a NOTE in `progress.md` (handoff-v2) |
 | `mb-test-run.sh` | Structured test runner with per-stack output parsing → strict JSON |
 | `mb-deps-check.sh [--install-hints]` | Preflight dependency checker (python3, jq, git + optional tree-sitter, networkx) |
-| `mb-checklist-prune.sh [--apply]` | Collapse completed sections in `checklist.md` to one-liners (≤120-line cap) |
+| `mb-checklist-prune.sh [--apply]` | Collapse completed sections in `checklist.md` to one-liners (≤120-line cap). **Rule: `checklist.md` = open TODO only; commit hashes / test counts / closeouts go to `progress.md`.** Opt-in SessionEnd autoprune when it exceeds the cap via `MB_CHECKLIST_AUTOPRUNE=on` (`hooks/mb-checklist-autoprune.sh`) |
 | `mb-compact.sh [--apply]` | Status-based compaction decay — archive old done plans + low-importance notes |
 | `mb-handoff.sh` | Handoff capsule manager — `--actualize` / `--read` / `--rotate` a ≤1500-byte session capsule under `handoff/` (handoff-v2) |
 | `mb-tags-normalize.sh [--apply]` | Levenshtein-based tag synonym detection + merge across `notes/` |
