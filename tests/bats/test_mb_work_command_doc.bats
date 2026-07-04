@@ -259,3 +259,34 @@ setup() {
   run grep -qi "inter-plan" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── I-094 S9: concurrent core-file write contract ─────────────────────────
+
+@test "doc says progress.md appends go through the locked append-only helper under parallel runs" {
+  run grep -q "mb-work-progress-append.sh" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "locked\|lock" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "append-only" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc says checklist.md is flipped only by mb-work-checkbox.sh (single-writer)" {
+  run grep -q "mb-work-checkbox.sh" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "single.writer\|single writer" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "checklist.md" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc states durable progress is checkboxes+.work-state, TaskUpdate is ephemeral" {
+  run grep -qi "ephemeral" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "TaskUpdate" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "durable" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q ".work-state" "$DOC"
+  [ "$status" -eq 0 ]
+}
