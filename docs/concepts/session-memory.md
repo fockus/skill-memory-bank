@@ -134,6 +134,28 @@ malformed markers and dangling references.
 
 ---
 
+## Memory stack — MB primary, memsearch search-only
+
+When both Memory Bank and [memsearch](https://github.com/) are installed, they overlap on
+one axis: both can summarize a turn with Haiku on the Stop hook. The decision (2026-07-04,
+backlog I-087 B4) is **Memory Bank owns per-session summaries; memsearch is search-only** —
+otherwise every turn pays for two Haiku calls that produce near-duplicate notes.
+
+Disable memsearch's per-turn summarizer while keeping its search/embeddings:
+
+```toml
+# ~/.memsearch/config.toml  (user config, not a repo file)
+[plugins.claude-code.summarize]
+enabled = false
+```
+
+memsearch's `stop.sh` reads `plugins.claude-code.summarize.enabled` (defaults to `true`
+when absent); `embedding.*` and recall stay untouched, so `memsearch` search still returns
+results. MB's own summary path (`mb-session-summarize.sh`, one Haiku per session, capped by
+`MB_CATCHUP_MAX`) remains the single source of session summaries.
+
+---
+
 ## See also
 
 - **[Code graph & semantic search](code-graph.md)** — searching your *source* (a different index).
