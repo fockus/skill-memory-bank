@@ -80,6 +80,22 @@ _Wave queues unchanged below._
 - I-059 (MED) — OpenCode test fixtures: add `test_opencode_*.bats` for dispatch, guards, hooks in each wave. Cross-cutting.
 - I-060 (LOW) — Commands `*.md` OpenCode frontmatter: `name`, `description`, `agent`, `subtask` for all 24+ command files. Cross-cutting.
 
+## I-087 — Session-capture correctness + MB drift hygiene ✅ (2026-07-04) — Plan: [plans/2026-07-04_fix_session-capture-and-mb-hygiene.md](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md)
+
+- ✅ A1 splice bullets into Live log before `## Summary` + reset `summarized` (byte-verbatim ENVIRON)
+- ✅ A2 bullet + file-list hard caps (600/12) `+K more`/`…`, redact-before-cap, opt-out env
+- ✅ A3 user-prompt cap 1000 + ellipsis; redact-before-cap; env override
+- ✅ A4 filter non-human wrapper turns; opt-out `MB_SESSION_FILTER_WRAPPERS=off`
+- ✅ A5 `_recent.md` injection hard-cap; A6 `MB_SUMMARY_MAX_CHARS` default 60000
+- ✅ A7 `mb-session-repair.sh` (idempotent, backup, redact-before-recap) + prune byte-threshold
+- ✅ B1 `mb-freshness.sh` drift alarm + Stop nudge + SessionStart banner
+- ✅ B2 `MB_AUTO_COMMIT` + freshness recipe documented + doc-test
+- ✅ B3 opt-in checklist autoprune SessionEnd hook + TODO-only rule
+- ✅ B4 memsearch per-turn summarize disabled + documented
+- ✅ C1 taskloom: session repaired, MB tail committed (MB-only); ⚠️ checklist auto-prune n/a (flat format → I-091)
+- ✅ C2 swarmline: session repaired, MB tail committed (MB-only); ⏸ content-archiving + stray-dir → I-092
+- Follow-ups: I-088 (A7 test), I-089 (memsearch smoke), I-090 (agent-caps flaky), I-091 (flat-checklist prune), I-092 (Track C residue)
+
 ## See also
 
 - `roadmap.md` — full wave order and release gate.

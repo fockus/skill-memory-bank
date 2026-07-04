@@ -498,6 +498,53 @@ _`tests/pytest/test_flow_route_templates.py::_phase_makes_false_claim` guards a 
 
 _`scripts/mb-idea.sh` computes the next idea id by scanning `backlog.md` alone. But the `I-NNN` sequence is GLOBAL across the bank — `progress.md` carries implementation entries `I-075/076/077` that the script never sees. On Task 11 it emitted `I-075` (backlog max was `I-074`) which collided with the existing `progress.md` I-075 "handoff-v2 delivered" entry; had to be hand-corrected to I-078. This violates the never-reused-ID invariant. Fix: `mb-idea.sh` (and any `I-`/`EXP-`/`ADR-` allocator) must take the max id across BOTH `backlog.md` AND `progress.md` (and ideally `index.json`) before incrementing — a single shared next-id helper in `_lib.sh`. Found while recording the Task 11 judge backlog._
 
+### I-087 — Session-capture correctness + Memory-Bank drift hygiene [HIGH, RESOLVED 2026-07-04]
+
+_Plan `plans/2026-07-04_fix_session-capture-and-mb-hygiene.md`. Track A (capture correctness,
+A1-A7) + Track B (drift/enforcement, B1-B4) shipped, TDD red→green, governed review
+(codex-cli gpt-5.5 CHANGES_REQUESTED → all findings fixed) + mb-judge (NO_GO on one broken
+proxy test → fixed → clean). Commits `89caee6`/`37a4409`/`27e4d6a`/`cd6c387`/`e2bce6c`/`f2b2d56`/`4a8e29c`/`740cf5d`/`f4d8051`/`3ca4653`/`85c57ff`/`6207346`.
+A1 splice-before-Summary + resummarize; A2 bullet/file caps; A3 user-cap 1000; A4 wrapper
+filter (+opt-out); A5 _recent cap; A6 summary window 60k; A7 mb-session-repair.sh + prune
+threshold; B1 mb-freshness.sh drift alarm; B2 auto-commit/freshness docs; B3 checklist
+autoprune hook; B4 memsearch per-turn summarize disabled. Track C: taskloom + swarmline
+sessions repaired + MB tails committed (MB-only, no push); content-archiving/stray-dir
+removal deferred → I-092._
+
+### I-088 — mb-session-repair.sh: add regression test for multi-`## ` section preservation (Auto-notes) [LOW, NEW, 2026-07-04]
+
+_The plan edge case "`## Auto-notes emitted` preserved as its own section, only `- HH:MM ` bullets
+moved" is implemented in the repair awk (verified by inspection) but has no dedicated bats case.
+Raised by the mb-judge GO_WITH_BACKLOG on I-087._
+
+### I-089 — Re-verify memsearch search after summarize.enabled=false (B4 smoke) [LOW, NEW, 2026-07-04]
+
+_`~/.memsearch/config.toml` summarize disabled + verified via `memsearch config get` (=False);
+the "search still returns results" DoD smoke wasn't independently re-run (memsearch CLI is via
+uvx, not on PATH in the sandbox). Run a `memsearch` query once to confirm recall unaffected._
+
+### I-090 — Pre-existing `test_mb_agent_caps.bats:147` env/pi-CLI-dependent failure [LOW, NEW, 2026-07-04]
+
+_Full-suite sweep during I-087 judging found `test_mb_agent_caps.bats:147` (`resolve: real pi
+2-column --list-models`) failing independent of the I-087 diff (last touched by `3c16381`/`45e01df`).
+Environment/`pi`-CLI-dependent; track + fix separately._
+
+### I-091 — mb-checklist-prune can't collapse flat `- ✅` checklists → cross-project checklists stay over-cap [MED, NEW, 2026-07-04]
+
+_`mb-checklist-prune.sh` only collapses `### ` sections carrying a `plans/done/…` link with no
+`⬜`/`[ ]`. taskloom (904 lines) and swarmline (680 lines) use flat `## Stage` + `- ✅` items,
+so prune is a no-op and they never reach the 120-line cap. Found during I-087 Track C. Fix: add
+a flat-format collapse mode (fold a fully-`✅` `## Stage` block to a one-line `plans/done` link)._
+
+### I-092 — I-087 Track C residue: swarmline content-archiving + stray-dir cleanup (deferred) [MED, NEW, 2026-07-04]
+
+_Deferred from I-087 Track C as too risky to auto-apply on the users' ACTIVE repos:
+(a) swarmline `progress.md` March verify-boilerplate → `progress.archive.md`; extract RESOLVED
+I-066/I-072 + ADR-004/006/007 from `BACKLOG.md` into dedicated files — large manual surgery on
+live domain files. (b) taskloom/swarmline stray `~/.claude/projects/*--memory-bank*` dirs were
+NOT removed: they hold nested session `tool-results/` (some dated today), contradicting the
+plan's "empty, 0 jsonl" premise. Do deliberately, with review._
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
