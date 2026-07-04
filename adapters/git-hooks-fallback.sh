@@ -68,8 +68,31 @@ if [ ! -d "$PROJECT_ROOT_RAW" ]; then
 fi
 PROJECT_ROOT="$(cd "$PROJECT_ROOT_RAW" && pwd)"
 
-GIT_DIR="$PROJECT_ROOT/.git"
-HOOKS_DIR="$GIT_DIR/hooks"
+# True iff PROJECT_ROOT is itself a git repo ROOT (toplevel). rev-parse is
+# worktree/submodule safe (there `.git` is a file pointer), but `--git-dir` alone
+# walks up to an enclosing repo — so we also require `--show-toplevel` to canonically
+# equal PROJECT_ROOT, else a nested non-root subdir would wrongly wire an enclosing
+# repo's hooks.
+_mb_is_repo_root() {
+  local top
+  top="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ -n "$top" ] && [ "$(cd "$PROJECT_ROOT" && pwd -P)" = "$(cd "$top" && pwd -P)" ]
+}
+
+# Resolve the effective git dir + hooks dir via rev-parse (honors core.hooksPath).
+# Falls back to the literal .git layout for a non-repo / non-root path (require_git_repo
+# then reports it). `git -C` runs in PROJECT_ROOT so relative paths resolve there.
+if _mb_is_repo_root && _mb_gd="$(git -C "$PROJECT_ROOT" rev-parse --git-dir 2>/dev/null)"; then
+  case "$_mb_gd" in /*) GIT_DIR="$_mb_gd" ;; *) GIT_DIR="$PROJECT_ROOT/$_mb_gd" ;; esac
+  if _mb_hp="$(git -C "$PROJECT_ROOT" rev-parse --git-path hooks 2>/dev/null)"; then
+    case "$_mb_hp" in /*) HOOKS_DIR="$_mb_hp" ;; *) HOOKS_DIR="$PROJECT_ROOT/$_mb_hp" ;; esac
+  else
+    HOOKS_DIR="$GIT_DIR/hooks"
+  fi
+else
+  GIT_DIR="$PROJECT_ROOT/.git"
+  HOOKS_DIR="$GIT_DIR/hooks"
+fi
 MANIFEST="$GIT_DIR/mb-hooks-manifest.json"
 
 # shellcheck disable=SC1091
@@ -78,8 +101,8 @@ MANIFEST="$GIT_DIR/mb-hooks-manifest.json"
 . "$(dirname "$0")/_contract.sh"
 
 require_git_repo() {
-  if [ ! -d "$GIT_DIR" ]; then
-    echo "[git-hooks] not a git repository: $PROJECT_ROOT" >&2
+  if ! _mb_is_repo_root; then
+    echo "[git-hooks] not a git repository root: $PROJECT_ROOT" >&2
     exit 1
   fi
 }

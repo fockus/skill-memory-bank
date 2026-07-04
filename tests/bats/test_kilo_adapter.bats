@@ -142,3 +142,25 @@ run_adapter() {
   # global bank. Without it, a red Kilo global flow commits freely.
   grep -q 'MB_AGENT:=kilo' "$PROJECT/.git/hooks/pre-commit"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# A9 (H-7): git worktree detection (.git is a file, not a dir)
+# ═══════════════════════════════════════════════════════════════
+
+@test "kilo: install detects git repo in a linked worktree (.git is a file)" {
+  wt="${PROJECT}-wt"
+  (cd "$PROJECT" && git commit -q -m init --allow-empty && git worktree add -q "$wt" 2>/dev/null)
+  mkdir -p "$wt/.memory-bank"; echo '# Progress' > "$wt/.memory-bank/progress.md"
+  [ -f "$wt/.git" ]
+  run_adapter install "$wt"
+  [ "$status" -eq 0 ]
+  [ -f "$wt/.kilocode/rules/memory-bank.md" ]
+  rm -rf "$wt"; (cd "$PROJECT" && git worktree prune 2>/dev/null || true)
+}
+
+@test "kilo: install rejects a nested non-root subdir of an enclosing repo" {
+  mkdir -p "$PROJECT/packages/sub/.memory-bank"
+  echo '# Progress' > "$PROJECT/packages/sub/.memory-bank/progress.md"
+  run_adapter install "$PROJECT/packages/sub"
+  [ "$status" -ne 0 ]
+}

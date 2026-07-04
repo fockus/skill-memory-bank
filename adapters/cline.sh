@@ -25,6 +25,12 @@ CLINE_DIR="$PROJECT_ROOT/.clinerules"
 RULES_FILE="$CLINE_DIR/memory-bank.md"
 HOOKS_DIR="$CLINE_DIR/hooks"
 MANIFEST="$CLINE_DIR/.mb-manifest.json"
+# Cline supports `.clinerules` as EITHER a directory OR a single file. When it is
+# a plain file we can't mkdir it or nest hooks — append a marker-delimited MB
+# block and track ownership in a sibling manifest.
+CLINE_FILE_MANIFEST="$PROJECT_ROOT/.mb-cline-manifest.json"
+CLINE_START_MARKER="<!-- memory-bank-cline:start -->"
+CLINE_END_MARKER="<!-- memory-bank-cline:end -->"
 
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_lib_agents_md.sh"
@@ -151,9 +157,82 @@ exit 0
 HOOK_EOF
 }
 
+# Resolve .clinerules through a symlink CHAIN to its real target, so we write
+# THROUGH the link(s) (mv onto the final target) instead of replacing a link with
+# a regular file and detaching a shared rules file. Bounded loop = cycle-safe.
+_cline_real_path() {
+  local p="$CLINE_DIR" t hops=0
+  while [ -L "$p" ] && [ "$hops" -lt 40 ]; do
+    t="$(readlink "$p")"
+    case "$t" in /*) p="$t" ;; *) p="$(dirname "$p")/$t" ;; esac
+    hops=$((hops + 1))
+  done
+  printf '%s' "$p"
+}
+
+# Remove the MB block from a file-form .clinerules (idempotency + uninstall).
+# True no-op when no MB block is present (never rewrites → user bytes stay exact).
+# Drops START..END inclusive AND the single adapter-owned blank line emitted right
+# before START (1-line delay buffer preserves every other line, incl. the user's
+# own trailing blanks). Symlink-safe (writes onto the resolved target) + mode-safe.
+_cline_strip_block() {
+  [ -f "$CLINE_DIR" ] || return 0
+  local real
+  real="$(_cline_real_path)"
+  grep -qF "$CLINE_START_MARKER" "$real" 2>/dev/null || return 0
+  local tmp mode
+  tmp="$(mktemp "$(dirname "$real")/.clinerules.mbXXXXXX")" || return 1
+  mode="$(mb_file_mode "$real")"
+  awk -v s="$CLINE_START_MARKER" -v e="$CLINE_END_MARKER" '
+    $0==s { if (hasprev && prev!="") print prev; hasprev=0; skip=1; next }
+    $0==e { skip=0; next }
+    skip  { next }
+    { if (hasprev) print prev; prev=$0; hasprev=1 }
+    END   { if (hasprev) print prev }
+  ' "$real" > "$tmp" || { rm -f "$tmp"; return 1; }
+  [ -n "$mode" ] && chmod "$mode" "$tmp" 2>/dev/null
+  mv "$tmp" "$real" || { rm -f "$tmp"; return 1; }
+}
+
+# File-form install: append a marker-delimited MB rules block. No hooks (a file
+# can't host .clinerules/hooks/). Idempotent — strips any prior block first.
+install_cline_file_form() {
+  _cline_strip_block
+  {
+    echo ""
+    echo "$CLINE_START_MARKER"
+    echo "# Memory Bank — Project Rules"
+    echo ""
+    # shellcheck disable=SC2016
+    echo '- Start of session: read `.memory-bank/status.md`, `checklist.md`, `roadmap.md`, `research.md`'
+    # shellcheck disable=SC2016
+    echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
+    if [ -f "$SKILL_DIR/rules/RULES.md" ]; then
+      echo ''
+      echo '# Global Rules'
+      echo ''
+      mb_emit_rules_file "$SKILL_DIR/rules/RULES.md"
+    fi
+    echo "$CLINE_END_MARKER"
+  } >> "$CLINE_DIR"
+
+  adapter_write_manifest \
+    "$CLINE_FILE_MANIFEST" \
+    "cline" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "[]" \
+    '{"mode": "file"}'
+
+  echo "[cline-adapter] installed to $PROJECT_ROOT (mode: file .clinerules)"
+}
+
 # ═══ Install ═══
 install_cline() {
   adapter_require_jq "cline-adapter" || exit 1
+  if [ -f "$CLINE_DIR" ]; then
+    install_cline_file_form
+    return
+  fi
   mkdir -p "$CLINE_DIR" "$HOOKS_DIR"
 
   # 1. Rules file
@@ -208,6 +287,13 @@ install_cline() {
 
 # ═══ Uninstall ═══
 uninstall_cline() {
+  # File-form: strip the MB block, keep the user's file + content.
+  if [ -f "$CLINE_FILE_MANIFEST" ]; then
+    _cline_strip_block
+    rm -f "$CLINE_FILE_MANIFEST"
+    echo "[cline-adapter] uninstalled from $PROJECT_ROOT (file .clinerules)"
+    return 0
+  fi
   if [ ! -f "$MANIFEST" ]; then
     echo "[cline-adapter] no manifest found, nothing to uninstall"
     return 0

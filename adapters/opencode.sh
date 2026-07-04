@@ -119,33 +119,53 @@ PLUGIN_EOF
 }
 
 # ═══ opencode.json management ═══
-install_opencode_json() {
+# Back up the user's TRUE original opencode.json exactly once (rotation-safe:
+# never clobber it on re-install). Skip only if a real regular-FILE MB backup
+# already exists — a coincidental dir/other match must not suppress the backup.
+opencode_backup_json() {
+  [ -f "$OC_JSON" ] || return 0
+  local b
+  for b in "$OC_JSON".pre-mb-backup.*; do
+    [ -f "$b" ] && return 0
+  done
+  cp "$OC_JSON" "$OC_JSON.pre-mb-backup.$$"
+}
+
+# Strip MB's plugin ref, write atomically (unique tmp + mv, same dir). Broken
+# JSON → leave the user's file untouched (jq failed; a backup was already taken
+# on install). Empty object → remove. Foreign keys are preserved by jq.
+_opencode_strip_plugin_ref() {
   [ -f "$OC_JSON" ] || return 0
   local tmp
-  tmp=$(jq --arg ref "$PLUGIN_REF" '
+  if ! tmp=$(jq --arg ref "$PLUGIN_REF" '
     .plugin = ((.plugin // []) - [$ref])
     | if (.plugin | length) == 0 then del(.plugin) else . end
-  ' "$OC_JSON")
-  if [ "$(echo "$tmp" | jq 'length')" = "0" ]; then
+  ' "$OC_JSON" 2>/dev/null); then
+    return 0
+  fi
+  if [ "$(printf '%s' "$tmp" | jq 'length' 2>/dev/null)" = "0" ]; then
     rm -f "$OC_JSON"
   else
-    echo "$tmp" > "$OC_JSON"
+    local out mode
+    out="$(mktemp "$(dirname "$OC_JSON")/.opencode.json.mbXXXXXX")" || return 1
+    mode="$(mb_file_mode "$OC_JSON")"
+    if printf '%s\n' "$tmp" > "$out"; then
+      [ -n "$mode" ] && chmod "$mode" "$out" 2>/dev/null
+      mv "$out" "$OC_JSON"
+    else
+      rm -f "$out"; return 1
+    fi
   fi
 }
 
-uninstall_opencode_json() {
+install_opencode_json() {
   [ -f "$OC_JSON" ] || return 0
-  local tmp
-  tmp=$(jq --arg ref "$PLUGIN_REF" '
-    .plugin = ((.plugin // []) - [$ref])
-    | if (.plugin | length) == 0 then del(.plugin) else . end
-  ' "$OC_JSON")
-  # If file becomes empty object → remove, otherwise write back
-  if [ "$(echo "$tmp" | jq 'length')" = "0" ]; then
-    rm -f "$OC_JSON"
-  else
-    echo "$tmp" > "$OC_JSON"
-  fi
+  opencode_backup_json
+  _opencode_strip_plugin_ref
+}
+
+uninstall_opencode_json() {
+  _opencode_strip_plugin_ref
 }
 
 # ═══ Install ═══

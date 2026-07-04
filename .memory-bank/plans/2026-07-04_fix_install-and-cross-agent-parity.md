@@ -308,9 +308,9 @@ install-global на повторном прогоне другой версии 
    в нём есть не-MB ключи (только убрать свои при uninstall).
 
 ### DoD:
-- [ ] `opencode.json` бэкапится; чужие ключи сохранены; запись атомарна (`tmp+mv`).
-- [ ] Файл не удаляется при наличии не-MB ключей.
-- [ ] Тесты: 1+ bats RED→GREEN; `shellcheck` clean.
+- [x] `opencode.json` бэкапится (once, regular-file-verified); чужие ключи сохранены; запись атомарна (`mktemp+mv`, mode-preserving); битый JSON не затирается.
+- [x] Файл не удаляется при наличии не-MB ключей.
+- [x] Тесты: 5 bats RED→GREEN (backup/foreign-keys/broken-json/idempotent/glob-false-positive/mode); `shellcheck` 0 new.
 
 ### Команды проверки:
 ```bash
@@ -402,8 +402,9 @@ shellcheck install.sh
    в файл) вместо директории; если директория/отсутствует — прежний путь.
 
 ### DoD:
-- [ ] install не падает при `.clinerules`-файле; MB-контент добавлен корректно для обеих форм.
-- [ ] Тесты: 1+ bats RED→GREEN; `shellcheck` clean.
+- [x] install не падает при `.clinerules`-файле; MB-контент добавлен корректно для обеих форм (маркер-блок + sibling-манифест); idempotent, symlink-chain-safe, byte-exact round-trip, mode-preserving.
+- [x] Тесты: 5 bats RED→GREEN (file-form/uninstall/blank-accum/symlink/multi-hop/byte-exact/mode); `shellcheck` 0 new.
+- [ ] ⚠️ file-form rewrite без backup safety-net → data-loss при повреждённом END-маркере. Backlog R2a-1 (закрыть в Batch 2b вместе с backup-консолидацией).
 
 ### Команды проверки:
 ```bash
@@ -431,8 +432,8 @@ shellcheck adapters/cline.sh
    для fallback — использовать `git rev-parse --git-path hooks`).
 
 ### DoD:
-- [ ] Оба скрипта корректно детектят репо в worktree/submodule.
-- [ ] Тесты: 2 bats RED→GREEN; `shellcheck` clean.
+- [x] Оба скрипта корректно детектят репо в worktree (`.git`-файл) + honor `core.hooksPath`; repo-root guard (`--show-toplevel`==PROJECT_ROOT) отвергает вложенный non-root subdir.
+- [x] Тесты: 4 bats RED→GREEN (worktree kilo+git-hooks, nested-subdir reject kilo+git-hooks); `shellcheck` 0 new. (submodule-тест → backlog R2a-3, механизм идентичен worktree)
 
 ### Команды проверки:
 ```bash
@@ -1614,3 +1615,14 @@ Governed-цикл: implement → verify (PASS) → review×2 (Codex gpt-5.5: r1 
 - **R-2 [MINOR, tests]** нет отдельного bats-теста на `install.sh::_cursor_global_up_to_date` (guard проверен вручную для 3 кейсов: same version+lang→skip, lang-switch→re-run, version-bump→re-run, но не через автотест). В enumerated-сценариях A4 этого пункта не было — гигиена, не unmet-DoD. Добавить bats в Track C.
 
 _Формальные backlog-ID (I-NNN) отложены: `.memory-bank/backlog.md` сейчас содержит незакоммиченные правки параллельной сессии (I-087/I-093) — не смешиваю. Резидуалы трекаются здесь до финального `/mb done` по плану._
+
+---
+
+## Batch 2a — исполнено (A5·A8·A9 — install-safety адаптеров), judge = GO_WITH_BACKLOG (2026-07-04)
+
+Governed: implement → verify → Codex-review ×2 (gpt-5.5) → mb-judge. **9 реальных находок** (r1: 6 major — glob-бэкап, ×2 fixed-tmp клоббер, накопление blank-строк, symlink-детач, git-dir walk-up; r2: R1-3 residual byte-inexact, R1-4 residual single-hop symlink, +1 minor mode-drop) — все воспроизведены и исправлены. mb-judge независимо перепрогнал (opencode 20/20, cline 20/22, kilo 12/13, git-hooks 24/27; 6 падений = pre-existing capture, подтверждено stash-ем), вручную протрассировал delay-buffer awk (byte-exact), multi-hop symlink, repo-root guard, worktree + `core.hooksPath`. shellcheck 0 new; все файлы ≤400 строк.
+
+### Backlog-резидуалы (из judge GO_WITH_BACKLOG):
+- **R2a-1 [MAJOR, data-safety]** `adapters/cline.sh` file-form путь не делает backup перед `_cline_strip_block` mktemp+awk+mv-перезаписью `.clinerules`. Воспроизведено: повреждённый END-маркер (start есть, end нет) → uninstall молча срезает всё от start до EOF, невосстановимо. Вне заявленного scope A8, не round-2 регрессия. **Закрыть первым в Batch 2b** (там консолидация backup-before-overwrite для installer'а).
+- **R2a-2 [MINOR, logging]** `adapters/git-hooks-fallback.sh` success-лог хардкодит `"$PROJECT_ROOT/.git/hooks/"`, хотя реальный HOOKS_DIR может отличаться (worktree common-dir, custom `core.hooksPath`). Косметика — хуки ставятся в правильное место. Закрыть в Batch 2b/C.
+- **R2a-3 [MINOR, tests]** A9 покрыт worktree-тестом (kilo+git-hooks), но нет отдельного submodule-теста (план называет submodule в edge-cases). Механизм детекта идентичен → риск низкий. Закрыть в Track C.

@@ -213,3 +213,54 @@ EOF
   grep -q "directory" "$plugin"
   grep -q '\.memory-bank' "$plugin"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# A5 (H-3): opencode.json backup + atomic + foreign-key safety
+# ═══════════════════════════════════════════════════════════════
+
+@test "opencode: install backs up existing opencode.json and preserves foreign keys" {
+  echo '{"theme":"custom","plugin":["other"]}' > "$PROJECT/opencode.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  ls "$PROJECT"/opencode.json.pre-mb-backup.* >/dev/null 2>&1
+  [ "$(jq -r '.theme' "$PROJECT/opencode.json")" = "custom" ]
+  jq -e '.plugin | index("other")' "$PROJECT/opencode.json" >/dev/null
+}
+
+@test "opencode: install does NOT clobber a broken opencode.json (backs up, leaves intact)" {
+  printf '{ broken json' > "$PROJECT/opencode.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  ls "$PROJECT"/opencode.json.pre-mb-backup.* >/dev/null 2>&1
+  grep -q "broken json" "$PROJECT/opencode.json"
+}
+
+@test "opencode: install keeps a single true-original backup (idempotent)" {
+  echo '{"theme":"custom"}' > "$PROJECT/opencode.json"
+  run_adapter install "$PROJECT"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  n=$(ls "$PROJECT"/opencode.json.pre-mb-backup.* 2>/dev/null | wc -l | tr -d ' ')
+  [ "$n" = "1" ]
+}
+
+@test "opencode: install still makes a REAL backup when a non-file matches the backup glob" {
+  echo '{"theme":"x"}' > "$PROJECT/opencode.json"
+  mkdir -p "$PROJECT/opencode.json.pre-mb-backup.999"   # coincidental DIR match (not an MB backup)
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  found=0
+  for b in "$PROJECT"/opencode.json.pre-mb-backup.*; do
+    [ -f "$b" ] && grep -q '"theme"' "$b" && found=1
+  done
+  [ "$found" = "1" ]
+}
+
+@test "opencode: install preserves opencode.json file mode across atomic rewrite" {
+  echo '{"theme":"x"}' > "$PROJECT/opencode.json"
+  chmod 664 "$PROJECT/opencode.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  m=$(stat -f '%Lp' "$PROJECT/opencode.json" 2>/dev/null || stat -c '%a' "$PROJECT/opencode.json" 2>/dev/null)
+  [ "$m" = "664" ]
+}

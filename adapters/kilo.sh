@@ -34,8 +34,13 @@ GIT_FALLBACK="$ADAPTERS_DIR/git-hooks-fallback.sh"
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_contract.sh"
 require_git() {
-  if [ ! -d "$PROJECT_ROOT/.git" ]; then
-    echo "[kilo-adapter] Kilo requires git repo (git-hooks-fallback is mandatory — no native hooks API)" >&2
+  # rev-parse (not `[ -d .git ]`): worktree/submodule-safe (there `.git` is a FILE).
+  # But require PROJECT_ROOT to be the repo TOPLEVEL — `--git-dir` alone walks up to
+  # an enclosing repo, which would wrongly accept a nested non-root subdir.
+  local top
+  top="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel 2>/dev/null)" || top=""
+  if [ -z "$top" ] || [ "$(cd "$PROJECT_ROOT" && pwd -P)" != "$(cd "$top" && pwd -P)" ]; then
+    echo "[kilo-adapter] Kilo requires a git repo ROOT (git-hooks-fallback is mandatory — no native hooks API)" >&2
     exit 1
   fi
 }

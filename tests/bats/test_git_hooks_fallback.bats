@@ -445,3 +445,28 @@ EOF
 
   rm -rf "$EXT_PARENT"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# A9 (H-7): git worktree detection + hooks land in the resolved dir
+# ═══════════════════════════════════════════════════════════════
+
+@test "git-hooks: install detects repo + installs hooks in a linked worktree (.git is a file)" {
+  wt="${PROJECT}-wt"
+  (cd "$PROJECT" && git commit -q -m init --allow-empty && git worktree add -q "$wt" 2>/dev/null)
+  mkdir -p "$wt/.memory-bank"; echo '# Progress' > "$wt/.memory-bank/progress.md"
+  [ -f "$wt/.git" ]
+  run_adapter install "$wt"
+  [ "$status" -eq 0 ]
+  hooks="$(git -C "$wt" rev-parse --git-path hooks)"
+  case "$hooks" in /*) : ;; *) hooks="$wt/$hooks" ;; esac
+  [ -f "$hooks/post-commit" ]
+  grep -q "memory-bank" "$hooks/post-commit"
+  rm -rf "$wt"; (cd "$PROJECT" && git worktree prune 2>/dev/null || true)
+}
+
+@test "git-hooks: install rejects a nested non-root subdir (does not touch enclosing repo)" {
+  mkdir -p "$PROJECT/packages/sub/.memory-bank"
+  echo '# Progress' > "$PROJECT/packages/sub/.memory-bank/progress.md"
+  run_adapter install "$PROJECT/packages/sub"
+  [ "$status" -ne 0 ]
+}

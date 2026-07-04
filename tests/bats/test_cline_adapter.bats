@@ -187,3 +187,76 @@ run_adapter() {
   grep -q "Auto-capture.*cline-glbl1234" "$global_bank/progress.md"
   rm -rf "$global_bank"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# A8 (H-6): .clinerules as a plain FILE (Cline supports file or dir)
+# ═══════════════════════════════════════════════════════════════
+
+@test "cline: install handles .clinerules as a plain file (no crash, preserves user content)" {
+  printf '# My existing cline rules\nUSER_RULE_MARKER\n' > "$PROJECT/.clinerules"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.clinerules" ]
+  grep -q "USER_RULE_MARKER" "$PROJECT/.clinerules"
+  grep -qi "memory bank" "$PROJECT/.clinerules"
+}
+
+@test "cline: uninstall strips MB block from file-form .clinerules, keeps user content" {
+  printf '# My existing cline rules\nUSER_RULE_MARKER\n' > "$PROJECT/.clinerules"
+  run_adapter install "$PROJECT"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.clinerules" ]
+  grep -q "USER_RULE_MARKER" "$PROJECT/.clinerules"
+  ! grep -qi "memory bank" "$PROJECT/.clinerules"
+}
+
+@test "cline: file-form re-install does not accumulate blank lines (whole-file idempotent)" {
+  printf 'USER\n' > "$PROJECT/.clinerules"
+  run_adapter install "$PROJECT"
+  a=$(wc -l < "$PROJECT/.clinerules")
+  run_adapter install "$PROJECT"
+  b=$(wc -l < "$PROJECT/.clinerules")
+  [ "$a" = "$b" ]
+}
+
+@test "cline: file-form preserves a .clinerules symlink (writes through to target)" {
+  printf 'USER_SHARED\n' > "$PROJECT/shared-rules.md"
+  ln -s shared-rules.md "$PROJECT/.clinerules"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -L "$PROJECT/.clinerules" ]
+  grep -qi "memory bank" "$PROJECT/shared-rules.md"
+  grep -q "USER_SHARED" "$PROJECT/shared-rules.md"
+}
+
+@test "cline: file-form install+uninstall is byte-exact for a file with trailing blank lines" {
+  printf 'USER\n\n\n' > "$PROJECT/.clinerules"
+  before=$(cksum < "$PROJECT/.clinerules")
+  run_adapter install "$PROJECT"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  after=$(cksum < "$PROJECT/.clinerules")
+  [ "$before" = "$after" ]
+}
+
+@test "cline: file-form preserves a MULTI-HOP .clinerules symlink chain" {
+  printf 'USER_SHARED\n' > "$PROJECT/real-target.md"
+  ln -s real-target.md "$PROJECT/link2.md"
+  ln -s link2.md "$PROJECT/.clinerules"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -L "$PROJECT/.clinerules" ]
+  [ -L "$PROJECT/link2.md" ]
+  grep -qi "memory bank" "$PROJECT/real-target.md"
+  grep -q "USER_SHARED" "$PROJECT/real-target.md"
+}
+
+@test "cline: file-form preserves the .clinerules file mode across rewrite" {
+  printf 'USER\n' > "$PROJECT/.clinerules"
+  chmod 664 "$PROJECT/.clinerules"
+  run_adapter install "$PROJECT"
+  run_adapter uninstall "$PROJECT"
+  m=$(stat -f '%Lp' "$PROJECT/.clinerules" 2>/dev/null || stat -c '%a' "$PROJECT/.clinerules" 2>/dev/null)
+  [ "$m" = "664" ]
+}

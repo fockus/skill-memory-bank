@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # adapters/_framework.sh — shared adapter helpers.
 
+# Portable file mode as octal digits (e.g. 644). BSD `stat -f%Lp`, GNU `stat -c%a`.
+# Empty string on failure (caller then skips chmod). Used to preserve permissions
+# across atomic tmp+mv rewrites (mktemp defaults to 0600).
+mb_file_mode() {
+  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null || true
+}
+
 adapter_require_jq() {
   local name="${1:-adapter}"
   command -v jq >/dev/null 2>&1 || {
