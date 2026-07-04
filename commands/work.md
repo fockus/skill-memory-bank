@@ -605,6 +605,21 @@ bash scripts/mb-work-diff.sh --run-id ID [--files "p1 p2 ..."] [--baseline REF] 
 bash scripts/mb-work-progress-append.sh --text "<entry>" | --file <path> [--mb <path>]
 ```
 
+## Parallel runs
+
+Two supported patterns for driving several `/mb work` runs concurrently from one Claude Code session — both opt in via `MB_WORK_PARALLEL=1` and everything documented above (per-run slots, `new-run-id`, claim exit-4, baseline-scoped diff, `--skip-claimed`, the append helper):
+
+| Pattern | When to use | How |
+|---|---|---|
+| **Intra-plan waves** | Several **independent stages of the same plan** (a "wave" with no dependency between them) need to run at once, in one worktree. | Each stage's dispatch mints its own `run_id` via `mb-work-state.sh new-run-id`, threads `--run-id` through state/budget/checkbox, and claims its own `<source>` (the plan/spec + item) via `init`. **A single owner per shared file** — never let two concurrently-running stages write the same file. |
+| **Inter-plan worktrees** | Two or more **unrelated plans** need to run at once. | One `git worktree` per plan (see the worktree rule above) — each gets its own working tree, index, `progress.md`, and `checklist.md`, so cross-plan writes never contend. Per-run state/budget slots still apply per worktree. |
+
+**Sync vs. async spawn rule.** Dispatch **sync** (wait for the Task/agent to return before continuing) whenever the next step in *this* item's sequence depends on the result — e.g. verify waiting on implement, judge waiting on review. Dispatch **async** (background) **only** for truly independent waves — stages/items with no dependency on each other's output, typically distinct intra-plan-wave stages or separate inter-plan-worktree plans.
+
+**Mandatory background report delivery.** An async/background agent's final turn text is **not** automatically delivered to the team lead / orchestrator — only an idle notification reaches it. Every background dispatch **MUST** deliver its complete final report via `SendMessage` to the dispatching session/agent before ending its turn; if `SendMessage` is unavailable at runtime, it must write the report to `<bank>/.reports/<name>-<item>.md` instead, so the orchestrator can pick it up from disk. Skipping this means the work happened but the result is silently lost to the lead.
+
+**Optional self-claim pull mode.** Instead of the orchestrator assigning each item to a specific agent up front, it may **publish all pending items as tasks BEFORE spawning any agent**, then spawn a pool of agents that each **self-claim** a task by calling `mb-work-state.sh init <source> <item_no> --run-id "$RUN_ID"`: exit 0 means this agent now owns that item, **exit 4** means another agent already claimed it — the losing agent picks the next unclaimed pending item instead of double-working the same one. This mode still needs **a single writer per shared file**: if two self-claimed items touch the same file, that file's edits must be serialized (sequential dispatch, or one owning agent) regardless of how the items themselves were claimed.
+
 ## Out of scope (Phase 4)
 
 - `--slim` / `--full` context strategy via `context-slim-pre-agent.sh` runtime hook.
