@@ -149,6 +149,29 @@ def test_diff_empty_baseline_falls_back_scoped(tmp_path: Path) -> None:
     assert "b.txt" not in r.stdout
 
 
+def test_diff_includes_uncommitted_changes(tmp_path: Path) -> None:
+    # I-094 S4-fix: /mb work only commits a stage at step 5g (done); verify/
+    # review (5c/5d) run against a stage that is still uncommitted. A
+    # two-dot `<baseline>..HEAD` diff is commit-to-commit and would show an
+    # empty diff here, so the review would silently approve nothing. The
+    # single-arg form (`git diff <baseline> -- <files>`) must see uncommitted
+    # working-tree edits too.
+    repo = _init_repo(tmp_path)
+    (repo / "a.txt").write_text("a1\n", encoding="utf-8")
+    _commit_all(repo, "baseline")
+
+    mb = repo / ".memory-bank"
+    mb.mkdir()
+    _init_run(repo, mb, "r1")
+
+    # Uncommitted — simulates in-progress stage work before step 5g `done`.
+    (repo / "a.txt").write_text("a2\n", encoding="utf-8")
+
+    r = _diff("--run-id", "r1", "--files", "a.txt", "--mb", str(mb), cwd=repo)
+    assert r.returncode == 0, r.stderr
+    assert "a.txt" in r.stdout
+
+
 def test_diff_no_files_uses_full_baseline_range(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     (repo / "a.txt").write_text("a1\n", encoding="utf-8")
