@@ -9,6 +9,7 @@ enforcement deterministic (by exit code), surviving compaction/abort.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -136,3 +137,147 @@ def test_malformed_state_is_fail_safe(tmp_path: Path) -> None:
     r = _run("status", mb=mb)
     assert r.returncode == 0
     assert "traceback" not in (r.stdout + r.stderr).lower()
+
+
+# ── Backlog I-094 S1 — per-run slots + claim + baseline (MB_WORK_PARALLEL) ──
+
+
+def _run_parallel(*args: str, mb: Path) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ)
+    env["MB_WORK_PARALLEL"] = "1"
+    return subprocess.run(
+        ["bash", str(SCRIPT), *args, "--mb", str(mb)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+
+def _perrun_state(mb: Path, run_id: str) -> dict:
+    return json.loads((mb / ".work-state" / f"{run_id}.json").read_text(encoding="utf-8"))
+
+
+def test_parallel_init_writes_perrun_slot(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    r = _run_parallel("init", "plans/a.md", "1", "--run-id", "r1", mb=mb)
+    assert r.returncode == 0, r.stderr
+
+    assert (mb / ".work-state" / "r1.json").is_file()
+    assert not (mb / ".work-state.json").exists()
+    assert _perrun_state(mb, "r1")["source"] == "plans/a.md"
+
+
+def test_two_parallel_runs_have_independent_cycles(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    _run_parallel("init", "plans/a.md", "1", "--run-id", "r1", "--max-cycles", "2", mb=mb)
+    _run_parallel("init", "plans/b.md", "1", "--run-id", "r2", "--max-cycles", "2", mb=mb)
+
+    assert _run_parallel("cycle", "--run-id", "r1", mb=mb).returncode == 0
+    assert _run_parallel("cycle", "--run-id", "r1", mb=mb).returncode == 0
+    assert _run_parallel("cycle", "--run-id", "r2", mb=mb).returncode == 0
+
+    assert _perrun_state(mb, "r1")["cycle"] == 2
+    assert _perrun_state(mb, "r2")["cycle"] == 1
+
+
+def test_init_records_baseline_ref_in_git_repo(tmp_path: Path) -> None:
+    repo = tmp_path
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "a@b.c"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "test"], cwd=repo, check=True)
+    (repo / "README.md").write_text("hi\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+    mb = _init_mb(tmp_path)
+    r = subprocess.run(
+        ["bash", str(SCRIPT), "init", "plans/x.md", "2", "--mb", str(mb)],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=repo,
+    )
+    assert r.returncode == 0, r.stderr
+    assert _state(mb)["baseline_ref"] == head
+
+
+def test_init_baseline_ref_empty_outside_repo(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    env = dict(os.environ)
+    env["GIT_CEILING_DIRECTORIES"] = str(tmp_path.parent)
+    r = subprocess.run(
+        ["bash", str(SCRIPT), "init", "plans/x.md", "2", "--mb", str(mb)],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+        env=env,
+    )
+    assert r.returncode == 0, r.stderr
+    assert _state(mb)["baseline_ref"] == ""
+
+
+def test_init_claim_refused_exit_4(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    r1 = _run_parallel("init", "plans/a.md", "1", "--run-id", "r1", mb=mb)
+    assert r1.returncode == 0, r1.stderr
+
+    r2 = _run_parallel("init", "plans/a.md", "1", "--run-id", "r2", mb=mb)
+    assert r2.returncode == 4
+    assert "already claimed by run r1" in r2.stderr.lower()
+    assert not (mb / ".work-state" / "r2.json").exists()
+
+
+def test_init_takeover_overrides_claim(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    _run_parallel("init", "plans/a.md", "1", "--run-id", "r1", mb=mb)
+
+    r2 = _run_parallel("init", "plans/a.md", "1", "--run-id", "r2", "--takeover", mb=mb)
+    assert r2.returncode == 0, r2.stderr
+    assert (mb / ".work-state" / "r2.json").is_file()
+
+    status = _run_parallel("status", "--all", mb=mb)
+    assert status.returncode == 0, status.stderr
+    runs = {entry["run_id"] for entry in json.loads(status.stdout)}
+    assert "r2" in runs
+
+
+def test_init_claim_free_after_done(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    _run_parallel("init", "plans/a.md", "1", "--run-id", "r1", mb=mb)
+    done = _run_parallel("done", "--run-id", "r1", mb=mb)
+    assert done.returncode == 0, done.stderr
+
+    r2 = _run_parallel("init", "plans/a.md", "1", "--run-id", "r2", mb=mb)
+    assert r2.returncode == 0, r2.stderr
+
+
+def test_status_all_lists_every_run(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    _run_parallel("init", "plans/a.md", "1", "--run-id", "r1", mb=mb)
+    _run_parallel("init", "plans/b.md", "1", "--run-id", "r2", mb=mb)
+    # A corrupt slot must not break the listing (fail-safe skip).
+    (mb / ".work-state" / "r3.json").write_text("{not valid json", encoding="utf-8")
+
+    r = _run_parallel("status", "--all", mb=mb)
+    assert r.returncode == 0, r.stderr
+    entries = json.loads(r.stdout)
+    run_ids = {e["run_id"] for e in entries}
+    assert {"r1", "r2"} <= run_ids
+    assert "r3" not in run_ids
+
+
+def test_new_run_id_prints_unique(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    r1 = _run("new-run-id", mb=mb)
+    r2 = _run("new-run-id", mb=mb)
+    assert r1.returncode == 0, r1.stderr
+    assert r2.returncode == 0, r2.stderr
+    assert r1.stdout.strip()
+    assert r1.stdout.strip() != r2.stdout.strip()
+    assert not (mb / ".work-state.json").exists()
+    assert not (mb / ".work-state").exists()
