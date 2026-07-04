@@ -82,6 +82,8 @@ include = [
   "settings/*.json",
   "settings/*.py",
   "docs/*.md",
+  "templates/**/*",
+  "flow-templates/**/*",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -100,6 +102,8 @@ packages = ["memory_bank_skill"]
 "scripts" = "share/memory-bank-skill/scripts"
 "references" = "share/memory-bank-skill/references"
 "settings" = "share/memory-bank-skill/settings"
+"templates" = "share/memory-bank-skill/templates"
+"flow-templates" = "share/memory-bank-skill/flow-templates"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -120,6 +124,8 @@ include = [
   "/references",
   "/settings",
   "/docs",
+  "/templates",
+  "/flow-templates",
   "/pyproject.toml",
 ]
 

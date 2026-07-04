@@ -89,6 +89,56 @@ run_adapter() {
   grep -q 'MB_SKILLS_ROOT=' "$PROJECT/.cursor/hooks.json"
 }
 
+# ═══════════════════════════════════════════════════════════════
+# H-2: run_texttool must honor ${MB_PYTHON:-python3} (pipx isolated venv)
+# ═══════════════════════════════════════════════════════════════
+
+@test "cursor: run_texttool honors MB_PYTHON (not bare python3)" {
+  command -v python3 >/dev/null || skip "python3 required"
+  local home stub marker real_py
+  home="$(mktemp -d)"
+  stub="$(mktemp -d)"
+  marker="$stub/mb_python_called"
+  real_py="$(command -v python3)"
+  # Recording interpreter: notes it was called, then delegates to the real python
+  # (so _texttools still resolves and install-global completes).
+  cat > "$stub/mb-python" <<EOF
+#!/usr/bin/env bash
+echo called >> "$marker"
+exec "$real_py" "\$@"
+EOF
+  chmod +x "$stub/mb-python"
+  run env HOME="$home" MB_PYTHON="$stub/mb-python" MB_LANGUAGE=en \
+    bash "$ADAPTER" install-global </dev/null
+  # run_texttool (via localize) must have used MB_PYTHON, not a bare python3.
+  [ -f "$marker" ]
+  rm -rf "$home" "$stub"
+}
+
+@test "cursor: no bare 'python3 -m memory_bank_skill' in any adapter" {
+  # Grep-invariant: every python entry point must go through ${MB_PYTHON:-python3}
+  # so pipx/pip isolated installs (bare system python3 can't import the package)
+  # do not abort under set -euo pipefail.
+  ! grep -rnE '(^|[^-])python3 -m memory_bank_skill' "$REPO_ROOT"/adapters/*.sh
+}
+
+# ═══════════════════════════════════════════════════════════════
+# H-2 tail: install-global must record the locale in its manifest, so the
+# install.sh idempotency guard can detect a language switch at the same skill
+# version (en → ru) and re-localize instead of skipping. Without a recorded
+# `lang`, the version-only guard leaves stale English rules after `--language ru`.
+# ═══════════════════════════════════════════════════════════════
+
+@test "cursor: global manifest records the install locale (for the language-aware guard)" {
+  command -v jq >/dev/null || skip "jq required"
+  local home
+  home="$(mktemp -d)"
+  run env HOME="$home" MB_LANGUAGE=ru bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  jq -e '.lang == "ru"' "$home/.cursor/.mb-manifest.json" >/dev/null
+  rm -rf "$home"
+}
+
 @test "cursor: reinstall removes legacy mb-compact-reminder.sh copy left by old install" {
   # Simulate an old install that left a physical copy of the renamed hook.
   run_adapter install "$PROJECT"

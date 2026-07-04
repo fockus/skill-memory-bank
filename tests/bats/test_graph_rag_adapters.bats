@@ -42,6 +42,54 @@ run_script() {
   grep -q "scripts/mb-graph-query.py" "$ext"
 }
 
+# ═══════════════════════════════════════════════════════════════
+# F-2: Pi extension placeholders must be substituted with JSON-encoded paths
+# (a bare `cp` leaves __MB_SKILL_DIR_JSON__ / __MB_PROJECT_ROOT_JSON__ → invalid .ts)
+# ═══════════════════════════════════════════════════════════════
+
+_ts_const() {
+  # Extract the RHS (JSON literal) of `const <NAME> = <value>;`
+  local file="$1" name="$2"
+  grep -E "^const ${name} = " "$file" | sed -E "s/^const ${name} = (.*);[[:space:]]*\$/\1/"
+}
+
+@test "graph-rag adapters: pi extension has no unresolved __MB_ placeholders" {
+  run_script "$PI_ADAPTER" install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local ext="$PROJECT/.pi/extensions/memory-bank-graph-rag.ts"
+  [ -f "$ext" ]
+  ! grep -q '__MB_' "$ext"
+}
+
+@test "graph-rag adapters: pi extension paths are valid JSON string literals" {
+  run_script "$PI_ADAPTER" install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local ext="$PROJECT/.pi/extensions/memory-bank-graph-rag.ts"
+  local skill_val proj_val resolved_proj
+  skill_val="$(_ts_const "$ext" SKILL_DIR)"
+  proj_val="$(_ts_const "$ext" PROJECT_ROOT)"
+  printf '%s' "$skill_val" | jq -e 'type == "string"' >/dev/null
+  printf '%s' "$proj_val" | jq -e 'type == "string"' >/dev/null
+  resolved_proj="$(cd "$PROJECT" && pwd)"
+  [ "$(printf '%s' "$proj_val" | jq -r .)" = "$resolved_proj" ]
+}
+
+@test "graph-rag adapters: pi extension survives project path with spaces" {
+  local sp="$PROJECT/with space/proj"
+  mkdir -p "$sp/.memory-bank"
+  (cd "$sp" && git init -q && git config user.email t@t && git config user.name t)
+  echo '# Progress' > "$sp/.memory-bank/progress.md"
+  run_script "$PI_ADAPTER" install "$sp"
+  [ "$status" -eq 0 ]
+  local ext="$sp/.pi/extensions/memory-bank-graph-rag.ts"
+  [ -f "$ext" ]
+  ! grep -q '__MB_' "$ext"
+  local proj_val
+  proj_val="$(_ts_const "$ext" PROJECT_ROOT)"
+  printf '%s' "$proj_val" | jq -e 'type == "string"' >/dev/null
+  [ "$(printf '%s' "$proj_val" | jq -r .)" = "$(cd "$sp" && pwd)" ]
+}
+
 @test "graph-rag adapters: pi wrappers preserve JSON payloads on fail-open exits" {
   run_script "$PI_ADAPTER" install "$PROJECT"
   [ "$status" -eq 0 ]

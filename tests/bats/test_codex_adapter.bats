@@ -196,6 +196,282 @@ run_adapter() {
   [[ "$resolved" == *"evil-runner"* ]]
 }
 
+# ═══════════════════════════════════════════════════════════════
+# C-2: backup + merge for existing user config.toml / hooks.json
+# (must never clobber a user's Codex config without a recoverable backup)
+# ═══════════════════════════════════════════════════════════════
+
+@test "codex: backs up existing user config.toml before writing" {
+  mkdir -p "$PROJECT/.codex"
+  printf 'user_key = "keep"\n' > "$PROJECT/.codex/config.toml"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local bk
+  bk=$(ls "$PROJECT/.codex/config.toml".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  grep -q 'user_key = "keep"' "$bk"
+}
+
+@test "codex: merge preserves foreign keys in config.toml" {
+  mkdir -p "$PROJECT/.codex"
+  printf 'user_key = "keep"\n' > "$PROJECT/.codex/config.toml"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  grep -q 'user_key = "keep"' "$PROJECT/.codex/config.toml"
+  grep -q 'project_doc_max_bytes' "$PROJECT/.codex/config.toml"
+}
+
+@test "codex: MB top-level keys stay top-level when user config ends with a [table]" {
+  # Regression: a Codex config.toml commonly ends with a section header
+  # ([history], [tui], [mcp_servers.*], ...). If MB's block is appended AFTER
+  # that header, its top-level keys (project_doc_max_bytes, ...) are parsed as
+  # members of the user's last table — Codex never sees them, and the user's
+  # table is polluted. MB keys must land at genuine TOML top level.
+  command -v python3 >/dev/null || skip "python3 required"
+  python3 -c 'import tomllib' 2>/dev/null || skip "tomllib (py3.11+) required"
+  mkdir -p "$PROJECT/.codex"
+  printf '[history]\npersistence = "save-all"\n' > "$PROJECT/.codex/config.toml"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  python3 - "$PROJECT/.codex/config.toml" <<'PY'
+import sys, tomllib
+d = tomllib.load(open(sys.argv[1], "rb"))
+assert d.get("project_doc_max_bytes") == 65536, f"MB key not at top level: {d}"
+assert "project_doc_max_bytes" not in d.get("history", {}), "MB key leaked into user's [history] table"
+assert d["history"]["persistence"] == "save-all", "user table value lost"
+PY
+}
+
+@test "codex: user's own top-level key (approval_policy) is not duplicated → config stays valid TOML" {
+  # Regression: MB's block defines approval_policy/project_doc_max_bytes at top
+  # level. If the user already set one of those, blindly prepending MB's copy
+  # yields a duplicate top-level key → strict TOML parsers (tomllib, Codex) reject
+  # the whole file. MB must defer to the user's value, emitting no duplicate.
+  command -v python3 >/dev/null || skip "python3 required"
+  python3 -c 'import tomllib' 2>/dev/null || skip "tomllib (py3.11+) required"
+  mkdir -p "$PROJECT/.codex"
+  printf 'approval_policy = "never"\n' > "$PROJECT/.codex/config.toml"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  python3 - "$PROJECT/.codex/config.toml" <<'PY'
+import sys, tomllib
+d = tomllib.load(open(sys.argv[1], "rb"))  # raises if duplicate key → test fails
+assert d["approval_policy"] == "never", f"user value must win, got {d.get('approval_policy')!r}"
+assert d.get("project_doc_max_bytes") == 65536, "non-colliding MB key must still be present"
+PY
+}
+
+@test "codex: uninstall with a corrupted (unpaired) marker does NOT truncate user content" {
+  # Regression: an interrupted install / manual edit can leave a lone start
+  # marker with no end marker. A naive strip-to-EOF would delete everything after
+  # it. The well-formedness guard must leave the file untouched instead.
+  mkdir -p "$PROJECT/.codex"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  # Corrupt: drop the end marker, then append user content after the (now lone) block.
+  grep -v '<<< memory-bank <<<' "$PROJECT/.codex/config.toml" > "$PROJECT/.codex/config.toml.x"
+  printf '\nuser_tail_key = "precious"\n' >> "$PROJECT/.codex/config.toml.x"
+  mv "$PROJECT/.codex/config.toml.x" "$PROJECT/.codex/config.toml"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  # User's tail content must survive (guard refused to strip the malformed block).
+  [ -f "$PROJECT/.codex/config.toml" ]
+  grep -q 'user_tail_key = "precious"' "$PROJECT/.codex/config.toml"
+}
+
+@test "codex: existing hooks.json with non-array userpromptsubmit does not abort install" {
+  # Regression: the merge jq assumed .hooks.userpromptsubmit is an array; any
+  # other valid-JSON shape made jq exit non-zero → set -e killed install after
+  # config.toml was already mutated (partial install). Wrong shape must fall back
+  # to the fresh-MB-body branch (original already backed up), not abort.
+  mkdir -p "$PROJECT/.codex"
+  printf '{"hooks":{"userpromptsubmit":{"command":"weird"}},"keep":"me"}\n' \
+    > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  jq . "$PROJECT/.codex/hooks.json" >/dev/null    # valid JSON after install
+  # backup preserved the user's original odd shape
+  local bk
+  bk=$(ls "$PROJECT/.codex/hooks.json".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  jq -e '.keep == "me"' "$bk" >/dev/null
+}
+
+@test "codex: user's own top-level 'version' in hooks.json is preserved (not squatted)" {
+  # Regression: merge hard-set version to MB's value and uninstall del(.version),
+  # clobbering a user's legit top-level version. Merge must keep the user's
+  # version; uninstall must not delete it while other user content survives.
+  mkdir -p "$PROJECT/.codex"
+  printf '{"version":9,"my_key":"keep"}\n' > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  jq -e '.version == 9' "$PROJECT/.codex/hooks.json" >/dev/null
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.codex/hooks.json" ]
+  jq -e '.version == 9 and .my_key == "keep"' "$PROJECT/.codex/hooks.json" >/dev/null
+}
+
+@test "codex: config dedup works with no python3 on PATH (pure-awk, no hard dep)" {
+  # Regression (round-2): dedup must not depend on python3/tomllib. Hide python3
+  # and confirm the collision check still drops the user's duplicate top-level key.
+  command -v python3 >/dev/null || skip "python3 required to prove tomllib fallback path"
+  python3 -c 'import tomllib' 2>/dev/null || skip "tomllib (py3.11+) required for the parse check"
+  mkdir -p "$PROJECT/.codex"
+  printf 'approval_policy = "never"\n' > "$PROJECT/.codex/config.toml"
+  # Minimal PATH keeping only the tools the adapter needs (awk/jq/grep/sed/mktemp/…)
+  # but WITHOUT python3, then install.
+  local nopy; nopy="$(mktemp -d)"
+  for t in bash sh awk jq grep sed mktemp cat cp mv rm mkdir ls date dirname basename chmod printf env; do
+    p="$(command -v "$t" 2>/dev/null)" && ln -sf "$p" "$nopy/$t"
+  done
+  run env -i HOME="$HOME" PATH="$nopy" bash "$ADAPTER" install "$PROJECT"
+  [ "$status" -eq 0 ]
+  ! command -v python3 >/dev/null 2>&1 <<<"" || true
+  # No duplicate top-level key → valid TOML, user's value wins.
+  python3 - "$PROJECT/.codex/config.toml" <<'PY'
+import sys, tomllib
+d = tomllib.load(open(sys.argv[1], "rb"))
+assert d["approval_policy"] == "never"
+assert d.get("project_doc_max_bytes") == 65536
+PY
+  rm -rf "$nopy"
+}
+
+@test "codex: uninstall keeps a user's pre-existing version-only hooks.json (no data loss)" {
+  # Regression (round-2 blocker): a user file that is exactly {"version":N} must
+  # survive uninstall — MB must not infer 'MB-only' from shape and delete it.
+  mkdir -p "$PROJECT/.codex"
+  printf '{"version":9}\n' > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.codex/hooks.json" ]
+  jq -e '.version == 9' "$PROJECT/.codex/hooks.json" >/dev/null
+}
+
+@test "codex: uninstall leaves a wrong-shape hooks.json untouched (no truncation)" {
+  # Regression (round-2 new): a valid-JSON but wrong-shape file (string .hooks,
+  # from a manual post-install edit) must not be truncated to {} by the strip.
+  mkdir -p "$PROJECT/.codex"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  # Corrupt the shape post-install, keeping a foreign key.
+  printf '{"hooks":"broken","keep":"me"}\n' > "$PROJECT/.codex/hooks.json"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.codex/hooks.json" ]
+  jq -e '.keep == "me" and .hooks == "broken"' "$PROJECT/.codex/hooks.json" >/dev/null
+}
+
+@test "codex: second install does not duplicate the MB config block" {
+  mkdir -p "$PROJECT/.codex"
+  printf 'user_key = "keep"\n' > "$PROJECT/.codex/config.toml"
+  run_adapter install "$PROJECT"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local count
+  count=$(grep -c '>>> memory-bank >>>' "$PROJECT/.codex/config.toml")
+  [ "$count" -eq 1 ]
+  grep -q 'user_key = "keep"' "$PROJECT/.codex/config.toml"
+}
+
+@test "codex: backs up existing user hooks.json and merges foreign keys" {
+  mkdir -p "$PROJECT/.codex"
+  printf '{"hooks":{"userpromptsubmit":[{"command":"echo user"}]},"my_key":"keep"}\n' \
+    > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local bk
+  bk=$(ls "$PROJECT/.codex/hooks.json".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  grep -q 'my_key' "$bk"
+  jq -e '.my_key == "keep"' "$PROJECT/.codex/hooks.json" >/dev/null
+  # MB's own hook is present alongside the user's
+  jq -e '[.hooks.userpromptsubmit[]._mb_owned] | any' "$PROJECT/.codex/hooks.json" >/dev/null
+  jq -e '[.hooks.userpromptsubmit[].command] | any(. == "echo user")' \
+    "$PROJECT/.codex/hooks.json" >/dev/null
+}
+
+@test "codex: manifest records config/hooks backup paths" {
+  mkdir -p "$PROJECT/.codex"
+  printf 'user_key = "keep"\n' > "$PROJECT/.codex/config.toml"
+  printf '{"my_key":"keep"}\n' > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  jq -e '.backups | length >= 2' "$PROJECT/.codex/.mb-manifest.json" >/dev/null
+}
+
+@test "codex: corrupt existing hooks.json is backed up, replaced with valid MB json" {
+  mkdir -p "$PROJECT/.codex"
+  printf 'not json at all {{{' > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local bk
+  bk=$(ls "$PROJECT/.codex/hooks.json".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  jq . "$PROJECT/.codex/hooks.json" >/dev/null
+}
+
+# ═══════════════════════════════════════════════════════════════
+# C-2 tail: uninstall must NOT clobber a user's foreign config.toml/
+# hooks.json content — it must strip only the MB-managed block/hook
+# entries, never rm -f a file that still carries foreign content.
+# ═══════════════════════════════════════════════════════════════
+
+@test "codex: uninstall preserves foreign config.toml key, removes only the MB block" {
+  mkdir -p "$PROJECT/.codex"
+  printf 'user_key = "keep"\n' > "$PROJECT/.codex/config.toml"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  # User's foreign key survives uninstall
+  [ -f "$PROJECT/.codex/config.toml" ]
+  grep -q 'user_key = "keep"' "$PROJECT/.codex/config.toml"
+  # But the MB-managed block is gone
+  ! grep -q '>>> memory-bank >>>' "$PROJECT/.codex/config.toml"
+  ! grep -q 'project_doc_max_bytes' "$PROJECT/.codex/config.toml"
+  # The original pristine backup is untouched by the uninstall logic
+  local bk
+  bk=$(ls "$PROJECT/.codex/config.toml".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  grep -q 'user_key = "keep"' "$bk"
+}
+
+@test "codex: uninstall preserves foreign hooks.json hook, removes only the MB hook entry" {
+  mkdir -p "$PROJECT/.codex"
+  printf '{"hooks":{"userpromptsubmit":[{"command":"echo user"}]},"my_key":"keep"}\n' \
+    > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  # User's foreign key + hook entry survive uninstall
+  [ -f "$PROJECT/.codex/hooks.json" ]
+  jq -e '.my_key == "keep"' "$PROJECT/.codex/hooks.json" >/dev/null
+  jq -e '[.hooks.userpromptsubmit[].command] | any(. == "echo user")' \
+    "$PROJECT/.codex/hooks.json" >/dev/null
+  # But the MB-owned hook entry is gone
+  jq -e '[.hooks.userpromptsubmit[] | select(._mb_owned == true)] | length == 0' \
+    "$PROJECT/.codex/hooks.json" >/dev/null
+  # The original pristine backup is untouched by the uninstall logic
+  local bk
+  bk=$(ls "$PROJECT/.codex/hooks.json".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  grep -q 'my_key' "$bk"
+}
+
+@test "codex: uninstall with no foreign content removes config.toml/hooks.json entirely (unchanged behavior)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ ! -f "$PROJECT/.codex/config.toml" ]
+  [ ! -f "$PROJECT/.codex/hooks.json" ]
+}
+
 @test "codex: declared sub-invoke is consumable by bash -c with an env prompt (seam)" {
   # Prove the declared template runs under mb-fanout's `bash -c "$CMD"` seam with
   # the prompt supplied via env — never interpolated. We stub `codex` on PATH so

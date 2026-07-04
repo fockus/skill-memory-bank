@@ -81,3 +81,25 @@ build_and_install() {
   out=$("$VENV_DIR/bin/memory-bank" init)
   [[ "$out" == *"/mb init"* ]]
 }
+
+# ── C-1: templates/ must ship in the wheel so mb-init-bank.sh scaffolds a bank ──
+
+@test "pipx-like install: bundle ships template locales (was missing → exit 3)" {
+  build_and_install
+  local bank_src="$VENV_DIR/share/memory-bank-skill/templates/locales/en/.memory-bank"
+  [ -f "$bank_src/status.md" ]
+  [ -d "$VENV_DIR/share/memory-bank-skill/flow-templates/patterns" ]
+}
+
+@test "pipx-like install: mb-init-bank scaffolds .memory-bank exit 0" {
+  build_and_install
+  local init_sh="$VENV_DIR/share/memory-bank-skill/scripts/mb-init-bank.sh"
+  [ -f "$init_sh" ]
+  local proj
+  proj="$(mktemp -d)"
+  git -C "$proj" init -q
+  run bash "$init_sh" --storage=local --lang=en --project-root="$proj"
+  [ "$status" -eq 0 ]
+  [ -f "$proj/.memory-bank/status.md" ]
+  rm -rf "$proj"
+}

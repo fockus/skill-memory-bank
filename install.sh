@@ -856,7 +856,25 @@ echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/commands" 
 # ═══ Step 5: Skill files ═══
 echo -e "${BLUE}[5/7] Skill registration${NC}"
 ensure_skill_aliases
-if MB_LANGUAGE="$LANGUAGE" bash "$SOURCE_SKILL_DIR/adapters/cursor.sh" install-global; then
+# Idempotency guard: install-global is safe to repeat but wasteful on every run
+# (redundant writes + backup rotation). Skip it ONLY when the Cursor global
+# manifest already records BOTH the current skill version AND the requested
+# locale — a version bump OR a language switch (e.g. re-running with
+# --language ru after an en install) must force a re-install so the localized
+# rules are regenerated; a version-only guard would leave stale-language rules.
+_cursor_global_up_to_date() {
+  local manifest="$CURSOR_DIR/.mb-manifest.json" want have want_lang have_lang
+  [ -f "$manifest" ] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  want="$(cat "$SOURCE_SKILL_DIR/VERSION" 2>/dev/null || echo unknown)"
+  have="$(jq -r '.skill_version // empty' "$manifest" 2>/dev/null || true)"
+  want_lang="${LANGUAGE:-en}"
+  have_lang="$(jq -r '.lang // empty' "$manifest" 2>/dev/null || true)"
+  [ -n "$have" ] && [ "$have" = "$want" ] && [ "$have_lang" = "$want_lang" ]
+}
+if _cursor_global_up_to_date; then
+  echo -e "  ${GREEN}✓${NC} Cursor global artifacts already current (skip)"
+elif MB_LANGUAGE="$LANGUAGE" bash "$SOURCE_SKILL_DIR/adapters/cursor.sh" install-global; then
   echo -e "  ${GREEN}✓${NC} Cursor global artifacts via adapter"
 else
   echo -e "  ${YELLOW}~${NC} Cursor global adapter install failed" >&2

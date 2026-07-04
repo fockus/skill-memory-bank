@@ -145,11 +145,18 @@ install_agents_md_mode() {
 
   graph_ext_installed=$(_install_graph_rag_extension)
 
+  # JSON-safe files array (a raw "[\"$PROJECT_ROOT/...\"]" string breaks if the
+  # path holds a quote/backslash → invalid manifest → adapter_write_manifest
+  # aborts after the extension is already written = partial install with no
+  # manifest to uninstall). Same helper the rest of the adapter uses (line 103).
+  local ext_files_json
+  ext_files_json=$(printf '%s\n' "$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts" | adapter_json_array_from_lines)
+
   adapter_write_manifest \
     "$MANIFEST" \
     "pi" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
-    "[\"$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts\"]" \
+    "$ext_files_json" \
     "{\"mode\": \"agents-md\", \"agents_md_owned\": $owned, \"git_hooks_installed\": $git_hooks_installed, \"graph_ext_installed\": $graph_ext_installed}"
 
   echo "[pi-adapter] installed (mode: agents-md)"
@@ -168,8 +175,26 @@ _install_graph_rag_extension() {
     return 0
   fi
   mkdir -p "$(dirname "$dest")"
-  cp "$src" "$dest"
-  echo "true"
+  # Substitute the __MB_*_JSON__ placeholders with JSON-encoded paths (@json) so
+  # the emitted .ts is syntactically valid and robust to spaces/quotes/backslashes
+  # in the paths. jq reads the template raw (--rawfile) and emits raw (-r); gsub
+  # replacements are literal, so no sed-escaping hazard. Atomic (tmp + mv).
+  local tmp="$dest.mbtmp"
+  if jq -rn \
+      --arg skill "$SKILL_DIR" \
+      --arg proj "$PROJECT_ROOT" \
+      --rawfile tpl "$src" \
+      '$tpl
+       | gsub("__MB_SKILL_DIR_JSON__"; ($skill | @json))
+       | gsub("__MB_PROJECT_ROOT_JSON__"; ($proj | @json))' \
+      > "$tmp" 2>/dev/null; then
+    mv "$tmp" "$dest"
+    echo "true"
+  else
+    rm -f "$tmp"
+    echo "false"
+    return 0
+  fi
 }
 
 uninstall_agents_md_mode() {

@@ -2566,3 +2566,21 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
 - Verification: 49 pytest + 22 bats green; shellcheck clean; new scripts +x, <=400 lines.
 - Origin: taskloom harness audit 2026-07-04 (governed phase71 runs exceeded max_cycles from
   orchestrator memory; codex 403 silently dropped the cross-model gate; checkbox self-reporting).
+
+### Install-reliability + cross-agent parity — Batch 1 done (A1·A2·A3·A4·B1) — GO_WITH_BACKLOG (2026-07-04)
+
+- Plan `2026-07-04_fix_install-and-cross-agent-parity.md`, 5 must-fix stages executed through the
+  governed cycle: implement → verify(PASS) → review×2 (Codex gpt-5.5) → mb-judge.
+- Fixes: A1 (C-1) ship `templates/`+`flow-templates/` in wheel shared-data + sdist → clean-venv
+  `memory-bank init` exit 0 (was exit 3); A2 (C-2) codex.sh config.toml/hooks.json backup+merge+strip
+  with data-safety (pure-awk dedup, backup-gated deletion, shape-guarded strip); A3 (H-1) Homebrew
+  url+sha256 bumped to 5.2.0 + CI invariant "formula==VERSION"; A4 (H-2) `${MB_PYTHON:-python3}` in
+  cursor.sh + idempotent `_cursor_global_up_to_date` (skill_version+lang) guard; B1 (F-2) Pi GraphRAG
+  extension JSON-safe path substitution (jq --rawfile/@json/gsub, atomic tmp+mv).
+- TDD: RED→GREEN for every stage. Review found 9 real findings across 2 rounds (r1:5, r2:4), all
+  reproduced and fixed before commit. Judge independently re-ran 69/69 green (codex 33, cursor 12,
+  graph-rag 9, e2e 9, pytest 6), re-verified sha256 byte-for-byte vs live PyPI, read full diff.
+- Residuals backlogged (in plan §Batch 1): R-1 codex.sh 439>400 lines → extract `_lib_codex_config.sh`
+  (major, maintainability); R-2 no bats test for install.sh cursor guard (minor, hygiene).
+- Scope discipline: committed only batch-scoped code/tests/plan/progress; left parallel session's
+  uncommitted backlog.md/roadmap.md (I-087/I-093) untouched.

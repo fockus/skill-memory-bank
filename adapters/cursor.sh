@@ -543,10 +543,11 @@ EOF
   backups_json=$(printf '%s\n' ${backups[@]+"${backups[@]}"} | adapter_json_array_from_lines)
   extra_json=$(jq -n \
     --arg scope "global" \
+    --arg lang "${MB_LANGUAGE:-en}" \
     --argjson events "$events_json" \
     --argjson backups "$backups_json" \
     --arg bundle "$skill_hooks_dir" \
-    '{scope: $scope, hooks_events: $events, backups: $backups, hooks_bundle: $bundle}')
+    '{scope: $scope, lang: $lang, hooks_events: $events, backups: $backups, hooks_bundle: $bundle}')
 
   adapter_write_manifest \
     "$GLOBAL_MANIFEST" \

@@ -41,6 +41,9 @@ jobs:
           detik-install: false
           file-install: false
 
+      - name: Homebrew formula version invariant (fail fast on drift)
+        run: python -m pytest tests/pytest/test_homebrew_formula_version.py -q
+
       - name: Run bats unit tests
         run: bats tests/bats/
 
