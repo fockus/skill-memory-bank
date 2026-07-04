@@ -98,3 +98,31 @@ setup() {
   run grep -qi "mid-flight" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── I-093 S5: checkbox flip discipline ──────────────────────────────────────
+
+@test "doc's implement prompt bans agents from editing DoD checkboxes" {
+  run grep -qi "do not edit dod checkboxes" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "mb-work-checkbox.sh" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's 5g sequences mb-work-state.sh done then mb-work-checkbox.sh flip, refusal means gate not passed" {
+  run grep -q "mb-work-checkbox.sh flip" "$DOC"
+  [ "$status" -eq 0 ]
+  done_line=$(grep -n "mb-work-state.sh done" "$DOC" | head -1 | cut -d: -f1)
+  flip_line=$(grep -n "mb-work-checkbox.sh flip" "$DOC" | head -1 | cut -d: -f1)
+  [ -n "$done_line" ]
+  [ -n "$flip_line" ]
+  [ "$done_line" -lt "$flip_line" ]
+  run grep -qi "refused flip\|refused.*exit 1\|exit 1.*refus" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's resume note names .work-state.json phase as the source of truth for completion" {
+  run grep -qi "source of truth" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q ".work-state.json" "$DOC"
+  [ "$status" -eq 0 ]
+}
