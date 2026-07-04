@@ -144,3 +144,35 @@ setup() {
   run grep -qi "second failure\|halts the review step\|halt.*review step" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── I-093 S9: codex preflight + loud cross-model degradation ───────────────
+
+@test "doc's 5d runs mb-work-codex-preflight.sh before a cross-model review wave" {
+  run grep -q "mb-work-codex-preflight.sh" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "before.*cross-model review wave\|before dispatching an external review wave" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc mandates a loud cross-model review SKIPPED record in stage report and progress.md NOTE" {
+  run grep -qi "cross-model review SKIPPED" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "NOTE.*progress.md\|progress.md.*NOTE" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "never silent\|never silently" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc says the loop consumes a SKIPPED verdict/status as a degraded cross-model gate" {
+  run grep -qi 'verdict.*SKIPPED\|"SKIPPED"' "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "degraded gate\|degraded review\|degrades.*gate\|treat the gate as.*degraded" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's Hard-stops table requires explicit --auto confirmation when cross-model review is skipped" {
+  run grep -qi "cross-model review SKIPPED.*--auto\|skipped cross-model gate" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "explicit user confirmation\|explicit confirmation" "$DOC"
+  [ "$status" -eq 0 ]
+}
