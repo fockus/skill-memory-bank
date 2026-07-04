@@ -18,6 +18,14 @@ RECENT="$MB/session/_recent.md"
 content="$(cat "$RECENT")"
 [ -n "$content" ] || { printf '{}\n'; exit 0; }
 
+# A5: hard-cap the injected _recent.md so a bloated file can't silently inflate every
+# session start's context. head -c is byte-based (bash-3.2 safe). Opt-out: large MB_RECENT_MAX_BYTES.
+rmax="${MB_RECENT_MAX_BYTES:-4000}"
+if [ "$(printf '%s' "$content" | wc -c)" -gt "$rmax" ]; then
+  content="$(printf '%s' "$content" | head -c "$rmax")
+…[recent truncated]…"
+fi
+
 # semantic: warm + catch-up reindex in background (never blocks startup)
 if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
   _PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"

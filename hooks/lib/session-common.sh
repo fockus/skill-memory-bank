@@ -180,7 +180,10 @@ sc_redact_secrets() {
 # (judge) so the "what gets summarized" formula is defined in exactly one place (DRY).
 sc_build_summary_src() {
   local SF="$1"
-  local MAX_CHARS="${MB_SUMMARY_MAX_CHARS:-200000}"
+  # A6: default window lowered to 60000 (~15K Haiku tokens). After A1–A4 the Live log is
+  # the primary source and small; 200K only ever mattered for the raw-transcript fallback,
+  # where it was oversized. Restore any value with MB_SUMMARY_MAX_CHARS.
+  local MAX_CHARS="${MB_SUMMARY_MAX_CHARS:-60000}"
   local LIVELOG SRC TRANSCRIPT head_n tail_n tail_start
   # Frontmatter block + the `## Live log` section ONLY. Stop at the NEXT `## ` heading after
   # Live log so an already-generated `## Summary`/`## Auto-notes` cannot masquerade as bullets.
