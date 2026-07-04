@@ -70,8 +70,11 @@ def test_diff_scopes_to_baseline_and_files(tmp_path: Path) -> None:
     mb.mkdir()
     _init_run(repo, mb, "r1")
 
+    # `<baseline>..HEAD` is commit-to-commit, so the run's edits need to land
+    # in history (as the run's own step commits would) to show up at all.
     (repo / "a.txt").write_text("a2\n", encoding="utf-8")
     (repo / "b.txt").write_text("b2\n", encoding="utf-8")
+    _commit_all(repo, "run r1 edits")
 
     r = _diff("--run-id", "r1", "--files", "a.txt", "--mb", str(mb), cwd=repo)
     assert r.returncode == 0, r.stderr
@@ -90,8 +93,9 @@ def test_diff_excludes_foreign_run_changes(tmp_path: Path) -> None:
     _init_run(repo, mb, "r1")
 
     (repo / "a.txt").write_text("a2\n", encoding="utf-8")
-    # Simulates another, co-running run's edit landing in the working tree.
+    # Simulates another, co-running run's edit landing in shared history.
     (repo / "c.txt").write_text("c2\n", encoding="utf-8")
+    _commit_all(repo, "r1 + foreign edits")
 
     r = _diff("--run-id", "r1", "--files", "a.txt", "--mb", str(mb), cwd=repo)
     assert r.returncode == 0, r.stderr
@@ -111,6 +115,7 @@ def test_diff_name_only_mode(tmp_path: Path) -> None:
 
     (repo / "a.txt").write_text("a2\n", encoding="utf-8")
     (repo / "b.txt").write_text("b2\n", encoding="utf-8")
+    _commit_all(repo, "run r1 edits")
 
     r = _diff("--run-id", "r1", "--name-only", "--files", "a.txt b.txt", "--mb", str(mb), cwd=repo)
     assert r.returncode == 0, r.stderr
@@ -156,6 +161,7 @@ def test_diff_no_files_uses_full_baseline_range(tmp_path: Path) -> None:
 
     (repo / "a.txt").write_text("a2\n", encoding="utf-8")
     (repo / "b.txt").write_text("b2\n", encoding="utf-8")
+    _commit_all(repo, "run r1 edits")
 
     r = _diff("--run-id", "r1", "--mb", str(mb), cwd=repo)
     assert r.returncode == 0, r.stderr
