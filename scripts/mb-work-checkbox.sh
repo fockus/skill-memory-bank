@@ -2,14 +2,21 @@
 # mb-work-checkbox.sh — deterministic DoD-checkbox flip, gated on work-state.
 #
 # Usage:
-#   mb-work-checkbox.sh flip <plan-or-spec> <item_no> [--mb <path>]
+#   mb-work-checkbox.sh flip <plan-or-spec> <item_no> [--mb <path>] [--run-id ID]
 #
 # Flips `- ⬜` → `- ✅` and `- [ ]` → `- [x]` (both checkbox dialects
 # `mb-work-plan.sh` recognises) but ONLY inside the requested item's marker
 # block (`<!-- mb-stage:N -->` / `<!-- mb-task:N -->` up to the next marker
-# or EOF), and ONLY when `<bank>/.work-state.json` says the gate already
+# or EOF), and ONLY when the resolved work-state file says the gate already
 # passed for that exact item (`phase == "done"` AND `item_no` matches).
 # Everywhere else this is a fail-safe refusal — never a blind flip.
+#
+# `--run-id` (fallback `$MB_WORK_RUN_ID`) selects WHICH state file is
+# consulted, via scripts/mb-work-slots.sh's `mbw_state_slot`: under
+# `MB_WORK_PARALLEL` with a non-empty run_id it reads
+# `<bank>/.work-state/<run_id>.json` (a run only ever flips its own item);
+# otherwise (parallel off, or no run_id) it reads the legacy singleton
+# `<bank>/.work-state.json`, byte-identical to pre-I-094 behaviour.
 #
 # Exit codes:
 #   0  flipped (or already flipped — idempotent no-op)
@@ -24,13 +31,15 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # shellcheck source=_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
+# shellcheck source=mb-work-slots.sh
+source "$SCRIPT_DIR/mb-work-slots.sh"
 
 usage() {
-	sed -n '2,17p' "$0" >&2
+	sed -n '2,24p' "$0" >&2
 }
 
 cmd_flip() {
-	local mb_arg=""
+	local mb_arg="" run_id=""
 	local pos=()
 	while [ "$#" -gt 0 ]; do
 		case "$1" in
@@ -42,12 +51,21 @@ cmd_flip() {
 			mb_arg="${1#--mb=}"
 			shift
 			;;
+		--run-id)
+			run_id="${2:-}"
+			shift 2
+			;;
+		--run-id=*)
+			run_id="${1#--run-id=}"
+			shift
+			;;
 		*)
 			pos+=("$1")
 			shift
 			;;
 		esac
 	done
+	[ -z "$run_id" ] && run_id="${MB_WORK_RUN_ID:-}"
 
 	local file="${pos[0]:-}"
 	local item_no="${pos[1]:-}"
@@ -68,7 +86,8 @@ cmd_flip() {
 
 	local bank
 	bank=$(mb_resolve_path "$mb_arg")
-	local state="$bank/.work-state.json"
+	local state
+	state=$(mbw_state_slot "$bank" "$run_id")
 	if [ ! -f "$state" ]; then
 		echo "[checkbox] refused: no active work-state (never a blind flip)" >&2
 		exit 1
