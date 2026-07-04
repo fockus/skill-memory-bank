@@ -159,6 +159,16 @@ The first positional arg `<target>` resolves in this order:
 
 Underlying script: `bash scripts/mb-work-resolve.sh [target] [--mb path]`.
 
+**Parallel resolve (opt-in, `MB_WORK_PARALLEL`).** For an **empty target** (Form 5) under `MB_WORK_PARALLEL=1`, pass `--skip-claimed` so a new run doesn't pick an active-plan link another live run already claimed:
+
+```bash
+bash scripts/mb-work-resolve.sh --skip-claimed --mb <bank>
+```
+
+This drops any active-plan link whose source is claimed by a live (`phase != done`) foreign run before picking one; if every active plan is claimed, it exits 1 (`all active plans claimed`). Without `--skip-claimed` (or with `MB_WORK_PARALLEL` unset), resolution stays byte-identical to the single-run default. Independently of `--skip-claimed`, any resolved path under `MB_WORK_PARALLEL=1` that is already claimed by a live foreign run gets an informational stderr claim-note (`claimed by run <id>; pass --takeover`) — the hard refusal is always `mb-work-state.sh init`'s exit 4 (step 4), never this script.
+
+**Worktree rule (inter-plan vs. intra-plan parallelism).** **Inter-plan parallel runs are supported ONLY from separate git worktrees — one worktree per plan.** A worktree gives each plan its own working tree, index, and `progress.md`/`checklist.md`, so two unrelated plans' file writes and `git add`/commit operations never contend for the same `.git/index` or core files. **Intra-plan parallel** (several stages of the *same* plan running concurrently, in one worktree) is supported directly: each concurrent stage must be independently-scoped work with **a single owner per shared file** — this plan's own dispatch discipline (see *Parallel runs* below) is what prevents two runs from writing the same file at once, not the worktree boundary.
+
 ## Spec tasks as executable source (Sprint 2)
 
 `specs/<topic>/tasks.md` is a first-class executable artifact, not a human-only scaffold. A tasks.md file is executable when it contains at least one `<!-- mb-task:N -->` marker.
@@ -357,13 +367,21 @@ When the user types `/mb work [args...]`:
 
    Dispatch the plan-verifier before code review when both are present. The verifier catches missing tests, incomplete DoD, broken traceability, and architecture drift before reviewer cycles are spent.
 
+   **Build the diff first — not a bare `git diff`.** Scope it to this run's own baseline and the item's touched files with `mb-work-diff.sh --run-id … --files …`:
+
+   ```bash
+   bash scripts/mb-work-diff.sh --run-id "$RUN_ID" --files "<item's touched files>" --mb <bank>
+   ```
+
+   The file list is the item's `Files:` line from its body **intersected with** files actually changed since baseline (get the changed-file set with `bash scripts/mb-work-diff.sh --run-id "$RUN_ID" --name-only --mb <bank>`). If the item declares no `Files:` line, fall back to the full baseline diff across every path — omit `--files` entirely: `bash scripts/mb-work-diff.sh --run-id "$RUN_ID" --mb <bank>`, which runs the **single-arg** `git diff <baseline>` form (baseline commit vs. working tree — never `<baseline>..HEAD`), so it sees both any commits made since baseline **and** this item's still-uncommitted edits, since `/mb work` only commits at step 5g. Scoping to `--run-id`'s own `baseline_ref` and `--files` is what keeps a co-running parallel run's edits from leaking into this item's judged diff.
+
    ```
    Task(
      description="mb-work verify item <N>",
      subagent_type="general-purpose",
      model="<pipeline.yaml roles.verifier.model>",
      thinking="<pipeline.yaml roles.verifier.thinking>",
-     prompt="<contents of agents/plan-verifier.md>\n\nSource file: <plan or spec path>\nItem just completed: <N> — <heading>\nDiff:\n<git diff output>"
+     prompt="<contents of agents/plan-verifier.md>\n\nSource file: <plan or spec path>\nItem just completed: <N> — <heading>\nDiff:\n<output of mb-work-diff.sh above>"
    )
    ```
 
@@ -374,7 +392,7 @@ When the user types `/mb work [args...]`:
 
    If the workflow has no `review_profile`, resolve the single reviewer agent with `mb-reviewer-resolve.sh` (it reads `roles.reviewer.agent` and applies `override_if_skill_present`, e.g. routing to `superpowers:requesting-code-review` when that skill is installed), dispatch it, and parse the verdict with `mb-work-review-parse.sh`.
 
-   If `review_profile: ensemble`, dispatch 3-5 aspect reviewers from `review_ensemble.reviewers` in parallel with fresh scoped context only: plan/spec, verifier report, diff, previous lead report. Then dispatch `review_ensemble.lead_role` to synthesize one canonical report. The lead reviewer must verify previous-cycle issues first, deduplicate aspect findings, separate blocking issues from backlog candidates, and emit strict JSON.
+   If `review_profile: ensemble`, dispatch 3-5 aspect reviewers from `review_ensemble.reviewers` in parallel with fresh scoped context only: plan/spec, verifier report, diff, previous lead report. Reuse the **exact same** `mb-work-diff.sh --run-id "$RUN_ID" --files …` output built for 5c for every aspect reviewer — one diff computation, shared across the ensemble, so every reviewer judges the identical scoped changeset (consistency). Then dispatch `review_ensemble.lead_role` to synthesize one canonical report. The lead reviewer must verify previous-cycle issues first, deduplicate aspect findings, separate blocking issues from backlog candidates, and emit strict JSON.
 
    **Pre-wave codex health-check (only when a reviewer is external/cross-model):** before dispatching an external review wave — an aspect reviewer or the whole review step routed through the `codex` CLI — run `bash scripts/mb-work-codex-preflight.sh --json --mb <bank>` first. In-model-only review (no external reviewer configured for this run) never runs the preflight at all — it is skipped entirely, so no false SKIPPED note is ever written. If the preflight reports `available:false`, **or** the reviewer's own output later parses (via `--external`, below) as `verdict:"SKIPPED"` (the `codex-reviewer` subagent tripped its own preflight and returned `{"status":"SKIPPED"}`), do not let the judge close a governed item alone silently: write `cross-model review SKIPPED (<reason>)` into this item's stage report **and** append a `NOTE` entry to `<bank>/progress.md` — loud, never silent. Treat the gate as **degraded**, not failed — the in-model reviewer/judge (if any) may still complete the item on the remaining evidence, but the cross-model coverage that would have caught a cross-model-only class of issue simply did not run this cycle.
 
