@@ -366,6 +366,10 @@ When the user types `/mb work [args...]`:
 
    If `review_profile: ensemble`, dispatch 3-5 aspect reviewers from `review_ensemble.reviewers` in parallel with fresh scoped context only: plan/spec, verifier report, diff, previous lead report. Then dispatch `review_ensemble.lead_role` to synthesize one canonical report. The lead reviewer must verify previous-cycle issues first, deduplicate aspect findings, separate blocking issues from backlog candidates, and emit strict JSON.
 
+   **Parsing mode — `--external` for cross-model reviewers:** when the resolved reviewer is external / cross-model (a reviewer dispatched through the `codex` CLI transport, e.g. the global `codex-reviewer` subagent), parse its output with `mb-work-review-parse.sh --external` instead of the strict default — it normalizes a real GPT reviewer's "APPROVED with issues" down to `CHANGES_REQUESTED` (recomputing counts from issues, never trusting self-reported ones), maps the codex-reviewer issue schema (`description`/`recommendation`/`info` severity/`line:null`), and passes a `{"status":"SKIPPED"}` payload straight through as `verdict:"SKIPPED"`. The in-model `mb-reviewer`, and the ensemble's `lead_role` (which always stays in-model even when its aspect reviewers are external), keep the strict parse — no `--external` there.
+
+   If the parse exits non-zero (genuinely unparseable reviewer output, not a schema mismatch `--external` already tolerates), perform **exactly one** automatic retry before failing the step: re-dispatch the same reviewer once, appending the parser's stderr text to its prompt so the reviewer can self-correct its output, then re-parse. A second parse failure surfaces the raw reviewer output verbatim and halts the review step — never a second automatic retry.
+
    - Reviewers report findings; they do **not** decide final completion.
    - The lead report is input to the `judge` step.
    - A reviewer finding is not automatically a fix-loop trigger.
@@ -510,7 +514,7 @@ bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--json|--steps|--
 bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
 
 # Review-loop helpers (Sprint 3)
-bash scripts/mb-work-review-parse.sh [--lenient] < reviewer-stdout
+bash scripts/mb-work-review-parse.sh [--lenient|--external] < reviewer-stdout
 bash scripts/mb-work-severity-gate.sh --counts <json> | --counts-stdin [--mb <path>] [--workflow <name>]
 bash scripts/mb-work-budget.sh init <total> [--run-id ID] | add <delta> [--run-id ID] | status | check [--run-id ID] | clear [--mb <path>]
 bash scripts/mb-work-protected-check.sh <files...> [--mb <path>]
