@@ -126,3 +126,21 @@ setup() {
   run grep -q ".work-state.json" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── I-093 S7: --external reviewer parse + one bounded auto-retry ───────────
+
+@test "doc's 5d uses --external parse for a cross-model/codex reviewer" {
+  run grep -q -- "mb-work-review-parse.sh --external" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "cross-model\|codex" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's 5d performs exactly one bounded auto-retry on parse failure carrying parser stderr" {
+  run grep -qi "exactly one\|one automatic retry\|one bounded.*retry\|single automatic retry" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "parser.*stderr\|stderr.*parser" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "second failure\|halts the review step\|halt.*review step" "$DOC"
+  [ "$status" -eq 0 ]
+}
