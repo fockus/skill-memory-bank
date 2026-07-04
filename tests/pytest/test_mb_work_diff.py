@@ -1,0 +1,163 @@
+"""Backlog I-094 S4 (T3) — `scripts/mb-work-diff.sh` baseline-scoped run diff.
+
+`commands/work.md` hands the verifier/judge the bare working-tree `git diff`
+today, which means a co-running `/mb work` run's edits leak into the judged
+diff. This script scopes the diff to a run's own `baseline_ref` (recorded by
+`mb-work-state.sh init`, I-094 S1) and, optionally, to an explicit set of
+files — see plan `.memory-bank/plans/2026-07-04_fix_mb-work-parallel-runs.md`
+Stage 4.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DIFF_SCRIPT = REPO_ROOT / "scripts" / "mb-work-diff.sh"
+STATE_SCRIPT = REPO_ROOT / "scripts" / "mb-work-state.sh"
+
+
+def _git(*args: str, repo: Path) -> None:
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+
+def _init_repo(tmp_path: Path) -> Path:
+    repo = tmp_path
+    _git("init", "-q", repo=repo)
+    _git("config", "user.email", "a@b.c", repo=repo)
+    _git("config", "user.name", "test", repo=repo)
+    return repo
+
+
+def _commit_all(repo: Path, message: str) -> None:
+    _git("add", "-A", repo=repo)
+    _git("commit", "-q", "-m", message, repo=repo)
+
+
+def _init_run(repo: Path, mb: Path, run_id: str) -> None:
+    r = subprocess.run(
+        ["bash", str(STATE_SCRIPT), "init", "plans/x.md", "1", "--run-id", run_id, "--mb", str(mb)],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode == 0, r.stderr
+
+
+def _diff(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", str(DIFF_SCRIPT), *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def test_diff_scopes_to_baseline_and_files(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "a.txt").write_text("a1\n", encoding="utf-8")
+    (repo / "b.txt").write_text("b1\n", encoding="utf-8")
+    _commit_all(repo, "baseline")
+
+    mb = repo / ".memory-bank"
+    mb.mkdir()
+    _init_run(repo, mb, "r1")
+
+    (repo / "a.txt").write_text("a2\n", encoding="utf-8")
+    (repo / "b.txt").write_text("b2\n", encoding="utf-8")
+
+    r = _diff("--run-id", "r1", "--files", "a.txt", "--mb", str(mb), cwd=repo)
+    assert r.returncode == 0, r.stderr
+    assert "a.txt" in r.stdout
+    assert "b.txt" not in r.stdout
+
+
+def test_diff_excludes_foreign_run_changes(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "a.txt").write_text("a1\n", encoding="utf-8")
+    (repo / "c.txt").write_text("c1\n", encoding="utf-8")
+    _commit_all(repo, "baseline")
+
+    mb = repo / ".memory-bank"
+    mb.mkdir()
+    _init_run(repo, mb, "r1")
+
+    (repo / "a.txt").write_text("a2\n", encoding="utf-8")
+    # Simulates another, co-running run's edit landing in the working tree.
+    (repo / "c.txt").write_text("c2\n", encoding="utf-8")
+
+    r = _diff("--run-id", "r1", "--files", "a.txt", "--mb", str(mb), cwd=repo)
+    assert r.returncode == 0, r.stderr
+    assert "a.txt" in r.stdout
+    assert "c.txt" not in r.stdout
+
+
+def test_diff_name_only_mode(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "a.txt").write_text("a1\n", encoding="utf-8")
+    (repo / "b.txt").write_text("b1\n", encoding="utf-8")
+    _commit_all(repo, "baseline")
+
+    mb = repo / ".memory-bank"
+    mb.mkdir()
+    _init_run(repo, mb, "r1")
+
+    (repo / "a.txt").write_text("a2\n", encoding="utf-8")
+    (repo / "b.txt").write_text("b2\n", encoding="utf-8")
+
+    r = _diff("--run-id", "r1", "--name-only", "--files", "a.txt b.txt", "--mb", str(mb), cwd=repo)
+    assert r.returncode == 0, r.stderr
+    paths = {line.strip() for line in r.stdout.splitlines() if line.strip()}
+    assert paths == {"a.txt", "b.txt"}
+
+
+def test_diff_empty_baseline_falls_back_scoped(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "a.txt").write_text("a1\n", encoding="utf-8")
+    (repo / "b.txt").write_text("b1\n", encoding="utf-8")
+    _commit_all(repo, "baseline")
+
+    mb = repo / ".memory-bank"
+    mb.mkdir()
+    _init_run(repo, mb, "r1")
+
+    # Simulate the "outside a repo at init time" edge case (I-094 S1):
+    # baseline_ref recorded empty.
+    state = mb / ".work-state.json"
+    data = json.loads(state.read_text(encoding="utf-8"))
+    data["baseline_ref"] = ""
+    state.write_text(json.dumps(data), encoding="utf-8")
+
+    (repo / "a.txt").write_text("a2\n", encoding="utf-8")
+    (repo / "b.txt").write_text("b2\n", encoding="utf-8")
+
+    r = _diff("--run-id", "r1", "--files", "a.txt", "--mb", str(mb), cwd=repo)
+    assert r.returncode == 0, r.stderr
+    assert "a.txt" in r.stdout
+    assert "b.txt" not in r.stdout
+
+
+def test_diff_no_files_uses_full_baseline_range(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "a.txt").write_text("a1\n", encoding="utf-8")
+    (repo / "b.txt").write_text("b1\n", encoding="utf-8")
+    _commit_all(repo, "baseline")
+
+    mb = repo / ".memory-bank"
+    mb.mkdir()
+    _init_run(repo, mb, "r1")
+
+    (repo / "a.txt").write_text("a2\n", encoding="utf-8")
+    (repo / "b.txt").write_text("b2\n", encoding="utf-8")
+
+    r = _diff("--run-id", "r1", "--mb", str(mb), cwd=repo)
+    assert r.returncode == 0, r.stderr
+    assert "a.txt" in r.stdout
+    assert "b.txt" in r.stdout
