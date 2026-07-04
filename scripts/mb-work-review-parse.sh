@@ -5,7 +5,7 @@
 # normalized JSON document on stdout that the review-loop driver can consume.
 #
 # Usage:
-#   mb-work-review-parse.sh [--lenient] < reviewer-output
+#   mb-work-review-parse.sh [--lenient|--external] < reviewer-output
 #
 # Schema (strict):
 #   {
@@ -28,6 +28,21 @@
 # Lenient mode (--lenient): if JSON parse fails, attempt Markdown fallback —
 # regex `verdict:` and `counts:` lines, with empty issues list.
 #
+# External mode (--external): lenient normalization for cross-model reviewers
+# (e.g. the codex-reviewer subagent contract, ~/.claude/agents/codex-reviewer.md).
+# Implies --lenient's Markdown fallback, plus:
+#   - top-level {"status":"SKIPPED","reason":...} passes through as
+#     {"verdict":"SKIPPED","reason":...,"counts":{blocker:0,major:0,minor:0},
+#     "issues":[]}, exit 0 — the parser never fabricates a verdict for a
+#     skipped review.
+#   - issue schema mapping: description->message, recommendation->fix,
+#     severity "info" (or any value outside blocker|major|minor)->"minor",
+#     missing/invalid line->0.
+#   - counts are always recomputed from the normalized issues — a cross-model
+#     reviewer's self-reported counts are never trusted.
+#   - an APPROVED verdict carrying non-empty issues is downgraded to
+#     CHANGES_REQUESTED (stricter, never looser).
+#
 # Exit codes:
 #   0  valid, normalized JSON on stdout
 #   1  schema/cross-check error (details on stderr)
@@ -36,10 +51,12 @@
 set -eu
 
 LENIENT=0
+EXTERNAL=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --lenient) LENIENT=1; shift ;;
-    -h|--help) sed -n '2,32p' "$0" >&2; exit 0 ;;
+    --external) EXTERNAL=1; shift ;;
+    -h|--help) sed -n '2,41p' "$0" >&2; exit 0 ;;
     *) echo "[review-parse] unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
@@ -50,7 +67,7 @@ if [ -z "$INPUT" ]; then
   exit 2
 fi
 
-REVIEW_INPUT="$INPUT" LENIENT="$LENIENT" python3 - <<'PY'
+REVIEW_INPUT="$INPUT" LENIENT="$LENIENT" EXTERNAL="$EXTERNAL" python3 - <<'PY'
 import json
 import os
 import re
@@ -58,6 +75,7 @@ import sys
 
 text = os.environ.get("REVIEW_INPUT", "")
 lenient = os.environ.get("LENIENT") == "1"
+external = os.environ.get("EXTERNAL") == "1"
 
 
 def fail(msg: str) -> None:
@@ -83,7 +101,7 @@ def parse_markdown(s: str) -> dict | None:
 try:
     data = json.loads(text)
 except json.JSONDecodeError as exc:
-    if lenient:
+    if lenient or external:
         data = parse_markdown(text)
         if data is None:
             fail(f"JSON parse failed and Markdown fallback found no verdict: {exc}")
@@ -93,59 +111,103 @@ except json.JSONDecodeError as exc:
 if not isinstance(data, dict):
     fail("top-level must be an object")
 
+if external and data.get("status") == "SKIPPED":
+    reason = data.get("reason") or "cross-model review unavailable"
+    print(json.dumps({
+        "verdict": "SKIPPED",
+        "reason": reason,
+        "counts": {"blocker": 0, "major": 0, "minor": 0},
+        "issues": [],
+    }, ensure_ascii=False))
+    sys.exit(0)
+
 verdict = data.get("verdict")
 if verdict not in ("APPROVED", "CHANGES_REQUESTED"):
     fail(f"verdict: must be APPROVED or CHANGES_REQUESTED (got {verdict!r})")
-
-counts = data.get("counts")
-if not isinstance(counts, dict):
-    fail("counts: must be an object")
-
-normalized_counts = {"blocker": 0, "major": 0, "minor": 0}
-for k in ("blocker", "major", "minor"):
-    if k in counts:
-        v = counts[k]
-        if not isinstance(v, int) or isinstance(v, bool) or v < 0:
-            fail(f"counts.{k}: must be int >= 0 (got {v!r})")
-        normalized_counts[k] = v
 
 issues = data.get("issues", [])
 if not isinstance(issues, list):
     fail("issues: must be a list")
 
 normalized_issues = []
-for idx, raw in enumerate(issues):
-    if not isinstance(raw, dict):
-        fail(f"issues[{idx}]: must be an object")
-    sev = raw.get("severity")
-    if sev not in ("blocker", "major", "minor"):
-        fail(f"issues[{idx}].severity: must be blocker|major|minor (got {sev!r})")
-    for required in ("category", "file", "message"):
-        if not raw.get(required):
-            fail(f"issues[{idx}].{required}: required, missing or empty")
-    line = raw.get("line")
-    if not isinstance(line, int) or isinstance(line, bool) or line < 0:
-        fail(f"issues[{idx}].line: must be int >= 0 (got {line!r})")
-    item = {
-        "severity": sev,
-        "category": raw["category"],
-        "file": raw["file"],
-        "line": line,
-        "message": raw["message"],
-    }
-    if raw.get("fix"):
-        item["fix"] = raw["fix"]
-    normalized_issues.append(item)
+if external:
+    # Lenient normalization for cross-model reviewers (e.g. codex-reviewer):
+    # map the alternate schema and never trust self-reported counts.
+    for idx, raw in enumerate(issues):
+        if not isinstance(raw, dict):
+            fail(f"issues[{idx}]: must be an object")
+        sev = raw.get("severity")
+        if sev not in ("blocker", "major", "minor"):
+            sev = "minor"
+        message = raw.get("message") or raw.get("description") or ""
+        line = raw.get("line")
+        if not isinstance(line, int) or isinstance(line, bool) or line < 0:
+            line = 0
+        item = {
+            "severity": sev,
+            "category": raw.get("category") or "",
+            "file": raw.get("file") or "",
+            "line": line,
+            "message": message,
+        }
+        fix = raw.get("fix") or raw.get("recommendation")
+        if fix:
+            item["fix"] = fix
+        normalized_issues.append(item)
 
-if verdict == "CHANGES_REQUESTED" and len(normalized_issues) == 0:
-    fail("CHANGES_REQUESTED verdict requires non-empty issues list")
+    normalized_counts = {"blocker": 0, "major": 0, "minor": 0}
+    for item in normalized_issues:
+        normalized_counts[item["severity"]] += 1
 
-if verdict == "APPROVED":
-    if normalized_issues:
-        fail("APPROVED verdict requires an empty issues list")
-    nonzero = {k: v for k, v in normalized_counts.items() if v != 0}
-    if nonzero:
-        fail(f"APPROVED verdict requires zero counts (got {nonzero})")
+    if verdict == "APPROVED" and normalized_issues:
+        verdict = "CHANGES_REQUESTED"
+    if verdict == "CHANGES_REQUESTED" and not normalized_issues:
+        fail("CHANGES_REQUESTED verdict requires non-empty issues list")
+else:
+    counts = data.get("counts")
+    if not isinstance(counts, dict):
+        fail("counts: must be an object")
+
+    normalized_counts = {"blocker": 0, "major": 0, "minor": 0}
+    for k in ("blocker", "major", "minor"):
+        if k in counts:
+            v = counts[k]
+            if not isinstance(v, int) or isinstance(v, bool) or v < 0:
+                fail(f"counts.{k}: must be int >= 0 (got {v!r})")
+            normalized_counts[k] = v
+
+    for idx, raw in enumerate(issues):
+        if not isinstance(raw, dict):
+            fail(f"issues[{idx}]: must be an object")
+        sev = raw.get("severity")
+        if sev not in ("blocker", "major", "minor"):
+            fail(f"issues[{idx}].severity: must be blocker|major|minor (got {sev!r})")
+        for required in ("category", "file", "message"):
+            if not raw.get(required):
+                fail(f"issues[{idx}].{required}: required, missing or empty")
+        line = raw.get("line")
+        if not isinstance(line, int) or isinstance(line, bool) or line < 0:
+            fail(f"issues[{idx}].line: must be int >= 0 (got {line!r})")
+        item = {
+            "severity": sev,
+            "category": raw["category"],
+            "file": raw["file"],
+            "line": line,
+            "message": raw["message"],
+        }
+        if raw.get("fix"):
+            item["fix"] = raw["fix"]
+        normalized_issues.append(item)
+
+    if verdict == "CHANGES_REQUESTED" and len(normalized_issues) == 0:
+        fail("CHANGES_REQUESTED verdict requires non-empty issues list")
+
+    if verdict == "APPROVED":
+        if normalized_issues:
+            fail("APPROVED verdict requires an empty issues list")
+        nonzero = {k: v for k, v in normalized_counts.items() if v != 0}
+        if nonzero:
+            fail(f"APPROVED verdict requires zero counts (got {nonzero})")
 
 print(json.dumps({
     "verdict": verdict,
