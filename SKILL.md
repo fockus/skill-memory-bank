@@ -170,6 +170,13 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-review-parse.sh` | Validate reviewer output for `/mb work` review-loop |
 | `mb-work-severity-gate.sh` | Apply `pipeline.yaml:severity_gate` to review counts |
 | `mb-workflow.sh` | Resolve the active workflow + per-step `model`/`thinking` config from `pipeline.yaml` for `/mb work` |
+| `mb-work-state.sh` | Durable `/mb work` loop-state + `max_cycles` enforcement; optional per-run isolation/claim under `MB_WORK_PARALLEL` |
+| `mb-work-slots.sh` | Sourced helper: per-run state/budget slot-path resolution + source→run claim index (gated behind `MB_WORK_PARALLEL`) |
+| `mb-work-checkbox.sh` | Deterministic DoD-checkbox flip, gated on the run's work-state phase (single-writer for `checklist.md`) |
+| `mb-work-diff.sh` | Baseline-scoped diff for a `/mb work` run — feeds verify/review with the stage's own changes only |
+| `mb-work-progress-append.sh` | Locked, atomic, append-only writer for `<bank>/progress.md` (safe under concurrent runs) |
+| `mb-work-codex-preflight.sh` | Fail-safe codex CLI availability/auth health-check before a cross-model review wave |
+| `mb-session-doctor.sh` | Diagnose session-memory subsystem health (unsummarized sessions, missing index/adapters, legacy stubs) |
 | `mb-agent-caps.sh` | Capability-aware dispatch: resolve CLI transport (pi/opencode/codex/claude-agent) + concrete model per role by probing CLI presence and model availability |
 | `mb-reviewer-resolve.sh` | Pick the active reviewer agent name |
 | `mb-session-spend.sh` | Session token-spend tracker (sprint context guard) |
@@ -458,6 +465,7 @@ The PreCompact hook `hooks/mb-pre-compact.sh` runs just before context compactio
 - Structure of `.memory-bank/`: `references/structure.md`
 - Code graph cookbook (jq library, `graph.json` schema, intelligence layer, semantic-search routing): `references/code-graph.md`
 - Workflow (session lifecycle): `references/workflow.md`
+- Session memory (cross-chat capture, `/mb recall`, session-doctor): `references/session-memory.md`
 - Command file template: `references/command-template.md`
 - Hooks (per-host wiring + lifecycle): `references/hooks.md`
 - Adapter manifest schema: `references/adapter-manifest-schema.md`
