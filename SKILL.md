@@ -177,7 +177,8 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-recap.sh <sid>` | `/mb recap`: reconstruct a full `progress.md` entry from `session/<sid>*.md` via one Haiku call, replacing that session's auto-capture stub idempotently (`recapped` frontmatter). Missing session → exit non-zero, no writes; real entry already present → refuse |
 | `mb-conflicts.sh [--judge] [--threshold N]` | `/mb conflicts`: report memory entries with high lexical overlap **and** opposing/replacement assertions (en+ru markers) as conflict candidates — `$0` pass (token-set Jaccard > `N`, default 0.3) over `notes/` + `lessons.md` + recent `progress.md`, zero LLM calls. `--judge` confirms/rejects each pair via one Sonnet call + prints a suggested `[SUPERSEDED: YYYY-MM-DD -> <ref>]` marker. PRINT-ONLY — never writes to any bank file |
 | `mb-consolidate.sh [--apply] [--days N]` | `/mb consolidate`: fold sessions older than `N` days (default 30) that cluster by shared files / lexical overlap into 5–15 line `notes/` candidates, archive those session files VERBATIM → `session/archive/`, and move their contiguous auto-capture progress STUBS VERBATIM → `progress-archive.md`. Zero LLM calls. Dry-run is the DEFAULT (writes nothing — bank byte-identical); `--apply` performs it. Real progress entries are immutable and never move |
-| `mb-auto-commit.sh` | Opt-in auto-commit of `.memory-bank/` after `/mb done` (`MB_AUTO_COMMIT=1`) — 4 safety gates |
+| `mb-auto-commit.sh` | Opt-in auto-commit of `.memory-bank/` after `/mb done` (`MB_AUTO_COMMIT=1` or `--force`) — 4 safety gates, MB-only staging, never pushes |
+| `mb-freshness.sh [--porcelain\|--stop-nudge\|--banner]` | Deterministic MB-vs-code drift alarm (`behind`/`dirty`); drift-gated Stop nudge + SessionStart banner (`MB_DRIFT_WARN_COMMITS`/`MB_DRIFT_WARN_DIRTY_LINES`, opt-out `MB_FRESHNESS_BANNER=off`). See `docs/concepts/session-memory.md` for the auto-commit recipe |
 | `mb-migrate-v2.sh` | One-shot v1 → v2 migrator for `.memory-bank/` |
 | `mb-migrate-structure.sh` | One-shot v3.0 → v3.1 structure migrator for `.memory-bank/` |
 | `mb-import.py` | Claude Code JSONL → Memory Bank bootstrap importer |
@@ -202,7 +203,8 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-goal-validate.sh` | Validate a goal.md before a Dynamic Flow run: enforce required sections, acceptance-criteria items, and field completeness — fail-loud exit 1 on malformed goals (REQ-DF-004) |
 | `mb-lint-run.sh` | L5 lint runner: auto-detect project stack via `mb-metrics.sh`, map to linter (ruff/shellcheck), run it, and report findings (exits 0, JSON report; ADR-3; unknown stack = SKIP) |
 | `mb-no-todo.sh` | L5 residual-placeholder runner: scan target files for TODO/FIXME/HACK markers, reusing `mb_rules_check_lib.sh::scan_placeholders` patterns and exemptions (exits 0, JSON report; REQ-DF-042) |
-| `mb-session-prune.sh` | Archive contentless session stubs out of `<bank>/session/` into `session/archive/stubs/`; dry-run is the default, `--apply` performs the move |
+| `mb-session-prune.sh` | Archive contentless session stubs out of `<bank>/session/` into `session/archive/stubs/`; dry-run is the default, `--apply` performs the move. Also flags/repairs bloated files (`>MB_SESSION_BLOAT_BYTES`) with post-`## Summary` bullets |
+| `mb-session-repair.sh [--apply] <file>` | Repair a session file corrupted by the legacy append-after-`## Summary` bug: move turn-bullets back into `## Live log`, reset `summarized=false`, re-cap over-long bullets, keep a `archive/pre-repair/` backup. Dry-run default, idempotent, fail-safe |
 | `mb-settings-ensure-timeout.py` | Surgically ensure the SessionEnd `mb-session-end.sh` hook command carries a per-command `timeout` so the Haiku summarizer is not SIGKILLed before writing `## Summary` |
 | `mb-subinvoke-resolve.sh` | Resolve the per-agent shell sub-invoke command template for the active agent (mirrors `mb-reviewer-resolve.sh`); used by `mb-fanout.sh` to bake `--cmd` when the operator does not supply one (REQ-DF-082) |
 
@@ -281,6 +283,7 @@ Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Cl
 | `mb-plan-sync-post-write.sh` | PostToolUse (Write) | Auto-sync plan ↔ checklist + roadmap after editing a plan file |
 | `file-change-log.sh` | PostToolUse (Write/Edit) | Append change log + scan for placeholders / secrets in committed files |
 | `session-end-autosave.sh` | SessionEnd | Memory Bank auto-capture (`MB_AUTO_CAPTURE=auto\|strict\|off`) when `/mb done` was skipped |
+| `mb-checklist-autoprune.sh` | SessionEnd | Opt-in (`MB_CHECKLIST_AUTOPRUNE=on`, default off) collapse of a `checklist.md` past the 120-line cap via `mb-checklist-prune.sh --apply`, under a lock, fail-safe |
 | `mb-pre-compact.sh` | PreCompact (Claude Code) / preCompact (Cursor) | Handoff-v2: runs `mb-handoff.sh --actualize` to write a fresh `handoff/latest.md` capsule before compaction. Bounded to ~2s, never blocks (`MB_PRECOMPACT_HANDOFF=off` to disable) |
 | `mb-session-start-context.sh` | sessionStart (Cursor) | Auto-inject compact Memory Bank context at session start (`MB_AUTOLOAD_CONTEXT=off` to disable) |
 | `mb-session-turn.sh` | Stop | Session memory: append one per-turn bullet (request + tools + files) to `session/*.md`, no LLM (`MB_SESSION_CAPTURE=off` to disable) |

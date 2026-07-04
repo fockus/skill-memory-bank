@@ -134,6 +134,55 @@ malformed markers and dangling references.
 
 ---
 
+## Keeping the bank fresh — drift alarm + auto-commit
+
+Nothing forces `.memory-bank/` to keep pace with code. Two tools close that gap:
+
+**Drift alarm — `mb-freshness.sh`** (deterministic, git-only, always exit 0). It reports how
+far the bank has fallen behind:
+
+```bash
+bash scripts/mb-freshness.sh --porcelain     # behind=<N> dirty=<M>
+```
+
+It is wired into two surfaces, both silent when the bank is fresh: the **Stop hook** prints a
+one-line nudge only when `behind >= MB_DRIFT_WARN_COMMITS` (default 5) or
+`dirty >= MB_DRIFT_WARN_DIRTY_LINES` (default 50), and **SessionStart** prepends a one-line
+banner under the same thresholds (opt-out `MB_FRESHNESS_BANNER=off`).
+
+**Auto-commit — `mb-auto-commit.sh`** (opt-in). Enable it and every `/mb done` commits the
+bank:
+
+```bash
+export MB_AUTO_COMMIT=1                       # or, per-invocation:
+bash scripts/mb-auto-commit.sh --force
+```
+
+Semantics: it stages and commits **only** `.memory-bank/`, and **skips** (warns, exits 0) when
+source files outside the bank are dirty, mid-rebase/merge/cherry-pick, or on a detached HEAD.
+It **never pushes**. `/mb done` already calls this path; `mb-freshness.sh` is the alarm that
+tells you when you forgot.
+
+**Governed `/mb work` actualization.** A governed run commits code per stage but does not
+actualize the bank. Add an actualization + auto-commit step so stage commits carry the
+checklist/STATUS update, e.g. in `pipeline.yaml`:
+
+```yaml
+# pipeline.yaml — add a `done` step that actualizes + commits the bank at stage close-out.
+# `/mb done` runs the MB Manager actualize (STATUS/checklist) and then the auto-commit path.
+workflows:
+  governed-execution:
+    steps: [implement, verify, review, judge, fix, done]
+```
+
+```bash
+# ...per stage close-out, with auto-commit enabled so the bank commit carries the update:
+#   /mb update                                              # MB Manager: refresh STATUS/checklist
+#   MB_AUTO_COMMIT=1 bash scripts/mb-auto-commit.sh --force --mb .memory-bank
+```
+
+---
+
 ## Memory stack — MB primary, memsearch search-only
 
 When both Memory Bank and [memsearch](https://github.com/) are installed, they overlap on
