@@ -446,6 +446,23 @@ When the user types `/mb work [args...]`:
 
 6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used. Run `bash scripts/mb-work-budget.sh clear --mb <bank>` and `bash scripts/mb-work-state.sh clear --mb <bank>` to remove the budget and loop-state.
 
+## Concurrent core-file writes
+
+Two core files are written during a run — under concurrent (parallel) runs each has exactly one writer discipline, never a free-form prose edit:
+
+- **`progress.md` appends** go through the locked, atomic, append-only helper — **required** under `MB_WORK_PARALLEL` (recommended always, even single-run, since it is safe with no contention):
+
+  ```bash
+  bash scripts/mb-work-progress-append.sh --text "<entry>" --mb <bank>
+  ```
+
+  It serializes concurrent writers behind an owner-token lock, builds the new content in a temp file, and atomically `mv`s it over `progress.md` — no writer ever sees, or produces, a partial/interleaved file. Fail-safe: a lock it cannot acquire in time (or any write error) degrades to a stderr warning and exit 0 — it never wedges the loop, and it never rewrites or removes existing content (append-only).
+- **`checklist.md` / DoD bullets** are flipped **only** by `mb-work-checkbox.sh flip` (reaffirming I-093) — never a hand-edit, and never any other script. This is what keeps two concurrent runs from racing on the same checkbox: `flip` is gated on the run's own `.work-state` slot reporting `phase == "done"` for that exact item before it touches a byte of the source file.
+
+**Durable vs. ephemeral progress signal.** During a run, the **durable** record of what is actually done is the DoD checkboxes in the source file (flipped only via `mb-work-checkbox.sh`) plus each run's `.work-state` slot (`phase`, `item_no`, `steps[]`) — that is what a resumed session, or another concurrent run, must trust. `TaskUpdate` (or any other UI-facing status ping) is **ephemeral** — a live-progress signal for the human/orchestrator's benefit only, never the source of truth for whether an item completed, and never something another run or a resumed session should rely on.
+
+**Worktree mode note.** Under the inter-plan-worktree pattern (see the worktree rule above and *Parallel runs* below), `progress.md`/`checklist.md` are per-worktree files — cross-plan appends physically cannot contend, so the append helper's serialization only matters for **intra-plan** concurrent stages sharing one worktree.
+
 ## Resume after interruption
 
 `.work-state.json` is the durable source of truth for "is this item actually done", surviving compaction and abort — checkbox appearance in the plan/spec is not. Before resolving items on a fresh invocation (a new session picking the same target back up):
@@ -550,7 +567,7 @@ When any hard stop fires, the loop halts even under `--auto`. The orchestrator s
 
 ```bash
 # Resolution + range + plan emission (Sprint 2)
-bash scripts/mb-work-resolve.sh [target] [--mb <path>]
+bash scripts/mb-work-resolve.sh [target] [--skip-claimed] [--mb <path>]
 bash scripts/mb-work-range.sh <plan-or-spec> [--range <expr>]
 bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--json|--steps|--loop|max-cycles]
 bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
@@ -578,6 +595,14 @@ bash scripts/mb-work-checkbox.sh flip <plan-or-spec> <item_no> [--run-id ID] [--
 # Codex preflight (I-093): fail-safe availability/auth health-check run before an
 # external/cross-model review wave (step 5d preamble). Always exits 0 (advisory only).
 bash scripts/mb-work-codex-preflight.sh [--json] [--mb <path>]
+
+# Baseline-scoped diff for verify/review (I-094): single-arg `git diff <baseline>` form
+# (baseline commit vs. working tree — sees uncommitted stage work too, never <baseline>..HEAD).
+bash scripts/mb-work-diff.sh --run-id ID [--files "p1 p2 ..."] [--baseline REF] [--name-only] [--mb <path>]
+
+# Locked, atomic, append-only progress.md writer (I-094): required under MB_WORK_PARALLEL,
+# recommended always. checklist.md/DoD bullets stay single-writer via mb-work-checkbox.sh only.
+bash scripts/mb-work-progress-append.sh --text "<entry>" | --file <path> [--mb <path>]
 ```
 
 ## Out of scope (Phase 4)
