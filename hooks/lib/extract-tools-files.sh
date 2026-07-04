@@ -22,7 +22,7 @@ emit_empty() { printf 'user=\ntools=\nfiles=\nturn=\nerrors=0\n'; exit 0; }
 [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ] && [ -s "$TRANSCRIPT" ] || emit_empty
 command -v python3 >/dev/null 2>&1 || emit_empty
 
-python3 - "$TRANSCRIPT" <<'PY' || emit_empty
+LIBDIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)" python3 - "$TRANSCRIPT" <<'PY' || emit_empty
 import json, os, re, sys
 
 # A3: user-prompt cap (default 1000, was a silent 200 that made Haiku report
@@ -31,6 +31,20 @@ try:
     USER_MAX = int(os.environ.get("MB_SESSION_USER_MAX", "1000"))
 except ValueError:
     USER_MAX = 1000
+
+# Redact secrets in the extractor BEFORE the length cap, so a token that would straddle
+# the cap boundary can never leak as a partial (the downstream bullet redaction only sees
+# the already-cut text). Shares the pattern set with hooks/lib/redact.py (DRY); if the import
+# fails, fall back to a no-op — the bullet-level sc_redact_secrets still runs downstream.
+try:
+    sys.path.insert(0, os.environ.get("LIBDIR", ""))
+    from redact import redact_secrets as _redact
+except Exception:
+    def _redact(t):
+        return t
+
+# A4 opt-out: MB_SESSION_FILTER_WRAPPERS=off keeps harness service payloads as turns.
+FILTER_WRAPPERS = os.environ.get("MB_SESSION_FILTER_WRAPPERS", "on") != "off"
 
 path = sys.argv[1]
 recs = []
@@ -88,6 +102,8 @@ def text_of(rec):
         return None
     if not raw:
         return None
+    if not FILTER_WRAPPERS:
+        return raw
     return _strip_wrappers(raw) or None
 
 last_user = -1
@@ -98,7 +114,7 @@ for i, rec in enumerate(recs):
 user_text = ""
 user_uuid = ""
 if last_user >= 0:
-    full_text = " ".join((text_of(recs[last_user]) or "").split())
+    full_text = _redact(" ".join((text_of(recs[last_user]) or "").split()))
     user_text = full_text[:USER_MAX]
     if len(full_text) > USER_MAX:
         user_text += "…"

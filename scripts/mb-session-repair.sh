@@ -58,10 +58,12 @@ ts="$(date +%Y%m%d%H%M%S)"
 cp "$FILE" "$BACKUP_DIR/$base.$ts" 2>/dev/null || { echo "[repair] backup failed"; exit 0; }
 
 # 2) move post-Summary turn-bullets into Live log + re-cap over-long bullets (parity A2).
-# Single awk pass over the buffered file: splice moved bullets just before the first `## `
-# heading that follows Live log, drop them from where they were, leave every other line put.
+# The file is redacted FIRST (sc_redact_secrets), so the re-cap substr below can never split a
+# secret across the cut — any raw token a legacy bullet still carries becomes [REDACTED] before
+# any truncation. Idempotent (already-[REDACTED] text is unchanged). Then a single awk pass
+# splices moved bullets just before the first `## ` heading following Live log.
 tmp="${FILE}.repair.$$"
-if awk -v bmax="$BMAX" '
+if sc_redact_secrets < "$FILE" | awk -v bmax="$BMAX" '
     function recap(s){ return (length(s) > bmax) ? substr(s, 1, bmax) "…" : s }
     function fix(s){ return (s ~ /^- [0-9][0-9]:[0-9][0-9] /) ? recap(s) : s }
     { line[NR] = $0 }
@@ -79,7 +81,7 @@ if awk -v bmax="$BMAX" '
       for (j = 1; j <= m; j++)         print recap(moved[j])
       for (i = cut; i <= n; i++)       if (!skip[i]) print fix(line[i])
     }
-  ' "$FILE" > "$tmp" 2>/dev/null; then
+  ' > "$tmp" 2>/dev/null; then
   mv "$tmp" "$FILE" 2>/dev/null || { rm -f "$tmp"; echo "[repair] write failed"; exit 0; }
 else
   rm -f "$tmp"; echo "[repair] transform failed"; exit 0

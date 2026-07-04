@@ -80,3 +80,20 @@ PY
   out="$(bash "$EXTRACT" "$TMP/x.jsonl")"
   [ "$(_user_val "$out")" = "then fix the bug" ]
 }
+
+@test "A4: filtering is opt-out via MB_SESSION_FILTER_WRAPPERS=off" {
+  _one_user_turn "<task-notification>a subagent finished</task-notification>"
+  out="$(MB_SESSION_FILTER_WRAPPERS=off bash "$EXTRACT" "$TMP/x.jsonl")"
+  # with filtering off the wrapper message is kept as a turn (old behaviour)
+  printf '%s' "$(_user_val "$out")" | grep -q 'subagent finished'
+}
+
+# --- review-fix: user text is redacted BEFORE the A3 cap (secret never split) ---
+
+@test "A3/sec: a secret in the prompt is redacted before the length cap (no partial leak)" {
+  # a cap that would cut through the middle of the token must not leak a raw fragment
+  _one_user_turn "PREFIX sk-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA SUFFIX"
+  out="$(MB_SESSION_USER_MAX=15 bash "$EXTRACT" "$TMP/x.jsonl")"
+  val="$(_user_val "$out")"
+  if printf '%s' "$val" | grep -q 'sk-A'; then false; fi   # no raw secret fragment
+}

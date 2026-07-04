@@ -116,7 +116,7 @@
         },
         {
           "type": "command",
-          "command": "if [ -d .memory-bank ]; then bash ~/.claude/skills/memory-bank/scripts/mb-freshness.sh --stop-nudge; fi # [memory-bank-skill]"
+          "command": "if [ -d .memory-bank ] && [ -f ~/.claude/skills/memory-bank/scripts/mb-freshness.sh ]; then bash ~/.claude/skills/memory-bank/scripts/mb-freshness.sh --stop-nudge 2>/dev/null || true; fi # [memory-bank-skill]"
         }
       ]
     }

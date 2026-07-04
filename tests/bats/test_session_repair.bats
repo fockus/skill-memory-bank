@@ -80,6 +80,14 @@ teardown() { rm -rf "$TMP"; }
   [ "$maxlen" -le 640 ]
 }
 
+@test "A7/sec: repair redacts secrets before the re-cap cut (no partial leak)" {
+  # a post-Summary bullet carrying a raw secret must come out redacted, never split
+  printf -- '- 09:08 — User: "leaked sk-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB here" · tools: Edit · files: d.go · ok\n' >> "$SF"
+  bash "$REPAIR" --apply "$SF" >/dev/null
+  if grep -q 'sk-B' "$SF"; then false; fi          # no raw secret fragment anywhere
+  grep -q '\[REDACTED\]' "$SF"                       # replaced with the marker
+}
+
 @test "A7: no ## Summary → repair is a clean no-op (exit 0, unchanged)" {
   cat > "$SF" <<'EOF'
 ---
