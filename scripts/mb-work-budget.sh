@@ -2,16 +2,23 @@
 # mb-work-budget.sh — token budget tracker for /mb work --budget.
 #
 # Subcommands (each takes [--mb <path>] for bank override):
-#   init <total_tokens> [--warn-at PCT] [--stop-at PCT]   start tracking
-#   add <tokens>                                          increment spent
+#   init <total_tokens> [--warn-at PCT] [--stop-at PCT] [--run-id ID]  start tracking
+#   add <tokens> [--run-id ID]                            increment spent
 #   status                                                show current state
-#   check                                                 0=ok, 1=warn, 2=stop
+#   check [--run-id ID]                                   0=ok, 1=warn, 2=stop
 #   clear                                                 remove state
 #
 # State file: <bank>/.work-budget.json
-#   { total, spent, warn_at_percent, stop_at_percent, started }
+#   { total, spent, warn_at_percent, stop_at_percent, started, run_id }
 #
 # Defaults are read from pipeline.yaml:budget.{warn_at_percent, stop_at_percent}.
+#
+# run_id binding (I-093 S2): `init --run-id ID` stamps the budget with the
+# owning run. `add`/`check --run-id ID` compare against the stamped run_id —
+# a mismatch means the on-disk budget is orphaned from an aborted run, so it
+# is treated as stale: exit 1 (warn), zero mutation, never a false stop.
+# Omitting `--run-id` on `add`/`check` keeps today's behaviour byte-identical
+# (back-compat: no binding is enforced).
 
 set -eu
 
@@ -22,7 +29,7 @@ PIPELINE="$SCRIPT_DIR/mb-pipeline.sh"
 source "$SCRIPT_DIR/_lib.sh"
 
 usage() {
-  sed -n '2,16p' "$0" >&2
+  sed -n '2,21p' "$0" >&2
 }
 
 resolve_pipeline_defaults() {
@@ -45,17 +52,33 @@ except Exception:
 PY
 }
 
+# Returns 0 (true) when the on-disk budget's stamped run_id matches $2, or
+# when the budget predates run_id stamping (field absent/empty — treated as
+# unbound, never a false mismatch). $1=state path, $2=requested run_id.
+require_matching_run_id() {
+  local state="$1" run_id="$2"
+  STATE="$state" RUN_ID="$run_id" python3 -c '
+import json, os, sys
+data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
+state_run_id = data.get("run_id", "")
+sys.exit(0 if (not state_run_id or state_run_id == os.environ["RUN_ID"]) else 1)
+'
+}
+
 cmd_init() {
   local total=""
   local warn=""
   local stop=""
   local mb_arg=""
+  local run_id=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --warn-at) warn="${2:-}"; shift 2 ;;
       --warn-at=*) warn="${1#--warn-at=}"; shift ;;
       --stop-at) stop="${2:-}"; shift 2 ;;
       --stop-at=*) stop="${1#--stop-at=}"; shift ;;
+      --run-id) run_id="${2:-}"; shift 2 ;;
+      --run-id=*) run_id="${1#--run-id=}"; shift ;;
       --mb) mb_arg="${2:-}"; shift 2 ;;
       --mb=*) mb_arg="${1#--mb=}"; shift ;;
       *) if [ -z "$total" ]; then total="$1"; fi; shift ;;
@@ -78,7 +101,9 @@ cmd_init() {
   bank=$(mb_resolve_path "$mb_arg")
   local state="$bank/.work-budget.json"
 
-  TOTAL="$total" WARN="$warn" STOP="$stop" STATE="$state" python3 - <<'PY'
+  # init always writes a fresh state (spent=0) — this is also how a stale
+  # run_id from an aborted run gets auto-reset when a new run_id is passed.
+  TOTAL="$total" WARN="$warn" STOP="$stop" RUN_ID="$run_id" STATE="$state" python3 - <<'PY'
 import json, os, datetime
 state = {
     "total": int(os.environ["TOTAL"]),
@@ -86,6 +111,7 @@ state = {
     "warn_at_percent": int(os.environ["WARN"]),
     "stop_at_percent": int(os.environ["STOP"]),
     "started": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "run_id": os.environ.get("RUN_ID", ""),
 }
 open(os.environ["STATE"], "w", encoding="utf-8").write(json.dumps(state) + "\n")
 PY
@@ -95,8 +121,11 @@ PY
 cmd_add() {
   local delta=""
   local mb_arg=""
+  local run_id=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --run-id) run_id="${2:-}"; shift 2 ;;
+      --run-id=*) run_id="${1#--run-id=}"; shift ;;
       --mb) mb_arg="${2:-}"; shift 2 ;;
       --mb=*) mb_arg="${1#--mb=}"; shift ;;
       *) if [ -z "$delta" ]; then delta="$1"; fi; shift ;;
@@ -112,6 +141,13 @@ cmd_add() {
   if [ ! -f "$state" ]; then
     echo "[budget] no active budget (run 'init' first)" >&2
     exit 1
+  fi
+  # Back-compat: an empty/absent --run-id enforces no binding at all.
+  if [ -n "$run_id" ]; then
+    require_matching_run_id "$state" "$run_id" || {
+      echo "[budget] run_id mismatch (stale budget) — ignoring add, no mutation" >&2
+      exit 1
+    }
   fi
   STATE="$state" DELTA="$delta" python3 - <<'PY'
 import json, os
@@ -145,14 +181,21 @@ data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
 total = int(data["total"])
 spent = int(data.get("spent", 0))
 pct = (spent / total * 100) if total else 0
-print(f"total={total} spent={spent} pct={pct:.1f}% warn={data['warn_at_percent']}% stop={data['stop_at_percent']}%")
+run_id = data.get("run_id", "")
+print(
+    f"total={total} spent={spent} pct={pct:.1f}% warn={data['warn_at_percent']}% "
+    f"stop={data['stop_at_percent']}% run_id={run_id}"
+)
 PY
 }
 
 cmd_check() {
   local mb_arg=""
+  local run_id=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --run-id) run_id="${2:-}"; shift 2 ;;
+      --run-id=*) run_id="${1#--run-id=}"; shift ;;
       --mb) mb_arg="${2:-}"; shift 2 ;;
       --mb=*) mb_arg="${1#--mb=}"; shift ;;
       *) shift ;;
@@ -164,6 +207,14 @@ cmd_check() {
   if [ ! -f "$state" ]; then
     echo "[budget] no active budget" >&2
     exit 1
+  fi
+  # A mismatched run_id means the on-disk budget is orphaned from a
+  # different run: treat it as stale (warn, exit 1) — never a false STOP.
+  if [ -n "$run_id" ]; then
+    require_matching_run_id "$state" "$run_id" || {
+      echo "[budget] run_id mismatch (stale budget) — ignoring, not a stop" >&2
+      exit 1
+    }
   fi
   STATE="$state" python3 - <<'PY'
 import json, os, sys
