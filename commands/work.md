@@ -303,6 +303,16 @@ When the user types `/mb work [args...]`:
 
    `mb-work-state.sh init` resolves `max_cycles` from `workflow.loop.max_cycles` (or CLI `--max-cycles N`) when neither is passed explicitly — pass `--max-cycles N` to `init` when the CLI flag was given. If `--budget TOK` was given, run `bash scripts/mb-work-budget.sh init <TOK> --run-id "$RUN_ID" --mb <bank>`. Subsequent steps call `bash scripts/mb-work-budget.sh check --run-id "$RUN_ID" --mb <bank>` after each Task dispatch; exit 1 = warn (log and continue), exit 2 = stop (halt the loop). Add tokens after each Task with `bash scripts/mb-work-budget.sh add <delta> --run-id "$RUN_ID" --mb <bank>`. Threading `--run-id` means an orphaned `.work-budget.json` left over from a different, aborted run is recognised as stale (warn, exit 1) instead of silently throttling this run.
 
+   **Parallel opt-in (`MB_WORK_PARALLEL`, off by default).** Everything above is the single-run default — unchanged, byte-identical. Driving **several concurrent `/mb work` runs from one Claude Code session** (intra-plan waves, or one plan per git worktree — see *Parallel runs* below) requires exporting `MB_WORK_PARALLEL=1` first, which switches `mb-work-state.sh`/`mb-work-budget.sh` from the legacy singleton files (`.work-state.json` / `.work-budget.json`) to **per-run slots**: `<bank>/.work-state/<run_id>.json` and `<bank>/.work-budget/<run_id>.json`. With the env var set:
+
+   ```bash
+   export MB_WORK_PARALLEL=1
+   RUN_ID=$(bash scripts/mb-work-state.sh new-run-id)
+   bash scripts/mb-work-state.sh init <source> <first_item_no> --run-id "$RUN_ID" --mb <bank>
+   ```
+
+   `mb-work-state.sh new-run-id` mints a fresh run id up front (prints it, writes nothing) so it can be threaded into `init` from the start. `init` then claims `<source>` for `"$RUN_ID"` in a source→run index: if another **live** (`phase != done`) run already claims that same source, `init` refuses with **exit 4** (`source '<source>' already claimed by run <id>; pass --takeover to override`) — halt the loop for this run (pick a different pending item, or a different source) unless the orchestrator deliberately wants to steal a stale/abandoned claim, in which case pass `--takeover` to force the claim. Thread the same `--run-id "$RUN_ID"` to every subsequent `mb-work-state.sh`, `mb-work-budget.sh`, and `mb-work-checkbox.sh` call for this run — that is what keeps its state, budget, and checkbox-flip gate isolated from any other concurrently running run.
+
 5. **For each pending item** (iterate over the JSON Lines output):
 
    The stage body is read from the markers in the source file. For `kind=task` items, read between `<!-- mb-task:N -->` markers. For `kind=stage` items, read between `<!-- mb-stage:N -->` markers.
@@ -430,6 +440,16 @@ bash scripts/mb-work-state.sh status --mb <bank>
 - `phase: "in-progress"` for the item currently at `item_no` — this item is **mid-flight**: do **not** treat it as done even if its DoD checkboxes look flipped in the source file. The loop flips checkboxes deterministically only after judge-GO (`mb-work-state.sh done`, wired in a later stage) — `phase` in `.work-state.json`, not checkbox appearance, is the source of truth. Resume by re-entering the loop for that item at the next unresolved step (inspect `steps[]`), or, if in doubt, safely restart from `implement` for that item.
 - `phase: "done"` — the item completed cleanly; proceed to the next pending item.
 
+**Parallel runs.** Under `MB_WORK_PARALLEL=1`, `mb-work-state.sh status` (no `--run-id`) only ever sees the singleton path — to enumerate every **live parallel run** (each per-run slot under `<bank>/.work-state/*.json`, plus the singleton if present), use:
+
+```bash
+bash scripts/mb-work-state.sh status --all
+# alias:
+bash scripts/mb-work-state.sh list
+```
+
+This prints a JSON array of every run's state (run_id, source, item_no, phase, …), so a resuming session can tell which sources are still claimed by a live (`phase != done`) run before minting its own `run_id` and calling `init`.
+
 ## Hard stops for `--auto`
 
 The autopilot continues without per-item prompts **except** when:
@@ -442,6 +462,7 @@ The autopilot continues without per-item prompts **except** when:
 | `--budget` exhausted | `mb-work-budget.sh check` exit 2 after Task | yes |
 | `sprint_context_guard.hard_stop_tokens` reached (190k default) | manual observation; halt and ask user to compact | yes |
 | `cross-model review SKIPPED` under `--auto` (`mb-work-codex-preflight.sh` reports `available:false`, or the reviewer parses as `verdict:"SKIPPED"`) | step 5d preamble | yes — a skipped cross-model gate requires explicit user confirmation before the loop proceeds, even under `--auto` |
+| Claim refused (exit 4) — `mb-work-state.sh init --run-id` under `MB_WORK_PARALLEL` finds `<source>` already claimed by another live run | step 4 (`mb-work-state.sh init`) | yes — stop this run and pick a different pending item/source, or pass `--takeover` to steal a stale/abandoned claim |
 
 When any hard stop fires, the loop halts even under `--auto`. The orchestrator surfaces the trigger, the item state, and the next reasonable action (rerun with adjusted flags, edit pipeline.yaml, compact, etc.).
 
@@ -519,15 +540,22 @@ bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb
 # Review-loop helpers (Sprint 3)
 bash scripts/mb-work-review-parse.sh [--lenient|--external] < reviewer-stdout
 bash scripts/mb-work-severity-gate.sh --counts <json> | --counts-stdin [--mb <path>] [--workflow <name>]
-bash scripts/mb-work-budget.sh init <total> [--run-id ID] | add <delta> [--run-id ID] | status | check [--run-id ID] | clear [--mb <path>]
+bash scripts/mb-work-budget.sh init <total> [--run-id ID] | add <delta> [--run-id ID] | status [--run-id ID] | check [--run-id ID] | clear [--run-id ID] [--mb <path>]
 bash scripts/mb-work-protected-check.sh <files...> [--mb <path>]
 
 # Durable loop-state (I-093): max_cycles enforcement by exit code + resume across compaction/abort
-bash scripts/mb-work-state.sh init <source> <item_no> [--run-id ID] [--max-cycles N] [--mb <path>]
-bash scripts/mb-work-state.sh step <name> | cycle | status | done | clear [--mb <path>]
+bash scripts/mb-work-state.sh init <source> <item_no> [--run-id ID] [--max-cycles N] [--takeover] [--mb <path>]
+bash scripts/mb-work-state.sh step <name> | cycle | status [--all] | list | done | clear [--run-id ID] [--mb <path>]
+
+# Per-run state+budget slots (I-094, opt-in MB_WORK_PARALLEL=1): mints a fresh run id via
+# new-run-id, then --run-id ID threads it through init/status/cycle/done/clear (state) and
+# init/add/status/check/clear (budget) above — each resolves <bank>/.work-state/<run_id>.json
+# and <bank>/.work-budget/<run_id>.json instead of the legacy singleton files. init on a
+# source already claimed by another live run exits 4 (pass --takeover to override).
+bash scripts/mb-work-state.sh new-run-id
 
 # Deterministic DoD-checkbox flip (I-093): only fires once .work-state.json phase == done
-bash scripts/mb-work-checkbox.sh flip <plan-or-spec> <item_no> [--mb <path>]
+bash scripts/mb-work-checkbox.sh flip <plan-or-spec> <item_no> [--run-id ID] [--mb <path>]
 
 # Codex preflight (I-093): fail-safe availability/auth health-check run before an
 # external/cross-model review wave (step 5d preamble). Always exits 0 (advisory only).
