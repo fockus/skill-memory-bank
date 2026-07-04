@@ -37,8 +37,20 @@ SESS="$MB_PATH/session"
 cur8="${CLAUDE_CODE_SESSION_ID:-}"; cur8="${cur8:0:8}"   # set -u safe when unset (e.g. CI)
 ARCHIVE="$SESS/archive/stubs"
 
+# A7: does this file carry turn-bullets AFTER the first `## ` heading following `## Live log`?
+# That is the signature of the pre-A1 append-after-Summary bloat that prune must repair.
+_has_post_summary_bullets() {
+  awk '
+    /^## Live log/ { ll=1; next }
+    ll && /^## /   { past=1 }
+    past && /^- [0-9][0-9]:[0-9][0-9] / { found=1; exit }
+    END { exit(found ? 0 : 1) }
+  ' "$1"
+}
+
 stubs=0
 kept=0
+repair_candidates=0
 for f in "$SESS"/*.md; do
   [ -f "$f" ] || continue
   base="$(basename "$f")"
@@ -50,6 +62,18 @@ for f in "$SESS"/*.md; do
   # substantive = a non-empty user request OR a real tool somewhere in the file
   if grep -qE 'User: "[^"]|tools: [A-Za-z]' "$f"; then
     kept=$((kept + 1))
+    # A7: a substantive file over the bloat threshold WITH post-Summary bullets is a
+    # repair candidate (runaway pre-A1 append). Flag on dry-run; repair on --apply.
+    bloat_bytes="${MB_SESSION_BLOAT_BYTES:-40000}"
+    if [ "$(wc -c < "$f" | tr -d ' ')" -gt "$bloat_bytes" ] && _has_post_summary_bullets "$f"; then
+      repair_candidates=$((repair_candidates + 1))
+      if [ "$APPLY" -eq 1 ]; then
+        bash "$(dirname "$0")/mb-session-repair.sh" --apply "$f" >/dev/null 2>&1 || true
+        echo "repaired: $base"
+      else
+        echo "repair-candidate: $base ($(wc -c < "$f" | tr -d ' ') bytes)"
+      fi
+    fi
     continue
   fi
   # contentless stub
@@ -68,4 +92,4 @@ done
 
 mode="dry-run"
 [ "$APPLY" -eq 1 ] && { mode="apply"; [ "$HARD" -eq 1 ] && mode="apply-hard"; }
-echo "[prune] mode=$mode stubs=$stubs substantive_kept=$kept archive=$ARCHIVE"
+echo "[prune] mode=$mode stubs=$stubs substantive_kept=$kept repair_candidates=$repair_candidates archive=$ARCHIVE"
