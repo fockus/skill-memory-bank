@@ -570,6 +570,8 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-099 — work-loop-v2/reviewer-2.0: reconcile cache key — mb-review.sh last_verdict_cache_path() uses mb_sanitize_topic(item) but mb-work-trend.sh uses sha256(plan+stage+item); wire mb-review.sh to call `mb-work-trend.sh key` so the last-verdict cache doesn't diverge when progress_trend goes live (extends I-096) [MED, NEW, 2026-07-05]
 
+### I-100 — work-loop-v2: mb-workflow.sh --loop returns {} (no on_max_cycles/max_cycles) for the composable `execution`+`--review`/`review.enabled` path — stage composition toggles `steps` but never synthesizes a `loop` from the top-level `review:` block, so a composable review loop has no max-cycle policy. Presets with an explicit `loop` (full/governed-execution/review-fix/review-only) are unaffected. [MED, NEW, 2026-07-05]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

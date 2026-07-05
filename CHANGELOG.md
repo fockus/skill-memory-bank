@@ -48,6 +48,23 @@ overrides (same `example_id`/`stack`/`category`/`severity` front-matter +
 `references/rubric-examples/` baseline); everything else keeps using the
 skill-bundled baseline unchanged.
 
+### Changed — work-loop-v2: fail-fast `on_max_cycles` default (REQ-113)
+
+- **`on_max_cycles` now defaults to `stop_for_human`** (was
+  `continue_with_warning`) in the shipped `references/pipeline.default.yaml`
+  `review:` block. When a project's `pipeline.yaml` omits `on_max_cycles`
+  entirely, the resolver (`scripts/mb-workflow.sh`) falls back to this new,
+  stricter default instead of quietly continuing past an exhausted fix loop.
+
+**Migration.** Existing `<bank>/pipeline.yaml` files are never rewritten by
+install/upgrade — the only writer, `scripts/mb-pipeline.sh init`, creates the
+file solely when absent and refuses to overwrite an existing one without
+`--force`. Projects that already explicitly set `on_max_cycles:
+continue_with_warning` keep that behavior untouched. **Projects that prefer
+the old soft behavior — including any relying on the previous default rather
+than an explicit setting — must add `on_max_cycles: continue_with_warning` to
+their `pipeline.yaml` explicitly.**
+
 ## [5.2.0] — 2026-06-28
 
 ### Added

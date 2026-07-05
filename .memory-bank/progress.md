@@ -2793,3 +2793,20 @@ boundary+telemetry repro; judge=opus GO — 2-level threshold, exhaustively boun
 - **Tests:** test_mb_work_pivot.bats 25/25 green, shellcheck clean, pipeline.default.yaml still validates.
 - Orchestrator repro'd truth-table (N=1→refine, N=2/c3→in_role, N=2/c4→via_architect, N=5/c1→in_role) + telemetry
   (pivot=1 line 5 fields, refine=0). Task 3 DoD [x].
+
+### work-loop-v2 Task 4 done — max-cycle policy migration (2026-07-05)
+
+Phase 2 (work-loop-v2), Task 4 of 5 closed (implement=mb-developer sonnet; verify=orchestrator independent
+resolver+install-safety repro; judge=opus GO — test+doc task, no production change). REQ-113.
+
+- **Finding:** code already in place (G3) — mb-workflow.sh:161 resolves on_max_cycles with fallback
+  `stop_for_human`; install.sh/mb-init-bank.sh never write project pipeline.yaml (only mb-pipeline.sh init,
+  which refuses to overwrite an existing file). NO production change needed.
+- **Tests:** `tests/pytest/test_on_max_cycles_migration.py` (7) — absent key→stop_for_human, explicit
+  continue_with_warning→preserved, explicit stop_for_human→preserved, shipped default==stop_for_human,
+  pipeline init refuses overwrite (+ --force), install/init never touch project pipeline.yaml. All green.
+- **CHANGELOG.md:** work-loop-v2 fail-fast migration note (v5 default stop_for_human; existing pipeline.yaml
+  never rewritten; opt back into soft behavior via explicit continue_with_warning).
+- Orchestrator repro'd: absent→stop_for_human live, pipeline init refuse-on-existing. Task 4 DoD [x].
+- **Backlog I-100:** composable execution+--review path returns {} loop (no max-cycle policy) — pre-existing
+  gap the implementer found; presets with explicit loop unaffected.

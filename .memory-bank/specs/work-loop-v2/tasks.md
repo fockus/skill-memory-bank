@@ -56,8 +56,8 @@ Testing: bats stubs stagnant cycles and verifies `pivot_in_role` and `pivot_via_
 Testing: pytest validates default resolution for new configs and backward-compatible handling for existing configs.
 
 **DoD:**
-- [ ] v4 existing `pipeline.yaml` files are not rewritten.
-- [ ] v5 default policy is documented as `stop_for_human`.
+- [x] v4 existing `pipeline.yaml` files are not rewritten.
+- [x] v5 default policy is documented as `stop_for_human`.
 
 <!-- mb-task:5 -->
 ### Task 5: Wire loop docs and changelog
