@@ -33,9 +33,9 @@ Testing: bats verifies SHA stability, TTL cache hits and misses, and help output
 Testing: bats verifies precedence, max-count truncation, and deterministic rotation.
 
 **DoD:**
-- [ ] Bundled common/python/go examples exist.
-- [ ] Project override wins on duplicate `example_id`.
-- [ ] Loader degrades to an empty examples section without crashing.
+- [x] Bundled common/python/go examples exist.
+- [x] Project override wins on duplicate `example_id`.
+- [x] Loader degrades to an empty examples section without crashing.
 
 <!-- mb-task:3 -->
 ### Task 3: Complete stack example baseline

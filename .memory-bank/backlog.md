@@ -562,6 +562,12 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-096 — reviewer-2.0 backlog: cover or remove inert last_verdict_cache_path() (Phase-2 hook, output discarded) [LOW, NEW, 2026-07-05]
 
+
+### I-097 — reviewer-2.0 Task 2 backlog: wire pipeline.yaml:review_examples.max_count/rotation into mb-review.sh render_examples_section (loader currently uses built-in defaults --max 8/hash_run_id; keys not yet in pipeline.yaml) [LOW, NEW, 2026-07-05]
+
+
+### I-098 — reviewer-2.0 backlog: split scripts/mb-review.sh (501 ln > 400 SRP threshold; pre-existing from Task 1, grows on Task 4/5 — extract plan-context/cache-resolution helpers) [MED, NEW, 2026-07-05]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

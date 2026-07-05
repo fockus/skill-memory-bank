@@ -15,9 +15,9 @@
 #   mb-review.sh --help
 #
 # Only --emit-payload is implemented in this reviewer-2.0 stage (payload
-# assembly + cache resolution). Reviewer dispatch, verdict post-validation,
-# and the calibration-examples loader are wired by later reviewer-2.0 tasks
-# on top of this same entry point.
+# assembly + cache resolution + the calibration-examples loader, see
+# scripts/mb-review-examples.sh). Reviewer dispatch/post-validation are
+# wired by later reviewer-2.0 tasks on top of this same entry point.
 #
 # --input <case-dir>  Reads diff/touched-files/prior-test-evidence from a
 #                      calibration case directory instead of git/
@@ -58,9 +58,8 @@
 #   ## Prior evidence (from mb-test-runner)
 #   ## Auto-generated findings (MUST INCLUDE)   -- only when tests_pass==false
 #
-# The calibration-examples section is a documented placeholder in this stage
-# (reviewer-2.0 Task 2 wires the layered `references/rubric-examples/` +
-# `.memory-bank/rubric-examples/` loader here) — a clean, single-function seam.
+# The calibration-examples section is rendered by the layered loader in
+# scripts/mb-review-examples.sh (design.md §4) via render_examples_section().
 #
 # Exit codes:
 #   0  success (payload printed to stdout)
@@ -76,6 +75,7 @@ CACHE_SH="$SCRIPT_DIR/mb-review-cache.sh"
 WORK_DIFF_SH="$SCRIPT_DIR/mb-work-diff.sh"
 WORK_RESOLVE_SH="$SCRIPT_DIR/mb-work-resolve.sh"
 PIPELINE_SH="$SCRIPT_DIR/mb-pipeline.sh"
+EXAMPLES_SH="${MB_REVIEW_EXAMPLES_SH:-$SCRIPT_DIR/mb-review-examples.sh}"
 
 usage_short() {
   echo "Usage: mb-review.sh --emit-payload [--input <case-dir>] [--mb <path>] [--plan <path>] [--item <N>] [--run-id <id>] [--refresh-tests] [--ttl <seconds>]" >&2
@@ -176,14 +176,17 @@ render_diff_section() {
   fi
 }
 
-# Seam for reviewer-2.0 Task 2/3 — the layered rubric-examples loader
-# (references/rubric-examples/ + .memory-bank/rubric-examples/) replaces this
-# function body with real, rotation-selected examples. Task 1 only reserves
-# the section and its exact heading text.
+# Delegates to the layered rubric-examples loader (design.md §4); $BANK/
+# $RUN_ID come from the "gather sections" block below. Fail-safe like the
+# other delegates here: a loader/python3 failure degrades to an empty section.
 render_examples_section() {
-  echo "## Calibration examples (reference patterns — not part of current diff)"
-  echo
-  echo "(calibration examples loader not wired yet -- see reviewer-2.0 Task 2)"
+  local out
+  out=$(bash "$EXAMPLES_SH" render --mb "$BANK" --run-id "$RUN_ID" 2>/dev/null) || out=""
+  if [ -n "$out" ]; then
+    printf '%s\n' "$out"
+  else
+    printf '## Calibration examples (reference patterns — not part of current diff)\n\n(examples loader unavailable)\n'
+  fi
 }
 
 # Renders "## Prior evidence" (always) and, only when the resolved evidence

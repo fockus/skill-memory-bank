@@ -2645,3 +2645,26 @@ Phase 1 (reviewer-2.0), Task 1 of 6 closed via governed cycle
   I-096 (cover-or-remove inert last_verdict_cache_path Phase-2 hook). Renumbered from a
   transient I-094/I-095 mint that collided with the DONE parallel-runs I-094 — monotonic invariant restored.
 - Task 1 DoD checkboxes (`specs/reviewer-2.0/tasks.md`) all `[x]`.
+
+### reviewer-2.0 Task 2 done — layered rubric-example loader (2026-07-05)
+
+Phase 1 (reviewer-2.0), Task 2 of 6 closed via governed cycle
+(implement=sonnet → verify=plan-verifier ∥ review=codex gpt-5.5 → judge=opus) + 2 fix-cycles.
+
+- **New:** `scripts/mb-review-examples.sh` (400 ln) — layered calibration-example loader.
+  Precedence (highest wins on example_id): project `.memory-bank/rubric-examples/<stack>.md` >
+  project `common.md` > skill `references/rubric-examples/<stack>.md` > skill `common.md`;
+  stack from `rules-profile.json:stack`. Fence-aware block/heading parser, per-category
+  selection (≥1 per category, stack-specific preferred), rotation hash_run_id|none,
+  only `### Bad`+verdict fragment injected (Good excluded), degrade-to-empty on no files.
+  `mb-review.sh:render_examples_section()` delegates fail-safe (`|| out=""`).
+- **Bundled examples:** `references/rubric-examples/{common,python,go}.md` (5 categories spread).
+- **Tests:** `test_mb_review_examples.bats` 21/21 + `test_mb_review.bats` 10/10 green, shellcheck clean.
+- **Governed loop:** codex CHANGES_REQUESTED (5 major+1 minor) → NO_GO → fix-cycle 1 (fence-`---`
+  split, duplicate-heading Good-leak, `--stack` path-traversal, unguarded delegate, unclosed-block)
+  → independent codex re-review: 3/5 fixed, symlink-escape STILL-OPEN (same exfil class) + 3 minors
+  → NO_GO → fix-cycle 2 (realpath+commonpath containment, STACK_RE fullmatch, --max>=1, EOF id
+  recovery) → orchestrator (opus) independently repro'd symlink-block + path-traversal-block + green
+  tests → GO. RUN_ID cf954a54..., 2 fix-cycles (max_cycles ceiling, judge-terminated).
+- **Backlog:** I-097 (wire pipeline.yaml:review_examples.max_count/rotation), I-098 (split mb-review.sh
+  501 ln > 400 SRP). Task 2 DoD checkboxes all [x].
