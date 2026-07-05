@@ -25,6 +25,7 @@ PROJECT_ROOT="$(cd "$PROJECT_ROOT_RAW" && pwd)"
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OC_DIR="$PROJECT_ROOT/.opencode"
 COMMANDS_DIR="$OC_DIR/commands"
+AGENT_DIR="$OC_DIR/agent"
 PLUGIN_DIR="$OC_DIR/plugins"
 PLUGIN_FILE="$PLUGIN_DIR/memory-bank.js"
 PLUGIN_REF="./.opencode/plugins/memory-bank.js"
@@ -168,10 +169,30 @@ uninstall_opencode_json() {
   _opencode_strip_plugin_ref
 }
 
+# ═══ Agents (.opencode/agent/*.md) ═══
+# OpenCode natively discovers dispatchable subagents from .opencode/agent/*.md
+# (same contract as Claude's ~/.claude/agents/). Partials — prepended by
+# `/mb work` into a dispatchable agent's own prompt, never dispatched on their
+# own (frontmatter `partial: true`, e.g. mb-engineering-core/mb-tooling-core)
+# — are excluded, matching install.sh's global agents registry filter.
+_opencode_agent_is_partial() {
+  head -5 "$1" 2>/dev/null | grep -qiE '^partial:[[:space:]]*true[[:space:]]*$'
+}
+
+# Back up a pre-existing user agent file ONCE before we overwrite it (never
+# clobber without a recoverable copy — same convention as opencode.json/
+# codex config.toml backups).
+_opencode_backup_agent_once() {
+  local f="$1" b
+  [ -f "$f" ] || return 0
+  for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
+  cp "$f" "$f.pre-mb-backup.$(date +%s).$$" 2>/dev/null || true
+}
+
 # ═══ Install ═══
 install_opencode() {
   adapter_require_jq "opencode-adapter" || exit 1
-  mkdir -p "$PLUGIN_DIR" "$COMMANDS_DIR"
+  mkdir -p "$PLUGIN_DIR" "$COMMANDS_DIR" "$AGENT_DIR"
 
   local owned
   owned=$(agents_md_install "$PROJECT_ROOT" "opencode" "$SKILL_DIR")
@@ -184,6 +205,13 @@ install_opencode() {
     cp "$f" "$COMMANDS_DIR/$(basename "$f")"
   done
 
+  for f in "$SKILL_DIR"/agents/*.md; do
+    [ -f "$f" ] || continue
+    _opencode_agent_is_partial "$f" && continue
+    _opencode_backup_agent_once "$AGENT_DIR/$(basename "$f")"
+    cp "$f" "$AGENT_DIR/$(basename "$f")"
+  done
+
   local files_json
   files_json=$(
     {
@@ -191,6 +219,11 @@ install_opencode() {
       for f in "$SKILL_DIR"/commands/*.md; do
         [ -f "$f" ] || continue
         printf '%s\n' "$COMMANDS_DIR/$(basename "$f")"
+      done
+      for f in "$SKILL_DIR"/agents/*.md; do
+        [ -f "$f" ] || continue
+        _opencode_agent_is_partial "$f" && continue
+        printf '%s\n' "$AGENT_DIR/$(basename "$f")"
       done
     } | adapter_json_array_from_lines
   )
@@ -228,6 +261,7 @@ uninstall_opencode() {
   # 5. Clean empty dirs
   rmdir "$PLUGIN_DIR" 2>/dev/null || true
   rmdir "$COMMANDS_DIR" 2>/dev/null || true
+  rmdir "$AGENT_DIR" 2>/dev/null || true
   rmdir "$OC_DIR" 2>/dev/null || true
 
   echo "[opencode-adapter] uninstalled from $PROJECT_ROOT"

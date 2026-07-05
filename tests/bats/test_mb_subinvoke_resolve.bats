@@ -6,8 +6,9 @@
 #   - Resolves the per-agent shell sub-invoke command TEMPLATE for the active
 #     agent. Active agent = $MB_AGENT (or `--agent <name>`); default fallback is
 #     claude-code (the codebase-wide default, e.g. ${MB_AGENT:-claude-code}).
-#   - Built-in table for `codex` and `claude-code` (Task 12 scope). Pi/OpenCode
-#     are Task 13 and MUST remain unresolved here (clean extension point).
+#   - Built-in table for `codex`, `claude-code`, `pi`, and `opencode` (Task 12 +
+#     B7/CDX-2). A genuinely unknown agent name still fails loud (below) — see
+#     tests/bats/test_subinvoke_resolve.bats for the dedicated pi/opencode suite.
 #   - An explicit operator override (MB_SUBINVOKE_CMD) WINS over the table, so a
 #     baked env / `mb-fanout --cmd` stays authoritative.
 #   - The resolved template carries the prompt ONLY via $MB_FANOUT_PROMPT — never
@@ -151,19 +152,22 @@ setup() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "subinvoke-resolve: unknown agent, no override → non-zero + stderr WARN naming the missing sub-invoke" {
-  run bash "$RESOLVE" --agent pi
+  run bash "$RESOLVE" --agent totally-unsupported-agent
   [ "$status" -ne 0 ]
   [[ "$output" == *"WARN"* ]]
-  [[ "$output" == *"pi"* ]]
+  [[ "$output" == *"totally-unsupported-agent"* ]]
   # Never silently emit a usable template for an unsupported agent.
   [[ "$output" != *"codex exec"* ]]
   [[ "$output" != *"claude -p"* ]]
 }
 
-@test "subinvoke-resolve: opencode (Task 13 scope) is NOT resolvable here → non-zero" {
+# B7/CDX-2 regression guard: pi/opencode used to hit the fail-loud arm above
+# (Task 13 gap) — they are now resolvable builtin-table entries. Dedicated
+# coverage lives in tests/bats/test_subinvoke_resolve.bats.
+@test "subinvoke-resolve: opencode IS resolvable now (builtin table, B7/CDX-2 closed the old Task-13 gap)" {
   run bash "$RESOLVE" --agent opencode
-  [ "$status" -ne 0 ]
-  [[ "$output" == *"WARN"* ]]
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"opencode run"* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════

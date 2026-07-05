@@ -21,6 +21,11 @@ CLAUDE_SKILL_ALIAS="$CLAUDE_DIR/skills/memory-bank"
 CODEX_SKILL_ALIAS="$CODEX_DIR/skills/memory-bank"
 CURSOR_SKILL_ALIAS="$CURSOR_DIR/skills/memory-bank"
 PI_SKILL_ALIAS="$PI_AGENT_DIR/skills/memory-bank"
+# OpenCode's own skill-root alias (B6/A-1): guarantees `/mb` commands resolve
+# a skill root even on a machine with no Claude Code tree at all — commands
+# read `${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}` (commands/mb.md),
+# and a host wrapper can point MB_SKILLS_ROOT at this alias instead.
+OPENCODE_SKILL_ALIAS="$OPENCODE_DIR/skills/memory-bank"
 MANIFEST="${MB_MANIFEST_PATH:-$SOURCE_SKILL_DIR/.installed-manifest.json}"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
@@ -541,7 +546,8 @@ resolve_dir() {
 }
 
 ensure_skill_aliases() {
-  mkdir -p "$CLAUDE_DIR/skills" "$CODEX_DIR/skills" "$CURSOR_DIR/skills" "$PI_AGENT_DIR/skills"
+  mkdir -p "$CLAUDE_DIR/skills" "$CODEX_DIR/skills" "$CURSOR_DIR/skills" "$PI_AGENT_DIR/skills" \
+    "$OPENCODE_DIR/skills"
 
   local source_real canonical_real
   source_real="$(resolve_dir "$SOURCE_SKILL_DIR")"
@@ -562,7 +568,8 @@ ensure_skill_aliases() {
   install_symlink "$CANONICAL_SKILL_DIR" "$CODEX_SKILL_ALIAS"
   install_symlink "$CANONICAL_SKILL_DIR" "$CURSOR_SKILL_ALIAS"
   install_symlink "$CANONICAL_SKILL_DIR" "$PI_SKILL_ALIAS"
-  echo -e "  ${GREEN}✓${NC} Claude/Codex/Cursor/Pi skill aliases"
+  install_symlink "$CANONICAL_SKILL_DIR" "$OPENCODE_SKILL_ALIAS"
+  echo -e "  ${GREEN}✓${NC} Claude/Codex/Cursor/Pi/OpenCode skill aliases"
 }
 
 install_opencode_global_agents() {
@@ -926,6 +933,9 @@ for f in "$SOURCE_SKILL_DIR"/commands/*.md; do
   install_file "$f" "$CLAUDE_DIR/commands/$(basename "$f")"
   install_file "$f" "$OPENCODE_DIR/commands/$(basename "$f")"
   install_file "$f" "$PI_AGENT_DIR/prompts/$(basename "$f")"
+  # Codex CLI reads slash-commands from ~/.codex/prompts/ (unknown frontmatter
+  # fields are ignored by Codex, so the same source file is reused as-is).
+  install_file "$f" "$CODEX_DIR/prompts/$(basename "$f")"
 done
 echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/commands" '*.md') commands/prompts"
 

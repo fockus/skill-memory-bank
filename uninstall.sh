@@ -141,10 +141,12 @@ fi
 rm -f "$MANIFEST"
 rmdir "$CLAUDE_DIR/skills" 2>/dev/null || true
 rmdir "$CODEX_DIR/skills" 2>/dev/null || true
+rmdir "$CODEX_DIR/prompts" 2>/dev/null || true
 rmdir "$CURSOR_DIR/skills" 2>/dev/null || true
 rmdir "$CURSOR_DIR/hooks" 2>/dev/null || true
 rmdir "$CURSOR_DIR/commands" 2>/dev/null || true
 rmdir "$OPENCODE_DIR/commands" 2>/dev/null || true
+rmdir "$OPENCODE_DIR/skills" 2>/dev/null || true
 rmdir "$PI_AGENT_DIR/prompts" 2>/dev/null || true
 rmdir "$PI_AGENT_DIR/skills" 2>/dev/null || true
 rmdir "$PI_AGENT_DIR/.memory-bank-backups" 2>/dev/null || true

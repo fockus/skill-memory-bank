@@ -486,3 +486,65 @@ PY
   [ "$status" -eq 0 ]
   [[ "$output" == *"hi-there"* ]]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# B2 (F-1): Codex gets /mb as prompts (~/.codex/prompts/) — global install.sh
+# commands-loop must also deliver commands/*.md there, same as it already does
+# for Claude/OpenCode/Pi. Full-install sandbox (LESSON L64 pattern): a tmp copy
+# of the repo (manifest writes land in the copy, not the tracked repo) + a
+# sandboxed $HOME (all client dirs are HOME-derived in install.sh).
+# ═══════════════════════════════════════════════════════════════
+
+setup_codex_prompts_sandbox() {
+  command -v rsync >/dev/null || skip "rsync required"
+  FAKE_HOME="$(mktemp -d)"
+  INSTALL_PROJECT="$(mktemp -d)"
+  SKILL_SRC="$(mktemp -d)/skill"
+  mkdir -p "$SKILL_SRC"
+  rsync -a \
+    --exclude='.git' \
+    --exclude='*.pre-mb-backup.*' \
+    --exclude='.index' \
+    --exclude='node_modules' \
+    "$REPO_ROOT/" "$SKILL_SRC/"
+}
+
+teardown_codex_prompts_sandbox() {
+  [ -n "${FAKE_HOME:-}" ] && [ -d "$FAKE_HOME" ] && rm -rf "$FAKE_HOME"
+  [ -n "${INSTALL_PROJECT:-}" ] && [ -d "$INSTALL_PROJECT" ] && rm -rf "$INSTALL_PROJECT"
+  [ -n "${SKILL_SRC:-}" ] && rm -rf "$(dirname "$SKILL_SRC")"
+}
+
+@test "codex: global install.sh delivers commands/*.md to ~/.codex/prompts/" {
+  setup_codex_prompts_sandbox
+  local raw status_
+  raw=$(HOME="$FAKE_HOME" MB_SKIP_DEPS_CHECK=1 \
+        bash "$SKILL_SRC/install.sh" --clients claude-code \
+        --project-root "$INSTALL_PROJECT" --non-interactive \
+        </dev/null 2>&1; printf '\n__EXIT__%s' "$?")
+  status_="${raw##*__EXIT__}"
+  [ "$status_" -eq 0 ]
+  local prompts_dir="$FAKE_HOME/.codex/prompts"
+  [ -f "$prompts_dir/mb.md" ]
+  # At least one dispatcher-style command besides mb.md itself is present.
+  local n
+  n=$(find "$prompts_dir" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+  [ "$n" -ge 2 ]
+  # Generated FROM commands/ (content-identical to the source, not a stub).
+  cmp -s "$SKILL_SRC/commands/mb.md" "$prompts_dir/mb.md"
+  teardown_codex_prompts_sandbox
+}
+
+@test "codex: ~/.codex/prompts/*.md installed by install.sh are registered in the manifest (uninstall removes them)" {
+  setup_codex_prompts_sandbox
+  HOME="$FAKE_HOME" MB_SKIP_DEPS_CHECK=1 \
+    bash "$SKILL_SRC/install.sh" --clients claude-code \
+    --project-root "$INSTALL_PROJECT" --non-interactive \
+    </dev/null >/dev/null 2>&1
+  [ -f "$SKILL_SRC/.installed-manifest.json" ]
+  jq -e --arg p "$FAKE_HOME/.codex/prompts/mb.md" \
+    '.files | index($p) != null' "$SKILL_SRC/.installed-manifest.json" >/dev/null
+  HOME="$FAKE_HOME" bash "$SKILL_SRC/uninstall.sh" --non-interactive >/dev/null 2>&1
+  [ ! -f "$FAKE_HOME/.codex/prompts/mb.md" ]
+  teardown_codex_prompts_sandbox
+}

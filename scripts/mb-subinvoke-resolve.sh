@@ -20,9 +20,9 @@
 # Usage:
 #   mb-subinvoke-resolve.sh [--agent <name>] [-h|--help]
 #
-#   --agent <name>  : the active agent (claude-code | codex; Task 13 adds
-#                     pi/opencode). Default: $MB_AGENT, else claude-code (the
-#                     codebase-wide default, mirroring ${MB_AGENT:-claude-code}).
+#   --agent <name>  : the active agent (claude-code | codex | pi | opencode).
+#                     Default: $MB_AGENT, else claude-code (the codebase-wide
+#                     default, mirroring ${MB_AGENT:-claude-code}).
 #
 # Resolution order (first hit wins):
 #   1. MB_SUBINVOKE_CMD env override — an operator/baked template ALWAYS wins, so
@@ -35,11 +35,16 @@
 #                        claude -p "$MB_FANOUT_PROMPT" --model \
 #                        "${MB_SUBINVOKE_MODEL:-sonnet}" --strict-mcp-config \
 #                        --no-session-persistence --no-chrome  (anti-recursion env)
+#        pi          → pi -p --no-session --model \
+#                        "${MB_SUBINVOKE_MODEL:-openai-codex/gpt-5.5}" \
+#                        "$MB_FANOUT_PROMPT"
+#        opencode    → opencode run --model \
+#                        "${MB_SUBINVOKE_MODEL:-opencode/gpt-5.2}" "$MB_FANOUT_PROMPT"
 #   3. No override and no table hit → exit non-zero with a stderr WARN naming the
 #      missing sub-invoke (REQ-DF-052 fail-loud: never silently fall to serial).
 #
-# Extension point (Task 13): add `pi` / `opencode` arms to the `case` below. They
-# are INTENTIONALLY absent here so an unsupported agent fails loud in Task 12.
+# All four supported agents (claude-code, codex, pi, opencode) have a builtin
+# table entry; a genuinely unsupported/unknown --agent still fails loud (above).
 #
 # Output: the resolved command template on stdout; exit 0 on success.
 #
@@ -138,6 +143,27 @@ case "$AGENT" in
     # expanded later by mb-fanout's `bash -c` with the prompt in the env, never
     # spliced in here. Only the trusted model (%s) is interpolated.
     printf 'env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 claude -p "$MB_FANOUT_PROMPT" --model "%s" --strict-mcp-config --no-session-persistence --no-chrome\n' "$SUB_MODEL"
+    exit 0
+    ;;
+  pi)
+    # Pi headless (`pi -p --no-session`) sub-invoke (B7/CDX-2). `--no-session`
+    # keeps a fan-out branch from persisting/resuming a shared Pi session. The
+    # model defaults to a provider/id form Pi accepts verbatim when unset.
+    [ -n "$SUB_MODEL" ] || SUB_MODEL="openai-codex/gpt-5.5"
+    # shellcheck disable=SC2016  # $MB_FANOUT_PROMPT MUST stay literal — the seam:
+    # it is expanded later by mb-fanout's `bash -c` with the prompt in the env,
+    # never spliced in here. Only the trusted model (%s) is interpolated.
+    printf 'pi -p --no-session --model "%s" "$MB_FANOUT_PROMPT"\n' "$SUB_MODEL"
+    exit 0
+    ;;
+  opencode)
+    # OpenCode headless (`opencode run`) sub-invoke (B7/CDX-2). The model
+    # defaults to an opencode/id form when unset.
+    [ -n "$SUB_MODEL" ] || SUB_MODEL="opencode/gpt-5.2"
+    # shellcheck disable=SC2016  # $MB_FANOUT_PROMPT MUST stay literal — the seam:
+    # it is expanded later by mb-fanout's `bash -c` with the prompt in the env,
+    # never spliced in here. Only the trusted model (%s) is interpolated.
+    printf 'opencode run --model "%s" "$MB_FANOUT_PROMPT"\n' "$SUB_MODEL"
     exit 0
     ;;
   *)

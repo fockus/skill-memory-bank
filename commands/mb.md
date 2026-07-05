@@ -176,7 +176,7 @@ Agent(
   subagent_type="general-purpose",
   model="sonnet",
   description="mb-research: <query>",
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-research.md>
+  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-research.md>
 
 Question: <the remainder of $ARGUMENTS after `research`>
 
@@ -203,7 +203,7 @@ Show the agent's findings (with their citations) to the user.
 **Soft v1-layout detection.** Before invoking the subagent for `context` (or `(empty)`), run the v1-layout probe from `commands/start.md` (Pre-flight section). If v1 files are found without v2 counterparts, surface a one-line warning to the user:
 
 ```
-WARN: v1 Memory Bank layout detected. Run `bash ~/.claude/skills/memory-bank/scripts/mb-migrate-v2.sh --dry-run` to preview the rename, then `--apply`. Context can still be assembled from v1 names during the 2-version backward-compat window.
+WARN: v1 Memory Bank layout detected. Run `bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-migrate-v2.sh --dry-run` to preview the rename, then `--apply`. Context can still be assembled from v1 names during the 2-version backward-compat window.
 ```
 
 Continue with context loading (do not hard-stop — the scripts fall back to v1 names while the window is open). For `search`, `note`, and `tasks` the warning is optional; the subagent itself handles v1 files.
@@ -215,7 +215,7 @@ Agent(
   subagent_type="general-purpose",
   model="sonnet",
   description="MB Manager: <action>",
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-manager.md>
+  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-manager.md>
 
 action: <action>
 
@@ -246,10 +246,10 @@ Unlike `done`, **update** does not create a note and does not require a session 
 #   src_count=<N>
 # For an unknown stack it returns empty values with a warning on stderr (does not fail).
 # Override via .memory-bank/metrics.sh if you need custom metrics.
-bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-metrics.sh
 
 # Optional — run tests and capture status:
-bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh --run
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-metrics.sh --run
 
 # Git context
 git log --oneline -5
@@ -260,7 +260,7 @@ git diff --stat HEAD~3 2>/dev/null | tail -5
 
 ```
 Agent(
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-manager.md>
+  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-manager.md>
 
 action: actualize
 
@@ -289,8 +289,8 @@ Diagnose and fix inconsistencies INSIDE Memory Bank.
 **Session-memory checks** run first, before the subagent. Run `mb-session-doctor.sh` if it exists (implemented in Stage 2):
 
 ```bash
-if [ -x ~/.claude/skills/memory-bank/scripts/mb-session-doctor.sh ]; then
-  bash ~/.claude/skills/memory-bank/scripts/mb-session-doctor.sh "$PWD"
+if [ -x ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-session-doctor.sh ]; then
+  bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-session-doctor.sh "$PWD"
 fi
 ```
 
@@ -309,7 +309,7 @@ Run the MB Doctor subagent:
 
 ```
 Agent(
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-doctor.md>
+  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-doctor.md>
 
 action: doctor
 
@@ -333,7 +333,7 @@ Show the report to the user: what was found, what was fixed, and what still need
 Quick operation, no subagent:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-index.sh
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-index.sh
 ```
 
 Show the result to the user.
@@ -494,11 +494,11 @@ Agent(
   subagent_type="general-purpose",
   model="sonnet",
   description="Plan Verifier: plan verification",
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-tooling-core.md>
+  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-tooling-core.md>
 
 ---
 
-<contents of ~/.claude/skills/memory-bank/agents/plan-verifier.md>
+<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/plan-verifier.md>
 
 Plan file: <path to plan>
 
@@ -528,7 +528,7 @@ Run the MB Codebase Mapper subagent:
 
 ```
 Agent(
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-codebase-mapper.md>
+  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-codebase-mapper.md>
 
 focus: <stack|arch|quality|concerns|all>
 
@@ -560,7 +560,7 @@ Flags (the first word after `upgrade`):
 Run directly (no subagent — this is a systems-level operation, no LLM needed):
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-upgrade.sh $ARGS_AFTER_UPGRADE
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-upgrade.sh $ARGS_AFTER_UPGRADE
 ```
 
 The script:
@@ -622,7 +622,7 @@ Status-based archival decay. Cleans up old completed plans and unused low-import
 Run directly (systems-level, no LLM needed for the decision logic — it is deterministic):
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-compact.sh $ARGS_AFTER_COMPACT
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-compact.sh $ARGS_AFTER_COMPACT
 ```
 
 **Searching the archive:** default `mb-search` does NOT include archived items. Opt in via `mb-search.sh --include-archived <query>` or `--include-archived --tag <tag>`.
@@ -677,7 +677,7 @@ Bootstrap Memory Bank from Claude Code JSONL transcripts. Cold-start in seconds 
 Run directly:
 
 ```bash
-python3 ~/.claude/skills/memory-bank/scripts/mb-import.py $ARGS_AFTER_IMPORT
+python3 ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-import.py $ARGS_AFTER_IMPORT
 ```
 
 **Typical cold-start flow:**
@@ -738,7 +738,7 @@ Extraction engines live in the `memory_bank_skill` package: `codegraph_python` (
 Run directly:
 
 ```bash
-python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py $ARGS_AFTER_GRAPH
+python3 ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-codegraph.py $ARGS_AFTER_GRAPH
 ```
 
 **Typical flow:**
@@ -867,7 +867,7 @@ deps_optional_missing=2
 Run directly:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-deps-check.sh $ARGS_AFTER_DEPS
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-deps-check.sh $ARGS_AFTER_DEPS
 ```
 
 **Typical first-install flow:**
@@ -889,7 +889,7 @@ User: brew install jq && bash install.sh
 
 ### help [subcommand]
 
-Help for `/mb` subcommands. Single source of truth — reads `~/.claude/skills/memory-bank/commands/mb.md` directly.
+Help for `/mb` subcommands. Single source of truth — reads `${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/commands/mb.md` directly.
 
 **Modes (first word after `help`):**
 
@@ -899,7 +899,7 @@ Help for `/mb` subcommands. Single source of truth — reads `~/.claude/skills/m
 **Algorithm for the agent:**
 
 ```bash
-SKILL_MD="$HOME/.claude/skills/memory-bank/commands/mb.md"
+SKILL_MD="${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/commands/mb.md"
 SUB="$SUBCOMMAND_ARG"  # first word after "help"; may be empty
 
 SKILL_MD="$SKILL_MD" SUB="$SUB" python3 - <<'PY'
@@ -1017,7 +1017,7 @@ The agent should invoke `scripts/mb-init-bank.sh --lang=<resolved> --storage=<re
 mkdir -p .memory-bank/{experiments,plans/done,notes,reports,codebase}
 ```
 
-Core files (templates — `~/.claude/skills/memory-bank/references/templates.md`):
+Core files (templates — `${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/references/templates.md`):
 
 - `status.md` — project header, "Current phase: Start"
 - `roadmap.md` — "Current focus: define", `## Active plan` section with markers `<!-- mb-active-plan -->` / `<!-- /mb-active-plan -->` (for auto-sync)
@@ -1060,7 +1060,7 @@ cp ~/.claude/RULES.md .memory-bank/RULES.md
 Run `mb-metrics.sh` to detect the stack, then enrich it with more detailed information:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-metrics.sh
 # → stack, test_cmd, lint_cmd, src_count
 ```
 
@@ -1077,7 +1077,7 @@ Store the results: `{LANGUAGE}`, `{FRAMEWORK}`, `{STRUCTURE}`, `{TOOLS}`.
 
 #### Step 4: Generate `CLAUDE.md` (`--full` only)
 
-Use the template from `~/.claude/skills/memory-bank/references/claude-md-template.md`. Fill in `{LANGUAGE}`, `{FRAMEWORK}`, `{TOOLS}`, project structure, and key dependencies.
+Use the template from `${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/references/claude-md-template.md`. Fill in `{LANGUAGE}`, `{FRAMEWORK}`, `{TOOLS}`, project structure, and key dependencies.
 
 Required sections in generated `CLAUDE.md`:
 
@@ -1322,7 +1322,7 @@ Capture a new idea in `backlog.md ## Ideas` with an auto-generated monotonic `I-
 Run directly (systems-level, no LLM needed):
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-idea.sh "<title>" [HIGH|MED|LOW]
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-idea.sh "<title>" [HIGH|MED|LOW]
 ```
 
 **Typical flow:**
@@ -1360,7 +1360,7 @@ Promote an existing idea into an active plan.
 Run directly:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-idea-promote.sh <I-NNN> <type>
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-idea-promote.sh <I-NNN> <type>
 ```
 
 **Typical flow:**
@@ -1393,7 +1393,7 @@ Capture an Architecture Decision Record (ADR) inside `backlog.md ## ADR`.
 Run directly:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-adr.sh "<title>"
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-adr.sh "<title>"
 ```
 
 **Typical flow:**
@@ -1484,7 +1484,7 @@ One-shot migrator for the v3.0 → v3.1 Memory Bank file structure. Safe to run 
 Run directly:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-migrate-structure.sh $ARGS_AFTER_MIGRATE
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-migrate-structure.sh $ARGS_AFTER_MIGRATE
 ```
 
 **Typical flow:**

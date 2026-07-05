@@ -264,3 +264,50 @@ EOF
   m=$(stat -f '%Lp' "$PROJECT/opencode.json" 2>/dev/null || stat -c '%a' "$PROJECT/opencode.json" 2>/dev/null)
   [ "$m" = "664" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# B3 (F-3): OpenCode natively supports .opencode/agent/*.md — dispatchable
+# skill role-agents (agents/*.md, partials excluded) must land there so
+# OpenCode users get the same subagents Claude Code does.
+# ═══════════════════════════════════════════════════════════════
+
+@test "opencode: install copies dispatchable agents to .opencode/agent/, excludes partials" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local agent_dir="$PROJECT/.opencode/agent"
+  [ -f "$agent_dir/mb-developer.md" ]
+  [ -f "$agent_dir/mb-backend.md" ]
+  [ -f "$agent_dir/mb-reviewer.md" ]
+  # Partials (prepended by /mb work, never dispatched standalone) must be excluded.
+  [ ! -f "$agent_dir/mb-engineering-core.md" ]
+  [ ! -f "$agent_dir/mb-tooling-core.md" ]
+  # At least 5 dispatchable agents installed (DoD: "≥5 others").
+  local n
+  n=$(find "$agent_dir" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+  [ "$n" -ge 6 ]
+  # Content is copied as-is from the skill's agents/ (no rewriting).
+  cmp -s "$REPO_ROOT/agents/mb-developer.md" "$agent_dir/mb-developer.md"
+}
+
+@test "opencode: agents are registered in the manifest (uninstall removes them)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local m="$PROJECT/.opencode/.mb-manifest.json"
+  jq -e --arg p "$PROJECT/.opencode/agent/mb-developer.md" \
+    '.files | index($p) != null' "$m" >/dev/null
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ ! -f "$PROJECT/.opencode/agent/mb-developer.md" ]
+  [ ! -d "$PROJECT/.opencode/agent" ]
+}
+
+@test "opencode: install preserves an existing user agent file with the same name (backup)" {
+  mkdir -p "$PROJECT/.opencode/agent"
+  echo "# my custom developer agent" > "$PROJECT/.opencode/agent/mb-developer.md"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local bk
+  bk=$(ls "$PROJECT/.opencode/agent/mb-developer.md".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  grep -q "my custom developer agent" "$bk"
+}
