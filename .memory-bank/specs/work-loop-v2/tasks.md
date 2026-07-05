@@ -20,8 +20,8 @@ Executable task list for traceability. Detailed implementation steps remain in t
 Testing: bats verifies improving, stagnant, and regressing verdict histories.
 
 **DoD:**
-- [ ] Trend helper emits `improving`, `stagnant`, or `regressing`.
-- [ ] Previous verdict cache is keyed by plan and stage.
+- [x] Trend helper emits `improving`, `stagnant`, or `regressing`.
+- [x] Previous verdict cache is keyed by plan and stage.
 
 <!-- mb-task:2 -->
 ### Task 2: Contract phase script and reviewer contract mode

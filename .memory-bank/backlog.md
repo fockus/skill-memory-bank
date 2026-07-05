@@ -568,6 +568,8 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-098 — reviewer-2.0 backlog: split scripts/mb-review.sh (501 ln > 400 SRP threshold; pre-existing from Task 1, grows on Task 4/5 — extract plan-context/cache-resolution helpers) [MED, NEW, 2026-07-05]
 
+### I-099 — work-loop-v2/reviewer-2.0: reconcile cache key — mb-review.sh last_verdict_cache_path() uses mb_sanitize_topic(item) but mb-work-trend.sh uses sha256(plan+stage+item); wire mb-review.sh to call `mb-work-trend.sh key` so the last-verdict cache doesn't diverge when progress_trend goes live (extends I-096) [MED, NEW, 2026-07-05]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

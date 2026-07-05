@@ -2746,3 +2746,18 @@ agents/mb-reviewer.md) + tests/calibration/ golden suite. Governed cycle through
 gpt-5.5, judge=opus); cross-model review caught 2 real security issues (path-traversal + symlink exfil, Task 2) and a
 strict-mode count-lie bypass (Task 5) that internal review missed. Backlog: I-095/I-096/I-097/I-098.
 Next: Phase 2 (work-loop-v2 — extends mb-review.sh with progress_trend).
+
+### work-loop-v2 Task 1 done — trend calculator + verdict cache (2026-07-05)
+
+Phase 2 (work-loop-v2), Task 1 of 5 closed (implement=mb-developer sonnet; verify=orchestrator independent
+repro of all trend transitions; judge=opus GO — pure leaf calculator, codex round waived). REQ-111 + REQ-114.
+
+- **New:** `scripts/mb-work-trend.sh` (247 ln) — `key` (sha256 of plan+stage+item) + `compute`
+  (weighted_score = 10*blocker+3*major+1*minor; improving <prev / stagnant |Δ|<=1 & cur>0 / regressing >prev /
+  null first-cycle; 0/0 converged → null). Cache at `<bank>/tmp/last-verdict-<item-key>.json`, overwrite each cycle, fail-safe.
+- **TDD caught a real bug:** stagnant-vs-regressing tie-break for Δ=1 up (3→4 must be stagnant, not regressing) —
+  checked stagnant before regressing per design §5 list order. 24/24 bats green, shellcheck clean.
+- Orchestrator independently repro'd null→improving→stagnant→regressing→stagnant(tie) transitions.
+- **Backlog I-099:** mb-review.sh inert last_verdict_cache_path() uses mb_sanitize_topic(item), mb-work-trend.sh
+  uses sha256(plan+stage+item) — must reconcile (wire mb-review.sh to `mb-work-trend.sh key`) before progress_trend
+  goes live or the caches diverge. Extends I-096. Task 1 DoD [x].
