@@ -85,7 +85,13 @@ suite that detects reviewer verdict drift (REQ-104) · default severity-gate beh
 **DoD:** `mb-review.sh` exists (payload assembly + `progress_trend` hook point for Phase 2); calibration examples layered;
 failing touched-file tests force an undroppable blocker; calibration suite runs; existing review tests stay green. TDD-first.
 
-## Phase 2 — work-loop-v2 (S2, the smart cycle)  ·  spec: `specs/work-loop-v2` (Tasks 1–5)
+## Phase 2 — work-loop-v2 (S2, the smart cycle)  ·  spec: `specs/work-loop-v2` (Tasks 1–5)  ·  ✅ DONE 2026-07-05
+
+**Status: COMPLETE (5/5 tasks, commits ea3a3ab·a39d4a2·930c0ec·b419eee·86240f7).** Deliverables: `mb-work-trend.sh`
+(progress_trend) + `mb-work-contract.sh` + `templates/contract.md` + reviewer contract mode + `mb-work-pivot.sh`
+(pivot routes + telemetry) + on_max_cycles fail-fast migration + `commands/work.md` wiring. Backlog: I-099
+(cache-key reconcile), I-100 (composable loop empty). Caveat: `require_contract` has no shipped default key yet.
+
 
 Builds on Phase 1's reviewer. **G3 (fail-fast default) already shipped** (`on_max_cycles: stop_for_human` in
 `pipeline.default.yaml`) — this phase delivers **G1 + G2**:
