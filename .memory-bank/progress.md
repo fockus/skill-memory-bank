@@ -2668,3 +2668,17 @@ Phase 1 (reviewer-2.0), Task 2 of 6 closed via governed cycle
   tests → GO. RUN_ID cf954a54..., 2 fix-cycles (max_cycles ceiling, judge-terminated).
 - **Backlog:** I-097 (wire pipeline.yaml:review_examples.max_count/rotation), I-098 (split mb-review.sh
   501 ln > 400 SRP). Task 2 DoD checkboxes all [x].
+
+### reviewer-2.0 Task 3 done — full stack example baseline (2026-07-05)
+
+Phase 1 (reviewer-2.0), Task 3 of 6 closed (implement=mb-analyst sonnet; verify=orchestrator
+independent recount+load; judge=opus GO — content task, codex round waived as data-not-logic).
+
+- **New bundled examples:** `references/rubric-examples/{typescript,frontend,mobile,backend}.md`
+  (5 blocks each, all 5 categories). mobile = Swift+Kotlin; backend = Clean-Arch/concurrency/IDOR/async.
+- **Coverage proven:** across the full pool (common/python/go/typescript/frontend/mobile/backend)
+  every reviewer category ≥3 — logic 7, code_rules 7, security 6, scalability 7, tests 7
+  (security rose 2→6). All new files load with ZERO parser warnings.
+- **Tests:** new `tests/bats/test_mb_review_examples_coverage.bats` 3/3 (per-stack ≥3, per-category ≥3),
+  TDD red→green; existing `test_mb_review_examples.bats` 21/21 unchanged.
+- Task 3 DoD checkboxes all [x]. No new backlog.

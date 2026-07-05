@@ -46,8 +46,8 @@ Testing: bats verifies precedence, max-count truncation, and deterministic rotat
 Testing: bats verifies every supported stack loads at least three examples and category coverage is balanced.
 
 **DoD:**
-- [ ] TypeScript/frontend/mobile/backend examples exist.
-- [ ] Every reviewer category has at least three examples across the pool.
+- [x] TypeScript/frontend/mobile/backend examples exist.
+- [x] Every reviewer category has at least three examples across the pool.
 
 <!-- mb-task:4 -->
 ### Task 4: Inject test evidence and auto-findings
