@@ -2682,3 +2682,19 @@ independent recount+load; judge=opus GO — content task, codex round waived as 
 - **Tests:** new `tests/bats/test_mb_review_examples_coverage.bats` 3/3 (per-stack ≥3, per-category ≥3),
   TDD red→green; existing `test_mb_review_examples.bats` 21/21 unchanged.
 - Task 3 DoD checkboxes all [x]. No new backlog.
+
+### reviewer-2.0 Task 4 done — test-evidence + auto-findings injection (2026-07-05)
+
+Phase 1 (reviewer-2.0), Task 4 of 6 closed (implement=mb-developer sonnet; verify=orchestrator
+independent mutation-check; judge=opus GO). REQ-102 + REQ-103-injection.
+
+- **Finding:** payload-side was ALREADY delivered by Task 1 — `mb-review.sh:render_prior_and_findings()`
+  renders `## Prior evidence` (touched-file test status, REQ-102) + `## Auto-generated findings
+  (MUST INCLUDE)` with a {severity:blocker, category:tests, auto_generated} finding on tests_pass==false
+  (REQ-103 injection), 5 sections fixed order, green omits. NO production change needed.
+- **Gap closed:** red bats test strengthened to explicitly assert the auto-finding is severity=blocker
+  AND category=tests, SCOPED to the section body (implementer caught+fixed a tautology: calibration
+  examples contain matching JSON, so whole-output match passed even when regressed). Mutation-verified
+  load-bearing (blocker->minor => `not ok 4`) independently by orchestrator.
+- REQ-103 "cannot drop / restore" post-validation is Task 5's scope (hooks mb-work-review-parse.sh --external).
+- **Tests:** test_mb_review.bats 10/10 green, mb-review.sh untouched (empty diff). Task 4 DoD [x]. No new backlog.

@@ -58,8 +58,8 @@ Testing: bats verifies every supported stack loads at least three examples and c
 Testing: bats validates green-test payloads omit auto-findings and red-test payloads contain a blocker tests issue.
 
 **DoD:**
-- [ ] Payload sections appear in fixed order.
-- [ ] Red tests force a blocker finding before LLM review.
+- [x] Payload sections appear in fixed order.
+- [x] Red tests force a blocker finding before LLM review.
 
 <!-- mb-task:5 -->
 ### Task 5: Wire reviewer agent and work command

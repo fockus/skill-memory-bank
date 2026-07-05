@@ -36,6 +36,16 @@ section_order_ok() {
   [ "$l1" -lt "$l2" ] && [ "$l2" -lt "$l3" ] && [ "$l3" -lt "$l4" ] && [ "$l4" -lt "$l5" ]
 }
 
+# $1 = full payload text. Returns (on stdout) everything from the
+# "## Auto-generated findings (MUST INCLUDE)" header to EOF -- it is always
+# the LAST rendered section, so this isolates the injected finding JSON from
+# the "## Calibration examples" section, which legitimately contains its own
+# reference "severity"/"category" JSON snippets and would otherwise make a
+# bare substring match against the whole payload a tautology.
+auto_findings_body() {
+  printf '%s\n' "$1" | sed -n '/^## Auto-generated findings (MUST INCLUDE)$/,$p'
+}
+
 @test "mb-review.sh: script exists" {
   [ -f "$RUN" ]
 }
@@ -79,6 +89,16 @@ JSON
   [[ "$output" == *"SMOKE-001-red"* ]]
   [[ "$output" == *"new"* ]]
   [[ "$output" == *"test_app_returns_ok"* ]]
+  # REQ-103 injection: red evidence must force a blocker "tests" finding
+  # ahead of the LLM reviewer -- not just any auto-generated section, and
+  # not a match against the "## Calibration examples" section, which also
+  # legitimately contains reference "severity": "blocker" JSON snippets.
+  [[ "$output" == *"## Auto-generated findings (MUST INCLUDE)"* ]]
+  local findings_body
+  findings_body="$(auto_findings_body "$output")"
+  [[ "$findings_body" == *'"severity": "blocker"'* ]]
+  [[ "$findings_body" == *'"category": "tests"'* ]]
+  [[ "$findings_body" == *'"auto_generated": true'* ]]
 }
 
 @test "--emit-payload --input <case-dir>: green-test case omits the auto-findings section" {
