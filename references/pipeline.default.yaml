@@ -166,6 +166,11 @@ review:
     minor: 3
   max_cycles: 3
   on_max_cycles: stop_for_human   # | continue_with_warning
+  # Strategic pivoting (work-loop-v2 design.md §5): on a CHANGES_REQUESTED
+  # verdict with a stagnant progress_trend, scripts/mb-work-pivot.sh forces a
+  # fresh-start re-dispatch instead of an indefinite refine loop.
+  pivot_after_cycles: 2                  # consecutive stagnant cycles before pivot_in_role
+  pivot_escalate_to_architect_on: 4      # cycle number that escalates to pivot_via_architect
 
 # ===== Per-stage opt-in toggles for composable /mb work pipelines =====
 # Each stage below is OFF by default. Turn one on per-run with its launch flag

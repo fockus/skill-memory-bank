@@ -44,8 +44,8 @@ Testing: bats validates contract creation, idempotent reread, and scope-lock fie
 Testing: bats stubs stagnant cycles and verifies `pivot_in_role` and `pivot_via_architect` dispatch decisions.
 
 **DoD:**
-- [ ] Pipeline keys select the pivot route.
-- [ ] Pivot decisions are written to loop telemetry.
+- [x] Pipeline keys select the pivot route.
+- [x] Pivot decisions are written to loop telemetry.
 
 <!-- mb-task:4 -->
 ### Task 4: Max-cycle policy migration

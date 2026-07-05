@@ -2778,3 +2778,18 @@ create/idempotent/validate repro; judge=opus GO — scaffolder+validator, codex 
 - Orchestrator repro'd all 6 sections + idempotent hand-edit preservation + validate FAIL-naming. Task 2 DoD [x].
 - Flags (interpretation, not bugs): plan-topic derivation inferred from mb-plan.sh convention; validate is
   heading-presence-based (matches mb-spec-validate/mb-ears-validate style). Confirm at Task 5 wiring.
+
+### work-loop-v2 Task 3 done — pivot dispatch routes + telemetry (2026-07-05)
+
+Phase 2 (work-loop-v2), Task 3 of 5 closed (implement=mb-developer sonnet; verify=orchestrator independent
+boundary+telemetry repro; judge=opus GO — 2-level threshold, exhaustively boundary-tested, codex waived). REQ-112 + REQ-114.
+
+- **New:** `scripts/mb-work-pivot.sh` (270 ln) — `decide` (refine|pivot_in_role|pivot_via_architect from
+  consecutive_stagnant vs pivot_after_cycles[2] + cycle vs pivot_escalate_to_architect_on[4], keys read from
+  pipeline.yaml nested review: block → flat → defaults, fail-safe) + `prompt-prefix` (design §5 PIVOT INSTRUCTION
+  string emitter; dispatch stays host-loop's job, agent-native). Telemetry: 1 JSONL line per pivot (ts/item_id/
+  cycle/mode/rationale_hash) to <bank>/tmp/pivot-log.jsonl; refine writes NONE.
+- **references/pipeline.default.yaml:** +pivot_after_cycles:2 +pivot_escalate_to_architect_on:4 (additive, under review:).
+- **Tests:** test_mb_work_pivot.bats 25/25 green, shellcheck clean, pipeline.default.yaml still validates.
+- Orchestrator repro'd truth-table (N=1→refine, N=2/c3→in_role, N=2/c4→via_architect, N=5/c1→in_role) + telemetry
+  (pivot=1 line 5 fields, refine=0). Task 3 DoD [x].
