@@ -181,6 +181,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-reviewer-resolve.sh` | Pick the active reviewer agent name |
 | `mb-review.sh` | Review orchestrator entry point: deterministic 5-section payload assembly (diff + calibration examples + test evidence + auto-findings), model-agnostic, `--emit-payload`/`--input` |
 | `mb-review-cache.sh` | Touched-file test-evidence cache: `compute_touched_sha` + TTL HIT/MISS resolution under `.memory-bank/tmp/` |
+| `mb-review-examples.sh` | Layered calibration-example loader: project-over-skill precedence by `example_id`, fence-aware parser, per-category rotation, path-traversal/symlink-safe; renders the `## Calibration examples` payload section |
 | `mb-session-spend.sh` | Session token-spend tracker (sprint context guard) |
 | `mb-session-recent-rebuild.sh` | Regenerate `session/_recent.md` from `session/*.md` (keeps newest `MB_RECENT_KEEP`; deterministic, idempotent) |
 | `mb-recap.sh <sid>` | `/mb recap`: reconstruct a full `progress.md` entry from `session/<sid>*.md` via one Haiku call, replacing that session's auto-capture stub idempotently (`recapped` frontmatter). Missing session → exit non-zero, no writes; real entry already present → refuse |

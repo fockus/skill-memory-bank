@@ -390,13 +390,31 @@ When the user types `/mb work [args...]`:
 
    ### 5d. Review step (only if workflow includes `review`)
 
-   If the workflow has no `review_profile`, resolve the single reviewer agent with `mb-reviewer-resolve.sh` (it reads `roles.reviewer.agent` and applies `override_if_skill_present`, e.g. routing to `superpowers:requesting-code-review` when that skill is installed), dispatch it, and parse the verdict with `mb-work-review-parse.sh`.
+   **Assemble the payload deterministically first — never a hand-rolled prompt.** Before dispatching any reviewer, build the review payload with the reviewer-2.0 orchestrator, which owns diff discovery, calibration examples, and touched-file test-cache resolution so the reviewer only has to judge one pre-assembled document (REQ-100):
+
+   ```bash
+   bash scripts/mb-review.sh --emit-payload --plan <plan path> --item <N> --run-id "$RUN_ID" --mb <bank>
+   ```
+
+   **Detecting touched-file test status — a single, unambiguous check:** the assembled payload
+   contains a `## Auto-generated findings (MUST INCLUDE)` heading **if and only if** this item's
+   touched-file tests were failing (`mb-review.sh` only emits that heading when its resolved
+   `tests_pass` is exactly `false` — verified: its `## Prior evidence` section then also prints the
+   literal line `tests_pass: False`). Concretely: `grep -q '^## Auto-generated findings' <payload>`
+   (or, equivalently, `grep -q 'tests_pass: False' <payload>`) — record the result (e.g.
+   `TESTS_FAILING=1` on a match) for the parsing step below. Absence of the heading means tests were
+   passing, or no cached evidence existed for this run; treat both the same (do not pass
+   `--require-tests-blocker`).
+
+   If the workflow has no `review_profile`, resolve the single reviewer agent with `mb-reviewer-resolve.sh` (it reads `roles.reviewer.agent` — e.g. this project's `codex-cli`, or the skill-default `mb-reviewer` fallback — and applies `override_if_skill_present`, e.g. routing to `superpowers:requesting-code-review` when that skill is installed). Dispatch **that resolved agent** with the assembled payload as its prompt — never a hard-coded `Task(mb-reviewer)` — and parse the verdict with `mb-work-review-parse.sh`.
 
    If `review_profile: ensemble`, dispatch 3-5 aspect reviewers from `review_ensemble.reviewers` in parallel with fresh scoped context only: plan/spec, verifier report, diff, previous lead report. Reuse the **exact same** `mb-work-diff.sh --run-id "$RUN_ID" --files …` output built for 5c for every aspect reviewer — one diff computation, shared across the ensemble, so every reviewer judges the identical scoped changeset (consistency). Then dispatch `review_ensemble.lead_role` to synthesize one canonical report. The lead reviewer must verify previous-cycle issues first, deduplicate aspect findings, separate blocking issues from backlog candidates, and emit strict JSON.
 
    **Pre-wave codex health-check (only when a reviewer is external/cross-model):** before dispatching an external review wave — an aspect reviewer or the whole review step routed through the `codex` CLI — run `bash scripts/mb-work-codex-preflight.sh --json --mb <bank>` first. In-model-only review (no external reviewer configured for this run) never runs the preflight at all — it is skipped entirely, so no false SKIPPED note is ever written. If the preflight reports `available:false`, **or** the reviewer's own output later parses (via `--external`, below) as `verdict:"SKIPPED"` (the `codex-reviewer` subagent tripped its own preflight and returned `{"status":"SKIPPED"}`), do not let the judge close a governed item alone silently: write `cross-model review SKIPPED (<reason>)` into this item's stage report **and** append a `NOTE` entry to `<bank>/progress.md` — loud, never silent. Treat the gate as **degraded**, not failed — the in-model reviewer/judge (if any) may still complete the item on the remaining evidence, but the cross-model coverage that would have caught a cross-model-only class of issue simply did not run this cycle.
 
    **Parsing mode — `--external` for cross-model reviewers:** when the resolved reviewer is external / cross-model (a reviewer dispatched through the `codex` CLI transport, e.g. the global `codex-reviewer` subagent), parse its output with `mb-work-review-parse.sh --external` instead of the strict default — it normalizes a real GPT reviewer's "APPROVED with issues" down to `CHANGES_REQUESTED` (recomputing counts from issues, never trusting self-reported ones), maps the codex-reviewer issue schema (`description`/`recommendation`/`info` severity/`line:null`), and passes a `{"status":"SKIPPED"}` payload straight through as `verdict:"SKIPPED"`. The in-model `mb-reviewer`, and the ensemble's `lead_role` (which always stays in-model even when its aspect reviewers are external), keep the strict parse — no `--external` there.
+
+   **`--require-tests-blocker` — the REQ-103 "cannot drop" safety net, BEFORE the severity gate:** append this flag to the `mb-work-review-parse.sh` call above whenever this item's touched-file tests were failing (the `## Auto-generated findings` fact captured above). If the normalized output still lacks a `category:"tests"` / `severity:"blocker"` issue — the reviewer dropped or downgraded it, or the cross-model review itself parsed as `SKIPPED` — the parser prepends the missing finding, forces `verdict:"CHANGES_REQUESTED"`, and logs a warning; a red test can never silently pass the gate through an omitted, softened, or skipped review. Idempotent (a tests/blocker already present is left untouched, never duplicated) and opt-in: omit the flag when touched-file tests were passing, and parsing stays byte-identical to today (REQ-105). This does not weaken the preflight-based SKIPPED handling above — the pre-wave health-check still fires its own loud stage-report/`progress.md` note regardless of this flag; `--require-tests-blocker` only changes what the *parsed* verdict becomes once tests are known to be failing.
 
    If the parse exits non-zero (genuinely unparseable reviewer output, not a schema mismatch `--external` already tolerates), perform **exactly one** automatic retry before failing the step: re-dispatch the same reviewer once, appending the parser's stderr text to its prompt so the reviewer can self-correct its output, then re-parse. A second parse failure surfaces the raw reviewer output verbatim and halts the review step — never a second automatic retry.
 

@@ -70,12 +70,12 @@ Testing: bats validates green-test payloads omit auto-findings and red-test payl
 Testing: bats stubs reviewer output and verifies dropped auto-findings are restored before severity gate.
 
 **DoD:**
-- [ ] `commands/work.md` review stage assembles the payload via `scripts/mb-review.sh`, then dispatches the
+- [x] `commands/work.md` review stage assembles the payload via `scripts/mb-review.sh`, then dispatches the
       pipeline-resolved reviewer (`codex-cli` default, `mb-reviewer` fallback) — NOT a hard-coded `Task → mb-reviewer`.
-- [ ] Reviewer output is normalized via `mb-work-review-parse.sh --external`; the dropped-auto-finding post-validation
+- [x] Reviewer output is normalized via `mb-work-review-parse.sh --external`; the dropped-auto-finding post-validation
       hooks onto that normalizer (no second parser).
-- [ ] `agents/mb-reviewer.md` consumes one assembled payload and emits JSON only (fallback path).
-- [ ] Existing severity-gate tests still pass.
+- [x] `agents/mb-reviewer.md` consumes one assembled payload and emits JSON only (fallback path).
+- [x] Existing severity-gate tests still pass.
 
 <!-- mb-task:6 -->
 ### Task 6: Ship calibration suite and docs

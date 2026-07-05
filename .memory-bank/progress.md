@@ -2698,3 +2698,24 @@ independent mutation-check; judge=opus GO). REQ-102 + REQ-103-injection.
   load-bearing (blocker->minor => `not ok 4`) independently by orchestrator.
 - REQ-103 "cannot drop / restore" post-validation is Task 5's scope (hooks mb-work-review-parse.sh --external).
 - **Tests:** test_mb_review.bats 10/10 green, mb-review.sh untouched (empty diff). Task 4 DoD [x]. No new backlog.
+
+### reviewer-2.0 Task 5 done — wire reviewer + REQ-103 "cannot drop" enforcement (2026-07-05)
+
+Phase 1 (reviewer-2.0), Task 5 of 6 closed via governed cycle
+(implement=mb-developer sonnet → verify=plan-verifier ∥ review=codex gpt-5.5 → judge=opus) + 1 fix-cycle.
+
+- **Wiring:** commands/work.md 5d assembles payload via mb-review.sh --emit-payload BEFORE dispatch,
+  then dispatches the pipeline-resolved reviewer (codex-cli default / mb-reviewer fallback via
+  mb-reviewer-resolve.sh — never hard-coded Task→mb-reviewer), normalizes via mb-work-review-parse.sh
+  --external, passes --require-tests-blocker iff payload has `## Auto-generated findings` heading, then severity-gate.
+- **REQ-103 enforcement:** mb-work-review-parse.sh gains opt-in --require-tests-blocker (318 ln) — when a
+  red-tests review lacks a tests/blocker issue it prepends one, forces CHANGES_REQUESTED, bumps counts,
+  warns (idempotent). SKIPPED+flag → restore too (a red test can't pass a skipped review).
+- **agents/mb-reviewer.md:** consumes ONE 5-section payload, no disk reads, auto-findings verbatim first, JSON only.
+- **Governed loop caught a real hole:** codex NO_GO (1 BLOCKER + 1 major) — STRICT mode trusted self-reported
+  counts, so a reviewer reporting counts.blocker:0 WITH a real tests/blocker issue passed severity-gate
+  (plan-verifier + my --external repro both missed it). Fix-cycle 1: recompute counts from issues under the
+  flag in strict mode + run restore before the empty-issues rejection. Orchestrator (opus) independently
+  repro'd the end-to-end pipe now FAILS the gate (blocker=1 > gate=0). REQ-105 byte-identity preserved (opt-in).
+- **Also fixed Task-2 residual:** SKILL.md missing mb-review-examples.sh row → test_doc_counts red; added row → 10/10.
+- **Tests:** review-parse 30 + severity-gate 17 pytest + doc-contract 43 bats green, shellcheck clean. Task 5 DoD [x].

@@ -332,3 +332,46 @@ setup() {
   run grep -qi "single.writer\|single owner" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── reviewer-2.0 Task 5: mb-review.sh payload + --require-tests-blocker ────
+
+@test "doc's 5d assembles the review payload via mb-review.sh before dispatching a reviewer" {
+  run grep -q -- "mb-review.sh --emit-payload" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "deterministic" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's 5d dispatches the pipeline-resolved reviewer, not a hard-coded Task to mb-reviewer" {
+  run grep -q "mb-reviewer-resolve.sh" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "never a hard-coded \`Task(mb-reviewer)\`\|not a hard-coded \`Task" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc wires --require-tests-blocker into mb-work-review-parse.sh before the severity gate" {
+  run grep -q -- "--require-tests-blocker" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "cannot drop" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "BEFORE the severity gate" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc says --require-tests-blocker is opt-in and byte-identical when omitted" {
+  run grep -qi -- "opt-in.*omit the flag\|omit the flag when touched-file tests were passing" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "byte-identical" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+# ── Fix-cycle 1 (governed review NO_GO on Task 5): MINOR #3 ────────────────
+
+@test "doc's 5d names an unambiguous, greppable marker for touched-file test status" {
+  run grep -q -- "## Auto-generated findings" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "tests_pass: False" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "grep -q" "$DOC"
+  [ "$status" -eq 0 ]
+}
