@@ -470,3 +470,17 @@ EOF
   run_adapter install "$PROJECT/packages/sub"
   [ "$status" -ne 0 ]
 }
+
+@test "git-hooks: install in a git SUBMODULE (.git is a file) wires hooks in the resolved dir" {
+  super="${PROJECT}-super"; sub="${PROJECT}-sub"
+  (cd "$PROJECT" && git commit -q -m init --allow-empty)
+  (git init -q "$super" && cd "$super" && git config user.email t@t && git config user.name t && git commit -q -m s --allow-empty \
+     && git -c protocol.file.allow=always submodule add -q "$PROJECT" mod 2>/dev/null)
+  [ -f "$super/mod/.git" ]
+  mkdir -p "$super/mod/.memory-bank"; echo '# Progress' > "$super/mod/.memory-bank/progress.md"
+  run_adapter install "$super/mod"
+  [ "$status" -eq 0 ]
+  hooks="$(git -C "$super/mod" rev-parse --git-path hooks)"; case "$hooks" in /*) : ;; *) hooks="$super/mod/$hooks" ;; esac
+  [ -f "$hooks/post-commit" ]
+  rm -rf "$super" "$sub"
+}

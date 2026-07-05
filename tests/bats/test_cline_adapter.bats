@@ -260,3 +260,29 @@ run_adapter() {
   m=$(stat -f '%Lp' "$PROJECT/.clinerules" 2>/dev/null || stat -c '%a' "$PROJECT/.clinerules" 2>/dev/null)
   [ "$m" = "664" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# R2a-1: file-form backup safety-net + corrupted-marker data-safety
+# ═══════════════════════════════════════════════════════════════
+
+@test "cline: file-form takes a backup of .clinerules before rewriting" {
+  printf 'USER_ORIG\n' > "$PROJECT/.clinerules"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  found=0
+  for b in "$PROJECT"/.clinerules.pre-mb-backup.*; do
+    [ -f "$b" ] && grep -q USER_ORIG "$b" && found=1
+  done
+  [ "$found" = "1" ]
+}
+
+@test "cline: uninstall preserves user content after a corrupted (END-less) MB block" {
+  printf 'USER_BEFORE\n' > "$PROJECT/.clinerules"
+  run_adapter install "$PROJECT"
+  grep -v "memory-bank-cline:end" "$PROJECT/.clinerules" > "$PROJECT/.tmp" && mv "$PROJECT/.tmp" "$PROJECT/.clinerules"
+  printf 'USER_AFTER\n' >> "$PROJECT/.clinerules"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  grep -q "USER_BEFORE" "$PROJECT/.clinerules"
+  grep -q "USER_AFTER" "$PROJECT/.clinerules"
+}

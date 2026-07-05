@@ -170,16 +170,28 @@ _cline_real_path() {
   printf '%s' "$p"
 }
 
+# Back up the real .clinerules target ONCE before any destructive rewrite, so a
+# hand-corrupted file is always recoverable (project-wide backup-before-overwrite).
+_cline_backup_once() {
+  local f="$1" b
+  [ -f "$f" ] || return 0
+  for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
+  cp "$f" "$f.pre-mb-backup.$$" 2>/dev/null || true
+}
+
 # Remove the MB block from a file-form .clinerules (idempotency + uninstall).
-# True no-op when no MB block is present (never rewrites → user bytes stay exact).
-# Drops START..END inclusive AND the single adapter-owned blank line emitted right
-# before START (1-line delay buffer preserves every other line, incl. the user's
-# own trailing blanks). Symlink-safe (writes onto the resolved target) + mode-safe.
+# True no-op unless a COMPLETE block (BOTH markers) is present — a lone/corrupted
+# marker must never trigger a destructive strip-to-EOF. Drops START..END inclusive
+# AND the single adapter-owned blank line emitted right before START (1-line delay
+# buffer preserves every other line, incl. the user's own trailing blanks).
+# Symlink-safe (writes onto the resolved target) + mode-safe.
 _cline_strip_block() {
   [ -f "$CLINE_DIR" ] || return 0
   local real
   real="$(_cline_real_path)"
   grep -qF "$CLINE_START_MARKER" "$real" 2>/dev/null || return 0
+  grep -qF "$CLINE_END_MARKER" "$real" 2>/dev/null || return 0
+  _cline_backup_once "$real"
   local tmp mode
   tmp="$(mktemp "$(dirname "$real")/.clinerules.mbXXXXXX")" || return 1
   mode="$(mb_file_mode "$real")"
@@ -197,6 +209,7 @@ _cline_strip_block() {
 # File-form install: append a marker-delimited MB rules block. No hooks (a file
 # can't host .clinerules/hooks/). Idempotent — strips any prior block first.
 install_cline_file_form() {
+  _cline_backup_once "$(_cline_real_path)"   # safety net before any rewrite (incl. first install)
   _cline_strip_block
   {
     echo ""

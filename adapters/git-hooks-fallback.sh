@@ -323,7 +323,7 @@ install_git_hooks() {
     "$files_json" \
     "{\"had_user_post_commit\": $([ "$had_user_post" -eq 1 ] && printf true || printf false), \"had_user_pre_commit\": $([ "$had_user_pre" -eq 1 ] && printf true || printf false)}"
 
-  echo "[git-hooks] installed to $PROJECT_ROOT/.git/hooks/"
+  echo "[git-hooks] installed to $HOOKS_DIR/"
 }
 
 # ═══ Uninstall ═══
@@ -355,7 +355,7 @@ uninstall_git_hooks() {
   fi
 
   rm -f "$MANIFEST"
-  echo "[git-hooks] uninstalled from $PROJECT_ROOT/.git/hooks/"
+  echo "[git-hooks] uninstalled from $HOOKS_DIR/"
 }
 
 case "$ACTION" in

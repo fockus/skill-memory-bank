@@ -288,16 +288,29 @@ global_backup_if_exists() {
   local target="$1"
   local backup_list_name="$2"
   local expected="${3:-}"
-  local old backup
+  local old oldest backup
   if [ -e "$target" ] || [ -L "$target" ]; then
     if [ -n "$expected" ] && [ -f "$expected" ] && cmp -s "$target" "$expected"; then
       return 2
     fi
+    # H-4: preserve the OLDEST backup (user's TRUE original) — prune only newer
+    # MB-generated backups; if an original already exists, re-record it and take
+    # no new backup instead of rotating the original away.
+    oldest=""
     for old in "$target".pre-mb-backup.*; do
-      [ -e "$old" ] || [ -L "$old" ] || continue
-      rm -rf -- "$old"
+      { [ -e "$old" ] || [ -L "$old" ]; } || continue
+      oldest="$old"; break
     done
-    backup="$target.pre-mb-backup.$(date +%s)"
+    if [ -n "$oldest" ]; then
+      for old in "$target".pre-mb-backup.*; do
+        { [ -e "$old" ] || [ -L "$old" ]; } || continue
+        [ "$old" = "$oldest" ] && continue
+        rm -rf -- "$old"
+      done
+      eval "$backup_list_name+=(\"$target|$oldest\")"
+      return 0
+    fi
+    backup="$target.pre-mb-backup.$(date +%s).$$"
     mv "$target" "$backup"
     eval "$backup_list_name+=(\"$target|$backup\")"
   fi

@@ -340,9 +340,9 @@ shellcheck adapters/opencode.sh
    по MB-маркеру перед бэкапом.
 
 ### DoD:
-- [ ] После двух апгрейдов истинный первый бэкап юзера сохранён.
-- [ ] Ротация трогает только MB-generated бэкапы.
-- [ ] Тесты: 1+ e2e/bats RED→GREEN; `shellcheck` clean.
+- [x] После двух апгрейдов истинный первый бэкап юзера сохранён (oldest никогда не ротируется; install.sh `backup_if_exists` + cursor.sh `global_backup_if_exists`); backup-имя `.$(date +%s).$$` устойчиво к коллизии timestamp.
+- [x] Ротация трогает только MB-generated бэкапы (оригинал re-record в манифест для корректного restore).
+- [x] Тесты: 1 e2e RED→GREEN (RULES.md upgrade preserves true original); `shellcheck` 0 new.
 
 ### Команды проверки:
 ```bash
@@ -372,9 +372,9 @@ shellcheck install.sh adapters/cursor.sh
    в манифест при любом выходе. Атомарно (`tmp+mv`).
 
 ### DoD:
-- [ ] Частичный сбой оставляет валидный манифест с уже сделанными операциями.
-- [ ] `uninstall` откатывает частичную установку.
-- [ ] Тесты: 1+ e2e RED→GREEN; `shellcheck` clean.
+- [x] Частичный сбой оставляет валидный манифест с уже сделанными операциями (`trap _mb_on_exit EXIT` → `flush_manifest`, атомарно `mkstemp`+`os.replace`, идемпотентно через `MB_MANIFEST_FLUSHED`, exit-код сбоя сохранён).
+- [x] `uninstall` откатывает частичную установку (манифест `files`+`backups` пишется даже при сбое до Step 7). Env-seam `MB_MANIFEST_PATH` для sandbox-изоляции тестов.
+- [x] Тесты: 1 e2e RED→GREEN (poison Step 2 → манифест с ≥1 файлом); `shellcheck` 0 new.
 
 ### Команды проверки:
 ```bash
@@ -404,7 +404,7 @@ shellcheck install.sh
 ### DoD:
 - [x] install не падает при `.clinerules`-файле; MB-контент добавлен корректно для обеих форм (маркер-блок + sibling-манифест); idempotent, symlink-chain-safe, byte-exact round-trip, mode-preserving.
 - [x] Тесты: 5 bats RED→GREEN (file-form/uninstall/blank-accum/symlink/multi-hop/byte-exact/mode); `shellcheck` 0 new.
-- [ ] ⚠️ file-form rewrite без backup safety-net → data-loss при повреждённом END-маркере. Backlog R2a-1 (закрыть в Batch 2b вместе с backup-консолидацией).
+- [x] file-form backup safety-net + both-marker gate (R2a-1 закрыт в Batch 2b): `_cline_backup_once` перед любой перезаписью + strip только при ПАРНЫХ маркерах (повреждённый END не срезает до EOF). +2 bats.
 
 ### Команды проверки:
 ```bash

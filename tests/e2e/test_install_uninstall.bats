@@ -523,3 +523,31 @@ EOF
 
   [ ! -f "$REPO_ROOT/.installed-manifest.json" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# A6 (H-4): backup rotation preserves the user's TRUE original
+# A7 (H-5): incremental/trap manifest survives partial failure
+# ═══════════════════════════════════════════════════════════════
+
+@test "install: upgrade preserves the user's TRUE original backup across two installs (A6)" {
+  mkdir -p "$HOME/.claude"
+  printf 'USER_RULES_ORIGINAL\n' > "$HOME/.claude/RULES.md"
+  bash "$REPO_ROOT/install.sh" >/dev/null 2>&1            # #1: backs up user RULES.md → T1 (true original)
+  printf '\nlocal_edit\n' >> "$HOME/.claude/RULES.md"     # make the installed file differ so #2 re-backs-up
+  bash "$REPO_ROOT/install.sh" >/dev/null 2>&1            # #2: rotation must NOT delete the true original
+  found=0
+  for b in "$HOME/.claude/RULES.md.pre-mb-backup."*; do
+    [ -f "$b" ] && grep -q "USER_RULES_ORIGINAL" "$b" && found=1
+  done
+  [ "$found" = "1" ]
+}
+
+@test "install: partial failure still writes a manifest for rollback (A7 trap flush)" {
+  mkdir -p "$HOME/.claude"
+  : > "$HOME/.claude/agents"          # poison Step 2: mkdir .claude/agents/ fails mid-install
+  export MB_MANIFEST_PATH="$HOME/.mb-test-manifest.json"
+  run bash "$REPO_ROOT/install.sh"
+  [ "$status" -ne 0 ]                 # install aborted mid-way
+  [ -f "$MB_MANIFEST_PATH" ]          # trap flushed a manifest anyway
+  python3 -c "import json; m=json.load(open('$MB_MANIFEST_PATH')); assert len(m.get('files',[]))>=1, 'manifest has no files'"
+}

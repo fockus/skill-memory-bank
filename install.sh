@@ -21,7 +21,7 @@ CLAUDE_SKILL_ALIAS="$CLAUDE_DIR/skills/memory-bank"
 CODEX_SKILL_ALIAS="$CODEX_DIR/skills/memory-bank"
 CURSOR_SKILL_ALIAS="$CURSOR_DIR/skills/memory-bank"
 PI_SKILL_ALIAS="$PI_AGENT_DIR/skills/memory-bank"
-MANIFEST="$SOURCE_SKILL_DIR/.installed-manifest.json"
+MANIFEST="${MB_MANIFEST_PATH:-$SOURCE_SKILL_DIR/.installed-manifest.json}"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
 PI_START_MARKER="<!-- memory-bank-pi:start -->"
@@ -32,6 +32,65 @@ BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 
 INSTALLED_FILES=()
 BACKED_UP_FILES=()
+
+# ─── Manifest flush (A7 / H-5) ──────────────────────────────────────────────
+# The manifest is the uninstall rollback source. Write it INCREMENTALLY via an
+# EXIT trap so a partial failure still leaves a valid manifest of what was done
+# (installed files + backups) instead of an unrecoverable orphan set. Atomic
+# (tmp + os.replace). Idempotent via MB_MANIFEST_FLUSHED so the success path
+# (Step 7) and the trap don't double-write.
+MB_MANIFEST_FLUSHED=0
+flush_manifest() {
+  INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}"})" \
+  BACKED_UP_STR="$(printf '%s\n' ${BACKED_UP_FILES[@]+"${BACKED_UP_FILES[@]}"})" \
+  MANIFEST_PATH="$MANIFEST" \
+  INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  "$MB_PY" << 'PYEOF' 2>/dev/null || echo '  Manifest write failed'
+import json, os, tempfile
+files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
+raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
+
+
+def _ordered_unique(items):
+    return list(dict.fromkeys(items))
+
+
+def _backup_path(entry: str) -> str:
+    parts = entry.split("|", 1)
+    return parts[1] if len(parts) == 2 else ""
+
+
+backups = _ordered_unique([b for b in raw_backups if os.path.exists(_backup_path(b))])
+manifest = {
+    "schema_version": 1,
+    "installed_at": os.environ["INSTALL_DATE"],
+    "skill": "skill-memory-bank",
+    "files": _ordered_unique(files),
+    "backups": backups,
+}
+path = os.environ["MANIFEST_PATH"]
+d = os.path.dirname(path) or "."
+fd, tmp = tempfile.mkstemp(dir=d, prefix=".mb-manifest.")
+try:
+    with os.fdopen(fd, "w") as f:
+        json.dump(manifest, f, indent=2)
+    os.replace(tmp, path)
+except Exception:
+    try:
+        os.unlink(tmp)
+    except OSError:
+        pass
+    raise
+PYEOF
+  MB_MANIFEST_FLUSHED=1
+}
+
+_mb_on_exit() {
+  local rc=$?   # preserve the triggering exit code across the flush
+  [ "$MB_MANIFEST_FLUSHED" = "1" ] && return "$rc"
+  flush_manifest
+  return "$rc"
+}
 
 # shellcheck disable=SC1091
 . "$SOURCE_SKILL_DIR/adapters/_lib_agents_md.sh"
@@ -280,6 +339,9 @@ if [ "${MB_SKIP_DEPS_CHECK:-0}" != "1" ]; then
   fi
 fi
 
+# python3 is now confirmed usable → arm the manifest flush for ANY exit (A7/H-5).
+trap _mb_on_exit EXIT
+
 backup_if_exists() {
   # Skip-when-identical backup with rotation (keeps only the latest backup).
   # Args: $1 = target path, $2 (optional) = expected content path.
@@ -323,12 +385,26 @@ backup_if_exists() {
       done
       backup="$PI_AGENT_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.$(date +%s)"
     else
-      # Use shopt/compgen-free pattern that tolerates "no match" without nullglob.
-      for old in "$target".pre-mb-backup.*; do
-        [ -e "$old" ] || [ -L "$old" ] || continue
-        rm -rf -- "$old"
+      # H-4: NEVER rotate away the OLDEST backup — it holds the user's TRUE
+      # original. If one already exists, the current file is an MB artifact from a
+      # prior install: prune only newer (MB-generated) backups, keep the original,
+      # re-record it in this run's manifest, and take no new backup.
+      # (compgen-free glob; tolerates "no match" without nullglob.)
+      local mb_oldest="" mb_old
+      for mb_old in "$target".pre-mb-backup.*; do
+        { [ -e "$mb_old" ] || [ -L "$mb_old" ]; } || continue
+        mb_oldest="$mb_old"; break   # glob is lexically sorted → oldest epoch first
       done
-      backup="$target.pre-mb-backup.$(date +%s)"
+      if [ -n "$mb_oldest" ]; then
+        for mb_old in "$target".pre-mb-backup.*; do
+          { [ -e "$mb_old" ] || [ -L "$mb_old" ]; } || continue
+          [ "$mb_old" = "$mb_oldest" ] && continue
+          rm -rf -- "$mb_old"
+        done
+        BACKED_UP_FILES+=("$target|$mb_oldest")
+        return 0
+      fi
+      backup="$target.pre-mb-backup.$(date +%s).$$"
     fi
     mv "$target" "$backup"
     BACKED_UP_FILES+=("$target|$backup")
@@ -915,38 +991,12 @@ else
 fi
 
 # ═══ Step 7: Manifest ═══
+# Single canonical writer is flush_manifest() (defined up top). Calling it here on
+# the success path sets MB_MANIFEST_FLUSHED so the EXIT trap becomes a no-op; on a
+# partial failure BEFORE this line, the trap flushes the same manifest instead.
 echo -e "${BLUE}[7/7] Manifest${NC}"
-INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}"})" \
-BACKED_UP_STR="$(printf '%s\n' ${BACKED_UP_FILES[@]+"${BACKED_UP_FILES[@]}"})" \
-MANIFEST_PATH="$MANIFEST" \
-INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-"$MB_PY" << 'PYEOF' 2>/dev/null || echo '  Manifest write failed'
-import json, os
-files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
-raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
-
-
-def _ordered_unique(items):
-    return list(dict.fromkeys(items))
-
-# filter: keep only backups whose backup_path ("target|backup") still exists on disk
-def _backup_path(entry: str) -> str:
-    parts = entry.split("|", 1)
-    return parts[1] if len(parts) == 2 else ""
-
-backups = _ordered_unique([b for b in raw_backups if os.path.exists(_backup_path(b))])
-
-manifest = {
-    "schema_version": 1,
-    "installed_at": os.environ["INSTALL_DATE"],
-    "skill": "skill-memory-bank",
-    "files": _ordered_unique(files),
-    "backups": backups,
-}
-with open(os.environ["MANIFEST_PATH"], "w") as f:
-    json.dump(manifest, f, indent=2)
-print("  Manifest saved")
-PYEOF
+flush_manifest
+echo "  Manifest saved"
 
 # ═══ Step 8: Cross-agent adapters (optional) ═══
 ADAPTERS_INVOKED=()
