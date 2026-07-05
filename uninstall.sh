@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+. "$SKILL_DIR/scripts/_lib.sh"
 # Interpreter that owns the memory_bank_skill package (set by the `memory-bank`
 # CLI to sys.executable); falls back to python3 for a direct `bash uninstall.sh`.
 MB_PY="${MB_PYTHON:-python3}"
-MANIFEST="$SKILL_DIR/.installed-manifest.json"
+# A12: same resolution install.sh used — MB_MANIFEST_PATH override, else the
+# co-located manifest when SKILL_DIR is user-writable, else the XDG-fallback
+# path a pip/sudo install (root-owned SKILL_DIR) would have used instead.
+MANIFEST="$(mb_resolve_manifest_path "$SKILL_DIR")"
 CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="$HOME/.codex"
 CURSOR_DIR="$HOME/.cursor"
@@ -15,9 +20,6 @@ CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
 PI_START_MARKER="<!-- memory-bank-pi:start -->"
 PI_END_MARKER="<!-- memory-bank-pi:end -->"
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
-
-# shellcheck disable=SC1091
-. "$SKILL_DIR/scripts/_lib.sh"
 
 managed_roots=("$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR" "$OPENCODE_DIR" "$PI_AGENT_DIR")
 NON_INTERACTIVE=0
@@ -121,8 +123,12 @@ except BaseException:
 print('  Hooks cleaned')
 PYEOF
 
-# Clean CLAUDE.md MB section
-[ -f "$CLAUDE_DIR/CLAUDE.md" ] && grep -q "\[MEMORY-BANK-SKILL\]" "$CLAUDE_DIR/CLAUDE.md" && run_texttool strip-after-marker --path "$CLAUDE_DIR/CLAUDE.md" --marker "# [MEMORY-BANK-SKILL]" 2>/dev/null && echo "  CLAUDE.md cleaned" || true
+# Clean CLAUDE.md MB section — A13 (M-5): strip strictly between the paired
+# start/end markers so content the user placed AFTER the section survives
+# (the old strip-after-marker ate everything to EOF). Files written before
+# A13 have no end marker; strip_between_markers degrades to the previous
+# to-EOF behavior for those (nothing worse than before, no regression).
+[ -f "$CLAUDE_DIR/CLAUDE.md" ] && grep -q "\[MEMORY-BANK-SKILL\]" "$CLAUDE_DIR/CLAUDE.md" && run_texttool strip-between-markers --path "$CLAUDE_DIR/CLAUDE.md" --start-marker "# [MEMORY-BANK-SKILL]" --end-marker "<!-- /memory-bank-skill -->" 2>/dev/null && echo "  CLAUDE.md cleaned" || true
 
 # Clean OpenCode AGENTS.md MB section
 [ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank:start" "$OPENCODE_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$OPENCODE_DIR/AGENTS.md" --start-marker "<!-- memory-bank:start -->" --end-marker "<!-- memory-bank:end -->" 2>/dev/null && echo "  OpenCode AGENTS.md cleaned" || true
@@ -136,6 +142,31 @@ PYEOF
 # Cursor global cleanup lives in adapters/cursor.sh
 if [ -f "$CURSOR_DIR/.mb-manifest.json" ]; then
   bash "$SKILL_DIR/adapters/cursor.sh" uninstall-global >/dev/null && echo "  Cursor global adapter cleaned"
+fi
+
+# ── Per-project cross-agent adapters (A10) ──────────────────────────────────
+# install.sh records the project-level clients it invoked (Step 8) + the
+# project root they targeted in the manifest. Call each adapter's own
+# `uninstall` so it removes its project artifacts AND decrements the shared
+# AGENTS.md owners refcount (adapters/_lib_agents_md.sh) — otherwise stale
+# project files + an inflated refcount are left behind.
+if [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
+  MB_UNINSTALL_PROJECT_ROOT="$(jq -r '.project_root // empty' "$MANIFEST" 2>/dev/null || true)"
+  if [ -n "$MB_UNINSTALL_PROJECT_ROOT" ] && [ -d "$MB_UNINSTALL_PROJECT_ROOT" ]; then
+    while IFS= read -r mb_client; do
+      [ -n "$mb_client" ] || continue
+      mb_adapter="$SKILL_DIR/adapters/$mb_client.sh"
+      if [ ! -x "$mb_adapter" ]; then
+        echo -e "${YELLOW}  ~ $mb_client adapter script missing, skipped (manual cleanup may be needed)${NC}" >&2
+        continue
+      fi
+      if bash "$mb_adapter" uninstall "$MB_UNINSTALL_PROJECT_ROOT" >/dev/null 2>&1; then
+        echo "  $mb_client project adapter cleaned ($MB_UNINSTALL_PROJECT_ROOT)"
+      else
+        echo -e "${YELLOW}  ~ $mb_client adapter uninstall reported an error (see manual cleanup)${NC}" >&2
+      fi
+    done < <(jq -r '.clients[]? // empty' "$MANIFEST" 2>/dev/null)
+  fi
 fi
 
 rm -f "$MANIFEST"

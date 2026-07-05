@@ -69,6 +69,40 @@ run_adapter() {
   grep -q "experimental.session.compacting\|tool.execute.before" "$plugin"
 }
 
+# A16 (M-8): plugins/memory-bank.js used to be clobbered with a plain `>`
+# redirect — no backup of a user-modified copy, and non-atomic (a crash
+# mid-write would leave a truncated/corrupt plugin file OpenCode then tries
+# to load).
+@test "opencode: install backs up an existing user-modified plugin file before overwriting (A16)" {
+  mkdir -p "$PROJECT/.opencode/plugins"
+  cat > "$PROJECT/.opencode/plugins/memory-bank.js" <<'EOF'
+// USER_CUSTOM_PLUGIN_MARKER
+export const MemoryBankPlugin = async () => ({});
+EOF
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
+  [ -f "$plugin" ]
+  # Freshly generated (the user's custom marker is gone from the live file)...
+  ! grep -q "USER_CUSTOM_PLUGIN_MARKER" "$plugin"
+  # ...but recoverable: a backup exists and holds the original content.
+  local found=0
+  for b in "$plugin".pre-mb-backup.*; do
+    [ -f "$b" ] && grep -q "USER_CUSTOM_PLUGIN_MARKER" "$b" && found=1
+  done
+  [ "$found" -eq 1 ]
+}
+
+@test "opencode: install does not leave a stray tmp file after writing the plugin (A16 atomic write)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local stray
+  stray=$(find "$PROJECT/.opencode/plugins" -maxdepth 1 -type f ! -name 'memory-bank.js' ! -name '*.pre-mb-backup.*' | wc -l | tr -d ' ')
+  [ "$stray" -eq 0 ]
+}
+
 @test "opencode: install creates project commands for slash menu" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]

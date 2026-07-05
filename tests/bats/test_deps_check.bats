@@ -42,6 +42,39 @@ run_deps_sandbox() {
   output="${raw%$'\n'__EXIT__*}"
 }
 
+# A11: sandbox with bash/jq/git + a python3 stub reporting Python 3.10.0 (an
+# unsupported version — pyproject.toml requires target-version=py311). The
+# stub answers `--version` for humans and short-circuits the two `-c` probes
+# mb-deps-check.sh is expected to run: one raises SystemExit based on
+# version_info, the other prints the found version for a human-readable message.
+setup_old_python_sandbox() {
+  OLD_PY_BIN="$(mktemp -d)"
+  ln -s "$(command -v bash)" "$OLD_PY_BIN/bash"
+  ln -s "$(command -v jq)" "$OLD_PY_BIN/jq"
+  ln -s "$(command -v git)" "$OLD_PY_BIN/git"
+  cat > "$OLD_PY_BIN/python3" <<'PYSTUB'
+#!/usr/bin/env bash
+case "$*" in
+  *--version*) echo "Python 3.10.0"; exit 0 ;;
+esac
+if [ "${1:-}" = "-c" ]; then
+  case "$2" in
+    *sys.exit*) exit 1 ;;
+    *print*) echo "3.10.0"; exit 0 ;;
+  esac
+fi
+exit 0
+PYSTUB
+  chmod +x "$OLD_PY_BIN/python3"
+}
+
+run_deps_old_python() {
+  local raw
+  raw=$(env -i HOME="$HOME" PATH="$OLD_PY_BIN" bash "$DEPS" "$@" 2>&1; printf '\n__EXIT__%s' "$?")
+  status="${raw##*__EXIT__}"
+  output="${raw%$'\n'__EXIT__*}"
+}
+
 # ═══════════════════════════════════════════════════════════════
 
 @test "deps: all present on current system → exit 0 (assuming python3/jq/git installed)" {
@@ -66,6 +99,26 @@ run_deps_sandbox() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"dep_python3=missing"* ]]
   [[ "$output" == *"dep_jq=missing"* ]]
+}
+
+@test "deps: python3 present but < 3.11 → version blocker, exit 1 (A11)" {
+  setup_old_python_sandbox
+  run_deps_old_python
+  [ "$status" -ne 0 ]
+  # Binary itself is present (do not conflate with "missing").
+  [[ "$output" == *"dep_python3=ok"* ]]
+  [[ "$output" == *"dep_python3_version=missing"* ]]
+  [[ "$output" == *"3.11"* ]]
+  [[ "$output" == *"3.10.0"* ]]
+  rm -rf "$OLD_PY_BIN"
+}
+
+@test "deps: python3 >= 3.11 on current system → no version blocker (control)" {
+  command -v python3 >/dev/null || skip "python3 required"
+  py_ok=$(python3 -c 'import sys; print(1 if sys.version_info >= (3, 11) else 0)')
+  [ "$py_ok" -eq 1 ] || skip "system python3 < 3.11 — not the case this test covers"
+  run_deps
+  [[ "$output" == *"dep_python3_version=ok"* ]]
 }
 
 @test "deps: --install-hints prints brew/apt instructions on missing required" {

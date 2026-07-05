@@ -273,10 +273,24 @@ install_cline() {
     fi
   } > "$RULES_FILE"
 
-  # 2. Hook scripts
-  before_tool_body > "$HOOKS_DIR/before-tool.sh"
-  after_tool_body  > "$HOOKS_DIR/after-tool.sh"
-  on_notification_body > "$HOOKS_DIR/on-notification.sh"
+  # 2. Hook scripts — A16 (M-8): back up a pre-existing (possibly
+  # user-modified) hook before overwriting, and write atomically (tmp in the
+  # same dir + mv) so a crash mid-write never leaves a truncated hook script
+  # that then silently fails on every tool call. Reuses the same
+  # backup-once idiom as _cline_strip_block/install_cline_file_form above.
+  local hook_name hook_tmp
+  for hook_name in before-tool after-tool on-notification; do
+    _cline_backup_once "$HOOKS_DIR/$hook_name.sh"
+  done
+  hook_tmp=$(mktemp "$HOOKS_DIR/.before-tool.sh.XXXXXXXX")
+  before_tool_body > "$hook_tmp"
+  mv "$hook_tmp" "$HOOKS_DIR/before-tool.sh"
+  hook_tmp=$(mktemp "$HOOKS_DIR/.after-tool.sh.XXXXXXXX")
+  after_tool_body > "$hook_tmp"
+  mv "$hook_tmp" "$HOOKS_DIR/after-tool.sh"
+  hook_tmp=$(mktemp "$HOOKS_DIR/.on-notification.sh.XXXXXXXX")
+  on_notification_body > "$hook_tmp"
+  mv "$hook_tmp" "$HOOKS_DIR/on-notification.sh"
   chmod +x "$HOOKS_DIR"/*.sh
 
   # 3. Manifest

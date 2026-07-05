@@ -110,6 +110,15 @@ exit 0
 HOOK_EOF
 }
 
+# Back up a pre-existing file ONCE before we overwrite it (never clobber
+# without a recoverable copy — same convention as opencode.js/cline hooks).
+_windsurf_backup_once() {
+  local f="$1" b
+  [ -f "$f" ] || return 0
+  for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
+  cp "$f" "$f.pre-mb-backup.$(date +%s).$$" 2>/dev/null || true
+}
+
 # ═══ Install ═══
 install_windsurf() {
   adapter_require_jq "windsurf-adapter" || exit 1
@@ -138,10 +147,22 @@ install_windsurf() {
     fi
   } > "$RULES_FILE"
 
-  # 2. Hook scripts
-  before_prompt_body > "$HOOKS_DIR/before-prompt.sh"
-  after_response_body > "$HOOKS_DIR/after-response.sh"
-  chmod +x "$HOOKS_DIR"/*.sh
+  # 2. Hook scripts — A16 (M-8): back up a pre-existing (possibly
+  # user-modified) hook before overwriting, and write atomically (tmp in the
+  # same dir, BSD-safe trailing-X mktemp template, + mv) so a crash mid-write
+  # never leaves a truncated hook that then silently fails on every prompt.
+  local hook_tmp
+  _windsurf_backup_once "$HOOKS_DIR/before-prompt.sh"
+  hook_tmp=$(mktemp "$HOOKS_DIR/.before-prompt.sh.XXXXXXXX")
+  before_prompt_body > "$hook_tmp"
+  chmod +x "$hook_tmp"
+  mv "$hook_tmp" "$HOOKS_DIR/before-prompt.sh"
+
+  _windsurf_backup_once "$HOOKS_DIR/after-response.sh"
+  hook_tmp=$(mktemp "$HOOKS_DIR/.after-response.sh.XXXXXXXX")
+  after_response_body > "$hook_tmp"
+  chmod +x "$hook_tmp"
+  mv "$hook_tmp" "$HOOKS_DIR/after-response.sh"
 
   # 3. Build our hook config
   local our_hooks_json
@@ -173,7 +194,13 @@ install_windsurf() {
   else
     merged="$our_hooks_json"
   fi
-  echo "$merged" > "$HOOKS_JSON"
+  # A16 (M-8): back up a pre-existing hooks.json (may carry foreign/user hook
+  # entries merged in above) before overwriting, and write atomically.
+  _windsurf_backup_once "$HOOKS_JSON"
+  local hooks_json_tmp
+  hooks_json_tmp=$(mktemp "$WINDSURF_DIR/.hooks.json.XXXXXXXX")
+  printf '%s\n' "$merged" > "$hooks_json_tmp"
+  mv "$hooks_json_tmp" "$HOOKS_JSON"
 
   # 5. Manifest
   local files_json events_json

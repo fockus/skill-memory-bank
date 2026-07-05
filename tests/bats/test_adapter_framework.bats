@@ -30,6 +30,40 @@ teardown() {
   jq -e '.hooks_events == ["sessionEnd"]' "$MANIFEST" >/dev/null
 }
 
+# A14 (L-3): an empty bash array fed through `printf '%s\n' "${arr[@]}"` still
+# emits one bare newline (printf always applies its format at least once),
+# which used to slurp into `[""]` instead of `[]`.
+@test "framework: adapter_json_array_from_lines on truly empty input yields []" {
+  run bash -c '
+    source "'"$FRAMEWORK"'"
+    printf "" | adapter_json_array_from_lines
+  '
+  [ "$status" -eq 0 ]
+  [ "$output" = "[]" ]
+}
+
+@test "framework: adapter_json_array_from_lines on an empty bash array (printf degenerate case) yields []" {
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+
+  run bash -c '
+    source "'"$FRAMEWORK"'"
+    arr=()
+    printf "%s\n" "${arr[@]}" | adapter_json_array_from_lines
+  '
+  [ "$status" -eq 0 ]
+  [ "$output" = "[]" ]
+}
+
+@test "framework: adapter_json_array_from_lines preserves real entries and drops blank lines" {
+  run bash -c '
+    source "'"$FRAMEWORK"'"
+    printf "a\n\nb\n" | adapter_json_array_from_lines
+  '
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | jq -c .)" = '["a","b"]' ]
+}
+
 @test "contract: missing required functions fails with clear message" {
   # shellcheck source=/dev/null
   source "$CONTRACT"

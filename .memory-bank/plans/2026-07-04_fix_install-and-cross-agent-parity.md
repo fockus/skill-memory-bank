@@ -460,9 +460,9 @@ shellcheck adapters/kilo.sh adapters/git-hooks-fallback.sh
    клиентов и звать `adapters/<client>.sh uninstall`, который декрементит refcount.
 
 ### DoD:
-- [ ] uninstall зовёт per-adapter uninstall для каждого установленного клиента.
-- [ ] refcount `.mb-agents-owners.json` декрементится; при 0 — AGENTS.md блок удаляется.
-- [ ] Тесты: 1+ e2e RED→GREEN; `shellcheck` clean.
+- [x] uninstall зовёт per-adapter uninstall для каждого установленного клиента (манифест несёт `clients`+`project_root`, re-flush после Step-8 loop).
+- [x] refcount `.mb-agents-owners.json` декрементится; при 0 — owners-файл + shared AGENTS.md блок удаляются. Missing adapter → `[ ! -x ]` warn+continue (set -e-safe).
+- [x] Тесты: 1 e2e RED→GREEN (#27 per-adapter uninstall+refcount); `shellcheck` 0.
 
 ### Команды проверки:
 ```bash
@@ -490,8 +490,8 @@ shellcheck uninstall.sh
    при fail — say_err с требуемой версией; не ронять весь скрипт (сохранить exit-семантику).
 
 ### DoD:
-- [ ] deps-check явно репортит, если python < 3.11.
-- [ ] Тесты: 1+ bats RED→GREEN; `shellcheck` clean.
+- [x] deps-check явно репортит, если python < 3.11 (`check_python_version` через `python3 -c 'sys.version_info>=(3,11)'`, per-OS hint; case-паттерны с `>` закавычены — bare `>` = redirect).
+- [x] Тесты: 3 bats RED→GREEN (stub python3 на `--version`/`-c`); `shellcheck` 0.
 
 ### Команды проверки:
 ```bash
@@ -519,9 +519,9 @@ shellcheck scripts/mb-deps-check.sh
    с логом (не глушить ошибку echo-заглушкой); uninstall ищет манифест в том же fallback.
 
 ### DoD:
-- [ ] Манифест пишется в user-writable путь при недоступности prefix/share.
-- [ ] Ошибка записи логируется (не глушится).
-- [ ] Тесты: 1+ e2e RED→GREEN; `shellcheck` clean.
+- [x] Манифест пишется в user-writable путь при недоступности prefix/share (`scripts/_lib.sh::mb_resolve_manifest_path` → fallback `${XDG_DATA_HOME:-$HOME/.local/share}/memory-bank/.installed-manifest.json`; `MB_MANIFEST_PATH` override выигрывает; ЕДИНЫЙ путь в install.sh и uninstall.sh — judge подтвердил).
+- [x] Ошибка записи логируется реальным stderr (не глушится `2>/dev/null`); строится на A7-trap/atomic-flush (не регрессит).
+- [x] Тесты: 3 e2e RED→GREEN (#45 XDG fallback, #46 write-failure logged, #47 uninstall finds fallback); `shellcheck` 0.
 
 ### Команды проверки:
 ```bash
@@ -552,10 +552,10 @@ shellcheck install.sh
    по паре маркеров.
 
 ### DoD:
-- [ ] Контент юзера после MB-секции сохранён; бэкап CLAUDE.md создан.
-- [ ] Замена строго между парными маркерами.
-- [ ] AGENTS.md маркеры версионированы.
-- [ ] Тесты: 1+ RED→GREEN; `shellcheck`/`ruff` clean.
+- [x] Контент юзера после MB-секции сохранён; бэкап CLAUDE.md создан (slice читается ДО `backup_if_exists` mv — ordering-баг найден и исправлен по TDD; uninstall тоже strip между-маркерами, не до EOF).
+- [x] Замена строго между парными start/end маркерами.
+- [x] AGENTS.md блок версионирован ОТДЕЛЬНОЙ строкой `<!-- memory-bank-skill-version: X.Y.Z -->` (не в тексте маркера — строки `memory-bank:start` ассертятся verbatim в ~6 тест-файлах; judge подтвердил все 6 adapter-suites зелёные).
+- [x] Тесты: 6 bats (new `test_claude_md_refresh.bats`) + 3 (L-4 в `test_agents_md_lib.bats`) RED→GREEN; `shellcheck` 0.
 
 ### Команды проверки:
 ```bash
@@ -587,9 +587,9 @@ CLAUDE.md без маркеров (append свежий блок, не трога
    пустой вход → `[]`.
 
 ### DoD:
-- [ ] mktemp-шаблон рандомит на BSD и GNU; два вызова → разные файлы.
-- [ ] Пустой вход → `[]` (не `[""]`).
-- [ ] Тесты: 2 bats RED→GREEN; `shellcheck` clean.
+- [x] mktemp-шаблон рандомит на BSD и GNU (trailing-X only, без литерального суффикса после X-run); реальный триггер — stale-остаток от прерванного прогона, воспроизведён тестом.
+- [x] Пустой вход → `[]` (не `[""]`) — `jq -R 'select(length>0)'` перед slurp.
+- [x] Тесты: 6 bats RED→GREEN (3 в agents_md_lib, 3 в adapter_framework); `shellcheck` 0.
 
 ### Команды проверки:
 ```bash
@@ -615,8 +615,8 @@ shellcheck adapters/_lib_agents_md.sh adapters/_framework.sh
 2. **Fix**: printf-формат `MB_SKILLS_ROOT="%s"` (кавычки) + экранирование при необходимости.
 
 ### DoD:
-- [ ] Сгенерированный `MB_SKILLS_ROOT` в кавычках; source-able при пробелах в пути.
-- [ ] Тесты: 1+ bats RED→GREEN; `shellcheck` clean.
+- [x] Сгенерированный `MB_SKILLS_ROOT` shell-safe через `%q` (сильнее `"%s"`: держит пробелы И кавычки/`$` разом); source-able при пробелах в пути.
+- [x] Тесты: 1 bats RED→GREEN (HOME с пробелом → команда исполнима, не 127); `shellcheck` 0. (единственный write-site; план-строка :190 устарела после ребейзов)
 
 ### Команды проверки:
 ```bash
@@ -646,9 +646,9 @@ shellcheck adapters/cursor.sh
    `git rev-parse --git-path hooks` / уважать `core.hooksPath`.
 
 ### DoD:
-- [ ] Юзерские hooks бэкапятся; запись атомарна.
-- [ ] git-hooks-fallback уважает `core.hooksPath`.
-- [ ] Тесты: RED→GREEN во всех затронутых suites; `shellcheck` clean.
+- [x] Юзерские hooks бэкапятся + атомарная запись (mktemp-in-dir+chmod+mv, inode меняется) во ВСЕХ 4 адаптерах: opencode (plugin), cline (3 hook-write), git-hooks-fallback (`install_one_hook`), windsurf (2 hook-скрипта + hooks.json). +x сохраняется после mv.
+- [x] git-hooks-fallback уважает `core.hooksPath` — уже закрыто прошлым батчем (`git rev-parse --git-path hooks`), verified 2 тестами (relative+absolute), не дублировано.
+- [x] Тесты: RED→GREEN во всех suites (opencode +2, cline +2, git-hooks +4, windsurf +5 через inode-identity); `shellcheck` 0 ×4.
 
 ### Команды проверки:
 ```bash
@@ -1646,3 +1646,16 @@ mb-judge независимо перепрогнал: комбинированн
 ### Backlog-резидуалы (из judge GO_WITH_BACKLOG):
 - **R3-1 [MINOR, tests]** `setup_codex_prompts_sandbox`/`setup_skill_alias_sandbox` делают `rsync -a "$REPO_ROOT/"` живого дерева → конкурентная мутация даёт неконсистентный снимок (транзиентный флейк #34). Харден через `git archive`/clean-checkout снимок или retry. Проявляется только при аномальной конкурентной мутации; тихий CI не затронут.
 - **R3-2 [MINOR, docs]** Дрейф счётчиков в plan-тексте исправлен inline (24→29 total, 17→27 dispatchable) в DoD B2/B3; исходные оценки были устаревшими, рантайм-влияния нет.
+
+---
+
+## Batch 4 — исполнено (A10-A16 — Track A MED/LOW), judge = GO_WITH_BACKLOG (2026-07-05)
+
+Governed: implement (mb-developer, TDD RED→GREEN, строго последовательно) → независимая верификация → Codex-review **SKIPPED** (companion пусто, инфра) → **mb-judge первичный гейт** (расширенный мандат). A10: uninstall.sh per-adapter uninstall + refcount декремент (клиенты+root в манифесте). A11: deps-check python>=3.11. A12: `_lib.sh::mb_resolve_manifest_path` user-writable fallback (XDG) — единый путь install/uninstall, поверх A7. A13: CLAUDE.md refresh backup + парные маркеры (slice-before-mv ordering-фикс) + версия отдельной строкой. A14: BSD-safe mktemp + `[]`-фильтр. A15: `%q` для MB_SKILLS_ROOT. A16: backup+atomic hook-write во ВСЕХ 4 адаптерах (opencode/cline/git-hooks/**windsurf** — windsurf добавлен follow-up'ом чтобы закрыть stage полностью).
+
+mb-judge независимо перепрогнал (последовательно, чистя манифест между): 9 unit/adapter suites **143/148** + e2e **47/47**; 5 red = pre-existing `hooks/` auto-capture (cline #8/#17, git-hooks #10/#11/#29), воспроизведены на unmodified HEAD (`git show HEAD:`) → parallel-session домен, не A16-регрессия. shellcheck 0 ×11; A12 highest-risk (единый путь, XDG-fallback, override, A7 цел), A13 ordering, A14/A15/A16 — все руками сверены. Дифф-скоуп чист (21 файл, ноль запутывания с reviewer-2.0/work-loop).
+
+### Backlog-резидуалы (из judge GO_WITH_BACKLOG):
+- **R4-1 [MINOR, maintainability]** `scripts/_lib.sh` = 581 строк (+39 здесь) — предсуществующая крупная общая библиотека > ≤400. Кандидат на разбиение. Track C / отдельный рефактор.
+- **R4-2 [MAJOR, out-of-scope]** 5 pre-existing `hooks/` auto-capture падений (cline #8/#17 after-tool; git-hooks #10/#11/#29 post-commit placeholder/session-lock/MB_PATH) — домен параллельной сессии (`hooks/lib/session-common.sh`, `hooks/mb-session-turn.sh`), baseline-подтверждено across all batches. Чинить в их треке, не здесь.
+- **R3-1 расширен** — hermeticity касается и A12 e2e (`setup_readonly_skill_sandbox` rsync живого дерева). Тот же fix (git-archive/clean-checkout снимок).

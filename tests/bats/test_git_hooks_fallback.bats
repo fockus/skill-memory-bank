@@ -100,6 +100,66 @@ EOF
   fi
 }
 
+# A16 (M-8): install respects `core.hooksPath` — a repo that redirects hooks
+# to a custom directory must get the MB hooks wired THERE, not silently into
+# the default .git/hooks (which git would never invoke).
+@test "git-hooks: install respects a custom core.hooksPath (A16)" {
+  local custom_dir="$PROJECT/.githooks"
+  mkdir -p "$custom_dir"
+  (cd "$PROJECT" && git config core.hooksPath .githooks)
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  [ -x "$custom_dir/post-commit" ]
+  [ -x "$custom_dir/pre-commit" ]
+  # Must NOT have fallen back to the default (unused, since hooksPath is set) location.
+  [ ! -f "$PROJECT/.git/hooks/post-commit" ]
+}
+
+@test "git-hooks: install respects an ABSOLUTE core.hooksPath (A16)" {
+  local custom_dir
+  custom_dir="$(mktemp -d)"
+  (cd "$PROJECT" && git config core.hooksPath "$custom_dir")
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  [ -x "$custom_dir/post-commit" ]
+  [ -x "$custom_dir/pre-commit" ]
+  rm -rf "$custom_dir"
+}
+
+# A16 (M-8): the hook body used to be written with a plain `>` redirect — a
+# crash mid-write leaves a truncated hook that then fails/blocks every future
+# commit. `>` truncates and rewrites the SAME inode in place; a proper
+# tmp-in-same-dir + mv instead publishes a brand-new inode atomically. Inode
+# identity is therefore a direct, reliable probe for "was this atomic".
+@test "git-hooks: hook rewrite replaces the inode (atomic mv), not an in-place truncate (A16)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local inode_stat
+  inode_stat() { stat -f%i "$1" 2>/dev/null || stat -c%i "$1"; }
+  local inode_before
+  inode_before=$(inode_stat "$PROJECT/.git/hooks/post-commit")
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local inode_after
+  inode_after=$(inode_stat "$PROJECT/.git/hooks/post-commit")
+  [ "$inode_before" != "$inode_after" ]
+}
+
+@test "git-hooks: install does not leave a stray tmp file after writing hooks (A16 atomic write)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local stray
+  stray=$(find "$PROJECT/.git/hooks" -maxdepth 1 -type f \
+    ! -name 'post-commit' ! -name 'pre-commit' \
+    ! -name '*.pre-mb-backup' ! -name '*.sample' | wc -l | tr -d ' ')
+  [ "$stray" -eq 0 ]
+}
+
 # ═══════════════════════════════════════════════════════════════
 # post-commit behavior
 # ═══════════════════════════════════════════════════════════════

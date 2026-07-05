@@ -540,3 +540,42 @@ mb_collision_safe_filename() {
     i=$((i + 1))
   done
 }
+
+# mb_resolve_manifest_path <skill_dir> — shared by install.sh/uninstall.sh (A12).
+#
+# Precedence:
+#   1. $MB_MANIFEST_PATH — explicit override (tests / advanced users).
+#   2. <skill_dir>/.installed-manifest.json, when skill_dir is user-writable
+#      (the common case: git checkout, editable installs, a Homebrew cellar
+#      you own).
+#   3. ${XDG_DATA_HOME:-$HOME/.local/share}/memory-bank/.installed-manifest.json
+#      — pip/sudo installs frequently place the skill under a root-owned
+#      prefix (site-packages/share/...) a normal user cannot write to; silently
+#      losing the manifest there means uninstall has nothing to roll back.
+#
+# Self-heals: if the writable co-located path has no manifest yet but the user
+# fallback dir already does (e.g. an earlier unwritable install ran first),
+# reuse the fallback so uninstall.sh finds what install.sh actually wrote.
+mb_resolve_manifest_path() {
+  local skill_dir="${1:?skill_dir required}"
+
+  if [ -n "${MB_MANIFEST_PATH:-}" ]; then
+    printf '%s\n' "$MB_MANIFEST_PATH"
+    return 0
+  fi
+
+  local user_dir="${XDG_DATA_HOME:-$HOME/.local/share}/memory-bank"
+  local user_manifest="$user_dir/.installed-manifest.json"
+  local local_manifest="$skill_dir/.installed-manifest.json"
+
+  if [ -w "$skill_dir" ]; then
+    if [ ! -f "$local_manifest" ] && [ -f "$user_manifest" ]; then
+      printf '%s\n' "$user_manifest"
+      return 0
+    fi
+    printf '%s\n' "$local_manifest"
+    return 0
+  fi
+
+  printf '%s\n' "$user_manifest"
+}

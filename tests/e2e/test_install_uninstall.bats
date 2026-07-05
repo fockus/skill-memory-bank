@@ -315,6 +315,28 @@ PY
   [ ! -f "$HOME/.pi/agent/prompts/mb.md" ]
 }
 
+@test "uninstall: calls per-adapter uninstall for install-time --clients (A10 refcount decrement)" {
+  command -v jq >/dev/null || skip "jq required"
+  PROJECT="$(mktemp -d)"
+
+  bash "$REPO_ROOT/install.sh" --clients codex,opencode --project-root "$PROJECT" --non-interactive >/dev/null
+
+  [ -f "$PROJECT/AGENTS.md" ]
+  [ -f "$PROJECT/.opencode/commands/mb.md" ]
+  [ -f "$PROJECT/.codex/config.toml" ]
+  jq -e '.owners | contains(["opencode","codex"])' "$PROJECT/.mb-agents-owners.json" >/dev/null
+
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ ! -f "$PROJECT/.opencode/commands/mb.md" ]
+  [ ! -f "$PROJECT/.codex/config.toml" ]
+  # Both clients uninstalled → refcount reaches 0 → owners file + shared section removed.
+  [ ! -f "$PROJECT/.mb-agents-owners.json" ]
+  [ ! -f "$PROJECT/AGENTS.md" ]
+
+  rm -rf "$PROJECT"
+}
+
 @test "uninstall: -y removes installed files without stdin prompt" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   run bash "$REPO_ROOT/uninstall.sh" -y
@@ -550,4 +572,79 @@ EOF
   [ "$status" -ne 0 ]                 # install aborted mid-way
   [ -f "$MB_MANIFEST_PATH" ]          # trap flushed a manifest anyway
   python3 -c "import json; m=json.load(open('$MB_MANIFEST_PATH')); assert len(m.get('files',[]))>=1, 'manifest has no files'"
+}
+
+# ═══════════════════════════════════════════════════════════════
+# A12 (M-4): user-writable manifest path for pip/sudo installs
+# ═══════════════════════════════════════════════════════════════
+
+setup_readonly_skill_sandbox() {
+  command -v rsync >/dev/null || skip "rsync required"
+  RO_SKILL_PARENT="$(mktemp -d)"
+  RO_SKILL_SRC="$RO_SKILL_PARENT/skill"
+  mkdir -p "$RO_SKILL_SRC"
+  rsync -a \
+    --exclude='.git' \
+    --exclude='*.pre-mb-backup.*' \
+    --exclude='.index' \
+    --exclude='node_modules' \
+    --exclude='.installed-manifest.json' \
+    "$REPO_ROOT/" "$RO_SKILL_SRC/"
+  # Simulate a pip/sudo install tree: readable+executable, not writable by us.
+  chmod -R a-w "$RO_SKILL_SRC"
+}
+
+teardown_readonly_skill_sandbox() {
+  [ -n "${RO_SKILL_SRC:-}" ] && [ -d "$RO_SKILL_SRC" ] && chmod -R u+w "$RO_SKILL_SRC"
+  [ -n "${RO_SKILL_PARENT:-}" ] && [ -d "$RO_SKILL_PARENT" ] && rm -rf "$RO_SKILL_PARENT"
+}
+
+@test "install: manifest falls back to XDG data dir when skill dir is read-only (A12)" {
+  setup_readonly_skill_sandbox
+  unset XDG_DATA_HOME
+
+  run env MB_SKIP_DEPS_CHECK=1 bash "$RO_SKILL_SRC/install.sh" --non-interactive
+  [ "$status" -eq 0 ]
+
+  # Not silently lost inside the unwritable tree...
+  [ ! -f "$RO_SKILL_SRC/.installed-manifest.json" ]
+  # ...but present at the user-writable fallback, and valid JSON.
+  local fallback="$HOME/.local/share/memory-bank/.installed-manifest.json"
+  [ -f "$fallback" ]
+  python3 -c "import json; json.load(open('$fallback'))"
+
+  teardown_readonly_skill_sandbox
+}
+
+@test "install: manifest write failure is logged, not silently swallowed (A12)" {
+  setup_readonly_skill_sandbox
+  # Fallback dir itself unwritable too — both candidate paths fail.
+  mkdir -p "$HOME/.local/share/memory-bank"
+  chmod a-w "$HOME/.local/share/memory-bank"
+
+  run env MB_SKIP_DEPS_CHECK=1 bash "$RO_SKILL_SRC/install.sh" --non-interactive
+  # Install still completes (manifest is a rollback aid, not a hard blocker)...
+  [ "$status" -eq 0 ]
+  # ...but the failure is reported, not hidden behind a bare generic string.
+  [[ "$output" == *"Manifest write failed"* ]]
+  [[ "$output" == *"Permission denied"* ]] || [[ "$output" == *"Errno 13"* ]]
+
+  chmod u+w "$HOME/.local/share/memory-bank"
+  teardown_readonly_skill_sandbox
+}
+
+@test "uninstall: finds manifest at the same XDG fallback install.sh used (A12)" {
+  setup_readonly_skill_sandbox
+  unset XDG_DATA_HOME
+
+  bash "$RO_SKILL_SRC/install.sh" --non-interactive >/dev/null 2>&1
+
+  local fallback="$HOME/.local/share/memory-bank/.installed-manifest.json"
+  [ -f "$fallback" ]
+
+  echo "y" | bash "$RO_SKILL_SRC/uninstall.sh" >/dev/null
+  [ ! -f "$fallback" ]
+  [ ! -f "$HOME/.claude/RULES.md" ]
+
+  teardown_readonly_skill_sandbox
 }

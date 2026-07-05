@@ -17,7 +17,12 @@ adapter_require_jq() {
 }
 
 adapter_json_array_from_lines() {
-  jq -R . | jq -s .
+  # L-3: `printf '%s\n' "${arr[@]}"` on an EMPTY bash array still emits one
+  # bare newline (printf always applies its format at least once even with
+  # zero arguments) — the plain `jq -R . | jq -s .` pipeline slurped that
+  # single empty line into `[""]` instead of `[]`. Filter blank lines before
+  # slurping so a genuinely empty/degenerate input yields `[]`.
+  jq -R 'select(length > 0)' | jq -s .
 }
 
 adapter_write_manifest() {

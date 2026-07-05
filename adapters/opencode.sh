@@ -179,10 +179,10 @@ _opencode_agent_is_partial() {
   head -5 "$1" 2>/dev/null | grep -qiE '^partial:[[:space:]]*true[[:space:]]*$'
 }
 
-# Back up a pre-existing user agent file ONCE before we overwrite it (never
-# clobber without a recoverable copy — same convention as opencode.json/
-# codex config.toml backups).
-_opencode_backup_agent_once() {
+# Back up a pre-existing file ONCE before we overwrite it (never clobber
+# without a recoverable copy — same convention as opencode.json/codex
+# config.toml backups). Generic: used for both agent files and the plugin.js.
+_opencode_backup_once() {
   local f="$1" b
   [ -f "$f" ] || return 0
   for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
@@ -196,7 +196,14 @@ install_opencode() {
 
   local owned
   owned=$(agents_md_install "$PROJECT_ROOT" "opencode" "$SKILL_DIR")
-  plugin_body > "$PLUGIN_FILE"
+  # A16 (M-8): back up a pre-existing (possibly user-modified) plugin file
+  # before overwriting, and write atomically (tmp in the same dir + mv) so a
+  # crash mid-write never leaves OpenCode trying to load a truncated plugin.
+  _opencode_backup_once "$PLUGIN_FILE"
+  local plugin_tmp
+  plugin_tmp=$(mktemp "$PLUGIN_DIR/.memory-bank.js.XXXXXXXX")
+  plugin_body > "$plugin_tmp"
+  mv "$plugin_tmp" "$PLUGIN_FILE"
   install_opencode_json
 
   local f
@@ -208,7 +215,7 @@ install_opencode() {
   for f in "$SKILL_DIR"/agents/*.md; do
     [ -f "$f" ] || continue
     _opencode_agent_is_partial "$f" && continue
-    _opencode_backup_agent_once "$AGENT_DIR/$(basename "$f")"
+    _opencode_backup_once "$AGENT_DIR/$(basename "$f")"
     cp "$f" "$AGENT_DIR/$(basename "$f")"
   done
 

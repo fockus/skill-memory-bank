@@ -91,6 +91,104 @@ run_adapter() {
   [ "$max_dup" -eq 1 ]
 }
 
+# A16 (M-8): before-prompt.sh/after-response.sh/hooks.json used to be
+# clobbered with a plain `>` redirect — no backup of a user-modified copy,
+# and non-atomic (a crash mid-write would leave a truncated hook/JSON that
+# then fails/blocks every future prompt).
+@test "windsurf: install backs up an existing user-modified hook script before overwriting (A16)" {
+  mkdir -p "$PROJECT/.windsurf/hooks"
+  cat > "$PROJECT/.windsurf/hooks/before-prompt.sh" <<'EOF'
+#!/usr/bin/env bash
+# USER_CUSTOM_HOOK_MARKER
+exit 0
+EOF
+  chmod +x "$PROJECT/.windsurf/hooks/before-prompt.sh"
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local hook="$PROJECT/.windsurf/hooks/before-prompt.sh"
+  [ -x "$hook" ]
+  # Freshly generated (user customization is gone from the live file)...
+  ! grep -q "USER_CUSTOM_HOOK_MARKER" "$hook"
+  # ...but recoverable via a backup.
+  local found=0
+  for b in "$hook".pre-mb-backup.*; do
+    [ -f "$b" ] && grep -q "USER_CUSTOM_HOOK_MARKER" "$b" && found=1
+  done
+  [ "$found" -eq 1 ]
+}
+
+@test "windsurf: install backs up an existing hooks.json before overwriting (A16)" {
+  mkdir -p "$PROJECT/.windsurf"
+  cat > "$PROJECT/.windsurf/hooks.json" <<'EOF'
+{
+  "hooks": {
+    "user-prompt-submit": [{ "command": "echo USER_CUSTOM_HOOKS_JSON_MARKER" }]
+  }
+}
+EOF
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local found=0
+  for b in "$PROJECT/.windsurf/hooks.json".pre-mb-backup.*; do
+    [ -f "$b" ] && grep -q "USER_CUSTOM_HOOKS_JSON_MARKER" "$b" && found=1
+  done
+  [ "$found" -eq 1 ]
+  # And the user's own hook entry is still preserved in the live (merged) file.
+  jq -e '.hooks."user-prompt-submit" | map(.command) | any(contains("USER_CUSTOM_HOOKS_JSON_MARKER"))' \
+    "$PROJECT/.windsurf/hooks.json" >/dev/null
+}
+
+# `>` truncates and rewrites the SAME inode in place; a proper tmp-in-same-dir
+# + mv instead publishes a brand-new inode atomically. Inode identity is a
+# direct, reliable probe for "was this write atomic".
+@test "windsurf: hook script rewrite replaces the inode (atomic mv), not an in-place truncate (A16)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local inode_stat
+  inode_stat() { stat -f%i "$1" 2>/dev/null || stat -c%i "$1"; }
+  local inode_before
+  inode_before=$(inode_stat "$PROJECT/.windsurf/hooks/before-prompt.sh")
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local inode_after
+  inode_after=$(inode_stat "$PROJECT/.windsurf/hooks/before-prompt.sh")
+  [ "$inode_before" != "$inode_after" ]
+}
+
+@test "windsurf: hooks.json rewrite replaces the inode (atomic mv), not an in-place truncate (A16)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local inode_stat
+  inode_stat() { stat -f%i "$1" 2>/dev/null || stat -c%i "$1"; }
+  local inode_before
+  inode_before=$(inode_stat "$PROJECT/.windsurf/hooks.json")
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local inode_after
+  inode_after=$(inode_stat "$PROJECT/.windsurf/hooks.json")
+  [ "$inode_before" != "$inode_after" ]
+}
+
+@test "windsurf: install does not leave stray tmp files after writing hooks/hooks.json (A16 atomic write)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local stray
+  stray=$(find "$PROJECT/.windsurf/hooks" -maxdepth 1 -type f \
+    ! -name 'before-prompt.sh' ! -name 'after-response.sh' \
+    ! -name '*.pre-mb-backup.*' | wc -l | tr -d ' ')
+  [ "$stray" -eq 0 ]
+  stray=$(find "$PROJECT/.windsurf" -maxdepth 1 -type f \
+    ! -name 'hooks.json' ! -name '.mb-manifest.json' \
+    ! -name '*.pre-mb-backup.*' | wc -l | tr -d ' ')
+  [ "$stray" -eq 0 ]
+}
+
 @test "windsurf: install merges with existing user hooks.json" {
   mkdir -p "$PROJECT/.windsurf"
   cat > "$PROJECT/.windsurf/hooks.json" <<'EOF'

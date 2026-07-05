@@ -292,9 +292,14 @@ install_one_hook() {
     fi
   fi
 
-  # Write our hook
-  $body_fn > "$target"
-  chmod +x "$target"
+  # Write our hook — A16 (M-8): atomic tmp (same dir, BSD-safe trailing-X
+  # template) + mv, so a crash mid-write can never leave a truncated hook
+  # that then silently fails/blocks every future commit.
+  local tmp
+  tmp=$(mktemp "$HOOKS_DIR/.$name.XXXXXXXX")
+  $body_fn > "$tmp"
+  chmod +x "$tmp"
+  mv "$tmp" "$target"
 }
 
 install_git_hooks() {

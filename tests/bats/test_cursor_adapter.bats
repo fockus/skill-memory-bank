@@ -89,6 +89,34 @@ run_adapter() {
   grep -q 'MB_SKILLS_ROOT=' "$PROJECT/.cursor/hooks.json"
 }
 
+# A15 (M-7): MB_SKILLS_ROOT was written unquoted into the generated hooks.json
+# command string — a $HOME containing a space (e.g. "/Users/john doe") breaks
+# the env-var assignment when Cursor's hook runner hands the command to a
+# shell (the value gets split at the first space into a stray extra word).
+@test "cursor: hooks.json MB_SKILLS_ROOT survives a HOME with a space (A15)" {
+  local home
+  home="$(mktemp -d)/john doe"
+  mkdir -p "$home"
+
+  run env HOME="$home" bash "$ADAPTER" install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local hjson="$PROJECT/.cursor/hooks.json"
+  local cmd env_part
+  cmd=$(jq -r '.hooks.sessionEnd[0].command' "$hjson")
+  [[ "$cmd" == *"MB_SKILLS_ROOT="* ]]
+  env_part="${cmd%% bash *}"
+
+  # Hand just the env-assignment prefix to a real shell and read back
+  # MB_SKILLS_ROOT — it must be the FULL path (with the space intact), not
+  # truncated at the first word boundary.
+  run bash -c "${env_part} bash -c 'printf %s \"\$MB_SKILLS_ROOT\"'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$home/.claude/skills" ]
+
+  rm -rf "$(dirname "$home")"
+}
+
 # ═══════════════════════════════════════════════════════════════
 # H-2: run_texttool must honor ${MB_PYTHON:-python3} (pipx isolated venv)
 # ═══════════════════════════════════════════════════════════════

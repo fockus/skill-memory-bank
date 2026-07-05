@@ -32,6 +32,34 @@ teardown() {
   jq -e '.owners == ["codex"]' "$PROJECT/.mb-agents-owners.json" >/dev/null
 }
 
+# L-4: the shared block must carry a version tag so a stale block can be
+# reliably identified/found across skill upgrades. The existing exact-string
+# markers (`memory-bank:start` / `memory-bank:end`) must stay byte-identical —
+# other adapters' suites assert on them literally — so the version rides in a
+# dedicated line inside the block instead of being spliced into the marker text.
+@test "agents-md: block carries a version-tagged line right after the start marker (L-4)" {
+  agents_md_install "$PROJECT" "codex" "$SKILL_DIR" >/dev/null
+  grep -q '<!-- memory-bank:start -->' "$PROJECT/AGENTS.md"
+  grep -q '<!-- memory-bank:end -->' "$PROJECT/AGENTS.md"
+  awk '/memory-bank:start/{getline; print; exit}' "$PROJECT/AGENTS.md" | grep -qE 'memory-bank-skill-version: '
+}
+
+@test "agents-md: version tag reflects the real skill VERSION file when present (L-4)" {
+  echo "9.9.9" > "$SKILL_DIR/VERSION"
+  agents_md_install "$PROJECT" "codex" "$SKILL_DIR" >/dev/null
+  grep -q 'memory-bank-skill-version: 9.9.9' "$PROJECT/AGENTS.md"
+}
+
+@test "agents-md: refresh (second owner) keeps a single version-tagged block, not duplicated (L-4)" {
+  echo "9.9.9" > "$SKILL_DIR/VERSION"
+  agents_md_install "$PROJECT" "codex" "$SKILL_DIR" >/dev/null
+  agents_md_install "$PROJECT" "opencode" "$SKILL_DIR" >/dev/null
+  local count
+  count=$(grep -c 'memory-bank-skill-version:' "$PROJECT/AGENTS.md")
+  [ "$count" -eq 1 ]
+  grep -q 'memory-bank-skill-version: 9.9.9' "$PROJECT/AGENTS.md"
+}
+
 @test "agents-md: second owner reuses one shared section and updates refcount" {
   agents_md_install "$PROJECT" "codex" "$SKILL_DIR" >/dev/null
   run agents_md_install "$PROJECT" "opencode" "$SKILL_DIR"
@@ -59,9 +87,43 @@ teardown() {
 @test "agents-md: owners file write leaves valid json and no temp leftovers" {
   _owners_write "$PROJECT" '{"owners":["cursor"],"initial_had_user_content":false}'
   jq -e '.owners == ["cursor"]' "$PROJECT/.mb-agents-owners.json" >/dev/null
-  local tmp_count
-  tmp_count=$(find "$PROJECT" -maxdepth 1 -name '.mb-agents-owners.json.*.tmp' | wc -l | tr -d ' ')
-  [ "$tmp_count" -eq 0 ]
+  # Pattern-agnostic: assert no stray file besides the final owners json,
+  # regardless of the tmp-name scheme _owners_write happens to use.
+  local extra_count
+  extra_count=$(find "$PROJECT" -maxdepth 1 -type f ! -name '.mb-agents-owners.json' | wc -l | tr -d ' ')
+  [ "$extra_count" -eq 0 ]
+}
+
+# M-6: BSD mktemp only randomizes a *trailing* run of X's — a literal suffix
+# after it (the old "$target.XXXXXX.tmp" template) is taken as-is, so a
+# second call in the same directory (or any leftover from an interrupted
+# prior run) collides with EEXIST and mktemp aborts.
+@test "agents-md: owners write survives two consecutive calls without an EEXIST collision (M-6)" {
+  run _owners_write "$PROJECT" '{"owners":["cursor"],"initial_had_user_content":false}'
+  [ "$status" -eq 0 ]
+  run _owners_write "$PROJECT" '{"owners":["cursor","codex"],"initial_had_user_content":false}'
+  [ "$status" -eq 0 ]
+  jq -e '.owners == ["cursor","codex"]' "$PROJECT/.mb-agents-owners.json" >/dev/null
+}
+
+@test "agents-md: owners write survives a stale leftover tmp file from an interrupted prior run (M-6)" {
+  # Simulates an interrupted previous run: on BSD mktemp, "$target.XXXXXX.tmp"
+  # is NOT randomized (a suffix follows the X run) so it always creates this
+  # exact literal name; a crash between mktemp and mv would leave it behind.
+  : > "$PROJECT/.mb-agents-owners.json.XXXXXX.tmp"
+  run _owners_write "$PROJECT" '{"owners":["cursor"],"initial_had_user_content":false}'
+  [ "$status" -eq 0 ]
+  jq -e '.owners == ["cursor"]' "$PROJECT/.mb-agents-owners.json" >/dev/null
+}
+
+@test "agents-md: mktemp template is BSD-portable — two calls yield different names (M-6)" {
+  # The X's must be the LAST characters of the template (no literal suffix
+  # after them) for BSD/macOS mktemp to actually randomize.
+  local t1 t2
+  t1=$(mktemp "$PROJECT/.mb-agents-owners.XXXXXXXX")
+  t2=$(mktemp "$PROJECT/.mb-agents-owners.XXXXXXXX")
+  [ "$t1" != "$t2" ]
+  rm -f "$t1" "$t2"
 }
 
 @test "agents-md: section documents the Pi no-commit false-done closure limitation (DF Task 6)" {

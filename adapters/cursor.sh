@@ -146,7 +146,12 @@ cursor_hook_env_prefix() {
   if [ ! -d "$skills_root/memory-bank" ]; then
     skills_root="$HOME/.claude/skills"
   fi
-  printf 'MB_AGENT=cursor MB_SKILLS_ROOT=%s ' "$skills_root"
+  # A15 (M-7): unquoted MB_SKILLS_ROOT breaks the moment $HOME contains a
+  # space (e.g. "/Users/john doe") — Cursor's hook runner hands this string
+  # to a shell, which splits the value at the first space into a stray extra
+  # word. %q shell-escapes spaces/quotes/`$` so the assignment round-trips
+  # safely through the JSON command string.
+  printf 'MB_AGENT=cursor MB_SKILLS_ROOT=%q ' "$skills_root"
 }
 
 # Hook names that were registered in previous versions but are no longer current.

@@ -55,6 +55,44 @@ run_adapter() {
   [ -x "$PROJECT/.clinerules/hooks/on-notification.sh" ]
 }
 
+# A16 (M-8): hook scripts (+ the rules file) used to be clobbered with a
+# plain `>` redirect — no backup of a user-modified copy, and non-atomic (a
+# crash mid-write would leave a truncated hook script that then fails/aborts
+# on every tool call until manually fixed).
+@test "cline: install backs up an existing user-modified hook script before overwriting (A16)" {
+  mkdir -p "$PROJECT/.clinerules/hooks"
+  cat > "$PROJECT/.clinerules/hooks/before-tool.sh" <<'EOF'
+#!/usr/bin/env bash
+# USER_CUSTOM_HOOK_MARKER
+exit 0
+EOF
+  chmod +x "$PROJECT/.clinerules/hooks/before-tool.sh"
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local hook="$PROJECT/.clinerules/hooks/before-tool.sh"
+  [ -x "$hook" ]
+  # Freshly generated (user customization is gone from the live file)...
+  ! grep -q "USER_CUSTOM_HOOK_MARKER" "$hook"
+  # ...but recoverable via a backup.
+  local found=0
+  for b in "$hook".pre-mb-backup.*; do
+    [ -f "$b" ] && grep -q "USER_CUSTOM_HOOK_MARKER" "$b" && found=1
+  done
+  [ "$found" -eq 1 ]
+}
+
+@test "cline: install does not leave stray tmp files after writing hooks (A16 atomic write)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local stray
+  stray=$(find "$PROJECT/.clinerules/hooks" -maxdepth 1 -type f \
+    ! -name 'before-tool.sh' ! -name 'after-tool.sh' ! -name 'on-notification.sh' \
+    ! -name '*.pre-mb-backup.*' | wc -l | tr -d ' ')
+  [ "$stray" -eq 0 ]
+}
+
 @test "cline: install writes manifest with adapter=cline and event mappings" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]

@@ -6,6 +6,8 @@
 set -euo pipefail
 
 SOURCE_SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+. "$SOURCE_SKILL_DIR/scripts/_lib.sh"
 # Interpreter that owns the memory_bank_skill package. The `memory-bank` CLI
 # exports MB_PYTHON=sys.executable so pipx/pip/Homebrew installs invoke the
 # venv's python (a bare system python3 cannot import the package). Falls back
@@ -26,17 +28,37 @@ PI_SKILL_ALIAS="$PI_AGENT_DIR/skills/memory-bank"
 # read `${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}` (commands/mb.md),
 # and a host wrapper can point MB_SKILLS_ROOT at this alias instead.
 OPENCODE_SKILL_ALIAS="$OPENCODE_DIR/skills/memory-bank"
-MANIFEST="${MB_MANIFEST_PATH:-$SOURCE_SKILL_DIR/.installed-manifest.json}"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
 PI_START_MARKER="<!-- memory-bank-pi:start -->"
 PI_END_MARKER="<!-- memory-bank-pi:end -->"
+# A13 (M-5): paired markers for the ~/.claude/CLAUDE.md MB section. Before this,
+# refresh only had a start marker and blindly consumed start..EOF, destroying
+# any user content placed after the section on every subsequent install.
+CLAUDE_MB_START_MARKER="# [MEMORY-BANK-SKILL]"
+CLAUDE_MB_END_MARKER="<!-- /memory-bank-skill -->"
+
+# ─── Manifest path resolution (A12) ─────────────────────────────────────────
+# pip/sudo installs frequently place SOURCE_SKILL_DIR under a root-owned
+# prefix (e.g. <site-packages>/share/skill-memory-bank) a normal user cannot
+# write to. Falling back silently there used to lose the uninstall rollback
+# source entirely — mb_resolve_manifest_path (scripts/_lib.sh) picks a
+# user-writable XDG location instead, and uninstall.sh applies the exact same
+# resolution so it finds what install.sh actually wrote.
+MANIFEST="$(mb_resolve_manifest_path "$SOURCE_SKILL_DIR")"
+if ! mkdir -p "$(dirname "$MANIFEST")" 2>/dev/null; then
+  echo "[install.sh] warning: could not create manifest directory $(dirname "$MANIFEST")" >&2
+fi
+if [ -z "${MB_MANIFEST_PATH:-}" ] && [ "$MANIFEST" != "$SOURCE_SKILL_DIR/.installed-manifest.json" ]; then
+  echo "[install.sh] $SOURCE_SKILL_DIR is not writable — manifest will be stored at $MANIFEST instead" >&2
+fi
 
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'
 BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 
 INSTALLED_FILES=()
 BACKED_UP_FILES=()
+ADAPTERS_INVOKED=()
 
 # ─── Manifest flush (A7 / H-5) ──────────────────────────────────────────────
 # The manifest is the uninstall rollback source. Write it INCREMENTALLY via an
@@ -46,14 +68,22 @@ BACKED_UP_FILES=()
 # (Step 7) and the trap don't double-write.
 MB_MANIFEST_FLUSHED=0
 flush_manifest() {
-  INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}"})" \
-  BACKED_UP_STR="$(printf '%s\n' ${BACKED_UP_FILES[@]+"${BACKED_UP_FILES[@]}"})" \
-  MANIFEST_PATH="$MANIFEST" \
-  INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  "$MB_PY" << 'PYEOF' 2>/dev/null || echo '  Manifest write failed'
+  # A12: surface the real error instead of a bare "Manifest write failed"
+  # (e.g. both the co-located and the XDG-fallback dirs are unwritable) —
+  # capture stderr instead of blanket-discarding it via 2>/dev/null.
+  local mf_output
+  if ! mf_output=$(
+    INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}"})" \
+    BACKED_UP_STR="$(printf '%s\n' ${BACKED_UP_FILES[@]+"${BACKED_UP_FILES[@]}"})" \
+    CLIENTS_INSTALLED_STR="$(printf '%s\n' ${ADAPTERS_INVOKED[@]+"${ADAPTERS_INVOKED[@]}"})" \
+    MANIFEST_PROJECT_ROOT="${PROJECT_ROOT:-}" \
+    MANIFEST_PATH="$MANIFEST" \
+    INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "$MB_PY" << 'PYEOF' 2>&1
 import json, os, tempfile
 files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
 raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
+clients = [c for c in os.environ.get("CLIENTS_INSTALLED_STR", "").split("\n") if c]
 
 
 def _ordered_unique(items):
@@ -72,6 +102,12 @@ manifest = {
     "skill": "skill-memory-bank",
     "files": _ordered_unique(files),
     "backups": backups,
+    # A10: per-project cross-agent adapters invoked at install time (excludes
+    # claude-code, whose lifecycle is managed directly by install/uninstall.sh)
+    # + the project root they were installed into, so uninstall.sh can call
+    # each adapter's own `uninstall` and decrement the shared AGENTS.md refcount.
+    "clients": _ordered_unique(clients),
+    "project_root": os.environ.get("MANIFEST_PROJECT_ROOT", ""),
 }
 path = os.environ["MANIFEST_PATH"]
 d = os.path.dirname(path) or "."
@@ -87,6 +123,10 @@ except Exception:
         pass
     raise
 PYEOF
+  ); then
+    echo "  Manifest write failed (target: $MANIFEST):" >&2
+    echo "$mf_output" | sed 's/^/    /' >&2
+  fi
   MB_MANIFEST_FLUSHED=1
 }
 
@@ -99,8 +139,7 @@ _mb_on_exit() {
 
 # shellcheck disable=SC1091
 . "$SOURCE_SKILL_DIR/adapters/_lib_agents_md.sh"
-# shellcheck disable=SC1091
-. "$SOURCE_SKILL_DIR/scripts/_lib.sh"
+# scripts/_lib.sh already sourced above (needed early for mb_resolve_manifest_path).
 
 count_matching_files() {
   find "$1" -maxdepth 1 -type f -name "$2" | wc -l | tr -d ' '
@@ -846,39 +885,72 @@ install_file_localized "$SOURCE_SKILL_DIR/rules/RULES.md" "$CLAUDE_DIR/RULES.md"
 echo -e "  ${GREEN}✓${NC} RULES.md"
 
 if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
-  if ! grep -q "\[MEMORY-BANK-SKILL\]" "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null; then
+  claude_has_start=0
+  claude_has_end=0
+  grep -qF -- "$CLAUDE_MB_START_MARKER" "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && claude_has_start=1
+  grep -qF -- "$CLAUDE_MB_END_MARKER" "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && claude_has_end=1
+
+  if [ "$claude_has_start" -eq 0 ] || [ "$claude_has_end" -eq 0 ]; then
+    # Either no MB section yet, or a legacy/hand-edited file with a start
+    # marker but no matching end marker (pre-A13 files never wrote one). In
+    # both cases we do NOT try to guess where "our" content ends — take a
+    # full backup first (recoverable via uninstall.sh's backup-restore step,
+    # same contract as every other backup_if_exists caller in this script)
+    # and append a fresh, properly paired block rather than destructively
+    # consuming start..EOF (the old M-5 bug).
     backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
-    printf '\n# [MEMORY-BANK-SKILL]\n' >> "$CLAUDE_DIR/CLAUDE.md"
-    cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md" >> "$CLAUDE_DIR/CLAUDE.md"
-    localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "# [MEMORY-BANK-SKILL]"
+    {
+      printf '\n%s\n\n' "$CLAUDE_MB_START_MARKER"
+      cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+      printf '\n%s\n' "$CLAUDE_MB_END_MARKER"
+    } >> "$CLAUDE_DIR/CLAUDE.md"
+    localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_MB_START_MARKER"
     INSTALLED_FILES+=("$CLAUDE_DIR/CLAUDE.md")
     echo -e "  ${GREEN}✓${NC} CLAUDE.md (merged)"
   else
-    tmp="$CLAUDE_DIR/CLAUDE.md.tmp"
-    awk -v marker="# [MEMORY-BANK-SKILL]" '
-      index($0, marker) { exit }
+    # A13 (M-5): paired markers present — replace strictly between them,
+    # preserving anything before the start marker AND after the end marker.
+    # Capture both slices BEFORE backup_if_exists runs: it `mv`s the live
+    # file out to the backup path on its first call for a given target, so
+    # reading "$CLAUDE_DIR/CLAUDE.md" afterwards would hit a file that no
+    # longer exists at that path.
+    claude_before_tmp="$CLAUDE_DIR/CLAUDE.md.before.tmp"
+    claude_after_tmp="$CLAUDE_DIR/CLAUDE.md.after.tmp"
+    awk -v s="$CLAUDE_MB_START_MARKER" '
+      index($0, s) { exit }
       { print }
-    ' "$CLAUDE_DIR/CLAUDE.md" > "$tmp"
+    ' "$CLAUDE_DIR/CLAUDE.md" > "$claude_before_tmp"
+    awk -v e="$CLAUDE_MB_END_MARKER" '
+      found { print; next }
+      index($0, e) { found=1; next }
+    ' "$CLAUDE_DIR/CLAUDE.md" > "$claude_after_tmp"
+    backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
     {
-      if grep -q '[^[:space:]]' "$tmp"; then
-        awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$tmp"
+      if grep -q '[^[:space:]]' "$claude_before_tmp"; then
+        awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$claude_before_tmp"
         printf '\n\n'
       fi
-      printf '# [MEMORY-BANK-SKILL]\n'
+      printf '%s\n\n' "$CLAUDE_MB_START_MARKER"
       cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+      printf '\n%s\n' "$CLAUDE_MB_END_MARKER"
+      if grep -q '[^[:space:]]' "$claude_after_tmp"; then
+        printf '\n'
+        cat "$claude_after_tmp"
+      fi
     } > "$CLAUDE_DIR/CLAUDE.md"
-    rm -f "$tmp"
-    localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "# [MEMORY-BANK-SKILL]"
+    rm -f "$claude_before_tmp" "$claude_after_tmp"
+    localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_MB_START_MARKER"
     INSTALLED_FILES+=("$CLAUDE_DIR/CLAUDE.md")
     echo -e "  ${YELLOW}~${NC} CLAUDE.md (MB section refreshed)"
   fi
 else
   mkdir -p "$CLAUDE_DIR"
   {
-    printf '# [MEMORY-BANK-SKILL]\n'
+    printf '%s\n\n' "$CLAUDE_MB_START_MARKER"
     cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+    printf '\n%s\n' "$CLAUDE_MB_END_MARKER"
   } > "$CLAUDE_DIR/CLAUDE.md"
-  localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "# [MEMORY-BANK-SKILL]"
+  localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_MB_START_MARKER"
   INSTALLED_FILES+=("$CLAUDE_DIR/CLAUDE.md")
   echo -e "  ${GREEN}✓${NC} CLAUDE.md (created with marker)"
 fi
@@ -1009,7 +1081,6 @@ flush_manifest
 echo "  Manifest saved"
 
 # ═══ Step 8: Cross-agent adapters (optional) ═══
-ADAPTERS_INVOKED=()
 for c in "${CLIENTS_ARR[@]}"; do
   c_trimmed="${c// /}"
   [ "$c_trimmed" = "claude-code" ] && continue  # already done above
@@ -1025,6 +1096,12 @@ for c in "${CLIENTS_ARR[@]}"; do
     echo -e "  ${RED}✗${NC} adapter $c_trimmed failed" >&2
   fi
 done
+
+# A10: re-flush the manifest now that ADAPTERS_INVOKED/PROJECT_ROOT are known,
+# so uninstall.sh can look up which per-project adapters to uninstall and where.
+if [ "${#ADAPTERS_INVOKED[@]}" -gt 0 ]; then
+  flush_manifest
+fi
 
 echo ""
 echo -e "${GREEN}═══ Memory Bank installed ═══${NC}"

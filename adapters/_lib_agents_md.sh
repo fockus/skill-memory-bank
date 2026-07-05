@@ -79,10 +79,26 @@ sys.stdout.write(text)
 PYEOF
 }
 
+# L-4: version tag for the shared block, so a stale block can be reliably
+# identified/found across skill upgrades. Rides in a dedicated line INSIDE
+# the block rather than being spliced into $MB_START_MARKER itself — other
+# adapters' test suites assert on the exact marker string
+# (`<!-- memory-bank:start -->`) literally, so that text must stay stable.
+# Best-effort: some callers (isolated test fixtures) have no VERSION file.
+_mb_skill_version() {
+  local skill_dir="$1"
+  if [ -f "$skill_dir/VERSION" ]; then
+    tr -d '[:space:]' < "$skill_dir/VERSION"
+  else
+    echo "unknown"
+  fi
+}
+
 # ───────── Build section content ─────────
 _agents_md_section() {
   local skill_dir="$1"
   echo "$MB_START_MARKER"
+  echo "<!-- memory-bank-skill-version: $(_mb_skill_version "$skill_dir") -->"
   echo ''
   echo '# Memory Bank — Project Rules'
   echo ''
@@ -151,7 +167,13 @@ _owners_write() {
   local target tmp
   _owners_require_jq || return 1
   target=$(_owners_file "$pr")
-  tmp=$(mktemp "$target.XXXXXX.tmp")
+  # A14 (M-6): BSD mktemp only randomizes a *trailing* run of X's — the old
+  # "$target.XXXXXX.tmp" template has a literal suffix after the X's, so BSD
+  # never randomizes it. A leftover from an interrupted prior run (crash
+  # between mktemp and mv) then collides with EEXIST on the next install.
+  # Keep the tmp file in the same directory (atomic same-filesystem mv) with
+  # the random run as the very last path component.
+  tmp=$(mktemp "$(dirname "$target")/.mb-agents-owners.XXXXXXXX")
   printf '%s\n' "$data" > "$tmp"
   mv "$tmp" "$target"
 }
