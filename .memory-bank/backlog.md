@@ -572,6 +572,8 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-100 — work-loop-v2: mb-workflow.sh --loop returns {} (no on_max_cycles/max_cycles) for the composable `execution`+`--review`/`review.enabled` path — stage composition toggles `steps` but never synthesizes a `loop` from the top-level `review:` block, so a composable review loop has no max-cycle policy. Presets with an explicit `loop` (full/governed-execution/review-fix/review-only) are unaffected. [MED, NEW, 2026-07-05]
 
+### I-101 — tooling: mb-traceability-gen.sh test-suffix whitelist excludes `.bats`, so bats-only-tested requirements (e.g. all drive-loop REQ-DR-*) show 🏗️ not ✅ in traceability.md despite passing tests. Add `.bats` to the suffix set. Project-wide visibility gap, not correctness. [LOW, NEW, 2026-07-05]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
