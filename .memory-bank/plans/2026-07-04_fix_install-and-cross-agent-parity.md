@@ -676,10 +676,10 @@ shellcheck adapters/opencode.sh adapters/cline.sh adapters/windsurf.sh adapters/
    писать их статус в манифест (`adapters_failed`) и `exit 1`. Успешные продолжают ставиться (не abort).
 
 ### DoD:
-- [ ] Провал ≥1 адаптера → top-level install exit nonzero.
-- [ ] Статус адаптеров (invoked/failed) в манифесте.
-- [ ] Успешные адаптеры ставятся несмотря на сбой другого.
-- [ ] Тесты: 1+ e2e RED→GREEN; `shellcheck install.sh` clean.
+- [x] Провал ≥1 адаптера → top-level install exit nonzero.
+- [x] Статус адаптеров (invoked/failed) в манифесте.
+- [x] Успешные адаптеры ставятся несмотря на сбой другого.
+- [x] Тесты: 1+ e2e RED→GREEN; `shellcheck install.sh` clean.
 
 ### Команды проверки:
 ```bash
@@ -709,9 +709,9 @@ adapter missing/not-executable (`:951` warn) — считать fail с явны
    Рекомендация: (a) fallback+warning (меньше риск, YAGNI), пока нет вычитанных строк.
 
 ### DoD:
-- [ ] es/zh больше не дают пустое language-правило (fallback+warning ИЛИ реальные строки).
-- [ ] `VALID_LANGUAGES` согласован с реально поддержанными локалями.
-- [ ] Тесты: 2 pytest RED→GREEN; `ruff` clean.
+- [x] es/zh больше не дают пустое language-правило (fallback+warning ИЛИ реальные строки).
+- [x] `VALID_LANGUAGES` согласован с реально поддержанными локалями.
+- [x] Тесты: 2 pytest RED→GREEN; `ruff` clean.
 
 ### Команды проверки:
 ```bash
@@ -739,9 +739,9 @@ python -m pytest tests/pytest/test_cli_lang.py -q
    конфигурируемый (подставлять при install, как SKILL_DIR/PROJECT_ROOT в B1).
 
 ### DoD:
-- [ ] Нет голого `python3` в `_lib.sh:20`, `mb-init-bank.sh:226`, pi-ext.
-- [ ] Инвариант-тест ловит регресс.
-- [ ] Тесты: 1+ RED→GREEN; `shellcheck`/`ruff` clean.
+- [x] Нет голого `python3` в `_lib.sh:20`, `mb-init-bank.sh:226`, pi-ext.
+- [x] Инвариант-тест ловит регресс.
+- [x] Тесты: 1+ RED→GREEN; `shellcheck`/`ruff` clean.
 
 ### Команды проверки:
 ```bash
@@ -770,9 +770,9 @@ shellcheck scripts/_lib.sh scripts/mb-init-bank.sh
    текущий контент; полный restore бэкапа — только если текущий файл побайтово == ожидаемому installed.
 
 ### DoD:
-- [ ] Пост-install правки юзера вне MB-блока сохранены при uninstall.
-- [ ] Managed-блок удалён по маркерам; полный restore — только при неизменённом файле.
-- [ ] Тесты: 1+ e2e RED→GREEN; `shellcheck` clean.
+- [x] Пост-install правки юзера вне MB-блока сохранены при uninstall.
+- [x] Managed-блок удалён по маркерам; полный restore — только при неизменённом файле.
+- [x] Тесты: 1+ e2e RED→GREEN; `shellcheck` clean.
 
 ### Команды проверки:
 ```bash
@@ -800,9 +800,9 @@ shellcheck uninstall.sh
    их и rerun `install.sh` non-interactive с теми же флагами.
 
 ### DoD:
-- [ ] upgrade сохраняет language/clients/project-root из предыдущей установки.
-- [ ] Re-run non-interactive (не виснет в no-tty).
-- [ ] Тесты: 1+ bats RED→GREEN; `shellcheck` clean.
+- [x] upgrade сохраняет language/clients/project-root из предыдущей установки.
+- [x] Re-run non-interactive (не виснет в no-tty).
+- [x] Тесты: 1+ bats RED→GREEN; `shellcheck` clean.
 
 ### Команды проверки:
 ```bash
@@ -830,9 +830,9 @@ clients изменились между версиями (валидироват
    на битом падать nonzero с подсказкой (`--force` для игнора).
 
 ### DoD:
-- [ ] Манифест пишется атомарно (`tmp+mv`); прерывание не оставляет частичный JSON.
-- [ ] uninstall на битом манифесте → nonzero (без `--force`).
-- [ ] Тесты: 2 RED→GREEN; `shellcheck` clean.
+- [x] Манифест пишется атомарно (`tmp+mv`); прерывание не оставляет частичный JSON.
+- [x] uninstall на битом манифесте → nonzero (без `--force`).
+- [x] Тесты: 2 RED→GREEN; `shellcheck` clean.
 
 ### Команды проверки:
 ```bash
@@ -1581,12 +1581,12 @@ Track C:
 - ⬜ **B9** (CDX-6, MED): OpenCode plugin registration — единый контракт (code+docs+tests)
 - ⬜ **C5** (CDX-8, MED): _contract.sh artifact-level per-host проверки
 - ⬜ **C6** (CDX-D1…D4): README/install.sh/docs — Cursor hooks, 18→29, /flow /analyze-task /goal, hooks matrix
-- ⬜ **A17** (CDX-I3, HIGH): падение адаптера → top-level install nonzero + статус в манифест
-- ⬜ **A18** (CDX-I4, HIGH): es/zh пустые правила → fallback на en+warning / реальные строки
-- ⬜ **A19** (CDX-I6, MED): `${MB_PYTHON:-python3}` в _lib/init-bank/pi-ext + инвариант-тест
-- ⬜ **A20** (CDX-I9, MED): uninstall strip managed-блока, не затирать пост-install правки CLAUDE.md
-- ⬜ **A21** (CDX-I10, MED): mb-upgrade сохраняет install-опции (language/clients) при re-run
-- ⬜ **A22** (CDX-I11, MED): атомарный манифест (tmp+mv) + uninstall падает на битом без --force
+- ✅ **A17** (CDX-I3, HIGH): падение адаптера → top-level install nonzero + статус в манифест
+- ✅ **A18** (CDX-I4, HIGH): es/zh пустые правила → fallback на en+warning / реальные строки
+- ✅ **A19** (CDX-I6, MED): `${MB_PYTHON:-python3}` в _lib/init-bank/pi-ext + инвариант-тест
+- ✅ **A20** (CDX-I9, MED): uninstall strip managed-блока, не затирать пост-install правки CLAUDE.md
+- ✅ **A21** (CDX-I10, MED): mb-upgrade сохраняет install-опции (language/clients) при re-run
+- ✅ **A22** (CDX-I11, MED): атомарный манифест (tmp+mv) + uninstall падает на битом без --force
 - ⬜ **A23** (CDX-I8, MED): backup/refuse для rules/commands одноимённых юзер-файлов (сошлись с A16)
 - ⬜ **A24** (CDX-I12, LOW): uninstall no-tty без -y → exit+подсказка, не зависание
 - ⬜ **A25** (CDX-I13, LOW/docs): глобальные agent-ресурсы независимо от --clients — документировать (gating = open question)
@@ -1659,3 +1659,14 @@ mb-judge независимо перепрогнал (последователь
 - **R4-1 [MINOR, maintainability]** `scripts/_lib.sh` = 581 строк (+39 здесь) — предсуществующая крупная общая библиотека > ≤400. Кандидат на разбиение. Track C / отдельный рефактор.
 - **R4-2 [MAJOR, out-of-scope]** 5 pre-existing `hooks/` auto-capture падений (cline #8/#17 after-tool; git-hooks #10/#11/#29 post-commit placeholder/session-lock/MB_PATH) — домен параллельной сессии (`hooks/lib/session-common.sh`, `hooks/mb-session-turn.sh`), baseline-подтверждено across all batches. Чинить в их треке, не здесь.
 - **R3-1 расширен** — hermeticity касается и A12 e2e (`setup_readonly_skill_sandbox` rsync живого дерева). Тот же fix (git-archive/clean-checkout снимок).
+
+## Batch 5 — исполнено (A17-A22 — Codex install delta), judge = GO_WITH_BACKLOG (2026-07-06)
+
+Governed: implement (mb-developer, TDD RED→GREEN, строго последовательно A17→A22) → независимая верификация → Codex-review **SKIPPED** (companion инфра-down всю сессию) → **mb-judge первичный гейт** (расширенный адверсариальный мандат). A17: провал адаптера → `ADAPTERS_FAILED` + top-level `exit 1` + статус `adapters_failed/adapters_invoked` в манифест (missing/not-exec теперь тоже fail); успешные ставятся. A18: единый source of truth `_texttools.resolve_language_strings` — es/zh → honest fallback на en + one-time warning (никогда не пусто), опция (a) по рекомендации плана; ru не задет. A19: ноль голого `python3` в `_lib.sh` (все 5 вхождений: mb_normalize_path/mb_resolve_real_path/mb_project_id/mb_registry_lookup/mb_pipeline_meta) + `mb-init-bank.sh:226` + pi-ext (`process.env.MB_PYTHON||"python3"`) → `${MB_PYTHON:-python3}`; heredocs параметризованы, MB_PYTHON закавычен; grep-инвариант тест. A20: uninstall strip managed-блока по парным A13-маркерам, пост-install правки CLAUDE.md сохранены; попутно root-cause фикс latent install.sh бага («no-marker» ветка mv'ила оригинал прочь и `>>`-аппендила в отсутствующий путь = вела себя как `>`); legacy `has_start&&!has_end` ветка намеренно не тронута. A21: install персистит language/clients_requested/project_root в манифест, mb-upgrade rerun non-interactive с ними; старая схема → fallback+warning; явные флаги override; неподдержанные clients дропаются. A22: `adapter_write_manifest` атомарно (mktemp-same-dir + mode-preserve + mv); uninstall валидирует JSON, на битом → nonzero без `--force`; попутно пофикшен latent unbound `YELLOW` (set -u краш).
+
+mb-judge независимо перепрогнал (последовательно, чистя манифест): pytest test_cli_lang **21/21**; bats test_mb_python_resolution **6/6**, test_adapter_framework **8/8**, test_upgrade **10/10**, test_install_clients **16/16** (A17 #14-16), test_install_uninstall **50/50** (A20 #38, A22 #44-45). shellcheck 0 ×6, ruff clean. **Усилил baseline-доказательство:** заметил, что `_framework.sh` (A22) реально подключается cline/kilo/git-hooks и они зовут `adapter_write_manifest`, поэтому не остановился на «не ссылается» — откатил `adapters/_framework.sh` к `git show HEAD:` in-place, перепрогнал → идентичные 6 red (cline #8/#17, kilo #6, git-hooks #10/#11/#29 — все runtime auto-capture), install-time manifest-тесты зелёные → доказано pre-existing, не Batch 5-регресс; файл восстановлен. Общий прогон оркестратора: BATS **340/346** (те же 6 baseline-red) + pytest 21/21. A19 TDD-девиация (dedicated-тест написан чуть после фикса) принята — компенсирована реальным RED против pristine `git show HEAD:` копий (6/6 упали по правильной причине), shipped-инвариант — настоящий регресс-гард.
+
+### Backlog-резидуалы (из judge GO_WITH_BACKLOG):
+- **R5-1 [MINOR, logic]** `scripts/mb-upgrade.sh:263` — partial-override (`mb-upgrade --language en` в одиночку) пропускает чтение персистнутого `--clients` из-за гарда `[ -z lang ] && [ -z clients ]`, сбрасывая адаптеры. Не регресс (до A21 дропалось всё), full-override протестирован и работает. Фикс: читать каждую персистнутую опцию независимо от переданных флагов.
+- **R5-2 [MINOR, cleanup]** `uninstall.sh:137` — CLAUDE.md-ветка `continue`'ит мимо `.pre-mb-backup.*` не удаляя его → бэкап-копия остаётся в `~/.claude` после uninstall (не потеря данных, возможно намеренный safety-net). Решить: удалять после успешного strip или задокументировать как намеренное.
+- **R5-3 [MINOR, tests]** `tests/bats/test_adapter_framework.bats:61` — `find -name '*.XXXXXX'` никогда не матчит развёрнутый mktemp-суффикс → no-op ассерт; вторая ассерция (`basename.*`) делает реальную работу. Косметика — заменить на матч реального tmp-паттерна.

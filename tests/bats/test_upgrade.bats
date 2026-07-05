@@ -101,3 +101,165 @@ teardown() {
   # It must not fail because VERSION is missing — output should contain "unknown"
   [[ "$output" == *"unknown"* ]]
 }
+
+# ═══ A21 (CDX-I10): persist + reapply install options across upgrade ═══
+#
+# `mb-upgrade.sh --force` used to re-run install.sh bare, silently resetting
+# the locale to en and dropping any project --clients the user had picked.
+# install.sh now persists {language, clients_requested, project_root} into its
+# own manifest (scripts/_lib.sh::mb_resolve_manifest_path) — mb-upgrade.sh
+# reads that manifest and reapplies the same options non-interactively.
+
+_a21_setup_upgradeable_skill() {
+  cd "$TMPDIR"
+  mkdir -p skill
+  cd skill
+  git init -q
+  git config user.email "test@test"
+  git config user.name "Test"
+  echo "1.0.0" > VERSION
+  git add VERSION
+  git commit -q -m "init"
+
+  # Stub install.sh: records the argv it was invoked with instead of
+  # installing anything real (this suite never runs the real installer).
+  cat > install.sh <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$(dirname "$0")/.install-args-recorded"
+exit 0
+EOF
+  chmod +x install.sh
+  git add install.sh
+  git commit -q -m "add install stub"
+
+  MB_UPGRADE_TEST_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+  # Bare "origin" seeded from the current state (works regardless of the
+  # default branch name being main/master).
+  git clone -q --bare . "$TMPDIR/origin.git"
+  git remote add origin "$TMPDIR/origin.git"
+
+  # Advance "origin" by one commit via a second clone so `behind` > 0 and the
+  # apply path (git pull + re-run install.sh) actually executes.
+  (
+    cd "$TMPDIR"
+    git clone -q "$TMPDIR/origin.git" origin-work
+    cd origin-work
+    git config user.email "test@test"
+    git config user.name "Test"
+    echo "1.0.1" > VERSION
+    git add VERSION
+    git commit -q -m "bump version"
+    git push -q origin "HEAD:$MB_UPGRADE_TEST_BRANCH"
+  )
+}
+
+@test "upgrade: --force reapplies persisted language + clients non-interactively (A21)" {
+  _a21_setup_upgradeable_skill
+
+  # Simulate a previous install: manifest with persisted options (A21 adds
+  # these keys to install.sh's own flush_manifest payload).
+  cat > "$TMPDIR/skill/.installed-manifest.json" <<'EOF'
+{
+  "schema_version": 1,
+  "language": "ru",
+  "clients_requested": "codex",
+  "project_root": "/tmp/some-persisted-project",
+  "files": [],
+  "backups": [],
+  "clients": ["codex"]
+}
+EOF
+
+  MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --force
+  [ "$status" -eq 0 ]
+
+  recorded="$TMPDIR/skill/.install-args-recorded"
+  [ -f "$recorded" ]
+  run cat "$recorded"
+  [[ "$output" == *"--non-interactive"* ]]
+  [[ "$output" == *"--language"* ]]
+  [[ "$output" == *"ru"* ]]
+  [[ "$output" == *"--clients"* ]]
+  [[ "$output" == *"codex"* ]]
+  [[ "$output" == *"--project-root"* ]]
+  [[ "$output" == *"/tmp/some-persisted-project"* ]]
+}
+
+@test "upgrade: pre-A21 manifest (no persisted options) falls back to defaults with a warning" {
+  _a21_setup_upgradeable_skill
+
+  cat > "$TMPDIR/skill/.installed-manifest.json" <<'EOF'
+{
+  "schema_version": 1,
+  "files": [],
+  "backups": [],
+  "clients": []
+}
+EOF
+
+  MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --force
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no persisted install options"* ]]
+
+  recorded="$TMPDIR/skill/.install-args-recorded"
+  [ -f "$recorded" ]
+  run cat "$recorded"
+  [[ "$output" == *"--non-interactive"* ]]
+  [[ "$output" != *"--language"* ]]
+  [[ "$output" != *"--clients"* ]]
+}
+
+@test "upgrade: explicit --language/--clients flags override the persisted manifest (A21)" {
+  _a21_setup_upgradeable_skill
+
+  cat > "$TMPDIR/skill/.installed-manifest.json" <<'EOF'
+{
+  "schema_version": 1,
+  "language": "ru",
+  "clients_requested": "codex",
+  "project_root": "/tmp/some-persisted-project",
+  "files": [],
+  "backups": [],
+  "clients": ["codex"]
+}
+EOF
+
+  MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --force --language en --clients cursor
+  [ "$status" -eq 0 ]
+
+  recorded="$TMPDIR/skill/.install-args-recorded"
+  [ -f "$recorded" ]
+  run cat "$recorded"
+  [[ "$output" == *"--language"* ]]
+  [[ "$output" == *"en"* ]]
+  [[ "$output" == *"--clients"* ]]
+  [[ "$output" == *"cursor"* ]]
+  [[ "$output" != *"ru"* ]]
+}
+
+@test "upgrade: drops a persisted client no longer supported instead of failing the whole upgrade" {
+  _a21_setup_upgradeable_skill
+
+  cat > "$TMPDIR/skill/.installed-manifest.json" <<'EOF'
+{
+  "schema_version": 1,
+  "language": "en",
+  "clients_requested": "codex,retired-client",
+  "project_root": "",
+  "files": [],
+  "backups": [],
+  "clients": ["codex"]
+}
+EOF
+
+  MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --force
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"retired-client"* ]]
+
+  recorded="$TMPDIR/skill/.install-args-recorded"
+  [ -f "$recorded" ]
+  run cat "$recorded"
+  [[ "$output" == *"codex"* ]]
+  [[ "$output" != *"retired-client"* ]]
+}

@@ -4,9 +4,57 @@ from __future__ import annotations
 
 import argparse
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from memory_bank_skill._io import atomic_write
+
+# ═══ A18 (CDX-I4): single source of truth for the localized language-rule
+# strings install.sh/uninstall.sh inline into RULES.md/CLAUDE.md/settings.json.
+#
+# `install.sh` accepts es/zh in VALID_LANGUAGES (they are documented as
+# "scaffolds awaiting community translations" in --help), but its own
+# hardcoded bash case statements only had en/ru branches — any other locale
+# fell through to an empty string, so `> **Language** — ` ended up with
+# nothing after the dash. Locales without vetted translations now fall back
+# to the English strings (never empty) and report that fact via
+# `used_fallback` so callers can print an honest one-time warning instead of
+# silently shipping an empty rule.
+LANGUAGE_RULES: dict[str, dict[str, str]] = {
+    "en": {
+        "full": "English — responses and code comments. Technical terms may remain in English.",
+        "short": "respond in English; technical terms may remain in English.",
+        "comments": "English",
+    },
+    "ru": {
+        "full": "Russian — responses and code comments. Technical terms may remain in English.",
+        "short": "respond in Russian; technical terms may remain in English.",
+        "comments": "Russian",
+    },
+}
+FALLBACK_LANGUAGE = "en"
+
+
+@dataclass(frozen=True)
+class LanguageStrings:
+    rule_full: str
+    rule_short: str
+    comments_language: str
+    used_fallback: bool
+
+
+def resolve_language_strings(language: str) -> LanguageStrings:
+    """Look up the localized language-rule strings for `language`.
+
+    Never returns an empty string: locales without a vetted translation yet
+    (see LANGUAGE_RULES vs. install.sh's broader VALID_LANGUAGES) fall back to
+    the English strings and set `used_fallback=True`.
+    """
+    entry = LANGUAGE_RULES.get(language)
+    if entry is not None:
+        return LanguageStrings(entry["full"], entry["short"], entry["comments"], False)
+    fallback = LANGUAGE_RULES[FALLBACK_LANGUAGE]
+    return LanguageStrings(fallback["full"], fallback["short"], fallback["comments"], True)
 
 
 def strip_between_markers(text: str, start_marker: str, end_marker: str) -> str:
@@ -146,6 +194,13 @@ def build_parser() -> argparse.ArgumentParser:
     strip_between.add_argument("--end-marker", required=True)
     strip_between.add_argument("--keep-empty", action="store_true")
 
+    # A18: install.sh/uninstall.sh resolve their language-rule strings through
+    # this subcommand instead of hardcoded bash case statements — a plain
+    # `KEY=value`-per-line stdout format that's trivial to parse in bash
+    # without a JSON dependency.
+    lang_strings = sub.add_parser("language-strings")
+    lang_strings.add_argument("--language", required=True)
+
     return parser
 
 
@@ -174,6 +229,13 @@ def main(argv: list[str] | None = None) -> int:
             end_marker=args.end_marker,
             delete_if_empty=not args.keep_empty,
         )
+        return 0
+    if args.command == "language-strings":
+        result = resolve_language_strings(args.language)
+        print(f"RULE_FULL={result.rule_full}")
+        print(f"RULE_SHORT={result.rule_short}")
+        print(f"COMMENTS_LANGUAGE={result.comments_language}")
+        print(f"USED_FALLBACK={'1' if result.used_fallback else '0'}")
         return 0
     return 1
 

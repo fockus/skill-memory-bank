@@ -59,6 +59,10 @@ BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
 INSTALLED_FILES=()
 BACKED_UP_FILES=()
 ADAPTERS_INVOKED=()
+# A17: cross-agent adapters (Step 8) that failed or were missing/not-executable.
+# A non-empty array fails the top-level install (exit nonzero) after all
+# adapters have had a chance to run — successful siblings still get installed.
+ADAPTERS_FAILED=()
 
 # ─── Manifest flush (A7 / H-5) ──────────────────────────────────────────────
 # The manifest is the uninstall rollback source. Write it INCREMENTALLY via an
@@ -76,7 +80,10 @@ flush_manifest() {
     INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}"})" \
     BACKED_UP_STR="$(printf '%s\n' ${BACKED_UP_FILES[@]+"${BACKED_UP_FILES[@]}"})" \
     CLIENTS_INSTALLED_STR="$(printf '%s\n' ${ADAPTERS_INVOKED[@]+"${ADAPTERS_INVOKED[@]}"})" \
+    CLIENTS_FAILED_STR="$(printf '%s\n' ${ADAPTERS_FAILED[@]+"${ADAPTERS_FAILED[@]}"})" \
     MANIFEST_PROJECT_ROOT="${PROJECT_ROOT:-}" \
+    MANIFEST_LANGUAGE="${LANGUAGE:-}" \
+    MANIFEST_CLIENTS_REQUESTED="${CLIENTS:-}" \
     MANIFEST_PATH="$MANIFEST" \
     INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$MB_PY" << 'PYEOF' 2>&1
@@ -84,6 +91,7 @@ import json, os, tempfile
 files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
 raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
 clients = [c for c in os.environ.get("CLIENTS_INSTALLED_STR", "").split("\n") if c]
+clients_failed = [c for c in os.environ.get("CLIENTS_FAILED_STR", "").split("\n") if c]
 
 
 def _ordered_unique(items):
@@ -107,7 +115,15 @@ manifest = {
     # + the project root they were installed into, so uninstall.sh can call
     # each adapter's own `uninstall` and decrement the shared AGENTS.md refcount.
     "clients": _ordered_unique(clients),
+    # A17: adapters that failed (nonzero exit) or were missing/not-executable —
+    # a non-empty list here is why install.sh's own exit code is nonzero.
+    "adapters_failed": _ordered_unique(clients_failed),
     "project_root": os.environ.get("MANIFEST_PROJECT_ROOT", ""),
+    # A21: the install options as requested (language, full --clients list
+    # including claude-code) so `mb-upgrade.sh` can reapply them non-interactively
+    # on the next re-install instead of silently resetting to en/claude-code-only.
+    "language": os.environ.get("MANIFEST_LANGUAGE", ""),
+    "clients_requested": os.environ.get("MANIFEST_CLIENTS_REQUESTED", ""),
 }
 path = os.environ["MANIFEST_PATH"]
 d = os.path.dirname(path) or "."
@@ -472,25 +488,47 @@ install_file() {
   INSTALLED_FILES+=("$dst")
 }
 
+# A18 (CDX-I4): the language-rule strings are resolved through
+# memory_bank_skill._texttools (single source of truth, pytest-covered)
+# instead of these bash case statements — es/zh used to fall through both
+# with an empty string (`> **Language** — ` with nothing after the dash).
+# Locales without a vetted translation fall back to the English strings and
+# report it once via a stderr warning, resolved lazily and memoized so the
+# `run_texttool` subprocess only runs once per install even though
+# language_rule_full/short/comments_language_name are each called multiple
+# times (CLAUDE.md merge branches, settings.json, memory-bank-config.json).
+LANG_STRINGS_RESOLVED=0
+LANG_RULE_FULL=""
+LANG_RULE_SHORT=""
+LANG_COMMENTS_NAME=""
+
+resolve_language_strings() {
+  [ "$LANG_STRINGS_RESOLVED" = "1" ] && return 0
+  local out used_fallback
+  out="$(run_texttool language-strings --language "$LANGUAGE")"
+  LANG_RULE_FULL="$(printf '%s\n' "$out" | sed -n 's/^RULE_FULL=//p')"
+  LANG_RULE_SHORT="$(printf '%s\n' "$out" | sed -n 's/^RULE_SHORT=//p')"
+  LANG_COMMENTS_NAME="$(printf '%s\n' "$out" | sed -n 's/^COMMENTS_LANGUAGE=//p')"
+  used_fallback="$(printf '%s\n' "$out" | sed -n 's/^USED_FALLBACK=//p')"
+  if [ "$used_fallback" = "1" ]; then
+    echo "[install] language '$LANGUAGE' not yet localized — using en" >&2
+  fi
+  LANG_STRINGS_RESOLVED=1
+}
+
 language_rule_full() {
-  case "$LANGUAGE" in
-    en) printf '%s' "English — responses and code comments. Technical terms may remain in English." ;;
-    ru) printf '%s' "Russian — responses and code comments. Technical terms may remain in English." ;;
-  esac
+  resolve_language_strings
+  printf '%s' "$LANG_RULE_FULL"
 }
 
 language_rule_short() {
-  case "$LANGUAGE" in
-    en) printf '%s' "respond in English; technical terms may remain in English." ;;
-    ru) printf '%s' "respond in Russian; technical terms may remain in English." ;;
-  esac
+  resolve_language_strings
+  printf '%s' "$LANG_RULE_SHORT"
 }
 
 comments_language_name() {
-  case "$LANGUAGE" in
-    en) printf '%s' "English" ;;
-    ru) printf '%s' "Russian" ;;
-  esac
+  resolve_language_strings
+  printf '%s' "$LANG_COMMENTS_NAME"
 }
 
 run_texttool() {
@@ -890,14 +928,40 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
   grep -qF -- "$CLAUDE_MB_START_MARKER" "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && claude_has_start=1
   grep -qF -- "$CLAUDE_MB_END_MARKER" "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null && claude_has_end=1
 
-  if [ "$claude_has_start" -eq 0 ] || [ "$claude_has_end" -eq 0 ]; then
-    # Either no MB section yet, or a legacy/hand-edited file with a start
-    # marker but no matching end marker (pre-A13 files never wrote one). In
-    # both cases we do NOT try to guess where "our" content ends — take a
-    # full backup first (recoverable via uninstall.sh's backup-restore step,
-    # same contract as every other backup_if_exists caller in this script)
-    # and append a fresh, properly paired block rather than destructively
-    # consuming start..EOF (the old M-5 bug).
+  if [ "$claude_has_start" -eq 0 ]; then
+    # No MB start marker at all yet — the whole current file is 100% user
+    # content. Capture it BEFORE backup_if_exists moves it aside (same
+    # capture-then-backup order as the paired-marker branch below) so the
+    # live file stays self-contained from THIS install onward: [original
+    # content][MB block]. Previously this branch backed the original up and
+    # then `>>`-appended to a path backup_if_exists had already `mv`'d away,
+    # which silently behaves like `>` — the live file ended up with ONLY the
+    # MB block, and the original content was recoverable ONLY by uninstall.sh
+    # blind-restoring the backup (which also clobbered any edits made after
+    # install — CDX-I9 / A20).
+    claude_orig_tmp="$CLAUDE_DIR/CLAUDE.md.orig.tmp"
+    cp "$CLAUDE_DIR/CLAUDE.md" "$claude_orig_tmp"
+    backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
+    {
+      if grep -q '[^[:space:]]' "$claude_orig_tmp"; then
+        awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$claude_orig_tmp"
+        printf '\n\n'
+      fi
+      printf '%s\n\n' "$CLAUDE_MB_START_MARKER"
+      cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+      printf '\n%s\n' "$CLAUDE_MB_END_MARKER"
+    } > "$CLAUDE_DIR/CLAUDE.md"
+    rm -f "$claude_orig_tmp"
+    localize_installed_file "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_MB_START_MARKER"
+    INSTALLED_FILES+=("$CLAUDE_DIR/CLAUDE.md")
+    echo -e "  ${GREEN}✓${NC} CLAUDE.md (merged)"
+  elif [ "$claude_has_end" -eq 0 ]; then
+    # Legacy/hand-edited file: a start marker with no matching end marker
+    # (pre-A13 files never wrote one). We do NOT try to guess where "our"
+    # content ends without a paired end marker — take a full backup first
+    # (recoverable via uninstall.sh's backup-restore step) and append a
+    # fresh, properly paired block rather than destructively consuming
+    # start..EOF (the old M-5 bug).
     backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
     {
       printf '\n%s\n\n' "$CLAUDE_MB_START_MARKER"
@@ -1081,12 +1145,17 @@ flush_manifest
 echo "  Manifest saved"
 
 # ═══ Step 8: Cross-agent adapters (optional) ═══
+# A17: a failing (or missing/not-executable) adapter no longer disappears into
+# a stderr line while the top-level install reports success — it's collected
+# in ADAPTERS_FAILED and fails the overall exit code AFTER every adapter has
+# had its turn, so one broken adapter can't block its healthy siblings.
 for c in "${CLIENTS_ARR[@]}"; do
   c_trimmed="${c// /}"
   [ "$c_trimmed" = "claude-code" ] && continue  # already done above
   adapter="$SOURCE_SKILL_DIR/adapters/$c_trimmed.sh"
   if [ ! -x "$adapter" ]; then
-    echo -e "  ${YELLOW}~${NC} adapter missing or not executable: $adapter" >&2
+    echo -e "  ${RED}✗${NC} adapter missing or not executable: $adapter" >&2
+    ADAPTERS_FAILED+=("$c_trimmed")
     continue
   fi
   echo -e "${BLUE}[8/8] Cross-agent: $c_trimmed${NC}"
@@ -1094,12 +1163,14 @@ for c in "${CLIENTS_ARR[@]}"; do
     ADAPTERS_INVOKED+=("$c_trimmed")
   else
     echo -e "  ${RED}✗${NC} adapter $c_trimmed failed" >&2
+    ADAPTERS_FAILED+=("$c_trimmed")
   fi
 done
 
-# A10: re-flush the manifest now that ADAPTERS_INVOKED/PROJECT_ROOT are known,
-# so uninstall.sh can look up which per-project adapters to uninstall and where.
-if [ "${#ADAPTERS_INVOKED[@]}" -gt 0 ]; then
+# A10/A17: re-flush the manifest now that ADAPTERS_INVOKED/ADAPTERS_FAILED/
+# PROJECT_ROOT are known, so uninstall.sh can look up which per-project
+# adapters to uninstall and the manifest reflects any adapter failure.
+if [ "${#ADAPTERS_INVOKED[@]}" -gt 0 ] || [ "${#ADAPTERS_FAILED[@]}" -gt 0 ]; then
   flush_manifest
 fi
 
@@ -1122,4 +1193,14 @@ echo "  Optional — multi-language code graph (Go/JS/TS/Rust/Java via tree-sitt
 echo "    pip install tree-sitter tree-sitter-python tree-sitter-go \\"
 echo "                tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java"
 echo "  Without these, /mb graph works for Python-only (via stdlib ast)."
+
+# A17: surface adapter failures in the exit code. Everything else above has
+# already run to completion (global install + every other adapter) — this is
+# reported last, after the user sees what DID succeed, and is the reason the
+# script exits nonzero despite the "installed" banner above.
+if [ "${#ADAPTERS_FAILED[@]}" -gt 0 ]; then
+  echo ""
+  echo -e "${RED}✗${NC} ${#ADAPTERS_FAILED[@]} adapter(s) failed: ${ADAPTERS_FAILED[*]} (see errors above)" >&2
+  exit 1
+fi
 echo ""

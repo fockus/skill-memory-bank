@@ -53,10 +53,63 @@ def test_init_hint_mentions_selected_locale(capsys: pytest.CaptureFixture[str]) 
     assert rc == 0
     out = capsys.readouterr().out
     assert "lang=ru" in out or "--lang ru" in out, (
-        "init hint must advertise the requested locale so /mb init can copy "
-        "the matching templates"
+        "init hint must advertise the requested locale so /mb init can copy the matching templates"
     )
 
 
 def test_valid_languages_covers_supported_locales() -> None:
     assert set(cli.VALID_LANGUAGES) >= {"en", "ru", "es", "zh"}
+
+
+# ═══ A18 (CDX-I4): es/zh must not yield an empty language rule ═══
+#
+# install.sh accepts es/zh in VALID_LANGUAGES but the localization case
+# statements only had en/ru branches — es/zh silently substituted an empty
+# string into "> **Language** — " everywhere the rule text was inlined. These
+# tests exercise the single source of truth (`_texttools.resolve_language_strings`)
+# that install.sh now consults instead of its own hardcoded case statements.
+
+
+@pytest.mark.parametrize("locale", ["en", "ru", "es", "zh"])
+def test_language_strings_never_empty(locale: str) -> None:
+    from memory_bank_skill._texttools import resolve_language_strings
+
+    result = resolve_language_strings(locale)
+    assert result.rule_full.strip(), f"rule_full empty for locale={locale!r}"
+    assert result.rule_short.strip(), f"rule_short empty for locale={locale!r}"
+    assert result.comments_language.strip(), f"comments_language empty for locale={locale!r}"
+
+
+@pytest.mark.parametrize("locale", ["es", "zh"])
+def test_unlocalized_locale_falls_back_to_english_and_flags_it(locale: str) -> None:
+    from memory_bank_skill._texttools import resolve_language_strings
+
+    english = resolve_language_strings("en")
+    result = resolve_language_strings(locale)
+    assert result.rule_full == english.rule_full
+    assert result.rule_short == english.rule_short
+    assert result.comments_language == english.comments_language
+    assert result.used_fallback is True
+
+
+@pytest.mark.parametrize("locale", ["en", "ru"])
+def test_vetted_locale_does_not_use_fallback(locale: str) -> None:
+    from memory_bank_skill._texttools import resolve_language_strings
+
+    result = resolve_language_strings(locale)
+    assert result.used_fallback is False
+
+
+def test_language_strings_cli_subcommand_reports_fallback(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """install.sh shells out via `_texttools language-strings` — the CLI
+    surface must expose the same fallback flag so it can print the
+    honest "not yet localized" warning instead of silently swallowing it."""
+    from memory_bank_skill._texttools import main as texttools_main
+
+    rc = texttools_main(["language-strings", "--language", "es"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "RULE_FULL=" in out
+    assert "USED_FALLBACK=1" in out

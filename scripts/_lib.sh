@@ -15,10 +15,15 @@ set -euo pipefail
 
 # Resolve MB path from explicit arg or .claude-workspace file in cwd.
 # Falls back to ".memory-bank" (relative path) when nothing else is known.
+# A19 (CDX-I6): honor MB_PYTHON (exported by the packaged `memory-bank` CLI as
+# sys.executable) instead of a bare `python3` — on pipx/venv installs where
+# `python3` isn't on PATH (or resolves to the wrong interpreter), a bare
+# invocation silently breaks path resolution. Falls back to `python3` for a
+# direct `bash install.sh` run from a git checkout (unchanged default).
 mb_normalize_path() {
   local path="${1:-}"
-  if command -v python3 >/dev/null 2>&1; then
-    python3 - "$path" <<'PY'
+  if command -v "${MB_PYTHON:-python3}" >/dev/null 2>&1; then
+    "${MB_PYTHON:-python3}" - "$path" <<'PY'
 import os
 import sys
 
@@ -34,8 +39,8 @@ PY
 
 mb_resolve_real_path() {
   local path="${1:-}"
-  if command -v python3 >/dev/null 2>&1; then
-    python3 - "$path" <<'PY'
+  if command -v "${MB_PYTHON:-python3}" >/dev/null 2>&1; then
+    "${MB_PYTHON:-python3}" - "$path" <<'PY'
 import os
 import sys
 
@@ -129,7 +134,7 @@ mb_project_id() {
   slug=$(basename "$(mb_resolve_real_path "$project_root")")
   slug=$(mb_sanitize_topic "$slug")
   [ -z "$slug" ] && slug="project"
-  hash=$(printf '%s' "$key" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])')
+  hash=$(printf '%s' "$key" | "${MB_PYTHON:-python3}" -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])')
   printf '%s-%s\n' "$slug" "$hash"
 }
 
@@ -141,7 +146,7 @@ mb_registry_lookup() {
   registry=$(mb_registry_path "$agent") || return 1
   [ -f "$registry" ] || return 1
   real=$(mb_resolve_real_path "$project_root")
-  python3 - "$registry" "$real" <<'PY' || return 1
+  "${MB_PYTHON:-python3}" - "$registry" "$real" <<'PY' || return 1
 import json
 import sys
 
@@ -276,7 +281,7 @@ mb_pipeline_meta() {
     [ "$field" = "default" ] && printf 'false\n'
     return 0
   fi
-  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" python3 - <<'PY'
+  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" "${MB_PYTHON:-python3}" - <<'PY'
 import os
 
 path = os.environ["MB_PIPE_FILE"]

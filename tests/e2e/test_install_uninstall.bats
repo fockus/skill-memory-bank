@@ -471,6 +471,29 @@ EOF
   grep -q "Important project rules" "$HOME/.claude/CLAUDE.md"
 }
 
+@test "uninstall: preserves CLAUDE.md edits the user made AFTER install (A20 / CDX-I9)" {
+  # Regression for CDX-I9: a backup only gets recorded when CLAUDE.md already
+  # existed pre-install (backup_if_exists is a no-op otherwise) — this is the
+  # scenario where uninstall.sh used to `mv` that PRE-install backup straight
+  # back over CLAUDE.md, discarding both the pre-existing content AND anything
+  # the user added after install ran. The managed block must instead be
+  # stripped surgically (paired A13 markers), leaving everything else intact.
+  mkdir -p "$HOME/.claude"
+  echo "# Pre-existing user content" > "$HOME/.claude/CLAUDE.md"
+
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  echo "" >> "$HOME/.claude/CLAUDE.md"
+  echo "USER_POST_INSTALL_EDIT: keep me" >> "$HOME/.claude/CLAUDE.md"
+
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ -f "$HOME/.claude/CLAUDE.md" ]
+  grep -q "Pre-existing user content" "$HOME/.claude/CLAUDE.md"
+  grep -q "USER_POST_INSTALL_EDIT: keep me" "$HOME/.claude/CLAUDE.md"
+  ! grep -q "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md"
+}
+
 @test "uninstall: preserves user OpenCode AGENTS.md content above skill section" {
   mkdir -p "$HOME/.config/opencode"
   cat > "$HOME/.config/opencode/AGENTS.md" <<'EOF'
@@ -544,6 +567,31 @@ EOF
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
 
   [ ! -f "$REPO_ROOT/.installed-manifest.json" ]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# A22 (CDX-I11): fail loudly on a corrupt manifest instead of
+# silently treating it as empty (uninstall.sh used to `|| true` past a
+# JSON-parse failure and just... remove nothing).
+# ═══════════════════════════════════════════════════════════════
+
+@test "uninstall: exits nonzero on a corrupt manifest without --force" {
+  export MB_MANIFEST_PATH="$HOME/.mb-a22-corrupt-manifest.json"
+  printf '{"schema_version": 1, "files": [' > "$MB_MANIFEST_PATH"   # truncated JSON
+
+  run bash "$REPO_ROOT/uninstall.sh" -y
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"corrupt"* ]] || [[ "$output" == *"invalid"* ]]
+  # It must not have been silently treated as an empty/no-op manifest.
+  [ -f "$MB_MANIFEST_PATH" ]
+}
+
+@test "uninstall: --force proceeds past a corrupt manifest" {
+  export MB_MANIFEST_PATH="$HOME/.mb-a22-corrupt-manifest-force.json"
+  printf '{"schema_version": 1, "files": [' > "$MB_MANIFEST_PATH"   # truncated JSON
+
+  run bash "$REPO_ROOT/uninstall.sh" -y --force
+  [ "$status" -eq 0 ]
 }
 
 # ═══════════════════════════════════════════════════════════════

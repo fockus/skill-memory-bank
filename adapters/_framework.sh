@@ -25,6 +25,12 @@ adapter_json_array_from_lines() {
   jq -R 'select(length > 0)' | jq -s .
 }
 
+# A22 (CDX-I11): atomic write (mktemp in the same dir + mv). A plain
+# `jq ... > "$manifest_path"` redirect truncates the target BEFORE jq even
+# runs — a failed jq invocation (bad --argjson, disk full, process killed
+# mid-write) left a corrupt/empty manifest behind instead of the previous,
+# still-valid one. mktemp's random suffix (rather than just `.tmp`/`$$`) also
+# keeps two adapters writing concurrently from colliding on the same tmp path.
 adapter_write_manifest() {
   local manifest_path="$1"
   local adapter_name="$2"
@@ -33,14 +39,23 @@ adapter_write_manifest() {
   local extra_json="${5:-}"
   [ -n "$extra_json" ] || extra_json='{}'
 
-  jq -n \
+  local tmp mode
+  tmp="$(mktemp "${manifest_path}.XXXXXX")" || return 1
+  mode="$(mb_file_mode "$manifest_path" 2>/dev/null)"
+
+  if ! jq -n \
     --arg installed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --arg adapter "$adapter_name" \
     --arg skill_version "$skill_version" \
     --argjson files "$files_json" \
     --argjson extra "$extra_json" \
     '{schema_version: 1, installed_at: $installed_at, adapter: $adapter, skill_version: $skill_version, files: $files} + $extra' \
-    > "$manifest_path"
+    > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  chmod "${mode:-644}" "$tmp" 2>/dev/null || true
+  mv "$tmp" "$manifest_path"
 }
 
 adapter_remove_manifest_files() {

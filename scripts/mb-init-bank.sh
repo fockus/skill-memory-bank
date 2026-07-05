@@ -221,9 +221,11 @@ if [ "$STORAGE_MODE" = "global" ]; then
   mb_config_set project_id "$PROJECT_ID"
 
   # ── Write registry entry atomically (Python stdlib) ────────────────────────
+  # A19 (CDX-I6): honor MB_PYTHON so pipx/venv installs without a bare `python3`
+  # on PATH don't fail registry writes — falls back to python3 unchanged.
   REGISTRY=$(mb_registry_path "$AGENT")
   mkdir -p "$(dirname "$REGISTRY")"
-  python3 - "$REGISTRY" "$PROJECT_REAL" "$BANK" "$AGENT" "$PROJECT_ID" <<'PY'
+  "${MB_PYTHON:-python3}" - "$REGISTRY" "$PROJECT_REAL" "$BANK" "$AGENT" "$PROJECT_ID" <<'PY'
 import json
 import os
 import sys

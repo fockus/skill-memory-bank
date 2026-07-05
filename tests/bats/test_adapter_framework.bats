@@ -30,6 +30,38 @@ teardown() {
   jq -e '.hooks_events == ["sessionEnd"]' "$MANIFEST" >/dev/null
 }
 
+# ═══ A22 (CDX-I11): atomic manifest write ═══
+#
+# adapter_write_manifest used to redirect `jq ... > "$manifest_path"` directly
+# — a plain redirect TRUNCATES the target before jq even runs, so a failed jq
+# invocation (or an interrupted process) left a corrupt/empty manifest behind
+# instead of leaving the previous, still-valid one in place.
+
+@test "framework: adapter_write_manifest is atomic — a failed write does not corrupt the existing manifest" {
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+
+  echo '{"schema_version":1,"adapter":"cursor","files":["/tmp/old"]}' > "$MANIFEST"
+
+  # An invalid --argjson value makes jq fail before producing any output. A
+  # non-atomic `> "$manifest_path"` write truncates the target regardless;
+  # tmp+mv never touches the real path until jq has already succeeded.
+  run adapter_write_manifest "$MANIFEST" "cursor" "1.2.3" 'not-valid-json' '{}'
+  [ "$status" -ne 0 ]
+
+  jq -e '.files == ["/tmp/old"]' "$MANIFEST" >/dev/null
+}
+
+@test "framework: adapter_write_manifest leaves no stray tmp files behind on success" {
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+
+  run adapter_write_manifest "$MANIFEST" "cursor" "1.2.3" '["/tmp/a"]' '{}'
+  [ "$status" -eq 0 ]
+  ! find "$TMPDIR" -maxdepth 1 -name '*.XXXXXX' 2>/dev/null | grep -q .
+  ! find "$TMPDIR" -maxdepth 1 -name "$(basename "$MANIFEST").*" 2>/dev/null | grep -q .
+}
+
 # A14 (L-3): an empty bash array fed through `printf '%s\n' "${arr[@]}"` still
 # emits one bare newline (printf always applies its format at least once),
 # which used to slurp into `[""]` instead of `[]`.

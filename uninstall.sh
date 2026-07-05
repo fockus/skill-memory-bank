@@ -20,9 +20,14 @@ CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
 PI_START_MARKER="<!-- memory-bank-pi:start -->"
 PI_END_MARKER="<!-- memory-bank-pi:end -->"
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; BOLD='\033[1m'; NC='\033[0m'
+# A22: was referenced (lines below) without being declared — under `set -u`
+# that's a latent unbound-variable crash the moment either code path runs.
+YELLOW='\033[1;33m'
 
 managed_roots=("$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR" "$OPENCODE_DIR" "$PI_AGENT_DIR")
 NON_INTERACTIVE=0
+# A22 (CDX-I11): explicit opt-in to proceed past a corrupt manifest (below).
+FORCE=0
 
 run_texttool() {
   PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
@@ -35,11 +40,17 @@ while [ $# -gt 0 ]; do
       NON_INTERACTIVE=1
       shift
       ;;
+    --force)
+      FORCE=1
+      shift
+      ;;
     --help|-h)
       cat <<'EOF'
-Usage: uninstall.sh [-y|--non-interactive]
+Usage: uninstall.sh [-y|--non-interactive] [--force]
 
   -y, --non-interactive   Skip confirmation prompt and uninstall immediately.
+  --force                 Proceed even if the manifest is corrupt/unreadable
+                           (treated as empty — only generic cleanup runs).
 EOF
       exit 0
       ;;
@@ -63,6 +74,22 @@ if [ ! -f "$MANIFEST" ]; then
   exit 1
 fi
 
+# A22 (CDX-I11): a truncated/corrupt manifest used to be silently treated as
+# EMPTY (every downstream reader `2>/dev/null`s the JSON parse and gets no
+# lines back), so uninstall.sh quietly removed nothing while reporting
+# success. Fail loudly instead, unless the caller explicitly opts in via
+# --force (manifest is then treated as empty — only the generic/manual
+# cleanup steps below still run).
+if ! MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; json.load(open(os.environ['MANIFEST_PATH']))" >/dev/null 2>&1; then
+  if [ "$FORCE" -eq 1 ]; then
+    echo -e "${YELLOW}~${NC} manifest at $MANIFEST is corrupt/unreadable — proceeding anyway (--force)" >&2
+  else
+    echo -e "${RED}Manifest is corrupt or unreadable:${NC} $MANIFEST" >&2
+    echo "  Re-run with --force to proceed anyway (treated as empty — only generic cleanup runs)." >&2
+    exit 1
+  fi
+fi
+
 if [ "$NON_INTERACTIVE" -eq 0 ]; then
   echo -n "Remove all memory-bank files? (y/n): "
   read -r c
@@ -70,6 +97,10 @@ if [ "$NON_INTERACTIVE" -eq 0 ]; then
 fi
 
 echo -e "\n${BLUE}Removing files...${NC}"
+# A22: `|| true` so a corrupt manifest (only reachable here via --force,
+# gated above) degrades to "nothing to remove" instead of a hard `set -e
+# -o pipefail` crash on the JSON-parse failure — consistent with every other
+# manifest reader in this script (Restoring backups, per-project adapters).
 MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
   [ -z "$filepath" ] && continue
   case "$filepath" in
@@ -85,19 +116,35 @@ MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(f) for f in json.
       echo "  [SKIP] $filepath (outside managed dirs)"
     fi
   fi
-done
+done || true
 
 echo -e "\n${BLUE}Restoring backups...${NC}"
+# A22: same `|| true` rationale as "Removing files" above.
 MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(b) for b in json.load(open(os.environ['MANIFEST_PATH'])).get('backups',[])]" 2>/dev/null | while read -r bp; do
   [ -n "$bp" ] && echo "$bp" | grep -q '|' && {
     orig="${bp%%|*}"; bak="${bp##*|}"
+    case "$orig" in
+      "$CLAUDE_DIR/CLAUDE.md")
+        # A20 (CDX-I9): CLAUDE.md is a merge-managed file with paired A13
+        # start/end markers (see the "keep ... (managed merged file)" skip
+        # above) and install.sh now keeps the live file self-contained
+        # ([original content][MB block]) from the very first merge onward —
+        # a wholesale `mv "$bak" "$orig"` here would clobber content the user
+        # added AFTER install (inside OR outside the MB-managed block),
+        # restoring only the pre-install snapshot. The MB section is instead
+        # stripped surgically further below (strip-between-markers); never
+        # blind-restore the pre-install backup over live user edits.
+        echo "  [SKIP] $orig (merge-managed — MB section stripped below, not backup-restored)"
+        continue
+        ;;
+    esac
     if mb_path_is_within "$orig" "${managed_roots[@]}"; then
       { [ -e "$bak" ] || [ -L "$bak" ]; } && mv "$bak" "$orig" && echo "  restored $orig"
     else
       echo "  [SKIP] $orig (outside managed dirs)"
     fi
   }
-done
+done || true
 
 echo -e "\n${BLUE}Cleaning settings.json...${NC}"
 [ -f "$CLAUDE_DIR/settings.json" ] && SETTINGS_PATH="$CLAUDE_DIR/settings.json" "$MB_PY" << 'PYEOF' 2>/dev/null || true

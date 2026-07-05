@@ -145,3 +145,71 @@ EOF
   [ -f "$PROJECT/.clinerules/memory-bank.md" ]
   [ -x "$PROJECT/.clinerules/hooks/before-tool.sh" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# A17 (CDX-I3): adapter failure must fail top-level install
+# ═══════════════════════════════════════════════════════════════
+# These tests need a stub adapter that deterministically fails, so they run
+# install.sh from a writable rsync copy of the repo with adapters/codex.sh
+# swapped for a failing stub (never mutate the real repo's adapters/).
+
+_a17_make_failing_adapter_skill_copy() {
+  command -v rsync >/dev/null || skip "rsync required"
+  SKILL_COPY_PARENT="$(mktemp -d)"
+  SKILL_COPY="$SKILL_COPY_PARENT/skill"
+  mkdir -p "$SKILL_COPY"
+  rsync -a \
+    --exclude='.git' \
+    --exclude='*.pre-mb-backup.*' \
+    --exclude='.index' \
+    --exclude='node_modules' \
+    --exclude='.installed-manifest.json' \
+    "$REPO_ROOT/" "$SKILL_COPY/"
+  cat > "$SKILL_COPY/adapters/codex.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "[stub codex adapter] simulated failure" >&2
+exit 1
+EOF
+  chmod +x "$SKILL_COPY/adapters/codex.sh"
+}
+
+_a17_cleanup_skill_copy() {
+  [ -n "${SKILL_COPY_PARENT:-}" ] && [ -d "$SKILL_COPY_PARENT" ] && rm -rf "$SKILL_COPY_PARENT"
+}
+
+@test "install.sh: a failing adapter makes top-level install exit nonzero (A17)" {
+  _a17_make_failing_adapter_skill_copy
+
+  run bash "$SKILL_COPY/install.sh" --clients codex --project-root "$PROJECT"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"codex"* ]]
+
+  _a17_cleanup_skill_copy
+}
+
+@test "install.sh: a healthy sibling adapter still installs despite another's failure (A17)" {
+  _a17_make_failing_adapter_skill_copy
+
+  run bash "$SKILL_COPY/install.sh" --clients codex,cursor --project-root "$PROJECT"
+  [ "$status" -ne 0 ]
+  # cursor (the healthy sibling) must still have been installed.
+  [ -f "$PROJECT/.cursor/rules/memory-bank.mdc" ]
+
+  _a17_cleanup_skill_copy
+}
+
+@test "install.sh: failed adapters are recorded in the manifest (adapters_failed) (A17)" {
+  _a17_make_failing_adapter_skill_copy
+
+  local manifest="$HOME/.mb-a17-manifest.json"
+  run env MB_MANIFEST_PATH="$manifest" bash "$SKILL_COPY/install.sh" --clients codex --project-root "$PROJECT"
+  [ "$status" -ne 0 ]
+  [ -f "$manifest" ]
+  python3 -c "
+import json
+m = json.load(open('$manifest'))
+assert 'codex' in m.get('adapters_failed', []), m
+"
+
+  _a17_cleanup_skill_copy
+}

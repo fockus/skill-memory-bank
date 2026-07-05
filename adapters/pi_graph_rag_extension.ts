@@ -10,11 +10,18 @@ import * as path from "node:path";
 const execFileAsync = promisify(execFile);
 const SKILL_DIR = __MB_SKILL_DIR_JSON__;
 const PROJECT_ROOT = __MB_PROJECT_ROOT_JSON__;
+// A19 (CDX-I6): a bare "python3" breaks on pipx/venv installs where python3
+// isn't the interpreter that owns memory_bank_skill (or isn't on PATH at
+// all). There is no install-time templating for this file beyond
+// SKILL_DIR/PROJECT_ROOT (no build step to run here), so read the same
+// MB_PYTHON convention the rest of the skill honors directly from the Pi
+// extension host's process environment, falling back to "python3" unchanged.
+const PYTHON_COMMAND = process.env.MB_PYTHON || "python3";
 
 async function runPythonJson(script: string, args: string[]) {
   const scriptPath = path.join(SKILL_DIR, script);
   try {
-    const { stdout } = await execFileAsync("python3", [scriptPath, ...args], {
+    const { stdout } = await execFileAsync(PYTHON_COMMAND, [scriptPath, ...args], {
       cwd: PROJECT_ROOT,
       maxBuffer: 1024 * 1024,
     });
