@@ -66,6 +66,8 @@ with 5 fixed sections, in this order — this is everything you get; you do not 
    category preserved verbatim** — you may add detail to `message`/`fix` but MUST NOT downgrade
    severity or move category. `mb-work-review-parse.sh --require-tests-blocker` restores a
    dropped/downgraded entry as a safety net (REQ-103) — do not rely on it; emit it correctly yourself.
+   **Never present in `review_mode: contract`** (below) — a contract precedes implementation, so
+   there are no tests yet to have passed or failed.
 
 On fix-cycle iterations, the payload additionally carries the previous cycle's issue list inline —
 verify each previous issue is either resolved or explicitly justified (see "Fix-cycle behavior"
@@ -74,7 +76,47 @@ prioritization, not endless issue discovery.
 
 ---
 
-## Review walk — per category
+## Review mode: `contract` vs. `implementation` (design.md §7, REQ-110)
+
+The payload preamble carries `review_mode: contract | implementation`. Absent ⇒ `implementation`
+(everything above and below unchanged — this is fully backward compatible). This is a mode
+**switch**, not an additional category: `implementation` mode walks the five categories in "Review
+walk — per category" below; `contract` mode replaces that walk with the four categories in
+"Contract mode rubric" instead. The severity scale, JSON output schema, and fix-cycle behavior are
+shared by both modes — only the category set and what counts as a violation differ.
+
+### Contract mode rubric (categories)
+
+`contract` mode reviews a sprint contract (`scripts/mb-work-contract.sh` — see
+`.memory-bank/contracts/<plan-topic>_stage-<N>.md`) instead of a code diff, **before** any
+implementation exists:
+
+- **`scope`** — Are "In scope" bullets concrete enough to test against (not vague aspiration)?
+  Is "In scope" disjoint from "Out of scope" (no item claimed in both)?
+- **`dod`** — Does "DoD checkpoints" echo **every** DoD item from the plan/task, each with a
+  "→ verified by ..." clause? A DoD item from the plan missing from the contract is a `dod` finding.
+- **`test_plan`** — Is there at least one test per DoD checkpoint? Does the split honor the Testing
+  Trophy (integration > unit > e2e, not all-unit or all-e2e)?
+- **`out_of_scope`** — Is "Out of scope" explicit and non-empty? A **silent/empty** out-of-scope
+  section is a **blocker** (silence invites scope creep later, with nothing to hold the
+  implementer to).
+
+Severity scale is the same three-tier (blocker/major/minor) as implementation mode — see "Severity
+decision tree" below. **The auto-finding pre-injection rule (`## Auto-generated findings`,
+"Inputs" §5) does NOT apply in contract mode** — there are no tests yet to have failed, so this
+input section is simply never present in a contract-mode payload.
+
+### Output in contract mode
+
+Same strict JSON schema as implementation mode (see "Output format" below); `issues[].category`
+takes values from `scope | dod | test_plan | out_of_scope` instead of the five implementation-mode
+categories. The orchestrator routes the verdict the same way: `APPROVED` → contract `status:
+approved`, proceed to implement; `CHANGES_REQUESTED` → generator revises and re-submits (design.md
+§4 lifecycle, capped at 3 contract cycles before `stop_for_human`).
+
+---
+
+## Review walk — per category (`review_mode: implementation`, the default)
 
 Walk the diff once per category. For each violation, capture: file, line, category, severity, message, fix proposal.
 
@@ -166,6 +208,10 @@ instead of forcing another fix loop.
   "strengths": ["what is genuinely well done — be specific, file:line"]
 }
 ```
+
+In `review_mode: contract`, `issues[].category` takes values from `scope | dod | test_plan |
+out_of_scope` (see "Review mode: `contract` vs. `implementation`" above) instead of the five
+implementation-mode categories shown above — everything else in this schema is identical.
 
 Constraints:
 - `verdict == "CHANGES_REQUESTED"` requires `issues` to be non-empty.

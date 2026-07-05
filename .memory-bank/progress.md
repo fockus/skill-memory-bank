@@ -2761,3 +2761,20 @@ repro of all trend transitions; judge=opus GO — pure leaf calculator, codex ro
 - **Backlog I-099:** mb-review.sh inert last_verdict_cache_path() uses mb_sanitize_topic(item), mb-work-trend.sh
   uses sha256(plan+stage+item) — must reconcile (wire mb-review.sh to `mb-work-trend.sh key`) before progress_trend
   goes live or the caches diverge. Extends I-096. Task 1 DoD [x].
+
+### work-loop-v2 Task 2 done — sprint-contract script + reviewer contract mode (2026-07-05)
+
+Phase 2 (work-loop-v2), Task 2 of 5 closed (implement=mb-architect sonnet; verify=orchestrator independent
+create/idempotent/validate repro; judge=opus GO — scaffolder+validator, codex round waived). REQ-110.
+
+- **New:** `scripts/mb-work-contract.sh` (313 ln) — create/read/validate/path for per-item sprint contracts at
+  `<bank>/contracts/<plan-topic>_stage-<N>.md`. Frontmatter (plan/stage/item_id/generator_role/created/status/
+  contract_version) + 6 required sections (In scope / Plan of attack / Test plan / DoD checkpoints / Out of scope /
+  Open risks). create idempotent (no clobber), validate = scope-lock (all 4 core sections present, names the missing one).
+- **New:** `templates/contract.md` (48 ln) matching handoff.md template style.
+- **agents/mb-reviewer.md:** +contract-mode section (review_mode: contract|implementation; categories scope/dod/
+  test_plan/out_of_scope; silent out-of-scope = blocker; auto-finding injection N/A in contract mode; same JSON schema).
+- **Tests:** test_mb_work_contract.bats 31/31 green, shellcheck clean, no regressions (74 sibling bats + 15 pytest still green).
+- Orchestrator repro'd all 6 sections + idempotent hand-edit preservation + validate FAIL-naming. Task 2 DoD [x].
+- Flags (interpretation, not bugs): plan-topic derivation inferred from mb-plan.sh convention; validate is
+  heading-presence-based (matches mb-spec-validate/mb-ears-validate style). Confirm at Task 5 wiring.

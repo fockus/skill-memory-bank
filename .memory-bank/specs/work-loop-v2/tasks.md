@@ -32,8 +32,8 @@ Testing: bats verifies improving, stagnant, and regressing verdict histories.
 Testing: bats validates contract creation, idempotent reread, and scope-lock fields.
 
 **DoD:**
-- [ ] Contract file contains in-scope, out-of-scope, test plan, and DoD checkpoints.
-- [ ] Reviewer contract mode returns structured JSON.
+- [x] Contract file contains in-scope, out-of-scope, test plan, and DoD checkpoints.
+- [x] Reviewer contract mode returns structured JSON.
 
 <!-- mb-task:3 -->
 ### Task 3: Pivot dispatch routes
