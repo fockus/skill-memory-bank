@@ -375,3 +375,60 @@ setup() {
   run grep -qi "grep -q" "$DOC"
   [ "$status" -eq 0 ]
 }
+
+# ── work-loop-v2 Task 5: contract phase + trend + pivot + max-cycle wiring ──
+
+@test "doc has a work-loop-v2 section naming mb-work-contract.sh, mb-work-trend.sh, and mb-work-pivot.sh" {
+  run grep -qi "^## Sprint contracts, progress trend, and strategic pivoting" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "mb-work-contract.sh" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "mb-work-trend.sh" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "mb-work-pivot.sh" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc describes the sprint-contract phase as opt-in via --contract or require_contract, capped at 3 cycles" {
+  run grep -q -- "--contract" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "require_contract" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "review_mode:" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "3 contract.review cycles\|3 contract cycles" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc describes progress trend computed via mb-work-trend.sh key/compute with all four outcomes" {
+  run grep -q -- "mb-work-trend.sh key" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "mb-work-trend.sh compute" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "improving" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "stagnant" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "regressing" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc's pivot section names both pivot_in_role and pivot_via_architect routes plus telemetry" {
+  run grep -q "pivot_in_role" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q "pivot_via_architect" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "mb-work-pivot.sh decide" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "mb-work-pivot.sh prompt-prefix" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -q -- "pivot-log.jsonl" "$DOC"
+  [ "$status" -eq 0 ]
+}
+
+@test "doc states the max-cycle policy default is on_max_cycles: stop_for_human" {
+  run grep -q -- "on_max_cycles: stop_for_human" "$DOC"
+  [ "$status" -eq 0 ]
+  run grep -qi "stop_for_human" "$DOC"
+  [ "$status" -eq 0 ]
+}

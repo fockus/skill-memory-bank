@@ -2810,3 +2810,23 @@ resolver+install-safety repro; judge=opus GO — test+doc task, no production ch
 - Orchestrator repro'd: absent→stop_for_human live, pipeline init refuse-on-existing. Task 4 DoD [x].
 - **Backlog I-100:** composable execution+--review path returns {} loop (no max-cycle policy) — pre-existing
   gap the implementer found; presets with explicit loop unaffected.
+
+### work-loop-v2 Task 5 done + SPEC COMPLETE — loop docs + changelog (2026-07-05)
+
+Phase 2 (work-loop-v2), Task 5 of 5 closed (implement=mb-analyst sonnet; verify=orchestrator independent
+doc-mention + scripts-untouched check; judge=opus GO — doc-wiring). REQ-110–114. **Closes work-loop-v2 spec (5/5).**
+
+- **commands/work.md:** +section "Sprint contracts, progress trend, and strategic pivoting (work-loop-v2)" —
+  contract phase (opt-in --contract/require_contract, mb-work-contract.sh, reviewer contract mode, max 3 cycles→
+  stop_for_human), trend (mb-work-trend.sh key+compute, 4 outcomes), pivot (mb-work-pivot.sh decide/prompt-prefix,
+  both routes + telemetry), max-cycle policy. +--contract arg row + Underlying scripts block. Documents I-099 gap honestly.
+- **CHANGELOG.md:** work-loop-v2 G1/G2 entry (contracts + trend + pivot + telemetry), distinct from Task 4's on_max_cycles note.
+- **Tests:** test_mb_work_command_doc.bats +5 (48/48 green). Scripts untouched (doc-only).
+- Task 5 DoD [x].
+
+## work-loop-v2 SPEC CLOSED (Phase 2 of SEQUENCE)
+Deliverables: mb-work-trend.sh (progress_trend) + mb-work-contract.sh + templates/contract.md + reviewer contract
+mode + mb-work-pivot.sh (pivot routes + telemetry) + on_max_cycles migration + commands/work.md wiring. Governed
+cycle throughout (implement=sonnet, review/judge=opus per proportionate rigor; leaf helpers verified by orchestrator
+repro). Backlog: I-099 (cache-key reconcile), I-100 (composable loop empty). Caveat: require_contract has no shipped
+default key yet (documented). Next: Phase 3 (drive-loop /mb drive — thin self-driving wrapper over firewall + Phase 2).

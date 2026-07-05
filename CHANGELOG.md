@@ -48,6 +48,48 @@ overrides (same `example_id`/`stack`/`category`/`severity` front-matter +
 `references/rubric-examples/` baseline); everything else keeps using the
 skill-bundled baseline unchanged.
 
+### Added — work-loop-v2: sprint contracts, progress trend, strategic pivoting (REQ-110/111/112/114)
+
+- **`scripts/mb-work-contract.sh`** — per-work-item **sprint contract**: `create` scaffolds
+  `<bank>/contracts/<plan-topic>_stage-<N>.md` (idempotent — never clobbers an existing draft),
+  `read`/`path` resolve it, `validate` checks all 7 frontmatter keys and 6 body sections (In scope /
+  Plan of attack / Test plan / DoD checkpoints / Out of scope / Open risks) are present. Paired with
+  `templates/contract.md` and a new `review_mode: contract` toggle documented in `agents/mb-reviewer.md`
+  (4-category rubric: `scope`/`dod`/`test_plan`/`out_of_scope`; a silent/empty out-of-scope section is a
+  blocker). Opt-in — `/mb work --contract` for one run, or a project's own
+  `pipeline.yaml:review.require_contract: true` to make it mandatory; capped at 3 contract-review cycles
+  before a hard stop for human. Off by default; existing `/mb work` runs are unaffected.
+- **`scripts/mb-work-trend.sh`** — `key` derives a stable sha256 item key from `(plan, stage, item)`;
+  `compute` reads a normalized reviewer verdict (`mb-work-review-parse.sh` output) and prints this
+  cycle's `progress_trend` (`improving` / `stagnant` / `regressing` / `null` on the first cycle),
+  maintaining the previous-cycle cache at `<bank>/tmp/last-verdict-<item-key>.json`
+  (`weighted_score = 10*blocker + 3*major + 1*minor`). This is the signal `mb-work-pivot.sh` consumes
+  to decide whether the loop is actually making progress.
+- **`scripts/mb-work-pivot.sh`** — `decide` turns a tracked `consecutive_stagnant` count and the current
+  cycle number into `refine` / `pivot_in_role` / `pivot_via_architect`, thresholds resolved from
+  `pipeline.yaml:review.pivot_after_cycles` (default 2) and `review.pivot_escalate_to_architect_on`
+  (default 4, both already shipped in `references/pipeline.default.yaml`). `prompt-prefix` emits the
+  re-dispatch instruction text (discard-and-restart for `pivot_in_role`; the two-step
+  architect-then-role-agent escalation for `pivot_via_architect`). Every non-`refine` decision appends
+  one JSONL telemetry line (`ts`/`item_id`/`cycle`/`mode`/`rationale_hash`) to
+  `<bank>/tmp/pivot-log.jsonl` (not git-tracked — local analysis data only).
+- **`commands/work.md`** — new "Sprint contracts, progress trend, and strategic pivoting" section wires
+  all three scripts into the existing implement→verify→review→judge→fix loop: the contract phase runs
+  before the implement step, trend is computed every review cycle from the normalized verdict, and a
+  stagnant trend routes the fix-cycle into a pivot dispatch instead of an indefinite refine loop. All
+  three scripts only emit decisions/strings — dispatch stays the host agent's job (agent-native, same
+  as the rest of `/mb work`).
+
+**Compatibility.** Fully additive and opt-in. A project that never sets `--contract` /
+`require_contract` never runs the contract phase; trend/pivot only change behavior once a review cycle
+actually reports `CHANGES_REQUESTED` with a stagnant trend for `pivot_after_cycles` consecutive cycles —
+until then the loop's existing refine behavior is unchanged byte-for-byte.
+
+**Known gap (backlog I-099).** `scripts/mb-review.sh` reserves a `last_verdict_cache_path()` hook for the
+same cache file but does not yet write to it and derives the key differently from
+`mb-work-trend.sh key`; callers must always derive the item key through `mb-work-trend.sh key` until the
+two are reconciled.
+
 ### Changed — work-loop-v2: fail-fast `on_max_cycles` default (REQ-113)
 
 - **`on_max_cycles` now defaults to `stop_for_human`** (was

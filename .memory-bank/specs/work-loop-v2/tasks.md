@@ -68,5 +68,5 @@ Testing: pytest validates default resolution for new configs and backward-compat
 Testing: bats verifies command docs mention contract, trend, pivot, and max-cycle policy.
 
 **DoD:**
-- [ ] `commands/work.md`, docs, and `CHANGELOG.md` are updated.
-- [ ] Existing work-loop tests remain green.
+- [x] `commands/work.md`, docs, and `CHANGELOG.md` are updated.
+- [x] Existing work-loop tests remain green.
