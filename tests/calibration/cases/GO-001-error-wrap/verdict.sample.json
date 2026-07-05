@@ -1,0 +1,15 @@
+{
+  "_note": "OFFLINE SELF-TEST FIXTURE ONLY -- not a live reviewer verdict. Deliberately OMITS referenced_example_id so `tests/calibration/run.sh` (default mode) demonstrates the match metric's WARN branch (design.md §6: PASS holds, but the calibration pattern was not attributed). See tests/calibration/README.md.",
+  "verdict": "CHANGES_REQUESTED",
+  "counts": { "blocker": 1, "major": 0, "minor": 0 },
+  "issues": [
+    {
+      "severity": "blocker",
+      "category": "code_rules",
+      "file": "internal/config/loader.go",
+      "line": 7,
+      "message": "os.ReadFile and json.Unmarshal errors are both discarded with `_`.",
+      "fix": "Return (*Config, error) and wrap each error with fmt.Errorf(\"...: %w\", err)."
+    }
+  ]
+}

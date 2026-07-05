@@ -1,0 +1,17 @@
+{
+  "case_id": "PY-001-srp-violation",
+  "description": "UserService aggregates persistence, notification, and export -- 3 distinct responsibilities in one class.",
+  "stack": "python",
+  "expected": {
+    "verdict": "CHANGES_REQUESTED",
+    "counts": {
+      "blocker_min": 1,
+      "blocker_max": 2,
+      "major_max": 3,
+      "minor_max": 5
+    },
+    "must_have_categories": ["code_rules"],
+    "must_not_have_categories": [],
+    "expected_example_refs": ["PY-SRP-001"]
+  }
+}

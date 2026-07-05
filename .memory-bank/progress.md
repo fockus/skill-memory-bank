@@ -2719,3 +2719,30 @@ Phase 1 (reviewer-2.0), Task 5 of 6 closed via governed cycle
   repro'd the end-to-end pipe now FAILS the gate (blocker=1 > gate=0). REQ-105 byte-identity preserved (opt-in).
 - **Also fixed Task-2 residual:** SKILL.md missing mb-review-examples.sh row → test_doc_counts red; added row → 10/10.
 - **Tests:** review-parse 30 + severity-gate 17 pytest + doc-contract 43 bats green, shellcheck clean. Task 5 DoD [x].
+
+### reviewer-2.0 Task 6 done + SPEC COMPLETE — golden calibration suite + docs (2026-07-05)
+
+Phase 1 (reviewer-2.0), Task 6 of 6 closed (implement=mb-qa sonnet; verify=orchestrator independent
+run+determinism; judge=opus GO). REQ-104 + REQ-105. **This closes the entire reviewer-2.0 spec (6/6 tasks).**
+
+- **Calibration suite:** `tests/calibration/run.sh` (378 ln) — offline `--emit-payload` smoke mode
+  (assemble each case via mb-review.sh --input, shape-check 5 sections + auto-findings-iff-red, NO LLM/network,
+  deterministic; PASS/WARN/FAIL table, exit 0/1/2) + default match-metric mode (verdict+count-bounds+category,
+  reads optional verdict.sample.json for offline metric self-test, honest SKIP otherwise). 5 cases
+  (PY-001-srp, PY-002-missing-tests [red], GO-001-error-wrap, TS-001-any-leak, BACK-001-idor), each with
+  case.json+diff.patch+files-touched.txt+prior-tests.json. results/ gitignored.
+- **Docs:** tests/calibration/README.md documents suite + match metric + non-blocking scheduled workflow
+  (calibration.yml YAML snippet, workflow_dispatch+weekly cron, continue-on-error). CI file NOT created —
+  .github/workflows is protected; adding the real file needs maintainer go.
+- **CHANGELOG.md:** reviewer-2.0 Added entry + Compatibility (additive/opt-in, REQ-105) + Migration (none required).
+- **Tests:** test_calibration_suite.bats 12/12 + reviewer-2.0 suites 58 green, shellcheck clean, determinism proven.
+- Task 6 DoD [x]. reviewer-2.0 tasks 1-6 all [x].
+
+## reviewer-2.0 SPEC CLOSED (Phase 1 of SEQUENCE long-running-sessions)
+Deliverables: mb-review.sh (payload orchestrator) + mb-review-cache.sh (test-evidence cache) + mb-review-examples.sh
+(layered calibration loader, path/symlink-safe) + references/rubric-examples/{common,python,go,typescript,frontend,
+mobile,backend}.md + REQ-103 --require-tests-blocker cannot-drop safety net (wired into commands/work.md 5d +
+agents/mb-reviewer.md) + tests/calibration/ golden suite. Governed cycle throughout (implement=sonnet, review=codex
+gpt-5.5, judge=opus); cross-model review caught 2 real security issues (path-traversal + symlink exfil, Task 2) and a
+strict-mode count-lie bypass (Task 5) that internal review missed. Backlog: I-095/I-096/I-097/I-098.
+Next: Phase 2 (work-loop-v2 — extends mb-review.sh with progress_trend).

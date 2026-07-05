@@ -1,0 +1,16 @@
+{
+  "_note": "OFFLINE SELF-TEST FIXTURE ONLY -- not a live reviewer verdict. Lets `tests/calibration/run.sh` (default mode, no --emit-payload) exercise its own match-metric logic end to end without an LLM. See tests/calibration/README.md.",
+  "verdict": "CHANGES_REQUESTED",
+  "counts": { "blocker": 1, "major": 0, "minor": 0 },
+  "issues": [
+    {
+      "severity": "blocker",
+      "category": "code_rules",
+      "file": "src/services/user_service.py",
+      "line": 1,
+      "message": "UserService aggregates persistence, notification, and export -- 3 distinct responsibilities.",
+      "fix": "Extract send_welcome_email/export_to_csv into UserNotifier/UserExporter. Keep UserService as orchestrator if needed.",
+      "referenced_example_id": "PY-SRP-001"
+    }
+  ]
+}

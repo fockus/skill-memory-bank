@@ -1,0 +1,17 @@
+{
+  "case_id": "TS-001-any-leak",
+  "description": "parseConfig types both the parameter and the return value as `any`, defeating TypeScript's compile-time checking end to end.",
+  "stack": "typescript",
+  "expected": {
+    "verdict": "CHANGES_REQUESTED",
+    "counts": {
+      "blocker_min": 0,
+      "blocker_max": 1,
+      "major_max": 3,
+      "minor_max": 5
+    },
+    "must_have_categories": ["code_rules"],
+    "must_not_have_categories": [],
+    "expected_example_refs": ["TS-CODE-001"]
+  }
+}

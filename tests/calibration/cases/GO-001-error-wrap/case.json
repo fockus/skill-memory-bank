@@ -1,0 +1,17 @@
+{
+  "case_id": "GO-001-error-wrap",
+  "description": "LoadConfig discards os.ReadFile and json.Unmarshal errors with `_`, returning a zero-value Config on a missing/corrupt file.",
+  "stack": "go",
+  "expected": {
+    "verdict": "CHANGES_REQUESTED",
+    "counts": {
+      "blocker_min": 1,
+      "blocker_max": 2,
+      "major_max": 2,
+      "minor_max": 5
+    },
+    "must_have_categories": ["code_rules"],
+    "must_not_have_categories": [],
+    "expected_example_refs": ["GO-CODE-001"]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-05-24T09:10:00Z-go001",
+  "stack_detected": "go",
+  "touched_files_sha": "sha256:irrelevant-in-input-mode",
+  "tests_pass": true,
+  "counts": { "passed": 12, "failed": 0, "skipped": 0 },
+  "coverage": { "overall": 0.78, "touched": 0.65 },
+  "failures": [],
+  "elapsed_sec": 3.6
+}

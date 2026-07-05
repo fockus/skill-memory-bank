@@ -1,0 +1,17 @@
+{
+  "case_id": "BACK-001-idor",
+  "description": "GET /api/invoices/{invoice_id} returns any invoice to any authenticated caller with no ownership check -- an Insecure Direct Object Reference.",
+  "stack": "backend",
+  "expected": {
+    "verdict": "CHANGES_REQUESTED",
+    "counts": {
+      "blocker_min": 1,
+      "blocker_max": 2,
+      "major_max": 2,
+      "minor_max": 5
+    },
+    "must_have_categories": ["security"],
+    "must_not_have_categories": [],
+    "expected_example_refs": ["BACK-SEC-001"]
+  }
+}

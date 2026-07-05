@@ -1,0 +1,9 @@
+diff --git a/src/api/invoices.py b/src/api/invoices.py
+new file mode 100644
+index 0000000..2e7b0aa
+--- /dev/null
++++ b/src/api/invoices.py
+@@ -0,0 +1,4 @@
++@app.get("/api/invoices/{invoice_id}")
++def get_invoice(invoice_id: str):
++    return db.get_invoice(invoice_id)

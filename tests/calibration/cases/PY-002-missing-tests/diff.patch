@@ -1,0 +1,14 @@
+diff --git a/src/pricing.py b/src/pricing.py
+index 4e2f1aa..9b1c7de 100644
+--- a/src/pricing.py
++++ b/src/pricing.py
+@@ -10,3 +10,10 @@ def calculate_total(order):
+     subtotal = sum(item.price * item.qty for item in order.items)
+     return subtotal + order.tax
++
++
++def calculate_discount(order):
++    total_units = sum(item.qty for item in order.items)
++    if total_units >= 50:
++        return 0.15
++    return 0.0

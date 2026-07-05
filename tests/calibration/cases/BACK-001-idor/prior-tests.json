@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-05-24T09:20:00Z-back001",
+  "stack_detected": "backend",
+  "touched_files_sha": "sha256:irrelevant-in-input-mode",
+  "tests_pass": true,
+  "counts": { "passed": 15, "failed": 0, "skipped": 0 },
+  "coverage": { "overall": 0.89, "touched": 0.60 },
+  "failures": [],
+  "elapsed_sec": 5.2
+}

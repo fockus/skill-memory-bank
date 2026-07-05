@@ -1,0 +1,17 @@
+{
+  "case_id": "PY-002-missing-tests",
+  "description": "New bulk-discount pricing logic ships with no accompanying test; the touched-file test suite is currently red.",
+  "stack": "python",
+  "expected": {
+    "verdict": "CHANGES_REQUESTED",
+    "counts": {
+      "blocker_min": 1,
+      "blocker_max": 2,
+      "major_max": 2,
+      "minor_max": 5
+    },
+    "must_have_categories": ["tests"],
+    "must_not_have_categories": [],
+    "expected_example_refs": ["PY-TESTS-001"]
+  }
+}

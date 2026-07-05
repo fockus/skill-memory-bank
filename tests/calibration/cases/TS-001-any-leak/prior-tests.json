@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-05-24T09:15:00Z-ts001",
+  "stack_detected": "typescript",
+  "touched_files_sha": "sha256:irrelevant-in-input-mode",
+  "tests_pass": true,
+  "counts": { "passed": 9, "failed": 0, "skipped": 0 },
+  "coverage": { "overall": 0.87, "touched": 0.72 },
+  "failures": [],
+  "elapsed_sec": 4.0
+}

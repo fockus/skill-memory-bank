@@ -1,0 +1,17 @@
+diff --git a/internal/config/loader.go b/internal/config/loader.go
+new file mode 100644
+index 0000000..7c1a9f0
+--- /dev/null
++++ b/internal/config/loader.go
+@@ -0,0 +1,10 @@
++package config
++
++import "encoding/json"
++import "os"
++
++func LoadConfig(path string) *Config {
++	data, _ := os.ReadFile(path)
++	var cfg Config
++	json.Unmarshal(data, &cfg)
++	return &cfg
++}

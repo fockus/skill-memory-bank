@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-05-24T09:05:00Z-py002",
+  "stack_detected": "python",
+  "touched_files_sha": "sha256:irrelevant-in-input-mode",
+  "tests_pass": false,
+  "counts": { "passed": 4, "failed": 1, "skipped": 0 },
+  "coverage": { "overall": 0.83, "touched": 0.40 },
+  "failures": ["test_discount_applies_to_bulk_orders"],
+  "elapsed_sec": 1.4
+}

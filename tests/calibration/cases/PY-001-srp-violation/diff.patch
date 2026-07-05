@@ -1,0 +1,27 @@
+diff --git a/src/services/user_service.py b/src/services/user_service.py
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/src/services/user_service.py
+@@ -0,0 +1,19 @@
++class UserService:
++    def __init__(self, db):
++        self.db = db
++
++    def create(self, payload):
++        return self.db.insert("users", payload)
++
++    def list(self):
++        return self.db.query("users")
++
++    def update(self, user_id, payload):
++        return self.db.update("users", user_id, payload)
++
++    def delete(self, user_id):
++        return self.db.delete("users", user_id)
++
++    def send_welcome_email(self, user_id):
++        mailer.send(user_id, template="welcome")  # different responsibility
++
++    def export_to_csv(self):
++        return csv_writer.write(self.db.query("users"))  # different responsibility

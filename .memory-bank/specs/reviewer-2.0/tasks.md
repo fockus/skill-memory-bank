@@ -86,6 +86,6 @@ Testing: bats stubs reviewer output and verifies dropped auto-findings are resto
 Testing: calibration runner validates fixture cases without live LLM calls; docs links resolve.
 
 **DoD:**
-- [ ] `tests/calibration/run.sh` exists with at least five cases.
-- [ ] Non-blocking scheduled workflow is documented.
-- [ ] `CHANGELOG.md` describes compatibility and migration notes.
+- [x] `tests/calibration/run.sh` exists with at least five cases.
+- [x] Non-blocking scheduled workflow is documented.
+- [x] `CHANGELOG.md` describes compatibility and migration notes.

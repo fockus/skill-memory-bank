@@ -4,6 +4,50 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — Reviewer 2.0 (calibrated, tests-aware review)
+
+- **`scripts/mb-review.sh`** — a deterministic review-payload orchestrator
+  (`--emit-payload`): assembles the single markdown payload the reviewer
+  judges (plan context, diff, calibration examples, prior test evidence, and
+  an auto-generated `tests` blocker when touched-file tests are red) without
+  ever dispatching an LLM itself. Supports `--input <case-dir>` so the same
+  production code path can run offline against a fixture (see the calibration
+  suite below).
+- **`scripts/mb-review-cache.sh`** — the touched-file test-evidence cache
+  (`.memory-bank/tmp/last-tests.json`): TTL-bounded HIT/MISS keyed on a
+  touched-files sha, with `--refresh-tests` as the manual force-MISS escape
+  hatch.
+- **Layered calibration examples** — `scripts/mb-review-examples.sh` resolves
+  few-shot rubric examples from `references/rubric-examples/{common,python,
+  go,typescript,frontend,mobile,backend}.md`, with an optional project
+  override at `.memory-bank/rubric-examples/` taking precedence on
+  `example_id` collision. Every stack ships >=3 examples per category
+  (`logic`/`code_rules`/`security`/`scalability`/`tests`).
+- **`--require-tests-blocker`** (`scripts/mb-work-review-parse.sh`) — the
+  REQ-103 "cannot drop" safety net: if a reviewer output drops or downgrades
+  the auto-injected `tests`/`blocker` finding for a known-red touched-file
+  test run, the parser restores it and forces `CHANGES_REQUESTED`. Opt-in —
+  only ever passed when touched-file tests are already known to be failing.
+- **Golden calibration suite** (`tests/calibration/`) — a runnable regression
+  harness against reviewer verdict drift: 5 case fixtures (one red-tests
+  case), an offline `--emit-payload` smoke path (no LLM/network, exercised by
+  `tests/bats/test_calibration_suite.bats`), the full PASS/WARN/FAIL match
+  metric, and a documented (not yet added — see `tests/calibration/README.md`)
+  non-blocking weekly `workflow_dispatch`/`schedule` CI job.
+
+**Compatibility.** Additive and opt-in throughout — default `/mb work`
+behavior is unchanged unless a project explicitly wires the new review
+orchestrator or opts into `--require-tests-blocker` (REQ-105). Existing
+`pipeline.yaml` files without the new keys keep working via resolver
+defaults.
+
+**Migration.** None required. Projects that want project-specific calibration
+examples may optionally add `.memory-bank/rubric-examples/{common,<stack>}.md`
+overrides (same `example_id`/`stack`/`category`/`severity` front-matter +
+`### Bad` / `### Expected verdict fragment` block format as the bundled
+`references/rubric-examples/` baseline); everything else keeps using the
+skill-bundled baseline unchanged.
+
 ## [5.2.0] — 2026-06-28
 
 ### Added

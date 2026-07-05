@@ -1,0 +1,9 @@
+diff --git a/src/config/parseConfig.ts b/src/config/parseConfig.ts
+new file mode 100644
+index 0000000..d34d1b3
+--- /dev/null
++++ b/src/config/parseConfig.ts
+@@ -0,0 +1,3 @@
++export function parseConfig(raw: any): any {
++  return JSON.parse(raw);
++}

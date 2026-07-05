@@ -58,3 +58,7 @@ hooks/.venv/
 
 # One-off migration backups (session-memory rollout) — local only, never tracked.
 *.bak-*-sessionmem
+
+# Golden calibration-suite run output (reviewer-2.0 design.md §6) — regenerated
+# by tests/calibration/run.sh every invocation, never tracked.
+tests/calibration/results/
