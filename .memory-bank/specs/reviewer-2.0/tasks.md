@@ -20,9 +20,9 @@ Executable task list for traceability. Detailed implementation steps remain in t
 Testing: bats verifies SHA stability, TTL cache hits and misses, and help output.
 
 **DoD:**
-- [ ] `scripts/mb-review.sh` exists and emits a deterministic payload.
-- [ ] Cache helper stores touched-file test evidence under `.memory-bank/tmp/`.
-- [ ] Focused bats tests pass.
+- [x] `scripts/mb-review.sh` exists and emits a deterministic payload.
+- [x] Cache helper stores touched-file test evidence under `.memory-bank/tmp/`.
+- [x] Focused bats tests pass.
 
 <!-- mb-task:2 -->
 ### Task 2: Implement layered rubric example loading
@@ -70,8 +70,11 @@ Testing: bats validates green-test payloads omit auto-findings and red-test payl
 Testing: bats stubs reviewer output and verifies dropped auto-findings are restored before severity gate.
 
 **DoD:**
-- [ ] `commands/work.md` calls `scripts/mb-review.sh`.
-- [ ] `agents/mb-reviewer.md` consumes one assembled payload and emits JSON only.
+- [ ] `commands/work.md` review stage assembles the payload via `scripts/mb-review.sh`, then dispatches the
+      pipeline-resolved reviewer (`codex-cli` default, `mb-reviewer` fallback) — NOT a hard-coded `Task → mb-reviewer`.
+- [ ] Reviewer output is normalized via `mb-work-review-parse.sh --external`; the dropped-auto-finding post-validation
+      hooks onto that normalizer (no second parser).
+- [ ] `agents/mb-reviewer.md` consumes one assembled payload and emits JSON only (fallback path).
 - [ ] Existing severity-gate tests still pass.
 
 <!-- mb-task:6 -->

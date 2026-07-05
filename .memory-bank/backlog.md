@@ -545,6 +545,23 @@ live domain files. (b) taskloom/swarmline stray `~/.claude/projects/*--memory-ba
 NOT removed: they hold nested session `tool-results/` (some dated today), contradicting the
 plan's "empty, 0 jsonl" premise. Do deliberately, with review._
 
+### I-093 — /mb work engine resilience: durable state, gated flip, external parse, codex preflight [HIGH, DONE, 2026-07-04]
+
+_Closed same day. 9 stages, TDD (red commit before each feat, 18 commits c46d9ac..82624b2):
+(T1) `mb-work-state.sh` durable `.work-state.json` + max_cycles enforcement by exit 3, budget bound
+to run_id; (T2) `mb-work-checkbox.sh` deterministic DoD flip gated on `phase=done` + implementer ban;
+(T3) `mb-work-review-parse.sh --external` normalizes cross-model "APPROVED with issues" + consumes
+codex-reviewer SKIPPED contract, one bounded retry; (T4) `mb-work-codex-preflight.sh` fail-safe
+health-check + loud `cross-model review SKIPPED` degradation + --auto confirmation hard-stop.
+Verification: 49 pytest + 22 bats green, shellcheck clean, all scripts <=400 lines.
+Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087 (verified)._
+
+
+### I-095 — reviewer-2.0 backlog: DRY-fold resolve_touched_files/resolve_diff_text in mb-review.sh (~85% dup) [LOW, NEW, 2026-07-05]
+
+
+### I-096 — reviewer-2.0 backlog: cover or remove inert last_verdict_cache_path() (Phase-2 hook, output discarded) [LOW, NEW, 2026-07-05]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

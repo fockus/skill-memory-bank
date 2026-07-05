@@ -2584,3 +2584,64 @@ Legacy projects upgrade via `bash scripts/mb-spec-tasks-migrate.sh <topic> --app
   (major, maintainability); R-2 no bats test for install.sh cursor guard (minor, hygiene).
 - Scope discipline: committed only batch-scoped code/tests/plan/progress; left parallel session's
   uncommitted backlog.md/roadmap.md (I-087/I-093) untouched.
+
+### I-094 close-out — safe PARALLEL /mb work runs (2026-07-05)
+
+Все 10 стадий реализованы волнами сабагентов (Sonnet, mb-developer) через governed-паттерн, TDD red→green на каждой. Фаза 1 (S1 slots+state, S6 progress-append) + Фаза 2 параллельно ×4 (S2 budget, S3 checkbox, S4 diff, S5 resolve) + Фаза 3 последовательно один владелец work.md (S7→S8→S9→S10).
+
+- **T1** per-run изоляция: `.work-state/<run_id>.json` + `.work-budget/<run_id>.json`, source→run claim index, `init` exit-4 при занятом source + `--takeover`, `status --all`/`list`/`new-run-id`, `baseline_ref` при init. Всё за `MB_WORK_PARALLEL=1`; env unset → синглтон байт-идентичен (mb-fanout.sh:255 резолвит).
+- **T2** `mb-work-resolve.sh --skip-claimed`: пустой target берёт первый незанятый план; explicit claimed → stderr claim-note, жёсткий гейт остаётся в init exit-4.
+- **T3** `mb-work-diff.sh`: baseline-scoped диф. **Amendment 2026-07-05**: одноточечная форма `git diff <baseline> -- <files>` вместо `<baseline>..HEAD` — ревью на 5c/5d видит незакоммиченную работу этапа (коммит только на 5g). Дефект плана пойман через честное отклонение S4-агента.
+- **T4** `mb-work-progress-append.sh`: локированный atomic append-only для progress.md; checklist — single-writer через checkbox; durable = чекбоксы + `.work-state`, TaskUpdate = ephemeral.
+- **T5** `commands/work.md` секция "Parallel runs": два паттерна (intra-plan waves / inter-plan worktrees), sync/async spawn rule, обязательная доставка отчёта фоновым агентом (SendMessage/.reports), опциональный self-claim pull.
+
+Верификация: 79 pytest (7 файлов) + 38 bats doc-контракт + shellcheck чистый на 7 скриптах, все ≤400 строк, bash 3.2+5.x. Back-compat: env unset → все I-093 тесты зелёные без правок. Doc-contract debt (test_doc_counts) закрыт коммитом 1ca5de4 для всех закоммиченных скриптов.
+
+Скрипт-коммиты: S1 2e67fdd, S2 115d15e, S3 d4e886a, S4 a63c6e6+b6366ee(fix), S5 650efcb, S6 7f77b77. Wire-коммиты: S7 0a032ed, S8 05c945a, S9 722fbfe, S10 32e2fa5. Housekeeping: 1ca5de4. Не запушено.
+
+Остаток (не наш): 2 untracked reviewer-2.0 скрипта (mb-review.sh/mb-review-cache.sh) держат test_doc_counts красным на грязном дереве — задокументирует их эффорт; test_skill_naming_v2 plan.md→roadmap.md — отдельная миграция репо.
+
+### Install-reliability + cross-agent parity — Batch 2a done (A5·A8·A9) — GO_WITH_BACKLOG (2026-07-04)
+
+- Plan `2026-07-04_fix_install-and-cross-agent-parity.md`, 3 HIGH install-safety stages (adapter
+  data-safety) through the governed cycle: implement → verify → Codex review ×2 → mb-judge.
+- A5 (H-3) opencode.json: back up true original once (regular-file-verified glob), atomic mktemp+mv
+  write with mode preservation, broken-JSON guard (leave untouched), foreign-key safe. A8 (H-6)
+  cline.sh `.clinerules` file-form: marker block + sibling manifest, idempotent, symlink-CHAIN-safe
+  (writes through resolved target), byte-exact round-trip, mode-preserving. A9 (H-7) kilo.sh +
+  git-hooks-fallback.sh: `git rev-parse` worktree/submodule detection + `--git-path hooks`
+  (core.hooksPath aware) + repo-ROOT guard (`--show-toplevel`==PROJECT_ROOT rejects nested subdir).
+  New shared `mb_file_mode` helper in adapters/_framework.sh.
+- TDD RED→GREEN per stage. Codex gpt-5.5 review found 9 real findings over 2 rounds (r1: 6 major;
+  r2: 2 residual + 1 minor), all reproduced and fixed before commit. 16 new regression bats tests.
+- Judge independently re-ran (opencode 20/20, cline 20/22, kilo 12/13, git-hooks 24/27), hand-traced
+  the delay-buffer awk byte-exactness + multi-hop symlink + repo-root guard + worktree/core.hooksPath.
+  The 6 remaining "not ok" are PRE-EXISTING auto-capture/session-lock failures (parallel session's
+  committed hooks/ work) — confirmed identical on stashed baseline; NOT caused by this diff.
+- shellcheck 0 new findings (5 files); all files ≤400 lines.
+- Residuals (plan §Batch 2a): R2a-1 cline file-form lacks backup safety-net → data-loss on corrupted
+  END marker (major, close FIRST in Batch 2b); R2a-2 stale hardcoded hook-install log path (minor);
+  R2a-3 no submodule regression test (minor).
+- Scope: committed only batch-scoped source/tests/plan/progress; parallel session's backlog.md/
+  roadmap.md/checklist.md left untouched.
+
+### reviewer-2.0 Task 1 done — mb-review.sh + touched-file test cache (2026-07-05)
+
+Phase 1 (reviewer-2.0), Task 1 of 6 closed via governed cycle
+(implement=sonnet → verify=plan-verifier PASS ∥ review=codex gpt-5.5 → judge=opus).
+
+- **New scripts:** `scripts/mb-review.sh` (489 ln) — deterministic 5-section review-payload
+  orchestrator (`--emit-payload`), model-agnostic (feeds codex-cli / mb-reviewer / ensemble),
+  single-ref `git diff <baseline>`, `require_value` guard before every `shift 2`;
+  `scripts/mb-review-cache.sh` (317 ln) — touched-file test-evidence cache (canonical sorted
+  sha + `DELETED:<path>` marking, TTL 600s HIT/MISS) at `<mb>/tmp/last-tests.json`.
+- **Tests:** `test_mb_review_sha.bats` (10) + `test_mb_review_cache.bats` (14) +
+  `test_mb_review.bats` (10) = 34/34 green; shellcheck clean; both scripts ≤400 ln.
+- **Docs:** SKILL.md `## Tools` table +2 rows (mb-review.sh, mb-review-cache.sh) → test_doc_counts green.
+- **Governed loop:** cycle 1 judge NO_GO (3 blockers: unguarded `shift 2`, missing SKILL rows,
+  cache schema check) → fix-cycle (sonnet) → re-verify PASS ∥ re-codex APPROVED → GO. RUN_ID
+  33ddbaacebdf44e5be12a24bf1910523, cycle 1/2. Codex available (no cross-model degradation).
+- **Backlog:** I-095 (DRY-fold resolve_touched_files/resolve_diff_text ~85% dup),
+  I-096 (cover-or-remove inert last_verdict_cache_path Phase-2 hook). Renumbered from a
+  transient I-094/I-095 mint that collided with the DONE parallel-runs I-094 — monotonic invariant restored.
+- Task 1 DoD checkboxes (`specs/reviewer-2.0/tasks.md`) all `[x]`.
