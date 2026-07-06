@@ -726,3 +726,22 @@ o=json.load(sys.stdin)
 assert o["count"]==2, o
 '
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Stage 6 — failed branch stderr capture (I-085)
+# ═══════════════════════════════════════════════════════════════
+
+@test "fanout: failed branch includes stderr snippet in error marker" {
+  local marker="FANOUT_STDERR_SNIPPET_$$"
+  local cmd='printf "%s\n" "'"$marker"'" >&2; exit 3'
+  run bash "$FANOUT" "$TMPBANK" --cmd "$cmd" --branch fail
+  [ "$status" -eq 2 ]
+  json_line "$output" | MARKER="$marker" python3 -c '
+import json, os, sys
+o = json.load(sys.stdin)
+err = o["branches"][0]["error"]
+assert err is not None, o
+assert "3" in err, err
+assert os.environ["MARKER"] in err, err
+'
+}

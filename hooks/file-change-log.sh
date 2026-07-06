@@ -124,13 +124,15 @@ fi
 
 # ═══ Secrets in source files ═══
 if [[ "$FILE_PATH" =~ \.(py|go|js|ts|rb|java|rs|swift|kt)$ ]]; then
-  SECRETS=$(grep -nEi '(password|secret|api_key|token|private_key)\s*=\s*["\x27][^"\x27]{8,}' "$FILE_PATH" 2>/dev/null \
+  while IFS= read -r hit; do
+    [ -z "$hit" ] && continue
+    lineno="${hit%%:*}"
+    rest="${hit#*:}"
+    varname=$(printf '%s' "$rest" | sed -E 's/[[:space:]]*=[[:space:]]*.*/ /; s/[[:space:]]+$//; s/[[:space:]]+.*$//')
+    echo "WARNING: Possible hardcoded secret in $FILE_PATH:$lineno  $varname  [REDACTED]" >&2
+  done < <(grep -nEi '(password|secret|api_key|token|private_key)[[:space:]]*=[[:space:]]*["\x27][^"\x27]{8,}' "$FILE_PATH" 2>/dev/null \
     | grep -vEi '(test|mock|fake|example|placeholder|xxx|your_)' \
     | head -3)
-  if [ -n "$SECRETS" ]; then
-    echo "WARNING: Possible hardcoded secrets in $FILE_PATH:" >&2
-    echo "$SECRETS" >&2
-  fi
 fi
 
 exit 0

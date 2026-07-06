@@ -499,3 +499,35 @@ EOF
   echo "$output" | grep -Eq '\[SUPERSEDED: [0-9]{4}-[0-9]{2}-[0-9]{2} -> '
   ! echo "$output" | grep -qi 'ordering unknown'
 }
+
+# --- I-085 Stage 4: portable base64 decode + finite threshold ---
+
+@test "conflicts: --judge decodes entry bodies portably into the prompt" {
+  run env CLAUDE="$CLAUDE" bash "$SCRIPT" "$MB" --judge
+  [ "$status" -eq 0 ]
+  [ -f "$PROMPT_CAP" ]
+  grep -q 'Use Postgres for the ledger' "$PROMPT_CAP"
+  grep -q 'ledger moved to MongoDB' "$PROMPT_CAP"
+}
+
+@test "conflicts: --threshold nan rejected" {
+  run env CLAUDE="$CLAUDE" bash "$SCRIPT" "$MB" --threshold nan
+  [ "$status" -eq 64 ]
+}
+
+@test "conflicts: --threshold inf rejected" {
+  run env CLAUDE="$CLAUDE" bash "$SCRIPT" "$MB" --threshold inf
+  [ "$status" -eq 64 ]
+}
+
+@test "conflicts: --threshold out of range rejected" {
+  run env CLAUDE="$CLAUDE" bash "$SCRIPT" "$MB" --threshold 1.5
+  [ "$status" -eq 64 ]
+  run env CLAUDE="$CLAUDE" bash "$SCRIPT" "$MB" --threshold -0.1
+  [ "$status" -eq 64 ]
+}
+
+@test "conflicts: --threshold valid accepted" {
+  run env CLAUDE="$CLAUDE" bash "$SCRIPT" "$MB" --threshold 0.4
+  [ "$status" -eq 0 ]
+}

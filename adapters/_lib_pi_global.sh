@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # adapters/_lib_pi_global.sh — Pi global provisioning helpers (sourced by pi.sh).
 #
 # Extracted from adapters/pi.sh to keep that adapter under the file-size / SRP

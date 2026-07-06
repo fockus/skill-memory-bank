@@ -613,7 +613,7 @@ A: Yes. Current stable line is **v5.2.0** (released 2026-06-28) — see [CHANGEL
 
 1. Fork & clone.
 2. `./install.sh && /mb init` in the repo itself (this skill uses itself — meta but works).
-3. Write tests first (TDD). `bats tests/bats/ tests/e2e/` + `python3 -m pytest tests/pytest/`.
+3. Write tests first (TDD). `bats tests/bats/ tests/e2e/ hooks/tests/*.bats` + `python3 -m pytest hooks/tests/ tests/pytest/`. Lint: `shellcheck -x scripts/*.sh hooks/*.sh hooks/lib/*.sh adapters/*.sh install.sh` + `ruff check scripts/ hooks/lib/ memory_bank_skill/ settings/ tests/pytest/`.
 4. Follow the rules in `rules/RULES.md` (the same ones the skill enforces on users).
 5. Open a PR. CI runs on Python 3.11 + 3.12 × ubuntu + macos.
 

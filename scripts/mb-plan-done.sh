@@ -376,7 +376,7 @@ echo "[done] plan=$BASENAME removed_sections=$removed_sections → plans/done/"
 # ═══════════════════════════════════════════════════════════════
 SCRIPT_DIR=$(dirname "$0")
 # Project-local MB env overrides (e.g. MB_TEST_ROOTS for monorepo test layout) — opt-in per project.
-[ -f "$MB_PATH/.mbenv" ] && . "$MB_PATH/.mbenv"
+mb_load_mbenv "$MB_PATH"
 if [ -x "$SCRIPT_DIR/mb-roadmap-sync.sh" ]; then
   "$SCRIPT_DIR/mb-roadmap-sync.sh" "$MB_PATH" || echo "[warn] mb-roadmap-sync.sh failed (non-fatal)" >&2
 fi

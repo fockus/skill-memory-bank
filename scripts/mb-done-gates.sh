@@ -1,34 +1,9 @@
 #!/usr/bin/env bash
-# mb-done-gates.sh — mandatory /mb done gate set (handoff-v2 §5, GAP-4).
-#
-# Usage:
-#   mb-done-gates.sh [--mb <path>] [--dir <repo>] [--force --reason "<line>"]
-#                    [--out json|human|both]
-#
-# Runs three independent checks in sequence, each emitting one structured JSON
-# line to stdout:
-#   1. tests        — dispatch the test runner (scope=touched if a baseline commit
-#                     is inferable, else scope=full). not_applicable (no stack)
-#                     counts as PASS with a logged WARN.
-#   2. rules        — scripts/mb-rules-check.sh on the working tree; CRITICAL = fail.
-#   3. placeholders — scripts/mb-rules-check.sh --placeholders-only — scans staged +
-#                     uncommitted source for the deny-list markers; any hit = fail.
-#                     Deny list default: see MB_PLACEHOLDER_DENY_DEFAULT in mb_rules_check_lib.sh.
-#
-# Exit 0 only if every required gate passes; otherwise exit 2.
-#
-# Force semantics:
-#   --force requires --reason "<one-line>" (refuse force without a reason).
-#   On a forced run WITH failures: append a NOTE to progress.md under today's
-#   date heading, store failure-detail JSON under <mb>/tmp/, then exit 0.
-#
-# Config (pipeline.yaml:done_gates): enabled / required / allow_force. If absent,
-# defaults to enabled:true, required:[tests_pass,no_critical_violations,no_placeholders],
-# allow_force:true. allow_force:false rejects --force outright.
-#
-# Stubbable for tests (offline/deterministic):
-#   MB_TEST_RUNNER_CMD  — command emitting the test-runner JSON line (default: real path).
-#   MB_RULES_CHECK_CMD  — rules-check command (default: scripts/mb-rules-check.sh).
+# mb-done-gates.sh — /mb done gate set: tests + rules + placeholders (exit 0/2).
+# Usage: mb-done-gates.sh [--mb PATH] [--dir REPO] [--force --reason LINE] [--out json|human|both]
+# Force: requires --reason; appends NOTE to progress.md + JSON under <mb>/tmp/.
+# Config: pipeline.yaml done_gates / done_placeholders (defaults if absent).
+# Stubs: MB_TEST_RUNNER_CMD, MB_RULES_CHECK_CMD.
 
 set -euo pipefail
 
@@ -94,20 +69,7 @@ elif [[ -f "$DEFAULT_PIPELINE" ]]; then
   PIPELINE_PATH="$DEFAULT_PIPELINE"
 fi
 
-# Emit (on stdout) four TAB-separated fields the shell consumes:
-#   enabled<TAB>allow_force<TAB>placeholder_deny_csv<TAB>required_csv
-#
-# Fail-closed policy for allow_force (MAJOR #2):
-#   - No project pipeline.yaml at all → fall back to defaults (allow_force=true).
-#   - Project pipeline.yaml exists but CANNOT be parsed → treat allow_force=false
-#     (fail closed) and log a WARN to stderr. Do NOT silently apply defaults.
-#   - Project pipeline.yaml parsed OK → honour its values; absent keys use defaults.
-#   - Default pipeline.yaml (no project override) → always use defaults.
-#
-# The Python script receives three env vars:
-#   PIPELINE_PATH        — path to the resolved pipeline file (may be "" if none)
-#   PROJECT_PIPELINE_EXISTS — "1" when a PROJECT (not default) pipeline.yaml was found
-#   MB_PLACEHOLDER_DENY_DEFAULT — canonical deny default from the lib
+# read_done_gates_config → enabled, allow_force, deny csv, required csv (TAB-separated).
 read_done_gates_config() {
   PIPELINE_PATH="${PIPELINE_PATH:-}" \
   PROJECT_PIPELINE_EXISTS="${PROJECT_PIPELINE_EXISTS:-0}" \
@@ -158,8 +120,6 @@ print("\t".join([enabled, allow_force, deny, required]))
 PY
 }
 
-# Track whether a project-level (not default) pipeline.yaml was found, so the
-# Python reader can apply the fail-closed policy correctly (MAJOR #2).
 PROJECT_PIPELINE_EXISTS=0
 [[ -f "$PROJECT_PIPELINE" ]] && PROJECT_PIPELINE_EXISTS=1
 
@@ -219,16 +179,29 @@ json_escape_raw() {
 
 run_tests_gate() {
   local runner_cmd="${MB_TEST_RUNNER_CMD:-}"
-  local out verdict not_applicable
+  local out rc parse_line verdict not_applicable parse_ok
   if [[ -z "$runner_cmd" ]]; then
     runner_cmd="bash $SCRIPT_DIR/mb-test-run.sh --dir $DIR --out json"
   fi
-  # The runner exits 0 even on failure; the verdict lives in tests_pass.
-  out="$($runner_cmd 2>/dev/null || true)"
-  verdict="$(printf '%s' "$out" | python3 -c \
+  set +e
+  out="$($runner_cmd 2>/dev/null)"
+  rc=$?
+  set -e
+
+  if [[ "$rc" -ne 0 ]]; then
+    emit_gate "tests" "false" "runner exited rc=$rc"
+    return 0
+  fi
+
+  parse_line="$(printf '%s' "$out" | python3 -c \
     'import sys,json
 raw=sys.stdin.read().strip()
+if not raw:
+    print("parse_ok=false verdict=null not_applicable=false")
+    sys.exit(0)
 v=None
+na=False
+parsed=False
 for line in raw.splitlines():
     line=line.strip()
     if not line.startswith("{"):
@@ -237,40 +210,46 @@ for line in raw.splitlines():
         d=json.loads(line)
     except Exception:
         continue
+    parsed=True
     if "tests_pass" in d:
         v=d.get("tests_pass")
-print("null" if v is None else ("true" if v is True else "false"))' 2>/dev/null || printf 'null')"
-  not_applicable="$(printf '%s' "$out" | python3 -c \
-    'import sys,json
-raw=sys.stdin.read().strip()
-na=False
-for line in raw.splitlines():
-    line=line.strip()
-    if not line.startswith("{"):
-        continue
-    try:
-        d=json.loads(line)
-    except Exception:
-        continue
     if d.get("not_applicable") is True:
         na=True
-print("true" if na else "false")' 2>/dev/null || printf 'false')"
+if not parsed:
+    print("parse_ok=false verdict=null not_applicable=false")
+elif v is True:
+    print("parse_ok=true verdict=true not_applicable=%s" % ("true" if na else "false"))
+elif v is False:
+    print("parse_ok=true verdict=false not_applicable=%s" % ("true" if na else "false"))
+else:
+    print("parse_ok=true verdict=null not_applicable=%s" % ("true" if na else "false"))' 2>/dev/null || printf 'parse_ok=false verdict=null not_applicable=false')"
 
+  parse_ok="$(printf '%s' "$parse_line" | awk '{for(i=1;i<=NF;i++) if($i~/^parse_ok=/) print substr($i,10)}')"
+  verdict="$(printf '%s' "$parse_line" | awk '{for(i=1;i<=NF;i++) if($i~/^verdict=/) print substr($i,9)}')"
+  not_applicable="$(printf '%s' "$parse_line" | awk '{for(i=1;i<=NF;i++) if($i~/^not_applicable=/) print substr($i,16)}')"
+
+  if [[ "$parse_ok" != "true" ]]; then
+    emit_gate "tests" "false" "runner output not valid JSON"
+    return 0
+  fi
   if [[ "$verdict" == "true" ]]; then
     emit_gate "tests" "true" "tests_pass=true"
-  elif [[ "$not_applicable" == "true" || "$verdict" == "null" ]]; then
-    # No stack / runner missing / zero tests → PASS with a WARN (§9 risk row).
+    return 0
+  fi
+  if [[ "$not_applicable" == "true" ]]; then
     printf '[mb-done-gates][WARN] tests gate not_applicable (no stack/runner) — treated as PASS\n' >&2
     emit_gate "tests" "true" "not_applicable (WARN)"
-  else
-    emit_gate "tests" "false" "tests_pass=false"
+    return 0
   fi
+  if [[ "$verdict" == "null" ]]; then
+    emit_gate "tests" "false" "tests_pass=null without not_applicable"
+    return 0
+  fi
+  emit_gate "tests" "false" "tests_pass=false"
 }
 
 # ---- gate 2: rules (deterministic) ------------------------------------------
 
-# Build the CSV of changed source files (staged + uncommitted) in DIR. Empty
-# string when git is unavailable or there is no repo.
 changed_files_csv() {
   if git -C "$DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     {
@@ -288,8 +267,6 @@ run_rules_gate() {
   files_csv="$(changed_files_csv)"
 
   set +e
-  # MAJOR #3: pass changed files as BOTH --files AND --diff-files so that
-  # check_tdd_delta (which keys off DIFF_FILES) fires on source-without-test changes.
   out="$($rules_cmd --files "$files_csv" --diff-files "$files_csv" --out json 2>/dev/null)"
   rc=$?
   set -e
@@ -334,9 +311,7 @@ run_tests_gate
 run_rules_gate
 run_placeholders_gate
 
-# ---- verdict (MAJOR #1: only REQUIRED gate failures block) ------------------
-
-# Map gate internal name → required-list name (from pipeline.yaml:done_gates.required).
+# ---- verdict (only REQUIRED gate failures block) ----
 gate_to_required_name() {
   case "$1" in
     tests)        printf 'tests_pass' ;;
@@ -346,7 +321,6 @@ gate_to_required_name() {
   esac
 }
 
-# Check if a required-name is in the REQUIRED_CSV (comma-separated list).
 is_required() {
   local req_name="$1"
   local IFS=,
@@ -357,8 +331,6 @@ is_required() {
   return 1
 }
 
-# Collect REQUIRED failures (for exit code + force summary); non-required
-# failures still appear in every gate JSON line but do not block.
 REQUIRED_FAILED_GATES=()
 for g in "${FAILED_GATES[@]+"${FAILED_GATES[@]}"}"; do
   if is_required "$(gate_to_required_name "$g")"; then
@@ -378,7 +350,6 @@ if [[ "$FORCE" -ne 1 ]]; then
   exit 2
 fi
 
-# Forced run with required failures: record the override and exit 0.
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 TMP_DIR="$MB/tmp"
 mkdir -p "$TMP_DIR"
@@ -403,7 +374,6 @@ FAILURE_JSON="$TMP_DIR/done-gate-failure-$TS.json"
   printf ']}\n'
 } > "$FAILURE_JSON"
 
-# Append the NOTE to progress.md under today's date heading (create if missing).
 PROGRESS="$MB/progress.md"
 TODAY="$(date +%Y-%m-%d)"
 [[ -f "$PROGRESS" ]] || printf '# Progress\n' > "$PROGRESS"

@@ -484,6 +484,63 @@ EOF
 }
 
 # ═══════════════════════════════════════════════════════════════
+# I-083 Stage 1 — tests gate fail-closed (null / crash / invalid JSON)
+# ═══════════════════════════════════════════════════════════════
+
+@test "done-gates: tests gate runner non-zero exit → EXACT exit 2" {
+  cat > "$STUBS/test-runner.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '{"stack":"python","tests_pass":true}\n'
+exit 1
+EOF
+  chmod +x "$STUBS/test-runner.sh"
+  _make_rules_stub clean
+  run_gates
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '"gate":"tests".*"pass":false'
+}
+
+@test "done-gates: tests gate invalid JSON → EXACT exit 2" {
+  cat > "$STUBS/test-runner.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'not json at all\n'
+EOF
+  chmod +x "$STUBS/test-runner.sh"
+  _make_rules_stub clean
+  run_gates
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '"gate":"tests".*"pass":false'
+}
+
+@test "done-gates: tests gate empty output → EXACT exit 2" {
+  cat > "$STUBS/test-runner.sh" <<'EOF'
+#!/usr/bin/env bash
+:
+EOF
+  chmod +x "$STUBS/test-runner.sh"
+  _make_rules_stub clean
+  run_gates
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '"gate":"tests".*"pass":false'
+}
+
+@test "done-gates: tests gate null without not_applicable → EXACT exit 2" {
+  _make_test_runner_stub null
+  _make_rules_stub clean
+  run_gates
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '"gate":"tests".*"pass":false'
+}
+
+@test "done-gates: tests gate null with not_applicable → exit 0 (escape hatch)" {
+  _make_test_runner_stub null '"not_applicable":true'
+  _make_rules_stub clean
+  run_gates
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '"gate":"tests".*"pass":true'
+}
+
+# ═══════════════════════════════════════════════════════════════
 # not_applicable tests gate (no stack)
 # ═══════════════════════════════════════════════════════════════
 

@@ -384,13 +384,14 @@ i=0
 while [ "$i" -lt "$N" ]; do
   prompt="${PROMPTS[$i]}"
   out_file="$WORKDIR/out.$i"
+  err_file="$WORKDIR/err.$i"
   rc_file="$WORKDIR/rc.$i"
   # Subshell so a branch that calls `exit`/`set -e` can never hijack our exit
   # authority — only the subshell's status escapes (recorded to rc.<i>).
   (
     set +e
     MB_FANOUT_PROMPT="$prompt" MB_FANOUT_BRANCH_INDEX="$i" \
-      bash -c "$CMD" >"$out_file" 2>/dev/null
+      bash -c "$CMD" >"$out_file" 2>"$err_file"
     printf '%s' "$?" >"$rc_file"
   ) &
   i=$((i + 1))
@@ -463,12 +464,27 @@ for i in range(n):
 
     if rc != 0:
         # A branch sub-invocation FAILED (non-zero exit). Surface it loud.
+        err_path = os.path.join(work, f"err.{i}")
+        snippet = ""
+        try:
+            with open(err_path, "rb") as fh:
+                raw_err = fh.read()
+            if raw_err:
+                snippet = raw_err.decode("utf-8", errors="replace").strip()
+                if len(snippet) > 500:
+                    snippet = snippet[:500]
+        except OSError:
+            snippet = ""
+        if snippet:
+            error = f"exit {rc}: {snippet}"
+        else:
+            error = f"exit {rc}"
         failed += 1
         branches.append({
             "index": i,
             "ok": False,
             "result": None,
-            "error": f"exit {rc}",
+            "error": error,
         })
         sys.stderr.write(
             f"[mb-fanout] branch {i} FAILED: sub-invocation exited {rc}\n"

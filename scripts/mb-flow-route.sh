@@ -391,6 +391,7 @@ main() {
         {
           git -C "$repo" diff --name-only 2>/dev/null
           git -C "$repo" diff --name-only --cached 2>/dev/null
+          git -C "$repo" ls-files --others --exclude-standard 2>/dev/null
         } | sort -u
       )
     fi
@@ -457,6 +458,36 @@ main() {
         abc/*|abcs/*|*/abc/*|*/abcs/*|abc.*|*/abc.*|*ABC.*|*_abc.*)
           floor_triggered=1
           reasons+=("ABC file: $file")
+          continue
+          ;;
+      esac
+      local lc
+      lc="$(printf '%s' "$file" | tr '[:upper:]' '[:lower:]')"
+      case "$lc" in
+        *interface*)
+          floor_triggered=1
+          reasons+=("interface file (lowercase): $file")
+          continue
+          ;;
+      esac
+      case "$lc" in
+        *contract*)
+          floor_triggered=1
+          reasons+=("contract file (lowercase): $file")
+          continue
+          ;;
+      esac
+      case "$lc" in
+        *protocol*)
+          floor_triggered=1
+          reasons+=("protocol file (lowercase): $file")
+          continue
+          ;;
+      esac
+      case "$lc" in
+        *_abc*|*abc.*|*/abc/*|*/abc.*|abc/*)
+          floor_triggered=1
+          reasons+=("ABC file (lowercase): $file")
           continue
           ;;
       esac

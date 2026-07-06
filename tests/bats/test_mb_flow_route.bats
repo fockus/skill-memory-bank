@@ -273,3 +273,48 @@ teardown() {
   [[ "$output" == *'"route":"code-change"'* ]]
   [[ "$output" == *'"floor_triggered":false'* ]]
 }
+
+# --- I-085 Stage 2: lowercase contract basenames + untracked files ---
+
+@test "mb-flow-route: lowercase user_interface.py forces arch" {
+  run bash "$SCRIPT" "$MB" --changed "src/user_interface.py" --candidate code-change --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"route":"arch"'* ]]
+  [[ "$output" == *'"floor_triggered":true'* ]]
+}
+
+@test "mb-flow-route: lowercase api_contract.py forces arch" {
+  run bash "$SCRIPT" "$MB" --changed "src/api_contract.py" --candidate code-change --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"route":"arch"'* ]]
+  [[ "$output" == *'"floor_triggered":true'* ]]
+}
+
+@test "mb-flow-route: lowercase user_protocol.py forces arch" {
+  run bash "$SCRIPT" "$MB" --changed "src/user_protocol.py" --candidate code-change --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"route":"arch"'* ]]
+  [[ "$output" == *'"floor_triggered":true'* ]]
+}
+
+@test "mb-flow-route: lowercase user_abc.py forces arch" {
+  run bash "$SCRIPT" "$MB" --changed "src/user_abc.py" --candidate code-change --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"route":"arch"'* ]]
+  [[ "$output" == *'"floor_triggered":true'* ]]
+}
+
+@test "mb-flow-route: untracked domain file in auto mode forces arch" {
+  git init "$PROJECT" >/dev/null 2>&1
+  git -C "$PROJECT" config user.email "test@example.com"
+  git -C "$PROJECT" config user.name "Test User"
+  printf 'init\n' > "$PROJECT/README.md"
+  git -C "$PROJECT" add README.md
+  git -C "$PROJECT" commit -m "init" >/dev/null
+  mkdir -p "$PROJECT/domain"
+  printf 'class New: pass\n' > "$PROJECT/domain/New.py"
+  run bash "$SCRIPT" "$MB" --repo "$PROJECT" --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"route":"arch"'* ]]
+  [[ "$output" == *'"floor_triggered":true'* ]]
+}

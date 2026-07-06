@@ -115,9 +115,15 @@ if start < 1 or end > total or start > end:
     sys.stderr.write(f"[work-range] range {range_expr} out of bounds (1..{total})\n")
     sys.exit(1)
 
+emitted = 0
 for sprint_no, abspath in entries:
     if start <= sprint_no <= end:
         print(abspath)
+        emitted += 1
+if range_expr and emitted == 0:
+    present = ",".join(str(x) for x, _ in entries)
+    sys.stderr.write(f"[work-range] range {range_expr} resolves to no existing sprint (present: {present})\n")
+    sys.exit(1)
 PY
   exit $?
 fi
@@ -170,7 +176,13 @@ if start < 1 or end > total or start > end:
     sys.stderr.write(f"[work-range] range {range_expr} out of bounds (1..{total})\n")
     sys.exit(1)
 
+emitted = 0
 for s in stages:
     if start <= s <= end:
         print(s)
+        emitted += 1
+if range_expr and emitted == 0:
+    present = ",".join(str(x) for x in stages)
+    sys.stderr.write(f"[work-range] range {range_expr} resolves to no existing stage (present: {present})\n")
+    sys.exit(1)
 PY

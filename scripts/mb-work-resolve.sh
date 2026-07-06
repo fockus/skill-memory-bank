@@ -159,7 +159,20 @@ if [ -z "$TARGET" ]; then
 
   if [ "$count" -eq 1 ]; then
     rel=$(printf '%s' "$links" | head -1)
-    abs_path=$(abs "$BANK/$rel")
+    case "$rel" in
+      /*|*..*)
+        echo "[work-resolve] active plan link rejected (absolute or traversal): $rel" >&2
+        exit 1
+        ;;
+    esac
+    abs_path=$(mb_canonical_under "$BANK" "$BANK/$rel") || {
+      echo "[work-resolve] active plan link escapes bank: $rel" >&2
+      exit 1
+    }
+    if ! mb_is_allowed_plan_path "$BANK" "$abs_path"; then
+      echo "[work-resolve] active plan link is not a plan or spec tasks file: $abs_path" >&2
+      exit 1
+    fi
     if [ ! -f "$abs_path" ]; then
       echo "[work-resolve] active plan link points at missing file: $abs_path" >&2
       exit 1
@@ -201,6 +214,29 @@ if [ -d "$plans_dir" ]; then
     exit 2
   fi
 fi
+
+# ── Form 2b: bank-relative plans/* or specs/* (from any CWD) ───────
+case "$TARGET" in
+  plans/*|specs/*)
+    case "$TARGET" in
+      /*|*..*) ;;
+      *)
+        abs_path=$(mb_canonical_under "$BANK" "$BANK/$TARGET") || {
+          echo "[work-resolve] bank-relative target escapes bank: $TARGET" >&2
+          exit 1
+        }
+        if ! mb_is_allowed_plan_path "$BANK" "$abs_path"; then
+          echo "[work-resolve] bank-relative target is not a plan or spec tasks file: $TARGET" >&2
+          exit 1
+        fi
+        if [ -f "$abs_path" ]; then
+          printf '%s\n' "$abs_path"
+          exit 0
+        fi
+        ;;
+    esac
+    ;;
+esac
 
 # ── Form 3: topic → specs/<topic>/tasks.md ─────────────────────────
 safe=$(mb_sanitize_topic "$TARGET")

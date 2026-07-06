@@ -10,21 +10,8 @@
 #                PRINT-ONLY — the script NEVER writes to any bank file.
 #   --threshold  Jaccard token-overlap threshold for candidacy (default 0.3).
 #
-# Contract (spec tier1-graph-memory — REQ-022, REQ-023, Scenario 12):
-#   - $0 pass: token-set Jaccard > threshold across notes/*.md + lessons.md +
-#     recent progress.md entries, FILTERED to pairs where at least one side
-#     carries a negation/replacement marker (en+ru). Prints candidate pairs with
-#     file paths. <2 entries → empty output, exit 0. No LLM call in this pass.
-#   - --judge: one Sonnet `claude -p` per candidate → CONFIRMED/REJECTED + a
-#     suggested `[SUPERSEDED: YYYY-MM-DD -> <ref>]` marker for confirmed pairs.
-#     Suggestions are PRINTED ONLY; no bank file is ever modified.
-#   - --judge with no `claude` binary → hint on stderr, the $0 candidates are
-#     still printed, exit 0 (fail-open).
-#
-# Anti-recursion: the `claude -p` call runs with CLAUDECODE unset and
-# MB_CAPTURE_SUBPROCESS=1 + --no-session-persistence --strict-mcp-config
-# --no-chrome, exactly like scripts/mb-recap.sh, so it never re-enters the
-# capture hooks.
+# Contract: REQ-022/023 — $0 Jaccard+marker pairs; --judge Sonnet confirm (PRINT-ONLY).
+# Anti-recursion: CLAUDECODE unset + MB_CAPTURE_SUBPROCESS=1 (see mb-recap.sh).
 
 set -euo pipefail
 
@@ -60,6 +47,18 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+# Fail-closed: reject non-finite or out-of-range thresholds before any work.
+_mb_conflicts_validate_threshold() {
+  MB_THRESHOLD="$THRESHOLD" python3 -c 'import math,os,sys
+try: t=float(os.environ["MB_THRESHOLD"])
+except ValueError: sys.exit(64)
+sys.exit(64 if not math.isfinite(t) or t<0.0 or t>1.0 else 0)' 2>/dev/null
+}
+_mb_conflicts_validate_threshold || {
+  echo "mb-conflicts: invalid --threshold '"'"'$THRESHOLD'"'"' (need finite number in [0,1])" >&2
+  exit 64
+}
+
 MB_PATH="$(mb_resolve_path "$MB_ARG")"
 
 # ── $0 deterministic pass (Python, stdlib only) ──────────────────────────────
@@ -77,10 +76,7 @@ import sys
 from pathlib import Path
 
 mb = Path(os.environ["MB_PATH"])
-try:
-    threshold = float(os.environ.get("MB_THRESHOLD", "0.3"))
-except ValueError:
-    threshold = 0.3
+threshold = float(os.environ.get("MB_THRESHOLD", "0.3"))
 
 # Negation / replacement markers (en + ru). A pair is a conflict candidate only
 # when at least one side asserts a replacement/negation of the other.
@@ -339,8 +335,12 @@ while IFS=$'\t' read -r score a b marker da db eba ebb; do
 
   # Recover the real entry bodies carried from the deterministic pass (base64,
   # so progress.md entries reach the judge as their actual text — not a stub).
-  BODY_A="$(printf '%s' "$eba" | base64 --decode 2>/dev/null || true)"
-  BODY_B="$(printf '%s' "$ebb" | base64 --decode 2>/dev/null || true)"
+  BODY_A="$(printf '%s' "$eba" | python3 -c 'import base64,sys;r=sys.stdin.read();sys.stdout.write("" if not r else base64.b64decode(r).decode())' 2>/dev/null || true)"
+  BODY_B="$(printf '%s' "$ebb" | python3 -c 'import base64,sys;r=sys.stdin.read();sys.stdout.write("" if not r else base64.b64decode(r).decode())' 2>/dev/null || true)"
+  if { [ -n "$eba" ] && [ -z "$BODY_A" ]; } || { [ -n "$ebb" ] && [ -z "$BODY_B" ]; }; then
+    echo "  - NO VERDICT (body decode failed): $a / $b"
+    continue
+  fi
 
   PROMPT="You judge whether two Memory Bank entries genuinely CONFLICT — i.e. the second asserts something that contradicts or replaces a fact in the first (not merely related, not complementary). Reply with EXACTLY one word on the first line: CONFIRMED or REJECTED. No other text.
 

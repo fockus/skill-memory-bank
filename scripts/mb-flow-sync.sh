@@ -53,11 +53,6 @@ source "$SCRIPT_DIR/_lib.sh"
 LOCK_TIMEOUT="${MB_FLOW_LOCK_TIMEOUT:-10}"
 LOCK_TTL="${MB_FLOW_LOCK_TTL:-120}"
 
-# Portable mtime (epoch seconds); empty if missing.
-_mtime() {
-  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null
-}
-
 # Atomic mkdir lock (mirrors mb-handoff.sh::_lock_acquire). Breaks a lock older than TTL.
 # On acquire, writes a unique owner token and echoes it for ownership-proof at release.
 _lock_acquire() {
@@ -69,7 +64,7 @@ _lock_acquire() {
       printf '%s' "$token"
       return 0
     fi
-    age="$(_mtime "$lock")"
+    age="$(mb_mtime "$lock")"
     if [ -n "$age" ]; then
       now="$(date +%s)"
       if [ "$((now - age))" -gt "$ttl" ]; then

@@ -104,11 +104,50 @@ if not m:
     print("none")
     sys.exit(0)
 
+def strip_yaml_comment(val: str) -> str:
+    in_quote = None
+    out = []
+    i = 0
+    while i < len(val):
+        ch = val[i]
+        if in_quote:
+            out.append(ch)
+            if ch == in_quote and (i == 0 or val[i - 1] != "\\"):
+                in_quote = None
+            i += 1
+            continue
+        if ch in "\"'":
+            in_quote = ch
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "#":
+            break
+        out.append(ch)
+        i += 1
+    return "".join(out).strip()
+
+
+def parse_scalar(raw: str):
+    val = strip_yaml_comment(raw.strip())
+    if not val:
+        return None
+    if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+        return val[1:-1]
+    return val
+
+
+def fm_value(fm: str, key: str):
+    for line in fm.splitlines():
+        m = re.match(rf"^{re.escape(key)}:\s*(.*)$", line)
+        if m:
+            return parse_scalar(m.group(1))
+    return None
+
+
 fm = m.group(1)
-ls = re.search(r"^linked_spec:\s*(\S+)\s*$", fm, re.M)
-tk = re.search(r"^tasks:\s*(\S+)\s*$", fm, re.M)
-linked_spec = ls.group(1) if ls else None
-tasks_range = tk.group(1) if tk else None
+linked_spec = fm_value(fm, "linked_spec")
+tasks_range = fm_value(fm, "tasks")
 
 if linked_spec is None:
     print("none")
@@ -147,7 +186,13 @@ if [ "$WRAPPER_INFO" != "none" ]; then
 fi
 
 # Get filtered item indices via mb-work-range.sh
-STAGES_RAW=$(bash "$RANGE_SH" "$PLAN" --range "$RANGE")
+if [ -n "$RANGE" ]; then
+	RANGE_REQUESTED=1
+	STAGES_RAW=$(bash "$RANGE_SH" "$PLAN" --range "$RANGE") || exit $?
+else
+	RANGE_REQUESTED=0
+	STAGES_RAW=$(bash "$RANGE_SH" "$PLAN") || exit $?
+fi
 
 # Get effective pipeline.yaml path (for role→agent mapping)
 PIPELINE_PATH=$(bash "$PIPELINE" path "$MB_ARG" 2>/dev/null || true)
@@ -158,6 +203,7 @@ fi
 PLAN_PATH="$PLAN" \
 	PIPELINE_YAML="$PIPELINE_PATH" \
 	STAGES="$STAGES_RAW" \
+	RANGE_REQUESTED="$RANGE_REQUESTED" \
 	DRY_RUN="$DRY_RUN" \
 	PLAN_BASENAME="$(basename "$PLAN")" \
 	WRAPPER_BASENAME="$WRAPPER_BASENAME" \
@@ -283,8 +329,12 @@ if not raw_items:
 items_by_no: dict[int, dict] = {item["item_no"]: item for item in raw_items}
 
 # Parse requested indices from range output
+range_requested = os.environ.get("RANGE_REQUESTED") == "1"
 requested = [int(x) for x in stages_raw.strip().splitlines() if x.strip().isdigit()]
 if not requested:
+    if range_requested:
+        sys.stderr.write("[work-plan] range produced no stages\n")
+        sys.exit(1)
     requested = sorted(items_by_no.keys())
 
 if dry_run:

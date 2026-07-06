@@ -27,12 +27,13 @@ setup() {
   [[ "$output" == *"--out"* ]]
 }
 
-@test "contract: unknown stack (empty dir) → tests_pass=null, tests_total=0, stack=unknown" {
+@test "contract: unknown stack (empty dir) → not_applicable=true, tests_pass=null" {
   TMPROOT="$(mktemp -d)"
   run bash "$RUN" --dir "$TMPROOT" --out json
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.stack == "unknown"'
   echo "$output" | jq -e '.tests_pass == null'
+  echo "$output" | jq -e '.not_applicable == true'
   echo "$output" | jq -e '.tests_total == 0'
   rm -rf "$TMPROOT"
 }

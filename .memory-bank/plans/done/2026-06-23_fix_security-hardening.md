@@ -2,7 +2,7 @@
 type: fix
 scope: security-hardening
 created: 2026-06-23
-status: queued
+status: done
 priority: HIGH
 backlog: I-082
 linked_report: reports/2026-06-23_codex-gpt5.5-skill-review.md
@@ -49,6 +49,7 @@ No UNCONFIRMED findings.
 
 ## Stages
 
+<!-- mb-stage:1 -->
 ### Stage 1 — Kill remote code execution (BLOCKERs)
 
 No untrusted string may reach a shell or `source`. Confirmed:
@@ -100,6 +101,7 @@ trigger; legitimate registry lookup and `MB_TEST_ROOTS` still work; `shellcheck`
 
 ---
 
+<!-- mb-stage:2 -->
 ### Stage 2 — Path-traversal canonicalization (MAJORs)
 
 Reads/links must stay inside the active bank (or repo for protected checks). Confirmed:
@@ -158,6 +160,7 @@ entry point.
 
 ---
 
+<!-- mb-stage:3 -->
 ### Stage 3 — Protected-path Bash coverage + glob bypass (MAJORs)
 
 Depends on Stage 2's `mb_canonical_under` helper. Confirmed:
@@ -203,6 +206,7 @@ write-into-protected commands trigger the guard; legitimate reads and unprotecte
 
 ---
 
+<!-- mb-stage:4 -->
 ### Stage 4 — Private/secret leak prevention (MAJORs)
 
 Confirmed: `hooks/mb-session-turn.sh:128-133` and `hooks/lib/session-common.sh:135-153`
@@ -336,29 +340,29 @@ test -e /tmp/PWNED1 && echo "BEFORE: VULNERABLE (PWNED1 created)"
 
 ## DoD
 
-- [ ] **Stage 1**: `hooks/_skill_root.sh` resolves the bank with NO `bash -c` string (in-process
+- [x] **Stage 1**: `hooks/_skill_root.sh` resolves the bank with NO `bash -c` string (in-process
       source + quoted positional `mb_registry_lookup` call); `mb-plan-done.sh` loads `.mbenv` via a
       whitelist `KEY=value` parser with NO `source`; both RCE repros (`/tmp/PWNED*`) cannot be
       triggered; `MB_TEST_ROOTS` and registry lookup still work.
-- [ ] **Stage 2**: `mb_canonical_under` added to `scripts/_lib.sh`; `mb-work-resolve.sh` accepts only
+- [x] **Stage 2**: `mb_canonical_under` added to `scripts/_lib.sh`; `mb-work-resolve.sh` accepts only
       `$BANK/plans/*.md` | `$BANK/specs/*/tasks.md`; `mb-pipeline.sh` enforces `valid_pipeline_name`
       + bank-bounded realpath on every name entry (flag, `MB_PIPELINE`, `.mb-config`);
       `mb-context.sh` rejects symlinks and out-of-bank files; `mb-search.sh` canonicalizes every
       indexed path; all four `../`/symlink repros fail to exfil.
-- [ ] **Stage 3**: `mb-work-protected-check.sh` matches absolute paths against `ci/**` and
+- [x] **Stage 3**: `mb-work-protected-check.sh` matches absolute paths against `ci/**` and
       `.github/workflows/**` via repo-relative canonicalization; `mb-protected-paths-guard.sh`
       inspects `Bash` commands and routes extracted write targets (`>`,`>>`,`tee`,`sed -i`,`cp/mv`,
       `dd of=`,`install`,`truncate`) through the checker; legitimate reads/unprotected writes pass.
-- [ ] **Stage 4**: `sc_strip_private` added and applied before persist in `mb-session-turn.sh` and
+- [x] **Stage 4**: `sc_strip_private` added and applied before persist in `mb-session-turn.sh` and
       before summary in `sc_build_summary_src`; `file-change-log.sh` emits `file:line var [REDACTED]`
       only; `<private>` content and secret VALUES never reach disk/transcript; detection warnings
       and existing API-key redaction preserved.
-- [ ] Every stage has a failing test committed BEFORE its fix (TDD evidence in git history).
-- [ ] All new bats pass on bash 3.2 (macOS) AND bash 5.x; existing suites green (no regressions).
-- [ ] `shellcheck` clean on all 12 changed shell files; no file exceeds 400 lines.
-- [ ] Each of the 11 exploits has a documented BEFORE (fires) / AFTER (neutralized) repro that was
+- [x] Every stage has a failing test committed BEFORE its fix (TDD evidence in git history).
+- [x] All new bats pass on bash 3.2 (macOS) AND bash 5.x; existing suites green (no regressions).
+- [x] `shellcheck` clean on all 12 changed shell files; no file exceeds 400 lines.
+- [x] Each of the 11 exploits has a documented BEFORE (fires) / AFTER (neutralized) repro that was
       actually run.
-- [ ] Backlog **I-082** flipped to done; report `reports/2026-06-23_codex-gpt5.5-skill-review.md` §05
+- [x] Backlog **I-082** flipped to done; report `reports/2026-06-23_codex-gpt5.5-skill-review.md` §05
       cross-referenced; `progress.md` appended; `checklist.md` updated.
 
 ## Checklist (copy into checklist.md)

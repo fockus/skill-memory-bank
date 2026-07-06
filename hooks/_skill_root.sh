@@ -107,9 +107,11 @@ mb_hook_resolve_mb_path() {
   hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   lib="$(mb_skill_lib_sh "$hook_dir" 2>/dev/null || true)"
   if [ -n "$lib" ] && [ -f "$lib" ]; then
-    hit=$(bash -c \
-      ". '$lib' >/dev/null 2>&1 && mb_registry_lookup '$agent' '${MB_PROJECT_ROOT:-$cwd}' 2>/dev/null" \
-      2>/dev/null || true)
+    hit=$(
+      # shellcheck source=/dev/null
+      . "$lib" >/dev/null 2>&1 || exit 0
+      mb_registry_lookup "$agent" "${MB_PROJECT_ROOT:-$cwd}" 2>/dev/null || true
+    )
     if [ -n "$hit" ] && [ -d "$hit" ]; then
       printf '%s' "$hit"
       return 0

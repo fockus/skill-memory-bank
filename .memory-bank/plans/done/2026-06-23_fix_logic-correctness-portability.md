@@ -2,7 +2,7 @@
 type: fix
 scope: logic-correctness-portability
 created: 2026-06-23
-status: queued
+status: done
 priority: MED
 backlog: I-085
 ---
@@ -97,10 +97,10 @@ finally the two MINOR fanout/work-resolve usability fixes.
    (`STAGES_RAW=$(bash "$RANGE_SH" "$PLAN" --range "$RANGE") || exit $?`).
 
 **DoD (SMART):**
-- [ ] `bats tests/bats/test_mb_work_range.bats` — ≥3 tests, all PASS.
-- [ ] `bats tests/bats/test_mb_work_plan_range.bats` — ≥3 tests, all PASS.
-- [ ] A gap `--range N` causes exit != 0 from BOTH scripts; ZERO JSON Lines emitted.
-- [ ] An omitted range still emits all present indices (no regression).
+- [x] `bats tests/bats/test_mb_work_range.bats` — ≥3 tests, all PASS.
+- [x] `bats tests/bats/test_mb_work_plan_range.bats` — ≥3 tests, all PASS.
+- [x] A gap `--range N` causes exit != 0 from BOTH scripts; ZERO JSON Lines emitted.
+- [x] An omitted range still emits all present indices (no regression).
 - [ ] `shellcheck scripts/mb-work-range.sh scripts/mb-work-plan.sh` clean.
 - [ ] `mb-work-plan.sh` and `mb-work-range.sh` each stay ≤400 lines.
 
@@ -152,12 +152,12 @@ shellcheck scripts/mb-work-range.sh scripts/mb-work-plan.sh
    brace-group piped into `sort -u`, so untracked files join `diff` + `--cached`.
 
 **DoD (SMART):**
-- [ ] `bats tests/bats/test_mb_flow_route.bats` — ≥5 NEW tests added, all PASS, no
+- [x] `bats tests/bats/test_mb_flow_route.bats` — ≥5 NEW tests added, all PASS, no
       pre-existing test regresses.
-- [ ] `src/user_interface.py`, `src/api_contract.py`, `src/user_protocol.py`,
+- [x] `src/user_interface.py`, `src/api_contract.py`, `src/user_protocol.py`,
       `src/user_abc.py` each route to `arch` (verified by assertion on the route field).
-- [ ] An untracked `domain/*` / contract file forces `arch` in auto mode.
-- [ ] `shellcheck scripts/mb-flow-route.sh` clean.
+- [x] An untracked `domain/*` / contract file forces `arch` in auto mode.
+- [x] `shellcheck scripts/mb-flow-route.sh` clean.
 - [ ] `mb-flow-route.sh` stays ≤400 lines net of the change? (CURRENTLY 553 lines —
       see Risks: this file is already over 400. The fix adds ≤15 lines; do NOT grow it
       further. Flag a separate refactor backlog item if it crosses a hard ceiling.)
@@ -412,13 +412,13 @@ upgrade it to `mb_canonical_under`. Do NOT duplicate or weaken the traversal gua
    bare topics.
 
 **DoD (SMART):**
-- [ ] `bats tests/bats/test_mb_fanout.bats` — new test PASS; failed-branch error marker
+- [x] `bats tests/bats/test_mb_fanout.bats` — new test PASS; failed-branch error marker
       includes a truncated stderr snippet; aggregate is still strict-valid JSON.
-- [ ] `bats tests/bats/test_mb_work_resolve.bats` — ≥3 tests, all PASS.
-- [ ] `specs/<topic>/tasks.md` and `plans/<file>.md` resolve relative to BANK from any
+- [x] `bats tests/bats/test_mb_work_resolve.bats` — ≥3 tests, all PASS.
+- [x] `specs/<topic>/tasks.md` and `plans/<file>.md` resolve relative to BANK from any
       CWD; traversal (`..`, absolute) is rejected.
-- [ ] No overlap/conflict with I-082 traversal guard (cross-ref note honoured).
-- [ ] `shellcheck scripts/mb-fanout.sh scripts/mb-work-resolve.sh` clean; both ≤400
+- [x] No overlap/conflict with I-082 traversal guard (cross-ref note honoured).
+- [x] `shellcheck scripts/mb-fanout.sh scripts/mb-work-resolve.sh` clean; both ≤400
       lines (note: `mb-fanout.sh`=549 ALREADY >400 — the change adds ≤8 lines; do not
       grow further; flag refactor backlog if a hard ceiling is crossed).
 
@@ -477,7 +477,7 @@ soft ceiling already (`mb-flow-route.sh` 553, `mb-fanout.sh` 549, `_lib.sh` 542,
       out-of-range threshold exits 64.
 - [ ] Stage 5: single validated GNU/BSD `mb_mtime`; all call sites routed; GNU-stat
       regression test green; no unvalidated `stat -f %m` remains.
-- [ ] Stage 6: fanout error markers carry a stderr snippet; bank-relative
+- [x] Stage 6: fanout error markers carry a stderr snippet; bank-relative
       `specs/*`/`plans/*` targets resolve (with traversal rejected).
 - [ ] Every new/edited test file PASSES; `bats tests/bats/` fully green.
 - [ ] `shellcheck` clean for all 10 edited scripts.

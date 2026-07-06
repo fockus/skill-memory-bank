@@ -176,6 +176,42 @@ sc_redact_secrets() {
     -e "s/([A-Z0-9_]*(API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD)[A-Z0-9_]*[[:space:]]*[=:][[:space:]]*)['\"]?[^[:space:]'\"]{8,}['\"]?/\1[REDACTED]/g"
 }
 
+
+# Remove <private>...</private> blocks from stdin before persist/summary.
+sc_strip_private() {
+  awk '
+    BEGIN { in_private = 0 }
+    {
+      line = $0
+      out = ""
+      while (length(line) > 0) {
+        if (in_private) {
+          pos = index(line, "</private>")
+          if (pos > 0) {
+            line = substr(line, pos + 10)
+            in_private = 0
+          } else {
+            line = ""
+          }
+        } else {
+          pos = index(line, "<private>")
+          if (pos > 0) {
+            out = out substr(line, 1, pos - 1) "[PRIVATE]"
+            line = substr(line, pos + 9)
+            in_private = 1
+          } else {
+            out = out line
+            line = ""
+          }
+        }
+      }
+      if (!in_private) {
+        print out
+      }
+    }
+  '
+}
+
 # sc_build_summary_src <session_file> — echo the SRC fed to the summarizer/judge:
 # the frontmatter + `## Live log` section (preferred), falling back to the raw transcript
 # when the Live log is contentless, then redacted and capped to MB_SUMMARY_MAX_CHARS.
@@ -210,7 +246,7 @@ sc_build_summary_src() {
     fi
   fi
   # Redact secrets BEFORE the source ever reaches an LLM prompt.
-  SRC="$(printf '%s' "$SRC" | sc_redact_secrets)"
+  SRC="$(printf '%s' "$SRC" | sc_strip_private | sc_redact_secrets)"
   # Final cap so the prompt always fits (cheap no-op when already small).
   if [ "${#SRC}" -gt "$MAX_CHARS" ]; then
     head_n=$(( MAX_CHARS * 6 / 10 ))

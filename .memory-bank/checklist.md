@@ -4,6 +4,26 @@
 > **Convention.** Short active list only; hard cap ≤120 lines. Detailed history lives in `progress.md`, `roadmap.md`, and `plans/done/`.
 
 ## ✅ Done — spec: tier1-graph-memory (17/17)
+## ✅ Done — I-082 security-hardening (codex remediation Wave 1)
+
+- ✅ Stage 1 — RCE: no bash -c + no .mbenv source (BLOCKER)
+- ✅ Stage 2 — Path-traversal canonicalization (MAJOR)
+- ✅ Stage 3 — Protected-path Bash coverage + glob bypass (MAJOR)
+- ✅ Stage 4 — Private/secret leak prevention (MAJOR)
+
+## ✅ Done — I-083 verification-gates (codex remediation Wave 1)
+
+- ✅ Stage 1–3 complete (verify PASS)
+
+## ✅ Done — I-085 logic-correctness-portability (codex remediation Wave 1)
+
+- ✅ Stage 1–6 complete (verify PASS)
+
+## 🔄 In progress — I-086 config-validation-docs (codex remediation Wave 2)
+
+- ✅ Stage 1 — pipeline validator runtime-block schema + duplicate keys
+- ✅ Stage 2 — runtime dup-key loader + pipeline.yaml judge fix
+- ⬜ Stage 3–6 — runtime parsers, budget/profile, config split, docs regen
 
 _Governed `/mb work`: implement (Opus) → verify → DUAL review (Codex gpt-5.5 + main-agent) → judge (GO/GO_WITH_BACKLOG/NO_GO) → fix loop ≤2 then judge_decides. Spec COMPLETE 2026-06-14; 5.1.0 prepped (PyPI publish + git tag pending explicit go)._
 

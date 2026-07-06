@@ -22,16 +22,12 @@ roles:
   devops:    { agent: mb-devops,    fallback: mb-developer }
   qa:        { agent: mb-qa,        fallback: mb-developer }
   analyst:   { agent: mb-analyst }
-  # DUAL parallel review (user decision 2026-06-12, final): codex-cli
-  # (gpt-5.5 via `codex exec`) AND the main agent (Fable) inline review the
-  # same diff in parallel. Judge = the MAIN agent (Fable): merges both
-  # reports, decides GO / GO_WITH_BACKLOG / NO_GO (bounded fix loop).
+  # DUAL parallel review (codex-cli + main-agent inline); judge = mb-judge.
   reviewer:
     agent: codex-cli
     model: gpt-5.5
     thinking: xhigh
     parallel_with: main-agent
-  judge:                { agent: main-agent }
   reviewer_logic:       { agent: mb-reviewer-logic }
   reviewer_tests:       { agent: mb-reviewer-tests }
   reviewer_quality:     { agent: mb-reviewer-quality }

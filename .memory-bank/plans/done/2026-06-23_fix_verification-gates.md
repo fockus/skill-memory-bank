@@ -2,7 +2,7 @@
 type: fix
 scope: verification-gates
 created: 2026-06-23
-status: queued
+status: done
 priority: HIGH
 backlog: I-083
 ---
@@ -96,6 +96,7 @@ touch the already-correct rules/placeholders rc checks.**
 
 ## Stages
 
+<!-- mb-stage:1 -->
 ### Stage 1 — done-gates tests gate fail-closed (BLOCKER)
 
 **Complexity:** M · **~5 min** · **Zависимости:** — · **Агент:** developer (TDD)
@@ -139,14 +140,14 @@ existing `_make_test_runner_stub` / `MB_TEST_RUNNER_CMD` seam):
   `emit_gate`).
 
 **DoD (SMART):**
-- [ ] 4 new RED→GREEN tests + 1 GREEN guard added to `test_mb_done_gates.bats`.
-- [ ] All 5 assert specific JSON `"pass"` values AND the process exit code (0 or 2).
-- [ ] `bash scripts/mb-done-gates.sh` exits 2 when the runner crashes / emits
+- [x] 4 new RED→GREEN tests + 1 GREEN guard added to `test_mb_done_gates.bats`.
+- [x] All 5 assert specific JSON `"pass"` values AND the process exit code (0 or 2).
+- [x] `bash scripts/mb-done-gates.sh` exits 2 when the runner crashes / emits
       invalid JSON / reports bare `null`; exits 0 only on real PASS or
       `not_applicable=true`.
-- [ ] Existing `test_mb_done_gates.bats` cases stay green (no regression).
-- [ ] No new bash-4-only builtins (bash 3.2 portable).
-- [ ] `shellcheck -x scripts/mb-done-gates.sh` clean.
+- [x] Existing `test_mb_done_gates.bats` cases stay green (no regression).
+- [x] No new bash-4-only builtins (bash 3.2 portable).
+- [x] `shellcheck -x scripts/mb-done-gates.sh` clean.
 
 **Команды проверки:**
 ```bash
@@ -161,6 +162,7 @@ parser already iterates); `not_applicable=true` together with `tests_pass=false`
 
 ---
 
+<!-- mb-stage:2 -->
 ### Stage 2 — test runner multi-stack incl. bats (BLOCKER)
 
 **Complexity:** L · **~5 min** · **Зависимости:** — (parallel with Stage 1) · **Агент:** developer (TDD)
@@ -211,12 +213,12 @@ parser already iterates); `not_applicable=true` together with `tests_pass=false`
   `not_applicable`.
 
 **DoD (SMART):**
-- [ ] `run_bats` added; bats fixtures (red + green) under `tests/bats/fixtures/`.
-- [ ] Runner JSON gains `not_applicable` (boolean) and a runner-error signal.
-- [ ] 5 new tests in `test_test_runner_bats.bats`, all GREEN after impl.
-- [ ] `test_test_runner_contract.bats` updated: unsupported stack WITHOUT
+- [x] `run_bats` added; bats fixtures (red + green) under `tests/bats/fixtures/`.
+- [x] Runner JSON gains `not_applicable` (boolean) and a runner-error signal.
+- [x] 5 new tests in `test_test_runner_bats.bats`, all GREEN after impl.
+- [x] `test_test_runner_contract.bats` updated: unsupported stack WITHOUT
       test_command → `not_applicable:true` (not a silent pass).
-- [ ] Existing `test_test_runner_{python,go,contract}.bats` stay green.
+- [x] Existing `test_test_runner_{python,go,contract}.bats` stay green.
 - [ ] bash 3.2 portable; `shellcheck -x scripts/mb-test-run.sh scripts/_lib.sh` clean.
 
 **Команды проверки:**
@@ -233,6 +235,7 @@ precedence or run both and AND the verdicts); test_command with spaces/quotes
 
 ---
 
+<!-- mb-stage:3 -->
 ### Stage 3 — CI surface: hooks/tests + expanded static analysis (PROTECTED — NEEDS APPROVAL)
 
 **Complexity:** M · **~5 min** · **Зависимости:** Stage 1, Stage 2 green · **Агент:** developer
@@ -264,14 +267,14 @@ precedence or run both and AND the verdicts); test_command with spaces/quotes
    and the expanded pytest/lint commands.
 
 **DoD (SMART):**
-- [ ] User has explicitly approved the `.github/workflows/test.yml` edit.
-- [ ] `bats hooks/tests/*.bats` runs in CI and is green.
-- [ ] `hooks/tests/*_test.py` collected by pytest in CI and green.
-- [ ] `shellcheck -x hooks/lib/*.sh adapters/*.sh install.sh` → 0 findings (or
+- [x] User has explicitly approved the `.github/workflows/test.yml` edit.
+- [x] `bats hooks/tests/*.bats` runs in CI and is green.
+- [x] `hooks/tests/*_test.py` collected by pytest in CI and green.
+- [x] `shellcheck -x hooks/lib/*.sh adapters/*.sh install.sh` → 0 findings (or
       every disable justified inline).
-- [ ] `ruff check scripts/ hooks/lib/ memory_bank_skill/ settings/ tests/pytest/`
+- [x] `ruff check scripts/ hooks/lib/ memory_bank_skill/ settings/ tests/pytest/`
       → 0 findings (or every `noqa` justified).
-- [ ] `README.md` verification commands match the CI steps exactly.
+- [x] `README.md` verification commands match the CI steps exactly.
 
 **Команды проверки (run locally before proposing the protected edit):**
 ```bash
@@ -322,14 +325,14 @@ bats hooks/tests/*.bats && python -m pytest hooks/tests/ tests/pytest/ -q
 
 ## DoD (plan-level)
 
-- [ ] Stage 1: tests gate FAILS for runner non-zero exit, invalid/empty JSON, and
+- [x] Stage 1: tests gate FAILS for runner non-zero exit, invalid/empty JSON, and
       bare `tests_pass=null`; PASSes only on real pass or `not_applicable=true`.
-- [ ] Stage 2: runner detects/runs bats, honours `--test-command`/`MB_TEST_COMMAND`,
+- [x] Stage 2: runner detects/runs bats, honours `--test-command`/`MB_TEST_COMMAND`,
       emits `not_applicable` + a runner-error signal; no silent `null` for
       present-but-unsupported suites.
-- [ ] Before/after demo: a red bats-only project FLIPS from `/mb done` exit 0 →
+- [x] Before/after demo: a red bats-only project FLIPS from `/mb done` exit 0 →
       exit 2.
-- [ ] Stage 3 drafted; `.github/workflows/test.yml` + README edits applied ONLY
+- [x] Stage 3 drafted; `.github/workflows/test.yml` + README edits applied ONLY
       after explicit user approval (protected path).
 - [ ] All new + existing bats/pytest green on bash 3.2 (macOS) and 5.x (CI).
 - [ ] `shellcheck` + `ruff` clean on all touched files.

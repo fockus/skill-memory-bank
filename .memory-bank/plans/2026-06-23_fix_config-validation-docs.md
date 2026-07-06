@@ -2,7 +2,7 @@
 type: fix
 scope: config-validation-docs
 created: 2026-06-23
-status: queued
+status: in_progress
 priority: MED
 backlog: I-086
 ---
@@ -52,6 +52,7 @@ synopses) cannot silently recur.
 
 ---
 
+<!-- mb-stage:1 -->
 ### Stage 1 — Pipeline validator: runtime-block schema + duplicate-key rejection
 **Files:**
 - `scripts/mb-pipeline-validate.sh` (modify the embedded PyYAML validator, after line 622)
@@ -102,12 +103,12 @@ small fixture YAMLs written to `$BATS_TMPDIR`:
    the bash wrapper; the Python heredoc is exempt-but-keep-tight).
 
 **DoD:**
-- [ ] All 9 new bats cases pass; `references/pipeline.default.yaml` and `.memory-bank/pipeline.yaml`
+- [x] All 9 new bats cases pass; `references/pipeline.default.yaml` and `.memory-bank/pipeline.yaml`
       (after Stage 1 fixes the dup key — see note) validate green.
-- [ ] Validator rejects bad enum/type values for review/judge/review_ensemble/done_gates/
+- [x] Validator rejects bad enum/type values for review/judge/review_ensemble/done_gates/
       done_placeholders/dispatch and per-stage `enabled` with a specific dotted-path message.
-- [ ] Duplicate top-level (and nested same-level) keys → exit 1 when PyYAML is available.
-- [ ] `bash -n scripts/mb-pipeline-validate.sh` clean; `shellcheck scripts/mb-pipeline-validate.sh` clean.
+- [x] Duplicate top-level (and nested same-level) keys → exit 1 when PyYAML is available.
+- [x] `bash -n scripts/mb-pipeline-validate.sh` clean; `shellcheck scripts/mb-pipeline-validate.sh` clean.
 - [ ] Tests: 9 bats cases added (0 unit/integration python — validator is a bash entrypoint).
 
 **Verification commands:**
@@ -124,6 +125,7 @@ heredoc comment); empty `dispatch: {}` (valid — all sub-keys absent); `prefer:
 
 ---
 
+<!-- mb-stage:2 -->
 ### Stage 2 — Duplicate-key rejection in runtime YAML parsers + fix the project pipeline
 **Files:**
 - `.memory-bank/pipeline.yaml` (FIX: remove the duplicate `judge:` role key at line 34/41)
@@ -157,13 +159,13 @@ heredoc comment); empty `dispatch: {}` (valid — all sub-keys absent); `prefer:
    clean) — leave a one-line note in BACKLOG that full propagation is follow-up.
 
 **DoD:**
-- [ ] `.memory-bank/pipeline.yaml` has exactly one `judge:` under `roles:`
+- [x] `.memory-bank/pipeline.yaml` has exactly one `judge:` under `roles:`
       (`grep -c "^  judge:" .memory-bank/pipeline.yaml` == 1).
-- [ ] `bash scripts/mb-pipeline.sh validate .memory-bank` returns 0 on the cleaned file
+- [x] `bash scripts/mb-pipeline.sh validate .memory-bank` returns 0 on the cleaned file
       and non-zero on a duplicate-key fixture.
-- [ ] No behavior change to resolved judge agent (still `mb-judge`).
-- [ ] `bash -n` + `shellcheck` clean on every modified `.sh`.
-- [ ] Tests: 1 new bats case + 1 grep-count guard.
+- [x] No behavior change to resolved judge agent (still `mb-judge`).
+- [x] `bash -n` + `shellcheck` clean on every modified `.sh`.
+- [x] Tests: 1 new bats case + 1 grep-count guard.
 
 **Verification commands:**
 ```bash
@@ -178,6 +180,7 @@ documented); the cleaned file must still pass the Stage-1 schema additions.
 
 ---
 
+<!-- mb-stage:3 -->
 ### Stage 3 — Executable defaults: `budget.default_limit` + profile `scope` + auto-consume
 **Files:**
 - `scripts/mb-work-budget.sh` (modify `resolve_pipeline_defaults` + add a default-limit reader)
@@ -230,7 +233,7 @@ documented); the cleaned file must still pass the Stage-1 schema additions.
       CLI `--profile` overrides.
 - [ ] `commands/work.md` budget section matches the new behavior.
 - [ ] Tests: ≥2 bats (budget) + ≥2 pytest (profile scope) + ≥2 bats (rules-check auto-consume).
-- [ ] `bash -n` + `shellcheck` clean on modified `.sh`; `ruff check memory_bank_skill/rules_profile.py` clean.
+- [x] `bash -n` + `shellcheck` clean on modified `.sh`; `ruff check memory_bank_skill/rules_profile.py` clean.
 
 **Verification commands:**
 ```bash
@@ -247,6 +250,7 @@ present (project wins over user, CLI wins over both); rules-check run outside an
 
 ---
 
+<!-- mb-stage:4 -->
 ### Stage 4 — Config ownership: `mb-config` ↔ `mb-pipeline` `.mb-config` split
 **Files:**
 - `scripts/mb-config.sh` (add `pipeline` get/set/validate delegating to `mb-pipeline.sh`)
@@ -287,6 +291,7 @@ bash scripts/mb-config.sh get lang; bash scripts/mb-config.sh set pipeline defau
 
 ---
 
+<!-- mb-stage:5 -->
 ### Stage 5 — Doc regeneration + GENERATED consistency checks (anti-drift)
 **Files:**
 - `README.md` (fix the `25` table cell at :41 → 29; ensure :259 stays 29; add the 3 missing
@@ -353,6 +358,7 @@ regenerated); `/mb <sub>` hub row must be excluded from the per-command equality
 
 ---
 
+<!-- mb-stage:6 -->
 ### Stage 6 — Stale-count / synopsis cleanup (covered by generated checks where possible)
 **Files:**
 - `commands/mb.md` (line 52 graph flags; line 929 "18 subcommands")

@@ -36,16 +36,24 @@ echo ""
 # Core files
 for file in status.md roadmap.md checklist.md research.md; do
   filepath="$MB_PATH/$file"
+  if [[ -L "$filepath" ]]; then
+    echo "[context] skip symlink: $filepath" >&2
+    continue
+  fi
   if [[ -f "$filepath" ]]; then
+    safe=$(mb_canonical_under "$MB_PATH" "$filepath") || {
+      echo "[context] skip out-of-bank file: $filepath" >&2
+      continue
+    }
     echo "--- $file ---"
-    cat "$filepath"
+    cat "$safe"
     echo ""
   fi
 done
 
 # Active plans (not in `done/`)
 if [[ -d "$MB_PATH/plans" ]]; then
-  active_plans=$(find "$MB_PATH/plans" -maxdepth 1 -name "*.md" -type f 2>/dev/null | sort -r | head -3)
+  active_plans=$(find "$MB_PATH/plans" -maxdepth 1 -name "*.md" -type f ! -type l 2>/dev/null | sort -r | head -3)
   if [[ -n "$active_plans" ]]; then
     echo "--- Active plans ---"
     while IFS= read -r plan; do

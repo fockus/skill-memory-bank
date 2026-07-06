@@ -128,8 +128,15 @@ select_named_pipeline() {
 
   # 1. explicit name (flag or MB_PIPELINE)
   if [ -n "$requested" ]; then
-    if [ -f "$pdir/$requested.yaml" ]; then
-      abspath "$pdir/$requested.yaml"
+    valid_pipeline_name "$requested" || return 3
+    local sel_yaml sel_path
+    sel_yaml="$pdir/$requested.yaml"
+    sel_path=$(mb_canonical_under "$pdir" "$sel_yaml") || {
+      echo "[pipeline] named pipeline not found: $pdir/$requested.yaml" >&2
+      return 3
+    }
+    if [ -f "$sel_path" ]; then
+      abspath "$sel_path"
       return 0
     fi
     echo "[pipeline] named pipeline not found: $pdir/$requested.yaml" >&2
@@ -167,9 +174,16 @@ select_named_pipeline() {
   # 3. .mb-config pointer
   local cfgname
   cfgname=$(read_mbconfig_pipeline "$mb")
-  if [ -n "$cfgname" ] && [ -f "$pdir/$cfgname.yaml" ]; then
-    abspath "$pdir/$cfgname.yaml"
-    return 0
+  if [ -n "$cfgname" ]; then
+    valid_pipeline_name "$cfgname" || return 3
+    local cfg_yaml cfg_path
+    cfg_yaml="$pdir/$cfgname.yaml"
+    cfg_path=$(mb_canonical_under "$pdir" "$cfg_yaml") || return 3
+    if [ -f "$cfg_path" ]; then
+      abspath "$cfg_path"
+      return 0
+    fi
+    return 3
   fi
 
   # 4. in-file default: true
@@ -271,25 +285,30 @@ cmd_validate_all() {
     fi
   done
 
-  MB_PDIR="$pdir" python3 - <<'PY' || had_error=1
+  REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+  MB_PDIR="$pdir" PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 - <<'PY' || had_error=1
 import os, glob, sys
-try:
-    import yaml
-except Exception:
-    yaml = None
 
 pdir = os.environ["MB_PDIR"]
 names = {}
 defaults = []
 agent_owner = {}
 errors = []
+try:
+    from memory_bank_skill.pipeline_yaml import PipelineYamlError, load_file as _pipeline_load_file
+except ModuleNotFoundError:
+    _pipeline_load_file = None
+    PipelineYamlError = Exception
+
 for path in sorted(glob.glob(os.path.join(pdir, "*.yaml"))):
     base = os.path.splitext(os.path.basename(path))[0]
     data = {}
-    if yaml is not None:
+    if _pipeline_load_file is not None:
         try:
-            with open(path, encoding="utf-8") as fh:
-                data = yaml.safe_load(fh) or {}
+            data = _pipeline_load_file(path)
+        except PipelineYamlError as exc:
+            errors.append(f"{os.path.basename(path)}: {exc}")
+            continue
         except Exception:
             data = {}
     name = data.get("pipeline_name") or base

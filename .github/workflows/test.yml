@@ -50,9 +50,13 @@ jobs:
       - name: Run bats e2e tests
         run: bats tests/e2e/
 
+      - name: Run bats hook tests
+        run: bats hooks/tests/*.bats
+
       - name: Run pytest with coverage
         run: |
-          python -m pytest tests/pytest/ \
+          python -m pytest hooks/tests/ tests/pytest/ \
+            --python-files '*_test.py test_*.py' \
             --cov \
             --cov-report=term-missing \
             --cov-fail-under=85
@@ -79,6 +83,7 @@ jobs:
           shellcheck --version
           shellcheck -x --source-path=SCRIPTDIR scripts/*.sh
           shellcheck hooks/*.sh
+          shellcheck -x --severity=error hooks/lib/*.sh adapters/*.sh install.sh
 
       - name: Run ruff on Python files
-        run: ruff check settings/ tests/pytest/
+        run: ruff check scripts/ hooks/lib/ memory_bank_skill/ settings/ tests/pytest/

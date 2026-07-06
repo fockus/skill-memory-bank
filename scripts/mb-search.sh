@@ -123,8 +123,9 @@ for n in data.get('notes', []):
 
   echo "$matches" | while read -r rel; do
     [ -z "$rel" ] && continue
+    safe=$(mb_canonical_under "$MB_PATH" "$MB_PATH/$rel") || continue
     echo "=== $rel ==="
-    head -20 "$MB_PATH/$rel" 2>/dev/null | redact || true
+    head -20 "$safe" 2>/dev/null | redact || true
     echo ""
   done
   exit 0

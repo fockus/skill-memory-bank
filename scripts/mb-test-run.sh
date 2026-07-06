@@ -10,8 +10,8 @@
 # Exit code is always 0. pass/fail is reported via `tests_pass` in the JSON
 # so callers do not confuse "script broke" with "tests failed".
 #
-# Supported stacks in v1: python (pytest), go (go test).
-# Others degrade to stack=<name>, tests_pass=null + warning in stderr.
+# Supported stacks: bats (*.bats under tests/ or hooks/tests/), python (pytest), go (go test).
+# --test-command / MB_TEST_COMMAND for explicit override; empty dirs emit not_applicable=true.
 
 set -euo pipefail
 
@@ -21,12 +21,15 @@ source "$(dirname "$0")/_lib.sh"
 DIR="."
 OUT="json"
 
+TEST_CMD_CLI=""
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dir)  DIR="${2:-.}";   shift 2 ;;
     --out)  OUT="${2:-json}"; shift 2 ;;
+    --test-command) TEST_CMD_CLI="${2:-}"; shift 2 ;;
     --help|-h)
-      sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -60,6 +63,23 @@ failure_json() {
     "$(json_escape "$name")" \
     "$(json_escape "$error_head")"
 }
+
+
+# Collect *.bats paths relative to DIR (tests/ or hooks/tests/).
+find_bats_files() {
+  local d f
+  for d in tests hooks/tests; do
+    [ -d "$DIR/$d" ] || continue
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      printf '%s\n' "${f#"$DIR"/}"
+    done < <(find "$DIR/$d" -name '*.bats' 2>/dev/null | sort)
+  done
+}
+
+
+NOT_APPLICABLE="false"
+RUNNER_ERROR="false"
 
 # ---- stack detection --------------------------------------------------------
 
@@ -184,14 +204,96 @@ run_go() {
   return 0
 }
 
-case "$STACK" in
-  python) run_python ;;
-  go)     run_go     ;;
-  unknown) : ;;  # leave defaults; unknown-stack JSON is intentional
-  *)
-    echo "[warn] stack=$STACK not supported by mb-test-run.sh v1; reporting tests_pass=null" >&2
-    ;;
-esac
+
+run_bats() {
+  local files
+  local -a file_args=()
+  files="$(find_bats_files)"
+  [[ -z "$files" ]] && return 1
+  command -v bats >/dev/null || {
+    echo "[warn] bats not in PATH; cannot run shell tests" >&2
+    NOT_APPLICABLE="true"
+    STACK="bats"
+    return 0
+  }
+  STACK="bats"
+  local log
+  log="$(mktemp)"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    file_args+=("$f")
+  done <<< "$files"
+  (cd "$DIR" && bats "${file_args[@]}") >"$log" 2>&1 || true
+  local summary total failed
+  summary="$(grep -E '^[0-9]+ tests?, [0-9]+ failures?' "$log" | tail -n1 || true)"
+  if [[ -z "$summary" ]]; then
+    total="$(grep -cE '^ok |^not ok ' "$log" || true)"
+    failed="$(grep -cE '^not ok ' "$log" || true)"
+    total="${total:-0}"
+    failed="${failed:-0}"
+  else
+    total="$(echo "$summary" | sed -nE 's/^([0-9]+) tests?, .*/\1/p')"
+    failed="$(echo "$summary" | sed -nE 's/^[0-9]+ tests?, ([0-9]+) failures?/\1/p')"
+    total="${total:-0}"
+    failed="${failed:-0}"
+  fi
+  TESTS_TOTAL=$total
+  TESTS_FAILED=$failed
+  if (( TESTS_TOTAL == 0 )); then
+    TESTS_PASS="null"
+  elif (( TESTS_FAILED == 0 )); then
+    TESTS_PASS="true"
+  else
+    TESTS_PASS="false"
+  fi
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local num name rest
+    num="${line#not ok }"
+    num="${num%% *}"
+    rest="${line#not ok "$num" }"
+    name="${rest%% *}"
+    FAILURES_JSON+=("$(failure_json "" "$name" "bats failure")")
+  done < <(grep '^not ok ' "$log" || true)
+  rm -f "$log"
+  return 0
+}
+
+run_test_command() {
+  local cmd="${1:-}"
+  [[ -z "$cmd" ]] && return 1
+  STACK="custom"
+  set +e
+  (cd "$DIR" && eval "$cmd") >/dev/null 2>&1
+  local rc=$?
+  set -e
+  TESTS_TOTAL=1
+  if (( rc == 0 )); then
+    TESTS_PASS="true"
+    TESTS_FAILED=0
+  else
+    TESTS_PASS="false"
+    TESTS_FAILED=1
+    RUNNER_ERROR="true"
+    FAILURES_JSON+=("$(failure_json "" "test_command" "exit rc=$rc")")
+  fi
+  return 0
+}
+
+# Dispatch: explicit test command → bats files → python/go → not_applicable.
+EFFECTIVE_CMD="${TEST_CMD_CLI:-${MB_TEST_COMMAND:-}}"
+if [[ -n "$EFFECTIVE_CMD" ]]; then
+  run_test_command "$EFFECTIVE_CMD"
+elif [[ -n "$(find_bats_files)" ]]; then
+  run_bats
+elif [[ "$STACK" == "python" ]]; then
+  run_python
+elif [[ "$STACK" == "go" ]]; then
+  run_go
+else
+  NOT_APPLICABLE="true"
+  TESTS_PASS="null"
+fi
 
 END_MS="$(now_ms)"
 DURATION=$((END_MS - START_MS))
@@ -199,8 +301,11 @@ DURATION=$((END_MS - START_MS))
 # ---- emit -------------------------------------------------------------------
 
 emit_json() {
-  printf '{"stack":%s,"tests_pass":%s,"tests_total":%d,"tests_failed":%d,"failures":[' \
-    "$(json_escape "$STACK")" "$TESTS_PASS" "$TESTS_TOTAL" "$TESTS_FAILED"
+  local na re
+  case "$NOT_APPLICABLE" in true) na="true" ;; *) na="false" ;; esac
+  case "$RUNNER_ERROR" in true) re="true" ;; *) re="false" ;; esac
+  printf '{"stack":%s,"tests_pass":%s,"tests_total":%d,"tests_failed":%d,"not_applicable":%s,"runner_error":%s,"failures":[' \
+    "$(json_escape "$STACK")" "$TESTS_PASS" "$TESTS_TOTAL" "$TESTS_FAILED" "$na" "$re"
   local i
   for i in "${!FAILURES_JSON[@]}"; do
     (( i > 0 )) && printf ','

@@ -32,11 +32,6 @@ LOCK_TTL="${MB_HANDOFF_LOCK_TTL:-120}"
 CAP=1500
 ROTATE_KEEP_DEFAULT=10
 
-# Portable mtime (epoch seconds); empty if missing.
-_mtime() {
-  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null
-}
-
 # Atomic mkdir lock (no flock on macOS). Breaks a lock older than LOCK_TTL.
 # Returns 0 on acquire, non-zero on timeout. On acquire, writes a unique owner
 # token to "$lock/owner" and echoes it on stdout so the caller can prove
@@ -50,7 +45,7 @@ _lock_acquire() {
       printf '%s' "$token"
       return 0
     fi
-    age="$(_mtime "$lock")"
+    age="$(mb_mtime "$lock")"
     if [ -n "$age" ]; then
       now="$(date +%s)"
       if [ "$((now - age))" -gt "$ttl" ]; then
@@ -173,7 +168,7 @@ cmd_rotate() {
   local sorted=""
   while IFS= read -r f; do
     [ -f "$f" ] || continue
-    age="$(_mtime "$f")"
+    age="$(mb_mtime "$f")"
     [ -n "$age" ] || age=0
     sorted+="$age	$f"$'\n'
   done < <(find "$archive" -maxdepth 1 -type f -name '*.md')

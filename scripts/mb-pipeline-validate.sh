@@ -116,6 +116,8 @@ if [ ! -f "$PATH_ARG" ]; then
   exit 1
 fi
 
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 MB_PIPELINE_PATH="$PATH_ARG" python3 - <<'PY'
 import os
 import sys
@@ -329,8 +331,12 @@ if yaml is None:
     cfg = minimal_pipeline_load(text) if text.strip() else None
 else:
     try:
-        cfg = yaml.safe_load(text) if text.strip() else None
-    except yaml.YAMLError as exc:
+        from memory_bank_skill.pipeline_yaml import PipelineYamlError, load_text as _pipeline_load_text
+        cfg = _pipeline_load_text(text) if text.strip() else None
+    except PipelineYamlError as exc:
+        err(str(exc))
+        cfg = None
+    except Exception as exc:
         err(f"YAML parse error: {exc}")
         cfg = None
 
@@ -620,15 +626,164 @@ if "full_mode_path" not in sdd or not isinstance(sdd.get("full_mode_path"), str)
 if "require_scenarios" in sdd and not isinstance(sdd["require_scenarios"], bool):
     err("sdd.require_scenarios: must be boolean")
 
+
+# ── runtime blocks: review / judge / review_ensemble / done_* / dispatch ──
+KNOWN_AGENTS = {
+    "claude-code", "cursor", "codex", "opencode",
+    "pi", "windsurf", "cline", "kilo",
+}
+KNOWN_TRANSPORTS = {"pi", "opencode", "codex", "claude-agent"}
+ALLOWED_DONE_REQUIRED = {"tests_pass", "no_critical_violations", "no_placeholders"}
+
+def _check_severity_gate(prefix, gate):
+    if gate is None:
+        return
+    if not isinstance(gate, dict):
+        err(f"{prefix}.severity_gate: must be a mapping")
+        return
+    unknown = set(gate.keys()) - SEVERITY_KEYS
+    if unknown:
+        err(f"{prefix}.severity_gate: unknown keys {sorted(unknown)}; allowed {sorted(SEVERITY_KEYS)}")
+    for sev_k, sev_v in gate.items():
+        if not isinstance(sev_v, int) or isinstance(sev_v, bool) or sev_v < 0:
+            err(f"{prefix}.severity_gate.{sev_k}: must be int >= 0")
+
+if "review" in cfg:
+    rev = cfg.get("review") or {}
+    if not isinstance(rev, dict):
+        err("review: must be a mapping")
+    else:
+        if "enabled" in rev and not isinstance(rev.get("enabled"), bool):
+            err("review.enabled: must be boolean")
+        _check_severity_gate("review", rev.get("severity_gate"))
+        mc = rev.get("max_cycles")
+        if mc is not None and (not isinstance(mc, int) or isinstance(mc, bool) or mc < 1):
+            err(f"review.max_cycles: must be int >= 1 (got {mc!r})")
+        omc = rev.get("on_max_cycles")
+        if omc is not None and omc not in valid_max_cycles:
+            err(f"review.on_max_cycles: '{omc}' not in {sorted(valid_max_cycles)}")
+        cats = rev.get("categories")
+        if cats is not None:
+            if not isinstance(cats, list) or not all(isinstance(c, str) and c.strip() for c in cats):
+                err("review.categories: must be a list of non-empty strings")
+
+if "judge" in cfg:
+    jud = cfg.get("judge") or {}
+    if not isinstance(jud, dict):
+        err("judge: must be a mapping")
+    else:
+        if "enabled" in jud and not isinstance(jud.get("enabled"), bool):
+            err("judge.enabled: must be boolean")
+        dec = jud.get("decisions")
+        if dec is not None:
+            if not isinstance(dec, list) or not dec:
+                err("judge.decisions: must be a non-empty list")
+            else:
+                bad = [d for d in dec if d not in {"GO", "GO_WITH_BACKLOG", "NO_GO"}]
+                if bad:
+                    err(f"judge.decisions: unknown values {bad}")
+        if "register_backlog_before_done" in jud and not isinstance(jud.get("register_backlog_before_done"), bool):
+            err("judge.register_backlog_before_done: must be boolean")
+        bp = jud.get("blocking_policy")
+        if bp is not None:
+            if not isinstance(bp, list) or not all(isinstance(x, str) and x.strip() for x in bp):
+                err("judge.blocking_policy: must be a list of non-empty strings")
+
+if "review_ensemble" in cfg:
+    ens = cfg.get("review_ensemble") or {}
+    if not isinstance(ens, dict):
+        err("review_ensemble: must be a mapping")
+    else:
+        mn = ens.get("min_reviewers")
+        mx = ens.get("max_reviewers")
+        if mn is not None and (not isinstance(mn, int) or isinstance(mn, bool) or mn < 1):
+            err("review_ensemble.min_reviewers: must be int >= 1")
+        if mx is not None and (not isinstance(mx, int) or isinstance(mx, bool) or mx < 1):
+            err("review_ensemble.max_reviewers: must be int >= 1")
+        if isinstance(mn, int) and isinstance(mx, int) and mn > mx:
+            err("review_ensemble: min_reviewers must be <= max_reviewers")
+        revs = ens.get("reviewers")
+        if revs is not None:
+            if not isinstance(revs, list) or not revs:
+                err("review_ensemble.reviewers: must be a non-empty list")
+            else:
+                for i, item in enumerate(revs):
+                    if not isinstance(item, dict):
+                        err(f"review_ensemble.reviewers[{i}]: must be a mapping")
+                    elif not item.get("role") or not isinstance(item.get("role"), str):
+                        err(f"review_ensemble.reviewers[{i}].role: must be a non-empty string")
+
+if "done_gates" in cfg:
+    dg = cfg.get("done_gates") or {}
+    if not isinstance(dg, dict):
+        err("done_gates: must be a mapping")
+    else:
+        for bk in ("enabled", "allow_force"):
+            if bk in dg and not isinstance(dg.get(bk), bool):
+                err(f"done_gates.{bk}: must be boolean")
+        req = dg.get("required")
+        if req is not None:
+            if not isinstance(req, list):
+                err("done_gates.required: must be a list")
+            else:
+                bad = [r for r in req if r not in ALLOWED_DONE_REQUIRED]
+                if bad:
+                    err(f"done_gates.required: unknown tokens {bad}")
+
+if "done_placeholders" in cfg:
+    dp = cfg.get("done_placeholders") or {}
+    if not isinstance(dp, dict):
+        err("done_placeholders: must be a mapping")
+    else:
+        deny = dp.get("deny")
+        if deny is not None:
+            if not isinstance(deny, list) or not deny:
+                err("done_placeholders.deny: must be a non-empty list")
+            elif not all(isinstance(x, str) and x.strip() for x in deny):
+                err("done_placeholders.deny: entries must be non-empty strings")
+
+if "dispatch" in cfg:
+    disp = cfg.get("dispatch") or {}
+    if not isinstance(disp, dict):
+        err("dispatch: must be a mapping")
+    else:
+        pri = disp.get("priority")
+        if pri is not None:
+            if not isinstance(pri, list) or not pri:
+                err("dispatch.priority: must be a non-empty list")
+            else:
+                bad = [a for a in pri if a not in KNOWN_TRANSPORTS]
+                if bad:
+                    err(f"dispatch.priority: unknown transport(s) {bad}")
+        ona = disp.get("on_none_available")
+        if ona is not None and ona not in {"fallback", "error"}:
+            err(f"dispatch.on_none_available: must be fallback or error (got {ona!r})")
+        enum = disp.get("enumerable")
+        if enum is not None:
+            if not isinstance(enum, list):
+                err("dispatch.enumerable: must be a list")
+            else:
+                bad = [a for a in enum if a not in KNOWN_TRANSPORTS]
+                if bad:
+                    err(f"dispatch.enumerable: unknown transport(s) {bad}")
+        for mk in ("prefer", "model_map", "fallback"):
+            if mk in disp and disp[mk] is not None and not isinstance(disp[mk], dict):
+                err(f"dispatch.{mk}: must be a mapping")
+
+for stage_name in ("discuss", "plan", "sdd", "review", "judge"):
+    if stage_name not in cfg:
+        continue
+    block = cfg.get(stage_name)
+    if isinstance(block, dict) and "enabled" in block:
+        if not isinstance(block.get("enabled"), bool):
+            err(f"{stage_name}.enabled: must be boolean")
+
+
 # ── named-pipeline metadata (optional keys; validated only with PyYAML) ──
 # pipeline_name / default / agents are an opt-in layer used by named pipelines.
 # The minimal no-PyYAML loader does not model list values, so we validate these
 # only when a real YAML parse is available — absence stays valid (back-compat).
 if yaml is not None:
-    KNOWN_AGENTS = {
-        "claude-code", "cursor", "codex", "opencode",
-        "pi", "windsurf", "cline", "kilo",
-    }
     if "pipeline_name" in cfg:
         pn = cfg.get("pipeline_name")
         if not isinstance(pn, str) or not pn.strip():

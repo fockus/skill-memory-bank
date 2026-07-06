@@ -2,6 +2,9 @@
 
 ## Ideas
 
+- I-086 follow-up (LOW) — propagate `memory_bank_skill.pipeline_yaml.load_file` to all 13 `safe_load` pipeline callers (Stage 2 scoped validate path only).
+
+
 
 <!-- Cluster I-082..I-086 — codex/GPT-5.5 adversarial review 2026-06-23. Source: reports/2026-06-23_codex-gpt5.5-skill-review.md (9 read-only sessions). -->
 

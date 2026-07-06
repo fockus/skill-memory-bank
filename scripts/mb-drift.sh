@@ -28,8 +28,6 @@ if [ ! -d "$MB" ]; then
   exit 1
 fi
 
-_mtime() { stat -f%m "$1" 2>/dev/null || stat -c%Y "$1" 2>/dev/null || echo 0; }
-
 warn() {
   echo "drift_check_${1}=warn"
   echo "[drift:${1}] ${2}" >&2
@@ -70,7 +68,7 @@ check_staleness() {
   now=$(date +%s)
   for file in "$MB"/status.md "$MB"/roadmap.md "$MB"/checklist.md "$MB"/progress.md; do
     [ -f "$file" ] || continue
-    age=$(( (now - $(_mtime "$file")) / 86400 ))
+    age=$(( (now - $(mb_mtime "$file")) / 86400 ))
     if [ "$age" -gt "$STALE_DAYS" ]; then
       name=$(basename "$file")
       count=$(( count + 1 ))
@@ -143,10 +141,10 @@ check_index_sync() {
     skip index_sync "no index.json"
     return
   fi
-  idx_mt=$(_mtime "$MB/index.json")
+  idx_mt=$(mb_mtime "$MB/index.json")
   for file in "$MB"/notes/*.md; do
     [ -f "$file" ] || continue
-    note_mt=$(_mtime "$file")
+    note_mt=$(mb_mtime "$file")
     if [ "$note_mt" -gt "$idx_mt" ]; then
       warn index_sync "$(basename "$file") is newer than index.json"
       return

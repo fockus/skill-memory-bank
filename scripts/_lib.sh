@@ -69,12 +69,22 @@ mb_path_is_within() {
 }
 
 mb_mtime() {
-  local path="${1:-}"
+  local path="${1:-}" m=""
   [ -e "$path" ] || {
     printf '%s\n' 0
     return 0
   }
-  stat -f%m "$path" 2>/dev/null || stat -c%Y "$path" 2>/dev/null || printf '%s\n' 0
+  m="$(stat -c %Y "$path" 2>/dev/null || true)"
+  if printf '%s' "$m" | grep -qE '^[0-9]+$'; then
+    printf '%s\n' "$m"
+    return 0
+  fi
+  m="$(stat -f %m "$path" 2>/dev/null || true)"
+  if printf '%s' "$m" | grep -qE '^[0-9]+$'; then
+    printf '%s\n' "$m"
+    return 0
+  fi
+  printf '%s\n' 0
 }
 
 mb_valid_workspace_project_id() {
@@ -136,6 +146,93 @@ mb_project_id() {
   [ -z "$slug" ] && slug="project"
   hash=$(printf '%s' "$key" | "${MB_PYTHON:-python3}" -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])')
   printf '%s-%s\n' "$slug" "$hash"
+}
+
+
+# Load project-local .mbenv with a strict KEY=value allow-list (no source/eval).
+mb_load_mbenv() {
+  local mb_path="${1:-}"
+  local env_file key value line
+  [ -n "$mb_path" ] || return 0
+  env_file="$mb_path/.mbenv"
+  [ -f "$env_file" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    case "$line" in
+      *=*) ;;
+      *) continue ;;
+    esac
+    key="${line%%=*}"
+    value="${line#*=}"
+    case "$key" in
+      MB_TEST_ROOTS) ;;
+      *) continue ;;
+    esac
+    case "$key" in
+      [A-Z][A-Z0-9_]*) ;;
+      *) continue ;;
+    esac
+    if printf '%s' "$value" | grep -q '[;$`|&]'; then
+      continue
+    fi
+    if [ "${value#\"}" != "$value" ] && [ "${value%\"}" != "$value" ]; then
+      value="${value#\"}"
+      value="${value%\"}"
+    elif [ "${value#\'}" != "$value" ] && [ "${value%\'}" != "$value" ]; then
+      value="${value#\'}"
+      value="${value%\'}"
+    fi
+    export "$key=$value"
+  done < "$env_file"
+  return 0
+}
+
+# Return canonical path of candidate when it lies under base (prefix after realpath).
+# Prints the canonical path on success; returns 1 when outside base or invalid.
+mb_canonical_under() {
+  local base="${1:-}" candidate="${2:-}"
+  local base_real cand_real
+  [ -n "$base" ] && [ -n "$candidate" ] || return 1
+  case "$candidate" in
+    *"/.."*|*"../"*) return 1 ;;
+  esac
+  base_real=$(mb_resolve_real_path "$base")
+  cand_real=$(mb_resolve_real_path "$candidate")
+  [ -n "$base_real" ] && [ -n "$cand_real" ] || return 1
+  if [ "$cand_real" = "$base_real" ]; then
+    printf '%s\n' "$cand_real"
+    return 0
+  fi
+  case "$cand_real" in
+    "$base_real"/*)
+      printf '%s\n' "$cand_real"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+# Allowed work-resolve targets: <bank>/plans/*.md or <bank>/specs/<topic>/tasks.md
+mb_is_allowed_plan_path() {
+  local bank="$1" path="$2"
+  local plans_dir specs_dir
+  bank=$(mb_resolve_real_path "$bank")
+  path=$(mb_resolve_real_path "$path")
+  plans_dir="$bank/plans"
+  specs_dir="$bank/specs"
+  if [ "${path#"$plans_dir"/}" != "$path" ] && [ "$(dirname "$path")" = "$plans_dir" ]; then
+    case "$path" in
+      *.md) return 0 ;;
+    esac
+  fi
+  if [ "${path#"$specs_dir"/}" != "$path" ] && [ "$(basename "$path")" = "tasks.md" ]; then
+    local spec_root
+    spec_root=$(dirname "$(dirname "$path")")
+    [ "$spec_root" = "$specs_dir" ] && return 0
+  fi
+  return 1
 }
 
 # Look up the registered bank path for project_root in agent's registry.
@@ -281,7 +378,9 @@ mb_pipeline_meta() {
     [ "$field" = "default" ] && printf 'false\n'
     return 0
   fi
-  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" "${MB_PYTHON:-python3}" - <<'PY'
+  local _repo_root
+  _repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" PYTHONPATH="$_repo_root${PYTHONPATH:+:$PYTHONPATH}" "${MB_PYTHON:-python3}" - <<'PY
 import os
 
 path = os.environ["MB_PIPE_FILE"]
@@ -289,11 +388,12 @@ field = os.environ["MB_PIPE_FIELD"]
 
 data = None
 try:
-    import yaml
-    with open(path, encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
+    from memory_bank_skill.pipeline_yaml import PipelineYamlError, load_file as _pipeline_load_file
+    data = _pipeline_load_file(path)
 except ModuleNotFoundError:
     data = None
+except PipelineYamlError:
+    data = {}
 except Exception:
     data = {}
 

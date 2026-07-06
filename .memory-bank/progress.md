@@ -2830,3 +2830,63 @@ mode + mb-work-pivot.sh (pivot routes + telemetry) + on_max_cycles migration + c
 cycle throughout (implement=sonnet, review/judge=opus per proportionate rigor; leaf helpers verified by orchestrator
 repro). Backlog: I-099 (cache-key reconcile), I-100 (composable loop empty). Caveat: require_contract has no shipped
 default key yet (documented). Next: Phase 3 (drive-loop /mb drive — thin self-driving wrapper over firewall + Phase 2).
+
+## 2026-06-29 — I-082 security-hardening Stages 2–4 complete
+
+- Stage 2: `mb_canonical_under` + guards in work-resolve, pipeline, context, search (7 bats)
+- Stage 3: repo-relative protected-path matching + Bash write-target guard (8 bats)
+- Stage 4: `sc_strip_private` + file-change-log value redaction (5 bats)
+- All 25 security bats green; shellcheck clean on changed files (info-only SC2295)
+
+## 2026-06-30 — I-082 closed + I-083 Stages 1-2
+
+- **I-082 security-hardening DONE**: all 4 stages (RCE, path-traversal, protected-paths, private/secret leak). 25 security bats green. Plan → `plans/done/`.
+- **I-083 verification-gates Stages 1-2 DONE**:
+  - `mb-done-gates.sh`: tests gate fail-closed (runner crash, invalid JSON, bare null).
+  - `mb-test-run.sh`: bats stack detection, `--test-command`/`MB_TEST_COMMAND`, `not_applicable` + `runner_error` JSON fields.
+  - 5 new done-gates tests + 5 new runner bats tests; contract updated.
+- **Pending**: I-083 Stage 3 (`.github/workflows/test.yml` — protected path, needs explicit go).
+- **Next in sequence**: I-085 logic-correctness-portability after I-083 Stage 3 or skip Stage 3.
+
+## 2026-06-30 — I-085 Stage 1 (range gap BLOCKER)
+
+- `mb-work-range.sh`: gap index in `--range N` now exits 1 with diagnostic (plan + phase mode).
+- `mb-work-plan.sh`: no silent fallback to all stages when range requested but empty; propagates range exit code.
+- 6 new bats (3 range + 3 work-plan) all green.
+
+## 2026-06-30 — I-083 Stage 3 + I-085 Stage 2
+
+- **I-083 Stage 3 DONE** (user approved CI edit): `.github/workflows/test.yml` — hooks bats step, pytest hooks/tests/, expanded shellcheck (severity=error) + ruff; README verification block updated; `_lib_pi_global.sh` shellcheck directive.
+- **I-085 Stage 2 DONE**: `mb-flow-route.sh` — lowercase interface/contract/protocol/abc basenames + untracked files in auto changed-list. 5 new bats (34 total flow-route suite green).
+- **Next**: I-083 verify/close, I-085 Stage 3 (wrapper frontmatter parse).
+
+## 2026-06-30 — I-085 Stage 3 (wrapper frontmatter)
+
+- `mb-work-plan.sh`: quote-aware + comment-aware YAML scalar parser for `linked_spec` / `tasks` in wrapper frontmatter.
+- 4 bats in `test_mb_work_plan_wrapper.bats` — trailing comment on tasks, double/single quoted linked_spec, no-tasks runs all.
+
+## 2026-06-30 — I-085 Stages 4-5
+
+- **Stage 4**: `mb-conflicts.sh` — Python base64 decode (portable), threshold fail-closed (nan/inf/out-of-range → exit 64), 5 new bats (23 total conflicts suite green), file ≤400 lines.
+- **Stage 5**: `_lib.sh::mb_mtime` GNU-first with numeric validation; removed duplicate `_mtime` from handoff/flow-sync/drift; 5 bats in `test_mb_mtime_shim.bats`.
+- **Next**: Stage 6 (fanout stderr + bank-relative work-resolve).
+
+## 2026-07-01 00:06 — I-085 Stage 6 (fanout stderr + work-resolve bank-relative)
+
+- **fanout**: branch stderr captured to `err.$i`; non-zero branches emit `exit {rc}: {snippet}` (≤500 chars) in aggregate JSON.
+- **work-resolve**: Form 2b resolves `plans/*` and `specs/*` targets relative to `$BANK` via `mb_canonical_under` + `mb_is_allowed_plan_path`; traversal rejected.
+- **tests**: `test_mb_fanout.bats` +1; `test_mb_work_resolve.bats` created (3/3 green).
+- **static**: shellcheck clean on `mb-fanout.sh`, `mb-work-resolve.sh`.
+
+## 2026-07-01 13:55 — Verify close I-083/I-085; I-086 Stage 1
+
+- **verify**: I-083/I-085 plan-verifier PASS (1267 bats green); fixed mb-test-run SC2086 + mb-done-gates ≤400 lines.
+- **closed**: moved `fix_verification-gates` + `fix_logic-correctness-portability` → `plans/done/`.
+- **I-086 Stage 1**: duplicate-key SafeLoader + runtime-block schema (review/judge/done_gates/dispatch); `test_mb_pipeline_validate.bats` 9/9 green.
+
+## 2026-07-01 17:56 — I-086 Stage 2 (runtime dup-key loader + pipeline judge fix)
+
+- **`memory_bank_skill/pipeline_yaml.py`**: shared `load_text`/`load_file` with duplicate-key rejection.
+- **Wired**: `mb-pipeline-validate.sh`, `mb-pipeline.sh validate --all`, `_lib.sh::mb_pipeline_meta`.
+- **`.memory-bank/pipeline.yaml`**: removed stale `judge: main-agent`; single `judge: mb-judge`.
+- **tests**: `test_mb_pipeline_validate.bats` +2 (11/11); `tests/pytest/test_pipeline_yaml.py` 3/3.

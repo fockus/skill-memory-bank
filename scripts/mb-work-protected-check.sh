@@ -130,13 +130,47 @@ def glob_to_regex(g: str) -> re.Pattern:
 
 regexes = [(g, glob_to_regex(g)) for g in globs]
 
+def repo_relative(path: str) -> str:
+    if not path:
+        return path
+    try:
+        abs_path = os.path.realpath(path)
+    except Exception:
+        abs_path = path
+    repo_root = None
+    start = abs_path if os.path.isdir(abs_path) else os.path.dirname(abs_path)
+    probe = start
+    for _ in range(32):
+        if os.path.isdir(os.path.join(probe, ".git")):
+            repo_root = probe
+            break
+        parent = os.path.dirname(probe)
+        if parent == probe:
+            break
+        probe = parent
+    if repo_root:
+        rel = os.path.relpath(abs_path, repo_root).replace("\\", "/")
+        if not rel.startswith(".."):
+            return rel
+    return os.path.basename(abs_path)
+
+
+def path_matches(f: str, g: str, rx: re.Pattern) -> bool:
+    if rx.match(f) or rx.match(os.path.basename(f)):
+        return True
+    rel = repo_relative(f)
+    if rel and rx.match(rel):
+        return True
+    return False
+
+
 matched = []
 files = sys.argv[1:]
 for f in files:
     if not f:
         continue
     for g, rx in regexes:
-        if rx.match(f) or rx.match(os.path.basename(f)):
+        if path_matches(f, g, rx):
             matched.append((f, g))
             break
 
