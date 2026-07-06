@@ -1,6 +1,29 @@
 
 # claude-skill-memory-bank: Статус проекта
 
+## ⏸ PAUSE 2026-07-06 — long-running-sessions autopilot (Opus plans → Sonnet impl / Codex review / Opus judge)
+
+**Активный мастер-план:** `plans/2026-07-05_SEQUENCE_long-running-sessions.md` — 6 фаз для автономных длинных сессий (goal-driven ralph-loop + параллельные сессии по плану). Роли зафиксированы: **планы пишет Opus напрямую; реализация через `/mb work` — implement=Sonnet, review=Codex GPT-5.5, judge=Opus**; любой сабагент-исполнитель работает на Sonnet.
+
+| Фаза | Спека | Статус |
+|---|---|---|
+| **1 — reviewer-2.0** | `specs/reviewer-2.0` | ✅ **DONE** — 6 задач, коммиты `45737fb 9d0a2e1 113b9b5 7e3604a 1ac1c49 7fb3db4`. Codex поймал 3 реальных дефекта (path-traversal, symlink-эксфильтрация, count-lie bypass strict-mode) |
+| **2 — work-loop-v2** | `specs/work-loop-v2` | ✅ **DONE** — 5 задач: trend (`ea3a3ab`), contract (`a39d4a2`), pivot (`930c0ec`), on_max_cycles migration (`b419eee`), docs (`86240f7`) |
+| **3 — drive-loop** | `specs/drive-loop` | 🔄 **IN PROGRESS.** Task 1 ✅ DONE (`1bf101b`) — `mb-drive.sh next` stateless decision fn; Codex BLOCKER (type-coercion `{"ok":"true"}`→`stop_success`, нарушал REQ-DR-014) + 5 major исправлены fail-closed, judge GO_WITH_BACKLOG. **Осталось: Task 2** (`/mb drive` команда + AGENTS.md loop-contract, developer), **Task 3** (trend/pivot + route-reeval wiring — тот seam, что T1 оставил: stall/last_pivot из mb-flow fence), **Task 4** (stop-telemetry + Stop-hook resume-gate + parallel keying, devops), **Task 5** (docs, analyst) |
+| 4 — parallel | `parallel-pipeline` / `parallel-team-execution` | ⬜ на `mb-fanout.sh` |
+| 5 — cost-multi-model + df-P3 | — | ⬜ dynamic-flow Phase 3 Tasks 13-14 |
+| 6 — docs | — | ⬜ финал: «как всем этим пользоваться» |
+
+**▶ ТОЧКА ВОЗОБНОВЛЕНИЯ:** drive-loop **Task 2**. Директива пользователя — «Полный автопилот до конца» (фазы 2-6 подряд, отчёт в конце), сейчас на паузе по запросу.
+
+**Backlog, накопленный за автопилот:** I-095 (DRY-fold), I-096 (inert cache path), I-097 (pipeline review_examples wiring), I-098 (split mb-review.sh 501ln), I-099 (cache-key reconcile), I-100 (composable `--review` empty loop), I-101 (traceability `.bats` suffix), **I-102 (mb-drive.sh 455>400 → Task-1b split)**.
+
+**⚠️ Параллельная незакоммиченная работа (НЕ трогать при коммитах):** install-parity правки в `adapters/*`, `install.sh`, `packaging/`, `README.md`, `docs/cross-agent-setup.md`, `tests/bats/test_{codex,cursor,graph,cline,opencode}_adapter.bats`, `tests/e2e/*`, `scripts/mb-reviewer-resolve.sh` + `test_reviewer_resolve.bats`, `.memory-bank/{checklist,roadmap,pipeline.yaml,traceability}.md`, `specs/{reviewer-2.0,work-loop-v2}/design.md`. Коммиты всегда scoped через явный `git add <paths>`, никогда `-A`.
+
+**Phase 0 doc-drift residual (no-code):** status/roadmap/checklist местами говорят «dynamic-flow Phase 2 paused», хотя на диске она done — чистка не сделана.
+
+---
+
 ## Current phase
 
 **Phase 6 — Harness + adaptive orchestration.** Phase 5 (`tier1-graph-memory` 17/17 → **v5.1.0**) закрыт. Roadmap переприоритизирован по **ICE** (см. `roadmap.md § ICE-prioritised roadmap`). `goal-driven-autopilot` **снят** — заменён на `specs/dynamic-flow/` (8 мёртвых планов → `plans/superseded/`). Последовательность (dependency-resolved): **cursor-finish → handoff-v2 → dynamic-flow Phase 1 → reviewer-2.0 → work-loop-v2 → cost-multi-model**; docs-лейн `skill-improvements-anthropic-audit` параллельно. XL-хвост (`parallel-pipeline` / `parallel-team-execution`) — после арх-решения host-native vs orchestrator-owned.
