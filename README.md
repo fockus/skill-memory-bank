@@ -481,6 +481,14 @@ Flags:
 - `--non-interactive` — never prompt; use defaults when `--clients` not specified. Use in CI / scripted installs.
 - `-y` / `--non-interactive` on `uninstall` — skip the confirmation prompt. Use in CI / scripted cleanup.
 
+**Global agent resources install independently of `--clients`:** OpenCode, Codex, and Pi
+each get their global agent resources (skill alias, global `AGENTS.md` entrypoint, prompt
+templates) on **every** `install` run, regardless of which clients `--clients` selects —
+these are cheap, idempotent, and useful the moment you open that host, even before you
+pick it for a given project. Only the **project-local** adapter (`.codex/`, `.opencode/`,
+project `AGENTS.md`) is gated by `--clients`. Gating the global install itself by selected
+clients is a separate, not-yet-implemented product decision.
+
 ---
 
 ## Environment variables

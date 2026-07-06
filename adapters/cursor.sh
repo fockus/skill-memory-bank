@@ -54,7 +54,7 @@ CURSOR_END_MARKER="<!-- memory-bank-cursor:end -->"
 
 # Hook scripts registered from the skill bundle (not copied into .cursor/hooks/)
 MB_HOOKS=(
-  "session-end-autosave.sh"
+  "mb-session-end.sh"
   "mb-pre-compact.sh"
   "block-dangerous.sh"
   "mb-protected-paths-guard.sh"
@@ -70,7 +70,11 @@ MB_HOOKS=(
 # Format: "event:script[:matcher]"
 EVENT_BINDINGS=(
   "sessionStart:mb-session-start-context.sh"
-  "sessionEnd:session-end-autosave.sh"
+  # B4 (F-4): mb-session-end.sh is the CC-compatible rich capture (Haiku summary +
+  # gated Sonnet judge notes), not just the basic placeholder-only
+  # session-end-autosave.sh — Cursor now gets the same capture Claude Code does.
+  # Fail-open: no `claude` binary / no session file → the script silently no-ops.
+  "sessionEnd:mb-session-end.sh"
   "preCompact:mb-pre-compact.sh"
   "beforeShellExecution:block-dangerous.sh"
   "preToolUse:mb-protected-paths-guard.sh:Write|Edit"
@@ -208,6 +212,21 @@ cursor_build_hooks_json() {
       '.hooks[$event] += [$entry]')
   done
   printf '%s' "$our_hooks_json"
+}
+
+# A23 (CDX-I8): the project rules file is a whole-file `{ ... } > "$RULES_FILE"`
+# overwrite with no backup at all — a user's own pre-existing same-named
+# memory-bank.mdc is clobbered without a recoverable copy. Back it up ONCE
+# (idempotent: a second install does not pile up backups), recorded in the
+# project manifest's `backups` for auditability (mirrors codex.sh/opencode.sh).
+MB_CURSOR_BACKUPS=()
+
+_cursor_backup_once() {
+  local f="$1" b backup
+  [ -f "$f" ] || return 0
+  for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
+  backup="$f.pre-mb-backup.$(date +%s).$$"
+  cp "$f" "$backup" 2>/dev/null && MB_CURSOR_BACKUPS+=("$backup")
 }
 
 copy_to_clipboard() {
@@ -377,7 +396,9 @@ install_cursor() {
     exit 1
   }
 
-  # 1. Rules file (.mdc with YAML frontmatter)
+  # 1. Rules file (.mdc with YAML frontmatter) — A23: back up any pre-existing
+  # same-named user file before the whole-file overwrite below.
+  _cursor_backup_once "$RULES_FILE"
   {
     echo '---'
     echo 'description: "Memory Bank — long-term project memory, workflow, and dev rules"'
@@ -416,13 +437,19 @@ install_cursor() {
   cursor_merge_hooks_json "$HOOKS_JSON" "$our_hooks_json"
 
   # 5. Manifest (project-owned files + hook metadata)
-  local files_json events_json extra_json
+  local files_json events_json extra_json backups_json
   files_json=$(printf '%s\n' "$RULES_FILE" | adapter_json_array_from_lines)
   events_json=$(cursor_binding_events_json)
+  if [ "${#MB_CURSOR_BACKUPS[@]}" -gt 0 ]; then
+    backups_json=$(printf '%s\n' "${MB_CURSOR_BACKUPS[@]}" | adapter_json_array_from_lines)
+  else
+    backups_json='[]'
+  fi
   extra_json=$(jq -n \
     --argjson events "$events_json" \
     --arg bundle "$skill_hooks_dir" \
-    '{hooks_events: $events, hooks_bundle: $bundle}')
+    --argjson backups "$backups_json" \
+    '{hooks_events: $events, hooks_bundle: $bundle, backups: $backups}')
 
   adapter_write_manifest \
     "$MANIFEST" \

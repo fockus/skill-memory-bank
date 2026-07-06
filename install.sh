@@ -1022,6 +1022,13 @@ fi
 write_language_config
 echo -e "  ${GREEN}✓${NC} language preference ($LANGUAGE)"
 
+# A25 (CDX-I13): these three ALWAYS run — independent of `--clients` — because
+# the global agent-resources they install (skill alias + AGENTS.md + prompt
+# templates under ~/.codex, ~/.config/opencode, ~/.pi/agent) are cheap,
+# idempotent, and useful the moment a user opens that host, even before they
+# ever pick it as a --clients target for THIS project. Gating global install
+# by selected clients is a separate product decision, intentionally not
+# implemented here (see docs/cross-agent-setup.md "Global agent resources").
 install_opencode_global_agents
 install_codex_global_agents
 install_pi_global_agents

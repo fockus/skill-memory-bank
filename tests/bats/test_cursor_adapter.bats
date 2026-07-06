@@ -27,13 +27,49 @@ run_adapter() {
   [ ! -d "$PROJECT/.cursor/hooks" ]
 }
 
+# A23 (CDX-I8): the rules file is a whole-file overwrite via `{ ... } > "$RULES_FILE"`
+# with no backup at all — a user's own same-named memory-bank.mdc is clobbered
+# without any recoverable copy.
+@test "cursor: install backs up a pre-existing user memory-bank.mdc before overwriting (A23)" {
+  mkdir -p "$PROJECT/.cursor/rules"
+  printf -- '---\ndescription: user rules\n---\nUSER_CURSOR_RULES_MARKER\n' \
+    > "$PROJECT/.cursor/rules/memory-bank.mdc"
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local rules="$PROJECT/.cursor/rules/memory-bank.mdc"
+  # Freshly generated (MB content installed)...
+  grep -qi "memory bank" "$rules"
+  # ...but the user's original is recoverable via a backup.
+  local found=0
+  for b in "$rules".pre-mb-backup.*; do
+    [ -f "$b" ] && grep -q "USER_CURSOR_RULES_MARKER" "$b" && found=1
+  done
+  [ "$found" -eq 1 ]
+}
+
 @test "cursor: install wires hooks.json to skill bundle paths" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local hjson="$PROJECT/.cursor/hooks.json"
-  grep -q 'memory-bank/hooks/session-end-autosave.sh' "$hjson"
+  grep -q 'memory-bank/hooks/mb-session-end.sh' "$hjson"
   grep -q 'MB_AGENT=cursor' "$hjson"
-  [ ! -f "$PROJECT/.cursor/hooks/session-end-autosave.sh" ]
+  [ ! -f "$PROJECT/.cursor/hooks/mb-session-end.sh" ]
+}
+
+# B4 (F-4): Cursor used to wire the basic placeholder-only session-end-autosave.sh
+# for sessionEnd — missing the CC-compatible rich capture (Haiku summary + Sonnet
+# judge notes) that Claude Code gets via mb-session-end.sh. Swap the wiring so
+# Cursor gets the same capture script (fail-open: no `claude`/session file → noop).
+@test "cursor: install wires sessionEnd to mb-session-end.sh, not session-end-autosave.sh (B4)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hjson="$PROJECT/.cursor/hooks.json"
+  local cmd
+  cmd=$(jq -r '.hooks.sessionEnd[0].command' "$hjson")
+  [[ "$cmd" == *"mb-session-end.sh"* ]]
+  [[ "$cmd" != *"session-end-autosave.sh"* ]]
 }
 
 @test "cursor: install removes legacy hook copies on reinstall" {
@@ -59,7 +95,7 @@ run_adapter() {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local hjson="$PROJECT/.cursor/hooks.json"
-  local hooks=(session-end-autosave.sh mb-pre-compact.sh block-dangerous.sh mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh mb-session-start-context.sh)
+  local hooks=(mb-session-end.sh mb-pre-compact.sh block-dangerous.sh mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh mb-session-start-context.sh)
   local h
   for h in "${hooks[@]}"; do
     grep -q "memory-bank/hooks/$h" "$hjson"

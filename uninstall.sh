@@ -92,7 +92,15 @@ fi
 
 if [ "$NON_INTERACTIVE" -eq 0 ]; then
   echo -n "Remove all memory-bank files? (y/n): "
-  read -r c
+  # A24 (CDX-I12): in a no-tty environment (CI/pipe) with nothing piped in, `read`
+  # hits EOF immediately and fails — under `set -e` that used to die mid-prompt
+  # with no explanation. Detect the read failure explicitly and exit with a clear
+  # hint instead of an opaque/hanging failure. A real piped answer (even from a
+  # non-tty pipe, e.g. `echo y | uninstall.sh`) still reads normally below.
+  if ! read -r c; then
+    echo -e "\n${RED}No input received on stdin.${NC} Re-run with -y/--non-interactive to skip the confirmation prompt." >&2
+    exit 1
+  fi
   [ "$c" != "y" ] && exit 0
 fi
 

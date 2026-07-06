@@ -51,8 +51,10 @@ teardown() {
   local hjson="$HOME/.cursor/hooks.json"
   [ -f "$hjson" ]
   grep -q 'MB_AGENT=cursor' "$hjson"
-  grep -q 'memory-bank/hooks/session-end-autosave.sh' "$hjson"
-  [ ! -f "$HOME/.cursor/hooks/session-end-autosave.sh" ]
+  # B4 (F-4): sessionEnd now wires the CC-compatible rich capture
+  # (mb-session-end.sh), not the basic placeholder-only session-end-autosave.sh.
+  grep -q 'memory-bank/hooks/mb-session-end.sh' "$hjson"
+  [ ! -f "$HOME/.cursor/hooks/mb-session-end.sh" ]
 }
 
 @test "cursor-global: install copies slash commands into ~/.cursor/commands/" {

@@ -53,6 +53,53 @@ run_adapter() {
   grep -q "project_doc_max_bytes" "$PROJECT/.codex/config.toml"
 }
 
+# ═══════════════════════════════════════════════════════════════
+# B5 (F-5): Codex had NO session capture at all — not even the git-hooks
+# fallback pi.sh already has. Mirror pi.sh's wiring (install_agents_md_mode)
+# so Codex users get post-commit auto-capture + pre-commit <private> warnings
+# in a git repo. Wiring only — the hook BODIES live in git-hooks-fallback.sh.
+# ═══════════════════════════════════════════════════════════════
+
+@test "codex: install adds git-hooks-fallback session capture in a git repo (B5)" {
+  (cd "$PROJECT" && git init -q && git config user.email t@t && git config user.name t)
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -x "$PROJECT/.git/hooks/post-commit" ]
+  grep -q "memory-bank: managed hook" "$PROJECT/.git/hooks/post-commit"
+  jq -e '.git_hooks_installed == true' "$PROJECT/.codex/.mb-manifest.json" >/dev/null
+}
+
+@test "codex: install skips git-hooks-fallback outside a git repo, no crash (B5)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ ! -d "$PROJECT/.git" ]
+  jq -e '.git_hooks_installed == false' "$PROJECT/.codex/.mb-manifest.json" >/dev/null
+}
+
+@test "codex: uninstall removes the git-hooks-fallback capture it installed (B5)" {
+  (cd "$PROJECT" && git init -q && git config user.email t@t && git config user.name t)
+  run_adapter install "$PROJECT"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  if [ -f "$PROJECT/.git/hooks/post-commit" ]; then
+    run grep -q "memory-bank: managed hook" "$PROJECT/.git/hooks/post-commit"
+    [ "$status" -ne 0 ]
+  fi
+}
+
+@test "codex: install detects git in a worktree (.git is a file, not a dir) (B5)" {
+  local main_repo
+  main_repo="$(mktemp -d)"
+  (cd "$main_repo" && git init -q && git config user.email t@t && git config user.name t \
+    && git commit -q --allow-empty -m init \
+    && git worktree add -q "$PROJECT/wt" -b mb-b5-wt >/dev/null 2>&1)
+  run_adapter install "$PROJECT/wt"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/wt/.git" ]   # worktree marker: a FILE, not a directory
+  jq -e '.git_hooks_installed == true' "$PROJECT/wt/.codex/.mb-manifest.json" >/dev/null
+  rm -rf "$main_repo"
+}
+
 @test "codex: install creates .codex/hooks.json with userpromptsubmit event" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]

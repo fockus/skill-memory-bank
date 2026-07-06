@@ -60,6 +60,20 @@ bash install.sh --clients cursor,opencode --project-root ~/my-project
 - `--project-root <path>` — where to place adapters. Default: `$PWD`.
 - `--help` — full usage.
 
+### Global agent resources always install (A25 / CDX-I13)
+
+`install.sh` calls `install_opencode_global_agents`, `install_codex_global_agents`, and
+`install_pi_global_agents` unconditionally on every run, **independently of `--clients`**.
+That means the global skill alias, global `AGENTS.md` entrypoint, and prompt templates for
+OpenCode, Codex, and Pi are installed even when `--clients` doesn't include them — so those
+hosts are ready to use the moment you open them, without a separate install step. Only the
+**project-local** adapter (`.codex/config.toml`, `.opencode/plugins/…`, project `AGENTS.md`,
+etc.) is actually gated by `--clients`.
+
+**Open question:** gating the global-resource install itself by the selected `--clients`
+is a deliberate, separate product decision — not implemented here. If you want that
+gating, track it as a follow-up rather than assuming today's behavior will change.
+
 ## Per-client cheatsheet
 
 ### Cursor (full global parity + project adapter)
@@ -166,11 +180,20 @@ Creates:
 - `~/.config/opencode/AGENTS.md` — global OpenCode rules for prompt injection
 - `~/.config/opencode/commands/*.md` — native slash commands in OpenCode menu
 - `AGENTS.md` — shared format, refcount-tracked via `.mb-agents-owners.json`
-- `opencode.json` — plugin reference added to `plugin` array
 - `.opencode/commands/*.md` — project-local slash commands (works even without global install)
 - `.opencode/plugins/memory-bank.js` — TS plugin with `session.idle`,
   `session.deleted`, `tool.execute.before`, and **`experimental.session.compacting`**
-  (direct PreCompact equivalent)
+  (direct PreCompact equivalent). Registration contract is **auto-discovery**:
+  OpenCode loads any module under `.opencode/plugins/` on its own, so no
+  `opencode.json` entry is required or written. If a project's `opencode.json`
+  carries a *stale legacy* reference to `./.opencode/plugins/memory-bank.js`
+  from an older skill version, install removes just that entry (atomic
+  rewrite via `jq`) and preserves every other user key untouched.
+
+On `session.idle`/`session.deleted`, the plugin also invokes the same
+CC-compatible summarize capture Cursor wires (`mb-session-end.sh`, resolved
+via the OpenCode skill alias `~/.config/opencode/skills/memory-bank/hooks/`,
+overridable via `MB_SUMMARIZE_BIN`) — fail-open if that script is absent (B4).
 
 ### Codex (OpenAI)
 
@@ -185,6 +208,10 @@ Creates:
 - `.codex/config.toml` — project settings (`project_doc_max_bytes=65536`,
   `approval_policy="on-request"`)
 - `.codex/hooks.json` — experimental hooks (warning included in `_mb_warning` field)
+- `.git/hooks/post-commit` + `.git/hooks/pre-commit` (via `git-hooks-fallback.sh`,
+  when the project is a git repo — B5) — the same session-capture fallback Kilo/Pi
+  get, since Codex's own lifecycle hooks are still experimental/limited (above).
+  Skipped (not an error) outside a git repo.
 
 **⚠️ Important:** Codex global support is broader than just the project adapter:
 - bundled `commands/`, `agents/`, `hooks/`, `scripts/`, `references/` are available through `~/.codex/skills/memory-bank/`;
@@ -248,7 +275,7 @@ Ownership is refcounted in `.mb-agents-owners.json`:
 
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
-| SessionEnd auto-capture | `sessionEnd` | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` | Extension `session_shutdown` event + git-fallback | project `.codex/hooks.json` only |
+| SessionEnd auto-capture | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | Extension `session_shutdown` event + git-fallback | `post-commit` (git-hooks-fallback, B5) |
 | PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | Extension `session_before_compact` event | guidance via `~/.codex/AGENTS.md`, project hook pending |
 | PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | Extension `tool_call` event (blockable) | project `userpromptsubmit` (exit 2) |
 | Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | Extension `session_start` event (check `.last-compact` age) | guidance only |

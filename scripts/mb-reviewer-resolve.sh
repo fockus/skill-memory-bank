@@ -65,9 +65,17 @@ fi
 if [ -n "${MB_SKILLS_ROOT:-}" ]; then
   SKILLS_ROOTS="$MB_SKILLS_ROOT"
 else
+  # B8 (CDX-5): a reviewer-override living ONLY in a Codex/Pi/OpenCode
+  # skill-root (no Claude/Cursor tree present) used to be invisible here —
+  # add the three remaining agent skill-roots, mirroring the existing
+  # `[ -d … ] && SKILLS_ROOTS=…` idiom. Missing directories are skipped
+  # silently; MB_SKILLS_ROOT (above) still wins outright over all of these.
   SKILLS_ROOTS=""
   [ -d "$HOME/.cursor/skills" ] && SKILLS_ROOTS="$HOME/.cursor/skills"
   [ -d "$HOME/.claude/skills" ] && SKILLS_ROOTS="${SKILLS_ROOTS:+$SKILLS_ROOTS:}$HOME/.claude/skills"
+  [ -d "$HOME/.codex/skills" ] && SKILLS_ROOTS="${SKILLS_ROOTS:+$SKILLS_ROOTS:}$HOME/.codex/skills"
+  [ -d "$HOME/.pi/agent/skills" ] && SKILLS_ROOTS="${SKILLS_ROOTS:+$SKILLS_ROOTS:}$HOME/.pi/agent/skills"
+  [ -d "$HOME/.config/opencode/skills" ] && SKILLS_ROOTS="${SKILLS_ROOTS:+$SKILLS_ROOTS:}$HOME/.config/opencode/skills"
 fi
 
 PIPELINE_PATH="$PIPELINE_PATH" SKILLS_ROOTS="$SKILLS_ROOTS" python3 - <<'PY'

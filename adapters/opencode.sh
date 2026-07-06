@@ -50,8 +50,9 @@ plugin_body() {
 // plus scripts/mb-graph-query.py when native tool support is unavailable.
 // memory-bank: managed plugin (do not remove marker line)
 
-import { execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 export const MemoryBankPlugin = async ({ directory }) => {
@@ -81,10 +82,51 @@ export const MemoryBankPlugin = async ({ directory }) => {
     fs.appendFileSync(progress, entry);
   };
 
+  // B4 (F-4): mb-session-end.sh is the CC-compatible rich capture (Haiku
+  // summary + gated Sonnet judge notes) that Claude Code/Cursor invoke on
+  // session end. Wire OpenCode to the SAME script via its OpenCode skill
+  // alias (~/.config/opencode/skills/memory-bank/, installed unconditionally
+  // — see install.sh's OPENCODE_SKILL_ALIAS), so all three hosts share one
+  // capture implementation. MB_SUMMARIZE_BIN overrides the path (test seam,
+  // mirrors hooks/mb-session-catchup.sh's own MB_SUMMARIZE_BIN override).
+  const summarizeHookPath = () => (
+    process.env.MB_SUMMARIZE_BIN
+    ?? path.join(os.homedir(), '.config', 'opencode', 'skills', 'memory-bank', 'hooks', 'mb-session-end.sh')
+  );
+
+  // Fail-open: missing summarize CLI / missing bank / any spawn error must
+  // never throw back into OpenCode's session lifecycle — this is best-effort
+  // capture, not a blocking gate. The payload matches the JSON-over-stdin
+  // contract mb-session-end.sh already reads from Claude Code/Cursor hooks
+  // (.cwd, .session_id); the script itself no-ops when no session file
+  // exists (OpenCode does not yet write per-turn session/*.md files).
+  const runSummarize = (sessionId) => {
+    if (!hasMb()) return;
+    try {
+      const bin = summarizeHookPath();
+      if (!fs.existsSync(bin)) return; // fail-open: summarize CLI absent
+      const payloadFile = path.join(os.tmpdir(), `mb-oc-summarize-${process.pid}-${Date.now()}.json`);
+      fs.writeFileSync(payloadFile, JSON.stringify({ cwd: directory, session_id: String(sessionId) }));
+      // Detached + ignored stdio: the payload file (already flushed above) is
+      // read by the child directly, so nothing keeps the parent's event loop
+      // alive — OpenCode's session lifecycle is never delayed by this call.
+      const child = spawn(
+        'sh',
+        ['-c', 'bash "$1" < "$2" >/dev/null 2>&1; rm -f "$2"', '_', bin, payloadFile],
+        { detached: true, stdio: 'ignore' },
+      );
+      child.unref();
+    } catch {
+      // fail-open — summarize is best-effort, never blocks the OpenCode session lifecycle.
+    }
+  };
+
   return {
     event: async ({ event }) => {
       if (event?.type === 'session.idle' || event?.type === 'session.deleted') {
-        appendProgress(event?.properties?.info?.id ?? event?.properties?.sessionID ?? 'oc-unknown');
+        const sessionId = event?.properties?.info?.id ?? event?.properties?.sessionID ?? 'oc-unknown';
+        appendProgress(sessionId);
+        runSummarize(sessionId);
       }
     },
     'tool.execute.before': async (input, output) => {
@@ -209,6 +251,9 @@ install_opencode() {
   local f
   for f in "$SKILL_DIR"/commands/*.md; do
     [ -f "$f" ] || continue
+    # A23 (CDX-I8): back up a pre-existing same-named user command file before
+    # the plain `cp` overwrite below — mirrors the agent-file backup right below.
+    _opencode_backup_once "$COMMANDS_DIR/$(basename "$f")"
     cp "$f" "$COMMANDS_DIR/$(basename "$f")"
   done
 

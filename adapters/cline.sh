@@ -248,7 +248,10 @@ install_cline() {
   fi
   mkdir -p "$CLINE_DIR" "$HOOKS_DIR"
 
-  # 1. Rules file
+  # 1. Rules file — A23 (CDX-I8): back up a pre-existing same-named user file
+  # (dir-mode .clinerules/memory-bank.md) before the whole-file overwrite below.
+  # Reuses the same backup-once idiom already used for hooks/file-form rules.
+  _cline_backup_once "$RULES_FILE"
   {
     echo '---'
     echo 'paths:'

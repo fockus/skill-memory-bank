@@ -47,6 +47,28 @@ run_adapter() {
   grep -qi "workflow" "$PROJECT/.clinerules/memory-bank.md"
 }
 
+# A23 (CDX-I8): dir-mode RULES_FILE (.clinerules/memory-bank.md) is written via a
+# plain `{ ... } > "$RULES_FILE"` whole-file overwrite with no backup — a user's
+# own pre-existing same-named file is clobbered without a recoverable copy.
+# (File-form `.clinerules` already has a backup net via _cline_backup_once —
+# this is the directory-mode gap, a different code path.)
+@test "cline: install backs up a pre-existing user memory-bank.md rules file (A23)" {
+  mkdir -p "$PROJECT/.clinerules"
+  printf '# my own cline rules\nUSER_CLINE_RULES_MARKER\n' \
+    > "$PROJECT/.clinerules/memory-bank.md"
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local rules="$PROJECT/.clinerules/memory-bank.md"
+  grep -qi "memory bank" "$rules"
+  local found=0
+  for b in "$rules".pre-mb-backup.*; do
+    [ -f "$b" ] && grep -q "USER_CLINE_RULES_MARKER" "$b" && found=1
+  done
+  [ "$found" -eq 1 ]
+}
+
 @test "cline: install creates 3 executable hook scripts" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]

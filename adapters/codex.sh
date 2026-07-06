@@ -22,6 +22,8 @@ fi
 PROJECT_ROOT="$(cd "$PROJECT_ROOT_RAW" && pwd)"
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ADAPTERS_DIR="$SKILL_DIR/adapters"
+GIT_FALLBACK="$ADAPTERS_DIR/git-hooks-fallback.sh"
 CODEX_DIR="$PROJECT_ROOT/.codex"
 CONFIG_TOML="$CODEX_DIR/config.toml"
 HOOKS_JSON="$CODEX_DIR/hooks.json"
@@ -348,6 +350,20 @@ install_codex() {
   before_prompt_body > "$CODEX_DIR/hooks/before-prompt.sh"
   chmod +x "$CODEX_DIR/hooks/before-prompt.sh"
 
+  # 4b. Session capture via git-hooks-fallback (B5 / F-5): Codex has no native
+  # lifecycle hooks (only the experimental userpromptsubmit guard above) —
+  # mirror pi.sh's wiring so Codex users still get post-commit auto-capture +
+  # pre-commit <private> warnings in a git repo. `git rev-parse --git-dir`
+  # (not `[ -d .git ]`) so a worktree (.git is a FILE there, per A9) is still
+  # detected correctly. Wiring only — hook bodies live in git-hooks-fallback.sh.
+  local git_hooks_installed=false
+  if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    MB_AGENT=codex bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
+    git_hooks_installed=true
+  else
+    echo "[codex-adapter] project is not a git repo; session-capture git hook skipped" >&2
+  fi
+
   # 5. Manifest
   local files_json backups_json
   files_json=$(printf '%s\n' "$CONFIG_TOML" "$HOOKS_JSON" "$CODEX_DIR/hooks/before-prompt.sh" | adapter_json_array_from_lines)
@@ -362,8 +378,8 @@ install_codex() {
     "codex" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
-    "$(jq -n --argjson owned "$owned" --argjson backups "$backups_json" \
-      '{agents_md_owned: $owned, experimental_hooks: true, backups: $backups}')"
+    "$(jq -n --argjson owned "$owned" --argjson backups "$backups_json" --argjson git_hooks "$git_hooks_installed" \
+      '{agents_md_owned: $owned, experimental_hooks: true, backups: $backups, git_hooks_installed: $git_hooks}')"
 
   echo "[codex-adapter] installed to $PROJECT_ROOT (hooks API: experimental)"
 }
@@ -415,6 +431,14 @@ uninstall_codex() {
 
   # 2. Decrement AGENTS.md ownership
   agents_md_uninstall "$PROJECT_ROOT" "codex"
+
+  # 2b. Remove git-hooks-fallback session capture, if this adapter installed it
+  # (B5 / F-5). Read the flag BEFORE the manifest is deleted below.
+  local installed_git
+  installed_git=$(jq -r '.git_hooks_installed // false' "$MANIFEST")
+  if [ "$installed_git" = "true" ]; then
+    bash "$GIT_FALLBACK" uninstall "$PROJECT_ROOT" >/dev/null 2>&1 || true
+  fi
 
   # 3. Remove manifest
   rm -f "$MANIFEST"

@@ -69,6 +69,46 @@ run_adapter() {
   grep -q "experimental.session.compacting\|tool.execute.before" "$plugin"
 }
 
+# B4 (F-4): the plugin only wrote a placeholder progress.md entry — it never
+# invoked the CC-compatible summarize capture (mb-session-end.sh, the same
+# script Cursor now wires — see B4 cursor test) on session end. Functional
+# test: stub the summarize hook, fire a synthetic session.idle event through
+# the REAL plugin module, and assert the stub was actually invoked with the
+# expected JSON payload (proves wiring, not just source-text presence).
+@test "opencode: plugin invokes the session-end summarize hook on session.idle (B4)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/memory-bank-plugin-under-test.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  local marker="$PROJECT/summarize-invoked.json"
+  local stub="$PROJECT/stub-summarize.sh"
+  cat > "$stub" <<STUB
+#!/usr/bin/env bash
+cat > "$marker"
+STUB
+  chmod +x "$stub"
+
+  run env MB_SUMMARIZE_BIN="$stub" node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      await plugin.event({ event: { type: 'session.idle', properties: { info: { id: 'oc-summarize-test' } } } });
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+
+  local i
+  for i in $(seq 1 30); do
+    [ -f "$marker" ] && break
+    sleep 0.1
+  done
+  [ -f "$marker" ]
+  grep -q "oc-summarize-test" "$marker"
+  grep -q "$PROJECT" "$marker"
+}
+
 # A16 (M-8): plugins/memory-bank.js used to be clobbered with a plain `>`
 # redirect — no backup of a user-modified copy, and non-atomic (a crash
 # mid-write would leave a truncated/corrupt plugin file OpenCode then tries
@@ -109,6 +149,27 @@ EOF
   [ -f "$PROJECT/.opencode/commands/mb.md" ]
   [ -f "$PROJECT/.opencode/commands/start.md" ]
   [ -f "$PROJECT/.opencode/commands/done.md" ]
+}
+
+# A23 (CDX-I8): project commands are copied with a plain `cp "$f" "$COMMANDS_DIR/…"`
+# — no backup, unlike the sibling agent-file copy loop right below it (which
+# already calls _opencode_backup_once). A user's own same-named command file
+# is silently clobbered.
+@test "opencode: install backs up a pre-existing user command file with the same name (A23)" {
+  mkdir -p "$PROJECT/.opencode/commands"
+  echo "# my own mb command" > "$PROJECT/.opencode/commands/mb.md"
+
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local cmd="$PROJECT/.opencode/commands/mb.md"
+  # Freshly generated (MB's own command content installed)...
+  ! grep -q "my own mb command" "$cmd"
+  # ...but the user's original is recoverable via a backup.
+  local bk
+  bk=$(ls "$cmd".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  grep -q "my own mb command" "$bk"
 }
 
 @test "opencode: install writes manifest" {
@@ -344,4 +405,22 @@ EOF
   bk=$(ls "$PROJECT/.opencode/agent/mb-developer.md".pre-mb-backup.* 2>/dev/null | head -1)
   [ -n "$bk" ]
   grep -q "my custom developer agent" "$bk"
+}
+
+# ═══════════════════════════════════════════════════════════════
+# B9 (CDX-6): plugin registration is a SINGLE contract everywhere — code (this
+# adapter) and tests (above: "relies on plugin directory auto-discovery",
+# "removes stale legacy plugin registration") already commit to auto-discovery
+# (.opencode/plugins/*, no opencode.json ref needed). The docs must say the
+# same thing, not describe a contradictory project-opencode.json registration.
+# ═══════════════════════════════════════════════════════════════
+
+@test "opencode: docs do not promise opencode.json plugin registration (B9 grep-guard)" {
+  local doc="$REPO_ROOT/docs/cross-agent-setup.md"
+  [ -f "$doc" ]
+  run grep -q "opencode.json.*plugin reference added" "$doc"
+  [ "$status" -ne 0 ]
+  run grep -q "plugin reference added to \`plugin\` array" "$doc"
+  [ "$status" -ne 0 ]
+  grep -qi "auto-discover" "$doc"
 }

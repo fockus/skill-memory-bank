@@ -594,6 +594,34 @@ EOF
   [ "$status" -eq 0 ]
 }
 
+@test "uninstall: no-tty without -y exits nonzero with a hint instead of hanging (A24)" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  run bash "$REPO_ROOT/uninstall.sh" < /dev/null
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"-y"* ]]
+  # Files must still be present — no half-applied removal happened.
+  [ -f "$HOME/.claude/RULES.md" ]
+}
+
+@test "uninstall: -y still works with no tty on stdin (A24)" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  run bash "$REPO_ROOT/uninstall.sh" -y < /dev/null
+
+  [ "$status" -eq 0 ]
+  [ ! -f "$HOME/.claude/RULES.md" ]
+}
+
+@test "uninstall: pipe with real y answers the prompt normally (A24 no regression)" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
+
+  [ ! -f "$HOME/.claude/RULES.md" ]
+}
+
 # ═══════════════════════════════════════════════════════════════
 # A6 (H-4): backup rotation preserves the user's TRUE original
 # A7 (H-5): incremental/trap manifest survives partial failure
