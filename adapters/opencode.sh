@@ -45,9 +45,11 @@ plugin_body() {
 // Memory Bank — OpenCode plugin
 // Registers hooks for session lifecycle + tool guard + compact-reminder.
 // Auto-captures session placeholder to .memory-bank/progress.md.
-// GraphRAG-lite native tool wrappers may expose code_context, graph_neighbors,
-// graph_impact, and graph_tests; CLI fallback is scripts/mb-code-context.py
-// plus scripts/mb-graph-query.py when native tool support is unavailable.
+// GraphRAG-lite retrieval (code_context, graph_neighbors, graph_impact,
+// graph_tests) is available via agents/CLI scripts here — this plugin does
+// not register native OpenCode tool wrappers for them; call
+// scripts/mb-code-context.py / scripts/mb-graph-query.py directly (or through
+// an agent) instead.
 // memory-bank: managed plugin (do not remove marker line)
 
 import { spawn } from 'node:child_process';

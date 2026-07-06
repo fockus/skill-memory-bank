@@ -91,7 +91,7 @@ memory-bank install                      # global install for Claude Code + Curs
 memory-bank install --language ru
 ```
 
-**Requires:** Python 3.11+, `pipx`, `jq`.
+**Requires:** Python 3.11+, `pipx`, `jq`, `git`, `bash` (3.2+; macOS ships one, Windows needs Git Bash/WSL — see [docs/install.md](docs/install.md)).
 
 ### Option 2: Homebrew (macOS / Linuxbrew)
 
@@ -239,9 +239,11 @@ Across sessions, compaction events, and even across AI agents — the project st
 Installs `~/.claude/RULES.md`, `~/.claude/CLAUDE.md`, canonical skill registration in
 `~/.claude/skills/skill-memory-bank`, compatibility aliases in `~/.claude/skills/memory-bank`,
 `~/.codex/skills/memory-bank`, and `~/.cursor/skills/memory-bank`, plus full Cursor global
-surface (`~/.cursor/hooks.json` + `~/.cursor/hooks/*.sh` + `~/.cursor/commands/*.md`
-+ `~/.cursor/AGENTS.md` managed section + `~/.cursor/memory-bank-user-rules.md`
-paste-file for Settings → Rules → User Rules), plus native OpenCode global files
+surface (`~/.cursor/hooks.json` — ten hook commands that reference bundle scripts under
+`~/.cursor/skills/memory-bank/hooks/`, **not copied** into `~/.cursor/hooks/` —
++ `~/.cursor/commands/*.md` + `~/.cursor/AGENTS.md` managed section
++ `~/.cursor/memory-bank-user-rules.md` paste-file for Settings → Rules → User Rules),
+plus native OpenCode global files
 (`~/.config/opencode/AGENTS.md` + `~/.config/opencode/commands/`) with:
 
 - **TDD** — tests before implementation
@@ -286,6 +288,9 @@ The agent reads these rules at session start and follows them without you having
 | `/observability` | Logging / metrics / tracing audit for a module |
 | `/roadmap-sync` | Regenerate `roadmap.md` autosync block from plan frontmatter |
 | `/traceability-gen` | Regenerate REQ → Plan → Test traceability matrix |
+| `/goal` | Scaffold + validate the durable `goal.md`/`project.md` Dynamic Flow artifacts |
+| `/analyze-task` | Auto-classify goal + diff scope into a flow route (Dynamic Flow default entry point) |
+| `/flow` | Explicitly select a flow route, skipping auto-classification (manual override) |
 
 **Key `/mb` sub-commands** (full list lives in `commands/mb.md`):
 
@@ -328,7 +333,7 @@ One `.memory-bank/` directory, 8 AI clients:
 | Client | Native hooks | Adapter output |
 |--------|--------------|----------------|
 | **Claude Code** | Full lifecycle | `~/.claude/settings.json` + `hooks/` |
-| **Cursor 1.7+** | ✅ (Claude-Code-compatible format) | **Global (auto):** `~/.cursor/{skills,hooks,commands,AGENTS.md,hooks.json,memory-bank-user-rules.md}` · **Project (optional `--clients cursor`):** `.cursor/rules/*.mdc` + `.cursor/hooks.json` |
+| **Cursor 1.7+** | ✅ (Claude-Code-compatible format) | **Global (auto):** `~/.cursor/{skills,commands,AGENTS.md,hooks.json,memory-bank-user-rules.md}` — `hooks.json` references bundle scripts under `skills/memory-bank/hooks/`, **not copied** · **Project (optional `--clients cursor`):** `.cursor/rules/*.mdc` + `.cursor/hooks.json` |
 | **Windsurf** | ✅ Cascade Hooks | `.windsurf/rules/*.md` + `.windsurf/hooks.json` |
 | **Cline** | ✅ `.clinerules/hooks/*.sh` | `.clinerules/memory-bank.md` + `hooks/` |
 | **Kilo** | ❌ (fallback to git hooks) | `.kilocode/rules/` + `.git/hooks/` |
@@ -567,7 +572,7 @@ A: Not by default. Project-local metrics overrides are disabled unless you expli
 A: `memory-bank install` now writes Pi global artifacts automatically: `~/.pi/agent/AGENTS.md`, `~/.pi/agent/skills/memory-bank`, and slash prompt templates in `~/.pi/agent/prompts/`. In an existing Pi session, run `/reload` after install. For a project-level shared `AGENTS.md`, additionally run `memory-bank install --clients pi --project-root <repo>`. Existing local Pi skill directories are backed up outside `~/.pi/agent/skills/` so Pi does not discover backup copies as duplicate skills.
 
 **Q: Is this production-ready?**
-A: Yes. Current stable line is **v5.0.0** (released 2026-06-10). Daily used on real projects — including on this repository itself (the skill maintains its own `.memory-bank/`). Full test envelope green: 1,900+ automated tests (pytest + bats) on Python 3.11/3.12 × Ubuntu and macOS. Stable API.
+A: Yes. Current stable line is **v5.2.0** (released 2026-06-28) — see [CHANGELOG.md](CHANGELOG.md) for the exact version, which is also authoritative in `VERSION`. Daily used on real projects — including on this repository itself (the skill maintains its own `.memory-bank/`). Full test envelope green: 1,900+ automated tests (pytest + bats) on Python 3.11/3.12 × Ubuntu and macOS. Stable API.
 
 ---
 

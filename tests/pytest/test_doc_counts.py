@@ -24,6 +24,7 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 AGENTS_DIR = REPO_ROOT / "agents"
 HOOKS_DIR = REPO_ROOT / "hooks"
 REFERENCES_DIR = REPO_ROOT / "references"
+INSTALL_SH = REPO_ROOT / "install.sh"
 
 CODE_SPAN_FIRST_COL_RE = re.compile(r"^\|\s*`([^`]+)`")
 
@@ -120,12 +121,9 @@ def test_skill_md_script_table_lists_all_scripts() -> None:
     extras = sorted(documented - fs_scripts - {"_lib.sh"})  # _lib is a shared helper, not a tool
     # _lib.sh is allowed as a documented helper
     assert not missing, (
-        f"SKILL.md '## Tools' table missing {len(missing)} scripts: {missing}. "
-        "Add a row for each."
+        f"SKILL.md '## Tools' table missing {len(missing)} scripts: {missing}. Add a row for each."
     )
-    assert not extras, (
-        f"SKILL.md '## Tools' table references non-existent scripts: {extras}."
-    )
+    assert not extras, f"SKILL.md '## Tools' table references non-existent scripts: {extras}."
 
 
 # ---------------------------------------------------------------------------
@@ -141,12 +139,8 @@ def test_skill_md_agents_table_lists_all_agents() -> None:
     documented = _table_first_column_codespans(section)
     missing = sorted(fs_agents - documented)
     extras = sorted(documented - fs_agents)
-    assert not missing, (
-        f"SKILL.md '## Agents' table missing {len(missing)} agents: {missing}."
-    )
-    assert not extras, (
-        f"SKILL.md '## Agents' table references non-existent agents: {extras}."
-    )
+    assert not missing, f"SKILL.md '## Agents' table missing {len(missing)} agents: {missing}."
+    assert not extras, f"SKILL.md '## Agents' table references non-existent agents: {extras}."
 
 
 # ---------------------------------------------------------------------------
@@ -165,12 +159,8 @@ def test_skill_md_hooks_table_lists_all_hooks() -> None:
     documented = _table_first_column_codespans(section)
     missing = sorted(fs_hooks - documented)
     extras = sorted(documented - fs_hooks)
-    assert not missing, (
-        f"SKILL.md '## Hooks' table missing {len(missing)} hooks: {missing}."
-    )
-    assert not extras, (
-        f"SKILL.md '## Hooks' table references non-existent hooks: {extras}."
-    )
+    assert not missing, f"SKILL.md '## Hooks' table missing {len(missing)} hooks: {missing}."
+    assert not extras, f"SKILL.md '## Hooks' table references non-existent hooks: {extras}."
 
 
 # ---------------------------------------------------------------------------
@@ -194,9 +184,7 @@ def test_skill_md_references_link_existing_files() -> None:
         f"SKILL.md '## References' missing links for: {missing}. "
         "Each references/*.md must be linked from the References section."
     )
-    assert not nonexistent, (
-        f"SKILL.md '## References' links non-existent files: {nonexistent}."
-    )
+    assert not nonexistent, f"SKILL.md '## References' links non-existent files: {nonexistent}."
 
 
 # ---------------------------------------------------------------------------
@@ -208,13 +196,36 @@ def test_readme_command_count_matches_filesystem() -> None:
     actual = len(list(COMMANDS_DIR.glob("*.md")))
     text = README_MD.read_text(encoding="utf-8")
     matches = re.findall(r"\*\*(\d+)\s+top-level slash-commands?\*\*", text)
-    assert matches, (
-        "README.md must declare the count via '**N top-level slash-commands**' phrase."
-    )
+    assert matches, "README.md must declare the count via '**N top-level slash-commands**' phrase."
     declared = [int(m) for m in matches]
     assert all(n == actual for n in declared), (
         f"README.md declares {declared} top-level slash-commands, but commands/ has {actual} *.md files. "
         f"Fix README.md to say '**{actual} top-level slash-commands**' and add table rows for missing commands."
+    )
+
+
+# ---------------------------------------------------------------------------
+# 7. install.sh header comment — dev-command count (CDX-D2 regression guard)
+# ---------------------------------------------------------------------------
+
+
+def test_install_sh_header_command_count_matches_filesystem() -> None:
+    """`install.sh`'s top header comment must declare the actual commands/*.md count.
+
+    Regression guard for CDX-D2: the header once said "18 dev commands" while
+    commands/ had grown to 29 — catches the next drift the same way.
+    """
+    actual = len(list(COMMANDS_DIR.glob("*.md")))
+    text = INSTALL_SH.read_text(encoding="utf-8")
+    header = "\n".join(text.splitlines()[:10])
+    matches = re.findall(r"(\d+)\s+dev commands?\b", header)
+    assert matches, (
+        "install.sh header comment must declare the count via 'N dev commands' phrasing."
+    )
+    declared = [int(m) for m in matches]
+    assert all(n == actual for n in declared), (
+        f"install.sh header declares {declared} dev commands, but commands/ has {actual} *.md files. "
+        f"Fix install.sh's header comment to say '{actual} dev commands'."
     )
 
 

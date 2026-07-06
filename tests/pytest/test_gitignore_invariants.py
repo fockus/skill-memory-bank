@@ -62,3 +62,18 @@ def test_session_lock_not_tracked_in_index() -> None:
         "`.memory-bank/.session-lock` is tracked in the git index. "
         "Remove with: git rm --cached -f --ignore-unmatch .memory-bank/.session-lock"
     )
+
+
+def test_installed_manifest_not_tracked_in_index() -> None:
+    """`.installed-manifest.json` (dogfood install artifact) must not be tracked.
+
+    Regression guard for L-7: this file used to be committed with local
+    pytest paths baked into it (repo-relative install noise). It is already
+    gitignored (see `test_runtime_artifact_is_gitignored` above) — this test
+    additionally locks in that no stale tracked copy sneaks back into the
+    git index.
+    """
+    assert not _is_tracked(".installed-manifest.json"), (
+        "`.installed-manifest.json` is tracked in the git index. "
+        "Remove with: git rm --cached -f --ignore-unmatch .installed-manifest.json"
+    )

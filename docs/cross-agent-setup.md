@@ -128,8 +128,11 @@ Creates:
 - `.cursor/hooks.json` — CC-compat, all ten events wired to skill-bundle hook scripts + `MB_AGENT=cursor`
 - No `.cursor/hooks/*.sh` copies — hooks execute from `~/.cursor/skills/memory-bank/hooks/` or repo skill bundle
 
-**Limitation:** Cursor CLI only fires `beforeShellExecution`/`afterShellExecution`;
-full event set works in IDE only.
+**Limitation (IDE vs CLI hook firing):** The Cursor *agent CLI* fires the full CC-compatible hook
+set. The Cursor *IDE* does not guarantee every hook event (notably `sessionEnd`) fires on every
+interaction — treat IDE auto-capture as best-effort and rely on explicit `/mb done` for durable
+session closure. See [docs/cursor-extension.md](cursor-extension.md#limitations) for the
+architecture-level detail.
 
 ### Windsurf
 
@@ -271,14 +274,26 @@ Ownership is refcounted in `.mb-agents-owners.json`:
 - Remove one client → refcount decremented, section kept
 - Remove last client → section removed (file deleted if `initial_had_user_content: false`)
 
-## Hook matrix — our 4 hooks → client events
+## Hook matrix — our hook categories → client events
+
+Our own lifecycle set is broader than 4 events (see `settings/hooks.json`: `Setup`,
+`PreToolUse`, `PostToolUse`, `Notification`, `PreCompact`, `Stop`, `UserPromptSubmit`,
+`SessionStart`, `SessionEnd`) — the table below groups them into the cross-client-relevant
+categories; not every category has an equivalent on every host.
 
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
-| SessionEnd auto-capture | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | Extension `session_shutdown` event + git-fallback | `post-commit` (git-hooks-fallback, B5) |
-| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | Extension `session_before_compact` event | guidance via `~/.codex/AGENTS.md`, project hook pending |
-| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | Extension `tool_call` event (blockable) | project `userpromptsubmit` (exit 2) |
-| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | Extension `session_start` event (check `.last-compact` age) | guidance only |
+| SessionStart context injection | `sessionStart` (`mb-session-start-context.sh`) | — | — | — | — | — | — |
+| SessionEnd auto-capture | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | `post-commit` (git-hooks-fallback, same mechanism as Kilo/Codex) | `post-commit` (git-hooks-fallback, B5) |
+| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — (no installed fallback; git hooks only fire on commit) | guidance via `~/.codex/AGENTS.md`, project hook pending |
+| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | — (no installed fallback) | project `userpromptsubmit` (exit 2) |
+| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | git-fallback (`post-commit` staleness check) | guidance only |
+
+**Pi native extension status:** `adapters/pi_session_memory_extension.ts` (a TypeScript extension listening
+to `session_start`/`session_before_compact`/`session_shutdown`/`tool_call` events) ships in the bundle as
+source, but no adapter currently copies it to `~/.pi/agent/extensions/`. Until an install path wires it up,
+Pi's actual lifecycle coverage is the git-hooks-fallback (post-commit) row above, not the native-extension
+events — treat the extension as a template, not an installed artifact.
 
 ## Resource availability matrix
 
@@ -314,9 +329,11 @@ A: Only our marker section (between `<!-- memory-bank:start/end -->`) is removed
 If your custom content was outside that marker, it's preserved. If not — recovery via
 git: `git checkout HEAD -- AGENTS.md`.
 
-**Q: Cursor hooks fire in IDE but not CLI.**
-A: Known Cursor CLI limitation (only `beforeShellExecution` / `afterShellExecution`
-dispatched in CLI). Use the IDE for full lifecycle coverage.
+**Q: Cursor hooks don't fire reliably (e.g. `sessionEnd` auto-capture missing).**
+A: This is an IDE limitation, not a CLI one — the Cursor *agent CLI* fires the full
+CC-compatible hook set, but the Cursor *IDE* does not guarantee every hook event fires on
+every interaction. Rely on explicit `/mb done` for durable session closure in the IDE; see
+[docs/cursor-extension.md](cursor-extension.md#limitations).
 
 **Q: I installed Memory Bank but Cursor's User Rules panel is empty.**
 A: Cursor exposes **no file API for global User Rules** — they are only editable

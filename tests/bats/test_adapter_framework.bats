@@ -115,3 +115,85 @@ teardown() {
   run adapter_contract_require_functions install_ok uninstall_ok
   [ "$status" -eq 0 ]
 }
+
+# ═══ C5 (CDX-8): artifact-level checks ═══
+#
+# adapter_contract_require_functions only proves the adapter DECLARES
+# install_*/uninstall_* functions (declare -F) — it says nothing about
+# whether calling install_* actually produces artifacts on disk. A "broken
+# parity" adapter (functions exist, but install is a no-op) used to pass the
+# contract cleanly, giving false-green test suites. These tests pin down a
+# new adapter_contract_require_artifacts that reads a manifest's `files[]`
+# and verifies every declared path exists.
+
+@test "contract: broken-parity stub (declares functions, installs nothing) fails artifact check" {
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+  # shellcheck source=/dev/null
+  source "$CONTRACT"
+
+  install_broken() { :; }     # declares the function contract...
+  uninstall_broken() { :; }
+
+  # ...but "installs" a manifest that CLAIMS artifacts it never wrote.
+  local files_json
+  files_json="$(printf '%s\n' "$TMPDIR/commands/fake.md" "$TMPDIR/rules/fake.md" | adapter_json_array_from_lines)"
+  adapter_write_manifest "$MANIFEST" "broken" "9.9.9" "$files_json" '{}'
+
+  # Function-level contract still (misleadingly) passes.
+  run adapter_contract_require_functions install_broken uninstall_broken
+  [ "$status" -eq 0 ]
+
+  # Artifact-level contract must catch the broken parity.
+  run adapter_contract_require_artifacts "$MANIFEST"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"does not exist"* ]]
+}
+
+@test "contract: real artifacts on disk pass the artifact check" {
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+  # shellcheck source=/dev/null
+  source "$CONTRACT"
+
+  mkdir -p "$TMPDIR/commands" "$TMPDIR/rules"
+  echo "# fake command" > "$TMPDIR/commands/fake.md"
+  echo "# fake rule" > "$TMPDIR/rules/fake.md"
+
+  local files_json
+  files_json="$(printf '%s\n' "$TMPDIR/commands/fake.md" "$TMPDIR/rules/fake.md" | adapter_json_array_from_lines)"
+  adapter_write_manifest "$MANIFEST" "ok" "9.9.9" "$files_json" '{}'
+
+  run adapter_contract_require_artifacts "$MANIFEST"
+  [ "$status" -eq 0 ]
+}
+
+@test "contract: missing manifest fails the artifact check with a clear message" {
+  # shellcheck source=/dev/null
+  source "$CONTRACT"
+
+  run adapter_contract_require_artifacts "$TMPDIR/does-not-exist.json"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"manifest"* ]]
+}
+
+@test "contract: platform-limited hosts can declare optional artifacts without failing" {
+  # A host with a documented degradation (e.g. Codex without statusline)
+  # passes an explicit skip-list of optional artifact categories instead of
+  # silently omitting them from files[] — honest degradation, not a failure.
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+  # shellcheck source=/dev/null
+  source "$CONTRACT"
+
+  mkdir -p "$TMPDIR/commands"
+  echo "# fake command" > "$TMPDIR/commands/fake.md"
+
+  local files_json
+  files_json="$(printf '%s\n' "$TMPDIR/commands/fake.md" | adapter_json_array_from_lines)"
+  adapter_write_manifest "$MANIFEST" "codex" "9.9.9" "$files_json" \
+    '{"platform_limited": ["statusline"]}'
+
+  run adapter_contract_require_artifacts "$MANIFEST"
+  [ "$status" -eq 0 ]
+}

@@ -24,6 +24,14 @@ It shouldn't: since 3.0.0 installs are byte-level idempotent and back up only fi
 actually differs. If you see repeated backups, you likely have a locally modified target file —
 diff it against the backup, keep your changes outside the managed marker block.
 
+**Running the installer with `sudo` writes into `/root/...` instead of your home directory**
+Plain `sudo ./install.sh` (or `sudo memory-bank install`) resets `$HOME` to the invoking user's
+home unless you preserve the environment — files end up under `/root/.claude`, `/root/.codex`,
+etc. instead of your actual `~/.claude`. If you must run the installer with elevated privileges,
+use `sudo -E ./install.sh` (or `sudo -E memory-bank install`) to keep `$HOME` intact. In general,
+prefer a non-root install: `pipx`/Homebrew installs and the global-artifact writes under
+`install.sh` do not require `sudo` at all.
+
 ## Memory Bank activation
 
 **The agent prints `[MEMORY BANK: ABSENT]` although I installed the skill**
