@@ -577,6 +577,8 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-101 — tooling: mb-traceability-gen.sh test-suffix whitelist excludes `.bats`, so bats-only-tested requirements (e.g. all drive-loop REQ-DR-*) show 🏗️ not ✅ in traceability.md despite passing tests. Add `.bats` to the suffix set. Project-wide visibility gap, not correctness. [LOW, NEW, 2026-07-05]
 
+### I-102 — drive-loop: scripts/mb-drive.sh is 455 lines, over the 400 file-size budget. Overflow is load-bearing after fix-cycle 1 (6 fail-closed guards + timeout wrapper), not prose. Split candidate (Task-1b): hoist the timeout wrapper (`_mbd_init_timeout`/`_mbd_run`) and/or the `_mbd_json` introspection helper into a tiny sourced lib (e.g. `mb-drive-lib.sh`) to land ≤400 without churning the just-hardened decision core. Quality debt, not correctness. [LOW, NEW, 2026-07-06]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
