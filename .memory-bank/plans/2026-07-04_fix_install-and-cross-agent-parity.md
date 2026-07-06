@@ -1550,23 +1550,23 @@ Track C:
 
 ## Checklist (копировать в `.memory-bank/checklist.md`)
 
-- ⬜ **A1** (C-1, CRIT): templates+flow-templates в wheel/sdist + e2e `/mb init`
-- ⬜ **A2** (C-2, CRIT): codex.sh backup+merge config.toml/hooks.json
-- ⬜ **A3** (H-1): Homebrew bump + CI-инвариант formula==VERSION
-- ⬜ **A4** (H-2): cursor.sh `${MB_PYTHON:-python3}` + однократный install-global
-- ⬜ **B1** (F-2, 🔴): Pi extension подстановка JSON-путей + тест «нет `__MB_`»
-- ⬜ **A5** (H-3): opencode.json backup + атомарная запись
-- ⬜ **A6** (H-4): ротация бэкапов не уничтожает оригинал юзера
-- ⬜ **A7** (H-5): инкрементальный/атомарный манифест + trap
-- ⬜ **A8** (H-6): cline.sh детект `.clinerules`-файла
-- ⬜ **A9** (H-7): `git rev-parse --git-dir` (kilo + git-hooks-fallback)
-- ⬜ **A10** (M-1): uninstall зовёт per-adapter uninstall + refcount
-- ⬜ **A11** (M-2): deps-check python >=3.11
-- ⬜ **A12** (M-4): user-writable путь манифеста (pip/sudo)
-- ⬜ **A13** (M-5+L-4): бэкап + парные маркеры CLAUDE.md/AGENTS.md
-- ⬜ **A14** (M-6+L-3): BSD mktemp + `[]` вместо `[""]`
-- ⬜ **A15** (M-7): quoting `MB_SKILLS_ROOT` в cursor.sh
-- ⬜ **A16** (M-8): hook-файлы backup+atomic + core.hooksPath
+- ✅ **A1** (C-1, CRIT): templates+flow-templates в wheel/sdist + e2e `/mb init`
+- ✅ **A2** (C-2, CRIT): codex.sh backup+merge config.toml/hooks.json
+- ✅ **A3** (H-1): Homebrew bump + CI-инвариант formula==VERSION
+- ✅ **A4** (H-2): cursor.sh `${MB_PYTHON:-python3}` + однократный install-global
+- ✅ **B1** (F-2, 🔴): Pi extension подстановка JSON-путей + тест «нет `__MB_`»
+- ✅ **A5** (H-3): opencode.json backup + атомарная запись
+- ✅ **A6** (H-4): ротация бэкапов не уничтожает оригинал юзера
+- ✅ **A7** (H-5): инкрементальный/атомарный манифест + trap
+- ✅ **A8** (H-6): cline.sh детект `.clinerules`-файла
+- ✅ **A9** (H-7): `git rev-parse --git-dir` (kilo + git-hooks-fallback)
+- ✅ **A10** (M-1): uninstall зовёт per-adapter uninstall + refcount
+- ✅ **A11** (M-2): deps-check python >=3.11
+- ✅ **A12** (M-4): user-writable путь манифеста (pip/sudo)
+- ✅ **A13** (M-5+L-4): бэкап + парные маркеры CLAUDE.md/AGENTS.md
+- ✅ **A14** (M-6+L-3): BSD mktemp + `[]` вместо `[""]`
+- ✅ **A15** (M-7): quoting `MB_SKILLS_ROOT` в cursor.sh
+- ✅ **A16** (M-8): hook-файлы backup+atomic + core.hooksPath
 - ✅ **B2** (F-1): Codex `/mb` промпты в `~/.codex/prompts/`
 - ✅ **B3** (F-3): OpenCode агенты в `.opencode/agent/`
 - ✅ **B4** (F-4): Cursor→`mb-session-end.sh`, OpenCode summarize
