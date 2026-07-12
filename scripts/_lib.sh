@@ -380,7 +380,7 @@ mb_pipeline_meta() {
   fi
   local _repo_root
   _repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" PYTHONPATH="$_repo_root${PYTHONPATH:+:$PYTHONPATH}" "${MB_PYTHON:-python3}" - <<'PY
+  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" PYTHONPATH="$_repo_root${PYTHONPATH:+:$PYTHONPATH}" "${MB_PYTHON:-python3}" - <<'PY'
 import os
 
 path = os.environ["MB_PIPE_FILE"]
