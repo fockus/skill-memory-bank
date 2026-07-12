@@ -639,6 +639,7 @@ The autopilot continues without per-item prompts **except** when:
 | `sprint_context_guard.hard_stop_tokens` reached (190k default) | manual observation; halt and ask user to compact | yes |
 | `cross-model review SKIPPED` under `--auto` (`mb-work-codex-preflight.sh` reports `available:false`, or the reviewer parses as `verdict:"SKIPPED"`) | step 5d preamble | yes — a skipped cross-model gate requires explicit user confirmation before the loop proceeds, even under `--auto` |
 | Claim refused (exit 4) — `mb-work-state.sh init --run-id` under `MB_WORK_PARALLEL` finds `<source>` already claimed by another live run | step 4 (`mb-work-state.sh init`) | yes — stop this run and pick a different pending item/source, or pass `--takeover` to steal a stale/abandoned claim |
+| Active FREEZE on the cross-session board (`.memory-bank/COORDINATION.md`) covers files of the current item, or an unACKed HANDOVER targets its scope | manual observation at item start (board checkpoint, `references/coordination.md`) | yes — wait for the lifting entry or escalate on the board |
 
 When any hard stop fires, the loop halts even under `--auto`. The orchestrator surfaces the trigger, the item state, and the next reasonable action (rerun with adjusted flags, edit pipeline.yaml, compact, etc.).
 

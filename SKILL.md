@@ -458,6 +458,17 @@ The PreCompact hook `hooks/mb-pre-compact.sh` runs just before context compactio
 
 ---
 
+## Cross-session coordination — `.memory-bank/COORDINATION.md`
+
+When two or more sessions work in the same working tree in parallel (two agent CLIs, or agent + human), they coordinate through a single append-only board file at the bank root — `COORDINATION.md`. Opt-in by nature: the first session that learns about a parallel session creates it; no board file → no protocol overhead.
+
+- Entries `## [FROM → TO] YYYY-MM-DD HH:MM — topic`, never edited after append (same invariant as `progress.md`); typed prefixes: STATUS / QUESTION / ANSWER / FREEZE / HANDOVER / ACK / COMMIT / ESCALATION.
+- Checkpoints — every session reads the board: at session start (`/mb start` / `/mb context` surface it when present), before starting a stage/plan item, before ANY commit, before editing a shared-watchlist file; and appends a COMMIT entry (hash + scoped file list) after committing.
+- Shared-tree hard rules: never `git add -A`; commit only your own work with ordering for interleaved files agreed on the board; full suite green before commit; surprise foreign diffs escalate on the board instead of being reverted; affected plans carry a ⚠️ pointer to the board (compaction-proof).
+- Full protocol (entry conventions, race handling, trust rules, hookup prompt for a new session): `references/coordination.md`.
+
+---
+
 ## References
 
 - Rule profiles schema (dimensions, immutable baseline, precedence, validation): `references/rules-profile.schema.md`
@@ -469,6 +480,7 @@ The PreCompact hook `hooks/mb-pre-compact.sh` runs just before context compactio
 - Code graph cookbook (jq library, `graph.json` schema, intelligence layer, semantic-search routing): `references/code-graph.md`
 - Workflow (session lifecycle): `references/workflow.md`
 - Session memory (cross-chat capture, `/mb recall`, session-doctor): `references/session-memory.md`
+- Cross-session coordination board (`COORDINATION.md` protocol): `references/coordination.md`
 - Command file template: `references/command-template.md`
 - Hooks (per-host wiring + lifecycle): `references/hooks.md`
 - Adapter manifest schema: `references/adapter-manifest-schema.md`

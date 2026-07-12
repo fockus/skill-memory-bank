@@ -13,9 +13,14 @@ argument-hint: [message-override]
 # Conflict markers / whitespace errors in what is about to be committed
 git diff --check --cached
 git diff --check
+
+# Cross-session coordination board — if parallel sessions share this tree
+[ -f .memory-bank/COORDINATION.md ] && tail -40 .memory-bank/COORDINATION.md
 ```
 
 If `drift_warnings > 0`, show the warnings to the user and ask whether to proceed. If `git diff --check` finds conflict markers or trailing-whitespace errors, stop and surface them — do not commit broken content.
+
+If the coordination board exists, read its recent entries before committing: verify no FREEZE covers your files and the agreed commit ordering allows you to commit now; stage a **scoped file list** (never `git add -A` — the tree contains the other session's uncommitted diff), and append a COMMIT entry (hash + file scope) to the board after committing. Protocol: `references/coordination.md`.
 
 ## 1. Show staged changes
 

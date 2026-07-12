@@ -125,6 +125,19 @@ catches it.
 If the item links `## Linked scenarios (test-plan)` (`<!-- mb-scenario:N -->`): write exactly one
 test per scenario `test_id` (GIVEN→Arrange, WHEN→Act, THEN→Assert) before implementation. No silent gaps.
 
+## 11. Shared working tree — check the coordination board
+
+If `.memory-bank/COORDINATION.md` exists, another session is working in this tree in parallel:
+
+- Read the board before starting your item, before editing any file on its shared watchlist, and
+  before any commit.
+- Never `git add -A` — the tree contains someone else's uncommitted diff; stage your scoped file
+  list only.
+- A surprise foreign hunk in "your" file is not noise to revert — stop, report it upward
+  (ESCALATION), and let the lead resolve it on the board.
+- Freezes published on the board are binding: do not touch a frozen file or signature until the
+  lifting entry appears. Full protocol: `references/coordination.md`.
+
 ## Rationalization table — these thoughts mean STOP
 
 | Excuse | Reality |
@@ -136,5 +149,6 @@ test per scenario `test_id` (GIVEN→Arrange, WHEN→Act, THEN→Assert) before 
 | "One more attempt at the same fix" (3+) | Thrashing ≠ work. STOP, escalate. |
 | "The reviewer will catch it" | Self-review first. Don't outsource your discipline. |
 | "Reviewer found something, so it must block" | Verify against plan/DoD; judge decides blockers vs backlog. |
+| "That foreign diff is junk, I'll revert it" | It is a parallel session's work. Board entry first (§11). |
 | "Scope is small, no plan needed" | Small scope = fast plan. Not an exemption. |
 | "It's basically done" | Basically done = not done. Show the evidence or pick BLOCKED. |

@@ -91,6 +91,8 @@ Detailed rules: `~/.claude/RULES.md` + `.memory-bank/RULES.md`
 
 **`/mb verify` is MANDATORY before `/mb done` when work followed a plan.**
 
+**Parallel sessions (one working tree):** coordinate via the append-only board `.memory-bank/COORDINATION.md` — check it at session start, before each stage/commit, and before editing shared files; `git add` is scoped only (never `-A`). Protocol: skill `references/coordination.md`.
+
 
 | Command                                     | Description                                                   |
 | ------------------------------------------- | ------------------------------------------------------------- |

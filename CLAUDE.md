@@ -13,6 +13,7 @@ Long-term project memory through `.memory-bank/`, engineering rules, SDD specs, 
    - core context: `<bank>/status.md`, `checklist.md`, `roadmap.md`, `research.md` when present (the resolver also detects legacy-cased layouts).
 3. New logic requires TDD: failing test first, then implementation, then verification.
 4. Do not bypass an existing plan/spec. If work comes from Memory Bank, execute through `/mb work` or the equivalent scripts.
+5. If `.memory-bank/COORDINATION.md` exists, parallel sessions share the working tree: read the board before stages, commits, and shared-file edits; scoped `git add` only (never `-A`); obey FREEZE entries. Protocol: `references/coordination.md`.
 
 ## Mandatory `/mb work` Gate
 
