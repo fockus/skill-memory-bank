@@ -503,3 +503,21 @@ the two specs coherent (forward-references only — no new in-scope requirements
   suite SHOULD include at least one case asserting a self-review GO is rejected when the fixed diff was not re-reviewed independently.
 - **Completion authority.** Whatever verdict the reviewer emits, "done" is gated by the dynamic-flow firewall (`mb-flow-verify.sh`,
   exit code), never by the reviewer's own assessment (REQ-DF-060). reviewer-2.0 feeds the gate; it is not the gate.
+
+## Actualization 2026-07-05 (active roles: implement=sonnet · review=codex gpt-5.5 · judge=opus)
+
+reviewer-2.0 was authored assuming `mb-reviewer` (Claude) is the judge. The active `pipeline.yaml` routes review to
+`codex-cli` (gpt-5.5) as the default single reviewer, with `mb-judge` (opus) as the gate. This does **not** change
+reviewer-2.0's scope — G4 already separates deterministic payload assembly (`mb-review.sh`) from the LLM judge. Seams:
+
+- **`mb-review.sh` is model-agnostic.** It assembles the deterministic payload (diff + calibration examples + test evidence
+  + auto-findings) and feeds WHOEVER `pipeline.yaml` names as reviewer — `codex-cli` (default) OR `mb-reviewer` (fallback) OR
+  each branch of the `adversarial-verify` ensemble. The 5-section payload contract (§7) is the review INPUT regardless of judge model.
+- **Reuse `mb-work-review-parse.sh` for verdict-out.** Its existing `--external` normalizer (I-093) already parses codex output
+  into the strict verdict schema. reviewer-2.0's post-validation (auto-blocker cannot be dropped, §5) hooks a thin post-step onto
+  that normalizer — do NOT author a second parser.
+- **Calibration examples feed the codex prompt.** The `## Calibration examples` payload section is part of what `codex exec`
+  receives, so calibration (G1) applies to the GPT-5.5 reviewer too, not only Claude `mb-reviewer`.
+- **`progress_trend` is a hook point only in this phase.** `mb-review.sh` writes the last-verdict cache
+  (`.memory-bank/tmp/last-verdict-<item>.json`); work-loop-v2 (Phase 2) computes the trend from it. Phase 1 ships the cache write,
+  not the trend math.

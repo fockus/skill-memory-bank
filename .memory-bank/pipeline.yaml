@@ -8,19 +8,19 @@ version: 1
 
 # ===== Roles — mapping role → agent (plugin-style overrides supported) =====
 roles:
-  # User decision 2026-06-12: implementers run on OPUS (sonnet quality
-  # insufficient); plan-verifier stays sonnet; review is done INLINE by the
-  # main agent (Fable) — no reviewer subagent dispatch; judge on opus.
-  developer: { agent: mb-developer, model: opus }
-  backend:   { agent: mb-backend,   fallback: mb-developer }
-  frontend:  { agent: mb-frontend,  fallback: mb-developer }
-  ios:       { agent: mb-ios,       fallback: mb-developer }
-  android:   { agent: mb-android,   fallback: mb-developer }
+  # User decision 2026-07-05 (long-running-sessions SEQUENCE): planning is done
+  # by the human-facing Opus main agent; /mb work IMPLEMENTERS run on SONNET,
+  # review is cross-model on CODEX (gpt-5.5), and the JUDGE runs on OPUS.
+  developer: { agent: mb-developer, model: sonnet }
+  backend:   { agent: mb-backend,   model: sonnet, fallback: mb-developer }
+  frontend:  { agent: mb-frontend,  model: sonnet, fallback: mb-developer }
+  ios:       { agent: mb-ios,       model: sonnet, fallback: mb-developer }
+  android:   { agent: mb-android,   model: sonnet, fallback: mb-developer }
   planner:   { agent: mb-architect }
-  architect: { agent: mb-architect }
+  architect: { agent: mb-architect, model: sonnet }
   researcher: { agent: mb-researcher, fallback: mb-analyst }
-  devops:    { agent: mb-devops,    fallback: mb-developer }
-  qa:        { agent: mb-qa,        fallback: mb-developer }
+  devops:    { agent: mb-devops,    model: sonnet, fallback: mb-developer }
+  qa:        { agent: mb-qa,        model: sonnet, fallback: mb-developer }
   analyst:   { agent: mb-analyst }
   # DUAL parallel review (codex-cli + main-agent inline); judge = mb-judge.
   reviewer:
@@ -34,7 +34,7 @@ roles:
   reviewer_security:    { agent: mb-reviewer-security }
   reviewer_scalability: { agent: mb-reviewer-scalability }
   reviewer_lead:        { agent: mb-reviewer-lead }
-  judge:                { agent: mb-judge }
+  judge:                { agent: mb-judge, model: opus }
   verifier:  { agent: plan-verifier }
 
 # ===== Workflow modes for /mb work =====

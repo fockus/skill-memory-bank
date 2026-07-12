@@ -354,3 +354,21 @@ work-loop-v2 (S2) and dynamic-flow both model "loop until done with a stall guar
   read it from the fence; do not author a second counter.
 - **`progress_trend` triggers route re-evaluation.** A `regressing`/`stagnant` trend (REQ-111/112) is a natural trigger to re-run
   `analyze-task` (dynamic-flow REQ-DF-023/024) — a wrong route is self-correcting at this boundary.
+
+## Actualization 2026-07-05 (roles + I-093/I-094 groundwork; builds on reviewer-2.0)
+
+- **G3 already shipped.** `on_max_cycles: stop_for_human` is already the default in `references/pipeline.default.yaml`. This phase
+  delivers only **G1 (contract)** + **G2 (trend/pivot)**. §6 migration-semantics is satisfied — keep the CHANGELOG note; no code left.
+- **Cycle counter = `mb-work-state.sh` (I-093), not a new counter.** The "cycle == max_cycles" logic (§2 step 3d) reads the durable
+  cycle from `mb-work-state.sh` (which already enforces max_cycles via exit 3). work-loop-v2 adds the trend/pivot DECISION on top;
+  it does NOT author a second counter. `stall_count` SSOT = the `mb-flow` fence (dynamic-flow REQ-DF-030) — surface, don't duplicate.
+- **Verdict cache is shared with reviewer-2.0.** The previous-cycle store `.memory-bank/tmp/last-verdict-<item>.json` (§5) is the
+  SAME cache `mb-review.sh` writes in Phase 1. reviewer-2.0 writes it; work-loop-v2 reads it to compute `progress_trend`. The trend
+  field lives on the normalized verdict (`mb-work-review-parse.sh` output) — model-agnostic, so it works with the codex reviewer.
+- **Contract review is model-agnostic.** Contract-mode review (§7) assembles its payload via `mb-review.sh` and dispatches the
+  pipeline-resolved reviewer — `codex-cli` (default), `mb-reviewer` fallback — NOT a hard-coded `mb-reviewer`. The auto-finding
+  pre-injection is skipped in contract mode (no tests yet), per §7.
+- **Pivot dispatch runs on SONNET subagents.** `pivot_in_role` re-dispatches the role-agent (sonnet); `pivot_via_architect`
+  dispatches `mb-architect` (sonnet) then the role-agent (sonnet). External review stays codex (gpt-5.5); judge stays opus.
+- **Parallel-run safety (I-094).** When `MB_WORK_PARALLEL=1`, the trend verdict cache and `pivot-log.jsonl` must be per-run-keyed
+  (reuse I-094's per-run state dir), so two concurrent `/mb work` items don't cross-contaminate trend history.

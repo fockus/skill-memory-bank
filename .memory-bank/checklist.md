@@ -100,33 +100,22 @@ _Wave queues unchanged below._
 - I-059 (MED) — OpenCode test fixtures: add `test_opencode_*.bats` for dispatch, guards, hooks in each wave. Cross-cutting.
 - I-060 (LOW) — Commands `*.md` OpenCode frontmatter: `name`, `description`, `agent`, `subtask` for all 24+ command files. Cross-cutting.
 
-## I-087 — Session-capture correctness + MB drift hygiene ✅ (2026-07-04) — Plan: [plans/2026-07-04_fix_session-capture-and-mb-hygiene.md](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md)
+## I-087 — Session-capture correctness + MB drift hygiene ✅ (2026-07-04) — Plan: [plans/2026-07-04_fix_session-capture-and-mb-hygiene.md](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md); Track A+B shipped, C1/C2 done, follow-ups I-088..I-092.
 
-- ✅ A1 splice bullets into Live log before `## Summary` + reset `summarized` (byte-verbatim ENVIRON)
-- ✅ A2 bullet + file-list hard caps (600/12) `+K more`/`…`, redact-before-cap, opt-out env
-- ✅ A3 user-prompt cap 1000 + ellipsis; redact-before-cap; env override
-- ✅ A4 filter non-human wrapper turns; opt-out `MB_SESSION_FILTER_WRAPPERS=off`
-- ✅ A5 `_recent.md` injection hard-cap; A6 `MB_SUMMARY_MAX_CHARS` default 60000
-- ✅ A7 `mb-session-repair.sh` (idempotent, backup, redact-before-recap) + prune byte-threshold
-- ✅ B1 `mb-freshness.sh` drift alarm + Stop nudge + SessionStart banner
-- ✅ B2 `MB_AUTO_COMMIT` + freshness recipe documented + doc-test
-- ✅ B3 opt-in checklist autoprune SessionEnd hook + TODO-only rule
-- ✅ B4 memsearch per-turn summarize disabled + documented
-- ✅ C1 taskloom: session repaired, MB tail committed (MB-only); ⚠️ checklist auto-prune n/a (flat format → I-091)
-- ✅ C2 swarmline: session repaired, MB tail committed (MB-only); ⏸ content-archiving + stray-dir → I-092
-- Follow-ups: I-088 (A7 test), I-089 (memsearch smoke), I-090 (agent-caps flaky), I-091 (flat-checklist prune), I-092 (Track C residue)
+## I-093 — /mb work engine resilience ✅ (2026-07-04) — Plan: [plans/2026-07-04_fix_mb-work-resilience.md](plans/2026-07-04_fix_mb-work-resilience.md); all 9 stages done (T1 durable state · T2 gated flip · T3 external parse · T4 codex preflight), detail in progress.md / BACKLOG I-093.
 
-## I-093 — /mb work engine resilience (2026-07-04, plans/2026-07-04_fix_mb-work-resilience.md)
+## I-094 — safe parallel /mb work runs (DONE, 2026-07-05) — Plan: [plans/2026-07-04_fix_mb-work-parallel-runs.md](plans/2026-07-04_fix_mb-work-parallel-runs.md)
 
-- ✅ I-093 S1 (T1): mb-work-state.sh durable loop-state + max_cycles exit-3 enforcement
-- ✅ I-093 S2 (T1): bind mb-work-budget.sh to run_id (ignore orphaned budget)
-- ✅ I-093 S3 (T1): wire durable state + budget run_id into commands/work.md + resume + hard-stops
-- ✅ I-093 S4 (T2): mb-work-checkbox.sh deterministic flip gated on .work-state.json phase=done
-- ✅ I-093 S5 (T2): forbid implementers editing checkboxes + state-based resume in commands/work.md
-- ✅ I-093 S6 (T3): mb-work-review-parse.sh --external normalization + codex SKIPPED passthrough
-- ✅ I-093 S7 (T3): wire external-reviewer --external + one auto-retry into commands/work.md 5d
-- ✅ I-093 S8 (T4): mb-work-codex-preflight.sh fail-safe codex health-check
-- ✅ I-093 S9 (T4): wire preflight + SKIPPED consumption + loud degradation into commands/work.md 5d
+- ✅ I-094 S1 (T1): mb-work-slots.sh + per-run state/index/claim(exit4)/baseline in mb-work-state.sh
+- ✅ I-094 S2 (T1): mb-work-budget.sh per-run .work-budget/<run_id>.json under MB_WORK_PARALLEL
+- ✅ I-094 S3 (T1): mb-work-checkbox.sh flip gated on the per-run state slot
+- ✅ I-094 S4 (T3): mb-work-diff.sh baseline-scoped diff for a run
+- ✅ I-094 S5 (T2): mb-work-resolve.sh skip foreign-claimed sources + explicit-claim warn
+- ✅ I-094 S6 (T4): mb-work-progress-append.sh locked atomic append-only writer
+- ✅ I-094 S7 (T1 wire): parallel state+budget+claim into commands/work.md
+- ✅ I-094 S8 (T2+T3 wire): baseline diff + claim-aware resolve + worktree rule into commands/work.md
+- ✅ I-094 S9 (T4 wire): concurrent core-file write contract into commands/work.md
+- ✅ I-094 S10 (T5): commands/work.md "Parallel runs" section
 
 ## See also
 
@@ -134,3 +123,4 @@ _Wave queues unchanged below._
 - `status.md` — current phase, active plan inventory, metrics.
 - `traceability.md` — generated REQ coverage matrix.
 - `progress.md` — append-only historical log.
+</content>

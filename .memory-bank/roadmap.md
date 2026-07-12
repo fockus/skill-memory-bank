@@ -20,10 +20,12 @@
 - [2026-06-23_fix_logic-correctness-portability](plans/2026-06-23_fix_logic-correctness-portability.md) — Logic Correctness & Portability
 - [2026-06-23_fix_security-hardening](plans/2026-06-23_fix_security-hardening.md) — Security Hardening
 - [2026-06-23_fix_verification-gates](plans/2026-06-23_fix_verification-gates.md) — Verification Gates Fail-Closed
+- [2026-07-04_fix_install-and-cross-agent-parity](plans/2026-07-04_fix_install-and-cross-agent-parity.md) — Install reliability + cross-agent parity
+- [2026-07-04_fix_session-capture-and-mb-hygiene](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md) — Session-capture correctness + Memory-Bank drift hygiene
 
 ## Parallel-safe (can run now)
 
-_None._
+- [2026-07-04_feature_code-graph-activation](plans/2026-07-04_feature_code-graph-activation.md) — Code-Graph Activation (Path A — all four steps)
 
 ## Paused / Archived
 
@@ -39,6 +41,13 @@ _None._
 - specs/cursor-extension
 - specs/pi-extension
 - specs/dynamic-flow
+- reviewer-2.0
+- work-loop-v2
+- drive-loop
+- cost-multi-model
+- parallel-pipeline
+- parallel-team-execution
+- dynamic-flow
 <!-- /mb-roadmap-auto -->
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
