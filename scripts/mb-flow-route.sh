@@ -485,7 +485,7 @@ main() {
           ;;
       esac
       case "$lc" in
-        *_abc*|*abc.*|*/abc/*|*/abc.*|abc/*)
+        *_abc*|*abc.*|*/abc/*|abc/*)
           floor_triggered=1
           reasons+=("ABC file (lowercase): $file")
           continue

@@ -27,7 +27,6 @@ else
   done
 fi
 
-issues=0
 warns=0
 infos=0
 

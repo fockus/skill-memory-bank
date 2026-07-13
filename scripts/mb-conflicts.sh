@@ -55,7 +55,7 @@ except ValueError: sys.exit(64)
 sys.exit(64 if not math.isfinite(t) or t<0.0 or t>1.0 else 0)' 2>/dev/null
 }
 _mb_conflicts_validate_threshold || {
-  echo "mb-conflicts: invalid --threshold '"'"'$THRESHOLD'"'"' (need finite number in [0,1])" >&2
+  echo "mb-conflicts: invalid --threshold '$THRESHOLD' (need finite number in [0,1])" >&2
   exit 64
 }
 
