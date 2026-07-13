@@ -1,6 +1,25 @@
 
 # claude-skill-memory-bank: Статус проекта
 
+## ✅ 2026-07-13 — main stabilized + **5.3.0 released** (issue #2 closed)
+
+**`main` was red for over a week and a broken wheel was on PyPI.** Both are fixed.
+
+**The redness was five layers**, three of them from a single commit (`49f9ad5`) that shipped twice-broken code:
+1. `scripts/_lib.sh` — unterminated heredoc quote (`<<'PY`). Sourced by *every* `mb-*.sh` → the whole toolchain was dead.
+2. `hooks/mb-session-turn.sh` — **raw merge-conflict markers committed**. Unparseable; every deploy re-installed the broken copy.
+3. shellcheck ×3 · 4. ruff ×2 (masked — shellcheck failed first) · 5. `install.sh` re-install backed up its *own* `CLAUDE.md`, so the install manifest was never idempotent.
+
+**Two judgement calls worth keeping:**
+- The hook conflict: **both sides carried needed logic.** Taking either alone would have silently reverted the I-082 security control `sc_strip_private` (`<private>` spans reaching disk). Merged both.
+- The "6 known-baseline-red bats" were **not a bug** — an ambient `MB_AUTO_CAPTURE` env leak. Green in clean CI all along, and wrongly written off. 5 suites are now hermetic.
+
+**Release 5.3.0** — issue #2 (`5.2.0` wheel shipped without `templates/` → `/mb init` exit 3 for every pipx user) was unfixable without a release: the packaging fix was **not an ancestor of tag `v5.2.0`**, and PyPI forbids re-upload. Verified end-to-end on the **published** wheel: `mb-init-bank.sh` exit 3 → **0**, bank scaffolds. Homebrew formula bumped with the sdist digest re-derived locally and cross-checked against the PyPI API.
+
+Cross-session coordination also shipped (`references/coordination.md` had been untracked while `CLAUDE.md`/`rules/` already referenced it).
+
+---
+
 ## ⏸ PAUSE 2026-07-06 — long-running-sessions autopilot (Opus plans → Sonnet impl / Codex review / Opus judge)
 
 **Активный мастер-план:** `plans/2026-07-05_SEQUENCE_long-running-sessions.md` — 6 фаз для автономных длинных сессий (goal-driven ralph-loop + параллельные сессии по плану). Роли зафиксированы: **планы пишет Opus напрямую; реализация через `/mb work` — implement=Sonnet, review=Codex GPT-5.5, judge=Opus**; любой сабагент-исполнитель работает на Sonnet.
