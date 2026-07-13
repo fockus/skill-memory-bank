@@ -1,7 +1,7 @@
 ---
 description: Scan code for security vulnerabilities (OWASP, secrets, dependencies)
 allowed-tools: [Read, Glob, Grep, Bash]
-argument-hint: [scope-path]
+argument-hint: "[scope-path]"
 ---
 
 # Security Review: $ARGUMENTS

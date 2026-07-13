@@ -1,7 +1,7 @@
 ---
 description: Review staged changes and create a commit
 allowed-tools: [Bash, Read]
-argument-hint: [message-override]
+argument-hint: "[message-override]"
 ---
 
 ## 0. Pre-flight safety checks

@@ -1,7 +1,7 @@
 ---
 description: Run tests, analyze failures, and propose fixes
 allowed-tools: [Bash, Read, Glob, Grep, Task]
-argument-hint: [test-filter]
+argument-hint: "[test-filter]"
 ---
 
 ## 1. Delegate execution to `mb-test-runner`

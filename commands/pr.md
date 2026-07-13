@@ -1,7 +1,7 @@
 ---
 description: Create a PR from the current branch
 allowed-tools: [Bash, Read]
-argument-hint: [title-override]
+argument-hint: "[title-override]"
 ---
 
 ## 0. Pre-flight checks
