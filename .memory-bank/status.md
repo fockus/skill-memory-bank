@@ -24,7 +24,7 @@ Cross-session coordination also shipped (`references/coordination.md` had been u
 
 **Активный мастер-план:** `plans/2026-07-05_SEQUENCE_long-running-sessions.md` — 6 фаз для автономных длинных сессий (goal-driven ralph-loop + параллельные сессии по плану). Роли зафиксированы: **планы пишет Opus напрямую; реализация через `/mb work` — implement=Sonnet, review=Codex GPT-5.5, judge=Opus**; любой сабагент-исполнитель работает на Sonnet.
 
-| Фаза | Спека | Статус |
+| Phase | Спека | Статус |
 |---|---|---|
 | **1 — reviewer-2.0** | `specs/reviewer-2.0` | ✅ **DONE** — 6 задач, коммиты `45737fb 9d0a2e1 113b9b5 7e3604a 1ac1c49 7fb3db4`. Codex поймал 3 реальных дефекта (path-traversal, symlink-эксфильтрация, count-lie bypass strict-mode) |
 | **2 — work-loop-v2** | `specs/work-loop-v2` | ✅ **DONE** — 5 задач: trend (`ea3a3ab`), contract (`a39d4a2`), pivot (`930c0ec`), on_max_cycles migration (`b419eee`), docs (`86240f7`) |

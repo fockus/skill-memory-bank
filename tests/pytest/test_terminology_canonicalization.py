@@ -58,9 +58,7 @@ def test_skill_md_links_to_terminology_reference() -> None:
 
 def test_commands_plan_md_has_hierarchy_reminder() -> None:
     text = _read("commands/plan.md")
-    assert TEMPLATES_REF in text, (
-        "commands/plan.md must cross-link to references/templates.md"
-    )
+    assert TEMPLATES_REF in text, "commands/plan.md must cross-link to references/templates.md"
     # The plan command already mentions templates.md in section 1; the
     # hierarchy reminder must appear in section 0 (Validate arguments) — the
     # earliest place a reader sees before scaffolding a plan.
@@ -152,37 +150,59 @@ def test_memory_bank_historical_entries_are_whitelisted() -> None:
         assert any(pattern.search(path) for pattern in WHITELIST_PATTERNS), path
 
 
-@pytest.mark.skipif(
-    not (REPO_ROOT / ".git").exists(), reason="needs git repo to scope the grep"
-)
+@pytest.mark.skipif(not (REPO_ROOT / ".git").exists(), reason="needs git repo to scope the grep")
 def test_no_cyrillic_planning_terms_outside_whitelist() -> None:
-    """Active project surface must not use legacy Cyrillic planning terms."""
+    """Active project surface must not use legacy Cyrillic planning terms.
+
+    Word-boundary detection is done with **Python's** `re` engine (used only
+    to enumerate tracked `*.md` files, scoped exactly like the old `git grep`
+    pathspec) rather than delegating the actual `\\b(...)\\b` match to the
+    host's native regex engine via `git grep -E`.
+
+    Why: `git grep`'s `\\b` is backed by the OS's C regex library, and BSD
+    (macOS) and GNU (Linux) classify non-ASCII "word" characters
+    differently. Concretely, BSD's default `\\w` class only covers ASCII
+    `[A-Za-z0-9_]`, so a Cyrillic letter is treated as a *non-word*
+    character; a `\\b` immediately before/after a Cyrillic word therefore
+    sits between two non-word characters and never fires. Result: on macOS
+    `git grep -inE '\\b(Этап|Эпик|Спринт|Фаза)\\b'` matched **zero** lines
+    repo-wide even though the same content substring-matched 369 times —
+    the test was passing, but vacuously, hiding every real violation. GNU
+    grep (Linux CI) is Unicode-aware in a UTF-8 locale and matched for
+    real, which is why CI went red while macOS stayed silently green. This
+    is the same class of BSD-vs-GNU platform drift previously hit with
+    `stat`.
+
+    Python's `re` module does not have this problem: `\\b`/`\\w` are
+    Unicode-aware by default for `str` patterns on every platform Python
+    runs on, so `CYRILLIC_PLANNING_RE` (already used elsewhere in this
+    file) behaves identically on macOS and Linux. Moving the match into
+    Python — while still using `git ls-files` merely to enumerate tracked,
+    pathspec-filtered files — removes the platform-dependent regex engine
+    from the equation entirely instead of trying to out-guess it.
+    """
     result = subprocess.run(
-        [
-            "git",
-            "grep",
-            "-inE",
-            r"\b(Этап|Эпик|Спринт|Фаза)\b",
-            "--",
-            "*.md",
-            ":!CHANGELOG.md",
-        ],
+        ["git", "ls-files", "-z", "--", "*.md", ":!CHANGELOG.md"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
-    if result.returncode == 1:
-        return  # no matches at all → nothing to whitelist
+    rel_paths = [p for p in result.stdout.split("\0") if p]
 
     violations = []
-    for line in result.stdout.splitlines():
-        path = line.split(":", 1)[0]
-        if any(p.search(path) for p in WHITELIST_PATTERNS):
+    for rel_path in rel_paths:
+        if any(p.search(rel_path) for p in WHITELIST_PATTERNS):
             continue
-        violations.append(line)
+        full_path = REPO_ROOT / rel_path
+        try:
+            text = full_path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, FileNotFoundError):
+            continue
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if CYRILLIC_PLANNING_RE.search(line):
+                violations.append(f"{rel_path}:{lineno}:{line}")
 
-    assert not violations, (
-        "Cyrillic planning terms found outside whitelist:\n"
-        + "\n".join(violations[:25])
+    assert not violations, "Cyrillic planning terms found outside whitelist:\n" + "\n".join(
+        violations[:25]
     )

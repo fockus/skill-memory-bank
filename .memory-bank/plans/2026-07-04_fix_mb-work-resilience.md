@@ -92,7 +92,7 @@ and forces confirmation under `--auto`.
 ---
 
 <!-- mb-stage:1 -->
-## Этап 1 (T1): `scripts/mb-work-state.sh` — durable loop-state + max_cycles enforcement
+## Stage 1 (T1): `scripts/mb-work-state.sh` — durable loop-state + max_cycles enforcement
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester для red)
 **Файлы:** `scripts/mb-work-state.sh` (создать, `+x`), `tests/pytest/test_mb_work_state.py` (создать, тесты FIRST)
 
@@ -145,8 +145,8 @@ test -x scripts/mb-work-state.sh
 ---
 
 <!-- mb-stage:2 -->
-## Этап 2 (T1): bind `mb-work-budget.sh` to `run_id` (ignore orphaned state)
-**Complexity:** S · **~4 мин** · **Зависимости:** Этап 1 (run_id contract) · **Агент:** developer (+ tester)
+## Stage 2 (T1): bind `mb-work-budget.sh` to `run_id` (ignore orphaned state)
+**Complexity:** S · **~4 мин** · **Зависимости:** Stage 1 (run_id contract) · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-budget.sh` (edit), `tests/pytest/test_mb_work_budget.py` (extend, tests FIRST)
 
 **Confirmed gap:** `.work-budget.json` (`scripts/mb-work-budget.sh:79/111/137/163/199`) has no run binding; after an
@@ -185,8 +185,8 @@ shellcheck scripts/mb-work-budget.sh
 ---
 
 <!-- mb-stage:3 -->
-## Этап 3 (T1): wire durable state + budget run_id into `commands/work.md`
-**Complexity:** M · **~5 мин** · **Зависимости:** Этап 1, Этап 2 · **Агент:** developer (+ tester)
+## Stage 3 (T1): wire durable state + budget run_id into `commands/work.md`
+**Complexity:** M · **~5 мин** · **Зависимости:** Stage 1, Stage 2 · **Агент:** developer (+ tester)
 **Файлы:** `commands/work.md` (edit — steps 4, 5f, 5g, resume, Hard-stops table, Underlying scripts),
 `tests/bats/test_mb_work_command_doc.bats` (extend, tests FIRST)
 
@@ -229,8 +229,8 @@ PATH="$PWD/.venv/bin:$PATH" bats tests/bats/test_mb_work_command_doc.bats
 ---
 
 <!-- mb-stage:4 -->
-## Этап 4 (T2): `scripts/mb-work-checkbox.sh` — deterministic DoD flip, gated on state=done
-**Complexity:** M · **~5 мин** · **Зависимости:** Этап 1 (reads `.work-state.json phase`) · **Агент:** developer (+ tester)
+## Stage 4 (T2): `scripts/mb-work-checkbox.sh` — deterministic DoD flip, gated on state=done
+**Complexity:** M · **~5 мин** · **Зависимости:** Stage 1 (reads `.work-state.json phase`) · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-checkbox.sh` (создать, `+x`), `tests/pytest/test_mb_work_checkbox.py` (создать, тесты FIRST)
 
 **Confirmed gap:** item status is *derived* from self-set checkboxes every run (`scripts/mb-work-plan.sh:324-330` via
@@ -274,8 +274,8 @@ test -x scripts/mb-work-checkbox.sh
 ---
 
 <!-- mb-stage:5 -->
-## Этап 5 (T2): wire flip + "implementers must not touch checkboxes" + state-based resume into `commands/work.md`
-**Complexity:** S · **~4 мин** · **Зависимости:** Этап 4, Этап 1 · **Агент:** developer (+ tester)
+## Stage 5 (T2): wire flip + "implementers must not touch checkboxes" + state-based resume into `commands/work.md`
+**Complexity:** S · **~4 мин** · **Зависимости:** Stage 4, Stage 1 · **Агент:** developer (+ tester)
 **Файлы:** `commands/work.md` (edit — 5a implement prompt `:306-323`, 5g `:381-386`, resume note),
 `tests/bats/test_mb_work_command_doc.bats` (extend, tests FIRST)
 
@@ -306,12 +306,12 @@ PATH="$PWD/.venv/bin:$PATH" bats tests/bats/test_mb_work_command_doc.bats
 ```
 ### Edge cases
 - `execution` workflow (no judge): 5g still routes through `mb-work-state.sh done` (set after `verify` PASS) so the flip stays deterministic even without a judge step.
-- Spec-task source (`tasks.md`): flip targets `<!-- mb-task:N -->` blocks (Этап 4 already covers).
+- Spec-task source (`tasks.md`): flip targets `<!-- mb-task:N -->` blocks (Stage 4 already covers).
 
 ---
 
 <!-- mb-stage:6 -->
-## Этап 6 (T3): `mb-work-review-parse.sh --external` — lenient normalization + codex SKIPPED contract
+## Stage 6 (T3): `mb-work-review-parse.sh --external` — lenient normalization + codex SKIPPED contract
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-review-parse.sh` (edit), `tests/pytest/test_mb_work_review_parse.py` (extend, тесты FIRST)
 
@@ -336,7 +336,7 @@ JSON-parse-fail Markdown fallback, not a normalizer. The parser also cannot cons
    - When `--external`: recognise top-level `status`; `SKIPPED` → emit `{"verdict":"SKIPPED","reason":…,"counts":{0,0,0},"issues":[]}` exit 0.
    - Map codex issue schema: `description`→`message`, `recommendation`→`fix`, `severity:"info"`→`minor`, `line:null`→0.
    - Recompute `counts` from normalized issues; if `verdict=="APPROVED"` but issues non-empty → set `CHANGES_REQUESTED` (stricter, never looser).
-   - Emit the parser error text to stderr on genuine unparseable input so the orchestrator can retry (Этап 7).
+   - Emit the parser error text to stderr on genuine unparseable input so the orchestrator can retry (Stage 7).
    - **Strict mode (no flag) unchanged** — all 12 existing tests stay green.
 
 ### DoD
@@ -355,13 +355,13 @@ shellcheck scripts/mb-work-review-parse.sh
 ### Edge cases
 - `--external` with a `CHANGES_REQUESTED` + non-empty issues → unchanged (already valid).
 - `SKIPPED` with no `reason` → default reason `"cross-model review unavailable"`.
-- Downstream `mb-work-severity-gate.sh` must treat `verdict:"SKIPPED"` — Этап 9 handles the orchestrator's degradation; the parser only normalizes.
+- Downstream `mb-work-severity-gate.sh` must treat `verdict:"SKIPPED"` — Stage 9 handles the orchestrator's degradation; the parser only normalizes.
 
 ---
 
 <!-- mb-stage:7 -->
-## Этап 7 (T3): wire external-reviewer default `--external` + one auto-retry into `commands/work.md` 5d
-**Complexity:** S · **~4 мин** · **Зависимости:** Этап 6 · **Агент:** developer (+ tester)
+## Stage 7 (T3): wire external-reviewer default `--external` + one auto-retry into `commands/work.md` 5d
+**Complexity:** S · **~4 мин** · **Зависимости:** Stage 6 · **Агент:** developer (+ tester)
 **Файлы:** `commands/work.md` (edit — 5d `:349-358`, Underlying scripts `:475-479`),
 `tests/bats/test_mb_work_command_doc.bats` (extend, тесты FIRST)
 
@@ -394,7 +394,7 @@ PATH="$PWD/.venv/bin:$PATH" bats tests/bats/test_mb_work_command_doc.bats
 ---
 
 <!-- mb-stage:8 -->
-## Этап 8 (T4): `scripts/mb-work-codex-preflight.sh` — codex availability/auth health-check (fail-safe)
+## Stage 8 (T4): `scripts/mb-work-codex-preflight.sh` — codex availability/auth health-check (fail-safe)
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-codex-preflight.sh` (создать, `+x`), `tests/pytest/test_mb_work_codex_preflight.py` (создать, тесты FIRST)
 
@@ -433,8 +433,8 @@ test -x scripts/mb-work-codex-preflight.sh
 ---
 
 <!-- mb-stage:9 -->
-## Этап 9 (T4): wire preflight + codex-reviewer SKIPPED consumption + loud degradation into `commands/work.md` 5d
-**Complexity:** M · **~5 мин** · **Зависимости:** Этап 8, Этап 6 · **Агент:** developer (+ tester)
+## Stage 9 (T4): wire preflight + codex-reviewer SKIPPED consumption + loud degradation into `commands/work.md` 5d
+**Complexity:** M · **~5 мин** · **Зависимости:** Stage 8, Stage 6 · **Агент:** developer (+ tester)
 **Файлы:** `commands/work.md` (edit — 5d review preamble `:349-358`, Hard-stops table `:390-402`, Underlying scripts),
 `tests/bats/test_mb_work_command_doc.bats` (extend, тесты FIRST)
 
@@ -449,7 +449,7 @@ unavailable; the Hard-stops table (`:390-402`) has no "cross-model gate degraded
    - doc's Hard-stops table: `cross-model review SKIPPED under --auto` → require explicit user confirmation (halt).
 2. **Edit** `commands/work.md`:
    - 5d preamble: before dispatching an external review wave, run `bash scripts/mb-work-codex-preflight.sh --json --mb <bank>`.
-     `available:false` (or a returned `verdict:"SKIPPED"` from Этап 6) → write `cross-model review SKIPPED (<reason>)` to the
+     `available:false` (or a returned `verdict:"SKIPPED"` from Stage 6) → write `cross-model review SKIPPED (<reason>)` to the
      stage report + append a NOTE to `progress.md`; **do not** let the judge close a governed item alone silently.
    - Under `--auto`: a skipped cross-model gate requires explicit user confirmation before proceeding (new Hard-stops row).
    - Add `mb-work-codex-preflight.sh` to Underlying scripts.
@@ -494,30 +494,30 @@ orchestrated, not hook-driven, so this plan never touches it. Both plans can run
 ## Граф зависимостей
 
 ```
-T1  Этап1 ──► Этап2 ──┐
-       │              ├──► Этап3 (work.md wiring)
+T1  Stage1 ──► Stage2 ──┐
+       │              ├──► Stage3 (work.md wiring)
        └──────────────┘
-       └──────────────────► Этап5 (needs Этап4 + Этап1)
-T2  Этап4 ─────────────────► Этап5
-T3  Этап6 ─────────────────► Этап7
-                            └► Этап9 (needs Этап8 + Этап6)
-T4  Этап8 ─────────────────► Этап9
+       └──────────────────► Stage5 (needs Stage4 + Stage1)
+T2  Stage4 ─────────────────► Stage5
+T3  Stage6 ─────────────────► Stage7
+                            └► Stage9 (needs Stage8 + Stage6)
+T4  Stage8 ─────────────────► Stage9
 
-work.md single-owner chain: Этап3 → Этап5 → Этап7 → Этап9 (sequential edits to one file)
+work.md single-owner chain: Stage3 → Stage5 → Stage7 → Stage9 (sequential edits to one file)
 ```
 
 ## Параллелизация
-| Фаза | Этапы | Агенты |
+| Phase | Stages | Агенты |
 |------|-------|--------|
 | 1 | 1, 4, 6, 8 (independent new/edited scripts, distinct files) | dev-1, dev-2, dev-3, tester |
 | 2 | 2 (after 1) | dev-1 |
 | 3 | 3 → 5 → 7 → 9 (sequential, single owner of `commands/work.md`) | dev-1 (work.md owner) + tester |
 
 ## Потенциальные конфликты при merge
-- **`commands/work.md`** — edited by Этапы 3, 5, 7, 9 → **one owner**, land in order 3→5→7→9; each is an additive, distinct-section edit.
-- **`tests/bats/test_mb_work_command_doc.bats`** — extended by Этапы 3, 5, 7, 9 → same owner appends `@test` blocks sequentially.
-- **`scripts/mb-work-review-parse.sh`** — only Этап 6 edits it; Этап 7/9 consume it via doc only (no code conflict).
-- **`scripts/mb-work-budget.sh`** — only Этап 2 edits it.
+- **`commands/work.md`** — edited by Stages 3, 5, 7, 9 → **one owner**, land in order 3→5→7→9; each is an additive, distinct-section edit.
+- **`tests/bats/test_mb_work_command_doc.bats`** — extended by Stages 3, 5, 7, 9 → same owner appends `@test` blocks sequentially.
+- **`scripts/mb-work-review-parse.sh`** — only Stage 6 edits it; Stage 7/9 consume it via doc only (no code conflict).
+- **`scripts/mb-work-budget.sh`** — only Stage 2 edits it.
 - No conflict with I-087 (disjoint file sets, see table above).
 
 ## DoD (plan-level)

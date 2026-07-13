@@ -21,7 +21,7 @@ related_plans:
 и **parity-audit** (одинаково ли работают Claude Code / Codex / Pi / OpenCode / Cursor).
 Все находки верифицированы по коду на указанных `file:line`. **C-1** и **H-2** доказаны
 end-to-end в чистом venv; **F-2** подтверждена вручную. Codex cross-review в процессе — план
-может получить дельту (новые этапы допишутся хвостом, нумерация не переиспользуется).
+может получить дельту (новые stages допишутся хвостом, нумерация не переиспользуется).
 
 Три трека:
 - **Track A — Install reliability**: пакет должен ставиться без затирания пользовательских
@@ -76,7 +76,7 @@ GraphRAG-extension с подставленными путями; (5) доки н
 - Codex cross-review может добавить/переклассифицировать находки → это допустимая дельта, не блокер.
 
 ## Constraints (apply by construction)
-- **TDD-first**: КАЖДЫЙ этап пишет падающий тест ПЕРВЫМ (bats/pytest, доказывающий баг), затем фикс
+- **TDD-first**: КАЖДЫЙ stage пишет падающий тест ПЕРВЫМ (bats/pytest, доказывающий баг), затем фикс
   делает его зелёным. Нет фикс-коммита без предшествующего red-теста.
 - **Backup-before-overwrite invariant**: любой адаптер, пишущий в путь, который мог создать
   пользователь, обязан: (a) `backup_if_exists` до записи, (b) писать через `tmp + mv` (атомарно),
@@ -96,11 +96,11 @@ GraphRAG-extension с подставленными путями; (5) доки н
 
 | Риск | Вероятность | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Merge-конфликты в `install.sh` (6 этапов трогают его) | Высокая | Med | Серилизовать install.sh-этапы (см. § Merge conflicts); один writer за раз |
+| Merge-конфликты в `install.sh` (6 stages трогают его) | Высокая | Med | Серилизовать install.sh-stages (см. § Merge conflicts); один writer за раз |
 | Config-merge (codex TOML / opencode JSON) сломает валидный конфиг юзера | Средняя | High | Merge только known-keys; тест с реальным пользовательским конфигом «чужие ключи целы» |
 | Bump Homebrew до релиза, где sha256 ещё не на PyPI | Средняя | Med | H-1 ставит CI-инвариант «formula==VERSION», bump выполняется в release-лейне; до релиза допустим `head`/локальный url |
 | F-2 подстановка путей ломает `.ts` при пробелах/кавычках в $HOME | Средняя | High | Подставлять JSON-encoded путь (не сырой); тест с $HOME с пробелом |
-| Codex cross-review переклассифицирует находку после старта | Средняя | Low | Дельта дописывается хвостом; ID-этапов не переиспользуются |
+| Codex cross-review переклассифицирует находку после старта | Средняя | Low | Дельта дописывается хвостом; ID-stages не переиспользуются |
 | Изменение capture-wiring (B4/B5) пересечётся с session-capture планом | Средняя | Med | Явная граница в frontmatter; B4/B5 меняют ТОЛЬКО какой скрипт вешается, не его тело |
 
 ## Track ordering (приоритет)
@@ -108,15 +108,15 @@ GraphRAG-extension с подставленными путями; (5) доки н
 **Phase 0 — MUST-FIX gate «ставится без проблем»** (блокирует всё остальное по смыслу):
 `A1 (C-1)` · `A2 (C-2)` · `A3 (H-1)` · `A4 (H-2)` · `B1 (F-2)`.
 **Phase 1 — Track A HIGH** → **Phase 2 — Track A MED/LOW** → **Phase 3 — Track B parity** →
-**Phase 4 — Track C docs+tests**. Внутри фаз этапы независимых файлов идут параллельно;
-`install.sh`/`cursor.sh`-этапы серилизованы (см. § Merge conflicts).
+**Phase 4 — Track C docs+tests**. Внутри phases stages независимых файлов идут параллельно;
+`install.sh`/`cursor.sh`-stages серилизованы (см. § Merge conflicts).
 
 ---
 
 # Track A — Install reliability
 
 <!-- mb-stage:1 -->
-## Этап A1 — C-1: templates/ (+flow-templates/) в wheel + sdist + e2e `/mb init` (CRITICAL, must-fix)
+## Stage A1 — C-1: templates/ (+flow-templates/) в wheel + sdist + e2e `/mb init` (CRITICAL, must-fix)
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester для red)
 **Файлы:** `pyproject.toml` (edit `[tool.hatch.build.targets.wheel.shared-data]` + `[…sdist].include`),
 `tests/e2e/test_pipx_install.bats` (extend, тест FIRST),
@@ -172,7 +172,7 @@ python3 -m build --wheel --outdir /tmp/mb-whl >/dev/null && unzip -l /tmp/mb-whl
 ---
 
 <!-- mb-stage:2 -->
-## Этап A2 — C-2: codex.sh backup + merge config.toml/hooks.json (CRITICAL, must-fix)
+## Stage A2 — C-2: codex.sh backup + merge config.toml/hooks.json (CRITICAL, must-fix)
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/codex.sh` (edit `install_codex` + `config_toml_body`/`hooks_json_body` call-sites),
 `tests/bats/test_codex_adapter.bats` (extend, тест FIRST)
@@ -218,7 +218,7 @@ fail → бэкап + записать свой, не молча терять); 
 ---
 
 <!-- mb-stage:3 -->
-## Этап A3 — H-1: Homebrew bump до VERSION + CI-инвариант «formula == VERSION» (HIGH, must-fix)
+## Stage A3 — H-1: Homebrew bump до VERSION + CI-инвариант «formula == VERSION» (HIGH, must-fix)
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `packaging/homebrew/memory-bank.rb` (edit url/sha256/`depends_on python`),
 `tests/pytest/test_homebrew_formula_version.py` (new, тест FIRST), `.github/workflows/test.yml` (add step)
@@ -255,7 +255,7 @@ url с `+`-суффиксом/pre-release (regex толерантен к `[0-9.]
 ---
 
 <!-- mb-stage:4 -->
-## Этап A4 — H-2: portable `${MB_PYTHON:-python3}` в cursor.sh + однократный install-global (HIGH, must-fix)
+## Stage A4 — H-2: portable `${MB_PYTHON:-python3}` в cursor.sh + однократный install-global (HIGH, must-fix)
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/cursor.sh:84-87` (edit `run_texttool`), `install.sh:859` (gate install-global),
 `tests/bats/test_cursor_adapter.bats` (extend, тест FIRST)
@@ -294,7 +294,7 @@ install-global на повторном прогоне другой версии 
 ---
 
 <!-- mb-stage:5 -->
-## Этап A5 — H-3: opencode.sh backup + атомарная запись opencode.json (HIGH)
+## Stage A5 — H-3: opencode.sh backup + атомарная запись opencode.json (HIGH)
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/opencode.sh:122-134` (edit), `tests/bats/test_opencode_adapter.bats` (extend, FIRST)
 
@@ -323,7 +323,7 @@ shellcheck adapters/opencode.sh
 ---
 
 <!-- mb-stage:6 -->
-## Этап A6 — H-4: ротация бэкапов не уничтожает оригинал юзера (HIGH)
+## Stage A6 — H-4: ротация бэкапов не уничтожает оригинал юзера (HIGH)
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `install.sh:327-331,349` (`install_file`/rotation), `adapters/cursor.sh:283-314,592-601`,
 `tests/e2e/test_install_uninstall.bats` (extend, FIRST) или `tests/bats/test_upgrade.bats`
@@ -356,7 +356,7 @@ shellcheck install.sh adapters/cursor.sh
 ---
 
 <!-- mb-stage:7 -->
-## Этап A7 — H-5: инкрементальный/атомарный манифест + trap на частичный сбой (HIGH) — ✅ подтверждено двумя моделями (манифест пишется поздно)
+## Stage A7 — H-5: инкрементальный/атомарный манифест + trap на частичный сбой (HIGH) — ✅ подтверждено двумя моделями (манифест пишется поздно)
 **Complexity:** M · **~5 мин** · **Зависимости:** A6 (общий install.sh writer) · **Агент:** developer (+ tester)
 **Файлы:** `install.sh:900-931` + адаптеры (codex:116/opencode:178/cursor:547/cline:199/kilo:76/windsurf:183/pi:148),
 `tests/e2e/test_install_uninstall.bats` (extend, FIRST)
@@ -388,7 +388,7 @@ shellcheck install.sh
 ---
 
 <!-- mb-stage:8 -->
-## Этап A8 — H-6: cline.sh детект файловой формы `.clinerules` (HIGH)
+## Stage A8 — H-6: cline.sh детект файловой формы `.clinerules` (HIGH)
 **Complexity:** S · **~3 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/cline.sh:157` (edit), `tests/bats/test_cline_adapter.bats` (extend, FIRST)
 
@@ -417,7 +417,7 @@ shellcheck adapters/cline.sh
 ---
 
 <!-- mb-stage:9 -->
-## Этап A9 — H-7: `git rev-parse --git-dir` вместо `[ -d .git ]` (worktree/submodule) (HIGH)
+## Stage A9 — H-7: `git rev-parse --git-dir` вместо `[ -d .git ]` (worktree/submodule) (HIGH)
 **Complexity:** S · **~3 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/kilo.sh:37`, `adapters/git-hooks-fallback.sh:81`,
 `tests/bats/test_kilo_adapter.bats` + `tests/bats/test_git_hooks_fallback.bats` (extend, FIRST)
@@ -446,7 +446,7 @@ shellcheck adapters/kilo.sh adapters/git-hooks-fallback.sh
 ---
 
 <!-- mb-stage:10 -->
-## Этап A10 — M-1: uninstall.sh вызывает per-adapter uninstall + refcount декремент (MED)
+## Stage A10 — M-1: uninstall.sh вызывает per-adapter uninstall + refcount декремент (MED)
 **Complexity:** M · **~5 мин** · **Зависимости:** A7 (клиенты в манифесте) · **Агент:** developer (+ tester)
 **Файлы:** `uninstall.sh:136-139` (edit), `tests/e2e/test_install_uninstall.bats` (extend, FIRST)
 
@@ -476,7 +476,7 @@ shellcheck uninstall.sh
 ---
 
 <!-- mb-stage:11 -->
-## Этап A11 — M-2: mb-deps-check.sh проверяет python >= 3.11 (MED)
+## Stage A11 — M-2: mb-deps-check.sh проверяет python >= 3.11 (MED)
 **Complexity:** S · **~3 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-deps-check.sh:163` (edit), `tests/bats/test_deps_check.bats` (extend, FIRST)
 
@@ -504,7 +504,7 @@ shellcheck scripts/mb-deps-check.sh
 ---
 
 <!-- mb-stage:12 -->
-## Этап A12 — M-4: user-writable путь манифеста для pip/sudo (MED) — ✅ подтверждено двумя моделями (манифест не туда при sudo)
+## Stage A12 — M-4: user-writable путь манифеста для pip/sudo (MED) — ✅ подтверждено двумя моделями (манифест не туда при sudo)
 **Complexity:** M · **~5 мин** · **Зависимости:** A7 (общий manifest writer) · **Агент:** developer (+ tester)
 **Файлы:** `install.sh:900-931` (edit MANIFEST path resolution), `tests/e2e/test_install_uninstall.bats` (extend, FIRST)
 
@@ -534,7 +534,7 @@ shellcheck install.sh
 ---
 
 <!-- mb-stage:13 -->
-## Этап A13 — M-5 + L-4: бэкап + парные маркеры при refresh MB-секций (MED/LOW)
+## Stage A13 — M-5 + L-4: бэкап + парные маркеры при refresh MB-секций (MED/LOW)
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `install.sh:774-790` (M-5, CLAUDE.md refresh), `adapters/_lib_agents_md.sh` (L-4, версия в маркерах),
 `tests/pytest/test_hooks_registration.py` или новый `tests/bats/test_claude_md_refresh.bats` (тест FIRST)
@@ -569,7 +569,7 @@ CLAUDE.md без маркеров (append свежий блок, не трога
 ---
 
 <!-- mb-stage:14 -->
-## Этап A14 — M-6 + L-3: adapter framework lib hardening (BSD mktemp + `[""]`) (MED/LOW)
+## Stage A14 — M-6 + L-3: adapter framework lib hardening (BSD mktemp + `[""]`) (MED/LOW)
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/_lib_agents_md.sh:152-154` (M-6), `adapters/_framework.sh:12-14` (L-3),
 `tests/bats/test_agents_md_lib.bats` + `tests/bats/test_adapter_framework.bats` (extend, FIRST)
@@ -602,7 +602,7 @@ shellcheck adapters/_lib_agents_md.sh adapters/_framework.sh
 ---
 
 <!-- mb-stage:15 -->
-## Этап A15 — M-7: quoting `MB_SKILLS_ROOT` в cursor.sh (пробелы в $HOME) (MED)
+## Stage A15 — M-7: quoting `MB_SKILLS_ROOT` в cursor.sh (пробелы в $HOME) (MED)
 **Complexity:** S · **~3 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/cursor.sh:140-146,190` (edit), `tests/bats/test_cursor_adapter.bats` (extend, FIRST)
 
@@ -629,7 +629,7 @@ shellcheck adapters/cursor.sh
 ---
 
 <!-- mb-stage:16 -->
-## Этап A16 — M-8: hook-файлы — бэкап + атомарная запись + core.hooksPath (MED) — ✅ подтверждено двумя моделями (перезапись без бэкапа)
+## Stage A16 — M-8: hook-файлы — бэкап + атомарная запись + core.hooksPath (MED) — ✅ подтверждено двумя моделями (перезапись без бэкапа)
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/opencode.sh:162-165`, `adapters/cline.sh:185-188`,
 `adapters/windsurf.sh:142-144,176`, `adapters/git-hooks-fallback.sh:72`,
@@ -661,7 +661,7 @@ shellcheck adapters/opencode.sh adapters/cline.sh adapters/windsurf.sh adapters/
 ---
 
 <!-- mb-stage:32 -->
-## Этап A17 — CDX-I3: падение адаптера роняет top-level install (exit nonzero) (HIGH) [Codex install delta]
+## Stage A17 — CDX-I3: падение адаптера роняет top-level install (exit nonzero) (HIGH) [Codex install delta]
 **Complexity:** M · **~5 мин** · **Зависимости:** A7 (статус адаптеров в манифест) · **Агент:** developer (+ tester)
 **Файлы:** `install.sh:946-960` (Step 8 loop) + финальный exit, `tests/e2e/test_install_clients.bats` (extend, тест FIRST)
 
@@ -693,7 +693,7 @@ adapter missing/not-executable (`:951` warn) — считать fail с явны
 ---
 
 <!-- mb-stage:33 -->
-## Этап A18 — CDX-I4: `--language es|zh` даёт пустые правила → честный fallback/строки (HIGH) [Codex install delta]
+## Stage A18 — CDX-I4: `--language es|zh` даёт пустые правила → честный fallback/строки (HIGH) [Codex install delta]
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `install.sh:47` (`VALID_LANGUAGES`), `memory_bank_skill/_texttools.py:~40-64` (localization),
 `tests/pytest/test_cli_lang.py` (extend, тест FIRST)
@@ -723,7 +723,7 @@ python -m pytest tests/pytest/test_cli_lang.py -q
 ---
 
 <!-- mb-stage:34 -->
-## Этап A19 — CDX-I6: хардкод `python3` в _lib/init-bank/pi-ext → `${MB_PYTHON:-python3}` (MED) [Codex install delta]
+## Stage A19 — CDX-I6: хардкод `python3` в _lib/init-bank/pi-ext → `${MB_PYTHON:-python3}` (MED) [Codex install delta]
 **Complexity:** S · **~4 мин** · **Зависимости:** A4 (тот же MB_PYTHON-паттерн), B1 (pi-ext уже трогается) · **Агент:** developer (+ tester)
 **Файлы:** `scripts/_lib.sh:20`, `scripts/mb-init-bank.sh:226`, `adapters/pi_graph_rag_extension.ts:17`
 (`pythonCommand`), `tests/bats/test_skill_root_resolver.bats` или новый invariant-тест (тест FIRST)
@@ -756,7 +756,7 @@ shellcheck scripts/_lib.sh scripts/mb-init-bank.sh
 ---
 
 <!-- mb-stage:35 -->
-## Этап A20 — CDX-I9: uninstall не затирает пост-install правки CLAUDE.md (MED) [Codex install delta]
+## Stage A20 — CDX-I9: uninstall не затирает пост-install правки CLAUDE.md (MED) [Codex install delta]
 **Complexity:** M · **~5 мин** · **Зависимости:** A13 (managed-блок маркеры) · **Агент:** developer (+ tester)
 **Файлы:** `uninstall.sh:92-98` (restore-логика), `tests/e2e/test_install_uninstall.bats` (extend, тест FIRST)
 
@@ -786,7 +786,7 @@ shellcheck uninstall.sh
 ---
 
 <!-- mb-stage:36 -->
-## Этап A21 — CDX-I10: mb-upgrade сохраняет install-опции при re-run (MED) [Codex install delta]
+## Stage A21 — CDX-I10: mb-upgrade сохраняет install-опции при re-run (MED) [Codex install delta]
 **Complexity:** M · **~5 мин** · **Зависимости:** A7/A12 (манифест как источник опций) · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-upgrade.sh:92-97,176-181`, `install.sh` (persist опций в манифест), `tests/bats/test_upgrade.bats` (extend, тест FIRST)
 
@@ -816,7 +816,7 @@ clients изменились между версиями (валидироват
 ---
 
 <!-- mb-stage:37 -->
-## Этап A22 — CDX-I11: атомарная запись манифеста + fail на битом манифесте (MED) [Codex install delta]
+## Stage A22 — CDX-I11: атомарная запись манифеста + fail на битом манифесте (MED) [Codex install delta]
 **Complexity:** S · **~4 мин** · **Зависимости:** A7 (общий manifest writer) · **Агент:** developer (+ tester)
 **Файлы:** `adapters/_framework.sh:20-28` (`adapter_write_manifest`), `uninstall.sh:71`, `tests/e2e/test_install_uninstall.bats` (extend, тест FIRST)
 
@@ -846,7 +846,7 @@ shellcheck adapters/_framework.sh uninstall.sh
 ---
 
 <!-- mb-stage:38 -->
-## Этап A23 — CDX-I8: backup/refuse при whole-file перезаписи одноимённых юзер-файлов (MED) [Codex install delta]
+## Stage A23 — CDX-I8: backup/refuse при whole-file перезаписи одноимённых юзер-файлов (MED) [Codex install delta]
 **Complexity:** M · **~5 мин** · **Зависимости:** A16 (тот же backup-invariant — НЕ дублировать hooks-скоуп) · **Агент:** developer (+ tester)
 **Файлы:** `adapters/cursor.sh:361` (rules `.mdc`), `adapters/cline.sh:159` (rules), `adapters/opencode.sh:164` (commands `cp`),
 соответствующие `tests/bats/test_*_adapter.bats` (extend, тест FIRST)
@@ -880,7 +880,7 @@ shellcheck adapters/cursor.sh adapters/cline.sh adapters/opencode.sh
 ---
 
 <!-- mb-stage:39 -->
-## Этап A24 — CDX-I12: uninstall в no-tty без `-y` — явный exit, не зависание (LOW) [Codex install delta]
+## Stage A24 — CDX-I12: uninstall в no-tty без `-y` — явный exit, не зависание (LOW) [Codex install delta]
 **Complexity:** S · **~3 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `uninstall.sh:63-68` (`read -r c`), `tests/e2e/test_install_uninstall.bats` (extend, тест FIRST)
 
@@ -908,7 +908,7 @@ tty присутствует (интерактив как раньше); `-y` з
 ---
 
 <!-- mb-stage:40 -->
-## Этап A25 — CDX-I13: глобальные agent-ресурсы независимо от клиентов — документировать (LOW, docs) [Codex install delta]
+## Stage A25 — CDX-I13: глобальные agent-ресурсы независимо от клиентов — документировать (LOW, docs) [Codex install delta]
 **Complexity:** S · **~3 мин** · **Зависимости:** — · **Агент:** documentor (+ tester)
 **Файлы:** `README.md` / `docs/cross-agent-setup.md` (документировать поведение), `install.sh:806-808` (комментарий)
 **Open question:** гейтить глобальную установку по выбранным клиентам — **отдельное продуктовое решение**;
@@ -940,7 +940,7 @@ grep -n "global agent\|global agents\|independently of --clients" README.md docs
 # Track B — Cross-agent parity
 
 <!-- mb-stage:17 -->
-## Этап B1 — F-2: Pi GraphRAG extension — подстановка JSON-путей + тест (HIGH, must-fix) 🔴 — ✅ подтверждено двумя моделями (Claude + Codex gpt-5.5)
+## Stage B1 — F-2: Pi GraphRAG extension — подстановка JSON-путей + тест (HIGH, must-fix) 🔴 — ✅ подтверждено двумя моделями (Claude + Codex gpt-5.5)
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/pi.sh:163-173` (edit `_install_graph_rag_extension`),
 `tests/bats/test_graph_rag_adapters.bats` (extend, тест FIRST)
@@ -984,7 +984,7 @@ src (`.ts` нет → вернуть "false", как сейчас); повтор
 ---
 
 <!-- mb-stage:18 -->
-## Этап B2 — F-1: Codex получает `/mb` как промпты (`~/.codex/prompts/`) (HIGH) — ✅ подтверждено двумя моделями
+## Stage B2 — F-1: Codex получает `/mb` как промпты (`~/.codex/prompts/`) (HIGH) — ✅ подтверждено двумя моделями
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `install.sh:848-853` (extend commands-loop) ИЛИ `adapters/codex.sh` (add prompt install),
 `tests/bats/test_codex_adapter.bats` (extend, тест FIRST)
@@ -1016,7 +1016,7 @@ Codex-совместимость (если Codex не понимает поля 
 ---
 
 <!-- mb-stage:19 -->
-## Этап B3 — F-3: OpenCode получает агентов (`.opencode/agent/*.md`) (HIGH) — ✅ подтверждено двумя моделями
+## Stage B3 — F-3: OpenCode получает агентов (`.opencode/agent/*.md`) (HIGH) — ✅ подтверждено двумя моделями
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/opencode.sh:152-186` (add agents install), `tests/bats/test_opencode_adapter.bats` (extend, FIRST)
 
@@ -1046,7 +1046,7 @@ OpenCode frontmatter-требования (`agent`/`subtask` поля — см. 
 ---
 
 <!-- mb-stage:20 -->
-## Этап B4 — F-4: Cursor → `mb-session-end.sh`; OpenCode summarize из плагина (MED)
+## Stage B4 — F-4: Cursor → `mb-session-end.sh`; OpenCode summarize из плагина (MED)
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `adapters/cursor.sh:74` (swap `session-end-autosave.sh`→`mb-session-end.sh`),
 `adapters/opencode.sh` (plugin summarize wiring), `tests/bats/test_cursor_adapter.bats` +
@@ -1084,7 +1084,7 @@ summarize-CLI (fail-open).
 ---
 
 <!-- mb-stage:21 -->
-## Этап B5 — F-5: Codex session capture через git-hooks-fallback (MED)
+## Stage B5 — F-5: Codex session capture через git-hooks-fallback (MED)
 **Complexity:** S · **~4 мин** · **Зависимости:** A9 (git detect), A16 (hooks backup) · **Агент:** developer (+ tester)
 **Файлы:** `adapters/codex.sh:56-70` (add git-hooks-fallback wiring, по образцу `pi.sh:137-141`),
 `tests/bats/test_codex_adapter.bats` (extend, FIRST)
@@ -1114,7 +1114,7 @@ shellcheck adapters/codex.sh
 ---
 
 <!-- mb-stage:22 -->
-## Этап B6 — A-1: OpenCode skill-alias / `MB_SKILLS_ROOT` для команд (HIGH)
+## Stage B6 — A-1: OpenCode skill-alias / `MB_SKILLS_ROOT` для команд (HIGH)
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `install.sh:485-488` (symlink/alias), `commands/mb.md:249,295,480…` (или `MB_SKILLS_ROOT` var),
 `tests/bats/test_skill_root_resolver.bats` (extend, тест FIRST)
@@ -1147,7 +1147,7 @@ symlink уже существует (идемпотентность); `MB_SKILLS
 ---
 
 <!-- mb-stage:23 -->
-## Этап B7 — CDX-2: mb-subinvoke-resolve.sh — транспорты pi/opencode (HIGH) [Codex delta]
+## Stage B7 — CDX-2: mb-subinvoke-resolve.sh — транспорты pi/opencode (HIGH) [Codex delta]
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-subinvoke-resolve.sh:20-40` (edit help + builtin-таблица),
 `tests/bats/test_mb_agent_caps.bats` или новый `tests/bats/test_subinvoke_resolve.bats` (тест FIRST)
@@ -1181,7 +1181,7 @@ shellcheck scripts/mb-subinvoke-resolve.sh
 ---
 
 <!-- mb-stage:24 -->
-## Этап B8 — CDX-5: mb-reviewer-resolve.sh — skill-roots codex/pi/opencode (MED) [Codex delta]
+## Stage B8 — CDX-5: mb-reviewer-resolve.sh — skill-roots codex/pi/opencode (MED) [Codex delta]
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-reviewer-resolve.sh:64-70` (edit `SKILLS_ROOTS`), `tests/bats/test_reviewer_resolve*.bats`
 или существующий reviewer suite (тест FIRST)
@@ -1213,7 +1213,7 @@ shellcheck scripts/mb-reviewer-resolve.sh
 ---
 
 <!-- mb-stage:25 -->
-## Этап B9 — CDX-6: OpenCode plugin registration — единый контракт (code+docs+tests) (MED) [Codex delta]
+## Stage B9 — CDX-6: OpenCode plugin registration — единый контракт (code+docs+tests) (MED) [Codex delta]
 **Complexity:** S · **~4 мин** · **Зависимости:** B3, B4 (координация правок opencode.sh) · **Агент:** developer/documentor (+ tester)
 **Файлы:** `adapters/opencode.sh:121` (решение контракта), `docs/cross-agent-setup.md` (текст),
 `tests/bats/test_opencode_adapter.bats:48-54,115-120` (align)
@@ -1251,7 +1251,7 @@ legacy `opencode.json` с ref (удаляется — уже покрыто `:11
 # Track C — Docs + tests
 
 <!-- mb-stage:26 -->
-## Этап C1 — D-1…D-6: doc-vs-reality правки cross-agent доков (docs) — ✅ D-1 (Pi lifecycle overclaim) подтверждена двумя моделями
+## Stage C1 — D-1…D-6: doc-vs-reality правки cross-agent доков (docs) — ✅ D-1 (Pi lifecycle overclaim) подтверждена двумя моделями
 **Complexity:** M · **~5 мин** · **Зависимости:** B1, B4, B5 (доки должны отражать пост-фикс реальность)
 · **Агент:** documentor/developer (+ tester для doc-drift)
 **Файлы:** `docs/cross-agent-setup.md:117-118,251-254,290-292`, `SKILL.md:18,119`,
@@ -1272,7 +1272,7 @@ Pi обещает подпапки, которых нет; D-6 `SKILL.md:119`/`o
    подпапки — убрать обещание; native-tools — Pi «работает после B1», OpenCode «через агентов».
 2. **Тест где возможно**: расширить `test_docs_drift_recipe.py`/doc-assert, чтобы ключевые ложные
    утверждения (напр. «full parity», «SessionEnd auto-capture») не возвращались (grep-guard).
-3. **Codex-дельта (CDX-D1…D4)** оформлена отдельным хвостовым **Этапом C6** (README `~/.cursor/hooks`
+3. **Codex-дельта (CDX-D1…D4)** оформлена отдельным хвостовым **Stage C6** (README `~/.cursor/hooks`
    vs bundle-пути, `install.sh:4` «18»→29, README-таблица без `/flow` `/analyze-task` `/goal`,
    стейл «4 hooks» матрица). C1 и C6 — один doc-vs-reality лейн; правьте согласованно.
 
@@ -1293,7 +1293,7 @@ grep-guard (ложные срабатывания на легитимном те
 ---
 
 <!-- mb-stage:27 -->
-## Этап C2 — M-3 + L-1 + L-6 + L-7: README-deps, версия, sudo-doc, git-hygiene (docs/hygiene) — ✅ M-3 (git dep) подтверждено двумя моделями
+## Stage C2 — M-3 + L-1 + L-6 + L-7: README-deps, версия, sudo-doc, git-hygiene (docs/hygiene) — ✅ M-3 (git dep) подтверждено двумя моделями
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** documentor/developer (+ tester)
 **Файлы:** `README.md:94` (M-3 deps), `README.md:562` (L-1 версия), `docs/*` (L-6 sudo -E),
 `.installed-manifest.json` + `.gitignore` (L-7), `tests/pytest/test_gitignore_invariants.py` (extend, FIRST)
@@ -1327,7 +1327,7 @@ git ls-files .installed-manifest.json   # ожидание: пусто
 ---
 
 <!-- mb-stage:28 -->
-## Этап C3 — Test gap: e2e upgrade vN→vN+1 (tests)
+## Stage C3 — Test gap: e2e upgrade vN→vN+1 (tests)
 **Complexity:** M · **~5 мин** · **Зависимости:** A6, A7, A13 (upgrade-семантика фиксится там)
 · **Агент:** tester (+ developer)
 **Файлы:** `tests/e2e/test_upgrade_e2e.bats` (new) ИЛИ extend `tests/bats/test_upgrade.bats`
@@ -1354,7 +1354,7 @@ downgrade (vN+1→vN) — вне scope, но не должен ломать ма
 ---
 
 <!-- mb-stage:29 -->
-## Этап C4 — Test gap: runtime-паритет (placeholder / capture / gates) (tests)
+## Stage C4 — Test gap: runtime-паритет (placeholder / capture / gates) (tests)
 **Complexity:** M · **~5 мин** · **Зависимости:** B1, B4, B5 · **Агент:** tester
 **Файлы:** `tests/bats/test_cross_agent_runtime_parity.bats` (new)
 
@@ -1381,7 +1381,7 @@ PATH="$PWD/.venv/bin:$PATH" bats tests/bats/test_cross_agent_runtime_parity.bats
 ---
 
 <!-- mb-stage:30 -->
-## Этап C5 — CDX-8: adapters/_contract.sh — artifact-level per-host проверки (MED, tests) [Codex delta]
+## Stage C5 — CDX-8: adapters/_contract.sh — artifact-level per-host проверки (MED, tests) [Codex delta]
 **Complexity:** M · **~5 мин** · **Зависимости:** B1-B6 (артефакты, которые контракт проверяет) · **Агент:** tester (+ developer)
 **Файлы:** `adapters/_contract.sh` (extend), `tests/bats/test_adapter_framework.bats` или
 `test_*_adapter.bats` (тест FIRST)
@@ -1414,7 +1414,7 @@ platform-limit артефакты (не required для хоста — не до
 ---
 
 <!-- mb-stage:31 -->
-## Этап C6 — CDX-D1…D4: doc-vs-reality (Cursor hooks, 18→29, /flow /analyze-task /goal, hooks matrix) [Codex delta]
+## Stage C6 — CDX-D1…D4: doc-vs-reality (Cursor hooks, 18→29, /flow /analyze-task /goal, hooks matrix) [Codex delta]
 **Complexity:** S · **~4 мин** · **Зависимости:** — · **Агент:** documentor/developer (+ tester)
 **Файлы:** `README.md` (CDX-D1 cursor hooks, CDX-D3 команды), `install.sh:4` (CDX-D2 header),
 `docs/cross-agent-setup.md` (CDX-D4 hooks matrix), doc-guard в `tests/pytest/test_doc_counts.py` (тест где применимо)
@@ -1452,7 +1452,7 @@ grep -n "NOT copied\|not copied" README.md   # Cursor hooks контракт
 
 ---
 
-## Этап C7 — Test gap: install-reliability regression suite (tests) [Codex install delta]
+## Stage C7 — Test gap: install-reliability regression suite (tests) [Codex install delta]
 **Complexity:** M · **~5 мин** · **Зависимости:** A17, A22, A24 · **Агент:** tester
 **Файлы:** `tests/e2e/test_install_reliability.bats` (new)
 
@@ -1519,7 +1519,7 @@ Track C:
 
 ## Параллелизация
 
-| Фаза | Этапы | Агенты |
+| Phase | Stages | Агенты |
 |------|-------|--------|
 | 0 (gate) | A1, A2, A3, A4, B1 | developer-1..3 + tester (разные файлы) |
 | 1 (Track A HIGH) | A5, A8, A9 ∥ A6→A7 (install.sh chain) | developer-1 (install.sh), developer-2 (adapters), tester |
@@ -1594,13 +1594,13 @@ Track C:
 
 ## Validation gate (самопроверка плана)
 
-- [x] Каждый этап ≤5 мин (bite-sized; крупные разбиты, LOW сгруппированы попарно по общему файлу).
-- [x] Каждый этап имеет точные файлы (file:line из аудита).
-- [x] Каждый этап имеет SMART DoD (измеримо: exit-код, число тестов, RED→GREEN, shellcheck clean).
-- [x] Каждый этап имеет тест-сценарии + команды верификации (bats/pytest конкретные).
+- [x] Каждый stage ≤5 мин (bite-sized; крупные разбиты, LOW сгруппированы попарно по общему файлу).
+- [x] Каждый stage имеет точные файлы (file:line из аудита).
+- [x] Каждый stage имеет SMART DoD (измеримо: exit-код, число тестов, RED→GREEN, shellcheck clean).
+- [x] Каждый stage имеет тест-сценарии + команды верификации (bats/pytest конкретные).
 - [x] Зависимости — DAG без циклов (см. граф); install.sh-цепочка серилизована.
 - [x] Production wiring учтён (manifest, uninstall, CI-инвариант, регистрация файлов).
-- [x] Нет пропусков между этапами (backup/merge/atomic/manifest покрыты сквозным invariant'ом).
+- [x] Нет пропусков между stages (backup/merge/atomic/manifest покрыты сквозным invariant'ом).
 - [x] Assumptions зафиксированы; пересечения с двумя queued-планами разграничены в frontmatter.
 - [x] **Codex gpt-5.5 cross-review DONE (2026-07-04)** — parity-дельта: B7-B9 + C5-C6; install-дельта: A17-A25 + C7. Все находки заземлены по коду (parity: CDX-2 `:31`, CDX-5 `:65`, CDX-6 `:121`, CDX-8 `:4`, CDX-D1 `cursor.sh:1-8`, CDX-D2 `install.sh:4`; install: CDX-I3 `install.sh:955`, CDX-I4 `install.sh:47`+`_texttools.py`, CDX-I6 bare-python3 ×3, CDX-I9 `uninstall.sh:96`, CDX-I11 `_framework.sh:24`). Подтверждены двумя моделями: F-2/F-1/F-3/D-1/P-1 (parity) + H-5(A7)/M-4(A12)/M-3(C2)/M-8(A16) (install). Исключены как уже покрытые: CDX-I1≈A2, CDX-I2≈A7+A12, CDX-I7≈C2, sha256-тест≈A3.
 
@@ -1611,7 +1611,7 @@ Track C:
 Governed-цикл: implement → verify (PASS) → review×2 (Codex gpt-5.5: r1 5 находок, r2 4 находки — все 9 реальные, воспроизведены и исправлены) → judge (независимо перепрогнал 69/69 green, sha256 сверил с живым PyPI). Итог: **69/69 тестов green** (codex 33, cursor 12, graph-rag 9, e2e 9, pytest 6), shellcheck 0 новых замечаний, ruff clean.
 
 ### Backlog-резидуалы (из judge GO_WITH_BACKLOG):
-- **R-1 [MAJOR, maintainability]** `adapters/codex.sh` вырос 177→439 строк, нарушает собственный DoD A2 «файл ≤400». Не корректность/безопасность — только file-budget (overage = safety-комментарии, пережившие 2 раунда adversarial-ревью; тесты/shellcheck green). Механический фикс: вынести `codex_backup_if_exists`/`codex_markers_well_formed`/`codex_config_body_no_dupes`/`codex_upsert_config_toml`/`codex_merge_hooks_json`/`codex_mb_created_file`/`codex_strip_*_or_remove` → новый `adapters/_lib_codex_config.sh` (source из codex.sh). Кандидат в отдельный этап Track C.
+- **R-1 [MAJOR, maintainability]** `adapters/codex.sh` вырос 177→439 строк, нарушает собственный DoD A2 «файл ≤400». Не корректность/безопасность — только file-budget (overage = safety-комментарии, пережившие 2 раунда adversarial-ревью; тесты/shellcheck green). Механический фикс: вынести `codex_backup_if_exists`/`codex_markers_well_formed`/`codex_config_body_no_dupes`/`codex_upsert_config_toml`/`codex_merge_hooks_json`/`codex_mb_created_file`/`codex_strip_*_or_remove` → новый `adapters/_lib_codex_config.sh` (source из codex.sh). Кандидат в отдельный stage Track C.
 - **R-2 [MINOR, tests]** нет отдельного bats-теста на `install.sh::_cursor_global_up_to_date` (guard проверен вручную для 3 кейсов: same version+lang→skip, lang-switch→re-run, version-bump→re-run, но не через автотест). В enumerated-сценариях A4 этого пункта не было — гигиена, не unmet-DoD. Добавить bats в Track C.
 
 _Формальные backlog-ID (I-NNN) отложены: `.memory-bank/backlog.md` сейчас содержит незакоммиченные правки параллельной сессии (I-087/I-093) — не смешиваю. Резидуалы трекаются здесь до финального `/mb done` по плану._

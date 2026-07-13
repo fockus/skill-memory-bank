@@ -110,7 +110,7 @@ delivery, optional self-claim pull).
 ---
 
 <!-- mb-stage:1 -->
-## Этап 1 (T1): `mb-work-slots.sh` (new) + per-run state/index/claim/baseline in `mb-work-state.sh`
+## Stage 1 (T1): `mb-work-slots.sh` (new) + per-run state/index/claim/baseline in `mb-work-state.sh`
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester для red)
 **Файлы:** `scripts/mb-work-slots.sh` (создать, sourced helper), `scripts/mb-work-state.sh` (edit),
 `tests/pytest/test_mb_work_slots.py` (создать, тесты FIRST), `tests/pytest/test_mb_work_state.py` (extend, тесты FIRST)
@@ -170,8 +170,8 @@ awk 'END{print NR}' scripts/mb-work-state.sh   # must be <=400
 ---
 
 <!-- mb-stage:2 -->
-## Этап 2 (T1): `mb-work-budget.sh` — per-run slot under `MB_WORK_PARALLEL`
-**Complexity:** S · **~4 мин** · **Зависимости:** Этап 1 (slots helper) · **Агент:** developer (+ tester)
+## Stage 2 (T1): `mb-work-budget.sh` — per-run slot under `MB_WORK_PARALLEL`
+**Complexity:** S · **~4 мин** · **Зависимости:** Stage 1 (slots helper) · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-budget.sh` (edit), `tests/pytest/test_mb_work_budget.py` (extend, тесты FIRST)
 
 **Confirmed gap:** every `cmd_*` builds `"$bank/.work-budget.json"` inline (`:102/140/173/250`); a foreign
@@ -209,8 +209,8 @@ shellcheck scripts/mb-work-budget.sh
 ---
 
 <!-- mb-stage:3 -->
-## Этап 3 (T1): `mb-work-checkbox.sh` — flip gated on the per-run state slot
-**Complexity:** S · **~4 мин** · **Зависимости:** Этап 1 · **Агент:** developer (+ tester)
+## Stage 3 (T1): `mb-work-checkbox.sh` — flip gated on the per-run state slot
+**Complexity:** S · **~4 мин** · **Зависимости:** Stage 1 · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-checkbox.sh` (edit), `tests/pytest/test_mb_work_checkbox.py` (extend, тесты FIRST)
 
 **Confirmed gap:** `mb-work-checkbox.sh:71` reads the singleton `"$bank/.work-state.json"`; under two runs
@@ -244,8 +244,8 @@ test -x scripts/mb-work-checkbox.sh
 ---
 
 <!-- mb-stage:4 -->
-## Этап 4 (T3): `scripts/mb-work-diff.sh` — baseline-scoped diff for a run
-**Complexity:** M · **~5 мин** · **Зависимости:** Этап 1 (reads `baseline_ref`) · **Агент:** developer (+ tester)
+## Stage 4 (T3): `scripts/mb-work-diff.sh` — baseline-scoped diff for a run
+**Complexity:** M · **~5 мин** · **Зависимости:** Stage 1 (reads `baseline_ref`) · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-diff.sh` (создать, `+x`), `tests/pytest/test_mb_work_diff.py` (создать, тесты FIRST)
 
 **Confirmed gap:** `commands/work.md:356` gives the verifier the bare working-tree `git diff`; nothing scopes
@@ -261,7 +261,7 @@ it to a run's baseline or the item's files, so a co-running run's edits leak int
 2. **Implement** `scripts/mb-work-diff.sh --run-id R [--files "p1 p2"] [--baseline REF] [--name-only] [--mb <path>]`:
    - Resolve the run's state slot (via slots helper), read `baseline_ref` (or `--baseline` override).
    - Non-empty baseline → `git diff [--name-only] <baseline> -- <files>` (files optional; **single-arg form**:
-     baseline↔working-tree, так ревью на 5c/5d видит и закоммиченную, и ещё не закоммиченную работу этапа —
+     baseline↔working-tree, так ревью на 5c/5d видит и закоммиченную, и ещё не закоммиченную работу stage —
      коммит в цикле происходит только на 5g. *Amendment 2026-07-05: заменена двухточечная `<baseline>..HEAD`,
      которая не видела uncommitted-правки и давала пустой диф на review.*)
    - Empty baseline → `git diff [--name-only] -- <files>` (working-tree, scoped). Always exit 0 on a valid repo;
@@ -287,8 +287,8 @@ test -x scripts/mb-work-diff.sh
 ---
 
 <!-- mb-stage:5 -->
-## Этап 5 (T2): `mb-work-resolve.sh` — skip foreign-claimed sources; warn on explicit claimed target
-**Complexity:** S · **~4 мин** · **Зависимости:** Этап 1 (source→run index) · **Агент:** developer (+ tester)
+## Stage 5 (T2): `mb-work-resolve.sh` — skip foreign-claimed sources; warn on explicit claimed target
+**Complexity:** S · **~4 мин** · **Зависимости:** Stage 1 (source→run index) · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-resolve.sh` (edit), `tests/pytest/test_mb_work_resolve.py` (extend, тесты FIRST)
 
 **Confirmed gap:** `mb-work-resolve.sh:99-122` empty-target returns the first `mb-active-plans` link with no
@@ -324,7 +324,7 @@ shellcheck scripts/mb-work-resolve.sh
 ---
 
 <!-- mb-stage:6 -->
-## Этап 6 (T4): `scripts/mb-work-progress-append.sh` — locked atomic append-only writer
+## Stage 6 (T4): `scripts/mb-work-progress-append.sh` — locked atomic append-only writer
 **Complexity:** M · **~5 мин** · **Зависимости:** — · **Агент:** developer (+ tester)
 **Файлы:** `scripts/mb-work-progress-append.sh` (создать, `+x`), `tests/pytest/test_mb_work_progress_append.py` (создать, тесты FIRST)
 
@@ -365,8 +365,8 @@ test -x scripts/mb-work-progress-append.sh
 ---
 
 <!-- mb-stage:7 -->
-## Этап 7 (T1 wire): parallel state+budget+claim into `commands/work.md`
-**Complexity:** M · **~5 мин** · **Зависимости:** Этап 1, 2, 3 · **Агент:** developer (+ tester)
+## Stage 7 (T1 wire): parallel state+budget+claim into `commands/work.md`
+**Complexity:** M · **~5 мин** · **Зависимости:** Stage 1, 2, 3 · **Агент:** developer (+ tester)
 **Файлы:** `commands/work.md` (edit — steps 4, 5f, 5g, resume, Hard-stops, Underlying scripts),
 `tests/bats/test_mb_work_command_doc.bats` (extend, тесты FIRST)
 
@@ -404,8 +404,8 @@ PATH="$PWD/.venv/bin:$PATH" bats tests/bats/test_mb_work_command_doc.bats
 ---
 
 <!-- mb-stage:8 -->
-## Этап 8 (T2+T3 wire): baseline diff + claim-aware resolve + worktree rule into `commands/work.md`
-**Complexity:** M · **~5 мин** · **Зависимости:** Этап 7, 4, 5 · **Агент:** developer (work.md owner) (+ tester)
+## Stage 8 (T2+T3 wire): baseline diff + claim-aware resolve + worktree rule into `commands/work.md`
+**Complexity:** M · **~5 мин** · **Зависимости:** Stage 7, 4, 5 · **Агент:** developer (work.md owner) (+ tester)
 **Файлы:** `commands/work.md` (edit — resolve preamble, 5c/5d diff, new worktree rule),
 `tests/bats/test_mb_work_command_doc.bats` (extend, тесты FIRST)
 
@@ -440,8 +440,8 @@ PATH="$PWD/.venv/bin:$PATH" bats tests/bats/test_mb_work_command_doc.bats
 ---
 
 <!-- mb-stage:9 -->
-## Этап 9 (T4 wire): concurrent core-file write contract into `commands/work.md`
-**Complexity:** S · **~4 мин** · **Зависимости:** Этап 8, 6 · **Агент:** developer (work.md owner) (+ tester)
+## Stage 9 (T4 wire): concurrent core-file write contract into `commands/work.md`
+**Complexity:** S · **~4 мин** · **Зависимости:** Stage 8, 6 · **Агент:** developer (work.md owner) (+ tester)
 **Файлы:** `commands/work.md` (edit — 5g / end-of-run / resume), `tests/bats/test_mb_work_command_doc.bats` (extend, тесты FIRST)
 
 **Confirmed gap:** the doc appends to `progress.md`/`checklist.md` as prose edits; no single-writer contract
@@ -473,8 +473,8 @@ PATH="$PWD/.venv/bin:$PATH" bats tests/bats/test_mb_work_command_doc.bats
 ---
 
 <!-- mb-stage:10 -->
-## Этап 10 (T5): `commands/work.md` — "Parallel runs" section
-**Complexity:** M · **~5 мин** · **Зависимости:** Этап 9 · **Агент:** developer (work.md owner) (+ tester)
+## Stage 10 (T5): `commands/work.md` — "Parallel runs" section
+**Complexity:** M · **~5 мин** · **Зависимости:** Stage 9 · **Агент:** developer (work.md owner) (+ tester)
 **Файлы:** `commands/work.md` (edit — new "Parallel runs" section), `tests/bats/test_mb_work_command_doc.bats` (extend, тесты FIRST)
 
 **Confirmed gap:** no section explains the two supported parallel patterns, the sync/async spawn rule, the
@@ -505,7 +505,7 @@ PATH="$PWD/.venv/bin:$PATH" bats tests/bats/test_mb_work_command_doc.bats
 ```
 ### Edge cases
 - Self-claim race: two agents init the same source → the loser gets exit 4 and picks the next task (no double-work).
-- A crashed async agent leaves a live claim → `--takeover` (documented in Этап 7) frees it.
+- A crashed async agent leaves a live claim → `--takeover` (documented in Stage 7) frees it.
 
 ---
 
@@ -521,28 +521,28 @@ to `session-common.sh::sc_lock`.
 ## Граф зависимостей
 
 ```
-T1  Этап1 (slots+state) ──┬──► Этап2 (budget)   ──┐
-                          ├──► Этап3 (checkbox) ──┤
-                          ├──► Этап4 (diff, T3) ──┤
-                          └──► Этап5 (resolve,T2)─┤
-T4  Этап6 (progress-append, independent) ─────────┤
+T1  Stage1 (slots+state) ──┬──► Stage2 (budget)   ──┐
+                           ├──► Stage3 (checkbox) ──┤
+                           ├──► Stage4 (diff, T3) ──┤
+                           └──► Stage5 (resolve,T2)─┤
+T4  Stage6 (progress-append, independent) ─────────┤
                                                    ▼
-                    work.md single-owner chain:  Этап7 ──► Этап8 ──► Этап9 ──► Этап10
-                    (Этап7←1,2,3) (Этап8←7,4,5) (Этап9←8,6) (Этап10←9)
+                    work.md single-owner chain:  Stage7 ──► Stage8 ──► Stage9 ──► Stage10
+                    (Stage7←1,2,3) (Stage8←7,4,5) (Stage9←8,6) (Stage10←9)
 ```
 
 ## Параллелизация
-| Фаза | Этапы | Агенты |
+| Phase | Stages | Агенты |
 |------|-------|--------|
 | 1 | 1, 6 (independent new files) | dev-1 (slots+state), dev-2 (progress-append), tester |
-| 2 | 2, 3, 4, 5 (all depend only on Этап 1's slots helper; distinct files) | dev-1, dev-2, dev-3, tester |
+| 2 | 2, 3, 4, 5 (all depend only on Stage 1's slots helper; distinct files) | dev-1, dev-2, dev-3, tester |
 | 3 | 7 → 8 → 9 → 10 (sequential, single owner of `commands/work.md`) | dev-1 (work.md owner) + tester |
 
 ## Потенциальные конфликты при merge
-- **`commands/work.md`** — edited by Этапы 7, 8, 9, 10 → **one owner**, land in order 7→8→9→10; each an additive distinct-section edit.
-- **`tests/bats/test_mb_work_command_doc.bats`** — extended by Этапы 7, 8, 9, 10 → same owner appends `@test` blocks sequentially.
-- **`scripts/mb-work-slots.sh`** — created in Этап 1; only **sourced** (never edited) by Этапы 2, 3, 4, 5 → no code conflict.
-- **`scripts/mb-work-state.sh`** — only Этап 1 edits it. **`mb-work-budget.sh`** — only Этап 2. **`mb-work-checkbox.sh`** — only Этап 3. **`mb-work-resolve.sh`** — only Этап 5. No overlap.
+- **`commands/work.md`** — edited by Stages 7, 8, 9, 10 → **one owner**, land in order 7→8→9→10; each an additive distinct-section edit.
+- **`tests/bats/test_mb_work_command_doc.bats`** — extended by Stages 7, 8, 9, 10 → same owner appends `@test` blocks sequentially.
+- **`scripts/mb-work-slots.sh`** — created in Stage 1; only **sourced** (never edited) by Stages 2, 3, 4, 5 → no code conflict.
+- **`scripts/mb-work-state.sh`** — only Stage 1 edits it. **`mb-work-budget.sh`** — only Stage 2. **`mb-work-checkbox.sh`** — only Stage 3. **`mb-work-resolve.sh`** — only Stage 5. No overlap.
 - No contact with the constrained session/SKILL surface (see Zones of non-contact).
 
 ## DoD (plan-level)

@@ -587,6 +587,10 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-106 — update-notify: `mb_install_flavor` forks `brew --prefix` (~100–200ms cold) on every path that reaches the unknown branch. Harmless today (Stage 2 caches the check with a TTL), but memoize the prefix in a global once the SessionStart hook lands, so a session start never pays it twice. [LOW, NEW, 2026-07-13]
 
+### I-107 — agents: 20 of our 29 agents have no `SendMessage` in `tools:` — including the WHOLE review ensemble (`mb-reviewer-{logic,quality,security,scalability,tests,lead}`), `mb-rules-enforcer`, `mb-test-runner`, `mb-research`, `mb-doctor`, `mb-codebase-mapper`. Harmless today because `/mb work` dispatches them **synchronously** (a sync agent's final text comes back as the tool result). But a background/teammate dispatch can ONLY report through `SendMessage` — its plain output goes nowhere. So any of these, run in background, does the work and then goes silent. This is exactly where drive-loop (Phase 3) and work-loop-v2 parallel branches are heading, so it will bite there. Discovered when a `debugger` subagent (a GLOBAL agent, `~/.claude/agents/debugger.md`, tools = `Read, Bash, Grep, Glob` — no SendMessage, no Write/Edit either) was dispatched in background: it could neither fix nor report, and just idled. Fix: audit `tools:` across `agents/*.md`, add `SendMessage` to every agent that a background dispatcher may spawn, and add a test asserting it. [HIGH, NEW, 2026-07-13]
+
+### I-108 — codegraph: `graph.json`'s meta record embeds `generated_at: datetime.now(UTC)` at second resolution, so ANY byte-identity test that builds twice races the clock — it flakes 1-in-10 locally and reds CI on the slower macOS runner. The byte-identity invariant (opt-in layers must not alter base output) is correct; a wall clock in the payload just makes it unverifiable. Fix in flight: honour `SOURCE_DATE_EPOCH` (the reproducible-builds convention) and have the byte-identity tests set it. [HIGH, IN-PROGRESS, 2026-07-13]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
