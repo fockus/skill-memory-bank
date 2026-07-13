@@ -26,11 +26,34 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+
+def _generated_at_now() -> str:
+    """Return the ``generated_at`` timestamp for a fresh build.
+
+    Honours the reproducible-builds convention ``SOURCE_DATE_EPOCH``: when set
+    to a valid integer (Unix seconds), it is used instead of the wall clock so
+    two builds of the same inputs produce byte-identical ``graph.json`` output
+    (tests set it explicitly instead of racing the real clock). Unset is the
+    normal case (real wall clock); a malformed value falls back to the wall
+    clock rather than crashing.
+    """
+    raw = os.environ.get("SOURCE_DATE_EPOCH")
+    if raw is not None:
+        try:
+            epoch = int(raw)
+        except ValueError:
+            epoch = None
+        if epoch is not None:
+            return datetime.fromtimestamp(epoch, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
 
 try:
     from memory_bank_skill import codegraph_analytics as cga
@@ -491,7 +514,7 @@ def run(
     meta = {
         "type": "meta",
         "schema": 1,
-        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": _generated_at_now(),
         "commit": _git_head_commit(src),
         "nodes": len(graph["nodes"]),
         "edges": len(graph["edges"]),

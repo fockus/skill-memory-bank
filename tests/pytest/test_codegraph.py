@@ -259,6 +259,67 @@ def test_writer_prepends_meta_row(cg_mod, mb_path, src_root):
     assert meta["commit"] is None or re.match(r"^[0-9a-f]{7,40}$", meta["commit"])
 
 
+# ── SOURCE_DATE_EPOCH: deterministic generated_at (reproducible-builds) ──
+
+
+def test_generated_at_now_honours_source_date_epoch(cg_mod, monkeypatch):
+    """A valid SOURCE_DATE_EPOCH pins ``generated_at`` to that instant, not the
+    wall clock (reproducible-builds convention: https://reproducible-builds.org/)."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+    assert cg_mod._generated_at_now() == "2023-11-14T22:13:20Z"
+
+
+def test_generated_at_now_garbage_source_date_epoch_falls_back_to_wall_clock(cg_mod, monkeypatch):
+    """A malformed SOURCE_DATE_EPOCH must degrade gracefully to the real wall
+    clock rather than crash the build."""
+    import re
+    from datetime import UTC, datetime, timedelta
+
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
+    before = datetime.now(UTC)
+    result = cg_mod._generated_at_now()
+    after = datetime.now(UTC)
+    assert re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", result)
+    parsed = datetime.strptime(result, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    assert (
+        before.replace(microsecond=0)
+        <= parsed
+        <= after.replace(microsecond=0) + timedelta(seconds=1)
+    )
+
+
+def test_generated_at_now_unset_uses_real_wall_clock(cg_mod, monkeypatch):
+    """No SOURCE_DATE_EPOCH (the normal case) → behaviour is exactly as before:
+    the real wall clock, second-resolution UTC."""
+    from datetime import UTC, datetime
+
+    monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+    before = datetime.now(UTC).replace(microsecond=0)
+    result = cg_mod._generated_at_now()
+    after = datetime.now(UTC).replace(microsecond=0)
+    parsed = datetime.strptime(result, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    assert before <= parsed <= after
+
+
+def test_writer_two_builds_with_source_date_epoch_are_byte_identical(
+    cg_mod, mb_path, src_root, tmp_path, monkeypatch
+):
+    """Regression: pinning SOURCE_DATE_EPOCH makes two independent builds of the
+    same inputs byte-identical, proving the invariant tests can assert this
+    deterministically instead of racing the real clock's second boundary."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+    write_py(src_root, "m.py", "def f(): pass\nclass C: pass\n")
+    cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
+    first = (mb_path / "codebase" / "graph.json").read_bytes()
+
+    mb_path2 = tmp_path / ".memory-bank-2"
+    (mb_path2 / "codebase").mkdir(parents=True)
+    cg_mod.run(mb_path=str(mb_path2), src_root=str(src_root), mode="apply")
+    second = (mb_path2 / "codebase" / "graph.json").read_bytes()
+
+    assert first == second
+
+
 def test_apply_writes_god_nodes_md(cg_mod, mb_path, src_root):
     """god-nodes.md is created and contains the top nodes by degree."""
     # Create a "star" node: hub is called from several places

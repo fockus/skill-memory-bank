@@ -333,12 +333,18 @@ def test_run_sessions_off_emits_no_session_rows(built_repo: tuple[Path, Path]):
     assert not [r for r in recs if r.get("kind") in ("session", "worked_on")]
 
 
-def test_run_sessions_base_graph_byte_identical(built_repo: tuple[Path, Path]):
+def test_run_sessions_base_graph_byte_identical(built_repo: tuple[Path, Path], monkeypatch):
     """Regression: base build (no --sessions) is byte-identical with the flag off.
 
     Run twice — once with the flag absent, once explicitly False — and assert the
     graph.json bytes match (same pattern as --cochange byte-identity).
+
+    ``SOURCE_DATE_EPOCH`` is pinned so the two builds' ``generated_at`` meta
+    field can't legitimately differ across a real-clock second boundary — the
+    test asserts the byte-identity invariant itself, not a race against the
+    clock (see ``scripts/mb-codegraph.py::_generated_at_now``).
     """
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     src, mb = built_repo
     mod = _load_script()
     mod.run(mb_path=str(mb), src_root=str(src), mode="apply")
@@ -354,11 +360,19 @@ def test_run_sessions_base_graph_byte_identical(built_repo: tuple[Path, Path]):
     assert (mb2 / "codebase" / "graph.json").read_bytes() == baseline
 
 
-def test_run_sessions_god_nodes_md_unaffected_by_session_layer(built_repo: tuple[Path, Path]):
+def test_run_sessions_god_nodes_md_unaffected_by_session_layer(
+    built_repo: tuple[Path, Path], monkeypatch
+):
     """Structural ranking guard: session/worked_on rows must not skew communities,
     betweenness or pagerank, so god-nodes.md is byte-identical with and without
     ``--sessions``. (graph.json differs — it carries the session rows — but the
-    structural report does not.)"""
+    structural report does not.)
+
+    ``SOURCE_DATE_EPOCH`` is pinned for the same reason as the graph.json
+    byte-identity regression above: two builds must never be able to diverge
+    on a real-clock second boundary.
+    """
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
     src, mb = built_repo
     mod = _load_script()
     mod.run(mb_path=str(mb), src_root=str(src), mode="apply", sessions=False)
