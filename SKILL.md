@@ -206,6 +206,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-wiki.py` | `/mb wiki` engine (deterministic prep): `plan`/`packs`/`write-article`/`merge-edges`/`index`. LLM articles + surprising-connection edges via host subagents. Modules: `wiki_evidence`, `wiki_store` |
 | `mb-context-slim.py` | Slim a full agent prompt on stdin → terse version on stdout |
 | `mb-upgrade.sh [--check\|--force]` | Self-update the skill from GitHub |
+| `mb-version-check.sh [--force]` | Is a newer release out? Compares local `VERSION` against the latest GitHub Release (PyPI JSON as fallback), cached with a TTL. Prints strict JSON (`current`/`latest`/`update_available`/`flavor`/`upgrade_command`/`checked_at`/`source`). Always fail-open — exit 0, silent, never blocks a session. Off: `MB_UPDATE_CHECK=off` |
 | `mb-profile.sh` | Rule profile manager: `init`, `show`, `path`, `validate`, `set` — user/project scopes |
 | `mb-diff-scope.sh` | L5 diff-scope backstop: compare changed files against an allowed glob scope and report out-of-scope changes (exits 0, JSON report; ADR-4) |
 | `mb-fanout.sh` | Stateless fan-out helper: run N branch prompts concurrently via background jobs, capture JSON results, and aggregate into one object — exit-code authority for failed branches (REQ-DF-084) |

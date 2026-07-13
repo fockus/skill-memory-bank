@@ -579,6 +579,14 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-102 — drive-loop: scripts/mb-drive.sh is 455 lines, over the 400 file-size budget. Overflow is load-bearing after fix-cycle 1 (6 fail-closed guards + timeout wrapper), not prose. Split candidate (Task-1b): hoist the timeout wrapper (`_mbd_init_timeout`/`_mbd_run`) and/or the `_mbd_json` introspection helper into a tiny sourced lib (e.g. `mb-drive-lib.sh`) to land ≤400 without churning the just-hardened decision core. Quality debt, not correctness. [LOW, NEW, 2026-07-06]
 
+### I-103 — update-notify: scripts/_lib.sh is 814 lines, over the 400 file-size budget. Pre-existing (702 at HEAD before Stage 1 added the 113-line flavor block), and the file is sourced by 66 scripts, so a split is a cross-cutting refactor of its own. Suggested cut: hoist the install/upgrade helpers (`mb_install_flavor`/`mb_upgrade_command`/`mb_resolve_install_alias`) into `scripts/_lib_install.sh`, sourced from `_lib.sh`. Quality debt, not correctness. [MED, NEW, 2026-07-13]
+
+### I-104 — update-notify: `mb_upgrade_command git` falls back to the cwd-relative `scripts/mb-upgrade.sh --force` when no install_dir is passed. Deliberate and tested, and every current caller passes `$SKILL_DIR` — but nothing *forces* a future caller to, so the footgun is contained, not removed. Fix: self-locate the bundle root from `${BASH_SOURCE[0]}` and default to it, making the relative form unreachable. [MED, NEW, 2026-07-13]
+
+### I-105 — update-notify: the DRY guard in tests/bats/test_upgrade.bats ("no second copy of the flavor pattern-matching remains") keys on glob punctuation, so a quoted reintroduction like `*"site-packages"*)` slips through. Replace with the keyword form `grep -cE 'site-packages|dist-packages|Cellar|pipx/venvs' == 0`, which cannot be evaded. [LOW, NEW, 2026-07-13]
+
+### I-106 — update-notify: `mb_install_flavor` forks `brew --prefix` (~100–200ms cold) on every path that reaches the unknown branch. Harmless today (Stage 2 caches the check with a TTL), but memoize the prefix in a global once the SessionStart hook lands, so a session start never pays it twice. [LOW, NEW, 2026-07-13]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
