@@ -1,10 +1,14 @@
 import sys
 from pathlib import Path
 
-import numpy as np
+import pytest
+
+np = pytest.importorskip("numpy")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
-from semantic_embed import Embedder
+# E402 is deliberate: the import must run AFTER importorskip, or this module
+# fails to collect on an interpreter without numpy instead of skipping.
+from semantic_embed import Embedder  # noqa: E402
 
 
 def _fake_backend(texts):

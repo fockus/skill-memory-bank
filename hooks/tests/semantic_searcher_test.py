@@ -2,11 +2,15 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
+import pytest
+
+np = pytest.importorskip("numpy")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
-from searcher import run_search
-from semantic_store import Store
+# E402 is deliberate: the import must run AFTER importorskip, or this module
+# fails to collect on an interpreter without numpy instead of skipping.
+from searcher import run_search  # noqa: E402
+from semantic_store import Store  # noqa: E402
 
 
 def _norm(v):

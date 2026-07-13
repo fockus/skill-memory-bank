@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 BIN = Path(__file__).resolve().parents[1]
 CLI = BIN / "mb-semantic.py"
 
@@ -11,8 +13,7 @@ CLI = BIN / "mb-semantic.py"
 def _run(*args, env=None):
     e = dict(os.environ)
     e.update(env or {})
-    return subprocess.run([sys.executable, str(CLI), *args],
-                          capture_output=True, text=True, env=e)
+    return subprocess.run([sys.executable, str(CLI), *args], capture_output=True, text=True, env=e)
 
 
 def test_search_on_missing_index_returns_empty_json_exit0():
@@ -27,10 +28,12 @@ def test_stats_without_deps_is_graceful():
 
 
 def test_index_then_search_returns_relevant(tmp_path, monkeypatch):
+    pytest.importorskip("numpy")
     sys.path.insert(0, str(BIN / "lib"))
     import indexer
     import numpy as np
     import semantic_embed
+
     # deterministic fake embedder: bag-of-words over a tiny vocab
     vocab = ["deploy", "kamal", "expo", "webview", "цена", "faberlic"]
 
@@ -41,8 +44,9 @@ def test_index_then_search_returns_relevant(tmp_path, monkeypatch):
             out.append(v)
         return out
 
-    monkeypatch.setattr(semantic_embed.Embedder, "_ensure",
-                        lambda self: setattr(self, "_backend", fake))
+    monkeypatch.setattr(
+        semantic_embed.Embedder, "_ensure", lambda self: setattr(self, "_backend", fake)
+    )
 
     mb = tmp_path / "mb"
     (mb / "notes").mkdir(parents=True)
@@ -53,6 +57,7 @@ def test_index_then_search_returns_relevant(tmp_path, monkeypatch):
     indexer.index_sources(mb, idx, sources=None, full=True)
 
     from semantic_store import Store
+
     st = Store(idx)
     assert st.load()
     emb = semantic_embed.Embedder(st.model_name)
