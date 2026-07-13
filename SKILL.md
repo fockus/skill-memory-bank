@@ -169,7 +169,11 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-protected-check.sh` | Match files against `pipeline.yaml:protected_paths` |
 | `mb-work-review-parse.sh` | Validate reviewer output for `/mb work` review-loop |
 | `mb-work-severity-gate.sh` | Apply `pipeline.yaml:severity_gate` to review counts |
+| `mb-work-trend.sh` | Review-cycle trend: weighted score (10×blocker + 3×major + 1×minor) vs the previous cycle → `improving` / `stagnant` / `regressing` / `null` (work-loop-v2 G2) |
+| `mb-work-pivot.sh` | Decide `refine` / `pivot_in_role` / `pivot_via_architect` from the trend + cycle count, instead of grinding the same fix (`pivot_after_cycles`, `pivot_escalate_to_architect_on`) |
+| `mb-work-contract.sh` | Per-stage "what done means" contract under `<bank>/contracts/<topic>_stage-<N>.md` — `create` / `read` / `validate` / `path`; the reviewer can judge against it |
 | `mb-workflow.sh` | Resolve the active workflow + per-step `model`/`thinking` config from `pipeline.yaml` for `/mb work` |
+| `mb-drive.sh` | Autonomous goal-driven loop: `next` reads goal-acceptance + the firewall + work-state + budget and emits exactly one action (`implement` / `repair` / `pivot` / `stop_*`). Stateless, fail-closed — `stop_success` requires a green firewall AND 100% acceptance (REQ-DR-014) |
 | `mb-work-state.sh` | Durable `/mb work` loop-state + `max_cycles` enforcement; optional per-run isolation/claim under `MB_WORK_PARALLEL` |
 | `mb-work-slots.sh` | Sourced helper: per-run state/budget slot-path resolution + source→run claim index (gated behind `MB_WORK_PARALLEL`) |
 | `mb-work-checkbox.sh` | Deterministic DoD-checkbox flip, gated on the run's work-state phase (single-writer for `checklist.md`) |

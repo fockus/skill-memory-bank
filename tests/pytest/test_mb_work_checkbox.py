@@ -123,7 +123,7 @@ def _run(
 
 def test_flip_marks_item_checkboxes_done(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     _write_state(mb, item_no=2, phase="done")
 
@@ -137,7 +137,7 @@ def test_flip_marks_item_checkboxes_done(tmp_path: Path) -> None:
 
 def test_flip_scopes_to_item_block_only(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     _write_state(mb, item_no=2, phase="done")
 
@@ -151,7 +151,7 @@ def test_flip_scopes_to_item_block_only(tmp_path: Path) -> None:
 
 def test_flip_refused_when_state_not_done(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     original = plan.read_bytes()
     _write_state(mb, item_no=2, phase="in-progress")
@@ -164,7 +164,7 @@ def test_flip_refused_when_state_not_done(tmp_path: Path) -> None:
 
 def test_flip_is_idempotent(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     _write_state(mb, item_no=2, phase="done")
 
@@ -193,7 +193,7 @@ def test_flip_spec_task_block(tmp_path: Path) -> None:
 
 def test_flip_missing_item_is_usage_error(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     _write_state(mb, item_no=99, phase="done")
 
@@ -204,7 +204,7 @@ def test_flip_missing_item_is_usage_error(tmp_path: Path) -> None:
 
 def test_flip_missing_state_is_fail_safe_refuse(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     original = plan.read_bytes()
 
@@ -219,7 +219,7 @@ def test_flip_missing_state_is_fail_safe_refuse(tmp_path: Path) -> None:
 
 def test_parallel_flip_reads_own_run_slot(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     _write_run_state(mb, "r1", item_no=2, phase="done")
     _write_run_state(mb, "r2", item_no=3, phase="in-progress")
@@ -234,7 +234,7 @@ def test_parallel_flip_reads_own_run_slot(tmp_path: Path) -> None:
 
 def test_parallel_flip_refused_on_foreign_run_state(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     original = plan.read_bytes()
     _write_run_state(mb, "r1", item_no=2, phase="done")
@@ -252,7 +252,7 @@ def test_parallel_flip_refused_on_foreign_run_state(tmp_path: Path) -> None:
 
 def test_default_singleton_flip_unchanged(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
-    plan = tmp_path / "plan.md"
+    plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     _write_state(mb, item_no=2, phase="done")
 

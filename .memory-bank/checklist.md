@@ -1,23 +1,25 @@
 
 # claude-skill-memory-bank — Чеклист
 
-> **Convention.** Short active list only; hard cap ≤120 lines. Detailed history lives in `progress.md`, `roadmap.md`, and `plans/done/`.
+> **Convention.** Short active list only; hard cap ≤120 lines. Detailed history lives in `progress.md`, `roadmap.md`, and `plans/done/`. Commit hashes, test counts and closeouts belong in `progress.md`, not here.
 
-## ✅ Done — spec: tier1-graph-memory (17/17)
-## ✅ Done — I-082 security-hardening (codex remediation Wave 1)
+## 🔄 Active — long-running autonomous sessions (SEQUENCE)
 
-- ✅ Stage 1 — RCE: no bash -c + no .mbenv source (BLOCKER)
-- ✅ Stage 2 — Path-traversal canonicalization (MAJOR)
-- ✅ Stage 3 — Protected-path Bash coverage + glob bypass (MAJOR)
-- ✅ Stage 4 — Private/secret leak prevention (MAJOR)
+Plan: [plans/2026-07-05_SEQUENCE_long-running-sessions.md](plans/2026-07-05_SEQUENCE_long-running-sessions.md).
+Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.5** · judge=**opus** (`pipeline.yaml`).
 
-## ✅ Done — I-083 verification-gates (codex remediation Wave 1)
-
-- ✅ Stage 1–3 complete (verify PASS)
-
-## ✅ Done — I-085 logic-correctness-portability (codex remediation Wave 1)
-
-- ✅ Stage 1–6 complete (verify PASS)
+- ⬜ Phase 0 — doc-drift cleanup (no code): status/roadmap still claim dynamic-flow Phase 2 paused; it is DONE on disk
+- ✅ Phase 1 — reviewer-2.0 (6/6 tasks) — payload orchestrator + layered rubric examples + strict verdict parse + calibration
+- ✅ Phase 2 — work-loop-v2 (5/5 tasks) — trend · contract · pivot · `on_max_cycles` fail-fast · docs
+- 🔄 Phase 3 — drive-loop (`/mb drive`), spec `specs/drive-loop/`
+  - ✅ Task 1 — `mb-drive.sh next` stateless decision fn (fail-closed; `stop_success` needs green firewall AND 100% acceptance)
+  - ⬜ Task 2 — `/mb drive` command + AGENTS.md loop-contract
+  - ⬜ Task 3 — trend/pivot + route-reeval wiring (stall/last_pivot from the `mb-flow` fence)
+  - ⬜ Task 4 — stop telemetry + Stop-hook resume-gate + parallel keying
+  - ⬜ Task 5 — docs
+- ⬜ Phase 4 — parallel execution (`parallel-pipeline` + `parallel-team-execution`, on `mb-fanout.sh`)
+- ⬜ Phase 5 — cost-multi-model + dynamic-flow Phase 3 (Tasks 13–14: pi/opencode sub-invoke arms)
+- ⬜ Phase 6 — documentation: "how to use all of this"
 
 ## 🔄 In progress — I-086 config-validation-docs (codex remediation Wave 2)
 
@@ -25,102 +27,39 @@
 - ✅ Stage 2 — runtime dup-key loader + pipeline.yaml judge fix
 - ⬜ Stage 3–6 — runtime parsers, budget/profile, config split, docs regen
 
-_Governed `/mb work`: implement (Opus) → verify → DUAL review (Codex gpt-5.5 + main-agent) → judge (GO/GO_WITH_BACKLOG/NO_GO) → fix loop ≤2 then judge_decides. Spec COMPLETE 2026-06-14; 5.1.0 prepped (PyPI publish + git tag pending explicit go)._
+## ⏭ Queued waves
 
-- ✅ Task 1 — RRF fusion module (c015831)
-- ✅ Task 2 — RRF auto default (491b717)
-- ✅ Task 3 — import-aware call binding (21ba225)
-- ✅ Task 4 — PageRank god-nodes signal (ca6a358 + f5e0d15)
-- ✅ Task 5 — git churn signal (74f14a1)
-- ✅ Task 6 — community retrieval (3434cb3)
-- ✅ Task 7 — per-turn capture ok|err + diffstat (a0d6711)
-- ✅ Task 8 — summary schema v2 (e1bbff1)
-- ✅ Task 9 — progressive-disclosure recall + RRF fusion (5a041d2)
-- ✅ Task 10 — `/mb recap <sid>` (8c8d900)
-- ✅ Task 11 — `/mb conflicts` Jaccard + negation finder (b365e59)
-- ✅ Task 12 — `/mb consolidate` $0 session fold (73a095e)
-- ✅ Task 13 — [SUPERSEDED] convention + drift checker (7ba7174)
-- ✅ Task 14 — `--sessions` graph layer (4bca7f6)
-- ✅ Task 15 — wiki staleness-aware incremental rebuild (1e94d6d)
-- ✅ Task 16 — deterministic wiki Decisions section (0ac97f2)
-- ✅ Task 17 — tier1 docs + 5.1.0 release prep (8ff17bb)
-- ✅ Release-gated backlog fixes — I-069 (07221e9), I-066+I-067 (306835a)
-
-_Wave queues unchanged below._
-
-## ⏭ Queued waves after Wave 0
-
-- ⬜ W0.5 — [opencode-first-adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md) — OpenCode native plugin, host-agnostic dispatch, hook parity (cross-cutting infrastructure for W1–W12)
-- ⬜ W1 code — [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md)
+- ⬜ W0.5 — [opencode-first-adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md) — OpenCode native plugin, host-agnostic dispatch, hook parity
 - ⬜ W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)
-- ⬜ W2 — [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md)
-- ✅ W3 — [handoff-v2](specs/handoff-v2/) — 5/5 tasks, governed dual-review + judge (2026-06-15)
-- ⬜ W4 — [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md)
-- ⬜ W5 — [goal-driven-autopilot sprint 1](plans/2026-05-23_feature_goal-driven-autopilot-sprint-1-prompt-overlay.md)
-- ⬜ W6 — [goal-driven-autopilot sprint 2](plans/2026-05-23_feature_goal-driven-autopilot-sprint-2-mb-debugger.md)
-- ⬜ W7 — [goal-driven-autopilot sprint 4](plans/2026-05-23_feature_goal-driven-autopilot-sprint-4-atomic-commit.md)
-- ⬜ W8 — [goal-driven-autopilot sprint 6](plans/2026-05-23_feature_goal-driven-autopilot-sprint-6-goal-layer.md)
-- ⬜ W9 — [goal-driven-autopilot sprint 3](plans/2026-05-23_feature_goal-driven-autopilot-sprint-3-worktree.md)
-- ⬜ W10 — [goal-driven-autopilot sprint 5](plans/2026-05-23_feature_goal-driven-autopilot-sprint-5-parallel-waves.md)
-- ⬜ W11 — [goal-driven-autopilot sprint 7](plans/2026-05-23_feature_goal-driven-autopilot-sprint-7-autopilot.md)
-- ⬜ W12 — [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md)
+- ⬜ W12 — [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) → folded into Phase 4 above
+- ⏸ [goal-driven-autopilot phase roadmap](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — superseded by `specs/dynamic-flow/` + the SEQUENCE plan; planning umbrella only
 
-## 🧭 Roadmap-only / paused
+## 🔓 Open backlog
 
-- ⏸ [goal-driven-autopilot phase roadmap](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — planning umbrella only; execute sprint plans, not this phase wrapper.
+SSOT: [backlog.md](backlog.md). Hot clusters:
 
-## ✅ Recently completed
+- **Cross-agent parity (HIGH):** I-045 (Pi) · I-048/I-049 (OpenCode install+frontmatter) · I-054/I-055/I-056 (dispatch abstraction, hook mapping, plugin-first) · I-061 (Cursor)
+- **Cross-agent parity (MED/LOW):** I-046, I-047, I-050..I-053, I-057..I-060
+- **Harness chain (from Phases 1–3):** I-095 (DRY-fold) · I-096 (inert cache path) · I-097 (pipeline review_examples wiring) · I-098 (split mb-review.sh) · I-099 (cache-key reconcile) · I-100 (composable `--review` empty loop) · I-101 (traceability `.bats` suffix) · I-102 (mb-drive.sh 455>400 → split)
+- **Older:** I-023 (`grep → find` cleanup) · I-062 (EARS validator hardening)
 
-- ✅ Wave 0 CI baseline — [plan](plans/done/2026-05-24_fix_ci-baseline-wave-0.md), GitHub `test.yml` run `26528106396` green after closeout commit; first full green was `26527319286`.
-- ✅ OpenCode integration audit — `adapters/opencode.sh` contract fixed (top-level hooks, `directory` param, auto-discovery, cleanup), tests 15/15 passed. Full audit report: [reports/2026-05-24_opencode-integration-audit.md](reports/2026-05-24_opencode-integration-audit.md).
-- ✅ GraphRAG-lite code context — [plan](plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md), verify PASS with rules-check 0 violations, focused pytest 40 passed, bats 17+9 ok, full `mb-test-run` 708 passed.
-- ✅ rule-profiles-and-stack-presets — [plan](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md), 22 presets + profile CLI + rules-check integration.
-- ✅ global-storage-agent-support — [plan](plans/done/2026-05-21_feature_global-storage-agent-support.md), resolver-aware hooks/adapters + E2E coverage.
-- ✅ global-storage-core — [plan](plans/done/2026-05-21_feature_global-storage.md), resolver contract + global/local/rules-only semantics.
-- ✅ sdd-unification — [task model](plans/done/2026-05-21_refactor_sdd-task-model.md), [work engine](plans/done/2026-05-21_refactor_sdd-work-engine.md), [traceability docs](plans/done/2026-05-21_refactor_sdd-traceability-docs.md).
+## ✅ Done (detail → `progress.md` · `plans/done/` · `roadmap.md`)
 
-## 🔓 Open backlog hot list
-
-- I-023 (MED) — `grep → find` cleanup in `start.md` / `mb-doctor`.
-- I-061 (HIGH) — Cursor compatibility remediation: spec `cursor-extension` (REQ-300..REQ-324), plan `cursor-compatibility-remediation.md` queued. See `reports/2026-05-24_cursor-compatibility-audit.md`.
-- I-045 (HIGH) — Pi compatibility remediation: spec `pi-extension` created (REQ-200..REQ-222), plan `pi-compatibility-remediation.md` queued. Next: implement extension (Stages 1-6).
-- I-046 (MED) — `test_pi_adapter.bats` expansion: prompt install, skill content, hook body, MB_PATH propagation tests.
-- I-047 (MED) — Pi `agents/*.md` global install path (currently only Claude gets agents globally).
-- I-048 (HIGH) — OpenCode global skill alias in `install.sh` (~/.config/opencode/skills/memory-bank symlink).
-- I-049 (HIGH) — Commands `*.md` frontmatter: add OpenCode `agent`/`subtask` fields (or generic `role:`).
-- I-050 (MED) — OpenCode plugin hooks parity: map bash hooks (`mb-protected-paths-guard`, `mb-plan-sync-post-write`, etc.) to TS plugin.
-- I-051 (LOW) — OpenCode agent definitions (`agents/opencode/*.md`).
-- I-052 (LOW) — Tests: add `node --check` for generated OpenCode plugin JS.
-- I-053 (MED) — Cross-agent research note fix: Pi native hooks disclaimer (`notes/2026-04-20_03-36_cross-agent-research.md`).
-- I-054 (HIGH) — `scripts/mb-dispatch.sh`: host-agnostic dispatch abstraction (Task/opencode run/codex run/pi run). Blocks W1–W12 on OpenCode. See `reports/2026-05-24_plans-specs-opencode-gap-analysis.md` §5.1.
-- I-055 (HIGH) — `references/opencode-hooks-mapping.md` + plugin guard implementation (`onBeforeToolExecute` for dangerous-cmd/protected-paths, `experimental.session.compacting` for pre-compact, `onReady` for session start). Blocks W3 handoff-v2 on OpenCode.
-- I-056 (HIGH) — OpenCode plugin-first architecture: replace `adapters/opencode/dispatch.sh` bash sequential loop with JS plugin leveraging native hooks/subtask. Blocks W12 parallel-pipeline on OpenCode. See report §5.1.3.
-- I-057 (MED) — Model resolver OpenCode probe: `mb-pipeline-model-resolve.sh` should check `.opencode/skills/` and `~/.config/opencode/skills/` for `host_supported`. Blocks W4 cost-multi-model on OpenCode.
-- I-058 (MED) — Provider-neutral model aliases: `fast/balanced/powerful` should resolve per-host, not hardcode Anthropic IDs. Blocks W4 cost-multi-model on OpenCode (Kimi defaults).
-- I-059 (MED) — OpenCode test fixtures: add `test_opencode_*.bats` for dispatch, guards, hooks in each wave. Cross-cutting.
-- I-060 (LOW) — Commands `*.md` OpenCode frontmatter: `name`, `description`, `agent`, `subtask` for all 24+ command files. Cross-cutting.
-
-## I-087 — Session-capture correctness + MB drift hygiene ✅ (2026-07-04) — Plan: [plans/2026-07-04_fix_session-capture-and-mb-hygiene.md](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md); Track A+B shipped, C1/C2 done, follow-ups I-088..I-092.
-
-## I-093 — /mb work engine resilience ✅ (2026-07-04) — Plan: [plans/2026-07-04_fix_mb-work-resilience.md](plans/2026-07-04_fix_mb-work-resilience.md); all 9 stages done (T1 durable state · T2 gated flip · T3 external parse · T4 codex preflight), detail in progress.md / BACKLOG I-093.
-
-## I-094 — safe parallel /mb work runs (DONE, 2026-07-05) — Plan: [plans/2026-07-04_fix_mb-work-parallel-runs.md](plans/2026-07-04_fix_mb-work-parallel-runs.md)
-
-- ✅ I-094 S1 (T1): mb-work-slots.sh + per-run state/index/claim(exit4)/baseline in mb-work-state.sh
-- ✅ I-094 S2 (T1): mb-work-budget.sh per-run .work-budget/<run_id>.json under MB_WORK_PARALLEL
-- ✅ I-094 S3 (T1): mb-work-checkbox.sh flip gated on the per-run state slot
-- ✅ I-094 S4 (T3): mb-work-diff.sh baseline-scoped diff for a run
-- ✅ I-094 S5 (T2): mb-work-resolve.sh skip foreign-claimed sources + explicit-claim warn
-- ✅ I-094 S6 (T4): mb-work-progress-append.sh locked atomic append-only writer
-- ✅ I-094 S7 (T1 wire): parallel state+budget+claim into commands/work.md
-- ✅ I-094 S8 (T2+T3 wire): baseline diff + claim-aware resolve + worktree rule into commands/work.md
-- ✅ I-094 S9 (T4 wire): concurrent core-file write contract into commands/work.md
-- ✅ I-094 S10 (T5): commands/work.md "Parallel runs" section
+- ✅ spec `tier1-graph-memory` — 17/17 tasks, v5.1.0 prepped (PyPI publish + tag pending explicit go)
+- ✅ codex remediation Wave 1 — I-082 security-hardening (4 stages) · I-083 verification-gates · I-085 logic-correctness-portability (6 stages)
+- ✅ I-087 — session-capture correctness + MB drift hygiene — [plan](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md); follow-ups I-088..I-092
+- ✅ I-093 — `/mb work` engine resilience (9 stages: durable state · gated flip · external parse · codex preflight) — [plan](plans/2026-07-04_fix_mb-work-resilience.md)
+- ✅ I-094 — safe parallel `/mb work` runs (10 stages: slots · per-run state/budget/claim · baseline diff · locked append) — [plan](plans/2026-07-04_fix_mb-work-parallel-runs.md)
+- ✅ install + cross-agent parity — [plan](plans/2026-07-04_fix_install-and-cross-agent-parity.md), Tracks A/B/C complete
+- ✅ W3 — handoff-v2 (5/5 tasks, governed dual-review + judge)
+- ✅ dynamic-flow Phase 1 + Phase 2 — goal primitive · `mb-flow-sync` fence · THE firewall `mb-flow-verify.sh` · `mb-fanout.sh` · closure wiring
+- ✅ cross-session coordination — `references/coordination.md` protocol + `COORDINATION.md` board wiring
+- ✅ GraphRAG-lite code context · rule-profiles-and-stack-presets · global-storage (core + agent-support) · sdd-unification · Wave 0 CI baseline
 
 ## See also
 
 - `roadmap.md` — full wave order and release gate.
 - `status.md` — current phase, active plan inventory, metrics.
+- `backlog.md` — open ideas/ADRs (SSOT).
 - `traceability.md` — generated REQ coverage matrix.
 - `progress.md` — append-only historical log.
-</content>

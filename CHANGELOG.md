@@ -68,7 +68,7 @@ skill-bundled baseline unchanged.
 - **`scripts/mb-work-pivot.sh`** — `decide` turns a tracked `consecutive_stagnant` count and the current
   cycle number into `refine` / `pivot_in_role` / `pivot_via_architect`, thresholds resolved from
   `pipeline.yaml:review.pivot_after_cycles` (default 2) and `review.pivot_escalate_to_architect_on`
-  (default 4, both already shipped in `references/pipeline.default.yaml`). `prompt-prefix` emits the
+  (default 4, both already present in `references/pipeline.default.yaml`). `prompt-prefix` emits the
   re-dispatch instruction text (discard-and-restart for `pivot_in_role`; the two-step
   architect-then-role-agent escalation for `pivot_via_architect`). Every non-`refine` decision appends
   one JSONL telemetry line (`ts`/`item_id`/`cycle`/`mode`/`rationale_hash`) to
@@ -93,7 +93,7 @@ two are reconciled.
 ### Changed — work-loop-v2: fail-fast `on_max_cycles` default (REQ-113)
 
 - **`on_max_cycles` now defaults to `stop_for_human`** (was
-  `continue_with_warning`) in the shipped `references/pipeline.default.yaml`
+  `continue_with_warning`) in the bundled `references/pipeline.default.yaml`
   `review:` block. When a project's `pipeline.yaml` omits `on_max_cycles`
   entirely, the resolver (`scripts/mb-workflow.sh`) falls back to this new,
   stricter default instead of quietly continuing past an exhausted fix loop.
