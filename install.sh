@@ -988,7 +988,15 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
       found { print; next }
       index($0, e) { found=1; next }
     ' "$CLAUDE_DIR/CLAUDE.md" > "$claude_after_tmp"
-    backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
+    # Back up ONLY when real user content lives outside our managed block. Both
+    # slices are preserved verbatim by the rewrite below, so a file that is
+    # nothing but our own block has nothing to lose — snapshotting it would mint
+    # a fresh .pre-mb-backup.* on every repeat install and make the manifest
+    # non-idempotent. When user content IS present, backup_if_exists still
+    # applies H-4 (keep the oldest true original, re-record it, take no new one).
+    if grep -q '[^[:space:]]' "$claude_before_tmp" || grep -q '[^[:space:]]' "$claude_after_tmp"; then
+      backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
+    fi
     {
       if grep -q '[^[:space:]]' "$claude_before_tmp"; then
         awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$claude_before_tmp"
