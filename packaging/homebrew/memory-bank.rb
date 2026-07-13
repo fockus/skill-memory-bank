@@ -9,8 +9,8 @@ class MemoryBank < Formula
   #   digest for this release). On future bumps, recompute both fields —
   #   e.g. via `brew bump-formula-pr fockus/tap/memory-bank --url "<pypi-sdist-url>"`
   #   (it re-downloads the sdist and rewrites both fields); see docs/release-process.md.
-  url "https://files.pythonhosted.org/packages/source/m/memory-bank-skill/memory_bank_skill-5.2.0.tar.gz"
-  sha256 "12a463592af02dde8ee46ac2f5e13bf4071dcdc2b8ca496f27b97376e4b207bf"
+  url "https://files.pythonhosted.org/packages/source/m/memory-bank-skill/memory_bank_skill-5.3.0.tar.gz"
+  sha256 "93647801d711e89de82c32c17fdc2a40d788d079243478bc57b09accdedd9eb3"
   license "MIT"
   head "https://github.com/fockus/skill-memory-bank.git", branch: "main"
 
