@@ -7,7 +7,7 @@ _REQ-IDs are **per-spec-local**: the same REQ-NNN may appear in multiple specs (
 ## Coverage
 - Total REQs: 213
 - Planned: 0
-- Tested: 52
+- Tested: 54
 - Tasks-covered: 210
 
 ## Matrix
@@ -191,8 +191,8 @@ _REQ-IDs are **per-spec-local**: the same REQ-NNN may appear in multiple specs (
 | REQ-101 | specs/reviewer-2.0/requirements.md | specs/reviewer-2.0/tasks.md#task-2, specs/reviewer-2.0/tasks.md#task-3 | — | tests/pytest/test_ears_validate.py | ✅ |
 | REQ-102 | specs/reviewer-2.0/requirements.md | specs/reviewer-2.0/tasks.md#task-1, specs/reviewer-2.0/tasks.md#task-4 | — | — | 🏗️ |
 | REQ-103 | specs/reviewer-2.0/requirements.md | specs/reviewer-2.0/tasks.md#task-4, specs/reviewer-2.0/tasks.md#task-5 | — | tests/pytest/test_mb_work_review_parse.py | ✅ |
-| REQ-104 | specs/reviewer-2.0/requirements.md | specs/reviewer-2.0/tasks.md#task-6 | — | — | 🏗️ |
-| REQ-105 | specs/reviewer-2.0/requirements.md | specs/reviewer-2.0/tasks.md#task-5, specs/reviewer-2.0/tasks.md#task-6 | — | tests/pytest/test_mb_work_review_parse.py | ✅ |
+| REQ-104 | specs/reviewer-2.0/requirements.md | specs/reviewer-2.0/tasks.md#task-6 | — | tests/calibration/run.sh | ✅ |
+| REQ-105 | specs/reviewer-2.0/requirements.md | specs/reviewer-2.0/tasks.md#task-5, specs/reviewer-2.0/tasks.md#task-6 | — | tests/pytest/test_mb_work_review_parse.py tests/calibration/run.sh | ✅ |
 | REQ-001 | specs/tier1-graph-memory/requirements.md | specs/tier1-graph-memory/tasks.md#task-1, specs/tier1-graph-memory/tasks.md#task-2, specs/tier1-graph-memory/tasks.md#task-9, specs/tier1-graph-memory/tasks.md#task-17 | — | tests/pytest/test_mb_req_id.py tests/pytest/test_traceability_gen.py tests/pytest/test_mb_spec_tasks_migrate.py tests/pytest/test_mb_context_slim.py tests/pytest/test_mb_work_spec_tasks.py tests/pytest/test_hook_ears_pre_write.py tests/pytest/test_req_next_id.py tests/pytest/test_plan_sdd_lite.py tests/pytest/test_ears_validate.py tests/pytest/test_mb_spec_validate.py tests/pytest/test_traceability_spec_tasks.py tests/pytest/test_work_items_parser.py tests/pytest/test_semantic_search_rrf.py | ✅ |
 | REQ-002 | specs/tier1-graph-memory/requirements.md | specs/tier1-graph-memory/tasks.md#task-2 | — | tests/pytest/test_mb_req_id.py tests/pytest/test_traceability_gen.py tests/pytest/test_mb_context_slim.py tests/pytest/test_mb_work_spec_tasks.py tests/pytest/test_hook_ears_pre_write.py tests/pytest/test_req_next_id.py tests/pytest/test_plan_sdd_lite.py tests/pytest/test_ears_validate.py tests/pytest/test_mb_spec_validate.py tests/pytest/test_traceability_spec_tasks.py tests/pytest/test_work_items_parser.py tests/pytest/test_semantic_search_rrf.py | ✅ |
 | REQ-003 | specs/tier1-graph-memory/requirements.md | specs/tier1-graph-memory/tasks.md#task-3, specs/tier1-graph-memory/tasks.md#task-17 | — | tests/pytest/test_codegraph_import_binding.py tests/pytest/test_mb_req_id.py tests/pytest/test_traceability_gen.py tests/pytest/test_req_next_id.py tests/pytest/test_ears_validate.py tests/pytest/test_mb_spec_validate.py tests/pytest/test_traceability_spec_tasks.py | ✅ |
@@ -225,7 +225,7 @@ _REQ-IDs are **per-spec-local**: the same REQ-NNN may appear in multiple specs (
 | REQ-110 | specs/work-loop-v2/requirements.md | specs/work-loop-v2/tasks.md#task-2, specs/work-loop-v2/tasks.md#task-5 | — | — | 🏗️ |
 | REQ-111 | specs/work-loop-v2/requirements.md | specs/work-loop-v2/tasks.md#task-1, specs/work-loop-v2/tasks.md#task-5 | — | — | 🏗️ |
 | REQ-112 | specs/work-loop-v2/requirements.md | specs/work-loop-v2/tasks.md#task-3, specs/work-loop-v2/tasks.md#task-5 | — | — | 🏗️ |
-| REQ-113 | specs/work-loop-v2/requirements.md | specs/work-loop-v2/tasks.md#task-4, specs/work-loop-v2/tasks.md#task-5 | — | — | 🏗️ |
+| REQ-113 | specs/work-loop-v2/requirements.md | specs/work-loop-v2/tasks.md#task-4, specs/work-loop-v2/tasks.md#task-5 | — | tests/pytest/test_on_max_cycles_migration.py | ✅ |
 | REQ-114 | specs/work-loop-v2/requirements.md | specs/work-loop-v2/tasks.md#task-1, specs/work-loop-v2/tasks.md#task-3, specs/work-loop-v2/tasks.md#task-5 | — | — | 🏗️ |
 
 ## Orphans

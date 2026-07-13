@@ -5,6 +5,7 @@
 ## Now (in progress)
 
 - [2026-05-24_fix_cursor-compatibility-remediation](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation
+- [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency
 
 ## Next (strict order — depends)
 
@@ -16,10 +17,6 @@
 - [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation
 - [2026-06-23_feature_dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) — Capability Dispatcher Wiring + Transports
-- [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency
-- [2026-06-23_fix_logic-correctness-portability](plans/2026-06-23_fix_logic-correctness-portability.md) — Logic Correctness & Portability
-- [2026-06-23_fix_security-hardening](plans/2026-06-23_fix_security-hardening.md) — Security Hardening
-- [2026-06-23_fix_verification-gates](plans/2026-06-23_fix_verification-gates.md) — Verification Gates Fail-Closed
 - [2026-07-04_fix_install-and-cross-agent-parity](plans/2026-07-04_fix_install-and-cross-agent-parity.md) — Install reliability + cross-agent parity
 - [2026-07-04_fix_session-capture-and-mb-hygiene](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md) — Session-capture correctness + Memory-Bank drift hygiene
 
