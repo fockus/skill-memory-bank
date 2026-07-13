@@ -141,10 +141,11 @@ fi
 bullet="$(printf -- '- %s — User: "%s" · tools: %s · files: %s · %s' \
   "$hm" "$user_line" "$tools" "$files" "$outcome")"
 [ -n "$diffstat" ] && bullet="$bullet · $diffstat"
-<<<<<<< HEAD
 # Splice the bullet INSIDE `## Live log` (before any `## Summary` from a resumed session),
 # never blindly at EOF. On a fresh session this is a plain EOF append (identical output).
-redacted_bullet="$(printf -- '%s\n' "$bullet" | sc_redact_secrets)"
+# `sc_strip_private` runs FIRST (I-082): `<private>…</private>` spans never reach disk;
+# `sc_redact_secrets` then masks API keys/tokens (an OpenRouter key once persisted verbatim).
+redacted_bullet="$(printf -- '%s\n' "$bullet" | sc_strip_private | sc_redact_secrets)"
 # A2: cap the whole bullet to MB_SESSION_BULLET_MAX chars (default 600) + `…`. Applied
 # AFTER redaction so a secret can never be split across the cut (the token is already
 # `[REDACTED]`). The leading `- HH:MM — User: "` prefix is preserved (cut from the tail).
@@ -161,9 +162,6 @@ sc_livelog_append "$SF" "$redacted_bullet"
 if [ "$(sc_fm_get "$SF" summarized)" = "true" ]; then
   sc_fm_set "$SF" summarized false
 fi
-=======
-printf -- '%s\n' "$bullet" | sc_strip_private | sc_redact_secrets >> "$SF"
->>>>>>> 36bc1d9 (fix(codex-remediation): Wave 1 hardening + I-086 validator stages 1–2)
 
 # bump turn counter + record this turn's anchor uuid for dedup
 cur="$(sc_fm_get "$SF" turns)"
