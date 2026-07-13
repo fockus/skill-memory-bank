@@ -48,9 +48,15 @@ warn() {
   printf '[work-progress-append] %s\n' "$1" >&2
 }
 
-# Portable mtime (epoch seconds); empty if missing.
+# Portable mtime (epoch seconds); empty if missing/unknown.
+# GNU-first + validate — see hooks/lib/session-common.sh::_sc_mtime: a BSD-first
+# chain returns a filesystem dump concatenated with the epoch on Linux.
 _mtime() {
-  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || true
+  local m
+  m="$(stat -c %Y "$1" 2>/dev/null || true)"          # GNU
+  case "$m" in ''|*[!0-9]*) : ;; *) printf '%s\n' "$m"; return 0 ;; esac
+  m="$(stat -f %m "$1" 2>/dev/null || true)"          # BSD
+  case "$m" in ''|*[!0-9]*) return 0 ;; *) printf '%s\n' "$m"; return 0 ;; esac
 }
 
 # Atomic mkdir lock (no flock on macOS). Breaks a lock older than $ttl.

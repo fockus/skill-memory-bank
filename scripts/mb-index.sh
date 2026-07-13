@@ -14,12 +14,17 @@ if [[ ! -d "$MB_PATH" ]]; then
   exit 1
 fi
 
-# Cross-platform modification date
+# Cross-platform modification date.
+# GNU-FIRST: on Linux `stat -f` means --file-system and, with the format as a
+# separate argument, prints a whole FS dump to STDOUT before exiting non-zero — so
+# the BSD-first `if stat -f ...; then return; fi` leaked that dump into the output
+# and *then* fell through to the GNU branch.
 file_mod_date() {
-  if stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$1" 2>/dev/null; then
+  if stat -c "%y" "$1" 2>/dev/null | cut -d. -f1 | grep -q '[0-9]'; then
+    stat -c "%y" "$1" 2>/dev/null | cut -d. -f1
     return
   fi
-  stat -c "%y" "$1" 2>/dev/null | cut -d. -f1
+  stat -f "%Sm" -t "%Y-%m-%d %H:%M" "$1" 2>/dev/null
 }
 
 echo "=== Memory Bank Index ==="

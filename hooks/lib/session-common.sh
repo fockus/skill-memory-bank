@@ -109,9 +109,16 @@ sc_livelog_append() {
   ' "$file" > "$tmp" && mv "$tmp" "$file"
 }
 
-# Portable mtime (seconds since epoch) of a path; empty if missing.
+# Portable mtime (seconds since epoch) of a path; empty if missing/unknown.
+# GNU-first + validate: on Linux `stat -f` means --file-system, and with the format
+# as a SEPARATE argument it prints a whole FS dump to STDOUT before failing — so a
+# BSD-first chain returns that dump concatenated with the real epoch.
 _sc_mtime() {
-  stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null
+  local m
+  m="$(stat -c %Y "$1" 2>/dev/null || true)"          # GNU
+  case "$m" in ''|*[!0-9]*) : ;; *) printf '%s\n' "$m"; return 0 ;; esac
+  m="$(stat -f %m "$1" 2>/dev/null || true)"          # BSD
+  case "$m" in ''|*[!0-9]*) return 0 ;; *) printf '%s\n' "$m"; return 0 ;; esac
 }
 
 # Acquire a portable atomic lock via mkdir (flock is absent on macOS).

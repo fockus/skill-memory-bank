@@ -1,11 +1,29 @@
 #!/usr/bin/env bash
 # adapters/_framework.sh — shared adapter helpers.
 
-# Portable file mode as octal digits (e.g. 644). BSD `stat -f%Lp`, GNU `stat -c%a`.
-# Empty string on failure (caller then skips chmod). Used to preserve permissions
-# across atomic tmp+mv rewrites (mktemp defaults to 0600).
+# Portable file mode as octal digits (e.g. 644). Empty string when unknown
+# (caller then skips chmod). Preserves permissions across atomic tmp+mv rewrites,
+# which would otherwise inherit mktemp's 0600.
+#
+# GNU-FIRST + VALIDATE, and both halves matter. A BSD-first chain
+#   stat -f '%Lp' "$1" || stat -c '%a' "$1"
+# is broken on Linux: GNU's `-f` means --file-system, so it does NOT fail cleanly —
+# it prints a whole filesystem dump ("File: ... Type: overlayfs ...") to STDOUT and
+# then exits non-zero, so `||` runs the GNU branch too and $( ) captures BOTH.
+# The caller then ran `chmod "<fs dump>\n644"`, which fails under set -e and killed
+# the adapter with a silent exit 1. Same class as _lib.sh::mb_mtime.
 mb_file_mode() {
-  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null || true
+  local m
+  m="$(stat -c '%a' "$1" 2>/dev/null || true)"     # GNU
+  case "$m" in
+    ''|*[!0-7]*) : ;;
+    *) printf '%s\n' "$m"; return 0 ;;
+  esac
+  m="$(stat -f '%Lp' "$1" 2>/dev/null || true)"    # BSD
+  case "$m" in
+    ''|*[!0-7]*) return 0 ;;                       # unknown -> empty, caller skips chmod
+    *) printf '%s\n' "$m"; return 0 ;;
+  esac
 }
 
 adapter_require_jq() {

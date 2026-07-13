@@ -356,7 +356,9 @@ EOF
   chmod 664 "$PROJECT/opencode.json"
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
-  m=$(stat -f '%Lp' "$PROJECT/opencode.json" 2>/dev/null || stat -c '%a' "$PROJECT/opencode.json" 2>/dev/null)
+  # GNU-first: on Linux `stat -f` means --file-system and prints a whole FS dump
+  # to stdout before failing, so a BSD-first chain concatenates garbage + the mode.
+  m=$(stat -c '%a' "$PROJECT/opencode.json" 2>/dev/null || stat -f '%Lp' "$PROJECT/opencode.json" 2>/dev/null)
   [ "$m" = "664" ]
 }
 

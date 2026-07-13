@@ -71,20 +71,17 @@ STACKS_WITH_OWN_FILES="typescript frontend mobile backend python go"
 $stack_headers"
   done
 
-  declare -A totals=([logic]=0 [code_rules]=0 [security]=0 [scalability]=0 [tests]=0)
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    category=$(printf '%s\n' "$line" | sed -E 's/^### [A-Za-z0-9_-]+ \([A-Za-z0-9_-]+ \/ ([a-z_]+) \/ [a-z]+\)$/\1/')
-    case "$category" in
-      logic|code_rules|security|scalability|tests)
-        totals["$category"]=$(( totals["$category"] + 1 ))
-        ;;
-    esac
-  done <<< "$all_headers"
+  # bash 3.2 (macOS system bash, and what bats runs under in CI) has no
+  # associative arrays — `declare -A` is a hard syntax error there, not a
+  # degradation. Count per category by filtering the header list instead.
+  categories="$(printf '%s\n' "$all_headers" \
+    | sed -n -E 's/^### [A-Za-z0-9_-]+ \([A-Za-z0-9_-]+ \/ ([a-z_]+) \/ [a-z]+\)$/\1/p')"
 
   for category in logic code_rules security scalability tests; do
-    if [ "${totals[$category]}" -lt 3 ]; then
-      echo "category '$category' only has ${totals[$category]} example(s) across the bundled pool, expected >= 3" >&2
+    count=$(printf '%s\n' "$categories" | grep -c "^${category}\$" || true)
+    if [ "$count" -lt 3 ]; then
+      echo "category '$category' only has $count example(s) across the bundled pool, expected >= 3" >&2
+      printf '%s\n' "$categories" | sort | uniq -c >&2
       false
     fi
   done

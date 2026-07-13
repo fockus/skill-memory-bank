@@ -386,16 +386,32 @@ import os
 path = os.environ["MB_PIPE_FILE"]
 field = os.environ["MB_PIPE_FIELD"]
 
+# data is None  -> "cannot load strictly" -> the minimal fallback parser below runs.
+# data is {}     -> "loaded, but the file is unusable" -> report empty, do NOT guess.
+#
+# Probe PyYAML FIRST. pipeline_yaml imports yaml lazily *inside* its functions, so
+# `from ... import` succeeds without PyYAML and load_file() then raises
+# PipelineYamlError("PyYAML required ..."). Mapping that to {} made a missing PyYAML
+# read every pipeline as EMPTY — silently disabling the very fallback it exists for.
+# A missing PyYAML is a capability gap (-> fallback); a PipelineYamlError from a file
+# that WAS parsed is a real config error (-> {}).
 data = None
 try:
-    from memory_bank_skill.pipeline_yaml import PipelineYamlError, load_file as _pipeline_load_file
-    data = _pipeline_load_file(path)
+    import yaml  # noqa: F401
+    have_yaml = True
 except ModuleNotFoundError:
-    data = None
-except PipelineYamlError:
-    data = {}
-except Exception:
-    data = {}
+    have_yaml = False
+
+if have_yaml:
+    try:
+        from memory_bank_skill.pipeline_yaml import PipelineYamlError, load_file as _pipeline_load_file
+        data = _pipeline_load_file(path)
+    except ModuleNotFoundError:
+        data = None          # the package itself is not importable -> fallback
+    except PipelineYamlError:
+        data = {}            # duplicate keys / not a mapping / parse error -> real config error
+    except Exception:
+        data = {}
 
 if data is None:
     # Minimal fallback: parse only pipeline_name / default / agents.

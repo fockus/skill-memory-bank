@@ -321,7 +321,9 @@ EOF
   chmod 664 "$PROJECT/.clinerules"
   run_adapter install "$PROJECT"
   run_adapter uninstall "$PROJECT"
-  m=$(stat -f '%Lp' "$PROJECT/.clinerules" 2>/dev/null || stat -c '%a' "$PROJECT/.clinerules" 2>/dev/null)
+  # GNU-first: on Linux `stat -f` means --file-system and prints a whole FS dump
+  # to stdout before failing, so a BSD-first chain concatenates garbage + the mode.
+  m=$(stat -c '%a' "$PROJECT/.clinerules" 2>/dev/null || stat -f '%Lp' "$PROJECT/.clinerules" 2>/dev/null)
   [ "$m" = "664" ]
 }
 
