@@ -117,34 +117,25 @@ if [ ! -d "$SKILL_DIR" ]; then
 fi
 
 # ═══ Detect install flavor when .git is missing ═══
-# The skill ships through three channels:
-#   1. git clone  — target has .git, this script drives it (git pull + re-install)
-#   2. pipx       — target is (or resolves into) ~/.local/pipx/venvs/.../share/memory-bank-skill
-#   3. pip / other — target is installed data in a site-packages share directory
+# The skill ships through four channels: git clone, pipx, pip, and Homebrew.
+# scripts/_lib.sh::mb_install_flavor is the single source of truth for this
+# classification — mb-version-check.sh needs the exact same answer, so the
+# pattern-matching lives there, not here (no second copy to drift).
 #
-# For 2/3 this script can't self-update — the right answer is the packaging
-# tool's own upgrade command. Print the exact command and exit 0 so `--check`
+# For non-git flavors this script can't self-update — the right answer is the
+# packaging tool's own upgrade command. Print it and exit 0 so `--check`
 # consumers see "nothing to do here" rather than a scary error.
 if [ ! -d "$SKILL_DIR/.git" ]; then
-  resolved="$SKILL_DIR"
-  # Follow symlinks to the real location; pipx installs always sit under
-  # .../pipx/venvs/memory-bank-skill/share/memory-bank-skill, so a readlink
-  # reveals the install flavor even when $SKILL_DIR is an alias symlink.
-  if [ -L "$SKILL_DIR" ]; then
-    if command -v readlink >/dev/null 2>&1; then
-      # -f for chain resolution; fall back to single-hop readlink on BSD builds
-      # that lack -f (older macOS). realpath is a last resort.
-      resolved="$(readlink -f "$SKILL_DIR" 2>/dev/null || readlink "$SKILL_DIR" || echo "$SKILL_DIR")"
-    fi
-  fi
+  flavor="$(mb_install_flavor "$SKILL_DIR")"
+  resolved="$(mb_resolve_install_alias "$SKILL_DIR")"
 
-  case "$resolved" in
-    *pipx/venvs/memory-bank-skill*)
+  case "$flavor" in
+    pipx)
       echo "[info] memory-bank-skill is installed via pipx (bundle: $resolved)" >&2
       echo "[info] Git-based auto-upgrade is not applicable for pipx installs." >&2
       echo ""
       echo "To update, run:"
-      echo "    pipx upgrade memory-bank-skill"
+      echo "    $(mb_upgrade_command pipx "$SKILL_DIR")"
       echo ""
       echo "Or force-reinstall from GitHub (for release candidates):"
       echo "    pipx install --force 'git+https://github.com/fockus/skill-memory-bank.git'"
@@ -152,11 +143,18 @@ if [ ! -d "$SKILL_DIR/.git" ]; then
       # The user has a clear next step, and CI pipelines don't fail.
       exit 0
       ;;
-    *site-packages*|*dist-packages*)
+    pip)
       echo "[info] memory-bank-skill appears to be a pip install (bundle: $resolved)" >&2
       echo ""
       echo "To update, run:"
-      echo "    pip install --upgrade memory-bank-skill"
+      echo "    $(mb_upgrade_command pip "$SKILL_DIR")"
+      exit 0
+      ;;
+    brew)
+      echo "[info] memory-bank-skill is installed via Homebrew (bundle: $resolved)" >&2
+      echo ""
+      echo "To update, run:"
+      echo "    $(mb_upgrade_command brew "$SKILL_DIR")"
       exit 0
       ;;
     *)

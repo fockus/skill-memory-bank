@@ -238,6 +238,69 @@ EOF
   [[ "$output" != *"ru"* ]]
 }
 
+# ═══ Regression: install-flavor detection now delegates to _lib.sh
+# (scripts/_lib.sh::mb_install_flavor / mb_upgrade_command) — these pin the
+# exact user-facing output + exit codes so that refactor cannot silently
+# change what users see. ═══
+
+@test "upgrade: pipx flavor — prints the pinned info+hint lines and exits 0" {
+  mkdir -p "$TMPDIR/home/.local/pipx/venvs/memory-bank-skill/share/memory-bank-skill"
+  MB_SKILL_DIR="$TMPDIR/home/.local/pipx/venvs/memory-bank-skill/share/memory-bank-skill" \
+    run bash "$SCRIPT" --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[info] memory-bank-skill is installed via pipx (bundle:"* ]]
+  [[ "$output" == *"[info] Git-based auto-upgrade is not applicable for pipx installs."* ]]
+  [[ "$output" == *"To update, run:"* ]]
+  [[ "$output" == *"    pipx upgrade memory-bank-skill"* ]]
+  [[ "$output" == *"Or force-reinstall from GitHub (for release candidates):"* ]]
+  [[ "$output" == *"    pipx install --force 'git+https://github.com/fockus/skill-memory-bank.git'"* ]]
+}
+
+@test "upgrade: pip flavor (site-packages) — prints the pinned info+hint lines and exits 0" {
+  mkdir -p "$TMPDIR/home/lib/python3.11/site-packages/memory_bank_skill/share/memory-bank-skill"
+  MB_SKILL_DIR="$TMPDIR/home/lib/python3.11/site-packages/memory_bank_skill/share/memory-bank-skill" \
+    run bash "$SCRIPT" --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[info] memory-bank-skill appears to be a pip install (bundle:"* ]]
+  [[ "$output" == *"To update, run:"* ]]
+  [[ "$output" == *"    pip install --upgrade memory-bank-skill"* ]]
+}
+
+@test "upgrade: pip flavor (dist-packages) — prints the pinned info+hint lines and exits 0" {
+  mkdir -p "$TMPDIR/usr/lib/python3/dist-packages/memory_bank_skill/share/memory-bank-skill"
+  MB_SKILL_DIR="$TMPDIR/usr/lib/python3/dist-packages/memory_bank_skill/share/memory-bank-skill" \
+    run bash "$SCRIPT" --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[info] memory-bank-skill appears to be a pip install (bundle:"* ]]
+  [[ "$output" == *"    pip install --upgrade memory-bank-skill"* ]]
+}
+
+@test "upgrade: brew flavor (NEW) — prints an info+hint block and exits 0" {
+  mkdir -p "$TMPDIR/opt/homebrew/Cellar/memory-bank/1.0.0/share/memory-bank-skill"
+  MB_SKILL_DIR="$TMPDIR/opt/homebrew/Cellar/memory-bank/1.0.0/share/memory-bank-skill" \
+    run bash "$SCRIPT" --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[info] memory-bank-skill is installed via Homebrew (bundle:"* ]]
+  [[ "$output" == *"To update, run:"* ]]
+  [[ "$output" == *"    brew upgrade memory-bank"* ]]
+}
+
+@test "upgrade: unknown flavor — prints the pinned error+reinstall-hint lines and exits 1" {
+  mkdir -p "$TMPDIR/somewhere/random/not-a-known-install"
+  MB_SKILL_DIR="$TMPDIR/somewhere/random/not-a-known-install" run bash "$SCRIPT" --check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"[error] $TMPDIR/somewhere/random/not-a-known-install is not a git repository and not a known package install"* ]]
+  [[ "$output" == *"[hint] Reinstall options:"* ]]
+  [[ "$output" == *"    git clone:  rm -rf $TMPDIR/somewhere/random/not-a-known-install && git clone https://github.com/fockus/skill-memory-bank.git $TMPDIR/somewhere/random/not-a-known-install"* ]]
+  [[ "$output" == *"    pipx:       pipx install memory-bank-skill"* ]]
+  [[ "$output" == *"    pip:        pip install memory-bank-skill"* ]]
+}
+
+@test "upgrade: no second copy of the flavor pattern-matching remains in mb-upgrade.sh" {
+  run grep -nE 'pipx/venvs/memory-bank-skill|site-packages\*\)|dist-packages\*\)|/Cellar/' "$SCRIPT"
+  [ "$status" -ne 0 ]
+}
+
 @test "upgrade: drops a persisted client no longer supported instead of failing the whole upgrade" {
   _a21_setup_upgradeable_skill
 

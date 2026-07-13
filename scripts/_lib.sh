@@ -393,7 +393,7 @@ field = os.environ["MB_PIPE_FIELD"]
 # `from ... import` succeeds without PyYAML and load_file() then raises
 # PipelineYamlError("PyYAML required ..."). Mapping that to {} made a missing PyYAML
 # read every pipeline as EMPTY — silently disabling the very fallback it exists for.
-# A missing PyYAML is a capability gap (-> fallback); a PipelineYamlError from a file
+# A missing PyYAML is a capability gap (-> fallback); PipelineYamlError from a file
 # that WAS parsed is a real config error (-> {}).
 data = None
 try:
@@ -660,6 +660,118 @@ mb_collision_safe_filename() {
     fi
     i=$((i + 1))
   done
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Install flavor detection — shared by mb-upgrade.sh and mb-version-check.sh
+# ─────────────────────────────────────────────────────────────────────────────
+# Resolve a possibly-symlinked install directory to its real location.
+# Mirrors `readlink -f` with a single-hop BSD `readlink` fallback (macOS ships
+# bash 3.2 and a `readlink` without `-f`). Non-symlink or unresolvable input
+# is returned unchanged. Always succeeds — this never fails the caller.
+mb_resolve_install_alias() {
+  local dir="${1:-}"
+  local resolved="$dir"
+  if [ -n "$dir" ] && [ -L "$dir" ] && command -v readlink >/dev/null 2>&1; then
+    resolved="$(readlink -f "$dir" 2>/dev/null || readlink "$dir" 2>/dev/null || printf '%s' "$dir")"
+  fi
+  printf '%s\n' "$resolved"
+}
+
+# mb_install_flavor <dir> — classify how the skill got onto this machine.
+#
+# The skill ships through four channels:
+#   1. git clone  — <dir> has .git, mb-upgrade.sh drives it directly.
+#   2. pipx       — <dir> resolves into .../pipx/venvs/memory-bank-skill/...
+#   3. pip        — <dir> resolves into a site-packages/dist-packages share dir.
+#   4. brew       — <dir> resolves under a Homebrew Cellar, or under
+#                   `brew --prefix` when the `brew` binary is on PATH.
+#
+# Prints exactly one of: git | pipx | pip | brew | unknown. Always exits 0 —
+# this answers a question, it never fails the caller.
+mb_install_flavor() {
+  local dir="${1:-}" resolved brew_prefix
+
+  if [ -n "$dir" ] && [ -d "$dir/.git" ]; then
+    printf '%s\n' "git"
+    return 0
+  fi
+
+  resolved="$(mb_resolve_install_alias "$dir")"
+
+  # Patterns are anchored to real path SEGMENTS (bounded by `/` on both
+  # sides, or by start/end of string) — a bare substring match would
+  # misclassify e.g. `~/dev/site-packages-playground/mb` as a pip install.
+  # Order matters: pipx venvs contain a `site-packages/` segment of their
+  # own, so the pipx check must run before the pip check.
+  case "$resolved" in
+    */pipx/venvs/memory-bank-skill/*|*/pipx/venvs/memory-bank-skill)
+      printf '%s\n' "pipx"
+      return 0
+      ;;
+    */site-packages/*|*/site-packages|*/dist-packages/*|*/dist-packages)
+      printf '%s\n' "pip"
+      return 0
+      ;;
+    */Cellar/*)
+      printf '%s\n' "brew"
+      return 0
+      ;;
+  esac
+
+  if command -v brew >/dev/null 2>&1; then
+    brew_prefix="$(brew --prefix 2>/dev/null || true)"
+    if [ -n "$brew_prefix" ]; then
+      case "$resolved" in
+        "$brew_prefix"|"$brew_prefix"/*)
+          printf '%s\n' "brew"
+          return 0
+          ;;
+      esac
+    fi
+  fi
+
+  printf '%s\n' "unknown"
+  return 0
+}
+
+# mb_upgrade_command <flavor> [install_dir] — the native "how do I update"
+# command for a flavor, as printed to the user (informational only —
+# callers never invoke a package manager on the user's behalf). Never
+# empty, even for `unknown`: a silent empty string is worse than a loud
+# reinstall hint. Always exits 0.
+#
+# `install_dir` (optional) is the resolved skill bundle root. It only
+# affects the `git` flavor: without it, a cwd-relative command is printed
+# (correct only when the caller happens to run from the bundle root — the
+# historical behaviour, kept as a deliberate fallback for callers that
+# don't know their bundle location). With it, an absolute, copy-pasteable
+# command is printed instead, so a SessionStart hook running from an
+# arbitrary project directory still hands the user something runnable.
+mb_upgrade_command() {
+  local flavor="${1:-unknown}" install_dir="${2:-}"
+  case "$flavor" in
+    git)
+      if [ -n "$install_dir" ]; then
+        printf '%s\n' "bash ${install_dir%/}/scripts/mb-upgrade.sh --force"
+      else
+        printf '%s\n' "scripts/mb-upgrade.sh --force"
+      fi
+      ;;
+    pipx)
+      printf '%s\n' "pipx upgrade memory-bank-skill"
+      ;;
+    pip)
+      printf '%s\n' "pip install --upgrade memory-bank-skill"
+      ;;
+    brew)
+      printf '%s\n' "brew upgrade memory-bank"
+      ;;
+    *)
+      printf '%s\n' "No known upgrade path — reinstall: git clone https://github.com/fockus/skill-memory-bank.git <dir>, or pipx install memory-bank-skill, or pip install memory-bank-skill"
+      ;;
+  esac
+  return 0
 }
 
 # mb_resolve_manifest_path <skill_dir> — shared by install.sh/uninstall.sh (A12).
