@@ -96,7 +96,7 @@ Cross-session coordination also shipped (`references/coordination.md` had been u
 
 ## Ключевые метрики
 
-- VERSION: **5.2.0** (minor: context-window statusline — `scripts/mb-statusline.py` + `/mb statusline`, 1M-aware, sidechain-skipping, no-clobber installer. Prior 5.1.0 = tier1-graph-memory layer)
+- VERSION: **5.3.0** (patch-level release that shipped the `templates/` packaging fix issue #2 needed — the 5.2.0 wheel omitted them, so `/mb init` exited 3 for every pipx user, and PyPI forbids re-upload. Prior 5.2.0 = context-window statusline; 5.1.0 = tier1-graph-memory layer)
 - Shell-скрипты в `scripts/`: **42**, Python-скрипты в `scripts/`: **9**, Hooks: **10**
 - Агенты: **17 dispatchable** (3 utility: manager/doctor/codebase-mapper + 3 verifiers: plan-verifier/rules-enforcer/test-runner + 10 role-agents для `/mb work`: developer/architect/backend/frontend/ios/android/devops/qa/analyst/reviewer + 1 research: `mb-research`) + **partials** (`mb-engineering-core`, `mb-tooling-core` — prepended, never dispatched). `install.sh` `AGENT_COUNT` glob = **21**.
 - Commands: **24** top-level (`/mb` hub + 23 dispatchers; `/mb research` added 2026-06-09).

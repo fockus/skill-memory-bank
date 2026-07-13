@@ -56,7 +56,7 @@ jobs:
       - name: Run pytest with coverage
         run: |
           python -m pytest hooks/tests/ tests/pytest/ \
-            --python-files '*_test.py test_*.py' \
+            -o python_files='*_test.py test_*.py' \
             --cov \
             --cov-report=term-missing \
             --cov-fail-under=85

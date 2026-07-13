@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tomllib
 from pathlib import Path
@@ -11,9 +12,16 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 
-def test_version_bumped_to_5_2_0() -> None:
-    text = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    assert text == "5.2.0", f"expected 5.2.0, got {text!r}"
+def test_version_matches_latest_changelog_release() -> None:
+    # A literal pin here reds main on every release. The real invariant is that
+    # VERSION and the newest released CHANGELOG section never drift apart.
+    version = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    released = re.findall(r"^##\s+\[(\d+\.\d+\.\d+)\]", changelog, re.MULTILINE)
+    assert released, "CHANGELOG.md has no released version section"
+    assert version == released[0], (
+        f"VERSION = {version!r} but the newest CHANGELOG release is {released[0]!r}"
+    )
 
 
 def test_changelog_has_4_0_0_section() -> None:
