@@ -8,6 +8,10 @@
 # already happened — the hook skips and clears the lock.
 
 setup() {
+  # Hermetic env: these hooks read their mode from the ambient shell. A dev with
+  # MB_AUTO_CAPTURE=off exported turns every capture assertion into a false red
+  # (CI runs clean, so it never surfaced). Per-test modes are exported in-test.
+  unset MB_AUTO_CAPTURE MB_SESSION_CAPTURE MB_PATH
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   HOOK="$REPO_ROOT/hooks/session-end-autosave.sh"
 

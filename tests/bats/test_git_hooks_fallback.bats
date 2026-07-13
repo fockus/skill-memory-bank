@@ -13,6 +13,10 @@
 # Chains to existing user hooks (backup + delegate, does not overwrite).
 
 setup() {
+  # Hermetic env: these hooks read their mode from the ambient shell. A dev with
+  # MB_AUTO_CAPTURE=off exported turns every capture assertion into a false red
+  # (CI runs clean, so it never surfaced). Per-test modes are exported in-test.
+  unset MB_AUTO_CAPTURE MB_SESSION_CAPTURE MB_PATH
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   ADAPTER="$REPO_ROOT/adapters/git-hooks-fallback.sh"
   PROJECT="$(mktemp -d)"
