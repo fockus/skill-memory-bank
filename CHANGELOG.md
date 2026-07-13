@@ -4,6 +4,48 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [5.3.0] — 2026-07-13
+
+### Fixed — a broken `main` reached PyPI; this release is the repair
+
+- **`templates/` were missing from the published 5.2.0 wheel**
+  ([#2](https://github.com/fockus/skill-memory-bank/issues/2)): a fresh
+  `pipx`/`pip` install could not run `/mb init` at all — `mb-init-bank.sh` exited
+  3 (`missing template bundle`) for every locale, blocking the very first
+  onboarding step. The packaging fix landed on `main` after 5.2.0 was cut, so it
+  never reached users; 5.2.0 cannot be re-uploaded to PyPI. **This release is the
+  first one that actually ships the locale bundles.** Guarded by
+  `tests/pytest/test_wheel_ships_templates.py`, which asserts the built wheel
+  contains `templates/locales/<lang>/.memory-bank/`.
+- **`scripts/_lib.sh` shipped with a bash syntax error** — an unterminated
+  heredoc quote (`<<'PY` instead of `<<'PY'`). `_lib.sh` is sourced by every
+  `mb-*.sh`, so the whole toolchain was dead: `mb-adr.sh` exited 2, `mb-review.sh
+  --emit-payload` failed, and the install/calibration suites went red.
+- **`hooks/mb-session-turn.sh` shipped with raw merge-conflict markers** —
+  unparseable, so every turn-capture path was dead and each deploy re-installed
+  the broken copy. Resolved by merging both sides: the Live-log splice + bullet
+  cap + stale-summary invalidation, *and* `sc_strip_private` (the I-082 control
+  that keeps `<private>…</private>` spans off disk — picking either side alone
+  would have silently reverted a shipped security fix).
+- **Repeat installs were not idempotent**: the paired-marker branch backed up a
+  `CLAUDE.md` that `install.sh` itself had written, minting a fresh
+  `.pre-mb-backup.*` on every re-run and making the install manifest's `backups`
+  list differ run to run. A backup is now taken only when real user content lives
+  outside the managed block (A13's guarantee is unchanged).
+- **Capture test suites were not hermetic**: they inherited `MB_AUTO_CAPTURE`
+  from the developer's shell, so a dev with it exported to `off` saw six false
+  reds that were written off as a "known baseline". `setup()` now normalizes the
+  `MB_*` environment.
+
+### Added — cross-session coordination
+
+- **`references/coordination.md`** — the append-only `COORDINATION.md` board
+  protocol for two or more agent sessions sharing one working tree (read the
+  board before stages/commits/shared-file edits, scoped `git add` only, FREEZE
+  entries need an ACK). Wired into `CLAUDE.md`, `rules/`, `agents/`, and
+  `commands/{start,commit,work}.md`. The docs referenced this file before it
+  existed; it now ships.
+
 ### Added — Reviewer 2.0 (calibrated, tests-aware review)
 
 - **`scripts/mb-review.sh`** — a deterministic review-payload orchestrator

@@ -41,8 +41,14 @@ def test_changelog_unreleased_section_does_not_duplicate_shipped_changes() -> No
     """
     text = _text()
     # Find [Unreleased] block
+    # `[^\n]*\n` consumes exactly the header line, and the lookahead anchors `##`
+    # to a line start (MULTILINE). The previous `\s*\n` + `(?=\n##\s)` pair ate the
+    # blank separator line, so an EMPTY [Unreleased] — the normal state right after
+    # a release is cut — left the lazy group with no `\n##` at its position and it
+    # swallowed the whole next version section, reporting that section's prose as
+    # an [Unreleased] leak. The check broke on every release.
     m = re.search(
-        r"^##\s+\[Unreleased\]\s*\n(.*?)(?=\n##\s|\Z)",
+        r"^##\s+\[Unreleased\][^\n]*\n(.*?)(?=^##\s|\Z)",
         text,
         re.DOTALL | re.MULTILINE,
     )
