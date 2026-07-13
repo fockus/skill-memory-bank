@@ -46,10 +46,9 @@ plugin_body() {
 // Registers hooks for session lifecycle + tool guard + compact-reminder.
 // Auto-captures session placeholder to .memory-bank/progress.md.
 // GraphRAG-lite retrieval (code_context, graph_neighbors, graph_impact,
-// graph_tests) is available via agents/CLI scripts here — this plugin does
-// not register native OpenCode tool wrappers for them; call
-// scripts/mb-code-context.py / scripts/mb-graph-query.py directly (or through
-// an agent) instead.
+// graph_tests): this plugin does NOT register native OpenCode tool wrappers
+// for them. Use the CLI fallback — call scripts/mb-code-context.py or
+// scripts/mb-graph-query.py directly (or through an agent) instead.
 // memory-bank: managed plugin (do not remove marker line)
 
 import { spawn } from 'node:child_process';

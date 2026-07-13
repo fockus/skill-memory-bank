@@ -15,6 +15,9 @@
 # Adapter mandates git-hooks-fallback for lifecycle events.
 
 setup() {
+  # Hermetic env: the capture hooks read their mode from the ambient shell. A dev
+  # with MB_AUTO_CAPTURE=off exported turns the capture assertions into false reds.
+  unset MB_AUTO_CAPTURE MB_SESSION_CAPTURE MB_PATH
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   ADAPTER="$REPO_ROOT/adapters/kilo.sh"
   PROJECT="$(mktemp -d)"

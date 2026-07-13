@@ -99,7 +99,7 @@ def test_concurrent_appends_do_not_interleave(tmp_path: Path) -> None:
         )
 
     results = [p.communicate() for p in procs]
-    for i, (p, (_out, err)) in enumerate(zip(procs, results)):
+    for i, (p, (_out, err)) in enumerate(zip(procs, results, strict=True)):
         assert p.returncode == 0, f"append {i} failed: {err}"
 
     content = progress.read_text()

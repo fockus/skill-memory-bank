@@ -1,11 +1,14 @@
 """Contract tests for memory_bank_skill.pipeline_yaml."""
+
 from __future__ import annotations
 
 import pytest
 
 yaml = pytest.importorskip("yaml")
 
-from memory_bank_skill.pipeline_yaml import PipelineYamlError, load_text
+# E402 is deliberate: the import must run AFTER importorskip, or this module
+# fails to collect on an interpreter without PyYAML instead of skipping.
+from memory_bank_skill.pipeline_yaml import PipelineYamlError, load_text  # noqa: E402
 
 
 def test_load_text_accepts_clean_mapping():
