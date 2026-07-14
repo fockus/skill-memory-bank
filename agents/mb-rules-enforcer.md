@@ -1,7 +1,7 @@
 ---
 name: mb-rules-enforcer
 description: Engineering-rules enforcer — runs deterministic SRP / Clean Architecture / TDD-delta checks against changed files and returns a structured JSON report. Invoked by /review, /commit, /pr, and plan-verifier Step 3.6.
-tools: Read, Bash, Grep, Glob
+tools: Read, Bash, Grep, Glob, SendMessage
 color: magenta
 ---
 
@@ -164,3 +164,12 @@ If there are no violations, report `✅ 0 violations across N files`.
 - [ ] `stats.files_scanned == len(resolved files)`
 - [ ] `rules_source` field tells the caller which RULES.md was used (or "(none)")
 - [ ] Human summary lists CRITICAL before WARNING before INFO
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.

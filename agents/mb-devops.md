@@ -1,7 +1,7 @@
 ---
 name: mb-devops
 description: DevOps / infrastructure specialist for memory-bank /mb work stages. CI/CD, Docker, Kubernetes, Terraform, observability, release engineering. Falls back to mb-developer when stage is generic.
-tools: Bash, Read, Write, Edit, Grep, Glob
+tools: Bash, Read, Write, Edit, Grep, Glob, SendMessage
 model: sonnet
 color: blue
 ---
@@ -39,3 +39,12 @@ evidence (CI/plan/apply output — core Iron Law §7). Then:
 - Diff summary of infra files touched (with the `protected_paths` warning if any).
 - Deployment plan: order of operations, rollback steps, smoke checks.
 - Cost / capacity / blast-radius notes.
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.

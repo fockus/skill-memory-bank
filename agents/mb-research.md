@@ -1,7 +1,7 @@
 ---
 name: mb-research
 description: Use when researching a codebase or the web — "how does X work", "who calls / what depends on X", "what's the blast-radius / which tests cover X", "find the code that does Y", "what did we decide about Z", "how do I use library L", "how do others implement P on GitHub", or "research Q on the internet". Routes structural questions to the Memory Bank code graph, concepts to semantic search, decisions to /mb recall, library/API docs to context7 (if available), prior-art to GitHub code search via gh, and the open web to WebSearch/WebFetch — and falls back to plain Grep/Glob/Read when an index is stale or absent. Dispatches parallel subagents for broad sweeps and returns file:line / source-grounded conclusions — never blind grep guessing.
-tools: Bash, Read, Grep, Glob
+tools: Bash, Read, Grep, Glob, SendMessage
 model: sonnet
 color: cyan
 ---
@@ -87,3 +87,12 @@ the key code."* Then synthesize. This is the fan-out that replaces plain `genera
   `query-docs`; fall back to `WebSearch` if context7 is down.
 - **"How do others build an X client in Python?"** → `gh search code 'X client language:python' --limit 10`
   → `gh api` the most-starred hit's file → summarize the pattern with the `owner/repo` citation.
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.

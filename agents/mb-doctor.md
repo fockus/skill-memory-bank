@@ -1,7 +1,7 @@
 ---
 name: mb-doctor
 description: Memory Bank diagnostician — finds and fixes internal inconsistencies across core files (roadmap.md ↔ checklist.md ↔ status.md ↔ backlog.md ↔ plans/). Invoked by /mb doctor. Uses deterministic mb-drift.sh first.
-tools: Read, Edit, Grep, Bash
+tools: Read, Edit, Grep, Bash, SendMessage
 color: red
 ---
 
@@ -275,3 +275,12 @@ If `stack=unknown`, do not invent metrics. Leave the previous values and add a w
 ### Plan file vs status
 
 For every file in `plans/` (not in `done/`), verify that its status in the header matches the checklist.
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.

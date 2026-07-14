@@ -1,7 +1,7 @@
 ---
 name: mb-test-runner
 description: Structured test runner — detects stack, runs tests, parses per-stack output into strict JSON (pass/fail, counts, per-failure file+name+error_head). Invoked by /test and plan-verifier Step 3.5. Never silently reports "not-run" as pass.
-tools: Bash, Read, Grep
+tools: Bash, Read, Grep, SendMessage
 color: green
 ---
 
@@ -160,3 +160,12 @@ If `tests_pass == null`, the verdict is `⚠️ NOT-RUN` and the human summary m
 - [ ] `touches_session` is present on every failure (true/false, never absent)
 - [ ] Human summary always states the verdict before failure details
 - [ ] Not-run scenarios produce `tests_pass: null` + explicit ⚠️ NOT-RUN label
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.

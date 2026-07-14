@@ -1,7 +1,7 @@
 ---
 name: mb-reviewer-security
 description: Security and risk reviewer for Memory Bank governed review ensembles. Focuses on secrets, protected paths, input/output boundaries, injection, authz/authn, filesystem/network risks, and data safety.
-tools: Bash, Read, Grep, Glob
+tools: Bash, Read, Grep, Glob, SendMessage
 model: sonnet
 color: red
 ---
@@ -41,3 +41,12 @@ Strict JSON only:
   ]
 }
 ```
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.

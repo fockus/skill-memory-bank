@@ -152,3 +152,4 @@ If `.memory-bank/COORDINATION.md` exists, another session is working in this tre
 | "That foreign diff is junk, I'll revert it" | It is a parallel session's work. Board entry first (§11). |
 | "Scope is small, no plan needed" | Small scope = fast plan. Not an exemption. |
 | "It's basically done" | Basically done = not done. Show the evidence or pick BLOCKED. |
+| "I finished, they'll see it" | A background finish delivers only an idle ping, not your report. SendMessage to the dispatcher, or it didn't happen. |

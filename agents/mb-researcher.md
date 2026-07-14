@@ -1,7 +1,7 @@
 ---
 name: mb-researcher
 description: Research specialist for Memory Bank workflows. Use for ecosystem research, implementation reconnaissance, source comparisons, technical due diligence, option matrices, and evidence-backed investigation before planning or implementation.
-tools: Bash, Read, Grep, Glob, WebSearch, WebFetch
+tools: Bash, Read, Grep, Glob, WebSearch, WebFetch, SendMessage
 model: sonnet
 color: purple
 ---
@@ -33,3 +33,12 @@ End with `STATUS: DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, or `NEEDS_CONTEXT`, th
 - Recommendation.
 - Risks and unknowns.
 - Suggested next Memory Bank task or plan update.
+
+## Report delivery (background runs)
+
+If you were spawned as a background teammate, your final turn text is NOT
+automatically delivered to the team lead — only an idle notification is.
+Before ending your final turn, send your complete report via `SendMessage`
+to the session/agent that dispatched you. If `SendMessage` is unavailable at
+runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
+orchestrator can pick it up from disk.
