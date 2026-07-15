@@ -70,6 +70,10 @@
   `pi_graph_rag_extension.ts` into the resolved Pi extensions dir with placeholder
   substitution; session_start handler renders update-notify via `mb-update-notify.sh`.
 - Extend `mb-session-doctor.sh` Pi check to print the exact install command.
+- Owns the AUTHORITATIVE REQ-020 nudge (once per session, silent after
+  install): that behavior is state-driven and cannot live in static
+  AGENTS.md text — implement it in the Pi session_start handler added here.
+  The T2 AGENTS.md line is only the pre-transport static fallback.
 
 **Testing (TDD — tests BEFORE implementation):**
 - Install → both `.ts` present, no `__MB_` placeholders (extend the runtime-parity suite).
@@ -115,6 +119,10 @@
   degraded tier if the API lacks per-turn — then `platform_limited`).
 - Add global-scope agents: `~/.config/opencode/agent/*.md` in
   `install_opencode_global_agents`.
+- Owns the AUTHORITATIVE REQ-020 nudge (once per session, silent after
+  install): that behavior is state-driven and cannot live in static
+  AGENTS.md text — implement it in the OpenCode session-start handler added
+  here. The T2 AGENTS.md line is only the pre-transport static fallback.
 
 **Testing (TDD — tests BEFORE implementation):**
 - Node harness (extend the existing B4-style functional test): simulated session →

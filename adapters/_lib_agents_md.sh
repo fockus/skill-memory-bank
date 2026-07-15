@@ -95,8 +95,16 @@ _mb_skill_version() {
 }
 
 # ───────── Build section content ─────────
+# $1 = skill_dir
+# $2 = include_ext_nudge (0|1, default 0) — emit the "Host parity extensions
+#      (Pi/OpenCode)" nudge only for hosts that actually have parity
+#      extensions to offer (pi, opencode). Codex/cline/kilo/windsurf share the
+#      same AGENTS.md format but have no `--with-extensions` target, so a
+#      codex-only install must not advertise a flag that does nothing for it
+#      (REQ-020 is literally scoped to "a pi or opencode host").
 _agents_md_section() {
   local skill_dir="$1"
+  local include_ext_nudge="${2:-0}"
   echo "$MB_START_MARKER"
   echo "<!-- memory-bank-skill-version: $(_mb_skill_version "$skill_dir") -->"
   echo ''
@@ -125,6 +133,13 @@ _agents_md_section() {
   echo ''
   echo 'Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block work — CLI scripts are the universal fallback.'
   echo ''
+  if [ "$include_ext_nudge" = "1" ]; then
+    echo '## Host parity extensions (Pi/OpenCode)'
+    echo ''
+    # shellcheck disable=SC2016
+    echo 'On a bare Pi or OpenCode host (no parity extensions installed yet), suggest running `install.sh --with-extensions=pi,opencode` once per session, then stay silent once installed.'
+    echo ''
+  fi
   echo '## Dynamic-flow firewall (completion gate)'
   echo ''
   # shellcheck disable=SC2016
@@ -180,6 +195,12 @@ _owners_write() {
 
 # ───────── Install ─────────
 # Ensures our MB section exists in AGENTS.md, registers client in owners list.
+# Signature is unchanged (project_root, client, skill_dir) — no adapter call
+# site needs editing: whether the "Host parity extensions" nudge (REQ-020)
+# belongs in this project's AGENTS.md is derived below purely from $client
+# (pi/opencode have parity extensions to offer; codex/cline/kilo/windsurf do
+# not) and, for a shared file with multiple owning adapters, from the full
+# current owners set — see effective_nudge below.
 # Writes to stdout: "true" if this install created the file, "false" if user file existed.
 agents_md_install() {
   local project_root="$1"
@@ -190,17 +211,34 @@ agents_md_install() {
   local owners
   owners=$(_owners_read "$project_root")
 
+  # Add client to owners (dedupe) BEFORE deciding the nudge so the shared
+  # AGENTS.md section (one file, multiple possible owning adapters) reflects
+  # every current owner, not just the client installing right now — e.g. a
+  # codex adapter re-running in a project that already has pi installed must
+  # not silently strip pi's nudge, and installing pi after codex must add it.
+  owners=$(echo "$owners" | jq --arg c "$client" '.owners = ((.owners // []) - [$c] + [$c])')
+
+  # REQ-020 is scoped to "a pi or opencode host" — a codex-only install must
+  # not advertise a flag ("--with-extensions") that does nothing for it.
+  # $client was already folded into owners above, so checking the owners set
+  # for pi/opencode membership covers both "this call's client is pi/opencode"
+  # and "some OTHER current owner of this shared file is" in one check.
+  local effective_nudge=0
+  if echo "$owners" | jq -e '(.owners // []) | any(. == "pi" or . == "opencode")' >/dev/null 2>&1; then
+    effective_nudge=1
+  fi
+
   local created_by_us=false
   if [ ! -f "$agents_md" ]; then
     # First install ever — we create the file
     created_by_us=true
-    _agents_md_section "$skill_dir" > "$agents_md"
+    _agents_md_section "$skill_dir" "$effective_nudge" > "$agents_md"
     owners=$(echo "$owners" | jq '.initial_had_user_content = false')
   elif ! grep -q "$MB_START_MARKER" "$agents_md"; then
     # File exists (user content) but no MB section yet — append
     {
       echo ''
-      _agents_md_section "$skill_dir"
+      _agents_md_section "$skill_dir" "$effective_nudge"
     } >> "$agents_md"
     owners=$(echo "$owners" | jq '.initial_had_user_content = true')
   else
@@ -215,13 +253,11 @@ agents_md_install() {
     {
       cat "$tmp"
       echo ''
-      _agents_md_section "$skill_dir"
+      _agents_md_section "$skill_dir" "$effective_nudge"
     } > "$agents_md"
     rm -f "$tmp"
   fi
 
-  # Add client to owners (dedupe)
-  owners=$(echo "$owners" | jq --arg c "$client" '.owners = ((.owners // []) - [$c] + [$c])')
   _owners_write "$project_root" "$owners"
 
   echo "$created_by_us"

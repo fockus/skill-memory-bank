@@ -1313,6 +1313,16 @@ If the installed client list includes one different from the current host (for e
 
 ---
 
+#### Extension offer (pi/opencode only)
+
+When the selected clients include `pi` and/or `opencode`, `install.sh` offers opt-in host parity extensions (session memory, subagent dispatch, GraphRAG promotion) — one prompt per host family, default No. Non-interactively, pass `--with-extensions[=pi,opencode]` (or set `MB_WITH_EXTENSIONS`) to accept without prompting; declining leaves the install unchanged. Mention this offer/flag when running Step 3 for `pi`/`opencode` clients so the user isn't surprised by the prompt. `memory-bank install` (the pipx/pip/brew CLI wrapper) already forwards the `MB_WITH_EXTENSIONS` env var to `install.sh` (it passes through `os.environ` untouched) — only the `--with-extensions` CLI flag form is missing from `cli.py`'s argparse (tracked as backlog I-118). Until that lands, `MB_WITH_EXTENSIONS=pi,opencode memory-bank install ...` works from the wrapper; a bare `--with-extensions` flag needs the repo's `install.sh` invoked directly:
+
+```bash
+bash install.sh --clients "pi,opencode" --project-root "$PWD" --with-extensions
+```
+
+---
+
 **Errors:**
 
 - `memory-bank: command not found` → see Step 1.

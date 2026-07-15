@@ -63,6 +63,10 @@ ADAPTERS_INVOKED=()
 # A non-empty array fails the top-level install (exit nonzero) after all
 # adapters have had a chance to run — successful siblings still get installed.
 ADAPTERS_FAILED=()
+# adapter-parity T2 (REQ-001/002/004/005): host families ("pi"|"opencode")
+# whose extension offer was explicitly accepted THIS run. Empty on decline/
+# skip — the manifest field of the same name mirrors this array honestly.
+EXTENSIONS_INSTALLED=()
 
 # ─── Manifest flush (A7 / H-5) ──────────────────────────────────────────────
 # The manifest is the uninstall rollback source. Write it INCREMENTALLY via an
@@ -81,6 +85,7 @@ flush_manifest() {
     BACKED_UP_STR="$(printf '%s\n' ${BACKED_UP_FILES[@]+"${BACKED_UP_FILES[@]}"})" \
     CLIENTS_INSTALLED_STR="$(printf '%s\n' ${ADAPTERS_INVOKED[@]+"${ADAPTERS_INVOKED[@]}"})" \
     CLIENTS_FAILED_STR="$(printf '%s\n' ${ADAPTERS_FAILED[@]+"${ADAPTERS_FAILED[@]}"})" \
+    EXTENSIONS_INSTALLED_STR="$(printf '%s\n' ${EXTENSIONS_INSTALLED[@]+"${EXTENSIONS_INSTALLED[@]}"})" \
     MANIFEST_PROJECT_ROOT="${PROJECT_ROOT:-}" \
     MANIFEST_LANGUAGE="${LANGUAGE:-}" \
     MANIFEST_CLIENTS_REQUESTED="${CLIENTS:-}" \
@@ -92,6 +97,7 @@ files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
 raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
 clients = [c for c in os.environ.get("CLIENTS_INSTALLED_STR", "").split("\n") if c]
 clients_failed = [c for c in os.environ.get("CLIENTS_FAILED_STR", "").split("\n") if c]
+extensions_installed = [e for e in os.environ.get("EXTENSIONS_INSTALLED_STR", "").split("\n") if e]
 
 
 def _ordered_unique(items):
@@ -118,6 +124,10 @@ manifest = {
     # A17: adapters that failed (nonzero exit) or were missing/not-executable —
     # a non-empty list here is why install.sh's own exit code is nonzero.
     "adapters_failed": _ordered_unique(clients_failed),
+    # adapter-parity T2: host families ("pi"/"opencode") whose extension
+    # offer was explicitly accepted this run. Empty array on decline/skip/no
+    # offer shown — never inferred, always the literal accepted set (REQ-002).
+    "extensions_installed": _ordered_unique(extensions_installed),
     "project_root": os.environ.get("MANIFEST_PROJECT_ROOT", ""),
     # A21: the install options as requested (language, full --clients list
     # including claude-code) so `mb-upgrade.sh` can reapply them non-interactively
@@ -168,6 +178,11 @@ CLIENTS=""                  # unset sentinel — triggers interactive or default
 LANGUAGE=""                 # unset sentinel — triggers interactive or default
 PROJECT_ROOT="$PWD"
 NON_INTERACTIVE=0
+# adapter-parity T2: opt-in host parity-extension offer (pi/opencode only).
+# WITH_EXTENSIONS_FLAG=1 means "don't prompt — decide from WITH_EXTENSIONS_VALUE".
+# Empty value = accept every offered host; non-empty = comma list of hosts.
+WITH_EXTENSIONS_FLAG=0
+WITH_EXTENSIONS_VALUE=""
 
 show_help() {
   cat <<HELP_EOF
@@ -189,6 +204,15 @@ Options:
                           Non-TTY default: en.
   --project-root <path>   Target directory for cross-agent adapters (default: PWD).
   --non-interactive       Never prompt; use defaults when --clients not passed.
+  --with-extensions[=<list>]
+                          Opt in to pi/opencode host parity extensions (session
+                          memory, subagent dispatch, GraphRAG promotion)
+                          without an interactive prompt. Bare flag accepts
+                          every offered host; a comma list (e.g. pi,opencode)
+                          scopes acceptance to those hosts only. Same effect
+                          as the MB_WITH_EXTENSIONS env var. Ignored unless
+                          --clients includes pi and/or opencode. Declining
+                          (the default) leaves the install unchanged.
   --help                  Show this message.
 
 Examples:
@@ -197,6 +221,7 @@ Examples:
   install.sh --language ru                           # install Russian language rules
   install.sh --clients claude-code,cursor            # + .cursor/ adapter in PWD
   install.sh --clients cursor,windsurf,opencode     # Multi-client, no claude-code
+  install.sh --clients pi,opencode --with-extensions # accept both hosts' parity extensions
 HELP_EOF
 }
 
@@ -219,6 +244,13 @@ while [ $# -gt 0 ]; do
       ;;
     --non-interactive)
       NON_INTERACTIVE=1; shift ;;
+    --with-extensions)
+      WITH_EXTENSIONS_FLAG=1; WITH_EXTENSIONS_VALUE=""; shift ;;
+    --with-extensions=*)
+      WITH_EXTENSIONS_FLAG=1
+      WITH_EXTENSIONS_VALUE="${1#--with-extensions=}"
+      shift
+      ;;
     --help|-h)
       show_help; exit 0 ;;
     *)
@@ -236,6 +268,14 @@ if [ -z "$CLIENTS" ] && [ -n "${MB_CLIENTS:-}" ]; then
 fi
 if [ -z "$LANGUAGE" ] && [ -n "${MB_LANGUAGE:-}" ]; then
   LANGUAGE="$MB_LANGUAGE"
+fi
+# adapter-parity T2 (REQ-005): MB_WITH_EXTENSIONS env has the same contract as
+# --with-extensions[=<list>] — an explicit CLI flag always wins. `+x` (not
+# `-n`) so an env var set to the empty string still means "accept every
+# offered host", matching the bare-flag behavior.
+if [ "$WITH_EXTENSIONS_FLAG" != "1" ] && [ -n "${MB_WITH_EXTENSIONS+x}" ]; then
+  WITH_EXTENSIONS_FLAG=1
+  WITH_EXTENSIONS_VALUE="$MB_WITH_EXTENSIONS"
 fi
 
 interactive_pick_clients() {
@@ -362,6 +402,120 @@ for c in "${CLIENTS_ARR[@]}"; do
   fi
 done
 
+# Validate --with-extensions / MB_WITH_EXTENSIONS values (adapter-parity T2).
+# The list is a closed set {pi, opencode} — an unrecognized name (e.g. a typo
+# like "pie") must not be silently swallowed into an honest-looking
+# `extensions_installed: []`; automation could then mistake a typo'd flag for
+# "ran, nothing to do". A *valid* name simply absent from --clients still
+# stays a silent no-op — that's the documented REQ-002 default, enforced by
+# _mb_offer_extensions only ever asking about hosts present in --clients.
+if [ "$WITH_EXTENSIONS_FLAG" = "1" ] && [ -n "$WITH_EXTENSIONS_VALUE" ]; then
+  IFS=',' read -ra with_ext_arr <<< "$WITH_EXTENSIONS_VALUE"
+  for we in "${with_ext_arr[@]}"; do
+    # Trim LEADING/TRAILING whitespace only (not internal): `${we// /}` used
+    # to strip every space, so "open code" silently became the valid
+    # "opencode" — a value with INTERNAL whitespace must fail the closed-set
+    # check below, not be quietly repaired into something else.
+    we_trimmed="$we"
+    we_trimmed="${we_trimmed#"${we_trimmed%%[![:space:]]*}"}"
+    we_trimmed="${we_trimmed%"${we_trimmed##*[![:space:]]}"}"
+    [ -z "$we_trimmed" ] && continue
+    case "$we_trimmed" in
+      pi|opencode) ;;
+      *)
+        echo "[install.sh] unknown --with-extensions host '$we_trimmed'. Valid: pi, opencode" >&2
+        exit 1
+        ;;
+    esac
+  done
+fi
+
+# ═══ Extension offer (adapter-parity T2 — REQ-001/002/004/005) ═══
+#
+# mb_install_host_extensions <host>
+# Contract (stable seam consumed by T3/pi and T5/opencode):
+#   Input:  $1 = host family, always "pi" or "opencode".
+#   Called: exactly once per host that the user explicitly accepted (prompt
+#           reply y/yes, --with-extensions[=list], or MB_WITH_EXTENSIONS) —
+#           never on decline/skip. Never called before consent exists.
+#   Output: a single human-readable status line; must not prompt further.
+#   Return: 0 → host is recorded in the manifest's extensions_installed[]
+#           (today's stub always returns 0 and writes nothing — it exists
+#           only to prove/host the call site). Non-zero → offer accepted but
+#           installation failed; the host is NOT recorded, install continues
+#           (never fatal, mirrors every other adapter-install failure mode).
+# T3 (pi: session-memory + graph-rag) and T5 (opencode: parity plugin +
+# global agents) replace this body with the real per-host installer while
+# keeping the exact signature — the offer plumbing above/below this function
+# does not change again when they land.
+mb_install_host_extensions() {
+  local host="$1"
+  case "$host" in
+    pi)
+      echo -e "  ${YELLOW}~${NC} pi parity extensions: install arrives in T3 (session-memory + graph-rag wiring) — no files written yet"
+      ;;
+    opencode)
+      echo -e "  ${YELLOW}~${NC} opencode parity extensions: install arrives in T5 (parity plugin + global agents) — no files written yet"
+      ;;
+    *)
+      echo "[install.sh] mb_install_host_extensions: unknown host '$host'" >&2
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+# Prints the space-separated subset of {pi, opencode} present in CLIENTS_ARR.
+_mb_extension_hosts_present() {
+  local host c
+  for host in pi opencode; do
+    for c in "${CLIENTS_ARR[@]}"; do
+      if [ "${c// /}" = "$host" ]; then
+        printf '%s ' "$host"
+        break
+      fi
+    done
+  done
+}
+
+# One prompt per host family present (TTY, no flag/env); flag/env accepts
+# without prompting; no TTY + no flag/env → silent skip (REQ-002 default).
+_mb_offer_extensions() {
+  local hosts_present
+  hosts_present="$(_mb_extension_hosts_present)"
+  [ -z "$hosts_present" ] && return 0
+
+  local host accept reply
+  for host in $hosts_present; do
+    accept=0
+    if [ "$WITH_EXTENSIONS_FLAG" = "1" ]; then
+      if [ -z "$WITH_EXTENSIONS_VALUE" ]; then
+        accept=1
+      else
+        case ",${WITH_EXTENSIONS_VALUE// /}," in
+          *",$host,"*) accept=1 ;;
+        esac
+      fi
+    elif [ "$NON_INTERACTIVE" -eq 0 ] && [ -t 0 ]; then
+      echo ""
+      echo -e "${BOLD}Install $host parity extensions?${NC} (session memory, subagent dispatch)"
+      echo "  Opt-in only — declining leaves this install unchanged."
+      printf "  [y/N] > "
+      IFS= read -r reply </dev/tty || reply=""
+      case "$reply" in
+        y|Y|yes|Yes|YES) accept=1 ;;
+        *) accept=0 ;;
+      esac
+    fi
+
+    if [ "$accept" -eq 1 ]; then
+      if mb_install_host_extensions "$host"; then
+        EXTENSIONS_INSTALLED+=("$host")
+      fi
+    fi
+  done
+}
+
 valid_language=0
 for lang in "${VALID_LANGUAGES[@]}"; do
   [ "$LANGUAGE" = "$lang" ] && valid_language=1 && break
@@ -401,6 +555,15 @@ fi
 
 # python3 is now confirmed usable → arm the manifest flush for ANY exit (A7/H-5).
 trap _mb_on_exit EXIT
+
+# Invariant: the extension offer/install runs AFTER every argument-validation
+# step above (client list, --with-extensions closed-set, language) AND AFTER
+# the EXIT trap is armed. mb_install_host_extensions's stub body is a no-op
+# today, but T3/T5 replace it with a real per-host installer at this exact
+# seam — arming the trap first means a real installer that writes files then
+# fails partway still leaves a manifest record of what landed (rollback
+# source), instead of writing files with no recorded evidence they exist.
+_mb_offer_extensions
 
 backup_if_exists() {
   # Skip-when-identical backup with rotation (keeps only the latest backup).
@@ -649,6 +812,10 @@ ensure_skill_aliases() {
   echo -e "  ${GREEN}✓${NC} Claude/Codex/Cursor/Pi/OpenCode skill aliases"
 }
 
+# include_ext_nudge is hardcoded to 1 in every _agents_md_section call below:
+# this writes ~/.config/opencode/AGENTS.md specifically, so the host is
+# opencode by construction regardless of what --clients was passed for THIS
+# project (see the A25 note above this function's call site).
 install_opencode_global_agents() {
   local agents_file="$OPENCODE_DIR/AGENTS.md"
   local tmp
@@ -665,7 +832,7 @@ install_opencode_global_agents() {
     {
       cat "$tmp"
       printf '\n'
-      _agents_md_section "$SOURCE_SKILL_DIR"
+      _agents_md_section "$SOURCE_SKILL_DIR" 1
     } > "$agents_file"
     rm -f "$tmp"
     INSTALLED_FILES+=("$agents_file")
@@ -676,14 +843,14 @@ install_opencode_global_agents() {
   if [ -f "$agents_file" ]; then
     {
       printf '\n'
-      _agents_md_section "$SOURCE_SKILL_DIR"
+      _agents_md_section "$SOURCE_SKILL_DIR" 1
     } >> "$agents_file"
     INSTALLED_FILES+=("$agents_file")
     echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md (merged)"
     return
   fi
 
-  _agents_md_section "$SOURCE_SKILL_DIR" > "$agents_file"
+  _agents_md_section "$SOURCE_SKILL_DIR" 1 > "$agents_file"
   INSTALLED_FILES+=("$agents_file")
   echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md (created)"
 }
@@ -1193,6 +1360,9 @@ echo ""
 echo -e "${GREEN}═══ Memory Bank installed ═══${NC}"
 if [ "${#ADAPTERS_INVOKED[@]}" -gt 0 ]; then
   echo -e "  Cross-agent adapters: ${ADAPTERS_INVOKED[*]} (project: $PROJECT_ROOT)"
+fi
+if [ "${#EXTENSIONS_INSTALLED[@]}" -gt 0 ]; then
+  echo -e "  Parity extensions accepted: ${EXTENSIONS_INSTALLED[*]}"
 fi
 echo ""
 echo "  Next: /mb init — init .memory-bank/ + auto-generate CLAUDE.md (--full, default)"
