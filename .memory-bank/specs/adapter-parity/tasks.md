@@ -171,8 +171,9 @@
 - `MB_UPDATE_CHECK=off` → no output, no network; check failure → prompt proceeds.
 
 **DoD:**
-- [ ] Codex users see release notices without any new transport claims.
-- [ ] bats pass · shellcheck clean.
+- [x] Codex users see release notices without any new transport claims.
+- [x] bats pass · shellcheck clean.
+<!-- done: 495c83b (+ 6fa676c guard reconcile) — governed implement→verify -->
 
 <!-- mb-task:7 -->
 ## Task 7: platform_limited manifests + negative parity tests
