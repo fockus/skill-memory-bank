@@ -61,6 +61,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `idea <title> [HIGH\|MED\|LOW]`                          | Capture new idea in `backlog.md` with auto-generated monotonic `I-NNN` ID (priority defaults to `MED`)                                                                                                                                                                                                    |
 | `idea-promote <I-NNN> <type>`                            | Promote an idea → plan. Creates plan file via `mb-plan.sh`, flips idea status `NEW\|TRIAGED → PLANNED`, adds `**Plan:** [plans/...]` link, runs plan-sync. `type ∈ feature\|fix\|refactor\|experiment`                                                                                                    |
 | `adr <title>`                                            | Capture Architecture Decision Record with auto-generated monotonic `ADR-NNN` ID inside `backlog.md ## ADR` section — skeleton includes Context / Options / Decision / Rationale / Consequences                                                                                                           |
+| `agree <subcommand>`                                     | Manage the running list of agreements — the canonical registry of confirmed decisions in `<bank>/agreements.md` (`add [--supersedes N] \| defer \| reject \| question \| resolve \| list \| sync`), auto-synced into a managed block in `CLAUDE.md`/`AGENTS.md`. See `commands/agree.md` + `references/agreements.md`                                       |
 | `goal`                                                   | Scaffold `.memory-bank/goal.md` + `.memory-bank/project.md` from templates (copy-if-absent), then validate the goal with `scripts/mb-goal-validate.sh`. Phase-1 Dynamic Flow primitive (REQ-DF-001..005). See `commands/goal.md`                                                                          |
 | `analyze-task`                                           | Auto-classify goal + git-diff scope into ONE route and write it into the `mb-flow` fence (default Dynamic Flow router). See `commands/analyze-task.md` (REQ-DF-020/022)                                                                                                                                   |
 | `flow <route>`                                           | Explicitly select a route (skip auto-classification); the deterministic route-floor + firewall STILL apply. Escape-hatch. See `commands/flow.md` (REQ-DF-025)                                                                                                                                            |
@@ -509,6 +510,13 @@ Context: <description of current work, which stages are considered complete>"
 1. Get the Plan Verifier report and show it to the user.
 2. If there are CRITICAL issues, **fix them** before proceeding.
 3. If there are WARNING issues, tell the user and ask whether they should be fixed.
+
+**Agreement Compliance (REQ-010/011):** if `<bank>/agreements.md` exists, the Plan Verifier reads
+`## Active` and classifies every agreement against the plan + diff as `satisfied`, `violated`, or
+`not-applicable`, rendered as an `## Agreement Compliance` report section. Any `violated` entry
+forces the overall verdict to FAIL, with the explicit choice: fix the implementation, or
+`mb-agree.sh add "..." --supersedes N`. No `agreements.md` in the bank → the step is skipped
+silently (lazy contract, REQ-010 does not apply).
 
 **IMPORTANT:** `/mb verify` is **REQUIRED** before `/mb done` when the work followed a plan. Do not close out a plan without verification.
 
@@ -1420,6 +1428,63 @@ User: /mb adr "Use OIDC for PyPI publishing"
 ```
 
 After capture, open `backlog.md` and fill in Context / Options / Decision / Rationale / Consequences. The skeleton is intentionally short — the value is in the completed reasoning, not the template.
+
+---
+
+### agree <subcommand> [args]
+
+**Alias** for `/mb agree` — dispatch to `commands/agree.md` for the full CLI contract. Manages the
+running list of agreements: the canonical registry of confirmed decisions in
+`<bank>/agreements.md`, separate from `progress.md` (narrative) and ADRs (rationale). Full
+maintenance protocol (what is/isn't an agreement, anti-examples, the 4 statuses, ADR routing,
+lazy activation, subagents propose-never-write) → `references/agreements.md`.
+
+**Subcommands:** `add "<statement>" [--supersedes N] [--adr NNN] [--source S]`, `defer N`,
+`reject N`, `question "<text>"`, `resolve N`, `list [--all]`, `sync`.
+
+**Arguments:**
+
+- `subcommand` — one of the seven above (first positional).
+- remaining words — subcommand-specific args, passed through verbatim.
+
+**Effect:**
+
+- Every mutation is written exclusively by `scripts/mb-agree.sh` (never a direct model edit) —
+  locked, atomic (temp-file + `mv`), monotonic never-reused `AGR-NNN` IDs.
+- `add` lazily creates `agreements.md` from the template on first use in a bank that does not have
+  one yet — zero artifacts before the first call.
+- Every mutating subcommand re-syncs the managed block (`<!-- mb-agreements:start -->` …
+  `<!-- mb-agreements:end -->`) into project-root `CLAUDE.md` and `AGENTS.md` with one-liner
+  active agreements + a pointer to `<bank>/agreements.md`.
+- `question`/`resolve` touch only `## Open Questions` — no managed-block sync (Open Questions are
+  not injected).
+- `MB_AGREEMENTS=off` (env or `.mb-config`) makes every subcommand an explained no-op, no writes.
+
+Run directly (systems-level, no LLM needed for the write itself):
+
+```bash
+bash "${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-agree.sh" <subcommand> [args]
+```
+
+**Typical flow:**
+
+```
+User: /mb agree add "Phase 1 must not depend on a vector database"
+→ AGR-001 записано: Phase 1 must not depend on a vector database
+
+User: /mb agree add "Use pgvector instead" --supersedes 1
+→ AGR-002 записано: Use pgvector instead
+  [AGR-001 marked superseded by AGR-002, moved to Archive]
+```
+
+**When to write vs when to ask (model conduct, REQ-009):** only an explicitly confirmed user
+decision becomes `add` + the visible announce `→ AGR-NNN записано: <statement>` in the same turn.
+Proposals, model recommendations, and implicit assumptions go to `question` instead — never
+Active. A changed decision uses `--supersedes N`; never leave two contradicting active entries.
+
+**Verifier integration:** `/mb verify` reads `## Active` (when `agreements.md` exists) and
+classifies each entry against the plan/diff — see `### verify` below and
+`agents/plan-verifier.md` § Agreement Compliance.
 
 ---
 

@@ -76,6 +76,7 @@ spec-driven: /mb start → /mb discuss <topic> → /mb sdd <topic> → /mb work 
 ### Key invariants
 - `progress.md` = **append-only** (never rewrite old entries); IDs monotonic (I-/EXP-/ADR-NNN, never reused); `checklist.md` ✅/⬜ updated **immediately**; `notes/` = patterns (5–15 lines), not chronology.
 - **Parallel sessions in one working tree** → coordinate via the append-only board `.memory-bank/COORDINATION.md`: read it at session start, before each stage/commit, and before editing shared files; scoped `git add` only (never `-A`); freezes/handovers/commit-order agreements require an ACK entry. Protocol → skill `references/coordination.md`.
+- **Running list of agreements** — explicit user decision → `mb-agree.sh add "<statement>"` then announce `→ AGR-NNN записано: <statement>`; unconfirmed idea/hypothesis → `mb-agree.sh question "<text>"`; a changed decision → `add "<new>" --supersedes N` (never leave two active). Kill-switch `MB_AGREEMENTS=off`. Protocol → skill `references/agreements.md`.
 
 ### Codebase Map & Code Graph
 `.memory-bank/codebase/`: 4 MD docs (`STACK`/`ARCHITECTURE`/`CONVENTIONS`/`CONCERNS`, via `/mb map`, auto-loaded by `/mb context`) + `graph.json` + `god-nodes.md` (`/mb graph --apply`). Prefer the graph over `grep -rn` for structural questions. Example: `jq -c 'select(.type=="edge" and .dst=="WriteFile")' .memory-bank/codebase/graph.json`.

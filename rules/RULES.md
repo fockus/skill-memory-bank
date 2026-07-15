@@ -691,6 +691,7 @@ Script: `~/.claude/skills/memory-bank/scripts/mb-index.sh`.
 - Each hypothesis must have: metric + threshold (`target`) + EXP reference after verification
 - Forbidden: a hypothesis without a metric, an experiment without a hypothesis
 - A Finding = a confirmed fact after a statistically significant result. Do not delete it
+- **Agreements** — explicit user decision → `mb-agree.sh add "<statement>"` + announce `→ AGR-NNN записано: <statement>`; unconfirmed hypothesis → `mb-agree.sh question "<text>"`; a changed decision → `add "<new>" --supersedes N` (never two active entries saying different things). Kill-switch `MB_AGREEMENTS=off`. Full protocol → `references/agreements.md`.
 
 ---
 

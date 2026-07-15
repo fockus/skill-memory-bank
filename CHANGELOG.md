@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — Running list of agreements
+
+- **`scripts/mb-agree.sh`** — the single writer for the canonical registry of confirmed
+  decisions (`<bank>/agreements.md`): `add [--supersedes N] [--adr NNN] [--source S] | defer |
+  reject | question | resolve | list [--all] | sync`. Monotonic never-reused `AGR-NNN`/`Q-NNN`
+  IDs issued under an atomic owner-token `mkdir` lock (kill-0 PID-liveness stale-break), every
+  write temp-file + `mv`. Lazy: nothing exists until the first `add`. Kill-switch `MB_AGREEMENTS=off`.
+- **Managed-block sync** — after every mutation the active one-liners are rendered into a
+  `<!-- mb-agreements:start/end -->` block in project-root `CLAUDE.md`/`AGENTS.md` (replace between
+  markers only, surrounding bytes preserved; distinct from the adapters' `memory-bank:*` block), so
+  a fresh session sees the full canon with no extra tooling. `> 25` active warns, never truncates.
+- **`/mb agree` + `/mb verify` integration** — router entry in `commands/mb.md` + `commands/agree.md`;
+  the Plan Verifier classifies every active agreement as satisfied / violated / not-applicable and
+  fails the verdict on any violation (`agents/plan-verifier.md`, Step 3.7). Rules trigger in
+  `rules/RULES.md` + `rules/CLAUDE-GLOBAL.md`; full protocol in `references/agreements.md`.
+- Spec triple `.memory-bank/specs/agreements/{requirements,design,tasks}.md` (16 REQs, 8 tasks);
+  70 bats across `test_mb_agree.bats` + `test_mb_agree_docs.bats`, green on bash 3.2 and default.
+
 ### Added — SessionStart "newer release?" notice + opt-in auto-update
 
 - **`scripts/mb-version-check.sh`** — the single resolver for "is a newer release out?":

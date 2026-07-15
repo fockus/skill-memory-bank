@@ -132,6 +132,32 @@ Record each hit in the report under `RULES violations:` with the rule name, file
 
 If `RULES` is empty (no file found), record `RULES violations: skipped (no RULES.md found)` and do NOT fail the plan on this axis — it is a configuration gap, not a code violation.
 
+### Step 3.7: Agreement Compliance
+
+Lazy contract: check whether `<bank>/agreements.md` exists first.
+
+- **File absent** → skip this step silently. Do not mention it in the report, do not fail on it —
+  the feature was never activated in this bank (REQ-010 does not apply).
+- **File present** → read the `## Active` section. For every active agreement, classify it against
+  the plan and the diff (from Step 2) as exactly one of:
+  - `satisfied` — the code/diff demonstrably honors the agreement (cite the file/line or the
+    absence of a forbidden pattern).
+  - `violated` — the code/diff contradicts the agreement (cite the file/line that breaks it).
+  - `not-applicable` — the agreement concerns an area this plan/diff does not touch at all.
+
+  Read each statement literally — do not infer intent beyond what it says. When in doubt between
+  `violated` and `not-applicable`, prefer `not-applicable` only if the diff genuinely never touches
+  the concern; a silent, unexamined area you cannot confirm either way is `not-applicable` with a
+  one-line note, never a silent `satisfied`.
+
+  Render the classifications as their own `## Agreement Compliance` report section (format below).
+  **Any single `violated` agreement forces the overall verdict to FAIL** — no other axis can
+  override this. Present the explicit choice to the user in the report: fix the implementation so
+  it honors the agreement, OR supersede the agreement itself
+  (`mb-agree.sh add "<new statement>" --supersedes N`) if the decision has genuinely changed. Never
+  silently ignore a violation and never leave it as an unresolved dead end — one of the two paths
+  must be taken before `/mb done`.
+
 ### Step 4: Find mismatches
 
 Issue categories:
@@ -142,6 +168,7 @@ Issue categories:
 - a DoD item is not satisfied
 - tests are missing when the plan requires them
 - changed files contain TODOs/placeholders/stubs
+- an active agreement is classified `violated` (Step 3.7) — forces FAIL regardless of every other axis
 
 **WARNING (needs attention):**
 
@@ -169,6 +196,7 @@ Issue categories:
 **Baseline commit:** <hash or unknown> (fallback: <none|ctime|HEAD~10>)
 **Tests run:** pass | fail | not-run
 **RULES violations:** <count> (CRITICAL: <n>, WARNING: <n>)
+**Agreement Compliance:** <skipped (no agreements.md) | N active, M violated>
 
 ### Stages checked: N/M
 
@@ -201,6 +229,15 @@ Issue categories:
 ### RULES violations
 - <rule> — <file:line> — <rationale>
 - ...
+
+### Agreement Compliance
+(Omit this whole section — not even "skipped" — when `<bank>/agreements.md` does not exist; the
+feature was never activated in this bank.)
+- AGR-NNN: <statement> — satisfied | violated | not-applicable — <evidence: file:line, or which
+  part of the diff proves/breaks it>
+- ...
+(Any `violated` entry → overall verdict is FAIL. Present the choice explicitly: fix the
+implementation, or `mb-agree.sh add "<new statement>" --supersedes N`.)
 
 ### Verified positively (proof, not just absence of findings)
 - <DoD item / invariant> — ✅ proven by <test name / file:line that demonstrates it>

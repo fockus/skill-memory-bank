@@ -475,6 +475,26 @@ When two or more sessions work in the same working tree in parallel (two agent C
 
 ---
 
+## Running list of agreements — `.memory-bank/agreements.md`
+
+The canonical registry of confirmed decisions currently in force, distinct from `progress.md`
+(narrative history) and ADRs (rationale for the hard-to-reverse subset). Every mutation goes
+through `scripts/mb-agree.sh` (`add | supersede | defer | reject | question | resolve | list |
+sync`) — never a direct model edit — and auto-syncs a managed block
+(`<!-- mb-agreements:start/end -->`) into project-root `CLAUDE.md`/`AGENTS.md` so a fresh session
+sees every active agreement without being reminded.
+
+- **Lazy activation, opt-in by nature:** the rules trigger ships with the skill for every project,
+  but zero files/blocks exist until the first `/mb agree add` — no added tokens in banks that never
+  use the feature. Kill-switch: `MB_AGREEMENTS=off` (env or `.mb-config`).
+- **Model conduct:** only an explicitly confirmed user decision is written, announced visibly as
+  `→ AGR-NNN записано: <statement>`; unconfirmed hypotheses go to Open Questions instead.
+- **`/mb verify` integration:** when `agreements.md` exists, the Plan Verifier classifies every
+  active agreement as satisfied / violated / not-applicable; a violation fails the verdict.
+- Full protocol (what is/isn't an agreement, anti-examples, statuses, ADR routing): `references/agreements.md`. Command reference: `commands/agree.md`.
+
+---
+
 ## References
 
 - Rule profiles schema (dimensions, immutable baseline, precedence, validation): `references/rules-profile.schema.md`
@@ -487,6 +507,7 @@ When two or more sessions work in the same working tree in parallel (two agent C
 - Workflow (session lifecycle): `references/workflow.md`
 - Session memory (cross-chat capture, `/mb recall`, session-doctor): `references/session-memory.md`
 - Cross-session coordination board (`COORDINATION.md` protocol): `references/coordination.md`
+- Running list of agreements (`agreements.md` protocol, statuses, anti-examples): `references/agreements.md`
 - Command file template: `references/command-template.md`
 - Hooks (per-host wiring + lifecycle): `references/hooks.md`
 - Adapter manifest schema: `references/adapter-manifest-schema.md`
