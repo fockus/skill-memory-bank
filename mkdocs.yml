@@ -46,19 +46,31 @@ nav:
   - Home: README.md
   - Getting Started:
       - Install: install.md
+      - Quick Start: quick-start.md
       - Your First Feature: first-feature.md
       - Cross-Agent Setup: cross-agent-setup.md
   - Concepts:
       - Overview: concepts/overview.md
+      - Memory Bank Layout: concepts/memory-bank-layout.md
+      - Engineering Rules: concepts/rules.md
       - Code Graph & Semantic Search: concepts/code-graph.md
       - Session Memory: concepts/session-memory.md
+      - Spec-Driven Development: concepts/sdd.md
   - Guides:
-      - Cursor Extension: cursor-extension.md
+      - /mb work: mb-work.md
+      - Reviewer 2.0: reviewer-2.md
+      - Coordination Board: coordination.md
       - Rule Profiles: rule-profiles.md
       - i18n: i18n.md
+      - Updating: updating.md
+      - Cursor Extension: cursor-extension.md
       - Handoff 2.0: handoff-2.0.md
   - Reference:
+      - Commands: commands.md
       - Agents Reference: agents-reference.md
+      - Environment Variables: environment-variables.md
+      - pipeline.yaml Schema: pipeline-yaml.md
+      - Hooks: hooks.md
   - Operations:
       - Release Process: release-process.md
       - Repo Migration: repo-migration.md

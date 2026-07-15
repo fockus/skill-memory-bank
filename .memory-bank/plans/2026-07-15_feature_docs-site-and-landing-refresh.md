@@ -154,12 +154,12 @@ grep -q 'site_url:.*\/docs\/' mkdocs.yml
    `install.md`, `first-feature.md`, `cross-agent-setup.md`.
 
 ### DoD
-- [ ] 4 new pages exist; each ≥ 30 lines of real content, no `TODO`/`...`/placeholders.
-- [ ] Nav shows Getting Started (install, quick-start, first-feature, cross-agent-setup) and
+- [x] 4 new pages exist; each ≥ 30 lines of real content, no `TODO`/`...`/placeholders.
+- [x] Nav shows Getting Started (install, quick-start, first-feature, cross-agent-setup) and
       Concepts (overview, memory-bank-layout, rules, code-graph, session-memory, sdd).
-- [ ] `uv run --group docs mkdocs build --strict` exits 0, zero warnings.
-- [ ] No page mentions `update-notify`, `/mb agree`, or `/mb upgrade` auto-check as a released feature.
-- [ ] Every command/env-var shown matches the current `commands/*.md` / README (spot-checked).
+- [x] `uv run --group docs mkdocs build --strict` exits 0, zero warnings.
+- [x] No page mentions `update-notify`, `/mb agree`, or `/mb upgrade` auto-check as a released feature.
+- [x] Every command/env-var shown matches the current `commands/*.md` / README (spot-checked).
 
 ### Verification commands
 ```bash
@@ -213,14 +213,14 @@ for f in docs/quick-start.md docs/concepts/memory-bank-layout.md docs/concepts/r
    nav slots if not already (existing files).
 
 ### DoD
-- [ ] 7 new pages exist; each ≥ 30 lines; no placeholders.
-- [ ] Nav has Guides (mb-work, reviewer-2, coordination, rule-profiles, i18n, updating) and
+- [x] 7 new pages exist; each ≥ 30 lines; no placeholders.
+- [x] Nav has Guides (mb-work, reviewer-2, coordination, rule-profiles, i18n, updating) and
       Reference (commands, agents-reference, environment-variables, pipeline-yaml, hooks).
-- [ ] `environment-variables.md` contains **no** `MB_UPDATE_CHECK`, `MB_UPDATE_CHECK_TTL`,
+- [x] `environment-variables.md` contains **no** `MB_UPDATE_CHECK`, `MB_UPDATE_CHECK_TTL`,
       `MB_AUTO_UPDATE` rows (unreleased).
-- [ ] `hooks.md` does **not** document `mb-update-notify.sh`.
-- [ ] `commands.md` does **not** list `/mb agree`.
-- [ ] `uv run --group docs mkdocs build --strict` exits 0, zero warnings.
+- [x] `hooks.md` does **not** document `mb-update-notify.sh`.
+- [x] `commands.md` does **not** list `/mb agree`.
+- [x] `uv run --group docs mkdocs build --strict` exits 0, zero warnings.
 
 ### Verification commands
 ```bash

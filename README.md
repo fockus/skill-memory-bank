@@ -178,6 +178,31 @@ Full per-client details: [docs/cross-agent-setup.md](docs/cross-agent-setup.md).
 
 That's it. Rinse and repeat.
 
+### The core workflow: build a feature
+
+`init` / `start` / `done` are the session bookends. The actual feature work happens through a **plan or spec → `work` → `verify` → `done`** loop. Two entry points:
+
+**Plan-based** — for a well-understood change:
+```
+/mb plan feature "user avatar upload"   # scaffolds a staged plan with SMART DoD + TDD notes
+/mb work                                # executes the plan stage by stage (TDD → verify per stage)
+/mb verify                              # audits the diff against every DoD item — REQUIRED before done
+/mb done                                # closes the session, appends progress, writes a note
+```
+
+**Spec-driven (SDD)** — for a larger or fuzzier feature, add an interview + spec first:
+```
+/mb discuss billing-overhaul            # 5-phase interview → EARS-validated context/billing-overhaul.md
+/mb sdd billing-overhaul                # generates specs/billing-overhaul/{requirements,design,tasks}.md
+/mb work billing-overhaul               # executes the tasks.md items (<!-- mb-task:N -->) in order
+/mb verify
+/mb done
+```
+
+Use one kebab-case slug for the whole feature (`billing-overhaul`, not `"billing overhaul"`) — `/mb discuss` uses the topic verbatim as the filename, so keeping it already-slugged makes every later command resolve to the same `context/` and `specs/` paths.
+
+`/mb work` runs **implement (TDD) → verify → done** by default — review is off, so it stays fast and cheap. `/mb verify` is **mandatory before `/mb done`** whenever the work followed a plan: it re-reads the plan and checks every DoD item against the real code, so you never close a stage that only *looks* finished.
+
 ### Storage modes
 
 Memory Bank supports three ways to store your bank — pick the one that fits your workflow:
@@ -225,6 +250,28 @@ Supported delivery presets: tdd, contract-first, api-first, sdd, legacy-safe, ex
 Rules-only mode personalization: a user-global profile (`~/<agent-config>/memory-bank/rules-profile.json`) applies Go/backend/microservices presets even when no project Memory Bank exists. No project files are written. Use `/mb profile init --scope=user ...` or `mb-profile.sh init --scope=user ...`.
 
 Canonical machine format is **JSON**. YAML examples appear in documentation only and must be converted before storage. For full guidance see [docs/rule-profiles.md](docs/rule-profiles.md).
+
+### Configuring the pipeline
+
+`/mb work` is driven by a declarative **`pipeline.yaml`** — it maps roles → agents (which model implements, reviews, judges), picks the default workflow, and sets review tolerance, severity gates, and protected paths. You rarely need to touch it, but when you do:
+
+```bash
+/mb config init        # copy the bundled default into .memory-bank/pipeline.yaml to customize
+/mb config show        # print the resolved config (project override → bundled default)
+/mb config validate    # schema-check the file before running work
+/mb config path        # print the absolute path of the resolved pipeline
+```
+
+**Compose a workflow per run** with launch flags — no config edit needed (precedence: flags > `pipeline.yaml` > default):
+
+```
+/mb work --review                       # add a review step: implement → verify → review → done
+/mb work --review --judge               # add an independent GO / NO_GO judge gate after review
+/mb work billing-overhaul --workflow full   # whole chain from scratch: discuss → sdd → plan → … → done (needs a topic)
+/mb work --stages implement,verify      # run an exact subset
+```
+
+**Just describe the intent in a prompt** and the agent picks the flags for you — e.g. *"execute the billing spec with review and an independent judge"* runs `/mb work billing --review --judge`; *"just implement and verify, no review"* runs the default. To make a choice permanent for the project, set it in `pipeline.yaml` (`review.enabled: true`, `workflow.default: governed-execution`) or keep several presets side by side with **named pipelines** (`/mb pipeline new codex --agent claude-code`, `/mb pipeline use codex`). Full schema and every knob: [docs/pipeline-yaml.md](docs/pipeline-yaml.md).
 
 ---
 
