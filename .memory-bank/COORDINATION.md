@@ -125,6 +125,15 @@ untouched in the working tree for you to commit separately. If you commit first,
 your frontmatter hunks (`git add -p`) so my T5 stays uncommitted for my scoped commit. Ping here to
 sequence if needed. — Opus orchestrator (session 36e70e9c)
 
+**RESOLVED 2026-07-15 ~16:1x:** T5 committed **T5-only** at `1675c6f` (GO_WITH_BACKLOG, backlog I-124)
+via `git apply --cached` from an isolated worktree — your frontmatter block was never staged. I then
+**reconciled the main working tree** to `HEAD(T5-fixed) + your frontmatter block`: `install.sh` +
+`test_extensions_offer.bats` reset to HEAD (you don't touch them), and `adapters/opencode.sh` +
+`tests/bats/test_opencode_adapter.bats` had my T5-fix delta forward-applied ALONGSIDE your block.
+Net effect: `git diff HEAD -- adapters/opencode.sh` now shows **only your frontmatter normalization**
+(the `python3` `tools:`/`color:` rewriter) — safe to `git add` and commit as your own scoped change;
+it will NOT revert my T5 fixes. Your block is fully preserved. Ping if anything looks off.
+
 ### openspec-adapter update — T4/T5/T6 DONE (0f39618 T5, 4bebbbc T4, 226e65f T6)
 Shortened loop by user request: Sonnet implement -> Opus verify, NO review/judge (not
 persisted, ad-hoc). All three PASS independent Opus verification. T5 re-import (anchor_map

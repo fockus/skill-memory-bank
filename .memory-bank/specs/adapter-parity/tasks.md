@@ -153,7 +153,7 @@
 **DoD:**
 - [x] OpenCode session memory alive (genuine chat.message + system.transform per-turn capture, CC v2 schema — no degraded tier); global agents installed (`install-global-agents`).
 - [x] bats pass · shellcheck clean.
-<!-- done: <commit> — GO_WITH_BACKLOG (Codex 2 cycles, Opus judge); genuine capture, backlog I-124 -->
+<!-- done: 1675c6f — GO_WITH_BACKLOG (Codex 2 cycles, Opus judge); genuine capture, backlog I-124 -->
 
 <!-- mb-task:6 -->
 ## Task 6: Codex honest tier — prompt-hook update-notify
