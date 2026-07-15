@@ -2,7 +2,7 @@
 title: "Session-memory + code-graph hardening (fix-plan)"
 type: feature
 topic: session-memory-graph-hardening
-status: Draft
+status: Done
 created: 2026-07-15
 complexity: M
 depends_on: []
@@ -486,4 +486,4 @@ Stage 9 (transcript, OPTIONAL) ─ independent
 - ✅ Stage 6: Implementer one-time rebuild permission — implement→verify PASS (3/3 bats)
 - ✅ Stage 7: Reachable freshness in role files + engineering-core pointer — implement→verify PASS (5/5 bats, 0×/mb context, 5×status)
 - ✅ Stage 8: Reconcile session-memory docs + MB_AUTO_CAPTURE decision — implement→verify PASS (8/8 items code-verified, 2 new tests green; 4 pre-existing mb-agree count failures out of scope)
-- ⬜ Stage 9 (OPTIONAL): /mb recall --transcript drill-down
+- ✅ Stage 9 (OPTIONAL): /mb recall --transcript drill-down — implement→verify PASS (5/5 py3.11, ruff+shellcheck clean, 118 LOC helper, e2e smoke green)

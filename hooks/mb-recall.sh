@@ -6,10 +6,11 @@
 # the semantic backend is available (fail-open to lexical-only otherwise).
 #
 # Usage:
-#   mb-recall.sh <query...>                 # compact index (default)
-#   mb-recall.sh --expand <id> <query...>   # full chunk for one id (non-zero if unknown)
-#   mb-recall.sh --full <query...>          # legacy full bodies
-#   mb-recall.sh -k N <query...>            # cap results (default 10)
+#   mb-recall.sh <query...>                        # compact index (default)
+#   mb-recall.sh --expand <id> <query...>          # full chunk for one id (non-zero if unknown)
+#   mb-recall.sh --full <query...>                 # legacy full bodies
+#   mb-recall.sh -k N <query...>                   # cap results (default 10)
+#   mb-recall.sh --transcript <turn_uuid> [--context N]  # +/-N raw JSONL turns around a uuid
 set -u
 
 HOOK_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)" || exit 0
@@ -18,12 +19,16 @@ HOOK_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)" || exit 0
 
 MODE="compact"
 EXPAND_ID=""
+TRANSCRIPT_UUID=""
+CONTEXT_N=2
 LIMIT="${MB_RECALL_LIMIT:-10}"
 ARGS=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --expand) MODE="expand"; EXPAND_ID="${2:-}"; shift 2 || shift ;;
     --full) MODE="full"; shift ;;
+    --transcript) MODE="transcript"; TRANSCRIPT_UUID="${2:-}"; shift 2 || shift ;;
+    --context) CONTEXT_N="${2:-2}"; shift 2 || shift ;;
     -k|--top-k) LIMIT="${2:-10}"; shift 2 || shift ;;
     --) shift; while [ "$#" -gt 0 ]; do ARGS+=("$1"); shift; done ;;
     *) ARGS+=("$1"); shift ;;
@@ -31,8 +36,8 @@ while [ "$#" -gt 0 ]; do
 done
 
 QUERY="${ARGS[*]:-}"
-if [ -z "$QUERY" ] && [ "$MODE" != "expand" ]; then
-  echo "usage: mb-recall <query> [--expand <id>] [--full] [-k N]"
+if [ -z "$QUERY" ] && [ "$MODE" != "expand" ] && [ "$MODE" != "transcript" ]; then
+  echo "usage: mb-recall <query> [--expand <id>] [--full] [-k N] | --transcript <turn_uuid> [--context N]"
   exit 0
 fi
 
@@ -41,6 +46,37 @@ MB="$(sc_resolve_mb "$CWD")"
 if [ -z "$MB" ]; then
   echo "no Memory Bank found"
   exit 0
+fi
+
+if [ "$MODE" = "transcript" ]; then
+  if [ -z "$TRANSCRIPT_UUID" ]; then
+    echo "usage: mb-recall --transcript <turn_uuid> [--context N]"
+    exit 2
+  fi
+  PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
+  command -v "$PY" >/dev/null 2>&1 || PY="python3"
+
+  transcript_path=""
+  if [ -d "$MB/session" ]; then
+    for f in "$MB"/session/*.md; do
+      [ -f "$f" ] || continue
+      t="$(grep -m1 '^transcript:' "$f" 2>/dev/null | sed 's/^transcript:[[:space:]]*//')"
+      [ -n "$t" ] || continue
+      [ -f "$t" ] || continue
+      if grep -q -- "$TRANSCRIPT_UUID" "$t" 2>/dev/null; then
+        transcript_path="$t"
+        break
+      fi
+    done
+  fi
+
+  if [ -z "$transcript_path" ]; then
+    echo "no transcript found containing turn_uuid: $TRANSCRIPT_UUID" >&2
+    exit 3
+  fi
+
+  MB_ROOT="$MB" "$PY" "$HOOK_DIR/lib/transcript_window.py" "$transcript_path" "$TRANSCRIPT_UUID" --context "$CONTEXT_N"
+  exit $?
 fi
 
 targets=()
