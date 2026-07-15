@@ -26,9 +26,14 @@ the shared tree.
 - `.memory-bank/specs/adapter-parity/*`, `commands/mb.md`, `adapters/_lib_agents_md.sh`
 
 Committed so far: `4aef699` `4a4131b` `941b154` (T1) `4652e91` (T2) `495c83b` `6fa676c` (T6)
-`e74e32d` (T3 — GO_WITH_BACKLOG). Please build on top with scoped commits; ping here if
-you need any hot file above. Still in flight: T4 (Pi agents/dispatch), T5 (OpenCode plugin),
-T7 (platform_limited + negative tests), T8 (upgrade + docs).
+`e74e32d` (T3 — GO_WITH_BACKLOG) `630ccf6` (T3 coord) `315bd02` (T4 — GO_WITH_BACKLOG,
+scope-corrected, backlog I-121/I-122). Please build on top with scoped commits; ping here
+if you need any hot file above. Still in flight: T5 (OpenCode plugin), T7 (platform_limited
++ negative tests), T8 (upgrade + docs).
+
+Note: `.memory-bank/backlog.md` carries the openspec session's uncommitted **I-120** — I
+staged only my I-121/I-122 into `315bd02` via `git apply --cached` (base==HEAD), leaving
+I-120 in the working tree for its owner. Do not clobber it.
 
 ## 2026-07-15 — mb-backend (Task 3 / pi session-memory) — whole-tree `git stash` incident, recovered
 

@@ -125,7 +125,7 @@
   integration on Pi, which needs a genuine cross-host dispatch harness (I-121) and
   was never in scope for a single backend task.
 - [x] bats pass · shellcheck clean.
-<!-- done: <commit> — GO_WITH_BACKLOG (Codex 2 cycles, Opus judge); scope-corrected, backlog I-121/I-122 -->
+<!-- done: 315bd02 — GO_WITH_BACKLOG (Codex 2 cycles, Opus judge); scope-corrected, backlog I-121/I-122 -->
 
 <!-- mb-task:5 -->
 ## Task 5: OpenCode parity plugin + global agents
