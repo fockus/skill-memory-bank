@@ -436,7 +436,9 @@ A richer, native alternative to the placeholder auto-capture above. Logs every s
 - **SessionStart → `mb-session-start.sh`** — injects `# Recent Sessions` from `_recent.md`;
   drains stdin (`exec < /dev/null`) to avoid hanging on `claude --resume` (macOS). Read-only (runs
   even while capture is `off`).
-- **Recall:** `/mb recall <query>` → ripgrep over `session/` + `notes/`.
+- **Recall:** `/mb recall <query>` → hybrid semantic + lexical search over `session/` + `notes/`,
+  fused by RRF (Reciprocal Rank Fusion) when the semantic backend is available; fails open to
+  lexical-only otherwise.
 
 **Off-switch:** `export MB_SESSION_CAPTURE=off`. **Suppress the legacy stub** (above) with
 `MB_AUTO_CAPTURE=off` so `progress.md` is not double-written once this subsystem owns capture.

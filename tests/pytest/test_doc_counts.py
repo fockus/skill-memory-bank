@@ -25,6 +25,7 @@ AGENTS_DIR = REPO_ROOT / "agents"
 HOOKS_DIR = REPO_ROOT / "hooks"
 REFERENCES_DIR = REPO_ROOT / "references"
 INSTALL_SH = REPO_ROOT / "install.sh"
+SESSION_MEMORY_MD = REFERENCES_DIR / "session-memory.md"
 
 CODE_SPAN_FIRST_COL_RE = re.compile(r"^\|\s*`([^`]+)`")
 
@@ -226,6 +227,84 @@ def test_install_sh_header_command_count_matches_filesystem() -> None:
     assert all(n == actual for n in declared), (
         f"install.sh header declares {declared} dev commands, but commands/ has {actual} *.md files. "
         f"Fix install.sh's header comment to say '{actual} dev commands'."
+    )
+
+
+# ---------------------------------------------------------------------------
+# 8. references/session-memory.md + SKILL.md — Stage 8 doc-vs-code reconciliation
+# ---------------------------------------------------------------------------
+
+
+def test_session_memory_doc_matches_code_defaults() -> None:
+    """`references/session-memory.md` must state the real hook defaults/behavior.
+
+    Regression guard for the Stage 8 reconciliation (2026-07-15 session-memory
+    graph hardening plan): docs previously drifted from `hooks/mb-session-*.sh`
+    on MB_CATCHUP_MAX, MB_AUTO_CAPTURE, the dead MB_RECALL var, the non-existent
+    `## Diagnostics` section, and the Summary section count.
+    """
+    text = SESSION_MEMORY_MD.read_text(encoding="utf-8")
+
+    # MB_CATCHUP_MAX default matches hooks/mb-session-catchup.sh ("${MB_CATCHUP_MAX:-2}")
+    assert re.search(r"`MB_CATCHUP_MAX`\s*\|\s*2\s*\|", text), (
+        "session-memory.md must document MB_CATCHUP_MAX default as 2 "
+        "(matches hooks/mb-session-catchup.sh)."
+    )
+
+    # MB_AUTO_CAPTURE default matches hooks/session-end-autosave.sh ("${MB_AUTO_CAPTURE:-auto}"),
+    # stated as a plain resolved fact — no "under review" hedging language.
+    assert re.search(r"`MB_AUTO_CAPTURE`\s*\|\s*auto\s*\|", text), (
+        "session-memory.md must document MB_AUTO_CAPTURE default as auto "
+        "(matches hooks/session-end-autosave.sh)."
+    )
+    assert "under review" not in text.lower(), (
+        "MB_AUTO_CAPTURE default is a resolved decision (AGR/Stage 8) — "
+        "do not hedge with 'under review' wording."
+    )
+
+    # MB_RECALL is dead (no hook/script ever reads it); MB_RECALL_LIMIT is the live var
+    # and must be left alone.
+    assert not re.search(r"MB_RECALL\b(?!_LIMIT)", text), (
+        "session-memory.md still documents the dead MB_RECALL variable; "
+        "only MB_RECALL_LIMIT is real (see hooks/mb-recall.sh)."
+    )
+
+    # The `## Diagnostics` section does not exist in any capture/summarize hook output.
+    assert "## Diagnostics" not in text, (
+        "session-memory.md documents a '## Diagnostics' section that no hook ever writes."
+    )
+
+    # Summary section count: exactly 4 named headings inside the `## Summary` fenced
+    # example, matching hooks/mb-session-summarize.sh's fixed rank table.
+    summary_block_match = re.search(
+        r"### Section `## Summary`.*?```markdown\n(.*?)\n```", text, flags=re.DOTALL
+    )
+    assert summary_block_match, "session-memory.md must contain a fenced '## Summary' example."
+    summary_headings = re.findall(r"^### (.+)$", summary_block_match.group(1), flags=re.MULTILINE)
+    expected = ["What changed", "Decisions", "Open questions", "Files"]
+    assert summary_headings == expected, (
+        f"session-memory.md '## Summary' section must document exactly the 4 headings "
+        f"{expected} in order (matches hooks/mb-session-summarize.sh); found {summary_headings}."
+    )
+
+
+def test_skill_md_recall_description_is_hybrid_not_ripgrep_only() -> None:
+    """SKILL.md must describe `/mb recall` as hybrid semantic+lexical (RRF), not ripgrep-only.
+
+    Regression guard: `hooks/mb-recall.sh` fuses semantic + lexical hits via RRF
+    (Reciprocal Rank Fusion) when the semantic backend is available, falling back to
+    lexical-only otherwise — SKILL.md previously undersold this as plain ripgrep.
+    """
+    text = SKILL_MD.read_text(encoding="utf-8")
+    recall_lines = [line for line in text.splitlines() if "recall" in line.lower()]
+    assert recall_lines, "SKILL.md must mention `/mb recall` somewhere."
+
+    recall_block = "\n".join(recall_lines)
+    assert re.search(r"\bRRF\b|semantic", recall_block, re.IGNORECASE), (
+        "SKILL.md's recall description must mention hybrid semantic/RRF search."
+    )
+    assert not re.search(r"ripgrep over", recall_block, re.IGNORECASE), (
+        "SKILL.md must not describe `/mb recall` as ripgrep-only anymore."
     )
 
 

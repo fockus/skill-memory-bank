@@ -30,49 +30,47 @@ rolling `_recent.md` handoff window, and exposes lexical/semantic recall.
 
 ## Session file schema v2
 
-Every session file is Markdown with YAML frontmatter and the sections below. All fields
-in frontmatter are required unless marked optional.
+Every session file is Markdown with YAML frontmatter and the sections below. This lists
+the fields the Claude Code adapter (`hooks/mb-session-turn.sh`, `hooks/mb-session-summarize.sh`,
+`hooks/mb-session-end.sh`) actually emits today — `agent`, `ended`, `mtime`, and
+`summary_backend` are **not currently written** by any hook and must not be relied upon.
 
 ```yaml
 ---
 session_id: <agent-specific id>    # e.g. Pi session file UUID, Claude JSONL session_id
-agent: claude | pi | codex | opencode | cursor | windsurf
+transcript: <path>                 # optional, agent-native transcript location; backfilled once known
 started: ISO-8601 timestamp
-ended: ISO-8601 timestamp          # optional, absent when session is still in progress
-turns: <N>
-transcript: <path>                 # optional, agent-native transcript location
-summarized: true | false           # whether `## Summary` has been written
-summary_backend: claude-code | pi | command | none   # optional
-summary_schema: v2
 branch: <name>                     # optional, git branch or user label
-mtime: <unix_seconds>              # file modification time, used for ordering
+turns: <N>
+last_turn: <uuid>                  # anchor uuid of the last captured turn, used for Stop-hook dedup
+summarized: true | false           # whether `## Summary` has been written
+summary_schema: v2                 # optional, only set once a v2 summary has been written
+judged: true                       # optional, only set once the gated Sonnet judge has run
 ---
 ```
 
 ### Section `## Live log`
 
-Turn-level raw audit entries. One entry per completed turn. Required even when no summary
-is available.
+Turn-level raw audit entries. One **single line per completed turn**. Required even when no
+summary is available.
 
 ```markdown
 ## Live log
 
-- 14:23 — User: "refactor auth module"
-  - Tools: Write auth.go, Edit main.go
-  - Files: auth/auth.go, main.go
-  - Outcome: ok
-- 14:30 — Assistant answer (3 tool calls)
-  - Tools: bash go test ./...
-  - Files: auth/auth_test.go
-  - Outcome: ok
+- 14:23 — User: "refactor auth module" · tools: Write auth.go, Edit main.go · files: auth/auth.go, main.go · ok · +12/-4
+- 14:30 — User: "run the tests" · tools: bash go test ./... · files: auth/auth_test.go · ok
 ```
 
-Each line is a turn marker. The format is human-readable and grep-friendly.
+Format (`hooks/mb-session-turn.sh`): `- HH:MM — User: "<text>" · tools: <T> · files: <F> ·
+<ok|err(N)>[ · +A/-B]`. The trailing `+A/-B` diffstat segment only appears inside a git work
+tree. Each line is a turn marker. The format is human-readable and grep-friendly.
 
 ### Section `## Summary`
 
 Compiled summary in standard but human-readable structure. This is the section that
-`_recent.md` consumes and that recall surfaces.
+`_recent.md` consumes and that recall surfaces. Exactly **4** headings, in this order
+(`hooks/mb-session-summarize.sh`); each heading writes `(none)` when there is nothing to
+report rather than being omitted.
 
 ```markdown
 ## Summary
@@ -88,24 +86,6 @@ Compiled summary in standard but human-readable structure. This is the section t
 
 ### Files
 - <paths of files read or modified>
-
-### Verification
-- <test runner output, lint status, checks>
-
-### Next actions
-- <concrete follow-up items>
-```
-
-### Section `## Diagnostics`
-
-Optional. Capture backend, error messages, and summarizer-did-not-run reasons.
-
-```markdown
-## Diagnostics
-
-- summary_backend: none
-- error: MB_SUMMARY_BACKEND not configured
-- reason: SessionEnd hook was not executed or was killed before completion
 ```
 
 ## Lifecycle states
@@ -124,7 +104,7 @@ Optional. Capture backend, error messages, and summarizer-did-not-run reasons.
   └─► SessionEnd event
         ├─► finalize Live log
         ├─► write summary via configured backend (claude-code, pi, command, none)
-        ├─► mark summarized: true (or false + diagnostics if backend failed)
+        ├─► mark summarized: true (or leave false if the backend is `none`/failed)
         └─► rebuild _recent.md
 
 [compaction / context overflow]
@@ -185,12 +165,11 @@ Optional. Capture backend, error messages, and summarizer-did-not-run reasons.
 | `MB_SESSION_CAPTURE` | on | Master off-switch for session logging |
 | `MB_SUMMARY_BACKEND` | none | `claude-code`, `pi`, `command`, `none` |
 | `MB_SUMMARIZE_BIN` | (auto) | Override summarizer command |
-| `MB_CATCHUP_MAX` | 5 | Max stale sessions to summarize per SessionStart |
+| `MB_CATCHUP_MAX` | 2 | Max stale sessions to summarize per SessionStart |
 | `MB_RECENT_KEEP` | 5 | Number of recent sessions in `_recent.md` |
-| `MB_RECALL` | on | Enable `/mb recall` |
 | `MB_SEMANTIC` | auto | `auto` (venv if available), `off`, `on` |
 | `MB_SEMANTIC_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Embedding model |
-| `MB_AUTO_CAPTURE` | off | Legacy; `auto` writes progress stubs |
+| `MB_AUTO_CAPTURE` | auto | Legacy progress-stub writer; `auto` writes progress stubs, `off` disables, `strict` skips with a hint |
 
 ## Privacy and redaction
 
