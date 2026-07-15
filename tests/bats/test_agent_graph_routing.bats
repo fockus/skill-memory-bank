@@ -12,7 +12,7 @@ _agents() {
 }
 
 _role_agents() {
-  echo "mb-developer.md mb-backend.md mb-frontend.md mb-qa.md mb-architect.md"
+  echo "mb-developer.md mb-backend.md mb-frontend.md mb-qa.md mb-architect.md plan-verifier.md"
 }
 
 @test "all skill role agents carry the graph-first routing sentinel" {
