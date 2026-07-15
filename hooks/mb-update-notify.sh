@@ -265,4 +265,147 @@ upgrade_command="$(_mb_uan_sanitize "$(_mb_uan_field "$json" upgrade_command)")"
 
 printf '[memory-bank-skill] update available: %s -> %s\n' "$current" "$latest"
 printf '  upgrade: %s\n' "$upgrade_command"
+
+# ═══ Opt-in auto-update (Stage 4) ═══
+#
+# Everything above this point is unconditional — the notice always prints
+# when an update is available. This block ADDS an optional auto-apply on
+# top of it, gated by a strict safety matrix; when any gate fails it is a
+# silent no-op and the notice above is the whole story, byte-identical to
+# pre-Stage-4 behaviour.
+#
+#   1. MB_AUTO_UPDATE unset/anything-but-"on" -> never upgrades (default off).
+#   2. flavor "git" + a CLEAN working tree + update available -> runs
+#      scripts/mb-upgrade.sh --force and records current -> latest.
+#   3. flavor "git" + a DIRTY working tree -> refuses (never discards a
+#      user's local edits), notice-only.
+#   4. flavor pipx/pip/brew/unknown -> NEVER invoked; a package manager is
+#      never run on the user's behalf, only ever printed (the notice above).
+#   5. the upgrade command itself fails or hangs -> fail-open: the session
+#      still starts, this hook still exits 0, and no false "auto-updated"
+#      claim is printed.
+#
+# `flavor` is read straight from the resolver's OWN answer (scripts/mb-
+# version-check.sh already computed it via _lib.sh::mb_install_flavor to
+# build `upgrade_command` above) — one source of truth, not a second,
+# independent detection that could drift from the command already printed.
+if [ "${MB_AUTO_UPDATE:-off}" = "on" ]; then
+  MB_AUN_FLAVOR="$(_mb_uan_sanitize "$(_mb_uan_field "$json" flavor)")"
+  if [ "$MB_AUN_FLAVOR" = "git" ]; then
+    # Resolve the install root independently of whichever resolver binary
+    # answered above (tests routinely override MB_VERSION_CHECK_BIN with a
+    # stub that never touches a real checkout) — MB_SKILL_ROOT is checked
+    # FIRST by _skill_root.sh's own candidate list, so it is this block's
+    # primary test seam, exactly like MB_VERSION_CHECK_BIN/MB_UPGRADE_BIN.
+    if [ -z "${MB_AUN_ROOT_HELPER_LOADED:-}" ] && [ -f "$HOOK_DIR/_skill_root.sh" ]; then
+      # shellcheck source=hooks/_skill_root.sh
+      . "$HOOK_DIR/_skill_root.sh"
+      MB_AUN_ROOT_HELPER_LOADED=1
+    fi
+    MB_AUN_ROOT=""
+    [ -n "${MB_AUN_ROOT_HELPER_LOADED:-}" ] && MB_AUN_ROOT="$(mb_skill_root_resolve "$HOOK_DIR" 2>/dev/null || true)"
+
+    # Defense-in-depth clean-tree gate: scripts/mb-upgrade.sh --force ALSO
+    # refuses a dirty tree on its own, but this hook must never even shell
+    # out to it on a dirty tree — belt AND suspenders, never discard a
+    # user's local edits. `status --porcelain` empty AND git itself exiting
+    # 0 (a non-repo/broken git call is treated as "not provably clean",
+    # never as "clean" by an empty-but-erroring capture).
+    #
+    # `--untracked-files=all --ignore-submodules=none` are explicit, not
+    # left to config: a plain `status --short`/`status --porcelain` honours
+    # user/repo config like `status.showUntrackedFiles=no` or a submodule
+    # ignore setting, so a repo configured that way could hide real
+    # untracked/submodule changes and be misread as clean here. Passing
+    # both flags explicitly makes this check config-independent — it always
+    # sees the full truth, regardless of what the user's/repo's git config
+    # says.
+    if [ -n "$MB_AUN_ROOT" ] && [ -d "$MB_AUN_ROOT/.git" ] \
+      && MB_AUN_STATUS="$(git -C "$MB_AUN_ROOT" status --porcelain --untracked-files=all --ignore-submodules=none 2>/dev/null)" \
+      && [ -z "$MB_AUN_STATUS" ] \
+      && [ -f "$MB_AUN_ROOT/SKILL.md" ] \
+      && [ -f "$MB_AUN_ROOT/scripts/mb-upgrade.sh" ] \
+      && [ -f "$MB_AUN_ROOT/scripts/_lib.sh" ]; then
+      # Strong bundle-identity gate (M3 residual): the marker check inside
+      # _skill_root.sh's own candidate list (SKILL.md OR VERSION) is
+      # deliberately weak — it is a GENERAL resolver shared by 11 other
+      # hooks, and tightening it there would risk regressing all of them.
+      # Here, immediately before a DESTRUCTIVE action (mb-upgrade.sh
+      # --force), this hook adds its own independent, strictly stronger
+      # check: ALL THREE of SKILL.md + scripts/mb-upgrade.sh +
+      # scripts/_lib.sh must be present together under $MB_AUN_ROOT. An
+      # arbitrary git repo that merely happens to contain a stray VERSION
+      # (or even a SKILL.md) file — enough to satisfy the general
+      # resolver's own weak gate, whether reached via a stale/misconfigured
+      # MB_SKILL_ROOT override or one of the hardcoded fallback candidates —
+      # will not also have this exact scripts/ layout, so it is rejected
+      # here regardless of how $MB_AUN_ROOT was resolved. This gate applies
+      # independently of any MB_UPGRADE_BIN test/override seam: it checks
+      # the ROOT's own on-disk layout, not which binary is about to run.
+      MB_AUN_UPGRADE_BIN="${MB_UPGRADE_BIN:-$MB_AUN_ROOT/scripts/mb-upgrade.sh}"
+      if [ -n "$MB_AUN_UPGRADE_BIN" ] && [ -r "$MB_AUN_UPGRADE_BIN" ]; then
+        MB_AUN_UP_TIMEOUT="${MB_AUTO_UPDATE_TIMEOUT:-20}"
+        case "$MB_AUN_UP_TIMEOUT" in '' | *[!0-9]*) MB_AUN_UP_TIMEOUT=20 ;; esac
+
+        # Snapshot the on-disk VERSION file BEFORE the upgrade runs — the
+        # after-the-fact re-read below is what proves the install genuinely
+        # advanced (see the post-run comment for why exit code alone is not
+        # enough).
+        MB_AUN_VERSION_BEFORE=""
+        [ -f "$MB_AUN_ROOT/VERSION" ] && MB_AUN_VERSION_BEFORE="$(tr -d '[:space:]' < "$MB_AUN_ROOT/VERSION" 2>/dev/null)"
+
+        # Same hand-rolled, no-orphan watchdog discipline as the resolver
+        # call above (own process group via `set -m`, negative-PID kill) —
+        # a hanging/misbehaving upgrade must never hold this hook's
+        # inherited stdout fd open, or outlive it as an orphan.
+        set -m
+        ( MB_SKILL_DIR="$MB_AUN_ROOT" bash "$MB_AUN_UPGRADE_BIN" --force >/dev/null 2>&1 ) &
+        MB_AUN_PID=$!
+        (
+          sleep "$MB_AUN_UP_TIMEOUT"
+          kill -KILL -- "-$MB_AUN_PID" 2>/dev/null
+        ) >/dev/null 2>&1 &
+        MB_AUN_WATCHDOG=$!
+        set +m
+
+        MB_AUN_UP_RC=0
+        wait "$MB_AUN_PID" 2>/dev/null || MB_AUN_UP_RC=$?
+
+        kill -KILL -- "-$MB_AUN_WATCHDOG" 2>/dev/null
+        wait "$MB_AUN_WATCHDOG" 2>/dev/null
+
+        # Re-read VERSION after the run. `scripts/mb-upgrade.sh` exits 0
+        # even when `behind == 0` (already up to date) — a race with a
+        # concurrent update, a stale resolver cache, or a branch/tag
+        # mismatch can all trigger this, i.e. it can succeed while applying
+        # NOTHING. Exit code alone is therefore not proof of a real
+        # install: a truthy record requires BOTH the upgrade to have
+        # genuinely succeeded (never on a failed or killed — SIGKILL -> 137
+        # — attempt) AND the on-disk VERSION to have actually changed. A
+        # rc==0 no-op stays silent about auto-update — the notice already
+        # printed above is the whole story for that session.
+        #
+        # minor#1: "changed" alone is not enough either. Two extra guards:
+        #   - VERSION_AFTER must string-equal `$latest` (the resolver's OWN
+        #     target) — a concurrent/unrelated local VERSION write racing
+        #     the upgrade window would otherwise still read as "changed"
+        #     and produce a false "auto-updated to $latest" claim even
+        #     though the checkout landed somewhere else entirely.
+        #   - VERSION_BEFORE must be non-empty (a missing/unreadable
+        #     baseline is inconclusive, not proof of a transition) — a
+        #     first-ever snapshot with nothing to compare against must
+        #     never be read as "genuinely advanced".
+        MB_AUN_VERSION_AFTER=""
+        [ -f "$MB_AUN_ROOT/VERSION" ] && MB_AUN_VERSION_AFTER="$(tr -d '[:space:]' < "$MB_AUN_ROOT/VERSION" 2>/dev/null)"
+        if [ "$MB_AUN_UP_RC" -eq 0 ] && [ -n "$MB_AUN_VERSION_BEFORE" ] \
+          && [ -n "$MB_AUN_VERSION_AFTER" ] \
+          && [ "$MB_AUN_VERSION_AFTER" != "$MB_AUN_VERSION_BEFORE" ] \
+          && [ "$MB_AUN_VERSION_AFTER" = "$latest" ]; then
+          printf '[memory-bank-skill] auto-updated: %s -> %s\n' "$current" "$latest"
+        fi
+      fi
+    fi
+  fi
+fi
+
 exit 0

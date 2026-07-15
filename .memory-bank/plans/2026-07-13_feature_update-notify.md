@@ -113,10 +113,10 @@ seam, same pattern `mb-drive.sh` uses for its five sub-scripts) —
   documented as an honest gap (the `test_cross_agent_runtime_parity.bats` pattern)
 
 **DoD:**
-- [ ] Hook runs `mb-version-check.sh` (cached → typically zero network) and prints a ≤3-line notice.
-- [ ] Exit 0 unconditionally; never writes to the bank; never blocks.
-- [ ] Registered in `settings/hooks.json` + the adapters with a SessionStart transport.
-- [ ] Notice shows the command for the **detected** flavor (a pipx user is never told to `git pull`).
+- [x] Hook runs `mb-version-check.sh` (cached → typically zero network) and prints a ≤3-line notice.
+- [x] Exit 0 unconditionally; never writes to the bank; never blocks.
+- [x] Registered in `settings/hooks.json` + the adapters with a SessionStart transport.
+- [x] Notice shows the command for the **detected** flavor (a pipx user is never told to `git pull`).
 
 <!-- mb-stage:4 -->
 ## Stage 4 — opt-in auto-update
@@ -131,10 +131,10 @@ seam, same pattern `mb-drive.sh` uses for its five sub-scripts) —
 - `on` + upgrade fails → session still starts, exit 0 (fail-open holds)
 
 **DoD:**
-- [ ] `MB_AUTO_UPDATE=on` gates it; default `off`.
-- [ ] Auto-apply restricted to `flavor == git` **and** a clean working tree.
-- [ ] A package manager is never invoked on the user's behalf.
-- [ ] The applied upgrade is recorded (version → version) so it is not silent.
+- [x] `MB_AUTO_UPDATE=on` gates it; default `off`.
+- [x] Auto-apply restricted to `flavor == git` **and** a clean working tree.
+- [x] A package manager is never invoked on the user's behalf.
+- [x] The applied upgrade is recorded (version → version) so it is not silent.
 
 <!-- mb-stage:5 -->
 ## Stage 5 — docs

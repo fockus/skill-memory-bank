@@ -30,6 +30,9 @@ teardown() {
   fake_root="$SANDBOX/fake-skill"
   mkdir -p "$fake_root/scripts" "$fake_root/hooks"
   echo "stub" > "$fake_root/scripts/mb-plan-sync.sh"
+  # A real skill root always has a VERSION file (or SKILL.md) — the
+  # candidate gate requires one, same as the hook-parent candidate below.
+  printf '9.9.9\n' > "$fake_root/VERSION"
   run env MB_SKILL_ROOT="$fake_root" bash -c '
     HOOK_DIR="'"$HOOKS_DIR"'"
     . "'"$HOOKS_DIR"'/_skill_root.sh"
@@ -37,6 +40,20 @@ teardown() {
   '
   [ "$status" -eq 0 ]
   [ "$output" = "$fake_root/scripts/mb-plan-sync.sh" ]
+}
+
+@test "skill_root: MB_SKILL_ROOT without a bundle marker (SKILL.md/VERSION) is rejected, not blindly trusted (M3)" {
+  fake_root="$SANDBOX/untrusted"
+  mkdir -p "$fake_root/scripts"
+  echo "stub" > "$fake_root/scripts/mb-plan-sync.sh"
+  run env MB_SKILL_ROOT="$fake_root" bash -c '
+    HOOK_DIR="'"$HOOKS_DIR"'"
+    . "'"$HOOKS_DIR"'/_skill_root.sh"
+    mb_skill_root_resolve "$HOOK_DIR"
+  '
+  [ "$status" -eq 0 ]
+  [ "$output" != "$fake_root" ]
+  [ "$output" = "$SKILL_ROOT" ]
 }
 
 @test "skill_root: mb_hook_resolve_mb_path finds local .memory-bank" {
@@ -129,6 +146,7 @@ teardown_skill_alias_sandbox() {
 @test "skill_root: plan-sync hook finds chain scripts when MB_SKILL_ROOT set" {
   fake_root="$SANDBOX/fake-skill"
   mkdir -p "$fake_root/scripts" "$fake_root/hooks"
+  printf '9.9.9\n' > "$fake_root/VERSION"
   for s in mb-plan-sync.sh mb-roadmap-sync.sh mb-traceability-gen.sh; do
     echo "#!/usr/bin/env bash" > "$fake_root/scripts/$s"
     chmod +x "$fake_root/scripts/$s"

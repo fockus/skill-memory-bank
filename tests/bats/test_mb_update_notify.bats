@@ -43,6 +43,92 @@ call_count() {
   wc -l < "$TMPDIR/calls.log" | tr -d ' '
 }
 
+# $1=filename $2=exit-code [$3=version_file $4=new_version] -> path to a
+# chmod+x stub for scripts/mb-upgrade.sh. Records every invocation (one
+# line, "$@") to $TMPDIR/upgrade-calls.log so tests can assert "the upgrade
+# script was never invoked" (invariants 3/4), not just inspect its exit
+# code. Never touches git/network — a pure stub.
+#
+# $3/$4 are optional: when given, the stub also OVERWRITES $version_file
+# with $new_version before exiting — this is what a real `mb-upgrade.sh
+# --force` does on a genuine install (git pull advances the checkout's own
+# VERSION file). Tests proving the "genuinely advanced" claim (M1) use this;
+# tests proving the "exited 0 but changed nothing" case omit it on purpose.
+fake_upgrade() {
+  local path="$TMPDIR/$1"
+  local exit_code="$2"
+  local version_file="${3:-}"
+  local new_version="${4:-}"
+  local bump_line=""
+  if [ -n "$version_file" ]; then
+    bump_line="printf '%s\n' '$new_version' > '$version_file'"
+  fi
+  cat > "$path" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$TMPDIR/upgrade-calls.log"
+$bump_line
+exit $exit_code
+EOF
+  chmod +x "$path"
+  printf '%s' "$path"
+}
+
+upgrade_call_count() {
+  [ -f "$TMPDIR/upgrade-calls.log" ] || { echo 0; return 0; }
+  wc -l < "$TMPDIR/upgrade-calls.log" | tr -d ' '
+}
+
+# $1=name -> a real, clean git repo under $TMPDIR (a plausible git-flavor
+# skill root: VERSION file + a commit, nothing uncommitted). Also carries
+# SKILL.md + scripts/mb-upgrade.sh + scripts/_lib.sh so this fixture also
+# satisfies the hook's own strong bundle-identity gate (M3) by default —
+# tests that need to prove that gate CLOSES build their own weaker root
+# instead of using this helper.
+make_clean_git_root() {
+  local dir="$TMPDIR/$1"
+  mkdir -p "$dir/scripts"
+  printf '5.3.0\n' > "$dir/VERSION"
+  printf '# Memory Bank Skill (test fixture)\n' > "$dir/SKILL.md"
+  printf '#!/usr/bin/env bash\ntrue\n' > "$dir/scripts/mb-upgrade.sh"
+  chmod +x "$dir/scripts/mb-upgrade.sh"
+  printf '#!/usr/bin/env bash\ntrue\n' > "$dir/scripts/_lib.sh"
+  (
+    cd "$dir" && git init -q && git config user.email "test@test" \
+      && git config user.name "Test" \
+      && git add VERSION SKILL.md scripts/mb-upgrade.sh scripts/_lib.sh \
+      && git commit -q -m init
+  ) >/dev/null 2>&1
+
+  # minor#2: prove the setup actually took. A swallowed git init/commit
+  # failure (no git on PATH, a broken sandbox, ...) must fail THIS helper
+  # loudly rather than silently hand back a directory with no ".git" at
+  # all — a negative test asserting "upgrade never invoked" would then pass
+  # for the WRONG reason (the hook's own `[ -d "$root/.git" ]` gate failing
+  # closed on a non-repo) instead of because the fix under test works. Bats
+  # runs test bodies under `set -e`, and a failing command-substitution
+  # ASSIGNMENT (`root="$(make_clean_git_root ...)"`) does abort the test at
+  # that line — so `return 1` here (before printing a path) is enough to
+  # fail the calling test loudly, no per-call-site check needed.
+  [ -d "$dir/.git" ] || {
+    echo "make_clean_git_root: git init/commit did not create $dir/.git" >&2
+    return 1
+  }
+  git -C "$dir" status >/dev/null 2>&1 || {
+    echo "make_clean_git_root: git -C $dir status failed" >&2
+    return 1
+  }
+
+  printf '%s' "$dir"
+}
+
+# Same as make_clean_git_root but with an uncommitted edit (dirty tree).
+make_dirty_git_root() {
+  local dir
+  dir="$(make_clean_git_root "$1")"
+  printf 'dirty\n' >> "$dir/VERSION"
+  printf '%s' "$dir"
+}
+
 # Runs "$@" under the test's OWN hard deadline — no `timeout`/`gtimeout`
 # dependency (same hand-rolled, no-orphan technique as the hook itself:
 # `set -m` + a background `sleep`+negative-PID `kill`). This exists
@@ -732,6 +818,303 @@ EOF
     *) true ;;
   esac
   [[ "$output" == *"—"* ]]
+}
+
+# ═══ opt-in auto-update (Stage 4) — safety matrix ═══
+#
+# MB_AUTO_UPDATE is opt-in (default off): even when an update IS available,
+# this hook stays notice-only unless the user explicitly turns this on, and
+# even then only ever touches a git-clone install with a clean tree — never
+# a package manager, never a dirty tree. scripts/mb-upgrade.sh is stubbed
+# via MB_UPGRADE_BIN (the same override-seam pattern as MB_VERSION_CHECK_BIN)
+# so no test here ever touches the real git remote.
+
+@test "auto-update: row 1 — MB_AUTO_UPDATE unset/default never upgrades, notice-only, upgrade script never invoked" {
+  local checker upgrade root
+  root="$(make_clean_git_root gitroot)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  upgrade=$(fake_upgrade upgrade.sh 0)
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" == *"5.4.0"* ]]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 0 ]
+}
+
+@test "auto-update: row 1b — MB_AUTO_UPDATE=off explicitly never upgrades either" {
+  local checker upgrade root
+  root="$(make_clean_git_root gitroot)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  upgrade=$(fake_upgrade upgrade.sh 0)
+
+  run --separate-stderr env MB_AUTO_UPDATE=off MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 0 ]
+}
+
+@test "auto-update: row 2 — MB_AUTO_UPDATE=on + git flavor + clean tree + update available runs mb-upgrade.sh --force and records current -> latest" {
+  local checker upgrade root
+  root="$(make_clean_git_root gitroot)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  # The stub genuinely advances the checkout's own VERSION file, exactly
+  # like a real `mb-upgrade.sh --force` git-pull would — the hook's claim
+  # is gated on that (M1), not on exit code alone.
+  upgrade=$(fake_upgrade upgrade.sh 0 "$root/VERSION" "5.4.0")
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"auto-updated: 5.3.0 -> 5.4.0"* ]]
+  [ "$(upgrade_call_count)" -eq 1 ]
+  grep -q -- '--force' "$TMPDIR/upgrade-calls.log"
+}
+
+@test "auto-update: row 2b — the upgrade exits 0 but VERSION did not actually change: no false 'auto-updated' claim (M1)" {
+  local checker upgrade root
+  root="$(make_clean_git_root gitroot)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  # scripts/mb-upgrade.sh:218 exits 0 with "[✓] Up to date" when behind==0 —
+  # i.e. it applied NOTHING and still succeeds (a race with a concurrent
+  # update, a stale resolver cache, a branch/tag mismatch). This stub
+  # reproduces exactly that: exit 0, VERSION untouched.
+  upgrade=$(fake_upgrade upgrade.sh 0)
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 1 ]
+}
+
+@test "auto-update: row 2d — the upgrade exits 0 and VERSION genuinely changed but NOT to the resolver's own latest: no false claim (minor#1)" {
+  local checker upgrade root
+  root="$(make_clean_git_root gitroot)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  # VERSION genuinely changed (rc==0, before != after) but to something
+  # OTHER than the resolver's own "latest" (5.4.0) — e.g. a concurrent,
+  # unrelated local VERSION write racing the upgrade window. Must NOT be
+  # claimed as a successful auto-update to 5.4.0: string-equality against
+  # $latest is required, not merely "changed from before".
+  upgrade=$(fake_upgrade upgrade.sh 0 "$root/VERSION" "9.9.9")
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 1 ]
+}
+
+@test "auto-update: row 2e — a missing VERSION baseline before the upgrade is inconclusive, never claimed, even if VERSION == latest after (minor#1)" {
+  local checker upgrade root
+  root="$TMPDIR/gitroot-no-baseline"
+  mkdir -p "$root/scripts"
+  # Deliberately NO VERSION file at all (no baseline to compare against) —
+  # SKILL.md alone satisfies both the resolver's MB_SKILL_ROOT candidate
+  # gate and the hook's own strong bundle-identity gate (M3).
+  printf '# Memory Bank Skill (test fixture)\n' > "$root/SKILL.md"
+  printf '#!/usr/bin/env bash\ntrue\n' > "$root/scripts/mb-upgrade.sh"
+  chmod +x "$root/scripts/mb-upgrade.sh"
+  printf '#!/usr/bin/env bash\ntrue\n' > "$root/scripts/_lib.sh"
+  (
+    cd "$root" && git init -q && git config user.email "test@test" \
+      && git config user.name "Test" \
+      && git add SKILL.md scripts/mb-upgrade.sh scripts/_lib.sh \
+      && git commit -q -m init
+  ) >/dev/null 2>&1
+  [ -d "$root/.git" ]
+  git -C "$root" status >/dev/null 2>&1
+
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"unknown\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  # The stub writes VERSION == latest for the FIRST time — rc==0, after is
+  # non-empty and equals $latest, but BEFORE was never readable (the file
+  # didn't exist). A missing baseline must be treated as inconclusive, not
+  # as proof of a genuine transition.
+  upgrade=$(fake_upgrade upgrade.sh 0 "$root/VERSION" "5.4.0")
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 1 ]
+}
+
+@test "auto-update: git flavor + clean tree but root missing scripts/_lib.sh (weak bundle identity) refuses to upgrade — M3 residual" {
+  local checker upgrade root
+  root="$TMPDIR/gitroot-weak"
+  mkdir -p "$root/scripts"
+  printf '5.3.0\n' > "$root/VERSION"
+  printf '# Memory Bank Skill (test fixture)\n' > "$root/SKILL.md"
+  printf '#!/usr/bin/env bash\ntrue\n' > "$root/scripts/mb-upgrade.sh"
+  chmod +x "$root/scripts/mb-upgrade.sh"
+  # Deliberately NO scripts/_lib.sh — a clean git repo with a VERSION,
+  # SKILL.md and mb-upgrade.sh alone is not (per the residual M3 finding)
+  # strong enough evidence of a genuine skill bundle to justify running a
+  # destructive --force upgrade against it: an arbitrary git repo that
+  # happens to carry a stray VERSION/SKILL.md and a script NAMED
+  # mb-upgrade.sh would otherwise still pass.
+  (
+    cd "$root" && git init -q && git config user.email "test@test" \
+      && git config user.name "Test" \
+      && git add VERSION SKILL.md scripts/mb-upgrade.sh \
+      && git commit -q -m init
+  ) >/dev/null 2>&1
+  [ -d "$root/.git" ]
+  git -C "$root" status >/dev/null 2>&1
+
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  upgrade=$(fake_upgrade upgrade.sh 0 "$root/VERSION" "5.4.0")
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 0 ]
+}
+
+@test "auto-update: row 3 — MB_AUTO_UPDATE=on + git flavor + DIRTY tree refuses to upgrade, notice-only, upgrade script never invoked" {
+  local checker upgrade root
+  root="$(make_dirty_git_root gitroot)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  upgrade=$(fake_upgrade upgrade.sh 0)
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 0 ]
+}
+
+@test "auto-update: row 3b — a config-widened clean check (status.showUntrackedFiles=no) with an untracked file still refuses (M2)" {
+  local checker upgrade root
+  root="$(make_clean_git_root gitroot)"
+  # A repo configured this way hides untracked files from a plain
+  # `git status --short` — the defense-in-depth clean-tree gate must not be
+  # foolable by user/repo config; it has to see the untracked file anyway.
+  git -C "$root" config status.showUntrackedFiles no
+  printf 'stray\n' > "$root/untracked.txt"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  upgrade=$(fake_upgrade upgrade.sh 0)
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 0 ]
+}
+
+@test "auto-update: row 4 — MB_AUTO_UPDATE=on + pipx/pip/brew flavor NEVER invokes a package manager, notice-only" {
+  local flavor checker upgrade root
+  for flavor in pipx pip brew; do
+    root="$(make_clean_git_root "gitroot-$flavor")"
+    checker=$(fake_checker "checker-$flavor.sh" 0 \
+      "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"$flavor\", \"upgrade_command\": \"$flavor upgrade memory-bank-skill\", \"checked_at\": \"x\", \"source\": \"github\"}")
+    upgrade=$(fake_upgrade "upgrade-$flavor.sh" 0)
+
+    run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+    [ "$status" -eq 0 ]
+    [ -z "$stderr" ]
+    [[ "$output" == *"$flavor upgrade memory-bank-skill"* ]]
+    [[ "$output" != *"auto-updated"* ]]
+    [ "$(upgrade_call_count)" -eq 0 ]
+  done
+}
+
+@test "auto-update: row 4b — MB_AUTO_UPDATE=on + 'unknown' flavor NEVER invokes an upgrade either, notice-only (m1)" {
+  local checker upgrade root
+  root="$(make_clean_git_root gitroot-unknown)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"unknown\", \"upgrade_command\": \"see release notes\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  upgrade=$(fake_upgrade upgrade.sh 0)
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"see release notes"* ]]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 0 ]
+}
+
+@test "auto-update: row 5 — MB_AUTO_UPDATE=on + git flavor + clean tree but the upgrade command FAILS: session still starts, exit 0, no false 'auto-updated' claim" {
+  local checker upgrade root
+  root="$(make_clean_git_root gitroot)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  upgrade=$(fake_upgrade upgrade.sh 1)
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" != *"auto-updated"* ]]
+  [ "$(upgrade_call_count)" -eq 1 ]
+}
+
+@test "auto-update: row 2c — production default MB_UPGRADE_BIN path (no override) is exercised (m2)" {
+  local checker root upgrade_stub
+  root="$(make_clean_git_root gitroot-default)"
+  mkdir -p "$root/scripts"
+  upgrade_stub="$root/scripts/mb-upgrade.sh"
+  cat > "$upgrade_stub" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$TMPDIR/upgrade-calls.log"
+printf '5.4.0\n' > "$root/VERSION"
+exit 0
+EOF
+  chmod +x "$upgrade_stub"
+  # Commit the stub so the clean-tree gate still passes — this test proves
+  # the PRODUCTION default resolution ($root/scripts/mb-upgrade.sh with NO
+  # MB_UPGRADE_BIN override), which the row-2 positive test above never
+  # exercises (it always overrides MB_UPGRADE_BIN).
+  (cd "$root" && git add scripts/mb-upgrade.sh && git commit -q -m "add upgrade stub") >/dev/null 2>&1
+
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+
+  run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"auto-updated: 5.3.0 -> 5.4.0"* ]]
+  [ "$(upgrade_call_count)" -eq 1 ]
+}
+
+@test "auto-update: a hanging upgrade command is killed by its own watchdog — fail-open, exit 0, no false claim, fast" {
+  local checker hanger root
+  root="$(make_clean_git_root gitroot)"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+  hanger="$TMPDIR/hang-upgrade.sh"
+  cat > "$hanger" <<'EOF'
+#!/usr/bin/env bash
+sleep 30
+EOF
+  chmod +x "$hanger"
+
+  run_with_deadline 30 env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" \
+    MB_UPGRADE_BIN="$hanger" MB_AUTO_UPDATE_TIMEOUT=1 bash "$HOOK"
+  [ "$capture_timed_out" -eq 0 ]
+  [ "$capture_status" -eq 0 ]
+  [[ "$capture_out" == *"5.3.0"* ]]
+  [[ "$capture_out" != *"auto-updated"* ]]
+  [ -z "$capture_err" ]
+  [ "$capture_elapsed" -le 5 ]
 }
 
 # ═══ registration ═══

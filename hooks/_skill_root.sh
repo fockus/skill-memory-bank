@@ -7,7 +7,17 @@ mb_skill_root_candidates() {
   local hook_dir="${1:-}"
 
   if [ -n "${MB_SKILL_ROOT:-}" ] && [ -d "$MB_SKILL_ROOT" ]; then
-    (cd "$MB_SKILL_ROOT" && pwd)
+    local mb_skill_root_real
+    mb_skill_root_real="$(cd "$MB_SKILL_ROOT" && pwd)"
+    # Same bundle-marker gate as the hook-parent candidate below — an
+    # override is only ever trusted when it actually looks like a skill
+    # bundle. Without this, a stale/leaked/misconfigured MB_SKILL_ROOT
+    # pointing at an arbitrary checkout would be accepted as-is and later
+    # used to shell out a DESTRUCTIVE action (e.g. mb-upgrade.sh --force)
+    # in the wrong repo.
+    if [ -f "$mb_skill_root_real/SKILL.md" ] || [ -f "$mb_skill_root_real/VERSION" ]; then
+      printf '%s\n' "$mb_skill_root_real"
+    fi
   fi
 
   if [ -n "$hook_dir" ] && [ -d "$hook_dir" ]; then
