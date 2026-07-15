@@ -445,9 +445,8 @@ fi
 #           installation failed; the host is NOT recorded, install continues
 #           (never fatal, mirrors every other adapter-install failure mode).
 # T3 (pi: session-memory + graph-rag) landed — see the "pi" branch below.
-# T5 (opencode: parity plugin + global agents) still replaces its stub body
-# with the real installer while keeping the exact signature — the offer
-# plumbing above/below this function does not change again when it lands.
+# T5 (opencode: parity plugin + global agents) landed too — see the
+# "opencode" branch below.
 mb_install_host_extensions() {
   local host="$1"
   case "$host" in
@@ -465,7 +464,38 @@ mb_install_host_extensions() {
       fi
       ;;
     opencode)
-      echo -e "  ${YELLOW}~${NC} opencode parity extensions: install arrives in T5 (parity plugin + global agents) — no files written yet"
+      # adapter-parity T5 (REQ-011/012): two artifacts, one accept.
+      #   1. Global agent roster (~/.config/opencode/agent/*.md) — installed
+      #      right here via the dedicated opencode.sh action (mirrors pi's
+      #      install-global-extensions call above), independent of which
+      #      project accepted the offer.
+      #   2. THIS project's plugin.js gains session-start context injection
+      #      + per-turn session capture — NOT written here (the per-client
+      #      adapter loop, Step 8 below, has not run yet at this point in
+      #      the script). MB_OC_PARITY_ACCEPTED=1 is exported so that
+      #      LATER, unconditional `adapters/opencode.sh install` call (Step
+      #      8, still gated on "opencode" being a --clients target) writes
+      #      the extended plugin variant instead of the base one — single
+      #      write, no double-write/revert race with the global agents step.
+      #      A declined/no-flag install never sets this var, so
+      #      adapters/opencode.sh's own default (extended=0) applies and the
+      #      plugin stays the pre-T5-shaped base variant (NFR-001).
+      #      Codex review fix (major): the export MUST happen only AFTER
+      #      install-global-agents succeeds — exporting first and returning 1
+      #      on failure left the var set for the rest of the process, so
+      #      Step 8's unconditional plugin write still upgraded to the
+      #      EXTENDED variant despite the host never being recorded in
+      #      EXTENSIONS_INSTALLED (a dishonest, NFR-001-adjacent state: a
+      #      failed accept leaving capture-enabled code behind). The
+      #      global-agents install itself carries no MB_OC_PARITY_ACCEPTED
+      #      dependency, so evaluating it first and exporting only on success
+      #      is a pure reorder, not a behavior change on the success path.
+      echo -e "  ${GREEN}✓${NC} opencode parity extensions: session-start plugin (this project) + global agents"
+      if ! MB_LANGUAGE="$LANGUAGE" bash "$SOURCE_SKILL_DIR/adapters/opencode.sh" install-global-agents "$PROJECT_ROOT"; then
+        echo -e "  ${RED}✗${NC} opencode parity extensions: global agents install failed" >&2
+        return 1
+      fi
+      export MB_OC_PARITY_ACCEPTED=1
       ;;
     *)
       echo "[install.sh] mb_install_host_extensions: unknown host '$host'" >&2

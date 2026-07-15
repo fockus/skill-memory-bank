@@ -625,6 +625,9 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-123 — openspec-normalize: symmetry — convert.py mb_openspec_normalize import except-branch re-import (# pragma no cover, unreachable) + route cache write through _assert_within [LOW, NEW, 2026-07-15]
 
+
+### I-124 — adapter-parity T8: align OpenCode adapter's install-global-agents action name with Pi's install-global-extensions (or document the intentional agents-vs-extensions distinction) before wiring uninstall/upgrade symmetry across adapters [LOW, NEW, 2026-07-15]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

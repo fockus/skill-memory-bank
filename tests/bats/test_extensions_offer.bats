@@ -119,8 +119,12 @@ run_install() {
   # pi: T3 landed — real files land in the global Pi extensions dir.
   [ -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts" ]
   [ -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-graph-rag.ts" ]
-  # opencode: T5 not implemented yet — still the logging-only stub.
-  [[ "$output" == *"T5"* ]]
+  # opencode: T5 landed — global agent roster lands under
+  # ~/.config/opencode/agent/, and this project's plugin.js is the
+  # EXTENDED variant (session-start context injection + per-turn capture).
+  [ -f "$FAKE_HOME/.config/opencode/agent/mb-developer.md" ]
+  grep -q "^const MB_OC_PARITY_EXTENDED = true;" \
+    "$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$MANIFEST" ]
   jq -e '.extensions_installed == ["pi", "opencode"]' "$MANIFEST" >/dev/null
 }
@@ -182,10 +186,10 @@ run_install() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# mb_install_host_extensions: pi is real (T3), opencode stays the T2 stub
+# mb_install_host_extensions: both pi (T3) and opencode (T5) are real
 # ═══════════════════════════════════════════════════════════════
 
-@test "extensions-offer: accepted pi installs real extension files; opencode stub still writes nothing (T5 not implemented yet)" {
+@test "extensions-offer: accepted pi AND opencode both install real extension artifacts" {
   run_install --clients pi,opencode --project-root "$PROJECT" --non-interactive --with-extensions
   [ "$status" -eq 0 ]
   # T3 landed — pi's real target now exists, placeholder-free.
@@ -195,8 +199,48 @@ run_install() {
   [ -f "$graph_ext" ]
   ! grep -q '__MB_' "$session_ext"
   ! grep -q '__MB_' "$graph_ext"
-  # T5's real target — must stay absent until T5 actually wires it.
+  # T5 landed — opencode's real targets: global agent roster + this
+  # project's plugin.js upgraded to the extended (session-start injection +
+  # per-turn capture) variant.
+  [ -f "$FAKE_HOME/.config/opencode/agent/mb-developer.md" ]
+  ! grep -q '__MB_' "$FAKE_HOME/.config/opencode/agent/mb-developer.md"
+  grep -q "^const MB_OC_PARITY_EXTENDED = true;" \
+    "$PROJECT/.opencode/plugins/memory-bank.js"
+  # No stray un-designed .opencode/extensions dir — OpenCode's global
+  # artifact is the agent roster, not a project-local extensions/ dir.
   [ ! -d "$PROJECT/.opencode/extensions" ]
+}
+
+# Codex review fix (major #1): a failed install-global-agents used to leave
+# MB_OC_PARITY_ACCEPTED=1 exported anyway (it was set BEFORE the success
+# check) — Step 8's unconditional plugin write then still upgraded to the
+# EXTENDED variant despite opencode never being recorded in
+# extensions_installed[]. Force the failure SURGICALLY: pre-create
+# ~/.config/opencode as a real DIRECTORY (so install.sh's own unrelated,
+# pre-existing install_opencode_global_agents step — which also does
+# `mkdir -p "$HOME/.config/opencode"` for the global AGENTS.md — keeps
+# working) but put a REGULAR FILE at .../opencode/agent, the exact path
+# adapters/opencode.sh install-global-agents needs as a directory. Per the
+# documented "never fatal" extension-offer contract
+# (mb_install_host_extensions's own header comment: "Non-zero → offer
+# accepted but installation failed; the host is NOT recorded, install
+# continues"), the overall install.sh run still exits 0 — only the
+# opencode-specific artifacts must reflect the failure honestly.
+@test "extensions-offer: a failed opencode global-agents install leaves the plugin at the BASE variant (not extended)" {
+  mkdir -p "$FAKE_HOME/.config/opencode"
+  : > "$FAKE_HOME/.config/opencode/agent"  # regular file where a dir is expected
+
+  run_install --clients opencode --project-root "$PROJECT" --non-interactive --with-extensions=opencode
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"global agents install failed"* ]]
+  # extensions_installed must NOT record opencode on a failed install.
+  [ -f "$MANIFEST" ]
+  jq -e '.extensions_installed == []' "$MANIFEST" >/dev/null
+  # The project's plugin.js must stay the BASE variant — the dishonest-state
+  # bug this test guards against.
+  [ -f "$PROJECT/.opencode/plugins/memory-bank.js" ]
+  grep -q "^const MB_OC_PARITY_EXTENDED = false;" \
+    "$PROJECT/.opencode/plugins/memory-bank.js"
 }
 
 # ═══════════════════════════════════════════════════════════════

@@ -23,10 +23,15 @@ setup() {
   mkdir -p "$PROJECT/.memory-bank"
   echo '# Progress' > "$PROJECT/.memory-bank/progress.md"
   command -v jq >/dev/null || skip "jq required"
+  # Isolated $HOME sandbox (adapter-parity T5: global agent roster lands under
+  # $HOME/.config/opencode/agent — must never touch the real dev machine).
+  SANDBOX_HOME="$(mktemp -d)"
+  export HOME="$SANDBOX_HOME"
 }
 
 teardown() {
   [ -n "${PROJECT:-}" ] && [ -d "$PROJECT" ] && rm -rf "$PROJECT"
+  [ -n "${SANDBOX_HOME:-}" ] && [ -d "$SANDBOX_HOME" ] && rm -rf "$SANDBOX_HOME"
 }
 
 run_adapter() {
@@ -425,4 +430,385 @@ EOF
   run grep -q "plugin reference added to \`plugin\` array" "$doc"
   [ "$status" -ne 0 ]
   grep -qi "auto-discover" "$doc"
+}
+
+# ═══════════════════════════════════════════════════════════════
+# adapter-parity Task 5 (REQ-011/012/013/019/020): plugin parity extend
+# (session-start context injection + per-turn capture) is gated behind
+# explicit opt-in (MB_OC_PARITY_ACCEPTED=1, set by install.sh's
+# mb_install_host_extensions "opencode" branch on accept — see
+# install_global_extensions() below for the sibling global-agents half of
+# the same accept path). A plain/declined install must keep writing the
+# BASE plugin variant (byte-for-byte the pre-T5 hook surface, extended with
+# only the unconditional REQ-013 update-notify + REQ-020 nudge, both of
+# which are read-only/no-capture and therefore safe on every host).
+# ═══════════════════════════════════════════════════════════════
+
+@test "opencode: plain install (no accept) writes the BASE plugin variant" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  grep -q "MB_OC_PARITY_EXTENDED = false" "$PROJECT/.opencode/plugins/memory-bank.js"
+}
+
+@test "opencode: MB_OC_PARITY_ACCEPTED=1 install writes the EXTENDED plugin variant" {
+  MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  grep -q "MB_OC_PARITY_EXTENDED = true" "$PROJECT/.opencode/plugins/memory-bank.js"
+}
+
+# REQ-013/REQ-020: session-start context injection via
+# experimental.chat.system.transform — renders the update-notify notice
+# (delegating to hooks/mb-update-notify.sh, stubbed here via
+# MB_UPDATE_NOTIFY_BIN) on the BASE variant, PLUS the REQ-020 "extensions
+# not installed" nudge (silent on the extended variant — see next test).
+@test "opencode: base plugin's session-start hook renders update-notify AND the REQ-020 nudge" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-base.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  local stub="$PROJECT/stub-update-notify.sh"
+  cat > "$stub" <<'STUB'
+#!/usr/bin/env bash
+echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
+STUB
+  chmod +x "$stub"
+
+  run env MB_UPDATE_NOTIFY_BIN="$stub" node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      const out = { system: [] };
+      await plugin['experimental.chat.system.transform']({ sessionID: 'sess-base' }, out);
+      console.log(JSON.stringify(out.system));
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"update available: 1.0.0 -> 2.0.0"* ]]
+  [[ "$output" == *"--with-extensions=opencode"* ]]
+}
+
+@test "opencode: extended plugin's session-start hook renders update-notify but stays silent on the nudge" {
+  MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-ext.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  local stub="$PROJECT/stub-update-notify.sh"
+  cat > "$stub" <<'STUB'
+#!/usr/bin/env bash
+echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
+STUB
+  chmod +x "$stub"
+
+  run env MB_UPDATE_NOTIFY_BIN="$stub" node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      const out = { system: [] };
+      await plugin['experimental.chat.system.transform']({ sessionID: 'sess-ext' }, out);
+      console.log(JSON.stringify(out.system));
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"update available: 1.0.0 -> 2.0.0"* ]]
+  [[ "$output" != *"--with-extensions=opencode"* ]]
+}
+
+# REQ-013 render is once-per-session, not once-per-LLM-call.
+@test "opencode: session-start hook renders update-notify only once per sessionID" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-once.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  local counter="$PROJECT/notify-call-count"
+  local stub="$PROJECT/stub-update-notify-count.sh"
+  cat > "$stub" <<STUB
+#!/usr/bin/env bash
+echo x >> "$counter"
+echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
+STUB
+  chmod +x "$stub"
+
+  run env MB_UPDATE_NOTIFY_BIN="$stub" node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      await plugin['experimental.chat.system.transform']({ sessionID: 'same-sess' }, { system: [] });
+      await plugin['experimental.chat.system.transform']({ sessionID: 'same-sess' }, { system: [] });
+      await plugin['experimental.chat.system.transform']({ sessionID: 'same-sess' }, { system: [] });
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [ -f "$counter" ]
+  local calls
+  calls=$(wc -l < "$counter" | tr -d ' ')
+  [ "$calls" -eq 1 ]
+}
+
+# REQ-011/REQ-007-parity: per-turn capture on the EXTENDED variant only —
+# chat.message writes session/*.md with the same v2 schema fields as the
+# Claude Code / Pi captures, session.idle finalizes it.
+@test "opencode: extended plugin captures per-turn session/*.md (v2 schema) and finalizes on session.idle" {
+  MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-capture.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  run env MB_SESSION_CAPTURE=on node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      const out1 = { message: { id: 'm1', sessionID: 'sess-cap' }, parts: [{ type: 'text', text: 'hello world' }] };
+      await plugin['chat.message']({ sessionID: 'sess-cap' }, out1);
+      const out2 = { message: { id: 'm2', sessionID: 'sess-cap' }, parts: [{ type: 'text', text: 'second turn' }] };
+      await plugin['chat.message']({ sessionID: 'sess-cap' }, out2);
+      await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 'sess-cap' } } });
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+
+  local sfile
+  sfile=$(ls "$PROJECT/.memory-bank/session/"*.md 2>/dev/null | grep -v _recent | head -1)
+  [ -n "$sfile" ]
+  grep -q "^session_id: sess-cap$" "$sfile"
+  grep -q "^agent: opencode$" "$sfile"
+  grep -q "^summary_schema: v2$" "$sfile"
+  grep -q "^summarized: false$" "$sfile"
+  grep -q "^turns: 2$" "$sfile"
+  grep -q "hello world" "$sfile"
+  grep -q "second turn" "$sfile"
+  grep -q "^ended:" "$sfile"
+}
+
+@test "opencode: base (non-extended) plugin's chat.message hook is a no-op (no capture)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-nocap.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  run env MB_SESSION_CAPTURE=on node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      const out1 = { message: { id: 'm1' }, parts: [{ type: 'text', text: 'hello' }] };
+      await plugin['chat.message']({ sessionID: 'sess-base-nocap' }, out1);
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [ ! -d "$PROJECT/.memory-bank/session" ]
+}
+
+@test "opencode: MB_SESSION_CAPTURE=off disables per-turn capture even on the extended plugin" {
+  MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-capoff.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  run env MB_SESSION_CAPTURE=off node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      const out1 = { message: { id: 'm1' }, parts: [{ type: 'text', text: 'hello' }] };
+      await plugin['chat.message']({ sessionID: 'sess-capoff' }, out1);
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [ ! -d "$PROJECT/.memory-bank/session" ]
+}
+
+# REQ-019: every handler this task adds must be wrapped so a throw inside it
+# never breaks OpenCode's session lifecycle. Forces an internal throw by
+# monkey-patching a builtin the handler depends on (Array.isArray) BEFORE
+# calling it — an unguarded handler would reject the outer promise (the
+# node script's own .catch prints "CRASHED" and exits 1); a properly
+# fail-open handler swallows it and the script completes normally.
+@test "opencode: chat.message handler throw never breaks the session (REQ-019)" {
+  MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-throw1.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  run node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      Array.isArray = () => { throw new Error('forced-throw'); };
+      const out = { message: { id: 'm1' }, parts: [{ type: 'text', text: 'x' }] };
+      await plugin['chat.message']({ sessionID: 'sess-throw' }, out);
+      console.log('SURVIVED');
+    }).catch((e) => { console.error('CRASHED: ' + e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SURVIVED"* ]]
+}
+
+@test "opencode: experimental.chat.system.transform handler throw never breaks the session (REQ-019)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-throw2.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  run node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      Array.isArray = () => { throw new Error('forced-throw'); };
+      await plugin['experimental.chat.system.transform']({ sessionID: 'sess-throw2' }, { system: [] });
+      console.log('SURVIVED');
+    }).catch((e) => { console.error('CRASHED: ' + e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SURVIVED"* ]]
+}
+
+# Codex review fix (major #2): the event handler's session.idle/session.deleted
+# branch called appendProgress()/runSummarize() with NO try/catch —
+# appendProgress uses UNGUARDED synchronous fs.readFileSync/appendFileSync,
+# so a real throw there used to reject the whole async event handler and
+# escape into OpenCode's session lifecycle (the one hook that was not
+# fail-open like every other T5 addition). Forces a REAL throw (not a
+# monkey-patch): progress.md is replaced with a DIRECTORY, so
+# fs.readFileSync(progress, 'utf8') inside appendProgress hits a genuine
+# EISDIR.
+@test "opencode: event handler (session.idle) throw never breaks the session (REQ-019)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-throw3.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  rm -f "$PROJECT/.memory-bank/progress.md"
+  mkdir -p "$PROJECT/.memory-bank/progress.md"
+
+  run node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 'sess-throw3' } } });
+      console.log('SURVIVED');
+    }).catch((e) => { console.error('CRASHED: ' + e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SURVIVED"* ]]
+}
+
+# Codex review fix (minor): notifiedSessions (once-per-session nudge dedup)
+# used to be cleared ONLY inside finalizeSessionCapture, which (a) only ran
+# on the extended variant and (b) early-returned before the delete when no
+# per-turn capture state existed — a base-variant session (added via
+# system.transform, never reaching chat.message) leaked its entry forever.
+# Observable proof: on the BASE variant, render the notice for a session,
+# fire session.idle for that SAME sessionID, then request the notice again
+# for the same sessionID — a cleared dedup entry re-renders it; a leaked one
+# would stay silent forever.
+@test "opencode: session.idle clears the per-session notify dedup even on the base (non-extended) plugin" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-dedup-leak.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+
+  local counter="$PROJECT/notify-call-count-leak"
+  local stub="$PROJECT/stub-update-notify-leak.sh"
+  cat > "$stub" <<STUB
+#!/usr/bin/env bash
+echo x >> "$counter"
+echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
+STUB
+  chmod +x "$stub"
+
+  run env MB_UPDATE_NOTIFY_BIN="$stub" node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      await plugin['experimental.chat.system.transform']({ sessionID: 'reused-sess' }, { system: [] });
+      await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 'reused-sess' } } });
+      await plugin['experimental.chat.system.transform']({ sessionID: 'reused-sess' }, { system: [] });
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  [ -f "$counter" ]
+  local calls
+  calls=$(wc -l < "$counter" | tr -d ' ')
+  [ "$calls" -eq 2 ]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# REQ-012: global-scope agents (~/.config/opencode/agent/*.md), gated
+# behind the SAME accept-only path as REQ-011 (design.md's ASCII diagram
+# nests "global ~/.config/opencode/agent/*.md" under the accept branch,
+# mirroring Pi's install-global-extensions). Project scope
+# (.opencode/agent/, exercised by the B3 tests above) is untouched by this
+# action — it never even runs a project-scope install.
+# ═══════════════════════════════════════════════════════════════
+
+@test "opencode: install-global-agents installs the non-partial roster to ~/.config/opencode/agent/" {
+  run_adapter install-global-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  local gdir="$SANDBOX_HOME/.config/opencode/agent"
+  [ -f "$gdir/mb-developer.md" ]
+  [ -f "$gdir/mb-backend.md" ]
+  [ -f "$gdir/mb-reviewer.md" ]
+  [ ! -f "$gdir/mb-engineering-core.md" ]
+  [ ! -f "$gdir/mb-tooling-core.md" ]
+  cmp -s "$REPO_ROOT/agents/mb-developer.md" "$gdir/mb-developer.md"
+  # Project scope was never touched by this global-only action.
+  [ ! -d "$PROJECT/.opencode/agent" ]
+}
+
+@test "opencode: install-global-agents writes a global manifest" {
+  run_adapter install-global-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  local m="$SANDBOX_HOME/.config/opencode/.mb-global-extensions-manifest.json"
+  [ -f "$m" ]
+  jq -e '.schema_version == 1' "$m" >/dev/null
+  jq -e '.adapter == "opencode"' "$m" >/dev/null
+  jq -e '.agents_installed > 0' "$m" >/dev/null
+  # Every declared file genuinely exists (adapter honesty contract).
+  local p
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    [ -f "$p" ]
+  done < <(jq -r '.files[]?' "$m")
+}
+
+@test "opencode: install-global-agents preserves an existing user global agent file (backup)" {
+  mkdir -p "$SANDBOX_HOME/.config/opencode/agent"
+  echo "# my custom global developer agent" > "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md"
+  run_adapter install-global-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  local bk
+  bk=$(ls "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md".pre-mb-backup.* 2>/dev/null | head -1)
+  [ -n "$bk" ]
+  grep -q "my custom global developer agent" "$bk"
+  ! grep -q "my custom global developer agent" "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md"
+}
+
+@test "opencode: install-global-agents 2x run stays safe — same roster, live files stay fresh" {
+  run_adapter install-global-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  local gdir="$SANDBOX_HOME/.config/opencode/agent"
+  local n1
+  n1=$(find "$gdir" -maxdepth 1 -type f -name '*.md' ! -name '*.pre-mb-backup.*' | wc -l | tr -d ' ')
+
+  # _opencode_backup_once (shared with the project-scope roster loop, same
+  # convention as every re-run there) backs up whatever it finds each time —
+  # a 2nd run is therefore not backup-free, but MUST stay non-fatal and MUST
+  # NOT change the live (non-backup) roster's file count or content.
+  run_adapter install-global-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  local n2
+  n2=$(find "$gdir" -maxdepth 1 -type f -name '*.md' ! -name '*.pre-mb-backup.*' | wc -l | tr -d ' ')
+  [ "$n1" -eq "$n2" ]
+  cmp -s "$REPO_ROOT/agents/mb-developer.md" "$gdir/mb-developer.md"
 }

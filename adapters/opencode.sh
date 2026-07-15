@@ -32,6 +32,13 @@ PLUGIN_REF="./.opencode/plugins/memory-bank.js"
 OC_JSON="$PROJECT_ROOT/opencode.json"
 MANIFEST="$OC_DIR/.mb-manifest.json"
 
+# adapter-parity T5 (REQ-012): global-scope agent roster, mirroring Pi's
+# $HOME/.pi/agent/agents/ accept-path dir + its
+# .mb-global-extensions-manifest.json convention exactly (same manifest
+# basename, same "one file per host family, not per project" scope).
+OC_GLOBAL_AGENT_DIR="$HOME/.config/opencode/agent"
+OC_GLOBAL_MANIFEST="$HOME/.config/opencode/.mb-global-extensions-manifest.json"
+
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_lib_agents_md.sh"
 # shellcheck disable=SC1091
@@ -40,7 +47,27 @@ MANIFEST="$OC_DIR/.mb-manifest.json"
 . "$(dirname "$0")/_contract.sh"
 
 # ═══ Plugin file ═══
+# adapter-parity T5 (REQ-011/012/013/019/020): plugin_body takes an
+# extended flag (0|1, default 0). Base (0) is written by every plain
+# `install` (unconditional, whenever "opencode" is a --clients target) and
+# stays a byte-for-byte-shaped variant of the pre-T5 plugin PLUS the two
+# unconditional/read-only additions (REQ-013 update-notify render, REQ-020
+# nudge — neither writes to .memory-bank/session/). Extended (1) is ONLY
+# ever written by install_opencode() when MB_OC_PARITY_ACCEPTED=1 is set in
+# its environment — set exactly once, by install.sh's
+# mb_install_host_extensions "opencode" branch, after explicit user consent
+# (never on a plain/declined install — AGR-013). The two variants share a
+# SINGLE template (_opencode_plugin_template, one quoted heredoc — no
+# escaping hazard) with one substituted boolean token, so there is exactly
+# one source of truth for the hook bodies both variants share.
 plugin_body() {
+  local extended="${1:-0}"
+  local extended_flag="false"
+  [ "$extended" = "1" ] && extended_flag="true"
+  _opencode_plugin_template | sed "s/__MB_OC_PARITY_EXTENDED__/$extended_flag/"
+}
+
+_opencode_plugin_template() {
   cat <<'PLUGIN_EOF'
 // Memory Bank — OpenCode plugin
 // Registers hooks for session lifecycle + tool guard + compact-reminder.
@@ -50,6 +77,13 @@ plugin_body() {
 // for them. Use the CLI fallback — call scripts/mb-code-context.py or
 // scripts/mb-graph-query.py directly (or through an agent) instead.
 // memory-bank: managed plugin (do not remove marker line)
+//
+// adapter-parity T5: MB_OC_PARITY_EXTENDED is baked at generation time by
+// adapters/opencode.sh's plugin_body() — true only after explicit opt-in
+// (REQ-011/012, AGR-013). It gates the per-turn session/*.md capture
+// (chat.message) and the REQ-020 "extensions not installed" nudge; the
+// REQ-013 update-notify render itself is unconditional on every variant.
+const MB_OC_PARITY_EXTENDED = __MB_OC_PARITY_EXTENDED__;
 
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -122,12 +156,222 @@ export const MemoryBankPlugin = async ({ directory }) => {
     }
   };
 
+  // ── T5 additions: session-start context injection (REQ-013/020) +
+  // per-turn capture (REQ-011/007-parity) ──────────────────────────────────
+
+  const captureDisabled = () => process.env.MB_SESSION_CAPTURE === 'off';
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const fmtDate = (d) => d.toISOString().slice(0, 10);
+  const nowISO = () => new Date().toISOString();
+
+  // <date>_<hhmm>_oc_<sid8>.md — same naming convention as the Pi extension
+  // (…_pi_<sid8>.md) and the Claude Code capture, just with the `oc` host tag.
+  const ocSessionFileName = (sessionId) => {
+    const d = new Date();
+    const sid8 = String(sessionId).slice(0, 8);
+    return `${fmtDate(d)}_${pad(d.getHours())}${pad(d.getMinutes())}_oc_${sid8}.md`;
+  };
+
+  // Best-effort current branch name — same fallback ('-') as
+  // hooks/mb-session-turn.sh / the Pi extension's resolveBranch.
+  const resolveBranch = async (cwd) => {
+    try {
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execFileAsync = promisify(execFile);
+      const { stdout } = await execFileAsync(
+        'git',
+        ['-C', cwd, 'rev-parse', '--abbrev-ref', 'HEAD'],
+        { timeout: 2000 },
+      );
+      const branch = stdout.trim();
+      return branch || '-';
+    } catch {
+      return '-';
+    }
+  };
+
+  // REQ-013: same TTL-cached, network-free (--cache-only is baked into the
+  // hook script itself, mirrors codex.sh/the Pi extension), fail-open
+  // render as every other transport — a missing script, a broken
+  // interpreter, a slow/hanging resolver, or any spawn error must never
+  // throw back into OpenCode's LLM-call pipeline; every failure resolves to
+  // "render nothing", same contract hooks/mb-update-notify.sh itself
+  // guarantees. MB_UPDATE_NOTIFY_BIN overrides the path (test seam, mirrors
+  // MB_SUMMARIZE_BIN above).
+  const updateNotifyHookPath = () => (
+    process.env.MB_UPDATE_NOTIFY_BIN
+    ?? path.join(os.homedir(), '.config', 'opencode', 'skills', 'memory-bank', 'hooks', 'mb-update-notify.sh')
+  );
+
+  const renderUpdateNotice = async () => {
+    try {
+      const bin = updateNotifyHookPath();
+      if (!fs.existsSync(bin)) return null;
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execFileAsync = promisify(execFile);
+      const { stdout } = await execFileAsync('bash', [bin], {
+        cwd: directory,
+        timeout: 3000,
+        env: process.env,
+      });
+      const text = stdout.trim();
+      return text.length > 0 ? text : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // REQ-020: the exact accept-path command, mirrored from
+  // scripts/mb-session-doctor.sh's Pi hint / the T2 AGENTS.md nudge text.
+  // This handler is the STATE-DRIVEN half (checks the baked
+  // MB_OC_PARITY_EXTENDED flag, i.e. whether THIS project actually accepted
+  // the offer) — the AGENTS.md line is only the pre-transport static
+  // fallback (T2).
+  const MB_OC_NUDGE_TEXT =
+    '[memory-bank-skill] OpenCode parity extensions not installed — run: install.sh --clients opencode --with-extensions=opencode';
+
+  // Per-sessionID dedup: render at most once per session (REQ-013/020 —
+  // "on session start", not on every LLM call, even though
+  // experimental.chat.system.transform itself fires per call).
+  const notifiedSessions = new Set();
+
+  // Per-sessionID per-turn capture state: { file, turns }. A Map (not
+  // closure-scoped like the Pi extension's single-session locals) because a
+  // single OpenCode plugin instance can serve MULTIPLE concurrent sessions.
+  const ocSessionState = new Map();
+
+  const finalizeSessionCapture = async (sessionId) => {
+    const state = ocSessionState.get(sessionId);
+    if (!state) return;
+    try {
+      const ended = [`ended: ${nowISO()}`, `turns: ${state.turns}`].join('\n');
+      await fs.promises.appendFile(state.file, `\n${ended}\n`, 'utf-8').catch(() => {});
+    } catch {
+      // fail-open (REQ-019).
+    } finally {
+      ocSessionState.delete(sessionId);
+    }
+  };
+
   return {
+    // Codex review fix (major, REQ-019): the whole body is wrapped — the
+    // pre-existing appendProgress()/runSummarize() calls below are NOT
+    // internally try/catch'd (appendProgress uses unguarded synchronous
+    // fs.readFileSync/appendFileSync), so a perms/ENOSPC/TOCTOU throw used
+    // to reject this async handler and escape into OpenCode's session
+    // lifecycle — the one hook in this plugin that was NOT fail-open like
+    // every other T5 addition. Also fixes the notifiedSessions leak (minor):
+    // previously only cleared inside finalizeSessionCapture, which (a) only
+    // ran on the extended variant and (b) early-returned before the delete
+    // when no capture state existed — a base-variant session, or an
+    // extended session that never reached chat.message, never freed its
+    // entry. Cleared here unconditionally, regardless of
+    // MB_OC_PARITY_EXTENDED or capture state.
     event: async ({ event }) => {
-      if (event?.type === 'session.idle' || event?.type === 'session.deleted') {
-        const sessionId = event?.properties?.info?.id ?? event?.properties?.sessionID ?? 'oc-unknown';
-        appendProgress(sessionId);
-        runSummarize(sessionId);
+      try {
+        if (event?.type === 'session.idle' || event?.type === 'session.deleted') {
+          const sessionId = event?.properties?.info?.id ?? event?.properties?.sessionID ?? 'oc-unknown';
+          appendProgress(sessionId);
+          runSummarize(sessionId);
+          if (MB_OC_PARITY_EXTENDED) {
+            await finalizeSessionCapture(sessionId).catch(() => {});
+          }
+          notifiedSessions.delete(sessionId);
+        }
+      } catch {
+        // fail-open (REQ-019): never throw back into OpenCode's session lifecycle.
+      }
+    },
+    // REQ-013/020: session-start context injection. Fires per LLM call —
+    // the per-sessionID dedup above makes the FIRST call of a session the
+    // practical "session start" for the notice/nudge. Fail-open: wrapped
+    // end-to-end so a throw anywhere inside (a monkey-patched builtin, a
+    // malformed `output`, a spawn error) never breaks the LLM call this
+    // hook is attached to (REQ-019).
+    'experimental.chat.system.transform': async (input, output) => {
+      try {
+        const sessionId = input?.sessionID ?? 'oc-unknown';
+        if (notifiedSessions.has(sessionId)) return;
+        notifiedSessions.add(sessionId);
+
+        const notice = await renderUpdateNotice().catch(() => null);
+        if (notice && Array.isArray(output?.system)) {
+          output.system.push(notice);
+        }
+        if (!MB_OC_PARITY_EXTENDED && Array.isArray(output?.system)) {
+          output.system.push(MB_OC_NUDGE_TEXT);
+        }
+      } catch {
+        // fail-open (REQ-019): never throw back into OpenCode's LLM call.
+      }
+    },
+    // REQ-011/REQ-007-parity: per-turn capture, extended variant only.
+    // Fires per NEW USER MESSAGE, before it reaches the LLM — the closest
+    // OpenCode analogue to the Pi extension's pi.on("input", ...) turn log.
+    // Writes the SAME v2 schema header fields as the Claude Code / Pi
+    // captures (session_id/agent/started/branch/turns/last_turn/
+    // summarized/summary_schema). `transcript` has no OpenCode-side
+    // analogue exposed by this hook (no on-disk transcript path, unlike
+    // Pi's sessionManager.getSessionFile()) — left blank rather than
+    // fabricated.
+    'chat.message': async (input, output) => {
+      if (!MB_OC_PARITY_EXTENDED || captureDisabled()) return;
+      try {
+        if (!hasMb()) return;
+        const sessionId = input?.sessionID ?? 'oc-unknown';
+        const sessionDir = path.join(mbDir(), 'session');
+        await fs.promises.mkdir(sessionDir, { recursive: true }).catch(() => {});
+
+        let state = ocSessionState.get(sessionId);
+        if (!state) {
+          const file = path.join(sessionDir, ocSessionFileName(sessionId));
+          const branch = await resolveBranch(directory);
+          const header = [
+            '---',
+            `session_id: ${sessionId}`,
+            'transcript:',
+            'agent: opencode',
+            `started: ${nowISO()}`,
+            `branch: ${branch}`,
+            'turns: 0',
+            'last_turn:',
+            'summarized: false',
+            'summary_schema: v2',
+            '---',
+            '',
+            '## Live log',
+            '',
+          ].join('\n');
+          await fs.promises.appendFile(file, header, 'utf-8').catch(() => {});
+          state = { file, turns: 0 };
+          ocSessionState.set(sessionId, state);
+        }
+
+        state.turns += 1;
+        const parts = Array.isArray(output?.parts) ? output.parts : [];
+        const text = parts
+          .filter((p) => p && p.type === 'text' && typeof p.text === 'string')
+          .map((p) => p.text)
+          .join(' ')
+          .slice(0, 200);
+        const lastTurn = `oc-turn-${state.turns}`;
+
+        const content = await fs.promises.readFile(state.file, 'utf-8').catch(() => null);
+        if (content !== null) {
+          const updated = content
+            .replace(/^turns: \d+$/m, `turns: ${state.turns}`)
+            .replace(/^last_turn:.*$/m, `last_turn: ${lastTurn}`);
+          await fs.promises.writeFile(state.file, updated, 'utf-8').catch(() => {});
+        }
+
+        const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+        const entry = `- ${ts} — User: "${text}"\n`;
+        await fs.promises.appendFile(state.file, entry, 'utf-8').catch(() => {});
+      } catch {
+        // fail-open (REQ-019): never throw back into OpenCode's chat pipeline.
       }
     },
     'tool.execute.before': async (input, output) => {
@@ -242,10 +486,16 @@ install_opencode() {
   # A16 (M-8): back up a pre-existing (possibly user-modified) plugin file
   # before overwriting, and write atomically (tmp in the same dir + mv) so a
   # crash mid-write never leaves OpenCode trying to load a truncated plugin.
+  # adapter-parity T5: MB_OC_PARITY_ACCEPTED=1 is exported by install.sh's
+  # mb_install_host_extensions "opencode" branch exactly once explicit
+  # consent exists (REQ-011/012, AGR-013) — a plain `install` call (no
+  # accept, e.g. bats invoking this adapter directly) always writes the
+  # base variant.
   _opencode_backup_once "$PLUGIN_FILE"
-  local plugin_tmp
+  local plugin_tmp plugin_extended=0
+  [ "${MB_OC_PARITY_ACCEPTED:-0}" = "1" ] && plugin_extended=1
   plugin_tmp=$(mktemp "$PLUGIN_DIR/.memory-bank.js.XXXXXXXX")
-  plugin_body > "$plugin_tmp"
+  plugin_body "$plugin_extended" > "$plugin_tmp"
   mv "$plugin_tmp" "$PLUGIN_FILE"
   install_opencode_json
 
@@ -291,6 +541,46 @@ install_opencode() {
   echo "[opencode-adapter] installed to $PROJECT_ROOT"
 }
 
+# ═══ Global agents (adapter-parity T5, REQ-012) ═══
+# Opt-in accept-path installer, mirroring pi.sh's install_global_extensions:
+# invoked ONLY from install.sh's mb_install_host_extensions "opencode"
+# branch after explicit user consent (never from install_opencode()'s
+# normal per-client flow — NFR-001: a declined/plain install never creates
+# $OC_GLOBAL_AGENT_DIR). Copies the SAME non-partial roster + partial filter
+# (_opencode_agent_is_partial, already defined above and shared with the
+# project-scope copy loop in install_opencode()) to global scope, in
+# ADDITION to (never instead of) the project-scope copy. $PROJECT_ROOT is
+# accepted for contract-signature parity with every other adapter action
+# (install/uninstall/install-global-agents all take it positionally) but is
+# not otherwise used here — this action's own artifacts are all global.
+install_global_extensions() {
+  adapter_require_jq "opencode-adapter" || return 1
+  mkdir -p "$OC_GLOBAL_AGENT_DIR"
+
+  local f agent_files="" agent_count=0
+  for f in "$SKILL_DIR"/agents/*.md; do
+    [ -f "$f" ] || continue
+    _opencode_agent_is_partial "$f" && continue
+    _opencode_backup_once "$OC_GLOBAL_AGENT_DIR/$(basename "$f")"
+    cp "$f" "$OC_GLOBAL_AGENT_DIR/$(basename "$f")"
+    agent_files="${agent_files}${OC_GLOBAL_AGENT_DIR}/$(basename "$f")"$'\n'
+    agent_count=$((agent_count + 1))
+  done
+
+  local files_json
+  files_json=$(printf '%s' "$agent_files" | adapter_json_array_from_lines)
+
+  adapter_write_manifest \
+    "$OC_GLOBAL_MANIFEST" \
+    "opencode" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    "{\"agents_installed\": $agent_count}"
+
+  echo "[opencode-adapter] global agents: $agent_count installed -> $OC_GLOBAL_AGENT_DIR"
+  [ "$agent_count" -gt 0 ]
+}
+
 # ═══ Uninstall ═══
 uninstall_opencode() {
   if [ ! -f "$MANIFEST" ]; then
@@ -321,10 +611,11 @@ uninstall_opencode() {
 }
 
 case "$ACTION" in
-  install)   install_opencode ;;
-  uninstall) uninstall_opencode ;;
+  install)                install_opencode ;;
+  uninstall)               uninstall_opencode ;;
+  install-global-agents)   install_global_extensions ;;
   *)
-    echo "Usage: $0 install|uninstall [PROJECT_ROOT]" >&2
+    echo "Usage: $0 install|uninstall|install-global-agents [PROJECT_ROOT]" >&2
     exit 1
     ;;
 esac

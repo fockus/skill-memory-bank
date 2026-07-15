@@ -151,8 +151,9 @@
 - Plugin handler throw → session unaffected (REQ-019).
 
 **DoD:**
-- [ ] OpenCode session memory alive (or degraded tier declared); global agents installed.
-- [ ] bats pass · shellcheck clean.
+- [x] OpenCode session memory alive (genuine chat.message + system.transform per-turn capture, CC v2 schema — no degraded tier); global agents installed (`install-global-agents`).
+- [x] bats pass · shellcheck clean.
+<!-- done: <commit> — GO_WITH_BACKLOG (Codex 2 cycles, Opus judge); genuine capture, backlog I-124 -->
 
 <!-- mb-task:6 -->
 ## Task 6: Codex honest tier — prompt-hook update-notify
