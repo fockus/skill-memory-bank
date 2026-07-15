@@ -60,3 +60,24 @@ of reaching for `git stash`. Not repeating this.
 `tests/bats/test_extensions_offer.bats`, `tests/bats/test_mb_update_notify.bats` (+ new
 test files to follow: `test_cross_agent_runtime_parity.bats`,
 `tests/bats/test_pi_session_memory_extension.bats`, `hooks/tests/session-doctor.bats`).
+
+## 2026-07-15 — openspec-adapter governed execution (Opus orchestrator, this session)
+
+Running `/mb work openspec-adapter --contract` (spec `specs/openspec-adapter`, tasks
+T1–T6), Contract-First + Sonnet-implement · Codex-review · Opus-judge. Coordinating
+AROUND the active adapter-parity FREEZE above.
+
+**My work is NEW files only** (no overlap with adapter-parity hot files):
+- `scripts/mb-openspec.py`, `scripts/mb-openspec.sh`
+- `tests/pytest/test_openspec_*.py`, `tests/bats/test_mb_openspec.bats`
+- `.memory-bank/specs/openspec-adapter/*` (already written)
+
+**Respecting the freeze:** no rebase/reset/whole-tree stash. Scoped `git add <my new
+paths>` + commit after EACH task so nothing of mine sits uncommitted (immune to stash).
+NFR-001 baseline diffs use `git show HEAD:<f> > tmp`, never `git stash` (per the lesson
+logged above).
+
+**One deferred overlap:** T4 wires `/mb openspec` into `commands/mb.md` — an adapter-parity
+hot file. I am NOT touching commands/mb.md while T4–T8 are in flight. The mb-openspec.sh
+dispatcher ships; the one-line router entry waits until adapter-parity releases the file
+(or an explicit ACK here).
