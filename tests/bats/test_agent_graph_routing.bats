@@ -24,3 +24,17 @@ _agents() {
     [ "$status" -eq 0 ] || { echo "missing impact command in $f"; return 1; }
   done
 }
+
+@test "tooling-core grants a bounded one-time rebuild permission on stale" {
+  run grep -F "mb-codegraph.py --apply" "$AGENTS_DIR/mb-tooling-core.md"
+  [ "$status" -eq 0 ] || { echo "missing rebuild permission"; return 1; }
+
+  run grep -iE "once|one-time" "$AGENTS_DIR/mb-tooling-core.md"
+  [ "$status" -eq 0 ] || { echo "missing bounded (once/one-time) wording"; return 1; }
+
+  run grep -F ".graph-rebuild.lock" "$AGENTS_DIR/mb-tooling-core.md"
+  [ "$status" -eq 0 ] || { echo "missing lock reference"; return 1; }
+
+  run grep -E "fall back|never block" "$AGENTS_DIR/mb-tooling-core.md"
+  [ "$status" -eq 0 ] || { echo "fail-open wording missing"; return 1; }
+}

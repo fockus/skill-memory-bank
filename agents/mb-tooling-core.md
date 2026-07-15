@@ -25,3 +25,4 @@ For code-understanding questions, prefer Memory Bank graph tools over `grep`:
 
 Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block work — CLI scripts / `Grep` / `Glob` / `Read` are the universal fallback.
 These indexes are optional; if absent or stale, fall back to `Grep`/`Glob`/`Read` — never block.
+- On a **stale** graph you MAY run `python3 scripts/mb-codegraph.py --apply --docs <bank> .` **once** (one-time, opportunistic rebuild — never loop) guarded by the shared `<bank>/.index/.graph-rebuild.lock` so a concurrent rebuild is skipped, not doubled; then proceed — if the rebuild fails or the lock is held, fall back to `Grep`/`Glob`/`Read` and never block.
