@@ -146,6 +146,15 @@ MB_UAN_PID=$!
   kill -KILL -- "-$MB_UAN_PID" 2>/dev/null
 ) >/dev/null 2>&1 &
 MB_UAN_WATCHDOG=$!
+# `disown` the watchdog BEFORE it is ever SIGKILLed below: when a job
+# started under `set -m` is reaped after dying from a signal, bash's own
+# job-control machinery prints an async "Killed: 9" notice to THIS shell's
+# stderr — printed by the notifier, not by the `kill`/`wait` builtins, so
+# their `2>/dev/null` never suppresses it. `disown` removes the watchdog
+# from the jobs table so that notice is never emitted (this leak surfaced
+# only under CI-runner scheduling, never reproducible locally across 300+
+# runs on bash 3.2/5.x — a classic nondeterministic job-notification flush).
+disown "$MB_UAN_WATCHDOG" 2>/dev/null || true
 set +m
 
 wait "$MB_UAN_PID" 2>/dev/null
@@ -154,10 +163,11 @@ wait "$MB_UAN_PID" 2>/dev/null
 # sleeping (resolver finished on its own) — either way, kill its WHOLE
 # process group now (negative PID — same reasoning as the resolver kill
 # above) rather than just its subshell PID, so the `sleep` itself dies
-# immediately instead of lingering for up to $MB_UAN_TIMEOUT (holding this
-# hook's inherited stdout fd open the entire time) after this hook is done.
+# immediately instead of lingering for up to $MB_UAN_TIMEOUT. It is already
+# disowned, so this kill produces no job-control notice, and no `wait` is
+# needed (a disowned child is reaped by init when this hook exits moments
+# later; its stdout was redirected to /dev/null so it never held the host's).
 kill -KILL -- "-$MB_UAN_WATCHDOG" 2>/dev/null
-wait "$MB_UAN_WATCHDOG" 2>/dev/null
 
 rc=1
 if [ -s "$MB_UAN_RC" ]; then
@@ -366,13 +376,16 @@ if [ "${MB_AUTO_UPDATE:-off}" = "on" ]; then
           kill -KILL -- "-$MB_AUN_PID" 2>/dev/null
         ) >/dev/null 2>&1 &
         MB_AUN_WATCHDOG=$!
+        # Same disown-before-SIGKILL discipline as the resolver watchdog
+        # above — suppress the async job-control "Killed" notice bash would
+        # otherwise flush to stderr when this SIGKILLed subshell is reaped.
+        disown "$MB_AUN_WATCHDOG" 2>/dev/null || true
         set +m
 
         MB_AUN_UP_RC=0
         wait "$MB_AUN_PID" 2>/dev/null || MB_AUN_UP_RC=$?
 
         kill -KILL -- "-$MB_AUN_WATCHDOG" 2>/dev/null
-        wait "$MB_AUN_WATCHDOG" 2>/dev/null
 
         # Re-read VERSION after the run. `scripts/mb-upgrade.sh` exits 0
         # even when `behind == 0` (already up to date) — a race with a

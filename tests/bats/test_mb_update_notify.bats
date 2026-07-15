@@ -477,7 +477,6 @@ EOF
   run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
-  [ -z "$stderr" ] || echo "DIAG-1326-STDERR<<${stderr}>>" >&3
   [ -z "$stderr" ]
 }
 
@@ -556,7 +555,6 @@ EOF
 
   run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" MB_UPDATE_NOTIFY_MAX_BYTES=abc bash "$HOOK"
   [ "$status" -eq 0 ]
-  [ -z "$stderr" ] || echo "DIAG-1332-STDERR<<${stderr}>>" >&3
   [ -z "$stderr" ]
   [[ "$output" == *"5.3.0"* ]]
   [[ "$output" == *"5.4.0"* ]]
@@ -1032,7 +1030,6 @@ EOF
 
     run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
     [ "$status" -eq 0 ]
-    [ -z "$stderr" ] || echo "DIAG-1355-${flavor}-STDERR<<${stderr}>>" >&3
     [ -z "$stderr" ]
     [[ "$output" == *"$flavor upgrade memory-bank-skill"* ]]
     [[ "$output" != *"auto-updated"* ]]
@@ -1064,7 +1061,6 @@ EOF
 
   run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
   [ "$status" -eq 0 ]
-  [ -z "$stderr" ] || echo "DIAG-1357-STDERR<<${stderr}>>" >&3
   [ -z "$stderr" ]
   [[ "$output" == *"5.3.0"* ]]
   [[ "$output" != *"auto-updated"* ]]
