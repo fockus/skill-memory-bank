@@ -81,17 +81,76 @@ hooks_json_body() {
 JSON_EOF
 }
 
-# Pre-prompt guard script
+# Pre-prompt guard script — danger-payload blocking (existing) + a TTL-gated
+# update notice (Task 6, REQ-014/REQ-019). Codex has no session-start
+# surface; userpromptsubmit is the only native hook, and it fires on EVERY
+# prompt — so the notice logic below self-gates on a local marker file
+# rather than rendering on every single prompt.
+#
+# Two heredocs, on purpose (same technique as
+# adapters/git-hooks-fallback.sh's dynamic-flow gate): the first is a
+# LITERAL ('HOOK_EOF') heredoc — none of its `$` references expand now, they
+# are the hook's own runtime variables. The second is an UNQUOTED (HOOK_EOF2)
+# heredoc so `$notify_sh_q`/`$marker_q` — resolved once, at install time, and
+# pre-quoted with `printf '%q'` so spaces/`$`/quotes in the install path
+# survive intact — expand NOW; every runtime variable inside it is `\$`-
+# escaped so it only expands when the hook itself runs.
 before_prompt_body() {
+  local notify_sh_q marker_q
+  notify_sh_q="$(printf '%q' "$SKILL_DIR/hooks/mb-update-notify.sh")"
+  marker_q="$(printf '%q' "$CODEX_DIR/.mb-update-notified")"
+
   cat <<'HOOK_EOF'
 #!/usr/bin/env bash
-# Codex userpromptsubmit — block dangerous payloads
+# Codex userpromptsubmit — block dangerous payloads + TTL-gated update notice
 # memory-bank: managed hook
 set -u
 command -v jq >/dev/null 2>&1 || exit 0
 
 INPUT=$(cat 2>/dev/null || true)
 PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // empty' 2>/dev/null || true)
+HOOK_EOF
+
+  cat <<HOOK_EOF2
+
+# ═══ update notice (REQ-014/REQ-019 — Codex honest tier) ═══
+# The render itself is delegated to hooks/mb-update-notify.sh — that script
+# already calls scripts/mb-version-check.sh --cache-only, is fail-open,
+# honors MB_UPDATE_CHECK=off, and never touches the network in --cache-only
+# mode (a stale/missing cache just answers "no update yet" and warms itself
+# in the background for next time). Nothing here duplicates that logic —
+# this block ONLY adds the "at most once per TTL window, not per prompt"
+# gate a per-prompt hook needs that a per-session hook would not. Any
+# failure (missing/unreadable notify script, unwritable marker dir, a
+# non-zero/garbage resolver answer) degrades to silence — it NEVER blocks
+# the prompt below.
+if [ "\${MB_UPDATE_CHECK:-on}" != "off" ]; then
+  _mb_notify_sh=$notify_sh_q
+  _mb_marker=$marker_q
+  if [ -n "\$_mb_notify_sh" ] && [ -r "\$_mb_notify_sh" ]; then
+    _mb_ttl="\${MB_UPDATE_CHECK_TTL:-86400}"
+    case "\$_mb_ttl" in ''|*[!0-9]*) _mb_ttl=86400 ;; esac
+    _mb_fresh=0
+    if [ -e "\$_mb_marker" ]; then
+      _mb_mtime="\$(stat -c %Y "\$_mb_marker" 2>/dev/null || stat -f %m "\$_mb_marker" 2>/dev/null || echo 0)"
+      case "\$_mb_mtime" in ''|*[!0-9]*) _mb_mtime=0 ;; esac
+      _mb_now="\$(date +%s 2>/dev/null || echo 0)"
+      case "\$_mb_now" in ''|*[!0-9]*) _mb_now=0 ;; esac
+      _mb_age=\$(( _mb_now - _mb_mtime ))
+      [ "\$_mb_age" -lt 0 ] && _mb_age=0
+      [ "\$_mb_age" -lt "\$_mb_ttl" ] && _mb_fresh=1
+    fi
+    if [ "\$_mb_fresh" -ne 1 ]; then
+      mkdir -p "\$(dirname "\$_mb_marker")" 2>/dev/null || true
+      : > "\$_mb_marker" 2>/dev/null || true
+      bash "\$_mb_notify_sh" 2>/dev/null || true
+    fi
+  fi
+fi
+HOOK_EOF2
+
+  cat <<'HOOK_EOF3'
+
 case "$PROMPT" in
   *"rm -rf /"*|*"rm -rf ~"*|*":(){ :|:& };:"*)
     printf '[MB-codex] BLOCKED dangerous prompt payload\n' >&2
@@ -99,7 +158,7 @@ case "$PROMPT" in
     ;;
 esac
 exit 0
-HOOK_EOF
+HOOK_EOF3
 }
 
 # ═══ Backup / merge helpers ═══
@@ -366,7 +425,10 @@ install_codex() {
 
   # 5. Manifest
   local files_json backups_json
-  files_json=$(printf '%s\n' "$CONFIG_TOML" "$HOOKS_JSON" "$CODEX_DIR/hooks/before-prompt.sh" | adapter_json_array_from_lines)
+  # Update-notice marker (Task 6) is written lazily by the hook at its FIRST
+  # render, not at install time — still listed here so uninstall cleans it
+  # up if it ever exists (the removal loop below is existence-guarded).
+  files_json=$(printf '%s\n' "$CONFIG_TOML" "$HOOKS_JSON" "$CODEX_DIR/hooks/before-prompt.sh" "$CODEX_DIR/.mb-update-notified" | adapter_json_array_from_lines)
   if [ "${#MB_CODEX_BACKUPS[@]}" -gt 0 ]; then
     backups_json=$(printf '%s\n' "${MB_CODEX_BACKUPS[@]}" | adapter_json_array_from_lines)
   else

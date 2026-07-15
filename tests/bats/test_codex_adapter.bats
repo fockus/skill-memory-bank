@@ -595,3 +595,133 @@ teardown_codex_prompts_sandbox() {
   [ ! -f "$FAKE_HOME/.codex/prompts/mb.md" ]
   teardown_codex_prompts_sandbox
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Task 6 (mb-task:6, REQ-014/REQ-019): Codex honest-tier update-notify.
+#
+# Codex has no session-start surface — the before-prompt userpromptsubmit
+# hook is the only native surface, and it fires on EVERY prompt. These tests
+# exercise the GENERATED .codex/hooks/before-prompt.sh directly (stdin JSON
+# in, stdout/stderr/exit code out) so no real Codex CLI is required. The
+# resolver is stubbed via MB_VERSION_CHECK_BIN — the same seam
+# hooks/mb-update-notify.sh's own suite uses — so no test here ever touches
+# the network.
+# ═══════════════════════════════════════════════════════════════
+
+# $1=filename $2=exit-code $3=stdout-body -> path to a chmod+x stub resolver.
+# Records every invocation (one line per call) to $PROJECT/.codex/calls.log
+# so tests can assert "the resolver was invoked exactly N times", not just
+# inspect its output.
+fake_version_checker() {
+  local path="$PROJECT/.codex/$1"
+  mkdir -p "$(dirname "$path")"
+  cat > "$path" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$PROJECT/.codex/calls.log"
+printf '%s\n' '$3'
+exit $2
+EOF
+  chmod +x "$path"
+  printf '%s' "$path"
+}
+
+checker_call_count() {
+  [ -f "$PROJECT/.codex/calls.log" ] || { echo 0; return 0; }
+  wc -l < "$PROJECT/.codex/calls.log" | tr -d ' '
+}
+
+run_before_prompt() {
+  local prompt="$1"
+  shift
+  local raw
+  raw=$(printf '{"prompt": %s}' "$(jq -Rn --arg p "$prompt" '$p')" \
+    | env "$@" bash "$PROJECT/.codex/hooks/before-prompt.sh" 2>&1; printf '\n__EXIT__%s' "$?")
+  status="${raw##*__EXIT__}"
+  output="${raw%$'\n'__EXIT__*}"
+}
+
+@test "codex: before-prompt hook renders the update notice once when an update is available" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local checker
+  checker=$(fake_version_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "2026-07-15T00:00:00Z", "source": "cache"}')
+  run_before_prompt "hello" MB_VERSION_CHECK_BIN="$checker"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"update available: 5.3.0 -> 5.4.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+  [ "$(checker_call_count)" -eq 1 ]
+}
+
+@test "codex: second prompt within the TTL window is silent (no re-render, resolver not re-invoked)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local checker
+  checker=$(fake_version_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "2026-07-15T00:00:00Z", "source": "cache"}')
+  run_before_prompt "first prompt" MB_VERSION_CHECK_BIN="$checker"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"update available"* ]]
+  run_before_prompt "second prompt" MB_VERSION_CHECK_BIN="$checker"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ "$(checker_call_count)" -eq 1 ]
+}
+
+@test "codex: MB_UPDATE_CHECK=off produces no output and never invokes the resolver" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local checker
+  checker=$(fake_version_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "2026-07-15T00:00:00Z", "source": "cache"}')
+  run_before_prompt "hello" MB_UPDATE_CHECK=off MB_VERSION_CHECK_BIN="$checker"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ "$(checker_call_count)" -eq 0 ]
+  [ ! -f "$PROJECT/.codex/.mb-update-notified" ]
+}
+
+@test "codex: a failing/garbage version-check answer is fail-open — the prompt still proceeds" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local checker
+  checker=$(fake_version_checker checker.sh 1 'not json at all {{{')
+  run_before_prompt "hello there" MB_VERSION_CHECK_BIN="$checker"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "codex: the update notice never blocks the prompt and the danger-block guard still fires (regression)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local checker
+  checker=$(fake_version_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "2026-07-15T00:00:00Z", "source": "cache"}')
+  run_before_prompt "rm -rf /" MB_VERSION_CHECK_BIN="$checker"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"BLOCKED dangerous prompt payload"* ]]
+}
+
+@test "codex: a normal (non-dangerous) prompt is never blocked (danger-block regression)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  run_before_prompt "please refactor this function" MB_UPDATE_CHECK=off
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"BLOCKED"* ]]
+}
+
+@test "codex: an expired marker (TTL elapsed) triggers a fresh render on the next prompt" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local checker
+  checker=$(fake_version_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "2026-07-15T00:00:00Z", "source": "cache"}')
+  run_before_prompt "first prompt" MB_UPDATE_CHECK_TTL=1 MB_VERSION_CHECK_BIN="$checker"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"update available"* ]]
+  sleep 2
+  run_before_prompt "second prompt" MB_UPDATE_CHECK_TTL=1 MB_VERSION_CHECK_BIN="$checker"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"update available"* ]]
+  [ "$(checker_call_count)" -eq 2 ]
+}
