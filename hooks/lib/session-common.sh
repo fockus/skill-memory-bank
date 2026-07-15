@@ -268,6 +268,9 @@ sc_build_summary_src() {
 # Prefers a venv beside the installed hooks (global ~/.claude/hooks/.venv, or a
 # project-local bin/.venv), then a legacy .memory-bank/.venv, then system python3.
 sc_semantic_py() {
+  # Explicit override wins (interpreter pinning / deterministic tests). When set to a
+  # non-runnable path, callers' `command -v` guard fails-open and skips the semantic step.
+  if [ -n "${MB_SEMANTIC_PY:-}" ]; then printf '%s' "$MB_SEMANTIC_PY"; return; fi
   if [ -x "$1/.venv/bin/python" ]; then
     printf '%s' "$1/.venv/bin/python"
   elif [ -n "${2:-}" ] && [ -x "$2/.venv/bin/python" ]; then
