@@ -45,6 +45,7 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 
 ## ✅ Done (detail → `progress.md` · `plans/done/` · `roadmap.md`)
 
+- ✅ docs-site + landing refresh — 5/5 stages (MkDocs Material skeleton · 12 new pages · quick-start workflow/pipeline/surfaces blocks · combined Pages deploy `/docs/` · landing first-screen v2 + agreements card) — [plan](plans/2026-07-15_feature_docs-site-and-landing-refresh.md); push pending
 - ✅ spec `tier1-graph-memory` — 17/17 tasks, v5.1.0 prepped (PyPI publish + tag pending explicit go)
 - ✅ codex remediation Wave 1 — I-082 security-hardening (4 stages) · I-083 verification-gates · I-085 logic-correctness-portability (6 stages)
 - ✅ I-087 — session-capture correctness + MB drift hygiene — [plan](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md); follow-ups I-088..I-092
