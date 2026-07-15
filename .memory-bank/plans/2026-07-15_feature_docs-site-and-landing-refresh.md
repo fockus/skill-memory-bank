@@ -269,15 +269,15 @@ for f in docs/mb-work.md docs/reviewer-2.md docs/coordination.md docs/commands.m
    the new `/docs/...` pages — **only** for pages that now exist in the built nav.
 
 ### DoD
-- [ ] `pages.yml` produces **one** artifact with landing at root + MkDocs output under `docs/`
+- [x] `pages.yml` produces **one** artifact with landing at root + MkDocs output under `docs/`
       (validated by a local dry-run of the same steps producing `<combined>/index.html` and
       `<combined>/docs/index.html`).
-- [ ] `pages.yml` `on.push.paths` includes `docs/**` and `mkdocs.yml`; still exactly one
+- [x] `pages.yml` `on.push.paths` includes `docs/**` and `mkdocs.yml`; still exactly one
       `upload-pages-artifact` step.
-- [ ] `actionlint` (or `yaml` parse) clean on the edited workflow.
-- [ ] `pyproject.toml [project.urls]` has a `Documentation` entry ending `/docs/`.
-- [ ] `mkdocs build --strict` still exits 0 after the 3 link fixes (they are inside `docs/`).
-- [ ] No remaining GitHub-blob docs link in `site/index.html`/`README.md` that has a `/docs/` equivalent.
+- [x] `actionlint` (or `yaml` parse) clean on the edited workflow.
+- [x] `pyproject.toml [project.urls]` has a `Documentation` entry ending `/docs/`.
+- [x] `mkdocs build --strict` still exits 0 after the 3 link fixes (they are inside `docs/`).
+- [x] No remaining GitHub-blob docs link in `site/index.html`/`README.md` that has a `/docs/` equivalent.
 
 ### Verification commands
 ```bash

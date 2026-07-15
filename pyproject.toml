@@ -56,6 +56,7 @@ memory-bank = "memory_bank_skill.cli:main"
 
 [project.urls]
 Homepage = "https://fockus.github.io/skill-memory-bank/"
+Documentation = "https://fockus.github.io/skill-memory-bank/docs/"
 Repository = "https://github.com/fockus/skill-memory-bank"
 Issues = "https://github.com/fockus/skill-memory-bank/issues"
 Changelog = "https://github.com/fockus/skill-memory-bank/blob/main/CHANGELOG.md"
