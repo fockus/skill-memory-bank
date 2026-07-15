@@ -1,0 +1,72 @@
+site_name: Memory Bank
+site_url: https://fockus.github.io/skill-memory-bank/docs/
+repo_url: https://github.com/fockus/skill-memory-bank
+repo_name: fockus/skill-memory-bank
+docs_dir: docs
+# MkDocs' own default output dir is "site" — that name is already the
+# checked-in GitHub Pages landing directory (site/index.html, styles.css,
+# app.js). Point the build elsewhere so a plain `mkdocs build` never
+# clobbers the landing page; Stage 4 combines the two into one Pages
+# artifact via an explicit --site-dir.
+site_dir: docs_site
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+
+# Existing docs/*.md were authored for GitHub-blob rendering and legitimately
+# link to sibling repo files outside docs_dir (references/, commands/,
+# SECURITY.md, .memory-bank/...). Those are real files, just not part of the
+# MkDocs docs tree, so `links.not_found` is downgraded to `info` (still
+# visible, does not fail --strict). Nav integrity (missing/omitted pages)
+# stays at the strict default so a real orphan/missing-nav-target still fails.
+validation:
+  links:
+    not_found: info
+
+nav:
+  - Home: README.md
+  - Getting Started:
+      - Install: install.md
+      - Your First Feature: first-feature.md
+      - Cross-Agent Setup: cross-agent-setup.md
+  - Concepts:
+      - Overview: concepts/overview.md
+      - Code Graph & Semantic Search: concepts/code-graph.md
+      - Session Memory: concepts/session-memory.md
+  - Guides:
+      - Cursor Extension: cursor-extension.md
+      - Rule Profiles: rule-profiles.md
+      - i18n: i18n.md
+      - Handoff 2.0: handoff-2.0.md
+  - Reference:
+      - Agents Reference: agents-reference.md
+  - Operations:
+      - Release Process: release-process.md
+      - Repo Migration: repo-migration.md
+      - Troubleshooting: troubleshooting.md
+  - Migrations:
+      - v4 → v5: MIGRATION-v4-v5.md
+      - v3.0 → v3.1: MIGRATION-v3-v3.1.md
+      - v1 → v2: MIGRATION-v1-v2.md
+      - Install v1 → v2: MIGRATION-install-v1-v2.md
+  - Security:
+      - Archived Audit (2026-04-21): security/audit-2026-04-21.md

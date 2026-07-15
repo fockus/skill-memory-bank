@@ -3,6 +3,8 @@
 ## Ideas
 
 - I-086 follow-up (LOW) — propagate `memory_bank_skill.pipeline_yaml.load_file` to all 13 `safe_load` pipeline callers (Stage 2 scoped validate path only).
+- I-114 (LOW, docs-site plan Stage 1, 2026-07-15) — consolidate duplicated docs deps in `pyproject.toml`: they live in both `[project.optional-dependencies].docs` and `[dependency-groups].docs` (deliberate — `uv --group` reads PEP 735, `pip install .[docs]` reads extras), but versions can drift out of sync. Keep in sync or consolidate when tooling allows. Source: verifier + judge (GO_WITH_BACKLOG).
+- I-115 (LOW, docs-site plan Stage 1, 2026-07-15) — `mkdocs build --strict` alone will NOT fail on a Stage 2/3 page forgotten from nav: `links.not_found` is downgraded to `info` and mkdocs treats orphan/omitted pages as INFO by default. Keep the deterministic file-vs-nav cross-check (`find docs -name '*.md'` ↔ nav) in Stage 2/3 verification. Source: verifier + judge.
 
 
 
@@ -596,6 +598,12 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 ### I-110 — update-notify Stage 4: the auto-update/watchdog bats tests assert on wall-clock deadlines with real `sleep` (hang→watchdog kill, "capture reaches EOF fast", 20s `MB_AUTO_UPDATE_TIMEOUT`). Green in an isolated run (43/43), but 2 flaked when 3 hook suites ran concurrently under load (measured this session). The hook LOGIC is correct — this is test determinism only. Fix: replace wall-clock deadline assertions with a fake/injectable clock or a much smaller injected timeout (`MB_AUTO_UPDATE_TIMEOUT`/`MB_UPDATE_NOTIFY_TIMEOUT` already env-overridable — drive them to sub-second in tests and assert on behavior, not elapsed seconds), so a busy CI runner cannot flake them. Related to the same watchdog pattern in Stage 3's tests (lines 468-594). [MED, NEW, 2026-07-15]
 
 ### I-111 — update-notify Stage 4 (codex round-3, non-blocking): the bats helper `make_clean_git_root` (tests/bats/test_mb_update_notify.bats ~112-119) asserts `.git` exists and `git status` exits 0, but does NOT prove the fixture's `git commit` actually succeeded — a repo where `git init` succeeds but `commit` fails would pass those checks yet be a dirty, uncommitted tree. In practice the 50/50 positive tests are green (so fixtures are genuinely clean today) and a failed-commit fixture would make a positive test FAIL loudly rather than falsely pass — hence non-blocking, test-hygiene only. Fix: also assert `git -C "$dir" rev-parse --verify HEAD` AND empty `git status --porcelain --untracked-files=all --ignore-submodules=none` before returning the path. Also (info) fix the stale comment in hooks/_skill_root.sh:9-20 / the Stage-4 note that says the shared resolver is "untouched" — cycle 1 DID add a SKILL.md-OR-VERSION gate to the MB_SKILL_ROOT override candidate (intentional; just document it accurately). [LOW, NEW, 2026-07-15]
+
+
+### I-112 — Lift kill-0-gated _lock_acquire into scripts/_lib.sh and retire blind-rm-rf TOCTOU in mb-handoff.sh + mb-work-progress-append.sh [HIGH, NEW, 2026-07-15]
+
+
+### I-113 — Optional fcntl/flock hardening for mb-agree.sh lock to close documented sub-ms crash-recovery race (recoverable single-write dup, never corruption) [LOW, NEW, 2026-07-15]
 
 ## ADR
 

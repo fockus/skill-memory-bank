@@ -25,6 +25,10 @@ htmlcov/
 /build/
 *.egg-info/
 
+# MkDocs build output (mkdocs.yml site_dir) — regenerated, never tracked.
+# Named away from the checked-in `site/` landing directory on purpose.
+/docs_site/
+
 # Cross-agent adapter output from dogfood / test installs in this repo
 # (the skill writes these into any project where `/install` runs — when we
 # dogfood, they end up at the repo root and shouldn't be tracked).

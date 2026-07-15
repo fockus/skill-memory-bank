@@ -46,6 +46,10 @@ codegraph = [
 ]
 yaml = ["PyYAML>=6.0"]
 dev = ["pytest>=7", "pytest-cov>=4", "PyYAML>=6.0", "ruff>=0.5"]
+docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
+
+[dependency-groups]
+docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
 
 [project.scripts]
 memory-bank = "memory_bank_skill.cli:main"
