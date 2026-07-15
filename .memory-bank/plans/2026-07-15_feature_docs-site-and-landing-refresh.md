@@ -323,14 +323,14 @@ python -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); assert d
    (hamburger/collapse) still works; check no horizontal overflow at ≤390px.
 
 ### DoD
-- [ ] `site/styles.css` hero `h1` `font-size` = `clamp(2.2rem, 5vw, 3.8rem)` (or agreed equivalent);
+- [x] `site/styles.css` hero `h1` `font-size` = `clamp(2.2rem, 5vw, 3.8rem)` (or agreed equivalent);
       hero spacing reduced (measurable: feature grid top offset decreases vs. before).
-- [ ] Feature grid has cards naming Reviewer 2.0, sprint contracts/work-loop-v2, coordination board,
+- [x] Feature grid has cards naming Reviewer 2.0, sprint contracts/work-loop-v2, coordination board,
       and statusline.
-- [ ] The landing has a Docs nav entry whose `href` resolves to `/docs/` (or the full docs URL).
-- [ ] No `update-notify` / `agree` / unreleased strings anywhere in `site/index.html`.
-- [ ] `site/index.html` is valid HTML (no unclosed tags) — a parse smoke passes.
-- [ ] Mobile smoke at 390px width: no horizontal scroll, nav reachable.
+- [x] The landing has a Docs nav entry whose `href` resolves to `/docs/` (or the full docs URL).
+- [x] No `update-notify` / `agree` / unreleased strings anywhere in `site/index.html`.
+- [x] `site/index.html` is valid HTML (no unclosed tags) — a parse smoke passes.
+- [x] Mobile smoke at 390px width: no horizontal scroll, nav reachable.
 
 ### Verification commands
 ```bash

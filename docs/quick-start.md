@@ -187,6 +187,13 @@ The agent reads and writes them directly.
 - **`roadmap.md`** — the prioritized plan queue. Its autosync block is regenerated
   from `plans/*.md` frontmatter by `/mb roadmap-sync`, so the roadmap always
   reflects the real plans instead of drifting.
+- **`agreements.md`** — the running registry of **confirmed decisions**. When you
+  settle something with the agent, it records `AGR-NNN` with a one-line statement;
+  a changed decision supersedes the old one (`--supersedes N`) instead of leaving
+  two active. The active list is mirrored into `CLAUDE.md`/`AGENTS.md`, so every
+  future session — and every subagent — starts already knowing what was agreed.
+  Manage with `/mb agree` (`add` / `question` / `list`); unconfirmed ideas park as
+  open questions until you decide.
 
 The through-line: **researchers, reviewers, and the judge maintain these files as
 a side effect of running** — you don't hand-curate them, and any later prompt (or

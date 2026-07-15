@@ -71,6 +71,7 @@ Manual inline implementation is only acceptable for trivial non-plan work or an 
 - AGR-012: adapter-parity: спека встаёт ПЕРВОЙ в очереди роудмепа, впереди donor v5.4.0 — скил должен работать везде до donor-стройки
 - AGR-013: adapter-parity: паритет хуков/сабагентов на Pi и OpenCode достигается host-native расширениями, предлагаемыми пользователю opt-in при install и в runtime-nudge (/mb doctor); никогда авто-install; отказ = byte-identical install; Codex = honest degradation (prompt-hook notify + platform_limited)
 - AGR-014: adapter-parity discuss-итоги: nudge = /mb doctor + session-start (1 строка, раз за сессию, через AGENTS.md-блок до установки транспорта); Pi-диспатч строим даже headless (медленный лучше отсутствия); honesty-слой (platform_limited + негативные тесты) на все 8 клиентов, фокус расширений pi/opencode/codex + cursor-верификация; исполнение одним слайсом T1–T8; Pi native slash-команды — research в T1 (REQ-022)
+- AGR-015: Site/README may document /mb agree (agreements registry) ahead of its release tag — user explicitly requested a public block about the feature; docs/environment-variables-style exclusions no longer apply to it
 
 История, superseded и правила ведения → .memory-bank/agreements.md (`/mb agree`)
 <!-- mb-agreements:end -->

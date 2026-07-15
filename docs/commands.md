@@ -16,6 +16,7 @@ handful also have short aliases (`/start`, `/done`, `/plan`, `/discuss`, `/sdd`,
 | `consolidate [--apply]` | Fold old sessions into durable `notes/` candidates; archive them verbatim. |
 | `research <query>` | Graph-first multi-source research — codebase, memory, library docs, prior art, web. |
 | `note <topic>` | Create a note. |
+| `agree <add\|question\|list\|sync>` | Running registry of confirmed decisions (`AGR-NNN`, supersedes-chain); active list mirrored into `CLAUDE.md`/`AGENTS.md`. |
 | `update` | Actualize core files from real code-state analysis (no session summary required). |
 | `doctor` | Find and fix internal Memory Bank inconsistencies. |
 | `tasks` | Show unfinished tasks. |

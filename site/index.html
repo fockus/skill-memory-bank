@@ -49,7 +49,7 @@
           <a href="#graph">Code graph</a>
           <a href="#workflow">Workflow</a>
           <a href="#install">Install</a>
-          <a href="#docs">Docs</a>
+          <a href="https://fockus.github.io/skill-memory-bank/docs/">Docs</a>
           <a href="https://github.com/fockus/skill-memory-bank">GitHub</a>
         </nav>
       </header>
@@ -57,8 +57,8 @@
       <main>
         <section class="hero" id="hero">
           <div class="hero-copy reveal">
-            <p class="eyebrow">Open source · MIT · v5.0.0</p>
-            <h1>AI coding agents should not wake up with amnesia.</h1>
+            <p class="eyebrow">Open source · MIT · v5.3.0</p>
+            <h1>AI coding agents should not wake up with <span class="hl-marker">amnesia</span>.</h1>
             <p class="hero-badges" aria-label="Project status">
               <a href="https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml">
                 <img src="https://img.shields.io/github/actions/workflow/status/fockus/skill-memory-bank/test.yml?branch=main&label=tests&style=flat-square&color=brightgreen&v=300" alt="tests passing" />
@@ -66,20 +66,8 @@
               <a href="https://pypi.org/project/memory-bank-skill/">
                 <img src="https://img.shields.io/pypi/v/memory-bank-skill?style=flat-square&color=brightgreen&label=pypi&v=300" alt="PyPI version" />
               </a>
-              <a href="https://github.com/fockus/skill-memory-bank/releases/latest">
-                <img src="https://img.shields.io/github/v/release/fockus/skill-memory-bank?style=flat-square&color=brightgreen&label=release&v=300" alt="GitHub release" />
-              </a>
-              <a href="https://pypi.org/project/memory-bank-skill/">
-                <img src="https://img.shields.io/pypi/pyversions/memory-bank-skill?style=flat-square&color=brightgreen&v=300" alt="Python versions" />
-              </a>
-              <a href="https://github.com/fockus/homebrew-tap">
-                <img src="https://img.shields.io/badge/homebrew-fockus%2Ftap-brightgreen?style=flat-square&v=300" alt="Homebrew tap" />
-              </a>
               <a href="https://pypi.org/project/memory-bank-skill/">
                 <img src="https://img.shields.io/pypi/dm/memory-bank-skill?style=flat-square&color=brightgreen&v=300" alt="Downloads" />
-              </a>
-              <a href="https://github.com/fockus/skill-memory-bank/commits/main">
-                <img src="https://img.shields.io/github/last-commit/fockus/skill-memory-bank?style=flat-square&color=brightgreen&v=300" alt="Last commit" />
               </a>
               <a href="https://github.com/fockus/skill-memory-bank/blob/main/LICENSE">
                 <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square&v=300" alt="License MIT" />
@@ -95,6 +83,9 @@
 
             <div class="hero-actions">
               <a class="button primary" href="#install">Install in 5 minutes</a>
+              <a class="button secondary" href="https://fockus.github.io/skill-memory-bank/docs/">
+                Read the docs
+              </a>
               <a class="button secondary" href="https://github.com/fockus/skill-memory-bank">
                 Star on GitHub
               </a>
@@ -144,6 +135,7 @@ $ memory-bank install   # Claude Code · Cursor · Codex · …
 ├── status.md      ← where we are, what's next
 ├── checklist.md   ← tasks ✅ / ⬜
 ├── roadmap.md     ← priorities, direction
+├── agreements.md  ← confirmed decisions (AGR-NNN)
 ├── plans/ specs/  ← executable plans &amp; SDD specs
 ├── notes/ lessons.md
 ├── session/       ← cross-chat memory (/mb recall)
@@ -152,7 +144,7 @@ $ memory-bank install   # Claude Code · Cursor · Codex · …
 $ /mb start
 [context] active plan loaded
 [rules] tdd + clean architecture + fsd
-[next] resume exactly where we stopped</code></pre>
+[next] resume exactly where we stopped<span class="term-cursor" aria-hidden="true"></span></code></pre>
             </div>
           </div>
         </section>
@@ -364,17 +356,85 @@ $ /mb start
                 <code>&lt;private&gt;</code> tags to keep it out of every index and search.
               </p>
             </article>
+
+            <article class="capability-card reveal">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20.5 20.5-4.8-4.8"/><path d="m8.4 11 1.8 1.8 3.4-3.4"/></svg>
+              </span>
+              <h3>Reviewer 2.0 <em class="chip-new">new in 5.3</em></h3>
+              <p>
+                <code>mb-review.sh</code> assembles a calibrated, tests-aware review payload — plan
+                context, diff, few-shot rubric examples per stack, and an auto-injected
+                <code>tests</code> blocker whenever touched-file tests are already red. A golden
+                calibration suite guards the verdicts against drift.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-1">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.5h6v3H9z"/><path d="M15 5h3a1.5 1.5 0 0 1 1.5 1.5V19A1.5 1.5 0 0 1 18 20.5H6A1.5 1.5 0 0 1 4.5 19V6.5A1.5 1.5 0 0 1 6 5h3"/><path d="m7.5 15.5 3-3 2 2 3.5-4"/><path d="M16 10.5v2.5h-2.5"/></svg>
+              </span>
+              <h3>Sprint contracts &amp; strategic pivoting</h3>
+              <p>
+                <code>/mb work --contract</code> scaffolds a per-item sprint contract — scope, plan
+                of attack, test plan, DoD checkpoints, out-of-scope — before code lands. Review
+                cycles now track a progress trend and pivot the dispatch, in-role or via the
+                architect, instead of looping forever on a stagnant fix.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-2">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9.5 4v16"/><path d="M15 4v16"/><path d="M5.5 8h2.5"/><path d="M11 8h2.5"/><path d="M11 12h2.5"/><path d="M16.5 8H19"/></svg>
+              </span>
+              <h3>Cross-session coordination board</h3>
+              <p>
+                An append-only <code>COORDINATION.md</code> board lets two or more agent sessions
+                share one working tree safely — read before every stage, commit, and shared-file
+                edit, with FREEZE entries and scoped <code>git add</code> only. No more silent merge
+                collisions between parallel sessions.
+              </p>
+            </article>
+
+            <article class="capability-card reveal">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15.5a8 8 0 0 1 16 0"/><path d="M12 15.5 15.5 11"/><path d="M4.5 19.5h15"/></svg>
+              </span>
+              <h3>Context-window statusline</h3>
+              <p>
+                <code>/mb statusline</code> wires a Claude Code statusline that shows how much of the
+                context window is filled — model, git branch, and project alongside it — so you see a
+                compaction coming before it happens.
+              </p>
+            </article>
+
+            <article class="capability-card reveal reveal-delay-1">
+              <span class="capability-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h10A1.5 1.5 0 0 1 18.5 5v14a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M9 8h6"/><path d="M9 11.5h4"/><path d="m9.5 16 1.6 1.6 3.4-3.6"/></svg>
+              </span>
+              <h3>Agreements registry <em class="chip-new">next up</em></h3>
+              <p>
+                Decisions you settle with the agent stop evaporating: <code>/mb agree</code> records
+                each one as <code>AGR-NNN</code> in <code>agreements.md</code>, a changed decision
+                supersedes the old one, and the active list is mirrored into
+                <code>CLAUDE.md</code>/<code>AGENTS.md</code> — every future session starts already
+                knowing what was agreed.
+              </p>
+            </article>
           </div>
         </section>
 
         <section class="v5 section" id="v5">
           <div class="section-heading reveal">
-            <p class="eyebrow">New in v5.0.0</p>
+            <p class="eyebrow">The v5 line — now at 5.3.0</p>
             <h2>The pipeline is now yours to compose.</h2>
             <p>
               v5 makes process a dial, not a tax. The default flow is lean — review and judge are
               opt-in stages you add per run, per project, or per preset. Canonical order is fixed;
-              invalid chains fail fast before any code is touched.
+              invalid chains fail fast before any code is touched. The line keeps shipping since
+              5.0.0: calibrated Reviewer 2.0, sprint contracts with strategic pivoting, a
+              cross-session coordination board, and a context-window statusline — all opt-in, all
+              additive, current through 5.3.0.
             </p>
           </div>
 
@@ -627,6 +687,11 @@ git clone https://github.com/fockus/skill-memory-bank.git \
               The daily loop is three commands. Everything else is there when you need it — and
               every doc lives next to the code on GitHub.
             </p>
+            <div class="cta-actions">
+              <a class="button primary" href="https://fockus.github.io/skill-memory-bank/docs/">
+                Read the docs
+              </a>
+            </div>
           </div>
 
           <div class="howto-grid">
@@ -732,7 +797,7 @@ git clone https://github.com/fockus/skill-memory-bank.git \
             <details>
               <summary>Is it production-ready?</summary>
               <p>
-                v5.0.0 is the current stable line, used daily on real projects, with a green test
+                v5.3.0 is the current stable line, used daily on real projects, with a green test
                 envelope of 1,900+ tests (pytest + bats) on Python 3.11/3.12 × Ubuntu and macOS.
                 The skill develops itself with its own memory bank — dogfooding all the way down.
               </p>
