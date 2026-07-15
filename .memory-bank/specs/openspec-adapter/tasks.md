@@ -160,7 +160,7 @@
   a simulated LLM-unavailable path falls back to deterministic slots + warning, exit 0.
 
 **DoD:**
-- [ ] `--normalize` fills slots and caches by source-hash; unchanged reqs never regenerate (REQ-008).
-- [ ] LLM-unavailable falls back deterministically without failing the import (REQ-010).
-- [ ] tests pass
-- [ ] lint clean
+- [x] `--normalize` fills slots and caches by source-hash; unchanged reqs never regenerate (REQ-008).
+- [x] LLM-unavailable falls back deterministically without failing the import (REQ-010).
+- [x] tests pass
+- [x] lint clean

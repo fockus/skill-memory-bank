@@ -30,7 +30,11 @@ equals the source's current ``compute_source_hash``, ``drifted`` when the
 hashes differ, and ``not-imported`` otherwise. ``sync`` re-imports a topic
 only on hash drift (REQ-015) — a hash match is a pure no-op, no write at all.
 
-``--normalize`` (T6) is deliberately left as a seam — see design.md.
+``--normalize`` on ``import``/``sync`` (T6, REQ-007/008/010) fills LLM text
+slots (EARS rewrite, missing scenario, Covers links) via
+``mb_openspec_normalize``, cached by source-requirement hash; omitted (the
+default) the write path is byte-identical to the pre-T6 deterministic-only
+behaviour (NFR-001). See design.md D-03/D-04.
 
 Exit codes:
     0 — command succeeded
@@ -125,7 +129,9 @@ def _append_orphans_to_backlog(
     atomic_write(backlog_path, existing + "\n".join(note_lines))
 
 
-def run_import(*, change_dir: Path, mb_path: Path, topic: str | None) -> dict[str, object]:
+def run_import(
+    *, change_dir: Path, mb_path: Path, topic: str | None, normalize: bool = False
+) -> dict[str, object]:
     """Parse + convert + write one OpenSpec change into a Memory Bank spec triple.
 
     Re-import (T5): when ``specs/<topic>/`` already carries a triple from a
@@ -135,6 +141,10 @@ def run_import(*, change_dir: Path, mb_path: Path, topic: str | None) -> dict[st
     then preserves `/mb work` check-state by task text (REQ-016), and any
     task no longer present in the source is appended to ``backlog.md``
     instead of being silently dropped (REQ-017).
+
+    ``normalize`` (T6, REQ-007/008/010): forwarded to ``convert()`` as-is;
+    ``False`` (default) keeps the write path byte-identical to before T6
+    (NFR-001).
     """
     change_dir = Path(change_dir)
     mb_path = Path(mb_path)
@@ -152,7 +162,11 @@ def run_import(*, change_dir: Path, mb_path: Path, topic: str | None) -> dict[st
     prior_triple = _read_prior_triple(spec_dir)
 
     requirements_md, design_md, tasks_md = convert(
-        ch, prior_triple=prior_triple, topic=resolved_topic, mb_path=mb_path
+        ch,
+        prior_triple=prior_triple,
+        normalize=normalize,
+        topic=resolved_topic,
+        mb_path=mb_path,
     )
 
     orphaned_task_lines: list[str] = []
@@ -308,12 +322,16 @@ def run_status(*, mb_path: Path, topic: str) -> dict[str, object]:
     }
 
 
-def run_sync(*, mb_path: Path, topic: str | None) -> list[dict[str, object]]:
+def run_sync(
+    *, mb_path: Path, topic: str | None, normalize: bool = False
+) -> list[dict[str, object]]:
     """Re-import only topics whose source hash drifted (REQ-015).
 
     A hash match is a pure no-op: no file is read for writing, no
     ``run_import`` call happens. No ``topic`` syncs every previously-imported
     topic found under ``mb_path/specs/``.
+
+    ``normalize`` (T6) is forwarded to each ``run_import`` call it triggers.
     """
     if topic is not None:
         req_path = mb_path / "specs" / topic / "requirements.md"
@@ -342,7 +360,7 @@ def run_sync(*, mb_path: Path, topic: str | None) -> list[dict[str, object]]:
         if current_hash == stored_hash:
             results.append({"topic": t, "action": "up-to-date"})
             continue
-        run_import(change_dir=change_dir, mb_path=mb_path, topic=t)
+        run_import(change_dir=change_dir, mb_path=mb_path, topic=t, normalize=normalize)
         results.append({"topic": t, "action": "re-imported"})
     return results
 
@@ -359,6 +377,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--as", dest="topic", default=None, help="Target spec topic (default: change-id slug)"
     )
     imp.add_argument("--mb", dest="mb_path", default=".memory-bank", help="Memory Bank path")
+    imp.add_argument(
+        "--normalize",
+        action="store_true",
+        help="Fill LLM text slots (EARS rewrite/missing scenario/Covers), cached by "
+        "source-requirement hash (T6, REQ-007/008/010); omit for the deterministic-only path",
+    )
 
     lst = sub.add_parser("list", help="List OpenSpec changes and their import status")
     lst.add_argument(
@@ -378,6 +402,12 @@ def build_parser() -> argparse.ArgumentParser:
         "topic", nargs="?", default=None, help="Target spec topic (default: sync every topic)"
     )
     sy.add_argument("--mb", dest="mb_path", default=".memory-bank", help="Memory Bank path")
+    sy.add_argument(
+        "--normalize",
+        action="store_true",
+        help="Fill LLM text slots on any topic re-imported by this sync (T6); omit for the "
+        "deterministic-only path",
+    )
 
     return parser
 
@@ -391,6 +421,7 @@ def main(argv: list[str]) -> int:
                 change_dir=Path(args.change_dir),
                 mb_path=Path(args.mb_path),
                 topic=args.topic,
+                normalize=args.normalize,
             )
         except (FileNotFoundError, RuntimeError) as exc:
             print(f"[error] {exc}", file=sys.stderr)
@@ -428,7 +459,9 @@ def main(argv: list[str]) -> int:
 
     if args.action == "sync":
         try:
-            results = run_sync(mb_path=Path(args.mb_path), topic=args.topic)
+            results = run_sync(
+                mb_path=Path(args.mb_path), topic=args.topic, normalize=args.normalize
+            )
         except FileNotFoundError as exc:
             print(f"[error] {exc}", file=sys.stderr)
             return 1

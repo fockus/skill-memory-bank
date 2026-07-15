@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 """Deterministic converter — :class:`OSChange` → Memory Bank spec-triple strings.
 
-``convert()`` never touches disk except for the two read-only/no-write
-subprocess shell-outs it reuses (``mb-ears-validate.sh`` for warn-mode EARS
-checking, ``mb-req-next-id.sh`` for REQ-ID allocation on re-import); it only
-*returns* three Markdown strings (requirements.md, design.md, tasks.md). The
-format is a fixed skeleton (headers, ``- **REQ-NNN**``,
+``convert()`` never touches disk except for read-only/no-write subprocess
+shell-outs it reuses (``mb-ears-validate.sh`` for warn-mode EARS checking,
+``mb-req-next-id.sh`` for REQ-ID allocation on re-import) and — only when
+``normalize=True`` — the small JSON cache written by
+``mb_openspec_normalize.NormalizeCache`` under ``<mb_path>/.index/openspec/``.
+It only *returns* three Markdown strings (requirements.md, design.md,
+tasks.md). The format is a fixed skeleton (headers, ``- **REQ-NNN**``,
 ``<!-- openspec-req: ... -->``, ``<!-- mb-task:N -->``) — 100% template-driven,
-no LLM involvement in this core path (REQ-002, REQ-006, REQ-009, D-04).
+never LLM-generated even with ``--normalize`` (REQ-002, REQ-006, REQ-009, D-04).
 
 ``prior_triple`` (anchor reuse across re-import, D-06/D-05, REQ-016/018) makes
 ``convert()`` reuse the existing ``REQ-NNN`` for an OpenSpec requirement name
 already anchored in the prior ``requirements.md``, re-anchor RENAMED deltas
 FROM -> TO while preserving the ID, and allocate the next ID (via
 ``mb-req-next-id.sh --spec <topic>``, or a pure in-memory fallback when no
-topic/bank is supplied) for a genuinely new name. ``normalize`` (LLM slot
-filling, D-03/D-04) remains an unused seam reserved for T6 — this core path
-always renders the deterministic skeleton for the requirement/design text.
+topic/bank is supplied) for a genuinely new name. ``normalize`` (T6, LLM slot
+filling, D-03/D-04) fills the requirement text/scenario/covers *text slots*
+via ``mb_openspec_normalize`` — never the skeleton itself — cached by
+source-requirement hash so an unchanged requirement never regenerates
+(REQ-008) and a failed/unavailable LLM falls back to the same deterministic
+text this module already produces with ``normalize=False`` (REQ-010).
+``normalize=False`` (the default) never touches the cache or an ``llm``
+callable at all — byte-identical to the pre-T6 path (NFR-001).
 
 Task check-state preservation across re-import (REQ-016/017) is a SEPARATE
 function, :func:`merge_task_state` — ``convert()`` always returns a freshly
@@ -37,6 +44,16 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - import-path fallback
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from mb_openspec_model import OSChange, OSScenario
+
+try:
+    from mb_openspec_normalize import (
+        LlmDispatch,
+        NormalizeCache,
+        normalize_requirement,
+        scenario_from_slot,
+    )
+except ModuleNotFoundError:  # pragma: no cover - import-path fallback
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 _TRIGGER_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"^when\b", re.IGNORECASE), "event-driven"),
@@ -259,6 +276,10 @@ def _build_requirements(
     prior_map: dict[str, str] | None,
     prior_index: dict[str, tuple[str, str, str]],
     allocator: _IdAllocator | None,
+    *,
+    normalize: bool = False,
+    normalize_cache: NormalizeCache | None = None,
+    llm: LlmDispatch | None = None,
 ) -> tuple[str, set[str]]:
     """Render the requirements skeleton.
 
@@ -271,6 +292,15 @@ def _build_requirements(
     ``renamed_from`` is anchored moves that anchor to the new name, reusing
     both the ID and the prior text (a pure rename carries no new body text —
     D-07); anything genuinely new is allocated the next ID.
+
+    ``normalize`` (T6, D-03/D-04): when set (with a ``normalize_cache``),
+    every non-removed/non-renamed requirement's text/scenario/covers slots
+    are filled via :func:`normalize_requirement` instead of the deterministic
+    fallback — cached by source-requirement hash, so an unchanged
+    requirement never re-invokes ``llm`` (REQ-008) and a failed/unavailable
+    ``llm`` degrades to the exact same deterministic values (REQ-010). A
+    RENAMED requirement's text is never normalized — it carries no new body
+    text of its own (D-07), so there is nothing to rewrite.
 
     Returns ``(requirements_md, resolved_renamed_names)`` — the second value
     is the set of RENAMED "TO" names that were actually re-anchored this call,
@@ -295,6 +325,12 @@ def _build_requirements(
 
         req_id: str | None = None
         text_line = _flatten(req.text) or "(no requirement text provided)"
+        slots: dict[str, object] | None = None
+        if normalize and req.change_kind != "renamed" and normalize_cache is not None:
+            slots = normalize_requirement(req, cache=normalize_cache, llm=llm)
+            slot_text = slots.get("text")
+            if isinstance(slot_text, str) and slot_text.strip():
+                text_line = slot_text
 
         if req.change_kind == "renamed":
             resolved_id = None
@@ -339,14 +375,21 @@ def _build_requirements(
         lines.append("")
         lines.append(f"<!-- openspec-req: {safe_name} -->")
         lines.append(f"- **{req_id}** ({pattern}): {text_line}")
+        covers = slots.get("covers") if slots else None
+        if covers:
+            lines.append(f"**Covers:** {', '.join(str(c) for c in covers)}")
         lines.append("")
         scenarios = req.scenarios
         if not scenarios:
-            print(
-                f"[warn] requirement '{req.name}' has no scenarios; using a deterministic stub",
-                file=sys.stderr,
-            )
-            scenarios = [_empty_scenario_stub()]
+            generated = slots.get("scenario") if slots else None
+            if generated:
+                scenarios = [scenario_from_slot(generated)]
+            else:
+                print(
+                    f"[warn] requirement '{req.name}' has no scenarios; using a deterministic stub",
+                    file=sys.stderr,
+                )
+                scenarios = [_empty_scenario_stub()]
         for scenario in scenarios:
             scenario_no += 1
             lines.extend(_render_scenario(scenario_no, req_id, scenario))
@@ -464,6 +507,7 @@ def convert(
     *,
     topic: str | None = None,
     mb_path: str | Path | None = None,
+    llm: LlmDispatch | None = None,
 ) -> tuple[str, str, str]:
     """Convert a parsed OpenSpec change into (requirements_md, design_md, tasks_md).
 
@@ -481,10 +525,16 @@ def convert(
     symmetry but is NOT used here — task check-state merging is the caller's
     job via the separate :func:`merge_task_state`.
 
-    ``normalize`` remains an unused seam reserved for T6 — this core path
-    always emits the deterministic skeleton for requirement/design text.
+    ``normalize`` (T6, D-03/D-04): ``False`` (default) is byte-identical to
+    the pre-T6 deterministic path (NFR-001) — no cache is touched, no
+    ``llm`` call happens. ``True`` fills the requirement text/scenario/covers
+    slots via :func:`mb_openspec_normalize.normalize_requirement`, cached
+    under ``<mb_path>/.index/openspec/normalize-cache.json`` keyed by
+    source-requirement hash (REQ-008); an unavailable/failing ``llm``
+    degrades to the exact deterministic slot values instead of failing the
+    import (REQ-010). ``llm`` overrides the real dispatcher — used by tests
+    to mock the LLM call; production callers leave it ``None``.
     """
-    del normalize
     prior_map: dict[str, str] | None = None
     prior_index: dict[str, tuple[str, str, str]] = {}
     allocator: _IdAllocator | None = None
@@ -493,9 +543,18 @@ def convert(
         prior_map = {name: info[0] for name, info in prior_index.items()}
         allocator = _IdAllocator(prior_map, topic, mb_path)
 
+    normalize_cache = NormalizeCache(mb_path) if normalize else None
     requirements_md, resolved_renamed_names = _build_requirements(
-        ch, prior_map, prior_index, allocator
+        ch,
+        prior_map,
+        prior_index,
+        allocator,
+        normalize=normalize,
+        normalize_cache=normalize_cache,
+        llm=llm,
     )
+    if normalize_cache is not None:
+        normalize_cache.flush()
     design_md = _build_design(ch, resolved_renamed_names)
     tasks_md = _build_tasks(ch)
     _run_ears_warn(requirements_md, ch.change_id)
