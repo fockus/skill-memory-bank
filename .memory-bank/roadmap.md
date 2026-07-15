@@ -14,11 +14,11 @@
 - [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
 - [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
 - [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
-- [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation
 - [2026-06-23_feature_dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) — Capability Dispatcher Wiring + Transports
 - [2026-07-04_fix_install-and-cross-agent-parity](plans/2026-07-04_fix_install-and-cross-agent-parity.md) — Install reliability + cross-agent parity
 - [2026-07-04_fix_session-capture-and-mb-hygiene](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md) — Session-capture correctness + Memory-Bank drift hygiene
+- [mb-donor-evolution-v5-4-baseline](plans/2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md) — mb-donor-evolution — v5.4.0 Trustworthy Baseline
 
 ## Parallel-safe (can run now)
 
@@ -45,9 +45,90 @@ _None._
 - parallel-pipeline
 - parallel-team-execution
 - dynamic-flow
+- specs/mb-donor-evolution
 <!-- /mb-roadmap-auto -->
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
+
+## ✅ Priority insert (2026-07-15, AGR-006): `update-notify` — ЗАВЕРШЁН
+
+План [2026-07-13_feature_update-notify](plans/done/2026-07-13_feature_update-notify.md) закрыт 2026-07-15. Stage 1 (flavor+Homebrew) `fef41f8` · Stage 2 (mb-version-check.sh) `0d9a57a` · Stage 3 (SessionStart notice) `2a55f87` · Stage 4 (opt-in auto-update) `1607842` · Stage 5 (docs) `4369e9e` · закрытие `1be8c78`. Блокер donor v5.4.0 снят.
+
+## 🔥 Priority insert (2026-07-15, AGR-007): `sdd-openspec-parity` — high priority
+
+Контекст: [context/sdd-openspec-parity.md](context/sdd-openspec-parity.md) (13 решений D-01…D-11.1). Нативная OpenSpec-parity для SDD-движка (`/mb discuss → /mb sdd → /mb work`), **независимая от donor-программы** (AGR-007): AGR-004 / v6.6.0 (OpenSpec **runtime**) остаётся в айсбоксе — здесь только native authoring/validation. Поглощает backlog **I-062**.
+
+**Приоритет: HIGH** — выше donor-релизов после v5.4.0; может идти параллельно с `update-notify` (не пересекается по файлам). Обоснование: это движок, которым donor-программа САМА авторит и валидирует специи — усилив его качество рано, мы поднимаем планку всех последующих спек. **Phase 1** (дешёвые изолированные победы: wording-lint, обязательные сценарии для новых спек, RFC 2119, `## Why`, inputs-registry, archive-gate, secret-scan) ships first и опережает donor v5.5.0+. **Phase 2** (living specs + ADDED/MODIFIED/REMOVED deltas) — отдельный `/mb discuss` перед стартом (D-10), forward-compatible с REQ-OSA-010.
+
+Не пересекается с donor-файлами — трогает нативный SDD-тулинг (`mb-spec-validate.sh`, `mb-sdd.sh`, `mb-ears-validate.sh`, `mb-traceability-gen.sh`, templates). Дальше: `/mb sdd sdd-openspec-parity` → план → governed `/mb work`.
+
+## Track 2 — Donor Evolution Program (2026-07-15, `specs/mb-donor-evolution`)
+
+Источник: `specs/mb-donor-evolution/source-plan.md` (donor-driven план GSD/OpenSpec/Archon/Superpowers/CCPM/Ruflo). Решения discovery-интервью: `context/mb-donor-evolution.md`. Roadmap ведётся **двумя параллельными дорожками**: legacy-очередь ниже живёт своей жизнью; при пересечении с donor-релизом **побеждает donor** — legacy-план замораживается на старте соответствующего релиза, живые требования переносятся в release-slice через SDD delta-review. `parallel-pipeline` → **superseded** немедленно (source-plan §2.1).
+
+Нумерация сдвинута +1 минор внутри 5.x (v5.3.0 уже выпущена 2026-07-13): доковский Этап 0 → v5.4.0 и далее; серия 6.x без сдвига. REQ-ID и mb-task 1–132 не перенумеровываются.
+
+### ICE-приоритизация релизов программы
+
+ICE = Impact × Confidence × Ease (1–10). Порядок = ICE с поправкой на граф зависимостей (source-plan §9.3: 5.4→5.5→5.6→5.7→6.0→6.1; 5.5→6.2; 6.1+6.2→6.3→6.4; 6.3+6.4→6.5→6.6).
+
+| Релиз | Название | P | I | C | E | ICE | Вердикт |
+|---|---|---|---|---|---|---:|---|
+Нумерация 6.x-хвоста сдвинута +1 под QA-релиз (AGR-009, 2026-07-15): QA→6.2.0, Portable Skills→6.3.0, Delta Specs→6.4.0, Adaptive Ops→6.5.0, icebox GSD/OpenSpec→6.6.0/6.7.0.
+
+| Релиз | Название | P | I | C | E | ICE | Вердикт |
+|---|---|---|---|---|---|---:|---|
+| v5.4.0 | Trustworthy Baseline | P0 | 8 | 9 | 9 | **648** | Now — wrapper `2026-07-15_feature_mb-donor-evolution-v5-4-baseline` |
+| v5.5.0 | Spec Control Plane | P0 | 8 | 8 | 6 | **384** | Next |
+| v6.1.0 | Evidence, UAT & Gap Closure | P1 | 9 | 7 | 5 | **315** | Next (после 6.0 — жёсткая зависимость) |
+| v5.6.0 | Long-Session Kernel & Event Journal **+ drive-loop** | P0 | 10 | 7 | 4 | **280** | Next — поглощает остаток `specs/drive-loop` (AGR-010): drive-loop дожимается ВНУТРИ слайса, не замораживается |
+| v6.2.0 | **Quality Track — QA & Evidence Graph** (`specs/quality-track`, 29 REQ) | P1 | 9 | 7 | 4 | **252** | Next (сразу после 6.1.0 — строится поверх его evidence-ядра EV-01…05, не дублируя его; AGR-008). Высокий impact, высокая сложность — потому середина очереди, а не старт |
+| v5.7.0 | Plan IR & Typed Workflow Planner | P0 | 8 | 7 | 4 | **224** | Next |
+| v6.0.0 | Isolated Mixed-Node Execution | P1 | 8 | 6 | 3 | **144** | Next (разблокирует 6.1) |
+| v6.3.0 | Portable Skills & Provider Platform | P1 | 6 | 6 | 4 | **144** | Next (зависит только от 5.5; можно параллельно 5.6–6.2) |
+| v6.5.0 | Adaptive Operations & Observability | P3 | 5 | 5 | 4 | **100** | Later (после 6.4 — зависимость) |
+| v6.4.0 | Delta Specs, Projection & Executor Adapters | P2 | 5 | 5 | 3 | **75** | Later |
+| v6.6.0 | Optional GSD Execution Engine | P2 | 3 | 4 | 2 | **24** | **Icebox** — пересмотреть после метрик 6.1 и реального спроса на внешний executor |
+| v6.7.0 | Optional OpenSpec Authoring Engine | P2 | 3 | 4 | 2 | **24** | **Icebox** — пересмотреть вместе с 6.6 (зависит от него) |
+
+**Итоговый порядок исполнения** (зависимости доминируют над сырым ICE):
+`5.4.0 → 5.5.0 → 5.6.0 (+drive-loop) → 5.7.0 → 6.0.0 → 6.1.0 → 6.2.0 (QA) → 6.3.0 (∥ возможно раньше, после 5.5) → 6.4.0 → 6.5.0 → [icebox: 6.6.0, 6.7.0]`.
+
+ICE-примечания: 6.1 имеет третий score программы, но заперт за 6.0 — это главный аргумент не откладывать 6.0. **Quality Track (6.2.0): сырой ICE 252 поставил бы его пятым, но жёсткая зависимость от evidence-ядра 6.1.0 (манифест §7.5, freshness, коллекторы EV-01…05) фиксирует его сразу за 6.1 — раньше физически нельзя без двойной постройки evidence-слоя (D-01/D-02 в `context/quality-track.md`); позже — нельзя оправдать, его ICE выше всего хвоста.** 6.3 — единственный кандидат на параллельный лейн (зависит только от 5.5). Icebox честный: оба optional-движка — самые дорогие (E=2) и наименее подтверждённые потребностью (I=3) части программы; их REQ/задачи (mb-task 102–132) остаются в umbrella-спеке и активируются JIT-слайсами при разморозке.
+
+**Пересечения с legacy-дорожкой** (правило «donor побеждает», замораживать на старте релиза):
+- `drive-loop` + `SEQUENCE_long-running-sessions` ↔ **5.6.0** — исключение из заморозки (AGR-010): оставшиеся фазы drive-loop входят в слайс v5.6.0 и ДОДЕЛЫВАЮТСЯ в нём (много вложенной работы, фича важная);
+- `work-loop-v2` ↔ 5.6.0/5.7.0 (execution state machine `/mb work`);
+- `reviewer-2.0` ↔ 6.1.0 (evidence/review);
+- `quality-track` ↔ 6.2.0 — это и ЕСТЬ релиз 6.2.0 (AGR-008), спека уже написана (29 REQ), задачи авторятся JIT при старте слайса;
+- `cost-multi-model` ↔ 6.3.0 (provider capabilities/routing);
+- `parallel-team-execution` ↔ 6.0.0 (уже де-факто перекрыт mixed-node execution).
+
+## 📋 Единый реестр незакрытого (2026-07-15) — каждый открытый план/спека привязан к очереди
+
+Инвариант: ничто незаконченное не живёт вне этого роудмепа. Если появляется новый план/спека — сюда добавляется строка с местом в очереди.
+
+| Работа | Артефакт | Где в очереди |
+|---|---|---|
+| sdd-openspec-parity Phase 1 | `specs/sdd-openspec-parity` (24 REQ, T1–T8) | 🔥 HIGH — сейчас, ∥ donor v5.4.0 (AGR-007) |
+| agreements (`/mb agree`) | `specs/agreements` | 🔄 в работе параллельной сессией (AGR-запись уже живая) |
+| donor v5.4.0 Trustworthy Baseline | план `2026-07-15_feature_mb-donor-evolution-v5-4-baseline` | Now — голова donor-поезда |
+| donor v5.5.0…v6.5.0 | umbrella `specs/mb-donor-evolution` | ICE-таблица выше, JIT-слайсы |
+| quality-track | `specs/quality-track` (29 REQ) | = donor v6.2.0 (AGR-008/009) |
+| drive-loop остаток | `specs/drive-loop` + `SEQUENCE_long-running-sessions` | внутри donor v5.6.0 (AGR-010) |
+| sdd-openspec-parity Phase 2 (living specs + deltas) | Task 9 DEFERRED в `specs/sdd-openspec-parity` | после Phase 1, свой `/mb discuss`; forward-compat с v6.7.0 |
+| reviewer-2.0 → work-loop-v2 → cost-multi-model | specs + планы 2026-05-23 | legacy Next-цепочка; замораживаются на старте 6.1.0 / 5.6-5.7 / 6.3.0 соответственно (donor побеждает) |
+| dynamic-flow Phase 2–3 | `specs/dynamic-flow` | legacy tail; пересечение с 5.6/5.7 оценить на старте v5.6.0 |
+| install-and-cross-agent-parity | план 2026-07-04 (queued) | legacy Next; независим от donor — можно ∥ лейном |
+| session-capture-and-mb-hygiene | план 2026-07-04 | legacy Next |
+| codex-remediation Wave 2: config-validation-docs (I-086) + dispatcher-wiring (I-084) | планы 2026-06-23 | Now/Next в авто-блоке; Wave 1 (I-082/083/085) ✅ DONE `49f9ad5` |
+| cursor/pi-compatibility-remediation | планы 2026-05-24 | Now (cursor) / Next (pi); pi-extension ждёт внешнего Pi API |
+| code-graph-activation | план 2026-07-04 | Parallel-safe — любой свободный слот |
+| skill-improvements-anthropic-audit | план 2026-05-23 | docs-лейн, ∥ любому code-wave |
+| parallel-team-execution | `specs/parallel-team-execution` | заморожен на старте v6.0.0 (перекрыт mixed-node) |
+| mb-research-tooling-core | `specs/mb-research-tooling-core` (design-only) | shipped в Phase 5 (см. Roadmap high-level); триплет не достраиваем — YAGNI |
+| I-109 остаток: агент mb-debugger | backlog | мелкий ∥ слот (час работы), вне релизного поезда |
+| Deferred: I-001 benchmarks · I-002 sqlite-vec · I-003 native-memory-bridge · I-005 graph-viz | backlog | заморожены осознанно; пересматривать при user-сигнале |
 
 ## Current focus (2026-06-23 — codex/GPT-5.5 remediation)
 
@@ -101,7 +182,7 @@ ICE = Impact × Confidence × Ease (каждый 1–10). Последовате
 | ∥ | skill-improvements-anthropic-audit (M) | docs-лейн, идёт параллельно любому code-wave |
 | tail | dynamic-flow Phase 2–3 → pi-extension → (XL) parallel-* | после арх-решения ниже |
 
-**⚠️ Architecture decision required before the XL tail.** `parallel-pipeline` (orchestrator-owned `/mb run`) и `dynamic-flow` (host-native; ADR-1 убивает standalone-runner) философски несовместимы; `parallel-team-execution` сидит downstream обоих. Рекомендация: взять host-native модель dynamic-flow, ценность worktree-изоляции из parallel-pipeline свернуть в шаблоны dynamic-flow, тяжёлый `/mb run` заморозить. Требует явного sign-off (XL-расход).
+**✅ Architecture decision resolved (2026-07-15, Track 2).** `parallel-pipeline` помечен **superseded**: donor-программа (`specs/mb-donor-evolution`, релизы 5.6.0–6.0.0) расширяет `/mb work` версионированным execution engine вместо отдельного `/mb run`; worktree-изоляция реализуется в v6.0.0 Isolated Mixed-Node Execution. `parallel-team-execution` замораживается при старте 6.0.0 (правило «donor побеждает»).
 
 **Cross-wave invariants:**
 - Каждый landing: pytest GREEN, bats GREEN, rules-check 0 violations, traceability обновлён, plan → `plans/done/`.

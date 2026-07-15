@@ -8,7 +8,7 @@
 
 <!-- Cluster I-082..I-086 — codex/GPT-5.5 adversarial review 2026-06-23. Source: reports/2026-06-23_codex-gpt5.5-skill-review.md (9 read-only sessions). -->
 
-### I-082 — Security hardening: code-exec + path traversal + private/secret leak [HIGH, OPEN, 2026-06-23]
+### I-082 — Security hardening: code-exec + path traversal + private/secret leak [HIGH, DONE 2026-07-15, 2026-06-23] — Wave 1, commit 49f9ad5, план plans/done/2026-06-23_fix_security-hardening.md
 
 **Context:** codex/GPT-5.5 security pass (`reports/2026-06-23_codex-gpt5.5-skill-review.md` §05). Affects SHIPPED 5.1.0 code — 5.1.1 candidate. Threat model: `/mb` run on a cloned/untrusted repo, or a project path/bank path containing a `'`.
 
@@ -27,7 +27,7 @@
 **Plan:** `plans/2026-06-23_fix_security-hardening.md`
 **Outcome:** no shell-string interpolation of untrusted paths; no `source` of repo-controlled files; all bank/pipeline/index paths canonicalized under their root; `<private>` honored on persist; protected-path guard covers Bash writes.
 
-### I-083 — Verification gates fail-closed + multi-stack test runner + CI surface [HIGH, OPEN, 2026-06-23]
+### I-083 — Verification gates fail-closed + multi-stack test runner + CI surface [HIGH, DONE 2026-07-15, 2026-06-23] — Wave 1, commit 49f9ad5, план plans/done/2026-06-23_fix_verification-gates.md
 
 **Context:** §04. Gates can silently pass un-run/crashed checks — undermines trust in `/mb done` and `/mb work`.
 
@@ -58,7 +58,7 @@
 **Plan:** `plans/2026-06-23_feature_dispatcher-wiring-transports.md`
 **Outcome:** `/mb work` resolves transport+model via caps; pi/opencode/codex executable end-to-end; shipped default pipeline usable + routes codex-family; single pipeline-resolution path. (Or: gate transports as experimental and de-advertise.)
 
-### I-085 — Logic correctness & GNU/BSD portability [MED, OPEN, 2026-06-23]
+### I-085 — Logic correctness & GNU/BSD portability [MED, DONE 2026-07-15, 2026-06-23] — Wave 1, commit 49f9ad5, план plans/done/2026-06-23_fix_logic-correctness-portability.md
 
 **Context:** §01/02/04. Correctness bugs + latent Linux portability in product helpers (the deferred mtime issue).
 
@@ -589,7 +589,7 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-107 — agents: 20 of our 29 agents have no `SendMessage` in `tools:` — including the WHOLE review ensemble (`mb-reviewer-{logic,quality,security,scalability,tests,lead}`), `mb-rules-enforcer`, `mb-test-runner`, `mb-research`, `mb-doctor`, `mb-codebase-mapper`. Harmless today because `/mb work` dispatches them **synchronously** (a sync agent's final text comes back as the tool result). But a background/teammate dispatch can ONLY report through `SendMessage` — its plain output goes nowhere. So any of these, run in background, does the work and then goes silent. This is exactly where drive-loop (Phase 3) and work-loop-v2 parallel branches are heading, so it will bite there. Discovered when a `debugger` subagent (a GLOBAL agent, `~/.claude/agents/debugger.md`, tools = `Read, Bash, Grep, Glob` — no SendMessage, no Write/Edit either) was dispatched in background: it could neither fix nor report, and just idled. Fix: audit `tools:` across `agents/*.md`, add `SendMessage` to every agent that a background dispatcher may spawn, and add a test asserting it. [RESOLVED 2026-07-15, commit 72fcf2f] — 15 report-role agents (the review ensemble incl. `mb-reviewer-lead`, the 4 implementer specialists, `mb-rules-enforcer`, `mb-test-runner`, `mb-doctor`, `mb-research`, `mb-researcher`) got `SendMessage` + the canonical `## Report delivery (background runs)` block; `mb-engineering-core` got a rationalization-table row (the behavioural nudge — `mb-backend` had the section yet still went silent). `test_agent_report_delivery.bats` pins the invariant. Deliberately EXCLUDED: `mb-codebase-mapper`, `mb-wiki-{author,synthesizer}` — their deliverable is files on disk, not a message, so `SendMessage` would be an unused tool (YAGNI). [HIGH, NEW, 2026-07-13]
 
-### I-108 — codegraph: `graph.json`'s meta record embeds `generated_at: datetime.now(UTC)` at second resolution, so ANY byte-identity test that builds twice races the clock — it flakes 1-in-10 locally and reds CI on the slower macOS runner. The byte-identity invariant (opt-in layers must not alter base output) is correct; a wall clock in the payload just makes it unverifiable. Fix in flight: honour `SOURCE_DATE_EPOCH` (the reproducible-builds convention) and have the byte-identity tests set it. [HIGH, IN-PROGRESS, 2026-07-13]
+### I-108 — codegraph: `graph.json`'s meta record embeds `generated_at: datetime.now(UTC)` at second resolution, so ANY byte-identity test that builds twice races the clock — it flakes 1-in-10 locally and reds CI on the slower macOS runner. The byte-identity invariant (opt-in layers must not alter base output) is correct; a wall clock in the payload just makes it unverifiable. Fix in flight: honour `SOURCE_DATE_EPOCH` (the reproducible-builds convention) and have the byte-identity tests set it. [HIGH, RESOLVED 2026-07-15, 2026-07-13] — починено в 3eb9b96 (SOURCE_DATE_EPOCH, reproducible-builds convention)
 
 ### I-109 — agents: add our own `mb-debugger` (modelled on the global `~/.claude/agents/debugger.md`, but with the toolset it actually needs). The global one has `tools: Read, Bash, Grep, Glob` — no `Write`/`Edit`, so it cannot apply the fix it just root-caused, and no `SendMessage`, so a background dispatch of it does the work and then goes silent (see [[I-107]]). Dispatching it for a find-and-fix task is therefore structurally impossible, which is exactly what happened on 2026-07-13. Ours should keep the global's 4-phase root-cause discipline (reproduce → isolate → hypothesize → verify) and add `Write`, `Edit`, `SendMessage`. Do this as part of the same pass as I-107 — audit `tools:` for the whole roster, not one agent at a time, and add a test that every agent a background dispatcher may spawn has `SendMessage`. [PARTIAL 2026-07-15] — the roster-wide `tools:` audit + `SendMessage` + the parity test are done (see [[I-107]], commit 72fcf2f). Still OPEN: creating the actual `mb-debugger` agent (4-phase discipline + `Write`/`Edit`/`SendMessage`) so find-and-fix can be delegated. [HIGH, NEW, 2026-07-13]
 
