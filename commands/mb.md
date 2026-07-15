@@ -41,6 +41,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `plan <type> <topic>`                                    | Create a plan                                                                                                                                                                                                                                                                                            |
 | `discuss <topic>`                                        | 5-phase requirements-elicitation interview → EARS-validated `context/<topic>.md` (Phase 1 Purpose & Users / Phase 2 Functional EARS / Phase 3 Non-Functional / Phase 4 Constraints / Phase 5 Edge Cases). Feeds traceability matrix.                                                                     |
 | `sdd <topic> [--force]`                                  | Create Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`. If `context/<topic>.md` exists, EARS section copied verbatim into `requirements.md`. `--force` overwrites.                                                                                                                 |
+| `openspec <import\|list\|status\|sync> [args]`           | One-way import adapter: OpenSpec `changes/<id>/` → MB spec triple `specs/<topic>/` via `scripts/mb-openspec.sh` (no `openspec` CLI dep). `import <dir> [--as <topic>] [--normalize]` writes the triple + drift frontmatter; `list [--all]`/`status <topic>` show imported/drifted/not-imported; `sync [<topic>]` re-imports only on hash drift. Opt-in `--normalize` fills LLM text slots (EARS/scenario/Covers), cached + fail-open. See `### openspec` below.                                     |
 | `config <init\|show\|validate\|path>`                    | Manage execution `pipeline.yaml` (spec §9). `init` copies bundled default into `<bank>/pipeline.yaml`; `show` prints resolved config; `validate` runs schema check; `path` prints absolute path of resolved file.                                                                                       |
 | `pipeline <list\|new\|use\|show\|path\|validate>`        | Manage **multiple named pipelines** under `<bank>/pipelines/<name>.yaml` (different models + workflow per pipeline). `list` shows all + active; `new NAME [--agent a,b] [--from NAME] [--default]` scaffolds one; `use NAME` switches the default; `show`/`path`/`validate [--all]` inspect. Each can bind a code-agent host (`agents:`) for auto-selection by `/mb work`.                                                       |
 | `work [target] [--range A-B] [--dry-run]`                | Execute stages from a plan. Auto-selects role-agent per stage (mb-backend / mb-frontend / mb-ios / mb-android / mb-architect / mb-devops / mb-qa / mb-analyst, fallback mb-developer). Sprint 2: implement-step dispatch + dry-run; Sprint 3 adds review-loop, severity gates, verifier integration.    |
@@ -82,6 +83,18 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 - `/mb plan <type> <topic>` → see `commands/plan.md` (mb-plan.sh scaffold + fill + mb-plan-sync.sh)
 
 > **Plan hierarchy reminder:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for size thresholds. Cyrillic «Этап / Спринт / Фаза» — legacy alias, allowed only in archived `plans/done/`.
+
+### openspec
+
+`/mb openspec <import|list|status|sync>` dispatches to `scripts/mb-openspec.sh` — a one-way OpenSpec → Memory Bank import adapter. OpenSpec change files are parsed directly (no `openspec` CLI dependency); the OpenSpec tree is never written to. Every write is asserted under `.memory-bank/`.
+
+- `import <change_dir> [--as <topic>] [--normalize]` — parse an OpenSpec `changes/<id>/` (proposal + delta specs + tasks) and write the MB spec triple under `specs/<topic>/` (topic default = change-id slug). Records `openspec_source`/`openspec_hash` frontmatter for drift detection. Re-import reuses `REQ-NNN` by requirement name, preserves `/mb work` task check-state by text, and appends orphaned tasks to `backlog.md` (never silently dropped).
+- `list [--all] [--openspec <root>]` — enumerate `openspec/changes/*` with status `imported` / `drifted` / `not-imported` (archived changes hidden unless `--all`).
+- `status <topic>` — drift status of one imported topic.
+- `sync [<topic>] [--normalize]` — re-import only topics whose source hash drifted; a hash match is a pure no-op (no write). No topic → sync every imported topic.
+- `--normalize` (opt-in) fills LLM text slots (prose-SHALL → EARS, missing scenario, `Covers`), cached by source-requirement hash so an unchanged requirement never regenerates, and fail-open (LLM unavailable → deterministic fallback + warn). Omit for the byte-deterministic path.
+
+Run directly: `bash scripts/mb-openspec.sh <sub> ...`. Spec: `.memory-bank/specs/openspec-adapter/`.
 
 Invoking `/mb start` = invoking `/start` — same scripts, same subagents, same outcome. Do not duplicate the logic here; read the primary command file and follow it.
 

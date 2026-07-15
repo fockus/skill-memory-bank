@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [5.3.1] — 2026-07-15
+
+### Added — OpenSpec import adapter (`/mb openspec`)
+
+- **`scripts/mb-openspec.sh` + `scripts/mb-openspec.py`** — one-way import adapter: an OpenSpec
+  `changes/<id>/` (proposal + delta specs `ADDED/MODIFIED/REMOVED/RENAMED` + tasks) is parsed
+  directly (no `openspec` CLI dependency) and written as an MB spec triple under
+  `specs/<topic>/{requirements,design,tasks}.md`. The OpenSpec tree is read-only; every write is
+  asserted under `.memory-bank/` (topic path-traversal + symlink-escape guarded). Deterministic core.
+- **Drift-aware `list`/`status`/`sync`** — `import` records `openspec_source`/`openspec_hash`
+  frontmatter; `list [--all]` reports `imported`/`drifted`/`not-imported`, `status <topic>` one
+  topic, `sync [<topic>]` re-imports only on hash drift (a match is a pure no-op, no write).
+- **Re-import preserves work** — `REQ-NNN` reused by requirement name (not document position),
+  `/mb work` task check-state preserved by text, orphaned tasks appended to `backlog.md` (never
+  silently dropped), crash-consistent write order (orphans durable first, hash written last).
+- **Opt-in `--normalize`** — fills LLM text slots (prose-SHALL → EARS, missing scenario, `Covers`),
+  cached by source-requirement hash so an unchanged requirement never regenerates, fail-open (LLM
+  unavailable → deterministic fallback + warn). Omit for the byte-deterministic path (NFR-001).
+- Spec `.memory-bank/specs/openspec-adapter/` (20 REQs, 6 tasks); 81 pytest + 15 bats. Cleared a
+  4-round Codex GPT-5.5 review + Opus verification gate (all findings fixed, round-4 APPROVED).
+
 ### Added — Running list of agreements
 
 - **`scripts/mb-agree.sh`** — the single writer for the canonical registry of confirmed

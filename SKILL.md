@@ -9,7 +9,7 @@ Three-in-one skill for code agents:
 
 1. **Memory Bank** — long-term project memory through `.memory-bank/` (`STATUS`, `plan`, `checklist`, `RESEARCH`, `BACKLOG`, `progress`, `lessons`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
-3. **Dev toolkit** — 29 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/pipeline`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`.
+3. **Dev toolkit** — 30 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/pipeline`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
 
 > **Design contract.** Memory Bank rests on one inviolable promise — *agents remember* — and a stack of fully configurable, token-economical layers above it. Default behaviour never changes without explicit opt-in; user customisations survive upgrades; expensive paths are off by default. See [`references/design-principles.md`](references/design-principles.md) for the full contract.
 
@@ -196,6 +196,13 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-migrate-v2.sh` | One-shot v1 → v2 migrator for `.memory-bank/` |
 | `mb-migrate-structure.sh` | One-shot v3.0 → v3.1 structure migrator for `.memory-bank/` |
 | `mb-import.py` | Claude Code JSONL → Memory Bank bootstrap importer |
+| `mb-openspec.sh` | Thin dispatcher for the OpenSpec import adapter: `import\|list\|status\|sync` → `mb-openspec.py` |
+| `mb-openspec.py` | One-way OpenSpec `changes/<id>/` → MB spec triple `specs/<topic>/` import + drift-aware `list`/`status`/`sync` (opt-in `--normalize` LLM slot layer) |
+| `mb_openspec_model.py` | Dataclasses shared by the OpenSpec adapter's parser/converter |
+| `mb_openspec_parse.py` | Read-only OpenSpec change parser (`parse_change`, `compute_source_hash`) |
+| `mb_openspec_convert.py` | Deterministic OpenSpec → MB spec-triple converter (anchors, EARS classify, re-import anchor reuse) |
+| `mb_openspec_normalize.py` | Opt-in `--normalize` LLM slot layer + source-hash cache for the OpenSpec adapter (fail-open) |
+| `mb-agree.sh` | Single writer for the running list of agreements (`agreements.md`): `add\|defer\|reject\|question\|resolve\|list\|sync` + managed-block sync |
 | `mb-codegraph.py` | Code graph orchestrator. Extractors in `memory_bank_skill/`: `codegraph_python` (stdlib `ast`), `codegraph_treesitter` (multi-language, opt-in), `codegraph_analytics` (communities/cohesion/betweenness, optional networkx), `codegraph_cochange` (git co-change edges via opt-in `--cochange`) |
 | `mb-graph-query.py` | Query `codebase/graph.json`: `neighbors`, `impact`, `tests`, `explain`, `summary` with JSON/markdown output |
 | `mb_graph_query_core.py` | Core graph loading, matching and payload builders for `mb-graph-query.py` |
