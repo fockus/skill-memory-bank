@@ -277,73 +277,91 @@
       "summary": "Date: 2026-06-09 21:20 - Shipped 5-stage feature `mb-research-tooling-core` via `/mb work --auto`; every stage cleared mb-reviewer APPROVED + severity-gate PASS + plan-verifier PASS, plan-wide Gate MET.",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-06-28_1610_claude-code-statusline-integration-stdin-json-cont.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "- `statusLine` in `~/.claude/settings.json` runs a shell command whose **stdout** (one line) becomes the status bar text. - The command receives a JSON payload on **stdin** with transcript metadata: `input_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`, and `model_id`.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-06_1515_pipeline-model-tier-convention-opus-planjudge-sonn.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "Decision recorded in `.memory-bank/pipeline.yaml`: planning and final judging stages route to Opus; implementation stages route to Sonnet; code review routes to Codex GPT-5 (external cross-vendor check); all execution subagents (mb-backend/mb-developer/mb-frontend/etc.) always run on Sonnet regardless of stage, never Opus, for consistency and cost control. **Why:** keep expensive reasoning (architecture planning, go/no-go judgment) on the strongest model while high-volume implementation stays cheap and fast; an external reviewer model catches blind spots a same-vendor reviewer might share with the implementer.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-15_0551_disown-detached-codex-exec-fakes-completion.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "Launching `codex exec ... &` then `disown` makes the *launcher script* return immediately, which reads as \"task finished / empty output\" — but the actual `codex exec` process is still running detached in the background. **Why:** cost one teammate an unnecessary re-run/false alarm mid Stage-4 review before they diagnosed it and switched to a genuine blocking background call (`codex exec ... > file 2>&1` wrapped directly in `run_in_background`, no `disown`).",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-15_1218_code-graph-underuse-root-cause-agent-routing-fix.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "Research (rs-graph teammate) found `/mb work` implementer subagents never queried `scripts/mb-graph-query.py` (neighbors/impact/tests/explain/summary/status subcommands existed and worked) because nothing in their prompts routed structural questions to it — they defaulted to grep. Fix shipped same session: routing guidance added to `agents/mb-developer.md`, `agents/mb-tooling-core.md`, `commands/work.md`, backed by `tests/bats/test_agent_graph_routing.bats`.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-15_1218_copilot-cli-requires-quoted-argument-hint-yaml-val.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "PR #6 (accepted): Copilot CLI ≥1.0.65 fails to load skills whose command frontmatter has an unquoted `argument-hint:` value (e.g. `argument-hint: <topic>`) — YAML parses the angle brackets oddly and Copilot's loader chokes, silently dropping the skill. Fix: quote all `argument-hint` values in `commands/*.md` frontmatter (`argument-hint: \"<topic>\"`).",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-15_adapter-parity-host-api-research.md",
+      "type": "note",
+      "tags": [],
+      "importance": null,
+      "summary": "- Pi has **no native agent-registry/`--agent` dispatch flag** (`pi --help` v0.75.5 confirms). Reference mechanism (Pi's own `examples/extensions/subagent/index.ts`) is",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-15_session-memory-graph-hardening.md",
+      "type": "note",
+      "tags": [
+        "session-memory",
+        "code-graph",
+        "testing",
+        "governed-work"
+      ],
+      "importance": "medium",
+      "summary": "Plan `2026-07-15_feature_session-memory-graph-hardening` (9 stages) shipped via governed `/mb work` implement→verify (Sonnet implement · mb-test-runner independent",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-06-14T22:29:06Z",
+  "generated_at": "2026-07-15T12:24:38Z",
   "progress_chain": {
     "version": 1,
     "tail": [
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "7eb7d6a571300852d26458059a3958918b6ac8157d99e528803abd15e31640cc"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "753f9d0a83226364de39c6122f1295764029c6d4c46324f1545306306eb41937"
-      },
-      {
-        "heading": "## 2026-06-15 — handoff-v2 (Handoff 2.0) shipped end-to-end via the governed dual-review + judge machine",
-        "sha256": "3c67664400acbae5fd3e3c6ce1f4a680d89196fcd42ab2febf59f0099758b817"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "f22e8f6d77b569cc78b4f9b8567000c83c8306387c4f6b13d7433ae6cb995c19"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "2eb8e7b255b608dbe2eee2a42918f785f596e6ab90c6d8b19c49fa4ec2ba0c72"
-      },
-      {
-        "heading": "## 2026-06-15 — handoff-v2 closed: second-pass independent review caught what lead re-verification missed",
-        "sha256": "f9e0cd73a80669f7efa2e2c9b2c64bdcaa4adaf8a65a2026d2d3caf24b4fe5cc"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "ce4ce7178286f7f6ee359fa0909c6ced2e9a06558fae65d245e8f542c09695fc"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "e35c0f88756dd1ce920fbc775393a13b88abd31369a35b7cfca4b9b569eafb28"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "68d6926a39d21261f1cc93641b18d74290b46a26b67b210514bf9028bcb53ee6"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "a394990a25938fa4aaf2996807a290f0a94835020b0c9fcfa33a5876cd75c59b"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "9a32d40d54bb4e6668758c517eb472cfcb850121db897f191523776cdd47f66f"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "5ead7620d4bb541afdde42c9c973bde893c101cc086cb4250ed8ab70beae4a49"
-      },
-      {
-        "heading": "## 2026-06-15",
-        "sha256": "dbad2f6571e730fe71af3b8dffac33c778a0ccc901fa481dd9122daedc7187f3"
-      },
-      {
-        "heading": "## 2026-06-16",
-        "sha256": "46304235cdfeb300b6faa943eb3f61c3d5c31f7c59d7f75f5b1399631f692891"
-      },
-      {
-        "heading": "## 2026-06-16",
-        "sha256": "71ee7b4ebbb862c620f90e3079e29356fca78ed59ef65f4d1b6b6ee4d56a3426"
-      },
       {
         "heading": "## 2026-06-16",
         "sha256": "41a9f1d956107aea42ac51440667911306b0b3c3ecb716cf91f2d014266951fd"
@@ -363,8 +381,68 @@
       {
         "heading": "## 2026-06-16 (dynamic-flow Phase 1 — firewall closed; T5/T6/T7 governed)",
         "sha256": "6021e30b5d6ad42f03839bc3f38ef406b45354bbdc87f2c347b895686e831ab0"
+      },
+      {
+        "heading": "## 2026-06-22 (session-lifecycle завершён + release-prep doc-sync — v5.1.0 gate)",
+        "sha256": "48744cc7859789de018bb5e7f512a9e1458d3be4236e73826d947f714b7f4b9e"
+      },
+      {
+        "heading": "## 2026-06-25",
+        "sha256": "fbc72631ade0c3cdaf2f50a807002f25d94b03040854c8045a3e7e6157f6e997"
+      },
+      {
+        "heading": "## 2026-06-25",
+        "sha256": "e8cefef8d84cadf17a3da5d2c2f97229e0d744e2aae519fa7aabf03058b5fe46"
+      },
+      {
+        "heading": "## 2026-07-04",
+        "sha256": "16a5b767e9ca4bbbe95c40147ac4f4a1cc8f82afb100213289748f917cc6467c"
+      },
+      {
+        "heading": "## 2026-07-04",
+        "sha256": "b2396b8605a6f3d4560aaef2fcec484fcc5fc7480ce156df3e4e234d983e18a5"
+      },
+      {
+        "heading": "## 2026-06-29 — I-082 security-hardening Stages 2–4 complete",
+        "sha256": "37f294d0fb524a56dc44368daf5f8cec16abd7c46097e27273d8ef1c62c18e98"
+      },
+      {
+        "heading": "## 2026-06-30 — I-082 closed + I-083 Stages 1-2",
+        "sha256": "65aa0781b51f9b5f48617d0a1d6ccc650fc8f235ed7f9c9e25b4fe34f4f97b68"
+      },
+      {
+        "heading": "## 2026-06-30 — I-085 Stage 1 (range gap BLOCKER)",
+        "sha256": "9e0820988ac174dbff310ae97a4ccfec99d2b1d020a60f8593f9775092f04312"
+      },
+      {
+        "heading": "## 2026-06-30 — I-083 Stage 3 + I-085 Stage 2",
+        "sha256": "ac6a28dacf7929448abf879ffec77389f87e15c7d8951092fcd45c9d6b03aabc"
+      },
+      {
+        "heading": "## 2026-06-30 — I-085 Stage 3 (wrapper frontmatter)",
+        "sha256": "a3047bae5b94627a9bf2a29af884852af44c6deb66ce41df9e71b18006f187cb"
+      },
+      {
+        "heading": "## 2026-06-30 — I-085 Stages 4-5",
+        "sha256": "8d5444e17391181c9ce038248a2fb2d50293860cf67d4a99b405777de9b10b68"
+      },
+      {
+        "heading": "## 2026-07-01 00:06 — I-085 Stage 6 (fanout stderr + work-resolve bank-relative)",
+        "sha256": "49cf7d54614d7e3f6d1a9bb456cd4839789825567b4619afa2d0ef5b4a0f6cbd"
+      },
+      {
+        "heading": "## 2026-07-01 13:55 — Verify close I-083/I-085; I-086 Stage 1",
+        "sha256": "0b16793546f72c6eb06ae9cde65ccc9750cc0a618fe9c06417925ff871d47bc5"
+      },
+      {
+        "heading": "## 2026-07-01 17:56 — I-086 Stage 2 (runtime dup-key loader + pipeline judge fix)",
+        "sha256": "00e95e5d0f3e3d96840d02472e6f5873c8742c0bfac4dcf1d187e8359e2d740d"
+      },
+      {
+        "heading": "## 2026-07-15 — openspec-adapter T4/T5/T6 DONE (spec fully implemented except deferred router entry)",
+        "sha256": "067039df3525aee1918a658bf2816535d8247f3f36eb52c1223498b5d62455cb"
       }
     ],
-    "last_synced_at": "2026-06-15T23:35:34Z"
+    "last_synced_at": "2026-07-15T12:24:39Z"
   }
 }

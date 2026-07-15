@@ -50,6 +50,10 @@ _None._
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
 
+## ✅ Priority insert (2026-07-15, AGR-016): `openspec-adapter` — T1–T6 ЗАВЕРШЕНЫ (1 пункт отложен)
+
+Спека `specs/openspec-adapter` (one-way import-адаптер OpenSpec change → spec-триплет, AGR-016) реализована целиком: T1–T3 core (`a2e9252`/`66cd650`), T4 CLI-диспетчер `mb-openspec.sh` (`4bebbbc`), T5 re-import/anchor_map (`0f39618`), T6 `--normalize` opt-in LLM-слой (`226e65f`). Укороченный несохранённый пайплайн (Sonnet implement → Opus verify) по запросу пользователя для T4–T6. Отложен один пункт T4: `/mb openspec` router-строка в `commands/mb.md` — держится за adapter-parity FREEZE, не пересекается по остальным файлам. Детали — `status.md`, `progress.md` 2026-07-15.
+
 ## ✅ Priority insert (2026-07-15, AGR-006): `update-notify` — ЗАВЕРШЁН
 
 План [2026-07-13_feature_update-notify](plans/done/2026-07-13_feature_update-notify.md) закрыт 2026-07-15. Stage 1 (flavor+Homebrew) `fef41f8` · Stage 2 (mb-version-check.sh) `0d9a57a` · Stage 3 (SessionStart notice) `2a55f87` · Stage 4 (opt-in auto-update) `1607842` · Stage 5 (docs) `4369e9e` · закрытие `1be8c78`. Блокер donor v5.4.0 снят.

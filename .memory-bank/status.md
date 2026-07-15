@@ -1,6 +1,18 @@
 
 # claude-skill-memory-bank: Статус проекта
 
+## ✅ 2026-07-15 — `openspec-adapter` спека реализована (T1–T6), один пункт отложен
+
+One-way import-адаптер `OpenSpec change → наш spec-триплет` (AGR-016) — **T1–T6 done**. T1–T3 core (парсинг+конвертация+запись, `a2e9252`/`66cd650`, judge GO_WITH_BACKLOG I-120) закрыт ранее; в этой сессии добрали **T4 CLI-диспетчер** (`scripts/mb-openspec.sh` import/list/status/sync, `4bebbbc`), **T5 re-import** (anchor_map + merge_task_state + RENAMED re-anchor + orphan→backlog, `0f39618`), **T6 --normalize** (опц. LLM slot-layer + source-hash кэш, fail-open, `226e65f`). Пайплайн этой сессии — **укороченный, по явному запросу пользователя, не сохранён в pipeline.yaml**: Sonnet implement → Opus independent verify, без review/judge; все три задачи прошли независимую верификацию Opus. 45+15+52 pytest/bats green по задачам.
+
+**Единственный отложенный пункт:** T4 DoD-строка «завести `/mb openspec` в `commands/mb.md`» — файл под активным adapter-parity FREEZE (`COORDINATION.md`), не трогаем. Диспетчер `mb-openspec.sh` работает автономно; роутер-строка встанет сразу после снятия заморозки. Спека фактически завершена (T1–T6) за вычетом этой одной строки.
+
+## ✅ 2026-07-15 — donor-программа специфицирована (Track 2)
+
+Donor-план (`memory-bank-donor-evolution-plan.md`, 4246 строк) превращён в валидную umbrella-спеку **`specs/mb-donor-evolution/`**: requirements.md (108 REQ, EARS, 52 GWT-сценария), design.md (471 строка: инварианты, контракты §7, capability matrix, ADR), tasks.md (**132 исполняемых mb-task блока**), source-plan.md (read-only источник). `mb-spec-validate.sh --require-scenarios` — **0 нарушений**; traceability: 334/337 покрыто (3 сироты — старая parallel-team-execution).
+
+Discovery — гриллинг-интервью (= discuss-фаза, AGR-005): решения в `context/mb-donor-evolution.md` и AGR-001…005. Ключевое: нумерация +1 минор (Baseline→**v5.4.0**, …, Plan IR→5.7.0; 6.x без сдвига); roadmap — две дорожки, donor побеждает при пересечении; `parallel-pipeline` → **superseded**; ICE: v6.5/v6.6 (GSD/OpenSpec engines) → **icebox**. ICE-таблица и порядок — `roadmap.md` § Track 2. Первый релиз — wrapper `plans/2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md` (queued, tasks 1–6). Попутно `/mb discuss` усилен grilling-правилами 6–8 (one-question-per-turn, relentless-until-shared-understanding, final confirmation gate).
+
 ## ✅ 2026-07-13 — main stabilized + **5.3.0 released** (issue #2 closed)
 
 **`main` was red for over a week and a broken wheel was on PyPI.** Both are fixed.
