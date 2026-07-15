@@ -1,7 +1,7 @@
 ---
 title: "Update notification + cross-install upgrade"
 type: feature
-status: active
+status: done
 created: 2026-07-13
 owner: main-agent (Opus) — plan; /mb work — execution
 roles: "implement=sonnet · review=codex gpt-5.5 · judge=opus"
@@ -142,19 +142,19 @@ seam, same pattern `mb-drive.sh` uses for its five sub-scripts) —
 **Role:** analyst
 
 **DoD:**
-- [ ] `commands/mb.md` `upgrade` section documents the check, the notice, and the three env vars.
-- [ ] `SKILL.md` Tools table gains `mb-version-check.sh` (`test_doc_counts` enforces this).
-- [ ] `README.md` — a short "staying up to date" section.
-- [ ] `CHANGELOG.md` under `[Unreleased]` (in-flight wording — the guard rejects release-claim language).
-- [ ] Config reference: `MB_UPDATE_CHECK`, `MB_UPDATE_CHECK_TTL`, `MB_AUTO_UPDATE` with defaults.
+- [x] `commands/mb.md` `upgrade` section documents the check, the notice, and the three env vars.
+- [x] `SKILL.md` Tools table gains `mb-version-check.sh` (`test_doc_counts` enforces this).
+- [x] `README.md` — a short "staying up to date" section.
+- [x] `CHANGELOG.md` under `[Unreleased]` (in-flight wording — the guard rejects release-claim language).
+- [x] Config reference: `MB_UPDATE_CHECK`, `MB_UPDATE_CHECK_TTL`, `MB_AUTO_UPDATE` with defaults.
 
 ---
 
 ## Verification (whole plan)
 
-- [ ] Full bats + pytest green; shellcheck + ruff clean.
-- [ ] **Offline run**: with the network unavailable, session start is silent and adds no
+- [x] Full bats + pytest green; shellcheck + ruff clean.
+- [x] **Offline run**: with the network unavailable, session start is silent and adds no
       measurable delay (the invariant that matters most — a broken check must never be worse
       than no check).
-- [ ] A pipx install is told `pipx upgrade`, a git install is told/does `git pull` — verified
+- [x] A pipx install is told `pipx upgrade`, a git install is told/does `git pull` — verified
       end-to-end against a real pipx install, not just a stub.
