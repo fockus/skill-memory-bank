@@ -273,6 +273,17 @@ Canonical machine format is **JSON**. YAML examples appear in documentation only
 
 **Just describe the intent in a prompt** and the agent picks the flags for you — e.g. *"execute the billing spec with review and an independent judge"* runs `/mb work billing --review --judge`; *"just implement and verify, no review"* runs the default. To make a choice permanent for the project, set it in `pipeline.yaml` (`review.enabled: true`, `workflow.default: governed-execution`) or keep several presets side by side with **named pipelines** (`/mb pipeline new codex --agent claude-code`, `/mb pipeline use codex`). Full schema and every knob: [docs/pipeline-yaml.md](docs/pipeline-yaml.md).
 
+### Notes, reports, backlog & roadmap
+
+Beyond `status.md`/`checklist.md`, the bank has four surfaces you accumulate knowledge in — and you reference all of them in plain prompts (*"check the notes before you start"*, *"add that to the backlog"*, *"what's next on the roadmap?"*). The agent reads and writes them directly.
+
+- **`notes/`** — short, reusable **patterns and lessons** (5–15 lines each, not a chronological log). Write one with `/mb note <topic>`; `/mb done` also drops a note when a session learned something worth keeping, and `/mb consolidate` distils recurring facts from old sessions into notes automatically.
+- **Research reports** — `/mb research <query>` dispatches the `mb-research` agent (graph → semantic → web) and returns `file:line`-grounded findings; larger investigations and audits land as dated files under `reports/`, which you can point later prompts at (*"follow the plan from the competitive-landscape report"*).
+- **`backlog.md`** — the running list of **ideas and ADRs** with monotonic IDs (`I-NNN`, `ADR-NNN` via `/mb adr <title>`). Governed reviews feed it on their own: a `GO_WITH_BACKLOG` judge verdict registers every non-blocking finding here before the work is marked done — so nothing is lost, and nothing blocks a clean stage.
+- **`roadmap.md`** — the prioritized plan queue. Its autosync block is regenerated from `plans/*.md` frontmatter by `/mb roadmap-sync`, so the roadmap always reflects the real plans instead of drifting.
+
+The through-line: **researchers, reviewers, and the judge maintain these files as a side effect of running** — you don't hand-curate them, and any later prompt (or teammate's agent) can build on what they wrote.
+
 ---
 
 ## What you get

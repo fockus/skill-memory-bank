@@ -164,6 +164,35 @@ Supported presets — role: `backend`, `frontend`, `mobile`; stack: `go`, `pytho
 `modular-monolith`, `microservices`, `ddd`, `fsd`, `mobile-udf`, `event-driven`;
 delivery: `tdd`, `contract-first`, `api-first`, `sdd`, `legacy-safe`, `exploratory`.
 
+## Notes, reports, backlog & roadmap
+
+Beyond `status.md`/`checklist.md`, the bank has four surfaces you accumulate
+knowledge in — and you reference all of them in plain prompts (*"check the notes
+before you start"*, *"add that to the backlog"*, *"what's next on the roadmap?"*).
+The agent reads and writes them directly.
+
+- **`notes/`** — short, reusable **patterns and lessons** (5–15 lines each, not a
+  chronological log). Write one with `/mb note <topic>`; `/mb done` also drops a
+  note when a session learned something worth keeping, and `/mb consolidate`
+  distils recurring facts from old sessions into notes automatically.
+- **Research reports** — `/mb research <query>` dispatches the `mb-research` agent
+  (graph → semantic → web) and returns `file:line`-grounded findings; larger
+  investigations and audits land as dated files under `reports/`, which you can
+  point later prompts at.
+- **`backlog.md`** — the running list of **ideas and ADRs** with monotonic IDs
+  (`I-NNN`, `ADR-NNN` via `/mb adr <title>`). Governed reviews feed it on their
+  own: a `GO_WITH_BACKLOG` judge verdict registers every non-blocking finding
+  here before the work is marked done — nothing is lost, nothing blocks a clean
+  stage.
+- **`roadmap.md`** — the prioritized plan queue. Its autosync block is regenerated
+  from `plans/*.md` frontmatter by `/mb roadmap-sync`, so the roadmap always
+  reflects the real plans instead of drifting.
+
+The through-line: **researchers, reviewers, and the judge maintain these files as
+a side effect of running** — you don't hand-curate them, and any later prompt (or
+teammate's agent) can build on what they wrote. For the invariants behind each
+file, see [Memory Bank Layout](concepts/memory-bank-layout.md).
+
 ## Where to go next
 
 - [Your First Feature](first-feature.md) — a full plan → work → verify → done loop
