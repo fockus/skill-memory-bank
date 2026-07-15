@@ -91,23 +91,155 @@ run_adapter() {
   jq -e '.hooks.beforeShellExecution' "$hjson" >/dev/null
 }
 
-@test "cursor: install references all eleven hook scripts in hooks.json" {
+@test "cursor: install references all twelve hook scripts in hooks.json" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local hjson="$PROJECT/.cursor/hooks.json"
-  local hooks=(mb-session-end.sh mb-pre-compact.sh block-dangerous.sh mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh mb-session-start-context.sh mb-update-notify.sh)
+  local hooks=(mb-session-end.sh mb-session-turn.sh mb-pre-compact.sh block-dangerous.sh mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh mb-session-start-context.sh mb-update-notify.sh)
   local h
   for h in "${hooks[@]}"; do
     grep -q "memory-bank/hooks/$h" "$hjson"
   done
 }
 
-@test "cursor: install has exactly eleven _mb_owned entries" {
+@test "cursor: install has exactly twelve _mb_owned entries" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local count
   count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$PROJECT/.cursor/hooks.json")
-  [ "$count" -eq 11 ]
+  [ "$count" -eq 12 ]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# adapter-parity T7 (REQ-021): Cursor claims Claude-Code-tier session-memory
+# and update-notify parity — these tests PROVE it via Cursor's own wired
+# hooks.json commands (not the generic shared-script simulation elsewhere),
+# closing a genuine gap found during T7 investigation: before this task,
+# Cursor wired sessionEnd (mb-session-end.sh, summarize-only) but nothing to
+# CC's Stop event (mb-session-turn.sh, the script that actually CREATES the
+# session/*.md entry) — session/*.md was never populated end-to-end.
+# ═══════════════════════════════════════════════════════════════
+
+@test "cursor: stop event is wired to mb-session-turn.sh (REQ-021 — the script that creates session/*.md)" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hjson="$PROJECT/.cursor/hooks.json"
+  local cmd
+  cmd=$(jq -r '.hooks.stop[0].command' "$hjson")
+  [[ "$cmd" == *"mb-session-turn.sh"* ]]
+}
+
+@test "cursor: invoking the wired stop+sessionEnd commands end-to-end creates a real CC v2-schema session/*.md (REQ-021)" {
+  # Hermetic HOME: cursor_resolve_skill_hooks_dir prefers
+  # $HOME/.cursor/skills/memory-bank/hooks when present (a real global
+  # install) and only falls back to this worktree's bundle otherwise — a
+  # fresh sandboxed HOME guarantees we exercise THIS worktree's hooks, not
+  # whatever happens to be globally installed on the machine running the test.
+  local sandbox_home
+  sandbox_home="$(mktemp -d)"
+  run env HOME="$sandbox_home" bash "$ADAPTER" install "$PROJECT"
+  [ "$status" -eq 0 ]
+  mkdir -p "$PROJECT/.memory-bank"
+
+  local sid="11111111-2222-3333-4444-555555555555"
+  local transcript="$PROJECT/transcript.jsonl"
+  cat > "$transcript" <<EOF
+{"type":"user","uuid":"u-1","message":{"content":"fix the flaky upload test"}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"src/upload.py"}}]}}
+EOF
+  local payload
+  payload="$(jq -n --arg cwd "$PROJECT" --arg sid "$sid" --arg tp "$transcript" \
+    '{cwd: $cwd, session_id: $sid, transcript_path: $tp, stop_hook_active: false}')"
+
+  local hjson="$PROJECT/.cursor/hooks.json"
+  local stop_cmd end_cmd
+  stop_cmd=$(jq -r '.hooks.stop[0].command' "$hjson")
+  end_cmd=$(jq -r '.hooks.sessionEnd[0].command' "$hjson")
+  [[ "$stop_cmd" == *"$REPO_ROOT/hooks/mb-session-turn.sh"* ]]
+
+  run env HOME="$sandbox_home" MB_SESSION_CAPTURE=auto bash -c "printf '%s' \"\$1\" | $stop_cmd" _ "$payload"
+  [ "$status" -eq 0 ]
+
+  local found=0
+  for f in "$PROJECT/.memory-bank/session"/*"${sid:0:8}"*.md; do
+    [ -f "$f" ] && found=1
+  done
+  [ "$found" -eq 1 ]
+  grep -rq "fix the flaky upload test" "$PROJECT/.memory-bank/session/"
+
+  # sessionEnd (summarize step) must find the file the stop step created —
+  # proves the two events genuinely compose into the CC lifecycle, not just
+  # each independently no-op. adapter-parity T7 Codex-review fix (MAJOR):
+  # `claude` is unavailable in a bare test environment, so mb-session-end.sh
+  # fail-opens to exit 0 WITHOUT summarizing (see its own
+  # `command -v "$CLAUDE" >/dev/null 2>&1 || exit 0` guard) — asserting only
+  # `[ "$status" -eq 0 ]` therefore passes even as a pure no-op and proves
+  # nothing about REQ-021's claimed sessionEnd summarization. Stub CLAUDE
+  # (the same seam mb-session-end.sh/mb-session-summarize.sh already read —
+  # see tests/bats/test_session_end_empty_guard.bats) so the summarizer
+  # deterministically runs, then assert the wired sessionEnd command
+  # genuinely writes the v2 summary fields, not just exit 0.
+  local claude_stub="$PROJECT/fake-claude-summarizer.sh"
+  cat > "$claude_stub" <<'EOF'
+#!/usr/bin/env bash
+cat >/dev/null 2>&1 || true
+printf '%s\n' \
+'### What changed
+- Fixed the flaky upload test in src/upload.py
+
+### Decisions
+- (none)
+
+### Open questions
+- (none)
+
+### Files
+- src/upload.py'
+EOF
+  chmod +x "$claude_stub"
+
+  run env HOME="$sandbox_home" MB_SESSION_CAPTURE=auto CLAUDE="$claude_stub" MB_SESSION_JUDGE=off \
+    bash -c "printf '%s' \"\$1\" | $end_cmd" _ "$payload"
+  [ "$status" -eq 0 ]
+
+  local sfile2=""
+  for f in "$PROJECT/.memory-bank/session"/*"${sid:0:8}"*.md; do
+    [ -f "$f" ] && sfile2="$f"
+  done
+  [ -n "$sfile2" ]
+  grep -q "^summarized: true$" "$sfile2"
+  grep -q "^summary_schema: v2$" "$sfile2"
+  grep -q "^## Summary$" "$sfile2"
+  grep -q "Fixed the flaky upload test" "$sfile2"
+
+  rm -rf "$sandbox_home"
+}
+
+@test "cursor: invoking the wired sessionStart update-notify command emits a real notice (REQ-021)" {
+  local sandbox_home
+  sandbox_home="$(mktemp -d)"
+  run env HOME="$sandbox_home" bash "$ADAPTER" install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local hjson="$PROJECT/.cursor/hooks.json"
+  local cmd
+  cmd=$(jq -r '.hooks.sessionStart[] | select(.command | test("mb-update-notify.sh")) | .command' "$hjson")
+  [[ "$cmd" == *"mb-update-notify.sh"* ]]
+
+  local checker="$PROJECT/fake-checker.sh"
+  cat > "$checker" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "github"}'
+exit 0
+EOF
+  chmod +x "$checker"
+
+  run env HOME="$sandbox_home" MB_VERSION_CHECK_BIN="$checker" bash -c "$cmd"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" == *"5.4.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+
+  rm -rf "$sandbox_home"
 }
 
 @test "cursor: uninstall removes all our files" {

@@ -207,12 +207,29 @@ install_windsurf() {
   files_json=$(printf '%s\n' "$RULES_FILE" "$HOOKS_DIR"/*.sh | adapter_json_array_from_lines)
   events_json=$(printf '%s\n' "${EVENT_BINDINGS[@]}" | awk -F: '{print $1}' | adapter_json_array_from_lines)
 
+  # adapter-parity T7 (REQ-015/017): honest platform_limited for Windsurf,
+  # verified by direct inspection — EVENT_BINDINGS above wires only
+  # user-prompt-submit (dangerous-command block) and model-response (a
+  # one-line auto-capture stub note into progress.md); no session-start-class
+  # hook, no CC v2-schema session/*.md capture, no update-notify anywhere in
+  # this file (grep -c mb-update-notify.sh == 0), no agent-dispatch
+  # mechanism, no statusline equivalent.
+  local platform_limited_json='["statusline","subagents","lifecycle-hooks","session-memory","update-notify"]'
+  local platform_limited_notes_json
+  platform_limited_notes_json=$(jq -n \
+    --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in Windsurf." \
+    --arg subagents "No agent files are installed and no dispatch mechanism exists for Windsurf." \
+    --arg lifecycle_hooks "Only user-prompt-submit and model-response are wired — no session-start-class hook (CC's SessionStart/PreCompact/Stop set has no equivalent)." \
+    --arg session_memory "model-response appends a one-line stub note to progress.md, not the CC v2-schema session/*.md capture." \
+    --arg update_notify "No session-start-capable transport exists on Windsurf to render the notice." \
+    '{"statusline": $statusline, "subagents": $subagents, "lifecycle-hooks": $lifecycle_hooks, "session-memory": $session_memory, "update-notify": $update_notify}')
+
   adapter_write_manifest \
     "$MANIFEST" \
     "windsurf" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
-    "{\"hooks_events\": $events_json}"
+    "{\"hooks_events\": $events_json, \"platform_limited\": $platform_limited_json, \"platform_limited_notes\": $platform_limited_notes_json}"
 
   echo "[windsurf-adapter] installed to $PROJECT_ROOT"
 }

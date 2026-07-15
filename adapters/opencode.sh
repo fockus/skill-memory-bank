@@ -611,12 +611,36 @@ install_opencode() {
     } | adapter_json_array_from_lines
   )
 
+  # adapter-parity T7 (REQ-015/017): honest platform_limited for OpenCode,
+  # verified by direct inspection. The base plugin variant (written
+  # regardless of extension accept) unconditionally wires the full
+  # CC-shaped lifecycle event set (session.created/idle/deleted,
+  # tool.execute.*, experimental.session.compacting) AND renders
+  # update-notify (REQ-013, via mb-version-check.sh --cache-only — see
+  # opencode.sh:159/236) — neither is limited. `.opencode/agent/*.md` is
+  # OpenCode's own native subagent-discovery contract (opencode.sh:460),
+  # genuinely dispatchable from OpenCode's own agent loop — "subagents" is
+  # NOT limited either. Two genuine ceilings remain:
+  #   - statusline: no equivalent to Claude Code's stdin-JSON statusLine
+  #     render surface exists in OpenCode.
+  #   - role-routing: same closed-vocabulary term as Pi's (adapter-parity
+  #     T4/backlog I-121) — OpenCode has its own genuine subagent-dispatch
+  #     primitive, but `/mb work`'s per-role automated dispatch
+  #     (commands/work.md step 5a) only ever calls the Claude Code Task
+  #     tool; no cross-host routing wiring exists for ANY non-CC host yet.
+  local platform_limited_json='["statusline","role-routing"]'
+  local platform_limited_notes_json
+  platform_limited_notes_json=$(jq -n \
+    --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in OpenCode." \
+    --arg role_routing "OpenCode's own .opencode/agent/*.md discovery is a genuine, working native subagent-dispatch primitive; /mb work's per-role automated dispatch (commands/work.md 5a) only calls the Claude Code Task tool — no cross-host routing harness exists yet (backlog I-121/I-122)." \
+    '{"statusline": $statusline, "role-routing": $role_routing}')
+
   adapter_write_manifest \
     "$MANIFEST" \
     "opencode" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
-    "{\"plugin_ref\": $(jq -Rn --arg ref "$PLUGIN_REF" '$ref'), \"agents_md_owned\": $owned}"
+    "{\"plugin_ref\": $(jq -Rn --arg ref "$PLUGIN_REF" '$ref'), \"agents_md_owned\": $owned, \"platform_limited\": $platform_limited_json, \"platform_limited_notes\": $platform_limited_notes_json}"
 
   echo "[opencode-adapter] installed to $PROJECT_ROOT"
 }
@@ -650,12 +674,25 @@ install_global_extensions() {
   local files_json
   files_json=$(printf '%s' "$agent_files" | adapter_json_array_from_lines)
 
+  # adapter-parity T7 (REQ-015/017) fix (Codex review): every adapter
+  # manifest must declare its limits — this global-scope manifest used to
+  # omit platform_limited entirely. Same closed-vocab values + reasons as
+  # the project-scope manifest above (install_opencode()) — same adapter
+  # source file, same two genuine ceilings (no statusLine-equivalent render
+  # surface; /mb work's per-role dispatch never routes to any non-CC host).
+  local platform_limited_json='["statusline","role-routing"]'
+  local platform_limited_notes_json
+  platform_limited_notes_json=$(jq -n \
+    --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in OpenCode." \
+    --arg role_routing "OpenCode's own .opencode/agent/*.md discovery (project AND global scope) is a genuine, working native subagent-dispatch primitive; /mb work's per-role automated dispatch (commands/work.md 5a) only calls the Claude Code Task tool — no cross-host routing harness exists yet (backlog I-121/I-122)." \
+    '{"statusline": $statusline, "role-routing": $role_routing}')
+
   adapter_write_manifest \
     "$OC_GLOBAL_MANIFEST" \
     "opencode" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
-    "{\"agents_installed\": $agent_count}"
+    "{\"agents_installed\": $agent_count, \"platform_limited\": $platform_limited_json, \"platform_limited_notes\": $platform_limited_notes_json}"
 
   echo "[opencode-adapter] global agents: $agent_count installed -> $OC_GLOBAL_AGENT_DIR"
   [ "$agent_count" -gt 0 ]

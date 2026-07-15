@@ -55,6 +55,7 @@ CURSOR_END_MARKER="<!-- memory-bank-cursor:end -->"
 # Hook scripts registered from the skill bundle (not copied into .cursor/hooks/)
 MB_HOOKS=(
   "mb-session-end.sh"
+  "mb-session-turn.sh"
   "mb-pre-compact.sh"
   "block-dangerous.sh"
   "mb-protected-paths-guard.sh"
@@ -77,6 +78,17 @@ EVENT_BINDINGS=(
   # hookSpecificOutput JSON contract), which Cursor's CC-compatible hooks
   # runtime still surfaces as additional context when non-empty.
   "sessionStart:mb-update-notify.sh"
+  # adapter-parity T7 (REQ-021): the CC-tier claim requires mb-session-turn.sh
+  # (CC's real Stop hook — see its own header comment) to actually CREATE/
+  # append the per-turn session/*.md entry; mb-session-end.sh below only
+  # SUMMARIZES an existing file (`sc_find_session_file` no-ops silently when
+  # none exists). Before this binding, Cursor wired sessionEnd alone, so no
+  # session file was ever created — verified empirically (T7 investigation):
+  # installing the adapter and invoking the wired sessionEnd command against
+  # an empty bank left `.memory-bank/session/` absent. "stop" follows the
+  # same camelCase-of-CC-PascalCase convention already used for every other
+  # binding here (sessionStart/sessionEnd/preCompact/preToolUse/postToolUse).
+  "stop:mb-session-turn.sh"
   # B4 (F-4): mb-session-end.sh is the CC-compatible rich capture (Haiku summary +
   # gated Sonnet judge notes), not just the basic placeholder-only
   # session-end-autosave.sh — Cursor now gets the same capture Claude Code does.
@@ -136,6 +148,30 @@ localize_file_with_language() {
 
 cursor_binding_events_json() {
   printf '%s\n' "${EVENT_BINDINGS[@]}" | awk -F: '{print $1}' | sort -u | adapter_json_array_from_lines
+}
+
+# adapter-parity T7 (REQ-015/017): honest platform_limited for Cursor.
+# Cursor gets the full CC-compatible lifecycle hook set (sessionStart/stop/
+# sessionEnd/preCompact/tool guards, twelve `_mb_owned` entries) and genuine
+# update-notify + session/*.md v2-schema capture (see the REQ-021 tests in
+# tests/bats/test_cursor_adapter.bats) — those are NOT limited. Two genuine
+# ceilings remain, verified by direct inspection of this adapter:
+#   - statusline: no equivalent to Claude Code's stdin-JSON statusLine render
+#     surface (scripts/mb-statusline.py) exists in Cursor's hooks API.
+#   - subagents: `agents/*.md` are copied to
+#     ~/.cursor/skills/memory-bank/agents/ as a reference-only prompt
+#     library (docs/cursor-extension.md) — no invocation/dispatch mechanism
+#     wires them into Cursor's own agent loop, unlike OpenCode's native
+#     `.opencode/agent/*.md` discovery or Pi's opt-in dispatch tool.
+cursor_platform_limited_json() {
+  jq -n '["statusline","subagents"]'
+}
+
+cursor_platform_limited_notes_json() {
+  jq -n \
+    --arg statusline "Claude Code's stdin-JSON statusLine render surface (scripts/mb-statusline.py) has no equivalent in Cursor's hooks API." \
+    --arg subagents "Bundled agent .md files under ~/.cursor/skills/memory-bank/agents/ are a reference-only prompt library — no dispatch mechanism invokes them from Cursor's own agent loop." \
+    '{"statusline": $statusline, "subagents": $subagents}'
 }
 
 cursor_resolve_skill_hooks_dir() {
@@ -456,7 +492,9 @@ install_cursor() {
     --argjson events "$events_json" \
     --arg bundle "$skill_hooks_dir" \
     --argjson backups "$backups_json" \
-    '{hooks_events: $events, hooks_bundle: $bundle, backups: $backups}')
+    --argjson platform_limited "$(cursor_platform_limited_json)" \
+    --argjson platform_limited_notes "$(cursor_platform_limited_notes_json)" \
+    '{hooks_events: $events, hooks_bundle: $bundle, backups: $backups, platform_limited: $platform_limited, platform_limited_notes: $platform_limited_notes}')
 
   adapter_write_manifest \
     "$MANIFEST" \
@@ -599,7 +637,9 @@ EOF
     --argjson events "$events_json" \
     --argjson backups "$backups_json" \
     --arg bundle "$skill_hooks_dir" \
-    '{scope: $scope, lang: $lang, hooks_events: $events, backups: $backups, hooks_bundle: $bundle}')
+    --argjson platform_limited "$(cursor_platform_limited_json)" \
+    --argjson platform_limited_notes "$(cursor_platform_limited_notes_json)" \
+    '{scope: $scope, lang: $lang, hooks_events: $events, backups: $backups, hooks_bundle: $bundle, platform_limited: $platform_limited, platform_limited_notes: $platform_limited_notes}')
 
   adapter_write_manifest \
     "$GLOBAL_MANIFEST" \

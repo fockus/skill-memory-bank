@@ -39,6 +39,26 @@ CLINE_END_MARKER="<!-- memory-bank-cline:end -->"
 # shellcheck disable=SC1091
 . "$(dirname "$0")/_contract.sh"
 
+# adapter-parity T7 (REQ-015/017): honest platform_limited for Cline,
+# verified by direct inspection — the hook bodies below wire only
+# beforeToolExecution (dangerous-command block), afterToolExecution (a
+# one-line auto-capture stub note into progress.md) and onNotification
+# (weekly reminder); no session-start-class hook, no CC v2-schema
+# session/*.md capture, no update-notify anywhere in this file (grep -c
+# mb-update-notify.sh == 0), no agent-dispatch mechanism, no statusline
+# equivalent. File-form installs (.clinerules as a plain file) have even
+# less (no hooks at all — the same declared ceiling still applies).
+CLINE_PLATFORM_LIMITED_JSON='["statusline","subagents","lifecycle-hooks","session-memory","update-notify"]'
+cline_platform_limited_notes_json() {
+  jq -n \
+    --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in Cline." \
+    --arg subagents "No agent files are installed and no dispatch mechanism exists for Cline." \
+    --arg lifecycle_hooks "Only beforeToolExecution/afterToolExecution/onNotification are wired — no session-start-class hook (CC's SessionStart/PreCompact/Stop set has no equivalent)." \
+    --arg session_memory "afterToolExecution appends a one-line stub note to progress.md, not the CC v2-schema session/*.md capture." \
+    --arg update_notify "No session-start-capable transport exists on Cline to render the notice." \
+    '{"statusline": $statusline, "subagents": $subagents, "lifecycle-hooks": $lifecycle_hooks, "session-memory": $session_memory, "update-notify": $update_notify}'
+}
+
 # ═══ Hook bodies ═══
 before_tool_body() {
   cat <<'HOOK_EOF'
@@ -234,7 +254,8 @@ install_cline_file_form() {
     "cline" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "[]" \
-    '{"mode": "file"}'
+    "$(jq -n --argjson pl "$CLINE_PLATFORM_LIMITED_JSON" --argjson notes "$(cline_platform_limited_notes_json)" \
+      '{mode: "file", platform_limited: $pl, platform_limited_notes: $notes}')"
 
   echo "[cline-adapter] installed to $PROJECT_ROOT (mode: file .clinerules)"
 }
@@ -310,7 +331,8 @@ install_cline() {
     "cline" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
-    "{\"hooks_events\": $events_json}"
+    "$(jq -n --argjson events "$events_json" --argjson pl "$CLINE_PLATFORM_LIMITED_JSON" --argjson notes "$(cline_platform_limited_notes_json)" \
+      '{hooks_events: $events, platform_limited: $pl, platform_limited_notes: $notes}')"
 
   echo "[cline-adapter] installed to $PROJECT_ROOT"
 }

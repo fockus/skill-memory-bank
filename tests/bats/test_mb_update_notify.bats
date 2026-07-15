@@ -1155,12 +1155,13 @@ PY
   done
 }
 
-@test "update-notify: Windsurf/Cline/Kilo/OpenCode/Codex have no INSTALLED SessionStart transport for this notice — documented gap, not silent" {
+@test "update-notify: Windsurf/Cline/Kilo have no INSTALLED SessionStart transport for this notice — documented gap, not silent" {
   # Same platform-limit contract as test_cross_agent_runtime_parity.bats: a
   # host with no equivalent lifecycle event is explicitly SKIPPED with its
   # reason, never silently asserted as if it worked. The gap is already
   # recorded in docs/cross-agent-setup.md's hook matrix ("SessionStart
-  # context injection" row reads "—" for every column but Cursor/Pi).
+  # context injection" row reads "—" for every column but Cursor/Pi) and in
+  # each client's `platform_limited` manifest array (adapter-parity T7).
   #
   # Pi is EXCLUDED from this skip as of adapter-parity T3: its session_start
   # extension now calls hooks/mb-update-notify.sh itself and install.sh's
@@ -1168,5 +1169,16 @@ PY
   # it to ~/.pi/agent/extensions/ — see
   # test_cross_agent_runtime_parity.bats's Pi update-notify wiring test for
   # the real (non-skipped) assertion.
-  skip "Windsurf/Cline/Kilo/OpenCode/Codex have no CC-compatible SessionStart transport to register this notice on"
+  #
+  # OpenCode is EXCLUDED from this skip as of adapter-parity T5: the base
+  # (unconditional, no-accept-required) plugin variant renders the notice via
+  # its own session-start-equivalent hook (mb-version-check.sh --cache-only,
+  # NOT a literal call to hooks/mb-update-notify.sh — see
+  # test_opencode_adapter.bats's "base plugin's session-start hook renders
+  # update-notify" tests for the real, non-skipped assertions).
+  #
+  # Codex is EXCLUDED from this skip as of adapter-parity T6: its
+  # before-prompt (userpromptsubmit) hook renders the notice via
+  # hooks/mb-update-notify.sh (REQ-014) — see test_codex_adapter.bats.
+  skip "Windsurf/Cline/Kilo have no CC-compatible SessionStart transport to register this notice on"
 }

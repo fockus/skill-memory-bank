@@ -12,7 +12,7 @@ Cursor 1.7+ supports a Claude-Code-compatible `hooks.json`. Memory Bank reuses t
 the hook logic. The integration is therefore a *wiring* concern, not a code-duplication
 one:
 
-- `install.sh` writes `~/.cursor/hooks.json` with ten hook commands tagged
+- `install.sh` writes `~/.cursor/hooks.json` with twelve hook commands tagged
   `_mb_owned: true`. Each command invokes the script **from the installed skill
   bundle** (`~/.cursor/skills/memory-bank/hooks/…`).
 - **Nothing is copied into `~/.cursor/hooks/`.** Earlier versions copied
@@ -51,8 +51,11 @@ commands export `MB_AGENT=cursor`, so both directions work without a local bank:
 
 - **sessionStart** — `mb-session-start-context.sh` injects `status/checklist/roadmap`
   context from the registry bank.
-- **sessionEnd** — `session-end-autosave.sh` appends the append-only auto-capture stub
-  to the registry bank's `progress.md` (idempotent by session id).
+- **stop** — `mb-session-turn.sh` (CC's real Stop hook) creates/appends the per-turn
+  `session/*.md` entry (adapter-parity T7/REQ-021 — this binding closes a gap where
+  Cursor wired only `sessionEnd` and no `session/*.md` file was ever created).
+- **sessionEnd** — `mb-session-end.sh` (CC-compatible Haiku summary + gated Sonnet
+  judge notes) summarizes the session file `stop` created into the registry bank.
 
 ## Testing surface
 

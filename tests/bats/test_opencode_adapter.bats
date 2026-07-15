@@ -802,6 +802,14 @@ STUB
   jq -e '.schema_version == 1' "$m" >/dev/null
   jq -e '.adapter == "opencode"' "$m" >/dev/null
   jq -e '.agents_installed > 0' "$m" >/dev/null
+  # adapter-parity T7 (REQ-015/017) fix: EVERY adapter manifest must declare
+  # its limits — this second (global-scope) OpenCode manifest used to omit
+  # platform_limited entirely (Codex review, T7 round). Same closed-vocab
+  # values + reasons as the project-scope .opencode/.mb-manifest.json (same
+  # adapter source file, same genuine ceilings).
+  jq -e '.platform_limited == ["statusline","role-routing"]' "$m" >/dev/null
+  jq -e '.platform_limited_notes.statusline | length > 0' "$m" >/dev/null
+  jq -e '.platform_limited_notes["role-routing"] | length > 0' "$m" >/dev/null
   # Every declared file genuinely exists (adapter honesty contract).
   local p
   while IFS= read -r p; do

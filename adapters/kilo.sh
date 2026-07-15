@@ -78,12 +78,31 @@ install_kilo() {
   # 3. Manifest
   local files_json
   files_json=$(printf '%s\n' "$RULES_FILE" | adapter_json_array_from_lines)
+
+  # adapter-parity T7 (REQ-015/017): honest platform_limited for Kilo,
+  # verified by direct inspection — Kilo "is the only target client without
+  # a first-class hooks API" (this file's own header comment); every
+  # lifecycle event goes through git-hooks-fallback's post-commit stub
+  # capture into progress.md, never a session-start-class hook, never the
+  # CC v2-schema session/*.md capture, and never an update-notify render
+  # (no session-start transport exists to hang it on). No agent-dispatch
+  # mechanism, no statusline equivalent.
+  local platform_limited_json='["statusline","subagents","lifecycle-hooks","session-memory","update-notify"]'
+  local platform_limited_notes_json
+  platform_limited_notes_json=$(jq -n \
+    --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in Kilo." \
+    --arg subagents "No agent files are installed and no dispatch mechanism exists for Kilo." \
+    --arg lifecycle_hooks "Kilo has no first-class hooks API at all (FR Kilo-Org/kilocode#5827) — every lifecycle event goes through git-hooks-fallback, which only fires on git commit." \
+    --arg session_memory "git-hooks-fallback appends a one-line stub note to progress.md on commit, not the CC v2-schema session/*.md capture." \
+    --arg update_notify "No session-start-capable transport exists on Kilo to render the notice." \
+    '{"statusline": $statusline, "subagents": $subagents, "lifecycle-hooks": $lifecycle_hooks, "session-memory": $session_memory, "update-notify": $update_notify}')
+
   adapter_write_manifest \
     "$MANIFEST" \
     "kilo" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
-    '{"git_hooks_installed": true}'
+    "{\"git_hooks_installed\": true, \"platform_limited\": $platform_limited_json, \"platform_limited_notes\": $platform_limited_notes_json}"
 
   echo "[kilo-adapter] installed to $PROJECT_ROOT"
 }

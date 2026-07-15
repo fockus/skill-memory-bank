@@ -141,9 +141,58 @@ for non-shell hosts) exactly once per session start / TTL window; renders ≤3 l
 
 ### Manifest honesty
 `platform_limited: ["<capability>", ...]` — closed vocabulary: `statusline`,
-`subagents`, `lifecycle-hooks`, `session-memory`, `update-notify`. A capability listed
-there MUST have a matching negative bats assertion (REQ-017) — the pair is the
-regression guard.
+`subagents`, `lifecycle-hooks`, `session-memory`, `update-notify`, `role-routing`. A
+capability listed there MUST have a matching negative bats assertion (REQ-017) — the
+pair is the regression guard. A meta-test (`test_platform_limited_honesty.bats`) scans
+every client manifest and fails if any declared value falls outside this vocabulary or
+lacks a matching negative assertion, so the suite cannot silently drift from the
+manifests.
+
+**Semantics — ceiling, not current install state.** A value in `platform_limited`
+denotes a capability the host **cannot** deliver *even with its opt-in parity extension
+installed* (a genuine platform ceiling) — NOT a capability that is merely absent on the
+declined/base path. Consequence: a host whose capability ships only behind the accept
+gate (e.g. OpenCode session-memory via the extended `chat.message` per-turn capture,
+Pi session-memory via its accept-path extension) is **correctly omitted** from
+`platform_limited` — its base install not capturing is the opt-in offer model (D-02)
+working as designed, not a limit. The negative test for such an omission therefore
+proves the *accepted* state genuinely delivers the capability (real `session/*.md`
+v2 file), while a true limit (windsurf/cline/kilo session-memory) proves the capability
+is absent in every state. Reading `platform_limited` as "this install's current state"
+is the wrong lens and will misjudge accept-gated capabilities as dishonest.
+
+**`role-routing` (added by T7, reconciling T4's Pi shipment):** narrower than
+`subagents` — it means "this host has its own genuine, working subagent-dispatch
+primitive, but `/mb work`'s per-role automated dispatch (`commands/work.md` step 5a)
+only ever calls the Claude Code Task tool; no cross-host routing harness exists yet
+(backlog I-121/I-122)". `subagents` (the coarser term) means "this host has no
+subagent-dispatch primitive at all — nothing to route to in the first place". T4
+shipped Pi with `platform_limited: ["role-routing"]` on its accept-path
+`.mb-global-extensions-manifest.json`, correctly recognizing that Pi's opt-in
+`mb_dispatch_subagent` tool made blanket `subagents` inaccurate — but `role-routing`
+was not yet in the closed vocabulary at the time. **T7 decision: extend the closed
+vocabulary to include `role-routing` (not remap Pi to `subagents`)** — collapsing it
+would be dishonest-by-omission of the tool Pi genuinely has, and the underlying
+I-121 finding ("no host has `/mb work`'s deterministic per-role dispatch") is
+real, narrow, and worth its own term. OpenCode, which independently ships its own
+genuine native subagent-dispatch primitive (`.opencode/agent/*.md` discovery, T5),
+gets the same `role-routing` term for the same reason and is added to the honesty
+layer in T7 alongside Pi.
+
+**Per-client `platform_limited`, evidence-based (T7, verified by direct adapter
+inspection — see the manifest write site in each adapter for the full inline
+rationale):**
+
+| Client | `platform_limited` | Why (one-line evidence) |
+|---|---|---|
+| claude-code | `[]` | Reference tier — every capability ships natively. |
+| cursor | `statusline`, `subagents` | Full CC-compatible lifecycle (12 `_mb_owned` hooks incl. `stop`→`mb-session-turn.sh`, T7), genuine update-notify + v2-schema `session/*.md` (REQ-021). No statusline surface; `agents/*.md` is a reference-only prompt library, no dispatch mechanism. |
+| windsurf | `statusline`, `subagents`, `lifecycle-hooks`, `session-memory`, `update-notify` | Only `user-prompt-submit`/`model-response` wired — no session-start-class hook, no CC v2-schema capture (1-line `progress.md` stub only), no update-notify, no agent dispatch, no statusline. |
+| cline | `statusline`, `subagents`, `lifecycle-hooks`, `session-memory`, `update-notify` | Same tier as Windsurf — `beforeToolExecution`/`afterToolExecution`/`onNotification` only, no session-start-class hook, stub capture only, no update-notify. |
+| kilo | `statusline`, `subagents`, `lifecycle-hooks`, `session-memory`, `update-notify` | No native hooks API at all (own header comment) — 100% git-hooks-fallback (stub `progress.md` capture on commit only), no update-notify, no agent dispatch, no statusline. |
+| opencode | `statusline`, `role-routing` | Base plugin (unconditional, no accept required) wires the full CC-shaped event set + genuine update-notify (T5) + native `.opencode/agent/*.md` dispatch. No statusline; `/mb work` routing gap (I-121). |
+| pi | `statusline`, `role-routing` | Declared on BOTH the per-project manifest (baseline, accept-independent) and the accept-path global-extensions manifest (T4, unchanged). No statusline; `/mb work` routing gap (I-121), even though Pi's own `mb_dispatch_subagent` tool works. |
+| codex | `statusline`, `subagents`, `lifecycle-hooks`, `session-memory` | D-03 honest-degradation tier. update-notify (T6) genuinely renders — NOT limited. No Task-tool-equivalent (`codex exec` only), no session-start-class hook (experimental prompt-submit hook + git-hooks-fallback only), stub capture only. |
 
 ## Decisions
 

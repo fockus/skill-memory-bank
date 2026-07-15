@@ -135,6 +135,12 @@ manifest = {
     # on the next re-install instead of silently resetting to en/claude-code-only.
     "language": os.environ.get("MANIFEST_LANGUAGE", ""),
     "clients_requested": os.environ.get("MANIFEST_CLIENTS_REQUESTED", ""),
+    # adapter-parity T7 (REQ-015/017): this global manifest is claude-code's
+    # own manifest (it has no separate adapters/claude-code.sh manifest file —
+    # its lifecycle is managed directly here). claude-code is the reference
+    # tier: statusline, subagents (Task tool), lifecycle-hooks, session-memory
+    # and update-notify all ship natively — nothing to declare as limited.
+    "platform_limited": [],
 }
 path = os.environ["MANIFEST_PATH"]
 d = os.path.dirname(path) or "."

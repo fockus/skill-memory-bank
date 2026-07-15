@@ -1,4 +1,11 @@
-"""Cursor adapter hooks contract — full 10-hook registration with matchers."""
+"""Cursor adapter hooks contract — full 12-hook registration with matchers.
+
+adapter-parity T7 (REQ-021): bumped from 10 to 12 when the "stop" event
+binding (mb-session-turn.sh) was added — Cursor previously wired sessionEnd
+(mb-session-end.sh, summarize-only) but nothing to CC's Stop event, so
+session/*.md was never actually CREATED end-to-end. See
+tests/bats/test_cursor_adapter.bats's REQ-021 tests for the runtime proof.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +19,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = REPO_ROOT / "adapters" / "cursor.sh"
 
-EXPECTED_MB_OWNED = 10
+EXPECTED_MB_OWNED = 12
 PRE_TOOL_USE = 4
 POST_TOOL_USE = 2
 
@@ -43,6 +50,7 @@ def test_cursor_hooks_json_has_all_events(project_dir: Path) -> None:
     for event in (
         "sessionStart",
         "sessionEnd",
+        "stop",
         "preCompact",
         "beforeShellExecution",
         "preToolUse",
@@ -91,6 +99,7 @@ def test_cursor_manifest_lists_all_hook_events(project_dir: Path) -> None:
     assert events >= {
         "sessionStart",
         "sessionEnd",
+        "stop",
         "preCompact",
         "beforeShellExecution",
         "preToolUse",

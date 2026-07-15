@@ -152,12 +152,32 @@ install_agents_md_mode() {
   local ext_files_json
   ext_files_json=$(printf '%s\n' "$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts" | adapter_json_array_from_lines)
 
+  # adapter-parity T7 (REQ-015/017): honest platform_limited for Pi's
+  # per-project manifest — the tier a plain `install` (no extension consent)
+  # leaves in place, always accurate regardless of accept state. Session
+  # memory, subagent dispatch and update-notify are NOT platform ceilings for
+  # Pi (install-global-extensions genuinely delivers all three once accepted
+  # — see that function's own platform_limited, which stays exactly
+  # ["role-routing"], unchanged by this task); they are an opt-in state
+  # tracked via extensions_installed / the doctor nudge, not a limitation.
+  # Two genuine ceilings remain regardless of accept:
+  #   - statusline: no equivalent to Claude Code's stdin-JSON statusLine
+  #     render surface exists in Pi.
+  #   - role-routing: same term/reasoning as install-global-extensions below
+  #     (backlog I-121/I-122) — kept consistent across both of Pi's manifests.
+  local platform_limited_json='["statusline","role-routing"]'
+  local platform_limited_notes_json
+  platform_limited_notes_json=$(jq -n \
+    --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in Pi." \
+    --arg role_routing "Pi's opt-in mb_dispatch_subagent tool + the mb-subinvoke-resolve.sh --role registry primitive are the D-09 guaranteed floor; deterministic /mb work per-role dispatch on Pi (or any non-Claude-Code host) has no harness yet — see backlog I-121/I-122." \
+    '{"statusline": $statusline, "role-routing": $role_routing}')
+
   adapter_write_manifest \
     "$MANIFEST" \
     "pi" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$ext_files_json" \
-    "{\"mode\": \"agents-md\", \"agents_md_owned\": $owned, \"git_hooks_installed\": $git_hooks_installed, \"graph_ext_installed\": $graph_ext_installed}"
+    "{\"mode\": \"agents-md\", \"agents_md_owned\": $owned, \"git_hooks_installed\": $git_hooks_installed, \"graph_ext_installed\": $graph_ext_installed, \"platform_limited\": $platform_limited_json, \"platform_limited_notes\": $platform_limited_notes_json}"
 
   echo "[pi-adapter] installed (mode: agents-md)"
 }

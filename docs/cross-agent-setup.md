@@ -284,7 +284,8 @@ categories; not every category has an equivalent on every host.
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
 | SessionStart context injection | `sessionStart` (`mb-session-start-context.sh`) | — | — | — | — | — | — |
-| SessionEnd auto-capture | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | `post-commit` (git-hooks-fallback, same mechanism as Kilo/Codex) | `post-commit` (git-hooks-fallback, B5) |
+| Stop turn capture (creates `session/*.md`) | `stop` (`mb-session-turn.sh`, CC-compatible — adapter-parity T7/REQ-021) | — | — | — | `chat.message`/`system.transform` (genuine per-turn capture, T5) | (session-memory extension, accept-path only) | — |
+| SessionEnd auto-capture (summarize) | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | `post-commit` (git-hooks-fallback, same mechanism as Kilo/Codex) | `post-commit` (git-hooks-fallback, B5) |
 | PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — (no installed fallback; git hooks only fire on commit) | guidance via `~/.codex/AGENTS.md`, project hook pending |
 | PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | — (no installed fallback) | project `userpromptsubmit` (exit 2) |
 | Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | git-fallback (`post-commit` staleness check) | guidance only |
@@ -309,7 +310,7 @@ update-notify notice on every session start (REQ-013).
 | `SKILL.md` | `~/.claude/skills/memory-bank/` | `~/.codex/skills/memory-bank/` | `~/.cursor/skills/memory-bank/` | Yes, via skill discovery |
 | `commands/` | bundled + Claude commands installed | bundled in Codex skill alias | bundled + mirrored to `~/.cursor/commands/` | No separate native slash-command install |
 | `agents/` | bundled + Claude global agents installed | bundled in Codex skill alias | bundled in skill (`~/.cursor/skills/memory-bank/agents/`) | No separate global agent registry assumed |
-| `hooks/` | bundled + Claude global hooks installed | bundled in Codex skill alias | bundled at `~/.cursor/skills/memory-bank/hooks/` + ten `_mb_owned` entries in `~/.cursor/hooks.json` | Conservative/project-level only |
+| `hooks/` | bundled + Claude global hooks installed | bundled in Codex skill alias | bundled at `~/.cursor/skills/memory-bank/hooks/` + twelve `_mb_owned` entries in `~/.cursor/hooks.json` | Conservative/project-level only |
 | Global rules | `~/.claude/CLAUDE.md` managed section | `~/.codex/AGENTS.md` managed section | `~/.cursor/AGENTS.md` managed section **+** paste-file for Settings → Rules → User Rules | n/a |
 
 ## Uninstall

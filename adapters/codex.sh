@@ -435,13 +435,32 @@ install_codex() {
     backups_json='[]'
   fi
 
+  # adapter-parity T7 (REQ-015/017, scenario 5): D-03's honest-degradation
+  # tier, made explicit. update-notify (T6, before-prompt hook) genuinely
+  # renders — NOT limited. What genuinely stays absent, verified by direct
+  # inspection: no statusline surface; no Task-tool-equivalent subagent
+  # dispatch (`codex exec` only); no session-start-class hook (only the
+  # experimental prompt-submit hook + git-hooks-fallback, neither of which is
+  # a CC SessionStart/PreCompact/Stop equivalent); session capture is
+  # git-hooks-fallback's one-line progress.md stub, not CC v2-schema
+  # session/*.md.
+  local platform_limited_json='["statusline","subagents","lifecycle-hooks","session-memory"]'
+  local platform_limited_notes_json
+  platform_limited_notes_json=$(jq -n \
+    --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in Codex." \
+    --arg subagents "Codex has no Task-tool-equivalent subagent dispatch; \`codex exec\` is a plain CLI invocation, not an in-session dispatch primitive (D-03)." \
+    --arg lifecycle_hooks "Only the experimental before-prompt (userpromptsubmit) hook exists — no session-start-class hook (CC's SessionStart/PreCompact/Stop set has no equivalent)." \
+    --arg session_memory "git-hooks-fallback appends a one-line stub note to progress.md on commit, not the CC v2-schema session/*.md capture." \
+    '{"statusline": $statusline, "subagents": $subagents, "lifecycle-hooks": $lifecycle_hooks, "session-memory": $session_memory}')
+
   adapter_write_manifest \
     "$MANIFEST" \
     "codex" \
     "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
     "$files_json" \
     "$(jq -n --argjson owned "$owned" --argjson backups "$backups_json" --argjson git_hooks "$git_hooks_installed" \
-      '{agents_md_owned: $owned, experimental_hooks: true, backups: $backups, git_hooks_installed: $git_hooks}')"
+      --argjson platform_limited "$platform_limited_json" --argjson platform_limited_notes "$platform_limited_notes_json" \
+      '{agents_md_owned: $owned, experimental_hooks: true, backups: $backups, git_hooks_installed: $git_hooks, platform_limited: $platform_limited, platform_limited_notes: $platform_limited_notes}')"
 
   echo "[codex-adapter] installed to $PROJECT_ROOT (hooks API: experimental)"
 }
