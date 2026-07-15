@@ -637,6 +637,9 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-127 — openspec-adapter: wire /mb openspec router entry into commands/mb.md — DEFERRED under adapter-parity FREEZE; last step before openspec-adapter tag/release [HIGH, NEW, 2026-07-15]
 
+
+### I-128 — v5.3.2 hotfix: green the 9 foreign red tests shipped in v5.3.1 — docs-site landing/pages (styles.css asset + path: ./site), .opencode STATUS/plan.md stale refs, cursor 11v10 hooks, adapters/pi.sh SRP 398 lines, Cyrillic terminology in roadmap/status donor planning, install.sh command-count 29->30 [HIGH, NEW, 2026-07-15]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

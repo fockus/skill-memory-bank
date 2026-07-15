@@ -206,3 +206,10 @@ branch is green** — 9 foreign red tests remain (NOT openspec): docs-site landi
 Cyrillic in roadmap/status donor planning (×1), install.sh cmd-count 29→30 (×1, agreements
 debt, hot file). publish.yml does NOT gate on tests but the tag ships the whole branch — hold
 until parallel sessions (adapter-parity T5/T7/T8, docs-site, donor) land green, then tag.
+
+### openspec-adapter — v5.3.1 SHIPPED (tag 9425044, PyPI + GitHub Release green)
+User chose to release now (not wait for branch-green); hotfix to follow. Tag v5.3.1 pushed,
+publish.yml green (Build + Publish to PyPI + GitHub Release all ✓), PyPI serves 5.3.1.
+Homebrew formula finalized with the real sdist sha256 (c376748..., commit 0895066).
+The 9 foreign red tests shipped as known-red — tracked for a v5.3.2 hotfix (see backlog).
+origin/main == local, all pushed.
