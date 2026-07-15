@@ -66,12 +66,73 @@ Writes `session/<date>_<hhmm>_<sid8>.md`, schema v2 — byte-compatible with CC 
 ### Subagent dispatch (per-host, resolved by T1 research)
 Contract consumed by `/mb work`: given a role (mb-backend…), resolve host mechanism:
 - Claude Code: Task tool (reference).
-- Pi: candidate mechanisms — extension-registered tool spawning headless `pi -p
-  --agent <file>`, or a native Pi agent registry if the API provides one. T1 decides;
-  design constraint: the `mb-subinvoke-resolve.sh` table stays the single registry.
+- Pi: **no native agent-registry/dispatch flag exists in Pi core** (T1 confirmed —
+  `--agent` only appears as an extension-defined flag via `pi.registerFlag`, never a
+  built-in). The viable — and officially reference-implemented — mechanism is an
+  extension-registered `pi.registerTool()` that spawns a **headless `pi` subprocess per
+  invocation**: `pi --mode json -p --no-session [--model <m>] [--tools <t1,t2>]
+  [--append-system-prompt <tmpfile>] "Task: <task>"`, reading newline-delimited JSON
+  events from stdout for streaming + usage. This is exactly the pattern in Pi's own
+  `examples/extensions/subagent/index.ts` (agent `.md` files discovered from
+  `~/.pi/agent/agents/`, same convention our design already assumes) — D-09 floor IS
+  the best available mechanism, not a fallback under something better. Reference caps
+  worth carrying into our extension: `MAX_PARALLEL_TASKS=8`, `MAX_CONCURRENCY=4`,
+  abort via `AbortSignal` killing the child process. Design constraint unchanged: the
+  `mb-subinvoke-resolve.sh` table stays the single registry across hosts.
+
+  **Measured (this env, pi v0.75.5, local `pi --mode json -p --no-session "Task: reply pong"` with no `--tools`/`--append-system-prompt` scoping):** wall 38.7s / user 1.6s / sys 0.4s — subprocess spawn overhead itself is ~1-2s CPU, latency is dominated by model choice + thinking level, not the spawn mechanism. Without the role's `--tools` allowlist + `--append-system-prompt` scoping (both used by the reference `subagent/index.ts`), the unscoped run took 5 turns / 4 tool calls / ~$0.02 just to answer "pong" — confirms scoping flags are load-bearing for latency AND cost, not optional polish; our extension must always pass them.
 - OpenCode: native `.opencode/agent/*.md` discovery already works project-scope;
   add the global dir; dispatch unchanged.
 - Codex: stays `codex exec` (documented `platform_limited: [subagents]`).
+
+### T1 findings (host-API research, 2026-07-15)
+
+**OpenCode plugin events** (primary source: `@opencode-ai/plugin` `Hooks` interface,
+`packages/plugin/src/index.ts` on the `dev` branch — read directly, not just docs):
+
+| Hook | Fires | Payload (input → output) |
+|------|-------|---------------------------|
+| `event` | any bus event (`session.created`, `session.updated`, `session.idle` *(deprecated → `session.status`)*, `session.error`, `session.deleted`, `session.compacted`, `message.updated`, `message.part.updated`, …) | `{ event: Event }` (discriminated union, read-only) |
+| `chat.message` | new user message received, **before** it is sent to the LLM — the prompt-submit-equivalent hook | in: `{sessionID, agent?, model?, messageID?, variant?}` → out: `{message: UserMessage, parts: Part[]}` (mutable) |
+| `experimental.chat.system.transform` | per LLM call, system-prompt assembly | in: `{sessionID?, model}` → out: `{system: string[]}` (mutable) — **the injection point for future semantic-recall context** |
+| `experimental.session.compacting` | before compaction | in: `{sessionID}` → out: `{context: string[], prompt?}` (already used in `adapters/opencode.sh`) |
+| `tool.execute.before` / `.after` | around tool calls | in: `{tool, sessionID, callID[, args]}` → out mutable (already used in `adapters/opencode.sh`) |
+| `command.execute.before` | slash-command invocation | in: `{command, sessionID, arguments}` → out: `{parts}` |
+| `permission.ask` | permission prompt | in: `Permission` → out: `{status}` |
+
+`session.created`/`session.idle`/`session.deleted` exist as event-bus members (confirmed
+via GitHub issue #30043 discussing `session.status` deprecating `session.idle`); our
+adapter's reliance on `session.idle` is functionally correct today but should migrate to
+`session.status` in a future slice (tracked as a risk below, not blocking T1-gated work).
+No standalone "prompt-submit" hook exists outside `chat.message`/`experimental.chat.*`;
+those two ARE the surface.
+
+**Pi native slash commands (REQ-022):** confirmed via `docs/extensions.md` —
+`pi.registerCommand(name, options)` registers a **full native command**, not a prompt
+template: it gets its own handler function (can run arbitrary code, call `ctx.ui.*`,
+`ctx.reload()`, `sendUserMessage()`, etc.), is listed alongside prompt templates and
+skill commands in the session's command discovery, and is distinct from the
+`~/.pi/agent/prompts/*.md` prompt-template mechanism (which only expands static text).
+Verdict: Pi CAN carry `/mb`-style commands as native extension commands — no
+`platform_limited` needed for this capability once the extension ships.
+
+**Pi prompt-submit surface (for (d) / future semantic-recall):** three composable hooks,
+all confirmed in `docs/extensions.md`: `pi.on("input", …)` (raw user text, before
+skill/template expansion, supports `transform`/`handle` actions), `pi.on
+("before_agent_start", …)` (fires after prompt submit, before the agent loop; can inject
+a persistent message and/or rewrite `systemPrompt`), `pi.on("context", …)` (fires before
+**every** LLM call, can filter/inject messages non-destructively). Verdict: Pi's surface
+is richer than OpenCode's for this purpose (three hook points vs. two).
+
+**OpenCode prompt-submit surface:** `chat.message` (per new message, pre-LLM) +
+`experimental.chat.system.transform` (per LLM call, system-prompt only) — narrower than
+Pi (no raw-input-transform hook and no per-call full-message-list hook), but sufficient
+for session-start injection (already used for update-notify) and would be sufficient for
+a future semantic-recall injection via `experimental.chat.system.transform`.
+
+Evidence: `adapters/pi_session_memory_extension.ts` (existing event usage in this repo),
+`adapters/opencode.sh:125-158` (existing plugin hook usage), upstream primary sources
+listed in the research note.
 
 ### update-notify transport contract
 Each transport calls `hooks/mb-update-notify.sh` (or `mb-version-check.sh --cache-only`
