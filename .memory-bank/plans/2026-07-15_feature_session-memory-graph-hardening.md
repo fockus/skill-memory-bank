@@ -68,7 +68,7 @@ as normal fixes and ride the next release.
 
 ---
 
-## Этап 1: Rebuild this repo's code graph + verify fresh
+## Stage 1: Rebuild this repo's code graph + verify fresh
 <!-- mb-stage:1 -->
 **Complexity:** S · **Время:** ~3 мин · **Зависимости:** — · **Агент:** mb-tooling-core / mb-developer
 **Файлы (изменить):** `.memory-bank/codebase/graph.json` (regenerated), `.memory-bank/codebase/god-nodes.md` (if emitted)
@@ -105,7 +105,7 @@ bats tests/bats/test_mb_freshness.bats
 
 ---
 
-## Этап 2: Chunker — align on Live-log bullet boundaries (HIGH)
+## Stage 2: Chunker — align on Live-log bullet boundaries (HIGH)
 <!-- mb-stage:2 -->
 **Complexity:** M · **Время:** ~5 мин · **Зависимости:** — · **Агент:** mb-developer (TDD)
 **Файлы:** create `tests/pytest/test_semantic_chunk_livelog.py`; edit `hooks/lib/semantic_chunk.py`
@@ -153,7 +153,7 @@ ruff check hooks/lib/semantic_chunk.py
 
 ---
 
-## Этап 3: Recall drops dangling hits when source file is gone (MEDIUM)
+## Stage 3: Recall drops dangling hits when source file is gone (MEDIUM)
 <!-- mb-stage:3 -->
 **Complexity:** S · **Время:** ~4 мин · **Зависимости:** — · **Агент:** mb-developer (TDD)
 **Файлы:** create `tests/pytest/test_recall_dangling.py`; edit `hooks/lib/recall_index.py`
@@ -195,7 +195,7 @@ ruff check hooks/lib/recall_index.py
 
 ---
 
-## Этап 4: Prune `--apply` invalidates the index (MEDIUM)
+## Stage 4: Prune `--apply` invalidates the index (MEDIUM)
 <!-- mb-stage:4 -->
 **Complexity:** S · **Время:** ~4 мин · **Зависимости:** — · **Агент:** mb-developer (TDD)
 **Файлы:** create `tests/bats/test_session_prune_reindex.bats`; edit `scripts/mb-session-prune.sh`
@@ -238,9 +238,9 @@ shellcheck scripts/mb-session-prune.sh
 
 ---
 
-## Этап 5: Auto-refresh graph in `/mb work` step 5g
+## Stage 5: Auto-refresh graph in `/mb work` step 5g
 <!-- mb-stage:5 -->
-**Complexity:** S · **Время:** ~4 мин · **Зависимости:** Этап 1 · **Агент:** mb-developer
+**Complexity:** S · **Время:** ~4 мин · **Зависимости:** Stage 1 · **Агент:** mb-developer
 **Файлы:** edit `commands/work.md` (step 5g, ~449); ref `hooks/git/post-commit-codegraph.sh`
 
 Without a manually-installed git hook the graph drifts silently. Wire a background,
@@ -278,7 +278,7 @@ grep -n "graph-rebuild.lock\|mb-codegraph.py --apply" commands/work.md
 
 ---
 
-## Этап 6: Give implementers one-time rebuild permission
+## Stage 6: Give implementers one-time rebuild permission
 <!-- mb-stage:6 -->
 **Complexity:** S · **Время:** ~2 мин · **Зависимости:** — · **Агент:** mb-developer
 **Файлы:** edit `agents/mb-tooling-core.md`
@@ -314,9 +314,9 @@ bats tests/bats/test_agent_graph_routing.bats
 
 ---
 
-## Этап 7: Reachable freshness in role files + engineering-core pointer
+## Stage 7: Reachable freshness in role files + engineering-core pointer
 <!-- mb-stage:7 -->
-**Complexity:** M · **Время:** ~5 мин · **Зависимости:** Этап 1 · **Агент:** mb-developer
+**Complexity:** M · **Время:** ~5 мин · **Зависимости:** Stage 1 · **Агент:** mb-developer
 **Файлы:** edit `agents/mb-developer.md`, `agents/mb-backend.md`, `agents/mb-frontend.md`, `agents/mb-qa.md`, `agents/mb-architect.md`, `agents/mb-engineering-core.md`
 
 Role files tell agents to "check the Code graph line in `/mb context`" — but the dispatched
@@ -358,9 +358,9 @@ grep -rn "mb context" agents/mb-developer.md agents/mb-backend.md agents/mb-fron
 
 ---
 
-## Этап 8: Reconcile session-memory docs to code (MEDIUM) + MB_AUTO_CAPTURE decision
+## Stage 8: Reconcile session-memory docs to code (MEDIUM) + MB_AUTO_CAPTURE decision
 <!-- mb-stage:8 -->
-**Complexity:** M · **Время:** ~5 мин · **Зависимости:** Этапы 2, 3 · **Агент:** mb-developer
+**Complexity:** M · **Время:** ~5 мин · **Зависимости:** Stages 2, 3 · **Агент:** mb-developer
 **Файлы:** edit `references/session-memory.md`, `SKILL.md` (~439)
 
 Report §1.4 enumerates 8 doc/code drifts. Reconcile docs to the real code (the code is
@@ -401,7 +401,7 @@ grep -n "MB_CATCHUP_MAX\|MB_AUTO_CAPTURE\|MB_RECALL\|Diagnostics\|ripgrep" refer
 
 ---
 
-## Этап 9 (OPTIONAL, last): Transcript drill-down `/mb recall --transcript`
+## Stage 9 (OPTIONAL, last): Transcript drill-down `/mb recall --transcript`
 <!-- mb-stage:9 -->
 **Complexity:** M · **Время:** ~5 мин · **Зависимости:** — · **Агент:** mb-developer (TDD)
 **Файлы:** create `tests/pytest/test_recall_transcript.py`; edit `hooks/mb-recall.sh` + a small helper in `hooks/lib/`
@@ -445,17 +445,17 @@ shellcheck hooks/mb-recall.sh
 ## Граф зависимостей
 
 ```
-Этап 1 (rebuild) ──┬── Этап 5 (work 5g refresh)
-                    └── Этап 7 (reachable freshness)
-Этап 2 (chunker) ──── Этап 8 (docs)
-Этап 3 (recall drop) ┘
-Этап 4 (prune→reindex)   ─ independent
-Этап 6 (rebuild perm)    ─ independent
-Этап 9 (transcript, OPTIONAL) ─ independent
+Stage 1 (rebuild) ──┬── Stage 5 (work 5g refresh)
+                    └── Stage 7 (reachable freshness)
+Stage 2 (chunker) ──── Stage 8 (docs)
+Stage 3 (recall drop) ┘
+Stage 4 (prune→reindex)   ─ independent
+Stage 6 (rebuild perm)    ─ independent
+Stage 9 (transcript, OPTIONAL) ─ independent
 ```
 
 ## Параллелизация
-| Фаза | Этапы | Заметка |
+| Wave | Stages | Заметка |
 |------|-------|---------|
 | 1 | 1, 2, 3, 4, 6 | все независимы; 1 первый (cheap, unblocks) |
 | 2 | 5, 7 | зависят от 1 (fresh graph) |
@@ -463,27 +463,27 @@ shellcheck hooks/mb-recall.sh
 | 4 | 9 | OPTIONAL, только если время осталось |
 
 ## Потенциальные конфликты при merge
-- Этапы 6 и 7 оба редактируют `agents/*` и общий тест `test_agent_graph_routing.bats` → один
+- Stages 6 и 7 оба редактируют `agents/*` и общий тест `test_agent_graph_routing.bats` → один
   developer на оба, либо строгий порядок 6→7 (не параллелить внутри одного файла теста).
-- Этапы 2 и 8 оба косвенно про session-memory, но разные файлы (`semantic_chunk.py` vs docs) — merge-safe.
+- Stages 2 и 8 оба косвенно про session-memory, но разные файлы (`semantic_chunk.py` vs docs) — merge-safe.
 
 ## Open decisions (для пользователя) — РЕШЕНО 2026-07-15
-1. **`MB_AUTO_CAPTURE=auto` (Этап 8)** — ✅ РЕШЕНО: оставить код-дефолт `auto` (двойная запись
-   признана намеренной), Этап 8 правит ТОЛЬКО `references/session-memory.md` к реальности
-   (`default: auto`). Код-дефолт НЕ флипается. Снять из DoD Этапа 8 требование «flag as under
+1. **`MB_AUTO_CAPTURE=auto` (Stage 8)** — ✅ РЕШЕНО: оставить код-дефолт `auto` (двойная запись
+   признана намеренной), Stage 8 правит ТОЛЬКО `references/session-memory.md` к реальности
+   (`default: auto`). Код-дефолт НЕ флипается. Снять из DoD Stage 8 требование «flag as under
    review» — дефолт подтверждён, док просто выравнивается.
-2. **Этап 9 (transcript drill-down)** — ✅ РЕШЕНО: остаётся в скоупе этого fix-плана (последний
-   OPTIONAL-этап).
+2. **Stage 9 (transcript drill-down)** — ✅ РЕШЕНО: остаётся в скоупе этого fix-плана (последний
+   OPTIONAL-stage).
 
-Исполнение: старт с **Этапа 1** (пересборка графа) — по решению пользователя.
+Исполнение: старт с **Stage 1** (пересборка графа) — по решению пользователя.
 
 ## Checklist (копировать в checklist.md)
-- ⬜ Этап 1: Rebuild code graph + verify fresh
-- ⬜ Этап 2: Chunker bullet-boundary alignment (HIGH)
-- ⬜ Этап 3: Recall drops dangling hits
-- ⬜ Этап 4: Prune --apply invalidates index
-- ⬜ Этап 5: Auto-refresh graph in /mb work 5g
-- ⬜ Этап 6: Implementer one-time rebuild permission
-- ⬜ Этап 7: Reachable freshness in role files + engineering-core pointer
-- ⬜ Этап 8: Reconcile session-memory docs + MB_AUTO_CAPTURE decision
-- ⬜ Этап 9 (OPTIONAL): /mb recall --transcript drill-down
+- ✅ Stage 1: Rebuild code graph + verify fresh (commit aeb40db — fresh, 2498 nodes/12644 edges)
+- ⬜ Stage 2: Chunker bullet-boundary alignment (HIGH)
+- ⬜ Stage 3: Recall drops dangling hits
+- ⬜ Stage 4: Prune --apply invalidates index
+- ⬜ Stage 5: Auto-refresh graph in /mb work 5g
+- ⬜ Stage 6: Implementer one-time rebuild permission
+- ⬜ Stage 7: Reachable freshness in role files + engineering-core pointer
+- ⬜ Stage 8: Reconcile session-memory docs + MB_AUTO_CAPTURE decision
+- ⬜ Stage 9 (OPTIONAL): /mb recall --transcript drill-down
