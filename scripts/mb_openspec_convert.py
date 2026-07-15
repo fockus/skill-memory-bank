@@ -48,6 +48,21 @@ def _classify_pattern(text: str) -> str:
     return "ubiquitous"
 
 
+def anchor_safe(name: str) -> str:
+    """Neutralize HTML-comment delimiters inside a value placed in a comment.
+
+    A source requirement name may itself contain `-->` (closes the comment
+    early) or `<!--` (opens a nested one) — adversarial/malformed OpenSpec
+    input must not be able to forge extra markers (e.g. a fake
+    `<!-- mb-task:99 -->`) or leave dangling `-->` text in the output
+    (REQ-005). The transform is reversible/non-lossy (HTML-entity-escape the
+    delimiter sequences only) and canonical: T5's `anchor_map()` MUST apply
+    this same transform to OpenSpec names before matching against anchors
+    emitted here, or re-import lookups will miss (see design.md D-06).
+    """
+    return name.replace("<!--", "&lt;!--").replace("-->", "--&gt;")
+
+
 def _empty_scenario_stub() -> OSScenario:
     """Deterministic fallback for a requirement with zero scenarios."""
     return OSScenario(
@@ -97,9 +112,19 @@ def _build_requirements(ch: OSChange) -> str:
         req_id = f"REQ-{req_no:03d}"
         text_line = _flatten(req.text) or "(no requirement text provided)"
         pattern = _classify_pattern(text_line)
-        lines.append(f"### Requirement {req_no}: {req.name}")
+        safe_name = anchor_safe(req.name)
+        if safe_name != req.name:
+            print(
+                f"[warn] requirement name contains comment delimiters; "
+                f"neutralized in anchor: '{req.name}'",
+                file=sys.stderr,
+            )
+        # Use the neutralized name everywhere it lands in the emitted Markdown
+        # (heading + anchor) — a raw `<!-- mb-task:N -->`-shaped name would be
+        # a forged marker regardless of which line it appears on.
+        lines.append(f"### Requirement {req_no}: {safe_name}")
         lines.append("")
-        lines.append(f"<!-- openspec-req: {req.name} -->")
+        lines.append(f"<!-- openspec-req: {safe_name} -->")
         lines.append(f"- **{req_id}** ({pattern}): {text_line}")
         lines.append("")
         scenarios = req.scenarios

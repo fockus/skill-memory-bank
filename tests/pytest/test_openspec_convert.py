@@ -9,6 +9,7 @@ fixture guards regressions and a second `convert()` call must be idempotent.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -26,11 +27,24 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import mb_openspec_convert as convert_mod  # noqa: E402
 import mb_openspec_parse as parse_mod  # noqa: E402
+from mb_openspec_model import OSChange, OSRequirement  # noqa: E402
 
 
 def _convert():
     ch = parse_mod.parse_change(FIXTURE)
     return convert_mod.convert(ch)
+
+
+def _change_with_requirement(req: OSRequirement) -> OSChange:
+    return OSChange(
+        change_id="adversarial-change",
+        why="why",
+        what_changes="what",
+        design_md=None,
+        requirements=[req],
+        task_groups=[],
+        source_hash="deadbeef",
+    )
 
 
 def test_convert_requirements_matches_golden_fixture_byte_for_byte() -> None:
@@ -103,3 +117,40 @@ def test_convert_req_ids_are_monotonic_in_document_order() -> None:
     assert "**REQ-003**" in requirements_md
     assert requirements_md.index("REQ-001") < requirements_md.index("REQ-002")
     assert requirements_md.index("REQ-002") < requirements_md.index("REQ-003")
+
+
+def test_convert_neutralizes_comment_delimiters_in_a_malicious_requirement_name(
+    capsys,
+) -> None:
+    """A hostile OpenSpec name must not forge markers or leave dangling '-->'."""
+    malicious = OSRequirement(
+        name="Foo --> <!-- mb-task:99 -->",
+        text="The system SHALL do the thing.",
+        change_kind="added",
+    )
+    ch = _change_with_requirement(malicious)
+    requirements_md, _design_md, _tasks_md = convert_mod.convert(ch)
+
+    assert "<!-- mb-task:99 -->" not in requirements_md
+    assert "<!-- mb-task:" not in requirements_md
+
+    anchor_lines = [
+        line for line in requirements_md.splitlines() if line.startswith("<!-- openspec-req:")
+    ]
+    assert len(anchor_lines) == 1
+    anchor_line = anchor_lines[0]
+    assert anchor_line == "<!-- openspec-req: Foo --&gt; &lt;!-- mb-task:99 --&gt; -->"
+    # No dangling '-->' outside of the well-formed anchors/scenario markers.
+    stray = requirements_md.replace(anchor_line, "")
+    stray = re.sub(r"<!--\s*/?mb-scenario:\d+\s*-->", "", stray)
+    assert "-->" not in stray
+
+    captured = capsys.readouterr()
+    assert "comment delimiters" in captured.err
+
+
+def test_convert_golden_fixture_names_are_untouched_by_anchor_safe() -> None:
+    """The committed golden fixture has no comment-delimiter names — no-op."""
+    ch = parse_mod.parse_change(FIXTURE)
+    for req in ch.requirements:
+        assert convert_mod.anchor_safe(req.name) == req.name
