@@ -1,7 +1,7 @@
 ---
 description: Generate a changelog from commits
 allowed-tools: [Bash, Read, Edit]
-argument-hint: [version]
+argument-hint: "[version]"
 ---
 
 1. Detect the latest tag: `git describe --tags --abbrev=0 2>/dev/null || echo "start"`

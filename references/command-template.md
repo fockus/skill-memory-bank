@@ -74,7 +74,7 @@ Key traits: one-line description, 2-tool whitelist, 5-step body, no arguments â†
 ---
 description: Run tests, analyze failures, and propose fixes
 allowed-tools: [Bash, Read, Glob, Grep]
-argument-hint: [test-filter]
+argument-hint: "[test-filter]"
 ---
 
 # Test: $ARGUMENTS
