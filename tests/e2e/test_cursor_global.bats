@@ -3,7 +3,7 @@
 #
 # Verifies that `install.sh` installs Cursor as a first-class global target:
 #   - ~/.cursor/skills/memory-bank symlink on canonical bundle
-#   - ~/.cursor/hooks.json + ~/.cursor/hooks/*.sh with ten _mb_owned bindings
+#   - ~/.cursor/hooks.json + ~/.cursor/hooks/*.sh with eleven _mb_owned bindings
 #   - ~/.cursor/commands/*.md (slash commands mirrored)
 #   - ~/.cursor/AGENTS.md with marker section memory-bank-cursor:start/end
 #   - ~/.cursor/memory-bank-user-rules.md ready for Settings → Rules → User Rules paste
@@ -37,12 +37,12 @@ teardown() {
   [ "$cursor_alias" = "$canonical" ]
 }
 
-@test "cursor-global: install writes ~/.cursor/hooks.json with ten _mb_owned entries" {
+@test "cursor-global: install writes ~/.cursor/hooks.json with eleven _mb_owned entries" {
   bash "$REPO_ROOT/install.sh" >/dev/null
 
   [ -f "$HOME/.cursor/hooks.json" ]
   owned_count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$HOME/.cursor/hooks.json")
-  [ "$owned_count" -eq 10 ]
+  [ "$owned_count" -eq 11 ]
 }
 
 @test "cursor-global: install wires hooks.json to skill bundle (no hook copies)" {
@@ -94,12 +94,12 @@ teardown() {
 # Idempotency
 # ═══════════════════════════════════════════════════════════════
 
-@test "cursor-global: install is idempotent — two runs keep exactly ten _mb_owned entries" {
+@test "cursor-global: install is idempotent — two runs keep exactly eleven _mb_owned entries" {
   bash "$REPO_ROOT/install.sh" >/dev/null
   bash "$REPO_ROOT/install.sh" >/dev/null
 
   owned_count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$HOME/.cursor/hooks.json")
-  [ "$owned_count" -eq 10 ]
+  [ "$owned_count" -eq 11 ]
 }
 
 @test "cursor-global: install is idempotent — two runs keep one memory-bank-cursor section" {
@@ -131,7 +131,7 @@ EOF
 
   grep -q "user-hook" "$HOME/.cursor/hooks.json"
   owned_count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$HOME/.cursor/hooks.json")
-  [ "$owned_count" -eq 10 ]
+  [ "$owned_count" -eq 11 ]
 }
 
 @test "cursor-global: install preserves pre-existing user content in ~/.cursor/AGENTS.md" {
