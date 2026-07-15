@@ -136,9 +136,9 @@
   task removed on re-import lands in backlog. A RENAMED delta moves the anchor and keeps the galka.
 
 **DoD:**
-- [ ] Task check-state survives re-import (REQ-016); orphans → backlog (REQ-017); RENAMED re-anchors (REQ-018).
-- [ ] tests pass
-- [ ] lint clean
+- [x] Task check-state survives re-import (REQ-016); orphans → backlog (REQ-017); RENAMED re-anchors (REQ-018).
+- [x] tests pass
+- [x] lint clean
 
 <!-- mb-task:6 -->
 ## Task 6: --normalize opt-in LLM slot layer + source-hash cache

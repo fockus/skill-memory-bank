@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""OpenSpec → Memory Bank one-way import adapter (T1-T3 core).
+"""OpenSpec → Memory Bank one-way import adapter (T1-T3 core + T5 re-import).
 
 Reads an OpenSpec change directory (``proposal.md`` + optional ``design.md`` +
 delta specs ``specs/*/spec.md`` + ``tasks.md``) and writes a Memory Bank spec
@@ -10,9 +10,16 @@ triple under ``<bank>/specs/<topic>/``. The OpenSpec tree is never written to
 Usage:
     mb-openspec.py import <change_dir> [--as <topic>] [--mb <bank>]
 
-Only ``import`` is implemented here. ``list``/``sync``/``status`` (T4) and
-re-import anchor-merge (T5) and ``--normalize`` (T6) are deliberately left as
-seams — see design.md.
+Re-import (T5): when ``specs/<topic>/`` already has a requirements.md +
+tasks.md from a prior import, they are read (read-only) and passed to
+``convert()`` as ``prior_triple`` so REQ-NNN anchors are reused/re-anchored
+(D-06, REQ-016/018) instead of renumbered by position, and
+``merge_task_state()`` preserves `/mb work` check-state by task text
+(REQ-016); any task that vanished from the source is appended to
+``backlog.md`` instead of being silently dropped (REQ-017).
+
+``list``/``sync``/``status`` (T4) and ``--normalize`` (T6) are deliberately
+left as seams — see design.md.
 
 Exit codes:
     0 — import succeeded
@@ -28,7 +35,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mb_openspec_convert import convert
+from mb_openspec_convert import convert, merge_task_state
 from mb_openspec_parse import parse_change
 
 try:
@@ -59,8 +66,63 @@ def _inject_frontmatter(requirements_md: str, source: str, source_hash: str) -> 
     return frontmatter + requirements_md
 
 
-def run_import(*, change_dir: Path, mb_path: Path, topic: str | None) -> dict[str, str]:
-    """Parse + convert + write one OpenSpec change into a Memory Bank spec triple."""
+def _read_prior_triple(spec_dir: Path) -> tuple[str, str, str] | None:
+    """Read a previously-written spec triple for re-import (read-only, T5).
+
+    ``None`` when this is a fresh import — a requirements.md/tasks.md pair
+    must already exist under ``spec_dir`` for a re-import to engage.
+    """
+    req_path = spec_dir / "requirements.md"
+    tasks_path = spec_dir / "tasks.md"
+    if not req_path.is_file() or not tasks_path.is_file():
+        return None
+    design_path = spec_dir / "design.md"
+    design_md = design_path.read_text(encoding="utf-8") if design_path.is_file() else ""
+    return (
+        req_path.read_text(encoding="utf-8"),
+        design_md,
+        tasks_path.read_text(encoding="utf-8"),
+    )
+
+
+def _append_orphans_to_backlog(
+    mb_path: Path, topic: str, orphaned_task_lines: list[str], source_hash: str
+) -> None:
+    """REQ-017 — a previously-imported task that vanished from the OpenSpec
+    source on re-import is never silently dropped; append it to
+    ``backlog.md`` with a note instead of losing it."""
+    backlog_path = mb_path / "backlog.md"
+    _assert_within(mb_path, backlog_path)
+    existing = backlog_path.read_text(encoding="utf-8") if backlog_path.is_file() else "# Backlog\n"
+    if not existing.endswith("\n"):
+        existing += "\n"
+    note_lines = [
+        "",
+        f"## Orphaned OpenSpec tasks — {topic}",
+        "",
+        (
+            f"_(previously imported into `specs/{topic}/tasks.md`; no longer present in "
+            f"the OpenSpec source as of re-import hash `{source_hash[:12]}` — "
+            "re-check before discarding.)_"
+        ),
+        "",
+        *orphaned_task_lines,
+        "",
+    ]
+    atomic_write(backlog_path, existing + "\n".join(note_lines))
+
+
+def run_import(*, change_dir: Path, mb_path: Path, topic: str | None) -> dict[str, object]:
+    """Parse + convert + write one OpenSpec change into a Memory Bank spec triple.
+
+    Re-import (T5): when ``specs/<topic>/`` already carries a triple from a
+    prior import, it is read (read-only) and passed to ``convert()`` as
+    ``prior_triple`` so REQ-NNN anchors are reused/re-anchored rather than
+    renumbered by document position (D-06, REQ-016/018); ``merge_task_state``
+    then preserves `/mb work` check-state by task text (REQ-016), and any
+    task no longer present in the source is appended to ``backlog.md``
+    instead of being silently dropped (REQ-017).
+    """
     change_dir = Path(change_dir)
     mb_path = Path(mb_path)
     if not change_dir.is_dir():
@@ -69,11 +131,20 @@ def run_import(*, change_dir: Path, mb_path: Path, topic: str | None) -> dict[st
         raise FileNotFoundError(f"memory bank not found: {mb_path}")
 
     ch = parse_change(change_dir)
-    requirements_md, design_md, tasks_md = convert(ch)
 
     resolved_topic = topic or _slugify(ch.change_id)
     spec_dir = mb_path / "specs" / resolved_topic
     _assert_within(mb_path, spec_dir)
+
+    prior_triple = _read_prior_triple(spec_dir)
+
+    requirements_md, design_md, tasks_md = convert(
+        ch, prior_triple=prior_triple, topic=resolved_topic, mb_path=mb_path
+    )
+
+    orphaned_task_lines: list[str] = []
+    if prior_triple is not None:
+        tasks_md, orphaned_task_lines = merge_task_state(tasks_md, prior_triple[2])
 
     requirements_md = _inject_frontmatter(requirements_md, str(change_dir), ch.source_hash)
 
@@ -86,10 +157,15 @@ def run_import(*, change_dir: Path, mb_path: Path, topic: str | None) -> dict[st
         _assert_within(mb_path, dest)
         atomic_write(dest, content)
 
+    if orphaned_task_lines:
+        _append_orphans_to_backlog(mb_path, resolved_topic, orphaned_task_lines, ch.source_hash)
+
     return {
         "topic": resolved_topic,
         "spec_dir": str(spec_dir),
         "source_hash": ch.source_hash,
+        "reimport": prior_triple is not None,
+        "orphaned_tasks": len(orphaned_task_lines),
     }
 
 

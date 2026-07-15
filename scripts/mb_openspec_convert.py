@@ -1,16 +1,28 @@
 #!/usr/bin/env python3
 """Deterministic converter — :class:`OSChange` → Memory Bank spec-triple strings.
 
-``convert()`` never touches disk; it only returns three Markdown strings
-(requirements.md, design.md, tasks.md). The format is a fixed skeleton
-(headers, ``- **REQ-NNN**``, ``<!-- openspec-req: ... -->``,
-``<!-- mb-task:N -->``) — 100% template-driven, no LLM involvement in this
-core path (REQ-002, REQ-006, REQ-009, D-04).
+``convert()`` never touches disk except for the two read-only/no-write
+subprocess shell-outs it reuses (``mb-ears-validate.sh`` for warn-mode EARS
+checking, ``mb-req-next-id.sh`` for REQ-ID allocation on re-import); it only
+*returns* three Markdown strings (requirements.md, design.md, tasks.md). The
+format is a fixed skeleton (headers, ``- **REQ-NNN**``,
+``<!-- openspec-req: ... -->``, ``<!-- mb-task:N -->``) — 100% template-driven,
+no LLM involvement in this core path (REQ-002, REQ-006, REQ-009, D-04).
 
-``prior_triple`` (anchor reuse across re-import, D-06) and ``normalize`` (LLM
-slot filling, D-03/D-04) are accepted for interface stability but are seams
-reserved for T5/T6 — this core path always renders the deterministic
-skeleton.
+``prior_triple`` (anchor reuse across re-import, D-06/D-05, REQ-016/018) makes
+``convert()`` reuse the existing ``REQ-NNN`` for an OpenSpec requirement name
+already anchored in the prior ``requirements.md``, re-anchor RENAMED deltas
+FROM -> TO while preserving the ID, and allocate the next ID (via
+``mb-req-next-id.sh --spec <topic>``, or a pure in-memory fallback when no
+topic/bank is supplied) for a genuinely new name. ``normalize`` (LLM slot
+filling, D-03/D-04) remains an unused seam reserved for T6 — this core path
+always renders the deterministic skeleton for the requirement/design text.
+
+Task check-state preservation across re-import (REQ-016/017) is a SEPARATE
+function, :func:`merge_task_state` — ``convert()`` always returns a freshly
+rendered ``tasks_md`` reflecting the current source only; the caller (the
+``import``/``sync`` writer) is responsible for merging it against the prior
+``tasks.md`` and appending any orphaned task to ``backlog.md``.
 """
 
 from __future__ import annotations
@@ -63,6 +75,163 @@ def anchor_safe(name: str) -> str:
     return name.replace("<!--", "&lt;!--").replace("-->", "--&gt;")
 
 
+_ANCHOR_AND_BULLET_RE = re.compile(
+    r"^<!-- openspec-req: (?P<name>.*) -->$\n"
+    r"-\s+\*\*(?P<req_id>REQ-\d{3,})\*\*\s+\((?P<pattern>[^)]*)\):\s*(?P<text>.*)$",
+    re.MULTILINE,
+)
+
+
+def _prior_requirement_index(prior_requirements_md: str) -> dict[str, tuple[str, str, str]]:
+    """Escaped-name -> (req_id, pattern, text) parsed from a prior requirements.md.
+
+    Reads exactly the shape ``_build_requirements`` writes: an
+    ``<!-- openspec-req: <name> -->`` anchor immediately followed by its
+    ``- **REQ-NNN** (pattern): text`` bullet, with no blank line between them.
+    """
+    out: dict[str, tuple[str, str, str]] = {}
+    for m in _ANCHOR_AND_BULLET_RE.finditer(prior_requirements_md):
+        out[m.group("name")] = (m.group("req_id"), m.group("pattern"), m.group("text"))
+    return out
+
+
+def anchor_map(prior_requirements_md: str) -> dict[str, str]:
+    """OpenSpec requirement name (escaped via `anchor_safe`) -> its REQ-NNN (D-06).
+
+    Reads the ``<!-- openspec-req: <name> -->`` anchor + the REQ bullet that
+    immediately follows it, as written by ``_build_requirements``. Callers
+    MUST run a candidate OpenSpec requirement name through :func:`anchor_safe`
+    before looking it up here — the keys are the same escaped form used when
+    the anchor was written, so a name containing ``<!--``/``-->`` still
+    round-trips instead of silently missing the map (see ``anchor_safe``'s
+    docstring / design.md D-06).
+    """
+    return {name: info[0] for name, info in _prior_requirement_index(prior_requirements_md).items()}
+
+
+class _IdAllocator:
+    """Allocates the next REQ-NNN for a genuinely new re-import requirement.
+
+    Seeded once per :func:`convert` call — from ``mb-req-next-id.sh --spec
+    <topic>`` when a topic/bank path are supplied (NFR-005: reuse the
+    project's existing per-spec-local ID allocator instead of reinventing
+    numbering rules), else from the highest ID already present in the prior
+    anchor map — then incremented in-process for any further new
+    requirements found in the same call. The script only reflects the
+    ON-DISK prior file at the moment it is invoked; calling it again per
+    requirement would hand out the SAME "next" id to every new name in one
+    import, so it is seeded once and advanced locally instead.
+    """
+
+    def __init__(
+        self,
+        prior_map: dict[str, str],
+        topic: str | None,
+        mb_path: str | Path | None,
+    ) -> None:
+        start = None
+        if topic and mb_path is not None:
+            start = _next_id_via_script(topic, mb_path)
+        if start is None:
+            start = _fallback_next_id(prior_map.values())
+        match = re.match(r"REQ-(\d+)", start)
+        self._next_n = int(match.group(1)) if match else 1
+
+    def allocate(self) -> str:
+        req_id = f"REQ-{self._next_n:03d}"
+        self._next_n += 1
+        return req_id
+
+
+def _next_id_via_script(topic: str, mb_path: str | Path) -> str | None:
+    """Shell out to the project's own REQ-ID allocator (NFR-005)."""
+    script = Path(__file__).with_name("mb-req-next-id.sh")
+    if not script.is_file():
+        return None
+    try:
+        proc = subprocess.run(
+            ["bash", str(script), "--spec", topic, str(mb_path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if proc.returncode != 0:
+        return None
+    out = proc.stdout.strip()
+    return out or None
+
+
+def _fallback_next_id(existing_ids) -> str:
+    """Pure in-memory next-id, used when no topic/bank is available to shell out to."""
+    max_n = 0
+    for rid in existing_ids:
+        m = re.match(r"REQ-(\d+)", rid)
+        if m:
+            max_n = max(max_n, int(m.group(1)))
+    return f"REQ-{max_n + 1:03d}"
+
+
+def merge_task_state(new_tasks_md: str, prior_tasks_md: str) -> tuple[str, list[str]]:
+    """Preserve `/mb work` check-state across re-import (D-05, REQ-016/REQ-017).
+
+    Checkbox items are matched between ``prior_tasks_md`` (the previously
+    written tasks.md, possibly hand-edited by ``/mb work``) and
+    ``new_tasks_md`` (freshly regenerated from the current OpenSpec source)
+    by *normalized task text* (trim + collapse internal whitespace) — never
+    by position, for the same reason anchors key requirements by name rather
+    than document order (D-06).
+
+    - A prior checked task whose text still exists in the new source stays
+      checked.
+    - A task text that is genuinely new always arrives UNCHECKED, regardless
+      of whatever checkbox state the OpenSpec source itself renders for it —
+      the OpenSpec side's own progress tracking is not ours to inherit.
+    - A prior task text that no longer exists anywhere in the new source is
+      never silently dropped: its original raw checklist line is returned in
+      ``orphaned_task_lines`` for the caller to append to ``backlog.md``
+      (REQ-017).
+
+    Returns ``(merged_tasks_md, orphaned_task_lines)``.
+    """
+    prior_checked: dict[str, bool] = {}
+    prior_raw: dict[str, str] = {}
+    for line in prior_tasks_md.splitlines():
+        m = _MB_CHECKBOX_RE.match(line)
+        if not m:
+            continue
+        norm = _normalize_task_text(m.group("text"))
+        prior_checked[norm] = m.group("mark").lower() == "x"
+        prior_raw[norm] = line
+
+    matched: set[str] = set()
+    merged_lines: list[str] = []
+    for line in new_tasks_md.splitlines():
+        m = _MB_CHECKBOX_RE.match(line)
+        if not m:
+            merged_lines.append(line)
+            continue
+        norm = _normalize_task_text(m.group("text"))
+        if norm in prior_checked:
+            matched.add(norm)
+            mark = "x" if prior_checked[norm] else " "
+        else:
+            mark = " "  # a genuinely new task always arrives unchecked (D-05)
+        merged_lines.append(f"- [{mark}] {m.group('text')}")
+
+    orphaned_task_lines = [prior_raw[norm] for norm in prior_checked if norm not in matched]
+    merged_md = "\n".join(merged_lines).rstrip() + "\n"
+    return merged_md, orphaned_task_lines
+
+
+_MB_CHECKBOX_RE = re.compile(r"^-\s\[(?P<mark>[ xX])\]\s+(?P<text>.+)$")
+
+
+def _normalize_task_text(text: str) -> str:
+    return " ".join(text.split())
+
+
 def _empty_scenario_stub() -> OSScenario:
     """Deterministic fallback for a requirement with zero scenarios."""
     return OSScenario(
@@ -85,7 +254,28 @@ def _render_scenario(no: int, req_id: str, scenario: OSScenario) -> list[str]:
     return lines
 
 
-def _build_requirements(ch: OSChange) -> str:
+def _build_requirements(
+    ch: OSChange,
+    prior_map: dict[str, str] | None,
+    prior_index: dict[str, tuple[str, str, str]],
+    allocator: _IdAllocator | None,
+) -> tuple[str, set[str]]:
+    """Render the requirements skeleton.
+
+    ``prior_map``/``prior_index``/``allocator`` are ``None``/empty on a fresh
+    import (``prior_triple`` was not supplied to :func:`convert`) — that path
+    is untouched from T2 and numbers every ADDED/MODIFIED requirement
+    sequentially in document order (NFR-001 golden fixture). On a re-import
+    (``prior_map`` is not ``None``), a requirement whose ``anchor_safe`` name
+    is already anchored reuses its REQ-NNN (D-06); a RENAMED delta whose
+    ``renamed_from`` is anchored moves that anchor to the new name, reusing
+    both the ID and the prior text (a pure rename carries no new body text —
+    D-07); anything genuinely new is allocated the next ID.
+
+    Returns ``(requirements_md, resolved_renamed_names)`` — the second value
+    is the set of RENAMED "TO" names that were actually re-anchored this call,
+    so ``_build_design`` does not also list them as still-deferred.
+    """
     lines = [
         f"# Requirements: {ch.change_id}",
         "",
@@ -98,19 +288,42 @@ def _build_requirements(ch: OSChange) -> str:
     ]
     req_no = 0
     scenario_no = 0
+    resolved_renamed_names: set[str] = set()
     for req in ch.requirements:
         if req.change_kind == "removed":
             continue  # becomes a design.md "Removed scope" note instead (REQ-004)
-        if req.change_kind == "renamed":
-            print(
-                f"[warn] RENAMED requirement '{req.name}' deferred to re-import (T5); "
-                "not emitted in this import",
-                file=sys.stderr,
-            )
-            continue
-        req_no += 1
-        req_id = f"REQ-{req_no:03d}"
+
+        req_id: str | None = None
         text_line = _flatten(req.text) or "(no requirement text provided)"
+
+        if req.change_kind == "renamed":
+            resolved_id = None
+            safe_from = anchor_safe(req.renamed_from or "")
+            if prior_map is not None:
+                resolved_id = prior_map.get(safe_from)
+            if resolved_id is None:
+                print(
+                    f"[warn] RENAMED requirement '{req.name}' deferred to re-import (T5); "
+                    "not emitted in this import",
+                    file=sys.stderr,
+                )
+                continue
+            req_id = resolved_id
+            prior_entry = prior_index.get(safe_from)
+            if prior_entry is not None:
+                text_line = prior_entry[2]  # a pure rename carries no new body text
+            resolved_renamed_names.add(req.name)
+        else:
+            safe_name_lookup = anchor_safe(req.name)
+            if prior_map is not None:
+                req_id = prior_map.get(safe_name_lookup)
+                if req_id is None:
+                    assert allocator is not None
+                    req_id = allocator.allocate()
+
+        req_no += 1
+        if req_id is None:
+            req_id = f"REQ-{req_no:03d}"  # fresh import: sequential document order
         pattern = _classify_pattern(text_line)
         safe_name = anchor_safe(req.name)
         if safe_name != req.name:
@@ -137,7 +350,7 @@ def _build_requirements(ch: OSChange) -> str:
         for scenario in scenarios:
             scenario_no += 1
             lines.extend(_render_scenario(scenario_no, req_id, scenario))
-    return "\n".join(lines).rstrip() + "\n"
+    return "\n".join(lines).rstrip() + "\n", resolved_renamed_names
 
 
 def _demote_headings(text: str) -> str:
@@ -145,7 +358,8 @@ def _demote_headings(text: str) -> str:
     return re.sub(r"(?m)^(#{1,5})(\s)", r"#\1\2", text)
 
 
-def _build_design(ch: OSChange) -> str:
+def _build_design(ch: OSChange, resolved_renamed_names: set[str] | None = None) -> str:
+    resolved_renamed_names = resolved_renamed_names or set()
     lines = [
         f"# Design: {ch.change_id}",
         "",
@@ -174,7 +388,11 @@ def _build_design(ch: OSChange) -> str:
             lines.append(f"**Reason:** {r.reason or '(no reason recorded)'}")
             lines.append("")
 
-    renamed = [r for r in ch.requirements if r.change_kind == "renamed"]
+    renamed = [
+        r
+        for r in ch.requirements
+        if r.change_kind == "renamed" and r.name not in resolved_renamed_names
+    ]
     if renamed:
         lines.append("## Deferred renames (re-import required)")
         lines.append("")
@@ -243,17 +461,42 @@ def convert(
     ch: OSChange,
     prior_triple: tuple[str, str, str] | None = None,
     normalize: bool = False,
+    *,
+    topic: str | None = None,
+    mb_path: str | Path | None = None,
 ) -> tuple[str, str, str]:
     """Convert a parsed OpenSpec change into (requirements_md, design_md, tasks_md).
 
-    Pure function — returns strings only, never writes to disk (REQ-003).
-    ``prior_triple``/``normalize`` are accepted for interface stability but are
-    unused seams: anchor reuse across re-import is T5, ``--normalize`` LLM
-    slot-filling is T6. This core path always emits the deterministic skeleton.
+    Pure function w.r.t. disk writes — returns strings only, never writes to
+    disk (REQ-003); it may shell out read-only to ``mb-req-next-id.sh``/
+    ``mb-ears-validate.sh``.
+
+    ``prior_triple`` (``(prior_requirements_md, prior_design_md,
+    prior_tasks_md)``), when supplied, enables re-import anchor reuse (D-06):
+    a requirement already anchored in ``prior_triple[0]`` keeps its REQ-NNN;
+    a RENAMED delta re-anchors FROM -> TO while preserving the ID (REQ-018); a
+    genuinely new name is allocated the next ID via ``topic``/``mb_path``
+    (``mb-req-next-id.sh --spec <topic>``) or, absent those, a pure in-memory
+    fallback. ``prior_triple[2]`` (tasks.md) is accepted for interface
+    symmetry but is NOT used here — task check-state merging is the caller's
+    job via the separate :func:`merge_task_state`.
+
+    ``normalize`` remains an unused seam reserved for T6 — this core path
+    always emits the deterministic skeleton for requirement/design text.
     """
-    del prior_triple, normalize
-    requirements_md = _build_requirements(ch)
-    design_md = _build_design(ch)
+    del normalize
+    prior_map: dict[str, str] | None = None
+    prior_index: dict[str, tuple[str, str, str]] = {}
+    allocator: _IdAllocator | None = None
+    if prior_triple is not None:
+        prior_index = _prior_requirement_index(prior_triple[0])
+        prior_map = {name: info[0] for name, info in prior_index.items()}
+        allocator = _IdAllocator(prior_map, topic, mb_path)
+
+    requirements_md, resolved_renamed_names = _build_requirements(
+        ch, prior_map, prior_index, allocator
+    )
+    design_md = _build_design(ch, resolved_renamed_names)
     tasks_md = _build_tasks(ch)
     _run_ears_warn(requirements_md, ch.change_id)
     return requirements_md, design_md, tasks_md
