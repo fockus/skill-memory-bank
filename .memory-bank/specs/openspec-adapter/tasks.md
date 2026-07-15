@@ -111,10 +111,10 @@
   error, exit ≠ 0.
 
 **DoD:**
-- [ ] `import`/`sync`/`list`/`status` reachable via `/mb openspec`; router documents them.
-- [ ] `sync` re-imports only on hash drift (REQ-015).
-- [ ] tests pass
-- [ ] shellcheck clean
+- [~] `import`/`sync`/`list`/`status` reachable via `scripts/mb-openspec.sh`; `/mb openspec` router entry DEFERRED (commands/mb.md under adapter-parity FREEZE — lands when freeze lifts).
+- [x] `sync` re-imports only on hash drift (REQ-015).
+- [x] tests pass
+- [x] shellcheck clean
 
 <!-- mb-task:5 -->
 ## Task 5: Re-import — anchor matching + progress preservation
