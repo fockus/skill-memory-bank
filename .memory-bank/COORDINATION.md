@@ -94,3 +94,9 @@ test_doc_counts}.py, tests/bats/{test_session_prune_reindex,test_work_5g_graph_r
 test_agent_graph_routing,test_recall_transcript_cli}.bats. **NO overlap with adapter-parity/openspec
 hot files.** All scoped-committed. Did NOT touch roadmap.md/status.md (foreign WIP) — plan→done/
 move done, roadmap reconcile DEFERRED to owning session to respect the freeze. Not pushed.
+
+### openspec-adapter update — T1–T3 core DONE (commits a2e9252, 66cd650)
+Deterministic import core shipped: parse+convert+write, 35 pytest green, Codex-reviewed
+(1 major fixed: HTML-comment injection), judged GO_WITH_BACKLOG (I-120). All NEW files —
+no adapter-parity hot file touched, commands/mb.md still deferred. T4(CLI)/T5(re-import)/
+T6(--normalize) not yet started.
