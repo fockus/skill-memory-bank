@@ -12,6 +12,8 @@
 - AGR-009 (2026-07-15, user-confirmed): mb-donor-evolution: release numbering — 5.x сдвиг +1 минор (Baseline→5.4.0…Plan IR→5.7.0, v5.3.0 shipped); 6.x после 6.1.0 сдвиг +1 под QA-релиз: QA→6.2.0, Portable Skills→6.3.0, Delta Specs→6.4.0, Adaptive Ops→6.5.0, icebox GSD/OpenSpec→6.6.0/6.7.0; REQ-ID и mb-task не перенумеровываются [supersedes AGR-002]
 - AGR-010 (2026-07-15, user-confirmed): Docs site: MkDocs Material, English-only, deployed as /docs/ subpath of the existing GitHub Pages artifact (landing stays at root); existing docs/*.md migrate as-is
 - AGR-011 (2026-07-15, user-confirmed): drive-loop: доделать полностью в составе donor v5.6.0 Long-Session Kernel — оставшиеся фазы drive-loop входят в слайс v5.6.0 и дожимаются внутри него (исключение из заморозки AGR-003); quality-track подтверждён по ICE (9×7×4=252) на позиции v6.2.0 сразу после 6.1.0
+- AGR-012 (2026-07-15, user-confirmed): adapter-parity: спека встаёт ПЕРВОЙ в очереди роудмепа, впереди donor v5.4.0 — скил должен работать везде до donor-стройки
+- AGR-013 (2026-07-15, user-confirmed): adapter-parity: паритет хуков/сабагентов на Pi и OpenCode достигается host-native расширениями, предлагаемыми пользователю opt-in при install и в runtime-nudge (/mb doctor); никогда авто-install; отказ = byte-identical install; Codex = honest degradation (prompt-hook notify + platform_limited)
 
 ## Deferred
 
