@@ -292,3 +292,6 @@ Environment variables that control lifecycle behavior:
 | `MB_COMPACT_PLAN_AGE_DAYS`    | `60`    | Age threshold for archiving completed plans                            |
 | `MB_COMPACT_NOTE_AGE_DAYS`    | `90`    | Age threshold for archiving low-importance notes                       |
 | `MB_COMPACT_ACTIVE_WARN_DAYS` | `180`   | Age after which compact warns about still-active plans                 |
+| `MB_UPDATE_CHECK`             | `on`    | SessionStart "newer release?" notice; `off` disables the check entirely (no network, no cache writes) |
+| `MB_UPDATE_CHECK_TTL`         | `86400` | Update-check cache TTL, seconds (24h) — at most one network call per window |
+| `MB_AUTO_UPDATE`              | `off`   | `on` auto-applies an available update for a clean git-clone install only; pipx/pip/brew installs are never auto-run |

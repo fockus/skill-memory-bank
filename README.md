@@ -496,6 +496,26 @@ clients is a separate, not-yet-implemented product decision.
 
 ---
 
+## Staying up to date
+
+Every Claude Code session start, the skill checks (at most once per `MB_UPDATE_CHECK_TTL`
+window) whether a newer release exists — GitHub Release first, PyPI JSON as fallback — and, only
+when one is available, prints a short notice naming `current -> latest` plus the exact upgrade
+command for *your* install flavor (`git pull` for a clone; `pipx upgrade` / `pip install -U` /
+`brew upgrade` otherwise). An up-to-date install sees nothing. The check itself never touches the
+network from the hook path (it reads a local TTL cache and refreshes it in the background), is
+fail-open, and never blocks a session.
+
+- `MB_UPDATE_CHECK=off` disables the check entirely (no notice, no cache writes).
+- `MB_UPDATE_CHECK_TTL=<seconds>` tunes how often the cache refreshes (default `86400`, 24h).
+- `MB_AUTO_UPDATE=on` opts into auto-applying the update — but only for a `git clone` install with
+  a clean working tree (`mb-upgrade.sh --force` runs for you); pipx/pip/brew installs are never
+  auto-run, only the notice tells you the command to run yourself.
+
+See `/mb upgrade` in [commands/mb.md](commands/mb.md) for the manual, on-demand command.
+
+---
+
 ## Environment variables
 
 | Variable | Purpose | Default |
@@ -507,6 +527,9 @@ clients is a separate, not-yet-implemented product decision.
 | `MB_PI_MODE` | Pi project adapter mode. Supported: `agents-md` (project `AGENTS.md`) or `skill` (`~/.pi/agent/skills/memory-bank`; leaves existing global symlink unchanged) | `agents-md` |
 | `MB_SKILL_BUNDLE` | Override bundle path (dev / testing) | auto-detected |
 | `MB_SKIP_DEPS_CHECK` | Skip preflight dep check in `install.sh` | `0` |
+| `MB_UPDATE_CHECK` | SessionStart "newer release?" notice: `on` / `off` | `on` |
+| `MB_UPDATE_CHECK_TTL` | Update-check cache TTL, seconds | `86400` |
+| `MB_AUTO_UPDATE` | Auto-apply updates for a clean git-clone install only: `on` / `off` | `off` |
 
 ---
 

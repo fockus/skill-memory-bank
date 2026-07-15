@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — SessionStart "newer release?" notice + opt-in auto-update
+
+- **`scripts/mb-version-check.sh`** — the single resolver for "is a newer release out?":
+  compares the local `VERSION` against the latest GitHub Release (PyPI JSON as fallback),
+  TTL-cached (`MB_UPDATE_CHECK_TTL`, default `86400`), strict JSON output, fail-open on every
+  network/parse error.
+- **`hooks/mb-update-notify.sh`** — SessionStart hook rendering that answer: silent when
+  up to date, otherwise a ≤3-line notice naming `current -> latest` and the exact upgrade
+  command for the detected install flavor (git/pipx/pip/brew). Reads the cache only
+  (`--cache-only`, no network from the hook path itself) and fires a detached background
+  refresh when the cache is cold. `MB_UPDATE_CHECK=off` disables the check entirely.
+- **Opt-in auto-update** (`MB_AUTO_UPDATE=on`, default `off`): applies the update automatically
+  via `mb-upgrade.sh --force`, but only for a `git clone` install with a clean working tree — a
+  dirty tree refuses, and pipx/pip/brew installs are never auto-run, only named in the notice.
+  Fail-open: a stuck or failing auto-update attempt never blocks the session.
+- Docs: `commands/mb.md` `upgrade` section, `SKILL.md` hooks table, `README.md` "Staying up to
+  date" section, and `references/structure.md` control envelopes cover the three new env vars
+  (`MB_UPDATE_CHECK`, `MB_UPDATE_CHECK_TTL`, `MB_AUTO_UPDATE`).
+
 ## [5.3.0] — 2026-07-13
 
 ### Fixed — a broken `main` reached PyPI; this release is the repair
