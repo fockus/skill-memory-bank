@@ -144,3 +144,97 @@ teardown() {
   session_mtime=$(stat -f%m "$MB/session/2026-06-11_1000_eeeeeeee.md" 2>/dev/null || stat -c%Y "$MB/session/2026-06-11_1000_eeeeeeee.md" 2>/dev/null || echo 0)
   [ "$recent_mtime" -lt "$session_mtime" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# adapter-parity T3 (REQ-003, scenario 3): a bare Pi host — extension
+# absent — gets the EXACT install command from a REAL doctor invocation
+# (not the RED placeholders above, which only assert setup fixtures).
+# ═══════════════════════════════════════════════════════════════
+
+@test "doctor: bare Pi host (no parity extension) prints the exact --clients pi --with-extensions=pi install command" {
+  [ ! -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts" ]
+  run env HOME="$FAKE_HOME" CLAUDE_PROJECT_DIR="$PROJ" bash "$SCRIPTS/mb-session-doctor.sh" "$PROJ"
+  [ "$status" -eq 0 ]
+  # --clients pi is REQUIRED, not cosmetic: install.sh defaults --clients to
+  # claude-code when omitted, and the extension offer only ever applies to
+  # hosts present in --clients — a bare --with-extensions=pi (no --clients)
+  # is a silent no-op (success banner, zero files) — a real, reproduced
+  # regression this exact-substring check locks in.
+  [[ "$output" == *"--clients pi --with-extensions=pi"* ]]
+  [[ "$output" == *"install.sh"* ]]
+}
+
+@test "doctor: bare Pi host resolves install.sh's real path when a skill root is discoverable" {
+  local skill_root="$FAKE_HOME/.claude/skills/memory-bank"
+  mkdir -p "$skill_root/hooks"
+  : > "$skill_root/install.sh"
+  run env HOME="$FAKE_HOME" CLAUDE_PROJECT_DIR="$PROJ" bash "$SCRIPTS/mb-session-doctor.sh" "$PROJ"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"$skill_root/install.sh --clients pi --with-extensions=pi"* ]]
+}
+
+@test "doctor: an INSTALLED Pi extension reports installed, not the install hint" {
+  mkdir -p "$FAKE_HOME/.pi/agent/extensions"
+  : > "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts"
+  run env HOME="$FAKE_HOME" CLAUDE_PROJECT_DIR="$PROJ" bash "$SCRIPTS/mb-session-doctor.sh" "$PROJ"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"extension: installed"* ]]
+  [[ "$output" != *"--with-extensions=pi"* ]]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# The REAL regression test (Codex re-review): the hint must not just LOOK
+# right as a substring — copy-pasting it must actually install the
+# extensions. Executes the EXACT emitted command against a fresh HOME +
+# project dir and asserts the real files land under
+# ~/.pi/agent/extensions/. This is what caught the --clients-pi gap: the
+# old `install.sh --with-extensions=pi` hint ran successfully (exit 0,
+# "installed" banner) while installing ZERO files for Pi.
+# ═══════════════════════════════════════════════════════════════
+
+@test "doctor: copy-pasting the emitted Pi install hint actually installs the parity extensions (real regression guard)" {
+  command -v jq >/dev/null 2>&1 || skip "jq required"
+  command -v rsync >/dev/null 2>&1 || skip "rsync required"
+
+  local repo_root
+  repo_root="$(cd "$SCRIPTS/.." && pwd)"
+
+  # A REAL, runnable skill bundle at the resolved skill root the hint names
+  # (not the empty install.sh stub the path-resolution test above uses —
+  # that only proves the STRING is right; this proves the STRING RUNS).
+  local skill_root="$FAKE_HOME/.claude/skills/memory-bank"
+  mkdir -p "$skill_root"
+  rsync -a \
+    --exclude='.git' \
+    --exclude='*.pre-mb-backup.*' \
+    --exclude='.index' \
+    --exclude='.memsearch' \
+    --exclude='/tests/calibration/results' \
+    --exclude='node_modules' \
+    "$repo_root/" "$skill_root/"
+
+  run env HOME="$FAKE_HOME" CLAUDE_PROJECT_DIR="$PROJ" bash "$SCRIPTS/mb-session-doctor.sh" "$PROJ"
+  [ "$status" -eq 0 ]
+
+  # Extract the emitted hint line verbatim (no re-typing it by hand here —
+  # that would just re-encode the fix instead of proving the ACTUAL output
+  # is runnable) and execute it exactly as a user would copy-paste it.
+  local hint_line
+  hint_line="$(printf '%s\n' "$output" | grep -F 'install.sh --clients pi --with-extensions=pi')"
+  [ -n "$hint_line" ]
+  local hint_cmd="${hint_line#*Run: }"
+  [[ "$hint_cmd" == "bash $skill_root/install.sh --clients pi --with-extensions=pi" ]]
+
+  local exec_home exec_proj
+  exec_home="$(mktemp -d)"
+  exec_proj="$(mktemp -d)"
+  mkdir -p "$exec_proj/.memory-bank"
+
+  run env HOME="$exec_home" MB_SKIP_DEPS_CHECK=1 bash -c "cd \"$exec_proj\" && $hint_cmd" </dev/null
+  [ "$status" -eq 0 ]
+
+  [ -f "$exec_home/.pi/agent/extensions/memory-bank-session.ts" ]
+  [ -f "$exec_home/.pi/agent/extensions/memory-bank-graph-rag.ts" ]
+
+  rm -rf "$exec_home" "$exec_proj"
+}

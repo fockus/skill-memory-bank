@@ -139,14 +139,32 @@ fi
 echo "--- Pi adapter ---"
 PI_EXT="$HOME/.pi/agent/extensions/memory-bank-session.ts"
 PI_EXT_SKILL="$SKILL_HOOKS/../adapters/pi_session_memory_extension.ts"
+# adapter-parity T3 (REQ-003): resolve the EXACT accept-path command for a
+# bare Pi host — relative to the skill root that owns $SKILL_HOOKS so the
+# hint is copy-pasteable whether this doctor runs from an installed
+# ~/.claude/skills/memory-bank tree or a git checkout (SKILL_HOOKS/.. is the
+# skill root in both layouts).
+# --clients pi is REQUIRED, not cosmetic: install.sh defaults CLIENTS to
+# claude-code when --clients is omitted, and the extension offer
+# (_mb_offer_extensions) only ever offers hosts present in --clients — so a
+# bare `--with-extensions=pi` (no --clients) silently installs nothing at
+# all for Pi while still printing a full success banner (a real, reproduced
+# regression: exit 0, "installed" banner, ~/.pi/agent/extensions/ never
+# created). Both branches below MUST carry --clients pi.
+PI_SKILL_ROOT="$(cd "$SKILL_HOOKS/.." 2>/dev/null && pwd)"
+if [ -n "$PI_SKILL_ROOT" ] && [ -f "$PI_SKILL_ROOT/install.sh" ]; then
+  PI_INSTALL_HINT="bash $PI_SKILL_ROOT/install.sh --clients pi --with-extensions=pi"
+else
+  PI_INSTALL_HINT="install.sh --clients pi --with-extensions=pi"
+fi
 
 if [ -f "$PI_EXT" ]; then
   echo "  extension: installed ($PI_EXT)"
 elif [ -f "$PI_EXT_SKILL" ]; then
-  echo "  [INFO] Extension exists in skill repo but not installed. Run: adapters/pi.sh install"
+  echo "  [INFO] Extension exists in skill repo but not installed. Run: $PI_INSTALL_HINT"
   infos=$((infos + 1))
 else
-  echo "  [INFO] Pi session adapter extension not found (Stage 4 will create it)"
+  echo "  [INFO] Pi session-memory extension not found. Run: $PI_INSTALL_HINT"
   infos=$((infos + 1))
 fi
 

@@ -290,10 +290,17 @@ categories; not every category has an equivalent on every host.
 | Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | git-fallback (`post-commit` staleness check) | guidance only |
 
 **Pi native extension status:** `adapters/pi_session_memory_extension.ts` (a TypeScript extension listening
-to `session_start`/`session_before_compact`/`session_shutdown`/`tool_call` events) ships in the bundle as
-source, but no adapter currently copies it to `~/.pi/agent/extensions/`. Until an install path wires it up,
-Pi's actual lifecycle coverage is the git-hooks-fallback (post-commit) row above, not the native-extension
-events — treat the extension as a template, not an installed artifact.
+to `session_start`/`input`/`tool_execution_end`/`agent_end`/`session_before_compact`/`session_shutdown`
+events) ships in the bundle as source AND has a real, opt-in install path as of adapter-parity T3:
+accepting the Pi parity-extension offer (`install.sh --clients pi --with-extensions=pi` — `--clients pi`
+is required, not optional: the offer only ever applies to hosts present in `--clients`, and it defaults
+to `claude-code` when omitted — or the interactive/CI-flag prompt) installs it — alongside
+`pi_graph_rag_extension.ts` — into the GLOBAL
+`~/.pi/agent/extensions/` directory, no separate project-local run required. The table row above
+(git-hooks-fallback/post-commit) still describes the DEFAULT, pre-consent tier — a bare `--clients pi`
+install with the offer declined or skipped never installs the extension (opt-in only, AGR-013); once
+accepted, Pi graduates to the same rich `session/*.md` capture tier as Claude Code/Cursor, plus the
+update-notify notice on every session start (REQ-013).
 
 ## Resource availability matrix
 

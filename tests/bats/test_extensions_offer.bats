@@ -116,7 +116,10 @@ run_install() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"pi parity extensions"* ]]
   [[ "$output" == *"opencode parity extensions"* ]]
-  [[ "$output" == *"T3"* ]]
+  # pi: T3 landed — real files land in the global Pi extensions dir.
+  [ -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts" ]
+  [ -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-graph-rag.ts" ]
+  # opencode: T5 not implemented yet — still the logging-only stub.
   [[ "$output" == *"T5"* ]]
   [ -f "$MANIFEST" ]
   jq -e '.extensions_installed == ["pi", "opencode"]' "$MANIFEST" >/dev/null
@@ -131,6 +134,8 @@ run_install() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"pi parity extensions"* ]]
   [[ "$output" != *"opencode parity extensions"* ]]
+  [ -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts" ]
+  [ ! -d "$PROJECT/.opencode/extensions" ]
   jq -e '.extensions_installed == ["pi"]' "$MANIFEST" >/dev/null
 }
 
@@ -177,15 +182,20 @@ run_install() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# mb_install_host_extensions stub honestly writes nothing (T2 contract)
+# mb_install_host_extensions: pi is real (T3), opencode stays the T2 stub
 # ═══════════════════════════════════════════════════════════════
 
-@test "extensions-offer: accepted stub writes no extension files (T3/T5 not implemented yet)" {
+@test "extensions-offer: accepted pi installs real extension files; opencode stub still writes nothing (T5 not implemented yet)" {
   run_install --clients pi,opencode --project-root "$PROJECT" --non-interactive --with-extensions
   [ "$status" -eq 0 ]
-  # T3's real target — must stay absent until T3 actually wires it.
-  [ ! -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts" ]
-  # No new extension directory sprouted anywhere under the project.
+  # T3 landed — pi's real target now exists, placeholder-free.
+  local session_ext="$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts"
+  local graph_ext="$FAKE_HOME/.pi/agent/extensions/memory-bank-graph-rag.ts"
+  [ -f "$session_ext" ]
+  [ -f "$graph_ext" ]
+  ! grep -q '__MB_' "$session_ext"
+  ! grep -q '__MB_' "$graph_ext"
+  # T5's real target — must stay absent until T5 actually wires it.
   [ ! -d "$PROJECT/.opencode/extensions" ]
 }
 
@@ -415,13 +425,16 @@ _nfr001_assert_exact_tree_delta() {
   _nfr001_assert_exact_tree_delta "$old_home_snap" "$FAKE_HOME"
   _nfr001_assert_exact_tree_delta "$old_project_snap" "$PROJECT"
 
-  # Named deltas, asserted explicitly rather than silently trusted: both the
-  # project AGENTS.md and the always-installed global opencode AGENTS.md
-  # really did change (gained the nudge) — a regression that made the nudge
-  # vanish would otherwise pass the exact-delta check above via cmp's
-  # byte-identical fast path.
-  ! cmp -s "$old_project_snap/AGENTS.md" "$PROJECT/AGENTS.md"
-  ! cmp -s "$old_home_snap/.config/opencode/AGENTS.md" "$FAKE_HOME/.config/opencode/AGENTS.md"
+  # NOTE: this fixture uses HEAD:install.sh / HEAD:_lib_agents_md.sh as the
+  # "old" baseline. Once adapter-parity (T2) is COMMITTED, HEAD already carries
+  # the offer machinery, so the OLD and NEW declined-path outputs are identical
+  # by design — the test now guards "a later task (T3+) must not change the
+  # DECLINED path vs the last committed version", verified by the exact-tree-
+  # delta above (any drift → fail). We deliberately do NOT assert "the nudge
+  # delta happened" here (that was only meaningful against a pre-nudge
+  # baseline): nudge PRESENCE is covered by the dedicated tests
+  # "AGENTS.md managed block includes the nudge" / "pi-only ... carries the
+  # nudge" / "codex + pi ... keeps the nudge".
 }
 
 # ═══════════════════════════════════════════════════════════════

@@ -610,6 +610,9 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-118 — adapter-parity: forward --with-extensions CLI flag through memory_bank_skill/cli.py argparse to install.sh (env MB_WITH_EXTENSIONS already passes; only the flag form is missing) — closes REQ-005 for pipx/pip/brew [MED, NEW, 2026-07-15]
 
+
+### I-119 — Pi session-memory: reuse session_start's resolved cwd const in session_shutdown reindex spawn instead of recomputing PROJECT_ROOT || ctx.cwd inline (pi_session_memory_extension.ts:288) — inert DRY nit from T3 judge [LOW, NEW, 2026-07-15]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

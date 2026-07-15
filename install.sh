@@ -444,15 +444,25 @@ fi
 #           only to prove/host the call site). Non-zero → offer accepted but
 #           installation failed; the host is NOT recorded, install continues
 #           (never fatal, mirrors every other adapter-install failure mode).
-# T3 (pi: session-memory + graph-rag) and T5 (opencode: parity plugin +
-# global agents) replace this body with the real per-host installer while
-# keeping the exact signature — the offer plumbing above/below this function
-# does not change again when they land.
+# T3 (pi: session-memory + graph-rag) landed — see the "pi" branch below.
+# T5 (opencode: parity plugin + global agents) still replaces its stub body
+# with the real installer while keeping the exact signature — the offer
+# plumbing above/below this function does not change again when it lands.
 mb_install_host_extensions() {
   local host="$1"
   case "$host" in
     pi)
-      echo -e "  ${YELLOW}~${NC} pi parity extensions: install arrives in T3 (session-memory + graph-rag wiring) — no files written yet"
+      # adapter-parity T3 (REQ-006/007/010): install BOTH parity extensions
+      # (session-memory + graph-rag) into the global Pi extensions dir
+      # ($HOME/.pi/agent/extensions/) — no separate project-local run
+      # required. adapters/pi.sh reports per-extension success/failure on
+      # its own status line; this only announces the host-level action so
+      # "pi parity extensions" is always a stable substring to assert on.
+      echo -e "  ${GREEN}✓${NC} pi parity extensions: installing session-memory + graph-rag"
+      if ! MB_LANGUAGE="$LANGUAGE" bash "$SOURCE_SKILL_DIR/adapters/pi.sh" install-global-extensions "$PROJECT_ROOT"; then
+        echo -e "  ${RED}✗${NC} pi parity extensions: install failed" >&2
+        return 1
+      fi
       ;;
     opencode)
       echo -e "  ${YELLOW}~${NC} opencode parity extensions: install arrives in T5 (parity plugin + global agents) — no files written yet"

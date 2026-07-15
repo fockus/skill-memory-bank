@@ -18,11 +18,19 @@ const PROJECT_ROOT = __MB_PROJECT_ROOT_JSON__;
 // extension host's process environment, falling back to "python3" unchanged.
 const PYTHON_COMMAND = process.env.MB_PYTHON || "python3";
 
-async function runPythonJson(script: string, args: string[]) {
+// adapter-parity T3 (cross-project isolation fix): `cwd` is a REQUIRED
+// parameter, not the module-level PROJECT_ROOT constant — PROJECT_ROOT is
+// baked EMPTY for a global (accept-path) install (see pi.sh's
+// install_global_extensions), so every call site below resolves its own
+// live `projectRoot` (params.projectRoot || PROJECT_ROOT || process.cwd())
+// and passes THAT here. Reading the outer constant directly would silently
+// run every tool call against the accept-time project, in every OTHER
+// project, forever.
+async function runPythonJson(script: string, args: string[], cwd: string) {
   const scriptPath = path.join(SKILL_DIR, script);
   try {
     const { stdout } = await execFileAsync(PYTHON_COMMAND, [scriptPath, ...args], {
-      cwd: PROJECT_ROOT,
+      cwd,
       maxBuffer: 1024 * 1024,
     });
     return JSON.parse(stdout);
@@ -39,7 +47,10 @@ async function runPythonJson(script: string, args: string[]) {
 }
 
 function graphPath(projectRoot?: string, mbPath?: string): string {
-  return path.join(mbPath || path.join(projectRoot || PROJECT_ROOT, ".memory-bank"), "codebase", "graph.json");
+  // Defense in depth: every current call site always supplies mbPath, so
+  // this fallback branch is not reached today, but keep it consistent with
+  // the same cross-project isolation fallback as the execute() call sites.
+  return path.join(mbPath || path.join(projectRoot || PROJECT_ROOT || process.cwd(), ".memory-bank"), "codebase", "graph.json");
 }
 
 export default function memoryBankGraphRagExtension(pi: ExtensionAPI) {
@@ -62,7 +73,11 @@ export default function memoryBankGraphRagExtension(pi: ExtensionAPI) {
       semanticOnly: Type.Optional(Type.Boolean({ description: "Use only semantic candidates and recommended reads" })),
     }),
     async execute(_toolCallId, params) {
-      const projectRoot = params.projectRoot || PROJECT_ROOT;
+      // adapter-parity T3: PROJECT_ROOT is baked EMPTY for a global install
+      // (cross-project isolation) — process.cwd() is the final fallback so
+      // an unscoped call still resolves the LIVE project, never a frozen
+      // accept-time one.
+      const projectRoot = params.projectRoot || PROJECT_ROOT || process.cwd();
       const mbPath = params.mbPath || path.join(projectRoot, ".memory-bank");
       const args = [
         "--query", params.query,
@@ -74,7 +89,7 @@ export default function memoryBankGraphRagExtension(pi: ExtensionAPI) {
       if (params.semanticCandidates) args.push("--semantic-candidates", params.semanticCandidates);
       if (params.semanticProvider) args.push("--semantic-provider", params.semanticProvider);
       if (params.semanticOnly) args.push("--semantic-only");
-      const payload = await runPythonJson("scripts/mb-code-context.py", args);
+      const payload = await runPythonJson("scripts/mb-code-context.py", args, projectRoot);
       return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }], details: payload };
     },
   });
@@ -91,12 +106,14 @@ export default function memoryBankGraphRagExtension(pi: ExtensionAPI) {
         mbPath: Type.Optional(Type.String({ description: "Memory Bank path; defaults to <project>/.memory-bank" })),
       }),
       async execute(_toolCallId, params) {
-        const projectRoot = params.projectRoot || PROJECT_ROOT;
+        // adapter-parity T3: same cross-project isolation fallback as
+        // code_context's execute above — see its comment.
+        const projectRoot = params.projectRoot || PROJECT_ROOT || process.cwd();
         const mbPath = params.mbPath || path.join(projectRoot, ".memory-bank");
         const args = [command, "--graph", graphPath(projectRoot, mbPath), "--json"];
         if (params.symbol) args.push("--symbol", params.symbol);
         if (params.file) args.push("--file", params.file);
-        const payload = await runPythonJson("scripts/mb-graph-query.py", args);
+        const payload = await runPythonJson("scripts/mb-graph-query.py", args, projectRoot);
         return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }], details: payload };
       },
     });

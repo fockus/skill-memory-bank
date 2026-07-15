@@ -162,27 +162,39 @@ install_agents_md_mode() {
   echo "[pi-adapter] installed (mode: agents-md)"
 }
 
-# Copy adapters/pi_graph_rag_extension.ts → $PROJECT_ROOT/.pi/extensions/.
-# Provides native Pi tool wrappers (code_context, graph_neighbors,
-# graph_impact, graph_tests) that delegate to scripts/mb-*-query.py and
-# scripts/mb-code-context.py. Fail-open contract: missing source file
-# is not fatal — returns "false" so caller can record skipped state.
-_install_graph_rag_extension() {
-  local src="$SKILL_DIR/adapters/pi_graph_rag_extension.ts"
-  local dest="$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts"
+# Copy a Pi extension template ($1=src) → $2=dest, substituting the
+# __MB_SKILL_DIR_JSON__ / __MB_PROJECT_ROOT_JSON__ placeholders with
+# JSON-encoded paths (@json) so the emitted .ts is syntactically valid and
+# robust to spaces/quotes/backslashes in the paths. jq reads the template
+# raw (--rawfile) and emits raw (-r); gsub replacements are literal, so no
+# sed-escaping hazard. Atomic (tmp + mv). Fail-open contract: a missing
+# source file is not fatal — echoes "false" so the caller can record a
+# skipped state. adapter-parity T3: shared by the pre-existing project-local
+# graph-rag install below AND install_global_extensions() (the new opt-in
+# accept-path installer), so both destinations stay byte-for-byte identical
+# in how they substitute placeholders.
+#
+# $3 (optional) = the value to bake for __MB_PROJECT_ROOT_JSON__; defaults to
+# $PROJECT_ROOT (the project-local install's own contract). CRITICAL: the
+# GLOBAL accept-path installer below passes an EXPLICIT EMPTY STRING here —
+# baking the accept-time $PROJECT_ROOT into a file installed to the GLOBAL
+# ~/.pi/agent/extensions/ dir would make every future Pi session, in every
+# OTHER project, read/write session capture and graph queries against the
+# accept-time project's .memory-bank (a cross-project data leak). An empty
+# string is falsy in the extensions' own `PROJECT_ROOT || ctx.cwd` /
+# `params.projectRoot || PROJECT_ROOT || process.cwd()` fallback chains, so
+# the live per-session cwd always wins for a global install instead.
+_install_pi_extension_template() {
+  local src="$1" dest="$2" proj_root="${3-$PROJECT_ROOT}"
   if [ ! -f "$src" ]; then
     echo "false"
     return 0
   fi
   mkdir -p "$(dirname "$dest")"
-  # Substitute the __MB_*_JSON__ placeholders with JSON-encoded paths (@json) so
-  # the emitted .ts is syntactically valid and robust to spaces/quotes/backslashes
-  # in the paths. jq reads the template raw (--rawfile) and emits raw (-r); gsub
-  # replacements are literal, so no sed-escaping hazard. Atomic (tmp + mv).
   local tmp="$dest.mbtmp"
   if jq -rn \
       --arg skill "$SKILL_DIR" \
-      --arg proj "$PROJECT_ROOT" \
+      --arg proj "$proj_root" \
       --rawfile tpl "$src" \
       '$tpl
        | gsub("__MB_SKILL_DIR_JSON__"; ($skill | @json))
@@ -195,6 +207,60 @@ _install_graph_rag_extension() {
     echo "false"
     return 0
   fi
+}
+
+# Copy adapters/pi_graph_rag_extension.ts → $PROJECT_ROOT/.pi/extensions/.
+# Provides native Pi tool wrappers (code_context, graph_neighbors,
+# graph_impact, graph_tests) that delegate to scripts/mb-*-query.py and
+# scripts/mb-code-context.py. Fail-open contract: missing source file
+# is not fatal — returns "false" so caller can record skipped state.
+# Pre-existing, unconditional per-project behavior (runs whenever `pi` is a
+# --clients target) — NOT gated by the adapter-parity extension offer; left
+# unchanged by T3 (see install_global_extensions for the new opt-in path).
+# This install IS project-scoped (dest lives under $PROJECT_ROOT/.pi/), so
+# baking the real $PROJECT_ROOT (the template helper's default 3rd arg) is
+# correct here — only the GLOBAL install below must not.
+_install_graph_rag_extension() {
+  _install_pi_extension_template \
+    "$SKILL_DIR/adapters/pi_graph_rag_extension.ts" \
+    "$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts"
+}
+
+# adapter-parity T3 (REQ-006/007/010): installs BOTH parity extensions
+# (session-memory + graph-rag) into the GLOBAL Pi extensions dir
+# ($HOME/.pi/agent/extensions/) — the opt-in "accept" path consumed by
+# install.sh's mb_install_host_extensions "pi" seam (T2). Unlike
+# _install_graph_rag_extension above (unconditional, project-local,
+# pre-existing behavior inherited from before this spec), this function is
+# ONLY ever invoked after explicit user consent (REQ-004) — never from
+# install_pi()/install_agents_md_mode's normal per-client flow.
+#
+# Usage: adapters/pi.sh install-global-extensions [PROJECT_ROOT]
+# Fail-open per extension (same contract as _install_pi_extension_template);
+# returns 1 only when BOTH extensions fail to install, so one missing
+# template doesn't mask the other's success.
+#
+# CRITICAL (cross-project isolation): the 3rd arg "" forces
+# __MB_PROJECT_ROOT_JSON__ to bake as an empty string — NOT $PROJECT_ROOT —
+# for BOTH extensions. A global install serves every Pi project, not just
+# the one active at accept time; the empty bake makes each extension's own
+# runtime fallback (ctx.cwd / process.cwd()) resolve the LIVE project on
+# every session/tool-call instead of a frozen accept-time path.
+install_global_extensions() {
+  adapter_require_jq "pi-adapter" || return 1
+  local dest_dir="$PI_AGENT_DIR/extensions"
+  local ok_session ok_graph
+  ok_session=$(_install_pi_extension_template \
+    "$SKILL_DIR/adapters/pi_session_memory_extension.ts" \
+    "$dest_dir/memory-bank-session.ts" "")
+  ok_graph=$(_install_pi_extension_template \
+    "$SKILL_DIR/adapters/pi_graph_rag_extension.ts" \
+    "$dest_dir/memory-bank-graph-rag.ts" "")
+  echo "[pi-adapter] parity extensions: session-memory=$ok_session graph-rag=$ok_graph -> $dest_dir"
+  if [ "$ok_session" != "true" ] && [ "$ok_graph" != "true" ]; then
+    return 1
+  fi
+  return 0
 }
 
 uninstall_agents_md_mode() {
@@ -252,10 +318,11 @@ uninstall_pi() {
 }
 
 case "$ACTION" in
-  install)   install_pi ;;
-  uninstall) uninstall_pi ;;
+  install)                   install_pi ;;
+  uninstall)                 uninstall_pi ;;
+  install-global-extensions) install_global_extensions ;;
   *)
-    echo "Usage: [MB_PI_MODE=agents-md|skill] $0 install|uninstall [PROJECT_ROOT]" >&2
+    echo "Usage: [MB_PI_MODE=agents-md|skill] $0 install|uninstall|install-global-extensions [PROJECT_ROOT]" >&2
     exit 1
     ;;
 esac

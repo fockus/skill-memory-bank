@@ -46,6 +46,38 @@ teardown() {
   grep -qE 'const PROJECT_ROOT = ".+";' "$ext"
 }
 
+# adapter-parity T3 (REQ-006/007/010): the accept-path global installer puts
+# BOTH extensions in $HOME/.pi/agent/extensions/ (not the project-local
+# .pi/extensions/ the test above covers) — a distinct destination with its
+# own placeholder-substitution obligation.
+@test "parity: Pi's global accept-path install (session-memory + graph-rag) has no unresolved __MB_ placeholders" {
+  command -v jq >/dev/null || skip "jq required"
+  local sandbox_home
+  sandbox_home="$(mktemp -d)"
+  HOME="$sandbox_home" run bash "$REPO_ROOT/adapters/pi.sh" install-global-extensions "$PROJECT"
+  [ "$status" -eq 0 ]
+
+  local session_ext="$sandbox_home/.pi/agent/extensions/memory-bank-session.ts"
+  local graph_ext="$sandbox_home/.pi/agent/extensions/memory-bank-graph-rag.ts"
+  [ -f "$session_ext" ]
+  [ -f "$graph_ext" ]
+  ! grep -q '__MB_' "$session_ext"
+  ! grep -q '__MB_' "$graph_ext"
+  # SKILL_DIR is a real, non-empty path in both.
+  grep -qE 'const SKILL_DIR = ".+";' "$session_ext"
+  grep -qE 'const SKILL_DIR = ".+";' "$graph_ext"
+  # Cross-project isolation (Codex review blocker fix): the GLOBAL install
+  # bakes PROJECT_ROOT EMPTY, never the accept-time $PROJECT, so every
+  # extension's own runtime fallback (ctx.cwd / process.cwd()) resolves the
+  # LIVE project on every future session instead of a frozen one. See
+  # test_pi_session_memory_extension.bats for the runtime (not just
+  # source-text) proof of this isolation.
+  grep -qE '^const PROJECT_ROOT = "";$' "$session_ext"
+  grep -qE '^const PROJECT_ROOT = "";$' "$graph_ext"
+
+  rm -rf "$sandbox_home"
+}
+
 # ═══════════════════════════════════════════════════════════════
 # (b) Claude Code / Cursor — rich session/*.md capture (shared hook)
 # ═══════════════════════════════════════════════════════════════
@@ -89,9 +121,15 @@ EOF
 
 # ═══════════════════════════════════════════════════════════════
 # (c) Codex / Kilo / Pi — git-hooks-fallback capture (honest lesser tier)
+#
+# adapter-parity T3: this is still the DEFAULT Pi tier (git-hooks-fallback,
+# no consent given). Once a user accepts the Pi extension offer
+# (install.sh --with-extensions=pi), Pi graduates to the rich session/*.md
+# tier too — see test_pi_session_memory_extension.bats for that path; this
+# test only proves the pre-consent baseline is unchanged.
 # ═══════════════════════════════════════════════════════════════
 
-@test "parity: Codex/Kilo/Pi git-hooks-fallback captures to progress.md, NOT session/*.md (honest degradation)" {
+@test "parity: Codex/Kilo/Pi git-hooks-fallback captures to progress.md, NOT session/*.md (honest degradation, pre-consent default)" {
   (cd "$PROJECT" && git init -q && git config user.email t@t && git config user.name t)
   mkdir -p "$PROJECT/.memory-bank"
   echo '# Progress' > "$PROJECT/.memory-bank/progress.md"

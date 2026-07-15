@@ -80,6 +80,34 @@ def test_hook_matrix_pi_extension_claim_does_not_overclaim_wiring() -> None:
         )
 
 
+def test_hook_matrix_pi_extension_documents_the_t3_opt_in_global_install() -> None:
+    """adapter-parity T3: the doc must reflect reality — a real, opt-in install
+    path now exists (install.sh --clients pi --with-extensions=pi →
+    ~/.pi/agent/extensions/), not just 'ships as source, no adapter installs
+    it' (the pre-T3 claim). --clients pi is REQUIRED, not optional: install.sh
+    defaults CLIENTS to claude-code when --clients is omitted, and the offer
+    only applies to hosts present in --clients — a bare `--with-extensions=pi`
+    silently installs nothing for Pi while still printing a success banner (a
+    real, reproduced regression)."""
+    text = CROSS_AGENT_SETUP.read_text(encoding="utf-8")
+    assert "no adapter currently copies it" not in text, (
+        "cross-agent-setup.md still claims Pi's session-memory extension has no "
+        "install path — adapter-parity T3 shipped install.sh --clients pi "
+        "--with-extensions=pi (mb_install_host_extensions 'pi' -> "
+        "adapters/pi.sh install-global-extensions)."
+    )
+    assert "--clients pi --with-extensions=pi" in text, (
+        "cross-agent-setup.md must document the exact opt-in command, "
+        "including --clients pi (NOT just --with-extensions=pi, which "
+        "silently installs nothing — install.sh defaults --clients to "
+        "claude-code and the offer only applies to hosts present in --clients)."
+    )
+    assert "~/.pi/agent/extensions/" in text, (
+        "cross-agent-setup.md must name the real global install destination "
+        "for the Pi parity extensions."
+    )
+
+
 def test_cursor_ide_cli_wording_is_consistent_with_cursor_extension_doc() -> None:
     """D-4: cross-agent-setup.md and cursor-extension.md used to contradict each other
     about which Cursor surface (IDE vs agent CLI) fires the full hook set. Lock the
