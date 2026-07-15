@@ -90,6 +90,28 @@ Facts from the 2026-07-15 three-agent audit — one fact + citation per line.
 - **D-07**: Honesty layer ships in the same slice: `platform_limited` arrays in every
   adapter manifest + negative bats asserting "absent with a reason" for unsupported
   capabilities — parity regressions become catchable.
+- **D-08** (discuss follow-up, user answers 2026-07-15): Runtime nudge = `/mb doctor`
+  **plus a one-line session-start suggestion** on a bare pi/opencode host until the
+  extensions are installed. Pre-install there is no native transport, so the
+  session-start nudge is delivered instruction-level via the AGENTS.md managed block
+  (once per session, silent after install). Rejected: doctor-only (user overrode as
+  too passive).
+- **D-09** (user decision): Pi subagent dispatch is built **even if T1 finds no native
+  mechanism** — headless `pi -p --agent` spawn is acceptable; slow dispatch beats no
+  dispatch, speed is optimized later. T1 still runs first to pick the best available
+  mechanism and measure it.
+- **D-10** (user decision): Honesty layer (`platform_limited` + negative tests) covers
+  **all 8 supported clients**, not just three; extension work stays focused on
+  pi/opencode/codex + a cursor parity verification (cursor is near-CC tier already —
+  prove it with tests instead of assuming). cursor/windsurf/cline/kilo extension
+  uplift beyond that stays out of scope.
+- **D-11** (user decision): Execution = **one slice, T1–T8**, single governed
+  `/mb work` pass, one release. Rejected: two-phase Pi-first split.
+- **D-12** (user question 2026-07-15): Native slash-command parity. OpenCode already
+  has it (`.opencode/commands/` auto-discovery — real commands, incl. `/agree`). Pi
+  today has only static prompt templates; whether the Pi extension API can register
+  true commands is added to T1 research scope — if yes, the parity extension registers
+  the `/mb` surface natively (REQ-022); if no, prompts stay + `platform_limited`.
 
 ## Functional Requirements (EARS)
 
@@ -121,11 +143,14 @@ update-notify transports:
 
 Honesty, lifecycle & tests:
 
-- **REQ-015** (ubiquitous): The system shall record capabilities a host cannot support in the adapter manifest `platform_limited` array.
+- **REQ-015** (ubiquitous): The system shall record capabilities a host cannot support in the adapter manifest `platform_limited` array for every supported client.
 - **REQ-016** (ubiquitous): The system shall cover every extension install path with tests for installation, idempotent re-run and uninstallation.
 - **REQ-017** (ubiquitous): The system shall assert through negative tests that unsupported host capabilities are reported as absent with a reason.
 - **REQ-018** (event-driven): When `/mb upgrade` updates the skill, the system shall refresh installed host extensions to the bundled version.
 - **REQ-019** (unwanted): If a host extension fails at runtime, then the system shall degrade to the pre-extension fallback behavior without blocking the session.
+- **REQ-020** (state-driven): While a session runs on a pi or opencode host without installed parity extensions, the system shall render a one-line extension install suggestion at most once per session.
+- **REQ-021** (ubiquitous): The system shall verify through tests that the cursor client renders the update notice and captures sessions at the Claude Code tier.
+- **REQ-022** (optional): Where the Pi extension API supports command registration, the system shall register the `/mb` command surface as native Pi commands through the parity extension.
 
 ## Non-Functional Requirements
 
@@ -138,7 +163,7 @@ Honesty, lifecycle & tests:
 
 Constraints: never auto-install extensions; protected files (`ci/`, `.github/workflows/`, `.env`) untouched; scoped `git add` only; user-modified installed extensions are backed up, never clobbered.
 
-Out of scope: parity uplift for cursor/windsurf/cline/kilo (separate later slice); statusline on non-CC hosts (declared `platform_limited`); OpenSpec runtime (stays iceboxed, AGR-004); fixing the detached `codex exec` fake-completion bug (tracked separately).
+Out of scope: extension uplift for windsurf/cline/kilo beyond `platform_limited` + negative tests (D-10; cursor gets a parity VERIFICATION, not new machinery); statusline on non-CC hosts (declared `platform_limited`); OpenSpec runtime (stays iceboxed, AGR-004); fixing the detached `codex exec` fake-completion bug (tracked separately).
 
 ## Edge Cases & Failure Modes
 

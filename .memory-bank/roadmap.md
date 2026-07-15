@@ -56,7 +56,7 @@ _Last updated: auto-synced by mb-roadmap-sync.sh_
 
 ## 🥇 Priority insert (2026-07-15, AGR-012): `adapter-parity` — ПЕРВОЕ место в очереди
 
-Контекст: [context/adapter-parity.md](context/adapter-parity.md) (D-01…D-07) · спека `specs/adapter-parity` (19 REQ, T1–T8, 5 сценариев). Полный функциональный паритет скила на **OpenCode / Pi / Codex** с эталоном Claude Code. Источник: трёх-агентный аудит 2026-07-15 — session memory мертва на всех трёх, Pi без сабагентов, update-notify только у CC, готовый `pi_session_memory_extension.ts` никем не устанавливается.
+Контекст: [context/adapter-parity.md](context/adapter-parity.md) (D-01…D-07) · спека `specs/adapter-parity` (22 REQ, T1–T8, 5 сценариев). Полный функциональный паритет скила на **OpenCode / Pi / Codex** с эталоном Claude Code. Источник: трёх-агентный аудит 2026-07-15 — session memory мертва на всех трёх, Pi без сабагентов, update-notify только у CC, готовый `pi_session_memory_extension.ts` никем не устанавливается.
 
 **Приоритет: ПЕРВЫЙ, впереди donor v5.4.0 (AGR-012)** — скил должен работать везде до donor-стройки. Механизм (AGR-013): паритет хуков/сабагентов через **host-native расширения, предлагаемые пользователю opt-in** при install + runtime-nudge (`/mb doctor`); никогда авто-install; отказ = byte-identical install; Codex = honest degradation (prompt-hook notify + `platform_limited`). Поглощает legacy-планы `install-and-cross-agent-parity` (частично) и pi-extension-часть `cursor/pi-compatibility-remediation`.
 
@@ -114,7 +114,7 @@ ICE-примечания: 6.1 имеет третий score программы, 
 
 | Работа | Артефакт | Где в очереди |
 |---|---|---|
-| **adapter-parity** | `specs/adapter-parity` (19 REQ, T1–T8) + `context/adapter-parity.md` | 🥇 **ПЕРВОЕ место в очереди** (AGR-012/013), впереди donor v5.4.0 |
+| **adapter-parity** | `specs/adapter-parity` (22 REQ, T1–T8) + `context/adapter-parity.md` | 🥇 **ПЕРВОЕ место в очереди** (AGR-012/013), впереди donor v5.4.0 |
 | sdd-openspec-parity Phase 1 | `specs/sdd-openspec-parity` (24 REQ, T1–T8) | 🔥 HIGH — ∥ лейн (AGR-007), не пересекается с adapter-parity по файлам |
 | agreements (`/mb agree`) | `specs/agreements` (триплет + 16 mb-task) + `scripts/mb-agree.sh`, `commands/agree.md`, `references/agreements.md`, 2 bats | ✅ ГОТОВО и закоммичено (`452601d`, dogfood: AGR-011 записан этой сессией) → **входит в релиз donor v5.4.0 Trustworthy Baseline** (тема governance/trust; user-confirmed 2026-07-15) |
 | donor v5.4.0 Trustworthy Baseline | план `2026-07-15_feature_mb-donor-evolution-v5-4-baseline` | Next — голова donor-поезда, стартует после adapter-parity (AGR-012) |

@@ -11,15 +11,18 @@
 <!-- mb-task:1 -->
 ## Task 1: Host-API research — Pi dispatch + OpenCode plugin events
 
-**Covers:** REQ-009, REQ-011
+**Covers:** REQ-009, REQ-011, REQ-022
 **Role:** researcher
 
 **What to do:**
 - Establish with evidence (docs/source/experiment): (a) Pi's viable subagent-dispatch
-  mechanism — native agent registry vs extension tool spawning headless `pi -p --agent`;
-  (b) which OpenCode plugin events exist for session-start injection and per-turn
-  capture (exact event names + payloads); (c) whether either host exposes a
-  prompt-submit surface usable for semantic-recall later.
+  mechanism — native agent registry vs extension tool spawning headless `pi -p --agent`
+  (D-09: headless spawn is built even if slow — T1 picks the best mechanism and
+  measures, it does not gate the feature); (b) which OpenCode plugin events exist for
+  session-start injection and per-turn capture (exact event names + payloads);
+  (c) whether the Pi extension API supports registering native slash commands for the
+  `/mb` surface (REQ-022, D-12); (d) whether either host exposes a prompt-submit
+  surface usable for semantic-recall later.
 - Write findings + the selected mechanism per host into `design.md` (replace the T1
   placeholders) and a short note under `.memory-bank/notes/`.
 
@@ -34,7 +37,7 @@
 <!-- mb-task:2 -->
 ## Task 2: Extension offer plumbing (interactive + flag + CI-safe)
 
-**Covers:** REQ-001, REQ-002, REQ-004, REQ-005
+**Covers:** REQ-001, REQ-002, REQ-004, REQ-005, REQ-020
 **Role:** backend
 
 **What to do:**
@@ -42,6 +45,9 @@
   `--with-extensions[=pi,opencode]` flag + `MB_WITH_EXTENSIONS` env for non-interactive
   accept; no TTY + no flag → silent skip. Manifest records `extensions_installed`.
 - `/mb install` command doc: surface the offer in the AskUserQuestion flow.
+- Session-start nudge (D-08): the pi/opencode AGENTS.md managed block gains a one-line
+  instruction — on a bare host (no parity extensions), suggest the install command once
+  per session, silent after install (REQ-020).
 
 **Testing (TDD — tests BEFORE implementation):**
 - Declined/silent path → **byte-identical fixture**: diff installed tree vs pre-spec
@@ -77,13 +83,16 @@
 <!-- mb-task:4 -->
 ## Task 4: Pi subagent definitions + role dispatch
 
-**Covers:** REQ-008, REQ-009
+**Covers:** REQ-008, REQ-009, REQ-022
 **Role:** backend
 
 **What to do:**
 - Install `agents/*.md` for the pi client (mirror the opencode partial-exclusion logic).
-- Implement the T1-selected dispatch mechanism; register it in
-  `mb-subinvoke-resolve.sh` (single registry); `/mb work` role routing resolves on Pi.
+- Implement the T1-selected dispatch mechanism (headless `pi -p --agent` spawn is the
+  guaranteed floor per D-09); register it in `mb-subinvoke-resolve.sh` (single
+  registry); `/mb work` role routing resolves on Pi.
+- If T1 confirmed Pi command registration (REQ-022): register the `/mb` command surface
+  in the parity extension; otherwise document prompts-tier in `platform_limited`.
 
 **Testing (TDD — tests BEFORE implementation):**
 - Install → agents present in the Pi location, partials excluded, manifest lists them.
@@ -139,14 +148,17 @@
 <!-- mb-task:7 -->
 ## Task 7: platform_limited manifests + negative parity tests
 
-**Covers:** REQ-015, REQ-017
+**Covers:** REQ-015, REQ-017, REQ-021
 **Role:** qa
 
 **What to do:**
-- Add `platform_limited` arrays (closed vocabulary from design.md) to the pi, opencode,
-  codex (and cursor/windsurf where applicable) adapter manifests.
+- Add `platform_limited` arrays (closed vocabulary from design.md) to **all 8 client
+  adapter manifests** (D-10) — extension machinery stays focused on pi/opencode/codex,
+  the honesty layer does not.
 - New bats suite: for every declared limit, assert the capability is genuinely absent
   AND the reason is discoverable (manifest or doctor output) — the pair is the guard.
+- Cursor positive parity check (REQ-021): tests proving cursor renders update-notify
+  and captures sessions at the CC tier (it wires the same hooks — prove, don't assume).
 
 **Testing (TDD — tests BEFORE implementation):**
 - The negative suite itself IS the deliverable; plus a meta-test: a manifest limit

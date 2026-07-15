@@ -23,6 +23,7 @@
 - **REQ-003** (event-driven): When `/mb doctor` runs on a pi or opencode host without installed parity extensions, the system shall suggest the exact extension install command.
 - **REQ-004** (ubiquitous): The system shall install host extensions only after explicit user consent.
 - **REQ-005** (optional): Where a non-interactive installation passes the extensions flag, the system shall install the offered extensions without prompting.
+- **REQ-020** (state-driven): While a session runs on a pi or opencode host without installed parity extensions, the system shall render a one-line extension install suggestion at most once per session.
 
 ### Requirement 2: Pi hook & subagent parity
 
@@ -35,6 +36,7 @@
 - **REQ-008** (event-driven): When installation targets the pi client, the system shall install the skill subagent definitions for Pi role dispatch.
 - **REQ-009** (optional): Where the Pi parity extensions are installed, the system shall dispatch `/mb work` role agents through the mechanism selected by the host-API research task.
 - **REQ-010** (event-driven): When the user accepts the Pi extension offer during global installation, the system shall install the graph-rag extension without requiring a separate project-local run.
+- **REQ-022** (optional): Where the Pi extension API supports command registration, the system shall register the `/mb` command surface as native Pi commands through the parity extension.
 
 ### Requirement 3: OpenCode hook & subagent parity
 
@@ -60,11 +62,12 @@
 
 #### Acceptance Criteria
 
-- **REQ-015** (ubiquitous): The system shall record capabilities a host cannot support in the adapter manifest `platform_limited` array.
+- **REQ-015** (ubiquitous): The system shall record capabilities a host cannot support in the adapter manifest `platform_limited` array for every supported client.
 - **REQ-016** (ubiquitous): The system shall cover every extension install path with tests for installation, idempotent re-run and uninstallation.
 - **REQ-017** (ubiquitous): The system shall assert through negative tests that unsupported host capabilities are reported as absent with a reason.
 - **REQ-018** (event-driven): When `/mb upgrade` updates the skill, the system shall refresh installed host extensions to the bundled version.
 - **REQ-019** (unwanted): If a host extension fails at runtime, then the system shall degrade to the pre-extension fallback behavior without blocking the session.
+- **REQ-021** (ubiquitous): The system shall verify through tests that the cursor client renders the update notice and captures sessions at the Claude Code tier.
 
 ## Scenarios
 

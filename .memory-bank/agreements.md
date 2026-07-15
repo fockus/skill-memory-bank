@@ -14,6 +14,7 @@
 - AGR-011 (2026-07-15, user-confirmed): drive-loop: доделать полностью в составе donor v5.6.0 Long-Session Kernel — оставшиеся фазы drive-loop входят в слайс v5.6.0 и дожимаются внутри него (исключение из заморозки AGR-003); quality-track подтверждён по ICE (9×7×4=252) на позиции v6.2.0 сразу после 6.1.0
 - AGR-012 (2026-07-15, user-confirmed): adapter-parity: спека встаёт ПЕРВОЙ в очереди роудмепа, впереди donor v5.4.0 — скил должен работать везде до donor-стройки
 - AGR-013 (2026-07-15, user-confirmed): adapter-parity: паритет хуков/сабагентов на Pi и OpenCode достигается host-native расширениями, предлагаемыми пользователю opt-in при install и в runtime-nudge (/mb doctor); никогда авто-install; отказ = byte-identical install; Codex = honest degradation (prompt-hook notify + platform_limited)
+- AGR-014 (2026-07-15, user-confirmed): adapter-parity discuss-итоги: nudge = /mb doctor + session-start (1 строка, раз за сессию, через AGENTS.md-блок до установки транспорта); Pi-диспатч строим даже headless (медленный лучше отсутствия); honesty-слой (platform_limited + негативные тесты) на все 8 клиентов, фокус расширений pi/opencode/codex + cursor-верификация; исполнение одним слайсом T1–T8; Pi native slash-команды — research в T1 (REQ-022)
 
 ## Deferred
 
