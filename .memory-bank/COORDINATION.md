@@ -213,3 +213,25 @@ publish.yml green (Build + Publish to PyPI + GitHub Release all ✓), PyPI serve
 Homebrew formula finalized with the real sdist sha256 (c376748..., commit 0895066).
 The 9 foreign red tests shipped as known-red — tracked for a v5.3.2 hotfix (see backlog).
 origin/main == local, all pushed.
+
+## 2026-07-15 — adapter-parity T7 DONE (commit cece43f) — session 36e70e9c
+
+T7 (platform_limited honesty layer + negative parity tests + cursor positive parity,
+REQ-015/017/021) committed scoped at `cece43f` on top of the v5.3.1 release HEAD. Governed
+pipeline: Sonnet implement → Codex review (2 cycles, 4 findings: 1 real opencode.sh prod bug
++ 3 test-strength gaps, all fixed) → Opus judge GO_WITH_BACKLOG (finding-1 refuted at judge:
+opencode session-memory omission is honest under the ceiling-not-current-state semantics now
+documented in design.md). Independently re-verified before commit: honesty 15/15, cursor
+18/18, opencode 46/46, extensions-offer 20/20 (both NFR-001 byte-identity fixtures green),
+shellcheck error-gate clean, pi.sh/opencode.sh `bash -n` OK.
+
+**Branch-green impact for the deferred v5.3.1 tag / I-128 hotfix:** T7 GREENS the foreign-red
+`cursor 11v10 hooks` tests (fixed the real Stop→mb-session-turn.sh gap; count 11→12 updated in
+test_cursor_adapter.bats + test_cursor_global.bats + the pre-existing-red
+test_cursor_hooks_registration.py). T7 does NOT change the `adapters/pi.sh SRP` violation
+status (398→418, still one >300 WARNING — same violation, tracked in I-128/I-129 for the
+refactor). Backlog I-129 opened for the adjacent pi_global_extensions meta-test parity gap.
+
+No push, no tag (v5.3.1 tag stays deferred per user until branch-green). Scoped commit only;
+foreign WIP in the tree (agreements.md, parallel-pipeline specs, CLAUDE.md, rules/RULES.md,
+etc.) left untouched. Remaining adapter-parity: T8 (upgrade refresh + docs) — last task.

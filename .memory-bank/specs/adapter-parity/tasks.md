@@ -195,8 +195,9 @@
   without a matching negative assertion fails the suite.
 
 **DoD:**
-- [ ] Every adapter manifest declares its limits; every limit has a negative test.
-- [ ] bats pass · shellcheck clean.
+- [x] Every adapter manifest declares its limits; every limit has a negative test.
+- [x] bats pass · shellcheck clean.
+<!-- done: cece43f — GO_WITH_BACKLOG (Codex 2 cycles, Opus judge); finding-1 refuted at judge (ceiling semantics); backlog I-129 -->
 
 <!-- mb-task:8 -->
 ## Task 8: Upgrade refresh + docs

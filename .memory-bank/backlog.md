@@ -640,6 +640,8 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-128 — v5.3.2 hotfix: green the 9 foreign red tests shipped in v5.3.1 — docs-site landing/pages (styles.css asset + path: ./site), .opencode STATUS/plan.md stale refs, cursor 11v10 hooks, adapters/pi.sh SRP 398 lines, Cyrillic terminology in roadmap/status donor planning, install.sh command-count 29->30 [HIGH, NEW, 2026-07-15]
 
+### I-129 — adapter-parity T7 follow-up: `manifest_pi_global_extensions()` has the same meta-test coverage gap that finding-3 fixed for OpenCode's global-extensions manifest — Pi's `.mb-global-extensions-manifest.json` (`["role-routing"]`, T4) is NOT in `test_platform_limited_honesty.bats`'s closed-vocab / REQ-017 meta-test loops, so the meta-test can't guard it. Add a `manifest_pi_global_extensions()` producer + TESTED_PAIRS entries for full parity with the project manifest. Adjacent, out of T7 scope (Codex re-review agreed it's an acceptable follow-up). Note also: T7 bumped adapters/pi.sh 398->418 lines (manifest block) — the pi.sh SRP refactor tracked in I-128 must account for extracting the platform_limited write site. [MED, NEW, 2026-07-15]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
