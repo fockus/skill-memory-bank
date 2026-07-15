@@ -30,7 +30,7 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <!-- ?v = first 8 of the file's sha256; rebump on any styles.css / app.js
          edit so returning visitors never get a stale cached copy (Pages max-age=600) -->
-    <link rel="stylesheet" href="styles.css?v=1b8bf930" />
+    <link rel="stylesheet" href="styles.css?v=de012590" />
     <script defer src="app.js?v=b6e8e61a"></script>
   </head>
   <body>
@@ -49,7 +49,7 @@
           <a href="#features">Features</a>
           <a href="#v5">Pipeline</a>
           <a href="#graph">Graph</a>
-          <a href="#workflow">Workflow</a>
+          <a href="#workflow">How it works</a>
           <a href="#install">Install</a>
           <a href="https://fockus.github.io/skill-memory-bank/docs/">Docs</a>
           <a href="https://github.com/fockus/skill-memory-bank">GitHub</a>
@@ -586,52 +586,99 @@ $ /mb start
 
         <section class="workflow section" id="workflow">
           <div class="section-heading reveal">
-            <p class="eyebrow">How it works</p>
-            <h2>Navigate the project. Don't dump the whole codebase.</h2>
+            <p class="eyebrow">Getting started</p>
+            <h2>How it works.</h2>
             <p>
-              Context stays structured, small, and durable. The agent loads only what's needed and
-              writes the memory back as real work lands — so the next session starts warm.
+              From an empty repo to a reviewed, remembered feature — the whole path, in the order you
+              actually run it. Optional steps are marked; nothing here needs an API key.
             </p>
           </div>
 
           <div class="workflow-grid">
             <article class="workflow-step reveal">
               <span class="step-index">01</span>
-              <h3>Initialize once</h3>
+              <h3>Install the bank</h3>
               <p>
-                <code>/mb init</code> creates <code>.memory-bank/</code>, detects your stack, and
-                points the agent at it. <code>/mb map</code> and <code>/mb graph</code> add a
-                codebase map and code graph on top.
+                <code>/mb init</code> creates <code>.memory-bank/</code> and detects your stack.
+                <em>Optional:</em> <code>/mb map</code> + <code>/mb graph</code> index the codebase into
+                a map and a code graph for fast, structural search.
               </p>
             </article>
 
             <article class="workflow-step reveal reveal-delay-1">
               <span class="step-index">02</span>
-              <h3>Resume instantly</h3>
+              <h3>Discuss</h3>
               <p>
-                <code>/mb start</code> loads status, checklist, roadmap, and the active plan before
-                a single line of code — the agent knows the blockers and the next step in seconds.
+                <code>/mb discuss &lt;topic&gt;</code> runs a short requirements interview and writes an
+                EARS-validated context file — the spec starts from real intent, not guesses.
               </p>
             </article>
 
             <article class="workflow-step reveal reveal-delay-2">
               <span class="step-index">03</span>
-              <h3>Work with discipline</h3>
+              <h3>Spec it — SDD</h3>
               <p>
-                <code>/mb plan</code> or <code>/mb sdd</code> produce executable plans and specs;
-                <code>/mb work</code> drives them stage by stage under TDD, Clean Architecture, and
-                your chosen pipeline.
+                <code>/mb sdd &lt;topic&gt;</code> turns the discussion into a spec triple:
+                <code>requirements</code>, <code>design</code>, and an executable
+                <code>tasks.md</code>.
               </p>
             </article>
 
             <article class="workflow-step reveal reveal-delay-3">
               <span class="step-index">04</span>
-              <h3>Close the loop</h3>
+              <h3>Execute</h3>
               <p>
-                <code>/mb verify</code> audits the diff against the plan's DoD; <code>/mb done</code>
-                appends progress, updates status, and preserves the knowledge for tomorrow — and for
-                <code>/mb recall</code>.
+                <code>/mb work &lt;topic&gt;</code> drives every task through the governed loop —
+                <strong>plan → implement → verify → review → judge</strong> — under TDD and Clean
+                Architecture.
               </p>
+            </article>
+
+            <article class="workflow-step reveal">
+              <span class="step-index">05</span>
+              <h3>Verify</h3>
+              <p>
+                <code>/mb verify</code> re-reads the plan and audits the real diff against every DoD
+                item — required before anything is called done.
+              </p>
+            </article>
+
+            <article class="workflow-step reveal reveal-delay-1">
+              <span class="step-index">06</span>
+              <h3>Done</h3>
+              <p>
+                <code>/mb done</code> appends progress, updates status and roadmap, and saves the
+                session — the next chat starts warm and <code>/mb recall</code>-able.
+              </p>
+            </article>
+          </div>
+
+          <div class="workflow-extras">
+            <article class="install-card reveal">
+              <h3>Configure the pipeline</h3>
+              <p>
+                The work loop is composable. Turn review and judge on — and pick a model per role — in
+                a plain prompt or via <code>/mb config</code>:
+              </p>
+              <pre><code>Run /mb work on billing-overhaul with the
+governed pipeline: review + judge on.
+Implementers = Sonnet, reviewer = Codex
+(GPT-5.5), judge = Opus.</code></pre>
+              <p>
+                Roles map to models in <code>pipeline.yaml</code> — edit the file, or just say it in the
+                prompt. Off by default: you only pay for review and judge when you ask.
+              </p>
+            </article>
+
+            <article class="install-card reveal reveal-delay-1">
+              <h3>Call anytime</h3>
+              <ul class="cmd-list">
+                <li><code>/mb recall &lt;q&gt;</code> — search past sessions &amp; notes</li>
+                <li><code>/mb agree</code> — pin a decision as <code>AGR-NNN</code></li>
+                <li><code>/mb doctor</code> — diagnose &amp; repair the bank</li>
+                <li><code>/mb graph</code> — impact &amp; structural queries</li>
+                <li><code>/mb profile</code> — tune the rules profile &amp; stack</li>
+              </ul>
             </article>
           </div>
         </section>

@@ -559,7 +559,28 @@ pre,
 }
 
 .workflow-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.workflow-extras {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.cmd-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-muted);
+  font-size: 0.94rem;
+}
+
+.cmd-list code {
+  color: var(--ink);
 }
 
 .agents-grid {
@@ -1091,6 +1112,7 @@ pre,
   .cta-panel,
   .problem-grid,
   .workflow-grid,
+  .workflow-extras,
   .install-grid,
   .v5-grid,
   .howto-grid {
