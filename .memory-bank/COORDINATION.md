@@ -158,3 +158,17 @@ PASS 3/3; `shellcheck -x install.sh` PASS; `bats tests/bats/test_mb_agent_caps.b
 `/Users/fockus/.opencode/.memory-bank-backups/plugins/memory-bank.js.pre-mb-backup.1784121581`.
 `opencode debug config` now lists only the project plugin
 `/Users/fockus/Apps/skill-memory-bank/.opencode/plugins/memory-bank.js`.
+
+COMMIT: `b55d6c0` (`fix(opencode): harden parity install and dispatch`). Scoped files:
+`adapters/opencode.sh`, `install.sh`, `scripts/mb-agent-caps.sh`,
+`tests/bats/test_mb_agent_caps.bats`, `tests/bats/test_opencode_adapter.bats`,
+`tests/e2e/test_install_uninstall.bats`, `.memory-bank/COORDINATION.md`.
+
+### openspec-adapter update — full review/judge gate PASSED (commit 1eb247a)
+User-requested governed gate over the whole adapter before release: Codex GPT-5.5
+review -> Opus judge. Ran 4 review rounds (each fix pass independently Opus-verified):
+R1 2 blocker+6 major, R2 4 major+2 minor, R3 1 blocker (crash-consistency data loss),
+R4 APPROVED (0 issues). All fixed. 81 pytest + 15 bats green, ruff clean, NFR-001 intact.
+Backlog I-125 (openat race-free cache guard, LOW), I-126 (test strengthening, LOW).
+commands/mb.md STILL untouched — router entry deferred under adapter-parity FREEZE.
+Feature is release-ready pending only that one deferred router line. Not pushed/tagged.
