@@ -64,12 +64,19 @@ MB_HOOKS=(
   "file-change-log.sh"
   "mb-plan-sync-post-write.sh"
   "mb-session-start-context.sh"
+  "mb-update-notify.sh"
 )
 
 # Event → script mapping (Cursor event names, CC-compat)
 # Format: "event:script[:matcher]"
 EVENT_BINDINGS=(
   "sessionStart:mb-session-start-context.sh"
+  # A5/stage-3: "is a newer release out?" notice — silent when up to date,
+  # <=3 lines when not. Registered alongside the context-injection hook, not
+  # in place of it: this hook's stdout is plain text (not the
+  # hookSpecificOutput JSON contract), which Cursor's CC-compatible hooks
+  # runtime still surfaces as additional context when non-empty.
+  "sessionStart:mb-update-notify.sh"
   # B4 (F-4): mb-session-end.sh is the CC-compatible rich capture (Haiku summary +
   # gated Sonnet judge notes), not just the basic placeholder-only
   # session-end-autosave.sh — Cursor now gets the same capture Claude Code does.

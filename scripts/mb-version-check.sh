@@ -3,12 +3,25 @@
 # No UI, no side effects beyond its own cache file. Stage 3's SessionStart
 # hook is the only consumer that talks to a user; this only answers a question.
 #
-# Usage: mb-version-check.sh [--force] [--json]
-#   --force   bypass the cache and always fetch, even when it's fresh.
-#   --json    accepted for forward-compat — output is always strict JSON.
+# Usage: mb-version-check.sh [--force] [--json] [--cache-only]
+#   --force       bypass the cache and always fetch, even when it's fresh.
+#   --json        accepted for forward-compat — output is always strict JSON.
+#   --cache-only  answer purely from the on-disk cache. NEVER fetches, NEVER
+#                 forks a network call, regardless of --force or TTL. A
+#                 fresh cache hit answers normally (source: cache). A
+#                 missing/stale/corrupt cache answers `update_available:
+#                 false` with `source: cache-miss` — a valid, honest "I
+#                 don't know yet" rather than paying for a fetch. This is
+#                 the mode a SessionStart hook must use: local-only and
+#                 near-instant (a handful of local forks, no network round
+#                 trip), so a 1-2s watchdog is a backstop against pathology,
+#                 not a race against the network. Callers that DO want a
+#                 fresh answer (e.g. a detached background refresh) call
+#                 this script in its normal mode instead.
 #
 # Output (stdout, always): {current, latest, update_available, flavor,
-#   upgrade_command, checked_at, source}
+#   upgrade_command, checked_at, source}. `source` is one of: github, pypi,
+#   cache, cache-miss, none, disabled, python-unavailable.
 #
 # Env:
 #   MB_SKILL_DIR              install dir to inspect. Default: this script's
@@ -43,8 +56,19 @@ source "$SCRIPT_DIR/_lib.sh"
 
 MB_PY="${MB_PYTHON:-python3}"
 SKILL_DIR="${MB_SKILL_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# Digit-only validation HERE (not just at each use site) — same
+# ''|*[!0-9]* shape check `_mvc_cache_read_shell` already uses for `mtime`
+# — so an invalid env value (`MB_UPDATE_CHECK_TTL=abc`) falls back to the
+# default BEFORE it ever reaches `[ "$age" -gt "$effective_ttl" ]` in the
+# --cache-only shell reader (a bad operand there is a `[: integer
+# expected` stderr leak under `set -euo pipefail`, not a crash, but the
+# --cache-only contract is zero stderr bytes on every input). Validating
+# once at assignment also protects the python cache reader's own operand
+# for free, since both call sites receive this same string.
 TTL="${MB_UPDATE_CHECK_TTL:-86400}"
+case "$TTL" in ''|*[!0-9]*) TTL=86400 ;; esac
 FAIL_TTL="${MB_UPDATE_CHECK_FAIL_TTL:-3600}"
+case "$FAIL_TTL" in ''|*[!0-9]*) FAIL_TTL=3600 ;; esac
 # `${HOME:+...}`, not a bare `$HOME` — unset HOME degrades to "no cache", not a `set -u` abort.
 DATA_HOME="${XDG_DATA_HOME:-${HOME:+$HOME/.local/share}}"
 CACHE_FILE="${MB_VERSION_CHECK_CACHE:-${DATA_HOME:+$DATA_HOME/memory-bank/.mb-version-check.json}}"
@@ -55,28 +79,43 @@ MAX_BODY_BYTES="${MB_VERSION_CHECK_MAX_BODY:-65536}"
 GITHUB_URL="https://api.github.com/repos/fockus/skill-memory-bank/releases/latest"
 PYPI_URL="https://pypi.org/pypi/memory-bank-skill/json"
 
-# Preflighted once as an EXECUTION probe, not just `command -v` — a pyenv
-# shim for an uninstalled version passes `command -v` yet fails at exec time.
-PY_AVAILABLE=0
-if command -v "$MB_PY" >/dev/null 2>&1 && "$MB_PY" -c 'pass' >/dev/null 2>&1; then
-  PY_AVAILABLE=1
-fi
+# Args parsed BEFORE the python preflight below (not after, as a bare
+# reading of the script might expect) — CACHE_ONLY needs to be known
+# first, because --cache-only's entire purpose is answering WITHOUT ever
+# forking python, and that preflight probe is itself a python fork. See
+# the preflight's own comment for why it is conditional on this.
 FORCE=0
+CACHE_ONLY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --force) FORCE=1; shift ;;
     --json) shift ;; # output is always strict JSON; kept for explicit callers
+    --cache-only) CACHE_ONLY=1; shift ;;
     -h|--help)
-      sed -n '2,36p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,49p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
       echo "[error] mb-version-check.sh: unknown argument: $1" >&2
-      echo "Usage: mb-version-check.sh [--force] [--json]" >&2
+      echo "Usage: mb-version-check.sh [--force] [--json] [--cache-only]" >&2
       exit 2
       ;;
   esac
 done
+
+# Preflighted once as an EXECUTION probe, not just `command -v` — a pyenv
+# shim for an uninstalled version passes `command -v` yet fails at exec
+# time. Skipped entirely for --cache-only: that path is 100% shell/sed/
+# `date`/`mb_mtime` from here on (see the CACHE_ONLY branch below), so
+# forking python just to answer "is python there?" would be the ONE
+# python fork left on an otherwise python-free path — worth avoiding on
+# its own merits, not just in the abstract.
+PY_AVAILABLE=0
+if [ "$CACHE_ONLY" -ne 1 ]; then
+  if command -v "$MB_PY" >/dev/null 2>&1 && "$MB_PY" -c 'pass' >/dev/null 2>&1; then
+    PY_AVAILABLE=1
+  fi
+fi
 
 # Python helpers. Every call reads its input from stdin/env (never a bare
 # CLI arg) so a JSON payload full of quotes/newlines is never re-interpreted
@@ -85,15 +124,18 @@ done
 # `set -euo pipefail`. `_mvc_now_iso`/`_mvc_emit` also carry their own
 # pure-shell fallback — they must succeed even when python never runs at all.
 
-# <skill_dir> -> local VERSION file content, or "unknown" (never fails; the
-# `{ ...; }` group is required for `2>/dev/null` to catch a failed `<` redirect).
+# <skill_dir> -> local VERSION file content, or "unknown" (never fails).
+# ZERO forks: `[ -r ... ]` (builtin) decides readability up front instead
+# of discovering it via a failed redirect, and `$(<file)` is bash's own
+# builtin whole-file read (no `cat`/`tr` process) — this runs on EVERY
+# invocation of this script, cache-only included, so a fork saved here is
+# a fork saved on every session start.
 _mvc_current_version() {
-  local dir="${1:-}" out rc
-  [ -f "$dir/VERSION" ] || { printf '%s' "unknown"; return 0; }
-  set +e
-  out="$( { tr -d '[:space:]' < "$dir/VERSION"; } 2>/dev/null )"; rc=$?
-  set -e
-  [ "$rc" -eq 0 ] && printf '%s' "$out" || printf '%s' "unknown"
+  local dir="${1:-}" out
+  [ -f "$dir/VERSION" ] && [ -r "$dir/VERSION" ] || { printf '%s' "unknown"; return 0; }
+  out="$(<"$dir/VERSION")" 2>/dev/null
+  out="${out//[[:space:]]/}"
+  [ -n "$out" ] && printf '%s' "$out" || printf '%s' "unknown"
 }
 
 # now (ISO-8601 UTC), the single clock used everywhere. Tries python first,
@@ -113,14 +155,18 @@ _mvc_now_iso() {
   date -u +%Y-%m-%dT%H:%M:%SZ
 }
 
-# <raw string> -> JSON-escaped string (no surrounding quotes), pure shell.
-# Escapes backslash/double-quote, strips control chars — also a backstop
-# against a tag_name/cache value smuggling ANSI escapes into a rendered field.
+# <raw string> -> JSON-escaped string (no surrounding quotes), pure shell,
+# ZERO forks (`${s//[[:cntrl:]]/}` replaces a `printf | tr` pipe — a
+# two-process fork for every one of the 6 string fields `_mvc_emit_shell`
+# escapes, on every cache-only session start). Escapes backslash/double-
+# quote, strips control chars — also a backstop against a tag_name/cache
+# value smuggling ANSI escapes into a rendered field.
 _mvc_json_escape() {
   local s="$1"
   s="${s//\\/\\\\}"
   s="${s//\"/\\\"}"
-  printf '%s' "$s" | tr -d '[:cntrl:]'
+  s="${s//[[:cntrl:]]/}"
+  printf '%s' "$s"
 }
 
 # Pure-shell JSON emit — the "works with no python at all" contract is
@@ -264,10 +310,148 @@ else:
 PY
 }
 
+# <value> -> stdout "MAJOR MINOR PATCH" (space-separated) + success, or
+# failure for anything that is not EXACTLY X.Y.Z — digits and dots only,
+# EXACTLY two dots (three fields), no empty field ("5.9", "5.9.0.1",
+# "5.9.0-rc1", "5..0", "" all rejected). ZERO forks. This is the shell
+# equivalent of the python paths' `SEMVER_RE = r"^[0-9]+\.[0-9]+\.[0-9]+$"`
+# — the ONE place that shape rule is defined for every python-free
+# consumer (_mvc_compare_shell and _mvc_cache_read_shell both call this
+# rather than each re-deriving the same regex by hand, which is exactly
+# how two validators drift apart over time).
+_mvc_semver_parts_shell() {
+  local v="$1" dots f1 f2 f3
+  case "$v" in *[!0-9.]*|'') return 1 ;; esac
+  dots="${v//[^.]/}"
+  [ "${#dots}" -eq 2 ] || return 1
+  f1="${v%%.*}"; f2="${v#*.}"; f3="${f2#*.}"; f2="${f2%%.*}"
+  [ -n "$f1" ] && [ -n "$f2" ] && [ -n "$f3" ] || return 1
+  # Magnitude cap, not just shape — a digits-and-dots component can still
+  # be long enough to overflow bash's integer `[ -gt ]`/`[ -lt ]` in
+  # _mvc_compare_shell (a poisoned/corrupt cache entry, e.g.
+  # "999999999999999999999999999999.0.0", is arithmetically "digits only"
+  # yet not a real version). 9 digits is a generous ceiling — no real
+  # semver component gets anywhere close — and stays well inside a 64-bit
+  # integer compare on every bash this script supports.
+  [ "${#f1}" -le 9 ] && [ "${#f2}" -le 9 ] && [ "${#f3}" -le 9 ] || return 1
+  printf '%s %s %s' "$f1" "$f2" "$f3"
+}
+
+# <current> <latest> -> "true"/"false", ZERO forks — the pure-shell twin of
+# _mvc_compare, used ONLY by the --cache-only path where avoiding a python
+# fork is the entire point (a cold/absent cache must answer in a handful of
+# milliseconds, not stack multiple python startups on top of each other).
+# Same contract: numeric X.Y.Z compare, symmetric v-prefix stripped from
+# both sides, any unparsable input -> false (fail-open) rather than a
+# crash. Deliberately a separate implementation from what _mvc_compare
+# calls into python for — this one must keep working even when python is
+# broken, which _mvc_compare cannot promise.
+_mvc_compare_shell() {
+  local cur="$1" lat="$2" cur_parts lat_parts c1 c2 c3 l1 l2 l3
+  cur="${cur#v}"; cur="${cur#V}"
+  lat="${lat#v}"; lat="${lat#V}"
+  cur_parts="$(_mvc_semver_parts_shell "$cur")" || { printf 'false'; return 0; }
+  lat_parts="$(_mvc_semver_parts_shell "$lat")" || { printf 'false'; return 0; }
+  # shellcheck disable=SC2086 # intentional word-split: _mvc_semver_parts_shell's
+  # own output is exactly "N N N" (digits and single spaces, its only
+  # possible shape), so this is how the 3 fields become $1/$2/$3.
+  set -- $cur_parts; c1="$1"; c2="$2"; c3="$3"
+  # shellcheck disable=SC2086
+  set -- $lat_parts; l1="$1"; l2="$2"; l3="$3"
+  if [ "$l1" -gt "$c1" ]; then printf 'true'; return 0; fi
+  if [ "$l1" -lt "$c1" ]; then printf 'false'; return 0; fi
+  if [ "$l2" -gt "$c2" ]; then printf 'true'; return 0; fi
+  if [ "$l2" -lt "$c2" ]; then printf 'false'; return 0; fi
+  if [ "$l3" -gt "$c3" ]; then printf 'true'; return 0; fi
+  printf 'false'
+}
+
+# <cache_file> <ttl> <fail_ttl> -> same 4-line contract as _mvc_cache_read
+# (freshness "fresh"|"stale" / latest / source / checked_at), ZERO forks —
+# the --cache-only path's cache reader. The cache is untrusted input, same
+# as a network answer, so this enforces the SAME two trust rules the
+# python reader enforces, just without python:
+#   * `latest` (when present) must satisfy _mvc_semver_parts_shell — a
+#     poisoned `"latest": "9.9.9; rm -rf /"` or an ANSI/control-byte
+#     payload fails the digits-and-dots check and is treated as stale.
+#   * `source` must be one of the values this script itself ever WRITES
+#     to the cache file (github, pypi, none — matches the python reader's
+#     ALLOWED_SOURCES exactly; "cache"/"cache-miss"/"disabled" are
+#     OUTPUT-only values, never written, so they are correctly rejected
+#     here too if a hand-edited/malicious file claims one of them).
+# Freshness uses the cache FILE's own mtime (`_lib.sh::mb_mtime`, GNU-
+# `stat -c` first with a BSD `stat -f` fallback — never a raw `stat`, this
+# repo has been bitten by the GNU/BSD flag mismatch before) rather than
+# parsing the `checked_at` field: the atomic tmp+rename write
+# (_mvc_cache_write) sets the file's mtime at exactly the moment the cache
+# was written, so it is an accurate freshness clock without needing any
+# date-arithmetic library. `checked_at` itself is still read and returned
+# for display — just not used as the clock.
+# <json> <key> -> sets `REPLY` to the string value of `"key": "value"`, or
+# "" when absent/malformed; returns 1 on no-match. ZERO forks — bash's own
+# `[[ =~ ]]`/BASH_REMATCH (POSIX ERE, supported since bash 3.0) replaces a
+# `printf | sed` pipe (a two-process fork PER FIELD) that the network-path
+# reader can afford (it already forked python) but the whole point of the
+# cache-only path is not paying for.
+_mvc_field_shell() {
+  local json="$1" key="$2"
+  if [[ "$json" =~ \"$key\"[[:space:]]*:[[:space:]]*\"([^\"]*)\" ]]; then
+    REPLY="${BASH_REMATCH[1]}"
+    return 0
+  fi
+  REPLY=""
+  return 1
+}
+
+_mvc_cache_read_shell() {
+  local file="$1" ttl="$2" fail_ttl="$3"
+  local raw latest source checked_at mtime now age effective_ttl REPLY
+  [ -f "$file" ] && [ -r "$file" ] || { printf 'stale\n\n\n\n'; return 0; }
+  raw="$(<"$file")" 2>/dev/null
+  [ -n "$raw" ] || { printf 'stale\n\n\n\n'; return 0; }
+  # A multi-line "JSON" file is corrupt (or a malicious multi-record
+  # smuggle attempt) — reject outright rather than field-extract from it,
+  # same posture the hook itself takes on the resolver's own answer.
+  case "$raw" in *$'\n'*) printf 'stale\n\n\n\n'; return 0 ;; esac
+  _mvc_field_shell "$raw" latest; latest="$REPLY"
+  _mvc_field_shell "$raw" source; source="$REPLY"
+  _mvc_field_shell "$raw" checked_at; checked_at="$REPLY"
+  if [ -n "$latest" ]; then
+    _mvc_semver_parts_shell "$latest" >/dev/null || { printf 'stale\n\n\n\n'; return 0; }
+  fi
+  case "$source" in
+    github|pypi|none) : ;;
+    *) printf 'stale\n\n\n\n'; return 0 ;;
+  esac
+  mtime="$(mb_mtime "$file")"
+  case "$mtime" in ''|*[!0-9]*) printf 'stale\n\n\n\n'; return 0 ;; esac
+  now="$(date -u +%s)"
+  age=$(( now - mtime ))
+  effective_ttl="$ttl"
+  [ "$source" = "none" ] && effective_ttl="$fail_ttl"
+  if [ "$age" -lt 0 ] || [ "$age" -gt "$effective_ttl" ]; then
+    printf 'stale\n\n\n\n'
+    return 0
+  fi
+  printf 'fresh\n%s\n%s\n%s\n' "$latest" "$source" "$checked_at"
+}
+
 # Builds the final strict JSON envelope. Tries python's json.dumps first
 # (no hand-rolled string concatenation, so quoting/escaping can never
 # produce invalid JSON); falls back to the pure shell emitter when python
 # is unavailable or misbehaves — the JSON contract never depends on it.
+#
+# ensure_ascii=False below: a \uXXXX escape (e.g. the unknown-flavor
+# upgrade_command em dash) is technically valid JSON, but a consumer that
+# greps the raw bytes without re-decoding JSON (hooks/mb-update-notify.sh
+# does exactly that) would print the literal backslash-u sequence rather
+# than the character. Real UTF-8 fixes that; the shell fallback emitter
+# (_mvc_emit_shell) already emits raw UTF-8 by construction, so this keeps
+# both emitters in agreement. NOTE for maintainers: keep every heredoc body
+# below free of a bare apostrophe/backtick — bash 3.2's `$(...)` scanner
+# tracks quote balance THROUGH a single-quoted heredoc body too (a known
+# pre-4.0 limitation), so a stray apostrophe in a heredoc comment breaks
+# parsing under macOS system bash even though it never affects bash 4+.
 _mvc_emit() {
   if [ "$PY_AVAILABLE" -eq 1 ]; then
     local out rc
@@ -283,7 +467,7 @@ print(json.dumps({
     "upgrade_command": upgrade_command,
     "checked_at": checked_at,
     "source": source,
-}))
+}, ensure_ascii=False))
 PY
 )"
     rc=$?
@@ -324,6 +508,42 @@ fi
 current_version="$(_mvc_current_version "$SKILL_DIR")"
 flavor="$(mb_install_flavor "$SKILL_DIR")"
 upgrade_command="$(mb_upgrade_command "$flavor" "$SKILL_DIR")"
+
+# --cache-only: answer from the on-disk cache alone, NEVER a fetch, and —
+# unlike every other path below — NEVER a python fork either. `--force` is
+# deliberately ignored here (cache-only wins; a caller asking for both is
+# asking for a contradiction, and "never touch the network" is the
+# stronger promise). This is the path a SessionStart hook must use, and
+# "near-instant" is a real requirement, not a nice-to-have: a session
+# start that measurably waits is the whole failure mode this design
+# exists to close. Every step here is ZERO-fork or a lightweight native
+# binary (`cat`, `sed`, `date`, the `stat`-based `_lib.sh::mb_mtime`) —
+# `_mvc_cache_read_shell` (freshness + the SAME trust rules the network
+# path enforces on untrusted cache content — see its own header),
+# `_mvc_compare_shell` (numeric semver compare), `_mvc_emit_shell` (the
+# JSON envelope). This intentionally runs BEFORE the PY_AVAILABLE
+# preflight below (which itself is skipped for --cache-only, see its own
+# comment) — a cache-only answer must not depend on python being
+# installed, let alone pay for probing it.
+if [ "$CACHE_ONLY" -eq 1 ]; then
+  cache_out="$(_mvc_cache_read_shell "$CACHE_FILE" "$TTL" "$FAIL_TTL")"
+  cache_fresh="$(printf '%s\n' "$cache_out" | sed -n '1p')"
+  co_latest=""
+  co_source="cache-miss"
+  co_checked_at=""
+  if [ "$cache_fresh" = "fresh" ]; then
+    co_latest="$(printf '%s\n' "$cache_out" | sed -n '2p')"
+    co_source="cache"
+    co_checked_at="$(printf '%s\n' "$cache_out" | sed -n '4p')"
+  fi
+  [ -n "$co_checked_at" ] || co_checked_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  co_update_available="false"
+  if [ -n "$co_latest" ]; then
+    co_update_available="$(_mvc_compare_shell "$current_version" "$co_latest")"
+  fi
+  _mvc_emit_shell "$current_version" "$co_latest" "$co_update_available" "$flavor" "$upgrade_command" "$co_checked_at" "$co_source"
+  exit 0
+fi
 
 # python3/MB_PYTHON missing — everything below needs it, so answer from
 # what pure shell already knows and stop before an unguarded exec attempt.

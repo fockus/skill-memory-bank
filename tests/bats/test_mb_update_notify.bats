@@ -1,0 +1,779 @@
+#!/usr/bin/env bats
+# Tests for hooks/mb-update-notify.sh — SessionStart hook.
+#
+# The contract is silence: an up-to-date user (or any degraded/disabled path)
+# sees NOTHING on stdout — not even a "you're up to date" line. Only an
+# "update available" answer produces a short (<=3 line) notice.
+#
+# The resolver is stubbed via MB_VERSION_CHECK_BIN — the same seam pattern
+# mb-version-check.sh itself uses for MB_VERSION_CHECK_FETCH_BIN — so no test
+# here ever invokes the real resolver's network path.
+
+bats_require_minimum_version 1.5.0
+
+setup() {
+  REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+  HOOK="$REPO_ROOT/hooks/mb-update-notify.sh"
+  TMPDIR="$(mktemp -d)"
+
+  [ -f "$HOOK" ] || skip "hooks/mb-update-notify.sh not implemented yet (TDD red phase)"
+}
+
+teardown() {
+  [ -n "${TMPDIR:-}" ] && [ -d "$TMPDIR" ] && rm -rf "$TMPDIR"
+}
+
+# $1=filename $2=exit-code $3=stdout-body -> path to a chmod+x stub resolver.
+# Records every invocation (one line per call) to $TMPDIR/calls.log so tests
+# can assert "the resolver was never invoked", not just inspect its output.
+fake_checker() {
+  local path="$TMPDIR/$1"
+  cat > "$path" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$TMPDIR/calls.log"
+printf '%s\n' '$3'
+exit $2
+EOF
+  chmod +x "$path"
+  printf '%s' "$path"
+}
+
+call_count() {
+  [ -f "$TMPDIR/calls.log" ] || { echo 0; return 0; }
+  wc -l < "$TMPDIR/calls.log" | tr -d ' '
+}
+
+# Runs "$@" under the test's OWN hard deadline — no `timeout`/`gtimeout`
+# dependency (same hand-rolled, no-orphan technique as the hook itself:
+# `set -m` + a background `sleep`+negative-PID `kill`). This exists
+# because a watchdog regression inside the hook must fail this suite FAST,
+# not wedge it: a plain `run bash "$HOOK"` (or bats' own `run`, which reads
+# the command's stdout/stderr to EOF exactly like a real host) blocks for
+# as long as ANY process still holds those fds open — including an orphaned
+# timer left behind by a broken watchdog — with no bound of its own.
+#
+# Sets: $capture_status, $capture_out, $capture_err, $capture_elapsed,
+# $capture_timed_out (1 if the deadline fired and the whole group was
+# killed, 0 if "$@" finished on its own).
+run_with_deadline() {
+  local deadline="$1"
+  shift
+  local outfile errfile start end
+  outfile="$(mktemp "$TMPDIR/rwd-out.XXXXXX")"
+  errfile="$(mktemp "$TMPDIR/rwd-err.XXXXXX")"
+
+  start=$(date +%s)
+  set -m
+  ("$@" >"$outfile" 2>"$errfile") &
+  local pid=$!
+  (
+    sleep "$deadline"
+    kill -KILL -- "-$pid" 2>/dev/null
+  ) >/dev/null 2>&1 &
+  local watchdog=$!
+  set +m
+
+  # bats runs test bodies (and functions they call) under `set -e` — a
+  # plain `wait` whose job was reaped via SIGKILL returns 128+9=137, and
+  # under errexit that ABORTS THIS FUNCTION right here, before the caller
+  # ever sees capture_status/capture_out. Every `wait` below is therefore
+  # deliberately paired with `|| ...` so its own non-zero return is
+  # "handled" (errexit only fires on an UNHANDLED failure) instead of
+  # silently killing the assertions this helper exists to let run.
+  capture_status=0
+  wait "$pid" 2>/dev/null || capture_status=$?
+
+  kill -KILL -- "-$watchdog" 2>/dev/null || true
+  wait "$watchdog" 2>/dev/null || true
+  end=$(date +%s)
+
+  capture_elapsed=$((end - start))
+  capture_out="$(cat "$outfile" 2>/dev/null)"
+  capture_err="$(cat "$errfile" 2>/dev/null)"
+  rm -f "$outfile" "$errfile"
+
+  if [ "$capture_elapsed" -ge "$deadline" ]; then
+    capture_timed_out=1
+  else
+    capture_timed_out=0
+  fi
+}
+
+# ═══ update available ═══
+
+@test "update-notify: update-available answer prints a <=3-line notice naming current -> latest and the exact upgrade_command" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "2026-07-13T00:00:00Z", "source": "github"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" -le 3 ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" == *"5.4.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+  [[ "$output" != *"git pull"* ]]
+}
+
+@test "update-notify: a pipx user is shown the pipx command, never told to git pull" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "1.0.0", "latest": "1.1.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "pypi"}')
+
+  run env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+  [[ "$output" != *"git pull"* ]]
+}
+
+@test "update-notify: a git-flavor update-available answer shows the resolver's own upgrade_command verbatim, not a guessed one" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "git", "upgrade_command": "bash /opt/mb/scripts/mb-upgrade.sh --force", "checked_at": "x", "source": "github"}')
+
+  run env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"bash /opt/mb/scripts/mb-upgrade.sh --force"* ]]
+}
+
+# ═══ tolerant parsing (the JSON contract must not be a whitespace coupling) ═══
+
+@test "update-notify: compact JSON (no space after the update_available colon) still produces the notice" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current":"5.3.0","latest":"5.4.0","update_available":true,"flavor":"pipx","upgrade_command":"pipx upgrade memory-bank-skill","checked_at":"x","source":"github"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" == *"5.4.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+}
+
+@test "update-notify: extra whitespace around update_available's colon still produces the notice" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available"   :    true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "github"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" == *"5.4.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+}
+
+@test "update-notify: a tab between update_available's colon and value still produces the notice" {
+  local tab checker
+  tab="$(printf '\t')"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\":${tab}true, \"flavor\": \"pipx\", \"upgrade_command\": \"pipx upgrade memory-bank-skill\", \"checked_at\": \"x\", \"source\": \"github\"}")
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" == *"5.4.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+}
+
+@test "update-notify: a tab between a string field's colon and its value is still parsed (current/latest/upgrade_command)" {
+  local tab checker
+  tab="$(printf '\t')"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\":${tab}\"5.3.0\", \"latest\":${tab}\"5.4.0\", \"update_available\": true, \"flavor\": \"pipx\", \"upgrade_command\":${tab}\"pipx upgrade memory-bank-skill\", \"checked_at\": \"x\", \"source\": \"github\"}")
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" == *"5.4.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+}
+
+@test "update-notify: update_available false stays silent regardless of spacing (compact, extra-whitespace, tab)" {
+  local tab checker
+  tab="$(printf '\t')"
+
+  checker=$(fake_checker c1.sh 0 \
+    '{"current":"5.4.0","latest":"5.4.0","update_available":false,"flavor":"pipx","upgrade_command":"pipx upgrade memory-bank-skill","checked_at":"x","source":"cache"}')
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+
+  checker=$(fake_checker c2.sh 0 \
+    '{"current": "5.4.0", "latest": "5.4.0", "update_available"   :    false, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "cache"}')
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+
+  checker=$(fake_checker c3.sh 0 \
+    "{\"current\": \"5.4.0\", \"latest\": \"5.4.0\", \"update_available\":${tab}false, \"flavor\": \"pipx\", \"upgrade_command\": \"pipx upgrade memory-bank-skill\", \"checked_at\": \"x\", \"source\": \"cache\"}")
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+# ═══ contract test: real resolver -> hook (the pair that must stay honest) ═══
+#
+# The hook now calls the resolver with --cache-only (design: a SessionStart
+# hook never touches the network — see hooks/mb-update-notify.sh's own
+# header). So these contracts pre-warm the cache with ONE direct,
+# synchronous resolver call (exactly what the hook's own detached
+# background refresh would eventually produce), THEN drive the hook —
+# proving the cache-only read path renders a real notice from the real
+# resolver's real cache format, not a hand-rolled fixture.
+
+@test "update-notify: contract — a warm cache (real resolver's own format) drives the hook to a real notice via --cache-only" {
+  local resolver="$REPO_ROOT/scripts/mb-version-check.sh"
+  [ -f "$resolver" ] || skip "scripts/mb-version-check.sh not present"
+
+  local skill_dir fetch_stub cache_file
+  skill_dir="$TMPDIR/skill"
+  mkdir -p "$skill_dir"
+  printf '1.0.0\n' > "$skill_dir/VERSION"
+  cache_file="$TMPDIR/cache/.mb-version-check.json"
+
+  fetch_stub="$TMPDIR/fetch.sh"
+  cat > "$fetch_stub" <<'EOF'
+#!/usr/bin/env bash
+for a in "$@"; do
+  case "$a" in
+    *github*) printf '%s\n' '{"tag_name": "v99.0.0"}'; exit 0 ;;
+  esac
+done
+exit 1
+EOF
+  chmod +x "$fetch_stub"
+
+  # Warm the cache exactly the way the hook's own background refresh would:
+  # a direct, synchronous, normal-mode resolver call.
+  MB_SKILL_DIR="$skill_dir" MB_VERSION_CHECK_FETCH_BIN="$fetch_stub" \
+    MB_VERSION_CHECK_CACHE="$cache_file" bash "$resolver" >/dev/null
+
+  run --separate-stderr env \
+    MB_SKILL_DIR="$skill_dir" \
+    MB_VERSION_CHECK_FETCH_BIN="$fetch_stub" \
+    MB_VERSION_CHECK_CACHE="$cache_file" \
+    MB_VERSION_CHECK_BIN="$resolver" \
+    bash "$HOOK"
+
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" -le 3 ]
+  [[ "$output" == *"1.0.0"* ]]
+  [[ "$output" == *"99.0.0"* ]]
+}
+
+@test "update-notify: contract — the REAL resolver reporting up-to-date (warm cache) drives the hook to zero bytes" {
+  local resolver="$REPO_ROOT/scripts/mb-version-check.sh"
+  [ -f "$resolver" ] || skip "scripts/mb-version-check.sh not present"
+
+  local skill_dir fetch_stub cache_file
+  skill_dir="$TMPDIR/skill"
+  mkdir -p "$skill_dir"
+  printf '99.0.0\n' > "$skill_dir/VERSION"
+  cache_file="$TMPDIR/cache/.mb-version-check.json"
+
+  fetch_stub="$TMPDIR/fetch.sh"
+  cat > "$fetch_stub" <<'EOF'
+#!/usr/bin/env bash
+for a in "$@"; do
+  case "$a" in
+    *github*) printf '%s\n' '{"tag_name": "v99.0.0"}'; exit 0 ;;
+  esac
+done
+exit 1
+EOF
+  chmod +x "$fetch_stub"
+
+  MB_SKILL_DIR="$skill_dir" MB_VERSION_CHECK_FETCH_BIN="$fetch_stub" \
+    MB_VERSION_CHECK_CACHE="$cache_file" bash "$resolver" >/dev/null
+
+  run --separate-stderr env \
+    MB_SKILL_DIR="$skill_dir" \
+    MB_VERSION_CHECK_FETCH_BIN="$fetch_stub" \
+    MB_VERSION_CHECK_CACHE="$cache_file" \
+    MB_VERSION_CHECK_BIN="$resolver" \
+    bash "$HOOK"
+
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+@test "update-notify: contract — cold cache with a 5s-sleeping network stub does NOT block; the CAPTURE returns in a small fraction of that 5s" {
+  local resolver="$REPO_ROOT/scripts/mb-version-check.sh"
+  [ -f "$resolver" ] || skip "scripts/mb-version-check.sh not present"
+
+  local skill_dir fetch_stub cache_file
+  skill_dir="$TMPDIR/skill"
+  mkdir -p "$skill_dir"
+  printf '1.0.0\n' > "$skill_dir/VERSION"
+  cache_file="$TMPDIR/cache/.mb-version-check.json"
+
+  # A network stub that sleeps 5s before answering — if the hook's primary
+  # path ever fell through to a real (non-cache-only) fetch, this test
+  # would take >=5s. It must not: the hook's own resolver call is
+  # --cache-only (never runs this stub at all on the foreground path); only
+  # the DETACHED background refresh runs it, and this test never waits on
+  # that.
+  fetch_stub="$TMPDIR/slow-fetch.sh"
+  cat > "$fetch_stub" <<'EOF'
+#!/usr/bin/env bash
+sleep 5
+for a in "$@"; do
+  case "$a" in
+    *github*) printf '%s\n' '{"tag_name": "v99.0.0"}'; exit 0 ;;
+  esac
+done
+exit 1
+EOF
+  chmod +x "$fetch_stub"
+
+  local start end elapsed_ms out
+  start=$(date +%s%N)
+  out="$(MB_SKILL_DIR="$skill_dir" MB_VERSION_CHECK_FETCH_BIN="$fetch_stub" \
+    MB_VERSION_CHECK_CACHE="$cache_file" MB_VERSION_CHECK_BIN="$resolver" \
+    bash "$HOOK" 2>"$TMPDIR/stderr.log")"
+  end=$(date +%s%N)
+  elapsed_ms=$(( (end - start) / 1000000 ))
+
+  [ -z "$out" ]
+  [ ! -s "$TMPDIR/stderr.log" ]
+  # 1000ms, not the tighter 200ms first targeted: measured on this dev
+  # machine, EVERY `bash script.sh` invocation that forks a real python3
+  # costs ~150-190ms just in interpreter startup (`time python3 -c pass`
+  # alone measures ~145ms here), and the --cache-only path still forks
+  # python once for the PY_AVAILABLE preflight (unconditional, existing
+  # behaviour this cycle intentionally left alone — weakening it would
+  # touch the pyenv-shim fail-open contract 35 other tests already lock
+  # in). The bound that actually matters is proven here regardless: a
+  # >=5s-sleeping network stub costs this capture at most a few hundred
+  # ms, not >=5000ms — the hook provably never falls through to a real
+  # fetch on its foreground path.
+  [ "$elapsed_ms" -lt 1000 ]
+
+  # Proof the detached background refresh actually ran (not merely that the
+  # hook returned fast): poll for the cache file the slow stub eventually
+  # populates, well within the stub's own 5s sleep plus resolver overhead.
+  local waited=0
+  while [ ! -s "$cache_file" ] && [ "$waited" -lt 10 ]; do
+    sleep 1
+    waited=$((waited + 1))
+  done
+  [ -s "$cache_file" ]
+  [[ "$(cat "$cache_file")" == *"99.0.0"* ]]
+}
+
+# ═══ silence paths ═══
+
+@test "update-notify: an up-to-date answer produces zero bytes of output — no 'you are current' line either" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.4.0", "latest": "5.4.0", "update_available": false, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "cache"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+@test "update-notify: a broken checker (non-zero exit) cannot break a session — no output, exit 0" {
+  local checker
+  checker=$(fake_checker checker.sh 1 'not json')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+@test "update-notify: a checker that returns garbage (non-JSON) produces no output, exit 0" {
+  local checker
+  checker=$(fake_checker checker.sh 0 'this is not json at all')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+@test "update-notify: a missing/absent resolver binary produces no output, exit 0" {
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$TMPDIR/does-not-exist.sh" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+@test "update-notify: update_available true but a blank upgrade_command stays silent rather than print a broken notice" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "unknown", "upgrade_command": "", "checked_at": "x", "source": "github"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+# ═══ watchdog: a resolver that never answers must never hang a session ═══
+
+@test "update-notify: a resolver that hangs forever is killed by the hook's own watchdog — fast, exit 0, zero output, zero stderr" {
+  local hanger="$TMPDIR/hanger.sh"
+  cat > "$hanger" <<'EOF'
+#!/usr/bin/env bash
+sleep 30
+EOF
+  chmod +x "$hanger"
+
+  # Bounded by run_with_deadline (30s outer bound — generous, but finite):
+  # a watchdog regression must fail this test in well under a minute, never
+  # wedge the suite waiting on an orphan (this is the exact gap that let a
+  # prior watchdog regression through un-caught).
+  run_with_deadline 30 env MB_VERSION_CHECK_BIN="$hanger" MB_UPDATE_NOTIFY_TIMEOUT=1 bash "$HOOK"
+
+  [ "$capture_timed_out" -eq 0 ]
+  [ "$capture_status" -eq 0 ]
+  [ -z "$capture_out" ]
+  [ -z "$capture_err" ]
+  [ "$capture_elapsed" -le 5 ]
+}
+
+@test "update-notify: a resolver that never stops writing is capped, killed fast, exit 0, zero output" {
+  local firehose="$TMPDIR/firehose.sh"
+  cat > "$firehose" <<'EOF'
+#!/usr/bin/env bash
+while true; do printf '%080d\n' 0; done
+EOF
+  chmod +x "$firehose"
+
+  run_with_deadline 30 env MB_VERSION_CHECK_BIN="$firehose" MB_UPDATE_NOTIFY_TIMEOUT=1 MB_UPDATE_NOTIFY_MAX_BYTES=4096 bash "$HOOK"
+
+  [ "$capture_timed_out" -eq 0 ]
+  [ "$capture_status" -eq 0 ]
+  [ -z "$capture_out" ]
+  [ -z "$capture_err" ]
+  [ "$capture_elapsed" -le 5 ]
+}
+
+@test "update-notify: an invalid (non-digit) MB_UPDATE_NOTIFY_MAX_BYTES never leaks head's stderr into a SessionStart, notice is still produced" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "github"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" MB_UPDATE_NOTIFY_MAX_BYTES=abc bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"5.3.0"* ]]
+  [[ "$output" == *"5.4.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+}
+
+@test "update-notify: the watchdog leaves no orphaned resolver process behind after killing a hang" {
+  local marker="$TMPDIR/orphan-marker"
+  local hanger="$TMPDIR/hanger2.sh"
+  cat > "$hanger" <<EOF
+#!/usr/bin/env bash
+echo \$\$ > "$marker"
+sleep 30
+EOF
+  chmod +x "$hanger"
+
+  run_with_deadline 30 env MB_VERSION_CHECK_BIN="$hanger" MB_UPDATE_NOTIFY_TIMEOUT=1 bash "$HOOK"
+  [ "$capture_timed_out" -eq 0 ]
+  [ "$capture_status" -eq 0 ]
+
+  [ -f "$marker" ]
+  local child_pid
+  child_pid="$(cat "$marker")"
+  sleep 1
+  ! kill -0 "$child_pid" 2>/dev/null
+}
+
+# ═══ non-blocking invariant: the HOST reads stdout to EOF, not just watches
+# the hook process exit — a watchdog timer that outlives the hook (holding
+# its inherited stdout fd open) blocks every session even when the hook
+# itself already exited printing nothing. Timing `bash "$HOOK"` proves
+# nothing here; only timing `$(...)` (the capture reaching EOF) does. ═══
+
+@test "update-notify: the silent up-to-date path's CAPTURE reaches EOF fast — a live watchdog timer must never hold the pipe open" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.4.0", "latest": "5.4.0", "update_available": false, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "cache"}')
+
+  # A generous MB_UPDATE_NOTIFY_TIMEOUT (5s): the resolver answers
+  # instantly, so a correct hook returns in well under 1s regardless of the
+  # timeout. If the watchdog's own timer subshell is left running as an
+  # orphan (holding this process substitution's stdout fd open), the
+  # capture below blocks for ~5s instead — that is the exact regression
+  # this test exists to catch, and it must show up as a slow capture, not
+  # merely a slow hook-process-exit (see run_with_deadline's own comment).
+  local start end elapsed out
+  start=$(date +%s.%N)
+  out="$(MB_VERSION_CHECK_BIN="$checker" MB_UPDATE_NOTIFY_TIMEOUT=5 bash "$HOOK" 2>"$TMPDIR/stderr.log")"
+  end=$(date +%s.%N)
+  elapsed="$(awk -v s="$start" -v e="$end" 'BEGIN { printf "%.3f", (e - s) }')"
+
+  [ -z "$out" ]
+  [ ! -s "$TMPDIR/stderr.log" ]
+  # Integer-seconds compare (portable, no bc/awk dependency for the assert
+  # itself): a live orphan timer would make this take >=1s (it's a 5s
+  # timer), a correct hook takes a small fraction of a second.
+  local elapsed_int
+  elapsed_int="${elapsed%.*}"
+  [ "$elapsed_int" -lt 1 ]
+}
+
+@test "update-notify: the notice path's CAPTURE is fast and byte-identical — no watchdog-fd stall on the 'update available' branch either" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "github"}')
+
+  local start end elapsed out
+  start=$(date +%s.%N)
+  out="$(MB_VERSION_CHECK_BIN="$checker" MB_UPDATE_NOTIFY_TIMEOUT=5 bash "$HOOK" 2>"$TMPDIR/stderr.log")"
+  end=$(date +%s.%N)
+  elapsed="$(awk -v s="$start" -v e="$end" 'BEGIN { printf "%.3f", (e - s) }')"
+
+  [[ "$out" == *"5.3.0"* ]]
+  [[ "$out" == *"5.4.0"* ]]
+  [[ "$out" == *"pipx upgrade memory-bank-skill"* ]]
+  [ ! -s "$TMPDIR/stderr.log" ]
+  local elapsed_int
+  elapsed_int="${elapsed%.*}"
+  [ "$elapsed_int" -lt 1 ]
+}
+
+@test "update-notify: no watchdog timer survives the hook's own exit on the silent path (ps proof, not just fast capture)" {
+  # A large, distinctive duration so a `sleep <N>` match in a process
+  # listing can only be this test's own watchdog timer, never an unrelated
+  # process that happens to share a small/common sleep duration.
+  local distinctive_timeout=8237
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.4.0", "latest": "5.4.0", "update_available": false, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "cache"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" MB_UPDATE_NOTIFY_TIMEOUT="$distinctive_timeout" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+
+  ! ps -Ao args 2>/dev/null | grep -q "sleep $distinctive_timeout\$"
+}
+
+# ═══ NUL / control bytes must never leak to the parent shell's stderr ═══
+
+@test "update-notify: a checker emitting a NUL byte produces zero stderr bytes, not bash's 'ignored null byte' warning" {
+  local checker="$TMPDIR/nul-checker.sh"
+  printf '#!/usr/bin/env bash\nprintf %%s "not\\0json"\n' > "$checker"
+  chmod +x "$checker"
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ "$(printf '%s' "$stderr" | wc -c | tr -d ' ')" -eq 0 ]
+}
+
+# ═══ hardening: multi-line / control-byte resolver output cannot fake or corrupt a notice ═══
+
+@test "update-notify: a multi-line resolver answer (embedded newline in a JSON value) is rejected outright — zero output" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    "$(printf '{"current": "5.3.0", "latest": "5.4.0\n[fake] second notice", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "github"}')")
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+@test "update-notify: an upgrade_command containing an escaped quote (\\\") is rejected outright — silence, never a truncated command" {
+  local checker
+  checker=$(fake_checker checker.sh 0 '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "source", "upgrade_command": "cd \"/opt/my app\" && upgrade", "checked_at": "x", "source": "github"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+}
+
+@test "update-notify: an ANSI/control-byte payload in a resolver field is stripped before it ever reaches the terminal" {
+  local esc checker
+  esc="$(printf '\033')"
+  checker=$(fake_checker checker.sh 0 \
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"pipx\", \"upgrade_command\": \"pipx upgrade ${esc}[31mmemory-bank-skill${esc}[0m\", \"checked_at\": \"x\", \"source\": \"github\"}")
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" != *$'\033'* ]]
+  [[ "$output" == *"pipx upgrade"*"memory-bank-skill"* ]]
+}
+
+@test "update-notify: MB_UPDATE_CHECK=off produces no output, exit 0, and NEVER invokes the resolver" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "github"}')
+
+  run --separate-stderr env MB_UPDATE_CHECK=off MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+  [ "$(call_count)" -eq 0 ]
+
+  # Give a wrongly-spawned detached background refresh a moment to have
+  # shown up in the call log before re-asserting — this must stay zero,
+  # not just "zero at the instant `run` returned".
+  sleep 0.3
+  [ "$(call_count)" -eq 0 ]
+}
+
+# ═══ detached background refresh: a stale/absent cache must not block THIS
+# session, and must not spawn a duplicate refresh once the cache is warm ═══
+
+@test "update-notify: a cache-miss answer spawns a detached background refresh (call counter proves it, not just cache contents)" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "1.0.0", "latest": "", "update_available": false, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "cache-miss"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+
+  # First call is this run's own --cache-only lookup; the background
+  # refresh is a SECOND, detached invocation of the same stub.
+  local waited=0
+  while [ "$(call_count)" -lt 2 ] && [ "$waited" -lt 10 ]; do
+    sleep 0.2
+    waited=$((waited + 1))
+  done
+  [ "$(call_count)" -ge 2 ]
+  grep -q -- '--cache-only' "$TMPDIR/calls.log"
+  # The background call must NOT carry --cache-only (it exists to refresh
+  # the cache from the network, which --cache-only forbids by design).
+  grep -qv -- '--cache-only' "$TMPDIR/calls.log"
+}
+
+@test "update-notify: a fresh cache-hit answer (source != cache-miss) never spawns a background refresh" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.4.0", "latest": "5.4.0", "update_available": false, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "cache"}')
+
+  run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
+
+  sleep 0.3
+  [ "$(call_count)" -eq 1 ]
+}
+
+@test "update-notify: warm cache reporting an update renders the notice in well under 100ms" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current": "5.3.0", "latest": "5.4.0", "update_available": true, "flavor": "pipx", "upgrade_command": "pipx upgrade memory-bank-skill", "checked_at": "x", "source": "cache"}')
+
+  local start end elapsed_ms out
+  start=$(date +%s%N)
+  out="$(MB_VERSION_CHECK_BIN="$checker" bash "$HOOK" 2>"$TMPDIR/stderr.log")"
+  end=$(date +%s%N)
+  elapsed_ms=$(( (end - start) / 1000000 ))
+
+  [[ "$out" == *"5.3.0"* ]]
+  [[ "$out" == *"5.4.0"* ]]
+  [ ! -s "$TMPDIR/stderr.log" ]
+  [ "$elapsed_ms" -lt 100 ]
+}
+
+@test "update-notify: contract — a real 'unknown' flavor notice never leaks a \\u escape (real resolver, warm cache)" {
+  local resolver="$REPO_ROOT/scripts/mb-version-check.sh"
+  [ -f "$resolver" ] || skip "scripts/mb-version-check.sh not present"
+
+  local skill_dir fetch_stub cache_file
+  skill_dir="$TMPDIR/unrecognizable-install-dir"
+  mkdir -p "$skill_dir"
+  printf '1.0.0\n' > "$skill_dir/VERSION"
+  cache_file="$TMPDIR/cache/.mb-version-check.json"
+
+  fetch_stub="$TMPDIR/fetch.sh"
+  cat > "$fetch_stub" <<'EOF'
+#!/usr/bin/env bash
+for a in "$@"; do
+  case "$a" in
+    *github*) printf '%s\n' '{"tag_name": "v99.0.0"}'; exit 0 ;;
+  esac
+done
+exit 1
+EOF
+  chmod +x "$fetch_stub"
+
+  MB_SKILL_DIR="$skill_dir" MB_VERSION_CHECK_FETCH_BIN="$fetch_stub" \
+    MB_VERSION_CHECK_CACHE="$cache_file" bash "$resolver" >/dev/null
+
+  run --separate-stderr env \
+    MB_SKILL_DIR="$skill_dir" \
+    MB_VERSION_CHECK_FETCH_BIN="$fetch_stub" \
+    MB_VERSION_CHECK_CACHE="$cache_file" \
+    MB_VERSION_CHECK_BIN="$resolver" \
+    bash "$HOOK"
+
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [[ "$output" == *"1.0.0"* ]]
+  case "$output" in
+    *'\u'*) false ;;
+    *) true ;;
+  esac
+  [[ "$output" == *"—"* ]]
+}
+
+# ═══ registration ═══
+
+@test "update-notify: registered under settings/hooks.json SessionStart" {
+  python3 - "$REPO_ROOT/settings/hooks.json" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+cmds = []
+for entry in data.get("SessionStart", []):
+    for h in entry.get("hooks", []):
+        cmds.append(h.get("command", ""))
+assert any("mb-update-notify.sh" in c for c in cmds), cmds
+PY
+}
+
+@test "update-notify: registered as Cursor's sessionStart binding (the only other host with a SessionStart transport)" {
+  grep -q "mb-update-notify.sh" "$REPO_ROOT/adapters/cursor.sh"
+  grep -q "sessionStart:mb-update-notify.sh" "$REPO_ROOT/adapters/cursor.sh"
+}
+
+@test "update-notify: no adapter fabricates a registration for a host with no SessionStart transport" {
+  for adapter in windsurf.sh cline.sh kilo.sh opencode.sh pi.sh codex.sh; do
+    ! grep -q "mb-update-notify.sh" "$REPO_ROOT/adapters/$adapter"
+  done
+}
+
+@test "update-notify: Windsurf/Cline/Kilo/OpenCode/Pi/Codex have no INSTALLED SessionStart transport for this notice — documented gap, not silent" {
+  # Same platform-limit contract as test_cross_agent_runtime_parity.bats: a
+  # host with no equivalent lifecycle event is explicitly SKIPPED with its
+  # reason, never silently asserted as if it worked. The gap is already
+  # recorded in docs/cross-agent-setup.md's hook matrix ("SessionStart
+  # context injection" row reads "—" for every column but Cursor).
+  #
+  # Precise claim, not overstated: Windsurf/Cline/Kilo/OpenCode/Codex truly
+  # have no CC-compatible SessionStart event at all. Pi is different — its
+  # source-only extension (adapters/pi_session_memory_extension.ts) DOES
+  # listen to a `session_start` event — but no adapter installs it
+  # (docs/cross-agent-setup.md: "ships in the bundle as source, but no
+  # adapter currently copies it to ~/.pi/agent/extensions/ ... treat the
+  # extension as a template, not an installed artifact"). So the gap here is
+  # "no installed transport to wire this notice onto", not "no such event
+  # exists on Pi".
+  skip "Windsurf/Cline/Kilo/OpenCode/Codex have no CC-compatible SessionStart transport; Pi's session_start extension (adapters/pi_session_memory_extension.ts) exists but ships uninstalled (docs/cross-agent-setup.md hook matrix) — no installed transport to register this notice on"
+}

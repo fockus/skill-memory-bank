@@ -499,6 +499,227 @@ assert set(data.keys()) == {
   [ "$(json_field "$output" latest)" = "5.10.0" ]
 }
 
+# ═══ --cache-only: local-only answer, NEVER a network call ═══
+
+@test "version-check: --cache-only with no cache file -> update_available false, exit 0, ZERO network calls" {
+  local fetch; fetch=$(fake_fetch fetch.sh 0 '{"tag_name":"v5.10.0"}')
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    MB_VERSION_CHECK_FETCH_BIN="$fetch" run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(call_count)" -eq 0 ]
+  [ "$(json_field "$output" update_available)" = "False" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+  [ ! -f "$CACHE_FILE" ]
+}
+
+@test "version-check: --cache-only with a warm cache -> the cached answer, still ZERO network calls" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(python3 -c 'import datetime; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+  printf '{"latest":"5.10.0","source":"github","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  local fetch; fetch=$(fake_fetch fetch.sh 0 '{"tag_name":"v5.11.0"}')
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    MB_VERSION_CHECK_FETCH_BIN="$fetch" run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(call_count)" -eq 0 ]
+  [ "$(json_field "$output" latest)" = "5.10.0" ]
+  [ "$(json_field "$output" source)" = "cache" ]
+  [ "$(json_field "$output" update_available)" = "True" ]
+}
+
+@test "version-check: --cache-only with a stale cache -> treated as a miss, ZERO network calls" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local old; old="$(python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=99999)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+  printf '{"latest":"5.9.0","source":"github","checked_at":"%s"}\n' "$old" > "$CACHE_FILE"
+  # --cache-only's freshness clock is the cache FILE's own mtime (zero
+  # forks — no python needed to parse `checked_at`), not the `checked_at`
+  # field content — so the file's mtime must be backdated too, or a
+  # just-written file with a stale `checked_at` payload would still read
+  # as fresh (correct behaviour for the mtime-based reader; wrong test
+  # fixture otherwise).
+  local old_touch; old_touch="$(python3 -c 'import datetime; print((datetime.datetime.now() - datetime.timedelta(seconds=99999)).strftime("%Y%m%d%H%M.%S"))')"
+  touch -t "$old_touch" "$CACHE_FILE"
+  local fetch; fetch=$(fake_fetch fetch.sh 0 '{"tag_name":"v5.11.0"}')
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" MB_UPDATE_CHECK_TTL=86400 \
+    MB_VERSION_CHECK_FETCH_BIN="$fetch" run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(call_count)" -eq 0 ]
+  [ "$(json_field "$output" update_available)" = "False" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+}
+
+@test "version-check: --cache-only ignores --force — still zero network calls" {
+  local fetch; fetch=$(fake_fetch fetch.sh 0 '{"tag_name":"v5.10.0"}')
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    MB_VERSION_CHECK_FETCH_BIN="$fetch" run --separate-stderr bash "$SCRIPT" --cache-only --force
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(call_count)" -eq 0 ]
+}
+
+@test "version-check: --cache-only with an invalid (non-digit) MB_UPDATE_CHECK_TTL never leaks a '[: integer expected' stderr line" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"latest":"5.10.0","source":"github","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" MB_UPDATE_CHECK_TTL=abc \
+    run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" latest)" = "5.10.0" ]
+  [ "$(json_field "$output" source)" = "cache" ]
+  [ "$(json_field "$output" update_available)" = "True" ]
+}
+
+@test "version-check: an invalid (non-digit) MB_UPDATE_CHECK_FAIL_TTL never leaks a '[: integer expected' stderr line, cache-only path" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"latest":"","source":"none","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" MB_UPDATE_CHECK_FAIL_TTL=xyz \
+    run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" source)" = "cache" ]
+  [ "$(json_field "$output" update_available)" = "False" ]
+}
+
+# ═══ --cache-only is a ZERO python fork path — proven, not asserted ═══
+
+@test "version-check: --cache-only with NO cache file and a broken MB_PYTHON -> still the correct cache-miss JSON, not the degraded python-unavailable answer" {
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    MB_PYTHON="$TMPDIR/no-such-python" run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" update_available)" = "False" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+  [ "$(json_field "$output" current)" != "" ]
+}
+
+@test "version-check: --cache-only with a WARM cache and a broken MB_PYTHON -> still the correct cached answer, not the degraded python-unavailable answer" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"latest":"5.10.0","source":"github","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    MB_PYTHON="$TMPDIR/no-such-python" run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" latest)" = "5.10.0" ]
+  [ "$(json_field "$output" source)" = "cache" ]
+  [ "$(json_field "$output" update_available)" = "True" ]
+}
+
+@test "version-check: --cache-only forks python ZERO times — direct call-count proof, not just broken-python inference" {
+  # The two tests above prove correctness under a BROKEN MB_PYTHON, which only
+  # catches a regressing python fork if that fork's failure is observable. On a
+  # box with a working system python3 a silently-handled fork would slip through.
+  # This stub LOGS every invocation, so the assertion fails the moment the
+  # cache-only path forks python at all — a working interpreter can't hide it.
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"latest":"5.10.0","source":"github","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  local pylog="$TMPDIR/py-calls.log"
+  local pystub="$TMPDIR/py-stub.sh"
+  printf '#!/usr/bin/env bash\necho called >> "%s"\n' "$pylog" > "$pystub"
+  chmod +x "$pystub"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    MB_PYTHON="$pystub" run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ ! -f "$pylog" ]  # zero python forks: the logging stub was never invoked
+  [ "$(json_field "$output" source)" = "cache" ]
+  [ "$(json_field "$output" update_available)" = "True" ]
+}
+
+# ═══ --cache-only: the cache is untrusted input, same trust rules as the
+# network path, enforced WITHOUT python ═══
+
+@test "version-check: --cache-only rejects a poisoned latest ('9.9.9; rm -rf /') as stale, never echoes it into the JSON" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"latest":"9.9.9; rm -rf /","source":"github","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" update_available)" = "False" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+  [[ "$output" != *"rm -rf"* ]]
+}
+
+@test "version-check: --cache-only rejects a poisoned latest ('<script>alert(1)</script>') as stale" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"latest":"<script>alert(1)</script>","source":"github","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" update_available)" = "False" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+  [[ "$output" != *"<script>"* ]]
+}
+
+@test "version-check: --cache-only rejects a poisoned latest containing an ANSI escape as stale" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now esc; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; esc="$(printf '\033')"
+  printf '{"latest":"5.10.0%s[31m","source":"github","checked_at":"%s"}\n' "$esc" "$now" > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" update_available)" = "False" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+  [[ "$output" != *$'\033'* ]]
+}
+
+@test "version-check: --cache-only rejects a cache with an unrecognized source value as stale" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"latest":"5.10.0","source":"attacker","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+}
+
+@test "version-check: --cache-only rejects a multi-line cache file as stale, never a crash" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  printf '{"latest":"5.10.0",\n"source":"github","checked_at":"x"}\n' > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+}
+
+@test "version-check: --cache-only rejects an oversized semver component as stale, never a '[: integer expected' stderr leak, poison never echoed" {
+  mkdir -p "$(dirname "$CACHE_FILE")"
+  local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"latest":"999999999999999999999999999999.0.0","source":"github","checked_at":"%s"}\n' "$now" > "$CACHE_FILE"
+  MB_SKILL_DIR="$SKILL_DIR" MB_VERSION_CHECK_CACHE="$CACHE_FILE" \
+    run --separate-stderr bash "$SCRIPT" --cache-only
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$(json_field "$output" source)" = "cache-miss" ]
+  [ "$(json_field "$output" update_available)" = "False" ]
+  [[ "$output" != *"999999999999999999999999999999"* ]]
+}
+
+# ═══ non-ASCII must reach the notice as real UTF-8, never a \u escape ═══
+
+@test "version-check: unknown-flavor upgrade_command's em-dash is real UTF-8 in the raw output, never a \\u escape" {
+  MB_SKILL_DIR="$TMPDIR/nowhere-recognizable" MB_UPDATE_CHECK=off run --separate-stderr bash "$SCRIPT"
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  case "$output" in
+    *'\u'*) false ;;
+    *) true ;;
+  esac
+  [[ "$output" == *"—"* ]]
+}
+
 # ═══ usage ═══
 
 @test "version-check: unknown flag -> non-zero exit, usage error on stderr" {

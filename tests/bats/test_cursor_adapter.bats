@@ -91,23 +91,23 @@ run_adapter() {
   jq -e '.hooks.beforeShellExecution' "$hjson" >/dev/null
 }
 
-@test "cursor: install references all ten hook scripts in hooks.json" {
+@test "cursor: install references all eleven hook scripts in hooks.json" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local hjson="$PROJECT/.cursor/hooks.json"
-  local hooks=(mb-session-end.sh mb-pre-compact.sh block-dangerous.sh mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh mb-session-start-context.sh)
+  local hooks=(mb-session-end.sh mb-pre-compact.sh block-dangerous.sh mb-protected-paths-guard.sh mb-ears-pre-write.sh mb-context-slim-pre-agent.sh mb-sprint-context-guard.sh file-change-log.sh mb-plan-sync-post-write.sh mb-session-start-context.sh mb-update-notify.sh)
   local h
   for h in "${hooks[@]}"; do
     grep -q "memory-bank/hooks/$h" "$hjson"
   done
 }
 
-@test "cursor: install has exactly ten _mb_owned entries" {
+@test "cursor: install has exactly eleven _mb_owned entries" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local count
   count=$(jq '[.hooks[][] | select(._mb_owned == true)] | length' "$PROJECT/.cursor/hooks.json")
-  [ "$count" -eq 10 ]
+  [ "$count" -eq 11 ]
 }
 
 @test "cursor: uninstall removes all our files" {
