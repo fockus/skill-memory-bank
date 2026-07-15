@@ -634,6 +634,9 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-126 — openspec-adapter: strengthen non-discriminating security tests (absolute-path-leak via absolute arg; R4 cache-OSError e2e) [LOW, NEW, 2026-07-15]
 
+
+### I-127 — openspec-adapter: wire /mb openspec router entry into commands/mb.md — DEFERRED under adapter-parity FREEZE; last step before openspec-adapter tag/release [HIGH, NEW, 2026-07-15]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
