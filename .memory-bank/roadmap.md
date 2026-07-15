@@ -107,7 +107,7 @@ ICE-примечания: 6.1 имеет третий score программы, 
 | Работа | Артефакт | Где в очереди |
 |---|---|---|
 | sdd-openspec-parity Phase 1 | `specs/sdd-openspec-parity` (24 REQ, T1–T8) | 🔥 HIGH — сейчас, ∥ donor v5.4.0 (AGR-007) |
-| agreements (`/mb agree`) | `specs/agreements` (триплет + 16 mb-task) + `scripts/mb-agree.sh`, `commands/agree.md`, `references/agreements.md`, 2 bats | ✅ реализация ГОТОВА и работает (dogfood: AGR-011 записан этой сессией), но всё untracked — ждёт коммита владельца (параллельная сессия, активен `agree-review`). Не в очереди «сделать», а «done, pending commit» → закрыть в составе **donor v5.4.0 Trustworthy Baseline** (тема governance/trust) |
+| agreements (`/mb agree`) | `specs/agreements` (триплет + 16 mb-task) + `scripts/mb-agree.sh`, `commands/agree.md`, `references/agreements.md`, 2 bats | ✅ ГОТОВО и закоммичено (`452601d`, dogfood: AGR-011 записан этой сессией) → **входит в релиз donor v5.4.0 Trustworthy Baseline** (тема governance/trust; user-confirmed 2026-07-15) |
 | donor v5.4.0 Trustworthy Baseline | план `2026-07-15_feature_mb-donor-evolution-v5-4-baseline` | Now — голова donor-поезда |
 | donor v5.5.0…v6.5.0 | umbrella `specs/mb-donor-evolution` | ICE-таблица выше, JIT-слайсы |
 | quality-track | `specs/quality-track` (29 REQ) | = donor v6.2.0 (AGR-008/009) |
