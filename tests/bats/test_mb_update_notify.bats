@@ -1136,27 +1136,37 @@ PY
   grep -q "sessionStart:mb-update-notify.sh" "$REPO_ROOT/adapters/cursor.sh"
 }
 
-@test "update-notify: no adapter fabricates a registration for a host with no SessionStart transport" {
-  for adapter in windsurf.sh cline.sh kilo.sh opencode.sh pi.sh codex.sh; do
+@test "update-notify: no adapter SHELL SCRIPT fabricates a registration for a host with no SessionStart transport" {
+  # adapter-parity T3: Pi's update-notify wiring now genuinely exists, but it
+  # lives INSIDE adapters/pi_session_memory_extension.ts (the installed
+  # accept-path artifact), never as a literal string in adapters/pi.sh
+  # itself — pi.sh only copies the template, it never calls the hook
+  # directly. This grep therefore still correctly reads "false" for pi.sh;
+  # see test_cross_agent_runtime_parity.bats for the real Pi assertion.
+  #
+  # adapter-parity T6: codex.sh is EXCLUDED from this loop — its before-prompt
+  # (userpromptsubmit) hook legitimately renders the notice via
+  # hooks/mb-update-notify.sh (REQ-014, the honest Codex tier). That is a real
+  # before-prompt use, NOT a fabricated SessionStart registration, so codex.sh
+  # is expected to reference the hook. Its behavior is asserted in
+  # test_codex_adapter.bats (TTL gate, off-switch, fail-open, danger-block).
+  for adapter in windsurf.sh cline.sh kilo.sh opencode.sh pi.sh; do
     ! grep -q "mb-update-notify.sh" "$REPO_ROOT/adapters/$adapter"
   done
 }
 
-@test "update-notify: Windsurf/Cline/Kilo/OpenCode/Pi/Codex have no INSTALLED SessionStart transport for this notice — documented gap, not silent" {
+@test "update-notify: Windsurf/Cline/Kilo/OpenCode/Codex have no INSTALLED SessionStart transport for this notice — documented gap, not silent" {
   # Same platform-limit contract as test_cross_agent_runtime_parity.bats: a
   # host with no equivalent lifecycle event is explicitly SKIPPED with its
   # reason, never silently asserted as if it worked. The gap is already
   # recorded in docs/cross-agent-setup.md's hook matrix ("SessionStart
-  # context injection" row reads "—" for every column but Cursor).
+  # context injection" row reads "—" for every column but Cursor/Pi).
   #
-  # Precise claim, not overstated: Windsurf/Cline/Kilo/OpenCode/Codex truly
-  # have no CC-compatible SessionStart event at all. Pi is different — its
-  # source-only extension (adapters/pi_session_memory_extension.ts) DOES
-  # listen to a `session_start` event — but no adapter installs it
-  # (docs/cross-agent-setup.md: "ships in the bundle as source, but no
-  # adapter currently copies it to ~/.pi/agent/extensions/ ... treat the
-  # extension as a template, not an installed artifact"). So the gap here is
-  # "no installed transport to wire this notice onto", not "no such event
-  # exists on Pi".
-  skip "Windsurf/Cline/Kilo/OpenCode/Codex have no CC-compatible SessionStart transport; Pi's session_start extension (adapters/pi_session_memory_extension.ts) exists but ships uninstalled (docs/cross-agent-setup.md hook matrix) — no installed transport to register this notice on"
+  # Pi is EXCLUDED from this skip as of adapter-parity T3: its session_start
+  # extension now calls hooks/mb-update-notify.sh itself and install.sh's
+  # opt-in accept path (mb_install_host_extensions "pi") genuinely installs
+  # it to ~/.pi/agent/extensions/ — see
+  # test_cross_agent_runtime_parity.bats's Pi update-notify wiring test for
+  # the real (non-skipped) assertion.
+  skip "Windsurf/Cline/Kilo/OpenCode/Codex have no CC-compatible SessionStart transport to register this notice on"
 }
