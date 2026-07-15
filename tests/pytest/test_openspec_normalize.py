@@ -250,6 +250,87 @@ def test_cli_import_normalize_wires_default_dispatcher_end_to_end(tmp_path):
     assert _cache_path(bank).is_file()
 
 
+# ---------------------------------------------------------------------------
+# F5/F6 (Codex review): `_validate_slots` must reject a malformed `steps`
+# shape (never raise downstream in `scenario_from_slot`), and a cache-hit
+# must be re-validated too -- a corrupted on-disk cache entry must not crash
+# conversion or permanently suppress LLM retry.
+# ---------------------------------------------------------------------------
+
+
+def _widget_change():
+    return convert_mod.OSChange(
+        change_id="malformed-scenario",
+        why="w",
+        what_changes="w",
+        design_md=None,
+        requirements=[
+            parse_mod.OSRequirement(
+                name="Widget", text="The system SHALL do A.", change_kind="added"
+            )
+        ],
+        task_groups=[],
+        source_hash="deadbeef",
+    )
+
+
+def test_normalize_llm_scenario_with_non_pair_steps_falls_back_never_raises(tmp_path):
+    """F5: `steps` as a bare (truthy) string, not a list of [kw, text] pairs,
+    must degrade to no-scenario -- not raise inside `scenario_from_slot`."""
+    bank = tmp_path / ".memory-bank"
+    bank.mkdir()
+    ch = _widget_change()
+
+    def bad_llm(payload):
+        return {
+            "text": "WHEN X, the system SHALL Y",
+            "scenario": {"name": "S", "steps": "not-a-list-of-pairs"},
+            "covers": [],
+        }
+
+    requirements_md, _d, _t = convert_mod.convert(ch, normalize=True, mb_path=bank, llm=bad_llm)
+    assert "### Scenario: (none provided)" in requirements_md  # deterministic stub, not a crash
+
+
+def test_normalize_cache_hit_with_corrupted_scenario_shape_is_revalidated(tmp_path, capsys):
+    """F6: a hand-edited/corrupted cache entry (malformed `steps` shape) must
+    be re-validated on a cache HIT too -- it must not crash conversion, and
+    must not permanently suppress a retry."""
+    bank = tmp_path / ".memory-bank"
+    bank.mkdir()
+    ch = _widget_change()
+    req = ch.requirements[0]
+    key = requirement_source_hash(req)
+
+    cache_dir = bank / ".index" / "openspec"
+    cache_dir.mkdir(parents=True)
+    corrupted = {
+        key: {
+            "text": "WHEN X, the system SHALL Y",
+            "scenario": {"name": "S", "steps": "not-a-list-of-pairs"},
+            "covers": [],
+        }
+    }
+    (cache_dir / "normalize-cache.json").write_text(json.dumps(corrupted), encoding="utf-8")
+
+    calls: list[dict] = []
+
+    def retry_llm(payload):
+        calls.append(payload)
+        return {
+            "text": "WHEN X, the system SHALL Y (regenerated)",
+            "scenario": {"name": "S2", "steps": [["WHEN", "triggered"], ["THEN", "succeeds"]]},
+            "covers": [],
+        }
+
+    requirements_md, _d, _t = convert_mod.convert(ch, normalize=True, mb_path=bank, llm=retry_llm)
+
+    assert requirements_md  # never crashed
+    # The corrupted entry must have been treated as a miss -- llm re-invoked.
+    assert len(calls) == 1
+    assert "S2" in requirements_md
+
+
 def test_cli_import_normalize_llm_unavailable_still_exits_zero(tmp_path):
     bank = tmp_path / ".memory-bank"
     (bank / "specs").mkdir(parents=True)

@@ -45,6 +45,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -67,6 +68,36 @@ def _slugify(text: str) -> str:
     return slug or "change"
 
 
+_TOPIC_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def _validate_topic_slug(topic: str) -> None:
+    """Reject any topic that is not a single safe path segment (F1, REQ-003/NFR-002).
+
+    ``--as``/``sync``/``status`` topics flow straight into ``spec_dir = mb_path
+    / "specs" / topic``; an unvalidated topic (``..``, ``../foo``, ``foo/bar``,
+    a backslash, or a control character) can escape ``specs/`` entirely or
+    nest where ``sync``/``list`` will never find it. A topic must match
+    ``^[A-Za-z0-9][A-Za-z0-9._-]*$`` and contain no path separators.
+
+    R3 (Codex round-2): the regex above still ALLOWS a trailing ``.`` (e.g.
+    ``foo.``) — harmless on POSIX but a reserved/ambiguous segment on some
+    filesystems and simply not a name anyone means to type; rejected
+    explicitly rather than folded into the regex, to keep the regex's error
+    message stable for every other case.
+    """
+    if topic in (".", ".."):
+        raise RuntimeError(f"invalid topic: {topic!r} (must not be '.' or '..')")
+    if "/" in topic or "\\" in topic:
+        raise RuntimeError(f"invalid topic: {topic!r} (must not contain a path separator)")
+    if any(ord(c) < 0x20 for c in topic):
+        raise RuntimeError(f"invalid topic: {topic!r} (control characters are not allowed)")
+    if not _TOPIC_SLUG_RE.match(topic):
+        raise RuntimeError(f"invalid topic: {topic!r} (must match {_TOPIC_SLUG_RE.pattern})")
+    if topic.endswith("."):
+        raise RuntimeError(f"invalid topic: {topic!r} (must not end with '.')")
+
+
 def _assert_within(base: Path, target: Path) -> None:
     """Hard guard (REQ-003, NFR-002): refuse to write outside ``base``."""
     base_r = base.resolve()
@@ -75,6 +106,65 @@ def _assert_within(base: Path, target: Path) -> None:
         target_r.relative_to(base_r)
     except ValueError as exc:
         raise RuntimeError(f"refusing to write outside {base_r}: {target_r}") from exc
+
+
+def _assert_topic_dir_not_symlink_escape(spec_dir: Path, specs_dir: Path) -> None:
+    """Reject a ``specs/<topic>/`` that is itself a symlink escape (R3, Codex
+    round-2 residual on F1).
+
+    ``_assert_within(mb_path, spec_dir)`` only guards the BANK root; a
+    ``specs/<topic>`` entry that is itself a symlink pointing to some OTHER
+    directory still lives (lexically) under the bank and passes that check.
+    Likewise, the old ``spec_dir.parent.resolve() != specs_dir.resolve()``
+    check resolves the *parent* (``specs_dir`` itself, unaffected by a
+    symlinked CHILD) — it never notices that ``spec_dir`` itself is a
+    symlink, since resolving a path's parent does not traverse into a
+    symlinked last component. This guard checks ``spec_dir`` directly:
+    refuse outright if it is a symlink (regardless of target), and refuse if
+    its own resolved form does not land immediately under ``specs_dir``.
+    Applied before ``import`` writes through a topic dir and before
+    ``status``/``sync`` read one.
+    """
+    if spec_dir.is_symlink():
+        raise RuntimeError(f"refusing to use a symlinked spec dir: {spec_dir}")
+    if spec_dir.exists() and spec_dir.resolve().parent != specs_dir.resolve():
+        raise RuntimeError(f"refusing to use a spec dir outside {specs_dir}: {spec_dir}")
+
+
+def _stable_source_path(change_dir: Path, mb_path: Path) -> str:
+    """A stable, non-leaking path to record in frontmatter (R5, Codex round-2).
+
+    ``str(change_dir.resolve())`` writes an absolute filesystem path (e.g.
+    ``/Users/<name>/...``) straight into a file that is normally committed to
+    version control — it leaks the local username and isn't portable across
+    clones/CI. Store a path relative to the Memory Bank root instead:
+    ``os.path.relpath`` handles arbitrary ``../`` climbs, so this works
+    whether the OpenSpec source lives under the bank, next to it, or
+    elsewhere on the same filesystem. Falls back to the absolute path only
+    when a relative path genuinely cannot be computed (``ValueError`` — e.g.
+    two different drives on Windows).
+    """
+    change_r = change_dir.resolve()
+    mb_r = mb_path.resolve()
+    try:
+        return os.path.relpath(change_r, mb_r)
+    except ValueError:
+        return str(change_r)
+
+
+def _resolve_stored_source(source: str, mb_path: Path) -> Path:
+    """Resolve a stored ``openspec_source`` value against the BANK path (R5).
+
+    Never against the caller's current working directory — that is the whole
+    point of F4/REQ-014/015 staying cwd-independent. A relative value (the
+    new, R5-fixed form) is joined onto the resolved bank path; an absolute
+    value (a legacy path stored before this fix, or the Windows
+    cross-drive fallback) is used as-is.
+    """
+    p = Path(source)
+    if p.is_absolute():
+        return p
+    return mb_path.resolve() / p
 
 
 def _inject_frontmatter(requirements_md: str, source: str, source_hash: str) -> str:
@@ -102,19 +192,36 @@ def _read_prior_triple(spec_dir: Path) -> tuple[str, str, str] | None:
     )
 
 
+def _orphan_backlog_marker(topic: str, source_hash: str) -> str:
+    """The idempotency key for one orphan-append (R1, Codex round-2)."""
+    return f"<!-- openspec-orphans: {topic}@{source_hash[:12]} -->"
+
+
 def _append_orphans_to_backlog(
     mb_path: Path, topic: str, orphaned_task_lines: list[str], source_hash: str
 ) -> None:
     """REQ-017 — a previously-imported task that vanished from the OpenSpec
     source on re-import is never silently dropped; append it to
-    ``backlog.md`` with a note instead of losing it."""
+    ``backlog.md`` with a note instead of losing it.
+
+    Idempotent (R1, Codex round-2): keyed by an HTML-comment marker
+    ``<!-- openspec-orphans: <topic>@<hash12> -->``. If that exact marker is
+    already present in ``backlog.md`` (e.g. a retried/re-run import for the
+    same topic against the same source hash, after an earlier crash between
+    this append and the later ``requirements.md`` write), the append is
+    skipped entirely instead of duplicating the note.
+    """
     backlog_path = mb_path / "backlog.md"
     _assert_within(mb_path, backlog_path)
     existing = backlog_path.read_text(encoding="utf-8") if backlog_path.is_file() else "# Backlog\n"
+    marker = _orphan_backlog_marker(topic, source_hash)
+    if marker in existing:
+        return  # already recorded for this exact topic+source_hash -- idempotent retry
     if not existing.endswith("\n"):
         existing += "\n"
     note_lines = [
         "",
+        marker,
         f"## Orphaned OpenSpec tasks — {topic}",
         "",
         (
@@ -156,8 +263,11 @@ def run_import(
     ch = parse_change(change_dir)
 
     resolved_topic = topic or _slugify(ch.change_id)
-    spec_dir = mb_path / "specs" / resolved_topic
+    _validate_topic_slug(resolved_topic)
+    specs_dir = mb_path / "specs"
+    spec_dir = specs_dir / resolved_topic
     _assert_within(mb_path, spec_dir)
+    _assert_topic_dir_not_symlink_escape(spec_dir, specs_dir)
 
     prior_triple = _read_prior_triple(spec_dir)
 
@@ -173,19 +283,58 @@ def run_import(
     if prior_triple is not None:
         tasks_md, orphaned_task_lines = merge_task_state(tasks_md, prior_triple[2])
 
-    requirements_md = _inject_frontmatter(requirements_md, str(change_dir), ch.source_hash)
+    # Store a STABLE, bank-relative path (R5) -- never the raw resolved
+    # absolute path, which would leak the local username into a normally
+    # COMMITTED file. `status`/`sync` resolve it back against `mb_path`
+    # (never the caller's cwd), preserving F4's cwd-independence.
+    requirements_md = _inject_frontmatter(
+        requirements_md, _stable_source_path(change_dir, mb_path), ch.source_hash
+    )
 
-    for name, content in (
-        ("requirements.md", requirements_md),
-        ("design.md", design_md),
-        ("tasks.md", tasks_md),
-    ):
-        dest = spec_dir / name
-        _assert_within(mb_path, dest)
-        atomic_write(dest, content)
+    # Write order (F7/R1, Codex round-2, and the round-3 crash-consistency
+    # fix): design.md -> append orphans to backlog.md (if any) -> tasks.md
+    # (orphan-stripped) -> requirements.md (new hash) LAST.
+    #
+    # The orphan-to-backlog append MUST land before tasks.md is overwritten,
+    # not after (the round-2 order had it the other way around). tasks.md is
+    # the ONLY on-disk record of the prior task state (`_read_prior_triple`
+    # reads it back on the next re-import): once it is overwritten with the
+    # orphan-stripped content, that prior state is gone. A crash landing
+    # between "tasks.md written" and "backlog.md appended" would then leave
+    # a retry with nothing left to re-detect the orphan from -- the task is
+    # lost silently and permanently (REQ-017 violation). Recording the
+    # orphan in backlog.md FIRST closes that window: by the time tasks.md is
+    # overwritten, the orphan already has a durable home.
+    #
+    # Every crash point remains safe:
+    #   - before backlog.md lands: tasks.md/requirements.md are untouched,
+    #     retry re-detects the same orphan from the still-intact prior
+    #     tasks.md and re-attempts the (idempotent) backlog append.
+    #   - after backlog.md lands, before tasks.md: orphan is already durable
+    #     in backlog.md; retry re-detects the same orphan again (tasks.md
+    #     still holds the old state) and the append is a no-op (idempotency
+    #     marker keyed by topic+source_hash in `_append_orphans_to_backlog`).
+    #   - after tasks.md, before requirements.md: orphan is already durable
+    #     in backlog.md; requirements.md still carries the OLD hash, so a
+    #     future `sync`/`status` sees "drifted" rather than wrongly treating
+    #     the topic as up to date.
+    # requirements.md is written LAST unconditionally (F7): a crash must
+    # never leave the hash "current" while any sibling write (design/tasks/
+    # backlog) is still outstanding.
+    design_dest = spec_dir / "design.md"
+    _assert_within(mb_path, design_dest)
+    atomic_write(design_dest, design_md)
 
     if orphaned_task_lines:
         _append_orphans_to_backlog(mb_path, resolved_topic, orphaned_task_lines, ch.source_hash)
+
+    tasks_dest = spec_dir / "tasks.md"
+    _assert_within(mb_path, tasks_dest)
+    atomic_write(tasks_dest, tasks_md)
+
+    req_dest = spec_dir / "requirements.md"
+    _assert_within(mb_path, req_dest)
+    atomic_write(req_dest, requirements_md)
 
     return {
         "topic": resolved_topic,
@@ -260,17 +409,23 @@ def discover_openspec_changes(openspec_root: Path, *, include_archive: bool) -> 
 
 
 def _change_status(
-    change_dir: Path, imported_topics: list[tuple[str, Path, dict[str, str]]]
+    change_dir: Path, imported_topics: list[tuple[str, Path, dict[str, str]]], mb_path: Path
 ) -> tuple[str, str | None]:
     """(status, topic) for one OpenSpec change dir against the known imported
-    topics — ``not-imported`` / ``imported`` / ``drifted`` (REQ-019)."""
+    topics — ``not-imported`` / ``imported`` / ``drifted`` (REQ-019).
+
+    ``source`` is resolved against ``mb_path`` (R5), not the caller's cwd —
+    it may now be a bank-relative path written by the fixed
+    ``_stable_source_path``, or a legacy absolute path from before that fix;
+    ``_resolve_stored_source`` handles both.
+    """
     change_r = change_dir.resolve()
     for topic, _topic_dir, fm in imported_topics:
         source = fm.get("openspec_source")
         if not source:
             continue
         try:
-            if Path(source).resolve() != change_r:
+            if _resolve_stored_source(source, mb_path).resolve() != change_r:
                 continue
         except OSError:
             continue
@@ -285,7 +440,7 @@ def run_list(*, mb_path: Path, openspec_root: Path, include_all: bool) -> list[d
     imported_topics = _iter_imported_topics(mb_path)
     results: list[dict[str, object]] = []
     for change_dir in discover_openspec_changes(openspec_root, include_archive=include_all):
-        status, topic = _change_status(change_dir, imported_topics)
+        status, topic = _change_status(change_dir, imported_topics, mb_path)
         results.append(
             {
                 "change_id": change_dir.name,
@@ -299,7 +454,10 @@ def run_list(*, mb_path: Path, openspec_root: Path, include_all: bool) -> list[d
 
 def run_status(*, mb_path: Path, topic: str) -> dict[str, object]:
     """Status of a single previously-imported topic (read-only, REQ-019)."""
-    spec_dir = mb_path / "specs" / topic
+    _validate_topic_slug(topic)
+    specs_dir = mb_path / "specs"
+    spec_dir = specs_dir / topic
+    _assert_topic_dir_not_symlink_escape(spec_dir, specs_dir)
     req_path = spec_dir / "requirements.md"
     if not req_path.is_file():
         raise FileNotFoundError(f"topic not found or never imported: {topic}")
@@ -308,7 +466,7 @@ def run_status(*, mb_path: Path, topic: str) -> dict[str, object]:
     stored_hash = fm.get("openspec_hash")
     if not source or not stored_hash:
         raise RuntimeError(f"topic '{topic}' has no openspec_source/openspec_hash frontmatter")
-    change_dir = Path(source)
+    change_dir = _resolve_stored_source(source, mb_path)
     if not change_dir.is_dir():
         raise FileNotFoundError(f"OpenSpec source no longer exists: {source}")
     current_hash = compute_source_hash(change_dir)
@@ -333,8 +491,12 @@ def run_sync(
 
     ``normalize`` (T6) is forwarded to each ``run_import`` call it triggers.
     """
+    specs_dir = mb_path / "specs"
     if topic is not None:
-        req_path = mb_path / "specs" / topic / "requirements.md"
+        _validate_topic_slug(topic)
+        spec_dir = specs_dir / topic
+        _assert_topic_dir_not_symlink_escape(spec_dir, specs_dir)
+        req_path = spec_dir / "requirements.md"
         if not req_path.is_file():
             raise FileNotFoundError(f"topic not found or never imported: {topic}")
         topics = [topic]
@@ -343,7 +505,13 @@ def run_sync(
 
     results: list[dict[str, object]] = []
     for t in topics:
-        req_path = mb_path / "specs" / t / "requirements.md"
+        spec_dir = specs_dir / t
+        try:
+            _assert_topic_dir_not_symlink_escape(spec_dir, specs_dir)
+        except RuntimeError as exc:
+            results.append({"topic": t, "action": "error", "reason": str(exc)})
+            continue
+        req_path = spec_dir / "requirements.md"
         fm = _parse_frontmatter(req_path.read_text(encoding="utf-8"))
         source = fm.get("openspec_source")
         stored_hash = fm.get("openspec_hash")
@@ -352,7 +520,7 @@ def run_sync(
                 {"topic": t, "action": "error", "reason": "missing openspec source/hash"}
             )
             continue
-        change_dir = Path(source)
+        change_dir = _resolve_stored_source(source, mb_path)
         if not change_dir.is_dir():
             results.append({"topic": t, "action": "error", "reason": f"source missing: {source}"})
             continue
@@ -462,7 +630,7 @@ def main(argv: list[str]) -> int:
             results = run_sync(
                 mb_path=Path(args.mb_path), topic=args.topic, normalize=args.normalize
             )
-        except FileNotFoundError as exc:
+        except (FileNotFoundError, RuntimeError) as exc:
             print(f"[error] {exc}", file=sys.stderr)
             return 1
         if not results:

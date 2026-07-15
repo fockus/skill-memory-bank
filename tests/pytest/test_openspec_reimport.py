@@ -89,6 +89,138 @@ def test_anchor_map_round_trips_a_name_with_comment_delimiters() -> None:
 
 
 # ---------------------------------------------------------------------------
+# F3 (Codex review): duplicate requirement names must not collapse onto the
+# same anchor/REQ-NNN — design.md § Risks explicitly calls for "append an
+# index to the anchor marker + warn".
+# ---------------------------------------------------------------------------
+
+
+def _dup_change():
+    from mb_openspec_model import OSChange, OSRequirement
+
+    req_a = OSRequirement(name="Widget", text="The system SHALL do A.", change_kind="added")
+    req_b = OSRequirement(name="Widget", text="The system SHALL do B.", change_kind="added")
+    return OSChange(
+        change_id="dup-names",
+        why="w",
+        what_changes="w",
+        design_md=None,
+        requirements=[req_a, req_b],
+        task_groups=[],
+        source_hash="deadbeef",
+    )
+
+
+def test_convert_duplicate_requirement_names_get_distinct_disambiguated_anchors(capsys) -> None:
+    ch = _dup_change()
+    requirements_md, _design_md, _tasks_md = convert_mod.convert(ch)
+
+    anchor_lines = [
+        line for line in requirements_md.splitlines() if line.startswith("<!-- openspec-req:")
+    ]
+    assert len(anchor_lines) == 2
+    # Two distinct anchor names -- never the same key twice.
+    assert anchor_lines[0] != anchor_lines[1]
+    assert anchor_lines[0] == "<!-- openspec-req: Widget -->"
+    assert anchor_lines[1] == "<!-- openspec-req: Widget#2 -->"
+
+    captured = capsys.readouterr()
+    assert "duplicate" in captured.err.lower()
+
+
+def test_convert_duplicate_requirement_names_preserve_distinct_req_ids_on_reimport() -> None:
+    """The bug: `_prior_requirement_index` keyed by escaped name alone
+    collapses two "Widget" anchors into one dict entry (last-wins) -- so on
+    re-import BOTH duplicates resolve to the SAME REQ-NNN, silently losing
+    the first requirement's identity."""
+    ch = _dup_change()
+    first_requirements_md, _d, _t = convert_mod.convert(ch)
+
+    # Sanity: the fresh import assigned two distinct IDs.
+    assert "**REQ-001**" in first_requirements_md
+    assert "**REQ-002**" in first_requirements_md
+
+    second_requirements_md, _d2, _t2 = convert_mod.convert(
+        ch, prior_triple=(first_requirements_md, "", "")
+    )
+
+    # Re-import over an UNCHANGED source must reuse both prior IDs distinctly
+    # -- not collapse both requirements onto whichever ID the (buggy)
+    # last-wins anchor lookup happened to keep.
+    assert "**REQ-001**" in second_requirements_md
+    assert "**REQ-002**" in second_requirements_md
+    # Exactly one bullet per ID -- no duplication/collapse.
+    assert second_requirements_md.count("**REQ-001**") == 1
+    assert second_requirements_md.count("**REQ-002**") == 1
+
+
+def _triple_collision_change():
+    """Two requirements literally named ``Widget`` (a duplicate pair) PLUS a
+    third, distinct requirement literally named ``Widget#2`` -- the exact
+    collision R2 (Codex round-2) calls out: the second ``Widget``'s naive
+    disambiguated candidate (``Widget#2``) is ALSO another requirement's own
+    real name."""
+    from mb_openspec_model import OSChange, OSRequirement
+
+    req_a = OSRequirement(name="Widget", text="The system SHALL do A.", change_kind="added")
+    req_b = OSRequirement(name="Widget", text="The system SHALL do B.", change_kind="added")
+    req_c = OSRequirement(name="Widget#2", text="The system SHALL do C.", change_kind="added")
+    return OSChange(
+        change_id="triple-collision",
+        why="w",
+        what_changes="w",
+        design_md=None,
+        requirements=[req_a, req_b, req_c],
+        task_groups=[],
+        source_hash="deadbeef",
+    )
+
+
+def test_convert_disambiguated_anchor_never_collides_with_a_literal_same_name(
+    capsys,
+) -> None:
+    """R2 (Codex round-2 residual on F3): the naive ``name#2`` disambiguation
+    candidate must never collapse onto a THIRD, unrelated requirement that
+    happens to be literally named ``Widget#2`` -- all three must end up with
+    distinct anchors and distinct REQ-NNN identities, both on a fresh import
+    and preserved across a re-import over the identical (unchanged) source.
+    """
+    ch = _triple_collision_change()
+    requirements_md, _design_md, _tasks_md = convert_mod.convert(ch)
+
+    anchor_lines = [
+        line for line in requirements_md.splitlines() if line.startswith("<!-- openspec-req:")
+    ]
+    assert len(anchor_lines) == 3
+    assert len(set(anchor_lines)) == 3, f"two anchors collided: {anchor_lines}"
+
+    assert "**REQ-001**" in requirements_md
+    assert "**REQ-002**" in requirements_md
+    assert "**REQ-003**" in requirements_md
+    assert requirements_md.count("**REQ-001**") == 1
+    assert requirements_md.count("**REQ-002**") == 1
+    assert requirements_md.count("**REQ-003**") == 1
+
+    # Re-import over the identical (unchanged) source must preserve all
+    # three IDs distinctly -- not collapse any two onto the same REQ-NNN via
+    # a colliding anchor key in `_prior_requirement_index`/`anchor_map`.
+    second_requirements_md, _d2, _t2 = convert_mod.convert(
+        ch, prior_triple=(requirements_md, "", "")
+    )
+    assert second_requirements_md.count("**REQ-001**") == 1
+    assert second_requirements_md.count("**REQ-002**") == 1
+    assert second_requirements_md.count("**REQ-003**") == 1
+
+    second_anchor_lines = [
+        line
+        for line in second_requirements_md.splitlines()
+        if line.startswith("<!-- openspec-req:")
+    ]
+    assert len(second_anchor_lines) == 3
+    assert len(set(second_anchor_lines)) == 3, f"two anchors collided: {second_anchor_lines}"
+
+
+# ---------------------------------------------------------------------------
 # Unit-level: merge_task_state()
 # ---------------------------------------------------------------------------
 

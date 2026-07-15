@@ -168,8 +168,14 @@ def _parse_tasks(text: str) -> list[OSTaskGroup]:
                 items.append((checked, cm.group(2)))
                 continue
             stripped = line.strip()
-            if stripped.startswith(("-", "*")):
-                text_only = stripped.lstrip("-* ").strip()
+            if stripped.startswith("#"):
+                continue  # a nested heading, never task text
+            # Every other non-empty, non-heading, non-checkbox line in a task
+            # group is imported as plain checklist text with a warning
+            # (REQ-013, F8) -- a bullet prefix (`-`/`*`) is trimmed when
+            # present, but its ABSENCE must never silently drop the line.
+            text_only = stripped.lstrip("-* ").strip()
+            if text_only:
                 print(
                     f"[warn] non-checkbox task line in group {number}: {text_only!r}",
                     file=sys.stderr,

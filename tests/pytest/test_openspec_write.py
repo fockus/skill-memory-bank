@@ -11,6 +11,7 @@ Contract (design.md, T3 tasks.md):
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -23,6 +24,8 @@ FIXTURE = (
 
 
 def _run_import(bank: Path, *, topic: str | None = None) -> subprocess.CompletedProcess[str]:
+    """Import the fixture change dir; ``os`` is used by the R5 relative-path
+    assertion below (``os.path.relpath``)."""
     args = [sys.executable, str(SCRIPT), "import", str(FIXTURE), "--mb", str(bank)]
     if topic:
         args += ["--as", topic]
@@ -69,7 +72,12 @@ def test_import_writes_source_and_hash_frontmatter(tmp_path: Path) -> None:
         encoding="utf-8"
     )
     assert content.startswith("---\n")
-    assert f"openspec_source: {FIXTURE}" in content
+    # R5 (Codex round-2): the stored path is relative to the BANK, never the
+    # raw absolute filesystem path -- storing `str(FIXTURE.resolve())`
+    # verbatim would leak the local username into a normally-committed file.
+    expected_source = os.path.relpath(FIXTURE.resolve(), bank.resolve())
+    assert f"openspec_source: {expected_source}" in content
+    assert f"openspec_source: {FIXTURE}" not in content
     assert "openspec_hash: " in content
     # 64 lower-hex chars — a sha256 digest, not a truncated/placeholder value.
     hash_line = next(line for line in content.splitlines() if line.startswith("openspec_hash: "))

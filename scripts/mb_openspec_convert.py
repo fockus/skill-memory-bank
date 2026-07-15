@@ -92,6 +92,40 @@ def anchor_safe(name: str) -> str:
     return name.replace("<!--", "&lt;!--").replace("-->", "--&gt;")
 
 
+def _disambiguate_anchor_name(name: str, seen: dict[str, int], emitted: set[str]) -> str:
+    """Give a stable, distinct anchor name for a duplicate requirement name (F3/R2).
+
+    First occurrence of ``name`` (within one :func:`_build_requirements` call)
+    returns ``name`` unchanged; the second returns ``name#2``, the third
+    ``name#3``, and so on — so two source requirements sharing a name never
+    collapse onto the same ``<!-- openspec-req: ... -->`` anchor (design.md
+    § Risks: "Duplicate requirement names collide on the anchor" — "append an
+    index to the anchor marker + warn"). ``seen`` counts occurrences of the
+    base ``name`` and is mutated in place; it must be a fresh dict per
+    :func:`convert` call so counts don't leak across imports.
+
+    R2 (Codex round-2 residual): a naive ``name#2`` candidate can ALSO be a
+    distinct requirement's own literal name (e.g. one requirement is named
+    ``Widget`` twice, and a THIRD, unrelated requirement is literally named
+    ``Widget#2``) — blindly returning the candidate would collapse two
+    unrelated requirements onto the same anchor/REQ-NNN. ``emitted`` is the
+    set of every anchor name already WRITTEN so far this call (also a fresh
+    set per :func:`convert` call); the candidate loop skips past any name
+    already in ``emitted`` — whether it got there via a prior disambiguation
+    or is simply another requirement's own literal name — so no two
+    requirements ever end up sharing an anchor.
+    """
+    seen[name] = seen.get(name, 0) + 1
+    n = seen[name]
+    candidate = name if n == 1 else f"{name}#{n}"
+    while candidate in emitted:
+        n += 1
+        candidate = f"{name}#{n}"
+    seen[name] = n
+    emitted.add(candidate)
+    return candidate
+
+
 _ANCHOR_AND_BULLET_RE = re.compile(
     r"^<!-- openspec-req: (?P<name>.*) -->$\n"
     r"-\s+\*\*(?P<req_id>REQ-\d{3,})\*\*\s+\((?P<pattern>[^)]*)\):\s*(?P<text>.*)$",
@@ -319,6 +353,8 @@ def _build_requirements(
     req_no = 0
     scenario_no = 0
     resolved_renamed_names: set[str] = set()
+    name_occurrence: dict[str, int] = {}
+    emitted_anchors: set[str] = set()
     for req in ch.requirements:
         if req.change_kind == "removed":
             continue  # becomes a design.md "Removed scope" note instead (REQ-004)
@@ -332,6 +368,7 @@ def _build_requirements(
             if isinstance(slot_text, str) and slot_text.strip():
                 text_line = slot_text
 
+        anchor_name = anchor_safe(req.name)
         if req.change_kind == "renamed":
             resolved_id = None
             safe_from = anchor_safe(req.renamed_from or "")
@@ -349,10 +386,33 @@ def _build_requirements(
             if prior_entry is not None:
                 text_line = prior_entry[2]  # a pure rename carries no new body text
             resolved_renamed_names.add(req.name)
+            # Register the anchor even on the renamed path (R2): a later
+            # duplicate ADDED requirement's disambiguation loop must skip
+            # past a name this rename already occupies, not just past names
+            # produced by the `else` branch.
+            emitted_anchors.add(anchor_name)
         else:
-            safe_name_lookup = anchor_safe(req.name)
+            # Disambiguate the anchor BEFORE the prior_map lookup (F3, design.md
+            # § Risks): two source requirements sharing a name must never
+            # collapse onto the same `<!-- openspec-req: ... -->` anchor / same
+            # dict key — the second (and any further) occurrence gets `#2`,
+            # `#3`, ... appended, both when reading the prior map and when
+            # emitting the new anchor, so neither identity is silently lost.
+            # R2: the candidate loop inside `_disambiguate_anchor_name` also
+            # skips past any name ALREADY emitted this call (`emitted_anchors`)
+            # -- including a distinct requirement's own literal name that
+            # happens to look like `<name>#N` -- so two unrelated
+            # requirements never collapse onto the same anchor.
+            disambiguated = _disambiguate_anchor_name(anchor_name, name_occurrence, emitted_anchors)
+            if disambiguated != anchor_name:
+                print(
+                    f"[warn] duplicate requirement name '{req.name}'; "
+                    f"anchor disambiguated to '{disambiguated}'",
+                    file=sys.stderr,
+                )
+            anchor_name = disambiguated
             if prior_map is not None:
-                req_id = prior_map.get(safe_name_lookup)
+                req_id = prior_map.get(anchor_name)
                 if req_id is None:
                     assert allocator is not None
                     req_id = allocator.allocate()
@@ -368,12 +428,15 @@ def _build_requirements(
                 f"neutralized in anchor: '{req.name}'",
                 file=sys.stderr,
             )
-        # Use the neutralized name everywhere it lands in the emitted Markdown
-        # (heading + anchor) — a raw `<!-- mb-task:N -->`-shaped name would be
-        # a forged marker regardless of which line it appears on.
+        # The heading stays human-readable (no disambiguation suffix); the
+        # anchor comment is what re-import matches on, so IT carries the
+        # disambiguated name for a duplicate (`anchor_name`) — a raw
+        # `<!-- mb-task:N -->`-shaped name would also be a forged marker
+        # regardless of which line it appears on, hence the same
+        # `anchor_safe` neutralization either way.
         lines.append(f"### Requirement {req_no}: {safe_name}")
         lines.append("")
-        lines.append(f"<!-- openspec-req: {safe_name} -->")
+        lines.append(f"<!-- openspec-req: {anchor_name} -->")
         lines.append(f"- **{req_id}** ({pattern}): {text_line}")
         covers = slots.get("covers") if slots else None
         if covers:

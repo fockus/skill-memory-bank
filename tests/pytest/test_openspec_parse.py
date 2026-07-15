@@ -119,6 +119,28 @@ def test_parse_change_non_checkbox_task_line_imported_as_plain_text_with_warning
     assert "non-checkbox task line" in captured.err
 
 
+def test_parse_tasks_unbulleted_plain_line_imported_as_text_with_warning(capsys) -> None:
+    """F8: a task-group line with no `-`/`*` bullet prefix (e.g. `1.3 Update
+    docs`) must still be imported as plain checklist text with a warning --
+    never silently dropped."""
+    text = "## 1. Group\n\n- [ ] 1.1 checkbox item\n1.2 Update docs (no bullet)\n"
+    groups = parse_mod._parse_tasks(text)
+    assert groups[0].items == [
+        (False, "1.1 checkbox item"),
+        (None, "1.2 Update docs (no bullet)"),
+    ]
+    captured = capsys.readouterr()
+    assert "non-checkbox task line" in captured.err
+
+
+def test_parse_tasks_asterisk_bulleted_line_imported_as_text_with_warning(capsys) -> None:
+    text = "## 1. Group\n\n* 1.1 asterisk-bulleted plain line\n"
+    groups = parse_mod._parse_tasks(text)
+    assert groups[0].items == [(None, "1.1 asterisk-bulleted plain line")]
+    captured = capsys.readouterr()
+    assert "non-checkbox task line" in captured.err
+
+
 def test_parse_change_source_hash_is_stable_across_repeated_parses() -> None:
     first = parse_mod.parse_change(FIXTURE).source_hash
     second = parse_mod.parse_change(FIXTURE).source_hash
