@@ -239,10 +239,10 @@ def _build_hits(req: dict) -> list[dict]:
             hit["summary"] = "(empty)"
 
     hits = [by_key[k] for k in order]
-    # REQ-017: every id must be unique within the hit set. A short hash prefix can
-    # collide for adversarial same-slug/same-anchor pairs — lengthen the colliders'
-    # hash field until all ids differ ((source, anchor) keys are unique, so the full
-    # sha1 at n=40 always separates them).
+    hits = [h for h in hits if not mb.is_dir() or (mb / h["source"]).exists()]  # prune gone
+    # REQ-017: every id must be unique within the hit set. A short hash prefix can collide
+    # for adversarial same-slug/same-anchor pairs — lengthen the colliders' hash field until
+    # all ids differ ((source, anchor) keys are unique, so the full sha1 at n=40 separates).
     n = _HASH_LEN
     while len({h["id"] for h in hits}) < len(hits) and n < 40:
         n = min(n + 8, 40)
