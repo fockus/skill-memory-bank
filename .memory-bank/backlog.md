@@ -613,6 +613,12 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-119 — Pi session-memory: reuse session_start's resolved cwd const in session_shutdown reindex spawn instead of recomputing PROJECT_ROOT || ctx.cwd inline (pi_session_memory_extension.ts:288) — inert DRY nit from T3 judge [LOW, NEW, 2026-07-15]
 
+
+### I-121 — adapter-parity: /mb work has no deterministic per-role headless dispatch path for non-CC hosts today — commands/work.md 5a dispatches via Claude Code's Task tool only; mb-fanout.sh/mb-subinvoke-resolve.sh is a same-prompt parallel fan-out (dynamic-flow Task 9/12), not per-role routing, and mb-agent-caps.sh's transport/model resolver is never called from any dispatch site. Task 4 ships the guaranteed-floor registry primitive (--role scoping) + opt-in mb_dispatch_subagent tool on Pi; a real cross-host per-role dispatch harness for /mb work is future work [MED, NEW, 2026-07-15]
+
+
+### I-122 — adapter-parity: no headless host dispatch path (mb-fanout.sh/mb-subinvoke-resolve.sh, any agent) prepends agents/mb-engineering-core.md or mb-tooling-core.md — that core+tooling+role composition only exists in commands/work.md's prose for the CC Task-tool path (5a). Pi's mb_dispatch_subagent tool is at parity with every other headless host on this (role-body only); if/when a deterministic non-CC role-dispatch harness lands, it must compose core+tooling+role like 5a does [LOW, NEW, 2026-07-15]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

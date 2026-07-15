@@ -226,6 +226,14 @@ _install_graph_rag_extension() {
     "$PROJECT_ROOT/.pi/extensions/memory-bank-graph-rag.ts"
 }
 
+# adapter-parity Task 4 (REQ-008/009/022): agent-roster + subagent-dispatch
+# install helpers, extracted to _lib_pi_subagent.sh for SRP / file-size
+# (same convention as _lib_pi_global.sh above) — see that file for
+# _pi_agent_is_partial / _install_pi_agents_roster /
+# _install_pi_subagent_extension.
+# shellcheck source=./_lib_pi_subagent.sh
+. "$(dirname "$0")/_lib_pi_subagent.sh"
+
 # adapter-parity T3 (REQ-006/007/010): installs BOTH parity extensions
 # (session-memory + graph-rag) into the GLOBAL Pi extensions dir
 # ($HOME/.pi/agent/extensions/) — the opt-in "accept" path consumed by
@@ -235,29 +243,89 @@ _install_graph_rag_extension() {
 # ONLY ever invoked after explicit user consent (REQ-004) — never from
 # install_pi()/install_agents_md_mode's normal per-client flow.
 #
+# Task 4 (REQ-008/009/022) extends this SAME accept path with the agent
+# roster + subagent-dispatch extension (design.md's diagram nests
+# "agents/*.md for role dispatch" directly under the Pi accept branch) —
+# no new offer/flag/seam, same "pi" host offer as T3.
+#
 # Usage: adapters/pi.sh install-global-extensions [PROJECT_ROOT]
 # Fail-open per extension (same contract as _install_pi_extension_template);
-# returns 1 only when BOTH extensions fail to install, so one missing
-# template doesn't mask the other's success.
+# returns 1 only when session-memory, graph-rag, AND subagent-dispatch all
+# fail, so one missing template doesn't mask the others' success.
 #
 # CRITICAL (cross-project isolation): the 3rd arg "" forces
 # __MB_PROJECT_ROOT_JSON__ to bake as an empty string — NOT $PROJECT_ROOT —
-# for BOTH extensions. A global install serves every Pi project, not just
-# the one active at accept time; the empty bake makes each extension's own
-# runtime fallback (ctx.cwd / process.cwd()) resolve the LIVE project on
+# for every extension here. A global install serves every Pi project, not
+# just the one active at accept time; the empty bake makes each extension's
+# own runtime fallback (ctx.cwd / process.cwd()) resolve the LIVE project on
 # every session/tool-call instead of a frozen accept-time path.
 install_global_extensions() {
   adapter_require_jq "pi-adapter" || return 1
   local dest_dir="$PI_AGENT_DIR/extensions"
-  local ok_session ok_graph
+  local ok_session ok_graph ok_subagent
   ok_session=$(_install_pi_extension_template \
     "$SKILL_DIR/adapters/pi_session_memory_extension.ts" \
     "$dest_dir/memory-bank-session.ts" "")
   ok_graph=$(_install_pi_extension_template \
     "$SKILL_DIR/adapters/pi_graph_rag_extension.ts" \
     "$dest_dir/memory-bank-graph-rag.ts" "")
-  echo "[pi-adapter] parity extensions: session-memory=$ok_session graph-rag=$ok_graph -> $dest_dir"
-  if [ "$ok_session" != "true" ] && [ "$ok_graph" != "true" ]; then
+  ok_subagent=$(_install_pi_subagent_extension)
+
+  local agent_files agent_count
+  agent_files="$(_install_pi_agents_roster)"
+  agent_count=0
+  if [ -n "$agent_files" ]; then
+    agent_count=$(printf '%s\n' "$agent_files" | grep -c .)
+  fi
+
+  echo "[pi-adapter] parity extensions: session-memory=$ok_session graph-rag=$ok_graph subagent-dispatch=$ok_subagent agents=$agent_count -> $dest_dir"
+
+  # Global extensions manifest (Task 4, new): tracks every file THIS
+  # accept-path install wrote (extensions + agent roster), the artifact
+  # Task 8's upgrade/uninstall lifecycle needs. T3 shipped without one for
+  # this path — this is the first manifest write here, additive only.
+  local global_manifest="$PI_AGENT_DIR/.mb-global-extensions-manifest.json"
+  local files_json
+  files_json=$(
+    {
+      if [ "$ok_session" = "true" ]; then printf '%s\n' "$dest_dir/memory-bank-session.ts"; fi
+      if [ "$ok_graph" = "true" ]; then printf '%s\n' "$dest_dir/memory-bank-graph-rag.ts"; fi
+      if [ "$ok_subagent" = "true" ]; then
+        printf '%s\n' "$dest_dir/memory-bank-subagent.ts"
+        printf '%s\n' "$dest_dir/pi_subagent_dispatch_core.mjs"
+      fi
+      if [ -n "$agent_files" ]; then printf '%s\n' "$agent_files"; fi
+      true
+    } | adapter_json_array_from_lines
+  )
+  local session_bool graph_bool subagent_bool
+  session_bool=$( [ "$ok_session" = "true" ] && echo true || echo false )
+  graph_bool=$( [ "$ok_graph" = "true" ] && echo true || echo false )
+  subagent_bool=$( [ "$ok_subagent" = "true" ] && echo true || echo false )
+  # Codex review (T4 fix cycle) — honest-degradation note, ahead of Task 7's
+  # full platform_limited rollout across all 8 client manifests. Investigated
+  # with file:line evidence (backlog I-121): NO host — Pi included — has a
+  # deterministic /mb work per-role headless dispatch path today;
+  # commands/work.md 5a dispatches exclusively via the Claude Code Task tool.
+  # "subagents" (the existing closed-vocabulary term Codex uses) would be
+  # INACCURATE here — Pi DOES have a working opt-in subagent-dispatch tool
+  # (mb_dispatch_subagent) and the --role registry primitive; what's missing
+  # is /mb work's OWN routing wiring to any non-CC host, which is out of this
+  # single task's scope. "role-routing" is a new, narrower term pending
+  # Task 7's final closed vocabulary.
+  local platform_limited_json='["role-routing"]'
+  local platform_limited_notes_json
+  platform_limited_notes_json=$(jq -n \
+    --arg note "Pi's opt-in mb_dispatch_subagent tool + the mb-subinvoke-resolve.sh --role registry primitive are the D-09 guaranteed floor; deterministic /mb work per-role dispatch on Pi (or any non-Claude-Code host) has no harness yet — see backlog I-121/I-122." \
+    '{"role-routing": $note}')
+  adapter_write_manifest \
+    "$global_manifest" \
+    "pi" \
+    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$files_json" \
+    "{\"session_memory\": $session_bool, \"graph_rag\": $graph_bool, \"subagent_dispatch\": $subagent_bool, \"agents_installed\": $agent_count, \"platform_limited\": $platform_limited_json, \"platform_limited_notes\": $platform_limited_notes_json}"
+
+  if [ "$ok_session" != "true" ] && [ "$ok_graph" != "true" ] && [ "$ok_subagent" != "true" ]; then
     return 1
   fi
   return 0

@@ -94,9 +94,14 @@
 
 **What to do:**
 - Install `agents/*.md` for the pi client (mirror the opencode partial-exclusion logic).
-- Implement the T1-selected dispatch mechanism (headless `pi -p --agent` spawn is the
-  guaranteed floor per D-09); register it in `mb-subinvoke-resolve.sh` (single
-  registry); `/mb work` role routing resolves on Pi.
+- Implement the T1-selected dispatch mechanism (headless `pi --mode json -p --no-session`
+  spawn is the guaranteed floor per D-09), scoped with the role's `--tools`
+  (translated to Pi's own lowercase tool names — verified against the installed
+  `@earendil-works/pi-coding-agent` SDK, `agents/*.md`'s Claude-Code-style names
+  do not match Pi's built-ins) and `--append-system-prompt`; register the `--role`
+  primitive in `mb-subinvoke-resolve.sh` (single registry) and ship an opt-in
+  `mb_dispatch_subagent` tool (`adapters/pi_subagent_extension.ts` +
+  `pi_subagent_dispatch_core.mjs`) Pi's own agent loop can call.
 - If T1 confirmed Pi command registration (REQ-022): register the `/mb` command surface
   in the parity extension; otherwise document prompts-tier in `platform_limited`.
 
@@ -106,8 +111,21 @@
   warning, never silent drop.
 
 **DoD:**
-- [ ] Pi gets the full agent roster + working `/mb work` role dispatch per T1 decision.
-- [ ] bats pass · shellcheck clean.
+- [x] Pi gets the full agent roster + the D-09 guaranteed-floor dispatch primitive
+  (`mb-subinvoke-resolve.sh --agent pi --role <name>` registry entry + the opt-in
+  `mb_dispatch_subagent` tool/native `/mb` command Pi's own loop can call).
+  **Scope correction (post-review investigation, see backlog I-121/I-122):** `/mb
+  work` itself has NO deterministic per-role headless dispatch path for ANY
+  non-Claude-Code host today — `commands/work.md`'s 5a step dispatches exclusively
+  via the Claude Code `Task` tool; `mb-fanout.sh`/`mb-subinvoke-resolve.sh` is the
+  dynamic-flow same-prompt parallel fan-out (Task 9/12), never called with `--role`
+  by any production caller; `mb-agent-caps.sh`'s transport/model resolver is never
+  invoked from any dispatch site either. This task therefore ships the registry
+  primitive + working opt-in tool — NOT a wired `/mb work` role-routing
+  integration on Pi, which needs a genuine cross-host dispatch harness (I-121) and
+  was never in scope for a single backend task.
+- [x] bats pass · shellcheck clean.
+<!-- done: <commit> — GO_WITH_BACKLOG (Codex 2 cycles, Opus judge); scope-corrected, backlog I-121/I-122 -->
 
 <!-- mb-task:5 -->
 ## Task 5: OpenCode parity plugin + global agents

@@ -18,11 +18,24 @@
 # ────────────────────────────────────────────────────────────────────────────
 #
 # Usage:
-#   mb-subinvoke-resolve.sh [--agent <name>] [-h|--help]
+#   mb-subinvoke-resolve.sh [--agent <name>] [--role <role>] [-h|--help]
 #
 #   --agent <name>  : the active agent (claude-code | codex | pi | opencode).
 #                     Default: $MB_AGENT, else claude-code (the codebase-wide
 #                     default, mirroring ${MB_AGENT:-claude-code}).
+#   --role <role>   : adapter-parity Task 4 (REQ-008/009) — pi ONLY. Scopes
+#                     the emitted `pi` template to the named role's
+#                     agents/<role>.md `tools:` frontmatter (--tools) and
+#                     prompt body (--append-system-prompt <tmpfile>), the D-09
+#                     guaranteed-floor Pi dispatch mechanism (design.md
+#                     "Subagent dispatch"). Omitted (default) → the
+#                     pre-existing unscoped pi/codex/claude-code/opencode
+#                     templates, byte-identical to before Task 4. Ignored for
+#                     every agent other than pi (they already have native/CLI
+#                     dispatch and do not need role scoping here). An unknown
+#                     role, or a role name outside the `[A-Za-z0-9_-]+`
+#                     grammar, fails loud (WARN, non-zero) — never a silently
+#                     unscoped fallback.
 #
 # Resolution order (first hit wins):
 #   1. MB_SUBINVOKE_CMD env override — an operator/baked template ALWAYS wins, so
@@ -59,12 +72,18 @@
 
 set -euo pipefail
 
+# Resolves adapters/../agents/<role>.md for the --role scoping below (Task 4).
+# Not used at all when --role is omitted, so this never affects existing
+# callers' output.
+SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 AGENT=""
+ROLE=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -h|--help)
-      sed -n '2,47p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,71p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     --agent)
@@ -72,6 +91,11 @@ while [ "$#" -gt 0 ]; do
       AGENT="$2"; shift 2
       ;;
     --agent=*) AGENT="${1#--agent=}"; shift ;;
+    --role)
+      [ "$#" -ge 2 ] || { printf '[mb-subinvoke-resolve] --role needs a value\n' >&2; exit 1; }
+      ROLE="$2"; shift 2
+      ;;
+    --role=*) ROLE="${1#--role=}"; shift ;;
     --)
       shift
       ;;
@@ -150,6 +174,117 @@ case "$AGENT" in
     # keeps a fan-out branch from persisting/resuming a shared Pi session. The
     # model defaults to a provider/id form Pi accepts verbatim when unset.
     [ -n "$SUB_MODEL" ] || SUB_MODEL="openai-codex/gpt-5.5"
+
+    if [ -n "$ROLE" ]; then
+      # adapter-parity Task 4 (REQ-008/009): role-scoped dispatch is the D-09
+      # guaranteed-floor Pi mechanism — --tools/--append-system-prompt are
+      # LOAD-BEARING for latency + cost (design.md's measured finding: an
+      # unscoped run took 5 turns/~$0.02 to answer "pong"), so a --role
+      # request must NEVER fall back to the unscoped template below.
+      case "$ROLE" in
+        *[!A-Za-z0-9_-]*|"")
+          printf '[mb-subinvoke-resolve] WARN: invalid --role %s (allowed: letters, digits, _ -)\n' "$ROLE" >&2
+          exit 2
+          ;;
+      esac
+      _role_file="$SKILL_DIR/agents/$ROLE.md"
+      if [ ! -f "$_role_file" ]; then
+        printf '[mb-subinvoke-resolve] WARN: no agent definition for role %s (expected %s)\n' "$ROLE" "$_role_file" >&2
+        exit 2
+      fi
+      # `tools:` frontmatter line -> comma list, no spaces (Pi's --tools takes
+      # a bare CSV, same convention the reference subagent extension uses).
+      _role_tools="$(awk -F': *' '/^tools:/{print $2; exit}' "$_role_file" | tr -d '[:space:]')"
+      case "$_role_tools" in
+        *[!A-Za-z0-9,_-]*)
+          printf '[mb-subinvoke-resolve] WARN: role %s has a malformed tools: frontmatter line\n' "$ROLE" >&2
+          exit 2
+          ;;
+      esac
+      # Codex review MAJOR #4: agents/*.md `tools:` uses Claude-Code-style
+      # capitalized names (Bash, Read, Write, Edit, Grep, Glob, SendMessage);
+      # Pi's own --tools allowlist is an EXACT, case-sensitive match against
+      # its built-in tool names — verified against the installed
+      # @earendil-works/pi-coding-agent SDK (docs/usage.md: "Built-in tools:
+      # read, bash, edit, write, grep, find, ls"; the SDK's own
+      # createBashToolDefinition()/createReadToolDefinition()/etc. factories
+      # confirm those exact lowercase `.name` values, and
+      # core/agent-session.js's isAllowedTool is a plain
+      # allowedToolNames.has(name) Set lookup). Passing the CC names through
+      # verbatim matches ZERO registered Pi tools, silently leaving the
+      # dispatched subagent with NO tools at all. Translate to Pi's names;
+      # "Glob" maps to Pi's closest built-in ("find"); "SendMessage" has no
+      # Pi equivalent (no cross-agent messaging in a headless subprocess) and
+      # is DROPPED rather than passed through unmatched — same table as
+      # adapters/pi_subagent_dispatch_core.mjs's translateToolsToPi() (keep
+      # both in sync if Pi's built-in tool set ever changes).
+      _role_tools_pi=""
+      if [ -n "$_role_tools" ]; then
+        _old_ifs="$IFS"
+        IFS=','
+        for _t in $_role_tools; do
+          IFS="$_old_ifs"
+          case "$(printf '%s' "$_t" | tr '[:upper:]' '[:lower:]')" in
+            bash) _pi_name="bash" ;;
+            read) _pi_name="read" ;;
+            write) _pi_name="write" ;;
+            edit) _pi_name="edit" ;;
+            grep) _pi_name="grep" ;;
+            glob|find) _pi_name="find" ;;
+            ls) _pi_name="ls" ;;
+            *) _pi_name="" ;;
+          esac
+          if [ -n "$_pi_name" ]; then
+            case ",$_role_tools_pi," in
+              *",$_pi_name,"*) ;; # already present, dedupe
+              *) _role_tools_pi="${_role_tools_pi:+$_role_tools_pi,}$_pi_name" ;;
+            esac
+          fi
+          IFS=','
+        done
+        IFS="$_old_ifs"
+      fi
+      # Prompt body = everything after the SECOND `---` frontmatter delimiter,
+      # written to a fresh tmpfile so --append-system-prompt can reference it;
+      # the file is consumed moments later by mb-fanout's `bash -c "$tmpl"`.
+      #
+      # CALLER CLEANUP CONTRACT: this tmpfile is created EAGERLY at resolve
+      # time (mb-fanout always executes the returned template immediately
+      # after resolving it, so the trailing `rm -f` below closes the loop in
+      # production) — a caller that resolves the template and does NOT run
+      # it (dry-run inspection, a test asserting only on the string) is
+      # responsible for removing the path it can extract from the
+      # `--append-system-prompt` argument itself; it is not auto-cleaned in
+      # that case. tests/bats/test_pi_agents_dispatch.bats does this for
+      # every resolve-only assertion.
+      _role_prompt_file="$(mktemp)"
+      awk 'BEGIN{d=0} /^---[ \t]*$/{d++; next} d>=2{print}' "$_role_file" > "$_role_prompt_file"
+      # printf %q (not a manual double-quote) shell-escapes the tmpfile path
+      # so it round-trips safely through bash -c even in the (unlikely, but
+      # not impossible on every platform) case TMPDIR/mktemp produces a path
+      # with a space or shell-special character.
+      _role_prompt_file_q="$(printf '%q' "$_role_prompt_file")"
+      # shellcheck disable=SC2016  # $MB_FANOUT_PROMPT MUST stay literal — the seam:
+      # it is expanded later by mb-fanout's `bash -c` with the prompt in the env,
+      # never spliced in here. Only the trusted model/tools (%s) and the
+      # already-%q-escaped tmpfile path are interpolated — tools came from our
+      # own repo-bundled agents/*.md (validated + translated above), the
+      # tmpfile path is our own mktemp output.
+      #
+      # `; _ec=$?; rm -f <tmpfile>; exit $_ec` cleans up the tmpfile AFTER pi
+      # exits without masking pi's own exit code (mb-fanout reads the
+      # template's exit status for pass/fail) — a bare trailing `rm` would
+      # have silently turned every failed dispatch into a reported success.
+      if [ -n "$_role_tools_pi" ]; then
+        printf 'pi --mode json -p --no-session --model "%s" --tools "%s" --append-system-prompt %s "$MB_FANOUT_PROMPT"; _ec=$?; rm -f %s; exit $_ec\n' \
+          "$SUB_MODEL" "$_role_tools_pi" "$_role_prompt_file_q" "$_role_prompt_file_q"
+      else
+        printf 'pi --mode json -p --no-session --model "%s" --append-system-prompt %s "$MB_FANOUT_PROMPT"; _ec=$?; rm -f %s; exit $_ec\n' \
+          "$SUB_MODEL" "$_role_prompt_file_q" "$_role_prompt_file_q"
+      fi
+      exit 0
+    fi
+
     # shellcheck disable=SC2016  # $MB_FANOUT_PROMPT MUST stay literal — the seam:
     # it is expanded later by mb-fanout's `bash -c` with the prompt in the env,
     # never spliced in here. Only the trusted model (%s) is interpolated.
