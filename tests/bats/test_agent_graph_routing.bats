@@ -11,6 +11,10 @@ _agents() {
   echo "mb-developer.md mb-backend.md mb-frontend.md mb-architect.md mb-qa.md plan-verifier.md"
 }
 
+_role_agents() {
+  echo "mb-developer.md mb-backend.md mb-frontend.md mb-qa.md mb-architect.md"
+}
+
 @test "all skill role agents carry the graph-first routing sentinel" {
   for f in $(_agents); do
     run grep -F "Code-graph routing (when the graph is fresh)" "$AGENTS_DIR/$f"
@@ -37,4 +41,19 @@ _agents() {
 
   run grep -E "fall back|never block" "$AGENTS_DIR/mb-tooling-core.md"
   [ "$status" -eq 0 ] || { echo "fail-open wording missing"; return 1; }
+}
+
+@test "role files use graph-query status not /mb context for freshness" {
+  for f in $(_role_agents); do
+    run grep -F "mb-graph-query.py status" "$AGENTS_DIR/$f"
+    [ "$status" -eq 0 ] || { echo "missing mb-graph-query.py status in $f"; return 1; }
+
+    run grep -F "/mb context" "$AGENTS_DIR/$f"
+    [ "$status" -ne 0 ] || { echo "stale /mb context freshness reference still present in $f"; return 1; }
+  done
+}
+
+@test "engineering-core has a graph pointer" {
+  run grep -iE "mb-graph-query.py|code graph|graph-first" "$AGENTS_DIR/mb-engineering-core.md"
+  [ "$status" -eq 0 ] || { echo "missing graph pointer in mb-engineering-core.md"; return 1; }
 }

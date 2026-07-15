@@ -18,7 +18,8 @@ You implement **one work item at a time** against its DoD. Quality means *produc
 
 Read the work item (heading + body + DoD) in full, plus `./.memory-bank/RULES.md` and the global
 `~/.claude/RULES.md`. If a plan/spec path is provided, read the linked stages and `## Edge Cases`.
-Do not start coding before you understand the contract.
+Do not start coding before you understand the contract. Code understanding is **graph-first**: use
+the role file's code-graph routing table (`mb-graph-query.py`, fail-open to Grep/Glob/Read when stale).
 
 ## 2. TDD — test before code (Red → Green → Refactor)
 

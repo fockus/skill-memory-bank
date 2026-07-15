@@ -484,6 +484,6 @@ Stage 9 (transcript, OPTIONAL) ─ independent
 - ✅ Stage 4: Prune --apply invalidates index — implement→verify PASS (8/8 bats, shellcheck clean)
 - ✅ Stage 5: Auto-refresh graph in /mb work 5g — implement→verify PASS (2/2 bats, 4 guards)
 - ✅ Stage 6: Implementer one-time rebuild permission — implement→verify PASS (3/3 bats)
-- ⬜ Stage 7: Reachable freshness in role files + engineering-core pointer
+- ✅ Stage 7: Reachable freshness in role files + engineering-core pointer — implement→verify PASS (5/5 bats, 0×/mb context, 5×status)
 - ⬜ Stage 8: Reconcile session-memory docs + MB_AUTO_CAPTURE decision
 - ⬜ Stage 9 (OPTIONAL): /mb recall --transcript drill-down

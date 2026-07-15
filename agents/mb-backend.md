@@ -41,7 +41,7 @@ satisfied / not-yet (+ why) · files touched (paths) · tests added/changed (cou
 test-run output** (core Iron Law §7) · deviations + rationale.
 
 ## Code-graph routing (when the graph is fresh)
-Before structural greps, check `/mb context`'s "Code graph" line. If fresh:
+Before structural greps, run `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py status --graph .memory-bank/codebase/graph.json`. If it reports `fresh`:
 - who-calls / blast-radius / which-tests → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph .memory-bank/codebase/graph.json --symbol <Name>`
 - neighbors / relates-to → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py neighbors --graph .memory-bank/codebase/graph.json --symbol <Name>`
 - concept / "where is the logic for X" → `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<question>" .memory-bank --source-only`
