@@ -575,12 +575,13 @@ pre,
   margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--ink-muted);
+  color: rgba(247, 242, 232, 0.78);
   font-size: 0.94rem;
 }
 
 .cmd-list code {
-  color: var(--ink);
+  color: #cbf07c;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .agents-grid {
