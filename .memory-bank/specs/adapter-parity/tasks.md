@@ -81,8 +81,10 @@
 - Extension failure (broken python path) → session continues, fallback intact (REQ-019).
 
 **DoD:**
-- [ ] Pi session memory alive end-to-end; update-notify renders on Pi session start.
-- [ ] bats (incl. new runtime-parity Pi case) pass · shellcheck clean.
+- [x] Pi session memory alive end-to-end; update-notify renders on Pi session start.
+- [x] bats (incl. new runtime-parity Pi case) pass · shellcheck clean.
+<!-- done: e74e32d — GO_WITH_BACKLOG (Codex 2 cycles, Opus judge); backlog I-119 -->
+
 
 <!-- mb-task:4 -->
 ## Task 4: Pi subagent definitions + role dispatch
