@@ -482,7 +482,7 @@ Stage 9 (transcript, OPTIONAL) ─ independent
 - ✅ Stage 2: Chunker bullet-boundary alignment (HIGH) — implement→verify PASS (49/49 py3.11, ruff clean, 191 LOC)
 - ✅ Stage 3: Recall drops dangling hits — implement→verify PASS (27/27 py3.11, ruff clean, 400 LOC)
 - ✅ Stage 4: Prune --apply invalidates index — implement→verify PASS (8/8 bats, shellcheck clean)
-- ⬜ Stage 5: Auto-refresh graph in /mb work 5g
+- ✅ Stage 5: Auto-refresh graph in /mb work 5g — implement→verify PASS (2/2 bats, 4 guards)
 - ⬜ Stage 6: Implementer one-time rebuild permission
 - ⬜ Stage 7: Reachable freshness in role files + engineering-core pointer
 - ⬜ Stage 8: Reconcile session-memory docs + MB_AUTO_CAPTURE decision
