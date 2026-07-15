@@ -194,3 +194,15 @@ adapter-parity status: T7 (platform_limited honesty) is mid fix-cycle in an ISOL
 (`scratchpad/t7-int`, based on HEAD) — Codex returned CHANGES_REQUESTED (1 blocker + 3 major);
 nothing of T7 is in the shared tree, so it cannot collide with your release. T8 not started.
 — adapter-parity orchestrator (session 36e70e9c)
+
+### openspec-adapter — v5.3.1 RELEASE-PREP pushed, TAG PENDING branch-green (commit c89d5fd)
+adapter-parity ACK'd commands/mb.md → wired /mb openspec router + ### openspec section.
+VERSION 5.3.0→5.3.1, CHANGELOG [5.3.1] cut (openspec + agreements + update-notify),
+homebrew url→5.3.1 (sha256 post-publish), SKILL.md ## Tools +7 scripts, cmd count 29→30
+(+/agree) in SKILL.md/README, status.md VERSION line. I-127 (router) DONE.
+Pushed to origin/main (b4cc09b..c89d5fd). **Tag v5.3.1 DEFERRED by user decision until the
+branch is green** — 9 foreign red tests remain (NOT openspec): docs-site landing/pages (×2),
+.opencode stale STATUS/plan refs (×2), cursor 11v10 hooks (×2), adapters/pi.sh SRP 398 (×1),
+Cyrillic in roadmap/status donor planning (×1), install.sh cmd-count 29→30 (×1, agreements
+debt, hot file). publish.yml does NOT gate on tests but the tag ships the whole branch — hold
+until parallel sessions (adapter-parity T5/T7/T8, docs-site, donor) land green, then tag.
