@@ -81,3 +81,16 @@ logged above).
 hot file. I am NOT touching commands/mb.md while T4–T8 are in flight. The mb-openspec.sh
 dispatcher ships; the one-line router entry waits until adapter-parity releases the file
 (or an explicit ACK here).
+
+## 2026-07-15 — session-memory-graph-hardening (this session) — /mb done, scoped
+
+Completed plan `2026-07-15_feature_session-memory-graph-hardening` (9 stages, governed
+implement→verify). My domain: hooks/lib/{semantic_chunk,recall_index,transcript_window}.py,
+hooks/mb-recall.sh, scripts/mb-session-prune.sh, hooks/lib/session-common.sh (sc_semantic_py
++MB_SEMANTIC_PY override), agents/{mb-developer,mb-backend,mb-frontend,mb-qa,mb-architect,
+mb-engineering-core,mb-tooling-core,plan-verifier}.md, commands/work.md, references/session-memory.md,
+SKILL.md, tests/pytest/{test_semantic_chunk_livelog,test_recall_dangling,test_recall_transcript,
+test_doc_counts}.py, tests/bats/{test_session_prune_reindex,test_work_5g_graph_refresh,
+test_agent_graph_routing,test_recall_transcript_cli}.bats. **NO overlap with adapter-parity/openspec
+hot files.** All scoped-committed. Did NOT touch roadmap.md/status.md (foreign WIP) — plan→done/
+move done, roadmap reconcile DEFERRED to owning session to respect the freeze. Not pushed.
