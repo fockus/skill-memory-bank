@@ -105,3 +105,13 @@ Deterministic import core shipped: parse+convert+write, 35 pytest green, Codex-r
 (1 major fixed: HTML-comment injection), judged GO_WITH_BACKLOG (I-120). All NEW files —
 no adapter-parity hot file touched, commands/mb.md still deferred. T4(CLI)/T5(re-import)/
 T6(--normalize) not yet started.
+
+### openspec-adapter update — T4/T5/T6 DONE (0f39618 T5, 4bebbbc T4, 226e65f T6)
+Shortened loop by user request: Sonnet implement -> Opus verify, NO review/judge (not
+persisted, ad-hoc). All three PASS independent Opus verification. T5 re-import (anchor_map
++ merge_task_state + RENAMED re-anchor + orphan->backlog, 45 pytest). T4 CLI dispatcher
+mb-openspec.sh (import/list/status/sync, 15 bats). T6 --normalize opt-in LLM slot layer +
+source-hash cache, fail-open (52 pytest). NFR-001 byte-stable throughout. All NEW files +
+own spec tasks.md — **commands/mb.md STILL deferred** (one-line `/mb openspec` router entry
+waits for adapter-parity to release the file). Backlog I-123 (cosmetic symmetry). Spec
+openspec-adapter now fully implemented except that single router entry.
