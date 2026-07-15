@@ -18,7 +18,9 @@ if (!("IntersectionObserver" in window) || reduceMotion) {
         }
       }
     },
-    { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
+    // threshold 0 (was 0.08): a tall block (hero-stage) may never reach 8%
+    // visibility on shorter viewports and would stay invisible forever.
+    { rootMargin: "0px 0px -8% 0px", threshold: 0 }
   );
 
   for (const node of document.querySelectorAll(".reveal")) {

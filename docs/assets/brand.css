@@ -1,0 +1,220 @@
+/*
+ * Memory Bank docs — brand overlay for MkDocs Material.
+ * Palette, texture and shape lifted straight from the landing page
+ * (site/styles.css): warm paper ground, lime/sand/rose accents, ink text,
+ * translucent blurred chrome. /docs/ and the marketing site are one product.
+ *
+ * Accessibility: the signature lime (#b5d65b) is LIGHT — it fails 4.5:1 on
+ * paper, so as *text* on light it becomes deep olive-lime (#5f7d16, ~5.3:1).
+ * Bright lime stays on dark surfaces, bars and underlines.
+ */
+
+:root {
+  --brand-ink: #1f2430;
+  --brand-ink-2: #2a3746;
+  --brand-ink-3: #151e2b;
+  --brand-lime: #b5d65b;
+  --brand-lime-deep: #5f7d16;
+  --brand-sand: #ffb16d;
+  --brand-rose: #e27668;
+  --brand-paper: #f4efe3;
+  --brand-panel: #fff9f1;
+  --brand-stroke: rgba(31, 36, 48, 0.12);
+
+  --md-accent-fg-color: var(--brand-lime-deep);
+}
+
+/* =====================================================================
+   LIGHT SCHEME — warm paper, exactly like the landing
+   ===================================================================== */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: var(--brand-paper);
+  --md-default-fg-color: var(--brand-ink);
+  --md-typeset-a-color: var(--brand-ink);
+  --md-code-bg-color: var(--brand-panel);
+  --md-code-fg-color: #33405a;
+  --md-footer-bg-color: var(--brand-ink);
+  --md-footer-bg-color--dark: var(--brand-ink-3);
+}
+
+/* Paper gradient + faint grid + lime/rose glow — the landing's body layer,
+   composed in a single fixed background so it never scrolls or collides. */
+[data-md-color-scheme="default"] body {
+  background:
+    linear-gradient(rgba(31, 36, 48, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 36, 48, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at top left, rgba(181, 214, 91, 0.16), transparent 26%),
+    radial-gradient(circle at 85% 8%, rgba(226, 118, 104, 0.1), transparent 24%),
+    linear-gradient(180deg, #fbf6ec 0%, #f4efe3 55%, #efe6d5 100%);
+  background-size: 32px 32px, 32px 32px, auto, auto, auto;
+  background-attachment: fixed;
+}
+
+/* Header + tabs = translucent cream pill-bar with blur, ink text (landing topbar) */
+[data-md-color-scheme="default"] .md-header {
+  background: rgba(251, 247, 239, 0.85);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  color: var(--brand-ink);
+  border-bottom: 1px solid var(--brand-stroke);
+  box-shadow: 0 8px 24px rgba(31, 36, 48, 0.06);
+}
+
+[data-md-color-scheme="default"] .md-tabs {
+  background: rgba(251, 247, 239, 0.7);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: var(--brand-ink);
+  border-bottom: 1px solid var(--brand-stroke);
+}
+
+[data-md-color-scheme="default"] .md-tabs__link {
+  color: var(--brand-ink);
+  opacity: 0.72;
+}
+
+[data-md-color-scheme="default"] .md-tabs__link--active {
+  opacity: 1;
+}
+
+/* Search field: white pill on the cream header */
+[data-md-color-scheme="default"] .md-search__form {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--brand-stroke);
+}
+
+[data-md-color-scheme="default"] .md-search__form:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+[data-md-color-scheme="default"] .md-search__input,
+[data-md-color-scheme="default"] .md-search__input::placeholder {
+  color: var(--brand-ink);
+}
+
+[data-md-color-scheme="default"] .md-search__input::placeholder {
+  opacity: 0.5;
+}
+
+/* Ink links with the signature lime underline */
+[data-md-color-scheme="default"] .md-typeset a:not(.md-button):not(.headerlink) {
+  text-decoration: underline;
+  text-decoration-color: var(--brand-lime);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+[data-md-color-scheme="default"] .md-typeset a:not(.md-button):not(.headerlink):hover {
+  color: var(--brand-lime-deep);
+}
+
+/* =====================================================================
+   DARK SCHEME — landing's ink cards, lime finally shines
+   ===================================================================== */
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: var(--brand-lime);
+  --md-typeset-a-color: var(--brand-lime);
+  --md-default-bg-color: #101621;
+  --md-code-bg-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-md-color-scheme="slate"] body {
+  background:
+    radial-gradient(circle at top left, rgba(181, 214, 91, 0.1), transparent 28%),
+    radial-gradient(circle at 88% 6%, rgba(226, 118, 104, 0.08), transparent 26%),
+    linear-gradient(180deg, #131b28 0%, #101621 60%, #0c111a 100%);
+  background-attachment: fixed;
+}
+
+[data-md-color-scheme="slate"] .md-header,
+[data-md-color-scheme="slate"] .md-tabs {
+  background: rgba(16, 22, 33, 0.82);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* =====================================================================
+   SHARED — landing shape language: soft radii, panels, pills
+   ===================================================================== */
+
+/* Lime underline under the active top-level tab */
+.md-tabs__item--active {
+  box-shadow: inset 0 -3px 0 var(--brand-lime);
+}
+
+/* Rounded, elevated code / admonitions / details — like the landing cards */
+.md-typeset pre > code,
+.md-typeset .highlight,
+.md-typeset pre {
+  border-radius: 14px;
+}
+
+[data-md-color-scheme="default"] .md-typeset pre,
+[data-md-color-scheme="default"] .md-typeset .highlight {
+  border: 1px solid var(--brand-stroke);
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 16px;
+  border-left-width: 4px;
+  box-shadow: 0 12px 34px rgba(31, 36, 48, 0.07);
+}
+
+[data-md-color-scheme="default"] .md-typeset .admonition,
+[data-md-color-scheme="default"] .md-typeset details {
+  background: var(--brand-panel);
+}
+
+/* Tables as rounded panels with an ink header row */
+.md-typeset table:not([class]) {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 34px rgba(31, 36, 48, 0.06);
+  border: 1px solid var(--brand-stroke);
+}
+
+[data-md-color-scheme="default"] .md-typeset table:not([class]) {
+  background: var(--brand-panel);
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--brand-ink);
+  color: #fff9f1;
+}
+
+/* Sidebar active item: bold + lime tick */
+.md-nav__link--active {
+  font-weight: 600;
+}
+
+/* Pill buttons matching the landing CTA */
+.md-typeset .md-button {
+  border-radius: 999px;
+  border-width: 1px;
+}
+
+.md-typeset .md-button--primary {
+  background: var(--brand-ink);
+  border-color: var(--brand-ink);
+  color: #fff9f1;
+}
+
+.md-typeset .md-button--primary:hover {
+  background: var(--brand-lime-deep);
+  border-color: var(--brand-lime-deep);
+  color: #fff9f1;
+}
+
+/* Section rhythm + brand selection */
+.md-typeset h2 {
+  padding-top: 0.2em;
+  border-top: 1px solid var(--brand-stroke);
+}
+
+::selection {
+  background: rgba(181, 214, 91, 0.4);
+}

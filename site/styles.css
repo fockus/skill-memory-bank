@@ -162,9 +162,29 @@ pre,
 }
 
 .hero-copy {
+  position: relative;
+  z-index: 0;
   padding: 24px;
   border-radius: var(--radius-xl);
   background: linear-gradient(135deg, rgba(255, 250, 242, 0.98), rgba(244, 239, 227, 0.92));
+}
+
+/* decorative echo of the dark card's memory radar, in the light panel's tone;
+   sits behind the copy (z-index -1 inside the hero-copy stacking context) */
+.hero-doodle {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  z-index: -1;
+  width: 128px;
+  height: 128px;
+  pointer-events: none;
+}
+
+@media (max-width: 1080px) {
+  .hero-doodle {
+    display: none;
+  }
 }
 
 .hero-badges {
@@ -216,23 +236,6 @@ pre,
 .hero h1 {
   max-width: 22ch;
   font-size: clamp(2.2rem, 5vw, 3.8rem);
-}
-
-.hl-marker {
-  position: relative;
-  z-index: 0;
-}
-
-.hl-marker::after {
-  content: "";
-  position: absolute;
-  left: -0.06em;
-  right: -0.06em;
-  bottom: 0.02em;
-  height: 0.34em;
-  z-index: -1;
-  border-radius: 0.12em;
-  background: rgba(181, 214, 91, 0.6);
 }
 
 .term-cursor {
@@ -380,7 +383,38 @@ pre,
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 140px;
+  min-height: 180px;
+}
+
+/* radar ping — two phase-shifted expanding waves from the memory core */
+.signal-orbit::before,
+.signal-orbit::after {
+  content: "";
+  position: absolute;
+  width: 184px;
+  height: 184px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(181, 214, 91, 0.6);
+  opacity: 0;
+  animation: signal-ping 3.6s ease-out infinite;
+}
+
+.signal-orbit::after {
+  animation-delay: 1.8s;
+}
+
+@keyframes signal-ping {
+  0% {
+    transform: scale(0.24);
+    opacity: 0.8;
+  }
+  70% {
+    opacity: 0.22;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
 }
 
 .signal-core {
@@ -397,9 +431,26 @@ pre,
   border-radius: 50%;
 }
 
+/* satellites — sessions/agents orbiting the memory core */
+.ring::before {
+  content: "";
+  position: absolute;
+  top: -4.5px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border-radius: 50%;
+}
+
 .ring-one {
   width: 82px;
   height: 82px;
+}
+
+.ring-one::before {
+  background: var(--lime);
+  box-shadow: 0 0 12px rgba(181, 214, 91, 0.9);
 }
 
 .ring-two {
@@ -407,9 +458,19 @@ pre,
   height: 132px;
 }
 
+.ring-two::before {
+  background: var(--sand);
+  box-shadow: 0 0 12px rgba(255, 177, 109, 0.85);
+}
+
 .ring-three {
   width: 184px;
   height: 184px;
+}
+
+.ring-three::before {
+  background: var(--rose);
+  box-shadow: 0 0 12px rgba(226, 118, 104, 0.85);
 }
 
 .terminal-card {
@@ -1007,26 +1068,21 @@ pre,
 }
 
 .ring {
-  animation: ring-pulse 4.8s ease-in-out infinite;
+  animation: orbit-spin 16s linear infinite;
 }
 
 .ring-two {
-  animation-delay: 0.8s;
+  animation-duration: 28s;
+  animation-direction: reverse;
 }
 
 .ring-three {
-  animation-delay: 1.6s;
+  animation-duration: 44s;
 }
 
-@keyframes ring-pulse {
-  0%,
-  100% {
-    border-color: rgba(255, 249, 241, 0.24);
-    transform: scale(1);
-  }
-  50% {
-    border-color: rgba(181, 214, 91, 0.5);
-    transform: scale(1.04);
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -1124,7 +1180,14 @@ pre,
   .chip-new,
   .stage.core,
   .signal-core,
-  .ring {
+  .ring,
+  .signal-orbit::before,
+  .signal-orbit::after {
     animation: none;
+  }
+
+  .signal-orbit::before,
+  .signal-orbit::after {
+    opacity: 0;
   }
 }

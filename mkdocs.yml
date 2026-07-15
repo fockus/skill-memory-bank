@@ -12,11 +12,29 @@ site_dir: docs_site
 
 theme:
   name: material
+  # Match the landing page typography (site/styles.css): Space Grotesk for
+  # display/body, IBM Plex Mono for code. Material fetches these by name.
+  font:
+    text: Space Grotesk
+    code: IBM Plex Mono
+  icon:
+    logo: material/brain
+    repo: fontawesome/brands/github
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - navigation.footer
+    - toc.follow
     - search.suggest
+    - search.highlight
+    - search.share
     - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -28,6 +46,27 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+
+# Brand overlay — palette/typography/shape tuned to the landing page.
+# Custom primary/accent colors live here (Material has no named "lime").
+extra_css:
+  - assets/brand.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 plugins:
   - search
