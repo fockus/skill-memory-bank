@@ -84,6 +84,37 @@ caps_model_available() {
   caps_models "$t" | awk '{print $1}' | grep -qxF "$m"
 }
 
+caps_default_model_candidates() { # transport, contract-model -> candidate ids
+  local t="$1" m="$2"
+  case "$t:$m" in
+    opencode:sonnet)
+      printf '%s\n' \
+        opencode/claude-sonnet-5 \
+        opencode/claude-sonnet-4-5 \
+        opencode/claude-sonnet-4 \
+        "$m"
+      ;;
+    opencode:opus)
+      printf '%s\n' \
+        opencode/claude-opus-4-5 \
+        opencode/claude-opus-4-1 \
+        opencode/claude-opus-4 \
+        "$m"
+      ;;
+    opencode:haiku)
+      printf '%s\n' \
+        opencode/claude-haiku-4-5 \
+        "$m"
+      ;;
+    opencode:gpt-*)
+      printf '%s\n' "opencode/$m" "openai/$m" "$m"
+      ;;
+    *)
+      printf '%s\n' "$m"
+      ;;
+  esac
+}
+
 # ---- pipeline resolution ----------------------------------------------------
 
 resolve_pipeline_path() {
@@ -220,17 +251,24 @@ cmd_resolve() {
   IFS=',' read -r -a prio_arr <<<"${priority:-pi,opencode,claude-agent}"
   for p in "${prio_arr[@]}"; do caps_add_unique "$p"; done
 
-  local t cand
+  local t cand candidates
   IFS=',' read -r -a eff_arr <<<"$eff"
   for t in "${eff_arr[@]}"; do
     [ "$t" = "claude-agent" ] && continue # final fallback, handled below
     caps_transport_available "$t" || continue
     cand=$(printf '%s' "$map_lines" | awk -v t="$t" 'index($0,":")>0 { k=substr($0,1,index($0,":")-1); if (k==t) { print substr($0,index($0,":")+1); exit } }')
-    [ -n "$cand" ] || cand="$contract"
-    if caps_model_available "$t" "$cand"; then
-      printf 'transport=%s\nmodel=%s\nthinking=%s\nsubstituted=false\n' "$t" "$cand" "${thinking:-}"
-      return 0
+    if [ -n "$cand" ]; then
+      candidates="$cand"
+    else
+      candidates=$(caps_default_model_candidates "$t" "$contract")
     fi
+    while IFS= read -r cand; do
+      [ -n "$cand" ] || continue
+      if caps_model_available "$t" "$cand"; then
+        printf 'transport=%s\nmodel=%s\nthinking=%s\nsubstituted=false\n' "$t" "$cand" "${thinking:-}"
+        return 0
+      fi
+    done <<<"$candidates"
   done
 
   # Nothing on the contract transports — fall back to the host Agent tool.

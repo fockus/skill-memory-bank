@@ -476,6 +476,86 @@ _opencode_backup_once() {
   cp "$f" "$f.pre-mb-backup.$(date +%s).$$" 2>/dev/null || true
 }
 
+_opencode_write_agent_file() {
+  local src="$1" dst="$2"
+  python3 - "$src" "$dst" <<'PY'
+import re
+import sys
+
+src, dst = sys.argv[1], sys.argv[2]
+text = open(src, encoding="utf-8").read()
+
+if not text.startswith("---\n"):
+    open(dst, "w", encoding="utf-8").write(text)
+    raise SystemExit(0)
+
+_, frontmatter, body = text.split("---\n", 2)
+
+color_map = {
+    "red": "error",
+    "blue": "primary",
+    "green": "success",
+    "yellow": "warning",
+    "purple": "accent",
+    "magenta": "accent",
+    "cyan": "info",
+}
+valid_colors = {"primary", "secondary", "accent", "success", "warning", "error", "info"}
+tool_map = {
+    "Bash": "bash",
+    "Read": "read",
+    "Grep": "grep",
+    "Glob": "glob",
+    "Edit": "edit",
+    "Write": "edit",
+    "WebFetch": "webfetch",
+    "WebSearch": "websearch",
+}
+permission_order = ["bash", "read", "edit", "grep", "glob", "webfetch", "websearch"]
+
+tools = []
+lines = []
+has_mode = False
+for line in frontmatter.splitlines():
+    if line.startswith("tools:"):
+        raw_tools = line.split(":", 1)[1]
+        tools = [part.strip() for part in raw_tools.split(",") if part.strip()]
+        continue
+    if line.startswith("color:"):
+        raw = line.split(":", 1)[1].strip().strip('"\'')
+        if raw in valid_colors or re.fullmatch(r"#[0-9a-fA-F]{6}", raw):
+            color = raw
+        else:
+            color = color_map.get(raw, "info")
+        lines.append(f"color: {color}")
+        continue
+    if line.startswith("mode:"):
+        has_mode = True
+        lines.append("mode: subagent")
+        continue
+    lines.append(line)
+
+if not has_mode:
+    lines.append("mode: subagent")
+
+permissions = []
+seen = set()
+for tool in tools:
+    permission = tool_map.get(tool)
+    if permission and permission not in seen:
+        permissions.append(permission)
+        seen.add(permission)
+
+if permissions:
+    lines.append("permission:")
+    for permission in permission_order:
+        if permission in seen:
+            lines.append(f"  {permission}: allow")
+
+open(dst, "w", encoding="utf-8").write("---\n" + "\n".join(lines) + "\n---\n" + body)
+PY
+}
+
 # ═══ Install ═══
 install_opencode() {
   adapter_require_jq "opencode-adapter" || exit 1
@@ -512,7 +592,7 @@ install_opencode() {
     [ -f "$f" ] || continue
     _opencode_agent_is_partial "$f" && continue
     _opencode_backup_once "$AGENT_DIR/$(basename "$f")"
-    cp "$f" "$AGENT_DIR/$(basename "$f")"
+    _opencode_write_agent_file "$f" "$AGENT_DIR/$(basename "$f")"
   done
 
   local files_json
@@ -562,7 +642,7 @@ install_global_extensions() {
     [ -f "$f" ] || continue
     _opencode_agent_is_partial "$f" && continue
     _opencode_backup_once "$OC_GLOBAL_AGENT_DIR/$(basename "$f")"
-    cp "$f" "$OC_GLOBAL_AGENT_DIR/$(basename "$f")"
+    _opencode_write_agent_file "$f" "$OC_GLOBAL_AGENT_DIR/$(basename "$f")"
     agent_files="${agent_files}${OC_GLOBAL_AGENT_DIR}/$(basename "$f")"$'\n'
     agent_count=$((agent_count + 1))
   done

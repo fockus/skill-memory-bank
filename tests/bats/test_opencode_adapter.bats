@@ -41,6 +41,16 @@ run_adapter() {
   output="${raw%$'\n'__EXIT__*}"
 }
 
+assert_opencode_agent_frontmatter() {
+  local f="$1"
+  [ -f "$f" ]
+  ! grep -q '^tools:' "$f"
+  grep -Eq '^color: (primary|secondary|accent|success|warning|error|info|#[0-9a-fA-F]{6})$' "$f"
+  grep -q '^mode: subagent$' "$f"
+  grep -q '^permission:$' "$f"
+  grep -q '^  read: allow$' "$f"
+}
+
 # ═══════════════════════════════════════════════════════════════
 # Install
 # ═══════════════════════════════════════════════════════════════
@@ -387,8 +397,17 @@ EOF
   local n
   n=$(find "$agent_dir" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
   [ "$n" -ge 6 ]
-  # Content is copied as-is from the skill's agents/ (no rewriting).
-  cmp -s "$REPO_ROOT/agents/mb-developer.md" "$agent_dir/mb-developer.md"
+  # Content body is preserved, but frontmatter is normalized to OpenCode schema.
+  grep -q '^# MB Developer' "$agent_dir/mb-developer.md"
+}
+
+@test "opencode: project agents use OpenCode-valid frontmatter" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local agent_dir="$PROJECT/.opencode/agent"
+  assert_opencode_agent_frontmatter "$agent_dir/mb-developer.md"
+  assert_opencode_agent_frontmatter "$agent_dir/mb-reviewer-tests.md"
+  grep -q '^  edit: allow$' "$agent_dir/mb-developer.md"
 }
 
 @test "opencode: agents are registered in the manifest (uninstall removes them)" {
@@ -761,9 +780,18 @@ STUB
   [ -f "$gdir/mb-reviewer.md" ]
   [ ! -f "$gdir/mb-engineering-core.md" ]
   [ ! -f "$gdir/mb-tooling-core.md" ]
-  cmp -s "$REPO_ROOT/agents/mb-developer.md" "$gdir/mb-developer.md"
+  grep -q '^# MB Developer' "$gdir/mb-developer.md"
   # Project scope was never touched by this global-only action.
   [ ! -d "$PROJECT/.opencode/agent" ]
+}
+
+@test "opencode: install-global-agents writes OpenCode-valid frontmatter" {
+  run_adapter install-global-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  local gdir="$SANDBOX_HOME/.config/opencode/agent"
+  assert_opencode_agent_frontmatter "$gdir/mb-developer.md"
+  assert_opencode_agent_frontmatter "$gdir/mb-reviewer-tests.md"
+  grep -q '^  edit: allow$' "$gdir/mb-developer.md"
 }
 
 @test "opencode: install-global-agents writes a global manifest" {
@@ -810,5 +838,5 @@ STUB
   local n2
   n2=$(find "$gdir" -maxdepth 1 -type f -name '*.md' ! -name '*.pre-mb-backup.*' | wc -l | tr -d ' ')
   [ "$n1" -eq "$n2" ]
-  cmp -s "$REPO_ROOT/agents/mb-developer.md" "$gdir/mb-developer.md"
+  grep -q '^# MB Developer' "$gdir/mb-developer.md"
 }

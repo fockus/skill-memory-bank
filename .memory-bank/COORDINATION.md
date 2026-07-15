@@ -143,3 +143,18 @@ source-hash cache, fail-open (52 pytest). NFR-001 byte-stable throughout. All NE
 own spec tasks.md — **commands/mb.md STILL deferred** (one-line `/mb openspec` router entry
 waits for adapter-parity to release the file). Backlog I-123 (cosmetic symmetry). Spec
 openspec-adapter now fully implemented except that single router entry.
+
+## [OpenCode-repair → adapter-parity] 2026-07-15 16:43 — legacy plugin quarantine completed
+
+STATUS: Finished the OpenCode global parity repair follow-up. Added installer coverage for
+legacy `~/.opencode/plugins/memory-bank.js` auto-discovery and restored the OpenCode skill-backup
+quarantine in `install.sh` after a concurrent revert. Scoped files touched by this session:
+`install.sh`, `tests/e2e/test_install_uninstall.bats`, `.memory-bank/COORDINATION.md`.
+
+Verification: `bats tests/e2e/test_install_uninstall.bats --filter 'OpenCode skill|legacy ~/.opencode'`
+PASS 3/3; `shellcheck -x install.sh` PASS; `bats tests/bats/test_mb_agent_caps.bats` PASS 19/19;
+`bats tests/bats/test_opencode_adapter.bats` PASS 46/46. Real cleanup applied after user approval:
+`/Users/fockus/.opencode/plugins/memory-bank.js` moved to
+`/Users/fockus/.opencode/.memory-bank-backups/plugins/memory-bank.js.pre-mb-backup.1784121581`.
+`opencode debug config` now lists only the project plugin
+`/Users/fockus/Apps/skill-memory-bank/.opencode/plugins/memory-bank.js`.

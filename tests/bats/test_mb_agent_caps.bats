@@ -10,7 +10,9 @@ setup() {
   cat > "$BANK/pipeline.yaml" <<'YAML'
 version: "1"
 roles:
+  developer: { agent: mb-developer, model: sonnet }
   reviewer: { agent: mb-reviewer, model: openai-codex/gpt-5.5, thinking: xhigh }
+  local_reviewer: { agent: mb-reviewer, model: gpt-5.5, thinking: xhigh }
   backend:  { agent: mb-backend,  model: opencode-go/deepseek-v4-pro, thinking: high }
 dispatch:
   priority: [pi, opencode, claude-agent]
@@ -48,6 +50,24 @@ fixture() { # write fixture lines to a temp file, echo its path
   [ "$status" -eq 0 ]
   [[ "$output" == *"transport=opencode"* ]]
   [[ "$output" == *"model=opencode/gpt-5.2"* ]]
+}
+
+@test "resolve: provider-neutral sonnet maps to an available OpenCode model" {
+  local fix; fix=$(fixture "transport opencode" "model opencode opencode/claude-sonnet-5")
+  run env MB_CAPS_FIXTURE="$fix" bash "$CAPS" resolve --role developer --mb "$BANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"transport=opencode"* ]]
+  [[ "$output" == *"model=opencode/claude-sonnet-5"* ]]
+  [[ "$output" == *"substituted=false"* ]]
+}
+
+@test "resolve: provider-neutral gpt model maps to an available OpenCode model" {
+  local fix; fix=$(fixture "transport opencode" "model opencode opencode/gpt-5.5")
+  run env MB_CAPS_FIXTURE="$fix" bash "$CAPS" resolve --role local_reviewer --mb "$BANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"transport=opencode"* ]]
+  [[ "$output" == *"model=opencode/gpt-5.5"* ]]
+  [[ "$output" == *"substituted=false"* ]]
 }
 
 @test "resolve: priority is pi before opencode when both offer a model" {

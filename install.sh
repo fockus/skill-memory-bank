@@ -17,6 +17,7 @@ CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="$HOME/.codex"
 CURSOR_DIR="$HOME/.cursor"
 OPENCODE_DIR="$HOME/.config/opencode"
+OPENCODE_LEGACY_DIR="$HOME/.opencode"
 PI_AGENT_DIR="$HOME/.pi/agent"
 CANONICAL_SKILL_DIR="$CLAUDE_DIR/skills/skill-memory-bank"
 CLAUDE_SKILL_ALIAS="$CLAUDE_DIR/skills/memory-bank"
@@ -151,7 +152,9 @@ except Exception:
 PYEOF
   ); then
     echo "  Manifest write failed (target: $MANIFEST):" >&2
-    echo "$mf_output" | sed 's/^/    /' >&2
+    while IFS= read -r line; do
+      printf '    %s\n' "$line"
+    done <<< "$mf_output" >&2
   fi
   MB_MANIFEST_FLUSHED=1
 }
@@ -647,6 +650,13 @@ backup_if_exists() {
         rm -rf -- "$old"
       done
       backup="$PI_AGENT_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.$(date +%s)"
+    elif [ "$target" = "$OPENCODE_SKILL_ALIAS" ]; then
+      mkdir -p "$OPENCODE_DIR/.memory-bank-backups"
+      for old in "$OPENCODE_DIR/.memory-bank-backups/memory-bank.pre-mb-backup."*; do
+        [ -e "$old" ] || [ -L "$old" ] || continue
+        rm -rf -- "$old"
+      done
+      backup="$OPENCODE_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.$(date +%s)"
     else
       # H-4: NEVER rotate away the OLDEST backup — it holds the user's TRUE
       # original. If one already exists, the current file is an MB artifact from a
@@ -672,6 +682,51 @@ backup_if_exists() {
     mv "$target" "$backup"
     BACKED_UP_FILES+=("$target|$backup")
   fi
+}
+
+quarantine_legacy_opencode_skill_backups() {
+  # Old installers used ~/.opencode/skills/memory-bank.backup.*. OpenCode still
+  # scans that root, so those backup directories can shadow the current skill.
+  # Move only MB-generated backup directories, preserving them outside discovery.
+  local legacy_skills="$OPENCODE_LEGACY_DIR/skills"
+  local backup_root="$OPENCODE_LEGACY_DIR/.memory-bank-backups"
+  local old base dest i
+  [ -d "$legacy_skills" ] || return 0
+
+  for old in "$legacy_skills"/memory-bank.backup.* "$legacy_skills"/memory-bank.pre-mb-backup.*; do
+    [ -e "$old" ] || [ -L "$old" ] || continue
+    [ -e "$old/SKILL.md" ] || [ -L "$old/SKILL.md" ] || continue
+    mkdir -p "$backup_root"
+    base="$(basename "$old")"
+    dest="$backup_root/$base"
+    i=2
+    while [ -e "$dest" ] || [ -L "$dest" ]; do
+      dest="$backup_root/$base.$i"
+      i=$((i + 1))
+    done
+    mv "$old" "$dest"
+    BACKED_UP_FILES+=("$old|$dest")
+  done
+}
+
+quarantine_legacy_opencode_managed_plugin() {
+  # OpenCode also auto-discovers ~/.opencode/plugins/*. A legacy MB-managed plugin
+  # there loads alongside the project plugin, so move only marker-confirmed MB files.
+  local old="$OPENCODE_LEGACY_DIR/plugins/memory-bank.js"
+  local backup_root="$OPENCODE_LEGACY_DIR/.memory-bank-backups/plugins"
+  local dest i
+  { [ -e "$old" ] || [ -L "$old" ]; } || return 0
+  grep -q "memory-bank: managed plugin" "$old" 2>/dev/null || return 0
+
+  mkdir -p "$backup_root"
+  dest="$backup_root/memory-bank.js.pre-mb-backup.$(date +%s)"
+  i=2
+  while [ -e "$dest" ] || [ -L "$dest" ]; do
+    dest="$backup_root/memory-bank.js.pre-mb-backup.$(date +%s).$i"
+    i=$((i + 1))
+  done
+  mv "$old" "$dest"
+  BACKED_UP_FILES+=("$old|$dest")
 }
 
 install_file() {
@@ -828,6 +883,8 @@ resolve_dir() {
 ensure_skill_aliases() {
   mkdir -p "$CLAUDE_DIR/skills" "$CODEX_DIR/skills" "$CURSOR_DIR/skills" "$PI_AGENT_DIR/skills" \
     "$OPENCODE_DIR/skills"
+  quarantine_legacy_opencode_skill_backups
+  quarantine_legacy_opencode_managed_plugin
 
   local source_real canonical_real
   source_real="$(resolve_dir "$SOURCE_SKILL_DIR")"

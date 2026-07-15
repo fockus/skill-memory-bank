@@ -73,6 +73,56 @@ EOF
   ! find "$HOME/.pi/agent/skills" -maxdepth 2 -path '*pre-mb-backup*' -name SKILL.md | grep -q .
 }
 
+@test "install: backs up existing OpenCode skill outside skill discovery directory" {
+  mkdir -p "$HOME/.config/opencode/skills/memory-bank"
+  cat > "$HOME/.config/opencode/skills/memory-bank/SKILL.md" <<'EOF'
+---
+name: memory-bank
+---
+# old local OpenCode skill
+EOF
+
+  bash "$REPO_ROOT/install.sh" --clients opencode --non-interactive >/dev/null
+
+  [ -L "$HOME/.config/opencode/skills/memory-bank" ]
+  [ -f "$HOME/.config/opencode/skills/memory-bank/SKILL.md" ]
+  [ -d "$HOME/.config/opencode/.memory-bank-backups" ]
+  find "$HOME/.config/opencode/.memory-bank-backups" -maxdepth 2 -name SKILL.md | grep -q .
+  ! find "$HOME/.config/opencode/skills" -maxdepth 2 -path '*pre-mb-backup*' -name SKILL.md | grep -q .
+}
+
+@test "install: quarantines legacy ~/.opencode memory-bank backup skills outside discovery" {
+  mkdir -p "$HOME/.opencode/skills/memory-bank.backup.20200101-000000"
+  cat > "$HOME/.opencode/skills/memory-bank.backup.20200101-000000/SKILL.md" <<'EOF'
+---
+name: memory-bank
+---
+# stale legacy OpenCode backup skill
+EOF
+
+  bash "$REPO_ROOT/install.sh" --clients opencode --non-interactive >/dev/null
+
+  [ ! -d "$HOME/.opencode/skills/memory-bank.backup.20200101-000000" ]
+  [ -f "$HOME/.opencode/.memory-bank-backups/memory-bank.backup.20200101-000000/SKILL.md" ]
+  ! find "$HOME/.opencode/skills" -maxdepth 2 -path '*memory-bank.backup*' -name SKILL.md | grep -q .
+}
+
+@test "install: quarantines legacy ~/.opencode managed plugin outside auto-discovery" {
+  mkdir -p "$HOME/.opencode/plugins"
+  cat > "$HOME/.opencode/plugins/memory-bank.js" <<'EOF'
+// Memory Bank — OpenCode plugin
+// memory-bank: managed plugin (do not remove marker line)
+export default async function MemoryBankPlugin() { return {}; }
+EOF
+
+  bash "$REPO_ROOT/install.sh" --clients opencode --non-interactive >/dev/null
+
+  [ ! -f "$HOME/.opencode/plugins/memory-bank.js" ]
+  [ -d "$HOME/.opencode/.memory-bank-backups/plugins" ]
+  find "$HOME/.opencode/.memory-bank-backups/plugins" -maxdepth 1 -name 'memory-bank.js.pre-mb-backup.*' | grep -q .
+  ! find "$HOME/.opencode/plugins" -maxdepth 1 -name 'memory-bank.js' | grep -q .
+}
+
 @test "install: default language is English in installed rules and config" {
   bash "$REPO_ROOT/install.sh" >/dev/null
 
