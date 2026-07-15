@@ -92,4 +92,24 @@ done
 
 mode="dry-run"
 [ "$APPLY" -eq 1 ] && { mode="apply"; [ "$HARD" -eq 1 ] && mode="apply-hard"; }
-echo "[prune] mode=$mode stubs=$stubs substantive_kept=$kept repair_candidates=$repair_candidates archive=$ARCHIVE"
+
+# A20: best-effort, backgrounded semantic-index prune. After --apply removes
+# contentless stubs, the on-disk index still references those gone sources.
+# Fire-and-forget: never block, never fail this script (fail-open, exit 0 always).
+reindex=0
+if [ "$APPLY" -eq 1 ] && [ "$stubs" -gt 0 ]; then
+  HOOK_DIR="$(cd "$(dirname "$0")/../hooks" 2>/dev/null && pwd)" || HOOK_DIR=""
+  if [ -n "$HOOK_DIR" ] && [ -f "$HOOK_DIR/mb-semantic.py" ]; then
+    # shellcheck source=lib/session-common.sh
+    . "$HOOK_DIR/lib/session-common.sh" 2>/dev/null || true
+    if command -v sc_semantic_py >/dev/null 2>&1; then
+      PRUNE_PY="$(sc_semantic_py "$HOOK_DIR" "$MB_PATH")"
+      if command -v "$PRUNE_PY" >/dev/null 2>&1; then
+        ( MB_ROOT="$MB_PATH" "$PRUNE_PY" "$HOOK_DIR/mb-semantic.py" prune >/dev/null 2>&1 & )
+        reindex=1
+      fi
+    fi
+  fi
+fi
+
+echo "[prune] mode=$mode stubs=$stubs substantive_kept=$kept repair_candidates=$repair_candidates archive=$ARCHIVE reindex=$reindex"
