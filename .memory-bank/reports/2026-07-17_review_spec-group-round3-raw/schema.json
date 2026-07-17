@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spec", "verdict", "summary", "coverage_check", "findings", "strengths"],
+  "properties": {
+    "spec": { "type": "string" },
+    "verdict": { "type": "string", "enum": ["APPROVED", "APPROVED_WITH_NITS", "CHANGES_REQUESTED"] },
+    "summary": { "type": "string" },
+    "coverage_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["req_total", "req_without_task", "tasks_without_req", "reqs_without_scenario_gated", "evals_non_deterministic", "notes"],
+      "properties": {
+        "req_total": { "type": "integer" },
+        "req_without_task": { "type": "array", "items": { "type": "string" } },
+        "tasks_without_req": { "type": "array", "items": { "type": "string" } },
+        "reqs_without_scenario_gated": { "type": "array", "items": { "type": "string" } },
+        "evals_non_deterministic": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "category", "location", "summary", "evidence", "recommendation", "proposed_fix"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "major", "minor", "nit"] },
+          "category": { "type": "string", "enum": ["coverage", "contract", "eval", "consistency", "parent-decision", "cross-slice", "feasibility", "edge-case", "sizing", "over-engineering", "clarity"] },
+          "location": { "type": "string" },
+          "summary": { "type": "string" },
+          "evidence": { "type": "string" },
+          "recommendation": { "type": "string" },
+          "proposed_fix": { "type": "string" }
+        }
+      }
+    },
+    "strengths": { "type": "array", "items": { "type": "string" } }
+  }
+}

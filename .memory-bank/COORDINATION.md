@@ -235,3 +235,14 @@ refactor). Backlog I-129 opened for the adjacent pi_global_extensions meta-test 
 No push, no tag (v5.3.1 tag stays deferred per user until branch-green). Scoped commit only;
 foreign WIP in the tree (agreements.md, parallel-pipeline specs, CLAUDE.md, rules/RULES.md,
 etc.) left untouched. Remaining adapter-parity: T8 (upgrade refresh + docs) — last task.
+
+## 2026-07-18 — sdd-vision-pipeline: 3 круга ревью + ремедиация 75/75 + S9 — session 7c0ad86b
+
+Scoped commit группы: specs/{sdd-vision-pipeline,svp-*} (10 спек), context/svp-*+group, отчёты
+кругов 1–3 + remediation, план 2026-07-18_fix_spec-group-round3-remediation (6/6 стадий через
+/mb work), notes ×2, bank core (roadmap/status/checklist/progress/backlog/agreements/traceability,
+CLAUDE.md managed AGR block), commands/sdd.md (§ Generation self-check, процесс-фикс круга 2).
+AGR-020/021/022 записаны. Финальная батарея 10/10 GREEN. НЕ включено (чужие треки, остаются WIP):
+adapter-parity, parallel-pipeline (superseded-правки donor-трека), mb-donor-evolution,
+openspec-adapter, quality-track, sdd-openspec-parity, commands/discuss.md + references/templates.md
++ rules/RULES.md (discuss-grilling трек), notes/plans/reports 2026-07-15, .work-state* (runtime).

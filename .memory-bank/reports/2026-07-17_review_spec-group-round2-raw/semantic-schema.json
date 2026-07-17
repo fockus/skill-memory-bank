@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "decision_trace", "lost_intents", "notes"],
+  "properties": {
+    "verdict": { "type": "string", "enum": ["INTENT_PRESERVED", "INTENT_MOSTLY_PRESERVED", "INTENT_LOST_IN_PLACES"] },
+    "summary": { "type": "string" },
+    "decision_trace": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "where", "note"],
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string", "enum": ["preserved", "weakened", "lost", "contradicted", "deferred_explicitly"] },
+          "where": { "type": "string" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "lost_intents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "source_quote", "what_lost", "where_should_land", "recommendation"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "major", "minor"] },
+          "source_quote": { "type": "string" },
+          "what_lost": { "type": "string" },
+          "where_should_land": { "type": "string" },
+          "recommendation": { "type": "string" }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

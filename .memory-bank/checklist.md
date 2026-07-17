@@ -29,6 +29,7 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 
 ## ⏭ Queued waves
 
+- ⬜ **Group `sdd-vision-pipeline` (AGR-017, главный трек)** — 10 спек spec-ready: 3 круга codex-ревью + ремедиация 75/75 (2026-07-18, батарея 10/10) + S9 `svp-spec-review-loop` (ревью waived, AGR-022); контрольный круг 4 — по команде; исполнение: T1 MIT → S1 → S7 → S4 → S2 → S8 → S9 → S6 → S3 → S5 — детали в `roadmap.md` § Group
 - ⬜ W0.5 — [opencode-first-adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md) — OpenCode native plugin, host-agnostic dispatch, hook parity
 - ⬜ W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)
 - ⬜ W12 — [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) → folded into Phase 4 above
@@ -65,3 +66,27 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - `backlog.md` — open ideas/ADRs (SSOT).
 - `traceability.md` — generated REQ coverage matrix.
 - `progress.md` — append-only historical log.
+
+<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
+## Stage 1: Пакеты находок и ТЗ для 4 фиксеров
+- ✅ Пакеты находок и ТЗ для 4 фиксеров
+
+<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
+## Stage 2: Волна 1 — F1 owners-state (umbrella + S4) на Opus
+- ✅ Волна 1 — F1 owners-state (umbrella + S4) на Opus
+
+<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
+## Stage 3: Волна 1 — F2 owners-norms (S2 + S1) на Opus
+- ✅ Волна 1 — F2 owners-norms (S2 + S1) на Opus
+
+<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
+## Stage 4: Волна 2 — F3 consumers-west (S7 + S3 + S5) на Opus
+- ✅ Волна 2 — F3 consumers-west (S7 + S3 + S5) на Opus
+
+<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
+## Stage 5: Волна 2 — F4 consumers-east (S6 + S8) на Opus
+- ✅ Волна 2 — F4 consumers-east (S6 + S8) на Opus
+
+<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
+## Stage 6: Финальный централизованный проход и актуализация банка
+- ✅ Финальный централизованный проход и актуализация банка

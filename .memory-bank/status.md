@@ -1,6 +1,18 @@
 
 # claude-skill-memory-bank: Статус проекта
 
+## ✅ 2026-07-18 — sdd-vision-pipeline: круг 3 ревью → ремедиация завершена, 75/75 закрыто, батарея 10/10
+
+Ремедиация исполнена через `/mb work` по плану (6/6 стадий): 4 Opus-фиксера двумя волнами (F1 umbrella+S4, F2 S2+S1 → F3 S7+S3+S5, F4 S6+S8), независимая верификация оркестратора после каждого, все CPR/X-хвосты исполнены владельцами. Итог: [reports/2026-07-18_review_spec-group-round3-remediation.md](reports/2026-07-18_review_spec-group-round3-remediation.md) — **75/75 находок закрыто, финальная батарея 10/10 спек GREEN** (124 сценария child, 62+10 задач), cross-slice grep чист. Нормы круга 3: owner-marker/`rmdir`-reclaim, Eval-декларации fenced-списком byte-identical (запрет `\|` markdown-таблиц), самоисполняющий `eval-red --cmd-file`, restricted-glob, секрет под `<private>` не достигает git. S9 интегрирован в umbrella (Task 10, delegate-гейт двусторонне проверен). Группа готова к контрольному кругу 4 по команде. НЕ закоммичено.
+
+Круг 3 codex-ревью (та же схема: 9 технических `gpt-5.6-sol` + смысловой аудитор, каждому передан raw-вердикт круга 2): **9/9 CHANGES_REQUESTED, 73 технические находки (7 critical, 60 major) + 2 смысловые**; 15 — UNFIXED/PARTIAL из круга 2. Попутно (2026-07-18) группа получила слайс **S9 `svp-spec-review-loop`** (AGR-022, ревью waived): spec-уровневые кубики review+judge — автоматический `spec_judge`, fix-петля, реестр принятых отклонений, preflight-гейт `/mb work`; батарея зелёная, umbrella-интеграция после ремедиации. Отчёт: [reports/2026-07-17_review_spec-group-round3.md](reports/2026-07-17_review_spec-group-round3.md). Решения пользователя: **AGR-020** (Cursor включается в полный режим S3, D-07 восстановлен) и **AGR-021** (ICE: авто-приоритизация + ворнинг по неподтверждённым + эскалация подтверждения пользователю). Ремедиация — план [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md): **не больше 4 Opus-фиксеров, две волны по 2** (F1 umbrella+S4, F2 S2+S1 → F3 S7+S3+S5, F4 S6+S8), независимая верификация оркестратором после каждого, финальная батарея 9/9 + отчёт ремедиации. Не коммитим без явного запроса.
+
+## ✅ 2026-07-17 — sdd-vision-pipeline: два круга spec-ревью пройдены, группа готова к исполнению
+
+Круг 2 codex-ревью группы (9 технических ревьюеров `gpt-5.6-sol` — по одному на спеку, S8 впервые — + 10-й смысловой аудитор с полным транскриптом интервью): **83 технические + 8 смысловых находок, все закрыты в тот же день** ([reports/2026-07-17_review_spec-group-round2.md](reports/2026-07-17_review_spec-group-round2.md)). Волновая схема: волна 1 — владельцы контрактов (umbrella/S1/S2/S4), волна 2 — потребители (S7→S3→S8→S6→S5), затем якорный фиксер (24 `output~:`-якоря в umbrella/S1/S4); все фиксеры — Opus, каждый слайс верифицирован оркестратором независимо (батарея + перепрогон red-эвалов + двусторонние симуляции якорей). Смысловая находка про `/mb plan` решением пользователя не исправляется → **AGR-019** (план остаётся ручным режимом).
+
+Групповые нормы круга 2: red-якоря `output~:` на всех Eval (S2 REQ-054/055) · liveness-lock `mb_lock_acquire` S4-C6 · JSONL-вердикты (umbrella Interface 5) · ICE-объект `{impact, confidence, ease}` во frontmatter · реестр `Contract-checkers` (S8-C3a) · `annotate` для достижимости READY (X5-01). Финальная батарея: **9/9 спек GREEN**, 112 сценариев child-спек, 66 задач (57 child + 9 umbrella), все eval-гейты красные по правильной причине. Новый беклог: I-130 (баг `mb-req-next-id.sh --spec` считает `covers_umbrella`-ссылки). Изменения НЕ закоммичены (ждут явного запроса).
+
 ## ✅ 2026-07-15 — `openspec-adapter` спека реализована (T1–T6), один пункт отложен
 
 One-way import-адаптер `OpenSpec change → наш spec-триплет` (AGR-016) — **T1–T6 done**. T1–T3 core (парсинг+конвертация+запись, `a2e9252`/`66cd650`, judge GO_WITH_BACKLOG I-120) закрыт ранее; в этой сессии добрали **T4 CLI-диспетчер** (`scripts/mb-openspec.sh` import/list/status/sync, `4bebbbc`), **T5 re-import** (anchor_map + merge_task_state + RENAMED re-anchor + orphan→backlog, `0f39618`), **T6 --normalize** (опц. LLM slot-layer + source-hash кэш, fail-open, `226e65f`). Пайплайн этой сессии — **укороченный, по явному запросу пользователя, не сохранён в pipeline.yaml**: Sonnet implement → Opus independent verify, без review/judge; все три задачи прошли независимую верификацию Opus. 45+15+52 pytest/bats green по задачам.
@@ -135,6 +147,7 @@ Cross-session coordination also shipped (`references/coordination.md` had been u
 - [2026-05-23] `queued` [2026-05-23_feature_work-loop-v2.md](plans/2026-05-23_feature_work-loop-v2.md) — feature — Plan: feature — Work loop 2.0 (S2 of harness-upgrade)
 - [2026-05-24] `queued` [2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Plan: feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
+- [2026-07-18] [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
 <!-- /mb-active-plans -->
 
 ## Recently done

@@ -130,6 +130,43 @@ bash scripts/mb-spec-tasks-migrate.sh <topic>
 bash scripts/mb-spec-tasks-migrate.sh <topic> --apply
 ```
 
+## Generation self-check (MANDATORY before declaring the spec ready)
+
+`mb-spec-validate.sh` checks structure, not semantics — a spec can pass it and
+still be unexecutable. Whoever fills the triple (human or LLM) MUST run every
+artifact through its **real consumer** and MUST NOT report the spec as ready
+until all five checks pass. Lesson source: the 2026-07-17 group review — 8/8
+specs passed the validator and still collected 96 findings, because none of
+these checks ran at generation time.
+
+1. **Structure** — `bash scripts/mb-spec-validate.sh <topic>` (plus
+   `--require-scenarios` when the spec carries gated SHALL/MUST requirements).
+2. **Scenario parity** — `python3 scripts/mb-scenario-extract.py
+   <mb>/specs/<topic>/requirements.md | wc -l` MUST equal the number of
+   `### Scenario:` headings. Zero extracted with headings present means the
+   blocks lack `<!-- mb-scenario:N -->` markers or `**Covers:**` lines — the
+   validator will NOT catch this (its scenario check is a no-op when no marker
+   blocks exist). Scenario **names must be ASCII/English**: `test_id` slugs drop
+   non-ASCII, so Cyrillic names collapse into colliding ids.
+3. **Task parse & role routing** — `python3 scripts/mb_work_items.py
+   <mb>/specs/<topic>/tasks.md`: every task parses; every resolved `agent`
+   exists. `Role:` takes a **bare role name** (`backend`, `qa`, `architect` —
+   see `references/templates.md`); the parser prefixes `mb-` itself, so
+   `Role: mb-backend` silently routes to a nonexistent `mb-mb-backend`.
+4. **Eval red run** — execute every `**Eval:**` command now. Every one MUST
+   exit non-zero (red) on the current tree. An already-green eval is a fake red;
+   a `grep -q '<word>'` eval that any mention satisfies tests vocabulary, not
+   behavior — rewrite it against the declared contract (bats/pytest under
+   `tests/bats/` / `tests/pytest/`).
+5. **Cross-spec contracts** — for every interface this spec consumes from or
+   provides to another spec, open the other spec and verify both sides state
+   the same command, fields, and exit codes, and that the dependency appears in
+   `blocked_by`. A contract "to be revised later" that a dependent spec is
+   already built on is a defect, not an open question.
+
+Do not write formats from memory: copy the task-block shape from
+`references/templates.md` and the scenario shape from an existing green spec.
+
 ## Out of scope
 
 - Does not run `/mb discuss` — call that first if no context yet.

@@ -642,6 +642,9 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-129 — adapter-parity T7 follow-up: `manifest_pi_global_extensions()` has the same meta-test coverage gap that finding-3 fixed for OpenCode's global-extensions manifest — Pi's `.mb-global-extensions-manifest.json` (`["role-routing"]`, T4) is NOT in `test_platform_limited_honesty.bats`'s closed-vocab / REQ-017 meta-test loops, so the meta-test can't guard it. Add a `manifest_pi_global_extensions()` producer + TESTED_PAIRS entries for full parity with the project manifest. Adjacent, out of T7 scope (Codex re-review agreed it's an acceptable follow-up). Note also: T7 bumped adapters/pi.sh 398->418 lines (manifest block) — the pi.sh SRP refactor tracked in I-128 must account for extracting the platform_limited write site. [MED, NEW, 2026-07-15]
 
+
+### I-130 — mb-req-next-id.sh --spec считает covers_umbrella-ссылки: следующий REQ-номер завышается чужими ссылками во frontmatter (коллизии S2 REQ-049..055 с umbrella, S4 получил занятый REQ-042); скоуп подсчёта должен ограничиваться собственными Acceptance-Criteria строками спеки [HIGH, NEW, 2026-07-17]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
