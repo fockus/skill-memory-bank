@@ -246,3 +246,55 @@ AGR-020/021/022 записаны. Финальная батарея 10/10 GREEN.
 adapter-parity, parallel-pipeline (superseded-правки donor-трека), mb-donor-evolution,
 openspec-adapter, quality-track, sdd-openspec-parity, commands/discuss.md + references/templates.md
 + rules/RULES.md (discuss-grilling трек), notes/plans/reports 2026-07-15, .work-state* (runtime).
+
+## [svp-group-exec] 2026-07-18 — START: goal G-001, исполнение группы sdd-vision-pipeline (10 спек) — session 7c0ad86b
+
+Оркестратор: основная сессия. Роли (pipeline.yaml, AGR-023): implement=Opus-сабагенты,
+review=codex gpt-5.6-sol xhigh (Bash-процессы), judge=mb-judge на Fable. ≤3 параллельных
+треков, ≤4 одновременных сабагентов. Workflow codex-governed (loop до judge_go, max_cycles 2).
+
+**Волна 1 (стартует сейчас):**
+- Track A `svp-s1` (mb-architect/opus): umbrella T1 (MIT-атрибуция) + S1 svp-interview-upgrade.
+  Владеет: commands/discuss.md, references/templates.md, scripts/mb-interview-artifact-*.sh,
+  mb-estimate-check.sh (создание), mb-secret-scan.sh, mb-glossary.sh, mb-context.sh + их тесты, README (credits).
+- Track B `svp-s4` (mb-backend/opus): S4 svp-roadmap-backlog-db. Владеет: mb-roadmap-sync.sh,
+  mb-backlog-state.sh, mb-backlog-migrate.sh, mb-idea*.sh, mb-bank-lint.sh, scripts/_lib.sh (lock-helper),
+  commands/mb.md (freeze снят ACK 2026-07-15), CLAUDE.md ВНЕ managed-блока agreements + тесты.
+- Track C `svp-s2` (mb-architect/opus): S2 svp-sdd-core. Владеет: mb-sdd*.sh, mb-spec-validate.sh,
+  mb_work_items.py, mb-work-state.sh (ТОЛЬКО аддитивно: eval-red/eval-green), mb-pipeline-validate.sh,
+  commands/sdd.md, commands/work.md, references/pipeline.default.yaml + тесты.
+
+**Кросс-трек правила:** references/templates.md правит ТОЛЬКО Track A; S2/S4 шлют готовые блоки
+оркестратору. scripts/mb-estimate-check.sh создаёт S1 (Task 3); S2 Task 3 ждёт сигнала оркестратора.
+Чужой WIP (discuss-grilling: commands/discuss.md, references/templates.md, rules/RULES.md; donor/adapter
+файлы) НЕ ревертится и НЕ коммитится. Коммиты — только оркестратор, scoped git add. Деструктивный
+freeze (no rebase/reset/checkout ./stash) в силе.
+
+## [svp-group-exec] 2026-07-18 — PAUSE по запросу пользователя — session 7c0ad86b
+
+Состояние: umbrella T1 ✅; S1 T1–T4 ✅ (T5 прервана консистентно); S4 T1(+fix)✅/T2✅/T6✅;
+S2 T1(+fix)✅/T2✅ (T3 отложена — гейт estimate-check, снят НЕ был). Ревью: s4-t1 CR→fixed
+(re-review в полёте); s2-t1 CR→fixed (re-review НЕ запущен); s4-t2 CR: 1 BLOCKER
+(mb_lock_acquire reclaim → два владельца, _lib.sh:868) + 3 major — fix первым делом при
+возобновлении; S1/S4-T6/S2-T2 ревью не запускались. PAUSE-сообщения трекам отправлены;
+после ack'ов оркестратор делает scoped-коммит волны 1 как WIP-чекпойнт (в коммит войдут
+commands/discuss.md + references/templates.md с чужой discuss-grilling базой 2026-07-15 —
+mixed authorship, атрибутируется в сообщении коммита). Возобновление — только по команде
+пользователя; правила владения из START-записи остаются в силе.
+
+## [svp-group-exec] 2026-07-18 — PAUSE финализирована: смерть треков при рестарте харнесса, WIP-коммит волны 1
+
+Харнесс перезапустился: Track B (S4) остановлен БЕЗ ack (T9 не начат — следов нет; зона = T1+fix/T2/T6);
+Track A (S1) умер посреди Task 6 — реализация T6 в дереве ЗАВЕРШЕНА (test_discuss_self_interview 10/10
+green), DoD-флипы T6 не проставлены (22 [x] / 4 [ ]); Track C (S2) ack'нулся чисто ранее. Батарея
+коммит-зоны на паузе: 12/12 bats-сьютов PASS + 65 pytest passed.
+
+WIP-коммит волны 1 (оркестратор): зоны umbrella-T1 + S1 (T1–T6 impl) + S2 (T1+fix, T2) + банк-ядро
+(goal/project/pipeline/agreements/status/checklist/progress/COORDINATION + чекбоксы umbrella/S1/S2) +
+CLAUDE.md (managed AGR-023). commands/discuss.md и references/templates.md входят ВМЕСТЕ с чужой
+discuss-grilling базой 2026-07-15 (правки S1 неотделимы) — mixed authorship атрибутирован в сообщении
+коммита. НЕ входит зона S4 целиком (2 открытых blocker'а: lock-reclaim гонка `_lib.sh:868`,
+moving-HEAD oracle в тесте T1) — остаётся некоммиченным WIP: scripts/{_lib.sh,mb-roadmap-sync.sh,
+mb_roadmap_order.py,mb_roadmap_group.py,mb-backlog-state.sh}, их 5 тест-файлов, specs/svp-roadmap-backlog-db/tasks.md.
+Возобновление: fix S4-T2 blocker → fix S4-T1-fix blocker → re-review; S2-T1-fix re-review; ревью S1 и S4-T6;
+S1-T6 verify+флипы; сигнал «estimate-check released» для S2-T3 НЕ давался.

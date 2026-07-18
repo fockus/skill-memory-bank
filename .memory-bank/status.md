@@ -1,6 +1,19 @@
 
 # claude-skill-memory-bank: Статус проекта
 
+## ⏸ 2026-07-18 — G-001: исполнение группы sdd-vision-pipeline (волна 1) — ПАУЗА по запросу пользователя
+
+Прогон всех 10 спек группы через `/mb work` codex-governed до судейского GO: implement=**Opus**-сабагенты, review=**codex gpt-5.6-sol (xhigh)**, judge=**mb-judge на Fable** (AGR-023, `pipeline.yaml` обновлён и валиден; goal `G-001` в `goal.md`, `project.md` создан). ≤3 параллельных треков, ≤4 сабагентов; оркестратор — основная сессия; правила совместного владения файлами — `COORDINATION.md` § svp-group-exec.
+
+**Волна 1 (A=umbrella T1+S1 · B=S4 · C=S2), состояние на паузу:**
+- umbrella **T1 ✅** (MIT-атрибуция, 8/8 bats) — ревью не проводилось.
+- **S1 5/6+** ✅ (T1 plan+harness, T2 final-gate+batch, T3 size-triage+`mb-estimate-check.sh`, T4 transcript+`mb-secret-scan.sh`, T5 glossary; T6 self-interview — реализация завершена и сьют зелёный, но трек умер до DoD-флипов и финального отчёта → 4 бокса T6 остаются `[ ]` до verify) — ревью S1 не запускалось.
+- **S4 3/9** ✅: T1 + T1-fix (codex CR 3 major → закрыты: модуль `mb_roadmap_order.py`, полный legacy-корпус с HEAD `_lib.sh`, 42 contract-теста; **re-review в полёте**), T2 lock+state-machine (24+15 bats; **ревью в полёте**), T6 Group-рендер (14/14; флаг: отклонение R3-007 — счётчики в member-line, решение за ревью/судьёй); T9 не начата.
+- **S2 2/9** ✅: T1 + T1-fix (codex CR 3 major+1 minor → закрыты: strip code-span — чинит 73/73 живых Eval-cmd, пустые v2-поля → malformed, sys.path-шапка; **re-review не запущен**), T2 валидатор v2 (20/20; zero exit-code drift на 29 base + 10 group спек; флаг: 564 строки >400 — решение за судьёй/оркестратором); T3 отложена (гейт `mb-estimate-check.sh` за S1), T9 не начата.
+
+Вердикты codex — `scratchpad/exec/review-*.json` сессии (s4-t1 CR→fixed; s2-t1 CR→fixed; s4-t1fix/s4-t2 in flight). Разблокировки дальше: S7←S1; S8/S9/S6/S3←S2; S5←S4+S2+S3.
+**▶ Возобновление:** дождаться/принять ack'и треков → scoped-коммит волны 1 → re-review хвостов (S2-T1-fix, S1 T1–T4, S4-T6) → продолжение треков по DAG.
+
 ## ✅ 2026-07-18 — sdd-vision-pipeline: круг 3 ревью → ремедиация завершена, 75/75 закрыто, батарея 10/10
 
 Ремедиация исполнена через `/mb work` по плану (6/6 стадий): 4 Opus-фиксера двумя волнами (F1 umbrella+S4, F2 S2+S1 → F3 S7+S3+S5, F4 S6+S8), независимая верификация оркестратора после каждого, все CPR/X-хвосты исполнены владельцами. Итог: [reports/2026-07-18_review_spec-group-round3-remediation.md](reports/2026-07-18_review_spec-group-round3-remediation.md) — **75/75 находок закрыто, финальная батарея 10/10 спек GREEN** (124 сценария child, 62+10 задач), cross-slice grep чист. Нормы круга 3: owner-marker/`rmdir`-reclaim, Eval-декларации fenced-списком byte-identical (запрет `\|` markdown-таблиц), самоисполняющий `eval-red --cmd-file`, restricted-glob, секрет под `<private>` не достигает git. S9 интегрирован в umbrella (Task 10, delegate-гейт двусторонне проверен). Группа готова к контрольному кругу 4 по команде. НЕ закоммичено.

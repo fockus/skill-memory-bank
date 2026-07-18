@@ -351,6 +351,53 @@ echo "reward_mean=$(jq '.mean' results.json)"
 
 After creating it, run `chmod +x .memory-bank/metrics.sh`. Validation: `bash scripts/mb-metrics.sh` should return `source=override` instead of `source=auto`.
 
+## Interview plan template
+
+`<bank>/tmp/interview-plan-<topic>.md` — the white-spot ledger for `/mb discuss` (contract C2). Written before the first question, validated by `mb-interview-artifact-check.sh plan`, installed atomically by `mb-interview-artifact-write.sh install-plan`. Generation is gated on closing every topic (grilling rule 11).
+
+```markdown
+## Inherited decisions (do not re-ask)
+
+- <decision carried from parent_context; omit line for a root topic>
+
+## Topics
+
+- [ ] <planned theme>
+- [ ] <planned theme>
+
+## Discovered mid-interview
+
+- [ ] <theme that surfaced while grilling>
+```
+
+## Glossary template
+
+`.memory-bank/glossary.md` — one line per interview-resolved term, written by `mb-glossary.sh upsert` (contract C12). Created lazily on the first term; `/mb context` prints a one-line `Glossary:` pointer when it exists.
+
+```markdown
+<term> — <definition>
+```
+
+## Interview transcript template
+
+`context/<topic>-interview.md` — the curated interview transcript for the planner and spec-reviewer (contract C4). Written candidate-first, secret-scanned, and published atomically by `mb-interview-artifact-write.sh publish-transcript`. Grammar validated by `mb-interview-artifact-check.sh transcript`.
+
+```markdown
+# Interview transcript: <topic> (<YYYY-MM-DD>[, <free text>])
+
+## Унаследовано (не обсуждалось повторно)
+
+<inherited decisions — JIT slice interviews only; omit for a root topic>
+
+## Q&A
+
+**Q1 (<tag>).** <question>
+**A1.** <near-verbatim answer> → **D-01**. Отклонено: <none|rejected alternatives>
+
+**Финальный гейт[, круг 1].** Anything to add?
+**Ответ.** <user answer>
+```
+
 ## Context (`context/<topic>.md`) — `/mb discuss` output (Phase 2 SDD)
 
 Captured by the 5-phase requirements-elicitation interview. Source for `mb-traceability-gen.sh` REQ → Plan → Test matrix.
@@ -367,6 +414,19 @@ status: draft | ready
 ## Purpose & Users
 
 Who uses this, what problem does it solve, what are the success criteria?
+
+## Research Digest
+
+Facts gathered in Phase 0, before the interview — each line one fact + citation (`file:line` or URL).
+
+- `scripts/mb-workflow.sh:42` — <fact the recommendation relied on>
+- <https://example.org/spec> — <external prior art / standard>
+
+## Decision Log
+
+Numbered ledger from the interview: what was decided, why, what was rejected.
+
+- **D-01**: <decision> — Rationale: <why>. Rejected: <alternatives and why not>.
 
 ## Functional Requirements (EARS)
 
@@ -396,6 +456,12 @@ What breaks at the boundaries? What happens when dependencies fail?
 ## Out of Scope
 
 Explicitly excluded — to prevent scope creep during planning.
+
+## Open Questions
+
+Deferred or unresolved — `/mb plan` must address or explicitly park each one.
+
+- <question> (blocked on: <what>)
 ```
 
 Validate REQ lines via `bash scripts/mb-ears-validate.sh context/<topic>.md`. Exit 0 = all valid; exit 1 = violations on stderr.

@@ -51,6 +51,16 @@ for file in status.md roadmap.md checklist.md research.md; do
   fi
 done
 
+# Glossary pointer (C10): one line iff `<bank>/glossary.md` is a regular file.
+# Read-only: the file content is never concatenated (NFR-001 token economy);
+# symlinks are skipped like the core files above.
+glossary_path="$MB_PATH/glossary.md"
+if [[ -f "$glossary_path" && ! -L "$glossary_path" ]]; then
+  if mb_canonical_under "$MB_PATH" "$glossary_path" >/dev/null; then
+    echo "Glossary: glossary.md"
+  fi
+fi
+
 # Active plans (not in `done/`)
 if [[ -d "$MB_PATH/plans" ]]; then
   active_plans=$(find "$MB_PATH/plans" -maxdepth 1 -name "*.md" -type f ! -type l 2>/dev/null | sort -r | head -3)

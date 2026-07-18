@@ -8,24 +8,25 @@ version: 1
 
 # ===== Roles — mapping role → agent (plugin-style overrides supported) =====
 roles:
-  # User decision 2026-07-05 (long-running-sessions SEQUENCE): planning is done
-  # by the human-facing Opus main agent; /mb work IMPLEMENTERS run on SONNET,
-  # review is cross-model on CODEX (gpt-5.5), and the JUDGE runs on OPUS.
-  developer: { agent: mb-developer, model: sonnet }
-  backend:   { agent: mb-backend,   model: sonnet, fallback: mb-developer }
-  frontend:  { agent: mb-frontend,  model: sonnet, fallback: mb-developer }
-  ios:       { agent: mb-ios,       model: sonnet, fallback: mb-developer }
-  android:   { agent: mb-android,   model: sonnet, fallback: mb-developer }
+  # User decision 2026-07-18 (goal G-001, исполнение группы sdd-vision-pipeline):
+  # /mb work IMPLEMENTERS run on OPUS, review is cross-model on CODEX
+  # (gpt-5.6-sol, thinking xhigh), the JUDGE runs on FABLE. Supersedes the
+  # 2026-07-05 sonnet/gpt-5.5/opus assignment for the group execution.
+  developer: { agent: mb-developer, model: opus }
+  backend:   { agent: mb-backend,   model: opus, fallback: mb-developer }
+  frontend:  { agent: mb-frontend,  model: opus, fallback: mb-developer }
+  ios:       { agent: mb-ios,       model: opus, fallback: mb-developer }
+  android:   { agent: mb-android,   model: opus, fallback: mb-developer }
   planner:   { agent: mb-architect }
-  architect: { agent: mb-architect, model: sonnet }
+  architect: { agent: mb-architect, model: opus }
   researcher: { agent: mb-researcher, fallback: mb-analyst }
-  devops:    { agent: mb-devops,    model: sonnet, fallback: mb-developer }
-  qa:        { agent: mb-qa,        model: sonnet, fallback: mb-developer }
+  devops:    { agent: mb-devops,    model: opus, fallback: mb-developer }
+  qa:        { agent: mb-qa,        model: opus, fallback: mb-developer }
   analyst:   { agent: mb-analyst }
   # DUAL parallel review (codex-cli + main-agent inline); judge = mb-judge.
   reviewer:
     agent: codex-cli
-    model: gpt-5.5
+    model: gpt-5.6-sol
     thinking: xhigh
     parallel_with: main-agent
   reviewer_logic:       { agent: mb-reviewer-logic }
@@ -34,7 +35,7 @@ roles:
   reviewer_security:    { agent: mb-reviewer-security }
   reviewer_scalability: { agent: mb-reviewer-scalability }
   reviewer_lead:        { agent: mb-reviewer-lead }
-  judge:                { agent: mb-judge, model: opus }
+  judge:                { agent: mb-judge, model: fable }
   verifier:  { agent: plan-verifier }
 
 # ===== Workflow modes for /mb work =====

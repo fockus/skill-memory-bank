@@ -691,6 +691,14 @@ A: Yes. Current stable line is **v5.2.0** (released 2026-06-28) — see [CHANGEL
 
 ---
 
+## Credits
+
+Several `/mb discuss` and `/mb work` patterns are adapted from
+[mattpocock/skills](https://github.com/mattpocock/skills) (MIT) — the grilling
+interview rules, the red-capable eval gate, tracer-bullet/DAG execution, the
+triage state machine, and the per-role agent briefs. The future `/mb docs`
+command follows Andrej Karpathy's LLM-wiki gist for incremental wiki generation.
+
 ## Contributing
 
 1. Fork & clone.

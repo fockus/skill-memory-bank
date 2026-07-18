@@ -118,7 +118,11 @@ TASKS_FILE="$SPEC_DIR/tasks.md"
 # ─────────────────────────────────────────────────────────────────────────────
 
 VIOLATIONS_FILE=$(mktemp -t mb-spec-validate.XXXXXX)
-trap 'rm -f "$VIOLATIONS_FILE"' EXIT
+WAIVERS_FILE=$(mktemp -t mb-spec-validate-waivers.XXXXXX)
+trap 'rm -f "$VIOLATIONS_FILE" "$WAIVERS_FILE"' EXIT
+
+DESIGN_FILE="$SPEC_DIR/design.md"
+SPECS_ROOT=$(dirname "$SPEC_DIR")
 
 record_violation() {
   printf '%s\n' "$1" >>"$VIOLATIONS_FILE"
@@ -149,7 +153,15 @@ TASKS_JSONL=""
 if [ ! -f "$TASKS_FILE" ]; then
   record_violation "tasks.md missing in $SPEC_DIR"
 else
-  if ! TASKS_JSONL=$(python3 "$WORK_ITEMS_SCRIPT" "$TASKS_FILE" 2>&1); then
+  PARSE_EXIT=0
+  TASKS_JSONL=$(python3 "$WORK_ITEMS_SCRIPT" "$TASKS_FILE" 2>&1) || PARSE_EXIT=$?
+  if [ "$PARSE_EXIT" -eq 2 ]; then
+    # Malformed v2 field (e.g. restricted-glob Scope violation, R3-004): a
+    # structural/format error, surfaced as usage exit 2 — not a content
+    # violation. The accepted tasks.md is left untouched.
+    printf '[spec-validate] tasks.md malformed field: %s\n' "${TASKS_JSONL//$'\n'/ | }" >&2
+    exit 2
+  elif [ "$PARSE_EXIT" -ne 0 ]; then
     record_violation "tasks.md unparseable: ${TASKS_JSONL//$'\n'/ | }"
     TASKS_JSONL=""
   fi
@@ -323,6 +335,203 @@ for req in sorted(req_ids):
     if req not in covered:
         print(f"{req} has no covering test (--require-tests)")
 PY
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Checks 10-16: tasks.md v2 / C8 battery gates.
+#   Blocked-by cycle (REQ-052) runs on every spec. The Eval/waiver/seam/role/
+#   parity/cross-spec/byte-identity gates run only when the spec uses the Eval
+#   feature (≥1 **Eval:** field) — legacy specs gain zero new errors (D-26).
+# ─────────────────────────────────────────────────────────────────────────────
+
+if [ -n "$TASKS_JSONL" ] && [ -f "$REQ_FILE" ]; then
+  TASKS_DATA="$TASKS_JSONL" REQ_PATH="$REQ_FILE" DESIGN_PATH="$DESIGN_FILE" \
+    SPECS_ROOT="$SPECS_ROOT" WAIVERS_FILE="$WAIVERS_FILE" MB_SCRIPT_DIR="$SCRIPT_DIR" \
+    python3 - >>"$VIOLATIONS_FILE" <<'PY'
+import json, os, re, sys
+sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
+import mb_req_id as rq
+
+def read(p):
+    return open(p, encoding="utf-8").read() if p and os.path.exists(p) else ""
+
+tasks = []
+for line in os.environ.get("TASKS_DATA", "").splitlines():
+    line = line.strip()
+    if line:
+        try:
+            tasks.append(json.loads(line))
+        except json.JSONDecodeError:
+            pass
+req_text = read(os.environ.get("REQ_PATH", ""))
+design_text = read(os.environ.get("DESIGN_PATH", ""))
+specs_root = os.environ.get("SPECS_ROOT", "")
+
+def covers_of(t):
+    return set(rq.extract_req_ids(", ".join(str(c) for c in t.get("covers") or [])))
+
+# Check 10 — Blocked-by cycle (REQ-052), always on (legacy chains are linear).
+graph = {t["item_no"]: [int(b) for b in t.get("blocked_by", []) if str(b).isdigit()] for t in tasks}
+color = {n: 0 for n in graph}
+found = {"path": None}
+def dfs(u, stack):
+    color[u] = 1; stack.append(u)
+    for v in graph.get(u, []):
+        if v not in graph:
+            continue
+        if color[v] == 1:
+            found["path"] = stack[stack.index(v):] + [v]; return True
+        if color[v] == 0 and dfs(v, stack):
+            return True
+    color[u] = 2; stack.pop(); return False
+for n in list(graph):
+    if color[n] == 0 and dfs(n, []):
+        break
+if found["path"]:
+    print("REQ-052: Blocked-by cycle: " + " -> ".join(str(x) for x in found["path"]))
+
+# The remaining gates apply only to specs using the Eval feature. A legacy spec
+# (no **Eval:** field) has gated reqs but no evals/seams/§Eval, so running them
+# would flag every legacy req — guard the whole battery so it never runs there.
+def run_v2_gates():
+    # gated = defined REQ carrying a SHALL/MUST modal.
+    all_defs = set(rq.find_definitions(req_text))
+    gated = set()
+    for ln in req_text.splitlines():
+        if re.search(r"\b(shall|must)\b", ln, re.I):
+            gated |= {r for r in rq.extract_req_ids(ln) if r in all_defs}
+
+    # Checks 11-13 — per-task Eval/waiver/anchor gates.
+    eval_covered = set()
+    waivers = []
+    for t in tasks:
+        no = t["item_no"]; ev = t.get("eval"); cov = covers_of(t)
+        is_gated = bool(cov & gated)
+        if ev is None:
+            continue
+        if ev.get("cmd") == "none":
+            w = ev.get("waiver")
+            if is_gated:
+                print(f"REQ-007: task {no} declares Eval: none but covers gated {sorted(cov & gated)}")
+            elif w is None:
+                print(f"REQ-049: task {no} declares Eval: none without a structural Eval or a waiver")
+            elif not w.strip():
+                print(f"REQ-050: task {no} declares a waiver with an empty reason")
+            else:
+                waivers.append((no, w.strip()))
+            continue
+        eval_covered |= cov
+        if not (ev.get("red") or "").strip():
+            print(f"task {no} Eval declaration is missing a non-empty red: prose")
+        ore = ev.get("output_re")
+        if is_gated and not ore:
+            print(f"REQ-055: task {no} covers a gated req but its Eval has no output~: anchor (exit-only rejected)")
+        if ore:
+            try:
+                re.compile(ore)
+            except re.error as exc:
+                print(f"task {no} Eval output~: is not a valid ERE: {exc}")
+        for tok in (ev.get("cmd") or "").split():
+            if tok.startswith("/") and "/" in tok:
+                print(f"task {no} Eval target is not repo-relative: {tok}")
+
+    # Check 14 — REQ-006 Eval-coverage per gated req (scenario layer = --require-scenarios).
+    for req in sorted(gated - eval_covered):
+        print(f"REQ-006: gated {req} has no covering Eval declaration")
+
+    # Check 15a — CPR-D: design.md §Eval line byte-identical (backtick/indent-normalized) to tasks.md.
+    def norm_eval(s):
+        return s.strip().lstrip("- ").replace("`", "").strip()
+    d_eval = {}; cur = None
+    for ln in design_text.splitlines():
+        m = re.match(r"^- \*\*T(\d+)\*\*", ln)
+        if m:
+            cur = int(m.group(1))
+        elif cur is not None and "**Eval:**" in ln:
+            d_eval[cur] = norm_eval(ln); cur = None
+    if d_eval:
+        t_eval = {}
+        for t in tasks:
+            for bl in (t.get("body") or "").splitlines():
+                if bl.strip().startswith("**Eval:**"):
+                    t_eval[t["item_no"]] = norm_eval(bl); break
+        for n in sorted(d_eval):
+            if d_eval[n] != t_eval.get(n):
+                print(f"CPR-D: design.md Eval for T{n} is not byte-identical to task {n} in tasks.md")
+
+    # Check 15b — seam gate (REQ-051 / C9): >=2 seams need a non-empty rationale. Skip code fences.
+    lines = design_text.splitlines(); in_fence = False; i = 0
+    while i < len(lines):
+        s = lines[i].strip()
+        if s.startswith("```"):
+            in_fence = not in_fence; i += 1; continue
+        if not in_fence and s.startswith("**Seams:**"):
+            j = i + 1; seams = []; rationale = None
+            while j < len(lines):
+                sj = lines[j].strip()
+                if sj.startswith("- "):
+                    seams.append(sj[2:].strip()); j += 1; continue
+                if sj.startswith("**Seam rationale:**"):
+                    rationale = sj.split(":**", 1)[1].strip(); j += 1
+                break
+            if len(seams) >= 2 and not rationale:
+                print(f"REQ-051: {len(seams)} seams declared without a Seam rationale")
+            i = j; continue
+        i += 1
+
+    # Check 16a — scenario parity + ASCII names (C8.2).
+    headings = re.findall(r"^### Scenario:\s*(.+?)\s*$", req_text, re.M)
+    markers = re.findall(r"^<!--\s*mb-scenario:\d+\s*-->\s*$", req_text, re.M)
+    if len(headings) != len(markers):
+        print(f"C8.2: scenario parity mismatch — {len(headings)} '### Scenario:' headings vs {len(markers)} markers")
+    for h in headings:
+        if any(ord(c) > 127 for c in h):
+            print(f"C8.2: scenario name is not ASCII: {h!r}")
+
+    # Check 16b — role resolution (C8.3): bare dev role required.
+    roles = {"backend", "frontend", "developer", "qa", "architect", "ios", "android", "devops", "analyst"}
+    for t in tasks:
+        role = t.get("role", ""); no = t["item_no"]
+        if role.startswith("mb-"):
+            print(f"C8.3: task {no} Role '{role}' must be bare — use '{role[3:]}' not '{role}'")
+        elif role not in roles:
+            print(f"C8.3: task {no} Role '{role}' is not a known dev role")
+
+    # Check 16c — cross-spec Blocked-by resolution (C8.5).
+    if specs_root and os.path.isdir(specs_root):
+        cache = {}
+        def task_nums(topic):
+            if topic not in cache:
+                p = os.path.join(specs_root, topic, "tasks.md")
+                cache[topic] = set(re.findall(r"<!--\s*mb-task:(\d+)\s*-->", read(p))) if os.path.exists(p) else None
+            return cache[topic]
+        for t in tasks:
+            no = t["item_no"]
+            for b in t.get("blocked_by", []):
+                if "#" in str(b):
+                    topic, num = str(b).split("#", 1)
+                    nums = task_nums(topic)
+                    if nums is None:
+                        print(f"C8.5: task {no} Blocked-by '{b}' references unknown spec '{topic}'")
+                    elif num not in nums:
+                        print(f"C8.5: task {no} Blocked-by '{b}' — spec '{topic}' has no task {num}")
+
+    wf = os.environ.get("WAIVERS_FILE", "")
+    if waivers and wf:
+        with open(wf, "a", encoding="utf-8") as fh:
+            for no, reason in waivers:
+                fh.write(f"task {no}: {reason}\n")
+
+if any(t.get("eval") is not None for t in tasks):
+    run_v2_gates()
+PY
+fi
+
+# Accepted waivers are visible in the output even on a clean run (REQ-050).
+if [ -s "$WAIVERS_FILE" ]; then
+  while IFS= read -r wline; do
+    [ -n "$wline" ] && printf '[spec-validate] accepted-waiver: %s\n' "$wline" >&2
+  done <"$WAIVERS_FILE"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,1468 @@
+{
+  "adapter-parity": [
+    {
+      "item_no": 1,
+      "sha256": "176831eed4693cbfdf5ffc52619611c6c66a95912b5c435497186650d30829af"
+    },
+    {
+      "item_no": 2,
+      "sha256": "4f9e77edded985213a9131c5e67ef76578b46b2bd6c17f7e640291aee35c84d5"
+    },
+    {
+      "item_no": 3,
+      "sha256": "0889628a0c1909b7046eb365c0ddc41fe477d093a25293f309cc5f2b8d2fac25"
+    },
+    {
+      "item_no": 4,
+      "sha256": "47c1157e28b9ab3b0828a06c7c027e8a29f1f8deb118ca974dc7eb4b109205df"
+    },
+    {
+      "item_no": 5,
+      "sha256": "280f507aa0dc34646be7ea5742abb1e0ad8da78288eb73af54c971e90b37391c"
+    },
+    {
+      "item_no": 6,
+      "sha256": "98051517a79696cb92e6ab3381eb99b8e10813f9320d1c72adea7ed8b3d21c2c"
+    },
+    {
+      "item_no": 7,
+      "sha256": "ab69594feb55cb330f37d670e08514fd42cc191c581b19a417e907502f406510"
+    },
+    {
+      "item_no": 8,
+      "sha256": "cc26e6b8fa8b8d52cf53b9e01403a6fab5f8923fa7193b8df58bfcc37d0e7601"
+    }
+  ],
+  "agreements": [
+    {
+      "item_no": 1,
+      "sha256": "4bcf4e826b742821c6ed29fca259f5fff5e6c7021f104a3b77c87e2f77a22f1d"
+    },
+    {
+      "item_no": 2,
+      "sha256": "31215fc37103d2c2c6f2b6b5f7f3cc234acaea43d2788d13fc56adfb584db646"
+    },
+    {
+      "item_no": 3,
+      "sha256": "b271e0e281e95b0643712899ee2dd2abb79764ae73d064b754b9ce6ae6592db7"
+    },
+    {
+      "item_no": 4,
+      "sha256": "ad1826ee16e558e76a4fc173591ea57c66267e83839c35b031b62b4c106f5489"
+    },
+    {
+      "item_no": 5,
+      "sha256": "cfa81901c2ce6092e9a4e44597ef46ed4ce084608d3ce517620cea3e90b135e1"
+    },
+    {
+      "item_no": 6,
+      "sha256": "84fe152c1d908edf4bf0102e77187377237f7a9a89a457a2e96f7fe7a302a40b"
+    },
+    {
+      "item_no": 7,
+      "sha256": "53c4d1e9c26929264f72c11a6105fed217e6ad2ed3368277ca5a908efea94404"
+    },
+    {
+      "item_no": 8,
+      "sha256": "32f00f5e41eb0531bba887e60762d80e67a3c1a811ffe740c1002a1c3be32a25"
+    }
+  ],
+  "composable-work-pipeline": [
+    {
+      "item_no": 1,
+      "sha256": "c9e4d178c14d864efdb7d6630568553079a101b0031a4ce812d84249a0b04ac5"
+    },
+    {
+      "item_no": 2,
+      "sha256": "e687a5bf2cbdbf9d99ec4d64970d2e5d6e2f37bd8a9966c8ead2da88c32b0d09"
+    },
+    {
+      "item_no": 3,
+      "sha256": "7aa20e1bc5675ebb71fb54220c8dc7d1ce4cabf5575701b81444e1e3d15e37c5"
+    },
+    {
+      "item_no": 4,
+      "sha256": "aa91b8a1bff93ba28a3b110d03c8b6a7bc4f7f2c87c5e28372bc5f25f6e1fed7"
+    },
+    {
+      "item_no": 5,
+      "sha256": "62b287f8c4122aa8dcbcba707d19bfabba47720b7493d1115b9b9b1cdaceaf6a"
+    },
+    {
+      "item_no": 6,
+      "sha256": "83b2fa879b54f7f164cc10962c9e8f41a2d856e20953cba272d908dc5cc0f3d6"
+    },
+    {
+      "item_no": 7,
+      "sha256": "c2c6b861b6379582579f3ae7e8c46580a7fcfb590efbcb53f12d52fa64285803"
+    }
+  ],
+  "cost-multi-model": [
+    {
+      "item_no": 1,
+      "sha256": "bdc25ea1fe828f96d0dd0efd896824083fb09e81de187fa28e4c7bf5b281690e"
+    },
+    {
+      "item_no": 2,
+      "sha256": "18814972698393f83b8b5980339ee80b0d33259ffc0f23e67de7d95aa7d88b3f"
+    },
+    {
+      "item_no": 3,
+      "sha256": "93e04939ac919db61c025a0ee722f81f8127d3bfd7d5ec4ea16293c42a28c9fb"
+    },
+    {
+      "item_no": 4,
+      "sha256": "6e513a200ab10786fcc5b01e03e27d89eaa34caee8e747823faf94fda46199fb"
+    }
+  ],
+  "cursor-extension": [
+    {
+      "item_no": 1,
+      "sha256": "608ed86354d92b258405aa1a15b4a111815ee7baf259f06c5e11e65f7532c000"
+    },
+    {
+      "item_no": 2,
+      "sha256": "51ad3a4a4e8437c42bb69135f552f0573b2073ad1dc79085867fb1bf2ffc5cba"
+    },
+    {
+      "item_no": 3,
+      "sha256": "2e6a0a0006c3e5bf63f25e18f69bdb2beab8da03360dece0be5bfcbe584779e3"
+    },
+    {
+      "item_no": 4,
+      "sha256": "93ee8a8a5de458b3c8c7ad94956cbc12b1f214e80ea69b9e61cf084d8a536c37"
+    },
+    {
+      "item_no": 5,
+      "sha256": "d48bab655396c5501e6ecf845ffd786c7289b3a92ed452b72a509193d4ee3a72"
+    },
+    {
+      "item_no": 6,
+      "sha256": "ab9edc916760c5b203209aafaa2fd227ba53d9cc87e0e9b5ba17bb04a2be79c4"
+    },
+    {
+      "item_no": 7,
+      "sha256": "9d551eee4159bdb63a31b0a444ccb0b60883a8ccee6a756e8ed3826f9bb6273f"
+    },
+    {
+      "item_no": 8,
+      "sha256": "d9bede0ea63c718c52523a47ea21338818499db555efd4cf3bdf0a62aeb8b820"
+    },
+    {
+      "item_no": 9,
+      "sha256": "e5772dc1f8538668992397570a8d2699ccca9318313c5b53948858b4cfbd3b96"
+    }
+  ],
+  "drive-loop": [
+    {
+      "item_no": 1,
+      "sha256": "0aae5a420988927718dd6c378cff63196bdbe6dde75b202af9dc5db204668236"
+    },
+    {
+      "item_no": 2,
+      "sha256": "40c465720f95cc4ddd64688eb91100d84cac6ce8ebd1da3ccb421875ee1f4af5"
+    },
+    {
+      "item_no": 3,
+      "sha256": "adde382dff513d91dc186769e4554bce8dccfd2f1aa1400b0f2ec6f47a27873e"
+    },
+    {
+      "item_no": 4,
+      "sha256": "ce4026cc81893795a6f5566e62cca44c6df5b52cd7c340613d97c97eb3550aec"
+    },
+    {
+      "item_no": 5,
+      "sha256": "8ae1ab8184ea0250383ff4f2bfb25bdd81387b03760ae613730c16d162fc38d4"
+    }
+  ],
+  "dynamic-flow": [
+    {
+      "item_no": 1,
+      "sha256": "bf2170c94116cf56002280198bf199679acd453f0971dd9c67d6957ac063f54b"
+    },
+    {
+      "item_no": 2,
+      "sha256": "fa9bf3c10a987df681462e231aca9137a4ac42ab05d1c23d8c50929f8e910fdc"
+    },
+    {
+      "item_no": 3,
+      "sha256": "c576ba391d9a823a92bafdf7b70dd0b6131eb5fc5b151f2002a57067def95955"
+    },
+    {
+      "item_no": 4,
+      "sha256": "671f31fa35c16b01371cb781cf8ddba37613a193854b8acd3c0689be862eec68"
+    },
+    {
+      "item_no": 5,
+      "sha256": "3035a94c2d2638e7ea19f45f7e8ca9a0f8ffa53c07cc07ad06fc70862e24e1a6"
+    },
+    {
+      "item_no": 6,
+      "sha256": "21f43db34f8b0e37b2dd3cb138c4d1db48bf02fcf12922f9dfe4e07eb2ba0d42"
+    },
+    {
+      "item_no": 7,
+      "sha256": "c7a53c263cc84dd939e8f736b0337d407b2449aa86247432b31030977a56883e"
+    },
+    {
+      "item_no": 8,
+      "sha256": "e04fe807a6ce0369476e29b76210aae88b3a28de3b4b2da42fdb2bf4df3e5868"
+    },
+    {
+      "item_no": 9,
+      "sha256": "0770bdc0ee70a6a36480024229f421757529fa34431dd578c71810735f875d61"
+    },
+    {
+      "item_no": 10,
+      "sha256": "9dfbef333ead45fb09d40c521994c56ae61d4952f7322523e045b2766a4cfdfa"
+    },
+    {
+      "item_no": 11,
+      "sha256": "044edc43ce919098d1db475da10459f7681505ca39ad1d174b1d6bc880c78bdc"
+    },
+    {
+      "item_no": 12,
+      "sha256": "3545cd9701805223cace4f2b100dfc6ee06c64f4024f8e5991767e652301198a"
+    },
+    {
+      "item_no": 13,
+      "sha256": "44636f9e9d373f6a6a411c5f59178a5660f3fb515d2b20f8bf81b768a108dbfb"
+    },
+    {
+      "item_no": 14,
+      "sha256": "e4b189f518db1a2321dc85a7254fb6de80ecc3baa84c2b8f3e3b2bb7a71fbd24"
+    }
+  ],
+  "handoff-v2": [
+    {
+      "item_no": 1,
+      "sha256": "156fa8406b825432c102525876be7c44b62d9132dd018045777ea54b0f3223dd"
+    },
+    {
+      "item_no": 2,
+      "sha256": "24561d4f8807562cc557edaef36afcfc7d6369f6a17b175328c4c703c3809a1c"
+    },
+    {
+      "item_no": 3,
+      "sha256": "765dc299ef2609df754c229cb871a8f6c57fe75accf7534efc76ce4b54c649fa"
+    },
+    {
+      "item_no": 4,
+      "sha256": "fe3b296fe49004e3f92fbbe00890d307454f909ec72491f049935e982d518599"
+    },
+    {
+      "item_no": 5,
+      "sha256": "a3a6168bf8113b11bdc3049eb2a5f88d21fd3d0cc5a4b76b52e47f2126281420"
+    }
+  ],
+  "mb-donor-evolution": [
+    {
+      "item_no": 1,
+      "sha256": "9d2b2c9c308a628cbffc33339ec890d99f2bda009f06ae60b9a1a4952417227e"
+    },
+    {
+      "item_no": 2,
+      "sha256": "59e45c3647c07a5a7360a0a292236155ec0b0228ef388172bea19ac44fe1cdb7"
+    },
+    {
+      "item_no": 3,
+      "sha256": "0649e74a7519685930cc57af2b26cd60505be899360a66ad60591de043974cfd"
+    },
+    {
+      "item_no": 4,
+      "sha256": "0ff6ea4546760ca8415dcbfe517c82b4a3c1f0e65d8ef6be6c203436774bc1c3"
+    },
+    {
+      "item_no": 5,
+      "sha256": "2e0a087e071bd5c30b22b061c02149280d8a71318317590a7ee4771855c1ed22"
+    },
+    {
+      "item_no": 6,
+      "sha256": "cbafb4f3ff47b4a993bd06051c4915e24ff400db2cf74ed45a3764cf9d590824"
+    },
+    {
+      "item_no": 7,
+      "sha256": "d403cc9413310f9a03b951126b43ad47d6daa445a821fbbdeeae2e6afadb5e27"
+    },
+    {
+      "item_no": 8,
+      "sha256": "d61b9d7fc7be2b324f5f94423c2b0f5d6132e8b369ca53c63dffd587c5fafb7d"
+    },
+    {
+      "item_no": 9,
+      "sha256": "74f97f6795fd423eeadb8bac7621a0ef8b3859e2975a8ee74eb0527271f7da05"
+    },
+    {
+      "item_no": 10,
+      "sha256": "aff258707439f3e2ed82dd9e41b4d19b62a7f44665f6d881f9ee705f8a1fbff1"
+    },
+    {
+      "item_no": 11,
+      "sha256": "d228729b106e38e5241268b99e142dc1678c730f290e864ee7355aec0b74cf33"
+    },
+    {
+      "item_no": 12,
+      "sha256": "6f40915b78fd177ced53a0c3bb988e6835a322257b8d35084f2931c5473311e4"
+    },
+    {
+      "item_no": 13,
+      "sha256": "4922c970d21e8a45513aebd147cc52c98d75f9705e05b222b986cd9a95226643"
+    },
+    {
+      "item_no": 14,
+      "sha256": "15a83cd9360de71d0c478bfae3bb7fcc013be7fe13f80fe05592d60b5a7b020a"
+    },
+    {
+      "item_no": 15,
+      "sha256": "63256bb634a03fee170f56d8a3f41ad4114cf5f1b43070fc25119813cc4a7022"
+    },
+    {
+      "item_no": 16,
+      "sha256": "6eccbd78fe64f8a79272860ca439e189a0591e7899848b777ef74bdc19130294"
+    },
+    {
+      "item_no": 17,
+      "sha256": "38e6caeacd3ab739aa9c1b1116389d89378c0695fc0e0c6ed228d1855416c2d6"
+    },
+    {
+      "item_no": 18,
+      "sha256": "9d50551b87702e9c1b756ce2f709ef5025b45fdc9ccd58c38589ccc2b24e057f"
+    },
+    {
+      "item_no": 19,
+      "sha256": "144998651dffa1336e16e4b9c9018cce096d5316186efd4a4ad3028b8c254e53"
+    },
+    {
+      "item_no": 20,
+      "sha256": "f58122843f570e1d0510dd78f01ec0ef7f70b5b3b79dc89e7d17a4ca49c1f871"
+    },
+    {
+      "item_no": 21,
+      "sha256": "0e69e7251df0f89e982989b38cdef1f641f9b6ab5ef8d13c6d096c01ef32e003"
+    },
+    {
+      "item_no": 22,
+      "sha256": "e369a5328e8a85746e203b5455f7bfc9f01e5264ebc564b12942d65ff2f071f5"
+    },
+    {
+      "item_no": 23,
+      "sha256": "7a7f756761c18b19fab83840a9940d9789ba30fd4875a880515b7b7ef12c7753"
+    },
+    {
+      "item_no": 24,
+      "sha256": "e467de7d957d0ce955fdefd81ef06e538f3aaa8c9ad9214c1a4d75121d233727"
+    },
+    {
+      "item_no": 25,
+      "sha256": "d35d788244334c96111c926e429d0248aa384e50c91e764ea836fada28934ac7"
+    },
+    {
+      "item_no": 26,
+      "sha256": "8a6689064f5898c54639dcd9b275ac874067dfbffbdd41bf2e03df4fa6d34d84"
+    },
+    {
+      "item_no": 27,
+      "sha256": "e81617a5ac6bed4fa603fed2d5892110708df0764f4009f66de5485bbece9827"
+    },
+    {
+      "item_no": 28,
+      "sha256": "8b735b8917f9009b2881d5185af353e2f750332232607e65486820f514f9731a"
+    },
+    {
+      "item_no": 29,
+      "sha256": "22a53b4640e431feec0919935690ee218d2de099ca0f3b7ad50034f2fb72e4dd"
+    },
+    {
+      "item_no": 30,
+      "sha256": "63a9c8acfaf408c2cac36fbbfae29412aadd3a580650613ede904b6e43820687"
+    },
+    {
+      "item_no": 31,
+      "sha256": "22468e252c261fc71035d3a9d7d0599ba5c41f8169af563a6cd1574742ae498f"
+    },
+    {
+      "item_no": 32,
+      "sha256": "571511fa5e38dbb4ee248ef82ddff928be330817dee83c843b4a03cc0c45161a"
+    },
+    {
+      "item_no": 33,
+      "sha256": "4eab99651f203bf2256e474f41f8dd574612b825ee07a15a254e6e47e405ea34"
+    },
+    {
+      "item_no": 34,
+      "sha256": "44b23e508b935261ea00eba71f0f625f01b36a8c66932e1121ba6fbbc7848a0c"
+    },
+    {
+      "item_no": 35,
+      "sha256": "a1c6790bcbddf55ac04b5a9b027a213b0fd860c6ed71641f29d2994197619d17"
+    },
+    {
+      "item_no": 36,
+      "sha256": "2e67705aaba38b6041c9229ff9738f3f4c3fa0efc1fe9dbc91d929d03a7db4a5"
+    },
+    {
+      "item_no": 37,
+      "sha256": "7db62b1f9abf1c0f16dc431cf093acff8ce60f053d607e2864358c72f812e394"
+    },
+    {
+      "item_no": 38,
+      "sha256": "a562629ca09f8882311866bb7194cd87646fce47e0274a027a54b9ba32ae7e81"
+    },
+    {
+      "item_no": 39,
+      "sha256": "59db00fd8b89a9eef0f8489d94b4fdea5a037fa67bde4f96abbed116193bddbb"
+    },
+    {
+      "item_no": 40,
+      "sha256": "0a391aa2a841ab6193b07257628bf802a1f494d9501f0017d326b98e4d93e7e9"
+    },
+    {
+      "item_no": 41,
+      "sha256": "7af2e5976f9b0f4324696e20c2e93ac8155ee332fa361321c1403923691dbb93"
+    },
+    {
+      "item_no": 42,
+      "sha256": "89d6a2c083872c3e463d1eef8d5287b358245079dd6ee1d536b11031e5a0e089"
+    },
+    {
+      "item_no": 43,
+      "sha256": "b3bf6243628bbbd084a26c58199c5bfb80fab63691df23eea862448745c357ce"
+    },
+    {
+      "item_no": 44,
+      "sha256": "c10bc55a44a27b70c8d041577903ede9f82b70fbeb188038274b16b44c9a0385"
+    },
+    {
+      "item_no": 45,
+      "sha256": "f9a00b85bf4782a6854b546b8f54bf6bb7e51789472ba262fd4ccff2c9becc83"
+    },
+    {
+      "item_no": 46,
+      "sha256": "56dd83030edbd11003845a6bd4d64e49d98e6bfbc3faa4222c278c7ad09574c8"
+    },
+    {
+      "item_no": 47,
+      "sha256": "d04f56377c32e9ac0d899886eaf376c559c6ac67d50250b92aae05bf94857309"
+    },
+    {
+      "item_no": 48,
+      "sha256": "563e2e83a9279da911230530ebbf430c80e0722cae46eb62e0afe98e5f09720d"
+    },
+    {
+      "item_no": 49,
+      "sha256": "1b3ef6ebc4a534520baef5731fc79d4a730a202eb7546985e314ff3714a4667e"
+    },
+    {
+      "item_no": 50,
+      "sha256": "ac28657a3ebc724f8f2ad9a2172e2a1fa7f5d63de35cfa04ce317bb52d07e63b"
+    },
+    {
+      "item_no": 51,
+      "sha256": "58624545737d0ef6259300796da48eba64ae28f429bdb9d9ab3e3566c7d0557a"
+    },
+    {
+      "item_no": 52,
+      "sha256": "7ec6fb3fc1ca6de1136ce685cfa833bb0508e380ea91fa465f0b36e18bb11cd5"
+    },
+    {
+      "item_no": 53,
+      "sha256": "31c81cc72e4baef4cefa52ec4995222a7fbf20521c5d270ee4fc5c3acf93c25a"
+    },
+    {
+      "item_no": 54,
+      "sha256": "ed4b6ef7e2e0c061c4f3541f668b4fd0a7b2b70ef9c19d917f53a2f8e9da17aa"
+    },
+    {
+      "item_no": 55,
+      "sha256": "f87de6a7ced9781b6a460261323b9dc465308ab08590d3bbced0ced8082b7dd1"
+    },
+    {
+      "item_no": 56,
+      "sha256": "2f37d97ad1760f9026b4a9a34e79ff4c00ff082b0d9f373ea0c8e86fa1c0ea67"
+    },
+    {
+      "item_no": 57,
+      "sha256": "06c38e4fa2f2578cac6e04dcdc0d96cc066444efa43b42228909db201a56a278"
+    },
+    {
+      "item_no": 58,
+      "sha256": "263e3df7adff88a1d32bdf60acc12e29def511582e172b2f4b755127fa0c8824"
+    },
+    {
+      "item_no": 59,
+      "sha256": "0833e162ba95c82e5e964ce91677a99719a6d771eb98c315de61172afe564880"
+    },
+    {
+      "item_no": 60,
+      "sha256": "9be4545ab4d41cab0d03900248eee9a5dbe17f3f10bbb7d73a885a1b5301f602"
+    },
+    {
+      "item_no": 61,
+      "sha256": "43266e849961dc2de69c68b94e3d093667b7692ec0705d2cf171ecfb7daed3c0"
+    },
+    {
+      "item_no": 62,
+      "sha256": "e5240e973749104a43ba97181194a93592273558566a0d14e59c9d7ef7ed785f"
+    },
+    {
+      "item_no": 63,
+      "sha256": "5cf2c356ee18007a6e67691d725deb5db42a4f8e7d8f81da38c833abf87e9e03"
+    },
+    {
+      "item_no": 64,
+      "sha256": "586b45003e2279530e51aaece56d6ea6ed6ce3d2d3f7e906b178da068a839c3c"
+    },
+    {
+      "item_no": 65,
+      "sha256": "55a1aee059ced8273bf1f69ba3185ce24d34ff025662fc51d970c58e52d58e73"
+    },
+    {
+      "item_no": 66,
+      "sha256": "ad370b20c8b20f95370b3e8b054ca146f9fd271e5529a2327144795a40d25bae"
+    },
+    {
+      "item_no": 67,
+      "sha256": "be4e7eb38eb773b5f5fe0665c319eee1d7c76d0acc6b0fc0e465962f89e1b191"
+    },
+    {
+      "item_no": 68,
+      "sha256": "2ac24d34d1d867af3b4f12c6d273d52c9df13547d3833043b906686786ca8774"
+    },
+    {
+      "item_no": 69,
+      "sha256": "7864d0374ac64fdf7fe299d3a5bac4ce86959513cd018b68fde8d48be05b7e1d"
+    },
+    {
+      "item_no": 70,
+      "sha256": "b2ef42ed42b6b1783596218614a591b6c1aa0046496edebc708bc711ff7891a2"
+    },
+    {
+      "item_no": 71,
+      "sha256": "e4cbdb99a5e6ee2b9a1ceb24cf86250429e79c38b65fb2b979ba3a069c730593"
+    },
+    {
+      "item_no": 72,
+      "sha256": "324a94132708923bbe5b88a56ee05c46b7c22f9b14305ab3e6ca8dfcfd009672"
+    },
+    {
+      "item_no": 73,
+      "sha256": "f76c9147bb08e97fee93d1dfb41526213df0bc8214124f1a8c063b3d145eaab7"
+    },
+    {
+      "item_no": 74,
+      "sha256": "30832aa558626abdbc1887785db69a1c12a08b2a900e008ef0c485e7e8f57295"
+    },
+    {
+      "item_no": 75,
+      "sha256": "f1471c3776d632de86258d6ee8c77c91b071b0ed142e33053c956f1711206a0e"
+    },
+    {
+      "item_no": 76,
+      "sha256": "b88d9eff31e33ac9ff08a9d375a57d98974bd0f2c2b431161ede1d03f22c8135"
+    },
+    {
+      "item_no": 77,
+      "sha256": "12c1d40e0854a94bb66e1af78b53c01cff602fbf2687305cb9691be16918bd66"
+    },
+    {
+      "item_no": 78,
+      "sha256": "059d7316723f3246f3fdb68750a40fffe107c5f64adfc6f214d47a63d238fdaa"
+    },
+    {
+      "item_no": 79,
+      "sha256": "ea55c3161c92585caa793c288517ae5e0afee18f927cdfaea11357177c41be76"
+    },
+    {
+      "item_no": 80,
+      "sha256": "4bcd665cc59a265f78d5c850733b49da3fbde6e45eb1e094a21f34e541359aee"
+    },
+    {
+      "item_no": 81,
+      "sha256": "42f6bd5ef4609b44cd87bfd5c5402998f6e717f190e94d7a009e55b213893e46"
+    },
+    {
+      "item_no": 82,
+      "sha256": "05331773a5b52b33ca2f00cd2355dbca669a7d673ba30dce069f4e38ca3a1d62"
+    },
+    {
+      "item_no": 83,
+      "sha256": "f16e5b01eac6e7702fdd0587585c9fb508bc7b060983e54f3bd612a5bccd05db"
+    },
+    {
+      "item_no": 84,
+      "sha256": "fe341569d7e4066286d2780384341534f5fe2b8761b8b2d6ee57c9e8b9d35899"
+    },
+    {
+      "item_no": 85,
+      "sha256": "4999051dfa07d11e6fc1ca5f28d2cf794d13d4b4c131dbe0a5dc5c3196eb106d"
+    },
+    {
+      "item_no": 86,
+      "sha256": "f814f99aea145c9fb162ccce3fcd35f436d42947c3c9dc6d11d1271a7ecd6311"
+    },
+    {
+      "item_no": 87,
+      "sha256": "d5d1ce4a51f76eb12d1623d16df51815413212203b8489ac4442d717e4e86603"
+    },
+    {
+      "item_no": 88,
+      "sha256": "cca3638613d5b9be4e81b4e817b6fff2c6619a8913dbea628b249c17c32aca3e"
+    },
+    {
+      "item_no": 89,
+      "sha256": "52289866513995e4fb3b4df60508eb2e027e4ddd99614b531731da20eff13a91"
+    },
+    {
+      "item_no": 90,
+      "sha256": "8e054b845fcc8c0aeb016082c9f5ef81d7cdec2a703bc9f48981024e6e328cc5"
+    },
+    {
+      "item_no": 91,
+      "sha256": "51b92f301d98db1707e7e80d6eb711f0186b8af866f93f1423a6b391e32298fd"
+    },
+    {
+      "item_no": 92,
+      "sha256": "76ff08e599b7497cfe1b265cd876ee54db3b717c6d2ddb1d59774520e27f733a"
+    },
+    {
+      "item_no": 93,
+      "sha256": "7734d09e0e298222b4edf7a84bc11eef842dbf3dfb301268572c59f24d717c8f"
+    },
+    {
+      "item_no": 94,
+      "sha256": "e411d49a07f8c166434359b4ff90a7d6dd4f9d25c849f9d5d76d88753cd42d94"
+    },
+    {
+      "item_no": 95,
+      "sha256": "357ab5f5429f1e86ca620e7adb104442a07e37523d4f248747299c53fa6f2b9b"
+    },
+    {
+      "item_no": 96,
+      "sha256": "bbf5469cd0bb3e0ae52ff868f10ed5d67b9b2ff5bb8ab8f502de14f63a839af4"
+    },
+    {
+      "item_no": 97,
+      "sha256": "46849568ca12b32d312fd1ecbab622c3bf1a9254ceae321464042b980f7c5bfe"
+    },
+    {
+      "item_no": 98,
+      "sha256": "c8f354853a50bcb32683b7ac3b5d3b89f50914c0941b63f5a51c16e9298d7be2"
+    },
+    {
+      "item_no": 99,
+      "sha256": "451d18e5ad4cb77341f39b68401bed7e1c938efc155bd73baa71876c52f713c8"
+    },
+    {
+      "item_no": 100,
+      "sha256": "96b885d5a564a3725eb61505ca00df944a9891f9df6d97c78a3231e7d958aa29"
+    },
+    {
+      "item_no": 101,
+      "sha256": "207f51d868f32c47848f36a79e4a0d316143d6f968eb2aa976a778cb9ebf3cd6"
+    },
+    {
+      "item_no": 102,
+      "sha256": "0a712559ac70eb222dce5d863354dded3ef5832bf6ff36f2e36941fc410a2e70"
+    },
+    {
+      "item_no": 103,
+      "sha256": "529b94bca1d503b4742cae517fce83b290ad7001217fb8c2078eb55c30d86eb4"
+    },
+    {
+      "item_no": 104,
+      "sha256": "b42ea13052990ad9a7d327b8bd39d34b6663ae52a8605d8dfb2e40b376bf8e61"
+    },
+    {
+      "item_no": 105,
+      "sha256": "49ac428f305f26ec095a6c6bbf959bf2c5421d297857ba74c9c348d42876347b"
+    },
+    {
+      "item_no": 106,
+      "sha256": "8d7673a12464b0de1231da0c7f5fe65569992d592d2f887a5951e25acf9d9777"
+    },
+    {
+      "item_no": 107,
+      "sha256": "dc1708d58952918570f52cc1baa2f9a34015d55e4cf095d1d36489f8d6a7a544"
+    },
+    {
+      "item_no": 108,
+      "sha256": "94fdc256b8e21763d0ac0772acfea4f5423ffa5d15f7182627b94dc735b29918"
+    },
+    {
+      "item_no": 109,
+      "sha256": "3d6147abbe8afb2403e3fe6f29f32abdea904bafd8c160bab4f642edb601b775"
+    },
+    {
+      "item_no": 110,
+      "sha256": "90d713b86a53e00038e1c3d720944e123bfc04aefcdb687dc96ab280d63cdbd6"
+    },
+    {
+      "item_no": 111,
+      "sha256": "b77d5c210f3827912ccfa8e32b6b1e2b63bb81aa41f4f30023401fea11ae361f"
+    },
+    {
+      "item_no": 112,
+      "sha256": "cbecbd4e866ba0794b345d6bf5b2ae2047c95ff98bfa41a6fd8379b57d4261fe"
+    },
+    {
+      "item_no": 113,
+      "sha256": "bed658c05fc9f475c0f03cee5bd192eb4419c5d325720df4c9001eb2a3ef712b"
+    },
+    {
+      "item_no": 114,
+      "sha256": "d36669045d57e1eb78ef5014a528e004cff77bda8383686b6fee049c2af0d1a5"
+    },
+    {
+      "item_no": 115,
+      "sha256": "e46840ae0125fd03668fa4e902ed91bd3a3697c7aae8fafb31c02271c4744b13"
+    },
+    {
+      "item_no": 116,
+      "sha256": "913d7037eaa4292ba0c2af0af703edeed42dc9b4ea8ebc8b7f1322fe853c8f90"
+    },
+    {
+      "item_no": 117,
+      "sha256": "735047fb86d315854180c70df3d5c4887c2c7ea74c9cd5a108f72c9317a28984"
+    },
+    {
+      "item_no": 118,
+      "sha256": "005ddf9560c8a8fcce6ede0e76093b1c210dd130167a8c8655f98b57fc56671b"
+    },
+    {
+      "item_no": 119,
+      "sha256": "2849aff51143adc74cfb30858c8c314a705e151e3b8f13522d8987f4d1641ed9"
+    },
+    {
+      "item_no": 120,
+      "sha256": "5167b5ec3a0da3d4795d9a9450f85fb629ac11a2409dcd150782273617b26302"
+    },
+    {
+      "item_no": 121,
+      "sha256": "ebe6ee534af143cf4164df792dd27c03e0c11be80757f2cb61c445adb093d02b"
+    },
+    {
+      "item_no": 122,
+      "sha256": "7fb2acf84ef51b0f32dbbfe9a084332c8ebb454638fcb2b7df9251ecd1407b4a"
+    },
+    {
+      "item_no": 123,
+      "sha256": "ae855d8d82142d1ab20695bdf086d8ab4df605c1b5770209714b1cc3d73f88c6"
+    },
+    {
+      "item_no": 124,
+      "sha256": "f2b4c9bb84c94ec55ff2322f11fb0f5f6307ea7592cbf03046a0868a08deae89"
+    },
+    {
+      "item_no": 125,
+      "sha256": "bc6494cc8162d4897b37ee016b55fc210a3551baee31647a4082eda6efd9ce76"
+    },
+    {
+      "item_no": 126,
+      "sha256": "ac92001367fd2c1fe0fb68a4c082eab00d7eb27fca936b7d04da7e5c9dc79009"
+    },
+    {
+      "item_no": 127,
+      "sha256": "0e0ef78fd325e6ac4df4e0e6388db3ff4d2eb39f2546e3a1ebc0c2559c22141a"
+    },
+    {
+      "item_no": 128,
+      "sha256": "49029621530d31a5b58dd04caa844a6db83aae404d7db1fde3f6f3ca08994fd5"
+    },
+    {
+      "item_no": 129,
+      "sha256": "7ffe1c6713904a7b0fb22ce962cb09bfe54ee323fd462bab4cc56515222ee0bf"
+    },
+    {
+      "item_no": 130,
+      "sha256": "41b3166bb38cd59558fae1bc0c4b514da5a35ed6e30c7a4f3cbf540025655aae"
+    },
+    {
+      "item_no": 131,
+      "sha256": "bbb42a360f6111c4aacb6a1e2055fa2457e064639b7f452c765a0a1624612194"
+    },
+    {
+      "item_no": 132,
+      "sha256": "d606576171a75bea421220438e37acb6076f713e8233e5ebf968f79e6cdbf4ba"
+    }
+  ],
+  "mb-skill-v2": [
+    {
+      "item_no": 1,
+      "sha256": "f663a529f60457bc5373fd5e9199fc13b3c1da1591520d59bdebd22907264211"
+    }
+  ],
+  "openspec-adapter": [
+    {
+      "item_no": 1,
+      "sha256": "4ec34c269ce7d3bbfcf285a106cd27bd39fee9e51615aed6c5161d804ee328df"
+    },
+    {
+      "item_no": 2,
+      "sha256": "a2156ade8a60e28a47e700ea9c6d713f1261649b960249f524863b53903546f7"
+    },
+    {
+      "item_no": 3,
+      "sha256": "cbbbb8f0596cade02dc0ee94e96001bb50c42d5f802dd8debe2ae85f71045e2a"
+    },
+    {
+      "item_no": 4,
+      "sha256": "11dfd0d6f63f257d15c98e19d111f756bfe236f70d33723f8cfa74639ae9d1d1"
+    },
+    {
+      "item_no": 5,
+      "sha256": "60f2f23f2e5045eae55e8fb70c5b7295d9b4fe4b7d070f38a4b5b089943b314b"
+    },
+    {
+      "item_no": 6,
+      "sha256": "52e0fe1bed248bb0a5a32154a7bfe15cce3b034c96081e9412551717ab02cacf"
+    }
+  ],
+  "parallel-pipeline": [
+    {
+      "item_no": 1,
+      "sha256": "28463b9e11a5ebda196301ce56df7d49701353308f327f4ce16d3e1af3e50508"
+    },
+    {
+      "item_no": 2,
+      "sha256": "c1a2cf252208c9c442fdb16e95ad5f599a64da5039afc282eba3667b08a3f5bb"
+    },
+    {
+      "item_no": 3,
+      "sha256": "27485a450b3838205d47297503d2b67f93e710d0b704156aa3c8755ee8d7b9a2"
+    },
+    {
+      "item_no": 4,
+      "sha256": "e6f7a8a5d6cbf00628a66ebeb31f42bb949689b44566bdc8860f28190fa8ac11"
+    },
+    {
+      "item_no": 5,
+      "sha256": "c20c57d4aeca4e24f24649d065b54ccc3f008240a6f76c250cbc31cdd5edd93a"
+    },
+    {
+      "item_no": 6,
+      "sha256": "0e051617e92daf9a40024e299de9d855e8a3ec9e80ba23d438a4f570fd5cce97"
+    }
+  ],
+  "parallel-team-execution": [
+    {
+      "item_no": 1,
+      "sha256": "3eebed4ecb538221112790a35c6fd849d322c7b23513a41d56bc5255a22e3cd1"
+    },
+    {
+      "item_no": 2,
+      "sha256": "ddcb6190e9688e36396b69af9f3691dbd61650bada6c39cadae322e2899ac184"
+    },
+    {
+      "item_no": 3,
+      "sha256": "b8f97066b43a8a83a77ce828cb66c216140a1a90f56f50d5fc9704668fd14cca"
+    },
+    {
+      "item_no": 4,
+      "sha256": "21d4958f1a8e90566a357f7c731d659994530dec508a5eca5cd432ad1737a810"
+    },
+    {
+      "item_no": 5,
+      "sha256": "5b64f1dba23fcb87ea732c61eae77cfed6ccc908e9e3724c75eb894756aeef9f"
+    },
+    {
+      "item_no": 6,
+      "sha256": "5373d05d7041a85f27f8972405fdb0862c9c02005968a8c23ac9e803ae1c79b5"
+    },
+    {
+      "item_no": 7,
+      "sha256": "6229a4d98f72a65cecdd8adf05a9e9886d37b06384919390da167c5bef00db34"
+    },
+    {
+      "item_no": 8,
+      "sha256": "7aeaadee6c18b26bfc12826bc479d9fa9fb615970f6b99dfc33cb43500d61ee3"
+    },
+    {
+      "item_no": 9,
+      "sha256": "f3b9eaeb9546fed8195db373b063a2ae0802041bec620fcbad4bf83275479612"
+    },
+    {
+      "item_no": 10,
+      "sha256": "dfac035f5ff8a9d22b053cfebbd2be5785596f84596b7339164eb5006fb60280"
+    }
+  ],
+  "pi-extension": [
+    {
+      "item_no": 1,
+      "sha256": "a6c03fbd8973bbfc6aa39d843b55cbd34e8bf444235f2b4af3c7d2262f3c7871"
+    },
+    {
+      "item_no": 2,
+      "sha256": "379ea67d268af0554b590ee3e5a2991b73d8c9445b7ec6636960c7cf281f4347"
+    },
+    {
+      "item_no": 3,
+      "sha256": "52f6f4cc941409efc66335c37e939cf4e19011f7c713b17f4fde0114d9a959dd"
+    },
+    {
+      "item_no": 4,
+      "sha256": "97d732677338680c0a68d3d2e1b06a58e721507878db009959f9d5f12b638721"
+    },
+    {
+      "item_no": 5,
+      "sha256": "e28572d8b9b24a3df3bf1d3ec3d4e05d02f58e681856582405e0692741439c12"
+    },
+    {
+      "item_no": 6,
+      "sha256": "4603d8f185313aac9a44946bbf7f09c3c4b3870c8a9139cf10965b30d0ec32f5"
+    },
+    {
+      "item_no": 7,
+      "sha256": "ebdca5ba70815643c3275524ce5b28a1b54d6d7d2df2f3743f17655df8ea7ab9"
+    },
+    {
+      "item_no": 8,
+      "sha256": "d6b7ef6f1808cecd8528b72e28b5bc211b82ea8e2f56f0aa2f8e777962a13e02"
+    },
+    {
+      "item_no": 9,
+      "sha256": "d39dc7997f5f6b96f235113e6dec28af5d8778605500e312afbfe723312b959a"
+    },
+    {
+      "item_no": 10,
+      "sha256": "e10edb25573b1673add6f8695a96f5fcb55934d4d04c66a2a45cbe0a30dd097a"
+    },
+    {
+      "item_no": 11,
+      "sha256": "c57c801e820895b93b257613e8d2faf9d89d311a65fd8e916887fc957ec57989"
+    },
+    {
+      "item_no": 12,
+      "sha256": "5487539806321d206f7847523953725c354b4eeae20c2df26f235a76890c6cf7"
+    }
+  ],
+  "quality-track": [
+    {
+      "item_no": 1,
+      "sha256": "56cefea71ceb28b412fa1c980b82d80ec9c4e3269b9dcec0c47e6e1954338a6b"
+    },
+    {
+      "item_no": 2,
+      "sha256": "8f7b2de861ce483a81805629fcc97f0bb77e747c16486aa016c61efc24d0af34"
+    },
+    {
+      "item_no": 3,
+      "sha256": "ece3173f0c7599a1feb1057051882fced70707428cd5664c35f0c2c838996764"
+    },
+    {
+      "item_no": 4,
+      "sha256": "45fcc79cabac5ad49ef39a06f4f3b7ee2a9b2d5923a9be92915cd659112f9ab2"
+    },
+    {
+      "item_no": 5,
+      "sha256": "8277a53a8709d756041dccc7a76180cce69171dd489daee4c61ecec336d4a2cf"
+    },
+    {
+      "item_no": 6,
+      "sha256": "e69d650b3b2e11ad926c497b4c856768908c5c338f4da0bf44913ba96a242f97"
+    },
+    {
+      "item_no": 7,
+      "sha256": "80d364e5a60cf99f577cc255c571e08220066a99c41e2f087f777c2973a8c2e0"
+    },
+    {
+      "item_no": 8,
+      "sha256": "88dafbbe9132308d948195ee4194108183099f57898e76c57a50846d520900a7"
+    },
+    {
+      "item_no": 9,
+      "sha256": "f0cea666344ca70113d631cb6ed77b7bde02674d643d8514685a503510ab3215"
+    },
+    {
+      "item_no": 10,
+      "sha256": "4134e4e8f29d094e2bf103dfb53a6ca73180dc798dd332ad90682c5ec6b3ba85"
+    },
+    {
+      "item_no": 11,
+      "sha256": "3a17e28721c8a39a9abb3afd14c154493e4be7e738770912eedecd6ceb803ac7"
+    },
+    {
+      "item_no": 12,
+      "sha256": "0c51505a97a47c22af07e428c22bab844de021e9cbc777a7a078b5d615b09061"
+    },
+    {
+      "item_no": 13,
+      "sha256": "cb2e2117af6f33220e6fa5798bcd8f6dc17ec224eae8b225e896eb219990dd9a"
+    },
+    {
+      "item_no": 14,
+      "sha256": "0d3d303d9c453d048955c2aa6ca49e2528d916c26b06d16c27730f807664297b"
+    },
+    {
+      "item_no": 15,
+      "sha256": "7d48c769bb587cdf3c93327a9a4e63d28058db8667e6bcfc40b855700b97eace"
+    }
+  ],
+  "reviewer-2.0": [
+    {
+      "item_no": 1,
+      "sha256": "a4142f1ae097ddeb64967b529cf9abc78266062fc9c5ccf63f98d8bfbc546971"
+    },
+    {
+      "item_no": 2,
+      "sha256": "5cc93296dca22c381758864b3fd24ecd85d873b98ccc3c77d763e5a0bdefd9c7"
+    },
+    {
+      "item_no": 3,
+      "sha256": "5ef7bae30ff60b538aaf3284447b23cc0c5754556b3659ba1d5796ba7a8bb4af"
+    },
+    {
+      "item_no": 4,
+      "sha256": "11e90d5e90ec2414b2c4e4535afb615b08a23c82ab290f94ea737b46170a461a"
+    },
+    {
+      "item_no": 5,
+      "sha256": "40f56bb90274352508e454e77c83210f27ecfd6847276a6ca99bf17dfc66a308"
+    },
+    {
+      "item_no": 6,
+      "sha256": "bebe5a5224fd3f6aadf8741036e754d1225857541b3e31c1debc379cf958abce"
+    }
+  ],
+  "sdd-openspec-parity": [
+    {
+      "item_no": 1,
+      "sha256": "705f137f66c3f7c3a76749ee6ade1cf5a0cdc714b9217a490d760a2c134c7a54"
+    },
+    {
+      "item_no": 2,
+      "sha256": "6c64bc2e410c4363d0e37a90c8a1e62ce540943bf865583c56f037b30d335595"
+    },
+    {
+      "item_no": 3,
+      "sha256": "fbd55efb935fee322b1b2b2381c7a94decf05491d8828b8347fd1c6f380395a1"
+    },
+    {
+      "item_no": 4,
+      "sha256": "48b4c0113e6d33af9cfaaaccd481753e5a6e75a27c43461437553c89fdb8ede1"
+    },
+    {
+      "item_no": 5,
+      "sha256": "dbbf97afd782539498d7c8134cda2aafd08cad4b5b0ec43d1388476aa4f9e586"
+    },
+    {
+      "item_no": 6,
+      "sha256": "e13bfc672cb3d6d3689e541e68c7b062f86d69b33c40a3aa054237e1f820af0a"
+    },
+    {
+      "item_no": 7,
+      "sha256": "4b54d8cd4047ddf6343008f24741ea4c68d5451f4dc1b2d078a470bdb5d78c58"
+    },
+    {
+      "item_no": 8,
+      "sha256": "6adf4bb257223d3f97565b38a4c8775b1e60174f66e3416a807b68a11b20b6e0"
+    },
+    {
+      "item_no": 9,
+      "sha256": "0b6dc29fb92670a421b3097faea27ce1092c7758af1e1ce6517c49302f2d1a63"
+    }
+  ],
+  "sdd-vision-pipeline": [
+    {
+      "item_no": 1,
+      "sha256": "eeeca7c5fcd54026169cbdfa7ac58cd1d2c88e8649b2290bec3d98eb99b3502d"
+    },
+    {
+      "item_no": 2,
+      "sha256": "a77ff21b5200f070f48d8935e772b60c1219dcd2763f033de26cba540a031157"
+    },
+    {
+      "item_no": 3,
+      "sha256": "5ebbda193eead5c71ef70d58c3327eb8da598ce7a845a7c9f1450f6d2e4b8e76"
+    },
+    {
+      "item_no": 4,
+      "sha256": "56cb842ef4577dac6d7092c460cac76d0865861bb239c867ac562a146f879ec1"
+    },
+    {
+      "item_no": 5,
+      "sha256": "c463730e104ede1e9a50145afea9422619d6b2a8094d8c3c53ffdeed33f36498"
+    },
+    {
+      "item_no": 6,
+      "sha256": "2562bd82079c4e749c9dfcb5b4cf13d18acd764b9a610e05fc471731e7e26a75"
+    },
+    {
+      "item_no": 7,
+      "sha256": "7653e393e1b62be39a9befd814fd2201b7096d6344c36e4ec87a1264e2b56540"
+    },
+    {
+      "item_no": 8,
+      "sha256": "e6c70ac6386b3c18c00d00c7412deeda8bd57efaa1cc6c87b9b395786bbdeb59"
+    },
+    {
+      "item_no": 9,
+      "sha256": "a6754e0f0929b60023051298d88747f22e6955d60ce01d24d8306f5ccf788d87"
+    },
+    {
+      "item_no": 10,
+      "sha256": "47125ab6a739cd086a0ce0ad308043d164e2e01116a374d92ddb541e67b6b73a"
+    }
+  ],
+  "svp-adapt-escalation": [
+    {
+      "item_no": 1,
+      "sha256": "ab47a43e17a5bdde1d19d6c08e3de801b66f1ed954f8a3863df2152e776e2e18"
+    },
+    {
+      "item_no": 2,
+      "sha256": "bc94c9bbb96db58644f5510cffe2d7caafa71d9d081d9c221630565a060f2209"
+    },
+    {
+      "item_no": 3,
+      "sha256": "f63d784afcbb3266b8828df12be0232981b67158139cc660df48956561a517ab"
+    },
+    {
+      "item_no": 4,
+      "sha256": "2cf836572aac550d15513abcad43a2d31122ec18f649fbe684414d58fb317583"
+    },
+    {
+      "item_no": 5,
+      "sha256": "43a7186a8247e9056bfaf83cde1836fbac6472014d0116c7b4edd400b970905c"
+    }
+  ],
+  "svp-brief": [
+    {
+      "item_no": 2,
+      "sha256": "fa8b1cfc7aa744747a40de3e8bbc1996d95a20231cd54253836e35a343017baa"
+    },
+    {
+      "item_no": 1,
+      "sha256": "1a9d49f0eacf222efd08c348519604969f7a3eb6991f7e674be70e2cda1c77b2"
+    },
+    {
+      "item_no": 3,
+      "sha256": "6addcef65cecf9f6e9206f9618e3960dcf800a78b7967c92ca79a5bfbe6cd980"
+    },
+    {
+      "item_no": 4,
+      "sha256": "f9ea0657e0f5af79cfa8152bb7714e579c4ead80c443fc4ee8731946c210a6e2"
+    }
+  ],
+  "svp-contract-test-loop": [
+    {
+      "item_no": 1,
+      "sha256": "fae09f75932b4e9d2b85810d61454863dc121c172d763c417d4271b8baf58f4e"
+    },
+    {
+      "item_no": 2,
+      "sha256": "5ccd390a70c8fd4a0960d3a0bcbad05eae154d2c9c2c4db51bd2a0dbf9ea159c"
+    },
+    {
+      "item_no": 3,
+      "sha256": "1f99967c97a5a07ee969ade790c4f968db995966e790266a30b76f9d573d5b47"
+    },
+    {
+      "item_no": 4,
+      "sha256": "663f427f3b9ed5ce3f742df40b1dc78d961b6ba49dd11ac9ded4399a1b229d74"
+    },
+    {
+      "item_no": 5,
+      "sha256": "74bf212070615c3433db5da298868e4d1e00c6df64cd7eace037e86a8a00f162"
+    },
+    {
+      "item_no": 6,
+      "sha256": "eb4ded681633424358e8eb037853838a76c6b7cd81e5cefd522f7623440c1cd8"
+    },
+    {
+      "item_no": 7,
+      "sha256": "03ba092d045ae16e108fb0e5070b26109077344e13e6109b218f0d62b0ebf37f"
+    },
+    {
+      "item_no": 8,
+      "sha256": "88768ca3cb2ee8a816ea12a1c728bca26a7796d5b88d3de5908c475a1d219c54"
+    }
+  ],
+  "svp-docs-wiki": [
+    {
+      "item_no": 1,
+      "sha256": "c3881e661364053f5c144896372c7275fbb48cc08e8884792ac2f83378770d11"
+    },
+    {
+      "item_no": 2,
+      "sha256": "3568f61f2873235befc6315ab6f3e330a00d5a9632d8815fb015e8e190323dfe"
+    },
+    {
+      "item_no": 3,
+      "sha256": "c4205406dd4082a58f967d04f9096888a35a370045108d58b90e1ec3114a40fa"
+    },
+    {
+      "item_no": 4,
+      "sha256": "aac187f411a821be4ffe5a03284efe18f364eff39f62693bdc07f5432e8592fb"
+    },
+    {
+      "item_no": 5,
+      "sha256": "33ce83efbc05d74104e00cea95b05dbb9298663e78e61cf64129088f3bf59f9e"
+    },
+    {
+      "item_no": 6,
+      "sha256": "716829a37d22ced31fc3b3fdb02d83da9734ca1a2fa9bf7561febafa5388f8e9"
+    },
+    {
+      "item_no": 7,
+      "sha256": "b66e20d9adf44ae2306f162711d315365a131c08a764064b0749c52364b30486"
+    }
+  ],
+  "svp-interview-upgrade": [
+    {
+      "item_no": 1,
+      "sha256": "274c79d8e90e5e639dd705fc4a8b3fadc1d325ba65acc33ae557e9277915b3ba"
+    },
+    {
+      "item_no": 2,
+      "sha256": "cc1ad34a1eec3c8b9fb2017d7a692d465eac3d67f7d9445a1f3931f214cb740e"
+    },
+    {
+      "item_no": 3,
+      "sha256": "f5fdb55c72f8407c015bfea59b57f1af1da0c0a2a67af40002ffe820789300e2"
+    },
+    {
+      "item_no": 4,
+      "sha256": "f6346dac5f59e99e8f359cff0319f25e6905a8d1298f6796e31552b8bfff3422"
+    },
+    {
+      "item_no": 5,
+      "sha256": "f50f333fa75ce6ead100599ff03ef51210ab40dbbe6c64caae9f9ea04ec7c010"
+    },
+    {
+      "item_no": 6,
+      "sha256": "72d00f31f5ab7834f4ce71b75a3435984813648f83f6e70963644ede868d9dab"
+    }
+  ],
+  "svp-parallel-engine": [
+    {
+      "item_no": 1,
+      "sha256": "eb26d5ec117acd0c5968a264171ce12d9410505164949898eb5402ef2b4c1750"
+    },
+    {
+      "item_no": 2,
+      "sha256": "3b2517da47e11575a38fb3509f378a843e1ff3728eb04371600c040580e72c2c"
+    },
+    {
+      "item_no": 3,
+      "sha256": "91a413c2150aa7ed4e3c43dd22295af63476c84534716020a5640acae720c53f"
+    },
+    {
+      "item_no": 4,
+      "sha256": "eb05eacc5c0444880f52b24e0104df1a91719515ddb077082d1487753994bb1d"
+    },
+    {
+      "item_no": 5,
+      "sha256": "aefcc6fda2a8d5779673365b3631bbac8aca3bfedc7b50d00038a985dd436eaa"
+    },
+    {
+      "item_no": 6,
+      "sha256": "cc223c9c95e5c2778792d57d898a16025ed54a71136fefdb90654dd0561bc2c2"
+    },
+    {
+      "item_no": 7,
+      "sha256": "06e787cbdd5dba0c503b8e2f4d4328fd5f8928b6c6d6fe1c872d73e71a89e2d9"
+    },
+    {
+      "item_no": 8,
+      "sha256": "9799a5c1a2da810115c774e0e58001395bac1ae9fdd4edcc9da7df843645a653"
+    },
+    {
+      "item_no": 9,
+      "sha256": "6eab617e8d2fee11a914d8db967b44e418d623b631c19ddfdbb67d8e7361680c"
+    },
+    {
+      "item_no": 10,
+      "sha256": "0d89bef1dd53c94afe23c1e13e67d2c3f2bab160c95b0550daace74f8050767c"
+    }
+  ],
+  "svp-roadmap-backlog-db": [
+    {
+      "item_no": 1,
+      "sha256": "877404cd049af917bc4f05be005bd029332cd6167afe1b9c45d0ce3fb7dec83c"
+    },
+    {
+      "item_no": 2,
+      "sha256": "87c9d6b60c7a079f7533f17115f5377237011a63adf43147431e43a5faac87a6"
+    },
+    {
+      "item_no": 3,
+      "sha256": "33f43fd73295926cdb3b877ca98af249f3d938e634ba9b09c0bdd07a6da82690"
+    },
+    {
+      "item_no": 6,
+      "sha256": "3d839601fae73964c4e77faa05350319044e60994c35d661f465f43001fa4b76"
+    },
+    {
+      "item_no": 7,
+      "sha256": "8aefa3bfa332d3bc91f412cc9f4127c838428c65260e5beb3d92addd86bc394a"
+    },
+    {
+      "item_no": 9,
+      "sha256": "3eab3453b9348b0766998b1ba76aba2e3837c61cc02f9f999d070a60f61b7c1b"
+    },
+    {
+      "item_no": 8,
+      "sha256": "e7a4b65fcf05a015ad5b5ea6a045c0538d2b8ef4c82ae1b9a3f012c39130bfaa"
+    },
+    {
+      "item_no": 4,
+      "sha256": "9f7dc69d0cf7a5ec25cd32736fe9f9413173e44675564af68a16172ba6554ee3"
+    },
+    {
+      "item_no": 5,
+      "sha256": "f899c050a302a21bcf0ed13b884a8ec5746e9c96c00b32fe1d64c859367df766"
+    }
+  ],
+  "svp-sdd-core": [
+    {
+      "item_no": 1,
+      "sha256": "59dd22193722e4b1ba34529e30913e644db2d092cf37104fc712610c02124a64"
+    },
+    {
+      "item_no": 2,
+      "sha256": "0934fd18597d28dd58020287b22996d9da9d59c22b4d102046e059ee28326324"
+    },
+    {
+      "item_no": 3,
+      "sha256": "74c7eff0ad8825705f720fe9de91712608e39dfbbeb363ad6d11502f7edf194f"
+    },
+    {
+      "item_no": 4,
+      "sha256": "c0f9df264168292dbb5e94c5c5657c7d60939c7bbeede723e6168adc30c00d6c"
+    },
+    {
+      "item_no": 5,
+      "sha256": "a723c92ad476ca8ff444a141705c11284dc17a7e03fa0cec1619292cbd7548c8"
+    },
+    {
+      "item_no": 6,
+      "sha256": "87a3f80a70fbd4ddf25b47101935892b53b3822c4341463c3135c753a8491039"
+    },
+    {
+      "item_no": 7,
+      "sha256": "27ed912a21e701289c19997709b4e8c65f4ce067638ad61519ed87ca8aa03923"
+    },
+    {
+      "item_no": 8,
+      "sha256": "a01c00b9d6c6f7988ed30185a7b4b943ee4f3a1bc5d5736dc62a6d2780e7212b"
+    },
+    {
+      "item_no": 9,
+      "sha256": "7b721fc759603a54b51c8f5a3035216ec5acf5784738c5f0d345bc7f0f5d6b14"
+    }
+  ],
+  "svp-spec-review-loop": [
+    {
+      "item_no": 1,
+      "sha256": "ba51ebf94f7d3a319f50f0dd15277ca09357bfb81d935cac0dd5244c500f9116"
+    },
+    {
+      "item_no": 2,
+      "sha256": "0ce234c86118bd1c8bc6f41da73d3bccc82ba0eb33cc1acfcda4ba1c8a332113"
+    },
+    {
+      "item_no": 3,
+      "sha256": "3ab9399a77f9236a5742a5ffcd1055d24724388836cf3165266743b06224483a"
+    },
+    {
+      "item_no": 4,
+      "sha256": "a7e5ed19d55cad843f3a4853872cb401d784ec469ab07adf54af1af1a47a95d1"
+    },
+    {
+      "item_no": 5,
+      "sha256": "78fc79441a7a0ce3ecded3924d29018c84a0b27c14668c2a3660e96df3da61b6"
+    }
+  ],
+  "tier1-graph-memory": [
+    {
+      "item_no": 1,
+      "sha256": "239998d76aa1379088c054a0c1b3a1b2b5a869af3d1aac430a95c54426cffcc7"
+    },
+    {
+      "item_no": 2,
+      "sha256": "c7547348c0b809e7555e07d2b3e110a343dce0ca137ddce9226f8c8966f74e6a"
+    },
+    {
+      "item_no": 3,
+      "sha256": "665b65e34dd88d8cea839b65c0f55bd7e336a2fda3820c9ceaa64ab0fa7c3676"
+    },
+    {
+      "item_no": 4,
+      "sha256": "7d467044d12f1275242004b1d41f2dcd4208cb265f4aea992b26fd5bc0690d19"
+    },
+    {
+      "item_no": 5,
+      "sha256": "64d145c0efae41a8ee3a560db3dbec2054327d8fcc540be7dda280a13f9c954b"
+    },
+    {
+      "item_no": 6,
+      "sha256": "77a801459b771d8cfb1b8a4fb8253f3593f9329f080077c4073e5dd4701f9411"
+    },
+    {
+      "item_no": 7,
+      "sha256": "1e1db20dfe3528aac7c9948357fa7a452913da27aaf367a39d9fb3ca38eacf52"
+    },
+    {
+      "item_no": 8,
+      "sha256": "06332f2d31d3a23bacc2c706cae6c319d2c78d34d812d260b809640647f1d19b"
+    },
+    {
+      "item_no": 9,
+      "sha256": "00e2f4c3af01777e44d43afa9851a84164006ad03d0f82590030356b8bd4d202"
+    },
+    {
+      "item_no": 10,
+      "sha256": "d11cf59589d75e273874e8de0aa991373d1727d9c18fee628fbf07eb145fe3c7"
+    },
+    {
+      "item_no": 11,
+      "sha256": "dfd7fdf290e3819b320ac028d3e4aef1f842cb2cb6210efa7b9f575aae96ba15"
+    },
+    {
+      "item_no": 12,
+      "sha256": "d689e4d7ad835be346fb5a3cf1f72a78a851394b486a5979fdd325e579214221"
+    },
+    {
+      "item_no": 13,
+      "sha256": "c53fce748120733b16b4668ea76ae0dd72ae9d6b3bb48310e6448a626cb39177"
+    },
+    {
+      "item_no": 14,
+      "sha256": "77a0314b32bc334041edfa023423444b4b9f057398ec6ab0ba832492c456bfe4"
+    },
+    {
+      "item_no": 15,
+      "sha256": "d1a6c3cbc10018a5ffd2647f674f6738a20ded3e249bb7cd4567a6888e83e4b2"
+    },
+    {
+      "item_no": 16,
+      "sha256": "b8af77092939234faa4073710b6182810114d2714bfad6719246fd1a3cf39389"
+    },
+    {
+      "item_no": 17,
+      "sha256": "3c77763b09b895b5e5bcc966a4e8dddb764fb4bdb5d696b633b40e0d051e94de"
+    }
+  ],
+  "work-loop-v2": [
+    {
+      "item_no": 1,
+      "sha256": "2d8d637dd4ad1de99ad671d68ad37727bacd32b664602cce31d02699d73b62ac"
+    },
+    {
+      "item_no": 2,
+      "sha256": "b421b81271a10011b76cf33effc1a32c2895f6efb13e587331894e0c7d340205"
+    },
+    {
+      "item_no": 3,
+      "sha256": "592ecc8a3398f5b4430b087270b7469f02d04833b76547061458e91321c8b005"
+    },
+    {
+      "item_no": 4,
+      "sha256": "22736ba710cb50b55187fb6f2550c8c2a1f872a1374a1bf7eb62b0bd224f4dcc"
+    },
+    {
+      "item_no": 5,
+      "sha256": "54c9b6c5c25c7984353b8ffd048aff2aaa03205cffaa5daba2819eb200d7bea2"
+    }
+  ]
+}

@@ -79,6 +79,7 @@ Manual inline implementation is only acceptable for trivial non-plan work or an 
 - AGR-020: sdd-vision-pipeline/S3: Cursor включается в полный режим intra-session параллели наравне с Claude Code/Pi/OpenCode (у Cursor есть саб-агенты); сужение D-07 до трёх хостов отменено
 - AGR-021: ICE-приоритизация группы: считается автоматически, неподтверждённые приоритеты используются с ворнингом + эскалацией пользователю на согласование/правку (ordering не блокируется); после подтверждения ice_confirmed:true
 - AGR-022: sdd-vision-pipeline/S9 svp-spec-review-loop: spec-уровневые кубики пайплайна review+judge — автоматический spec_judge (GO/GO_WITH_BACKLOG/NO_GO, судья терминирует цикл), fix-петля с независимым re-review, durable реестр принятых отклонений (не поднимать заново), preflight-гейт /mb work по действующему вердикту; спека создаётся БЕЗ codex-ревью по явному решению пользователя; интеграция в umbrella — после ремедиации круга 3
+- AGR-023: Исполнение группы sdd-vision-pipeline (goal G-001): /mb work codex-governed, роли — implement=Opus-сабагенты, review=codex gpt-5.6-sol (xhigh), judge=сабагент на Fable; до 3 параллельных треков, не более 4 одновременных сабагентов; оркестратор — основная сессия; порядок T1→S1→S7→S4→S2→S8→S9→S6→S3→S5 внутри DAG umbrella
 
 История, superseded и правила ведения → .memory-bank/agreements.md (`/mb agree`)
 <!-- mb-agreements:end -->

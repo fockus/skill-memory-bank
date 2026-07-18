@@ -45,9 +45,9 @@ estimated_tokens:
 - Bash 3.2/portability не затрагивается (python), но фикстуры включают пути с пробелами.
 
 **DoD:**
-- [ ] Проекция pre-v2 ключей byte-identical; полный JSON содержит корректные v2-ключи и дефолты
-- [ ] `eval{cmd,red,exit,output_re}` разбирается по C1; frontmatter игнорируется
-- [ ] pytest green (были red)
+- [x] Проекция pre-v2 ключей byte-identical; полный JSON содержит корректные v2-ключи и дефолты
+- [x] `eval{cmd,red,exit,output_re}` разбирается по C1; frontmatter игнорируется
+- [x] pytest green (были red)
 <!-- /mb-task:1 -->
 
 <!-- mb-task:2 -->
@@ -76,9 +76,9 @@ estimated_tokens:
 - Portability: Bash 3.2 (macOS) и Linux; путь банка с пробелами; `LC_ALL=C`.
 
 **DoD:**
-- [ ] Гейты (Eval/waiver/seam/цикл) + батарея-проверки реализованы; легаси-спеки валидны
-- [ ] Цикл печатает полный упорядоченный путь; waiver'ы перечислены в выводе
-- [ ] bats green (были red); shellcheck clean
+- [x] Гейты (Eval/waiver/seam/цикл) + батарея-проверки реализованы; легаси-спеки валидны
+- [x] Цикл печатает полный упорядоченный путь; waiver'ы перечислены в выводе
+- [x] bats green (были red); shellcheck clean
 <!-- /mb-task:2 -->
 
 <!-- mb-task:3 -->
