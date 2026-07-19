@@ -13,6 +13,12 @@ from searcher import run_search  # noqa: E402
 from semantic_store import Store  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _isolated_model_lock(tmp_path, monkeypatch):
+    """Keep the machine-wide model lock out of these tests' way (and vice versa)."""
+    monkeypatch.setenv("MB_SEMANTIC_MODEL_LOCK", str(tmp_path / "model.lock"))
+
+
 def _norm(v):
     v = np.asarray(v, dtype=np.float32)
     return v / np.linalg.norm(v)
@@ -67,3 +73,28 @@ def test_run_search_missing_index_returns_empty(tmp_path):
         tmp_path / "nope", "q", top_k=5, min_score=0.0, timeout=5, embedder=_FastEmbedder()
     )
     assert out == []
+
+
+def test_stuck_model_load_keeps_the_flock_held(tmp_path):
+    """codex round-2 blocker: a timed-out (possibly still-loading) worker must
+    NOT release the machine-wide model lock — a second process could otherwise
+    start a second multi-GB copy while ours is still resident."""
+    import fcntl
+
+    idx = _build_index(tmp_path)
+    out = run_search(idx, "kamal", top_k=1, min_score=0.0, timeout=0.2, embedder=_SlowEmbedder())
+    assert out == []
+    lock = tmp_path / "model.lock"  # pinned by the autouse fixture
+    with open(lock, "w") as fh, pytest.raises(OSError):
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def test_try_lock_unwritable_path_fails_open(tmp_path):
+    """codex round-2 major: filesystem trouble at the lock path degrades
+    (yields False) instead of raising out of the search."""
+    from searcher import try_lock
+
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("file where a directory is needed")
+    with try_lock(blocker / "sub" / "model.lock") as got:
+        assert got is False
