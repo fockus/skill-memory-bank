@@ -15,7 +15,7 @@
 // stay quiet" half of the same state machine, not a gap.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { appendFile, mkdir } from "node:fs/promises";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 
@@ -280,18 +280,14 @@ export default function mbPiSessionExtension(pi: ExtensionAPI) {
       proc.unref();
     }
 
-    // Best-effort: background reindex
-    const reindexScript = join(SKILL_DIR, "hooks", "mb-reindex.sh");
-    if (existsSync(reindexScript)) {
-      const { spawn } = await import("node:child_process");
-      const proc = spawn("bash", [reindexScript, "--incremental"], {
-        cwd: PROJECT_ROOT || ctx.cwd,
-        env: { ...process.env, MB_SESSION_CAPTURE: "on", MB_ROOT: mbPath },
-        stdio: "ignore",
-        detached: true,
-      });
-      proc.unref();
-    }
+    // I-132 spawn discipline: never detach an indexer — mark the index dirty
+    // and let the next `mb-semantic.py search` catch up inline under its
+    // non-blocking flock (same contract as the Claude Code lifecycle hooks).
+    try {
+      const indexDir = process.env.MB_INDEX_DIR || join(mbPath, ".index");
+      await mkdir(indexDir, { recursive: true });
+      await writeFile(join(indexDir, ".dirty"), "");
+    } catch {}
 
     // Reset state
     sessionFile = null;

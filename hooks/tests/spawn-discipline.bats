@@ -32,6 +32,21 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
+@test "pi adapter does not spawn the reindex script (detached indexer)" {
+  # codex round-5 blocker: adapters/pi_session_memory_extension.ts detached
+  # `mb-reindex.sh --incremental` on session_shutdown — the 5th spawn point,
+  # missed because it is TypeScript, not shell.
+  run grep -F 'mb-reindex' "$BIN/../adapters/pi_session_memory_extension.ts"
+  [ "$status" -ne 0 ]
+}
+
+@test "pi adapter marks the index dirty on shutdown, honoring MB_INDEX_DIR" {
+  run grep -F '.dirty' "$BIN/../adapters/pi_session_memory_extension.ts"
+  [ "$status" -eq 0 ]
+  run grep -F 'MB_INDEX_DIR' "$BIN/../adapters/pi_session_memory_extension.ts"
+  [ "$status" -eq 0 ]
+}
+
 @test "session-start marks the index dirty instead of reindexing" {
   run grep -F '.dirty' "$BIN/mb-session-start.sh"
   [ "$status" -eq 0 ]

@@ -105,6 +105,16 @@ def _arm_deadline(timeout: float, backend: str):
     return t
 
 
+def _maintenance_deadline():
+    """Hard bound for index/reindex/prune (codex round-5): every entry point
+    that can load the model — not just search — must be unable to hold the
+    machine-wide model lock forever. Same budget rules as search."""
+    from searcher import resolve_backend
+
+    timeout = float(os.environ.get("MB_SEMANTIC_TIMEOUT", "3"))
+    return _arm_deadline(timeout, resolve_backend())
+
+
 def cmd_stats(args) -> int:
     try:
         from semantic_store import Store
@@ -118,32 +128,47 @@ def cmd_stats(args) -> int:
 
 
 def cmd_index(args) -> int:
+    timer = None
     try:
         from indexer import index_sources
 
+        timer = _maintenance_deadline()
         index_sources(_mb_root(), _index_dir(_mb_root()), sources=args.source, full=False)
     except Exception:
         _debug("index")
+    finally:
+        if timer is not None:
+            timer.cancel()
     return 0
 
 
 def cmd_reindex(args) -> int:
+    timer = None
     try:
         from indexer import index_sources
 
+        timer = _maintenance_deadline()
         index_sources(_mb_root(), _index_dir(_mb_root()), sources=None, full=args.full)
     except Exception:
         _debug("reindex")
+    finally:
+        if timer is not None:
+            timer.cancel()
     return 0
 
 
 def cmd_prune(args) -> int:
+    timer = None
     try:
         from indexer import prune_index
 
+        timer = _maintenance_deadline()
         prune_index(_mb_root(), _index_dir(_mb_root()))
     except Exception:
         _debug("prune")
+    finally:
+        if timer is not None:
+            timer.cancel()
     return 0
 
 

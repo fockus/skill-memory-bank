@@ -25,6 +25,11 @@ All notable changes to this project are documented here. The format follows [Kee
 - fastembed model cache moved to `~/.cache/fastembed` (`FASTEMBED_CACHE_PATH` respected) — the old
   `$TMPDIR` cache was purged by macOS, forcing re-downloads. Embedding batches capped at 64 to
   bound onnxruntime arena growth on big reindexes.
+- **Pi adapter follows the same spawn discipline**: `adapters/pi_session_memory_extension.ts` no
+  longer detaches `mb-reindex.sh --incremental` on session_shutdown (the 5th spawn point, missed
+  by the shell-only sweep) — it writes `.index/.dirty` (honoring `MB_INDEX_DIR`) like the Claude
+  Code lifecycle hooks. Maintenance commands (`index`/`reindex`/`prune`) now arm the same hard
+  process deadline as `search`, so no entry point can hold the machine-wide model lock forever.
 
 ## [5.3.1] — 2026-07-15
 

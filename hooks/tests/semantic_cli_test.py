@@ -106,6 +106,24 @@ def test_cli_reindex_lock_busy_exits_zero_without_indexing(tmp_path):
         assert not (idx / "meta.jsonl").exists()
 
 
+def test_cli_reindex_hung_source_is_killed_by_hard_deadline(tmp_path):
+    """codex round-5: maintenance commands (index/reindex/prune) need the same
+    hard process deadline as search — a hung reindex would otherwise hold the
+    machine-wide model lock forever. A FIFO in notes/ makes read_text() block
+    indefinitely, a faithful stand-in for a stalled model download."""
+    mb = _mk_bank(tmp_path)
+    os.mkfifo(mb / "notes" / "hang.md")
+    env = dict(os.environ, MB_ROOT=str(mb), MB_SEMANTIC_TIMEOUT="0.3")
+    r = subprocess.run(
+        [sys.executable, str(CLI), "reindex"],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=20,  # without the deadline the process hangs → TimeoutExpired
+    )
+    assert r.returncode == 0
+
+
 def test_index_then_search_returns_relevant(tmp_path, monkeypatch):
     pytest.importorskip("numpy")
     sys.path.insert(0, str(BIN / "lib"))
