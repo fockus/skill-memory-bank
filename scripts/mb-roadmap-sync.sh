@@ -85,7 +85,9 @@ from mb_roadmap_render import (  # noqa: E402
     FENCE_CLOSE,
     FENCE_OPEN,
     FenceError,
+    append_block,
     atomic_write,
+    dominant_newline,
     find_fence,
     normalize_spec_slug,
     strip_bootstrap_groups,
@@ -220,7 +222,12 @@ def fmt_spec_line(slug: str) -> str:
     return f"- {slug} — {prog}"
 
 
-roadmap_text = roadmap_path.read_text(encoding="utf-8")
+# newline="" disables universal-newline translation (R3-005). read_text()
+# rewrote EVERY CRLF in the file to LF -- including the user's hand-written
+# prose far outside the generated fence -- so a CRLF roadmap lost all nine of
+# its line endings on a sync that was supposed to touch only the auto block.
+with roadmap_path.open(encoding="utf-8", newline="") as _fh:
+    roadmap_text = _fh.read()
 
 # Fence well-formedness is checked BEFORE anything is computed or written
 # (finding 6): a duplicated / lone / reordered marker makes it impossible to
@@ -291,25 +298,35 @@ if unconfirmed:
 
 block = f"{FENCE_OPEN}\n{auto_body}{group_region}{FENCE_CLOSE}\n"
 
+# The generated block adopts the roadmap's own line ending (R3-005). Emitting LF
+# into a CRLF file would leave it mixed, and the next --check would still be
+# clean only by accident. `block` holds no CR of its own, so this is a safe swap.
+nl = dominant_newline(roadmap_text)
+if nl != "\n":
+    block = block.replace("\n", nl)
+
 if fence_span is not None:
     new_text = roadmap_text[:fence_span[0]] + block + roadmap_text[fence_span[1]:]
 else:
-    # Inject after first `# Roadmap` H1 (or append at end if absent)
+    # Inject after first `# Roadmap` H1 (or append at end if absent). Both the
+    # blank-line skip and the separator are CRLF-aware (R3-005) so injecting a
+    # fence into a CRLF roadmap does not leave mixed endings behind.
     h1 = re.search(r"^# Roadmap.*?$", roadmap_text, re.MULTILINE)
     if h1:
         insertion_point = h1.end()
         # Skip blank lines immediately after the H1
-        m = re.match(r"\n+", roadmap_text[insertion_point:])
+        m = re.match(r"(?:\r?\n)+", roadmap_text[insertion_point:])
         if m:
             insertion_point += m.end()
         new_text = (
             roadmap_text[:insertion_point]
             + block
-            + "\n"
+            + nl
             + roadmap_text[insertion_point:]
         )
     else:
-        new_text = roadmap_text.rstrip() + "\n\n" + block
+        # R3-006: preserve the user's prefix verbatim -- no rstrip.
+        new_text = append_block(roadmap_text, block, nl)
 
 # Bootstrap transfer: drop any out-of-fence manual block for a discovered group.
 new_text = strip_bootstrap_groups(new_text, discovered)

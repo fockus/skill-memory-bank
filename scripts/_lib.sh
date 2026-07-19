@@ -846,7 +846,7 @@ mb_lock_acquire() {
     printf 'code=lock_usage\n' >&2
     return 2
   fi
-  local token waited=0 ownerless_since="" now marker base tok pid other
+  local token waited=0 ownerless_since="" now gen_started marker base tok pid other
   token="$$-${RANDOM:-0}"
   while true; do
     if mkdir "$lock_dir" 2>/dev/null; then
@@ -900,9 +900,30 @@ mb_lock_acquire() {
         fi
       else
         # Owner-less window: reclaim only after ttl sustained seconds.
+        #
+        # The generation's age comes from the lock dir's OWN mtime, not from an
+        # in-process observation (R3-009). `ownerless_since` lived only inside a
+        # single acquire call, so with the shipped defaults (timeout=10,
+        # ttl=120) every call gave up long before ttl and forgot what it had
+        # seen -- an hour-old EMPTY lock was therefore never reclaimable, by
+        # anyone, no matter how many times it was retried. A directory's mtime
+        # changes whenever an entry is created or removed, so it marks exactly
+        # when the last owner marker went away, and unlike a shell variable it
+        # survives across processes.
         now="$(date +%s)"
-        [ -n "$ownerless_since" ] || ownerless_since="$now"
+        gen_started="$(mb_mtime "$lock_dir")"
+        if [ -z "$ownerless_since" ] || [ "$now" -lt "$ownerless_since" ]; then
+          ownerless_since="$now"
+        fi
+        if printf '%s' "$gen_started" | grep -qE '^[1-9][0-9]*$' \
+           && [ "$gen_started" -lt "$ownerless_since" ]; then
+          ownerless_since="$gen_started"
+        fi
         if [ "$((now - ownerless_since))" -ge "$ttl" ]; then
+          # `rmdir` IS the re-check: it fails with ENOTEMPTY the instant a fresh
+          # owner published its marker, so an acquirer inside its mkdir->owner
+          # window is never evicted, and a dir just created by that acquirer has
+          # a fresh mtime and cannot look stale in the first place.
           rmdir "$lock_dir" 2>/dev/null || true
         fi
       fi

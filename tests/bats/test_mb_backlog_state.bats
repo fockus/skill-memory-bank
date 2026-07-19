@@ -251,16 +251,39 @@ md5_of() {
 @test "backlog_state: list is flat depth=0 ordered by numeric id" {
   run bash "$BS" list --mb "$BANK"
   [ "$status" -eq 0 ]
-  # every printed line is depth=0
-  ! [[ "$output" == *"depth=1"* ]]
-  [[ "$output" == *"item=I-001 state=NEW parent=I-003 depth=0"* ]] || \
-    [[ "$output" == *"item=I-001 state=NEW parent=none depth=0"* ]]
+
+  # The whole listing, line for line. The previous version asserted only a
+  # disjunction (`parent=I-003` OR `parent=none`) for I-001 and never looked at
+  # I-002 at all, so an implementation that dropped Parent support entirely and
+  # always printed `parent=none` kept this test green (R3-003). Parent is a
+  # Task 2 DoD item, so it is now pinned exactly.
+  expected="item=I-001 state=NEW parent=none depth=0 title=\"alpha idea\"
+item=I-002 state=NEEDS-INFO parent=I-001 depth=0 title=\"needs info item\"
+item=I-003 state=TRIAGED parent=none depth=0 title=\"triaged item\"
+item=I-004 state=READY parent=none depth=0 title=\"ready item\"
+item=I-005 state=IN-PROGRESS parent=none depth=0 title=\"running item\"
+item=I-006 state=DONE parent=none depth=0 title=\"done item\"
+item=I-008 state=IN-PROGRESS parent=none depth=0 title=\"extra item\"
+item=I-009 state=NEW parent=none depth=0 title=\"café \\\"q\\\" тема\"
+item=I-010 state=TRIAGED parent=none depth=0 title=\"path brief item\"
+item=I-011 state=TRIAGED parent=none depth=0 title=\"linenum brief item\""
+  [ "$output" = "$expected" ]
+
+  # Line count is pinned so a silently dropped or invented entry cannot hide.
+  [ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" -eq 10 ]
+
+  # The declared Parent edge is REALLY read from the fixture, not defaulted.
+  [[ "$output" == *"item=I-002 state=NEEDS-INFO parent=I-001 depth=0"* ]]
+  # ...and a parentless entry really says none.
+  [[ "$output" == *"item=I-001 state=NEW parent=none depth=0"* ]]
+
+  # Every line obeys the full grammar (flat listing ⇒ depth is always 0).
+  while IFS= read -r line; do
+    [[ "$line" =~ ^item=I-[0-9]{3}\ state=[A-Z-]+\ parent=(none|I-[0-9]{3})\ depth=0\ title=\".*\"$ ]]
+  done <<< "$output"
+
   # ## Out of scope entries are NOT listed
   ! [[ "$output" == *"I-050"* ]]
-  # numeric order: I-001 line precedes I-009 line
-  first=$(printf '%s\n' "$output" | grep -n 'item=I-001 ' | head -1 | cut -d: -f1)
-  last=$(printf '%s\n' "$output" | grep -n 'item=I-009 ' | head -1 | cut -d: -f1)
-  [ "$first" -lt "$last" ]
 }
 
 @test "backlog_state: list encodes titles as compact JSON (quotes+unicode)" {

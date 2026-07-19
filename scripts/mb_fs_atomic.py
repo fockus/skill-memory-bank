@@ -27,6 +27,14 @@ def _target_mode(path):
     already-damaged permissions is a one-shot migration concern (I-145), not
     something a write path can infer. A NEW file gets the ordinary creation
     default (0666 masked by umask) rather than mkstemp's private 0600.
+
+    ONLY FileNotFoundError means "new file". Every other OSError (a transient
+    EIO, an EACCES on the parent directory) propagates: swallowing it returned
+    None, and the publish then went ahead and renamed mkstemp's private 0600
+    temp file over an existing 0664 bank file, silently narrowing permissions
+    the user never asked to change (R3-008). Raising here happens BEFORE the
+    temp file is created, so a stat failure leaves the target's bytes and mode
+    exactly as they were.
     """
     try:
         return stat.S_IMODE(os.stat(str(path)).st_mode)
@@ -34,8 +42,6 @@ def _target_mode(path):
         current = os.umask(0)
         os.umask(current)
         return 0o666 & ~current
-    except OSError:
-        return None
 
 
 def atomic_write(path, text, encoding="utf-8"):
@@ -56,8 +62,7 @@ def atomic_write(path, text, encoding="utf-8"):
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        if mode is not None:
-            os.chmod(tmp, mode)
+        os.chmod(tmp, mode)
         os.replace(tmp, target)
     except BaseException:
         # Best-effort cleanup: the original file is already safe (untouched),

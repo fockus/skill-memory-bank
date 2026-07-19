@@ -232,8 +232,11 @@ PY
   PYTHONPATH="$TMPROOT/site" run bash "$SYNC" "$BANK"
   [ "$status" -ne 0 ]
   [ "$before" = "$(cat "$BANK/roadmap.md")" ]
-  # and no temp turd left behind next to the roadmap
-  [ -z "$(find "$BANK" -maxdepth 1 -name 'roadmap.md.*' -print -quit)" ]
+  # And no temp turd left behind next to the roadmap. The pattern must be the
+  # one the atomic primitive ACTUALLY uses (mkstemp prefix `.mb-atomic.`,
+  # suffix `.tmp`) -- the old assertion looked for `roadmap.md.*`, which this
+  # code has never created, so it passed even with the cleanup deleted (R3-004).
+  [ -z "$(find "$BANK" -maxdepth 1 -name '.mb-atomic.*.tmp' -print -quit)" ]
 }
 
 # ═══════════════════════════════════════════════════════════════

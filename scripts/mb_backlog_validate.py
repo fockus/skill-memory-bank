@@ -26,14 +26,29 @@ _PATH_EXT = (
     r"|swift|c|h|cc|cpp|hpp|cs|php|pl|lua|r|ipynb|png|jpe?g|svg|pdf|zip|tar|gz)"
 )
 
+# Directory names that make a `<dir>/<name>` token a path rather than prose.
+# `input/output` and `read/write` are ordinary behavioural phrasing; `scripts/`
+# or `src/` in front of a name is not (R3-010).
+_PATH_DIR = (
+    r"(?:scripts?|src|tests?|lib|libs|docs?|bin|app|apps|config|conf|etc|usr|var|tmp|home"
+    r"|node_modules|dist|build|target|vendor|pkg|cmd|internal|api|assets|public|static"
+    r"|templates|migrations|fixtures|examples|packages|modules|components|utils|core"
+    r"|\.\w[\w.-]*)"
+)
+
 _PATH_PATTERNS = (
     # Absolute, ./relative, ../parent and ~/home paths.
     r"(?:^|[\s(\[\"'`])~?\.{0,2}/[^\s/]",
     # Windows drive path or any backslash-separated path.
     r"[A-Za-z]:\\",
     r"\\[^\s\\]",
-    # Any slash-joined token: `scripts/runner`, `a/b/c`, `src/main.py`.
-    r"[\w.-]+/[\w.-]+",
+    # A slash-joined token whose LAST segment carries a known file extension:
+    # `src/main.py`, `a/b/notes.md`.
+    r"[\w.-]+/[\w.-]*\." + _PATH_EXT + r"(?:$|[\s)\],;:!?\"'`])",
+    # A slash-joined token rooted at a recognisable directory: `scripts/runner`.
+    r"(?:^|[\s(\[\"'`])" + _PATH_DIR + r"/[\w.-]+",
+    # Three or more slash-joined segments is a path in any dialect: `a/b/c`.
+    r"[\w.-]+/[\w.-]+/[\w.-]+",
     # Bare filename with a known file extension: `README.md`, `setup.py`.
     r"(?:^|[\s(\[\"'`])[\w.-]+\." + _PATH_EXT + r"(?:$|[\s)\],.;:!?\"'`])",
 )
