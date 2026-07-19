@@ -9,7 +9,7 @@ Three-in-one skill for code agents:
 
 1. **Memory Bank** — long-term project memory through `.memory-bank/` (`STATUS`, `plan`, `checklist`, `RESEARCH`, `BACKLOG`, `progress`, `lessons`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
-3. **Dev toolkit** — 30 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`, `/config`, `/pipeline`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
+3. **Dev toolkit** — 31 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/groom`, `/sdd`, `/work`, `/config`, `/pipeline`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
 
 > **Design contract.** Memory Bank rests on one inviolable promise — *agents remember* — and a stack of fully configurable, token-economical layers above it. Default behaviour never changes without explicit opt-in; user customisations survive upgrades; expensive paths are off by default. See [`references/design-principles.md`](references/design-principles.md) for the full contract.
 
@@ -18,6 +18,36 @@ Supported host model:
 - **Cursor** — native full support: global skill alias (`~/.cursor/skills/memory-bank/`), global hooks (`~/.cursor/hooks.json`), global slash commands (`~/.cursor/commands/`), `~/.cursor/AGENTS.md` with managed section, plus a paste-ready file for Settings → Rules → User Rules. Project-level `.cursor/` adapter remains available as an add-on via `--clients cursor`.
 - **Codex** — global skill discovery + `AGENTS.md` hints + project-level `.codex/` adapter; no separate native slash-command surface.
 - **Other code agents** — via adapters, `AGENTS.md`, local hooks/configs, or direct CLI/script usage.
+
+---
+
+## Development flow — stages a code agent should expect
+
+Work in a Memory Bank project follows this order. Depth scales with task complexity — every stage except development itself can be skipped for trivial work; review and judge are **opt-in**.
+
+| # | Stage | Command | Notes |
+|---|-------|---------|-------|
+| 1 | **Interview** | `/mb discuss <topic>` (alias `/mb ask_me`) | Grilling interview → decisions + EARS-validated requirements draft in `context/<topic>.md` |
+| 2 | **Spec or plan** | `/mb sdd <topic>` · `/mb plan <type> <topic>` | Pick by complexity: feature/multi-task → spec triple (`specs/<topic>/requirements+design+tasks.md`, executable `<!-- mb-task:N -->`); smaller bounded change → plan (`plans/*.md`, `<!-- mb-stage:N -->`); trivial fix → no artifact (rules still apply) |
+| 3 | **Development** | `/mb work <target>` | Executes spec tasks / plan stages one by one through an implement → verify loop with role subagents (TDD, contract-first) |
+| 4 | **Verification** | `/mb verify` | plan-verifier audits diff vs plan/spec DoD; **mandatory before `/mb done`** when work followed a plan/spec |
+| 5 | **Review** *(optional)* | `/mb work <target> --review` | Reviewer verdict (subagent ensemble or external codex) + severity gate; off by default |
+| 6 | **Judge** *(optional)* | `/mb work <target> --judge` | `mb-judge` decides GO / GO_WITH_BACKLOG / NO_GO and terminates the review loop |
+| 7 | **Close** | `/mb done` | Actualize bank: progress append, checklist/status update |
+
+**Grooming (any stage).** `/mb groom <topic>` (also `grooming`) runs a critical grooming session outside the fixed order — for a raw idea, a task that already has a spec, or a decision worth revisiting. Unlike `/mb discuss`, the goal is not a spec: the agent challenges necessity and approach, proposes its own solutions, covers white spots; the summary lands in `context/<topic>-groom.md`, confirmed decisions go to `agreements.md` / backlog (ADR/Ideas), and the session ends with proposed next steps (e.g. `/mb sdd`).
+
+**Pipeline.** The whole chain can be encoded in `<bank>/pipeline.yaml` as a named workflow (steps, per-role `model`/`thinking`, severity gates, protected paths, budget). When present, `/mb work` resolves it automatically (`mb-workflow.sh`) and follows the configured steps — e.g. governed `implement → verify → review → judge → fix → done` — without per-run flags. Manage with `/mb pipeline` / `/mb config`; validate with `/mb config validate`. Defaults never change without opt-in: no pipeline and no flags = simple implement → verify.
+
+**Command index — all `/mb` subcommands** (know these exist; suggest them to the user when relevant; details per subcommand → `commands/mb.md` or `/mb help <sub>`):
+
+- **Session & context:** `context` (default, empty arg) · `start` · `done` · `update` · `tasks` · `note <topic>` · `index`
+- **Requirements & decisions:** `discuss <topic>` (alias `ask_me`) · `groom <topic>` (alias `grooming`) · `sdd <topic>` · `openspec <import|list|status|sync>` · `plan <type> <topic>` · `idea <title>` · `idea-promote <I-NNN>` · `adr <title>` · `agree <sub>` · `goal`
+- **Execution:** `work [target]` · `verify` · `config <sub>` · `pipeline <sub>` · `flow <route>` · `analyze-task`
+- **Codebase intelligence & memory:** `map [focus]` · `graph` · `wiki` · `research <query>` · `search <query>` · `recall <query>` · `recap <sid>` · `conflicts` · `consolidate` · `tags`
+- **Setup & maintenance:** `init` · `install` · `profile <sub>` · `doctor` · `compact` · `migrate-structure` · `import` · `upgrade` · `deps` · `statusline` · `help [sub]`
+
+Beyond `/mb`, the toolkit ships standalone commands (see the list in the intro above): `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`.
 
 ---
 

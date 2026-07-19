@@ -101,15 +101,26 @@ START_MS="$(now_ms)"
 # ---- per-stack runners ------------------------------------------------------
 
 run_python() {
-  command -v pytest >/dev/null || {
-    echo "[warn] pytest not in PATH; skipping python run" >&2
+  # Prefer the project's own venv over PATH: a bare `pytest` may resolve to a
+  # pyenv shim / global install WITHOUT the project installed, which yields
+  # mass phantom collection errors reported as failures.
+  # Use `python -m pytest` (NOT the pytest entry script): -m prepends the CWD
+  # to sys.path, which repos rely on for `from tests....` helper imports —
+  # the entry script omits it and dies with collection ImportErrors.
+  local -a pytest_cmd=()
+  if [[ -x "$DIR/.venv/bin/pytest" ]]; then
+    pytest_cmd=("$DIR/.venv/bin/python" -m pytest)
+  elif command -v pytest >/dev/null; then
+    pytest_cmd=(python3 -m pytest)
+  else
+    echo "[warn] no $DIR/.venv/bin/pytest and pytest not in PATH; skipping python run" >&2
     return 0
-  }
+  fi
   local log
   log="$(mktemp)"
   # -q: quiet; --tb=line: one-line traceback; -r a: summary for all; -p no:cacheprovider to avoid stale cache.
   # Exit codes: 0 passed, 1 failed, 5 no tests collected.
-  (cd "$DIR" && pytest -q --tb=line --no-header -r a -p no:cacheprovider) >"$log" 2>&1 || true
+  (cd "$DIR" && "${pytest_cmd[@]}" -q --tb=line --no-header -r a -p no:cacheprovider) >"$log" 2>&1 || true
   local rc=0
   # Use grep exit codes to infer.
   # Parse summary line: "X failed, Y passed in Zs" | "N passed in Zs" | "no tests ran".

@@ -184,12 +184,87 @@ fi
 [ -f "$VERIFY" ] || allow
 
 # ---------------------------------------------------------------------------
-# Run the firewall ONLY for its exit code. Its stdout (the JSON summary) and
-# stderr (breach lines) are both discarded here so neither leaks into the Stop
-# event nor surfaces as a hard hook error — the exit code is the whole contract.
+# Light-mode verdict cache (MB_FLOW_VERIFY_CACHE, default on; off to disable).
+# The firewall's verdict is a pure function of the working tree (HEAD + diff +
+# untracked files) plus goal.md. Re-running its full check suite on EVERY Stop is
+# wasteful when the tree is byte-identical to the last verified state. Cache the
+# exit code keyed by a content signature: an unchanged tree reuses the prior
+# verdict; ANY tracked change or untracked-file change busts the cache and
+# re-runs. This can never weaken the gate — identical tree ⇒ identical verdict,
+# so a cached red still blocks. Fail-open: any signature error falls through to a
+# real run. TTL backstop (MB_FLOW_VERIFY_CACHE_TTL, default 3600s) bounds staleness
+# from out-of-tree factors (e.g. a toolchain change git cannot see).
 # ---------------------------------------------------------------------------
-bash "$VERIFY" "$BANK" >/dev/null 2>&1
-VERIFY_RC=$?
+VERIFY_RC=""
+_cache_mode="${MB_FLOW_VERIFY_CACHE:-on}"
+_cache_ttl="${MB_FLOW_VERIFY_CACHE_TTL:-3600}"
+_sig=""
+_cache_file="$BANK/tmp/flow-verify-cache"
+if [ "$_cache_mode" != "off" ]; then
+  _root="$(cd "$BANK/.." 2>/dev/null && pwd || true)"
+  _sig="$(MB_FV_ROOT="$_root" python3 - 2>/dev/null <<'PY' || true
+import os, subprocess, hashlib
+root = os.environ.get("MB_FV_ROOT") or "."
+def git(*a):
+    return subprocess.run(["git", "-C", root, *a], capture_output=True, text=True).stdout
+try:
+    head = git("rev-parse", "HEAD").strip()
+    diff = git("diff", "HEAD")
+    # Exclude the bank's scratch dir: the cache file itself lives under
+    # .memory-bank/tmp/ as an untracked file — including it would mutate the
+    # signature on every write and defeat the cache (perpetual miss). The
+    # firewall's verdict never depends on scratch.
+    others = [
+        p for p in git("ls-files", "--others", "--exclude-standard").splitlines()
+        if p and "/.memory-bank/tmp/" not in ("/" + p) and not p.startswith(".memory-bank/tmp/")
+    ]
+    h = hashlib.sha256()
+    h.update(head.encode()); h.update(b"\0")
+    h.update(diff.encode("utf-8", "replace")); h.update(b"\0")
+    for p in sorted(others):
+        h.update(p.encode("utf-8", "replace")); h.update(b"\0")
+        try:
+            with open(os.path.join(root, p), "rb") as fh:
+                h.update(hashlib.sha256(fh.read()).digest())
+        except OSError:
+            h.update(b"?")
+        h.update(b"\0")
+    print(h.hexdigest())
+except Exception:
+    pass
+PY
+)"
+  if [ -n "$_sig" ] && [ -f "$_cache_file" ]; then
+    _c_sig="$(cut -d' ' -f1 "$_cache_file" 2>/dev/null || true)"
+    _c_rc="$(cut -d' ' -f2 "$_cache_file" 2>/dev/null || true)"
+    _c_ts="$(cut -d' ' -f3 "$_cache_file" 2>/dev/null || echo 0)"
+    _now="$(date +%s 2>/dev/null || echo 0)"
+    if [ "$_c_sig" = "$_sig" ] && [ -n "$_c_rc" ] && [ "$(( _now - ${_c_ts:-0} ))" -lt "$_cache_ttl" ]; then
+      VERIFY_RC="$_c_rc"
+    fi
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Run the firewall ONLY for its exit code (cache miss). Its stdout (the JSON
+# summary) and stderr (breach lines) are both discarded here so neither leaks
+# into the Stop event nor surfaces as a hard hook error — exit code is the whole
+# contract. Cache only the contracted 0/1/2 verdicts (never a transient infra
+# fault like 127) so a fixed check re-runs cleanly.
+# ---------------------------------------------------------------------------
+if [ -z "$VERIFY_RC" ]; then
+  bash "$VERIFY" "$BANK" >/dev/null 2>&1
+  VERIFY_RC=$?
+  if [ "$_cache_mode" != "off" ] && [ -n "$_sig" ]; then
+    case "$VERIFY_RC" in
+      0|1|2)
+        mkdir -p "$BANK/tmp" 2>/dev/null || true
+        printf '%s %s %s\n' "$_sig" "$VERIFY_RC" "$(date +%s 2>/dev/null || echo 0)" \
+          > "$_cache_file" 2>/dev/null || true
+        ;;
+    esac
+  fi
+fi
 
 case "$VERIFY_RC" in
   0)

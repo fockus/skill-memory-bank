@@ -40,6 +40,8 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `done`                                                   | End session (`actualize + note + progress`)                                                                                                                                                                                                                                                              |
 | `plan <type> <topic>`                                    | Create a plan                                                                                                                                                                                                                                                                                            |
 | `discuss <topic>`                                        | 5-phase requirements-elicitation interview → EARS-validated `context/<topic>.md` (Phase 1 Purpose & Users / Phase 2 Functional EARS / Phase 3 Non-Functional / Phase 4 Constraints / Phase 5 Edge Cases). Feeds traceability matrix.                                                                     |
+| `ask_me <topic>`                                         | **Alias for `discuss`** — same interview, easier to remember. Dispatch identically.                                                                                                                                                                                                                      |
+| `groom <topic>` (also `grooming`)                        | Critical grooming session for any task/idea at any stage: challenge necessity + approach, cover white spots, propose solutions. Summary → `context/<topic>-groom.md`; confirmed decisions routed to `agreements.md` (AGR) / backlog `## ADR` / `## Ideas`; proposes next steps (spec/plan). No EARS. See `commands/groom.md`. |
 | `sdd <topic> [--force]`                                  | Create Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`. If `context/<topic>.md` exists, EARS section copied verbatim into `requirements.md`. `--force` overwrites.                                                                                                                 |
 | `openspec <import\|list\|status\|sync> [args]`           | One-way import adapter: OpenSpec `changes/<id>/` → MB spec triple `specs/<topic>/` via `scripts/mb-openspec.sh` (no `openspec` CLI dep). `import <dir> [--as <topic>] [--normalize]` writes the triple + drift frontmatter; `list [--all]`/`status <topic>` show imported/drifted/not-imported; `sync [<topic>]` re-imports only on hash drift. Opt-in `--normalize` fills LLM text slots (EARS/scenario/Covers), cached + fail-open. See `### openspec` below.                                     |
 | `config <init\|show\|validate\|path>`                    | Manage execution `pipeline.yaml` (spec §9). `init` copies bundled default into `<bank>/pipeline.yaml`; `show` prints resolved config; `validate` runs schema check; `path` prints absolute path of resolved file.                                                                                       |
@@ -399,6 +401,16 @@ Run a 5-phase requirements-elicitation interview that produces an EARS-validated
 
 - `bash scripts/mb-req-next-id.sh [--spec <name>] [mb_path]` — emits the next `REQ-NNN`. Default: project-wide max+1 across `specs/*/requirements.md`, `specs/*/design.md`, `context/*.md`. With `--spec <name>`: per-spec-local max+1 scoped to `specs/<name>/{requirements,design}.md` + `context/<name>.md` (a brand-new spec starts at `REQ-001`).
 - `bash scripts/mb-ears-validate.sh <file>|-` — exit 0 if every `- **REQ-NNN** ...` bullet matches an EARS pattern; exit 1 with violation list on stderr otherwise; exit 2 on usage error.
+
+### ask_me <topic>
+
+**Alias** for `discuss` — dispatch to `### discuss` above / `commands/discuss.md`. Same interview, same artifacts; the name exists only to be easier to remember.
+
+### groom <topic>
+
+Critical grooming session — **not** a spec-producing interview. Dispatch to `commands/groom.md` for the canonical workflow. Accept both spellings: `groom` and `grooming`.
+
+Summary: challenge whether the task should be done at all and how, propose own solutions with trade-offs, cover white spots (grilling rules from `commands/discuss.md` apply; no EARS, no fixed phases). Output: `context/<topic>-groom.md` (same folder as discuss); confirmed decisions → `mb-agree.sh add` (AGR-NNN) / `mb-adr.sh` (ADR) / `mb-idea.sh` (I-NNN); hypotheses → `mb-agree.sh question`; finish by proposing next steps (`/mb sdd`, `/mb plan`, amend existing spec, or stop).
 
 ### sdd <topic> [--force]
 
