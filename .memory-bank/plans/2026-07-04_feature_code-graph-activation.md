@@ -68,8 +68,9 @@ backward-compatible wiring, not a new subsystem.
 - Additive `meta` header row in `graph.json` (`generated_at` + git `commit` +
   node/edge counts) — backward-compatible (all readers filter by row `type`).
 - Git-HEAD staleness helper + a `status` subcommand on `mb-graph-query.py`.
-- Opt-in background incremental rebuild from SessionStart (`MB_GRAPH_AUTO`, default
-  **off**) + an opt-in git `post-commit` template (documented, **not** auto-installed).
+- Opt-in stale-graph dirty-marking from SessionStart (`MB_GRAPH_AUTO`, default
+  **off**; superseded mechanics — I-133 catch-up does the rebuild) + an opt-in git
+  `post-commit` template (documented, **not** auto-installed).
 - `mb-context.sh` code-graph section (freshness + counts + ready commands; never
   injects graph contents).
 - Compact graph-first routing block in 6 skill role agents + 6 taskloom project
@@ -108,7 +109,7 @@ backward-compatible wiring, not a new subsystem.
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | A new `meta` row breaks a `graph.json` consumer | Low | High | All 4 readers filter by row `type` (verified: `codegraph_loader.load_graph` ignores non-node/edge; `semantic_search.load_churn` filters `"node-attr"`; mapper's python example skips `type!="node"`; jq `select(.type==…)`). Stage 3 ships a regression test asserting `(nodes,edges)` parse byte-for-byte unchanged. |
-| Background rebuild dirties git-tracked `graph.json` unexpectedly | Medium | Medium | `MB_GRAPH_AUTO` default **off**; when on, rebuild only if graph already exists AND is stale; lockfile; fail-safe exit 0. Documented that it mutates a committable file. |
+| Deferred auto-catchup dirties git-tracked `graph.json` unexpectedly | Medium | Medium | `MB_GRAPH_AUTO` default **off**; when on, only an existing AND stale graph is marked dirty; the bounded catchup CLI (single flock, budget, cooldown — I-133) does the rewrite. Documented that it mutates a committable file. |
 | Nudge is noisy / fights the rtk grep hook | Medium | Medium | Fires only when graph is FRESH; throttled 1×/session (marker file); `MB_GRAPH_NUDGE=off`; detects `rtk grep`/`rtk rg` too; non-blocking `additionalContext` only. |
 | tree-sitter absent → graph misses non-Python files → nudge points at an incomplete graph | Low | Low | Both target repos are Python. Nudge is a *hint*, never a block; agent can still grep. Note non-Python as a follow-up. |
 | git worktrees (`.clone/worktrees/*`) → graph commit ≠ HEAD in the worktree | Medium | Low | Staleness uses `git -C <src_root> rev-parse HEAD` + `rev-list --count <commit>..HEAD`; on any git error fall back to mtime-only; never error. |
@@ -351,10 +352,10 @@ python3 scripts/mb-graph-query.py status --graph .memory-bank/codebase/graph.jso
 ---
 
 <!-- mb-stage:5 -->
-## Stage 5: opt-in background incremental rebuild in SessionStart (MB_GRAPH_AUTO) (TDD)
+## Stage 5: opt-in stale-graph dirty-marking in SessionStart (MB_GRAPH_AUTO) (TDD)
 
 > **SUPERSEDED BY I-133 (2026-07-19, commits 553e80f/3e506e4).** The originally
-> planned detached background rebuild is now a FORBIDDEN pattern (spawn
+> planned detached rebuild-spawn is now a FORBIDDEN pattern (spawn
 > discipline, `hooks/tests/graph-discipline.bats`). The shipped mechanism:
 > session-start only marks `codebase/.graph-dirty`; the next graph query /
 > SessionEnd runs `mb-graph-query.py catchup` — bounded (`MB_GRAPH_CATCHUP_BUDGET`),
@@ -388,31 +389,32 @@ later, inline, bounded, under the single-consumer lock (I-133).
    Add a `MB_GRAPH_AUTO_DRYRUN=1` branch that PRINTS the marker path instead of
    touching it (for the bats assertion). The hook must still `exit 0`.
 3. **RED** `test_session_start.bats`:
-   - `test_graph_auto_off_by_default_no_rebuild` — no `MB_GRAPH_AUTO` + stale graph
-     → helper returns non-zero (no rebuild), hook prints `{}` or the recent block, exit 0.
-   - `test_graph_auto_on_stale_graph_triggers_rebuild_cmd` — `MB_GRAPH_AUTO=on`,
+   - `test_graph_auto_off_by_default_no_marker` — no `MB_GRAPH_AUTO` + stale graph
+     → helper returns non-zero (no marker), hook prints `{}` or the recent block, exit 0.
+   - `test_graph_auto_on_stale_graph_sets_dirty_marker` — `MB_GRAPH_AUTO=on`,
      `MB_GRAPH_AUTO_DRYRUN=1`, existing stale graph fixture → stdout contains
-     `mb-codegraph.py --apply`.
-   - `test_graph_auto_on_absent_graph_no_rebuild` — `MB_GRAPH_AUTO=on` but no
-     `graph.json` → no rebuild command (first build stays manual).
-   - `test_graph_auto_on_fresh_graph_no_rebuild` — fresh graph → no rebuild.
+     `.graph-dirty` and must NOT contain a builder invocation.
+   - `test_graph_auto_on_absent_graph_no_marker` — `MB_GRAPH_AUTO=on` but no
+     `graph.json` → no marker (first build stays manual).
+   - `test_graph_auto_on_fresh_graph_no_marker` — fresh graph → no marker.
    - `test_graph_auto_failsafe_exit0_when_python_missing` — PATH without python3 →
      hook still exits 0, no crash.
 
 ### DoD
-- [ ] Default (`MB_GRAPH_AUTO` unset) → **no** rebuild spawned; SessionStart output
+- [ ] Default (`MB_GRAPH_AUTO` unset) → **no** marker written; SessionStart output
       unchanged from today (recent block only).
-- [ ] `MB_GRAPH_AUTO=on` + existing + stale graph → rebuild command constructed
-      (proven via `MB_GRAPH_AUTO_DRYRUN`); absent/fresh graph → no rebuild.
-- [ ] Lockfile prevents concurrent rebuilds; hook always `exit 0` (fail-safe).
+- [ ] `MB_GRAPH_AUTO=on` + existing + stale graph → `.graph-dirty` marker set
+      (dryrun prints the marker path); absent/fresh graph → no marker.
+- [ ] Concurrency/budget live in the catchup CLI (single `codebase/.graph.lock`
+      flock — never an ad-hoc lock here); hook always `exit 0` (fail-safe).
 - [ ] Tests: +5 bats; existing `test_session_start.bats` green.
 - [ ] `shellcheck hooks/mb-session-start.sh` clean; runs under `/bin/bash` (3.2) + 5.x.
 
 ### Test scenarios
-- `test_graph_auto_off_by_default_no_rebuild`
-- `test_graph_auto_on_stale_graph_triggers_rebuild_cmd`
-- `test_graph_auto_on_absent_graph_no_rebuild`
-- `test_graph_auto_on_fresh_graph_no_rebuild`
+- `test_graph_auto_off_by_default_no_marker`
+- `test_graph_auto_on_stale_graph_sets_dirty_marker`
+- `test_graph_auto_on_absent_graph_no_marker`
+- `test_graph_auto_on_fresh_graph_no_marker`
 - `test_graph_auto_failsafe_exit0_when_python_missing`
 
 ### Commands
@@ -433,10 +435,10 @@ PATH="$PWD/.venv/bin:$PATH" /bin/bash "$(command -v bats)" tests/bats/test_sessi
 <!-- mb-stage:6 -->
 ## Stage 6: opt-in git post-commit template (documented, NOT auto-installed) (TDD)
 
-> **SUPERSEDED BY I-133 (2026-07-19).** The shipped hook does NOT rebuild in the
-> background — it only marks `codebase/.graph-dirty`; the bounded catch-up happens
+> **SUPERSEDED BY I-133 (2026-07-19).** The shipped hook performs NO graph work
+> itself — it only marks `codebase/.graph-dirty`; the bounded catch-up happens
 > at the next graph query / SessionEnd. Follow the current
-> `hooks/git/post-commit-codegraph.sh`, not the background wording below.
+> `hooks/git/post-commit-codegraph.sh`.
 
 **Complexity:** S · **Time:** ~4 min · **Dependencies:** Stage 4 · **Agent:** mb-developer
 **Files:**
@@ -454,29 +456,33 @@ manual install doc, **not** wired into `install.sh`.
 
 ### Tasks (TDD)
 1. Write `hooks/git/post-commit-codegraph.sh` (executable): resolve the MB via a
-   minimal check; if `graph.json` exists, run an incremental `--apply --docs`
-   rebuild in the background, fail-safe (`exit 0` always); if absent, do nothing.
+   minimal check; if `graph.json` exists, mark `codebase/.graph-dirty` (the
+   bounded catch-up runs at the next graph query / SessionEnd — never spawn a
+   builder from a git hook), fail-safe (`exit 0` always); if absent, do nothing.
 2. **RED** `test_git_post_commit_codegraph.bats`:
-   - `test_post_commit_absent_graph_is_noop_exit0` — no graph → no rebuild, exit 0.
-   - `test_post_commit_existing_graph_rebuilds` — with a graph + `..._DRYRUN=1` →
-     stdout contains `mb-codegraph.py --apply`.
-   - `test_post_commit_failsafe_when_python_missing` — PATH without python3 → exit 0.
+   - `test_post_commit_absent_graph_is_noop_exit0` — no graph → no marker, exit 0.
+   - `test_post_commit_existing_graph_marks_dirty` — with a graph + `..._DRYRUN=1` →
+     stdout contains `.graph-dirty` and no builder invocation; a real run creates
+     the marker file.
+   - `test_post_commit_failsafe_when_python_missing` — PATH without python3 → exit 0
+     (marking needs no python).
 3. Document the opt-in installer line in `references/code-graph.md`:
    `ln -sf ~/.claude/skills/memory-bank/hooks/git/post-commit-codegraph.sh .git/hooks/post-commit`
-   with an explicit warning that it mutates the tracked `graph.json`.
+   with an explicit note that the DEFERRED catch-up rewrites the tracked
+   `graph.json` at the next graph query.
 
 ### DoD
 - [ ] `hooks/git/post-commit-codegraph.sh` exists, executable bit set, `exit 0` on
-      every path (no graph, no python, rebuild).
+      every path (no graph, marker touch).
 - [ ] NOT referenced by `install.sh` or `settings/hooks.json`
       (`grep -c post-commit-codegraph install.sh settings/hooks.json` → 0).
 - [ ] `references/code-graph.md` documents the opt-in `ln -sf` install + the
-      tracked-file warning.
+      deferred tracked-file caveat.
 - [ ] Tests: +3 bats; `shellcheck hooks/git/post-commit-codegraph.sh` clean.
 
 ### Test scenarios
 - `test_post_commit_absent_graph_is_noop_exit0`
-- `test_post_commit_existing_graph_rebuilds`
+- `test_post_commit_existing_graph_marks_dirty`
 - `test_post_commit_failsafe_when_python_missing`
 
 ### Commands
@@ -789,7 +795,8 @@ python3 scripts/mb-graph-query.py status --graph .memory-bank/codebase/graph.jso
 - [ ] Every new `graph.json` carries a `meta` row (`generated_at` + `commit` + counts);
       all readers ignore it (regression test green).
 - [ ] Staleness checked against git HEAD via `graph_freshness` + `mb-graph-query status`.
-- [ ] Background auto-rebuild exists, **off by default**, safe when on.
+- [ ] Auto-freshness exists (stale-graph dirty-marking + bounded catchup, I-133),
+      **off by default** (`MB_GRAPH_AUTO`), safe when on.
 - [ ] Opt-in git post-commit template shipped + documented, NOT auto-installed.
 - [ ] `/mb context` advertises the graph (freshness + counts + ready commands),
       never injects contents.
@@ -806,7 +813,7 @@ python3 scripts/mb-graph-query.py status --graph .memory-bank/codebase/graph.jso
 - ⬜ I-087 Stage 2: refresh swarmline graph.json incrementally (ops, cross-repo)
 - ⬜ I-087 Stage 3: meta header row in writer + read_meta in loader (backward-compat, TDD)
 - ⬜ I-087 Stage 4: freshness module + status subcommand (git-HEAD staleness, TDD)
-- ⬜ I-087 Stage 5: opt-in background rebuild in SessionStart (MB_GRAPH_AUTO=off default, TDD)
+- ⬜ I-087 Stage 5: opt-in stale-graph dirty-marking in SessionStart (MB_GRAPH_AUTO=off default, TDD)
 - ⬜ I-087 Stage 6: opt-in git post-commit template, documented not auto-installed (TDD)
 - ⬜ I-087 Stage 7: mb-context.sh code-graph section — freshness + counts + commands (TDD)
 - ⬜ I-087 Stage 8: graph-first routing block in 6 skill role agents (doc test)

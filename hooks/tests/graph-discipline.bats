@@ -69,11 +69,16 @@ EOF
   # carried the pre-I-133 detached-rebuild snippet — an agent resuming it via
   # /mb work would reintroduce the anti-pattern. Scan every plan that is not
   # done/superseded/archived, same invariant as the commands/+agents/ scan.
+  # codex r3: literal shell signatures are not enough — semantically-equivalent
+  # PROSE ("run the rebuild in the background", "stdout contains
+  # mb-codegraph.py --apply") instructs the same violation, so flag it too.
   local viol=0
   for f in "$REPO/.memory-bank/plans"/*.md; do
     [ -f "$f" ] || continue
     head -20 "$f" | grep -qE '^status: *(done|superseded|archived)' && continue
-    if grep -qE 'mb-codegraph\.py[^)]*&|\.graph-rebuild\.lock' "$f"; then
+    if grep -qE 'mb-codegraph\.py[^)]*&|\.graph-rebuild\.lock' "$f" \
+      || grep -qiE 'rebuild[^.]*\bbackground|background[^.]*\brebuild' "$f" \
+      || grep -qiE 'stdout contains .{0,3}mb-codegraph' "$f"; then
       echo "violation in active plan: $f"
       viol=1
     fi
