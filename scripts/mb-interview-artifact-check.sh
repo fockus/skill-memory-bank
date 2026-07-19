@@ -144,9 +144,10 @@ run_plan() {
           if (lines[j] ~ /^[-*+][ \t]/) {
             if (lines[j] ~ /^- \[[ xX]\][ \t]+[^ \t]/) {
               if (lines[j] ~ /^- \[ \]/) printf "O %d\n", j
-            } else if (lines[j] ~ /^- \[[ xX]\][ \t]*$/) {
-              printf "F %d 3 empty_topic\n", j
             } else {
+              # A contentless checkbox (`- [ ]`) is as broken as a non-checkbox
+              # bullet: C8 plan mode declares exactly ONE code for a malformed
+              # item, so both map to bad_bullet (closed enum, no invented code).
               printf "F %d 3 bad_bullet\n", j
             }
           }
@@ -154,21 +155,43 @@ run_plan() {
       }
       END {
         h_inh = 0; h_top = 0; h_dis = 0
+        n_inh = 0; n_top = 0; n_dis = 0
+        ndup = 0; nscan = 0
         for (i = 1; i <= NR; i++) {
           l = lines[i]
-          if (h_inh == 0 && l ~ /^## Inherited decisions \(do not re-ask\)[ \t]*$/) { h_inh = i; continue }
-          if (h_top == 0 && l ~ /^## Topics[ \t]*$/) { h_top = i; continue }
-          if (h_dis == 0 && l ~ /^## Discovered mid-interview[ \t]*$/) { h_dis = i; continue }
+          if (l ~ /^## Inherited decisions \(do not re-ask\)[ \t]*$/) {
+            n_inh++
+            if (n_inh == 1) h_inh = i; else { ndup++; dupline[ndup] = i }
+            continue
+          }
+          if (l ~ /^## Topics[ \t]*$/) {
+            n_top++
+            if (n_top == 1) h_top = i; else { ndup++; dupline[ndup] = i }
+            nscan++; scanat[nscan] = i
+            continue
+          }
+          if (l ~ /^## Discovered mid-interview[ \t]*$/) {
+            n_dis++
+            if (n_dis == 1) h_dis = i; else { ndup++; dupline[ndup] = i }
+            nscan++; scanat[nscan] = i
+            continue
+          }
         }
         if (h_inh == 0) printf "F 0 1 missing_section\n"
         if (h_top == 0) printf "F 0 1 missing_section\n"
         if (h_dis == 0) printf "F 0 1 missing_section\n"
+        # C2 declares each required heading EXACTLY ONCE in a fixed order. A
+        # repeat breaks that canonical sequence — and used to hide the items of
+        # the repeated section from --require-closed entirely, reporting open
+        # topics as 0, so a duplicate is rejected as section_out_of_order.
+        for (k = 1; k <= ndup; k++) printf "F %d 2 section_out_of_order\n", dupline[k]
         if (h_inh > 0 && h_top > 0 && h_dis > 0) {
           if (h_top < h_inh) printf "F %d 2 section_out_of_order\n", h_top
           if (h_dis < h_top) printf "F %d 2 section_out_of_order\n", h_dis
         }
-        scan_section(h_top)
-        scan_section(h_dis)
+        # Scan EVERY Topics/Discovered occurrence, duplicates included, so no
+        # checkbox escapes the bullet grammar or the open-topic count.
+        for (k = 1; k <= nscan; k++) scan_section(scanat[k])
       }
     ' "$FILE"
   )"
@@ -234,6 +257,7 @@ run_transcript() {
       { raw[NR] = $0 }
       END {
         qa_count = 0; qa_line = 0; second_qa = 0; inh_line = 0; rej_section = 0; inline_rej = 0
+        qmal = 0; gmal = 0
         for (i = 1; i <= NR; i++) {
           if (raw[i] ~ /^## Q&A[ \t]*$/) { qa_count++; if (qa_count == 1) qa_line = i; else if (qa_count == 2) second_qa = i }
           if (inh_line == 0 && raw[i] ~ /^## Унаследовано/) inh_line = i
@@ -269,10 +293,22 @@ run_transcript() {
         # C4 rule 4 Q marker: `^**Q<N>( (<tag>))?.** ` — the `(<tag>)` is OPTIONAL
         # (so `**Q1.** q?` is valid), and content after the required space is
         # mandatory (empty question rejected).
+        # C4 places the Q/A and gate blocks INSIDE the canonical `## Q&A`
+        # section. Parsing the whole file let a transcript with a complete-
+        # looking block ABOVE an empty `## Q&A` pass as artifact=ok, so the
+        # scan is bounded by that section (heading → next `## `).
+        qa_start = qa_line; qa_end = 0
+        if (qa_line > 0) {
+          qa_end = NR
+          for (i = qa_line + 1; i <= NR; i++) if (raw[i] ~ /^## /) { qa_end = i - 1; break }
+        }
         nq = 0
-        for (i = 1; i <= NR; i++) {
+        for (i = qa_start; i <= qa_end; i++) {
           if (raw[i] ~ /^\*\*Q[0-9]/) {
-            if (raw[i] !~ /^\*\*Q[0-9]+( \([^)]*\))?\.\*\*[ \t]+[^ \t]/) { print "F " i " 8 q_malformed"; continue }
+            # A line opening like a Q marker but breaking the exact template is
+            # not a question at all — C8 has no `malformed` code, so it is
+            # reported with the closed-enum code for "no valid question here".
+            if (raw[i] !~ /^\*\*Q[0-9]+( \([^)]*\))?\.\*\*[ \t]+[^ \t]/) { qmal++; print "F " i " 7 no_questions"; continue }
             nq++; qidx[nq] = i
             s = raw[i]; sub(/^\*\*Q/, "", s)
             d = ""; k = 1
@@ -283,15 +319,21 @@ run_transcript() {
         # C4 rule 8 gate marker: `^**Финальный гейт(, круг <M>)?.** ` — only an
         # optional numeric round may follow; arbitrary text → gate_malformed.
         ng = 0
-        for (i = 1; i <= NR; i++) {
+        for (i = qa_start; i <= qa_end; i++) {
           if (raw[i] ~ /^\*\*Финальный гейт/) {
-            if (raw[i] !~ /^\*\*Финальный гейт(, круг [0-9]+)?\.\*\*[ \t]+[^ \t]/) { print "F " i " 13 gate_malformed"; continue }
+            # Same reasoning as a malformed Q marker: a broken gate marker is
+            # not a gate, and C8 declares no `gate_malformed` code.
+            if (raw[i] !~ /^\*\*Финальный гейт(, круг [0-9]+)?\.\*\*[ \t]+[^ \t]/) { gmal++; print "F " i " 13 missing_final_gate"; continue }
             ng++; gidx[ng] = i
           }
         }
 
-        if (nq == 0) print "F 1 7 no_questions"
-        if (nq > 0 && qnum[1] != 1) print "F " qidx[1] " 7 q_number_not_one"
+        # Only report the file-level absence when no line already carried the
+        # code, so a malformed marker is not double-counted.
+        if (nq == 0 && qmal == 0) print "F 1 7 no_questions"
+        # Numbering that does not start at 1 IS out-of-order numbering — C8 has
+        # no separate `q_number_not_one`.
+        if (nq > 0 && qnum[1] != 1) print "F " qidx[1] " 8 q_number_out_of_order"
 
         # 5-7. per Q-block
         prev = 0
@@ -314,7 +356,7 @@ run_transcript() {
         if (legacy == "1" && !rej_section && !inline_rej && nq > 0) print "F 1 12 rejected_alternatives_missing"
 
         # 8. gates
-        if (ng == 0) print "F 1 13 missing_final_gate"
+        if (ng == 0 && gmal == 0) print "F 1 13 missing_final_gate"
         prevm = 0
         for (g = 1; g <= ng; g++) {
           gs = gidx[g]; ge = next_boundary(gs) - 1

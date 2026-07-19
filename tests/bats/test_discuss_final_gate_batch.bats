@@ -23,7 +23,13 @@ setup() {
   MB_DISCUSS_CLAUSES+=("batch-frontier-round|mb_section|Batch mode|whole current frontier.*recommendation on each|frontier|s/, with a recommendation on each question//|REQ-015")
   MB_DISCUSS_CLAUSES+=("batch-tool-limit|mb_section|Batch mode|up to 4 questions per call.*several calls|AskUserQuestion|s/ and issue several calls in one round when the frontier exceeds four//|REQ-015")
   MB_DISCUSS_CLAUSES+=("batch-degradation|mb_section|Batch mode|degrades to a numbered plain-text list.*never skipped|interactive question tool|s/degrades to a numbered plain-text list — it is never skipped/is skipped/|REQ-016")
-  MB_DISCUSS_CLAUSES+=("partial-answer-keeps-open|mb_section|Batch mode|unanswered question stays.*next frontier|partially answered|s/ and returns in the next frontier//|REQ-022")
+  # REQ-022 is about the OPEN CHECKBOX, so the clause-ERE pins the literal
+  # `- [ ]`. Without it the clause matched a prompt that said unanswered
+  # questions "stay `- [x]`" — certifying the exact inversion of the
+  # requirement. Two records: one mutates the frontier-return half, one flips
+  # the checkbox, so both halves are proven load-bearing.
+  MB_DISCUSS_CLAUSES+=("partial-answer-keeps-open|mb_section|Batch mode|unanswered question stays .- \\[ \\]. in the interview plan and returns in the next frontier|partially answered|s/ and returns in the next frontier//|REQ-022")
+  MB_DISCUSS_CLAUSES+=("partial-answer-open-checkbox|mb_section|Batch mode|unanswered question stays .- \\[ \\]. in the interview plan and returns in the next frontier|partially answered|s/- \\[ \\]/- [x]/|REQ-022")
   # fact-finding
   MB_DISCUSS_CLAUSES+=("factfind-parallel|mb_section|Batch mode|parallel subagents, one per frontier question|fact-find|s/parallel subagents, one per frontier question/the main agent/|REQ-055")
   MB_DISCUSS_CLAUSES+=("factfind-cites|mb_section|Batch mode|must cite the found fact|recommendation|s/must cite the found fact/may guess/|REQ-015")
@@ -47,6 +53,22 @@ _clause_pair() {
 @test "final_gate_batch: batch respects the 4-question tool limit with multiple calls" { _clause_pair batch-tool-limit; }
 @test "final_gate_batch: batch degrades to numbered plain text, never skipped" { _clause_pair batch-degradation; }
 @test "final_gate_batch: partial answers keep unanswered questions in the next frontier" { _clause_pair partial-answer-keeps-open; }
+@test "final_gate_batch: partial answers keep the unanswered checkbox OPEN" { _clause_pair partial-answer-open-checkbox; }
+
+@test "final_gate_batch: flipping the REQ-022 checkbox to - [x] is caught" {
+  # Direct anti-regression for the review finding: mutate the command file the
+  # way a broken implementation would (unanswered questions recorded as CLOSED)
+  # and require the clause assertion to FAIL. Before the fix both assert_clause
+  # and assert_clause_load_bearing returned 0 on this mutant.
+  local broken="$BATS_TEST_TMPDIR/discuss-broken.md"
+  sed 's/unanswered question stays `- \[ \]`/unanswered question stays `- [x]`/' "$DISCUSS" > "$broken"
+  # The mutation must actually have applied, else the test proves nothing.
+  grep -q 'unanswered question stays `- \[x\]`' "$broken"
+  run assert_clause "$broken" partial-answer-keeps-open
+  [ "$status" -ne 0 ]
+  run assert_clause "$broken" partial-answer-open-checkbox
+  [ "$status" -ne 0 ]
+}
 @test "final_gate_batch: fact-finding runs in parallel subagents per frontier question" { _clause_pair factfind-parallel; }
 @test "final_gate_batch: each recommendation cites the found fact" { _clause_pair factfind-cites; }
 @test "final_gate_batch: fact-finding degrades to sequential main-agent work, not skip" { _clause_pair factfind-degrade-sequential; }

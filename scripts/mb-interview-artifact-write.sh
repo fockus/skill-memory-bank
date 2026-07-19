@@ -20,12 +20,47 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Resolve this script's own PHYSICAL directory through its FULL symlink chain.
+# Deriving SCRIPT_DIR from the symlink's directory let an attacker tree place a
+# stub `mb-secret-scan.sh` / `mb-interview-artifact-check.sh` beside the link
+# and publish a live credential with exit 0 — the gates MUST come from the real
+# writer's directory (REQ-007 / C11).
+_mb_resolve_self_dir() {
+  local src="$1" dir
+  while [ -h "$src" ]; do
+    dir="$(cd -P "$(dirname "$src")" 2>/dev/null && pwd)"
+    src="$(readlink "$src")"
+    case "$src" in
+      /*) ;;
+      *) src="$dir/$src" ;;
+    esac
+  done
+  cd -P "$(dirname "$src")" 2>/dev/null && pwd
+}
+SCRIPT_DIR="$(_mb_resolve_self_dir "${BASH_SOURCE[0]}")"
 CHECK="$SCRIPT_DIR/mb-interview-artifact-check.sh"
 SCAN="$SCRIPT_DIR/mb-secret-scan.sh"
 
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
 topic_error() { printf 'error=topic\n' >&2; exit 2; }
+
+# Candidate lifecycle (REQ-007): on the transcript path the candidate holds the
+# RAW interview text, credentials included. It is a throwaway owned by this
+# writer and is removed on EVERY exit path — publication, scan block, grammar
+# reject, I/O error, or signal — so a rejected credential never lingers as
+# readable plaintext under <bank>/tmp.
+_SCRUB_CAND=""
+_scrub_candidate() {
+  [ -n "$_SCRUB_CAND" ] && rm -f "$_SCRUB_CAND" 2>/dev/null || true
+}
+# A bare `trap ... TERM` handler RESUMES the script once it returns, which would
+# let a signalled run carry on and publish. Scrub, then terminate with the
+# conventional 128+signal status.
+_on_signal() {
+  _scrub_candidate
+  trap - EXIT
+  exit $((128 + $1))
+}
 
 # valid_topic <topic> — strict kebab-case slug: lowercase letters/digits joined
 # by single dashes, no leading/trailing/double dash. A '/', '.', or '..' cannot
@@ -130,6 +165,13 @@ case "$SUB" in
     exit 2
     ;;
   publish-transcript)
+    # Arm the scrub BEFORE the first gate runs, so every subsequent exit path
+    # (block / reject / error / signal) takes the candidate with it.
+    _SCRUB_CAND="$CAND"
+    trap _scrub_candidate EXIT
+    trap '_on_signal 2' INT
+    trap '_on_signal 15' TERM
+    trap '_on_signal 1' HUP
     # C5 secret-scan + C8 transcript grammar must both pass before publishing.
     extra=()
     [ "$REQUIRE_INHERITED" -eq 1 ] && extra+=(--require-inherited)

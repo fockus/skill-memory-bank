@@ -162,6 +162,186 @@ _upsert() {
   grep -q '^slice — a child spec$' "$GLOSS"
 }
 
+# ─── concurrent upserts must not lose entries (review [4]) ───
+
+# N concurrent upserts of distinct terms; each records its exit code. Sets
+# $N_OK (upserts that reported success) and leaves the codes in $BANK/../rcs.
+_concurrent_upserts() {
+  local n="$1" i
+  RC_DIR="$BATS_TEST_TMPDIR/rc"; mkdir -p "$RC_DIR"
+  for i in $(seq 1 "$n"); do
+    printf 'term%02d' "$i" > "$BATS_TEST_TMPDIR/t$i.txt"
+    printf 'def%02d' "$i" > "$BATS_TEST_TMPDIR/d$i.txt"
+  done
+  for i in $(seq 1 "$n"); do
+    (
+      MB_GLOSSARY_LOCK_TIMEOUT="${MB_GLOSSARY_LOCK_TIMEOUT:-90}" \
+        "$SCRIPT" upsert --mb "$BANK" \
+          --term-file "$BATS_TEST_TMPDIR/t$i.txt" \
+          --definition-file "$BATS_TEST_TMPDIR/d$i.txt" >/dev/null 2>&1
+      printf '%d' "$?" > "$RC_DIR/$i"
+    ) &
+  done
+  wait
+}
+
+@test "mb_glossary: concurrent upserts never lose a successful entry" {
+  # Unlocked read-modify-replace: every racer read the same `existing` snapshot
+  # and the last os.replace won, silently dropping its competitors (the review
+  # repro: 30 successful calls, 26 lines on disk). The invariant that must hold
+  # regardless of scheduling: an upsert that REPORTS success is on disk.
+  local i rc n_ok=0 missing=""
+  _concurrent_upserts 12
+  for i in $(seq 1 12); do
+    rc="$(cat "$RC_DIR/$i")"
+    [ "$rc" -eq 0 ] || continue
+    n_ok=$((n_ok + 1))
+    grep -q "^term$(printf '%02d' "$i") — def$(printf '%02d' "$i")\$" "$GLOSS" \
+      || missing="$missing term$(printf '%02d' "$i")"
+  done
+  [ -z "$missing" ] || { echo "upserts reported ok but lost:$missing"; cat "$GLOSS"; false; }
+  # And no phantom entries: line count == number of successful upserts.
+  [ "$(grep -c ' — ' "$GLOSS")" -eq "$n_ok" ]
+}
+
+@test "mb_glossary: with an adequate lock timeout every concurrent upsert succeeds" {
+  local i rc n_ok=0
+  _concurrent_upserts 12
+  for i in $(seq 1 12); do
+    rc="$(cat "$RC_DIR/$i")"
+    [ "$rc" -eq 0 ] && n_ok=$((n_ok + 1))
+  done
+  [ "$n_ok" -eq 12 ] || { echo "only $n_ok/12 upserts succeeded"; false; }
+  [ "$(grep -c ' — ' "$GLOSS")" -eq 12 ]
+}
+
+@test "mb_glossary: a contender that cannot take the lock fails loudly, never silently" {
+  # Degradation must be an explicit exit 2 + diagnostic — NEVER exit 0 with a
+  # dropped entry (that is the corruption mode this lock exists to prevent).
+  # Exit 1 is reserved for a definition conflict, so it must not be used here.
+  mkdir -p "$BANK/.locks/glossary.lock/owner.$$-held"
+  printf 'slice' > "$TF"; printf 'a child spec' > "$DF"
+  run --separate-stderr env MB_GLOSSARY_LOCK_TIMEOUT=1 MB_GLOSSARY_LOCK_TTL=3600 \
+    "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  [ "$stderr" = "error=lock_timeout" ]
+  [ ! -e "$GLOSS" ]
+}
+
+@test "mb_glossary: concurrent upserts of the SAME term stay single-line" {
+  local i n
+  printf 'slice' > "$TF"; printf 'a child spec' > "$DF"
+  for i in $(seq 1 12); do
+    "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF" >/dev/null 2>&1 &
+  done
+  wait
+  n="$(grep -c '^slice — a child spec$' "$GLOSS")"
+  [ "$n" -eq 1 ] || { echo "expected exactly 1 line, got $n"; cat "$GLOSS"; false; }
+}
+
+# ─── invalid UTF-8 is an I/O error, exit 2 (review [10], contract C12) ───
+
+@test "mb_glossary: invalid UTF-8 in the term → exit 2, no traceback, nothing written" {
+  # C12: exit 1 means CONFLICT. A UnicodeDecodeError escaping as exit 1 with a
+  # Python traceback both breaks the exit contract and leaks internals.
+  printf 'caf\xe9term' > "$TF"; printf 'a definition' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  [ "$stderr" = "error=usage" ]
+  ! echo "$stderr" | grep -q 'Traceback'
+  [ ! -e "$GLOSS" ]
+}
+
+@test "mb_glossary: invalid UTF-8 in the definition → exit 2, existing file byte-identical" {
+  _upsert "slice" "a child spec"
+  local before; before="$(cksum < "$GLOSS")"
+  printf 'term2' > "$TF"; printf 'def\xff\xfe' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ]
+  [ "$(cksum < "$GLOSS")" = "$before" ]
+}
+
+@test "mb_glossary: invalid UTF-8 in an existing glossary.md → exit 2, not a traceback" {
+  printf 'bad\xe9line — x\n' > "$GLOSS"
+  local before; before="$(cksum < "$GLOSS")"
+  printf 'slice' > "$TF"; printf 'a child spec' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  ! echo "$stderr" | grep -q 'Traceback'
+  [ "$(cksum < "$GLOSS")" = "$before" ]
+}
+
+# ─── published file mode (I-145) ───
+
+# Permission bits of <file>, portable across BSD (macOS) and GNU stat.
+_mode() {
+  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"
+}
+
+@test "mb_glossary: a created glossary.md is readable, never mkstemp 0600" {
+  # I-145: writers that publish through tempfile.mkstemp() + os.replace() without
+  # carrying a mode leave the target at mkstemp's private 0600. This writer
+  # publishes through open(), so a fresh file must land at the ordinary creation
+  # default — locked down here so a future switch to mkstemp fails loudly.
+  _upsert "slice" "a child spec"
+  [ "$(_mode "$GLOSS")" = "644" ]
+}
+
+@test "mb_glossary: create honours the umask instead of hardcoding a mode" {
+  # Proves the default is computed (0666 & ~umask), not a literal 0644 — a
+  # hardcoded constant would silently widen a deliberately strict environment.
+  umask 077
+  _upsert "slice" "a child spec"
+  [ "$(_mode "$GLOSS")" = "600" ]
+}
+
+@test "mb_glossary: an update preserves a deliberate group-writable 0664" {
+  # The real defect in this script: os.replace() published the temp file's own
+  # mode, so a shared team bank at 0664 silently dropped to 0644 on every write.
+  _upsert "slice" "a child spec"
+  chmod 664 "$GLOSS"
+  _upsert "frontier" "the unblocked question set"
+  [ "$(_mode "$GLOSS")" = "664" ] || { echo "mode became $(_mode "$GLOSS"), expected 664"; false; }
+  grep -q '^frontier — the unblocked question set$' "$GLOSS"
+}
+
+@test "mb_glossary: an update preserves a deliberate 0600 without widening it" {
+  # mb-glossary.sh is the ONLY writer of glossary.md and never produces 0600,
+  # so a restrictive mode here is a deliberate lockdown — not mkstemp damage.
+  # Silently widening it would unprotect a file the user chose to protect.
+  _upsert "slice" "a child spec"
+  chmod 600 "$GLOSS"
+  _upsert "frontier" "the unblocked question set"
+  [ "$(_mode "$GLOSS")" = "600" ] || { echo "mode became $(_mode "$GLOSS"), expected 600"; false; }
+}
+
+@test "mb_glossary: a rejected upsert leaves the mode untouched" {
+  _upsert "slice" "a child spec"
+  chmod 640 "$GLOSS"
+  printf 'bad\nterm' > "$TF"; printf 'x' > "$DF"
+  run "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$(_mode "$GLOSS")" = "640" ]
+}
+
+@test "mb_glossary: a conflicting upsert leaves the mode untouched" {
+  _upsert "slice" "a child spec"
+  chmod 640 "$GLOSS"
+  run "$SCRIPT" upsert --mb "$BANK" --term-file <(printf 'slice') --definition-file <(printf 'a different meaning')
+  [ "$(_mode "$GLOSS")" = "640" ]
+}
+
+@test "mb_glossary: no .tmp sibling survives a successful write" {
+  _upsert "slice" "a child spec"
+  _upsert "frontier" "the unblocked question set"
+  run find "$BANK" -name '*.tmp'
+  [ -z "$output" ] || { echo "temp files left: $output"; false; }
+}
+
 @test "mb_glossary: shellcheck (error severity) and bash -n clean" {
   run shellcheck -x -S error "$SCRIPT"
   [ "$status" -eq 0 ]

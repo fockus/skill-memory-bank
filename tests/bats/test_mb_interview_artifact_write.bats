@@ -136,11 +136,15 @@ EOF
   mkdir -p "$BANK/context"
   [ ! -e "$tgt" ]
   _clean_transcript "$CAND"
+  # Snapshot the candidate first: publishing CONSUMES it (REQ-007 scrub), so the
+  # published bytes are compared against the snapshot, not against the original.
+  local expected="$BATS_TEST_TMPDIR/expected.md"
+  cp "$CAND" "$expected"
   run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$CAND"
   [ "$status" -eq 0 ]
   [ "$output" = "artifact_write=installed kind=transcript" ]
   [ -f "$tgt" ]
-  run diff "$CAND" "$tgt"
+  run diff "$expected" "$tgt"
   [ "$status" -eq 0 ]
 }
 
@@ -222,6 +226,124 @@ EOF
   [ "$status" -eq 0 ]
   [ "$output" = "artifact_write=installed kind=plan" ]
   [ -f "$BANK/tmp/interview-plan-svp-interview-upgrade.md" ]
+}
+
+# ─── symlinked invocation cannot swap the gate scripts (review [3], REQ-007/C11) ───
+
+@test "artifact_write: symlinked writer still uses the REAL secret scanner" {
+  # SCRIPT_DIR resolved from the symlink's directory let an attacker tree drop
+  # a stub mb-secret-scan.sh / mb-interview-artifact-check.sh next to the link
+  # and publish a live credential with exit 0.
+  local fake="$BATS_TEST_TMPDIR/fake" tgt="$BANK/context/foo-interview.md"
+  mkdir -p "$fake" "$BANK/context"
+  printf '#!/bin/sh\nexit 0\n' > "$fake/mb-secret-scan.sh"
+  printf '#!/bin/sh\nexit 0\n' > "$fake/mb-interview-artifact-check.sh"
+  chmod +x "$fake/mb-secret-scan.sh" "$fake/mb-interview-artifact-check.sh"
+  ln -s "$SCRIPT" "$fake/mb-interview-artifact-write.sh"
+  _clean_transcript "$CAND"
+  sed 's/The scope is X/The scope is sk-ant-api03ABCDEFGHIJKLMNOP/' "$CAND" > "$CAND.h"; mv "$CAND.h" "$CAND"
+  run --separate-stderr "$fake/mb-interview-artifact-write.sh" publish-transcript \
+    --mb "$BANK" --topic foo --candidate "$CAND"
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ ! -e "$tgt" ]
+}
+
+@test "artifact_write: symlinked writer still uses the REAL grammar check" {
+  local fake="$BATS_TEST_TMPDIR/fake2" tgt="$BANK/context/foo-interview.md"
+  mkdir -p "$fake" "$BANK/context"
+  printf '#!/bin/sh\nexit 0\n' > "$fake/mb-secret-scan.sh"
+  printf '#!/bin/sh\nexit 0\n' > "$fake/mb-interview-artifact-check.sh"
+  chmod +x "$fake/mb-secret-scan.sh" "$fake/mb-interview-artifact-check.sh"
+  ln -s "$SCRIPT" "$fake/mb-interview-artifact-write.sh"
+  printf 'not a transcript at all\n' > "$CAND"
+  run --separate-stderr "$fake/mb-interview-artifact-write.sh" publish-transcript \
+    --mb "$BANK" --topic foo --candidate "$CAND"
+  [ "$status" -eq 1 ]
+  [ ! -e "$tgt" ]
+}
+
+# ─── the candidate never lingers on disk (review [5], REQ-007) ───
+
+@test "artifact_write: a BLOCKED candidate is removed from disk" {
+  # The credential must not survive the rejected publication as a readable
+  # plaintext file in <bank>/tmp.
+  local tgt="$BANK/context/foo-interview.md" cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  _clean_transcript "$cand"
+  sed 's/The scope is X/The scope is <private>sk-ant-api03ABCDEFGHIJKLMNOP<\/private>/' "$cand" > "$cand.h"; mv "$cand.h" "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -eq 1 ]
+  [ ! -e "$tgt" ]
+  [ ! -e "$cand" ] || { echo "candidate still on disk:"; cat "$cand"; false; }
+}
+
+@test "artifact_write: no file anywhere under the bank still holds the blocked secret" {
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  _clean_transcript "$cand"
+  sed 's/The scope is X/The scope is sk-ant-api03ABCDEFGHIJKLMNOP/' "$cand" > "$cand.h"; mv "$cand.h" "$cand"
+  run "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -eq 1 ]
+  run grep -rl 'sk-ant-api03ABCDEFGHIJKLMNOP' "$BANK"
+  [ "$status" -ne 0 ] || { echo "secret left in: $output"; false; }
+}
+
+@test "artifact_write: a PUBLISHED candidate is removed from disk" {
+  local tgt="$BANK/context/foo-interview.md" cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  _clean_transcript "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -eq 0 ]
+  [ -f "$tgt" ]
+  [ ! -e "$cand" ]
+}
+
+@test "artifact_write: a grammar-rejected candidate is removed from disk" {
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  printf '# Interview transcript: foo (2026-07-17)\n\nno Q&A section here\n' > "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -eq 1 ]
+  [ ! -e "$cand" ]
+}
+
+@test "artifact_write: the candidate is removed even when the writer is killed mid-run" {
+  # Abnormal termination must not leave the raw credential behind. The kill is
+  # synchronised on the writer having spawned its first gate child, which
+  # happens strictly AFTER the scrub trap is armed — so this exercises the real
+  # signal path rather than racing the process start.
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md" rc
+  mkdir -p "$BANK/context"
+  # ~59 MB of padding puts the secret-scan pass in the ~2.5 s range, so the
+  # signal below lands well inside the gate window on any reasonable machine.
+  python3 -c '
+import sys
+p = sys.argv[1]
+with open(p, "w", encoding="utf-8") as fh:
+    fh.write("# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n")
+    fh.write("**Q1 (s).** q?\n**A1.** sk-ant-api03ABCDEFGHIJKLMNOP -> **D-01**. X\n\n")
+    for i in range(1500000):
+        fh.write("padding line %d with prose to scan\n" % i)
+' "$cand"
+  "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand" >/dev/null 2>&1 &
+  local pid=$!
+  sleep 0.3
+  kill -TERM "$pid" 2>/dev/null || true
+  rc=0; wait "$pid" 2>/dev/null || rc=$?
+  # 128+SIGTERM: proves the signal actually interrupted the run, so a clean
+  # normal exit can never make this assertion pass vacuously.
+  [ "$rc" -eq 143 ] || { echo "writer was not interrupted (rc=$rc)"; false; }
+  [ ! -e "$cand" ] || { echo "candidate survived SIGTERM"; false; }
+}
+
+@test "artifact_write: install-plan does NOT consume the candidate" {
+  # Only the credential-bearing transcript path owns candidate scrubbing; the
+  # plan candidate stays put so the interview can resume from it.
+  _valid_open_plan "$CAND"
+  run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic foo --candidate "$CAND"
+  [ "$status" -eq 0 ]
+  [ -f "$CAND" ]
 }
 
 @test "artifact_write: shellcheck (error severity) and bash -n clean" {

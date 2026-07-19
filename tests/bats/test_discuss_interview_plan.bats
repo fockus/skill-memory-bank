@@ -23,6 +23,14 @@ setup() {
   MB_DISCUSS_CLAUSES+=("template-c2-inherited|mb_section|Interview plan template|Inherited decisions .do not re-ask.|Discovered mid-interview|/Inherited decisions/d|REQ-001")
   MB_DISCUSS_CLAUSES+=("template-c2-topics|mb_section|Interview plan template|^## Topics|Inherited decisions|s/^## Topics/## Themes/|REQ-001")
   MB_DISCUSS_CLAUSES+=("template-c2-discovered|mb_section|Interview plan template|Discovered mid-interview|Inherited decisions|/Discovered mid-interview/d|REQ-001")
+  # REQ-002 close-gate: the DETERMINISTIC pre-generation call, not just prose.
+  MB_DISCUSS_CLAUSES+=("close-gate-invocation|mb_section|Write . finalize|mb-interview-artifact-check.sh plan .* --require-closed|interview plan|s/ --require-closed//|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-blocking|mb_section|Write . finalize|[Ee]xit 1 means open .- \\[ \\]. topics remain: generation does not start|generation|s/generation does not start/generation may proceed anyway/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-not-judgement|mb_section|Write . finalize|never substitute your own judgement|exit code|s/never substitute your own judgement/you may substitute your own judgement/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("rule11-code-enforced|mb_rule|11|enforced by code, not by judgement|open|s/enforced by code, not by judgement/a matter of judgement/|REQ-002")
+  # Pre-flight bank resolution must not hardcode a local .memory-bank/.
+  MB_DISCUSS_CLAUSES+=("preflight-resolve-bank|mb_section|Pre-flight|mb_resolve_path|Memory Bank|s/mb_resolve_path/a hardcoded path/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("preflight-global-bank|mb_section|Pre-flight|[Nn]ever hardcode|global|s/Never hardcode/Always hardcode/|REQ-002")
 }
 
 # ─── Interview-plan section (REQ-001) ───
@@ -89,6 +97,53 @@ setup() {
   [ "$status" -eq 0 ]
   run assert_clause_load_bearing "$TEMPLATES" template-c2-discovered
   [ "$status" -eq 0 ]
+}
+
+# ─── REQ-002 deterministic close-gate (review [1]) ───
+
+_clause_pair() {
+  run assert_clause "$DISCUSS" "$1"
+  [ "$status" -eq 0 ]
+  run assert_clause_load_bearing "$DISCUSS" "$1"
+  [ "$status" -eq 0 ]
+}
+
+@test "interview_plan: generation is gated by an explicit --require-closed call" {
+  # The DoD box was ticked while `grep -c require-closed commands/discuss.md`
+  # returned 0 — rule 11 was prose only, with no deterministic code gate.
+  _clause_pair close-gate-invocation
+}
+
+@test "interview_plan: a non-zero close-gate blocks generation" { _clause_pair close-gate-blocking; }
+@test "interview_plan: the close-gate is the exit code, not the agent's judgement" { _clause_pair close-gate-not-judgement; }
+@test "interview_plan: rule 11 defers to the code gate" { _clause_pair rule11-code-enforced; }
+
+@test "interview_plan: the close-gate call names the plan validator in plan mode" {
+  # Bind the clause to the real script: a prompt may not reference a validator
+  # that does not exist, and the flag must be one the validator accepts.
+  run assert_script_present scripts/mb-interview-artifact-check.sh
+  [ "$status" -eq 0 ]
+  grep -q -- '--require-closed' "$REPO_ROOT/scripts/mb-interview-artifact-check.sh"
+}
+
+# ─── Pre-flight resolves the ACTIVE bank, local or global (review [7]) ───
+
+@test "interview_plan: pre-flight resolves the bank through mb_resolve_path" { _clause_pair preflight-resolve-bank; }
+@test "interview_plan: pre-flight forbids hardcoding the bank path" { _clause_pair preflight-global-bank; }
+
+@test "interview_plan: pre-flight no longer pins MB_PATH to a literal .memory-bank/" {
+  # The exact regression: `Resolve MB_PATH = .memory-bank/` refused to run in a
+  # project whose bank is registered globally.
+  local block head_block
+  block="$(mb_section "$DISCUSS" 'Pre-flight')"
+  # Anti-vacuity: the very pattern asserted absent must be PRESENT in the
+  # pre-fix file, otherwise this assertion proves nothing.
+  head_block="$(git -C "$REPO_ROOT" show HEAD:commands/discuss.md 2>/dev/null | mb_section /dev/stdin 'Pre-flight')"
+  if [ -n "$head_block" ]; then
+    printf '%s\n' "$head_block" | grep -Eq 'MB_PATH = .memory-bank/'
+  fi
+  ! printf '%s\n' "$block" | grep -Eq 'MB_PATH = .memory-bank/'
+  printf '%s\n' "$block" | grep -q 'mb_resolve_path'
 }
 
 # ─── Harness self-test (C9): a bare clause (clause-ERE == topic-anchor) is rejected ───

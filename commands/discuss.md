@@ -19,7 +19,7 @@ Before creating a non-trivial plan (`/mb plan feature/refactor/...`). Skip for t
 
 ### Pre-flight
 
-1. Resolve `MB_PATH = .memory-bank/`. Refuse if missing (suggest `/mb init`).
+1. Resolve the active Memory Bank through `scripts/_lib.sh::mb_resolve_path` and use the resolved path as `MB_PATH` in every later step — the bank may be local (`.memory-bank/`), a **global** bank registered via `/mb init --storage=global`, or legacy. Never hardcode `.memory-bank/`: a project on a registered global bank has no local directory and would be refused although its bank is active. Refuse only when the resolver returns nothing (suggest `/mb init`).
 2. Compute `CONTEXT_FILE = $MB_PATH/context/<topic>.md`.
 3. If `CONTEXT_FILE` exists → ask `AskUserQuestion`: continue editing / overwrite / cancel.
 
@@ -66,7 +66,7 @@ The 5 phases below are the **coverage checklist**, not a rigid script. While wal
 8. **Final confirmation gate.** Before writing `context/<topic>.md`, present a numbered summary of every decision taken and get an explicit confirmation. Corrections reopen the affected branch; do not write the file until the summary is confirmed. (Grilling's "do not act until shared understanding is confirmed".)
 9. **Decision ledger.** Maintain a running numbered ledger throughout the interview: every decision taken (`D-NN`: decision + rationale + alternatives rejected) and every open question discovered. An answer that spawns new questions puts them on the ledger before you continue — nothing gets dropped because a branch ran long. The ledger is what rule 8 presents for confirmation, and it lands in the file as `## Decision Log` + `## Open Questions`.
 10. **Depth floor, no question cap.** A phase is done when questioning stops producing new information — not when it "feels covered". Heuristic: if the last two answers changed nothing on the ledger, move on; while answers keep changing requirements, keep asking. Never cut the interview short to save turns.
-11. **No generation with open topics.** Do not generate any artifact while the interview plan still has open `- [ ]` topics — return to each open theme and ask the missing questions before generating (REQ-002). Cancelling mid-interview keeps `status: draft` and preserves the plan file for resume (REQ-019).
+11. **No generation with open topics.** Do not generate any artifact while the interview plan still has open `- [ ]` topics — return to each open theme and ask the missing questions before generating (REQ-002). This is enforced by code, not by judgement: the blocking `mb-interview-artifact-check.sh plan … --require-closed` call in **Write & finalize** step 1 is what permits generation. Cancelling mid-interview keeps `status: draft` and preserves the plan file for resume (REQ-019).
 12. **Final "anything to add?" gate.** Once the interview plan has no open topics, ask the user a final "anything to add?" question before generation (REQ-003). A non-empty answer reopens the discussion iteration and records the new material on the decision ledger (REQ-004); only an explicit "no" lets generation proceed. Separate from rule 8 (the decision-summary confirmation) — this gate does not replace it.
 13. **Glossary.** When a term is resolved during the interview, record it immediately in `.memory-bank/glossary.md` through `mb-glossary.sh upsert` (never a raw prompt write); the file is created lazily on the first term, one line per entry as «term — definition». If a later statement conflicts with an existing glossary term, challenge the conflict before recording the requirement (REQ-018).
 14. **Fast-to-code bypass.** At any point the user may explicitly choose fast-to-code mode to skip the remaining interview and decomposition steps; record the choice and its quality trade-off in the context frontmatter (REQ-020). Quality mode stays the default for every interview.
@@ -156,19 +156,31 @@ What breaks at boundaries? What happens when dependencies fail? What's the worst
 
 ### Write & finalize
 
-1. Render `context/<topic>.md` using the template in `references/templates.md` (`## Context (context/<topic>.md)` section). Write it thoroughly: include the **Research digest** (with its citations), the **Decision Log** (decision → rationale → alternatives rejected, from the ledger), and **Open Questions** (anything deferred, so `/mb plan` addresses or explicitly parks each). Every REQ must trace back to a ledger decision — no requirement appears out of thin air.
-2. Run `bash scripts/mb-ears-validate.sh "$CONTEXT_FILE"`. If it fails, fix in place and retry — do not commit invalid state.
-3. Run `bash scripts/mb-traceability-gen.sh "$MB_PATH"` so the matrix picks up new REQs.
-4. Update frontmatter `status: ready`.
+1. **Close-gate — blocking, runs before anything is rendered.** Verify the interview plan is closed with the deterministic validator:
+
+```bash
+bash scripts/mb-interview-artifact-check.sh plan "$MB_PATH/tmp/interview-plan-<topic>.md" --require-closed
+```
+
+   Exit 0 permits generation. Exit 1 means open `- [ ]` topics remain: generation does not start, return to each open theme and ask the missing questions, then re-run the gate (REQ-002). Exit 2 means the plan artifact is unreadable or malformed: stop and repair it. Never generate on a non-zero gate, and never substitute your own judgement that the topics "look closed" — the exit code decides.
+
+2. Render `context/<topic>.md` using the template in `references/templates.md` (`## Context (context/<topic>.md)` section). Write it thoroughly: include the **Research digest** (with its citations), the **Decision Log** (decision → rationale → alternatives rejected, from the ledger), and **Open Questions** (anything deferred, so `/mb plan` addresses or explicitly parks each). Every REQ must trace back to a ledger decision — no requirement appears out of thin air.
+3. Run `bash scripts/mb-ears-validate.sh "$CONTEXT_FILE"`. If it fails, fix in place and retry — do not commit invalid state.
+4. Run `bash scripts/mb-traceability-gen.sh "$MB_PATH"` so the matrix picks up new REQs.
+5. Update frontmatter `status: ready`.
 
 #### Transcript
 
 When the interview completes, save a curated transcript to `context/<topic>-interview.md` (contract C4, grammar validated by `mb-interview-artifact-check.sh transcript`). It preserves the user's answers near-verbatim, including rejected alternatives (REQ-005), so the planner and spec-reviewer see the real discussion.
 
-- **Candidate first.** Write the candidate to `<bank>/tmp/interview-transcript-<topic>.candidate.md` before any git-tracked path.
+The order is **verify, then publish** — never publish, then verify.
+
+- **Candidate first, and only in the ignored scratch dir.** Write the candidate to `<bank>/tmp/interview-transcript-<topic>.candidate.md` before any git-tracked path, and nowhere else. `<bank>/tmp/` is gitignored, so the raw text never reaches a tracked file before it has been cleared.
 - **Scan gate.** Run `mb-secret-scan.sh --policy transcript` on the candidate before publication.
 - **Private is not a bypass.** The scan reads the raw text including content inside `<private>` — a `<private>` marker never unblocks a git write (R3-001).
 - **Block on finding.** On a finding the git target is not created, and the user is offered removal or irreversible redaction of the credential (REQ-007).
+- **Never edit the candidate in place after a finding.** Re-render the transcript from the redacted material and publish a fresh candidate; a raw credential must not survive as a readable file on disk.
+- **The candidate is consumed, never left behind.** `publish-transcript` removes the candidate on every exit path — publication, scan block, grammar reject, or abnormal termination — so no unredacted credential lingers under `<bank>/tmp`. Do not expect the candidate to still exist after the call.
 - **Publish through the writer.** `mb-interview-artifact-write.sh publish-transcript` atomically installs `context/<topic>-interview.md` only after the scan and the C8 grammar check both pass, and the context frontmatter records `interview_transcript: context/<topic>-interview.md`.
 
 ### Out of scope for this command

@@ -58,15 +58,32 @@ mb_estimate_lib_context() {
       }
 
       total_val = -1; total_line = 0; bd_line = 0
+      n_total = 0; n_bd = 0; dup_total_line = 0; dup_bd_line = 0
       for (i = et_line + 1; i <= region_end; i++) {
         l = raw[i]
         if (l ~ /^[ \t]+total:/) {
+          n_total++
+          if (n_total > 1) { if (!dup_total_line) dup_total_line = i; continue }
           v = l; sub(/^[ \t]+total:[ \t]*/, "", v); v = trim(v); total_line = i
           if (v ~ /^[0-9]+$/) total_val = v + 0; else total_val = -2
-        } else if (l ~ /^[ \t]+breakdown:[ \t]*$/) { bd_line = i }
+        } else if (l ~ /^[ \t]+breakdown:[ \t]*$/) {
+          n_bd++
+          if (n_bd > 1) { if (!dup_bd_line) dup_bd_line = i; continue }
+          bd_line = i
+        }
       }
 
       pt = (total_val >= 0) ? total_val : 0
+      # Exactly one `total:` and one `breakdown:` are required. A repeat used to
+      # overwrite the earlier value (last-wins), so `total: 1` followed by
+      # `total: 0` validated as ok — an ambiguous document must be malformed,
+      # not silently resolved. Reported at the DUPLICATE line.
+      if (n_total > 1 || n_bd > 1) {
+        print "status=malformed"; print "total=" pt
+        if (n_total > 1) print "M " dup_total_line " total"
+        if (n_bd > 1) print "M " dup_bd_line " breakdown"
+        exit
+      }
       if (!bd_line) { print "status=malformed"; print "total=" pt; print "M " et_line " breakdown"; exit }
 
       for (k = 1; k <= ncat; k++) { found[order[k]] = 0; cline[order[k]] = 0; dup[order[k]] = 0; badmap[order[k]] = 0 }

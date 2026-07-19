@@ -18,7 +18,23 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Physical self-directory through the FULL symlink chain: the detection
+# patterns are loaded from the sibling mb-import.py, so resolving from a
+# symlink's directory would let an attacker tree supply a neutered pattern set
+# (same exploit class as the writer, REQ-007).
+_mb_resolve_self_dir() {
+  local src="$1" dir
+  while [ -h "$src" ]; do
+    dir="$(cd -P "$(dirname "$src")" 2>/dev/null && pwd)"
+    src="$(readlink "$src")"
+    case "$src" in
+      /*) ;;
+      *) src="$dir/$src" ;;
+    esac
+  done
+  cd -P "$(dirname "$src")" 2>/dev/null && pwd
+}
+SCRIPT_DIR="$(_mb_resolve_self_dir "${BASH_SOURCE[0]}")"
 IMPORT_PY="$SCRIPT_DIR/mb-import.py"
 
 usage_error() { printf 'error=usage\n' >&2; exit 2; }

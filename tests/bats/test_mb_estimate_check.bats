@@ -376,6 +376,99 @@ EOF
   [ "$stderr" = "error=usage" ]
 }
 
+# ─── duplicate estimate keys are ambiguous, never valid (review [11]) ───
+
+@test "estimate_check: duplicate total: keys → malformed, not silently last-wins" {
+  # A later `total:` overwrote the earlier one, so `total: 1` + `total: 0` with
+  # a zero breakdown reported estimate=ok — an ambiguous frontmatter silently
+  # resolved in favour of whichever line came last.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 1
+  total: 0
+  breakdown:
+    shell_scripts: {count: 0, unit_tokens: 15000, subtotal: 0}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q ':total:malformed$'
+}
+
+@test "estimate_check: duplicate total: keys report the DUPLICATE line" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 0
+  total: 0
+  breakdown:
+    shell_scripts: {count: 0, unit_tokens: 15000, subtotal: 0}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  # Line 4 is the second `total:` — even two IDENTICAL values are ambiguous.
+  echo "$stderr" | grep -q ':4:total:malformed$'
+}
+
+@test "estimate_check: duplicate breakdown: keys → malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 0
+  breakdown:
+    shell_scripts: {count: 0, unit_tokens: 15000, subtotal: 0}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+  breakdown:
+    shell_scripts: {count: 9, unit_tokens: 15000, subtotal: 135000}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q ':breakdown:malformed$'
+}
+
+@test "estimate_check: a single total: + single breakdown: still validates" {
+  # Guard against over-correction: the ordinary well-formed case stays ok.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 30000
+  breakdown:
+    shell_scripts: {count: 2, unit_tokens: 15000, subtotal: 30000}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q '^estimate=ok'
+}
+
 @test "estimate_check: shellcheck (error severity) and bash -n clean" {
   run shellcheck -x -S error "$SCRIPT"
   [ "$status" -eq 0 ]
