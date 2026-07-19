@@ -13,6 +13,8 @@
 #
 # Codex hooks API: experimental, userpromptsubmit currently stable, lifecycle under dev.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   ADAPTER="$REPO_ROOT/adapters/codex.sh"
@@ -374,7 +376,10 @@ PY
   done
   run env -i HOME="$HOME" PATH="$nopy" bash "$ADAPTER" install "$PROJECT"
   [ "$status" -eq 0 ]
-  ! command -v python3 >/dev/null 2>&1 <<<"" || true
+  # The install above ran with PATH={nopy}, so prove THAT is what
+  # lacked python3. The old line probed the test runner's own PATH
+  # and ended in `|| true`, so it asserted nothing at all.
+  refute_file "$nopy/python3"
   # No duplicate top-level key → valid TOML, user's value wins.
   python3 - "$PROJECT/.codex/config.toml" <<'PY'
 import sys, tomllib
@@ -478,8 +483,8 @@ PY
   [ -f "$PROJECT/.codex/config.toml" ]
   grep -q 'user_key = "keep"' "$PROJECT/.codex/config.toml"
   # But the MB-managed block is gone
-  ! grep -q '>>> memory-bank >>>' "$PROJECT/.codex/config.toml"
-  ! grep -q 'project_doc_max_bytes' "$PROJECT/.codex/config.toml"
+  refute_grep -q '>>> memory-bank >>>' "$PROJECT/.codex/config.toml"
+  refute_grep -q 'project_doc_max_bytes' "$PROJECT/.codex/config.toml"
   # The original pristine backup is untouched by the uninstall logic
   local bk
   bk=$(ls "$PROJECT/.codex/config.toml".pre-mb-backup.* 2>/dev/null | head -1)

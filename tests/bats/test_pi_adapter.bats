@@ -11,6 +11,8 @@
 #
 # Pi global install is handled by install.sh; this adapter adds project-local wiring.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   ADAPTER="$REPO_ROOT/adapters/pi.sh"
@@ -64,9 +66,25 @@ run_adapter() {
   [ "$status" -eq 0 ]
   [ ! -f "$PROJECT/AGENTS.md" ]
   [ ! -f "$PROJECT/.mb-pi-manifest.json" ]
-  if [ -f "$PROJECT/.git/hooks/post-commit" ]; then
-    ! grep -q "memory-bank: managed hook" "$PROJECT/.git/hooks/post-commit"
-  fi
+  # I-147: the name promises "preserves user hooks", but this body never
+  # CREATED a user hook, and the only related assertion sat behind a guard that
+  # is false in this fixture (install makes the hook, uninstall removes it), on
+  # top of being a hollow negation. It asserted nothing about user hooks at all.
+  # End state for THIS fixture:
+  refute_file "$PROJECT/.git/hooks/post-commit"
+}
+
+@test "pi: uninstall restores a pre-existing user hook without our marker" {
+  # The preservation the test above only claimed in its name.
+  printf '#!/bin/sh\necho USER HOOK MARKER\n' > "$PROJECT/.git/hooks/post-commit"
+  chmod +x "$PROJECT/.git/hooks/post-commit"
+  run_adapter install "$PROJECT"
+  grep -q "memory-bank: managed hook" "$PROJECT/.git/hooks/post-commit"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.git/hooks/post-commit" ]
+  grep -q "USER HOOK MARKER" "$PROJECT/.git/hooks/post-commit"
+  refute_grep -q "memory-bank: managed hook" "$PROJECT/.git/hooks/post-commit"
 }
 
 @test "pi: default mode works without git repo and skips git hooks" {

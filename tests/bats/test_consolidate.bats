@@ -13,6 +13,8 @@
 #   3. REAL (non-stub) progress entries are NEVER moved by --apply (verbatim intact).
 #   4. <2 windowed sessions / empty window → empty output, exit 0, bank unchanged.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-consolidate.sh"
@@ -271,7 +273,7 @@ _bank_snapshot() {
   grep -q '### Auto-capture 2026-01-02 (session aaaaaaaa)' "$MB/progress-archive.md"
   grep -q '### Auto-capture 2026-01-03 (session bbbbbbbb)' "$MB/progress-archive.md"
   # the stubs are GONE from progress.md (moved, not duplicated).
-  ! grep -q '### Auto-capture 2026-01-02 (session aaaaaaaa)' "$PROGRESS"
+  refute_grep -q '### Auto-capture 2026-01-02 (session aaaaaaaa)' "$PROGRESS"
   ! grep -q '### Auto-capture 2026-01-03 (session bbbbbbbb)' "$PROGRESS"
 }
 

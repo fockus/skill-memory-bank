@@ -15,6 +15,8 @@
 # Cline has native shell-script hooks (.clinerules/hooks/ discovery).
 # Events: beforeToolExecution, afterToolExecution, onNotification.
 
+load lib/assert
+
 setup() {
   # Hermetic env: these hooks read their mode from the ambient shell. A dev with
   # MB_AUTO_CAPTURE=off exported turns every capture assertion into a false red
@@ -100,7 +102,7 @@ EOF
   local hook="$PROJECT/.clinerules/hooks/before-tool.sh"
   [ -x "$hook" ]
   # Freshly generated (user customization is gone from the live file)...
-  ! grep -q "USER_CUSTOM_HOOK_MARKER" "$hook"
+  refute_grep -q "USER_CUSTOM_HOOK_MARKER" "$hook"
   # ...but recoverable via a backup.
   local found=0
   for b in "$hook".pre-mb-backup.*; do

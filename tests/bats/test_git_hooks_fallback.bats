@@ -12,6 +12,8 @@
 #
 # Chains to existing user hooks (backup + delegate, does not overwrite).
 
+load lib/assert
+
 setup() {
   # Hermetic env: these hooks read their mode from the ambient shell. A dev with
   # MB_AUTO_CAPTURE=off exported turns every capture assertion into a false red
@@ -98,10 +100,29 @@ EOF
   local count
   count=$(grep -c "memory-bank" "$PROJECT/.git/hooks/post-commit" || true)
   [ "$count" -ge 1 ]
-  # Backup was not overwritten with our own hook on second install
-  if [ -f "$PROJECT/.git/hooks/post-commit.pre-mb-backup" ]; then
-    ! grep -q "memory-bank" "$PROJECT/.git/hooks/post-commit.pre-mb-backup"
-  fi
+  # I-147: the old line was `if [ -f BACKUP ]; then ! grep ...; fi` — dead
+  # twice over. The negation was hollow, and this fixture has no pre-existing
+  # hook, so install never makes a backup and the guard is always false. For
+  # THIS fixture the invariant is that no backup is fabricated at all; the
+  # double-install-over-a-user-hook case is a real scenario and gets its own
+  # test below.
+  refute_file "$PROJECT/.git/hooks/post-commit.pre-mb-backup"
+}
+
+@test "git-hooks: a second install does not clobber the user's backup with our own hook" {
+  # The invariant the dead conditional was reaching for, with a fixture that
+  # actually reaches it. If install #2 re-backed-up the (already ours)
+  # post-commit, the user's original script would be lost FOREVER — uninstall
+  # would then "restore" our own hook over their work.
+  mkdir -p "$PROJECT/.git/hooks"
+  printf '#!/bin/sh\necho ORIGINAL_USER_CONTENT\n' > "$PROJECT/.git/hooks/post-commit"
+  chmod +x "$PROJECT/.git/hooks/post-commit"
+  run_adapter install "$PROJECT"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.git/hooks/post-commit.pre-mb-backup" ]
+  grep -q "ORIGINAL_USER_CONTENT" "$PROJECT/.git/hooks/post-commit.pre-mb-backup"
+  refute_grep -q "memory-bank" "$PROJECT/.git/hooks/post-commit.pre-mb-backup"
 }
 
 # A16 (M-8): install respects `core.hooksPath` — a repo that redirects hooks
@@ -179,7 +200,7 @@ EOF
   touch "$PROJECT/.memory-bank/.session-lock"
   (cd "$PROJECT" && echo x > a.txt && git add a.txt && git commit -q -m "first")
   # Fresh lock → skip auto-capture
-  ! grep -q "Auto-capture" "$PROJECT/.memory-bank/progress.md"
+  refute_grep -q "Auto-capture" "$PROJECT/.memory-bank/progress.md"
   # Lock is consumed
   [ ! -f "$PROJECT/.memory-bank/.session-lock" ]
 }
@@ -232,10 +253,11 @@ EOF
   run_adapter install "$PROJECT"
   run_adapter uninstall "$PROJECT"
   [ "$status" -eq 0 ]
-  # Our markers gone
-  if [ -f "$PROJECT/.git/hooks/post-commit" ]; then
-    ! grep -q "memory-bank" "$PROJECT/.git/hooks/post-commit"
-  fi
+  # I-147: same dead guard as above — this fixture has no pre-existing hook, so
+  # uninstall removes ours outright and the `if` never ran. Assert the real end
+  # state; the surviving-user-hook case is covered by "uninstall restores user
+  # hooks from backup" below.
+  refute_file "$PROJECT/.git/hooks/post-commit"
   [ ! -f "$PROJECT/.git/mb-hooks-manifest.json" ]
 }
 

@@ -10,6 +10,8 @@
 #   - If the plan has a matching idea in backlog.md (via `Plan: plans/<basename>`),
 #     the idea status flips `PLANNED → DONE` and gets `**Outcome:** <placeholder>`.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SYNC="$REPO_ROOT/scripts/mb-plan-sync.sh"
@@ -107,7 +109,7 @@ teardown() {
     inside { print }
   ' "$TMPBANK/roadmap.md" > /tmp/mb-after.txt
 
-  ! grep -q "2026-04-20_feature_a.md" /tmp/mb-after.txt
+  refute_grep -q "2026-04-20_feature_a.md" /tmp/mb-after.txt
   grep -q "2026-04-21_refactor_b.md" /tmp/mb-after.txt
   rm -f /tmp/mb-after.txt
 }
@@ -121,7 +123,7 @@ teardown() {
     inside { print }
   ' "$TMPBANK/status.md" > /tmp/mb-after.txt
 
-  ! grep -q "2026-04-20_feature_a.md" /tmp/mb-after.txt
+  refute_grep -q "2026-04-20_feature_a.md" /tmp/mb-after.txt
   grep -q "2026-04-21_refactor_b.md" /tmp/mb-after.txt
   rm -f /tmp/mb-after.txt
 }
@@ -241,7 +243,7 @@ PY
 @test "done-multi: flips idea status PLANNED → DONE in backlog.md" {
   bash "$DONE" "$PLAN_A" "$TMPBANK"
 
-  ! grep -q 'I-001 — idea for feature a \[HIGH, PLANNED' "$TMPBANK/backlog.md"
+  refute_grep -q 'I-001 — idea for feature a \[HIGH, PLANNED' "$TMPBANK/backlog.md"
   grep -qE 'I-001 — idea for feature a \[HIGH, DONE' "$TMPBANK/backlog.md"
 }
 

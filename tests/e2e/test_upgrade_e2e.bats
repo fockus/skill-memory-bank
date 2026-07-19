@@ -10,6 +10,8 @@
 # copy (SKILL_COPY) so bumping VERSION between "vN" and "vN+1" never touches
 # the actual checked-out VERSION file other sessions/tests rely on.
 
+load ../bats/lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
@@ -142,7 +144,7 @@ EOF
   codex_manifest="$PROJECT/.codex/.mb-manifest.json"
   [ "$(jq -r '.skill_version' "$codex_manifest")" = "9.9.1" ]
   grep -q "memory-bank-skill-version: 9.9.1" "$PROJECT/AGENTS.md"
-  ! grep -q "memory-bank-skill-version: 9.9.0" "$PROJECT/AGENTS.md"
+  refute_grep -q "memory-bank-skill-version: 9.9.0" "$PROJECT/AGENTS.md"
 
   # Manifest stays valid JSON with a non-empty files[] throughout.
   python3 -c "

@@ -11,6 +11,8 @@
 # held lock dir blocks a concurrent --actualize. Tests drive the bank path positionally
 # so each case runs in its own mktemp sandbox.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-handoff.sh"
@@ -310,7 +312,7 @@ EOF
   # (a) latest.md exists with NEW content
   [ -f "$MB/handoff/latest.md" ]
   grep -q '^# Handoff capsule' "$MB/handoff/latest.md"
-  ! grep -q 'OLD UNIQUE MARKER 12345' "$MB/handoff/latest.md"
+  refute_grep -q 'OLD UNIQUE MARKER 12345' "$MB/handoff/latest.md"
   # (b) exactly one archive file, carrying the OLD content
   count="$(find "$MB/handoff/archive" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')"
   [ "$count" -eq 1 ]

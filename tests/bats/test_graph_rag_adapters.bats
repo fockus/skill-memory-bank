@@ -1,6 +1,8 @@
 #!/usr/bin/env bats
 # GraphRAG-lite adapter contracts for Pi/OpenCode/Codex/generic AGENTS.md surfaces.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   PI_ADAPTER="$REPO_ROOT/adapters/pi.sh"
@@ -83,7 +85,7 @@ _ts_const() {
   [ "$status" -eq 0 ]
   local ext="$sp/.pi/extensions/memory-bank-graph-rag.ts"
   [ -f "$ext" ]
-  ! grep -q '__MB_' "$ext"
+  refute_grep -q '__MB_' "$ext"
   local proj_val
   proj_val="$(_ts_const "$ext" PROJECT_ROOT)"
   printf '%s' "$proj_val" | jq -e 'type == "string"' >/dev/null

@@ -14,6 +14,8 @@
 # Kilo is the only target client without first-class hooks (2026-04-20 research).
 # Adapter mandates git-hooks-fallback for lifecycle events.
 
+load lib/assert
+
 setup() {
   # Hermetic env: the capture hooks read their mode from the ambient shell. A dev
   # with MB_AUTO_CAPTURE=off exported turns the capture assertions into false reds.
@@ -101,10 +103,28 @@ run_adapter() {
   [ "$status" -eq 0 ]
   [ ! -f "$PROJECT/.kilocode/rules/memory-bank.md" ]
   [ ! -f "$PROJECT/.kilocode/.mb-manifest.json" ]
-  # Our git hooks gone
-  if [ -f "$PROJECT/.git/hooks/post-commit" ]; then
-    ! grep -q "memory-bank: managed hook" "$PROJECT/.git/hooks/post-commit"
-  fi
+  # I-147: this was `if [ -f ... ]; then ! grep ...; fi` — DOUBLY dead. The
+  # negation was hollow, and the guard is false in this fixture anyway: the
+  # repo starts with no post-commit, so install creates ours and uninstall
+  # removes it outright. Nothing was ever checked. Assert the end state this
+  # fixture actually produces; the surviving-user-hook path is a separate
+  # scenario and now has its own test below.
+  refute_file "$PROJECT/.git/hooks/post-commit"
+}
+
+@test "kilo: uninstall restores a pre-existing user hook without our marker" {
+  # The scenario the old conditional was reaching for but never ran: when the
+  # repo ALREADY has a post-commit, uninstall must give it back unchanged
+  # rather than delete the user's script.
+  printf '#!/bin/sh\necho USER HOOK MARKER\n' > "$PROJECT/.git/hooks/post-commit"
+  chmod +x "$PROJECT/.git/hooks/post-commit"
+  run_adapter install "$PROJECT"
+  grep -q "memory-bank: managed hook" "$PROJECT/.git/hooks/post-commit"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.git/hooks/post-commit" ]
+  grep -q "USER HOOK MARKER" "$PROJECT/.git/hooks/post-commit"
+  refute_grep -q "memory-bank: managed hook" "$PROJECT/.git/hooks/post-commit"
 }
 
 @test "kilo: uninstall without prior install is no-op" {

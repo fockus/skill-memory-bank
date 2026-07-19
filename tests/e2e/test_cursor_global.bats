@@ -10,6 +10,8 @@
 #
 # And that `uninstall.sh` reverses all of the above while preserving user content.
 
+load ../bats/lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
@@ -182,10 +184,13 @@ EOF
   bash "$REPO_ROOT/install.sh" >/dev/null
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
 
-  if [ -f "$HOME/.cursor/AGENTS.md" ]; then
-    ! grep -q "memory-bank-cursor:start" "$HOME/.cursor/AGENTS.md"
-    ! grep -q "memory-bank-cursor:end"   "$HOME/.cursor/AGENTS.md"
-  fi
+  # I-147: this was `if [ -f AGENTS.md ]; then ! grep ...; fi` — dead twice.
+  # The negations were hollow, AND with no pre-existing AGENTS.md install
+  # CREATES the file and uninstall removes it, so the guard never held and
+  # nothing was ever checked. The end state for this fixture is that our
+  # fabricated file is gone entirely; the strip-but-keep case (user already had
+  # an AGENTS.md) is asserted by the next test.
+  refute_file "$HOME/.cursor/AGENTS.md"
 }
 
 @test "cursor-global: uninstall preserves user content in ~/.cursor/AGENTS.md" {

@@ -16,6 +16,8 @@
 # Key events: session.created/idle/deleted, tool.execute.before/after,
 #             experimental.session.compacting (PreCompact equivalent).
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   ADAPTER="$REPO_ROOT/adapters/opencode.sh"
@@ -77,7 +79,7 @@ assert_opencode_agent_frontmatter() {
   [ -f "$plugin" ]
   # Current OpenCode plugin contract returns hook callbacks directly,
   # not nested under a stale { hooks: { ... } } wrapper.
-  ! grep -q "hooks:" "$plugin"
+  refute_grep -q "hooks:" "$plugin"
   grep -q "event: async" "$plugin"
   # Plugin must reference key events.
   grep -q "session.idle\|session.deleted" "$plugin"
@@ -141,7 +143,7 @@ EOF
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
   # Freshly generated (the user's custom marker is gone from the live file)...
-  ! grep -q "USER_CUSTOM_PLUGIN_MARKER" "$plugin"
+  refute_grep -q "USER_CUSTOM_PLUGIN_MARKER" "$plugin"
   # ...but recoverable: a backup exists and holds the original content.
   local found=0
   for b in "$plugin".pre-mb-backup.*; do
@@ -179,7 +181,7 @@ EOF
 
   local cmd="$PROJECT/.opencode/commands/mb.md"
   # Freshly generated (MB's own command content installed)...
-  ! grep -q "my own mb command" "$cmd"
+  refute_grep -q "my own mb command" "$cmd"
   # ...but the user's original is recoverable via a backup.
   local bk
   bk=$(ls "$cmd".pre-mb-backup.* 2>/dev/null | head -1)
@@ -308,7 +310,7 @@ EOF
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
   # Plugin must NOT use hard-coded path.join(app.path.cwd, '.memory-bank') as sole resolver
-  ! grep -qF "path.join(app.path.cwd, '.memory-bank')" "$plugin"
+  refute_grep -qF "path.join(app.path.cwd, '.memory-bank')" "$plugin"
   # Plugin must check MB_PATH env override
   grep -q "MB_PATH" "$plugin"
 }
@@ -319,7 +321,7 @@ EOF
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
   # Fallback to local path must use current OpenCode plugin input.
-  ! grep -q "app.path.cwd" "$plugin"
+  refute_grep -q "app.path.cwd" "$plugin"
   grep -q "directory" "$plugin"
   grep -q '\.memory-bank' "$plugin"
 }
@@ -827,7 +829,7 @@ STUB
   bk=$(ls "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md".pre-mb-backup.* 2>/dev/null | head -1)
   [ -n "$bk" ]
   grep -q "my custom global developer agent" "$bk"
-  ! grep -q "my custom global developer agent" "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md"
+  refute_grep -q "my custom global developer agent" "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md"
 }
 
 @test "opencode: install-global-agents 2x run stays safe — same roster, live files stay fresh" {

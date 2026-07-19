@@ -11,7 +11,7 @@
 
 bats_require_minimum_version 1.5.0
 
-load lib/s4_assert
+load lib/assert
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"

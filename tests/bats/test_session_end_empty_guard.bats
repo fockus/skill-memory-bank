@@ -4,6 +4,8 @@
 # call, must NOT append a ## Summary, and must NOT touch _recent.md. A single
 # non-empty user request OR one real tool call makes the session substantive.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   HOOK="$REPO_ROOT/hooks/mb-session-end.sh"
@@ -55,7 +57,7 @@ EOF
   _run
   [ "$status" -eq 0 ]
   [ ! -f "$CALLLOG" ]
-  ! grep -q '## Summary' "$SF"
+  refute_grep -q '## Summary' "$SF"
   [ ! -f "$MB/session/_recent.md" ]
 }
 

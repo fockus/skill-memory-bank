@@ -11,6 +11,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   HOOK="$REPO_ROOT/hooks/mb-update-notify.sh"
@@ -1150,8 +1152,27 @@ PY
   # before-prompt use, NOT a fabricated SessionStart registration, so codex.sh
   # is expected to reference the hook. Its behavior is asserted in
   # test_codex_adapter.bats (TTL gate, off-switch, fail-open, danger-block).
-  for adapter in windsurf.sh cline.sh kilo.sh opencode.sh pi.sh; do
-    ! grep -q "mb-update-notify.sh" "$REPO_ROOT/adapters/$adapter"
+  #
+  # I-147: this assertion was HOLLOW (`! grep` mid-test), and while it was dead
+  # the world moved twice underneath it:
+  #
+  #   1. opencode.sh gained a REAL update-notify render path (REQ-013, line ~205
+  #      builds the hook path and renderUpdateNotice() execs it). That is the
+  #      same shape as the codex.sh T6 exclusion above — a genuine non-
+  #      SessionStart transport, not a fabricated registration — so it belongs
+  #      in the exclusion list, and would have been added the day it landed if
+  #      anything had been watching. Its behaviour is asserted in
+  #      test_opencode_adapter.bats.
+  #   2. cline.sh and windsurf.sh each grew a COMMENT that documents the absence
+  #      using the literal string (`grep -c mb-update-notify.sh == 0`), so a
+  #      naive grep now matches its own documentation.
+  #
+  # A registration is CODE, so comments are stripped before matching. That keeps
+  # the assertion sharp: an actual wiring line in any of these adapters still
+  # fails it (proved by injecting one — see the I-147 report).
+  for adapter in windsurf.sh cline.sh kilo.sh pi.sh; do
+    refute_grep -q "mb-update-notify.sh" \
+      <(sed 's/[[:space:]]*#.*$//' "$REPO_ROOT/adapters/$adapter")
   done
 }
 

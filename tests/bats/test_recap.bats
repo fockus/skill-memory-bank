@@ -3,6 +3,8 @@
 # file via ONE Haiku call, replacing the auto-capture stub idempotently.
 # Covers spec tier1-graph-memory REQ-020, REQ-021 + Scenario 8. `claude` is mocked.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-recap.sh"
@@ -77,7 +79,7 @@ teardown() {
   # one and only one Haiku call
   [ "$(wc -l < "$CALLS" | tr -d ' ')" -eq 1 ]
   # stub line is gone, generated content is in
-  ! grep -q 'Session ended without an explicit /mb done' "$PROGRESS"
+  refute_grep -q 'Session ended without an explicit /mb done' "$PROGRESS"
   grep -q 'MOCK RECAP' "$PROGRESS"
   # the day heading above the stub survives the replacement
   grep -q '^## 2026-06-11$' "$PROGRESS"
@@ -142,7 +144,7 @@ EOF
   echo "$output" | grep -qi 'claude'
   # stub stays intact, no generated content
   grep -q 'Session ended without an explicit /mb done' "$PROGRESS"
-  ! grep -q 'recapped: true' "$SF"
+  refute_grep -q 'recapped: true' "$SF"
   after="$(md5 -q "$PROGRESS" 2>/dev/null || md5sum "$PROGRESS" | awk '{print $1}')"
   [ "$before" = "$after" ]
 }
@@ -227,7 +229,7 @@ EOF
   [ ! -f "$CALLS" ]
   after="$(md5 -q "$PROGRESS" 2>/dev/null || md5sum "$PROGRESS" | awk '{print $1}')"
   [ "$before" = "$after" ]
-  ! grep -q 'recapped: true' "$SF"
+  refute_grep -q 'recapped: true' "$SF"
   ! grep -q 'recapped: true' "$SFB"
 }
 
@@ -281,6 +283,6 @@ EOG
   [ ! -f "$CALLS" ]
   after="$(md5 -q "$PROGRESS" 2>/dev/null || md5sum "$PROGRESS" | awk '{print $1}')"
   [ "$before" = "$after" ]
-  ! grep -q 'recapped: true' "$SF"
+  refute_grep -q 'recapped: true' "$SF"
   ! grep -q 'recapped: true' "$SFB"
 }
