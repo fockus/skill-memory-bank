@@ -84,44 +84,58 @@ def run_search(
     lock_fh = _try_acquire(model_lock_path())
     if lock_fh is None:  # a model already lives in another process — never load a 2nd
         return bm25.search(index_dir, query, top_k=top_k, weights=bm25.source_weights())
-    finished, out = _embed_search(index_dir, query, top_k, min_score, timeout, embedder)
-    if finished:
-        lock_fh.close()
-    else:
-        # The worker thread may still be loading the model. Releasing the flock
-        # now would let a second process start a second copy while ours is still
-        # resident (codex round-2 blocker). Hold it for the remainder of this
-        # process's life — the CLI hard deadline kills us shortly, and process
-        # exit releases the flock.
-        _HELD_LOCKS.append(lock_fh)
-    return out
+    return _embed_search(index_dir, query, top_k, min_score, timeout, embedder, lock_fh)
 
 
-def _embed_search(index_dir, query, top_k, min_score, timeout, embedder) -> tuple[bool, list[dict]]:
+def _embed_search(index_dir, query, top_k, min_score, timeout, embedder, lock_fh) -> list[dict]:
+    """Embeddings search; owns releasing ``lock_fh`` (the machine-wide model flock).
+
+    Fast worker → released here. Timed-out worker → ownership is transferred to
+    the worker's ``finally`` so a late finish in a long-lived process releases
+    the lock the moment the load actually ends (codex round-3); if it never
+    finishes, ``_HELD_LOCKS`` pins the handle until process exit — releasing
+    early would let a second process load a second model copy while ours is
+    still resident (codex round-2)."""
     box: dict = {"out": []}
+    guard = threading.Lock()
+    owner = {"transferred": False}
 
-    def work():
+    def _work():
         try:
-            from semantic_store import Store  # lazy: numpy only on this path
+            _search_into(box, index_dir, query, top_k, min_score, embedder)
+        finally:
+            with guard:
+                if owner["transferred"]:
+                    lock_fh.close()  # late finish: release for this process's future calls
 
-            store = Store(index_dir)
-            if not store.load():
-                return
-            if embedder is None:
-                from semantic_embed import Embedder
-
-                emb = Embedder(store.model_name)
-            else:
-                emb = embedder
-            qv = emb.embed([query])
-            if qv.shape[0] == 0:
-                return
-            box["out"] = store.search(qv[0], top_k=top_k, min_score=min_score)
-        except Exception:
-            box["out"] = []
-
-    t = threading.Thread(target=work, daemon=True)
+    t = threading.Thread(target=_work, daemon=True)
     t.start()
     t.join(timeout)
-    # thread still alive → timed out; the caller must keep the model flock held
-    return (not t.is_alive(), box["out"])
+    with guard:
+        if t.is_alive():
+            owner["transferred"] = True  # the worker's finally releases the flock
+            _HELD_LOCKS.append(lock_fh)  # backstop: never-finishing load → exit releases
+            return box["out"]
+    lock_fh.close()
+    return box["out"]
+
+
+def _search_into(box, index_dir, query, top_k, min_score, embedder) -> None:
+    try:
+        from semantic_store import Store  # lazy: numpy only on this path
+
+        store = Store(index_dir)
+        if not store.load():
+            return
+        if embedder is None:
+            from semantic_embed import Embedder
+
+            emb = Embedder(store.model_name)
+        else:
+            emb = embedder
+        qv = emb.embed([query])
+        if qv.shape[0] == 0:
+            return
+        box["out"] = store.search(qv[0], top_k=top_k, min_score=min_score)
+    except Exception:
+        box["out"] = []
