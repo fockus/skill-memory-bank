@@ -511,6 +511,18 @@ def run(
     if sessions:
         _apply_session_layer(mb, graph, summary)
 
+    # Record the opt-in layers actually used, so catch-up rebuilds (I-133)
+    # preserve them deterministically instead of sniffing substrings.
+    flags_used = sorted(
+        flag
+        for flag, active in (
+            ("--cochange", cochange),
+            ("--docs", docs),
+            ("--questions", questions),
+            ("--sessions", sessions),
+        )
+        if active
+    )
     meta = {
         "type": "meta",
         "schema": 1,
@@ -519,6 +531,7 @@ def run(
         "nodes": len(graph["nodes"]),
         "edges": len(graph["edges"]),
         "src_root": str(src),
+        "flags": flags_used,
     }
     _write_graph_jsonl(graph, codebase / "graph.json", communities, churn_attrs, meta=meta)
     atomic_write(codebase / "god-nodes.md", god_nodes_md)

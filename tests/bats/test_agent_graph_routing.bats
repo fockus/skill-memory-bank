@@ -29,18 +29,22 @@ _role_agents() {
   done
 }
 
-@test "tooling-core grants a bounded one-time rebuild permission on stale" {
-  run grep -F "mb-codegraph.py --apply" "$AGENTS_DIR/mb-tooling-core.md"
-  [ "$status" -eq 0 ] || { echo "missing rebuild permission"; return 1; }
+@test "tooling-core grants a bounded one-time catchup permission on stale (I-133 discipline)" {
+  run grep -F "mb-graph-query.py catchup" "$AGENTS_DIR/mb-tooling-core.md"
+  [ "$status" -eq 0 ] || { echo "missing catchup permission"; return 1; }
 
   run grep -iE "once|one-time" "$AGENTS_DIR/mb-tooling-core.md"
   [ "$status" -eq 0 ] || { echo "missing bounded (once/one-time) wording"; return 1; }
 
-  run grep -F ".graph-rebuild.lock" "$AGENTS_DIR/mb-tooling-core.md"
-  [ "$status" -eq 0 ] || { echo "missing lock reference"; return 1; }
+  run grep -F "codebase/.graph.lock" "$AGENTS_DIR/mb-tooling-core.md"
+  [ "$status" -eq 0 ] || { echo "missing single-consumer lock reference"; return 1; }
 
   run grep -E "fall back|never block" "$AGENTS_DIR/mb-tooling-core.md"
   [ "$status" -eq 0 ] || { echo "fail-open wording missing"; return 1; }
+
+  # The legacy direct-rebuild path must be forbidden, not granted.
+  run grep -F ".graph-rebuild.lock" "$AGENTS_DIR/mb-tooling-core.md"
+  [ "$status" -ne 0 ] || { echo "legacy rebuild lock still referenced"; return 1; }
 }
 
 @test "role files use graph-query status not /mb context for freshness" {

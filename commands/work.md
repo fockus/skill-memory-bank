@@ -459,26 +459,16 @@ When the user types `/mb work [args...]`:
 
    Workflows without a `judge` step (e.g. `execution`) still route through this exact sequence: `mb-work-state.sh done` is called once `verify` reports PASS (there is no judge decision to wait for), so the flip stays fully deterministic even without a judge gate.
 
-   **Graph refresh (background, fail-open).** Immediately after `flip`, refresh the code graph so it does not silently drift when the opt-in git hook (`hooks/git/post-commit-codegraph.sh`) is not installed. Because this lives right after `flip`, both governed workflows and `judge`-less workflows like `execution` reach it — every path that flips a checkbox also refreshes the graph. Four guards, mirroring the post-commit hook exactly:
-
-   - **exists** — only refresh when `<bank>/codebase/graph.json` already exists. If the graph is absent, the refresh is **skipped as a no-op**; the first build stays manual (Stage 1 `/mb map` / Stage 6 `/mb graph --apply`), this step never creates it.
-   - **lock** — acquire `<bank>/.index/.graph-rebuild.lock` via an atomic `mkdir`; if another refresh already holds the lock, skip (one winner, no pile-up).
-   - **background** — run the rebuild in a backgrounded subshell (`( ... ) & `) so it never blocks the item loop; release the lock in a `trap ... EXIT` inside the subshell.
-   - **fail-open** — the step always returns/exits 0 either way; a broken or slow graph refresh must never fail or stall `/mb work`.
+   **Graph refresh (bounded, fail-open — I-133).** Immediately after `flip`, refresh the code graph through the single-consumer catch-up CLI so it does not silently drift when the opt-in git hook (`hooks/git/post-commit-codegraph.sh`) is not installed. Because this lives right after `flip`, both governed workflows and `judge`-less workflows like `execution` reach it — every path that flips a checkbox also refreshes the graph:
 
    ```bash
    GRAPH="<bank>/codebase/graph.json"
-   if [ -f "$GRAPH" ]; then
-     LOCK="<bank>/.index/.graph-rebuild.lock"
-     mkdir -p "<bank>/.index" 2>/dev/null || true
-     if mkdir "$LOCK" 2>/dev/null; then
-       ( trap 'rmdir "$LOCK" 2>/dev/null' EXIT
-         python3 scripts/mb-codegraph.py --apply --docs <bank> <repo> >/dev/null 2>&1
-       ) >/dev/null 2>&1 &
-     fi
-   fi
+   [ -f "$GRAPH" ] && python3 scripts/mb-graph-query.py catchup \
+     --graph "$GRAPH" --src-root <repo> --json >/dev/null 2>&1 || true
    # fail-open: never block or fail the item loop on graph refresh
    ```
+
+   All guards live INSIDE the CLI — never reimplement them inline and **never spawn `mb-codegraph.py` in the background or take ad-hoc locks**: existing-graph-only (first build stays manual — Stage 1 `/mb map` / Stage 6 `/mb graph --apply`), one consumer via the non-blocking `codebase/.graph.lock` flock, hard budget `MB_GRAPH_CATCHUP_BUDGET` (default 30 s, process-group kill), cooldown after a failed attempt, opt-in layer preservation, kill-switch `MB_GRAPH_AUTOUPDATE=off`. The call is synchronous but bounded; a `locked`/`cooldown`/`timed_out` result is fine — the next query or SessionEnd catches up.
 
    - Without `--auto`: prompt the user to confirm before moving to the next item.
    - With `--auto`: continue to the next item unless one of the hard stops (below) fired.

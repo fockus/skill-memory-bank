@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import fcntl
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -74,10 +75,27 @@ def _head_commit(src_root: Path) -> str | None:
     return out[:12] if out else None
 
 
+_KNOWN_FLAGS = ("--cochange", "--docs", "--questions", "--sessions")
+
+
 def _detect_flags(graph_path: Path) -> list[str]:
-    """Infer opt-in build layers from the existing graph so the catch-up
-    rebuild preserves them — silently stripping ``--docs``/``--cochange``/
-    ``--sessions``/``--questions`` data would be data loss, not a refresh."""
+    """Opt-in build layers to preserve on catch-up — silently stripping
+    ``--docs``/``--cochange``/``--sessions``/``--questions`` data would be
+    data loss, not a refresh.
+
+    Deterministic source of truth: the ``flags`` list the builder records in
+    the meta row (codex I-133 r1: substring sniffing can both drop a layer —
+    a --docs corpus with zero annotated signatures — and spuriously enable
+    one). Substring heuristics remain ONLY as a fallback for legacy graphs
+    built before the field existed."""
+    try:
+        meta = read_meta(graph_path) or {}
+    except Exception:
+        meta = {}
+    recorded = meta.get("flags")
+    if isinstance(recorded, list):
+        return [f for f in recorded if f in _KNOWN_FLAGS]
+
     flags: list[str] = []
     try:
         text = graph_path.read_text(encoding="utf-8", errors="replace")
@@ -101,6 +119,10 @@ def _detect_flags(graph_path: Path) -> list[str]:
 
 
 def _builder_path() -> Path | None:
+    env = os.environ.get("MB_GRAPH_BUILDER")  # override seam (tests / exotic installs)
+    if env:
+        p = Path(env)
+        return p if p.is_file() else None
     cand = Path(__file__).resolve().parents[1] / "scripts" / "mb-codegraph.py"
     if cand.is_file():
         return cand
@@ -162,23 +184,38 @@ def maybe_catchup(
                 else _env_float("MB_GRAPH_CATCHUP_BUDGET", DEFAULT_BUDGET)
             )
             flags = _detect_flags(graph_path)
+            # Own process GROUP (start_new_session), so the timeout kill reaps
+            # the builder's grandchildren too (its internal git subprocesses) —
+            # killing only the direct child would orphan them unbounded
+            # (codex I-133 r1, same class as the I-132 zombie loaders).
             try:
-                r = subprocess.run(
+                proc = subprocess.Popen(
                     [sys.executable, str(builder), "--apply", *flags, str(mb), str(src)],
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
                     text=True,
-                    timeout=budget_s,
+                    start_new_session=True,
                 )
+            except OSError:
+                cooldown.touch()
+                return {"result": "error"}
+            try:
+                stdout, _ = proc.communicate(timeout=budget_s)
             except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)  # the whole group, not one pid
+                except OSError:
+                    proc.kill()
+                proc.wait()
                 cooldown.touch()
                 return {"result": "timed_out", "budget": budget_s}
-            if r.returncode != 0:
+            if proc.returncode != 0:
                 cooldown.touch()
                 return {"result": "error"}
             dirty.unlink(missing_ok=True)
             cooldown.unlink(missing_ok=True)
             out: dict[str, Any] = {"result": "refreshed", "flags": flags}
-            for line in r.stdout.splitlines():
+            for line in stdout.splitlines():
                 key, sep, value = line.partition("=")
                 if sep and key in ("reparsed", "cached", "nodes", "edges"):
                     try:

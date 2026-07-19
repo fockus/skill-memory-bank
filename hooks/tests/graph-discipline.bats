@@ -54,12 +54,39 @@ EOF
   [ ! -e "$MB/codebase/.graph-dirty" ]
 }
 
+@test "no command/agent instruction layer detaches mb-codegraph or uses the legacy rebuild lock" {
+  # codex I-133 r1 blocker: commands/work.md + agents/mb-tooling-core.md still
+  # instructed agents to spawn detached rebuilds on the OLD .graph-rebuild.lock
+  # — the instruction layer must follow the same discipline as the shell hooks.
+  run grep -rF '.graph-rebuild.lock' "$REPO/commands" "$REPO/agents"
+  [ "$status" -ne 0 ]
+  run grep -rnE 'mb-codegraph\.py[^)]*&' "$REPO/commands" "$REPO/agents"
+  [ "$status" -ne 0 ]
+}
+
 @test "graph-nudge offers a refresh on a STALE graph instead of going silent" {
   _graph "2020-01-01T00:00:00Z"
   run bash -c "printf '%s' '{\"tool_name\":\"Grep\",\"cwd\":\"$TMP\",\"tool_input\":{\"pattern\":\"foo\"}}' | PATH=\"$REPO/.venv/bin:\$PATH\" bash '$BIN/mb-graph-nudge.sh'"
   [ "$status" -eq 0 ]
   [[ "$output" == *"stale"* ]]
   [[ "$output" == *"graph --apply"* ]]
+}
+
+@test "graph-nudge is honest about age-only staleness (no auto-catchup promise)" {
+  # codex I-133 r1 minor: age-only staleness (commit matches, no dirty marker)
+  # never triggers maybe_catchup — the nudge must not promise an automatic fix.
+  _graph "2020-01-01T00:00:00Z"
+  run bash -c "printf '%s' '{\"tool_name\":\"Grep\",\"cwd\":\"$TMP\",\"tool_input\":{\"pattern\":\"foo\"}}' | PATH=\"$REPO/.venv/bin:\$PATH\" bash '$BIN/mb-graph-nudge.sh'"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"auto-catchup"* ]]
+}
+
+@test "graph-nudge promises auto-catchup when the dirty-queue is non-empty" {
+  _graph "2020-01-01T00:00:00Z"
+  : > "$MB/codebase/.graph-dirty"
+  run bash -c "printf '%s' '{\"tool_name\":\"Grep\",\"cwd\":\"$TMP\",\"tool_input\":{\"pattern\":\"foo\"}}' | PATH=\"$REPO/.venv/bin:\$PATH\" bash '$BIN/mb-graph-nudge.sh'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"auto-catchup"* ]]
 }
 
 @test "session-summarize wires a bounded graph catchup (marker consumed inline, not detached)" {

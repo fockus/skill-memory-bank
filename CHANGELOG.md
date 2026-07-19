@@ -20,8 +20,17 @@ All notable changes to this project are documented here. The format follows [Kee
   post-commit hook now only mark the queue — their detached background `mb-codegraph.py` spawns
   are REMOVED (2 spawn points). SessionEnd runs a bounded synchronous catchup.
 - **Stale graph is announced, not hidden**: `mb-graph-nudge.sh` no longer goes silent on a stale
-  graph (the vicious circle that kept graphs unused) — it says stale + how to refresh; the
-  session-start cheat-sheet gains a graph-freshness line for projects that have a graph.
+  graph (the vicious circle that kept graphs unused) — it says stale + how to refresh (honestly:
+  the auto-catchup promise appears only when a catch-up will actually fire — dirty queue or
+  commit drift; age-only staleness points at the manual refresh); the session-start cheat-sheet
+  gains a graph-freshness line for projects that have a graph.
+- **Codex-review hardening (round 1)**: the instruction layer follows the same discipline —
+  `commands/work.md` 5g and `agents/mb-tooling-core.md` now route graph refresh through
+  `mb-graph-query.py catchup` (the legacy detached rebuild + ad-hoc `.graph-rebuild.lock`
+  instructions are gone, with contract tests scanning `commands/`+`agents/`); the builder records
+  its opt-in `flags` in the graph meta row so catch-up preserves layers deterministically
+  (substring sniffing is legacy-only fallback); the catch-up builder runs in its own process
+  group and a budget kill reaps the whole group (no orphaned git grandchildren).
 
 ### Changed — Semantic recall: model-free hot path + spawn discipline (I-132 OOM fix)
 

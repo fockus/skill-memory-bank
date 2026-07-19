@@ -192,6 +192,76 @@ def test_query_cli_catches_up_before_answering(tmp_path):
     assert payload.get("ok") is True, payload
 
 
+def test_meta_records_build_flags_deterministically(tmp_path):
+    """codex I-133 r1 major: substring sniffing can silently drop a layer.
+    The builder must RECORD its opt-in flags in the meta row."""
+    mb, src = _mk_project(tmp_path)
+    graph = _build(mb, src, "--docs")
+    meta = json.loads(graph.read_text().splitlines()[0])
+    assert meta.get("type") == "meta"
+    assert meta.get("flags") == ["--docs"]
+
+
+def test_detect_flags_prefers_recorded_meta_over_substrings(tmp_path):
+    """A --docs graph may legitimately contain ZERO '"signature"' substrings
+    (no annotated defs) — recorded meta flags must still win."""
+    from memory_bank_skill.codegraph_catchup import _detect_flags
+
+    g = tmp_path / "graph.json"
+    g.write_text(
+        '{"type": "meta", "schema": 1, "flags": ["--docs"], '
+        '"generated_at": "2026-01-01T00:00:00Z", "commit": null, "nodes": 0, "edges": 0}\n'
+    )
+    assert _detect_flags(g) == ["--docs"]
+
+
+def test_detect_flags_legacy_graph_falls_back_to_substrings(tmp_path):
+    """Graphs built before the flags field existed keep working via heuristics."""
+    from memory_bank_skill.codegraph_catchup import _detect_flags
+
+    g = tmp_path / "graph.json"
+    g.write_text(
+        '{"type": "meta", "schema": 1, "generated_at": "2026-01-01T00:00:00Z", "commit": null}\n'
+        '{"type": "node", "name": "x", "file": "x.py", "signature": "def x()"}\n'
+    )
+    assert "--docs" in _detect_flags(g)
+
+
+def test_timed_out_catchup_kills_the_whole_process_group(tmp_path, monkeypatch):
+    """codex I-133 r1 major: killing only the direct builder child orphans its
+    grandchildren (e.g. a git subprocess). The builder runs in its own process
+    group and the timeout kills the GROUP."""
+    import signal
+    import time
+
+    mb, src = _mk_project(tmp_path)
+    graph = _build(mb, src)
+    gpid_file = tmp_path / "gpid"
+    stub = tmp_path / "stub-builder.py"
+    stub.write_text(
+        "import pathlib, subprocess, sys, time\n"
+        'p = subprocess.Popen(["sleep", "300"])\n'
+        f"pathlib.Path({str(gpid_file)!r}).write_text(str(p.pid))\n"
+        "time.sleep(300)\n"
+    )
+    (mb / "codebase" / ".graph-dirty").touch()
+    monkeypatch.setenv("MB_GRAPH_BUILDER", str(stub))
+
+    res = maybe_catchup(graph, src, budget=2.0)
+    assert res["result"] == "timed_out", res
+
+    gpid = int(gpid_file.read_text())
+    for _ in range(50):  # give the OS a beat to reap the group
+        try:
+            os.kill(gpid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.1)
+    else:
+        os.kill(gpid, signal.SIGKILL)  # clean up before failing loudly
+        raise AssertionError("grandchild survived the catch-up timeout")
+
+
 def test_query_cli_catchup_subcommand(tmp_path):
     """`catchup` subcommand — the bounded SessionEnd entry point for hooks."""
     mb, src = _mk_project(tmp_path)

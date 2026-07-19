@@ -84,8 +84,15 @@ if [ "$IS_STALE" -eq 1 ]; then
   # I-133: a stale graph must NOT silence the nudge — the old fresh-only gate
   # created the vicious circle (stale → silent → never used → never rebuilt).
   REASON="$(printf '%s' "$STATUS" | "$JQ" -r '.reason // "unknown"' 2>/dev/null || echo unknown)"
-  MSG="The code graph exists but is stale (reason: $REASON). Structural queries still work on the stale graph and trigger a bounded auto-catchup; for full freshness + analytics run: /mb graph --apply
+  # Honest promise (codex I-133 r1): catch-up only fires on the dirty-queue or
+  # git-HEAD drift; age-only staleness needs a manual refresh — say which.
+  if [ "$REASON" = "commits" ] || [ -e "$MB/codebase/.graph-dirty" ]; then
+    MSG="The code graph exists but is stale (reason: $REASON). Structural queries still work and trigger a bounded auto-catchup on the next graph query; for full freshness + analytics run: /mb graph --apply
   (or: python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply .memory-bank .). Grep stays fine for regex/raw text."
+  else
+    MSG="The code graph exists but is stale (reason: $REASON — no pending edits or commit drift, so an automatic refresh will not fire). Refresh manually: /mb graph --apply
+  (or: python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply .memory-bank .). Queries still work on the stale graph; Grep stays fine for regex/raw text."
+  fi
 else
   MSG="Structural query detected. If the code graph is fresh, prefer:
   python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact|neighbors|tests --graph .memory-bank/codebase/graph.json --symbol <Name>
