@@ -298,3 +298,210 @@ moving-HEAD oracle в тесте T1) — остаётся некоммиченн
 mb_roadmap_order.py,mb_roadmap_group.py,mb-backlog-state.sh}, их 5 тест-файлов, specs/svp-roadmap-backlog-db/tasks.md.
 Возобновление: fix S4-T2 blocker → fix S4-T1-fix blocker → re-review; S2-T1-fix re-review; ревью S1 и S4-T6;
 S1-T6 verify+флипы; сигнал «estimate-check released» для S2-T3 НЕ давался.
+
+## [svp-group-exec] 2026-07-19 — RESUME по команде пользователя: волна R — session 7c0ad86b
+
+Codex-вердикты восстановлены из транскрипта (scratchpad был очищен рестартом) →
+scratchpad/exec/review-{s2-t1,s4-t1,s4-t2,s4-t1-fix}.recovered.json. Роли/владение из START
+в силе. Состав волны R (3 сабагента + фоновые codex-процессы вне капа):
+- **S4-fixer** (mb-backend/opus): fix s4-t2 BLOCKER (reclaim-гонка `_lib.sh:868`) + 3 major
+  (barrier-тесты конкуренции; usage exit 2 в mb-backlog-state.sh; SRP-вынос Python-движка из
+  _lib.sh) и s4-t1-fix BLOCKER (immutable pre-fix corpus + golden вместо moving-HEAD oracle)
+  + 3 major (oversized ICE/pin graceful; изоляция ступеней компаратора; pin-only/ice_confirmed
+  через production boundary). После фикса — независимое re-review всей зоны S4.
+- **S1-closer** (mb-qa/opus): verify T6 svp-interview-upgrade + флипы 4 открытых DoD-боксов +
+  полный прогон S1-сьютов + spec-validate → сигнал S1 complete (разблокирует S7).
+- **S2-track** (mb-architect/opus): сигнал «estimate-check released» ДАН (mb-estimate-check.sh
+  в 51ed1d4); продолжение S2 с T3 по DAG.
+- Фоновые codex (gpt-5.6-sol xhigh): re-review s2-t1-fix; первичное ревью зоны S1 (T1–T6).
+Коммиты — только оркестратор, scoped. Чужой WIP не трогаем.
+
+## [svp-group-exec] 2026-07-19 — STATUS волны R: S1 verify ✅ + два codex-вердикта — session 7c0ad86b
+
+S1-closer: T6 DoD 4/4 доказаны и флипнуты → svp-interview-upgrade 26/26 [x]; зона 148/148 green
+(10 сьютов, честные exit-коды); spec-validate --require-scenarios exit 0. Находка closer'а: флаг
+«R3-007 counters» относится к S4-T6 (roadmap-backlog), а НЕ к S1-T6 — идентификатор в паузных
+записях был ошибочно привязан; передано судье. Codex re-review s2-t1-fix: **APPROVED** — S2 T1
+закрыта полностью. Codex первичное ревью s1-zone: **CHANGES_REQUESTED, 4 blocker + 3 major**
+(path traversal в mb-interview-artifact-write.sh --topic; basename-spoof legacy C4; C4-маркеры/
+пустые поля; C1 frontmatter-схема; пустой checkbox C2; Task отсутствует в allowed-tools discuss.md;
+multiline glossary). Вердикт: scratchpad/exec/review-s1-zone.json. Запущен S1-fixer (mb-backend/
+opus) по зоне Track A; S7 старт отложен до чистого re-review S1. S4-fixer и S2-track продолжают.
+
+## [svp-group-exec] 2026-07-19 — HANDOVER: S2 Task 3 → S1-fixer (mb-estimate-check.sh) — session 7c0ad86b
+
+S2-track корректно не стал править S1-owned mb-estimate-check.sh: собрал и верифицировал патч
+C3 (--spec/--tasks-file, red→green, 18/18 новый сьют + 18/18 старый без регрессий, 392 строки,
+shellcheck clean) → артефакты в .memory-bank/.reports/svp-s2-handoff/. Оркестратор маршрутизировал
+приземление в S1-fixer (интеграция СЕМАНТИЧЕСКИ поверх его фикса C1-blocker'а, не поверх HEAD).
+После приземления оркестратор шлёт S2 сигнал «T3 landed» → S2 сам гоняет Eval T3 и флипает DoD.
+S2 тем временем продолжает Task 9 (mb-sdd-self-check.sh, своя зона). ACK-обмен выполнен.
+
+## [drive-track] 2026-07-19 — START: drive-loop T2+T4 вперёд очереди (AGR-024) — session 6607fd14
+
+По AGR-024 (искл. из AGR-011, прецедент AGR-012): исполняю spec `specs/drive-loop/` Task 2
+(`/mb drive` + AGENTS.md loop-контракт) → Task 4 (stop-телеметрия + Stop-hook resume-gate +
+parallel keying), последовательно, workflow codex-governed (implement=opus, review=codex
+gpt-5.6-sol xhigh, judge=fable). Зона claim: commands/drive.md (new), adapters/_lib_agents_md.sh,
+scripts/mb-drive.sh, hooks/ (T4 resume-gate), tests/bats/test_mb_drive_*.bats (new).
+Пересечений с волной R нет (Track A: commands/discuss.md‑зона; Track B: _lib.sh/roadmap-sync;
+Track C: mb-sdd*). Чужой незакоммиченный WIP S4-зоны не трогаю. Попутный контекст: I-131
+(closure-guard wedge) зарегистрирован — правильный фикс входит в зону T4.
+
+## [svp-group-exec] 2026-07-19 — STATUS: S1-fixer DONE (7/7 + T3), S4 пакет 1 закрыт, S2 T4/T5/T9 закрыты — session 7c0ad86b
+
+S1-fixer: все 7 codex-находок исправлены (каждая red→green, disputed нет), зона 148→191 green,
+spec-validate exit 0; T3-handoff интегрирован (spec-сьют 18/18, context 23/23, скрипт 390 строк).
+Спот-чек оркестратора: traversal-репродукция отклонена, containment держит. Запущено независимое
+codex re-review s1-zone-fix (фоном). S1-fixer возобновлён на приземление templates-v2-blocks
+(handoff S2 Task 6, зона Track A). Сигнал «T3 landed» отправлен S2 → сам гоняет Eval T3 и флипает.
+S4-fixer: пакет 1 (s4-t2) закрыт — reclaim-гонка пофикшена двумя швами (red→green, 8 повторов),
+barrier-тесты 15→18, usage exit 2 (+5 кейсов, 24→29), SRP-вынос mb_backlog_state_engine.py
+(327 строк, _lib.sh 1163→935); идёт пакет 2 (s4-t1-fix, oracle). S2: T9 (self-check, 13/13),
+T4 (sdd.md pipeline rewrite, 13 pytest), T5 (mb-sdd-candidate.sh, 12/12 + 8 pytest D-35) закрыты
+с флипами; T6 partial — ждёт «templates landed». Сабагентов активно: 3 (S4, S2, S1-fixer-resume).
+
+## [svp-group-exec] 2026-07-19 — STATUS: S4 оба пакета закрыты; templates.md v2-блоки приземлены; C6-проза согласована — session 7c0ad86b
+
+S4-fixer DONE: пакет 2 — moving-HEAD oracle заменён immutable-голденами (tests/fixtures/
+roadmap_sync_legacy/, 47 файлов, включая real_corpus 18 планов), oversized ICE/pin → graceful
+(try/except → None), изоляция ступеней компаратора доказана, pin-only/ice_confirmed через
+production boundary + дедуп predicate (has_priority). Батарея S4: 18+29+22+14 bats + 44 pytest,
+static clean. Флаг фиксера: design.md C6 описывал дефектный ENOENT-путь — оркестратор согласовал
+прозу с фиксом (п.1 reclaim: ENOENT → отступление, право на rmdir lock только у победителя
+rmdir owner.D; + acquire-инвариант о фантомном держателе). Запущено независимое codex re-review
+всей зоны S4 (оба пакета + первичное ревью T6) фоном. S1-fixer: templates-v2-blocks приземлены
+(577→632), scaffold_compat 5/5, зона 191/191; сигнал «templates landed» отправлен S2. S2: T3
+закрыта (Eval 18/18 + контекст 23/23), идёт T7. Активных сабагентов: 1 (S2); codex-процессов: 2
+(re-review s1-zone-fix, re-review s4-zone-fix).
+
+## [svp-group-exec] 2026-07-19 — S1 re-review: CHANGES_REQUESTED (цикл 2) — session 7c0ad86b
+
+Независимое re-review s1-zone-fix: 4 blocker + 3 major, НОВЫЕ находки (symlink-спуфинг REPO_ROOT
+для legacy-whitelist; C4-грамматика — пустые Q/сепараторы/garbage-гейт + ложный reject валидной
+«**Q1.** q?»; C1 не отвергает неизвестные ключи breakdown по форме значения; C3 Stage 0 обходит
+стейдж-cap; целые по числовому префиксу; режимная валидация флагов; glossary trailing-newline
+bypass). Вердикт: scratchpad/exec/review-s1-zone-fix.json. S1-fixer возобновлён на fix-цикл 2
+(Stage 0 — агрегация по фактическим ID, mb_work_items.py не трогается). S2 уведомлён: после T8
+сверить прозу C3 в svp-sdd-core/design.md с новыми правилами. Workflow-нота: это цикл 2 ревью
+зоны S1 — после фикса решает судья (on_max_cycles judge_decides). S2: T6/T7 закрыты (8/9), идёт
+T8. Ожидается codex re-review s4-zone-fix.
+
+## [svp-group-exec] 2026-07-19 — S4 re-review: CHANGES_REQUESTED (цикл 2) — session 7c0ad86b
+
+Вердикт s4-zone-fix: 1 blocker + 7 major. Blocker — ABA-гонка owner-less TTL (реклейм пересоздаёт
+поколение каталога, отставший публикует маркер в чужое поколение → два владельца; прежние barrier-
+тесты не покрывали). Major: option-token как значение мутирует backlog; progress= отсутствует у
+обычных планов/негруппированных спек (R3-007 прикрывал неполноту REQ-002); bootstrap ручной
+Group-секции не реализован (дубль заголовка на реальном roadmap.md); scan_members сканирует plans
+вопреки C2; malformed ordering-поля без warning/exit 3 + отсутствует svp_group_ordering.json;
+unconfirmed_ice со всех планов включая cancelled; group-order тест не load-bearing. Вердикт:
+scratchpad/exec/review-s4-zone-fix.json. S4-fixer возобновлён (цикл 2; боевой roadmap.md не
+перегенерируется до ревью). Это цикл 2 ревью S4 → после фикса решает судья. Активны: S1-fixer
+(цикл 2), S4-fixer (цикл 2), S2 (T8).
+
+## [svp-group-exec] 2026-07-19 — Рестарт харнесса №2: треки восстановлены; S2 COMPLETE 9/9 — session 7c0ad86b
+
+Рестарт убил обоих фиксеров цикла 2 без финального отчёта. Инспекция дерева: зона S1 вся зелёная
+(check-сьют 43→50 — symlink/C4-часть легла; estimate-check/glossary цикл-2 хвосты не доделаны);
+зона S4 — TDD-разрыв: красный тест «owner-less TTL ABA — a stalled winner never co-owns B's
+generation» написан, фикс в _lib.sh не реализован (18 ok / 1 notok), major'ы 2–8 не начаты.
+Оба фиксера возобновлены из транскриптов с точной картой состояния. S2-track завершился ЧИСТО до
+рестарта: svp-sdd-core 9/9 задач, DoD 22/22, батарея 147 pytest + 10 bats-сьютов зелёные, C3-проза
+согласована (Stage 0/целые/режимные флаги — цель, к которой сходится S1-fixer). Запущено первичное
+codex-ревью зоны S2 (T2–T9) фоном. В дереве появился ЧУЖОЙ tests/bats/test_mb_drive_command.bats
+(drive-loop, параллельная сессия) — не трогаем, в коммиты группы не включать. Активны: S4-fixer
+(цикл 2 c ABA), S1-fixer (цикл 2 хвосты), codex s2-zone.
+
+## [svp-group-exec] 2026-07-19 — S2-zone review: CHANGES_REQUESTED (первичное T2–T9) — session 7c0ad86b
+
+Вердикт s2-zone: 5 blocker + 8 major + 1 minor. Blocker: (1) REQ-001 не реализован — sdd.md
+Step 0 останавливает pipeline вместо авто-discuss; (2) eval-green проходит после проваленного/
+подделанного eval-red — подрыв contract-first (тесты закрепляли обход); (3) candidate canonical
+path не привязан к банку (--mb cross-bank + topic traversal); (4) review-result record обходит
+same_model и подписывает чужую identity; (5) провал C8 уничтожает принятый tasks.md (не byte-
+identical при hard-gate fail). Major: red-spoof через stdout+exit0; cmd-file меняется после
+исполнения; malformed C3 verdict публикуется; review-result topic traversal; pipeline-validate
+spec_review loader-зависим; output~ как Python regex а не ERE; self-check target с пробелом;
+C8-вызов ломается на global bank. Minor: test_mb_spec_validate_v2.bats 407>400. Вердикт:
+scratchpad/exec/review-s2-zone.json. S2-fixer (mb-architect) возобновлён с полным пакетом.
+Это цикл 1 ревью зоны S2 (T1 отдельно APPROVED ранее). Параллельно: узкая codex-верификация
+S1-cycle2 (7 фиксов) + S4-fixer цикл 2. Судья по S1/S2/S4 — по чистым re-review.
+
+## [svp-group-exec] 2026-07-19 — Skill-fix: закрыт 8-мин Stop-hook (firewall verdict-cache) + S4 cycle-2 закрыт — session 7c0ad86b
+
+Пользовательский сайд-квест: closure-guard считает flow активным по факту goal.md (REQ-DF-045) и
+гонял весь mb-flow-verify на КАЖДЫЙ Stop (~8 мин), т.к. mb-test-run.sh-фикс (pytest→python -m
+pytest, чинит фантомные ModuleNotFoundError) сделал прогон честным-и-полным. Фикс скила: лёгкий
+verdict-cache в hooks/mb-flow-closure-guard.sh по контент-сигнатуре дерева (HEAD+diff+untracked,
+исключая .memory-bank/tmp/); неизменённое дерево → reuse прошлого вердикта, любое изменение → miss;
+кэшированный red по-прежнему блокирует (гейт не ослаблен). Opt-out MB_FLOW_VERIFY_CACHE=off, TTL
+MB_FLOW_VERIFY_CACHE_TTL=3600, fail-open. bash -n + shellcheck clean; guard-suite 16/16 без
+регрессий; новый tests/bats/test_mb_flow_closure_guard_cache.bats 5/5. НЕ закоммичено (скил-WIP
+поверх группы). Оркестрация: S4-fixer цикл 2 закрыт (ABA-blocker + 7 major; зона 19+33+22+24 bats
++ 48 pytest) → запущено независимое codex re-review s4-cycle2-fix. Активны: S2-fixer (14 находок),
+codex s1-cycle2-verify, codex s4-cycle2-verify.
+
+## [semantic-i132] 2026-07-19 — Session 1910cfed: I-132 semantic-memory fix (зона: hooks semantic stack)
+
+Зона: hooks/{mb-semantic.py, mb-semantic-recall.sh, mb-session-start.sh, mb-session-summarize.sh,
+lib/{indexer,searcher,semantic_*,recall_index,bm25(new)}}, tests/pytest/test_semantic*/test_recall*,
+hooks/tests (новый bats), CHANGELOG. НЕ пересекается с зонами S1/S2/S4 (scripts/*) и
+mb-flow-closure-guard.sh (не трогаю, как и чужой test_mb_drive_command.bats). Scoped git add only.
+План: BM25-дефолт на hot path recall, flock-singleton на модель/reindex, dirty-marker вместо
+detached reindex (3 точки спавна), транскрипты out of default, progress.md+agreements.md в индекс,
+гейтинг промпта; после зелёных тестов — codex-review диффа, правки, включение MB_SEMANTIC обратно.
+Контекст: I-132 (backlog), OOM-расследование на машине пользователя.
+
+## [semantic-i132] 2026-07-19 — зона расширена: + scripts/mb-session-prune.sh (codex-находка: 4-я точка detached-спавна mb-semantic.py prune)
+
+## [semantic-i132] 2026-07-19 — DONE: I-132 semantic-fix закрыт — session 1910cfed
+
+Коммиты 158c2d8 → 3d6d69f → f728b80 → aa1c692 (зона hooks semantic + scripts/mb-session-prune.sh
++ CHANGELOG + тесты). Codex-ревью 3 раунда: blocker (машинный model-lock) + 5 major + 2 minor —
+всё закрыто, финальное подтверждение в фоне. 50 pytest + 13 bats зелёные. Реальный .index проекта
+мигрирован на __bm25__ (6 agreement + 139 progress чанков добавлены). Установленные хуки
+~/.claude/hooks синкнуты. MB_SEMANTIC=off у пользователя снят. I-133 (graph auto-update +
+stale-nudge) записан в backlog как следующий слайс. SKILL.md: 2 строки хуков актуализированы
+(в чужом WIP — НЕ закоммичено, уедет с вашим чекпоинтом). backlog.md: +I-132 status, +I-133.
+
+## [semantic-i132] 2026-07-19 — зона расширена: + adapters/pi_session_memory_extension.ts (codex round-5 blocker: 5-я точка detached-спавна reindex в TS-адаптере; файл был чистый, не в чужом WIP)
+
+## [semantic-i132] 2026-07-19 — DONE-2: codex-раунды 4–6 закрыты — session 1910cfed
+
+Коммиты cacd2a2 (тест worker-owned release), 6d3d444 (5-я detached-точка: Pi-адаптер → dirty-marker
++ deadline на index/reindex/prune), b084b61 (свой бюджет MB_SEMANTIC_MAINTENANCE_TIMEOUT=300s +
+3 runtime-теста Pi dirty-marker). Зона добавила adapters/pi_session_memory_extension.ts и
+tests/bats/test_pi_session_memory_extension.bats (оба были чистые). Repo-wide свип codex:
+detached-индексаторов больше нет нигде. 42 pytest + 15 + 10 bats зелёные. Round 7 (финальный
+вердикт по b084b61) — в фоне.
+
+## [graph-i133] 2026-07-19 — Session 1910cfed: I-133 graph auto-update (зона: graph-стек)
+
+Зона: memory_bank_skill/codegraph_catchup.py (новый), scripts/{mb-graph-query.py,mb-code-context.py},
+hooks/{file-change-log.sh, mb-graph-nudge.sh, mb-session-start.sh, mb-session-summarize.sh,
+git/post-commit-codegraph.sh}, tests/pytest/test_codegraph_catchup.py (новый),
+hooks/tests/graph-discipline.bats (новый), tests/bats/{test_mb_graph_nudge,
+test_git_post_commit_codegraph, test_session_start}.bats (обновлены ожидания). Все файлы были
+чистые (не в зонах S1/S2/S4). Дисциплина I-132: dirty-queue + один потребитель под flock +
+budget/cooldown, два detached-спавна mb-codegraph убраны (session-start MB_GRAPH_AUTO,
+git post-commit). Прогон: 2123 pytest passed (11 fail — пре-экзистующие, воспроизведены на чистом
+HEAD в worktree: doc-counts/cyrillic/landing/hook-matrix/SRP pi.sh — чужой пласт), все графовые
+и семантические сьюты зелёные, shellcheck clean.
+
+## [graph-i133] 2026-07-19 — round-1 фиксы codex закоммичены (3e506e4); commands/work.md — hunk-scoped staging
+
+Blocker (detached rebuild в work.md 5g) + 3 major (tooling-core legacy lock, substring flags,
+orphaned grandchildren) + minor (честность nudge) — все закрыты. ВАЖНО: commands/work.md был в
+чужом WIP (2 ханка S8 eval-gate, строки ~333–397) — закоммичен ТОЛЬКО мой ханк 5g (git apply
+--cached отфильтрованного патча), ваши ханки остались в дереве нетронутыми. Контрактные тесты
+test_work_5g_graph_refresh.bats / test_agent_graph_routing.bats перепинованы на новую дисциплину
+(catchup CLI, legacy .graph-rebuild.lock запрещён сканом).
+
+## [graph-i133] 2026-07-19 — DONE: I-133 закрыт, codex APPROVED — session 1910cfed
+
+Коммиты 553e80f → 3e506e4 → 2a6f517 → c0c5415. Codex 4 раунда: 1 blocker (detached rebuild в
+work.md 5g — закоммичен hunk-scoped, чужие ханки S8 не тронуты) + 6 major + 2 minor, финал
+APPROVED. Дисциплина I-132 распространена на весь graph-стек: mark-only хуки, единый flock +
+budget + cooldown в catchup CLI, prose-aware spawn-скан (hooks/commands/agents/активные планы).
+backlog: I-133 → FIXED. Хуки синкнуты в ~/.claude/hooks (скил — симлинк на репо).

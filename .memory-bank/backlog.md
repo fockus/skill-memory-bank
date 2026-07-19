@@ -10,6 +10,82 @@
 
 
 
+### I-133 — Code graph: авто-обновление + стал-nudge (граф протухает и потому не используется) [HIGH, 2026-07-19]
+
+**STATUS: FIXED 2026-07-19** — коммиты 553e80f / 3e506e4 / 2a6f517 / c0c5415, codex-ревью
+4 раунда (1 blocker + 6 major + 2 minor — все закрыты, финал APPROVED). Реализовано по дизайну
+ниже: dirty-queue (`codebase/.graph-dirty`: file-change-log на source-правки, session-start
+`MB_GRAPH_AUTO`, git post-commit — все теперь mark-only, 2 detached-спавна убраны) + inline
+catch-up (`memory_bank_skill/codegraph_catchup.py`, `mb-graph-query.py catchup`) под flock
+`codebase/.graph.lock` c бюджетом `MB_GRAPH_CATCHUP_BUDGET` (30s, process-group kill — внуки
+не сиротеют) и cooldown (600s); триггер также git-HEAD drift vs meta; opt-in слои записываются
+в meta `flags` и сохраняются; SessionEnd — bounded синхронный catchup; stale-nudge честный
+(auto-catchup обещается только когда реально сработает); cheat-sheet со строкой свежести;
+kill-switch `MB_GRAPH_AUTOUPDATE=off`. Инструкционный слой приведён к дисциплине (work.md 5g,
+mb-tooling-core, активный план code-graph-activation Stage 5/6) + prose-aware spawn-скан по
+hooks/commands/agents/активным планам. 13 catchup-pytest + 45 графовых bats.
+
+**Context:** graph.json обновляется только руками (`/mb graph --apply`) и протухает за дни
+(в этом репо: граф 07-15 при HEAD 07-19). Порочный круг: nudge-хук (`mb-graph-nudge.sh`)
+предлагает граф ТОЛЬКО когда тот fresh → протухший граф молча исчезает из подсказок → агент
+никогда его не запрашивает → никто не замечает, что граф мёртв. Ключевой факт: **инкрементальный
+движок уже есть** — `mb-codegraph.py` ведёт per-file SHA256-кэш (`codebase/.cache/`), пересборка
+парсит только изменённые файлы. Не хватает только триггеров и честного stale-поведения.
+
+**Design (дисциплина I-132: dirty-queue + один потребитель под flock, никаких detached):**
+1. Dirty-queue: PostToolUse `file-change-log.sh` (уже логирует все Write/Edit) дополнительно
+   аппендит путь в `codebase/.graph-dirty`; git post-merge/checkout → mark-all.
+2. Catch-up при запросе: `mb-graph-query.py`/`mb-code-context.py` при непустой очереди —
+   инкрементальная пересборка инлайн под flock с бюджетом (SHA-кэш ⇒ reparse только изменённых);
+   очередь больше порога/бюджета → отвечаем по stale + явный warning в выводе.
+3. Второй триггер: SessionEnd — bounded synchronous update с hard deadline (как semantic CLI).
+   Full rebuild + аналитика (communities/betweenness, god-nodes.md) — только явный
+   `/mb graph --apply` или по расписанию; в инкременте аналитику не пересчитывать.
+4. Stale-nudge: nudge при протухшем графе НЕ молчит, а говорит «graph stale N days →
+   `/mb graph --apply`»; session-start cheat-sheet получает строку свежести графа.
+5. Guardrails: skip gitignored/vendored, file-size cap, один воркер, nice, деадлайн.
+
+**Оценки (full build, стрим per-file, RAM = O(файл + символьный индекс)):**
+~100k LOC ≈ 10–40 s / <200 MB; ~1M LOC ≈ 3–15 мин / сотни MB (питон-AST + tree-sitter);
+инкремент после первой сборки — миллисекунды–секунды на файл. Для монорепо 10M+ LOC —
+upgrade path: SQLite-backed symbol table + шардированный graph.json (не сейчас, YAGNI).
+
+**Prompt-слой:** cheat-sheet/nudge обновить (см. выше); AGENTS.md-адаптеры — через adapter-parity.
+
+### I-132 — OOM: embedding-процессы semantic-слоя без лимитов валят macOS [HIGH, 2026-07-19]
+
+**Context:** расследование OOM на машине пользователя (32 GB): JetsamEvent-отчёты почти ежедневно 13–19.07, окно «system has run out of application memory». Виновник — semantic-слой хуков: python-процессы с fastembed/ONNX (`qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q`) по 2.5–2.7 GB RSS (пик 3.5), 5–6 одновременно = 13–16 GB, компрессор памяти 21–27 GB.
+
+Механика (все пути подтверждены по коду):
+- `hooks/mb-semantic-recall.sh` (UserPromptSubmit) спавнит свежий python на каждый промпт — модель грузится с нуля в каждом процессе, демона/шаринга нет; N параллельных сессий = N копий.
+- `--timeout 3` — мягкий бюджет поиска внутри CLI (`mb-semantic.py`), ни загрузку модели, ни процесс не убивает.
+- `hooks/mb-session-summarize.sh:164` (SessionEnd) запускает `mb-semantic.py reindex --incremental` detached (`( … & )`) без таймаута и без lock → закрытие нескольких сессий = несколько параллельных 2.6-GB индексаторов (ночные jetsam-события 03:31/05:05).
+- fastembed-кэш в `$TMPDIR/fastembed_cache` (240 MB) — macOS чистит temp → периодические повторные скачивания модели.
+
+**Fix (минимум):**
+- singleton-lock (flock) на любой процесс, грузящий модель, — максимум один на машину; recall при занятом lock мгновенно отдаёт `{}` (лексический fallback);
+- реальный kill по бюджету времени (включая фазу загрузки модели), а не аргумент поиска;
+- reindex: очередь через тот же lock вместо parallel detach;
+- кэш модели в стабильный путь (`~/.cache/fastembed`), не `$TMPDIR`.
+
+**STATUS: FIXED 2026-07-19** — коммиты 158c2d8 / 3d6d69f / f728b80 / aa1c692 / cacd2a2 / 6d3d444
+/ b084b61. Реализовано всё из Fix-минимума и больше: BM25 — дефолтный бэкенд (model-free hot
+path, ~53 MB / 0.4 s на промпт; эмбеддинги opt-in `MB_SEMANTIC_BACKEND=embeddings` за машинным
+singleton-flock c worker-owned release + hard process deadline), все detached-точки убраны —
+включая 5-ю в `adapters/pi_session_memory_extension.ts` (TS, codex round-5 blocker; теперь
+dirty-marker, runtime-тесты через node harness), agreements/progress — первоклассные источники,
+транскрипты opt-in, prompt-гейтинг, кэш модели в `~/.cache/fastembed`. Maintenance-команды
+(`index`/`reindex`/`prune`) — свой hard deadline `MB_SEMANTIC_MAINTENANCE_TIMEOUT` (300 s),
+развязан с поисковым. Codex-ревью: 6 раундов, закрыто 2 blocker + 6 major + 4 minor; финальная
+верификация b084b61 (round 7). 42 pytest + 15 semantic bats + 10 pi bats. `MB_SEMANTIC=off`
+у пользователя снят — фича снова включена.
+
+**Follow-ups (не блокируют):** (1) унификация движка в один CLI `--scope memory|code` + общий
+модуль токенизатора вместо зеркальной копии в `hooks/lib/bm25.py`; (2) kind-label
+(`agreement/progress/…`) в компактной строке инжекта; (3) телеметрия expand-rate — если инжект
+по-прежнему не приводит к `--expand`, честно убить push-слой; (4) реклама recall/graph в
+AGENTS.md-адаптерах — через adapter-parity (AGR-012…014). Авто-обновление графа — I-133.
+
 <!-- Cluster I-082..I-086 — codex/GPT-5.5 adversarial review 2026-06-23. Source: reports/2026-06-23_codex-gpt5.5-skill-review.md (9 read-only sessions). -->
 
 ### I-082 — Security hardening: code-exec + path traversal + private/secret leak [HIGH, DONE 2026-07-15, 2026-06-23] — Wave 1, commit 49f9ad5, план plans/done/2026-06-23_fix_security-hardening.md
@@ -777,3 +853,19 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 **Decision:** C.
 **Rationale:** canonical path; сохраняет authorship и link continuity.
 **Consequences:** Stage 8.5 до Stage 9 (иначе PyPI/Homebrew нужен перевыпуск). PyPI имя остаётся `memory-bank-skill` (ADR-008 — не переименовываем). URL в project_urls.Repository → `fockus/skill-memory-bank`.
+
+### I-134 — Ручной запуск embeddings-пути молчал при отсутствии зависимостей [LOW, 2026-07-19]
+
+**Context:** живой прогон I-132/133 (сессия 1910cfed): `python3 mb-semantic.py reindex/search`
+с `MB_SEMANTIC_BACKEND=embeddings` на интерпретаторе без fastembed возвращал пустоту без
+единого слова — fail-safe «никогда не ломай хук» глотал ImportError. Для хуков поведение
+верное (они и глушат stderr через `exec 2>/dev/null`, и сами выбирают venv-python через
+`sc_semantic_py`), для человека — плохой UX.
+
+**STATUS: FIXED 2026-07-19** — stderr-подсказки (видны только людям: хуки глушат stderr) в трёх
+точках: (1) search при недоступном fastembed/numpy → «embeddings backend unavailable … install
+deps via mb-semantic-bootstrap.sh» + **fallback на BM25 вместо пустоты**; (2) search при
+отсутствии векторного индекса (BM25-формат) → «no embeddings index … build one first» + BM25;
+(3) reindex/index при недоступных deps → та же подсказка (перехват на call-site: fastembed
+грузится лениво внутри embed()). 3 новых pytest с hermetic-отравлением fastembed через
+PYTHONPATH-стаб. 45 hooks-pytest зелёные.
