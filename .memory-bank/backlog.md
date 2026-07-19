@@ -723,6 +723,46 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-131 — mb-flow-closure-guard.sh виснет каждый Stop при активном goal.md: гоняет полный firewall (default-набор включает `tests` = вся батарея bats+pytest, замер >600s на этом репо) на КАЖДОМ завершении хода, а не только при заявке на closure. Дефекты: (a) предикат — существование goal.md, поле `status:` игнорируется (paused всё равно гейтит); (b) нет env kill-switch (нужен MB_FLOW_CLOSURE=off); (c) settings-запись без timeout — session wedge на минуты (наблюдалось «running stop hooks 4/7 · 5m+»); (d) нужен fast-path: кэш вердикта по HEAD+dirty-hash или дешёвый check-набор (без tests) в Stop-контексте, полный — только при явном closure-claim. Митигация 2026-07-19: timeout=45 на hook-запись в ~/.claude/settings.json (installer при регенерации должен её сохранять). Правильный фикс — в зоне drive-loop T4 (Stop-hook resume-gate, тот же hook-слой) [HIGH, NEW, 2026-07-19]
 
+### I-135 — drive-loop: валидация run_id на границе слот-семейства (mbw_state_slot/mbw_budget_slot/mbw_drive_slot + CLI mb-drive-stop.sh) — грамматика [A-Za-z0-9._-]+, реджект path-разделителей/`../`-траверса и переводов строк (инжект в progress-телеметрию); traversal+newline тесты. Паттерн интерполяции идентичен до-T4 слотам I-094 — класс pre-existing на всё семейство, run_id задаёт оркестратор/env, не недоверенный ввод (src: codex-ревью T4 MAJOR-6, judge cycle 1) [MED, NEW, 2026-07-19]
+
+### I-136 — hooks: allow при отсутствующем/невалидном cwd вместо $PWD-fallback — единая конвенция Stop-хуков, править синхронно в mb-drive-resume-gate.sh (:157) и mb-flow-closure-guard.sh (:146, зона I-131); CC всегда шлёт cwd, поэтому edge-hardening (src: codex-ревью T4 MAJOR-2, judge cycle 1) [LOW, NEW, 2026-07-19]
+
+### I-137 — mb-drive-resume-gate.sh: парсинг acceptance — требовать exit 0 хелпера + корневое поле `ok` через jq/python вместо подстрочного матча `"ok":false` с `|| true`; producer (mb-goal-acceptance.sh, один плоский printf-JSON) контролируемый, репродуцируемого mis-block пути нет — robustness (src: codex-ревью T4 MAJOR-3, judge cycle 1) [LOW, NEW, 2026-07-19]
+
+### I-138 — mb-drive-resume-gate.sh: портируемый жёсткий таймаут (~2s) на acceptance-подпроцесс без coreutils timeout/gtimeout (стоковый macOS) или in-process чтение; сейчас ограничен только внешним 15s hook-timeout, который fail-open — деградация latency при патологическом goal.md, не нарушение контракта (src: codex-ревью T4 MAJOR-4, judge cycle 1) [LOW, NEW, 2026-07-19]
+
+### I-139 — mb-drive-stop.sh record: идемпотентность/transition-guard — повторный/конкурентный retry того же стопа дублирует progress-строки; идентичный повтор должен быть no-op, конфликтующая причина — детерминированно первая; state-slot запись уже атомарна, дубль в append-only нарративе косметичен (src: codex-ревью T4 MINOR-1, judge cycle 1) [LOW, NEW, 2026-07-19]
+
+### I-140 — drive-loop тесты: настоящий concurrent-write bats для drive-слотов (фоновые процессы + wait, не последовательные записи) + прогон test_mb_drive_resume_gate.bats без jq (python3- и manual-fallback пути парсера сейчас скипаются целиком) (src: codex-ревью T4 MINOR-2/3, judge cycle 1) [LOW, NEW, 2026-07-19]
+
+
+### I-141 — SKILL.md '## Tools' таблица отстала от scripts/ на 35 скриптов — doc-count тесты красные [MED, NEW, 2026-07-19]
+
+**Обнаружено:** 2026-07-19, при верификации рефакторинга S2 (вынос eval-слоя из `mb-work-state.sh`).
+
+`tests/pytest/test_doc_counts.py::test_skill_md_script_table_lists_all_scripts` красный. Таблица
+`## Tools` в `SKILL.md` не пополнялась несколько волн: из `scripts/*.sh` в ней отсутствуют **35
+скриптов, давно лежащих в HEAD** (`mb-plan.sh`, `mb-sdd.sh`, `mb-context.sh`, `mb-search.sh`,
+`mb-secret-scan.sh`, `mb-spec-validate.sh`, `mb-estimate-check.sh`, `mb-glossary.sh`, весь
+`mb-sdd-*`-набор и другие) плюс 2 новых из текущей волны (`mb-work-state-eval.sh`,
+`mb-work-state-lib.sh`).
+
+**Важно для честности:** это НЕ регрессия текущей волны. Тест был красный до неё; рефакторинг S2
+лишь увеличил недостачу на 2. Долг накоплен постепенно и никем не закрывался.
+
+Смежно и в том же файле теста красные: `test_readme_command_count_matches_filesystem`
+(README объявляет 30 команд, в `commands/` — 32) и `test_install_sh_header_command_count_matches_filesystem`
+(install.sh объявляет 29). Расхождение частично создано `commands/groom.md` (наша волна) и
+`commands/drive.md` (параллельная drive-loop-сессия, ещё не закоммичена), поэтому счётчики нельзя
+свести к зелёному, пока drive-loop не приземлится — иначе число разъедется обратно.
+
+**Действие:** одним проходом дописать все 37 строк в таблицу `## Tools` и синхронизировать три
+счётчика (SKILL.md / README.md / install.sh) — **после** того, как drive-loop-сессия закоммитит
+свою зону. Делать раньше значит гарантированно переделывать.
+
+**Не блокирует G-001:** критерий приёмки «полный прогон зелёный» этим тестом задет, поэтому
+закрыть долг нужно ДО закрытия цели, но он не блокирует ревью-циклы S1/S2/S4 и раскрытие DAG.
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
