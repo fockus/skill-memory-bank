@@ -13,17 +13,15 @@ Responsibilities:
   * ``strip_bootstrap_groups`` — remove a manual out-of-fence Group block,
     including the decorated legacy header form, without touching unrelated
     bytes (findings 1 and 5).
-  * ``atomic_write`` — publish through a sibling temp + fsync + os.replace so a
-    failed write can never truncate the roadmap (finding 4).
+``atomic_write`` is re-exported from mb_fs_atomic (the shared publish
+primitive) so existing importers keep working.
 """
 
 from __future__ import annotations
 
-import contextlib
-import os
 import re
-import stat
-import tempfile
+
+from mb_fs_atomic import atomic_write  # noqa: F401  (re-exported for consumers)
 
 FENCE_OPEN = "<!-- mb-roadmap-auto -->"
 FENCE_CLOSE = "<!-- /mb-roadmap-auto -->"
@@ -149,35 +147,3 @@ def _scrub(segment, discovered_slugs):
             block_end = nxt.start() if nxt else len(segment)
             segment = segment[: m.start()] + segment[block_end:]
     return segment
-
-
-def atomic_write(path, text, encoding="utf-8"):
-    """Publish ``text`` to ``path`` atomically.
-
-    Writes a sibling temp file in the SAME directory (so ``os.replace`` stays a
-    same-filesystem rename), flushes and fsyncs it, then renames over the
-    target. A plain ``write_text`` truncates the target first, so an ENOSPC or a
-    kill mid-write leaves the roadmap empty or half-written (finding 4). The
-    temp file is removed on any failure, and the original file's permission bits
-    are carried over so publishing never silently tightens them to 0600.
-    """
-    directory = os.path.dirname(os.path.abspath(str(path))) or "."
-    try:
-        mode = stat.S_IMODE(os.stat(str(path)).st_mode)
-    except OSError:
-        mode = None
-    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".mb-roadmap-sync.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding=encoding, newline="") as handle:
-            handle.write(text)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if mode is not None:
-            os.chmod(tmp, mode)
-        os.replace(tmp, str(path))
-    except BaseException:
-        # Best-effort cleanup: the original file is already safe (untouched),
-        # so a failure to remove the temp must not mask the real exception.
-        with contextlib.suppress(OSError):
-            os.unlink(tmp)
-        raise

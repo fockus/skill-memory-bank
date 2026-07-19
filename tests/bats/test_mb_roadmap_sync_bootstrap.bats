@@ -305,3 +305,69 @@ PY
   [ "$status" -eq 0 ]
   grep -qE '^## Group: g$' "$SPACED/roadmap.md"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Unreadable SOURCE files must not silently shrink the roadmap
+# (round-2 findings 6 and 7 — same class as finding 7 of round 1)
+# ═══════════════════════════════════════════════════════════════
+
+@test "roadmap_sync_bootstrap: an unreadable requirements.md fails loudly, group not dropped" {
+  # An OSError while reading an EXISTING requirements.md became empty text, so
+  # the member vanished from scan_members, the in-fence header was reclassified
+  # as an orphan, and sync exited 0 after publishing a roadmap without the group.
+  mkspec alpha "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 1 2 1
+  run bash "$SYNC" "$BANK"
+  [ "$status" -eq 0 ]
+  grep -qE "^## Group: $GROUP$" "$BANK/roadmap.md"
+  before="$(cat "$BANK/roadmap.md")"
+
+  chmod 000 "$BANK/specs/alpha/requirements.md"
+  if [ -r "$BANK/specs/alpha/requirements.md" ]; then
+    chmod 644 "$BANK/specs/alpha/requirements.md"
+    skip "running as a user that bypasses file permissions"
+  fi
+  run --separate-stderr bash "$SYNC" "$BANK"
+  chmod 644 "$BANK/specs/alpha/requirements.md"
+  [ "$status" -eq 4 ]
+  [[ "$stderr" == *"code=spec_read_error"* ]]
+  [[ "$stderr" == *"alpha"* ]]
+  [[ "$stderr" != *"orphan_group"* ]]
+  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+}
+
+@test "roadmap_sync_bootstrap: an unreadable plan fails loudly instead of vanishing from roadmap" {
+  printf -- '---\ntopic: pln\nstatus: in_progress\n---\n# Feature: pln\n' > "$BANK/plans/2026-02-01_feature_pln.md"
+  run bash "$SYNC" "$BANK"
+  [ "$status" -eq 0 ]
+  grep -qF 'pln' "$BANK/roadmap.md"
+  before="$(cat "$BANK/roadmap.md")"
+
+  chmod 000 "$BANK/plans/2026-02-01_feature_pln.md"
+  if [ -r "$BANK/plans/2026-02-01_feature_pln.md" ]; then
+    chmod 644 "$BANK/plans/2026-02-01_feature_pln.md"
+    skip "running as a user that bypasses file permissions"
+  fi
+  run --separate-stderr bash "$SYNC" "$BANK"
+  chmod 644 "$BANK/plans/2026-02-01_feature_pln.md"
+  [ "$status" -eq 4 ]
+  [[ "$stderr" == *"code=plan_read_error"* ]]
+  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+}
+
+@test "roadmap_sync_bootstrap: a plan with no frontmatter is still a warn-and-skip (not an error)" {
+  # The ONE supported skip stays a skip: absent frontmatter is a documented
+  # authoring state, unlike an I/O failure on a file that does exist.
+  printf -- '# Feature: nofm\n\nno frontmatter here\n' > "$BANK/plans/2026-02-02_feature_nofm.md"
+  run --separate-stderr bash "$SYNC" "$BANK"
+  [ "$status" -eq 0 ]
+  [[ "$stderr" == *"skipping plan without frontmatter"* ]]
+}
+
+@test "roadmap_sync_bootstrap: a spec dir with no requirements.md is simply not a group member" {
+  mkdir -p "$BANK/specs/empty-spec"
+  printf -- '# Tasks\n' > "$BANK/specs/empty-spec/tasks.md"
+  mkspec alpha "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
+  run bash "$SYNC" "$BANK"
+  [ "$status" -eq 0 ]
+  grep -qE "^## Group: $GROUP$" "$BANK/roadmap.md"
+}

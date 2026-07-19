@@ -62,8 +62,28 @@ run_engine() {
 
 _LOCK_DIR=""
 _LOCK_TOKEN=""
+
+# Best-effort cleanup for ABNORMAL exits only (die paths, signals). The success
+# path releases explicitly via _release_lock_or_fail below and clears the state,
+# so this never double-releases.
 _cleanup() {
   [ -n "$_LOCK_DIR" ] && mb_lock_release "$_LOCK_DIR" "$_LOCK_TOKEN" >/dev/null 2>&1 || true
+}
+
+# Release the held lock and report failure LOUDLY. A trap that swallows the
+# result printed a success line while the lock was still on disk; the next
+# reclaim could not remove a non-empty marker either, so the backlog stayed
+# locked forever with the user believing the command had succeeded.
+_release_lock_or_fail() {
+  local dir="$_LOCK_DIR" token="$_LOCK_TOKEN"
+  [ -n "$dir" ] || return 0
+  _LOCK_DIR=""
+  _LOCK_TOKEN=""
+  if ! mb_lock_release "$dir" "$token"; then
+    echo "code=lock_release_failed lock=$dir detail=mutation applied but the lock could not be released" >&2
+    return 1
+  fi
+  return 0
 }
 
 _acquire_backlog_lock() {
@@ -170,6 +190,7 @@ main() {
         mb_backlog_transition_locked "$backlog" "$id" "$state" || rc=$?
       fi
       [ "$rc" -eq 0 ] || exit "$rc"
+      _release_lock_or_fail || exit 1
       printf 'item=%s old_state=%s new_state=%s\n' "$id" "$old" "$state"
       exit 0
       ;;
@@ -182,6 +203,7 @@ main() {
         run_engine annotate "$backlog" "$id" --brief "$brief" || rc=$?
       fi
       [ "$rc" -eq 0 ] || exit "$rc"
+      _release_lock_or_fail || exit 1
       printf 'item=%s annotated\n' "$id"
       exit 0
       ;;

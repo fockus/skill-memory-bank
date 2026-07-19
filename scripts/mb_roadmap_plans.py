@@ -19,6 +19,16 @@ from pathlib import Path
 
 from mb_roadmap_order import ice_is_block_style, parse_ice_score, parse_pin
 
+
+class PlanReadError(Exception):
+    """An existing plan file could not be read or decoded.
+
+    Distinct from "plan has no frontmatter", which is a supported warn-and-skip.
+    The consumer must exit 4 without writing rather than publish a roadmap that
+    quietly lost the plan.
+    """
+
+
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 BLOCK_LIST_RE = re.compile(
@@ -114,10 +124,20 @@ def collect_plans(plans_dir):
     for path in sorted(Path(plans_dir).glob("*.md")):
         if path.parent.name == "done":
             continue
+        # An I/O failure on a plan that glob() just listed is an error, not an
+        # authoring state: swallowing it dropped the plan from the roadmap and
+        # still exited 0, publishing a silently shortened file (finding 7). The
+        # ONE supported skip is the documented "no frontmatter" case below.
         try:
             text = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
+        except UnicodeDecodeError as exc:
+            raise PlanReadError(
+                f"code=plan_read_error path={path} reason=not_utf8 detail={exc}"
+            ) from exc
+        except OSError as exc:
+            raise PlanReadError(
+                f"code=plan_read_error path={path} reason=unreadable detail={exc}"
+            ) from exc
         fm = parse_frontmatter(text)
         if not fm:
             print(f"[warn] skipping plan without frontmatter: {path}", file=sys.stderr)

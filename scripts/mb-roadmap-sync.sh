@@ -76,6 +76,7 @@ sys.path.insert(0, sys.argv[2])
 from mb_roadmap_group import (  # noqa: E402
     GroupOrderingError,
     ProgressError,
+    SpecReadError,
     compute_progress,
     fence_group_slugs,
     render_groups,
@@ -90,14 +91,19 @@ from mb_roadmap_render import (  # noqa: E402
     strip_bootstrap_groups,
 )
 from mb_roadmap_order import has_priority, priority_order  # noqa: E402
-from mb_roadmap_plans import collect_plans  # noqa: E402
+from mb_roadmap_plans import PlanReadError, collect_plans  # noqa: E402
 
 mb = Path(sys.argv[1])
 mode = sys.argv[3] if len(sys.argv) > 3 else "write"
 roadmap_path = mb / "roadmap.md"
 plans_dir = mb / "plans"
 
-plans = collect_plans(plans_dir)
+# An unreadable plan is exit 4, never a silently shortened roadmap (finding 7).
+try:
+    plans = collect_plans(plans_dir)
+except PlanReadError as exc:
+    print(str(exc), file=sys.stderr)
+    sys.exit(4)
 
 
 def _progress_counters(path, kind: str) -> str:
@@ -245,7 +251,7 @@ try:
 except GroupOrderingError as exc:
     print(str(exc), file=sys.stderr)
     sys.exit(3)
-except ProgressError as exc:
+except (ProgressError, SpecReadError) as exc:
     print(str(exc), file=sys.stderr)
     sys.exit(4)
 group_region = group_info["block"]

@@ -917,21 +917,34 @@ mb_lock_acquire() {
 }
 
 # mb_lock_release <lock_dir> <token> — remove only <lock_dir>/owner.<token>,
-# then the (now empty) <lock_dir>. stdout always empty. Returns 0 when it
-# ACTUALLY removed its own owner OR the lock is already absent; returns 1 on a
-# foreign token (deleting nothing) and 1 when its own marker could not be
-# removed.
+# then the (now empty) <lock_dir>. stdout always empty. Returns 0 ONLY when it
+# actually removed its own owner marker, or when the lock path is genuinely
+# absent. Returns 1 for a foreign token (deleting nothing), for its own marker
+# failing to be removed, and for a corrupt lock object.
 #
-# The own-marker rmdir failure is deliberately NOT swallowed: reporting success
-# while the marker is still on disk tells the caller the lock is free when it is
-# not, which is exactly the double-writer window the owner-marker scheme exists
-# to prevent. The PARENT rmdir may legitimately fail (a concurrent generation
-# already re-created the dir, or a foreign marker remains), so that one stays
-# best-effort — the contract is keyed on the owner marker, not on the directory.
+# Three failure modes are deliberately NOT swallowed, because each one reports a
+# lock as free while something is still on disk:
+#   * own-marker rmdir failure — the double-writer window the owner-marker
+#     scheme exists to prevent;
+#   * lock path present but NOT a directory (regular file, dangling symlink) —
+#     `-d` is false there, so the old `[ -d ] || return 0` called it "already
+#     gone" while the object stayed and every later mkdir-based acquire burned
+#     its full timeout.
+# The PARENT rmdir stays best-effort: a non-empty lock dir is a legitimate
+# concurrent state (a foreign marker, or a newer generation already re-created
+# it), and the contract is keyed on the owner marker, not on the directory.
 mb_lock_release() {
   local lock_dir="${1:-}" token="${2:-}"
   [ -n "$lock_dir" ] || return 0
-  [ -d "$lock_dir" ] || return 0
+  # Genuinely absent (and not a dangling symlink) → nothing to release.
+  if [ ! -e "$lock_dir" ] && [ ! -L "$lock_dir" ]; then
+    return 0
+  fi
+  if [ ! -d "$lock_dir" ]; then
+    printf 'code=lock_corrupt lock=%s detail=lock path exists but is not a directory\n' \
+      "$(mb_json_string "$lock_dir")" >&2
+    return 1
+  fi
   if [ -n "$token" ] && [ -d "$lock_dir/owner.$token" ]; then
     rmdir "$lock_dir/owner.$token" 2>/dev/null || return 1
     rmdir "$lock_dir" 2>/dev/null || true

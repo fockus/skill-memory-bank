@@ -19,10 +19,11 @@ exit codes are: 0 success, 1 domain reject, 2 usage / not-found.
 """
 
 import json
-import os
 import re
 import sys
-import tempfile
+
+import mb_fs_atomic
+from mb_backlog_validate import validate_brief, validate_single_line
 
 STATES = ["NEW", "NEEDS-INFO", "TRIAGED", "READY", "IN-PROGRESS", "DONE", "WONTFIX"]
 EDGES = {
@@ -60,16 +61,14 @@ def read_text(path):
 
 
 def write_atomic(path, text):
-    d = os.path.dirname(path) or "."
-    fd, tmp = tempfile.mkstemp(prefix=".mb-backlog-", dir=d)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(text)
-        os.replace(tmp, path)
-    except Exception:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
-        raise
+    """Publish the backlog through the ONE shared atomic primitive.
+
+    The local copy this replaced did not carry the file mode across
+    ``os.replace``, so mkstemp's private 0600 landed on the backlog and a shared
+    bank silently became owner-only after a single transition (finding 5). The
+    shared helper also fsyncs before the rename.
+    """
+    mb_fs_atomic.atomic_write(path, text)
 
 
 def meta_value(body_lines, key):
@@ -165,19 +164,6 @@ def find_entry(entries, entry_id):
     return None
 
 
-def validate_brief(text):
-    t = (text or "").strip()
-    if not t:
-        return (False, "missing brief")
-    if re.search(r"\S+/\S+\.\w+", t):
-        return (False, "contains file path")
-    if re.search(r":\d+", t):
-        return (False, "contains line number")
-    if not re.search(r"\b(should|shall|must)\b|когда|если", t, re.IGNORECASE):
-        return (False, "missing brief")
-    return (True, "")
-
-
 def rewrite_state(header_line, new_state):
     m = HEADER_STATE_RE.match(header_line)
     if not m:
@@ -244,6 +230,11 @@ def transition_main(argv):
             die(2, f"usage: unexpected argument {rest[i]}")
     if new_state not in STATES:
         die(2, f"usage: unknown target state {new_state}")
+    # Reject injectable values BEFORE reading or touching the backlog.
+    for field, value in (("reason", reason), ("plan", plan)):
+        ok, why = validate_single_line(value, field)
+        if not ok:
+            die(2, why)
     lines, entries = parse_backlog(read_text(backlog))
     e = find_entry(entries, entry_id)
     if e is None:
@@ -319,6 +310,11 @@ def state_main(argv):
                 die(2, f"usage: unexpected argument {rest[i]}")
         if brief is None:
             die(2, "usage: annotate requires --brief")
+        # Injectable values are rejected BEFORE anything is read or written.
+        for field, value in (("brief", brief), ("parent", parent)):
+            ok, why = validate_single_line(value, field)
+            if not ok:
+                die(2, why)
         ok, why = validate_brief(brief)
         if not ok:
             die(1, f"invalid brief: {why}")

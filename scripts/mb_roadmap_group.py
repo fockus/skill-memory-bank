@@ -27,6 +27,15 @@ _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
+class SpecReadError(Exception):
+    """An existing spec-side source file could not be read or decoded.
+
+    Distinct from "no such file", which is a legitimate empty. The consumer
+    (mb-roadmap-sync.sh) must exit 4 without writing rather than publish a
+    roadmap with the unreadable spec's group silently deleted.
+    """
+
+
 class ProgressError(Exception):
     """A work-item source (tasks.md / plan) exists but cannot be read or parsed.
 
@@ -81,10 +90,27 @@ def _parse_frontmatter(text):
 
 
 def _read(path):
+    """Read a spec-side source file.
+
+    A MISSING file is legitimately empty (an optional context/<topic>.md simply
+    may not exist). An existing file that cannot be read is NOT: turning that
+    OSError into empty text dropped the member from scan_members, made the
+    in-fence header look like an orphan, and let sync exit 0 after publishing a
+    roadmap with the whole group deleted (finding 6). Same principle as
+    compute_progress: absent is fine, unreadable is loud.
+    """
+    if not path.exists():
+        return ""
     try:
         return path.read_text(encoding="utf-8")
-    except OSError:
-        return ""
+    except UnicodeDecodeError as exc:
+        raise SpecReadError(
+            f"code=spec_read_error path={path} reason=not_utf8 detail={exc}"
+        ) from exc
+    except OSError as exc:
+        raise SpecReadError(
+            f"code=spec_read_error path={path} reason=unreadable detail={exc}"
+        ) from exc
 
 
 def compute_progress(path):
