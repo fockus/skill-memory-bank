@@ -67,6 +67,19 @@ if [ -f "$LOG_FILE" ]; then
   chmod 600 "$LOG_FILE" 2>/dev/null || true
 fi
 
+# ═══ I-133: mark the code graph dirty on source edits ═══
+# Append-only queue consumed inline (flock + budget) by the next graph query /
+# SessionEnd catchup — a PostToolUse hook never spawns a rebuild itself.
+case "$FILE_PATH" in
+  *.py|*.go|*.js|*.jsx|*.ts|*.tsx|*.rs|*.java)
+    CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+    MB_DIR="${MB_PATH:-${CWD:-${CLAUDE_PROJECT_DIR:-$PWD}}/.memory-bank}"
+    if [ -f "$MB_DIR/codebase/graph.json" ]; then
+      echo "$FILE_PATH" >> "$MB_DIR/codebase/.graph-dirty" 2>/dev/null || true
+    fi
+    ;;
+esac
+
 [ -f "$FILE_PATH" ] || exit 0
 
 # Plain-text files — no checks (`TODO` in markdown/config is not a bug).

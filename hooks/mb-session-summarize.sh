@@ -167,4 +167,19 @@ if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
   mkdir -p "$_IDX" 2>/dev/null && : > "$_IDX/.dirty" 2>/dev/null
 fi
 
+# I-133: bounded SYNCHRONOUS graph catchup at session end — consumes the
+# dirty-queue inline (flock + budget + cooldown live inside the CLI). The
+# session is over, so a bounded wait here costs the user nothing, and no
+# process outlives the hook. Kill-switch: MB_GRAPH_AUTOUPDATE=off.
+if [ "${MB_GRAPH_AUTOUPDATE:-on}" != "off" ] \
+  && [ -f "$MB/codebase/graph.json" ] && [ -e "$MB/codebase/.graph-dirty" ] \
+  && command -v python3 >/dev/null 2>&1; then
+  _gq="$HOOK_DIR/../scripts/mb-graph-query.py"
+  [ -f "$_gq" ] || _gq="$HOME/.claude/skills/memory-bank/scripts/mb-graph-query.py"
+  if [ -f "$_gq" ]; then
+    python3 "$_gq" catchup --graph "$MB/codebase/graph.json" \
+      --src-root "$(dirname "$MB")" --json >/dev/null 2>&1 || true
+  fi
+fi
+
 exit 0

@@ -38,6 +38,14 @@ def main(argv: list[str]) -> int:
     mb_path = Path(args.mb_path).resolve()
     semantic_path = Path(args.semantic_candidates).resolve() if args.semantic_candidates else None
     mode = "semantic" if args.semantic_only else args.mode
+    # I-133: best-effort bounded graph catch-up so the evidence pack is built on
+    # a current graph; any failure degrades to the stale graph, never breaks.
+    try:
+        from memory_bank_skill.codegraph_catchup import maybe_catchup
+
+        maybe_catchup(mb_path / "codebase" / "graph.json", project_root)
+    except Exception:
+        pass
     payload = build_evidence(
         query=args.query,
         project_root=project_root,

@@ -13,13 +13,12 @@ CWD="${CLAUDE_PROJECT_DIR:-$PWD}"
 MB="$(sc_resolve_mb "$CWD")"
 [ -n "$MB" ] || { printf '{}\n'; exit 0; }
 
-# Opt-in background code-graph rebuild (MB_GRAPH_AUTO, default off). Runs BEFORE the
+# Opt-in code-graph freshness marking (MB_GRAPH_AUTO, default off). Runs BEFORE the
 # _recent.md early-exit so it fires on any active bank, not just ones with session
-# history. Unlike the gitignored semantic index, graph.json is a committable /
-# git-tracked artifact — a surprise background mutation would dirty the working tree,
-# so this is OFF by default. When on, rebuild ONLY an existing + stale graph,
-# incrementally, against the SAME tree freshness was checked against ($CWD), under a
-# lock, in the background. Fail-safe: never blocks startup, always continues.
+# history. I-133 discipline: session-start NEVER spawns a rebuild (the old detached
+# builder spawn is gone) — it only marks `.graph-dirty` on an existing +
+# stale graph; the next graph query / SessionEnd catchup rebuilds inline, bounded,
+# under a flock. Fail-safe: never blocks startup, always continues.
 _mb_graph_auto_should_rebuild() {
   case "${MB_GRAPH_AUTO:-off}" in
     on | auto) ;;
@@ -35,20 +34,10 @@ _mb_graph_auto_should_rebuild() {
   return 0
 }
 if _mb_graph_auto_should_rebuild; then
-  _cg="$HOOK_DIR/../scripts/mb-codegraph.py"
-  [ -f "$_cg" ] || _cg="$HOME/.claude/skills/memory-bank/scripts/mb-codegraph.py"
   if [ -n "${MB_GRAPH_AUTO_DRYRUN:-}" ]; then
-    printf 'python3 %s --apply --docs %s %s\n' "$_cg" "$MB" "$CWD"
+    printf 'mark-dirty %s/codebase/.graph-dirty\n' "$MB"
   else
-    LOCK="$MB/.index/.graph-rebuild.lock"
-    mkdir -p "$MB/.index" 2>/dev/null || true
-    # mkdir is atomic → lock; a stale lock from a prior crash just skips this session
-    # (a TTL cleanup is a follow-up — do NOT delete a possibly-live lock here).
-    if mkdir "$LOCK" 2>/dev/null; then
-      ( trap 'rmdir "$LOCK" 2>/dev/null' EXIT
-        python3 "$_cg" --apply --docs "$MB" "$CWD" >/dev/null 2>&1
-      ) >/dev/null 2>&1 &
-    fi
+    : >> "$MB/codebase/.graph-dirty" 2>/dev/null || true
   fi
 fi
 
@@ -86,6 +75,18 @@ else
 - The `# Relevant Memory` (per-prompt) and `# Recent Sessions` (below) blocks are auto-injected past-session context — use them.
 EOF
 )"
+  # I-133: graph-freshness line — only for projects that HAVE a graph, so
+  # everyone else pays nothing. Stale graphs are announced, not hidden.
+  _GRAPH="$MB/codebase/graph.json"
+  if [ -f "$_GRAPH" ] && command -v python3 >/dev/null 2>&1; then
+    _gq="$HOOK_DIR/../scripts/mb-graph-query.py"
+    [ -f "$_gq" ] || _gq="$HOME/.claude/skills/memory-bank/scripts/mb-graph-query.py"
+    if [ -f "$_gq" ]; then
+      gline="$(python3 "$_gq" status --graph "$_GRAPH" --src-root "$CWD" 2>/dev/null | head -1)"
+      # shellcheck disable=SC2016 # literal backticks for markdown, no expansion wanted
+      [ -n "$gline" ] && cheat="$(printf '%s\n- %s — query it: \`python3 <skill>/scripts/mb-graph-query.py impact|neighbors|tests --graph .memory-bank/codebase/graph.json --symbol <Name>\`; refresh: \`/mb graph --apply\`.' "$cheat" "$gline")"
+    fi
+  fi
   ctx="$(printf '%s\n\n%s' "$cheat" "$recent_block")"
 fi
 

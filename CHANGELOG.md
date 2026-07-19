@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — Code graph: auto-update + honest staleness (I-133)
+
+- **Bounded inline catch-up** (`memory_bank_skill/codegraph_catchup.py`, `mb-graph-query.py catchup`):
+  graph queries (`neighbors`/`impact`/`tests`/`explain` and `mb-code-context.py`) consume the new
+  `codebase/.graph-dirty` queue before answering — incremental rebuild (per-file SHA cache: only
+  changed files are reparsed) under a non-blocking flock, killed at `MB_GRAPH_CATCHUP_BUDGET`
+  (default 30 s); a failed/timed-out attempt sets a cooldown (`MB_GRAPH_CATCHUP_COOLDOWN`, 600 s)
+  so queries never pay the budget repeatedly. Git-HEAD drift vs the graph's meta row also triggers
+  catch-up (covers merges/checkouts without installing git hooks). Opt-in build layers
+  (`--docs`/`--cochange`/`--sessions`/`--questions`) are detected and preserved. Kill-switch:
+  `MB_GRAPH_AUTOUPDATE=off`. First build stays manual.
+- **Dirty-queue writers, never rebuilders (I-132 discipline)**: `file-change-log.sh` (PostToolUse)
+  appends source-file edits to `.graph-dirty`; SessionStart `MB_GRAPH_AUTO` and the opt-in git
+  post-commit hook now only mark the queue — their detached background `mb-codegraph.py` spawns
+  are REMOVED (2 spawn points). SessionEnd runs a bounded synchronous catchup.
+- **Stale graph is announced, not hidden**: `mb-graph-nudge.sh` no longer goes silent on a stale
+  graph (the vicious circle that kept graphs unused) — it says stale + how to refresh; the
+  session-start cheat-sheet gains a graph-freshness line for projects that have a graph.
+
 ### Changed — Semantic recall: model-free hot path + spawn discipline (I-132 OOM fix)
 
 - **BM25 is the default recall backend** (`hooks/lib/bm25.py`, meta-only Okapi BM25): the

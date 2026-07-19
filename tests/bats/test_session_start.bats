@@ -81,12 +81,23 @@ EOF
   if echo "$output" | grep -q 'mb-codegraph.py --apply'; then false; fi
 }
 
-@test "graph-auto on + stale graph: rebuild command constructed (dryrun)" {
+@test "graph-auto on + stale graph: dirty marker set (dryrun prints marker path, no rebuild spawn)" {
+  # I-133: session-start no longer detaches a rebuild — it marks `.graph-dirty`;
+  # the next graph query / SessionEnd catchup rebuilds inline, bounded, locked.
   printf '## x\nbody\n' > "$MB/session/_recent.md"
   _graph "2020-01-01T00:00:00Z"
   run bash -c "MB_GRAPH_AUTO=on MB_GRAPH_AUTO_DRYRUN=1 CLAUDE_PROJECT_DIR='$PROJ' bash '$HOOK'"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q 'mb-codegraph.py --apply'
+  echo "$output" | grep -q '.graph-dirty'
+  if echo "$output" | grep -q 'mb-codegraph.py --apply'; then false; fi
+}
+
+@test "graph-auto on + stale graph: real run writes the dirty marker" {
+  printf '## x\nbody\n' > "$MB/session/_recent.md"
+  _graph "2020-01-01T00:00:00Z"
+  run bash -c "MB_GRAPH_AUTO=on CLAUDE_PROJECT_DIR='$PROJ' bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  [ -f "$MB/codebase/.graph-dirty" ]
 }
 
 @test "graph-auto on + absent graph: no rebuild (first build stays manual)" {

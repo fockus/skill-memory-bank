@@ -29,11 +29,21 @@ EOF
   if echo "$output" | grep -q 'mb-codegraph.py --apply'; then false; fi
 }
 
-@test "post-commit existing graph rebuilds (dryrun)" {
+@test "post-commit existing graph marks the dirty-queue (dryrun prints marker path)" {
+  # I-133: no detached rebuild from a git hook — mark `.graph-dirty`; the next
+  # graph query or SessionEnd catchup rebuilds inline, bounded, under flock.
   _graph
   run bash -c "cd '$TMP' && MB_GRAPH_AUTO_DRYRUN=1 bash '$HOOK'"
   [ "$status" -eq 0 ]
-  echo "$output" | grep -q 'mb-codegraph.py --apply'
+  echo "$output" | grep -q '.graph-dirty'
+  if echo "$output" | grep -q 'mb-codegraph.py --apply'; then false; fi
+}
+
+@test "post-commit existing graph actually writes the dirty marker (real run)" {
+  _graph
+  run bash -c "cd '$TMP' && bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  [ -f "$MB/codebase/.graph-dirty" ]
 }
 
 @test "post-commit fail-safe when python3 missing" {

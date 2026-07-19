@@ -69,7 +69,9 @@ GQ="$HOOK_DIR/../scripts/mb-graph-query.py"
 [ -f "$GQ" ] || _silent
 
 STATUS="$("$PY" "$GQ" status --graph "$GRAPH" --src-root "$CWD" --json 2>/dev/null || true)"
-printf '%s' "$STATUS" | "$JQ" -e '.exists==true and .stale==false' >/dev/null 2>&1 || _silent
+printf '%s' "$STATUS" | "$JQ" -e '.exists==true' >/dev/null 2>&1 || _silent
+IS_STALE=0
+printf '%s' "$STATUS" | "$JQ" -e '.stale==true' >/dev/null 2>&1 && IS_STALE=1
 
 # ── Throttle: at most one nudge per session ──
 SESSION="${CLAUDE_SESSION_ID:-$(date +%Y%m%d%H 2>/dev/null || echo bucket)}"
@@ -78,9 +80,17 @@ MARKER="$MB/.index/.graph-nudge.$SESSION"
 mkdir -p "$MB/.index" 2>/dev/null || true
 : > "$MARKER" 2>/dev/null || true
 
-MSG="Structural query detected. If the code graph is fresh, prefer:
+if [ "$IS_STALE" -eq 1 ]; then
+  # I-133: a stale graph must NOT silence the nudge — the old fresh-only gate
+  # created the vicious circle (stale → silent → never used → never rebuilt).
+  REASON="$(printf '%s' "$STATUS" | "$JQ" -r '.reason // "unknown"' 2>/dev/null || echo unknown)"
+  MSG="The code graph exists but is stale (reason: $REASON). Structural queries still work on the stale graph and trigger a bounded auto-catchup; for full freshness + analytics run: /mb graph --apply
+  (or: python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply .memory-bank .). Grep stays fine for regex/raw text."
+else
+  MSG="Structural query detected. If the code graph is fresh, prefer:
   python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact|neighbors|tests --graph .memory-bank/codebase/graph.json --symbol <Name>
 (deterministic who-calls/blast-radius/tests). Grep stays fine for regex/raw text."
+fi
 
 # shellcheck disable=SC2016 # $c is a jq variable bound via --arg, not a shell expansion.
 "$JQ" -n --arg c "$MSG" \

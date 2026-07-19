@@ -58,7 +58,24 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--graph", required=True, help="Path to graph.json")
     status.add_argument("--src-root", default=".", help="Repo root for git-HEAD staleness")
     status.add_argument("--json", action="store_true", help="Emit JSON")
+
+    catchup = sub.add_parser("catchup")
+    catchup.add_argument("--graph", required=True, help="Path to graph.json")
+    catchup.add_argument("--src-root", default=None, help="Repo root (default: graph meta)")
+    catchup.add_argument("--budget", type=float, default=None, help="Rebuild budget, seconds")
+    catchup.add_argument("--json", action="store_true", help="Emit JSON")
     return parser
+
+
+def _maybe_catchup(graph: str, src_root: str | None = None, budget: float | None = None) -> dict:
+    """Bounded inline catch-up (I-133) — fail-open: a query must never break
+    because the refresh machinery had a bad day."""
+    try:
+        from memory_bank_skill.codegraph_catchup import maybe_catchup
+
+        return maybe_catchup(graph, src_root, budget)
+    except Exception:
+        return {"result": "error"}
 
 
 def _render_status_md(info: dict) -> str:
@@ -94,6 +111,12 @@ def _run_status(args: argparse.Namespace) -> int:
 def run(args: argparse.Namespace) -> int:
     if args.command == "status":
         return _run_status(args)
+    if args.command == "catchup":
+        print_json(_maybe_catchup(args.graph, args.src_root, args.budget))
+        return EXIT_OK  # fail-safe for hook callers: catchup itself never fails the call
+    # I-133: consume the dirty-queue BEFORE loading, so the query answers on the
+    # refreshed graph. Bounded + locked + cooldown inside; worst case → stale.
+    catchup_state = _maybe_catchup(args.graph)
     try:
         nodes, edges = load_graph(Path(args.graph))
     except FileNotFoundError as exc:
@@ -130,8 +153,19 @@ def run(args: argparse.Namespace) -> int:
         print_json(error_payload("invalid_input", f"unknown command: {args.command}"))
         return EXIT_INVALID_INPUT
 
+    # Surface a non-clean catch-up outcome (additive key — consumers filter by
+    # the keys they know; a stale answer must say it is stale, not pass as fresh).
+    if catchup_state.get("result") not in ("clean", "disabled", "refreshed"):
+        payload["graph_catchup"] = catchup_state
+
     if args.command == "explain" and not args.json:
         print(markdown_explain(payload))
+        if payload.get("graph_catchup"):
+            print(
+                f"[warn] graph catch-up: {catchup_state['result']} — answer may be stale; "
+                "refresh with /mb graph --apply",
+                file=sys.stderr,
+            )
     else:
         print_json(payload)
     return EXIT_OK if payload.get("ok") else EXIT_NO_MATCH

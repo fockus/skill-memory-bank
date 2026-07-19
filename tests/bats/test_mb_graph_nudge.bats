@@ -52,11 +52,15 @@ _run_hook() {  # $1 = stdin JSON
   [[ "$output" != *"mb-graph-query"* ]]
 }
 
-@test "nudge silent when graph stale" {
+@test "nudge on a stale graph offers a refresh instead of going silent" {
+  # I-133: the old fresh-only gate silently dropped the nudge the moment the
+  # graph went stale — the vicious circle that kept the graph unused. A stale
+  # graph now yields an honest "stale → refresh" hint (still throttled).
   _stale
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"mb-graph-query"* ]]
+  [[ "$output" == *"stale"* ]]
+  [[ "$output" == *"graph --apply"* ]]
 }
 
 @test "nudge off-switch silences it" {
