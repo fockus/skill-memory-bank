@@ -50,10 +50,10 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] Legacy mode вызывает немодифицированную `dependency_order()`; фикстура A→C даёт `C, A, B` byte-identical
-- [ ] Priority mode (Kahn + тотальный компаратор) включается только при валидном `ice`/`pin`
-- [ ] ICE-компоненты парсятся, score = I×C×E считается скриптом; невалидный ICE деградирует в tail без падения
-- [ ] bats green (были red)
+- [x] Legacy mode вызывает немодифицированную `dependency_order()`; фикстура A→C даёт `C, A, B` byte-identical
+- [x] Priority mode (Kahn + тотальный компаратор) включается только при валидном `ice`/`pin`
+- [x] ICE-компоненты парсятся, score = I×C×E считается скриптом; невалидный ICE деградирует в tail без падения
+- [x] bats green (были red)
 <!-- /mb-task:1 -->
 
 <!-- mb-task:2 -->
@@ -90,10 +90,10 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] C3 (transition + READY-гейт) реализован; `mb_backlog_transition_locked` (precondition «caller владеет локом») выделен и покрыт тестами
-- [ ] `list` flat реализован полностью; `--tree` в Task 2 → exit 2 без заглушки (полный tree — Task 7)
-- [ ] `mb_lock_acquire`/`mb_lock_release` в `_lib.sh`: owner-marker + targeted `rmdir` reclaim (liveness), полный stdout/exit-контракт; parity- и divergence-тесты (R3-001) зелёные; `mb-agree.sh` не изменён
-- [ ] bats green (были red)
+- [x] C3 (transition + READY-гейт) реализован; `mb_backlog_transition_locked` (precondition «caller владеет локом») выделен и покрыт тестами
+- [x] `list` flat реализован полностью; `--tree` в Task 2 → exit 2 без заглушки (полный tree — Task 7)
+- [x] `mb_lock_acquire`/`mb_lock_release` в `_lib.sh`: owner-marker + targeted `rmdir` reclaim (liveness), полный stdout/exit-контракт; parity- и divergence-тесты (R3-001) зелёные; `mb-agree.sh` не изменён
+- [x] bats green (были red)
 <!-- /mb-task:2 -->
 
 <!-- mb-task:3 -->
@@ -159,9 +159,9 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] Прогресс + Group + `orphan_group` из fence-источника + `--check` + bootstrap реализованы
-- [ ] Позиция/порядок Group-блоков (R3-007) и `unconfirmed_ice=`-эскалация (AGR-021, REQ-013) реализованы
-- [ ] bats green (были red)
+- [x] Прогресс + Group + `orphan_group` из fence-источника + `--check` + bootstrap реализованы
+- [x] Позиция/порядок Group-блоков (R3-007) и `unconfirmed_ice=`-эскалация (AGR-021, REQ-013) реализованы
+- [x] bats green (были red)
 <!-- /mb-task:6 -->
 
 <!-- mb-task:7 -->

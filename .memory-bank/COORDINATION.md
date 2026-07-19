@@ -505,3 +505,35 @@ work.md 5g — закоммичен hunk-scoped, чужие ханки S8 не �
 APPROVED. Дисциплина I-132 распространена на весь graph-стек: mark-only хуки, единый flock +
 budget + cooldown в catchup CLI, prose-aware spawn-скан (hooks/commands/agents/активные планы).
 backlog: I-133 → FIXED. Хуки синкнуты в ~/.claude/hooks (скил — симлинк на репо).
+
+## [svp-group-exec] 2026-07-19 — CHECKPOINT волны R: scoped-коммит группы поверх нового HEAD — session 02aa11b1
+
+Причина: два рестарта харнесса подряд съели фиксеров и все codex-вердикты (скретчпад прошлой
+сессии пуст). Фиксируем зоны S1/S2/S4 до возобновления оркестрации, чтобы третий рестарт не стоил
+работы. **Батарея НЕ дождана** — прогон остановлен по явному указанию пользователя, чекпоинт
+уходит без подтверждённо зелёного репо-прогона (зоны были зелёными на момент отчётов фиксеров:
+S1 191 тест, S2 147 pytest + 10 bats-сьютов, S4 19+33+22+24 bats + 48 pytest).
+
+Разделение пластов в общем дереве (WIP трёх сессий):
+- В коммит: зоны S1/S2/S4 (scripts/{_lib,mb-estimate-*,mb-glossary,mb-interview-artifact-*,
+  mb-sdd-*,mb-spec-validate,mb-pipeline-validate,mb-work-state,mb-roadmap-sync,mb-backlog-state,
+  mb_*.py}, commands/{discuss,sdd,work}.md, references/*, rules/RULES.md, соответствующие
+  tests/) + записи банка всех сессий (append-only: COORDINATION/progress/agreements/backlog/
+  checklist/roadmap/notes) + ранее незакоммиченные артефакты банка (donor/quality-track/
+  openspec-adapter/sdd-openspec-parity).
+- НЕ в коммит (чужой drive-loop, session 6607fd14, код неотревьюен): commands/drive.md,
+  hooks/mb-drive-resume-gate.sh, scripts/{mb-drive-stop,mb-flow-sync,mb-work-slots,
+  mb-goal-validate}.sh, adapters/_lib_agents_md.sh, settings/hooks.json,
+  tests/{bats/test_mb_drive_*,bats/test_mb_flow_sync,pytest/test_hooks_registration}.
+- НЕ в коммит (скил-WIP, уходит вторым коммитом): SKILL.md, commands/{mb,groom}.md,
+  hooks/mb-flow-closure-guard.sh, tests/bats/test_mb_flow_closure_guard_cache.bats,
+  scripts/mb-test-run.sh.
+- .gitignore: добавлены .memory-bank/.work-state{.json,/} (per-run слоты mb-work-slots) и
+  .memory-bank/.reports/ (transient handoff-дропы). graph.json/god-nodes.md оставлены
+  tracked — решение I-133-сессии не пересматриваю в одностороннем порядке.
+
+Цель G-001 перепроверена: mb-goal-validate → ok:true, acceptance 0/5 (ok:false). DAG и роли
+совпадают с AGR-023, правок не требует. Дальше: догнать S2 (остаток фиксера — вынести eval-слой
+из mb-work-state.sh 625 строк) + свежее codex-ревью зоны S2 целиком (вердикт с 14 находками
+утерян), параллельно независимые codex-верификации S1-cycle2 и S4-cycle2, затем судья по трём
+спекам и раскрытие DAG (S7←S1; S8/S9/S6/S3←S2; S5 последним).

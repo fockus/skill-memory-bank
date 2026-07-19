@@ -1,7 +1,8 @@
 ---
 spec_id: parallel-pipeline
 topic: Parallel pipeline — configurable wave-based DAG executor with worktree isolation
-status: ready
+status: superseded
+superseded_by: specs/mb-donor-evolution (source-plan.md §2.1 — requirements reused as test scenarios)
 author: brainstorming-session
 created: 2026-05-24
 parent_roadmap: harness-upgrade (S5 of S1..S5)

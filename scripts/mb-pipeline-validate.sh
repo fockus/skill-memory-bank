@@ -626,6 +626,51 @@ if "full_mode_path" not in sdd or not isinstance(sdd.get("full_mode_path"), str)
 if "require_scenarios" in sdd and not isinstance(sdd["require_scenarios"], bool):
     err("sdd.require_scenarios: must be boolean")
 
+# ── sdd.spec_review (C5, opt-in) ────────────────────────────────────
+# Validate the RAW inline-only form, independent of the YAML loader (major #10):
+# a nested block, a quoted scalar (which could hide a comma/colon), or any comma
+# inside a value must be rejected identically with and without PyYAML.
+_sr_line = None
+for _ln in text.splitlines():
+    _s = strip_comment(_ln).strip()
+    if _s.startswith("spec_review:"):
+        _sr_line = _s.split(":", 1)[1].strip()
+        break
+if _sr_line is not None:
+    if not (_sr_line.startswith("{") and _sr_line.endswith("}")):
+        # empty value (nested block) or a bare scalar — C5 requires an inline map.
+        err("sdd.spec_review: must be an inline mapping {enabled, agent, model, thinking}")
+    elif ('"' in _sr_line) or ("'" in _sr_line):
+        err("sdd.spec_review: values must be unquoted single tokens (no quotes)")
+    else:
+        _inner = _sr_line[1:-1].strip()
+        _sr = {}
+        _grammar_ok = True
+        if _inner:
+            for _part in _inner.split(","):
+                if ":" not in _part:
+                    err("sdd.spec_review: a value must not contain a comma (inline-map grammar)")
+                    _grammar_ok = False
+                    break
+                _k, _v = _part.split(":", 1)
+                _sr[_k.strip()] = _v.strip()
+        if _grammar_ok:
+            _extra = sorted(set(_sr) - {"enabled", "agent", "model", "thinking"})
+            if _extra:
+                err(f"sdd.spec_review: unknown keys {_extra}")
+            _en_raw = _sr.get("enabled", "")
+            if _en_raw.lower() not in ("true", "false"):
+                err("sdd.spec_review.enabled: must be boolean")
+            _th = _sr.get("thinking")
+            if _th is not None and _th not in ("low", "medium", "high"):
+                err(f"sdd.spec_review.thinking: must be one of low|medium|high (got {_th!r})")
+            if _en_raw.lower() == "true":
+                for _k in ("agent", "model"):
+                    if not _sr.get(_k):
+                        err(f"sdd.spec_review.{_k}: must be a non-empty string when enabled")
+                if not _th:
+                    err("sdd.spec_review.thinking: required when enabled")
+
 
 # ── runtime blocks: review / judge / review_ensemble / done_* / dispatch ──
 KNOWN_AGENTS = {

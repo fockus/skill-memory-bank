@@ -812,3 +812,138 @@ mb_resolve_manifest_path() {
 
   printf '%s\n' "$user_manifest"
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Backlog primitives (S4 svp-roadmap-backlog-db, design.md C6/C3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# mb_json_string <value> — compact JSON string literal (ensure_ascii=False),
+# unambiguously encoding spaces, quotes, unicode and newlines (NFR-004).
+mb_json_string() {
+  MB_JSON_IN="${1:-}" "${MB_PYTHON:-python3}" - <<'PY'
+import json, os
+print(json.dumps(os.environ.get("MB_JSON_IN", ""), ensure_ascii=False, separators=(",", ":")))
+PY
+}
+
+# mb_lock_acquire <lock_dir> <timeout> <ttl> — owner-marker mkdir lock (C6, R3-001).
+#
+# On acquire: prints EXACTLY `<PID>-<RANDOM>` + \n, exit 0. Timeout: empty
+# stdout, stderr `code=lock_timeout lock=<JSON>`, exit 1. Bad args: empty
+# stdout, stderr `code=lock_usage`, exit 2.
+#
+# Reclaim is keyed on OWNER LIVENESS (`kill -0`), NEVER on mtime/TTL, and NEVER
+# uses `mv`/`rm -rf` — a proven-dead owner marker is removed with a targeted
+# `rmdir "<lock>/owner.<D>"` followed by `rmdir "<lock>"` (only on an empty
+# dir). TTL applies solely to the owner-less window (lock present, no owner.*).
+# The recorded PID is the CALLER shell's `$$` — the holder must stay alive for
+# the whole critical section (X6-01: non-shell writers hold via a bash wrapper).
+mb_lock_acquire() {
+  local lock_dir="${1:-}" timeout="${2:-}" ttl="${3:-}"
+  if [ -z "$lock_dir" ] \
+     || ! printf '%s' "$timeout" | grep -qE '^[0-9]+$' \
+     || ! printf '%s' "$ttl" | grep -qE '^[0-9]+$'; then
+    printf 'code=lock_usage\n' >&2
+    return 2
+  fi
+  local token waited=0 ownerless_since="" now marker base tok pid other
+  token="$$-${RANDOM:-0}"
+  while true; do
+    if mkdir "$lock_dir" 2>/dev/null; then
+      # Won the atomic gate. Record the liveness marker in the SAME breath. If
+      # the marker cannot be created, a lagging reclaimer pulled our lock dir
+      # out from under us in the mkdir→owner window — we do NOT hold the lock,
+      # so NEVER return success (R3-001: the old `|| true` reported a phantom
+      # holder with no marker, which a later reclaim then evicted mid-section).
+      # Fall through to retry / timeout instead.
+      if mkdir "$lock_dir/owner.$token" 2>/dev/null; then
+        # Generation confirmation (R3-001 ABA guard): winning `mkdir lock` is not
+        # enough — an owner-less TTL reclaimer could have removed our dir, made a
+        # NEW generation and published its own owner.<B> in the window before our
+        # owner mkdir, so our marker just landed in B's generation. Success is
+        # granted ONLY when our marker is the SOLE owner.* in the dir. On a
+        # sibling marker we remove ONLY our own and retry — never a sibling's.
+        other=0
+        for marker in "$lock_dir"/owner.*; do
+          [ -d "$marker" ] || continue
+          [ "$marker" = "$lock_dir/owner.$token" ] || other=1
+        done
+        if [ "$other" -eq 0 ]; then
+          printf '%s\n' "$token"
+          return 0
+        fi
+        rmdir "$lock_dir/owner.$token" 2>/dev/null || true
+      fi
+    else
+      # Lock exists — inspect the owner marker (invariant: 0 or 1 owner.*).
+      set -- "$lock_dir"/owner.*
+      if [ -d "$1" ]; then
+        ownerless_since=""
+        marker="$1"
+        base="${marker##*/}"
+        tok="${base#owner.}"
+        pid="${tok%%-*}"
+        if printf '%s' "$pid" | grep -qE '^[0-9]+$'; then
+          if ! kill -0 "$pid" 2>/dev/null; then
+            # Proven-dead owner → reclaim EXACTLY this marker. ONLY the process
+            # that WINS `rmdir owner.<D>` may remove the (now empty) lock dir.
+            # A racer that lost the marker (ENOENT — another reclaimer already
+            # took it, OR a fresh live owner replaced it in a brand-new lock)
+            # must NOT `rmdir` the lock dir: doing so unconditionally deletes a
+            # sibling winner's fresh, still-owner-less lock (R3-001, the C6
+            # double-owner race). It backs off to the owner-less/TTL path.
+            if rmdir "$marker" 2>/dev/null; then
+              rmdir "$lock_dir" 2>/dev/null || true  # ENOTEMPTY (fresh owner) ⇒ back off
+            fi
+          fi
+          # Alive or PID-reused ⇒ conservative non-reclaim (availability, not safety).
+        fi
+      else
+        # Owner-less window: reclaim only after ttl sustained seconds.
+        now="$(date +%s)"
+        [ -n "$ownerless_since" ] || ownerless_since="$now"
+        if [ "$((now - ownerless_since))" -ge "$ttl" ]; then
+          rmdir "$lock_dir" 2>/dev/null || true
+        fi
+      fi
+    fi
+    if [ "$waited" -ge "$timeout" ]; then
+      printf 'code=lock_timeout lock=%s\n' "$(mb_json_string "$lock_dir")" >&2
+      return 1
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+}
+
+# mb_lock_release <lock_dir> <token> — remove only <lock_dir>/owner.<token>,
+# then the (now empty) <lock_dir>. stdout always empty. Returns 0 when it
+# removed its own owner OR the lock is already absent; returns 1 on a foreign
+# token, deleting nothing.
+mb_lock_release() {
+  local lock_dir="${1:-}" token="${2:-}"
+  [ -n "$lock_dir" ] || return 0
+  [ -d "$lock_dir" ] || return 0
+  if [ -n "$token" ] && [ -d "$lock_dir/owner.$token" ]; then
+    rmdir "$lock_dir/owner.$token" 2>/dev/null || true
+    rmdir "$lock_dir" 2>/dev/null || true
+    return 0
+  fi
+  return 1
+}
+
+# mb_backlog_transition_locked <backlog> <I-NNN> <NEW_STATE> [--reason T] [--plan R]
+#
+# PRECONDITION: the CALLER already holds <bank>/.locks/backlog.lock — this
+# function NEVER acquires or releases the lock. Thin wrapper over the shared,
+# stdlib-only state engine (scripts/mb_backlog_state_engine.py) which owns the
+# ONE authoritative C3 machine + entry grammar (SRP: _lib.sh keeps only the
+# lock/transition API, not the parser). Validates the C3 edge + READY/WONTFIX
+# gates and rewrites ONLY the state token (extra detail preserved) plus any
+# --reason/--plan meta into ONE atomic write. stdout empty; exit 0 success,
+# 1 domain reject, 2 malformed/not-found. The public success line is the
+# caller's responsibility. Reused verbatim by mb-idea-promote.sh (Task 9).
+mb_backlog_transition_locked() {
+  "${MB_PYTHON:-python3}" \
+    "$(dirname "${BASH_SOURCE[0]}")/mb_backlog_state_engine.py" transition-locked "$@"
+}

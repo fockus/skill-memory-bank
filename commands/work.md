@@ -333,6 +333,23 @@ When the user types `/mb work [args...]`:
    bash scripts/mb-work-state.sh init <source> <item_no> --run-id "$RUN_ID" --mb <bank>
    ```
 
+   ### 5a0. Eval-first gate (red MANDATORY — before implement)
+
+   For a gated task, **materialise the eval code before implement** — writing the failing test is D-05's first step of the task, not an afterthought. Then record the observed red through the authoritative writer (never by editing the state JSON directly — direct JSON editing is forbidden):
+
+   ```bash
+   # write the exact Eval command to a file, then:
+   bash scripts/mb-work-state.sh eval-red --cmd-file <path> --output-re '<ERE>' [--expected-exit <n>] --run-id "$RUN_ID" --mb <bank>
+   ```
+
+   The **helper itself** runs the byte-identical `--cmd-file` from the repo root and matches the C1 anchors (`--output-re`, plus `--expected-exit` when declared) against the *actual* observed output and exit — you do not pass a verdict, exit, or match flag; a green/red cannot be spoofed through the CLI. `eval-red` exits:
+
+   - **0** — the declared red was actually observed → proceed to implement.
+   - **1** — a **foreign failure** (actual output does not match `--output-re`, or actual exit ≠ `--expected-exit`) or an already-green command. This is a **FAIL that blocks implement** — a fake or absent red is not a contract. Only an explicit, logged user override may continue.
+   - **2** — usage / broken state / uncompilable ERE.
+
+   **Waiver only for non-gated.** A task with no runtime surface may waive the behavioural red (`**Eval:** none — waiver: <reason>`) **only when it is non-gated**; a gated task must carry a real red. The verify step (5c) later runs `eval-green`, which reruns the byte-identical command and demands an actual green.
+
    ### 5a. Implement step (only if workflow includes `implement`)
 
    Dispatch via `Task`. **Compose the prompt as engineering-core + tooling-core + role-delta:** inline
@@ -365,7 +382,15 @@ When the user types `/mb work [args...]`:
 
    ### 5c. Verify step (only if workflow includes `verify`)
 
-   Dispatch the plan-verifier before code review when both are present. The verifier catches missing tests, incomplete DoD, broken traceability, and architecture drift before reviewer cycles are spent.
+   **Eval-green first (for a gated task that recorded an eval-red in 5a0).** Rerun the byte-identical command through the authoritative writer and require an actual green before spending verifier/reviewer cycles:
+
+   ```bash
+   bash scripts/mb-work-state.sh eval-green --cmd-file <path> --run-id "$RUN_ID" --mb <bank>
+   ```
+
+   The helper reruns the saved (byte-identical) `--cmd-file` and exits 0 **only** on an actual exit 0; a still-red command or a drift of `--cmd-file` vs the recorded `cmd` → exit 1, which **halts** the item (the implementation did not turn its own declared red green).
+
+   Then dispatch the plan-verifier before code review when both are present. The verifier catches missing tests, incomplete DoD, broken traceability, and architecture drift before reviewer cycles are spent.
 
    **Build the diff first — not a bare `git diff`.** Scope it to this run's own baseline and the item's touched files with `mb-work-diff.sh --run-id … --files …`:
 

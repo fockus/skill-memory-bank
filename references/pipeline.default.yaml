@@ -268,6 +268,12 @@ sdd:
   require_scenarios: false                # opt-in: /mb sdd runs mb-spec-validate --require-scenarios
                                           # (every REQ must have >=1 GIVEN/WHEN/THEN scenario). Default off
                                           # so EARS-only specs stay valid.
+  spec_review: {enabled: false, agent: mb-reviewer, model: inherit, thinking: medium}
+                                          # opt-in C5 spec review. INLINE MAP (not a nested block):
+                                          # the validator reads sdd via parse_simple_mapping, so a nested
+                                          # block would parse as None. Values carry no comma (inline-map
+                                          # grammar). enabled true → agent/model non-empty, thinking in
+                                          # {low,medium,high}. Absent → treated as off.
 
 # ===== Mandatory /mb done gate set (handoff-v2 §5, GAP-4) =====
 # scripts/mb-done-gates.sh runs three independent checks before /mb done closes a

@@ -83,6 +83,85 @@ _upsert() {
   [ "$status" -eq 2 ]
 }
 
+# ─── single-line contract guard (F7) ───
+
+@test "mb_glossary: multiline term → usage error exit 2, nothing written" {
+  [ ! -e "$GLOSS" ]
+  printf 'alpha\nbeta' > "$TF"; printf 'a definition' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  [ "$stderr" = "error=usage" ]
+  [ ! -e "$GLOSS" ]
+}
+
+@test "mb_glossary: multiline definition → usage error exit 2, existing file byte-identical" {
+  _upsert "slice" "a child spec of a group" >/dev/null
+  local before; before="$(cat "$GLOSS")"
+  printf 'frontier' > "$TF"; printf 'first\nsecond' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ]
+  [ "$(cat "$GLOSS")" = "$before" ]
+}
+
+@test "mb_glossary: empty term → usage error exit 2" {
+  printf '' > "$TF"; printf 'a definition' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ]
+}
+
+@test "mb_glossary: whitespace-only definition → usage error exit 2" {
+  printf 'slice' > "$TF"; printf '   ' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ]
+}
+
+@test "mb_glossary: separator inside the term → usage error exit 2 (ambiguous key)" {
+  printf 'a — b' > "$TF"; printf 'a definition' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ]
+}
+
+# ─── raw CR/LF validated before normalization (cycle-2 major) ───
+
+@test "mb_glossary: term with a trailing blank line (alpha\\n\\n) → usage exit 2, nothing written" {
+  [ ! -e "$GLOSS" ]
+  printf 'alpha\n\n' > "$TF"; printf 'a definition' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ]
+  [ ! -e "$GLOSS" ]
+}
+
+@test "mb_glossary: definition with a trailing blank line → usage exit 2, existing file byte-identical" {
+  _upsert "slice" "a child spec of a group" >/dev/null
+  local before; before="$(cat "$GLOSS")"
+  printf 'frontier' > "$TF"; printf 'the frontier\n\n' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$(cat "$GLOSS")" = "$before" ]
+}
+
+@test "mb_glossary: carriage return in the definition → usage exit 2" {
+  printf 'slice' > "$TF"; printf 'de\rf' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ]
+}
+
+@test "mb_glossary: a single terminal newline is tolerated (created)" {
+  [ ! -e "$GLOSS" ]
+  printf 'slice\n' > "$TF"; printf 'a child spec\n' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 0 ]
+  [ "$output" = "glossary=created" ]
+  grep -q '^slice — a child spec$' "$GLOSS"
+}
+
 @test "mb_glossary: shellcheck (error severity) and bash -n clean" {
   run shellcheck -x -S error "$SCRIPT"
   [ "$status" -eq 0 ]

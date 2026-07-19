@@ -579,7 +579,7 @@ An alternative to the plan-based pipeline for features that deserve a written sp
 
 ### Phase A — `/mb discuss <topic>`
 
-Requirements-elicitation interview. Output: `context/<topic>.md` with REQ bullets validated against the **5 EARS patterns** (ubiquitous / event-driven / state-driven / optional-feature / unwanted-behaviour). The `mb-ears-pre-write.sh` PreToolUse hook validates bullets before save; `mb-ears-validate.sh <file>` checks on demand. REQ ids are monotonic via `mb-req-next-id.sh` (`REQ-NNN`, prefixed schemes like `REQ-RS-008` supported).
+Requirements-elicitation interview, grilling-style: a Phase-0 research pass (code graph / semantic search / `/mb recall` / optional `mb-researcher` web recon) produces a cited research digest that grounds every recommendation; questions go one per turn, recommendation first, until the decision ledger stops changing. The file records Research Digest + Decision Log + Open Questions alongside the requirements. Output: `context/<topic>.md` with REQ bullets validated against the **5 EARS patterns** (ubiquitous / event-driven / state-driven / optional-feature / unwanted-behaviour). The `mb-ears-pre-write.sh` PreToolUse hook validates bullets before save; `mb-ears-validate.sh <file>` checks on demand. REQ ids are monotonic via `mb-req-next-id.sh` (`REQ-NNN`, prefixed schemes like `REQ-RS-008` supported).
 
 ### Phase B — `/mb sdd <topic>`
 

@@ -114,6 +114,23 @@ assert_script_present() {
   return 0
 }
 
+# assert_tool_allowed <file> <tool>
+# Fail (return 1) unless <tool> is a member of the `allowed-tools: [...]` array
+# in the command file's YAML frontmatter. Binds a mandatory-capability prompt
+# clause to the host permission it needs: a clause that demands subagent
+# dispatch (Task) is unsatisfiable on an allowlist-honouring host if the array
+# omits Task, even while the textual clause tests stay green.
+assert_tool_allowed() {
+  local file="$1" tool="$2" line
+  line="$(sed -n 's/^allowed-tools:[ \t]*//p' "$file" | head -1)"
+  if [ -z "$line" ]; then echo "allowed_tools_absent"; return 1; fi
+  case ",$(printf '%s' "$line" | tr -d '[] ')," in
+    *",$tool,"*) return 0 ;;
+  esac
+  echo "tool_not_allowed: $tool"
+  return 1
+}
+
 # _mb_find_clause <id> — echo the registered record for <id>, else return 1.
 _mb_find_clause() {
   local id="$1" rec

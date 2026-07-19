@@ -174,6 +174,56 @@ EOF
   [ "$stderr" = "error=usage" ]
 }
 
+# ─── topic path-traversal guard (R3-001) ───
+
+@test "artifact_write: publish-transcript --topic ../../escaped → exit 2, nothing written outside bank" {
+  _clean_transcript "$CAND"
+  local outside="$BATS_TEST_TMPDIR/escaped-interview.md"
+  rm -f "$outside"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic ../../escaped --candidate "$CAND"
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  [ "$stderr" = "error=topic" ]
+  [ ! -e "$outside" ]
+}
+
+@test "artifact_write: install-plan --topic ../../escaped → exit 2, nothing written outside bank" {
+  _valid_open_plan "$CAND"
+  local outside="$BATS_TEST_TMPDIR/interview-plan-escaped.md"
+  rm -f "$outside"
+  run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic ../../escaped --candidate "$CAND"
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  [ "$stderr" = "error=topic" ]
+  [ ! -e "$outside" ]
+}
+
+@test "artifact_write: topic with a slash → exit 2 (rejected before any write)" {
+  _clean_transcript "$CAND"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo/bar --candidate "$CAND"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=topic" ]
+  [ ! -e "$BANK/context/foo/bar-interview.md" ]
+}
+
+@test "artifact_write: topic with uppercase / double dash → exit 2" {
+  _valid_open_plan "$CAND"
+  run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic Foo --candidate "$CAND"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=topic" ]
+  run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic a--b --candidate "$CAND"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=topic" ]
+}
+
+@test "artifact_write: kebab-case multi-word topic still installs" {
+  _valid_open_plan "$CAND"
+  run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic svp-interview-upgrade --candidate "$CAND"
+  [ "$status" -eq 0 ]
+  [ "$output" = "artifact_write=installed kind=plan" ]
+  [ -f "$BANK/tmp/interview-plan-svp-interview-upgrade.md" ]
+}
+
 @test "artifact_write: shellcheck (error severity) and bash -n clean" {
   run shellcheck -x -S error "$SCRIPT"
   [ "$status" -eq 0 ]

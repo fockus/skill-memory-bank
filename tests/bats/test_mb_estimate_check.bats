@@ -203,6 +203,179 @@ EOF
   [ "$status" -eq 0 ]
 }
 
+# ─── strict C1 frontmatter schema (blocker F4) ───
+
+@test "estimate_check: estimated_tokens only in the body (no frontmatter) → missing" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+# Some doc without frontmatter
+
+estimated_tokens:
+  total: 100
+  breakdown:
+    shell_scripts: {count: 1, unit_tokens: 100, subtotal: 100}
+    prompt_changes: {count: 0, unit_tokens: 0, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 0, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 0, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 0, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 0, subtotal: 0}
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  [ "$output" = "estimate=missing spec.total=0 spec_budget=1000000" ]
+  [ "$stderr" = "$f:0:estimated_tokens:missing" ]
+}
+
+@test "estimate_check: estimated_tokens only after the first frontmatter closes → missing" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+---
+
+estimated_tokens:
+  total: 100
+  breakdown:
+    shell_scripts: {count: 1, unit_tokens: 100, subtotal: 100}
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  [ "$output" = "estimate=missing spec.total=0 spec_budget=1000000" ]
+}
+
+@test "estimate_check: unknown breakdown category → estimate=malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 100
+  breakdown:
+    shell_scripts: {count: 1, unit_tokens: 100, subtotal: 100}
+    prompt_changes: {count: 0, unit_tokens: 0, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 0, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 0, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 0, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 0, subtotal: 0}
+    unexpected: {count: 5, unit_tokens: 9999, subtotal: 49995}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q ':unexpected:malformed$'
+}
+
+@test "estimate_check: duplicated category key → estimate=malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 10
+  breakdown:
+    shell_scripts: {count: 1, unit_tokens: 10, subtotal: 10}
+    shell_scripts: {count: 1, unit_tokens: 10, subtotal: 10}
+    prompt_changes: {count: 0, unit_tokens: 0, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 0, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 0, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 0, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 0, subtotal: 0}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q ':shell_scripts:malformed$'
+}
+
+@test "estimate_check: breakdown header missing → estimate=malformed field breakdown" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 100
+  shell_scripts: {count: 1, unit_tokens: 100, subtotal: 100}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q ':breakdown:malformed$'
+}
+
+# ─── exact six direct breakdown keys + exact map fields (cycle-2 blocker) ───
+
+@test "estimate_check: six valid categories plus an unknown scalar → malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 100
+  breakdown:
+    shell_scripts: {count: 1, unit_tokens: 100, subtotal: 100}
+    prompt_changes: {count: 0, unit_tokens: 0, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 0, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 0, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 0, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 0, subtotal: 0}
+    surprise: 42
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q ':surprise:malformed$'
+}
+
+@test "estimate_check: category map with 'discount' instead of 'count' → malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 50
+  breakdown:
+    shell_scripts: {discount: 5, unit_tokens: 10, subtotal: 50}
+    prompt_changes: {count: 0, unit_tokens: 0, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 0, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 0, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 0, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 0, subtotal: 0}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$stderr" | grep -q ':shell_scripts:malformed$'
+}
+
+@test "estimate_check: categories nested under an unknown wrapper → malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+estimated_tokens:
+  total: 100
+  breakdown:
+    wrapper:
+      shell_scripts: {count: 1, unit_tokens: 100, subtotal: 100}
+      prompt_changes: {count: 0, unit_tokens: 0, subtotal: 0}
+      python_modules: {count: 0, unit_tokens: 0, subtotal: 0}
+      test_files: {count: 0, unit_tokens: 0, subtotal: 0}
+      docs_pages: {count: 0, unit_tokens: 0, subtotal: 0}
+      external_integrations: {count: 0, unit_tokens: 0, subtotal: 0}
+---
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q ':wrapper:malformed$'
+}
+
+@test "estimate_check: --mb is rejected in positional context mode (usage exit 2)" {
+  local f="$BATS_TEST_TMPDIR/c.md"; _ctx "$f" 1000 1000
+  run --separate-stderr "$SCRIPT" "$f" --mb "$BATS_TEST_TMPDIR"
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  [ "$stderr" = "error=usage" ]
+}
+
 @test "estimate_check: shellcheck (error severity) and bash -n clean" {
   run shellcheck -x -S error "$SCRIPT"
   [ "$status" -eq 0 ]

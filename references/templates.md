@@ -519,7 +519,7 @@ Architecture + interfaces + decisions backing `requirements.md`.
 |      | H/M/L       | H/M/L  |            |
 ```
 
-## Spec Tasks (`specs/<topic>/tasks.md`) — executable task format
+## Spec Tasks v2 (`specs/<topic>/tasks.md`) — executable task block
 
 `specs/<topic>/tasks.md` is a **first-class executable artifact**. Each task is wrapped
 in `<!-- mb-task:N -->` markers so `mb_work_items.py` (and `/mb work <topic>`) can parse
@@ -529,33 +529,88 @@ as sprint slices via `linked_spec` frontmatter.
 Validate with `bash scripts/mb-spec-validate.sh <topic>` before running `/mb work`.
 Upgrade legacy `## N. ...` style with `bash scripts/mb-spec-tasks-migrate.sh <topic>`.
 
+The v2 block adds machine-checkable fields:
+
+- `**Role:**` takes a **bare** role name (`backend`, `qa`, `architect`) — the parser
+  prefixes `mb-` itself, so `Role: mb-backend` silently routes to a nonexistent agent.
+- `**Scope:**` is a repo-relative restricted glob (literals + `*` inside a segment + a
+  `**` segment; no `..`, absolute paths, or `?`/`[`/`]`/`{`/`}`).
+- `**Budget:**` is an integer token budget (task ≤120000, stage sum ≤400000).
+- `**Eval:**` MUST carry a machine red anchor — `exit:` and/or `output~:` (a POSIX ERE).
+
 ```markdown
 # Tasks: <topic>
 
 <!-- mb-task:1 -->
-## 1. <task title>
+## Task 1: <task title>
 
+**Stage:** 1
 **Covers:** REQ-NNN
-**Role:** <implementer role, e.g. backend>
-**What:** <concrete actions — files, functions, behaviour>
-**Testing:** <unit tests: X; integration tests: Y>
+**Role:** backend
+**Blocked-by:** none
+**Scope:** scripts/mb-foo.sh, tests/bats/test_mb_foo.bats
+**Budget:** 100000
+**Eval:** bats tests/bats/test_mb_foo.bats — red: helper not extended, gate absent; exit: 1; output~: not ok [0-9]+ foo_gate
+
+**What to do:**
+- <concrete actions — files, functions, behaviour>
+
+**Testing (TDD — tests BEFORE implementation):**
+- <unit / integration tests>
+
 **DoD:**
 - [ ] concrete, measurable criterion (SMART)
-- [ ] tests pass
+- [ ] tests pass (were red)
 - [ ] lint clean
 <!-- /mb-task:1 -->
-
-<!-- mb-task:2 -->
-## 2. <next task title>
-
-**Covers:** REQ-NNN
-**Role:** <role>
-**What:** ...
-**Testing:** ...
-**DoD:**
-- [ ] ...
-<!-- /mb-task:2 -->
 ```
+
+### §Contract seam block (design.md, C9)
+
+Record the machine-readable seam block in `design.md` §Contract. Default is
+**exactly one** seam (existing seams > new; pick the highest). A `**Seam
+rationale:**` line is required **only** when there are ≥2 seams.
+
+```markdown
+**Seams:**
+- <the single, highest seam>
+**Seam rationale:** <why more than one seam is agreed> ← required ONLY when ≥2 seams
+```
+
+### Structural Eval sample (docs / config task, REQ-049)
+
+A task with no runtime surface still declares a **structural** Eval — file
+presence, a required section, or a linter exit — so the gate is real, not a
+prose promise:
+
+```markdown
+**Eval:** bash -c 'grep -q "## Migration" docs/guide.md' — red: section missing; exit: 1; output~:
+```
+
+(Structural Evals assert existence/shape; behavioural red is deferred to the
+first `/mb work` step.)
+
+### Waiver form (non-gated only)
+
+A non-gated task may waive its Eval — an **explicit exception, never a silent
+substitute**. A waiver on a gated (SHALL/MUST) task is rejected by the validator.
+
+```markdown
+**Eval:** none — waiver: docs-only task, no behavioural surface (non-gated only)
+```
+
+### Escalation menu (D-35) — size overflow at generation time
+
+When the C3 budget gate reports an overflow, present these four options:
+
+1. **Split now** — decompose into smaller tasks/stages and regenerate the candidate.
+2. **MVP-trim → registry** — cut to an MVP; defer the rest as child specs via
+   `mb-idea.sh "[SPEC:<group>] <child-topic>"` (orchestrator is the sole registry writer).
+3. **Umbrella + JIT** — keep an umbrella spec, slice releases just-in-time.
+4. **`budget_override: user`** — accept a `spec=over` spec via `requirements.md`
+   frontmatter. Lifts **only** `spec=over` and **only** when `task_over=none ∧
+   stage_over=none`. The D-13 hard caps (task ≤120000, stage ≤400000) are
+   **never overridable**.
 
 ---
 

@@ -1,7 +1,8 @@
 ---
 type: spec-requirements
 topic: parallel-pipeline
-status: ready
+status: superseded
+superseded_by: specs/mb-donor-evolution (source-plan.md §2.1 — requirements reused as test scenarios)
 created: 2026-05-24
 linked_design: design.md
 linked_tasks: tasks.md

@@ -105,8 +105,8 @@ estimated_tokens:
 - Portability: Bash 3.2 (macOS) и Linux; GNU/BSD-утилиты; путь с пробелами; `LC_ALL=C`.
 
 **DoD:**
-- [ ] Оба режима C3 реализованы; stale final доказано не влияет на оценку candidate
-- [ ] Позиционный режим S1 byte-identical; bats green (были red); shellcheck clean
+- [x] Оба режима C3 реализованы; stale final доказано не влияет на оценку candidate
+- [x] Позиционный режим S1 byte-identical; bats green (были red); shellcheck clean
 <!-- /mb-task:3 -->
 
 <!-- mb-task:4 -->
@@ -131,8 +131,8 @@ estimated_tokens:
 - Ручные Scenarios §1, §2, §12, §14, §20 на фикстурном топике.
 
 **DoD:**
-- [ ] Конвейер 0–10 с батареей C8 и candidate-seam; pytest green (был red)
-- [ ] Сценарии §1/§2/§12/§14/§20 отрабатывают
+- [x] Конвейер 0–10 с батареей C8 и candidate-seam; pytest green (был red)
+- [x] Сценарии §1/§2/§12/§14/§20 отрабатывают
 <!-- /mb-task:4 -->
 
 <!-- mb-task:5 -->
@@ -159,9 +159,9 @@ estimated_tokens:
 - Ручные Scenarios §5, §11, §13, §19.
 
 **DoD:**
-- [ ] `mb-sdd-candidate.sh` (publish/discard, override сужен до spec=over) реализован; bats green (был red)
-- [ ] Candidate переносится атомарно только по вердикту гейта; task/stage-overflow всегда blocked даже с override; принятый tasks.md byte-identical при любом отказе
-- [ ] Меню D-35 + реестр + auto-ветка (pytest); Сценарии §5/§11/§13/§19 отрабатывают
+- [x] `mb-sdd-candidate.sh` (publish/discard, override сужен до spec=over) реализован; bats green (был red)
+- [x] Candidate переносится атомарно только по вердикту гейта; task/stage-overflow всегда blocked даже с override; принятый tasks.md byte-identical при любом отказе
+- [x] Меню D-35 + реестр + auto-ветка (pytest); Сценарии §5/§11/§13/§19 отрабатывают
 <!-- /mb-task:5 -->
 
 <!-- mb-task:6 -->
@@ -184,8 +184,8 @@ estimated_tokens:
 - pytest: вывод mb-sdd.sh на фикстурах byte-identical до/после; `--scaffold-only` даёт тот же результат; templates.md содержит v2-блок с bare Role, seam-блок C9, структурный Eval-образец и waiver-форму с пометкой non-gated.
 
 **DoD:**
-- [ ] C7 реализован; mb-sdd.sh byte-identical; pytest green (был red)
-- [ ] Шаблоны несут якорный Eval, seam-блок, структурный Eval и waiver-форму
+- [x] C7 реализован; mb-sdd.sh byte-identical; pytest green (был red)
+- [x] Шаблоны несут якорный Eval, seam-блок, структурный Eval и waiver-форму
 <!-- /mb-task:6 -->
 
 <!-- mb-task:7 -->
@@ -212,8 +212,8 @@ estimated_tokens:
 - Паритет загрузчиков: конфиг парсится идентично с PyYAML и без него (fallback-ветка).
 
 **DoD:**
-- [ ] Схема + helper + шаг; exit-коды принадлежат скрипту, не прозе; status state machine draft→ready реализована и оттестирована (4 перехода)
-- [ ] JSONL append-only, история попыток не перезаписывается; bats green (были red); shellcheck clean
+- [x] Схема + helper + шаг; exit-коды принадлежат скрипту, не прозе; status state machine draft→ready реализована и оттестирована (4 перехода)
+- [x] JSONL append-only, история попыток не перезаписывается; bats green (были red); shellcheck clean
 <!-- /mb-task:7 -->
 
 <!-- mb-task:8 -->
@@ -239,8 +239,8 @@ estimated_tokens:
 - Ручной Scenario §4 на фикстурной задаче.
 
 **DoD:**
-- [ ] C6 реализован (FAIL, не warning) через авторитетный writer; helper сам гоняет команду, подмена verdict через CLI невозможна (доказано тестом); старые субкоманды byte-identical
-- [ ] bats green (были red); shellcheck clean; сценарий §4 отрабатывает
+- [x] C6 реализован (FAIL, не warning) через авторитетный writer; helper сам гоняет команду, подмена verdict через CLI невозможна (доказано тестом); старые субкоманды byte-identical
+- [x] bats green (были red); shellcheck clean; сценарий §4 отрабатывает
 <!-- /mb-task:8 -->
 
 <!-- mb-task:9 -->
@@ -268,7 +268,7 @@ estimated_tokens:
 - Ручной Scenario §20 на фикстурном топике.
 
 **DoD:**
-- [ ] `mb-sdd-self-check.sh` исполняет всю батарею C8; поведенческий preflight отделяет `pending_materialization` от `invalid`; missing target/tool никогда не observed red
-- [ ] stdout/exit по контракту C8a; чекер ничего не пишет; bats green (был red); shellcheck clean
-- [ ] Сценарий §20 отрабатывает
+- [x] `mb-sdd-self-check.sh` исполняет всю батарею C8; поведенческий preflight отделяет `pending_materialization` от `invalid`; missing target/tool никогда не observed red
+- [x] stdout/exit по контракту C8a; чекер ничего не пишет; bats green (был red); shellcheck clean
+- [x] Сценарий §20 отрабатывает
 <!-- /mb-task:9 -->

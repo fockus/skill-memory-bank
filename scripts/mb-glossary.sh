@@ -46,11 +46,42 @@ import sys
 
 mb, term_file, def_file = sys.argv[1:4]
 
-term = open(term_file, encoding="utf-8").read().rstrip("\n")
-definition = open(def_file, encoding="utf-8").read().rstrip("\n")
+raw_term = open(term_file, encoding="utf-8").read()
+raw_definition = open(def_file, encoding="utf-8").read()
 
 gloss = os.path.join(mb, "glossary.md")
 sep = " — "  # space em-dash space
+
+
+def _multiline(raw):
+    # Validate the RAW bytes BEFORE any normalization: exactly one optional
+    # terminal "\n" is tolerated; an interior newline, extra trailing blank
+    # line, or any CR is a multi-line spill.
+    if "\r" in raw:
+        return True
+    body = raw[:-1] if raw.endswith("\n") else raw
+    return "\n" in body
+
+
+term = raw_term.rstrip("\n")
+definition = raw_definition.rstrip("\n")
+
+# One glossary entry is exactly one line `<term> — <definition>`. Reject any
+# input that would break that single-line contract BEFORE touching the file, so
+# a rejected upsert leaves glossary.md byte-identical (REQ-017/018):
+#   - a CR/LF spill in the raw term or definition (checked pre-normalization),
+#   - empty / whitespace-only term or definition,
+#   - the separator inside the term (ambiguous key on read-back).
+if (
+    _multiline(raw_term)
+    or _multiline(raw_definition)
+    or term.strip() == ""
+    or definition.strip() == ""
+    or sep in term
+):
+    sys.stderr.write("error=usage\n")
+    sys.exit(2)
+
 line = term + sep + definition + "\n"
 
 

@@ -1,6 +1,6 @@
 ---
 description: 5-phase requirements-elicitation interview that produces an EARS-validated context/<topic>.md
-allowed-tools: [Bash, Read, Write, AskUserQuestion]
+allowed-tools: [Bash, Read, Write, AskUserQuestion, Task]
 ---
 
 # /mb discuss <topic>

@@ -721,6 +721,8 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-130 — mb-req-next-id.sh --spec считает covers_umbrella-ссылки: следующий REQ-номер завышается чужими ссылками во frontmatter (коллизии S2 REQ-049..055 с umbrella, S4 получил занятый REQ-042); скоуп подсчёта должен ограничиваться собственными Acceptance-Criteria строками спеки [HIGH, NEW, 2026-07-17]
 
+### I-131 — mb-flow-closure-guard.sh виснет каждый Stop при активном goal.md: гоняет полный firewall (default-набор включает `tests` = вся батарея bats+pytest, замер >600s на этом репо) на КАЖДОМ завершении хода, а не только при заявке на closure. Дефекты: (a) предикат — существование goal.md, поле `status:` игнорируется (paused всё равно гейтит); (b) нет env kill-switch (нужен MB_FLOW_CLOSURE=off); (c) settings-запись без timeout — session wedge на минуты (наблюдалось «running stop hooks 4/7 · 5m+»); (d) нужен fast-path: кэш вердикта по HEAD+dirty-hash или дешёвый check-набор (без tests) в Stop-контексте, полный — только при явном closure-claim. Митигация 2026-07-19: timeout=45 на hook-запись в ~/.claude/settings.json (installer при регенерации должен её сохранять). Правильный фикс — в зоне drive-loop T4 (Stop-hook resume-gate, тот же hook-слой) [HIGH, NEW, 2026-07-19]
+
 ## ADR
 
 ### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]

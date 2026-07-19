@@ -53,6 +53,17 @@ _clause_pair() {
 @test "final_gate_batch: the sequential degradation is announced to the user" { _clause_pair factfind-degrade-announced; }
 @test "final_gate_batch: without --batch the one-question default is unchanged" { _clause_pair factfind-default-off; }
 
+@test "final_gate_batch: mandatory subagent dispatch requires Task in allowed-tools (REQ-055)" {
+  # The batch fact-finding clauses mandate Task-based subagent dispatch; on a
+  # host that enforces allowed-tools this is impossible unless Task is granted.
+  # Bind the mandatory clause to the allowlist capability so a green clause
+  # text can never mask a missing permission.
+  _clause_pair factfind-parallel
+  _clause_pair factfind-default-off
+  run assert_tool_allowed "$DISCUSS" Task
+  [ "$status" -eq 0 ]
+}
+
 @test "final_gate_batch: harness rejects a vacuous rule-12 clause" {
   # Bare clause: clause-ERE == topic-anchor == `generation` on the single-line
   # rule 12; a real mutation leaves the word, so the assertion is vacuous.

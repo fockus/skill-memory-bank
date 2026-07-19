@@ -1,0 +1,37 @@
+{
+  "_comment": "Shared group-ordering contract fixture (design C2, R2-003-R3). The four canonical cases MUST yield a byte-identical topic order in BOTH consumers: the S4 roadmap render (scripts/mb-roadmap-sync.sh via scripts/mb_roadmap_group.py) and S3's mb-work-resolve.sh --group (svp-parallel-engine). Both consume the single authority scripts/mb_roadmap_order.py::priority_order. Members carry the raw frontmatter fields so each consumer parses them the same way.",
+  "cases": [
+    {
+      "name": "duplicate_pin",
+      "members": [
+        {"topic": "p-low",  "ice": "{impact: 5, confidence: 6, ease: 10}", "pin": "1", "created": "2026-01-01", "blocked_by": []},
+        {"topic": "p-high", "ice": "{impact: 10, confidence: 10, ease: 5}", "pin": "1", "created": "2026-01-02", "blocked_by": []}
+      ],
+      "expected_order": ["p-high", "p-low"]
+    },
+    {
+      "name": "missing_ice",
+      "members": [
+        {"topic": "scored", "ice": "{impact: 10, confidence: 10, ease: 5}", "pin": null, "created": "2026-01-01", "blocked_by": []},
+        {"topic": "plain",  "ice": null,                                     "pin": null, "created": "2026-01-02", "blocked_by": []}
+      ],
+      "expected_order": ["scored", "plain"]
+    },
+    {
+      "name": "equal_ice",
+      "members": [
+        {"topic": "later",   "ice": "{impact: 8, confidence: 10, ease: 5}", "pin": null, "created": "2026-02-01", "blocked_by": []},
+        {"topic": "earlier", "ice": "{impact: 10, confidence: 8, ease: 5}", "pin": null, "created": "2026-01-01", "blocked_by": []}
+      ],
+      "expected_order": ["earlier", "later"]
+    },
+    {
+      "name": "invalid_ice",
+      "members": [
+        {"topic": "good", "ice": "{impact: 8, confidence: 9, ease: 6}", "pin": null, "created": "2026-01-01", "blocked_by": []},
+        {"topic": "bad",  "ice": "432",                                  "pin": null, "created": "2026-01-02", "blocked_by": []}
+      ],
+      "expected_order": ["good", "bad"]
+    }
+  ]
+}

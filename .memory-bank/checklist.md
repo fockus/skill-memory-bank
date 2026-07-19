@@ -29,7 +29,8 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 
 ## ⏭ Queued waves
 
-- 🔄 **Group `sdd-vision-pipeline` (AGR-017, главный трек)** — ⏸ ПАУЗА 2026-07-18: исполнение стартовало (goal G-001, роли AGR-023 opus/gpt-5.6-sol/fable), волна 1: umbrella T1 ✅ · S1 4/6 · S4 3/9 · S2 2/9 (детали `status.md`); spec-ready база: 3 круга codex-ревью + ремедиация 75/75, батарея 10/10, S9 ревью waived (AGR-022); порядок T1 → S1 → S7 → S4 → S2 → S8 → S9 → S6 → S3 → S5 — детали в `roadmap.md` § Group
+- ⬜ **drive-loop T2+T4** (`/mb drive` + AGENTS.md loop-контракт · stop-телеметрия + Stop-hook resume-gate + parallel keying) — вытащены вперёд очереди ближайшим слотом (AGR-024, искл. из AGR-011); T3+T5 остаются в donor v5.6.0
+- 🔄 **Group `sdd-vision-pipeline` (AGR-017, главный трек)** — ▶ волна R 2026-07-19 (goal G-001, роли AGR-023): umbrella T1 ✅ · S1 26/26 DoD, review-цикл 2 (fixer добивает хвосты) · **S2 svp-sdd-core COMPLETE 9/9, DoD 22/22, батарея зелёная — первичное codex-ревью зоны в полёте** · S4 9/9 impl, review-цикл 2 (ABA-blocker в работе) (детали `status.md`, доска COORDINATION); spec-ready база: 3 круга codex-ревью + ремедиация 75/75, батарея 10/10, S9 ревью waived (AGR-022); порядок T1 → S1 → S7 → S4 → S2 → S8 → S9 → S6 → S3 → S5 — детали в `roadmap.md` § Group
 - ⬜ W0.5 — [opencode-first-adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md) — OpenCode native plugin, host-agnostic dispatch, hook parity
 - ⬜ W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)
 - ⬜ W12 — [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) → folded into Phase 4 above

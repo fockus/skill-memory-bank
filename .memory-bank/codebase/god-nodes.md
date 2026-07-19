@@ -58,21 +58,21 @@ _Cohesion = intra-cluster file-edge density (1.0 = fully coupled)._
 
 | Community | Files | Cohesion | Sample |
 |---|---|---|---|
-| 0 | 57 | 0.10 | memory_bank_skill/codegraph_cochange.py, scripts/mb-codegraph.py, scripts/mb-graph-query.py … |
-| 1 | 46 | 0.19 | hooks/lib/bm25.py, hooks/lib/recall_index.py, hooks/lib/semantic_store.py … |
-| 2 | 46 | 0.09 | memory_bank_skill/__init__.py, memory_bank_skill/_bundle.py, memory_bank_skill/_io.py … |
-| 3 | 30 | 0.14 | memory_bank_skill/codegraph_analytics.py, memory_bank_skill/codegraph_loader.py, memory_bank_skill/codegraph_questions.py … |
-| 4 | 17 | 0.27 | hooks/lib/indexer.py, hooks/lib/searcher.py, hooks/lib/semantic_embed.py … |
-| 5 | 13 | 0.28 | memory_bank_skill/codegraph_binding.py, memory_bank_skill/codegraph_common.py, memory_bank_skill/codegraph_python.py … |
-| 6 | 8 | 0.43 | hooks/lib/redact.py, hooks/lib/semantic_chunk.py, hooks/lib/transcript_window.py … |
-| 7 | 2 | 1.00 | adapters/pi_subagent_dispatch_core.mjs, adapters/pi_subagent_extension.ts |
-| 8 | 1 | 1.00 | adapters/pi_graph_rag_extension.ts |
-| 9 | 1 | 1.00 | adapters/pi_session_memory_extension.ts |
-| 10 | 1 | 1.00 | memory_bank_skill/__main__.py |
-| 11 | 1 | 1.00 | scripts/__init__.py |
-| 12 | 1 | 1.00 | site/app.js |
-| 13 | 1 | 1.00 | tests/fixtures/go/main.go |
-| 14 | 1 | 1.00 | tests/fixtures/java/src/main/java/Main.java |
+| 0 | 58 | 0.10 | memory_bank_skill/codegraph_cochange.py, scripts/mb-codegraph.py, scripts/mb-graph-query.py … |
+| 1 | 47 | 0.18 | hooks/lib/bm25.py, hooks/lib/recall_index.py, hooks/lib/semantic_store.py … |
+| 2 | 27 | 0.08 | memory_bank_skill/__init__.py, memory_bank_skill/rules_profile.py, scripts/mb-statusline.py … |
+| 3 | 25 | 0.19 | memory_bank_skill/codegraph_analytics.py, memory_bank_skill/codegraph_catchup.py, memory_bank_skill/codegraph_freshness.py … |
+| 4 | 24 | 0.19 | memory_bank_skill/_bundle.py, memory_bank_skill/_io.py, memory_bank_skill/_texttools.py … |
+| 5 | 16 | 0.30 | hooks/lib/indexer.py, hooks/lib/searcher.py, hooks/lib/semantic_embed.py … |
+| 6 | 12 | 0.29 | memory_bank_skill/codegraph_binding.py, memory_bank_skill/codegraph_common.py, memory_bank_skill/codegraph_python.py … |
+| 7 | 8 | 0.43 | hooks/lib/redact.py, hooks/lib/semantic_chunk.py, hooks/lib/transcript_window.py … |
+| 8 | 2 | 1.00 | adapters/pi_subagent_dispatch_core.mjs, adapters/pi_subagent_extension.ts |
+| 9 | 1 | 1.00 | adapters/pi_graph_rag_extension.ts |
+| 10 | 1 | 1.00 | adapters/pi_session_memory_extension.ts |
+| 11 | 1 | 1.00 | memory_bank_skill/__main__.py |
+| 12 | 1 | 1.00 | scripts/__init__.py |
+| 13 | 1 | 1.00 | site/app.js |
+| 14 | 1 | 1.00 | tests/fixtures/go/main.go |
 
 ## Bridge files (highest betweenness)
 

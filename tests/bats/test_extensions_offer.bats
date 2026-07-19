@@ -371,6 +371,65 @@ _nfr001_insert_nudge_block() {
   ' "$1"
 }
 
+# drive-loop Task 2 (REQ-DR-003/030/031) adds a second EXACT block to the
+# shared section: the drive loop-contract. Same single-source-of-truth
+# treatment as the nudge above — the NFR-001 assertion stays "this diff IS
+# the nudge block plus the drive block", never "any AGENTS.md diff".
+# Written with a quoted heredoc rather than awk because the block contains
+# literal single quotes (`the pipeline's implement role-agent`).
+_nfr001_drive_block() {
+  cat <<'DRIVEBLOCK'
+## drive-loop contract (autonomous goal-driven runs)
+
+When `/mb drive` is running, YOU are the runtime — there is no daemon. `scripts/mb-drive.sh` is a stateless decision function: it prints ONE next action and exits. Call it, execute that action, then call it again.
+
+- Loop: `scripts/mb-drive.sh next --bank <bank>` → execute the printed action → repeat, until the action starts with `stop_`.
+- Action grammar: `implement <route> <item>` | `repair <item>` | `pivot <in_role|via_architect> <item>` | `stop_success` | `stop_human <why>` | `stop_budget`.
+- Dispatch is RESOLVED, never guessed: read the active workflow from `pipeline.yaml` (via `scripts/mb-workflow.sh`) and pass the exact `agent`/`model`/`thinking` values it reports. `implement`/`repair`/`pivot` → the pipeline's implement role-agent; review → the pipeline's external codex reviewer; judge → the pipeline's judge role (it terminates the review loop). Never a fuzzy model name.
+- NEVER self-certify done. `stop_success` is the only done signal, and it requires `scripts/mb-flow-verify.sh` exit 0 AND `scripts/mb-goal-acceptance.sh` acceptance 100% — your own assessment that the work looks complete is not a stop condition.
+- No resolvable `.memory-bank/goal.md` → `/mb drive` refuses with exit 1 and a `scripts/mb-goal-validate.sh` fix-hint. Fix the goal; never start the loop anyway.
+- A killed run resumes for free: all state lives in files (`goal.md`, the `mb-flow` fence, `scripts/mb-work-state.sh`). Re-run the preflight and call `next` again.
+DRIVEBLOCK
+}
+
+# Inserts the drive block immediately before the section's first `---`
+# separator (the one preceding `## Global Rules`), matching where
+# _agents_md_section emits it.
+_nfr001_insert_drive_block() {
+  local inserted=0 line
+  while IFS= read -r line; do
+    if [ "$inserted" -eq 0 ] && [ "$line" = "---" ]; then
+      _nfr001_drive_block
+      echo ''
+      inserted=1
+    fi
+    printf '%s\n' "$line"
+  done < "$1"
+}
+
+# The full pre-task → post-task reconstruction.
+#
+# The nudge is NOT re-inserted here: HEAD (the baseline) already emits it, so
+# it is present in BOTH snapshots — re-inserting would fabricate a duplicate.
+# `_nfr001_insert_nudge_block` above is kept as the executable record of the
+# original pre-nudge baseline (see the NOTE in the test body); it becomes live
+# again only if a future task moves the baseline back before the nudge.
+# The drive block IS inserted: it lands in the working tree but not in HEAD.
+#
+# The leading blank run is stripped for the same reason. On a file owned by
+# two adapters the second install takes the replace branch, which under HEAD
+# prepended one blank line per re-install (unbounded growth). Task 2 makes
+# that branch idempotent, so the post-task file no longer opens with a blank
+# line. Modelling it here keeps the assertion exact instead of loosening it:
+# a correct AGENTS.md never legitimately starts blank.
+_nfr001_expected_agents_md() {
+  local tmp_stripped
+  tmp_stripped="$(mktemp)"
+  awk 'NF { started = 1 } started { print }' "$1" > "$tmp_stripped"
+  _nfr001_insert_drive_block "$tmp_stripped"
+  rm -f "$tmp_stripped"
+}
+
 # $1 = old snapshot dir, $2 = new (live) dir. Every relative path must exist
 # in both, byte-identical, EXCEPT the two named deltas above — verified
 # individually per differing file, not filtered out by a broad pattern.
@@ -405,9 +464,9 @@ _nfr001_assert_exact_tree_delta() {
         ;;
       AGENTS.md)
         tmp_expected="$(mktemp)"
-        _nfr001_insert_nudge_block "$of" > "$tmp_expected"
+        _nfr001_expected_agents_md "$of" > "$tmp_expected"
         if ! diff -q "$tmp_expected" "$nf" >/dev/null 2>&1; then
-          echo "AGENTS.md delta is not EXACTLY the host-parity nudge block: $rel" >&2
+          echo "AGENTS.md delta is not EXACTLY the nudge + drive-loop blocks: $rel" >&2
           diff "$tmp_expected" "$nf" >&2 || true
           rm -f "$tmp_expected"
           return 1
@@ -523,5 +582,12 @@ _nfr001_assert_exact_tree_delta() {
   # Same absolute paths both runs → exact compare, no normalization needed.
   [ "$old_stdout" = "$new_stdout" ]
 
-  diff -q "$old_agents_md" "$new_agents_md"
+  # Still no nudge on a codex-only project, but drive-loop Task 2 adds the
+  # drive loop-contract to the shared block for every host — so the expected
+  # post-task content is the pre-task content plus EXACTLY that block.
+  local expected_agents_md
+  expected_agents_md="$snap_dir/expected-AGENTS.md"
+  _nfr001_insert_drive_block "$old_agents_md" > "$expected_agents_md"
+  ! grep -q 'Host parity extensions' "$new_agents_md"
+  diff -q "$expected_agents_md" "$new_agents_md"
 }

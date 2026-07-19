@@ -25,6 +25,19 @@ CHECK="$SCRIPT_DIR/mb-interview-artifact-check.sh"
 SCAN="$SCRIPT_DIR/mb-secret-scan.sh"
 
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
+topic_error() { printf 'error=topic\n' >&2; exit 2; }
+
+# valid_topic <topic> — strict kebab-case slug: lowercase letters/digits joined
+# by single dashes, no leading/trailing/double dash. A '/', '.', or '..' cannot
+# appear, so <topic> can never widen the target path outside <bank> (R3-001,
+# path-traversal guard). Returns 0 when valid.
+valid_topic() {
+  case "$1" in
+    ''|*[!a-z0-9-]*) return 1 ;;
+    -*|*-|*--*) return 1 ;;
+  esac
+  return 0
+}
 
 SUB="${1:-}"
 [ -n "$SUB" ] || usage_error
@@ -49,6 +62,7 @@ done
 
 [ -n "$MB" ] && [ -n "$TOPIC" ] && [ -n "$CAND" ] || usage_error
 [ -f "$CAND" ] && [ -r "$CAND" ] || usage_error
+valid_topic "$TOPIC" || topic_error
 
 run_check() {
   # $1 = mode; remaining = extra flags. Forwards check stderr; returns check rc.
@@ -82,9 +96,17 @@ run_scan() {
 
 atomic_install() {
   # $1 = target path. Copies CAND to a sibling temp then renames (same FS).
-  local target="$1" target_dir tmp
+  local target="$1" target_dir tmp bank_real dir_real
   target_dir="$(dirname "$target")"
   mkdir -p "$target_dir" || return 2
+  # Containment (defence in depth beyond valid_topic): the resolved target
+  # directory must live inside the resolved bank, never above or beside it.
+  bank_real="$(cd "$MB" 2>/dev/null && pwd -P)" || return 2
+  dir_real="$(cd "$target_dir" 2>/dev/null && pwd -P)" || return 2
+  case "$dir_real/" in
+    "$bank_real"/*) ;;
+    *) return 2 ;;
+  esac
   tmp="$target_dir/.$(basename "$target").$$.tmp"
   cp "$CAND" "$tmp" || { rm -f "$tmp"; return 2; }
   mv -f "$tmp" "$target" || { rm -f "$tmp"; return 2; }

@@ -27,7 +27,37 @@
 
 set -euo pipefail
 
+# Resolve this script's own physical directory through its FULL symlink chain
+# (portable — no realpath on bare macOS): otherwise a symlinked invocation from
+# an attacker tree would make REPO_ROOT — and thus the legacy-fixture whitelist —
+# resolve inside that tree (fixture spoofing).
+_mb_resolve_self_dir() {
+  local src="$1" dir
+  while [ -h "$src" ]; do
+    dir="$(cd -P "$(dirname "$src")" 2>/dev/null && pwd)"
+    src="$(readlink "$src")"
+    case "$src" in
+      /*) ;;
+      *) src="$dir/$src" ;;
+    esac
+  done
+  cd -P "$(dirname "$src")" 2>/dev/null && pwd
+}
+SCRIPT_DIR="$(_mb_resolve_self_dir "$0")"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
+
+# canon_path <path> — physical absolute path of an EXISTING file (dir realpath +
+# basename). Returns 1 when the path does not exist, so a spoofed basename in a
+# different directory can never masquerade as a frozen regression fixture.
+canon_path() {
+  local p="$1" d b
+  [ -e "$p" ] || return 1
+  d="$(cd "$(dirname "$p")" 2>/dev/null && pwd -P)" || return 1
+  b="$(basename "$p")"
+  printf '%s/%s\n' "$d" "$b"
+}
 
 MODE="${1:-}"
 [ -n "$MODE" ] || usage_error
@@ -60,10 +90,15 @@ case "$MODE" in
   transcript)
     [ "$REQUIRE_CLOSED" -eq 0 ] || usage_error
     if [ "$LEGACY_FIXTURE" -eq 1 ]; then
-      case "$(basename "$FILE")" in
-        sdd-vision-pipeline-interview.md|svp-interview-upgrade-interview.md) ;;
-        *) printf '%s:0:legacy_fixture_forbidden\n' "$FILE" >&2; exit 2 ;;
-      esac
+      # Legacy relaxation is allowed ONLY for the two frozen regression
+      # fixtures, matched by canonical path — never by basename, so a renamed
+      # copy or a publication candidate cannot borrow the weaker grammar.
+      _fc="$(canon_path "$FILE")" || _fc=""
+      _f1="$(canon_path "$REPO_ROOT/.memory-bank/context/sdd-vision-pipeline-interview.md")" || _f1=""
+      _f2="$(canon_path "$REPO_ROOT/.memory-bank/context/svp-interview-upgrade-interview.md")" || _f2=""
+      if [ -z "$_fc" ] || { [ "$_fc" != "$_f1" ] && [ "$_fc" != "$_f2" ]; }; then
+        printf '%s:0:legacy_fixture_forbidden\n' "$FILE" >&2; exit 2
+      fi
     fi
     ;;
   *)
@@ -107,8 +142,10 @@ run_plan() {
         for (j = start + 1; j <= NR; j++) {
           if (lines[j] ~ /^## /) return
           if (lines[j] ~ /^[-*+][ \t]/) {
-            if (lines[j] ~ /^- \[[ xX]\]([ \t]|$)/) {
+            if (lines[j] ~ /^- \[[ xX]\][ \t]+[^ \t]/) {
               if (lines[j] ~ /^- \[ \]/) printf "O %d\n", j
+            } else if (lines[j] ~ /^- \[[ xX]\][ \t]*$/) {
+              printf "F %d 3 empty_topic\n", j
             } else {
               printf "F %d 3 bad_bullet\n", j
             }
@@ -170,12 +207,20 @@ run_transcript() {
         return -1
       }
       function has_answer(bs, be, qn,   j, apat) {
-        apat = "^\\*\\*A" qn "\\.\\*\\*"
+        # C4 rule 5: `^**A<N>.** ` — required space separator + non-blank content.
+        apat = "^\\*\\*A" qn "\\.\\*\\*[ \t]+[^ \t]"
         for (j = bs; j <= be; j++) {
           if (raw[j] ~ apat) return 1
-          if (legacy == "1" && raw[j] ~ /Ответ голосом.*«.*»/) return 1
-          if (legacy == "1" && raw[j] ~ /пользователь: «.*»/) return 1
+          if (legacy == "1" && raw[j] ~ /Ответ голосом \(суть\): «[^»]+»/) return 1
+          if (legacy == "1" && raw[j] ~ /пользователь: «[^»]+»/) return 1
         }
+        return 0
+      }
+      function answer_line(bs, be, qn,   j, apat) {
+        # First strict answer-marker line in the block (0 if none) — the point
+        # from which rejected-alternatives are honoured (rule 7, answer part).
+        apat = "^\\*\\*A" qn "\\.\\*\\*[ \t]+[^ \t]"
+        for (j = bs; j <= be; j++) if (raw[j] ~ apat) return j
         return 0
       }
       function has_decision(bs, be,   j) {
@@ -183,7 +228,7 @@ run_transcript() {
         return 0
       }
       function has_rejected(bs, be,   j) {
-        for (j = bs; j <= be; j++) if (raw[j] ~ /(Отклонено|Rejected):/) return 1
+        for (j = bs; j <= be; j++) if (raw[j] ~ /(Отклонено|Rejected):[ \t]*[^ \t]/) return 1
         return 0
       }
       { raw[NR] = $0 }
@@ -193,7 +238,7 @@ run_transcript() {
           if (raw[i] ~ /^## Q&A[ \t]*$/) { qa_count++; if (qa_count == 1) qa_line = i; else if (qa_count == 2) second_qa = i }
           if (inh_line == 0 && raw[i] ~ /^## Унаследовано/) inh_line = i
           if (raw[i] ~ /^## Отклонённые альтернативы/) rej_section = 1
-          if (raw[i] ~ /(Отклонено|Rejected):/) inline_rej = 1
+          if (raw[i] ~ /(Отклонено|Rejected):[ \t]*[^ \t]/) inline_rej = 1
         }
 
         # 1. title
@@ -218,10 +263,16 @@ run_transcript() {
           else if (qa_line > 0 && inh_line > qa_line) print "F " inh_line " 6 inherited_after_qa"
         }
 
-        # 4. collect Q-lines and gate-lines
+        # 4. collect Q-lines and gate-lines. A line that opens like a marker
+        #    (`**Q<n>` / `**Финальный гейт`) but breaks the exact template form
+        #    is flagged as malformed and never counted as a valid block.
+        # C4 rule 4 Q marker: `^**Q<N>( (<tag>))?.** ` — the `(<tag>)` is OPTIONAL
+        # (so `**Q1.** q?` is valid), and content after the required space is
+        # mandatory (empty question rejected).
         nq = 0
         for (i = 1; i <= NR; i++) {
-          if (raw[i] ~ /^\*\*Q[0-9]+/) {
+          if (raw[i] ~ /^\*\*Q[0-9]/) {
+            if (raw[i] !~ /^\*\*Q[0-9]+( \([^)]*\))?\.\*\*[ \t]+[^ \t]/) { print "F " i " 8 q_malformed"; continue }
             nq++; qidx[nq] = i
             s = raw[i]; sub(/^\*\*Q/, "", s)
             d = ""; k = 1
@@ -229,10 +280,18 @@ run_transcript() {
             qnum[nq] = d + 0
           }
         }
+        # C4 rule 8 gate marker: `^**Финальный гейт(, круг <M>)?.** ` — only an
+        # optional numeric round may follow; arbitrary text → gate_malformed.
         ng = 0
-        for (i = 1; i <= NR; i++) if (raw[i] ~ /^\*\*Финальный гейт/) { ng++; gidx[ng] = i }
+        for (i = 1; i <= NR; i++) {
+          if (raw[i] ~ /^\*\*Финальный гейт/) {
+            if (raw[i] !~ /^\*\*Финальный гейт(, круг [0-9]+)?\.\*\*[ \t]+[^ \t]/) { print "F " i " 13 gate_malformed"; continue }
+            ng++; gidx[ng] = i
+          }
+        }
 
         if (nq == 0) print "F 1 7 no_questions"
+        if (nq > 0 && qnum[1] != 1) print "F " qidx[1] " 7 q_number_not_one"
 
         # 5-7. per Q-block
         prev = 0
@@ -244,7 +303,13 @@ run_transcript() {
           if (!has_answer(bs, be, qnum[k])) print "F " bs " 10 answer_missing"
           hasdec = has_decision(bs, be)
           if (!hasdec) print "F " bs " 11 decision_missing"
-          if (legacy != "1" && hasdec && !has_rejected(bs, be)) print "F " bs " 12 rejected_alternatives_missing"
+          if (legacy != "1" && hasdec) {
+            aline = answer_line(bs, be, qnum[k])
+            rstart = (aline > 0 ? aline : bs)
+            # Rejected token is honoured only from the answer line onward, so a
+            # `Rejected:` embedded in the QUESTION cannot satisfy the rule.
+            if (!has_rejected(rstart, be)) print "F " bs " 12 rejected_alternatives_missing"
+          }
         }
         if (legacy == "1" && !rej_section && !inline_rej && nq > 0) print "F 1 12 rejected_alternatives_missing"
 
@@ -254,7 +319,7 @@ run_transcript() {
         for (g = 1; g <= ng; g++) {
           gs = gidx[g]; ge = next_boundary(gs) - 1
           gotans = 0
-          for (j = gs; j <= ge; j++) if (raw[j] ~ /^\*\*Ответ\.\*\*/) gotans = 1
+          for (j = gs; j <= ge; j++) if (raw[j] ~ /^\*\*Ответ\.\*\*[ \t]+[^ \t]/) gotans = 1
           if (!gotans) print "F " gs " 14 gate_answer_missing"
           if (ng >= 2) {
             m = round_of(raw[gs])

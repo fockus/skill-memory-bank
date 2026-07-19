@@ -52,6 +52,12 @@ htmlcov/
 .memory-bank/codebase/.graph-dirty
 .memory-bank/codebase/.graph.lock
 .memory-bank/codebase/.graph-catchup.cooldown
+# /mb work per-run state slots + source→run claim index (mb-work-slots.sh) —
+# machine-local, rewritten on every run.
+.memory-bank/.work-state.json
+.memory-bank/.work-state/
+# Transient inter-agent handoff drops (patches, staged artifacts).
+.memory-bank/.reports/
 
 # Semantic-recall derived state — rebuilt from markdown, never tracked.
 # venv beside the installed hooks (if bootstrapped in-repo) + per-project vector index.

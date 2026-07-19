@@ -348,9 +348,20 @@ if [ -n "$TASKS_JSONL" ] && [ -f "$REQ_FILE" ]; then
   TASKS_DATA="$TASKS_JSONL" REQ_PATH="$REQ_FILE" DESIGN_PATH="$DESIGN_FILE" \
     SPECS_ROOT="$SPECS_ROOT" WAIVERS_FILE="$WAIVERS_FILE" MB_SCRIPT_DIR="$SCRIPT_DIR" \
     python3 - >>"$VIOLATIONS_FILE" <<'PY'
-import json, os, re, sys
+import json, os, re, subprocess, sys
 sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
 import mb_req_id as rq
+
+def ere_ok(pattern):
+    # Validate with the SAME portable engine used at execution time (grep -E):
+    # a bad ERE exits 2 (a Python-only construct like `(?=...)` is rejected).
+    try:
+        return subprocess.run(
+            ["grep", "-E", "--", pattern], input="",
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True,
+        ).returncode != 2
+    except OSError:
+        return False
 
 def read(p):
     return open(p, encoding="utf-8").read() if p and os.path.exists(p) else ""
@@ -426,11 +437,8 @@ def run_v2_gates():
         ore = ev.get("output_re")
         if is_gated and not ore:
             print(f"REQ-055: task {no} covers a gated req but its Eval has no output~: anchor (exit-only rejected)")
-        if ore:
-            try:
-                re.compile(ore)
-            except re.error as exc:
-                print(f"task {no} Eval output~: is not a valid ERE: {exc}")
+        if ore and not ere_ok(ore):
+            print(f"task {no} Eval output~: is not a valid POSIX ERE (grep -E rejects it): {ore}")
         for tok in (ev.get("cmd") or "").split():
             if tok.startswith("/") and "/" in tok:
                 print(f"task {no} Eval target is not repo-relative: {tok}")

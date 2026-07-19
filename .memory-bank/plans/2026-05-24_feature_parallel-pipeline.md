@@ -1,7 +1,8 @@
 ---
 type: feature
 topic: parallel-pipeline
-status: queued
+status: superseded
+superseded_by: specs/mb-donor-evolution (releases 5.6.0–6.0.0; source-plan.md §2.1)
 depends_on: ["2026-05-23_feature_reviewer-v2.md", "2026-05-23_feature_work-loop-v2.md"]
 soft_depends_on: ["2026-05-23_feature_handoff-v2.md", "2026-05-23_feature_cost-multi-model.md"]
 parallel_safe: false

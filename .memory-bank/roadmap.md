@@ -4,26 +4,26 @@
 <!-- mb-roadmap-auto -->
 ## Now (in progress)
 
-- [2026-05-24_fix_cursor-compatibility-remediation](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation
-- [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency
-- [spec-group-round3-remediation](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
+- [2026-05-24_fix_cursor-compatibility-remediation](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation — progress=86% stages(done=5,in_progress=1,planned=0,total=6)
+- [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency — progress=28% stages(done=1,in_progress=2,planned=3,total=6)
+- [spec-group-round3-remediation](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation — progress=100% stages(done=6,in_progress=0,planned=0,total=6)
 
 ## Next (strict order — depends)
 
-- [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0 (S1 of harness-upgrade)
-- [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0 (S2 of harness-upgrade)
-- [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
-- [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
-- [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
-- [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation
-- [2026-06-23_feature_dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) — Capability Dispatcher Wiring + Transports
-- [2026-07-04_fix_install-and-cross-agent-parity](plans/2026-07-04_fix_install-and-cross-agent-parity.md) — Install reliability + cross-agent parity
-- [2026-07-04_fix_session-capture-and-mb-hygiene](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md) — Session-capture correctness + Memory-Bank drift hygiene
-- [mb-donor-evolution-v5-4-baseline](plans/2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md) — mb-donor-evolution — v5.4.0 Trustworthy Baseline
+- [reviewer-v2](plans/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0 (S1 of harness-upgrade) — progress=0% stages(done=0,in_progress=0,planned=6,total=6)
+- [work-loop-v2](plans/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0 (S2 of harness-upgrade) — progress=0% stages(done=0,in_progress=0,planned=5,total=5)
+- [cost-multi-model](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade) — progress=0% stages(done=0,in_progress=0,planned=4,total=4)
+- [handoff-v2](plans/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade) — progress=0% stages(done=0,in_progress=0,planned=5,total=5)
+- [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit — progress=0% stages(done=0,in_progress=0,planned=6,total=6)
+- [2026-05-24_fix_pi-compatibility-remediation](plans/2026-05-24_fix_pi-compatibility-remediation.md) — Pi Compatibility Remediation — progress=0% stages(done=0,in_progress=0,planned=0,total=0)
+- [2026-06-23_feature_dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) — Capability Dispatcher Wiring + Transports — progress=0% stages(done=0,in_progress=0,planned=0,total=0)
+- [2026-07-04_fix_install-and-cross-agent-parity](plans/2026-07-04_fix_install-and-cross-agent-parity.md) — Install reliability + cross-agent parity — progress=0% stages(done=0,in_progress=0,planned=40,total=40)
+- [2026-07-04_fix_session-capture-and-mb-hygiene](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md) — Session-capture correctness + Memory-Bank drift hygiene — progress=0% stages(done=0,in_progress=0,planned=0,total=0)
+- [mb-donor-evolution-v5-4-baseline](plans/2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md) — mb-donor-evolution — v5.4.0 Trustworthy Baseline — progress=0% stages(done=0,in_progress=0,planned=2,total=2)
 
 ## Parallel-safe (can run now)
 
-- [2026-07-04_feature_code-graph-activation](plans/2026-07-04_feature_code-graph-activation.md) — Code-Graph Activation (Path A — all four steps)
+- [2026-07-04_feature_code-graph-activation](plans/2026-07-04_feature_code-graph-activation.md) — Code-Graph Activation (Path A — all four steps) — progress=0% stages(done=0,in_progress=0,planned=10,total=10)
 
 ## Paused / Archived
 
@@ -31,31 +31,43 @@ _None._
 
 ## Linked Specs (active)
 
-- specs/cost-multi-model/design.md
-- specs/handoff-v2/design.md
-- specs/reviewer-2.0/design.md
-- specs/work-loop-v2/design.md
-- specs/parallel-pipeline/design.md
-- specs/cursor-extension
-- specs/pi-extension
-- specs/dynamic-flow
-- reviewer-2.0
-- work-loop-v2
-- drive-loop
-- cost-multi-model
-- parallel-pipeline
-- parallel-team-execution
-- dynamic-flow
-- specs/mb-donor-evolution
-- specs/sdd-vision-pipeline
-- specs/svp-sdd-core
-- specs/svp-interview-upgrade
-- specs/svp-roadmap-backlog-db
-- specs/svp-brief
-- specs/svp-parallel-engine
-- specs/svp-adapt-escalation
-- specs/svp-docs-wiki
-- specs/svp-contract-test-loop
+- specs/cost-multi-model/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/handoff-v2/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/reviewer-2.0/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/work-loop-v2/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/parallel-pipeline/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/cursor-extension — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/pi-extension — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/dynamic-flow — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- reviewer-2.0 — progress=100% tasks(done=6,in_progress=0,planned=0,total=6)
+- work-loop-v2 — progress=100% tasks(done=5,in_progress=0,planned=0,total=5)
+- drive-loop — progress=25% tasks(done=1,in_progress=0,planned=4,total=5)
+- cost-multi-model — progress=0% tasks(done=0,in_progress=0,planned=4,total=4)
+- parallel-pipeline — progress=0% tasks(done=0,in_progress=0,planned=6,total=6)
+- parallel-team-execution — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
+- dynamic-flow — progress=88% tasks(done=12,in_progress=0,planned=2,total=14)
+- specs/mb-donor-evolution — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/sdd-vision-pipeline — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/svp-sdd-core — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/svp-interview-upgrade — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/svp-roadmap-backlog-db — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/svp-brief — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/svp-parallel-engine — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/svp-adapt-escalation — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/svp-docs-wiki — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- specs/svp-contract-test-loop — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+
+## Group: sdd-vision-pipeline
+progress=26%
+svp-interview-upgrade — ice=504 — ready — progress=100% — blocked_by=none
+svp-roadmap-backlog-db — ice=432 (unconfirmed) — ready — progress=39% — blocked_by=none
+svp-sdd-core — ice=400 (unconfirmed) — ready — progress=100% — blocked_by=none
+svp-brief — ice=448 (unconfirmed) — ready — progress=0% — blocked_by=svp-interview-upgrade
+svp-contract-test-loop — ice=360 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core
+svp-docs-wiki — ice=336 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
+svp-spec-review-loop — ice=336 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core
+svp-parallel-engine — ice=252 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core
+svp-adapt-escalation — ice=294 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core,svp-parallel-engine,svp-roadmap-backlog-db
 <!-- /mb-roadmap-auto -->
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
@@ -128,7 +140,7 @@ ICE = Impact × Confidence × Ease (1–10). Порядок = ICE с попра�
 | v5.4.0 | Trustworthy Baseline | P0 | 8 | 9 | 9 | **648** | Next — после `adapter-parity` (AGR-012); wrapper `2026-07-15_feature_mb-donor-evolution-v5-4-baseline` |
 | v5.5.0 | Spec Control Plane | P0 | 8 | 8 | 6 | **384** | Next |
 | v6.1.0 | Evidence, UAT & Gap Closure | P1 | 9 | 7 | 5 | **315** | Next (после 6.0 — жёсткая зависимость) |
-| v5.6.0 | Long-Session Kernel & Event Journal **+ drive-loop** | P0 | 10 | 7 | 4 | **280** | Next — поглощает остаток `specs/drive-loop` (AGR-010): drive-loop дожимается ВНУТРИ слайса, не замораживается |
+| v5.6.0 | Long-Session Kernel & Event Journal **+ drive-loop** | P0 | 10 | 7 | 4 | **280** | Next — поглощает остаток `specs/drive-loop` (AGR-011); **T2+T4 вытащены вперёд очереди (AGR-024)**, в слайсе дожимаются T3+T5 |
 | v6.2.0 | **Quality Track — QA & Evidence Graph** (`specs/quality-track`, 29 REQ) | P1 | 9 | 7 | 4 | **252** | Next (сразу после 6.1.0 — строится поверх его evidence-ядра EV-01…05, не дублируя его; AGR-008). Высокий impact, высокая сложность — потому середина очереди, а не старт |
 | v5.7.0 | Plan IR & Typed Workflow Planner | P0 | 8 | 7 | 4 | **224** | Next |
 | v6.0.0 | Isolated Mixed-Node Execution | P1 | 8 | 6 | 3 | **144** | Next (разблокирует 6.1) |
@@ -144,7 +156,7 @@ ICE = Impact × Confidence × Ease (1–10). Порядок = ICE с попра�
 ICE-примечания: 6.1 имеет третий score программы, но заперт за 6.0 — это главный аргумент не откладывать 6.0. **Quality Track (6.2.0): сырой ICE 252 поставил бы его пятым, но жёсткая зависимость от evidence-ядра 6.1.0 (манифест §7.5, freshness, коллекторы EV-01…05) фиксирует его сразу за 6.1 — раньше физически нельзя без двойной постройки evidence-слоя (D-01/D-02 в `context/quality-track.md`); позже — нельзя оправдать, его ICE выше всего хвоста.** 6.3 — единственный кандидат на параллельный лейн (зависит только от 5.5). Icebox честный: оба optional-движка — самые дорогие (E=2) и наименее подтверждённые потребностью (I=3) части программы; их REQ/задачи (mb-task 102–132) остаются в umbrella-спеке и активируются JIT-слайсами при разморозке.
 
 **Пересечения с legacy-дорожкой** (правило «donor побеждает», замораживать на старте релиза):
-- `drive-loop` + `SEQUENCE_long-running-sessions` ↔ **5.6.0** — исключение из заморозки (AGR-010): оставшиеся фазы drive-loop входят в слайс v5.6.0 и ДОДЕЛЫВАЮТСЯ в нём (много вложенной работы, фича важная);
+- `drive-loop` + `SEQUENCE_long-running-sessions` ↔ **5.6.0** — исключение из заморозки (AGR-011): оставшиеся фазы drive-loop входят в слайс v5.6.0 и ДОДЕЛЫВАЮТСЯ в нём (много вложенной работы, фича важная); **AGR-024 (2026-07-19): T2 (`/mb drive` + loop-контракт) и T4 (resume-gate) вытащены вперёд очереди ближайшим слотом, в 5.6.0 остаются T3+T5**;
 - `work-loop-v2` ↔ 5.6.0/5.7.0 (execution state machine `/mb work`);
 - `reviewer-2.0` ↔ 6.1.0 (evidence/review);
 - `quality-track` ↔ 6.2.0 — это и ЕСТЬ релиз 6.2.0 (AGR-008), спека уже написана (29 REQ), задачи авторятся JIT при старте слайса;
@@ -163,7 +175,7 @@ ICE-примечания: 6.1 имеет третий score программы, 
 | donor v5.4.0 Trustworthy Baseline | план `2026-07-15_feature_mb-donor-evolution-v5-4-baseline` | Next — голова donor-поезда, стартует после adapter-parity (AGR-012) |
 | donor v5.5.0…v6.5.0 | umbrella `specs/mb-donor-evolution` | ICE-таблица выше, JIT-слайсы |
 | quality-track | `specs/quality-track` (29 REQ) | = donor v6.2.0 (AGR-008/009) |
-| drive-loop остаток | `specs/drive-loop` + `SEQUENCE_long-running-sessions` | внутри donor v5.6.0 (AGR-010) |
+| drive-loop остаток | `specs/drive-loop` + `SEQUENCE_long-running-sessions` | T2+T4 — вперёд очереди, ближайший слот (AGR-024); T3+T5 — внутри donor v5.6.0 (AGR-011) |
 | sdd-openspec-parity Phase 2 (living specs + deltas) | Task 9 DEFERRED в `specs/sdd-openspec-parity` | после Phase 1, свой `/mb discuss`; forward-compat с v6.7.0 |
 | reviewer-2.0 → work-loop-v2 → cost-multi-model | specs + планы 2026-05-23 | legacy Next-цепочка; замораживаются на старте 6.1.0 / 5.6-5.7 / 6.3.0 соответственно (donor побеждает) |
 | dynamic-flow Phase 2–3 | `specs/dynamic-flow` | legacy tail; пересечение с 5.6/5.7 оценить на старте v5.6.0 |

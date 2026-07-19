@@ -148,18 +148,27 @@ every client manifest and fails if any declared value falls outside this vocabul
 lacks a matching negative assertion, so the suite cannot silently drift from the
 manifests.
 
-**Semantics — ceiling, not current install state.** A value in `platform_limited`
-denotes a capability the host **cannot** deliver *even with its opt-in parity extension
-installed* (a genuine platform ceiling) — NOT a capability that is merely absent on the
-declined/base path. Consequence: a host whose capability ships only behind the accept
-gate (e.g. OpenCode session-memory via the extended `chat.message` per-turn capture,
-Pi session-memory via its accept-path extension) is **correctly omitted** from
-`platform_limited` — its base install not capturing is the opt-in offer model (D-02)
-working as designed, not a limit. The negative test for such an omission therefore
-proves the *accepted* state genuinely delivers the capability (real `session/*.md`
-v2 file), while a true limit (windsurf/cline/kilo session-memory) proves the capability
-is absent in every state. Reading `platform_limited` as "this install's current state"
-is the wrong lens and will misjudge accept-gated capabilities as dishonest.
+**Semantics — the manifest describes THIS install as configured, per install-state.**
+A value in `platform_limited` means the capability is **not available in the install this
+manifest describes**, with a discoverable reason. This is deliberately *per-install-state*,
+not a hypothetical host ceiling: an accept-gated capability is declared limited on the
+**declined/base** manifest (reason: "requires accepting the opt-in parity extension") and
+**omitted** on the **accepted/extended** manifest (where it genuinely works). Rationale:
+the honesty layer exists so a user/agent reading the manifest of the install they actually
+have learns the truth about it — declaring a ceiling the current install doesn't reach
+would be dishonest-by-omission (a declined OpenCode/Pi install genuinely does NOT capture
+`session/*.md`, proven by the base-plugin no-op tests). Three tiers result:
+- **Hard ceiling** (no install state provides it): `statusline` on every non-CC host;
+  `session-memory`/`lifecycle-hooks`/`update-notify` on windsurf/cline/kilo; `subagents`
+  where no dispatch primitive exists — declared in **every** manifest for that host.
+- **Accept-gated** (base absent, accepted present): OpenCode `session-memory` (extended
+  `chat.message` capture) and Pi `session-memory` (accept-path extension) — declared
+  limited on the base/declined manifest, omitted on the accepted manifest. The negative
+  test asserts the PAIR per state: base manifest lists it **and** base plugin is a capture
+  no-op; accepted manifest omits it **and** accepted plugin writes a real v2 `session/*.md`.
+- **Always-limited regardless of accept** (a real gap the extension does not close):
+  `role-routing` on pi/opencode — the host has a genuine dispatch primitive but `/mb work`
+  never routes per-host (I-121/I-122), so it is limited in both base and accepted states.
 
 **`role-routing` (added by T7, reconciling T4's Pi shipment):** narrower than
 `subagents` — it means "this host has its own genuine, working subagent-dispatch

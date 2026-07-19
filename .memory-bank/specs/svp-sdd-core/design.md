@@ -21,7 +21,8 @@
 ## Architecture
 
 Три слоя:
-1. **Prompt** — `commands/sdd.md` переписывается в конвейер: (0) контекст есть? нет → discuss/self-interview → (1) чтение транскрипта → (2) генерация requirements (stories+EARS) → (3) design (§Contract: интерфейсы, seams по C9 — подтверждение с пользователем, Eval-декларации) → (4) генерация **candidate** tasks.md v2 в `<bank>/tmp/sdd/<topic>/tasks.candidate.md` → (5) оценка бюджетов C3 по candidate → эскалация D-35 при превышении → (6) self-check DAG по candidate → (7) **публикация draft**: `mb-sdd-candidate.sh publish` атомарно переносит candidate → `specs/<topic>/tasks.md` (триплет публикуется как **draft**, ещё НЕ accepted — C4a/C7) → (8) **батарея самопроверки C8** (`mb-sdd-self-check.sh`, C8a) на опубликованном draft-триплете → (9) опц. spec_review C5 → (10) переход draft→ready по C7 §Status state machine + отчёт. `commands/work.md` — врезка eval-first шага C6.
+1. **Prompt** — `commands/sdd.md` переписывается в конвейер: (0) контекст есть? нет → конвейер **сам запускает** discuss/self-interview (REQ-001), генерация только после появления транскрипта → (1) чтение транскрипта → (2) генерация requirements (stories+EARS) в staging `<bank>/tmp/sdd/<topic>/` → (3) design (§Contract: интерфейсы, seams по C9 — подтверждение с пользователем, Eval-декларации) в staging → (4) генерация **candidate** tasks.md v2 в `<bank>/tmp/sdd/<topic>/tasks.candidate.md` → (5) оценка бюджетов C3 по candidate → эскалация D-35 при превышении → (6) self-check DAG по candidate → (7) **батарея самопроверки C8** (`mb-sdd-self-check.sh --spec <staging-dir> --mb <bank>`, C8a) по **staged draft-триплету — accepted `specs/<topic>/tasks.md` ещё НЕ тронут** → (8) опц. spec_review C5 по staged draft → (9) **атомарный promotion** только после прохождения C8+review: `mb-sdd-candidate.sh publish` переносит candidate → `specs/<topic>/tasks.md` как **draft** (ещё НЕ accepted — C4a/C7); любой отказ гейта оставляет прежний accepted triple **byte-identical** → (10) переход draft→ready по C7 §Status state machine + отчёт. `commands/work.md` — врезка eval-first шага C6.
+   > **Ревизия 5 (круг 4 ремедиация):** порядок шагов 7↔9 исправлен — C8 (и review) исполняются по staged draft ДО замены accepted `specs/<topic>/tasks.md`; publish/promotion — финальный гейтованный шаг (закрывает ревью-blocker «провал C8 уничтожает принятый tasks.md»). Step 0 стал исполняемым запуском интервью (REQ-001, был «остановись и вызови /mb discuss»). Все topic-based вызовы self-check несут `--mb <bank>` (global storage). Спорные места — консервативно к прозе; помечено судье.
 2. **Скрипты** — `mb_work_items.py` (+v2-поля, дефолты, C2), `mb-spec-validate.sh` (+Eval-гейт REQ-007, +v2-поля, +waiver/seam/цикл-гейты, +проверки батареи), `mb-estimate-check.sh` (+режимы `--spec`/`--tasks-file`, C3), `mb-sdd-candidate.sh` (новый, candidate publish/discard, C4a), `mb-sdd-review-result.sh` (новый, C5), `mb-sdd-self-check.sh` (новый, батарея C8, C8a), `mb-work-state.sh` (+`eval-red`/`eval-green`, C6), `mb-sdd.sh` (byte-identical scaffold, C7).
 3. **Шаблоны** — `references/templates.md`: tasks.md v2 блок, §Contract + seam-блок, структурный Eval, эскалационное меню D-35.
 
@@ -149,8 +150,14 @@ bash scripts/mb-estimate-check.sh --tasks-file <path> [--mb <bank>]
   (тест «stale final игнорируется» обязателен). Отсутствующий файл → exit 2.
 - `--spec` и `--tasks-file` вместе, как и любой из них вместе с позиционным `<context-file>` S1, —
   usage-ошибка (exit 2). Ровно один источник.
+- **Флаги режимо-специфичны**: `--mb` применяется только к режимам `--spec`/`--tasks-file`;
+  позиционный context-режим S1 принимает только `[--spec-budget]`. Флаг, не поддерживаемый активным
+  режимом (напр. `--mb` в context-режиме, `--spec-budget` в spec/tasks-file), — usage-ошибка (exit 2).
 - Читаются только явно записанные `Budget`; легаси-задачи без поля исключаются из сумм и
   перечисляются как `legacy_missing=<ids>` с одним stderr-warning.
+- Целочисленные поля (`Budget`, frontmatter `total`/`stages`) парсятся **строгим full-match**:
+  значение с любым не-цифровым хвостом (напр. `100junk`) — malformed (exit 2), а не молчаливое
+  усечение до `100`.
 - stdout (оба режима идентичны), по одной key=value строке: `task.<id>=<tokens>`,
   `stage.<id>=<tokens>`, `spec.total=<tokens>`, `task_over=<csv|none>`, `stage_over=<csv|none>`,
   `spec=ok|near|over`, `legacy_missing=<csv|none>`.
@@ -174,6 +181,9 @@ estimated_tokens:
 - `total` обязан равняться сумме `Budget` всех задач с явным полем; каждый ключ `stages` — сумме
   `Budget` задач своего `Stage:`. Расхождение frontmatter ↔ вычисленных сумм → exit 1 (не 2:
   это содержательный overflow-класс ошибки, а не поломка формата).
+- Агрегация `stage.<id>` идёт по **фактическому** `Stage:`-ID, **включая `Stage: 0`**: нулевой
+  стейдж — полноценный стейдж, его сумма подчиняется D-13 stage-cap (≤400000) и попадает в
+  `stage_over` при превышении; он не обходит проверку и не сворачивается в другой стейдж.
 - Ключ `estimated_tokens` в tasks.md **не тот же**, что `estimated_tokens` в context-файле S1-C1:
   там `total` + `breakdown` шести категорий рубрики интервью, здесь `total` + `stages` из фактических
   `Budget`. Один скрипт, две схемы, разные входы — реализатор не унифицирует их.
