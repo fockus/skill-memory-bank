@@ -117,23 +117,28 @@ For repeated queries, create project-local aliases/scripts under `.memory-bank/s
 
 ### Keep the graph fresh on commit (opt-in)
 
-An opt-in git `post-commit` hook refreshes the graph incrementally after every
-commit. It is **not** auto-installed (it mutates the tracked `graph.json` and
-lives outside the skill's Claude-Code hook system). Enable it per-repo:
+An opt-in git `post-commit` hook keeps the graph fresh after every commit. It is
+**not** auto-installed (it concerns the tracked `graph.json` and lives outside the
+skill's Claude-Code hook system). Enable it per-repo:
 
 ```bash
 ln -sf ~/.claude/skills/memory-bank/hooks/git/post-commit-codegraph.sh \
        .git/hooks/post-commit
 ```
 
-`post-commit` (not pre-commit) never slows a commit; it refreshes an already-built
-graph in the background under a lock, and is fail-safe (always exits 0).
+`post-commit` (not pre-commit) never slows a commit by more than a file touch:
+since I-133 it does **not** rebuild anything itself — it only marks
+`.memory-bank/codebase/.graph-dirty`, and the next graph query or session end
+performs the actual rebuild inline, bounded (`MB_GRAPH_CATCHUP_BUDGET`, 30 s
+default) under the single-consumer `codebase/.graph.lock` flock. Fail-safe
+(always exits 0).
 
-> ⚠️ **Warning:** this hook writes to `.memory-bank/codebase/graph.json`, which is
-> git-tracked — expect the graph to show up as a working-tree change after commits.
-> Prefer it only where you commit the graph deliberately, or add `graph.json` to
-> `.gitignore` first. Alternatively, enable the SessionStart auto-rebuild with
-> `MB_GRAPH_AUTO=on` (also off by default, same tracked-file caveat).
+> ⚠️ **Warning:** the deferred catch-up rewrites `.memory-bank/codebase/graph.json`,
+> which is git-tracked — expect the graph to show up as a working-tree change after
+> the next graph query. Prefer it only where you commit the graph deliberately, or
+> add `graph.json` to `.gitignore` first. Alternatively, `MB_GRAPH_AUTO=on` makes
+> SessionStart mark a stale graph dirty (also off by default, same tracked-file
+> caveat); `MB_GRAPH_AUTOUPDATE=off` disables the automatic catch-up entirely.
 
 ### Intelligence layer (opt-in) — suggested questions · semantic search · wiki
 

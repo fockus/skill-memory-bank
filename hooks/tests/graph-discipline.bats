@@ -64,6 +64,23 @@ EOF
   [ "$status" -ne 0 ]
 }
 
+@test "no ACTIVE plan instructs the legacy detached rebuild pattern" {
+  # codex I-133 r2 major: a queued plan with executable mb-stage blocks still
+  # carried the pre-I-133 detached-rebuild snippet — an agent resuming it via
+  # /mb work would reintroduce the anti-pattern. Scan every plan that is not
+  # done/superseded/archived, same invariant as the commands/+agents/ scan.
+  local viol=0
+  for f in "$REPO/.memory-bank/plans"/*.md; do
+    [ -f "$f" ] || continue
+    head -20 "$f" | grep -qE '^status: *(done|superseded|archived)' && continue
+    if grep -qE 'mb-codegraph\.py[^)]*&|\.graph-rebuild\.lock' "$f"; then
+      echo "violation in active plan: $f"
+      viol=1
+    fi
+  done
+  [ "$viol" -eq 0 ]
+}
+
 @test "graph-nudge offers a refresh on a STALE graph instead of going silent" {
   _graph "2020-01-01T00:00:00Z"
   run bash -c "printf '%s' '{\"tool_name\":\"Grep\",\"cwd\":\"$TMP\",\"tool_input\":{\"pattern\":\"foo\"}}' | PATH=\"$REPO/.venv/bin:\$PATH\" bash '$BIN/mb-graph-nudge.sh'"

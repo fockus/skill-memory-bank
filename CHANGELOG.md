@@ -30,7 +30,11 @@ All notable changes to this project are documented here. The format follows [Kee
   instructions are gone, with contract tests scanning `commands/`+`agents/`); the builder records
   its opt-in `flags` in the graph meta row so catch-up preserves layers deterministically
   (substring sniffing is legacy-only fallback); the catch-up builder runs in its own process
-  group and a budget kill reaps the whole group (no orphaned git grandchildren).
+  group and a budget kill reaps the whole group (no orphaned git grandchildren). Round 2: the
+  ACTIVE plan `code-graph-activation` (queued, executable mb-stage blocks) still carried the
+  legacy detached snippet — superseded notes + current-discipline snippets written in, and the
+  spawn scan now also covers active `.memory-bank/plans/*.md`; `references/code-graph.md`
+  post-commit section updated to the mark-dirty reality.
 
 ### Changed — Semantic recall: model-free hot path + spawn discipline (I-132 OOM fix)
 

@@ -353,6 +353,14 @@ python3 scripts/mb-graph-query.py status --graph .memory-bank/codebase/graph.jso
 <!-- mb-stage:5 -->
 ## Stage 5: opt-in background incremental rebuild in SessionStart (MB_GRAPH_AUTO) (TDD)
 
+> **SUPERSEDED BY I-133 (2026-07-19, commits 553e80f/3e506e4).** The originally
+> planned detached background rebuild is now a FORBIDDEN pattern (spawn
+> discipline, `hooks/tests/graph-discipline.bats`). The shipped mechanism:
+> session-start only marks `codebase/.graph-dirty`; the next graph query /
+> SessionEnd runs `mb-graph-query.py catchup` — bounded (`MB_GRAPH_CATCHUP_BUDGET`),
+> single-consumer (`codebase/.graph.lock` flock), cooldown after failure. Any agent
+> resuming this stage must follow the snippet below, NOT a background spawn.
+
 **Complexity:** M · **Time:** ~5 min · **Dependencies:** Stage 4 · **Agent:** mb-backend
 **Files:**
 - `hooks/mb-session-start.sh` (add a graph-auto block after the semantic-reindex block, lines 21-27)
@@ -363,8 +371,8 @@ Default **`MB_GRAPH_AUTO=off`**. Rationale: `graph.json` is a **committable /
 git-tracked** artifact; a background mutation would dirty the working tree
 unexpectedly (unlike the semantic index under gitignored `.index/`). Off-by-default
 respects the design contract (expensive/side-effecting paths opt-in). When set to
-`on`/`auto`, rebuild ONLY an existing + stale graph, incrementally, in the
-background, under a lock, fail-safe.
+`on`/`auto`, mark ONLY an existing + stale graph dirty; the rebuild itself happens
+later, inline, bounded, under the single-consumer lock (I-133).
 
 ### Tasks (TDD)
 1. Factor the decision into a sourceable helper `_mb_graph_auto_should_rebuild()`
@@ -373,18 +381,12 @@ background, under a lock, fail-safe.
    - `graph.json` exists (first build stays manual → return 1 if absent);
    - `mb-graph-query.py status` reports `stale:true` (fresh → return 1);
    - `python3` present (else return 1).
-2. When it returns 0, run the incremental rebuild in a background subshell with a
-   lockfile:
+2. When it returns 0, mark the graph dirty (I-133 — never spawn a builder here):
    ```bash
-   LOCK="$MB/.index/.graph-rebuild.lock"
-   if mkdir "$LOCK" 2>/dev/null; then
-     ( trap 'rmdir "$LOCK" 2>/dev/null' EXIT
-       "$_PY" ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply --docs "$MB" . >/dev/null 2>&1
-     ) >/dev/null 2>&1 &
-   fi
+   : >> "$MB/codebase/.graph-dirty" 2>/dev/null || true
    ```
-   Add a `MB_GRAPH_AUTO_DRYRUN=1` branch that PRINTS the rebuild command instead of
-   forking (for the bats assertion). The hook must still `exit 0`.
+   Add a `MB_GRAPH_AUTO_DRYRUN=1` branch that PRINTS the marker path instead of
+   touching it (for the bats assertion). The hook must still `exit 0`.
 3. **RED** `test_session_start.bats`:
    - `test_graph_auto_off_by_default_no_rebuild` — no `MB_GRAPH_AUTO` + stale graph
      → helper returns non-zero (no rebuild), hook prints `{}` or the recent block, exit 0.
@@ -421,15 +423,20 @@ PATH="$PWD/.venv/bin:$PATH" /bin/bash "$(command -v bats)" tests/bats/test_sessi
 ```
 
 ### Edge cases
-- Stale lock (previous crash left the dir) — acceptable to skip this session; add a
-  comment noting a TTL cleanup is a follow-up (do NOT auto-delete a fresh lock).
-- The rebuild writes to a git-tracked file: the SessionStart injection MUST not
-  block on it (background `&`), and MUST not surface the rebuild in `additionalContext`.
+- (superseded by I-133) Locking/TTL concerns moved into the catchup CLI: one
+  non-blocking `codebase/.graph.lock` flock + budget + cooldown.
+- The marker touch is instant: the SessionStart injection never blocks on graph
+  work and MUST not surface it in `additionalContext`.
 
 ---
 
 <!-- mb-stage:6 -->
 ## Stage 6: opt-in git post-commit template (documented, NOT auto-installed) (TDD)
+
+> **SUPERSEDED BY I-133 (2026-07-19).** The shipped hook does NOT rebuild in the
+> background — it only marks `codebase/.graph-dirty`; the bounded catch-up happens
+> at the next graph query / SessionEnd. Follow the current
+> `hooks/git/post-commit-codegraph.sh`, not the background wording below.
 
 **Complexity:** S · **Time:** ~4 min · **Dependencies:** Stage 4 · **Agent:** mb-developer
 **Files:**
