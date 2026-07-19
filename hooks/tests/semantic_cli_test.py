@@ -27,6 +27,61 @@ def test_stats_without_deps_is_graceful():
     assert r.returncode == 0
 
 
+def _mk_bank(tmp_path):
+    mb = tmp_path / "mb"
+    (mb / "notes").mkdir(parents=True)
+    (mb / "notes" / "a.md").write_text("# Deploy\nkamal proxy host deploy notes")
+    return mb
+
+
+def test_cli_bm25_default_never_touches_the_model(tmp_path):
+    """A bogus model name is harmless on the default path ⇒ no model was loaded."""
+    mb = _mk_bank(tmp_path)
+    env = {"MB_ROOT": str(mb), "MB_SEMANTIC_MODEL": "definitely/not-a-real-model"}
+    r = _run("reindex", env=env)
+    assert r.returncode == 0
+    r = _run("search", "kamal deploy", "--json", env=env)
+    assert r.returncode == 0
+    hits = json.loads(r.stdout)
+    assert hits and "kamal" in hits[0]["text"]
+
+
+def test_cli_search_cold_start_bootstraps_index(tmp_path):
+    """No index yet → the first BM25 search builds it inline (bounded, locked)."""
+    mb = _mk_bank(tmp_path)
+    env = {"MB_ROOT": str(mb), "MB_SEMANTIC_MODEL": "definitely/not-a-real-model"}
+    r = _run("search", "kamal deploy", "--json", env=env)
+    assert r.returncode == 0
+    assert json.loads(r.stdout)
+    assert (mb / ".index" / "meta.jsonl").exists()
+
+
+def test_cli_search_picks_up_dirty_marker(tmp_path):
+    mb = _mk_bank(tmp_path)
+    env = {"MB_ROOT": str(mb), "MB_SEMANTIC_MODEL": "definitely/not-a-real-model"}
+    assert _run("reindex", env=env).returncode == 0
+    (mb / "notes" / "b.md").write_text("# New\nzanzibar cadence retrospective")
+    (mb / ".index" / ".dirty").touch()
+    r = _run("search", "zanzibar cadence", "--json", env=env)
+    hits = json.loads(r.stdout)
+    assert hits and "zanzibar" in hits[0]["text"]
+    assert not (mb / ".index" / ".dirty").exists()
+
+
+def test_cli_reindex_lock_busy_exits_zero_without_indexing(tmp_path):
+    import fcntl
+
+    mb = _mk_bank(tmp_path)
+    idx = mb / ".index"
+    idx.mkdir()
+    env = {"MB_ROOT": str(mb), "MB_SEMANTIC_MODEL": "definitely/not-a-real-model"}
+    with open(idx / ".write.lock", "w") as lockf:
+        fcntl.flock(lockf, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        r = _run("reindex", env=env)
+        assert r.returncode == 0
+        assert not (idx / "meta.jsonl").exists()
+
+
 def test_index_then_search_returns_relevant(tmp_path, monkeypatch):
     pytest.importorskip("numpy")
     sys.path.insert(0, str(BIN / "lib"))
@@ -54,6 +109,8 @@ def test_index_then_search_returns_relevant(tmp_path, monkeypatch):
     (mb / "notes" / "b.md").write_text("# UI\nexpo webview tweaks")
     idx = tmp_path / "idx"
     monkeypatch.setenv("MB_SEMANTIC_INDEX_TRANSCRIPTS", "0")
+    # The embeddings pipeline is opt-in now (BM25 is the default backend).
+    monkeypatch.setenv("MB_SEMANTIC_BACKEND", "embeddings")
     indexer.index_sources(mb, idx, sources=None, full=True)
 
     from semantic_store import Store

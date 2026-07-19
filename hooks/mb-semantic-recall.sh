@@ -16,14 +16,26 @@ PROMPT="$(printf '%s' "$INPUT" | "$JQ" -r '.prompt // empty' 2>/dev/null)"
 CWD="$(printf '%s' "$INPUT" | "$JQ" -r '.cwd // empty' 2>/dev/null)"; [ -n "$CWD" ] || CWD="$PWD"
 [ -n "$PROMPT" ] || { printf '{}\n'; exit 0; }
 
+# I-132: gate noisy prompts BEFORE any python spawn. Slash-commands and short
+# imperatives ("fix it") are commands, not questions — a search process for
+# them is pure cost. MB_SEMANTIC_MIN_PROMPT=0 disables the length gate.
+case "$PROMPT" in "/"*) printf '{}\n'; exit 0 ;; esac
+MIN="${MB_SEMANTIC_MIN_PROMPT:-24}"
+[ "${#PROMPT}" -ge "$MIN" ] 2>/dev/null || { printf '{}\n'; exit 0; }
+
+# Query = prompt minus fenced code blocks (pasted code is noise for recall),
+# capped so a giant paste never becomes a giant argv.
+QUERY="$(printf '%s' "$PROMPT" | awk '/^```/{f=!f;next} !f' | head -c 500)"
+[ -n "$QUERY" ] || QUERY="$(printf '%s' "$PROMPT" | head -c 500)"
+
 MB="$(sc_resolve_mb "$CWD")"; [ -n "$MB" ] || { printf '{}\n'; exit 0; }
 PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
 command -v "$PY" >/dev/null 2>&1 || { printf '{}\n'; exit 0; }
 
 # Time budget is enforced inside the CLI (portable; GNU timeout/gtimeout absent on macOS).
 # CLI lives beside this hook ($HOOK_DIR); MB_ROOT points it at this project's data.
-RESULT="$(MB_ROOT="$MB" "$PY" "$HOOK_DIR/mb-semantic.py" search "$PROMPT" \
-          --top-k "${MB_SEMANTIC_TOPK:-5}" --min-score "${MB_SEMANTIC_MIN_SCORE:-0.35}" \
+RESULT="$(MB_ROOT="$MB" "$PY" "$HOOK_DIR/mb-semantic.py" search "$QUERY" \
+          --top-k "${MB_SEMANTIC_TOPK:-3}" --min-score "${MB_SEMANTIC_MIN_SCORE:-0.35}" \
           --timeout "${MB_SEMANTIC_TIMEOUT:-3}" --json 2>/dev/null || true)"
 [ -n "$RESULT" ] || { printf '{}\n'; exit 0; }
 printf '%s' "$RESULT" | "$JQ" -e 'type=="array"' >/dev/null 2>&1 || { printf '{}\n'; exit 0; }

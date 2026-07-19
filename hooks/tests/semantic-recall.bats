@@ -31,6 +31,39 @@ teardown() { rm -rf "$TMP"; }
   [ "$output" = "{}" ]
 }
 
+# I-132: short/imperative prompts are gated BEFORE any python spawn — a noisy
+# 2-word prompt must cost zero processes. The stub interpreter fails loudly, so
+# these tests prove python3 is never invoked, not merely that output is empty.
+_poison_python3() {
+  cat > "$STUB/python3" <<'EOF'
+#!/usr/bin/env bash
+echo "python3 must not run for a gated prompt" >&2
+exit 99
+EOF
+  chmod +x "$STUB/python3"
+}
+
+@test "short prompt is gated → {} without invoking python" {
+  _poison_python3
+  run env MB_SEMANTIC_PY="$STUB/python3" MB_SEMANTIC=auto bash "$HOOK" <<< '{"prompt":"fix it","cwd":"'"$PROJ"'"}'
+  [ "$status" -eq 0 ]
+  [ "$output" = "{}" ]
+}
+
+@test "slash-command prompt is gated → {} without invoking python" {
+  _poison_python3
+  run env MB_SEMANTIC_PY="$STUB/python3" MB_SEMANTIC=auto bash "$HOOK" <<< '{"prompt":"/mb status of the current project plan","cwd":"'"$PROJ"'"}'
+  [ "$status" -eq 0 ]
+  [ "$output" = "{}" ]
+}
+
+@test "MB_SEMANTIC_MIN_PROMPT=0 disables the length gate" {
+  _stub_python3 '[]'
+  run env MB_SEMANTIC_PY="$STUB/python3" MB_SEMANTIC=auto MB_SEMANTIC_MIN_PROMPT=0 bash "$HOOK" <<< '{"prompt":"tiny","cwd":"'"$PROJ"'"}'
+  [ "$status" -eq 0 ]
+  [ "$output" = "{}" ]
+}
+
 # Stub `python3`: return semantic JSON for a `search` subcommand, otherwise delegate
 # to the real interpreter so the recall-index bridge (compact render) still runs.
 _stub_python3() {
@@ -47,7 +80,9 @@ EOF
   body='kamal proxy host stored in keyring — then a very long trailing remainder padded out well past any summary cap so the index never carries the FORBIDDENTAILMARKER token verbatim into the prompt context window at all not even once here'
   printf '# a\n%s\n' "$body" > "$MB/notes/a.md"
   _stub_python3 '[{"score":0.9,"source":"notes/a.md","kind":"note","text":"'"$body"'","anchor":"p0"}]'
-  run env PATH="$STUB:$PATH" MB_SEMANTIC=auto bash "$HOOK" <<< '{"prompt":"deploy","cwd":"'"$PROJ"'"}'
+  # MB_SEMANTIC_PY pins the stub: a physically present hooks/.venv would
+  # otherwise win sc_semantic_py resolution and run the real CLI (non-hermetic).
+  run env MB_SEMANTIC_PY="$STUB/python3" MB_SEMANTIC=auto bash "$HOOK" <<< '{"prompt":"how do we deploy the kamal proxy host","cwd":"'"$PROJ"'"}'
   [ "$status" -eq 0 ]
   [[ "$output" == *"Relevant Memory"* ]]
   # Compact form: the stable id (human-readable slug + short hash, anchor :p0), the
@@ -61,7 +96,7 @@ EOF
 
 @test "empty results → empty object" {
   _stub_python3 '[]'
-  run env PATH="$STUB:$PATH" MB_SEMANTIC=auto bash "$HOOK" <<< '{"prompt":"zzz","cwd":"'"$PROJ"'"}'
+  run env MB_SEMANTIC_PY="$STUB/python3" MB_SEMANTIC=auto bash "$HOOK" <<< '{"prompt":"what did we decide about the zzz rollout","cwd":"'"$PROJ"'"}'
   [ "$status" -eq 0 ]
   [ "$output" = "{}" ]
 }

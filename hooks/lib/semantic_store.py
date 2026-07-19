@@ -2,33 +2,15 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 from pathlib import Path
 
 import numpy as np
 
-# Default per-`kind` ranking multipliers: curated notes/sessions out-rank raw
-# transcripts at comparable cosine, so recall surfaces durable knowledge first.
-_DEFAULT_SOURCE_WEIGHTS = {"note": 1.0, "session": 0.95, "transcript": 0.85}
-
-
-def _source_weights():
-    """Resolve per-kind ranking weights. ``MB_RECALL_SOURCE_WEIGHTS=off`` → None
-    (legacy pure cosine). Otherwise the defaults, overlaid with any
-    ``kind=factor`` pairs from the env (comma-separated). Unset → defaults."""
-    raw = os.environ.get("MB_RECALL_SOURCE_WEIGHTS")
-    if raw is not None and raw.strip().lower() == "off":
-        return None
-    weights = dict(_DEFAULT_SOURCE_WEIGHTS)
-    if raw:
-        for pair in raw.split(","):
-            if "=" in pair:
-                k, _, v = pair.partition("=")
-                with contextlib.suppress(ValueError):
-                    weights[k.strip()] = float(v.strip())
-    return weights
+# Per-kind ranking weights live in bm25.py (numpy-free) — single source of
+# truth shared by both recall backends.
+from bm25 import source_weights as _source_weights
 
 
 class Store:

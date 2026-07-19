@@ -160,12 +160,10 @@ tmp="$RECENT.tmp.$$"
 ' > "$tmp"
 mv "$tmp" "$RECENT"
 
-# semantic: incremental reindex (picks up this new session) — best-effort, backgrounded
+# semantic: mark the index dirty (picks up this new session) — the next recall
+# reindexes inline under a non-blocking flock (I-132: no detached indexers)
 if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
-  _PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
-  if command -v "$_PY" >/dev/null 2>&1; then
-    ( MB_ROOT="$MB" "$_PY" "$HOOK_DIR/mb-semantic.py" reindex --incremental >/dev/null 2>&1 & ) >/dev/null 2>&1
-  fi
+  mkdir -p "$MB/.index" 2>/dev/null && : > "$MB/.index/.dirty" 2>/dev/null
 fi
 
 exit 0

@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — Semantic recall: model-free hot path + spawn discipline (I-132 OOM fix)
+
+- **BM25 is the default recall backend** (`hooks/lib/bm25.py`, meta-only Okapi BM25): the
+  per-prompt UserPromptSubmit hook no longer loads the ONNX embedding model — a recall process
+  is ~50–75 MB / <0.5 s instead of ~2.5 GB. Embeddings are opt-in (`MB_SEMANTIC_BACKEND=embeddings`)
+  behind a non-blocking singleton flock (`.model.lock`); a busy model degrades to BM25 instead of
+  loading a second copy. The CLI arms a hard process deadline (timeout+5 s) so a stuck native
+  model load can never linger as a multi-GB zombie.
+- **No detached indexers**: SessionStart/SessionEnd hooks now only mark the index dirty
+  (`.index/.dirty`); the next recall reindexes inline under `.write.lock` (busy → skip, search
+  stale). Previously N closed sessions = N parallel unbounded model-loading reindexers — the
+  direct cause of the machine-level OOM (JetsamEvents 2026-07-13…19).
+- **Index sources**: `agreements.md` and `progress.md` are first-class recall sources (kinds
+  `agreement`/`progress`, ranked above session logs); raw transcripts are opt-in
+  (`MB_SEMANTIC_INDEX_TRANSCRIPTS=1`, default off — session summaries already distill them).
+- **Prompt gating**: slash-commands and prompts shorter than `MB_SEMANTIC_MIN_PROMPT` (default 24)
+  skip recall before any python spawn; fenced code blocks are stripped from the query; default
+  top-k 5→3.
+- fastembed model cache moved to `~/.cache/fastembed` (`FASTEMBED_CACHE_PATH` respected) — the old
+  `$TMPDIR` cache was purged by macOS, forcing re-downloads. Embedding batches capped at 64 to
+  bound onnxruntime arena growth on big reindexes.
+
 ## [5.3.1] — 2026-07-15
 
 ### Added — OpenSpec import adapter (`/mb openspec`)

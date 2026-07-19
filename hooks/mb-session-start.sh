@@ -65,12 +65,10 @@ if [ "$(printf '%s' "$content" | wc -c)" -gt "$rmax" ]; then
 …[recent truncated]…"
 fi
 
-# semantic: warm + catch-up reindex in background (never blocks startup)
+# semantic: mark the index dirty — the next recall reindexes inline under a
+# non-blocking flock (I-132: lifecycle hooks spawn NO detached indexers, ever)
 if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
-  _PY="$(sc_semantic_py "$HOOK_DIR" "$MB")"
-  if command -v "$_PY" >/dev/null 2>&1; then
-    ( MB_ROOT="$MB" "$_PY" "$HOOK_DIR/mb-semantic.py" reindex --incremental >/dev/null 2>&1 & ) >/dev/null 2>&1
-  fi
+  mkdir -p "$MB/.index" 2>/dev/null && : > "$MB/.index/.dirty" 2>/dev/null
 fi
 
 # Quick-reference cheat-sheet on how to use the project's memory tools.

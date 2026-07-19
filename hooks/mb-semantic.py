@@ -32,25 +32,78 @@ def _debug(label: str):
     # Failures are swallowed by design (fail-safe for hooks); surface them on demand.
     if os.environ.get("MB_SEMANTIC_DEBUG"):
         import traceback
+
         sys.stderr.write(f"[mb-semantic:{label}] ")
         traceback.print_exc()
 
 
 def cmd_search(args) -> int:
     out = []
+    timer = None
     try:
-        from searcher import run_search
-        out = run_search(_index_dir(_mb_root()), args.query,
-                         top_k=args.top_k, min_score=args.min_score, timeout=args.timeout)
+        from searcher import resolve_backend, run_search
+
+        backend = resolve_backend()
+        index_dir = _index_dir(_mb_root())
+        timer = _arm_deadline(args.timeout)  # covers catch-up + search
+        if backend == "bm25":
+            _catchup(index_dir)
+        out = run_search(
+            index_dir,
+            args.query,
+            top_k=args.top_k,
+            min_score=args.min_score,
+            timeout=args.timeout,
+            backend=backend,
+        )
     except Exception:
         out = []
+    finally:
+        if timer is not None:
+            timer.cancel()
     print(json.dumps(out, ensure_ascii=False))
     return 0
+
+
+def _catchup(index_dir) -> int:
+    """BM25 catch-up (I-132): chunk-only reindex when the index is marked dirty
+    or missing. Bounded work, non-blocking flock inside — a busy writer means
+    we just search the stale index and leave the marker for the next call."""
+    try:
+        idx = Path(index_dir)
+        if not (idx / ".dirty").exists() and (idx / "meta.jsonl").exists():
+            return 0
+        from indexer import index_sources
+
+        res = index_sources(_mb_root(), idx, sources=None, full=False)
+        if not res.get("skipped"):
+            (idx / ".dirty").unlink(missing_ok=True)
+    except Exception:
+        _debug("catchup")
+    return 0
+
+
+def _arm_deadline(timeout: float):
+    """Hard process deadline (I-132): a stuck native model load must never
+    outlive its budget as a multi-GB zombie. Fires only when the normal path is
+    stuck — emits an empty result and force-exits the whole process."""
+    import threading
+
+    def _kill():
+        sys.stdout.write("[]\n")
+        sys.stdout.flush()
+        os._exit(0)
+
+    t = threading.Timer(float(timeout) + 5.0, _kill)
+    t.daemon = True
+    t.start()
+    return t
 
 
 def cmd_stats(args) -> int:
     try:
         from semantic_store import Store
+
         store = Store(_index_dir(_mb_root()))
         store.load()
         print(json.dumps(store.stats(), ensure_ascii=False))
@@ -62,6 +115,7 @@ def cmd_stats(args) -> int:
 def cmd_index(args) -> int:
     try:
         from indexer import index_sources
+
         index_sources(_mb_root(), _index_dir(_mb_root()), sources=args.source, full=False)
     except Exception:
         _debug("index")
@@ -71,6 +125,7 @@ def cmd_index(args) -> int:
 def cmd_reindex(args) -> int:
     try:
         from indexer import index_sources
+
         index_sources(_mb_root(), _index_dir(_mb_root()), sources=None, full=args.full)
     except Exception:
         _debug("reindex")
@@ -80,6 +135,7 @@ def cmd_reindex(args) -> int:
 def cmd_prune(args) -> int:
     try:
         from indexer import prune_index
+
         prune_index(_mb_root(), _index_dir(_mb_root()))
     except Exception:
         _debug("prune")
@@ -93,10 +149,12 @@ def main(argv=None) -> int:
     s = sub.add_parser("search")
     s.add_argument("query")
     s.add_argument("--top-k", type=int, default=int(os.environ.get("MB_SEMANTIC_TOPK", "5")))
-    s.add_argument("--min-score", type=float,
-                   default=float(os.environ.get("MB_SEMANTIC_MIN_SCORE", "0.35")))
-    s.add_argument("--timeout", type=float,
-                   default=float(os.environ.get("MB_SEMANTIC_TIMEOUT", "3")))
+    s.add_argument(
+        "--min-score", type=float, default=float(os.environ.get("MB_SEMANTIC_MIN_SCORE", "0.35"))
+    )
+    s.add_argument(
+        "--timeout", type=float, default=float(os.environ.get("MB_SEMANTIC_TIMEOUT", "3"))
+    )
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_search)
 
