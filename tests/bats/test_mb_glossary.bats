@@ -39,20 +39,20 @@ _upsert() {
 
 @test "mb_glossary: same term + same definition → glossary=unchanged, file untouched" {
   _upsert "slice" "a child spec of a group" >/dev/null
-  local before; before="$(cat "$GLOSS")"
+  local before="$BATS_TEST_TMPDIR/.before.$$"; cp "$GLOSS" "$before"
   run --separate-stderr _upsert "slice" "a child spec of a group"
   [ "$status" -eq 0 ]
   [ "$output" = "glossary=unchanged" ]
-  [ "$(cat "$GLOSS")" = "$before" ]
+  cmp -s "$before" "$GLOSS" || { echo "bytes changed"; false; }
 }
 
 @test "mb_glossary: same term + different definition → glossary=conflict exit 1, file byte-identical" {
   _upsert "slice" "a child spec of a group" >/dev/null
-  local before; before="$(cat "$GLOSS")"
+  local before="$BATS_TEST_TMPDIR/.before.$$"; cp "$GLOSS" "$before"
   run --separate-stderr _upsert "slice" "a plan stage"
   [ "$status" -eq 1 ]
   [ "$output" = "glossary=conflict" ]
-  [ "$(cat "$GLOSS")" = "$before" ]
+  cmp -s "$before" "$GLOSS" || { echo "bytes changed"; false; }
 }
 
 @test "mb_glossary: another term → glossary=updated (appended)" {
@@ -97,12 +97,12 @@ _upsert() {
 
 @test "mb_glossary: multiline definition → usage error exit 2, existing file byte-identical" {
   _upsert "slice" "a child spec of a group" >/dev/null
-  local before; before="$(cat "$GLOSS")"
+  local before="$BATS_TEST_TMPDIR/.before.$$"; cp "$GLOSS" "$before"
   printf 'frontier' > "$TF"; printf 'first\nsecond' > "$DF"
   run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
   [ "$status" -eq 2 ]
   [ "$stderr" = "error=usage" ]
-  [ "$(cat "$GLOSS")" = "$before" ]
+  cmp -s "$before" "$GLOSS" || { echo "bytes changed"; false; }
 }
 
 @test "mb_glossary: empty term → usage error exit 2" {
@@ -139,11 +139,11 @@ _upsert() {
 
 @test "mb_glossary: definition with a trailing blank line → usage exit 2, existing file byte-identical" {
   _upsert "slice" "a child spec of a group" >/dev/null
-  local before; before="$(cat "$GLOSS")"
+  local before="$BATS_TEST_TMPDIR/.before.$$"; cp "$GLOSS" "$before"
   printf 'frontier' > "$TF"; printf 'the frontier\n\n' > "$DF"
   run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
   [ "$status" -eq 2 ]
-  [ "$(cat "$GLOSS")" = "$before" ]
+  cmp -s "$before" "$GLOSS" || { echo "bytes changed"; false; }
 }
 
 @test "mb_glossary: carriage return in the definition → usage exit 2" {
@@ -365,11 +365,11 @@ _mode() {
 
 @test "mb_glossary: a duplicate term with a DIFFERENT definition is reported as conflict" {
   printf 'slice — a child spec\nslice — a plan stage\n' > "$GLOSS"
-  local before; before="$(cat "$GLOSS")"
+  local before="$BATS_TEST_TMPDIR/.before.$$"; cp "$GLOSS" "$before"
   run --separate-stderr _upsert "slice" "a child spec"
   [ "$status" -eq 1 ]
   [ "$output" = "glossary=conflict" ]
-  [ "$(cat "$GLOSS")" = "$before" ]
+  cmp -s "$before" "$GLOSS" || { echo "bytes changed"; false; }
 }
 
 @test "mb_glossary: the conflict is found even when the matching row comes first" {
@@ -392,11 +392,11 @@ _mode() {
   # The whole glossary is validated under the lock, so an ambiguous file cannot
   # keep accumulating entries around the contradiction.
   printf 'term — first\nterm — conflicting\n' > "$GLOSS"
-  local before; before="$(cat "$GLOSS")"
+  local before="$BATS_TEST_TMPDIR/.before.$$"; cp "$GLOSS" "$before"
   run --separate-stderr _upsert "frontier" "the set of unblocked questions"
   [ "$status" -eq 1 ]
   [ "$output" = "glossary=conflict" ]
-  [ "$(cat "$GLOSS")" = "$before" ]
+  cmp -s "$before" "$GLOSS" || { echo "bytes changed"; false; }
 }
 
 @test "mb_glossary: an exactly duplicated row is still ambiguous → conflict" {
@@ -413,4 +413,94 @@ _mode() {
   [ "$status" -eq 0 ]
   [ "$output" = "glossary=updated" ]
   grep -q '^gate — a blocking check$' "$GLOSS"
+}
+
+# ─── the atomic replace cannot be hijacked (r3 review [7]) ───
+
+@test "mb_glossary: a planted symlink at the temp path cannot redirect the write" {
+  # The temp was `<glossary>.<pid>.tmp` — predictable — and python open(...,"w")
+  # writes THROUGH an existing symlink: the victim was overwritten and
+  # glossary.md itself became a symlink, all with exit 0.
+  # python3 is interposed so it publishes the exact PID os.getpid() will return.
+  local victim="$BATS_TEST_TMPDIR/victim.txt" bin="$BATS_TEST_TMPDIR/bin"
+  local pidf="$BATS_TEST_TMPDIR/pypid" go="$BATS_TEST_TMPDIR/planted"
+  mkdir -p "$bin"
+  printf 'PRECIOUS VICTIM\n' > "$victim"
+  printf 'existing — entry\n' > "$GLOSS"
+  printf 'slice' > "$TF"; printf 'a child spec' > "$DF"
+
+  local realpy; realpy="$(command -v python3)"
+  cat > "$bin/python3" <<EOF
+#!/usr/bin/env bash
+echo \$\$ > "$pidf"
+while [ ! -e "$go" ]; do sleep 0.02; done
+exec "$realpy" "\$@"
+EOF
+  chmod +x "$bin/python3"
+
+  ( PATH="$bin:$PATH" "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF" ) \
+    >"$BATS_TEST_TMPDIR/out" 2>&1 &
+  local bg=$!
+  while [ ! -s "$pidf" ]; do sleep 0.02; done
+  ln -s "$victim" "$GLOSS.$(cat "$pidf").tmp" 2>/dev/null || true
+  : > "$go"
+  wait "$bg" || true
+
+  grep -q 'PRECIOUS VICTIM' "$victim" || { echo "victim overwritten through the temp symlink"; false; }
+  [ ! -L "$GLOSS" ] || { echo "glossary.md was replaced by a symlink"; false; }
+}
+
+# ─── symlink and stat handling (r3 review [21]) ───
+
+@test "mb_glossary: a DANGLING glossary symlink is rejected, not silently replaced" {
+  # os.path.exists() is false for a dangling link, so the writer took the
+  # "create" branch and replaced the link with a regular file, bypassing the
+  # islink rejection entirely.
+  ln -s "$BANK/nowhere.md" "$GLOSS"
+  run --separate-stderr _upsert "slice" "a child spec"
+  [ "$status" -eq 2 ] || { echo "expected error=io for a symlink glossary, got $status"; false; }
+  [ -L "$GLOSS" ] || { echo "the dangling symlink was replaced"; false; }
+  [ ! -e "$BANK/nowhere.md" ] || { echo "the write followed the dangling link"; false; }
+}
+
+@test "mb_glossary: a symlink to a real file is still rejected" {
+  local real="$BATS_TEST_TMPDIR/real.md"
+  printf 'existing — entry\n' > "$real"
+  ln -s "$real" "$GLOSS"
+  local snap="$BATS_TEST_TMPDIR/snap.md"; cp "$real" "$snap"
+  run --separate-stderr _upsert "slice" "a child spec"
+  [ "$status" -eq 2 ]
+  [ -L "$GLOSS" ]
+  cmp -s "$snap" "$real" || { echo "the write went through the symlink"; false; }
+}
+
+# ─── byte-identity compared as BYTES (r3 review [14]) ───
+
+@test "mb_glossary: a conflict leaves the file byte-identical including terminal LF" {
+  # `before="$(cat …)"` strips trailing newlines, so a writer that added or
+  # dropped the final LF passed every byte-identity assertion.
+  printf 'slice — a child spec' > "$GLOSS"          # deliberately NO terminal LF
+  local snap="$BATS_TEST_TMPDIR/snap2.md"; cp "$GLOSS" "$snap"
+  run --separate-stderr _upsert "slice" "a plan stage"
+  [ "$status" -eq 1 ]
+  [ "$output" = "glossary=conflict" ]
+  cmp -s "$snap" "$GLOSS" || { echo "conflict changed the bytes"; false; }
+}
+
+@test "mb_glossary: a rejected multiline definition leaves bytes untouched" {
+  printf 'slice — a child spec' > "$GLOSS"          # no terminal LF
+  local snap="$BATS_TEST_TMPDIR/snap3.md"; cp "$GLOSS" "$snap"
+  printf 'frontier' > "$TF"; printf 'first\nsecond' > "$DF"
+  run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 2 ]
+  cmp -s "$snap" "$GLOSS" || { echo "a rejected upsert changed the bytes"; false; }
+}
+
+@test "mb_glossary: an unchanged upsert leaves bytes untouched" {
+  printf 'slice — a child spec\n' > "$GLOSS"
+  local snap="$BATS_TEST_TMPDIR/snap4.md"; cp "$GLOSS" "$snap"
+  run --separate-stderr _upsert "slice" "a child spec"
+  [ "$status" -eq 0 ]
+  [ "$output" = "glossary=unchanged" ]
+  cmp -s "$snap" "$GLOSS"
 }

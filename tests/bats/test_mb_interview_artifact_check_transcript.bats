@@ -406,3 +406,30 @@ EOF
   run bash -n "$SCRIPT"
   [ "$status" -eq 0 ]
 }
+
+# ─── duplicate inherited sections (r3 review [22]) ───
+
+@test "artifact_check: two ## Унаследовано sections are rejected" {
+  # Only the first heading was remembered, so a transcript carrying two
+  # contradictory inherited decision sets passed --require-inherited as ok.
+  local f="$BATS_TEST_TMPDIR/t.md"
+  printf '# Interview transcript: foo (2026-07-17)\n\n## Унаследовано\n\n- D-01 first\n\n## Унаследовано\n\n- D-01 CONTRADICTORY\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
+  run --separate-stderr "$SCRIPT" transcript "$f" --require-inherited
+  [ "$status" -eq 1 ] || { echo "duplicate inherited section accepted: $output"; false; }
+  echo "$stderr" | grep -q ':duplicate_inherited$'
+}
+
+@test "artifact_check: duplicate inherited is rejected without --require-inherited too" {
+  local f="$BATS_TEST_TMPDIR/t.md"
+  printf '# Interview transcript: foo (2026-07-17)\n\n## Унаследовано\n\n- D-01 first\n\n## Унаследовано\n\n- D-01 CONTRADICTORY\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
+  run --separate-stderr "$SCRIPT" transcript "$f"
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':duplicate_inherited$'
+}
+
+@test "artifact_check: a single inherited section is still accepted" {
+  local f="$BATS_TEST_TMPDIR/t.md"
+  printf '# Interview transcript: foo (2026-07-17)\n\n## Унаследовано\n\n- D-01 first\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
+  run --separate-stderr "$SCRIPT" transcript "$f" --require-inherited
+  [ "$status" -eq 0 ]
+}

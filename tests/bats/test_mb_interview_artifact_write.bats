@@ -82,12 +82,12 @@ EOF
 
 @test "artifact_write: structurally broken candidate → exit 1, stdout empty, target unchanged" {
   printf 'PRIOR\n' > "$TARGET"
-  local before; before="$(cat "$TARGET")"
+  local before="$BATS_TEST_TMPDIR/.before.$$"; cp "$TARGET" "$before"
   _broken_plan "$CAND"
   run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic foo --candidate "$CAND"
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$(cat "$TARGET")" = "$before" ]
+  cmp -s "$before" "$TARGET" || { echo "bytes changed"; false; }
 }
 
 @test "artifact_write: broken candidate does not create a missing target" {
@@ -119,6 +119,9 @@ EOF
 }
 
 # ─── publish-transcript mode (Task 4, C11) ───
+
+# Permission bits, portable across BSD (macOS) and GNU stat.
+_wmode() { stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"; }
 
 _clean_transcript() {
   cat > "$1" <<'EOF'
@@ -167,12 +170,12 @@ EOF
   local tgt="$BANK/context/foo-interview.md"
   mkdir -p "$BANK/context"
   printf 'PRIOR TRANSCRIPT\n' > "$tgt"
-  local before; before="$(cat "$tgt")"
+  local before="$BATS_TEST_TMPDIR/.before.$$"; cp "$tgt" "$before"
   printf '# Wrong header\n\nno q&a here\n' > "$TCAND"
   run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$TCAND"
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$(cat "$tgt")" = "$before" ]
+  cmp -s "$before" "$tgt" || { echo "bytes changed"; false; }
 }
 
 @test "artifact_write: publish-transcript missing --candidate → usage error exit 2" {
@@ -510,4 +513,153 @@ EOF
   [ "$status" -eq 0 ]
   run bash -n "$SCRIPT"
   [ "$status" -eq 0 ]
+}
+
+# ─── the writer deletes ONLY files it owns (r3 review [5]) ───
+
+@test "artifact_write: a rejected wrong-name file in bank/tmp survives BYTE-IDENTICAL" {
+  # Cleanup was armed for any regular non-symlink file inside <bank>/tmp before
+  # the basename was checked, so `--candidate <bank>/tmp/notes.md` returned
+  # error=candidate and DELETED the user's file on the way out.
+  local user="$BANK/tmp/not-the-candidate.md" snap="$BATS_TEST_TMPDIR/snap.md"
+  printf 'IMPORTANT USER NOTES\n' > "$user"
+  cp "$user" "$snap"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$user"
+  [ "$status" -eq 2 ]
+  [ -f "$user" ] || { echo "the writer deleted a file it rejected"; false; }
+  cmp -s "$snap" "$user" || { echo "the rejected file was modified"; false; }
+}
+
+@test "artifact_write: an unrelated bank/tmp file survives an invalid-topic rejection" {
+  local user="$BANK/tmp/scratch-notes.md" snap="$BATS_TEST_TMPDIR/snap2.md"
+  printf 'more user notes\n' > "$user"
+  cp "$user" "$snap"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic Foo --candidate "$user"
+  [ "$status" -eq 2 ]
+  [ -f "$user" ]
+  cmp -s "$snap" "$user"
+}
+
+@test "artifact_write: a candidate-SHAPED name is still consumed on an invalid topic" {
+  # The r2 guarantee must survive the r3 narrowing: ownership is decided by the
+  # canonical candidate NAME PATTERN, which does not need a valid topic.
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  printf '# Interview transcript: foo (2026-07-17)\n\nsk-ant-api03ABCDEFGHIJKLMNOP\n' > "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic Foo --candidate "$cand"
+  [ "$status" -eq 2 ]
+  [ ! -e "$cand" ] || { echo "credential candidate survived an invalid topic"; false; }
+}
+
+# ─── the atomic-install temp cannot be hijacked (r3 review [6]) ───
+
+@test "artifact_write: a planted symlink at the install temp cannot redirect the write" {
+  # The temp was `.<target>.$$.tmp` — fully predictable — and `cp` writes THROUGH
+  # an existing symlink. Planting it on a victim overwrote that victim, made the
+  # target a symlink, and the writer still reported success.
+  # `exec` preserves $$, so the wrapper publishes the exact PID the writer uses.
+  local victim="$BATS_TEST_TMPDIR/victim.txt" pidf="$BATS_TEST_TMPDIR/pid"
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  printf 'PRECIOUS VICTIM\n' > "$victim"
+  _clean_transcript "$cand"
+
+  ( echo $BASHPID > "$pidf"; sleep 2
+    exec "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand" ) \
+    >"$BATS_TEST_TMPDIR/out" 2>&1 &
+  local bg=$!
+  while [ ! -s "$pidf" ]; do :; done
+  ln -s "$victim" "$BANK/context/.foo-interview.md.$(cat "$pidf").tmp"
+  wait "$bg" || true
+
+  grep -q 'PRECIOUS VICTIM' "$victim" || { echo "victim was overwritten through the temp symlink"; false; }
+  [ ! -L "$BANK/context/foo-interview.md" ] || { echo "published target is a symlink"; false; }
+}
+
+@test "artifact_write: install-plan's temp cannot be hijacked either" {
+  local victim="$BATS_TEST_TMPDIR/victim2.txt" pidf="$BATS_TEST_TMPDIR/pid2"
+  printf 'PRECIOUS PLAN VICTIM\n' > "$victim"
+  _valid_open_plan "$CAND"
+
+  ( echo $BASHPID > "$pidf"; sleep 2
+    exec "$SCRIPT" install-plan --mb "$BANK" --topic foo --candidate "$CAND" ) \
+    >"$BATS_TEST_TMPDIR/out2" 2>&1 &
+  local bg=$!
+  while [ ! -s "$pidf" ]; do :; done
+  ln -s "$victim" "$BANK/tmp/.interview-plan-foo.md.$(cat "$pidf").tmp"
+  wait "$bg" || true
+
+  grep -q 'PRECIOUS PLAN VICTIM' "$victim" || { echo "victim overwritten via install-plan temp"; false; }
+  [ ! -L "$TARGET" ] || { echo "installed plan is a symlink"; false; }
+}
+
+@test "artifact_write: a published transcript keeps an ordinary readable mode" {
+  # mktemp-based staging creates 0600; the published file must not inherit it.
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  _clean_transcript "$cand"
+  umask 022
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -eq 0 ]
+  [ "$(_wmode "$BANK/context/foo-interview.md")" = "644" ]
+}
+
+@test "artifact_write: replacing an existing target preserves its mode" {
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md" tgt="$BANK/context/foo-interview.md"
+  mkdir -p "$BANK/context"
+  printf 'PRIOR\n' > "$tgt"; chmod 600 "$tgt"
+  _clean_transcript "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -eq 0 ]
+  [ "$(_wmode "$tgt")" = "600" ]
+}
+
+# ─── the dead legacy flag is gone (r3 review [8]) ───
+
+@test "artifact_write: publish-transcript rejects --legacy-live-fixture as unknown" {
+  # The writer claimed to support the flag, but it staged the candidate into a
+  # private dir first and then handed THAT path to the checker, which only
+  # honours the two frozen repository fixtures — so the branch always died with
+  # legacy_fixture_forbidden after consuming the candidate. An option that can
+  # never succeed is worse than no option: it is removed.
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  _clean_transcript "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo \
+    --candidate "$cand" --legacy-live-fixture
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ] || { echo "expected a usage error, got: $stderr"; false; }
+}
+
+@test "artifact_write: the writer no longer mentions --legacy-live-fixture" {
+  ! grep -q 'legacy-live-fixture' "$SCRIPT" \
+    || { echo "the dead flag is still referenced in the writer"; false; }
+}
+
+@test "artifact_write: the CHECKER keeps the flag for its frozen fixtures" {
+  # Removing it from the writer must not remove it from the validator, where it
+  # is genuinely used by the two live regression fixtures.
+  grep -q 'legacy-live-fixture' "$REPO_ROOT/scripts/mb-interview-artifact-check.sh"
+}
+
+# ─── the title must name the topic being published (r3 review [23]) ───
+
+@test "artifact_write: a transcript whose title names another topic is rejected" {
+  # The checker validated the title's SHAPE and date but never its topic, so a
+  # candidate titled `foo` published cleanly as context/bar-interview.md.
+  local cand="$BANK/tmp/interview-transcript-bar.candidate.md"
+  mkdir -p "$BANK/context"
+  _clean_transcript "$cand"          # titled "foo"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic bar --candidate "$cand"
+  [ "$status" -eq 1 ] || { echo "mismatched title published (status=$status)"; false; }
+  [ ! -e "$BANK/context/bar-interview.md" ] || { echo "target created anyway"; false; }
+  echo "$stderr" | grep -q ':missing_title$'
+}
+
+@test "artifact_write: a matching title still publishes" {
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  _clean_transcript "$cand"          # titled "foo"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -eq 0 ]
+  [ -f "$BANK/context/foo-interview.md" ]
 }

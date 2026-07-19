@@ -90,6 +90,7 @@ python3 - "$MB" "$TERM_FILE" "$DEF_FILE" <<'PY' || rc=$?
 import os
 import stat
 import sys
+import tempfile
 
 mb, term_file, def_file = sys.argv[1:4]
 
@@ -154,53 +155,75 @@ def _default_mode():
     return 0o666 & ~current
 
 
+def _io_error():
+    sys.stderr.write("error=io\n")
+    sys.exit(2)
+
+
 def _target_mode(path):
     # Mode the published file must end up with (I-145).
     #
-    # An EXISTING glossary keeps its mode VERBATIM. mb-glossary.sh is the only
-    # writer of glossary.md and never produces 0600 — it publishes through
-    # open(), not tempfile.mkstemp() — so a restrictive mode on this file is a
-    # deliberate lockdown, not mkstemp damage. Guessing "damage" and widening it
-    # would silently unprotect a file the user chose to protect, and widening is
-    # the direction that cannot be undone once a secret has been exposed.
-    # Repairing already-damaged banks is the one-shot I-145 migration, not this
-    # write path's job (same rule as scripts/mb_fs_atomic.py).
+    # An EXISTING glossary keeps its mode VERBATIM: a restrictive mode is a
+    # deliberate lockdown, and widening is the direction that cannot be undone
+    # once a secret has been exposed. Repairing already-damaged banks is the
+    # one-shot I-145 migration, not this write path's job (same rule as
+    # scripts/mb_fs_atomic.py).
+    #
+    # lstat, never stat: a stat() through a symlink reports the TARGET, and only
+    # FileNotFoundError means "absent". Any other stat failure is a genuine I/O
+    # fault and must not be silently downgraded to "publish with a fresh mode".
     try:
-        return stat.S_IMODE(os.stat(path).st_mode)
+        return stat.S_IMODE(os.lstat(path).st_mode)
     except FileNotFoundError:
         return _default_mode()
     except OSError:
-        return None
+        _io_error()
 
 
 def atomic_write(path, content):
-    tmp = "%s.%d.tmp" % (path, os.getpid())
-    # Resolve the mode BEFORE the write: after os.replace the original is gone.
-    mode = _target_mode(path)
+    # The temp is created EXCLUSIVELY via mkstemp in the target directory.
+    # `<glossary>.<pid>.tmp` + open(...,"w") was predictable AND followed a
+    # planted symlink: the victim it pointed at was overwritten and glossary.md
+    # itself was published as a symlink, with exit 0.
+    mode = _target_mode(path)          # resolved BEFORE the replace
+    directory = os.path.dirname(path) or "."
     try:
-        with open(tmp, "w", encoding="utf-8") as fh:
+        fd, tmp = tempfile.mkstemp(prefix=".glossary-", suffix=".tmp", dir=directory)
+    except OSError:
+        _io_error()
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(content)
+        # mkstemp publishes at 0600; carry the mode the target must end up with.
         if mode is not None:
             os.chmod(tmp, mode)
         os.replace(tmp, path)
     except (UnicodeError, OSError):
-        # Never leave the sibling temp behind on a failed write.
         try:
             os.unlink(tmp)
         except OSError:
             pass
-        sys.stderr.write("error=io\n")
-        sys.exit(2)
+        _io_error()
 
 
-if not os.path.exists(gloss):
+# Symlinks are rejected outright, and existence is decided by LSTAT: a DANGLING
+# link is invisible to os.path.exists(), so the writer used to take the "create"
+# branch and replace the link with a regular file — the islink rejection right
+# below never ran.
+try:
+    st = os.lstat(gloss)
+except FileNotFoundError:
+    st = None
+except OSError:
+    _io_error()
+
+if st is None:
     atomic_write(gloss, line)
     sys.stdout.write("glossary=created\n")
     sys.exit(0)
 
-if not os.path.isfile(gloss) or os.path.islink(gloss):
-    sys.stderr.write("error=io\n")
-    sys.exit(2)
+if stat.S_ISLNK(st.st_mode) or not stat.S_ISREG(st.st_mode):
+    _io_error()
 
 existing = _read_text(gloss, "io")
 

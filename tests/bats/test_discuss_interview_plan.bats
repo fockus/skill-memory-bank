@@ -15,7 +15,7 @@ setup() {
   DISCUSS="$REPO_ROOT/commands/discuss.md"
   TEMPLATES="$REPO_ROOT/references/templates.md"
   MB_DISCUSS_CLAUSES=()
-  MB_DISCUSS_CLAUSES+=("plan-file-path|mb_section|Interview plan|[Bb]efore the first question.*tmp/interview-plan|interview.plan|s/[Bb]efore the first question, //|REQ-001")
+  MB_DISCUSS_CLAUSES+=("plan-file-path|mb_section|Interview plan|[Bb]efore the first question, write an interview plan to .*tmp/interview-plan|interview.plan|s/question, write an/question, do not write an/|REQ-001")
   MB_DISCUSS_CLAUSES+=("rule11-block-generation|mb_rule|11|[Dd]o not generate.*open|generate|s/Do not generate/You may generate/|REQ-002")
   MB_DISCUSS_CLAUSES+=("rule11-cancel-draft|mb_rule|11|[Cc]ancel.*status: draft.*preserv|[Cc]ancel|s/ and preserves the plan file for resume//|REQ-019")
   MB_DISCUSS_CLAUSES+=("rule14-record-tradeoff|mb_rule|14|record the choice.*trade.?off.*frontmatter|record the choice|s/ and its quality trade-off//|REQ-020")
@@ -25,9 +25,14 @@ setup() {
   MB_DISCUSS_CLAUSES+=("template-c2-discovered|mb_section|Interview plan template|Discovered mid-interview|Inherited decisions|/Discovered mid-interview/d|REQ-001")
   # REQ-002 close-gate: the DETERMINISTIC pre-generation call, not just prose.
   MB_DISCUSS_CLAUSES+=("close-gate-invocation|mb_section|Write . finalize|mb-interview-artifact-check.sh. plan .* --require-closed|interview plan|s/ --require-closed//|REQ-002")
-  MB_DISCUSS_CLAUSES+=("close-gate-blocking|mb_section|Write . finalize|[Ee]xit 1 means open .- \\[ \\]. topics remain: generation does not start|generation|s/generation does not start/generation may proceed anyway/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-blocking|mb_section|Write . finalize|open_topics. greater than 0 . unclosed themes. Generation does not start|generation|s/Generation does not start/Generation may proceed anyway/|REQ-002")
   MB_DISCUSS_CLAUSES+=("close-gate-not-judgement|mb_section|Write . finalize|never substitute your own judgement|exit code|s/never substitute your own judgement/you may substitute your own judgement/|REQ-002")
   MB_DISCUSS_CLAUSES+=("rule11-code-enforced|mb_rule|11|enforced by code, not by judgement|open|s/enforced by code, not by judgement/a matter of judgement/|REQ-002")
+  # r3 review [15]: exit 1 covers BOTH open topics and structural breakage, so
+  # the contract must route on open_topics, not on the exit code alone.
+  MB_DISCUSS_CLAUSES+=("close-gate-routes-structural|mb_section|Write . finalize|open_topics=0. . the plan is structurally broken|open_topics|s/the plan is structurally broken/the same unanswered-theme case/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-repair-path|mb_section|Write . finalize|repair the plan file from the stderr reason codes|repair|s/repair the plan file from the stderr reason codes/ask the missing questions/|REQ-002")
+  # r3 review [16]: the glossary path must follow the resolved bank.
   # Pre-flight bank resolution must not hardcode a local .memory-bank/.
   MB_DISCUSS_CLAUSES+=("preflight-resolve-bank|mb_section|Pre-flight|mb_resolve_path|Memory Bank|s/mb_resolve_path/a hardcoded path/|REQ-002")
   MB_DISCUSS_CLAUSES+=("preflight-global-bank|mb_section|Pre-flight|[Nn]ever hardcode|global|s/Never hardcode/Always hardcode/|REQ-002")
@@ -142,8 +147,12 @@ _clause_pair() {
   printf '%s\n' '1. Resolve `MB_PATH = .memory-bank/`. Refuse if missing (suggest `/mb init`).' \
     | grep -Eq 'MB_PATH = .memory-bank/'
   block="$(mb_section "$DISCUSS" 'Pre-flight')"
-  ! printf '%s\n' "$block" | grep -Eq 'MB_PATH = .memory-bank/'
   printf '%s\n' "$block" | grep -q 'mb_resolve_path'
+  # `! cmd` does NOT fail a bats test unless it is the LAST command, so this
+  # assertion used to be masked by the grep that followed it. Made explicit.
+  if printf '%s\n' "$block" | grep -Eq 'MB_PATH = .memory-bank/'; then
+    echo "pre-flight pins MB_PATH to a literal .memory-bank/"; false
+  fi
 }
 
 # ─── Harness self-test (C9): a bare clause (clause-ERE == topic-anchor) is rejected ───
@@ -169,11 +178,29 @@ _clause_pair() {
 # gate. These tests drive the prompt the way a user would: from a scratch
 # project directory outside this repo.
 
-@test "interview_plan: discuss.md defines SKILL_DIR before using it" {
-  # $SKILL_DIR was referenced (Phase 2, EARS validator) but never initialized.
-  local block
-  block="$(mb_section "$DISCUSS" 'Pre-flight')"
-  printf '%s\n' "$block" | grep -q 'SKILL_DIR='
+@test "interview_plan: the bundle root is NOT derived from dirname \$0" {
+  # r3 review [1]: in an executable-Markdown snippet `$0` is the SHELL, not this
+  # file, so `$(dirname "$0")/..` resolves to the parent of the USER's cwd. The
+  # mandatory close gate then pointed at a nonexistent (or foreign) helper.
+  # Scoped to EXECUTABLE fenced code: the rule statement below the fence quotes
+  # the anti-pattern on purpose, and prose is not what runs.
+  # Anti-vacuity: the forbidden pattern must genuinely match the pre-fix line.
+  printf '%s\n' 'SKILL_DIR="${SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"' \
+    | grep -Eq 'dirname "\$0"'
+  local code
+  code="$(awk '/^```/{f=!f; next} f' "$DISCUSS")"
+  [ -n "$code" ]
+  ! printf '%s\n' "$code" | grep -Eq 'dirname "\$0"'
+}
+
+@test "interview_plan: discuss.md resolves the bundle through MB_SKILLS_ROOT" {
+  # The repo-wide convention for command files (commands/mb.md, commands/agree.md):
+  # ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}.
+  # Scoped to the ASSIGNMENT inside executable code: grepping the whole section
+  # stayed green when only the prose still mentioned the variable.
+  local code
+  code="$(awk '/^```/{f=!f; next} f' "$DISCUSS")"
+  printf '%s\n' "$code" | grep -Eq 'SKILL_DIR="\$\{MB_SKILLS_ROOT:-'
 }
 
 @test "interview_plan: no bundled helper is invoked through a bare relative scripts/ path" {
@@ -186,40 +213,94 @@ _clause_pair() {
   ! printf '%s\n' "$body" | grep -Eq '(^|[^/A-Za-z_$-])scripts/mb-'
 }
 
-@test "interview_plan: the close gate still blocks when run from a foreign project cwd" {
-  # The real consumer path: extract the gate command from the prompt, run it
-  # from a scratch project that has NO scripts/ directory. A 127 here means the
-  # gate never executed.
-  local proj="$BATS_TEST_TMPDIR/proj" cmd
-  mkdir -p "$proj/.memory-bank/tmp"
+# _preflight_resolution — the WHOLE fenced bundle-root block as documented.
+# Extracting only the SKILL_DIR= line silently dropped the existence guard that
+# follows it, so the guard could be deleted with every test still green.
+_preflight_resolution() {
+  mb_section "$DISCUSS" 'Pre-flight' | awk '/^```/{f=!f; next} f'
+}
+
+# _gate_cmd — the close-gate command exactly as documented, topic substituted.
+_gate_cmd() {
+  mb_section "$DISCUSS" 'Write . finalize' | grep -m1 'mb-interview-artifact-check.sh" plan'
+}
+
+_open_plan_project() {
+  mkdir -p "$1/.memory-bank/tmp"
   printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [ ] still open\n\n## Discovered mid-interview\n' \
-    > "$proj/.memory-bank/tmp/interview-plan-foo.md"
+    > "$1/.memory-bank/tmp/interview-plan-foo.md"
+}
 
-  cmd="$(mb_section "$DISCUSS" 'Write . finalize' | grep -m1 'mb-interview-artifact-check.sh" plan')"
-  [ -n "$cmd" ]
+@test "interview_plan: the close gate blocks from a foreign cwd with SKILL_DIR UNSET" {
+  # The round-2 version of this test passed SKILL_DIR="$REPO_ROOT" and therefore
+  # proved nothing about the resolution itself. Now the documented resolution
+  # line runs for real; only the sanctioned MB_SKILLS_ROOT override is supplied.
+  local proj="$BATS_TEST_TMPDIR/proj" res cmd
+  _open_plan_project "$proj"
+  res="$(_preflight_resolution)"; [ -n "$res" ]
+  cmd="$(_gate_cmd)"; [ -n "$cmd" ]
 
-  run env -i PATH="$PATH" HOME="$HOME" SKILL_DIR="$REPO_ROOT" MB_PATH="$proj/.memory-bank" \
-    bash -c "cd '$proj' && ${cmd//<topic>/foo}"
+  run env -i PATH="$PATH" HOME="$HOME" MB_SKILLS_ROOT="$REPO_ROOT" MB_PATH="$proj/.memory-bank" \
+    bash -c "cd '$proj' && $res
+${cmd//<topic>/foo}"
   [ "$status" -eq 1 ] || { echo "gate did not block (status=$status): $output"; false; }
 }
 
 @test "interview_plan: a forged project-local helper cannot supply the close gate" {
-  # A project shipping its own scripts/mb-interview-artifact-check.sh must not be
-  # able to answer the gate with exit 0.
-  local proj="$BATS_TEST_TMPDIR/proj2" cmd
-  mkdir -p "$proj/.memory-bank/tmp" "$proj/scripts"
-  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [ ] still open\n\n## Discovered mid-interview\n' \
-    > "$proj/.memory-bank/tmp/interview-plan-foo.md"
+  local proj="$BATS_TEST_TMPDIR/proj2" res cmd
+  _open_plan_project "$proj"
+  mkdir -p "$proj/scripts"
   printf '#!/usr/bin/env bash\necho "artifact=ok open_topics=0"\nexit 0\n' \
     > "$proj/scripts/mb-interview-artifact-check.sh"
   chmod +x "$proj/scripts/mb-interview-artifact-check.sh"
+  res="$(_preflight_resolution)"; [ -n "$res" ]
+  cmd="$(_gate_cmd)"; [ -n "$cmd" ]
 
-  cmd="$(mb_section "$DISCUSS" 'Write . finalize' | grep -m1 'mb-interview-artifact-check.sh" plan')"
-  [ -n "$cmd" ]
-
-  run env -i PATH="$PATH" HOME="$HOME" SKILL_DIR="$REPO_ROOT" MB_PATH="$proj/.memory-bank" \
-    bash -c "cd '$proj' && ${cmd//<topic>/foo}"
+  run env -i PATH="$PATH" HOME="$HOME" MB_SKILLS_ROOT="$REPO_ROOT" MB_PATH="$proj/.memory-bank" \
+    bash -c "cd '$proj' && $res
+${cmd//<topic>/foo}"
   [ "$status" -eq 1 ] || { echo "forged local helper answered the gate (status=$status)"; false; }
+}
+
+@test "interview_plan: a forged helper in the cwd PARENT cannot be picked up" {
+  # The precise round-2 defect: dirname "$0"/.. == the parent of the user's cwd.
+  # An attacker tree there must never become the bundle.
+  local root="$BATS_TEST_TMPDIR/outer" proj res cmd
+  proj="$root/inner"
+  _open_plan_project "$proj"
+  mkdir -p "$root/scripts"
+  printf '#!/usr/bin/env bash\necho "artifact=ok open_topics=0"\nexit 0\n' \
+    > "$root/scripts/mb-interview-artifact-check.sh"
+  chmod +x "$root/scripts/mb-interview-artifact-check.sh"
+  res="$(_preflight_resolution)"; [ -n "$res" ]
+  cmd="$(_gate_cmd)"; [ -n "$cmd" ]
+
+  run env -i PATH="$PATH" HOME="$HOME" MB_SKILLS_ROOT="$REPO_ROOT" MB_PATH="$proj/.memory-bank" \
+    bash -c "cd '$proj' && $res
+${cmd//<topic>/foo}"
+  [ "$status" -eq 1 ] || { echo "parent-dir forgery answered the gate (status=$status)"; false; }
+}
+
+@test "interview_plan: an unresolvable bundle fails LOUDLY, never silently proceeds" {
+  # With no override and no installed bundle the resolution must not fall back to
+  # something cwd-relative and must not report a passing gate.
+  local proj="$BATS_TEST_TMPDIR/proj4" fakehome res cmd
+  _open_plan_project "$proj"
+  fakehome="$BATS_TEST_TMPDIR/nohome"; mkdir -p "$fakehome"
+  res="$(_preflight_resolution)"; [ -n "$res" ]
+  cmd="$(_gate_cmd)"; [ -n "$cmd" ]
+
+  # `status != 0` is NOT enough: a missing helper yields 127 on its own, so that
+  # assertion stayed green with the guard deleted. Demand the guard's own
+  # contract — exit 2 and a message naming the override.
+  run env -i PATH="$PATH" HOME="$fakehome" MB_PATH="$proj/.memory-bank" \
+    bash -c "cd '$proj' && $res
+${cmd//<topic>/foo}"
+  [ "$status" -eq 2 ] || { echo "expected the loud guard (exit 2), got $status"; false; }
+  echo "$output" | grep -q 'skill bundle not found' \
+    || { echo "no diagnostic naming the unresolved bundle: $output"; false; }
+  echo "$output" | grep -q 'MB_SKILLS_ROOT' \
+    || { echo "diagnostic does not tell the user how to fix it: $output"; false; }
 }
 
 # ─── harness self-test: duplicate rules (r2 review [9]) ───
@@ -250,4 +331,43 @@ _clause_pair() {
   run mb_rule "$DISCUSS" 11
   [ "$status" -eq 0 ]
   echo "$output" | grep -q 'No generation with open topics'
+}
+
+# ─── close-gate routing and glossary path (r3 review [15], [16]) ───
+
+@test "interview_plan: a structurally broken plan is routed to repair, not to more questions" { _clause_pair close-gate-routes-structural; }
+@test "interview_plan: the repair path is spelled out" { _clause_pair close-gate-repair-path; }
+
+@test "interview_plan: rule 13 writes the glossary to the RESOLVED bank" {
+  # `.memory-bank/glossary.md` does not exist in a project on a global bank.
+  local block
+  block="$(mb_rule "$DISCUSS" 13)"
+  printf '%s\n' "$block" | grep -q 'MB_PATH/glossary.md'
+  if printf '%s\n' "$block" | grep -Eq 'in .\.memory-bank/glossary\.md'; then
+    echo "rule 13 still pins the literal local bank path"; false
+  fi
+}
+
+@test "interview_plan: rule 13 passes --mb \$MB_PATH to the glossary writer" {
+  mb_rule "$DISCUSS" 13 | grep -q -- '--mb "\$MB_PATH"'
+}
+
+# ─── the REQ template matches the executable command (r3 review [24]) ───
+
+@test "interview_plan: templates.md documents the per-spec-local REQ namespace" {
+  # The template said "project-wide monotonic" and called a bare
+  # `scripts/mb-req-next-id.sh`, contradicting the command, which uses
+  # --spec <topic> through $SKILL_DIR. A new topic could start at project max+1.
+  grep -q 'per-spec-local' "$TEMPLATES"
+  grep -q -- '--spec <topic>' "$TEMPLATES"
+  if grep -q 'IDs are project-wide monotonic' "$TEMPLATES"; then
+    echo "templates.md still claims a project-wide REQ namespace"; false
+  fi
+}
+
+@test "interview_plan: templates.md calls mb-req-next-id through SKILL_DIR" {
+  grep -Eq 'bash "\$SKILL_DIR/scripts/mb-req-next-id\.sh"' "$TEMPLATES"
+  if grep -Eq '(^|[^/A-Za-z_$-])scripts/mb-req-next-id' "$TEMPLATES"; then
+    echo "templates.md still calls the helper by a bare relative path"; false
+  fi
 }

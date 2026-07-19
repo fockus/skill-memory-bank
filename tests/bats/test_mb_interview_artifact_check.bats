@@ -224,8 +224,14 @@ _c8_transcript_reasons() {
     missing_inherited inherited_after_qa no_questions q_number_out_of_order \
     q_number_duplicate answer_missing decision_missing \
     rejected_alternatives_missing missing_final_gate gate_answer_missing \
-    gate_round_missing gate_round_out_of_order legacy_fixture_forbidden
+    gate_round_missing gate_round_out_of_order legacy_fixture_forbidden \
+    duplicate_inherited
 }
+# NOTE (r3 review [22]): `duplicate_inherited` EXTENDS the closed C8 transcript
+# enum — it mirrors `duplicate_qa_section` for the inherited section, and no
+# existing code carried that meaning. design.md § C8 must gain the same one-line
+# entry; the spec is outside this zone, so it is flagged to the orchestrator
+# rather than edited here.
 
 @test "artifact_check: every reason code in the source belongs to the closed C8 enum" {
   # Static guard: scrape every finding literal the validator can emit and prove
@@ -293,4 +299,32 @@ _c8_transcript_reasons() {
   [ "$status" -eq 0 ]
   run bash -n "$SCRIPT"
   [ "$status" -eq 0 ]
+}
+
+# ─── no section may hide items from the close gate (r3 review [4]) ───
+
+@test "artifact_check: an UNKNOWN level-2 section with an open item fails the close gate" {
+  # scan_section stopped at any `## `, and an unrecognised heading was never
+  # rejected — so parking `- [ ] security` under `## Hidden unresolved themes`
+  # returned `artifact=ok open_topics=0` under --require-closed.
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [x] purpose\n\n## Hidden unresolved themes\n\n- [ ] security\n\n## Discovered mid-interview\n\n- [x] telemetry\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 1 ] || { echo "unknown section bypassed the gate: $output"; false; }
+  [ "$output" != "artifact=ok open_topics=0" ]
+}
+
+@test "artifact_check: an unknown level-2 section is rejected even when fully closed" {
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [x] purpose\n\n## Notes\n\nfree text\n\n## Discovered mid-interview\n\n- [x] telemetry\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f"
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':section_out_of_order$'
+}
+
+@test "artifact_check: the three canonical sections alone still validate" {
+  local f="$BATS_TEST_TMPDIR/plan.md"; _valid_closed_plan "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 0 ]
+  [ "$output" = "artifact=ok open_topics=0" ]
 }

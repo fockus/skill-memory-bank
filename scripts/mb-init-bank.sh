@@ -38,7 +38,23 @@ SUPPORTED_AGENTS=(claude-code cursor codex opencode pi windsurf cline kilo)
 CORE_FILES=(status.md roadmap.md checklist.md backlog.md research.md progress.md lessons.md)
 CORE_DIRS=(plans plans/done notes reports experiments codebase)
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Resolve this script's own PHYSICAL directory through its FULL symlink chain
+# (portable — no realpath on bare macOS). Deriving it from `dirname "$0"` meant a
+# link in an attacker directory made init source THAT directory's `_lib.sh`, and
+# broke template resolution for anyone installing through a symlink.
+_mb_resolve_self_dir() {
+  local src="$1" dir
+  while [ -h "$src" ]; do
+    dir="$(cd -P "$(dirname "$src")" 2>/dev/null && pwd)"
+    src="$(readlink "$src")"
+    case "$src" in
+      /*) ;;
+      *) src="$dir/$src" ;;
+    esac
+  done
+  cd -P "$(dirname "$src")" 2>/dev/null && pwd
+}
+SCRIPT_DIR="$(_mb_resolve_self_dir "${BASH_SOURCE[0]:-$0}")"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # shellcheck source=_lib.sh
@@ -207,12 +223,72 @@ done
 # The rule lives in a bank-local .gitignore so it travels with the bank and
 # needs no edit to the project's own .gitignore. Existing files are extended,
 # never clobbered, and the append is idempotent.
+#
+# Writing it safely matters as much as writing it: a symlink planted at
+# <bank>/.gitignore used to be followed (appending into an arbitrary outside
+# file), and appending to a file with no terminal LF glued the comment onto the
+# last rule — `/secret` became `/secret# Memory Bank scratch…`, silently
+# disabling the rule the user wrote.
 BANK_IGNORE="$BANK/.gitignore"
-if [ ! -f "$BANK_IGNORE" ]; then
-  printf '# Memory Bank scratch: raw interview candidates never reach git (REQ-007).\n/tmp/\n' > "$BANK_IGNORE"
-elif ! grep -qE '^/tmp/$' "$BANK_IGNORE"; then
-  printf '# Memory Bank scratch: raw interview candidates never reach git (REQ-007).\n/tmp/\n' >> "$BANK_IGNORE"
-fi
+"${MB_PYTHON:-python3}" - "$BANK_IGNORE" <<'PY' || { echo "mb-init-bank: refusing to write $BANK/.gitignore" >&2; exit 5; }
+import os
+import stat
+import sys
+import tempfile
+
+path = sys.argv[1]
+RULE = "/tmp/"
+COMMENT = "# Memory Bank scratch: raw interview candidates never reach git (REQ-007)."
+
+try:
+    st = os.lstat(path)
+except FileNotFoundError:
+    st = None
+except OSError:
+    sys.exit(1)
+
+# Only a regular file is ever written. A symlink (or anything else) is refused
+# outright rather than followed.
+if st is not None and (stat.S_ISLNK(st.st_mode) or not stat.S_ISREG(st.st_mode)):
+    sys.exit(1)
+
+if st is None:
+    existing, mode = "", None
+else:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            existing = fh.read()
+    except (OSError, UnicodeError):
+        sys.exit(1)
+    mode = stat.S_IMODE(st.st_mode)
+    # Idempotent: never append the rule twice.
+    if any(l.strip() == RULE for l in existing.split("\n")):
+        sys.exit(0)
+
+# Guarantee the separating newline before appending.
+if existing and not existing.endswith("\n"):
+    existing += "\n"
+content = existing + COMMENT + "\n" + RULE + "\n"
+
+directory = os.path.dirname(path) or "."
+try:
+    fd, tmp = tempfile.mkstemp(prefix=".gitignore-", suffix=".tmp", dir=directory)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(content)
+    # mkstemp publishes 0600; an existing file keeps its own mode verbatim.
+    if mode is not None:
+        os.chmod(tmp, mode)
+    else:
+        cur = os.umask(0); os.umask(cur)
+        os.chmod(tmp, 0o666 & ~cur)
+    os.replace(tmp, path)
+except OSError:
+    try:
+        os.unlink(tmp)
+    except (OSError, NameError):
+        pass
+    sys.exit(1)
+PY
 
 # ── Write .mb-config (idempotent upsert of every key) ────────────────────────
 # Stable line order: lang, storage_mode, agent, project_root, project_id.

@@ -147,21 +147,17 @@ run_plan() {
             if (lines[j] ~ /^- \[ \]/) printf "O %d\n", j
             continue
           }
-          # EVERY other nonblank row is malformed — not just column-1 bullet
-          # markers. Inspecting only `^[-*+][ \t]` let plain prose, a numbered
-          # item, or an INDENTED `- [ ]` sit unnoticed under Topics: the file
-          # then passed --require-closed as `artifact=ok open_topics=0` while an
-          # unclosed theme was still in it, silently bypassing REQ-002. A
-          # contentless checkbox is malformed for the same reason; C8 plan mode
-          # declares exactly ONE code for a malformed item, so all of these map
-          # to bad_bullet (closed enum, no invented code).
+          # EVERY other nonblank row is malformed, not just column-1 bullets:
+          # prose, a numbered item or an INDENTED `- [ ]` used to sit unnoticed
+          # under Topics and pass --require-closed as open_topics=0 (REQ-002
+          # bypass). C8 declares ONE code for a malformed item -> bad_bullet.
           printf "F %d 3 bad_bullet\n", j
         }
       }
       END {
         h_inh = 0; h_top = 0; h_dis = 0
         n_inh = 0; n_top = 0; n_dis = 0
-        ndup = 0; nscan = 0
+        ndup = 0; nscan = 0; nunk = 0
         for (i = 1; i <= NR; i++) {
           l = lines[i]
           if (l ~ /^## Inherited decisions \(do not re-ask\)[ \t]*$/) {
@@ -181,15 +177,18 @@ run_plan() {
             nscan++; scanat[nscan] = i
             continue
           }
+          # ANY other level-2 heading is rejected: scan_section stops at every
+          # `## `, so an unknown section hid its open items from the close gate.
+          if (l ~ /^## /) { nunk++; unkline[nunk] = i }
         }
         if (h_inh == 0) printf "F 0 1 missing_section\n"
         if (h_top == 0) printf "F 0 1 missing_section\n"
         if (h_dis == 0) printf "F 0 1 missing_section\n"
-        # C2 declares each required heading EXACTLY ONCE in a fixed order. A
-        # repeat breaks that canonical sequence — and used to hide the items of
-        # the repeated section from --require-closed entirely, reporting open
-        # topics as 0, so a duplicate is rejected as section_out_of_order.
+        # C2 declares each heading EXACTLY ONCE in a fixed order; a repeat hid
+        # the items of a repeated section from --require-closed entirely.
         for (k = 1; k <= ndup; k++) printf "F %d 2 section_out_of_order\n", dupline[k]
+        # An unknown section breaks the same canonical sequence -> same code.
+        for (k = 1; k <= nunk; k++) printf "F %d 2 section_out_of_order\n", unkline[k]
         if (h_inh > 0 && h_top > 0 && h_dis > 0) {
           if (h_top < h_inh) printf "F %d 2 section_out_of_order\n", h_top
           if (h_dis < h_top) printf "F %d 2 section_out_of_order\n", h_dis
@@ -262,13 +261,17 @@ run_transcript() {
       { raw[NR] = $0 }
       END {
         qa_count = 0; qa_line = 0; second_qa = 0; inh_line = 0; rej_section = 0; inline_rej = 0
+        n_inh = 0; second_inh = 0
         qmal = 0; gmal = 0
         for (i = 1; i <= NR; i++) {
           if (raw[i] ~ /^## Q&A[ \t]*$/) { qa_count++; if (qa_count == 1) qa_line = i; else if (qa_count == 2) second_qa = i }
-          # EXACT C4 heading only. A bare prefix match let `## УнаследованоBROKEN`
-          # satisfy --require-inherited, so a transcript carrying no inherited
-          # section at all returned exit 0.
-          if (inh_line == 0 && raw[i] ~ /^## Унаследовано([ \t].*)?$/) inh_line = i
+          # EXACT C4 heading only (a prefix match let `## УнаследованоBROKEN`
+          # satisfy --require-inherited), and EVERY occurrence is counted: two
+          # contradictory inherited sections used to validate as ok.
+          if (raw[i] ~ /^## Унаследовано([ \t].*)?$/) {
+            n_inh++
+            if (n_inh == 1) inh_line = i; else second_inh = i
+          }
           if (raw[i] ~ /^## Отклонённые альтернативы/) rej_section = 1
           if (raw[i] ~ /(Отклонено|Rejected):[ \t]*[^ \t]/) inline_rej = 1
         }
@@ -289,7 +292,9 @@ run_transcript() {
         if (qa_count == 0) print "F 1 3 missing_qa_section"
         if (qa_count >= 2) print "F " second_qa " 4 duplicate_qa_section"
 
-        # 3. inherited
+        # 3. inherited. A duplicate is rejected regardless of --require-inherited:
+        # the ambiguity exists in the file either way.
+        if (n_inh >= 2) print "F " second_inh " 5 duplicate_inherited"
         if (reqinh == "1") {
           if (inh_line == 0) print "F 1 5 missing_inherited"
           else if (qa_line > 0 && inh_line > qa_line) print "F " inh_line " 6 inherited_after_qa"
@@ -347,10 +352,8 @@ run_transcript() {
         prev = 0
         for (k = 1; k <= nq; k++) {
           bs = qidx[k]; be = next_boundary(bs) - 1
-          # Duplicate detection tracks EVERY number seen so far, not just the
-          # immediately preceding one: `Q1, Q2, Q1` is a duplicate, and used to
-          # be reported only as q_number_out_of_order. Duplicate takes
-          # precedence, so one repeat never yields both codes.
+          # Tracks EVERY number seen, not just the previous one: `Q1, Q2, Q1`
+          # was reported only as out_of_order. Duplicate takes precedence.
           if (qnum[k] in qseen) print "F " bs " 9 q_number_duplicate"
           else if (qnum[k] < prev) print "F " bs " 8 q_number_out_of_order"
           qseen[qnum[k]] = 1

@@ -6,7 +6,7 @@
 #
 # Usage:
 #   mb-interview-artifact-write.sh install-plan       --mb <bank> --topic <topic> --candidate <file>
-#   mb-interview-artifact-write.sh publish-transcript --mb <bank> --topic <topic> --candidate <file> [--require-inherited] [--legacy-live-fixture]   # added in Task 4
+#   mb-interview-artifact-write.sh publish-transcript --mb <bank> --topic <topic> --candidate <file> [--require-inherited]
 #
 # `install-plan` (this task): validate <candidate> with C8 `plan`; on
 # `artifact=ok` atomically replace <bank>/tmp/interview-plan-<topic>.md
@@ -112,7 +112,6 @@ MB=""
 TOPIC=""
 CAND=""
 REQUIRE_INHERITED=0
-LEGACY_FIXTURE=0
 STAGED=""
 # A usage fault is REMEMBERED, not raised inside the parse loop. Bailing out
 # early meant a credential-bearing candidate named later on the command line was
@@ -125,7 +124,6 @@ while [ "$#" -gt 0 ]; do
     --topic) if [ "$#" -ge 2 ]; then TOPIC="$2"; shift; else ARG_ERR=1; fi ;;
     --candidate) if [ "$#" -ge 2 ]; then CAND="$2"; shift; else ARG_ERR=1; fi ;;
     --require-inherited) REQUIRE_INHERITED=1 ;;
-    --legacy-live-fixture) LEGACY_FIXTURE=1 ;;
     *) ARG_ERR=1 ;;
   esac
   shift
@@ -147,7 +145,16 @@ if [ "$SUB" = "publish-transcript" ] && [ -n "$MB" ] && [ -n "$CAND" ] && [ -d "
   if [ -n "$_bank_real" ] && [ -f "$CAND" ] && [ ! -L "$CAND" ]; then
     _cand_dir="$(phys_dir "$(dirname "$CAND")")" || _cand_dir=""
     if [ -n "$_cand_dir" ] && [ "$_cand_dir" = "$_bank_real/tmp" ]; then
-      _SCRUB_CAND="$_cand_dir/$(basename "$CAND")"
+      # Living in <bank>/tmp is NOT sufficient to own a file. That alone armed
+      # deletion for anything the user happened to keep there, so a rejected
+      # `--candidate <bank>/tmp/notes.md` destroyed those notes. Ownership is
+      # decided by the canonical candidate NAME PATTERN — which, unlike the
+      # exact name, does not need a valid topic, so a candidate rejected on a
+      # malformed topic is still consumed as before.
+      case "$(basename "$CAND")" in
+        interview-transcript-?*.candidate.md)
+          _SCRUB_CAND="$_cand_dir/$(basename "$CAND")" ;;
+      esac
     fi
   fi
 fi
@@ -221,11 +228,41 @@ run_scan() {
   return "$rc"
 }
 
+# title_names_topic <file> <topic> — the C4 title must name the topic actually
+# being published. The checker validates the title's SHAPE and date but has no
+# idea which topic the writer was asked for, so a candidate titled `foo`
+# published cleanly as context/bar-interview.md and the transcript on disk
+# contradicted its own filename.
+title_names_topic() {
+  local file="$1" topic="$2" first
+  first="$(awk 'NF { print; exit }' "$file")"
+  case "$first" in
+    "# Interview transcript: $topic ("*) return 0 ;;
+  esac
+  return 1
+}
+
+# target_mode <path> — octal mode the published file must end up with: an
+# EXISTING regular target keeps its mode verbatim; otherwise the ordinary
+# creation default (0666 & ~umask), computed rather than hardcoded so a strict
+# environment is never silently widened.
+target_mode() {
+  local m u
+  if [ -f "$1" ] && [ ! -L "$1" ]; then
+    m="$(stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null)" || return 1
+    [ -n "$m" ] || return 1
+    printf '%s\n' "$m"
+    return 0
+  fi
+  u="$(umask)"
+  printf '%o\n' $(( 0666 & ~(8#$u) ))
+}
+
 atomic_install() {
   # $1 = source file; $2 = target path. Copies to a sibling temp, then renames
   # (same FS). The temp is tracked in _INSTALL_TMP for the whole cp→mv window so
   # a signal cannot strand a readable copy of the transcript next to the target.
-  local src="$1" target="$2" target_dir tmp bank_real dir_real
+  local src="$1" target="$2" target_dir tmp bank_real dir_real mode
   target_dir="$(dirname "$target")"
   mkdir -p "$target_dir" || return 2
   # Containment (defence in depth beyond valid_topic): the resolved target
@@ -236,9 +273,20 @@ atomic_install() {
     "$bank_real"/*) ;;
     *) return 2 ;;
   esac
-  tmp="$target_dir/.$(basename "$target").$$.tmp"
+  # The temp MUST be created exclusively. `.<target>.$$.tmp` was fully
+  # predictable, and `cp` writes THROUGH an existing symlink: planting that path
+  # on a victim overwrote the victim, left the target a symlink, and the writer
+  # still reported success. mktemp creates with O_EXCL, so a pre-planted path is
+  # refused rather than followed.
+  tmp="$(mktemp "$target_dir/.$(basename "$target").XXXXXX")" || return 2
   _INSTALL_TMP="$tmp"
+  # mktemp publishes at 0600. Carry the mode the target must actually end up
+  # with: an existing target keeps its own mode verbatim (same rule as
+  # scripts/mb_fs_atomic.py — never widen what somebody deliberately locked
+  # down), a fresh one gets the ordinary creation default.
+  mode="$(target_mode "$target")" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
   cp "$src" "$tmp" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
+  chmod "$mode" "$tmp" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
   mv -f "$tmp" "$target" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
   # Cleared only after the rename succeeded — before that the temp is live.
   _INSTALL_TMP=""
@@ -247,7 +295,7 @@ atomic_install() {
 
 case "$SUB" in
   install-plan)
-    [ "$REQUIRE_INHERITED" -eq 0 ] && [ "$LEGACY_FIXTURE" -eq 0 ] || usage_error
+    [ "$REQUIRE_INHERITED" -eq 0 ] || usage_error
     rc=0
     run_check "$CAND" plan || rc=$?
     if [ "$rc" -ne 0 ]; then
@@ -269,7 +317,6 @@ case "$SUB" in
     # both against the immutable staged bytes, which are also what gets copied.
     extra=()
     [ "$REQUIRE_INHERITED" -eq 1 ] && extra+=(--require-inherited)
-    [ "$LEGACY_FIXTURE" -eq 1 ] && extra+=(--legacy-live-fixture)
     rc=0
     run_scan "$STAGED" || rc=$?
     if [ "$rc" -ne 0 ]; then
@@ -280,6 +327,12 @@ case "$SUB" in
     run_check "$STAGED" transcript ${extra[@]+"${extra[@]}"} || rc=$?
     if [ "$rc" -ne 0 ]; then
       [ "$rc" -eq 2 ] && exit 2
+      exit 1
+    fi
+    # The title must name THIS topic — checked on the staged bytes, before any
+    # install, and reported with the declared C8 reason.
+    if ! title_names_topic "$STAGED" "$TOPIC"; then
+      printf '%s:1:missing_title\n' "$MB/context/$TOPIC-interview.md" >&2
       exit 1
     fi
     if atomic_install "$STAGED" "$MB/context/$TOPIC-interview.md"; then

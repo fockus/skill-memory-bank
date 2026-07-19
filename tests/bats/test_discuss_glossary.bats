@@ -22,9 +22,9 @@ setup() {
   printf 'plan body\n' > "$BANK/plans/2026-01-01_feature_x.md"
   MB_DISCUSS_CLAUSES=()
   MB_DISCUSS_CLAUSES+=("rule13-write-immediate|mb_rule|13|record it immediately.*mb-glossary.sh|glossary|s/record it immediately/record it at the end of the interview/|REQ-017")
-  MB_DISCUSS_CLAUSES+=("rule13-lazy-create|mb_rule|13|created lazily on the first term|the file|s/created lazily on the first term/preexisting/|REQ-017")
+  MB_DISCUSS_CLAUSES+=("rule13-lazy-create|mb_rule|13|created lazily on the first term|[Tt]he file|s/created lazily on the first term/preexisting/|REQ-017")
   MB_DISCUSS_CLAUSES+=("rule13-line-format|mb_rule|13|one line per entry as «term|glossary|s/, one line per entry as «term — definition»//|REQ-017")
-  MB_DISCUSS_CLAUSES+=("rule13-challenge-conflict|mb_rule|13|challenge the conflict before recording the requirement|conflict|s/before recording the requirement/after recording the requirement/|REQ-018")
+  MB_DISCUSS_CLAUSES+=("rule13-challenge-conflict|mb_rule|13|[Cc]hallenge the conflict with the user before recording the requirement|conflict|s/before recording the requirement/after recording the requirement/|REQ-018")
   MB_DISCUSS_CLAUSES+=("template-glossary|mb_section|Glossary template|<term> — <definition>|[Gg]lossary|/<term> — <definition>/d|REQ-017")
 }
 

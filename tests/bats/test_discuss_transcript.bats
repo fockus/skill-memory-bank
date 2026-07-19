@@ -13,8 +13,11 @@ setup() {
   DISCUSS="$REPO_ROOT/commands/discuss.md"
   TEMPLATES="$REPO_ROOT/references/templates.md"
   MB_DISCUSS_CLAUSES=()
-  MB_DISCUSS_CLAUSES+=("transcript-candidate-first|mb_section|Transcript|[Cc]andidate to.*before any git-tracked path|candidate|s/ before any git-tracked path//|REQ-005")
-  MB_DISCUSS_CLAUSES+=("transcript-scan-gate|mb_section|Transcript|mb-secret-scan.*before publication|mb-secret-scan|s/before publication/after publication/|REQ-007")
+  MB_DISCUSS_CLAUSES+=("transcript-candidate-first|mb_section|Transcript|scratch dir\.\*\* Write the candidate to .*before any git-tracked path|candidate|s/\*\* Write the candidate/** Do not write the candidate/|REQ-005")
+  # r3 review [3]: the scan must be INSIDE publish-transcript, never a separate
+  # read-only pre-scan the agent stops on (that strands the raw credential).
+  MB_DISCUSS_CLAUSES+=("transcript-scan-in-writer|mb_section|Transcript|publish-transcript. runs the secret scan|secret scan|s/runs the secret scan/skips the secret scan/|REQ-007")
+  MB_DISCUSS_CLAUSES+=("transcript-no-self-scan|mb_section|Transcript|never scan the candidate yourself|scan the candidate|s/never scan the candidate yourself/scan the candidate yourself first/|REQ-007")
   MB_DISCUSS_CLAUSES+=("transcript-private-not-clean|mb_section|Transcript|raw text including content inside|raw text|s/ including content inside .<private>.//|REQ-007")
   MB_DISCUSS_CLAUSES+=("transcript-block-on-finding|mb_section|Transcript|git target is not created|finding|s/the git target is not created/the git target is overwritten/|REQ-007")
   MB_DISCUSS_CLAUSES+=("transcript-frontmatter|mb_section|Transcript|frontmatter records .interview_transcript:|frontmatter|s/ records .interview_transcript:.*//|REQ-005")
@@ -35,7 +38,8 @@ _pair() {
 }
 
 @test "transcript: candidate is written before any git-tracked path" { _pair "$DISCUSS" transcript-candidate-first; }
-@test "transcript: secret-scan runs on the candidate before publication" { _pair "$DISCUSS" transcript-scan-gate; }
+@test "transcript: the secret scan runs INSIDE publish-transcript" { _pair "$DISCUSS" transcript-scan-in-writer; }
+@test "transcript: the prompt forbids a standalone pre-scan of the candidate" { _pair "$DISCUSS" transcript-no-self-scan; }
 @test "transcript: <private> does not unblock a git write" { _pair "$DISCUSS" transcript-private-not-clean; }
 @test "transcript: a finding blocks target creation" { _pair "$DISCUSS" transcript-block-on-finding; }
 @test "transcript: context frontmatter records interview_transcript" { _pair "$DISCUSS" transcript-frontmatter; }
@@ -112,4 +116,78 @@ _pair() {
   run assert_clause_load_bearing "$DISCUSS" bare-it
   [ "$status" -ne 0 ]
   echo "$output" | grep -Eq 'reason=(vacuous|mutation_removed_topic)'
+}
+
+# ─── bank-ignore write safety (r3 review [18]) ───
+# These live beside the [8] guarantee above: the same init step that promises
+# `<bank>/tmp/` is ignored must not damage the file it writes that promise into.
+
+@test "transcript: a SYMLINKED bank .gitignore is refused, victim untouched" {
+  # init appended through the link, so a symlink planted at <bank>/.gitignore
+  # made it write into an arbitrary file outside the bank.
+  local proj="$BATS_TEST_TMPDIR/sym" victim="$BATS_TEST_TMPDIR/victim.txt"
+  mkdir -p "$proj/.memory-bank"
+  printf 'PRECIOUS VICTIM\n' > "$victim"
+  local snap="$BATS_TEST_TMPDIR/snap.txt"; cp "$victim" "$snap"
+  ln -s "$victim" "$proj/.memory-bank/.gitignore"
+
+  run bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj"
+  cmp -s "$snap" "$victim" || { echo "init wrote through the .gitignore symlink"; false; }
+  [ -L "$proj/.memory-bank/.gitignore" ] || { echo "the symlink was replaced"; false; }
+}
+
+@test "transcript: an existing .gitignore WITHOUT a terminal LF is not corrupted" {
+  # `/secret` with no trailing newline became `/secret# Memory Bank scratch…`,
+  # silently disabling the user's own ignore rule.
+  local proj="$BATS_TEST_TMPDIR/nolf"
+  mkdir -p "$proj/.memory-bank"
+  printf '# user rules\n/secret' > "$proj/.memory-bank/.gitignore"
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+
+  grep -qE '^/secret$' "$proj/.memory-bank/.gitignore" \
+    || { echo "the /secret rule was corrupted:"; cat "$proj/.memory-bank/.gitignore"; false; }
+  grep -qE '^/tmp/$' "$proj/.memory-bank/.gitignore"
+}
+
+@test "transcript: the bank .gitignore keeps its mode across the update" {
+  local proj="$BATS_TEST_TMPDIR/mode"
+  mkdir -p "$proj/.memory-bank"
+  printf '# user rules\n/secret\n' > "$proj/.memory-bank/.gitignore"
+  chmod 600 "$proj/.memory-bank/.gitignore"
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+  local m; m="$(stat -f '%Lp' "$proj/.memory-bank/.gitignore" 2>/dev/null || stat -c '%a' "$proj/.memory-bank/.gitignore")"
+  [ "$m" = "600" ] || { echo "mode changed to $m"; false; }
+}
+
+@test "transcript: a directory at <bank>/.gitignore is refused, not written into" {
+  local proj="$BATS_TEST_TMPDIR/isdir"
+  mkdir -p "$proj/.memory-bank/.gitignore"
+  run bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj"
+  [ -d "$proj/.memory-bank/.gitignore" ]
+}
+
+# ─── init resolves its own helpers through the symlink chain (r3 review [17]) ───
+
+@test "transcript: init through a symlink does not source a forged sibling _lib.sh" {
+  # SCRIPT_DIR came from dirname "$0" without walking the link, so a link in an
+  # attacker directory made init source that directory's _lib.sh.
+  local linkdir="$BATS_TEST_TMPDIR/linkdir" proj="$BATS_TEST_TMPDIR/p17"
+  mkdir -p "$linkdir" "$proj"
+  ln -s "$REPO_ROOT/scripts/mb-init-bank.sh" "$linkdir/mb-init-bank.sh"
+  printf '#!/usr/bin/env bash\necho "FORGED_LIB_SOURCED" >&2\n' > "$linkdir/_lib.sh"
+
+  run bash "$linkdir/mb-init-bank.sh" "--project-root=$proj"
+  echo "$output" | grep -q 'FORGED_LIB_SOURCED' && { echo "forged _lib.sh was sourced"; false; }
+  [ "$status" -eq 0 ] || { echo "init failed through a symlink: $output"; false; }
+  [ -f "$proj/.memory-bank/status.md" ] || { echo "templates did not resolve"; false; }
+}
+
+@test "transcript: init through a MULTI-HOP relative symlink still resolves" {
+  local d1="$BATS_TEST_TMPDIR/hop1" d2="$BATS_TEST_TMPDIR/hop2" proj="$BATS_TEST_TMPDIR/p17b"
+  mkdir -p "$d1" "$d2" "$proj"
+  ln -s "$REPO_ROOT/scripts/mb-init-bank.sh" "$d1/mb-init-bank.sh"
+  ( cd "$d2" && ln -s "../hop1/mb-init-bank.sh" mb-init-bank.sh )
+  run bash "$d2/mb-init-bank.sh" "--project-root=$proj"
+  [ "$status" -eq 0 ] || { echo "multi-hop symlink failed: $output"; false; }
+  [ -f "$proj/.memory-bank/status.md" ]
 }

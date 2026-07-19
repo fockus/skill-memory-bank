@@ -148,6 +148,15 @@ for i, key, _v in direct:
 total_line = seen.get("total")
 bd_line = seen.get("breakdown")
 
+# `breakdown:` introduces a nested map, so its own value must be EMPTY. The
+# value was stored but never shape-checked, so `breakdown: definitely-not-a-map`
+# followed by six indented category rows validated as estimate=ok.
+if bd_line is not None:
+    bd_value = direct[[d[0] for d in direct].index(bd_line)][2]
+    if bd_value != "":
+        findings.append((bd_line + 1, "breakdown"))
+        emit("malformed", 0)
+
 # `total` is resolved first so a partial document still reports a usable total.
 total_val = None
 if total_line is not None:
@@ -262,6 +271,15 @@ PY
 # like `100junk` is malformed, not accepted).
 mb_estimate_lib_spec() {
   awk '
+    function asort_ids(src, n, dst,   i, j, t) {
+      for (i = 1; i <= n; i++) dst[i] = src[i]
+      for (i = 2; i <= n; i++) {
+        t = dst[i]; j = i - 1
+        while (j >= 1 && dst[j] > t) { dst[j + 1] = dst[j]; j-- }
+        dst[j + 1] = t
+      }
+      return n
+    }
     function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
     BEGIN { seen_task = 0; np = 0; nt = 0; curid = ""; malformed = 0; mline = 0 }
     {
@@ -313,9 +331,13 @@ mb_estimate_lib_spec() {
         }
       }
 
-      spec_total = 0; maxid = 0; maxstage = 0; minstage = -1
-      for (k = 1; k <= nt; k++) if (tasks[k] > maxid) maxid = tasks[k]
-      for (id = 1; id <= maxid; id++) {
+      # Walk the ids actually collected, sorted — never a dense 1..maxid range.
+      # A single `mb-task:999999999` block used to spin the loop a billion times
+      # on a two-line file (minutes of CPU for one task).
+      spec_total = 0; maxstage = 0; minstage = -1
+      n_sorted = asort_ids(tasks, nt, sorted_ids)
+      for (si = 1; si <= n_sorted; si++) {
+        id = sorted_ids[si]
         if (!(id in present)) continue
         if (budget_seen[id]) {
           b = budget[id]
@@ -330,12 +352,13 @@ mb_estimate_lib_spec() {
         }
       }
       stage_over_list = ""
-      if (minstage >= 0) {
-        for (st = minstage; st <= maxstage; st++) {
-          if (!(st in stage_present)) continue
-          printf "stage.%d=%d\n", st, stagesum[st]
-          if (stagesum[st] > 400000) stage_over_list = (stage_over_list == "" ? st : stage_over_list "," st)
-        }
+      n_st = 0
+      for (st in stage_present) { n_st++; stage_ids[n_st] = st + 0 }
+      n_st = asort_ids(stage_ids, n_st, sorted_stages)
+      for (si = 1; si <= n_st; si++) {
+        st = sorted_stages[si]
+        printf "stage.%d=%d\n", st, stagesum[st]
+        if (stagesum[st] > 400000) stage_over_list = (stage_over_list == "" ? st : stage_over_list "," st)
       }
 
       printf "spec.total=%d\n", spec_total
@@ -351,11 +374,9 @@ mb_estimate_lib_spec() {
       mismatch = 0
       if (fm_present) {
         if (fm_total != spec_total) mismatch = 1
-        if (minstage >= 0) {
-          for (st = minstage; st <= maxstage; st++) {
-            if (!(st in stage_present)) continue
-            if (!(st in fm_stage_seen) || fm_stage[st] != stagesum[st]) mismatch = 1
-          }
+        for (si = 1; si <= n_st; si++) {
+          st = sorted_stages[si]
+          if (!(st in fm_stage_seen) || fm_stage[st] != stagesum[st]) mismatch = 1
         }
         for (sid in fm_stage_seen) {
           if (!(sid in stage_present) && fm_stage[sid] != 0) mismatch = 1

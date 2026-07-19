@@ -22,10 +22,17 @@ Before creating a non-trivial plan (`/mb plan feature/refactor/...`). Skip for t
 1. Resolve the skill bundle root once and invoke **every** bundled helper through it:
 
 ```bash
-SKILL_DIR="${SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"   # memory-bank skill bundle root
+SKILL_DIR="${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}"   # memory-bank skill bundle root
+[ -f "$SKILL_DIR/scripts/mb-interview-artifact-check.sh" ] || {
+  echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
 ```
 
-   Never call a bundled script by a bare relative path (`bash scripts/mb-…`): the working directory during `/mb discuss` is the **user's project**, which has no `scripts/` of its own — the call is exit 127 and the gate silently does not run — while a project that happens to ship `scripts/mb-interview-artifact-check.sh` would supply its own gate and answer it with exit 0.
+   This is the same resolution every other command file uses (`commands/mb.md`, `commands/agree.md`). Two ways of getting it wrong, both of which silently disable the mandatory close gate:
+
+   - **Never derive the root from `$0`.** In an executable-Markdown snippet `$0` is the **shell**, not this file, so `$(dirname "$0")/..` resolves to the *parent of the user's current directory* — a path that either has no `scripts/` (exit 127, gate never runs) or belongs to somebody else (a planted `scripts/mb-interview-artifact-check.sh` answers the gate with exit 0).
+   - **Never call a bundled script by a bare relative path** (`bash scripts/mb-…`): the working directory during `/mb discuss` is the **user's project**, with the same two outcomes.
+
+   The existence check is part of the contract, not a nicety: an unresolvable bundle must stop the command loudly instead of letting a later helper call fail open.
 
 2. Resolve the active Memory Bank through `$SKILL_DIR/scripts/_lib.sh::mb_resolve_path` and use the resolved path as `MB_PATH` in every later step — the bank may be local (`.memory-bank/`), a **global** bank registered via `/mb init --storage=global`, or legacy. Never hardcode `.memory-bank/`: a project on a registered global bank has no local directory and would be refused although its bank is active. Refuse only when the resolver returns nothing (suggest `/mb init`).
 3. Compute `CONTEXT_FILE = $MB_PATH/context/<topic>.md`.
@@ -76,7 +83,7 @@ The 5 phases below are the **coverage checklist**, not a rigid script. While wal
 10. **Depth floor, no question cap.** A phase is done when questioning stops producing new information — not when it "feels covered". Heuristic: if the last two answers changed nothing on the ledger, move on; while answers keep changing requirements, keep asking. Never cut the interview short to save turns.
 11. **No generation with open topics.** Do not generate any artifact while the interview plan still has open `- [ ]` topics — return to each open theme and ask the missing questions before generating (REQ-002). This is enforced by code, not by judgement: the blocking `mb-interview-artifact-check.sh plan … --require-closed` call in **Write & finalize** step 1 is what permits generation. Cancelling mid-interview keeps `status: draft` and preserves the plan file for resume (REQ-019).
 12. **Final "anything to add?" gate.** Once the interview plan has no open topics, ask the user a final "anything to add?" question before generation (REQ-003). A non-empty answer reopens the discussion iteration and records the new material on the decision ledger (REQ-004); only an explicit "no" lets generation proceed. Separate from rule 8 (the decision-summary confirmation) — this gate does not replace it.
-13. **Glossary.** When a term is resolved during the interview, record it immediately in `.memory-bank/glossary.md` through `mb-glossary.sh upsert` (never a raw prompt write); the file is created lazily on the first term, one line per entry as «term — definition». If a later statement conflicts with an existing glossary term, challenge the conflict before recording the requirement (REQ-018).
+13. **Glossary.** When a term is resolved during the interview, record it immediately in `$MB_PATH/glossary.md` — never the literal `.memory-bank/glossary.md`, which does not exist in a project whose bank is registered globally — through `bash "$SKILL_DIR/scripts/mb-glossary.sh" upsert --mb "$MB_PATH" --term-file <file> --definition-file <file>` (never a raw prompt write). The file is created lazily on the first term, one line per entry as «term — definition». Exit 1 means a conflict: an existing entry for that term disagrees, or the glossary already holds contradictory rows. Challenge the conflict with the user before recording the requirement (REQ-018).
 14. **Fast-to-code bypass.** At any point the user may explicitly choose fast-to-code mode to skip the remaining interview and decomposition steps; record the choice and its quality trade-off in the context frontmatter (REQ-020). Quality mode stays the default for every interview.
 
 #### Phase 1 — Purpose & Users
@@ -170,7 +177,12 @@ What breaks at boundaries? What happens when dependencies fail? What's the worst
 bash "$SKILL_DIR/scripts/mb-interview-artifact-check.sh" plan "$MB_PATH/tmp/interview-plan-<topic>.md" --require-closed
 ```
 
-   Exit 0 permits generation. Exit 1 means open `- [ ]` topics remain: generation does not start, return to each open theme and ask the missing questions, then re-run the gate (REQ-002). Exit 2 means the plan artifact is unreadable or malformed: stop and repair it. Never generate on a non-zero gate, and never substitute your own judgement that the topics "look closed" — the exit code decides.
+   Exit 0 permits generation. **Never generate on a non-zero gate**, and never substitute your own judgement that the topics "look closed" — the exit code decides. On exit 1, read `open_topics=<N>` from stdout to tell the two failure kinds apart, because the validator returns 1 for both:
+
+   - `open_topics` greater than 0 → unclosed themes. Generation does not start; return to each open theme, ask the missing questions, then re-run the gate (REQ-002).
+   - `open_topics=0` → the plan is structurally broken (`missing_section`, `bad_bullet`, `section_out_of_order`), not unanswered. There is no question to ask: repair the plan file from the stderr reason codes, reinstall it through `install-plan`, then re-run the gate. Treating this as "ask more questions" left the structure broken forever.
+
+   Exit 2 means the plan artifact is unreadable or the invocation was wrong: stop and repair it.
 
 2. Render `context/<topic>.md` using the template in `references/templates.md` (`## Context (context/<topic>.md)` section). Write it thoroughly: include the **Research digest** (with its citations), the **Decision Log** (decision → rationale → alternatives rejected, from the ledger), and **Open Questions** (anything deferred, so `/mb plan` addresses or explicitly parks each). Every REQ must trace back to a ledger decision — no requirement appears out of thin air.
 3. Run `bash "$SKILL_DIR/scripts/mb-ears-validate.sh" "$CONTEXT_FILE"`. If it fails, fix in place and retry — do not commit invalid state.
@@ -184,7 +196,7 @@ When the interview completes, save a curated transcript to `context/<topic>-inte
 The order is **verify, then publish** — never publish, then verify.
 
 - **Candidate first, and only in the ignored scratch dir.** Write the candidate to `<bank>/tmp/interview-transcript-<topic>.candidate.md` before any git-tracked path, and nowhere else. `<bank>/tmp/` is gitignored, so the raw text never reaches a tracked file before it has been cleared.
-- **Scan gate.** Run `mb-secret-scan.sh --policy transcript` on the candidate before publication.
+- **One call does everything — never scan the candidate yourself.** `publish-transcript` runs the secret scan, then the C8 grammar check, then the atomic install, all on the same claimed bytes, and consumes the candidate whichever way it ends. Running `mb-secret-scan.sh` yourself first and stopping on its exit 1 is what the contract used to say, and it strands the raw credential: the scanner is read-only, so the file it just flagged stays readable under `<bank>/tmp` because the only component that removes it never runs. Hand the candidate to the writer and read ITS exit code.
 - **Private is not a bypass.** The scan reads the raw text including content inside `<private>` — a `<private>` marker never unblocks a git write (R3-001).
 - **Block on finding.** On a finding the git target is not created, and the user is offered removal or irreversible redaction of the credential (REQ-007).
 - **Never edit the candidate in place after a finding.** Re-render the transcript from the redacted material and publish a fresh candidate; a raw credential must not survive as a readable file on disk.

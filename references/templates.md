@@ -431,7 +431,7 @@ Numbered ledger from the interview: what was decided, why, what was rejected.
 ## Functional Requirements (EARS)
 
 Each line uses one of the 5 EARS patterns (Ubiquitous / Event-driven / State-driven / Optional / Unwanted).
-IDs are project-wide monotonic — get the next one via `bash scripts/mb-req-next-id.sh`.
+IDs are **per-spec-local**: the topic owns its REQ namespace, so a brand-new topic starts at `REQ-001` no matter how many REQs other specs already hold. Get the next one via `bash "$SKILL_DIR/scripts/mb-req-next-id.sh" --spec <topic> "$MB_PATH"` (omit `--spec` only when you deliberately want a project-wide max+1).
 
 - **REQ-001** (ubiquitous): The system shall ...
 - **REQ-002** (event-driven): When <trigger>, the system shall ...

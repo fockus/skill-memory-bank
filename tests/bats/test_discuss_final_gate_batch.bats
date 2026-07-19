@@ -15,11 +15,11 @@ setup() {
   DISCUSS="$REPO_ROOT/commands/discuss.md"
   MB_DISCUSS_CLAUSES=()
   # rule 12
-  MB_DISCUSS_CLAUSES+=("rule12-gate-after-close|mb_rule|12|anything to add.*before generation|anything to add|s/before generation/after generation/|REQ-003")
+  MB_DISCUSS_CLAUSES+=("rule12-gate-after-close|mb_rule|12|Once the interview plan has no open topics, ask the user a final .anything to add.* question before generation|anything to add|s/Once the interview plan has no open topics, //|REQ-003")
   MB_DISCUSS_CLAUSES+=("rule12-reopen-on-addition|mb_rule|12|non-empty answer reopens.*ledger|non-empty answer reopens|s/ on the decision ledger//|REQ-004")
   MB_DISCUSS_CLAUSES+=("rule12-explicit-no|mb_rule|12|only an explicit .no. lets generation proceed|generation proceed|s/only an explicit .no./the absence of an answer/|REQ-003")
   # batch mode
-  MB_DISCUSS_CLAUSES+=("batch-overrides-rule6|mb_section|Batch mode|overrides grilling rule 6|overrides grilling rule|s/grilling rule 6/grilling rule 9/|REQ-015")
+  MB_DISCUSS_CLAUSES+=("batch-overrides-rule6|mb_section|Batch mode|overrides grilling rule 6 .one question per turn. and only that rule|overrides grilling rule|s/and only that rule/and grilling rule 8/|REQ-015")
   MB_DISCUSS_CLAUSES+=("batch-frontier-round|mb_section|Batch mode|whole current frontier.*recommendation on each|frontier|s/, with a recommendation on each question//|REQ-015")
   MB_DISCUSS_CLAUSES+=("batch-tool-limit|mb_section|Batch mode|up to 4 questions per call.*several calls|AskUserQuestion|s/ and issue several calls in one round when the frontier exceeds four//|REQ-015")
   MB_DISCUSS_CLAUSES+=("batch-degradation|mb_section|Batch mode|degrades to a numbered plain-text list.*never skipped|interactive question tool|s/degrades to a numbered plain-text list — it is never skipped/is skipped/|REQ-016")
@@ -35,7 +35,7 @@ setup() {
   MB_DISCUSS_CLAUSES+=("factfind-cites|mb_section|Batch mode|must cite the found fact|recommendation|s/must cite the found fact/may guess/|REQ-015")
   MB_DISCUSS_CLAUSES+=("factfind-degrade-sequential|mb_section|Batch mode|sequentially in the main agent — never skipped|platform_limited|s/run the same fact-finding sequentially in the main agent — never skipped/skip the fact-finding/|REQ-056")
   MB_DISCUSS_CLAUSES+=("factfind-degrade-announced|mb_section|Batch mode|report the degradation to the user|platform_limited|s/ — and report the degradation to the user in one line//|REQ-056")
-  MB_DISCUSS_CLAUSES+=("factfind-default-off|mb_section|Batch mode|[Ww]ithout .--batch. the default is unchanged|subagent dispatch|s/Without .--batch. the default is unchanged/Even in batch mode/|REQ-055")
+  MB_DISCUSS_CLAUSES+=("factfind-default-off|mb_section|Batch mode|[Ww]ithout .--batch. the default is unchanged.*with no parallel subagent dispatch|subagent dispatch|s/with no parallel subagent dispatch/with mandatory parallel subagent dispatch/|REQ-055")
 }
 
 _clause_pair() {

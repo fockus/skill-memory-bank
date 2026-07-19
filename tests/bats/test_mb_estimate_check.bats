@@ -13,12 +13,12 @@ setup() {
   SCRIPT="$REPO_ROOT/scripts/mb-estimate-check.sh"
   DISCUSS="$REPO_ROOT/commands/discuss.md"
   MB_DISCUSS_CLAUSES=()
-  MB_DISCUSS_CLAUSES+=("triage-cat-shell_scripts|mb_section|Size triage|shell_scripts|15 000|s/shell_scripts/scripts/|REQ-008")
-  MB_DISCUSS_CLAUSES+=("triage-cat-prompt_changes|mb_section|Size triage|prompt_changes|8 000|s/prompt_changes/prompts/|REQ-008")
-  MB_DISCUSS_CLAUSES+=("triage-cat-python_modules|mb_section|Size triage|python_modules|25 000|s/python_modules/pymods/|REQ-008")
-  MB_DISCUSS_CLAUSES+=("triage-cat-test_files|mb_section|Size triage|test_files|10 000|s/test_files/tests/|REQ-008")
-  MB_DISCUSS_CLAUSES+=("triage-cat-docs_pages|mb_section|Size triage|docs_pages|5 000|s/docs_pages/docs/|REQ-008")
-  MB_DISCUSS_CLAUSES+=("triage-cat-external_integrations|mb_section|Size triage|external_integrations|30 000|s/external_integrations/integrations/|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-cat-shell_scripts|mb_section|Size triage|shell_scripts.*15 000|shell_scripts|s/15 000/99 999/|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-cat-prompt_changes|mb_section|Size triage|prompt_changes.*8 000|prompt_changes|s/8 000/99 999/|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-cat-python_modules|mb_section|Size triage|python_modules.*25 000|python_modules|s/25 000/99 999/|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-cat-test_files|mb_section|Size triage|test_files.*10 000|test_files|s/10 000/99 999/|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-cat-docs_pages|mb_section|Size triage|docs_pages.*5 000|docs_pages|s/5 000/99 999/|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-cat-external_integrations|mb_section|Size triage|external_integrations.*30 000|external_integrations|s/30 000/99 999/|REQ-008")
   MB_DISCUSS_CLAUSES+=("triage-child-interview|mb_section|Size triage|each accepted child receives its own.*interview|accepted child|s/receives its own follow-up interview/is deferred/|REQ-009")
   MB_DISCUSS_CLAUSES+=("triage-decline|mb_section|Size triage|user may decline the recommendation|recommendation|s/the user may decline the recommendation/the recommendation is mandatory/|REQ-009")
   MB_DISCUSS_CLAUSES+=("triage-registry|mb_section|Size triage|mb-idea.sh.*\\[SPEC:<group>\\]|mb-idea.sh|s/under a .\\[SPEC:<group>\\]. title prefix//|REQ-010")
@@ -659,4 +659,65 @@ EOF
   [ "$status" -eq 2 ]
   echo "$output" | grep -q '^estimate=malformed'
   echo "$stderr" | grep -q ':total:malformed'
+}
+
+# ─── breakdown must be a real map (r3 review [19]) ───
+
+@test "estimate_check: a SCALAR value on breakdown: is malformed" {
+  # The direct key's value was stored but never shape-checked, so
+  # `breakdown: definitely-not-a-map` with six indented rows returned ok.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+estimated_tokens:
+  total: 15000
+  breakdown: definitely-not-a-map
+    shell_scripts: {count: 1, unit_tokens: 15000, subtotal: 15000}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+body
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ] || { echo "scalar breakdown accepted: $output"; false; }
+  echo "$output" | grep -q '^estimate=malformed'
+}
+
+@test "estimate_check: a scalar on total: is still read as a value" {
+  # Guard the converse: `total:` legitimately carries a scalar.
+  local f="$BATS_TEST_TMPDIR/c.md"; _ctx "$f" 850000 850000
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 0 ]
+}
+
+# ─── sparse ids must not drive a dense scan (r3 review [20]) ───
+
+@test "estimate_check: a huge task id completes promptly" {
+  # The aggregation looped 1..maxid, so a single `mb-task:999999999` block spun
+  # for minutes on a two-line file.
+  local d="$BATS_TEST_TMPDIR/spec"; mkdir -p "$d"
+  printf '# Tasks\n\n<!-- mb-task:999999999 -->\n### T\n**Budget:** 1000\n**Stage:** 1\n<!-- /mb-task:999999999 -->\n' > "$d/tasks.md"
+  local start end
+  start="$(date +%s)"
+  run --separate-stderr "$SCRIPT" --tasks-file "$d/tasks.md"
+  end="$(date +%s)"
+  [ "$((end - start))" -lt 10 ] || { echo "took $((end - start))s for one task"; false; }
+  echo "$output" | grep -q 'task.999999999=1000'
+}
+
+@test "estimate_check: sparse stage ids complete promptly and aggregate correctly" {
+  local d="$BATS_TEST_TMPDIR/spec2"; mkdir -p "$d"
+  printf '# Tasks\n\n<!-- mb-task:1 -->\n### A\n**Budget:** 100\n**Stage:** 900000\n<!-- /mb-task:1 -->\n\n<!-- mb-task:2 -->\n### B\n**Budget:** 200\n**Stage:** 1\n<!-- /mb-task:2 -->\n' > "$d/tasks.md"
+  local start end
+  start="$(date +%s)"
+  run --separate-stderr "$SCRIPT" --tasks-file "$d/tasks.md"
+  end="$(date +%s)"
+  [ "$((end - start))" -lt 10 ] || { echo "took $((end - start))s"; false; }
+  echo "$output" | grep -q 'stage.1=200'
+  echo "$output" | grep -q 'stage.900000=100'
+  echo "$output" | grep -q 'spec.total=300'
 }
