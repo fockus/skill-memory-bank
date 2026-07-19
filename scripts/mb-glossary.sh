@@ -88,6 +88,7 @@ trap _cleanup EXIT INT TERM HUP
 rc=0
 python3 - "$MB" "$TERM_FILE" "$DEF_FILE" <<'PY' || rc=$?
 import os
+import stat
 import sys
 
 mb, term_file, def_file = sys.argv[1:4]
@@ -144,11 +145,43 @@ if (
 line = term + sep + definition + "\n"
 
 
+def _default_mode():
+    # Exactly what a plain open() would have produced: 0666 masked by the
+    # umask. Computed, never a hardcoded 0644, so a deliberately strict
+    # environment is not silently widened.
+    current = os.umask(0)
+    os.umask(current)
+    return 0o666 & ~current
+
+
+def _target_mode(path):
+    # Mode the published file must end up with (I-145).
+    #
+    # An EXISTING glossary keeps its mode VERBATIM. mb-glossary.sh is the only
+    # writer of glossary.md and never produces 0600 — it publishes through
+    # open(), not tempfile.mkstemp() — so a restrictive mode on this file is a
+    # deliberate lockdown, not mkstemp damage. Guessing "damage" and widening it
+    # would silently unprotect a file the user chose to protect, and widening is
+    # the direction that cannot be undone once a secret has been exposed.
+    # Repairing already-damaged banks is the one-shot I-145 migration, not this
+    # write path's job (same rule as scripts/mb_fs_atomic.py).
+    try:
+        return stat.S_IMODE(os.stat(path).st_mode)
+    except FileNotFoundError:
+        return _default_mode()
+    except OSError:
+        return None
+
+
 def atomic_write(path, content):
     tmp = "%s.%d.tmp" % (path, os.getpid())
+    # Resolve the mode BEFORE the write: after os.replace the original is gone.
+    mode = _target_mode(path)
     try:
         with open(tmp, "w", encoding="utf-8") as fh:
             fh.write(content)
+        if mode is not None:
+            os.chmod(tmp, mode)
         os.replace(tmp, path)
     except (UnicodeError, OSError):
         # Never leave the sibling temp behind on a failed write.

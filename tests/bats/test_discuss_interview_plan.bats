@@ -134,14 +134,14 @@ _clause_pair() {
 @test "interview_plan: pre-flight no longer pins MB_PATH to a literal .memory-bank/" {
   # The exact regression: `Resolve MB_PATH = .memory-bank/` refused to run in a
   # project whose bank is registered globally.
-  local block head_block
+  local block
+  # Anti-vacuity: the pattern asserted absent must genuinely match the PRE-FIX
+  # wording, proven here against an inline fixture. An earlier version of this
+  # test read the old wording from `git show HEAD:` — which silently stopped
+  # proving anything the moment the fix was committed and HEAD moved on.
+  printf '%s\n' '1. Resolve `MB_PATH = .memory-bank/`. Refuse if missing (suggest `/mb init`).' \
+    | grep -Eq 'MB_PATH = .memory-bank/'
   block="$(mb_section "$DISCUSS" 'Pre-flight')"
-  # Anti-vacuity: the very pattern asserted absent must be PRESENT in the
-  # pre-fix file, otherwise this assertion proves nothing.
-  head_block="$(git -C "$REPO_ROOT" show HEAD:commands/discuss.md 2>/dev/null | mb_section /dev/stdin 'Pre-flight')"
-  if [ -n "$head_block" ]; then
-    printf '%s\n' "$head_block" | grep -Eq 'MB_PATH = .memory-bank/'
-  fi
   ! printf '%s\n' "$block" | grep -Eq 'MB_PATH = .memory-bank/'
   printf '%s\n' "$block" | grep -q 'mb_resolve_path'
 }
