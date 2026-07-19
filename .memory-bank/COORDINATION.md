@@ -633,3 +633,50 @@ tamper-proof-свойство, которого механика не давал
 деградированном режиме) фиксер опишет отдельным пунктом для передачи параллельной сессии.
 
 Три трека активны: S1-fixer (14), S4-fixer (11), S2-fixer (26). Судья — только по чистым re-review.
+
+## [drive-track] 2026-07-19 — DONE: drive-loop T2+T4 закрыты (AGR-024)
+
+Оба рана governed-конвейера завершены: T2 (`/mb drive` + AGENTS.md loop-контракт) и T4 (stop-телеметрия
++ resume-gate + parallel keying) — GO_WITH_BACKLOG на цикле 2/2 у каждого. DoD флипнуты, checklist/progress
+актуализированы, backlog I-135…I-143. Зона claim снимается: commands/drive.md, adapters/_lib_agents_md.sh,
+scripts/mb-drive-stop.sh, hooks/mb-drive-resume-gate.sh, scripts/mb-flow-sync.sh (preserve-on-partial —
+ВНИМАНИЕ: частичные вызовы flow-sync теперь сохраняют неуказанные поля fence, это новый контракт для всех
+потребителей), scripts/mb-work-slots.sh, scripts/mb-goal-validate.sh (placeholder-гейт), тесты. НЕ закоммичено.
+Принято к сведению AGR-026: ждём от S2-fixer handover-пункт о деградации eval-proof в checksum-режим для
+/mb drive — обработаем отдельным входом, T2/T4 это не блокировало.
+
+## [svp-group-exec] 2026-07-19 — S4 закрыт (11/11), два живых блокера разрешены оркестратором — session 02aa11b1
+
+S4-fixer: **11/11 FIXED, 0 DISPUTED**, 18 красных тестов написаны первыми. Независимая верификация
+оркестратора: размеры 326/183/155/270/331 — все ≤400 (было 452/414/397); `shellcheck` чист на
+mb-roadmap-sync/mb-backlog-state/_lib; **89 bats + 63 pytest зелёные** по четырём сьютам зоны.
+Ключевое: [3] подтверждено как «тест сертифицировал дефект» — старый тест содержал
+`! grep -qE 'alpha — .*tasks\('` с комментарием «member line does NOT carry counters», прямо
+закрепляя нарушение REQ-002; фиксер починил тест, а не подогнал код. [7] разобран по существу:
+легитимный 0% — ТОЛЬКО отсутствующий tasks.md, остальное громко (`unreadable`/`not_utf8`/
+`malformed`, новый exit 4; exit 3 не переиспользован — design резервирует его за pin/created/
+blocked_by). [4] атомарность: sibling temp + fsync + os.replace + перенос mode-битов.
+
+**Блокер A (дубль I-141) — РАЗРЕШЁН.** Коллизия параллельных сессий, ровно класс находки [8]:
+я завёл I-141 (таблица скриптов SKILL.md, закоммичен в 1a9c029), drive-loop-сессия независимо
+завела свой I-141 (global-bank e2e smoke) в незакоммиченном WIP. Правило разрешения: приоритет у
+закоммиченного. Незакоммиченный перенумерован **I-141 → I-144** (I-142/I-143 уже заняты), текст
+сохранён дословно, ссылок вне backlog.md нет. Гейт `mb-backlog-state.sh` разблокирован (был
+`list-exit=2 code=duplicate_id`). **Drive-loop-сессии: ваш пункт теперь I-144.**
+
+**Блокер B (проза roadmap) — РАЗРЕШЁН сохранением.** Bootstrap корректно снёс ручной блок
+`## 🧭 Group: sdd-vision-pipeline (...)` по Task 6, но генератор не воспроизводит курируемое:
+ICE-таблицу с аннотациями по слайсам, историю трёх кругов spec-ревью (96+91+75 находок) и ссылки
+на reports/, context/, транскрипт. 29 строк / 6614 символов спасены дословно в новый раздел
+`## 📚 sdd-vision-pipeline — история группы (архив, не автогенерируется)` — заголовок намеренно НЕ
+в форме `## Group: <slug>`, иначе bootstrap снесёт его снова. Проверено: реальный прогон
+`mb-roadmap-sync.sh` архив не трогает, `--check` = 0 дважды подряд (идемпотентность держится).
+
+**Противоречие внутри спеки — РАЗРЕШЕНО в пользу REQ-002.** Оно было тройным: REQ-002
+(requirements.md:38) требует «percentage plus counters»; design.md:207 задавал грамматику строки
+члена без counters; tasks.md T6 противоречил САМ СЕБЕ (первый пункт — с counters, пункт про
+Group-секции — без). Реализация теперь следует REQ-002, текст design.md и tasks.md приведён к ней
+(`progress=<N>% <stages|tasks>(done=,in_progress=,planned=,total=)`). `mb-spec-validate.sh
+svp-roadmap-backlog-db` = exit 0.
+
+Дальше по S4: независимое re-review зоны, затем судья. Активны: S1-fixer (14), S2-fixer (26).

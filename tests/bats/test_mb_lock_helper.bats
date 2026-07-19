@@ -346,3 +346,46 @@ EOF
   [ "$status" -eq 0 ]
   [ ! -d "$SPACED" ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Release must not report success it did not achieve (finding 9)
+# ═══════════════════════════════════════════════════════════════
+
+@test "lock_helper: release reports failure when its own marker cannot be removed" {
+  # A non-empty owner marker cannot be rmdir'd. Swallowing that with `|| true`
+  # and returning 0 tells the caller the lock is free while BOTH the marker and
+  # the lock directory are still on disk -- a silent double-writer window.
+  acquire "$LOCK" 2 100
+  [ "$status" -eq 0 ]
+  local token="$output"
+  : > "$LOCK/owner.$token/stuck"      # marker now non-empty ⇒ rmdir fails
+  release "$LOCK" "$token"
+  [ "$status" -ne 0 ]
+  [ -z "$output" ]
+  # and it must not have pretended by deleting the parent either
+  [ -d "$LOCK/owner.$token" ]
+  [ -d "$LOCK" ]
+}
+
+@test "lock_helper: release still succeeds and removes the lock in the normal case" {
+  acquire "$LOCK" 2 100
+  [ "$status" -eq 0 ]
+  local token="$output"
+  release "$LOCK" "$token"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ ! -d "$LOCK" ]
+}
+
+@test "lock_helper: release leaves the lock dir when another owner marker remains" {
+  # Defensive: our own marker goes away (success), but a foreign marker keeps
+  # the parent alive. That parent rmdir failure is legitimate, not an error.
+  acquire "$LOCK" 2 100
+  [ "$status" -eq 0 ]
+  local token="$output"
+  mkdir -p "$LOCK/owner.$$-other"
+  release "$LOCK" "$token"
+  [ "$status" -eq 0 ]
+  [ ! -d "$LOCK/owner.$token" ]
+  [ -d "$LOCK" ]
+}

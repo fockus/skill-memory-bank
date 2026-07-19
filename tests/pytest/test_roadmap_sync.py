@@ -233,7 +233,10 @@ def test_paused_and_linked_specs_sections(tmp_path: Path) -> None:
     assert "## Paused / Archived" in roadmap
     assert "paused-one" in roadmap
     assert "## Linked Specs (active)" in roadmap
-    assert "specs/demo-spec" in roadmap
+    # `specs/demo-spec` normalizes to its topic slug: only the bare slug
+    # resolves to specs/<slug>/tasks.md for REQ-002 progress (finding 2).
+    assert "- demo-spec — progress=" in roadmap
+    assert "specs/demo-spec" not in roadmap
 
 
 def test_singular_linked_spec_is_rendered_as_active_spec(tmp_path: Path) -> None:
@@ -262,7 +265,8 @@ def test_singular_linked_spec_is_rendered_as_active_spec(tmp_path: Path) -> None
 
     roadmap = (mb / "roadmap.md").read_text(encoding="utf-8")
     linked_section = roadmap.split("## Linked Specs (active)", 1)[1]
-    assert "specs/wrapper-demo" in linked_section
+    # Rendered under its normalized topic slug, not the raw `specs/...` path.
+    assert "- wrapper-demo — progress=" in linked_section
 
 
 # ---------------------------------------------------------------------------

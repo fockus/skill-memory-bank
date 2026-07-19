@@ -204,7 +204,7 @@ regression/Eval не может выбрать канонический (T6 не
 Строка члена:
 
 ```
-<topic> — ice=<score|no-ice|invalid>[ (unconfirmed)] — <status draft|ready|done> — progress=<N>% — blocked_by=<csv|none>
+<topic> — ice=<score|no-ice|invalid>[ (unconfirmed)] — <status draft|ready|done> — progress=<N>% <stages|tasks>(done=<d>,in_progress=<i>,planned=<p>,total=<t>) — blocked_by=<csv|none>
 ```
 
 Суффикс ` (unconfirmed)` печатается, когда `ice` валиден, а `ice_confirmed` не равен `true` (D-14:

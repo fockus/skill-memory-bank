@@ -147,11 +147,23 @@ main() {
       ;;
     transition)
       _acquire_backlog_lock "$bank"
-      local old rc=0
-      if ! old="$(run_engine getstate "$backlog" "$id" 2>/dev/null)"; then
-        echo "[mb-backlog-state] $id not found in $backlog" >&2
+      local old rc=0 err_file
+      # Do NOT blanket-discard the engine's stderr: `getstate` is silent for a
+      # plain not-found (the friendly message below covers it) but it is the
+      # first reader to see a whole-file integrity failure such as
+      # `code=duplicate_id`. Swallowing that turned an ambiguous database into a
+      # misleading "not found" (finding 8).
+      err_file="$(mktemp)"
+      if ! old="$(run_engine getstate "$backlog" "$id" 2>"$err_file")"; then
+        if [ -s "$err_file" ]; then
+          cat "$err_file" >&2
+        else
+          echo "[mb-backlog-state] $id not found in $backlog" >&2
+        fi
+        rm -f "$err_file"
         exit 2
       fi
+      rm -f "$err_file"
       if [ "$reason_set" -eq 1 ]; then
         mb_backlog_transition_locked "$backlog" "$id" "$state" --reason "$reason" || rc=$?
       else

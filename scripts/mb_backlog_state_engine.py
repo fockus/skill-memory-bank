@@ -126,7 +126,36 @@ def parse_backlog(text):
                 "has_v2": any(v in body_join for v in V2_META),
             }
         )
+    assert_unique_ids(entries)
     return lines, entries
+
+
+def assert_unique_ids(entries):
+    """Reject a backlog that carries the same I-NNN more than once (exit 2).
+
+    ``find_entry`` returns the FIRST match. With two ``I-001`` headers a
+    transition reported success, rewrote only the first entry and left the
+    second on its old state — an internally contradictory database that every
+    later read would resolve differently depending on order (finding 8).
+
+    The whole file is refused, not just the duplicated id: with an ambiguous
+    index we cannot trust ANY lookup, and silently serving the other ids would
+    let the inconsistency persist unnoticed. Detection lives in the single
+    parse entry point so every subcommand inherits the gate.
+    """
+    seen = set()
+    duplicates = []
+    for e in entries:
+        if e["id"] in seen and e["id"] not in duplicates:
+            duplicates.append(e["id"])
+        seen.add(e["id"])
+    if duplicates:
+        die(
+            2,
+            "code=duplicate_id ids="
+            + ",".join(duplicates)
+            + " detail=each I-NNN must appear exactly once in backlog.md",
+        )
 
 
 def find_entry(entries, entry_id):

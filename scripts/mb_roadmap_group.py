@@ -27,6 +27,15 @@ _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
+class ProgressError(Exception):
+    """A work-item source (tasks.md / plan) exists but cannot be read or parsed.
+
+    Distinct from "no file yet", which is a legitimate 0%. The consumer
+    (mb-roadmap-sync.sh) must exit 4 without writing rather than publish a
+    fabricated zero over real progress.
+    """
+
+
 class GroupOrderingError(Exception):
     """Malformed member ordering input (pin / created / blocked_by).
 
@@ -83,15 +92,33 @@ def compute_progress(path):
 
     percent = floor(100 * checked_dod / total_dod); 0 when there are no DoD
     checkboxes. Counters are per work-item (stage/task) by status.
+
+    ONLY an absent file is a legitimate zero — a spec whose tasks.md has not
+    been generated yet genuinely has no progress. Everything else (unreadable
+    file, non-UTF-8 bytes, mixed stage/task markers, malformed task fields) is
+    raised as :class:`ProgressError` so the caller fails loudly BEFORE writing.
+    The previous blanket ``except Exception`` turned a corrupt or half-written
+    tasks.md into a confident ``progress=0%``, hiding the corruption behind a
+    plausible number (finding 7, REQ-012).
     """
-    from mb_work_items import parse_work_items
+    from mb_work_items import MalformedTaskField, parse_work_items
 
     if not path.exists():
         return 0, 0, 0, 0, 0
     try:
         items = parse_work_items(path)
-    except Exception:
-        return 0, 0, 0, 0, 0
+    except UnicodeDecodeError as exc:
+        raise ProgressError(
+            f"code=progress_parse_error path={path} reason=not_utf8 detail={exc}"
+        ) from exc
+    except OSError as exc:
+        raise ProgressError(
+            f"code=progress_parse_error path={path} reason=unreadable detail={exc}"
+        ) from exc
+    except (MalformedTaskField, ValueError) as exc:
+        raise ProgressError(
+            f"code=progress_parse_error path={path} reason=malformed detail={exc}"
+        ) from exc
     total = len(items)
     done = sum(1 for it in items if it.status == "done")
     in_progress = sum(1 for it in items if it.status == "in-progress")
@@ -178,21 +205,27 @@ def _ice_display(member):
 
 
 def _member_line(member):
-    # design C2 / tasks.md T6 grammar (percent only; per-item counters live in
-    # the ordinary plan/spec rows, not in the Group member line):
+    # Grammar:
     #   <topic> — ice=<score|no-ice|invalid>[ (unconfirmed)] — <status> —
-    #   progress=<N>% — blocked_by=<csv|none>
+    #   progress=<N>% tasks(done=..,in_progress=..,planned=..,total=..) —
+    #   blocked_by=<csv|none>
+    #
+    # REQ-002 requires percentage AND counters for EVERY spec/plan. A spec that
+    # belongs to a group but is not referenced from any plan's linked_specs has
+    # the Group member line as its ONLY row, so emitting the percentage alone
+    # left it without counters anywhere in the roadmap (finding 3).
     ice = _ice_display(member)
     suffix = (
         " (unconfirmed)"
         if (member["ice_score"] is not None and not member["ice_confirmed"])
         else ""
     )
-    percent = member["progress"][0]
+    percent, done, in_prog, planned, total = member["progress"]
     blk = ",".join(member["blocked_by"]) if member["blocked_by"] else "none"
     return (
         f"{member['topic']} — ice={ice}{suffix} — {member['status']} — "
-        f"progress={percent}% — blocked_by={blk}"
+        f"progress={percent}% tasks(done={done},in_progress={in_prog},"
+        f"planned={planned},total={total}) — blocked_by={blk}"
     )
 
 

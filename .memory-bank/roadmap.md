@@ -31,43 +31,38 @@ _None._
 
 ## Linked Specs (active)
 
-- specs/cost-multi-model/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/handoff-v2/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/reviewer-2.0/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/work-loop-v2/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/parallel-pipeline/design.md — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/cursor-extension — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/pi-extension — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/dynamic-flow — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- cost-multi-model — progress=0% tasks(done=0,in_progress=0,planned=4,total=4)
+- handoff-v2 — progress=100% tasks(done=5,in_progress=0,planned=0,total=5)
 - reviewer-2.0 — progress=100% tasks(done=6,in_progress=0,planned=0,total=6)
 - work-loop-v2 — progress=100% tasks(done=5,in_progress=0,planned=0,total=5)
-- drive-loop — progress=25% tasks(done=1,in_progress=0,planned=4,total=5)
-- cost-multi-model — progress=0% tasks(done=0,in_progress=0,planned=4,total=4)
 - parallel-pipeline — progress=0% tasks(done=0,in_progress=0,planned=6,total=6)
-- parallel-team-execution — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
+- cursor-extension — progress=90% tasks(done=8,in_progress=0,planned=1,total=9)
+- pi-extension — progress=0% tasks(done=0,in_progress=0,planned=12,total=12)
 - dynamic-flow — progress=88% tasks(done=12,in_progress=0,planned=2,total=14)
-- specs/mb-donor-evolution — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/sdd-vision-pipeline — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/svp-sdd-core — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/svp-interview-upgrade — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/svp-roadmap-backlog-db — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/svp-brief — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/svp-parallel-engine — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/svp-adapt-escalation — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/svp-docs-wiki — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
-- specs/svp-contract-test-loop — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+- drive-loop — progress=62% tasks(done=3,in_progress=0,planned=2,total=5)
+- parallel-team-execution — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
+- mb-donor-evolution — progress=0% tasks(done=0,in_progress=0,planned=132,total=132)
+- sdd-vision-pipeline — progress=9% tasks(done=1,in_progress=0,planned=9,total=10)
+- svp-sdd-core — progress=100% tasks(done=9,in_progress=0,planned=0,total=9)
+- svp-interview-upgrade — progress=100% tasks(done=6,in_progress=0,planned=0,total=6)
+- svp-roadmap-backlog-db — progress=39% tasks(done=3,in_progress=0,planned=6,total=9)
+- svp-brief — progress=0% tasks(done=0,in_progress=0,planned=4,total=4)
+- svp-parallel-engine — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
+- svp-adapt-escalation — progress=0% tasks(done=0,in_progress=0,planned=5,total=5)
+- svp-docs-wiki — progress=0% tasks(done=0,in_progress=0,planned=7,total=7)
+- svp-contract-test-loop — progress=0% tasks(done=0,in_progress=0,planned=8,total=8)
 
 ## Group: sdd-vision-pipeline
 progress=26%
-svp-interview-upgrade — ice=504 — ready — progress=100% — blocked_by=none
-svp-roadmap-backlog-db — ice=432 (unconfirmed) — ready — progress=39% — blocked_by=none
-svp-sdd-core — ice=400 (unconfirmed) — ready — progress=100% — blocked_by=none
-svp-brief — ice=448 (unconfirmed) — ready — progress=0% — blocked_by=svp-interview-upgrade
-svp-contract-test-loop — ice=360 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core
-svp-docs-wiki — ice=336 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
-svp-spec-review-loop — ice=336 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core
-svp-parallel-engine — ice=252 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core
-svp-adapt-escalation — ice=294 (unconfirmed) — ready — progress=0% — blocked_by=svp-sdd-core,svp-parallel-engine,svp-roadmap-backlog-db
+svp-interview-upgrade — ice=504 — ready — progress=100% tasks(done=6,in_progress=0,planned=0,total=6) — blocked_by=none
+svp-roadmap-backlog-db — ice=432 (unconfirmed) — ready — progress=39% tasks(done=3,in_progress=0,planned=6,total=9) — blocked_by=none
+svp-sdd-core — ice=400 (unconfirmed) — ready — progress=100% tasks(done=9,in_progress=0,planned=0,total=9) — blocked_by=none
+svp-brief — ice=448 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=4,total=4) — blocked_by=svp-interview-upgrade
+svp-contract-test-loop — ice=360 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=8,total=8) — blocked_by=svp-sdd-core
+svp-docs-wiki — ice=336 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=7,total=7) — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
+svp-spec-review-loop — ice=336 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=5,total=5) — blocked_by=svp-sdd-core
+svp-parallel-engine — ice=252 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=10,total=10) — blocked_by=svp-sdd-core
+svp-adapt-escalation — ice=294 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=5,total=5) — blocked_by=svp-sdd-core,svp-parallel-engine,svp-roadmap-backlog-db
 <!-- /mb-roadmap-auto -->
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
@@ -95,35 +90,6 @@ _Last updated: auto-synced by mb-roadmap-sync.sh_
 **Приоритет: HIGH** — выше donor-релизов после v5.4.0; может идти параллельно с `update-notify` (не пересекается по файлам). Обоснование: это движок, которым donor-программа САМА авторит и валидирует специи — усилив его качество рано, мы поднимаем планку всех последующих спек. **Phase 1** (дешёвые изолированные победы: wording-lint, обязательные сценарии для новых спек, RFC 2119, `## Why`, inputs-registry, archive-gate, secret-scan) ships first и опережает donor v5.5.0+. **Phase 2** (living specs + ADDED/MODIFIED/REMOVED deltas) — отдельный `/mb discuss` перед стартом (D-10), forward-compatible с REQ-OSA-010.
 
 Не пересекается с donor-файлами — трогает нативный SDD-тулинг (`mb-spec-validate.sh`, `mb-sdd.sh`, `mb-ears-validate.sh`, `mb-traceability-gen.sh`, templates). Дальше: `/mb sdd sdd-openspec-parity` → план → governed `/mb work`.
-
-## 🧭 Group: sdd-vision-pipeline (2026-07-17, AGR-017) — главный трек после openspec-adapter/update-notify
-
-Umbrella-группа (D-31, bootstrap вручную — автоматика рендера придёт из слайса S4). Контекст: [context/sdd-vision-pipeline.md](context/sdd-vision-pipeline.md) (D-01…D-35 → REQ-001…048; REQ-049…053 добавлены слайсом S8 по AGR-018; REQ-054 — D-11/находка ревью SVP-012) · транскрипт: [context/sdd-vision-pipeline-interview.md](context/sdd-vision-pipeline-interview.md) · umbrella-спека: `specs/sdd-vision-pipeline` (T1 + 8 слайсов) · гэп-анализ: `reports/2026-07-17_research_mattpocock-skills-vs-mb-pipeline.md`.
-
-**Позиция (AGR-017):** главный трек после дожатия openspec-adapter + update-notify (оба ✅ завершены 2026-07-15); donor-релизы пере-ICE-иваются после создания этой группы. Пересечения принадлежат `sdd-openspec-parity` (quality-слой) и `quality-track` (оракулы/evidence) — ссылками, без дублирования (D-01).
-
-Члены группы (внутригрупповой ICE-порядок, D-14 — цифры предложены LLM, подтверждает пользователь; % считается вручную до S4):
-
-| # | Слайс / задача | ICE | Статус | Blocked by |
-|---|---|---|---|---|
-| T1 | MIT-атрибуция mattpocock/skills (REQ-038) | — | ⬜ ready | — |
-| S1 | `svp-interview-upgrade` | 504 | 🟢 spec ready, 3 круга ревью (24 REQ, 6 задач, 20 сценариев) | — |
-| S7 | `svp-brief` | 448 | 🟢 spec ready, 3 круга ревью (10 REQ, 4 задачи, 7 сценариев) | S1 |
-| S4 | `svp-roadmap-backlog-db` | 432 | 🟢 spec ready, 3 круга ревью (13 REQ, 9 задач, 16 сценариев) | — |
-| S2 | `svp-sdd-core` | 400 | 🟢 spec ready, 3 круга ревью (22 REQ, 9 задач, 21 сценарий) | — |
-| S8 | `svp-contract-test-loop` | 360 | 🟢 spec ready, 2 круга ревью — первым был круг 2 (21 REQ, 8 задач, 12 сценариев) | S2 |
-| S6 | `svp-docs-wiki` | 336 | 🟢 spec ready, 3 круга ревью (12 REQ, 7 задач, 11 сценариев) | S2 |
-| S5 | `svp-adapt-escalation` | 294 | 🟢 spec ready, 3 круга ревью (10 REQ, 5 задач, 10 сценариев) | S2, S3, S4 |
-| S3 | `svp-parallel-engine` | 252 | 🟢 spec ready, 3 круга ревью (17 REQ, 10 задач, 16 сценариев) | S2, S4 |
-| S9 | `svp-spec-review-loop` | 336 (не подтверждён) | 🟢 spec ready, **ревью waived** (AGR-022, 2026-07-18; 13 REQ, 5 задач, 11 сценариев; батарея зелёная, эвалы red) — spec-уровневые review+judge кубики: spec_judge GO/GO_WITH_BACKLOG/NO_GO, fix-петля, реестр отклонений, work-гейт; umbrella-интеграция после ремедиации круга 3 | S2 |
-
-Прогресс группы: задач umbrella 0/10 · child-спек создано 9/9 (S9 добавлен 2026-07-18, AGR-022) · **три круга spec-ревью пройдены, 96+91+75 находок закрыто (2026-07-17/18)**. Полная батарея: EARS 10/10, `--require-scenarios` 9/9 child, 124/124 сценария child-спек извлекаются (test_id уникальны, ASCII), 62 задачи child с полным v2 (Stage/Blocked-by/Scope/Budget/Eval); 10 задач umbrella — bootstrap legacy/meta (CPR-F, круг 3), все eval-гейты подтверждённо красные с `output~:`-якорями настоящего провала. Исполнение: T1 (MIT) → S1 (504) → S7 (448) → S4 (432) → S2 (400) → S8 (360) → S9 (336, после S2) → S6 (336) → S3 (252) → S5 (294, после S3/S4).
-
-**Ревью группы 2026-07-17** ([reports/2026-07-17_review_spec-group-sdd-vision-pipeline.md](reports/2026-07-17_review_spec-group-sdd-vision-pipeline.md), 8 независимых ревьюеров Codex `gpt-5.6-sol`, effort=high): 8/8 CHANGES_REQUESTED, 96 находок (8 critical). **Все закрыты в тот же день**: механика скриптом (роли bare, 39+12 сценариев канонизированы с английскими именами, frontmatter group/ice/blocked_by), umbrella+S2 — оркестратором (грамматики Scope/Blocked-by зафиксированы в S2-C1, claims-lock, двухфазная эскалация, red=FAIL, REQ-054 fast-to-code, REQ-015 батарея самопроверки), S1/S7/S4/S6 — Sonnet-фиксерами, S3/S5 — Opus-фиксерами; каждый слайс верифицирован оркестратором независимо. Процесс-фикс: `commands/sdd.md` § Generation self-check (обязательная батарея потребителей) + урок в `notes/2026-07-17_1300_spec-generation-needs-consumer-battery.md`.
-
-**Ревью группы, круг 2, 2026-07-17** ([reports/2026-07-17_review_spec-group-round2.md](reports/2026-07-17_review_spec-group-round2.md), 9 технических ревьюеров Codex `gpt-5.6-sol` — по одному на спеку, S8 впервые — + 10-й смысловой аудитор с полным транскриптом интервью): 83 технические находки + 8 смысловых. **Все закрыты в тот же день волновыми Opus-фиксерами** (волна 1 — владельцы контрактов umbrella/S1/S2/S4, волна 2 — потребители S7→S3→S8→S6→S5; правило «контракт чинит владелец, потребитель выравнивается под его текущий текст»), каждый слайс верифицирован оркестратором независимо (батарея + перепрогон red-эвалов + grep контрактов). Смысловая находка INT-PLAN-CONTRACT-EVAL решением пользователя не исправляется → AGR-019 (`/mb plan` остаётся ручным). Групповые нормы, введённые кругом 2: red-якоря `output~:` на всех Eval (S2 REQ-054/055, umbrella Interface 1), liveness-lock `mb_lock_acquire` S4-C6 (umbrella Interface 2), JSONL-вердикты (umbrella Interface 5), ICE-объект во frontmatter (umbrella Interface 4), реестр `Contract-checkers` (S8-C3a), субкоманда `annotate` для достижимости READY (X5-01).
-
-**Ревью группы, круг 3 + ремедиация, 2026-07-17/18** ([reports/2026-07-17_review_spec-group-round3.md](reports/2026-07-17_review_spec-group-round3.md) → [reports/2026-07-18_review_spec-group-round3-remediation.md](reports/2026-07-18_review_spec-group-round3-remediation.md); та же схема 9+1 ревьюеров, каждому передан raw-вердикт круга 2 + реестр принятых отклонений): 73 технические находки (7 critical) + 2 смысловые; 15 — UNFIXED/PARTIAL круга 2. **Ремедиация по плану `plans/2026-07-18_fix_spec-group-round3-remediation.md` (через `/mb work`): ровно 4 Opus-фиксера двумя волнами по 2** (F1 umbrella+S4, F2 S2+S1 → F3 S7+S3+S5, F4 S6+S8), непересекающиеся файловые пакеты, независимая верификация оркестратором после каждого, кросс-пакетные запросы маршрутизировались владельцам (CPR-A…G, X-03/X-04). Смысловые решения пользователя: **AGR-020** (Cursor — четвёртый хост полного режима S3, D-07 восстановлен) и **AGR-021** (`ice_confirmed` не декоративен: `unconfirmed_ice=`-ворнинг + эскалация подтверждения, S4-C2/REQ-013). Ключевые нормы круга 3: lock-reclaim через owner-marker + targeted `rmdir` (НЕ `mv`/`rm -rf`); Eval-декларации design.md — fenced-списком byte-identical tasks.md (markdown-таблица заставляет `\|`, ломающий ERE); work-state `eval-red`/`eval-green` сами исполняют cmd-file (фальсификация вердикта флагами невозможна); restricted-glob грамматика Scope; секрет под `<private>` не попадает в git ни в одной политике. Попутно группа получила **S9 `svp-spec-review-loop`** (AGR-022, ревью waived): автоматизация этих же кругов — spec_judge, fix-петля, durable реестр отклонений, preflight-гейт `/mb work`.
 
 ## Track 2 — Donor Evolution Program (2026-07-15, `specs/mb-donor-evolution`)
 
@@ -464,3 +430,37 @@ ICE = Impact × Confidence × Ease (каждый 1–10). Последовате
 - **i18n error-сообщений**
 - **Native memory bridge** (программная синхронизация с Claude Code auto memory)
 - **Viewer dashboard** (если adoption потребует)
+
+## 📚 sdd-vision-pipeline — история группы (архив, не автогенерируется)
+
+> Живые ICE и progress группы теперь рендерит autosync-фенс (слайс S4). Этот раздел —
+> курируемая история: аннотации по слайсам, три круга spec-ревью и ссылки на отчёты,
+> которые генератор не воспроизводит. Заголовок намеренно НЕ в форме `## Group: <slug>`,
+> иначе bootstrap снесёт его при следующем прогоне.
+
+Umbrella-группа (D-31, bootstrap вручную — автоматика рендера придёт из слайса S4). Контекст: [context/sdd-vision-pipeline.md](context/sdd-vision-pipeline.md) (D-01…D-35 → REQ-001…048; REQ-049…053 добавлены слайсом S8 по AGR-018; REQ-054 — D-11/находка ревью SVP-012) · транскрипт: [context/sdd-vision-pipeline-interview.md](context/sdd-vision-pipeline-interview.md) · umbrella-спека: `specs/sdd-vision-pipeline` (T1 + 8 слайсов) · гэп-анализ: `reports/2026-07-17_research_mattpocock-skills-vs-mb-pipeline.md`.
+
+**Позиция (AGR-017):** главный трек после дожатия openspec-adapter + update-notify (оба ✅ завершены 2026-07-15); donor-релизы пере-ICE-иваются после создания этой группы. Пересечения принадлежат `sdd-openspec-parity` (quality-слой) и `quality-track` (оракулы/evidence) — ссылками, без дублирования (D-01).
+
+Члены группы (внутригрупповой ICE-порядок, D-14 — цифры предложены LLM, подтверждает пользователь; % считается вручную до S4):
+
+| # | Слайс / задача | ICE | Статус | Blocked by |
+|---|---|---|---|---|
+| T1 | MIT-атрибуция mattpocock/skills (REQ-038) | — | ⬜ ready | — |
+| S1 | `svp-interview-upgrade` | 504 | 🟢 spec ready, 3 круга ревью (24 REQ, 6 задач, 20 сценариев) | — |
+| S7 | `svp-brief` | 448 | 🟢 spec ready, 3 круга ревью (10 REQ, 4 задачи, 7 сценариев) | S1 |
+| S4 | `svp-roadmap-backlog-db` | 432 | 🟢 spec ready, 3 круга ревью (13 REQ, 9 задач, 16 сценариев) | — |
+| S2 | `svp-sdd-core` | 400 | 🟢 spec ready, 3 круга ревью (22 REQ, 9 задач, 21 сценарий) | — |
+| S8 | `svp-contract-test-loop` | 360 | 🟢 spec ready, 2 круга ревью — первым был круг 2 (21 REQ, 8 задач, 12 сценариев) | S2 |
+| S6 | `svp-docs-wiki` | 336 | 🟢 spec ready, 3 круга ревью (12 REQ, 7 задач, 11 сценариев) | S2 |
+| S5 | `svp-adapt-escalation` | 294 | 🟢 spec ready, 3 круга ревью (10 REQ, 5 задач, 10 сценариев) | S2, S3, S4 |
+| S3 | `svp-parallel-engine` | 252 | 🟢 spec ready, 3 круга ревью (17 REQ, 10 задач, 16 сценариев) | S2, S4 |
+| S9 | `svp-spec-review-loop` | 336 (не подтверждён) | 🟢 spec ready, **ревью waived** (AGR-022, 2026-07-18; 13 REQ, 5 задач, 11 сценариев; батарея зелёная, эвалы red) — spec-уровневые review+judge кубики: spec_judge GO/GO_WITH_BACKLOG/NO_GO, fix-петля, реестр отклонений, work-гейт; umbrella-интеграция после ремедиации круга 3 | S2 |
+
+Прогресс группы: задач umbrella 0/10 · child-спек создано 9/9 (S9 добавлен 2026-07-18, AGR-022) · **три круга spec-ревью пройдены, 96+91+75 находок закрыто (2026-07-17/18)**. Полная батарея: EARS 10/10, `--require-scenarios` 9/9 child, 124/124 сценария child-спек извлекаются (test_id уникальны, ASCII), 62 задачи child с полным v2 (Stage/Blocked-by/Scope/Budget/Eval); 10 задач umbrella — bootstrap legacy/meta (CPR-F, круг 3), все eval-гейты подтверждённо красные с `output~:`-якорями настоящего провала. Исполнение: T1 (MIT) → S1 (504) → S7 (448) → S4 (432) → S2 (400) → S8 (360) → S9 (336, после S2) → S6 (336) → S3 (252) → S5 (294, после S3/S4).
+
+**Ревью группы 2026-07-17** ([reports/2026-07-17_review_spec-group-sdd-vision-pipeline.md](reports/2026-07-17_review_spec-group-sdd-vision-pipeline.md), 8 независимых ревьюеров Codex `gpt-5.6-sol`, effort=high): 8/8 CHANGES_REQUESTED, 96 находок (8 critical). **Все закрыты в тот же день**: механика скриптом (роли bare, 39+12 сценариев канонизированы с английскими именами, frontmatter group/ice/blocked_by), umbrella+S2 — оркестратором (грамматики Scope/Blocked-by зафиксированы в S2-C1, claims-lock, двухфазная эскалация, red=FAIL, REQ-054 fast-to-code, REQ-015 батарея самопроверки), S1/S7/S4/S6 — Sonnet-фиксерами, S3/S5 — Opus-фиксерами; каждый слайс верифицирован оркестратором независимо. Процесс-фикс: `commands/sdd.md` § Generation self-check (обязательная батарея потребителей) + урок в `notes/2026-07-17_1300_spec-generation-needs-consumer-battery.md`.
+
+**Ревью группы, круг 2, 2026-07-17** ([reports/2026-07-17_review_spec-group-round2.md](reports/2026-07-17_review_spec-group-round2.md), 9 технических ревьюеров Codex `gpt-5.6-sol` — по одному на спеку, S8 впервые — + 10-й смысловой аудитор с полным транскриптом интервью): 83 технические находки + 8 смысловых. **Все закрыты в тот же день волновыми Opus-фиксерами** (волна 1 — владельцы контрактов umbrella/S1/S2/S4, волна 2 — потребители S7→S3→S8→S6→S5; правило «контракт чинит владелец, потребитель выравнивается под его текущий текст»), каждый слайс верифицирован оркестратором независимо (батарея + перепрогон red-эвалов + grep контрактов). Смысловая находка INT-PLAN-CONTRACT-EVAL решением пользователя не исправляется → AGR-019 (`/mb plan` остаётся ручным). Групповые нормы, введённые кругом 2: red-якоря `output~:` на всех Eval (S2 REQ-054/055, umbrella Interface 1), liveness-lock `mb_lock_acquire` S4-C6 (umbrella Interface 2), JSONL-вердикты (umbrella Interface 5), ICE-объект во frontmatter (umbrella Interface 4), реестр `Contract-checkers` (S8-C3a), субкоманда `annotate` для достижимости READY (X5-01).
+
+**Ревью группы, круг 3 + ремедиация, 2026-07-17/18** ([reports/2026-07-17_review_spec-group-round3.md](reports/2026-07-17_review_spec-group-round3.md) → [reports/2026-07-18_review_spec-group-round3-remediation.md](reports/2026-07-18_review_spec-group-round3-remediation.md); та же схема 9+1 ревьюеров, каждому передан raw-вердикт круга 2 + реестр принятых отклонений): 73 технические находки (7 critical) + 2 смысловые; 15 — UNFIXED/PARTIAL круга 2. **Ремедиация по плану `plans/2026-07-18_fix_spec-group-round3-remediation.md` (через `/mb work`): ровно 4 Opus-фиксера двумя волнами по 2** (F1 umbrella+S4, F2 S2+S1 → F3 S7+S3+S5, F4 S6+S8), непересекающиеся файловые пакеты, независимая верификация оркестратором после каждого, кросс-пакетные запросы маршрутизировались владельцам (CPR-A…G, X-03/X-04). Смысловые решения пользователя: **AGR-020** (Cursor — четвёртый хост полного режима S3, D-07 восстановлен) и **AGR-021** (`ice_confirmed` не декоративен: `unconfirmed_ice=`-ворнинг + эскалация подтверждения, S4-C2/REQ-013). Ключевые нормы круга 3: lock-reclaim через owner-marker + targeted `rmdir` (НЕ `mv`/`rm -rf`); Eval-декларации design.md — fenced-списком byte-identical tasks.md (markdown-таблица заставляет `\|`, ломающий ERE); work-state `eval-red`/`eval-green` сами исполняют cmd-file (фальсификация вердикта флагами невозможна); restricted-glob грамматика Scope; секрет под `<private>` не попадает в git ни в одной политике. Попутно группа получила **S9 `svp-spec-review-loop`** (AGR-022, ревью waived): автоматизация этих же кругов — spec_judge, fix-петля, durable реестр отклонений, preflight-гейт `/mb work`.

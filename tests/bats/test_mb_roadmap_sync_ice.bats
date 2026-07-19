@@ -2,6 +2,9 @@
 # Tests for scripts/mb-roadmap-sync.sh — S4 Task 1: legacy/priority ordering
 # modes + ICE-component parsing (spec svp-roadmap-backlog-db, design.md C1/C2).
 #
+# Frozen-golden parity for these same renders lives in
+# test_mb_roadmap_sync_golden.bats (split for the 400-line project gate).
+#
 # Red-anchor convention (norm X-05): EVERY test name starts with
 # `roadmap_sync_ice: ` so the gated Eval anchor `not ok [0-9]+ roadmap_sync_ice: `
 # distinguishes a real failure from a missing-file `not ok 1 bats-gather-tests`.
@@ -56,59 +59,6 @@ next_section() {
   ' "$BANK/roadmap.md"
 }
 
-# ── Immutable legacy regression (no ice/pin ⇒ must stay byte-identical) ───────
-# The byte-identical legacy contract is proven against FROZEN GOLDENS generated
-# ONCE by the pre-S4 script + pre-S4 _lib.sh (see tests/fixtures/roadmap_sync_
-# legacy/{corpus,roadmap,golden,real_corpus}/). A moving `git show HEAD` oracle
-# was rejected (post-commit it imports mb_roadmap_order but the extractor only
-# copied the script + _lib.sh ⇒ ModuleNotFoundError, and HEAD is not immutable).
-# The synthetic corpus covers every section/warning branch: in_progress,
-# Next-with-deps, parallel-safe, parallel_safe-with-deps (routed to Next),
-# paused, cancelled, linked_specs(+singular linked_spec), block-style list
-# warning, a no-frontmatter skip, and a dependency cycle. real_corpus/ is the
-# full 18-plan snapshot of HEAD:.memory-bank/plans/*.md.
-
-# Run ONLY the candidate against a frozen corpus + roadmap style and assert its
-# ORDERING + section structure is byte-identical to the frozen pre-S4 legacy
-# golden. The pre-S4 golden captures the legacy DFS ordering only; Task 6 layers
-# an additive `— progress=<N>% stages(...)/tasks(...)` column onto every plan /
-# spec row, so we strip exactly that column before diffing (proving the ordering
-# is unchanged) and separately assert progress IS present (REQ-002).
-# $1 = corpus dir (holds plans/ + roadmap.md), $2 = golden dir.
-compare_candidate_vs_golden() {
-  local corpus="$1" golden="$2"
-  local bank="$TMPROOT/cand/.memory-bank"
-  mkdir -p "$bank/plans"
-  cp "$corpus/plans/"*.md "$bank/plans/"
-  cp "$corpus/roadmap.md" "$bank/roadmap.md"
-
-  local rc=0
-  bash "$SYNC" "$bank" >"$TMPROOT/o" 2>"$TMPROOT/e.raw" || rc=$?
-  [ "$rc" -eq 0 ]
-
-  # Every plan row carries progress+counters (Task 6 / REQ-002) …
-  grep -qE ' — progress=[0-9]+% stages\(done=[0-9]+,in_progress=[0-9]+,planned=[0-9]+,total=[0-9]+\)$' "$bank/roadmap.md"
-  # … then strip the additive progress column and prove the ORDERING + section
-  # structure is byte-identical to the frozen pre-S4 legacy golden.
-  sed -E 's/ — progress=[0-9]+% (stages|tasks)\([^)]*\)//' "$bank/roadmap.md" > "$TMPROOT/roadmap.stripped"
-  diff "$golden/roadmap.md" "$TMPROOT/roadmap.stripped"
-  diff "$golden/stdout" "$TMPROOT/o"
-  # stderr warnings embed the (bank-specific) plan path — normalize before diff.
-  sed "s#$bank#BANK#g" "$TMPROOT/e.raw" > "$TMPROOT/e.n"
-  diff "$golden/stderr" "$TMPROOT/e.n"
-}
-
-# For the synthetic corpus the roadmap style varies (one/none/multi); assemble a
-# per-style corpus dir from the shared plans + the chosen roadmap fixture.
-compare_style_vs_golden() {
-  local style="$1"
-  local corpus="$TMPROOT/corpus-$style"
-  mkdir -p "$corpus/plans"
-  cp "$FIX/corpus/plans/"*.md "$corpus/plans/"
-  cp "$FIX/roadmap/$style.md" "$corpus/roadmap.md"
-  compare_candidate_vs_golden "$corpus" "$FIX/golden/$style"
-}
-
 # ═══════════════════════════════════════════════════════════════
 # Legacy mode — no ice/pin anywhere ⇒ today's DFS dependency_order()
 # ═══════════════════════════════════════════════════════════════
@@ -126,22 +76,6 @@ compare_style_vs_golden() {
   # Expect order c, a, b
   order=$(grep -oE '\[(a|b|c)\]' "$TMPROOT/next.txt" | tr -d '[]' | tr '\n' ' ')
   [ "$order" = "c a b " ]
-}
-
-@test "roadmap_sync_ice: full corpus byte-identical to the frozen legacy golden (one fence)" {
-  compare_style_vs_golden one
-}
-
-@test "roadmap_sync_ice: byte-identical to the frozen legacy golden when the fence is missing (injected)" {
-  compare_style_vs_golden none
-}
-
-@test "roadmap_sync_ice: byte-identical to the frozen legacy golden with multiple fences (only first regenerated)" {
-  compare_style_vs_golden multi
-}
-
-@test "roadmap_sync_ice: full 18-plan HEAD corpus byte-identical to the frozen legacy golden" {
-  compare_candidate_vs_golden "$FIX/real_corpus" "$FIX/real_corpus/golden"
 }
 
 @test "roadmap_sync_ice: outside-fence content is byte-identical and idempotent" {

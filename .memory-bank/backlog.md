@@ -735,6 +735,12 @@ Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087
 
 ### I-140 — drive-loop тесты: настоящий concurrent-write bats для drive-слотов (фоновые процессы + wait, не последовательные записи) + прогон test_mb_drive_resume_gate.bats без jq (python3- и manual-fallback пути парсера сейчас скипаются целиком) (src: codex-ревью T4 MINOR-2/3, judge cycle 1) [LOW, NEW, 2026-07-19]
 
+### I-144 — /mb drive: global-bank e2e smoke для preflight-фенса — текущие тесты гоняют временные локальные банки; прогнать фенс против банка, зарегистрированного через registry.json (ветка mb_resolve_path global). FIX-3 сделан именно ради global/relocated банков, но e2e-подтверждения этой ветки нет (src: T2 judge cycle 1→2) [LOW, NEW, 2026-07-19]
+
+### I-142 — drive-loop T3 forward-ref re-verify: loop-таблица commands/drive.md описывает `pivot <in_role|via_architect>` и trend-семантику, чей вайринг уходит в T3 (donor v5.6.0, AGR-024/011); при посадке T3 перепроверить дословное совпадение фактических эмиссий mb-drive.sh с контрактом T2 — сейчас непроверяемо by design (src: T2 judge cycle 1→2) [LOW, NEW, 2026-07-19]
+
+### I-143 — mb-goal-validate.sh FIX-6 edge: цель, у которой КАЖДЫЙ acceptance-критерий — одиночный `<...>`-спан (`- [ ] <feature flag removed>`), отклоняется как незаполненный шаблон даже если написана намеренно (ALL-правило, отказ громкий exit 1 + хинт). Добавить в хинт «перефразируйте критерий без обрамляющих угловых скобок» или escape-hatch, если кейс всплывёт у пользователей (src: fixer disclosure / T2 judge cycle 2) [LOW, NEW, 2026-07-19]
+
 
 ### I-141 — SKILL.md '## Tools' таблица отстала от scripts/ на 35 скриптов — doc-count тесты красные [MED, NEW, 2026-07-19]
 

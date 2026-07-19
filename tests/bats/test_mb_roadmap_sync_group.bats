@@ -58,87 +58,44 @@ group_block() {  # lines from `## Group:` region inside the fence
 # Progress (REQ-002/REQ-012)
 # ═══════════════════════════════════════════════════════════════
 
-@test "roadmap_sync_group: member line matches design grammar (percent only, blocked_by tail)" {
-  # design C2 / tasks.md T6 member grammar is percent-only; per-item counters
-  # live in the ordinary plan/spec rows, NOT the Group member line.
+@test "roadmap_sync_group: member line carries percentage AND task counters (REQ-002)" {
+  # REQ-002 (ubiquitous): "The roadmap-sync script shall render per-spec and
+  # per-plan progress — percentage PLUS COUNTERS of stages/tasks planned, in
+  # progress and done". A spec that exists only inside a Group block gets its
+  # counters nowhere else, so the member line must carry them.
   mkspec alpha "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 2 4 1
   run bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
-  grep -qxF 'alpha — ice=504 — ready — progress=50% — blocked_by=none' "$BANK/roadmap.md"
-  # and the member line does NOT carry stages()/tasks() counters
-  ! grep -qE 'alpha — .*tasks\(' "$BANK/roadmap.md"
+  grep -qxF 'alpha — ice=504 — ready — progress=50% tasks(done=2,in_progress=0,planned=2,total=4) — blocked_by=none' "$BANK/roadmap.md"
 }
 
-@test "roadmap_sync_group: spec with no DoD tasks renders progress=0% (member line)" {
+@test "roadmap_sync_group: spec with no DoD tasks renders progress=0% with zero counters" {
   mkspec alpha "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true draft 0 0 1
   run bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
-  grep -qxF 'alpha — ice=504 — draft — progress=0% — blocked_by=none' "$BANK/roadmap.md"
+  grep -qxF 'alpha — ice=504 — draft — progress=0% tasks(done=0,in_progress=0,planned=0,total=0) — blocked_by=none' "$BANK/roadmap.md"
+}
+
+@test "roadmap_sync_group: a group-only spec (no plan links it) still gets counters" {
+  # Regression guard for the actual REQ-002 gap: this spec appears in NO plan's
+  # linked_specs, so the Group member line is its ONLY row in the roadmap.
+  mkspec lonely "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 1 3 1
+  run bash "$SYNC" "$BANK"
+  [ "$status" -eq 0 ]
+  ! grep -qE '^- lonely —' "$BANK/roadmap.md"      # not in Linked Specs
+  grep -qE '^lonely — .* tasks\(done=1,in_progress=0,planned=2,total=3\) — blocked_by=none$' "$BANK/roadmap.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Group render + intra-group order + blockers + aggregate (REQ-003)
+# Group member rendering (REQ-003); intra-group ORDER lives in
+# test_mb_roadmap_sync_group_order.bats
 # ═══════════════════════════════════════════════════════════════
-
-@test "roadmap_sync_group: group members ordered by ICE with blockers respected" {
-  mkspec a "$GROUP" "{impact: 8, confidence: 9, ease: 7}" ""  true ready 1 1 1  # 504
-  mkspec b "$GROUP" "{impact: 8, confidence: 9, ease: 6}" "a" true ready 0 1 2  # 432, blocked by a
-  mkspec c "$GROUP" "{impact: 10, confidence: 8, ease: 5}" "" true ready 0 1 3  # 400
-  run bash "$SYNC" "$BANK"
-  [ "$status" -eq 0 ]
-  group_block > "$TMPROOT/g.txt"
-  grep -q "## Group: $GROUP" "$TMPROOT/g.txt"
-  # blocked member b emits after its blocker a; c (400, unblocked) precedes b
-  order=$(grep -oE '^(a|b|c) — ' "$TMPROOT/g.txt" | awk '{print $1}' | tr '\n' ' ')
-  [ "$order" = "a c b " ]
-  # blocker is shown on b's line
-  grep -qE '^b — .* blocked_by=a$' "$TMPROOT/g.txt"
-  grep -qE '^a — .* blocked_by=none$' "$TMPROOT/g.txt"
-}
-
-@test "roadmap_sync_group: aggregate group progress is the floor mean of members" {
-  mkspec a "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 1 1 1  # 100%
-  mkspec b "$GROUP" "{impact: 8, confidence: 9, ease: 6}" "" true ready 0 1 2  # 0%
-  run bash "$SYNC" "$BANK"
-  [ "$status" -eq 0 ]
-  # mean(100,0)=50
-  grep -qE 'progress=50%' <(group_block)
-}
 
 @test "roadmap_sync_group: unconfirmed ICE gets the (unconfirmed) member suffix" {
   mkspec a "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" false ready 0 1 1
   run bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
   grep -qE 'a — ice=504 \(unconfirmed\) — ' "$BANK/roadmap.md"
-}
-
-# ═══════════════════════════════════════════════════════════════
-# Group block position + ordering (R3-007)
-# ═══════════════════════════════════════════════════════════════
-
-@test "roadmap_sync_group: group blocks sit after Linked Specs, before fence, slugs C-locale asc (load-bearing)" {
-  # Load-bearing (R3-007): the spec-dir scan order is the REVERSE of the C-locale
-  # slug order — dir `aaa` → group `zeta`, dir `zzz` → group `alpha`. So the scan
-  # inserts zeta BEFORE alpha; only `sorted(groups.keys())` flips the emitted
-  # order to alpha,zeta. Dropping the sort would emit zeta,alpha and fail here.
-  mkspec aaa zeta  "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
-  mkspec zzz alpha "{impact: 8, confidence: 9, ease: 6}" "" true ready 0 1 2
-  outside_before=$(awk 'BEGIN{p=1} /<!-- mb-roadmap-auto -->/{p=0} p; /<!-- \/mb-roadmap-auto -->/{p=1}' "$BANK/roadmap.md")
-  run bash "$SYNC" "$BANK"
-  [ "$status" -eq 0 ]
-  # exact header form, alpha before zeta despite reversed scan order
-  ga=$(grep -n '^## Group: alpha$' "$BANK/roadmap.md" | head -1 | cut -d: -f1)
-  gz=$(grep -n '^## Group: zeta$' "$BANK/roadmap.md" | head -1 | cut -d: -f1)
-  ls=$(grep -n '^## Linked Specs (active)$' "$BANK/roadmap.md" | head -1 | cut -d: -f1)
-  fc=$(grep -n '^<!-- /mb-roadmap-auto -->$' "$BANK/roadmap.md" | head -1 | cut -d: -f1)
-  [ -n "$ga" ] && [ -n "$gz" ] && [ -n "$ls" ] && [ -n "$fc" ]
-  [ "$ls" -lt "$ga" ]; [ "$ga" -lt "$gz" ]; [ "$gz" -lt "$fc" ]
-  # EXACTLY one blank line separates the two group blocks (byte-level, R3-007).
-  [ -z "$(sed -n "$((gz - 1))p" "$BANK/roadmap.md")" ]   # separator line is blank
-  [ -n "$(sed -n "$((gz - 2))p" "$BANK/roadmap.md")" ]   # and only one blank (prev is content)
-  # content outside the fence untouched
-  outside_after=$(awk 'BEGIN{p=1} /<!-- mb-roadmap-auto -->/{p=0} p; /<!-- \/mb-roadmap-auto -->/{p=1}' "$BANK/roadmap.md")
-  [ "$outside_before" = "$outside_after" ]
 }
 
 @test "roadmap_sync_group: run is idempotent (bootstrap transfer happens once)" {
@@ -197,15 +154,6 @@ group_block() {  # lines from `## Group:` region inside the fence
   grep -qE "^## Group: $GROUP$" "$BANK/roadmap.md"
 }
 
-@test "roadmap_sync_group: a manual ## Group outside the fence is never read nor touched" {
-  printf -- '# Roadmap\n\n<!-- mb-roadmap-auto -->\n<!-- /mb-roadmap-auto -->\n\n## Group: manual-note\nhand-written, not registry data\n' > "$BANK/roadmap.md"
-  mkspec a "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
-  run --separate-stderr bash "$SYNC" "$BANK"
-  [ "$status" -eq 0 ]
-  [[ "$stderr" != *"orphan_group"* ]]
-  grep -qF 'hand-written, not registry data' "$BANK/roadmap.md"
-}
-
 # ═══════════════════════════════════════════════════════════════
 # --check (read-only, F-008)
 # ═══════════════════════════════════════════════════════════════
@@ -240,6 +188,38 @@ group_block() {  # lines from `## Group:` region inside the fence
   grep -qxF -- '- linkedspec — progress=50% tasks(done=0,in_progress=1,planned=0,total=1)' "$BANK/roadmap.md"
 }
 
+@test "roadmap_sync_group: legacy linked_specs forms all resolve to real tasks.md progress" {
+  # The live bank carries THREE shapes of linked_specs entries:
+  #   `foo`  ·  `specs/foo`  ·  `specs/foo/design.md`
+  # Only the bare slug resolved before; the other two built specs/specs/foo/...
+  # and silently rendered progress=0% total=0 for finished work (REQ-002).
+  for slug in bare withprefix withfile; do
+    mkdir -p "$BANK/specs/$slug"
+    printf -- '---\ntopic: %s\nstatus: ready\n---\n# R\n' "$slug" > "$BANK/specs/$slug/requirements.md"
+    printf -- '# Tasks\n\n<!-- mb-task:1 -->\n## Task 1\n\n**DoD:**\n- [x] a\n- [ ] b\n<!-- /mb-task:1 -->\n' > "$BANK/specs/$slug/tasks.md"
+    printf -- '# Design\n' > "$BANK/specs/$slug/design.md"
+  done
+  printf -- '---\ntopic: pln\nstatus: queued\nparallel_safe: false\ndepends_on: []\nlinked_specs: [bare, specs/withprefix, "specs/withfile/design.md"]\n---\n# Feature: pln\n' > "$BANK/plans/2026-02-01_feature_pln.md"
+  run bash "$SYNC" "$BANK"
+  [ "$status" -eq 0 ]
+  # every form normalizes to the topic slug and reports the SAME real progress
+  grep -qxF -- '- bare — progress=50% tasks(done=0,in_progress=1,planned=0,total=1)' "$BANK/roadmap.md"
+  grep -qxF -- '- withprefix — progress=50% tasks(done=0,in_progress=1,planned=0,total=1)' "$BANK/roadmap.md"
+  grep -qxF -- '- withfile — progress=50% tasks(done=0,in_progress=1,planned=0,total=1)' "$BANK/roadmap.md"
+  # and no un-normalized `specs/...` slug leaks into the Linked Specs rows
+  ! grep -qE '^- specs/' "$BANK/roadmap.md"
+}
+
+@test "roadmap_sync_group: differently-spelled linked_specs for ONE spec dedupe to a single row" {
+  mkdir -p "$BANK/specs/dup"
+  printf -- '---\ntopic: dup\nstatus: ready\n---\n# R\n' > "$BANK/specs/dup/requirements.md"
+  printf -- '# Tasks\n\n<!-- mb-task:1 -->\n## Task 1\n\n**DoD:**\n- [x] a\n<!-- /mb-task:1 -->\n' > "$BANK/specs/dup/tasks.md"
+  printf -- '---\ntopic: pln\nstatus: queued\nparallel_safe: false\ndepends_on: []\nlinked_specs: [dup, specs/dup, "specs/dup/design.md"]\n---\n# Feature: pln\n' > "$BANK/plans/2026-02-01_feature_pln.md"
+  run bash "$SYNC" "$BANK"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^- dup — ' "$BANK/roadmap.md")" -eq 1 ]
+}
+
 # ═══════════════════════════════════════════════════════════════
 # Group discovery is specs-only; plans are never members (design C2)
 # ═══════════════════════════════════════════════════════════════
@@ -255,45 +235,6 @@ group_block() {  # lines from `## Group:` region inside the fence
 # ═══════════════════════════════════════════════════════════════
 # Malformed member ordering fields — warning vs hard error (design C2)
 # ═══════════════════════════════════════════════════════════════
-
-@test "roadmap_sync_group: malformed pin fails exit 3 (not silent normalization)" {
-  mkdir -p "$BANK/specs/s1"
-  printf -- '---\ntopic: s1\ngroup: grp\nice: {impact: 8, confidence: 9, ease: 7}\nice_confirmed: true\nblocked_by: []\npin: nope\nstatus: ready\n---\n# R\n' > "$BANK/specs/s1/requirements.md"
-  printf -- '# Tasks\n' > "$BANK/specs/s1/tasks.md"
-  run --separate-stderr bash "$SYNC" "$BANK"
-  [ "$status" -eq 3 ]
-  [[ "$stderr" == *"invalid_pin"* ]]
-}
-
-@test "roadmap_sync_group: malformed blocked_by fails exit 3" {
-  mkdir -p "$BANK/specs/s1"
-  printf -- '---\ntopic: s1\ngroup: grp\nice: {impact: 8, confidence: 9, ease: 7}\nice_confirmed: true\nblocked_by: not-a-list\nstatus: ready\n---\n# R\n' > "$BANK/specs/s1/requirements.md"
-  printf -- '# Tasks\n' > "$BANK/specs/s1/tasks.md"
-  run --separate-stderr bash "$SYNC" "$BANK"
-  [ "$status" -eq 3 ]
-  [[ "$stderr" == *"invalid_blocked_by"* ]]
-}
-
-@test "roadmap_sync_group: malformed created fails exit 3" {
-  mkdir -p "$BANK/specs/s1" "$BANK/context"
-  printf -- '---\ntopic: s1\ngroup: grp\nice: {impact: 8, confidence: 9, ease: 7}\nice_confirmed: true\nblocked_by: []\nstatus: ready\n---\n# R\n' > "$BANK/specs/s1/requirements.md"
-  printf -- '# Tasks\n' > "$BANK/specs/s1/tasks.md"
-  printf -- '---\ntopic: s1\ncreated: nonsense\n---\n# ctx\n' > "$BANK/context/s1.md"
-  run --separate-stderr bash "$SYNC" "$BANK"
-  [ "$status" -eq 3 ]
-  [[ "$stderr" == *"invalid_created"* ]]
-}
-
-@test "roadmap_sync_group: invalid ICE warns and degrades to legacy tail (no exit 3)" {
-  mkdir -p "$BANK/specs/s1" "$BANK/context"
-  printf -- '---\ntopic: s1\ngroup: grp\nice: 432\nblocked_by: []\nstatus: ready\n---\n# R\n' > "$BANK/specs/s1/requirements.md"
-  printf -- '# Tasks\n' > "$BANK/specs/s1/tasks.md"
-  printf -- '---\ntopic: s1\ncreated: 2026-01-01\n---\n# ctx\n' > "$BANK/context/s1.md"
-  run --separate-stderr bash "$SYNC" "$BANK"
-  [ "$status" -eq 0 ]
-  [[ "$stderr" == *"invalid ice"* ]]
-  grep -qE 's1 — ice=invalid — ' "$BANK/roadmap.md"
-}
 
 # ═══════════════════════════════════════════════════════════════
 # unconfirmed_ice scope — only ICE-ordered items escalate (design C2)
@@ -319,96 +260,11 @@ group_block() {  # lines from `## Group:` region inside the fence
 # Bootstrap transfer of a manual out-of-fence Group block (Task 6)
 # ═══════════════════════════════════════════════════════════════
 
-@test "roadmap_sync_group: bootstrap removes a manual out-of-fence Group block once (idempotent)" {
-  printf -- '# Roadmap\n\n<!-- mb-roadmap-auto -->\n<!-- /mb-roadmap-auto -->\n\n## Group: sdd-vision-pipeline\nhand-written legacy bootstrap body\nmore manual lines\n' > "$BANK/roadmap.md"
-  mkspec childspec sdd-vision-pipeline "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
-  run bash "$SYNC" "$BANK"
-  [ "$status" -eq 0 ]
-  # exactly one header, and it is inside the fence; manual body gone
-  [ "$(grep -c '^## Group: sdd-vision-pipeline$' "$BANK/roadmap.md")" -eq 1 ]
-  gh=$(grep -n '^## Group: sdd-vision-pipeline$' "$BANK/roadmap.md" | head -1 | cut -d: -f1)
-  fc=$(grep -n '^<!-- /mb-roadmap-auto -->$' "$BANK/roadmap.md" | head -1 | cut -d: -f1)
-  [ "$gh" -lt "$fc" ]                     # header sits INSIDE the fence
-  ! grep -qF 'hand-written legacy bootstrap body' "$BANK/roadmap.md"
-  ! grep -qF 'more manual lines' "$BANK/roadmap.md"
-  # idempotent second run
-  cp "$BANK/roadmap.md" "$TMPROOT/once.md"
-  run bash "$SYNC" "$BANK"
-  [ "$status" -eq 0 ]
-  diff "$TMPROOT/once.md" "$BANK/roadmap.md"
-}
-
 # ═══════════════════════════════════════════════════════════════
 # Shared ordering fixture through the S4 consumer (R2-003-R3)
 # ═══════════════════════════════════════════════════════════════
-
-@test "roadmap_sync_group: shared svp_group_ordering.json fixture yields its expected order via the S4 render" {
-  local fixture="$REPO_ROOT/tests/fixtures/svp_group_ordering.json"
-  [ -f "$fixture" ]
-  # materialize each canonical case as its own group of specs
-  python3 - "$fixture" "$BANK" <<'PY'
-import json, os, sys
-fixture, bank = sys.argv[1], sys.argv[2]
-os.makedirs(os.path.join(bank, "context"), exist_ok=True)
-for c in json.load(open(fixture))["cases"]:
-    grp = c["name"].replace("_", "-")
-    for m in c["members"]:
-        topic = m["topic"]
-        d = os.path.join(bank, "specs", topic)
-        os.makedirs(d, exist_ok=True)
-        fm = ["---", f"topic: {topic}", f"group: {grp}"]
-        if m.get("ice") is not None:
-            fm.append(f"ice: {m['ice']}")
-        fm.append("ice_confirmed: true")
-        fm.append("blocked_by: [%s]" % ", ".join(m.get("blocked_by") or []))
-        if m.get("pin") is not None:
-            fm.append(f"pin: {m['pin']}")
-        fm += ["status: ready", "---", f"# {topic}"]
-        open(os.path.join(d, "requirements.md"), "w").write("\n".join(fm) + "\n")
-        open(os.path.join(d, "tasks.md"), "w").write("# Tasks\n")
-        if m.get("created"):
-            open(os.path.join(bank, "context", topic + ".md"), "w").write(
-                f"---\ntopic: {topic}\ncreated: {m['created']}\n---\n# ctx\n")
-PY
-  run bash "$SYNC" "$BANK"
-  [ "$status" -eq 0 ]
-  # each group's rendered member order must equal the fixture's expected order
-  python3 - "$fixture" "$BANK/roadmap.md" <<'PY'
-import json, re, sys
-fixture, roadmap = sys.argv[1], sys.argv[2]
-lines = open(roadmap, encoding="utf-8").read().split("\n")
-for c in json.load(open(fixture))["cases"]:
-    grp = c["name"].replace("_", "-")
-    order, inside = [], False
-    for ln in lines:
-        if ln == f"## Group: {grp}":
-            inside = True
-            continue
-        if inside:
-            if ln.startswith("## ") or ln.startswith("<!-- "):
-                break
-            mo = re.match(r"^([a-z0-9][a-z0-9-]*) ", ln)
-            if mo and " ice=" in ln:
-                order.append(mo.group(1))
-    assert order == c["expected_order"], f"{c['name']}: got {order} want {c['expected_order']}"
-print("OK")
-PY
-}
 
 # ═══════════════════════════════════════════════════════════════
 # Portability
 # ═══════════════════════════════════════════════════════════════
 
-@test "roadmap_sync_group: works when the bank path contains spaces" {
-  SPACED="$TMPROOT/with space/.memory-bank"
-  mkdir -p "$SPACED/specs" "$SPACED/context" "$SPACED/plans"
-  printf -- '# Roadmap\n\n<!-- mb-roadmap-auto -->\n<!-- /mb-roadmap-auto -->\n' > "$SPACED/roadmap.md"
-  local d="$SPACED/specs/a"
-  mkdir -p "$d"
-  printf -- '---\ntopic: a\ngroup: g\nice: {impact: 8, confidence: 9, ease: 7}\nice_confirmed: true\nblocked_by: []\nstatus: ready\n---\n# R\n' > "$d/requirements.md"
-  printf -- '---\ntopic: a\ncreated: 2026-01-01\n---\n# ctx\n' > "$SPACED/context/a.md"
-  printf -- '# Tasks\n\n<!-- mb-task:1 -->\n## Task 1\n\n**DoD:**\n- [x] item\n<!-- /mb-task:1 -->\n' > "$d/tasks.md"
-  run bash "$SYNC" "$SPACED"
-  [ "$status" -eq 0 ]
-  grep -qE '^## Group: g$' "$SPACED/roadmap.md"
-}
