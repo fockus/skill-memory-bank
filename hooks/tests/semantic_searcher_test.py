@@ -1,4 +1,5 @@
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -53,6 +54,19 @@ class _SlowEmbedder:
         return np.stack([_norm([1, 0, 0]) for _ in texts])
 
 
+class _GatedEmbedder:
+    """Blocks in embed() until released — a deterministic slow model load."""
+
+    model_name = "m"
+
+    def __init__(self):
+        self.release = threading.Event()
+
+    def embed(self, texts):
+        self.release.wait(10.0)
+        return np.stack([_norm([1, 0, 0]) for _ in texts])
+
+
 def test_run_search_returns_match(tmp_path):
     idx = _build_index(tmp_path)
     out = run_search(idx, "kamal", top_k=1, min_score=0.0, timeout=5, embedder=_FastEmbedder())
@@ -87,6 +101,32 @@ def test_stuck_model_load_keeps_the_flock_held(tmp_path):
     lock = tmp_path / "model.lock"  # pinned by the autouse fixture
     with open(lock, "w") as fh, pytest.raises(OSError):
         fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def test_timed_out_worker_releases_the_flock_after_late_finish(tmp_path):
+    """codex round-4 minor: pin the aa1c692 headline behavior — a worker that
+    misses the deadline but later genuinely finishes must release the machine
+    lock ITSELF (ownership transfer), or a long-lived process self-starves
+    until exit."""
+    import fcntl
+
+    idx = _build_index(tmp_path)
+    emb = _GatedEmbedder()
+    out = run_search(idx, "kamal", top_k=1, min_score=0.0, timeout=0.2, embedder=emb)
+    assert out == []
+    lock = tmp_path / "model.lock"  # pinned by the autouse fixture
+    with open(lock, "w") as fh:
+        with pytest.raises(OSError):  # load still in flight → flock stays held
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        emb.release.set()  # the "load" completes late
+        deadline = time.monotonic() + 5.0
+        while True:
+            try:
+                fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break  # the worker's own finally released it
+            except OSError:
+                assert time.monotonic() < deadline, "worker never released the flock"
+                time.sleep(0.05)
 
 
 def test_try_lock_unwritable_path_fails_open(tmp_path):
