@@ -10,8 +10,14 @@ version: 1
 roles:
   # User decision 2026-07-18 (goal G-001, исполнение группы sdd-vision-pipeline):
   # /mb work IMPLEMENTERS run on OPUS, review is cross-model on CODEX
-  # (gpt-5.6-sol, thinking xhigh), the JUDGE runs on FABLE. Supersedes the
+  # (gpt-5.6-sol, thinking xhigh), the JUDGE runs on OPUS. Supersedes the
   # 2026-07-05 sonnet/gpt-5.5/opus assignment for the group execution.
+  # Judge model raised fable → opus (user decision 2026-07-20): the judge
+  # terminates the review loop and decides GO/GO_WITH_BACKLOG/NO_GO on
+  # findings a gpt-5.6-sol reviewer produced at xhigh. Sessions S1/S2/S4
+  # showed those findings turn on subtle evidence — hollow test assertions,
+  # a gate that holds on one call path and evaporates on another — so the
+  # deciding role needs at least the reviewer's depth, not less.
   developer: { agent: mb-developer, model: opus }
   backend:   { agent: mb-backend,   model: opus, fallback: mb-developer }
   frontend:  { agent: mb-frontend,  model: opus, fallback: mb-developer }
@@ -35,7 +41,7 @@ roles:
   reviewer_security:    { agent: mb-reviewer-security }
   reviewer_scalability: { agent: mb-reviewer-scalability }
   reviewer_lead:        { agent: mb-reviewer-lead }
-  judge:                { agent: mb-judge, model: fable }
+  judge:                { agent: mb-judge, model: opus }
   verifier:  { agent: plan-verifier }
 
 # ===== Workflow modes for /mb work =====
