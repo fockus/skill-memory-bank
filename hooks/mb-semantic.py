@@ -45,9 +45,8 @@ def cmd_search(args) -> int:
 
         backend = resolve_backend()
         index_dir = _index_dir(_mb_root())
-        timer = _arm_deadline(args.timeout)  # covers catch-up + search
-        if backend == "bm25":
-            _catchup(index_dir)
+        timer = _arm_deadline(args.timeout, backend)  # covers catch-up + search
+        _catchup(index_dir, backend)
         out = run_search(
             index_dir,
             args.query,
@@ -65,9 +64,12 @@ def cmd_search(args) -> int:
     return 0
 
 
-def _catchup(index_dir) -> int:
-    """BM25 catch-up (I-132): chunk-only reindex when the index is marked dirty
-    or missing. Bounded work, non-blocking flock inside — a busy writer means
+def _catchup(index_dir, backend: str) -> int:
+    """Catch-up reindex (I-132) when the index is marked dirty or missing.
+
+    Runs for BOTH backends so a `.dirty` marker never rots: BM25 is chunk-only
+    (no model); embeddings additionally takes the machine-wide model lock
+    inside ``index_sources``. All locks are non-blocking — a busy writer means
     we just search the stale index and leave the marker for the next call."""
     try:
         idx = Path(index_dir)
@@ -75,7 +77,7 @@ def _catchup(index_dir) -> int:
             return 0
         from indexer import index_sources
 
-        res = index_sources(_mb_root(), idx, sources=None, full=False)
+        res = index_sources(_mb_root(), idx, sources=None, full=False, backend=backend)
         if not res.get("skipped"):
             (idx / ".dirty").unlink(missing_ok=True)
     except Exception:
@@ -83,10 +85,12 @@ def _catchup(index_dir) -> int:
     return 0
 
 
-def _arm_deadline(timeout: float):
+def _arm_deadline(timeout: float, backend: str):
     """Hard process deadline (I-132): a stuck native model load must never
     outlive its budget as a multi-GB zombie. Fires only when the normal path is
-    stuck — emits an empty result and force-exits the whole process."""
+    stuck — emits an empty result and force-exits the whole process. The
+    embeddings budget is larger (model load + catch-up embedding) but still a
+    hard bound; the singleton model lock keeps concurrent callers on BM25."""
     import threading
 
     def _kill():
@@ -94,7 +98,8 @@ def _arm_deadline(timeout: float):
         sys.stdout.flush()
         os._exit(0)
 
-    t = threading.Timer(float(timeout) + 5.0, _kill)
+    grace = 120.0 if backend == "embeddings" else 5.0
+    t = threading.Timer(float(timeout) + grace, _kill)
     t.daemon = True
     t.start()
     return t

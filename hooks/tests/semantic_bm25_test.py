@@ -111,11 +111,14 @@ def test_index_write_lock_busy_skips(mb, tmp_path, no_model):
         assert not (idx / "meta.jsonl").exists()
 
 
-def test_embeddings_model_lock_busy_falls_back_to_bm25(mb, tmp_path, no_model):
+def test_embeddings_model_lock_busy_falls_back_to_bm25(mb, tmp_path, no_model, monkeypatch):
+    # The model lock is MACHINE-wide (per-index locks would allow one model per
+    # open project — codex review); tests pin it into tmp via the env override.
+    lock = tmp_path / "model.lock"
+    monkeypatch.setenv("MB_SEMANTIC_MODEL_LOCK", str(lock))
     idx = tmp_path / "idx"
     indexer.index_sources(mb, idx, sources=None, full=True)
-    idx.mkdir(exist_ok=True)
-    with open(idx / ".model.lock", "w") as lockf:
+    with open(lock, "w") as lockf:
         fcntl.flock(lockf, fcntl.LOCK_EX | fcntl.LOCK_NB)
         out = run_search(
             idx, "kamal deploy", top_k=3, min_score=0.35, timeout=3, backend="embeddings"

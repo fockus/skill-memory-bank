@@ -68,7 +68,8 @@ fi
 # semantic: mark the index dirty — the next recall reindexes inline under a
 # non-blocking flock (I-132: lifecycle hooks spawn NO detached indexers, ever)
 if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
-  mkdir -p "$MB/.index" 2>/dev/null && : > "$MB/.index/.dirty" 2>/dev/null
+  _IDX="${MB_INDEX_DIR:-$MB/.index}"
+  mkdir -p "$_IDX" 2>/dev/null && : > "$_IDX/.dirty" 2>/dev/null
 fi
 
 # Quick-reference cheat-sheet on how to use the project's memory tools.

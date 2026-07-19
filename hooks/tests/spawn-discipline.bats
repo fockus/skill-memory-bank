@@ -11,10 +11,25 @@ setup() {
   BIN="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 }
 
-@test "no hook detaches mb-semantic.py into the background" {
+@test "no hook or script detaches mb-semantic.py into the background" {
   run grep -nE 'mb-semantic\.py[^)]*&' \
-    "$BIN/mb-session-start.sh" "$BIN/mb-session-summarize.sh" "$BIN/mb-semantic-recall.sh"
+    "$BIN/mb-session-start.sh" "$BIN/mb-session-summarize.sh" "$BIN/mb-semantic-recall.sh" \
+    "$BIN/../scripts/mb-session-prune.sh"
   [ "$status" -ne 0 ]
+}
+
+@test "session-prune marks the index dirty instead of detaching prune" {
+  run grep -F '.dirty' "$BIN/../scripts/mb-session-prune.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "lifecycle dirty markers honor MB_INDEX_DIR" {
+  run grep -F 'MB_INDEX_DIR' "$BIN/mb-session-start.sh"
+  [ "$status" -eq 0 ]
+  run grep -F 'MB_INDEX_DIR' "$BIN/mb-session-summarize.sh"
+  [ "$status" -eq 0 ]
+  run grep -F 'MB_INDEX_DIR' "$BIN/../scripts/mb-session-prune.sh"
+  [ "$status" -eq 0 ]
 }
 
 @test "session-start marks the index dirty instead of reindexing" {

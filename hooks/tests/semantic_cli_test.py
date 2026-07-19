@@ -68,6 +68,30 @@ def test_cli_search_picks_up_dirty_marker(tmp_path):
     assert not (mb / ".index" / ".dirty").exists()
 
 
+def test_cli_default_path_never_imports_numpy_or_fastembed(tmp_path):
+    """Executable invariant (I-132): search + dirty catch-up + index write on
+    the default backend must touch neither numpy nor fastembed — checked on
+    sys.modules in a clean subprocess, so a transitive import fails loudly."""
+    mb = _mk_bank(tmp_path)
+    (mb / ".index").mkdir()
+    (mb / ".index" / ".dirty").touch()
+    code = (
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('mbsem', {str(CLI)!r})\n"
+        "m = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(m)\n"
+        "rc = m.main(['search', 'kamal deploy', '--json'])\n"
+        "banned = [n for n in ('numpy', 'fastembed') if n in sys.modules]\n"
+        "assert rc == 0 and not banned, f'banned modules on hot path: {banned}'\n"
+    )
+    env = dict(os.environ, MB_ROOT=str(mb))
+    env.pop("MB_SEMANTIC_BACKEND", None)
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout.splitlines()[-1])  # the search actually found the note
+    assert not (mb / ".index" / ".dirty").exists()  # catch-up consumed the marker
+
+
 def test_cli_reindex_lock_busy_exits_zero_without_indexing(tmp_path):
     import fcntl
 

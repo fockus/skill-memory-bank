@@ -163,7 +163,8 @@ mv "$tmp" "$RECENT"
 # semantic: mark the index dirty (picks up this new session) — the next recall
 # reindexes inline under a non-blocking flock (I-132: no detached indexers)
 if [ "${MB_SEMANTIC:-auto}" != "off" ]; then
-  mkdir -p "$MB/.index" 2>/dev/null && : > "$MB/.index/.dirty" 2>/dev/null
+  _IDX="${MB_INDEX_DIR:-$MB/.index}"
+  mkdir -p "$_IDX" 2>/dev/null && : > "$_IDX/.dirty" 2>/dev/null
 fi
 
 exit 0

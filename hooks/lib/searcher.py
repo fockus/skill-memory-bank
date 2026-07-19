@@ -30,6 +30,16 @@ def resolve_backend(backend=None, embedder=None) -> str:
     return b if b in ("bm25", "embeddings") else "bm25"
 
 
+def model_lock_path() -> Path:
+    """Machine-wide singleton lock for anything that loads the embedding model.
+
+    One lock per MACHINE, not per index — per-index locks would let N open
+    projects load N concurrent multi-GB model copies (codex review, I-132).
+    Override for tests via MB_SEMANTIC_MODEL_LOCK."""
+    env = os.environ.get("MB_SEMANTIC_MODEL_LOCK")
+    return Path(env) if env else Path("~/.cache/memory-bank/model.lock").expanduser()
+
+
 @contextlib.contextmanager
 def try_lock(path):
     """Non-blocking exclusive flock; yields True when acquired, False when busy."""
@@ -53,7 +63,7 @@ def run_search(
     """Search the index. BM25 ignores ``min_score`` (term-match gated instead)."""
     if resolve_backend(backend, embedder) == "bm25":
         return bm25.search(index_dir, query, top_k=top_k, weights=bm25.source_weights())
-    with try_lock(Path(index_dir) / ".model.lock") as got:
+    with try_lock(model_lock_path()) as got:
         if not got:  # a model already lives in another process — never load a 2nd
             return bm25.search(index_dir, query, top_k=top_k, weights=bm25.source_weights())
         return _embed_search(index_dir, query, top_k, min_score, timeout, embedder)
