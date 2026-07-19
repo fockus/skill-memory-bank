@@ -47,7 +47,12 @@ def blocked_by_of(topic: str, specs_root: str) -> dict[str, list[str]]:
         if cur and ln.strip().startswith("**Blocked-by:**"):
             for raw in ln.split(":**", 1)[1].split(","):
                 dep = raw.strip().strip("`")
-                if dep:
+                # `none` is the grammar's explicit "no dependencies" literal, not
+                # a task named none. The local branch in check_graph already
+                # drops it (it is not a digit); without the same filter here it
+                # became a phantom `<topic>#none` node, which stayed invisible
+                # only because the DFS skipped unknown nodes (review [5]).
+                if dep and dep.lower() != "none":
                     edges[cur].append(dep if "#" in dep else f"{topic}#{dep}")
     return edges
 
@@ -64,7 +69,9 @@ def check_graph(tasks: list[dict], this_topic: str, specs_root: str, emit) -> No
                 deps.append(b)
             elif b.isdigit():
                 if b not in local_nums:
-                    emit(f"REQ-052: task {t['item_no']} Blocked-by '{b}' — no such task in this spec")
+                    emit(
+                        f"REQ-052: task {t['item_no']} Blocked-by '{b}' — no such task in this spec"
+                    )
                     continue
                 deps.append(f"{this_topic}#{b}")
         graph[f"{this_topic}#{t['item_no']}"] = deps
@@ -81,6 +88,27 @@ def check_graph(tasks: list[dict], this_topic: str, specs_root: str, emit) -> No
             graph.setdefault(node, deps)
             frontier.extend(d for d in deps if d.split("#", 1)[0] not in seen)
 
+    # Every reachable dependency must EXIST before the cycle search runs. The
+    # DFS below skips nodes absent from the graph (`if v not in graph`), so a
+    # dangling cross-spec ref — alpha#1 → beta#1 → ghost#1 — used to validate
+    # clean: the missing topic was simply never visited (review [5]). Local
+    # refs are already reported above; this covers the cross-spec ones,
+    # including those pulled in transitively.
+    for node in sorted(graph):
+        for dep in graph[node]:
+            if dep in graph:
+                continue
+            dep_topic, _, dep_no = dep.partition("#")
+            if dep_topic == this_topic:
+                continue  # already reported as a local unresolved ref
+            known = blocked_by_of(dep_topic, specs_root)
+            if not known:
+                emit(
+                    f"REQ-052: {node} Blocked-by '{dep}' — spec topic '{dep_topic}' not found under {specs_root or 'specs/'}"
+                )
+            else:
+                emit(f"REQ-052: {node} Blocked-by '{dep}' — no task {dep_no} in spec '{dep_topic}'")
+
     color: dict[str, int] = {n: 0 for n in graph}
     found: list[str] | None = None
 
@@ -92,7 +120,7 @@ def check_graph(tasks: list[dict], this_topic: str, specs_root: str, emit) -> No
             if v not in graph:
                 continue
             if color.get(v) == 1:
-                found = stack[stack.index(v):] + [v]
+                found = stack[stack.index(v) :] + [v]
                 return True
             if color.get(v, 0) == 0 and dfs(v, stack):
                 return True

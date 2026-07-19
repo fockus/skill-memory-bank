@@ -43,7 +43,7 @@ _final_sum() { cksum < "$FINAL"; }
 
 @test "candidate_publish: spec=ok no overflow → published, final replaced, candidate gone" {
   local est; est="$(_estimate ok none none)"
-  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --force
   [ "$status" -eq 0 ]
   [[ "$output" == *"candidate=published"* ]]
   [ ! -e "$CAND" ]                              # candidate moved
@@ -52,7 +52,7 @@ _final_sum() { cksum < "$FINAL"; }
 
 @test "candidate_publish: spec=near → published" {
   local est; est="$(_estimate near none none)"
-  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --force
   [ "$status" -eq 0 ]
   [[ "$output" == *"candidate=published"* ]]
 }
@@ -62,7 +62,7 @@ _final_sum() { cksum < "$FINAL"; }
 @test "candidate_publish: spec=over without override → blocked spec_overflow, final byte-identical" {
   local before; before="$(_final_sum)"
   local est; est="$(_estimate over none none)"
-  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --force
   [ "$status" -eq 1 ]
   [[ "$output" == *"candidate=blocked"* ]]
   [[ "$output" == *"reason=spec_overflow"* ]]
@@ -72,7 +72,7 @@ _final_sum() { cksum < "$FINAL"; }
 
 @test "candidate_publish: spec=over + --override user (no task/stage over) → published" {
   local est; est="$(_estimate over none none)"
-  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --override user
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --override user --force
   [ "$status" -eq 0 ]
   [[ "$output" == *"candidate=published"* ]]
   [ "$(cat "$FINAL")" = "CANDIDATE CONTENT" ]
@@ -91,7 +91,7 @@ _final_sum() { cksum < "$FINAL"; }
 @test "candidate_publish: stage_over set + --override user → blocked stage_overflow" {
   local before; before="$(_final_sum)"
   local est; est="$(_estimate ok none 2)"
-  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --override user
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --override user --force
   [ "$status" -eq 1 ]
   [[ "$output" == *"reason=stage_overflow"* ]]
   [ "$(_final_sum)" = "$before" ]
@@ -181,7 +181,7 @@ _final_sum() { cksum < "$FINAL"; }
   local est; est="$(_estimate ok none none)"
   unset MB_PATH
   cd "$TMP" || return 1
-  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --force
   [ "$status" -eq 0 ]
   [[ "$output" == *"candidate=published"* ]]
   [ "$(cat "$FINAL")" = "CANDIDATE CONTENT" ]
@@ -227,7 +227,7 @@ _final_sum() { cksum < "$FINAL"; }
 
 @test "candidate_publish: full valid C3 grammar (task.N/stage.N/spec.total) → published" {
   printf 'task.1=100\nstage.1=100\nspec.total=100\ntask_over=none\nstage_over=none\nspec=ok\nlegacy_missing=none\n' > "$TMP/full.txt"
-  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$TMP/full.txt"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$TMP/full.txt" --force
   [ "$status" -eq 0 ]
   [[ "$output" == *"candidate=published"* ]]
 }
@@ -238,4 +238,27 @@ _final_sum() { cksum < "$FINAL"; }
   if ! command -v shellcheck >/dev/null 2>&1; then skip "shellcheck not installed"; fi
   run shellcheck -S style "$SCRIPT"
   [ "$status" -eq 0 ]
+}
+
+# ── round-2 review [14]: the documented --force gate is enforced ─────────────
+
+@test "candidate: publish over an EXISTING spec triple is refused without --force" {
+  # commands/sdd.md documents "--force — overwrite an existing spec triple
+  # (refuses without it)"; publish used to rename straight over it.
+  # setup() already wrote an accepted FINAL ("ORIGINAL FINAL").
+  local before; before="$(_final_sum)"
+  run bash "$SCRIPT" publish --topic "$TOPIC" \
+    --candidate "$CAND" --estimate-file "$(_estimate ok none none)" --mb "$BANK"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"reason=spec_exists"* ]]
+  # the accepted triple must be byte-identical afterwards
+  [ "$(_final_sum)" = "$before" ]
+}
+
+@test "candidate: publish over an existing spec triple succeeds WITH --force" {
+  run bash "$SCRIPT" publish --topic "$TOPIC" \
+    --candidate "$CAND" --estimate-file "$(_estimate ok none none)" --mb "$BANK" --force
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"candidate=published"* ]]
+  grep -q 'CANDIDATE CONTENT' "$FINAL"
 }

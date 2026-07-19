@@ -7,7 +7,10 @@
 # Output (per stage, one JSON object per line):
 #   {"plan": "...", "stage_no": N, "item_no": N, "heading": "...", "role": "...",
 #    "agent": "...", "status": "pending|in-progress|done", "dod_lines": K,
-#    "source": "plan|spec", "kind": "stage|task", "covers": [...]}
+#    "source": "plan|spec", "source_topic": "...", "source_path": "/abs/....md",
+#    "kind": "stage|task", "covers": [...]}
+# `source` is the category; source_topic/source_path locate the declaration file
+# and MUST reach `mb-work-state.sh init` — the eval gate binds them (review [9]).
 #
 # Exit codes:
 #   0  success
@@ -75,7 +78,6 @@ while [ "$#" -gt 0 ]; do
 	esac
 done
 
-# Resolve target
 if [ -n "$TARGET" ]; then
 	PLAN=$(bash "$RESOLVE" "$TARGET" --mb "$MB_ARG") || exit $?
 else
@@ -223,8 +225,7 @@ plan_basename = os.environ["PLAN_BASENAME"]
 wrapper_basename = os.environ.get("WRAPPER_BASENAME", "")
 work_items_py = os.environ["WORK_ITEMS"]
 
-# Determine the plan label for output
-output_plan = wrapper_basename if wrapper_basename else plan_basename
+output_plan = wrapper_basename if wrapper_basename else plan_basename  # label
 
 # Load pipeline.yaml to map role → agent
 try:
@@ -245,8 +246,7 @@ for rname, rspec in roles.items():
         if rspec.get("thinking"):
             ROLE_THINKING[rname] = rspec["thinking"]
 
-# Role auto-detection heuristics (applied to heading + body, lowercase).
-# Order matters — first match wins.
+# Role auto-detection over heading+body (lowercased); first match wins.
 ROLE_RULES = [
     ("ios",       [r"\bios\b", r"\bswift\b", r"\bswiftui\b", r"\bcombine\b", r"\bxcode\b"]),
     ("android",   [r"\bandroid\b", r"\bkotlin\b", r"\bjetpack\b", r"\bcompose\b"]),
@@ -304,7 +304,6 @@ def count_dod_plan(body: str) -> int:
     return len(_plan_checkbox_states(body))
 
 
-# Call mb_work_items.py via CLI to get parsed items
 result = subprocess.run(
     ["python3", work_items_py, plan_path],
     capture_output=True,
@@ -328,7 +327,6 @@ if not raw_items:
 # Build index: item_no → item
 items_by_no: dict[int, dict] = {item["item_no"]: item for item in raw_items}
 
-# Parse requested indices from range output
 range_requested = os.environ.get("RANGE_REQUESTED") == "1"
 requested = [int(x) for x in stages_raw.strip().splitlines() if x.strip().isdigit()]
 if not requested:
@@ -391,6 +389,10 @@ for n in requested:
         "status": status,
         "dod_lines": dod_count,
         "source": source,
+        # Locators; passing the bare category to `init` made every eval lookup
+        # target `<bank>/specs/spec/tasks.md` and ungated it (review [9]).
+        "source_topic": item.get("topic", ""),
+        "source_path": os.path.realpath(plan_path),
         "kind": item["kind"],
         "covers": covers,
     }

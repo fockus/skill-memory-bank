@@ -21,42 +21,6 @@
 # the Eval command, deriving red/green only from an observed run of an
 # immutable snapshot, never from a caller-supplied verdict.
 
-# ── declaration binding (review [2]) ──────────────────────────────────────
-# The Eval a task DECLARES is the only command this gate may run. Without this
-# binding a caller could hand the helper an unrelated toggle-script that prints
-# the anchor and exits 1, then exits 0 once an external marker flipped — both
-# transitions "proven" while the declared Eval never ran.
-#
-# `eval_declared_cmd <bank> <source> <item_no>` echoes the declared Eval command
-# for that task, or nothing when it cannot be resolved.
-eval_declared_cmd() {
-  local bank="$1" source_="$2" item_no="$3"
-  MB_SD="$SCRIPT_DIR" BANK="$bank" SOURCE="$source_" ITEM_NO="$item_no" python3 - <<'PY'
-import os, pathlib, sys
-sys.path.insert(0, os.environ["MB_SD"])
-src = os.environ["SOURCE"]
-candidates = []
-if src.endswith(".md"):
-    candidates.append(pathlib.Path(src))
-else:
-    candidates.append(pathlib.Path(src) / "tasks.md")
-    candidates.append(pathlib.Path(os.environ["BANK"]) / "specs" / src / "tasks.md")
-for p in candidates:
-    if not p.is_file():
-        continue
-    try:
-        import mb_work_items as w
-        for it in w.parse_work_items(p):
-            if it.kind == "task" and str(it.item_no) == os.environ["ITEM_NO"]:
-                cmd = (it.eval or {}).get("cmd") or ""
-                if cmd and cmd != "none":
-                    sys.stdout.write(cmd)
-                sys.exit(0)
-    except Exception:
-        continue
-PY
-}
-
 # Effective content of a cmd-file: the command lines only — shebang, comments
 # and blank lines are formatting. This must equal the declared Eval EXACTLY, so
 # a caller cannot smuggle an extra `; exit 0` past the gate.
@@ -80,11 +44,10 @@ eval_require_binding() {
   local state="$1" cmd_file="$2" who="$3"
   local bank source_ item_no declared effective
   bank=$(mb_resolve_path "${PARSED_EVAL_MB:-}")
-  source_=$(STATE="$state" python3 -c 'import json,os;print(json.load(open(os.environ["STATE"]))
-.get("source",""))' 2>/dev/null || true)
-  item_no=$(STATE="$state" python3 -c 'import json,os;print(json.load(open(os.environ["STATE"]))
-.get("item_no",""))' 2>/dev/null || true)
-  declared=$(eval_declared_cmd "$bank" "$source_" "$item_no")
+  source_=$(eval_state_field "$state" source)
+  item_no=$(eval_state_field "$state" item_no)
+  declared=$(eval_declared_cmd "$bank" "$(eval_state_field "$state" source_path)" \
+    "$(eval_state_field "$state" source_topic)" "$item_no" "$source_")
   if [ -z "$declared" ]; then
     echo "[work-state] $who: no Eval declaration resolvable for $source_#$item_no (eval gate must be bound to a declared Eval)" >&2
     exit 2
@@ -107,11 +70,78 @@ eval_run_root() {
   if [ -n "$top" ]; then printf '%s' "$top"; else pwd; fi
 }
 
-# Helper-owned proof key. This is NOT a cryptographic secret against a
-# determined adversary (it lives in the script) — it makes a hand-edited
-# eval-object detectable, so a verdict cannot be forged by editing the state
-# JSON. The proof binds the executed cmd snapshot + red-transition fields.
-MBW_EVAL_PROOF_KEY="mb-work-state/eval-proof/v1"
+# The proof payload/key now lives in scripts/mb_work_eval_proof.py — one
+# definition for all four call sites, because the inlined copies had already
+# drifted apart (green_exit was signed by none of them).
+#
+# Honest scope (AGR-026): this is checksum-grade integrity, NOT tamper-proofing.
+# The key sits in the checkout, so anyone able to edit the state file can also
+# forge a signature; what it catches is casual/accidental hand-editing.
+# Unforgeable proof needs the orchestrator-held key of AGR-026, where the key
+# never enters the agent's process. Do not describe this gate as tamper-proof.
+
+# ── done gate (review [11]) ───────────────────────────────────────────────
+# `done` used to write phase=done unconditionally, so `init` + `done` certified
+# a task whose Eval never ran. A task that DECLARES a non-waived Eval may only
+# be marked done on a proven red→green transition: a valid helper-owned proof
+# (so a hand-edited state is rejected), an observed red, and an actual
+# green_exit == 0. Verdicts and their handling:
+#
+#   CMD    → require the proof above
+#   WAIVED → allowed; the spec explicitly waived its Eval
+#   NOITEM → refused; the state points at a real tasks.md that lacks this item,
+#            i.e. the binding is broken — exactly the round-1 failure mode
+#   NOFILE → allowed; a plain plan stage has no declaration surface to gate
+# shellcheck disable=SC2034  # MBW_DONE_GATE is consumed by cmd_done (parent file)
+eval_require_done_proof() {
+  local state="$1"
+  local bank verdict item_no source_
+  bank=$(mb_resolve_path "${PARSED_EVAL_MB:-}")
+  item_no=$(eval_state_field "$state" item_no)
+  source_=$(eval_state_field "$state" source)
+  verdict=$(eval_declaration "$bank" "$(eval_state_field "$state" source_path)" \
+    "$(eval_state_field "$state" source_topic)" "$item_no" "$source_" | sed -n '1p')
+
+  # MBW_DONE_GATE is the honest record of WHY this done was allowed. `done`
+  # writes it into the state and echoes it, so a green done can never again be
+  # mistaken for a verified one when it was merely unverifiable (AGR-013).
+  case "$verdict" in
+    WAIVED) MBW_DONE_GATE="waived:eval_none"; return 0 ;;
+    NOFILE) MBW_DONE_GATE="unverified:no_declaration_surface"; return 0 ;;
+    NOITEM)
+      echo "[work-state] done: task #$item_no not found in the declared source for '$source_' (eval binding broken; refusing to certify)" >&2
+      exit 5 ;;
+  esac
+
+  local check
+  set +e
+  check=$(STATE="$state" MB_SD="$SCRIPT_DIR" python3 - <<'PY'
+import json, os, sys
+sys.path.insert(0, os.environ["MB_SD"])
+import mb_work_eval_proof as proof
+data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
+e = data.get("eval")
+if not isinstance(e, dict) or "sig" not in e:
+    print("NOEVAL"); sys.exit(0)
+if not proof.verify(e):
+    print("TAMPERED"); sys.exit(0)
+if not (e.get("red_observed") is True and e.get("red_match") is True):
+    print("NORED"); sys.exit(0)
+if e.get("green_exit") != 0:
+    print("NOGREEN"); sys.exit(0)
+print("OK")
+PY
+)
+  set -e
+  case "$check" in
+    OK) MBW_DONE_GATE="verified:red_green"; return 0 ;;
+    NOEVAL)   echo "[work-state] done: task #$item_no declares an Eval that never ran (no eval record; run eval-red then eval-green)" >&2; exit 5 ;;
+    TAMPERED) echo "[work-state] done: eval proof invalid (state tampered); refusing to certify" >&2; exit 5 ;;
+    NORED)    echo "[work-state] done: no proven red transition for the declared Eval" >&2; exit 5 ;;
+    NOGREEN)  echo "[work-state] done: declared Eval is not green (green_exit != 0)" >&2; exit 5 ;;
+    *)        echo "[work-state] done: unexpected eval verification state" >&2; exit 5 ;;
+  esac
+}
 
 # ── eval-red ──────────────────────────────────────────────────────────────
 cmd_eval_red() {
@@ -150,7 +180,37 @@ cmd_eval_red() {
   local state; state=$(state_path "$mb_arg" "$run_id")
   require_valid_state "$state"
   PARSED_EVAL_MB="$mb_arg"
-  eval_require_binding "$state" "$cmd_file" "eval-red"
+
+  # Snapshot FIRST, then bind/hash/execute only the snapshot (review [12]).
+  # The old order read the caller's path for the declaration check and re-opened
+  # it for `cp`, leaving a window in which an atomic rename could show the
+  # declared bytes at binding time and a different command at snapshot time —
+  # the post-run cmp then compared the already-stable substitute and passed.
+  local snap; snap=$(mktemp)
+  cp "$cmd_file" "$snap"
+  eval_require_binding "$state" "$snap" "eval-red"
+
+  # The red anchors must be the DECLARED ones, not whatever the caller passed
+  # (review [10]): otherwise a foreign failure matching a caller-chosen pattern
+  # is certified as this task's genuine red.
+  local anchors declared_exit declared_ore
+  anchors=$(eval_declared_anchors "$(mb_resolve_path "$mb_arg")" \
+    "$(eval_state_field "$state" source_path)" \
+    "$(eval_state_field "$state" source_topic)" \
+    "$(eval_state_field "$state" item_no)" "$(eval_state_field "$state" source)")
+  declared_exit=${anchors%%$'\037'*}
+  declared_ore=${anchors#*$'\037'}
+  if [ -n "$declared_ore" ] && [ "$output_re" != "$declared_ore" ]; then
+    rm -f "$snap"
+    echo "[work-state] eval-red: --output-re does not match the declared output~ anchor for this task" >&2
+    exit 2
+  fi
+  if [ -n "$declared_exit" ] && [ -n "$expected_exit" ] && [ "$expected_exit" != "$declared_exit" ]; then
+    rm -f "$snap"
+    echo "[work-state] eval-red: --expected-exit does not match the declared exit: anchor for this task" >&2
+    exit 2
+  fi
+  [ -n "$expected_exit" ] || expected_exit="$declared_exit"
 
   # --output-re must compile as an ERE (grep -E exits 2 on a bad pattern).
   local gec
@@ -159,14 +219,9 @@ cmd_eval_red() {
   gec=$?
   set -e
   if [ "$gec" -eq 2 ]; then
+    rm -f "$snap"
     echo "[work-state] eval-red: --output-re is not a valid ERE" >&2; exit 2
   fi
-
-  # Snapshot the cmd-file BEFORE running so a self-modifying command cannot swap
-  # itself for a green version mid-run (major #7): we execute the immutable
-  # snapshot and later persist exactly that snapshot.
-  local snap; snap=$(mktemp)
-  cp "$cmd_file" "$snap"
 
   local run_root out rc mrc red_match=0
   run_root=$(eval_run_root)
@@ -192,27 +247,29 @@ cmd_eval_red() {
 
   local tmp; tmp=$(mktemp)
   STATE="$state" TMP="$tmp" SNAP="$snap" RED_EXIT="$rc" RED_MATCH="$red_match" \
-    PROOF_KEY="$MBW_EVAL_PROOF_KEY" python3 - <<'PY'
-import json, os, datetime, hashlib
+    OUTPUT_RE="$output_re" EXPECTED_EXIT="$expected_exit" \
+    MB_SD="$SCRIPT_DIR" python3 - <<'PY'
+import json, os, datetime, hashlib, sys
+sys.path.insert(0, os.environ["MB_SD"])
+import mb_work_eval_proof as proof
 data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
 cmd = open(os.environ["SNAP"], encoding="utf-8").read()
 cmd_hash = hashlib.sha256(cmd.encode("utf-8")).hexdigest()
 rm = os.environ["RED_MATCH"] == "1"
 red_exit = int(os.environ["RED_EXIT"])
-signed = json.dumps(
-    {"cmd_hash": cmd_hash, "red_exit": red_exit, "red_observed": rm, "red_match": rm},
-    sort_keys=True, separators=(",", ":"),
-)
-sig = hashlib.sha256((os.environ["PROOF_KEY"] + "\0" + signed).encode("utf-8")).hexdigest()
-data["eval"] = {
+e = {
     "cmd": cmd,
     "cmd_hash": cmd_hash,
     "red_exit": red_exit,
     "red_observed": rm,
     "red_match": rm,
     "green_exit": None,
-    "sig": sig,
+    # The declared anchors this red was judged against (review [10]).
+    "output_re": os.environ.get("OUTPUT_RE", ""),
+    "expected_exit": os.environ.get("EXPECTED_EXIT", ""),
 }
+e["sig"] = proof.sign(e)
+data["eval"] = e
 data["updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 open(os.environ["TMP"], "w", encoding="utf-8").write(json.dumps(data) + "\n")
 PY
@@ -253,19 +310,15 @@ cmd_eval_green() {
   # byte-identical (content + hash) to the executed red snapshot.
   local check
   set +e
-  check=$(STATE="$state" CMD_FILE="$cmd_file" PROOF_KEY="$MBW_EVAL_PROOF_KEY" python3 - <<'PY'
+  check=$(STATE="$state" CMD_FILE="$cmd_file" MB_SD="$SCRIPT_DIR" python3 - <<'PY'
 import json, os, sys, hashlib
+sys.path.insert(0, os.environ["MB_SD"])
+import mb_work_eval_proof as proof
 data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
 e = data.get("eval")
 if not isinstance(e, dict) or "cmd" not in e or "sig" not in e:
     print("NOEVAL"); sys.exit(0)
-signed = json.dumps(
-    {"cmd_hash": e.get("cmd_hash"), "red_exit": e.get("red_exit"),
-     "red_observed": e.get("red_observed"), "red_match": e.get("red_match")},
-    sort_keys=True, separators=(",", ":"),
-)
-expect = hashlib.sha256((os.environ["PROOF_KEY"] + "\0" + signed).encode("utf-8")).hexdigest()
-if expect != e.get("sig"):
+if not proof.verify(e):
     print("TAMPERED"); sys.exit(0)
 if not (e.get("red_observed") is True and e.get("red_match") is True):
     print("NORED"); sys.exit(0)
@@ -303,18 +356,16 @@ PYSNAP
   rm -f "$gsnap"
 
   local tmp; tmp=$(mktemp)
-  STATE="$state" TMP="$tmp" GREEN_EXIT="$rc" PROOF_KEY="$MBW_EVAL_PROOF_KEY" python3 - <<'PY'
-import json, os, datetime, hashlib
+  STATE="$state" TMP="$tmp" GREEN_EXIT="$rc" MB_SD="$SCRIPT_DIR" python3 - <<'PY'
+import json, os, datetime, sys
+sys.path.insert(0, os.environ["MB_SD"])
+import mb_work_eval_proof as proof
 data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
 e = data.setdefault("eval", {})
 e["green_exit"] = int(os.environ["GREEN_EXIT"])
-# Re-bind the proof so the (unchanged) red fields stay verifiable.
-signed = json.dumps(
-    {"cmd_hash": e.get("cmd_hash"), "red_exit": e.get("red_exit"),
-     "red_observed": e.get("red_observed"), "red_match": e.get("red_match")},
-    sort_keys=True, separators=(",", ":"),
-)
-e["sig"] = hashlib.sha256((os.environ["PROOF_KEY"] + "\0" + signed).encode("utf-8")).hexdigest()
+# Re-bind the proof: green_exit is part of the signed payload, so only a green
+# this helper actually observed can satisfy the `done` gate (review [11]).
+e["sig"] = proof.sign(e)
 data["updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 open(os.environ["TMP"], "w", encoding="utf-8").write(json.dumps(data) + "\n")
 PY

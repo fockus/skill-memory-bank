@@ -270,7 +270,18 @@ if [ "$REQUIRE_TESTS" -eq 1 ] && [ -f "$REQ_FILE" ]; then
   # IS the repo — unchanged. A global/registered bank does not, and its parent is
   # an agent-config directory; there the checkout is resolved from the working
   # directory instead of being guessed from storage layout (review [22]).
-  if [ "$(basename "$MB_GUESS")" = ".memory-bank" ]; then
+  # A registered GLOBAL bank also ends in `.memory-bank`, so the basename alone
+  # cannot tell the two apart and a global bank was scanned relative to its
+  # registry parent — every covered REQ came back falsely uncovered (review
+  # [17]). Detect GLOBAL positively (the bank lives under the agent-config
+  # dir), and otherwise keep the long-standing parent-is-the-repo rule, which
+  # is what makes a bank outside any checkout (temp dirs, fixtures) still work.
+  AGENT_CFG=$(mb_agent_config_dir "${MB_AGENT:-}" 2>/dev/null || true)
+  IS_GLOBAL_BANK=0
+  case "${AGENT_CFG:+$MB_GUESS}" in
+    "$AGENT_CFG"/*) [ -n "$AGENT_CFG" ] && IS_GLOBAL_BANK=1 ;;
+  esac
+  if [ "$IS_GLOBAL_BANK" -eq 0 ] && [ "$(basename "$MB_GUESS")" = ".memory-bank" ]; then
     REPO_GUESS=$(cd "$MB_GUESS/.." 2>/dev/null && pwd) || REPO_GUESS=""
   else
     REPO_GUESS=$(git rev-parse --show-toplevel 2>/dev/null || true)

@@ -18,8 +18,9 @@ from __future__ import annotations
 import os
 import shlex
 
-
 _DOC_DIRS = ("docs/", "doc/", "references/", "commands/", "agents/", "notes/")
+# Directories holding test/Eval artifacts — never the product surface (review [3]).
+_TEST_DIRS = ("tests/", "test/", "spec/", "specs/", "fixtures/")
 _DOC_EXTS = (
     ".md",
     ".markdown",
@@ -54,11 +55,36 @@ _LINTERS = {
 }
 
 
+def is_test_artifact(el: str) -> bool:
+    """True when a scope element is a test/Eval artifact rather than product.
+
+    A task's own test files are what its Eval *runs*, not the surface it
+    changes, so they must not decide whether the task has a runtime surface.
+    """
+    el = el.strip().strip("`")
+    base = el.split("*", 1)[0]
+    if base.startswith(_TEST_DIRS):
+        return True
+    name = os.path.basename(el.rstrip("/"))
+    return name.startswith("test_") or name.startswith("test-") or ".bats" in name
+
+
 def is_no_runtime(scope: list[str]) -> bool:
-    """True when EVERY scope element is documentation/configuration only."""
+    """True when the PRODUCT surface is documentation/configuration only.
+
+    Test/Eval artifacts are excluded before the decision (review [3]): a scope
+    of `docs/**, tests/bats/test_demo.bats` is a documentation-only task whose
+    Eval happens to live in tests/, and counting that .bats file as runtime let
+    it declare a behavioural Eval and skip the REQ-049 structural requirement.
+    A scope consisting ONLY of test artifacts keeps its previous answer (False)
+    — it has a real runtime surface, just a test-shaped one.
+    """
     if not scope:
         return False
-    for el in scope:
+    product = [el for el in scope if not is_test_artifact(el)]
+    if not product:
+        return False
+    for el in product:
         el = el.strip().strip("`")
         if not el:
             return False

@@ -1,51 +1,54 @@
 #!/usr/bin/env bash
-# mb-work-state.sh — durable /mb work loop-state + max_cycles enforcement,
-# with optional per-run isolation/claim under MB_WORK_PARALLEL=1. Plans:
-#   .memory-bank/plans/2026-07-04_fix_mb-work-resilience.md (I-093)
-#   .memory-bank/plans/2026-07-04_fix_mb-work-parallel-runs.md (I-094)
+# mb-work-state.sh — durable /mb work loop-state + max_cycles enforcement, with
+# optional per-run isolation/claim under MB_WORK_PARALLEL=1. Plans: I-093
+# (.../2026-07-04_fix_mb-work-resilience.md), I-094 (.../mb-work-parallel-runs.md)
 #
 # Subcommands (all take [--mb <path>]; per-run ones also [--run-id ID] /
-# $MB_WORK_RUN_ID): init <source> <item_no> [--max-cycles N] [--heading TXT]
-# [--takeover] (prints run_id) · new-run-id (prints a uuid, writes nothing) ·
-# step <name> · cycle (exit 3 when exhausted) · status [--all] · list (alias
-# for `status --all`) · done (frees any claim) · clear (frees any claim) ·
-# eval-red --cmd-file <path> --output-re <ERE> [--expected-exit N] ·
-# eval-green --cmd-file <path> (svp-sdd-core C6, REQ-008).
+# $MB_WORK_RUN_ID): init <source> <item_no> [--source-path P] [--source-topic T]
+# [--max-cycles N] [--heading TXT] [--takeover] (prints run_id) · new-run-id ·
+# step <name> · cycle (exit 3 when exhausted) · status [--all] · list · done ·
+# clear (both free any claim) · eval-red --cmd-file <path> --output-re <ERE>
+# [--expected-exit N] · eval-green --cmd-file <path> (svp-sdd-core C6, REQ-008).
 #
-# State file: <bank>/.work-state.json, or under MB_WORK_PARALLEL=1 with a
-# run_id, <bank>/.work-state/<run_id>.json — { run_id, source, item_no,
-# heading, cycle, max_cycles, steps[], phase, baseline_ref, updated,
+# `source` is the CATEGORY (plan|spec); --source-path/--source-topic carry the
+# concrete declaration file and MUST be threaded from mb-work-plan.sh's JSON —
+# the eval gate binds against them, and passing only the category ungated the
+# whole loop (review [9]). `init` REFUSES a bare spec/plan source (exit 2).
+#
+# State file: <bank>/.work-state.json, or under MB_WORK_PARALLEL=1 with a run_id,
+# <bank>/.work-state/<run_id>.json — { run_id, source, source_path, source_topic,
+# item_no, heading, cycle, max_cycles, steps[], phase, eval_gate, baseline_ref,
+# updated,
 # eval{cmd, cmd_hash, red_exit, red_observed, red_match, green_exit, sig} }.
 #
 # eval-red / eval-green (C6): the helper is the SOLE executor and judge of the
-# Eval command. It snapshots the --cmd-file, runs that immutable snapshot from
-# the repo root, captures the actual combined output + exit, and derives
-# red/green from that observed state — there is NO --observed/--match/--exit
-# flag, so a verdict cannot be spoofed through the CLI. A red REQUIRES a
-# non-zero exit AND an output match against --output-re (plus the exact
-# --expected-exit when given). eval-red records a helper-owned proof (`sig`, a
-# keyed hash over cmd_hash + the red-transition fields) so a hand-edited eval
-# object is rejected. eval-green requires a proven, completed red transition
-# (valid `sig`, red_observed=true, red_match=true) and a byte-identical
-# cmd-file (content + cmd_hash); it exits 0 only on an actual exit 0. A
-# self-modifying cmd-file (changed during the red run) is rejected (exit 2).
+# Eval command — it runs an immutable snapshot of --cmd-file from the repo root
+# and derives red/green from the observed output+exit, so no CLI flag can spoof a
+# verdict. A red REQUIRES non-zero exit AND an --output-re match. `sig`
+# (scripts/mb_work_eval_proof.py) binds cmd_hash + red fields + green_exit:
+# checksum-grade integrity, NOT tamper-proofing (AGR-026 — key ships in repo).
+#
+# `done` refuses (exit 5) an item whose DECLARED, non-waived Eval has no proven
+# red→green (valid sig, red_observed/red_match true, green_exit 0), or whose
+# declaration file resolves but lacks the item. EVERY done records `eval_gate` —
+# verified:red_green | waived:eval_none | unverified:no_declaration_surface —
+# and prints it when not verified, so an unverifiable pass is never mistaken for
+# a checked one (AGR-013 honest degradation; review [11] + round-2 gap).
 #
 # max_cycles (when omitted) resolves from the pipeline's
-# workflows.governed-execution.loop.max_cycles, falling back to 2 (PyYAML-
-# optional, same pattern as scripts/mb-work-budget.sh).
+# workflows.governed-execution.loop.max_cycles, falling back to 2 (PyYAML-opt).
 #
-# Parallel runs (I-094, opt-in MB_WORK_PARALLEL=1): `init` claims <source> in
-# a source→run index (scripts/mb-work-slots.sh); a second `init` for a source
-# still claimed by a live (phase != done) run refuses with exit 4 unless
-# --takeover. `init` also records `baseline_ref` (HEAD at claim time, ""
-# outside a git repo) for later baseline-scoped diffing. Unset ⇒ the single
-# legacy path, unchanged from pre-I-094 behaviour.
+# Parallel runs (I-094, opt-in MB_WORK_PARALLEL=1): `init` claims <source> in a
+# source→run index (scripts/mb-work-slots.sh); a second `init` for a live-claimed
+# source exits 4 unless --takeover. `init` also records `baseline_ref`. Unset ⇒
+# the legacy single path, unchanged.
 #
-# Exit codes: 0 ok · 2 usage error · 3 cycle budget exhausted (I-093) ·
-# 4 claim refused under MB_WORK_PARALLEL (I-094; pass --takeover to override).
+# Exit codes: 0 ok · 2 usage error · 3 cycle budget exhausted (I-093) · 4 claim
+# refused under MB_WORK_PARALLEL (I-094; --takeover overrides) · 5 done refused,
+# declared Eval unproven (review [11]).
 #
-# Fail-safe: status/claim-index reads on missing/corrupt data degrade to
-# `{}` / "unclaimed" — never crash or wedge a session.
+# Fail-safe: status/claim-index reads on missing/corrupt data degrade to `{}` /
+# "unclaimed" — never crash or wedge a session.
 
 set -eu
 
@@ -61,7 +64,7 @@ source "$SCRIPT_DIR/mb-work-state-lib.sh"
 source "$SCRIPT_DIR/mb-work-state-eval.sh"
 
 usage() {
-  sed -n '2,33p' "$0" >&2
+  sed -n '2,52p' "$0" >&2
 }
 
 state_path() {
@@ -120,8 +123,13 @@ parse_common_flags() {
 # ── init ────────────────────────────────────────────────────────────────
 cmd_init() {
   local source_="" item_no="" run_id="" max_cycles="" heading="" mb_arg="" takeover=0
+  local source_path="" source_topic=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --source-path) source_path="${2:-}"; shift 2 ;;
+      --source-path=*) source_path="${1#--source-path=}"; shift ;;
+      --source-topic) source_topic="${2:-}"; shift 2 ;;
+      --source-topic=*) source_topic="${1#--source-topic=}"; shift ;;
       --run-id) run_id="${2:-}"; shift 2 ;;
       --run-id=*) run_id="${1#--run-id=}"; shift ;;
       --max-cycles) max_cycles="${2:-}"; shift 2 ;;
@@ -148,6 +156,19 @@ cmd_init() {
     echo "[work-state] item_no must be a non-negative integer" >&2
     exit 2
   fi
+
+  # `spec`/`plan` are CATEGORIES, not locators. A spec task always lives in a
+  # tasks.md, so `init spec 1` with no locator is malformed by construction —
+  # and it used to silently produce a state whose eval gate could never resolve,
+  # letting `done` pass unchecked. Refuse it here rather than labelling it later.
+  case "$source_" in
+    spec|plan)
+      if [ -z "$source_path" ] && [ -z "$source_topic" ]; then
+        echo "[work-state] init: '$source_' is a category, not a locator — pass --source-topic and/or --source-path (from mb-work-plan.sh's JSON) so the eval gate can resolve the declaration" >&2
+        exit 2
+      fi
+      ;;
+  esac
 
   [ -z "$run_id" ] && run_id="${MB_WORK_RUN_ID:-}"
   [ -z "$run_id" ] && run_id=$(gen_run_id)
@@ -177,11 +198,14 @@ cmd_init() {
 
   tmp=$(mktemp)
   RUN_ID="$run_id" SOURCE="$source_" ITEM_NO="$item_no" HEADING="$heading" \
+    SOURCE_PATH="$source_path" SOURCE_TOPIC="$source_topic" \
     MAX_CYCLES="$max_cycles" BASELINE_REF="$baseline_ref" TMP="$tmp" python3 - <<'PY'
 import json, os, datetime
 state = {
     "run_id": os.environ["RUN_ID"],
-    "source": os.environ["SOURCE"],
+    "source": os.environ["SOURCE"],  # category; the locator fields follow ([9])
+    "source_path": os.environ.get("SOURCE_PATH", ""),
+    "source_topic": os.environ.get("SOURCE_TOPIC", ""),
     "item_no": int(os.environ["ITEM_NO"]),
     "heading": os.environ.get("HEADING", ""),
     "cycle": 0,
@@ -297,37 +321,6 @@ print(json.dumps(data))
 PY
 }
 
-# ── list (alias: status --all) ───────────────────────────────────────────
-# Enumerates every live run's state — the singleton (if present) plus every
-# <bank>/.work-state/*.json slot — as a JSON array. Fail-safe: a corrupt slot
-# is silently skipped, never crashes the listing.
-cmd_list() {
-  parse_common_flags "$@"
-  local bank
-  bank=$(mb_resolve_path "$PARSED_MB")
-  BANK="$bank" python3 - <<'PY'
-import glob
-import json
-import os
-
-bank = os.environ["BANK"]
-paths = []
-singleton = os.path.join(bank, ".work-state.json")
-if os.path.isfile(singleton):
-    paths.append(singleton)
-paths.extend(sorted(glob.glob(os.path.join(bank, ".work-state", "*.json"))))
-
-entries = []
-for p in paths:
-    try:
-        with open(p, encoding="utf-8") as fh:
-            entries.append(json.load(fh))
-    except Exception:
-        continue
-print(json.dumps(entries))
-PY
-}
-
 # ── done ────────────────────────────────────────────────────────────────
 cmd_done() {
   parse_common_flags "$@"
@@ -335,16 +328,34 @@ cmd_done() {
   state=$(state_path "$PARSED_MB" "$PARSED_RUN_ID")
   require_valid_state "$state"
 
+  # A declared, non-waived Eval must have gone red→green first (review [11]):
+  # `done` is the last gate before the DoD checkboxes flip.
+  # shellcheck disable=SC2034  # read by eval_require_done_proof (sourced eval layer)
+  PARSED_EVAL_MB="$PARSED_MB"
+  MBW_DONE_GATE=""
+  eval_require_done_proof "$state"
+
   tmp=$(mktemp)
-  STATE="$state" TMP="$tmp" python3 - <<'PY'
+  STATE="$state" TMP="$tmp" GATE="$MBW_DONE_GATE" python3 - <<'PY'
 import json, os, datetime
 p = os.environ["STATE"]
 data = json.loads(open(p, encoding="utf-8").read())
 data["phase"] = "done"
+# Never record a done without stating whether its Eval was actually verified.
+data["eval_gate"] = os.environ.get("GATE") or "unverified:no_declaration_surface"
 data["updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 open(os.environ["TMP"], "w", encoding="utf-8").write(json.dumps(data) + "\n")
 PY
   mv "$tmp" "$state"
+
+  # Say it out loud too: a silent pass is what made the old bypass invisible.
+  case "$MBW_DONE_GATE" in
+    verified:red_green) : ;;
+    waived:eval_none)
+      echo "[work-state] done: eval waived by the spec (Eval: none) — not verified" ;;
+    *)
+      echo "[work-state] done: eval UNVERIFIED (no Eval declaration resolvable for this source) — the red→green gate did not run" ;;
+  esac
 
   # A finished run no longer holds its source claim (I-094).
   if mbw_parallel_on; then

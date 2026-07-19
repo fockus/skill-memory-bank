@@ -86,8 +86,11 @@ When the user types `/mb work [args...]`:
 4. **Establish durable run-state, then initialise budget (if `--budget TOK` given).** Mint the session's `run_id` once, using the first pending item's `source`/`item_no` from step 3's JSON Lines, and reuse it for every item and every budget call for the rest of this run (this is what survives a compaction/abort — see *Resume after interruption* below):
 
    ```bash
-   RUN_ID=$(bash scripts/mb-work-state.sh init <source> <first_item_no> --mb <bank>)
+   RUN_ID=$(bash scripts/mb-work-state.sh init <source> <first_item_no> \
+     --source-path <source_path> --source-topic <source_topic> --mb <bank>)
    ```
+
+   **Thread `--source-path`/`--source-topic` verbatim from the item's JSON Lines fields of the same name — never omit them.** `<source>` is only the *category* (`plan`/`spec`); the eval gate resolves a task's declared `**Eval:**` through the locator fields. Passing the category alone makes every lookup target the non-existent `<bank>/specs/spec/tasks.md`, at which point `eval-red`/`eval-green` refuse with `no Eval declaration resolvable` and the whole red→green gate silently stops applying to real runs.
 
    `mb-work-state.sh init` resolves `max_cycles` from `workflow.loop.max_cycles` (or CLI `--max-cycles N`) when neither is passed explicitly — pass `--max-cycles N` to `init` when the CLI flag was given. If `--budget TOK` was given, run `bash scripts/mb-work-budget.sh init <TOK> --run-id "$RUN_ID" --mb <bank>`. Subsequent steps call `bash scripts/mb-work-budget.sh check --run-id "$RUN_ID" --mb <bank>` after each Task dispatch; exit 1 = warn (log and continue), exit 2 = stop (halt the loop). Add tokens after each Task with `bash scripts/mb-work-budget.sh add <delta> --run-id "$RUN_ID" --mb <bank>`. Threading `--run-id` means an orphaned `.work-budget.json` left over from a different, aborted run is recognised as stale (warn, exit 1) instead of silently throttling this run.
 
@@ -96,7 +99,8 @@ When the user types `/mb work [args...]`:
    ```bash
    export MB_WORK_PARALLEL=1
    RUN_ID=$(bash scripts/mb-work-state.sh new-run-id)
-   bash scripts/mb-work-state.sh init <source> <first_item_no> --run-id "$RUN_ID" --mb <bank>
+   bash scripts/mb-work-state.sh init <source> <first_item_no> --run-id "$RUN_ID" \
+     --source-path <source_path> --source-topic <source_topic> --mb <bank>
    ```
 
    `mb-work-state.sh new-run-id` mints a fresh run id up front (prints it, writes nothing) so it can be threaded into `init` from the start. `init` then claims `<source>` for `"$RUN_ID"` in a source→run index: if another **live** (`phase != done`) run already claims that same source, `init` refuses with **exit 4** (`source '<source>' already claimed by run <id>; pass --takeover to override`) — halt the loop for this run (pick a different pending item, or a different source) unless the orchestrator deliberately wants to steal a stale/abandoned claim, in which case pass `--takeover` to force the claim. Thread the same `--run-id "$RUN_ID"` to every subsequent `mb-work-state.sh`, `mb-work-budget.sh`, and `mb-work-checkbox.sh` call for this run — that is what keeps its state, budget, and checkbox-flip gate isolated from any other concurrently running run.
@@ -108,7 +112,8 @@ When the user types `/mb work [args...]`:
    For every item after the first, re-arm the per-item loop-state (this resets the item's `cycle` counter and `phase` back to `in-progress` while keeping the same session `run_id`):
 
    ```bash
-   bash scripts/mb-work-state.sh init <source> <item_no> --run-id "$RUN_ID" --mb <bank>
+   bash scripts/mb-work-state.sh init <source> <item_no> --run-id "$RUN_ID" \
+     --source-path <source_path> --source-topic <source_topic> --mb <bank>
    ```
 
    ### 5a0. Eval-first gate (red MANDATORY — before implement)
@@ -258,7 +263,7 @@ When the user types `/mb work [args...]`:
    bash scripts/mb-work-checkbox.sh flip <source> <item_no> --mb <bank>
    ```
 
-   `mb-work-state.sh done` sets `phase: "done"` for the current `item_no` — the completion gate `mb-work-checkbox.sh flip` requires before it will touch the source file's DoD bullets. `flip` then converts that item's `⬜`/`[ ]` DoD bullets to `✅`/`[x]`, scoped to its `<!-- mb-stage:N -->` / `<!-- mb-task:N -->` marker block only. **A refused flip (exit 1) means the gate did not truly pass** — treat it as a bug in the loop (state/item mismatch), not as something to work around by editing the file directly.
+   `mb-work-state.sh done` **refuses with exit 5** when the item's declared, non-waived `**Eval:**` has no proven red→green transition in this run's state (no eval record, an unverifiable proof, no observed red, or `green_exit != 0`), and equally when the locator fields resolve to a real tasks.md that has no such item. That refusal is the gate working: re-run `eval-red`/`eval-green` for the item rather than routing around it. A task declaring `Eval: none` (an explicit waiver) and a source with no declaration surface at all stay ungated. On success it sets `phase: "done"` for the current `item_no` — the completion gate `mb-work-checkbox.sh flip` requires before it will touch the source file's DoD bullets. `flip` then converts that item's `⬜`/`[ ]` DoD bullets to `✅`/`[x]`, scoped to its `<!-- mb-stage:N -->` / `<!-- mb-task:N -->` marker block only. **A refused flip (exit 1) means the gate did not truly pass** — treat it as a bug in the loop (state/item mismatch), not as something to work around by editing the file directly.
 
    Workflows without a `judge` step (e.g. `execution`) still route through this exact sequence: `mb-work-state.sh done` is called once `verify` reports PASS (there is no judge decision to wait for), so the flip stays fully deterministic even without a judge gate.
 

@@ -32,11 +32,31 @@ ZONE_FILES = [
     "scripts/mb-work-state.sh",
     "scripts/mb-work-state-eval.sh",
     "scripts/mb-work-state-lib.sh",
+    "scripts/mb-work-plan.sh",
+    "scripts/mb_work_eval_proof.py",
     "scripts/mb-sdd-candidate.sh",
     "scripts/mb-sdd-review-result.sh",
     "scripts/mb-sdd-self-check.sh",
     "commands/work.md",
     "commands/sdd.md",
+    # Zone TESTS are in scope too (review [21]): test_mb_sdd_self_check.bats had
+    # grown to 489 lines while this contract stayed green, because the list only
+    # covered production files. A limit that exempts the tests enforcing it is
+    # not a limit.
+    "tests/bats/test_mb_sdd_self_check.bats",
+    "tests/bats/test_mb_sdd_self_check_hardening.bats",
+    "tests/bats/test_mb_sdd_self_check_r2.bats",
+    "tests/bats/test_mb_sdd_candidate.bats",
+    "tests/bats/test_sdd_spec_review.bats",
+    "tests/bats/test_mb_work_state_eval.bats",
+    "tests/bats/test_mb_work_prod_binding.bats",
+    "tests/bats/test_mb_spec_validate_r2.bats",
+    "tests/bats/test_mb_spec_validate_v2.bats",
+    "tests/bats/test_mb_spec_validate_v2_battery.bats",
+    "tests/bats/test_mb_spec_validate_hardening.bats",
+    "tests/pytest/test_mb_pipeline_validate_r2.py",
+    "tests/pytest/test_mb_work_eval_proof.py",
+    "tests/pytest/test_s2_file_size_contract.py",
 ]
 
 

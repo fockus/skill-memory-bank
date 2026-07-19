@@ -10,7 +10,7 @@
 #
 # Usage:
 #   mb-sdd-candidate.sh publish --topic <topic> --candidate <path> \
-#        --estimate-file <path> [--override user] [--mb <bank>]
+#        --estimate-file <path> [--override user] [--force] [--mb <bank>]
 #   mb-sdd-candidate.sh discard --topic <topic> --candidate <path> [--mb <bank>]
 #
 # --candidate MUST be the canonical `<bank>/tmp/sdd/<topic>/tasks.candidate.md`
@@ -24,6 +24,8 @@
 #     ignored — the D-13 hard caps (task ≤120000, stage ≤400000) are unbreakable.
 #   - else spec ∈ {ok, near} → publish; spec=over → publish ONLY with
 #     `--override user`, otherwise blocked (reason=spec_overflow), candidate deleted.
+#   - an EXISTING <bank>/specs/<topic>/tasks.md is refused (reason=spec_exists)
+#     unless --force is passed — the gate commands/sdd.md documents (review [14]).
 #   - publish = same-filesystem rename(2) candidate → <bank>/specs/<topic>/tasks.md.
 #
 # stdout : exactly one line `candidate=published|discarded|blocked reason=<code>`
@@ -49,6 +51,7 @@ TOPIC=""
 CANDIDATE=""
 ESTIMATE_FILE=""
 OVERRIDE=""
+FORCE=0
 MB_BANK=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -56,6 +59,7 @@ while [ "$#" -gt 0 ]; do
     --candidate)     [ "$#" -ge 2 ] || usage_error; CANDIDATE="$2"; shift ;;
     --estimate-file) [ "$#" -ge 2 ] || usage_error; ESTIMATE_FILE="$2"; shift ;;
     --override)      [ "$#" -ge 2 ] || usage_error; OVERRIDE="$2"; shift ;;
+    --force)         FORCE=1 ;;
     --mb)            [ "$#" -ge 2 ] || usage_error; MB_BANK="$2"; shift ;;
     *) usage_error ;;
   esac
@@ -210,6 +214,16 @@ if [ "$stage_over" != "none" ]; then block stage_overflow; fi
 # Spec rubicon: over needs `--override user`; ok/near publish freely.
 if [ "$spec" = "over" ] && [ "$OVERRIDE" != "user" ]; then
   block spec_overflow
+fi
+
+# Existence preflight (review [14]): commands/sdd.md documents "--force —
+# overwrite an existing spec triple (refuses without it)", but nothing enforced
+# it and publish renamed straight over an accepted tasks.md. Re-checked HERE, in
+# the helper that performs the write, so the guarantee cannot be lost by a
+# caller that skips a prompt-level check.
+if [ -e "$FINAL" ] && [ "$FORCE" -ne 1 ]; then
+  printf 'candidate=blocked reason=spec_exists\n'
+  exit 1
 fi
 
 # Publish: atomic same-filesystem rename candidate → final (draft).

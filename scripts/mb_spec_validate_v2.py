@@ -92,11 +92,28 @@ graph_gate.check_graph(tasks, this_topic, specs_root, emit)
 
 def run_v2_gates() -> None:
     # gated = defined REQ carrying a SHALL/MUST modal.
+    #
+    # Modality is a property of the whole requirement BLOCK, not of one physical
+    # line: `- **REQ-001** The system` / `  shall persist data` is a single
+    # requirement that a per-line scan read as non-gated, letting it skip GWT
+    # coverage and accept an `Eval: none` waiver (review [2]). A block runs from
+    # its own definition line up to the next definition line or heading.
     all_defs = set(rq.find_definitions(req_text))
     gated = set()
-    for ln in req_text.splitlines():
-        if re.search(r"\b(shall|must)\b", ln, re.I):
-            gated |= {r for r in rq.extract_req_ids(ln) if r in all_defs}
+    lines = req_text.splitlines()
+    starts = [
+        i for i, ln in enumerate(lines) if {r for r in rq.extract_req_ids(ln) if r in all_defs}
+    ]
+    for idx, i in enumerate(starts):
+        end = starts[idx + 1] if idx + 1 < len(starts) else len(lines)
+        block = []
+        for ln in lines[i:end]:
+            # A heading ends the block: prose after it belongs to another section.
+            if block and ln.lstrip().startswith("#"):
+                break
+            block.append(ln)
+        if re.search(r"\b(shall|must)\b", "\n".join(block), re.I):
+            gated |= {r for r in rq.extract_req_ids(lines[i]) if r in all_defs}
 
     # Checks 11-13 — per-task Eval/waiver/anchor gates.
     eval_covered = set()
@@ -224,6 +241,12 @@ def run_v2_gates() -> None:
                     rationale = sj.split(":**", 1)[1].strip()
                     j += 1
                 break
+            # A header with no entries is not a seam: REQ-051 wants one seam
+            # recorded by default, and an empty block used to satisfy the
+            # "exactly one **Seams:** block" count while declaring nothing
+            # (review [4]).
+            if not seams:
+                emit("REQ-051: **Seams:** block is empty (C9 requires at least one seam)")
             if len(seams) >= 2 and not rationale:
                 emit(f"REQ-051: {len(seams)} seams declared without a Seam rationale")
             i = j
@@ -344,5 +367,22 @@ def load_roles() -> set[str]:
 
 KNOWN_ROLES = load_roles()
 
-if any(t.get("eval") is not None for t in tasks):
+# A v2 artifact must be recognised by ANY v2 field, not by Eval alone. Keying
+# the whole gate set off `eval` meant that deleting every Eval line silently
+# disabled all of it — gated REQs without GWT, missing Seams, bad Blocked-by —
+# and returned exit 0 (review [1]). Fail-closed: any v2 signal turns the gates on.
+#
+# Detection reads the raw task body, NOT the parsed values: mb_work_items.py
+# DEFAULTS stage/scope/budget (1 / ['**'] / 120000) when they are absent, so a
+# parsed-value check would classify every legacy spec as v2 and break D-26.
+# The legacy exception is therefore explicit: a task whose body declares none of
+# these fields is a pre-v2 spec and stays ungated.
+V2_FIELD_RE = re.compile(r"^\*\*(Eval|Stage|Scope|Budget):\*\*", re.M)
+
+
+def is_v2_artifact() -> bool:
+    return any(V2_FIELD_RE.search(t.get("body") or "") for t in tasks)
+
+
+if is_v2_artifact():
     run_v2_gates()

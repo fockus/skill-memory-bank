@@ -88,6 +88,71 @@ def block_lines(lines: list[str], name: str) -> list[tuple[int, str]]:
     return block
 
 
+def _parse_entries(entries: list[tuple[int, str]], pos: int, indent: int):
+    """Parse one nested level; returns (value, next_pos).
+
+    Handles the shapes pipeline.yaml actually uses: nested mappings, block
+    sequences (`- item`), inline maps/lists, and scalars.
+    """
+    if pos >= len(entries):
+        return None, pos
+    if entries[pos][1].startswith("- "):
+        items = []
+        while pos < len(entries) and entries[pos][0] == indent and entries[pos][1].startswith("- "):
+            body = entries[pos][1][2:].strip()
+            key, sep, value = body.partition(":")
+            if sep and not body.startswith(("[", "{")):
+                # `- key: value` starts a mapping item at the bullet's own level.
+                item = {key.strip(): parse_value(value)} if value.strip() else {}
+                pos += 1
+                if not value.strip():
+                    nested, pos = _parse_entries(entries, pos, indent + 2)
+                    item[key.strip()] = nested
+                while pos < len(entries) and entries[pos][0] > indent:
+                    k2, s2, v2 = entries[pos][1].partition(":")
+                    if s2:
+                        item[k2.strip()] = parse_value(v2)
+                    pos += 1
+                items.append(item)
+            else:
+                items.append(parse_value(body))
+                pos += 1
+        return items, pos
+
+    result = {}
+    while pos < len(entries) and entries[pos][0] == indent:
+        key, sep, value = entries[pos][1].partition(":")
+        if not sep:
+            pos += 1
+            continue
+        key = key.strip()
+        pos += 1
+        if value.strip():
+            result[key] = parse_value(value)
+            continue
+        if pos < len(entries) and entries[pos][0] > indent:
+            nested, pos = _parse_entries(entries, pos, entries[pos][0])
+            result[key] = nested
+        else:
+            result[key] = None
+    return result, pos
+
+
+def parse_nested_block(lines: list[str], name: str):
+    """Full nested value of a top-level block, or None when it is absent.
+
+    The stdlib fallback previously loaded only a hand-picked subset of blocks,
+    so everything the validator checks in workflows/review/judge/
+    review_ensemble/done_*/dispatch was simply invisible without PyYAML — a
+    closed-enum violation PyYAML rejects passed silently (review [18]).
+    """
+    entries = block_lines(lines, name)
+    if not entries:
+        return None
+    value, _ = _parse_entries(entries, 0, entries[0][0])
+    return value
+
+
 def parse_simple_mapping(lines: list[str], name: str) -> dict:
     result = {}
     for indent, stripped in block_lines(lines, name):
@@ -192,4 +257,20 @@ def minimal_pipeline_load(text: str) -> dict:
     cfg["sprint_context_guard"] = parse_simple_mapping(lines, "sprint_context_guard")
     cfg["review_rubric"] = parse_review_rubric(lines)
     cfg["sdd"] = parse_simple_mapping(lines, "sdd")
+    # Every remaining block the validators inspect. Without these the stdlib-only
+    # path validated a strictly smaller config than the PyYAML path (review [18]).
+    for _name in (
+        "workflows",
+        "review",
+        "judge",
+        "review_ensemble",
+        "done_gates",
+        "done_placeholders",
+        "dispatch",
+        "agents",
+        "aliases",
+    ):
+        _value = parse_nested_block(lines, _name)
+        if _value is not None:
+            cfg[_name] = _value
     return cfg

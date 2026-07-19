@@ -7,6 +7,28 @@ the core's shared context passed in explicitly instead of read as globals.
 
 from __future__ import annotations
 
+import re
+
+# YAML scalars that are NOT strings, recognised on the raw inline-map tokens the
+# spec_review grammar produces (review [20]).
+_YAML_BOOL_RE = re.compile(r"^(true|false|yes|no|on|off)$", re.I)
+_YAML_NULL_RE = re.compile(r"^(null|~)$", re.I)
+_YAML_NUM_RE = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$")
+
+
+def _yaml_scalar_kind(token: str) -> str:
+    if _YAML_BOOL_RE.match(token):
+        return "boolean"
+    if _YAML_NULL_RE.match(token):
+        return "null"
+    if _YAML_NUM_RE.match(token):
+        return "number"
+    return "string"
+
+
+def _is_yaml_string(token: str) -> bool:
+    return _yaml_scalar_kind(token) == "string"
+
 
 def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
     """Validate every optional config block; append findings through `err`."""
@@ -23,7 +45,7 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
     if "default_limit" in budget and budget["default_limit"] is not None:
         v = budget["default_limit"]
         if not isinstance(v, (int, float)) or isinstance(v, bool) or v < 0:
-            err(f"budget.default_limit: must be null or non-negative number")
+            err("budget.default_limit: must be null or non-negative number")
 
     # ── protected_paths ────────────────────────────────────────────────
     pp = cfg.get("protected_paths")
@@ -45,9 +67,16 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
         err("sprint_context_guard.soft_warn_tokens: must be int > 0")
     if not isinstance(hard, int) or isinstance(hard, bool) or hard <= 0:
         err("sprint_context_guard.hard_stop_tokens: must be int > 0")
-    if isinstance(soft, int) and isinstance(hard, int) and not isinstance(soft, bool) and not isinstance(hard, bool):
+    if (
+        isinstance(soft, int)
+        and isinstance(hard, int)
+        and not isinstance(soft, bool)
+        and not isinstance(hard, bool)
+    ):
         if hard <= soft:
-            err(f"sprint_context_guard: hard_stop_tokens ({hard}) must be > soft_warn_tokens ({soft})")
+            err(
+                f"sprint_context_guard: hard_stop_tokens ({hard}) must be > soft_warn_tokens ({soft})"
+            )
 
     # ── review_rubric ─────────────────────────────────────────────────
     rubric = cfg.get("review_rubric") or {}
@@ -94,12 +123,34 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
     # Validate the RAW inline-only form, independent of the YAML loader (major #10):
     # a nested block, a quoted scalar (which could hide a comma/colon), or any comma
     # inside a value must be rejected identically with and without PyYAML.
+    # The inline form must live INSIDE the top-level `sdd:` block. Scanning the
+    # whole file for any `spec_review:` accepted a top-level one, which the
+    # runtime (reading `sdd.spec_review`) never sees — the config validated
+    # clean while review stayed silently off (review [19]).
     _sr_line = None
+    _sr_at_top_level = False
+    _in_sdd = False
     for _ln in text.splitlines():
-        _s = strip_comment(_ln).strip()
+        _raw = strip_comment(_ln).rstrip()
+        if not _raw.strip():
+            continue
+        _indent = len(_raw) - len(_raw.lstrip())
+        _s = _raw.strip()
+        if _indent == 0:
+            _in_sdd = _s.split(":", 1)[0].strip() == "sdd" and _s.endswith(":")
         if _s.startswith("spec_review:"):
+            if _indent == 0:
+                _sr_at_top_level = True
+                continue
+            if not _in_sdd:
+                continue
             _sr_line = _s.split(":", 1)[1].strip()
             break
+    if _sr_line is None and _sr_at_top_level:
+        err(
+            "spec_review: must be nested under the top-level `sdd:` block "
+            "(runtime reads sdd.spec_review; a top-level one is never applied)"
+        )
     if _sr_line is not None:
         if not (_sr_line.startswith("{") and _sr_line.endswith("}")):
             # empty value (nested block) or a bare scalar — C5 requires an inline map.
@@ -113,7 +164,9 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
             if _inner:
                 for _part in _inner.split(","):
                     if ":" not in _part:
-                        err("sdd.spec_review: a value must not contain a comma (inline-map grammar)")
+                        err(
+                            "sdd.spec_review: a value must not contain a comma (inline-map grammar)"
+                        )
                         _grammar_ok = False
                         break
                     _k, _v = _part.split(":", 1)
@@ -130,16 +183,32 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
                     err(f"sdd.spec_review.thinking: must be one of low|medium|high (got {_th!r})")
                 if _en_raw.lower() == "true":
                     for _k in ("agent", "model"):
-                        if not _sr.get(_k):
+                        _val = _sr.get(_k)
+                        if not _val:
                             err(f"sdd.spec_review.{_k}: must be a non-empty string when enabled")
+                        elif not _is_yaml_string(_val):
+                            # C5 requires STRING identity. The inline form yields
+                            # raw tokens, so `agent: false` / `model: 123` are the
+                            # truthy strings "false"/"123" and passed the emptiness
+                            # check while being a boolean and an int to any YAML
+                            # loader — and to the runtime (review [20]).
+                            err(
+                                f"sdd.spec_review.{_k}: must be a string, "
+                                f"got the {_yaml_scalar_kind(_val)} {_val!r}"
+                            )
                     if not _th:
                         err("sdd.spec_review.thinking: required when enabled")
 
-
     # ── runtime blocks: review / judge / review_ensemble / done_* / dispatch ──
     KNOWN_AGENTS = {
-        "claude-code", "cursor", "codex", "opencode",
-        "pi", "windsurf", "cline", "kilo",
+        "claude-code",
+        "cursor",
+        "codex",
+        "opencode",
+        "pi",
+        "windsurf",
+        "cline",
+        "kilo",
     }
     KNOWN_TRANSPORTS = {"pi", "opencode", "codex", "claude-agent"}
     ALLOWED_DONE_REQUIRED = {"tests_pass", "no_critical_violations", "no_placeholders"}
@@ -152,7 +221,9 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
             return
         unknown = set(gate.keys()) - SEVERITY_KEYS
         if unknown:
-            err(f"{prefix}.severity_gate: unknown keys {sorted(unknown)}; allowed {sorted(SEVERITY_KEYS)}")
+            err(
+                f"{prefix}.severity_gate: unknown keys {sorted(unknown)}; allowed {sorted(SEVERITY_KEYS)}"
+            )
         for sev_k, sev_v in gate.items():
             if not isinstance(sev_v, int) or isinstance(sev_v, bool) or sev_v < 0:
                 err(f"{prefix}.severity_gate.{sev_k}: must be int >= 0")
@@ -173,7 +244,9 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
                 err(f"review.on_max_cycles: '{omc}' not in {sorted(valid_max_cycles)}")
             cats = rev.get("categories")
             if cats is not None:
-                if not isinstance(cats, list) or not all(isinstance(c, str) and c.strip() for c in cats):
+                if not isinstance(cats, list) or not all(
+                    isinstance(c, str) and c.strip() for c in cats
+                ):
                     err("review.categories: must be a list of non-empty strings")
 
     if "judge" in cfg:
@@ -191,11 +264,15 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
                     bad = [d for d in dec if d not in {"GO", "GO_WITH_BACKLOG", "NO_GO"}]
                     if bad:
                         err(f"judge.decisions: unknown values {bad}")
-            if "register_backlog_before_done" in jud and not isinstance(jud.get("register_backlog_before_done"), bool):
+            if "register_backlog_before_done" in jud and not isinstance(
+                jud.get("register_backlog_before_done"), bool
+            ):
                 err("judge.register_backlog_before_done: must be boolean")
             bp = jud.get("blocking_policy")
             if bp is not None:
-                if not isinstance(bp, list) or not all(isinstance(x, str) and x.strip() for x in bp):
+                if not isinstance(bp, list) or not all(
+                    isinstance(x, str) and x.strip() for x in bp
+                ):
                     err("judge.blocking_policy: must be a list of non-empty strings")
 
     if "review_ensemble" in cfg:
@@ -287,7 +364,6 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
             if not isinstance(block.get("enabled"), bool):
                 err(f"{stage_name}.enabled: must be boolean")
 
-
     # ── named-pipeline metadata (optional keys; validated only with PyYAML) ──
     # pipeline_name / default / agents are an opt-in layer used by named pipelines.
     # The minimal no-PyYAML loader does not model list values, so we validate these
@@ -308,6 +384,7 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
                     if not isinstance(a, str) or not a.strip():
                         err(f"agents[{i}]: must be a non-empty string")
                     elif a not in KNOWN_AGENTS:
-                        err(f"agents[{i}]: unknown code-agent '{a}' "
-                            f"(known: {', '.join(sorted(KNOWN_AGENTS))})")
-
+                        err(
+                            f"agents[{i}]: unknown code-agent '{a}' "
+                            f"(known: {', '.join(sorted(KNOWN_AGENTS))})"
+                        )

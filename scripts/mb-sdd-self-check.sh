@@ -68,7 +68,16 @@ if [ -d "$SPEC_ARG" ]; then
 elif [ -f "$SPEC_ARG" ]; then
   SPEC_DIR="$(dirname "$SPEC_ARG")"
 else
-  bank="${MB_BANK:-.memory-bank}"
+  # Topic-only mode must RESOLVE the bank (local / registered global / legacy)
+  # rather than hardcoding `.memory-bank`, which silently failed to find any
+  # spec in a global-storage project (review [15]).
+  if [ -n "$MB_BANK" ]; then
+    bank="$MB_BANK"
+  else
+    # shellcheck source=_lib.sh
+    bank="$(. "$SCRIPT_DIR/_lib.sh" >/dev/null 2>&1 && mb_resolve_path "" 2>/dev/null || true)"
+    [ -n "$bank" ] || bank=".memory-bank"
+  fi
   SPEC_DIR="$bank/specs/$SPEC_ARG"
 fi
 TASKS="$SPEC_DIR/tasks.md"
@@ -91,7 +100,17 @@ else
   # agent-config directory, where no Eval target can exist, so every already-green
   # command was mis-reported as pending_materialization (review [9]). There the
   # checkout is resolved from the working directory instead.
-  if [ "$(basename "${_bank_abs:-$_bank}")" = ".memory-bank" ]; then
+  #
+  # A registered global bank also ends in `.memory-bank`, so the basename alone
+  # cannot separate the two (review [15]). Detect GLOBAL positively — the bank
+  # lives under the agent-config dir — and otherwise keep the parent-is-the-repo
+  # rule, which is what keeps banks outside any checkout (fixtures) working.
+  _agent_cfg="$(. "$SCRIPT_DIR/_lib.sh" >/dev/null 2>&1 && mb_agent_config_dir "${MB_AGENT:-}" 2>/dev/null || true)"
+  _is_global=0
+  case "${_agent_cfg:+${_bank_abs:-$_bank}}" in
+    "$_agent_cfg"/*) [ -n "$_agent_cfg" ] && _is_global=1 ;;
+  esac
+  if [ "$_is_global" -eq 0 ] && [ "$(basename "${_bank_abs:-$_bank}")" = ".memory-bank" ]; then
     RUN_ROOT="$(cd "$_bank/.." 2>/dev/null && pwd || true)"
   else
     RUN_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
@@ -155,6 +174,9 @@ classify_eval() {
   case "$cmd" in
     none|None|NONE) printf 'pending_materialization'; return ;;
   esac
+  # `exit: 0` contradicts the definition of a red (review [6]): reject the
+  # declaration outright rather than letting it license a green-as-red.
+  if [ -n "$exp" ] && [ "$exp" = "0" ]; then printf 'invalid'; return; fi
 
   # Shell-aware tokenisation (respects quotes, so a target path with a space is
   # resolved correctly — major #12). shlex mirrors how `eval "$cmd"` splits the
@@ -165,7 +187,7 @@ classify_eval() {
   #   RUN      — all targets exist and the runner is available
   local pre
   pre="$(CMD="$cmd" RUN_ROOT="$RUN_ROOT" python3 - <<'PY'
-import os, shlex, shutil, sys
+import os, re, shlex, shutil, sys
 cmd = os.environ["CMD"]
 root = os.environ["RUN_ROOT"]
 try:
@@ -180,7 +202,15 @@ if not targets:
 for t in targets:
     if not (os.path.exists(os.path.join(root, t)) or os.path.exists(t)):
         print("PENDING"); sys.exit(0)
-runner = toks[0]
+# `VAR=value cmd ...` is valid shell: the leading assignments are environment,
+# not the runner. Treating `PYTHONPATH=src` as the tool made shutil.which fail
+# and rejected a perfectly valid Eval as an unavailable tool (review [16]).
+rest = list(toks)
+while rest and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", rest[0]):
+    rest.pop(0)
+if not rest:
+    print("MALFORMED"); sys.exit(0)
+runner = rest[0]
 if "/" not in runner and shutil.which(runner) is None:
     print("TOOL"); sys.exit(0)
 print("RUN")
@@ -204,7 +234,12 @@ PY
   # Observe the DECLARED red: output must match output_re and (when declared)
   # the exit must equal the declared exit. Without any anchor a red cannot be
   # confirmed → invalid.
+  # A red is by DEFINITION a failing run. Without this, a command that merely
+  # printed the declared output~ anchor and exited 0 was recorded as `ready`,
+  # which is precisely how a green command impersonates a red (review [6]).
+  # `exit: 0` is rejected structurally below, so this cannot be declared away.
   local red=1
+  [ "$rc" -ne 0 ] || red=0
   if [ -n "$ore" ]; then
     # `--` ends option parsing: a valid ERE starting with '-' (e.g. `-FAIL`) is
     # a pattern, not a grep flag. The validator already uses `grep -E --`, so

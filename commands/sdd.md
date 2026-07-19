@@ -106,8 +106,10 @@ Only now — after C8 passed and review resolved — promote the staged draft in
 ```bash
 bash scripts/mb-sdd-candidate.sh publish --topic <topic> \
      --candidate <bank>/tmp/sdd/<topic>/tasks.candidate.md \
-     --estimate-file <estimate-stdout> --mb <bank> [--override user]
+     --estimate-file <estimate-stdout> --mb <bank> [--override user] [--force]
 ```
+
+**`--force` is the existing-spec gate, re-checked inside the helper.** When `specs/<topic>/tasks.md` already exists, publish refuses with `candidate=blocked reason=spec_exists` (exit 1) and leaves the accepted triple byte-identical. Pass `--force` only when the user invoked `/mb sdd <topic> --force`; the helper enforces this itself so the guarantee cannot be lost by a caller that skips the prompt-level check (review [14]).
 
 The triple lands as **status: draft** — promotion is not acceptance. `specs/<topic>/tasks.md` is never created or modified until this step, and only when every earlier gate passed; the staged `requirements.md`/`design.md` are moved into place alongside it. Any block/malformed verdict, or any earlier gate failure, leaves the existing accepted triple **byte-identical**.
 
