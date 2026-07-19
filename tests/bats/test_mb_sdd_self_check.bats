@@ -397,3 +397,93 @@ EOF
   run shellcheck -S style "$SELFCHECK"
   [ "$status" -eq 0 ]
 }
+
+# ── S2 review hardening: [8] [9] [10] [21] ───────────────────────────────────
+
+# mk1_noexit <topic> <eval-cmd> — a triple whose Eval declares output~ but NO exit:.
+mk1_noexit() {
+  local dir="$SPECS/$1"
+  mkdir -p "$dir"
+  _reqs "$dir"
+  sed "s#; exit: 1;#;#" /dev/null 2>/dev/null || true
+  cat >"$dir/tasks.md" <<EOF
+# Tasks: demo
+
+<!-- mb-task:1 -->
+## Task 1: persist work items
+
+**Covers:** REQ-001
+**Role:** backend
+**Eval:** $2 ${DASH} red: demo assertion fails; output~: $ORE
+
+**What to do:**
+- persist to disk.
+
+**Testing (TDD — tests BEFORE implementation):**
+- round-trip test.
+
+**DoD:**
+- [ ] persist works.
+<!-- /mb-task:1 -->
+EOF
+  cat >"$dir/design.md" <<EOF
+# Design: demo
+
+## Contract
+
+**Seams:**
+- the persistence boundary
+
+## Eval declarations
+
+- **T1** ${DASH} persist work items:
+  **Eval:** $2 ${DASH} red: demo assertion fails; output~: $ORE
+EOF
+  printf '%s\n' "$dir"
+}
+
+@test "self_check: an output-only Eval (no exit:) is evaluated, not mangled by field parsing (review [10])" {
+  local dir; dir="$(mk1_noexit demo 'bash tests/sh/red.sh')"
+  mk_red_target tests/sh/red.sh
+  run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
+  [ "$status" -eq 0 ] || { echo "$output"; echo "$stderr"; false; }
+  [[ "$output" == *"eval.1=ready"* ]]
+}
+
+@test "self_check: an output~: ERE starting with '-' is accepted like the validator does (review [21])" {
+  ORE='-FAIL demo_persist'
+  local dir; dir="$(mk1 demo 'bash tests/sh/red.sh')"
+  printf '#!/usr/bin/env bash\necho "-FAIL demo_persist"\nexit 1\n' >"$ROOT/tests/sh/red.sh"
+  chmod +x "$ROOT/tests/sh/red.sh"
+  run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
+  [ "$status" -eq 0 ] || { echo "$output"; echo "$stderr"; false; }
+  [[ "$output" == *"eval.1=ready"* ]]
+}
+
+@test "self_check: a non-adjacent (global) bank resolves the real checkout (review [9])" {
+  local gbank="$TMPDIR/global-bank"
+  mkdir -p "$gbank/specs"
+  ( cd "$ROOT" && git init -q . && git config user.email t@t && git config user.name t )
+  SPECS="$gbank/specs" mk1 demo 'bash tests/sh/red.sh' >/dev/null
+  mk_red_target tests/sh/red.sh
+  cd "$ROOT" || return 1
+  # No MB_REPO_ROOT override: the helper must find the checkout itself.
+  run --separate-stderr "$SELFCHECK" --spec "$gbank/specs/demo" --mb "$gbank"
+  [ "$status" -eq 0 ] || { echo "$output"; echo "$stderr"; false; }
+  [[ "$output" == *"eval.1=ready"* ]]
+}
+
+@test "self_check: a gated spec with zero GWT scenarios is invalid (review [8], REQ-006)" {
+  local dir; dir="$(mk1 demo 'bash tests/sh/red.sh')"
+  mk_red_target tests/sh/red.sh
+  # strip the whole Scenarios section — REQ-001 keeps its SHALL modal.
+  python3 - "$dir" <<'PY'
+import sys, pathlib
+p = pathlib.Path(sys.argv[1]) / "requirements.md"
+txt = p.read_text(encoding="utf-8")
+p.write_text(txt.split("## Scenarios")[0], encoding="utf-8")
+PY
+  run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "self_check=invalid" ]
+}

@@ -50,35 +50,18 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PIPELINE="$SCRIPT_DIR/mb-pipeline.sh"
 
 # shellcheck source=_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
 # shellcheck source=mb-work-slots.sh
 source "$SCRIPT_DIR/mb-work-slots.sh"
+# shellcheck source=mb-work-state-lib.sh
+source "$SCRIPT_DIR/mb-work-state-lib.sh"
+# shellcheck source=mb-work-state-eval.sh
+source "$SCRIPT_DIR/mb-work-state-eval.sh"
 
 usage() {
   sed -n '2,33p' "$0" >&2
-}
-
-resolve_max_cycles() {
-  # $1 = mb_arg → echoes an integer
-  local mb_arg="$1"
-  local pipeline_path
-  pipeline_path=$(bash "$PIPELINE" path "$mb_arg" 2>/dev/null || true)
-  if [ -z "$pipeline_path" ]; then
-    pipeline_path="$SCRIPT_DIR/../references/pipeline.default.yaml"
-  fi
-  PIPELINE_YAML="$pipeline_path" python3 - <<'PY'
-import os
-try:
-    import yaml  # type: ignore
-    cfg = yaml.safe_load(open(os.environ["PIPELINE_YAML"], encoding="utf-8")) or {}
-    loop = (((cfg.get("workflows") or {}).get("governed-execution") or {}).get("loop") or {})
-    print(int(loop.get("max_cycles", 2)))
-except Exception:
-    print(2)
-PY
 }
 
 state_path() {
@@ -86,10 +69,6 @@ state_path() {
   local bank
   bank=$(mb_resolve_path "${1:-}")
   mbw_state_slot "$bank" "${2:-}"
-}
-
-gen_run_id() {
-  python3 -c 'import uuid; print(uuid.uuid4().hex)'
 }
 
 is_uint() {
@@ -385,221 +364,6 @@ cmd_clear() {
   fi
 
   rm -f "$state"
-}
-
-# ── eval-first helpers (svp-sdd-core C6, REQ-008) ─────────────────────────
-# Repo root the byte-identical --cmd-file is executed from (git top-level, or
-# MB_REPO_ROOT for tests, else the current directory).
-eval_run_root() {
-  if [ -n "${MB_REPO_ROOT:-}" ]; then
-    printf '%s' "$MB_REPO_ROOT"; return
-  fi
-  local top
-  top=$(git rev-parse --show-toplevel 2>/dev/null || true)
-  if [ -n "$top" ]; then printf '%s' "$top"; else pwd; fi
-}
-
-# Helper-owned proof key. This is NOT a cryptographic secret against a
-# determined adversary (it lives in the script) — it makes a hand-edited
-# eval-object detectable, so a verdict cannot be forged by editing the state
-# JSON. The proof binds the executed cmd snapshot + red-transition fields.
-MBW_EVAL_PROOF_KEY="mb-work-state/eval-proof/v1"
-
-# ── eval-red ──────────────────────────────────────────────────────────────
-cmd_eval_red() {
-  local cmd_file="" output_re="" expected_exit="" run_id="" mb_arg=""
-  while [ "$#" -gt 0 ]; do
-    case "$1" in
-      --cmd-file) cmd_file="${2:-}"; shift 2 ;;
-      --cmd-file=*) cmd_file="${1#--cmd-file=}"; shift ;;
-      --output-re) output_re="${2:-}"; shift 2 ;;
-      --output-re=*) output_re="${1#--output-re=}"; shift ;;
-      --expected-exit) expected_exit="${2:-}"; shift 2 ;;
-      --expected-exit=*) expected_exit="${1#--expected-exit=}"; shift ;;
-      --run-id) run_id="${2:-}"; shift 2 ;;
-      --run-id=*) run_id="${1#--run-id=}"; shift ;;
-      --mb) mb_arg="${2:-}"; shift 2 ;;
-      --mb=*) mb_arg="${1#--mb=}"; shift ;;
-      -h|--help) usage; exit 0 ;;
-      *) echo "[work-state] eval-red: unexpected arg '$1'" >&2; exit 2 ;;
-    esac
-  done
-  [ -z "$run_id" ] && run_id="${MB_WORK_RUN_ID:-}"
-  [ -n "$cmd_file" ] || { echo "[work-state] eval-red --cmd-file required" >&2; exit 2; }
-  [ -n "$output_re" ] || { echo "[work-state] eval-red --output-re required" >&2; exit 2; }
-  { [ -f "$cmd_file" ] && [ -r "$cmd_file" ]; } || { echo "[work-state] eval-red: cmd-file not found" >&2; exit 2; }
-  if [ -n "$expected_exit" ]; then
-    # A red exit is by definition non-zero; --expected-exit only refines WHICH
-    # non-zero code is expected. Reject --expected-exit 0 as a contradiction.
-    if ! is_uint "$expected_exit"; then
-      echo "[work-state] eval-red --expected-exit must be a non-negative integer" >&2; exit 2
-    fi
-    if [ "$expected_exit" -eq 0 ]; then
-      echo "[work-state] eval-red --expected-exit must be non-zero (a red never exits 0)" >&2; exit 2
-    fi
-  fi
-
-  local state; state=$(state_path "$mb_arg" "$run_id")
-  require_valid_state "$state"
-
-  # --output-re must compile as an ERE (grep -E exits 2 on a bad pattern).
-  local gec
-  set +e
-  printf '' | grep -Eq -- "$output_re" 2>/dev/null
-  gec=$?
-  set -e
-  if [ "$gec" -eq 2 ]; then
-    echo "[work-state] eval-red: --output-re is not a valid ERE" >&2; exit 2
-  fi
-
-  # Snapshot the cmd-file BEFORE running so a self-modifying command cannot swap
-  # itself for a green version mid-run (major #7): we execute the immutable
-  # snapshot and later persist exactly that snapshot.
-  local snap; snap=$(mktemp)
-  cp "$cmd_file" "$snap"
-
-  local run_root out rc mrc red_match=0
-  run_root=$(eval_run_root)
-  set +e
-  out=$(cd "$run_root" && bash "$snap" 2>&1)
-  rc=$?
-  printf '%s\n' "$out" | grep -Eq -- "$output_re"
-  mrc=$?
-  set -e
-
-  # Reject a cmd-file that modified itself during the run (the executed version
-  # would no longer be the one on disk).
-  if ! cmp -s "$cmd_file" "$snap"; then
-    rm -f "$snap"
-    echo "[work-state] eval-red: cmd-file changed during execution (self-modifying)" >&2
-    exit 2
-  fi
-
-  # red_match requires: output matched the anchor AND an actual non-zero exit
-  # (major #6 — a green exit 0 is never a red) AND, when given, the exact code.
-  if [ "$mrc" -eq 0 ] && [ "$rc" -ne 0 ]; then red_match=1; fi
-  if [ -n "$expected_exit" ] && [ "$rc" -ne "$expected_exit" ]; then red_match=0; fi
-
-  local tmp; tmp=$(mktemp)
-  STATE="$state" TMP="$tmp" SNAP="$snap" RED_EXIT="$rc" RED_MATCH="$red_match" \
-    PROOF_KEY="$MBW_EVAL_PROOF_KEY" python3 - <<'PY'
-import json, os, datetime, hashlib
-data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
-cmd = open(os.environ["SNAP"], encoding="utf-8").read()
-cmd_hash = hashlib.sha256(cmd.encode("utf-8")).hexdigest()
-rm = os.environ["RED_MATCH"] == "1"
-red_exit = int(os.environ["RED_EXIT"])
-signed = json.dumps(
-    {"cmd_hash": cmd_hash, "red_exit": red_exit, "red_observed": rm, "red_match": rm},
-    sort_keys=True, separators=(",", ":"),
-)
-sig = hashlib.sha256((os.environ["PROOF_KEY"] + "\0" + signed).encode("utf-8")).hexdigest()
-data["eval"] = {
-    "cmd": cmd,
-    "cmd_hash": cmd_hash,
-    "red_exit": red_exit,
-    "red_observed": rm,
-    "red_match": rm,
-    "green_exit": None,
-    "sig": sig,
-}
-data["updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-open(os.environ["TMP"], "w", encoding="utf-8").write(json.dumps(data) + "\n")
-PY
-  mv "$tmp" "$state"
-  rm -f "$snap"
-
-  [ "$red_match" -eq 1 ] && exit 0
-  exit 1
-}
-
-# ── eval-green ────────────────────────────────────────────────────────────
-cmd_eval_green() {
-  local cmd_file="" run_id="" mb_arg=""
-  while [ "$#" -gt 0 ]; do
-    case "$1" in
-      --cmd-file) cmd_file="${2:-}"; shift 2 ;;
-      --cmd-file=*) cmd_file="${1#--cmd-file=}"; shift ;;
-      --run-id) run_id="${2:-}"; shift 2 ;;
-      --run-id=*) run_id="${1#--run-id=}"; shift ;;
-      --mb) mb_arg="${2:-}"; shift 2 ;;
-      --mb=*) mb_arg="${1#--mb=}"; shift ;;
-      -h|--help) usage; exit 0 ;;
-      *) echo "[work-state] eval-green: unexpected arg '$1'" >&2; exit 2 ;;
-    esac
-  done
-  [ -z "$run_id" ] && run_id="${MB_WORK_RUN_ID:-}"
-  [ -n "$cmd_file" ] || { echo "[work-state] eval-green --cmd-file required" >&2; exit 2; }
-  { [ -f "$cmd_file" ] && [ -r "$cmd_file" ]; } || { echo "[work-state] eval-green: cmd-file not found" >&2; exit 2; }
-
-  local state; state=$(state_path "$mb_arg" "$run_id")
-  require_valid_state "$state"
-
-  # Precondition (blockers #2): a valid, completed, PROVEN red transition must
-  # exist. Verify the helper-owned proof (rejects a hand-edited eval object),
-  # require red_observed=true AND red_match=true, and confirm the cmd-file is
-  # byte-identical (content + hash) to the executed red snapshot.
-  local check
-  set +e
-  check=$(STATE="$state" CMD_FILE="$cmd_file" PROOF_KEY="$MBW_EVAL_PROOF_KEY" python3 - <<'PY'
-import json, os, sys, hashlib
-data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
-e = data.get("eval")
-if not isinstance(e, dict) or "cmd" not in e or "sig" not in e:
-    print("NOEVAL"); sys.exit(0)
-signed = json.dumps(
-    {"cmd_hash": e.get("cmd_hash"), "red_exit": e.get("red_exit"),
-     "red_observed": e.get("red_observed"), "red_match": e.get("red_match")},
-    sort_keys=True, separators=(",", ":"),
-)
-expect = hashlib.sha256((os.environ["PROOF_KEY"] + "\0" + signed).encode("utf-8")).hexdigest()
-if expect != e.get("sig"):
-    print("TAMPERED"); sys.exit(0)
-if not (e.get("red_observed") is True and e.get("red_match") is True):
-    print("NORED"); sys.exit(0)
-cur = open(os.environ["CMD_FILE"], encoding="utf-8").read()
-if cur != e["cmd"] or hashlib.sha256(cur.encode("utf-8")).hexdigest() != e.get("cmd_hash"):
-    print("DRIFT"); sys.exit(0)
-print("OK")
-PY
-)
-  set -e
-  case "$check" in
-    NOEVAL)   echo "[work-state] eval-green: no eval recorded (run eval-red first)" >&2; exit 2 ;;
-    TAMPERED) echo "[work-state] eval-green: eval proof invalid (state tampered)" >&2; exit 2 ;;
-    NORED)    echo "[work-state] eval-green: no valid red transition (red_observed/red_match not true)" >&2; exit 2 ;;
-    DRIFT)    exit 1 ;;
-    OK)       : ;;
-    *)        echo "[work-state] eval-green: unexpected verification state" >&2; exit 2 ;;
-  esac
-
-  local run_root rc
-  run_root=$(eval_run_root)
-  set +e
-  ( cd "$run_root" && bash "$cmd_file" ) >/dev/null 2>&1
-  rc=$?
-  set -e
-
-  local tmp; tmp=$(mktemp)
-  STATE="$state" TMP="$tmp" GREEN_EXIT="$rc" PROOF_KEY="$MBW_EVAL_PROOF_KEY" python3 - <<'PY'
-import json, os, datetime, hashlib
-data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
-e = data.setdefault("eval", {})
-e["green_exit"] = int(os.environ["GREEN_EXIT"])
-# Re-bind the proof so the (unchanged) red fields stay verifiable.
-signed = json.dumps(
-    {"cmd_hash": e.get("cmd_hash"), "red_exit": e.get("red_exit"),
-     "red_observed": e.get("red_observed"), "red_match": e.get("red_match")},
-    sort_keys=True, separators=(",", ":"),
-)
-e["sig"] = hashlib.sha256((os.environ["PROOF_KEY"] + "\0" + signed).encode("utf-8")).hexdigest()
-data["updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-open(os.environ["TMP"], "w", encoding="utf-8").write(json.dumps(data) + "\n")
-PY
-  mv "$tmp" "$state"
-
-  [ "$rc" -eq 0 ] && exit 0
-  exit 1
 }
 
 main() {

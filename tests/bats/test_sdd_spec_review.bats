@@ -219,6 +219,57 @@ IN" || true
   head -1 "$jsonl" | grep -q '"verdict":"CHANGES_REQUESTED"'
 }
 
+# ── bank resolution, containment, provenance, secrets (S2 review [4][5][18][23]) ──
+
+@test "spec_review: symlinked tmp/spec-review cannot redirect the JSONL outside the bank" {
+  local victim="$TMP/victim"; mkdir -p "$victim"
+  mkdir -p "$BANK/tmp"
+  ln -s "$victim" "$BANK/tmp/spec-review"
+  run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - --mb $(printf '%q' "$BANK") $ID <<'IN'
+$(_review reviewed '"APPROVED"' null)
+IN"
+  [ "$status" -eq 2 ]
+  [ ! -e "$victim/t.jsonl" ]
+}
+
+@test "spec_review: record without --mb resolves the active bank instead of a hardcoded .memory-bank" {
+  local proj="$TMP/proj"; mkdir -p "$proj"            # no local .memory-bank
+  local gbank="$TMP/global-bank"; mkdir -p "$gbank"
+  cd "$proj" || return 1
+  MB_PATH="$gbank" run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - $ID <<'IN'
+$(_review reviewed '"APPROVED"' null)
+IN"
+  [ "$status" -eq 0 ]
+  [ -f "$gbank/tmp/spec-review/t.jsonl" ]
+  [ ! -e "$proj/.memory-bank" ]
+}
+
+@test "spec_review: reviewer identity is recorded as caller-claimed, never as verified provenance" {
+  run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - --mb $(printf '%q' "$BANK") $ID <<'IN'
+$(_review reviewed '"APPROVED"' null)
+IN"
+  [ "$status" -eq 0 ]
+  local jsonl="$BANK/tmp/spec-review/t.jsonl"
+  grep -q '"reviewer_provenance":"claimed"' "$jsonl"
+}
+
+@test "spec_review: a reviewer payload carrying a secret is refused, nothing durable is written" {
+  run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - --mb $(printf '%q' "$BANK") $ID <<'IN'
+{\"status\":\"reviewed\",\"verdict\":\"CHANGES_REQUESTED\",\"reviewer\":{\"agent\":\"mb-reviewer\",\"model\":\"gpt-x\",\"thinking\":\"medium\"},\"issues\":[],\"reason\":\"leaked sk-live0123456789abcdef in config\"}
+IN"
+  [ "$status" -eq 2 ]
+  [ ! -f "$BANK/tmp/spec-review/t.jsonl" ]
+  [[ "$stderr" == *"secret"* ]]
+}
+
+@test "spec_review: a clean reviewer payload is unaffected by the secret gate" {
+  run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - --mb $(printf '%q' "$BANK") $ID <<'IN'
+{\"status\":\"reviewed\",\"verdict\":\"CHANGES_REQUESTED\",\"reviewer\":{\"agent\":\"mb-reviewer\",\"model\":\"gpt-x\",\"thinking\":\"medium\"},\"issues\":[],\"reason\":\"missing error handling in the parser\"}
+IN"
+  [ "$status" -eq 1 ]
+  [ -f "$BANK/tmp/spec-review/t.jsonl" ]
+}
+
 @test "spec_review: shellcheck (style) clean" {
   if ! command -v shellcheck >/dev/null 2>&1; then skip "shellcheck not installed"; fi
   run shellcheck -S style "$RESULT"

@@ -542,6 +542,8 @@ sees every active agreement without being reminded.
 - Metadata protocol + `index.json` + 8 key rules: `references/metadata.md`
 - Plan decomposition (Phase / Sprint / Stage), templates, drift checks: `references/templates.md`
 - Planning + Plan Verifier workflow: `references/planning-and-verification.md`
+- `/mb work` reference material (workflow modes, JSON schema, examples, scripts, parallel runs): `references/work-reference.md`
+- `/mb work` sprint contracts, progress trend, strategic pivoting: `references/work-loop-v2.md`
 - Structure of `.memory-bank/`: `references/structure.md`
 - Code graph cookbook (jq library, `graph.json` schema, intelligence layer, semantic-search routing): `references/code-graph.md`
 - Workflow (session lifecycle): `references/workflow.md`

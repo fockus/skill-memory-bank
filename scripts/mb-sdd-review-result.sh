@@ -18,7 +18,14 @@
 #          strictly (extra fields → malformed), and appends ONE compact line to
 #          `<bank>/tmp/spec-review/<topic>.jsonl` with helper-added `ts`
 #          (UTC ISO-8601) + `attempt`. History is never rewritten; the last
-#          valid line is the current verdict.
+#          valid line is the current verdict. A payload containing a secret is
+#          refused (`secret_blocked`, exit 2) — the log is append-only, so a
+#          leaked credential in it would be permanent.
+#
+# Reviewer provenance is CLAIMED, not verified: the identity flags and the JSON
+# `reviewer` block come from the same caller, so their agreement proves internal
+# consistency only. Every record therefore carries `reviewer_provenance:
+# "claimed"`; no consumer may treat it as proof that the named model ran.
 #
 # exit : 0 APPROVED · 1 CHANGES_REQUESTED · 2 same_model | unavailable(skipped)
 #        | malformed | usage.
@@ -27,6 +34,11 @@
 # orchestrator's C7 state-machine decision, keyed on this exit code.
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=_lib.sh
+source "$SCRIPT_DIR/_lib.sh"
+SECRET_SCAN="$SCRIPT_DIR/mb-secret-scan.sh"
 
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
 
@@ -85,18 +97,40 @@ else
   RAW="$(cat "$INPUT")"
 fi
 
-BANK="${MB_BANK:-.memory-bank}"
+# Storage-aware resolution (review [18]): local, global-registered and legacy
+# banks all resolve through the shared resolver — never a hardcoded relative
+# `.memory-bank`, which silently created a second bank next to the caller.
+BANK="$(mb_resolve_path "$MB_BANK")"
 OUTDIR="$BANK/tmp/spec-review"
+
+# Fail-closed secret gate BEFORE any durable write (review [23]): the reviewer
+# payload is appended verbatim to an append-only JSONL that is never rewritten,
+# so a leaked credential there is permanent. Scanning is delegated to the
+# canonical dispatcher — no second regex set lives here. Any verdict other than
+# a clean scan refuses the record; `<private>` markers do NOT exempt a payload
+# (that guard covers index/search, not durable git-tracked content).
+SCAN_TMP="$(mktemp)"
+printf '%s' "$RAW" > "$SCAN_TMP"
+set +e
+SCAN_OUT="$(bash "$SECRET_SCAN" --policy transcript "$SCAN_TMP" 2>/dev/null)"
+scan_rc=$?
+set -e
+rm -f "$SCAN_TMP"
+if [ "$scan_rc" -ne 0 ] || [ "$SCAN_OUT" != "scan=clean" ]; then
+  printf 'secret_blocked\n' >&2
+  exit 2
+fi
 
 set +e
 STATUS_LINE="$(
-  MB_RAW="$RAW" MB_TOPIC="$TOPIC" MB_ATTEMPT="$ATTEMPT" MB_OUTDIR="$OUTDIR" \
+  MB_RAW="$RAW" MB_TOPIC="$TOPIC" MB_ATTEMPT="$ATTEMPT" MB_BANK="$BANK" \
     MB_REV_AGENT="$AGENT" MB_REV_MODEL="$REV" MB_THINKING="$THINKING" python3 - <<'PY'
 import json, os, sys, datetime, pathlib
 
 raw = os.environ["MB_RAW"]
 topic = os.environ["MB_TOPIC"]
-outdir = os.environ["MB_OUTDIR"]
+bank = os.environ["MB_BANK"]
+outdir = os.path.join(bank, "tmp", "spec-review")
 
 def bad(_msg):
     sys.stderr.write("malformed\n")
@@ -174,14 +208,33 @@ ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 rec = dict(obj)
 rec["ts"] = ts
 rec["attempt"] = attempt
+# Provenance honesty (review [4]): `reviewer` is asserted by the SAME caller
+# that supplies the --reviewer-* flags, so matching them proves only internal
+# consistency, never that the named model actually ran. The record therefore
+# marks the identity as CLAIMED; no consumer may read it as verified
+# provenance. Upgrading this to a verified value needs a dispatch receipt the
+# caller cannot mint — deliberately not faked here.
+rec["reviewer_provenance"] = "claimed"
+
+# Containment (blocker #9 + review [5]): a symlinked `tmp/spec-review` used to
+# pass the old parent-vs-parent comparison and divert the append outside the
+# bank. Containment is now checked on the FINAL WRITE PATH against the
+# canonical bank, and neither the directory nor the file may be a symlink.
+real_bank = os.path.realpath(bank)
 d = pathlib.Path(outdir)
-d.mkdir(parents=True, exist_ok=True)
-# Containment (blocker #9, defense-in-depth over the shell topic guard): the
-# resolved JSONL path must be a DIRECT child of the spec-review directory.
-target = (d / (topic + ".jsonl")).resolve()
-if target.parent != d.resolve():
+if d.is_symlink():
     bad("path_escape")
-with open(target, "a", encoding="utf-8") as fh:
+d.mkdir(parents=True, exist_ok=True)
+target = d / (topic + ".jsonl")
+if target.is_symlink():
+    bad("path_escape")
+real_target = os.path.realpath(target)
+expected = os.path.join(real_bank, "tmp", "spec-review", topic + ".jsonl")
+if real_target != expected:
+    bad("path_escape")
+if os.path.commonpath([real_target, real_bank]) != real_bank:
+    bad("path_escape")
+with open(real_target, "a", encoding="utf-8") as fh:
     fh.write(json.dumps(rec, separators=(",", ":"), ensure_ascii=False) + "\n")
 
 sys.stdout.write("spec_review=%s verdict=%s attempt=%d" % (status, verdict, attempt))

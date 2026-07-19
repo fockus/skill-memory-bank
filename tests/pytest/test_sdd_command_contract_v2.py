@@ -162,3 +162,37 @@ def test_escalation_menu_d35_present() -> None:
     # D-35 four-option overflow menu is referenced.
     assert "d-35" in t or "escalation" in t
     assert "budget_override" in t
+
+
+def test_no_normative_sequence_publishes_before_c8() -> None:
+    """Review [17]: the fix-cycle must not promote into `specs/` before C8.
+
+    Steps 7-9 already read staged-C8 -> review -> atomic promotion. Any arrow
+    sequence that names a publish/promotion BEFORE C8 contradicts them and
+    would replace an accepted tasks.md with a draft that never passed the
+    battery, breaking the byte-identity guarantee of REQ-053.
+    """
+    offenders = []
+    for line in _text().splitlines():
+        if "→" not in line:
+            continue
+        seq = [s.strip().lower() for s in line.split("→")]
+        pub = next((i for i, s in enumerate(seq) if "publish" in s or "promot" in s), None)
+        c8 = next((i for i, s in enumerate(seq) if "c8" in s), None)
+        if pub is not None and c8 is not None and pub < c8:
+            offenders.append(line.strip())
+    assert not offenders, "publish/promotion precedes C8 in:\n  " + "\n  ".join(offenders)
+
+
+def test_review_record_call_passes_resolved_bank() -> None:
+    """Review [18]: record must be told the resolved bank, like every other call.
+
+    Without --mb the helper resolves the active bank itself, but the prompt is
+    normative for global storage: the same <bank> selected in Step 7 has to be
+    threaded through, otherwise provenance for a global bank can land elsewhere.
+    """
+    text = _text()
+    idx = text.find("mb-sdd-review-result.sh record")
+    assert idx != -1, "record call not found in commands/sdd.md"
+    call = text[idx : idx + 500]
+    assert "--mb" in call, f"record call does not pass --mb:\n{call[:300]}"

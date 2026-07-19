@@ -84,7 +84,19 @@ if [ -n "${MB_REPO_ROOT:-}" ]; then
   RUN_ROOT="$MB_REPO_ROOT"
 else
   if [ -n "$MB_BANK" ]; then _bank="$MB_BANK"; else _bank="$SPEC_DIR/../.."; fi
-  RUN_ROOT="$(cd "$_bank/.." 2>/dev/null && pwd || true)"
+  _bank_abs="$(cd "$_bank" 2>/dev/null && pwd || true)"
+  RUN_ROOT=""
+  # A LOCAL bank (`<repo>/.memory-bank`) sits inside its checkout, so the parent
+  # IS the run root. A registered GLOBAL bank does not — its parent is an
+  # agent-config directory, where no Eval target can exist, so every already-green
+  # command was mis-reported as pending_materialization (review [9]). There the
+  # checkout is resolved from the working directory instead.
+  if [ "$(basename "${_bank_abs:-$_bank}")" = ".memory-bank" ]; then
+    RUN_ROOT="$(cd "$_bank/.." 2>/dev/null && pwd || true)"
+  else
+    RUN_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    [ -n "$RUN_ROOT" ] || RUN_ROOT="$(cd "$_bank/.." 2>/dev/null && pwd || true)"
+  fi
   [ -n "$RUN_ROOT" ] || RUN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
 
@@ -124,7 +136,12 @@ for it in items:
     cmd = ev.get("cmd") or ""
     ex = ev.get("exit")
     ore = ev.get("output_re") or ""
-    rows.append("\t".join([str(it.item_no), cmd, "" if ex is None else str(ex), ore]))
+    # US (\x1f) separates fields, never TAB: tab is IFS *whitespace*, so bash
+    # `read` collapses two adjacent tabs into one. An Eval with output~ but no
+    # exit: emits an empty middle field, and the collapse shifted the regex into
+    # the exit slot — `[: integer expected` (review [10]). \x1f is not IFS
+    # whitespace, so empty fields survive.
+    rows.append("\x1f".join([str(it.item_no), cmd, "" if ex is None else str(ex), ore]))
 sys.stdout.write("\n".join(rows))
 PY
 )" || { printf 'error=malformed\n' >&2; exit 2; }
@@ -189,7 +206,10 @@ PY
   # confirmed → invalid.
   local red=1
   if [ -n "$ore" ]; then
-    printf '%s\n' "$out" | grep -Eq "$ore" || red=0
+    # `--` ends option parsing: a valid ERE starting with '-' (e.g. `-FAIL`) is
+    # a pattern, not a grep flag. The validator already uses `grep -E --`, so
+    # without this the two disagreed about the same declaration (review [21]).
+    printf '%s\n' "$out" | grep -Eq -- "$ore" || red=0
   fi
   if [ -n "$exp" ]; then
     [ "$rc" -eq "$exp" ] || red=0
@@ -203,13 +223,13 @@ any_invalid=0
 EVAL_LINES=""
 if [ -n "$TSV" ]; then
   # Ascending task-id order.
-  while IFS="$(printf '\t')" read -r id cmd exp ore; do
+  while IFS="$(printf '\037')" read -r id cmd exp ore; do
     [ -n "$id" ] || continue
     status="$(classify_eval "$cmd" "$exp" "$ore")"
     case "$status" in invalid) any_invalid=1 ;; esac
     EVAL_LINES="${EVAL_LINES}eval.${id}=${status}"$'\n'
   done <<EOF
-$(printf '%s\n' "$TSV" | sort -t"$(printf '\t')" -k1,1n)
+$(printf '%s\n' "$TSV" | sort -t"$(printf '\037')" -k1,1n)
 EOF
 fi
 

@@ -20,6 +20,9 @@ setup() {
   FINAL="$BANK/specs/$TOPIC/tasks.md"
   printf 'CANDIDATE CONTENT\n' > "$CAND"
   printf 'ORIGINAL FINAL\n' > "$FINAL"
+  # The bank is resolved, never inferred from the candidate path (review [6]).
+  # Tests that omit --mb declare the active bank the ordinary way instead.
+  export MB_PATH="$BANK"
 }
 
 teardown() {
@@ -156,6 +159,53 @@ _final_sum() { cksum < "$FINAL"; }
     --candidate "$other/tmp/sdd/$TOPIC/tasks.candidate.md" --estimate-file "$est" --mb "$BANK"
   [ "$status" -eq 2 ]
   [ "$(_final_sum)" = "$before" ]
+}
+
+# ── bank resolution + symlink containment (S2 review [6]/[7]) ────────────────
+
+@test "candidate_publish: without --mb the active bank is resolved, a foreign candidate is rejected" {
+  local foreign="$TMP/foreign"
+  mkdir -p "$foreign/tmp/sdd/$TOPIC"
+  printf 'FOREIGN\n' > "$foreign/tmp/sdd/$TOPIC/tasks.candidate.md"
+  local est; est="$(_estimate ok none none)"
+  # cwd carries an active bank ($TMP/.memory-bank); the candidate names another.
+  unset MB_PATH
+  cd "$TMP" || return 1
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" \
+    --candidate "$foreign/tmp/sdd/$TOPIC/tasks.candidate.md" --estimate-file "$est"
+  [ "$status" -eq 2 ]
+  [ ! -e "$foreign/specs/$TOPIC/tasks.md" ]
+}
+
+@test "candidate_publish: without --mb a candidate inside the resolved active bank still publishes" {
+  local est; est="$(_estimate ok none none)"
+  unset MB_PATH
+  cd "$TMP" || return 1
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"candidate=published"* ]]
+  [ "$(cat "$FINAL")" = "CANDIDATE CONTENT" ]
+}
+
+@test "candidate_publish: symlinked specs/<topic> cannot redirect publish outside the bank → exit 2" {
+  local victim="$TMP/victim"; mkdir -p "$victim"; printf 'VICTIM\n' > "$victim/tasks.md"
+  rm -rf "${BANK:?}/specs/$TOPIC"
+  ln -s "$victim" "$BANK/specs/$TOPIC"
+  local est; est="$(_estimate ok none none)"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --mb "$BANK"
+  [ "$status" -eq 2 ]
+  [ "$(cat "$victim/tasks.md")" = "VICTIM" ]
+  [ -e "$CAND" ]
+}
+
+@test "candidate_publish: symlinked tasks.md inside specs/<topic> is not followed on publish → exit 2" {
+  local victim="$TMP/victim"; mkdir -p "$victim"; printf 'VICTIM\n' > "$victim/tasks.md"
+  rm -f "$FINAL"
+  ln -s "$victim/tasks.md" "$FINAL"
+  local est; est="$(_estimate ok none none)"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$est" --mb "$BANK"
+  [ "$status" -eq 2 ]
+  [ "$(cat "$victim/tasks.md")" = "VICTIM" ]
 }
 
 # ── strict C3 grammar (blocker #8) ───────────────────────────────────────────

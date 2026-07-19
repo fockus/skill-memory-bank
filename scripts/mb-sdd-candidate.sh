@@ -36,6 +36,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=_lib.sh
+source "$SCRIPT_DIR/_lib.sh"
+
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
 
 [ "$#" -ge 1 ] || usage_error
@@ -71,24 +75,23 @@ case "$TOPIC" in
   *) usage_error ;;
 esac
 
+# The bank is NEVER inferred from the candidate path (review [6]): without --mb
+# the ACTIVE bank is resolved through mb_resolve_path, exactly like every other
+# helper, so naming `/tmp/foreign/tmp/sdd/<topic>/tasks.candidate.md` can no
+# longer nominate `/tmp/foreign` as its own bank and publish into it.
+RESOLVED_BANK="$(mb_resolve_path "$MB_BANK")"
+
 # Canonicalize + contain the candidate to exactly <bank>/tmp/sdd/<topic>/
 # tasks.candidate.md, on the SAME filesystem as the accepted target (blocker
 # #3). realpath resolves `..`/symlinks so a candidate from another bank, or an
-# escaped path, cannot masquerade as canonical. When --mb is given the candidate
-# is bound to THAT bank; otherwise the bank is derived from the canonical suffix.
+# escaped path, cannot masquerade as canonical.
 CANON="$(
-  MB_BANK="$MB_BANK" TOPIC="$TOPIC" CANDIDATE="$CANDIDATE" python3 - <<'PY'
+  MB_BANK="$RESOLVED_BANK" TOPIC="$TOPIC" CANDIDATE="$CANDIDATE" python3 - <<'PY'
 import os, sys
 topic = os.environ["TOPIC"]
 cand = os.path.realpath(os.environ["CANDIDATE"])
 suffix = os.path.join("tmp", "sdd", topic, "tasks.candidate.md")
-mb = os.environ.get("MB_BANK", "")
-if mb:
-    bank = os.path.realpath(mb)
-else:
-    if not cand.endswith(os.sep + suffix):
-        print("ERR noncanonical"); sys.exit(0)
-    bank = cand[: -(len(suffix) + 1)]
+bank = os.path.realpath(os.environ["MB_BANK"])
 if not os.path.isdir(bank):
     print("ERR bank_not_dir"); sys.exit(0)
 expected = os.path.join(bank, suffix)
@@ -96,15 +99,32 @@ if cand != expected:
     print("ERR noncanonical"); sys.exit(0)
 if os.path.commonpath([cand, bank]) != bank:
     print("ERR escaped_bank"); sys.exit(0)
+
+# Containment is checked on the FINAL WRITE PATH, not on its parent (review
+# [7]): a symlinked `<bank>/specs/<topic>` (or a symlinked `tasks.md` inside
+# it) used to resolve elsewhere while the rename still followed the unresolved
+# path. Both the directory and the file must canonically stay under the bank,
+# and neither may itself be a symlink.
 final_dir = os.path.join(bank, "specs", topic)
+final = os.path.join(final_dir, "tasks.md")
+if os.path.islink(final_dir) or os.path.islink(final):
+    print("ERR symlink_target"); sys.exit(0)
+real_final_dir = os.path.realpath(final_dir)
+real_final = os.path.join(real_final_dir, "tasks.md")
+expected_dir = os.path.join(bank, "specs", topic)
+if real_final_dir != expected_dir or os.path.realpath(final) != real_final:
+    print("ERR escaped_final"); sys.exit(0)
+if os.path.commonpath([real_final, bank]) != bank:
+    print("ERR escaped_final"); sys.exit(0)
+
 cand_dir = os.path.dirname(cand)
 try:
-    ref = final_dir if os.path.isdir(final_dir) else bank
+    ref = real_final_dir if os.path.isdir(real_final_dir) else bank
     if os.path.isdir(cand_dir) and os.stat(cand_dir).st_dev != os.stat(ref).st_dev:
         print("ERR cross_fs"); sys.exit(0)
 except OSError:
     print("ERR stat"); sys.exit(0)
-print("OK\t%s\t%s\t%s" % (cand, final_dir, os.path.join(final_dir, "tasks.md")))
+print("OK\t%s\t%s\t%s" % (cand, real_final_dir, real_final))
 PY
 )"
 case "$CANON" in

@@ -99,7 +99,7 @@ EOF
 
 @test "gated_bad_ere: a non-compiling output~: ERE is rejected" {
   dir="$(mkbase demo)"
-  sed -i.bak "s#output~: not ok \[0-9\]+ demo_persist#output~: not ok [0-9+ demo_persist#" "$dir/tasks.md" && rm -f "$dir/tasks.md.bak"
+  sed -i.bak "s#output~: \`not ok \[0-9\]+ demo_persist\`#output~: \`not ok [0-9+ demo_persist\`#" "$dir/tasks.md" && rm -f "$dir/tasks.md.bak"
   # keep design byte-identity aligned so only the ERE gate fires
   sed -i.bak "s#output~: \`not ok \[0-9\]+ demo_persist\`#output~: \`not ok [0-9+ demo_persist\`#" "$dir/design.md" && rm -f "$dir/design.md.bak"
   run bash "$VALIDATE" "$dir"
@@ -111,7 +111,7 @@ EOF
   # `(?=demo)` compiles under Python re but grep -E rejects it (exit 2). The
   # validator must use the SAME portable engine used at execution time.
   dir="$(mkbase demo)"
-  sed -i.bak "s#output~: not ok \[0-9\]+ demo_persist#output~: (?=demo)#" "$dir/tasks.md" && rm -f "$dir/tasks.md.bak"
+  sed -i.bak "s#output~: \`not ok \[0-9\]+ demo_persist\`#output~: \`(?=demo)\`#" "$dir/tasks.md" && rm -f "$dir/tasks.md.bak"
   sed -i.bak "s#output~: \`not ok \[0-9\]+ demo_persist\`#output~: \`(?=demo)\`#" "$dir/design.md" && rm -f "$dir/design.md.bak"
   run bash "$VALIDATE" "$dir"
   [ "$status" -eq 1 ]

@@ -40,7 +40,7 @@ write_tasks() {
 
 **Covers:** REQ-001
 **Role:** backend
-**Eval:** bats tests/bats/test_demo.bats ${DASH} red: demo assertion fails; exit: 1; output~: not ok [0-9]+ demo_persist
+**Eval:** \`bats tests/bats/test_demo.bats\` ${DASH} red: demo assertion fails; exit: 1; output~: \`not ok [0-9]+ demo_persist\`
 
 **What to do:**
 - persist to disk.

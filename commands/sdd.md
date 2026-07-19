@@ -97,7 +97,7 @@ The helper prints `self_check=ready|invalid` and `eval.<task-id>=ready|pending_m
 
 ### Step 8 — Optional spec review (C5) on the draft
 
-If `sdd.spec_review.enabled` is true: first call `mb-sdd-review-result.sh check --generator-model <exact> --reviewer-model <exact>` — equal models return `same_model` (exit 2) and dispatch is forbidden. Otherwise dispatch the review model with the transcript + staged spec (the prompt owns the dispatch and passes the *actually resolved* model IDs), then record the verdict through `mb-sdd-review-result.sh record --topic <topic> --attempt <n> --generator-model <exact> --reviewer-model <exact> --reviewer-agent <exact> --thinking <low|medium|high> --input <path|->` (all identity flags are **mandatory**; the helper owns validation, the append-only JSONL, and the exit code: 0 APPROVED / 1 CHANGES_REQUESTED / 2 unavailable|malformed). Unavailability is reported loudly as SKIPPED (its own JSONL line), never a silent pass.
+If `sdd.spec_review.enabled` is true: first call `mb-sdd-review-result.sh check --generator-model <exact> --reviewer-model <exact>` — equal models return `same_model` (exit 2) and dispatch is forbidden. Otherwise dispatch the review model with the transcript + staged spec (the prompt owns the dispatch and passes the *actually resolved* model IDs), then record the verdict through `mb-sdd-review-result.sh record --topic <topic> --attempt <n> --generator-model <exact> --reviewer-model <exact> --reviewer-agent <exact> --thinking <low|medium|high> --input <path|-> --mb <bank>` (pass the same resolved `<bank>` as Step 7, so provenance for a global bank is recorded in it; all identity flags are **mandatory**; the helper owns validation, the append-only JSONL, and the exit code: 0 APPROVED / 1 CHANGES_REQUESTED / 2 unavailable|malformed). Unavailability is reported loudly as SKIPPED (its own JSONL line), never a silent pass.
 
 ### Step 9 — Atomic promotion (ONLY after C8 pass + review resolution)
 
@@ -140,7 +140,7 @@ Publication in `specs/` ≠ acceptance. Neither the helper nor the orchestrator 
 - Every new/regenerated triple is published with `requirements.md: status: draft`.
 - `status` becomes `ready` **only** after `mb-sdd-self-check.sh` exit 0 (C8=pass) **and** one of: review disabled (`sdd.spec_review.enabled=false`); review returned **APPROVED** (`mb-sdd-review-result.sh record` exit 0); or an explicit human/orchestrator decision to accept on **SKIPPED** or on dismissed issues (written as its own JSONL line).
 - A C8 failure (`mb-sdd-self-check.sh` exit ≠ 0) **or** **CHANGES_REQUESTED** (record exit 1) keeps `status: draft`. A plain **SKIPPED** without an explicit decision is also draft — nothing becomes ready silently.
-- Fixes after CHANGES_REQUESTED run the whole cycle again: new candidate → C3 gate → publish draft → C8 → review. No partial edits to an accepted file.
+- Fixes after CHANGES_REQUESTED run the whole cycle again, in the Step 7-9 order: new candidate → C3 gate → staged C8 on `<bank>/tmp/sdd/<topic>/` → review → atomic promotion. Promotion is the LAST step: an accepted `specs/<topic>/tasks.md` is never replaced by a re-generated candidate that has not yet passed C8 and review (REQ-053 byte-identity). No partial edits to an accepted file.
 
 ## Scaffold boundary (C7)
 
