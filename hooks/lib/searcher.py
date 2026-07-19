@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import fcntl
 import os
+import sys
 import threading
 from pathlib import Path
 
@@ -120,12 +121,36 @@ def _embed_search(index_dir, query, top_k, min_score, timeout, embedder, lock_fh
     return box["out"]
 
 
+def _hint(msg: str) -> None:
+    """One-line diagnostic for HUMANS on stderr (I-134). Hook callers run with
+    stderr silenced (`exec 2>/dev/null` in mb-semantic-recall.sh), so this can
+    never pollute a hook's JSON contract — but a manual run stops being mute."""
+    try:
+        print(f"[mb-semantic] {msg}", file=sys.stderr)
+    except Exception:
+        pass
+
+
+def _bm25_fallback(index_dir, query, top_k) -> list[dict]:
+    try:
+        return bm25.search(index_dir, query, top_k=top_k, weights=bm25.source_weights())
+    except Exception:
+        return []
+
+
 def _search_into(box, index_dir, query, top_k, min_score, embedder) -> None:
     try:
         from semantic_store import Store  # lazy: numpy only on this path
 
         store = Store(index_dir)
         if not store.load():
+            # I-134: embeddings requested but no vector index exists (e.g. a
+            # BM25-format index) — say so and answer via BM25, not silence.
+            _hint(
+                f"no embeddings index in {index_dir} — build one first: "
+                "MB_SEMANTIC_BACKEND=embeddings hooks/mb-reindex.sh; falling back to BM25"
+            )
+            box["out"] = _bm25_fallback(index_dir, query, top_k)
             return
         if embedder is None:
             from semantic_embed import Embedder
@@ -137,5 +162,14 @@ def _search_into(box, index_dir, query, top_k, min_score, embedder) -> None:
         if qv.shape[0] == 0:
             return
         box["out"] = store.search(qv[0], top_k=top_k, min_score=min_score)
+    except ImportError as e:
+        # I-134: missing numpy/fastembed (wrong interpreter) must not read as
+        # "found nothing" — explain on stderr, degrade to model-free BM25.
+        _hint(
+            f"embeddings backend unavailable ({e}) — install deps via "
+            "hooks/mb-semantic-bootstrap.sh or run through hooks/mb-reindex.sh "
+            "(they pick the venv python); falling back to BM25"
+        )
+        box["out"] = _bm25_fallback(index_dir, query, top_k)
     except Exception:
         box["out"] = []

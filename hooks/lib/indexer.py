@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 
 from semantic_chunk import chunk_markdown, chunk_transcript
@@ -191,6 +192,26 @@ def _index_bm25(mb_root: Path, index_dir: Path, sources, full) -> dict:
 
 
 def _index_embeddings(mb_root: Path, index_dir: Path, sources, full) -> dict:
+    # I-134: fastembed loads lazily inside Embedder.embed(), so a python
+    # without the deps dies mid-run, not at import — catch the WHOLE branch.
+    try:
+        return _index_embeddings_impl(mb_root, index_dir, sources, full)
+    except ImportError as e:
+        # A manual embeddings reindex used to be fully mute here (fail-safe
+        # swallowed it). Hooks silence stderr, humans now see why:
+        try:
+            print(
+                f"[mb-semantic] embeddings backend unavailable ({e}) — install deps via "
+                "hooks/mb-semantic-bootstrap.sh or run through hooks/mb-reindex.sh "
+                "(they pick the venv python)",
+                file=sys.stderr,
+            )
+        except Exception:
+            pass
+        raise
+
+
+def _index_embeddings_impl(mb_root: Path, index_dir: Path, sources, full) -> dict:
     from semantic_embed import DEFAULT_MODEL, Embedder
     from semantic_store import Store
 
