@@ -3,6 +3,8 @@
 # legacy Cyrillic planning term, but still create the plan. Hard-block was
 # rejected explicitly: the user has the right to name plans freely.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   PLAN="$REPO_ROOT/scripts/mb-plan.sh"
@@ -38,6 +40,6 @@ teardown() {
 @test "mb-plan: english topic does NOT trigger WARN" {
   run bash "$PLAN" refactor "phase-X-auth"
   [ "$status" -eq 0 ]
-  ! [[ "$output" =~ WARN.*legacy ]]
+  [[ ! "$output" =~ WARN.*legacy ]]
   ! [[ "$output" =~ WARN.*Cyrillic ]]
 }

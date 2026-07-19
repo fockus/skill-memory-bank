@@ -6,6 +6,8 @@
 # separate transpile step, mirroring the existing opencode B4 functional-test
 # pattern (test_opencode_adapter.bats) for a host whose extension is TypeScript.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   PROJECT="$(mktemp -d)"
@@ -183,7 +185,7 @@ NOTIFY_EOF
   local ext="$PROJECT/broken-skill-session-ext.ts"
   jq -rn --arg skill "$fake_skill" --arg proj "$PROJECT" --rawfile tpl "$REPO_ROOT/adapters/pi_session_memory_extension.ts" \
     '$tpl | gsub("__MB_SKILL_DIR_JSON__"; ($skill | @json)) | gsub("__MB_PROJECT_ROOT_JSON__"; ($proj | @json))' > "$ext"
-  ! grep -q '__MB_' "$ext"
+  refute_grep -qE '__MB_[A-Z_]+__' "$ext"
 
   local harness="$PROJECT/harness-broken.mjs"
   cat > "$harness" <<'EOF'
@@ -231,7 +233,7 @@ HANG_EOF
   local ext="$PROJECT/hang-session-ext.ts"
   jq -rn --arg skill "$fake_skill" --arg proj "$PROJECT" --rawfile tpl "$REPO_ROOT/adapters/pi_session_memory_extension.ts" \
     '$tpl | gsub("__MB_SKILL_DIR_JSON__"; ($skill | @json)) | gsub("__MB_PROJECT_ROOT_JSON__"; ($proj | @json))' > "$ext"
-  ! grep -q '__MB_' "$ext"
+  refute_grep -qE '__MB_[A-Z_]+__' "$ext"
 
   local harness="$PROJECT/harness-hang.mjs"
   cat > "$harness" <<'EOF'

@@ -14,6 +14,8 @@
 # Windsurf Cascade Hooks: shell commands + JSON config (3 levels: user/workspace/project).
 # Pre-hooks return exit 2 to block action.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   ADAPTER="$REPO_ROOT/adapters/windsurf.sh"
@@ -110,7 +112,7 @@ EOF
   local hook="$PROJECT/.windsurf/hooks/before-prompt.sh"
   [ -x "$hook" ]
   # Freshly generated (user customization is gone from the live file)...
-  ! grep -q "USER_CUSTOM_HOOK_MARKER" "$hook"
+  refute_grep -q "USER_CUSTOM_HOOK_MARKER" "$hook"
   # ...but recoverable via a backup.
   local found=0
   for b in "$hook".pre-mb-backup.*; do

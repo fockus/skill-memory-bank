@@ -4,6 +4,8 @@
 # Runs against an isolated HOME directory — does not touch the real ~/.claude/.
 # Works on macOS and Linux without Docker.
 
+load ../bats/lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
@@ -448,7 +450,7 @@ PY
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
 
   if [ -f "$HOME/.claude/settings.json" ]; then
-    ! grep -q "session-end-autosave.sh" "$HOME/.claude/settings.json"
+    refute_grep -q "session-end-autosave.sh" "$HOME/.claude/settings.json"
   fi
 }
 
@@ -458,27 +460,43 @@ PY
 
   # settings.json may still exist, but must not contain memory-bank-skill markers
   if [ -f "$HOME/.claude/settings.json" ]; then
-    ! grep -q "memory-bank-skill" "$HOME/.claude/settings.json"
+    refute_grep -q "memory-bank-skill" "$HOME/.claude/settings.json"
   fi
 }
 
-@test "uninstall: strips Codex managed section from AGENTS.md" {
+# I-147: these three assertions were CONDITIONALLY VACUOUS. With an empty
+# sandbox HOME, install created a file containing ONLY our managed section and
+# uninstall then removed the whole file — so `if [ -f ... ]` was false and the
+# assertion inside never executed. The test passed identically with the
+# assertion inverted, i.e. it proved nothing about the behaviour in its name.
+# Seeding the user's own content makes the file survive, so the strip is
+# actually exercised — and adds the half that matters more: the user's content
+# must still be there afterwards.
+@test "uninstall: strips Codex managed section from AGENTS.md, keeping user content" {
+  mkdir -p "$HOME/.codex"
+  printf '# my codex rules\nUSER_CODEX_CONTENT\n' > "$HOME/.codex/AGENTS.md"
+
   bash "$REPO_ROOT/install.sh" >/dev/null
+  assert_grep -q "memory-bank-codex:start" "$HOME/.codex/AGENTS.md"
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
 
-  if [ -f "$HOME/.codex/AGENTS.md" ]; then
-    ! grep -q "memory-bank-codex:start" "$HOME/.codex/AGENTS.md"
-  fi
+  [ -f "$HOME/.codex/AGENTS.md" ]
+  refute_grep -q "memory-bank-codex:start" "$HOME/.codex/AGENTS.md"
+  assert_grep -q "USER_CODEX_CONTENT" "$HOME/.codex/AGENTS.md"
 }
 
 @test "uninstall: strips Pi managed section from AGENTS.md and removes prompts" {
+  mkdir -p "$HOME/.pi/agent"
+  printf '# my pi rules\nUSER_PI_CONTENT\n' > "$HOME/.pi/agent/AGENTS.md"
+
   bash "$REPO_ROOT/install.sh" >/dev/null
+  assert_grep -q "memory-bank-pi:start" "$HOME/.pi/agent/AGENTS.md"
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
 
   [ ! -f "$HOME/.pi/agent/prompts/mb.md" ]
-  if [ -f "$HOME/.pi/agent/AGENTS.md" ]; then
-    ! grep -q "memory-bank-pi:start" "$HOME/.pi/agent/AGENTS.md"
-  fi
+  [ -f "$HOME/.pi/agent/AGENTS.md" ]
+  refute_grep -q "memory-bank-pi:start" "$HOME/.pi/agent/AGENTS.md"
+  assert_grep -q "USER_PI_CONTENT" "$HOME/.pi/agent/AGENTS.md"
 }
 
 @test "uninstall: restores pre-existing Pi skill from hidden backup" {
@@ -499,13 +517,17 @@ EOF
   [ ! -d "$HOME/.pi/agent/.memory-bank-backups" ]
 }
 
-@test "uninstall: strips MEMORY-BANK-SKILL section from CLAUDE.md" {
+@test "uninstall: strips MEMORY-BANK-SKILL section from CLAUDE.md, keeping user content" {
+  mkdir -p "$HOME/.claude"
+  printf '# my claude rules\nUSER_CLAUDE_CONTENT\n' > "$HOME/.claude/CLAUDE.md"
+
   bash "$REPO_ROOT/install.sh" >/dev/null
+  assert_grep -q "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md"
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
 
-  if [ -f "$HOME/.claude/CLAUDE.md" ]; then
-    ! grep -q "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md"
-  fi
+  [ -f "$HOME/.claude/CLAUDE.md" ]
+  refute_grep -q "\[MEMORY-BANK-SKILL\]" "$HOME/.claude/CLAUDE.md"
+  assert_grep -q "USER_CLAUDE_CONTENT" "$HOME/.claude/CLAUDE.md"
 }
 
 @test "uninstall: preserves user CLAUDE.md content above skill section" {

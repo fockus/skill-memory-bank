@@ -12,6 +12,8 @@
 # Closed vocabulary (design.md): statusline, subagents, lifecycle-hooks,
 # session-memory, update-notify, role-routing.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   WORKDIR="$(mktemp -d)"
@@ -191,7 +193,7 @@ manifest_opencode_global_extensions() {
   # declarations) — genuinely nothing to route to.
   local a
   for a in cursor windsurf cline kilo; do
-    ! grep -q "\-\-agent $a\b" "$REPO_ROOT/scripts/mb-subinvoke-resolve.sh" \
+    refute_grep -q "\-\-agent $a\b" "$REPO_ROOT/scripts/mb-subinvoke-resolve.sh" \
       || fail "$a: mb-subinvoke-resolve.sh has a dispatch entry — subagents is not actually absent"
   done
 
@@ -218,7 +220,7 @@ manifest_opencode_global_extensions() {
   # And: no /mb work per-role headless dispatch call to codex exists either
   # (the in-session Task-tool-equivalent commands/work.md would need to
   # genuinely route per-role to codex to constitute "subagents").
-  ! grep -Eq -- '--agent codex --role' "$REPO_ROOT/commands/work.md" \
+  refute_grep -Eq -- '--agent codex --role' "$REPO_ROOT/commands/work.md" \
     || fail "codex: commands/work.md routes per-role to codex — subagents is not actually absent"
 }
 
@@ -256,9 +258,9 @@ manifest_opencode_global_extensions() {
   # event. Windsurf/Cline expose only user-prompt-submit-class and
   # per-tool-class events; Kilo has no native hooks API at all (its own
   # header comment); Codex wires exactly one experimental prompt hook.
-  ! grep -qE 'EVENT_BINDINGS.*sessionStart|"sessionStart:' "$REPO_ROOT/adapters/windsurf.sh"
-  ! grep -qE '"sessionStart' "$REPO_ROOT/adapters/cline.sh"
-  ! grep -q "hooks.json\|HOOKS_JSON" "$REPO_ROOT/adapters/kilo.sh"
+  refute_grep -qE 'EVENT_BINDINGS.*sessionStart|"sessionStart:' "$REPO_ROOT/adapters/windsurf.sh"
+  refute_grep -qE '"sessionStart' "$REPO_ROOT/adapters/cline.sh"
+  refute_grep -q "hooks.json\|HOOKS_JSON" "$REPO_ROOT/adapters/kilo.sh"
   local hook_count
   hook_count=$(grep -c "userpromptsubmit\|hooks\.json" "$REPO_ROOT/adapters/codex.sh" || true)
   [ "$hook_count" -ge 1 ]

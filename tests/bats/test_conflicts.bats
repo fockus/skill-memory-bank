@@ -5,6 +5,8 @@
 # [SUPERSEDED] marker — PRINT-ONLY, never writes to any bank file.
 # Covers spec tier1-graph-memory REQ-022, REQ-023 + Scenario 12. `claude` is mocked.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-conflicts.sh"
@@ -101,7 +103,7 @@ EOF
   run env CLAUDE="$CLAUDE" bash "$SCRIPT" "$MB"
   [ "$status" -eq 0 ]
   # the unrelated pair must NOT be flagged as a conflict
-  ! echo "$output" | grep -q 'a.md.*b.md'
+  refute_grep -q 'a.md.*b.md' <<<"$output"
   ! echo "$output" | grep -Eq '(a|b)\.md'
 }
 
@@ -135,7 +137,7 @@ EOF
   run env CLAUDE="$CLAUDE" bash "$SCRIPT" "$MB" --judge
   [ "$status" -eq 0 ]
   echo "$output" | grep -qi 'REJECTED'
-  ! echo "$output" | grep -Eq '\[SUPERSEDED: [0-9]{4}'
+  refute_grep -Eq '\[SUPERSEDED: [0-9]{4}' <<<"$output"
   after="$(_bank_md5)"
   [ "$before" = "$after" ]
 }
@@ -151,7 +153,7 @@ EOF
   echo "$output" | grep -q 'ledger-postgres.md'
   echo "$output" | grep -q 'ledger-mongodb.md'
   # no marker (no judge ran), bank untouched
-  ! echo "$output" | grep -Eq '\[SUPERSEDED: [0-9]{4}'
+  refute_grep -Eq '\[SUPERSEDED: [0-9]{4}' <<<"$output"
   after="$(_bank_md5)"
   [ "$before" = "$after" ]
 }
@@ -291,7 +293,7 @@ EOF
   echo "$output" | grep -qi 'CONFIRMED'
   # no SUPERSEDED marker line naming a concrete target; instead an explicit
   # "ordering unknown" note.
-  ! echo "$output" | grep -Eq '\[SUPERSEDED: [0-9]{4}-[0-9]{2}-[0-9]{2} -> '
+  refute_grep -Eq '\[SUPERSEDED: [0-9]{4}-[0-9]{2}-[0-9]{2} -> ' <<<"$output"
   echo "$output" | grep -qi 'order\|unknown\|cannot determine'
 }
 

@@ -4,6 +4,8 @@
 # regex metachars (`.*`, `[`, `]`, `(`, `)`, `+`, `?`, `{`, `}`, `^`, `$`, `\`)
 # either give false-positive duplicate matches or break grep entirely.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   IDEA="$REPO_ROOT/scripts/mb-idea.sh"
@@ -44,8 +46,8 @@ teardown() {
   run bash "$IDEA" "[bug] login flow" MED "$MB"
   [ "$status" -eq 0 ]
   [[ "$output" =~ I-003 ]]
-  ! grep -q "Invalid regular expression" <<<"$output"
-  ! grep -q "bracket expression" <<<"$output"
+  refute_grep -q "Invalid regular expression" <<<"$output"
+  refute_grep -q "bracket expression" <<<"$output"
   grep -q "I-003 — \[bug\] login flow" "$MB/backlog.md"
 }
 

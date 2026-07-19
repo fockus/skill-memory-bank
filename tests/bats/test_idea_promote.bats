@@ -10,6 +10,8 @@
 #   - Runs mb-plan-sync.sh on the created plan (appears in STATUS.md + plan.md active-plans).
 #   - Rejects promoting idea already in PLANNED/DONE/DECLINED status.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   PROMOTE="$REPO_ROOT/scripts/mb-idea-promote.sh"
@@ -94,7 +96,7 @@ teardown() {
 @test "promote: flips idea status NEW → PLANNED" {
   bash "$PROMOTE" "I-001" "refactor" "$TMPBANK"
 
-  ! grep -qE 'I-001 — refactor logging layer \[HIGH, NEW' "$TMPBANK/backlog.md"
+  refute_grep -qE 'I-001 — refactor logging layer \[HIGH, NEW' "$TMPBANK/backlog.md"
   grep -qE 'I-001 — refactor logging layer \[HIGH, PLANNED' "$TMPBANK/backlog.md"
 }
 

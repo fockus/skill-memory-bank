@@ -14,6 +14,8 @@ bats_require_minimum_version 1.5.0
 MARKER_START='<!-- mb-agreements:start -->'
 MARKER_END='<!-- mb-agreements:end -->'
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-agree.sh"
@@ -306,7 +308,7 @@ today() {
   [ "$status" -eq 0 ]
   run_agree resolve 1
   [ "$status" -eq 0 ]
-  ! grep -qE '^- Q-001: Temporary hypothesis$' "$BANK/agreements.md"
+  refute_grep -qE '^- Q-001: Temporary hypothesis$' "$BANK/agreements.md"
   grep -q 'Q-001' "$BANK/agreements.md"
 }
 

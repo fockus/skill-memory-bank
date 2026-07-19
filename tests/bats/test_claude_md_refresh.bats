@@ -4,6 +4,8 @@
 # the file before rewriting it. Exercises the exact code path install.sh runs
 # for CLAUDE.md (Step 1), against a sandboxed $HOME — never the real one.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
@@ -35,7 +37,7 @@ EOF
   grep -q "USER_TAIL_MUST_SURVIVE" "$HOME/.claude/CLAUDE.md"
   grep -q "# My Own Notes" "$HOME/.claude/CLAUDE.md"
   # The MB section was actually refreshed (old placeholder content is gone).
-  ! grep -q "OLD MB CONTENT" "$HOME/.claude/CLAUDE.md"
+  refute_grep -q "OLD MB CONTENT" "$HOME/.claude/CLAUDE.md"
   # A backup of the pre-refresh file was taken.
   local found=0
   for b in "$HOME/.claude/CLAUDE.md.pre-mb-backup."*; do
@@ -65,7 +67,7 @@ EOF
 
   grep -q "BEFORE_MARKER_CONTENT" "$HOME/.claude/CLAUDE.md"
   grep -q "AFTER_MARKER_CONTENT" "$HOME/.claude/CLAUDE.md"
-  ! grep -q "stale body" "$HOME/.claude/CLAUDE.md"
+  refute_grep -q "stale body" "$HOME/.claude/CLAUDE.md"
   # Order preserved: BEFORE comes before the MB section, AFTER comes after it.
   python3 - <<PY
 text = open("$HOME/.claude/CLAUDE.md").read()

@@ -11,6 +11,8 @@
 #   Also accepts English equivalents: "Deferred" / "Declined".
 #   --dry-run reports `plan_md_ideas_to_migrate=N`.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   MIGRATE="$REPO_ROOT/scripts/mb-migrate-structure.sh"
@@ -79,8 +81,8 @@ teardown() {
 @test "compact-plan-md: removes bullets from plan.md" {
   bash "$MIGRATE" --apply "$MB"
 
-  ! grep -q '^- Telemetry opt-in' "$MB/plan.md"
-  ! grep -q '^- Remote backend sync' "$MB/plan.md"
+  refute_grep -q '^- Telemetry opt-in' "$MB/plan.md"
+  refute_grep -q '^- Remote backend sync' "$MB/plan.md"
   ! grep -q '^- Auto-commit on save' "$MB/plan.md"
 }
 

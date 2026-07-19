@@ -9,6 +9,8 @@
 #   Sections with any ⬜ item MUST be preserved (safety).
 #   --dry-run reports `checklist_sections_to_remove=N`.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   MIGRATE="$REPO_ROOT/scripts/mb-migrate-structure.sh"
@@ -74,7 +76,7 @@ set_mtime_days_ago() {
 @test "compact-checklist: --apply removes fully-done linked section" {
   bash "$MIGRATE" --apply "$MB"
 
-  ! grep -q '^## Stage 1: first-task' "$MB/checklist.md"
+  refute_grep -q '^## Stage 1: first-task' "$MB/checklist.md"
   ! grep -q '^- ✅ item-a' "$MB/checklist.md"
 }
 

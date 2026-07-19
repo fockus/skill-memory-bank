@@ -3,6 +3,8 @@
 # session files: newest-first, keeps MB_RECENT_KEEP that have a ## Summary,
 # skips empty / summary-less ones, idempotent.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-session-recent-rebuild.sh"
@@ -26,7 +28,7 @@ _session() { # $1=filename $2=branch $3=summary("" => none)
   R="$SDIR/_recent.md"; [ -f "$R" ]
   grep -q 'newer summary text' "$R"
   grep -q 'older summary text' "$R"
-  ! grep -q 'aaaaaaaa' "$R"
+  refute_grep -q 'aaaaaaaa' "$R"
   [ "$(grep -n 'cccccccc' "$R" | head -1 | cut -d: -f1)" -lt "$(grep -n 'bbbbbbbb' "$R" | head -1 | cut -d: -f1)" ]
   grep -qE '^## 2026-06-03 12:00 \(main\) — cccccccc' "$R"
 }

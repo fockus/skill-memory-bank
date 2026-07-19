@@ -11,6 +11,8 @@
 #   (c) a client with no session-memory transport at all is SKIPPED with an
 #       explicit reason, never silently passed or failed.
 
+load lib/assert
+
 setup() {
   # Hermetic env: these hooks read their mode from the ambient shell. A dev with
   # MB_AUTO_CAPTURE=off exported turns every capture assertion into a false red
@@ -39,7 +41,7 @@ teardown() {
 
   ext="$PROJECT/.pi/extensions/memory-bank-graph-rag.ts"
   [ -f "$ext" ]
-  ! grep -q '__MB_' "$ext"
+  refute_grep -qE '__MB_[A-Z_]+__' "$ext"
   # Positive control: the substituted values are real JSON string literals,
   # not just "placeholder happened to vanish because the file is empty".
   grep -qE 'const SKILL_DIR = ".+";' "$ext"
@@ -61,8 +63,8 @@ teardown() {
   local graph_ext="$sandbox_home/.pi/agent/extensions/memory-bank-graph-rag.ts"
   [ -f "$session_ext" ]
   [ -f "$graph_ext" ]
-  ! grep -q '__MB_' "$session_ext"
-  ! grep -q '__MB_' "$graph_ext"
+  refute_grep -qE '__MB_[A-Z_]+__' "$session_ext"
+  refute_grep -qE '__MB_[A-Z_]+__' "$graph_ext"
   # SKILL_DIR is a real, non-empty path in both.
   grep -qE 'const SKILL_DIR = ".+";' "$session_ext"
   grep -qE 'const SKILL_DIR = ".+";' "$graph_ext"

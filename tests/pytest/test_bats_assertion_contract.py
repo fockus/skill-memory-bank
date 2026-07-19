@@ -63,17 +63,20 @@ _CAT_COMPARE = re.compile(
 # This list is a debt ledger, not an exemption: `test_pending_list_is_honest`
 # fails if an entry no longer has a violation, so a converted file MUST be
 # removed from here.
+#
+# Three entries were removed when the `|| fail` false positive was fixed:
+# test_discuss_transcript, test_mb_interview_artifact_write and
+# test_mb_pre_compact route every negation's failure through `||`, so they were
+# never violations and never needed conversion. The ledger's honesty test is
+# what surfaced that -- it refused to keep carrying files that had become clean.
 PENDING_CONVERSION = frozenset(
     {
         "tests/bats/test_adapter_framework.bats",
         "tests/bats/test_calibration_suite.bats",
         "tests/bats/test_discuss_interview_plan.bats",
-        "tests/bats/test_discuss_transcript.bats",
         "tests/bats/test_extensions_offer.bats",
         "tests/bats/test_mb_flow_sync.bats",
         "tests/bats/test_mb_glossary.bats",
-        "tests/bats/test_mb_interview_artifact_write.bats",
-        "tests/bats/test_mb_pre_compact.bats",
         "tests/e2e/test_global_storage.bats",
     }
 )
@@ -96,6 +99,35 @@ def _test_blocks(lines: list[str]):
         i += 1
 
 
+_QUOTED = re.compile(r"""'[^']*'|"[^"]*\"""")
+
+
+def _logical_line(lines: list[str], start: int) -> str:
+    """Join backslash-continued physical lines into one logical statement."""
+    out = [lines[start]]
+    k = start
+    while k < len(lines) - 1 and lines[k].rstrip().endswith("\\"):
+        k += 1
+        out.append(lines[k])
+    return " ".join(s.rstrip().rstrip("\\") for s in out)
+
+
+def _failure_is_handled(statement: str) -> bool:
+    """True when the negation's failure is routed somewhere, e.g. `|| fail ...`.
+
+    `! cmd || fail "msg"` is SAFE at any position: if `cmd` succeeds, `! cmd` is
+    false and `|| fail` fires. Reported by S2 as a false positive, because the
+    continuation exemption only ever inspected the PREVIOUS physical line, so
+    this shape was flagged:
+
+        ! grep -q 'X' f \\
+          || fail "X must be absent"
+
+    `||` inside quotes is not an operator, so quoted spans are removed first.
+    """
+    return "||" in _QUOTED.sub("", statement)
+
+
 def scan(path: pathlib.Path) -> tuple[list[str], list[str], list[str]]:
     """Return (hollow_negations, last_position_negations, cat_comparisons)."""
     lines = path.read_text(errors="replace").split("\n")
@@ -115,6 +147,8 @@ def scan(path: pathlib.Path) -> tuple[list[str], list[str], list[str]]:
                 continue
             if pos > 0 and body[pos - 1][1].rstrip().endswith("\\"):
                 continue  # continuation line: the `!` is an argument
+            if _failure_is_handled(_logical_line(lines, k)):
+                continue  # `! cmd || fail ...` -- the failure IS routed
             entry = f"{path.relative_to(REPO_ROOT)}:{k + 1}: {line.strip()[:90]}"
             (last_position if k == last_idx else hollow).append(entry)
 
@@ -234,3 +268,53 @@ def test_shared_assert_helper_exists_and_is_loadable() -> None:
         "refute_grep must require exit 1 exactly, so a mistyped path (grep exit "
         "2) fails the assertion instead of reading as 'absent'"
     )
+
+
+def test_negation_routed_to_or_fail_is_not_flagged(tmp_path: pathlib.Path) -> None:
+    """`! cmd || fail ...` is safe at ANY position and must not be reported.
+
+    Regression for a false positive found by S2: the continuation exemption only
+    inspected the previous physical line, so a negation that ended in `\\` and
+    routed its failure to `|| fail` on the NEXT line was flagged. Only two
+    occurrences existed and both are already converted, so nothing was blocked --
+    but a lint that cries wolf gets a blanket exemption added instead of a fix,
+    which would cost more than the class it guards.
+    """
+    probe = tmp_path / "test_probe.bats"
+    probe.write_text(
+        '@test "safe: continued to || fail" {\n'
+        "  ! grep -q 'X' f \\\n"
+        '    || fail "X must be absent"\n'
+        "  true\n"
+        "}\n"
+        '@test "safe: same line || fail" {\n'
+        "  ! grep -q 'X' f || fail \"X must be absent\"\n"
+        "  true\n"
+        "}\n"
+        '@test "hollow: nothing handles the failure" {\n'
+        "  ! grep -q 'X' f\n"
+        "  true\n"
+        "}\n"
+    )
+    # scan() reports paths relative to REPO_ROOT, so probe under it.
+    target = TESTS / "bats" / "zz_contract_probe.bats"
+    target.write_text(probe.read_text())
+    try:
+        hollow, _, _ = scan(target)
+    finally:
+        target.unlink()
+
+    assert len(hollow) == 1, f"expected only the genuinely hollow one, got: {hollow}"
+    assert "hollow" not in hollow[0] or True
+    assert hollow[0].endswith("! grep -q 'X' f"), hollow[0]
+
+
+def test_quoted_pipe_is_not_mistaken_for_an_or_operator() -> None:
+    """`||` inside quotes must not make a hollow negation look handled.
+
+    Under-reporting is the dangerous direction for this contract: a missed
+    hollow assertion is exactly the defect it exists to catch.
+    """
+    assert not _failure_is_handled("! grep -q 'A || B' f")
+    assert not _failure_is_handled('! grep -q "A || B" f')
+    assert _failure_is_handled('! grep -q X f || fail "msg"')

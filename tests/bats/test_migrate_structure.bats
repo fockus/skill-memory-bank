@@ -16,6 +16,8 @@
 #     • Remove done-stage sections from checklist.md referencing files in plans/done/ older than 30d
 #   Idempotent: second --apply is no-op.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   MIGRATE="$REPO_ROOT/scripts/mb-migrate-structure.sh"
@@ -66,7 +68,7 @@ teardown() {
   bash "$MIGRATE" --apply "$TMPBANK"
   grep -q '<!-- mb-active-plans -->' "$TMPBANK/plan.md"
   # Singular form must be gone
-  ! grep -q '<!-- mb-active-plan -->' "$TMPBANK/plan.md"
+  refute_grep -q '<!-- mb-active-plan -->' "$TMPBANK/plan.md"
   ! grep -q '<!-- /mb-active-plan -->' "$TMPBANK/plan.md"
 }
 
