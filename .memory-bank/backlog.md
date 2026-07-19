@@ -1001,3 +1001,6 @@ deps via mb-semantic-bootstrap.sh» + **fallback на BM25 вместо пуст
 (3) reindex/index при недоступных deps → та же подсказка (перехват на call-site: fastembed
 грузится лениво внутри embed()). 3 новых pytest с hermetic-отравлением fastembed через
 PYTHONPATH-стаб. 45 hooks-pytest зелёные.
+
+
+### I-146 — scripts/_lib.sh 991 строка при гейте 400 — выделить lock-слой в отдельный модуль [HIGH, NEW, 2026-07-19]
