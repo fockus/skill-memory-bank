@@ -29,7 +29,9 @@ All notable changes to this project are documented here. The format follows [Kee
   longer detaches `mb-reindex.sh --incremental` on session_shutdown (the 5th spawn point, missed
   by the shell-only sweep) — it writes `.index/.dirty` (honoring `MB_INDEX_DIR`) like the Claude
   Code lifecycle hooks. Maintenance commands (`index`/`reindex`/`prune`) now arm the same hard
-  process deadline as `search`, so no entry point can hold the machine-wide model lock forever.
+  process deadline as `search`, so no entry point can hold the machine-wide model lock forever —
+  with their own generous budget (`MB_SEMANTIC_MAINTENANCE_TIMEOUT`, default 300 s), decoupled
+  from the per-prompt search budget so a legitimate `reindex --full` of a large bank completes.
 
 ## [5.3.1] — 2026-07-15
 

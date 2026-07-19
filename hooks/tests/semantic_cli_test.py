@@ -113,7 +113,7 @@ def test_cli_reindex_hung_source_is_killed_by_hard_deadline(tmp_path):
     indefinitely, a faithful stand-in for a stalled model download."""
     mb = _mk_bank(tmp_path)
     os.mkfifo(mb / "notes" / "hang.md")
-    env = dict(os.environ, MB_ROOT=str(mb), MB_SEMANTIC_TIMEOUT="0.3")
+    env = dict(os.environ, MB_ROOT=str(mb), MB_SEMANTIC_MAINTENANCE_TIMEOUT="0.3")
     r = subprocess.run(
         [sys.executable, str(CLI), "reindex"],
         capture_output=True,
@@ -122,6 +122,26 @@ def test_cli_reindex_hung_source_is_killed_by_hard_deadline(tmp_path):
         timeout=20,  # without the deadline the process hangs → TimeoutExpired
     )
     assert r.returncode == 0
+
+
+def test_maintenance_deadline_budget_is_decoupled_from_search(monkeypatch):
+    """codex round-6 major: `reindex --full` must not inherit search's ~3 s
+    per-prompt budget — a large-but-healthy full reindex would be routinely
+    force-exited before finishing. Maintenance gets its own generous default
+    (MB_SEMANTIC_MAINTENANCE_TIMEOUT), independent of MB_SEMANTIC_TIMEOUT."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("mbsem_deadline", CLI)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    monkeypatch.setenv("MB_SEMANTIC_TIMEOUT", "0.1")  # tight per-prompt budget
+    monkeypatch.delenv("MB_SEMANTIC_MAINTENANCE_TIMEOUT", raising=False)
+    monkeypatch.delenv("MB_SEMANTIC_BACKEND", raising=False)
+    t = m._maintenance_deadline()
+    try:
+        assert t.interval >= 300.0  # its own default, not search's 0.1 + grace
+    finally:
+        t.cancel()
 
 
 def test_index_then_search_returns_relevant(tmp_path, monkeypatch):

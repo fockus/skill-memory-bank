@@ -108,10 +108,12 @@ def _arm_deadline(timeout: float, backend: str):
 def _maintenance_deadline():
     """Hard bound for index/reindex/prune (codex round-5): every entry point
     that can load the model — not just search — must be unable to hold the
-    machine-wide model lock forever. Same budget rules as search."""
+    machine-wide model lock forever. The budget is decoupled from the
+    per-prompt search budget (codex round-6): a legitimate `reindex --full`
+    reprocesses the whole corpus and may need minutes, not search's ~3 s."""
     from searcher import resolve_backend
 
-    timeout = float(os.environ.get("MB_SEMANTIC_TIMEOUT", "3"))
+    timeout = float(os.environ.get("MB_SEMANTIC_MAINTENANCE_TIMEOUT", "300"))
     return _arm_deadline(timeout, resolve_backend())
 
 

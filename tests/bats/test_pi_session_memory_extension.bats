@@ -317,6 +317,67 @@ EOF
   rm -rf "$project_b"
 }
 
+# ═══════════════════════════════════════════════════════════════
+# I-132 spawn discipline (codex round-6): session_shutdown marks the index
+# dirty for the next inline catch-up instead of detaching a reindexer.
+# ═══════════════════════════════════════════════════════════════
+
+_write_shutdown_harness() {
+  DIRTY_HARNESS="$PROJECT/harness-dirty.mjs"
+  cat > "$DIRTY_HARNESS" <<'EOF'
+const [, , extPath, projectRoot] = process.argv;
+const handlers = {};
+const fakePi = { on: (name, fn) => { handlers[name] = fn; } };
+const mod = await import(extPath);
+mod.default(fakePi);
+const ctx = {
+  cwd: projectRoot,
+  sessionManager: { getSessionFile: () => "pi-dirty-marker" },
+  ui: { notify: () => {} },
+};
+await handlers.session_start({}, ctx);
+await handlers.agent_end({}, ctx);
+await handlers.session_shutdown({}, ctx);
+console.log("HARNESS_OK");
+EOF
+}
+
+@test "pi session-memory extension: session_shutdown writes .index/.dirty (no detached reindex)" {
+  _install_global_session_ext
+  _write_shutdown_harness
+
+  run env MB_SESSION_CAPTURE=auto MB_UPDATE_CHECK=off \
+    node --experimental-strip-types "$DIRTY_HARNESS" "$EXT" "$PROJECT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"HARNESS_OK"* ]]
+  [ -f "$PROJECT/.memory-bank/.index/.dirty" ]
+}
+
+@test "pi session-memory extension: session_shutdown honors MB_INDEX_DIR for the dirty marker" {
+  _install_global_session_ext
+  _write_shutdown_harness
+  local custom_idx="$PROJECT/custom-index"
+
+  run env MB_SESSION_CAPTURE=auto MB_UPDATE_CHECK=off MB_INDEX_DIR="$custom_idx" \
+    node --experimental-strip-types "$DIRTY_HARNESS" "$EXT" "$PROJECT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"HARNESS_OK"* ]]
+  [ -f "$custom_idx/.dirty" ]
+  [ ! -e "$PROJECT/.memory-bank/.index/.dirty" ]
+}
+
+@test "pi session-memory extension: an unwritable index path never breaks session_shutdown (fail-open)" {
+  _install_global_session_ext
+  _write_shutdown_harness
+  local blocker="$PROJECT/not-a-dir"
+  echo x > "$blocker"
+
+  run env MB_SESSION_CAPTURE=auto MB_UPDATE_CHECK=off MB_INDEX_DIR="$blocker/sub" \
+    node --experimental-strip-types "$DIRTY_HARNESS" "$EXT" "$PROJECT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"HARNESS_OK"* ]]
+}
+
 @test "pi graph-rag extension: global install bakes PROJECT_ROOT empty (project-local install still bakes the real path)" {
   _install_global_session_ext
   local global_graph_ext="$SANDBOX_HOME/.pi/agent/extensions/memory-bank-graph-rag.ts"
