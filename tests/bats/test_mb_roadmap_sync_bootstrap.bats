@@ -9,6 +9,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/s4_assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SYNC="$REPO_ROOT/scripts/mb-roadmap-sync.sh"
@@ -67,8 +69,8 @@ mkspec() {
   gh=$(grep -n '^## Group: sdd-vision-pipeline$' "$BANK/roadmap.md" | head -1 | cut -d: -f1)
   fc=$(grep -n '^<!-- /mb-roadmap-auto -->$' "$BANK/roadmap.md" | head -1 | cut -d: -f1)
   [ "$gh" -lt "$fc" ]                     # header sits INSIDE the fence
-  ! grep -qF 'hand-written legacy bootstrap body' "$BANK/roadmap.md"
-  ! grep -qF 'more manual lines' "$BANK/roadmap.md"
+  refute_grep -qF 'hand-written legacy bootstrap body' "$BANK/roadmap.md"
+  refute_grep -qF 'more manual lines' "$BANK/roadmap.md"
   # idempotent second run
   cp "$BANK/roadmap.md" "$TMPROOT/once.md"
   run bash "$SYNC" "$BANK"
@@ -89,9 +91,9 @@ mkspec() {
   [ "$(grep -c 'Group: sdd-vision-pipeline' "$BANK/roadmap.md")" -eq 1 ]
   grep -qxF '## Group: sdd-vision-pipeline' "$BANK/roadmap.md"
   # the whole legacy H2 block is gone, including its nested H3 and table
-  ! grep -qF 'Umbrella prose that is manual bootstrap.' "$BANK/roadmap.md"
-  ! grep -qF '### Members of the group' "$BANK/roadmap.md"
-  ! grep -qF '| S1 | one | 504 |' "$BANK/roadmap.md"
+  refute_grep -qF 'Umbrella prose that is manual bootstrap.' "$BANK/roadmap.md"
+  refute_grep -qF '### Members of the group' "$BANK/roadmap.md"
+  refute_grep -qF '| S1 | one | 504 |' "$BANK/roadmap.md"
   # the NEXT unrelated H2 and its body must survive untouched
   grep -qF '## Track 2 — a different H2 that MUST survive' "$BANK/roadmap.md"
   grep -qxF 'keep me' "$BANK/roadmap.md"
@@ -145,7 +147,7 @@ mkspec() {
   mkspec childspec sdd-vision-pipeline "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
   run bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
-  ! grep -qxF 'manual body' "$BANK/roadmap.md"
+  refute_grep -qxF 'manual body' "$BANK/roadmap.md"
   run python3 -c 'import sys;print("YES" if "## Notes\n\n\n\n\nspaced out on purpose\n" in open(sys.argv[1],encoding="utf-8").read() else "NO")' "$BANK/roadmap.md"
   [ "$output" = "YES" ]
 }
@@ -157,11 +159,11 @@ mkspec() {
 @test "roadmap_sync_bootstrap: close-before-open fence is rejected (exit 2, no write)" {
   printf -- '# Roadmap\n\n<!-- /mb-roadmap-auto -->\nstray\n<!-- mb-roadmap-auto -->\n' > "$BANK/roadmap.md"
   mkspec a "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
-  before="$(cat "$BANK/roadmap.md")"
+  snapshot "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$SYNC" "$BANK"
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"malformed_fence"* ]]
-  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+  assert_unchanged "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "roadmap_sync_bootstrap: --check on a close-before-open fence exits 2, not 0" {
@@ -175,21 +177,21 @@ mkspec() {
 @test "roadmap_sync_bootstrap: a duplicate opening marker is rejected (exit 2, no write)" {
   printf -- '# Roadmap\n\n<!-- mb-roadmap-auto -->\n<!-- mb-roadmap-auto -->\n<!-- /mb-roadmap-auto -->\n' > "$BANK/roadmap.md"
   mkspec a "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
-  before="$(cat "$BANK/roadmap.md")"
+  snapshot "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$SYNC" "$BANK"
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"malformed_fence"* ]]
-  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+  assert_unchanged "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "roadmap_sync_bootstrap: a stray extra closing marker is rejected (exit 2, no write)" {
   printf -- '# Roadmap\n\n<!-- mb-roadmap-auto -->\n<!-- /mb-roadmap-auto -->\n\ntext\n\n<!-- /mb-roadmap-auto -->\n' > "$BANK/roadmap.md"
   mkspec a "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
-  before="$(cat "$BANK/roadmap.md")"
+  snapshot "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$SYNC" "$BANK"
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"malformed_fence"* ]]
-  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+  assert_unchanged "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "roadmap_sync_bootstrap: a single well-formed fence pair is still accepted" {
@@ -220,7 +222,7 @@ mkspec() {
   # Fault injection: make os.replace fail. The original file must survive with
   # its original bytes -- not be truncated to empty or partial.
   mkspec a "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 0 1 1
-  before="$(cat "$BANK/roadmap.md")"
+  snapshot "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   # Inject by running the sync with a sitecustomize that breaks os.replace.
   mkdir -p "$TMPROOT/site"
   cat > "$TMPROOT/site/sitecustomize.py" <<'PY'
@@ -231,7 +233,7 @@ os.replace = boom
 PY
   PYTHONPATH="$TMPROOT/site" run bash "$SYNC" "$BANK"
   [ "$status" -ne 0 ]
-  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+  assert_unchanged "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   # And no temp turd left behind next to the roadmap. The pattern must be the
   # one the atomic primitive ACTUALLY uses (mkstemp prefix `.mb-atomic.`,
   # suffix `.tmp`) -- the old assertion looked for `roadmap.md.*`, which this
@@ -260,13 +262,13 @@ PY
   printf -- '---\ntopic: mixed\ngroup: %s\nice: {impact: 8, confidence: 9, ease: 7}\nice_confirmed: true\nblocked_by: []\nstatus: ready\n---\n# R\n' "$GROUP" > "$BANK/specs/mixed/requirements.md"
   printf -- '---\ntopic: mixed\ncreated: 2026-01-01\n---\n# ctx\n' > "$BANK/context/mixed.md"
   printf -- '# Tasks\n\n<!-- mb-task:1 -->\n## Task 1\n\n**DoD:**\n- [x] a\n<!-- /mb-task:1 -->\n\n<!-- mb-stage:2 -->\n## Stage 2\n\n**DoD:**\n- [ ] b\n<!-- /mb-stage:2 -->\n' > "$BANK/specs/mixed/tasks.md"
-  before="$(cat "$BANK/roadmap.md")"
+  snapshot "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$SYNC" "$BANK"
   [ "$status" -eq 4 ]
   [[ "$stderr" == *"code=progress_parse_error"* ]]
   [[ "$stderr" == *"mixed"* ]]
   # roadmap must NOT have been written with the bogus 0%
-  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+  assert_unchanged "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "roadmap_sync_bootstrap: an unreadable tasks.md fails loudly instead of publishing 0%" {
@@ -322,8 +324,7 @@ PY
   run bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
   grep -qE "^## Group: $GROUP$" "$BANK/roadmap.md"
-  before="$(cat "$BANK/roadmap.md")"
-
+  snapshot "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   chmod 000 "$BANK/specs/alpha/requirements.md"
   if [ -r "$BANK/specs/alpha/requirements.md" ]; then
     chmod 644 "$BANK/specs/alpha/requirements.md"
@@ -335,7 +336,7 @@ PY
   [[ "$stderr" == *"code=spec_read_error"* ]]
   [[ "$stderr" == *"alpha"* ]]
   [[ "$stderr" != *"orphan_group"* ]]
-  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+  assert_unchanged "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "roadmap_sync_bootstrap: an unreadable plan fails loudly instead of vanishing from roadmap" {
@@ -343,8 +344,7 @@ PY
   run bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
   grep -qF 'pln' "$BANK/roadmap.md"
-  before="$(cat "$BANK/roadmap.md")"
-
+  snapshot "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   chmod 000 "$BANK/plans/2026-02-01_feature_pln.md"
   if [ -r "$BANK/plans/2026-02-01_feature_pln.md" ]; then
     chmod 644 "$BANK/plans/2026-02-01_feature_pln.md"
@@ -354,7 +354,7 @@ PY
   chmod 644 "$BANK/plans/2026-02-01_feature_pln.md"
   [ "$status" -eq 4 ]
   [[ "$stderr" == *"code=plan_read_error"* ]]
-  [ "$before" = "$(cat "$BANK/roadmap.md")" ]
+  assert_unchanged "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "roadmap_sync_bootstrap: a plan with no frontmatter is still a warn-and-skip (not an error)" {

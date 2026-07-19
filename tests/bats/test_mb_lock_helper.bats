@@ -122,12 +122,18 @@ release() { run --separate-stderr bash "$TMPROOT/lockcli" mb_lock_release "$@"; 
 # Divergence protocol (R3-001) — targeted rmdir, never mv/rm -rf
 # ═══════════════════════════════════════════════════════════════
 
-@test "lock_helper: targeted rmdir of dead marker leaves a fresh sibling owner" {
-  mkdir -p "$LOCK/owner.$$-Z"        # fresh live holder Z
-  # X's already-decided reclaim of the dead token D:
-  rmdir "$LOCK/owner.$DEAD" 2>/dev/null || true   # ENOENT — harmless
-  rmdir "$LOCK" 2>/dev/null || true               # ENOTEMPTY — refused
-  [ -d "$LOCK/owner.$$-Z" ]          # survivor: single holder preserved
+@test "lock_helper: a dead marker beside a LIVE owner is reclaimed without evicting the live one" {
+  # R4-012: this used to hand-run `rmdir` and never call the implementation, so
+  # it passed with mb_lock_acquire deleted entirely. It now drives the real
+  # helper: with a dead marker AND a live sibling in the same dir, the reclaim
+  # may take the dead marker but must NOT remove the lock (ENOTEMPTY) nor the
+  # live holder — and the caller must be refused, because the lock IS held.
+  mkdir -p "$LOCK/owner.$DEAD"       # dead token D
+  mkdir -p "$LOCK/owner.$$-Z"        # fresh LIVE holder Z ($$ = this test)
+  acquire "$LOCK" 1 100
+  [ "$status" -eq 1 ]                # Z still holds it ⇒ loud timeout
+  [[ "$stderr" == *"code=lock_timeout"* ]]
+  [ -d "$LOCK/owner.$$-Z" ]          # survivor: the live holder is untouched
   [ -d "$LOCK" ]
 }
 
@@ -296,7 +302,11 @@ EOF
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Parity + divergence vs mb-agree.sh private lock (design.md C6)
+# Parity vs mb-agree.sh private lock (design.md C6)
+# The former "divergence" case was deleted in R4-012: it hand-ran literal
+# rmdir/rm -rf without calling any helper, so it passed with the
+# implementation removed, and it asserted a KNOWN DEFECT of mb-agree rather
+# than any behaviour of ours. The parity case below drives the real helpers.
 # ═══════════════════════════════════════════════════════════════
 
 @test "lock_helper: parity vs mb-agree — both reclaim dead, both refuse live" {
@@ -315,20 +325,6 @@ EOF
   [ "$status" -eq 1 ]
   run --separate-stderr bash "$TMPROOT/lockcli" _lock_acquire "$A2" 1 100
   [ "$status" -eq 1 ]
-}
-
-@test "lock_helper: divergence vs mb-agree — helper preserves fresh owner, agree destroys it" {
-  # Helper: targeted rmdir leaves the fresh live owner intact.
-  H="$TMPROOT/h.lock"; mkdir -p "$H/owner.$$-Z"
-  rmdir "$H/owner.$DEAD" 2>/dev/null || true
-  rmdir "$H" 2>/dev/null || true
-  [ -d "$H/owner.$$-Z" ]
-
-  # mb-agree: its decided reclaim is a blind rm -rf that WOULD destroy a fresh
-  # lock — the documented known defect the helper closes.
-  A="$TMPROOT/a.lock"; mkdir -p "$A"; printf '%s' "$$-Z" > "$A/owner"
-  rm -rf "$A"                  # agree's reclaim action on a now-fresh lock
-  [ ! -d "$A" ]               # destroyed (known defect, not fixed in agree)
 }
 
 # ═══════════════════════════════════════════════════════════════

@@ -87,6 +87,29 @@ mb_mtime() {
   printf '%s\n' 0
 }
 
+# mb_pid_alive <pid> — is this PID a LIVE process? (0 = alive, 1 = gone)
+#
+# `kill -0` alone is not a liveness test, it is a "can I signal it" test. For a
+# process owned by ANOTHER OS user the kernel answers EPERM, which the shell
+# reports exactly like ESRCH. In a group-writable bank that read another user's
+# live holder as dead, reclaimed its lock and let two writers into backlog.md at
+# once (R4-001). EPERM means the PID EXISTS, so it must count as alive; `ps -p`
+# answers existence without needing signal permission.
+mb_pid_alive() {
+  local pid="${1:-}"
+  if ! printf '%s' "$pid" | grep -qE '^[0-9]+$'; then
+    return 1
+  fi
+  if kill -0 "$pid" 2>/dev/null; then
+    return 0
+  fi
+  # kill -0 failed: ESRCH (really gone) or EPERM (alive, just not ours).
+  if ps -p "$pid" -o pid= >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
 mb_valid_workspace_project_id() {
   local project_id="${1:-}"
   [[ "$project_id" =~ ^[A-Za-z0-9_-]+$ ]]
@@ -875,6 +898,16 @@ mb_lock_acquire() {
         rmdir "$lock_dir/owner.$token" 2>/dev/null || true
       fi
     else
+      # `mkdir` failed, so SOMETHING is at this path. Before globbing into it or
+      # reclaiming anything, prove it is a real directory and not a symlink
+      # (R4-004): a lock path pointing at an external directory made the reclaim
+      # glob + rmdir delete an owner marker OUTSIDE the intended lock. Fail
+      # closed — we never traverse a link to decide what to destroy.
+      if [ -L "$lock_dir" ] || [ ! -d "$lock_dir" ]; then
+        printf 'code=lock_corrupt lock=%s detail=lock path is not a real directory\n' \
+          "$(mb_json_string "$lock_dir")" >&2
+        return 2
+      fi
       # Lock exists — inspect the owner marker (invariant: 0 or 1 owner.*).
       set -- "$lock_dir"/owner.*
       if [ -d "$1" ]; then
@@ -884,7 +917,8 @@ mb_lock_acquire() {
         tok="${base#owner.}"
         pid="${tok%%-*}"
         if printf '%s' "$pid" | grep -qE '^[0-9]+$'; then
-          if ! kill -0 "$pid" 2>/dev/null; then
+          # Liveness, not signal-permission (R4-001): an EPERM owner is ALIVE.
+          if ! mb_pid_alive "$pid"; then
             # Proven-dead owner → reclaim EXACTLY this marker. ONLY the process
             # that WINS `rmdir owner.<D>` may remove the (now empty) lock dir.
             # A racer that lost the marker (ENOENT — another reclaimer already
@@ -957,11 +991,23 @@ mb_lock_acquire() {
 mb_lock_release() {
   local lock_dir="${1:-}" token="${2:-}"
   [ -n "$lock_dir" ] || return 0
+  # The token is pasted straight into a path, so it must be proven to BE a token
+  # before any filesystem call (R4-003). `123-4/../../victim` used to escape the
+  # lock dir entirely and rmdir an unrelated sibling directory while returning 0
+  # and leaving the real owner marker in place — the exact opposite of the
+  # "a foreign token deletes nothing" contract. Grammar first, mutations never
+  # before it.
+  if [ -n "$token" ] && ! printf '%s' "$token" | grep -qE '^[0-9]+-[0-9]+$'; then
+    printf 'code=lock_usage lock=%s detail=malformed token\n' \
+      "$(mb_json_string "$lock_dir")" >&2
+    return 1
+  fi
   # Genuinely absent (and not a dangling symlink) → nothing to release.
   if [ ! -e "$lock_dir" ] && [ ! -L "$lock_dir" ]; then
     return 0
   fi
-  if [ ! -d "$lock_dir" ]; then
+  # A symlink is never a lock we own (R4-004) — refuse without traversing it.
+  if [ -L "$lock_dir" ] || [ ! -d "$lock_dir" ]; then
     printf 'code=lock_corrupt lock=%s detail=lock path exists but is not a directory\n' \
       "$(mb_json_string "$lock_dir")" >&2
     return 1

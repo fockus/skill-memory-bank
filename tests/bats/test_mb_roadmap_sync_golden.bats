@@ -8,6 +8,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/s4_assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SYNC="$REPO_ROOT/scripts/mb-roadmap-sync.sh"
@@ -177,12 +179,11 @@ compare_style_vs_golden() {
   mkdir -p "$bank/plans"
   cp "$corpus/plans/"*.md "$bank/plans/"
   cp "$corpus/roadmap.md" "$bank/roadmap.md"
-  before="$(cat "$bank/roadmap.md")"
-
+  snapshot "$bank/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$SYNC" "$bank"
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"code=malformed_fence"* ]]
-  [ "$before" = "$(cat "$bank/roadmap.md")" ]
+  assert_unchanged "$bank/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "roadmap_sync_ice: full 18-plan HEAD corpus byte-identical to the frozen legacy golden" {

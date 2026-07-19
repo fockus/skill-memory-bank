@@ -109,6 +109,18 @@ main() {
   local mb_arg="" id="" state="" reason="" reason_set=0
   local brief="" brief_set=0 parent="" parent_set=0
 
+  # The CLI contract is `<I-NNN>` — exactly three digits. `I-1` used to be
+  # accepted and MUTATED because the parser's `I-\d+` is laxer than the
+  # documented grammar, so a typo silently edited a malformed entry instead of
+  # failing loudly (R4-006). Checked before the lock is taken and before the
+  # backlog is read: a malformed id must cause no side effects at all.
+  _require_entry_id() {
+    if ! printf '%s' "${1:-}" | grep -qE '^I-[0-9]{3}$'; then
+      echo "[mb-backlog-state] invalid id: ${1:-} (expected I-NNN)" >&2
+      exit 2
+    fi
+  }
+
   case "$sub" in
     transition)
       id="${1:-}"; state="${2:-}"
@@ -116,6 +128,7 @@ main() {
         echo "[mb-backlog-state] usage: transition <I-NNN> <NEW_STATE> [--reason TEXT] [--mb PATH]" >&2
         exit 2
       fi
+      _require_entry_id "$id"
       shift 2
       while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -131,6 +144,7 @@ main() {
         echo "[mb-backlog-state] usage: annotate <I-NNN> --brief <TEXT> [--parent <I-NNN|none>] [--mb PATH]" >&2
         exit 2
       fi
+      _require_entry_id "$id"
       shift
       while [ "$#" -gt 0 ]; do
         case "$1" in
@@ -143,6 +157,10 @@ main() {
       if [ "$brief_set" -ne 1 ]; then
         echo "[mb-backlog-state] usage: annotate requires --brief" >&2
         exit 2
+      fi
+      # `--parent` shares the grammar; `none` is the documented clear-token.
+      if [ "$parent_set" -eq 1 ] && [ "$parent" != "none" ]; then
+        _require_entry_id "$parent"
       fi
       ;;
     list)

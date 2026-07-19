@@ -8,6 +8,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/s4_assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   BS="$REPO_ROOT/scripts/mb-backlog-state.sh"
@@ -41,11 +43,11 @@ teardown() {
 # Assert `annotate` refuses $1 as a brief, changing nothing.
 refuse_brief() {
   local brief="$1" before
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$BS" annotate I-001 --brief "$brief" --mb "$BANK"
   [ "$status" -ne 0 ]
   [ -z "$output" ]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -155,14 +157,14 @@ PY
 
 @test "backlog_meta: a brief containing a newline is refused, backlog byte-identical" {
   local before
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$BS" annotate I-001 --brief 'the system must validate input
 ### I-001 — injected duplicate [MED, NEW, 2026-01-02]' --mb "$BANK"
   [ "$status" -ne 0 ]
   [ -z "$output" ]
   [[ "$stderr" == *"code=invalid_metadata"* ]]
   [[ "$stderr" == *"newline"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   # no forged header, and the db stays readable
   [ "$(grep -c '^### I-001' "$BANK/backlog.md")" -eq 1 ]
   run bash "$BS" list --mb "$BANK"
@@ -171,33 +173,33 @@ PY
 
 @test "backlog_meta: a transition --reason containing a newline is refused" {
   local before
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$BS" transition I-003 WONTFIX --reason 'superseded
 ### I-999 — forged entry [MED, NEW, 2026-01-02]' --mb "$BANK"
   [ "$status" -ne 0 ]
   [ -z "$output" ]
   [[ "$stderr" == *"code=invalid_metadata"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-  ! grep -q 'I-999' "$BANK/backlog.md"
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
+  refute_grep -q 'I-999' "$BANK/backlog.md"
 }
 
 @test "backlog_meta: a carriage return in a brief is refused too" {
   local before
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$BS" annotate I-001 --brief "$(printf 'the system must validate input\r### I-001 — forged [MED, NEW, 2026-01-02]')" --mb "$BANK"
   [ "$status" -ne 0 ]
   [[ "$stderr" == *"code=invalid_metadata"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "backlog_meta: a --parent value containing a newline is refused" {
   local before
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$BS" annotate I-001 --brief "the system must retry when the call fails" --parent 'I-003
 ### I-998 — forged [MED, NEW, 2026-01-02]' --mb "$BANK"
   [ "$status" -ne 0 ]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-  ! grep -q 'I-998' "$BANK/backlog.md"
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
+  refute_grep -q 'I-998' "$BANK/backlog.md"
 }
 
 # ═══════════════════════════════════════════════════════════════

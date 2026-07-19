@@ -150,10 +150,22 @@ def test_crlf_outside_the_fence_is_preserved_byte_exact(tmp_path: Path) -> None:
     assert _run(mb).returncode == 0
 
     now = _read(mb / "roadmap.md")
-    o_start, o_end = find_fence(original)
-    n_start, n_end = find_fence(now)
-    assert now[:n_start] == original[:o_start]
-    assert now[n_end:] == original[o_end:]
+
+    # The expected boundaries are HARD-CODED, not computed with find_fence
+    # (R4-009). Deriving them from the production parser made it its own oracle:
+    # if find_fence started swallowing every CRLF after the closing marker, the
+    # sync would eat the user's blank line and this test would still pass,
+    # because both sides of the comparison would shift together.
+    expected_head = "# Roadmap\r\n\r\nBEFORE MANUAL\r\n\r\n"
+    expected_tail = "\r\nAFTER MANUAL\r\n"
+
+    assert now.startswith(expected_head), repr(now[:60])
+    assert now.endswith(expected_tail), repr(now[-60:])
+    # Exactly ONE line ending after the closing marker, then the user's blank
+    # line: `...-->\r\n` + `\r\n` + `AFTER MANUAL\r\n`.
+    assert now.count(FENCE_CLOSE) == 1
+    close_at = now.index(FENCE_CLOSE) + len(FENCE_CLOSE)
+    assert now[close_at:] == "\r\n" + expected_tail
     # And the whole file stays CRLF -- no mixed endings introduced.
     assert now.count("\n") == now.count("\r\n")
 
@@ -278,3 +290,52 @@ def test_real_paths_are_still_refused(brief: str) -> None:
     ok, why = validate_brief(brief)
     assert not ok, f"path brief slipped through: {brief}"
     assert why == "contains file path"
+
+
+# ── R4-002: line numbers in prose, and extensionless relative paths ──────────
+
+
+@pytest.mark.parametrize(
+    "brief",
+    [
+        "the parser must retry at line 42 when input fails",
+        "the parser must retry at Line 42 when input fails",
+        "the job must retry on строка 42 failure",
+        "must handle the retry at :42 when it fails",
+        "the fix must land at #L42 in the handler",
+        "must handle lines 10 when parsing",
+    ],
+)
+def test_prose_line_numbers_are_refused(brief: str) -> None:
+    ok, why = validate_brief(brief)
+    assert not ok, f"line number slipped through: {brief}"
+    assert why == "contains line number"
+
+
+@pytest.mark.parametrize(
+    "brief",
+    [
+        "the agent must edit custom/runner",
+        "the agent must edit widget/handler",
+        "the agent must open foo/bar",
+    ],
+)
+def test_extensionless_relative_paths_are_refused(brief: str) -> None:
+    ok, why = validate_brief(brief)
+    assert not ok, f"relative path slipped through: {brief}"
+    assert why == "contains file path"
+
+
+@pytest.mark.parametrize(
+    "brief",
+    [
+        "the serializer must preserve input/output semantics",
+        "the reader must support read/write modes",
+        "the client must handle request/response pairs correctly",
+        "the router must map the on/off toggle when the flag is set",
+        "the queue must keep producer/consumer ordering stable",
+    ],
+)
+def test_conceptual_pairs_survive_the_narrower_rule(brief: str) -> None:
+    ok, why = validate_brief(brief)
+    assert ok, f"legitimate behavioural brief rejected: {why}"

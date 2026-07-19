@@ -37,8 +37,14 @@ EDGES = {
 }
 V2_META = ("**Type:**", "**Parent:**", "**Brief:**", "**Reason:**")
 
-HEADER_RE = re.compile(r"^### (I-\d+) — (.*) \[([^,\]]+),\s*([^,\]]+),\s*([^\]]+)\]\s*$")
-HEADER_STATE_RE = re.compile(r"^(### I-\d+ — .*\[[^,\]]+,\s*)([A-Za-z][A-Za-z0-9_-]*)(.*\])\s*$")
+# `I-\d{3,}` not `I-\d+`: the documented grammar is I-NNN, and the lax form let
+# a malformed `### I-1 —` header be parsed and MUTATED (R4-006). Three-or-more
+# (rather than exactly three) keeps the id space open past I-999 instead of
+# turning a future 4-digit backlog into a file full of unparsable entries.
+HEADER_RE = re.compile(r"^### (I-\d{3,}) — (.*) \[([^,\]]+),\s*([^,\]]+),\s*([^\]]+)\]\s*$")
+# Group 4 captures the line's own trailing whitespace so a CRLF line keeps its
+# CR when only the state token is rewritten (R4-005).
+HEADER_STATE_RE = re.compile(r"^(### I-\d+ — .*\[[^,\]]+,\s*)([A-Za-z][A-Za-z0-9_-]*)(.*\])(\s*)$")
 SECTION_RE = re.compile(r"^## (.+?)\s*$")
 
 
@@ -53,11 +59,28 @@ def json_str(s):
 
 
 def read_text(path):
+    """Read the backlog WITHOUT universal-newline translation (R4-005).
+
+    A plain ``open()`` rewrites every CRLF to LF in memory, and since the file
+    is re-joined with ``\\n`` on write, a single state transition silently
+    rewrote the line ending of every hand-written line in the file. With
+    ``newline=""`` each line keeps its own CR, ``split("\\n")`` leaves it at the
+    end of the line, and ``"\\n".join`` puts the file back byte-for-byte apart
+    from the token we meant to change.
+    """
     try:
-        with open(path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8", newline="") as fh:
             return fh.read()
     except OSError:
         die(2, f"cannot read backlog: {path}")
+
+
+def line_cr(lines):
+    """The CR prefix new lines need to match the file's existing endings."""
+    for ln in lines:
+        if ln.endswith("\r"):
+            return "\r"
+    return ""
 
 
 def write_atomic(path, text):
@@ -168,11 +191,18 @@ def rewrite_state(header_line, new_state):
     m = HEADER_STATE_RE.match(header_line)
     if not m:
         return header_line
-    return m.group(1) + new_state + m.group(3)
+    # group(4) is the line's own trailing whitespace -- the CR of a CRLF line
+    # lives there, and dropping it rewrote the ending of every touched header.
+    return m.group(1) + new_state + m.group(3) + m.group(4)
 
 
-def set_meta(seg, key, value):
-    line = f"**{key}:** {value}"
+def set_meta(seg, key, value, cr=""):
+    # Lines carry their own CR (R4-005), so every line this function CREATES has
+    # to carry it too or the segment ends up with mixed endings. `cr` comes from
+    # the WHOLE file, not from `seg` -- an entry with an empty body has no line
+    # to copy the ending from.
+    line = f"**{key}:** {value}{cr}"
+    blank = cr
     pat = re.compile(r"^\*\*" + re.escape(key) + r":\*\*")
     for i, bl in enumerate(seg):
         if pat.match(bl):
@@ -184,11 +214,11 @@ def set_meta(seg, key, value):
         body.pop()
         trailing += 1
     if body:
-        body.append("")
+        body.append(blank)
     body.append(line)
-    body.append("")
+    body.append(blank)
     if trailing > 1:
-        body.extend([""] * (trailing - 1))
+        body.extend([blank] * (trailing - 1))
     return body
 
 
@@ -260,11 +290,12 @@ def transition_main(argv):
     if new_state == "WONTFIX" and not (reason and reason.strip()):
         die(1, f"WONTFIX requires a non-empty --reason for {entry_id}")
     lines[e["header_idx"]] = rewrite_state(lines[e["header_idx"]], new_state)
+    cr = line_cr(lines)
     seg = lines[e["header_idx"] + 1 : e["end_idx"]]
     if reason is not None and reason.strip():
-        seg = set_meta(seg, "Reason", reason.strip())
+        seg = set_meta(seg, "Reason", reason.strip(), cr)
     if plan is not None:
-        seg = set_meta(seg, "Plan", plan)
+        seg = set_meta(seg, "Plan", plan, cr)
     lines[e["header_idx"] + 1 : e["end_idx"]] = seg
     write_atomic(backlog, "\n".join(lines))
     sys.exit(0)
@@ -329,10 +360,13 @@ def state_main(argv):
                 die(1, f"code=missing_parent item={entry_id} parent={parent}")
             if parent == entry_id or parent_chain_has_cycle(entries, entry_id, parent):
                 die(1, f"code=parent_cycle path={entry_id}->{parent}->{entry_id}")
+        cr = line_cr(lines)
         seg = lines[e["header_idx"] + 1 : e["end_idx"]]
-        seg = set_meta(seg, "Brief", brief)
+        seg = set_meta(seg, "Brief", brief, cr)
         if parent_set:
-            seg = del_meta(seg, "Parent") if parent == "none" else set_meta(seg, "Parent", parent)
+            seg = (
+                del_meta(seg, "Parent") if parent == "none" else set_meta(seg, "Parent", parent, cr)
+            )
         lines[e["header_idx"] + 1 : e["end_idx"]] = seg
         write_atomic(backlog, "\n".join(lines))
         return

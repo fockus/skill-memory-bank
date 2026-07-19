@@ -14,6 +14,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/s4_assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   BS="$REPO_ROOT/scripts/mb-backlog-state.sh"
@@ -86,21 +88,21 @@ DUP
 
 @test "backlog_state: transition on a duplicated id is refused (exit 2, nothing mutated)" {
   dup_bank
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$BS" transition I-003 READY --mb "$BANK"
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"code=duplicate_id"* ]]
   [[ "$stderr" == *"I-003"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "backlog_state: annotate on a duplicated id is refused (exit 2, nothing mutated)" {
   dup_bank
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$BS" annotate I-003 --brief "the system should retry when the call fails" --mb "$BANK"
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"code=duplicate_id"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "backlog_state: list is refused on a duplicated id rather than emitting both" {
@@ -112,11 +114,11 @@ DUP
 
 @test "backlog_state: a duplicate elsewhere still blocks an unrelated id (db is inconsistent)" {
   dup_bank
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run --separate-stderr bash "$BS" transition I-001 NEEDS-INFO --mb "$BANK"
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"code=duplicate_id"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 @test "backlog_state: a clean backlog with unique ids is unaffected by the duplicate gate" {

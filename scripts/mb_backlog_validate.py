@@ -53,16 +53,47 @@ _PATH_PATTERNS = (
     r"(?:^|[\s(\[\"'`])[\w.-]+\." + _PATH_EXT + r"(?:$|[\s)\],.;:!?\"'`])",
 )
 
+# A line reference in prose, not just the `file:42` spelling. `the parser must
+# retry at line 42` sailed through the old `:\d+` guard and reached READY with a
+# line number in it, so REQ-007's DoD was only half enforced (R4-002).
+_LINE_NUM_PATTERNS = (
+    r":\d+",
+    r"\b(?:lines?|строк[аиеу]?|стр)\b\.?\s*:?\s*№?\s*\d+",
+    r"#L\d+\b",
+)
+
+# `word/word` is DEFAULT-DENY: a two-segment slash token is a relative path
+# unless both halves are ordinary paired vocabulary. R3-010 fixed the opposite
+# over-blocking bug by allowing every `word/word`, which then let the plain
+# relative path `custom/runner` through (R4-002). An explicit allow-list keeps
+# `input/output` working without reopening that hole; an unlisted pair is
+# refused with a message that says exactly what to do.
+_CONCEPT_WORDS = frozenset(
+    ["input", "output", "read", "write", "request", "response", "on", "off", "client", "server", "start", "stop", "pass", "fail", "true", "false", "yes", "no", "success", "failure", "get", "set", "put", "post", "open", "close", "push", "pull", "encode", "decode", "serialize", "deserialize", "key", "value", "name", "min", "max", "in", "out", "up", "down", "before", "after", "sender", "receiver", "producer", "consumer", "publish", "subscribe", "sync", "async", "create", "delete", "insert", "update", "select", "enable", "disable", "accept", "reject", "allow", "deny", "lock", "unlock", "login", "logout", "begin", "end", "first", "last", "left", "right", "row", "column", "parent", "child", "head", "tail", "hit", "miss", "send", "recv", "retry"]
+)
+
+_TWO_SEGMENT_RE = re.compile(r"(?:^|[\s(\[\"'`])([\w.-]+)/([\w.-]+)(?=$|[\s)\],.;:!?\"'`])")
+
+
+def _unlisted_slash_pair(text):
+    """A `word/word` token whose halves are not both conceptual vocabulary."""
+    for left, right in _TWO_SEGMENT_RE.findall(text):
+        if left.lower() not in _CONCEPT_WORDS or right.lower() not in _CONCEPT_WORDS:
+            return True
+    return False
+
 
 def _looks_like_path(text):
-    return any(re.search(p, text, re.IGNORECASE) for p in _PATH_PATTERNS)
+    if any(re.search(p, text, re.IGNORECASE) for p in _PATH_PATTERNS):
+        return True
+    return _unlisted_slash_pair(text)
 
 
 def validate_brief(text):
     t = (text or "").strip()
     if not t:
         return (False, "missing brief")
-    if re.search(r":\d+", t):
+    if any(re.search(p, t, re.IGNORECASE) for p in _LINE_NUM_PATTERNS):
         return (False, "contains line number")
     if _looks_like_path(t):
         return (False, "contains file path")

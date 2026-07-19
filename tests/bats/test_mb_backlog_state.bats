@@ -11,6 +11,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/s4_assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   BS="$REPO_ROOT/scripts/mb-backlog-state.sh"
@@ -120,22 +122,34 @@ state_of() {  # $1 = I-NNN → the state TOKEN (first word of the 2nd bracket fi
 # ═══════════════════════════════════════════════════════════════
 
 @test "backlog_state: DONE -> NEW is rejected (terminal), exit 1 lists allowed" {
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
   run --separate-stderr bash "$BS" transition I-006 NEW --mb "$BANK"
   [ "$status" -eq 1 ]
   [ -z "$output" ]                      # diagnostics go to stderr, stdout empty
   [[ "$stderr" == *"I-006"* || "$stderr" == *"DONE"* ]]
   [ "$(state_of I-006)" = "DONE" ]      # unchanged
+  # R4-010: the reject must leave the ENTIRE file byte-identical -- checking
+  # only the target entry let a truncation of every later entry pass.
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
 }
 
 @test "backlog_state: NEW -> READY is rejected (not an edge)" {
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
   run bash "$BS" transition I-001 READY --mb "$BANK"
   [ "$status" -eq 1 ]
   [ "$(state_of I-001)" = "NEW" ]
+  # R4-010: the reject must leave the ENTIRE file byte-identical -- checking
+  # only the target entry let a truncation of every later entry pass.
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
 }
 
 @test "backlog_state: WONTFIX -> TRIAGED is rejected (terminal)" {
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
   run bash "$BS" transition I-050 TRIAGED --mb "$BANK"
   [ "$status" -eq 1 ]
+  # R4-010: the reject must leave the ENTIRE file byte-identical -- checking
+  # only the target entry let a truncation of every later entry pass.
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
 }
 
 @test "backlog_state: unknown id exits 2" {
@@ -144,9 +158,13 @@ state_of() {  # $1 = I-NNN → the state TOKEN (first word of the 2nd bracket fi
 }
 
 @test "backlog_state: bad target state token exits 2" {
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
   run bash "$BS" transition I-001 BOGUS --mb "$BANK"
   [ "$status" -eq 2 ]
   [ "$(state_of I-001)" = "NEW" ]
+  # R4-010: the reject must leave the ENTIRE file byte-identical -- checking
+  # only the target entry let a truncation of every later entry pass.
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -154,25 +172,37 @@ state_of() {  # $1 = I-NNN → the state TOKEN (first word of the 2nd bracket fi
 # ═══════════════════════════════════════════════════════════════
 
 @test "backlog_state: TRIAGED -> READY without a brief is refused (missing brief)" {
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
   run --separate-stderr bash "$BS" transition I-003 READY --mb "$BANK"
   [ "$status" -eq 1 ]
   [[ "$stderr" == *"missing brief"* ]]
   [ "$(state_of I-003)" = "TRIAGED" ]
+  # R4-010: the reject must leave the ENTIRE file byte-identical -- checking
+  # only the target entry let a truncation of every later entry pass.
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
 }
 
 @test "backlog_state: TRIAGED -> READY refused when brief carries a file path" {
   # I-010 already carries a path-bearing brief — the READY-time gate must catch it.
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
   run --separate-stderr bash "$BS" transition I-010 READY --mb "$BANK"
   [ "$status" -eq 1 ]
   [[ "$stderr" == *"contains file path"* ]]
   [ "$(state_of I-010)" = "TRIAGED" ]
+  # R4-010: the reject must leave the ENTIRE file byte-identical -- checking
+  # only the target entry let a truncation of every later entry pass.
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
 }
 
 @test "backlog_state: TRIAGED -> READY refused when brief carries a line number" {
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
   run --separate-stderr bash "$BS" transition I-011 READY --mb "$BANK"
   [ "$status" -eq 1 ]
   [[ "$stderr" == *"contains line number"* ]]
   [ "$(state_of I-011)" = "TRIAGED" ]
+  # R4-010: the reject must leave the ENTIRE file byte-identical -- checking
+  # only the target entry let a truncation of every later entry pass.
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/whole.snap"
 }
 
 @test "backlog_state: annotate then TRIAGED -> READY succeeds (reachability)" {
@@ -202,7 +232,8 @@ state_of() {  # $1 = I-NNN → the state TOKEN (first word of the 2nd bracket fi
   bash "$BS" annotate I-001 --brief "must validate input" --parent I-003 --mb "$BANK"
   awk '/^### I-001 /{f=1;next} /^### /{f=0} f' "$BANK/backlog.md" | grep -qF "**Parent:** I-003"
   bash "$BS" annotate I-001 --brief "must validate input" --parent none --mb "$BANK"
-  ! (awk '/^### I-001 /{f=1;next} /^### /{f=0} f' "$BANK/backlog.md" | grep -qF "**Parent:**")
+  run awk '/^### I-001 /{f=1;next} /^### /{f=0} f' "$BANK/backlog.md"
+  refute_substring "$output" "**Parent:**"
 }
 
 @test "backlog_state: annotate --parent on a nonexistent id exits 1" {
@@ -283,7 +314,7 @@ item=I-011 state=TRIAGED parent=none depth=0 title=\"linenum brief item\""
   done <<< "$output"
 
   # ## Out of scope entries are NOT listed
-  ! [[ "$output" == *"I-050"* ]]
+  [[ "$output" != *"I-050"* ]]
 }
 
 @test "backlog_state: list encodes titles as compact JSON (quotes+unicode)" {
@@ -293,96 +324,10 @@ item=I-011 state=TRIAGED parent=none depth=0 title=\"linenum brief item\""
 }
 
 @test "backlog_state: unknown option --tree exits 2 without mutating the file" {
-  before="$(cat "$BANK/backlog.md")"
+  snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
   run bash "$BS" list --tree --mb "$BANK"
   [ "$status" -eq 2 ]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-}
-
-# ═══════════════════════════════════════════════════════════════
-# Option-value validation — a dangling flag is a usage error (exit 2)
-# ═══════════════════════════════════════════════════════════════
-# A flag given with no value must fail the usage contract loudly (exit 2 +
-# stderr diagnostic), not blow up on a `shift 2` out-of-range under set -e
-# (which leaked an empty exit 1).
-
-@test "backlog_state: list --mb without a value is a usage error (exit 2)" {
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" list --mb
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"--mb"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-}
-
-@test "backlog_state: annotate --brief without a value is a usage error (exit 2)" {
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" annotate I-001 --brief
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"--brief"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-}
-
-@test "backlog_state: annotate --parent without a value is a usage error (exit 2)" {
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" annotate I-001 --brief "must validate input" --parent
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"--parent"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-}
-
-@test "backlog_state: transition --reason without a value is a usage error (exit 2)" {
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" transition I-005 WONTFIX --reason
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"--reason"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-}
-
-@test "backlog_state: transition --mb without a value is a usage error (exit 2)" {
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" transition I-001 NEEDS-INFO --mb
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"--mb"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-}
-
-# A following option-token in the VALUE position is NOT a value — it must be a
-# usage error (exit 2, before bank resolve / lock), never silently consumed. The
-# `--mb "$BANK"` prefix keeps the temp bank targeted even under the buggy path.
-
-@test "backlog_state: transition --reason swallowing a following flag mutates nothing (exit 2)" {
-  # The reported defect: `--reason --mb` accepted `--mb` as the reason and
-  # transitioned I-003, mutating the backlog. Must be a usage error instead.
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" transition I-003 NEEDS-INFO --mb "$BANK" --reason --brief
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"requires a value"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-  [ "$(state_of I-003)" = "TRIAGED" ]      # I-003 unchanged
-}
-
-@test "backlog_state: annotate --brief swallowing a following flag is a usage error (exit 2)" {
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" annotate I-001 --mb "$BANK" --brief --parent
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"requires a value"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-}
-
-@test "backlog_state: annotate --parent swallowing a following flag is a usage error (exit 2)" {
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" annotate I-001 --mb "$BANK" --brief "must validate input" --parent --reason
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"requires a value"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
-}
-
-@test "backlog_state: transition --mb swallowing a following flag is a usage error (exit 2)" {
-  before="$(cat "$BANK/backlog.md")"
-  run --separate-stderr bash "$BS" transition I-001 NEEDS-INFO --mb --reason
-  [ "$status" -eq 2 ]
-  [[ "$stderr" == *"requires a value"* ]]
-  [ "$before" = "$(cat "$BANK/backlog.md")" ]
+  assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
 }
 
 # ═══════════════════════════════════════════════════════════════

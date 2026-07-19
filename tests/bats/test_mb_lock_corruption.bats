@@ -89,15 +89,18 @@ EOF
   [ -z "$output" ]
 }
 
-@test "lock_corruption: a corrupt lock is visible BEFORE acquire wastes the timeout" {
-  # Demonstrates the user-facing cost the silent success hides: the object stays,
-  # so every later acquire burns its full timeout and fails.
+@test "lock_corruption: a corrupt lock path is reported at once, not after the timeout" {
+  # R4-004 upgraded this contract. acquire used to treat a non-directory lock
+  # path as "busy" and burn its whole timeout before failing with lock_timeout,
+  # which named the wrong problem. It now fails closed and immediately: the
+  # object is not a directory, so we refuse rather than glob into it.
   : > "$LOCK"
   release "$LOCK" "123-4"
   [ "$status" -ne 0 ]
   acquire "$LOCK" 1 100
-  [ "$status" -eq 1 ]
-  [[ "$stderr" == *"code=lock_timeout"* ]]
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"code=lock_corrupt"* ]]
+  [ -f "$LOCK" ]   # and the object it refused to touch is still there
 }
 
 @test "lock_corruption: normal acquire/release round-trip is unaffected" {

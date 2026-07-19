@@ -6,6 +6,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/s4_assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SYNC="$REPO_ROOT/scripts/mb-roadmap-sync.sh"
@@ -82,7 +84,7 @@ group_block() {  # lines from `## Group:` region inside the fence
   mkspec lonely "$GROUP" "{impact: 8, confidence: 9, ease: 7}" "" true ready 1 3 1
   run bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
-  ! grep -qE '^- lonely —' "$BANK/roadmap.md"      # not in Linked Specs
+  refute_grep -qE '^- lonely —' "$BANK/roadmap.md"      # not in Linked Specs
   grep -qE '^lonely — .* tasks\(done=1,in_progress=0,planned=2,total=3\) — blocked_by=none$' "$BANK/roadmap.md"
 }
 
@@ -129,7 +131,7 @@ group_block() {  # lines from `## Group:` region inside the fence
   run --separate-stderr bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
   [[ "$stderr" != *"unconfirmed_ice="* ]]
-  ! grep -qE '\(unconfirmed\)' "$BANK/roadmap.md"
+  refute_grep -qE '\(unconfirmed\)' "$BANK/roadmap.md"
 }
 
 @test "roadmap_sync_group: no unconfirmed_ice line when all ICE are confirmed" {
@@ -150,7 +152,7 @@ group_block() {  # lines from `## Group:` region inside the fence
   run --separate-stderr bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
   [[ "$stderr" == *"orphan_group"* ]]
-  ! grep -qE '^## Group: ghost$' "$BANK/roadmap.md"
+  refute_grep -qE '^## Group: ghost$' "$BANK/roadmap.md"
   grep -qE "^## Group: $GROUP$" "$BANK/roadmap.md"
 }
 
@@ -165,10 +167,10 @@ group_block() {  # lines from `## Group:` region inside the fence
   [ "$status" -eq 0 ]
   # make it stale by checking another task
   sed -i.bak 's/- \[ \] item/- [x] item/' "$BANK/specs/a/tasks.md"
-  before="$(cat "$BANK/roadmap.md")"
+  snapshot "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"
   run bash "$SYNC" --check "$BANK"
   [ "$status" -eq 1 ]
-  [ "$before" = "$(cat "$BANK/roadmap.md")" ]   # --check never mutates
+  assert_unchanged "$BANK/roadmap.md" "$BATS_TEST_TMPDIR/before.snap"   # --check never mutates
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -207,7 +209,7 @@ group_block() {  # lines from `## Group:` region inside the fence
   grep -qxF -- '- withprefix — progress=50% tasks(done=0,in_progress=1,planned=0,total=1)' "$BANK/roadmap.md"
   grep -qxF -- '- withfile — progress=50% tasks(done=0,in_progress=1,planned=0,total=1)' "$BANK/roadmap.md"
   # and no un-normalized `specs/...` slug leaks into the Linked Specs rows
-  ! grep -qE '^- specs/' "$BANK/roadmap.md"
+  refute_grep -qE '^- specs/' "$BANK/roadmap.md"
 }
 
 @test "roadmap_sync_group: differently-spelled linked_specs for ONE spec dedupe to a single row" {
@@ -228,8 +230,8 @@ group_block() {  # lines from `## Group:` region inside the fence
   printf -- '---\ntopic: pln\nstatus: queued\nparallel_safe: false\ndepends_on: []\ngroup: forbidden-plan-group\nice: {impact: 8, confidence: 9, ease: 7}\n---\n# Feature: pln\n' > "$BANK/plans/2026-02-01_feature_pln.md"
   run bash "$SYNC" "$BANK"
   [ "$status" -eq 0 ]
-  ! grep -qE '^## Group: forbidden-plan-group$' "$BANK/roadmap.md"
-  ! grep -qE '^## Group: ' "$BANK/roadmap.md"
+  refute_grep -qE '^## Group: forbidden-plan-group$' "$BANK/roadmap.md"
+  refute_grep -qE '^## Group: ' "$BANK/roadmap.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
