@@ -19,9 +19,17 @@ Before creating a non-trivial plan (`/mb plan feature/refactor/...`). Skip for t
 
 ### Pre-flight
 
-1. Resolve the active Memory Bank through `scripts/_lib.sh::mb_resolve_path` and use the resolved path as `MB_PATH` in every later step — the bank may be local (`.memory-bank/`), a **global** bank registered via `/mb init --storage=global`, or legacy. Never hardcode `.memory-bank/`: a project on a registered global bank has no local directory and would be refused although its bank is active. Refuse only when the resolver returns nothing (suggest `/mb init`).
-2. Compute `CONTEXT_FILE = $MB_PATH/context/<topic>.md`.
-3. If `CONTEXT_FILE` exists → ask `AskUserQuestion`: continue editing / overwrite / cancel.
+1. Resolve the skill bundle root once and invoke **every** bundled helper through it:
+
+```bash
+SKILL_DIR="${SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"   # memory-bank skill bundle root
+```
+
+   Never call a bundled script by a bare relative path (`bash scripts/mb-…`): the working directory during `/mb discuss` is the **user's project**, which has no `scripts/` of its own — the call is exit 127 and the gate silently does not run — while a project that happens to ship `scripts/mb-interview-artifact-check.sh` would supply its own gate and answer it with exit 0.
+
+2. Resolve the active Memory Bank through `$SKILL_DIR/scripts/_lib.sh::mb_resolve_path` and use the resolved path as `MB_PATH` in every later step — the bank may be local (`.memory-bank/`), a **global** bank registered via `/mb init --storage=global`, or legacy. Never hardcode `.memory-bank/`: a project on a registered global bank has no local directory and would be refused although its bank is active. Refuse only when the resolver returns nothing (suggest `/mb init`).
+3. Compute `CONTEXT_FILE = $MB_PATH/context/<topic>.md`.
+4. If `CONTEXT_FILE` exists → ask `AskUserQuestion`: continue editing / overwrite / cancel.
 
 ### Phase 0 — Research (before the first question)
 
@@ -38,7 +46,7 @@ Compress findings into a **Research digest** — ≤20 lines, each line one fact
 
 Before the first question, write an interview plan to `<bank>/tmp/interview-plan-<topic>.md` — the white-spot ledger that keeps the interview honest. It lists the topics to close and the inherited decisions not to re-ask; generation is gated on closing every topic (grilling rule 11).
 
-Structure (contract C2, validated by `scripts/mb-interview-artifact-check.sh plan`, installed by `scripts/mb-interview-artifact-write.sh install-plan`):
+Structure (contract C2, validated by `"$SKILL_DIR/scripts/mb-interview-artifact-check.sh" plan`, installed by `"$SKILL_DIR/scripts/mb-interview-artifact-write.sh" install-plan`):
 
 - `## Inherited decisions (do not re-ask)` — decisions carried from `parent_context` (JIT slice interviews); empty for a root topic.
 - `## Topics` — one `- [ ]` line per planned theme; flip to `- [x]` once the theme is closed.
@@ -79,7 +87,7 @@ The 5 phases below are the **coverage checklist**, not a rigid script. While wal
 
 #### Size triage
 
-After Phase 1 closes, estimate the topic size and record it before going deeper. Estimate every touched surface with the fixed rubric, then write the `estimated_tokens` block (a `total` plus a six-key `breakdown`) into the context frontmatter and validate it with `scripts/mb-estimate-check.sh` (contract C1). The six rubric categories are exactly the `breakdown` keys:
+After Phase 1 closes, estimate the topic size and record it before going deeper. Estimate every touched surface with the fixed rubric, then write the `estimated_tokens` block (a `total` plus a six-key `breakdown`) into the context frontmatter and validate it with `bash "$SKILL_DIR/scripts/mb-estimate-check.sh"` (contract C1). The six rubric categories are exactly the `breakdown` keys:
 
 | Category (`breakdown.*`) | ~Tokens / unit |
 |---|---|
@@ -96,7 +104,7 @@ If a discussion branch itself grows to spec size, offer two choices before conti
 
 #### Phase 2 — Functional Requirements (EARS-enforced)
 
-For each requirement, pick one of the 5 patterns and assign the next ID via `bash $SKILL_DIR/scripts/mb-req-next-id.sh --spec <topic> "$MB_PATH"` (per-spec-local: the topic owns its REQ namespace, so a brand-new topic starts at `REQ-001` regardless of other specs):
+For each requirement, pick one of the 5 patterns and assign the next ID via `bash "$SKILL_DIR/scripts/mb-req-next-id.sh" --spec <topic> "$MB_PATH"` (per-spec-local: the topic owns its REQ namespace, so a brand-new topic starts at `REQ-001` regardless of other specs):
 
 | Pattern | Template |
 |---|---|
@@ -109,7 +117,7 @@ For each requirement, pick one of the 5 patterns and assign the next ID via `bas
 After all REQs are drafted, run the validator on the in-memory draft:
 
 ```bash
-echo "$DRAFT_REQ_BLOCK" | bash $SKILL_DIR/scripts/mb-ears-validate.sh -
+echo "$DRAFT_REQ_BLOCK" | bash "$SKILL_DIR/scripts/mb-ears-validate.sh" -
 ```
 
 If exit ≠ 0, surface every violation back to the user and re-prompt for that specific REQ.
@@ -159,14 +167,14 @@ What breaks at boundaries? What happens when dependencies fail? What's the worst
 1. **Close-gate — blocking, runs before anything is rendered.** Verify the interview plan is closed with the deterministic validator:
 
 ```bash
-bash scripts/mb-interview-artifact-check.sh plan "$MB_PATH/tmp/interview-plan-<topic>.md" --require-closed
+bash "$SKILL_DIR/scripts/mb-interview-artifact-check.sh" plan "$MB_PATH/tmp/interview-plan-<topic>.md" --require-closed
 ```
 
    Exit 0 permits generation. Exit 1 means open `- [ ]` topics remain: generation does not start, return to each open theme and ask the missing questions, then re-run the gate (REQ-002). Exit 2 means the plan artifact is unreadable or malformed: stop and repair it. Never generate on a non-zero gate, and never substitute your own judgement that the topics "look closed" — the exit code decides.
 
 2. Render `context/<topic>.md` using the template in `references/templates.md` (`## Context (context/<topic>.md)` section). Write it thoroughly: include the **Research digest** (with its citations), the **Decision Log** (decision → rationale → alternatives rejected, from the ledger), and **Open Questions** (anything deferred, so `/mb plan` addresses or explicitly parks each). Every REQ must trace back to a ledger decision — no requirement appears out of thin air.
-3. Run `bash scripts/mb-ears-validate.sh "$CONTEXT_FILE"`. If it fails, fix in place and retry — do not commit invalid state.
-4. Run `bash scripts/mb-traceability-gen.sh "$MB_PATH"` so the matrix picks up new REQs.
+3. Run `bash "$SKILL_DIR/scripts/mb-ears-validate.sh" "$CONTEXT_FILE"`. If it fails, fix in place and retry — do not commit invalid state.
+4. Run `bash "$SKILL_DIR/scripts/mb-traceability-gen.sh" "$MB_PATH"` so the matrix picks up new REQs.
 5. Update frontmatter `status: ready`.
 
 #### Transcript
@@ -198,5 +206,5 @@ The order is **verify, then publish** — never publish, then verify.
 
 - `/mb plan <type> <topic>` — read `context/<topic>.md` to link stages to REQs.
 - `/mb traceability-gen` — regenerate `traceability.md` after edits.
-- `bash scripts/mb-req-next-id.sh --spec <topic>` — next per-spec-local REQ-NNN for this topic (omit `--spec` for a project-wide max+1).
-- `bash scripts/mb-ears-validate.sh <file>|-` — validate REQ lines against the 5 EARS patterns.
+- `bash "$SKILL_DIR/scripts/mb-req-next-id.sh" --spec <topic>` — next per-spec-local REQ-NNN for this topic (omit `--spec` for a project-wide max+1).
+- `bash "$SKILL_DIR/scripts/mb-ears-validate.sh" <file>|-` — validate REQ lines against the 5 EARS patterns.

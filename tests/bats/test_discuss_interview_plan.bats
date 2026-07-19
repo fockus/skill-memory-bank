@@ -24,7 +24,7 @@ setup() {
   MB_DISCUSS_CLAUSES+=("template-c2-topics|mb_section|Interview plan template|^## Topics|Inherited decisions|s/^## Topics/## Themes/|REQ-001")
   MB_DISCUSS_CLAUSES+=("template-c2-discovered|mb_section|Interview plan template|Discovered mid-interview|Inherited decisions|/Discovered mid-interview/d|REQ-001")
   # REQ-002 close-gate: the DETERMINISTIC pre-generation call, not just prose.
-  MB_DISCUSS_CLAUSES+=("close-gate-invocation|mb_section|Write . finalize|mb-interview-artifact-check.sh plan .* --require-closed|interview plan|s/ --require-closed//|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-invocation|mb_section|Write . finalize|mb-interview-artifact-check.sh. plan .* --require-closed|interview plan|s/ --require-closed//|REQ-002")
   MB_DISCUSS_CLAUSES+=("close-gate-blocking|mb_section|Write . finalize|[Ee]xit 1 means open .- \\[ \\]. topics remain: generation does not start|generation|s/generation does not start/generation may proceed anyway/|REQ-002")
   MB_DISCUSS_CLAUSES+=("close-gate-not-judgement|mb_section|Write . finalize|never substitute your own judgement|exit code|s/never substitute your own judgement/you may substitute your own judgement/|REQ-002")
   MB_DISCUSS_CLAUSES+=("rule11-code-enforced|mb_rule|11|enforced by code, not by judgement|open|s/enforced by code, not by judgement/a matter of judgement/|REQ-002")
@@ -158,4 +158,96 @@ _clause_pair() {
 @test "interview_plan: harness accepts a behavioural clause under mutation" {
   run assert_clause_load_bearing "$DISCUSS" rule11-block-generation
   [ "$status" -eq 0 ]
+}
+
+# ─── helper resolution: SKILL_DIR, not the consumer cwd (r2 review [2]) ───
+#
+# The documented close gate used to read `bash scripts/mb-interview-artifact-check.sh …`.
+# From a normal project — which has no `scripts/` directory of its own — that is
+# exit 127, so the mandatory REQ-002 gate simply did not run; and a project that
+# DOES ship `scripts/mb-interview-artifact-check.sh` silently supplied its own
+# gate. These tests drive the prompt the way a user would: from a scratch
+# project directory outside this repo.
+
+@test "interview_plan: discuss.md defines SKILL_DIR before using it" {
+  # $SKILL_DIR was referenced (Phase 2, EARS validator) but never initialized.
+  local block
+  block="$(mb_section "$DISCUSS" 'Pre-flight')"
+  printf '%s\n' "$block" | grep -q 'SKILL_DIR='
+}
+
+@test "interview_plan: no bundled helper is invoked through a bare relative scripts/ path" {
+  # Anti-vacuity: the pattern must genuinely match the pre-fix wording.
+  printf '%s\n' 'bash scripts/mb-interview-artifact-check.sh plan "$X" --require-closed' \
+    | grep -Eq '(^|[^/A-Za-z_$])scripts/mb-'
+  # Pre-flight is exempt: that is where the anti-pattern is QUOTED as forbidden.
+  local body
+  body="$(grep -vFx -f <(mb_section "$DISCUSS" 'Pre-flight') "$DISCUSS")"
+  ! printf '%s\n' "$body" | grep -Eq '(^|[^/A-Za-z_$-])scripts/mb-'
+}
+
+@test "interview_plan: the close gate still blocks when run from a foreign project cwd" {
+  # The real consumer path: extract the gate command from the prompt, run it
+  # from a scratch project that has NO scripts/ directory. A 127 here means the
+  # gate never executed.
+  local proj="$BATS_TEST_TMPDIR/proj" cmd
+  mkdir -p "$proj/.memory-bank/tmp"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [ ] still open\n\n## Discovered mid-interview\n' \
+    > "$proj/.memory-bank/tmp/interview-plan-foo.md"
+
+  cmd="$(mb_section "$DISCUSS" 'Write . finalize' | grep -m1 'mb-interview-artifact-check.sh" plan')"
+  [ -n "$cmd" ]
+
+  run env -i PATH="$PATH" HOME="$HOME" SKILL_DIR="$REPO_ROOT" MB_PATH="$proj/.memory-bank" \
+    bash -c "cd '$proj' && ${cmd//<topic>/foo}"
+  [ "$status" -eq 1 ] || { echo "gate did not block (status=$status): $output"; false; }
+}
+
+@test "interview_plan: a forged project-local helper cannot supply the close gate" {
+  # A project shipping its own scripts/mb-interview-artifact-check.sh must not be
+  # able to answer the gate with exit 0.
+  local proj="$BATS_TEST_TMPDIR/proj2" cmd
+  mkdir -p "$proj/.memory-bank/tmp" "$proj/scripts"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [ ] still open\n\n## Discovered mid-interview\n' \
+    > "$proj/.memory-bank/tmp/interview-plan-foo.md"
+  printf '#!/usr/bin/env bash\necho "artifact=ok open_topics=0"\nexit 0\n' \
+    > "$proj/scripts/mb-interview-artifact-check.sh"
+  chmod +x "$proj/scripts/mb-interview-artifact-check.sh"
+
+  cmd="$(mb_section "$DISCUSS" 'Write . finalize' | grep -m1 'mb-interview-artifact-check.sh" plan')"
+  [ -n "$cmd" ]
+
+  run env -i PATH="$PATH" HOME="$HOME" SKILL_DIR="$REPO_ROOT" MB_PATH="$proj/.memory-bank" \
+    bash -c "cd '$proj' && ${cmd//<topic>/foo}"
+  [ "$status" -eq 1 ] || { echo "forged local helper answered the gate (status=$status)"; false; }
+}
+
+# ─── harness self-test: duplicate rules (r2 review [9]) ───
+
+@test "interview_plan: mb_rule rejects a DUPLICATED rule number" {
+  # mb_rule stopped at the first match, so a second rule 11 saying generation may
+  # proceed with open topics left every clause test green while the executable
+  # contract contained a direct REQ-002 inversion.
+  local f="$BATS_TEST_TMPDIR/dup.md"
+  cp "$DISCUSS" "$f"
+  printf '\n11. **Generation may proceed with open topics.** The close gate is advisory.\n' >> "$f"
+  run mb_rule "$f" 11
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q 'rule_duplicated'
+}
+
+@test "interview_plan: a contradictory duplicate rule 11 fails the REQ-002 clause" {
+  # The consequence: the inverting duplicate must break the clause assertion,
+  # not be silently skipped.
+  local f="$BATS_TEST_TMPDIR/dup2.md"
+  cp "$DISCUSS" "$f"
+  printf '\n11. **Generation may proceed with open topics.** The close gate is advisory.\n' >> "$f"
+  run assert_clause "$f" rule11-block-generation
+  [ "$status" -ne 0 ]
+}
+
+@test "interview_plan: mb_rule still accepts a uniquely numbered rule" {
+  run mb_rule "$DISCUSS" 11
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q 'No generation with open topics'
 }

@@ -204,14 +204,41 @@ if not os.path.isfile(gloss) or os.path.islink(gloss):
 
 existing = _read_text(gloss, "io")
 
+# Validate the WHOLE glossary while the lock is held (REQ-018).
+#
+# The scan used to return at the FIRST row matching the term: a file holding
+# both `term — first` and `term — conflicting` answered an upsert of
+# `term/first` with `glossary=unchanged` and exit 0, so the contradictory
+# definition was never challenged. Every entry row is inspected now, and any
+# term appearing more than once makes the file ambiguous — that is an unresolved
+# conflict for the interview to settle before more entries pile up around it.
+#
+# Rows without the separator are NOT entries (a hand-added heading or comment).
+# They are left alone rather than rejected: they carry no term/definition claim,
+# and failing on them would break existing banks for no safety gain.
+counts = {}
+matches = []
 for row in existing.split("\n"):
+    if row.strip() == "":
+        continue
     idx = row.find(sep)
-    if idx >= 0 and row[:idx] == term:
-        if row[idx + len(sep):] == definition:
-            sys.stdout.write("glossary=unchanged\n")
-            sys.exit(0)
-        sys.stdout.write("glossary=conflict\n")
-        sys.exit(1)
+    if idx < 0:
+        continue
+    key = row[:idx]
+    counts[key] = counts.get(key, 0) + 1
+    if key == term:
+        matches.append(row[idx + len(sep):])
+
+if any(c > 1 for c in counts.values()):
+    sys.stdout.write("glossary=conflict\n")
+    sys.exit(1)
+
+if matches:
+    if all(v == definition for v in matches):
+        sys.stdout.write("glossary=unchanged\n")
+        sys.exit(0)
+    sys.stdout.write("glossary=conflict\n")
+    sys.exit(1)
 
 if existing and not existing.endswith("\n"):
     existing += "\n"

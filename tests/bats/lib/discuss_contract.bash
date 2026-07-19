@@ -76,18 +76,26 @@ mb_section() {
 
 # mb_rule <file> <n>
 # Print the grilling-rule block: from `^<n>\. \*\*` to the next `^[0-9]+\. \*\*`
-# or the next heading (whichever comes first). Fence-aware. Exit 1 `rule_absent`.
+# or the next heading (whichever comes first). Fence-aware.
+# Exit 1 `rule_absent` / `rule_duplicated`.
+#
+# The rule number must be UNIQUE. Returning the first match let a second rule
+# with the same number sit in the prompt inverting the first one — e.g. a rule 11
+# saying generation may proceed with open topics — while every clause test on
+# that rule stayed green, certifying a contract that contradicted REQ-002.
+# Uniqueness is checked exactly like mb_section checks its headings.
 mb_rule() {
   awk -v n="$2" '
     { lines[NR] = $0 }
     END {
-      infence = 0; start = 0
+      infence = 0; start = 0; count = 0
       for (i = 1; i <= NR; i++) {
         if (lines[i] ~ /^[ \t]*```/) { infence = !infence; continue }
         if (infence) continue
-        if (lines[i] ~ ("^" n "\\. \\*\\*")) { start = i; break }
+        if (lines[i] ~ ("^" n "\\. \\*\\*")) { count++; if (count == 1) start = i }
       }
-      if (start == 0) { print "rule_absent"; exit 1 }
+      if (count == 0) { print "rule_absent"; exit 1 }
+      if (count > 1) { print "rule_duplicated"; exit 1 }
       print lines[start]
       infence = 0
       for (j = start + 1; j <= NR; j++) {

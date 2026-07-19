@@ -48,11 +48,52 @@ _pair() {
 @test "transcript: a finding forbids in-place editing of the candidate" { _pair "$DISCUSS" transcript-no-inplace-edit; }
 @test "transcript: the candidate is consumed on every exit path" { _pair "$DISCUSS" transcript-candidate-consumed; }
 
-@test "transcript: the gitignore claim in the prompt is actually true" {
-  # A prompt clause asserting `<bank>/tmp/` is ignored is only safe if the repo
-  # really ignores it — otherwise the candidate reaches git after all.
-  run git -C "$REPO_ROOT" check-ignore -q .memory-bank/tmp/interview-transcript-x.candidate.md
-  [ "$status" -eq 0 ]
+@test "transcript: the gitignore claim holds in a FRESHLY initialized bank" {
+  # This used to assert against the MAINTAINER repo, whose root .gitignore has
+  # carried `.memory-bank/tmp/` for ages — so it certified a guarantee that no
+  # user actually got. A fresh `git init` + `mb-init-bank.sh` had no ignore rule
+  # at all: the raw candidate was stageable by `git add .` (r2 review [8]).
+  local proj="$BATS_TEST_TMPDIR/fresh"
+  mkdir -p "$proj"
+  git -C "$proj" init -q .
+  git -C "$proj" config user.email t@example.com
+  git -C "$proj" config user.name t
+  run bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj"
+  [ "$status" -eq 0 ] || { echo "init failed: $output"; false; }
+
+  mkdir -p "$proj/.memory-bank/tmp"
+  printf 'raw\n' > "$proj/.memory-bank/tmp/interview-transcript-x.candidate.md"
+  run git -C "$proj" check-ignore -q .memory-bank/tmp/interview-transcript-x.candidate.md
+  [ "$status" -eq 0 ] || { echo "fresh bank does not ignore <bank>/tmp/"; false; }
+}
+
+@test "transcript: git add . cannot stage a candidate in a fresh bank" {
+  # The consequence that matters: raw credentials must not reach the index.
+  local proj="$BATS_TEST_TMPDIR/fresh2"
+  mkdir -p "$proj"
+  git -C "$proj" init -q .
+  git -C "$proj" config user.email t@example.com
+  git -C "$proj" config user.name t
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+
+  mkdir -p "$proj/.memory-bank/tmp"
+  printf 'sk-ant-api03ABCDEFGHIJKLMNOP\n' > "$proj/.memory-bank/tmp/interview-transcript-x.candidate.md"
+  git -C "$proj" add . >/dev/null 2>&1 || true
+  run git -C "$proj" diff --cached --name-only
+  ! echo "$output" | grep -q 'interview-transcript-x.candidate.md' \
+    || { echo "candidate was staged: $output"; false; }
+}
+
+@test "transcript: an existing bank .gitignore is extended, never clobbered" {
+  local proj="$BATS_TEST_TMPDIR/fresh3"
+  mkdir -p "$proj/.memory-bank"
+  printf '# user rules\n/my-scratch/\n' > "$proj/.memory-bank/.gitignore"
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+  grep -q '/my-scratch/' "$proj/.memory-bank/.gitignore"
+  grep -qE '^/tmp/$' "$proj/.memory-bank/.gitignore"
+  # Idempotent: a second init must not append the rule twice.
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+  [ "$(grep -cE '^/tmp/$' "$proj/.memory-bank/.gitignore")" -eq 1 ]
 }
 
 @test "transcript: the writer really scrubs the candidate (prompt matches code)" {

@@ -148,6 +148,67 @@ EOF
   [ "$status" -eq 1 ]
   echo "$stderr" | grep -q ':bad_bullet$'
 }
+# ─── plan: every non-checkbox row under Topics/Discovered (r2 review [1]) ───
+#
+# The close gate used to inspect ONLY column-1 bullet markers, so plain prose, a
+# numbered item, or an INDENTED `- [ ]` slipped through: the plan reported
+# `artifact=ok open_topics=0` under --require-closed while an unclosed theme was
+# sitting in the file. That silently bypasses REQ-002, so every nonblank row that
+# is not an exact `- [ ]` / `- [x]` item is now bad_bullet.
+
+@test "artifact_check: plain prose row under Topics → bad_bullet" {
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n- none\n\n## Topics\n\n- [x] purpose\nSecurity review pending\n\n## Discovered mid-interview\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':bad_bullet$'
+}
+
+@test "artifact_check: numbered item under Topics → bad_bullet" {
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n- none\n\n## Topics\n\n- [x] purpose\n1. numbered open item\n\n## Discovered mid-interview\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':bad_bullet$'
+}
+
+@test "artifact_check: INDENTED open checkbox under Topics → bad_bullet, never silently closed" {
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n- none\n\n## Topics\n\n- [x] purpose\n  - [ ] indented security\n\n## Discovered mid-interview\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':bad_bullet$'
+}
+
+@test "artifact_check: indented row under Discovered → bad_bullet" {
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n- none\n\n## Topics\n\n- [x] purpose\n\n## Discovered mid-interview\n\n\t- [ ] tabbed theme\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':bad_bullet$'
+}
+
+@test "artifact_check: the whole malformed-row set together never reports ok" {
+  # The exact reproduction from the round-2 review: a plan that used to return
+  # `artifact=ok open_topics=0` under --require-closed.
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n- [x] Closed one\nSecurity review pending\n1. Numbered open item\n  - [ ] Indented security\n\n## Discovered mid-interview\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 1 ]
+  [ "$output" != "artifact=ok open_topics=0" ]
+  [ "$(echo "$stderr" | grep -c ':bad_bullet$')" -eq 3 ]
+}
+
+@test "artifact_check: blank and whitespace-only rows stay legal inside Topics" {
+  # The strict rule must not reject the ordinary blank separators the template
+  # itself uses, otherwise every valid plan breaks.
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n- none\n\n## Topics\n\n- [x] purpose\n   \n- [x] edge cases\n\n## Discovered mid-interview\n\n- [x] telemetry\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 0 ]
+  [ "$output" = "artifact=ok open_topics=0" ]
+}
+
 # ─── C8 closed reason-code enum (review [9]) ───
 
 # The normative C8 enums, verbatim from

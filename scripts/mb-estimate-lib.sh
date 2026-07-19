@@ -1,138 +1,256 @@
 # shellcheck shell=bash
-# mb-estimate-lib.sh — sourced awk parsers for mb-estimate-check.sh. The two
-# programs live here so the CLI dispatcher stays small and every file is ≤400
+# mb-estimate-lib.sh — sourced parsers for mb-estimate-check.sh: the context-file
+# C1 parser (python3, strict + exact integers) and the spec/candidate C3 parser
+# (awk). Both live here so the CLI dispatcher stays small and every file is ≤400
 # lines (S1 review, fix-cycle 2). Not executed standalone.
 
 # mb_estimate_lib_context <budget> <file>
 # Context-file C1 parser. Emits: `status=<ok|near|over|missing|malformed>`,
-# `total=<N>`, and one `M <line> <field>` per malformed finding. estimated_tokens
-# is honoured ONLY inside the first YAML frontmatter; `breakdown:` must carry
-# EXACTLY the six known categories as direct children, each once, each an inline
-# `{count,unit_tokens,subtotal}` map with those exact field names (no substring,
-# no extra/duplicate field). Any unknown/duplicate key or wrong value shape →
-# malformed.
+# `total=<N>`, and one `M <line> <field>` per malformed finding.
+#
+# STRICT state machine (S1 review r2, findings [11] and [16]). estimated_tokens
+# is honoured ONLY as a top-level key inside the first YAML frontmatter, and it
+# must appear EXACTLY ONCE: the old parser searched descendants at any depth for
+# `total:` / `breakdown:`, so an `estimated_tokens.wrapper.total/breakdown` block
+# validated as estimate=ok, and it silently took the FIRST of several top-level
+# sections, so a valid zero-valued section followed by an over-budget or
+# malformed one also passed.
+#
+# The direct children of estimated_tokens are exactly `total` and `breakdown`,
+# each once. `breakdown:` carries exactly the six known categories as its own
+# direct children, each once, each an inline `{count,unit_tokens,subtotal}` map
+# with those exact field names. Any unknown key, duplicate, extra nesting level,
+# or wrong value shape → malformed.
+#
+# Arithmetic is exact Python integer arithmetic, never awk doubles: with
+# count 9007199254740993 and unit 1, awk rounded both sides of
+# `subtotal == count * unit_tokens` to the same double and accepted an
+# inconsistent product as merely over-budget instead of malformed.
 mb_estimate_lib_context() {
-  awk -v budget="$1" '
-    function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-    function indent_of(s,   n) {
-      n = 0
-      while (substr(s, n + 1, 1) == " " || substr(s, n + 1, 1) == "\t") n++
-      return n
-    }
-    function parse_map(line, vals,   m, inner, n, parts, i, kv, p, k, v, cnt) {
-      # Exactly {count, unit_tokens, subtotal}: exact names, each once, ints ≥0.
-      split("", vals)
-      if (match(line, /\{[^{}]*\}/) == 0) return "shape"
-      m = substr(line, RSTART, RLENGTH); inner = substr(m, 2, length(m) - 2)
-      n = split(inner, parts, ","); cnt = 0
-      for (i = 1; i <= n; i++) {
-        kv = parts[i]; p = index(kv, ":")
-        if (p == 0) return "field"
-        k = substr(kv, 1, p - 1); v = substr(kv, p + 1)
-        gsub(/^[ \t]+|[ \t]+$/, "", k); gsub(/^[ \t]+|[ \t]+$/, "", v)
-        if (k != "count" && k != "unit_tokens" && k != "subtotal") return "field"
-        if (k in vals) return "field"
-        if (v !~ /^[0-9]+$/) return "field"
-        vals[k] = v + 0; cnt++
-      }
-      if (cnt != 3) return "field"
-      return ""
-    }
-    { raw[NR] = $0 }
-    END {
-      ncat = split("shell_scripts prompt_changes python_modules test_files docs_pages external_integrations", order, " ")
-      for (k = 1; k <= ncat; k++) known[order[k]] = 1
+  python3 - "$1" "$2" <<'PY'
+import re
+import sys
 
-      if (NR < 1 || raw[1] !~ /^---[ \t]*$/) { print "status=missing"; print "total=0"; exit }
-      fm_end = 0
-      for (i = 2; i <= NR; i++) if (raw[i] ~ /^---[ \t]*$/) { fm_end = i; break }
-      if (fm_end == 0) { print "status=missing"; print "total=0"; exit }
-      et_line = 0
-      for (i = 2; i < fm_end; i++) if (raw[i] ~ /^estimated_tokens:[ \t]*$/) { et_line = i; break }
-      if (!et_line) { print "status=missing"; print "total=0"; exit }
+budget = int(sys.argv[1])
+path = sys.argv[2]
 
-      region_end = fm_end - 1
-      for (i = et_line + 1; i <= fm_end - 1; i++) {
-        if (raw[i] ~ /^[^ \t]/ && raw[i] !~ /^[ \t]*$/) { region_end = i - 1; break }
-        region_end = i
-      }
+CATEGORIES = [
+    "shell_scripts", "prompt_changes", "python_modules",
+    "test_files", "docs_pages", "external_integrations",
+]
 
-      total_val = -1; total_line = 0; bd_line = 0
-      n_total = 0; n_bd = 0; dup_total_line = 0; dup_bd_line = 0
-      for (i = et_line + 1; i <= region_end; i++) {
-        l = raw[i]
-        if (l ~ /^[ \t]+total:/) {
-          n_total++
-          if (n_total > 1) { if (!dup_total_line) dup_total_line = i; continue }
-          v = l; sub(/^[ \t]+total:[ \t]*/, "", v); v = trim(v); total_line = i
-          if (v ~ /^[0-9]+$/) total_val = v + 0; else total_val = -2
-        } else if (l ~ /^[ \t]+breakdown:[ \t]*$/) {
-          n_bd++
-          if (n_bd > 1) { if (!dup_bd_line) dup_bd_line = i; continue }
-          bd_line = i
-        }
-      }
+try:
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        raw = fh.read().split("\n")
+except OSError:
+    sys.stdout.write("status=missing\ntotal=0\n")
+    sys.exit(0)
 
-      pt = (total_val >= 0) ? total_val : 0
-      # Exactly one `total:` and one `breakdown:` are required. A repeat used to
-      # overwrite the earlier value (last-wins), so `total: 1` followed by
-      # `total: 0` validated as ok — an ambiguous document must be malformed,
-      # not silently resolved. Reported at the DUPLICATE line.
-      if (n_total > 1 || n_bd > 1) {
-        print "status=malformed"; print "total=" pt
-        if (n_total > 1) print "M " dup_total_line " total"
-        if (n_bd > 1) print "M " dup_bd_line " breakdown"
-        exit
-      }
-      if (!bd_line) { print "status=malformed"; print "total=" pt; print "M " et_line " breakdown"; exit }
+# `raw` is 0-indexed; every reported line number is 1-based.
+lines = [l.rstrip("\r") for l in raw]
+findings = []          # (line, field)
 
-      for (k = 1; k <= ncat; k++) { found[order[k]] = 0; cline[order[k]] = 0; dup[order[k]] = 0; badmap[order[k]] = 0 }
-      nf = 0; bd_indent = indent_of(raw[bd_line]); child_indent = -1
-      for (i = bd_line + 1; i <= region_end; i++) {
-        l = raw[i]
-        if (l ~ /^[ \t]*$/) continue
-        ind = indent_of(l)
-        if (ind <= bd_indent) break            # de-dent ends the breakdown map
-        if (child_indent < 0) child_indent = ind
-        if (ind > child_indent) continue        # nested under a child, not a key
-        key = l; sub(/^[ \t]+/, "", key); p = index(key, ":")
-        if (p == 0) { nf++; mline[nf] = i; mfield[nf] = "breakdown"; continue }
-        kname = substr(key, 1, p - 1); gsub(/[ \t]+$/, "", kname)
-        if (!(kname in known)) { nf++; mline[nf] = i; mfield[nf] = kname; continue }
-        if (found[kname]) { dup[kname] = 1; nf++; mline[nf] = i; mfield[nf] = kname; continue }
-        found[kname] = 1; cline[kname] = i
-        err = parse_map(l, mv)
-        if (err != "") { badmap[kname] = 1; nf++; mline[nf] = i; mfield[nf] = kname }
-        else { cval[kname] = mv["count"]; uval[kname] = mv["unit_tokens"]; sval[kname] = mv["subtotal"] }
-      }
 
-      sum = 0; sum_ok = 1
-      for (k = 1; k <= ncat; k++) {
-        cat = order[k]
-        if (dup[cat] || badmap[cat]) { sum_ok = 0; continue }
-        if (!found[cat]) { nf++; mline[nf] = cline[cat]; mfield[nf] = cat; sum_ok = 0; continue }
-        if (sval[cat] != cval[cat] * uval[cat]) { nf++; mline[nf] = cline[cat]; mfield[nf] = cat; sum_ok = 0; continue }
-        sum += sval[cat]
-      }
+def indent_of(s):
+    n = 0
+    while n < len(s) and s[n] in " \t":
+        n += 1
+    return n
 
-      if (total_val == -1) { nf++; mline[nf] = et_line; mfield[nf] = "total" }
-      else if (total_val == -2) { nf++; mline[nf] = total_line; mfield[nf] = "total" }
-      else if (sum_ok && total_val != sum) { nf++; mline[nf] = total_line; mfield[nf] = "total" }
 
-      if (nf > 0) {
-        print "status=malformed"; print "total=" pt
-        for (k = 1; k <= nf; k++) print "M " mline[k] " " mfield[k]
-        exit
-      }
+def is_blank(s):
+    return s.strip() == ""
 
-      near_lower = int(budget * 9 / 10)
-      if (total_val < near_lower) st = "ok"
-      else if (total_val <= budget) st = "near"
-      else st = "over"
-      print "status=" st
-      print "total=" total_val
-    }
-  ' "$2"
+
+def emit(status, total):
+    sys.stdout.write("status=%s\ntotal=%s\n" % (status, total))
+    for ln, field in findings:
+        sys.stdout.write("M %d %s\n" % (ln, field))
+    sys.exit(0)
+
+
+def missing():
+    sys.stdout.write("status=missing\ntotal=0\n")
+    sys.exit(0)
+
+
+# ── frontmatter ──────────────────────────────────────────────────────────────
+if not lines or not re.match(r"^---[ \t]*$", lines[0]):
+    missing()
+fm_end = 0
+for i in range(1, len(lines)):
+    if re.match(r"^---[ \t]*$", lines[i]):
+        fm_end = i
+        break
+if not fm_end:
+    missing()
+
+# ── the estimated_tokens key: top level, exactly once ────────────────────────
+et_lines = [
+    i for i in range(1, fm_end)
+    if indent_of(lines[i]) == 0 and re.match(r"^estimated_tokens:[ \t]*$", lines[i])
+]
+if not et_lines:
+    missing()
+if len(et_lines) > 1:
+    findings.append((et_lines[1] + 1, "estimated_tokens"))
+    emit("malformed", 0)
+
+et = et_lines[0]
+
+# Region = everything under estimated_tokens, up to the next top-level key.
+region_end = fm_end - 1
+for i in range(et + 1, fm_end):
+    if not is_blank(lines[i]) and indent_of(lines[i]) == 0:
+        region_end = i - 1
+        break
+    region_end = i
+
+body = [(i, lines[i]) for i in range(et + 1, region_end + 1) if not is_blank(lines[i])]
+if not body:
+    findings.append((et + 1, "breakdown"))
+    emit("malformed", 0)
+
+child_indent = indent_of(body[0][1])
+
+# ── direct children of estimated_tokens ──────────────────────────────────────
+direct = []            # (line_idx, key, value_text)
+bd_children = []       # (line_idx, indent, text)
+current = None
+for i, text in body:
+    ind = indent_of(text)
+    if ind == child_indent:
+        stripped = text.strip()
+        p = stripped.find(":")
+        if p <= 0:
+            findings.append((i + 1, "estimated_tokens"))
+            emit("malformed", 0)
+        key = stripped[:p].strip()
+        direct.append((i, key, stripped[p + 1:].strip()))
+        current = key
+    else:
+        # Deeper than a direct child: legal only as a breakdown category.
+        if current != "breakdown":
+            findings.append((i + 1, current if current else "estimated_tokens"))
+            emit("malformed", 0)
+        bd_children.append((i, ind, text))
+
+# Unknown and duplicate direct keys are COLLECTED rather than raised on the
+# spot, so a document that both carries a stray key and omits `breakdown:` still
+# reports the missing section — the field consumers key off.
+seen = {}
+for i, key, _v in direct:
+    if key in seen or key not in ("total", "breakdown"):
+        findings.append((i + 1, key))
+        continue
+    seen[key] = i
+
+total_line = seen.get("total")
+bd_line = seen.get("breakdown")
+
+# `total` is resolved first so a partial document still reports a usable total.
+total_val = None
+if total_line is not None:
+    vtext = direct[[d[0] for d in direct].index(total_line)][2]
+    if re.match(r"^[0-9]+$", vtext):
+        total_val = int(vtext)
+
+partial_total = total_val if total_val is not None else 0
+
+if bd_line is None:
+    findings.append((et + 1, "breakdown"))
+    emit("malformed", partial_total)
+
+# ── breakdown categories ─────────────────────────────────────────────────────
+if not bd_children:
+    findings.append((bd_line + 1, "breakdown"))
+    emit("malformed", partial_total)
+
+cat_indent = bd_children[0][1]
+MAP_RE = re.compile(r"^\{([^{}]*)\}$")
+
+found = {}
+values = {}
+for i, ind, text in bd_children:
+    if ind > cat_indent:
+        # An extra nesting level under a category is not a category.
+        findings.append((i + 1, "breakdown"))
+        emit("malformed", partial_total)
+    stripped = text.strip()
+    p = stripped.find(":")
+    if p <= 0:
+        findings.append((i + 1, "breakdown"))
+        continue
+    name = stripped[:p].strip()
+    vtext = stripped[p + 1:].strip()
+    if name not in CATEGORIES or name in found:
+        findings.append((i + 1, name))
+        found[name] = i
+        continue
+    found[name] = i
+
+    m = MAP_RE.match(vtext)
+    if not m:
+        findings.append((i + 1, name))
+        continue
+    fields = {}
+    bad = False
+    for part in m.group(1).split(","):
+        q = part.find(":")
+        if q <= 0:
+            bad = True
+            break
+        k = part[:q].strip()
+        v = part[q + 1:].strip()
+        if k not in ("count", "unit_tokens", "subtotal") or k in fields:
+            bad = True
+            break
+        if not re.match(r"^[0-9]+$", v):
+            bad = True
+            break
+        fields[k] = int(v)          # exact integers, arbitrary precision
+    if bad or len(fields) != 3:
+        findings.append((i + 1, name))
+        continue
+    values[name] = fields
+
+sum_ok = True
+total_sum = 0
+for cat in CATEGORIES:
+    if cat not in found:
+        findings.append((0, cat))
+        sum_ok = False
+        continue
+    if cat not in values:
+        sum_ok = False
+        continue
+    f = values[cat]
+    if f["subtotal"] != f["count"] * f["unit_tokens"]:
+        findings.append((found[cat] + 1, cat))
+        sum_ok = False
+        continue
+    total_sum += f["subtotal"]
+
+if total_line is None:
+    findings.append((et + 1, "total"))
+elif total_val is None:
+    findings.append((total_line + 1, "total"))
+elif sum_ok and total_val != total_sum:
+    findings.append((total_line + 1, "total"))
+
+if findings:
+    findings.sort(key=lambda t: t[0])
+    emit("malformed", partial_total)
+
+near_lower = budget * 9 // 10
+if total_val < near_lower:
+    st = "ok"
+elif total_val <= budget:
+    st = "near"
+else:
+    st = "over"
+emit(st, total_val)
+PY
 }
 
 # mb_estimate_lib_spec <tasks-file>

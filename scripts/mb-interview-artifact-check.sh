@@ -141,16 +141,21 @@ run_plan() {
         if (start == 0) return
         for (j = start + 1; j <= NR; j++) {
           if (lines[j] ~ /^## /) return
-          if (lines[j] ~ /^[-*+][ \t]/) {
-            if (lines[j] ~ /^- \[[ xX]\][ \t]+[^ \t]/) {
-              if (lines[j] ~ /^- \[ \]/) printf "O %d\n", j
-            } else {
-              # A contentless checkbox (`- [ ]`) is as broken as a non-checkbox
-              # bullet: C8 plan mode declares exactly ONE code for a malformed
-              # item, so both map to bad_bullet (closed enum, no invented code).
-              printf "F %d 3 bad_bullet\n", j
-            }
+          # Blank / whitespace-only rows are the separators used by the template.
+          if (lines[j] ~ /^[ \t]*$/) continue
+          if (lines[j] ~ /^- \[[ xX]\][ \t]+[^ \t]/) {
+            if (lines[j] ~ /^- \[ \]/) printf "O %d\n", j
+            continue
           }
+          # EVERY other nonblank row is malformed — not just column-1 bullet
+          # markers. Inspecting only `^[-*+][ \t]` let plain prose, a numbered
+          # item, or an INDENTED `- [ ]` sit unnoticed under Topics: the file
+          # then passed --require-closed as `artifact=ok open_topics=0` while an
+          # unclosed theme was still in it, silently bypassing REQ-002. A
+          # contentless checkbox is malformed for the same reason; C8 plan mode
+          # declares exactly ONE code for a malformed item, so all of these map
+          # to bad_bullet (closed enum, no invented code).
+          printf "F %d 3 bad_bullet\n", j
         }
       }
       END {
@@ -260,7 +265,10 @@ run_transcript() {
         qmal = 0; gmal = 0
         for (i = 1; i <= NR; i++) {
           if (raw[i] ~ /^## Q&A[ \t]*$/) { qa_count++; if (qa_count == 1) qa_line = i; else if (qa_count == 2) second_qa = i }
-          if (inh_line == 0 && raw[i] ~ /^## Унаследовано/) inh_line = i
+          # EXACT C4 heading only. A bare prefix match let `## УнаследованоBROKEN`
+          # satisfy --require-inherited, so a transcript carrying no inherited
+          # section at all returned exit 0.
+          if (inh_line == 0 && raw[i] ~ /^## Унаследовано([ \t].*)?$/) inh_line = i
           if (raw[i] ~ /^## Отклонённые альтернативы/) rej_section = 1
           if (raw[i] ~ /(Отклонено|Rejected):[ \t]*[^ \t]/) inline_rej = 1
         }
@@ -339,8 +347,13 @@ run_transcript() {
         prev = 0
         for (k = 1; k <= nq; k++) {
           bs = qidx[k]; be = next_boundary(bs) - 1
-          if (qnum[k] == prev) print "F " bs " 9 q_number_duplicate"
+          # Duplicate detection tracks EVERY number seen so far, not just the
+          # immediately preceding one: `Q1, Q2, Q1` is a duplicate, and used to
+          # be reported only as q_number_out_of_order. Duplicate takes
+          # precedence, so one repeat never yields both codes.
+          if (qnum[k] in qseen) print "F " bs " 9 q_number_duplicate"
           else if (qnum[k] < prev) print "F " bs " 8 q_number_out_of_order"
+          qseen[qnum[k]] = 1
           prev = qnum[k]
           if (!has_answer(bs, be, qnum[k])) print "F " bs " 10 answer_missing"
           hasdec = has_decision(bs, be)

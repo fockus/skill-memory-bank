@@ -129,6 +129,50 @@ EOF
   echo "$stderr" | grep -q ':q_number_duplicate$'
 }
 
+# ─── r2 review [15]: duplicate detection must not depend on adjacency ───
+
+@test "artifact_check: NON-adjacent duplicate Q1 → q_number_duplicate, not merely out_of_order" {
+  # `Q1, Q2, Q1` used to be reported only as q_number_out_of_order because the
+  # duplicate check compared against the IMMEDIATELY preceding number. The
+  # declared q_number_duplicate code must fire wherever the repeat sits.
+  local f="$BATS_TEST_TMPDIR/t.md"
+  printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Q2 (b).** q?\n**A2.** y → **D-02**. Отклонено: none\n\n**Q1 (c).** q?\n**A1.** z → **D-03**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
+  run --separate-stderr "$SCRIPT" transcript "$f"
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':q_number_duplicate$'
+}
+
+@test "artifact_check: a duplicate takes precedence over the ordering code" {
+  # One repeated number must not be reported under both codes — duplicate wins.
+  local f="$BATS_TEST_TMPDIR/t.md"
+  printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Q2 (b).** q?\n**A2.** y → **D-02**. Отклонено: none\n\n**Q1 (c).** q?\n**A1.** z → **D-03**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
+  run --separate-stderr "$SCRIPT" transcript "$f"
+  [ "$status" -eq 1 ]
+  [ "$(echo "$stderr" | grep -c ':q_number_duplicate$')" -eq 1 ]
+  [ "$(echo "$stderr" | grep -c ':q_number_out_of_order$')" -eq 0 ]
+}
+
+# ─── r2 review [12]: the inherited heading must match exactly ───
+
+@test "artifact_check: malformed ## УнаследованоBROKEN does NOT satisfy --require-inherited" {
+  # A glued suffix used to satisfy the C4 inherited-section gate via a prefix
+  # match, so a transcript with no inherited section at all returned exit 0.
+  local f="$BATS_TEST_TMPDIR/t.md"
+  printf '# Interview transcript: foo (2026-07-17)\n\n## УнаследованоBROKEN\n\nD-00\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
+  run --separate-stderr "$SCRIPT" transcript "$f" --require-inherited
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':missing_inherited$'
+}
+
+@test "artifact_check: ## Унаследовано with trailing text stays valid" {
+  # The exact heading, optionally followed by whitespace-separated text, is the
+  # legal C4 form — the tightened matcher must not reject it.
+  local f="$BATS_TEST_TMPDIR/t.md"
+  printf '# Interview transcript: foo (2026-07-17)\n\n## Унаследовано из родителя\n\nD-00\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
+  run --separate-stderr "$SCRIPT" transcript "$f" --require-inherited
+  [ "$status" -eq 0 ]
+}
+
 @test "artifact_check: strict Q-block without **A<N>.** → answer_missing" {
   local f="$BATS_TEST_TMPDIR/t.md"
   printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** «quote in the question»?\n→ **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"

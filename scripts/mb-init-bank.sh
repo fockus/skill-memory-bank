@@ -196,6 +196,24 @@ for f in "${CORE_FILES[@]}"; do
   cp "$SRC/$f" "$BANK/$f"
 done
 
+# ── Bank-local ignore rules ──────────────────────────────────────────────────
+# <bank>/tmp/ holds throwaway scratch artifacts — above all the RAW /mb discuss
+# interview candidate, credentials included, before it has been scanned
+# (REQ-007). /mb discuss tells the user that directory is gitignored, and that
+# promise has to be true in EVERY bank, not just in repos whose root .gitignore
+# happens to list it: a fresh `git init` + `/mb init` had no rule at all, so
+# `git add .` staged the raw candidate.
+#
+# The rule lives in a bank-local .gitignore so it travels with the bank and
+# needs no edit to the project's own .gitignore. Existing files are extended,
+# never clobbered, and the append is idempotent.
+BANK_IGNORE="$BANK/.gitignore"
+if [ ! -f "$BANK_IGNORE" ]; then
+  printf '# Memory Bank scratch: raw interview candidates never reach git (REQ-007).\n/tmp/\n' > "$BANK_IGNORE"
+elif ! grep -qE '^/tmp/$' "$BANK_IGNORE"; then
+  printf '# Memory Bank scratch: raw interview candidates never reach git (REQ-007).\n/tmp/\n' >> "$BANK_IGNORE"
+fi
+
 # ── Write .mb-config (idempotent upsert of every key) ────────────────────────
 # Stable line order: lang, storage_mode, agent, project_root, project_id.
 mb_config_set() {

@@ -159,9 +159,96 @@ setup() {
   [ "$status" -eq 2 ]
 }
 
-@test "secret_scan: patterns are single-sourced from mb-import.py" {
-  run grep -q 'mb-import.py' "$SCRIPT"
-  [ "$status" -eq 0 ]
+# ─── single-sourcing is proven BEHAVIOURALLY (r2 review [10]) ───
+#
+# The old test was `grep -q 'mb-import.py' "$SCRIPT"`: hardcoding a divergent
+# regex set in the scanner while keeping an mb-import.py comment still passed it,
+# so it certified nothing. These mutate the canonical source in an isolated copy
+# and prove the scanner's behaviour follows it.
+
+_scanner_copy() {
+  # $1 = destination dir. Copies the scanner next to its canonical pattern
+  # source, exactly as they are laid out in the bundle.
+  mkdir -p "$1"
+  cp "$SCRIPT" "$1/mb-secret-scan.sh"
+  cp "$REPO_ROOT/scripts/mb-import.py" "$1/mb-import.py"
+  chmod +x "$1/mb-secret-scan.sh"
+}
+
+@test "secret_scan: NEUTERING the canonical APIKEY_RE makes the scanner stop blocking" {
+  # If the scanner carried its own copy of the regex, the key would still be
+  # found and this would stay `blocked`.
+  local d="$BATS_TEST_TMPDIR/copy1" f="$BATS_TEST_TMPDIR/copy1/t.md"
+  _scanner_copy "$d"
+  printf 'key sk-ant-api03ABCDEFGHIJKLMNOP here\n' > "$f"
+
+  run --separate-stderr "$d/mb-secret-scan.sh" --policy transcript "$f"
+  [ "$status" -eq 1 ]
+  [ "$output" = "scan=blocked" ]
+
+  # Controlled mutation of the SOURCE OF TRUTH only.
+  python3 - "$d/mb-import.py" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace(
+    r'r"\b(?:sk-(?:ant-)?[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._-]{16,}|gh[pousr]_[A-Za-z0-9]{20,})\b"',
+    r'r"ZZZ_NEVER_MATCHES_ANYTHING_ZZZ"')
+open(p, "w", encoding="utf-8").write(s)
+PY
+  grep -q 'ZZZ_NEVER_MATCHES_ANYTHING_ZZZ' "$d/mb-import.py"
+
+  run --separate-stderr "$d/mb-secret-scan.sh" --policy transcript "$f"
+  [ "$output" = "scan=clean" ] || { echo "scanner ignored the canonical pattern source"; false; }
+}
+
+@test "secret_scan: WIDENING the canonical APIKEY_RE makes the scanner start blocking" {
+  # The converse direction, so the test cannot pass by the scanner simply
+  # failing open on a broken pattern file.
+  local d="$BATS_TEST_TMPDIR/copy2" f="$BATS_TEST_TMPDIR/copy2/t.md"
+  _scanner_copy "$d"
+  printf 'a perfectly ordinary sentence about pineapples\n' > "$f"
+
+  run --separate-stderr "$d/mb-secret-scan.sh" --policy transcript "$f"
+  [ "$output" = "scan=clean" ]
+
+  python3 - "$d/mb-import.py" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace(
+    r'r"\b(?:sk-(?:ant-)?[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._-]{16,}|gh[pousr]_[A-Za-z0-9]{20,})\b"',
+    r'r"pineapples"')
+open(p, "w", encoding="utf-8").write(s)
+PY
+
+  run --separate-stderr "$d/mb-secret-scan.sh" --policy transcript "$f"
+  [ "$status" -eq 1 ]
+  [ "$output" = "scan=blocked" ] || { echo "scanner did not follow the widened pattern"; false; }
+  echo "$stderr" | grep -q ':api_key$'
+}
+
+@test "secret_scan: the EMAIL_RE is single-sourced too" {
+  local d="$BATS_TEST_TMPDIR/copy3" f="$BATS_TEST_TMPDIR/copy3/t.md"
+  _scanner_copy "$d"
+  printf 'write to person@example.com please\n' > "$f"
+
+  run --separate-stderr "$d/mb-secret-scan.sh" --policy transcript "$f"
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':email$'
+
+  python3 - "$d/mb-import.py" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace(
+    r'r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"',
+    r'r"ZZZ_NO_EMAIL_ZZZ"')
+open(p, "w", encoding="utf-8").write(s)
+PY
+
+  run --separate-stderr "$d/mb-secret-scan.sh" --policy transcript "$f"
+  [ "$output" = "scan=clean" ] || { echo "EMAIL_RE is not read from mb-import.py"; false; }
 }
 
 @test "secret_scan: shellcheck (error severity) and bash -n clean" {

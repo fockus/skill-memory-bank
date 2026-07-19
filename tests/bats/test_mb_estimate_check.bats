@@ -475,3 +475,188 @@ EOF
   run bash -n "$SCRIPT"
   [ "$status" -eq 0 ]
 }
+
+# ─── strict frontmatter shape (r2 review [11]) ───
+#
+# The parser searched DESCENDANTS of `estimated_tokens:` for `total:` /
+# `breakdown:` at any depth, and silently took the FIRST of several top-level
+# sections. Both let an unintended document validate as estimate=ok.
+
+@test "estimate_check: a WRAPPED estimated_tokens block is malformed, not ok" {
+  # `estimated_tokens.wrapper.total/breakdown` used to return estimate=ok.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+estimated_tokens:
+  wrapper:
+    total: 30000
+    breakdown:
+      shell_scripts: {count: 2, unit_tokens: 15000, subtotal: 30000}
+      prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+      python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+      test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+      docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+      external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+
+# Context
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+}
+
+@test "estimate_check: a DUPLICATE estimated_tokens section is malformed, not ok" {
+  # A valid zero-valued first section followed by a second over-budget one used
+  # to report estimate=ok on the first and ignore the second entirely.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+estimated_tokens:
+  total: 0
+  breakdown:
+    shell_scripts: {count: 0, unit_tokens: 15000, subtotal: 0}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+estimated_tokens:
+  total: 99999999
+  breakdown:
+    garbage: nope
+---
+
+# Context
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+}
+
+@test "estimate_check: an unknown key beside total/breakdown is malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+estimated_tokens:
+  total: 15000
+  surprise: 42
+  breakdown:
+    shell_scripts: {count: 1, unit_tokens: 15000, subtotal: 15000}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+
+# Context
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+}
+
+@test "estimate_check: a nested child under a breakdown category is malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+estimated_tokens:
+  total: 15000
+  breakdown:
+    shell_scripts: {count: 1, unit_tokens: 15000, subtotal: 15000}
+      extra: 1
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+
+# Context
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+}
+
+# ─── exact integer arithmetic (r2 review [16]) ───
+
+@test "estimate_check: a huge inconsistent product is malformed, not silently over" {
+  # count 9007199254740993 * 1 != subtotal 9007199254740992, but awk's doubles
+  # rounded both to the same value and accepted the inconsistency as over-budget.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+estimated_tokens:
+  total: 9007199254740992
+  breakdown:
+    shell_scripts: {count: 9007199254740993, unit_tokens: 1, subtotal: 9007199254740992}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+
+# Context
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q 'shell_scripts:malformed'
+}
+
+@test "estimate_check: a huge CONSISTENT product stays exact and reports over" {
+  # The converse: exact big-integer arithmetic must still accept a correct
+  # product rather than rejecting everything large.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+estimated_tokens:
+  total: 9007199254740993
+  breakdown:
+    shell_scripts: {count: 9007199254740993, unit_tokens: 1, subtotal: 9007199254740993}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+
+# Context
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 1 ]
+  [ "$output" = "estimate=over spec.total=9007199254740993 spec_budget=1000000" ]
+}
+
+@test "estimate_check: a huge total inconsistent with an exact sum is malformed" {
+  local f="$BATS_TEST_TMPDIR/c.md"
+  cat > "$f" <<'EOF'
+---
+topic: fix
+estimated_tokens:
+  total: 9007199254740992
+  breakdown:
+    shell_scripts: {count: 1, unit_tokens: 9007199254740993, subtotal: 9007199254740993}
+    prompt_changes: {count: 0, unit_tokens: 8000, subtotal: 0}
+    python_modules: {count: 0, unit_tokens: 25000, subtotal: 0}
+    test_files: {count: 0, unit_tokens: 10000, subtotal: 0}
+    docs_pages: {count: 0, unit_tokens: 5000, subtotal: 0}
+    external_integrations: {count: 0, unit_tokens: 30000, subtotal: 0}
+---
+
+# Context
+EOF
+  run --separate-stderr "$SCRIPT" "$f"
+  [ "$status" -eq 2 ]
+  echo "$output" | grep -q '^estimate=malformed'
+  echo "$stderr" | grep -q ':total:malformed'
+}

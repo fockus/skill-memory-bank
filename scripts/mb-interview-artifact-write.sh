@@ -17,6 +17,20 @@
 # stdout : `artifact_write=installed kind=plan`
 # exit   : 0 installed · 1 content rejected (check invalid) · 2 usage / I/O.
 #          On exit 1/2 stdout is empty; the reason is forwarded from C8 stderr.
+#          stderr codes: `error=usage`, `error=topic`, `error=candidate`.
+#
+# `publish-transcript` owns EXACTLY ONE candidate path —
+# <bank>/tmp/interview-transcript-<topic>.candidate.md, which must be a regular,
+# non-symlink file physically inside the resolved <bank>/tmp. Anything else is
+# `error=candidate` (exit 2) and is left untouched: the writer deletes the
+# candidate, so it may only ever delete a path it demonstrably owns. Handing it
+# the published target, an arbitrary file, or a symlink to a credential-bearing
+# file used to make it destroy the target or unlink only the link.
+#
+# Once ownership is proven the candidate is ATOMICALLY CLAIMED (rename) into a
+# private 0700 staging directory, and the scan / grammar check / publish all read
+# those same staged bytes. Re-opening the candidate path for each gate let a
+# candidate swapped after a clean scan publish a live credential with exit 0.
 
 set -euo pipefail
 
@@ -43,15 +57,28 @@ SCAN="$SCRIPT_DIR/mb-secret-scan.sh"
 
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
 topic_error() { printf 'error=topic\n' >&2; exit 2; }
+candidate_error() { printf 'error=candidate\n' >&2; exit 2; }
 
 # Candidate lifecycle (REQ-007): on the transcript path the candidate holds the
 # RAW interview text, credentials included. It is a throwaway owned by this
 # writer and is removed on EVERY exit path — publication, scan block, grammar
 # reject, I/O error, or signal — so a rejected credential never lingers as
 # readable plaintext under <bank>/tmp.
+#
+# Three things may need scrubbing, and the trap covers all of them:
+#   _SCRUB_CAND  the candidate, until it is claimed into staging
+#   _SCRUB_DIR   the private staging directory holding the claimed bytes
+#   _INSTALL_TMP the atomic-install sibling copy, between `cp` and `mv`
+# _INSTALL_TMP used to be untracked, so a signal landing in the post-copy window
+# left a complete, readable transcript next to the target.
 _SCRUB_CAND=""
+_SCRUB_DIR=""
+_INSTALL_TMP=""
 _scrub_candidate() {
-  [ -n "$_SCRUB_CAND" ] && rm -f "$_SCRUB_CAND" 2>/dev/null || true
+  if [ -n "$_SCRUB_CAND" ]; then rm -f "$_SCRUB_CAND" 2>/dev/null || true; fi
+  if [ -n "$_SCRUB_DIR" ]; then rm -rf "$_SCRUB_DIR" 2>/dev/null || true; fi
+  if [ -n "$_INSTALL_TMP" ]; then rm -f "$_INSTALL_TMP" 2>/dev/null || true; fi
+  return 0
 }
 # A bare `trap ... TERM` handler RESUMES the script once it returns, which would
 # let a signalled run carry on and publish. Scrub, then terminate with the
@@ -61,6 +88,9 @@ _on_signal() {
   trap - EXIT
   exit $((128 + $1))
 }
+
+# Physical directory of an EXISTING path (no realpath on bare macOS).
+phys_dir() { cd -P "$1" 2>/dev/null && pwd -P; }
 
 # valid_topic <topic> — strict kebab-case slug: lowercase letters/digits joined
 # by single dashes, no leading/trailing/double dash. A '/', '.', or '..' cannot
@@ -83,28 +113,90 @@ TOPIC=""
 CAND=""
 REQUIRE_INHERITED=0
 LEGACY_FIXTURE=0
+STAGED=""
+# A usage fault is REMEMBERED, not raised inside the parse loop. Bailing out
+# early meant a credential-bearing candidate named later on the command line was
+# never scrubbed, and made scrubbing depend on flag ORDER. The whole line is
+# parsed first; the error is raised after cleanup has been armed.
+ARG_ERR=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --mb) [ "$#" -ge 2 ] || usage_error; MB="$2"; shift ;;
-    --topic) [ "$#" -ge 2 ] || usage_error; TOPIC="$2"; shift ;;
-    --candidate) [ "$#" -ge 2 ] || usage_error; CAND="$2"; shift ;;
+    --mb) if [ "$#" -ge 2 ]; then MB="$2"; shift; else ARG_ERR=1; fi ;;
+    --topic) if [ "$#" -ge 2 ]; then TOPIC="$2"; shift; else ARG_ERR=1; fi ;;
+    --candidate) if [ "$#" -ge 2 ]; then CAND="$2"; shift; else ARG_ERR=1; fi ;;
     --require-inherited) REQUIRE_INHERITED=1 ;;
     --legacy-live-fixture) LEGACY_FIXTURE=1 ;;
-    *) usage_error ;;
+    *) ARG_ERR=1 ;;
   esac
   shift
 done
 
+# Arm cleanup BEFORE any validation. Ownership is established from the bank/tmp
+# location alone — independent of topic validity, flag validity, and
+# readability — because those are exactly the rejections that used to leave the
+# raw credential readable on disk.
+trap _scrub_candidate EXIT
+trap '_on_signal 2' INT
+trap '_on_signal 15' TERM
+trap '_on_signal 1' HUP
+
+if [ "$SUB" = "publish-transcript" ] && [ -n "$MB" ] && [ -n "$CAND" ] && [ -d "$MB" ]; then
+  _bank_real="$(phys_dir "$MB")" || _bank_real=""
+  # A symlink is never an owned candidate: unlinking it would destroy only the
+  # link and leave the credential-bearing backing file behind.
+  if [ -n "$_bank_real" ] && [ -f "$CAND" ] && [ ! -L "$CAND" ]; then
+    _cand_dir="$(phys_dir "$(dirname "$CAND")")" || _cand_dir=""
+    if [ -n "$_cand_dir" ] && [ "$_cand_dir" = "$_bank_real/tmp" ]; then
+      _SCRUB_CAND="$_cand_dir/$(basename "$CAND")"
+    fi
+  fi
+fi
+
+[ "$ARG_ERR" -eq 0 ] || usage_error
 [ -n "$MB" ] && [ -n "$TOPIC" ] && [ -n "$CAND" ] || usage_error
 [ -f "$CAND" ] && [ -r "$CAND" ] || usage_error
 valid_topic "$TOPIC" || topic_error
 
+# require_owned_candidate — publish-transcript only. Proves the candidate is the
+# exact path this writer owns before anything is deleted or published, and
+# normalizes CAND to its physical form.
+require_owned_candidate() {
+  local bank_real cand_dir expect
+  bank_real="$(phys_dir "$MB")" || candidate_error
+  [ -n "$bank_real" ] || candidate_error
+  if [ -L "$CAND" ]; then candidate_error; fi
+  if [ ! -f "$CAND" ]; then candidate_error; fi
+  cand_dir="$(phys_dir "$(dirname "$CAND")")" || candidate_error
+  if [ "$cand_dir" != "$bank_real/tmp" ]; then candidate_error; fi
+  expect="interview-transcript-$TOPIC.candidate.md"
+  if [ "$(basename "$CAND")" != "$expect" ]; then candidate_error; fi
+  CAND="$cand_dir/$expect"
+  _SCRUB_CAND="$CAND"
+}
+
+# claim_candidate — atomically RENAME the proven candidate into a private 0700
+# staging directory and work only on those bytes from here on. Every gate used
+# to re-open the candidate path, so replacing the file after a clean scan
+# published the replacement.
+claim_candidate() {
+  local stage
+  stage="$(mktemp -d "$(dirname "$CAND")/.mb-iaw.XXXXXX")" || return 2
+  chmod 700 "$stage" 2>/dev/null || { rm -rf "$stage"; return 2; }
+  _SCRUB_DIR="$stage"
+  STAGED="$stage/staged.md"
+  mv -f "$CAND" "$STAGED" || return 2
+  # The path is no longer ours: a file recreated there belongs to whoever made
+  # it, and this writer must not delete other people's files.
+  _SCRUB_CAND=""
+  return 0
+}
+
 run_check() {
-  # $1 = mode; remaining = extra flags. Forwards check stderr; returns check rc.
-  local mode="$1"; shift
+  # $1 = file; $2 = mode; remaining = extra flags. Forwards check stderr.
+  local file="$1" mode="$2"; shift 2
   local errf rc
   errf="$(mktemp "${TMPDIR:-/tmp}/mb-artifact-check.XXXXXX")"
-  if "$CHECK" "$mode" "$CAND" "$@" >/dev/null 2>"$errf"; then
+  if "$CHECK" "$mode" "$file" "$@" >/dev/null 2>"$errf"; then
     rc=0
   else
     rc=$?
@@ -115,11 +207,11 @@ run_check() {
 }
 
 run_scan() {
-  # Secret-scan the candidate under the transcript policy. Forwards scan stderr;
+  # $1 = file. Secret-scan under the transcript policy. Forwards scan stderr;
   # returns scan rc (0 clean · 1 blocked · 2 unsupported).
-  local errf rc
+  local file="$1" errf rc
   errf="$(mktemp "${TMPDIR:-/tmp}/mb-artifact-scan.XXXXXX")"
-  if "$SCAN" --policy transcript "$CAND" >/dev/null 2>"$errf"; then
+  if "$SCAN" --policy transcript "$file" >/dev/null 2>"$errf"; then
     rc=0
   else
     rc=$?
@@ -130,8 +222,10 @@ run_scan() {
 }
 
 atomic_install() {
-  # $1 = target path. Copies CAND to a sibling temp then renames (same FS).
-  local target="$1" target_dir tmp bank_real dir_real
+  # $1 = source file; $2 = target path. Copies to a sibling temp, then renames
+  # (same FS). The temp is tracked in _INSTALL_TMP for the whole cp→mv window so
+  # a signal cannot strand a readable copy of the transcript next to the target.
+  local src="$1" target="$2" target_dir tmp bank_real dir_real
   target_dir="$(dirname "$target")"
   mkdir -p "$target_dir" || return 2
   # Containment (defence in depth beyond valid_topic): the resolved target
@@ -143,8 +237,11 @@ atomic_install() {
     *) return 2 ;;
   esac
   tmp="$target_dir/.$(basename "$target").$$.tmp"
-  cp "$CAND" "$tmp" || { rm -f "$tmp"; return 2; }
-  mv -f "$tmp" "$target" || { rm -f "$tmp"; return 2; }
+  _INSTALL_TMP="$tmp"
+  cp "$src" "$tmp" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
+  mv -f "$tmp" "$target" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
+  # Cleared only after the rename succeeded — before that the temp is live.
+  _INSTALL_TMP=""
   return 0
 }
 
@@ -152,43 +249,40 @@ case "$SUB" in
   install-plan)
     [ "$REQUIRE_INHERITED" -eq 0 ] && [ "$LEGACY_FIXTURE" -eq 0 ] || usage_error
     rc=0
-    run_check plan || rc=$?
+    run_check "$CAND" plan || rc=$?
     if [ "$rc" -ne 0 ]; then
       # rc 2 = check usage/read error → I/O class; rc 1 = invalid content.
       [ "$rc" -eq 2 ] && exit 2
       exit 1
     fi
-    if atomic_install "$MB/tmp/interview-plan-$TOPIC.md"; then
+    if atomic_install "$CAND" "$MB/tmp/interview-plan-$TOPIC.md"; then
       printf 'artifact_write=installed kind=plan\n'
       exit 0
     fi
     exit 2
     ;;
   publish-transcript)
-    # Arm the scrub BEFORE the first gate runs, so every subsequent exit path
-    # (block / reject / error / signal) takes the candidate with it.
-    _SCRUB_CAND="$CAND"
-    trap _scrub_candidate EXIT
-    trap '_on_signal 2' INT
-    trap '_on_signal 15' TERM
-    trap '_on_signal 1' HUP
-    # C5 secret-scan + C8 transcript grammar must both pass before publishing.
+    # Prove ownership, THEN take the bytes out of reach, THEN gate them.
+    require_owned_candidate
+    claim_candidate || exit 2
+    # C5 secret-scan + C8 transcript grammar must both pass before publishing —
+    # both against the immutable staged bytes, which are also what gets copied.
     extra=()
     [ "$REQUIRE_INHERITED" -eq 1 ] && extra+=(--require-inherited)
     [ "$LEGACY_FIXTURE" -eq 1 ] && extra+=(--legacy-live-fixture)
     rc=0
-    run_scan || rc=$?
+    run_scan "$STAGED" || rc=$?
     if [ "$rc" -ne 0 ]; then
       [ "$rc" -eq 2 ] && exit 2
       exit 1
     fi
     rc=0
-    run_check transcript ${extra[@]+"${extra[@]}"} || rc=$?
+    run_check "$STAGED" transcript ${extra[@]+"${extra[@]}"} || rc=$?
     if [ "$rc" -ne 0 ]; then
       [ "$rc" -eq 2 ] && exit 2
       exit 1
     fi
-    if atomic_install "$MB/context/$TOPIC-interview.md"; then
+    if atomic_install "$STAGED" "$MB/context/$TOPIC-interview.md"; then
       printf 'artifact_write=installed kind=transcript\n'
       exit 0
     fi

@@ -287,6 +287,13 @@ _mode() {
   # carrying a mode leave the target at mkstemp's private 0600. This writer
   # publishes through open(), so a fresh file must land at the ordinary creation
   # default — locked down here so a future switch to mkstemp fails loudly.
+  #
+  # The umask is PINNED (r2 review [14]): the expected mode is 0666 & ~umask, so
+  # under the umask 002 common on shared-group setups the correct production
+  # result is 0664 and the bare `644` literal failed. Pinning keeps the assertion
+  # exact while making it environment-independent; the umask-077 test below is
+  # what proves the mode is computed rather than hardcoded.
+  umask 022
   _upsert "slice" "a child spec"
   [ "$(_mode "$GLOSS")" = "644" ]
 }
@@ -347,4 +354,63 @@ _mode() {
   [ "$status" -eq 0 ]
   run bash -n "$SCRIPT"
   [ "$status" -eq 0 ]
+}
+
+# ─── a pre-existing contradiction is never silently hidden (r2 review [13]) ───
+#
+# The row scan returned at the FIRST matching term, so a glossary already
+# holding `term — first` AND `term — conflicting` answered an upsert of
+# `term/first` with `glossary=unchanged` and exit 0 — the contradictory second
+# definition was never challenged, violating REQ-018.
+
+@test "mb_glossary: a duplicate term with a DIFFERENT definition is reported as conflict" {
+  printf 'slice — a child spec\nslice — a plan stage\n' > "$GLOSS"
+  local before; before="$(cat "$GLOSS")"
+  run --separate-stderr _upsert "slice" "a child spec"
+  [ "$status" -eq 1 ]
+  [ "$output" = "glossary=conflict" ]
+  [ "$(cat "$GLOSS")" = "$before" ]
+}
+
+@test "mb_glossary: the conflict is found even when the matching row comes first" {
+  # The exact reproduction: the requested definition matches row 1, so the old
+  # code exited `unchanged` before ever seeing the contradiction on row 2.
+  printf 'term — first\nterm — conflicting\n' > "$GLOSS"
+  run --separate-stderr _upsert "term" "first"
+  [ "$status" -eq 1 ]
+  [ "$output" = "glossary=conflict" ]
+}
+
+@test "mb_glossary: the conflict is found when the matching row comes last" {
+  printf 'term — conflicting\nterm — first\n' > "$GLOSS"
+  run --separate-stderr _upsert "term" "first"
+  [ "$status" -eq 1 ]
+  [ "$output" = "glossary=conflict" ]
+}
+
+@test "mb_glossary: a duplicated term row is rejected even for an unrelated upsert" {
+  # The whole glossary is validated under the lock, so an ambiguous file cannot
+  # keep accumulating entries around the contradiction.
+  printf 'term — first\nterm — conflicting\n' > "$GLOSS"
+  local before; before="$(cat "$GLOSS")"
+  run --separate-stderr _upsert "frontier" "the set of unblocked questions"
+  [ "$status" -eq 1 ]
+  [ "$output" = "glossary=conflict" ]
+  [ "$(cat "$GLOSS")" = "$before" ]
+}
+
+@test "mb_glossary: an exactly duplicated row is still ambiguous → conflict" {
+  printf 'term — first\nterm — first\n' > "$GLOSS"
+  run --separate-stderr _upsert "term" "first"
+  [ "$status" -eq 1 ]
+  [ "$output" = "glossary=conflict" ]
+}
+
+@test "mb_glossary: a clean multi-term glossary still upserts normally" {
+  # The whole-file validation must not reject ordinary well-formed glossaries.
+  printf 'slice — a child spec\nfrontier — unblocked questions\n' > "$GLOSS"
+  run --separate-stderr _upsert "gate" "a blocking check"
+  [ "$status" -eq 0 ]
+  [ "$output" = "glossary=updated" ]
+  grep -q '^gate — a blocking check$' "$GLOSS"
 }
