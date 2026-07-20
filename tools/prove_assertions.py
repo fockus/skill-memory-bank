@@ -99,6 +99,31 @@ that reaches the guarded branch (here: seed a pre-existing user hook, then
 assert uninstall restores it without our marker). Both then prove ALIVE.
 
 ═══════════════════════════════════════════════════════════════════════════════
+SAFETY: THE FILE UNDER TEST IS NEVER WRITTEN TO
+═══════════════════════════════════════════════════════════════════════════════
+
+The mutated copy goes to a sibling `<name>.prove-tmp` and bats runs THAT. The
+real file is opened read-only for the whole run.
+
+This is the second design. The first rewrote the file in place and restored it
+in a `try/finally`, which I reported as "cannot leave a mutated file behind"
+WITHOUT ever interrupting a run to check. It was wrong: SIGTERM terminates the
+interpreter without unwinding the stack, so `finally` never executes -- and
+SIGTERM is exactly what a CI or harness timeout sends. A killed run left an
+assertion silently inverted (`refute_grep` -> `assert_grep`): the file still
+parsed, the suite could stay green, and the line read as deliberate. The tool
+for proving tests honest was able to make them dishonest, and the claim that it
+could not was itself an untested assertion -- the very defect this tool exists
+to catch.
+
+Running the copy REMOVES the window instead of narrowing it. There is no
+instant at which the real file differs from HEAD, so SIGTERM, SIGINT, an
+uncaught exception and even `kill -9` cannot corrupt it; the worst case is a
+stray sidecar, which the next run sweeps. Signal handlers and the exit hook now
+only tidy up, and `verify_untouched` asserts the property at the end of every
+file rather than trusting it.
+
+═══════════════════════════════════════════════════════════════════════════════
 COST, AND WHY THIS IS A TOOL AND NOT A GATE
 ═══════════════════════════════════════════════════════════════════════════════
 
@@ -124,8 +149,11 @@ disease, not the cure.
 from __future__ import annotations
 
 import argparse
+import atexit
+import os
 import pathlib
 import re
+import signal
 import subprocess
 import sys
 
@@ -201,14 +229,95 @@ def run_test(path: pathlib.Path, name: str) -> tuple[bool, str]:
     return ("not ok" in out), out
 
 
+def sidecar_path(path: pathlib.Path) -> pathlib.Path:
+    """Where the MUTATED copy is written. The original is never modified.
+
+    Earlier this tool rewrote the test file in place and restored it in a
+    `try/finally`. That is not safe: SIGTERM terminates the interpreter WITHOUT
+    unwinding the stack, so `finally` never runs -- and SIGTERM is exactly what
+    a CI or harness timeout sends. A killed run left an assertion silently
+    inverted (`refute_grep` -> `assert_grep`): the file still parsed, the suite
+    could stay green, and the line looked deliberate. A tool for proving tests
+    honest was able to make them dishonest.
+
+    Running the COPY removes the window rather than narrowing it: there is no
+    instant at which the real file differs from HEAD, so no signal, crash or
+    `kill -9` can corrupt it. Signals now only need to sweep a stray sidecar.
+
+    The sidecar is a SIBLING because bats tests derive the repo root from
+    `dirname "$BATS_TEST_FILENAME"`; a temp directory would break that. The name
+    does not end in `.bats`, so no `*.bats` glob (suite runners, the I-147 lint)
+    ever collects it.
+    """
+    return path.with_name(path.name + ".prove-tmp")
+
+
+# Sidecars currently on disk, so a signal handler can sweep them. Nothing here
+# is load-bearing for correctness of the file under test -- that file is never
+# written -- this is only tidiness.
+_SIDECARS: set[pathlib.Path] = set()
+
+
+def _sweep_sidecars() -> None:
+    for sc in list(_SIDECARS):
+        try:
+            sc.unlink(missing_ok=True)
+        except OSError:  # pragma: no cover
+            pass
+        _SIDECARS.discard(sc)
+
+
+def _on_signal(signum, _frame):  # pragma: no cover - exercised via kill(1)
+    print(f"\n-- caught signal {signum}; sweeping {len(_SIDECARS)} sidecar(s)", file=sys.stderr)
+    _sweep_sidecars()
+    # Re-raise with the default disposition so the exit status is honest
+    # (128+signum) instead of pretending this was a clean shutdown.
+    signal.signal(signum, signal.SIG_DFL)
+    os.kill(os.getpid(), signum)
+
+
+def install_signal_handlers() -> None:
+    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(sig, _on_signal)
+    atexit.register(_sweep_sidecars)
+
+
+def sweep_stale_sidecar(path: pathlib.Path) -> None:
+    """Remove a sidecar left by a previous run that was killed outright."""
+    sc = sidecar_path(path)
+    if sc.is_file():
+        print(f"-- removing stale sidecar {sc.name} from an earlier killed run", file=sys.stderr)
+        sc.unlink()
+
+
+def verify_untouched(path: pathlib.Path, pristine: str) -> bool:
+    """Belt-and-braces: the file under test must be byte-identical to entry.
+
+    The safety property is now structural (we never write to it), but a property
+    that has never been checked is exactly what this whole round was about, so
+    it is asserted rather than assumed.
+    """
+    if path.read_text() == pristine:
+        return True
+    print(
+        f"\n!!!! {path} CHANGED during the run -- this must be impossible.\n"
+        "!!!! Do not trust these results; inspect `git diff` before committing.",
+        file=sys.stderr,
+    )
+    return False
+
+
 def prove_file(path: pathlib.Path, verbose: bool = False) -> tuple[int, int, int]:
     """Returns (alive, dead, skipped)."""
+    sweep_stale_sidecar(path)
     original = path.read_text()
     lines = original.split("\n")
     targets = find_assertions(lines)
     alive = dead = skipped = 0
+    sidecar = sidecar_path(path)
 
     print(f"\n=== {path.relative_to(REPO_ROOT)}  ({len(targets)} invertible assertions)")
+    _SIDECARS.add(sidecar)
     try:
         for i in targets:
             name = enclosing_test(lines, i)
@@ -219,9 +328,8 @@ def prove_file(path: pathlib.Path, verbose: bool = False) -> tuple[int, int, int
                 continue
             patched = list(lines)
             patched[i] = mutated
-            path.write_text("\n".join(patched))
-            went_red, output = run_test(path, name)
-            path.write_text(original)
+            sidecar.write_text("\n".join(patched))
+            went_red, output = run_test(sidecar, name)
 
             if went_red:
                 alive += 1
@@ -235,8 +343,9 @@ def prove_file(path: pathlib.Path, verbose: bool = False) -> tuple[int, int, int
                 if verbose:
                     print("          " + output.replace("\n", "\n          ")[:600])
     finally:
-        # Never leave a mutated file behind, even on Ctrl-C or a crash.
-        path.write_text(original)
+        sidecar.unlink(missing_ok=True)
+        _SIDECARS.discard(sidecar)
+        verify_untouched(path, original)
     return alive, dead, skipped
 
 
@@ -263,6 +372,13 @@ def main() -> int:
         if not p.is_file():
             print(f"no such file: {p}", file=sys.stderr)
             return 2
+
+    install_signal_handlers()
+    # A previous run may have been SIGKILLed (uncatchable) mid-mutation. Sweep
+    # before doing anything else so a stale inversion cannot be mistaken for
+    # the file's real content -- or worse, used as this run's baseline.
+    for p in paths:
+        sweep_stale_sidecar(p)
 
     if args.list:
         for p in paths:
