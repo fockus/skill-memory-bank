@@ -274,3 +274,89 @@ def minimal_pipeline_load(text: str) -> dict:
         if _value is not None:
             cfg[_name] = _value
     return cfg
+
+
+def find_sdd_inline_map(text, key, strip_comment):
+    """Locate `<key>: {...}` INSIDE the top-level `sdd:` block.
+
+    Returns (inline_text_or_None, seen_at_top_level). Scanning the whole file
+    for any `<key>:` accepted a TOP-LEVEL one, which the runtime (reading
+    `sdd.<key>`) never sees -- the config validated clean while the feature
+    stayed silently off (review [19]). Indentation is therefore part of the check.
+    """
+    line = None
+    at_top_level = False
+    in_sdd = False
+    for raw_line in text.splitlines():
+        raw = strip_comment(raw_line).rstrip()
+        if not raw.strip():
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        stripped = raw.strip()
+        if indent == 0:
+            in_sdd = stripped.split(":", 1)[0].strip() == "sdd" and stripped.endswith(":")
+        if stripped.startswith(key + ":"):
+            if indent == 0:
+                at_top_level = True
+                continue
+            if not in_sdd:
+                continue
+            line = stripped.split(":", 1)[1].strip()
+            break
+    return line, at_top_level
+
+
+def check_sdd_inline_map(err, name, line, allowed, is_string, scalar_kind):
+    """Validate the shared inline-map grammar; return the parsed dict or None.
+
+    Shared by spec_review and spec_judge so the two cannot drift: the judge's
+    grammar is the reviewer's plus `max_cycles`, and a second hand-rolled copy
+    is how one of them silently stops rejecting a bad value.
+    """
+    if line is None:
+        return None
+    if not (line.startswith("{") and line.endswith("}")):
+        err("sdd.%s: must be an inline mapping {%s}" % (name, ", ".join(sorted(allowed))))
+        return None
+    if ('"' in line) or ("'" in line):
+        err(f"sdd.{name}: values must be unquoted single tokens (no quotes)")
+        return None
+
+    inner = line[1:-1].strip()
+    parsed = {}
+    if inner:
+        for part in inner.split(","):
+            if ":" not in part:
+                err(f"sdd.{name}: a value must not contain a comma (inline-map grammar)")
+                return None
+            k, v = part.split(":", 1)
+            parsed[k.strip()] = v.strip()
+
+    extra = sorted(set(parsed) - allowed)
+    if extra:
+        err(f"sdd.{name}: unknown keys {extra}")
+
+    enabled_raw = parsed.get("enabled", "")
+    if enabled_raw.lower() not in ("true", "false"):
+        err(f"sdd.{name}.enabled: must be boolean")
+    thinking = parsed.get("thinking")
+    if thinking is not None and thinking not in ("low", "medium", "high"):
+        err(f"sdd.{name}.thinking: must be one of low|medium|high (got {thinking!r})")
+    if enabled_raw.lower() == "true":
+        for k in ("agent", "model"):
+            val = parsed.get(k)
+            if not val:
+                err(f"sdd.{name}.{k}: must be a non-empty string when enabled")
+            elif not is_string(val):
+                # STRING identity is required. The inline form yields raw tokens,
+                # so `agent: false` / `model: 123` are the truthy strings
+                # "false"/"123" -- they passed the emptiness check while being a
+                # boolean and an int to any YAML loader, and to the runtime
+                # (review [20]).
+                err(
+                    f"sdd.{name}.{k}: must be a string, "
+                    f"got the {scalar_kind(val)} {val!r}"
+                )
+        if not thinking:
+            err(f"sdd.{name}.thinking: required when enabled")
+    return parsed

@@ -156,6 +156,7 @@ import re
 import signal
 import subprocess
 import sys
+import time
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -282,12 +283,55 @@ def install_signal_handlers() -> None:
     atexit.register(_sweep_sidecars)
 
 
-def sweep_stale_sidecar(path: pathlib.Path) -> None:
-    """Remove a sidecar left by a previous run that was killed outright."""
-    sc = sidecar_path(path)
-    if sc.is_file():
-        print(f"-- removing stale sidecar {sc.name} from an earlier killed run", file=sys.stderr)
+# A sidecar belonging to a LIVE run is rewritten before every single assertion,
+# so it is always seconds old. Anything older than this is from a run that died.
+# The slowest single assertion in this repo (e2e install/uninstall) is ~30s, so
+# 600s is generous in the safe direction.
+STALE_AFTER_SECONDS = 600
+
+
+def sweep_all_stale_sidecars(now: float | None = None) -> int:
+    """Remove `*.prove-tmp` under tests/ that are OLD, from any file.
+
+    Global, because the per-file version was useless in exactly the case it
+    existed for: a sidecar left by a killed run on file X was only cleaned by a
+    later run on X, and a run on any other file walked straight past it. I
+    missed that because I tested the sweep on the same file I had killed -- the
+    one configuration in which the limitation cannot show.
+
+    A stray sidecar is not inert: `extensions-offer` rsyncs the whole repo, so a
+    `.prove-tmp` present during that suite fails someone else's run (I-152).
+
+    AGE-GATED, because global + unconditional is destructive to a CONCURRENT run
+    of this tool by another agent -- several of us share this working tree. On
+    its first run the global sweep deleted a stray belonging to another agent's
+    killed run; had that run been alive, I would have pulled the file out from
+    under its bats invocation and handed them a failure that was mine. Deleting
+    only old sidecars keeps the I-152 fix without introducing a cross-agent
+    race: a live run's sidecar can never be old.
+    """
+    now = time.time() if now is None else now
+    removed = 0
+    for sc in sorted((REPO_ROOT / "tests").rglob("*.prove-tmp")):
+        try:
+            age = now - sc.stat().st_mtime
+        except OSError:  # pragma: no cover - vanished under us; nothing to do
+            continue
+        if age < STALE_AFTER_SECONDS:
+            print(
+                f"-- leaving {sc.relative_to(REPO_ROOT)} alone ({age:.0f}s old): "
+                "another run of this tool may be using it",
+                file=sys.stderr,
+            )
+            continue
+        print(
+            f"-- removing stale sidecar {sc.relative_to(REPO_ROOT)} "
+            f"({age / 60:.0f} min old, from an earlier killed run)",
+            file=sys.stderr,
+        )
         sc.unlink()
+        removed += 1
+    return removed
 
 
 def verify_untouched(path: pathlib.Path, pristine: str) -> bool:
@@ -309,7 +353,6 @@ def verify_untouched(path: pathlib.Path, pristine: str) -> bool:
 
 def prove_file(path: pathlib.Path, verbose: bool = False) -> tuple[int, int, int]:
     """Returns (alive, dead, skipped)."""
-    sweep_stale_sidecar(path)
     original = path.read_text()
     lines = original.split("\n")
     targets = find_assertions(lines)
@@ -377,8 +420,7 @@ def main() -> int:
     # A previous run may have been SIGKILLed (uncatchable) mid-mutation. Sweep
     # before doing anything else so a stale inversion cannot be mistaken for
     # the file's real content -- or worse, used as this run's baseline.
-    for p in paths:
-        sweep_stale_sidecar(p)
+    sweep_all_stale_sidecars()
 
     if args.list:
         for p in paths:

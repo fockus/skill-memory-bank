@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import re
 
+import mb_pipeline_minimal_yaml as minimal_yaml
+
 # YAML scalars that are NOT strings, recognised on the raw inline-map tokens the
 # spec_review grammar produces (review [20]).
 _YAML_BOOL_RE = re.compile(r"^(true|false|yes|no|on|off)$", re.I)
@@ -119,85 +121,47 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
     if "require_scenarios" in sdd and not isinstance(sdd["require_scenarios"], bool):
         err("sdd.require_scenarios: must be boolean")
 
-    # ── sdd.spec_review (C5, opt-in) ────────────────────────────────────
-    # Validate the RAW inline-only form, independent of the YAML loader (major #10):
-    # a nested block, a quoted scalar (which could hide a comma/colon), or any comma
-    # inside a value must be rejected identically with and without PyYAML.
-    # The inline form must live INSIDE the top-level `sdd:` block. Scanning the
-    # whole file for any `spec_review:` accepted a top-level one, which the
-    # runtime (reading `sdd.spec_review`) never sees — the config validated
-    # clean while review stayed silently off (review [19]).
-    _sr_line = None
-    _sr_at_top_level = False
-    _in_sdd = False
-    for _ln in text.splitlines():
-        _raw = strip_comment(_ln).rstrip()
-        if not _raw.strip():
-            continue
-        _indent = len(_raw) - len(_raw.lstrip())
-        _s = _raw.strip()
-        if _indent == 0:
-            _in_sdd = _s.split(":", 1)[0].strip() == "sdd" and _s.endswith(":")
-        if _s.startswith("spec_review:"):
-            if _indent == 0:
-                _sr_at_top_level = True
-                continue
-            if not _in_sdd:
-                continue
-            _sr_line = _s.split(":", 1)[1].strip()
-            break
-    if _sr_line is None and _sr_at_top_level:
-        err(
-            "spec_review: must be nested under the top-level `sdd:` block "
-            "(runtime reads sdd.spec_review; a top-level one is never applied)"
-        )
-    if _sr_line is not None:
-        if not (_sr_line.startswith("{") and _sr_line.endswith("}")):
-            # empty value (nested block) or a bare scalar — C5 requires an inline map.
-            err("sdd.spec_review: must be an inline mapping {enabled, agent, model, thinking}")
-        elif ('"' in _sr_line) or ("'" in _sr_line):
-            err("sdd.spec_review: values must be unquoted single tokens (no quotes)")
-        else:
-            _inner = _sr_line[1:-1].strip()
-            _sr = {}
-            _grammar_ok = True
-            if _inner:
-                for _part in _inner.split(","):
-                    if ":" not in _part:
-                        err(
-                            "sdd.spec_review: a value must not contain a comma (inline-map grammar)"
-                        )
-                        _grammar_ok = False
-                        break
-                    _k, _v = _part.split(":", 1)
-                    _sr[_k.strip()] = _v.strip()
-            if _grammar_ok:
-                _extra = sorted(set(_sr) - {"enabled", "agent", "model", "thinking"})
-                if _extra:
-                    err(f"sdd.spec_review: unknown keys {_extra}")
-                _en_raw = _sr.get("enabled", "")
-                if _en_raw.lower() not in ("true", "false"):
-                    err("sdd.spec_review.enabled: must be boolean")
-                _th = _sr.get("thinking")
-                if _th is not None and _th not in ("low", "medium", "high"):
-                    err(f"sdd.spec_review.thinking: must be one of low|medium|high (got {_th!r})")
-                if _en_raw.lower() == "true":
-                    for _k in ("agent", "model"):
-                        _val = _sr.get(_k)
-                        if not _val:
-                            err(f"sdd.spec_review.{_k}: must be a non-empty string when enabled")
-                        elif not _is_yaml_string(_val):
-                            # C5 requires STRING identity. The inline form yields
-                            # raw tokens, so `agent: false` / `model: 123` are the
-                            # truthy strings "false"/"123" and passed the emptiness
-                            # check while being a boolean and an int to any YAML
-                            # loader — and to the runtime (review [20]).
-                            err(
-                                f"sdd.spec_review.{_k}: must be a string, "
-                                f"got the {_yaml_scalar_kind(_val)} {_val!r}"
-                            )
-                    if not _th:
-                        err("sdd.spec_review.thinking: required when enabled")
+    # ── sdd.spec_review (S2-C5) and sdd.spec_judge (S9-C1) ──────────────
+    # Both are INLINE maps validated on the RAW text, independent of the YAML
+    # loader (major #10): a nested block, a quoted scalar (which could hide a
+    # comma/colon) or any comma inside a value must be rejected identically with
+    # and without PyYAML. One parser for both, so the two cannot drift.
+    _sr_line, _sr_top = minimal_yaml.find_sdd_inline_map(text, "spec_review", strip_comment)
+    _sj_line, _sj_top = minimal_yaml.find_sdd_inline_map(text, "spec_judge", strip_comment)
+    for _name, _line, _top in (
+        ("spec_review", _sr_line, _sr_top),
+        ("spec_judge", _sj_line, _sj_top),
+    ):
+        if _line is None and _top:
+            err(
+                f"{_name}: must be nested under the top-level `sdd:` block "
+                f"(runtime reads sdd.{_name}; a top-level one is never applied)"
+            )
+
+    _sr = minimal_yaml.check_sdd_inline_map(
+        err, "spec_review", _sr_line,
+        {"enabled", "agent", "model", "thinking", "rubric"}, _is_yaml_string, _yaml_scalar_kind)
+    _sj = minimal_yaml.check_sdd_inline_map(
+        err, "spec_judge", _sj_line,
+        {"enabled", "agent", "model", "thinking", "max_cycles"}, _is_yaml_string, _yaml_scalar_kind)
+
+    # max_cycles: integer >= 1. A judge loop bounded by "many" is unbounded.
+    if _sj is not None and "max_cycles" in _sj:
+        _mc = _sj["max_cycles"]
+        if not re.fullmatch(r"[0-9]+", _mc or "") or int(_mc) < 1:
+            err(f"sdd.spec_judge.max_cycles: must be an integer >= 1 (got {_mc!r})")
+
+    # A judge with nothing to judge is a configuration error, not a no-op: the
+    # user asked for adjudication and would silently get none. Absent
+    # spec_review counts as disabled -- that is the state a config drifts into
+    # when the review map is deleted and the judge is left enabled.
+    if _sj is not None and (_sj.get("enabled", "") or "").lower() == "true":
+        _review_on = _sr is not None and (_sr.get("enabled", "") or "").lower() == "true"
+        if not _review_on:
+            err(
+                "sdd.spec_judge: spec_judge_requires_spec_review "
+                "(enabled judge over a disabled/absent sdd.spec_review has no verdict to judge)"
+            )
 
     # ── runtime blocks: review / judge / review_ensemble / done_* / dispatch ──
     KNOWN_AGENTS = {

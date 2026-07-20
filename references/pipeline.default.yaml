@@ -269,6 +269,17 @@ sdd:
                                           # (every REQ must have >=1 GIVEN/WHEN/THEN scenario). Default off
                                           # so EARS-only specs stay valid.
   spec_review: {enabled: false, agent: mb-reviewer, model: inherit, thinking: medium}
+                                          # optional key `rubric: <path>` overrides the bundled
+                                          # default references/spec-review-rubric.md (S9 REQ-013).
+  spec_judge: {enabled: false, agent: mb-judge, model: inherit, thinking: medium, max_cycles: 2}
+                                          # S9-C1 automatic verdict judge over spec_review.
+                                          # INLINE MAP, same grammar as spec_review above.
+                                          # enabled true REQUIRES spec_review.enabled true --
+                                          # a judge with no verdict to judge is a config error,
+                                          # not a silent no-op (spec_judge_requires_spec_review).
+                                          # max_cycles: integer >= 1, bounds the review->judge->fix
+                                          # loop; exhaustion is an honest stop, not an acceptance.
+                                          # Default off => pre-S9 behaviour byte-for-byte (D-30).
                                           # opt-in C5 spec review. INLINE MAP (not a nested block):
                                           # the validator reads sdd via parse_simple_mapping, so a nested
                                           # block would parse as None. Values carry no comma (inline-map

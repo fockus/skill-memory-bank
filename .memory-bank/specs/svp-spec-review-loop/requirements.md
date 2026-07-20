@@ -32,7 +32,10 @@ status: ready
 
 - **REQ-001** (optional): Where pipeline.yaml enables `sdd.spec_judge`, the system shall dispatch the configured judge with the recorded review verdict, the spec triple, the deviations registry and the rubric after each spec_review verdict is recorded. <!-- D-02 -->
 - **REQ-002** (ubiquitous): The system shall record every judge decision as an append-only JSONL line of kind `judge` with decision `GO`, `GO_WITH_BACKLOG` or `NO_GO` in the same verdict journal as spec_review verdicts. <!-- D-02 -->
+- **REQ-015** (ubiquitous): The system shall record, in the judge journal line, for every finding of the verdict under judgement, whether the judge confirmed that finding against the spec text, using the field `confirmed` with one entry per finding id. <!-- AMEND-S9-2, ADR-S9-6 -->
 - **REQ-003** (unwanted): If the resolved judge model equals the resolved spec_review model or the model that generated the spec, then the system shall refuse dispatch with the observable `same_model` signature and a non-zero exit before any judge call. <!-- D-02, S2-C5 -->
+
+- **REQ-016** (unwanted): If the spec frontmatter carries no `generated_by` key, then the system shall proceed with the remaining same-model checks and record the skipped leg in the judge journal line as `generator_check=skipped`, so a GO issued without the full independence check is auditable. <!-- AMEND-S9-4, D-02 -->
 
 ### Requirement 2: Fix-петля с независимым re-review
 
@@ -50,8 +53,9 @@ status: ready
 
 #### Acceptance Criteria
 
-- **REQ-007** (event-driven): When a finding is rejected with anchored evidence by the user or the judge, the system shall append it to `specs/<topic>/review-deviations.md` with its id, decision, evidence and date. <!-- D-04 -->
-- **REQ-008** (state-driven): While `specs/<topic>/review-deviations.md` is non-empty, the system shall include its content in every subsequent spec_review prompt with the instruction not to re-raise the listed deviations. <!-- D-04, D-06 -->
+- **REQ-007** (event-driven): When a finding is rejected with anchored evidence by the user or the judge, the system shall append it to `specs/<topic>/review-deviations.md` with its id, source, decision, evidence, date and a `status` of `active`. <!-- D-04, AMEND-S9-3 -->
+- **REQ-008** (state-driven): While `specs/<topic>/review-deviations.md` contains at least one row whose `status` is `active`, the system shall include ONLY the active rows in every subsequent spec_review prompt, with the instruction not to re-raise them. <!-- D-04, D-06, AMEND-S9-3 -->
+- **REQ-017** (event-driven): When a previously accepted deviation is reopened, the system shall append a new row for the same id with `status: active` and rewrite only the prior row's `status` field to `superseded`, so the reopened finding is raised again and the audit trail is preserved. <!-- AMEND-S9-3 -->
 
 ### Requirement 4: Preflight-гейт /mb work по действующему вердикту
 
@@ -62,6 +66,7 @@ status: ready
 - **REQ-009** (unwanted): If `/mb work` targets a spec whose effective spec_review verdict is CHANGES_REQUESTED without a judge GO or GO_WITH_BACKLOG while `sdd.spec_review` is enabled, then the system shall refuse execution before any dispatch, print `work=blocked reason=spec_review_pending topic=<topic>` on stdout and exit non-zero. <!-- D-05 -->
 - **REQ-010** (optional): Where the user passes the explicit `--skip-spec-gate` flag, the system shall proceed and record the override as an append-only JSONL line of kind `override` in the verdict journal. <!-- D-05 -->
 - **REQ-011** (state-driven): While `sdd.spec_review` is disabled or the spec has no verdict journal, the system shall run `/mb work` without the spec gate and without new warnings. <!-- D-05, обратная совместимость -->
+- **REQ-014** (unwanted): If the effective verdict cannot be resolved while `sdd.spec_review` is enabled — the status query fails, exits non-zero, or returns an unparsable line — then the system shall refuse execution before any dispatch, print `work=blocked reason=spec_status_unavailable topic=<topic>` on stdout and exit 4. <!-- AMEND-S9-1, D-05 -->
 
 ### Requirement 5: Детерминированная сборка review-промпта и рубрика
 
@@ -205,3 +210,52 @@ status: ready
 
 **test_id:** custom_rubric_overrides_default
 <!-- /mb-scenario:11 -->
+
+<!-- mb-scenario:12 -->
+### Scenario: Gate fails closed when the verdict cannot be resolved
+**Covers:** REQ-014
+
+- GIVEN `sdd.spec_review.enabled=true` and a status query that fails (helper missing, non-zero exit, or an unparsable line)
+- WHEN `/mb work demo` starts
+- THEN stdout prints `work=blocked reason=spec_status_unavailable topic=demo` and the exit code is 4
+- AND no work item is dispatched
+- AND an ABSENT journal still takes the silent REQ-011 path, because "no review yet" is a known state and "cannot tell" is not
+
+**test_id:** gate_fails_closed_on_unresolvable_status
+<!-- /mb-scenario:12 -->
+
+<!-- mb-scenario:13 -->
+### Scenario: Judge records per-finding confirmation
+**Covers:** REQ-015
+
+- GIVEN a CHANGES_REQUESTED verdict carrying findings `R1-001` and `R1-002`
+- WHEN the judge records its decision
+- THEN the judge journal line carries a `confirmed` entry for each of `R1-001` and `R1-002`
+- AND a decision recorded without a `confirmed` entry per finding is refused as malformed
+
+**test_id:** judge_records_per_finding_confirmation
+<!-- /mb-scenario:13 -->
+
+<!-- mb-scenario:14 -->
+### Scenario: Only active deviations are injected, superseded ones are raised again
+**Covers:** REQ-008, REQ-017
+
+- GIVEN `review-deviations.md` holds `R4-002` with `status: superseded` and `R4-009` with `status: active`
+- WHEN the review prompt is assembled
+- THEN the deviations block contains `R4-009` and does NOT contain `R4-002`
+- AND the reopened `R4-002` is therefore free to be raised again by the reviewer
+
+**test_id:** prompt_injects_only_active_deviations
+<!-- /mb-scenario:14 -->
+
+<!-- mb-scenario:15 -->
+### Scenario: Missing generator model is journaled, not silently skipped
+**Covers:** REQ-016
+
+- GIVEN spec frontmatter with no `generated_by` key and a judge model differing from the reviewer model
+- WHEN the judge step records its decision
+- THEN the run proceeds and the judge journal line carries `generator_check=skipped`
+- AND stderr carries the `generator_model_unknown` warning
+
+**test_id:** judge_journals_skipped_generator_check
+<!-- /mb-scenario:15 -->
