@@ -706,11 +706,16 @@ assert o.get("count")==2, o
 }
 
 @test "fanout: leaves NO mktemp workspace behind after a run (trap-cleaned)" {
-  # Count TMPDIR entries matching a fanout workspace before/after.
-  run bash "$FANOUT" "$TMPBANK" --cmd "$ECHO_CMD" --branch a
+  # A PRIVATE TMPDIR: globbing the shared ${TMPDIR:-/tmp} for mb-fanout* made
+  # this fail when a concurrent run of the same suite had a live workspace, and
+  # pass if a genuine leak ever landed under a different name. Anything left in
+  # a directory only this run can write to is this run's leak.
+  local priv leftovers
+  priv="$(mktemp -d "${BATS_TEST_TMPDIR:-${TMPDIR:-/tmp}}/fanout-leak.XXXXXX")"
+  run env TMPDIR="$priv" bash "$FANOUT" "$TMPBANK" --cmd "$ECHO_CMD" --branch a
   [ "$status" -eq 0 ]
-  run bash -c "ls -d \${TMPDIR:-/tmp}/mb-fanout* 2>/dev/null || true"
-  [ -z "$output" ]
+  leftovers="$(find "$priv" -mindepth 1 2>/dev/null | wc -l | tr -d ' ')"
+  [ "$leftovers" -eq 0 ] || { echo "fanout left $leftovers entry/entries behind:"; find "$priv" -mindepth 1; false; }
 }
 
 # ═══════════════════════════════════════════════════════════════
