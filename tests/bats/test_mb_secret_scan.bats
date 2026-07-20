@@ -291,12 +291,17 @@ PY
 }
 
 @test "secret_scan: stdin mode never creates a file" {
-  local before after
-  before="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -newer "$BATS_TEST_FILENAME" 2>/dev/null | wc -l)"
-  run --separate-stderr bash -c "printf 'sk-ant-api03ABCDEFGHIJKLMNOP\n' | '$SCRIPT' --policy transcript -"
+  # A PRIVATE TMPDIR, not the shared system one: counting entries in
+  # ${TMPDIR:-/tmp} made this test fail whenever any other process on the
+  # machine happened to create a temp file during the scan, and pass when a
+  # spill by the scanner was masked by an unrelated deletion in the same
+  # window. Here every entry that appears can only be the scanner's doing.
+  local priv leftovers
+  priv="$(mktemp -d "${BATS_TEST_TMPDIR:-${TMPDIR:-/tmp}}/stdin-spill.XXXXXX")"
+  run --separate-stderr env TMPDIR="$priv" bash -c "printf 'sk-ant-api03ABCDEFGHIJKLMNOP\n' | '$SCRIPT' --policy transcript -"
   [ "$status" -eq 1 ]
-  after="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -newer "$BATS_TEST_FILENAME" 2>/dev/null | wc -l)"
-  [ "$before" -eq "$after" ] || { echo "stdin scan left something in TMPDIR"; false; }
+  leftovers="$(find "$priv" -mindepth 1 2>/dev/null | wc -l | tr -d ' ')"
+  [ "$leftovers" -eq 0 ] || { echo "stdin scan left $leftovers entry/entries in TMPDIR:"; find "$priv" -mindepth 1; false; }
 }
 
 @test "secret_scan: binary on stdin is unsupported, not silently clean" {
