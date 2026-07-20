@@ -2,6 +2,8 @@
 
 # Direct tests for adapters/_framework.sh and adapters/_contract.sh.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   FRAMEWORK="$REPO_ROOT/adapters/_framework.sh"
@@ -58,7 +60,7 @@ teardown() {
 
   run adapter_write_manifest "$MANIFEST" "cursor" "1.2.3" '["/tmp/a"]' '{}'
   [ "$status" -eq 0 ]
-  ! find "$TMPDIR" -maxdepth 1 -name '*.XXXXXX' 2>/dev/null | grep -q .
+  refute_grep -q . <(find "$TMPDIR" -maxdepth 1 -name '*.XXXXXX' 2>/dev/null)
   ! find "$TMPDIR" -maxdepth 1 -name "$(basename "$MANIFEST").*" 2>/dev/null | grep -q .
 }
 

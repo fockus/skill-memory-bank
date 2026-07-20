@@ -10,6 +10,8 @@
 
 load 'lib/discuss_contract'
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   DISCUSS="$REPO_ROOT/commands/discuss.md"
@@ -210,7 +212,7 @@ _clause_pair() {
   # Pre-flight is exempt: that is where the anti-pattern is QUOTED as forbidden.
   local body
   body="$(grep -vFx -f <(mb_section "$DISCUSS" 'Pre-flight') "$DISCUSS")"
-  ! printf '%s\n' "$body" | grep -Eq '(^|[^/A-Za-z_$-])scripts/mb-'
+  refute_grep -Eq '(^|[^/A-Za-z_$-])scripts/mb-' <<<"$body"
 }
 
 # _preflight_resolution — the WHOLE fenced bundle-root block as documented.

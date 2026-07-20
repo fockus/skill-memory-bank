@@ -17,6 +17,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   RUN="$REPO_ROOT/tests/calibration/run.sh"
@@ -62,7 +64,7 @@ setup() {
   run bash "$RUN" --emit-payload
   [ "$status" -eq 0 ]
   [[ "$output" != *$'\tFAIL\t'* ]]
-  ! printf '%s\n' "$output" | grep -qE '^\S+ +emit-payload +FAIL'
+  refute_grep -qE '^\S+ +emit-payload +FAIL' <<<"$output"
   ! printf '%s\n' "$output" | grep -qE '^\S+ +emit-payload +WARN'
 }
 

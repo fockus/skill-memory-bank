@@ -9,6 +9,8 @@
 # Stays compact on purpose — Sprint 2 already has per-adapter and per-hook
 # coverage; this suite only locks the cross-cutting invariants.
 
+load ../bats/lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
@@ -107,11 +109,40 @@ resolve_bank_for_agent() {
   [ -f "$PROJECT/.memory-bank/progress.md" ]
 
   # No global registry entry was created (storage_mode=local).
+  #
+  # I-147: this was guarded by `if [ -f "$registry" ]`, and local init never
+  # creates the registry at all — so the guard was always false and the body
+  # never ran. The test passed while demanding the OPPOSITE of its assertion
+  # (tools/prove_assertions.py: DEAD). Assert the end state the fixture really
+  # produces instead: "this project is not registered" is TRUE both when the
+  # registry is absent and when it exists without this project, so state it
+  # unconditionally rather than skipping the check in the common case.
+  # Local init creates no registry at all, so THAT is the end state to assert.
+  # The "registry exists but omits this project" case needs a fixture that
+  # actually produces a registry — it gets its own test below rather than
+  # riding along here as a branch that never executes.
   registry="$HOME/.claude/memory-bank/registry.json"
-  if [ -f "$registry" ]; then
-    # Registry may exist but must not contain this project.
-    ! jq -e --arg p "$PROJECT" '.projects | has($p)' "$registry" >/dev/null
-  fi
+  refute_file "$registry"
+}
+
+@test "global storage e2e: an existing registry gains no entry from a local init" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  # Register a DIFFERENT project globally so the registry genuinely exists...
+  other="$(mktemp -d)"
+  (cd "$other" && bash "$REPO_ROOT/scripts/mb-init-bank.sh" \
+      --storage=global --agent=claude-code --lang en --project-root "$other" >/dev/null)
+  registry="$HOME/.claude/memory-bank/registry.json"
+  [ -f "$registry" ]
+  assert_grep -q . "$registry"
+
+  # ...then init THIS project locally: the registry must not gain an entry.
+  (cd "$PROJECT" && bash "$REPO_ROOT/scripts/mb-init-bank.sh" \
+      --lang en --project-root "$PROJECT" >/dev/null)
+
+  [ -d "$PROJECT/.memory-bank" ]
+  refute_cmd jq -e --arg p "$PROJECT" '.projects | has($p)' "$registry"
+  rm -rf "$other"
 }
 
 # ─────────────────────────────────────────────────────────────────

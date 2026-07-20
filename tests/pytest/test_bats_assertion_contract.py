@@ -71,13 +71,9 @@ _CAT_COMPARE = re.compile(
 # what surfaced that -- it refused to keep carrying files that had become clean.
 PENDING_CONVERSION = frozenset(
     {
-        "tests/bats/test_adapter_framework.bats",
-        "tests/bats/test_calibration_suite.bats",
-        "tests/bats/test_discuss_interview_plan.bats",
         "tests/bats/test_extensions_offer.bats",
         "tests/bats/test_mb_flow_sync.bats",
         "tests/bats/test_mb_glossary.bats",
-        "tests/e2e/test_global_storage.bats",
     }
 )
 
