@@ -34,6 +34,7 @@ Manual inline implementation is only acceptable for trivial non-plan work or an 
 | Intent | Command |
 | --- | --- |
 | Load context | `/mb start` or `scripts/mb-context.sh` |
+| Formalize a raw request | `/mb brief <topic> [--input <path>]…` — first stage of `brief → discuss → sdd → work` |
 | Create requirements/spec | `/mb discuss <topic>` → `/mb sdd <topic>` |
 | Execute existing spec/plan | `/mb work <target> [--range N] [--workflow NAME]` |
 | Simple execution override | `/mb work <target> --workflow simple` |

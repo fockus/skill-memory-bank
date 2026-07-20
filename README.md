@@ -190,8 +190,9 @@ That's it. Rinse and repeat.
 /mb done                                # closes the session, appends progress, writes a note
 ```
 
-**Spec-driven (SDD)** — for a larger or fuzzier feature, add an interview + spec first:
+**Spec-driven (SDD)** — for a larger or fuzzier feature, add an interview + spec first. The full chain is `brief → discuss → sdd → work`:
 ```
+/mb brief billing-overhaul --input PRD.md   # raw request + documents → validated one-pager in briefs/
 /mb discuss billing-overhaul            # 5-phase interview → EARS-validated context/billing-overhaul.md
 /mb sdd billing-overhaul                # generates specs/billing-overhaul/{requirements,design,tasks}.md
 /mb work billing-overhaul               # executes the tasks.md items (<!-- mb-task:N -->) in order

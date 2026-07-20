@@ -40,7 +40,13 @@ SKILL_DIR="${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}"   # memory-bank 
 
 ### Phase 0 — Research (before the first question)
 
-Recommendations must be grounded in evidence, not guesses. Gather it up front:
+Recommendations must be grounded in evidence, not guesses. Gather it up front.
+
+**Start from the brief, when there is one.** Run `"$SKILL_DIR/scripts/mb-brief.sh" context --mb <bank> --topic <topic>` first, and on `brief=present` read the manifest's `brief_path` and `input_path` entries as the first sources of the Research digest.
+On `brief=absent` Phase 0 proceeds unchanged — the legacy behaviour is untouched.
+The manifest's bank-relative paths are the only way in: ad-hoc parsing of `briefs/` from the prompt is forbidden, and the manifest prints paths only, so read the files yourself.
+
+Then gather the rest:
 
 1. **Core context** (best-effort, skip if missing): `roadmap.md`, `research.md`, `backlog.md`, `codebase/STACK.md`, `codebase/ARCHITECTURE.md`.
 2. **Codebase recon** — map the topic's touchpoints: code graph (`jq` over `codebase/graph.json`) or `mb-semantic-search.py "<topic>"` for concepts, `grep`/`Glob` fallback. Record exact `file:line` for every place the feature will touch.

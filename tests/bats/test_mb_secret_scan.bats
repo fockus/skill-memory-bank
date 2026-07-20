@@ -132,12 +132,18 @@ setup() {
   [ "$output" = "scan=clean" ]
 }
 
-@test "secret_scan: --policy brief-input → policy_not_implemented exit 2" {
+@test "secret_scan: --policy brief-input is dispatched, not a usage error" {
+  # This assertion used to pin `policy_not_implemented` — the placeholder S1
+  # shipped BEFORE the consumer slice existed. svp-brief has since implemented
+  # `brief-input` in this same file (its C5 owns the policy, S1-C5 owns the file
+  # and the dispatcher), so the placeholder is now stale and inverts here.
+  # The dispatcher is all that is asserted from S1's side; the policy's own
+  # semantics are covered by tests/bats/test_mb_secret_scan_brief_input.bats.
   local f="$BATS_TEST_TMPDIR/c.md"; printf 'clean\n' > "$f"
   run --separate-stderr "$SCRIPT" --policy brief-input "$f"
-  [ "$status" -eq 2 ]
-  [ -z "$output" ]
-  [ "$stderr" = "policy_not_implemented" ]
+  [ "$status" -eq 0 ]
+  [ "$output" = "scan=clean" ]
+  [ "$stderr" = "" ]
 }
 
 @test "secret_scan: unknown policy → usage error exit 2" {
@@ -256,4 +262,45 @@ PY
   [ "$status" -eq 0 ]
   run bash -n "$SCRIPT"
   [ "$status" -eq 0 ]
+}
+
+# ─── stdin / in-memory mode (S2 r3 review [7]) ─────────────────────────────
+#
+# Callers that hold a payload in memory had to spill it to a mktemp file first
+# just to scan it, so the UNSCANNED credential existed on disk for the duration
+# — and survived a crash between the write and the rm. The canonical scanner
+# takes the bytes directly instead.
+
+@test "secret_scan: reads stdin when the path is '-'" {
+  run --separate-stderr bash -c "printf 'nothing to see\n' | '$SCRIPT' --policy transcript -"
+  [ "$status" -eq 0 ]
+  [ "$output" = "scan=clean" ]
+}
+
+@test "secret_scan: blocks a credential arriving on stdin" {
+  run --separate-stderr bash -c "printf 'key sk-ant-api03ABCDEFGHIJKLMNOP\n' | '$SCRIPT' --policy transcript -"
+  [ "$status" -eq 1 ]
+  [ "$output" = "scan=blocked" ]
+  echo "$stderr" | grep -q ':api_key$'
+}
+
+@test "secret_scan: stdin findings carry a line number" {
+  run --separate-stderr bash -c "printf 'clean\nclean\nsk-ant-api03ABCDEFGHIJKLMNOP\n' | '$SCRIPT' --policy transcript -"
+  [ "$status" -eq 1 ]
+  echo "$stderr" | grep -q ':3:api_key$'
+}
+
+@test "secret_scan: stdin mode never creates a file" {
+  local before after
+  before="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -newer "$BATS_TEST_FILENAME" 2>/dev/null | wc -l)"
+  run --separate-stderr bash -c "printf 'sk-ant-api03ABCDEFGHIJKLMNOP\n' | '$SCRIPT' --policy transcript -"
+  [ "$status" -eq 1 ]
+  after="$(find "${TMPDIR:-/tmp}" -maxdepth 1 -newer "$BATS_TEST_FILENAME" 2>/dev/null | wc -l)"
+  [ "$before" -eq "$after" ] || { echo "stdin scan left something in TMPDIR"; false; }
+}
+
+@test "secret_scan: binary on stdin is unsupported, not silently clean" {
+  run --separate-stderr bash -c "printf 'a\000b' | '$SCRIPT' --policy transcript -"
+  [ "$status" -eq 2 ]
+  [ "$output" = "scan=unsupported" ]
 }

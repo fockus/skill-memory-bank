@@ -630,3 +630,61 @@ tasks: 1-3
 `tasks` — optional range; limits `/mb work` to that task subset for sprint slicing.
 
 The plan basename is used for traceability only. Spec tasks remain the source of truth.
+
+---
+
+## Brief one-pager (`briefs/<topic>/brief.md`)
+
+Written by `/mb brief` into the candidate, then published by `scripts/mb-brief.sh create`.
+All nine `##` sections are required, spelled exactly as below (case sensitive, no
+aliases, no duplicates). Frontmatter is a CLOSED key set: `topic`, `created`,
+`status`, `inputs` are required; `assumptions_note` appears only under `--auto`
+and must be non-empty. Target 60–100 lines; over 120 the validator warns.
+
+Attachments carries exactly one `- [<basename>](inputs/<encoded-basename>)` line
+per `--input`, in command-line order, percent-encoded per RFC 3986 with the safe
+set `A-Za-z0-9-._~` (space → `%20`, `#` → `%23`). With no sources the body is
+exactly `- None`.
+
+```markdown
+---
+topic: <topic>
+created: YYYY-MM-DD
+status: ready
+inputs:
+  - inputs/<basename>
+---
+
+# Brief: <topic>
+
+## Essence
+What is being asked for, in two or three sentences. Never empty.
+
+## Goal & Impact
+The outcome and the measurable effect it should have. Never empty.
+
+## References
+Prior art, tickets, documents worth reading.
+
+## Solution (JTBD)
+When <situation>, I want <motivation>, so that <expected outcome>.
+
+## Scenarios
+- The main success path, one line.
+- The edge cases worth naming this early.
+
+## Constraints
+- What is fixed: deadlines, stack, integrations that must not change.
+
+## UX
+How the user meets the result.
+
+## Done Criteria
+- Checkable statements that decide whether this is finished.
+
+## Attachments
+- [<basename>](inputs/<encoded-basename>)
+```
+
+Validate with `scripts/mb-brief-validate.sh <brief.md>`: `brief=ok` / `brief=invalid`
+on stdout, diagnostics on stderr, exit 0/1/2.
