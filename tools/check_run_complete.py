@@ -239,13 +239,16 @@ def main() -> int:
         action="append",
         default=[],
         metavar="PATH",
-        help="a file or directory the run depended on; fails if touched during it",
+        help="a file or directory the run depended on; fails if touched during "
+        "it. Takes ONE path — repeat the flag for several",
     )
     ap.add_argument(
         "--since",
-        metavar="REF",
-        help="run start: an epoch, or a file whose mtime is the start "
-             "(`: > run.stamp` before the run)",
+        # NOT "REF": a git ref is the intuitive reading and it is wrong — this
+        # is an mtime comparison, so it needs a wall-clock start, not a commit.
+        metavar="STAMP|EPOCH",
+        help="run start: a file whose mtime is the start (`: > run.stamp` just "
+        "before the run), or an epoch. NOT a git ref",
     )
     args = ap.parse_args()
 
@@ -259,7 +262,7 @@ def main() -> int:
         )
 
     failures = 0
-    entries = 0          # every thing we were asked to account for
+    entries = 0  # every thing we were asked to account for
     checked: list[Result] = []
 
     # ── set level: did every intended file even produce a log? ──────────────
@@ -302,12 +305,16 @@ def main() -> int:
             for p in stale_problems:
                 print(f"STALE RUN       ! {p}")
         else:
-            print(f"\nUNCHANGED       {len(expand_watched(args.watch)[0])} watched "
-                  "file(s) predate the run")
+            print(
+                f"\nUNCHANGED       {len(expand_watched(args.watch)[0])} watched "
+                "file(s) predate the run"
+            )
     else:
         # Silence must not read as "the staleness check passed".
-        print("\nNOT CHECKED     no --watch paths given, so nothing was compared "
-              "against the run start; pass --watch to check for mid-run edits")
+        print(
+            "\nNOT CHECKED     no --watch paths given, so nothing was compared "
+            "against the run start; pass --watch to check for mid-run edits"
+        )
 
     total_tests = sum(r.ok + r.not_ok for r in checked if r.plan is not None)
     # Count against everything ASKED FOR, not just what produced a Result — a
