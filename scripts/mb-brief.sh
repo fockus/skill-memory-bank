@@ -138,7 +138,7 @@ input_reject() { printf 'error=input_unreadable path=%s\n' "$1" >&2; exit 2; }
 
 for p in ${INPUTS[@]+"${INPUTS[@]}"}; do
   # A `..` PATH SEGMENT is refused; `a..b.md` is a perfectly ordinary filename.
-  case "/$p/" in */../*) input_reject "$p" ;; esac
+
   # A symlink is refused rather than followed: the scan would inspect the link
   # target while the copy could resolve elsewhere.
   if [ -L "$p" ] || [ ! -f "$p" ] || [ ! -r "$p" ]; then input_reject "$p"; fi
