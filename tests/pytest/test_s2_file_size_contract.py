@@ -33,6 +33,7 @@ ZONE_FILES = [
     "scripts/mb-work-state-eval.sh",
     "scripts/mb-work-state-lib.sh",
     "scripts/mb-work-plan.sh",
+    "scripts/mb_work_plan_wrapper.py",
     "scripts/mb_work_eval_proof.py",
     "scripts/mb-sdd-candidate.sh",
     "scripts/mb-sdd-review-result.sh",
@@ -50,6 +51,10 @@ ZONE_FILES = [
     "tests/bats/test_sdd_spec_review.bats",
     "tests/bats/test_mb_work_state_eval.bats",
     "tests/bats/test_mb_work_prod_binding.bats",
+    # r3 split-outs: a new file must inherit the limit, not escape it.
+    "tests/bats/test_mb_work_state_eval_r3.bats",
+    "tests/bats/test_mb_work_prod_binding_r3.bats",
+    "tests/bats/test_mb_sdd_self_check_r3.bats",
     "tests/bats/test_mb_spec_validate_r2.bats",
     "tests/bats/test_mb_spec_validate_v2.bats",
     "tests/bats/test_mb_spec_validate_v2_battery.bats",

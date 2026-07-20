@@ -146,15 +146,6 @@ mk_green_target() { printf '#!/usr/bin/env bash\necho "ok 1 demo_persist"\nexit 
   [[ "$output" == *"eval.1=invalid"* ]]
 }
 
-@test "self_check: existing target but missing runner tool → invalid tool_unavailable, never ready, exit 1" {
-  local dir; dir="$(mk1 demo 'madeuptool_xyz tests/sh/red.sh')"
-  mk_red_target tests/sh/red.sh   # target exists, runner does not
-  run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"eval.1=invalid"* ]]
-  [[ "$output" != *"eval.1=ready"* ]]
-}
-
 @test "self_check: A/B behavioural rule — absent target no red, real matched red → ready" {
   # (A) absent → not observed red
   local dir; dir="$(mk1 abs 'bash tests/sh/red.sh')"

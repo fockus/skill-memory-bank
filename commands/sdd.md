@@ -140,7 +140,15 @@ Decomposition rules:
 Publication in `specs/` ≠ acceptance. Neither the helper nor the orchestrator calls a draft "accepted" until it has passed C8 and cleared review.
 
 - Every new/regenerated triple is published with `requirements.md: status: draft`.
-- `status` becomes `ready` **only** after `mb-sdd-self-check.sh` exit 0 (C8=pass) **and** one of: review disabled (`sdd.spec_review.enabled=false`); review returned **APPROVED** (`mb-sdd-review-result.sh record` exit 0); or an explicit human/orchestrator decision to accept on **SKIPPED** or on dismissed issues (written as its own JSONL line).
+- `status` becomes `ready` **only** after `mb-sdd-self-check.sh` exit 0 (C8=pass) **and** one of: review disabled (`sdd.spec_review.enabled=false`); review returned **APPROVED** (`mb-sdd-review-result.sh record` exit 0); or an explicit human/orchestrator decision to accept on **SKIPPED** or on dismissed issues, recorded through the same single writer as its own JSONL line:
+
+```bash
+bash scripts/mb-sdd-review-result.sh decide --topic <topic> --attempt <n> --input - --mb <bank> <<'IN'
+{"status":"decided","decision":"accept","basis":"skipped","rationale":"<why this is acceptable>","decided_by":"<who>"}
+IN
+```
+
+  `decision` is `accept`|`reject`, `basis` is `skipped`|`dismissed_issues`, and both `rationale` and `decided_by` must be non-empty — an unexplained accept is exactly what the audit trail exists to prevent. Exit 0 = accepted, 1 = rejected, 2 = malformed. Never hand-append this line, and never fake an `APPROVED` review to express a human decision: those are different facts and the log is append-only, so the lie is permanent. Like `record`, the actor is CLAIMED, not verified.
 - A C8 failure (`mb-sdd-self-check.sh` exit ≠ 0) **or** **CHANGES_REQUESTED** (record exit 1) keeps `status: draft`. A plain **SKIPPED** without an explicit decision is also draft — nothing becomes ready silently.
 - Fixes after CHANGES_REQUESTED run the whole cycle again, in the Step 7-9 order: new candidate → C3 gate → staged C8 on `<bank>/tmp/sdd/<topic>/` → review → atomic promotion. Promotion is the LAST step: an accepted `specs/<topic>/tasks.md` is never replaced by a re-generated candidate that has not yet passed C8 and review (REQ-053 byte-identity). No partial edits to an accepted file.
 

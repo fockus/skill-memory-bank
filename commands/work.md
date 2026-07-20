@@ -259,9 +259,11 @@ When the user types `/mb work [args...]`:
    Only after all steps in the selected workflow have passed for this item — for governed workflows, `GO` or `GO_WITH_BACKLOG` from judge is required, and backlog items must be registered before marking done — run this deterministic sequence (never hand-edit the checkboxes yourself):
 
    ```bash
-   bash scripts/mb-work-state.sh done --mb <bank>
-   bash scripts/mb-work-checkbox.sh flip <source> <item_no> --mb <bank>
+   bash scripts/mb-work-state.sh done ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>
+   bash scripts/mb-work-checkbox.sh flip <source> <item_no> ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>
    ```
+
+   The `${RUN_ID:+--run-id "$RUN_ID"}` form is required, not decorative. Under `MB_WORK_PARALLEL` the state lives in the per-run slot `<bank>/.work-state/<run_id>.json`, so a bare `done --mb <bank>` reads the singleton, finds nothing and exits 2 (`no active work-state`) — the run can be started but never completed through this sequence. With `RUN_ID` unset (the single-run default) the expansion is empty and the commands are byte-identical to the plain form.
 
    `mb-work-state.sh done` **refuses with exit 5** when the item's declared, non-waived `**Eval:**` has no proven red→green transition in this run's state (no eval record, an unverifiable proof, no observed red, or `green_exit != 0`), and equally when the locator fields resolve to a real tasks.md that has no such item. That refusal is the gate working: re-run `eval-red`/`eval-green` for the item rather than routing around it. A task declaring `Eval: none` (an explicit waiver) and a source with no declaration surface at all stay ungated. On success it sets `phase: "done"` for the current `item_no` — the completion gate `mb-work-checkbox.sh flip` requires before it will touch the source file's DoD bullets. `flip` then converts that item's `⬜`/`[ ]` DoD bullets to `✅`/`[x]`, scoped to its `<!-- mb-stage:N -->` / `<!-- mb-task:N -->` marker block only. **A refused flip (exit 1) means the gate did not truly pass** — treat it as a bug in the loop (state/item mismatch), not as something to work around by editing the file directly.
 
@@ -281,7 +283,7 @@ When the user types `/mb work [args...]`:
    - Without `--auto`: prompt the user to confirm before moving to the next item.
    - With `--auto`: continue to the next item unless one of the hard stops (below) fired.
 
-6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used. Run `bash scripts/mb-work-budget.sh clear --mb <bank>` and `bash scripts/mb-work-state.sh clear --mb <bank>` to remove the budget and loop-state.
+6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used. Run `bash scripts/mb-work-budget.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` and `bash scripts/mb-work-state.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` to remove the budget and loop-state — the same run-id threading as `done`/`flip`, so a parallel run clears its own slot rather than the singleton.
 
 ## Concurrent core-file writes
 

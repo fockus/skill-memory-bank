@@ -8,7 +8,12 @@
 # <private>…</private> and never honours the `<!-- mb-secret-ok -->` pragma
 # (critical R3-001: <private> guards index/search, NOT git diff).
 #
-# Usage:  mb-secret-scan.sh --policy <transcript|brief-input> <file>
+# Usage:  mb-secret-scan.sh --policy <transcript|brief-input> <file>|-
+#
+# `-` reads the payload from STDIN. A caller holding a payload in memory used to
+# have to spill it to a mktemp file just to scan it, so the UNSCANNED bytes sat
+# on disk for the duration and survived a crash between the write and the rm
+# (svp-sdd-core r3 review [7]). Findings are reported against `<stdin>`.
 # stdout: exactly one of `scan=clean` | `scan=blocked` | `scan=unsupported`.
 # stderr: blocked → one `<file>:<line>:<email|api_key>` per finding, ordered by
 #         (line, column); the secret itself is never printed. unsupported → one
@@ -54,35 +59,46 @@ done
 [ "$have_file" -eq 1 ] || usage_error
 
 case "$POLICY" in
-  transcript) ;;
-  brief-input) printf 'policy_not_implemented\n' >&2; exit 2 ;;
+  transcript|brief-input) ;;
   *) usage_error ;;
 esac
 
 # File inspection + pattern scan. Determinism per C5: readable regular file →
 # NUL → magic container → non-UTF-8 → scannable.
-python3 - "$FILE" "$IMPORT_PY" <<'PY'
+python3 - "$FILE" "$IMPORT_PY" "$POLICY" 3<&0 <<'PY'
 import os
 import re
 import sys
 
 path = sys.argv[1]
 import_py = sys.argv[2]
+policy = sys.argv[3]
+from_stdin = path == "-"
+label = "<stdin>" if from_stdin else path
 
 
 def unsupported(reason):
     sys.stdout.write("scan=unsupported\n")
-    sys.stderr.write("%s:0:%s\n" % (path, reason))
+    sys.stderr.write("%s:0:%s\n" % (label, reason))
     sys.exit(2)
 
 
-if not (os.path.isfile(path) and os.access(path, os.R_OK)):
-    unsupported("unreadable")
-try:
-    with open(path, "rb") as fh:
-        data = fh.read()
-except OSError:
-    unsupported("unreadable")
+if from_stdin:
+    # Bytes only; never materialised anywhere on disk. fd 3 carries the caller's
+    # stdin because fd 0 is this program text (heredoc).
+    try:
+        with os.fdopen(3, "rb", closefd=True) as fh:
+            data = fh.read()
+    except OSError:
+        unsupported("unreadable")
+else:
+    if not (os.path.isfile(path) and os.access(path, os.R_OK)):
+        unsupported("unreadable")
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        unsupported("unreadable")
 
 if b"\x00" in data:
     unsupported("binary")
@@ -113,17 +129,31 @@ def load_re(name):
 EMAIL_RE = load_re("EMAIL_RE")
 APIKEY_RE = load_re("APIKEY_RE")
 
+source_lines = text.split("\n")
 findings = []
-for i, line in enumerate(text.split("\n"), start=1):
+for i, line in enumerate(source_lines, start=1):
     for mo in EMAIL_RE.finditer(line):
         findings.append((i, mo.start(), "email"))
     for mo in APIKEY_RE.finditer(line):
         findings.append((i, mo.start(), "api_key"))
 findings.sort(key=lambda t: (t[0], t[1]))
 
+# `brief-input` (svp-brief C5) is `transcript` plus ONE difference: it honours
+# an explicit `<!-- mb-secret-ok -->` pragma on the finding line or on the line
+# immediately above it, and suppresses ONLY the findings those two lines carry.
+# The window is deliberately two lines: anything wider would let one pragma
+# clear a whole document. `<private>` still suppresses nothing under either
+# policy — it guards index/search redaction, never the git write.
+PRAGMA = "<!-- mb-secret-ok -->"
+if policy == "brief-input":
+    def pragma_on(lineno):
+        return 1 <= lineno <= len(source_lines) and PRAGMA in source_lines[lineno - 1]
+
+    findings = [f for f in findings if not (pragma_on(f[0]) or pragma_on(f[0] - 1))]
+
 if findings:
-    for ln, _col, label in findings:
-        sys.stderr.write("%s:%s:%s\n" % (path, ln, label))
+    for ln, _col, kind in findings:
+        sys.stderr.write("%s:%s:%s\n" % (label, ln, kind))
     sys.stdout.write("scan=blocked\n")
     sys.exit(1)
 

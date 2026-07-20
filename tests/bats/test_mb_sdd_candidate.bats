@@ -242,7 +242,7 @@ _final_sum() { cksum < "$FINAL"; }
 
 # ── round-2 review [14]: the documented --force gate is enforced ─────────────
 
-@test "candidate: publish over an EXISTING spec triple is refused without --force" {
+@test "candidate_publish: publish over an EXISTING spec triple is refused without --force" {
   # commands/sdd.md documents "--force — overwrite an existing spec triple
   # (refuses without it)"; publish used to rename straight over it.
   # setup() already wrote an accepted FINAL ("ORIGINAL FINAL").
@@ -255,10 +255,21 @@ _final_sum() { cksum < "$FINAL"; }
   [ "$(_final_sum)" = "$before" ]
 }
 
-@test "candidate: publish over an existing spec triple succeeds WITH --force" {
+@test "candidate_publish: publish over an existing spec triple succeeds WITH --force" {
   run bash "$SCRIPT" publish --topic "$TOPIC" \
     --candidate "$CAND" --estimate-file "$(_estimate ok none none)" --mb "$BANK" --force
   [ "$status" -eq 0 ]
   [[ "$output" == *"candidate=published"* ]]
   grep -q 'CANDIDATE CONTENT' "$FINAL"
+}
+
+@test "candidate_publish: every @test name carries the declared red-anchor prefix" {
+  # The anchor is only load-bearing if it matches EVERY test: two --force tests
+  # were named `candidate: `, so a regression confined to the force gate would
+  # never match `not ok [0-9]+ candidate_publish: ` and would be dismissed as a
+  # foreign failure (r3 review [9]).
+  local bad
+  bad="$(grep -E '^@test ' "$BATS_TEST_FILENAME" \
+        | grep -vE '^@test "candidate_publish: ' || true)"
+  [ -z "$bad" ] || { echo "tests outside the declared red anchor:"; echo "$bad"; false; }
 }

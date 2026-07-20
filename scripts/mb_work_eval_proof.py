@@ -63,3 +63,43 @@ def verify(evaluation: Mapping[str, Any], key: str = PROOF_KEY) -> bool:
     if not isinstance(recorded, str) or not recorded:
         return False
     return sign(evaluation, key) == recorded
+
+
+#: Separate key/field-set for the DECLARATION binding (r3 review [1]).
+#:
+#: The `done` gate used to re-read the Eval declaration from the live tasks.md,
+#: so swapping `**Eval:** <cmd>` for `**Eval:** none — waiver: temporary`
+#: between `init` and `done` turned a gated task into a waived one and recorded
+#: the lie faithfully as `eval_gate=waived:eval_none`. Round 2 snapshotted the
+#: eval COMMAND; presence and waiver status stayed on the mutable path.
+#:
+#: `init` now binds the whole declaration surface — verdict, command and red
+#: anchors — and `done` re-derives it and requires equality. Same honest scope as
+#: `sign()`: checksum-grade integrity against casual edits, not tamper-proofing.
+DECL_KEY = "mb-work-state/eval-decl/v1"
+
+DECL_FIELDS = ("verdict", "cmd", "anchors")
+
+
+def decl_payload(decl: Mapping[str, Any]) -> str:
+    """Deterministic serialization of the bound declaration fields."""
+    return json.dumps(
+        {k: decl.get(k) for k in DECL_FIELDS},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def sign_decl(decl: Mapping[str, Any], key: str = DECL_KEY) -> str:
+    """Checksum binding the declaration surface captured at `init`."""
+    return hashlib.sha256((key + "\0" + decl_payload(decl)).encode("utf-8")).hexdigest()
+
+
+def verify_decl(decl: Mapping[str, Any], key: str = DECL_KEY) -> bool:
+    """True when the recorded declaration `sig` matches its fields."""
+    if not isinstance(decl, Mapping):
+        return False
+    recorded = decl.get("sig")
+    if not isinstance(recorded, str) or not recorded:
+        return False
+    return sign_decl(decl, key) == recorded

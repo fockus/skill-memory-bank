@@ -170,6 +170,18 @@ cmd_init() {
       ;;
   esac
 
+  local bank_early; bank_early=$(mb_resolve_path "$mb_arg")
+
+  # Containment (r3 [2]) — resolver lives in the lib (init_spec_locator).
+  if [ "$source_" = "spec" ]; then
+    local _loc
+    _loc=$(init_spec_locator "$bank_early" "$source_topic" "$source_path") || {
+      echo "[work-state] init: spec source must be a contained <bank>/specs/<topic>/tasks.md (refusing an out-of-bank, traversing or symlink-escaping locator)" >&2
+      exit 2; }
+    source_topic=${_loc%%$'\037'*}
+    source_path=${_loc#*$'\037'}
+  fi
+
   [ -z "$run_id" ] && run_id="${MB_WORK_RUN_ID:-}"
   [ -z "$run_id" ] && run_id=$(gen_run_id)
   [ -z "$max_cycles" ] && max_cycles=$(resolve_max_cycles "$mb_arg")
@@ -178,8 +190,12 @@ cmd_init() {
     exit 2
   fi
 
-  local bank; bank=$(mb_resolve_path "$mb_arg")
+  local bank; bank="$bank_early"
   mkdir -p "$bank"
+
+  # Bind the whole declaration surface NOW (r3 [1]); `done` refuses on change.
+  local decl_json
+  decl_json=$(eval_bind_declaration "$bank" "$source_path" "$source_topic" "$item_no" "$source_")
 
   # Claim check (I-094): only under MB_WORK_PARALLEL, unless --takeover.
   if mbw_parallel_on && [ "$takeover" != "1" ]; then
@@ -197,26 +213,8 @@ cmd_init() {
   mkdir -p "$(dirname "$state")"
 
   tmp=$(mktemp)
-  RUN_ID="$run_id" SOURCE="$source_" ITEM_NO="$item_no" HEADING="$heading" \
-    SOURCE_PATH="$source_path" SOURCE_TOPIC="$source_topic" \
-    MAX_CYCLES="$max_cycles" BASELINE_REF="$baseline_ref" TMP="$tmp" python3 - <<'PY'
-import json, os, datetime
-state = {
-    "run_id": os.environ["RUN_ID"],
-    "source": os.environ["SOURCE"],  # category; the locator fields follow ([9])
-    "source_path": os.environ.get("SOURCE_PATH", ""),
-    "source_topic": os.environ.get("SOURCE_TOPIC", ""),
-    "item_no": int(os.environ["ITEM_NO"]),
-    "heading": os.environ.get("HEADING", ""),
-    "cycle": 0,
-    "max_cycles": int(os.environ["MAX_CYCLES"]),
-    "steps": [],
-    "phase": "in-progress",
-    "baseline_ref": os.environ.get("BASELINE_REF", ""),
-    "updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-}
-open(os.environ["TMP"], "w", encoding="utf-8").write(json.dumps(state) + "\n")
-PY
+  write_init_state "$tmp" "$run_id" "$source_" "$item_no" "$heading" \
+    "$source_path" "$source_topic" "$decl_json" "$max_cycles" "$baseline_ref"
   mv "$tmp" "$state"
 
   if mbw_parallel_on; then

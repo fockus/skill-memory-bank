@@ -11,6 +11,8 @@
 #   mb-sdd-review-result.sh record --topic <topic> --attempt <n> \
 #        --generator-model <exact> --reviewer-model <exact> --reviewer-agent <exact> \
 #        --thinking <low|medium|high> --input <path|-> [--mb <bank>]
+#   mb-sdd-review-result.sh decide --topic <topic> --attempt <n> \
+#        --input <path|-> [--mb <bank>]
 #
 # check  — called BEFORE dispatch. Equal generator/reviewer models → stderr
 #          `same_model`, exit 2 (dispatch forbidden). Otherwise exit 0.
@@ -27,8 +29,19 @@
 # consistency only. Every record therefore carries `reviewer_provenance:
 # "claimed"`; no consumer may treat it as proof that the named model ran.
 #
-# exit : 0 APPROVED · 1 CHANGES_REQUESTED · 2 same_model | unavailable(skipped)
-#        | malformed | usage.
+# decide — the C7 explicit human/orchestrator decision, written as its OWN
+#          append-only JSONL line. sdd.md allows `ready` on an explicit accept
+#          over a SKIPPED review or dismissed issues, but there was no way to
+#          record that through the single sanctioned writer: the only options
+#          were a hand-rolled append or a false APPROVED, both of which corrupt
+#          the audit trail (r3 review [4]). Closed schema, no reviewer identity
+#          (a decision is not a review):
+#            {"status":"decided","decision":"accept"|"reject",
+#             "basis":"skipped"|"dismissed_issues",
+#             "rationale":"<non-empty>","decided_by":"<non-empty>"}
+#
+# exit : 0 APPROVED | decided-accept · 1 CHANGES_REQUESTED | decided-reject
+#        · 2 same_model | unavailable(skipped) | malformed | usage.
 #
 # The triple's requirements.md status is NOT changed here — that is the
 # orchestrator's C7 state-machine decision, keyed on this exit code.
@@ -71,12 +84,14 @@ if [ "$ACTION" = "check" ]; then
   exit 0
 fi
 
-[ "$ACTION" = "record" ] || usage_error
+case "$ACTION" in record|decide) : ;; *) usage_error ;; esac
 { [ -n "$TOPIC" ] && [ -n "$ATTEMPT" ] && [ -n "$INPUT" ]; } || usage_error
-# All reviewer-identity flags are MANDATORY for record (blocker #4): the helper
-# records the reviewer identity and must verify it against the resolved IDs the
-# prompt actually dispatched — record must never sign a foreign identity.
-{ [ -n "$GEN" ] && [ -n "$REV" ] && [ -n "$AGENT" ] && [ -n "$THINKING" ]; } || usage_error
+if [ "$ACTION" = "record" ]; then
+  # All reviewer-identity flags are MANDATORY for record (blocker #4): the helper
+  # records the reviewer identity and must verify it against the resolved IDs the
+  # prompt actually dispatched — record must never sign a foreign identity.
+  { [ -n "$GEN" ] && [ -n "$REV" ] && [ -n "$AGENT" ] && [ -n "$THINKING" ]; } || usage_error
+fi
 
 # Topic must be a safe slug (blocker #9): no traversal, no separators.
 case "$TOPIC" in
@@ -84,8 +99,9 @@ case "$TOPIC" in
 esac
 case "$TOPIC" in [A-Za-z0-9]*) : ;; *) usage_error ;; esac
 
-# same_model must be caught BEFORE any append (resolved IDs are equal).
-if [ "$GEN" = "$REV" ]; then
+# same_model must be caught BEFORE any append (resolved IDs are equal). Only
+# meaningful for `record`; a decision has no reviewer pair.
+if [ "$ACTION" = "record" ] && [ "$GEN" = "$REV" ]; then
   printf 'same_model\n' >&2
   exit 2
 fi
@@ -109,16 +125,83 @@ OUTDIR="$BANK/tmp/spec-review"
 # canonical dispatcher — no second regex set lives here. Any verdict other than
 # a clean scan refuses the record; `<private>` markers do NOT exempt a payload
 # (that guard covers index/search, not durable git-tracked content).
-SCAN_TMP="$(mktemp)"
-printf '%s' "$RAW" > "$SCAN_TMP"
+# The payload is STREAMED to the scanner, never spilled to a file first
+# (r3 review [7]). The old mktemp round-trip wrote the UNSCANNED credential to
+# /tmp and relied on reaching the `rm`; a crash or SIGKILL in that window left it
+# readable on disk, which is exactly the leak this gate exists to prevent.
 set +e
-SCAN_OUT="$(bash "$SECRET_SCAN" --policy transcript "$SCAN_TMP" 2>/dev/null)"
+SCAN_OUT="$(printf '%s' "$RAW" | bash "$SECRET_SCAN" --policy transcript - 2>/dev/null)"
 scan_rc=$?
 set -e
-rm -f "$SCAN_TMP"
 if [ "$scan_rc" -ne 0 ] || [ "$SCAN_OUT" != "scan=clean" ]; then
   printf 'secret_blocked\n' >&2
   exit 2
+fi
+
+if [ "$ACTION" = "decide" ]; then
+  set +e
+  DEC_LINE="$(
+    MB_RAW="$RAW" MB_TOPIC="$TOPIC" MB_ATTEMPT="$ATTEMPT" MB_BANK="$BANK" python3 - <<'PYDEC'
+import json, os, sys, datetime, pathlib
+
+raw = os.environ["MB_RAW"]
+topic = os.environ["MB_TOPIC"]
+bank = os.environ["MB_BANK"]
+outdir = os.path.join(bank, "tmp", "spec-review")
+
+
+def bad(_msg):
+    sys.stderr.write("malformed\n")
+    sys.exit(2)
+
+
+try:
+    obj = json.loads(raw)
+except Exception:
+    bad("json")
+
+# Closed schema: exactly these keys, exactly these enums. A decision record that
+# can say anything is not an audit trail.
+if not isinstance(obj, dict) or set(obj) != {
+        "status", "decision", "basis", "rationale", "decided_by"}:
+    bad("keys")
+if obj["status"] != "decided":
+    bad("status")
+if obj["decision"] not in ("accept", "reject"):
+    bad("decision")
+if obj["basis"] not in ("skipped", "dismissed_issues"):
+    bad("basis")
+for k in ("rationale", "decided_by"):
+    if not isinstance(obj[k], str) or not obj[k].strip():
+        bad(k)   # an unexplained accept is what the trail exists to prevent
+
+try:
+    attempt = int(os.environ["MB_ATTEMPT"])
+except Exception:
+    bad("attempt")
+
+ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+rec = dict(obj)
+rec["ts"] = ts
+rec["attempt"] = attempt
+# Same honesty rule as `record`: the actor is asserted by the caller, so it is
+# marked CLAIMED and no consumer may read it as verified.
+rec["decided_by_provenance"] = "claimed"
+
+pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
+with open(os.path.join(outdir, topic + ".jsonl"), "a", encoding="utf-8") as fh:
+    fh.write(json.dumps(rec, sort_keys=True, separators=(",", ":")) + "\n")
+
+sys.stdout.write("spec_decision=%s basis=%s attempt=%d"
+                 % (obj["decision"], obj["basis"], attempt))
+sys.exit(0 if obj["decision"] == "accept" else 1)
+PYDEC
+  )"
+  dec_rc=$?
+  set -e
+  [ "$dec_rc" -eq 2 ] && exit 2
+  printf '%s\n' "$DEC_LINE"
+  exit "$dec_rc"
 fi
 
 set +e

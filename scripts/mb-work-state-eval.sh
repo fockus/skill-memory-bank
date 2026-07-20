@@ -70,15 +70,11 @@ eval_run_root() {
   if [ -n "$top" ]; then printf '%s' "$top"; else pwd; fi
 }
 
-# The proof payload/key now lives in scripts/mb_work_eval_proof.py — one
-# definition for all four call sites, because the inlined copies had already
-# drifted apart (green_exit was signed by none of them).
-#
-# Honest scope (AGR-026): this is checksum-grade integrity, NOT tamper-proofing.
-# The key sits in the checkout, so anyone able to edit the state file can also
-# forge a signature; what it catches is casual/accidental hand-editing.
-# Unforgeable proof needs the orchestrator-held key of AGR-026, where the key
-# never enters the agent's process. Do not describe this gate as tamper-proof.
+# The proof payload/key lives in scripts/mb_work_eval_proof.py — one definition
+# for all call sites (the inlined copies had drifted; green_exit was signed by
+# none of them). Honest scope (AGR-026): checksum-grade integrity, NOT
+# tamper-proofing — the key sits in the checkout, so anyone who can edit the
+# state can forge a signature. It catches casual/accidental hand-editing only.
 
 # ── done gate (review [11]) ───────────────────────────────────────────────
 # `done` used to write phase=done unconditionally, so `init` + `done` certified
@@ -95,12 +91,27 @@ eval_run_root() {
 # shellcheck disable=SC2034  # MBW_DONE_GATE is consumed by cmd_done (parent file)
 eval_require_done_proof() {
   local state="$1"
-  local bank verdict item_no source_
+  local bank verdict item_no source_ live_decl
   bank=$(mb_resolve_path "${PARSED_EVAL_MB:-}")
   item_no=$(eval_state_field "$state" item_no)
   source_=$(eval_state_field "$state" source)
-  verdict=$(eval_declaration "$bank" "$(eval_state_field "$state" source_path)" \
-    "$(eval_state_field "$state" source_topic)" "$item_no" "$source_" | sed -n '1p')
+
+  # Decided on the BOUND snapshot, never a fresh read of the live file (r3 [1]):
+  # swapping a real Eval for `none — waiver:` between init and done used to give
+  # rc=0 + eval_gate=waived:eval_none with no Eval run. Check: eval_bound_verdict.
+  verdict=$(eval_bound_verdict "$state" "$bank" "$item_no" "$source_")
+
+  case "$verdict" in
+    UNBOUND)
+      echo "[work-state] done: this run predates declaration binding; re-run 'init' so the Eval declaration is bound before certifying" >&2
+      exit 5 ;;
+    DECLTAMPERED)
+      echo "[work-state] done: bound Eval declaration is invalid (state tampered); refusing to certify" >&2
+      exit 5 ;;
+    DECLCHANGED)
+      echo "[work-state] done: the Eval declaration changed since init (command, anchors, waiver status or the file itself); refusing to certify — re-run 'init' if the change is intended" >&2
+      exit 5 ;;
+  esac
 
   # MBW_DONE_GATE is the honest record of WHY this done was allowed. `done`
   # writes it into the state and echoes it, so a green done can never again be
@@ -164,7 +175,8 @@ cmd_eval_red() {
   done
   [ -z "$run_id" ] && run_id="${MB_WORK_RUN_ID:-}"
   [ -n "$cmd_file" ] || { echo "[work-state] eval-red --cmd-file required" >&2; exit 2; }
-  [ -n "$output_re" ] || { echo "[work-state] eval-red --output-re required" >&2; exit 2; }
+  # --output-re is NOT required here: C1 makes both anchors optional for a
+  # non-gated task; legality is decided by the DECLARATION, resolved below.
   { [ -f "$cmd_file" ] && [ -r "$cmd_file" ]; } || { echo "[work-state] eval-red: cmd-file not found" >&2; exit 2; }
   if [ -n "$expected_exit" ]; then
     # A red exit is by definition non-zero; --expected-exit only refines WHICH
@@ -200,27 +212,33 @@ cmd_eval_red() {
     "$(eval_state_field "$state" item_no)" "$(eval_state_field "$state" source)")
   declared_exit=${anchors%%$'\037'*}
   declared_ore=${anchors#*$'\037'}
-  if [ -n "$declared_ore" ] && [ "$output_re" != "$declared_ore" ]; then
+  # Declared anchors are authoritative in BOTH directions (eval_reconcile_anchors).
+  local _rec
+  _rec=$(eval_reconcile_anchors "$output_re" "$expected_exit" "$declared_ore" "$declared_exit") || {
     rm -f "$snap"
-    echo "[work-state] eval-red: --output-re does not match the declared output~ anchor for this task" >&2
-    exit 2
-  fi
-  if [ -n "$declared_exit" ] && [ -n "$expected_exit" ] && [ "$expected_exit" != "$declared_exit" ]; then
-    rm -f "$snap"
-    echo "[work-state] eval-red: --expected-exit does not match the declared exit: anchor for this task" >&2
-    exit 2
-  fi
-  [ -n "$expected_exit" ] || expected_exit="$declared_exit"
+    case "$_rec" in
+      ORE_MISMATCH) echo "[work-state] eval-red: --output-re does not match the declared output~ anchor for this task" >&2 ;;
+      ORE_UNDECLARED) echo "[work-state] eval-red: this task declares no output~ anchor; --output-re is not accepted for it" >&2 ;;
+      EXIT_MISMATCH) echo "[work-state] eval-red: --expected-exit does not match the declared exit: anchor for this task" >&2 ;;
+      *) echo "[work-state] eval-red: this task declares no exit: anchor; --expected-exit is not accepted for it" >&2 ;;
+    esac
+    exit 2; }
+  output_re=${_rec%%$'\037'*}
+  _rec=${_rec#*$'\037'}
+  expected_exit=${_rec%%$'\037'*}
+  local red_anchor=${_rec#*$'\037'}
 
   # --output-re must compile as an ERE (grep -E exits 2 on a bad pattern).
-  local gec
-  set +e
-  printf '' | grep -Eq -- "$output_re" 2>/dev/null
-  gec=$?
-  set -e
-  if [ "$gec" -eq 2 ]; then
-    rm -f "$snap"
-    echo "[work-state] eval-red: --output-re is not a valid ERE" >&2; exit 2
+  if [ -n "$output_re" ]; then
+    local gec
+    set +e
+    printf '' | grep -Eq -- "$output_re" 2>/dev/null
+    gec=$?
+    set -e
+    if [ "$gec" -eq 2 ]; then
+      rm -f "$snap"
+      echo "[work-state] eval-red: --output-re is not a valid ERE" >&2; exit 2
+    fi
   fi
 
   local run_root out rc mrc red_match=0
@@ -228,8 +246,12 @@ cmd_eval_red() {
   set +e
   out=$(cd "$run_root" && bash "$snap" 2>&1)
   rc=$?
-  printf '%s\n' "$out" | grep -Eq -- "$output_re"
-  mrc=$?
+  if [ -n "$output_re" ]; then
+    printf '%s\n' "$out" | grep -Eq -- "$output_re"
+    mrc=$?
+  else
+    mrc=0                      # anchorless: nothing to match, exit decides
+  fi
   set -e
 
   # Reject a cmd-file that modified itself during the run (the executed version
@@ -247,7 +269,7 @@ cmd_eval_red() {
 
   local tmp; tmp=$(mktemp)
   STATE="$state" TMP="$tmp" SNAP="$snap" RED_EXIT="$rc" RED_MATCH="$red_match" \
-    OUTPUT_RE="$output_re" EXPECTED_EXIT="$expected_exit" \
+    OUTPUT_RE="$output_re" EXPECTED_EXIT="$expected_exit" RED_ANCHOR="$red_anchor" \
     MB_SD="$SCRIPT_DIR" python3 - <<'PY'
 import json, os, datetime, hashlib, sys
 sys.path.insert(0, os.environ["MB_SD"])
@@ -267,6 +289,8 @@ e = {
     # The declared anchors this red was judged against (review [10]).
     "output_re": os.environ.get("OUTPUT_RE", ""),
     "expected_exit": os.environ.get("EXPECTED_EXIT", ""),
+    # "none" when C1 declared neither anchor (red judged by exit != 0 alone).
+    "red_anchor": os.environ.get("RED_ANCHOR", "declared"),
 }
 e["sig"] = proof.sign(e)
 data["eval"] = e

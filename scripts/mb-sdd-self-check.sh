@@ -26,7 +26,9 @@
 #
 # stdout : first line `self_check=ready|invalid`, then one
 #          `eval.<task-id>=ready|pending_materialization|invalid` per task in
-#          ascending task-id order.
+#          ascending task-id order, each optionally followed by
+#          `eval.<task-id>.reason=<reason>` where C8 names one
+#          (currently: `tool_unavailable`).
 # exit   : 0 = no `invalid` and structural checks passed (ready);
 #          1 = any structural or behavioural violation (`eval.*=invalid`,
 #              Blocked-by cycle, spec-validate / parity / role failure);
@@ -200,7 +202,10 @@ targets = [t for t in toks if "/" in t and not t.startswith("-")]
 if not targets:
     print("PENDING"); sys.exit(0)
 for t in targets:
-    if not (os.path.exists(os.path.join(root, t)) or os.path.exists(t)):
+    # RUN_ROOT only: the command is executed from there, so that is the sole
+    # place a repo-relative target can be said to exist. Consulting the cwd of
+    # the CALLER let a same-named local file flip pending_materialization to RUN.
+    if not os.path.exists(os.path.join(root, t)):
         print("PENDING"); sys.exit(0)
 # `VAR=value cmd ...` is valid shell: the leading assignments are environment,
 # not the runner. Treating `PYTHONPATH=src` as the tool made shutil.which fail
@@ -218,7 +223,8 @@ PY
 )"
   case "$pre" in
     PENDING) printf 'pending_materialization'; return ;;
-    TOOL|MALFORMED) printf 'invalid'; return ;;
+    TOOL) printf 'invalid\037tool_unavailable'; return ;;
+    MALFORMED) printf 'invalid'; return ;;
     RUN) : ;;
     *) printf 'invalid'; return ;;
   esac
@@ -229,7 +235,7 @@ PY
   out="$(cd "$RUN_ROOT" && eval "$cmd" 2>&1)"
   rc=$?
   set -e
-  if [ "$rc" -eq 127 ]; then printf 'invalid'; return; fi
+  if [ "$rc" -eq 127 ]; then printf 'invalid\037tool_unavailable'; return; fi
 
   # Observe the DECLARED red: output must match output_re and (when declared)
   # the exit must equal the declared exit. Without any anchor a red cannot be
@@ -260,9 +266,20 @@ if [ -n "$TSV" ]; then
   # Ascending task-id order.
   while IFS="$(printf '\037')" read -r id cmd exp ore; do
     [ -n "$id" ] || continue
-    status="$(classify_eval "$cmd" "$exp" "$ore")"
+    # classify_eval returns `status` optionally followed by <US> and a reason.
+    # A plain variable could not carry it: the function runs inside $( ), so
+    # anything it assigns dies with the subshell.
+    raw="$(classify_eval "$cmd" "$exp" "$ore")"
+    status="${raw%%$'\037'*}"
+    reason=""
+    case "$raw" in *$'\037'*) reason="${raw#*$'\037'}" ;; esac
     case "$status" in invalid) any_invalid=1 ;; esac
     EVAL_LINES="${EVAL_LINES}eval.${id}=${status}"$'\n'
+    # A reason line is emitted only where C8 names one, so a reason is always
+    # attributable rather than a generic restatement of `invalid`.
+    if [ -n "$reason" ]; then
+      EVAL_LINES="${EVAL_LINES}eval.${id}.reason=${reason}"$'\n'
+    fi
   done <<EOF
 $(printf '%s\n' "$TSV" | sort -t"$(printf '\037')" -k1,1n)
 EOF
