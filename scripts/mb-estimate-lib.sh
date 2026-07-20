@@ -8,13 +8,10 @@
 # Context-file C1 parser. Emits: `status=<ok|near|over|missing|malformed>`,
 # `total=<N>`, and one `M <line> <field>` per malformed finding.
 #
-# STRICT state machine (S1 review r2, findings [11] and [16]). estimated_tokens
-# is honoured ONLY as a top-level key inside the first YAML frontmatter, and it
-# must appear EXACTLY ONCE: the old parser searched descendants at any depth for
-# `total:` / `breakdown:`, so an `estimated_tokens.wrapper.total/breakdown` block
-# validated as estimate=ok, and it silently took the FIRST of several top-level
-# sections, so a valid zero-valued section followed by an over-budget or
-# malformed one also passed.
+# STRICT state machine (r2 [11]/[16]). estimated_tokens is honoured ONLY as a
+# top-level frontmatter key and must appear EXACTLY ONCE: the old parser searched
+# descendants at any depth, so `estimated_tokens.wrapper.total/breakdown`
+# validated as ok, and it silently took the FIRST of several sections.
 #
 # The direct children of estimated_tokens are exactly `total` and `breakdown`,
 # each once. `breakdown:` carries exactly the six known categories as its own
@@ -22,10 +19,9 @@
 # with those exact field names. Any unknown key, duplicate, extra nesting level,
 # or wrong value shape → malformed.
 #
-# Arithmetic is exact Python integer arithmetic, never awk doubles: with
-# count 9007199254740993 and unit 1, awk rounded both sides of
-# `subtotal == count * unit_tokens` to the same double and accepted an
-# inconsistent product as merely over-budget instead of malformed.
+# Arithmetic is exact Python integers, never awk doubles: count 9007199254740993
+# x 1 vs subtotal ...92 rounded to the same double and was accepted as merely
+# over-budget instead of malformed.
 mb_estimate_lib_context() {
   python3 - "$1" "$2" <<'PY'
 import re
@@ -271,11 +267,24 @@ PY
 # like `100junk` is malformed, not accepted).
 mb_estimate_lib_spec() {
   awk '
+    # Canonical decimal id (no leading zeros) so length-then-lexicographic
+    # comparison IS exact numeric order at any width — awk doubles collapse
+    # 9007199254740992 and ...93 into one id (r4 [13]).
+    function canon_id(v,   t) {
+      t = v
+      sub(/^0+/, "", t)
+      if (t == "") t = "0"
+      return t
+    }
+    function id_lt(a, b) {
+      if (length(a) != length(b)) return length(a) < length(b)
+      return a < b
+    }
     function asort_ids(src, n, dst,   i, j, t) {
       for (i = 1; i <= n; i++) dst[i] = src[i]
       for (i = 2; i <= n; i++) {
         t = dst[i]; j = i - 1
-        while (j >= 1 && dst[j] > t) { dst[j + 1] = dst[j]; j-- }
+        while (j >= 1 && id_lt(t, dst[j])) { dst[j + 1] = dst[j]; j-- }
         dst[j + 1] = t
       }
       return n
@@ -290,7 +299,7 @@ mb_estimate_lib_spec() {
       seen_task = 1
       if (is_open) {
         s = line; sub(/.*mb-task:[ \t]*/, "", s); sub(/[^0-9].*/, "", s)
-        curid = s + 0
+        curid = canon_id(s)
         nt++; tasks[nt] = curid; present[curid] = 1
         budget_seen[curid] = 0; stage_of[curid] = 1
         next
@@ -303,7 +312,7 @@ mb_estimate_lib_spec() {
           else { malformed = 1; if (mline == 0) { mline = NR; mfield = "Budget" } }
         } else if (line ~ /^\*\*Stage:\*\*/) {
           v = line; sub(/^\*\*Stage:\*\*[ \t]*/, "", v); v = trim(v)
-          if (v ~ /^[0-9]+$/) stage_of[curid] = v + 0
+          if (v ~ /^[0-9]+$/) stage_of[curid] = canon_id(v)
           else { malformed = 1; if (mline == 0) { mline = NR; mfield = "Stage" } }
         }
         if (line ~ /<!--[ \t]*\/mb-task:/) curid = ""
@@ -325,15 +334,14 @@ mb_estimate_lib_spec() {
           } else if (instages && l ~ /^[ \t]+"[^"]+":/) {
             sid = l; sub(/^[ \t]+"/, "", sid); sub(/".*/, "", sid)
             val = l; sub(/^[ \t]+"[^"]+":[ \t]*/, "", val); val = trim(val)
-            if (val ~ /^[0-9]+$/) { fm_stage[sid] = val + 0; fm_stage_seen[sid] = 1 }
+            if (val ~ /^[0-9]+$/) { fm_stage[canon_id(sid)] = val + 0; fm_stage_seen[canon_id(sid)] = 1 }
             else { malformed = 1; if (mline == 0) { mline = i; mfield = "stages" } }
           }
         }
       }
 
-      # Walk the ids actually collected, sorted — never a dense 1..maxid range.
-      # A single `mb-task:999999999` block used to spin the loop a billion times
-      # on a two-line file (minutes of CPU for one task).
+      # Walk the ids actually collected, sorted — never a dense 1..maxid range:
+      # one `mb-task:999999999` used to spin a billion iterations (r3 [20]).
       spec_total = 0; maxstage = 0; minstage = -1
       n_sorted = asort_ids(tasks, nt, sorted_ids)
       for (si = 1; si <= n_sorted; si++) {
@@ -341,7 +349,7 @@ mb_estimate_lib_spec() {
         if (!(id in present)) continue
         if (budget_seen[id]) {
           b = budget[id]
-          printf "task.%d=%d\n", id, b
+          printf "task.%s=%d\n", id, b
           spec_total += b
           st = stage_of[id]; stagesum[st] += b; stage_present[st] = 1
           if (st > maxstage) maxstage = st
@@ -353,11 +361,11 @@ mb_estimate_lib_spec() {
       }
       stage_over_list = ""
       n_st = 0
-      for (st in stage_present) { n_st++; stage_ids[n_st] = st + 0 }
+      for (st in stage_present) { n_st++; stage_ids[n_st] = canon_id(st) }
       n_st = asort_ids(stage_ids, n_st, sorted_stages)
       for (si = 1; si <= n_st; si++) {
         st = sorted_stages[si]
-        printf "stage.%d=%d\n", st, stagesum[st]
+        printf "stage.%s=%d\n", st, stagesum[st]
         if (stagesum[st] > 400000) stage_over_list = (stage_over_list == "" ? st : stage_over_list "," st)
       }
 

@@ -261,8 +261,18 @@ else:
     except (OSError, UnicodeError):
         sys.exit(1)
     mode = stat.S_IMODE(st.st_mode)
-    # Idempotent: never append the rule twice.
-    if any(l.strip() == RULE for l in existing.split("\n")):
+    # Idempotent, but on the EFFECTIVE rule rather than on mere presence.
+    # git is last-match-wins, so `/tmp/` followed by `!/tmp/` leaves the path
+    # UNIGNORED while a naive presence check reported success — check-ignore then
+    # returned 1 and `git add .` staged the raw candidate (r4 [5]).
+    effective = None
+    for line in existing.split("\n"):
+        t = line.strip()
+        if t == RULE:
+            effective = True
+        elif t == "!" + RULE:
+            effective = False
+    if effective:
         sys.exit(0)
 
 # Guarantee the separating newline before appending.

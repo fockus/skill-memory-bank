@@ -425,14 +425,21 @@ C1/C5/C8 только **читают**/сканируют, а не произв�
 
 ```
 bash scripts/mb-interview-artifact-write.sh install-plan       --mb <bank> --topic <topic> --candidate <file>
-bash scripts/mb-interview-artifact-write.sh publish-transcript --mb <bank> --topic <topic> --candidate <file> [--require-inherited] [--legacy-live-fixture]
+bash scripts/mb-interview-artifact-write.sh publish-transcript --mb <bank> --topic <topic> --candidate <file> [--require-inherited]
 ```
 
 - `install-plan` (создаёт T1): вызывает C8 `plan` над `--candidate`; при `artifact=ok` **атомарно**
   (`rename`, та же ФС `<bank>/tmp/`) заменяет `<bank>/tmp/interview-plan-<topic>.md`.
 - `publish-transcript` (добавляет T4 в тот же файл): вызывает C5 `--policy transcript` **и** C8
-  `transcript` (с прокинутыми `--require-inherited`/`--legacy-live-fixture`) над `--candidate`; при
+  `transcript` (с прокинутым `--require-inherited`) над `--candidate`; при
   обоих success **атомарно** заменяет `<bank>/context/<topic>-interview.md`.
+  `--legacy-live-fixture` **намеренно НЕ прокидывается** и на этой команде не существует
+  (ревью круга 4, находка [9]). Причина проверена прогоном, а не выведена: те же самые байты
+  замороженной фикстуры, поданные по staging-пути, дают `legacy_fixture_forbidden` (rc 2),
+  тогда как сама фикстура проходит (rc 0). Прокидывание потребовало бы ослабить ровно тот
+  whitelist, который не даёт кандидату на публикацию занять более слабую грамматику legacy-фикстур.
+  Послабление legacy остаётся ограниченным замороженными фикстурами — это инвариант, который
+  держится независимо от того, как разрешён спор о самом флаге.
 - **Инвариант**: любой failed scan/check оставляет target **byte-identical** (снимок до/после — часть
   fixture-теста); частичной записи нет.
 - **stdout**: `artifact_write=installed kind=plan|transcript`. **Exit**: 0 — installed; 1 — контент

@@ -6,6 +6,7 @@
 #
 # Name convention: every @test starts with `transcript: ` (Eval red-anchor).
 
+bats_require_minimum_version 1.5.0
 load 'lib/discuss_contract'
 
 setup() {
@@ -30,6 +31,14 @@ setup() {
   MB_DISCUSS_CLAUSES+=("transcript-candidate-consumed|mb_section|Transcript|removes the candidate on every exit path|candidate|s/on every exit path/on success/|REQ-007")
 }
 
+# The template block is the fenced markdown under "## Interview transcript
+# template"; sliced out so the validator sees exactly what the doc promises.
+_c4_template_block() {
+  local slice="$BATS_TEST_TMPDIR/c4block.md"
+  awk '/^## Interview transcript template$/{f=1} f' "$TEMPLATES" > "$slice"
+  printf '%s' "$slice"
+}
+
 _pair() {
   run assert_clause "$1" "$2"
   [ "$status" -eq 0 ]
@@ -44,6 +53,42 @@ _pair() {
 @test "transcript: a finding blocks target creation" { _pair "$DISCUSS" transcript-block-on-finding; }
 @test "transcript: context frontmatter records interview_transcript" { _pair "$DISCUSS" transcript-frontmatter; }
 @test "transcript: templates.md carries the C4 grammar markers" { _pair "$TEMPLATES" template-c4-grammar; }
+
+@test "transcript: the C4 template actually PASSES the C8 validator" {
+  # r4 [11]: the clause above pins one marker (`**Финальный гейт`), so deleting
+  # the title, inherited section, Q&A heading, Q/A markers, decision and
+  # rejected-alternatives from the template left both C9 checks green while the
+  # rendered candidate would be REJECTED by C8. Render the template with its
+  # placeholders filled and run the real validator over it — that binds every
+  # required marker at once, and to the checker rather than to a word list.
+  local rendered="$BATS_TEST_TMPDIR/rendered.md"
+  awk '/^```markdown$/{f=1; next} f && /^```$/{exit} f' \
+    "$(_c4_template_block)" > "$rendered"
+  [ -s "$rendered" ] || { echo "could not extract the C4 template block"; false; }
+
+  # Fill the angle-bracket placeholders with material the grammar accepts.
+  python3 - "$rendered" <<'FILL'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace("<topic> (<YYYY-MM-DD>[, <free text>])", "demo (2026-07-19)")
+s = s.replace("## Унаследовано (не обсуждалось повторно)", "## Унаследовано")
+s = s.replace("<inherited decisions — JIT slice interviews only; omit for a root topic>",
+              "- D-00 carried from the parent")
+s = s.replace("**Q1 (<tag>).** <question>", "**Q1 (scope).** What is the scope?")
+s = s.replace("**A1.** <near-verbatim answer> → **D-01**. Отклонено: <none|rejected alternatives>",
+              "**A1.** The scope is X → **D-01**. Отклонено: none")
+s = s.replace("**Финальный гейт[, круг 1].** Anything to add?", "**Финальный гейт.** Anything to add?")
+s = s.replace("**Ответ.** <user answer>", "**Ответ.** No.")
+open(p, "w", encoding="utf-8").write(s)
+FILL
+
+  run --separate-stderr "$REPO_ROOT/scripts/mb-interview-artifact-check.sh" \
+    transcript "$rendered" --require-inherited
+  [ "$status" -eq 0 ] || {
+    echo "the documented C4 template does not satisfy the C8 validator:"
+    echo "$stderr"; cat "$rendered"; false; }
+}
 
 # ─── candidate hygiene (review [5], REQ-007) ───
 
@@ -190,4 +235,48 @@ _pair() {
   run bash "$d2/mb-init-bank.sh" "--project-root=$proj"
   [ "$status" -eq 0 ] || { echo "multi-hop symlink failed: $output"; false; }
   [ -f "$proj/.memory-bank/status.md" ]
+}
+
+@test "transcript: a LATER negation does not count as the rule being installed" {
+  # r4 [5]: `/tmp/` followed by `!/tmp/` made init exit 0 believing the rule was
+  # present, but git applies last-match-wins — check-ignore returned 1 and
+  # `git add .` staged the raw candidate. An early match before a later negation
+  # is not idempotent success.
+  local proj="$BATS_TEST_TMPDIR/neg"
+  mkdir -p "$proj/.memory-bank"
+  printf '/tmp/\n!/tmp/\n' > "$proj/.memory-bank/.gitignore"
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+
+  git -C "$proj" init -q .
+  git -C "$proj" config user.email t@example.com
+  git -C "$proj" config user.name t
+  mkdir -p "$proj/.memory-bank/tmp"
+  printf 'sk-ant-api03ABCDEFGHIJKLMNOP\n' > "$proj/.memory-bank/tmp/interview-transcript-x.candidate.md"
+
+  run git -C "$proj" check-ignore -q .memory-bank/tmp/interview-transcript-x.candidate.md
+  [ "$status" -eq 0 ] || { echo "a later negation defeated the rule"; cat "$proj/.memory-bank/.gitignore"; false; }
+  git -C "$proj" add . >/dev/null 2>&1 || true
+  run git -C "$proj" diff --cached --name-only
+  local staged; staged="$(printf '%s\n' "$output" | grep 'candidate' || true)"
+  [ -z "$staged" ] || { echo "candidate staged despite the rule: $staged"; false; }
+}
+
+@test "transcript: the user's own negation of an unrelated path is preserved" {
+  # The repair must be surgical: only the /tmp/ rule is re-asserted.
+  local proj="$BATS_TEST_TMPDIR/neg2"
+  mkdir -p "$proj/.memory-bank"
+  printf '/tmp/\n!/tmp/\n!/keepme/\n' > "$proj/.memory-bank/.gitignore"
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+  grep -qx '!/keepme/' "$proj/.memory-bank/.gitignore" \
+    || { echo "an unrelated user rule was dropped"; cat "$proj/.memory-bank/.gitignore"; false; }
+}
+
+@test "transcript: an already-effective rule is still idempotent" {
+  local proj="$BATS_TEST_TMPDIR/neg3"
+  mkdir -p "$proj/.memory-bank"
+  printf '# user\n/tmp/\n' > "$proj/.memory-bank/.gitignore"
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+  bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
+  [ "$(grep -cx '/tmp/' "$proj/.memory-bank/.gitignore")" -eq 1 ] \
+    || { echo "rule appended more than once"; cat "$proj/.memory-bank/.gitignore"; false; }
 }

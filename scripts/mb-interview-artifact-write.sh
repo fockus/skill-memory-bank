@@ -75,7 +75,15 @@ _SCRUB_CAND=""
 _SCRUB_DIR=""
 _INSTALL_TMP=""
 _scrub_candidate() {
-  if [ -n "$_SCRUB_CAND" ]; then rm -f "$_SCRUB_CAND" 2>/dev/null || true; fi
+  # _SCRUB_CAND is a newline-separated LIST: a duplicated --candidate must not
+  # let the first, credential-bearing path escape cleanup.
+  if [ -n "$_SCRUB_CAND" ]; then
+    while IFS= read -r _p; do
+      [ -n "$_p" ] && rm -f "$_p" 2>/dev/null
+    done <<EOF
+$_SCRUB_CAND
+EOF
+  fi
   if [ -n "$_SCRUB_DIR" ]; then rm -rf "$_SCRUB_DIR" 2>/dev/null || true; fi
   if [ -n "$_INSTALL_TMP" ]; then rm -f "$_INSTALL_TMP" 2>/dev/null || true; fi
   return 0
@@ -118,16 +126,27 @@ STAGED=""
 # never scrubbed, and made scrubbing depend on flag ORDER. The whole line is
 # parsed first; the error is raised after cleanup has been armed.
 ARG_ERR=0
+_N_MB=0; _N_TOPIC=0; _N_CAND=0
+# EVERY --candidate seen, newline separated. A repeated singleton flag kept only
+# the LAST value, so `--candidate <secret> --candidate <notes>` exited
+# error=candidate and left the first, credential-bearing candidate on disk.
+_ALL_CANDS=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --mb) if [ "$#" -ge 2 ]; then MB="$2"; shift; else ARG_ERR=1; fi ;;
-    --topic) if [ "$#" -ge 2 ]; then TOPIC="$2"; shift; else ARG_ERR=1; fi ;;
-    --candidate) if [ "$#" -ge 2 ]; then CAND="$2"; shift; else ARG_ERR=1; fi ;;
+    --mb) if [ "$#" -ge 2 ]; then MB="$2"; _N_MB=$((_N_MB+1)); shift; else ARG_ERR=1; fi ;;
+    --topic) if [ "$#" -ge 2 ]; then TOPIC="$2"; _N_TOPIC=$((_N_TOPIC+1)); shift; else ARG_ERR=1; fi ;;
+    --candidate)
+      if [ "$#" -ge 2 ]; then
+        CAND="$2"; _N_CAND=$((_N_CAND+1)); _ALL_CANDS="$_ALL_CANDS$2
+"; shift
+      else ARG_ERR=1; fi ;;
     --require-inherited) REQUIRE_INHERITED=1 ;;
     *) ARG_ERR=1 ;;
   esac
   shift
 done
+# A singleton flag given twice is ambiguous, not a preference for the last one.
+if [ "$_N_MB" -gt 1 ] || [ "$_N_TOPIC" -gt 1 ] || [ "$_N_CAND" -gt 1 ]; then ARG_ERR=1; fi
 
 # Arm cleanup BEFORE any validation. Ownership is established from the bank/tmp
 # location alone — independent of topic validity, flag validity, and
@@ -138,25 +157,45 @@ trap '_on_signal 2' INT
 trap '_on_signal 15' TERM
 trap '_on_signal 1' HUP
 
-if [ "$SUB" = "publish-transcript" ] && [ -n "$MB" ] && [ -n "$CAND" ] && [ -d "$MB" ]; then
-  _bank_real="$(phys_dir "$MB")" || _bank_real=""
-  # A symlink is never an owned candidate: unlinking it would destroy only the
-  # link and leave the credential-bearing backing file behind.
-  if [ -n "$_bank_real" ] && [ -f "$CAND" ] && [ ! -L "$CAND" ]; then
-    _cand_dir="$(phys_dir "$(dirname "$CAND")")" || _cand_dir=""
-    if [ -n "$_cand_dir" ] && [ "$_cand_dir" = "$_bank_real/tmp" ]; then
-      # Living in <bank>/tmp is NOT sufficient to own a file. That alone armed
-      # deletion for anything the user happened to keep there, so a rejected
-      # `--candidate <bank>/tmp/notes.md` destroyed those notes. Ownership is
-      # decided by the canonical candidate NAME PATTERN — which, unlike the
-      # exact name, does not need a valid topic, so a candidate rejected on a
-      # malformed topic is still consumed as before.
-      case "$(basename "$CAND")" in
-        interview-transcript-?*.candidate.md)
-          _SCRUB_CAND="$_cand_dir/$(basename "$CAND")" ;;
-      esac
-    fi
+# _owned_candidate <path> — echoes the physical path when <path> is a candidate
+# THIS invocation owns, else nothing. Three narrowing rules, each from a real
+# data-loss or leak report:
+#   * must be a regular, non-symlink file physically inside <bank>/tmp — an
+#     unlinked symlink would destroy the link and leave the backing file (r2);
+#   * living in <bank>/tmp is not enough: the name must be a canonical candidate
+#     name, or a rejected `--candidate <bank>/tmp/notes.md` deletes those notes (r3);
+#   * when the topic is VALID the name must be exactly this topic's — otherwise
+#     `--topic foo --candidate ...-bar.candidate.md` deleted bar's candidate (r4).
+#     With no valid topic the exact name is uncomputable, so the canonical
+#     pattern still applies: the caller explicitly handed us that file.
+_owned_candidate() {
+  local c="$1" bank_real cand_dir base
+  [ -n "$MB" ] && [ -d "$MB" ] || return 1
+  bank_real="$(phys_dir "$MB")" || return 1
+  [ -n "$bank_real" ] || return 1
+  { [ -f "$c" ] && [ ! -L "$c" ]; } || return 1
+  cand_dir="$(phys_dir "$(dirname "$c")")" || return 1
+  [ "$cand_dir" = "$bank_real/tmp" ] || return 1
+  base="$(basename "$c")"
+  if valid_topic "$TOPIC"; then
+    [ "$base" = "interview-transcript-$TOPIC.candidate.md" ] || return 1
+  else
+    case "$base" in interview-transcript-?*.candidate.md) ;; *) return 1 ;; esac
   fi
+  printf '%s/%s' "$cand_dir" "$base"
+}
+
+if [ "$SUB" = "publish-transcript" ]; then
+  # Arm over EVERY passed --candidate, not just the surviving one, so a
+  # duplicated flag cannot strand the first credential-bearing file.
+  while IFS= read -r _c; do
+    [ -n "$_c" ] || continue
+    _o="$(_owned_candidate "$_c")" || continue
+    _SCRUB_CAND="$_SCRUB_CAND$_o
+"
+  done <<EOF
+$_ALL_CANDS
+EOF
 fi
 
 [ "$ARG_ERR" -eq 0 ] || usage_error
@@ -178,7 +217,8 @@ require_owned_candidate() {
   expect="interview-transcript-$TOPIC.candidate.md"
   if [ "$(basename "$CAND")" != "$expect" ]; then candidate_error; fi
   CAND="$cand_dir/$expect"
-  _SCRUB_CAND="$CAND"
+  _SCRUB_CAND="$CAND
+"
 }
 
 # claim_candidate — atomically RENAME the proven candidate into a private 0700
@@ -287,7 +327,20 @@ atomic_install() {
   mode="$(target_mode "$target")" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
   cp "$src" "$tmp" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
   chmod "$mode" "$tmp" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
-  mv -f "$tmp" "$target" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
+  # os.replace, not `mv`: rename(2) has no directory-descend semantics, so even
+  # a target created between the check above and here cannot redirect the write.
+  MB_TMP="$tmp" MB_TARGET="$target" python3 -c 'import os, sys
+tmp, target = os.environ["MB_TMP"], os.environ["MB_TARGET"]
+try:
+    st = os.lstat(target)
+except FileNotFoundError:
+    st = None
+except OSError:
+    sys.exit(1)
+import stat as _s
+if st is not None and (_s.S_ISLNK(st.st_mode) or not _s.S_ISREG(st.st_mode)):
+    sys.exit(1)
+os.replace(tmp, target)' || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
   # Cleared only after the rename succeeded — before that the temp is live.
   _INSTALL_TMP=""
   return 0

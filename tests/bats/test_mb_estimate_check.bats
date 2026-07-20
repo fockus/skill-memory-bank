@@ -22,6 +22,15 @@ setup() {
   MB_DISCUSS_CLAUSES+=("triage-child-interview|mb_section|Size triage|each accepted child receives its own.*interview|accepted child|s/receives its own follow-up interview/is deferred/|REQ-009")
   MB_DISCUSS_CLAUSES+=("triage-decline|mb_section|Size triage|user may decline the recommendation|recommendation|s/the user may decline the recommendation/the recommendation is mandatory/|REQ-009")
   MB_DISCUSS_CLAUSES+=("triage-registry|mb_section|Size triage|mb-idea.sh.*\\[SPEC:<group>\\]|mb-idea.sh|s/under a .\\[SPEC:<group>\\]. title prefix//|REQ-010")
+  # r4 [10]: the rubric clauses pinned the TABLE, so deleting the whole REQ-008
+  # orchestration — when the estimate happens, writing it to frontmatter, and
+  # validating it — left every triage assertion green. Each step is now its own
+  # load-bearing clause.
+  MB_DISCUSS_CLAUSES+=("triage-after-phase1|mb_section|Size triage|After Phase 1 closes, estimate the topic size and record it before going deeper|estimate|s/After Phase 1 closes, //|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-order-before-phase2|mb_section|Size triage|After Phase 1, before Phase 2|Phase 1|s/, before Phase 2//|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-writes-frontmatter|mb_section|Size triage|Write the .estimated_tokens. block into the context frontmatter|estimated_tokens|s/into the context frontmatter/into a scratch note/|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-validates-context|mb_section|Size triage|mb-estimate-check.sh. ..CONTEXT_FILE|mb-estimate-check|s/ ..CONTEXT_FILE.$//|REQ-008")
+  MB_DISCUSS_CLAUSES+=("triage-exit-routing|mb_section|Size triage|Exit 1 is .estimate=over.*must be split|Exit 1|s/must be split/may continue/|REQ-008")
   MB_DISCUSS_CLAUSES+=("triage-defer-or-mvp|mb_section|Size triage|defer it as its own child spec, or simplify it to an MVP|two choices|s/, or simplify it to an MVP inside the current topic//|REQ-021")
 }
 
@@ -721,3 +730,18 @@ EOF
   echo "$output" | grep -q 'stage.900000=100'
   echo "$output" | grep -q 'spec.total=300'
 }
+
+# ─── REQ-008 orchestration is executable, not just a rubric (r4 [10]) ───────
+
+_req008_pair() {
+  run assert_clause "$DISCUSS" "$1"
+  [ "$status" -eq 0 ] || { echo "clause absent: $1 -- $output"; false; }
+  run assert_clause_load_bearing "$DISCUSS" "$1"
+  [ "$status" -eq 0 ] || { echo "clause not load-bearing: $1 -- $output"; false; }
+}
+
+@test "estimate_check: the estimate is taken after Phase 1" { _req008_pair triage-after-phase1; }
+@test "estimate_check: the estimate precedes Phase 2" { _req008_pair triage-order-before-phase2; }
+@test "estimate_check: the estimate is written to the context frontmatter" { _req008_pair triage-writes-frontmatter; }
+@test "estimate_check: the checker is called on the context file" { _req008_pair triage-validates-context; }
+@test "estimate_check: the over/malformed exits are routed" { _req008_pair triage-exit-routing; }

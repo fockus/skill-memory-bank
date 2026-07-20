@@ -1,36 +1,31 @@
 #!/usr/bin/env bash
 # mb-interview-artifact-check.sh — deterministic structural validator for the
-# /mb discuss interview artifacts (svp-interview-upgrade design C8, NFR-002).
-# No LLM: plan/transcript structure is proven by script.
+# /mb discuss interview artifacts (design C8, NFR-002). No LLM.
 #
 # Usage:
 #   mb-interview-artifact-check.sh plan <file> [--require-closed]
 #   mb-interview-artifact-check.sh transcript <file> [--require-inherited] [--legacy-live-fixture]
 #
-# `plan` mode validates <bank>/tmp/interview-plan-<topic>.md against contract C2:
-# required headings in order, checkbox-only bullets under Topics / Discovered,
-# and (with --require-closed) zero open `- [ ]` items.
+# `plan` validates <bank>/tmp/interview-plan-<topic>.md against C2: required
+# headings in order, checkbox-only bullets under Topics/Discovered, a non-empty
+# Topics, and (with --require-closed) zero open `- [ ]` items.
 #
 # `transcript` mode validates context/<topic>-interview.md against the C4 grammar
-# (rules 1–8). --require-inherited demands a `## Унаследовано` section before
-# `## Q&A`. --legacy-live-fixture relaxes the strict answer/rejected rules to
-# legacy file-level semantics and is allowed ONLY for the two frozen regression
-# fixtures.
+# (rules 1–8). --require-inherited demands `## Унаследовано` before `## Q&A`.
+# --legacy-live-fixture relaxes the answer/rejected rules to legacy file-level
+# semantics, ONLY for the two frozen regression fixtures.
 #
-# stdout : `artifact=ok|invalid open_topics=<N>` (open_topics only for plan, else 0)
-# stderr : one `<file>:<line>:<reason>` per finding, sorted by (line, reason-order).
-#          Usage errors print exactly `error=usage`; an unreadable file prints
-#          exactly `<file>:0:unreadable`; both leave stdout empty. A forbidden
-#          --legacy-live-fixture prints `<file>:0:legacy_fixture_forbidden`.
-# exit   : 0 valid (closed too, under --require-closed) · 1 invalid / open ·
-#          2 usage / read error.
+# stdout : `artifact=ok|invalid open_topics=<N>` (open_topics only for plan)
+# stderr : one `<file>:<line>:<reason>` per finding, sorted by (line, order).
+#          Usage -> `error=usage`; unreadable -> `<file>:0:unreadable` (both with
+#          empty stdout); forbidden flag -> `<file>:0:legacy_fixture_forbidden`.
+# exit   : 0 valid · 1 invalid/open · 2 usage or read error.
 
 set -euo pipefail
 
-# Resolve this script's own physical directory through its FULL symlink chain
-# (portable — no realpath on bare macOS): otherwise a symlinked invocation from
-# an attacker tree would make REPO_ROOT — and thus the legacy-fixture whitelist —
-# resolve inside that tree (fixture spoofing).
+# Physical self-directory through the FULL symlink chain (no realpath on bare
+# macOS): otherwise a symlinked invocation relocates REPO_ROOT — and with it the
+# legacy-fixture whitelist — into an attacker tree.
 _mb_resolve_self_dir() {
   local src="$1" dir
   while [ -h "$src" ]; do
@@ -48,9 +43,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
 
-# canon_path <path> — physical absolute path of an EXISTING file (dir realpath +
-# basename). Returns 1 when the path does not exist, so a spoofed basename in a
-# different directory can never masquerade as a frozen regression fixture.
+# canon_path <path> — physical absolute path of an EXISTING file, so a spoofed
+# basename elsewhere cannot masquerade as a frozen regression fixture.
 canon_path() {
   local p="$1" d b
   [ -e "$p" ] || return 1
@@ -111,8 +105,7 @@ if [ ! -f "$FILE" ] || [ ! -r "$FILE" ]; then
   exit 2
 fi
 
-# Emit findings (F <line> <order> <reason>) to a temp file, sort by (line,order),
-# render <file>:<line>:<reason>, and decide validity + exit code.
+# Findings (F <line> <order> <reason>) -> sort by (line,order) -> render.
 render_findings() {
   # $1 = parse output; $2 = open_count
   local parse="$1" open_count="$2" ff
@@ -137,20 +130,28 @@ run_plan() {
   parse="$(
     awk '
       { lines[NR] = $0 }
+      # Well-formed checkbox items directly under a section heading.
+      function count_items(start,   j, n) {
+        n = 0
+        for (j = start + 1; j <= NR; j++) {
+          if (lines[j] ~ /^## /) break
+          if (lines[j] ~ /^- \[[ x]\][ \t]+[^ \t]/) n++
+        }
+        return n
+      }
       function scan_section(start,   j) {
         if (start == 0) return
         for (j = start + 1; j <= NR; j++) {
           if (lines[j] ~ /^## /) return
           # Blank / whitespace-only rows are the separators used by the template.
           if (lines[j] ~ /^[ \t]*$/) continue
-          if (lines[j] ~ /^- \[[ xX]\][ \t]+[^ \t]/) {
+          if (lines[j] ~ /^- \[[ x]\][ \t]+[^ \t]/) {
             if (lines[j] ~ /^- \[ \]/) printf "O %d\n", j
             continue
           }
           # EVERY other nonblank row is malformed, not just column-1 bullets:
-          # prose, a numbered item or an INDENTED `- [ ]` used to sit unnoticed
-          # under Topics and pass --require-closed as open_topics=0 (REQ-002
-          # bypass). C8 declares ONE code for a malformed item -> bad_bullet.
+          # prose/numbered/INDENTED items used to pass --require-closed as
+          # open_topics=0 (REQ-002 bypass). C8 declares ONE code -> bad_bullet.
           printf "F %d 3 bad_bullet\n", j
         }
       }
@@ -187,7 +188,6 @@ run_plan() {
         # C2 declares each heading EXACTLY ONCE in a fixed order; a repeat hid
         # the items of a repeated section from --require-closed entirely.
         for (k = 1; k <= ndup; k++) printf "F %d 2 section_out_of_order\n", dupline[k]
-        # An unknown section breaks the same canonical sequence -> same code.
         for (k = 1; k <= nunk; k++) printf "F %d 2 section_out_of_order\n", unkline[k]
         if (h_inh > 0 && h_top > 0 && h_dis > 0) {
           if (h_top < h_inh) printf "F %d 2 section_out_of_order\n", h_top
@@ -196,6 +196,8 @@ run_plan() {
         # Scan EVERY Topics/Discovered occurrence, duplicates included, so no
         # checkbox escapes the bullet grammar or the open-topic count.
         for (k = 1; k <= nscan; k++) scan_section(scanat[k])
+        # REQ-001: an empty Topics is not a closed plan (Discovered may be empty).
+        if (h_top > 0 && count_items(h_top) == 0) printf "F %d 1 missing_section\n", h_top
       }
     ' "$FILE"
   )"
@@ -265,9 +267,8 @@ run_transcript() {
         qmal = 0; gmal = 0
         for (i = 1; i <= NR; i++) {
           if (raw[i] ~ /^## Q&A[ \t]*$/) { qa_count++; if (qa_count == 1) qa_line = i; else if (qa_count == 2) second_qa = i }
-          # EXACT C4 heading only (a prefix match let `## УнаследованоBROKEN`
-          # satisfy --require-inherited), and EVERY occurrence is counted: two
-          # contradictory inherited sections used to validate as ok.
+          # EXACT heading only (`## УнаследованоBROKEN` used to satisfy
+          # --require-inherited), and EVERY occurrence counted (r3 [22]).
           if (raw[i] ~ /^## Унаследовано([ \t].*)?$/) {
             n_inh++
             if (n_inh == 1) inh_line = i; else second_inh = i
@@ -352,8 +353,7 @@ run_transcript() {
         prev = 0
         for (k = 1; k <= nq; k++) {
           bs = qidx[k]; be = next_boundary(bs) - 1
-          # Tracks EVERY number seen, not just the previous one: `Q1, Q2, Q1`
-          # was reported only as out_of_order. Duplicate takes precedence.
+          # Tracks EVERY number seen: `Q1, Q2, Q1` was only out_of_order.
           if (qnum[k] in qseen) print "F " bs " 9 q_number_duplicate"
           else if (qnum[k] < prev) print "F " bs " 8 q_number_out_of_order"
           qseen[qnum[k]] = 1

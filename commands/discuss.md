@@ -100,7 +100,19 @@ The 5 phases below are the **coverage checklist**, not a rigid script. While wal
 
 #### Size triage
 
-After Phase 1 closes, estimate the topic size and record it before going deeper. Estimate every touched surface with the fixed rubric, then write the `estimated_tokens` block (a `total` plus a six-key `breakdown`) into the context frontmatter and validate it with `bash "$SKILL_DIR/scripts/mb-estimate-check.sh"` (contract C1). The six rubric categories are exactly the `breakdown` keys:
+After Phase 1 closes, estimate the topic size and record it before going deeper (REQ-008). The three steps are ordered and none is optional:
+
+1. **After Phase 1, before Phase 2.** The estimate gates whether the topic is split at all, so it must land before the requirements work it would otherwise invalidate.
+2. **Write the `estimated_tokens` block into the context frontmatter** — a `total` plus a six-key `breakdown`, estimating every touched surface with the fixed rubric below.
+3. **Validate that frontmatter with the checker**, passing the context file itself:
+
+```bash
+bash "$SKILL_DIR/scripts/mb-estimate-check.sh" "$CONTEXT_FILE"
+```
+
+   Exit 1 is `estimate=over` — the topic exceeds the spec budget and must be split (see below). Exit 2 is `estimate=missing|malformed` — the block is absent or does not parse; repair the frontmatter and re-run rather than proceeding on an unvalidated estimate.
+
+The six rubric categories are exactly the `breakdown` keys:
 
 | Category (`breakdown.*`) | ~Tokens / unit |
 |---|---|

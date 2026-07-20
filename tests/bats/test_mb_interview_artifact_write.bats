@@ -341,6 +341,18 @@ with open(p, "w", encoding="utf-8") as fh:
   # normal exit can never make this assertion pass vacuously.
   [ "$rc" -eq 143 ] || { echo "writer was not interrupted (rc=$rc)"; false; }
   [ ! -e "$cand" ] || { echo "candidate survived SIGTERM"; false; }
+  # r4 [12]: the candidate PATH being gone proves nothing once `claim` renames it
+  # into staging — with _SCRUB_DIR cleanup deleted this test stayed green while
+  # the credential sat in <bank>/tmp/.mb-iaw.*/staged.md. Assert on the whole
+  # scratch dir and on the secret itself, not on one path.
+  local leftover
+  leftover="$(find "$BANK/tmp" -maxdepth 1 -name '.mb-iaw.*' 2>/dev/null)"
+  [ -z "$leftover" ] || { echo "staging dir survived SIGTERM: $leftover"; false; }
+  # Captured first, asserted once: a bare `grep` inside an `if` body is a
+  # DIAGNOSTIC, not an assertion — its failure cannot fail the test.
+  local hits
+  hits="$(grep -rl 'sk-ant-api03ABCDEFGHIJKLMNOP' "$BANK" 2>/dev/null || true)"
+  [ -z "$hits" ] || { echo "the credential is still under the bank: $hits"; false; }
 }
 
 @test "artifact_write: install-plan does NOT consume the candidate" {
@@ -616,11 +628,21 @@ EOF
 # ─── the dead legacy flag is gone (r3 review [8]) ───
 
 @test "artifact_write: publish-transcript rejects --legacy-live-fixture as unknown" {
-  # The writer claimed to support the flag, but it staged the candidate into a
-  # private dir first and then handed THAT path to the checker, which only
-  # honours the two frozen repository fixtures — so the branch always died with
-  # legacy_fixture_forbidden after consuming the candidate. An option that can
-  # never succeed is worse than no option: it is removed.
+  # OPEN CONTRACT MISMATCH (r4 review [9]) — flagged to the orchestrator, not
+  # resolved here. design.md C11 still documents this flag on publish-transcript
+  # and requires it be forwarded to the C8 check; round 3 removed it from the
+  # writer as unimplementable. Proven unimplementable, not merely inconvenient:
+  # the writer stages the candidate into a private dir, and the checker honours
+  # the legacy relaxation ONLY for two canonical repository fixture paths — the
+  # identical bytes under any staging path return legacy_fixture_forbidden. To
+  # forward it you would have to weaken exactly the whitelist that stops a
+  # publication candidate borrowing the weaker grammar.
+  #
+  # So the fix is a ONE-LINE SPEC EDIT: drop `[--legacy-live-fixture]` from C11
+  # (design.md:428 and the forwarding clause at :434). Until the spec is
+  # corrected this test pins the SHIPPED behaviour and is knowingly at odds with
+  # C11; the guard below keeps the whitelist itself from being weakened in the
+  # meantime, which is the invariant that holds under either resolution.
   local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
   mkdir -p "$BANK/context"
   _clean_transcript "$cand"
@@ -662,4 +684,110 @@ EOF
   run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
   [ "$status" -eq 0 ]
   [ -f "$BANK/context/foo-interview.md" ]
+}
+
+# ═══ r4 [1]: the target LEAF must be a plain file, never a directory/symlink ══
+
+@test "artifact_write: a target that is a SYMLINK to an outside dir is refused" {
+  # `mv tmp target` where target is a symlink to a directory MOVES THE TEMP INTO
+  # that directory: the full transcript landed outside the bank, context/ stayed
+  # empty, and the writer still printed artifact_write=installed with exit 0.
+  local outside="$BATS_TEST_TMPDIR/outside"; mkdir -p "$outside" "$BANK/context"
+  ln -s "$outside" "$BANK/context/foo-interview.md"
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"; _clean_transcript "$cand"
+
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -ne 0 ] || { echo "symlinked target reported success: $output"; false; }
+  [ -z "$(ls -A "$outside")" ] || { echo "wrote outside the bank: $(ls -A "$outside")"; false; }
+  [ -L "$BANK/context/foo-interview.md" ] || { echo "the symlink was replaced"; false; }
+}
+
+@test "artifact_write: a target that is a DIRECTORY is refused" {
+  mkdir -p "$BANK/context/foo-interview.md"
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"; _clean_transcript "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -ne 0 ] || { echo "directory target reported success"; false; }
+  [ -d "$BANK/context/foo-interview.md" ]
+  [ -z "$(ls -A "$BANK/context/foo-interview.md")" ] || { echo "wrote into the directory"; false; }
+}
+
+@test "artifact_write: install-plan refuses a symlinked target too" {
+  local outside="$BATS_TEST_TMPDIR/outside2"; mkdir -p "$outside"
+  ln -s "$outside" "$TARGET"
+  _valid_open_plan "$CAND"
+  run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic foo --candidate "$CAND"
+  [ "$status" -ne 0 ] || { echo "symlinked plan target reported success"; false; }
+  [ -z "$(ls -A "$outside")" ] || { echo "plan written outside the bank"; false; }
+}
+
+# ═══ r4 [2]: only THIS topic's candidate is ever deleted ════════════════════
+
+@test "artifact_write: a topic mismatch leaves the OTHER topic's candidate intact" {
+  # `--topic foo --candidate ...-bar.candidate.md` returned error=candidate and
+  # deleted bar's candidate: reproducible data loss from an over-broad pattern.
+  local bar="$BANK/tmp/interview-transcript-bar.candidate.md"
+  _clean_transcript "$bar"
+  local snap="$BATS_TEST_TMPDIR/bar.snap"; cp "$bar" "$snap"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$bar"
+  [ "$status" -eq 2 ]
+  [ -f "$bar" ] || { echo "another topic's candidate was deleted"; false; }
+  cmp -s "$snap" "$bar" || { echo "another topic's candidate was modified"; false; }
+}
+
+@test "artifact_write: an INVALID topic still consumes the candidate it was handed" {
+  # The r2 guarantee survives the r4 narrowing: with no valid topic the exact
+  # name cannot be computed, and the caller explicitly handed us this file.
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  printf '# t\n\nsk-ant-api03ABCDEFGHIJKLMNOP\n' > "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic Foo --candidate "$cand"
+  [ "$status" -eq 2 ]
+  [ ! -e "$cand" ] || { echo "credential candidate survived an invalid topic"; false; }
+}
+
+# ═══ r4 [3]: a repeated singleton flag is refused, and still cleans up ══════
+
+@test "artifact_write: a duplicated --candidate is refused AND scrubs the owned one" {
+  local sec="$BANK/tmp/interview-transcript-foo.candidate.md"
+  printf 'raw\nsk-ant-api03ABCDEFGHIJKLMNOP\n' > "$sec"
+  printf 'user notes\n' > "$BANK/tmp/notes.md"
+  local snap="$BATS_TEST_TMPDIR/notes.snap"; cp "$BANK/tmp/notes.md" "$snap"
+
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo \
+    --candidate "$sec" --candidate "$BANK/tmp/notes.md"
+  [ "$status" -eq 2 ]
+  # Exit 2 alone is not attributable — the second path is unowned anyway. The
+  # refusal must be the DUPLICATE-flag rule.
+  [ "$stderr" = "error=usage" ] || { echo "not refused as a usage error: $stderr"; false; }
+  [ ! -e "$sec" ] || { echo "credential candidate survived a duplicated flag"; false; }
+  cmp -s "$snap" "$BANK/tmp/notes.md" || { echo "the unowned file was touched"; false; }
+}
+
+@test "artifact_write: a duplicated --topic is refused" {
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"; _clean_transcript "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --topic bar --candidate "$cand"
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ] || { echo "not refused as a usage error: $stderr"; false; }
+}
+
+@test "artifact_write: a duplicated --mb is refused" {
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"; _clean_transcript "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --mb "$BANK" --topic foo --candidate "$cand"
+  [ "$status" -eq 2 ]
+}
+
+@test "artifact_write: the legacy relaxation stays limited to the frozen fixtures" {
+  # The invariant that survives either resolution of the C11 mismatch above: the
+  # same bytes under a non-fixture path must never earn the weaker grammar.
+  local copy="$BATS_TEST_TMPDIR/staged-copy.md"
+  cp "$REPO_ROOT/.memory-bank/context/svp-interview-upgrade-interview.md" "$copy"
+  run --separate-stderr "$REPO_ROOT/scripts/mb-interview-artifact-check.sh" \
+    transcript "$copy" --require-inherited --legacy-live-fixture
+  [ "$status" -eq 2 ]
+  echo "$stderr" | grep -q ':legacy_fixture_forbidden$'
+  # ...while the frozen fixture itself still passes, so this is a path check and
+  # not simply a broken flag.
+  run --separate-stderr "$REPO_ROOT/scripts/mb-interview-artifact-check.sh" \
+    transcript "$REPO_ROOT/.memory-bank/context/svp-interview-upgrade-interview.md" \
+    --require-inherited --legacy-live-fixture
+  [ "$status" -eq 0 ]
 }

@@ -227,11 +227,28 @@ _c8_transcript_reasons() {
     gate_round_missing gate_round_out_of_order legacy_fixture_forbidden \
     duplicate_inherited
 }
-# NOTE (r3 review [22]): `duplicate_inherited` EXTENDS the closed C8 transcript
-# enum — it mirrors `duplicate_qa_section` for the inherited section, and no
-# existing code carried that meaning. design.md § C8 must gain the same one-line
-# entry; the spec is outside this zone, so it is flagged to the orchestrator
-# rather than edited here.
+# r4 review [8]: these two lists are a CONVENIENCE COPY, and a copy that can be
+# hand-extended is not a contract — `duplicate_inherited` was added here while
+# the spec did not declare it, so the test blessed output no consumer could
+# accept. The test below makes the copy unable to outrun the spec: every code
+# named here must be declared in design.md. Add the code to the SPEC first.
+_design_md() { printf '%s' "$REPO_ROOT/.memory-bank/specs/svp-interview-upgrade/design.md"; }
+
+@test "artifact_check: the local C8 enum copy never extends the spec" {
+  # Anti-vacuity: a code the spec does not declare must be detectable.
+  printf '%s\n' 'totally_invented_code' | grep -qx 'totally_invented_code'
+  local declared undeclared
+  declared="$(grep -oE '`[a-z][a-z0-9_]+`' "$(_design_md)" | tr -d '`' | sort -u)"
+  [ -n "$declared" ]
+  undeclared="$(comm -23 \
+    <( { _c8_plan_reasons; _c8_transcript_reasons; } | sort -u ) \
+    <(printf '%s\n' "$declared"))"
+  [ -z "$undeclared" ] || {
+    echo "reason codes named in this test but NOT declared in design.md: $undeclared"
+    echo "add them to the spec first — a test may not extend the contract it checks"
+    false; }
+}
+
 
 @test "artifact_check: every reason code in the source belongs to the closed C8 enum" {
   # Static guard: scrape every finding literal the validator can emit and prove
@@ -327,4 +344,53 @@ _c8_transcript_reasons() {
   run --separate-stderr "$SCRIPT" plan "$f" --require-closed
   [ "$status" -eq 0 ]
   [ "$output" = "artifact=ok open_topics=0" ]
+}
+
+# ─── r4 [6]: the checkbox enum is exactly `- [ ]` and `- [x]` ──────────────
+
+@test "artifact_check: an UPPERCASE - [X] item is bad_bullet, never a closed topic" {
+  # C8 declares only `- [ ]` and `- [x]`. `- [X]` was accepted by the regex, so a
+  # plan whose single topic used it passed --require-closed with open_topics=0.
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [X] scope\n\n## Discovered mid-interview\n\n- [x] t\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 1 ] || { echo "uppercase checkbox passed the close gate: $output"; false; }
+  echo "$stderr" | grep -q ':bad_bullet$'
+}
+
+@test "artifact_check: a lowercase - [x] item is still accepted" {
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [x] scope\n\n## Discovered mid-interview\n\n- [x] t\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 0 ]
+}
+
+# ─── r4 [7]: a plan with no topics at all is not a closed plan ─────────────
+
+@test "artifact_check: an EMPTY Topics section fails the close gate" {
+  # REQ-001 requires a plan that LISTS the themes to close; three headings and
+  # no items passed --require-closed with artifact=ok open_topics=0, so
+  # generation was permitted with nothing ever planned.
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n## Discovered mid-interview\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 1 ] || { echo "empty Topics passed the close gate: $output"; false; }
+  echo "$stderr" | grep -q ':missing_section$' \
+    || { echo "no declared reason for an empty Topics: $stderr"; false; }
+}
+
+@test "artifact_check: an empty Topics section is invalid even without --require-closed" {
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n## Discovered mid-interview\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f"
+  [ "$status" -eq 1 ]
+}
+
+@test "artifact_check: an empty DISCOVERED section stays legal" {
+  # Only Topics must be non-empty: Discovered legitimately starts empty and only
+  # fills as themes surface mid-interview.
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [x] scope\n\n## Discovered mid-interview\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 0 ] || { echo "an empty Discovered section was rejected: $output"; false; }
 }

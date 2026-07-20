@@ -291,3 +291,39 @@ EOF
   run bash -n "$SCRIPT"
   [ "$status" -eq 0 ]
 }
+
+# ─── r4 [13]: task/stage IDs stay exact above 2^53 ─────────────────────────
+
+@test "estimate_check_spec: task IDs above 2^53 do not collapse into one" {
+  # awk coerces via double, so 9007199254740992 and ...93 became the SAME id:
+  # the pair printed one id twice and stage/spec totals doubled one budget
+  # (400 instead of 300). The 999999999 fixture was below the precision cliff.
+  local d="$BATS_TEST_TMPDIR/s13"; mkdir -p "$d"
+  printf '# Tasks\n\n<!-- mb-task:9007199254740992 -->\n### A\n**Budget:** 100\n**Stage:** 1\n<!-- /mb-task:9007199254740992 -->\n\n<!-- mb-task:9007199254740993 -->\n### B\n**Budget:** 200\n**Stage:** 1\n<!-- /mb-task:9007199254740993 -->\n' > "$d/tasks.md"
+  run --separate-stderr "$SCRIPT" --tasks-file "$d/tasks.md"
+  echo "$output" | grep -q 'task.9007199254740992=100' \
+    || { echo "first id lost or wrong: $output"; false; }
+  echo "$output" | grep -q 'task.9007199254740993=200' \
+    || { echo "second id collapsed into the first: $output"; false; }
+  echo "$output" | grep -q 'spec.total=300' \
+    || { echo "totals wrong (a budget was double-counted): $output"; false; }
+  echo "$output" | grep -q 'stage.1=300' \
+    || { echo "stage sum wrong: $output"; false; }
+}
+
+@test "estimate_check_spec: stage IDs above 2^53 stay distinct" {
+  local d="$BATS_TEST_TMPDIR/s13b"; mkdir -p "$d"
+  printf '# Tasks\n\n<!-- mb-task:1 -->\n### A\n**Budget:** 100\n**Stage:** 9007199254740992\n<!-- /mb-task:1 -->\n\n<!-- mb-task:2 -->\n### B\n**Budget:** 200\n**Stage:** 9007199254740993\n<!-- /mb-task:2 -->\n' > "$d/tasks.md"
+  run --separate-stderr "$SCRIPT" --tasks-file "$d/tasks.md"
+  echo "$output" | grep -q 'stage.9007199254740992=100' || { echo "stage 1 wrong: $output"; false; }
+  echo "$output" | grep -q 'stage.9007199254740993=200' || { echo "stage 2 collapsed: $output"; false; }
+}
+
+@test "estimate_check_spec: ordinary small IDs still sort ascending" {
+  local d="$BATS_TEST_TMPDIR/s13c"; mkdir -p "$d"
+  printf '# Tasks\n\n<!-- mb-task:10 -->\n### A\n**Budget:** 10\n**Stage:** 1\n<!-- /mb-task:10 -->\n\n<!-- mb-task:2 -->\n### B\n**Budget:** 20\n**Stage:** 1\n<!-- /mb-task:2 -->\n' > "$d/tasks.md"
+  run --separate-stderr "$SCRIPT" --tasks-file "$d/tasks.md"
+  # numeric order, not lexicographic: task.2 must precede task.10
+  local order; order="$(printf '%s\n' "$output" | grep -oE '^task\.[0-9]+' | tr '\n' ' ')"
+  [ "$order" = "task.2 task.10 " ] || { echo "wrong id order: $order"; false; }
+}
