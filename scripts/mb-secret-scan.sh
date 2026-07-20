@@ -138,18 +138,37 @@ for i, line in enumerate(source_lines, start=1):
         findings.append((i, mo.start(), "api_key"))
 findings.sort(key=lambda t: (t[0], t[1]))
 
-# `brief-input` (svp-brief C5) is `transcript` plus ONE difference: it honours
-# an explicit `<!-- mb-secret-ok -->` pragma on the finding line or on the line
-# immediately above it, and suppresses ONLY the findings those two lines carry.
-# The window is deliberately two lines: anything wider would let one pragma
-# clear a whole document. `<private>` still suppresses nothing under either
-# policy — it guards index/search redaction, never the git write.
+# `brief-input` (svp-brief C5) is `transcript` plus ONE difference: it honours an
+# explicit `<!-- mb-secret-ok -->` pragma. TWO CASES, and only these two:
+#
+#   * a pragma ALONE on its line shields the finding on the line below it — the
+#     escape hatch for a finding you cannot annotate inline, e.g. inside a fence;
+#   * a pragma written INLINE shields only the findings on its own line.
+#
+# An inline pragma therefore does NOT shield the next line, even though it is
+# literally "the line above" it. The wider reading was the first implementation
+# here and it is wrong in the direction that matters: this pragma suppresses
+# SECRET-scan findings, so over-suppression leaks a credential while
+# under-suppression merely costs somebody a second pragma. When the two readings
+# differ that way, the tighter one wins.
+#
+# `<private>` still suppresses nothing under either policy — it guards
+# index/search redaction, never the git write.
 PRAGMA = "<!-- mb-secret-ok -->"
 if policy == "brief-input":
-    def pragma_on(lineno):
+    def pragma_inline(lineno):
+        """The line carries a pragma anywhere on it."""
         return 1 <= lineno <= len(source_lines) and PRAGMA in source_lines[lineno - 1]
 
-    findings = [f for f in findings if not (pragma_on(f[0]) or pragma_on(f[0] - 1))]
+    def pragma_alone(lineno):
+        """The line carries the pragma and NOTHING else."""
+        return (1 <= lineno <= len(source_lines)
+                and source_lines[lineno - 1].strip() == PRAGMA)
+
+    findings = [
+        f for f in findings
+        if not (pragma_inline(f[0]) or pragma_alone(f[0] - 1))
+    ]
 
 if findings:
     for ln, _col, kind in findings:

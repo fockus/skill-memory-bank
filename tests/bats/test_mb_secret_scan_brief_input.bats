@@ -80,22 +80,64 @@ setup() {
   [ "$stderr" = "$f:4:api_key" ]
 }
 
-@test "brief_scan: pragma — an INLINE pragma also shields the next line (window rule)" {
-  # Recorded deliberately, not discovered later. The C5 rule is a two-line
-  # window — "the finding line or the line immediately above it" — so a pragma
-  # written inline is, by construction, also "the line above" the next one and
-  # suppresses a finding there too. That is wider than the accompanying phrase
-  # "suppresses only that finding" suggests; the tension is escalated, and this
-  # test exists so the behaviour cannot change without someone deciding to.
+@test "brief_scan: pragma — an INLINE pragma shields ONLY its own line" {
+  # The two-case rule (C5): a pragma ALONE on its line shields the line below,
+  # an INLINE pragma shields only its own. Reading "the line immediately above"
+  # to include an inline pragma would make one annotation clear two lines —
+  # over-suppression, which in a secret scan is the error that leaks a
+  # credential. The tighter reading is the contract.
   local f="$BATS_TEST_TMPDIR/c.md"
   {
-    printf 'inline %s %s\n' "$SK" "$PRAGMA"     # 1 — suppressed inline
-    printf 'next %s line\n' "$SK2"              # 2 — ALSO suppressed, from 1
+    printf 'inline %s %s\n' "$SK" "$PRAGMA"     # 1 — shielded, pragma is inline
+    printf 'next %s line\n' "$SK2"              # 2 — NOT shielded by line 1
+  } > "$f"
+  run --separate-stderr "$SCRIPT" --policy brief-input "$f"
+  [ "$status" -eq 1 ]
+  [ "$output" = "scan=blocked" ]
+  [ "$stderr" = "$f:2:api_key" ]
+}
+
+@test "brief_scan: pragma — a pragma ALONE on its line shields the line below" {
+  # The converse case, so the pair pins both halves of the rule rather than
+  # only the one that was ambiguous.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  {
+    printf '%s\n' "$PRAGMA"                     # 1 — pragma and nothing else
+    printf 'next %s line\n' "$SK2"              # 2 — shielded by line 1
   } > "$f"
   run --separate-stderr "$SCRIPT" --policy brief-input "$f"
   [ "$status" -eq 0 ]
   [ "$output" = "scan=clean" ]
   [ "$stderr" = "" ]
+}
+
+@test "brief_scan: pragma — trailing whitespace still counts as alone on the line" {
+  # `strip()`, not equality against the raw line: an editor that leaves a
+  # trailing space would otherwise silently disarm the escape hatch, and the
+  # user would see a block they cannot explain.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  {
+    printf '  %s  \n' "$PRAGMA"                 # 1 — padded, still alone
+    printf 'next %s line\n' "$SK2"              # 2 — shielded
+  } > "$f"
+  run --separate-stderr "$SCRIPT" --policy brief-input "$f"
+  [ "$status" -eq 0 ]
+  [ "$output" = "scan=clean" ]
+  [ "$stderr" = "" ]
+}
+
+@test "brief_scan: pragma — a pragma with prose beside it does NOT shield below" {
+  # The boundary between the two cases: text alongside the pragma makes it
+  # inline, so it stops shielding the line below even with no finding of its own.
+  local f="$BATS_TEST_TMPDIR/c.md"
+  {
+    printf 'see the note %s\n' "$PRAGMA"        # 1 — inline, no finding here
+    printf 'next %s line\n' "$SK2"              # 2 — NOT shielded
+  } > "$f"
+  run --separate-stderr "$SCRIPT" --policy brief-input "$f"
+  [ "$status" -eq 1 ]
+  [ "$output" = "scan=blocked" ]
+  [ "$stderr" = "$f:2:api_key" ]
 }
 
 @test "brief_scan: pragma — a file whose every finding is pragma'd is clean" {

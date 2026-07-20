@@ -83,9 +83,10 @@
 **What to do:**
 - Реализовать политику `brief-input` в созданном S1 `scripts/mb-secret-scan.sh` (диспетчер и общий
   контракт — S1-C5, здесь **не** переопределяются): `<private>` находку не подавляет;
-  `<!-- mb-secret-ok -->` на строке-находке или строке непосредственно над ней подавляет только эту
-  находку; бинарный/нечитаемый/неподдерживаемый тип → `scan=unsupported`, exit 2; паттерны и метки
-  (`email`/`api_key`) — те же, single-source из `scripts/mb-import.py`.
+  `<!-- mb-secret-ok -->` — **два случая, и только они** (design § C5, ревизия 4): прагма **одна на
+  строке** подавляет находки на строке под ней, прагма **инлайн** — только на своей строке и на
+  следующую не распространяется; бинарный/нечитаемый/неподдерживаемый тип → `scan=unsupported`,
+  exit 2; паттерны и метки (`email`/`api_key`) — те же, single-source из `scripts/mb-import.py`.
 - `scripts/mb-brief.sh create|context` по C6. `create --mb <bank> --topic <topic> --candidate <path>
   [--input <path>]… [--auto]` строго в порядке шагов C6: usage-проверки (topic-паттерн, кандидат —
   существующий читаемый regular file, `--input` regular-file/symlink/`..`, `error=basename_collision`)
@@ -122,8 +123,9 @@
   `scan=clean`, exit 0); `brief_scan: blocked` (`sk-…` → `scan=blocked` + stderr
   `<file>:<line>:api_key`, exit 1); `brief_scan: private-does-not-suppress` (секрет внутри
   `<private>…</private>` → всё равно `scan=blocked` — в отличие от политики `transcript`);
-  **`brief_scan: pragma`** (`<!-- mb-secret-ok -->` на строке-находке и на строке над ней →
-  подавляется **только** эта находка; вторая находка в файле остаётся `scan=blocked`);
+  **`brief_scan: pragma`** (оба случая правила design § C5: прагма **одна на строке** подавляет
+  находку под ней, прагма **инлайн** — только на своей строке и на следующую не распространяется;
+  вторая находка в файле остаётся `scan=blocked`);
   `brief_scan: finding-order` (email+api_key и две находки на одной строке → stderr по
   возрастанию `(line, column)`); `brief_scan: secret-never-printed` (grep по значению ключа
   не находит его ни в stdout, ни в stderr); `brief_scan: unsupported` (бинарный/нечитаемый →
