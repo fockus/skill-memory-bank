@@ -304,3 +304,89 @@ PY
   [ "$status" -eq 2 ]
   [ "$output" = "scan=unsupported" ]
 }
+
+# ─── r4 [4]: the regex is matched over the WHOLE text, not line by line ────
+#
+# The canonical APIKEY_RE contains `Bearer\s+<token>`, and `\s` matches a
+# NEWLINE — but the scanner applied it per line, so a credential split across
+# two lines was invisible to it while the same regex over the full text found it.
+# A transcript with `Authorization: Bearer` ending one line and the token
+# beginning the next published to context/ with exit 0.
+
+@test "secret_scan: a Bearer credential split across two lines is blocked" {
+  local f="$BATS_TEST_TMPDIR/split.md"
+  printf 'header line\nAuthorization: Bearer\nabcdefghijklmnopqrstuvwx trailing\n' > "$f"
+  run --separate-stderr "$SCRIPT" --policy transcript "$f"
+  [ "$status" -eq 1 ] || { echo "split Bearer walked through the gate: $output"; false; }
+  [ "$output" = "scan=blocked" ]
+  echo "$stderr" | grep -q ':api_key$'
+}
+
+@test "secret_scan: a split credential is reported on the line it STARTS on" {
+  local f="$BATS_TEST_TMPDIR/split2.md"
+  printf 'one\ntwo\nAuthorization: Bearer\nabcdefghijklmnopqrstuvwx\n' > "$f"
+  run --separate-stderr "$SCRIPT" --policy transcript "$f"
+  [ "$status" -eq 1 ]
+  [ "$stderr" = "$f:3:api_key" ] || { echo "wrong line attribution: $stderr"; false; }
+}
+
+@test "secret_scan: single-line findings keep their exact line and column order" {
+  # Regression guard for the offset arithmetic: whole-text matching must not
+  # shift the reporting the per-line loop already got right.
+  local f="$BATS_TEST_TMPDIR/multi.md"
+  printf 'a %s\nb %s\n' "$EMAIL" "$SK" > "$f"
+  run --separate-stderr "$SCRIPT" --policy transcript "$f"
+  [ "$status" -eq 1 ]
+  [ "$(printf '%s\n' "$stderr" | sed -n 1p)" = "$f:1:email" ]
+  [ "$(printf '%s\n' "$stderr" | sed -n 2p)" = "$f:2:api_key" ]
+}
+
+@test "secret_scan: two findings on one line stay ordered by column" {
+  local f="$BATS_TEST_TMPDIR/onecol.md"
+  printf '%s and %s\n' "$EMAIL" "$SK" > "$f"
+  run --separate-stderr "$SCRIPT" --policy transcript "$f"
+  [ "$status" -eq 1 ]
+  [ "$(printf '%s\n' "$stderr" | sed -n 1p)" = "$f:1:email" ]
+  [ "$(printf '%s\n' "$stderr" | sed -n 2p)" = "$f:1:api_key" ]
+}
+
+@test "secret_scan: a split credential on stdin is blocked too" {
+  run --separate-stderr bash -c "printf 'Authorization: Bearer\nabcdefghijklmnopqrstuvwx\n' | '$SCRIPT' --policy transcript -"
+  [ "$status" -eq 1 ]
+  [ "$output" = "scan=blocked" ]
+}
+
+# ─── the pragma semantics S7 narrowed must survive whole-text matching ─────
+
+@test "secret_scan: brief-input pragma ALONE still shields the line below" {
+  local f="$BATS_TEST_TMPDIR/pa.md"
+  printf 'clean\n<!-- mb-secret-ok -->\ntoken %s here\n' "$SK" > "$f"
+  run --separate-stderr "$SCRIPT" --policy brief-input "$f"
+  [ "$status" -eq 0 ] || { echo "alone-pragma stopped shielding: $stderr"; false; }
+  [ "$output" = "scan=clean" ]
+}
+
+@test "secret_scan: brief-input INLINE pragma shields only its own line" {
+  local f="$BATS_TEST_TMPDIR/pi.md"
+  printf 'x %s <!-- mb-secret-ok -->\ny %s\n' "$SK" "$SK" > "$f"
+  run --separate-stderr "$SCRIPT" --policy brief-input "$f"
+  [ "$status" -eq 1 ] || { echo "inline pragma over-suppressed: $output"; false; }
+  [ "$stderr" = "$f:2:api_key" ]
+}
+
+@test "secret_scan: a split credential is shielded by a pragma above its START line" {
+  # Attribution is the START line, so that is the line the pragma rules key on.
+  local f="$BATS_TEST_TMPDIR/psplit.md"
+  printf '<!-- mb-secret-ok -->\nAuthorization: Bearer\nabcdefghijklmnopqrstuvwx\n' > "$f"
+  run --separate-stderr "$SCRIPT" --policy brief-input "$f"
+  [ "$status" -eq 0 ] || { echo "pragma did not shield the split finding: $stderr"; false; }
+}
+
+@test "secret_scan: transcript policy still ignores the pragma for a split credential" {
+  # R3-001: no pragma unblocks a git write under the transcript policy.
+  local f="$BATS_TEST_TMPDIR/psplit2.md"
+  printf '<!-- mb-secret-ok -->\nAuthorization: Bearer\nabcdefghijklmnopqrstuvwx\n' > "$f"
+  run --separate-stderr "$SCRIPT" --policy transcript "$f"
+  [ "$status" -eq 1 ]
+  [ "$output" = "scan=blocked" ]
+}

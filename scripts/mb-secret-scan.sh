@@ -130,12 +130,42 @@ EMAIL_RE = load_re("EMAIL_RE")
 APIKEY_RE = load_re("APIKEY_RE")
 
 source_lines = text.split("\n")
+
+# Matched over the WHOLE text, never line by line (r4 review [4]). The canonical
+# APIKEY_RE contains `Bearer\s+<token>` and `\s` matches a NEWLINE, so a
+# credential split across two lines was invisible to a per-line loop while the
+# same regex over the full text found it — a transcript with `Authorization:
+# Bearer` ending one line and the token beginning the next published with exit 0.
+#
+# line/column are derived from the match OFFSET so the existing
+# `<file>:<line>:<kind>` contract is unchanged. A match that spans lines is
+# attributed to the line it STARTS on: that is where the credential begins, and
+# it is the line the brief-input pragma rules then key on — which is what lets
+# whole-text matching compose with pragma_alone/pragma_inline without a new case.
+_line_starts = [0]
+_pos = 0
+for _ln in source_lines[:-1]:
+    _pos += len(_ln) + 1
+    _line_starts.append(_pos)
+
+
+def _line_col(offset):
+    """1-based line and 0-based column for a character offset into `text`."""
+    lo, hi = 0, len(_line_starts) - 1
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if _line_starts[mid] <= offset:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo + 1, offset - _line_starts[lo]
+
+
 findings = []
-for i, line in enumerate(source_lines, start=1):
-    for mo in EMAIL_RE.finditer(line):
-        findings.append((i, mo.start(), "email"))
-    for mo in APIKEY_RE.finditer(line):
-        findings.append((i, mo.start(), "api_key"))
+for rx, kind in ((EMAIL_RE, "email"), (APIKEY_RE, "api_key")):
+    for mo in rx.finditer(text):
+        ln, col = _line_col(mo.start())
+        findings.append((ln, col, kind))
 findings.sort(key=lambda t: (t[0], t[1]))
 
 # `brief-input` (svp-brief C5) is `transcript` plus ONE difference: it honours an
