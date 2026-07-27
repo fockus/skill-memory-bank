@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -52,9 +51,6 @@ from memory_bank_skill.spec_layers import SpecLayersError, read_spec_layers  # n
 
 LAYERS = registry.LAYERS
 LAYER_FLAGS = ("contract_first", "integration_tests", "e2e_tests")
-
-# Normative SHALL/MUST only: SHOULD and MAY do not gate (D-06).
-_NORMATIVE_RE = re.compile(r"\b(shall|must)\b", re.IGNORECASE)
 
 violations: list[str] = []
 
@@ -79,37 +75,11 @@ def note(msg: str) -> None:
     sys.stderr.write("[spec-validate] %s\n" % msg)
 
 
-def gated_reqs(text: str) -> list[str]:
-    """REQ-IDs whose EARS criterion carries a normative SHALL or MUST.
-
-    The chunking mirrors ``mb-ears-validate.sh``: a requirement may wrap onto
-    indented continuation lines, and the chunk stops at a blank line, the next
-    REQ bullet, or any new list item / heading — so one requirement's verb
-    never leaks into its neighbour's.
-    """
-    lines = text.splitlines()
-    n = len(lines)
-    out: list[str] = []
-    i = 0
-    while i < n:
-        m = rq.EARS_REQ_LINE_RE.match(lines[i])
-        if not m:
-            i += 1
-            continue
-        chunk = [lines[i]]
-        j = i + 1
-        while j < n:
-            nxt = lines[j]
-            if not nxt.strip() or rq.EARS_REQ_LINE_RE.match(nxt) or nxt.lstrip()[:1] in "-*+#":
-                break
-            chunk.append(nxt)
-            j += 1
-        if _NORMATIVE_RE.search(" ".join(chunk)):
-            out.append("REQ-" + m.group(1))
-        i = j
-    return out
-
-
+# Both predicates are shared on purpose. `gated_definitions` decides here
+# whether a contract task is REQUIRED and in `mb-sdd-layers-render.py` what it
+# COVERS; two copies would let a spec be told it needs a contract task for
+# requirements that task does not name.
+gated_reqs = rq.gated_definitions
 layer_of = registry.layer_of
 
 

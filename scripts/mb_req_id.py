@@ -124,6 +124,47 @@ def find_definitions(text: str) -> list[str]:
     return _dedupe(["REQ-" + m.group(1) for m in _DEFINITION_RE.finditer(text)])
 
 
+_NORMATIVE_RE = re.compile(r"\b(shall|must)\b", re.IGNORECASE)
+
+
+def gated_definitions(text: str) -> list[str]:
+    """REQ-IDs whose EARS criterion carries a normative SHALL or MUST (D-06).
+
+    SHOULD and MAY do not gate. Lives here, with the rest of the REQ-ID
+    grammar, because two consumers ask the same question and must not answer
+    it differently: `mb_spec_validate_layers.py` decides whether a contract
+    task is REQUIRED, and `mb-sdd-layers-render.py` decides what that task
+    COVERS. A spec where those two disagree gets a contract task demanded for
+    requirements it does not name.
+
+    Chunking mirrors ``mb-ears-validate.sh``: a requirement may wrap onto
+    indented continuation lines, and the chunk stops at a blank line, the next
+    REQ bullet, or any new list item / heading, so one requirement's verb never
+    leaks into its neighbour's.
+    """
+    lines = text.splitlines()
+    total = len(lines)
+    out: list[str] = []
+    i = 0
+    while i < total:
+        m = EARS_REQ_LINE_RE.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        chunk = [lines[i]]
+        j = i + 1
+        while j < total:
+            nxt = lines[j]
+            if not nxt.strip() or EARS_REQ_LINE_RE.match(nxt) or nxt.lstrip()[:1] in "-*+#":
+                break
+            chunk.append(nxt)
+            j += 1
+        if _NORMATIVE_RE.search(" ".join(chunk)):
+            out.append("REQ-" + m.group(1))
+        i = j
+    return _dedupe(out)
+
+
 def extract_req_ids(text: str) -> list[str]:
     """Return every REQ-ID *referenced* in free-form text, slash-shorthand expanded.
 

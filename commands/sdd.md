@@ -67,9 +67,26 @@ Generate `design.md` into the staging dir `<bank>/tmp/sdd/<topic>/design.md`: ar
 
 Default is exactly one seam (existing seams > new; pick the highest). More than one requires a brief `**Seam rationale:**`. `design.md` also carries a §Eval declarations block whose `**Eval:**` lines are byte-identical to the same-named task's `**Eval:**` line in `tasks.md` (the CPR-D byte-identity gate).
 
+### Step 3a — Ask about test layers, then render them (C8)
+
+Ask the user which of the three layers this spec gets: `contract_first`, `integration_tests`, `e2e_tests`. Write the answers as a `layers:` block in the **`requirements.md` frontmatter — its single canonical owner**; a layer the user declines needs a `<layer>_reason` alongside it, so speed stays a recorded decision instead of a silently missing task. Unasked keys inherit `pipeline.yaml:sdd.layers`. A spec with no `layers` block at all is legacy and gets none of the new machinery — never write a generated spec without the block.
+
+Then render deterministically — this is code, not prompt judgement:
+
+```bash
+bash scripts/mb-rules-resolve.sh --spec <bank>/tmp/sdd/<topic> --json > <bank>/tmp/sdd/<topic>/rules.json
+python3 scripts/mb-sdd-layers-render.py \
+  --requirements <bank>/tmp/sdd/<topic>/requirements.md \
+  --pipeline <pipeline.yaml> --rules-json <bank>/tmp/sdd/<topic>/rules.json --json
+```
+
+stdout is one envelope `{"tasks_markdown", "quality_dod_markdown"}`; the renderer writes no files. Insert `quality_dod_markdown` into the staged `design.md` (**only** there) and keep `tasks_markdown` for Step 4 (**only** `tasks.candidate.md`). A non-zero exit stops the pipeline: exit 1 = the `layers` block is unusable or the spec is legacy, exit 2 = usage.
+
 ### Step 4 — Generate candidate tasks.md (v2) → staging
 
-Generate the tasks as a **candidate**, written to `<bank>/tmp/sdd/<topic>/tasks.candidate.md` — NOT to `specs/`. Each task block carries `**Covers:**`, bare `**Role:**`, `**Stage:**`, `**Scope:**` (restricted glob), `**Budget:**` (integer), and a `**Eval:**` line carrying an `exit:` / `output~:` red anchor (or `none — waiver: <reason>` for a non-gated task). Copy the block shape from `references/templates.md`; do not write formats from memory.
+Splice the rendered layer tasks around your own implementation tasks: the `**Layer:** contract` block **first**, then every implementation task, then `**Layer:** integration` and `**Layer:** e2e` **last**. Renumber all `<!-- mb-task:N -->` markers contiguously from 1 — the fragment numbers its own blocks from 1 and knows nothing about your implementation tasks. Do not edit the rendered bodies; the order you produce is checked by `mb-spec-validate.sh` (C3/C4) in Step 7, so a bad splice fails the pipeline rather than reaching `specs/`.
+
+Generate the implementation tasks as a **candidate**, written to `<bank>/tmp/sdd/<topic>/tasks.candidate.md` — NOT to `specs/`. Each task block carries `**Covers:**`, bare `**Role:**`, `**Stage:**`, `**Scope:**` (restricted glob), `**Budget:**` (integer), and a `**Eval:**` line carrying an `exit:` / `output~:` red anchor (or `none — waiver: <reason>` for a non-gated task). Copy the block shape from `references/templates.md`; do not write formats from memory.
 
 ### Step 5 — Budget gate (C3) on the candidate
 
