@@ -5,16 +5,24 @@
 #   mb-flow-sync.sh [mb_path] [--route R] [--phase k/n] [--phases a,b,c]
 #                   [--checks JSON] [--gate PASS|FAIL]
 #                   [--last-verify-sha SHA] [--stall-count N]
+#                   [--stop-reason REASON]
 #
 # Effects (REQ-DF-030/031/032; design ADR-5 + L4 Interfaces):
 #   - Between `<!-- mb-flow -->` and `<!-- /mb-flow -->` fences in status.md, emit ONLY
 #     the genuinely-new runtime fields: route, current_phase, phases, checks{8}, gate,
-#     last_verify_sha, stall_count. Everything else stays a POINTER to its SSOT — no
+#     last_verify_sha, stall_count, stop_reason. Everything else stays a POINTER to its SSOT — no
 #     goal/DoD/tasks are duplicated into the fence.
 #   - First write CREATES the fence (appended to status.md; status.md is created if absent).
 #   - Re-write is IDEMPOTENT: same inputs → byte-identical status.md.
 #   - Content OUTSIDE the fence is preserved byte-for-byte (including CRLF line endings).
-#   - Unset fields render as the `-` placeholder; they are never dropped.
+#   - A PARTIAL write MERGES: fields (and individual `checks` keys) not named on
+#     the command line keep their current fence value. The fence has several
+#     independent producers — mb-flow-route.sh writes --route, the verify step
+#     writes --checks/--gate, mb-drive-stop.sh writes --stop-reason — so a
+#     regenerate-from-defaults write would let each producer erase the others.
+#     A field that IS named always wins, including when it is set back to `-`.
+#   - Unset fields with nothing to preserve render as the `-` placeholder; they
+#     are never dropped.
 #   - Fence markers inside Markdown code blocks (``` or ~~~, CommonMark style:
 #     0-3 leading spaces, ≥3 of same char; closer ≥ opener length, same char)
 #     are ignored; only real (non-code-fenced) markers are the runtime fence.
@@ -33,6 +41,12 @@
 #   --gate PASS|FAIL       firewall gate verdict
 #   --last-verify-sha SHA  sha of the last mb-flow-verify run
 #   --stall-count N        consecutive no-progress iterations
+#   --stop-reason REASON   why the drive loop stopped, one line (drive-loop
+#                          Task 4 / REQ-DR-033). Closed vocabulary, written by
+#                          scripts/mb-drive-stop.sh: success | budget |
+#                          human:check-broke[:<check>] | human:max-cycle |
+#                          human:stall | human:undecidable. Unset keeps the
+#                          current fence value (`-` when there is none).
 #
 # Portability:
 #   - single-writer lock is mkdir-based (macOS bash 3.2 has no flock)
@@ -91,7 +105,7 @@ _lock_release() {
 }
 
 usage() {
-  sed -n '2,42p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,50p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 # Regenerate the fence under a single-writer lock with copy-then-atomic-rename.
@@ -157,6 +171,7 @@ opts = {
     "gate": None,
     "last-verify-sha": None,
     "stall-count": None,
+    "stop-reason": None,
 }
 i = 0
 while i < len(args):
@@ -193,7 +208,14 @@ def render_phases(raw):
     return "[" + ", ".join(items) + "]"
 
 
-def render_checks(raw):
+def parse_checks_arg(raw):
+    """Decode --checks JSON into a {key: rendered_value} merge-map.
+
+    FIX-CYCLE2 MAJOR-1: keyed on PRESENCE, not truthiness. A key named with an
+    empty/null value is an explicit RESET, so it must enter the merge-map as the
+    placeholder — dropping it would let the previous verdict survive a write that
+    deliberately cleared it ("a passed flag always wins" holds per check key too).
+    """
     parsed = {}
     if raw:
         try:
@@ -204,11 +226,18 @@ def render_checks(raw):
         if not isinstance(parsed, dict):
             print("[mb-flow-sync] --checks must be a JSON object", file=sys.stderr)
             sys.exit(1)
-    parts = []
+    out = {}
     for k in CHECK_KEYS:
-        val = parsed.get(k)
-        val = str(val).strip() if val is not None and str(val).strip() else PLACEHOLDER
-        parts.append(f"{k}: {val}")
+        if k not in parsed:
+            continue
+        val = parsed[k]
+        val = "" if val is None else str(val).strip()
+        out[k] = val if val else PLACEHOLDER
+    return out
+
+
+def render_checks(values):
+    parts = [f"{k}: {values.get(k) or PLACEHOLDER}" for k in CHECK_KEYS]
     return "{ " + ", ".join(parts) + " }"
 
 
@@ -300,27 +329,61 @@ def validate_markers(markers):
 
 
 # ---------------------------------------------------------------------------
-# Build the replacement fence block (always LF line endings — it's newly generated).
+# FIX-CYCLE2 FIX-1: read the CURRENT fence body so a partial write can merge
+# instead of regenerating every field from defaults. Values are read back in
+# their already-rendered form (`code-change`, `[a, b]`, `{ tests: pass, ... }`),
+# so preserving one is a straight copy — no re-parsing of our own output.
 # ---------------------------------------------------------------------------
-route     = render_scalar(opts["route"])
-phase     = render_scalar(opts["phase"])
-phases    = render_phases(opts["phases"])
-checks    = render_checks(opts["checks"])
-gate      = render_scalar(opts["gate"])
-last_sha  = render_scalar(opts["last-verify-sha"])
-stall     = render_scalar(opts["stall-count"])
+FIELD_RE = re.compile(r"^([A-Za-z_]+):[ \t]?(.*)$")
 
-body = "\n".join([
-    f"route: {route}",
-    f"current_phase: {phase}",
-    f"phases: {phases}",
-    f"checks: {checks}",
-    f"gate: {gate}",
-    f"last_verify_sha: {last_sha}",
-    f"stall_count: {stall}",
-])
-new_block_str = f"{FENCE_OPEN}\n{body}\n{FENCE_CLOSE}\n"
-new_block_bytes = new_block_str.encode("utf-8")
+
+def parse_existing_fence(lines, open_idx, close_idx):
+    """Return {fence_field: rendered_value} for the current body ({} if no fence)."""
+    prev = {}
+    if open_idx is None:
+        return prev
+    for line in lines[open_idx + 1:close_idx]:
+        m = FIELD_RE.match(line.rstrip("\r\n"))
+        if m:
+            prev[m.group(1)] = m.group(2).strip()
+    return prev
+
+
+def parse_rendered_checks(rendered):
+    """Split a rendered `{ tests: pass, ... }` blob back into a key→value map.
+
+    Splitting on a lookahead of the KNOWN keys keeps a value that itself
+    contains ", " from swallowing the next pair.
+
+    FIX-CYCLE2 MAJOR-2: the alternation MUST be grouped — `(?=a|b|c:)` binds the
+    colon to the last branch only, so every other key matched bare and tore
+    values like "fail, rules pending" in half (the tail was then dropped).
+
+    Known ceiling: a value containing a LITERAL ", <check-key>: " is
+    indistinguishable from a real pair boundary in the rendered form, so it
+    re-splits there. Check verdicts are short tokens (pass/fail/skip), and the
+    round-trip only runs when a writer passes --checks again (an absent --checks
+    copies the line verbatim), so this stays theoretical. Upgrade path if it ever
+    bites: escape ", " on render instead of parsing the rendered form back.
+    """
+    out = {}
+    inner = (rendered or "").strip()
+    if inner.startswith("{"):
+        inner = inner[1:]
+    if inner.endswith("}"):
+        inner = inner[:-1]
+    inner = inner.strip()
+    if not inner:
+        return out
+    lookahead = "(?:" + "|".join(CHECK_KEYS) + "):"
+    for part in re.split(rf",\s*(?={lookahead})", inner):
+        k, sep, v = part.partition(":")
+        k = k.strip()
+        v = v.strip()
+        if sep and k in CHECK_KEYS and v and v != PLACEHOLDER:
+            out[k] = v
+    return out
+
 
 # ---------------------------------------------------------------------------
 # FIX-CYCLE1 Defect 3: Read in binary mode (newline="") so CRLF bytes are
@@ -356,6 +419,55 @@ if eof_in_code and open_idx is None:
         file=sys.stderr,
     )
     sys.exit(1)
+
+# ---------------------------------------------------------------------------
+# Build the replacement fence block (always LF line endings — it's newly
+# generated). Every field is either RENDERED from the flag that was passed or
+# PRESERVED from the existing fence; with no fence yet, preservation yields the
+# `-` placeholder, so a first write is unchanged.
+# ---------------------------------------------------------------------------
+prev = parse_existing_fence(lines, open_idx, close_idx)
+
+
+def resolve(opt_key, field, renderer):
+    if opts[opt_key] is not None:
+        return renderer(opts[opt_key])
+    kept = prev.get(field, "")
+    return kept if kept else PLACEHOLDER
+
+
+route     = resolve("route", "route", render_scalar)
+phase     = resolve("phase", "current_phase", render_scalar)
+phases    = resolve("phases", "phases", render_phases)
+gate      = resolve("gate", "gate", render_scalar)
+last_sha  = resolve("last-verify-sha", "last_verify_sha", render_scalar)
+stall     = resolve("stall-count", "stall_count", render_scalar)
+stop      = resolve("stop-reason", "stop_reason", render_scalar)
+
+# checks merge per KEY: --checks names only the checks that just ran, so the
+# keys it omits keep their previous verdict instead of resetting to `-`.
+# When --checks is absent entirely there is nothing to merge, so the previous
+# line is copied VERBATIM — same as every scalar field, and no round-trip
+# through the renderer that a writer never asked for.
+if opts["checks"] is None:
+    checks = prev.get("checks", "") or render_checks({})
+else:
+    check_values = parse_rendered_checks(prev.get("checks", ""))
+    check_values.update(parse_checks_arg(opts["checks"]))
+    checks = render_checks(check_values)
+
+body = "\n".join([
+    f"route: {route}",
+    f"current_phase: {phase}",
+    f"phases: {phases}",
+    f"checks: {checks}",
+    f"gate: {gate}",
+    f"last_verify_sha: {last_sha}",
+    f"stall_count: {stall}",
+    f"stop_reason: {stop}",
+])
+new_block_str = f"{FENCE_OPEN}\n{body}\n{FENCE_CLOSE}\n"
+new_block_bytes = new_block_str.encode("utf-8")
 
 if open_idx is None:
     # --- First write: append a fresh fence, preserving prior bytes exactly. ---
@@ -416,7 +528,7 @@ main() {
         usage
         return 0
         ;;
-      --route|--phase|--phases|--checks|--gate|--last-verify-sha|--stall-count)
+      --route|--phase|--phases|--checks|--gate|--last-verify-sha|--stall-count|--stop-reason)
         if [ "$#" -lt 2 ]; then
           printf '[mb-flow-sync] flag %s needs a value\n' "$1" >&2
           return 1

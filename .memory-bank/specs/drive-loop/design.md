@@ -27,7 +27,7 @@ action, executes it (dispatch a sonnet subagent, run the firewall, or stop), and
   │       repair <item>             → dispatch SONNET role-agent (same item, cycle++)      │
   │       pivot <mode> <item>       → work-loop-v2 pivot (sonnet; architect on escalate)   │
   │       stop_success              → break: goal done (firewall green + acceptance 100%)  │
-  │       stop_human <why>          → break: hand to human (check-broke | max-cycle | stall)│
+  │       stop_human <why>          → break: hand to human (check-broke | max-cycle | stall | undecidable)│
   │       stop_budget               → break: budget ceiling hit                            │
   │     (after implement/repair/pivot) run review→judge per pipeline (codex→opus)          │
   │                                                                                       │
@@ -72,7 +72,7 @@ mb-drive.sh next   --bank <b> [--route R] [--phase P] [--budget TOK]   → print
                       repair <item_id>
                       pivot <in_role|via_architect> <item_id>
                       stop_success
-                      stop_human <check-broke:<name>|max-cycle|stall>
+                      stop_human <check-broke:<name>|max-cycle|stall|undecidable>
                       stop_budget
 mb-drive.sh status --bank <b>                                          → current drive state (derived, read-only)
 /mb drive <goal> [--route R] [--max-cycles N] [--budget TOK]           → command wrapper; refuses w/o goal.md (exit 1)

@@ -121,6 +121,11 @@
         },
         {
           "type": "command",
+          "command": "MB_AGENT=claude-code ~/.claude/skills/memory-bank/hooks/mb-drive-resume-gate.sh # [memory-bank-skill]",
+          "timeout": 15
+        },
+        {
+          "type": "command",
           "command": "~/.claude/hooks/mb-session-turn.sh # [memory-bank-skill]"
         },
         {

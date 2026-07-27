@@ -45,7 +45,16 @@ def test_reviewer_agent_documents_fix_cycle() -> None:
 
 
 def test_work_command_references_review_loop_helpers() -> None:
-    text = (REPO_ROOT / "commands" / "work.md").read_text(encoding="utf-8")
+    # The command contract spans work.md plus its companion references, split
+    # for the 400-line limit (S2 review [26]).
+    text = "\n".join(
+        (REPO_ROOT / rel).read_text(encoding="utf-8")
+        for rel in (
+            "commands/work.md",
+            "references/work-reference.md",
+            "references/work-loop-v2.md",
+        )
+    )
     assert "mb-work-review-parse" in text
     assert "mb-work-severity-gate" in text
     assert "mb-work-budget" in text
@@ -53,6 +62,15 @@ def test_work_command_references_review_loop_helpers() -> None:
 
 
 def test_work_command_documents_hard_stops() -> None:
-    text = (REPO_ROOT / "commands" / "work.md").read_text(encoding="utf-8")
+    # The command contract spans work.md plus its companion references, split
+    # for the 400-line limit (S2 review [26]).
+    text = "\n".join(
+        (REPO_ROOT / rel).read_text(encoding="utf-8")
+        for rel in (
+            "commands/work.md",
+            "references/work-reference.md",
+            "references/work-loop-v2.md",
+        )
+    )
     for keyword in ("max_cycles", "verifier", "protected", "budget"):
         assert keyword in text.lower()

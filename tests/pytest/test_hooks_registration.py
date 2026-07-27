@@ -53,6 +53,33 @@ def test_hooks_json_contains_sprint_context_guard() -> None:
     assert any("mb-sprint-context-guard.sh" in c for c in cmds), cmds
 
 
+def test_hooks_json_registers_drive_resume_gate_on_stop() -> None:
+    """drive-loop Task 4 / REQ-DR-032: the resume-gate is a Stop hook."""
+    data = _load_hooks()
+    stop_entries = (data.get("hooks", data)).get("Stop", [])
+    stop_cmds = [
+        hook.get("command", "") for entry in stop_entries for hook in entry.get("hooks", [])
+    ]
+    assert any("mb-drive-resume-gate.sh" in c for c in stop_cmds), stop_cmds
+
+
+def test_drive_resume_gate_has_a_timeout() -> None:
+    """Backlog I-131: an unbounded Stop-path hook can wedge a session for
+    minutes. Every registration of the resume-gate must carry a timeout."""
+    data = _load_hooks()
+    stop_entries = (data.get("hooks", data)).get("Stop", [])
+    gates = [
+        hook
+        for entry in stop_entries
+        for hook in entry.get("hooks", [])
+        if "mb-drive-resume-gate.sh" in hook.get("command", "")
+    ]
+    assert gates, "resume-gate not registered"
+    for hook in gates:
+        assert isinstance(hook.get("timeout"), int), hook
+        assert hook["timeout"] <= 60, hook
+
+
 def test_all_v2_hooks_have_marker() -> None:
     cmds = _all_commands(_load_hooks())
     v2 = [c for c in cmds if "/hooks/mb-" in c and ".sh" in c]
@@ -72,7 +99,9 @@ def test_merge_hooks_idempotent_with_v2_entries() -> None:
         for _ in range(2):
             r = subprocess.run(
                 ["python3", str(MERGE_PY), str(settings), str(HOOKS_JSON)],
-                capture_output=True, text=True, check=False,
+                capture_output=True,
+                text=True,
+                check=False,
             )
             assert r.returncode == 0, r.stderr
 

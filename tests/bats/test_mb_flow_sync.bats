@@ -124,6 +124,131 @@ _mtime() {
   grep -q "gate: -" "$STATUS"
   grep -q "last_verify_sha: -" "$STATUS"
   grep -q "stall_count: -" "$STATUS"
+  grep -q "stop_reason: -" "$STATUS"
+}
+
+# ── drive-loop Task 4 / REQ-DR-033: the stop_reason field ──────────────
+
+@test "flow-sync: --stop-reason renders the drive stop reason in the fence" {
+  bash "$SYNC" "$TMPBANK" --route code-change --stop-reason "human:max-cycle"
+  grep -q "^stop_reason: human:max-cycle$" "$STATUS"
+}
+
+@test "flow-sync: --stop-reason is idempotent (same input → byte-identical)" {
+  bash "$SYNC" "$TMPBANK" --route code-change --stop-reason budget
+  sum_before=$(shasum "$STATUS" | awk '{print $1}')
+  bash "$SYNC" "$TMPBANK" --route code-change --stop-reason budget
+  sum_after=$(shasum "$STATUS" | awk '{print $1}')
+  [ "$sum_before" = "$sum_after" ]
+}
+
+@test "flow-sync: --stop-reason needs a value" {
+  run bash "$SYNC" "$TMPBANK" --stop-reason
+  [ "$status" -ne 0 ]
+}
+
+# ── FIX-CYCLE2 FIX-1: a PARTIAL write preserves fields it did not mention ──────
+#
+# The fence has several independent producers (mb-flow-route.sh writes --route,
+# the verify step writes --checks/--gate, mb-drive-stop.sh writes --stop-reason).
+# Each of them passes only its own flags, so a partial write MUST merge into the
+# existing fence instead of regenerating it from defaults — otherwise every
+# producer silently erases the others' fields.
+
+@test "flow-sync: a partial re-write preserves fields that were not passed" {
+  bash "$SYNC" "$TMPBANK" --route code-change --phase 2/4 --phases "plan,implement,verify" \
+    --checks '{"tests":"pass","rules":"pass","lint":"skip","build":"skip","mb_updated":"pass","no_todo":"pass","diff_scope":"pass","acceptance":"fail"}' \
+    --gate FAIL --last-verify-sha abc1234 --stall-count 2
+
+  # Second writer touches ONLY stop_reason.
+  bash "$SYNC" "$TMPBANK" --stop-reason success
+
+  grep -q "^route: code-change$" "$STATUS"
+  grep -q "^current_phase: 2/4$" "$STATUS"
+  grep -q "^phases: \[plan, implement, verify\]$" "$STATUS"
+  grep -q "^gate: FAIL$" "$STATUS"
+  grep -q "^last_verify_sha: abc1234$" "$STATUS"
+  grep -q "^stall_count: 2$" "$STATUS"
+  grep -q "tests: pass" "$STATUS"
+  grep -q "acceptance: fail" "$STATUS"
+  grep -q "^stop_reason: success$" "$STATUS"
+}
+
+@test "flow-sync: a passed field still overrides the preserved value" {
+  bash "$SYNC" "$TMPBANK" --route code-change --gate FAIL --stall-count 2
+  bash "$SYNC" "$TMPBANK" --gate PASS
+  grep -q "^gate: PASS$" "$STATUS"
+  ! grep -q "^gate: FAIL$" "$STATUS"
+  # untouched neighbours survive
+  grep -q "^route: code-change$" "$STATUS"
+  grep -q "^stall_count: 2$" "$STATUS"
+}
+
+@test "flow-sync: preservation is per-check-key inside the checks object" {
+  bash "$SYNC" "$TMPBANK" --checks '{"tests":"pass","lint":"skip"}'
+  bash "$SYNC" "$TMPBANK" --stop-reason budget
+  grep -q "tests: pass" "$STATUS"
+  grep -q "lint: skip" "$STATUS"
+  # keys never set stay placeholders
+  grep -q "build: -" "$STATUS"
+}
+
+@test "flow-sync: a later --checks updates named keys and keeps the unnamed ones" {
+  # A REPLACE of the whole checks object would pass a single-call test, so the
+  # merge is only proven by a SECOND --checks call carrying a SUBSET of keys.
+  bash "$SYNC" "$TMPBANK" --checks '{"tests":"pass","rules":"fail"}'
+  bash "$SYNC" "$TMPBANK" --checks '{"tests":"fail"}'
+  grep -q "tests: fail" "$STATUS"   # named key updated
+  grep -q "rules: fail" "$STATUS"   # unnamed key survived
+}
+
+@test "flow-sync: an explicitly emptied check key is reset, not silently preserved" {
+  # "the passed flag always wins, including an explicit reset" must hold for
+  # checks keys too — an empty value is a RESET, not an absent key.
+  bash "$SYNC" "$TMPBANK" --checks '{"tests":"pass","rules":"pass"}'
+  bash "$SYNC" "$TMPBANK" --checks '{"tests":""}'
+  grep -q "tests: -" "$STATUS"
+  grep -q "rules: pass" "$STATUS"
+}
+
+@test "flow-sync: an explicit \"-\" check value resets the key too" {
+  bash "$SYNC" "$TMPBANK" --checks '{"tests":"pass","rules":"pass"}'
+  bash "$SYNC" "$TMPBANK" --checks '{"tests":"-"}'
+  grep -q "tests: -" "$STATUS"
+  grep -q "rules: pass" "$STATUS"
+}
+
+@test "flow-sync: a check value containing a comma+key-name survives a later merge" {
+  # Guard for the ungrouped-alternation bug: `(?=a|b|c:)` binds the colon to the
+  # LAST branch only, so ", rules" (a bare key name, no colon) matched as a pair
+  # boundary — tearing the value and silently dropping the tail, which then has
+  # no ':' to partition on.
+  bash "$SYNC" "$TMPBANK" --checks '{"tests":"fail, rules pending","lint":"skip"}'
+  before="$(grep '^checks: ' "$STATUS")"
+
+  bash "$SYNC" "$TMPBANK" --checks '{"build":"pass"}'
+  after="$(grep '^checks: ' "$STATUS")"
+
+  # Only `build` may differ between the two renders — nothing else was named.
+  [ "$(printf '%s' "$before" | sed 's/build: [^,}]*/build: X/')" \
+    = "$(printf '%s' "$after" | sed 's/build: [^,}]*/build: X/')" ]
+  # The tail survived and `rules` did not absorb it.
+  grep -q "tests: fail, rules pending" "$STATUS"
+  grep -q "rules: -" "$STATUS"
+  grep -q "build: pass" "$STATUS"
+}
+
+@test "flow-sync: first write (no existing fence) still renders placeholders" {
+  # Nothing to preserve ⇒ the `-` placeholder contract is unchanged.
+  bash "$SYNC" "$TMPBANK" --stop-reason success
+  grep -q "^route: -$" "$STATUS"
+  grep -q "^current_phase: -$" "$STATUS"
+  grep -q "^phases: -$" "$STATUS"
+  grep -q "^gate: -$" "$STATUS"
+  grep -q "^last_verify_sha: -$" "$STATUS"
+  grep -q "^stall_count: -$" "$STATUS"
+  grep -q "tests: -" "$STATUS"
+  grep -q "^stop_reason: success$" "$STATUS"
 }
 
 @test "flow-sync: phases list renders flow-style" {
@@ -440,6 +565,7 @@ print('CRLF preserved in prefix: OK')
     printf 'gate: PASS\n'
     printf 'last_verify_sha: -\n'
     printf 'stall_count: -\n'
+    printf 'stop_reason: -\n'
     printf '<!-- /mb-flow -->\n'
   } > "$STATUS"
 

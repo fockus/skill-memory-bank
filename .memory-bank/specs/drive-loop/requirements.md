@@ -81,9 +81,10 @@ gets a deterministic action, executes it (dispatch a sonnet role-agent, run the 
   (reuse the `mb-goal-validate.sh` failure path), never silently start.
 - **REQ-DR-032** (Optional): Where the host provides a Stop-hook (Claude Code / Cursor / Cline / Windsurf / OpenCode), the
   system shall gate a premature stop on "goal not done AND no stop condition", so the loop resumes instead of ending early.
-- **REQ-DR-033** (Ubiquitous): The system shall record each stop as a one-line reason
-  (`success | human:check-broke | human:max-cycle | human:stall | budget`) into the `mb-flow` fence and append it to
-  `progress.md`, so a run's outcome is auditable.
+- **REQ-DR-033** (Ubiquitous): The system shall record each stop as a one-line reason from the closed vocabulary
+  (`success | budget | human:max-cycle | human:stall | human:undecidable | human:check-broke[:<check>]`, where `<check>` is a
+  plain token matching `[A-Za-z0-9._-]+`) into the `mb-flow` fence and append it to `progress.md`, so a run's outcome is
+  auditable.
 - **REQ-DR-034** (State): While `MB_WORK_PARALLEL=1`, the driver's per-item state shall be per-run-keyed (reuse I-094's
   per-run dirs), so parallel drives don't cross-contaminate.
 

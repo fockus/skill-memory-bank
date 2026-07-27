@@ -152,6 +152,24 @@ _agents_md_section() {
   # shellcheck disable=SC2016
   echo '- Hookless agent (e.g. Pi) with no live Stop-hook: a no-commit false-done cannot be blocked live — it is only detectable after the fact via the commit-time git-hooks fallback (`mb-flow-verify.sh` runs in `pre-commit` and blocks a red flow).'
   echo ''
+  echo '## drive-loop contract (autonomous goal-driven runs)'
+  echo ''
+  # shellcheck disable=SC2016
+  echo 'When `/mb drive` is running, YOU are the runtime — there is no daemon. `scripts/mb-drive.sh` is a stateless decision function: it prints ONE next action and exits. Call it, execute that action, then call it again.'
+  echo ''
+  # shellcheck disable=SC2016
+  echo '- Loop: `scripts/mb-drive.sh next --bank <bank>` → execute the printed action → repeat, until the action starts with `stop_`.'
+  # shellcheck disable=SC2016
+  echo '- Action grammar: `implement <route> <item>` | `repair <item>` | `pivot <in_role|via_architect> <item>` | `stop_success` | `stop_human <why>` | `stop_budget`.'
+  # shellcheck disable=SC2016
+  echo '- Dispatch is RESOLVED, never guessed: the tiers live in `pipeline.yaml` under `roles:` (locate the resolved file with `scripts/mb-pipeline.sh path`) — read the `roles:` entry for the step and pass its exact `agent`/`model`/`thinking`. `implement`/`repair`/`pivot` → the pipeline'"'"'s implement role-agent; review → the pipeline'"'"'s external codex reviewer; judge → the pipeline'"'"'s judge role (it terminates the review loop). Never a fuzzy model name, and never a tier hardcoded here.'
+  # shellcheck disable=SC2016
+  echo '- NEVER self-certify done. `stop_success` is the only done signal, and it requires `scripts/mb-flow-verify.sh` exit 0 AND `scripts/mb-goal-acceptance.sh` acceptance 100% — your own assessment that the work looks complete is not a stop condition.'
+  # shellcheck disable=SC2016
+  echo '- No resolvable `.memory-bank/goal.md` → `/mb drive` refuses with exit 1 and a `scripts/mb-goal-validate.sh` fix-hint. Fix the goal; never start the loop anyway.'
+  # shellcheck disable=SC2016
+  echo '- A killed run resumes for free: all state lives in files (`goal.md`, the `mb-flow` fence, `scripts/mb-work-state.sh`). Re-run the preflight and call `next` again.'
+  echo ''
   if [ -f "$skill_dir/rules/RULES.md" ]; then
     echo '---'
     echo ''
@@ -250,9 +268,16 @@ agents_md_install() {
       index($0, e) { inside=0; next }
       !inside { print }
     ' "$agents_md" > "$tmp"
+    # Idempotency: emit the user-content separator ONLY when user content
+    # actually survives the strip, and drop the trailing blank run first.
+    # Otherwise every re-install (upgrade, second adapter, `install.sh` re-run)
+    # prepended one more blank line and the file grew without bound — the
+    # rendered block must be byte-identical across repeated renders.
     {
-      cat "$tmp"
-      echo ''
+      if grep -q '[^[:space:]]' "$tmp" 2>/dev/null; then
+        awk 'NF { while (pending-- > 0) print ""; pending = 0; print; next } { pending++ }' "$tmp"
+        echo ''
+      fi
       _agents_md_section "$skill_dir" "$effective_nudge"
     } > "$agents_md"
     rm -f "$tmp"

@@ -443,3 +443,82 @@ EOF
   [ "$status" -eq 1 ]
   assert_error_code "goal-missing" "$output"
 }
+
+# ---- acceptance-placeholder: an unedited scaffold is not a goal -------------
+# The predicate must be narrow. Two false directions, both regressions:
+#   false POSITIVE — a real criterion using `<`/`>` as comparison operators
+#                    (or carrying an HTML-ish span) must NOT be flagged;
+#   false NEGATIVE — the shipped templates/goal.md must STILL be rejected.
+
+@test "acceptance-placeholder: unedited templates/goal.md is rejected (single source of truth)" {
+  mkdir -p "$BANK"; touch "$BANK/checklist.md"
+  cp "$REPO_ROOT/templates/goal.md" "$GOAL"
+  run bash "$VALIDATE" "$GOAL" "$BANK"
+  [ "$status" -eq 1 ]
+  assert_error_code "acceptance-placeholder" "$output"
+  [[ "$output" == *"placeholder"* ]]
+}
+
+@test "acceptance-placeholder: a single real criterion with < and > comparison operators validates" {
+  mkdir -p "$BANK"; touch "$BANK/checklist.md"
+  cat >"$GOAL" <<'EOF'
+---
+id: G-011
+status: active
+progress_source: checklist
+---
+
+# Goal
+
+## Description
+p95 latency budget.
+
+## Acceptance criteria
+- [ ] latency < 200ms and error rate > 1% triggers alert
+EOF
+  run bash "$VALIDATE" "$GOAL" "$BANK"
+  [ "$status" -eq 0 ]
+}
+
+@test "acceptance-placeholder: a real criterion containing an HTML-like span validates" {
+  mkdir -p "$BANK"; touch "$BANK/checklist.md"
+  cat >"$GOAL" <<'EOF'
+---
+id: G-012
+status: active
+progress_source: checklist
+---
+
+# Goal
+
+## Description
+Redaction contract.
+
+## Acceptance criteria
+- [ ] secrets wrapped in <private>…</private> are redacted from search output
+EOF
+  run bash "$VALIDATE" "$GOAL" "$BANK"
+  [ "$status" -eq 0 ]
+}
+
+@test "acceptance-placeholder: a half-filled scaffold (one real, one placeholder) validates" {
+  mkdir -p "$BANK"; touch "$BANK/checklist.md"
+  cat >"$GOAL" <<'EOF'
+---
+id: G-013
+status: active
+progress_source: checklist
+---
+
+# Goal
+
+## Description
+Partially filled in.
+
+## Acceptance criteria
+- [ ] the CLI exits 0 on a resolvable goal
+- [ ] <concrete, checkable criterion 2>
+EOF
+  run bash "$VALIDATE" "$GOAL" "$BANK"
+  [ "$status" -eq 0 ]
+}

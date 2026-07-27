@@ -46,21 +46,21 @@ _None._
 - svp-sdd-core — progress=100% tasks(done=9,in_progress=0,planned=0,total=9)
 - svp-interview-upgrade — progress=100% tasks(done=6,in_progress=0,planned=0,total=6)
 - svp-roadmap-backlog-db — progress=39% tasks(done=3,in_progress=0,planned=6,total=9)
-- svp-brief — progress=0% tasks(done=0,in_progress=0,planned=4,total=4)
+- svp-brief — progress=41% tasks(done=2,in_progress=0,planned=2,total=4)
 - svp-parallel-engine — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
 - svp-adapt-escalation — progress=0% tasks(done=0,in_progress=0,planned=5,total=5)
 - svp-docs-wiki — progress=0% tasks(done=0,in_progress=0,planned=7,total=7)
-- svp-contract-test-loop — progress=0% tasks(done=0,in_progress=0,planned=8,total=8)
+- svp-contract-test-loop — progress=34% tasks(done=3,in_progress=0,planned=5,total=8)
 
 ## Group: sdd-vision-pipeline
-progress=26%
+progress=39%
 svp-interview-upgrade — ice=504 — ready — progress=100% tasks(done=6,in_progress=0,planned=0,total=6) — blocked_by=none
 svp-roadmap-backlog-db — ice=432 (unconfirmed) — ready — progress=39% tasks(done=3,in_progress=0,planned=6,total=9) — blocked_by=none
-svp-sdd-core — ice=400 (unconfirmed) — ready — progress=100% tasks(done=9,in_progress=0,planned=0,total=9) — blocked_by=none
-svp-brief — ice=448 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=4,total=4) — blocked_by=svp-interview-upgrade
-svp-contract-test-loop — ice=360 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=8,total=8) — blocked_by=svp-sdd-core
+svp-sdd-core — ice=400 (unconfirmed) — draft — progress=100% tasks(done=9,in_progress=0,planned=0,total=9) — blocked_by=none
+svp-brief — ice=448 (unconfirmed) — ready — progress=41% tasks(done=2,in_progress=0,planned=2,total=4) — blocked_by=svp-interview-upgrade
+svp-contract-test-loop — ice=360 (unconfirmed) — ready — progress=34% tasks(done=3,in_progress=0,planned=5,total=8) — blocked_by=svp-sdd-core
 svp-docs-wiki — ice=336 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=7,total=7) — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
-svp-spec-review-loop — ice=336 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=5,total=5) — blocked_by=svp-sdd-core
+svp-spec-review-loop — ice=336 (unconfirmed) — ready — progress=40% tasks(done=2,in_progress=0,planned=3,total=5) — blocked_by=svp-sdd-core
 svp-parallel-engine — ice=252 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=10,total=10) — blocked_by=svp-sdd-core
 svp-adapt-escalation — ice=294 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=5,total=5) — blocked_by=svp-sdd-core,svp-parallel-engine,svp-roadmap-backlog-db
 <!-- /mb-roadmap-auto -->

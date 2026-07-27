@@ -204,8 +204,9 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-contract.sh` | Per-stage "what done means" contract under `<bank>/contracts/<topic>_stage-<N>.md` — `create` / `read` / `validate` / `path`; the reviewer can judge against it |
 | `mb-workflow.sh` | Resolve the active workflow + per-step `model`/`thinking` config from `pipeline.yaml` for `/mb work` |
 | `mb-drive.sh` | Autonomous goal-driven loop: `next` reads goal-acceptance + the firewall + work-state + budget and emits exactly one action (`implement` / `repair` / `pivot` / `stop_*`). Stateless, fail-closed — `stop_success` requires a green firewall AND 100% acceptance (REQ-DR-014) |
+| `mb-drive-stop.sh` | Drive-loop stop telemetry + per-run drive state: `arm` marks a drive live (arms the Stop-hook resume-gate), `record --reason\|--action` writes the stop reason once into the `mb-flow` fence, `progress.md`, and the run's state slot (REQ-DR-033/034) |
 | `mb-work-state.sh` | Durable `/mb work` loop-state + `max_cycles` enforcement; optional per-run isolation/claim under `MB_WORK_PARALLEL` |
-| `mb-work-slots.sh` | Sourced helper: per-run state/budget slot-path resolution + source→run claim index (gated behind `MB_WORK_PARALLEL`) |
+| `mb-work-slots.sh` | Sourced helper: per-run state/budget/drive slot-path resolution + source→run claim index (gated behind `MB_WORK_PARALLEL`) |
 | `mb-work-checkbox.sh` | Deterministic DoD-checkbox flip, gated on the run's work-state phase (single-writer for `checklist.md`) |
 | `mb-work-diff.sh` | Baseline-scoped diff for a `/mb work` run — feeds verify/review with the stage's own changes only |
 | `mb-work-progress-append.sh` | Locked, atomic, append-only writer for `<bank>/progress.md` (safe under concurrent runs) |
@@ -249,7 +250,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-fanout.sh` | Stateless fan-out helper: run N branch prompts concurrently via background jobs, capture JSON results, and aggregate into one object — exit-code authority for failed branches (REQ-DF-084) |
 | `mb-flow-branch-sink.sh` | Per-branch result sinks with write-once discipline for `<!-- mb-flow -->` fence: each parallel branch writes to its own `.mb-flow/branch-<i>.json` to prevent races (ADR-9) |
 | `mb-flow-route.sh` | Deterministic route resolver: apply route-floor rules (REQ-DF-022) to an LLM-proposed or user-supplied route and write the resolved `route:` into the `<!-- mb-flow -->` fence in status.md |
-| `mb-flow-sync.sh` | Regenerate the `<!-- mb-flow -->` runtime fence in status.md: emit route, phase, checks, gate, last-verify-sha, and stall-count fields (REQ-DF-030/031/032) |
+| `mb-flow-sync.sh` | Regenerate the `<!-- mb-flow -->` runtime fence in status.md: emit route, phase, checks, gate, last-verify-sha, stall-count, and stop-reason fields (REQ-DF-030/031/032, REQ-DR-033) |
 | `mb-flow-verify.sh` | THE firewall fan-out: run route-relevant check runners, normalize verdicts via `mb-work-severity-gate.sh`, and exit 0/1/2 — the sole exit-code authority of the dynamic-flow firewall (ADR-3) |
 | `mb-goal-acceptance.sh` | L5 goal-acceptance aggregator: parse `## Acceptance criteria` checkboxes in goal.md and report whether every criterion is satisfied (exits 0, JSON report; REQ-DF-042) |
 | `mb-goal-validate.sh` | Validate a goal.md before a Dynamic Flow run: enforce required sections, acceptance-criteria items, and field completeness — fail-loud exit 1 on malformed goals (REQ-DF-004) |

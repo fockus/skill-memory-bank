@@ -14,6 +14,7 @@
 #                                               MB_WORK_PARALLEL is truthy
 #   mbw_state_slot   <bank> [run_id]           echoes the state-file path
 #   mbw_budget_slot  <bank> [run_id]           echoes the budget-file path
+#   mbw_drive_slot   <bank> [run_id]           echoes the drive-state path
 #   mbw_source_hash  <source>                  echoes a stable short hash
 #   mbw_index_set    <bank> <source> <run_id>  claims <source> for <run_id>
 #   mbw_index_get    <bank> <source>           echoes the claiming run_id,
@@ -52,6 +53,19 @@ mbw_state_slot() {
     printf '%s/.work-state/%s.json\n' "$bank" "$run_id"
   else
     printf '%s/.work-state.json\n' "$bank"
+  fi
+}
+
+# $1 = bank, $2 = run_id (optional) → echoes the drive-state file path for a
+# run (drive-loop Task 4 / REQ-DR-034). Same isolation model as the state and
+# budget slots: only MB_WORK_PARALLEL + a non-empty run_id routes to a per-run
+# slot, so the singleton default stays byte-identical.
+mbw_drive_slot() {
+  local bank="$1" run_id="${2:-}"
+  if mbw_parallel_on && [ -n "$run_id" ]; then
+    printf '%s/.drive-state/%s.json\n' "$bank" "$run_id"
+  else
+    printf '%s/.drive-state.json\n' "$bank"
   fi
 }
 

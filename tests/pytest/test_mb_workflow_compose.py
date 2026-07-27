@@ -154,12 +154,66 @@ def test_json_output_carries_steps(tmp_path: Path) -> None:
     assert "source" in payload
 
 
+# ── --fix / --loop (composable fix-cycle) ──────────────────────────────────
+
+
+def test_fix_flag_adds_fix_stage() -> None:
+    assert _steps("--review", "--fix") == [
+        "implement",
+        "verify",
+        "review",
+        "fix",
+        "done",
+    ]
+
+
+def test_fix_without_review_fails() -> None:
+    # A fix-cycle with nothing to fix against is a no-op loop, not a workflow.
+    r = _run("--fix", "--steps")
+    assert r.returncode != 0
+    assert "review" in (r.stderr + r.stdout).lower()
+
+
+def test_no_fix_removes_fix_from_preset(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    steps = _steps("--mb", str(mb), "--workflow", "governed-execution", "--no-fix")
+    assert "fix" not in steps
+    assert "review" in steps
+
+
+def test_fix_flag_supplies_loop_defaults() -> None:
+    # `execution` carries no loop block; a flag-added fix stage needs one, or
+    # the orchestrator has no termination condition and no returns_to.
+    r = _run("--review", "--fix", "--json")
+    assert r.returncode == 0, r.stderr
+    loop = json.loads(r.stdout)["loop"]
+    assert loop["returns_to"] == "verify"
+    assert int(loop["max_cycles"]) >= 1
+
+
+def test_fix_flag_keeps_preset_loop(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    r = _run("--mb", str(mb), "--workflow", "governed-execution", "--fix", "--json")
+    assert r.returncode == 0, r.stderr
+    loop = json.loads(r.stdout)["loop"]
+    assert loop["until"] == "judge_go"
+
+
 # ── doc contract (NFR-004) ─────────────────────────────────────────────────
 
 
 def test_work_md_documents_composition() -> None:
-    """commands/work.md must document the flags, `full` preset, and precedence."""
-    text = (REPO_ROOT / "commands" / "work.md").read_text(encoding="utf-8")
+    """The /mb work doc set must document the flags, `full` preset, and precedence."""
+    # The command contract spans work.md plus its companion references, split
+    # for the 400-line limit (S2 review [26]).
+    text = "\n".join(
+        (REPO_ROOT / rel).read_text(encoding="utf-8")
+        for rel in (
+            "commands/work.md",
+            "references/work-reference.md",
+            "references/work-loop-v2.md",
+        )
+    )
     for needle in (
         "--review",
         "--no-review",
@@ -169,6 +223,10 @@ def test_work_md_documents_composition() -> None:
         "--plan",
         "--stages",
         "precedence",
+        "--fix",
+        "--no-fix",
+        # `--loop N` is the /mb work alias of --max-cycles N (fix-cycle count).
+        "--loop N",
     ):
         assert needle in text, f"work.md missing composition doc: {needle}"
     # The `full` preset row and the default-no-review statement.

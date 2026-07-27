@@ -45,11 +45,11 @@ AGENTS.md loop block references only shipped scripts; the contract instructs the
 role-agent (sonnet) for implement/repair/pivot, codex for review, opus for judge, passing exact model/thinking.
 
 **DoD:**
-- [ ] `commands/drive.md` wraps `mb-drive.sh`: reads/scaffolds `goal.md`, then documents the "call `next` → execute → repeat"
+- [x] `commands/drive.md` wraps `mb-drive.sh`: reads/scaffolds `goal.md`, then documents the "call `next` → execute → repeat"
       loop until a `stop_*` action.
-- [ ] `/mb drive` refuses without a resolvable `goal.md` (reuse `mb-goal-validate.sh` failure path), never silently starts.
-- [ ] `_lib_agents_md.sh` fenced block carries the drive loop-contract: agent is the runtime, dispatch is sonnet/codex/opus
-      from `pipeline.yaml`, never self-certify done.
+- [x] `/mb drive` refuses without a resolvable `goal.md` (reuse `mb-goal-validate.sh` failure path), never silently starts.
+- [x] `_lib_agents_md.sh` fenced block carries the drive loop-contract: agent is the runtime, dispatch roles/models are
+      resolved from `pipeline.yaml` (no hardcoded tiers, per AGR-023 + judge ruling on REQ-DR-030), never self-certify done.
 
 <!-- mb-task:3 -->
 ### Task 3: Trend/pivot + route-reeval wiring into the loop
@@ -78,10 +78,10 @@ the drive per-item state is per-run-keyed (reuse I-094 dirs); on a hookless host
 false-done at commit time.
 
 **DoD:**
-- [ ] Stop reason (`success|human:check-broke|human:max-cycle|human:stall|budget`) written to the `mb-flow` fence + appended
-      to `progress.md` via `mb-work-progress-append.sh`.
-- [ ] CC Stop-hook resume-gate: blocks stop when goal not done AND no stop condition (REQ-DR-032); documented for hookless hosts.
-- [ ] `MB_WORK_PARALLEL=1` per-run keys the drive state (reuse I-094); no cross-run contamination (bats).
+- [x] Stop reason (`success|budget|human:max-cycle|human:stall|human:undecidable|human:check-broke[:<check>]`, per REQ-DR-033)
+      written to the `mb-flow` fence + appended to `progress.md` via `mb-work-progress-append.sh`.
+- [x] CC Stop-hook resume-gate: blocks stop when goal not done AND no stop condition (REQ-DR-032); documented for hookless hosts.
+- [x] `MB_WORK_PARALLEL=1` per-run keys the drive state (reuse I-094); no cross-run contamination (bats).
 
 <!-- mb-task:5 -->
 ### Task 5: drive-loop docs + wiring

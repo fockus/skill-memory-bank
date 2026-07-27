@@ -13,9 +13,9 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 - ✅ Phase 2 — work-loop-v2 (5/5 tasks) — trend · contract · pivot · `on_max_cycles` fail-fast · docs
 - 🔄 Phase 3 — drive-loop (`/mb drive`), spec `specs/drive-loop/`
   - ✅ Task 1 — `mb-drive.sh next` stateless decision fn (fail-closed; `stop_success` needs green firewall AND 100% acceptance)
-  - ⬜ Task 2 — `/mb drive` command + AGENTS.md loop-contract
+  - ✅ Task 2 — `/mb drive` command + AGENTS.md loop-contract (governed: 2 judge-цикла, codex ×3, GO_WITH_BACKLOG I-141…143)
   - ⬜ Task 3 — trend/pivot + route-reeval wiring (stall/last_pivot from the `mb-flow` fence)
-  - ⬜ Task 4 — stop telemetry + Stop-hook resume-gate + parallel keying
+  - ✅ Task 4 — stop telemetry + Stop-hook resume-gate + parallel keying (governed: 2 judge-цикла, codex ×2, GO_WITH_BACKLOG I-135…140; fence preserve-on-partial в mb-flow-sync.sh)
   - ⬜ Task 5 — docs
 - ⬜ Phase 4 — parallel execution (`parallel-pipeline` + `parallel-team-execution`, on `mb-fanout.sh`)
 - ⬜ Phase 5 — cost-multi-model + dynamic-flow Phase 3 (Tasks 13–14: pi/opencode sub-invoke arms)

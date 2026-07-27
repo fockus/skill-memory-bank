@@ -172,8 +172,10 @@ LINKED_SPEC="$(frontmatter_field linked_spec)"
 #
 # Finding #1: track ``` and ~~~ fenced code blocks as a state machine; count
 # checkbox lines only when NOT inside a fence AND under the active section.
+# $1 = mode: "" (default) counts every acceptance item; "placeholder" counts
+# only items still carrying unfilled `<...>` template text.
 acceptance_item_count() {
-  awk '
+  awk -v mode="${1:-}" '
     BEGIN {
       in_acc  = 0   # inside ## Acceptance criteria section
       in_fence = 0  # inside a ``` or ~~~ fenced block
@@ -215,8 +217,25 @@ acceptance_item_count() {
     }
     in_acc && /^#/ { in_acc = 0 }
 
-    # Count real (outside-fence, inside-section) checkbox items.
-    in_acc && /^[[:space:]]*-[[:space:]]+\[[ xX]\]/ { n++ }
+    # Count real (outside-fence, inside-section) checkbox items. In
+    # "placeholder" mode count only items whose ENTIRE payload is one unfilled
+    # `<...>` span, exactly as templates/goal.md ships them.
+    #
+    # The match is deliberately anchored to the whole payload rather than a
+    # generic `<...>` scan: a real criterion routinely uses `<`/`>` as
+    # comparison operators ("latency < 200ms and error rate > 1%") or embeds an
+    # HTML-ish span ("<private>…</private>"), and a substring scan would flag
+    # those as unfilled template text and refuse a perfectly good goal.
+    # Forbidding `<`/`>` INSIDE the span keeps `<private>x</private>` out too.
+    in_acc && /^[[:space:]]*-[[:space:]]+\[[ xX]\]/ {
+      if (mode == "placeholder") {
+        payload = $0
+        sub(/^[[:space:]]*-[[:space:]]+\[[ xX]\][[:space:]]*/, "", payload)
+        sub(/[[:space:]]+$/, "", payload)
+        if (payload ~ /^<[^<>]*>$/) n++
+      }
+      else n++
+    }
 
     END { print n }
   ' "$GOAL_PATH"
@@ -226,6 +245,15 @@ ACC_COUNT="$(acceptance_item_count)"
 if [[ "$ACC_COUNT" -lt 1 ]]; then
   add_error "acceptance-missing" \
     "no \`## Acceptance criteria\` items found in $GOAL_PATH — add a \`## Acceptance criteria\` section with at least one \`- [ ]\` checkbox outside any code fence (the deterministic termination condition)."
+else
+  # An unedited scaffold is structurally valid but semantically empty: its
+  # criteria are still the template's `<...>` prompts. Treat that as invalid,
+  # otherwise a run would start against a termination condition nobody wrote.
+  ACC_PLACEHOLDERS="$(acceptance_item_count placeholder)"
+  if [[ "$ACC_PLACEHOLDERS" -ge 1 && "$ACC_PLACEHOLDERS" -eq "$ACC_COUNT" ]]; then
+    add_error "acceptance-placeholder" \
+      "every \`## Acceptance criteria\` item in $GOAL_PATH is still unfilled template placeholder text (\`<...>\`) — replace them with concrete, checkable criteria; a scaffolded template is not a goal."
+  fi
 fi
 
 # ---- REQ-DF-003: resolvable progress_source ---------------------------------

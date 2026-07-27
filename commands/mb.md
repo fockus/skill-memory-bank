@@ -68,6 +68,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `goal`                                                   | Scaffold `.memory-bank/goal.md` + `.memory-bank/project.md` from templates (copy-if-absent), then validate the goal with `scripts/mb-goal-validate.sh`. Phase-1 Dynamic Flow primitive (REQ-DF-001..005). See `commands/goal.md`                                                                          |
 | `analyze-task`                                           | Auto-classify goal + git-diff scope into ONE route and write it into the `mb-flow` fence (default Dynamic Flow router). See `commands/analyze-task.md` (REQ-DF-020/022)                                                                                                                                   |
 | `flow <route>`                                           | Explicitly select a route (skip auto-classification); the deterministic route-floor + firewall STILL apply. Escape-hatch. See `commands/flow.md` (REQ-DF-025)                                                                                                                                            |
+| `drive [--route R] [--phase P] [--budget TOK] [--max-cycles N]` | Drive `goal.md` to completion over the deterministic firewall: call `scripts/mb-drive.sh next`, execute the ONE action it prints, repeat until a `stop_*`. Refuses without a resolvable goal. See `commands/drive.md` (REQ-DR-001/003/030/031)                                                    |
 | `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `status.md`, restructures `backlog.md` to `## Ideas` + `## ADR` skeleton. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
 | (unrecognized)                                           | Search by `$ARGUMENTS`                                                                                                                                                                                                                                                                                   |
 
@@ -479,9 +480,11 @@ Manage **multiple named pipelines** in one project. Each `<bank>/pipelines/<name
 
 **Underlying:** `bash scripts/mb-pipeline.sh <list|new|use|show|path|validate> [args...]`.
 
-### work [target] [--workflow NAME] [--pipeline NAME] [--review|--judge|--brainstorm|--sdd|--plan (+ --no-*)] [--stages CSV] [--range A-B] [--dry-run]
+### work [target] [--workflow NAME] [--pipeline NAME] [--review|--judge|--fix|--brainstorm|--sdd|--plan (+ --no-*)] [--loop N] [--stages CSV] [--range A-B] [--dry-run]
 
-Execute a composable workflow. **Default mode is `execution`: implement (TDD) → verify → done — review is OFF by default.** Compose per run with launch flags (precedence: flags > `pipeline.yaml` > default): add `--review`/`--judge`/`--brainstorm`/`--sdd`/`--plan` (or remove with `--no-*`), pick a preset with `--workflow` (`full` = the whole `discuss → sdd → plan → implement → verify → review → judge → done` chain; `governed-execution`, `full-cycle`, `review-fix`, `review-only`, …), or set an exact list with `--stages a,b,c`. Persist toggles in `pipeline.yaml` (`<stage>.enabled: true`, `review.enabled: true`). `--judge` requires review; invalid chains fail fast.
+Execute a composable workflow. **Default mode is `execution`: implement (TDD) → verify → done — review is OFF by default.** Compose per run with launch flags (precedence: flags > `pipeline.yaml` > default): add `--review`/`--judge`/`--fix`/`--brainstorm`/`--sdd`/`--plan` (or remove with `--no-*`), pick a preset with `--workflow` (`full` = the whole `discuss → sdd → plan → implement → verify → review → judge → done` chain; `governed-execution`, `full-cycle`, `review-fix`, `review-only`, …), or set an exact list with `--stages a,b,c`. Persist toggles in `pipeline.yaml` (`<stage>.enabled: true`, `review.enabled: true`). `--judge` and `--fix` require review; invalid chains fail fast.
+
+`--fix` adds the review→fix loop: after review (and judge, when composed), blocking findings go back to the implementer and the item re-enters `verify`. **`--loop N` is the alias of `--max-cycles N`** — the ceiling on those cycles. So `/mb work <target> --review --fix --loop 4` = implement → verify → review → fix, repeating up to 4 cycles until the severity gate (or judge) passes, then done.
 
 **Alias** for `/work` — dispatch to `commands/work.md` for the canonical workflow.
 
@@ -498,7 +501,7 @@ Execute a composable workflow. **Default mode is `execution`: implement (TDD) �
 **Underlying scripts:**
 
 ```bash
-bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--review|--no-review] [--judge|--no-judge] [--brainstorm|--sdd|--plan] [--stages <csv>] [--json|--steps|--loop|--max-cycles]
+bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix] [--brainstorm|--sdd|--plan] [--stages <csv>] [--json|--steps|--loop|--max-cycles]
 bash scripts/mb-work-resolve.sh [target] [--mb <path>]
 bash scripts/mb-work-range.sh <plan> [--range <expr>]
 bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
@@ -1572,6 +1575,25 @@ bash "$(dirname "$0")/../scripts/mb-flow-route.sh" --route <route>
 ```
 
 Auto-routing (`/mb analyze-task`) is the default; reach for `/mb flow <route>` only to deliberately pin a route.
+
+---
+
+### drive
+
+**Alias** for `/drive` — dispatch to `commands/drive.md` for the canonical workflow. The autonomous goal-driven loop (REQ-DR-001/003/030/031): drive `goal.md` to completion over the deterministic firewall.
+
+```
+/mb drive [--route R] [--phase P] [--budget TOK] [--max-cycles N]
+```
+
+**You are the runtime.** `scripts/mb-drive.sh` is a stateless decision function — it prints exactly ONE next action and exits, starts no daemon, and dispatches nothing itself. Run the `<!-- mb-drive:preflight -->` fence from `commands/drive.md` first (it resolves the bank, refuses on an unresolvable `goal.md`, mints the run id, wires `--budget`/`--max-cycles` and arms stop-telemetry), then loop:
+
+```bash
+# → one action line: implement | repair | pivot | stop_success | stop_human <why> | stop_budget
+bash "$(dirname "$0")/../scripts/mb-drive.sh" next --bank "$BANK" --run-id "$RUN_ID"
+```
+
+Execute the printed action, then call `next` again — until it starts with `stop_`. Record every stop with `scripts/mb-drive-stop.sh record --action "$ACTION"` before breaking. Role dispatch comes from `pipeline.yaml` `roles:`, never a guessed model. `stop_success` is the ONLY done signal — never self-certify (REQ-DR-014). Full contract, exit codes and the loop table: `commands/drive.md`.
 
 ---
 
