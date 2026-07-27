@@ -5,6 +5,7 @@
 # red-anchor `not ok [0-9]+ artifact_check: ` matches either half.
 
 bats_require_minimum_version 1.5.0
+load 'lib/assert'
 load 'lib/discuss_contract'
 
 setup() {
@@ -29,16 +30,108 @@ _strict_transcript() {
 EOF
 }
 
+# ─── legacy grammar: parsed from a FROZEN fixture, not from live bank files ──
+#
+# r5 review [8]. The two tests below hand the checker the exact two production
+# paths its own whitelist names, so a `canonical path → artifact=ok`
+# implementation that parses NOTHING passes them — verified by mutating the
+# checker to do precisely that. Worse, the slice file passes the STRICT grammar
+# too, so its `--legacy-live-fixture` never exercised a single relaxation.
+#
+# The relaxation is authorised BY PATH, so testing the parser on a fixture means
+# putting the fixture at an authorised path: the checker derives its whitelist
+# from its own physical location, so a byte-identical copy of it in a sandbox
+# repo makes `<sandbox>/.memory-bank/context/sdd-vision-pipeline-interview.md`
+# the whitelisted path. Path authorisation and grammar are then tested apart,
+# which is exactly what the shared production paths made impossible.
+LEGACY_FIXTURE="tests/fixtures/interview/legacy-live-transcript.md"
+
+# _legacy_sandbox <content-file> — echoes the whitelisted path holding <content>.
+_legacy_sandbox() {
+  local sb="$BATS_TEST_TMPDIR/sandbox"
+  rm -rf "$sb"
+  mkdir -p "$sb/scripts" "$sb/.memory-bank/context"
+  cp "$SCRIPT" "$sb/scripts/mb-interview-artifact-check.sh"
+  chmod +x "$sb/scripts/mb-interview-artifact-check.sh"
+  # The copy must BE the shipped checker, or this proves something about a fork.
+  cmp -s "$SCRIPT" "$sb/scripts/mb-interview-artifact-check.sh" || return 1
+  cp "$1" "$sb/.memory-bank/context/sdd-vision-pipeline-interview.md"
+  printf '%s' "$sb/.memory-bank/context/sdd-vision-pipeline-interview.md"
+}
+
+_legacy_check() {
+  # $1 = whitelisted path (from _legacy_sandbox); rest = flags.
+  local f="$1"; shift
+  "$BATS_TEST_TMPDIR/sandbox/scripts/mb-interview-artifact-check.sh" transcript "$f" "$@"
+}
+
+@test "artifact_check: the frozen legacy fixture passes ONLY with the relaxation" {
+  local f; f="$(_legacy_sandbox "$REPO_ROOT/$LEGACY_FIXTURE")"
+  run --separate-stderr _legacy_check "$f" --legacy-live-fixture
+  [ "$status" -eq 0 ] || { echo "legacy grammar rejected the fixture: $stderr"; false; }
+  [ "$output" = "artifact=ok open_topics=0" ]
+  # Without the flag the SAME bytes must fail — otherwise the flag is decorative
+  # and the test above would pass on any strict-valid file.
+  run --separate-stderr _legacy_check "$f"
+  [ "$status" -eq 1 ] || { echo "strict grammar accepted a legacy transcript"; false; }
+  assert_substring "$stderr" ":answer_missing"
+  assert_substring "$stderr" ":rejected_alternatives_missing"
+}
+
+@test "artifact_check: legacy mode still demands an answer for every question" {
+  # Mutation on the frozen bytes: drop the voice-answer phrase from Q2. A
+  # path-only implementation cannot notice; a parser must.
+  local m="$BATS_TEST_TMPDIR/legacy-noanswer.md"
+  sed 's/Ответ голосом (суть): «делаем вариант 2, потому что так дешевле»//' \
+    "$REPO_ROOT/$LEGACY_FIXTURE" > "$m"
+  local f; f="$(_legacy_sandbox "$m")"
+  run --separate-stderr _legacy_check "$f" --legacy-live-fixture
+  [ "$status" -eq 1 ] || { echo "a Q-block with no answer passed legacy mode"; false; }
+  assert_substring "$stderr" ":answer_missing"
+}
+
+@test "artifact_check: legacy mode still demands rejected alternatives somewhere" {
+  local m="$BATS_TEST_TMPDIR/legacy-norejected.md"
+  sed '/^## Отклонённые альтернативы/,$d' "$REPO_ROOT/$LEGACY_FIXTURE" > "$m"
+  local f; f="$(_legacy_sandbox "$m")"
+  run --separate-stderr _legacy_check "$f" --legacy-live-fixture
+  [ "$status" -eq 1 ] || { echo "legacy mode accepted a transcript with no rejected alternatives"; false; }
+  assert_substring "$stderr" ":rejected_alternatives_missing"
+}
+
+@test "artifact_check: legacy mode still validates the title" {
+  local m="$BATS_TEST_TMPDIR/legacy-badtitle.md"
+  printf '# Wrong header\n' > "$m"; tail -n +2 "$REPO_ROOT/$LEGACY_FIXTURE" >> "$m"
+  local f; f="$(_legacy_sandbox "$m")"
+  run --separate-stderr _legacy_check "$f" --legacy-live-fixture
+  [ "$status" -eq 1 ] || { echo "legacy mode accepted a broken title"; false; }
+  assert_substring "$stderr" ":missing_title"
+}
+
+# ─── whitelist / integration: the two live bank files stay accepted ──────────
+# These prove PATH AUTHORISATION and that the repository's own transcripts are
+# still parseable — not the legacy grammar, which the fixture tests above own.
+
 @test "artifact_check: parent live transcript (--legacy-live-fixture) → artifact=ok" {
   run --separate-stderr "$SCRIPT" transcript "$REPO_ROOT/.memory-bank/context/sdd-vision-pipeline-interview.md" --legacy-live-fixture
   [ "$status" -eq 0 ]
   [ "$output" = "artifact=ok open_topics=0" ]
+  # ...and the relaxation is genuinely needed for THIS file: strict must refuse
+  # it, so the test cannot quietly become a strict-grammar test.
+  run --separate-stderr "$SCRIPT" transcript "$REPO_ROOT/.memory-bank/context/sdd-vision-pipeline-interview.md"
+  [ "$status" -eq 1 ] || { echo "the parent transcript no longer needs the relaxation"; false; }
 }
 
 @test "artifact_check: slice live transcript (--require-inherited --legacy-live-fixture) → artifact=ok" {
+  # NOTE: this file satisfies the STRICT grammar as well (checked below), so its
+  # legacy flag exercises nothing. It is kept as a whitelist/parse regression on
+  # a real bank file, and the strict assertion is what stops it from being read
+  # as evidence about legacy parsing.
   run --separate-stderr "$SCRIPT" transcript "$REPO_ROOT/.memory-bank/context/svp-interview-upgrade-interview.md" --require-inherited --legacy-live-fixture
   [ "$status" -eq 0 ]
   [ "$output" = "artifact=ok open_topics=0" ]
+  run --separate-stderr "$SCRIPT" transcript "$REPO_ROOT/.memory-bank/context/svp-interview-upgrade-interview.md" --require-inherited
+  [ "$status" -eq 0 ] || { echo "this file now DOES need the relaxation: $stderr"; false; }
 }
 
 @test "artifact_check: strict minimal transcript → artifact=ok" {

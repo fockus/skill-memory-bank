@@ -69,11 +69,15 @@ _CAT_COMPARE = re.compile(
 # test_mb_pre_compact route every negation's failure through `||`, so they were
 # never violations and never needed conversion. The ledger's honesty test is
 # what surfaced that -- it refused to keep carrying files that had become clean.
+#
+# test_mb_glossary was converted in r5 review [9]: its two `! echo "$stderr" |
+# grep -q 'Traceback'` lines were hollow, and a product mutation that leaked a
+# real traceback on the glossary-read path kept the test named "not a traceback"
+# green. They are `refute_substring` now, so the file leaves the ledger.
 PENDING_CONVERSION = frozenset(
     {
         "tests/bats/test_extensions_offer.bats",
         "tests/bats/test_mb_flow_sync.bats",
-        "tests/bats/test_mb_glossary.bats",
     }
 )
 

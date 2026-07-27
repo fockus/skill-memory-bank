@@ -8,6 +8,7 @@
 # Name convention: every @test starts with `artifact_write: ` (Eval red-anchor).
 
 bats_require_minimum_version 1.5.0
+load 'lib/assert'
 load 'lib/discuss_contract'
 
 setup() {
@@ -71,6 +72,79 @@ EOF
   [ "$status" -eq 0 ]
 }
 
+# A `cp` interposer that publishes its destination in TWO chunks and parks
+# between them: it touches $1 (the "reader may look now" signal) and waits for
+# $2 (the reader's ack) before writing the tail. Only destinations whose name
+# contains $3 are chunked; anything else is delegated to the real cp, so the
+# writer's other copies (candidate staging) run untouched.
+#
+# This is what makes the atomicity assertion DETERMINISTIC instead of a timing
+# race: the reader is guaranteed to look while the publish is half-done.
+_chunked_cp_interposer() {
+  local dir="$1" signal="$2" ack="$3" match="$4" realcp
+  realcp="$(command -v cp)"
+  mkdir -p "$dir"
+  cat > "$dir/cp" <<EOF
+#!/usr/bin/env bash
+dst="\${@: -1}"
+case "\$dst" in
+  *"$match"*) ;;
+  *) exec "$realcp" "\$@" ;;
+esac
+src="\${@: -2:1}"
+"$(command -v python3)" - "\$src" "\$dst" "$signal" "$ack" <<'PYEOF'
+import os, sys, time
+src, dst, signal, ack = sys.argv[1:5]
+data = open(src, "rb").read()
+half = max(1, len(data) // 2)
+with open(dst, "wb") as fh:
+    fh.write(data[:half]); fh.flush(); os.fsync(fh.fileno())
+    open(signal, "w").close()
+    for _ in range(1000):
+        if os.path.exists(ack):
+            break
+        time.sleep(0.01)
+    fh.write(data[half:]); fh.flush(); os.fsync(fh.fileno())
+PYEOF
+EOF
+  chmod +x "$dir/cp"
+}
+
+@test "artifact_write: a concurrent reader never sees a half-written target" {
+  # The `diff candidate target` test below is satisfied by a plain truncating
+  # `cp candidate target`: once the call returns the bytes match, even though a
+  # reader could observe an empty or half-written plan meanwhile (r5 review [7]).
+  # Here the publish is parked mid-write and a reader looks: the only permitted
+  # observations are the COMPLETE old file or the COMPLETE new one.
+  local bin="$BATS_TEST_TMPDIR/bin-atomic"
+  local signal="$BATS_TEST_TMPDIR/.publishing" ack="$BATS_TEST_TMPDIR/.looked"
+  local old="$BATS_TEST_TMPDIR/old.md" new="$BATS_TEST_TMPDIR/new.md"
+  local seen="$BATS_TEST_TMPDIR/seen.md"
+
+  printf 'PRIOR PLAN CONTENT that is long enough to be split in half\n' > "$TARGET"
+  cp "$TARGET" "$old"
+  _valid_open_plan "$CAND"
+  cp "$CAND" "$new"
+  _chunked_cp_interposer "$bin" "$signal" "$ack" "interview-plan-foo"
+
+  local rc=0 i=0
+  PATH="$bin:$PATH" "$SCRIPT" install-plan --mb "$BANK" --topic foo --candidate "$CAND" \
+    >"$BATS_TEST_TMPDIR/out.atomic" 2>&1 &
+  local bg=$!
+  while [ ! -e "$signal" ] && [ "$i" -lt 1000 ]; do sleep 0.01; i=$((i + 1)); done
+  [ -e "$signal" ] || { echo "the cp interposer never ran"; kill "$bg" 2>/dev/null; false; }
+  # Look at the target EXACTLY while the publish is parked mid-write.
+  if [ -e "$TARGET" ]; then command cp "$TARGET" "$seen"; else : > "$seen"; fi
+  : > "$ack"
+  wait "$bg" || rc=$?
+
+  [ "$rc" -eq 0 ] || { echo "install failed (rc=$rc): $(cat "$BATS_TEST_TMPDIR/out.atomic")"; false; }
+  cmp -s "$seen" "$old" || cmp -s "$seen" "$new" \
+    || { echo "a reader observed a torn target:"; cat "$seen"; false; }
+  # ...and the publish still completed.
+  cmp -s "$CAND" "$TARGET" || { echo "the final target is not the candidate"; false; }
+}
+
 @test "artifact_write: valid candidate atomically replaces an existing target" {
   printf 'stale content\n' > "$TARGET"
   _valid_open_plan "$CAND"
@@ -78,6 +152,46 @@ EOF
   [ "$status" -eq 0 ]
   run diff "$CAND" "$TARGET"
   [ "$status" -eq 0 ]
+}
+
+@test "artifact_write: install-plan publishes the bytes it validated, not a later rewrite" {
+  # install-plan opened the candidate PATH twice: once for the C8 check and once
+  # for the copy. A second run rewriting that shared path in between made the
+  # writer print artifact_write=installed with exit 0 over bytes nothing had
+  # validated — the installed plan then failed the very same check (r5 [3]).
+  #
+  # `awk` is interposed because the checker parses with it: the rewrite lands
+  # exactly when validation finishes, deterministically.
+  local bin="$BATS_TEST_TMPDIR/bin-plan" swapped="$BATS_TEST_TMPDIR/.plan-swapped"
+  local validated="$BATS_TEST_TMPDIR/validated.md"
+  mkdir -p "$bin"
+  _valid_open_plan "$CAND"
+  cp "$CAND" "$validated"
+  _broken_plan "$BATS_TEST_TMPDIR/broken-payload.md"
+
+  local realawk; realawk="$(command -v awk)"
+  cat > "$bin/awk" <<EOF
+#!/usr/bin/env bash
+rc=0
+"$realawk" "\$@" || rc=\$?
+if [ ! -e "$swapped" ]; then
+  : > "$swapped"
+  cp "$BATS_TEST_TMPDIR/broken-payload.md" "$CAND" 2>/dev/null || true
+fi
+exit \$rc
+EOF
+  chmod +x "$bin/awk"
+
+  PATH="$bin:$PATH" run --separate-stderr "$SCRIPT" install-plan \
+    --mb "$BANK" --topic foo --candidate "$CAND"
+  [ -e "$swapped" ] || { echo "the awk interposer never fired"; false; }
+  [ "$status" -eq 0 ] || { echo "install failed (status=$status): $stderr"; false; }
+  [ "$output" = "artifact_write=installed kind=plan" ]
+  cmp -s "$validated" "$TARGET" \
+    || { echo "installed bytes are not the validated bytes:"; diff "$validated" "$TARGET" || true; false; }
+  # The user-visible consequence: what got installed must itself pass the gate.
+  run --separate-stderr "$REPO_ROOT/scripts/mb-interview-artifact-check.sh" plan "$TARGET"
+  [ "$status" -eq 0 ] || { echo "the installed plan does not pass C8: $stderr"; false; }
 }
 
 @test "artifact_write: structurally broken candidate → exit 1, stdout empty, target unchanged" {
@@ -462,18 +576,36 @@ _credential_candidate() {
   # published a grammar-valid transcript carrying a live API key with exit 0.
   # `python3` is interposed on PATH so the swap lands exactly when the scan
   # returns — deterministic, not a timing race.
+  #
+  # r5 review [6]: asserting only "the target has no key" let an implementation
+  # that simply REFUSES after the swap pass — it published nothing, and the
+  # conditional `if [ -f "$tgt" ]` then asserted nothing at all. The contract is
+  # stronger than "no secret": the bytes this writer CLAIMED must be the bytes
+  # it publishes, so the run has to succeed and the target has to equal the
+  # clean snapshot byte for byte.
   local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
   local tgt="$BANK/context/foo-interview.md"
   mkdir -p "$BANK/context" "$BATS_TEST_TMPDIR/bin"
   _clean_transcript "$cand"
+  local claimed="$BATS_TEST_TMPDIR/claimed.md"; cp "$cand" "$claimed"
   sed 's/The scope is X/The scope is sk-ant-api03ABCDEFGHIJKLMNOP/' "$cand" > "$BATS_TEST_TMPDIR/payload.md"
 
+  # The interposer must forward BOTH shapes the writer uses: `python3 -` (the
+  # scanner's here-doc program) and `python3 -c '<prog>'` (the atomic replace).
+  # Consuming stdin for a `-c` call swallowed the writer's own stdin and skipped
+  # the rename entirely, so the publication step never ran under this test — the
+  # very step whose bytes are being certified.
   local realpy; realpy="$(command -v python3)"
   cat > "$BATS_TEST_TMPDIR/bin/python3" <<EOF
 #!/usr/bin/env bash
-prog="\$(mktemp)"; cat > "\$prog"
-"$realpy" "\$prog" "\${@:2}"; rc=\$?
-rm -f "\$prog"
+rc=0
+if [ "\$1" = "-" ]; then
+  prog="\$(mktemp)"; cat > "\$prog"
+  "$realpy" "\$prog" "\${@:2}" || rc=\$?
+  rm -f "\$prog"
+else
+  "$realpy" "\$@" || rc=\$?
+fi
 if [ ! -e "$BATS_TEST_TMPDIR/.swapped" ]; then
   : > "$BATS_TEST_TMPDIR/.swapped"
   cp "$BATS_TEST_TMPDIR/payload.md" "$cand" 2>/dev/null || true
@@ -487,9 +619,134 @@ EOF
   # The scan must have actually run (the interposer fired), otherwise the test
   # would pass vacuously.
   [ -e "$BATS_TEST_TMPDIR/.swapped" ] || { echo "python3 interposer never fired"; false; }
-  if [ -f "$tgt" ]; then
-    ! grep -q 'sk-ant-api03ABCDEFGHIJKLMNOP' "$tgt" || { echo "published file carries the API key"; false; }
-  fi
+  # The swap must be INERT, not fatal: the claimed bytes are published normally.
+  [ "$status" -eq 0 ] || { echo "the swap broke the publication (status=$status): $stderr"; false; }
+  [ "$output" = "artifact_write=installed kind=transcript" ]
+  [ -f "$tgt" ] || { echo "nothing was published"; false; }
+  cmp -s "$claimed" "$tgt" \
+    || { echo "the published bytes are not the claimed bytes:"; diff "$claimed" "$tgt" || true; false; }
+  # ...and, redundantly but explicitly, the swapped-in credential is not in it.
+  refute_grep -q 'sk-ant-api03ABCDEFGHIJKLMNOP' "$tgt"
+}
+
+# ─── the claim must freeze the BYTES, not just the name (r5 review [1]) ──────
+
+@test "artifact_write: a write through an fd held across the claim never reaches the target" {
+  # commands/discuss.md gives two concurrent runs the SAME candidate path, so a
+  # second run can be holding that file open when this one claims it. `mv` moves
+  # the NAME and keeps the inode, so the other run's fd still pointed at the
+  # staged bytes: it appended a credential AFTER the clean secret scan and the
+  # writer published the mutated inode with exit 0.
+  #
+  # The interleaving is forced, not raced: the holder opens the file before the
+  # writer starts, and the interposed python3 releases it exactly when the scan
+  # returns, then waits until the write has landed before the run continues.
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  local tgt="$BANK/context/foo-interview.md"
+  mkdir -p "$BANK/context" "$BATS_TEST_TMPDIR/bin-fd"
+  _clean_transcript "$cand"
+  local claimed="$BATS_TEST_TMPDIR/claimed-fd.md"; cp "$cand" "$claimed"
+
+  local opened="$BATS_TEST_TMPDIR/.fd-open"
+  local scanned="$BATS_TEST_TMPDIR/.fd-scanned"
+  local wrote="$BATS_TEST_TMPDIR/.fd-wrote"
+  python3 - "$cand" "$opened" "$scanned" "$wrote" <<'PY' &
+import os, sys, time
+cand, opened, scanned, wrote = sys.argv[1:5]
+fh = open(cand, "ab")                 # the other run's still-open handle
+open(opened, "w").close()
+for _ in range(3000):
+    if os.path.exists(scanned):
+        break
+    time.sleep(0.01)
+fh.write(b"\nsk-ant-api03ABCDEFGHIJKLMNOP\n")
+fh.flush()
+fh.close()
+open(wrote, "w").close()
+PY
+  local holder=$!
+  local i=0
+  while [ ! -e "$opened" ] && [ "$i" -lt 1000 ]; do sleep 0.01; i=$((i + 1)); done
+  [ -e "$opened" ] || { echo "the holder never opened the candidate"; false; }
+
+  local realpy; realpy="$(command -v python3)"
+  cat > "$BATS_TEST_TMPDIR/bin-fd/python3" <<EOF
+#!/usr/bin/env bash
+rc=0
+if [ "\$1" = "-" ]; then
+  prog="\$(mktemp)"; cat > "\$prog"
+  "$realpy" "\$prog" "\${@:2}" || rc=\$?
+  rm -f "\$prog"
+else
+  "$realpy" "\$@" || rc=\$?
+fi
+if [ ! -e "$scanned" ]; then
+  : > "$scanned"
+  i=0
+  while [ ! -e "$wrote" ] && [ "\$i" -lt 1000 ]; do sleep 0.01; i=\$((i + 1)); done
+fi
+exit \$rc
+EOF
+  chmod +x "$BATS_TEST_TMPDIR/bin-fd/python3"
+
+  PATH="$BATS_TEST_TMPDIR/bin-fd:$PATH" run --separate-stderr "$SCRIPT" \
+    publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
+  wait "$holder" 2>/dev/null || true
+  [ -e "$wrote" ] || { echo "the concurrent write never happened"; false; }
+
+  [ "$status" -eq 0 ] || { echo "publication failed (status=$status): $stderr"; false; }
+  [ -f "$tgt" ] || { echo "nothing was published"; false; }
+  cmp -s "$claimed" "$tgt" \
+    || { echo "the published bytes are not the claimed bytes:"; diff "$claimed" "$tgt" || true; false; }
+  refute_grep -q 'sk-ant-api03ABCDEFGHIJKLMNOP' "$tgt"
+}
+
+@test "artifact_write: a signal before the claim does not delete another run's candidate" {
+  # Cleanup owned a PATHNAME. Between arming it and claiming the file, a second
+  # run replaced the candidate with its own — and this run's SIGTERM handler
+  # then `rm -f`'d the newcomer (r5 review [1], second interleaving).
+  #
+  # `basename` is interposed to park the writer inside that exact window: the
+  # scrub is armed (the arm loop has run) and the claim has not happened yet.
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  local bin="$BATS_TEST_TMPDIR/bin-own" pidf="$BATS_TEST_TMPDIR/pid-own"
+  local parked="$BATS_TEST_TMPDIR/.parked" go="$BATS_TEST_TMPDIR/.go"
+  local other="$BATS_TEST_TMPDIR/other.md"
+  mkdir -p "$BANK/context" "$bin"
+  _credential_candidate "$cand"
+
+  local realbn; realbn="$(command -v basename)"
+  cat > "$bin/basename" <<EOF
+#!/usr/bin/env bash
+n=0
+[ -f "$BATS_TEST_TMPDIR/.bn" ] && n=\$(cat "$BATS_TEST_TMPDIR/.bn")
+n=\$((n + 1)); printf '%s' "\$n" > "$BATS_TEST_TMPDIR/.bn"
+if [ "\$n" -eq 2 ]; then
+  : > "$parked"
+  i=0
+  while [ ! -e "$go" ] && [ "\$i" -lt 1000 ]; do sleep 0.01; i=\$((i + 1)); done
+fi
+exec "$realbn" "\$@"
+EOF
+  chmod +x "$bin/basename"
+
+  ( echo $BASHPID > "$pidf"
+    exec env PATH="$bin:$PATH" "$SCRIPT" publish-transcript \
+      --mb "$BANK" --topic foo --candidate "$cand" ) >/dev/null 2>&1 &
+  local bg=$! i=0
+  while [ ! -e "$parked" ] && [ "$i" -lt 1000 ]; do sleep 0.01; i=$((i + 1)); done
+  [ -e "$parked" ] || { kill "$bg" 2>/dev/null; echo "the writer never parked"; false; }
+
+  # The OTHER run publishes its own candidate at the shared path, then this run
+  # is killed while it still believes it owns that pathname.
+  printf 'ANOTHER RUN CANDIDATE\n' > "$cand"
+  cp "$cand" "$other"
+  kill -TERM "$(cat "$pidf")" 2>/dev/null || true
+  : > "$go"
+  wait "$bg" 2>/dev/null || true
+
+  [ -f "$cand" ] || { echo "the other run's candidate was deleted"; false; }
+  cmp -s "$other" "$cand" || { echo "the other run's candidate was modified"; false; }
 }
 
 # ─── signal cleanup covers the install temp too (r2 review [7]) ───
@@ -623,6 +880,53 @@ EOF
   run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo --candidate "$cand"
   [ "$status" -eq 0 ]
   [ "$(_wmode "$tgt")" = "600" ]
+}
+
+@test "artifact_write: a target that appears mid-publish is not re-permissioned" {
+  # r5 review [5]: the mode was resolved BEFORE the copy and applied AFTER it.
+  # With no target yet, a run under umask 022 computed 0644 — and then replaced
+  # the 0600 file a concurrent publisher had created in the meantime, widening
+  # permissions nobody asked to change. `cp` is interposed so the publish parks
+  # in exactly that window instead of racing it.
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  local tgt="$BANK/context/foo-interview.md"
+  local bin="$BATS_TEST_TMPDIR/bin-mode"
+  local parked="$BATS_TEST_TMPDIR/.mode-parked" go="$BATS_TEST_TMPDIR/.mode-go"
+  mkdir -p "$BANK/context" "$bin"
+  _clean_transcript "$cand"
+
+  local realcp; realcp="$(command -v cp)"
+  cat > "$bin/cp" <<EOF
+#!/usr/bin/env bash
+dst="\${@: -1}"
+case "\$dst" in
+  *foo-interview*)
+    if [ ! -e "$parked" ]; then
+      : > "$parked"
+      i=0
+      while [ ! -e "$go" ] && [ "\$i" -lt 1000 ]; do sleep 0.01; i=\$((i + 1)); done
+    fi ;;
+esac
+exec "$realcp" "\$@"
+EOF
+  chmod +x "$bin/cp"
+
+  [ ! -e "$tgt" ]
+  ( umask 022
+    exec env PATH="$bin:$PATH" "$SCRIPT" publish-transcript \
+      --mb "$BANK" --topic foo --candidate "$cand" ) >/dev/null 2>&1 &
+  local bg=$! i=0
+  while [ ! -e "$parked" ] && [ "$i" -lt 1000 ]; do sleep 0.01; i=$((i + 1)); done
+  [ -e "$parked" ] || { kill "$bg" 2>/dev/null; echo "the publish never parked"; false; }
+
+  # Somebody else publishes the target first, deliberately locked down.
+  ( umask 077; printf 'CONCURRENTLY PUBLISHED\n' > "$tgt" )
+  [ "$(_wmode "$tgt")" = "600" ] || { echo "fixture is wrong: $(_wmode "$tgt")"; false; }
+  : > "$go"
+  wait "$bg" || true
+
+  [ "$(_wmode "$tgt")" = "600" ] \
+    || { echo "the publish widened an existing target to $(_wmode "$tgt")"; false; }
 }
 
 # ─── the dead legacy flag is gone (r3 review [8]) ───
@@ -790,4 +1094,71 @@ EOF
     transcript "$REPO_ROOT/.memory-bank/context/svp-interview-upgrade-interview.md" \
     --require-inherited --legacy-live-fixture
   [ "$status" -eq 0 ]
+}
+
+# ═══ r5 review [2]: the installed plan must be citable by digest ════════════
+#
+# `<bank>/tmp/interview-plan-<topic>.md` is per-TOPIC, so two `/mb discuss` runs
+# on one topic write to the same file. The run that installs a plan needs a
+# handle on the bytes IT installed, so that the close gate later can prove the
+# plan it validates is still that one instead of the competing run's.
+
+_sha256() {
+  MB_F="$1" python3 -c 'import hashlib, os, sys
+h = hashlib.sha256()
+with open(os.environ["MB_F"], "rb") as fh:
+    for chunk in iter(lambda: fh.read(65536), b""):
+        h.update(chunk)
+sys.stdout.write(h.hexdigest())'
+}
+
+@test "artifact_write: install-plan --print-digest reports the installed bytes" {
+  _valid_open_plan "$CAND"
+  run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic foo \
+    --candidate "$CAND" --print-digest
+  [ "$status" -eq 0 ]
+  [ "$output" = "artifact_write=installed kind=plan digest=$(_sha256 "$CAND")" ] \
+    || { echo "unexpected stdout: $output"; false; }
+  # The digest must be checkable against the file the gate will read.
+  [ "$(_sha256 "$TARGET")" = "$(_sha256 "$CAND")" ]
+}
+
+@test "artifact_write: the digest is the SNAPSHOT's even if the candidate is rewritten" {
+  # Same interposed-awk window as the validated-bytes test: whatever the other
+  # run does to the candidate path, the digest must name what was installed.
+  local bin="$BATS_TEST_TMPDIR/bin-pd"; mkdir -p "$bin"
+  _valid_open_plan "$CAND"
+  local installed; installed="$(_sha256 "$CAND")"
+  _broken_plan "$BATS_TEST_TMPDIR/pd-payload.md"
+
+  local realawk; realawk="$(command -v awk)"
+  cat > "$bin/awk" <<EOF
+#!/usr/bin/env bash
+rc=0
+"$realawk" "\$@" || rc=\$?
+if [ ! -e "$BATS_TEST_TMPDIR/.pd-swapped" ]; then
+  : > "$BATS_TEST_TMPDIR/.pd-swapped"
+  cp "$BATS_TEST_TMPDIR/pd-payload.md" "$CAND" 2>/dev/null || true
+fi
+exit \$rc
+EOF
+  chmod +x "$bin/awk"
+
+  PATH="$bin:$PATH" run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" \
+    --topic foo --candidate "$CAND" --print-digest
+  [ -e "$BATS_TEST_TMPDIR/.pd-swapped" ] || { echo "the awk interposer never fired"; false; }
+  [ "$status" -eq 0 ]
+  [ "$output" = "artifact_write=installed kind=plan digest=$installed" ] \
+    || { echo "the digest does not name the installed bytes: $output"; false; }
+  [ "$(_sha256 "$TARGET")" = "$installed" ]
+}
+
+@test "artifact_write: --print-digest is refused on publish-transcript" {
+  local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
+  mkdir -p "$BANK/context"
+  _clean_transcript "$cand"
+  run --separate-stderr "$SCRIPT" publish-transcript --mb "$BANK" --topic foo \
+    --candidate "$cand" --print-digest
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "error=usage" ] || { echo "expected a usage error, got: $stderr"; false; }
 }

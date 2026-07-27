@@ -13,9 +13,41 @@ Pure stdlib, no side effects on import.
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import os
 import stat
 import tempfile
+
+
+@contextlib.contextmanager
+def _dir_lock(directory):
+    """Serialise the resolve-mode → rename step of every writer in ``directory``.
+
+    ``flock`` on the DIRECTORY's own descriptor: no lock file is created, so
+    there is nothing to leave behind, nothing to reclaim, and no stale-lock path
+    that could race the very thing it repairs — the kernel drops the lock when
+    the descriptor closes, including on a crash or a signal.
+
+    Best effort by design. A read-only directory, or a filesystem without
+    working ``flock``, yields WITHOUT the lock rather than refusing to publish:
+    losing the serialisation degrades to the pre-lock behaviour, while refusing
+    would lose the write itself.
+    """
+    fd = -1
+    try:
+        fd = os.open(directory, os.O_RDONLY)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+    except OSError:
+        if fd >= 0:
+            with contextlib.suppress(OSError):
+                os.close(fd)
+            fd = -1
+    try:
+        yield fd >= 0
+    finally:
+        if fd >= 0:
+            with contextlib.suppress(OSError):
+                os.close(fd)
 
 
 def _target_mode(path):
@@ -32,8 +64,8 @@ def _target_mode(path):
     EIO, an EACCES on the parent directory) propagates: swallowing it returned
     None, and the publish then went ahead and renamed mkstemp's private 0600
     temp file over an existing 0664 bank file, silently narrowing permissions
-    the user never asked to change (R3-008). Raising here happens BEFORE the
-    temp file is created, so a stat failure leaves the target's bytes and mode
+    the user never asked to change (R3-008). The caller unlinks its temp file on
+    the way out, so a stat failure still leaves the target's bytes and mode
     exactly as they were.
     """
     try:
@@ -42,6 +74,36 @@ def _target_mode(path):
         current = os.umask(0)
         os.umask(current)
         return 0o666 & ~current
+
+
+def publish_path(tmp, target, refuse_irregular=False):
+    """Rename ``tmp`` over ``target``, carrying the mode ``target`` must have.
+
+    The mode is resolved HERE — inside the lock, immediately before the rename —
+    and not when the caller started writing its temp file. Reading it early left
+    a whole write's worth of window in between: a publisher that found no target
+    computed 0644 from its umask, another publisher created the file at 0600
+    meanwhile, and the first one then replaced that 0600 file with a 0644 one.
+    Nobody asked for the widening and no writer ever observed the mode it
+    produced (r5 review [5]).
+
+    ``refuse_irregular`` additionally raises when the target exists and is not a
+    plain file — a symlink or directory there means the caller is about to
+    publish somewhere it never intended.
+    """
+    tmp = str(tmp)
+    target = str(target)
+    directory = os.path.dirname(os.path.abspath(target)) or "."
+    with _dir_lock(directory):
+        if refuse_irregular:
+            try:
+                st = os.lstat(target)
+            except FileNotFoundError:
+                st = None
+            if st is not None and (stat.S_ISLNK(st.st_mode) or not stat.S_ISREG(st.st_mode)):
+                raise OSError("refusing to publish over a non-regular target")
+        os.chmod(tmp, _target_mode(target))
+        os.replace(tmp, target)
 
 
 def atomic_write(path, text, encoding="utf-8"):
@@ -55,15 +117,13 @@ def atomic_write(path, text, encoding="utf-8"):
     """
     target = str(path)
     directory = os.path.dirname(os.path.abspath(target)) or "."
-    mode = _target_mode(target)
     fd, tmp = tempfile.mkstemp(dir=directory, prefix=".mb-atomic.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding=encoding, newline="") as handle:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        os.chmod(tmp, mode)
-        os.replace(tmp, target)
+        publish_path(tmp, target)
     except BaseException:
         # Best-effort cleanup: the original file is already safe (untouched),
         # so a failure to remove the temp must not mask the real exception.

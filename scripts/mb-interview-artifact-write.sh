@@ -5,7 +5,7 @@
 # a rejected target are objective, script-proven facts.
 #
 # Usage:
-#   mb-interview-artifact-write.sh install-plan       --mb <bank> --topic <topic> --candidate <file>
+#   mb-interview-artifact-write.sh install-plan       --mb <bank> --topic <topic> --candidate <file> [--print-digest]
 #   mb-interview-artifact-write.sh publish-transcript --mb <bank> --topic <topic> --candidate <file> [--require-inherited]
 #
 # `install-plan` (this task): validate <candidate> with C8 `plan`; on
@@ -14,7 +14,10 @@
 # write). The check runs WITHOUT --require-closed: the plan is installed at
 # interview start with topics still open — only structural breakage rejects it.
 #
-# stdout : `artifact_write=installed kind=plan`
+# stdout : `artifact_write=installed kind=plan`, plus ` digest=<sha256>` with
+#          --print-digest — the hash of the bytes actually installed, so the
+#          close gate can later prove the plan it validates is still this one
+#          and not a competing /mb discuss run's (r5 review [2]).
 # exit   : 0 installed · 1 content rejected (check invalid) · 2 usage / I/O.
 #          On exit 1/2 stdout is empty; the reason is forwarded from C8 stderr.
 #          stderr codes: `error=usage`, `error=topic`, `error=candidate`.
@@ -27,10 +30,17 @@
 # the published target, an arbitrary file, or a symlink to a credential-bearing
 # file used to make it destroy the target or unlink only the link.
 #
-# Once ownership is proven the candidate is ATOMICALLY CLAIMED (rename) into a
-# private 0700 staging directory, and the scan / grammar check / publish all read
-# those same staged bytes. Re-opening the candidate path for each gate let a
-# candidate swapped after a clean scan publish a live credential with exit 0.
+# An owned candidate is ATOMICALLY CLAIMED (rename) into a private 0700 staging
+# directory BEFORE any validation runs, then FROZEN into a fresh inode there;
+# the scan / grammar check / publish all read those same frozen bytes. Three
+# separate defects live behind that sentence: re-opening the candidate path for
+# each gate let a candidate swapped after a clean scan publish a live credential
+# with exit 0; keeping the renamed inode let a concurrent run append to it
+# through an fd it already held; and remembering the shared PATHNAME for cleanup
+# let a signal delete a file that had meanwhile become another run's candidate.
+#
+# `install-plan` takes the same one-snapshot rule with a copy instead of a
+# rename: its candidate must survive the call (the interview resumes from it).
 
 set -euo pipefail
 
@@ -65,25 +75,25 @@ candidate_error() { printf 'error=candidate\n' >&2; exit 2; }
 # reject, I/O error, or signal — so a rejected credential never lingers as
 # readable plaintext under <bank>/tmp.
 #
-# Three things may need scrubbing, and the trap covers all of them:
-#   _SCRUB_CAND  the candidate, until it is claimed into staging
-#   _SCRUB_DIR   the private staging directory holding the claimed bytes
+# Two things may need scrubbing, and the trap covers both:
+#   _SCRUB_DIR   the private staging directory holding the claimed candidate(s)
 #   _INSTALL_TMP the atomic-install sibling copy, between `cp` and `mv`
 # _INSTALL_TMP used to be untracked, so a signal landing in the post-copy window
 # left a complete, readable transcript next to the target.
-_SCRUB_CAND=""
+#
+# What this list deliberately no longer holds is a PATHNAME under <bank>/tmp.
+# commands/discuss.md gives two concurrent runs the same candidate name, so a
+# remembered path is only "ours" until the other run writes there — and a
+# SIGTERM then made this run delete the newcomer's file (r5 review [1]). An
+# inode check does not save it either: a second run that rewrites the shared
+# path in place keeps the very inode we recorded. The only sound answer is to
+# stop owning a name at all: the candidate is MOVED into a private directory the
+# moment it is recognised, and from then on cleanup only ever removes files that
+# are already unreachable to anybody else.
 _SCRUB_DIR=""
 _INSTALL_TMP=""
+
 _scrub_candidate() {
-  # _SCRUB_CAND is a newline-separated LIST: a duplicated --candidate must not
-  # let the first, credential-bearing path escape cleanup.
-  if [ -n "$_SCRUB_CAND" ]; then
-    while IFS= read -r _p; do
-      [ -n "$_p" ] && rm -f "$_p" 2>/dev/null
-    done <<EOF
-$_SCRUB_CAND
-EOF
-  fi
   if [ -n "$_SCRUB_DIR" ]; then rm -rf "$_SCRUB_DIR" 2>/dev/null || true; fi
   if [ -n "$_INSTALL_TMP" ]; then rm -f "$_INSTALL_TMP" 2>/dev/null || true; fi
   return 0
@@ -120,7 +130,9 @@ MB=""
 TOPIC=""
 CAND=""
 REQUIRE_INHERITED=0
+PRINT_DIGEST=0
 STAGED=""
+SNAP=""
 # A usage fault is REMEMBERED, not raised inside the parse loop. Bailing out
 # early meant a credential-bearing candidate named later on the command line was
 # never scrubbed, and made scrubbing depend on flag ORDER. The whole line is
@@ -141,6 +153,7 @@ while [ "$#" -gt 0 ]; do
 "; shift
       else ARG_ERR=1; fi ;;
     --require-inherited) REQUIRE_INHERITED=1 ;;
+    --print-digest) PRINT_DIGEST=1 ;;
     *) ARG_ERR=1 ;;
   esac
   shift
@@ -185,14 +198,50 @@ _owned_candidate() {
   printf '%s/%s' "$cand_dir" "$base"
 }
 
+# _ensure_stage <dir> — the private 0700 directory that holds claimed bytes,
+# created in <dir> so the claim is a same-filesystem rename.
+#
+# The NAME is assigned BEFORE the directory exists, deliberately: `d="$(mktemp
+# -d ...)"; _SCRUB_DIR="$d"` leaves a window in which a signal strands a 0700
+# directory that is about to hold the raw candidate. `mkdir` refuses an existing
+# path (a planted symlink included) instead of following it, so a predictable
+# name is safe here in a way that an `open`/`cp` destination would not be.
+_ensure_stage() {
+  local dir="$1" i=0
+  [ -n "$_SCRUB_DIR" ] && return 0
+  while [ "$i" -lt 20 ]; do
+    _SCRUB_DIR="$dir/.mb-iaw.$$.${RANDOM:-0}$i"
+    if mkdir -m 700 "$_SCRUB_DIR" 2>/dev/null; then
+      return 0
+    fi
+    i=$((i + 1))
+  done
+  _SCRUB_DIR=""
+  return 1
+}
+
+# Original path of the candidate this run took, and where it lives now.
+_CLAIMED_SRC=""
+_CLAIMED_FILE=""
+_N_CLAIMED=0
+
 if [ "$SUB" = "publish-transcript" ]; then
-  # Arm over EVERY passed --candidate, not just the surviving one, so a
-  # duplicated flag cannot strand the first credential-bearing file.
+  # CLAIM every passed --candidate, not just the surviving one, so a duplicated
+  # flag cannot strand the first credential-bearing file — and claim it HERE,
+  # before any validation, because the rejections below (bad flag, bad topic)
+  # are exactly the ones that used to leave the raw credential readable on disk.
+  #
+  # Claiming is a rename into private staging, not a note to delete a path
+  # later: it is the same atomic step, minus the window in which the shared name
+  # can come to mean another run's file (r5 review [1]).
   while IFS= read -r _c; do
     [ -n "$_c" ] || continue
     _o="$(_owned_candidate "$_c")" || continue
-    _SCRUB_CAND="$_SCRUB_CAND$_o
-"
+    _ensure_stage "$(dirname "$_o")" || { printf 'error=io\n' >&2; exit 2; }
+    _N_CLAIMED=$((_N_CLAIMED + 1))
+    _dst="$_SCRUB_DIR/claimed-$_N_CLAIMED.md"
+    mv -f "$_o" "$_dst" 2>/dev/null || continue
+    if [ -z "$_CLAIMED_SRC" ]; then _CLAIMED_SRC="$_o"; _CLAIMED_FILE="$_dst"; fi
   done <<EOF
 $_ALL_CANDS
 EOF
@@ -200,41 +249,69 @@ fi
 
 [ "$ARG_ERR" -eq 0 ] || usage_error
 [ -n "$MB" ] && [ -n "$TOPIC" ] && [ -n "$CAND" ] || usage_error
-[ -f "$CAND" ] && [ -r "$CAND" ] || usage_error
+# Readability is judged on the claimed copy when there is one — the candidate's
+# own path is deliberately empty by now.
+if [ -n "$_CLAIMED_FILE" ]; then
+  [ -f "$_CLAIMED_FILE" ] && [ -r "$_CLAIMED_FILE" ] || usage_error
+else
+  [ -f "$CAND" ] && [ -r "$CAND" ] || usage_error
+fi
 valid_topic "$TOPIC" || topic_error
 
-# require_owned_candidate — publish-transcript only. Proves the candidate is the
-# exact path this writer owns before anything is deleted or published, and
-# normalizes CAND to its physical form.
+# require_owned_candidate — publish-transcript only. The ownership rules (regular
+# non-symlink file, physically in <bank>/tmp, canonical name) were applied by
+# _owned_candidate at CLAIM time; what is left to prove here is that the file
+# actually claimed is the one --mb/--topic asks to publish. Nothing is re-stat'd
+# at the shared path, because that path no longer holds our file — and by now it
+# may legitimately hold somebody else's.
 require_owned_candidate() {
-  local bank_real cand_dir expect
+  local bank_real
+  [ -n "$_CLAIMED_SRC" ] || candidate_error
   bank_real="$(phys_dir "$MB")" || candidate_error
   [ -n "$bank_real" ] || candidate_error
-  if [ -L "$CAND" ]; then candidate_error; fi
-  if [ ! -f "$CAND" ]; then candidate_error; fi
-  cand_dir="$(phys_dir "$(dirname "$CAND")")" || candidate_error
-  if [ "$cand_dir" != "$bank_real/tmp" ]; then candidate_error; fi
-  expect="interview-transcript-$TOPIC.candidate.md"
-  if [ "$(basename "$CAND")" != "$expect" ]; then candidate_error; fi
-  CAND="$cand_dir/$expect"
-  _SCRUB_CAND="$CAND
-"
+  [ "$_CLAIMED_SRC" = "$bank_real/tmp/interview-transcript-$TOPIC.candidate.md" ] \
+    || candidate_error
+  CAND="$_CLAIMED_SRC"
 }
 
-# claim_candidate — atomically RENAME the proven candidate into a private 0700
-# staging directory and work only on those bytes from here on. Every gate used
-# to re-open the candidate path, so replacing the file after a clean scan
-# published the replacement.
-claim_candidate() {
-  local stage
-  stage="$(mktemp -d "$(dirname "$CAND")/.mb-iaw.XXXXXX")" || return 2
-  chmod 700 "$stage" 2>/dev/null || { rm -rf "$stage"; return 2; }
-  _SCRUB_DIR="$stage"
-  STAGED="$stage/staged.md"
-  mv -f "$CAND" "$STAGED" || return 2
-  # The path is no longer ours: a file recreated there belongs to whoever made
-  # it, and this writer must not delete other people's files.
-  _SCRUB_CAND=""
+# freeze_claimed — copy the claimed file into a brand-new inode and drop the old
+# one. The claim moved the NAME; this moves the BYTES out of reach.
+#
+# `mv` keeps the inode, and commands/discuss.md hands two concurrent runs the
+# same candidate path — so the other run could still hold that inode open. It
+# appended a credential through its old fd AFTER the clean secret scan, and the
+# writer published the mutated inode with exit 0 (r5 review [1]). Nothing
+# outside this process has a handle on the copy, so the bytes the scan reads are
+# the bytes that get published, whatever the other run does next.
+# file_digest <path> — sha256 of the bytes at <path>, the handle a caller uses
+# to prove later that the plan it is about to generate from is still the plan
+# this run installed (r5 review [2]).
+file_digest() {
+  MB_F="$1" python3 -c 'import hashlib, os, sys
+h = hashlib.sha256()
+with open(os.environ["MB_F"], "rb") as fh:
+    for chunk in iter(lambda: fh.read(65536), b""):
+        h.update(chunk)
+sys.stdout.write(h.hexdigest())'
+}
+
+# snapshot_plan_candidate — install-plan's equivalent of freeze_claimed. The
+# candidate survives (REQ-019 resume), so its bytes are copied into a private
+# inode and everything downstream — the C8 check and the install — reads only
+# that copy.
+snapshot_plan_candidate() {
+  _ensure_stage "${TMPDIR:-/tmp}" || return 2
+  SNAP="$_SCRUB_DIR/plan.md"
+  cp "$CAND" "$SNAP" || return 2
+  [ -f "$SNAP" ] || return 2
+  return 0
+}
+
+freeze_claimed() {
+  STAGED="$_SCRUB_DIR/staged.md"
+  cp "$_CLAIMED_FILE" "$STAGED" || return 2
+  rm -f "$_CLAIMED_FILE" || return 2
+  [ -f "$STAGED" ] || return 2
   return 0
 }
 
@@ -282,27 +359,11 @@ title_names_topic() {
   return 1
 }
 
-# target_mode <path> — octal mode the published file must end up with: an
-# EXISTING regular target keeps its mode verbatim; otherwise the ordinary
-# creation default (0666 & ~umask), computed rather than hardcoded so a strict
-# environment is never silently widened.
-target_mode() {
-  local m u
-  if [ -f "$1" ] && [ ! -L "$1" ]; then
-    m="$(stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null)" || return 1
-    [ -n "$m" ] || return 1
-    printf '%s\n' "$m"
-    return 0
-  fi
-  u="$(umask)"
-  printf '%o\n' $(( 0666 & ~(8#$u) ))
-}
-
 atomic_install() {
   # $1 = source file; $2 = target path. Copies to a sibling temp, then renames
   # (same FS). The temp is tracked in _INSTALL_TMP for the whole cp→mv window so
   # a signal cannot strand a readable copy of the transcript next to the target.
-  local src="$1" target="$2" target_dir tmp bank_real dir_real mode
+  local src="$1" target="$2" target_dir tmp bank_real dir_real
   target_dir="$(dirname "$target")"
   mkdir -p "$target_dir" || return 2
   # Containment (defence in depth beyond valid_topic): the resolved target
@@ -320,27 +381,24 @@ atomic_install() {
   # refused rather than followed.
   tmp="$(mktemp "$target_dir/.$(basename "$target").XXXXXX")" || return 2
   _INSTALL_TMP="$tmp"
-  # mktemp publishes at 0600. Carry the mode the target must actually end up
-  # with: an existing target keeps its own mode verbatim (same rule as
-  # scripts/mb_fs_atomic.py — never widen what somebody deliberately locked
-  # down), a fresh one gets the ordinary creation default.
-  mode="$(target_mode "$target")" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
   cp "$src" "$tmp" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
-  chmod "$mode" "$tmp" || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
-  # os.replace, not `mv`: rename(2) has no directory-descend semantics, so even
-  # a target created between the check above and here cannot redirect the write.
-  MB_TMP="$tmp" MB_TARGET="$target" python3 -c 'import os, sys
-tmp, target = os.environ["MB_TMP"], os.environ["MB_TARGET"]
+  # The publish goes through the ONE shared primitive (scripts/mb_fs_atomic.py),
+  # which resolves the mode and renames inside a single directory lock:
+  #
+  #   * os.replace, not `mv` — rename(2) has no directory-descend semantics, so
+  #     even a target created between the checks above and here cannot redirect
+  #     the write, and a symlink/directory at the leaf is refused outright;
+  #   * the mode is read THERE, immediately before the rename. Reading it up
+  #     here (before `cp`) meant a run that found no target computed 0644 from
+  #     its umask and then replaced the 0600 file another publisher had created
+  #     in between — a widening nobody requested (r5 review [5]).
+  MB_LIB="$SCRIPT_DIR" MB_TMP="$tmp" MB_TARGET="$target" python3 -c 'import os, sys
+sys.path.insert(0, os.environ["MB_LIB"])
+from mb_fs_atomic import publish_path
 try:
-    st = os.lstat(target)
-except FileNotFoundError:
-    st = None
-except OSError:
-    sys.exit(1)
-import stat as _s
-if st is not None and (_s.S_ISLNK(st.st_mode) or not _s.S_ISREG(st.st_mode)):
-    sys.exit(1)
-os.replace(tmp, target)' || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
+    publish_path(os.environ["MB_TMP"], os.environ["MB_TARGET"], refuse_irregular=True)
+except Exception:
+    sys.exit(1)' || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
   # Cleared only after the rename succeeded — before that the temp is live.
   _INSTALL_TMP=""
   return 0
@@ -349,23 +407,44 @@ os.replace(tmp, target)' || { rm -f "$tmp"; _INSTALL_TMP=""; return 2; }
 case "$SUB" in
   install-plan)
     [ "$REQUIRE_INHERITED" -eq 0 ] || usage_error
+    # ONE immutable snapshot is validated and installed. The candidate path used
+    # to be opened twice — once by the C8 check, once by the copy — so a second
+    # run rewriting it in between got unvalidated bytes published under
+    # `artifact_write=installed`, and the installed plan then failed the very
+    # check that had just passed (r5 review [3]). install-plan does NOT consume
+    # its candidate (the interview resumes from it), so this is a copy, not the
+    # rename publish-transcript uses.
+    snapshot_plan_candidate || exit 2
     rc=0
-    run_check "$CAND" plan || rc=$?
+    run_check "$SNAP" plan || rc=$?
     if [ "$rc" -ne 0 ]; then
       # rc 2 = check usage/read error → I/O class; rc 1 = invalid content.
       [ "$rc" -eq 2 ] && exit 2
       exit 1
     fi
-    if atomic_install "$CAND" "$MB/tmp/interview-plan-$TOPIC.md"; then
-      printf 'artifact_write=installed kind=plan\n'
+    if atomic_install "$SNAP" "$MB/tmp/interview-plan-$TOPIC.md"; then
+      if [ "$PRINT_DIGEST" -eq 1 ]; then
+        # The digest names the SNAPSHOT, never a re-read of the published path:
+        # that path is per-topic and a second /mb discuss run rewrites it, so a
+        # digest taken from it could describe somebody else's plan.
+        _d="$(file_digest "$SNAP")" || exit 2
+        printf 'artifact_write=installed kind=plan digest=%s\n' "$_d"
+      else
+        printf 'artifact_write=installed kind=plan\n'
+      fi
       exit 0
     fi
     exit 2
     ;;
   publish-transcript)
-    # Prove ownership, THEN take the bytes out of reach, THEN gate them.
+    # --print-digest belongs to install-plan: the transcript is published once
+    # and never re-gated, so there is nothing to bind a later check to.
+    [ "$PRINT_DIGEST" -eq 0 ] || usage_error
+    # The candidate was CLAIMED (renamed into private staging) before any
+    # validation ran. Prove it is the one this invocation asks to publish, then
+    # freeze its bytes into a private inode, then gate them.
     require_owned_candidate
-    claim_candidate || exit 2
+    freeze_claimed || exit 2
     # C5 secret-scan + C8 transcript grammar must both pass before publishing —
     # both against the immutable staged bytes, which are also what gets copied.
     extra=()

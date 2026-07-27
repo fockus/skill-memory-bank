@@ -3,8 +3,8 @@
 # /mb discuss interview artifacts (design C8, NFR-002). No LLM.
 #
 # Usage:
-#   mb-interview-artifact-check.sh plan <file> [--require-closed]
-#   mb-interview-artifact-check.sh transcript <file> [--require-inherited] [--legacy-live-fixture]
+#   mb-interview-artifact-check.sh plan <file> [--require-closed] [--print-digest]
+#   mb-interview-artifact-check.sh transcript <file> [--require-inherited] [--legacy-live-fixture] [--print-digest]
 #
 # `plan` validates <bank>/tmp/interview-plan-<topic>.md against C2: required
 # headings in order, checkbox-only bullets under Topics/Discovered, a non-empty
@@ -15,7 +15,11 @@
 # --legacy-live-fixture relaxes the answer/rejected rules to legacy file-level
 # semantics, ONLY for the two frozen regression fixtures.
 #
-# stdout : `artifact=ok|invalid open_topics=<N>` (open_topics only for plan)
+# stdout : `artifact=ok|invalid open_topics=<N>` (open_topics only for plan),
+#          plus ` digest=<sha256>` with --print-digest — the hash of exactly the
+#          bytes this run validated, so a caller can prove the file it generates
+#          from is still the one that passed (C8 + r5 review [2]). The field is
+#          opt-in: without the flag the stdout line is byte-identical to before.
 # stderr : one `<file>:<line>:<reason>` per finding, sorted by (line, order).
 #          Usage -> `error=usage`; unreadable -> `<file>:0:unreadable` (both with
 #          empty stdout); forbidden flag -> `<file>:0:legacy_fixture_forbidden`.
@@ -61,11 +65,13 @@ FILE=""
 REQUIRE_CLOSED=0
 REQUIRE_INHERITED=0
 LEGACY_FIXTURE=0
+PRINT_DIGEST=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --require-closed) REQUIRE_CLOSED=1 ;;
     --require-inherited) REQUIRE_INHERITED=1 ;;
     --legacy-live-fixture) LEGACY_FIXTURE=1 ;;
+    --print-digest) PRINT_DIGEST=1 ;;
     --*) usage_error ;;
     *)
       [ -z "$FILE" ] || usage_error
@@ -105,10 +111,39 @@ if [ ! -f "$FILE" ] || [ ! -r "$FILE" ]; then
   exit 2
 fi
 
+# PARSE_FILE is what the grammar actually reads; FILE stays the name every
+# finding is reported under.
+#
+# With --print-digest the two differ: the file is SNAPSHOT first, the snapshot
+# is parsed, and the digest is the snapshot's. The verdict and the digest then
+# provably describe the same bytes. Taking the digest by re-opening the path
+# after the parse would reintroduce the very race the flag exists to close —
+# `<bank>/tmp/interview-plan-<topic>.md` is shared, and a second `/mb discuss`
+# on the same topic rewrites it (r5 review [2]).
+PARSE_FILE="$FILE"
+DIGEST=""
+_snap=""
+_cleanup_snap() { [ -n "$_snap" ] && rm -f "$_snap" 2>/dev/null; return 0; }
+if [ "$PRINT_DIGEST" -eq 1 ]; then
+  _snap="$(mktemp "${TMPDIR:-/tmp}/mb-artifact-snap.XXXXXX")" || {
+    printf '%s:0:unreadable\n' "$FILE" >&2; exit 2; }
+  trap _cleanup_snap EXIT
+  cp "$FILE" "$_snap" 2>/dev/null || { printf '%s:0:unreadable\n' "$FILE" >&2; exit 2; }
+  PARSE_FILE="$_snap"
+  DIGEST="$(MB_SNAP="$_snap" python3 -c 'import hashlib, os, sys
+h = hashlib.sha256()
+with open(os.environ["MB_SNAP"], "rb") as fh:
+    for chunk in iter(lambda: fh.read(65536), b""):
+        h.update(chunk)
+sys.stdout.write(h.hexdigest())')" || { printf '%s:0:unreadable\n' "$FILE" >&2; exit 2; }
+  [ -n "$DIGEST" ] || { printf '%s:0:unreadable\n' "$FILE" >&2; exit 2; }
+fi
+
 # Findings (F <line> <order> <reason>) -> sort by (line,order) -> render.
 render_findings() {
   # $1 = parse output; $2 = open_count
-  local parse="$1" open_count="$2" ff
+  local parse="$1" open_count="$2" ff suffix=""
+  [ -n "$DIGEST" ] && suffix=" digest=$DIGEST"
   ff="$(mktemp "${TMPDIR:-/tmp}/mb-artifact-find.XXXXXX")"
   printf '%s\n' "$parse" | sed -n 's/^F //p' >> "$ff"
   if [ -s "$ff" ]; then
@@ -117,11 +152,11 @@ render_findings() {
       printf '%s:%s:%s\n' "$FILE" "$ln" "$reason" >&2
     done
     rm -f "$ff"
-    printf 'artifact=invalid open_topics=%d\n' "$open_count"
+    printf 'artifact=invalid open_topics=%d%s\n' "$open_count" "$suffix"
     return 1
   fi
   rm -f "$ff"
-  printf 'artifact=ok open_topics=%d\n' "$open_count"
+  printf 'artifact=ok open_topics=%d%s\n' "$open_count" "$suffix"
   return 0
 }
 
@@ -199,7 +234,7 @@ run_plan() {
         # REQ-001: an empty Topics is not a closed plan (Discovered may be empty).
         if (h_top > 0 && count_items(h_top) == 0) printf "F %d 1 missing_section\n", h_top
       }
-    ' "$FILE"
+    ' "$PARSE_FILE"
   )"
   open_count="$(printf '%s\n' "$parse" | grep -c '^O ' || true)"
   if [ "$REQUIRE_CLOSED" -eq 1 ] && [ "$open_count" -gt 0 ]; then
@@ -389,7 +424,7 @@ run_transcript() {
           }
         }
       }
-    ' "$FILE"
+    ' "$PARSE_FILE"
   )"
   render_findings "$parse" 0
 }

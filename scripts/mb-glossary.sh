@@ -50,6 +50,19 @@ _LOCK_TOKEN=""
 _cleanup() {
   [ -n "$_LOCK_DIR" ] && mb_lock_release "$_LOCK_DIR" "$_LOCK_TOKEN" >/dev/null 2>&1 || true
 }
+# A signal handler that merely RETURNS resumes the script at the next command —
+# with the lock it just released. `trap _cleanup EXIT INT TERM HUP` therefore
+# unlocked the critical section and let the run carry on inside it, and a run
+# killed before the critical section still ended at `exit "$rc"` = 0, telling
+# its caller the term had been recorded (r5 review [4]). A signal must END the
+# process: release, disarm EXIT so the release is not attempted twice, and exit
+# with the conventional 128+signal status (same shape as
+# mb-interview-artifact-write.sh).
+_on_signal() {
+  _cleanup
+  trap - EXIT
+  exit $((128 + $1))
+}
 
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
 
@@ -83,16 +96,26 @@ if ! _LOCK_TOKEN="$(mb_lock_acquire "$_LOCK_DIR" "$LOCK_TIMEOUT" "$LOCK_TTL" 2>/
   printf 'error=lock_timeout\n' >&2
   exit 2
 fi
-trap _cleanup EXIT INT TERM HUP
+trap _cleanup EXIT
+trap '_on_signal 2' INT
+trap '_on_signal 15' TERM
+trap '_on_signal 1' HUP
 
 rc=0
-python3 - "$MB" "$TERM_FILE" "$DEF_FILE" <<'PY' || rc=$?
+python3 - "$MB" "$TERM_FILE" "$DEF_FILE" "$SCRIPT_DIR" <<'PY' || rc=$?
 import os
 import stat
 import sys
 import tempfile
 
-mb, term_file, def_file = sys.argv[1:4]
+mb, term_file, def_file, lib_dir = sys.argv[1:5]
+
+# The mode-carrying publish is the ONE shared primitive, not a third hand-rolled
+# copy of it: mb_fs_atomic resolves the target mode inside the same directory
+# lock as the rename, which is what keeps a target created mid-write from being
+# re-permissioned (r5 review [5]).
+sys.path.insert(0, lib_dir)
+from mb_fs_atomic import publish_path  # noqa: E402
 
 
 def _read_text(path, code):
@@ -146,38 +169,9 @@ if (
 line = term + sep + definition + "\n"
 
 
-def _default_mode():
-    # Exactly what a plain open() would have produced: 0666 masked by the
-    # umask. Computed, never a hardcoded 0644, so a deliberately strict
-    # environment is not silently widened.
-    current = os.umask(0)
-    os.umask(current)
-    return 0o666 & ~current
-
-
 def _io_error():
     sys.stderr.write("error=io\n")
     sys.exit(2)
-
-
-def _target_mode(path):
-    # Mode the published file must end up with (I-145).
-    #
-    # An EXISTING glossary keeps its mode VERBATIM: a restrictive mode is a
-    # deliberate lockdown, and widening is the direction that cannot be undone
-    # once a secret has been exposed. Repairing already-damaged banks is the
-    # one-shot I-145 migration, not this write path's job (same rule as
-    # scripts/mb_fs_atomic.py).
-    #
-    # lstat, never stat: a stat() through a symlink reports the TARGET, and only
-    # FileNotFoundError means "absent". Any other stat failure is a genuine I/O
-    # fault and must not be silently downgraded to "publish with a fresh mode".
-    try:
-        return stat.S_IMODE(os.lstat(path).st_mode)
-    except FileNotFoundError:
-        return _default_mode()
-    except OSError:
-        _io_error()
 
 
 def atomic_write(path, content):
@@ -185,7 +179,13 @@ def atomic_write(path, content):
     # `<glossary>.<pid>.tmp` + open(...,"w") was predictable AND followed a
     # planted symlink: the victim it pointed at was overwritten and glossary.md
     # itself was published as a symlink, with exit 0.
-    mode = _target_mode(path)          # resolved BEFORE the replace
+    #
+    # The mode rule (I-145: an EXISTING glossary keeps its mode VERBATIM — a
+    # restrictive mode is a deliberate lockdown, and widening is the direction
+    # that cannot be undone once a secret has been exposed) now lives in exactly
+    # ONE place, publish_path, which also resolves it inside the same lock as
+    # the rename. Symlinks and non-regular targets are refused before this
+    # function is reached AND again by publish_path.
     directory = os.path.dirname(path) or "."
     try:
         fd, tmp = tempfile.mkstemp(prefix=".glossary-", suffix=".tmp", dir=directory)
@@ -194,10 +194,7 @@ def atomic_write(path, content):
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(content)
-        # mkstemp publishes at 0600; carry the mode the target must end up with.
-        if mode is not None:
-            os.chmod(tmp, mode)
-        os.replace(tmp, path)
+        publish_path(tmp, path, refuse_irregular=True)
     except (UnicodeError, OSError):
         try:
             os.unlink(tmp)

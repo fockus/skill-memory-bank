@@ -355,6 +355,8 @@ After creating it, run `chmod +x .memory-bank/metrics.sh`. Validation: `bash scr
 
 `<bank>/tmp/interview-plan-<topic>.md` — the white-spot ledger for `/mb discuss` (contract C2). Written before the first question, validated by `mb-interview-artifact-check.sh plan`, installed atomically by `mb-interview-artifact-write.sh install-plan`. Generation is gated on closing every topic (grilling rule 11).
 
+The path carries the topic and nothing else, so two `/mb discuss` runs on one topic share this file. Both the writer and the validator take `--print-digest` and report the sha256 of the bytes they actually installed or judged; `/mb discuss` records that value and re-checks it before generating, so a plan swapped by the other run is caught instead of silently generated from.
+
 ```markdown
 ## Inherited decisions (do not re-ask)
 
@@ -563,6 +565,45 @@ The v2 block adds machine-checkable fields:
 - [ ] tests pass (were red)
 - [ ] lint clean
 <!-- /mb-task:1 -->
+```
+
+### Test-layer tasks and Quality DoD (C8 — rendered, not hand-written)
+
+The three layer tasks and the `## Quality DoD` section are **generated** by
+`scripts/mb-sdd-layers-render.py`, not typed from this file. Copying them by
+hand is how the two drift; the shapes are recorded here so a reader knows what
+the renderer produces, and `tests/pytest/test_sdd_layers_render.py` asserts
+that this section and the renderer still agree.
+
+```bash
+python3 scripts/mb-sdd-layers-render.py --requirements <requirements.md> \
+  --pipeline <pipeline.yaml> --rules-json <rules.json> --json
+# → {"tasks_markdown": "<layer task blocks>", "quality_dod_markdown": "<one section>"}
+```
+
+- `**Layer:** contract` — five ordered steps (declare · write checker unit
+  tests on fixtures, both halves · implement · make them green · observe them
+  red against the unimplemented product). No business code. Rendered only when
+  `contract_first` is on **and** the spec has a gated (SHALL/MUST) requirement.
+- `**Layer:** integration` / `**Layer:** e2e` — after every implementation
+  task, e2e after integration when both exist. Their DoD lists the full
+  scenario ids from `mb-scenario-extract.py`, mapped `test_` + id with `-` → `_`.
+- A disabled layer renders no task; all three disabled still renders the
+  Quality DoD (REQ-015).
+
+The `## Quality DoD` skeleton — paths only, the rules' text is never copied:
+
+```markdown
+## Quality DoD
+
+Rule sources (resolved by `scripts/mb-rules-resolve.sh`, referenced — never copied):
+- [project] AGENTS.md
+
+Review rubric (from `pipeline.yaml:review_rubric`):
+- <one bullet per pipeline.yaml:review_rubric entry>
+
+Checker: `bash scripts/mb-rules-check.sh --files <touched-files-csv> --out json` — no violations
+on this item's touched files.
 ```
 
 ### §Contract seam block (design.md, C9)

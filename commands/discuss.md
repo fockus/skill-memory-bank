@@ -65,7 +65,15 @@ Structure (contract C2, validated by `"$SKILL_DIR/scripts/mb-interview-artifact-
 - `## Topics` — one `- [ ]` line per planned theme; flip to `- [x]` once the theme is closed.
 - `## Discovered mid-interview` — append `- [ ]` lines for themes that surface while grilling.
 
-Do not hand-write the file: build a candidate and install it through the deterministic writer (`mb-interview-artifact-write.sh install-plan`), so the atomic write and structural validity are script-proven, not prompt-judged. The full template lives in `references/templates.md` (`## Interview plan template`).
+Do not hand-write the file: build a candidate and install it through the deterministic writer, so the atomic write and structural validity are script-proven, not prompt-judged. The full template lives in `references/templates.md` (`## Interview plan template`).
+
+```bash
+bash "$SKILL_DIR/scripts/mb-interview-artifact-write.sh" install-plan \
+  --mb "$MB_PATH" --topic <topic> --candidate "$MB_PATH/tmp/plan-candidate.md" --print-digest
+# → artifact_write=installed kind=plan digest=<sha256>
+```
+
+**Record the printed `digest` as `PLAN_DIGEST`, and re-record it on every reinstall** (closing a theme, appending a discovered one). The plan path is keyed by TOPIC alone, so a second `/mb discuss <topic>` in another session writes to that very file; the digest is the only handle that ties the close gate below to the plan this run actually installed.
 
 ### 5 phases — one question at a time
 
@@ -192,7 +200,7 @@ What breaks at boundaries? What happens when dependencies fail? What's the worst
 1. **Close-gate — blocking, runs before anything is rendered.** Verify the interview plan is closed with the deterministic validator:
 
 ```bash
-bash "$SKILL_DIR/scripts/mb-interview-artifact-check.sh" plan "$MB_PATH/tmp/interview-plan-<topic>.md" --require-closed
+bash "$SKILL_DIR/scripts/mb-interview-artifact-check.sh" plan "$MB_PATH/tmp/interview-plan-<topic>.md" --require-closed --print-digest
 ```
 
    Exit 0 permits generation. **Never generate on a non-zero gate**, and never substitute your own judgement that the topics "look closed" — the exit code decides. On exit 1, read `open_topics=<N>` from stdout to tell the two failure kinds apart, because the validator returns 1 for both:
@@ -201,6 +209,10 @@ bash "$SKILL_DIR/scripts/mb-interview-artifact-check.sh" plan "$MB_PATH/tmp/inte
    - `open_topics=0` → the plan is structurally broken (`missing_section`, `bad_bullet`, `section_out_of_order`), not unanswered. There is no question to ask: repair the plan file from the stderr reason codes, reinstall it through `install-plan`, then re-run the gate. Treating this as "ask more questions" left the structure broken forever.
 
    Exit 2 means the plan artifact is unreadable or the invocation was wrong: stop and repair it.
+
+   **The verdict is about bytes, not about a filename.** The gate's `digest=` MUST equal the `PLAN_DIGEST` this run recorded when it installed the plan. A different digest means another `/mb discuss <topic>` rewrote the shared plan file between the two moments: do not generate, re-read the plan on disk, reconcile it with your ledger, reinstall it through `install-plan --print-digest` (recording the new digest), and gate again.
+
+   **Re-run the same gate command immediately before each publication** — before rendering `context/<topic>.md` and again before publishing the transcript — and require the same digest both times. Exit 0 in this step describes the file as it was at this instant only; between the gate and the write, a concurrent run can install an open plan over it, and a verdict that is never re-bound to the file it judged is a verdict about a file that may no longer exist.
 
 2. Render `context/<topic>.md` using the template in `references/templates.md` (`## Context (context/<topic>.md)` section). Write it thoroughly: include the **Research digest** (with its citations), the **Decision Log** (decision → rationale → alternatives rejected, from the ledger), and **Open Questions** (anything deferred, so `/mb plan` addresses or explicitly parks each). Every REQ must trace back to a ledger decision — no requirement appears out of thin air.
 3. Run `bash "$SKILL_DIR/scripts/mb-ears-validate.sh" "$CONTEXT_FILE"`. If it fails, fix in place and retry — do not commit invalid state.

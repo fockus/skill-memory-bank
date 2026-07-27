@@ -394,3 +394,77 @@ _design_md() { printf '%s' "$REPO_ROOT/.memory-bank/specs/svp-interview-upgrade/
   run --separate-stderr "$SCRIPT" plan "$f" --require-closed
   [ "$status" -eq 0 ] || { echo "an empty Discovered section was rejected: $output"; false; }
 }
+
+# ═══ r5 review [2]: the verdict must be attributable to specific BYTES ══════
+#
+# The close gate is `check → (the agent renders) → publish`, three separate
+# steps against one shared `<bank>/tmp/interview-plan-<topic>.md`. A second
+# `/mb discuss` on the same topic can install an OPEN plan between them, and the
+# gate's exit 0 then described a file that no longer exists. A verdict nobody
+# can tie to bytes cannot be re-checked, so `--print-digest` reports the sha256
+# of exactly what was validated, and commands/discuss.md compares it before it
+# generates anything.
+
+_sha256() {
+  MB_F="$1" python3 -c 'import hashlib, os, sys
+h = hashlib.sha256()
+with open(os.environ["MB_F"], "rb") as fh:
+    for chunk in iter(lambda: fh.read(65536), b""):
+        h.update(chunk)
+sys.stdout.write(h.hexdigest())'
+}
+
+@test "artifact_check: --print-digest reports the sha256 of the validated file" {
+  local f="$BATS_TEST_TMPDIR/plan.md"; _valid_closed_plan "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed --print-digest
+  [ "$status" -eq 0 ]
+  [ "$output" = "artifact=ok open_topics=0 digest=$(_sha256 "$f")" ] \
+    || { echo "unexpected stdout: $output"; false; }
+}
+
+@test "artifact_check: without --print-digest the stdout contract is unchanged" {
+  local f="$BATS_TEST_TMPDIR/plan.md"; _valid_closed_plan "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed
+  [ "$status" -eq 0 ]
+  [ "$output" = "artifact=ok open_topics=0" ]
+}
+
+@test "artifact_check: an INVALID plan still reports the digest it judged" {
+  # The repair loop needs the same binding: reinstall, re-gate, compare.
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n## Topics\n\n- [ ] open\n\n## Discovered mid-interview\n' > "$f"
+  run --separate-stderr "$SCRIPT" plan "$f" --require-closed --print-digest
+  [ "$status" -eq 1 ]
+  [ "$output" = "artifact=invalid open_topics=1 digest=$(_sha256 "$f")" ] \
+    || { echo "unexpected stdout: $output"; false; }
+}
+
+@test "artifact_check: the digest describes the PARSED bytes, not a later re-read" {
+  # A digest taken by re-opening the path after the parse would describe the
+  # file the competing run installed, and the caller's CAS check would compare
+  # two values that were never both true — the same TOCTOU one level up.
+  # `awk` is interposed so the swap lands exactly when parsing ends.
+  local f="$BATS_TEST_TMPDIR/plan.md"; _valid_closed_plan "$f"
+  local original; original="$(_sha256 "$f")"
+  local bin="$BATS_TEST_TMPDIR/bin-digest"; mkdir -p "$bin"
+  printf '## Topics\n\n- [ ] a competing run installed this\n' > "$BATS_TEST_TMPDIR/other-plan.md"
+
+  local realawk; realawk="$(command -v awk)"
+  cat > "$bin/awk" <<EOF
+#!/usr/bin/env bash
+rc=0
+"$realawk" "\$@" || rc=\$?
+if [ ! -e "$BATS_TEST_TMPDIR/.digest-swapped" ]; then
+  : > "$BATS_TEST_TMPDIR/.digest-swapped"
+  cp "$BATS_TEST_TMPDIR/other-plan.md" "$f" 2>/dev/null || true
+fi
+exit \$rc
+EOF
+  chmod +x "$bin/awk"
+
+  PATH="$bin:$PATH" run --separate-stderr "$SCRIPT" plan "$f" --require-closed --print-digest
+  [ -e "$BATS_TEST_TMPDIR/.digest-swapped" ] || { echo "the awk interposer never fired"; false; }
+  [ "$status" -eq 0 ] || { echo "the verdict followed the swapped file: $stderr"; false; }
+  [ "$output" = "artifact=ok open_topics=0 digest=$original" ] \
+    || { echo "the digest is not the validated file's: $output"; false; }
+}

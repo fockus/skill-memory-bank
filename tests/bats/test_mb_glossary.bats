@@ -6,6 +6,7 @@
 # Name convention: every @test starts with `mb_glossary: ` (Eval red-anchor).
 
 bats_require_minimum_version 1.5.0
+load 'lib/assert'
 load 'lib/discuss_contract'
 
 setup() {
@@ -240,6 +241,52 @@ _concurrent_upserts() {
   [ "$n" -eq 1 ] || { echo "expected exactly 1 line, got $n"; cat "$GLOSS"; false; }
 }
 
+# ─── a signal must TERMINATE the run, not release the lock and carry on ─────
+# (r5 review [4]) `trap _cleanup EXIT INT TERM HUP` does not end the shell: the
+# handler released the glossary lock and RETURNED, so the run continued past the
+# critical section without holding it and then reported success for work it
+# never did. python3 is interposed on PATH so the signal lands deterministically
+# at the START of the critical section — nothing is written, and the only honest
+# answer is 128+SIGTERM.
+
+_term_at_critical_section() {
+  # An interposed `python3` that consumes the here-doc program, signals the
+  # script, and returns WITHOUT running the critical section.
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat > "$BATS_TEST_TMPDIR/bin/python3" <<'EOF'
+#!/usr/bin/env bash
+cat > /dev/null
+kill -TERM "$PPID"
+exit 0
+EOF
+  chmod +x "$BATS_TEST_TMPDIR/bin/python3"
+}
+
+@test "mb_glossary: a SIGTERM ends the run instead of resuming it unlocked" {
+  _term_at_critical_section
+  printf 'slice' > "$TF"; printf 'a child spec' > "$DF"
+  run --separate-stderr env PATH="$BATS_TEST_TMPDIR/bin:$PATH" \
+    "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  # 128+SIGTERM. Exit 0 here is the defect: a killed run that wrote nothing told
+  # its caller the term had been recorded.
+  [ "$status" -eq 143 ] || { echo "signalled run reported status=$status"; false; }
+  [ -z "$output" ] || { echo "signalled run printed a result: $output"; false; }
+  [ ! -e "$GLOSS" ] || { echo "glossary written by a killed run"; cat "$GLOSS"; false; }
+}
+
+@test "mb_glossary: a SIGTERM still releases the lock it holds" {
+  # Terminating must not wedge the bank: the next upsert has to get the lock.
+  _term_at_critical_section
+  printf 'slice' > "$TF"; printf 'a child spec' > "$DF"
+  run env PATH="$BATS_TEST_TMPDIR/bin:$PATH" \
+    "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ ! -e "$BANK/.locks/glossary.lock" ] || { echo "the lock survived the signal"; false; }
+  run --separate-stderr env MB_GLOSSARY_LOCK_TIMEOUT=1 \
+    "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
+  [ "$status" -eq 0 ] || { echo "the bank stayed wedged: status=$status"; false; }
+  [ "$output" = "glossary=created" ]
+}
+
 # ─── invalid UTF-8 is an I/O error, exit 2 (review [10], contract C12) ───
 
 @test "mb_glossary: invalid UTF-8 in the term → exit 2, no traceback, nothing written" {
@@ -250,7 +297,7 @@ _concurrent_upserts() {
   [ "$status" -eq 2 ]
   [ -z "$output" ]
   [ "$stderr" = "error=usage" ]
-  ! echo "$stderr" | grep -q 'Traceback'
+  refute_substring "$stderr" Traceback
   [ ! -e "$GLOSS" ]
 }
 
@@ -271,7 +318,7 @@ _concurrent_upserts() {
   run --separate-stderr "$SCRIPT" upsert --mb "$BANK" --term-file "$TF" --definition-file "$DF"
   [ "$status" -eq 2 ]
   [ -z "$output" ]
-  ! echo "$stderr" | grep -q 'Traceback'
+  refute_substring "$stderr" Traceback
   [ "$(cksum < "$GLOSS")" = "$before" ]
 }
 

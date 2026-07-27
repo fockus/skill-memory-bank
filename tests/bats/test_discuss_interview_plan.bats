@@ -38,6 +38,14 @@ setup() {
   # Pre-flight bank resolution must not hardcode a local .memory-bank/.
   MB_DISCUSS_CLAUSES+=("preflight-resolve-bank|mb_section|Pre-flight|mb_resolve_path|Memory Bank|s/mb_resolve_path/a hardcoded path/|REQ-002")
   MB_DISCUSS_CLAUSES+=("preflight-global-bank|mb_section|Pre-flight|[Nn]ever hardcode|global|s/Never hardcode/Always hardcode/|REQ-002")
+  # r5 review [2]: the plan file is keyed by TOPIC, so a second /mb discuss on
+  # the same topic shares it. The gate verdict must therefore be bound to BYTES
+  # (digest), re-checked immediately before each publication.
+  MB_DISCUSS_CLAUSES+=("plan-install-print-digest|mb_section|Interview plan|--print-digest|install-plan|s/ --print-digest//|REQ-002")
+  MB_DISCUSS_CLAUSES+=("plan-digest-recorded|mb_section|Interview plan|Record the printed .digest. as .PLAN_DIGEST|digest|s/Record the printed/Ignore the printed/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-digest-binding|mb_section|Write . finalize|digest=. MUST equal the .PLAN_DIGEST|digest|s/MUST equal/may differ from/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-digest-mismatch-blocks|mb_section|Write . finalize|different digest means another .*do not generate|digest|s/: do not generate, re-read/: carry on, ignoring/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-recheck-before-publish|mb_section|Write . finalize|[Rr]e-run the same gate command immediately before each publication|gate|s/immediately before each publication/at any convenient moment/|REQ-002")
 }
 
 # ─── Interview-plan section (REQ-001) ───
@@ -134,6 +142,29 @@ _clause_pair() {
 }
 
 # ─── Pre-flight resolves the ACTIVE bank, local or global (review [7]) ───
+
+# ─── r5 review [2]: the verdict is bound to bytes, not to a filename ────────
+
+@test "interview_plan: the plan is installed with --print-digest" { _clause_pair plan-install-print-digest; }
+@test "interview_plan: the printed digest is recorded for the run" { _clause_pair plan-digest-recorded; }
+@test "interview_plan: the gate verdict must match the recorded digest" { _clause_pair close-gate-digest-binding; }
+@test "interview_plan: a digest mismatch blocks generation" { _clause_pair close-gate-digest-mismatch-blocks; }
+@test "interview_plan: the gate is re-run immediately before each publication" { _clause_pair close-gate-recheck-before-publish; }
+
+@test "interview_plan: both scripts really accept --print-digest" {
+  # The clause may not prescribe a flag the tools reject: run them, do not grep.
+  local f="$BATS_TEST_TMPDIR/plan.md"
+  printf '## Inherited decisions (do not re-ask)\n\n- none\n\n## Topics\n\n- [x] scope\n\n## Discovered mid-interview\n' > "$f"
+  run "$REPO_ROOT/scripts/mb-interview-artifact-check.sh" plan "$f" --require-closed --print-digest
+  [ "$status" -eq 0 ] || { echo "the checker rejected --print-digest: $output"; false; }
+  [[ "$output" == *" digest="* ]] || { echo "no digest in: $output"; false; }
+
+  local bank="$BATS_TEST_TMPDIR/bank"; mkdir -p "$bank/tmp"
+  run "$REPO_ROOT/scripts/mb-interview-artifact-write.sh" install-plan \
+    --mb "$bank" --topic foo --candidate "$f" --print-digest
+  [ "$status" -eq 0 ] || { echo "the writer rejected --print-digest: $output"; false; }
+  [[ "$output" == *" digest="* ]] || { echo "no digest in: $output"; false; }
+}
 
 @test "interview_plan: pre-flight resolves the bank through mb_resolve_path" { _clause_pair preflight-resolve-bank; }
 @test "interview_plan: pre-flight forbids hardcoding the bank path" { _clause_pair preflight-global-bank; }
