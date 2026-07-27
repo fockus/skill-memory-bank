@@ -13,7 +13,12 @@
 #   - Structural C8.1–C8.3, C8.5 are delegated to `mb-spec-validate.sh`
 #     (v2 fields, gated `output~:` anchor, seam/cycle/role/scenario-parity,
 #     cross-spec Blocked-by resolution). Its non-zero exit is a structural
-#     violation.
+#     violation and SHORT-CIRCUITS the battery (round-4 review [1]): the verdict
+#     can no longer change, and a spec already known to be malformed must not
+#     have its declared Eval commands executed — running a user-supplied command
+#     on behalf of an artifact the battery has just rejected is an unreviewed
+#     execution path, not a check. The violations are re-emitted on stderr so the
+#     short-circuit stays diagnosable.
 #   - Behavioural Eval preflight C8.4 (the core of this task, REQ-054): for each
 #     task the helper resolves the Eval command's target tokens (tokens that
 #     contain `/` and do not start with `-`, per C1). When ALL targets exist the
@@ -122,20 +127,30 @@ else
 fi
 
 # --- C8.1–C8.3, C8.5: delegate structural battery to mb-spec-validate.sh ----
-structural_ok=1
+# This runs FIRST and, on any violation, terminates the battery before a single
+# Eval command is executed (review [1]).
 set +e
 if [ -n "$MB_BANK" ]; then
-  "$SCRIPT_DIR/mb-spec-validate.sh" "$SPEC_ARG" "$MB_BANK" >/dev/null 2>&1
+  sv_out="$("$SCRIPT_DIR/mb-spec-validate.sh" "$SPEC_ARG" "$MB_BANK" 2>&1)"
 else
-  "$SCRIPT_DIR/mb-spec-validate.sh" "$SPEC_ARG" >/dev/null 2>&1
+  sv_out="$("$SCRIPT_DIR/mb-spec-validate.sh" "$SPEC_ARG" 2>&1)"
 fi
 sv_exit=$?
 set -e
 if [ "$sv_exit" -eq 2 ]; then
+  [ -z "$sv_out" ] || printf '%s\n' "$sv_out" >&2
   printf 'error=spec_validate_usage\n' >&2
   exit 2
 fi
-[ "$sv_exit" -eq 0 ] || structural_ok=0
+if [ "$sv_exit" -ne 0 ]; then
+  # Short-circuit: no task parsing, no Eval execution, no behavioural verdict
+  # invented for a battery that never ran. The structural violations themselves
+  # go to stderr — a silent `self_check=invalid` would trade one blind spot for
+  # another.
+  [ -z "$sv_out" ] || printf '%s\n' "$sv_out" >&2
+  printf 'self_check=invalid\n'
+  exit 1
+fi
 
 # --- Parse tasks → TSV (id, cmd, exit, output_re) via the authoritative parser
 TSV="$(
@@ -255,7 +270,12 @@ PY
   if [ -n "$exp" ]; then
     [ "$rc" -eq "$exp" ] || red=0
   fi
-  if [ -z "$ore" ] && [ -z "$exp" ]; then red=0; fi
+  # An ANCHORLESS declaration is valid by C1 — anchors are mandatory only for a
+  # task covering a gated REQ (REQ-055, enforced structurally above), and for a
+  # non-gated one «red считается по exit != 0». Demanding an anchor here
+  # rejected a correct declaration and blocked draft→ready (review [7]). The
+  # `rc != 0` requirement above is what still keeps a green command from
+  # impersonating a red.
 
   if [ "$red" -eq 1 ]; then printf 'ready'; else printf 'invalid'; fi
 }
@@ -286,7 +306,9 @@ EOF
 fi
 
 # --- Verdict ----------------------------------------------------------------
-if [ "$structural_ok" -eq 1 ] && [ "$any_invalid" -eq 0 ]; then
+# Structural violations already exited above, so only the behavioural half is
+# left to decide.
+if [ "$any_invalid" -eq 0 ]; then
   printf 'self_check=ready\n'
   verdict=0
 else

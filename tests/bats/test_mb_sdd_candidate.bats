@@ -225,6 +225,47 @@ _final_sum() { cksum < "$FINAL"; }
   [ "$status" -eq 2 ]
 }
 
+# ── round-4 review [6]: per-item keys are deduplicated too ───────────────────
+#
+# `spec`/`task_over`/`stage_over` were the only keys checked for duplication, so
+# an estimate file carrying `task.1` twice — with different numbers — parsed as
+# a valid verdict. That file is not one C3 run: it is two runs concatenated, or
+# a hand-edited one, and neither can be called "the size of the candidate about
+# to be accepted" (REQ-009). The strict parser exists to refuse exactly that.
+
+@test "candidate_publish: duplicate task.N entry → exit 2, candidate untouched" {
+  local before; before="$(_final_sum)"
+  printf 'task.1=100\ntask.1=999999\nstage.1=100\ntask_over=none\nstage_over=none\nspec=ok\n' \
+    > "$TMP/duptask.txt"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" \
+    --estimate-file "$TMP/duptask.txt" --force
+  [ "$status" -eq 2 ] || { echo "duplicate task.N accepted (rc=$status): $output"; false; }
+  [ -e "$CAND" ]                    # refused before any write
+  [ "$(_final_sum)" = "$before" ]
+}
+
+@test "candidate_publish: duplicate stage.N entry → exit 2, candidate untouched" {
+  local before; before="$(_final_sum)"
+  printf 'task.1=100\nstage.1=100\nstage.1=400000\ntask_over=none\nstage_over=none\nspec=ok\n' \
+    > "$TMP/dupstage.txt"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" \
+    --estimate-file "$TMP/dupstage.txt" --force
+  [ "$status" -eq 2 ] || { echo "duplicate stage.N accepted (rc=$status): $output"; false; }
+  [ -e "$CAND" ]
+  [ "$(_final_sum)" = "$before" ]
+}
+
+@test "candidate_publish: distinct task.N/stage.N entries are still accepted" {
+  # Guards the over-correction: deduplication must key on the ID, not collapse
+  # every per-item key into one slot.
+  printf 'task.1=100\ntask.2=200\nstage.1=300\nstage.2=50\nspec.total=300\ntask_over=none\nstage_over=none\nspec=ok\n' \
+    > "$TMP/multi.txt"
+  run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" \
+    --estimate-file "$TMP/multi.txt" --force
+  [ "$status" -eq 0 ] || { echo "distinct per-item keys rejected: $output"; false; }
+  [[ "$output" == *"candidate=published"* ]]
+}
+
 @test "candidate_publish: full valid C3 grammar (task.N/stage.N/spec.total) → published" {
   printf 'task.1=100\nstage.1=100\nspec.total=100\ntask_over=none\nstage_over=none\nspec=ok\nlegacy_missing=none\n' > "$TMP/full.txt"
   run --separate-stderr "$SCRIPT" publish --topic "$TOPIC" --candidate "$CAND" --estimate-file "$TMP/full.txt" --force

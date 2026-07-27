@@ -162,6 +162,7 @@ VERDICT="$(
 import os, re, sys
 simple = {"spec", "task_over", "stage_over", "spec.total", "legacy_missing"}
 seen = {}
+per_item = {}
 task_re = re.compile(r"^task\.[0-9]+$")
 stage_re = re.compile(r"^stage\.[0-9]+$")
 try:
@@ -179,8 +180,16 @@ for raw in lines:
             print("ERR duplicate"); sys.exit(0)
         seen[key] = val
     elif task_re.match(key) or stage_re.match(key):
+        # Per-item keys are deduplicated exactly like the simple ones (round-4
+        # review [6]): a file carrying `task.1` twice is not one C3 run, and
+        # nothing in it can be called "the size of this candidate" (REQ-009).
+        # Silently keeping the last value would let two concatenated runs, or a
+        # hand-edited verdict, publish under a number no estimator produced.
+        if key in per_item:
+            print("ERR duplicate"); sys.exit(0)
         if not re.match(r"^[0-9]+$", val):
             print("ERR bad_number"); sys.exit(0)
+        per_item[key] = val
     else:
         print("ERR unknown_key"); sys.exit(0)
 if seen.get("spec") not in ("ok", "near", "over"):

@@ -1,6 +1,6 @@
 ---
 description: Generate a Kiro-style spec triple — specs/<topic>/{requirements,design,tasks}.md
-allowed-tools: [Bash, Read, Write]
+allowed-tools: [Bash, Read, Write, Task]
 ---
 
 # /mb sdd <topic>
@@ -93,11 +93,13 @@ Assemble the staged draft triple in `<bank>/tmp/sdd/<topic>/` (the generated `re
 bash scripts/mb-sdd-self-check.sh --spec <bank>/tmp/sdd/<topic> --mb <bank>
 ```
 
-The helper prints `self_check=ready|invalid` and `eval.<task-id>=ready|pending_materialization|invalid` per task, and owns the exit code. A non-zero exit (any `invalid`, cycle, structural failure) **stops the pipeline before promotion**, discards the candidate, and leaves the previously accepted `specs/<topic>/tasks.md` **byte-identical**. `pending_materialization` is not a failure.
+The helper prints `self_check=ready|invalid`, then one `eval.<task-id>=ready|pending_materialization|invalid` line per task, and owns the exit code. A non-zero exit (any `invalid`, cycle, structural failure) **stops the pipeline before promotion**, discards the candidate, and leaves the previously accepted `specs/<topic>/tasks.md` **byte-identical**. `pending_materialization` is not a failure.
+
+A **structural failure short-circuits** the battery: the violations are printed on stderr, `self_check=invalid` is the only stdout line, and **no Eval command is executed** — a spec already known to be malformed does not get code run on its behalf, and the missing `eval.*` lines mean "the behavioural half never ran", never "this spec has no tasks". Fix the structural violations and re-run.
 
 ### Step 8 — Optional spec review (C5) on the draft
 
-If `sdd.spec_review.enabled` is true: first call `mb-sdd-review-result.sh check --generator-model <exact> --reviewer-model <exact>` — equal models return `same_model` (exit 2) and dispatch is forbidden. Otherwise dispatch the review model with the transcript + staged spec (the prompt owns the dispatch and passes the *actually resolved* model IDs), then record the verdict through `mb-sdd-review-result.sh record --topic <topic> --attempt <n> --generator-model <exact> --reviewer-model <exact> --reviewer-agent <exact> --thinking <low|medium|high> --input <path|-> --mb <bank>` (pass the same resolved `<bank>` as Step 7, so provenance for a global bank is recorded in it; all identity flags are **mandatory**; the helper owns validation, the append-only JSONL, and the exit code: 0 APPROVED / 1 CHANGES_REQUESTED / 2 unavailable|malformed). Unavailability is reported loudly as SKIPPED (its own JSONL line), never a silent pass.
+If `sdd.spec_review.enabled` is true: first call `mb-sdd-review-result.sh check --generator-model <exact> --reviewer-model <exact>` — equal models return `same_model` (exit 2) and dispatch is forbidden. Otherwise dispatch the review model with the transcript + staged spec (the prompt owns the dispatch and passes the *actually resolved* model IDs; the dispatch is a `Task` call — which is why `Task` is in this command's `allowed-tools`, without it this step is unexecutable on any host that honours the allowlist), then record the verdict through `mb-sdd-review-result.sh record --topic <topic> --attempt <n> --generator-model <exact> --reviewer-model <exact> --reviewer-agent <exact> --thinking <low|medium|high> --input <path|-> --mb <bank>` (pass the same resolved `<bank>` as Step 7, so provenance for a global bank is recorded in it; all identity flags are **mandatory**; the helper owns validation, the append-only JSONL, and the exit code: 0 APPROVED / 1 CHANGES_REQUESTED / 2 unavailable|malformed). Unavailability is reported loudly as SKIPPED (its own JSONL line), never a silent pass.
 
 ### Step 9 — Atomic promotion (ONLY after C8 pass + review resolution)
 

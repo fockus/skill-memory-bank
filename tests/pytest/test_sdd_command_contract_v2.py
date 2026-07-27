@@ -22,6 +22,13 @@ def _text() -> str:
     return SDD.read_text(encoding="utf-8")
 
 
+def _allowed_tools() -> list[str]:
+    """The frontmatter `allowed-tools:` array, as a list of tool names."""
+    m = re.search(r"(?m)^allowed-tools:\s*\[([^\]]*)\]", _text())
+    assert m, "commands/sdd.md declares no allowed-tools array in its frontmatter"
+    return [t.strip() for t in m.group(1).split(",") if t.strip()]
+
+
 def _phase_sequence() -> list[int]:
     """Ordered list of pipeline step numbers as they appear in the document."""
     return [int(m.group(1)) for m in re.finditer(r"(?mi)^#+\s*Step\s+(\d+)\b", _text())]
@@ -182,6 +189,46 @@ def test_no_normative_sequence_publishes_before_c8() -> None:
         if pub is not None and c8 is not None and pub < c8:
             offenders.append(line.strip())
     assert not offenders, "publish/promotion precedes C8 in:\n  " + "\n  ".join(offenders)
+
+
+def test_step7_documents_the_structural_short_circuit() -> None:
+    """Round-4 finding [1] changed the helper: a structural failure terminates
+    the battery before any Eval command runs. Step 7 described the old
+    always-prints-a-line-per-task behaviour, which is now true only on a
+    structurally clean spec — a prompt that over-promises its helper's output is
+    how an orchestrator concludes "no eval lines" means "no tasks"."""
+    text = _text()
+    idx = text.find("### Step 7")
+    assert idx != -1, "Step 7 heading not found"
+    step7 = text[idx : text.find("### Step 8")]
+    assert re.search(
+        r"(?i)structural failure[^\n]*(short-circuit|no eval|before any eval)", step7
+    ) or (re.search(r"(?i)short-circuit", step7) and re.search(r"(?i)no Eval command", step7)), (
+        "Step 7 must state that a structural failure runs no Eval command"
+    )
+
+
+def test_spec_review_dispatch_is_permitted_by_the_allowlist() -> None:
+    """Round-4 blocker: Step 8 orders the prompt to DISPATCH the review model —
+    a subagent call, i.e. the `Task` tool. While `Task` is missing from the
+    frontmatter allowlist, the documented step cannot execute on any host that
+    honours the array: the spec-review gate is prose that no run can reach, and
+    every green text-level assertion about it stays green regardless."""
+    text = _text()
+    assert re.search(r"(?i)dispatch the review model", text), (
+        "Step 8 must state that the prompt dispatches the review model"
+    )
+    tools = _allowed_tools()
+    assert "Task" in tools, f"spec-review dispatch needs Task in allowed-tools, got {tools}"
+
+
+def test_allowlist_stays_minimal() -> None:
+    """The complement: the allowlist is a capability grant, not a wildcard —
+    granting Task must not turn into granting everything."""
+    tools = set(_allowed_tools())
+    assert tools <= {"Bash", "Read", "Write", "Task"}, (
+        f"unexpected tools granted to /mb sdd: {sorted(tools - {'Bash', 'Read', 'Write', 'Task'})}"
+    )
 
 
 def test_review_record_call_passes_resolved_bank() -> None:
