@@ -515,11 +515,36 @@ def cmd_status(args) -> int:
     return 0
 
 
+def cmd_check_roster(args) -> int:
+    """Is `<model>` the one `sdd.<block>.model` sanctions? (AGR-034 [8], judge B4)
+
+    Called before the OTHER writer of this journal appends a verdict. The rule
+    was implemented once, on the judge path, and that was the defect: two
+    writers append to one journal, one was gated and one was not, so a verdict
+    could still name a model that never ran. The reader lives here, in the
+    module that already owns the roster for the judge — a second copy is the
+    same drift round-4 [4] found in containment.
+    """
+    model = (args.model or "").strip()
+    block = args.block or "spec_review"
+    roster = roster_model(args.pipeline, block)
+    if not model or roster != model:
+        raise Refusal(
+            "model_not_in_roster",
+            2,
+            "sdd.%s.model in %s authorises %r, not %r — a verdict naming a model "
+            "the config never sanctioned is not recorded at all"
+            % (block, args.pipeline or "(no pipeline)", roster, model),
+        )
+    return 0
+
+
 HANDLERS = {
     "record-judge": cmd_record_judge,
     "record-override": cmd_record_override,
     "record-decision": cmd_record_decision,
     "check-judge": cmd_check_judge,
+    "check-roster": cmd_check_roster,
     "status": cmd_status,
 }
 
@@ -527,8 +552,13 @@ HANDLERS = {
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("action", choices=sorted(HANDLERS))
-    parser.add_argument("--bank", required=True)
-    parser.add_argument("--topic", required=True)
+    # Not `required=True`: `check-roster` answers a question about the config
+    # alone and touches no journal, so demanding a bank/topic from it would be
+    # asking for arguments it must then ignore.
+    parser.add_argument("--bank", default="")
+    parser.add_argument("--topic", default="")
+    parser.add_argument("--block", default="")
+    parser.add_argument("--model", default="")
     parser.add_argument("--pipeline", default="")
     parser.add_argument("--judge-model", dest="judge_model", default="")
     parser.add_argument("--reviewer-model", dest="reviewer_model", default="")
@@ -543,6 +573,9 @@ def main(argv) -> int:
     try:
         args = build_parser().parse_args(argv)
     except SystemExit:
+        sys.stderr.write("error=usage\n")
+        return 2
+    if args.action != "check-roster" and not (args.bank and args.topic):
         sys.stderr.write("error=usage\n")
         return 2
     try:

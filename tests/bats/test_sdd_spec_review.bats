@@ -9,6 +9,8 @@
 
 bats_require_minimum_version 1.5.0
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   VALIDATE="$REPO_ROOT/scripts/mb-pipeline-validate.sh"
@@ -18,6 +20,10 @@ setup() {
   TMP="$(mktemp -d)"
   BANK="$TMP/.memory-bank"
   mkdir -p "$BANK"
+  # The bank's own roster: which review model this project sanctions. `record`
+  # writes the reviewer identity into an append-only journal, so the model it
+  # names has to be one the config actually authorises (AGR-034 [8]).
+  _roster gpt-x
   # yaml stub that forces the PyYAML-optional fallback loader (import raises).
   STUB="$TMP/stub"; mkdir -p "$STUB"; printf 'raise ImportError("forced")\n' > "$STUB/yaml.py"
   # Mandatory identity flags for `record`, matching _review's reviewer block.
@@ -38,6 +44,39 @@ _cfg_with() {
 _review() { # <status> <verdict> <reason> — emit a valid reviewer JSON
   printf '{"status":"%s","verdict":%s,"reviewer":{"agent":"mb-reviewer","model":"gpt-x","thinking":"medium"},"issues":[],"reason":%s}' \
     "$1" "$2" "$3"
+}
+
+_roster() {  # <review-model> — the bank pipeline that sanctions it
+  cat > "$BANK/pipeline.yaml" <<YAML
+sdd:
+  spec_review: {enabled: true, agent: mb-reviewer, model: $1, thinking: medium}
+YAML
+}
+
+# ── the roster gate on the verdict writer (AGR-034 [8], judge B4) ────────────
+
+@test "spec_review: a reviewer model outside the pipeline roster is not recorded at all" {
+  # The other writer of this journal already refuses an unrostered model. Here
+  # the identity was only ever checked against flags supplied by the SAME caller
+  # and then stamped `reviewer_provenance: "claimed"` — so a verdict could name
+  # a model the config never sanctioned, which is the fabricated-provenance
+  # class AGR-034 [8] calls the worst of the three. Not flagged after the fact:
+  # not written at all.
+  run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - --mb $(printf '%q' "$BANK") --generator-model gen --reviewer-model NOT-IN-ROSTER --reviewer-agent mb-reviewer --thinking medium <<'IN'
+{\"status\":\"reviewed\",\"verdict\":\"APPROVED\",\"reviewer\":{\"agent\":\"mb-reviewer\",\"model\":\"NOT-IN-ROSTER\",\"thinking\":\"medium\"},\"issues\":[],\"reason\":null}
+IN"
+  [ "$status" -eq 2 ] || { echo "an unrostered reviewer model was recorded (rc=$status)"; false; }
+  assert_substring "$stderr" "model_not_in_roster"
+  refute_file "$BANK/tmp/spec-review/t.jsonl"
+}
+
+@test "spec_review: the sanctioned reviewer model still records — the gate is conditional" {
+  # Positive control: without it, "always refuse" would satisfy the test above.
+  run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - --mb $(printf '%q' "$BANK") $ID <<'IN'
+$(_review reviewed '"APPROVED"' null)
+IN"
+  [ "$status" -eq 0 ] || { echo "the rostered model was refused (rc=$status): $stderr"; false; }
+  assert_grep -q '"model":"gpt-x"' "$BANK/tmp/spec-review/t.jsonl"
 }
 
 # ── config validation ────────────────────────────────────────────────────────
@@ -235,6 +274,11 @@ IN"
 @test "spec_review: record without --mb resolves the active bank instead of a hardcoded .memory-bank" {
   local proj="$TMP/proj"; mkdir -p "$proj"            # no local .memory-bank
   local gbank="$TMP/global-bank"; mkdir -p "$gbank"
+  # The roster is read from the bank that actually resolves — which is the point
+  # of this test, so the global bank carries the sanctioning pipeline. (A bank
+  # with no pipeline inherits the bundled default, whose `model: inherit` names
+  # no model and therefore sanctions none.)
+  BANK="$gbank" _roster gpt-x
   cd "$proj" || return 1
   MB_PATH="$gbank" run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - $ID <<'IN'
 $(_review reviewed '"APPROVED"' null)

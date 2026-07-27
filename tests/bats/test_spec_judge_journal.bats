@@ -477,6 +477,26 @@ PY
   assert_substring "$(sed -n 2p "$JSONL")" '"decision":"NO_GO"'
 }
 
+@test "judge_journal_module_args: a journal subcommand without a bank is a usage error, not a write next to the caller" {
+  # `--bank`/`--topic` stopped being argparse-required so that `check-roster`,
+  # which answers a question about the config alone, need not be handed
+  # arguments it must then ignore. That relaxation is only safe because the
+  # journal subcommands re-check: with an empty bank, `journal_file("")` is a
+  # RELATIVE path, so the reader/writer would quietly act on
+  # `tmp/spec-review/<topic>.jsonl` inside whatever directory the caller
+  # happened to be in. The shell wrapper always passes both, so nothing but this
+  # test stands between that relaxation and a journal written outside any bank.
+  cd "$TMP" || return 1
+  run --separate-stderr python3 "$JOURNAL_PY" status --topic demo
+  [ "$status" -eq 2 ] || { echo "rc=$status out=$output err=$stderr"; false; }
+  assert_substring "$stderr" "error=usage"
+  refute_file "$TMP/tmp/spec-review/demo.jsonl"
+  # …while the config-only subcommand legitimately needs neither.
+  run --separate-stderr python3 "$JOURNAL_PY" check-roster \
+    --pipeline "$BANK/pipeline.yaml" --block spec_review --model rev-x
+  [ "$status" -eq 0 ] || { echo "rc=$status err=$stderr"; false; }
+}
+
 @test "judge_journal_append_only_writer: no writer of this journal has a non-append open mode" {
   # The behavioural proof above is conditional on the arguments it happened to
   # pass. This one is not: a truncating or updating mode anywhere in either

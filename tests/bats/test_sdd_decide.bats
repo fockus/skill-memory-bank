@@ -33,6 +33,14 @@ setup() {
   JSONL="$BANK/tmp/spec-review/t.jsonl"
   mkdir -p "$BANK"
   ID="--generator-model gen --reviewer-model gpt-x --reviewer-agent mb-reviewer --thinking medium"
+  # A bank that records verdicts names the review model it sanctions; `record`
+  # refuses a model outside that roster before writing (AGR-034 [8], judge B4).
+  # Every seeded verdict below goes through that gate, so the roster is part of
+  # the fixture, not of what these tests assert.
+  cat > "$BANK/pipeline.yaml" <<'YAML'
+sdd:
+  spec_review: {enabled: true, agent: mb-reviewer, model: gpt-x, thinking: medium}
+YAML
 }
 
 teardown() {

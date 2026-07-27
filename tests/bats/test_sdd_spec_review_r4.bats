@@ -28,6 +28,15 @@ setup() {
   mkdir -p "$BANK"
   JSONL="$BANK/tmp/spec-review/t.jsonl"
   ID="--generator-model gen --reviewer-model gpt-x --reviewer-agent mb-reviewer --thinking medium"
+  # FIXTURE ONLY — no assertion of this contract is touched. `record` now
+  # refuses a reviewer model outside `sdd.spec_review.model` (AGR-034 [8], judge
+  # B4), and every `_record` below seeds a verdict through it, so the bank has
+  # to name the model these tests review with. A bank with no pipeline inherits
+  # the bundled default, whose `model: inherit` sanctions nothing.
+  cat > "$BANK/pipeline.yaml" <<'YAML'
+sdd:
+  spec_review: {enabled: true, agent: mb-reviewer, model: gpt-x, thinking: medium}
+YAML
 }
 
 teardown() {

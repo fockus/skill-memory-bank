@@ -213,6 +213,20 @@ fi
 BANK="$(mb_resolve_path "$MB_BANK")"
 OUTDIR="$BANK/tmp/spec-review"
 
+# Roster gate on the VERDICT writer (AGR-034 [8], judge B4). The reviewer
+# identity above is validated only against flags from the same caller, so on its
+# own it proves internal consistency and nothing about which model ran. Two
+# writers append to this journal; the rule used to live on one of them, which is
+# how a verdict could still name a model the config never sanctioned. Refusal is
+# BEFORE any write and total: not a flag on the record, no record.
+# The roster is read by the module that already owns it for the judge path — a
+# second implementation here is the drift round-4 [4] found in containment.
+if [ "$ACTION" = "record" ]; then
+  REC_PIPELINE="$(bash "$SCRIPT_DIR/mb-pipeline.sh" path "$BANK" 2>/dev/null || true)"
+  python3 "$JUDGE_JOURNAL" check-roster --pipeline "$REC_PIPELINE" \
+    --block spec_review --model "$REV" || exit 2
+fi
+
 # Fail-closed secret gate BEFORE any durable write (review [23]): the reviewer
 # payload is appended verbatim to an append-only JSONL that is never rewritten,
 # so a leaked credential there is permanent. Scanning is delegated to the
