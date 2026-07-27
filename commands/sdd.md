@@ -146,11 +146,15 @@ Publication in `specs/` ≠ acceptance. Neither the helper nor the orchestrator 
 
 ```bash
 bash scripts/mb-sdd-review-result.sh decide --topic <topic> --attempt <n> --input - --mb <bank> <<'IN'
-{"status":"decided","decision":"accept","basis":"skipped","rationale":"<why this is acceptable>","decided_by":"<who>"}
+{"kind":"decision","decision":"accept","basis":"skipped","rationale":"<why this is acceptable>","decided_by":"<who>"}
 IN
 ```
 
-  `decision` is `accept`|`reject`, `basis` is `skipped`|`dismissed_issues`, and both `rationale` and `decided_by` must be non-empty — an unexplained accept is exactly what the audit trail exists to prevent. Exit 0 = accepted, 1 = rejected, 2 = malformed. Never hand-append this line, and never fake an `APPROVED` review to express a human decision: those are different facts and the log is append-only, so the lie is permanent. Like `record`, the actor is CLAIMED, not verified.
+  `decision` is `accept`|`reject`, `basis` is `skipped`|`dismissed_issues`, and both `rationale` and `decided_by` must be non-empty — an unexplained accept is exactly what the audit trail exists to prevent. Exit 0 = accepted, 1 = rejected, 2 = malformed / `no_review` / basis-versus-verdict mismatch / `path_escape`. Never hand-append this line, and never fake an `APPROVED` review to express a human decision: those are different facts and the log is append-only, so the lie is permanent. Like `record`, the actor is CLAIMED, not verified.
+
+  **`kind: "decision"`, never `status: "decided"`.** The journal holds more than one kind of record, and it has exactly one discrimination rule: **a record with no `kind` key is a review verdict; every non-review record carries `kind`** (`decision` here, `judge` and `override` from `/mb work`'s spec gate). "The last valid line" is therefore only a definition once the kind is named — the current verdict is the last valid line **without** `kind`, the current decision the last with `kind: "decision"`, and a record of one kind never answers for the state of another.
+
+  **A decision needs a review to be about.** `basis: "skipped"` is only valid when the current verdict is `status: "skipped"`, and `basis: "dismissed_issues"` only when it is `CHANGES_REQUESTED` (an APPROVED review has nothing to dismiss). With no verdict in the journal at all the helper refuses — stderr `no_review`, exit 2, nothing written: "accept, because the review was skipped" over an empty journal is a gate bypass wearing an audit trail's clothes, not a decision.
 - A C8 failure (`mb-sdd-self-check.sh` exit ≠ 0) **or** **CHANGES_REQUESTED** (record exit 1) keeps `status: draft`. A plain **SKIPPED** without an explicit decision is also draft — nothing becomes ready silently.
 - Fixes after CHANGES_REQUESTED run the whole cycle again, in the Step 7-9 order: new candidate → C3 gate → staged C8 on `<bank>/tmp/sdd/<topic>/` → review → atomic promotion. Promotion is the LAST step: an accepted `specs/<topic>/tasks.md` is never replaced by a re-generated candidate that has not yet passed C8 and review (REQ-053 byte-identity). No partial edits to an accepted file.
 

@@ -314,6 +314,94 @@ _judge() {  # _judge <flags...> — record a judge decision for topic demo
   [ "$output" = "spec_review=SKIPPED judge=none override=no" ]
 }
 
+# ── the seam with the S2 half: the verdict line carries NO discriminator ─────
+
+@test "judge_journal_seam_no_discriminator: the reader recognises a verdict line by shape, not by a kind key" {
+  # The cross-spec hazard (S2 svp-sdd-core owns the verdict line, S9 owns the
+  # reader): a reader matching `kind:"review"` would see NO verdict at all,
+  # while both halves' own suites stayed green. The fixture below is written by
+  # the REAL S2 writer, so this asserts the actual seam, not a shared belief
+  # about it — and it asserts the absence of the key explicitly, so if S2 ever
+  # starts emitting one, the change is announced HERE instead of silently
+  # flipping which branch of the reader runs.
+  _record_review CHANGES_REQUESTED 1 "$(_issues 0)"
+  refute_grep -q '"kind"' "$JSONL"
+  run --separate-stderr bash "$RESULT" status --mb "$BANK" demo
+  [ "$status" -eq 0 ] || { echo "rc=$status out=$output err=$stderr"; false; }
+  [ "$output" = "spec_review=CHANGES_REQUESTED judge=none override=no" ]
+}
+
+@test "judge_journal_seam_explicit_kind: a verdict line that DOES carry kind=review is read the same way" {
+  # Forward compatibility, deliberately pinned: if S2 lands a discriminator on
+  # the verdict line, this reader must keep working. Untested tolerance is
+  # indistinguishable from accidental tolerance, and the next edit deletes it.
+  _record_review APPROVED 1 "$(_issues 0)"
+  python3 - "$JSONL" <<'PY'
+import json, sys
+path = sys.argv[1]
+lines = open(path, encoding="utf-8").read().splitlines()
+obj = json.loads(lines[-1]); obj["kind"] = "review"
+lines[-1] = json.dumps(obj, separators=(",", ":"))
+open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+PY
+  assert_grep -q '"kind":"review"' "$JSONL"
+  run --separate-stderr bash "$RESULT" status --mb "$BANK" demo
+  [ "$status" -eq 0 ] || { echo "rc=$status out=$output err=$stderr"; false; }
+  [ "$output" = "spec_review=APPROVED judge=none override=no" ]
+}
+
+@test "judge_journal_seam_decision_kind: a C7 decision is its own kind — it neither corrupts the journal nor answers for the verdict" {
+  # Third writer on the same journal (svp-sdd-core C5 `decide`). Written here by
+  # the sanctioned writer, not by hand, so this is the real cross-half seam:
+  # "действующее состояние каждого рода — последняя валидная строка ЭТОГО рода;
+  # строка чужого рода никогда не отвечает за состояние своего".
+  _record_review CHANGES_REQUESTED 1 "$(_issues 0)"
+  printf '%s' '{"kind":"decision","decision":"accept","basis":"dismissed_issues","rationale":"findings judged non-blocking","decided_by":"orchestrator"}' \
+    | bash "$RESULT" decide --topic demo --attempt 1 --input - --mb "$BANK" > /dev/null 2>&1
+  assert_grep -q '"kind":"decision"' "$JSONL"
+  run --separate-stderr bash "$RESULT" status --mb "$BANK" demo
+  [ "$status" -eq 0 ] || { echo "a decision line made the journal unreadable: rc=$status $stderr"; false; }
+  [ "$output" = "spec_review=CHANGES_REQUESTED judge=none override=no" ]
+  # …and the write path agrees: the judge still judges the VERDICT, even though
+  # a decision line is the most recent record in the file.
+  run --separate-stderr bash "$RESULT" record --kind judge --decision NO_GO --judge-model judge-x --mb "$BANK" demo
+  [ "$status" -eq 1 ] || { echo "rc=$status err=$stderr"; false; }
+  assert_substring "$(tail -1 "$JSONL")" '"attempt":1'
+}
+
+@test "judge_journal_seam_unknown_kind: a line with an UNKNOWN discriminator is corruption, not a verdict" {
+  # The fail-closed half of the same seam. A future kind this reader has never
+  # heard of must not be smuggled in through the shape check and answered as a
+  # verdict — "I do not know what this line is" is exactly the state AMEND-S9-1
+  # says must be loud.
+  _record_review APPROVED 1 "$(_issues 0)"
+  python3 - "$JSONL" <<'PY'
+import json, sys
+path = sys.argv[1]
+lines = open(path, encoding="utf-8").read().splitlines()
+obj = json.loads(lines[-1]); obj["kind"] = "amendment"
+lines[-1] = json.dumps(obj, separators=(",", ":"))
+open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+PY
+  run --separate-stderr bash "$RESULT" status --mb "$BANK" demo
+  [ "$status" -eq 5 ] || { echo "rc=$status out=$output err=$stderr"; false; }
+  assert_substring "$stderr" "status_unreadable"
+  refute_substring "$output" "spec_review="
+}
+
+@test "judge_journal_status_only_corrupt: a journal whose whole content is unreadable is exit 5, never none" {
+  # The sharpest form of AMEND-S9-1: here a lenient reader that skips lines it
+  # cannot parse would answer exactly `spec_review=none … exit 0`, which is
+  # indistinguishable from "no review has happened yet" and is the fail-open
+  # D-05 forbids. Proven red against such a reader, not merely asserted.
+  mkdir -p "$(dirname "$JSONL")"
+  printf 'truncated{"status":"rev\n\x00\x01 garbage\n' > "$JSONL"
+  run --separate-stderr bash "$RESULT" status --mb "$BANK" demo
+  [ "$status" -eq 5 ] || { echo "rc=$status out=$output err=$stderr"; false; }
+  assert_substring "$stderr" "status_unreadable"
+  refute_substring "$output" "none"
+}
+
 @test "judge_journal_status_unreadable: a corrupt journal exits 5 with status_unreadable, never none (AMEND-S9-1)" {
   _record_review APPROVED 1 "$(_issues 0)"
   printf 'not json at all\n' >> "$JSONL"
@@ -329,6 +417,18 @@ _judge() {  # _judge <flags...> — record a judge decision for topic demo
   run --separate-stderr bash "$RESULT" record --kind judge --decision GO --judge-model judge-x --mb "$BANK" demo
   [ "$status" -eq 5 ] || { echo "rc=$status err=$stderr"; false; }
   assert_unchanged "$JSONL" "$TMP/before"
+}
+
+@test "judge_journal_status_corrupt_decision: a decision line with a broken shape is corruption, not state" {
+  # Same rule as the override case below, for the third kind: a `kind` this
+  # reader DOES know, carrying fields it cannot make sense of, must be loud
+  # rather than counted — otherwise a damaged decision line quietly becomes
+  # "no decision was made".
+  _record_review APPROVED 1 "$(_issues 0)"
+  printf '{"kind":"decision","decision":"maybe"}\n' >> "$JSONL"
+  run --separate-stderr bash "$RESULT" status --mb "$BANK" demo
+  [ "$status" -eq 5 ] || { echo "rc=$status out=$output err=$stderr"; false; }
+  assert_substring "$stderr" "status_unreadable"
 }
 
 @test "judge_journal_status_corrupt_kind: a line of a known kind with a broken shape is corruption, not an absence" {
@@ -401,6 +501,26 @@ _judge() {  # _judge <flags...> — record a judge decision for topic demo
   [ "$status" -eq 2 ] || { echo "rc=$status err=$stderr"; false; }
   assert_substring "$stderr" "path_escape"
   assert_unchanged "$victim/spec-review/demo.jsonl" "$TMP/before"
+}
+
+@test "judge_journal_containment_dangling: a DANGLING symlink in the write path is refused cleanly, not crashed through" {
+  # `tmp/spec-review` pointing at something that no longer exists is what a
+  # half-cleaned-up attack or a broken restore leaves behind. Without the
+  # directory symlink check, `mkdir(exist_ok=True)` raises FileExistsError on a
+  # dangling link — the run dies with a traceback and a Python exit code instead
+  # of the documented `path_escape`/exit 2, and a caller keying on exit 2 reads
+  # the crash as something else entirely.
+  #
+  # Asserted through `override` on purpose: it is the one subcommand that
+  # reaches the append without first needing a readable journal, so the append's
+  # own containment is what the exit code attributes to.
+  mkdir -p "$BANK/tmp"
+  ln -s "$TMP/does-not-exist" "$BANK/tmp/spec-review"
+  run --separate-stderr bash "$RESULT" record --kind override --mb "$BANK" demo
+  [ "$status" -eq 2 ] || { echo "rc=$status err=$stderr"; false; }
+  assert_substring "$stderr" "path_escape"
+  refute_substring "$stderr" "Traceback"
+  refute_file "$TMP/does-not-exist"
 }
 
 @test "judge_journal_containment: a symlinked journal cannot divert the judge append outside the bank" {

@@ -233,68 +233,19 @@ if [ "$scan_rc" -ne 0 ] || [ "$SCAN_OUT" != "scan=clean" ]; then
 fi
 
 if [ "$ACTION" = "decide" ]; then
+  # The C7 decision is written by the SAME module that owns the judge/override
+  # lines, for the reason round 4 found the hard way: containment used to be
+  # implemented twice, `record` refused a symlinked journal and `decide` walked
+  # through it out of the bank. One writer, one containment check, one grammar.
+  # The payload arrives on stdin already secret-scanned above; validation,
+  # the `no_review` / basis-versus-verdict rules and the append all live there.
+  # NOT `| exec python3`: exec inside a pipeline replaces only the subshell, so
+  # the script would fall through into the record path afterwards.
   set +e
-  DEC_LINE="$(
-    MB_RAW="$RAW" MB_TOPIC="$TOPIC" MB_ATTEMPT="$ATTEMPT" MB_BANK="$BANK" python3 - <<'PYDEC'
-import json, os, sys, datetime, pathlib
-
-raw = os.environ["MB_RAW"]
-topic = os.environ["MB_TOPIC"]
-bank = os.environ["MB_BANK"]
-outdir = os.path.join(bank, "tmp", "spec-review")
-
-
-def bad(_msg):
-    sys.stderr.write("malformed\n")
-    sys.exit(2)
-
-
-try:
-    obj = json.loads(raw)
-except Exception:
-    bad("json")
-
-# Closed schema: exactly these keys, exactly these enums. A decision record that
-# can say anything is not an audit trail.
-if not isinstance(obj, dict) or set(obj) != {
-        "status", "decision", "basis", "rationale", "decided_by"}:
-    bad("keys")
-if obj["status"] != "decided":
-    bad("status")
-if obj["decision"] not in ("accept", "reject"):
-    bad("decision")
-if obj["basis"] not in ("skipped", "dismissed_issues"):
-    bad("basis")
-for k in ("rationale", "decided_by"):
-    if not isinstance(obj[k], str) or not obj[k].strip():
-        bad(k)   # an unexplained accept is what the trail exists to prevent
-
-try:
-    attempt = int(os.environ["MB_ATTEMPT"])
-except Exception:
-    bad("attempt")
-
-ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-rec = dict(obj)
-rec["ts"] = ts
-rec["attempt"] = attempt
-# Same honesty rule as `record`: the actor is asserted by the caller, so it is
-# marked CLAIMED and no consumer may read it as verified.
-rec["decided_by_provenance"] = "claimed"
-
-pathlib.Path(outdir).mkdir(parents=True, exist_ok=True)
-with open(os.path.join(outdir, topic + ".jsonl"), "a", encoding="utf-8") as fh:
-    fh.write(json.dumps(rec, sort_keys=True, separators=(",", ":")) + "\n")
-
-sys.stdout.write("spec_decision=%s basis=%s attempt=%d"
-                 % (obj["decision"], obj["basis"], attempt))
-sys.exit(0 if obj["decision"] == "accept" else 1)
-PYDEC
-  )"
+  printf '%s' "$RAW" | python3 "$JUDGE_JOURNAL" record-decision \
+    --bank "$BANK" --topic "$TOPIC" --attempt "$ATTEMPT"
   dec_rc=$?
   set -e
-  [ "$dec_rc" -eq 2 ] && exit 2
-  printf '%s\n' "$DEC_LINE"
   exit "$dec_rc"
 fi
 

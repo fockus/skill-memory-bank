@@ -80,6 +80,11 @@ import mb_pipeline_minimal_yaml as minimal_yaml  # noqa: E402
 
 DECISIONS = ("GO", "GO_WITH_BACKLOG", "NO_GO")
 VERDICTS = ("APPROVED", "CHANGES_REQUESTED")
+# C7 decision (svp-sdd-core C5). `basis` is not free text: each value asserts
+# something about the verdict that was actually recorded, and is checked against it.
+C7_DECISIONS = ("accept", "reject")
+C7_BASES = ("skipped", "dismissed_issues")
+C7_KEYS = frozenset({"kind", "decision", "basis", "rationale", "decided_by"})
 ITEM_RE = re.compile(r"^I-[0-9]+$")
 # Values that name no model. `inherit` is the shipped placeholder in
 # references/pipeline.default.yaml, not an identity.
@@ -130,8 +135,27 @@ def classify(obj) -> str | None:
         return None
     if kind == "override":
         return "override" if isinstance(obj.get("ts"), str) else None
-    if obj.get("status") == "decided":
-        return "decided"
+    if kind == "decision":
+        # C7 human/orchestrator decision (svp-sdd-core C5). It is its OWN kind:
+        # it never answers for the verdict, and the verdict never answers for it.
+        if (
+            obj.get("decision") in C7_DECISIONS
+            and obj.get("basis") in C7_BASES
+            and _is_int(obj.get("attempt"))
+        ):
+            return "decided"
+        return None
+    # The S2 half writes its verdict line WITH NO DISCRIMINATOR, so a review is
+    # recognised by shape and an absent `kind` — matching on `kind == "review"`
+    # would see no verdict at all against today's writer, while both halves'
+    # own suites stayed green. `"review"` is accepted too, so a discriminator
+    # landing on that line later does not break this reader.
+    # Any OTHER value is a record kind this reader has never heard of: it is
+    # refused here rather than falling through to the shape check, because a
+    # future kind that happens to carry a `status` field would otherwise be
+    # answered as a verdict (AMEND-S9-1: "cannot tell" must be loud).
+    if kind not in (None, "review"):
+        return None
     if obj.get("status") in ("reviewed", "skipped"):
         if not isinstance(obj.get("reviewer"), dict) or not _is_int(obj.get("attempt")):
             return None
@@ -361,6 +385,79 @@ def cmd_record_override(args) -> int:
     return 0
 
 
+def cmd_record_decision(args) -> int:
+    """C7 decision (svp-sdd-core C5, round-4 findings [2][3][4]).
+
+    Lives here rather than in the shell heredoc for one reason: `append()` above
+    is the containment check, and round 4 found exactly what happens when the
+    rule is held by only one of two writers — `record` refused a symlink while
+    `decide` followed it out of the bank. A second implementation of the same
+    rule is the drift; there is now one.
+    """
+    try:
+        payload = json.loads(sys.stdin.read())
+    except ValueError:
+        raise Refusal("malformed", 2, "the decision payload is not JSON")
+    # Closed schema, validated BEFORE the journal is consulted, so a malformed
+    # payload is still reported as malformed rather than as `no_review`.
+    if not isinstance(payload, dict) or set(payload) != C7_KEYS:
+        raise Refusal("malformed", 2, "keys must be exactly %s" % ", ".join(sorted(C7_KEYS)))
+    if payload["kind"] != "decision":
+        raise Refusal("malformed", 2, 'kind must be "decision"')
+    if payload["decision"] not in C7_DECISIONS:
+        raise Refusal("malformed", 2, "decision must be accept|reject")
+    if payload["basis"] not in C7_BASES:
+        raise Refusal("malformed", 2, "basis must be skipped|dismissed_issues")
+    for key in ("rationale", "decided_by"):
+        if not isinstance(payload[key], str) or not payload[key].strip():
+            raise Refusal("malformed", 2, "%s must be a non-empty string" % key)
+    try:
+        attempt = int(args.attempt)
+    except (TypeError, ValueError):
+        raise Refusal("malformed", 2, "--attempt must be an integer")
+
+    # A decision is a statement ABOUT a review. With no verdict in the journal
+    # there is nothing it can be about, and "accept, because the review was
+    # skipped" becomes a gate bypass wearing an audit trail's clothes.
+    verdict = last_of(
+        read_journal(journal_file(args.bank, args.topic), "journal_unreadable"), "review"
+    )
+    if verdict is None:
+        raise Refusal("no_review", 2, "no verdict recorded for topic %s" % args.topic)
+    basis = payload["basis"]
+    if basis == "skipped" and verdict["status"] != "skipped":
+        raise Refusal(
+            "basis_mismatch",
+            2,
+            "basis=skipped, but the recorded verdict is %s" % verdict.get("verdict"),
+        )
+    if basis == "dismissed_issues" and verdict.get("verdict") != "CHANGES_REQUESTED":
+        raise Refusal(
+            "basis_mismatch",
+            2,
+            "basis=dismissed_issues needs a CHANGES_REQUESTED verdict to dismiss, "
+            "the recorded one is %s" % (verdict.get("verdict") or verdict["status"]),
+        )
+
+    record = {
+        "ts": utc_now(),
+        "attempt": attempt,
+        "kind": "decision",
+        "decision": payload["decision"],
+        "basis": basis,
+        "rationale": payload["rationale"],
+        "decided_by": payload["decided_by"],
+        # Same honesty rule as `reviewer_provenance`: the actor is asserted
+        # by the caller, so no consumer may read it as verified.
+        "decided_by_provenance": "claimed",
+    }
+    append(args.bank, args.topic, record)
+    sys.stdout.write(
+        "spec_decision=%s basis=%s attempt=%d\n" % (payload["decision"], basis, attempt)
+    )
+    return 0 if payload["decision"] == "accept" else 1
+
+
 def cmd_check_judge(args) -> int:
     judge_model = (args.judge_model or "").strip() or roster_model(args.pipeline, "spec_judge")
     if not judge_model:
@@ -421,6 +518,7 @@ def cmd_status(args) -> int:
 HANDLERS = {
     "record-judge": cmd_record_judge,
     "record-override": cmd_record_override,
+    "record-decision": cmd_record_decision,
     "check-judge": cmd_check_judge,
     "status": cmd_status,
 }
@@ -437,6 +535,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--decision", default="")
     parser.add_argument("--items", default="")
     parser.add_argument("--confirmed", default="")
+    parser.add_argument("--attempt", default="")
     return parser
 
 

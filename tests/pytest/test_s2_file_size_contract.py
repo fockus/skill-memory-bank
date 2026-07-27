@@ -51,6 +51,12 @@ ZONE_FILES = [
     "tests/bats/test_sdd_spec_review.bats",
     "tests/bats/test_mb_work_state_eval.bats",
     "tests/bats/test_mb_work_prod_binding.bats",
+    # r4 split-outs, same rule as the r3 ones below: the decision writer's tests
+    # and the round-4 acceptance contract are zone files, so they carry the
+    # limit. Splitting a suite to get under it and leaving the halves unlisted
+    # would make the contract a formality.
+    "tests/bats/test_sdd_decide.bats",
+    "tests/bats/test_sdd_spec_review_r4.bats",
     # r3 split-outs: a new file must inherit the limit, not escape it.
     "tests/bats/test_mb_work_state_eval_r3.bats",
     "tests/bats/test_mb_work_prod_binding_r3.bats",

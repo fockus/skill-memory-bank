@@ -275,3 +275,29 @@ IN"
   run shellcheck -S style "$RESULT"
   [ "$status" -eq 0 ]
 }
+
+# ─── the payload is never spilled unscanned (r3 review [7]) ────────────────
+
+@test "spec_review: a credential payload is blocked and never written to a temp file" {
+  # The old code wrote RAW to mktemp, scanned, then rm'd. A crash in that window
+  # left the credential readable in /tmp. Proven structurally (the writer must
+  # not create an unscanned file) and behaviourally (still blocked).
+  ! grep -Eq 'printf .*RAW.* > "\$SCAN_TMP"' "$REPO_ROOT/scripts/mb-sdd-review-result.sh" \
+    || { echo "review-result still spills the payload before scanning"; false; }
+  grep -Eq 'printf .%s. "\$RAW" \| bash "\$SECRET_SCAN" --policy transcript -' \
+    "$REPO_ROOT/scripts/mb-sdd-review-result.sh" \
+    || { echo "review-result does not stream to the scanner"; false; }
+}
+
+@test "spec_review: the secret gate still refuses a credential-bearing payload" {
+  # Same documented call shape as the transition tests, with a credential in the
+  # reviewer JSON: the streamed scan must still refuse it before any JSONL write.
+  run --separate-stderr bash -c "$(printf '%q ' "$RESULT") record --topic t --attempt 1 --input - --mb $(printf '%q' "$BANK") $ID <<'IN'
+$(_review reviewed '"APPROVED"' null | sed 's/}$/,"leak":"sk-ant-api03ABCDEFGHIJKLMNOP"}/')
+IN"
+  [ "$status" -eq 2 ] || { echo "credential payload was accepted (rc=$status): $stderr"; false; }
+  echo "$stderr" | grep -q 'secret_blocked' \
+    || { echo "not refused by the secret gate: $stderr"; false; }
+  [ ! -f "$BANK/tmp/spec-review/t.jsonl" ] \
+    || { echo "a credential-bearing record reached the durable JSONL"; false; }
+}
