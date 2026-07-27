@@ -57,6 +57,27 @@
 #   ## Calibration examples (reference patterns — not part of current diff)
 #   ## Prior evidence (from mb-test-runner)
 #   ## Auto-generated findings (MUST INCLUDE)   -- only when tests_pass==false
+#   ## Quality DoD                              -- only with --quality-dod
+#
+# --quality-dod <path>  Appends the pre-rendered `## Quality DoD` block
+#                       (scripts/mb-quality-dod.sh) as the SIXTH section,
+#                       byte-identically. The orchestrated reviewer never opens
+#                       files (agents/mb-reviewer.md), so the rubric and the
+#                       rule-source paths reach it only if they are IN the
+#                       payload. Missing file -> exit 2.
+#
+# --rules-check-json <path>
+#                       Canonical JSON of `mb-rules-check.sh` for this item,
+#                       rendered INSIDE `## Prior evidence` -- deliberately not
+#                       inside the Quality DoD block, whose bytes must stay
+#                       identical for implementer, reviewer and judge.
+#                       A CRITICAL violation REFUSES the payload (exit 1): a
+#                       review of code that already breaks the agreed rules is
+#                       a review spent on the wrong question. Keyed on the
+#                       JSON's severity rather than the checker's exit code,
+#                       because that code is non-zero only under a profile with
+#                       `strictness: block` -- this project's profile says
+#                       `warn`, so an exit-code gate could never fire here.
 #
 # The calibration-examples section is rendered by the layered loader in
 # scripts/mb-review-examples.sh (design.md §4) via render_examples_section().
@@ -187,6 +208,49 @@ render_examples_section() {
   else
     printf '## Calibration examples (reference patterns — not part of current diff)\n\n(examples loader unavailable)\n'
   fi
+}
+
+# Refuses the payload when the item's rules-check evidence carries a CRITICAL
+# violation, and returns the JSON to embed otherwise. Keyed on severity, not on
+# the checker's exit code: `mb-rules-check.sh` exits non-zero only when the
+# active profile sets `strictness: block`, and this project's profile is `warn`
+# -- a gate keyed on that code could never fire here (measured, not assumed).
+# Malformed evidence refuses too: unreadable evidence is not evidence.
+read_rules_check() {
+  local path="$1"
+  [ -f "$path" ] || { echo "[review] rules-check JSON not found: $path" >&2; exit 2; }
+  RULES_CHECK_PATH="$path" python3 - <<'PY_CHECK' || exit 1
+import json, os, sys
+
+path = os.environ["RULES_CHECK_PATH"]
+try:
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+except (ValueError, OSError) as exc:
+    sys.stderr.write("[review] rules-check JSON is unreadable: %s\n" % exc)
+    raise SystemExit(1)
+if not isinstance(data, dict) or not isinstance(data.get("violations"), list):
+    sys.stderr.write("[review] rules-check JSON has no `violations` array\n")
+    raise SystemExit(1)
+blocking = [v for v in data["violations"]
+            if isinstance(v, dict) and v.get("severity") == "CRITICAL"]
+if blocking:
+    sys.stderr.write(
+        "[review] dispatch blocked: %d CRITICAL rules violation(s) — %s\n"
+        % (len(blocking), ", ".join(
+            "%s in %s" % (v.get("rule"), v.get("file")) for v in blocking)))
+    raise SystemExit(1)
+sys.stdout.write(json.dumps(data, ensure_ascii=False, sort_keys=True))
+PY_CHECK
+}
+
+# Renders "## Quality DoD" -- the pre-rendered block, copied byte for byte.
+# Nothing here reformats it: the contract is that the implementer, the reviewer
+# and the judge hold the same sha256, and a re-render is how that is lost.
+render_quality_dod_section() {
+  local path="$1"
+  [ -f "$path" ] || { echo "[review] quality-dod file not found: $path" >&2; exit 2; }
+  cat "$path"
 }
 
 # Renders "## Prior evidence" (always) and, only when the resolved evidence
@@ -410,6 +474,8 @@ ITEM_ARG=""
 RUN_ID_ARG=""
 REFRESH_TESTS=0
 TTL_ARG=""
+QUALITY_DOD_ARG=""
+RULES_CHECK_ARG=""
 
 # Guards against the bash "shift count out of range" crash when a
 # value-taking flag is the LAST arg with no following value: without this,
@@ -433,6 +499,10 @@ while [ "$#" -gt 0 ]; do
     --item=*) ITEM_ARG="${1#--item=}"; shift ;;
     --run-id) require_value "$@"; RUN_ID_ARG="$2"; shift 2 ;;
     --run-id=*) RUN_ID_ARG="${1#--run-id=}"; shift ;;
+    --quality-dod) require_value "$@"; QUALITY_DOD_ARG="$2"; shift 2 ;;
+    --quality-dod=*) QUALITY_DOD_ARG="${1#--quality-dod=}"; shift ;;
+    --rules-check-json) require_value "$@"; RULES_CHECK_ARG="$2"; shift 2 ;;
+    --rules-check-json=*) RULES_CHECK_ARG="${1#--rules-check-json=}"; shift ;;
     --refresh-tests) REFRESH_TESTS=1; shift ;;
     --ttl) require_value "$@"; TTL_ARG="$2"; shift 2 ;;
     --ttl=*) TTL_ARG="${1#--ttl=}"; shift ;;
@@ -488,6 +558,20 @@ else
   fi
 fi
 
+# ---- rules-check gate (BEFORE assembling: a blocked dispatch prints nothing) --
+#
+# Ordered ahead of the payload on purpose. Refusing after the sections were
+# already streamed to stdout would leave a caller holding half a payload and a
+# non-zero code, and the whole point is that no review is dispatched at all.
+RULES_CHECK_JSON=""
+if [ -n "$RULES_CHECK_ARG" ]; then
+  RULES_CHECK_JSON=$(read_rules_check "$RULES_CHECK_ARG")
+fi
+if [ -n "$QUALITY_DOD_ARG" ] && [ ! -f "$QUALITY_DOD_ARG" ]; then
+  echo "[review] quality-dod file not found: $QUALITY_DOD_ARG" >&2
+  exit 2
+fi
+
 # ---- assemble + print (stdout only — no reviewer dispatch, no network) ------
 
 {
@@ -498,4 +582,13 @@ fi
   render_examples_section
   echo
   render_prior_and_findings "$PRIOR_REASON" "$PRIOR_JSON"
+  if [ -n "$RULES_CHECK_JSON" ]; then
+    echo
+    echo "rules_check (deterministic, scripts/mb-rules-check.sh):"
+    printf '%s\n' "$RULES_CHECK_JSON"
+  fi
+  if [ -n "$QUALITY_DOD_ARG" ]; then
+    echo
+    render_quality_dod_section "$QUALITY_DOD_ARG"
+  fi
 }

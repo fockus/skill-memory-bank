@@ -40,6 +40,20 @@ A reviewer finding is not automatically blocking. You must classify it against t
 | Maintainability/style improvement | `GO_WITH_BACKLOG` unless severe enough to break future work now |
 | Speculative concern without reproducible path | backlog or discard |
 
+## Coverage overlap is not a DRY violation (REQ-010)
+
+A requirement may be checked by a contract checker AND by an integration or
+e2e test at the same time. That is the design, not duplication: the checker
+proves the requirement was observable BEFORE the code existed, the layer test
+proves the behaviour holds once it does. They answer different questions about
+the same requirement.
+
+Do **not** raise DRY / duplication findings for that overlap, and do not ask
+for one of the two to be deleted. Left unstated, this rule inverts the whole
+scheme — the specs with the strongest evidence look the most redundant to a
+rubric that rewards DRY, and the cheapest way to satisfy a reviewer becomes
+deleting the proof.
+
 ## Backlog rule
 
 For `GO_WITH_BACKLOG`, every non-blocking finding must include a backlog item suggestion with title, rationale, severity, and source reviewer. The orchestrator records those items before marking done.

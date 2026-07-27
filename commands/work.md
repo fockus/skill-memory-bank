@@ -133,6 +133,17 @@ When the user types `/mb work [args...]`:
 
    **Waiver only for non-gated.** A task with no runtime surface may waive the behavioural red (`**Eval:** none — waiver: <reason>`) **only when it is non-gated**; a gated task must carry a real red. The verify step (5c) later runs `eval-green`, which reruns the byte-identical command and demands an actual green.
 
+   ### 5a0b. Quality DoD — render once, give it to all three (C6)
+
+   Render the criterion the work will be judged by ONCE, before dispatching anyone, and keep the path: implementer, reviewer and judge must hold the same bytes, and a second render is how that stops being true.
+
+   ```bash
+   QUALITY_DOD=<bank>/tmp/quality-dod-<item_no>.md
+   bash scripts/mb-quality-dod.sh --spec <bank>/specs/<topic> --mb <bank> > "$QUALITY_DOD"
+   ```
+
+   Exit 1 = a rule source the spec declares does not exist — **halt the item**; a review judged against rules nobody selected is worse than one that never ran (REQ-017). Spec-less (plan) runs skip this step. Inline the file's contents verbatim into the implementer prompt below, into `§5d` via `--quality-dod "$QUALITY_DOD"`, and into the judge prompt in `§5e`. Never edit or reflow it.
+
    ### 5a1. Contract task: two dispatches, then the red gate
 
    A task carrying `**Layer:** contract` is ONE checkbox but TWO implementer dispatches: the registry it declares has to be frozen before the checkers that satisfy it exist, and the current loop dispatches an implementer once per item.
@@ -214,8 +225,12 @@ When the user types `/mb work [args...]`:
    **Assemble the payload deterministically first — never a hand-rolled prompt.** Before dispatching any reviewer, build the review payload with the reviewer-2.0 orchestrator, which owns diff discovery, calibration examples, and touched-file test-cache resolution so the reviewer only has to judge one pre-assembled document (REQ-100):
 
    ```bash
-   bash scripts/mb-review.sh --emit-payload --plan <plan path> --item <N> --run-id "$RUN_ID" --mb <bank>
+   bash scripts/mb-rules-check.sh --files <touched-csv> --out json > <bank>/tmp/rules-check-<N>.json
+   bash scripts/mb-review.sh --emit-payload --plan <plan path> --item <N> --run-id "$RUN_ID" --mb <bank> \
+     --quality-dod "$QUALITY_DOD" --rules-check-json <bank>/tmp/rules-check-<N>.json
    ```
+
+   Run the checker ONCE and reuse the same JSON for the reviewer and the judge (C6). `mb-review.sh` exits 1 without emitting a payload when that JSON carries a CRITICAL violation — code that already breaks the agreed rules does not get a review spent on it, and no reviewer is dispatched.
 
    **Detecting touched-file test status — a single, unambiguous check:** the assembled payload
    contains a `## Auto-generated findings (MUST INCLUDE)` heading **if and only if** this item's
@@ -245,7 +260,7 @@ When the user types `/mb work [args...]`:
 
    ### 5e. Judge step (only if workflow includes `judge`)
 
-   Dispatch `roles.judge` with a different model when the project config provides one. Give it: plan/spec/DoD, verifier report, lead-review report, previous judge decision, diff, and verification evidence.
+   Dispatch `roles.judge` with a different model when the project config provides one. Give it: plan/spec/DoD, verifier report, lead-review report, previous judge decision, diff, verification evidence, and the **verbatim contents of `"$QUALITY_DOD"`** — the same bytes §5a and §5d received.
 
    The judge returns strict JSON with `decision`:
 

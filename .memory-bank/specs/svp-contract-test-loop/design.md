@@ -484,7 +484,11 @@ python3 scripts/mb-sdd-layers-render.py --requirements PATH --pipeline PATH --ru
   и `## Quality DoD` одним stdout, вставлявшимся в **один** candidate, и destination для `design.md` был
   не определён; к тому же «все слои false → stdout пуст» терял обязательный Quality DoD (REQ-015).
 - `commands/sdd.md` вставляет `tasks_markdown` ТОЛЬКО в `tasks.candidate.md`, а `quality_dod_markdown`
-  ТОЛЬКО в `design.candidate.md` — перед гейтами S2-C3.
+  ТОЛЬКО в staged `design.md` (`<bank>/tmp/sdd/<topic>/design.md`) — перед гейтами S2-C3.
+  **Ревизия 4 (2026-07-27):** здесь стояло `design.candidate.md` — файла с таким именем не существует
+  и никогда не существовало. Шипнутый пайплайн S2 кладёт в стейджинг `design.md` (`commands/sdd.md`
+  шаг 3), а `.candidate`-суффикс несёт только tasks (шаг 4). Формулировка C8 писалась до приземления
+  S2; приведена к коду по решению оркестратора.
 - `tasks_markdown` несёт контрактную + integration + e2e-задачи по значению `layers` (отключённый слой
   → задача не рендерится); `quality_dod_markdown` — ровно одна секция `## Quality DoD` по формату C5.
 - **Все три слоя `false` → `tasks_markdown == ""`, но `quality_dod_markdown` НЕПУСТ** (одна секция

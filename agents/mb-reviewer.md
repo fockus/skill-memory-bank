@@ -159,6 +159,20 @@ Walk the diff once per category. For each violation, capture: file, line, catego
 
 ---
 
+## Coverage overlap is not a DRY violation (REQ-010)
+
+A requirement may be checked by a contract checker AND by an integration or
+e2e test at the same time. That is the design, not duplication: the checker
+proves the requirement was observable BEFORE the code existed, the layer test
+proves the behaviour holds once it does. They answer different questions about
+the same requirement.
+
+Do **not** raise DRY / duplication findings for that overlap, and do not ask
+for one of the two to be deleted. Left unstated, this rule inverts the whole
+scheme — the specs with the strongest evidence look the most redundant to a
+rubric that rewards DRY, and the cheapest way to satisfy a reviewer becomes
+deleting the proof.
+
 ## Severity decision tree
 
 For each violation:

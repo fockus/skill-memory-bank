@@ -46,12 +46,15 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
+import mb_quality_dod  # noqa: E402
 import mb_req_id as rq  # noqa: E402
 
 from memory_bank_skill.spec_layers import SpecLayersError, read_spec_layers  # noqa: E402
 
-RULES_KEYS = {"sources", "review_rubric", "fallback_used", "checker"}
-SOURCE_KEYS = {"kind", "path"}
+# One renderer for the block, shared with the C6 delivery path: the whole
+# contract is that implementer, reviewer and judge hold the same sha256.
+load_rules = mb_quality_dod.load_rules
+render_quality_dod = mb_quality_dod.render_quality_dod
 
 
 def fail(message: str, code: int = 1) -> int:
@@ -65,29 +68,6 @@ def fail(message: str, code: int = 1) -> int:
 
 
 # ── inputs ──────────────────────────────────────────────────────────────────
-
-
-def load_rules(path: Path) -> dict:
-    """The canonical JSON from `mb-rules-resolve.sh`, schema-checked."""
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise ValueError("rules JSON must be an object")
-    unknown = sorted(set(data) - RULES_KEYS)
-    if unknown:
-        raise ValueError("unknown key(s) in rules JSON: %s" % ", ".join(unknown))
-    missing = sorted(RULES_KEYS - set(data))
-    if missing:
-        raise ValueError("missing key(s) in rules JSON: %s" % ", ".join(missing))
-    if not isinstance(data["sources"], list) or not data["sources"]:
-        raise ValueError("rules JSON `sources` must be a non-empty array")
-    for entry in data["sources"]:
-        if not isinstance(entry, dict) or set(entry) != SOURCE_KEYS:
-            raise ValueError("each rules source needs exactly {kind, path}")
-    if not isinstance(data["review_rubric"], list):
-        raise ValueError("rules JSON `review_rubric` must be an array")
-    if not isinstance(data["checker"], str) or not data["checker"]:
-        raise ValueError("rules JSON `checker` must be a non-empty string")
-    return data
 
 
 def scenario_test_names(requirements: Path) -> list[str]:
@@ -215,32 +195,6 @@ def render_tasks(layers, gated: list, all_reqs: list, names: list) -> str:
         number += 1
         blocks.append(layer_block(number, "e2e", 4, all_reqs, names))
     return "\n".join(blocks)
-
-
-def render_quality_dod(rules: dict) -> str:
-    """Exactly one `## Quality DoD` section in the C5 format.
-
-    Paths only, never the rules' text (REQ-015), and the sources sorted by path
-    so the same resolve renders byte-identically (NFR-003) — that byte-identity
-    is what lets implementer, reviewer and judge be given the same block.
-    """
-    lines = [
-        "## Quality DoD",
-        "",
-        "Rule sources (resolved by `scripts/mb-rules-resolve.sh`, referenced — never copied):",
-    ]
-    for entry in sorted(rules["sources"], key=lambda e: e["path"]):
-        lines.append("- [%s] %s" % (entry["kind"], entry["path"]))
-    lines += ["", "Review rubric (from `pipeline.yaml:review_rubric`):"]
-    lines += ["- %s" % bullet for bullet in rules["review_rubric"]]
-    lines += [
-        "",
-        "Checker: `bash %s --files <touched-files-csv> --out json` — no violations"
-        % rules["checker"],
-        "on this item's touched files.",
-        "",
-    ]
-    return "\n".join(lines)
 
 
 def main(argv=None) -> int:
