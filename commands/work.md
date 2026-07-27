@@ -3,7 +3,7 @@ description: Execute Memory Bank workflow modes from pipeline.yaml — existing 
 allowed-tools: [Bash, Read, Task]
 ---
 
-# /mb work [target] [--workflow NAME] [--range A-B] [--auto] [--dry-run] [--budget TOK] [--max-cycles N] [--allow-protected]
+# /mb work [target] [--workflow NAME] [--review] [--fix] [--loop N] [--range A-B] [--auto] [--dry-run] [--budget TOK] [--max-cycles N] [--allow-protected]
 
 Run the executable engine using a workflow mode resolved from `pipeline.yaml`. By default, `/mb work` is intentionally simple: **implement → verify → done** from an already-created plan/spec. Projects can opt into stricter local modes such as **governed-execution** (`implement → verify → review ensemble → judge → fix/backlog → done`), **full-cycle** (`discuss → sdd → plan → implement → verify → done`), **requirements-plan**, **implement-only**, **review-fix**, or **review-only**. Severity gates, judge gates, token budgets, protected-path checks, and the sprint context guard provide hard stops for `--auto` mode.
 
@@ -60,10 +60,10 @@ When the user types `/mb work [args...]`:
 1. **Resolve workflow mode.** Resolve the effective pipeline and selected workflow:
 
    ```bash
-   bash scripts/mb-workflow.sh --mb <bank> --workflow <name-or-empty> --json
+   bash scripts/mb-workflow.sh --mb <bank> --workflow <name-or-empty> [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix] [--brainstorm] [--sdd] [--plan] [--stages a,b,c] --json
    ```
 
-   The returned JSON contains `steps`, `entrypoint`, `interactive`, and `loop`. The orchestrator MUST follow this workflow instead of hard-coding one order. `--max-cycles N` overrides `workflow.loop.max_cycles` for this run only.
+   **Thread every composition flag the user typed into this call verbatim** — that is what turns `/mb work <target> --review --fix --loop 4` into `implement → verify → review → fix → done` with a bounded fix-cycle. `--fix` and `--judge` each require `review` (exit 2 otherwise); a flag-added `fix` on a preset with no loop block gets loop defaults (`returns_to: verify`, `max_cycles` from `pipeline.yaml:review`). The returned JSON contains `steps`, `entrypoint`, `interactive`, and `loop`. The orchestrator MUST follow this workflow instead of hard-coding one order. `--max-cycles N` — and its alias **`--loop N`** — overrides `workflow.loop.max_cycles` for this run only: it is the ceiling on review→fix cycles before `on_max_cycles` handling fires (step 5f), not a count of review dispatches to run unconditionally.
 
 2. **Run planning steps only when selected.** If the selected workflow contains:
 
@@ -378,7 +378,8 @@ When any hard stop fires, the loop halts even under `--auto`. The orchestrator s
 | `--range A-B` | Range over stages (plan) or tasks (spec) or sprints (phase) | 2 |
 | `--dry-run` | Print selected workflow + execution plan, don't dispatch | 2 |
 | `--auto` | Skip per-item confirmation prompts; obey hard stops | 3 |
-| `--max-cycles N` | Override `pipeline.yaml` review `max_cycles` | 3 |
+| `--review` / `--judge` / `--fix` (+ `--no-*`) | Compose stages for this run; `--fix` adds the review→fix loop (requires `--review`) | 4 |
+| `--max-cycles N` / `--loop N` | Override `pipeline.yaml` review `max_cycles` — the fix-cycle ceiling | 3 |
 | `--budget TOK` | Initialise token budget; halt at `stop_at_percent` | 3 |
 | `--allow-protected` | Permit Write/Edit on `protected_paths` globs | 3 |
 | `--slim` / `--full` | Context strategy for sub-agents — exports `MB_WORK_MODE=slim` (or `full`) for the loop subshell | Phase 4 (Sprint 2) |

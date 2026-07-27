@@ -3,7 +3,7 @@
 #
 # Usage:
 #   mb-workflow.sh [--mb <path>] [--workflow <name>]
-#                  [--review|--no-review] [--judge|--no-judge]
+#                  [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix]
 #                  [--brainstorm|--no-brainstorm] [--sdd|--no-sdd] [--plan|--no-plan]
 #                  [--stages <csv>] [--json|--steps|--loop|--max-cycles|--approval-required]
 #
@@ -15,12 +15,14 @@
 #      adds a composable stage, then launch flags add/remove (flags win), then
 #      re-sort into canonical order. `--stages <csv>` overrides everything.
 #   Canonical order: discuss → sdd → plan → implement → verify → review → judge → fix → done.
-#   `--brainstorm` is an alias of `discuss`. `judge` requires `review` (fail-fast).
+#   `--brainstorm` is an alias of `discuss`. `judge` and `fix` require `review`
+#   (fail-fast). A flag-added `fix` on a preset with no loop block gets loop
+#   defaults (returns_to: verify) so the cycle has a termination condition.
 #
 # Exit codes:
 #   0 — resolved
 #   1 — unknown workflow / invalid pipeline
-#   2 — usage error / unknown stage / judge-without-review
+#   2 — usage error / unknown stage / judge-or-fix-without-review
 
 set -eu
 
@@ -32,6 +34,7 @@ WORKFLOW=""
 OUTPUT="json"
 FLAG_REVIEW=""
 FLAG_JUDGE=""
+FLAG_FIX=""
 FLAG_DISCUSS=""
 FLAG_SDD=""
 FLAG_PLAN=""
@@ -47,6 +50,8 @@ while [ "$#" -gt 0 ]; do
     --no-review) FLAG_REVIEW="off"; shift ;;
     --judge) FLAG_JUDGE="on"; shift ;;
     --no-judge) FLAG_JUDGE="off"; shift ;;
+    --fix) FLAG_FIX="on"; shift ;;
+    --no-fix) FLAG_FIX="off"; shift ;;
     --brainstorm) FLAG_DISCUSS="on"; shift ;;
     --no-brainstorm) FLAG_DISCUSS="off"; shift ;;
     --sdd) FLAG_SDD="on"; shift ;;
@@ -71,7 +76,7 @@ if [ -z "$PIPELINE_PATH" ]; then
 fi
 
 PIPELINE_YAML="$PIPELINE_PATH" WORKFLOW_NAME="$WORKFLOW" OUTPUT="$OUTPUT" \
-FLAG_REVIEW="$FLAG_REVIEW" FLAG_JUDGE="$FLAG_JUDGE" FLAG_DISCUSS="$FLAG_DISCUSS" \
+FLAG_REVIEW="$FLAG_REVIEW" FLAG_JUDGE="$FLAG_JUDGE" FLAG_FIX="$FLAG_FIX" FLAG_DISCUSS="$FLAG_DISCUSS" \
 FLAG_SDD="$FLAG_SDD" FLAG_PLAN="$FLAG_PLAN" STAGES_OVERRIDE="$STAGES_OVERRIDE" \
 python3 - <<'PY'
 import json
@@ -84,17 +89,18 @@ except ImportError:
     sys.stderr.write("[workflow] PyYAML is required to resolve named workflows\n")
     sys.exit(1)
 
-# Canonical stage order; `fix` is an internal loop mechanic, not directly
-# composable. Every shipped preset's step list is already canonically ordered,
-# so re-sorting the composed set is a no-op for un-modified presets.
+# Canonical stage order. Every shipped preset's step list is already
+# canonically ordered, so re-sorting the composed set is a no-op for
+# un-modified presets.
 CANONICAL = ["discuss", "sdd", "plan", "implement", "verify", "review", "judge", "fix", "done"]
 # Stages that pipeline.yaml `<stage>.enabled` / launch flags may toggle. The
-# core stages (implement/verify/done) and the internal `fix` loop are not.
-COMPOSABLE = ["discuss", "sdd", "plan", "review", "judge"]
+# core stages (implement/verify/done) are not.
+COMPOSABLE = ["discuss", "sdd", "plan", "review", "judge", "fix"]
 # Launch flag (env) → stage. `--brainstorm` is an alias of `discuss`.
 FLAG_STAGE = {
     "FLAG_REVIEW": "review",
     "FLAG_JUDGE": "judge",
+    "FLAG_FIX": "fix",
     "FLAG_DISCUSS": "discuss",
     "FLAG_SDD": "sdd",
     "FLAG_PLAN": "plan",
@@ -242,6 +248,30 @@ if "judge" in steps and "review" not in steps:
         "in pipeline.yaml (or drop --judge)\n"
     )
     sys.exit(2)
+
+# Same reason: a fix-cycle fixes review findings, so it needs a review to
+# consume. Without one the loop has no input and no termination signal.
+if "fix" in steps and "review" not in steps:
+    sys.stderr.write(
+        "[workflow] fix requires review — add --review or enable review "
+        "in pipeline.yaml (or drop --fix)\n"
+    )
+    sys.exit(2)
+
+# A fix stage composed onto a preset that carries no loop block (e.g.
+# `execution`) needs loop semantics, or the orchestrator has no returns_to and
+# no cycle ceiling. Presets that define their own loop keep it verbatim.
+if "fix" in steps and not loop:
+    review_cfg = cfg.get("review") if isinstance(cfg.get("review"), dict) else {}
+    judged = "judge" in steps
+    loop = {
+        "after": "judge" if judged else "review",
+        "until": "judge_go" if judged else "severity_gate_pass",
+        "returns_to": "verify",
+        "max_cycles": review_cfg.get("max_cycles", 3),
+        "on_max_cycles": review_cfg.get("on_max_cycles", "stop_for_human"),
+        "approval_required": bool(review_cfg.get("approval_required", False)),
+    }
 
 resolved = {
     "name": name,
