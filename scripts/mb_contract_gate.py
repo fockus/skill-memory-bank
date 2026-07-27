@@ -88,6 +88,31 @@ def contract_task(spec_dir: Path) -> dict:
     return {"item_no": found[0].item_no, "body": found[0].body}
 
 
+def check_paths(checkers: list, repo_root: Path) -> None:
+    """`path` must name the file `argv` runs, and that file must exist.
+
+    It was validated only as a non-empty string: never compared with argv,
+    never checked against the disk, read by no consumer. A field that can say
+    anything without consequence documents nothing — and here it is the only
+    human-readable statement of WHICH file implements a checker, so a stale one
+    sends a reader to the wrong place while the gate reports success.
+    """
+    problems = []
+    for checker in checkers:
+        path, argv = checker["path"], checker["argv"]
+        if not any(path == arg or arg.endswith("/" + path) for arg in argv):
+            problems.append(
+                "checker `%s`: path `%s` is not among the argv that runs it (%s)"
+                % (checker["id"], path, " ".join(argv))
+            )
+        elif not (repo_root / path).is_file():
+            problems.append(
+                "checker `%s`: path `%s` does not exist under %s" % (checker["id"], path, repo_root)
+            )
+    if problems:
+        raise GateError(USAGE, *problems)
+
+
 def load_checkers(spec_dir: Path, topic: str) -> list:
     task = contract_task(spec_dir)
     text = registry.find_registry(task["body"])
@@ -160,6 +185,25 @@ def write_evidence(path: Path, payload: dict) -> None:
 # ── the red-evidence precondition (CPR-A) ───────────────────────────────────
 
 
+def _self_consistent(data: dict) -> bool:
+    """Does the record's verdict follow from its own `exit`/`output_match`?
+
+    Re-derives the verdict with the SAME rule `run_checker` applies, so the
+    two can never drift: one function decides what a verdict means, and the
+    reader checks against it rather than trusting the label.
+    """
+    if data.get("version") != 1:
+        return False
+    code, matched = data.get("exit"), data.get("output_match")
+    if not isinstance(code, int) or not isinstance(matched, bool):
+        return False
+    if data["phase"] == "red":
+        expected = "fake_red" if code == 0 else ("pass" if matched else "foreign_failure")
+    else:
+        expected = "pass" if code == 0 else "red_checker"
+    return data.get("verdict") == expected
+
+
 def require_red_evidence(bank: Path, topic: str, checkers: list) -> None:
     problems: list = []
     for checker in checkers:
@@ -185,6 +229,19 @@ def require_red_evidence(bank: Path, topic: str, checkers: list) -> None:
             continue
         if data.get("checker_id") != label or data.get("topic") != topic:
             problems.append("checker `%s`: red evidence belongs to another checker" % label)
+            continue
+        if not _self_consistent(data):
+            # The record's own fields have to agree with its verdict. Reading
+            # `verdict` alone made `version`, `exit` and `output_match`
+            # decorative: an object saying phase=red, verdict=pass, exit=0,
+            # output_match=false unlocked verify, though this runner could
+            # only ever have written `fake_red` for that combination. Evidence
+            # that cannot be checked against itself is a claim.
+            problems.append(
+                "checker `%s`: red evidence is self-inconsistent — verdict `%s` with "
+                "exit %r and output_match %r"
+                % (label, data.get("verdict"), data.get("exit"), data.get("output_match"))
+            )
             continue
         if data.get("cmd") != cmd or data.get("cmd_sha256") != registry.cmd_digest(cmd):
             problems.append(
@@ -232,6 +289,7 @@ def gate(phase: str, spec_dir: Path, bank: Path) -> tuple:
     topic = spec_dir.name
     repo_root = bank.parent
     checkers = load_checkers(spec_dir, topic)
+    check_paths(checkers, repo_root)
     paths = [evidence_path(bank, topic, c, phase) for c in checkers]
     if phase == "verify":
         require_red_evidence(bank, topic, checkers)

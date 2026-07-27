@@ -65,6 +65,7 @@ def check_grammar(path, detail_prefix):
 def load_rubric():
     """`pipeline.yaml:review_rubric` flattened to canonical bullets, in AUTHOR
     order — a sorted or regrouped rubric is a different document (R2-012)."""
+
     def unreadable(detail):
         # Loud, never []. The rubric is half the criterion the reviewer and the
         # judge are handed; degrading it to silence would let them return a
@@ -81,10 +82,12 @@ def load_rubric():
         unreadable("open_failed")
     try:
         import yaml  # noqa: F401  (optional; the bundle does not require it)
+
         cfg = yaml.safe_load(text)
     except ImportError:
         sys.path.insert(0, os.path.join(SKILL_ROOT, "scripts"))
         from mb_pipeline_minimal_yaml import minimal_pipeline_load
+
         cfg = minimal_pipeline_load(text)
     except Exception:
         unreadable("parse_failed")
@@ -120,9 +123,20 @@ def parse_quality_dod(design_path):
     except OSError:
         die_usage("design_unreadable")
 
+    # Fence-aware, like mb_spec_validate_v2.py:220-227. `references/templates.md`
+    # documents this very section inside a ```-block, so a design.md that quotes
+    # the template as an example has two literal matches: without this, the
+    # example counted as a real section and a valid spec was refused
+    # `duplicate_section` — or, with no real section beside it, a commented-out
+    # example was parsed as the live declaration.
     start = None
+    in_fence = False
     for i, line in enumerate(lines):
-        if line.strip() == "## Quality DoD":
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and stripped == "## Quality DoD":
             if start is not None:
                 die_usage("duplicate_section")
             start = i
@@ -130,7 +144,18 @@ def parse_quality_dod(design_path):
         die_usage("section_absent")
 
     body = []
-    for line in lines[start + 1:]:
+    in_fence = False
+    for line in lines[start + 1 :]:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            # A fenced example INSIDE the section is documentation, not a
+            # declaration. Collecting it would reintroduce the same defect one
+            # level down: an illustrative `- [project] …` line parsed as a real
+            # rule source.
+            continue
         if line.startswith("## "):
             break
         body.append(line)
@@ -164,12 +189,18 @@ def base_for(kind):
 
 def emit(sources, fallback_used):
     sources = sorted(sources, key=lambda s: s["path"].encode("utf-8"))
-    sys.stdout.write(json.dumps({
-        "sources": sources,
-        "review_rubric": load_rubric(),
-        "fallback_used": fallback_used,
-        "checker": CHECKER,
-    }, ensure_ascii=False) + "\n")
+    sys.stdout.write(
+        json.dumps(
+            {
+                "sources": sources,
+                "review_rubric": load_rubric(),
+                "fallback_used": fallback_used,
+                "checker": CHECKER,
+            },
+            ensure_ascii=False,
+        )
+        + "\n"
+    )
     raise SystemExit(0)
 
 
@@ -181,10 +212,13 @@ if SPEC or declared_flags:
         check_grammar(path, "declared_source")
         entries.append({"kind": kind, "path": path})
 
-    missing = sorted({
-        e["path"] for e in entries
-        if not os.path.exists(os.path.join(base_for(e["kind"]), e["path"]))
-    })
+    missing = sorted(
+        {
+            e["path"]
+            for e in entries
+            if not os.path.exists(os.path.join(base_for(e["kind"]), e["path"]))
+        }
+    )
     if missing:
         # Loud, and with nothing on stdout: a caller that only checks stdout
         # must not be able to read this as an empty-but-valid resolution.
@@ -203,9 +237,11 @@ if SPEC or declared_flags:
 
 # ── discovery mode ──────────────────────────────────────────────────────────
 sources = []
-for candidate in (os.path.join(REPO, "AGENTS.md"),
-                  os.path.join(REPO, "RULES.md"),
-                  os.path.join(BANK, "RULES.md")):
+for candidate in (
+    os.path.join(REPO, "AGENTS.md"),
+    os.path.join(REPO, "RULES.md"),
+    os.path.join(BANK, "RULES.md"),
+):
     if os.path.isfile(candidate):
         sources.append({"kind": "project", "path": rel_to(REPO, candidate)})
 

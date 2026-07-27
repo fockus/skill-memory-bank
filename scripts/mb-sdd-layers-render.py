@@ -228,6 +228,17 @@ def main(argv=None) -> int:
     except (ValueError, OSError) as exc:
         return fail(str(exc))
 
+    if not names and (layers.integration_tests or layers.e2e_tests):
+        # REQ-009 says the layer task's DoD NAMES the scenario ids it covers.
+        # With no scenarios there is nothing to name, and the DoD rendered as
+        # "Covers scenario test ids: ; green (were red)" — a checkbox satisfied
+        # by construction. Refusing is the only honest output: the spec has to
+        # gain scenarios or switch the layers off with a recorded reason.
+        return fail(
+            "integration/e2e layers are on, but requirements.md declares no "
+            "`<!-- mb-scenario:N -->` blocks; their DoD would name no scenario at all"
+        )
+
     text = requirements.read_text(encoding="utf-8")
     gated = rq.gated_definitions(text)
     all_reqs = rq.find_definitions(text) or gated

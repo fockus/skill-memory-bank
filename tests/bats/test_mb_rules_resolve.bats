@@ -327,3 +327,51 @@ on this item'"'"'s touched files.')"
   run bash -n "$SCRIPT"
   [ "$status" -eq 0 ]
 }
+
+@test "rules_resolve_ignores_a_fenced_example_section: a template in a code block is not a section" {
+  # references/templates.md documents the `## Quality DoD` skeleton inside a
+  # fenced block, so a spec author who pastes it as an example next to the real
+  # section has TWO literal matches. Scanning without fence-awareness read the
+  # example as a second section and refused a perfectly valid design.md —
+  # the same class already solved in mb_spec_validate_v2.py:220-227.
+  printf '# Project rules\n' > "$REPO/AGENTS.md"
+  spec="$REPO/.memory-bank/specs/demo"; mkdir -p "$spec"
+  cat > "$spec/design.md" <<'EOF'
+# Design: demo
+
+Reference shape, quoted from references/templates.md:
+
+```markdown
+## Quality DoD
+
+Rule sources (resolved by `scripts/mb-rules-resolve.sh`, referenced — never copied):
+- [project] docs/EXAMPLE-ONLY.md
+```
+
+## Quality DoD
+
+Rule sources (resolved by `scripts/mb-rules-resolve.sh`, referenced — never copied):
+- [project] AGENTS.md
+EOF
+  run bash "$SCRIPT" --spec "$spec" --repo "$REPO" --mb "$BANK" --json
+  [ "$status" -eq 0 ] || { echo "$output"; false; }
+  assert_substring "$output" "AGENTS.md"
+  refute_substring "$output" "EXAMPLE-ONLY.md"
+}
+
+@test "rules_resolve_fenced_only_section_is_absent: an example alone declares nothing" {
+  printf '# Project rules\n' > "$REPO/AGENTS.md"
+  spec="$REPO/.memory-bank/specs/demo"; mkdir -p "$spec"
+  cat > "$spec/design.md" <<'EOF'
+# Design: demo
+
+```markdown
+## Quality DoD
+
+- [project] docs/EXAMPLE-ONLY.md
+```
+EOF
+  run bash "$SCRIPT" --spec "$spec" --repo "$REPO" --mb "$BANK" --json
+  [ "$status" -eq 2 ] || { echo "$output"; false; }
+  assert_substring "$output" "section_absent"
+}

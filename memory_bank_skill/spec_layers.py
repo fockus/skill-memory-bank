@@ -70,14 +70,21 @@ class SpecLayers:
 
 
 def _frontmatter_lines(text: str) -> list:
-    """Lines between the opening `---` and the next `---`, or [] when absent."""
+    """Lines between the opening `---` and the closing one; [] when there is none.
+
+    "No frontmatter" and "frontmatter that never closes" are DIFFERENT answers
+    and must not share one. Returning [] for both made a truncated or
+    mis-edited block read as legacy — every layer gate switched off on a spec
+    whose author was in the middle of declaring them, which is precisely the
+    fail-open this module's docstring forbids. An unterminated block raises.
+    """
     lines = text.split("\n")
     if not lines or lines[0].strip() != "---":
         return []
     for i in range(1, len(lines)):
         if lines[i].strip() == "---":
             return lines[1:i]
-    return []
+    raise SpecLayersError("malformed_block", "frontmatter is opened but never closed")
 
 
 def _scalar(raw: str):
@@ -128,7 +135,15 @@ def _sibling_owns_layers(spec_dir: Path) -> str | None:
             text = path.read_text(encoding="utf-8")
         except OSError:
             continue  # an absent sibling is simply ignored
-        if _layers_block(_frontmatter_lines(text)) is not None:
+        try:
+            block = _layers_block(_frontmatter_lines(text))
+        except SpecLayersError:
+            # A sibling with a broken frontmatter owns no `layers` block, so it
+            # is not a canonical-owner violation. Letting its error escape here
+            # would report requirements.md as malformed because design.md is —
+            # a true refusal pointing at the wrong file.
+            continue
+        if block is not None:
             return name
     return None
 

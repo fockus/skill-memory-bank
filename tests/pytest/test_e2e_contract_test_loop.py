@@ -160,12 +160,14 @@ class World:
             % covers
             + block
             + "\n**Testing (TDD %s tests BEFORE implementation):**\n- checker unit tests.\n\n"
-            "**DoD:**\n- [%s] checkers red against the product\n<!-- /mb-task:1 -->\n\n"
+            "**DoD:**\n- [%s] checker unit tests green: "
+            "`bats tests/checkers/test_ledger_gate.bats` (both halves per checker)\n"
+            "- [%s] checkers red against the product\n<!-- /mb-task:1 -->\n\n"
             "<!-- mb-task:2 -->\n## Task 2: Loud batch failure\n\n"
             "**Stage:** 2\n**Covers:** %s\n**Role:** backend\n**Blocked-by:** 1\n"
             "**Scope:** src/**\n**Budget:** 100000\n%s\n\n**What to do:**\n- add the guard.\n\n"
             "**Testing (TDD):**\n- unit test.\n\n**DoD:**\n- [ ] guard present\n"
-            "<!-- /mb-task:2 -->\n" % (DASH, "x" if closed else " ", covers, eval_line),
+            "<!-- /mb-task:2 -->\n" % (DASH, "x" if closed else " ", "x" if closed else " ", covers, eval_line),
             encoding="utf-8",
         )
 
@@ -419,3 +421,27 @@ def test_e2e_run_is_deterministic(tmp_path: Path) -> None:
     assert first.gate("red").returncode == 0
     assert second.gate("red").returncode == 0
     assert first.evidence("ledger_gate", "red") == second.evidence("ledger_gate", "red")
+
+
+def test_REQ_006__one_checker_claiming_many_requirements_is_reported(tmp_path: Path) -> None:
+    """The covers guarantee is ID membership — so relabelling is made visible.
+
+    A single checker can satisfy the "every gated REQ is covered" rule for any
+    number of requirements by listing their ids, and no code can tell whether
+    it observes them. The rule stays (it catches the requirement nobody even
+    claimed), but the shape that trivially satisfies it is now named in the
+    report for a human to judge, instead of passing in silence.
+    """
+    w = World(tmp_path)
+    w.checker("ledger_gate")
+    w.write_spec(
+        registry=w.registry("ledger_gate", covers="REQ-001, REQ-002"),
+        extra_req="- **REQ-002** (ubiquitous): The system shall feel intuitive to operators.\n",
+    )
+    result = subprocess.run(
+        ["bash", str(VALIDATE), str(w.spec)], capture_output=True, text=True, cwd=str(REPO_ROOT)
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = result.stdout + result.stderr
+    assert "contract_checkers: `ledger_gate` claims 2 gated requirements" in report, report
+    assert "REQ-001, REQ-002" in report

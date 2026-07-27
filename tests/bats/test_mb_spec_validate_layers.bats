@@ -88,11 +88,14 @@ t_task() {
   printf -- '**What to do:**\n- do the work.\n'
   [ -n "$extra" ] && printf '%s\n' "$extra"
   printf -- '\n**Testing (TDD — tests BEFORE implementation):**\n- covered by tests.\n\n'
-  printf -- '**DoD:**\n- [%s] the work is done.\n' "$box"
+  printf -- '**DoD:**\n- [%s] %s\n' "$box" "${8:-the work is done.}"
   printf -- '<!-- /mb-task:%s -->\n\n' "$n"
 }
 
-t_contract()    { t_task "$1" "contract checkers" contract "REQ-001, REQ-002" backend "${2:- }" "${3:-}"; }
+# A CLOSED contract task must name the checker unit tests in its DoD, so this
+# helper emits the compliant shape; the negative case builds its own.
+t_contract()    { t_task "$1" "contract checkers" contract "REQ-001, REQ-002" backend "${2:- }" "${3:-}" \
+                    'checker unit tests green: `bats tests/bats/test_persist_gate_checker.bats`'; }
 t_impl()        { t_task "$1" "persist work items" "" "REQ-001, REQ-002" backend " "; }
 t_integration() { t_task "$1" "integration tests" integration "REQ-001" qa " "; }
 t_e2e()         { t_task "$1" "e2e tests" e2e "REQ-002" qa " "; }
@@ -464,4 +467,62 @@ mkreg() {
   run bash "$VALIDATE" "$dir"
   [ "$status" -eq 0 ] || { echo "$output"; false; }
   assert_substring "$output" "layers=legacy"
+}
+
+@test "spec_validate_registry_coverage_checked_while_open: a present registry is validated in full" {
+  # The registry is written by the orchestrator after Dispatch A, while the
+  # contract task is still OPEN — and Dispatch B, the red gate and every
+  # business dispatch happen in that state. Gating coverage on closure meant
+  # "every gated REQ has a checker" was first enforced after the work it was
+  # supposed to govern. Absence stays excused while open; a registry that
+  # EXISTS must be complete.
+  dir="$(mkspec demo "$ALL_ON")" || return 1
+  { t_contract 1 " " "${REGISTRY/\[\"REQ-001\", \"REQ-002\"\]/[\"REQ-001\"]}"
+    t_impl 2; t_integration 3; t_e2e 4; } >>"$dir/tasks.md"
+  run bash "$VALIDATE" "$dir"
+  [ "$status" -eq 1 ] || { echo "$output"; false; }
+  assert_substring "$output" "REQ-002"
+}
+
+@test "spec_validate_open_task_without_registry_still_excused: absence is not incompleteness" {
+  dir="$(mkspec demo "$ALL_ON")" || return 1
+  { t_contract 1 " " ""; t_impl 2; t_integration 3; t_e2e 4; } >>"$dir/tasks.md"
+  run bash "$VALIDATE" "$dir"
+  [ "$status" -eq 0 ] || { echo "$output"; false; }
+}
+
+@test "spec_validate_disabled_layer_task_present_fails: a recorded 'off' and a task are a contradiction" {
+  # Symmetry with contract_first, which already refuses this. A spec that
+  # records "no e2e, because <reason>" and then carries an e2e task states two
+  # incompatible things, and a reader cannot tell which one is current.
+  dir="$(mkspec demo 'layers:
+  contract_first: true
+  integration_tests: true
+  e2e_tests: false
+  e2e_tests_reason: "no external surface in this slice"')" || return 1
+  { t_contract 1; t_impl 2; t_integration 3; t_e2e 4; } >>"$dir/tasks.md"
+  run bash "$VALIDATE" "$dir"
+  [ "$status" -eq 1 ] || { echo "$output"; false; }
+  assert_substring "$output" "e2e_tests is off"
+}
+
+@test "spec_validate_closed_contract_task_names_its_checker_tests: step 4 must be readable" {
+  # `commands/work.md` says "Once the checker unit tests are green" — prose no
+  # code reads. Step 2 of the contract task demands unit tests proving each
+  # checker REJECTS and ACCEPTS, and nothing anywhere observed whether they
+  # exist. On closure the implementer knows the command, so the DoD has to
+  # name it; an unnamed green is a self-report.
+  dir="$(mkspec demo "$ALL_ON")" || return 1
+  { t_task 1 "contract checkers" contract "REQ-001, REQ-002" backend x "$REGISTRY" 'the work is done.'
+    t_impl 2; t_integration 3; t_e2e 4; } >>"$dir/tasks.md"
+  run bash "$VALIDATE" "$dir"
+  [ "$status" -eq 1 ] || { echo "$output"; false; }
+  assert_substring "$output" "checker unit tests"
+}
+
+@test "spec_validate_closed_contract_task_with_named_tests_ok: naming the command satisfies it" {
+  dir="$(mkspec demo "$ALL_ON")" || return 1
+  { t_contract 1 x "$REGISTRY"; t_impl 2; t_integration 3; t_e2e 4; } >>"$dir/tasks.md"
+  run bash "$VALIDATE" "$dir"
+  [ "$status" -eq 0 ] || { echo "$output"; false; }
 }

@@ -495,18 +495,34 @@ def test_contract_task_absent_without_a_gated_requirement(tmp_path: Path) -> Non
     """
     spec = tmp_path / "spec"
     spec.mkdir()
+    # Scenarios are present because the test layers ARE on here: a layer task
+    # whose DoD would name no scenario is refused outright, so a fixture that
+    # leaves both out would be exercising that refusal instead of this rule.
     (spec / "requirements.md").write_text(
         "---\ntopic: demo\n%s\n---\n\n# Requirements: demo\n\n"
-        "## Requirements (EARS)\n\nNo normative criteria yet.\n" % ALL_ON,
+        "## Requirements (EARS)\n\nNo normative criteria yet.\n\n"
+        "## Scenarios\n\n<!-- mb-scenario:1 -->\n### Scenario: intent is recorded\n"
+        "**Covers:** REQ-100\n\n- GIVEN a draft\n- WHEN it is read\n- THEN intent is recorded\n"
+        "<!-- /mb-scenario:1 -->\n" % ALL_ON,
         encoding="utf-8",
     )
     (tmp_path / "pipeline.yaml").write_text(PIPELINE, encoding="utf-8")
     (tmp_path / "rules.json").write_text(json.dumps(RULES_JSON), encoding="utf-8")
     proc = subprocess.run(
-        [sys.executable, str(RENDER), "--requirements", str(spec / "requirements.md"),
-         "--pipeline", str(tmp_path / "pipeline.yaml"),
-         "--rules-json", str(tmp_path / "rules.json"), "--json"],
-        capture_output=True, text=True, cwd=str(REPO_ROOT),
+        [
+            sys.executable,
+            str(RENDER),
+            "--requirements",
+            str(spec / "requirements.md"),
+            "--pipeline",
+            str(tmp_path / "pipeline.yaml"),
+            "--rules-json",
+            str(tmp_path / "rules.json"),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
     )
     assert proc.returncode == 0, proc.stderr
     md = json.loads(proc.stdout)["tasks_markdown"]
@@ -522,16 +538,29 @@ def test_should_only_requirement_is_not_gated(tmp_path: Path) -> None:
         "---\ntopic: demo\n%s\n---\n\n# Requirements: demo\n\n"
         "## Requirements (EARS)\n\n"
         "- **REQ-001** (ubiquitous): The system shall persist work items to disk.\n"
-        "- **REQ-009** (ubiquitous): The system should prefer the cached value.\n" % ALL_ON,
+        "- **REQ-009** (ubiquitous): The system should prefer the cached value.\n\n"
+        "## Scenarios\n\n<!-- mb-scenario:1 -->\n### Scenario: persist round trip\n"
+        "**Covers:** REQ-001\n\n- GIVEN a work item\n- WHEN it is persisted\n"
+        "- THEN it round-trips\n<!-- /mb-scenario:1 -->\n" % ALL_ON,
         encoding="utf-8",
     )
     (tmp_path / "pipeline.yaml").write_text(PIPELINE, encoding="utf-8")
     (tmp_path / "rules.json").write_text(json.dumps(RULES_JSON), encoding="utf-8")
     proc = subprocess.run(
-        [sys.executable, str(RENDER), "--requirements", str(spec / "requirements.md"),
-         "--pipeline", str(tmp_path / "pipeline.yaml"),
-         "--rules-json", str(tmp_path / "rules.json"), "--json"],
-        capture_output=True, text=True, cwd=str(REPO_ROOT),
+        [
+            sys.executable,
+            str(RENDER),
+            "--requirements",
+            str(spec / "requirements.md"),
+            "--pipeline",
+            str(tmp_path / "pipeline.yaml"),
+            "--rules-json",
+            str(tmp_path / "rules.json"),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
     )
     assert proc.returncode == 0, proc.stderr
     md = json.loads(proc.stdout)["tasks_markdown"]
@@ -539,3 +568,128 @@ def test_should_only_requirement_is_not_gated(tmp_path: Path) -> None:
     covers = [ln for ln in contract.splitlines() if ln.startswith("**Covers:**")][0]
     assert "REQ-001" in covers
     assert "REQ-009" not in covers, covers
+
+
+# ── the documented Step 3a must be RUNNABLE, not merely plausible ──────────
+
+
+def _step_3a_shell(sdd_text: str) -> str:
+    """The bash block commands/sdd.md tells the generator to run in Step 3a."""
+    step = sdd_text.split("### Step 3a", 1)[1].split("### Step 4", 1)[0]
+    return step.split("```bash", 1)[1].split("```", 1)[0]
+
+
+def test_sdd_step_3a_commands_run_on_a_fresh_triple(tmp_path: Path) -> None:
+    """Run the documented commands against a spec that has just been generated.
+
+    The order in Step 3a is only real if it works on the artifact it describes.
+    It did not: the resolver was invoked in VALIDATION mode (`--spec`), which
+    requires a `## Quality DoD` section in design.md — the section created by
+    the very next line of the same step. Every fresh spec hit
+    `quality_dod_malformed=section_absent`, so the documented pipeline could
+    not be followed by anyone. Asserting the doc mentions a script would not
+    have noticed; running it does.
+    """
+    repo = tmp_path / "repo"
+    bank = repo / ".memory-bank"
+    staging = bank / "tmp" / "sdd" / "fresh"
+    staging.mkdir(parents=True)
+    (repo / "AGENTS.md").write_text("# Project rules\n", encoding="utf-8")
+    (staging / "requirements.md").write_text(
+        "---\ntopic: fresh\n%s\n---\n\n%s" % (ALL_ON, REQUIREMENTS), encoding="utf-8"
+    )
+    # A freshly generated design.md — Step 3 wrote it, and it carries no
+    # `## Quality DoD` yet, because Step 3a is what produces that section.
+    (staging / "design.md").write_text(
+        "# Design: fresh\n\n## Contract\n\n**Seams:**\n- the write boundary\n", encoding="utf-8"
+    )
+    (tmp_path / "pipeline.yaml").write_text(PIPELINE, encoding="utf-8")
+
+    script = (
+        _step_3a_shell((REPO_ROOT / "commands" / "sdd.md").read_text(encoding="utf-8"))
+        .replace("<bank>/tmp/sdd/<topic>", str(staging))
+        .replace("<bank>", str(bank))
+        .replace("<pipeline.yaml>", str(tmp_path / "pipeline.yaml"))
+    )
+    proc = subprocess.run(
+        ["bash", "-e", "-c", script], capture_output=True, text=True, cwd=str(REPO_ROOT)
+    )
+    assert proc.returncode == 0, "Step 3a is not runnable:\n%s\n%s" % (script, proc.stderr)
+    payload = json.loads(proc.stdout)
+    assert set(payload) == {"tasks_markdown", "quality_dod_markdown"}
+    assert payload["quality_dod_markdown"].count("## Quality DoD") == 1
+
+
+def test_layers_on_without_scenarios_is_refused(tmp_path: Path) -> None:
+    """A layer task whose DoD cannot name what it covers is not a task.
+
+    With the layers on and no `<!-- mb-scenario:N -->` blocks, the renderer
+    emitted `Covers scenario test ids: ; green (were red)` — a DoD line with an
+    empty list, which reads as satisfied by construction. REQ-009 requires the
+    ids be NAMED; an empty naming is the decorative shape this slice exists to
+    refuse, so the renderer stops instead.
+    """
+    spec = tmp_path / "spec"
+    spec.mkdir()
+    (spec / "requirements.md").write_text(
+        "---\ntopic: demo\n%s\n---\n\n# Requirements: demo\n\n## Requirements (EARS)\n\n"
+        "- **REQ-001** (ubiquitous): The system shall persist data.\n" % ALL_ON,
+        encoding="utf-8",
+    )
+    (tmp_path / "pipeline.yaml").write_text(PIPELINE, encoding="utf-8")
+    (tmp_path / "rules.json").write_text(json.dumps(RULES_JSON), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(RENDER),
+            "--requirements",
+            str(spec / "requirements.md"),
+            "--pipeline",
+            str(tmp_path / "pipeline.yaml"),
+            "--rules-json",
+            str(tmp_path / "rules.json"),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert proc.returncode == 1, proc.stdout
+    assert proc.stdout == "", "a refusal must not print a half-rendered envelope"
+    assert "scenario" in proc.stderr.lower(), proc.stderr
+
+
+def test_layers_off_without_scenarios_still_renders(tmp_path: Path) -> None:
+    """The refusal is about layer tasks, not about specs that declare none."""
+    spec = tmp_path / "spec"
+    spec.mkdir()
+    (spec / "requirements.md").write_text(
+        "---\ntopic: demo\nlayers:\n  contract_first: false\n"
+        '  contract_first_reason: "parent slice"\n  integration_tests: false\n'
+        '  integration_tests_reason: "n/a"\n  e2e_tests: false\n'
+        '  e2e_tests_reason: "n/a"\n---\n\n# Requirements: demo\n\n'
+        "## Requirements (EARS)\n\n- **REQ-001** (ubiquitous): The system shall persist data.\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "pipeline.yaml").write_text(PIPELINE, encoding="utf-8")
+    (tmp_path / "rules.json").write_text(json.dumps(RULES_JSON), encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(RENDER),
+            "--requirements",
+            str(spec / "requirements.md"),
+            "--pipeline",
+            str(tmp_path / "pipeline.yaml"),
+            "--rules-json",
+            str(tmp_path / "rules.json"),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["tasks_markdown"] == ""
+    assert payload["quality_dod_markdown"].count("## Quality DoD") == 1

@@ -103,7 +103,7 @@ def section(payload: str, heading: str) -> str:
     assert heading in lines, "payload has no %s section:\n%s" % (heading, payload)
     start = lines.index(heading)
     out = [lines[start]]
-    for line in lines[start + 1:]:
+    for line in lines[start + 1 :]:
         if line.startswith("## "):
             break
         out.append(line)
@@ -163,7 +163,12 @@ def test_one_renderer_serves_the_sdd_pipeline_too(tmp_path: Path) -> None:
     (spec / "requirements.md").write_text(
         "---\ntopic: demo\nlayers:\n  contract_first: true\n  integration_tests: true\n"
         "  e2e_tests: true\n---\n\n# Requirements: demo\n\n## Requirements (EARS)\n\n"
-        "- **REQ-001** (ubiquitous): The system shall persist work items to disk.\n",
+        "- **REQ-001** (ubiquitous): The system shall persist work items to disk.\n\n"
+        # With the test layers on, the renderer requires scenarios: their DoD
+        # has to name the ids it covers, and naming nothing is not naming.
+        "## Scenarios\n\n<!-- mb-scenario:1 -->\n### Scenario: persist round trip\n"
+        "**Covers:** REQ-001\n\n- GIVEN a work item\n- WHEN it is persisted\n"
+        "- THEN it round-trips\n<!-- /mb-scenario:1 -->\n",
         encoding="utf-8",
     )
     pipeline = tmp_path / "pipeline.yaml"
@@ -174,10 +179,20 @@ def test_one_renderer_serves_the_sdd_pipeline_too(tmp_path: Path) -> None:
     )
     rules_path = write_rules(tmp_path)
     from_c8 = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "scripts" / "mb-sdd-layers-render.py"),
-         "--requirements", str(spec / "requirements.md"), "--pipeline", str(pipeline),
-         "--rules-json", str(rules_path), "--json"],
-        capture_output=True, text=True, cwd=str(REPO_ROOT),
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "mb-sdd-layers-render.py"),
+            "--requirements",
+            str(spec / "requirements.md"),
+            "--pipeline",
+            str(pipeline),
+            "--rules-json",
+            str(rules_path),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
     )
     assert from_c8.returncode == 0, from_c8.stderr
     from_c6 = render_block(tmp_path)
@@ -357,12 +372,37 @@ def test_overlap_not_reported_as_dry_violation() -> None:
 # ── production wiring: the two prompt receivers ─────────────────────────────
 
 
+def _work_section(text: str, heading: str) -> str:
+    """One `### 5x.` step of commands/work.md, up to the next step heading."""
+    assert heading in text, "commands/work.md has no %s" % heading
+    body = text.split(heading, 1)[1]
+    marker = "\n   ### "
+    return body.split(marker, 1)[0] if marker in body else body
+
+
 def test_work_md_delivers_the_same_file_to_implementer_and_judge() -> None:
-    """§5a and §5e must name the SAME rendered file, or the sha256 diverge."""
+    """Each receiver is asserted IN ITS OWN dispatch step, never by a count.
+
+    The first version asserted `work.count("$QUALITY_DOD") >= 3` against four
+    occurrences. Deleting the one line that hands the block to the judge left
+    three, and the test — whose name promises it watches judge delivery —
+    stayed green. A threshold over a whole document cannot tell which receiver
+    lost its copy, so each step is now checked where that step lives.
+    """
     work = (REPO_ROOT / "commands" / "work.md").read_text(encoding="utf-8")
-    assert "mb-quality-dod.sh" in work
-    assert work.count("$QUALITY_DOD") >= 3, (
-        "the rendered path must be threaded to the implementer, the reviewer "
-        "and the judge:\n" + work
+
+    render = _work_section(work, "### 5a0b.")
+    assert "mb-quality-dod.sh" in render, "the block is never rendered"
+    assert "$QUALITY_DOD" in render
+
+    reviewer = _work_section(work, "### 5d.")
+    assert '--quality-dod "$QUALITY_DOD"' in reviewer, "the reviewer's copy is not passed"
+    assert "--rules-check-json" in reviewer
+
+    judge = _work_section(work, "### 5e.")
+    assert "$QUALITY_DOD" in judge, "the judge step never receives the block:\n%s" % judge
+
+    implementer = _work_section(work, "### 5a.")
+    assert "$QUALITY_DOD" in implementer or "$QUALITY_DOD" in render, (
+        "the implementer step never receives the block"
     )
-    assert "--rules-check-json" in work

@@ -74,11 +74,13 @@ Ask the user which of the three layers this spec gets: `contract_first`, `integr
 Then render deterministically — this is code, not prompt judgement:
 
 ```bash
-bash scripts/mb-rules-resolve.sh --spec <bank>/tmp/sdd/<topic> --json > <bank>/tmp/sdd/<topic>/rules.json
+bash scripts/mb-rules-resolve.sh --repo . --mb <bank> --json > <bank>/tmp/sdd/<topic>/rules.json
 python3 scripts/mb-sdd-layers-render.py \
   --requirements <bank>/tmp/sdd/<topic>/requirements.md \
   --pipeline <pipeline.yaml> --rules-json <bank>/tmp/sdd/<topic>/rules.json --json
 ```
+
+**DISCOVERY mode here, never `--spec`.** `--spec` is the resolver's *validation* mode: it asks whether the sources a spec DECLARED in its `## Quality DoD` section exist — and at this point that section does not, because the very next line of this step is what creates it. Calling it here made every fresh spec die on `quality_dod_malformed=section_absent`, i.e. the documented order could not be followed by anyone. Validation mode belongs to `/mb work` (C6), where the spec is finished and its declarations are real.
 
 stdout is one envelope `{"tasks_markdown", "quality_dod_markdown"}`; the renderer writes no files. Insert `quality_dod_markdown` into the staged `design.md` (**only** there) and keep `tasks_markdown` for Step 4 (**only** `tasks.candidate.md`). A non-zero exit stops the pipeline: exit 1 = the `layers` block is unusable or the spec is legacy, exit 2 = usage.
 

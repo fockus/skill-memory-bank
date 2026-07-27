@@ -373,3 +373,45 @@ def test_cli_usage_error_exits_2(tmp_path):
     )
     assert proc.returncode == 2
     assert proc.stdout == ""
+
+
+def test_unterminated_frontmatter_is_loud_not_legacy(tmp_path):
+    """An opening `---` with no closing one is CORRUPT, not absent.
+
+    Both shapes made `_frontmatter_lines` return [], so a truncated or
+    mis-edited frontmatter became `source='legacy'` with all three layers off —
+    every gate silently disabled on a spec whose author was declaring them.
+    That contradicts this module's own docstring: a malformed block is loud,
+    never silently enabled.
+    """
+    import pytest
+
+    from memory_bank_skill.spec_layers import SpecLayersError, read_spec_layers
+
+    spec = tmp_path / "spec"
+    spec.mkdir()
+    req = spec / "requirements.md"
+    req.write_text(
+        "---\ntopic: demo\nlayers:\n  contract_first: true\n"
+        "# the closing marker never arrives\n\n# Requirements\n",
+        encoding="utf-8",
+    )
+    pipeline = tmp_path / "pipeline.yaml"
+    pipeline.write_text("version: \"1\"\n", encoding="utf-8")
+
+    with pytest.raises(SpecLayersError) as caught:
+        read_spec_layers(req, pipeline)
+    assert caught.value.code == "malformed_block"
+
+
+def test_no_frontmatter_at_all_is_still_legacy(tmp_path):
+    """The other half: a spec that simply has no frontmatter stays legacy."""
+    from memory_bank_skill.spec_layers import read_spec_layers
+
+    spec = tmp_path / "spec"
+    spec.mkdir()
+    req = spec / "requirements.md"
+    req.write_text("# Requirements: demo\n\n- **REQ-001** shall work.\n", encoding="utf-8")
+    pipeline = tmp_path / "pipeline.yaml"
+    pipeline.write_text("version: \"1\"\n", encoding="utf-8")
+    assert read_spec_layers(req, pipeline).source == "legacy"

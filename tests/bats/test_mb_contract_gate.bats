@@ -473,3 +473,61 @@ print('phase=%s verdict=%s n=%d' % (d['phase'], d['verdict'], len(d['checkers'])
   run bash "$REPO_ROOT/scripts/mb-pipeline-validate.sh" "$REPO_ROOT/.memory-bank/pipeline.yaml"
   [ "$status" -eq 0 ] || { echo "$output"; false; }
 }
+
+@test "contract_gate_verify_self_inconsistent_evidence_exits_2: pass with exit 0 is impossible" {
+  # `run_checker` can only produce verdict=pass for a RED phase when the
+  # checker exited non-zero AND matched its ERE. A record claiming
+  # verdict=pass alongside exit=0/output_match=false was never produced by
+  # this runner, so accepting it means the closed schema's own fields are
+  # decorative — they exist to make the record self-checking and nothing read
+  # them.
+  green_red persist_gate
+  ev="$(evidence_path persist_gate red)"
+  python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+d['exit'] = 0
+d['output_match'] = False
+json.dump(d, open(sys.argv[1], 'w'))
+" "$ev"
+  rm -f "$MARKERS/persist_gate.ran"
+  run bash "$GATE" verify --spec "$SPEC" --mb "$BANK"
+  [ "$status" -eq 2 ] || { echo "$output"; false; }
+  refute_file "$MARKERS/persist_gate.ran"
+}
+
+@test "contract_gate_verify_evidence_verdict_must_match_its_fields: red_checker cannot be a red" {
+  green_red persist_gate
+  ev="$(evidence_path persist_gate red)"
+  python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+d['output_match'] = False          # failed, but not for the declared reason
+json.dump(d, open(sys.argv[1], 'w'))
+" "$ev"
+  rm -f "$MARKERS/persist_gate.ran"
+  run bash "$GATE" verify --spec "$SPEC" --mb "$BANK"
+  [ "$status" -eq 2 ] || { echo "$output"; false; }
+  refute_file "$MARKERS/persist_gate.ran"
+}
+
+@test "contract_gate_registry_path_must_match_argv: a field nothing reads is a field nothing means" {
+  # `path` was validated only as a non-empty string: never compared with the
+  # argv that actually runs, never checked against the disk, read by no
+  # consumer. It could name any file in the world and the gate would agree.
+  checker persist_gate fail
+  registry "$(one_checker persist_gate | sed 's#"path": "tests/checkers/persist_gate.sh"#"path": "tests/checkers/does_not_exist.sh"#')"
+  run bash "$GATE" red --spec "$SPEC" --mb "$BANK"
+  [ "$status" -eq 2 ] || { echo "$output"; false; }
+  assert_substring "$output" "path"
+  refute_file "$MARKERS/persist_gate.ran"
+}
+
+@test "contract_gate_registry_path_missing_on_disk_exits_2: it must actually be there" {
+  checker persist_gate fail
+  rm -f "$REPO/tests/checkers/persist_gate.sh"
+  registry "$(one_checker persist_gate)"
+  run bash "$GATE" red --spec "$SPEC" --mb "$BANK"
+  [ "$status" -eq 2 ] || { echo "$output"; false; }
+  assert_substring "$output" "path"
+}

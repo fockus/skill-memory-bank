@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -86,13 +87,31 @@ layer_of = registry.layer_of
 # ── C3a: the Contract-checkers registry ─────────────────────────────────────
 
 
-def check_registry(task: dict, topic: str, gated: list) -> None:
-    """Schema of the registry carried by a CLOSED contract task (C3a).
+_TEST_TOKEN_RE = re.compile(
+    r"`[^`]*(?:pytest|bats|go test|cargo test|npm test|jest|rspec)[^`]*`"
+    r"|`[^`]*/[^`]*test[^`]*`",
+    re.IGNORECASE,
+)
 
-    Checked on closure and not before: the registry is written by the
+
+def _names_checker_tests(task: dict) -> bool:
+    """Does a DoD line name a runnable command or path for the checker tests?"""
+    return any(_TEST_TOKEN_RE.search(line) for line in task.get("dod_lines") or [])
+
+
+def check_registry(task: dict, topic: str, gated: list) -> None:
+    """The Contract-checkers registry (C3a).
+
+    PRESENCE is required only on closure: the registry is written by the
     orchestrator between the task's two implementer dispatches, so demanding it
     from an open task would fail the task for not yet having reached its own
     second step.
+
+    CONTENT is checked whenever a registry exists, open or closed. Gating
+    completeness on closure put the "every gated REQ has a checker" guarantee
+    after the work it governs: the registry is written while the task is still
+    open, and Dispatch B, the red gate and every business dispatch all happen
+    in that state. A gate that first speaks once the job is done is a report.
 
     The schema itself lives in ``mb_contract_registry`` because
     ``mb-contract-gate.sh`` enforces the same closed shape at run time. Two
@@ -100,22 +119,58 @@ def check_registry(task: dict, topic: str, gated: list) -> None:
     registry this validator calls fine and the gate refuses at exit 2.
     """
     item = task.get("item_no")
+    if task.get("status") == "done" and not _names_checker_tests(task):
+        # Step 2 of the contract task demands unit tests showing every checker
+        # REJECT a violating fixture and ACCEPT a conforming one, and step 4
+        # demands they be green. Both were prose: `commands/work.md`'s "Once
+        # the checker unit tests are green" was read by nothing, so a closed
+        # contract task could carry checkers whose tests were never written.
+        # No code can run tests it cannot name — so on closure the DoD has to
+        # name them. That is not proof they assert both halves; it is the
+        # difference between a claim anyone can check and one nobody can.
+        bad(
+            "Contract-checkers: the closed contract task (task %s) does not name the "
+            "checker unit tests in its DoD (a runnable command or test path)" % item
+        )
     text = registry.find_registry(task.get("body", ""))
     if text is None:
-        bad(
-            "Contract-checkers: the closed contract task (task %s) carries no "
-            "```json Contract-checkers``` block" % item
-        )
+        if task.get("status") == "done":
+            bad(
+                "Contract-checkers: the closed contract task (task %s) carries no "
+                "```json Contract-checkers``` block" % item
+            )
         return
 
     checkers, errors = registry.parse_registry(text, topic)
     for err in errors:
         bad(err)
 
+    # WHAT THIS GUARANTEE IS, EXACTLY: every gated REQ-ID appears in some
+    # checker's `covers`. It is ID MEMBERSHIP, not evidence that the checker
+    # observes the requirement — no code can decide the latter, and claiming
+    # otherwise would be the decorative kind of promise this slice removes.
+    # Relabelling one checker to cover three requirements satisfies it, so the
+    # relabelling is made VISIBLE instead of being silently sufficient: a
+    # checker carrying several gated REQs is named in the report for a human
+    # to judge.
     covered = registry.covered_reqs(checkers)
     for req in gated:
         if rq.canon(req) not in covered:
             bad("Contract-checkers: %s is gated but is covered by no checker" % req)
+
+    gated_set = {rq.canon(r) for r in gated}
+    for entry in checkers:
+        if not isinstance(entry, dict):
+            continue
+        claimed = sorted(
+            {t.split(":")[-1] for t in entry.get("covers") or [] if isinstance(t, str)} & gated_set
+        )
+        if len(claimed) > 1:
+            note(
+                "contract_checkers: `%s` claims %d gated requirements (%s) — "
+                "one checker per requirement is the reviewable shape"
+                % (entry.get("id"), len(claimed), ", ".join(claimed))
+            )
 
 
 # ── C3/C4: the gates ────────────────────────────────────────────────────────
@@ -144,6 +199,22 @@ def contract_gate(layers, contract: list, impl: list, gated: list) -> None:
             "layers: the `**Layer:** contract` task (task %s) must come before every "
             "implementation task (task %s is first)"
             % (contract[0][1].get("item_no"), impl[0][1].get("item_no"))
+        )
+
+
+def forbid_disabled_layer(name: str, flag: str, tasks_of: list) -> None:
+    """A layer switched off must not still carry its task.
+
+    `contract_first` already refused this; the other two only stopped
+    REQUIRING their task, which let a spec record "no e2e, because <reason>"
+    and carry an e2e task anyway. Two statements, opposite meanings, no way for
+    a reader to tell which is current — and the recorded refusal, the one thing
+    REQ-011 exists to preserve, is the one that loses.
+    """
+    for _pos, task in tasks_of:
+        bad(
+            "layers: %s is off, but task %s declares `**Layer:** %s`"
+            % (flag, task.get("item_no"), name)
         )
 
 
@@ -223,16 +294,23 @@ def main() -> int:
             last_impl,
             "every implementation task",
         )
+    else:
+        forbid_disabled_layer("integration", "integration_tests", by_layer.get("integration", []))
     if layers.e2e_tests:
         after, what = last_impl, "every implementation task"
         if integration_pos > after:
             after, what = integration_pos, "the `**Layer:** integration` task"
         order_gate("e2e", "e2e_tests", by_layer.get("e2e", []), after, what)
+    else:
+        forbid_disabled_layer("e2e", "e2e_tests", by_layer.get("e2e", []))
 
     if layers.contract_first and gated and len(contract) == 1:
-        task = contract[0][1]
-        if task.get("status") == "done":
-            check_registry(task, spec_dir.name, gated)
+        # Always called: `check_registry` itself decides that ABSENCE is only a
+        # violation once the task is closed, while CONTENT is judged whenever a
+        # registry exists. The status test used to live here, which skipped the
+        # content checks for the whole window in which the registry is written
+        # and acted upon.
+        check_registry(contract[0][1], spec_dir.name, gated)
     return emit()
 
 
