@@ -86,9 +86,6 @@ C7_DECISIONS = ("accept", "reject")
 C7_BASES = ("skipped", "dismissed_issues")
 C7_KEYS = frozenset({"kind", "decision", "basis", "rationale", "decided_by"})
 ITEM_RE = re.compile(r"^I-[0-9]+$")
-# Values that name no model. `inherit` is the shipped placeholder in
-# references/pipeline.default.yaml, not an identity.
-PLACEHOLDER_MODELS = frozenset({"", "inherit", "none", "null"})
 
 
 class Refusal(Exception):
@@ -251,7 +248,9 @@ def roster_model(pipeline: str, block: str):
     if not isinstance(model, str):
         return None
     model = model.strip()
-    return None if model.lower() in PLACEHOLDER_MODELS else model
+    # Shared vocabulary, not a local copy: the config validator refuses the same
+    # placeholders under `enabled: true`, and two definitions would drift.
+    return None if model.lower() in minimal_yaml.PLACEHOLDER_MODELS else model
 
 
 def generated_by(bank: str, topic: str):

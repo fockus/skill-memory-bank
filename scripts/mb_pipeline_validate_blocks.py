@@ -155,6 +155,25 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
         _yaml_scalar_kind,
     )
 
+    # A placeholder is not a model id (judge B4 follow-up). `inherit` shipped in
+    # the bundled default and is read by no code, so enabling a stage with it
+    # leaves the model unnamed by the config — and the verdict journal would
+    # then record a model nothing sanctioned (AGR-034 [8]). The roster gate
+    # refuses that at write time; this refuses it at validation time, which is
+    # where a config error belongs: otherwise the user learns their review is
+    # unusable exactly when they are waiting for a verdict. An EMPTY model is
+    # left to the "non-empty string when enabled" check above, so one mistake
+    # never produces two errors.
+    for _name, _map in (("spec_review", _sr), ("spec_judge", _sj)):
+        if _map is None or (_map.get("enabled", "") or "").lower() != "true":
+            continue
+        _model = (_map.get("model") or "").strip()
+        if _model and _model.lower() in minimal_yaml.PLACEHOLDER_MODELS:
+            err(
+                f"sdd.{_name}.model: {_model!r} is a placeholder, not a model — "
+                f"set an exact model id when enabled: true"
+            )
+
     # max_cycles: integer >= 1. A judge loop bounded by "many" is unbounded.
     if _sj is not None and "max_cycles" in _sj:
         _mc = _sj["max_cycles"]

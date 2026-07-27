@@ -166,3 +166,68 @@ mkpipeline() {
   run bash "$VALIDATE" "$p"
   refute_substring "$output" "sdd.spec_review"
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Placeholder model under `enabled: true` (judge B4 follow-up)
+# ═══════════════════════════════════════════════════════════════
+#
+# `inherit` was shipped in the bundled default and read by NO code — not a
+# broken inheritance mechanism, just a word. A run that enabled review with it
+# left the reviewer model unnamed by the config, so the verdict journal recorded
+# a model nothing sanctioned; the roster gate now refuses that at write time.
+# Refusing at write time is right but late: the user learns their review is
+# unusable exactly when they are waiting for a verdict. The config is where a
+# config error belongs.
+
+@test "spec_review_placeholder_model: enabled review with a placeholder model is a config error" {
+  local p
+  p="$(mkpipeline '{enabled: true, agent: mb-reviewer, model: inherit, thinking: medium}' \
+                  '{enabled: false, agent: mb-judge, model: judge-1, thinking: medium, max_cycles: 2}')"
+  run bash "$VALIDATE" "$p"
+  [ "$status" -ne 0 ]
+  assert_substring "$output" "sdd.spec_review.model"
+  assert_substring "$output" "placeholder"
+  # the message must say what to do, not merely that something is wrong
+  assert_substring "$output" "set an exact model id"
+}
+
+@test "spec_judge_placeholder_model: the same rule binds the judge block" {
+  local p
+  p="$(mkpipeline '{enabled: true, agent: mb-reviewer, model: rev-1, thinking: medium}' \
+                  '{enabled: true, agent: mb-judge, model: inherit, thinking: medium, max_cycles: 2}')"
+  run bash "$VALIDATE" "$p"
+  [ "$status" -ne 0 ]
+  assert_substring "$output" "sdd.spec_judge.model"
+  assert_substring "$output" "placeholder"
+}
+
+@test "spec_judge_placeholder_disabled_ok: a disabled block owes no model id" {
+  # A block that is off promises nothing; demanding configuration for something
+  # that never runs is how a rule teaches people to write noise to satisfy it.
+  # This is also the bundled default's own shape, asserted above as valid.
+  local p
+  p="$(mkpipeline '{enabled: false, agent: mb-reviewer, model: inherit, thinking: medium}' \
+                  '{enabled: false, agent: mb-judge, model: inherit, thinking: medium, max_cycles: 2}')"
+  run bash "$VALIDATE" "$p"
+  refute_substring "$output" "placeholder"
+}
+
+@test "spec_judge_placeholder_loader_parity: the rule holds with PyYAML forced off" {
+  local stub="$TMPROOT/stub"; mkdir -p "$stub"
+  printf 'raise ImportError("forced")\n' > "$stub/yaml.py"
+  local p
+  p="$(mkpipeline '{enabled: true, agent: mb-reviewer, model: inherit, thinking: medium}' \
+                  '{enabled: false, agent: mb-judge, model: judge-1, thinking: medium, max_cycles: 2}')"
+  PYTHONPATH="$stub" run bash "$VALIDATE" "$p"
+  assert_substring "$output" "placeholder"
+}
+
+@test "spec_judge_placeholder_single_source: the placeholder vocabulary is defined exactly once" {
+  # Two copies of "what counts as a placeholder" drift in exactly one direction:
+  # the config passes validation and dies at the first write. The journal writer
+  # and the validator must read the same definition.
+  run bash -c "grep -rln '^PLACEHOLDER_MODELS' '$REPO_ROOT/scripts' | wc -l | tr -d ' '"
+  [ "$output" = "1" ] || { echo "PLACEHOLDER_MODELS defined in $output places"; false; }
+  assert_grep -q 'PLACEHOLDER_MODELS' "$REPO_ROOT/scripts/mb_pipeline_validate_blocks.py"
+  assert_grep -q 'PLACEHOLDER_MODELS' "$REPO_ROOT/scripts/mb_sdd_judge_journal.py"
+}

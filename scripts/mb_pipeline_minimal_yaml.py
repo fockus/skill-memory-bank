@@ -308,6 +308,11 @@ def find_sdd_inline_map(text, key, strip_comment):
 
 SDD_LAYER_KEYS = frozenset({"contract_first", "integration_tests", "e2e_tests"})
 
+# Values that name no model (`inherit` shipped in pipeline.default.yaml and is
+# read by no code). Shared by the config validator and the journal writers —
+# see mb_pipeline_validate_blocks for why one definition matters.
+PLACEHOLDER_MODELS = frozenset({"", "inherit", "none", "null"})
+
 
 def check_sdd_layers_map(err, line):
     """Validate `sdd.layers: {k: bool, ...}`; None (absent) is valid.
@@ -386,10 +391,7 @@ def check_sdd_inline_map(err, name, line, allowed, is_string, scalar_kind):
                 # "false"/"123" -- they passed the emptiness check while being a
                 # boolean and an int to any YAML loader, and to the runtime
                 # (review [20]).
-                err(
-                    f"sdd.{name}.{k}: must be a string, "
-                    f"got the {scalar_kind(val)} {val!r}"
-                )
+                err(f"sdd.{name}.{k}: must be a string, got the {scalar_kind(val)} {val!r}")
         if not thinking:
             err(f"sdd.{name}.thinking: required when enabled")
     return parsed
