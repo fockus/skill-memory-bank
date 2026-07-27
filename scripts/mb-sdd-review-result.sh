@@ -45,6 +45,32 @@
 #
 # The triple's requirements.md status is NOT changed here — that is the
 # orchestrator's C7 state-machine decision, keyed on this exit code.
+#
+# ── S9 contract C2: the judge, the override and the read side ───────────────
+#
+#   mb-sdd-review-result.sh record --kind judge --decision GO|GO_WITH_BACKLOG|NO_GO \
+#        --judge-model <exact> [--items I-NNN,…] [--confirmed <id>=true|false,…] \
+#        [--mb <bank>] <topic>
+#   mb-sdd-review-result.sh record --kind override [--mb <bank>] <topic>
+#   mb-sdd-review-result.sh check  --judge [--judge-model <exact>] \
+#        [--reviewer-model <exact>] [--mb <bank>] <topic>
+#   mb-sdd-review-result.sh status [--mb <bank>] <topic>
+#
+# These four take the topic as a POSITIONAL argument (design C2); the S2 forms
+# above keep `--topic` and still reject a stray positional, so neither shape
+# becomes a second spelling of the other. `--kind review` is likewise refused:
+# the S2 record is spelled one way only.
+#
+# The judge decision, its per-finding `confirmed` map (AMEND-S9-2), the roster
+# check that makes an unsanctioned model UNWRITABLE (AGR-034 [8]) and the
+# `status` line consumed by the C5 work-gate live in mb_sdd_judge_journal.py.
+# It appends to the SAME journal under the SAME append-only rule, and it is the
+# only other writer.
+#
+# exit : 0 GO | override | clean check | status · 1 NO_GO | GO_WITH_BACKLOG
+#        without backlog ids for surviving findings · 2 same_model |
+#        model_not_in_roster | malformed | no_verdict_to_judge | path_escape |
+#        usage · 5 the journal exists but does not parse (AMEND-S9-1).
 
 set -euo pipefail
 
@@ -52,6 +78,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
 SECRET_SCAN="$SCRIPT_DIR/mb-secret-scan.sh"
+JUDGE_JOURNAL="$SCRIPT_DIR/mb_sdd_judge_journal.py"
 
 usage_error() { printf 'error=usage\n' >&2; exit 2; }
 
@@ -59,6 +86,7 @@ usage_error() { printf 'error=usage\n' >&2; exit 2; }
 ACTION="$1"; shift
 
 GEN=""; REV=""; AGENT=""; THINKING=""; TOPIC=""; ATTEMPT=""; INPUT=""; MB_BANK=""
+KIND=""; DECISION=""; ITEMS=""; CONFIRMED=""; JUDGE_MODEL=""; JUDGE_FLAG=0; POSITIONAL=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --generator-model) [ "$#" -ge 2 ] || usage_error; GEN="$2"; shift ;;
@@ -69,10 +97,76 @@ while [ "$#" -gt 0 ]; do
     --attempt)         [ "$#" -ge 2 ] || usage_error; ATTEMPT="$2"; shift ;;
     --input)           [ "$#" -ge 2 ] || usage_error; INPUT="$2"; shift ;;
     --mb)              [ "$#" -ge 2 ] || usage_error; MB_BANK="$2"; shift ;;
-    *) usage_error ;;
+    --kind)            [ "$#" -ge 2 ] || usage_error; KIND="$2"; shift ;;
+    --decision)        [ "$#" -ge 2 ] || usage_error; DECISION="$2"; shift ;;
+    --items)           [ "$#" -ge 2 ] || usage_error; ITEMS="$2"; shift ;;
+    --confirmed)       [ "$#" -ge 2 ] || usage_error; CONFIRMED="$2"; shift ;;
+    --judge-model)     [ "$#" -ge 2 ] || usage_error; JUDGE_MODEL="$2"; shift ;;
+    --judge)           JUDGE_FLAG=1 ;;
+    -*) usage_error ;;
+    *) [ -z "$POSITIONAL" ] || usage_error; POSITIONAL="$1" ;;
   esac
   shift
 done
+
+# ── S9 C2: judge / override / status ─────────────────────────────────────────
+# Entered ONLY by an S9 shape (`status`, `--kind …`, `check --judge`). The S2
+# forms fall through to the code below with their behaviour byte-identical,
+# including the stray-positional usage error they have always produced.
+if [ "$ACTION" = "status" ] || [ -n "$KIND" ] || [ "$JUDGE_FLAG" -eq 1 ]; then
+  # Topic: positional only. Accepting `--topic` here as well would give one
+  # value two spellings, and the two would drift.
+  [ -n "$POSITIONAL" ] && [ -z "$TOPIC" ] || usage_error
+  case "$POSITIONAL" in
+    *[!A-Za-z0-9._-]*|*..*) usage_error ;;
+  esac
+  case "$POSITIONAL" in [A-Za-z0-9]*) : ;; *) usage_error ;; esac
+  # Flags of the S2 record have no meaning here; silently ignoring one is how a
+  # caller comes to believe it passed something that was never read.
+  [ -z "$ATTEMPT" ] && [ -z "$INPUT" ] && [ -z "$AGENT" ] && [ -z "$THINKING" ] \
+    && [ -z "$GEN" ] || usage_error
+
+  S9_BANK="$(mb_resolve_path "$MB_BANK")"
+  # The roster is read from the pipeline the RUNTIME resolves, not from a
+  # hand-built path: a check against a different file than the one in force
+  # would authorise models nobody configured.
+  S9_PIPELINE="$(bash "$SCRIPT_DIR/mb-pipeline.sh" path "$S9_BANK" 2>/dev/null || true)"
+
+  case "$ACTION" in
+    status)
+      [ "$JUDGE_FLAG" -eq 0 ] && [ -z "$KIND$DECISION$ITEMS$CONFIRMED$JUDGE_MODEL$REV" ] \
+        || usage_error
+      exec python3 "$JUDGE_JOURNAL" status --bank "$S9_BANK" --topic "$POSITIONAL"
+      ;;
+    check)
+      [ "$JUDGE_FLAG" -eq 1 ] && [ -z "$KIND$DECISION$ITEMS$CONFIRMED" ] || usage_error
+      exec python3 "$JUDGE_JOURNAL" check-judge --bank "$S9_BANK" --topic "$POSITIONAL" \
+        --pipeline "$S9_PIPELINE" --judge-model "$JUDGE_MODEL" --reviewer-model "$REV"
+      ;;
+    record)
+      [ "$JUDGE_FLAG" -eq 0 ] && [ -z "$REV" ] || usage_error
+      case "$KIND" in
+        judge)
+          # --judge-model is MANDATORY (AGR-034 [8]): defaulting it from the
+          # roster would make the roster check match itself every time.
+          [ -n "$JUDGE_MODEL" ] || usage_error
+          exec python3 "$JUDGE_JOURNAL" record-judge --bank "$S9_BANK" --topic "$POSITIONAL" \
+            --pipeline "$S9_PIPELINE" --judge-model "$JUDGE_MODEL" --decision "$DECISION" \
+            --items "$ITEMS" --confirmed "$CONFIRMED"
+          ;;
+        override)
+          [ -z "$DECISION$ITEMS$CONFIRMED$JUDGE_MODEL" ] || usage_error
+          exec python3 "$JUDGE_JOURNAL" record-override --bank "$S9_BANK" --topic "$POSITIONAL"
+          ;;
+        *) usage_error ;;
+      esac
+      ;;
+    *) usage_error ;;
+  esac
+fi
+
+# The S2 forms take no positional argument — unchanged from before S9.
+[ -z "$POSITIONAL" ] || usage_error
 
 # ── check ────────────────────────────────────────────────────────────────────
 if [ "$ACTION" = "check" ]; then
