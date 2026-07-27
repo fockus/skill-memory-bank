@@ -76,6 +76,9 @@ ZONE_FILES = [
     "tests/bats/test_mb_sdd_self_check_phase.bats",
     "tests/bats/test_sdd_spec_review_r4.bats",
     "tests/pytest/test_s2_spec_status_honesty.py",
+    # I-174 gate (same rule again: a new zone file inherits the limit).
+    "scripts/mb_spec_validate_scope_eval.py",
+    "tests/bats/test_mb_spec_validate_scope_eval.bats",
     "tests/pytest/test_s2_file_size_contract.py",
 ]
 

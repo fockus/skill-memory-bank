@@ -668,7 +668,7 @@ C8 отсутствующий target = `pending_materialization`, а не observ
 - **T7** — spec_review config + владелец вердикта:
   **Eval:** `bats tests/bats/test_sdd_spec_review.bats` — red: `scripts/mb-sdd-review-result.sh` не существует, конфига и шага нет; exit: 1; output~: `not ok [0-9]+ .*(same_model|jsonl_append)`
 - **T8** — eval-first врезка (self-executing helper):
-  **Eval:** `bats tests/bats/test_work_eval_first.bats` — red: `mb-work-state.sh` не знает `eval-red`/`eval-green` (отвечает usage, exit 2), врезки в work.md нет; exit: 1; output~: `not ok [0-9]+ .*eval_red`
+  **Eval:** `bats tests/bats/test_work_eval_first.bats tests/bats/test_mb_work_state_eval.bats` — red: `mb-work-state.sh` не знает `eval-red`/`eval-green` (отвечает usage, exit 2), врезки в work.md нет; exit: 1; output~: `not ok [0-9]+ .*eval_red`
 - **T9** — детерминированный исполнитель батареи C8a:
   **Eval:** `bats tests/bats/test_mb_sdd_self_check.bats tests/bats/test_mb_sdd_self_check_multi.bats tests/bats/test_mb_sdd_self_check_phase.bats` — red: `scripts/mb-sdd-self-check.sh` не существует (отвечает `command not found`/usage), preflight-логики нет; exit: 1; output~: `not ok [0-9]+ self_check: `
 

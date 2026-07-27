@@ -32,6 +32,7 @@ import sys
 sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
 import mb_req_id as rq  # noqa: E402
 import mb_spec_validate_graph as graph_gate  # noqa: E402
+import mb_spec_validate_scope_eval as scope_eval_gate  # noqa: E402
 from mb_spec_validate_structural import (  # noqa: E402
     eval_targets,
     is_no_runtime,
@@ -91,6 +92,11 @@ graph_gate.check_graph(tasks, this_topic, specs_root, emit)
 
 
 def run_v2_gates() -> None:
+    # Check 10a — I-174: every runnable test file a task's Scope claims must be
+    # run by its own Eval. Beside CPR-D on purpose: it compares declaration to
+    # declaration, and it has to fire at spec time, not at battery time.
+    scope_eval_gate.check(tasks, emit)
+
     # gated = defined REQ carrying a SHALL/MUST modal.
     #
     # Modality is a property of the whole requirement BLOCK, not of one physical

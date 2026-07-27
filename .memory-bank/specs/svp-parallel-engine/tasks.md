@@ -315,7 +315,7 @@
   `session-memory`) — они остаются genuine; мета-тест closed-vocabulary обязан остаться зелёным.
 - Codex остаётся под REQ-008 всегда (нет subagents) — negative-тест сохраняется.
 
-**Eval:** `bats tests/bats/test_mb_work_parallel_parity.bats` — red: parity-теста нет, тест деградации codex падает; exit: 1; output~: `not ok [0-9]+ .*codex degrades`
+**Eval:** `bats tests/bats/test_mb_work_parallel_parity.bats tests/bats/test_platform_limited_honesty.bats` — red: parity-теста нет, тест деградации codex падает; exit: 1; output~: `not ok [0-9]+ .*codex degrades`
 
 **Testing (TDD — tests BEFORE implementation):**
 - bats: codex (`--probe` → `available:false`) + `pipeline default=parallel` → sequential,
@@ -532,7 +532,7 @@
 - Закрывает backlog I-121/I-122 (`adapters/pi.sh:328-340` называет отсутствующее звено — routing wiring
   в `/mb work` — прямо этим слайсом).
 
-**Eval:** `bats tests/bats/test_mb_work_dispatch.bats` — red: адаптера нет, probe-тест pi падает; exit: 1; output~: `not ok [0-9]+ .*pi role route probe`
+**Eval:** `bats tests/bats/test_mb_work_dispatch.bats tests/bats/test_mb_subinvoke_resolve.bats` — red: адаптера нет, probe-тест pi падает; exit: 1; output~: `not ok [0-9]+ .*pi role route probe`
 
 **Testing (TDD — tests BEFORE implementation):**
 - bats (probe): pi с резолвящимся агентом → `available:true`, exit 0; pi с недоступным расширением/

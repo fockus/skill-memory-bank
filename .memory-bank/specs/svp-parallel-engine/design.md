@@ -506,7 +506,7 @@ C1 фронтир → Scope-отбор → C2 claim → C8 dispatch → report �
 - **T5** — red-условие: `--group` нет → падает тест компаратора S4-C2:
   **Eval:** `bats tests/bats/test_mb_work_resolve_group.bats` — red: `--group`-режима нет, тест компаратора падает; exit: 1; output~: `not ok [0-9]+ .*S4-C2 comparator`
 - **T6** — red-условие: деградации нет → падает probe-тест codex:
-  **Eval:** `bats tests/bats/test_mb_work_parallel_parity.bats` — red: parity-теста нет, тест деградации codex падает; exit: 1; output~: `not ok [0-9]+ .*codex degrades`
+  **Eval:** `bats tests/bats/test_mb_work_parallel_parity.bats tests/bats/test_platform_limited_honesty.bats` — red: parity-теста нет, тест деградации codex падает; exit: 1; output~: `not ok [0-9]+ .*codex degrades`
 - **T7** — red-условие: `--scope-paths` нет → падает untracked-тест:
   **Eval:** `bats tests/bats/test_mb_work_diff_scope_paths.bats` — red: `--scope-paths` не реализован, untracked-тест падает; exit: 1; output~: `not ok [0-9]+ .*untracked`
 - **T8** — red-условие: `configure-mode` нет → падает precedence-тест:
@@ -514,7 +514,7 @@ C1 фронтир → Scope-отбор → C2 claim → C8 dispatch → report �
 - **T9** — red-условие: scheduler'а нет → падает claim-before-dispatch:
   **Eval:** `pytest tests/pytest/test_parallel_scheduler.py` — red: scheduler'а нет, claim-before-dispatch падает; exit: 1; output~: `FAILED .*test_parallel_scheduler\.py::test_claim_recorded_before_dispatch`
 - **T10** — red-условие: адаптера нет → падает probe-тест pi:
-  **Eval:** `bats tests/bats/test_mb_work_dispatch.bats` — red: адаптера нет, probe-тест pi падает; exit: 1; output~: `not ok [0-9]+ .*pi role route probe`
+  **Eval:** `bats tests/bats/test_mb_work_dispatch.bats tests/bats/test_mb_subinvoke_resolve.bats` — red: адаптера нет, probe-тест pi падает; exit: 1; output~: `not ok [0-9]+ .*pi role route probe`
 
 ## Risks & mitigation
 
