@@ -349,6 +349,20 @@ if [ -n "$TASKS_JSONL" ] && [ -f "$REQ_FILE" ]; then
     python3 "$SCRIPT_DIR/mb_spec_validate_v2.py" >>"$VIOLATIONS_FILE"
 fi
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Check 17: test-layer gates C3/C4 + Contract-checkers schema (S8 Task 3).
+#   Runs on the SAME parsed tasks every gate above consumes, and independently
+#   of the Eval feature: a spec can declare `layers` without declaring an Eval.
+#   A spec with no `layers` block is legacy — the module applies no gate to it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+if [ -n "$TASKS_JSONL" ] && [ -f "$REQ_FILE" ]; then
+  TASKS_DATA="$TASKS_JSONL" REQ_PATH="$REQ_FILE" SPEC_DIR="$SPEC_DIR" \
+    PIPELINE_YAML="$PIPELINE_YAML" MB_SCRIPT_DIR="$SCRIPT_DIR" \
+    MB_SPEC_VALIDATE_JSON="$JSON_MODE" \
+    python3 "$SCRIPT_DIR/mb_spec_validate_layers.py" >>"$VIOLATIONS_FILE"
+fi
+
 # Accepted waivers are visible in the output even on a clean run (REQ-050).
 if [ -s "$WAIVERS_FILE" ]; then
   while IFS= read -r wline; do
