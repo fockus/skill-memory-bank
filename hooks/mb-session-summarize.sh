@@ -85,8 +85,9 @@ $SRC"
 SUMMARY=""
 case "$BACKEND" in
   claude-code)
-    SUMMARY="$(printf '%s' "$PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
-      --model "$HAIKU_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
+    SUMMARY="$(printf '%s' "$PROMPT" | sc_run_bounded "$MB_SESSION_LLM_TIMEOUT" \
+      env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
+      --model "$HAIKU_MODEL" --strict-mcp-config --no-session-persistence --no-chrome || true)"
     ;;
   command)
     SUMMARY="$(printf '%s' "$PROMPT" | env MB_CAPTURE_SUBPROCESS=1 "$SUMMARIZE_BIN" 2>/dev/null || true)"

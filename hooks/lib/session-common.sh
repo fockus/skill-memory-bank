@@ -319,3 +319,36 @@ sc_summary_backend() {
     *)      printf 'claude-code\n' ;;
   esac
 }
+
+# Wall-clock bound for a single session-capture LLM call. This is a ZOMBIE GUARD, not a
+# speed knob: since mb-session-end.sh re-execs detached, nobody waits on these any more,
+# so cutting them short buys nothing and costs summaries. Measured: a 477KB / 125-turn
+# session needs well over 45s, and a 45s bound killed it mid-stream (rc=124) — the
+# summariser honourably refused to write the truncated result, so the only visible effect
+# was silence. 240s matches the hook cap this used to block on.
+# Both callers run `set -u`, so this default must exist here — it is referenced before any
+# caller has a chance to define it.
+MB_SESSION_LLM_TIMEOUT="${MB_SESSION_LLM_TIMEOUT:-240}"
+
+# sc_run_bounded <secs> <cmd...> — run a command with a wall-clock bound, stdout on
+# stdout, stdin passed through. macOS ships neither `timeout` nor `gtimeout`, and both
+# session-capture LLM calls used to be unbounded: `claude -p` swallows its own errors
+# (`2>/dev/null || true`), so a stalled or retrying call had NO failure mode — it just
+# waited, silently, up to the hook's 240s cap. Returns 124 on timeout, like coreutils.
+sc_run_bounded() {
+  local secs="$1"; shift
+  local out rc watcher pid
+  out="$(mktemp "${TMPDIR:-/tmp}/sc_bounded.XXXXXX")" || return 1
+  "$@" >"$out" 2>/dev/null &
+  pid=$!
+  # The watcher MUST NOT inherit our stdout: a caller using $(sc_run_bounded ...) waits
+  # for every writer to close the pipe, so a watcher holding it makes EVERY call take the
+  # full bound — slower than the unbounded original. Caught by timing the fast path.
+  ( sleep "$secs"; kill -TERM "$pid" 2>/dev/null ) >/dev/null 2>&1 &
+  watcher=$!
+  wait "$pid" 2>/dev/null; rc=$?
+  kill "$watcher" 2>/dev/null; wait "$watcher" 2>/dev/null
+  [ "$rc" -gt 128 ] && rc=124
+  cat "$out"; rm -f "$out"
+  return "$rc"
+}

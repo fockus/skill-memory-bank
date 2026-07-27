@@ -24,6 +24,20 @@ CWD="$(printf '%s' "$INPUT" | "$JQ" -r '.cwd // empty' 2>/dev/null || true)"
 SID="$(printf '%s' "$INPUT" | "$JQ" -r '.session_id // empty' 2>/dev/null || true)"
 [ -n "$CWD" ] || CWD="$PWD"
 
+# Everything below boots `claude -p` TWICE from cold (summariser, then judge). Measured on
+# this machine: 6-18s per boot for a two-token reply — that is CLI startup (24 plugins, 11
+# skills, 35 hooks), not inference, so the cheap model is not cheaper. Both calls swallow
+# their errors, so a stalled one has no failure mode and just waits, up to the hook's 240s
+# cap, with the session refusing to exit the whole time.
+#
+# None of it is needed synchronously: the artefacts it writes are read by LATER sessions.
+# So re-exec detached, handing the already-consumed stdin payload to the child, and return
+# immediately. MB_SESSION_END_DETACHED is the re-entry guard.
+if [ -z "${MB_SESSION_END_DETACHED:-}" ]; then
+  printf '%s' "$INPUT" | MB_SESSION_END_DETACHED=1 nohup bash "$0" >/dev/null 2>&1 &
+  exit 0
+fi
+
 # shellcheck source=lib/session-common.sh
 . "$HOOK_DIR/lib/session-common.sh"
 
@@ -87,8 +101,9 @@ Output ONLY a JSON array (no prose, no code fences) of 0 to 2 objects, each {\"t
 Session:
 $SRC"
 
-JUDGE_OUT="$(printf '%s' "$JUDGE_PROMPT" | env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
-  --model "$JUDGE_MODEL" --strict-mcp-config --no-session-persistence --no-chrome 2>/dev/null || true)"
+JUDGE_OUT="$(printf '%s' "$JUDGE_PROMPT" | sc_run_bounded "$MB_SESSION_LLM_TIMEOUT" \
+  env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 "$CLAUDE" -p \
+  --model "$JUDGE_MODEL" --strict-mcp-config --no-session-persistence --no-chrome || true)"
 
 # Extract the first top-level JSON array from the judge output. The output usually carries a
 # preamble: most often `[MEMORY BANK: ACTIVE]`, which the `claude -p` subprocess emits because
