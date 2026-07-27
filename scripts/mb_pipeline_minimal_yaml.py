@@ -306,6 +306,39 @@ def find_sdd_inline_map(text, key, strip_comment):
     return line, at_top_level
 
 
+SDD_LAYER_KEYS = frozenset({"contract_first", "integration_tests", "e2e_tests"})
+
+
+def check_sdd_layers_map(err, line):
+    """Validate `sdd.layers: {k: bool, ...}`; None (absent) is valid.
+
+    Absent means "use the built-in defaults" — every pipeline.yaml written
+    before this feature has no such block. A NESTED block, by contrast, yields
+    `layers: None` here and a full dict under PyYAML, so the two branches would
+    disagree about whether the layers are configured at all; that is why the
+    inline form is a requirement rather than a style choice.
+    """
+    if line is None:
+        return None
+    if not (line.startswith("{") and line.endswith("}")):
+        err("sdd.layers: must be an inline mapping {%s}" % ", ".join(sorted(SDD_LAYER_KEYS)))
+        return None
+    parsed = {}
+    for part in [p for p in line[1:-1].strip().split(",") if p.strip()]:
+        if ":" not in part:
+            err("sdd.layers: a value must not contain a comma (inline-map grammar)")
+            return None
+        key, value = part.split(":", 1)
+        parsed[key.strip()] = value.strip()
+    extra = sorted(set(parsed) - SDD_LAYER_KEYS)
+    if extra:
+        err("sdd.layers: unknown keys %s" % extra)
+    for key in sorted(parsed):
+        if parsed[key].lower() not in ("true", "false"):
+            err("sdd.layers.%s: must be boolean (got %r)" % (key, parsed[key]))
+    return parsed
+
+
 def check_sdd_inline_map(err, name, line, allowed, is_string, scalar_kind):
     """Validate the shared inline-map grammar; return the parsed dict or None.
 

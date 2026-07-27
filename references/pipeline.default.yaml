@@ -259,6 +259,13 @@ review_rubric:
 
 # ===== SDD enforcement =====
 sdd:
+  # Default test layers for a NEW spec (svp-contract-test-loop C1). A spec's own
+  # explicit block wins; a spec with NO block is legacy and gets none of them.
+  # INLINE MAP IS REQUIRED, not style: mb-pipeline-validate.sh reads `sdd` with
+  # parse_simple_mapping (indent == 2 only), so a nested block yields `layers: None`
+  # without PyYAML and a full dict with it — the two branches would disagree about
+  # whether the layers are configured at all.
+  layers: {contract_first: true, integration_tests: true, e2e_tests: true}
   enabled: false                          # opt-in composable stage (flag: --sdd)
   require_ears_in_sdd_command: true       # /mb sdd — hard requirement
   require_ears_in_plan_command: false     # /mb plan — soft (warning)

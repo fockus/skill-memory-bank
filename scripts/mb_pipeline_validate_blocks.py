@@ -139,11 +139,21 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
             )
 
     _sr = minimal_yaml.check_sdd_inline_map(
-        err, "spec_review", _sr_line,
-        {"enabled", "agent", "model", "thinking", "rubric"}, _is_yaml_string, _yaml_scalar_kind)
+        err,
+        "spec_review",
+        _sr_line,
+        {"enabled", "agent", "model", "thinking", "rubric"},
+        _is_yaml_string,
+        _yaml_scalar_kind,
+    )
     _sj = minimal_yaml.check_sdd_inline_map(
-        err, "spec_judge", _sj_line,
-        {"enabled", "agent", "model", "thinking", "max_cycles"}, _is_yaml_string, _yaml_scalar_kind)
+        err,
+        "spec_judge",
+        _sj_line,
+        {"enabled", "agent", "model", "thinking", "max_cycles"},
+        _is_yaml_string,
+        _yaml_scalar_kind,
+    )
 
     # max_cycles: integer >= 1. A judge loop bounded by "many" is unbounded.
     if _sj is not None and "max_cycles" in _sj:
@@ -162,6 +172,17 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
                 "sdd.spec_judge: spec_judge_requires_spec_review "
                 "(enabled judge over a disabled/absent sdd.spec_review has no verdict to judge)"
             )
+
+    # ── sdd.layers (svp-contract-test-loop C1) ──────────────────────────
+    # Inline-map discipline, same as spec_review/spec_judge; the grammar and its
+    # rationale live beside its siblings in minimal_yaml.check_sdd_layers_map.
+    _lay_line, _lay_top = minimal_yaml.find_sdd_inline_map(text, "layers", strip_comment)
+    if _lay_line is None and _lay_top:
+        err(
+            "layers: must be nested under the top-level `sdd:` block "
+            "(runtime reads sdd.layers; a top-level one is never applied)"
+        )
+    minimal_yaml.check_sdd_layers_map(err, _lay_line)
 
     # ── runtime blocks: review / judge / review_ensemble / done_* / dispatch ──
     KNOWN_AGENTS = {
