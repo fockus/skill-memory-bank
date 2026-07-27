@@ -1,6 +1,10 @@
 
 # claude-skill-memory-bank: Статус проекта
 
+## 🟡 2026-07-28 — graph-semantic-adoption: план создан (AGR-038), в работе
+
+Замер транскриптов за 14 дней: ~7 400 bash-grep против 43 `mb-graph-query` и ~0 настоящих `mb-semantic-search` — весь инструментарий реализован, но не используется. Корни: codesearch-индекс существует только в FaberlicApp; графы протухли в 3/4 банков (catchup срабатывает только при запросе — курица-яйцо); nudge троттлится до 1 раза за сессию без готовой команды; субагенты не видят статус свежести. План: [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — 5 стадий (nudge v2 → bootstrap индекса в `--apply` + backfill → фоновый catchup на SessionStart → враппер `mb-graph.sh` → статус графа субагентам). Gate: демо-прогон + контрольный замер adoption через неделю (цель ≥10×).
+
 ## ⏸ 2026-07-18 — G-001: исполнение группы sdd-vision-pipeline (волна 1) — ПАУЗА по запросу пользователя
 
 Прогон всех 10 спек группы через `/mb work` codex-governed до судейского GO: implement=**Opus**-сабагенты, review=**codex gpt-5.6-sol (xhigh)**, judge=**mb-judge на Fable** (AGR-023, `pipeline.yaml` обновлён и валиден; goal `G-001` в `goal.md`, `project.md` создан). ≤3 параллельных треков, ≤4 сабагентов; оркестратор — основная сессия; правила совместного владения файлами — `COORDINATION.md` § svp-group-exec.
@@ -161,6 +165,7 @@ Cross-session coordination also shipped (`references/coordination.md` had been u
 - [2026-05-24] `queued` [2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Plan: feature — Parallel pipeline (S5 of harness-upgrade)
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
 - [2026-07-18] [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
+- [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
 <!-- /mb-active-plans -->
 
 ## Recently done

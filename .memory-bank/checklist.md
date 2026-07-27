@@ -91,3 +91,23 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 <!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
 ## Stage 6: Финальный централизованный проход и актуализация банка
 - ✅ Финальный централизованный проход и актуализация банка
+
+<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
+## Stage 1: Nudge v2 — повторяемый и действенный
+- ⬜ Nudge v2 — повторяемый и действенный
+
+<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
+## Stage 2: Bootstrap векторного индекса при `/mb graph --apply`
+- ⬜ Bootstrap векторного индекса при `/mb graph --apply`
+
+<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
+## Stage 3: Auto-catchup графа на SessionStart
+- ⬜ Auto-catchup графа на SessionStart
+
+<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
+## Stage 4: Короткий враппер `mb-graph.sh` + короткие тексты подсказок
+- ⬜ Короткий враппер `mb-graph.sh` + короткие тексты подсказок
+
+<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
+## Stage 5: Статус графа в диспатче субагентов
+- ⬜ Статус графа в диспатче субагентов

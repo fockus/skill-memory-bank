@@ -7,6 +7,7 @@
 - [2026-05-24_fix_cursor-compatibility-remediation](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation — progress=86% stages(done=5,in_progress=1,planned=0,total=6)
 - [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency — progress=28% stages(done=1,in_progress=2,planned=3,total=6)
 - [spec-group-round3-remediation](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation — progress=100% stages(done=6,in_progress=0,planned=0,total=6)
+- [graph-semantic-adoption](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption — progress=0% stages(done=0,in_progress=0,planned=5,total=5)
 
 ## Next (strict order — depends)
 
@@ -399,6 +400,7 @@ ICE = Impact × Confidence × Ease (каждый 1–10). Последовате
 - [2026-05-24] [plans/2026-05-24_feature_parallel-pipeline.md](plans/2026-05-24_feature_parallel-pipeline.md) — feature — Parallel pipeline (⚠️ arch decision vs dynamic-flow)
 - [2026-05-24] [plans/2026-05-24_fix_pi-compatibility-remediation.md](plans/2026-05-24_fix_pi-compatibility-remediation.md) — fix — Pi Compatibility Remediation
 - [2026-07-18] [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
+- [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
 <!-- /mb-active-plans -->
 
 ## Ближайшие шаги
