@@ -74,8 +74,8 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
         and isinstance(hard, int)
         and not isinstance(soft, bool)
         and not isinstance(hard, bool)
+        and hard <= soft
     ):
-        if hard <= soft:
             err(
                 f"sprint_context_guard: hard_stop_tokens ({hard}) must be > soft_warn_tokens ({soft})"
             )
@@ -247,11 +247,11 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
             if omc is not None and omc not in valid_max_cycles:
                 err(f"review.on_max_cycles: '{omc}' not in {sorted(valid_max_cycles)}")
             cats = rev.get("categories")
-            if cats is not None:
-                if not isinstance(cats, list) or not all(
-                    isinstance(c, str) and c.strip() for c in cats
-                ):
-                    err("review.categories: must be a list of non-empty strings")
+            if cats is not None and (
+                not isinstance(cats, list)
+                or not all(isinstance(c, str) and c.strip() for c in cats)
+            ):
+                err("review.categories: must be a list of non-empty strings")
 
     if "judge" in cfg:
         jud = cfg.get("judge") or {}
@@ -273,11 +273,11 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
             ):
                 err("judge.register_backlog_before_done: must be boolean")
             bp = jud.get("blocking_policy")
-            if bp is not None:
-                if not isinstance(bp, list) or not all(
-                    isinstance(x, str) and x.strip() for x in bp
-                ):
-                    err("judge.blocking_policy: must be a list of non-empty strings")
+            if bp is not None and (
+                not isinstance(bp, list)
+                or not all(isinstance(x, str) and x.strip() for x in bp)
+            ):
+                err("judge.blocking_policy: must be a list of non-empty strings")
 
     if "review_ensemble" in cfg:
         ens = cfg.get("review_ensemble") or {}
@@ -364,9 +364,12 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
         if stage_name not in cfg:
             continue
         block = cfg.get(stage_name)
-        if isinstance(block, dict) and "enabled" in block:
-            if not isinstance(block.get("enabled"), bool):
-                err(f"{stage_name}.enabled: must be boolean")
+        if (
+            isinstance(block, dict)
+            and "enabled" in block
+            and not isinstance(block.get("enabled"), bool)
+        ):
+            err(f"{stage_name}.enabled: must be boolean")
 
     # ── named-pipeline metadata (optional keys; validated only with PyYAML) ──
     # pipeline_name / default / agents are an opt-in layer used by named pipelines.

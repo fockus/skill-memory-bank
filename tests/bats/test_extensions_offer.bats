@@ -395,7 +395,17 @@ DRIVEBLOCK
 # Inserts the drive block immediately before the section's first `---`
 # separator (the one preceding `## Global Rules`), matching where
 # _agents_md_section emits it.
+# Idempotent by construction: the baseline is HEAD, and HEAD MOVES. Before the
+# drive-loop commit the block was working-tree-only and had to be inserted here;
+# once that work is committed the baseline already carries it, and inserting a
+# second copy would fabricate a delta that never existed. Keying on the block's
+# own heading makes this reconstruction correct on both sides of that commit
+# instead of expiring the moment the branch lands.
 _nfr001_insert_drive_block() {
+  if grep -qF '## drive-loop contract (autonomous goal-driven runs)' "$1"; then
+    cat "$1"
+    return 0
+  fi
   local inserted=0 line
   while IFS= read -r line; do
     if [ "$inserted" -eq 0 ] && [ "$line" = "---" ]; then

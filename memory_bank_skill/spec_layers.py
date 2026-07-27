@@ -221,10 +221,9 @@ def read_spec_layers(requirements_path, pipeline_path) -> SpecLayers:
             if not isinstance(value, bool):
                 raise SpecLayersError("malformed_block", key)
             reason = block.get("%s_reason" % key)
-            if value is False:
-                # Owed only by the spec that made the decision.
-                if not isinstance(reason, str) or not reason.strip():
-                    raise SpecLayersError("missing_reason", key)
+            # A reason is owed only by the spec that made the decision.
+            if value is False and (not isinstance(reason, str) or not reason.strip()):
+                raise SpecLayersError("missing_reason", key)
             values[key] = value
             reasons[key] = reason if isinstance(reason, str) and reason.strip() else None
         else:

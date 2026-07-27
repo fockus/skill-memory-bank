@@ -163,6 +163,7 @@ STAGING=""
 LOCK_DIR=""
 LOCK_TOKEN=""
 
+# shellcheck disable=SC2329  # invoked indirectly via `trap`
 cleanup() {
   [ -n "$STAGING" ] && rm -rf "$STAGING"
   [ -n "$LOCK_TOKEN" ] && mb_lock_release "$LOCK_DIR" "$LOCK_TOKEN" >/dev/null 2>&1

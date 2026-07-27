@@ -19,6 +19,7 @@ back (it is a committable artifact).
 
 from __future__ import annotations
 
+import contextlib
 import fcntl
 import os
 import signal
@@ -165,7 +166,7 @@ def maybe_catchup(
             pass
 
         try:
-            fh = open(_lock_path(graph_path), "w")
+            fh = open(_lock_path(graph_path), "w")  # noqa: SIM115 — lock held past this block
         except OSError:
             return {"result": "locked"}  # unwritable lock path → skip, fail-open
         try:
@@ -218,10 +219,8 @@ def maybe_catchup(
             for line in stdout.splitlines():
                 key, sep, value = line.partition("=")
                 if sep and key in ("reparsed", "cached", "nodes", "edges"):
-                    try:
+                    with contextlib.suppress(ValueError):
                         out[key] = int(value)
-                    except ValueError:
-                        pass
             return out
         finally:
             fh.close()  # close releases the flock

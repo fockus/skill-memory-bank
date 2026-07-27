@@ -318,7 +318,7 @@ The agent reads these rules at session start and follows them without you having
 
 ### 3. Dev-workflow commands
 
-**30 top-level slash-commands** (live in `commands/`):
+**33 top-level slash-commands** (live in `commands/`):
 
 | Command | Purpose |
 |---------|---------|
@@ -326,9 +326,12 @@ The agent reads these rules at session start and follows them without you having
 | `/start` | Lightweight session start (loads STATUS/checklist only) |
 | `/done` | Lightweight session close (no full actualize) |
 | `/plan` | Implementation plan generator with DoD/TDD scaffolding (Phase / Sprint / Stage) |
+| `/brief` | Turn a raw request + attached documents into a validated one-page brief under `briefs/<topic>/` |
 | `/discuss` | 5-phase requirements-elicitation interview → `context/<topic>.md` (EARS-validated) |
+| `/groom` | Critical grooming of any task or idea — challenges necessity and approach, records decisions (no spec required) |
 | `/sdd` | Kiro-style spec triple → `specs/<topic>/{requirements,design,tasks}.md` |
 | `/work` | Execute plan/spec stages with role-agents; composable pipeline (`--review`/`--judge`/`--stages`, review **off by default**) |
+| `/drive` | Autonomous goal-driven loop over the deterministic firewall — drives `goal.md` to completion, `stop_success` requires a green firewall AND 100% acceptance |
 | `/config` | Manage `pipeline.yaml` engine config (init / show / validate / path) |
 | `/pipeline` | Manage multiple named pipelines (`pipelines/<name>.yaml`) — different models + workflow, host auto-binding (list / new / use / show / path / validate) |
 | `/profile` | Manage rule profiles and stack presets (init / show / validate / set / path) |
@@ -351,6 +354,7 @@ The agent reads these rules at session start and follows them without you having
 | `/goal` | Scaffold + validate the durable `goal.md`/`project.md` Dynamic Flow artifacts |
 | `/analyze-task` | Auto-classify goal + diff scope into a flow route (Dynamic Flow default entry point) |
 | `/flow` | Explicitly select a flow route, skipping auto-classification (manual override) |
+| `/agree` | Running list of agreements — the canonical registry of confirmed decisions (`add` / `question` / `--supersedes`) |
 
 **Key `/mb` sub-commands** (full list lives in `commands/mb.md`):
 

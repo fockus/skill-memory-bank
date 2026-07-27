@@ -99,14 +99,15 @@ WHITELIST_PATTERNS = (
     re.compile(r"^rules/RULES\.md$"),
     re.compile(r"^CHANGELOG\.md$"),
     re.compile(r"^templates/locales/ru/"),
-    re.compile(r"^\.memory-bank/progress\.md$"),
-    re.compile(r"^\.memory-bank/lessons\.md$"),
-    re.compile(r"^\.memory-bank/notes/"),
-    re.compile(r"^\.memory-bank/reports/"),
-    re.compile(r"^\.memory-bank/specs/"),
-    re.compile(r"^\.memory-bank/plans/done/"),
-    re.compile(r"^\.memory-bank/\.migration-backup-"),
-    re.compile(r"^\.memory-bank/\.pre-migrate(?:-|/)"),
+    # This repo's own `.memory-bank/` is DOGFOOD DATA, not shipped skill source:
+    # it is written by a Russian-speaking maintainer and quotes section titles of
+    # external documents verbatim ("Этап 0" is a heading in the donor's
+    # source-plan.md — translating the citation would break the reference).
+    # The terminology canon this test defends applies to what the skill SHIPS —
+    # SKILL.md, commands/, templates/, references/, docs/ — all of which stay
+    # under the guard. This replaces the eight per-file `.memory-bank/` entries
+    # that used to be added one at a time, always one new bank file behind.
+    re.compile(r"^\.memory-bank/"),
     re.compile(r"^references/templates\.md$"),  # the SSoT itself can cite legacy term
     re.compile(r"^tests/.*"),  # tests can reference the term they're checking
 )

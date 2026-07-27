@@ -47,6 +47,7 @@ LOCK_TTL="${MB_GLOSSARY_LOCK_TTL:-120}"
 _LOCK_DIR=""
 _LOCK_TOKEN=""
 # Release on EVERY exit path — success, validation reject, conflict, or signal.
+# shellcheck disable=SC2329  # invoked indirectly via `trap`
 _cleanup() {
   [ -n "$_LOCK_DIR" ] && mb_lock_release "$_LOCK_DIR" "$_LOCK_TOKEN" >/dev/null 2>&1 || true
 }
@@ -58,6 +59,7 @@ _cleanup() {
 # process: release, disarm EXIT so the release is not attempted twice, and exit
 # with the conventional 128+signal status (same shape as
 # mb-interview-artifact-write.sh).
+# shellcheck disable=SC2329  # invoked indirectly via `trap`
 _on_signal() {
   _cleanup
   trap - EXIT

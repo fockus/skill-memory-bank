@@ -33,7 +33,6 @@ from mb_pipeline_minimal_yaml import (  # noqa: E402
     strip_comment,
 )
 
-
 with open(path, encoding="utf-8") as fh:
     text = fh.read()
 
@@ -124,11 +123,10 @@ for idx, step in enumerate(sp):
         err(f"stage_pipeline[{name}]: role 'auto' is only permitted for implement/fix")
     if name == "sdd":
         required = step.get("required_artifacts")
-        if required is not None:
-            if not isinstance(required, list) or not all(
-                isinstance(x, str) and x for x in required
-            ):
-                err("stage_pipeline[sdd].required_artifacts: must be a list of non-empty strings")
+        if required is not None and (
+            not isinstance(required, list) or not all(isinstance(x, str) and x for x in required)
+        ):
+            err("stage_pipeline[sdd].required_artifacts: must be a list of non-empty strings")
     if name == "review":
         approval_required = step.get("approval_required")
         if approval_required is not None and not isinstance(approval_required, bool):
@@ -261,13 +259,12 @@ if workflows_cfg:
                     f"workflows.{wname}.loop.returns_to: step '{returns_to}' is not in workflow steps"
                 )
             max_cycles = loop.get("max_cycles")
-            if max_cycles is not None:
-                if (
-                    not isinstance(max_cycles, int)
-                    or isinstance(max_cycles, bool)
-                    or max_cycles < 1
-                ):
-                    err(f"workflows.{wname}.loop.max_cycles: must be int >= 1")
+            if max_cycles is not None and (
+                not isinstance(max_cycles, int)
+                or isinstance(max_cycles, bool)
+                or max_cycles < 1
+            ):
+                err(f"workflows.{wname}.loop.max_cycles: must be int >= 1")
             on_max_cycles = loop.get("on_max_cycles")
             if on_max_cycles is not None and on_max_cycles not in valid_max_cycles:
                 err(

@@ -11,6 +11,7 @@ exist per machine.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -199,15 +200,13 @@ def _index_embeddings(mb_root: Path, index_dir: Path, sources, full) -> dict:
     except ImportError as e:
         # A manual embeddings reindex used to be fully mute here (fail-safe
         # swallowed it). Hooks silence stderr, humans now see why:
-        try:
+        with contextlib.suppress(Exception):
             print(
                 f"[mb-semantic] embeddings backend unavailable ({e}) — install deps via "
                 "hooks/mb-semantic-bootstrap.sh or run through hooks/mb-reindex.sh "
                 "(they pick the venv python)",
                 file=sys.stderr,
             )
-        except Exception:
-            pass
         raise
 
 

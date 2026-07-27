@@ -7,12 +7,15 @@ zone already uses for `mb_spec_validate_*.py`. Behaviour is unchanged: argv is
 `wrapper\t<spec tasks.md>\t<wrapper basename>\t<tasks range>`.
 """
 
-import re, os, sys
+import os
+import re
+import sys
 
 plan_path = sys.argv[1]
 mb_arg = sys.argv[2] if len(sys.argv) > 2 else ""
 
-text = open(plan_path, encoding="utf-8").read()
+with open(plan_path, encoding="utf-8") as _fh:
+    text = _fh.read()
 m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
 if not m:
     # No frontmatter — plain plan, no wrapper
@@ -71,10 +74,7 @@ if linked_spec is None:
 # Resolve spec tasks.md relative to memory-bank root
 plan_dir = os.path.dirname(os.path.realpath(plan_path))
 # Try mb_arg first, then go up from plan_dir (plans/ → .memory-bank/)
-if mb_arg:
-    mb_root = os.path.realpath(mb_arg)
-else:
-    mb_root = os.path.dirname(plan_dir)
+mb_root = os.path.realpath(mb_arg) if mb_arg else os.path.dirname(plan_dir)
 
 # Containment (r3 review [2]). os.path.join DISCARDS mb_root when linked_spec is
 # absolute, so `linked_spec: /tmp/evil` bound the eval gate to a tasks.md the

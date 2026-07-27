@@ -106,7 +106,9 @@ def search(index_dir, query: str, top_k: int = 5, weights=None) -> list[dict]:
 
     w = weights if weights is not None else {}
     scored: list[tuple[float, float, dict]] = []
-    for row, doc in zip(rows, docs):
+    # docs is a 1:1 comprehension over rows (see above) — strict makes that
+    # invariant enforced rather than assumed.
+    for row, doc in zip(rows, docs, strict=True):
         counts: dict[str, int] = {}
         for t in doc:
             counts[t] = counts.get(t, 0) + 1

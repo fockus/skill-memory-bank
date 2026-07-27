@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -88,8 +90,24 @@ def test_landing_page_contains_core_sections_and_assets() -> None:
         assert not asset_path.startswith("http"), (
             f"Expected a local asset, not a remote one: {asset_path}"
         )
-        candidate = (SITE_ROOT / asset_path).resolve()
-        assert candidate.is_file(), f"Asset referenced from HTML is missing on disk: {asset_path}"
+        # Assets carry a content-hash cache-buster (`styles.css?v=<sha256[:8]>`);
+        # the query is not part of the on-disk path.
+        file_part, _, query = asset_path.partition("?")
+        candidate = (SITE_ROOT / file_part).resolve()
+        assert candidate.is_file(), f"Asset referenced from HTML is missing on disk: {file_part}"
+
+        # A stale cache-buster is worse than none: browsers keep serving the old
+        # file. Pin the query to the real content hash so editing an asset without
+        # bumping its `?v=` fails here.
+        if query:
+            assert query.startswith("v="), (
+                f"Only a `v=<hash>` cache-buster is expected on {file_part}, got {query!r}"
+            )
+            digest = hashlib.sha256(candidate.read_bytes()).hexdigest()[: len(query) - 2]
+            assert query[2:] == digest, (
+                f"Stale cache-buster on {file_part}: HTML says v={query[2:]}, "
+                f"content hashes to {digest}. Update the `?v=` in site/index.html."
+            )
 
 
 def test_pages_workflow_publishes_site_directory() -> None:
@@ -100,4 +118,15 @@ def test_pages_workflow_publishes_site_directory() -> None:
     assert "actions/configure-pages" in workflow
     assert "actions/upload-pages-artifact" in workflow
     assert "actions/deploy-pages" in workflow
-    assert "path: ./site" in workflow
+
+    # The landing page is no longer uploaded straight from `site/`: since the
+    # combined deploy (landing at `/`, MkDocs at `/docs/`) both are staged into
+    # $RUNNER_TEMP/pages first. What must stay true is that site/ ends up in the
+    # uploaded artifact — assert the copy and the upload, not the old literal path.
+    staging = "$RUNNER_TEMP/pages"
+    assert re.search(rf'cp -R site/\. "{re.escape(staging)}/?"', workflow), (
+        f"pages.yml must copy the landing page into the artifact staging dir ({staging})"
+    )
+    assert "path: ${{ runner.temp }}/pages" in workflow, (
+        "upload-pages-artifact must upload the staging dir that site/ was copied into"
+    )

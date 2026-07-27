@@ -140,4 +140,11 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
-ignore = ["E501"]  # line-length handled by formatter
+ignore = [
+  "E501",   # line-length handled by formatter
+  # UP031 (%-format → f-string) is a style preference, not a defect: 168 call
+  # sites across scripts/ and tests/, none of them autofixable (`--fix` and
+  # even `--unsafe-fixes` rewrite zero). Rewriting them by hand buys nothing
+  # and risks a silent format-string regression in every touched script.
+  "UP031",
+]

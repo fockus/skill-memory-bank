@@ -58,6 +58,11 @@ EXCLUDED_PATHS = (
     "docs/MIGRATION-v1-v2.md",
     "docs/MIGRATION-install-v1-v2.md",
     "tests/pytest/fixtures/",
+    # Same reason as tests/pytest/fixtures/: fixture corpora are INPUT data, not
+    # skill source. roadmap_sync_legacy/real_corpus/ is a verbatim snapshot of
+    # real v1-era plans — rewriting the names in it would destroy the very drift
+    # the roadmap-sync tests replay against.
+    "tests/fixtures/",
     "tests/pytest/test_migrate_v2.py",
     "tests/pytest/test_migrate_v2_e2e.py",
     "tests/pytest/test_skill_naming_v2.py",

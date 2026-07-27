@@ -51,7 +51,7 @@ def _try_acquire(path):
     try:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        fh = open(path, "w")
+        fh = open(path, "w")  # noqa: SIM115 — returned to the caller as a held lock
     except OSError:
         return None
     try:
@@ -125,10 +125,8 @@ def _hint(msg: str) -> None:
     """One-line diagnostic for HUMANS on stderr (I-134). Hook callers run with
     stderr silenced (`exec 2>/dev/null` in mb-semantic-recall.sh), so this can
     never pollute a hook's JSON contract — but a manual run stops being mute."""
-    try:
+    with contextlib.suppress(Exception):
         print(f"[mb-semantic] {msg}", file=sys.stderr)
-    except Exception:
-        pass
 
 
 def _bm25_fallback(index_dir, query, top_k) -> list[dict]:

@@ -36,6 +36,7 @@ found innocent.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -240,10 +241,8 @@ def main() -> int:
     for line in os.environ.get("TASKS_DATA", "").splitlines():
         line = line.strip()
         if line:
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 tasks.append(json.loads(line))
-            except json.JSONDecodeError:
-                pass
 
     req_path = Path(os.environ["REQ_PATH"])
     spec_dir = Path(os.environ.get("SPEC_DIR") or req_path.parent)

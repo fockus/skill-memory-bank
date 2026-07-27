@@ -55,7 +55,7 @@ def test_hook_matrix_codex_sessionend_is_git_hooks_fallback() -> None:
     """D-2: Codex has no native SessionEnd hook — the auto-capture row must say
     'git-hooks-fallback' honestly instead of implying a native capability."""
     text = CROSS_AGENT_SETUP.read_text(encoding="utf-8")
-    row = _table_row(text, "SessionEnd auto-capture")
+    row = _table_row(text, "SessionEnd auto-capture (summarize)")
     codex_cell = [c.strip() for c in row.strip().strip("|").split("|")][-1]
     assert "git-hooks-fallback" in codex_cell, (
         "cross-agent-setup.md hook matrix: Codex 'SessionEnd auto-capture' cell must say "

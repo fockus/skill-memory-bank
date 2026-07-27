@@ -23,6 +23,7 @@ Blocked-by resolution (C8.5).
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -72,10 +73,8 @@ tasks = []
 for line in os.environ.get("TASKS_DATA", "").splitlines():
     line = line.strip()
     if line:
-        try:
+        with contextlib.suppress(json.JSONDecodeError):
             tasks.append(json.loads(line))
-        except json.JSONDecodeError:
-            pass
 req_text = read(os.environ.get("REQ_PATH", ""))
 design_text = read(os.environ.get("DESIGN_PATH", ""))
 specs_root = os.environ.get("SPECS_ROOT", "")
@@ -346,7 +345,8 @@ def load_roles() -> set[str]:
     try:
         import yaml  # type: ignore
 
-        cfg = yaml.safe_load(open(path, encoding="utf-8")) or {}
+        with open(path, encoding="utf-8") as fh:
+            cfg = yaml.safe_load(fh) or {}
         roles = cfg.get("roles") or {}
         names = {str(k) for k in roles}
     except Exception:
@@ -354,16 +354,17 @@ def load_roles() -> set[str]:
         names = set()
         try:
             in_roles = False
-            for ln in open(path, encoding="utf-8"):
-                if re.match(r"^roles:\s*$", ln):
-                    in_roles = True
-                    continue
-                if in_roles:
-                    if re.match(r"^\S", ln):
-                        break
-                    m = re.match(r"^\s{2}([A-Za-z0-9_]+):", ln)
-                    if m:
-                        names.add(m.group(1))
+            with open(path, encoding="utf-8") as fh:
+                for ln in fh:
+                    if re.match(r"^roles:\s*$", ln):
+                        in_roles = True
+                        continue
+                    if in_roles:
+                        if re.match(r"^\S", ln):
+                            break
+                        m = re.match(r"^\s{2}([A-Za-z0-9_]+):", ln)
+                        if m:
+                            names.add(m.group(1))
         except OSError:
             return fallback
     # Reviewer roles are pipeline plumbing, not task-authorable dev roles.

@@ -93,6 +93,7 @@ candidate_error() { printf 'error=candidate\n' >&2; exit 2; }
 _SCRUB_DIR=""
 _INSTALL_TMP=""
 
+# shellcheck disable=SC2329  # invoked indirectly via `trap`
 _scrub_candidate() {
   if [ -n "$_SCRUB_DIR" ]; then rm -rf "$_SCRUB_DIR" 2>/dev/null || true; fi
   if [ -n "$_INSTALL_TMP" ]; then rm -f "$_INSTALL_TMP" 2>/dev/null || true; fi
@@ -101,6 +102,7 @@ _scrub_candidate() {
 # A bare `trap ... TERM` handler RESUMES the script once it returns, which would
 # let a signalled run carry on and publish. Scrub, then terminate with the
 # conventional 128+signal status.
+# shellcheck disable=SC2329  # invoked indirectly via `trap`
 _on_signal() {
   _scrub_candidate
   trap - EXIT

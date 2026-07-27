@@ -175,15 +175,15 @@ def read_journal(path: str, token: str):
         with open(path, encoding="utf-8") as fh:
             raw = fh.read()
     except OSError as exc:
-        raise Refusal(token, 5, "cannot read %s (%s)" % (path, exc.__class__.__name__))
+        raise Refusal(token, 5, "cannot read %s (%s)" % (path, exc.__class__.__name__)) from exc
     out = []
     for number, line in enumerate(raw.splitlines(), 1):
         if not line.strip():
             continue
         try:
             obj = json.loads(line)
-        except ValueError:
-            raise Refusal(token, 5, "line %d is not JSON" % number)
+        except ValueError as exc:
+            raise Refusal(token, 5, "line %d is not JSON" % number) from exc
         kind = classify(obj)
         if kind is None:
             raise Refusal(token, 5, "line %d matches no known record kind" % number)
@@ -395,8 +395,8 @@ def cmd_record_decision(args) -> int:
     """
     try:
         payload = json.loads(sys.stdin.read())
-    except ValueError:
-        raise Refusal("malformed", 2, "the decision payload is not JSON")
+    except ValueError as exc:
+        raise Refusal("malformed", 2, "the decision payload is not JSON") from exc
     # Closed schema, validated BEFORE the journal is consulted, so a malformed
     # payload is still reported as malformed rather than as `no_review`.
     if not isinstance(payload, dict) or set(payload) != C7_KEYS:
@@ -412,8 +412,8 @@ def cmd_record_decision(args) -> int:
             raise Refusal("malformed", 2, "%s must be a non-empty string" % key)
     try:
         attempt = int(args.attempt)
-    except (TypeError, ValueError):
-        raise Refusal("malformed", 2, "--attempt must be an integer")
+    except (TypeError, ValueError) as exc:
+        raise Refusal("malformed", 2, "--attempt must be an integer") from exc
 
     # A decision is a statement ABOUT a review. With no verdict in the journal
     # there is nothing it can be about, and "accept, because the review was

@@ -9,7 +9,7 @@ Three-in-one skill for code agents:
 
 1. **Memory Bank** — long-term project memory through `.memory-bank/` (`STATUS`, `plan`, `checklist`, `RESEARCH`, `BACKLOG`, `progress`, `lessons`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
-3. **Dev toolkit** — 31 commands: `/mb`, `/start`, `/done`, `/plan`, `/discuss`, `/groom`, `/sdd`, `/work`, `/config`, `/pipeline`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
+3. **Dev toolkit** — 33 commands: `/mb`, `/start`, `/done`, `/plan`, `/brief`, `/discuss`, `/groom`, `/sdd`, `/work`, `/drive`, `/config`, `/pipeline`, `/profile`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
 
 > **Design contract.** Memory Bank rests on one inviolable promise — *agents remember* — and a stack of fully configurable, token-economical layers above it. Default behaviour never changes without explicit opt-in; user customisations survive upgrades; expensive paths are off by default. See [`references/design-principles.md`](references/design-principles.md) for the full contract.
 
@@ -260,6 +260,49 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-session-repair.sh [--apply] <file>` | Repair a session file corrupted by the legacy append-after-`## Summary` bug: move turn-bullets back into `## Live log`, reset `summarized=false`, re-cap over-long bullets, keep a `archive/pre-repair/` backup. Dry-run default, idempotent, fail-safe |
 | `mb-settings-ensure-timeout.py` | Surgically ensure the SessionEnd `mb-session-end.sh` hook command carries a per-command `timeout` so the Haiku summarizer is not SIGKILLed before writing `## Summary` |
 | `mb-subinvoke-resolve.sh` | Resolve the per-agent shell sub-invoke command template for the active agent (mirrors `mb-reviewer-resolve.sh`); used by `mb-fanout.sh` to bake `--cmd` when the operator does not supply one (REQ-DF-082) |
+| `mb-brief.sh` | Deterministic helper behind `/mb brief`: `create` (topic + candidate + `--input` documents), `context`, `accept` — the file effects of the brief stage live in a script, not a prompt |
+| `mb-brief-validate.sh` | Structural validator for a brief one-pager — section order, required fields, single-page budget |
+| `mb_brief_candidate.py` | Candidate inspection for `mb-brief.sh` (contract C6 steps 4–5) |
+| `mb-glossary.sh` | Atomic upsert of a single `<term> — <definition>` line in `<bank>/glossary.md`; term and definition are read from files, so no quoting loss (REQ-017) |
+| `mb-estimate-check.sh` | Deterministic size-estimate validator: the `/mb discuss` context estimate and the spec-triple / candidate budget gate. No LLM, no PyYAML |
+| `mb-estimate-lib.sh` | Sourced parsers for `mb-estimate-check.sh` (context-file and spec/candidate estimates). Not a standalone entry point |
+| `mb-interview-artifact-check.sh` | Deterministic structural validator for `/mb discuss` interview artifacts — `plan`, `--require-closed`, `--print-digest`. No LLM |
+| `mb-interview-artifact-write.sh` | Deterministic writer for `/mb discuss` file effects: atomic publish, and byte-identity of a rejected target is a script-proven fact rather than a prompt promise |
+| `mb-secret-scan.sh` | Canonical secret-scan dispatcher (`transcript` and `brief-input` policies); patterns are single-sourced from `mb-import.py`, never a second regex set |
+| `mb-sdd-candidate.sh` | Candidate lifecycle for `/mb sdd` generation: the seam separating a GENERATED `tasks.md` from an ACCEPTED one (`<bank>/tmp/sdd/<topic>/tasks.candidate.md`) |
+| `mb-sdd-self-check.sh` | Deterministic executor of the C8 generation self-check battery over a published draft triple, so `commands/sdd.md` decides draft→ready by exit code, not prompt judgement. Pure checker — writes nothing |
+| `mb-sdd-self-check-eval.sh` | Sourced half of the C8a battery: how ONE `**Eval:**` declaration is classified in a given phase (`--phase generation` requires red, `--phase done` requires green) |
+| `mb-sdd-review-result.sh` | Executable owner of the spec-review exit codes: validation, the append-only record, and 0/1/2 — `commands/sdd.md` owns only the model dispatch |
+| `mb_sdd_judge_journal.py` | Judge / override / status half of the spec-review journal (append-only, symlink-safe) |
+| `mb-sdd-layers-render.py` | Deterministic renderer for the test-layer tasks and the `## Quality DoD` block |
+| `mb-quality-dod.sh` | Render the one canonical `## Quality DoD` block; the orchestrator runs it ONCE per item and hands the same file to implementer, reviewer, and judge |
+| `mb_quality_dod.py` | The `## Quality DoD` renderer core — one renderer, three receivers |
+| `mb-rules-resolve.sh` | Resolve the rule sources a spec is judged against — `discovery` and `validation` modes behind one JSON contract |
+| `mb_rules_resolve.py` | Rule-source resolution core for `mb-rules-resolve.sh` |
+| `mb-contract-gate.sh` | Execute a spec's Contract-checkers registry (the fenced ```json``` block of the `**Layer:** contract` task) |
+| `mb_contract_gate.py` | Runner for the Contract-checkers registry |
+| `mb_contract_registry.py` | The Contract-checkers registry — one reader, one schema, two consumers |
+| `mb-work-state-eval.sh` | Sourced eval-first layer for `mb-work-state.sh`: the red→green Eval gate. Not a standalone entry point |
+| `mb-work-state-lib.sh` | Sourced helpers for `mb-work-state.sh` that shell out to external tooling (pipeline YAML, uuid). Not a standalone entry point |
+| `mb_work_eval_proof.py` | Canonical eval-proof payload for the `mb-work-state` red→green gate |
+| `mb_work_plan_wrapper.py` | Wrapper-plan resolution for `mb-work-plan.sh` (`linked_spec` / `<!-- mb-stage:N -->`) |
+| `mb-backlog-state.sh` | Backlog state machine, hierarchy, and briefs: `transition <I-NNN> <STATE>`, `annotate --brief --parent` |
+| `mb_backlog_state_engine.py` | Backlog parser + state engine behind the backlog scripts |
+| `mb_backlog_validate.py` | Backlog metadata validation: the brief gate (REQ-007) + single-line safety |
+| `mb_roadmap_group.py` | Group-section rendering + progress aggregation for `mb-roadmap-sync.sh` |
+| `mb_roadmap_order.py` | Pure ICE-component parsing + priority ordering for `mb-roadmap-sync.sh` |
+| `mb_roadmap_plans.py` | Plan-frontmatter parsing + collection for `mb-roadmap-sync.sh` |
+| `mb_roadmap_render.py` | Fence handling, bootstrap transfer, and atomic publish for `mb-roadmap-sync.sh` |
+| `mb_spec_validate_v2.py` | v2 / C8 battery gates for `mb-spec-validate.sh` |
+| `mb_spec_validate_tasks.py` | Per-task structural checks 3–6 for `mb-spec-validate.sh` |
+| `mb_spec_validate_structural.py` | Scope classification + structural Eval grammar (REQ-049) |
+| `mb_spec_validate_scope_eval.py` | I-174 gate: a task's `**Eval:**` must actually run the test files its `**Scope:**` claims |
+| `mb_spec_validate_layers.py` | Test-layer gates C3/C4 and the Contract-checkers schema |
+| `mb_spec_validate_graph.py` | `blocked_by` dependency-graph gates (REQ-052 / C8.5) |
+| `mb_pipeline_validate_core.py` | Pipeline config validation core for `mb-pipeline-validate.sh` |
+| `mb_pipeline_validate_blocks.py` | Per-block pipeline validators (budget … named-pipeline metadata) |
+| `mb_pipeline_minimal_yaml.py` | PyYAML-optional minimal loader for `pipeline.yaml` — the zero-dep base |
+| `mb_fs_atomic.py` | One atomic file-publish primitive, shared by every writer |
 
 ---
 

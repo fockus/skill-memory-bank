@@ -31,6 +31,7 @@ separate files and `verify` never overwrites the red run's evidence.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import subprocess
@@ -163,7 +164,11 @@ def evidence_path(bank: Path, topic: str, checker: dict, phase: str) -> Path:
 def write_evidence(path: Path, payload: dict) -> None:
     """Publish atomically: temp file in the destination directory, then rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    handle = tempfile.NamedTemporaryFile(
+    # delete=False is the point: the temp file must OUTLIVE its
+    # close so os.replace() below can rename it into place, and handle.name has
+    # to stay reachable from the failure branch to unlink the debris. The write
+    # itself is already inside `with handle as fh`.
+    handle = tempfile.NamedTemporaryFile(  # noqa: SIM115
         mode="w", encoding="utf-8", dir=str(path.parent), prefix=".", suffix=".tmp", delete=False
     )
     try:
@@ -175,10 +180,8 @@ def write_evidence(path: Path, payload: dict) -> None:
         os.replace(handle.name, path)
     except BaseException:
         # A partial temp file is debris; a partial evidence file is a lie.
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(handle.name)
-        except OSError:
-            pass
         raise
 
 
@@ -295,7 +298,9 @@ def gate(phase: str, spec_dir: Path, bank: Path) -> tuple:
         require_red_evidence(bank, topic, checkers)
 
     results = []
-    for checker, path in zip(checkers, paths):
+    # paths is a 1:1 comprehension over checkers (see above) — strict makes
+    # that invariant enforced rather than assumed.
+    for checker, path in zip(checkers, paths, strict=True):
         result = run_checker(checker, repo_root, phase)
         cmd = registry.canonical_cmd(checker["argv"])
         write_evidence(

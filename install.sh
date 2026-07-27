@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
 # skill-memory-bank — Installer
-# Long-term project memory + global rules + 29 dev commands
+# Long-term project memory + global rules + 33 dev commands
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 

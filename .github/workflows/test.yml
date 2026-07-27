@@ -73,7 +73,11 @@ jobs:
           python-version: "3.12"
 
       - name: Install ruff
-        run: pip install ruff
+        # Pinned on purpose: an unpinned ruff turned this job red on 2026-07-15
+        # without a single line of code changing — a new release widened UP031
+        # and 168 pre-existing violations appeared at once. A lint gate that can
+        # go red on its own is not a gate. Bump deliberately, with the fixes.
+        run: pip install ruff==0.15.0
 
       - name: Install shellcheck
         run: sudo apt-get install -y shellcheck
