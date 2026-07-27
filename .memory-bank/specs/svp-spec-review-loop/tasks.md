@@ -37,8 +37,8 @@
 - shellcheck clean; Bash 3.2 (macOS) + Linux.
 
 **DoD:**
-- [ ] Схема в дефолтном pipeline + валидация полей и связки review↔judge; поведение без правок конфига байт-идентично
-- [ ] bats green (был red по заявленному якорю); shellcheck clean
+- [x] Схема в дефолтном pipeline + валидация полей и связки review↔judge; поведение без правок конфига байт-идентично
+- [x] bats green (был red по заявленному якорю); shellcheck clean
 <!-- /mb-task:1 -->
 
 <!-- mb-task:2 -->
@@ -71,8 +71,8 @@
 - shellcheck clean; путь банка с пробелами.
 
 **DoD:**
-- [ ] Все подкоманды C2 с точными exit-кодами и сигнатурами; журнал append-only доказан тестом
-- [ ] bats green (был red по заявленному якорю); shellcheck clean
+- [x] Все подкоманды C2 с точными exit-кодами и сигнатурами; журнал append-only доказан тестом
+- [x] bats green (был red по заявленному якорю); shellcheck clean
 <!-- /mb-task:2 -->
 
 <!-- mb-task:3 -->
