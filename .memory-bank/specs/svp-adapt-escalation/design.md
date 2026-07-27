@@ -643,13 +643,24 @@ S5-A-01…04 + D-16/33/35 — в context. Плюс зафиксировано р
 якорь принял бы «файла нет» за заявленный red. Настоящий провал печатает `not ok <n> <имя теста>`,
 поэтому якорь привязан к имени конкретного теста: строка `bats-gather-tests` его не матчит.
 
-| Task | Eval | Red-условие | Якорь настоящего провала |
-|---|---|---|---|
-| T1 | `bats tests/bats/test_mb_work_adapt.bats` (каждый триггер C1.1; нормализация budget и eval-статуса; enum-алиасы и exit 2; счётчики из work-state и `{}`-деградация; схемы журнала C1.0; идемпотентность/коррекция `resolve` по tuple; `replan-gate`; каскад и `note-clean`) | скрипта и тестов нет | `exit: 1`; `output~: not ok [0-9]+ .*adapt_decide_budget_stop_triggers` |
-| T2 | `bats tests/bats/test_mb_pipeline_escalation.bats` (дефолты 3/3/2 + cascade 3; zero/negative/non-int/unknown key → fail) | конфига и валидации нет | `exit: 1`; `output~: not ok [0-9]+ .*pipeline_escalation_defaults_3_3_2` |
-| T3 | `bats tests/bats/test_mb_work_adapt_report.bats` (envelope C4 во всех 9 role-агентах + work.md; `null` = нет сигнала; битый JSON/пустой reason/≤0 оценка/лишний ключ → `invalid_implementer_report`; ранний `MB_CONTRACT_CHECKERS_JSON=`-блок S8 парсится корректно) | контракта envelope нет | `exit: 1`; `output~: not ok [0-9]+ .*report_envelope_present_in_all_nine_agents` |
-| T4 | `bats tests/bats/test_mb_work_adapt_orchestration.bats` (порядок adapt-before-pivot; 4 варианта C5 + обе ветви replan; autonomous stub-путь и цепочка беклога S4-C3; реестр декомпозиции; skip без переворота чекбокса; каскад-стоп REQ-010; полный summary) | врезки развилки нет | `exit: 1`; `output~: not ok [0-9]+ .*orchestration_adapt_check_precedes_pivot_check` |
-| T5 | `bats tests/bats/test_plan_verifier_stub_gate.bats` (маркер+флаг+драйвер+существующий I-NNN → PASS; default-on → FAIL; маркер вне doc-строки → FAIL; флаг не управляет путём → FAIL; голый NotImplemented/TODO → FAIL; два валидных стаба → оба в summary) | verify-гейта нет | `exit: 1`; `output~: not ok [0-9]+ .*stub_gate_default_on_flag_fails` |
+- **T1** — каждый триггер C1.1; нормализация budget и eval-статуса; enum-алиасы и exit 2; счётчики
+  из work-state и `{}`-деградация; схемы журнала C1.0; идемпотентность/коррекция `resolve` по tuple;
+  `replan-gate`; каскад и `note-clean`:
+  **Eval:** `bats tests/bats/test_mb_work_adapt.bats` — red: скрипта и тестов нет, ни один триггер C1.1 не считается; exit: 1; output~: not ok [0-9]+ .*adapt_decide_budget_stop_triggers
+- **T2** — дефолты 3/3/2 + cascade 3; zero/negative/non-int/unknown key → fail:
+  **Eval:** `bats tests/bats/test_mb_pipeline_escalation.bats` — red: секции `escalation:` и её валидации нет, дефолты 3/3/2 не резолвятся; exit: 1; output~: not ok [0-9]+ .*pipeline_escalation_defaults_3_3_2
+- **T3** — envelope C4 во всех 9 role-агентах + work.md; `null` = нет сигнала; битый JSON/пустой
+  reason/≤0 оценка/лишний ключ → `invalid_implementer_report`; ранний
+  `MB_CONTRACT_CHECKERS_JSON=`-блок S8 парсится корректно:
+  **Eval:** `bats tests/bats/test_mb_work_adapt_report.bats` — red: envelope-контракта нет ни в work.md, ни в 9 агентах; exit: 1; output~: not ok [0-9]+ .*report_envelope_present_in_all_nine_agents
+- **T4** — порядок adapt-before-pivot; 4 варианта C5 + обе ветви replan; autonomous stub-путь и
+  цепочка беклога S4-C3; реестр декомпозиции; skip без переворота чекбокса; каскад-стоп REQ-010;
+  полный summary:
+  **Eval:** `bats tests/bats/test_mb_work_adapt_orchestration.bats` — red: врезки развилки в commands/work.md нет, adapt-check не предшествует pivot-check; exit: 1; output~: not ok [0-9]+ .*orchestration_adapt_check_precedes_pivot_check
+- **T5** — маркер+флаг+драйвер+существующий I-NNN → PASS; default-on → FAIL; маркер вне doc-строки →
+  FAIL; флаг не управляет путём → FAIL; голый NotImplemented/TODO → FAIL; два валидных стаба → оба
+  в summary:
+  **Eval:** `bats tests/bats/test_plan_verifier_stub_gate.bats` — red: субкоманды и гейта нет, default-on флаг проходит верификацию; exit: 1; output~: not ok [0-9]+ .*stub_gate_default_on_flag_fails
 
 ## Risks & mitigation
 

@@ -788,17 +788,27 @@ S4-A-01…05 + D-14/15/20/31 — в context; ключевое: только ск
 
 ## Eval declarations (red → green в work-фазе)
 
-| Task | Eval | Red-условие |
-|---|---|---|
-| T1 | `bats tests/bats/test_mb_roadmap_sync_ice.bats` | файла нет; legacy/priority-режимы и ICE-компоненты не реализованы |
-| T2 | `bats tests/bats/test_mb_backlog_state.bats && bats tests/bats/test_mb_lock_helper.bats` | обоих файлов нет; скрипта и lock-хелпера нет |
-| T3 | `bats tests/bats/test_mb_backlog_migrate.bats` | файла нет; скрипта нет |
-| T6 | `bats tests/bats/test_mb_roadmap_sync_group.bats` | файла нет; прогресс/группа/`--check`/bootstrap не реализованы |
-| T7 | `bats tests/bats/test_mb_backlog_state_hierarchy.bats` | файла нет; `list --tree`/parent не реализованы |
-| T9 | `bats tests/bats/test_mb_backlog_id_alloc.bats && bats tests/bats/test_mb_idea_promote_v2.bats` | обоих файлов нет; глобального аллокатора и READY-only promote нет |
-| T8 | `bats tests/bats/test_mb_backlog_out_of_scope.bats` | файла нет; WONTFIX-перенос/similarity/SPEC-writer не реализованы |
-| T4 | `bats tests/bats/test_mb_bank_lint.bats` | файла нет; скрипта нет |
-| T5 | `bats tests/bats/test_mb_roadmap_backlog_docs.bats` | файла нет; доки не обновлены |
+Red наблюдается **после** материализации bats-файла (S2-C6): «файла нет» — посторонний сбой,
+а не заявленный red. Строки `**Eval:**` ниже байт-в-байт совпадают с `tasks.md` (CPR-D).
+
+- **T1** — legacy/priority-режимы и парсер ICE-компонентов не реализованы:
+  **Eval:** `bats tests/bats/test_mb_roadmap_sync_ice.bats` — red: bats-файл материализован; legacy/priority-режимы и парсер ICE-компонентов не реализованы — кейсы порядка и ICE-грамматики падают; exit: 1; output~: `not ok [0-9]+ roadmap_sync_ice: `
+- **T2** — скрипта `mb-backlog-state.sh` и lock-хелпера нет:
+  **Eval:** `bats tests/bats/test_mb_backlog_state.bats && bats tests/bats/test_mb_lock_helper.bats` — red: оба bats-файла материализованы; `scripts/mb-backlog-state.sh` (`transition`/`annotate`/`list`) и `mb_lock_acquire`/`mb_lock_release` в `_lib.sh` не существуют — кейсы машины, annotate и лока падают; exit: 1; output~: `not ok [0-9]+ (backlog_state|lock_helper): `
+- **T3** — скрипта `mb-backlog-migrate.sh` нет:
+  **Eval:** `bats tests/bats/test_mb_backlog_migrate.bats` — red: bats-файл материализован; `scripts/mb-backlog-migrate.sh` не существует — кейсы маппинга статусов и `--dry-run`/`--apply` падают; exit: 1; output~: `not ok [0-9]+ backlog_migrate: `
+- **T6** — прогресс/группа/`--check`/bootstrap не реализованы:
+  **Eval:** `bats tests/bats/test_mb_roadmap_sync_group.bats` — red: bats-файл материализован; прогресс, Group-секции, `--check` и bootstrap не реализованы — соответствующие кейсы падают; exit: 1; output~: `not ok [0-9]+ roadmap_sync_group: `
+- **T7** — `list --tree`/parent не реализованы:
+  **Eval:** `bats tests/bats/test_mb_backlog_state_hierarchy.bats` — red: bats-файл материализован; `**Parent:**`, грамматика вывода и `list --tree` не реализованы — кейсы дерева и fail-fast падают; exit: 1; output~: `not ok [0-9]+ backlog_hierarchy: `
+- **T9** — глобального аллокатора и READY-only promote нет:
+  **Eval:** `bats tests/bats/test_mb_backlog_id_alloc.bats && bats tests/bats/test_mb_idea_promote_v2.bats` — red: оба bats-файла материализованы; `mb_next_backlog_id` не существует и `mb-idea-promote.sh` всё ещё пишет `PLANNED` — кейсы коллизии I-079 и READY-only promote падают; exit: 1; output~: `not ok [0-9]+ (backlog_id_alloc|idea_promote): `
+- **T8** — WONTFIX-перенос/similarity/SPEC-writer не реализованы:
+  **Eval:** `bats tests/bats/test_mb_backlog_out_of_scope.bats` — red: bats-файл материализован; WONTFIX-перенос, similarity-хук и типизированный SPEC-writer не реализованы — соответствующие кейсы падают; exit: 1; output~: `not ok [0-9]+ backlog_out_of_scope: `
+- **T4** — скрипта `mb-bank-lint.sh` нет:
+  **Eval:** `bats tests/bats/test_mb_bank_lint.bats` — red: bats-файл материализован; `scripts/mb-bank-lint.sh` не существует — кейсы всех 10 кодов и формата падают; exit: 1; output~: `not ok [0-9]+ bank_lint: `
+- **T5** — доки не обновлены:
+  **Eval:** `bats tests/bats/test_mb_roadmap_backlog_docs.bats` — red: bats-файл материализован; `commands/mb.md`, `references/templates.md` и `CLAUDE.md` не обновлены — кейсы сверки доков с реализацией падают; exit: 1; output~: `not ok [0-9]+ roadmap_backlog_docs: `
 
 ## Risks & mitigation
 

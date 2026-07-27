@@ -493,18 +493,28 @@ C1 фронтир → Scope-отбор → C2 claim → C8 dispatch → report �
 → `FAILED <nodeid>` (exit 1). Каждый якорь ниже подобран так, что **текущий вывод им не матчится**,
 а вывод настоящего провала — матчится.
 
-| Task | Eval | Red-условие |
-|---|---|---|
-| T1 | `pytest tests/pytest/test_work_items_frontier.py` | `--frontier` не реализован → падает тест цикла |
-| T2 | `bats tests/bats/test_mb_work_claims.bats` | скрипта нет → падает race-тест |
-| T3 | `bats tests/bats/test_mb_work_scope_check.bats` | скрипта нет → падает violation-тест |
-| T4 | `bash scripts/mb-pipeline-validate.sh references/pipeline.default.yaml && bats tests/bats/test_mb_work_parallel_orchestration.bats` | оркестрации нет → падает тест «prompt только исполняет actions» |
-| T5 | `bats tests/bats/test_mb_work_resolve_group.bats` | `--group` нет → падает тест компаратора S4-C2 |
-| T6 | `bats tests/bats/test_mb_work_parallel_parity.bats` | деградации нет → падает probe-тест codex |
-| T7 | `bats tests/bats/test_mb_work_diff_scope_paths.bats` | `--scope-paths` нет → падает untracked-тест |
-| T8 | `bats tests/bats/test_mb_work_state_configure_mode.bats` | `configure-mode` нет → падает precedence-тест |
-| T9 | `pytest tests/pytest/test_parallel_scheduler.py` | scheduler'а нет → падает claim-before-dispatch |
-| T10 | `bats tests/bats/test_mb_work_dispatch.bats` | адаптера нет → падает probe-тест pi |
+Строки `**Eval:**` ниже байт-в-байт совпадают с `tasks.md` (CPR-D).
+
+- **T1** — red-условие: `--frontier` не реализован → падает тест цикла:
+  **Eval:** `pytest tests/pytest/test_work_items_frontier.py` — red: `--frontier` не реализован, тест цикла падает; exit: 1; output~: `FAILED .*test_work_items_frontier\.py::test_frontier_aborts_on_cycle_before_any_claim`
+- **T2** — red-условие: скрипта нет → падает race-тест:
+  **Eval:** `bats tests/bats/test_mb_work_claims.bats` — red: скрипта нет, race-тест падает; exit: 1; output~: `not ok [0-9]+ .*concurrent claim`
+- **T3** — red-условие: скрипта нет → падает violation-тест:
+  **Eval:** `bats tests/bats/test_mb_work_scope_check.bats` — red: скрипта нет, violation-тест падает; exit: 1; output~: `not ok [0-9]+ .*out-of-scope path`
+- **T4** — red-условие: оркестрации нет → падает тест «prompt только исполняет actions»:
+  **Eval:** `bash scripts/mb-pipeline-validate.sh references/pipeline.default.yaml && bats tests/bats/test_mb_work_parallel_orchestration.bats` — red: оркестрации нет, тест исполнения actions падает (валидатор конфига зелёный сам по себе — red даёт bats); exit: 1; output~: `not ok [0-9]+ .*orchestrator executes scheduler actions`
+- **T5** — red-условие: `--group` нет → падает тест компаратора S4-C2:
+  **Eval:** `bats tests/bats/test_mb_work_resolve_group.bats` — red: `--group`-режима нет, тест компаратора падает; exit: 1; output~: `not ok [0-9]+ .*S4-C2 comparator`
+- **T6** — red-условие: деградации нет → падает probe-тест codex:
+  **Eval:** `bats tests/bats/test_mb_work_parallel_parity.bats` — red: parity-теста нет, тест деградации codex падает; exit: 1; output~: `not ok [0-9]+ .*codex degrades`
+- **T7** — red-условие: `--scope-paths` нет → падает untracked-тест:
+  **Eval:** `bats tests/bats/test_mb_work_diff_scope_paths.bats` — red: `--scope-paths` не реализован, untracked-тест падает; exit: 1; output~: `not ok [0-9]+ .*untracked`
+- **T8** — red-условие: `configure-mode` нет → падает precedence-тест:
+  **Eval:** `bats tests/bats/test_mb_work_state_configure_mode.bats` — red: `configure-mode` не реализован, precedence-тест падает; exit: 1; output~: `not ok [0-9]+ .*precedence`
+- **T9** — red-условие: scheduler'а нет → падает claim-before-dispatch:
+  **Eval:** `pytest tests/pytest/test_parallel_scheduler.py` — red: scheduler'а нет, claim-before-dispatch падает; exit: 1; output~: `FAILED .*test_parallel_scheduler\.py::test_claim_recorded_before_dispatch`
+- **T10** — red-условие: адаптера нет → падает probe-тест pi:
+  **Eval:** `bats tests/bats/test_mb_work_dispatch.bats` — red: адаптера нет, probe-тест pi падает; exit: 1; output~: `not ok [0-9]+ .*pi role route probe`
 
 ## Risks & mitigation
 

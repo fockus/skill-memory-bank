@@ -660,18 +660,24 @@ S6-A-01…05 + D-27/28 — в context. Ревизия 2 закрыла: батч
 `ModuleNotFoundError` целевого модуля или строку `FAILED <файл>::`, а bats-якоря — на **именованный**
 префикс теста (`not ok N docs …`), которого нет у `bats-gather-tests`.
 
-| Task | Eval | Red-условие |
-|---|---|---|
-| T1 | `pytest tests/pytest/test_mb_docs_state.py` | `docs_state.py` нет (тесты первыми) |
-| T2 | `pytest tests/pytest/test_mb_docs_ingest.py` | `docs_ingest.py` нет |
-| T3 | `pytest tests/pytest/test_mb_docs_store.py` | `docs_store.py` нет |
-| T4 | `pytest tests/pytest/test_mb_docs_run.py` | `docs_run.py` / обёртки нет |
-| T5 | `pytest tests/pytest/test_mb_docs_agents.py` | агентов нет |
-| T6 | `bats tests/bats/test_mb_docs_pipeline.bats` | `docs.path`/роли/валидатор не расширены |
-| T7 | `bats tests/bats/test_mb_docs_lint.bats` | `docs_lint.py` нет |
+- **T1** — red-условие: `docs_state.py` нет (тесты первыми):
+  **Eval:** `pytest tests/pytest/test_mb_docs_state.py` — red: `memory_bank_skill/docs_state.py` нет, тесты первыми; exit: 2; output~: `(ModuleNotFoundError: No module named 'memory_bank_skill\.docs_state'|FAILED tests/pytest/test_mb_docs_state\.py::)`
+- **T2** — red-условие: `docs_ingest.py` нет:
+  **Eval:** `pytest tests/pytest/test_mb_docs_ingest.py` — red: `memory_bank_skill/docs_ingest.py` нет; exit: 2; output~: `(ModuleNotFoundError: No module named 'memory_bank_skill\.docs_ingest'|FAILED tests/pytest/test_mb_docs_ingest\.py::)`
+- **T3** — red-условие: `docs_store.py` нет:
+  **Eval:** `pytest tests/pytest/test_mb_docs_store.py` — red: `memory_bank_skill/docs_store.py` нет; exit: 2; output~: `(ModuleNotFoundError: No module named 'memory_bank_skill\.docs_store'|FAILED tests/pytest/test_mb_docs_store\.py::)`
+- **T4** — red-условие: `docs_run.py` / обёртки нет:
+  **Eval:** `pytest tests/pytest/test_mb_docs_run.py` — red: `memory_bank_skill/docs_run.py` нет; exit: 2; output~: `(ModuleNotFoundError: No module named 'memory_bank_skill\.docs_run'|FAILED tests/pytest/test_mb_docs_run\.py::)`
+- **T5** — red-условие: агентов нет:
+  **Eval:** `pytest tests/pytest/test_mb_docs_agents.py` — red: `agents/mb-docs-author.md` и `agents/mb-docs-synthesizer.md` нет; exit: 1; output~: `FAILED tests/pytest/test_mb_docs_agents\.py::`
+- **T6** — red-условие: `docs.path`/роли/валидатор не расширены:
+  **Eval:** `bats tests/bats/test_mb_docs_pipeline.bats` — red: `docs.path`/роли/валидатор не расширены; exit: 1; output~: `not ok [0-9]+ docs\.path: `
+- **T7** — red-условие: `docs_lint.py` нет:
+  **Eval:** `bats tests/bats/test_mb_docs_lint.bats` — red: `memory_bank_skill/docs_lint.py` нет; exit: 1; output~: `not ok [0-9]+ docs lint: `
 
-Точные строки с `exit:`/`output~:` — в `tasks.md` (единственный источник, чтобы декларация не
-разошлась с исполняемым полем).
+Строки `**Eval:**` выше — байт-в-байт те же, что в `tasks.md` (CPR-D): исполняемое поле остаётся
+единственным источником, а декларация здесь обязана совпадать с ним посимвольно, иначе валидатор
+спеки падает.
 
 ## Risks & mitigation
 

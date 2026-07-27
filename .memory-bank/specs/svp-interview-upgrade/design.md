@@ -495,14 +495,29 @@ bash scripts/mb-glossary.sh upsert --mb <bank> --term-file <file> --definition-f
 принимается только при совпадении с заявленным условием, а посторонний сбой (в т.ч. отсутствующий
 путь) = FAIL.
 
-| Task | Eval (команда) | Red-условие ПОСЛЕ материализации теста |
-|---|---|---|
-| T1 | `bats tests/bats/test_mb_interview_artifact_check.bats tests/bats/test_mb_interview_artifact_check_transcript.bats && bats tests/bats/test_mb_interview_artifact_write.bats && bats tests/bats/test_discuss_interview_plan.bats` | падают `assert_script_present scripts/mb-interview-artifact-check.sh` и `.../mb-interview-artifact-write.sh` (скриптов нет; `install-plan` не производит атомарную запись — fixture target не меняется) и `mb_section`/`mb_rule` возвращают `section_absent`/`rule_absent` для секции «Interview plan», rule 11, rule 14 и шаблона C2 |
-| T2 | `bats tests/bats/test_discuss_final_gate_batch.bats` | падают clause-assertions rule 12 (final gate), `--batch` + деградация, partial-answer, fact-finding + honest degradation — все с `reason=absent` |
-| T3 | `bats tests/bats/test_mb_estimate_check.bats` | падает `assert_script_present scripts/mb-estimate-check.sh`; все key=value/exit-кейсы C1 не выполняются |
-| T4 | `bats tests/bats/test_mb_secret_scan.bats && bats tests/bats/test_mb_interview_artifact_check.bats tests/bats/test_mb_interview_artifact_check_transcript.bats && bats tests/bats/test_mb_interview_artifact_write.bats && bats tests/bats/test_discuss_transcript.bats` | падает `assert_script_present scripts/mb-secret-scan.sh`; `transcript`-режим artifact-check возвращает usage error вместо `artifact=ok` на позитивных фикстурах C4-9; `publish-transcript` (C11) не публикует — fixture git-target не меняется; секрет внутри `<private>` НЕ даёт `scan=clean` (R3-001); clause-assertions шага Transcript — `reason=absent` |
-| T5 | `bats tests/bats/test_discuss_glossary.bats && bats tests/bats/test_mb_glossary.bats` | падают clause-assertions rule 13 (`reason=absent`), fixture-run `mb-context.sh` на банке с `glossary.md` (строки `Glossary: …` в выдаче нет) и `assert_script_present scripts/mb-glossary.sh` (upsert/conflict не работают — C12) |
-| T6 | `bats tests/bats/test_discuss_self_interview.bats` | падают clause-assertions flag-matrix `--self`/`--auto`/Assumptions (`reason=absent`) |
+- **T1** — red ПОСЛЕ материализации теста: падают `assert_script_present
+  scripts/mb-interview-artifact-check.sh` и `.../mb-interview-artifact-write.sh` (скриптов нет;
+  `install-plan` не производит атомарную запись — fixture target не меняется) и `mb_section`/`mb_rule`
+  возвращают `section_absent`/`rule_absent` для секции «Interview plan», rule 11, rule 14 и шаблона C2:
+  **Eval:** `bats tests/bats/test_mb_interview_artifact_check.bats tests/bats/test_mb_interview_artifact_check_transcript.bats && bats tests/bats/test_mb_interview_artifact_write.bats && bats tests/bats/test_discuss_interview_plan.bats` — red: bats-файлы и харнесс C9 материализованы; падают `assert_script_present scripts/mb-interview-artifact-check.sh` и `.../mb-interview-artifact-write.sh` (скриптов нет; install-plan не производит запись), и `mb_section`/`mb_rule` возвращают `section_absent`/`rule_absent` для секции «Interview plan», rule 11, rule 14 и шаблона C2 в templates.md; exit: 1; output~: `not ok [0-9]+ (artifact_check|artifact_write|interview_plan): `
+- **T2** — red ПОСЛЕ материализации теста: падают clause-assertions rule 12 (final gate), `--batch` +
+  деградация, partial-answer, fact-finding + honest degradation — все с `reason=absent`:
+  **Eval:** `bats tests/bats/test_discuss_final_gate_batch.bats` — red: bats-файл материализован; падают clause-assertions rule 12 (final gate), `--batch`+деградация, partial-answer, fact-finding и honest degradation — все с `clause=<id> reason=absent` (секции «Batch mode»/rule 12 в `commands/discuss.md` нет); exit: 1; output~: `not ok [0-9]+ final_gate_batch: `
+- **T3** — red ПОСЛЕ материализации теста: падает `assert_script_present
+  scripts/mb-estimate-check.sh`; все key=value/exit-кейсы C1 не выполняются:
+  **Eval:** `bats tests/bats/test_mb_estimate_check.bats` — red: bats-файл материализован; падает `assert_script_present scripts/mb-estimate-check.sh` (скрипта нет), все key=value/exit-кейсы C1 и clause-assertions секции «Size triage» — с `reason=absent`; exit: 1; output~: `not ok [0-9]+ estimate_check: `
+- **T4** — red ПОСЛЕ материализации теста: падает `assert_script_present scripts/mb-secret-scan.sh`;
+  `transcript`-режим artifact-check возвращает usage error вместо `artifact=ok` на позитивных
+  фикстурах C4-9; `publish-transcript` (C11) не публикует — fixture git-target не меняется; секрет
+  внутри `<private>` НЕ даёт `scan=clean` (R3-001); clause-assertions шага Transcript — `reason=absent`:
+  **Eval:** `bats tests/bats/test_mb_secret_scan.bats && bats tests/bats/test_mb_interview_artifact_check.bats tests/bats/test_mb_interview_artifact_check_transcript.bats && bats tests/bats/test_mb_interview_artifact_write.bats && bats tests/bats/test_discuss_transcript.bats` — red: bats-файлы материализованы; падает `assert_script_present scripts/mb-secret-scan.sh` (скрипта нет); `mb-interview-artifact-check.sh transcript` отвечает usage error вместо `artifact=ok` на позитивных фикстурах C4-9; `publish-transcript` (C11) не публикует; clause-assertions шага Transcript — `clause=<id> reason=absent`; exit: 1; output~: `not ok [0-9]+ (secret_scan|artifact_check|artifact_write|transcript): `
+- **T5** — red ПОСЛЕ материализации теста: падают clause-assertions rule 13 (`reason=absent`),
+  fixture-run `mb-context.sh` на банке с `glossary.md` (строки `Glossary: …` в выдаче нет) и
+  `assert_script_present scripts/mb-glossary.sh` (upsert/conflict не работают — C12):
+  **Eval:** `bats tests/bats/test_discuss_glossary.bats && bats tests/bats/test_mb_glossary.bats` — red: bats-файлы материализованы; падают clause-assertions rule 13 (`clause=<id> reason=absent` — правила в `commands/discuss.md` нет), fixture-run `mb-context.sh` на банке с `glossary.md` (строки `Glossary: …` в выдаче нет) и `assert_script_present scripts/mb-glossary.sh` (upsert/conflict не работают); exit: 1; output~: `not ok [0-9]+ (glossary|mb_glossary): `
+- **T6** — red ПОСЛЕ материализации теста: падают clause-assertions flag-matrix
+  `--self`/`--auto`/Assumptions (`reason=absent`):
+  **Eval:** `bats tests/bats/test_discuss_self_interview.bats` — red: bats-файл материализован; падают clause-assertions flag-matrix `--self`/`--auto`/Assumptions-блока (`clause=<id> reason=absent` — секции «Self-interview» в `commands/discuss.md` нет); exit: 1; output~: `not ok [0-9]+ self_interview: `
 
 ## Risks & mitigation
 
