@@ -19,7 +19,7 @@
 > Имена bats-тестов — ASCII, несут токены из якорей `output~:`. Роли — bare (парсер добавляет `mb-` сам).
 > Бюджеты: Stage 1 = 175000, Stage 2 = 110000; итого 285000 (≤ 1000000 spec / ≤ 400000 stage / ≤ 120000 task).
 
-<!-- mb-task:2 -->
+<!-- mb-task:2 -->2
 ## Task 2: mb-brief-validate.sh
 
 **Stage:** 1
@@ -65,12 +65,12 @@
 - shellcheck clean; portability — Bash 3.2 (macOS) и Linux, путь банка с пробелами.
 
 **DoD:**
-- [ ] `scripts/mb-brief-validate.sh` реализован по C1 (закрытый frontmatter, порядок диагностик, exit 0/1/2, oversize-warning)
-- [ ] `brief_validate: diagnostics-order` сверяет полный stdout+stderr комбинированной фикстуры построчно
-- [ ] bats green (был red по заявленному якорю); shellcheck clean
+- [x] `scripts/mb-brief-validate.sh` реализован по C1 (закрытый frontmatter, порядок диагностик, exit 0/1/2, oversize-warning)
+- [x] `brief_validate: diagnostics-order` сверяет полный stdout+stderr комбинированной фикстуры построчно
+- [x] bats green (был red по заявленному якорю); shellcheck clean
 <!-- /mb-task:2 -->
 
-<!-- mb-task:1 -->
+<!-- mb-task:1 -->1
 ## Task 1: Политика brief-input + helper mb-brief.sh + команда /mb brief + шаблон
 
 **Stage:** 1
@@ -215,7 +215,7 @@
 - [ ] Eval green (был red по заявленному якорю `output~:`); shellcheck clean; сценарии §1–4, §7 отрабатывают вручную как smoke
 <!-- /mb-task:1 -->
 
-<!-- mb-task:3 -->
+<!-- mb-task:3 -->3
 ## Task 3: Интеграция с discuss Phase 0
 
 **Stage:** 2
@@ -249,11 +249,11 @@
 - Сценарий §5 (requirements.md) — supplemental ручной smoke.
 
 **DoD:**
-- [ ] Phase 0 читает бриф через манифест C6; `brief=absent` не меняет legacy-поведение
-- [ ] Обе клаузы проходят `assert_clause` **и** `assert_clause_load_bearing`; Eval green (был red по заявленному якорю)
+- [x] Phase 0 читает бриф через манифест C6; `brief=absent` не меняет legacy-поведение
+- [x] Обе клаузы проходят `assert_clause` **и** `assert_clause_load_bearing`; Eval green (был red по заявленному якорю)
 <!-- /mb-task:3 -->
 
-<!-- mb-task:4 -->
+<!-- mb-task:4 -->4
 ## Task 4: Роутинг и документация
 
 **Stage:** 2
