@@ -44,8 +44,8 @@
   `rules_resolve_json_is_stable` — два прогона дают байт-идентичный JSON; shellcheck clean.
 
 **DoD:**
-- [ ] C2 (оба режима) реализован; bats green (были red); shellcheck clean
-- [ ] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
+- [x] C2 (оба режима) реализован; bats green (были red); shellcheck clean
+- [x] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
 <!-- /mb-task:1 -->
 
 <!-- mb-task:2 -->
@@ -91,9 +91,9 @@
   `pipeline_sdd_layers_non_boolean_fails` — не-boolean значение → fail валидатора.
 
 **DoD:**
-- [ ] C1 (API + CLI + дефолты конфига) реализован; pytest и bats green (были red)
-- [ ] `bash scripts/mb-pipeline-validate.sh` проходит с новым блоком `sdd.layers`
-- [ ] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
+- [x] C1 (API + CLI + дефолты конфига) реализован; pytest и bats green (были red)
+- [x] `bash scripts/mb-pipeline-validate.sh` проходит с новым блоком `sdd.layers`
+- [x] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
 <!-- /mb-task:2 -->
 
 <!-- mb-task:3 -->
