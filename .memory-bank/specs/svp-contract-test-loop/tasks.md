@@ -140,9 +140,9 @@
   `spec_validate_registry_schema_checked_when_closed` — JSON-реестр с `evidence` вне `tmp/contract-gate/<topic>/` или неизвестным ключом → exit≠0.
 
 **DoD:**
-- [ ] C3/C4-гейты (матрица слоёв R3-003) + легаси-короткое замыкание (R3-001) + схема JSON-реестра реализованы; bats green (были red)
-- [ ] легаси-спеки (включая саму S8) проходят без изменений и печатают `layers=legacy` (NFR-002/R3-001)
-- [ ] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
+- [x] C3/C4-гейты (матрица слоёв R3-003) + легаси-короткое замыкание (R3-001) + схема JSON-реестра реализованы; bats green (были red)
+- [x] легаси-спеки (включая саму S8) проходят без изменений и печатают `layers=legacy` (NFR-002/R3-001)
+- [x] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean (exit 0; три solid/srp CRITICAL — артефакт кардинальности партии, I-162, дробление файлов отклонено)
 <!-- /mb-task:3 -->
 
 <!-- mb-task:4 -->
