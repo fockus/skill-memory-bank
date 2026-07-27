@@ -47,7 +47,7 @@
 #
 # Usage:
 #   mb-flow-verify.sh [mb_path] [--phase <p>]
-#                     [--check 'name=command ...'] ...
+#                     [--check 'name=command ...'] [--skip <name[,name]>] ...
 #                     [--workflow <name>] [--gate <json>]
 #
 #   mb_path        : Memory Bank path (default via _lib.sh::mb_resolve_path).
@@ -57,6 +57,11 @@
 #                    Repeatable. The default set (see below) is used when NO
 #                    --check is given. Lets callers/tests drive the fan-out
 #                    deterministically.
+#   --skip   <n>   : drop check `n` from the assembled set (repeatable, or a
+#                    comma-separated list). A skipped check does not run and is
+#                    absent from the summary — never reported as a null/skip
+#                    result. Lets a caller reuse the default commands minus one
+#                    it cannot afford (e.g. the Stop-hook gate minus `tests`).
 #   --workflow <n> : forwarded to mb-work-severity-gate.sh (gate selection).
 #   --gate   <json>: forwarded to mb-work-severity-gate.sh (override the limits).
 #
@@ -108,12 +113,24 @@ GATE_JSON=""
 # empty → the default set is assembled later.
 CHECK_NAMES=()
 CHECK_CMDS=()
+# Names dropped by --skip, wrapped in separators for a substring test that can
+# never match a partial name (bash 3.2 has no associative arrays).
+SKIP_NAMES="|"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -h|--help)
       usage
       exit 0
+      ;;
+    --skip)
+      [ "$#" -ge 2 ] || { printf '[mb-flow-verify] --skip needs a value\n' >&2; exit 2; }
+      SKIP_NAMES="$SKIP_NAMES$(printf '%s' "$2" | tr ',' '|')|"; shift 2
+      ;;
+    --skip=*)
+      _spec="${1#--skip=}"; shift
+      [ -n "$_spec" ] || { printf '[mb-flow-verify] --skip needs a value\n' >&2; exit 2; }
+      SKIP_NAMES="$SKIP_NAMES$(printf '%s' "$_spec" | tr ',' '|')|"
       ;;
     --phase)
       [ "$#" -ge 2 ] || { printf '[mb-flow-verify] --phase needs a value\n' >&2; exit 2; }
@@ -307,6 +324,32 @@ if [ "${#CHECK_NAMES[@]}" -eq 0 ]; then
     "bash $_q_scope --repo $_q_pr"
     "bash $_q_accept '' $_q_mb"
   )
+fi
+
+# ---------------------------------------------------------------------------
+# Apply --skip: drop named checks from whatever set was assembled (default or
+# --check). A skipped check does NOT run and does NOT appear in the summary —
+# it is absent, not `ok:null`, so nobody reads it as "ran and had nothing to
+# say". Callers that cannot afford one expensive check (the Stop-hook closure
+# gate vs. `tests`) can thus reuse the default commands instead of restating
+# them, which is what keeps the default set defined in exactly one place.
+# ---------------------------------------------------------------------------
+if [ "$SKIP_NAMES" != "|" ] && [ "${#CHECK_NAMES[@]}" -gt 0 ]; then
+  _keep_names=()
+  _keep_cmds=()
+  _i=0
+  while [ "$_i" -lt "${#CHECK_NAMES[@]}" ]; do
+    case "$SKIP_NAMES" in
+      *"|${CHECK_NAMES[$_i]}|"*) : ;;
+      *)
+        _keep_names+=("${CHECK_NAMES[$_i]}")
+        _keep_cmds+=("${CHECK_CMDS[$_i]}")
+        ;;
+    esac
+    _i=$((_i + 1))
+  done
+  CHECK_NAMES=( ${_keep_names[@]+"${_keep_names[@]}"} )
+  CHECK_CMDS=( ${_keep_cmds[@]+"${_keep_cmds[@]}"} )
 fi
 
 # ---------------------------------------------------------------------------

@@ -14,9 +14,20 @@
 #   - LOOP-GUARD: if `stop_hook_active` is true the host is RE-entering after a
 #     prior block — we MUST allow immediately, or we wedge an infinite stop loop.
 #
-# Flow-active predicate (REQ-DF-045): a flow is active IFF <bank>/goal.md exists.
-#   With no goal.md the gate is INERT (allow) so it never blocks unrelated stops
-#   on a bank that is not running a flow.
+# Flow-active predicate (REQ-DF-045): a flow is active IFF <bank>/goal.md exists
+#   AND its frontmatter `status:` is `active` (or absent — back-compat). With no
+#   goal.md, a paused/done goal, or MB_FLOW_CLOSURE=off, the gate is INERT
+#   (allow) so it never blocks unrelated stops on a bank not running a flow.
+#
+# Cost contract (I-131). This hook runs on EVERY Stop, so it must never wait on
+#   the whole test battery:
+#     - MB_FLOW_VERIFY_SKIP (default `tests`) drops the whole-suite check from
+#       the firewall's default set — the remaining four take about a second.
+#     - MB_FLOW_VERIFY_BUDGET (default 20s) hard-kills the firewall's process
+#       GROUP on overrun and degrades to allow-with-systemMessage.
+#     - MB_FLOW_VERIFY_CACHE reuses the verdict while the tree is unchanged.
+#   Red tests still have their own gates: /mb work's verify step, /mb drive, and
+#   a manual scripts/mb-flow-verify.sh run.
 #
 # Exit-code mapping from the firewall:
 #   verify exit 0 → allow (closure certified).
@@ -39,6 +50,10 @@
 # red cwd. Only a successfully-parsed JSON object can drive CWD resolution.
 
 set -u
+
+# Kill-switch (I-131 b): MB_FLOW_CLOSURE=off disables the gate entirely, the same
+# opt-out shape every other MB layer carries.
+[ "${MB_FLOW_CLOSURE:-on}" = "off" ] && exit 0
 
 # Loop-guard sentinel for our own subprocess re-entry (mirrors mb-session-turn.sh).
 [ -n "${MB_CAPTURE_SUBPROCESS:-}" ] && exit 0
@@ -168,6 +183,16 @@ fi
 [ -d "$BANK" ] || allow
 [ -f "$BANK/goal.md" ] || allow
 
+# Also inert unless that goal is actually being driven (I-131 a). A `status:` of
+# anything other than `active` — paused, done, abandoned — is not a running flow,
+# so gating a stop on it costs a wedge and buys nothing. A goal.md with no
+# frontmatter status keeps the original behaviour (gate on existence alone).
+_goal_status="$(sed -n '1,20{/^status:[[:space:]]*/{s/^status:[[:space:]]*//;s/[[:space:]]*$//;p;q;};}' \
+  "$BANK/goal.md" 2>/dev/null || true)"
+if [ -n "$_goal_status" ] && [ "$_goal_status" != "active" ]; then
+  allow
+fi
+
 # ---------------------------------------------------------------------------
 # Locate the firewall. The hook lives in hooks/, the firewall in scripts/ — both
 # siblings under the skill root. Fall back to the shared resolver for installed
@@ -253,8 +278,80 @@ fi
 # fault like 127) so a fixed check re-runs cleanly.
 # ---------------------------------------------------------------------------
 if [ -z "$VERIFY_RC" ]; then
-  bash "$VERIFY" "$BANK" >/dev/null 2>&1
-  VERIFY_RC=$?
+  # Hard time budget (MB_FLOW_VERIFY_BUDGET, default 20s; `off`/`0` restores the
+  # unbounded wait). The firewall's default check set includes `tests`, i.e. the
+  # project's WHOLE suite — minutes on a real repo — and a Stop hook that waits
+  # for it wedges the session instead of ending it. An overrun is an
+  # infrastructure fault like a missing firewall, so it takes the same fail-safe
+  # exit: allow, uncached, and say so rather than pretend closure was certified.
+  _budget="${MB_FLOW_VERIFY_BUDGET:-20}"
+
+  # Which checks the Stop path drops (MB_FLOW_VERIFY_SKIP, default `tests`; set
+  # it empty to run the firewall's full default set). `tests` is the project's
+  # entire suite — the one check no interactive hook can wait for — while the
+  # remaining four run in about a second and still yield a REAL verdict rather
+  # than the budget's degraded "could not certify". Red tests keep their own
+  # gates: /mb work's verify step, /mb drive, and a manual mb-flow-verify run.
+  _skip="${MB_FLOW_VERIFY_SKIP-tests}"
+  set -- "$BANK"
+  [ -n "$_skip" ] && set -- "$@" --skip "$_skip"
+
+  if [ "$_budget" = "off" ] || [ "$_budget" = "0" ] || ! command -v python3 >/dev/null 2>&1; then
+    bash "$VERIFY" "$@" >/dev/null 2>&1
+    VERIFY_RC=$?
+  else
+    # python3 owns the watchdog: it can start the firewall in its own session
+    # and kill the whole PROCESS GROUP on overrun. Killing just the wrapper
+    # would leave the fan-out's children (pytest, bats, linters) running.
+    _rcf="$(mktemp 2>/dev/null || echo "/tmp/mb-closure-rc.$$")"
+    # Args go through separate env vars, never one flattened string: a bank path
+    # with a space would not survive re-splitting.
+    MB_FV_VERIFY="$VERIFY" MB_FV_BANK="$BANK" MB_FV_SKIP="$_skip" MB_FV_BUDGET="$_budget" \
+      python3 - >"$_rcf" 2>/dev/null <<'PY' || true
+import os
+import signal
+import subprocess
+
+try:
+    budget = float(os.environ.get("MB_FV_BUDGET", "20"))
+except ValueError:
+    budget = 20.0
+
+argv = ["bash", os.environ["MB_FV_VERIFY"], os.environ["MB_FV_BANK"]]
+if os.environ.get("MB_FV_SKIP"):
+    argv += ["--skip", os.environ["MB_FV_SKIP"]]
+
+proc = subprocess.Popen(
+    argv,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+    start_new_session=True,
+)
+try:
+    print(proc.wait(timeout=budget))
+except subprocess.TimeoutExpired:
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(os.getpgid(proc.pid), sig)
+        except OSError:
+            break
+        try:
+            proc.wait(timeout=2)
+            break
+        except subprocess.TimeoutExpired:
+            continue
+    print("TIMEOUT")
+PY
+    VERIFY_RC="$(head -n1 "$_rcf" 2>/dev/null || true)"
+    rm -f "$_rcf"
+    if [ "$VERIFY_RC" = "TIMEOUT" ]; then
+      # Honest degradation: the gate did not run to a verdict, so it certifies
+      # nothing — allow, and report that instead of a silent green.
+      printf '{"systemMessage":"Closure gate skipped: mb-flow-verify exceeded its %ss budget (MB_FLOW_VERIFY_BUDGET) and was killed. The flow was NOT certified — run scripts/mb-flow-verify.sh manually before treating it as finished."}\n' "$_budget"
+      exit 0
+    fi
+    [ -n "$VERIFY_RC" ] || allow
+  fi
   if [ "$_cache_mode" != "off" ] && [ -n "$_sig" ]; then
     case "$VERIFY_RC" in
       0|1|2)

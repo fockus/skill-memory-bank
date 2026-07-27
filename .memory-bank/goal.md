@@ -1,6 +1,6 @@
 ---
 id: G-001
-status: active
+status: paused
 mode: static
 progress_source: checklist
 progress_target: 100

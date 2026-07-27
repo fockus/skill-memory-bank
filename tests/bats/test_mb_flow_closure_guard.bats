@@ -110,6 +110,43 @@ run_guard() {
   [[ "$output" != *'"decision":"block"'* ]]
 }
 
+# I-131 (a): the flow-active predicate reads goal.md's `status:`. A paused or
+# finished goal is not a running flow, so gating every Stop on it is a wedge with
+# no upside — the user is no longer driving that goal.
+@test "closure-guard: goal status paused → allow even on a RED flow" {
+  write_goal ' '
+  printf -- '---\nid: G-001\nstatus: paused\n---\n%s' "$(cat "$BANK/goal.md")" > "$BANK/goal.md.new"
+  mv "$BANK/goal.md.new" "$BANK/goal.md"
+  run_guard "$(printf '{"cwd":"%s","stop_hook_active":false}' "$PROJECT")"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *'"decision":"block"'* ]]
+}
+
+@test "closure-guard: goal status active still blocks a RED flow" {
+  write_goal ' '
+  printf -- '---\nid: G-001\nstatus: active\n---\n%s' "$(cat "$BANK/goal.md")" > "$BANK/goal.md.new"
+  mv "$BANK/goal.md.new" "$BANK/goal.md"
+  run_guard "$(printf '{"cwd":"%s","stop_hook_active":false}' "$PROJECT")"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"decision":"block"'* ]]
+}
+
+@test "closure-guard: goal.md with no frontmatter status still gates (back-compat)" {
+  write_goal ' '
+  run_guard "$(printf '{"cwd":"%s","stop_hook_active":false}' "$PROJECT")"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"decision":"block"'* ]]
+}
+
+# I-131 (b): an env kill-switch, same shape as every other MB opt-out.
+@test "closure-guard: MB_FLOW_CLOSURE=off disables the gate entirely" {
+  write_goal ' '
+  run bash -c 'printf "%s" "$1" | MB_FLOW_CLOSURE=off bash "$2"' _ \
+    "$(printf '{"cwd":"%s","stop_hook_active":false}' "$PROJECT")" "$GUARD"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 @test "closure-guard: block reason is valid JSON carrying decision+reason" {
   write_goal ' '
   run_guard "$(printf '{"cwd":"%s","stop_hook_active":false}' "$PROJECT")"
