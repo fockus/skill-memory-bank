@@ -19,12 +19,36 @@ Exclusions:
 
 from __future__ import annotations
 
+import functools
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+@functools.lru_cache(maxsize=1)
+def _gitignored() -> tuple[str, ...]:
+    """Everything git ignores — asked, not enumerated.
+
+    Adapters generate their host's files into the working tree (`.opencode/`,
+    and whatever the next adapter adds); those are output, not skill source, and
+    a developer who installs one must not see this guard go red. The list below
+    used to grow one gitignored directory at a time, which is a list that is
+    always one adapter behind. Do NOT add gitignored paths to EXCLUDED_PATHS.
+    """
+    proc = subprocess.run(
+        ["git", "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:  # not a git checkout (tarball install) — fall back to the list
+        return ()
+    return tuple(p for p in proc.stdout.split("\0") if p)
+
 
 EXCLUDED_PATHS = (
     "scripts/mb-migrate-v2.sh",
@@ -63,7 +87,9 @@ OLD_PLAN = re.compile(r"(?<![A-Za-z0-9_\-])(?<!commands/)plan\.md\b")
 
 def _is_excluded(path: Path) -> bool:
     rel = path.relative_to(REPO_ROOT).as_posix()
-    return any(rel.startswith(p) for p in EXCLUDED_PATHS)
+    return any(rel.startswith(p) for p in EXCLUDED_PATHS) or any(
+        rel.startswith(p) for p in _gitignored()
+    )
 
 
 @pytest.mark.parametrize("suffix", ["*.md", "*.sh", "*.py"])

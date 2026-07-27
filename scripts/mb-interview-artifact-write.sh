@@ -301,7 +301,7 @@ sys.stdout.write(h.hexdigest())'
 # that copy.
 snapshot_plan_candidate() {
   _ensure_stage "${TMPDIR:-/tmp}" || return 2
-  SNAP="$_SCRUB_DIR/plan.md"
+  SNAP="$_SCRUB_DIR/snapshot.md"
   cp "$CAND" "$SNAP" || return 2
   [ -f "$SNAP" ] || return 2
   return 0
