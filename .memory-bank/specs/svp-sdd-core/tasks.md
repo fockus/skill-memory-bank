@@ -247,18 +247,18 @@ estimated_tokens:
 ## Task 9: Детерминированный исполнитель батареи C8 — `mb-sdd-self-check.sh` (generation preflight)
 
 **Stage:** 1
-**Covers:** REQ-054
+**Covers:** REQ-054, REQ-056
 **Role:** backend
 **Blocked-by:** 1, 2, 3
-**Scope:** scripts/mb-sdd-self-check.sh, tests/bats/test_mb_sdd_self_check.bats, tests/fixtures/**
+**Scope:** scripts/mb-sdd-self-check.sh, scripts/mb-sdd-self-check-eval.sh, tests/bats/test_mb_sdd_self_check.bats, tests/bats/test_mb_sdd_self_check_multi.bats, tests/bats/test_mb_sdd_self_check_phase.bats, tests/fixtures/**
 **Budget:** 90000
 
 **What to do:**
 - Новый `scripts/mb-sdd-self-check.sh --spec <topic|spec-dir> [--mb <bank>]` (C8a — вынос поведенческого Eval-preflight REQ-054 из prompt в детерминированный seam, закрывает R3-001). Исполняет батарею C8.1–C8.5 над триплетом: вызывает `mb-spec-validate.sh` (структурная часть + gated-`output~:`), `mb-scenario-extract.py` (паритет), `mb_work_items.py` (парс + роль-резолюция), резолюцию межспековых `Blocked-by` (цикл → fail).
 - **Поведенческий preflight (REQ-054, ядро задачи):** для каждой задачи резолвит target-токены Eval (токены с `/`, не начинающиеся с `-`, C1). Все target существуют → helper САМ исполняет команду и обязан наблюдать заявленный red-якорь → `eval.<id>=ready`; уже-зелёная / red не совпал с якорем → `invalid`; missing раннер-инструмент → `invalid` reason `tool_unavailable`; хотя бы один target отсутствует → `pending_materialization` (НЕ observed red, НЕ влияет на exit).
-- stdout: первая строка `self_check=ready|invalid`, затем `eval.<task-id>=…` по возрастанию task-id. Exit: 0 нет invalid + структурные прошли; 1 любой structural/behavioral violation; 2 usage/неразрешимый topic/malformed. Чекер — банк/триплет не пишет.
+- stdout: первая строка `self_check=ready|invalid phase=generation|done`, затем `eval.<task-id>=…` по возрастанию task-id, и `eval.<task-id>.reason=<code>` у каждого `invalid` (I-172 — девять одинаковых `invalid` без единой причины стоили четырёх шагов чтения исходника). Exit: 0 нет invalid + структурные прошли; 1 любой structural/behavioral violation; 2 usage/неразрешимый topic/malformed. Чекер — банк/триплет не пишет.
 
-**Eval:** `bats tests/bats/test_mb_sdd_self_check.bats` — red: `scripts/mb-sdd-self-check.sh` не существует (отвечает `command not found`/usage), preflight-логики нет; exit: 1; output~: `not ok [0-9]+ self_check: `
+**Eval:** `bats tests/bats/test_mb_sdd_self_check.bats tests/bats/test_mb_sdd_self_check_multi.bats` — red: `scripts/mb-sdd-self-check.sh` не существует (отвечает `command not found`/usage), preflight-логики нет; exit: 1; output~: `not ok [0-9]+ self_check: `
 
 **Testing (TDD — tests BEFORE implementation):**
 - **Конвенция именования (red-якорь)**: каждый bats-тест в `test_mb_sdd_self_check.bats` начинается с `self_check: ` (обоснование X-05: `bats` на отсутствующем файле даёт `not ok 1 bats-gather-tests` с тем же exit 1 — якорь обязан быть положительным именованным префиксом).
@@ -267,8 +267,11 @@ estimated_tokens:
 - Portability: Bash 3.2 (macOS) и Linux; `LC_ALL=C`.
 - Ручной Scenario §20 на фикстурном топике.
 
+- **Фаза (REQ-056, AGR-037):** `--phase generation|done`, дефолт `generation`. В generation требуется наблюдаемый заявленный red (`pending_materialization` честен); в done требуется фактический green, а отсутствующий target — провал (`target_missing`), не «ещё не материализовано». C7 гейтит `draft→ready` по `--phase done`. Неизвестная фаза — usage exit 2; дефолт назван в usage и печатается в строке вердикта, потому что `self_check=invalid` без фазы означает противоположные вещи.
+
 **DoD:**
 - [x] `mb-sdd-self-check.sh` исполняет всю батарею C8; поведенческий preflight отделяет `pending_materialization` от `invalid`; missing target/tool никогда не observed red
 - [x] stdout/exit по контракту C8a; чекер ничего не пишет; bats green (был red); shellcheck clean
 - [x] Сценарий §20 отрабатывает
+- [x] Фаза generation|done реализована и гейтит C7 (REQ-056); каждый `invalid` несёт причину (I-172); сценарий §22 отрабатывает
 <!-- /mb-task:9 -->

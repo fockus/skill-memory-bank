@@ -162,7 +162,7 @@ mk_marking_red_target() {
   mk_marking_red_target tests/sh/red.sh
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "self_check=invalid" ]
+  [ "${lines[0]}" = "self_check=invalid phase=generation" ]
   refute_file "$RAN" \
     || { echo "the Eval command ran despite a structural failure"; false; }
   # …and no behavioural verdict is invented for a battery that never ran.
@@ -187,7 +187,7 @@ mk_marking_red_target() {
   mk_marking_red_target tests/sh/red.sh
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "self_check=ready" ]
+  [ "${lines[0]}" = "self_check=ready phase=generation" ]
   assert_substring "$output" "eval.1=ready"
   [ -f "$RAN" ] || { echo "the Eval command was not executed on a clean spec"; false; }
 }

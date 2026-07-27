@@ -111,7 +111,7 @@ mk_green_target() { printf '#!/usr/bin/env bash\necho "ok 1 demo_persist"\nexit 
   mk_red_target tests/sh/red.sh
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "self_check=ready" ]
+  [ "${lines[0]}" = "self_check=ready phase=generation" ]
   [[ "$output" == *"eval.1=ready"* ]]
 }
 
@@ -124,7 +124,7 @@ mk_green_target() { printf '#!/usr/bin/env bash\necho "ok 1 demo_persist"\nexit 
   chmod +x "$ROOT/tests/with space/green.sh"
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "self_check=invalid" ]
+  [ "${lines[0]}" = "self_check=invalid phase=generation" ]
   [[ "$output" == *"eval.1=invalid"* ]]
 }
 
@@ -133,7 +133,7 @@ mk_green_target() { printf '#!/usr/bin/env bash\necho "ok 1 demo_persist"\nexit 
   # do NOT create the target
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "self_check=ready" ]
+  [ "${lines[0]}" = "self_check=ready phase=generation" ]
   [[ "$output" == *"eval.1=pending_materialization"* ]]
 }
 
@@ -142,7 +142,7 @@ mk_green_target() { printf '#!/usr/bin/env bash\necho "ok 1 demo_persist"\nexit 
   mk_green_target tests/sh/red.sh
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "self_check=invalid" ]
+  [ "${lines[0]}" = "self_check=invalid phase=generation" ]
   [[ "$output" == *"eval.1=invalid"* ]]
 }
 
@@ -168,7 +168,7 @@ mk_green_target() { printf '#!/usr/bin/env bash\necho "ok 1 demo_persist"\nexit 
   rm -f "$dir/tasks.md.bak"
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "self_check=invalid" ]
+  [ "${lines[0]}" = "self_check=invalid phase=generation" ]
 }
 
 @test "self_check: prefixed Role (mb-backend) → role collision, exit 1" {
@@ -176,7 +176,7 @@ mk_green_target() { printf '#!/usr/bin/env bash\necho "ok 1 demo_persist"\nexit 
   mk_red_target tests/sh/red.sh
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "self_check=invalid" ]
+  [ "${lines[0]}" = "self_check=invalid phase=generation" ]
 }
 
 @test "self_check: markerless scenario header → parity violation, exit 1" {
@@ -193,184 +193,6 @@ mk_green_target() { printf '#!/usr/bin/env bash\necho "ok 1 demo_persist"\nexit 
 EOF
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 1 ]
-}
-
-# ── ordering + resolver ──────────────────────────────────────────────────────
-
-@test "self_check: eval lines are emitted in ascending task-id order" {
-  local dir="$SPECS/order"; mkdir -p "$dir"
-  cat >"$dir/requirements.md" <<EOF
-# Requirements: order
-
-## Requirements (EARS)
-
-- **REQ-001** (ubiquitous): The system shall A.
-- **REQ-002** (ubiquitous): The system shall B.
-
-## Scenarios
-
-<!-- mb-scenario:1 -->
-### Scenario: a
-**Covers:** REQ-001
-- GIVEN a
-- WHEN a
-- THEN a
-<!-- /mb-scenario:1 -->
-<!-- mb-scenario:2 -->
-### Scenario: b
-**Covers:** REQ-002
-- GIVEN b
-- WHEN b
-- THEN b
-<!-- /mb-scenario:2 -->
-EOF
-  # author task 2 BEFORE task 1 in file order → the helper must still sort by id.
-  cat >"$dir/tasks.md" <<EOF
-# Tasks: order
-
-<!-- mb-task:2 -->
-## Task 2: B
-**Covers:** REQ-002
-**Role:** backend
-**Eval:** bash tests/sh/b.sh ${DASH} red: b fails; exit: 1; output~: $ORE
-
-**Testing:** t.
-
-**DoD:**
-- [ ] b.
-<!-- /mb-task:2 -->
-<!-- mb-task:1 -->
-## Task 1: A
-**Covers:** REQ-001
-**Role:** backend
-**Eval:** bash tests/sh/a.sh ${DASH} red: a fails; exit: 1; output~: $ORE
-
-**Testing:** t.
-
-**DoD:**
-- [ ] a.
-<!-- /mb-task:1 -->
-EOF
-  cat >"$dir/design.md" <<EOF
-# Design: order
-
-## Contract
-
-**Seams:**
-- the seam
-
-## Eval declarations
-
-- **T1** ${DASH} A:
-  **Eval:** bash tests/sh/a.sh ${DASH} red: a fails; exit: 1; output~: $ORE
-- **T2** ${DASH} B:
-  **Eval:** bash tests/sh/b.sh ${DASH} red: b fails; exit: 1; output~: $ORE
-EOF
-  run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
-  [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "self_check=ready" ]
-  [ "${lines[1]}" = "eval.1=pending_materialization" ]
-  [ "${lines[2]}" = "eval.2=pending_materialization" ]
-}
-
-@test "self_check: three-task fixture (§20) — pending, invalid(green), ready(red)" {
-  local dir="$SPECS/s20"; mkdir -p "$dir"
-  cat >"$dir/requirements.md" <<EOF
-# Requirements: s20
-
-## Requirements (EARS)
-
-- **REQ-001** (ubiquitous): The system shall A.
-- **REQ-002** (ubiquitous): The system shall B.
-- **REQ-003** (ubiquitous): The system shall C.
-
-## Scenarios
-
-<!-- mb-scenario:1 -->
-### Scenario: a
-**Covers:** REQ-001
-- GIVEN a
-- WHEN a
-- THEN a
-<!-- /mb-scenario:1 -->
-<!-- mb-scenario:2 -->
-### Scenario: b
-**Covers:** REQ-002
-- GIVEN b
-- WHEN b
-- THEN b
-<!-- /mb-scenario:2 -->
-<!-- mb-scenario:3 -->
-### Scenario: c
-**Covers:** REQ-003
-- GIVEN c
-- WHEN c
-- THEN c
-<!-- /mb-scenario:3 -->
-EOF
-  cat >"$dir/tasks.md" <<EOF
-# Tasks: s20
-
-<!-- mb-task:1 -->
-## Task 1: A (absent target)
-**Covers:** REQ-001
-**Role:** backend
-**Eval:** bash tests/sh/absent.sh ${DASH} red: a fails; exit: 1; output~: $ORE
-
-**Testing:** t.
-
-**DoD:**
-- [ ] a.
-<!-- /mb-task:1 -->
-<!-- mb-task:2 -->
-## Task 2: B (green)
-**Covers:** REQ-002
-**Role:** backend
-**Eval:** bash tests/sh/green.sh ${DASH} red: b fails; exit: 1; output~: $ORE
-
-**Testing:** t.
-
-**DoD:**
-- [ ] b.
-<!-- /mb-task:2 -->
-<!-- mb-task:3 -->
-## Task 3: C (red)
-**Covers:** REQ-003
-**Role:** backend
-**Eval:** bash tests/sh/red.sh ${DASH} red: c fails; exit: 1; output~: $ORE
-
-**Testing:** t.
-
-**DoD:**
-- [ ] c.
-<!-- /mb-task:3 -->
-EOF
-  cat >"$dir/design.md" <<EOF
-# Design: s20
-
-## Contract
-
-**Seams:**
-- the seam
-
-## Eval declarations
-
-- **T1** ${DASH} A:
-  **Eval:** bash tests/sh/absent.sh ${DASH} red: a fails; exit: 1; output~: $ORE
-- **T2** ${DASH} B:
-  **Eval:** bash tests/sh/green.sh ${DASH} red: b fails; exit: 1; output~: $ORE
-- **T3** ${DASH} C:
-  **Eval:** bash tests/sh/red.sh ${DASH} red: c fails; exit: 1; output~: $ORE
-EOF
-  mk_green_target tests/sh/green.sh
-  mk_red_target tests/sh/red.sh
-  # absent.sh intentionally NOT created
-  run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
-  [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "self_check=invalid" ]
-  [ "${lines[1]}" = "eval.1=pending_materialization" ]
-  [ "${lines[2]}" = "eval.2=invalid" ]
-  [ "${lines[3]}" = "eval.3=ready" ]
 }
 
 @test "self_check: unresolvable topic → exit 2" {

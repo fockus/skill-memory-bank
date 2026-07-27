@@ -8,6 +8,28 @@
 #
 # Usage:
 #   mb-sdd-self-check.sh --spec <topic|spec-dir> [--mb <bank>]
+#                        [--phase generation|done]      (default: generation)
+#
+# PHASES (AGR-037). The battery used to have exactly one rule — every Eval must
+# be RED — while C7 made its exit 0 the only route to `status: ready`. Those two
+# together made `ready` reachable ONLY for an unimplemented spec: the moment the
+# code lands its Evals turn green and the gate closes forever, which is the
+# opposite of what the word means. Measured on the spec that defines the gate:
+# nine `eval.N=invalid` while its own suites reported `33 passed`.
+#
+#   --phase generation  the DECLARED red must be observable — a task that
+#                       changes nothing cannot pass. `pending_materialization`
+#                       is honest here: D-05 defers eval code to the first step
+#                       of `/mb work`, so an absent target is expected.
+#   --phase done        the Eval must be actually GREEN. `pending_materialization`
+#                       is IMPOSSIBLE here: after implementation an absent target
+#                       is a task that never materialised its contract →
+#                       `invalid` with reason `target_missing`.
+#
+# The default is `generation` (the phase `commands/sdd.md` calls at Step 7). It
+# is named on the verdict line — `self_check=<verdict> phase=<phase>` — because
+# `self_check=invalid` means opposite things in the two phases and must never be
+# readable without knowing which one produced it.
 #
 # Battery (C8.1–C8.5):
 #   - Structural C8.1–C8.3, C8.5 are delegated to `mb-spec-validate.sh`
@@ -21,19 +43,29 @@
 #     short-circuit stays diagnosable.
 #   - Behavioural Eval preflight C8.4 (the core of this task, REQ-054): for each
 #     task the helper resolves the Eval command's target tokens (tokens that
-#     contain `/` and do not start with `-`, per C1). When ALL targets exist the
-#     helper runs the command and must OBSERVE the declared red anchor
-#     (`output~:` ERE and, when declared, `exit:`) → `ready`. An already-green
-#     command or a red that does not match the anchor → `invalid`. A missing
-#     target → `pending_materialization` (an honest "eval not materialised yet",
-#     NOT a failure). A missing runner tool at an existing target → `invalid`
-#     with reason `tool_unavailable` (never `ready`, never counted as red).
+#     contain `/` and do not start with `-`, per C1) and runs the command from
+#     the run root, judging the result by the phase above.
 #
-# stdout : first line `self_check=ready|invalid`, then one
+# stdout : first line `self_check=ready|invalid phase=generation|done`, then one
 #          `eval.<task-id>=ready|pending_materialization|invalid` per task in
-#          ascending task-id order, each optionally followed by
-#          `eval.<task-id>.reason=<reason>` where C8 names one
-#          (currently: `tool_unavailable`).
+#          ascending task-id order, each followed by
+#          `eval.<task-id>.reason=<reason>` whenever the verdict is not
+#          self-explanatory. EVERY `invalid` carries one (I-172): the class had
+#          at least four distinguishable causes and emitted no diagnosis at all,
+#          so nine identical `invalid` lines cost four source-reading steps to
+#          tell apart. Reason vocabulary:
+#            waived              — `Eval: none — waiver: …`, nothing to run
+#            no_declaration      — legacy task with no `**Eval:**` line (D-26)
+#            target_absent       — generation: a declared target does not exist
+#            no_target_token     — generation: the command names no target path
+#            target_missing      — done: a declared target does not exist
+#            tool_unavailable    — the runner is not installed / exit 127
+#            malformed_command   — unbalanced quotes, or no runner after env vars
+#            exit_zero_declared  — `exit: 0` in the declaration (a red never is)
+#            already_green       — generation: the command exits 0
+#            anchor_mismatch     — actual output does not match `output~:`
+#            exit_mismatch       — actual exit ≠ declared `exit:`
+#            not_green           — done: the command does not exit 0
 # exit   : 0 = no `invalid` and structural checks passed (ready);
 #          1 = any structural or behavioural violation (`eval.*=invalid`,
 #              Blocked-by cycle, spec-validate / parity / role failure);
@@ -52,6 +84,10 @@ usage_error() { printf 'error=usage\n' >&2; exit 2; }
 
 SPEC_ARG=""
 MB_BANK=""
+# Default: generation — the phase `commands/sdd.md` Step 7 calls. Documented in
+# the usage block above and printed on the verdict line, so a default can never
+# be an unstated assumption of whoever reads the output.
+PHASE="generation"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --spec)
@@ -62,6 +98,13 @@ while [ "$#" -gt 0 ]; do
     --mb)
       [ "$#" -ge 2 ] || usage_error
       MB_BANK="$2"; shift
+      ;;
+    --phase)
+      # An unknown phase is a usage error, never a silent fallback to the
+      # default: the two phases demand OPPOSITE outcomes of the same command.
+      [ "$#" -ge 2 ] || usage_error
+      case "$2" in generation|done) PHASE="$2" ;; *) usage_error ;; esac
+      shift
       ;;
     *) usage_error ;;
   esac
@@ -148,7 +191,7 @@ if [ "$sv_exit" -ne 0 ]; then
   # go to stderr — a silent `self_check=invalid` would trade one blind spot for
   # another.
   [ -z "$sv_out" ] || printf '%s\n' "$sv_out" >&2
-  printf 'self_check=invalid\n'
+  printf 'self_check=invalid phase=%s\n' "$PHASE"
   exit 1
 fi
 
@@ -183,102 +226,10 @@ PY
 )" || { printf 'error=malformed\n' >&2; exit 2; }
 
 # --- Behavioural Eval preflight (C8.4) --------------------------------------
-# classify <cmd> <expected_exit> <output_re> → prints one status word.
-classify_eval() {
-  local cmd="$1" exp="$2" ore="$3"
-  [ -n "$cmd" ] || { printf 'pending_materialization'; return; }
-  # cmd 'none' (non-gated / waiver) — nothing to run behaviourally.
-  case "$cmd" in
-    none|None|NONE) printf 'pending_materialization'; return ;;
-  esac
-  # `exit: 0` contradicts the definition of a red (review [6]): reject the
-  # declaration outright rather than letting it license a green-as-red.
-  if [ -n "$exp" ] && [ "$exp" = "0" ]; then printf 'invalid'; return; fi
-
-  # Shell-aware tokenisation (respects quotes, so a target path with a space is
-  # resolved correctly — major #12). shlex mirrors how `eval "$cmd"` splits the
-  # command at execution time. Emits a pre-verdict:
-  #   PENDING  — no target token, or at least one target is missing
-  #   TOOL     — all targets exist but the runner tool is unavailable
-  #   MALFORMED— unbalanced quotes
-  #   RUN      — all targets exist and the runner is available
-  local pre
-  pre="$(CMD="$cmd" RUN_ROOT="$RUN_ROOT" python3 - <<'PY'
-import os, re, shlex, shutil, sys
-cmd = os.environ["CMD"]
-root = os.environ["RUN_ROOT"]
-try:
-    toks = shlex.split(cmd)
-except ValueError:
-    print("MALFORMED"); sys.exit(0)
-if not toks:
-    print("PENDING"); sys.exit(0)
-targets = [t for t in toks if "/" in t and not t.startswith("-")]
-if not targets:
-    print("PENDING"); sys.exit(0)
-for t in targets:
-    # RUN_ROOT only: the command is executed from there, so that is the sole
-    # place a repo-relative target can be said to exist. Consulting the cwd of
-    # the CALLER let a same-named local file flip pending_materialization to RUN.
-    if not os.path.exists(os.path.join(root, t)):
-        print("PENDING"); sys.exit(0)
-# `VAR=value cmd ...` is valid shell: the leading assignments are environment,
-# not the runner. Treating `PYTHONPATH=src` as the tool made shutil.which fail
-# and rejected a perfectly valid Eval as an unavailable tool (review [16]).
-rest = list(toks)
-while rest and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", rest[0]):
-    rest.pop(0)
-if not rest:
-    print("MALFORMED"); sys.exit(0)
-runner = rest[0]
-if "/" not in runner and shutil.which(runner) is None:
-    print("TOOL"); sys.exit(0)
-print("RUN")
-PY
-)"
-  case "$pre" in
-    PENDING) printf 'pending_materialization'; return ;;
-    TOOL) printf 'invalid\037tool_unavailable'; return ;;
-    MALFORMED) printf 'invalid'; return ;;
-    RUN) : ;;
-    *) printf 'invalid'; return ;;
-  esac
-
-  # Run the command byte-identical from the run root, capture combined output.
-  local out rc
-  set +e
-  out="$(cd "$RUN_ROOT" && eval "$cmd" 2>&1)"
-  rc=$?
-  set -e
-  if [ "$rc" -eq 127 ]; then printf 'invalid\037tool_unavailable'; return; fi
-
-  # Observe the DECLARED red: output must match output_re and (when declared)
-  # the exit must equal the declared exit. Without any anchor a red cannot be
-  # confirmed → invalid.
-  # A red is by DEFINITION a failing run. Without this, a command that merely
-  # printed the declared output~ anchor and exited 0 was recorded as `ready`,
-  # which is precisely how a green command impersonates a red (review [6]).
-  # `exit: 0` is rejected structurally below, so this cannot be declared away.
-  local red=1
-  [ "$rc" -ne 0 ] || red=0
-  if [ -n "$ore" ]; then
-    # `--` ends option parsing: a valid ERE starting with '-' (e.g. `-FAIL`) is
-    # a pattern, not a grep flag. The validator already uses `grep -E --`, so
-    # without this the two disagreed about the same declaration (review [21]).
-    printf '%s\n' "$out" | grep -Eq -- "$ore" || red=0
-  fi
-  if [ -n "$exp" ]; then
-    [ "$rc" -eq "$exp" ] || red=0
-  fi
-  # An ANCHORLESS declaration is valid by C1 — anchors are mandatory only for a
-  # task covering a gated REQ (REQ-055, enforced structurally above), and for a
-  # non-gated one «red считается по exit != 0». Demanding an anchor here
-  # rejected a correct declaration and blocked draft→ready (review [7]). The
-  # `rc != 0` requirement above is what still keeps a green command from
-  # impersonating a red.
-
-  if [ "$red" -eq 1 ]; then printf 'ready'; else printf 'invalid'; fi
-}
+# How ONE declaration is classified lives in its own file — see its header for
+# the caller contract ($RUN_ROOT in, status+reason out).
+# shellcheck source=mb-sdd-self-check-eval.sh
+source "$SCRIPT_DIR/mb-sdd-self-check-eval.sh"
 
 any_invalid=0
 EVAL_LINES=""
@@ -289,7 +240,7 @@ if [ -n "$TSV" ]; then
     # classify_eval returns `status` optionally followed by <US> and a reason.
     # A plain variable could not carry it: the function runs inside $( ), so
     # anything it assigns dies with the subshell.
-    raw="$(classify_eval "$cmd" "$exp" "$ore")"
+    raw="$(classify_eval "$cmd" "$exp" "$ore" "$PHASE")"
     status="${raw%%$'\037'*}"
     reason=""
     case "$raw" in *$'\037'*) reason="${raw#*$'\037'}" ;; esac
@@ -308,11 +259,15 @@ fi
 # --- Verdict ----------------------------------------------------------------
 # Structural violations already exited above, so only the behavioural half is
 # left to decide.
+# The phase is part of the verdict LINE, not a separate one: `self_check=invalid`
+# means opposite things in the two phases (a red that never appeared vs. a green
+# that never appeared), so a reader must not be able to consume the verdict
+# without it (AGR-037).
 if [ "$any_invalid" -eq 0 ]; then
-  printf 'self_check=ready\n'
+  printf 'self_check=ready phase=%s\n' "$PHASE"
   verdict=0
 else
-  printf 'self_check=invalid\n'
+  printf 'self_check=invalid phase=%s\n' "$PHASE"
   verdict=1
 fi
 printf '%s' "$EVAL_LINES"

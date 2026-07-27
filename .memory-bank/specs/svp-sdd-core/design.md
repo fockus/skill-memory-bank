@@ -458,13 +458,23 @@ tamper-proof.
 draft-файл accepted, пока он не прошёл C8 и разрешение ревью.
 
 - Все новые/перегенерированные артефакты публикуются с `requirements.md: status: draft`.
-- `status` меняется на `ready` **только** после `mb-sdd-self-check.sh` exit 0 (C8=pass) **и** одного
+- `status` меняется на `ready` **только** после `mb-sdd-self-check.sh --phase done` exit 0
+  (C8=pass в фазе done) **и** одного
   из: ревью выключено (`sdd.spec_review.enabled=false`); ревью вернуло **APPROVED**
   (`mb-sdd-review-result.sh record` exit 0); либо явного решения человека/оркестратора принять
   спеку при **SKIPPED** или при отклонённых issue — это решение пишется отдельной JSONL-строкой
   (C5) до перехода в ready.
 - C8-провал (`mb-sdd-self-check.sh` exit≠0) **или** **CHANGES_REQUESTED** (record exit 1) оставляют
   `status: draft`. Простой **SKIPPED** без явного решения — тоже draft (молча ready не становится).
+- **Почему именно `--phase done` (AGR-037).** Гейт `ready` ссылался на батарею без указания фазы,
+  а батарея требовала КРАСНЫХ Eval. Пара «ready ⇐ exit 0» + «exit 0 ⇐ все Eval красные» делала
+  `ready` достижимым **только у нереализованной спеки**: как только код написан, Eval'ы зеленеют и
+  гейт закрывается навсегда — обратное смыслу слова. Измерено на спеке, которая этот гейт и вводит:
+  девять `eval.N=invalid` при `33 passed` её собственного прогона. Поэтому переход в `ready` гейтится
+  фазой **done** (Eval обязаны быть зелёными), а фаза **generation** остаётся гейтом шага (7), где
+  красный ещё осмыслен. Одна и та же спека законно даёт `invalid` в generation и `ready` в done —
+  это не противоречие, а разные вопросы к одному артефакту, и поэтому фаза печатается в строке
+  вердикта: `self_check=invalid` без неё нечитаем.
 - Правки после CHANGES_REQUESTED проходят полный цикл заново **в порядке шагов 7–9**: новый
   candidate → C3 (гейт) → staged C8 по `<bank>/tmp/sdd/<topic>/` → ревью → атомарный промоушен.
   Промоушен — ПОСЛЕДНИЙ шаг: принятый `specs/<topic>/tasks.md` не заменяется перегенерированным
@@ -531,21 +541,45 @@ production seam, поэтому REQ-054 нельзя было ни исполн�
 батарею C8 в helper; REQ-054 трассируется на его задачу (Task 9), T4 его **вызывает**.
 
 ```
-bash scripts/mb-sdd-self-check.sh --spec <topic|spec-dir> [--mb <bank>]
+bash scripts/mb-sdd-self-check.sh --spec <topic|spec-dir> [--mb <bank>] \
+     [--phase generation|done]        # default: generation
 ```
 
+- **Фаза (REQ-056, AGR-037).** Батарея отвечает на РАЗНЫЕ вопросы до и после реализации, и одним
+  правилом они не покрываются:
+  - `--phase generation` — требуется наблюдаемый **заявленный red**; `pending_materialization`
+    честен (D-05 откладывает eval-код до первого шага `/mb work`, поэтому отсутствующий target
+    ожидаем). Это фаза шага (7) конвейера.
+  - `--phase done` — требуется фактический **green**; `pending_materialization` в этой фазе
+    **невозможен**: отсутствующий target после реализации — это задача, не материализовавшая
+    собственный контракт, → `invalid` с reason `target_missing`. Это фаза гейта C7 `draft→ready`.
+  - Дефолт — `generation` (фаза, которую зовёт `commands/sdd.md` шаг 7). Дефолт назван в usage
+    скрипта И печатается в строке вердикта, поэтому не может остаться невысказанным допущением.
+  - Неизвестное значение `--phase` — usage-ошибка (exit 2), а не тихий откат к дефолту: фазы
+    требуют ПРОТИВОПОЛОЖНОГО исхода одной и той же команды.
 - Исполняет C8.1–C8.5 над указанным триплетом; для каждой задачи вычисляет `eval_status` по
-  поведенческому правилу выше (target-резолюция + фактический прогон существующих target; missing
-  target → `pending_materialization`; уже-зелёная / несовпавший red / missing tool → `invalid`).
+  поведенческому правилу фазы (target-резолюция + фактический прогон; в generation: missing target →
+  `pending_materialization`, уже-зелёная / несовпавший red / missing tool → `invalid`; в done:
+  не-зелёная → `invalid` reason `not_green`, missing target → `invalid` reason `target_missing`).
+- **Waiver ≠ «ещё не материализовано».** Задача с `Eval: none — waiver: …` (и легаси-задача вовсе
+  без `**Eval:**`, D-26) даёт `ready` с reason `waived` / `no_declaration` в обеих фазах: запускать
+  нечего. До AGR-037 оба случая печатались как `pending_materialization` вместе с «эвал ещё не
+  написан» — три разных факта одним словом, и в фазе done третий из них является провалом.
 - **Структурный провал КОРОТИТ батарею** (закрывает круг-4 [1]): структурная половина исполняется
   первой, и при её ненулевом выходе helper печатает `self_check=invalid`, выводит сами violations в
   stderr и завершается **не исполнив ни одной Eval-команды**. Вердикт от прогона уже не изменится, а
   исполнять пользовательскую команду от имени артефакта, который батарея только что отвергла, — это
   не проверка, а непроверенный путь исполнения. Следствие для потребителя: отсутствие строк `eval.*`
   означает «поведенческая половина не запускалась», а не «в спеке нет задач».
-- **stdout**: первой строкой `self_check=ready|invalid`, затем — только если структурная половина
-  прошла — по строке `eval.<task-id>=ready|pending_materialization|invalid` в порядке возрастания
-  task-id.
+- **stdout**: первой строкой `self_check=ready|invalid phase=generation|done`, затем — только если
+  структурная половина прошла — по строке
+  `eval.<task-id>=ready|pending_materialization|invalid` в порядке возрастания task-id, и за ней
+  `eval.<task-id>.reason=<code>`, когда вердикт не самоочевиден.
+- **Причина обязательна у КАЖДОГО `invalid`** (I-172): класс имел минимум четыре различимые причины
+  и не выдавал ни одной — девять одинаковых `invalid` стоили четырёх шагов чтения исходника, чтобы
+  их различить. Словарь: `waived`, `no_declaration`, `target_absent` (generation), `no_target_token`,
+  `target_missing` (done), `tool_unavailable`, `malformed_command`, `exit_zero_declared`,
+  `already_green` (generation), `anchor_mismatch`, `exit_mismatch`, `not_green` (done).
 - **Exit**: `0` — нет ни одного `invalid` и структурные проверки C8.1–C8.3/C8.5 прошли (ready);
   `1` — хотя бы один structural/behavioral violation (в т.ч. `eval.*=invalid`, цикл Blocked-by,
   провал spec-validate/паритета/роль-резолюции); `2` — usage / неразрешимый topic / malformed вход.
@@ -636,7 +670,7 @@ C8 отсутствующий target = `pending_materialization`, а не observ
 - **T8** — eval-first врезка (self-executing helper):
   **Eval:** `bats tests/bats/test_work_eval_first.bats` — red: `mb-work-state.sh` не знает `eval-red`/`eval-green` (отвечает usage, exit 2), врезки в work.md нет; exit: 1; output~: `not ok [0-9]+ .*eval_red`
 - **T9** — детерминированный исполнитель батареи C8a:
-  **Eval:** `bats tests/bats/test_mb_sdd_self_check.bats` — red: `scripts/mb-sdd-self-check.sh` не существует (отвечает `command not found`/usage), preflight-логики нет; exit: 1; output~: `not ok [0-9]+ self_check: `
+  **Eval:** `bats tests/bats/test_mb_sdd_self_check.bats tests/bats/test_mb_sdd_self_check_multi.bats` — red: `scripts/mb-sdd-self-check.sh` не существует (отвечает `command not found`/usage), preflight-логики нет; exit: 1; output~: `not ok [0-9]+ self_check: `
 
 ## Risks & mitigation
 

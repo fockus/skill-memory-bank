@@ -188,5 +188,5 @@ p.write_text(txt.split("## Scenarios")[0], encoding="utf-8")
 PY
   run --separate-stderr env MB_REPO_ROOT="$ROOT" "$SELFCHECK" --spec "$dir"
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "self_check=invalid" ]
+  [ "${lines[0]}" = "self_check=invalid phase=generation" ]
 }

@@ -117,6 +117,7 @@ status: draft
 - **REQ-015** (event-driven): When spec generation completes, the system shall run the generation self-check battery — structural validation, scenario-extraction parity against scenario headings, task parsing with role resolution against the roles table, and an Eval preflight — and shall keep the spec in draft status until every check passes. <!-- S2-A-07, review 2026-07-17 -->
 - **REQ-054** (state-driven): While the Eval preflight runs, the system shall execute only those Eval commands whose targets already exist — requiring the declared red anchor and rejecting an already-green command — and shall record `eval_status: pending_materialization` for evals whose code is not yet materialized, never counting a missing target or missing tool as an observed red. <!-- D-05, ревью R2-002/R2-009 -->
 - **REQ-055** (state-driven): While a task covers a gated requirement, its Eval declaration shall carry an output-matching red anchor, so that a missing target can never be mistaken for the declared red by exit code alone. <!-- C1, измерено 2026-07-17: bats на отсутствующем файле даёт exit 1 -->
+- **REQ-056** (state-driven): While the self-check battery runs, the system shall require the outcome its declared phase demands — an observable declared red in the generation phase and an actual green in the done phase — and shall name that phase on its verdict line. <!-- AGR-037; измерено 2026-07-27: реализованная спека давала eval.1…9=invalid при зелёных прогонах, поэтому `ready` был достижим только у ненаписанного кода -->
 
 ## Scenarios
 
@@ -308,3 +309,12 @@ status: draft
 - WHEN mb-spec-validate проверяет Eval-декларации
 - THEN валидация падает: `bats` на отсутствующем файле возвращает тот же exit 1, что и настоящий провал, поэтому exit-only якорь не отличает посторонний сбой от заявленного red
 <!-- /mb-scenario:21 -->
+
+<!-- mb-scenario:22 -->
+### Scenario: The same green eval passes done and fails generation
+**Covers:** REQ-056
+
+- GIVEN реализованная задача, чей Eval сейчас зелёный (target существует, команда даёт exit 0)
+- WHEN батарея выполняется дважды — `--phase done` и `--phase generation`
+- THEN в done → `eval.N=ready` и `self_check=ready phase=done`; в generation → `eval.N=invalid` с `reason=already_green`; обе строки вердикта несут свою фазу, поэтому один и тот же `invalid` нельзя прочитать, не зная, чего от прогона требовали
+<!-- /mb-scenario:22 -->

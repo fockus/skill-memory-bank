@@ -67,6 +67,15 @@ ZONE_FILES = [
     "tests/bats/test_mb_spec_validate_hardening.bats",
     "tests/pytest/test_mb_pipeline_validate_r2.py",
     "tests/pytest/test_mb_work_eval_proof.py",
+    # r4 / AGR-037 split-outs: same rule as the r3 ones above — a file created
+    # by splitting a zone file inherits the limit instead of escaping it (I-165
+    # is the general fix; these are the ones this round created).
+    "scripts/mb-sdd-self-check-eval.sh",
+    "tests/bats/test_mb_sdd_self_check_r4.bats",
+    "tests/bats/test_mb_sdd_self_check_multi.bats",
+    "tests/bats/test_mb_sdd_self_check_phase.bats",
+    "tests/bats/test_sdd_spec_review_r4.bats",
+    "tests/pytest/test_s2_spec_status_honesty.py",
     "tests/pytest/test_s2_file_size_contract.py",
 ]
 
