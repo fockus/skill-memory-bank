@@ -133,6 +133,17 @@ When the user types `/mb work [args...]`:
 
    **Waiver only for non-gated.** A task with no runtime surface may waive the behavioural red (`**Eval:** none — waiver: <reason>`) **only when it is non-gated**; a gated task must carry a real red. The verify step (5c) later runs `eval-green`, which reruns the byte-identical command and demands an actual green.
 
+   ### 5a1. Contract task: two dispatches, then the red gate
+
+   A task carrying `**Layer:** contract` is ONE checkbox but TWO implementer dispatches: the registry it declares has to be frozen before the checkers that satisfy it exist, and the current loop dispatches an implementer once per item.
+
+   1. **Dispatch A (declare).** Prompt composed exactly as 5a, plus: write NO product or checker files; print `MB_CONTRACT_CHECKERS_JSON={"checkers":[…]}` as its own block **before** the final `MB_WORK_RESULT_JSON=` line, then stop. The envelope stays the last non-empty block, so S5's report contract is untouched.
+   2. **Orchestrator.** Validate that JSON, write the fenced ```json Contract-checkers``` block into the task body — the bank is written by the orchestrator, never by the agent — and record `bash scripts/mb-work-state.sh step contract_declared --run-id "$RUN_ID" --mb <bank>`.
+   3. **Dispatch B (build).** Hand back the frozen registry; the implementer writes only the checkers and their unit tests.
+   4. **Red gate.** Once the checker unit tests are green: `bash scripts/mb-contract-gate.sh red --spec <spec-dir> --mb <bank>`. Exit 0 → proceed to business implementation. Exit 1 (`fake_red` — a checker green before the code exists; `foreign_failure` — it failed for some other reason) or exit 2 → **local hard stop**: item stays open, checkbox is not flipped, no business implement dispatch. Do **not** route this into `mb-work-adapt.sh`: that envelope describes a task's complexity, not a checker that proves nothing, and routing it would defer an immediate refusal until the cycles run out. A requirement no checker can observe is the same hard stop, class "spec defect".
+
+   **Resume.** A schema-valid registry in the task body **and** a `contract_declared` step → skip A, resume at B. Missing either → repeat A. Business implementation stays blocked until `red` exits 0.
+
    ### 5a. Implement step (only if workflow includes `implement`)
 
    Dispatch via `Task`. **Compose the prompt as engineering-core + tooling-core + role-delta:** inline
@@ -172,6 +183,8 @@ When the user types `/mb work [args...]`:
    ```
 
    The helper reruns the saved (byte-identical) `--cmd-file` and exits 0 **only** on an actual exit 0; a still-red command or a drift of `--cmd-file` vs the recorded `cmd` → exit 1, which **halts** the item (the implementation did not turn its own declared red green).
+
+   **Contract checkers (any spec whose contract task is closed).** Then `bash scripts/mb-contract-gate.sh verify --spec <spec-dir> --mb <bank>`. Exit 1 = verification FAIL, a checker is still red. Exit 2 = the red-evidence gate refused and **no checker ran**: a checker whose red was never observed, or whose registry command changed since it was, cannot be verified against. Both halt the item.
 
    Then dispatch the plan-verifier before code review when both are present. The verifier catches missing tests, incomplete DoD, broken traceability, and architecture drift before reviewer cycles are spent.
 

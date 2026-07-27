@@ -39,28 +39,22 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
 sys.path.insert(0, str(Path(os.environ["MB_SCRIPT_DIR"]).resolve().parent))
 
+import mb_contract_registry as registry  # noqa: E402
 import mb_req_id as rq  # noqa: E402
 
 from memory_bank_skill.spec_layers import SpecLayersError, read_spec_layers  # noqa: E402
 
-LAYERS = ("contract", "integration", "e2e")
+LAYERS = registry.LAYERS
 LAYER_FLAGS = ("contract_first", "integration_tests", "e2e_tests")
-CHECKER_KEYS = ("id", "covers", "path", "argv", "evidence", "output_ere")
 
-_LAYER_FIELD_RE = re.compile(r"^\*\*Layer:\*\*[ \t]*(.*?)[ \t]*$", re.IGNORECASE | re.MULTILINE)
 # Normative SHALL/MUST only: SHOULD and MAY do not gate (D-06).
 _NORMATIVE_RE = re.compile(r"\b(shall|must)\b", re.IGNORECASE)
-_CHECKER_ID_RE = re.compile(r"^[a-z0-9_]+$")
-_REGISTRY_RE = re.compile(
-    r"^```json[ \t]+Contract-checkers[ \t]*\n(.*?)^```[ \t]*$", re.MULTILINE | re.DOTALL
-)
 
 violations: list[str] = []
 
@@ -83,23 +77,6 @@ def note(msg: str) -> None:
     if os.environ.get("MB_SPEC_VALIDATE_JSON") == "1":
         return
     sys.stderr.write("[spec-validate] %s\n" % msg)
-
-
-def ere_ok(pattern: str) -> bool:
-    """Compile with the SAME engine used at execution time (grep -E, exit 2)."""
-    try:
-        return (
-            subprocess.run(
-                ["grep", "-E", "--", pattern],
-                input="",
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                text=True,
-            ).returncode
-            != 2
-        )
-    except OSError:
-        return False
 
 
 def gated_reqs(text: str) -> list[str]:
@@ -133,88 +110,10 @@ def gated_reqs(text: str) -> list[str]:
     return out
 
 
-def layer_of(body: str) -> str | None:
-    """The task's ``**Layer:**`` value, or None for an implementation task."""
-    m = _LAYER_FIELD_RE.search(body or "")
-    return m.group(1) if m else None
+layer_of = registry.layer_of
 
 
 # ── C3a: the Contract-checkers registry ─────────────────────────────────────
-
-
-def _check_evidence(label: str, value: str, prefix: str) -> None:
-    if not isinstance(value, str) or not value:
-        bad("Contract-checkers: checker %s evidence must be a non-empty string" % label)
-        return
-    if value.startswith("/"):
-        bad(
-            "Contract-checkers: checker %s evidence must be bank-relative, got `%s`"
-            % (label, value)
-        )
-        return
-    if ".." in Path(value).parts:
-        bad(
-            "Contract-checkers: checker %s evidence must not escape the bank: `%s`" % (label, value)
-        )
-        return
-    if not value.startswith(prefix):
-        bad(
-            "Contract-checkers: checker %s evidence must live under `%s`, got `%s`"
-            % (label, prefix, value)
-        )
-        return
-    if "{phase}" not in value:
-        bad("Contract-checkers: checker %s evidence needs the `{phase}` placeholder" % label)
-
-
-def _check_checker(entry, index: int, prefix: str, covered: set, ids: set) -> None:
-    label = "#%d" % index
-    if not isinstance(entry, dict):
-        bad("Contract-checkers: checker %s must be an object" % label)
-        return
-    if isinstance(entry.get("id"), str):
-        label = "`%s`" % entry["id"]
-
-    for key in entry:
-        if key not in CHECKER_KEYS:
-            bad("Contract-checkers: checker %s has an unknown key `%s`" % (label, key))
-    for key in CHECKER_KEYS:
-        if key not in entry:
-            bad("Contract-checkers: checker %s is missing key `%s`" % (label, key))
-
-    ident = entry.get("id")
-    if not isinstance(ident, str) or not _CHECKER_ID_RE.match(ident):
-        bad("Contract-checkers: checker %s id must match [a-z0-9_]+" % label)
-    elif ident in ids:
-        bad("Contract-checkers: checker id `%s` is used more than once" % ident)
-    else:
-        ids.add(ident)
-
-    covers = entry.get("covers")
-    if not isinstance(covers, list) or not covers:
-        bad("Contract-checkers: checker %s covers must be a non-empty array" % label)
-    else:
-        for token in covers:
-            if not isinstance(token, str) or not rq.COVERS_TOKEN_RE.match(token):
-                bad("Contract-checkers: checker %s covers `%s` is not a REQ-ID" % (label, token))
-            else:
-                covered.add(rq.canon(token))
-
-    if not isinstance(entry.get("path"), str) or not entry["path"]:
-        bad("Contract-checkers: checker %s path must be a non-empty string" % label)
-
-    argv = entry.get("argv")
-    if not isinstance(argv, list) or not argv or not all(isinstance(a, str) for a in argv):
-        bad("Contract-checkers: checker %s argv must be a non-empty array of strings" % label)
-
-    if "evidence" in entry:
-        _check_evidence(label, entry["evidence"], prefix)
-
-    ere = entry.get("output_ere")
-    if not isinstance(ere, str) or not ere:
-        bad("Contract-checkers: checker %s output_ere must be a non-empty string" % label)
-    elif not ere_ok(ere):
-        bad("Contract-checkers: checker %s output_ere does not compile as a POSIX ERE" % label)
 
 
 def check_registry(task: dict, topic: str, gated: list) -> None:
@@ -224,38 +123,26 @@ def check_registry(task: dict, topic: str, gated: list) -> None:
     orchestrator between the task's two implementer dispatches, so demanding it
     from an open task would fail the task for not yet having reached its own
     second step.
+
+    The schema itself lives in ``mb_contract_registry`` because
+    ``mb-contract-gate.sh`` enforces the same closed shape at run time. Two
+    implementations of one schema drift apart in exactly one direction: a
+    registry this validator calls fine and the gate refuses at exit 2.
     """
     item = task.get("item_no")
-    m = _REGISTRY_RE.search(task.get("body", ""))
-    if not m:
+    text = registry.find_registry(task.get("body", ""))
+    if text is None:
         bad(
             "Contract-checkers: the closed contract task (task %s) carries no "
             "```json Contract-checkers``` block" % item
         )
         return
-    try:
-        data = json.loads(m.group(1))
-    except ValueError as exc:
-        bad("Contract-checkers: task %s block is not valid JSON — %s" % (item, exc))
-        return
 
-    if not isinstance(data, dict):
-        bad("Contract-checkers: task %s block must be a JSON object" % item)
-        return
-    for key in data:
-        if key != "checkers":
-            bad("Contract-checkers: unknown top-level key `%s`" % key)
-    checkers = data.get("checkers")
-    if not isinstance(checkers, list) or not checkers:
-        bad("Contract-checkers: task %s needs a non-empty `checkers` array" % item)
-        return
+    checkers, errors = registry.parse_registry(text, topic)
+    for err in errors:
+        bad(err)
 
-    prefix = "tmp/contract-gate/%s/" % topic
-    covered: set = set()
-    ids: set = set()
-    for index, entry in enumerate(checkers, 1):
-        _check_checker(entry, index, prefix, covered, ids)
-
+    covered = registry.covered_reqs(checkers)
     for req in gated:
         if rq.canon(req) not in covered:
             bad("Contract-checkers: %s is gated but is covered by no checker" % req)
