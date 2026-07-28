@@ -200,7 +200,9 @@ FILL
   printf '# user rules\n/secret\n' > "$proj/.memory-bank/.gitignore"
   chmod 600 "$proj/.memory-bank/.gitignore"
   bash "$REPO_ROOT/scripts/mb-init-bank.sh" "--project-root=$proj" >/dev/null
-  local m; m="$(stat -f '%Lp' "$proj/.memory-bank/.gitignore" 2>/dev/null || stat -c '%a' "$proj/.memory-bank/.gitignore")"
+  # GNU first, BSD second: `stat -f FMT` is --file-system on GNU and prints
+  # filesystem info rather than the mode (see test_mb_glossary.bats).
+  local m; m="$(stat -c '%a' "$proj/.memory-bank/.gitignore" 2>/dev/null || stat -f '%Lp' "$proj/.memory-bank/.gitignore")"
   [ "$m" = "600" ] || { echo "mode changed to $m"; false; }
 }
 

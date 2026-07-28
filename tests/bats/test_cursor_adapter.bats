@@ -198,7 +198,13 @@ printf '%s\n' \
 EOF
   chmod +x "$claude_stub"
 
+  # MB_SESSION_END_DETACHED=1: mb-session-end.sh re-execs itself detached (61d922c)
+  # so a session never blocks on two cold `claude -p` boots. This assertion is about
+  # the v2 summary fields the hook WRITES, so it runs the work in-process instead of
+  # racing the background child. hooks/tests/session-end-detach.bats covers the
+  # detach itself.
   run env HOME="$sandbox_home" MB_SESSION_CAPTURE=auto CLAUDE="$claude_stub" MB_SESSION_JUDGE=off \
+    MB_SESSION_END_DETACHED=1 \
     bash -c "printf '%s' \"\$1\" | $end_cmd" _ "$payload"
   [ "$status" -eq 0 ]
 

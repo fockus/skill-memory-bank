@@ -326,7 +326,13 @@ EOF
 
 # Permission bits of <file>, portable across BSD (macOS) and GNU stat.
 _mode() {
-  stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"
+  # GNU first, BSD second — the order matters and the old one was backwards.
+  # `stat -f FMT FILE` on GNU is not "format": -f means --file-system, so FMT is
+  # read as another FILE. The bogus one errors (hidden by 2>/dev/null) while the
+  # real one still prints filesystem info to stdout, and the exit status lets the
+  # `||` fall through — so the caller got filesystem text glued to the mode and
+  # every permission assertion failed on Linux while passing on macOS.
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
 }
 
 @test "mb_glossary: a created glossary.md is readable, never mkstemp 0600" {

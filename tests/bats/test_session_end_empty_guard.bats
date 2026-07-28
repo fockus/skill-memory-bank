@@ -9,6 +9,10 @@ load lib/assert
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   HOOK="$REPO_ROOT/hooks/mb-session-end.sh"
+  # Run the hook in-process: it otherwise re-execs detached (61d922c) and the
+  # assertions below would race the background child. See session-end-detach.bats
+  # for the test that covers the detach itself.
+  export MB_SESSION_END_DETACHED=1
   command -v jq >/dev/null || skip "jq required"
   TMP="$(mktemp -d)"
   PROJ="$TMP/proj"; MB="$PROJ/.memory-bank"

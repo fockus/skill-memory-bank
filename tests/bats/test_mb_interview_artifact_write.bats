@@ -235,7 +235,10 @@ EOF
 # ─── publish-transcript mode (Task 4, C11) ───
 
 # Permission bits, portable across BSD (macOS) and GNU stat.
-_wmode() { stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1"; }
+# GNU first, BSD second: on GNU `stat -f FMT` means --file-system and reads FMT
+# as a second FILE, printing filesystem info instead of the mode (see
+# test_mb_glossary.bats). The reversed order passed on macOS and failed on Linux.
+_wmode() { stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"; }
 
 _clean_transcript() {
   cat > "$1" <<'EOF'

@@ -41,6 +41,20 @@ jobs:
           detik-install: false
           file-install: false
 
+      - name: Install shellcheck
+        # Nine bats tests shell out to `shellcheck` to assert their script is
+        # error-clean. It was only installed in the `lint` job, so here they got
+        # 127 and failed — a self-check that never ran on the machine it was
+        # written for. Installing it is the honest fix; skipping when absent
+        # would keep the gate green while checking nothing.
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install shellcheck
+          else
+            sudo apt-get update && sudo apt-get install -y shellcheck
+          fi
+          shellcheck --version
+
       - name: Homebrew formula version invariant (fail fast on drift)
         run: python -m pytest tests/pytest/test_homebrew_formula_version.py -q
 

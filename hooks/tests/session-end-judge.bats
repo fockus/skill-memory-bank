@@ -2,6 +2,12 @@
 # Stage 4 — mb-session-end.sh step 2: Sonnet judge + judge-gate → 0–2 notes. claude mocked.
 
 setup() {
+  # mb-session-end.sh re-execs itself detached (nohup + exit 0) so a session never
+  # waits on two cold `claude -p` boots — see 61d922c. These tests assert what the
+  # hook WRITES, not how it is scheduled, so they run the work in-process via the
+  # hook's own re-entry guard. Without it they race the background child and read
+  # a half-written file. The detach itself is covered by session-end-detach.bats.
+  export MB_SESSION_END_DETACHED=1
   BIN="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   HOOK="$BIN/mb-session-end.sh"
   TMP="$(mktemp -d)"
