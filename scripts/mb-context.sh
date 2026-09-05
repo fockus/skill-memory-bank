@@ -10,7 +10,7 @@
 #
 # Output budget:
 #   Each core file is trimmed to a byte cap resolved as `MB_CONTEXT_MAX_BYTES`
-#   -> `<bank>/.mb-config` `context_max_bytes=` -> 16384. `0` or `--full`
+#   -> `<bank>/.mb-config` `context_max_bytes=` -> 12288. `0` or `--full`
 #   disables it. Trimming keeps whole units (`## ` sections in `status.md`,
 #   unfinished items in `checklist.md`) and never cuts mid-line.
 #
@@ -43,7 +43,7 @@ fi
 
 # Per-file byte cap: env -> `<bank>/.mb-config` -> default. Invalid values fall
 # back to the default; `0` (and `--full`) means unbounded.
-CONTEXT_CAP_DEFAULT=16384
+CONTEXT_CAP_DEFAULT=12288
 _resolve_cap() {
   local raw=""
   if [[ "$FULL" -eq 1 ]]; then

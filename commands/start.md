@@ -53,7 +53,7 @@ bash ~/.claude/skills/memory-bank/scripts/mb-context.sh
 
 The script reads `status.md`, `roadmap.md`, `checklist.md`, `research.md`, lists active plans (`plans/*.md` not in `done/`), folds per-document summaries from `.memory-bank/codebase/*.md` if populated, and prints the latest note.
 
-Each core file is trimmed to a per-file byte cap (`MB_CONTEXT_MAX_BYTES` → `.memory-bank/.mb-config` `context_max_bytes=` → 16384; `0` disables it). Trimming keeps whole `## ` sections of `status.md` and drops completed `✅` checklist items first, then prints a `[context] <file>: shown N of M lines` marker. Add `--full` to print every core file whole.
+Each core file is trimmed to a per-file byte cap (`MB_CONTEXT_MAX_BYTES` → `.memory-bank/.mb-config` `context_max_bytes=` → 12288; `0` disables it). Trimming keeps whole `## ` sections of `status.md` and drops completed `✅` checklist items first, then prints a `[context] <file>: shown N of M lines` marker. Add `--full` to print every core file whole.
 
 For deep-context mode (full contents of codebase docs instead of summaries):
 

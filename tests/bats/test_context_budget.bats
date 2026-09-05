@@ -4,7 +4,7 @@
 # Contract:
 #   Each core file (status/roadmap/checklist/research) is trimmed to a byte cap
 #   resolved as env MB_CONTEXT_MAX_BYTES -> <bank>/.mb-config context_max_bytes=
-#   -> 16384. `--full` and MB_CONTEXT_MAX_BYTES=0 disable the cap entirely.
+#   -> 12288. `--full` and MB_CONTEXT_MAX_BYTES=0 disable the cap entirely.
 #   Trimming is semantic: whole `## ` sections for status.md, ✅-first drop for
 #   checklist.md, head-by-line for the rest. A trimmed file is followed by one
 #   `[context] <file>: shown N of M lines` marker.
@@ -43,7 +43,7 @@ teardown() {
   # Section 1 survives intact (its last line is present)...
   assert_grep -q '^## Section 1$' "$TMPDIR_T/out.txt"
   assert_grep -qF -e '- s1 line 115:' "$TMPDIR_T/out.txt"
-  # ...and section 2 is dropped WHOLE — a byte cut at 16384 would have kept its
+  # ...and section 2 is dropped WHOLE — a byte cut at the cap would have kept its
   # heading plus ~7 KB of its body.
   refute_grep -q '^## Section 2$' "$TMPDIR_T/out.txt"
   assert_grep -q '^\[context\] status\.md: shown [0-9]* of 712 lines — full: .* or --full$' "$TMPDIR_T/out.txt"
@@ -88,6 +88,16 @@ teardown() {
   MB_CONTEXT_MAX_BYTES=not-a-number bash "$SCRIPT" "$FIXTURE" > "$TMPDIR_T/out.txt"
   assert_grep -q '^## Section 1$' "$TMPDIR_T/out.txt"
   refute_grep -q '^## Section 2$' "$TMPDIR_T/out.txt"
+}
+
+@test "context budget: default cap is 12288 bytes per file (AGR-039)" {
+  # 192 lines x 64 B = exactly 12288 B: stays whole. One more line: trimmed to 192 of 193.
+  python3 -c 'import sys; sys.stdout.write(("x" * 63 + "\n") * 192)' > "$SMALLBANK/roadmap.md"
+  bash "$SCRIPT" "$SMALLBANK" > "$TMPDIR_T/exact.txt"
+  refute_grep -q '^\[context\] roadmap.md' "$TMPDIR_T/exact.txt"
+  printf 'y\n' >> "$SMALLBANK/roadmap.md"
+  bash "$SCRIPT" "$SMALLBANK" > "$TMPDIR_T/over.txt"
+  assert_grep -q '^\[context\] roadmap.md: shown 192 of 193 lines' "$TMPDIR_T/over.txt"
 }
 
 @test "context budget: symlink and out-of-bank core file still skipped (I-082)" {

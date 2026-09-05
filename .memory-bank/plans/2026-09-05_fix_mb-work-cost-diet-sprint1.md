@@ -129,6 +129,8 @@ created: 2026-09-05
 
 **Code rules:** KISS — обрезка в одной python-heredoc-функции по образцу `mb-checklist-prune.sh`; fail-open — ошибка обрезки → печатаем файл целиком.
 
+**Решение после замера (2026-09-05, AGR-039):** default 16384 давал на этом банке 48 532 B > 40 000; пользователь выбрал default 12288 для скила (этот банк 39 615 B, techflow 45 793 B), per-bank тумблер `.mb-config context_max_bytes=` из банка репо снят.
+
 ---
 
 <!-- mb-stage:4 -->
