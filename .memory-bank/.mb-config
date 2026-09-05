@@ -1,2 +1,3 @@
 lang=en
 storage_mode=local
+context_max_bytes=12288

@@ -122,10 +122,10 @@ created: 2026-09-05
   - существующий `test_context_integration.bats` зелёный.
 
 **DoD:**
-- [ ] `bash scripts/mb-context.sh .memory-bank | wc -c` ≤ 40 000 на этом банке (сейчас 111 655); `bash scripts/mb-context.sh ~/Apps/techflow/.memory-bank | wc -c` ≤ 60 000 (сейчас 336 887).
-- [ ] `mb-context.sh --full` даёт байт-идентичный вывод с baseline-версией скрипта (сравнение в тесте через фикстуру).
-- [ ] 8/8 bats зелёные, `shellcheck -x scripts/mb-context.sh` чист.
-- [ ] `commands/mb.md` (строки `context`/`start`) и `docs/` упоминают `--full` и `context_max_bytes`.
+- [x] `bash scripts/mb-context.sh .memory-bank | wc -c` ≤ 40 000 на этом банке (сейчас 111 655); `bash scripts/mb-context.sh ~/Apps/techflow/.memory-bank | wc -c` ≤ 60 000 (сейчас 336 887).
+- [x] `mb-context.sh --full` даёт байт-идентичный вывод с baseline-версией скрипта (сравнение в тесте через фикстуру).
+- [x] 8/8 bats зелёные, `shellcheck -x scripts/mb-context.sh` чист.
+- [x] `commands/mb.md` (строки `context`/`start`) и `docs/` упоминают `--full` и `context_max_bytes`.
 
 **Code rules:** KISS — обрезка в одной python-heredoc-функции по образцу `mb-checklist-prune.sh`; fail-open — ошибка обрезки → печатаем файл целиком.
 

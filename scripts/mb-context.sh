@@ -4,8 +4,15 @@
 # Usage:
 #   mb-context.sh [mb_path]          # standard context (core + plans + last note)
 #   mb-context.sh --deep [mb_path]   # same + full `codebase/` Markdown docs
+#   mb-context.sh --full [mb_path]   # same, without the per-file output budget
 #
 # Default: `.memory-bank/` in CWD (or external storage from `.claude-workspace`).
+#
+# Output budget:
+#   Each core file is trimmed to a byte cap resolved as `MB_CONTEXT_MAX_BYTES`
+#   -> `<bank>/.mb-config` `context_max_bytes=` -> 16384. `0` or `--full`
+#   disables it. Trimming keeps whole units (`## ` sections in `status.md`,
+#   unfinished items in `checklist.md`) and never cuts mid-line.
 #
 # Integration with `mb-codebase-mapper`:
 #   If `.memory-bank/codebase/` exists with Markdown files, add a
@@ -18,10 +25,14 @@ set -euo pipefail
 source "$(dirname "$0")/_lib.sh"
 
 DEEP=0
-if [[ "${1:-}" == "--deep" ]]; then
-  DEEP=1
-  shift
-fi
+FULL=0
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --deep) DEEP=1; shift ;;
+    --full) FULL=1; shift ;;
+    *) break ;;
+  esac
+done
 
 MB_PATH=$(mb_resolve_path "${1:-}")
 
@@ -29,6 +40,100 @@ if [[ ! -d "$MB_PATH" ]]; then
   echo "[MEMORY BANK: INACTIVE] Directory $MB_PATH not found"
   exit 0
 fi
+
+# Per-file byte cap: env -> `<bank>/.mb-config` -> default. Invalid values fall
+# back to the default; `0` (and `--full`) means unbounded.
+CONTEXT_CAP_DEFAULT=16384
+_resolve_cap() {
+  local raw=""
+  if [[ "$FULL" -eq 1 ]]; then
+    printf '0\n'
+    return 0
+  fi
+  if [[ -n "${MB_CONTEXT_MAX_BYTES:-}" ]]; then
+    raw="$MB_CONTEXT_MAX_BYTES"
+  elif [[ -f "$MB_PATH/.mb-config" && ! -L "$MB_PATH/.mb-config" ]]; then
+    raw=$(grep -E '^context_max_bytes=' "$MB_PATH/.mb-config" 2>/dev/null | tail -1 | cut -d= -f2- || true)
+  fi
+  if [[ "$raw" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$raw"
+  else
+    printf '%s\n' "$CONTEXT_CAP_DEFAULT"
+  fi
+}
+CONTEXT_CAP=$(_resolve_cap)
+
+# Print one core file, trimmed to $CONTEXT_CAP. Fail-open: no python3, an
+# unreadable file or any trimming error prints the file whole, as before.
+_emit_core_file() {
+  local name="$1" path="$2"
+  if [[ "$CONTEXT_CAP" -le 0 ]] || ! command -v python3 >/dev/null 2>&1; then
+    cat "$path"
+    return 0
+  fi
+  MB_CTX_NAME="$name" MB_CTX_FILE="$path" MB_CTX_CAP="$CONTEXT_CAP" python3 - <<'PY' || cat "$path"
+import os
+import sys
+
+name = os.environ["MB_CTX_NAME"]
+path = os.environ["MB_CTX_FILE"]
+cap = int(os.environ["MB_CTX_CAP"])
+
+with open(path, encoding="utf-8", errors="surrogateescape") as fh:
+    lines = fh.read().splitlines(keepends=True)
+
+
+def size(chunk):
+    return sum(len(ln.encode("utf-8", "surrogateescape")) for ln in chunk)
+
+
+def head(chunk):
+    kept, used = [], 0
+    for ln in chunk:
+        used += len(ln.encode("utf-8", "surrogateescape"))
+        if used > cap:
+            break
+        kept.append(ln)
+    return kept
+
+
+total = len(lines)
+if size(lines) <= cap:
+    sys.stdout.write("".join(lines))
+    sys.exit(0)
+
+if name == "status.md":
+    # Whole `## ` sections top-down; the preamble alone may already overflow.
+    starts = [i for i, ln in enumerate(lines) if ln.startswith("## ")]
+    if starts:
+        bounds = starts + [total]
+        kept = lines[: starts[0]]
+        for a, b in zip(bounds, bounds[1:]):
+            if size(kept) + size(lines[a:b]) > cap:
+                break
+            kept.extend(lines[a:b])
+        if size(kept) > cap:
+            kept = head(lines)
+    else:
+        kept = head(lines)
+elif name == "checklist.md":
+    # Done items are the cheapest thing to lose.
+    kept = [ln for ln in lines if "\u2705" not in ln]
+    if size(kept) > cap:
+        kept = head(kept)
+else:
+    kept = head(lines)
+
+out = "".join(kept)
+if out and not out.endswith("\n"):
+    out += "\n"
+sys.stdout.write(out)
+sys.stdout.write(
+    "[context] %s: shown %d of %d lines \u2014 full: %s or --full\n"
+    % (name, len(kept), total, path)
+)
+PY
+}
 
 echo "=== [MEMORY BANK: ACTIVE] ==="
 echo ""
@@ -46,7 +151,7 @@ for file in status.md roadmap.md checklist.md research.md; do
       continue
     }
     echo "--- $file ---"
-    cat "$safe"
+    _emit_core_file "$file" "$safe"
     echo ""
   fi
 done

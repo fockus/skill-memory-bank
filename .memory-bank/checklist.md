@@ -122,7 +122,7 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
 ## Stage 3: Бюджет вывода `mb-context.sh`
-- ⬜ Бюджет вывода `mb-context.sh`
+- ✅ Бюджет вывода `mb-context.sh` (2026-09-05, /mb work run 26f571b7, execution, verifier PASS; этот банк 39 615 B через .mb-config context_max_bytes=12288, techflow 58 127 B)
 
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
 ## Stage 4: `mb-status-rotate.sh` — ротация `status.md`

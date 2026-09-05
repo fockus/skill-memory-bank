@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — BREAKING: `mb-context.sh` caps each core file (default 16 KB, `--full` restores)
+
+- `status.md`, `roadmap.md`, `checklist.md` and `research.md` are now trimmed to a per-file byte
+  budget resolved as `MB_CONTEXT_MAX_BYTES` → `<bank>/.mb-config` `context_max_bytes=` → `16384`.
+  Trimming keeps whole units — `## ` sections of `status.md`, unfinished `⬜` checklist items —
+  and appends one `[context] <file>: shown N of M lines` marker per trimmed file.
+- `mb-context.sh --full` (and `MB_CONTEXT_MAX_BYTES=0`) restores the previous unbounded output
+  byte for byte. With the default alone `/mb context` drops from 118 KB to 49 KB on this bank and
+  from 337 KB to 58 KB on a large external bank; this repository's own bank additionally sets
+  `context_max_bytes=12288` in `.memory-bank/.mb-config` (→ 39 KB) to meet its ≤ 40 KB gate.
+
 ### Changed — BREAKING (this bank only): default workflow is now `execution`
 
 - This repository's own `.memory-bank/pipeline.yaml` moved `workflow.default` from

@@ -1,4 +1,4 @@
-{"type": "meta", "schema": 1, "generated_at": "2026-09-05T15:43:37Z", "commit": "85e39bb7d959", "nodes": 3481, "edges": 19594, "src_root": ".", "flags": ["--docs"]}
+{"type": "meta", "schema": 1, "generated_at": "2026-09-05T17:32:00Z", "commit": "fe0dec116e50", "nodes": 3481, "edges": 19594, "src_root": ".", "flags": ["--docs"]}
 {"type": "node", "kind": "module", "name": "adapters/pi_graph_rag_extension.ts", "file": "adapters/pi_graph_rag_extension.ts", "line": 1}
 {"type": "node", "kind": "function", "name": "memoryBankGraphRagExtension", "file": "adapters/pi_graph_rag_extension.ts", "line": 56, "signature": "function memoryBankGraphRagExtension(pi: ExtensionAPI)"}
 {"type": "node", "kind": "function", "name": "execute", "file": "adapters/pi_graph_rag_extension.ts", "line": 108, "signature": "async execute(_toolCallId, params)"}
