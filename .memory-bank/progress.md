@@ -2977,3 +2977,15 @@ Codex круг 2 по группе: 9 технических ревьюеров 
 ### Auto-capture 2026-08-06 (session c14a86db)
 - Session ended without an explicit /mb done
 - Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Аудит стоимости /mb work → Phase mb-work-cost-diet (план)
+- Отчёт: reports/2026-09-05_mb-work-cost-audit.md — 53 сессии / 587 сабагентов (harness, jeeves-go, techflow, code-agent, этот репо), 6 банков, хуки замерены. Ключевое: implementer avg 243 хода · 15.6 прогонов тестов · пик ctx 260k; governed-item 123–148 мин, 10–12 диспатчей, ~180k output у оркестратора; mb-context.sh 112 KB (здесь) / 337 KB (techflow); только 19 items закрыты через flip; 39/554 Task-промптов с engineering-core; mb-work-adapt.sh упомянут в work.md, файла нет; merge-hooks.py возвращает выключенные хуки.
+- Планы: plans/2026-09-05_fix_mb-work-cost-diet-sprint{1,2,3}.md (6+4+4 стадий, роль developer), Phase-секция в roadmap.md, status.md запись; sprint1 засинкан в checklist (137 строк > cap 120 — чинится Sprint 1 Stage 5). Sprint 2/3 синкать при старте.
+- Анализаторы транскриптов: /tmp/mb_analyze{,2,3,4,5}.py → прототип scripts/mb-cost-report.py (Sprint 1 Stage 1).
+- Попутно: ~/.claude/CLAUDE.md язык → Russian; .session-spend.json → .gitignore (364164a).
+
+### Fix: явный **Role:** developer на стадии плана игнорировался (2026-09-05)
+- Найдено при разметке планов cost-diet: все 14 стадий уходили в mb-qa, потому что `mb-work-plan.sh` считал `developer` «не явной» ролью и перезапускал keyword-эвристику (pytest/bats в Testing → qa). Спеки были в порядке.
+- Фикс: `mb_work_items.py` выставляет `role_explicit`, `mb-work-plan.sh` доверяет флагу. RED→GREEN: `test_plan_stage_explicit_role_developer_beats_qa_heuristic`; pytest 71 (work-plan/work-items/contract-loop) + bats work-plan зелёные, ruff/shellcheck чисты.

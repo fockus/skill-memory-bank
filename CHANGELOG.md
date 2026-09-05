@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — `/mb work` plan stages: explicit `**Role:** developer` was ignored
+
+- `mb-work-plan.sh` treated `developer` as "no explicit role" and re-ran its keyword heuristic, so
+  any plan stage whose Testing section mentioned `pytest`/`bats` was routed to `mb-qa` even when the
+  author pinned `**Role:** developer`. `mb_work_items.py` now flags `role_explicit` on the parsed
+  item and the planner trusts it; spec tasks were already correct. Regression test:
+  `tests/pytest/test_mb_work_plan.py::test_plan_stage_explicit_role_developer_beats_qa_heuristic`.
+
 ### Added — Code graph: auto-update + honest staleness (I-133)
 
 - **Bounded inline catch-up** (`memory_bank_skill/codegraph_catchup.py`, `mb-graph-query.py catchup`):

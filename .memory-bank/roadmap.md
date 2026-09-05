@@ -8,6 +8,7 @@
 - [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency — progress=28% stages(done=1,in_progress=2,planned=3,total=6)
 - [spec-group-round3-remediation](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation — progress=100% stages(done=6,in_progress=0,planned=0,total=6)
 - [graph-semantic-adoption](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption — progress=0% stages(done=0,in_progress=0,planned=5,total=5)
+- [mb-work-cost-diet-sprint1](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение» — progress=0% stages(done=0,in_progress=0,planned=6,total=6)
 
 ## Next (strict order — depends)
 
@@ -91,6 +92,20 @@ _Last updated: auto-synced by mb-roadmap-sync.sh_
 **Приоритет: HIGH** — выше donor-релизов после v5.4.0; может идти параллельно с `update-notify` (не пересекается по файлам). Обоснование: это движок, которым donor-программа САМА авторит и валидирует специи — усилив его качество рано, мы поднимаем планку всех последующих спек. **Phase 1** (дешёвые изолированные победы: wording-lint, обязательные сценарии для новых спек, RFC 2119, `## Why`, inputs-registry, archive-gate, secret-scan) ships first и опережает donor v5.5.0+. **Phase 2** (living specs + ADDED/MODIFIED/REMOVED deltas) — отдельный `/mb discuss` перед стартом (D-10), forward-compatible с REQ-OSA-010.
 
 Не пересекается с donor-файлами — трогает нативный SDD-тулинг (`mb-spec-validate.sh`, `mb-sdd.sh`, `mb-ears-validate.sh`, `mb-traceability-gen.sh`, templates). Дальше: `/mb sdd sdd-openspec-parity` → план → governed `/mb work`.
+
+## Phase: mb-work-cost-diet (2026-09-05) — `/mb work` быстрее и дешевле
+
+**Goal:** стоимость `/mb work` ≈ ходы × контекст; обе половины раздуты самим скилом (аудит [reports/2026-09-05_mb-work-cost-audit.md](reports/2026-09-05_mb-work-cost-audit.md): implementer 243 хода и 15.6 прогонов тестов, item 2–2.5 ч и 10–12 сабагентов, `/mb start` до 84k токенов). Сделать дешёвый путь путём по умолчанию, не отменяя governed там, где он нужен; всё измеримо `mb-cost-report.py`.
+
+| Sprint | План | Статус | Граница |
+|---|---|---|---|
+| 1 — context-diet + измерение | [sprint1](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) | 🟡 in progress | core-файлы, контекст сессии, конфиг; без правок цикла |
+| 2 — work-loop-diet | [sprint2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) | ⬜ planned | цикл `/mb work`: улика, триаж, context pack, внешнее ревью |
+| 3 — instruction-diet + гигиена | [sprint3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md) | ⬜ planned | инструкции (`mb.md`, `work.md`, Agreements), машина состояний, инсталлер |
+
+**Dependencies:** 2 ← 1 (baseline `reports/2026-09-05_cost-baseline.json` из Sprint 1 Stage 1, дефолт `execution`); 3 ← 2 (`mb-work-next.sh` кодирует цикл с evidence/triage/pack). Спринты 2–3 синкаются в `checklist.md` только при старте (cap 120 строк до починки прунера в Sprint 1 Stage 5).
+
+**Phase Gate:** `mb-cost-report.py` на недельном окне после раскатки: implementer ≤ 120 ходов avg, ≤ 3 полных прогона тестов на item, старт сессии ≤ 12k токенов, `/mb work` инструкции ≤ 32 KB — против baseline. Пересечения: `cost-multi-model` (Next) получает `model_hint` из триажа, не дублирует его; `graph-semantic-adoption` (Now) даёт свежий граф для context pack (fail-open без него).
 
 ## Track 2 — Donor Evolution Program (2026-07-15, `specs/mb-donor-evolution`)
 
@@ -401,6 +416,7 @@ ICE = Impact × Confidence × Ease (каждый 1–10). Последовате
 - [2026-05-24] [plans/2026-05-24_fix_pi-compatibility-remediation.md](plans/2026-05-24_fix_pi-compatibility-remediation.md) — fix — Pi Compatibility Remediation
 - [2026-07-18] [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
 - [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
+- [2026-09-05] [plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение»
 <!-- /mb-active-plans -->
 
 ## Ближайшие шаги

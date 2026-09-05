@@ -178,3 +178,21 @@ def test_dod_lines_count_markdown_checkboxes(tmp_path: Path) -> None:
     obj = _parse_jsonl(r.stdout)[0]
     assert obj["dod_lines"] == 3
     assert obj["status"] == "in-progress"
+
+
+def test_plan_stage_explicit_role_developer_beats_qa_heuristic(tmp_path: Path) -> None:
+    """A plan stage pinned with `**Role:** developer` must not be re-routed to
+    mb-qa just because its Testing section mentions pytest/bats."""
+    mb = _init_mb(tmp_path)
+    plan = mb / "plans" / "p.md"
+    body = (
+        "**Role:** developer\n\n**What to do:**\n- add a script\n\n"
+        "**Testing (TDD):**\n- pytest and bats cover the edge case\n\n"
+        "**DoD:**\n- [ ] tests pass\n"
+    )
+    plan.write_text(_plan([_stage(1, "add script", body)]), encoding="utf-8")
+    r = _run("--target", str(plan), mb=mb)
+    assert r.returncode == 0, r.stderr
+    (obj,) = _parse_jsonl(r.stdout)
+    assert obj["role"] == "developer"
+    assert obj["agent"] == "mb-developer"

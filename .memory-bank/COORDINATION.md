@@ -2020,3 +2020,6 @@ Scoped-коммит: план `plans/2026-07-28_fix_graph-semantic-adoption.md` 
 (checklist +5 стадий, roadmap autosync, status запись, AGR-038 в
 agreements.md/CLAUDE.md). Только чистые добавления, чужие диффы не тронуты,
 FREEZE соблюдён (без rebase; origin был вровень, push fast-forward).
+
+## STATUS · 2026-09-05 · main · Phase mb-work-cost-diet: планы созданы, код не менялся
+Сессия одна (параллельных нет). Добавлены только файлы банка: reports/2026-09-05_mb-work-cost-audit.md, plans/2026-09-05_fix_mb-work-cost-diet-sprint{1,2,3}.md, правки roadmap/status/checklist/progress (append). FREEZE «no rebase/reset/checkout/stash» соблюдён. Заголовки записей с типом-тегом (`## STATUS ·` / `## FREEZE ·` / `## LIFT ·` / `## HANDOVER ·` / `## ACK ·`) — грамматика для будущего `mb-coord.sh active` (Sprint 1 Stage 6).

@@ -271,14 +271,12 @@ for n in requested:
     body = item["body"]
     covers = item["covers"]
 
-    # Role selection is source-dependent.
-    # Spec tasks are parsed by mb_work_items.py, which already honors explicit
-    # **Role:** lines before applying its own heuristic. Trust that result so
-    # `**Role:** developer` is not re-routed to QA just because the task body
-    # mentions pytest in its Testing section. Plain plan stages keep the richer
-    # work-plan heuristic for backward compatibility.
+    # Role selection: an explicit **Role:** line (flagged by mb_work_items.py)
+    # always wins, so `**Role:** developer` is not re-routed to QA just because
+    # the Testing section mentions pytest. Spec tasks trust the parser fully;
+    # plan stages without an explicit role keep the richer work-plan heuristic.
     parsed_role = item.get("role", "developer")
-    if source == "spec":
+    if source == "spec" or item.get("role_explicit"):
         role = parsed_role
     else:
         detected_role = detect_role(heading, body)

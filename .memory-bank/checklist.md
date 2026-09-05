@@ -111,3 +111,27 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 <!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
 ## Stage 5: Статус графа в диспатче субагентов
 - ⬜ Статус графа в диспатче субагентов
+
+<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
+## Stage 1: `mb-cost-report.py` — измерение и baseline
+- ⬜ `mb-cost-report.py` — измерение и baseline
+
+<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
+## Stage 2: Fast lane без кода — дефолт `execution`, governed opt-in
+- ⬜ Fast lane без кода — дефолт `execution`, governed opt-in
+
+<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
+## Stage 3: Бюджет вывода `mb-context.sh`
+- ⬜ Бюджет вывода `mb-context.sh`
+
+<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
+## Stage 4: `mb-status-rotate.sh` — ротация `status.md`
+- ⬜ `mb-status-rotate.sh` — ротация `status.md`
+
+<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
+## Stage 5: Прунер `checklist.md` под реальную структуру
+- ⬜ Прунер `checklist.md` под реальную структуру
+
+<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
+## Stage 6: `mb-coord.sh active` — доска без 200 KB
+- ⬜ `mb-coord.sh active` — доска без 200 KB

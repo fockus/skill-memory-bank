@@ -1,6 +1,10 @@
 
 # claude-skill-memory-bank: Статус проекта
 
+## 🟡 2026-09-05 — Phase mb-work-cost-diet: аудит стоимости `/mb work` → 3 спринта, Sprint 1 в работе
+
+Аудит по 53 сессиям / 587 сабагентам и 6 банкам ([reports/2026-09-05_mb-work-cost-audit.md](reports/2026-09-05_mb-work-cost-audit.md)): implementer в среднем 243 хода, 87 Bash, 15.6 прогонов тестов, пик контекста 260k; governed-item 2–2.5 ч и 10–12 сабагентов; `mb-context.sh` 112–337 KB без лимита; core-файлы не ротируются; `COORDINATION.md` 204 KB читается сабагентами; только 19 items закрыты через `flip` — цикл в основном воспроизводят руками на Opus. Хуки не виноваты (<0.5 s). План — Phase из трёх спринтов (`roadmap.md § Phase: mb-work-cost-diet`): **Sprint 1** [context-diet + измерение](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) (cost-report + baseline · `workflow.default: execution` · бюджет `mb-context.sh` · `mb-status-rotate.sh` · прунер checklist под `## Stage` · `mb-coord.sh active`) → Sprint 2 work-loop-diet (тест-улика один раз · `mb-work-adapt.sh` + `--fast` · context pack · `mb-review-external.sh`) → Sprint 3 instruction-diet (cap Agreements · тонкий `mb.md` · `mb-work-next.sh` · `hooks.disabled`). Попутно: `~/.claude/CLAUDE.md` → respond in Russian (manifest всё ещё `en` — следующий `install.sh --language ru`), `.session-spend.json` в `.gitignore` (364164a).
+
 ## 🟡 2026-07-28 — graph-semantic-adoption: план создан (AGR-038), в работе
 
 Замер транскриптов за 14 дней: ~7 400 bash-grep против 43 `mb-graph-query` и ~0 настоящих `mb-semantic-search` — весь инструментарий реализован, но не используется. Корни: codesearch-индекс существует только в FaberlicApp; графы протухли в 3/4 банков (catchup срабатывает только при запросе — курица-яйцо); nudge троттлится до 1 раза за сессию без готовой команды; субагенты не видят статус свежести. План: [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — 5 стадий (nudge v2 → bootstrap индекса в `--apply` + backfill → фоновый catchup на SessionStart → враппер `mb-graph.sh` → статус графа субагентам). Gate: демо-прогон + контрольный замер adoption через неделю (цель ≥10×).
@@ -166,6 +170,7 @@ Cross-session coordination also shipped (`references/coordination.md` had been u
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
 - [2026-07-18] [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
 - [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
+- [2026-09-05] [plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение»
 <!-- /mb-active-plans -->
 
 ## Recently done

@@ -107,6 +107,9 @@ class WorkItem:
     scope: tuple[str, ...]
     eval: dict | None
     budget: int
+    # True when the body carried an explicit `**Role:**` line — consumers must
+    # not re-route such an item through their own keyword heuristic.
+    role_explicit: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -464,6 +467,7 @@ def parse_work_items(path: pathlib.Path) -> list[WorkItem]:
                 scope=scope,
                 eval=eval_obj,
                 budget=budget,
+                role_explicit=explicit_role is not None,
             )
         )
         prev_no = item_no
