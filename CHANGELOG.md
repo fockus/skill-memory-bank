@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — BREAKING (this bank only): default workflow is now `execution`
+
+- This repository's own `.memory-bank/pipeline.yaml` moved `workflow.default` from
+  `codex-governed` to `execution` (implement → verify → done) and turned the `review.enabled` /
+  `judge.enabled` toggles off. The governed cycle is now opt-in per run:
+  `/mb work <target> --workflow codex-governed` (or `--review --judge`) — which is how the
+  `sdd-vision-pipeline` group must keep running it (AGR-028/029). Reason: the 2026-09-05 cost
+  audit (option A) measured a governed item at 123-148 min and 10-12 Task dispatches. The bundled
+  `references/pipeline.default.yaml` is unchanged — it already carries `execution` with review and
+  judge off, so no other project's behaviour changes.
+- `docs/mb-work.md` and `commands/work.md` gained a **Cost ladder** table
+  (`implement-only` / `execution` / `codex-governed` / `governed-execution`) with the Sprint-1
+  baseline for dispatches and test runs per item.
+
 ### Added — `/mb cost`: transcript cost report (mb-work-cost-diet Sprint 1, Stage 1)
 
 - `scripts/mb-cost-report.py` (CLI) + `memory_bank_skill/cost_report.py` (parsing) mine a Claude

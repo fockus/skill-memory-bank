@@ -50,7 +50,7 @@ increasing precedence:
 
 | Flag | Effect |
 |------|--------|
-| `--workflow <preset>` | Select a named preset (`full`, `governed-execution`, `full-cycle`, `requirements-plan`, `implement-only`, `review-fix`, `review-only`, …). |
+| `--workflow <preset>` | Select a named preset (`full`, `codex-governed`, `governed-execution`, `full-cycle`, `requirements-plan`, `implement-only`, `review-fix`, `review-only`, …). |
 | `--review` / `--no-review` | Add / remove the single-reviewer stage for this run. |
 | `--judge` / `--no-judge` | Add / remove the independent judge (requires `--review`). |
 | `--brainstorm` / `--no-brainstorm` | Add / remove the `discuss` stage. |
@@ -63,6 +63,21 @@ The single-reviewer path resolved by `--review` goes through `mb-reviewer-resolv
 gated by `mb-work-severity-gate.sh`. The heavier 5-reviewer ensemble (aspect reviewers + a lead
 reviewer synthesizing one report) only exists behind `--workflow governed-execution` or an
 equivalent named workflow with `review_profile: ensemble`.
+
+## Cost ladder
+
+Presets differ mostly in how many subagent dispatches and test runs one work item costs.
+Pick the cheapest rung that still gives you the evidence you need.
+
+| Preset | Steps | Dispatches per item | Test runs per item | When to choose |
+|--------|-------|--------------------:|-------------------:|----------------|
+| `implement-only` | implement → verify | 2 | ~28 | A spike or prototype you will read by hand. |
+| `execution` | implement → verify → done | 2 | ~28 | **Default.** A plan or spec exists, the change is S/M, and the tests are the evidence. |
+| `codex-governed` | implement → verify → review → judge → fix → done | 4 clean, 10-12 with fix cycles | ~35 per cycle | Risky, cross-cutting, or a security / data-path change; or a spec group that mandates cross-model review (AGR-028/029: `sdd-vision-pipeline` runs it explicitly). |
+| `governed-execution` | implement → verify → review ensemble → judge → fix → done | 9 clean, up to ~25 with fix cycles | ~65+ | A release gate or an architecture change that needs five aspect reviewers plus a lead. |
+
+Numbers are the Sprint-1 baseline (2026-09-05, cost audit + `scripts/mb-cost-report.py`; averages
+over 554 dispatches across three projects) and will be refreshed after Sprint 2.
 
 ## Target resolution
 

@@ -3013,3 +3013,41 @@ Codex круг 2 по группе: 9 технических ревьюеров 
 - Ревью-находки, закрытые в циклах: (1) `mb-tooling-core` в implementer-паттерне глотал реальные mb-reviewer-промпты — на techflow один ревьюер сидел в implementer; (2) после перестановки body-упоминание `CHANGES_REQUESTED` перебивало идентичность — теперь identity-проход только по заголовкам/`name:` в первых 400 символах, затем fallback.
 - Попутный баг гейта: `mb-work-state.sh done` отказывал (exit 5, NOITEM) любой стадии ПЛАНА — `eval_declaration` парсил plan-файл как tasks.md; починено (stage-only файл = NOFILE), регресс `tests/bats/test_mb_work_state_plan_source.bats`, 85/85 bats. Закрытие plan-стадий через `done → flip` было сломано с r3-binding (2026-07-20).
 - Замер прогона новым инструментом: item init→flip 43 мин, оркестратор 113 ходов / 42 bash / 223k out; implementer 132 хода / 73 tool / 32.6 мин (3 раунда, resume вместо новых диспатчей); verifier 38 / 19; judge 17 / 7; codex xhigh 3 × ~2 мин (payload через mb-review.sh + улики implementer вместо прогона батареи). Baseline harness: implementer 240 / 142 / 107 мин. Инструмент подтвердил свои backlog-пункты: compactions=0 при реально сжатом контексте; substring-подсчёт тестов (12 у оркестратора — heredoc'и). Реальный каталог: 0.068–0.075 s.
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session f4c14bda)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session ee194555)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session acf35be0)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session 9efa15bd)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session 93b0b829)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+### Sprint 1 / Stage 2 закрыт через /mb work (2026-09-05, run fe0c8c6d, codex-governed: implement→verify→review→judge, 1 цикл, judge GO_WITH_BACKLOG)
+- Результат: `.memory-bank/pipeline.yaml` этого банка — `workflow.default: execution`, `review.enabled`/`judge.enabled` → false (без этого `execution` резолвился в 5 шагов: per-stage тумблеры накладываются поверх пресета), блок `codex-governed` и `roles:` не тронуты; таблица «Cost ladder» (implement-only / execution / codex-governed / governed-execution × диспатчей · прогонов тестов · когда выбирать) в `docs/mb-work.md` и `commands/work.md`; CHANGELOG `### Changed — BREAKING (this bank only)`; 4 pytest в `tests/pytest/test_docs_cost_ladder.py` (RED 3/4 → GREEN). Bundled `references/pipeline.default.yaml` не менялся (там уже `execution`).
+- Улики: scoped pytest 70/70, `mb-pipeline-validate.sh` rc=0, `mb-drift.sh .` побайтово = baseline (5 старых warnings), ruff/rules-check чисто, полная батарея — те же 12 pre-existing падений (checklist_cap, 4× test_cli, 7× wiki_staleness), новых нет.
+- Находка: `commands/work.md` стоял на 399/400 строк зонного контракта (AGR-035) — таблицу удалось вставить только убрав два устаревших блока (`> **Scope.** Phase 3…` и `## Out of scope (Phase 4)`; стейлность подтверждена аудитом 2026-06-23 и планом fix_config-validation-docs). Файл снова 399/400: слимминг `commands/work.md` (Sprint 3) — жёсткая предпосылка любого следующего роста, не косметика.
+- Ревью (codex gpt-5.6-sol xhigh): 1 major + 1 minor, оба в `commands/work.md` — судья классифицировал как pre-existing/косметика → backlog I-186 (квалифицировать фразу про reviewer-approval loop в § Why /mb work?) и I-187 (сдвоенная скобка в § Reference material). Верификатор PASS, 36 AGR без нарушений (AGR-028/029: `_yaml_stage_enabled()` аддитивен — выключенные тумблеры не вырезают review/judge из явно выбранного пресета).
+- Стоимость прогона: implementer Opus 1 диспатч (~153k токенов, 22 мин, 36 tool-uses), verifier Sonnet (~163k, 5 мин), codex 1 вызов (~2 мин), judge Opus (~108k, 38 с); оркестратор ~40 bash-вызовов. Оверхед orchestration ≈ implementer×2 — аргумент за Stage 3 (`mb-context.sh` бюджет) и Sprint 2 (тест-улика один раз на item: verifier повторил 70 тестов, уже прогнанных implementer'ом).
+- Попутно: `mb-review.sh --emit-payload` не принимает `--files` — в payload попадают hunks `progress.md`/`roadmap.md` (auto-capture); `mb-review-cache.sh write --run-id <hex>` ломает TTL-чек (run_id обязан начинаться с ISO8601Z) — улику записал без `--run-id`; `mb-work-checkbox.sh flip` принимает путь к плану, не категорию `plan` (в contract 5g написано `<source>`).

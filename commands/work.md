@@ -7,13 +7,18 @@ allowed-tools: [Bash, Read, Task]
 
 Run the executable engine using a workflow mode resolved from `pipeline.yaml`. By default, `/mb work` is intentionally simple: **implement → verify → done** from an already-created plan/spec. Projects can opt into stricter local modes such as **governed-execution** (`implement → verify → review ensemble → judge → fix/backlog → done`), **full-cycle** (`discuss → sdd → plan → implement → verify → done`), **requirements-plan**, **implement-only**, **review-fix**, or **review-only**. Severity gates, judge gates, token budgets, protected-path checks, and the sprint context guard provide hard stops for `--auto` mode.
 
-> **Scope.** Phase 3 Sprint 1 shipped `pipeline.yaml`. Sprint 2 shipped target resolution, range parsing, role-detection, plan emission, implement-step dispatch — and extended execution to spec tasks (`specs/<topic>/tasks.md`) as a first-class source alongside plan stages. **Sprint 3 (this command)** wires the review-loop, severity gates, fix-cycle, plan-verifier integration, `--auto` hard stops, `--budget` token tracking, and protected-path enforcement.
->
-> **Phase 4 will add:** `--slim` / `--full` context strategy via `context-slim-pre-agent.sh` and `pre-agent-protected-paths.sh` runtime hooks; `superpowers:requesting-code-review` skill auto-detection in the installer.
-
 ## Why /mb work?
 
 Plans declared with `/mb plan` carry stage markers, DoD, and TDD instructions. Specs created with `/mb sdd` carry `<!-- mb-task:N -->` markers in `specs/<topic>/tasks.md`, each linked to REQ-IDs. `/mb work` consumes both for execution modes: pick a work item (stage or task), route it to the right role-agent (mb-backend, mb-frontend, mb-ios, mb-android, mb-architect, mb-devops, mb-qa, mb-analyst, with mb-developer as fallback), let the agent implement against the DoD, verify the result, then put the verified diff through a real reviewer-approval loop instead of trusting the implementer's self-assessment. For full-cycle modes, `/mb work` first delegates to the same contracts as `/mb discuss`, `/mb sdd`, and `/mb plan` before executing work items.
+
+## Cost ladder
+
+| Preset | Dispatches per item | Test runs per item | When to choose |
+|--------|--------------------:|-------------------:|----------------|
+| `implement-only` (implement → verify) | 2 | ~28 | A spike or prototype you will read by hand. |
+| `execution` (implement → verify → done) | 2 | ~28 | **Default.** A plan or spec exists, the change is S/M, tests are the evidence. |
+| `codex-governed` (+ review → judge → fix) | 4 clean, 10-12 with fix cycles | ~35 per cycle | Risky, cross-cutting, or a security / data-path change; or a spec group that mandates cross-model review. |
+| `governed-execution` (+ review ensemble) | 9 clean, up to ~25 with fix cycles | ~65+ | A release gate or an architecture change needing five aspect reviewers plus a lead. |
 
 ## Reference material
 
@@ -21,7 +26,7 @@ The workflow-mode matrix, JSON Lines schema, sprint-contract / progress-trend /
 worked examples, the underlying script inventory, parallel-run
 guidance, and the artifact formats (spec tasks as executable source,
 plan-as-wrapper, range parsing) live in **`references/work-reference.md`** —
-read it when you need any of them (sprint contracts / progress trend / strategic
+read it when you need any of them (the cost-ladder numbers are the 2026-09-05 Sprint-1 baseline; `docs/mb-work.md` § Cost ladder carries their provenance) (sprint contracts / progress trend / strategic
 pivoting are in `references/work-loop-v2.md`). This file keeps the normative
 per-item loop.
 
@@ -384,12 +389,6 @@ When any hard stop fires, the loop halts even under `--auto`. The orchestrator s
 | `--allow-protected` | Permit Write/Edit on `protected_paths` globs | 3 |
 | `--slim` / `--full` | Context strategy for sub-agents — exports `MB_WORK_MODE=slim` (or `full`) for the loop subshell | Phase 4 (Sprint 2) |
 | `--contract` | Opt in to the sprint-contract phase for this run only (persist per-project via `pipeline.yaml:review.require_contract: true`) | work-loop-v2 (Phase 2) |
-
-## Out of scope (Phase 4)
-
-- `--slim` / `--full` context strategy via `context-slim-pre-agent.sh` runtime hook.
-- `--allow-protected` enforcement at Write/Edit hook level (deterministic check at step 3b stays in /mb work).
-- `superpowers:requesting-code-review` skill detection wired by the installer based on `pipeline.yaml:roles.reviewer.override_if_skill_present`.
 
 ## Related
 

@@ -1,4 +1,4 @@
-{"type": "meta", "schema": 1, "generated_at": "2026-09-05T13:54:02Z", "commit": "ba0bc0e37623", "nodes": 3476, "edges": 19572, "src_root": ".", "flags": ["--docs"]}
+{"type": "meta", "schema": 1, "generated_at": "2026-09-05T15:43:37Z", "commit": "85e39bb7d959", "nodes": 3481, "edges": 19594, "src_root": ".", "flags": ["--docs"]}
 {"type": "node", "kind": "module", "name": "adapters/pi_graph_rag_extension.ts", "file": "adapters/pi_graph_rag_extension.ts", "line": 1}
 {"type": "node", "kind": "function", "name": "memoryBankGraphRagExtension", "file": "adapters/pi_graph_rag_extension.ts", "line": 56, "signature": "function memoryBankGraphRagExtension(pi: ExtensionAPI)"}
 {"type": "node", "kind": "function", "name": "execute", "file": "adapters/pi_graph_rag_extension.ts", "line": 108, "signature": "async execute(_toolCallId, params)"}
@@ -1445,6 +1445,11 @@
 {"type": "node", "kind": "function", "name": "test_session_memory_doc_matches_code_defaults", "file": "tests/pytest/test_doc_counts.py", "line": 238, "signature": "()", "doc": "`references/session-memory.md` must state the real hook defaults/behavior. Regression guard for the Stage 8 reconciliation (2026-07-15 session-memory graph hardening plan): docs previously drifted fro"}
 {"type": "node", "kind": "function", "name": "test_skill_md_recall_description_is_hybrid_not_ripgrep_only", "file": "tests/pytest/test_doc_counts.py", "line": 291, "signature": "()", "doc": "SKILL.md must describe `/mb recall` as hybrid semantic+lexical (RRF), not ripgrep-only. Regression guard: `hooks/mb-recall.sh` fuses semantic + lexical hits via RRF (Reciprocal Rank Fusion) when the s"}
 {"type": "node", "kind": "function", "name": "test_codespan_first_column_helper", "file": "tests/pytest/test_doc_counts.py", "line": 321, "signature": "(raw: str, expected: str | None)"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_docs_cost_ladder.py", "file": "tests/pytest/test_docs_cost_ladder.py", "line": 1, "doc": "mb-work-cost-diet Sprint 1 Stage 2 — cheap default + a documented cost ladder. Two contracts: * both `/mb work` docs carry a \"Cost ladder\" table listing all four presets, so the cheap path is a visibl"}
+{"type": "node", "kind": "function", "name": "_workflow_json", "file": "tests/pytest/test_docs_cost_ladder.py", "line": 27, "signature": "(*args: str)"}
+{"type": "node", "kind": "function", "name": "test_mb_work_docs_have_cost_ladder_table", "file": "tests/pytest/test_docs_cost_ladder.py", "line": 40, "signature": "(doc: str)"}
+{"type": "node", "kind": "function", "name": "test_pipeline_default_is_execution_in_repo_bank", "file": "tests/pytest/test_docs_cost_ladder.py", "line": 48, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_codex_governed_preset_still_resolves_six_steps", "file": "tests/pytest/test_docs_cost_ladder.py", "line": 55, "signature": "()"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_docs_drift_recipe.py", "file": "tests/pytest/test_docs_drift_recipe.py", "line": 1, "doc": "Contract: the MB drift/auto-commit recipe stays documented (I-087 B2). The audit found MB_AUTO_COMMIT existed but was documented nowhere as a recipe, and the new mb-freshness.sh drift alarm needs a di"}
 {"type": "node", "kind": "function", "name": "test_skill_documents_auto_commit_recipe", "file": "tests/pytest/test_docs_drift_recipe.py", "line": 19, "signature": "()"}
 {"type": "node", "kind": "function", "name": "test_session_doc_documents_auto_commit_and_freshness", "file": "tests/pytest/test_docs_drift_recipe.py", "line": 24, "signature": "()"}
@@ -14029,6 +14034,28 @@
 {"type": "edge", "src": "tests/pytest/test_doc_counts.py:test_codespan_first_column_helper", "dst": "m.group.split", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_doc_counts.py:test_codespan_first_column_helper", "dst": "m.group", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_doc_counts.py:test_codespan_first_column_helper", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "json", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "re", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "subprocess", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:_workflow_json", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:_workflow_json", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:_workflow_json", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:_workflow_json", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_mb_work_docs_have_cost_ladder_table", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_mb_work_docs_have_cost_ladder_table", "dst": "COST_LADDER_RE.search", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_mb_work_docs_have_cost_ladder_table", "dst": "text.splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_mb_work_docs_have_cost_ladder_table", "dst": "line.lstrip.startswith", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_mb_work_docs_have_cost_ladder_table", "dst": "line.lstrip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_mb_work_docs_have_cost_ladder_table", "dst": "any", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_mb_work_docs_have_cost_ladder_table", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_pipeline_default_is_execution_in_repo_bank", "dst": "_workflow_json", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_docs_cost_ladder.py:test_codex_governed_preset_still_resolves_six_steps", "dst": "_workflow_json", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_docs_drift_recipe.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_docs_drift_recipe.py", "dst": "pathlib.Path", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_docs_drift_recipe.py", "dst": "Path.resolve", "kind": "call"}

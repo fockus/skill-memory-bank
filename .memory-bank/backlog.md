@@ -1118,3 +1118,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 - [ ] Запись baseline в progress.md не содержит замеренного времени для DoD «< 10 s» (улики есть: 0.068 s implementer, 0.075 s verifier) — дописать при следующем касании заметки.
 - [ ] SRP: `cost_report.py` 313 строк (>300, WARNING) — парсинг записей / классификация ролей / агрегация / сборка отчёта; резать по смыслу при следующем содержательном изменении, не ради числа (AGR-030). Источник: codex цикл 3 + судья.
 - [ ] Окно идентичности `role_for_prompt` принимает любую `#`/`name:` строку в первых 400 символах — заголовок промпта с чужим литералом роли (`# Fix cycle — CHANGES_REQUESTED`) даст ложную классификацию; репро в сторах нет; при следующей правке якорить на первую identity-строку. Источник: судья.
+
+### I-186 — commands/work.md § Why /mb work? (line 12): qualify the review-loop claim — review/judge are opt-in, default is execution (judge backlog, Sprint1 Stage2, source: codex reviewer) [LOW, NEW, 2026-09-05]
+
+### I-187 — commands/work.md § Reference material (line 28): split the double parenthetical (cost-ladder provenance + work-loop-v2 pointer) without adding a net line — 400-line zone (judge backlog, Sprint1 Stage2) [LOW, NEW, 2026-09-05]

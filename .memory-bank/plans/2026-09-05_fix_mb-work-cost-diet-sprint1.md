@@ -90,10 +90,10 @@ created: 2026-09-05
 - `bash scripts/mb-workflow.sh --mb .memory-bank --json` → `entrypoint=plan_or_spec`, `steps=[implement,verify,done]`; `--workflow codex-governed` → шесть шагов (проверяется в том же pytest через subprocess).
 
 **DoD:**
-- [ ] `mb-workflow.sh --json` без флагов возвращает `execution`; с `--workflow codex-governed` — прежний governed-цикл (assert в тесте).
-- [ ] `mb-pipeline-validate.sh` exit 0; `mb-drift.sh .` не добавляет новых находок против baseline.
-- [ ] Таблица «Лестница стоимости» есть в `docs/mb-work.md` и `commands/work.md` (pytest).
-- [ ] CHANGELOG-запись добавлена.
+- [x] `mb-workflow.sh --json` без флагов возвращает `execution`; с `--workflow codex-governed` — прежний governed-цикл (assert в тесте).
+- [x] `mb-pipeline-validate.sh` exit 0; `mb-drift.sh .` не добавляет новых находок против baseline.
+- [x] Таблица «Лестница стоимости» есть в `docs/mb-work.md` и `commands/work.md` (pytest).
+- [x] CHANGELOG-запись добавлена.
 
 **Code rules:** YAGNI — только конфиг и доки, никаких новых флагов.
 
