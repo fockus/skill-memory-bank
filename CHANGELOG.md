@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — `/mb cost`: transcript cost report (mb-work-cost-diet Sprint 1, Stage 1)
+
+- `scripts/mb-cost-report.py` (CLI) + `memory_bank_skill/cost_report.py` (parsing) mine a Claude
+  Code transcript store (`~/.claude/projects/<slug>/`) into three cuts: per session (turns, tool
+  calls, Task dispatches, output / cache tokens, peak context), per subagent role (implementer /
+  verifier / reviewer / judge / manager / research / other, classified from the dispatch prompt —
+  identity headings and frontmatter `name:` first, body markers as fallback), and per work item
+  (the orchestrator segment between `mb-work-state.sh init` and `mb-work-checkbox.sh flip`).
+  `--project <dir>` (default: the cwd's store), `--since N`, `--json` (the baseline format the
+  cost-diet sprint gates diff against). Baselines saved under `.memory-bank/reports/`.
+
+### Fixed — `/mb work` `done` gate refused every PLAN stage (exit 5 `NOITEM`)
+
+- `mb-work-state-lib.sh::eval_declaration` treated any `.md` `--source-path` as a spec `tasks.md`;
+  a plan file (stage-only items) therefore answered `NOITEM` instead of `NOFILE`, and
+  `mb-work-state.sh done` refused to certify — so no plan-based `/mb work` run could flip its DoD
+  through the sanctioned `done → flip` sequence since the r3 declaration binding (2026-07-20). A
+  stage-only source is now `NOFILE` (`eval_gate: unverified:no_declaration_surface`, as designed);
+  a real `tasks.md` lacking the item still fails closed. Regression suite:
+  `tests/bats/test_mb_work_state_plan_source.bats`.
+
 ### Fixed — `/mb work` plan stages: explicit `**Role:** developer` was ignored
 
 - `mb-work-plan.sh` treated `developer` as "no explicit role" and re-ran its keyword heuristic, so

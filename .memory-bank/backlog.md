@@ -1107,3 +1107,14 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-183 — HEAD внутренне несогласован: SKILL.md ссылается на hooks/mb-drive-resume-gate.sh, который не закоммичен — на чистом клоне HEAD test_skill_md_hooks_table_lists_all_hooks красный, в рабочем дереве зелёный за счёт untracked-файла чужого трека [MED, NEW, 2026-07-27]
 
 ### I-184 — bats на этом дереве виснет без < /dev/null: фикстура mkspec читает tasks.md со stdin, открытый stdin от харнесса заставляет cat ждать вечно [MED, NEW, 2026-07-27]
+
+### I-185 — mb-cost-report follow-ups — 6 minor findings from Stage 1 review (judge GO-backlog) [LOW, NEW, 2026-09-05]
+Источник: judge NO_GO/backlog по item 1 плана mb-work-cost-diet-sprint1 (codex gpt-5.6-sol xhigh + main-agent inline, 2026-09-05). Не блокируют DoD; чинить одним мелким слайсом.
+- [ ] `roles` эмитит `manager`/`research` сверх документированного разбиения implementer/verifier/reviewer/judge/other — свернуть в `other` или зафиксировать в плане (cost_report.py ROLE_MARKERS).
+- [ ] `--since` принимает 0 и отрицательные значения (0 = молча без фильтра) — positive-int тип в argparse + тесты отказа (scripts/mb-cost-report.py).
+- [ ] Сабагентский транскрипт парсится дважды и целиком материализуется ради первого промпта — передавать итератор в `_first_prompt`, останавливаться на первом user-сообщении (cost_report.py subagent_stats).
+- [ ] `compactions` считает записи `type == "summary"`, которых в реальных транскриптах этой версии Claude Code нет (0 в двух сессиях, одна из них компактилась) — проверить маркер на 33 сессиях harness, починить детектор или задокументировать как best-effort.
+- [ ] `default_project_dir` заменяет только `/`, а слаг Claude Code заменяет и `.` — cwd с точкой резолвится в несуществующий каталог (падает громко, exit 2); повторить правило слага + параметризованный тест.
+- [ ] Запись baseline в progress.md не содержит замеренного времени для DoD «< 10 s» (улики есть: 0.068 s implementer, 0.075 s verifier) — дописать при следующем касании заметки.
+- [ ] SRP: `cost_report.py` 313 строк (>300, WARNING) — парсинг записей / классификация ролей / агрегация / сборка отчёта; резать по смыслу при следующем содержательном изменении, не ради числа (AGR-030). Источник: codex цикл 3 + судья.
+- [ ] Окно идентичности `role_for_prompt` принимает любую `#`/`name:` строку в первых 400 символах — заголовок промпта с чужим литералом роли (`# Fix cycle — CHANGES_REQUESTED`) даст ложную классификацию; репро в сторах нет; при следующей правке якорить на первую identity-строку. Источник: судья.

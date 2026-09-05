@@ -64,11 +64,11 @@ created: 2026-09-05
   - `test_doc_counts` (существующий) остаётся зелёным после строки в SKILL.md.
 
 **DoD (Definition of Done):**
-- [ ] `python3 scripts/mb-cost-report.py --project tests/fixtures/cost-report --json` печатает JSON с ключами `sessions`, `roles`, `items`; числа совпадают с фикстурой (утверждения в тестах).
-- [ ] На реальном каталоге `~/.claude/projects/-Users-anton-one-Apps-skill-memory-bank` отрабатывает < 10 s и без трейсбэка.
-- [ ] `.memory-bank/reports/2026-09-05_cost-baseline.json` записан; `progress.md` получил строку с ключевыми цифрами baseline.
-- [ ] `commands/mb.md` (роутер) и `SKILL.md` § Tools содержат `cost`/`mb-cost-report.py`; `pytest tests/pytest/test_doc_counts.py tests/pytest/test_mb_cost_report.py` зелёный.
-- [ ] `ruff check scripts/mb-cost-report.py` = 0 замечаний.
+- [x] `python3 scripts/mb-cost-report.py --project tests/fixtures/cost-report --json` печатает JSON с ключами `sessions`, `roles`, `items`; числа совпадают с фикстурой (утверждения в тестах).
+- [x] На реальном каталоге `~/.claude/projects/-Users-anton-one-Apps-skill-memory-bank` отрабатывает < 10 s и без трейсбэка.
+- [x] `.memory-bank/reports/2026-09-05_cost-baseline.json` записан; `progress.md` получил строку с ключевыми цифрами baseline.
+- [x] `commands/mb.md` (роутер) и `SKILL.md` § Tools содержат `cost`/`mb-cost-report.py`; `pytest tests/pytest/test_doc_counts.py tests/pytest/test_mb_cost_report.py` зелёный.
+- [x] `ruff check scripts/mb-cost-report.py` = 0 замечаний.
 
 **Code rules:** KISS (stdlib, без pandas), SRP — парсинг отдельно от CLI, Testing Trophy — интеграционные тесты на фикстурах, а не моки.
 

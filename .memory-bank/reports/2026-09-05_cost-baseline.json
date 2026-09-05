@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-09-05T13:22:50.401216+00:00",
+  "project": "/Users/anton-one/.claude/projects/-Users-anton-one-Apps-skill-memory-bank",
+  "since_days": null,
+  "sessions": [
+    {
+      "session": "42272248-9f96-477c-a3db-e33c1541ad91",
+      "turns": 174,
+      "tool_calls": 115,
+      "tasks": 0,
+      "test_runs": 8,
+      "output_tokens": 358673,
+      "cache_creation_tokens": 1075001,
+      "cache_read_tokens": 34419229,
+      "input_tokens": 41849,
+      "peak_context": 361634,
+      "compactions": 0,
+      "started_at": "2026-09-05T12:04:38.262000+00:00",
+      "ended_at": "2026-09-05T13:13:04.175000+00:00",
+      "duration_min": 68.4319,
+      "subagents": 0
+    },
+    {
+      "session": "f4c14bda-45ea-41dc-a5c9-bbfba297747b",
+      "turns": 88,
+      "tool_calls": 55,
+      "tasks": 1,
+      "test_runs": 7,
+      "output_tokens": 207173,
+      "cache_creation_tokens": 1517831,
+      "cache_read_tokens": 26024028,
+      "input_tokens": 36005,
+      "peak_context": 361634,
+      "compactions": 0,
+      "started_at": "2026-09-05T12:36:12.035000+00:00",
+      "ended_at": "2026-09-05T13:18:03.784000+00:00",
+      "duration_min": 41.8625,
+      "subagents": 1
+    }
+  ],
+  "roles": {
+    "implementer": {
+      "n": 1,
+      "avg_turns": 72.0,
+      "avg_tool_calls": 42.0,
+      "avg_test_runs": 14.0,
+      "avg_output_tokens": 28153.0,
+      "avg_peak_context": 183960.0,
+      "avg_duration_min": 5.73
+    }
+  },
+  "items": []
+}

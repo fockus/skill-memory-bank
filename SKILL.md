@@ -243,6 +243,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-semantic-search.py` | Semantic code search over `graph.json` (+ wiki): `--backend auto` (embeddings when `sentence-transformers` installed, else pure-Python BM25 — the $0 zero-dep base), `--source-only`, disk cache in `.index/codesearch/`. Modules in `memory_bank_skill/`: `semantic_search`, `semantic_embeddings`, `codegraph_loader` |
 | `mb-wiki.py` | `/mb wiki` engine (deterministic prep): `plan`/`packs`/`write-article`/`merge-edges`/`index`. LLM articles + surprising-connection edges via host subagents. Modules: `wiki_evidence`, `wiki_store` |
 | `mb-context-slim.py` | Slim a full agent prompt on stdin → terse version on stdout |
+| `mb-cost-report.py [--project <dir>] [--since N] [--json]` | `/mb cost` engine: mine Claude Code transcripts (`~/.claude/projects/<slug>/`) into per-session, per-subagent-role and per-work-item (`mb-work-state.sh init` → `mb-work-checkbox.sh flip`) cost. Parsing in `memory_bank_skill/cost_report.py` |
 | `mb-upgrade.sh [--check\|--force]` | Self-update the skill from GitHub |
 | `mb-version-check.sh [--force]` | Is a newer release out? Compares local `VERSION` against the latest GitHub Release (PyPI JSON as fallback), cached with a TTL. Prints strict JSON (`current`/`latest`/`update_available`/`flavor`/`upgrade_command`/`checked_at`/`source`). Always fail-open — exit 0, silent, never blocks a session. Off: `MB_UPDATE_CHECK=off` |
 | `mb-profile.sh` | Rule profile manager: `init`, `show`, `path`, `validate`, `set` — user/project scopes |

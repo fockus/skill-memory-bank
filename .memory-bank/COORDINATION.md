@@ -2023,3 +2023,6 @@ FREEZE соблюдён (без rebase; origin был вровень, push fast-
 
 ## STATUS · 2026-09-05 · main · Phase mb-work-cost-diet: планы созданы, код не менялся
 Сессия одна (параллельных нет). Добавлены только файлы банка: reports/2026-09-05_mb-work-cost-audit.md, plans/2026-09-05_fix_mb-work-cost-diet-sprint{1,2,3}.md, правки roadmap/status/checklist/progress (append). FREEZE «no rebase/reset/checkout/stash» соблюдён. Заголовки записей с типом-тегом (`## STATUS ·` / `## FREEZE ·` / `## LIFT ·` / `## HANDOVER ·` / `## ACK ·`) — грамматика для будущего `mb-coord.sh active` (Sprint 1 Stage 6).
+
+## STATUS · 2026-09-05 · main · Sprint 1 Stage 1 (mb-cost-report) закрыт через /mb work, коммит следует
+Сессия одна. Новые файлы: scripts/mb-cost-report.py, memory_bank_skill/cost_report.py, tests/pytest/test_mb_cost_report.py, tests/fixtures/cost-report/, tests/bats/test_mb_work_state_plan_source.bats, reports/2026-09-05_cost-baseline*.json. Правки: SKILL.md, commands/mb.md (роутер cost), scripts/mb-work-state-lib.sh (done-гейт: plan = NOFILE), backlog I-185, checklist/plan (Stage 1 ✅ через flip), CHANGELOG, status. FREEZE «no rebase/reset/checkout/stash» соблюдён; scoped git add.

@@ -114,7 +114,7 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
 ## Stage 1: `mb-cost-report.py` — измерение и baseline
-- ⬜ `mb-cost-report.py` — измерение и baseline
+- ✅ `mb-cost-report.py` — измерение и baseline (2026-09-05, /mb work run 8bee263e, judge GO_WITH_BACKLOG → I-185)
 
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
 ## Stage 2: Fast lane без кода — дефолт `execution`, governed opt-in

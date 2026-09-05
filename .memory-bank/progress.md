@@ -2989,3 +2989,27 @@ Codex круг 2 по группе: 9 технических ревьюеров 
 ### Fix: явный **Role:** developer на стадии плана игнорировался (2026-09-05)
 - Найдено при разметке планов cost-diet: все 14 стадий уходили в mb-qa, потому что `mb-work-plan.sh` считал `developer` «не явной» ролью и перезапускал keyword-эвристику (pytest/bats в Testing → qa). Спеки были в порядке.
 - Фикс: `mb_work_items.py` выставляет `role_explicit`, `mb-work-plan.sh` доверяет флагу. RED→GREEN: `test_plan_stage_explicit_role_developer_beats_qa_heuristic`; pytest 71 (work-plan/work-items/contract-loop) + bats work-plan зелёные, ruff/shellcheck чисты.
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session 577c70a4)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session 12c3b561)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+### Cost baseline (2026-09-05, Sprint 1 Stage 1)
+- `scripts/mb-cost-report.py` + `memory_bank_skill/cost_report.py` сняли baseline по этому проекту: 2 сессии, 262 хода оркестратора, 170 tool-calls, 1 Task-диспатч, out 565.8k токенов, пик контекста 361.6k, компакций 0.
+- Роль implementer (n=1): avg ходов 72, avg tool-calls 42, avg прогонов тестов 14, avg output 28.2k, avg peak ctx 184.0k, avg длительность 5.7 мин.
+- Work-items (`init` → `flip`): 0 — в транскриптах этого проекта закрытых через flip элементов нет, поэтому item-гейты спринтов 2–3 надо мерить на банках с реальными /mb work прогонами (harness/techflow/jeeves).
+- Файл: reports/2026-09-05_cost-baseline.json
+
+### Sprint 1 / Stage 1 закрыт через /mb work (2026-09-05, run 8bee263e, --workflow execution → implement→verify→review→judge по pipeline.yaml)
+- Результат: `scripts/mb-cost-report.py` + `memory_bank_skill/cost_report.py` (313 строк, SRP WARNING по AGR-030), 28 pytest, роутер `/mb cost`, baseline `reports/2026-09-05_cost-baseline{,-harness,-techflow}.json` (harness: 33 сессии, 19 items; techflow: 6 сессий). Судья: NO_GO → NO_GO → GO_WITH_BACKLOG (2 fix-цикла); backlog I-185 (8 пунктов).
+- Ревью-находки, закрытые в циклах: (1) `mb-tooling-core` в implementer-паттерне глотал реальные mb-reviewer-промпты — на techflow один ревьюер сидел в implementer; (2) после перестановки body-упоминание `CHANGES_REQUESTED` перебивало идентичность — теперь identity-проход только по заголовкам/`name:` в первых 400 символах, затем fallback.
+- Попутный баг гейта: `mb-work-state.sh done` отказывал (exit 5, NOITEM) любой стадии ПЛАНА — `eval_declaration` парсил plan-файл как tasks.md; починено (stage-only файл = NOFILE), регресс `tests/bats/test_mb_work_state_plan_source.bats`, 85/85 bats. Закрытие plan-стадий через `done → flip` было сломано с r3-binding (2026-07-20).
+- Замер прогона новым инструментом: item init→flip 43 мин, оркестратор 113 ходов / 42 bash / 223k out; implementer 132 хода / 73 tool / 32.6 мин (3 раунда, resume вместо новых диспатчей); verifier 38 / 19; judge 17 / 7; codex xhigh 3 × ~2 мин (payload через mb-review.sh + улики implementer вместо прогона батареи). Baseline harness: implementer 240 / 142 / 107 мин. Инструмент подтвердил свои backlog-пункты: compactions=0 при реально сжатом контексте; substring-подсчёт тестов (12 у оркестратора — heredoc'и). Реальный каталог: 0.068–0.075 s.

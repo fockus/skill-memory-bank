@@ -1,0 +1,2 @@
+{"type": "user", "timestamp": "2026-09-05T10:31:00.000Z", "message": {"content": [{"type": "text", "text": "You are plan-verifier — Plan execution auditor. Reread the plan and validate every DoD item."}]}}
+{"type": "assistant", "timestamp": "2026-09-05T10:35:00.000Z", "message": {"model": "claude-opus-5", "usage": {"input_tokens": 5, "output_tokens": 100, "cache_creation_input_tokens": 500, "cache_read_input_tokens": 50}, "content": [{"type": "tool_use", "id": "v1", "name": "Grep", "input": {"pattern": "x"}}]}}

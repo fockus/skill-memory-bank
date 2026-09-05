@@ -113,6 +113,9 @@ for p in candidates:
         items = list(w.parse_work_items(p))
     except Exception:
         continue
+    # A plan (stage-only items) carries no Eval surface: NOFILE, never NOITEM.
+    if not any(it.kind == "task" for it in items):
+        continue
     for it in items:
         if it.kind == "task" and str(it.item_no) == os.environ["ITEM_NO"]:
             ev = it.eval or {}
