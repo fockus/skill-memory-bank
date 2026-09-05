@@ -2954,3 +2954,26 @@ Codex круг 2 по группе: 9 технических ревьюеров 
 - Роли конвейера по AGR-023/pipeline.yaml: implement/fix = Opus (mb-developer/mb-devops), review = codex gpt-5.6-sol xhigh, judge = mb-judge на Fable; оркестратор — основная сессия. Работал паттерн «тот же агент продолжает свой контекст» (SendMessage-резюмы фиксеров/судьи вместо новых спавнов; критично при исчерпании PTY — двойной fork-fail панелей).
 - DoD Task 2 и Task 4 флипнуты verify-гейтом (в обоих синхронизирован устаревший тир-текст: роли из pipeline.yaml); checklist Phase 3: T1 ✅ T2 ✅ T4 ✅, остались T3 (в donor v5.6.0 по AGR-024) и T5 (docs). Оба work-state рана phase=done. НЕ закоммичено (жду явного запроса; scoped git add при коммите).
 - Drive-by фикс T2-имплементера (по требованию судьи цикла 1 — зафиксировать): `agents_md_install()` в adapters/_lib_agents_md.sh получил фикс идемпотентности — повторный install больше не дублирует fenced-блок; покрыт expected-delta моделью NFR-001 в test_extensions_offer.bats.
+## 2026-08-06
+
+### Auto-capture 2026-08-06 (session fc6a293e)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-08-06
+
+### Auto-capture 2026-08-06 (session cefcb2bc)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-08-06
+
+### Auto-capture 2026-08-06 (session ed3df590)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-08-06
+
+### Auto-capture 2026-08-06 (session c14a86db)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
