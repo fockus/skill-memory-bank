@@ -28,7 +28,7 @@ created: 2026-09-05
 - Фикстура большого банка для тестов: `~/Apps/techflow/.memory-bank` (не трогать; копировать фрагменты в `tests/fixtures/`)
 
 **Phase «mb-work-cost-diet» (3 спринта, зависимости строгие):**
-1. **Sprint 1 — context-diet + измерение** (этот файл): cost-report · fast-lane конфиг · бюджет `mb-context.sh` · ротация `status.md` · прунер `checklist.md` · `mb-coord.sh active`.
+1. **Sprint 1 — context-diet + измерение** (этот файл): cost-report · fast-lane конфиг · бюджет `mb-context.sh` · ротация `status.md` · прунер `checklist.md` · `mb-coord.sh active` · **жёсткие капы core-файлов: хук + `actualize --strict`** (Stage 7) и **чеклист v2 — блок на план, закрытое → `progress.md` дословно** (Stage 5) — решение владельца 2026-09-06, AGR-043.
 2. Sprint 2 — work-loop-diet ([plan](2026-09-05_fix_mb-work-cost-diet-sprint2.md)): одна тест-улика на item · size-triage `mb-work-adapt.sh` + `--fast` · context pack для implementer (обещанный `--slim`) · раннер внешнего ревью без sleep-циклов.
 3. Sprint 3 — instruction-diet + гигиена ([plan](2026-09-05_fix_mb-work-cost-diet-sprint3.md)): cap блока Agreements в `CLAUDE.md` · тонкий роутер `commands/mb.md` · `mb-work-next.sh` вместо 44 KB процедуры · переустановка уважает выключенные хуки.
 
@@ -165,34 +165,49 @@ created: 2026-09-05
 ---
 
 <!-- mb-stage:5 -->
-### Stage 5: Прунер `checklist.md` под реальную структуру
+### Stage 5: `checklist.md` v2 — один блок на план, закрытое → `progress.md`
 
 **Role:** developer
 
-**What to do:**
-- `scripts/mb-checklist-prune.sh`: добавить к текущему правилу (`### ` + ссылка `plans/done/`) два новых:
-  - (b) блок `<!-- mb-plan:<file> -->` + `## Stage N: …`, у которого все пункты `✅`/`[x]` **или** `<file>` лежит в `plans/done/` → схлопывается в одну строку `- ✅ <file>: Stage N — <title>` под секцией `## ✅ Done` (создать, если нет);
-  - (c) секция `## ✅ Done` длиннее `--done-max` (default 12 пунктов) → лишние переносятся в `progress.md` блоком `## [checklist archive] <date>` через `mb-work-progress-append.sh`.
-- Блоки с хотя бы одним `⬜`/`[ ]` не трогаются никогда; `## 🔄 Active`/`## ⏳ In flight`/`## ⏭ Next planned` защищены как раньше.
-- `hooks/mb-checklist-autoprune.sh` (SessionEnd) уже вызывает прунер — поведение получает новые правила автоматически; hard-cap WARN остаётся.
+**Решение владельца (2026-09-06, AGR-043):** информация не удаляется никогда — сделанное переезжает в `progress.md` дословно; если живых параллельных планов действительно много, нужна не обрезка, а другая структура. Отсюда формат v2: чеклист = реестр планов в работе, один блок на план (сегодня — блок на каждую стадию: 18 блоков от трёх планов).
 
-**Testing (TDD):**
-- расширить `tests/pytest/test_mb_checklist_prune.py`:
-  - `test_stage_block_all_done_collapses_to_done_line`
-  - `test_stage_block_with_open_item_untouched`
-  - `test_stage_block_of_done_plan_collapses_even_with_open_items_marked_by_plan_move` (план в `plans/done/`)
-  - `test_done_section_overflow_moved_to_progress`
+**Формат v2 (контракт; фиксируется в `references/structure.md` и заголовке чеклиста):**
+
+```
+<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
+## Sprint 1 «context-diet + измерение» — 4/7
+- ✅ Stage 1 — `mb-cost-report.py` — измерение и baseline
+- ⬜ Stage 5 — `checklist.md` v2
+```
+
+Один маркер на план (не на стадию), заголовок = title плана + `k/n` сделано, одна строка на стадию со статусом. Планы `status: planned|paused` — по одной строке (title + ссылка) в `## ⏭ Next` / `## ⏸ Paused`; проза `## 🔄 Active` ≤ 10 строк. Закрытый план (`plans/done/`, либо все стадии ✅ и `mb-plan-done.sh`) → весь блок verbatim в `progress.md` под `## [checklist archive] <date> — <file>` через `mb-work-progress-append.sh` (append подтверждается `grep -qxF` заголовка, без подтверждения чеклист не трогается). Открытые `⬜` не перемещаются никогда.
+
+**What to do:**
+- `scripts/mb-checklist-prune.sh` → компактор + мигратор v1→v2: (a) существующее правило (`### ` + ссылка `plans/done/`, без ⬜) — перенос в `progress.md` вместо однострочника; (b) группа per-stage блоков `<!-- mb-plan:<file> -->` + `## Stage N: …` одного плана → один v2-блок (порядок по N, статусы сохраняются, `k/n` в заголовке); (c) v2-блок плана из `plans/done/` → `progress.md`; (d) кап строк `MB_CHECKLIST_MAX_LINES` → `.mb-config checklist_max_lines=` → default **100** (Q-001), заголовок-конвенция переписывается под фактический кап; после компакции всё ещё > капа → **exit 3** с диагностикой `over cap by N lines: M plans in flight (<file>: k open, …) — pause or close plans, nothing was moved` (сигнал для Stage 7 и владельца; живое не режется).
+- `scripts/mb-plan-sync.sh`: пишет/обновляет v2-блок идемпотентно по `(marker, Stage N)`, а не per-stage секции; пересчитывает `k/n`. `scripts/mb-plan-done.sh`: вместо удаления секций — перенос блока в `progress.md` тем же helper'ом. `scripts/mb-work-checkbox.sh flip`: после флипа DoD в плане флипает строку `Stage N` в v2-блоке чеклиста — единственный писатель ✅ в чеклисте под `/mb work` (сегодня это ручная правка оркестратора).
+- `hooks/mb-checklist-autoprune.sh` (SessionEnd, opt-in) остаётся до Stage 7; `mb-context.sh` печатает v2 как есть (строк меньше — обрезка Stage 3 срабатывает реже).
+- `references/structure.md` + `templates/**/checklist.md`: формат v2 и конвенция капа; `docs/` — абзац про миграцию (автоматическая, обратимость через `progress.md`).
+
+**Testing (TDD — tests BEFORE implementation):**
+- `tests/pytest/test_mb_checklist_prune.py` (расширить):
+  - `test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses`
+  - `test_open_stage_lines_never_moved` (множество ⬜ до = после на всех фикстурах)
+  - `test_done_plan_block_moved_to_progress_verbatim`
+  - `test_legacy_done_oneliners_moved_to_progress`
+  - `test_archive_append_unconfirmed_leaves_checklist_untouched` (lock занят → helper exit 0 без записи)
+  - `test_cap_resolution_env_over_config_over_default`
+  - `test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing`
   - `test_techflow_like_fixture_596_lines_ends_under_cap` (фикстура `tests/fixtures/checklist-big.md`, обезличенная копия структуры techflow)
-  - `test_apply_idempotent_second_run_noop`
-  - `test_backup_written_on_apply`
-  - `test_protected_sections_untouched`
+  - `test_apply_idempotent_second_run_noop`, `test_backup_written_on_apply`, `test_protected_sections_untouched`
+- `tests/bats/test_plan_sync_v2.bats`: `v2 block created for a new plan`, `existing block updated, not duplicated`, `k/n recomputed after a flip`; `test_plan_done_v2.bats`: `block moved to progress.md, not dropped`; `test_work_checkbox_v2.bats`: `flip marks the stage line in the checklist block`.
 
 **DoD:**
-- [ ] На фикстуре 596 строк `--apply` даёт ≤ 120 строк без потери ни одного `⬜`/`[ ]` (assert по множеству открытых пунктов до/после).
-- [ ] На `checklist.md` этого банка `--dry-run` показывает кандидатами 6 блоков `spec-group-round3-remediation` (все ✅), а 5 блоков `graph-semantic-adoption` — нет.
-- [ ] 8 новых pytest + существующие 12 зелёные; shellcheck чист; `hooks/tests` для autoprune зелёные.
+- [ ] На фикстуре 596 строк `--apply` даёт ≤ 100 строк; множество открытых `⬜` до = после; каждый убранный блок найден в `progress.md` дословно.
+- [ ] На копии `checklist.md` этого банка: 18 per-stage блоков трёх планов → 3 v2-блока; `spec-group-round3-remediation` (6/6 ✅) остаётся блоком с шестью ✅, пока план в `plans/` (уходит в `progress.md` только после `mb-plan-done.sh`); ни один ⬜ не потерян.
+- [ ] Кап-сигнал: фикстура с 12 живыми планами по 8 стадий → exit 3, диагностика перечисляет планы с числом открытых, файл байт-в-байт.
+- [ ] 11 pytest + существующие 12 + новые bats sync/done/flip + существующие сьюты `test_mb_plan_sync*`/`test_plan_done*`/`test_work_checkbox*` зелёные; shellcheck чист; `references/structure.md` и шаблоны описывают v2; `mb-drift.sh .` без новых находок; CHANGELOG `### Changed`: формат чеклиста v2.
 
-**Code rules:** контракт = код (lesson «rotating без enforcement = накапливающийся»): hard-cap теперь достижим автоматически; никаких правок вне блоков-кандидатов.
+**Code rules:** контракт = код; append-only `progress.md`; никакой обрезки живого; парсер v1/v2 в одном python-heredoc; fail-open — не удалось подтвердить append → ничего не трогать.
 
 ---
 
@@ -226,6 +241,38 @@ created: 2026-09-05
 
 ---
 
+<!-- mb-stage:7 -->
+### Stage 7: Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
+
+**Role:** developer
+
+**Решение владельца (2026-09-06, AGR-043, ранее AGR-040):** `status.md` = только актуальное состояние проекта, `checklist.md` = только планы в работе; у каждого жёсткий кап строк, который контролируют хуки; сверх капа — сначала детерминированная чистка (ротация Stage 4 + компакция Stage 5, всё старое → `progress.md` дословно), если не хватило — сабагент MB Manager актуализирует; живые задачи не режутся никогда — переполнение живым контентом эскалируется владельцу. Цифры капов — Q-001 (default 60 / 100).
+
+**What to do:**
+- Новый `scripts/mb-core-cap.sh check|fix [--mb <path>] [--json]`. Капы: `MB_STATUS_MAX_LINES` / `MB_CHECKLIST_MAX_LINES` (env) → `.mb-config status_max_lines=` / `checklist_max_lines=` → defaults **60 / 100**. `check` печатает `status_lines=N status_cap=M checklist_lines=… checklist_cap=… over=<csv|none>`; exit 0 = в капах, 1 = сверх. `fix` = `mb-status-rotate.sh --apply` + `mb-checklist-prune.sh --apply` → повторный `check`; exit 0 = уложились, 1 = всё ещё сверх (нужен `actualize --strict`), 2 = ошибка. Подсчёт в python-heredoc, bash = CLI.
+- `agents/mb-manager.md`: action `actualize --strict` — контракт переписывания. `status.md` → канонический скелет `templates/.memory-bank/status.md` (Current phase / Focus / Blockers · Metrics · `<!-- mb-active-plans -->` · Recently done ≤ 10 · Roadmap pointer) в пределах капа; всё остальное (датированные разделы, «Архив …», «Open backlog», списки идей) → `progress.md` блоками `## [status archive] …` через `mb-work-progress-append.sh`, идеи → `backlog.md` через `mb-idea.sh`. `checklist.md` → компакция v2 через `mb-checklist-prune.sh --apply` (Stage 5); планы без открытых `⬜` или не тронутые > 30 дней (по `git log` файла плана) → **список предложений** в отчёте («закрыть через `mb-plan-done.sh`» / «поставить на паузу») — сабагент никогда не закрывает и не режет планы сам; exit 3 прунера («много живых планов») эскалируется владельцу как есть. Последний шаг сабагента — `mb-core-cap.sh check`: exit 0, либо STATUS DONE_WITH_CONCERNS с этим списком предложений. Ничего не исчезает без дословной копии в `progress.md` (append-only инвариант, AGR-043).
+- Хук `hooks/mb-core-cap-guard.sh` (Stop; заменяет `mb-checklist-autoprune.sh`, который удаляется вместе со своими строками в SKILL.md/установке/тестах): запускает `mb-core-cap.sh fix`; при exit 1 — **один раз за сессию** (маркер `<bank>/.core-cap.nudged.<session_id>`, защита от петли по `stop_hook_active`) отвечает `{"decision":"block","reason":"core-cap: status.md N/60, checklist.md N/100 — dispatch MB Manager action: actualize --strict, then rerun mb-core-cap.sh check"}`; второй Stop той же сессии — exit 0 без блока. `MB_CORE_CAP=off` (env / `.mb-config`) — полное выключение; нет банка / jq / скрипта → exit 0. Регистрация там же, где сейчас `mb-checklist-autoprune.sh` (install/adapters/tests), **включён по умолчанию** — осознанное отклонение от design-principles §1 по решению владельца, kill-switch есть.
+- SessionStart: одна строка `[core-cap] status.md 223/60, checklist.md 137/100 — /mb update --strict` через существующий `hooks/mb-session-start-context.sh` (без нового хука); нет превышения — ничего.
+- `commands/mb.md`: `update --strict` → MB Manager `action: actualize --strict`; `commands/done.md` шаг 5 → `mb-core-cap.sh fix` вместо прямого вызова ротации (Stage 4 остаётся вызываемым внутри `fix`).
+- `scripts/mb-drift.sh` check 17 `status_size` → `core_cap`: порог в строках из `mb-core-cap.sh check` вместо 24 KB (закрывает замечание Stage 4 про 25.6 KB), `checklist.md` проверяется той же строкой.
+- `templates/.memory-bank/status.md` + `templates/locales/*/.memory-bank/status.md`: заголовок-конвенция «hard cap ≤ 60 lines; history → progress.md» по образцу `checklist.md`; `references/structure.md` — абзац «Core-file caps» (≤ 10 строк).
+- `.gitignore`: `.memory-bank/.core-cap.nudged.*`.
+
+**Testing (TDD — tests BEFORE implementation):**
+- `tests/bats/test_core_cap.bats`: `check under caps → exit 0, fields printed`; `check over status cap → exit 1, over=status`; `caps: env beats .mb-config beats default`; `fix runs rotate+prune and re-checks (fixture over→under → exit 0)`; `fix still over → exit 1, files intact except rotate/prune effects`; `missing status.md or checklist.md → 0 lines, exit 0`; `MB_CORE_CAP=off → exit 0 even when over`.
+- `hooks/tests/test_core_cap_guard.bats`: `over cap → block JSON once`; `second Stop same session → exit 0, no block`; `stop_hook_active=true → exit 0`; `under cap → exit 0 silent`; `MB_CORE_CAP=off → exit 0`; `no jq / no bank → exit 0`; `mb-checklist-autoprune.sh removed and unreferenced by install`.
+- `tests/pytest/test_core_cap_docs.py`: `agents/mb-manager.md` содержит `actualize --strict` и `mb-core-cap.sh check`; `commands/done.md` шаг 5 → `mb-core-cap.sh fix`; все `templates/**/status.md` содержат `hard cap`; `test_doc_counts` (SKILL.md § Tools + таблица хуков) зелёный.
+- Живой прогон на копии этого банка: `fix` → `actualize --strict` (реальный сабагент, один диспатч) → `check` exit 0; до/после в строках → `reports/2026-09-06_core-cap-dogfood.md`.
+
+**DoD:**
+- [ ] `bash scripts/mb-core-cap.sh check --mb .memory-bank` exit 0 на этом банке после `fix` + одного `actualize --strict` + подтверждённых владельцем закрытий/пауз из списка предложений: `status.md` ≤ 60 строк, `checklist.md` ≤ 100 строк; каждый убранный `## `-заголовок `status.md` и каждый убранный блок чеклиста найден в `progress.md` дословно (assert в dogfood-отчёте); ни один `⬜` не потерян.
+- [ ] Stop-хук на банке сверх капа возвращает `decision: block` ровно один раз за сессию (bats), `MB_CORE_CAP=off` глушит; установка регистрирует `mb-core-cap-guard.sh` и больше не регистрирует `mb-checklist-autoprune.sh` (e2e-тест установки).
+- [ ] 7 + 7 bats, pytest-doc, `test_doc_counts`, `hooks/tests` зелёные; shellcheck чист; `mb-drift.sh .` → `core_cap=ok` после актуализации; CHANGELOG `### Changed — BREAKING`: хук включён по умолчанию, `mb-checklist-autoprune.sh` удалён; строки в `SKILL.md` (§ Tools + хуки) и роутер `update --strict`.
+
+**Code rules:** контракт = код (кап — это exit-код и блокирующий хук, не декларация в заголовке); fail-open везде, кроме самого капа; append-only `progress.md`; никакого LLM внутри хука — сабагент запускает оркестратор по сигналу хука.
+
+---
+
 ## Risks and mitigation
 
 | Risk | Probability | Mitigation |
@@ -236,7 +283,9 @@ created: 2026-09-05
 | Смена `workflow.default` ломает прогоны группы sdd-vision-pipeline | L | Группа запускается явно `--workflow codex-governed`; пресет сохранён байт-в-байт; запись в CHANGELOG и `agreements` |
 | `test_doc_counts`/drift-чекеры красные из-за новых скриптов | M | Строки в `SKILL.md`/`commands/mb.md` в том же изменении (lesson 2026-06-09); `mb-drift.sh` в DoD каждой стадии с новым файлом |
 | Checklist переполнится от синка спринтов 2–3 до починки прунера | H | Синкать sprint2/3 только при их старте (после Stage 5) |
+| Stop-хук Stage 7 зациклит сессию или заблокирует выход при сломанном банке | M | Блок ровно один раз за сессию (маркер), `stop_hook_active` → exit 0, любая ошибка скрипта → exit 0, kill-switch `MB_CORE_CAP=off` |
+| Кап «съест» живые задачи при многих параллельных планах | M | Живое (`⬜`) не перемещается никогда (assert множества до/после в тестах Stage 5); переполнение живым → exit 3 + список планов владельцу; формат v2 даёт ~10 планов в 100 строк |
 
 ## Gate (plan success criterion)
 
-На этом репозитории после Sprint 1: `mb-context.sh .memory-bank` ≤ 40 KB, `mb-coord.sh active` ≤ 4 KB, `checklist.md` ≤ 120 строк после `mb-checklist-prune.sh --apply`, `status.md` ≤ 3 датированных секций после `mb-status-rotate.sh --apply`, `mb-workflow.sh --json` по умолчанию = `execution`, `.memory-bank/reports/2026-09-05_cost-baseline.json` существует, а полная батарея (`bash scripts/mb-test-run.sh --dir . --out json` → `tests_pass: true`) зелёная. `/mb verify` PASS перед `/mb done`.
+На этом репозитории после Sprint 1: `mb-context.sh .memory-bank` ≤ 40 KB, `mb-coord.sh active` ≤ 4 KB, `bash scripts/mb-core-cap.sh check --mb .memory-bank` exit 0 (`status.md` ≤ 60 строк, `checklist.md` ≤ 100 строк — Q-001; каждая убранная запись найдена в `progress.md`), Stop-хук `mb-core-cap-guard.sh` установлен и включён, `mb-workflow.sh --json` по умолчанию = `execution`, `.memory-bank/reports/2026-09-05_cost-baseline.json` существует, а полная батарея (`bash scripts/mb-test-run.sh --dir . --out json` → `tests_pass: true`) зелёная. `/mb verify` PASS перед `/mb done`.
