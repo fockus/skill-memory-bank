@@ -3062,3 +3062,43 @@ Codex круг 2 по группе: 9 технических ревьюеров 
 ### Решение AGR-039: дефолт mb-context.sh 16384 → 12288 (2026-09-05, follow-up к Sprint 1 Stage 3)
 - Пользователь выбрал вариант «12288 как дефолт скила» из трёх, предложенных после замера (48 532 B на этом банке при 16384). TDD: новый bats `default cap is 12288 bytes per file (AGR-039)` — граница 192×64 B = 12288 остаётся целой, +1 строка даёт `shown 192 of 193`; красный на 16384 воспроизведён, затем константа и все упоминания (скрипт, commands/mb.md, commands/start.md, docs/environment-variables.md, SKILL.md, CHANGELOG, комментарий теста, заметка в плане Stage 3). Per-bank тумблер `context_max_bytes=12288` из `.mb-config` этого банка снят как избыточный.
 - Улики: bats 20/20 (integration + budget), shellcheck чист, prove_assertions alive без dead, pytest doc_counts/bats_assertion_contract/changelog 22 passed, drift — только счётчики уже существующих строк «committed after plan date». Замеры на дефолте: этот банк 39 770 B (≤ 40 000, запас 230 B, checklist растёт с каждой стадией — Stage 5 это решает), techflow 45 793 B, `--full` 118 055 B.
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session e8c2071c)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session 617a5a28)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session 2c852b06)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session 0c26dcf9)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-05
+
+### Auto-capture 2026-09-05 (session d72b45e2)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-06
+
+### Sprint 1 Stage 4 — `mb-status-rotate.sh` (ротация `status.md`) закрыт через /mb work (execution, run 8b5668b0)
+- Новый `scripts/mb-status-rotate.sh [--keep N] [--dry-run|--apply] [--mb]`: датированные `## `-секции сверх первых 3 переезжают в `progress.md` блоками `## [status archive] …` через locked append; недатированные не трогаются; append проверяется (helper fail-safe exit 0 → без подтверждения status.md не трогается); backup `.status.md.bak.<ts>`, атомарная запись, идемпотентно, fail-open без progress.md.
+- Подключение: `agents/mb-manager.md` шаг actualize (→ и `/mb done`, и `/mb update`), `commands/done.md` шаг 5, `mb-drift.sh` check 17 `status_size` (WARN > 24 KB), `.gitignore`, SKILL.md § Tools, роутер `done`, CHANGELOG.
+- Тесты: `tests/bats/test_status_rotate.bats` 8/8 (вкл. снапшот банка: 9 датированных → 3 + 6 архивных), `tests/bats/test_drift_status_size.bats` 2/2 (красный доказан на HEAD-версии drift), `tests/pytest/test_status_rotate_docs.py` 2/2, test_doc_counts зелёный, shellcheck чист.
+- Verifier PASS, 2 WARNING закрыты в той же сессии (формулировка «только /mb done» → actualize step; TDD-delta на mb-drift.sh). Поправка плана: в банке 9 датированных секций, не 12 (DoD 12/9 → 9/6).
+- Замечание исполнителя (открыто): после `--keep 3` живой status.md остаётся ~25.6 KB > порога drift 24 KB из-за крупных недатированных секций — либо порог ~32 KB, либо `--keep` ниже; решение владельца. Живой банк НЕ ротирован — первый прогон случится в `/mb done`.
+- Следующий: Stage 5 (прунер checklist.md под реальную структуру).

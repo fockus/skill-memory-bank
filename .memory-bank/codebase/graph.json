@@ -1,4 +1,4 @@
-{"type": "meta", "schema": 1, "generated_at": "2026-09-05T17:32:00Z", "commit": "fe0dec116e50", "nodes": 3481, "edges": 19594, "src_root": ".", "flags": ["--docs"]}
+{"type": "meta", "schema": 1, "generated_at": "2026-09-06T12:14:48Z", "commit": "435488a3e212", "nodes": 3483, "edges": 19601, "src_root": ".", "flags": ["--docs"]}
 {"type": "node", "kind": "module", "name": "adapters/pi_graph_rag_extension.ts", "file": "adapters/pi_graph_rag_extension.ts", "line": 1}
 {"type": "node", "kind": "function", "name": "memoryBankGraphRagExtension", "file": "adapters/pi_graph_rag_extension.ts", "line": 56, "signature": "function memoryBankGraphRagExtension(pi: ExtensionAPI)"}
 {"type": "node", "kind": "function", "name": "execute", "file": "adapters/pi_graph_rag_extension.ts", "line": 108, "signature": "async execute(_toolCallId, params)"}
@@ -3236,6 +3236,8 @@
 {"type": "node", "kind": "function", "name": "test_status_md_version_matches_version_file", "file": "tests/pytest/test_status_drift.py", "line": 34, "signature": "()", "doc": "Every `VERSION: X` line in status.md must equal `./VERSION`."}
 {"type": "node", "kind": "function", "name": "test_status_md_no_obsolete_v3_in_progress_markers", "file": "tests/pytest/test_status_drift.py", "line": 49, "signature": "()", "doc": "No 'Gate v3.0 — in progress' or '(в работе)' v3 markers anywhere."}
 {"type": "node", "kind": "function", "name": "test_status_md_open_backlog_consistent_with_backlog_md", "file": "tests/pytest/test_status_drift.py", "line": 71, "signature": "()", "doc": "Each I-NNN under '## Open backlog' must be OPEN in backlog.md."}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_status_rotate_docs.py", "file": "tests/pytest/test_status_rotate_docs.py", "line": 1, "doc": "mb-work-cost-diet Sprint 1 Stage 4 — status.md rotation is wired into `/mb done`. A rotation script nobody calls is dead weight: both the executing agent prompt and the command doc must name it, or `s"}
+{"type": "node", "kind": "function", "name": "test_done_flow_documents_status_rotation", "file": "tests/pytest/test_status_rotate_docs.py", "line": 17, "signature": "(doc: str)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_templates_format.py", "file": "tests/pytest/test_templates_format.py", "line": 1, "doc": "Format invariants for templates/.memory-bank/ core files (v3.1 structure). Guarantees relied on by `mb-plan-sync.sh`, `mb-plan-done.sh`, `mb-idea.sh`, `mb-idea-promote.sh`, `mb-adr.sh`, and `mb-compac"}
 {"type": "node", "kind": "function", "name": "_read", "file": "tests/pytest/test_templates_format.py", "line": 30, "signature": "(name: str)"}
 {"type": "node", "kind": "function", "name": "_exactly_one", "file": "tests/pytest/test_templates_format.py", "line": 36, "signature": "(text: str, pattern: str)"}
@@ -21772,6 +21774,13 @@
 {"type": "edge", "src": "tests/pytest/test_status_drift.py:test_status_md_open_backlog_consistent_with_backlog_md", "dst": "pytest.mark.skipif", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_status_drift.py:test_status_md_open_backlog_consistent_with_backlog_md", "dst": "STATUS.exists", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_status_drift.py:test_status_md_open_backlog_consistent_with_backlog_md", "dst": "BACKLOG.exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_status_rotate_docs.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_status_rotate_docs.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_status_rotate_docs.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_status_rotate_docs.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_status_rotate_docs.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_status_rotate_docs.py:test_done_flow_documents_status_rotation", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_status_rotate_docs.py:test_done_flow_documents_status_rotation", "dst": "pytest.mark.parametrize", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_templates_format.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_templates_format.py", "dst": "re", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_templates_format.py", "dst": "pathlib.Path", "kind": "import"}

@@ -2032,3 +2032,6 @@ FREEZE соблюдён (без rebase; origin был вровень, push fast-
 
 ## STATUS · 2026-09-05 · main · Sprint 1 Stage 3 (бюджет mb-context.sh) закрыт через /mb work (execution), коммит следует
 Сессия одна. Правки: scripts/mb-context.sh (пофайловый кап, --full), commands/mb.md + commands/start.md + docs/environment-variables.md + SKILL.md + CHANGELOG.md, новые tests/bats/test_context_budget.bats и tests/fixtures/context-budget/, .memory-bank/.mb-config (+context_max_bytes=12288 для этого банка), checklist/plan (Stage 3 ✅ через flip), progress (append). FREEZE «no rebase/reset/checkout/stash» соблюдён. Следующий: Stage 4 (mb-status-rotate.sh).
+
+## STATUS · 2026-09-06 · main · Sprint 1 Stage 4 (mb-status-rotate.sh) закрыт через /mb work (execution), коммит следует
+Сессия одна. Правки: новые scripts/mb-status-rotate.sh, tests/bats/test_status_rotate.bats, tests/bats/test_drift_status_size.bats, tests/pytest/test_status_rotate_docs.py, tests/fixtures/status-rotate/status.md; правлены scripts/mb-drift.sh (check status_size), agents/mb-manager.md, commands/done.md, commands/mb.md, SKILL.md, CHANGELOG.md, .gitignore; checklist/plan (Stage 4 ✅ через flip), progress (append). Живой status.md не ротирован. FREEZE «no rebase/reset/checkout/stash» соблюдён. Следующий: Stage 5 (прунер checklist.md).

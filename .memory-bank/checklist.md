@@ -126,7 +126,7 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
 ## Stage 4: `mb-status-rotate.sh` — ротация `status.md`
-- ⬜ `mb-status-rotate.sh` — ротация `status.md`
+- ✅ `mb-status-rotate.sh` — ротация `status.md` (2026-09-06, /mb work run 8b5668b0, execution, verifier PASS; 8 bats + 2 drift-bats + 2 pytest, wired into actualize step of /mb done|update, drift WARN status_size > 24 KB)
 
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
 ## Stage 5: Прунер `checklist.md` под реальную структуру

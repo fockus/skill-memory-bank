@@ -19,6 +19,7 @@ source "$(dirname "$0")/_lib.sh"
 DIR="${1:-.}"
 MB="$DIR/.memory-bank"
 STALE_DAYS=30
+STATUS_SIZE_CAP=24576
 WARNINGS=0
 
 if [ ! -d "$MB" ]; then
@@ -565,6 +566,18 @@ date_ok() {
   [ "$d" -le "$max" ]
 }
 
+# ═══ 17. status_size — status.md past the rotation threshold ═══
+check_status_size() {
+  local bytes
+  [ -f "$MB/status.md" ] || { ok status_size; return; }
+  bytes=$(wc -c < "$MB/status.md" | tr -d ' ')
+  if [ "${bytes:-0}" -gt "$STATUS_SIZE_CAP" ]; then
+    warn status_size "status.md > 24 KB ($bytes bytes) — run mb-status-rotate.sh --apply"
+  else
+    ok status_size
+  fi
+}
+
 # ═══ Run all checks ═══
 check_path
 check_staleness
@@ -582,6 +595,7 @@ check_plan_status
 check_plan_vs_git
 check_supersedes
 check_progress_chain
+check_status_size
 
 echo "drift_warnings=$WARNINGS"
 

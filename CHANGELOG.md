@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — `mb-status-rotate.sh`: `status.md` rotation into `progress.md`
+
+- Dated `## ` sections (heading carrying a `YYYY-MM-DD`) past the newest `--keep N` (default 3)
+  move verbatim into `progress.md` as `## [status archive] <heading>` blocks, written through the
+  locked append-only `mb-work-progress-append.sh`. Undated sections (`## Current phase`,
+  `## Open backlog`, `## ⏭ …`) never move and survivor order is unchanged.
+- `--apply` leaves a `.status.md.bak.<ts>` and rewrites `status.md` atomically; `--dry-run`
+  (default) only prints the plan. Because the append helper is fail-safe (exit 0 without
+  appending on lock timeout), every block is verified present in `progress.md` before `status.md`
+  is touched — a lost append aborts with exit 1 instead of dropping a section.
+- Wired into the actualize step shared by `/mb done` and `/mb update` (`agents/mb-manager.md`
+  actualize step 2, `commands/done.md` step 5) and
+  `mb-drift.sh` now warns when `status.md` exceeds 24 KB.
+
 ### Changed — BREAKING: `mb-context.sh` caps each core file (default 12 KB, `--full` restores)
 
 - `status.md`, `roadmap.md`, `checklist.md` and `research.md` are now trimmed to a per-file byte

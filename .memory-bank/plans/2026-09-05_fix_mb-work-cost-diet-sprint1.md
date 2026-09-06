@@ -156,9 +156,9 @@ created: 2026-09-05
   - `test_doc_counts` зелёный после строки в SKILL.md.
 
 **DoD:**
-- [ ] На копии `status.md` этого банка (12 датированных секций) `--apply --keep 3` оставляет 3 датированные + все недатированные; `progress.md` получает 9 блоков `[status archive]`.
-- [ ] 7/7 bats, shellcheck чист; строка в `SKILL.md` § Tools и в `commands/mb.md` (`done`).
-- [ ] `agents/mb-manager.md` и `commands/done.md` содержат шаг ротации (pytest-doc-assert в `test_docs_cost_ladder.py` или новом `test_status_rotate_docs.py`).
+- [x] На копии `status.md` этого банка (9 датированных `## `-секций по факту на 2026-09-05, не 12 как оценивалось при написании плана) `--apply --keep 3` оставляет 3 датированные + все недатированные; `progress.md` получает 6 блоков `[status archive]`.
+- [x] 7/7 bats, shellcheck чист; строка в `SKILL.md` § Tools и в `commands/mb.md` (`done`).
+- [x] `agents/mb-manager.md` и `commands/done.md` содержат шаг ротации (pytest-doc-assert в `test_docs_cost_ladder.py` или новом `test_status_rotate_docs.py`).
 
 **Code rules:** append-only `progress.md` (инвариант банка), атомарная запись, fail-open при отсутствии `progress.md` (создать).
 

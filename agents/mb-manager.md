@@ -265,7 +265,7 @@ Actualize core files based on the provided description of completed work.
 **Steps (in order):**
 
 1. **`checklist.md`** — read the current file, mark completed items (`⬜ → ✅`), add new tasks if discovered
-2. **`status.md`** — update metrics (tests, coverage, reward) if provided. Update roadmap if a stage/milestone completed
+2. **`status.md`** — first run `bash ~/.claude/skills/memory-bank/scripts/mb-status-rotate.sh --apply --mb .memory-bank` (archives dated `## ` sections past the newest 3 into `progress.md`; undated sections stay), then update metrics (tests, coverage, reward) if provided. Update roadmap if a stage/milestone completed
 3. **`progress.md`** — APPEND a new entry at the end (date + what was done + next step)
 4. **`research.md`** — update if there were ML results (hypothesis confirmed/refuted, new finding)
 5. **`lessons.md`** — add an entry if an anti-pattern or repeated mistake was found

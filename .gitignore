@@ -47,6 +47,7 @@ htmlcov/
 .memory-bank/.session-lock
 .memory-bank/.auto-lock
 .memory-bank/.checklist.md.bak.*
+.memory-bank/.status.md.bak.*
 .memory-bank/codebase/.cache/
 # I-133 catchup runtime state — queue/lock/cooldown, never tracked.
 .memory-bank/codebase/.graph-dirty
