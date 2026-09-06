@@ -139,3 +139,11 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
 ## Stage 7: Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
 - ⬜ Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
+
+<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
+## Stage 6: Покрытие — bash и bats в графе
+- ⬜ Покрытие — bash и bats в графе
+
+<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
+## Stage 7: Граф в каждом диспатче `/mb work` + замер adoption
+- ⬜ Граф в каждом диспатче `/mb work` + замер adoption

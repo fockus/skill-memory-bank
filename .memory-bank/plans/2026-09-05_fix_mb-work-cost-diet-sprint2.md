@@ -4,7 +4,7 @@ topic: mb-work-cost-diet-sprint2
 phase: mb-work-cost-diet
 sprint: 2
 status: planned
-depends_on: [2026-09-05_fix_mb-work-cost-diet-sprint1.md]
+depends_on: [2026-09-05_fix_mb-work-cost-diet-sprint1.md, 2026-07-28_fix_graph-semantic-adoption.md]
 parallel_safe: false
 linked_specs: []
 created: 2026-09-05
@@ -19,7 +19,7 @@ created: 2026-09-05
 
 **Expected result:** S-задача через `/mb work --fast` закрывается ≤ 2 диспатчами, ≤ 80 tool-вызовов у implementer, ≤ 2 полных прогонов тестов и ≤ 30 мин; governed-item — ≤ 2 полных прогона на цикл; внешнее ревью — синхронный раннер с таймаутом и heartbeat, без polling-циклов в оркестраторе. Всё измеряется `mb-cost-report.py`.
 
-**Решение владельца (2026-09-06, AGR-041):** главный рычаг времени — прогоны тестов: implementer гоняет только тесты своих файлов (список из `mb-graph-query.py tests`), полная батарея ≤ 2 раз на item; context pack получают одними байтами и implementer, и verifier/reviewer/judge; агенты обязаны пользоваться графами (AST + семантический индекс) — adoption замеряется (Stage 5). Гейт качества — AGR-042 (см. Gate).
+**Решение владельца (2026-09-06, AGR-041):** главный рычаг времени — прогоны тестов: implementer гоняет только тесты своих файлов (список из `mb-graph-query.py tests`), полная батарея ≤ 2 раз на item; context pack получают одними байтами и implementer, и verifier/reviewer/judge; агенты обязаны пользоваться графами (AST + семантический индекс) — покрытие bash/bats, контракты диспатча и замер `graph_share` делает план graph-semantic-adoption (Stages 6–7, AGR-044), этот спринт от него зависит. Гейт качества — AGR-042 (см. Gate).
 
 **Related files:**
 - `commands/work.md` (§5a–5d), `scripts/mb-work-plan.sh` (JSON Lines), `scripts/mb-workflow.sh`, `scripts/mb-pipeline-validate.sh`, `references/pipeline.default.yaml`
@@ -105,7 +105,7 @@ created: 2026-09-05
 
 **What to do:**
 - Новый `scripts/mb-work-context-pack.sh --item-json <line> [--max-bytes 8192] [--mb <bank>]` → markdown: заголовок + тело item + DoD; `Files:` с числом строк каждого; для каждого файла до 5 соседей и тесты из графа (`mb-graph-query.py neighbors|tests`, fail-open: нет/stale графа → строка «graph unavailable, use Grep on listed files»); `## Edge Cases` спеки/плана если есть; пути (не содержимое) `RULES.md`/`.memory-bank/RULES.md`; блок «Budget»: `tool calls ≤ <N>` (default 60, `pipeline.yaml:budget.tool_calls_per_item`), «читай только перечисленные файлы и их тесты, полная батарея — один раз через `mb-work-evidence.sh run`, при нехватке контекста верни NEEDS_CONTEXT с конкретным вопросом». Превышение `--max-bytes` → усечение тела item с маркером, DoD и Budget не усекаются.
-- Секции pack `## Graph` (статус графа из `mb-graph-query.py status` + готовые команды `impact|neighbors|tests` для каждого файла из `Files:`) и `## Tests to run` (результат `graph_tests`, fail-open → «tests by filename») — исполнителю не нужно вспоминать синтаксис (это Stage 5 плана graph-semantic-adoption, исполняется здесь — AGR-041).
+- Секции pack `## Graph` (статус графа из `mb-graph-query.py status` + готовые команды `impact|neighbors|tests` для каждого файла из `Files:`) и `## Tests to run` (результат `graph_tests`, fail-open → «tests by filename») — исполнителю не нужно вспоминать синтаксис (блок формирует `mb-graph-query.py`; покрытие bash/bats и контракты диспатча — план graph-semantic-adoption Stages 6–7, AGR-044).
 - **Тот же pack — проверяющим (AGR-041):** verifier (§5c) получает pack + `Evidence:` + путь diff; reviewer/judge (§5d/§5e) — через `mb-review.sh --emit-payload --context-pack <path>`; один рендер, одни байты (принцип C6), никаких пересборок «по памяти» оркестратора.
 - `commands/work.md` §5a: промпт = engineering-core + tooling-core + role + **context pack** (вместо голого тела); для `fast:true` / `size:S` — engineering-core заменяется 12-строчным дайджестом внутри pack (`## Discipline (digest)`), чтобы промпт S-задачи был ≤ 12 KB.
 - `hooks/mb-context-slim-pre-agent.sh`: advisory-режим удалить (мёртвый код), заменить на проверку «в промпте Task есть `## Budget`, иначе WARN в stderr» — fail-open.
@@ -162,32 +162,7 @@ created: 2026-09-05
 
 ---
 
-<!-- mb-stage:5 -->
-### Stage 5: Graph-first у агентов — замер adoption и nudge v2
-
-**Role:** developer
-
-**Решение владельца (2026-09-06, AGR-041):** графы есть (AST `codebase/graph.json` + семантический индекс), агенты ими не пользуются — должны. Стадии 1 (nudge v2) и 5 (статус графа в диспатче) плана [graph-semantic-adoption](2026-07-28_feature_graph-semantic-adoption.md) исполняются здесь, чтобы не дублировать; стадии 2–4 остаются в том плане.
-
-**What to do:**
-- `scripts/mb-cost-report.py`: per role — `graph_calls` (Bash-команды с `mb-graph-query.py|mb-semantic-search.py|mb-code-context.py`) и `grep_calls` (Grep-tool + Bash `grep -r`/`rg `), `graph_share = graph/(graph+grep)` (0 при отсутствии lookups); в таблице и в `--json`.
-- Nudge v2 в `hooks/mb-graph-nudge.sh`: повтор каждые N (default 3) структурных grep'ов за сессию, подсказка содержит символ из паттерна и готовую команду; действует и в сабагентах (хук видит их транскрипт).
-- `agents/mb-tooling-core.md` + pack `## Graph` (Stage 3): правило «сначала `impact|neighbors|tests` по `Files:`, grep — только по результату графа или при `stale/absent`»; verifier получает `graph_share` implementer'а строкой в Evidence и пишет INFO, если тесты item не были найдены через `graph_tests`.
-- План graph-semantic-adoption: стадии 1 и 5 закрываются ссылкой на эту стадию (`mb-work-checkbox.sh` не применим к чужому плану — отметить вручную с датой и ссылкой, progress.md запись).
-
-**Testing (TDD):**
-- `tests/pytest/test_mb_cost_report.py`: `test_graph_and_grep_calls_counted_per_role`, `test_graph_share_zero_when_no_lookups` (фикстура: implementer с 2 grep + 1 graph-вызовом → share 0.33).
-- `hooks/tests/test_graph_nudge_v2.bats`: `nudge repeats every N greps`, `symbol from pattern appears in hint`, `off-switch respected`, `no graph → hint to build, exit 0`.
-- doc-pytest: `agents/mb-tooling-core.md` содержит правило graph-first; `commands/work.md` §5c — строка про `graph_share` в Evidence.
-
-**DoD:**
-- [ ] `mb-cost-report.py` печатает `graph_share` per role; на demo-item Sprint 2 у implementer `graph_calls ≥ 1` и `graph_share ≥ 0.5`, у verifier `graph_calls ≥ 1`.
-- [ ] 2 pytest + 4 bats зелёные; shellcheck; строка хука в `SKILL.md` обновлена; стадии 1 и 5 плана graph-semantic-adoption отмечены исполненными здесь.
-- [ ] Через 7 дней после раскатки `mb-cost-report.py --since 7` → `graph_share` implementer ≥ 0.5 (замер adoption по AGR-038); результат в `reports/`.
-
-**Code rules:** детерминированный замер (regex по командам), без LLM; fail-open на отсутствие графа; никаких новых зависимостей.
-
----
+> **Graph-first у агентов** (замер `graph_share`, nudge v2, покрытие bash/bats, контракты диспатча verify/review/judge) — исполняется в плане [graph-semantic-adoption](2026-07-28_fix_graph-semantic-adoption.md) Stages 6–7 как пререквизит этого спринта (AGR-044, заменяет прежнюю Stage 5 здесь); гейт этого спринта проверяет результат.
 
 ## Risks and mitigation
 
@@ -201,4 +176,4 @@ created: 2026-09-05
 
 ## Gate (plan success criterion)
 
-Демонстрационный прогон двух реальных backlog-задач через обновлённый движок, измеренный `mb-cost-report.py` и приложенный к `reports/`: (1) S-задача (например I-023 `grep → find` cleanup) через `/mb work --fast` — ≤ 2 диспатча, implementer ≤ 80 tool-вызовов, ≤ 2 полных прогона тестов, ≤ 30 мин, DoD-чекбоксы флипнуты через `mb-work-checkbox.sh`; (2) M-задача через `execution` — ≤ 3 диспатча, ≤ 2 полных прогона на item. Полная батарея зелёная, `/mb verify` PASS. **Гейт качества (AGR-042):** verifier PASS с первой попытки на обоих demo-items, число CRITICAL/WARNING находок verifier'а не выше, чем у Sprint 1 Stage 4 (0/2), `mb-drift.sh .` без новых находок; `graph_share` implementer ≥ 0.5 (Stage 5).
+Демонстрационный прогон двух реальных backlog-задач через обновлённый движок, измеренный `mb-cost-report.py` и приложенный к `reports/`: (1) S-задача (например I-023 `grep → find` cleanup) через `/mb work --fast` — ≤ 2 диспатча, implementer ≤ 80 tool-вызовов, ≤ 2 полных прогона тестов, ≤ 30 мин, DoD-чекбоксы флипнуты через `mb-work-checkbox.sh`; (2) M-задача через `execution` — ≤ 3 диспатча, ≤ 2 полных прогона на item. Полная батарея зелёная, `/mb verify` PASS. **Гейт качества (AGR-042):** verifier PASS с первой попытки на обоих demo-items, число CRITICAL/WARNING находок verifier'а не выше, чем у Sprint 1 Stage 4 (0/2), `mb-drift.sh .` без новых находок; `graph_share` implementer ≥ 0.5 по `mb-cost-report.py` (метрика из плана graph-semantic-adoption Stage 7).
