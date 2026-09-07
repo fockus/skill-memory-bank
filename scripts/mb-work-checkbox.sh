@@ -4,6 +4,9 @@
 # Usage:
 #   mb-work-checkbox.sh flip <plan-or-spec> <item_no> [--mb <path>] [--run-id ID]
 #
+# Also mirrors the flip onto the plan's `checklist.md` v2 block line
+# (`- ⬜ Stage N — …` → `- ✅ …`, `k/n` recomputed) — fail-open, never a gate.
+#
 # Flips `- ⬜` → `- ✅` and `- [ ]` → `- [x]` (both checkbox dialects
 # `mb-work-plan.sh` recognises) but ONLY inside the requested item's marker
 # block (`<!-- mb-stage:N -->` / `<!-- mb-task:N -->` up to the next marker
@@ -173,6 +176,15 @@ except BaseException:
     os.unlink(tmp_path)
     raise
 PY
+	# Mirror the flip into the plan's checklist.md v2 block. The plan-file flip
+	# above is the gate; the checklist is a view, so a missing block or a broken
+	# mirror warns and never fails the loop.
+	local checklist="$bank/checklist.md"
+	if [ -f "$checklist" ]; then
+		python3 "$SCRIPT_DIR/mb-checklist-v2.py" flip --checklist "$checklist" \
+			--plan-basename "$(basename "$file")" --stage "$item_no" 2>/dev/null \
+			|| echo "[checkbox] no checklist block for item $item_no — mirror skipped" >&2
+	fi
 	echo "[checkbox] flipped item $item_no in $file"
 }
 

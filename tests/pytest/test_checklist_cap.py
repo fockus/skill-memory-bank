@@ -1,8 +1,9 @@
-"""I-033 — enforce hard cap on `.memory-bank/checklist.md`.
+"""Enforce the line cap on `.memory-bank/checklist.md`.
 
-Locks in the convention declared in the file's own header. If the cap is
-breached, run `bash scripts/mb-checklist-prune.sh --apply --mb .memory-bank`
-and (if anything still over) trim manually.
+Locks in the convention declared in the file's own header (v2 default: 100).
+If the cap is breached, run
+`bash scripts/mb-checklist-prune.sh --apply --mb .memory-bank`; an exit 3 means
+live plans do not fit and some must be paused or closed.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CHECKLIST = REPO_ROOT / ".memory-bank" / "checklist.md"
-HARD_CAP_LINES = 120
+HARD_CAP_LINES = 100
 
 
 @pytest.mark.skipif(not CHECKLIST.exists(), reason="checklist.md not present in this checkout")

@@ -4,12 +4,12 @@ Two plans with identical stage headings (e.g. both have ``## Task 1: Setup``)
 must not interfere via ``checklist.md``.
 
 Contract (post-Sprint-3):
-  * ``mb-plan-sync.sh`` writes a ``<!-- mb-plan:<basename> -->`` marker line
-    immediately before each new heading section it appends to ``checklist.md``.
-  * Idempotency is keyed on the (marker, heading) pair — re-syncing the same
-    plan does NOT duplicate.
-  * ``mb-plan-done.sh`` removes ONLY sections preceded by the closing plan's
-    marker; sections owned by other plans (including pre-existing legacy
+  * ``mb-plan-sync.sh`` owns exactly one ``<!-- mb-plan:<basename> -->`` v2
+    block per plan in ``checklist.md`` (Sprint 1 Stage 5).
+  * Idempotency is keyed on (marker, stage number) — re-syncing the same plan
+    does NOT duplicate.
+  * ``mb-plan-done.sh`` archives ONLY the closing plan's block into
+    ``progress.md``; blocks owned by other plans (and pre-existing legacy
     sections without any marker) survive.
 """
 
@@ -102,11 +102,13 @@ def test_two_plans_with_identical_heading_get_separate_marker_sections(
 
     checklist = (mb / "checklist.md").read_text(encoding="utf-8")
 
-    # 1. There must be exactly TWO `## Stage 1: Setup` sections (one per plan)
-    assert _count_substring(checklist, "## Stage 1: Setup") == 2, (
-        "Expected two independent Stage-1 sections (one per plan), got:\n"
+    # 1. Two independent v2 blocks, one per plan, each with its own Stage 1.
+    assert _count_substring(checklist, "- ⬜ Stage 1 — Setup") == 2, (
+        "Expected two independent Stage-1 lines (one per plan), got:\n"
         f"{checklist}"
     )
+    assert "## alpha — 0/1" in checklist
+    assert "## beta — 0/1" in checklist
 
     # 2. Each plan's marker must be present once
     assert "<!-- mb-plan:2026-04-25_refactor_a.md -->" in checklist
@@ -130,12 +132,18 @@ def test_close_one_plan_preserves_other_plans_section(tmp_path: Path) -> None:
     assert "<!-- mb-plan:2026-04-25_refactor_b.md -->" in checklist, (
         "Plan B marker disappeared after closing plan A:\n" + checklist
     )
-    assert "## Stage 1: Setup" in checklist, (
-        "Plan B's Stage 1 heading vanished:\n" + checklist
+    assert "## beta — 0/1" in checklist, (
+        "Plan B's block vanished:\n" + checklist
     )
+    assert _count_substring(checklist, "- ⬜ Stage 1 — Setup") == 1
 
-    # Plan A's marker must be gone
+    # Plan A's marker must be gone from the checklist…
     assert "<!-- mb-plan:2026-04-25_refactor_a.md -->" not in checklist
+    # …and archived verbatim in progress.md instead of deleted.
+    progress = (mb / "progress.md").read_text(encoding="utf-8")
+    assert "## [checklist archive]" in progress
+    assert "<!-- mb-plan:2026-04-25_refactor_a.md -->" in progress
+    assert "- ⬜ Stage 1 — Setup" in progress
 
 
 def test_resync_same_plan_is_idempotent(tmp_path: Path) -> None:
@@ -150,7 +158,7 @@ def test_resync_same_plan_is_idempotent(tmp_path: Path) -> None:
     assert (
         _count_substring(checklist, "<!-- mb-plan:2026-04-25_refactor_a.md -->") == 1
     ), "Marker duplicated on re-sync:\n" + checklist
-    assert _count_substring(checklist, "## Stage 1: Setup") == 1
+    assert _count_substring(checklist, "- ⬜ Stage 1 — Setup") == 1
 
 
 def test_legacy_unmarked_section_preserved_by_new_plan_with_same_heading(
@@ -180,5 +188,7 @@ def test_legacy_unmarked_section_preserved_by_new_plan_with_same_heading(
     )
     # New plan's marker section also present
     assert "<!-- mb-plan:2026-04-25_refactor_new.md -->" in checklist
-    # And there are now two `## Stage 1: Setup` headings
-    assert _count_substring(checklist, "## Stage 1: Setup") == 2
+    # The legacy heading stays exactly once — sync never claims unmarked sections…
+    assert _count_substring(checklist, "## Stage 1: Setup") == 1
+    # …and the new plan gets its own v2 block alongside it.
+    assert "## new — 0/1" in checklist

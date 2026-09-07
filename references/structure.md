@@ -96,20 +96,28 @@ See [backlog.md](backlog.md) — ideas with priority, ADRs.
 
 **Purpose:** an operational step list **for active plans only**. It is not an archive.
 
+**Format v2 — one block per plan** (a registry of plans in flight, not a per-stage log):
+
 ```markdown
 # <Project> — Checklist
 
-## Stage N: <stage title>
-- ⬜ <operational step 1>
-- ⬜ <operational step 2>
-- ✅ <completed step>
+> Convention. Open work only; hard cap ≤100 lines. Closed plans live in `progress.md`.
+
+<!-- mb-plan:2026-09-05_fix_widget-pipeline.md -->
+## Widget pipeline — 1/3
+- ✅ Stage 1 — build the widget
+- ⬜ Stage 2 — ship the widget
+- ⬜ Stage 3 — document the widget
 ```
 
+One `<!-- mb-plan:<basename> -->` marker per plan (not per stage), heading = plan title + `k/n` done, one line per stage. Plans with `status: planned|paused` get a single line (title + link) under `## ⏭ Next` / `## ⏸ Paused`; the `## 🔄 Active` prose stays ≤ 10 lines.
+
 **Lifecycle:**
-1. `mb-plan-sync.sh <plan>` adds a `## Stage N: <title>` section with `⬜` items.
-2. The agent flips `⬜ → ✅` during execution.
-3. `mb-plan-done.sh <plan>` **removes the entire section** (the durable record already lives in `plans/done/<basename>`).
-4. Completed sections without a linked plan file remain until `/mb compact --apply` removes them based on `MB_COMPACT_CHECKLIST_DAYS` (default `30`).
+1. `mb-plan-sync.sh <plan>` upserts the plan's v2 block, adding only stages the block does not have yet (idempotent by marker + stage number; never resets a ✅).
+2. `mb-work-checkbox.sh flip` mirrors a gated DoD flip onto the matching `Stage N` line and recomputes `k/n`. The agent may also flip by hand.
+3. `mb-plan-done.sh <plan>` moves the plan into `plans/done/`; `mb-checklist-prune.sh --apply` then copies the whole block **verbatim** into `progress.md` under `## [checklist archive] <date> — <plan>` and only then removes it from the checklist. An append it cannot confirm leaves the block in place — nothing is ever deleted.
+4. `mb-checklist-prune.sh --apply` also folds legacy v1 per-stage blocks of one plan into its single v2 block, and archives fully-done `### ` sections linking `plans/done/…` the same way.
+5. **Cap:** `MB_CHECKLIST_MAX_LINES` → `<bank>/.mb-config` `checklist_max_lines=` → `100`. Still over the cap after compaction → exit 3 with a per-plan diagnostic (`<plan>: k open`). Live work is never cut to fit: the answer is to pause or close plans.
 
 ---
 
@@ -288,6 +296,7 @@ Environment variables that control lifecycle behavior:
 | Variable                      | Default | Effect                                                                 |
 |-------------------------------|---------|------------------------------------------------------------------------|
 | `MB_RECENT_DONE_LIMIT`        | `10`    | How many completed plans `status.md ## Recently done` keeps            |
+| `MB_CHECKLIST_MAX_LINES`      | `100`   | `checklist.md` line cap (`.mb-config` `checklist_max_lines=` overrides the default) |
 | `MB_COMPACT_CHECKLIST_DAYS`   | `30`    | Age threshold for removing completed sections from `checklist.md`      |
 | `MB_COMPACT_PLAN_AGE_DAYS`    | `60`    | Age threshold for archiving completed plans                            |
 | `MB_COMPACT_NOTE_AGE_DAYS`    | `90`    | Age threshold for archiving low-importance notes                       |

@@ -5,7 +5,8 @@
 #   mb-plan-done.sh <plan-file> [mb_path]
 #
 # v3.1 effects:
-#   1. Remove plan's `## Stage N: <name>` sections from checklist.md (not tick).
+#   1. Archive the plan's checklist block into progress.md and drop it from
+#      checklist.md (via mb-checklist-prune.sh, once the plan is in plans/done/).
 #   2. Remove plan's entry from `<!-- mb-active-plans -->` blocks in roadmap.md + status.md.
 #   3. Prepend entry to `<!-- mb-recent-done -->` in status.md.
 #      Format: `- YYYY-MM-DD — [plans/done/<basename>](plans/done/<basename>) — <title>`
@@ -110,124 +111,14 @@ if [ -z "$stages" ]; then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# Remove this plan's marker-owned sections from checklist.md.
-#
-# v3.2 (Sprint 3, I-028) ownership model:
-#   * Sections preceded by `<!-- mb-plan:<BASENAME> -->` belong to THIS plan.
-#     Remove them (marker line + heading + body up to the next `## ` heading
-#     or another `<!-- mb-plan:` marker, whichever comes first).
-#   * Sections without any plan marker = legacy. Fall back to heading-content
-#     match BUT only if no other plan's marker section uses the same heading
-#     (avoids prematurely deleting a still-active plan's section that pre-dates
-#     the marker scheme).
+# checklist.md (Sprint 1 Stage 5): the plan's v2 block is NOT deleted here.
+# Moving the plan file into plans/done/ (below) makes it a closed plan, and the
+# mb-checklist-prune.sh call at the end of this script archives the whole block
+# verbatim into progress.md before removing it from the checklist — an append it
+# cannot confirm leaves the block in place. Legacy sections without a
+# `<!-- mb-plan: -->` marker were never ours and stay untouched.
 # ═══════════════════════════════════════════════════════════════
-remove_stage_section() {
-  local checklist="$1" n="$2" name="$3" basename="$4"
-  local heading="## Stage ${n}: ${name}"
-  local tmp
-  tmp=$(mktemp)
-
-  awk -v h="$heading" -v bn="$basename" '
-    function ends_section(line) {
-      return (line ~ /^## / || line ~ /^<!-- mb-plan:.*-->[[:space:]]*$/)
-    }
-
-    BEGIN {
-      our_marker = "<!-- mb-plan:" bn " -->"
-      skip = 0
-      removed_via_marker = 0
-    }
-
-    # Marker-owned removal:
-    # When we see OUR marker, drop it and the immediately-following heading
-    # (if it matches) plus the body up to the next section break.
-    skip == 0 && $0 == our_marker {
-      # Look ahead via lookahead-buffer trick: getline next line.
-      if ((getline next_line) > 0) {
-        if (next_line == h) {
-          skip = 1
-          removed_via_marker = 1
-          next
-        }
-        # Marker without our heading following — odd state. Drop both lines
-        # to keep the file clean (orphan marker is never useful).
-        next
-      }
-      next
-    }
-
-    # End of skipped marker-owned section: another `## ` heading OR another
-    # `<!-- mb-plan:` marker line resets the skip mode and we re-process the
-    # boundary line itself.
-    skip == 1 {
-      if (ends_section($0)) {
-        skip = 0
-        # Fall through to normal handling of the boundary line.
-      } else {
-        next
-      }
-    }
-
-    # Legacy fallback: only if we did NOT find our marker for this heading,
-    # AND the heading is not owned by some OTHER plan (we cannot know inside
-    # awk easily — handled by post-pass below).
-    {
-      print
-    }
-  ' "$checklist" > "$tmp"
-
-  # Post-pass: if we did NOT remove anything via marker, the section may be a
-  # legacy unmarked section we used to own. Apply legacy heading-only removal,
-  # but ONLY when no other plan marker in the file uses this heading.
-  if ! grep -qE "^<!-- mb-plan:[^>]+-->[[:space:]]*$" "$checklist" \
-     || ! awk -v m_self="<!-- mb-plan:${basename} -->" -v h="$heading" '
-          BEGIN { prev = "" }
-          { if (prev == m_self && $0 == h) { found = 1; exit } prev = $0 }
-          END { exit !found }
-        ' "$checklist"; then
-    # Either no markers at all, or our marker for this heading is absent.
-    # Decide whether legacy fallback is safe.
-    if awk -v h="$heading" '
-        BEGIN { prev = ""; conflict = 0 }
-        {
-          if (prev ~ /^<!-- mb-plan:.*-->[[:space:]]*$/ && $0 == h) {
-            conflict = 1
-            exit
-          }
-          prev = $0
-        }
-        END { exit !conflict }
-      ' "$tmp"; then
-      # Some OTHER plan owns this heading via marker — do NOT touch legacy.
-      :
-    else
-      # Safe legacy removal: original v3.1 algorithm restricted to first
-      # heading-only match.
-      local legacy_tmp
-      legacy_tmp=$(mktemp)
-      awk -v h="$heading" '
-        BEGIN { skip = 0; done_once = 0 }
-        /^## / {
-          if (!done_once && $0 == h) { skip = 1; done_once = 1; next }
-          skip = 0
-          print
-          next
-        }
-        !skip { print }
-      ' "$tmp" > "$legacy_tmp"
-      mv "$legacy_tmp" "$tmp"
-    fi
-  fi
-
-  mv "$tmp" "$checklist"
-}
-
-removed_sections=0
-while IFS=$'\t' read -r n name; do
-  [ -n "$n" ] || continue
-  remove_stage_section "$CHECKLIST" "$n" "$name" "$BASENAME"
-  removed_sections=$((removed_sections + 1))
-done <<< "$stages"
+removed_sections=$(printf '%s\n' "$stages" | grep -c . || true)
 
 # ═══════════════════════════════════════════════════════════════
 # Remove plan entry from mb-active-plans block in file

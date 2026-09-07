@@ -1,29 +1,33 @@
 #!/usr/bin/env bash
-# mb-checklist-prune.sh — collapse completed sections in checklist.md to one-liners.
+# mb-checklist-prune.sh — checklist.md compactor + v1→v2 migrator.
 #
 # Usage:
 #   mb-checklist-prune.sh [--dry-run|--apply] [--mb <path>]
 #
-# Rules:
-#   - Scans `### ` (level-3) sections in <mb>/checklist.md.
-#   - A section is collapsable when:
-#       (a) body contains a markdown link to `plans/done/...`
-#       (b) body contains NO `⬜` and NO `[ ]` markers
-#   - Collapse target form (single line, replaces multi-line section):
-#       `### <heading> ✅ — Plan: [<basename>](<plans/done/...>)`
-#   - Top-level `## ⏳ In flight` / `## ⏭ Next planned` content is never touched.
-#   - On `--apply`: writes pre-mutation backup `<mb>/.checklist.md.bak.<unix-ts>`.
-#   - After prune, warns to stderr if file is still > 120 lines (hard cap convention).
-#   - Idempotent: rerun on already-collapsed file makes no further changes.
+# Rules (v2 format, AGR-043 — information is never deleted):
+#   - Per-stage `<!-- mb-plan:<file> -->` + `## Stage N: …` blocks of one plan
+#     collapse into a single v2 block `## <title> — k/n` with one line per stage.
+#   - A block whose plan now lives in `plans/done/`, and any fully-done `### `
+#     section linking `plans/done/…`, moves VERBATIM into progress.md under
+#     `## [checklist archive] <date> — <label>`; the checklist is only rewritten
+#     once that append is confirmed on disk.
+#   - Open `⬜` lines are never moved. `## ⏳ In flight` / `## ⏭ Next planned`
+#     are never touched.
+#   - Line cap: MB_CHECKLIST_MAX_LINES -> `<mb>/.mb-config` `checklist_max_lines=`
+#     -> 100. Still over cap after compaction → exit 3 with a per-plan diagnostic
+#     (a signal to pause or close plans — live work is never cut to fit).
+#   - On `--apply`: writes `<mb>/.checklist.md.bak.<unix-ts>` when content changes.
 #
-# Exit codes: 0 on success or no-op; non-zero on argument error.
+# Exit codes: 0 success/no-op, 1 argument or bank error, 3 still over cap.
 
 set -euo pipefail
 
 # shellcheck source=_lib.sh
 source "$(dirname "$0")/_lib.sh"
 
-HARD_CAP_LINES=120
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CHECKLIST_V2="$SCRIPT_DIR/mb-checklist-v2.py"
+APPEND_SH="$SCRIPT_DIR/mb-work-progress-append.sh"
 
 MODE="dry-run"
 MB_ARG=""
@@ -33,7 +37,7 @@ while [ $# -gt 0 ]; do
     --apply)   MODE="apply"; shift ;;
     --mb)      MB_ARG="${2:-}"; shift 2 ;;
     --help|-h)
-      sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     --*)
       echo "[error] unknown flag: $1" >&2
@@ -58,135 +62,61 @@ if [ ! -f "$CHECKLIST" ]; then
   exit 0
 fi
 
-# Heavy lifting in python — multi-line section parsing in pure bash is brittle.
-PRUNE_OUTPUT=$(MB_CHECKLIST="$CHECKLIST" MB_MODE="$MODE" python3 - <<'PY'
-import os
-import re
-import sys
+# Cap: env -> `<mb>/.mb-config` -> default. A non-numeric value falls back.
+CAP_DEFAULT=100
+_resolve_cap() {
+  local raw=""
+  if [ -n "${MB_CHECKLIST_MAX_LINES:-}" ]; then
+    raw="$MB_CHECKLIST_MAX_LINES"
+  elif [ -f "$MB_PATH/.mb-config" ] && [ ! -L "$MB_PATH/.mb-config" ]; then
+    raw=$(grep -E '^checklist_max_lines=' "$MB_PATH/.mb-config" 2>/dev/null | tail -1 | cut -d= -f2- || true)
+  fi
+  case "$raw" in ''|*[!0-9]*) raw="$CAP_DEFAULT" ;; esac
+  printf '%s\n' "$raw"
+}
+CAP=$(_resolve_cap)
+PLANS_DIR="$MB_PATH/plans"
+TODAY=$(date +%Y-%m-%d)
 
-path = os.environ["MB_CHECKLIST"]
-mode = os.environ["MB_MODE"]
-text = open(path, encoding="utf-8").read()
-lines = text.splitlines(keepends=False)
+CANDIDATES=$(python3 "$CHECKLIST_V2" plan --checklist "$CHECKLIST" --plans-dir "$PLANS_DIR")
 
-# Locate ### section boundaries, but only outside the protected ## blocks.
-# Protected = top-level sections whose heading text begins with the listed emojis/words.
-PROTECTED_RE = re.compile(r"^##\s+(⏳\s*In\s*flight|⏭\s*Next\s*planned)", re.IGNORECASE)
-H2_RE = re.compile(r"^##\s+")
-H3_RE = re.compile(r"^###\s+(.+?)\s*$")
-PLAN_DONE_RE = re.compile(r"\(([^)]*plans/done/[^)]+\.md)\)")
-TODO_RE = re.compile(r"(⬜|\[\s\])")
-
-
-def in_protected_block(idx: int) -> bool:
-    # Walk upward to nearest H2; return True if it's a protected one.
-    for j in range(idx - 1, -1, -1):
-        if H2_RE.match(lines[j]):
-            return bool(PROTECTED_RE.match(lines[j]))
-    return False
-
-
-# Build list of (start_idx, end_idx_exclusive, heading_text)
-sections = []
-i = 0
-n = len(lines)
-while i < n:
-    m = H3_RE.match(lines[i])
-    if not m:
-        i += 1
-        continue
-    if in_protected_block(i):
-        i += 1
-        continue
-    start = i
-    heading = m.group(1)
-    j = i + 1
-    while j < n and not H3_RE.match(lines[j]) and not H2_RE.match(lines[j]):
-        j += 1
-    sections.append((start, j, heading))
-    i = j
-
-candidates = []
-for start, end, heading in sections:
-    body = "\n".join(lines[start + 1:end])
-    plan_match = PLAN_DONE_RE.search(body)
-    if not plan_match:
-        continue
-    if TODO_RE.search(body):
-        continue
-    # Skip already-collapsed (single-line, no body content beyond heading + maybe a blank).
-    body_nonblank = [ln for ln in lines[start + 1:end] if ln.strip()]
-    if len(body_nonblank) == 0:
-        continue  # already a one-liner with trailing blank
-    candidates.append((start, end, heading, plan_match.group(1)))
-
-# Print plan to stdout (dry-run consumers parse this).
-if candidates:
-    print("# Plans to collapse:")
-    for _start, _end, heading, plan_path in candidates:
-        print(f"  collapse: {heading} → {plan_path}")
-else:
-    print("# No collapse candidates.")
-
-if mode != "apply":
-    sys.exit(0)
-
-# Apply: rebuild file from non-replaced lines + replacement one-liners.
-# We work top-down; build a list of (range, replacement_lines).
-new_lines: list[str] = []
-cursor = 0
-for start, end, heading, plan_path in candidates:
-    # copy lines [cursor:start]
-    new_lines.extend(lines[cursor:start])
-    base = os.path.basename(plan_path)
-    # Single-line replacement with trailing blank to keep visual separation.
-    new_lines.append(f"### {heading} — Plan: [{base}]({plan_path})")
-    new_lines.append("")
-    cursor = end
-new_lines.extend(lines[cursor:])
-
-# Drop accidental triple-blank runs introduced by collapse.
-collapsed: list[str] = []
-blank_streak = 0
-for ln in new_lines:
-    if ln.strip() == "":
-        blank_streak += 1
-        if blank_streak <= 2:
-            collapsed.append(ln)
-    else:
-        blank_streak = 0
-        collapsed.append(ln)
-
-# Restore single trailing newline.
-out = "\n".join(collapsed)
-if not out.endswith("\n"):
-    out += "\n"
-
-# Print marker so bash side knows apply ran (and what content to write).
-print("---APPLY-CONTENT-BEGIN---")
-sys.stdout.write(out)
-print("---APPLY-CONTENT-END---")
-PY
-)
-
-# Split python output: everything before APPLY-CONTENT marker is the plan.
-if [ "$MODE" = "apply" ] && printf '%s\n' "$PRUNE_OUTPUT" | grep -q '^---APPLY-CONTENT-BEGIN---$'; then
-  PLAN_TEXT=$(printf '%s\n' "$PRUNE_OUTPUT" | awk '/^---APPLY-CONTENT-BEGIN---$/{exit} {print}')
-  NEW_TEXT=$(printf '%s\n' "$PRUNE_OUTPUT" | awk 'flag {print} /^---APPLY-CONTENT-BEGIN---$/{flag=1}' | awk '/^---APPLY-CONTENT-END---$/{exit} {print}')
-  printf '%s\n' "$PLAN_TEXT"
-
-  TS=$(date +%s)
-  cp "$CHECKLIST" "$MB_PATH/.checklist.md.bak.$TS"
-  printf '%s\n' "$NEW_TEXT" > "$CHECKLIST"
-  echo "[apply] wrote $CHECKLIST (backup: .checklist.md.bak.$TS)"
+if [ -z "$CANDIDATES" ]; then
+  echo "# No archive candidates."
 else
-  printf '%s\n' "$PRUNE_OUTPUT"
+  echo "# Archive candidates:"
+  printf '%s\n' "$CANDIDATES" | while IFS=$'\t' read -r _key label _blob; do
+    echo "  archive: $label → progress.md"
+  done
 fi
 
-# Hard-cap warning (always evaluated against final file state).
-LINE_COUNT=$(wc -l < "$CHECKLIST" | tr -d ' ')
-if [ "$LINE_COUNT" -gt "$HARD_CAP_LINES" ]; then
-  echo "[warn] checklist.md has $LINE_COUNT lines — exceeds hard cap of $HARD_CAP_LINES; manual trim or follow-up archival required" >&2
+if [ "$MODE" != "apply" ]; then
+  exit 0
 fi
 
-exit 0
+# Archive each candidate BEFORE it leaves the checklist: append, then verify the
+# heading is on disk. An unconfirmed append (lock held, write error) drops the
+# candidate — the block stays in the checklist rather than vanishing.
+PROGRESS="$MB_PATH/progress.md"
+DROP_ARGS=()
+if [ -n "$CANDIDATES" ]; then
+  while IFS=$'\t' read -r key label blob; do
+    [ -n "$key" ] || continue
+    heading="## [checklist archive] $TODAY — $label"
+    if [ ! -f "$PROGRESS" ] || ! grep -qxF "$heading" "$PROGRESS"; then
+      body=$(printf '%s' "$blob" | base64 -d)
+      bash "$APPEND_SH" --text "$heading"$'\n\n'"$body" --mb "$MB_PATH" || true
+    fi
+    if [ -f "$PROGRESS" ] && grep -qxF "$heading" "$PROGRESS"; then
+      DROP_ARGS+=(--drop "$key")
+    else
+      echo "[warn] archive append unconfirmed for '$label' — leaving it in checklist.md" >&2
+    fi
+  done <<< "$CANDIDATES"
+fi
+
+set +e
+python3 "$CHECKLIST_V2" apply --checklist "$CHECKLIST" --plans-dir "$PLANS_DIR" \
+  --cap "$CAP" "${DROP_ARGS[@]+"${DROP_ARGS[@]}"}"
+rc=$?
+set -e
+exit "$rc"

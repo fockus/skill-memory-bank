@@ -4,6 +4,29 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — BREAKING: `checklist.md` v2 — one block per plan, closed work moves to `progress.md`
+
+- The checklist is now a registry of plans in flight: one `<!-- mb-plan:<file> -->` block per plan
+  (not per stage), headed `## <plan title> — k/n`, with one `- ✅|⬜ Stage N — <name>` line per stage.
+- Nothing is ever deleted (AGR-043). `mb-checklist-prune.sh --apply` folds a plan's legacy v1
+  per-stage blocks into its single v2 block, and moves a closed plan's block — plus fully-✅
+  `### ` sections linking `plans/done/…`, which used to collapse into a one-liner — **verbatim**
+  into `progress.md` under `## [checklist archive] <date> — <label>`, through the locked
+  append-only `mb-work-progress-append.sh`. An append that cannot be confirmed on disk leaves the
+  checklist untouched. Open `⬜` lines of a live plan are never moved.
+- Line cap resolves as `MB_CHECKLIST_MAX_LINES` → `<bank>/.mb-config` `checklist_max_lines=` → `100`
+  (was a fixed 120-line warning). Still over cap after compaction → **exit 3** with a per-plan
+  diagnostic listing each plan's open count: the fix is to pause or close plans, never to trim
+  live work. The file's own `cap ≤NNN lines` header line is rewritten to the resolved cap.
+- `mb-plan-sync.sh` upserts the v2 block (idempotent by marker + stage number, never resets a ✅)
+  instead of appending a `## Stage N: <name>` section per stage; `mb-plan-done.sh` no longer
+  deletes checklist sections — closing the plan hands the block to the archiving compactor;
+  `mb-work-checkbox.sh flip` now mirrors a gated DoD flip onto the checklist stage line and
+  recomputes `k/n` (fail-open: a missing block warns, never fails the loop).
+- New `scripts/mb-checklist-v2.py` (+ `memory_bank_skill/checklist_v2.py`) is the single
+  reader/writer for the format; the opt-in `hooks/mb-checklist-autoprune.sh` uses the same cap
+  resolution.
+
 ### Added — `mb-status-rotate.sh`: `status.md` rotation into `progress.md`
 
 - Dated `## ` sections (heading carrying a `YYYY-MM-DD`) past the newest `--keep N` (default 3)

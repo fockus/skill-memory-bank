@@ -3114,3 +3114,26 @@ Codex круг 2 по группе: 9 технических ревьюеров 
 - Замер на прогоне Stage 4: implementer 7 graph-запросов / 6 grep (промпт роли велит начать со status), verifier 0 / 16 (в §5c work.md tooling-core не подмешивается), nudge в сабагентах 0 (лимит «раз за сессию» съеден основной сессией). Покрытие graph.json: 267 .py, 0 из 155 .sh и 249 .bats; .index/codesearch/ не существует. Причины неиспользования: нечего спрашивать (покрытие), некому подсказать в момент выбора (nudge/диспатч), ответ нужно тянуть, а не получать готовым.
 - План graph-semantic-adoption: Context с замером и порядком исполнения 6→2→3→1→5→4→7; Stage 6 «покрытие bash+bats» (codegraph_shell.py regex, tests/impact для .sh, без tree-sitter), Stage 7 «граф в каждом диспатче + замер» (tooling-core в verify/review/judge, push-блок ## Graph по Files:, строка Graph: в отчёте implementer, per-agent маркер nudge, graph_share в cost-report, недельный замер). Сторожевой сабагент отвергнут: хуки + метрика + INFO verifier дают то же бесплатно. План — пререквизит Sprint 2 (depends_on), Stage 5 Sprint 2 заменена ссылкой.
 - Следующий: Q-001 (капы 60/100) от владельца; порядок исполнения: Sprint 1 Stage 5 → graph-semantic-adoption 6→2→3→1→5→4→7 → Sprint 2.
+
+## 2026-09-06
+
+### Auto-capture 2026-09-06 (session 48df5abe)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-06
+
+### Auto-capture 2026-09-06 (session fad6ebe0)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+
+## 2026-09-06 — Sprint 1 Stage 5: `checklist.md` v2 — один блок на план, закрытое → `progress.md` (/mb work, execution)
+
+- **Что:** формат чеклиста v2 по AGR-043 — один `<!-- mb-plan:<file> -->` на план, заголовок `## <title> — k/n`, строка на стадию со статусом. Один парсер v1/v2/mixed `memory_bank_skill/checklist_v2.py` (292 строки) + тонкий CLI `scripts/mb-checklist-v2.py` (`plan|apply|upsert|flip|extract`); четыре bash-писателя ходят через него: `mb-checklist-prune.sh` (компактор + мигратор v1→v2 + архиватор: append в progress.md через locked helper → `grep -qxF` заголовка `## [checklist archive] <date> — <label>` → только потом удаление; кап `MB_CHECKLIST_MAX_LINES` → `.mb-config checklist_max_lines=` → 100; сверх капа после компакции → exit 3 с перечнем планов и числом открытых, файл байт-в-байт), `mb-plan-sync.sh` (upsert одного v2-блока, идемпотентно по (marker, Stage N), ✅ не сбрасывается), `mb-plan-done.sh` (115-строчный awk `remove_stage_section` удалён — закрытие переносит план в `plans/done/`, prune архивирует блок verbatim), `mb-work-checkbox.sh flip` (после гейтированного флипа DoD зеркалит ✅ на строку стадии в чеклисте и пересчитывает k/n, fail-open).
+- **Живой банк:** `mb-checklist-prune.sh --apply` на этом банке — 149 → 99 строк, 20 per-stage маркеров трёх планов → 3 v2-блока, 22 ⬜ до = после, `spec-group-round3-remediation` остался блоком 6/6 (план в `plans/`), архивных кандидатов не было (progress.md не тронут). `test_repo_checklist_under_hard_cap` (был красным с капа 120) → зелёный.
+- **Отклонения от DoD, принятые оркестратором и внесённые в прозу плана:** (1) фикстура 596 строк содержит 105 открытых пунктов (94 ⬜ + 11 🟡) и ноль ссылок `plans/done/` — «≤ 100» недостижимо без удаления живого; DoD переписан: 68 маркеров → 16 v2-блоков, ≤ 450 строк (факт 434), открытые до = после, exit 3; (2) блок закрытого плана (`plans/done/`) переезжает verbatim целиком, включая ⬜ — «не перемещаются никогда» относится к живым планам в `plans/`.
+- **Тесты:** 11 новых pytest в `test_mb_checklist_prune.py`, новые bats `test_plan_sync_v2` (4) / `test_plan_done_v2` (3) / `test_work_checkbox_v2` (3), фикстура `tests/fixtures/checklist-big.md` (обезличенная копия структуры techflow). Изменённые существующие утверждения (все с причиной): `test_compact_checklist.bats` — старый тест проходил вакуумно (все секции под `## ⏳ In flight` = защищены, `after < before` давал strip хвостовых пустых строк 165→164); `test_hard_cap_warn_when_over_120` → `test_hard_cap_exceeded_exits_3`; `test_plan_multi_active_collision.py`/`test_parse_stages_phase_sprint_task.py`/`test_plan_sync.bats` — v1-строки `## Stage N:` → v2 `- ⬜ Stage N — …`. Verifier (sonnet): focused pytest 60 passed + 1 pre-existing red (cap на живом банке, ушёл после миграции), bats 54/54 + `test_plan_sync_multi` 9/9, shellcheck clean ×5, drift без новых находок, docs/шаблоны консистентны (v2 + cap 100), лишних v1-писателей нет. **VERDICT: PASS** (одно WARNING — число 105 vs 94 в прозе; уточнено как 94 ⬜ + 11 🟡).
+- **Docs:** `references/structure.md`, 5× `templates/**/checklist.md`, `docs/concepts/memory-bank-layout.md`, `docs/environment-variables.md`, `SKILL.md`, `commands/done.md`, CHANGELOG `### Changed`.
+- **Run:** /mb work run `bde718f414e641deb61a2cf4bbb3ab3a`, implementer opus 59 мин / 111 tool calls / 288k tokens (DONE_WITH_CONCERNS), verifier sonnet 11 мин / 50 calls / 112k. Graph: 0 запросов у исполнителя (граф покрывает только .py — аргумент за Stage 6 graph-плана), 2 у verifier.
+- **Дальше:** Stage 6 (`mb-coord.sh active`), Stage 7 (капы core-файлов + Stop-хук + `actualize --strict`), затем `/mb verify` + `/mb done` Sprint 1.

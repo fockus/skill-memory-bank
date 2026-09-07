@@ -5,13 +5,13 @@
 # Multi-plan behaviour lives in test_plan_sync_multi.bats / test_plan_done_multi.bats.
 #
 # Contract (sync):
-#   - checklist.md: for each (N, name) pair — if no `## Stage N: <name>` yet,
-#     append heading + `- ⬜ <name>`. Idempotent by EXACT title.
+#   - checklist.md: one v2 block per plan — `<!-- mb-plan:<basename> -->`,
+#     `## <title> — k/n`, `- ⬜ Stage N — <name>`. Idempotent by (marker, N).
 #   - plan.md: upsert entry in `<!-- mb-active-plans --> ... <!-- /mb-active-plans -->`
 #     block; create the block if missing.
 #
 # Contract (done):
-#   - Removes plan's Stage sections from checklist.md.
+#   - Archives the plan's checklist block into progress.md, then removes it.
 #   - Removes plan's entry from the active-plans block.
 #   - Moves plan file to plans/done/<basename>.
 
@@ -97,9 +97,12 @@ teardown() {
   run bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -eq 0 ]
 
-  grep -q "^## Stage 1: DRY-utilities$" "$TMPBANK/checklist.md"
-  grep -q "^## Stage 2: Language-agnostic metrics$" "$TMPBANK/checklist.md"
-  grep -q "^## Stage 3: codebase-mapper$" "$TMPBANK/checklist.md"
+  # v2: one block per plan, `## <title> — k/n`, one line per stage.
+  grep -q "^## skill-v2 — 0/3$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Stage 1 — DRY-utilities$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Stage 2 — Language-agnostic metrics$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Stage 3 — codebase-mapper$" "$TMPBANK/checklist.md"
+  [ "$(grep -c '^<!-- mb-plan:2026-04-19_refactor_skill-v2.md -->$' "$TMPBANK/checklist.md")" -eq 1 ]
 }
 
 @test "sync: legacy unmarked section preserved + new marker section appended (v3.2 contract)" {
@@ -114,11 +117,12 @@ EOF
 
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
 
-  # Legacy section preserved
+  # Legacy section preserved verbatim — unmarked sections are never ours.
   grep -q "custom item" "$TMPBANK/checklist.md"
-  # Two `## Stage 1: DRY-utilities` headings now coexist (one legacy, one marker-owned)
   count=$(grep -c "^## Stage 1: DRY-utilities$" "$TMPBANK/checklist.md")
-  [ "$count" -eq 2 ]
+  [ "$count" -eq 1 ]
+  # …and the plan owns a v2 block of its own alongside it.
+  grep -q "^## skill-v2 — 0/3$" "$TMPBANK/checklist.md"
   # Plan's marker is present
   grep -q "<!-- mb-plan:2026-04-19_refactor_skill-v2.md -->" "$TMPBANK/checklist.md"
 }
@@ -165,8 +169,8 @@ EOF
   run bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
   [ "$status" -eq 0 ]
 
-  grep -q "^## Stage 1: fix bug A$" "$TMPBANK/checklist.md"
-  grep -q "^## Stage 2: fix bug B$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Stage 1 — fix bug A$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Stage 2 — fix bug B$" "$TMPBANK/checklist.md"
 }
 
 @test "sync: creates active-plans markers if plan.md lacks them" {
@@ -195,9 +199,9 @@ EOF
 @test "sync: checklist with ⬜ item per stage" {
   bash "$SYNC" "$PLAN_FILE" "$TMPBANK"
 
-  grep -q "^- ⬜ DRY-utilities$" "$TMPBANK/checklist.md"
-  grep -q "^- ⬜ Language-agnostic metrics$" "$TMPBANK/checklist.md"
-  grep -q "^- ⬜ codebase-mapper$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Stage 1 — DRY-utilities$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Stage 2 — Language-agnostic metrics$" "$TMPBANK/checklist.md"
+  grep -q "^- ⬜ Stage 3 — codebase-mapper$" "$TMPBANK/checklist.md"
 }
 
 # ═══════════════════════════════════════════════════════════════

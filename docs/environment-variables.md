@@ -22,6 +22,7 @@ breaking a session.
 | `MB_CONSOLIDATE_DAYS` | Age threshold (days) for `/mb consolidate` to consider a session "old" and eligible for folding. | `30` |
 | `MB_RECENT_KEEP` | How many most-recent sessions `mb-session-recent-rebuild.sh` keeps in `_recent.md`. | `5` |
 | `MB_CONTEXT_MAX_BYTES` | Per-file byte cap for the core files printed by `mb-context.sh` (`/mb context`, `/mb start`). `0` disables the cap, as does `--full`. Overrides `context_max_bytes=` in `<bank>/.mb-config`. | `12288` |
+| `MB_CHECKLIST_MAX_LINES` | Line cap for `checklist.md`. Overrides `checklist_max_lines=` in `<bank>/.mb-config`. `mb-checklist-prune.sh --apply` exits 3 when compaction cannot get under it — pause or close plans, live work is never trimmed. | `100` |
 | `MB_AUTOLOAD_CONTEXT` | Cursor adapter only — `off` disables the `sessionStart` auto-context injection hook. | `on` |
 
 ## Notes

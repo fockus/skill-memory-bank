@@ -177,10 +177,10 @@ created: 2026-09-05
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
 ## Sprint 1 «context-diet + измерение» — 4/7
 - ✅ Stage 1 — `mb-cost-report.py` — измерение и baseline
-- ⬜ Stage 5 — `checklist.md` v2
+- ✅ Stage 5 — `checklist.md` v2
 ```
 
-Один маркер на план (не на стадию), заголовок = title плана + `k/n` сделано, одна строка на стадию со статусом. Планы `status: planned|paused` — по одной строке (title + ссылка) в `## ⏭ Next` / `## ⏸ Paused`; проза `## 🔄 Active` ≤ 10 строк. Закрытый план (`plans/done/`, либо все стадии ✅ и `mb-plan-done.sh`) → весь блок verbatim в `progress.md` под `## [checklist archive] <date> — <file>` через `mb-work-progress-append.sh` (append подтверждается `grep -qxF` заголовка, без подтверждения чеклист не трогается). Открытые `⬜` не перемещаются никогда.
+Один маркер на план (не на стадию), заголовок = title плана + `k/n` сделано, одна строка на стадию со статусом. Планы `status: planned|paused` — по одной строке (title + ссылка) в `## ⏭ Next` / `## ⏸ Paused`; проза `## 🔄 Active` ≤ 10 строк. Закрытый план (`plans/done/`, либо все стадии ✅ и `mb-plan-done.sh`) → весь блок verbatim в `progress.md` под `## [checklist archive] <date> — <file>` через `mb-work-progress-append.sh` (append подтверждается `grep -qxF` заголовка, без подтверждения чеклист не трогается). Открытые `⬜` живого плана (файл в `plans/`) не перемещаются никогда; блок закрытого плана (`plans/done/`) переезжает целиком verbatim, включая его `⬜` — иначе устаревшие строки застряли бы в чеклисте навсегда.
 
 **What to do:**
 - `scripts/mb-checklist-prune.sh` → компактор + мигратор v1→v2: (a) существующее правило (`### ` + ссылка `plans/done/`, без ⬜) — перенос в `progress.md` вместо однострочника; (b) группа per-stage блоков `<!-- mb-plan:<file> -->` + `## Stage N: …` одного плана → один v2-блок (порядок по N, статусы сохраняются, `k/n` в заголовке); (c) v2-блок плана из `plans/done/` → `progress.md`; (d) кап строк `MB_CHECKLIST_MAX_LINES` → `.mb-config checklist_max_lines=` → default **100** (Q-001), заголовок-конвенция переписывается под фактический кап; после компакции всё ещё > капа → **exit 3** с диагностикой `over cap by N lines: M plans in flight (<file>: k open, …) — pause or close plans, nothing was moved` (сигнал для Stage 7 и владельца; живое не режется).
@@ -197,15 +197,15 @@ created: 2026-09-05
   - `test_archive_append_unconfirmed_leaves_checklist_untouched` (lock занят → helper exit 0 без записи)
   - `test_cap_resolution_env_over_config_over_default`
   - `test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing`
-  - `test_techflow_like_fixture_596_lines_ends_under_cap` (фикстура `tests/fixtures/checklist-big.md`, обезличенная копия структуры techflow)
+  - `test_techflow_like_fixture_596_lines_compacts_and_signals_cap` (фикстура `tests/fixtures/checklist-big.md`, обезличенная копия структуры techflow)
   - `test_apply_idempotent_second_run_noop`, `test_backup_written_on_apply`, `test_protected_sections_untouched`
 - `tests/bats/test_plan_sync_v2.bats`: `v2 block created for a new plan`, `existing block updated, not duplicated`, `k/n recomputed after a flip`; `test_plan_done_v2.bats`: `block moved to progress.md, not dropped`; `test_work_checkbox_v2.bats`: `flip marks the stage line in the checklist block`.
 
 **DoD:**
-- [ ] На фикстуре 596 строк `--apply` даёт ≤ 100 строк; множество открытых `⬜` до = после; каждый убранный блок найден в `progress.md` дословно.
-- [ ] На копии `checklist.md` этого банка: 18 per-stage блоков трёх планов → 3 v2-блока; `spec-group-round3-remediation` (6/6 ✅) остаётся блоком с шестью ✅, пока план в `plans/` (уходит в `progress.md` только после `mb-plan-done.sh`); ни один ⬜ не потерян.
-- [ ] Кап-сигнал: фикстура с 12 живыми планами по 8 стадий → exit 3, диагностика перечисляет планы с числом открытых, файл байт-в-байт.
-- [ ] 11 pytest + существующие 12 + новые bats sync/done/flip + существующие сьюты `test_mb_plan_sync*`/`test_plan_done*`/`test_work_checkbox*` зелёные; shellcheck чист; `references/structure.md` и шаблоны описывают v2; `mb-drift.sh .` без новых находок; CHANGELOG `### Changed`: формат чеклиста v2.
+- [x] На фикстуре 596 строк (105 открытых пунктов = 94 ⬜ + 11 🟡, ноль ссылок `plans/done/` — ≤ 100 без удаления живого недостижимо, AGR-043) `--apply` сворачивает 68 per-stage маркеров в 16 v2-блоков и даёт ≤ 450 строк; множество открытых `⬜` до = после (94 ⬜ + 11 🟡); каждый убранный блок найден в `progress.md` дословно; сверх капа → exit 3 с перечнем планов.
+- [x] На копии `checklist.md` этого банка: 18 per-stage блоков трёх планов → 3 v2-блока; `spec-group-round3-remediation` (6/6 ✅) остаётся блоком с шестью ✅, пока план в `plans/` (уходит в `progress.md` только после `mb-plan-done.sh`); ни один ⬜ не потерян.
+- [x] Кап-сигнал: фикстура с 12 живыми планами по 8 стадий → exit 3, диагностика перечисляет планы с числом открытых, файл байт-в-байт.
+- [x] 11 pytest + существующие 12 + новые bats sync/done/flip + существующие сьюты `test_mb_plan_sync*`/`test_plan_done*`/`test_work_checkbox*` зелёные; shellcheck чист; `references/structure.md` и шаблоны описывают v2; `mb-drift.sh .` без новых находок; CHANGELOG `### Changed`: формат чеклиста v2.
 
 **Code rules:** контракт = код; append-only `progress.md`; никакой обрезки живого; парсер v1/v2 в одном python-heredoc; fail-open — не удалось подтвердить append → ничего не трогать.
 

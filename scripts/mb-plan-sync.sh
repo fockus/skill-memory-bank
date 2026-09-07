@@ -7,8 +7,8 @@
 # Effects (v3.1 — multi-active):
 #   - Parse `(N, name)` pairs from the plan (`<!-- mb-stage:N -->` markers or
 #     fallback to `### Stage N: <name>`).
-#   - For each `(N, name)` absent from checklist.md, append section
-#     `## Stage N: <name>` + item `- ⬜ <name>`. Idempotent by full section title.
+#   - Upsert the plan's single v2 checklist block `## <title> — k/n` with one
+#     `- ⬜ Stage N — <name>` line per stage. Idempotent by (marker, stage no).
 #   - Upsert an entry for this plan into the `<!-- mb-active-plans --> ... -->`
 #     block in BOTH roadmap.md and status.md:
 #        `- [YYYY-MM-DD] [plans/<basename>](plans/<basename>) — <title>`
@@ -22,6 +22,8 @@ set -euo pipefail
 
 # shellcheck source=_lib.sh
 source "$(dirname "$0")/_lib.sh"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 PLAN_FILE="${1:?Usage: mb-plan-sync.sh <plan-file> [mb_path]}"
 MB_PATH=$(mb_resolve_path "${2:-}")
@@ -103,50 +105,16 @@ if [ -z "$stages" ]; then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# Append missing stages into checklist.md.
+# Upsert the plan's v2 block in checklist.md (Sprint 1 Stage 5).
 #
-# v3.2 (Sprint 3, I-028): each new section gets a `<!-- mb-plan:<basename> -->`
-# marker line above its heading. Idempotency now keys on the (marker, heading)
-# pair — so two plans sharing `## Stage 1: Setup` produce two independent
-# marker-owned sections instead of silently merging.
-#
-# Pre-existing legacy sections without any marker are NOT considered "ours"
-# during idempotency check; we always append a fresh marker section. Legacy
-# heading-only ownership is preserved (handled by mb-plan-done.sh fallback).
+# One `<!-- mb-plan:<basename> -->` block per plan, `## <title> — k/n`, one
+# `- ⬜ Stage N — <name>` line per stage. Idempotent by (marker, stage number):
+# a re-sync adds only stages the block does not have yet and never resets a ✅.
+# Pre-existing v1 per-stage blocks of the same plan fold into that block; legacy
+# sections without any marker are not ours and stay untouched.
 # ═══════════════════════════════════════════════════════════════
-append_missing_stages() {
-  local checklist="$1" stages="$2" basename="$3"
-  local tmp
-  tmp=$(mktemp)
-  cp "$checklist" "$tmp"
-
-  local marker="<!-- mb-plan:${basename} -->"
-  local added=0
-  while IFS=$'\t' read -r n name; do
-    [ -n "$n" ] || continue
-    local heading="## Stage ${n}: ${name}"
-    # Idempotent only if BOTH our marker AND the exact heading sit on
-    # consecutive lines somewhere in the file.
-    if awk -v m="$marker" -v h="$heading" '
-      BEGIN { prev=""; found=0 }
-      { if (prev==m && $0==h) { found=1; exit } prev=$0 }
-      END { exit !found }
-    ' "$tmp"; then
-      continue
-    fi
-    {
-      printf '\n%s\n' "$marker"
-      printf '%s\n' "$heading"
-      printf -- '- ⬜ %s\n' "$name"
-    } >> "$tmp"
-    added=$((added + 1))
-  done <<< "$stages"
-
-  mv "$tmp" "$checklist"
-  printf '%s\n' "$added"
-}
-
-added_count=$(append_missing_stages "$CHECKLIST" "$stages" "$BASENAME")
+added_count=$(printf '%s\n' "$stages" | python3 "$SCRIPT_DIR/mb-checklist-v2.py" \
+  upsert --checklist "$CHECKLIST" --plan "$PLAN_FILE" | sed -n 's/^added=//p')
 
 # ═══════════════════════════════════════════════════════════════
 # Upsert entry into <!-- mb-active-plans --> block of a file
@@ -254,7 +222,6 @@ echo "[sync] plan=$BASENAME stages=$stage_count added=$added_count"
 # ═══════════════════════════════════════════════════════════════
 # Chain: roadmap-sync + traceability-gen (best-effort — warn, don't fail)
 # ═══════════════════════════════════════════════════════════════
-SCRIPT_DIR=$(dirname "$0")
 if [ -x "$SCRIPT_DIR/mb-roadmap-sync.sh" ]; then
   "$SCRIPT_DIR/mb-roadmap-sync.sh" "$MB_PATH" || echo "[warn] mb-roadmap-sync.sh failed (non-fatal)" >&2
 fi

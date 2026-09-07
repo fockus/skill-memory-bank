@@ -46,11 +46,11 @@ def test_sync_parses_phase_sprint_task_headings(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     # mb-plan-sync.sh reports "stages=N" — modern plan has 3 tasks
     assert "stages=3" in result.stdout
-    # checklist.md should now have 3 `## Stage N: <name>` sections
+    # checklist.md should now have one v2 block with 3 stage lines
     checklist = (mb / "checklist.md").read_text(encoding="utf-8")
-    assert "## Stage 1: First bite-sized unit" in checklist
-    assert "## Stage 2: Second unit" in checklist
-    assert "## Stage 3: Third unit" in checklist
+    assert "- ⬜ Stage 1 — First bite-sized unit" in checklist
+    assert "- ⬜ Stage 2 — Second unit" in checklist
+    assert "- ⬜ Stage 3 — Third unit" in checklist
 
 
 def test_sync_still_parses_legacy_stage_headings(tmp_path: Path) -> None:
@@ -63,9 +63,9 @@ def test_sync_still_parses_legacy_stage_headings(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert "stages=3" in result.stdout
     checklist = (mb / "checklist.md").read_text(encoding="utf-8")
-    assert "## Stage 1: Setup" in checklist
-    assert "## Stage 2: Core logic" in checklist
-    assert "## Stage 3: Finalize" in checklist
+    assert "- ⬜ Stage 1 — Setup" in checklist
+    assert "- ⬜ Stage 2 — Core logic" in checklist
+    assert "- ⬜ Stage 3 — Finalize" in checklist
 
 
 def test_sync_parses_mixed_headings(tmp_path: Path) -> None:
@@ -79,8 +79,8 @@ def test_sync_parses_mixed_headings(tmp_path: Path) -> None:
     # Mixed file: 1 Task + 1 Stage = 2 stages total
     assert "stages=2" in result.stdout
     checklist = (mb / "checklist.md").read_text(encoding="utf-8")
-    assert "## Stage 1: Modern heading first" in checklist
-    assert "## Stage 2: Legacy heading" in checklist
+    assert "- ⬜ Stage 1 — Modern heading first" in checklist
+    assert "- ⬜ Stage 2 — Legacy heading" in checklist
 
 
 DONE_SCRIPT = REPO_ROOT / "scripts" / "mb-plan-done.sh"
@@ -102,7 +102,7 @@ def test_done_parses_phase_sprint_task_headings(tmp_path: Path) -> None:
     plan = mb / "plans" / "phase_sprint_task.md"
     shutil.copy2(FIXTURES / "phase_sprint_task.md", plan)
 
-    # First, run sync so checklist has the sections mb-plan-done will remove
+    # First, run sync so checklist has the block mb-plan-done will archive
     sync = _run_sync(plan, mb)
     assert sync.returncode == 0, sync.stderr
 

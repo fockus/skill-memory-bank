@@ -117,7 +117,7 @@ EOF
 AUTOPRUNE="$REPO_ROOT/hooks/mb-checklist-autoprune.sh"
 
 _big_collapsible_checklist() {  # $1 = number of done sections
-  { printf '# Checklist\n\n## ⏳ In flight\n- ⬜ keep this open TODO\n\n'
+  { printf '# Checklist\n\n## ⏳ In flight\n- ⬜ keep this open TODO\n\n## ✅ Done\n\n'
     local i
     for i in $(seq 1 "$1"); do
       printf '### Stage %s: task-%s\n' "$i" "$i"
@@ -127,7 +127,7 @@ _big_collapsible_checklist() {  # $1 = number of done sections
   } > "$MB/checklist.md"
 }
 
-@test "B3: autoprune runs when enabled AND over the 120-line cap" {
+@test "B3: autoprune runs when enabled AND over the line cap" {
   AUTOPRUNE="$REPO_ROOT/hooks/mb-checklist-autoprune.sh"
   _big_collapsible_checklist 40           # ~168 lines, all collapsible
   before="$(wc -l < "$MB/checklist.md" | tr -d ' ')"
@@ -135,9 +135,10 @@ _big_collapsible_checklist() {  # $1 = number of done sections
   run env MB_CHECKLIST_AUTOPRUNE=on CLAUDE_PROJECT_DIR="$PROJECT" bash "$AUTOPRUNE"
   [ "$status" -eq 0 ]
   after="$(wc -l < "$MB/checklist.md" | tr -d ' ')"
-  [ "$after" -lt "$before" ]              # collapsed
+  [ "$after" -lt 20 ]                     # 40 done sections archived out
   ls "$MB/.checklist.md.bak."* >/dev/null # backup written
   grep -q 'keep this open TODO' "$MB/checklist.md"   # In-flight preserved
+  grep -q 'implemented part 40' "$MB/progress.md"    # moved, not deleted
 }
 
 @test "B3: autoprune is a no-op when disabled (default off)" {

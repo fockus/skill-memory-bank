@@ -1,4 +1,4 @@
-{"type": "meta", "schema": 1, "generated_at": "2026-09-06T12:14:48Z", "commit": "435488a3e212", "nodes": 3483, "edges": 19601, "src_root": ".", "flags": ["--docs"]}
+{"type": "meta", "schema": 1, "generated_at": "2026-09-06T14:26:37Z", "commit": "da999d52caf3", "nodes": 3526, "edges": 19936, "src_root": ".", "flags": ["--docs"]}
 {"type": "node", "kind": "module", "name": "adapters/pi_graph_rag_extension.ts", "file": "adapters/pi_graph_rag_extension.ts", "line": 1}
 {"type": "node", "kind": "function", "name": "memoryBankGraphRagExtension", "file": "adapters/pi_graph_rag_extension.ts", "line": 56, "signature": "function memoryBankGraphRagExtension(pi: ExtensionAPI)"}
 {"type": "node", "kind": "function", "name": "execute", "file": "adapters/pi_graph_rag_extension.ts", "line": 108, "signature": "async execute(_toolCallId, params)"}
@@ -220,6 +220,23 @@
 {"type": "node", "kind": "function", "name": "strip_after_marker_file", "file": "memory_bank_skill/_texttools.py", "line": 162, "signature": "(path: str | Path, *, marker: str, delete_if_empty: bool=True)"}
 {"type": "node", "kind": "function", "name": "build_parser", "file": "memory_bank_skill/_texttools.py", "line": 175, "signature": "()"}
 {"type": "node", "kind": "function", "name": "main", "file": "memory_bank_skill/_texttools.py", "line": 207, "signature": "(argv: list[str] | None=None)"}
+{"type": "node", "kind": "module", "name": "memory_bank_skill/checklist_v2.py", "file": "memory_bank_skill/checklist_v2.py", "line": 1, "doc": "Checklist v2 model — one block per plan, parsed from v1 / v2 / mixed markdown. v1 (per-stage, written by pre-Sprint-1 ``mb-plan-sync.sh``):: <!-- mb-plan:FILE.md --> ## Stage 1: do a thing - ⬜ do a th"}
+{"type": "node", "kind": "class", "name": "Stage", "file": "memory_bank_skill/checklist_v2.py", "line": 40}
+{"type": "node", "kind": "class", "name": "PlanBlock", "file": "memory_bank_skill/checklist_v2.py", "line": 47, "doc": "One `<!-- mb-plan:… -->` block: either a v1 stage section or a v2 plan block."}
+{"type": "node", "kind": "class", "name": "LegacySection", "file": "memory_bank_skill/checklist_v2.py", "line": 59, "doc": "A `### ` section linking a `plans/done/…` plan with no open item left."}
+{"type": "node", "kind": "function", "name": "_is_boundary", "file": "memory_bank_skill/checklist_v2.py", "line": 68, "signature": "(line: str)"}
+{"type": "node", "kind": "function", "name": "_protected", "file": "memory_bank_skill/checklist_v2.py", "line": 72, "signature": "(lines: list[str], idx: int)"}
+{"type": "node", "kind": "function", "name": "_parse_plan_block", "file": "memory_bank_skill/checklist_v2.py", "line": 79, "signature": "(lines: list[str], i: int, plan: str)"}
+{"type": "node", "kind": "function", "name": "parse", "file": "memory_bank_skill/checklist_v2.py", "line": 116, "signature": "(lines: list[str])", "doc": "Split a checklist into plan blocks and archivable legacy `### ` sections."}
+{"type": "node", "kind": "function", "name": "merge", "file": "memory_bank_skill/checklist_v2.py", "line": 143, "signature": "(blocks: list[PlanBlock])", "doc": "Fold every block of one plan into (title, stages, extra). A stage seen twice keeps the ✅ the checklist already recorded — the flip is the newer fact, and inventing a ⬜ over it would undo real work."}
+{"type": "node", "kind": "function", "name": "render_block", "file": "memory_bank_skill/checklist_v2.py", "line": 161, "signature": "(plan: str, title: str, stages: dict[int, Stage], extra: list[str] | None=None)", "doc": "Render one v2 block: marker, `## <title> — k/n`, one line per stage."}
+{"type": "node", "kind": "function", "name": "block_key", "file": "memory_bank_skill/checklist_v2.py", "line": 171, "signature": "(block: PlanBlock)"}
+{"type": "node", "kind": "function", "name": "legacy_key", "file": "memory_bank_skill/checklist_v2.py", "line": 175, "signature": "(section: LegacySection)"}
+{"type": "node", "kind": "function", "name": "plan_title", "file": "memory_bank_skill/checklist_v2.py", "line": 179, "signature": "(plan_text: str, fallback: str)", "doc": "First `# ` line of a plan file, minus a leading `Plan: <type> — ` style prefix."}
+{"type": "node", "kind": "function", "name": "_squeeze_blanks", "file": "memory_bank_skill/checklist_v2.py", "line": 189, "signature": "(lines: list[str])"}
+{"type": "node", "kind": "function", "name": "rewrite", "file": "memory_bank_skill/checklist_v2.py", "line": 203, "signature": "(lines: list[str], titles: dict[str, str] | None=None, drop: set[str] | None=None, add: dict[str, list[tuple[int, str]]] | None=None, flips: dict[str, set[int]] | None=None)", "doc": "Fold every plan into one v2 block in place. `titles` supplies a display title for a plan that has no v2 block yet (an existing v2 title always wins, so re-running never churns the file). `drop` remove"}
+{"type": "node", "kind": "function", "name": "upsert", "file": "memory_bank_skill/checklist_v2.py", "line": 268, "signature": "(lines: list[str], plan: str, title: str, stages: list[tuple[int, str]])", "doc": "Add the plan's missing stages to its v2 block, creating the block if absent."}
+{"type": "node", "kind": "function", "name": "flip", "file": "memory_bank_skill/checklist_v2.py", "line": 286, "signature": "(lines: list[str], plan: str, stage_no: int)", "doc": "Mark one stage ✅ in the plan's v2 block; False when that stage is not there."}
 {"type": "node", "kind": "module", "name": "memory_bank_skill/cli.py", "file": "memory_bank_skill/cli.py", "line": 1, "doc": "memory-bank CLI — thin Python wrapper over install.sh / uninstall.sh. Subcommands: install Run global + optional cross-agent adapter install uninstall Remove global install init Bootstrap .memory-bank"}
 {"type": "node", "kind": "function", "name": "is_windows", "file": "memory_bank_skill/cli.py", "line": 49, "signature": "()"}
 {"type": "node", "kind": "function", "name": "_env_bash_override", "file": "memory_bank_skill/cli.py", "line": 62, "signature": "()", "doc": "Explicit user override: MB_BASH=/path/to/bash.exe."}
@@ -487,6 +504,20 @@
 {"type": "node", "kind": "function", "name": "merge_semantic_edges", "file": "memory_bank_skill/wiki_store.py", "line": 244, "signature": "(graph_path: Path | str, edges: list[dict[str, Any]])", "doc": "Append unique ``semantic`` edges to graph.json (idempotent). Returns count added. Dedupe key is ``(src, dst)`` among existing ``semantic`` edges. The original file text is preserved; new edges are app"}
 {"type": "node", "kind": "function", "name": "_bump_meta_edges", "file": "memory_bank_skill/wiki_store.py", "line": 280, "signature": "(raw: str, delta: int)", "doc": "Increment ``edges`` on the leading ``meta`` row by ``delta`` (no-op if the first line is not a meta row, e.g. a legacy graph without a stamp)."}
 {"type": "node", "kind": "module", "name": "scripts/__init__.py", "file": "scripts/__init__.py", "line": 1}
+{"type": "node", "kind": "module", "name": "scripts/mb-checklist-v2.py", "file": "scripts/mb-checklist-v2.py", "line": 1, "doc": "Single reader/writer for `checklist.md` in the v2 format (one block per plan). Subcommands (all take ``--checklist <path>``): plan TSV of archivable blocks: `key<TAB>label<TAB>base64(text)`. apply Fol"}
+{"type": "node", "kind": "function", "name": "_read", "file": "scripts/mb-checklist-v2.py", "line": 35, "signature": "(path: Path)"}
+{"type": "node", "kind": "function", "name": "_write", "file": "scripts/mb-checklist-v2.py", "line": 39, "signature": "(path: Path, lines: list[str])"}
+{"type": "node", "kind": "function", "name": "_titles", "file": "scripts/mb-checklist-v2.py", "line": 43, "signature": "(plans_dir: Path | None, plans: set[str])"}
+{"type": "node", "kind": "function", "name": "_is_closed", "file": "scripts/mb-checklist-v2.py", "line": 55, "signature": "(plans_dir: Path | None, plan: str)", "doc": "A plan is closed when its file sits in `plans/done/` and not in `plans/`."}
+{"type": "node", "kind": "function", "name": "_archivable", "file": "scripts/mb-checklist-v2.py", "line": 62, "signature": "(lines: list[str], plans_dir: Path | None)"}
+{"type": "node", "kind": "function", "name": "_cap_report", "file": "scripts/mb-checklist-v2.py", "line": 84, "signature": "(lines: list[str], cap: int, moved: int)"}
+{"type": "node", "kind": "function", "name": "_sync_header_cap", "file": "scripts/mb-checklist-v2.py", "line": 101, "signature": "(lines: list[str], cap: int)", "doc": "Rewrite the file's own `cap ≤NNN lines` convention line to the resolved cap."}
+{"type": "node", "kind": "function", "name": "cmd_plan", "file": "scripts/mb-checklist-v2.py", "line": 107, "signature": "(args: argparse.Namespace)", "doc": "One TSV line per archivable block: key, label, base64 of the verbatim text."}
+{"type": "node", "kind": "function", "name": "cmd_apply", "file": "scripts/mb-checklist-v2.py", "line": 115, "signature": "(args: argparse.Namespace)"}
+{"type": "node", "kind": "function", "name": "cmd_upsert", "file": "scripts/mb-checklist-v2.py", "line": 136, "signature": "(args: argparse.Namespace)"}
+{"type": "node", "kind": "function", "name": "cmd_flip", "file": "scripts/mb-checklist-v2.py", "line": 147, "signature": "(args: argparse.Namespace)"}
+{"type": "node", "kind": "function", "name": "cmd_extract", "file": "scripts/mb-checklist-v2.py", "line": 157, "signature": "(args: argparse.Namespace)"}
+{"type": "node", "kind": "function", "name": "main", "file": "scripts/mb-checklist-v2.py", "line": 171, "signature": "(argv: list[str] | None=None)"}
 {"type": "node", "kind": "module", "name": "scripts/mb-code-context.py", "file": "scripts/mb-code-context.py", "line": 1, "doc": "Build a bounded GraphRAG-lite evidence pack for code-understanding tasks."}
 {"type": "node", "kind": "function", "name": "build_parser", "file": "scripts/mb-code-context.py", "line": 14, "signature": "()"}
 {"type": "node", "kind": "function", "name": "main", "file": "scripts/mb-code-context.py", "line": 35, "signature": "(argv: list[str])"}
@@ -1008,8 +1039,8 @@
 {"type": "node", "kind": "function", "name": "test_since_accepts_a_reference_FILE_not_only_an_epoch", "file": "tests/pytest/test_check_run_complete_staleness.py", "line": 145, "signature": "(tmp_path: Path, complete_log: Path, watched: Path)", "doc": "`touch stamp` before the run is the ergonomic form; make it work."}
 {"type": "node", "kind": "function", "name": "test_a_missing_watched_file_is_a_failure_not_a_pass", "file": "tests/pytest/test_check_run_complete_staleness.py", "line": 157, "signature": "(complete_log: Path, tmp_path: Path)", "doc": "A path that vanished during the run is at least as suspicious as an edit."}
 {"type": "node", "kind": "function", "name": "test_directories_expand_to_the_files_under_them", "file": "tests/pytest/test_check_run_complete_staleness.py", "line": 170, "signature": "(tmp_path: Path, complete_log: Path)", "doc": "`--watch scripts/` must not silently check nothing."}
-{"type": "node", "kind": "module", "name": "tests/pytest/test_checklist_cap.py", "file": "tests/pytest/test_checklist_cap.py", "line": 1, "doc": "I-033 — enforce hard cap on `.memory-bank/checklist.md`. Locks in the convention declared in the file's own header. If the cap is breached, run `bash scripts/mb-checklist-prune.sh --apply --mb .memory"}
-{"type": "node", "kind": "function", "name": "test_repo_checklist_under_hard_cap", "file": "tests/pytest/test_checklist_cap.py", "line": 20, "signature": "()"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_checklist_cap.py", "file": "tests/pytest/test_checklist_cap.py", "line": 1, "doc": "Enforce the line cap on `.memory-bank/checklist.md`. Locks in the convention declared in the file's own header (v2 default: 100). If the cap is breached, run `bash scripts/mb-checklist-prune.sh --appl"}
+{"type": "node", "kind": "function", "name": "test_repo_checklist_under_hard_cap", "file": "tests/pytest/test_checklist_cap.py", "line": 21, "signature": "()"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_cli.py", "file": "tests/pytest/test_cli.py", "line": 1, "doc": "Tests for memory_bank_skill.cli. Covers: argparse, version, bundle resolution, bash discovery, shell wrapper. Platform behavior mocked; shell invocations use bundled install.sh --help."}
 {"type": "node", "kind": "function", "name": "_protect_repo_install_manifest", "file": "tests/pytest/test_cli.py", "line": 27, "signature": "()", "doc": "Back up & restore `REPO_ROOT/.installed-manifest.json`. `install.sh:17` hard-codes the manifest path to `$SOURCE_SKILL_DIR/...`, so every install-related test in this module overwrites the repo's own "}
 {"type": "node", "kind": "function", "name": "test_python_version_matches_bundle_version", "file": "tests/pytest/test_cli.py", "line": 55, "signature": "()"}
@@ -1861,20 +1892,32 @@
 {"type": "node", "kind": "function", "name": "test_skip_on_detached_head", "file": "tests/pytest/test_mb_auto_commit.py", "line": 161, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "function", "name": "test_force_flag_overrides_unset_env", "file": "tests/pytest/test_mb_auto_commit.py", "line": 173, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "function", "name": "test_help_flag", "file": "tests/pytest/test_mb_auto_commit.py", "line": 183, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "module", "name": "tests/pytest/test_mb_checklist_prune.py", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 1, "doc": "I-033 — `scripts/mb-checklist-prune.sh` collapses completed sections to one-liners."}
-{"type": "node", "kind": "function", "name": "_init_mb", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 13, "signature": "(tmp_path: Path, body: str)"}
-{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 20, "signature": "(mb: Path, *args: str)"}
-{"type": "node", "kind": "function", "name": "test_dry_run_lists_collapse_candidates", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 71, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_dry_run_makes_no_changes", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 83, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_collapses_completed_sections", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 91, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_preserves_in_flight", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 107, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_preserves_section_without_plans_done_link", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 116, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_preserves_partial_done_section", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 124, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_creates_timestamped_backup", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 133, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_idempotent", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 141, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_hard_cap_warn_when_over_120", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 153, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_missing_checklist_returns_zero_with_hint", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 161, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_unknown_flag_errors", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 169, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_mb_checklist_prune.py", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 1, "doc": "`scripts/mb-checklist-prune.sh` — checklist v2 compactor + v1→v2 migrator. Contract (Sprint 1 Stage 5, AGR-043): nothing is ever deleted. Completed work moves verbatim into ``progress.md``; per-stage "}
+{"type": "node", "kind": "function", "name": "_init_mb", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 20, "signature": "(tmp_path: Path, body: str)"}
+{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 27, "signature": "(mb: Path, *args: str, env: dict[str, str] | None=None)"}
+{"type": "node", "kind": "function", "name": "test_dry_run_lists_collapse_candidates", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 81, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_dry_run_makes_no_changes", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 94, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_moves_completed_sections_out_of_the_checklist", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 102, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_preserves_in_flight", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 117, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_preserves_section_without_plans_done_link", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 126, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_preserves_partial_done_section", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 134, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_creates_timestamped_backup", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 143, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_idempotent_legacy_fixture", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 151, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_hard_cap_exceeded_exits_3", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 163, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_missing_checklist_returns_zero_with_hint", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 172, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_unknown_flag_errors", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 180, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "_init_plans", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 219, "signature": "(mb: Path, name: str, body: str, *, done: bool=False)"}
+{"type": "node", "kind": "function", "name": "_open_items", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 230, "signature": "(text: str)", "doc": "Open-item texts, normalised across the v1→v2 line rewrite."}
+{"type": "node", "kind": "function", "name": "test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 241, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_open_stage_lines_never_moved", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 259, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_done_plan_block_moved_to_progress_verbatim", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 272, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_legacy_done_oneliners_moved_to_progress", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 294, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_archive_append_unconfirmed_leaves_checklist_untouched", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 311, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_cap_resolution_env_over_config_over_default", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 329, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 341, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 364, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_idempotent_second_run_noop", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 383, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_protected_sections_untouched", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 397, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_mb_context_slim.py", "file": "tests/pytest/test_mb_context_slim.py", "line": 1, "doc": "Phase 4 Sprint 2 — `scripts/mb-context-slim.py` prompt trimmer."}
 {"type": "node", "kind": "function", "name": "_plan", "file": "tests/pytest/test_mb_context_slim.py", "line": 12, "signature": "(stages_text: str, frontmatter: str='')"}
 {"type": "node", "kind": "function", "name": "_stage", "file": "tests/pytest/test_mb_context_slim.py", "line": 17, "signature": "(n: int, heading: str, body: str='- ✅ DoD bit\\n')"}
@@ -2652,9 +2695,9 @@
 {"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 70, "signature": "(script: Path, plan: Path, mb: Path)"}
 {"type": "node", "kind": "function", "name": "_count_substring", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 79, "signature": "(haystack: str, needle: str)"}
 {"type": "node", "kind": "function", "name": "test_two_plans_with_identical_heading_get_separate_marker_sections", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 88, "signature": "(tmp_path: Path)", "doc": "Sync of two plans with the SAME ``## Stage 1: Setup`` produces two independent checklist sections, each preceded by its own ``<!-- mb-plan:<basename> -->`` marker."}
-{"type": "node", "kind": "function", "name": "test_close_one_plan_preserves_other_plans_section", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 116, "signature": "(tmp_path: Path)", "doc": "Closing plan A must NOT remove plan B's checklist section, even when both plans defined identical stage headings."}
-{"type": "node", "kind": "function", "name": "test_resync_same_plan_is_idempotent", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 141, "signature": "(tmp_path: Path)", "doc": "Re-running sync on the same plan must not duplicate marker sections."}
-{"type": "node", "kind": "function", "name": "test_legacy_unmarked_section_preserved_by_new_plan_with_same_heading", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 156, "signature": "(tmp_path: Path)", "doc": "A pre-existing checklist section without any marker (legacy v1 format) must NOT be merged with a freshly synced plan that happens to share the same heading. Sync writes its own marker section; legacy "}
+{"type": "node", "kind": "function", "name": "test_close_one_plan_preserves_other_plans_section", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 118, "signature": "(tmp_path: Path)", "doc": "Closing plan A must NOT remove plan B's checklist section, even when both plans defined identical stage headings."}
+{"type": "node", "kind": "function", "name": "test_resync_same_plan_is_idempotent", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 149, "signature": "(tmp_path: Path)", "doc": "Re-running sync on the same plan must not duplicate marker sections."}
+{"type": "node", "kind": "function", "name": "test_legacy_unmarked_section_preserved_by_new_plan_with_same_heading", "file": "tests/pytest/test_plan_multi_active_collision.py", "line": 164, "signature": "(tmp_path: Path)", "doc": "A pre-existing checklist section without any marker (legacy v1 format) must NOT be merged with a freshly synced plan that happens to share the same heading. Sync writes its own marker section; legacy "}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_plan_sdd_lite.py", "file": "tests/pytest/test_plan_sdd_lite.py", "line": 1, "doc": "Phase 2 Sprint 2 — `/mb plan` SDD-lite enhancement. ``scripts/mb-plan.sh`` accepts: * ``--context <path>`` — explicit context file to link in the plan * ``--sdd`` — strict mode: refuse if no context e"}
 {"type": "node", "kind": "function", "name": "_init_mb", "file": "tests/pytest/test_plan_sdd_lite.py", "line": 25, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_plan_sdd_lite.py", "line": 34, "signature": "(*args: str, mb: Path)"}
@@ -5026,6 +5069,134 @@
 {"type": "edge", "src": "memory_bank_skill/_texttools.py:main", "dst": "print", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/_texttools.py", "dst": "SystemExit", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/_texttools.py", "dst": "main", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re", "kind": "import"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "dataclasses.dataclass", "kind": "import"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "dataclasses.field", "kind": "import"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:PlanBlock", "dst": "dataclasses.field", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:PlanBlock", "dst": "dataclasses.field", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_is_boundary", "dst": "bool", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_is_boundary", "dst": "MARKER_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_is_boundary", "dst": "ANY_HEADING_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_protected", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_protected", "dst": "startswith", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_protected", "dst": "bool", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_protected", "dst": "PROTECTED_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "strip", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "startswith", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "PlanBlock", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "_is_boundary", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "V1_HEAD_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "int", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "v1.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "v1.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "ITEM_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "bool", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "body.index", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "ln.strip", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "ln.strip", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "PlanBlock", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "Stage", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "PlanBlock", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "V2_HEAD_RE.match.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "V2_HEAD_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "V2_ITEM_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "int", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "m.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "Stage", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "int", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "m.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "m.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "m.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "ln.strip", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_parse_plan_block", "dst": "block.extra.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "MARKER_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "_parse_plan_block", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "marker.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "blocks.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "H3_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "_protected", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "_is_boundary", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "PLAN_DONE_RE.search", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "OPEN_RE.search", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "legacy.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "LegacySection", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "h3.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:parse", "dst": "link.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:merge", "dst": "extra.extend", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:merge", "dst": "b.stages.items", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:merge", "dst": "stages.get", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:merge", "dst": "Stage", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:render_block", "dst": "sorted", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:render_block", "dst": "sum", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:render_block", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:render_block", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:plan_title", "dst": "plan_text.splitlines", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:plan_title", "dst": "line.startswith", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:plan_title", "dst": "TITLE_PREFIX_RE.match.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:plan_title", "dst": "TITLE_PREFIX_RE.match", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:plan_title", "dst": "re.sub", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_squeeze_blanks", "dst": "ln.strip", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_squeeze_blanks", "dst": "out.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:_squeeze_blanks", "dst": "out.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "parse", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "by_plan.setdefault.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "by_plan.setdefault", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "by_plan.items", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "merge", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "add.get", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "stages.setdefault", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "Stage", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "flips.get", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "skip.add", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "render_block", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "titles.get", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "skip.update", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "skip.update", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "replace.pop", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "out.extend", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "out.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "out.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "_squeeze_blanks", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "parse", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "merge", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "Stage", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "_squeeze_blanks", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "strip", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "body.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "render_block", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "rewrite", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:upsert", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:flip", "dst": "parse", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:flip", "dst": "merge", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:flip", "dst": "rewrite", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/cli.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "memory_bank_skill/cli.py", "dst": "argparse", "kind": "import"}
 {"type": "edge", "src": "memory_bank_skill/cli.py", "dst": "os", "kind": "import"}
@@ -6974,6 +7145,125 @@
 {"type": "edge", "src": "memory_bank_skill/wiki_store.py:_bump_meta_edges", "dst": "record.get", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/wiki_store.py:_bump_meta_edges", "dst": "first.endswith", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/wiki_store.py:_bump_meta_edges", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "argparse", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "base64", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "re", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "sys", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "time", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "memory_bank_skill.checklist_v2", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "sys.path.insert", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "memory_bank_skill.checklist_v2", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_read", "dst": "path.read_text.splitlines", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_read", "dst": "path.read_text", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_write", "dst": "path.write_text", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_write", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_titles", "dst": "candidate.is_file", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_titles", "dst": "cl.plan_title", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_titles", "dst": "candidate.read_text", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_is_closed", "dst": "is_file", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_is_closed", "dst": "is_file", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "cl.parse", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "by_plan.setdefault.append", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "by_plan.setdefault", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "_titles", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "by_plan.items", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "cl.merge", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "_is_closed", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "cl.render_block", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "titles.get", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "out.append", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "out.append", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "join.rstrip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "cl.parse", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "by_plan.setdefault.append", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "by_plan.setdefault", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "by_plan.items", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "cl.merge", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "sum", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "stages.values", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "parts.append", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_sync_header_cap", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_sync_header_cap", "dst": "ln.lower", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_sync_header_cap", "dst": "pattern.sub", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_plan", "dst": "_archivable", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_plan", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_plan", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_plan", "dst": "base64.b64encode.decode", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_plan", "dst": "base64.b64encode", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_plan", "dst": "encode", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_plan", "dst": "print", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "cl.parse", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "_titles", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "cl.rewrite", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "_sync_header_cap", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "path.with_name.write_text", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "path.with_name", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "int", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "time.time", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "_write", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "print", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "print", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "_cap_report", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_apply", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "int", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "s.split", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "sys.stdin.read.splitlines", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "sys.stdin.read", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "s.strip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "plan_path.is_file", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "cl.plan_title", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "plan_path.read_text", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "cl.upsert", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "_write", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_upsert", "dst": "print", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_flip", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_flip", "dst": "cl.flip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_flip", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_flip", "dst": "print", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_flip", "dst": "_write", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "cl.parse", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "cl.merge", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "_titles", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "cl.render_block", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "titles.get", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "print", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:cmd_extract", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "argparse.ArgumentParser", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "parser.add_subparsers", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "sub.add_parser", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "p.add_argument", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "p.add_argument", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "p.add_argument", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "p.add_argument", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "p.add_argument", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "p.add_argument", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "p.add_argument", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:main", "dst": "parser.parse_args", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "SystemExit", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py", "dst": "main", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-code-context.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "scripts/mb-code-context.py", "dst": "argparse", "kind": "import"}
 {"type": "edge", "src": "scripts/mb-code-context.py", "dst": "json", "kind": "import"}
@@ -16003,6 +16293,8 @@
 {"type": "edge", "src": "tests/pytest/test_mb_auto_commit.py:test_help_flag", "dst": "subprocess.run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_auto_commit.py:test_help_flag", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "os", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "re", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "subprocess", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "time", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "pathlib.Path", "kind": "import"}
@@ -16016,14 +16308,13 @@
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_dry_run_lists_collapse_candidates", "dst": "_init_mb", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_dry_run_lists_collapse_candidates", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_dry_run_lists_collapse_candidates", "dst": "r.stdout.split", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_dry_run_lists_collapse_candidates", "dst": "r.stdout.split", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_dry_run_makes_no_changes", "dst": "_init_mb", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_dry_run_makes_no_changes", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_dry_run_makes_no_changes", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_dry_run_makes_no_changes", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_collapses_completed_sections", "dst": "_init_mb", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_collapses_completed_sections", "dst": "_run", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_collapses_completed_sections", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_moves_completed_sections_out_of_the_checklist", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_moves_completed_sections_out_of_the_checklist", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_moves_completed_sections_out_of_the_checklist", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_preserves_in_flight", "dst": "_init_mb", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_preserves_in_flight", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_preserves_in_flight", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
@@ -16039,23 +16330,108 @@
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_creates_timestamped_backup", "dst": "mb.glob", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_creates_timestamped_backup", "dst": "len", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_creates_timestamped_backup", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent", "dst": "_init_mb", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent", "dst": "_run", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent", "dst": "time.sleep", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent", "dst": "_run", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_warn_when_over_120", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_warn_when_over_120", "dst": "range", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_warn_when_over_120", "dst": "_init_mb", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_warn_when_over_120", "dst": "_run", "kind": "call"}
-{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_warn_when_over_120", "dst": "lower", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_legacy_fixture", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_legacy_fixture", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_legacy_fixture", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_legacy_fixture", "dst": "time.sleep", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_legacy_fixture", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_legacy_fixture", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_exceeded_exits_3", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_exceeded_exits_3", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_exceeded_exits_3", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_hard_cap_exceeded_exits_3", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_missing_checklist_returns_zero_with_hint", "dst": "mb.mkdir", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_missing_checklist_returns_zero_with_hint", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_missing_checklist_returns_zero_with_hint", "dst": "lower", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_unknown_flag_errors", "dst": "_init_mb", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_unknown_flag_errors", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_unknown_flag_errors", "dst": "lower", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:_init_plans", "dst": "target.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:_init_plans", "dst": "path.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:_open_items", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:_open_items", "dst": "text.splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:_open_items", "dst": "strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:_open_items", "dst": "ln.split", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:_open_items", "dst": "out.add", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:_open_items", "dst": "_STAGE_PREFIX.sub", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "dst": "_init_plans", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "dst": "after.count", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "dst": "after.count", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "_init_plans", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "ln.split", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "after.splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "progress.exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_open_stage_lines_never_moved", "dst": "progress.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_done_plan_block_moved_to_progress_verbatim", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_done_plan_block_moved_to_progress_verbatim", "dst": "_init_plans", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_done_plan_block_moved_to_progress_verbatim", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_done_plan_block_moved_to_progress_verbatim", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_done_plan_block_moved_to_progress_verbatim", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_legacy_done_oneliners_moved_to_progress", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_legacy_done_oneliners_moved_to_progress", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_legacy_done_oneliners_moved_to_progress", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_legacy_done_oneliners_moved_to_progress", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_archive_append_unconfirmed_leaves_checklist_untouched", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_archive_append_unconfirmed_leaves_checklist_untouched", "dst": "mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_archive_append_unconfirmed_leaves_checklist_untouched", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_archive_append_unconfirmed_leaves_checklist_untouched", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_archive_append_unconfirmed_leaves_checklist_untouched", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_archive_append_unconfirmed_leaves_checklist_untouched", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_cap_resolution_env_over_config_over_default", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_cap_resolution_env_over_config_over_default", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_cap_resolution_env_over_config_over_default", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_cap_resolution_env_over_config_over_default", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_cap_resolution_env_over_config_over_default", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_cap_resolution_env_over_config_over_default", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_cap_resolution_env_over_config_over_default", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "chunks.append", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "chunks.append", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "chunks.append", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "dst": "mb.glob", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "fixture.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "body.splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "_open_items", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "after.splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "after.count", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "dst": "_open_items", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "_init_plans", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "mb.glob", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "time.sleep", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_apply_idempotent_second_run_noop", "dst": "mb.glob", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_protected_sections_untouched", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_protected_sections_untouched", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_protected_sections_untouched", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py", "dst": "subprocess", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py", "dst": "pathlib.Path", "kind": "import"}
@@ -19408,6 +19784,8 @@
 {"type": "edge", "src": "tests/pytest/test_plan_multi_active_collision.py:test_close_one_plan_preserves_other_plans_section", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_plan_multi_active_collision.py:test_close_one_plan_preserves_other_plans_section", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_plan_multi_active_collision.py:test_close_one_plan_preserves_other_plans_section", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_plan_multi_active_collision.py:test_close_one_plan_preserves_other_plans_section", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_plan_multi_active_collision.py:test_close_one_plan_preserves_other_plans_section", "dst": "_count_substring", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_plan_multi_active_collision.py:test_close_one_plan_preserves_other_plans_section", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_plan_multi_active_collision.py:test_resync_same_plan_is_idempotent", "dst": "_init_mb", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_plan_multi_active_collision.py:test_resync_same_plan_is_idempotent", "dst": "_make_plan", "kind": "call"}

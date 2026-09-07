@@ -34,12 +34,21 @@ duplication.
 **Purpose:** the step list for **active plans only** — not an archive.
 **Invariant:** items flip `⬜ → ✅` **immediately** when a task is genuinely
 done, never batched at session end. When a plan completes, `mb-plan-done.sh`
-removes its whole section (the durable record already lives in
-`plans/done/<file>.md`); any section left behind that is fully `✅` and links
-to a `plans/done/...` file gets collapsed to a one-line summary by
-`/mb compact --apply` (via `mb-checklist-prune.sh`) — no day-based aging, just
-"is this section done and already archived." A soft cap of ≤100 lines (warned
-above 120) keeps it a working list, not a history log.
+moves the plan to `plans/done/`, and `mb-checklist-prune.sh --apply` then copies
+its whole block **verbatim** into `progress.md` under
+`## [checklist archive] <date> — <plan>` before removing it — nothing is deleted,
+and an append that cannot be confirmed leaves the block untouched.
+
+Since v2 the checklist is a registry of plans in flight: one
+`<!-- mb-plan:<file> -->` block per plan, headed `## <plan title> — k/n`, with a
+single `- ✅|⬜ Stage N — <name>` line per stage. Migration from the old
+one-block-per-stage layout is automatic — `mb-checklist-prune.sh --apply` folds a
+plan's per-stage blocks into its single block, keeping every status; it is
+reversible in the sense that everything it removes is first written verbatim to
+`progress.md`. Open `⬜` lines are never moved. The cap is
+`MB_CHECKLIST_MAX_LINES` → `<bank>/.mb-config` `checklist_max_lines=` → 100; when
+compaction cannot get under it the tool exits 3 and lists each plan with its open
+count, because the fix is to pause or close plans, not to trim live work.
 
 ## `roadmap.md` — direction + active plans
 

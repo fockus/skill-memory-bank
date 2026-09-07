@@ -1,7 +1,7 @@
 
 # claude-skill-memory-bank — Чеклист
 
-> **Convention.** Short active list only; hard cap ≤120 lines. Detailed history lives in `progress.md`, `roadmap.md`, and `plans/done/`. Commit hashes, test counts and closeouts belong in `progress.md`, not here.
+> **Convention.** Short active list only; hard cap ≤100 lines. Detailed history lives in `progress.md`, `roadmap.md`, and `plans/done/`. Commit hashes, test counts and closeouts belong in `progress.md`, not here.
 
 ## 🔄 Active — long-running autonomous sessions (SEQUENCE)
 
@@ -69,81 +69,31 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - `progress.md` — append-only historical log.
 
 <!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
-## Stage 1: Пакеты находок и ТЗ для 4 фиксеров
-- ✅ Пакеты находок и ТЗ для 4 фиксеров
-
-<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
-## Stage 2: Волна 1 — F1 owners-state (umbrella + S4) на Opus
-- ✅ Волна 1 — F1 owners-state (umbrella + S4) на Opus
-
-<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
-## Stage 3: Волна 1 — F2 owners-norms (S2 + S1) на Opus
-- ✅ Волна 1 — F2 owners-norms (S2 + S1) на Opus
-
-<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
-## Stage 4: Волна 2 — F3 consumers-west (S7 + S3 + S5) на Opus
-- ✅ Волна 2 — F3 consumers-west (S7 + S3 + S5) на Opus
-
-<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
-## Stage 5: Волна 2 — F4 consumers-east (S6 + S8) на Opus
-- ✅ Волна 2 — F4 consumers-east (S6 + S8) на Opus
-
-<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
-## Stage 6: Финальный централизованный проход и актуализация банка
-- ✅ Финальный централизованный проход и актуализация банка
+## spec-group-round3-remediation — 6/6
+- ✅ Stage 1 — Пакеты находок и ТЗ для 4 фиксеров
+- ✅ Stage 2 — Волна 1 — F1 owners-state (umbrella + S4) на Opus
+- ✅ Stage 3 — Волна 1 — F2 owners-norms (S2 + S1) на Opus
+- ✅ Stage 4 — Волна 2 — F3 consumers-west (S7 + S3 + S5) на Opus
+- ✅ Stage 5 — Волна 2 — F4 consumers-east (S6 + S8) на Opus
+- ✅ Stage 6 — Финальный централизованный проход и актуализация банка
 
 <!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## Stage 1: Nudge v2 — повторяемый и действенный
-- ⬜ Nudge v2 — повторяемый и действенный
-
-<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## Stage 2: Bootstrap векторного индекса при `/mb graph --apply`
-- ⬜ Bootstrap векторного индекса при `/mb graph --apply`
-
-<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## Stage 3: Auto-catchup графа на SessionStart
-- ⬜ Auto-catchup графа на SessionStart
-
-<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## Stage 4: Короткий враппер `mb-graph.sh` + короткие тексты подсказок
-- ⬜ Короткий враппер `mb-graph.sh` + короткие тексты подсказок
-
-<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## Stage 5: Статус графа в диспатче субагентов
-- ⬜ Статус графа в диспатче субагентов
+## graph-semantic-adoption — 0/7
+- ⬜ Stage 1 — Nudge v2 — повторяемый и действенный
+- ⬜ Stage 2 — Bootstrap векторного индекса при `/mb graph --apply`
+- ⬜ Stage 3 — Auto-catchup графа на SessionStart
+- ⬜ Stage 4 — Короткий враппер `mb-graph.sh` + короткие тексты подсказок
+- ⬜ Stage 5 — Статус графа в диспатче субагентов
+- ⬜ Stage 6 — Покрытие — bash и bats в графе
+- ⬜ Stage 7 — Граф в каждом диспатче `/mb work` + замер adoption
 
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
-## Stage 1: `mb-cost-report.py` — измерение и baseline
-- ✅ `mb-cost-report.py` — измерение и baseline (2026-09-05, /mb work run 8bee263e, judge GO_WITH_BACKLOG → I-185)
+## mb-work-cost-diet · Sprint 1 «context-diet + измерение» — 5/7
+- ✅ Stage 1 — `mb-cost-report.py` — измерение и baseline (2026-09-05, /mb work run 8bee263e, judge GO_WITH_BACKLOG → I-185)
+- ✅ Stage 2 — Fast lane без кода — дефолт `execution`, governed opt-in (2026-09-05, /mb work run fe0c8c6d, codex-governed, judge GO_WITH_BACKLOG → I-186, I-187)
+- ✅ Stage 3 — Бюджет вывода `mb-context.sh` (2026-09-05, /mb work run 26f571b7, execution, verifier PASS; этот банк 39 615 B через .mb-config context_max_bytes=12288, techflow 58 127 B)
+- ✅ Stage 4 — `mb-status-rotate.sh` — ротация `status.md` (2026-09-06, /mb work run 8b5668b0, execution, verifier PASS; 8 bats + 2 drift-bats + 2 pytest, wired into actualize step of /mb done|update, drift WARN status_size > 24 KB)
+- ✅ Stage 5 — `checklist.md` v2 — один блок на план, закрытое → `progress.md`
+- ⬜ Stage 6 — `mb-coord.sh active` — доска без 200 KB
+- ⬜ Stage 7 — Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
 
-<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
-## Stage 2: Fast lane без кода — дефолт `execution`, governed opt-in
-- ✅ Fast lane без кода — дефолт `execution`, governed opt-in (2026-09-05, /mb work run fe0c8c6d, codex-governed, judge GO_WITH_BACKLOG → I-186, I-187)
-
-<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
-## Stage 3: Бюджет вывода `mb-context.sh`
-- ✅ Бюджет вывода `mb-context.sh` (2026-09-05, /mb work run 26f571b7, execution, verifier PASS; этот банк 39 615 B через .mb-config context_max_bytes=12288, techflow 58 127 B)
-
-<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
-## Stage 4: `mb-status-rotate.sh` — ротация `status.md`
-- ✅ `mb-status-rotate.sh` — ротация `status.md` (2026-09-06, /mb work run 8b5668b0, execution, verifier PASS; 8 bats + 2 drift-bats + 2 pytest, wired into actualize step of /mb done|update, drift WARN status_size > 24 KB)
-
-<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
-## Stage 5: `checklist.md` v2 — один блок на план, закрытое → `progress.md`
-- ⬜ `checklist.md` v2 — один блок на план, закрытое → `progress.md`
-
-<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
-## Stage 6: `mb-coord.sh active` — доска без 200 KB
-- ⬜ `mb-coord.sh active` — доска без 200 KB
-
-<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
-## Stage 7: Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
-- ⬜ Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
-
-<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## Stage 6: Покрытие — bash и bats в графе
-- ⬜ Покрытие — bash и bats в графе
-
-<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## Stage 7: Граф в каждом диспатче `/mb work` + замер adoption
-- ⬜ Граф в каждом диспатче `/mb work` + замер adoption
