@@ -15,7 +15,7 @@ git diff --check --cached
 git diff --check
 
 # Cross-session coordination board — if parallel sessions share this tree
-[ -f .memory-bank/COORDINATION.md ] && tail -40 .memory-bank/COORDINATION.md
+[ -f .memory-bank/COORDINATION.md ] && bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-coord.sh active
 ```
 
 If `drift_warnings > 0`, show the warnings to the user and ask whether to proceed. If `git diff --check` finds conflict markers or trailing-whitespace errors, stop and surface them — do not commit broken content.

@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — `mb-coord.sh`: read the coordination board without reading the board
+
+- `scripts/mb-coord.sh active [--tail N] [--mb <path>]` prints only what a session must act on —
+  active FREEZEs, HANDOVERs with no ACK, the last `N` entries verbatim (default 3), and one
+  `board: <entries>, <bytes> — full file: <path>` line. On this repo's board that is **2 696 bytes
+  instead of 208 588** (77×), with the in-force freeze still visible. Every agent/command file that
+  said "read the board" now points at the command; the full file is for investigating history.
+- Entry type comes from the heading tag — `## <TYPE> · YYYY-MM-DD · <scope>` where TYPE is
+  `FREEZE` / `LIFT` / `HANDOVER` / `ACK` / `STATUS`. A LIFT cancels an *earlier* FREEZE with the same
+  scope (text after the last `·`); an ACK cancels an earlier HANDOVER. Untagged legacy headings read
+  as STATUS, **except** an entry whose body declares a freeze in a **bolded** `FREEZE REQUEST` /
+  `⚠️ FREEZE` line — reported as a `[legacy]` freeze, because a freeze the reader never sees invites
+  the destructive git op the board exists to prevent. Prose merely mentioning a freeze is not bolded
+  and is not a declaration; legacy freezes are cleared with a tagged `## LIFT ·`.
+- `mb-coord.sh append --type <T> --title <t> [--body-file <f>]` writes a canonically tagged entry
+  through an owner-token lock + atomic `mv` (same discipline as `mb-work-progress-append.sh`), and
+  creates the board with a header when absent. Unlike the progress helper it fails **loudly**
+  (exit 1) when it cannot publish — a silently dropped FREEZE announcement is the accident this
+  board prevents.
+
 ### Changed — BREAKING: `checklist.md` v2 — one block per plan, closed work moves to `progress.md`
 
 - The checklist is now a registry of plans in flight: one `<!-- mb-plan:<file> -->` block per plan

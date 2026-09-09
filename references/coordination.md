@@ -30,9 +30,47 @@ after your own commit (write the hash here).
 
 Session names: short, stable, derived from the plan/track (e.g. `GATE1`, `HERMES`). Register every session in the header when it joins.
 
+## Reading the board — `scripts/mb-coord.sh active`
+
+The board is append-only and never truncated, so it grows without bound (200 KB / 2000 lines in this repo after a few parallel episodes). **Read it with the command, not with `cat`/`Read`:**
+
+```bash
+scripts/mb-coord.sh active [--tail N] [--mb <path>]
+```
+
+It prints only what a session must act on — active FREEZEs, HANDOVERs with no ACK, the last `N` entries verbatim (default 3), and one `board: <entries>, <bytes> — full file: <path>` line. A few hundred bytes instead of the whole history. Open the full file only when you are **investigating** (who touched X in July, what the third round of review decided). No board → one `no board` line, exit 0.
+
+### Tag grammar
+
+`active` can only classify what is tagged. Canonical heading, and what `mb-coord.sh append` writes:
+
+```markdown
+## <TYPE> · YYYY-MM-DD · <scope/title>
+```
+
+| Heading | Meaning | Cancelled by |
+|---------|---------|--------------|
+| `## FREEZE · <date> · <scope>` | files/signature in `<scope>` must not be touched | a LATER `## LIFT ·` with the same scope |
+| `## LIFT · <date> · <scope>` | the freeze on `<scope>` is over | — |
+| `## HANDOVER · <date> · <scope>` | work item `<scope>` transferred | a LATER `## ACK ·` with the same scope |
+| `## ACK · <date> · <scope>` | receipt of an entry about `<scope>` | — |
+| `## STATUS · <date> · <scope>` | where you are, what is in flight | — |
+
+`<scope>` is the text after the LAST `·` — matching is exact (whitespace- and case-normalized), so a LIFT must repeat the freeze's scope text verbatim.
+
+**Untagged headings are STATUS** (the whole legacy corpus predates this grammar), with one exception: an untagged entry whose body declares a freeze in a **bolded** marker line (`FREEZE REQUEST` or `⚠️ FREEZE`) is reported as a `[legacy]` freeze. A freeze the reader never sees invites the `git rebase` that eats another session's work; one redundant line costs nothing. Prose that merely *mentions* someone else's freeze is not bolded and is not a declaration. Legacy freezes are never auto-lifted — prose lifts are not parsed; clear one by appending a tagged `## LIFT · <date> · <scope>`.
+
+### Writing an entry
+
+```bash
+scripts/mb-coord.sh append --type FREEZE --title 'scripts/mb-work.sh' [--body-file <f>] [--mb <path>]
+```
+
+Locked (owner-token `mkdir` lock) and atomic (temp file + `mv`), so two sessions appending at once cannot interleave. Unlike the progress-append helper it fails **loudly** (exit 1) when it cannot publish: a silently dropped FREEZE announcement is the exact accident this board exists to prevent. Hand-writing an entry is still fine — just follow the grammar above.
+
 ## Checkpoints — when a session MUST read the board
 
-1. **Session start** — `/mb context` / `/mb start` surface the board when it exists.
+1. **Session start** — `/mb context` / `/mb start` surface the board when it exists; `mb-coord.sh active` is the read.
 2. **Before starting a stage / plan item** — another session may have claimed, frozen, or handed over the scope.
 3. **Before ANY commit** — commit ordering for interleaved files is agreed on the board, never assumed.
 4. **Before editing a watchlist file** — a freeze may be in effect.
@@ -72,7 +110,7 @@ The board only works if every session knows about it. Two mechanisms:
 1. `/mb context` / `/mb start` mention the board automatically when the file exists.
 2. One-time hookup prompt the owner pastes into the parallel session:
 
-> Coordination with the parallel session now runs through the board `.memory-bank/COORDINATION.md` (append-only). Read it fully, then: check it before starting any stage, before any commit, and before editing shared files; write your statuses, questions and commit hashes there as `[YOURNAME → THEIRNAME]` entries instead of waiting for manual relays.
+> Coordination with the parallel session now runs through the board `.memory-bank/COORDINATION.md` (append-only). Read it with `scripts/mb-coord.sh active` (never `cat` — it is hundreds of KB), then: check it before starting any stage, before any commit, and before editing shared files; write your statuses, questions and commit hashes there as `[YOURNAME → THEIRNAME]` entries instead of waiting for manual relays.
 
 ## Relation to other MB files
 

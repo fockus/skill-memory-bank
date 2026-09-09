@@ -130,8 +130,10 @@ test per scenario `test_id` (GIVEN→Arrange, WHEN→Act, THEN→Assert) before 
 
 If `.memory-bank/COORDINATION.md` exists, another session is working in this tree in parallel:
 
-- Read the board before starting your item, before editing any file on its shared watchlist, and
-  before any commit.
+- Read the board through `scripts/mb-coord.sh active` (active freezes + unACKed handovers + the
+  last 3 entries + totals, a few hundred bytes) before starting your item, before editing any file
+  on its shared watchlist, and before any commit. Open the full `COORDINATION.md` only when you are
+  investigating history — it is append-only and runs to hundreds of KB.
 - Never `git add -A` — the tree contains someone else's uncommitted diff; stage your scoped file
   list only.
 - A surprise foreign hunk in "your" file is not noise to revert — stop, report it upward

@@ -1124,3 +1124,5 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-187 — commands/work.md § Reference material (line 28): split the double parenthetical (cost-ladder provenance + work-loop-v2 pointer) without adding a net line — 400-line zone (judge backlog, Sprint1 Stage2) [LOW, NEW, 2026-09-05]
 
 ### I-188 — Doc-contract autopatch: mb-doc-contract.sh add-script|add-hook <name> "<desc>" вставляет строки в SKILL.md § Tools / таблицу хуков, commands/mb.md и CHANGELOG по шаблону — каждая стадия с новым скриптом сегодня тратит ~10 tool-вызовов на эти правки (Stage 3, Stage 4); кандидат в Sprint 3 cost-diet [MED, NEW, 2026-09-06]
+
+### I-189 — mb-coord.sh active: верхняя граница вывода не гарантирована — дословный хвост --tail N растёт с длиной тел записей (2696 → 3198 байт после одной записи), нужен кап на запись в хвосте с обрезкой + маркером [MED, NEW, 2026-09-10]

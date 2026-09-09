@@ -697,7 +697,7 @@ Script: `~/.claude/skills/memory-bank/scripts/mb-index.sh`.
 
 ## Cross-session coordination — shared working tree
 
-When two or more agent sessions work in the SAME working tree/repo in parallel, they coordinate through the append-only board `.memory-bank/COORDINATION.md` (full protocol: `~/.claude/skills/memory-bank/references/coordination.md`). Opt-in by nature: no board file → no overhead.
+When two or more agent sessions work in the SAME working tree/repo in parallel, they coordinate through the append-only board `.memory-bank/COORDINATION.md`, read with `scripts/mb-coord.sh active` (full protocol: `~/.claude/skills/memory-bank/references/coordination.md`). Opt-in by nature: no board file → no overhead.
 
 - **Checkpoints — read the board:** session start · before starting any stage/plan item · before ANY commit · before editing a shared-watchlist file · after your own commit (append the hash + scoped file list).
 - Entries: `## [FROM → TO] YYYY-MM-DD HH:MM — topic`, append-only (same invariant as `progress.md`); typed prefixes STATUS / QUESTION / ANSWER / FREEZE / HANDOVER / ACK / COMMIT / ESCALATION. Freezes, handovers, and commit-order agreements require an ACK entry from the other side.

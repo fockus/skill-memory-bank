@@ -233,9 +233,9 @@ created: 2026-09-05
 - pytest-doc-assert: `agents/mb-engineering-core.md` и `references/coordination.md` содержат `mb-coord.sh active`.
 
 **DoD:**
-- [ ] `bash scripts/mb-coord.sh active --mb .memory-bank | wc -c` ≤ 4 096 на текущей доске (203 955 байт); активный FREEZE «no rebase/reset/checkout/stash» (запись 2026-07-1x) в выводе есть.
-- [ ] 7/7 bats, shellcheck чист; строка в `SKILL.md` § Tools и роутер `coord` в `commands/mb.md`.
-- [ ] Ни один агентский/командный файл больше не велит «читать COORDINATION.md целиком» (`command grep -rn 'Read the board\|читать доску' agents commands references` → только ссылки на `mb-coord.sh active`).
+- [x] `bash scripts/mb-coord.sh active --mb .memory-bank | wc -c` ≤ 4 096 на текущей доске (203 955 байт); активный FREEZE «no rebase/reset/checkout/stash» (запись 2026-07-1x) в выводе есть.
+- [x] 7/7 bats, shellcheck чист; строка в `SKILL.md` § Tools и роутер `coord` в `commands/mb.md`.
+- [x] Ни один агентский/командный файл больше не велит «читать COORDINATION.md целиком» (`command grep -rn 'Read the board\|читать доску' agents commands references` → только ссылки на `mb-coord.sh active`).
 
 **Code rules:** fail-open (нет доски → пустой вывод, exit 0), парсер в python-heredoc, детерминированный формат для тестов.
 

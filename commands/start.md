@@ -64,7 +64,7 @@ bash ~/.claude/skills/memory-bank/scripts/mb-context.sh --deep
 ## 2b. Cross-session coordination board (if present)
 
 ```bash
-[ -f .memory-bank/COORDINATION.md ] && tail -60 .memory-bank/COORDINATION.md
+[ -f .memory-bank/COORDINATION.md ] && bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-coord.sh active
 ```
 
 If the board exists, parallel sessions share this working tree. Surface in the summary: which sessions are registered, any active FREEZE / HANDOVER / commit-order agreements, and entries addressed to this session that lack an ACK. Obey the shared-tree rules (scoped `git add` only, board checkpoints before stages/commits/shared-file edits). Protocol: `references/coordination.md`.
