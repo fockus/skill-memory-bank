@@ -1,4 +1,4 @@
-{"type": "meta", "schema": 1, "generated_at": "2026-09-06T14:26:37Z", "commit": "da999d52caf3", "nodes": 3526, "edges": 19936, "src_root": ".", "flags": ["--docs"]}
+{"type": "meta", "schema": 1, "generated_at": "2026-09-09T22:23:14Z", "commit": "6d0b6f15fea6", "nodes": 3529, "edges": 19944, "src_root": ".", "flags": ["--docs"]}
 {"type": "node", "kind": "module", "name": "adapters/pi_graph_rag_extension.ts", "file": "adapters/pi_graph_rag_extension.ts", "line": 1}
 {"type": "node", "kind": "function", "name": "memoryBankGraphRagExtension", "file": "adapters/pi_graph_rag_extension.ts", "line": 56, "signature": "function memoryBankGraphRagExtension(pi: ExtensionAPI)"}
 {"type": "node", "kind": "function", "name": "execute", "file": "adapters/pi_graph_rag_extension.ts", "line": 108, "signature": "async execute(_toolCallId, params)"}
@@ -1931,6 +1931,9 @@
 {"type": "node", "kind": "function", "name": "test_missing_plan_fails", "file": "tests/pytest/test_mb_context_slim.py", "line": 87, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "function", "name": "test_stage_out_of_range_fails", "file": "tests/pytest/test_mb_context_slim.py", "line": 92, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "function", "name": "test_trimmed_strictly_shorter_than_full", "file": "tests/pytest/test_mb_context_slim.py", "line": 99, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_mb_coord_docs.py", "file": "tests/pytest/test_mb_coord_docs.py", "line": 1, "doc": "mb-work-cost-diet Sprint 1 Stage 6 — the board is read through `mb-coord.sh active`. A 200 KB append-only board that every agent is told to \"read before stages, commits and shared-file edits\" is a per"}
+{"type": "node", "kind": "function", "name": "test_board_readers_are_pointed_at_mb_coord_active", "file": "tests/pytest/test_mb_coord_docs.py", "line": 18, "signature": "(doc: str)"}
+{"type": "node", "kind": "function", "name": "test_coordination_reference_documents_the_tag_grammar", "file": "tests/pytest/test_mb_coord_docs.py", "line": 23, "signature": "()"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_mb_cost_report.py", "file": "tests/pytest/test_mb_cost_report.py", "line": 1, "doc": "Transcript cost mining — `memory_bank_skill/cost_report.py` + `scripts/mb-cost-report.py`. Baseline measurement for the mb-work-cost-diet phase: the numbers asserted here are the ones Sprint 2/3 gates"}
 {"type": "node", "kind": "function", "name": "test_session_stats_counts_tokens_tools_and_tasks", "file": "tests/pytest/test_mb_cost_report.py", "line": 39, "signature": "()"}
 {"type": "node", "kind": "function", "name": "test_subagent_role_detected_from_prompt_markers", "file": "tests/pytest/test_mb_cost_report.py", "line": 57, "signature": "()"}
@@ -16488,6 +16491,14 @@
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py:test_trimmed_strictly_shorter_than_full", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py:test_trimmed_strictly_shorter_than_full", "dst": "len", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py:test_trimmed_strictly_shorter_than_full", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_coord_docs.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_mb_coord_docs.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_mb_coord_docs.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_mb_coord_docs.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_coord_docs.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_coord_docs.py:test_board_readers_are_pointed_at_mb_coord_active", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_coord_docs.py:test_board_readers_are_pointed_at_mb_coord_active", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_coord_docs.py:test_coordination_reference_documents_the_tag_grammar", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_cost_report.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_cost_report.py", "dst": "json", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_cost_report.py", "dst": "subprocess", "kind": "import"}
