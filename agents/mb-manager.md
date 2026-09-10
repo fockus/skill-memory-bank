@@ -392,6 +392,71 @@ Extract and structure all unfinished tasks from `checklist.md`.
 **Total:** N tasks
 ```
 
+### `action: actualize --strict`
+
+Cap-repair mode. Dispatched by the Stop hook `mb-core-cap-guard.sh` (and by
+`/mb update --strict`) when `mb-core-cap.sh check` reports `status.md` or
+`checklist.md` over its hard line cap and the deterministic repair
+(`mb-core-cap.sh fix` = rotation + v2 compaction) was not enough.
+
+**The invariant (AGR-043): nothing is ever deleted.** Every line that leaves a
+core file is in `progress.md` VERBATIM first, and only then leaves. You never
+close, pause, or trim a plan yourself — live work belongs to the owner.
+
+**`status.md` — rewrite to the canonical skeleton** of
+`templates/.memory-bank/status.md`, within the cap:
+
+- Keep: `**Current phase:** / **Focus:** / **Blockers:**`, `## Metrics`,
+  `## Active plans` (the `<!-- mb-active-plans -->` block), `## Recently done`
+  (≤ 10 entries), the roadmap pointer.
+- Move OUT, one block per section, through
+  `bash ~/.claude/skills/memory-bank/scripts/mb-work-progress-append.sh --text "<block>" --mb <MB_PATH>`:
+  every dated `## ` section, every `## Архив …` / `## Archive …` section, an
+  `## Open backlog` list, and any historical narrative. Each block keeps its
+  original heading text under `## [status archive] <heading>`.
+- Raw ideas go to `backlog.md` through
+  `bash ~/.claude/skills/memory-bank/scripts/mb-idea.sh "<idea>"`, not into the archive blob.
+- **Verify before you cut:** after each append, `grep -qxF` the block heading in
+  `progress.md`. An unconfirmed append means the section STAYS in `status.md`.
+
+**`checklist.md` — compaction only**, never a rewrite by hand:
+
+- `bash ~/.claude/skills/memory-bank/scripts/mb-checklist-prune.sh --apply --mb <MB_PATH>`.
+- An `⬜` line is never moved, folded, or dropped. The count of `⬜` lines before
+  and after must be identical.
+- Prune **exit 3** ("N plans in flight") is escalated to the owner AS IS. Do not
+  choose which plan to close.
+- Plans with no open `⬜`, or untouched for more than 30 days
+  (`git log -1 --format=%ci -- .memory-bank/plans/<file>`), go into a
+  **suggestion list** in your report — "close via `mb-plan-done.sh <plan>`" /
+  "pause" — for the owner to decide. You do not act on it.
+
+**Last step, always:**
+
+```bash
+bash ~/.claude/skills/memory-bank/scripts/mb-core-cap.sh check --mb <MB_PATH>
+```
+
+Exit 0 → report `STATUS: DONE` with the before/after line counts. Exit 1 or 3 →
+report `STATUS: DONE_WITH_CONCERNS` with that same command's output plus the
+suggestion list. Never report DONE on an unverified cap.
+
+**Response format:**
+
+```text
+## Actualize (strict)
+
+**Caps:** status.md <before> → <after> / <cap>, checklist.md <before> → <after> / <cap>
+**Archived to progress.md:** <N> blocks (<headings>)
+**Ideas moved to backlog.md:** <N>
+**Open ⬜ before/after:** <n>/<n>  (must be equal)
+**Suggestions for the owner:** <plan> — close | pause | none
+**mb-core-cap.sh check:** <verbatim output line>
+STATUS: DONE | DONE_WITH_CONCERNS
+```
+
+---
+
 ### `action: done`
 
 **First-class session-close flow** — previously documented as a "combined flow of actualize + note", now promoted to its own action so callers (`/mb done`, PreCompact hook) have a deterministic contract and tests can enforce it.
@@ -445,7 +510,7 @@ When none of these apply (multi-file semantic ambiguity), emit a WARNING and sur
 The caller appends one of the following after this prompt:
 
 ```text
-action: <context|search|note|actualize|tasks>
+action: <context|search|note|actualize|actualize --strict|tasks>
 
 <free-form context: query, topic, current-session work description, or metrics>
 ```

@@ -19,7 +19,6 @@ source "$(dirname "$0")/_lib.sh"
 DIR="${1:-.}"
 MB="$DIR/.memory-bank"
 STALE_DAYS=30
-STATUS_SIZE_CAP=24576
 WARNINGS=0
 
 if [ ! -d "$MB" ]; then
@@ -566,15 +565,22 @@ date_ok() {
   [ "$d" -le "$max" ]
 }
 
-# ═══ 17. status_size — status.md past the rotation threshold ═══
-check_status_size() {
-  local bytes
-  [ -f "$MB/status.md" ] || { ok status_size; return; }
-  bytes=$(wc -c < "$MB/status.md" | tr -d ' ')
-  if [ "${bytes:-0}" -gt "$STATUS_SIZE_CAP" ]; then
-    warn status_size "status.md > 24 KB ($bytes bytes) — run mb-status-rotate.sh --apply"
+# ═══ 17. core_cap — status.md / checklist.md past their LINE caps ═══
+# Bytes were the wrong unit: a rotated status.md can sit under 24 KB and still
+# carry 223 lines of history. The caps are lines, and mb-core-cap.sh owns them
+# (env → `.mb-config` → 60 / 100), so this check delegates instead of
+# re-deriving the numbers.
+check_core_cap() {
+  local report rc=0 cap_sh
+  cap_sh="$(dirname "$0")/mb-core-cap.sh"
+  [ -f "$cap_sh" ] || { skip core_cap "mb-core-cap.sh not found next to mb-drift.sh"; return; }
+  report=$(bash "$cap_sh" check --mb "$MB" 2>/dev/null) || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    ok core_cap
+  elif [ "$rc" -eq 1 ]; then
+    warn core_cap "$report — run mb-core-cap.sh fix (then MB Manager \`actualize --strict\`)"
   else
-    ok status_size
+    skip core_cap "mb-core-cap.sh could not run (exit $rc)"
   fi
 }
 
@@ -595,7 +601,7 @@ check_plan_status
 check_plan_vs_git
 check_supersedes
 check_progress_chain
-check_status_size
+check_core_cap
 
 echo "drift_warnings=$WARNINGS"
 

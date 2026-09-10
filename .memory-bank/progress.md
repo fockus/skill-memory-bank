@@ -3152,3 +3152,191 @@ Codex круг 2 по группе: 9 технических ревьюеров 
 - **INFO на будущее:** `scripts/mb-coord.sh` — 368 строк, выше механического порога SRP-300 (WARNING, не гейт по AGR-030). Матчинг LIFT↔FREEZE по точному тексту scope и на всю доску: переиспользованная общая строка scope — задокументированная грубость, не дефект.
 - **Run:** /mb work run `2017be697bd1439baf5ced32bb5060e7`, implementer opus 40 мин / 83 tool calls / 207k tokens (DONE), verifier sonnet 10 мин / 38 calls / 90k. Graph: 1 запрос (`status` → stale; `.sh`/`.bats` в графе нет — снова аргумент за Stage 6 graph-плана).
 - **Дальше:** Stage 7 (жёсткие капы core-файлов, Stop-хук, `actualize --strict`), затем `/mb verify` + `/mb done` по Sprint 1.
+
+## [status archive] ✅ 2026-07-18 — sdd-vision-pipeline: круг 3 ревью → ремедиация завершена, 75/75 закрыто, батарея 10/10
+
+Ремедиация исполнена через `/mb work` по плану (6/6 стадий): 4 Opus-фиксера двумя волнами (F1 umbrella+S4, F2 S2+S1 → F3 S7+S3+S5, F4 S6+S8), независимая верификация оркестратора после каждого, все CPR/X-хвосты исполнены владельцами. Итог: [reports/2026-07-18_review_spec-group-round3-remediation.md](reports/2026-07-18_review_spec-group-round3-remediation.md) — **75/75 находок закрыто, финальная батарея 10/10 спек GREEN** (124 сценария child, 62+10 задач), cross-slice grep чист. Нормы круга 3: owner-marker/`rmdir`-reclaim, Eval-декларации fenced-списком byte-identical (запрет `\|` markdown-таблиц), самоисполняющий `eval-red --cmd-file`, restricted-glob, секрет под `<private>` не достигает git. S9 интегрирован в umbrella (Task 10, delegate-гейт двусторонне проверен). Группа готова к контрольному кругу 4 по команде. НЕ закоммичено.
+
+Круг 3 codex-ревью (та же схема: 9 технических `gpt-5.6-sol` + смысловой аудитор, каждому передан raw-вердикт круга 2): **9/9 CHANGES_REQUESTED, 73 технические находки (7 critical, 60 major) + 2 смысловые**; 15 — UNFIXED/PARTIAL из круга 2. Попутно (2026-07-18) группа получила слайс **S9 `svp-spec-review-loop`** (AGR-022, ревью waived): spec-уровневые кубики review+judge — автоматический `spec_judge`, fix-петля, реестр принятых отклонений, preflight-гейт `/mb work`; батарея зелёная, umbrella-интеграция после ремедиации. Отчёт: [reports/2026-07-17_review_spec-group-round3.md](reports/2026-07-17_review_spec-group-round3.md). Решения пользователя: **AGR-020** (Cursor включается в полный режим S3, D-07 восстановлен) и **AGR-021** (ICE: авто-приоритизация + ворнинг по неподтверждённым + эскалация подтверждения пользователю). Ремедиация — план [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md): **не больше 4 Opus-фиксеров, две волны по 2** (F1 umbrella+S4, F2 S2+S1 → F3 S7+S3+S5, F4 S6+S8), независимая верификация оркестратором после каждого, финальная батарея 9/9 + отчёт ремедиации. Не коммитим без явного запроса.
+
+## [status archive] ✅ 2026-07-17 — sdd-vision-pipeline: два круга spec-ревью пройдены, группа готова к исполнению
+
+Круг 2 codex-ревью группы (9 технических ревьюеров `gpt-5.6-sol` — по одному на спеку, S8 впервые — + 10-й смысловой аудитор с полным транскриптом интервью): **83 технические + 8 смысловых находок, все закрыты в тот же день** ([reports/2026-07-17_review_spec-group-round2.md](reports/2026-07-17_review_spec-group-round2.md)). Волновая схема: волна 1 — владельцы контрактов (umbrella/S1/S2/S4), волна 2 — потребители (S7→S3→S8→S6→S5), затем якорный фиксер (24 `output~:`-якоря в umbrella/S1/S4); все фиксеры — Opus, каждый слайс верифицирован оркестратором независимо (батарея + перепрогон red-эвалов + двусторонние симуляции якорей). Смысловая находка про `/mb plan` решением пользователя не исправляется → **AGR-019** (план остаётся ручным режимом).
+
+Групповые нормы круга 2: red-якоря `output~:` на всех Eval (S2 REQ-054/055) · liveness-lock `mb_lock_acquire` S4-C6 · JSONL-вердикты (umbrella Interface 5) · ICE-объект `{impact, confidence, ease}` во frontmatter · реестр `Contract-checkers` (S8-C3a) · `annotate` для достижимости READY (X5-01). Финальная батарея: **9/9 спек GREEN**, 112 сценариев child-спек, 66 задач (57 child + 9 umbrella), все eval-гейты красные по правильной причине. Новый беклог: I-130 (баг `mb-req-next-id.sh --spec` считает `covers_umbrella`-ссылки). Изменения НЕ закоммичены (ждут явного запроса).
+
+## [status archive] ✅ 2026-07-15 — `openspec-adapter` спека реализована (T1–T6), один пункт отложен
+
+One-way import-адаптер `OpenSpec change → наш spec-триплет` (AGR-016) — **T1–T6 done**. T1–T3 core (парсинг+конвертация+запись, `a2e9252`/`66cd650`, judge GO_WITH_BACKLOG I-120) закрыт ранее; в этой сессии добрали **T4 CLI-диспетчер** (`scripts/mb-openspec.sh` import/list/status/sync, `4bebbbc`), **T5 re-import** (anchor_map + merge_task_state + RENAMED re-anchor + orphan→backlog, `0f39618`), **T6 --normalize** (опц. LLM slot-layer + source-hash кэш, fail-open, `226e65f`). Пайплайн этой сессии — **укороченный, по явному запросу пользователя, не сохранён в pipeline.yaml**: Sonnet implement → Opus independent verify, без review/judge; все три задачи прошли независимую верификацию Opus. 45+15+52 pytest/bats green по задачам.
+
+**Единственный отложенный пункт:** T4 DoD-строка «завести `/mb openspec` в `commands/mb.md`» — файл под активным adapter-parity FREEZE (`COORDINATION.md`), не трогаем. Диспетчер `mb-openspec.sh` работает автономно; роутер-строка встанет сразу после снятия заморозки. Спека фактически завершена (T1–T6) за вычетом этой одной строки.
+
+## [status archive] ✅ 2026-07-15 — donor-программа специфицирована (Track 2)
+
+Donor-план (`memory-bank-donor-evolution-plan.md`, 4246 строк) превращён в валидную umbrella-спеку **`specs/mb-donor-evolution/`**: requirements.md (108 REQ, EARS, 52 GWT-сценария), design.md (471 строка: инварианты, контракты §7, capability matrix, ADR), tasks.md (**132 исполняемых mb-task блока**), source-plan.md (read-only источник). `mb-spec-validate.sh --require-scenarios` — **0 нарушений**; traceability: 334/337 покрыто (3 сироты — старая parallel-team-execution).
+
+Discovery — гриллинг-интервью (= discuss-фаза, AGR-005): решения в `context/mb-donor-evolution.md` и AGR-001…005. Ключевое: нумерация +1 минор (Baseline→**v5.4.0**, …, Plan IR→5.7.0; 6.x без сдвига); roadmap — две дорожки, donor побеждает при пересечении; `parallel-pipeline` → **superseded**; ICE: v6.5/v6.6 (GSD/OpenSpec engines) → **icebox**. ICE-таблица и порядок — `roadmap.md` § Track 2. Первый релиз — wrapper `plans/2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md` (queued, tasks 1–6). Попутно `/mb discuss` усилен grilling-правилами 6–8 (one-question-per-turn, relentless-until-shared-understanding, final confirmation gate).
+
+## [status archive] ✅ 2026-07-13 — main stabilized + **5.3.0 released** (issue #2 closed)
+
+**`main` was red for over a week and a broken wheel was on PyPI.** Both are fixed.
+
+**The redness was five layers**, three of them from a single commit (`49f9ad5`) that shipped twice-broken code:
+1. `scripts/_lib.sh` — unterminated heredoc quote (`<<'PY`). Sourced by *every* `mb-*.sh` → the whole toolchain was dead.
+2. `hooks/mb-session-turn.sh` — **raw merge-conflict markers committed**. Unparseable; every deploy re-installed the broken copy.
+3. shellcheck ×3 · 4. ruff ×2 (masked — shellcheck failed first) · 5. `install.sh` re-install backed up its *own* `CLAUDE.md`, so the install manifest was never idempotent.
+
+**Two judgement calls worth keeping:**
+- The hook conflict: **both sides carried needed logic.** Taking either alone would have silently reverted the I-082 security control `sc_strip_private` (`<private>` spans reaching disk). Merged both.
+- The "6 known-baseline-red bats" were **not a bug** — an ambient `MB_AUTO_CAPTURE` env leak. Green in clean CI all along, and wrongly written off. 5 suites are now hermetic.
+
+**Release 5.3.0** — issue #2 (`5.2.0` wheel shipped without `templates/` → `/mb init` exit 3 for every pipx user) was unfixable without a release: the packaging fix was **not an ancestor of tag `v5.2.0`**, and PyPI forbids re-upload. Verified end-to-end on the **published** wheel: `mb-init-bank.sh` exit 3 → **0**, bank scaffolds. Homebrew formula bumped with the sdist digest re-derived locally and cross-checked against the PyPI API.
+
+Cross-session coordination also shipped (`references/coordination.md` had been untracked while `CLAUDE.md`/`rules/` already referenced it).
+
+---
+
+## [status archive] ⏸ PAUSE 2026-07-06 — long-running-sessions autopilot (Opus plans → Sonnet impl / Codex review / Opus judge)
+
+**Активный мастер-план:** `plans/2026-07-05_SEQUENCE_long-running-sessions.md` — 6 фаз для автономных длинных сессий (goal-driven ralph-loop + параллельные сессии по плану). Роли зафиксированы: **планы пишет Opus напрямую; реализация через `/mb work` — implement=Sonnet, review=Codex GPT-5.5, judge=Opus**; любой сабагент-исполнитель работает на Sonnet.
+
+| Phase | Спека | Статус |
+|---|---|---|
+| **1 — reviewer-2.0** | `specs/reviewer-2.0` | ✅ **DONE** — 6 задач, коммиты `45737fb 9d0a2e1 113b9b5 7e3604a 1ac1c49 7fb3db4`. Codex поймал 3 реальных дефекта (path-traversal, symlink-эксфильтрация, count-lie bypass strict-mode) |
+| **2 — work-loop-v2** | `specs/work-loop-v2` | ✅ **DONE** — 5 задач: trend (`ea3a3ab`), contract (`a39d4a2`), pivot (`930c0ec`), on_max_cycles migration (`b419eee`), docs (`86240f7`) |
+| **3 — drive-loop** | `specs/drive-loop` | 🔄 **IN PROGRESS.** Task 1 ✅ DONE (`1bf101b`) — `mb-drive.sh next` stateless decision fn; Codex BLOCKER (type-coercion `{"ok":"true"}`→`stop_success`, нарушал REQ-DR-014) + 5 major исправлены fail-closed, judge GO_WITH_BACKLOG. **Осталось: Task 2** (`/mb drive` команда + AGENTS.md loop-contract, developer), **Task 3** (trend/pivot + route-reeval wiring — тот seam, что T1 оставил: stall/last_pivot из mb-flow fence), **Task 4** (stop-telemetry + Stop-hook resume-gate + parallel keying, devops), **Task 5** (docs, analyst) |
+| 4 — parallel | `parallel-pipeline` / `parallel-team-execution` | ⬜ на `mb-fanout.sh` |
+| 5 — cost-multi-model + df-P3 | — | ⬜ dynamic-flow Phase 3 Tasks 13-14 |
+| 6 — docs | — | ⬜ финал: «как всем этим пользоваться» |
+
+**▶ ТОЧКА ВОЗОБНОВЛЕНИЯ:** drive-loop **Task 2**. Директива пользователя — «Полный автопилот до конца» (фазы 2-6 подряд, отчёт в конце), сейчас на паузе по запросу.
+
+**Backlog, накопленный за автопилот:** I-095 (DRY-fold), I-096 (inert cache path), I-097 (pipeline review_examples wiring), I-098 (split mb-review.sh 501ln), I-099 (cache-key reconcile), I-100 (composable `--review` empty loop), I-101 (traceability `.bats` suffix), **I-102 (mb-drive.sh 455>400 → Task-1b split)**.
+
+**⚠️ Параллельная незакоммиченная работа (НЕ трогать при коммитах):** install-parity правки в `adapters/*`, `install.sh`, `packaging/`, `README.md`, `docs/cross-agent-setup.md`, `tests/bats/test_{codex,cursor,graph,cline,opencode}_adapter.bats`, `tests/e2e/*`, `scripts/mb-reviewer-resolve.sh` + `test_reviewer_resolve.bats`, `.memory-bank/{checklist,roadmap,pipeline.yaml,traceability}.md`, `specs/{reviewer-2.0,work-loop-v2}/design.md`. Коммиты всегда scoped через явный `git add <paths>`, никогда `-A`.
+
+**Phase 0 doc-drift residual (no-code):** status/roadmap/checklist местами говорят «dynamic-flow Phase 2 paused», хотя на диске она done — чистка не сделана.
+
+---
+
+## [status archive] 🟡 2026-09-05 — Phase mb-work-cost-diet: аудит стоимости `/mb work` → 3 спринта, Sprint 1 в работе
+
+Аудит по 53 сессиям / 587 сабагентам и 6 банкам ([reports/2026-09-05_mb-work-cost-audit.md](reports/2026-09-05_mb-work-cost-audit.md)): implementer в среднем 243 хода, 87 Bash, 15.6 прогонов тестов, пик контекста 260k; governed-item 2–2.5 ч и 10–12 сабагентов; `mb-context.sh` 112–337 KB без лимита; core-файлы не ротируются; `COORDINATION.md` 204 KB читается сабагентами; только 19 items закрыты через `flip` — цикл в основном воспроизводят руками на Opus. Хуки не виноваты (<0.5 s). План — Phase из трёх спринтов (`roadmap.md § Phase: mb-work-cost-diet`): **Sprint 1** [context-diet + измерение](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) (cost-report + baseline · `workflow.default: execution` · бюджет `mb-context.sh` · `mb-status-rotate.sh` · прунер checklist под `## Stage` · `mb-coord.sh active`) → Sprint 2 work-loop-diet (тест-улика один раз · `mb-work-adapt.sh` + `--fast` · context pack · `mb-review-external.sh`) → Sprint 3 instruction-diet (cap Agreements · тонкий `mb.md` · `mb-work-next.sh` · `hooks.disabled`). Попутно: `~/.claude/CLAUDE.md` → respond in Russian (manifest всё ещё `en` — следующий `install.sh --language ru`), `.session-spend.json` в `.gitignore` (364164a). **Stage 1 закрыт 2026-09-05** через `/mb work` (run 8bee263e, judge GO_WITH_BACKLOG после 2 fix-циклов, backlog I-185): `/mb cost` + baseline'ы этого репо/harness/techflow; попутно починен `done`-гейт, отказывавший любой стадии плана (NOITEM вместо NOFILE). Следующий: Stage 2 (`workflow.default: execution` + «лестница стоимости») — решение о смене дефолта за пользователем.
+
+## [status archive] 🟡 2026-07-28 — graph-semantic-adoption: план создан (AGR-038), в работе
+
+Замер транскриптов за 14 дней: ~7 400 bash-grep против 43 `mb-graph-query` и ~0 настоящих `mb-semantic-search` — весь инструментарий реализован, но не используется. Корни: codesearch-индекс существует только в FaberlicApp; графы протухли в 3/4 банков (catchup срабатывает только при запросе — курица-яйцо); nudge троттлится до 1 раза за сессию без готовой команды; субагенты не видят статус свежести. План: [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — 5 стадий (nudge v2 → bootstrap индекса в `--apply` + backfill → фоновый catchup на SessionStart → враппер `mb-graph.sh` → статус графа субагентам). Gate: демо-прогон + контрольный замер adoption через неделю (цель ≥10×).
+
+## [status archive] ⏸ 2026-07-18 — G-001: исполнение группы sdd-vision-pipeline (волна 1) — ПАУЗА по запросу пользователя
+
+Прогон всех 10 спек группы через `/mb work` codex-governed до судейского GO: implement=**Opus**-сабагенты, review=**codex gpt-5.6-sol (xhigh)**, judge=**mb-judge на Fable** (AGR-023, `pipeline.yaml` обновлён и валиден; goal `G-001` в `goal.md`, `project.md` создан). ≤3 параллельных треков, ≤4 сабагентов; оркестратор — основная сессия; правила совместного владения файлами — `COORDINATION.md` § svp-group-exec.
+
+**Волна 1 (A=umbrella T1+S1 · B=S4 · C=S2), состояние на паузу:**
+- umbrella **T1 ✅** (MIT-атрибуция, 8/8 bats) — ревью не проводилось.
+- **S1 5/6+** ✅ (T1 plan+harness, T2 final-gate+batch, T3 size-triage+`mb-estimate-check.sh`, T4 transcript+`mb-secret-scan.sh`, T5 glossary; T6 self-interview — реализация завершена и сьют зелёный, но трек умер до DoD-флипов и финального отчёта → 4 бокса T6 остаются `[ ]` до verify) — ревью S1 не запускалось.
+- **S4 3/9** ✅: T1 + T1-fix (codex CR 3 major → закрыты: модуль `mb_roadmap_order.py`, полный legacy-корпус с HEAD `_lib.sh`, 42 contract-теста; **re-review в полёте**), T2 lock+state-machine (24+15 bats; **ревью в полёте**), T6 Group-рендер (14/14; флаг: отклонение R3-007 — счётчики в member-line, решение за ревью/судьёй); T9 не начата.
+- **S2 2/9** ✅: T1 + T1-fix (codex CR 3 major+1 minor → закрыты: strip code-span — чинит 73/73 живых Eval-cmd, пустые v2-поля → malformed, sys.path-шапка; **re-review не запущен**), T2 валидатор v2 (20/20; zero exit-code drift на 29 base + 10 group спек; флаг: 564 строки >400 — решение за судьёй/оркестратором); T3 отложена (гейт `mb-estimate-check.sh` за S1), T9 не начата.
+
+Вердикты codex — `scratchpad/exec/review-*.json` сессии (s4-t1 CR→fixed; s2-t1 CR→fixed; s4-t1fix/s4-t2 in flight). Разблокировки дальше: S7←S1; S8/S9/S6/S3←S2; S5←S4+S2+S3.
+**▶ Возобновление:** дождаться/принять ack'и треков → scoped-коммит волны 1 → re-review хвостов (S2-T1-fix, S1 T1–T4, S4-T6) → продолжение треков по DAG.
+
+## [status archive] Current phase
+
+**Phase 6 — Harness + adaptive orchestration.** Phase 5 (`tier1-graph-memory` 17/17 → **v5.1.0**) закрыт. Roadmap переприоритизирован по **ICE** (см. `roadmap.md § ICE-prioritised roadmap`). `goal-driven-autopilot` **снят** — заменён на `specs/dynamic-flow/` (8 мёртвых планов → `plans/superseded/`). Последовательность (dependency-resolved): **cursor-finish → handoff-v2 → dynamic-flow Phase 1 → reviewer-2.0 → work-loop-v2 → cost-multi-model**; docs-лейн `skill-improvements-anthropic-audit` параллельно. XL-хвост (`parallel-pipeline` / `parallel-team-execution`) — после арх-решения host-native vs orchestrator-owned.
+
+**⚠️ Versioning change (2026-06-10):** v5.0.0 cut **early** — не после W12. Причина: 4.0.0 получил git-тег, но публикация в PyPI провалилась (`__version__` drift, исправлено runtime-чтением VERSION), а с тех пор накопился крупный пласт (GraphRAG-lite intelligence layer, session-memory, rules-economy, composable `/mb work` pipeline с review-off-by-default = BREAKING). Это первый PyPI-релиз с 3.1.2. Harness-работа становится пост-5.1.0 (5.x/6.0). Актуальная последовательность → `roadmap.md § ICE-prioritised roadmap`.
+
+**Predecessor phases ✅:** sdd-unification (3 sprints), global-storage core + agent-support, rule-profiles-and-stack-presets, GraphRAG-lite code intelligence.
+
+## [status archive] ⏭ Следующий шаг
+
+**🔄 codex/GPT-5.5 remediation — 2026-06-23.** v5.1.0 **отгружен** (PyPI + GitHub Release), `main` CI **зелёный** (post-release red закрыт: `3c16381` + `e04c4e7`). 9-агентное codex-ревью (6 аспектов + 3 транспорта) → backlog **I-082..I-086** + 5 fix-планов + sequence-документ. **Порядок исполнения — `plans/2026-06-23_SEQUENCE_codex-remediation.md` (= `roadmap.md § Current focus 2026-06-23`):**
+- **Wave 1 (→5.1.1, urgent):** I-082 security-hardening (code-exec в отгруженном коде) → I-083 verification-gates (fail-closed) → I-085 logic+portability (empty-`--range`→весь план BLOCKER).
+- **Wave 2 (→5.2.0):** I-086 config-validation+docs → I-084 dispatcher-wiring+transports (pi/opencode/codex executable end-to-end).
+
+Каждый план — governed `/mb work` (`codex-governed`: implement → verify → dual review → **judge=mb-judge** → fix-cycle → done), TDD-first, bash 3.2+5.x, Python 3.11. Hard deps: I-082→I-085 (общий `_lib.sh::mb_canonical_under`), I-086→I-084 (validator + единый pipeline-resolution path). **Следующий шаг: запустить Wave 1 / I-082** по явному go.
+
+**✅ spec `tier1-graph-memory` (17/17 tasks) COMPLETE — 2026-06-14.** Delivered end-to-end through the governed `/mb work` machine: implement (Opus subagents) → verify → DUAL parallel review (Codex gpt-5.5 + main-agent) → judge (GO / GO_WITH_BACKLOG / NO_GO) → fix loop ≤2 then `judge_decides`. All 17 tasks committed on `main` (c015831, 491b717, 21ba225, ca6a358, 74f14a1, 3434cb3, a0d6711, e1bbff1, 5a041d2, 8c8d900, b365e59, 73a095e, 7ba7174, 4bca7f6, 1e94d6d, 0ac97f2, 8ff17bb). Three release-gated backlog items closed: I-069 (07221e9), I-066+I-067 (306835a). Version bumped 5.0.1 → 5.1.0.
+
+**Next — explicit user "go" required for: PyPI publish + git tag of 5.1.0.** Release is PREP-only (committed VERSION + CHANGELOG); publish/tag are NOT done. Remaining open backlog from the sprint stays out of the gate: I-064/I-065 (LOW/MED docstrings) + I-068 (pre-existing flaky `session-end-judge.bats`).
+
+**Roadmap hygiene done — 2026-06-14.** Закрыты готовые планы (subagent-strengthening, codegraph-analytics), 8× goal-driven + opencode-first → `plans/superseded/`, roadmap/status переписаны под ICE.
+
+**✅ Wave 1 [cursor-extension] DONE (f86247c) + ✅ Wave 2 [handoff-v2] DONE (2026-06-15).** handoff-v2 — 5/5 tasks через governed dual-review (Codex gpt-5.5 + lead) + judge, fix-cycle на каждую задачу: handoff-капсула, PreCompact/SessionStart хуки, обязательные `/mb done` gates, append-only sha256-цепочка `progress.md`, docs. **Закрыто после ВТОРОГО независимого прохода ревью (I-076):** lead-only re-verification после fix-cycle 1 была преждевременной — 3 доп. независимых раунда Codex поймали реальные дефекты (process-tree kill без `setsid`, budget-арифметика `$'1\nabc'`/`08`-octal/overflow → нарушения never-block; falsy-tail `or []` молча отключал verify; тавтологический deep-kill тест). Все critical/major закрыты, budget-валидация исчерпывающа по всему домену. Final pytest **1461** / full bats **871**, shellcheck+ruff clean, оба code-фикса RED→GREEN. Judge: **GO**. **Следующий код-wave: reviewer-2.0** (голова harness-цепочки).
+
+**✅ Wave 3 [dynamic-flow Phase 1] DONE (2026-06-16, ICE 378).** Все 7 задач (T2–T7) отгружены через governed dual-review (Codex gpt-5.5 + lead) + judge, fix-cycle на каждую: goal primitive, `mb-flow-sync` fence writer, thin check runners, **THE firewall** `mb-flow-verify.sh` (`a191aa3`, 7 независимых раундов), closure wiring CC Stop-hook + git-hooks fallback (`947a506`, 4 раунда, agent-identity детерминирован на всех точках входа), AGENTS.md firewall-contract (`9ee43e9`). Детерминированный «нельзя соврать про done»: завершение гейтится exit-кодом firewall, не самооценкой (REQ-DF-060). Binding principle: финальный GO только после свежего независимого ревью исправленного кода. Все DoD T2–T7 ✅ в `specs/dynamic-flow/tasks.md`. Phase 2-3 (mini-router + templates + adapters) deferred. См. I-077.
+
+После инфраструктурного unlock: стартовать **W4 code — reviewer-2.0** (`specs/reviewer-2.0`, ICE 224 — голова harness-цепочки) и **W docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)**. Закрытие каждого wave: `/mb verify` → `/mb done` → plan moves to `plans/done/`.
+
+## [status archive] Open backlog
+
+- I-062 (MED) — ужесточить EARS-валидатор и spec-checking (per-pattern regex, atomicity, REQ-ID uniqueness, ранний REQ→task lint, traceability drift). Замечено на реальном `/mb discuss` во внешнем проекте. См. `notes/2026-05-29_ears-validator-hardening.md`.
+- I-023 (MED) — `grep → find` cleanup в `start.md` / `mb-doctor` (low risk, дешёвый когда дойдут руки)
+- I-034 (MED) — plugin-namespaced skill detection в reviewer-resolve
+- I-061 (HIGH) — Cursor compatibility remediation: stages 1–6 implemented; bats 38/38 green on cursor suites; pytest pending local env. See `reports/2026-05-24_cursor-compatibility-audit.md`, spec `cursor-extension`.
+- I-045 (HIGH) — Pi compatibility remediation: fix docs, sequential fallback in S5 spec, GraphRAG extension decision. See `reports/2026-05-24_pi-compatibility-audit.md`
+- I-046 (MED) — `test_pi_adapter.bats` expansion: prompt install, skill content, hook body, MB_PATH propagation tests
+- I-047 (MED) — Pi `agents/*.md` global install path (currently only Claude gets agents globally)
+- I-048 (HIGH) — OpenCode global skill alias in `install.sh`
+- I-049 (HIGH) — Commands frontmatter OpenCode compatibility (`agent`/`subtask` fields)
+- I-050 (MED) — OpenCode plugin hooks parity (map bash hooks to TS plugin)
+- I-053 (MED) — Cross-agent research note Pi native hooks disclaimer
+- I-054 (HIGH) — `scripts/mb-dispatch.sh`: host-agnostic dispatch abstraction. Blocks W1–W12 on OpenCode. See `reports/2026-05-24_plans-specs-opencode-gap-analysis.md` §5.1.
+- I-055 (HIGH) — `references/opencode-hooks-mapping.md` + plugin guards (`onBeforeToolExecute`, `experimental.session.compacting`, `onReady`). Blocks W3 handoff-v2 on OpenCode.
+- I-056 (HIGH) — OpenCode plugin-first architecture: replace `adapters/opencode/dispatch.sh` bash loop with JS plugin. Blocks W12 parallel-pipeline on OpenCode.
+- I-057 (MED) — Model resolver OpenCode probe: `mb-pipeline-model-resolve.sh` should check `.opencode/skills/` and `~/.config/opencode/skills/`. Blocks W4.
+- I-058 (MED) — Provider-neutral model aliases: per-host resolution instead of hardcoded Anthropic IDs. Blocks W4 on OpenCode (Kimi defaults).
+- I-059 (MED) — OpenCode test fixtures: `test_opencode_*.bats` for dispatch/guards/hooks per wave.
+- I-060 (LOW) — Commands `*.md` OpenCode frontmatter for all 24+ command files.
+
+Все HIGH-приоритетные items на момент v4.0.0 ship + audit-remediation: I-045 (Pi), I-048/I-049 (OpenCode inline fixes), I-054/I-055/I-056 (OpenCode structural gaps).
+
+## [status archive] Архив — Released gates (passed ✅)
+
+| Release | Date | Highlights |
+|---------|------|------------|
+| **v4.0.0** | 2026-04-25 | Skill v2 refactor: pipeline.yaml + `/mb work` + 10 role-agents + review-loop + 5 hooks + checklist hard-cap. Tests 335 → 596+ → 638. |
+| **v3.1.2** | 2026-04-21 | Review-hardening + installer-boundaries + core-files-v3-1 + agents-quality. PyPI/Homebrew sync. |
+| **v3.1.0/1** | 2026-04-21 | `/mb compact`, `/mb tags`, `/mb import`, GitHub Pages landing |
+| **v3.0.0** | 2026-04-20 | 7 cross-agent adapters (Cursor/Windsurf/Cline/Kilo/OpenCode/Pi/Codex), pipx/PyPI distribution, Homebrew tap |
+| **v2.1.0** | 2026 | Auto-capture, drift checkers без AI, `<private>` PII redaction, compaction decay |
+| **v2.0.0** | 2026 | Language-agnostic stack detection, CI integration, TDD-based workflow |
+
+Полные details — `plans/done/`, `progress.md` (per-day), `lessons.md` (recurring patterns).
+
+## [status archive] Архив — Решённые вопросы (исторически)
+
+- ✅ Pi Code остаётся adapter'ом Stage 8; Codex добавлен как 7-й adapter (ADR-010)
+- ✅ Distribution strategy: pipx/PyPI primary, Homebrew secondary, Anthropic plugin tertiary
+- ✅ Benchmarks (LongMemEval) перенесены в backlog
+- ✅ Merge `v2.2.0` absorbed в `3.0.0-rc1` (formal cut пропущен)
+- ✅ Старый repo `claude-skill-memory-bank` оставлен как archive remote; canonical = `skill-memory-bank`
+
+## [status archive] Backlog (next iteration ideas)
+
+- Benchmarks (LongMemEval + custom scenarios)
+- sqlite-vec semantic search
+- i18n error-сообщений
+- Native memory bridge (программная синхронизация с Claude Code auto memory)
+- Viewer dashboard (если adoption потребует)
+
+## [status archive] Recently done — entries dropped by 10-cap (2026-09-10)
+
+- 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-work-engine.md](plans/done/2026-05-21_refactor_sdd-work-engine.md) — refactor — sdd-work-engine
+- 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-task-model.md](plans/done/2026-05-21_refactor_sdd-task-model.md) — refactor — sdd-task-model
+- 2026-05-21 — [plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md](plans/done/2026-05-21_architecture_graph-rag-lite-code-context.md) — architecture — graph-rag-lite-code-context
+
+
+## 2026-09-10 — Sprint 1 Stage 7: жёсткие капы core-файлов — Stop-хук + `actualize --strict` (/mb work, execution)
+
+- **Что:** капы `status.md` ≤ 60 и `checklist.md` ≤ 100 строк стали кодом, а не строкой-конвенцией в заголовке. Новый `scripts/mb-core-cap.sh check|fix` (кап: env → `.mb-config` → 60/100; `fix` = `mb-status-rotate.sh --apply` + `mb-checklist-prune.sh --apply` + повторный `check`). Новый Stop-хук `hooks/mb-core-cap-guard.sh` блокирует выход ровно один раз за сессию с указанием запустить `actualize --strict`; `stop_hook_active` глушит петлю, `MB_CORE_CAP=off` выключает целиком, любая внутренняя ошибка → exit 0. Контракт `actualize --strict` в `agents/mb-manager.md`. Чек дрейфа `status_size` (24 KB) → `core_cap` (строки) — закрывает замечание Stage 4 про 25.6 KB.
+- **Ломающее:** `hooks/mb-checklist-autoprune.sh` удалён вместе с регистрациями (`settings/hooks.json`, `SKILL.md`, тесты); замена включена по умолчанию — осознанное отступление от принципа «новое выключено по умолчанию», решение владельца (AGR-043), выключатель `MB_CORE_CAP=off` покрыт тестом. Исторические записи CHANGELOG про старый хук оставлены как есть (append-only).
+- **Живой догфуд (отчёт `reports/2026-09-06_core-cap-dogfood.md`):** `fix` → 223 → 157 строк и честный exit 1 «нужен actualize --strict» вместо дорезки до капа; MB Manager (sonnet, один диспатч) → 157 → **55** строк, 10 блоков в `progress.md`, каждый подтверждён `grep -qxF` ДО удаления. Итог `check` rc=0, `drift_check_core_cap=ok`.
+- **Инвариант проверен оркестратором независимо:** `progress.md` 173 вставки / 0 удалений; 16 блоков `## [status archive]` (6 ротация + 10 актуализация); маркерные блоки целы; `checklist.md` побайтово не тронут. **Открытые пункты сверены множеством, а не счётом** — формат v2 схлопывает `## Stage N: <title>` + `- ⬜ <title>` в одну строку, поэтому счётчики до/после несравнимы; из 19 прежних открытых 17 на месте, 1 закрыт законно (Stage 6), 1 — Stage 5, переименованная в плане и затем закрытая. Потерянных нет.
+- **Сабагент не закрыл ни одного плана** (контракт запрещает) — список предложений владельцу: `spec-group-round3-remediation` (6/6 ✅, кандидат на `mb-plan-done.sh`), wrapper-планы `reviewer-v2`/`work-loop-v2` (спеки done, планы `queued`), три плана не тронуты > 30 дней. Отдельно отказался заводить вслепую 16 идей I-045…I-060 про паритет Pi/OpenCode из архивированного `## Open backlog`: после AGR-012/013/014 подход сменился, актуальность неясна — текст сохранён дословно в `progress.md`, решение за владельцем.
+- **Особенность прогона:** исполнителя (opus) убила сетевая ошибка ПОСЛЕ записи всего кода, но ДО его собственных проверок — отчёта и нарратива о красных прогонах не существует. Перезапуск не делался (реализация была полной); прогон проверок и живой догфуд выполнил оркестратор. Поэтому verifier получил прямое указание: доказательством служат мутации, а не рассказ.
+- **Verifier (sonnet) PASS**, CRITICAL нет. Мутации: 4/6 убиты (маркер «раз за сессию», `MB_CORE_CAP=off`, проброс exit 3, порядок append-до-удаления). Одна дыра настоящая — не было теста на границе `lines == cap`, то есть выбор `>` против `>=` ничем не наблюдался; **дозакрыто оркестратором**: добавлен тест 4, мутация `>` → `>=` его роняет (11/11 зелёные, скрипт восстановлен). Шестая мутация (ранний kill-switch в самом хуке) замаскирована избыточной защитой в `mb-core-cap.sh` — не живой баг.
+- **WARNING verifier (принят, не чинится здесь):** контракт `actualize --strict` держится только прозой — у сабагента полные Read/Edit/Write/Bash, ничто механически не заставляет подтверждать запись до вырезания. В этом прогоне соблюдено, но не гарантировано впредь → **I-190**. Плюс **I-191**: `mb-roadmap-sync.sh` не чистит блок `mb-active-plans`, в `status.md` 9 мёртвых ссылок на `plans/superseded/` (предсуществующее, не внесено этим прогоном).
+- **Тесты:** 11 bats `test_core_cap` + 8 bats `test_core_cap_guard` (план просил 7+7), 3 pytest doc-contract, `test_drift_status_size.bats` → `test_drift_core_cap.bats`; 43 pytest зелёные, shellcheck чист, `mb-drift.sh` без новых категорий.
+- **Run:** /mb work run `c6cdff48ad88407c8de13cab9838c203`, implementer opus (оборван), MB Manager sonnet 8.5 мин / 38 calls / 213k, verifier sonnet 24 мин / 50 calls / 156k. Graph: 0 запросов (файлы `.sh`/`.bats`/`.md`).
+- **Sprint 1 завершён 7/7.** Дальше: `/mb verify` по всему плану, затем `/mb done`.

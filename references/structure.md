@@ -121,6 +121,20 @@ One `<!-- mb-plan:<basename> -->` marker per plan (not per stage), heading = pla
 
 ---
 
+## Core-file caps
+
+`status.md` and `checklist.md` are strict registries, not archives (AGR-043): the first holds only
+the current state, the second only the plans in flight. Both carry a hard LINE cap enforced by code —
+`bash scripts/mb-core-cap.sh check --mb <bank>` exits 1 when either is over, and the Stop hook
+`mb-core-cap-guard.sh` says so once per session.
+
+- **Caps:** `MB_STATUS_MAX_LINES` / `MB_CHECKLIST_MAX_LINES` → `<bank>/.mb-config` `status_max_lines=` /
+  `checklist_max_lines=` → **60 / 100**. `MB_CORE_CAP=off` (or `core_cap=off` in `.mb-config`) disables the layer.
+- **Repair, in order:** `mb-core-cap.sh fix` (rotation + v2 compaction, deterministic) → still over →
+  MB Manager `action: actualize --strict` → still over → the owner decides.
+- **Nothing is deleted.** Every block leaving a core file is verified in `progress.md` first.
+  Open `⬜` lines never move: exit 3 ("N plans in flight") is a signal to pause or close plans, never to trim.
+
 ## `backlog.md` — ideas + ADR registry
 
 **Purpose:** a live idea parking lot plus an architecture decision journal.
@@ -297,6 +311,8 @@ Environment variables that control lifecycle behavior:
 |-------------------------------|---------|------------------------------------------------------------------------|
 | `MB_RECENT_DONE_LIMIT`        | `10`    | How many completed plans `status.md ## Recently done` keeps            |
 | `MB_CHECKLIST_MAX_LINES`      | `100`   | `checklist.md` line cap (`.mb-config` `checklist_max_lines=` overrides the default) |
+| `MB_STATUS_MAX_LINES`         | `60`    | `status.md` line cap (`.mb-config` `status_max_lines=` overrides the default) |
+| `MB_CORE_CAP`                 | `on`    | `off` disables `mb-core-cap.sh` and its Stop hook entirely (`.mb-config` `core_cap=off` is the per-bank form) |
 | `MB_COMPACT_CHECKLIST_DAYS`   | `30`    | Age threshold for removing completed sections from `checklist.md`      |
 | `MB_COMPACT_PLAN_AGE_DAYS`    | `60`    | Age threshold for archiving completed plans                            |
 | `MB_COMPACT_NOTE_AGE_DAYS`    | `90`    | Age threshold for archiving low-importance notes                       |

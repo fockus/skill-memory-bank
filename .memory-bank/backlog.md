@@ -1126,3 +1126,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-188 — Doc-contract autopatch: mb-doc-contract.sh add-script|add-hook <name> "<desc>" вставляет строки в SKILL.md § Tools / таблицу хуков, commands/mb.md и CHANGELOG по шаблону — каждая стадия с новым скриптом сегодня тратит ~10 tool-вызовов на эти правки (Stage 3, Stage 4); кандидат в Sprint 3 cost-diet [MED, NEW, 2026-09-06]
 
 ### I-189 — mb-coord.sh active: верхняя граница вывода не гарантирована — дословный хвост --tail N растёт с длиной тел записей (2696 → 3198 байт после одной записи), нужен кап на запись в хвосте с обрезкой + маркером [MED, NEW, 2026-09-10]
+
+### I-190 — actualize --strict: контракт в agents/mb-manager.md держится только прозой — у сабагента полные Read/Edit/Write/Bash, ничто механически не заставляет подтверждать grep -qxF до вырезания из status.md и ходить в checklist.md только через прунер [MED, NEW, 2026-09-10]
+
+### I-191 — mb-roadmap-sync.sh не чистит блок mb-active-plans после переноса планов: в status.md 9 мёртвых ссылок на файлы, лежащие в plans/superseded/ [MED, NEW, 2026-09-10]

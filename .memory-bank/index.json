@@ -355,94 +355,193 @@
       "summary": "Plan `2026-07-15_feature_session-memory-graph-hardening` (9 stages) shipped via governed `/mb work` implement→verify (Sonnet implement · mb-test-runner independent",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-07-17_1125_red-anchor-pitfalls-output-signatures.md",
+      "type": "note",
+      "tags": [],
+      "importance": null,
+      "summary": "Норма X-05 (S2 REQ-054/055): gated `Eval:` несёт `output~:` — ERE настоящего провала. Измеренные грабли: - `bats <missing>` → exit 1 + `not ok 1 bats-gather-tests` — **тот же exit-код, что настоящий провал**; exit-only якорь невалиден. ERE без negative lookahead → якорить положительный именованный префикс теста (конвенцию имени фиксировать в Testing).",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-17_1300_spec-generation-needs-consumer-battery.md",
+      "type": "note",
+      "tags": [
+        "sdd",
+        "spec-quality",
+        "process"
+      ],
+      "importance": "high",
+      "summary": "8/8 спек группы sdd-vision-pipeline прошли `mb-spec-validate.sh` и собрали 96 находок ревью (Codex gpt-5.6-sol, 8 агентов): `Role: mb-*` → парсер даёт `mb-mb-*` (44 задачи), 39 сценариев",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-19_1602_hooks-silent-fail-by-design-manual-invocation-must.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "- Convention: hooks must swallow embedder/library errors and return empty silently — a broken hook must never break the user's turn. - Gotcha: the same swallow-and-return-empty path leaked into manual script invocation — running the embeddings search by hand with the wrong python interpreter (missing embeddings lib) silently returned nothing, with no indication of what failed.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-19_1602_semantic-recall-oom-root-cause-disable-decision.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "- Root cause of the memory-growth/OOM popups: 4 independent entry points (recall-hook on every prompt, session-start, session-summarize/close, `/mb recall`) each loaded their own copy of the embedding model (~2.6GB), no shared/singleton loader — hence \"4 copies\" resident at once on long sessions. - Fix: `MB_SEMANTIC: \"off\"` in `~/.claude/settings.json` gates all four entry points; the hook now returns `{}` in ~12ms instead of spawning the python embedder.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-27_2319_partial-fix-in-one-file-finding-closed-across-a-sp.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "svp-sdd-core round-4 review: finding [10] (rejected step order) was believed fully closed by commit f886e21 after fixing `commands/sdd.md`. A later full-triple sweep found `design.md:468` still carried the rejected order — the same finding, unfixed in a second location. - **Gotcha:** when a finding is \"wrong text repeated across N files/instances,\" a commit that fixes the instance you checked does not prove the finding is closed.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-27_2319_verify-eval-against-the-original-scope-text-not-yo.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "svp-sdd-core review cycle: an implementer split a task and then checked their Eval battery against what they *intended* to carve out in the split, not against the `Scope:` text as originally written in the task — masking a real coverage gap that surfaced 3 instances instead of the 1 originally reported. - **Root cause pattern:** self-authored restructuring becomes the comparison baseline instead of the spec's own words, so verification passes against your own memory of what you did rather than what was required.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-28_0049_stop-hook-full-test-suite-hang-i-131-root-cause.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "`hooks/mb-flow-closure-guard.sh` (a Stop hook, active only when `.memory-bank/goal.md` exists) synchronously ran `scripts/mb-flow-verify.sh`'s `tests` check = the entire pytest+bats suite (>180s), while the other 4 checks combined took <1s. This caused sessions to hang at the end, and had survived several prior fix attempts because nobody had measured per-check timing to isolate the culprit. **Fix:** added a hard time budget (`MB_FLOW_VERIFY_BUDGET`) as a safety net, plus `--skip tests`; user chose (via AskUserQuestion) to drop `tests` from the Stop-path entirely — Stop now runs only fast checks (~1s), full suite still gates `/mb work verify`, `/mb drive`, manual runs.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-28_0217_graphvector-adoption-gap-cold-start-index-never-bu.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "Investigated why code-graph/vector search sit under 1% of search traffic despite being fully implemented (see AGR-038, plan `2026-07-28_fix_graph-semantic-adoption.md`). Two distinct root causes, deeper than the earlier fix in [[code-graph-underuse-root-cause-agent-routing-fix]] (2026-07-15, which only added routing text): - **Cold-start bootstrap never fires.** `.index/codesearch/` only existed in 1 of 4 projects. Building it means embedding the whole codebase (minutes) — no single mid-task moment justifies paying that cost inline, so it's never triggered. Same shape as AGR-025 (memsearch 24KB stub), now confirmed as a repeating pattern for any tool with an expensive first-use setup: it needs an out-of-band/background trigger, not a lazy on-first-query one.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-07-28_0217_mb-flow-closure-guard-has-no-retry-cap-can-block-s.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "14-day transcript audit found the Stop-hook closure guard blocked flow closure 96+ times, one taskloom session hitting 160 consecutive blocks (finish attempt → block → retry, looped). I-131 (b5f074c, 2026-07-27) already fixed the *slowness* half (synchronous full pytest+bats run on Stop, was >180s, now budgeted to 20s + `--skip tests`) — see [[stop-hook-full-test-suite-hang]]. - **Remaining gap, not yet fixed:** the guard has no session-scoped attempt counter, so on a genuinely red flow it will now block fast but forever, not slow but finite.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-07-15T12:24:38Z",
+  "generated_at": "2026-09-10T07:59:16Z",
   "progress_chain": {
     "version": 1,
     "tail": [
       {
-        "heading": "## 2026-06-16",
-        "sha256": "41a9f1d956107aea42ac51440667911306b0b3c3ecb716cf91f2d014266951fd"
+        "heading": "## 2026-08-06",
+        "sha256": "f4300972d1de86c92739ce31ff400d5581284ce73d15663856c50ea9ff61407f"
       },
       {
-        "heading": "## 2026-06-16",
-        "sha256": "1984c85871b95c72e708255706d211176be50395511a09bc69c4bd732bc85917"
+        "heading": "## 2026-08-06",
+        "sha256": "7d54ab46796e511a7bf7699875dbbabb89e77713a7c4862d6b638ad28feef44b"
       },
       {
-        "heading": "## 2026-06-16",
-        "sha256": "d014ade0274e59963c719732ac926b13f4b604d1c09fcc4db6bbf7c771f5a9c9"
+        "heading": "## 2026-09-05",
+        "sha256": "363c65c76cfb1d453c56ea0a2b4db731fa3fb87ec2045299b1de353fca781f05"
       },
       {
-        "heading": "## 2026-06-16",
-        "sha256": "621966f2c2df3d6ba24671c526a60318585e79a535dc230fc2239b1be36c7b5c"
+        "heading": "## 2026-09-05",
+        "sha256": "7cb3465f0e334812c320f5095ff81c5fef7cd02629d5f9ae02672512c0602e43"
       },
       {
-        "heading": "## 2026-06-16 (dynamic-flow Phase 1 — firewall closed; T5/T6/T7 governed)",
-        "sha256": "6021e30b5d6ad42f03839bc3f38ef406b45354bbdc87f2c347b895686e831ab0"
+        "heading": "## 2026-09-05",
+        "sha256": "6f263d33f8bfe28323d85afe16980b5f9f7111ce6fea2dc9a41da691fd924f1a"
       },
       {
-        "heading": "## 2026-06-22 (session-lifecycle завершён + release-prep doc-sync — v5.1.0 gate)",
-        "sha256": "48744cc7859789de018bb5e7f512a9e1458d3be4236e73826d947f714b7f4b9e"
+        "heading": "## 2026-09-05",
+        "sha256": "0a831291f1d57cf019eac22084102a694341b8b5602951065064c1e97b33a092"
       },
       {
-        "heading": "## 2026-06-25",
-        "sha256": "fbc72631ade0c3cdaf2f50a807002f25d94b03040854c8045a3e7e6157f6e997"
+        "heading": "## 2026-09-05",
+        "sha256": "81c278b76b6f6fd880abb9aaba018736efce470a9fefcb6efd99f456821c078d"
       },
       {
-        "heading": "## 2026-06-25",
-        "sha256": "e8cefef8d84cadf17a3da5d2c2f97229e0d744e2aae519fa7aabf03058b5fe46"
+        "heading": "## 2026-09-05",
+        "sha256": "8bbb5788c3dcd9dd0ac02a5c6257dfe978d697f8844dfbfcef7b8c8ff08e66e4"
       },
       {
-        "heading": "## 2026-07-04",
-        "sha256": "16a5b767e9ca4bbbe95c40147ac4f4a1cc8f82afb100213289748f917cc6467c"
+        "heading": "## 2026-09-05",
+        "sha256": "1724fb214bb7ad7ded1aab24c2ad727f099da08361cb160bbece036dba29d811"
       },
       {
-        "heading": "## 2026-07-04",
-        "sha256": "b2396b8605a6f3d4560aaef2fcec484fcc5fc7480ce156df3e4e234d983e18a5"
+        "heading": "## 2026-09-05",
+        "sha256": "367d13943e4809483fd105a08a2d26678298fc287b1e96e6e28911b045a3ab97"
       },
       {
-        "heading": "## 2026-06-29 — I-082 security-hardening Stages 2–4 complete",
-        "sha256": "37f294d0fb524a56dc44368daf5f8cec16abd7c46097e27273d8ef1c62c18e98"
+        "heading": "## 2026-09-05",
+        "sha256": "3e532a6a9c1df3f204d5bcfb4cf6c025a4bee36d43280c347198040f2621d570"
       },
       {
-        "heading": "## 2026-06-30 — I-082 closed + I-083 Stages 1-2",
-        "sha256": "65aa0781b51f9b5f48617d0a1d6ccc650fc8f235ed7f9c9e25b4fe34f4f97b68"
+        "heading": "## 2026-09-05",
+        "sha256": "a5fd8f11cdcc08367fc28a9da44799f7e93908713f72ce57c7d4ce2ce6dc3197"
       },
       {
-        "heading": "## 2026-06-30 — I-085 Stage 1 (range gap BLOCKER)",
-        "sha256": "9e0820988ac174dbff310ae97a4ccfec99d2b1d020a60f8593f9775092f04312"
+        "heading": "## 2026-09-05",
+        "sha256": "2d3b2b94a5360342da733208fdb911782485ebff71f3c582da9ff8117d1e99fe"
       },
       {
-        "heading": "## 2026-06-30 — I-083 Stage 3 + I-085 Stage 2",
-        "sha256": "ac6a28dacf7929448abf879ffec77389f87e15c7d8951092fcd45c9d6b03aabc"
+        "heading": "## 2026-09-05",
+        "sha256": "ec2a786e8581c3421cdce04547440661a2bc98e76b4e9ebc47275151a01313fe"
       },
       {
-        "heading": "## 2026-06-30 — I-085 Stage 3 (wrapper frontmatter)",
-        "sha256": "a3047bae5b94627a9bf2a29af884852af44c6deb66ce41df9e71b18006f187cb"
+        "heading": "## 2026-09-05",
+        "sha256": "419c74e28eb0741d5a050eb4daf894d063e0e25001d3930e87b6cb8488c97f74"
       },
       {
-        "heading": "## 2026-06-30 — I-085 Stages 4-5",
-        "sha256": "8d5444e17391181c9ce038248a2fb2d50293860cf67d4a99b405777de9b10b68"
+        "heading": "## 2026-09-06",
+        "sha256": "bbc9b3c9dcebfddfcd917116d052d77596584c1785cccfdb691438b617c912b2"
       },
       {
-        "heading": "## 2026-07-01 00:06 — I-085 Stage 6 (fanout stderr + work-resolve bank-relative)",
-        "sha256": "49cf7d54614d7e3f6d1a9bb456cd4839789825567b4619afa2d0ef5b4a0f6cbd"
+        "heading": "## 2026-09-06",
+        "sha256": "f3bd4765cf463e47e3a2c066f337d0b75214f38d1d744026dfde5ffbc0f29b83"
       },
       {
-        "heading": "## 2026-07-01 13:55 — Verify close I-083/I-085; I-086 Stage 1",
-        "sha256": "0b16793546f72c6eb06ae9cde65ccc9750cc0a618fe9c06417925ff871d47bc5"
+        "heading": "## 2026-09-06",
+        "sha256": "31ec89cddfcdd84e449615d13a361fc96e8b14fcea6698b1919ae367bbdbe65f"
       },
       {
-        "heading": "## 2026-07-01 17:56 — I-086 Stage 2 (runtime dup-key loader + pipeline judge fix)",
-        "sha256": "00e95e5d0f3e3d96840d02472e6f5873c8742c0bfac4dcf1d187e8359e2d740d"
+        "heading": "## 2026-09-06 — Sprint 1 Stage 5: `checklist.md` v2 — один блок на план, закрытое → `progress.md` (/mb work, execution)",
+        "sha256": "0d5c4bac49edea2cfcadde63cf5fc3733bd886454ef628001aaccc8b8b410b66"
       },
       {
-        "heading": "## 2026-07-15 — openspec-adapter T4/T5/T6 DONE (spec fully implemented except deferred router entry)",
-        "sha256": "067039df3525aee1918a658bf2816535d8247f3f36eb52c1223498b5d62455cb"
+        "heading": "## 2026-09-10 — Sprint 1 Stage 6: `mb-coord.sh active` — доска без 200 KB (/mb work, execution)",
+        "sha256": "2327d6753010490e1d6c979d0ca3c40678a98414b931b500dbd31d0fbcccd03b"
       }
     ],
-    "last_synced_at": "2026-07-15T12:24:39Z"
+    "last_synced_at": "2026-09-10T07:59:16Z"
   }
 }

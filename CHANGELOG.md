@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — BREAKING: hard line caps on `status.md` / `checklist.md`, enforced by a Stop hook
+
+- `status.md` and `checklist.md` are strict registries (AGR-043): the first holds only the current
+  state, the second only the plans in flight. The caps are now **code, not a header sentence** —
+  new `scripts/mb-core-cap.sh check|fix [--mb <path>] [--json]` reports
+  `status_lines/status_cap checklist_lines/checklist_cap over=<csv|none>` and exits 1 when over.
+  Caps resolve `MB_STATUS_MAX_LINES` / `MB_CHECKLIST_MAX_LINES` → `<bank>/.mb-config`
+  `status_max_lines=` / `checklist_max_lines=` → **60 / 100**.
+- `fix` composes the existing deterministic repairs — `mb-status-rotate.sh --apply` +
+  `mb-checklist-prune.sh --apply` — and re-checks. Exit 1 = still over, dispatch MB Manager
+  `action: actualize --strict`; **exit 3** = the checklist is over cap with live plans, passed
+  through from the prune unflattened because that is an owner decision (pause or close plans),
+  never a trim of live work. Nothing leaves a core file before it is verified in `progress.md`.
+- **BREAKING — `hooks/mb-checklist-autoprune.sh` is deleted** (SessionEnd, opt-in via
+  `MB_CHECKLIST_AUTOPRUNE=on`) and replaced by the Stop hook `hooks/mb-core-cap-guard.sh`, which is
+  **ON by default** — a deliberate departure from the "opt-in by default" design principle, decided
+  by the owner: a cap that only runs when someone remembers to enable it is the state this hook
+  exists to end. It runs `mb-core-cap.sh fix` and, when still over, blocks the stop **once per
+  session** (marker `<bank>/.core-cap.nudged.<session_id>`, `.gitignore`d) with
+  `dispatch MB Manager action: actualize --strict`. Kill-switch: `MB_CORE_CAP=off` (env) or
+  `core_cap=off` in `<bank>/.mb-config`. `stop_hook_active`, no bank, no jq, or any tool error → allow;
+  a cap guard must never wedge a session. `MB_CHECKLIST_AUTOPRUNE` is now dead — remove it from
+  your environment.
+- New MB Manager action `actualize --strict` (`agents/mb-manager.md`) is the LLM half of the repair:
+  `status.md` is rewritten to the canonical `templates/.memory-bank/status.md` skeleton while every
+  dated/archive/backlog section moves VERBATIM into `progress.md` via `mb-work-progress-append.sh`
+  (append verified before the section is cut) and raw ideas go to `backlog.md` via `mb-idea.sh`;
+  `checklist.md` is only compacted; `⬜` counts must be identical before and after; plans to close or
+  pause come back as a **suggestion list** for the owner. It ends with `mb-core-cap.sh check` and may
+  not report DONE on an unverified cap. Router: `/mb update --strict`; `/mb done` step 5 now calls
+  `mb-core-cap.sh fix` (which still runs the Stage-4 rotation inside).
+- `mb-drift.sh` check 17 `status_size` → **`core_cap`**: it delegates to `mb-core-cap.sh check`
+  instead of measuring `status.md` in bytes. The 24 KB threshold was the wrong unit — a rotated
+  `status.md` sat at 223 lines and 39 KB while the byte check had been reporting `ok` at 25.6 KB only
+  by luck of size, and lines are what the cap is about. `checklist.md` is covered by the same check.
+- `hooks/mb-session-start-context.sh` adds one line when a bank is over cap:
+  `[core-cap] status.md N/60, checklist.md N/100 — /mb update --strict`. Silent otherwise.
+
+
 ### Added — `mb-coord.sh`: read the coordination board without reading the board
 
 - `scripts/mb-coord.sh active [--tail N] [--mb <path>]` prints only what a session must act on —

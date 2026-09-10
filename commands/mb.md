@@ -34,6 +34,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `research <query>`                                       | Graph-first multi-source research — codebase / memory / library / prior-art / web; dispatches the `mb-research` agent and returns `file:line`-grounded findings (narrow → single dispatch; broad → fan-out parallel subagents). Fail-open: graph/index optional, degrades to Grep/Read                    |
 | `note <topic>`                                           | Create a note                                                                                                                                                                                                                                                                                            |
 | `update`                                                 | Actualize core files (with real code-state analysis)                                                                                                                                                                                                                                                     |
+| `update --strict`                                        | Cap repair: MB Manager `action: actualize --strict` when `mb-core-cap.sh check` is red |
 | `doctor`                                                 | Find and fix internal MB inconsistencies                                                                                                                                                                                                                                                                 |
 | `tasks`                                                  | Show unfinished tasks                                                                                                                                                                                                                                                                                    |
 | `index`                                                  | Registry of all entries                                                                                                                                                                                                                                                                                  |
@@ -298,6 +299,22 @@ Update core files (STATUS metrics, checklist, plan focus) using REAL data from t
 ```
 
 1. Show the user what was updated.
+
+#### `update --strict` — cap repair
+
+Run when `bash ~/.claude/skills/memory-bank/scripts/mb-core-cap.sh check --mb .memory-bank` exits non-zero
+(the Stop hook `mb-core-cap-guard.sh` says so once per session). First try the deterministic repair:
+
+```bash
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-core-cap.sh fix --mb .memory-bank
+```
+
+Exit 0 — done, no subagent needed. Exit 3 — the checklist is over cap with live plans: that is an owner
+decision (pause or close plans), surface it and stop. Exit 1 — dispatch MB Manager with
+`action: actualize --strict` (contract in `agents/mb-manager.md`): `status.md` is rewritten to the canonical
+skeleton and everything else moves verbatim into `progress.md`, `checklist.md` is only compacted, `⬜` lines
+never move, and plans to close or pause come back as a **suggestion list** for you — the subagent never
+closes a plan itself. It finishes with `mb-core-cap.sh check` and reports DONE or DONE_WITH_CONCERNS.
 
 **Note:** if `mb-metrics.sh` returns `stack=unknown`, warn the user that auto-metrics are unavailable and suggest creating `.memory-bank/metrics.sh` with custom logic (see `references/templates.md`).
 

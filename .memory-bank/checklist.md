@@ -88,12 +88,12 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - ⬜ Stage 7 — Граф в каждом диспатче `/mb work` + замер adoption
 
 <!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
-## mb-work-cost-diet · Sprint 1 «context-diet + измерение» — 6/7
+## mb-work-cost-diet · Sprint 1 «context-diet + измерение» — 7/7
 - ✅ Stage 1 — `mb-cost-report.py` — измерение и baseline (2026-09-05, /mb work run 8bee263e, judge GO_WITH_BACKLOG → I-185)
 - ✅ Stage 2 — Fast lane без кода — дефолт `execution`, governed opt-in (2026-09-05, /mb work run fe0c8c6d, codex-governed, judge GO_WITH_BACKLOG → I-186, I-187)
 - ✅ Stage 3 — Бюджет вывода `mb-context.sh` (2026-09-05, /mb work run 26f571b7, execution, verifier PASS; этот банк 39 615 B через .mb-config context_max_bytes=12288, techflow 58 127 B)
 - ✅ Stage 4 — `mb-status-rotate.sh` — ротация `status.md` (2026-09-06, /mb work run 8b5668b0, execution, verifier PASS; 8 bats + 2 drift-bats + 2 pytest, wired into actualize step of /mb done|update, drift WARN status_size > 24 KB)
 - ✅ Stage 5 — `checklist.md` v2 — один блок на план, закрытое → `progress.md`
 - ✅ Stage 6 — `mb-coord.sh active` — доска без 200 KB
-- ⬜ Stage 7 — Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
+- ✅ Stage 7 — Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
 

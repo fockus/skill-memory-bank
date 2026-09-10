@@ -79,3 +79,6 @@ hooks/.venv/
 # Golden calibration-suite run output (reviewer-2.0 design.md §6) — regenerated
 # by tests/calibration/run.sh every invocation, never tracked.
 tests/calibration/results/
+
+# Per-session core-cap nudge markers (Stop hook mb-core-cap-guard.sh).
+.memory-bank/.core-cap.nudged.*

@@ -40,6 +40,24 @@ fi
 
 CONTEXT="[MEMORY BANK: ACTIVE]\n\n"
 
+# ── Core-file cap notice (AGR-043) ──
+# One line, only when a core registry is over its cap. Placed right after the
+# banner so it survives the 2500-byte truncation below. Fail-open: a missing or
+# erroring mb-core-cap.sh adds nothing (the script itself is the gate, not this).
+CAP_SH="$HOOK_DIR/../scripts/mb-core-cap.sh"
+if [ -f "$CAP_SH" ]; then
+  cap_report=""
+  cap_rc=0
+  cap_report="$(bash "$CAP_SH" check --mb "$MB" 2>/dev/null)" || cap_rc=$?
+  if [ "$cap_rc" -eq 1 ] && [ -n "$cap_report" ]; then
+    s_n="$(printf '%s' "$cap_report" | sed -E 's/.*status_lines=([0-9]+).*/\1/')"
+    s_c="$(printf '%s' "$cap_report" | sed -E 's/.*status_cap=([0-9]+).*/\1/')"
+    c_n="$(printf '%s' "$cap_report" | sed -E 's/.*checklist_lines=([0-9]+).*/\1/')"
+    c_c="$(printf '%s' "$cap_report" | sed -E 's/.*checklist_cap=([0-9]+).*/\1/')"
+    CONTEXT+="[core-cap] status.md ${s_n}/${s_c}, checklist.md ${c_n}/${c_c} — /mb update --strict\n\n"
+  fi
+fi
+
 if [ -f "$MB/status.md" ]; then
   CONTEXT+="## status.md\n$(head -30 "$MB/status.md")\n\n"
 fi

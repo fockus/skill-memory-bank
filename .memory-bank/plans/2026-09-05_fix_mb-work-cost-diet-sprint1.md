@@ -265,9 +265,9 @@ created: 2026-09-05
 - Живой прогон на копии этого банка: `fix` → `actualize --strict` (реальный сабагент, один диспатч) → `check` exit 0; до/после в строках → `reports/2026-09-06_core-cap-dogfood.md`.
 
 **DoD:**
-- [ ] `bash scripts/mb-core-cap.sh check --mb .memory-bank` exit 0 на этом банке после `fix` + одного `actualize --strict` + подтверждённых владельцем закрытий/пауз из списка предложений: `status.md` ≤ 60 строк, `checklist.md` ≤ 100 строк; каждый убранный `## `-заголовок `status.md` и каждый убранный блок чеклиста найден в `progress.md` дословно (assert в dogfood-отчёте); ни один `⬜` не потерян.
-- [ ] Stop-хук на банке сверх капа возвращает `decision: block` ровно один раз за сессию (bats), `MB_CORE_CAP=off` глушит; установка регистрирует `mb-core-cap-guard.sh` и больше не регистрирует `mb-checklist-autoprune.sh` (e2e-тест установки).
-- [ ] 7 + 7 bats, pytest-doc, `test_doc_counts`, `hooks/tests` зелёные; shellcheck чист; `mb-drift.sh .` → `core_cap=ok` после актуализации; CHANGELOG `### Changed — BREAKING`: хук включён по умолчанию, `mb-checklist-autoprune.sh` удалён; строки в `SKILL.md` (§ Tools + хуки) и роутер `update --strict`.
+- [x] `bash scripts/mb-core-cap.sh check --mb .memory-bank` exit 0 на этом банке после `fix` + одного `actualize --strict` + подтверждённых владельцем закрытий/пауз из списка предложений: `status.md` ≤ 60 строк, `checklist.md` ≤ 100 строк; каждый убранный `## `-заголовок `status.md` и каждый убранный блок чеклиста найден в `progress.md` дословно (assert в dogfood-отчёте); ни один `⬜` не потерян.
+- [x] Stop-хук на банке сверх капа возвращает `decision: block` ровно один раз за сессию (bats), `MB_CORE_CAP=off` глушит; установка регистрирует `mb-core-cap-guard.sh` и больше не регистрирует `mb-checklist-autoprune.sh` (e2e-тест установки).
+- [x] 7 + 7 bats, pytest-doc, `test_doc_counts`, `hooks/tests` зелёные; shellcheck чист; `mb-drift.sh .` → `core_cap=ok` после актуализации; CHANGELOG `### Changed — BREAKING`: хук включён по умолчанию, `mb-checklist-autoprune.sh` удалён; строки в `SKILL.md` (§ Tools + хуки) и роутер `update --strict`.
 
 **Code rules:** контракт = код (кап — это exit-код и блокирующий хук, не декларация в заголовке); fail-open везде, кроме самого капа; append-only `progress.md`; никакого LLM внутри хука — сабагент запускает оркестратор по сигналу хука.
 
