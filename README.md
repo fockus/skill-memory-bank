@@ -1,3 +1,5 @@
+
+
 <div align="center">
 
 # memory-bank-skill
@@ -53,6 +55,7 @@ Every new AI coding session is amnesia: you re-explain the project, re-state the
 ├── roadmap.md         ← priorities, direction
 ├── research.md        ← hypotheses log (H-NNN) + current experiment
 ├── backlog.md         ← parking lot for ideas + ADRs
+├── agreements.md      ← confirmed decisions (AGR-NNN)
 ├── progress.md        ← work log (append-only)
 ├── lessons.md         ← mistakes not to repeat
 ├── notes/             ← knowledge (5-15 line snippets)
@@ -731,7 +734,7 @@ MIT. See [LICENSE](LICENSE).
 <a href="https://www.star-history.com/#fockus/skill-memory-bank&Date">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=fockus/skill-memory-bank&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=fockus/skill-memory-bank&type=Date" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=fockus/skill-memory-bank&type=Date&theme=light" />
     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=fockus/skill-memory-bank&type=Date" width="600" />
   </picture>
 </a>
