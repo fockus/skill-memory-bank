@@ -32,6 +32,7 @@
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
 - [2026-07-18] [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
 - [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
+- [2026-09-13] [plans/2026-09-13_fix_sprint1-review-blockers.md](plans/2026-09-13_fix_sprint1-review-blockers.md) — fix — sprint1-review-blockers · три воспроизведённых блокера судьи Sprint 1
 <!-- /mb-active-plans -->
 
 ## Recently done (last 10)

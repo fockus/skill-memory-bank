@@ -1135,7 +1135,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-193 — commands/brief.md существует и упомянут в CLAUDE.md workflows, но строки роутера в commands/mb.md для него не было никогда (git log -S brief по файлу пуст) — tests/bats/test_mb_brief_docs.bats красный с момента написания: router-row, синопсис C0, пометка повторяемости --input [MED, NEW, 2026-09-10]
 
-### I-194 — [review S1 J1, blocker/logic, judge-reproduced] scripts/mb-checklist-prune.sh:105 — [slice B, reviewer line 'mb-checklist-prune.sh:102'] Archive identity is `## [checklist archive] <TODAY> — <label>` and confirmation is a ba [HIGH, NEW, 2026-09-13]
+### I-194 — [review S1 J1, blocker/logic, judge-reproduced] scripts/mb-checklist-prune.sh:105 — [slice B, reviewer line 'mb-checklist-prune.sh:102'] Archive identity is `## [checklist archive] <TODAY> — <label>` and confirmation is a ba [HIGH, DONE 2026-09-13, 2026-09-13] — plan sprint1-review-blockers Stage 1 (run 506bb6f9): ключ `legacy:<sha1(text)[:8]>:<heading>` + подтверждение полного текста в progress.md; тесты +2 CLI / +1 unit, verifier PASS
 
 ### I-195 — [review S1 J2, major/security, judge-reproduced] scripts/mb-checklist-v2.py:47 — [slice B, reviewer line 'mb-checklist-v2.py:47'] `_titles` joins the plan name parsed from `<!-- mb-plan:.. [HIGH, NEW, 2026-09-13]
 
@@ -1166,3 +1166,4 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-208 — [review S1 judge] .memory-bank/plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md:291 — Full test battery is not green; Sprint 1's Gate wording requires tests_pass: true [HIGH, NEW, 2026-09-13]
 
 ### I-209 — [review S1 reviewer C] references/coordination.md — документ обещает, что тегированный LIFT снимает legacy-заморозку, а mb-coord.sh этого не умеет (scope у нетегированной записи пустой): переписать фразу на «перевыпустить заморозку тегом, затем LIFT» либо сделать scope выводимым [MED, NEW, 2026-09-13]
+

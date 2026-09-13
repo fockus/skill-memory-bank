@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — `mb-checklist-prune.sh`: an archive is identified by its text, not its heading
+
+- Two `### ` sections sharing one heading no longer collide (I-194): the drop key is
+  `legacy:<sha1(text)>:<heading>` — one implementation, `memory_bank_skill/checklist_v2.py::legacy_key` —
+  and both the "already archived" decision and the pre-`--drop` confirmation now look for the full
+  `heading + body` in `progress.md`, so a stale heading can no longer certify a removal that never
+  landed (AGR-043: information is never deleted).
+
 ### Fixed — Codex: localized global `AGENTS.md`, hooks Codex actually runs
 
 - `install.sh --language <code>` now localizes the Memory Bank block in `~/.codex/AGENTS.md`

@@ -7,6 +7,7 @@ into a single v2 block; open ``⬜`` lines are never moved.
 
 from __future__ import annotations
 
+import datetime
 import os
 import re
 import subprocess
@@ -412,3 +413,70 @@ Plan: [plans/done/2026-04-25_feature_a.md](plans/done/2026-04-25_feature_a.md)
     after = (mb / "checklist.md").read_text(encoding="utf-8")
     assert "Done-looking but protected" in after
     assert "- ✅ done item" in after
+
+
+# ---------------------------------------------------------------------------
+# I-194 — archive identity is the full text, not the heading alone
+# ---------------------------------------------------------------------------
+
+TWO_SECTIONS_SAME_HEADING = """# Project — Чеклист
+
+## ✅ Recently completed
+
+### Closed work
+FIRST BODY MARKER. Plan: [plans/done/2026-05-01_fix_one.md](plans/done/2026-05-01_fix_one.md)
+- ✅ first done
+
+### Closed work
+SECOND BODY MARKER. Plan: [plans/done/2026-05-02_fix_two.md](plans/done/2026-05-02_fix_two.md)
+- ✅ second done
+"""
+
+
+def test_two_legacy_sections_with_same_heading_both_reach_progress_before_removal(
+    tmp_path: Path,
+) -> None:
+    # AGR-043: a block may leave checklist.md only after its own text is in
+    # progress.md. Two sections sharing a heading share neither archive entry
+    # nor drop key — otherwise the second one is deleted without ever landing.
+    mb = _init_mb(tmp_path, TWO_SECTIONS_SAME_HEADING)
+    r = _run(mb, "--apply")
+    assert r.returncode == 0, r.stdout + r.stderr
+    after = (mb / "checklist.md").read_text(encoding="utf-8")
+    progress = (mb / "progress.md").read_text(encoding="utf-8")
+    assert "FIRST BODY MARKER" in progress
+    assert "SECOND BODY MARKER" in progress
+    assert "FIRST BODY MARKER" not in after
+    assert "SECOND BODY MARKER" not in after
+    assert progress.count("## [checklist archive]") == 2
+
+
+ONE_SECTION = """# Project — Чеклист
+
+## ✅ Recently completed
+
+### Closed work
+ONLY BODY MARKER. Plan: [plans/done/2026-05-01_fix_one.md](plans/done/2026-05-01_fix_one.md)
+- ✅ done item
+"""
+
+
+def test_stale_archive_heading_without_body_does_not_certify_removal(
+    tmp_path: Path,
+) -> None:
+    # A heading already in progress.md from an earlier, different section must
+    # not stand in for this section's body: removal is certified by the text.
+    mb = _init_mb(tmp_path, ONE_SECTION)
+    today = datetime.date.today().isoformat()
+    (mb / "progress.md").write_text(
+        f"# Progress\n\n## [checklist archive] {today} — Closed work\n", encoding="utf-8"
+    )
+    (mb / ".work-progress.lock").mkdir()
+    (mb / ".work-progress.lock" / "owner").write_text("someone-else", encoding="utf-8")
+    r = _run(mb, "--apply", env={"MB_PROGRESS_APPEND_LOCK_TIMEOUT": "0"})
+    after = (mb / "checklist.md").read_text(encoding="utf-8")
+    assert "### Closed work" in after
+    assert "ONLY BODY MARKER" in after
+    assert "ONLY BODY MARKER" not in (mb / "progress.md").read_text(encoding="utf-8")
+    assert r.returncode == 0
+    assert "unconfirmed" in r.stderr

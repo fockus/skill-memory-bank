@@ -94,19 +94,31 @@ if [ "$MODE" != "apply" ]; then
 fi
 
 # Archive each candidate BEFORE it leaves the checklist: append, then verify the
-# heading is on disk. An unconfirmed append (lock held, write error) drops the
-# candidate — the block stays in the checklist rather than vanishing.
+# full archived text is on disk. An unconfirmed append (lock held, write error)
+# drops the candidate — the block stays in the checklist rather than vanishing.
 PROGRESS="$MB_PATH/progress.md"
 DROP_ARGS=()
+
+# Is this exact archive entry (heading + body) already in progress.md? The
+# heading alone is not identity: two sections can share one, and a stale
+# heading with no body would certify a removal that never landed (I-194).
+# Substring over the whole file — `grep -F` matches multi-line patterns
+# line-by-line, and a label may carry regex metacharacters.
+_archived() {
+  [ -f "$1" ] || return 1
+  python3 -c 'import sys
+need = sys.argv[2]
+sys.exit(0 if need and need in open(sys.argv[1], encoding="utf-8").read() else 1)' "$1" "$2"
+}
+
 if [ -n "$CANDIDATES" ]; then
   while IFS=$'\t' read -r key label blob; do
     [ -n "$key" ] || continue
-    heading="## [checklist archive] $TODAY — $label"
-    if [ ! -f "$PROGRESS" ] || ! grep -qxF "$heading" "$PROGRESS"; then
-      body=$(printf '%s' "$blob" | base64 -d)
-      bash "$APPEND_SH" --text "$heading"$'\n\n'"$body" --mb "$MB_PATH" || true
+    entry="## [checklist archive] $TODAY — $label"$'\n\n'"$(printf '%s' "$blob" | base64 -d)"
+    if ! _archived "$PROGRESS" "$entry"; then
+      bash "$APPEND_SH" --text "$entry" --mb "$MB_PATH" || true
     fi
-    if [ -f "$PROGRESS" ] && grep -qxF "$heading" "$PROGRESS"; then
+    if _archived "$PROGRESS" "$entry"; then
       DROP_ARGS+=(--drop "$key")
     else
       echo "[warn] archive append unconfirmed for '$label' — leaving it in checklist.md" >&2

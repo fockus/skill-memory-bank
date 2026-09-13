@@ -73,11 +73,8 @@ def _archivable(lines: list[str], plans_dir: Path | None) -> list[dict[str, str]
         text = cl.render_block(plan, title or titles.get(plan) or plan, stages, extra)
         out.append({"key": f"plan:{plan}", "label": plan, "text": "\n".join(text)})
     for sec in legacy:
-        out.append({
-            "key": f"legacy:{sec.heading}",
-            "label": sec.heading,
-            "text": "\n".join(lines[sec.start:sec.end]).rstrip(),
-        })
+        text = cl.legacy_text(lines, sec)
+        out.append({"key": cl.legacy_key(sec, text), "label": sec.heading, "text": text})
     return out
 
 

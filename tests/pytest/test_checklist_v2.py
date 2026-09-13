@@ -13,10 +13,13 @@ into v2 with every stage and its status intact.
 
 from memory_bank_skill.checklist_v2 import (
     flip,
+    legacy_key,
+    legacy_text,
     merge,
     parse,
     plan_title,
     render_block,
+    rewrite,
     upsert,
 )
 
@@ -117,3 +120,25 @@ def test_flip_of_an_unknown_plan_changes_nothing():
 def test_plan_title_strips_a_leading_kind_prefix():
     assert plan_title("# Fix: make it faster\n\nbody", "fallback") == "make it faster"
     assert plan_title("no heading at all", "fallback") == "fallback"
+
+
+LEGACY_TWIN = """\
+### Closed work
+first body. Plan: [plans/done/a.md](plans/done/a.md)
+- ✅ one
+
+### Closed work
+second body. Plan: [plans/done/b.md](plans/done/b.md)
+- ✅ two
+""".splitlines()
+
+
+def test_rewrite_drops_only_the_legacy_section_named_by_its_key():
+    # Two sections may share a heading; they must not share a drop key, or
+    # archiving one deletes the other's content along with it (AGR-043).
+    _, legacy = parse(LEGACY_TWIN)
+    assert len(legacy) == 2
+    first, second = legacy
+    out = "\n".join(rewrite(list(LEGACY_TWIN), drop={legacy_key(first, legacy_text(LEGACY_TWIN, first))}))
+    assert "first body." not in out
+    assert "second body." in out

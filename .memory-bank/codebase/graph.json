@@ -1,4 +1,4 @@
-{"type": "meta", "schema": 1, "generated_at": "2026-09-09T22:23:14Z", "commit": "6d0b6f15fea6", "nodes": 3529, "edges": 19944, "src_root": ".", "flags": ["--docs"]}
+{"type": "meta", "schema": 1, "generated_at": "2026-09-13T17:26:46Z", "commit": "f3e23f1c1803", "nodes": 3553, "edges": 20032, "src_root": ".", "flags": ["--docs"]}
 {"type": "node", "kind": "module", "name": "adapters/pi_graph_rag_extension.ts", "file": "adapters/pi_graph_rag_extension.ts", "line": 1}
 {"type": "node", "kind": "function", "name": "memoryBankGraphRagExtension", "file": "adapters/pi_graph_rag_extension.ts", "line": 56, "signature": "function memoryBankGraphRagExtension(pi: ExtensionAPI)"}
 {"type": "node", "kind": "function", "name": "execute", "file": "adapters/pi_graph_rag_extension.ts", "line": 108, "signature": "async execute(_toolCallId, params)"}
@@ -221,22 +221,23 @@
 {"type": "node", "kind": "function", "name": "build_parser", "file": "memory_bank_skill/_texttools.py", "line": 175, "signature": "()"}
 {"type": "node", "kind": "function", "name": "main", "file": "memory_bank_skill/_texttools.py", "line": 207, "signature": "(argv: list[str] | None=None)"}
 {"type": "node", "kind": "module", "name": "memory_bank_skill/checklist_v2.py", "file": "memory_bank_skill/checklist_v2.py", "line": 1, "doc": "Checklist v2 model — one block per plan, parsed from v1 / v2 / mixed markdown. v1 (per-stage, written by pre-Sprint-1 ``mb-plan-sync.sh``):: <!-- mb-plan:FILE.md --> ## Stage 1: do a thing - ⬜ do a th"}
-{"type": "node", "kind": "class", "name": "Stage", "file": "memory_bank_skill/checklist_v2.py", "line": 40}
-{"type": "node", "kind": "class", "name": "PlanBlock", "file": "memory_bank_skill/checklist_v2.py", "line": 47, "doc": "One `<!-- mb-plan:… -->` block: either a v1 stage section or a v2 plan block."}
-{"type": "node", "kind": "class", "name": "LegacySection", "file": "memory_bank_skill/checklist_v2.py", "line": 59, "doc": "A `### ` section linking a `plans/done/…` plan with no open item left."}
-{"type": "node", "kind": "function", "name": "_is_boundary", "file": "memory_bank_skill/checklist_v2.py", "line": 68, "signature": "(line: str)"}
-{"type": "node", "kind": "function", "name": "_protected", "file": "memory_bank_skill/checklist_v2.py", "line": 72, "signature": "(lines: list[str], idx: int)"}
-{"type": "node", "kind": "function", "name": "_parse_plan_block", "file": "memory_bank_skill/checklist_v2.py", "line": 79, "signature": "(lines: list[str], i: int, plan: str)"}
-{"type": "node", "kind": "function", "name": "parse", "file": "memory_bank_skill/checklist_v2.py", "line": 116, "signature": "(lines: list[str])", "doc": "Split a checklist into plan blocks and archivable legacy `### ` sections."}
-{"type": "node", "kind": "function", "name": "merge", "file": "memory_bank_skill/checklist_v2.py", "line": 143, "signature": "(blocks: list[PlanBlock])", "doc": "Fold every block of one plan into (title, stages, extra). A stage seen twice keeps the ✅ the checklist already recorded — the flip is the newer fact, and inventing a ⬜ over it would undo real work."}
-{"type": "node", "kind": "function", "name": "render_block", "file": "memory_bank_skill/checklist_v2.py", "line": 161, "signature": "(plan: str, title: str, stages: dict[int, Stage], extra: list[str] | None=None)", "doc": "Render one v2 block: marker, `## <title> — k/n`, one line per stage."}
-{"type": "node", "kind": "function", "name": "block_key", "file": "memory_bank_skill/checklist_v2.py", "line": 171, "signature": "(block: PlanBlock)"}
-{"type": "node", "kind": "function", "name": "legacy_key", "file": "memory_bank_skill/checklist_v2.py", "line": 175, "signature": "(section: LegacySection)"}
-{"type": "node", "kind": "function", "name": "plan_title", "file": "memory_bank_skill/checklist_v2.py", "line": 179, "signature": "(plan_text: str, fallback: str)", "doc": "First `# ` line of a plan file, minus a leading `Plan: <type> — ` style prefix."}
-{"type": "node", "kind": "function", "name": "_squeeze_blanks", "file": "memory_bank_skill/checklist_v2.py", "line": 189, "signature": "(lines: list[str])"}
-{"type": "node", "kind": "function", "name": "rewrite", "file": "memory_bank_skill/checklist_v2.py", "line": 203, "signature": "(lines: list[str], titles: dict[str, str] | None=None, drop: set[str] | None=None, add: dict[str, list[tuple[int, str]]] | None=None, flips: dict[str, set[int]] | None=None)", "doc": "Fold every plan into one v2 block in place. `titles` supplies a display title for a plan that has no v2 block yet (an existing v2 title always wins, so re-running never churns the file). `drop` remove"}
-{"type": "node", "kind": "function", "name": "upsert", "file": "memory_bank_skill/checklist_v2.py", "line": 268, "signature": "(lines: list[str], plan: str, title: str, stages: list[tuple[int, str]])", "doc": "Add the plan's missing stages to its v2 block, creating the block if absent."}
-{"type": "node", "kind": "function", "name": "flip", "file": "memory_bank_skill/checklist_v2.py", "line": 286, "signature": "(lines: list[str], plan: str, stage_no: int)", "doc": "Mark one stage ✅ in the plan's v2 block; False when that stage is not there."}
+{"type": "node", "kind": "class", "name": "Stage", "file": "memory_bank_skill/checklist_v2.py", "line": 41}
+{"type": "node", "kind": "class", "name": "PlanBlock", "file": "memory_bank_skill/checklist_v2.py", "line": 48, "doc": "One `<!-- mb-plan:… -->` block: either a v1 stage section or a v2 plan block."}
+{"type": "node", "kind": "class", "name": "LegacySection", "file": "memory_bank_skill/checklist_v2.py", "line": 60, "doc": "A `### ` section linking a `plans/done/…` plan with no open item left."}
+{"type": "node", "kind": "function", "name": "_is_boundary", "file": "memory_bank_skill/checklist_v2.py", "line": 69, "signature": "(line: str)"}
+{"type": "node", "kind": "function", "name": "_protected", "file": "memory_bank_skill/checklist_v2.py", "line": 73, "signature": "(lines: list[str], idx: int)"}
+{"type": "node", "kind": "function", "name": "_parse_plan_block", "file": "memory_bank_skill/checklist_v2.py", "line": 80, "signature": "(lines: list[str], i: int, plan: str)"}
+{"type": "node", "kind": "function", "name": "parse", "file": "memory_bank_skill/checklist_v2.py", "line": 117, "signature": "(lines: list[str])", "doc": "Split a checklist into plan blocks and archivable legacy `### ` sections."}
+{"type": "node", "kind": "function", "name": "merge", "file": "memory_bank_skill/checklist_v2.py", "line": 144, "signature": "(blocks: list[PlanBlock])", "doc": "Fold every block of one plan into (title, stages, extra). A stage seen twice keeps the ✅ the checklist already recorded — the flip is the newer fact, and inventing a ⬜ over it would undo real work."}
+{"type": "node", "kind": "function", "name": "render_block", "file": "memory_bank_skill/checklist_v2.py", "line": 162, "signature": "(plan: str, title: str, stages: dict[int, Stage], extra: list[str] | None=None)", "doc": "Render one v2 block: marker, `## <title> — k/n`, one line per stage."}
+{"type": "node", "kind": "function", "name": "block_key", "file": "memory_bank_skill/checklist_v2.py", "line": 172, "signature": "(block: PlanBlock)"}
+{"type": "node", "kind": "function", "name": "legacy_text", "file": "memory_bank_skill/checklist_v2.py", "line": 176, "signature": "(lines: list[str], section: LegacySection)", "doc": "The verbatim text of a legacy section — what gets archived, and hashed."}
+{"type": "node", "kind": "function", "name": "legacy_key", "file": "memory_bank_skill/checklist_v2.py", "line": 181, "signature": "(section: LegacySection, text: str)", "doc": "Drop key of a legacy section: unique by content, not by heading alone. Two sections can carry the same `### ` heading; keying on the heading made archiving one delete the other (I-194). Byte-identical"}
+{"type": "node", "kind": "function", "name": "plan_title", "file": "memory_bank_skill/checklist_v2.py", "line": 192, "signature": "(plan_text: str, fallback: str)", "doc": "First `# ` line of a plan file, minus a leading `Plan: <type> — ` style prefix."}
+{"type": "node", "kind": "function", "name": "_squeeze_blanks", "file": "memory_bank_skill/checklist_v2.py", "line": 202, "signature": "(lines: list[str])"}
+{"type": "node", "kind": "function", "name": "rewrite", "file": "memory_bank_skill/checklist_v2.py", "line": 216, "signature": "(lines: list[str], titles: dict[str, str] | None=None, drop: set[str] | None=None, add: dict[str, list[tuple[int, str]]] | None=None, flips: dict[str, set[int]] | None=None)", "doc": "Fold every plan into one v2 block in place. `titles` supplies a display title for a plan that has no v2 block yet (an existing v2 title always wins, so re-running never churns the file). `drop` remove"}
+{"type": "node", "kind": "function", "name": "upsert", "file": "memory_bank_skill/checklist_v2.py", "line": 281, "signature": "(lines: list[str], plan: str, title: str, stages: list[tuple[int, str]])", "doc": "Add the plan's missing stages to its v2 block, creating the block if absent."}
+{"type": "node", "kind": "function", "name": "flip", "file": "memory_bank_skill/checklist_v2.py", "line": 299, "signature": "(lines: list[str], plan: str, stage_no: int)", "doc": "Mark one stage ✅ in the plan's v2 block; False when that stage is not there."}
 {"type": "node", "kind": "module", "name": "memory_bank_skill/cli.py", "file": "memory_bank_skill/cli.py", "line": 1, "doc": "memory-bank CLI — thin Python wrapper over install.sh / uninstall.sh. Subcommands: install Run global + optional cross-agent adapter install uninstall Remove global install init Bootstrap .memory-bank"}
 {"type": "node", "kind": "function", "name": "is_windows", "file": "memory_bank_skill/cli.py", "line": 49, "signature": "()"}
 {"type": "node", "kind": "function", "name": "_env_bash_override", "file": "memory_bank_skill/cli.py", "line": 62, "signature": "()", "doc": "Explicit user override: MB_BASH=/path/to/bash.exe."}
@@ -510,14 +511,14 @@
 {"type": "node", "kind": "function", "name": "_titles", "file": "scripts/mb-checklist-v2.py", "line": 43, "signature": "(plans_dir: Path | None, plans: set[str])"}
 {"type": "node", "kind": "function", "name": "_is_closed", "file": "scripts/mb-checklist-v2.py", "line": 55, "signature": "(plans_dir: Path | None, plan: str)", "doc": "A plan is closed when its file sits in `plans/done/` and not in `plans/`."}
 {"type": "node", "kind": "function", "name": "_archivable", "file": "scripts/mb-checklist-v2.py", "line": 62, "signature": "(lines: list[str], plans_dir: Path | None)"}
-{"type": "node", "kind": "function", "name": "_cap_report", "file": "scripts/mb-checklist-v2.py", "line": 84, "signature": "(lines: list[str], cap: int, moved: int)"}
-{"type": "node", "kind": "function", "name": "_sync_header_cap", "file": "scripts/mb-checklist-v2.py", "line": 101, "signature": "(lines: list[str], cap: int)", "doc": "Rewrite the file's own `cap ≤NNN lines` convention line to the resolved cap."}
-{"type": "node", "kind": "function", "name": "cmd_plan", "file": "scripts/mb-checklist-v2.py", "line": 107, "signature": "(args: argparse.Namespace)", "doc": "One TSV line per archivable block: key, label, base64 of the verbatim text."}
-{"type": "node", "kind": "function", "name": "cmd_apply", "file": "scripts/mb-checklist-v2.py", "line": 115, "signature": "(args: argparse.Namespace)"}
-{"type": "node", "kind": "function", "name": "cmd_upsert", "file": "scripts/mb-checklist-v2.py", "line": 136, "signature": "(args: argparse.Namespace)"}
-{"type": "node", "kind": "function", "name": "cmd_flip", "file": "scripts/mb-checklist-v2.py", "line": 147, "signature": "(args: argparse.Namespace)"}
-{"type": "node", "kind": "function", "name": "cmd_extract", "file": "scripts/mb-checklist-v2.py", "line": 157, "signature": "(args: argparse.Namespace)"}
-{"type": "node", "kind": "function", "name": "main", "file": "scripts/mb-checklist-v2.py", "line": 171, "signature": "(argv: list[str] | None=None)"}
+{"type": "node", "kind": "function", "name": "_cap_report", "file": "scripts/mb-checklist-v2.py", "line": 81, "signature": "(lines: list[str], cap: int, moved: int)"}
+{"type": "node", "kind": "function", "name": "_sync_header_cap", "file": "scripts/mb-checklist-v2.py", "line": 98, "signature": "(lines: list[str], cap: int)", "doc": "Rewrite the file's own `cap ≤NNN lines` convention line to the resolved cap."}
+{"type": "node", "kind": "function", "name": "cmd_plan", "file": "scripts/mb-checklist-v2.py", "line": 104, "signature": "(args: argparse.Namespace)", "doc": "One TSV line per archivable block: key, label, base64 of the verbatim text."}
+{"type": "node", "kind": "function", "name": "cmd_apply", "file": "scripts/mb-checklist-v2.py", "line": 112, "signature": "(args: argparse.Namespace)"}
+{"type": "node", "kind": "function", "name": "cmd_upsert", "file": "scripts/mb-checklist-v2.py", "line": 133, "signature": "(args: argparse.Namespace)"}
+{"type": "node", "kind": "function", "name": "cmd_flip", "file": "scripts/mb-checklist-v2.py", "line": 144, "signature": "(args: argparse.Namespace)"}
+{"type": "node", "kind": "function", "name": "cmd_extract", "file": "scripts/mb-checklist-v2.py", "line": 154, "signature": "(args: argparse.Namespace)"}
+{"type": "node", "kind": "function", "name": "main", "file": "scripts/mb-checklist-v2.py", "line": 168, "signature": "(argv: list[str] | None=None)"}
 {"type": "node", "kind": "module", "name": "scripts/mb-code-context.py", "file": "scripts/mb-code-context.py", "line": 1, "doc": "Build a bounded GraphRAG-lite evidence pack for code-understanding tasks."}
 {"type": "node", "kind": "function", "name": "build_parser", "file": "scripts/mb-code-context.py", "line": 14, "signature": "()"}
 {"type": "node", "kind": "function", "name": "main", "file": "scripts/mb-code-context.py", "line": 35, "signature": "(argv: list[str])"}
@@ -1041,6 +1042,18 @@
 {"type": "node", "kind": "function", "name": "test_directories_expand_to_the_files_under_them", "file": "tests/pytest/test_check_run_complete_staleness.py", "line": 170, "signature": "(tmp_path: Path, complete_log: Path)", "doc": "`--watch scripts/` must not silently check nothing."}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_checklist_cap.py", "file": "tests/pytest/test_checklist_cap.py", "line": 1, "doc": "Enforce the line cap on `.memory-bank/checklist.md`. Locks in the convention declared in the file's own header (v2 default: 100). If the cap is breached, run `bash scripts/mb-checklist-prune.sh --appl"}
 {"type": "node", "kind": "function", "name": "test_repo_checklist_under_hard_cap", "file": "tests/pytest/test_checklist_cap.py", "line": 21, "signature": "()"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_checklist_v2.py", "file": "tests/pytest/test_checklist_v2.py", "line": 1, "doc": "Unit tests for the checklist v2 parser (`memory_bank_skill.checklist_v2`). The module is exercised end-to-end through `mb-checklist-prune.sh`, `mb-plan-sync.sh`, `mb-plan-done.sh` and `mb-work-checkbo"}
+{"type": "node", "kind": "function", "name": "test_parse_reads_two_v1_stage_blocks_of_one_plan", "file": "tests/pytest/test_checklist_v2.py", "line": 44, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_parse_reads_a_v2_block_with_its_statuses", "file": "tests/pytest/test_checklist_v2.py", "line": 51, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_merge_folds_v1_stage_blocks_into_one_ordered_set", "file": "tests/pytest/test_checklist_v2.py", "line": 60, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_merge_never_resets_a_done_stage_when_a_pending_duplicate_follows", "file": "tests/pytest/test_checklist_v2.py", "line": 68, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_render_block_emits_the_v2_shape_with_a_recomputed_count", "file": "tests/pytest/test_checklist_v2.py", "line": 82, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_upsert_adds_a_missing_stage_and_is_idempotent", "file": "tests/pytest/test_checklist_v2.py", "line": 92, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_upsert_leaves_an_existing_done_stage_alone", "file": "tests/pytest/test_checklist_v2.py", "line": 101, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_flip_ticks_one_stage_and_recomputes_the_count", "file": "tests/pytest/test_checklist_v2.py", "line": 107, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_flip_of_an_unknown_plan_changes_nothing", "file": "tests/pytest/test_checklist_v2.py", "line": 114, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_plan_title_strips_a_leading_kind_prefix", "file": "tests/pytest/test_checklist_v2.py", "line": 120, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_rewrite_drops_only_the_legacy_section_named_by_its_key", "file": "tests/pytest/test_checklist_v2.py", "line": 136, "signature": "()"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_cli.py", "file": "tests/pytest/test_cli.py", "line": 1, "doc": "Tests for memory_bank_skill.cli. Covers: argparse, version, bundle resolution, bash discovery, shell wrapper. Platform behavior mocked; shell invocations use bundled install.sh --help."}
 {"type": "node", "kind": "function", "name": "_protect_repo_install_manifest", "file": "tests/pytest/test_cli.py", "line": 27, "signature": "()", "doc": "Back up & restore `REPO_ROOT/.installed-manifest.json`. `install.sh:17` hard-codes the manifest path to `$SOURCE_SKILL_DIR/...`, so every install-related test in this module overwrites the repo's own "}
 {"type": "node", "kind": "function", "name": "test_python_version_matches_bundle_version", "file": "tests/pytest/test_cli.py", "line": 55, "signature": "()"}
@@ -1438,6 +1451,14 @@
 {"type": "node", "kind": "function", "name": "test_recurring_files_uses_occurrence_count_not_intersection", "file": "tests/pytest/test_consolidate.py", "line": 199, "signature": "()", "doc": "X (in A,B) and Y (in B,C) both recur (>=2) though the 3-way intersection is empty."}
 {"type": "node", "kind": "function", "name": "test_cluster_unrelated_sessions_do_not_link", "file": "tests/pytest/test_consolidate.py", "line": 207, "signature": "()"}
 {"type": "node", "kind": "function", "name": "test_cluster_links_on_lexical_overlap_above_threshold", "file": "tests/pytest/test_consolidate.py", "line": 215, "signature": "()"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_core_cap_docs.py", "file": "tests/pytest/test_core_cap_docs.py", "line": 1, "doc": "mb-work-cost-diet Sprint 1 Stage 7 — the core-file caps are wired, not declared. AGR-043: `status.md` and `checklist.md` are strict registries with hard line caps enforced by code. A cap that only liv"}
+{"type": "node", "kind": "function", "name": "_read", "file": "tests/pytest/test_core_cap_docs.py", "line": 18, "signature": "(rel: str)"}
+{"type": "node", "kind": "function", "name": "test_manager_documents_strict_actualize_contract", "file": "tests/pytest/test_core_cap_docs.py", "line": 22, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_done_step_five_runs_the_cap_fixer", "file": "tests/pytest/test_core_cap_docs.py", "line": 35, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_mb_router_exposes_update_strict", "file": "tests/pytest/test_core_cap_docs.py", "line": 43, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_status_templates_declare_the_hard_cap", "file": "tests/pytest/test_core_cap_docs.py", "line": 59, "signature": "(template: str)"}
+{"type": "node", "kind": "function", "name": "test_structure_reference_documents_core_file_caps", "file": "tests/pytest/test_core_cap_docs.py", "line": 66, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_drift_check_is_core_cap_not_status_size", "file": "tests/pytest/test_core_cap_docs.py", "line": 73, "signature": "()"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_coverage_omit_is_honest.py", "file": "tests/pytest/test_coverage_omit_is_honest.py", "line": 1, "doc": "The `omit` list in .coveragerc must name tested code, never hide untested code. Most of this skill's Python is a library behind a shell CLI. `mb-spec-validate.sh` runs `python3 scripts/mb_spec_validat"}
 {"type": "node", "kind": "function", "name": "_omitted_paths", "file": "tests/pytest/test_coverage_omit_is_honest.py", "line": 59, "signature": "()"}
 {"type": "node", "kind": "function", "name": "test_every_omitted_module_is_mapped_to_a_test", "file": "tests/pytest/test_coverage_omit_is_honest.py", "line": 66, "signature": "()", "doc": "No silent additions: `omit` and the map above must agree exactly."}
@@ -1893,31 +1914,33 @@
 {"type": "node", "kind": "function", "name": "test_force_flag_overrides_unset_env", "file": "tests/pytest/test_mb_auto_commit.py", "line": 173, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "function", "name": "test_help_flag", "file": "tests/pytest/test_mb_auto_commit.py", "line": 183, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_mb_checklist_prune.py", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 1, "doc": "`scripts/mb-checklist-prune.sh` — checklist v2 compactor + v1→v2 migrator. Contract (Sprint 1 Stage 5, AGR-043): nothing is ever deleted. Completed work moves verbatim into ``progress.md``; per-stage "}
-{"type": "node", "kind": "function", "name": "_init_mb", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 20, "signature": "(tmp_path: Path, body: str)"}
-{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 27, "signature": "(mb: Path, *args: str, env: dict[str, str] | None=None)"}
-{"type": "node", "kind": "function", "name": "test_dry_run_lists_collapse_candidates", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 81, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_dry_run_makes_no_changes", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 94, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_moves_completed_sections_out_of_the_checklist", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 102, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_preserves_in_flight", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 117, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_preserves_section_without_plans_done_link", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 126, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_preserves_partial_done_section", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 134, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_creates_timestamped_backup", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 143, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_idempotent_legacy_fixture", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 151, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_hard_cap_exceeded_exits_3", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 163, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_missing_checklist_returns_zero_with_hint", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 172, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_unknown_flag_errors", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 180, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "_init_plans", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 219, "signature": "(mb: Path, name: str, body: str, *, done: bool=False)"}
-{"type": "node", "kind": "function", "name": "_open_items", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 230, "signature": "(text: str)", "doc": "Open-item texts, normalised across the v1→v2 line rewrite."}
-{"type": "node", "kind": "function", "name": "test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 241, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_open_stage_lines_never_moved", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 259, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_done_plan_block_moved_to_progress_verbatim", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 272, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_legacy_done_oneliners_moved_to_progress", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 294, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_archive_append_unconfirmed_leaves_checklist_untouched", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 311, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_cap_resolution_env_over_config_over_default", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 329, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 341, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 364, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_apply_idempotent_second_run_noop", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 383, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_protected_sections_untouched", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 397, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "_init_mb", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 21, "signature": "(tmp_path: Path, body: str)"}
+{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 28, "signature": "(mb: Path, *args: str, env: dict[str, str] | None=None)"}
+{"type": "node", "kind": "function", "name": "test_dry_run_lists_collapse_candidates", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 82, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_dry_run_makes_no_changes", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 95, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_moves_completed_sections_out_of_the_checklist", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 103, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_preserves_in_flight", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 118, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_preserves_section_without_plans_done_link", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 127, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_preserves_partial_done_section", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 135, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_creates_timestamped_backup", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 144, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_idempotent_legacy_fixture", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 152, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_hard_cap_exceeded_exits_3", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 164, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_missing_checklist_returns_zero_with_hint", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 173, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_unknown_flag_errors", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 181, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "_init_plans", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 220, "signature": "(mb: Path, name: str, body: str, *, done: bool=False)"}
+{"type": "node", "kind": "function", "name": "_open_items", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 231, "signature": "(text: str)", "doc": "Open-item texts, normalised across the v1→v2 line rewrite."}
+{"type": "node", "kind": "function", "name": "test_per_stage_blocks_of_one_plan_compact_to_single_v2_block_keeping_statuses", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 242, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_open_stage_lines_never_moved", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 260, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_done_plan_block_moved_to_progress_verbatim", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 273, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_legacy_done_oneliners_moved_to_progress", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 295, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_archive_append_unconfirmed_leaves_checklist_untouched", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 312, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_cap_resolution_env_over_config_over_default", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 330, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_still_over_cap_after_compaction_exits_3_lists_plans_and_moves_nothing", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 342, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_techflow_like_fixture_596_lines_compacts_and_signals_cap", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 365, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_apply_idempotent_second_run_noop", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 384, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_protected_sections_untouched", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 398, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_two_legacy_sections_with_same_heading_both_reach_progress_before_removal", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 436, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_stale_archive_heading_without_body_does_not_certify_removal", "file": "tests/pytest/test_mb_checklist_prune.py", "line": 464, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_mb_context_slim.py", "file": "tests/pytest/test_mb_context_slim.py", "line": 1, "doc": "Phase 4 Sprint 2 — `scripts/mb-context-slim.py` prompt trimmer."}
 {"type": "node", "kind": "function", "name": "_plan", "file": "tests/pytest/test_mb_context_slim.py", "line": 12, "signature": "(stages_text: str, frontmatter: str='')"}
 {"type": "node", "kind": "function", "name": "_stage", "file": "tests/pytest/test_mb_context_slim.py", "line": 17, "signature": "(n: int, heading: str, body: str='- ✅ DoD bit\\n')"}
@@ -2884,15 +2907,16 @@
 {"type": "node", "kind": "function", "name": "test_mb_md_init_section_documents_storage_modes", "file": "tests/pytest/test_runtime_contract.py", "line": 83, "signature": "()"}
 {"type": "node", "kind": "function", "name": "test_rules_only_mode_documented_in_rules", "file": "tests/pytest/test_runtime_contract.py", "line": 92, "signature": "()", "doc": "RULES.md and CLAUDE-GLOBAL.md must say global rules apply even without Memory Bank."}
 {"type": "node", "kind": "function", "name": "test_codex_global_agents_md_includes_critical_rules_after_install", "file": "tests/pytest/test_runtime_contract.py", "line": 111, "signature": "(tmp_path: Path, rule_token: str)", "doc": "Run install.sh in a sandboxed HOME and assert the generated ~/.codex/AGENTS.md contains the always-on engineering rules. Mirrors test_pi_install_embeds_guard_into_global_agents_prompt."}
-{"type": "node", "kind": "function", "name": "test_skill_md_documents_storage_modes_matrix", "file": "tests/pytest/test_runtime_contract.py", "line": 149, "signature": "()", "doc": "SKILL.md must mention --storage=local, --storage=global, and rules-only mode."}
-{"type": "node", "kind": "function", "name": "test_readme_documents_three_storage_modes", "file": "tests/pytest/test_runtime_contract.py", "line": 168, "signature": "()", "doc": "README.md must explain local mode, global mode, and rules-only mode."}
-{"type": "node", "kind": "function", "name": "test_commands_mb_md_lists_profile", "file": "tests/pytest/test_runtime_contract.py", "line": 199, "signature": "()", "doc": "commands/mb.md must route to profile subcommand."}
-{"type": "node", "kind": "function", "name": "test_commands_profile_md_exists_and_references_mb_profile_sh", "file": "tests/pytest/test_runtime_contract.py", "line": 213, "signature": "()", "doc": "commands/profile.md must exist and reference mb-profile.sh."}
-{"type": "node", "kind": "function", "name": "test_readme_documents_role_and_stack_presets", "file": "tests/pytest/test_runtime_contract.py", "line": 223, "signature": "()", "doc": "README.md must mention backend/frontend/mobile roles AND go/python/typescript/javascript/java stacks."}
-{"type": "node", "kind": "function", "name": "test_rules_only_mode_docs_mention_user_global_profile", "file": "tests/pytest/test_runtime_contract.py", "line": 233, "signature": "()", "doc": "docs/rule-profiles.md or README must mention user-global profile without Memory Bank."}
-{"type": "node", "kind": "function", "name": "test_docs_state_immutable_baseline_cannot_be_disabled", "file": "tests/pytest/test_runtime_contract.py", "line": 255, "signature": "()", "doc": "At least one doc surface must state immutable baseline cannot be disabled."}
-{"type": "node", "kind": "function", "name": "test_docs_state_json_canonical_yaml_docs_only", "file": "tests/pytest/test_runtime_contract.py", "line": 282, "signature": "()", "doc": "At least one doc surface must state JSON is canonical and YAML is docs-only."}
-{"type": "node", "kind": "function", "name": "test_skill_md_links_rules_profile_schema_and_mb_profile_sh", "file": "tests/pytest/test_runtime_contract.py", "line": 307, "signature": "()", "doc": "SKILL.md must link rules-profile.schema.md in References and list mb-profile.sh in Tools."}
+{"type": "node", "kind": "function", "name": "test_codex_global_agents_md_language_ru_localizes_rule", "file": "tests/pytest/test_runtime_contract.py", "line": 149, "signature": "(tmp_path: Path)", "doc": "`--language ru` must localize the language rule inside the Codex block, exactly as the Claude and Pi blocks are localized. Regression: install_codex_global_agents skipped localize_path_inplace, so ~/."}
+{"type": "node", "kind": "function", "name": "test_skill_md_documents_storage_modes_matrix", "file": "tests/pytest/test_runtime_contract.py", "line": 176, "signature": "()", "doc": "SKILL.md must mention --storage=local, --storage=global, and rules-only mode."}
+{"type": "node", "kind": "function", "name": "test_readme_documents_three_storage_modes", "file": "tests/pytest/test_runtime_contract.py", "line": 195, "signature": "()", "doc": "README.md must explain local mode, global mode, and rules-only mode."}
+{"type": "node", "kind": "function", "name": "test_commands_mb_md_lists_profile", "file": "tests/pytest/test_runtime_contract.py", "line": 226, "signature": "()", "doc": "commands/mb.md must route to profile subcommand."}
+{"type": "node", "kind": "function", "name": "test_commands_profile_md_exists_and_references_mb_profile_sh", "file": "tests/pytest/test_runtime_contract.py", "line": 240, "signature": "()", "doc": "commands/profile.md must exist and reference mb-profile.sh."}
+{"type": "node", "kind": "function", "name": "test_readme_documents_role_and_stack_presets", "file": "tests/pytest/test_runtime_contract.py", "line": 250, "signature": "()", "doc": "README.md must mention backend/frontend/mobile roles AND go/python/typescript/javascript/java stacks."}
+{"type": "node", "kind": "function", "name": "test_rules_only_mode_docs_mention_user_global_profile", "file": "tests/pytest/test_runtime_contract.py", "line": 260, "signature": "()", "doc": "docs/rule-profiles.md or README must mention user-global profile without Memory Bank."}
+{"type": "node", "kind": "function", "name": "test_docs_state_immutable_baseline_cannot_be_disabled", "file": "tests/pytest/test_runtime_contract.py", "line": 282, "signature": "()", "doc": "At least one doc surface must state immutable baseline cannot be disabled."}
+{"type": "node", "kind": "function", "name": "test_docs_state_json_canonical_yaml_docs_only", "file": "tests/pytest/test_runtime_contract.py", "line": 309, "signature": "()", "doc": "At least one doc surface must state JSON is canonical and YAML is docs-only."}
+{"type": "node", "kind": "function", "name": "test_skill_md_links_rules_profile_schema_and_mb_profile_sh", "file": "tests/pytest/test_runtime_contract.py", "line": 334, "signature": "()", "doc": "SKILL.md must link rules-profile.schema.md in References and list mb-profile.sh in Tools."}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_s1_fs_atomic_concurrency.py", "file": "tests/pytest/test_s1_fs_atomic_concurrency.py", "line": 1, "doc": "r5 review [5]: the shared publish primitive must not re-permission a target that appeared while it was writing, and its resolve-mode → rename step must be serialised against other writers in the same "}
 {"type": "node", "kind": "function", "name": "_mode", "file": "tests/pytest/test_s1_fs_atomic_concurrency.py", "line": 25, "signature": "(path)"}
 {"type": "node", "kind": "function", "name": "test_target_created_mid_write_keeps_its_own_mode", "file": "tests/pytest/test_s1_fs_atomic_concurrency.py", "line": 29, "signature": "(tmp_path, monkeypatch)", "doc": "The interleaving from the review, made deterministic. Run A finds no target and (umask 022) intends 0644. Run B publishes the target at 0600 while A is still writing its temp file. A must not replace "}
@@ -5073,6 +5097,7 @@
 {"type": "edge", "src": "memory_bank_skill/_texttools.py", "dst": "SystemExit", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/_texttools.py", "dst": "main", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "hashlib", "kind": "import"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "re", "kind": "import"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "dataclasses.dataclass", "kind": "import"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py", "dst": "dataclasses.field", "kind": "import"}
@@ -5154,6 +5179,11 @@
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:render_block", "dst": "sum", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:render_block", "dst": "len", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:render_block", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:legacy_text", "dst": "join.rstrip", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:legacy_text", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:legacy_key", "dst": "hashlib.sha1.hexdigest", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:legacy_key", "dst": "hashlib.sha1", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:legacy_key", "dst": "text.encode", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:plan_title", "dst": "plan_text.splitlines", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:plan_title", "dst": "line.startswith", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:plan_title", "dst": "TITLE_PREFIX_RE.match.group", "kind": "call"}
@@ -5179,6 +5209,8 @@
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "titles.get", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "skip.update", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "legacy_key", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "legacy_text", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "skip.update", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "range", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/checklist_v2.py:rewrite", "dst": "len", "kind": "call"}
@@ -7182,9 +7214,9 @@
 {"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "titles.get", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "out.append", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "cl.legacy_text", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "out.append", "kind": "call"}
-{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "join.rstrip", "kind": "call"}
-{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-checklist-v2.py:_archivable", "dst": "cl.legacy_key", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "cl.parse", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "by_plan.setdefault.append", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-checklist-v2.py:_cap_report", "dst": "by_plan.setdefault", "kind": "call"}
@@ -12304,6 +12336,50 @@
 {"type": "edge", "src": "tests/pytest/test_checklist_cap.py:test_repo_checklist_under_hard_cap", "dst": "CHECKLIST.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_checklist_cap.py:test_repo_checklist_under_hard_cap", "dst": "pytest.mark.skipif", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_checklist_cap.py:test_repo_checklist_under_hard_cap", "dst": "CHECKLIST.exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.flip", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.legacy_key", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.legacy_text", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.merge", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.parse", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.plan_title", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.render_block", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.rewrite", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "memory_bank_skill.checklist_v2.upsert", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_parse_reads_two_v1_stage_blocks_of_one_plan", "dst": "memory_bank_skill.checklist_v2.parse", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_parse_reads_two_v1_stage_blocks_of_one_plan", "dst": "sorted", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_parse_reads_a_v2_block_with_its_statuses", "dst": "memory_bank_skill.checklist_v2.parse", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_parse_reads_a_v2_block_with_its_statuses", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_merge_folds_v1_stage_blocks_into_one_ordered_set", "dst": "memory_bank_skill.checklist_v2.parse", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_merge_folds_v1_stage_blocks_into_one_ordered_set", "dst": "memory_bank_skill.checklist_v2.merge", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_merge_folds_v1_stage_blocks_into_one_ordered_set", "dst": "sorted", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_merge_never_resets_a_done_stage_when_a_pending_duplicate_follows", "dst": "memory_bank_skill.checklist_v2.parse", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_merge_never_resets_a_done_stage_when_a_pending_duplicate_follows", "dst": "memory_bank_skill.checklist_v2.merge", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_render_block_emits_the_v2_shape_with_a_recomputed_count", "dst": "memory_bank_skill.checklist_v2.parse", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_render_block_emits_the_v2_shape_with_a_recomputed_count", "dst": "memory_bank_skill.checklist_v2.merge", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_render_block_emits_the_v2_shape_with_a_recomputed_count", "dst": "memory_bank_skill.checklist_v2.render_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_upsert_adds_a_missing_stage_and_is_idempotent", "dst": "memory_bank_skill.checklist_v2.upsert", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_upsert_adds_a_missing_stage_and_is_idempotent", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_upsert_adds_a_missing_stage_and_is_idempotent", "dst": "any", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_upsert_adds_a_missing_stage_and_is_idempotent", "dst": "memory_bank_skill.checklist_v2.upsert", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_upsert_adds_a_missing_stage_and_is_idempotent", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_upsert_leaves_an_existing_done_stage_alone", "dst": "memory_bank_skill.checklist_v2.upsert", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_upsert_leaves_an_existing_done_stage_alone", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_flip_ticks_one_stage_and_recomputes_the_count", "dst": "memory_bank_skill.checklist_v2.flip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_flip_ticks_one_stage_and_recomputes_the_count", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_flip_of_an_unknown_plan_changes_nothing", "dst": "memory_bank_skill.checklist_v2.flip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_flip_of_an_unknown_plan_changes_nothing", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_plan_title_strips_a_leading_kind_prefix", "dst": "memory_bank_skill.checklist_v2.plan_title", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_plan_title_strips_a_leading_kind_prefix", "dst": "memory_bank_skill.checklist_v2.plan_title", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py", "dst": "splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_rewrite_drops_only_the_legacy_section_named_by_its_key", "dst": "memory_bank_skill.checklist_v2.parse", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_rewrite_drops_only_the_legacy_section_named_by_its_key", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_rewrite_drops_only_the_legacy_section_named_by_its_key", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_rewrite_drops_only_the_legacy_section_named_by_its_key", "dst": "memory_bank_skill.checklist_v2.rewrite", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_rewrite_drops_only_the_legacy_section_named_by_its_key", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_rewrite_drops_only_the_legacy_section_named_by_its_key", "dst": "memory_bank_skill.checklist_v2.legacy_key", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_rewrite_drops_only_the_legacy_section_named_by_its_key", "dst": "memory_bank_skill.checklist_v2.legacy_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "json", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "platform", "kind": "import"}
@@ -14089,6 +14165,20 @@
 {"type": "edge", "src": "tests/pytest/test_consolidate.py:test_cluster_links_on_lexical_overlap_above_threshold", "dst": "set", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_consolidate.py:test_cluster_links_on_lexical_overlap_above_threshold", "dst": "cz.cluster_sessions", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_consolidate.py:test_cluster_links_on_lexical_overlap_above_threshold", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:_read", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_manager_documents_strict_actualize_contract", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_done_step_five_runs_the_cap_fixer", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_mb_router_exposes_update_strict", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_status_templates_declare_the_hard_cap", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_status_templates_declare_the_hard_cap", "dst": "text.lower", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_status_templates_declare_the_hard_cap", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_structure_reference_documents_core_file_caps", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_drift_check_is_core_cap_not_status_size", "dst": "_read", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_coverage_omit_is_honest.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_coverage_omit_is_honest.py", "dst": "configparser", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_coverage_omit_is_honest.py", "dst": "re", "kind": "import"}
@@ -16296,6 +16386,7 @@
 {"type": "edge", "src": "tests/pytest/test_mb_auto_commit.py:test_help_flag", "dst": "subprocess.run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_auto_commit.py:test_help_flag", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "datetime", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "os", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "re", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py", "dst": "subprocess", "kind": "import"}
@@ -16435,6 +16526,20 @@
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_protected_sections_untouched", "dst": "_init_mb", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_protected_sections_untouched", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_protected_sections_untouched", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_two_legacy_sections_with_same_heading_both_reach_progress_before_removal", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_two_legacy_sections_with_same_heading_both_reach_progress_before_removal", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_two_legacy_sections_with_same_heading_both_reach_progress_before_removal", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_two_legacy_sections_with_same_heading_both_reach_progress_before_removal", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_two_legacy_sections_with_same_heading_both_reach_progress_before_removal", "dst": "progress.count", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "_init_mb", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "datetime.date.today.isoformat", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "datetime.date.today", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_checklist_prune.py:test_stale_archive_heading_without_body_does_not_certify_removal", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py", "dst": "subprocess", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_mb_context_slim.py", "dst": "pathlib.Path", "kind": "import"}
@@ -20558,6 +20663,13 @@
 {"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_includes_critical_rules_after_install", "dst": "agents_path.is_file", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_includes_critical_rules_after_install", "dst": "agents_path.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_includes_critical_rules_after_install", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_language_ru_localizes_rule", "dst": "os.environ.copy", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_language_ru_localizes_rule", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_language_ru_localizes_rule", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_language_ru_localizes_rule", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_language_ru_localizes_rule", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_language_ru_localizes_rule", "dst": "agents.split", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_codex_global_agents_md_language_ru_localizes_rule", "dst": "block.split", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_skill_md_documents_storage_modes_matrix", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_skill_md_documents_storage_modes_matrix", "dst": "skill.lower", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_runtime_contract.py:test_readme_documents_three_storage_modes", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}

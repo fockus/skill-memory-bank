@@ -20,6 +20,7 @@ deleted here — the caller archives removed content to ``progress.md`` first.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 
@@ -172,8 +173,20 @@ def block_key(block: PlanBlock) -> str:
     return f"plan:{block.plan}"
 
 
-def legacy_key(section: LegacySection) -> str:
-    return f"legacy:{section.heading}"
+def legacy_text(lines: list[str], section: LegacySection) -> str:
+    """The verbatim text of a legacy section — what gets archived, and hashed."""
+    return "\n".join(lines[section.start:section.end]).rstrip()
+
+
+def legacy_key(section: LegacySection, text: str) -> str:
+    """Drop key of a legacy section: unique by content, not by heading alone.
+
+    Two sections can carry the same `### ` heading; keying on the heading made
+    archiving one delete the other (I-194). Byte-identical twins do share a key
+    — one archive entry holds both, so no information is lost.
+    """
+    digest = hashlib.sha1(text.encode("utf-8")).hexdigest()[:8]
+    return f"legacy:{digest}:{section.heading}"
 
 
 def plan_title(plan_text: str, fallback: str) -> str:
@@ -243,7 +256,7 @@ def rewrite(
         for b in group:
             skip.update(range(b.start, b.end))
     for sec in legacy:
-        if f"legacy:{sec.heading}" in drop:
+        if legacy_key(sec, legacy_text(lines, sec)) in drop:
             replace[sec.start] = None
             skip.update(range(sec.start, sec.end))
 

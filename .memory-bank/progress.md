@@ -3380,3 +3380,23 @@ Cross-session coordination also shipped (`references/coordination.md` had been u
 - **Бэклог:** I-197 (substring-регексы cost_report: `cat pytest.ini` = прогон тестов, документировано, но метрика шумит), I-198 (mb-context.sh режет ✅ построчно), I-199 (bats-фикстура context-budget правится на месте), I-200 (cost_report 313 строк, AGR-030 — ориентир), I-201 (status-rotate подтверждает архив только заголовком), I-202 (`--keep N` — первые N по порядку файла, по спеке; защита от рукописного порядка), I-203 (merge v1/v2 затирает более богатое имя стадии), I-204 (кап 0 молча выключает лимит), I-205 (Stop-хук игнорирует отказ записи маркера), I-206 (core-cap fix глотает падения хелперов, exit 2 недостижим), I-207 (legacy-эвристика `**` где угодно на строке), I-209 (coordination.md обещает LIFT для legacy-заморозки, механизма нет), **I-208 HIGH** (судья: 22 предсуществующих красных теста в трёх чужих подсистемах + 11 средовых — отдельный fix-слайс, иначе `tests_pass: true` недостижим ни для кого). Дубликаты I-189/I-190 не заводились повторно.
 - **Что судья отклонил:** «legacy-заморозки не снимаются LIFT» — задокументированное решение 2026-09-10, fail-safe; «`--keep N` должен брать новейшие по дате» — спека говорит «первые N», живой банк упорядочен новейшие-сверху, ротация архивировала старейшие, как и задумано; «фикстура теста ротации по возрастанию» — тест утверждает ровно спецификацию, фикстура лишь нереалистична.
 - **Статус спринта не меняется:** план остаётся в `plans/done/`, DoD не откатываются. Отчёт: `reports/2026-09-13_sprint1-review.md` + `reports/2026-09-13_sprint1-review/{reviewer-A,B,C,judge}.json`.
+
+## 2026-09-13
+
+### Auto-capture 2026-09-13 (session bcede68d)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-13
+
+### Auto-capture 2026-09-13 (session 985d4fa4)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-13 — Stage 1 плана `fix_sprint1-review-blockers` (I-194) закрыт через /mb work (execution)
+
+- **Что:** архивация legacy-`### `-секций в `mb-checklist-prune.sh` стала устойчивой к одинаковым заголовкам (блокер судьи J1). Идентичность архива — текст, не заголовок: `memory_bank_skill/checklist_v2.py::legacy_key(section, text)` = `legacy:<sha1(text)[:8]>:<heading>` (одна реализация, `rewrite()` и `_archivable()` вызывают её); в prune и решение «уже архивировано», и подтверждение перед `--drop` проверяют полный `heading + body` как подстроку `progress.md` (`_archived`, stdlib python; `grep -F` с многострочным паттерном сопоставляет строки по отдельности). Формат `## [checklist archive] <date> — <label>` и fail-safe `[warn] archive append unconfirmed` не изменены. `CHANGELOG.md` § Fixed.
+- **Тесты (TDD, красный до правки приложен исполнителем):** `test_mb_checklist_prune.py` +2 (две секции с одним заголовком → оба тела в progress.md и обе убраны; устаревший заголовок без тела не сертифицирует удаление), `test_checklist_v2.py` +1 (drop по ключу убирает только свою секцию). 34/34 pytest, bats `test_plan_done_v2`/`test_plan_sync_v2`/`test_work_checkbox_v2` 10/10, shellcheck чистый — перепроверено оркестратором независимо.
+- **Мутации (AGR-027, verifier воспроизвёл в изоляции):** (а) ключ обратно `legacy:<heading>` → красный только юнит-тест; (б) проверка обратно `grep -qxF` по заголовку → красные оба CLI-теста. Атрибуция в плане исправлена (изначально было «(а) → первый и третий»).
+- **Verifier:** PASS, 0 CRITICAL, 2 WARNING (неверная атрибуция мутаций — исправлена в тексте плана; `checklist_v2.py` 292 → 305 строк, SRP-порог 300 — ориентир по AGR-030, без перекройки). Agreement compliance 44 active / 0 violated.
+- **Бэклог:** I-194 → DONE. Run-id 506bb6f9, коммит следует.
