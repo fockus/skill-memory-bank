@@ -8,7 +8,7 @@
 - [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency — progress=28% stages(done=1,in_progress=2,planned=3,total=6)
 - [spec-group-round3-remediation](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation — progress=100% stages(done=6,in_progress=0,planned=0,total=6)
 - [graph-semantic-adoption](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption — progress=0% stages(done=0,in_progress=0,planned=7,total=7)
-- [mb-work-cost-diet-sprint1](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение» — progress=61% stages(done=4,in_progress=0,planned=3,total=7)
+- [mb-work-cost-diet-sprint1](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение» — progress=100% stages(done=7,in_progress=0,planned=0,total=7)
 
 ## Next (strict order — depends)
 

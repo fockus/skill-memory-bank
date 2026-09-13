@@ -1130,3 +1130,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-190 — actualize --strict: контракт в agents/mb-manager.md держится только прозой — у сабагента полные Read/Edit/Write/Bash, ничто механически не заставляет подтверждать grep -qxF до вырезания из status.md и ходить в checklist.md только через прунер [MED, NEW, 2026-09-10]
 
 ### I-191 — mb-roadmap-sync.sh не чистит блок mb-active-plans после переноса планов: в status.md 9 мёртвых ссылок на файлы, лежащие в plans/superseded/ [MED, NEW, 2026-09-10]
+
+### I-192 — mb-test-run.sh: 'go test ./... -v' на строке 182 без timeout — в песочнице без сети Go-тулчейн ждёт proxy.golang.org бесконечно, полная батарея висит навсегда с нулевым выводом (два независимых прогона зависли на 26 и 58 минут). Нужен timeout + честный статус 'skipped: no network' вместо вечного ожидания [HIGH, NEW, 2026-09-10]
+
+### I-193 — commands/brief.md существует и упомянут в CLAUDE.md workflows, но строки роутера в commands/mb.md для него не было никогда (git log -S brief по файлу пуст) — tests/bats/test_mb_brief_docs.bats красный с момента написания: router-row, синопсис C0, пометка повторяемости --input [MED, NEW, 2026-09-10]
