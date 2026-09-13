@@ -1020,8 +1020,13 @@ EOF
 
 install_codex_global_agents() {
   local agents_file="$CODEX_DIR/AGENTS.md"
-  local tmp
+  local tmp section_tmp
   mkdir -p "$CODEX_DIR"
+  # Localize the section like the Claude/Pi blocks — without this a `--language ru`
+  # install left "respond in English" inside ~/.codex/AGENTS.md.
+  section_tmp="$(mktemp)"
+  codex_agents_section > "$section_tmp"
+  localize_path_inplace "$section_tmp" "$CODEX_START_MARKER"
 
   if [ -f "$agents_file" ] && grep -q "$CODEX_START_MARKER" "$agents_file" 2>/dev/null; then
     tmp="$agents_file.tmp"
@@ -1034,9 +1039,9 @@ install_codex_global_agents() {
     {
       cat "$tmp"
       printf '\n'
-      codex_agents_section
+      cat "$section_tmp"
     } > "$agents_file"
-    rm -f "$tmp"
+    rm -f "$tmp" "$section_tmp"
     INSTALLED_FILES+=("$agents_file")
     echo -e "  ${GREEN}✓${NC} Codex AGENTS.md (refreshed)"
     return
@@ -1045,14 +1050,16 @@ install_codex_global_agents() {
   if [ -f "$agents_file" ]; then
     {
       printf '\n'
-      codex_agents_section
+      cat "$section_tmp"
     } >> "$agents_file"
+    rm -f "$section_tmp"
     INSTALLED_FILES+=("$agents_file")
     echo -e "  ${GREEN}✓${NC} Codex AGENTS.md (merged)"
     return
   fi
 
-  codex_agents_section > "$agents_file"
+  cat "$section_tmp" > "$agents_file"
+  rm -f "$section_tmp"
   INSTALLED_FILES+=("$agents_file")
   echo -e "  ${GREEN}✓${NC} Codex AGENTS.md (created)"
 }

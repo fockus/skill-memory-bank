@@ -210,7 +210,9 @@ Creates:
 - `AGENTS.md` — shared format
 - `.codex/config.toml` — project settings (`project_doc_max_bytes=65536`,
   `approval_policy="on-request"`)
-- `.codex/hooks.json` — experimental hooks (warning included in `_mb_warning` field)
+- `.codex/hooks.json` — `UserPromptSubmit` prompt guard. Only the `hooks` key sits at the top
+  level: Codex ignores the whole file when it carries unknown top-level keys. Codex loads
+  project hooks only for a trusted project (`[projects."<path>"] trust_level = "trusted"`).
 - `.git/hooks/post-commit` + `.git/hooks/pre-commit` (via `git-hooks-fallback.sh`,
   when the project is a git repo — B5) — the same session-capture fallback Kilo/Pi
   get, since Codex's own lifecycle hooks are still experimental/limited (above).
@@ -287,7 +289,7 @@ categories; not every category has an equivalent on every host.
 | Stop turn capture (creates `session/*.md`) | `stop` (`mb-session-turn.sh`, CC-compatible — adapter-parity T7/REQ-021) | — | — | — | `chat.message`/`system.transform` (genuine per-turn capture, T5) | (session-memory extension, accept-path only) | — |
 | SessionEnd auto-capture (summarize) | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | `post-commit` (git-hooks-fallback, same mechanism as Kilo/Codex) | `post-commit` (git-hooks-fallback, B5) |
 | PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — (no installed fallback; git hooks only fire on commit) | guidance via `~/.codex/AGENTS.md`, project hook pending |
-| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | — (no installed fallback) | project `userpromptsubmit` (exit 2) |
+| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | — (no installed fallback) | project `UserPromptSubmit` (exit 2) |
 | Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | git-fallback (`post-commit` staleness check) | guidance only |
 
 **Pi native extension status:** `adapters/pi_session_memory_extension.ts` (a TypeScript extension listening
@@ -364,9 +366,12 @@ you also want the project-level adapter (`.cursor/rules/*.mdc` + `.cursor/hooks.
 in your current project.
 
 **Q: Codex CLI ignores `.codex/hooks.json`.**
-A: The hooks API is experimental and **off by default**. Enable it in Codex CLI config
-per OpenAI docs, or wait for GA. The `_mb_warning` field in the generated file
-documents this.
+A: Check three things (verified on Codex CLI 0.144.1, where `codex features list` shows
+`hooks … stable true`): the project must be trusted (`[projects."<path>"] trust_level =
+"trusted"` in `~/.codex/config.toml`); the file must carry no top-level key besides `hooks`
+(Codex skips the whole file otherwise, without an error); and hooks installed by an older
+MB version need a re-run of `adapters/codex.sh install` to migrate. `codex exec` prints
+`hook: UserPromptSubmit Blocked` when the guard fires.
 
 **Q: Pi doesn't show `/mb` after install.**
 A: Run `/reload` in the current Pi session. Pi prompt templates are installed to

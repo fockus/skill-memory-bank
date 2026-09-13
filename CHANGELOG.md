@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — Codex: localized global `AGENTS.md`, hooks Codex actually runs
+
+- `install.sh --language <code>` now localizes the Memory Bank block in `~/.codex/AGENTS.md`
+  like the Claude and Pi blocks; a Russian install used to leave "respond in English" there.
+- `adapters/codex.sh` writes `.codex/hooks.json` in Codex's schema —
+  `hooks.UserPromptSubmit[].hooks[] {type: "command", …}`. The flat lowercase `userpromptsubmit`
+  key it wrote before is ignored by Codex CLI (verified on 0.144.1), so the prompt guard and the
+  update notice never ran. Only `hooks` stays at the top level — Codex skips the whole file
+  when it has unknown top-level keys, so the MB-added `version` / `_mb_warning` are gone.
+  Re-install migrates the legacy MB entry and keys and keeps foreign hooks, plus a
+  user's own `version`. Codex loads project hooks only in a trusted project.
+
 ### Changed — BREAKING: hard line caps on `status.md` / `checklist.md`, enforced by a Stop hook
 
 - `status.md` and `checklist.md` are strict registries (AGR-043): the first holds only the current

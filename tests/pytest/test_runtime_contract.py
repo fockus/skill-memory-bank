@@ -146,6 +146,33 @@ def test_codex_global_agents_md_includes_critical_rules_after_install(
     )
 
 
+def test_codex_global_agents_md_language_ru_localizes_rule(tmp_path: Path) -> None:
+    """`--language ru` must localize the language rule inside the Codex block,
+    exactly as the Claude and Pi blocks are localized.
+
+    Regression: install_codex_global_agents skipped localize_path_inplace, so
+    ~/.codex/AGENTS.md kept "respond in English" under a Russian install.
+    """
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "install.sh"), "--language", "ru", "--non-interactive"],
+        env=env,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    agents = (tmp_path / ".codex" / "AGENTS.md").read_text(encoding="utf-8")
+    block = agents.split("<!-- memory-bank-codex:start -->", 1)[1]
+    block = block.split("<!-- memory-bank-codex:end -->", 1)[0]
+    assert "respond in Russian" in block
+    assert "respond in English" not in block
+
+
 def test_skill_md_documents_storage_modes_matrix() -> None:
     """SKILL.md must mention --storage=local, --storage=global, and rules-only mode."""
     skill = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")

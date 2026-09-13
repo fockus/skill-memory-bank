@@ -3,8 +3,8 @@
 #
 # Codex reads AGENTS.md for project instructions (shared format with OpenCode
 # and Pi fallback). Project-level settings live in .codex/config.toml.
-# Experimental hooks live in .codex/hooks.json (userpromptsubmit stable,
-# lifecycle hooks under development).
+# Hooks live in .codex/hooks.json (Codex's UserPromptSubmit command schema;
+# MB wires only the prompt guard).
 #
 # Usage:
 #   adapters/codex.sh install [PROJECT_ROOT]
@@ -63,17 +63,28 @@ $CONFIG_MARKER_END
 TOML_EOF
 }
 
-# ═══ hooks.json body (experimental — userpromptsubmit stable) ═══
+# ═══ hooks.json body (Codex UserPromptSubmit command schema) ═══
+# Codex reads PascalCase events holding groups of `{type: "command"}` hooks; the
+# legacy flat `userpromptsubmit` key older installs wrote is silently ignored.
+# `hooks` is the ONLY top-level key: Codex (0.144.1) skips the whole file when it
+# finds another one, so no `version`/`_mb_warning` here. Keys inside a hook entry
+# (`statusMessage`, the `_mb_owned` marker) are accepted. Re-run
+# `adapters/codex.sh install` after Codex CLI upgrades if the schema moves again.
 hooks_json_body() {
   cat <<'JSON_EOF'
 {
-  "version": 1,
-  "_mb_warning": "Codex hooks API is experimental. Schema may change; re-run `adapters/codex.sh install` after Codex CLI upgrades.",
   "hooks": {
-    "userpromptsubmit": [
+    "UserPromptSubmit": [
       {
-        "command": "bash .codex/hooks/before-prompt.sh",
-        "_mb_owned": true
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/hooks/before-prompt.sh",
+            "timeout": 10,
+            "statusMessage": "Memory Bank prompt guard",
+            "_mb_owned": true
+          }
+        ]
       }
     ]
   }
@@ -81,9 +92,39 @@ hooks_json_body() {
 JSON_EOF
 }
 
+# Shape guard shared by merge and strip: only transform a hooks.json whose hook
+# containers are the types the jq below expects. Any other valid-JSON shape would
+# make jq abort under `set -euo pipefail` — callers fall back instead.
+CODEX_HOOKS_SHAPE_JQ='
+  ((.hooks | type) as $h | $h == "null" or $h == "object")
+  and ((.hooks.userpromptsubmit | type) as $u | $u == "null" or $u == "array")
+  and ((.hooks.UserPromptSubmit | type) as $u | $u == "null" or $u == "array")
+  and ([.hooks.UserPromptSubmit[]? | (.hooks | type) as $g | $g == "null" or $g == "array"] | all)
+'
+
+# Drop every MB-owned hook — current schema AND the legacy flat key — touching a
+# container only when it actually held an MB entry, so foreign content (even an
+# empty user group) is never rewritten.
+CODEX_HOOKS_DROP_MB_JQ='
+  def mb_drop_owned:
+    if (.hooks | type) == "object" then
+      (if any(.hooks.userpromptsubmit[]?; ._mb_owned == true) then
+         .hooks.userpromptsubmit |= map(select(._mb_owned != true))
+         | if .hooks.userpromptsubmit == [] then .hooks |= del(.userpromptsubmit) else . end
+       else . end)
+      | (if any(.hooks.UserPromptSubmit[]?.hooks[]?; ._mb_owned == true) then
+           .hooks.UserPromptSubmit |= map(
+             if any(.hooks[]?; ._mb_owned == true)
+             then (.hooks |= map(select(._mb_owned != true))) | select(.hooks != [])
+             else . end)
+           | if .hooks.UserPromptSubmit == [] then .hooks |= del(.UserPromptSubmit) else . end
+         else . end)
+    else . end;
+'
+
 # Pre-prompt guard script — danger-payload blocking (existing) + a TTL-gated
-# update notice (Task 6, REQ-014/REQ-019). Codex has no session-start
-# surface; userpromptsubmit is the only native hook, and it fires on EVERY
+# update notice (Task 6, REQ-014/REQ-019). MB wires no session-start hook for
+# Codex; UserPromptSubmit is the only one it installs, and it fires on EVERY
 # prompt — so the notice logic below self-gates on a local marker file
 # rather than rendering on every single prompt.
 #
@@ -102,7 +143,7 @@ before_prompt_body() {
 
   cat <<'HOOK_EOF'
 #!/usr/bin/env bash
-# Codex userpromptsubmit — block dangerous payloads + TTL-gated update notice
+# Codex UserPromptSubmit — block dangerous payloads + TTL-gated update notice
 # memory-bank: managed hook
 set -u
 command -v jq >/dev/null 2>&1 || exit 0
@@ -270,36 +311,28 @@ codex_upsert_config_toml() {
   rm -f "$tmp"
 }
 
-# Merge MB's userpromptsubmit hook into an existing hooks.json, preserving every
+# Merge MB's UserPromptSubmit hook into an existing hooks.json, preserving every
 # user key + non-MB hook entry. Merge runs ONLY when the file is valid JSON AND
-# has the expected shape (.hooks object-or-absent, .hooks.userpromptsubmit
-# array-or-absent) — any other shape (still valid JSON but e.g. a string-valued
-# .hooks) would make the merge jq filter abort under `set -euo pipefail` and kill
-# the whole install mid-way, so it falls back to the fresh-MB-body branch (the
-# original file is already backed up by the caller). MB's schema `version` is only
-# set when the user hasn't already declared one (no silent downgrade); `_mb_warning`
-# is MB's own namespaced-ish metadata. Atomic (tmp + mv).
+# passes CODEX_HOOKS_SHAPE_JQ — any other shape falls back to the fresh-MB-body
+# branch (the original file is already backed up by the caller) instead of
+# killing the install mid-way. Previous MB entries (either schema) are dropped
+# first, so re-installs never duplicate and legacy installs migrate. The top-level
+# `_mb_warning` / `version` older MB installs added are removed too (they make Codex
+# skip the file) — `version` only when the user's pre-MB original had none. Atomic.
 codex_merge_hooks_json() {
-  local target="$1" mb_body tmp
+  local target="$1" mb_body tmp user_version=false
   mb_body="$(hooks_json_body)"
   tmp="$(mktemp "${TMPDIR:-/tmp}/mb-codex-hooks.XXXXXXXX")"
+  codex_user_owns_version "$target" && user_version=true
   if [ -f "$target" ] \
      && jq -e . "$target" >/dev/null 2>&1 \
-     && jq -e '
-          ((.hooks | type) as $h | $h == "null" or $h == "object")
-          and ((.hooks.userpromptsubmit | type) as $u | $u == "null" or $u == "array")
-        ' "$target" >/dev/null 2>&1; then
-    jq --argjson mb "$mb_body" '
-      . as $user
-      | $user
-      + { version: (if ($user | has("version")) then $user.version else $mb.version end),
-          "_mb_warning": $mb._mb_warning }
-      | .hooks = (($user.hooks // {}) + {
-          userpromptsubmit: (
-            (($user.hooks.userpromptsubmit // []) | map(select(._mb_owned != true)))
-            + $mb.hooks.userpromptsubmit
-          )
-        })
+     && jq -e "$CODEX_HOOKS_SHAPE_JQ" "$target" >/dev/null 2>&1; then
+    jq --argjson mb "$mb_body" --argjson user_version "$user_version" "$CODEX_HOOKS_DROP_MB_JQ"'
+      mb_drop_owned
+      | del(._mb_warning)
+      | if $user_version then . else del(.version) end
+      | .hooks = ((.hooks // {})
+          | .UserPromptSubmit = ((.UserPromptSubmit // []) + $mb.hooks.UserPromptSubmit))
     ' "$target" > "$tmp"
   else
     printf '%s\n' "$mb_body" > "$tmp"
@@ -315,6 +348,15 @@ codex_merge_hooks_json() {
 codex_mb_created_file() {
   local target="$1"
   ! ls "$target".pre-mb-backup.* >/dev/null 2>&1
+}
+
+# True iff a top-level `version` in hooks.json is the user's: their pre-MB original
+# (the one-time `.pre-mb-backup.*`) already had it. With no backup the file is
+# MB-created, so any `version` came from an older MB install.
+codex_user_owns_version() {
+  local target="$1" backup
+  backup="$(ls "$target".pre-mb-backup.* 2>/dev/null | head -1)"
+  [ -n "$backup" ] && jq -e 'type == "object" and has("version")' "$backup" >/dev/null 2>&1
 }
 
 # Inverse of codex_upsert_config_toml, used on uninstall: strip the MB block,
@@ -357,22 +399,17 @@ codex_strip_hooks_json_or_remove() {
   jq -e . "$target" >/dev/null 2>&1 || return 0
   # Shape guard mirroring the install side: a valid-JSON-but-wrong-shape file
   # would make the strip jq abort → empty tmp → truncation. Leave it untouched.
-  jq -e '
-    ((.hooks | type) as $h | $h == "null" or $h == "object")
-    and ((.hooks.userpromptsubmit | type) as $u | $u == "null" or $u == "array")
-  ' "$target" >/dev/null 2>&1 || return 0
+  jq -e "$CODEX_HOOKS_SHAPE_JQ" "$target" >/dev/null 2>&1 || return 0
   tmp="$(mktemp "${TMPDIR:-/tmp}/mb-codex-hooks-strip.XXXXXXXX")"
-  jq '
-    if (.hooks? and .hooks.userpromptsubmit?) then
-      .hooks.userpromptsubmit |= map(select(._mb_owned != true))
-    else . end
-    | if (.hooks?.userpromptsubmit? and ((.hooks.userpromptsubmit | length) == 0)) then
-        .hooks |= del(.userpromptsubmit)
-      else . end
-    | if (.hooks? and ((.hooks | length) == 0)) then
+  local user_version=false
+  codex_user_owns_version "$target" && user_version=true
+  jq --argjson user_version "$user_version" "$CODEX_HOOKS_DROP_MB_JQ"'
+    mb_drop_owned
+    | if ((.hooks | type) == "object" and (.hooks | length) == 0) then
         del(.hooks)
       else . end
     | del(._mb_warning)
+    | if $user_version then . else del(.version) end
   ' "$target" > "$tmp" 2>/dev/null
   # Never mv an empty tmp (a jq failure) over the user's data.
   [ -s "$tmp" ] || { rm -f "$tmp"; return 0; }
@@ -410,7 +447,7 @@ install_codex() {
   chmod +x "$CODEX_DIR/hooks/before-prompt.sh"
 
   # 4b. Session capture via git-hooks-fallback (B5 / F-5): Codex has no native
-  # lifecycle hooks (only the experimental userpromptsubmit guard above) —
+  # lifecycle hooks wired by MB (only the UserPromptSubmit guard above) —
   # mirror pi.sh's wiring so Codex users still get post-commit auto-capture +
   # pre-commit <private> warnings in a git repo. `git rev-parse --git-dir`
   # (not `[ -d .git ]`) so a worktree (.git is a FILE there, per A9) is still
@@ -449,7 +486,7 @@ install_codex() {
   platform_limited_notes_json=$(jq -n \
     --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in Codex." \
     --arg subagents "Codex has no Task-tool-equivalent subagent dispatch; \`codex exec\` is a plain CLI invocation, not an in-session dispatch primitive (D-03)." \
-    --arg lifecycle_hooks "Only the experimental before-prompt (userpromptsubmit) hook exists — no session-start-class hook (CC's SessionStart/PreCompact/Stop set has no equivalent)." \
+    --arg lifecycle_hooks "Only the experimental before-prompt (UserPromptSubmit) hook exists — no session-start-class hook (CC's SessionStart/PreCompact/Stop set has no equivalent)." \
     --arg session_memory "git-hooks-fallback appends a one-line stub note to progress.md on commit, not the CC v2-schema session/*.md capture." \
     '{"statusline": $statusline, "subagents": $subagents, "lifecycle-hooks": $lifecycle_hooks, "session-memory": $session_memory}')
 

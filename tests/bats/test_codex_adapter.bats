@@ -102,12 +102,61 @@ run_adapter() {
   rm -rf "$main_repo"
 }
 
-@test "codex: install creates .codex/hooks.json with userpromptsubmit event" {
+@test "codex: install creates .codex/hooks.json in Codex's UserPromptSubmit command schema" {
+  # Codex CLI (0.144+) only reads PascalCase events with nested command hooks —
+  # the legacy flat `userpromptsubmit` key is silently ignored (hook never fires).
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
-  [ -f "$PROJECT/.codex/hooks.json" ]
-  jq . "$PROJECT/.codex/hooks.json" >/dev/null
-  jq -e '.hooks.userpromptsubmit // .hooks."user-prompt-submit"' "$PROJECT/.codex/hooks.json" >/dev/null
+  local h="$PROJECT/.codex/hooks.json"
+  [ -f "$h" ]
+  # Codex 0.144 silently ignores the WHOLE file when it has unknown top-level keys
+  # (e.g. `version`, `_mb_warning`) — only `hooks` may sit at the top.
+  jq -e 'keys == ["hooks"]' "$h" >/dev/null
+  jq -e '.hooks | has("userpromptsubmit") | not' "$h" >/dev/null
+  jq -e '.hooks.UserPromptSubmit[0].hooks[0].type == "command"' "$h" >/dev/null
+  jq -e '.hooks.UserPromptSubmit[0].hooks[0].command == "bash .codex/hooks/before-prompt.sh"' "$h" >/dev/null
+  jq -e '.hooks.UserPromptSubmit[0].hooks[0]._mb_owned == true' "$h" >/dev/null
+  # Re-install keeps exactly one MB hook (no duplicate groups)
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  jq -e '[.hooks.UserPromptSubmit[].hooks[] | select(._mb_owned == true)] | length == 1' "$h" >/dev/null
+}
+
+@test "codex: install migrates a legacy MB-owned userpromptsubmit entry, keeps the user's legacy entry" {
+  mkdir -p "$PROJECT/.codex"
+  printf '%s\n' '{"hooks":{"userpromptsubmit":[{"command":"bash .codex/hooks/before-prompt.sh","_mb_owned":true},{"command":"echo legacy-user"}]}}' \
+    > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local h="$PROJECT/.codex/hooks.json"
+  jq -e '[.hooks.userpromptsubmit[] | select(._mb_owned == true)] | length == 0' "$h" >/dev/null
+  jq -e '[.hooks.userpromptsubmit[].command] == ["echo legacy-user"]' "$h" >/dev/null
+  jq -e '[.hooks.UserPromptSubmit[].hooks[] | select(._mb_owned == true)] | length == 1' "$h" >/dev/null
+}
+
+@test "codex: install migrates a legacy MB-created hooks.json to a file Codex loads" {
+  # Exactly what older MB installs wrote: flat key + top-level version/_mb_warning.
+  mkdir -p "$PROJECT/.codex"
+  printf '%s\n' '{"version":1,"_mb_warning":"legacy","hooks":{"userpromptsubmit":[{"command":"bash .codex/hooks/before-prompt.sh","_mb_owned":true}]}}' \
+    > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  jq -e 'keys == ["hooks"]' "$PROJECT/.codex/hooks.json" >/dev/null
+  jq -e '.hooks | has("userpromptsubmit") | not' "$PROJECT/.codex/hooks.json" >/dev/null
+}
+
+@test "codex: re-install drops the version/_mb_warning an older MB install added to a user's hooks.json" {
+  mkdir -p "$PROJECT/.codex"
+  printf '%s\n' '{"my_key":"keep"}' > "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  # Simulate the keys an older MB merge injected into this user file
+  jq '. + {version: 1, "_mb_warning": "legacy"}' "$PROJECT/.codex/hooks.json" > "$PROJECT/h.tmp"
+  mv "$PROJECT/h.tmp" "$PROJECT/.codex/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  jq -e '(has("version") | not) and (has("_mb_warning") | not) and .my_key == "keep"' \
+    "$PROJECT/.codex/hooks.json" >/dev/null
 }
 
 @test "codex: install writes manifest with adapter=codex" {
@@ -431,7 +480,7 @@ PY
 
 @test "codex: backs up existing user hooks.json and merges foreign keys" {
   mkdir -p "$PROJECT/.codex"
-  printf '{"hooks":{"userpromptsubmit":[{"command":"echo user"}]},"my_key":"keep"}\n' \
+  printf '%s\n' '{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"echo user"}]}]},"my_key":"keep"}' \
     > "$PROJECT/.codex/hooks.json"
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
@@ -441,8 +490,9 @@ PY
   grep -q 'my_key' "$bk"
   jq -e '.my_key == "keep"' "$PROJECT/.codex/hooks.json" >/dev/null
   # MB's own hook is present alongside the user's
-  jq -e '[.hooks.userpromptsubmit[]._mb_owned] | any' "$PROJECT/.codex/hooks.json" >/dev/null
-  jq -e '[.hooks.userpromptsubmit[].command] | any(. == "echo user")' \
+  jq -e '[.hooks.UserPromptSubmit[].hooks[] | select(._mb_owned == true)] | length == 1' \
+    "$PROJECT/.codex/hooks.json" >/dev/null
+  jq -e '[.hooks.UserPromptSubmit[].hooks[].command] | any(. == "echo user")' \
     "$PROJECT/.codex/hooks.json" >/dev/null
 }
 
@@ -494,19 +544,22 @@ PY
 
 @test "codex: uninstall preserves foreign hooks.json hook, removes only the MB hook entry" {
   mkdir -p "$PROJECT/.codex"
-  printf '{"hooks":{"userpromptsubmit":[{"command":"echo user"}]},"my_key":"keep"}\n' \
+  printf '%s\n' '{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"echo user"}]}]},"my_key":"keep"}' \
     > "$PROJECT/.codex/hooks.json"
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
+  # Precondition: the MB hook really sits next to the user's (else the strip check below is vacuous)
+  jq -e '[.hooks.UserPromptSubmit[].hooks[] | select(._mb_owned == true)] | length == 1' \
+    "$PROJECT/.codex/hooks.json" >/dev/null
   run_adapter uninstall "$PROJECT"
   [ "$status" -eq 0 ]
   # User's foreign key + hook entry survive uninstall
   [ -f "$PROJECT/.codex/hooks.json" ]
   jq -e '.my_key == "keep"' "$PROJECT/.codex/hooks.json" >/dev/null
-  jq -e '[.hooks.userpromptsubmit[].command] | any(. == "echo user")' \
+  jq -e '[.hooks.UserPromptSubmit[].hooks[].command] == ["echo user"]' \
     "$PROJECT/.codex/hooks.json" >/dev/null
   # But the MB-owned hook entry is gone
-  jq -e '[.hooks.userpromptsubmit[] | select(._mb_owned == true)] | length == 0' \
+  jq -e '[.hooks.UserPromptSubmit[].hooks[] | select(._mb_owned == true)] | length == 0' \
     "$PROJECT/.codex/hooks.json" >/dev/null
   # The original pristine backup is untouched by the uninstall logic
   local bk
