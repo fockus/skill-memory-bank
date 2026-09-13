@@ -1134,3 +1134,35 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-192 — mb-test-run.sh: 'go test ./... -v' на строке 182 без timeout — в песочнице без сети Go-тулчейн ждёт proxy.golang.org бесконечно, полная батарея висит навсегда с нулевым выводом (два независимых прогона зависли на 26 и 58 минут). Нужен timeout + честный статус 'skipped: no network' вместо вечного ожидания [HIGH, NEW, 2026-09-10]
 
 ### I-193 — commands/brief.md существует и упомянут в CLAUDE.md workflows, но строки роутера в commands/mb.md для него не было никогда (git log -S brief по файлу пуст) — tests/bats/test_mb_brief_docs.bats красный с момента написания: router-row, синопсис C0, пометка повторяемости --input [MED, NEW, 2026-09-10]
+
+### I-194 — [review S1 J1, blocker/logic, judge-reproduced] scripts/mb-checklist-prune.sh:105 — [slice B, reviewer line 'mb-checklist-prune.sh:102'] Archive identity is `## [checklist archive] <TODAY> — <label>` and confirmation is a ba [HIGH, NEW, 2026-09-13]
+
+### I-195 — [review S1 J2, major/security, judge-reproduced] scripts/mb-checklist-v2.py:47 — [slice B, reviewer line 'mb-checklist-v2.py:47'] `_titles` joins the plan name parsed from `<!-- mb-plan:.. [HIGH, NEW, 2026-09-13]
+
+### I-196 — [review S1 J3, major/logic, judge-reproduced] scripts/mb-work-state-lib.sh:117 — [slice A, reviewer line 'mb-work-state-lib.sh:116'] The file IS in the sprint range — `git log --oneline 364164a..a18235b -- scripts/mb-work [HIGH, NEW, 2026-09-13]
+
+### I-197 — [review S1 reviewer A] memory_bank_skill/cost_report.py:43 — cost_report.py: marker regexes match any substring, so `cat pytest.ini` counts as a test run [MED, NEW, 2026-09-13]
+
+### I-198 — [review S1 reviewer A] scripts/mb-context.sh:120 — mb-context.sh: checklist trimming drops ✅ lines individually, orphaning continuation lines in non-v2 checklists [LOW, NEW, 2026-09-13]
+
+### I-199 — [review S1 reviewer A] tests/bats/test_context_budget.bats:31 — test_context_budget.bats mutates and rm -f's .mb-config inside the checked-in fixture dir [LOW, NEW, 2026-09-13]
+
+### I-200 — [review S1 reviewer A] memory_bank_skill/cost_report.py:0 — cost_report.py is 313 lines with five responsibilities (SRP split candidate) [LOW, NEW, 2026-09-13]
+
+### I-201 — [review S1 reviewer B] scripts/mb-status-rotate.sh:141 — mb-status-rotate.sh confirms archival by heading only; a stale identical heading can mask a silent no-append [MED, NEW, 2026-09-13]
+
+### I-202 — [review S1 reviewer B] scripts/mb-status-rotate.sh:100 — mb-status-rotate.sh --keep N keeps the first N dated sections in file order, not the newest N by date [LOW, NEW, 2026-09-13]
+
+### I-203 — [review S1 reviewer B] memory_bank_skill/checklist_v2.py:157 — checklist_v2.merge: on a duplicate stage the later block's name always wins, discarding richer v1 text [MED, NEW, 2026-09-13]
+
+### I-204 — [review S1 reviewer B] scripts/mb-checklist-prune.sh:74 — checklist cap resolver accepts 0, silently disabling the documented hard cap [MED, NEW, 2026-09-13]
+
+### I-205 — [review S1 reviewer C] hooks/mb-core-cap-guard.sh:156 — mb-core-cap-guard.sh ignores marker-creation failure, so an unwritable bank is nudged every Stop [MED, NEW, 2026-09-13]
+
+### I-206 — [review S1 reviewer C] scripts/mb-core-cap.sh:170 — mb-core-cap.sh fix downgrades rotate failures to warnings and discards prune failures other than exit 3 [MED, NEW, 2026-09-13]
+
+### I-207 — [review S1 reviewer C] scripts/mb-coord.sh:195 — mb-coord.sh legacy-freeze heuristic requires a `**` somewhere on the line, not around the marker itself [LOW, NEW, 2026-09-13]
+
+### I-208 — [review S1 judge] .memory-bank/plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md:291 — Full test battery is not green; Sprint 1's Gate wording requires tests_pass: true [HIGH, NEW, 2026-09-13]
+
+### I-209 — [review S1 reviewer C] references/coordination.md — документ обещает, что тегированный LIFT снимает legacy-заморозку, а mb-coord.sh этого не умеет (scope у нетегированной записи пустой): переписать фразу на «перевыпустить заморозку тегом, затем LIFT» либо сделать scope выводимым [MED, NEW, 2026-09-13]
