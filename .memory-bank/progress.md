@@ -3340,3 +3340,33 @@ Cross-session coordination also shipped (`references/coordination.md` had been u
 - **Тесты:** 11 bats `test_core_cap` + 8 bats `test_core_cap_guard` (план просил 7+7), 3 pytest doc-contract, `test_drift_status_size.bats` → `test_drift_core_cap.bats`; 43 pytest зелёные, shellcheck чист, `mb-drift.sh` без новых категорий.
 - **Run:** /mb work run `c6cdff48ad88407c8de13cab9838c203`, implementer opus (оборван), MB Manager sonnet 8.5 мин / 38 calls / 213k, verifier sonnet 24 мин / 50 calls / 156k. Graph: 0 запросов (файлы `.sh`/`.bats`/`.md`).
 - **Sprint 1 завершён 7/7.** Дальше: `/mb verify` по всему плану, затем `/mb done`.
+
+## 2026-09-13
+
+### NOTE: /mb done --force — gates failed: tests: tests: 35 pre-existing failures in files Sprint 1 never touched (14 hooks/mb-session-end.sh summarizer, 7 networkx missing, 4 python 3.9<3.11 install, 5 mb-interview-artifact-*, 3 brief router I-193, 2 misc) — verified per-suite against git log 364164a..HEAD; touched-file suites green; I-192 go-test hang filed
+
+## [checklist archive] 2026-09-13 — 2026-09-05_fix_mb-work-cost-diet-sprint1.md
+
+<!-- mb-plan:2026-09-05_fix_mb-work-cost-diet-sprint1.md -->
+## mb-work-cost-diet · Sprint 1 «context-diet + измерение» — 7/7
+- ✅ Stage 1 — `mb-cost-report.py` — измерение и baseline (2026-09-05, /mb work run 8bee263e, judge GO_WITH_BACKLOG → I-185)
+- ✅ Stage 2 — Fast lane без кода — дефолт `execution`, governed opt-in (2026-09-05, /mb work run fe0c8c6d, codex-governed, judge GO_WITH_BACKLOG → I-186, I-187)
+- ✅ Stage 3 — Бюджет вывода `mb-context.sh` (2026-09-05, /mb work run 26f571b7, execution, verifier PASS; этот банк 39 615 B через .mb-config context_max_bytes=12288, techflow 58 127 B)
+- ✅ Stage 4 — `mb-status-rotate.sh` — ротация `status.md` (2026-09-06, /mb work run 8b5668b0, execution, verifier PASS; 8 bats + 2 drift-bats + 2 pytest, wired into actualize step of /mb done|update, drift WARN status_size > 24 KB)
+- ✅ Stage 5 — `checklist.md` v2 — один блок на план, закрытое → `progress.md`
+- ✅ Stage 6 — `mb-coord.sh active` — доска без 200 KB
+- ✅ Stage 7 — Жёсткие капы core-файлов — Stop-хук + `actualize --strict`
+
+
+## 2026-09-13
+
+### mb-manager action: done — Sprint 1 `mb-work-cost-diet` closed
+- Plan closed via `mb-plan-done.sh .memory-bank/plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md`: 7/7 stages, 26/26 DoD boxes ✅; `/mb verify` already PASSED whole-plan this session (44 agreements checked, 0 violated) — not re-run here; done-gates NOTE (forced past pre-existing unrelated failures) already recorded above.
+- `plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md` → `plans/done/`.
+- `checklist.md`: Sprint 1 v2 block (7/7) archived verbatim to `progress.md` (`## [checklist archive] 2026-09-13 — 2026-09-05_fix_mb-work-cost-diet-sprint1.md`, confirmed via `grep -qxF` before removal) then dropped — 89/100 lines.
+- `status.md`: Current phase / Focus rewritten — Sprint 1 closed; next `graph-semantic-adoption` (AGR-044 order 6→2→3→1→5→4→7) → Sprint 2 → Sprint 3 → `drive-loop` Task 3 → `sdd-vision-pipeline` DAG; `mb-active-plans` entry + `mb-recent-done` prepend handled by `mb-plan-done.sh` — 54/60 lines.
+- `roadmap.md`: Sprint 1 row in `Phase: mb-work-cost-diet` table flipped to `✅ done (2026-09-13, 7/7)`; `Now` list + `mb-active-plans` entry dropped by `mb-plan-done.sh`'s `mb-roadmap-sync.sh` call.
+- `mb-core-cap.sh check --mb .memory-bank`: `status_lines=54 status_cap=60 checklist_lines=89 checklist_cap=100 over=none`, exit 0.
+- Unchanged (no reason): `research.md`, `lessons.md` (no new anti-pattern), `backlog.md` (I-189..I-193 already filed this session), `agreements.md`, `COORDINATION.md` (out of scope, orchestrator-owned).
+- Owner decisions still open (not resolved here): Q-001 core-cap defaults 60/100 never confirmed; `actualize --strict` suggestion list (spec-group-round3-remediation done, wrapper plans reviewer-v2/work-loop-v2 queued, 3 plans untouched >30d, I-045..I-060 not re-filed).
+- Next: `graph-semantic-adoption` (0/7).

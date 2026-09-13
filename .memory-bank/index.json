@@ -454,25 +454,30 @@
       "summary": "14-day transcript audit found the Stop-hook closure guard blocked flow closure 96+ times, one taskloom session hitting 160 consecutive blocks (finish attempt → block → retry, looped). I-131 (b5f074c, 2026-07-27) already fixed the *slowness* half (synchronous full pytest+bats run on Stop, was >180s, now budgeted to 20s + `--skip tests`) — see [[stop-hook-full-test-suite-hang]]. - **Remaining gap, not yet fixed:** the guard has no session-scoped attempt counter, so on a genuinely red flow it will now block fast but forever, not slow but finite.",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-09-13_16-17_mb-work-cost-diet-sprint1-close.md",
+      "type": "note",
+      "tags": [
+        "mb-work-cost-diet",
+        "sprint1",
+        "plan-closure",
+        "core-cap",
+        "checklist-v2",
+        "status-rotate",
+        "mb-coord"
+      ],
+      "importance": "medium",
+      "summary": "Date: 2026-09-13 16:17 - Closed `plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md` (7/7 stages, 26/26 DoD ✅) via `mb-plan-done.sh` after whole-plan `/mb verify` PASS (44 agreements checked, 0 violated) and done-gates forced past pre-existing unrelated test failures (NOTE in `progress.md`, 2026-09-13).",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-09-10T07:59:16Z",
+  "generated_at": "2026-09-13T13:17:38Z",
   "progress_chain": {
     "version": 1,
     "tail": [
-      {
-        "heading": "## 2026-08-06",
-        "sha256": "f4300972d1de86c92739ce31ff400d5581284ce73d15663856c50ea9ff61407f"
-      },
-      {
-        "heading": "## 2026-08-06",
-        "sha256": "7d54ab46796e511a7bf7699875dbbabb89e77713a7c4862d6b638ad28feef44b"
-      },
-      {
-        "heading": "## 2026-09-05",
-        "sha256": "363c65c76cfb1d453c56ea0a2b4db731fa3fb87ec2045299b1de353fca781f05"
-      },
       {
         "heading": "## 2026-09-05",
         "sha256": "7cb3465f0e334812c320f5095ff81c5fef7cd02629d5f9ae02672512c0602e43"
@@ -540,8 +545,20 @@
       {
         "heading": "## 2026-09-10 — Sprint 1 Stage 6: `mb-coord.sh active` — доска без 200 KB (/mb work, execution)",
         "sha256": "2327d6753010490e1d6c979d0ca3c40678a98414b931b500dbd31d0fbcccd03b"
+      },
+      {
+        "heading": "## 2026-09-10 — Sprint 1 Stage 7: жёсткие капы core-файлов — Stop-хук + `actualize --strict` (/mb work, execution)",
+        "sha256": "d6d912ada8160dd86da1a14ebe2a31cfb4586e2031761b9bd6a40598218c3396"
+      },
+      {
+        "heading": "## 2026-09-13",
+        "sha256": "71e2cc9632b1b0a666e3e275dda4589117cb8f7754ba2f575ee90bae8f43f6a2"
+      },
+      {
+        "heading": "## 2026-09-13",
+        "sha256": "c2209cea8ad42e856ade8986d56c1521a950272477cdc6e62287fd0f97c3282a"
       }
     ],
-    "last_synced_at": "2026-09-10T07:59:16Z"
+    "last_synced_at": "2026-09-13T13:17:38Z"
   }
 }

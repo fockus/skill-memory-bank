@@ -1,7 +1,7 @@
 # claude-skill-memory-bank: Статус проекта
 
-**Current phase:** Три параллельных живых трека: `mb-work-cost-diet` Sprint 1 (Stage 7 — жёсткие капы core-файлов, этот прогон `actualize --strict`), `long-running-sessions` SEQUENCE Phase 3 `drive-loop` (Task 3 + Task 5 открыты), `sdd-vision-pipeline` group G-001 (главный трек, детали хода — `checklist.md`/`COORDINATION.md`). `graph-semantic-adoption` — план создан (AGR-038), 0/7 стадий начато.
-**Focus:** закрыть Sprint 1 Stage 7 → `/mb verify` + `/mb done` по Sprint 1 → `drive-loop` Task 3 (trend/pivot wiring) → `sdd-vision-pipeline` по DAG T1→S1→S7→S4→S2→S8→S9→S6→S3→S5 (AGR-029) → `graph-semantic-adoption`.
+**Current phase:** `mb-work-cost-diet` Sprint 1 закрыт 7/7 (2026-09-13, `/mb verify` PASS 44/44, `plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md`; done-гейты форсированы через pre-existing неродственные тестовые провалы — NOTE в `progress.md`). Живые треки: `long-running-sessions` SEQUENCE Phase 3 `drive-loop` (Task 3 + Task 5 открыты), `sdd-vision-pipeline` group G-001 (детали — `checklist.md`/`COORDINATION.md`), `graph-semantic-adoption` (план создан AGR-038, 0/7).
+**Focus:** `graph-semantic-adoption` (пререквизит Sprint 2 по AGR-044, порядок стадий 6→2→3→1→5→4→7) → Sprint 2 `mb-work-cost-diet` → Sprint 3 → `drive-loop` Task 3 (trend/pivot wiring) → `sdd-vision-pipeline` по DAG T1→S1→S7→S4→S2→S8→S9→S6→S3→S5 (AGR-029).
 **Blockers:** нет для текущей работы; действует репо-wide FREEZE на деструктивные git-операции (rebase / `reset --hard` / `checkout .` / whole-tree stash) — см. `COORDINATION.md`.
 
 ## Metrics
@@ -32,12 +32,12 @@
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
 - [2026-07-18] [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
 - [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
-- [2026-09-05] [plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md](plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение»
 <!-- /mb-active-plans -->
 
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-09-13 — [plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md](plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение»
 - 2026-06-15 — [specs/handoff-v2/](specs/handoff-v2/) — feature — Handoff 2.0 (5/5): handoff capsule + PreCompact/SessionStart hooks + mandatory `/mb done` gates + append-only sha256 progress chain + docs; governed dual-review (Codex + lead) + judge, fix-cycle per task
 - 2026-06-14 — [specs/tier1-graph-memory/](specs/tier1-graph-memory/) — feature — Tier-1 graph + session memory (17/17): RRF/import-aware/PageRank graph, progressive-disclosure recall, `/mb recap`+`/mb conflicts`+`/mb consolidate`, `--sessions` graph layer, wiki staleness+decisions; + 5.1.0 release prep
 - 2026-06-10 — [specs/composable-work-pipeline/](specs/composable-work-pipeline/) — feature — composable `/mb work` pipeline (review off by default) + v5.0.0 release prep
@@ -47,7 +47,6 @@
 - 2026-05-24 — [plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage-agent-support.md](plans/done/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage.md](plans/done/2026-05-21_feature_global-storage.md) — feature — global-storage-core
-- 2026-05-23 — [plans/done/2026-05-21_refactor_sdd-traceability-docs.md](plans/done/2026-05-21_refactor_sdd-traceability-docs.md) — refactor — sdd-traceability-docs
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)
