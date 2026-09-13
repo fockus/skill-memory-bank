@@ -31,8 +31,8 @@
   reproducible experiment transcript; no "probably".
 
 **DoD:**
-- [ ] Pi dispatch mechanism selected with evidence; OpenCode event map documented.
-- [ ] design.md updated; infeasible capabilities routed to `platform_limited` explicitly.
+- [x] Pi dispatch mechanism selected with evidence; OpenCode event map documented.
+- [x] design.md updated; infeasible capabilities routed to `platform_limited` explicitly.
 
 <!-- mb-task:2 -->
 ## Task 2: Extension offer plumbing (interactive + flag + CI-safe)
@@ -55,8 +55,8 @@
 - Flag/env accept → extensions land, manifest lists them; prompt never shown without TTY.
 
 **DoD:**
-- [ ] Offer works interactive + flag + CI; declined path byte-identical; manifest honest.
-- [ ] bats pass · shellcheck clean · bash 3.2.
+- [x] Offer works interactive + flag + CI; declined path byte-identical; manifest honest.
+- [x] bats pass · shellcheck clean · bash 3.2.
 
 <!-- mb-task:3 -->
 ## Task 3: Pi session-memory + graph-rag extensions installed on accept

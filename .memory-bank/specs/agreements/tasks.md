@@ -21,9 +21,9 @@
 - New `tests/bats/test_mb_agree.bats`: lazy init creates all 4 sections; `add` writes `- AGR-001 (YYYY-MM-DD, user-confirmed): …` under Active; second `add` issues `AGR-002`; `--adr 12` appends `→ ADR-012`; multiline statement exits 2; `list` prints Active only, `list --all` everything; IDs count Archive entries too (max across sections).
 
 **DoD:**
-- [ ] `mb-agree.sh add`/`list` pass all new bats tests on default bash and bash 3.2
-- [ ] tests pass
-- [ ] lint clean (shellcheck)
+- [x] `mb-agree.sh add`/`list` pass all new bats tests on default bash and bash 3.2
+- [x] tests pass
+- [x] lint clean (shellcheck)
 
 <!-- /mb-task:1 -->
 
@@ -44,8 +44,8 @@
 
 **DoD:**
 - [ ] scenarios 2 and 3 from requirements.md pass as bats tests
-- [ ] tests pass
-- [ ] lint clean
+- [x] tests pass
+- [x] lint clean
 
 <!-- /mb-task:2 -->
 
@@ -64,9 +64,9 @@
 - Bats: question appends with next Q-ID; resolve closes it; resolve of missing ID exits 1; CLAUDE.md/AGENTS.md mtime/content unchanged by both subcommands.
 
 **DoD:**
-- [ ] question/resolve tests green, block untouched by both
-- [ ] tests pass
-- [ ] lint clean
+- [x] question/resolve tests green, block untouched by both
+- [x] tests pass
+- [x] lint clean
 
 <!-- /mb-task:3 -->
 
@@ -88,8 +88,8 @@
 
 **DoD:**
 - [ ] scenarios 1, 5, 6, 9 pass as bats tests; double-sync byte-identity proven
-- [ ] tests pass
-- [ ] lint clean
+- [x] tests pass
+- [x] lint clean
 
 <!-- /mb-task:4 -->
 
@@ -108,8 +108,8 @@
 
 **DoD:**
 - [ ] scenarios 4 and 7 pass as bats tests
-- [ ] tests pass
-- [ ] lint clean
+- [x] tests pass
+- [x] lint clean
 
 <!-- /mb-task:5 -->
 
@@ -129,9 +129,9 @@
 - Bats (docs invariants, same style as test_agent_report_delivery.bats): trigger present in both rules files; `commands/mb.md` router row exists; `references/agreements.md` contains the announce format and anti-example section; all files pass the repo terminology guard.
 
 **DoD:**
-- [ ] docs-invariant bats tests green; `/mb agree` resolvable from the router
-- [ ] tests pass
-- [ ] lint clean
+- [x] docs-invariant bats tests green; `/mb agree` resolvable from the router
+- [x] tests pass
+- [x] lint clean
 
 <!-- /mb-task:6 -->
 
@@ -149,9 +149,9 @@
 - Bats (docs invariants): plan-verifier.md contains the three classifications, the FAIL rule, and the fix-or-supersede wording; verify section in commands/mb.md mentions agreements. (LLM-behavior itself is exercised by scenario 8 during `/mb verify` dogfooding of this very spec.)
 
 **DoD:**
-- [ ] plan-verifier prompt contains the compliance step; docs-invariant tests green
-- [ ] tests pass
-- [ ] lint clean
+- [x] plan-verifier prompt contains the compliance step; docs-invariant tests green
+- [x] tests pass
+- [x] lint clean
 
 <!-- /mb-task:7 -->
 
@@ -173,6 +173,6 @@
 **DoD:**
 - [ ] spec-validate exits 0; full bats suite green locally and in CI
 - [ ] dogfood registry live in this repo with the 8 decisions injected
-- [ ] CHANGELOG updated
+- [x] CHANGELOG updated
 
 <!-- /mb-task:8 -->

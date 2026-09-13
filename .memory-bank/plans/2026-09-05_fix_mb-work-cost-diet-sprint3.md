@@ -3,7 +3,7 @@ type: fix
 topic: mb-work-cost-diet-sprint3
 phase: mb-work-cost-diet
 sprint: 3
-status: planned
+status: queued
 depends_on: [2026-09-05_fix_mb-work-cost-diet-sprint2.md]
 parallel_safe: false
 linked_specs: []

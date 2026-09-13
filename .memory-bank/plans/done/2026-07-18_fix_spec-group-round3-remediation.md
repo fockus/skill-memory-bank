@@ -1,7 +1,7 @@
 ---
 type: fix
 topic: spec-group-round3-remediation
-status: in_progress
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: [specs/sdd-vision-pipeline, specs/svp-sdd-core, specs/svp-interview-upgrade, specs/svp-roadmap-backlog-db, specs/svp-brief, specs/svp-parallel-engine, specs/svp-adapt-escalation, specs/svp-docs-wiki, specs/svp-contract-test-loop]

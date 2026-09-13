@@ -2,7 +2,7 @@
 type: fix
 scope: install-and-cross-agent-parity
 created: 2026-07-04
-status: queued
+status: done
 priority: CRITICAL
 backlog: I-088
 source: "audit 2026-07-04 — Claude install-audit + parity-audit + Codex gpt-5.5 cross-review (parity DONE + install received 2026-07-04; дельта: B7-B9, C5-C6, A17-A25, C7)"

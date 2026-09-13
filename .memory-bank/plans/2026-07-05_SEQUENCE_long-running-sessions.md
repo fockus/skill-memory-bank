@@ -1,7 +1,7 @@
 ---
 type: sequence-plan
 title: "SEQUENCE — Long-running autonomous sessions (goal-driven drive-loop + parallel worktree tracks)"
-status: active
+status: in_progress
 priority: HIGH
 created: 2026-07-05
 owner: Anton Ivanov

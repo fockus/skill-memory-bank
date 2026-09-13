@@ -1,7 +1,7 @@
 ---
 type: feature
 topic: reviewer-v2
-status: queued
+status: done
 depends_on: ["2026-05-24_fix_ci-baseline-wave-0.md"]
 parallel_safe: false
 linked_specs: ["specs/reviewer-2.0/design.md"]

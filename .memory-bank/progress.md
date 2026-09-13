@@ -3380,3 +3380,73 @@ Cross-session coordination also shipped (`references/coordination.md` had been u
 - **Бэклог:** I-197 (substring-регексы cost_report: `cat pytest.ini` = прогон тестов, документировано, но метрика шумит), I-198 (mb-context.sh режет ✅ построчно), I-199 (bats-фикстура context-budget правится на месте), I-200 (cost_report 313 строк, AGR-030 — ориентир), I-201 (status-rotate подтверждает архив только заголовком), I-202 (`--keep N` — первые N по порядку файла, по спеке; защита от рукописного порядка), I-203 (merge v1/v2 затирает более богатое имя стадии), I-204 (кап 0 молча выключает лимит), I-205 (Stop-хук игнорирует отказ записи маркера), I-206 (core-cap fix глотает падения хелперов, exit 2 недостижим), I-207 (legacy-эвристика `**` где угодно на строке), I-209 (coordination.md обещает LIFT для legacy-заморозки, механизма нет), **I-208 HIGH** (судья: 22 предсуществующих красных теста в трёх чужих подсистемах + 11 средовых — отдельный fix-слайс, иначе `tests_pass: true` недостижим ни для кого). Дубликаты I-189/I-190 не заводились повторно.
 - **Что судья отклонил:** «legacy-заморозки не снимаются LIFT» — задокументированное решение 2026-09-10, fail-safe; «`--keep N` должен брать новейшие по дате» — спека говорит «первые N», живой банк упорядочен новейшие-сверху, ротация архивировала старейшие, как и задумано; «фикстура теста ротации по возрастанию» — тест утверждает ровно спецификацию, фикстура лишь нереалистична.
 - **Статус спринта не меняется:** план остаётся в `plans/done/`, DoD не откатываются. Отчёт: `reports/2026-09-13_sprint1-review.md` + `reports/2026-09-13_sprint1-review/{reviewer-A,B,C,judge}.json`.
+
+## [checklist archive] 2026-09-13 — 2026-07-18_fix_spec-group-round3-remediation.md
+
+<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
+## spec-group-round3-remediation — 6/6
+- ✅ Stage 1 — Пакеты находок и ТЗ для 4 фиксеров
+- ✅ Stage 2 — Волна 1 — F1 owners-state (umbrella + S4) на Opus
+- ✅ Stage 3 — Волна 1 — F2 owners-norms (S2 + S1) на Opus
+- ✅ Stage 4 — Волна 2 — F3 consumers-west (S7 + S3 + S5) на Opus
+- ✅ Stage 5 — Волна 2 — F4 consumers-east (S6 + S8) на Opus
+- ✅ Stage 6 — Финальный централизованный проход и актуализация банка
+
+## 2026-09-13 — `/mb doctor`: чистка учёта банка (сессия ab6e3348, по запросу владельца)
+
+- **Stash:** `stash@{0}` от 2026-07-04 «parallel install-parity work» удалён — всё уже в `main` (`31ffd0a` Batch 1, `a040e17` agents); ханки Codex `hooks.json` устарели и вредны после `f6e3982`. Хеш для восстановления `a10f3db1f601f4a8a2e1ec904079f8c77d9a51c9`.
+- **Закрыто 9 планов → `plans/done/`:** через `mb-plan-done.sh` — обёртки `handoff-v2`, `reviewer-v2`, `work-loop-v2` (спеки 100%) и `spec-group-round3-remediation` (6/6, блок чеклиста заархивирован скриптом); вручную тем же набором шагов, потому что скрипт не парсит `## Stage N —` / `## Stage A1 —` (I-210) — `install-and-cross-agent-parity` (132/133, открытый пункт — ориентир ≤400 строк, AGR-030), `session-capture-and-mb-hygiene` (I-087 RESOLVED), `update-notify` (5 стадий с коммитами, roadmap давно писал «закрыт»), `docs-site-and-landing-refresh` (сайт и `/docs/` отдают 200, `Documentation` URL в `pyproject.toml`, `/mb agree` на лендинге разрешён AGR-015). `code-graph-activation` — по fact-check: стадии 1/3/4/8/10 сделаны, 5/6 заменены механизмом I-133 (замена в коде), хвосты 2/7/9 → I-211 (включая баг подсказки пересборки `scripts/mb-context.sh:231`: `.` вместо пути банка); pytest 83/83, bats 52/52.
+- **`parallel-pipeline` → `plans/superseded/`** (status superseded, AGR-003).
+- **Статусы канонизированы:** SEQUENCE `long-running-sessions` и `codex-remediation` `active` → `in_progress`; cost-diet Sprint 2/3 `planned` → `queued`.
+- **Галочки по fact-check (с доказательствами, маркеры `done:` не ставились):** `specs/agreements` 19/24 — открыты tasks.md:46, 90, 110 (пробелы в тестах: выжившие мутанты), 174 (CI), 175 (dogfood 8 решений фичи не записан) → I-212; `specs/adapter-parity` T1/T2 (+4, у T1 нет записи ревью/судьи, GO T2 только в сообщении коммита), T8 lifecycle не начат → I-213.
+- **`drift plan_vs_git` — 10 ложных срабатываний проверены:** `dispatcher-wiring-transports` (I-084 OPEN), `config-validation-docs` (Stages 3–6), `cursor-compatibility-remediation` (Task 9), `skill-improvements-anthropic-audit`, `cost-multi-model`, Sprint 2/3, `graph-semantic-adoption` (0/7), оба SEQUENCE — работа не завершена; эвристика ловит объявленные файлы, тронутые другими работами.
+- **`checklist.md` 89 → 66 строк:** ⏭ Queued waves актуализированы (fix-слайс ревью Sprint 1, cost-diet, SVP-группа, хвосты openspec/cursor, I-084); Phase 0 SEQUENCE ✅ (status/roadmap больше не утверждают паузу dynamic-flow Phase 2); снятые строки — ниже дословно.
+- **`status.md`:** шапка отражает NO_GO судьи по ревью Sprint 1 (`reports/2026-09-13_sprint1-review.md`); блок активных планов пересобран из `plans/*.md` (12); Recently done — 10 закрытий 2026-09-13, выпавшие строки ниже дословно.
+- **`roadmap.md` 483 → 191 строка:** 20 устаревших разделов (priority inserts и реестр 2026-07-15, current focus 2026-06, ICE-таблица 2026-06-14, recently completed 2026-04…06, legacy-план v3 с устаревшим блоком активных планов) → `reports/2026-09-13_roadmap-archive.md` байт в байт (сверено построчно: из 306 строк потеряна 0, одна изменена — ссылка на round3 → `plans/done/`); новый «Реестр незакрытого 2026-09-13»; цитата по agreements исправлена (`452601d` недостижим из HEAD → `9cdb41e`, 8 задач, а не 16).
+- **`backlog.md`:** ссылки на закрытые планы → `plans/done/`; новые I-210 (парсер стадий `mb-plan-done.sh`), I-211 (хвосты code-graph-activation), I-212 (agreements), I-213 (adapter-parity T8).
+- **Замечено fact-check'ом, не чинилось:** CI `main` красный на всех 4 тестовых джобах (bats: artifact_write, brief_docs, gated_lookahead_ere, `--apply`; run 34766444779) — сверить с I-208.
+- **Проверки после:** `mb-drift.sh` — path / active_plans / plan_status / cross_file / frontmatter / core_cap ok, единственный warn — plan_vs_git (ложные, см. выше), drift_warnings 4 → 1; `mb-core-cap.sh check` status 48/60, checklist 66/100; `mb-roadmap-sync.sh --check` rc 0; `index.json` пересобран. Код вне `.memory-bank/` не менялся.
+
+### Архив чистки 2026-09-13 (дословно)
+
+### checklist.md — строки, снятые из реестра (дословно)
+
+Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.5** · judge=**opus** (`pipeline.yaml`).
+
+- ⬜ **drive-loop T2+T4** (`/mb drive` + AGENTS.md loop-контракт · stop-телеметрия + Stop-hook resume-gate + parallel keying) — вытащены вперёд очереди ближайшим слотом (AGR-024, искл. из AGR-011); T3+T5 остаются в donor v5.6.0
+- 🔄 **Group `sdd-vision-pipeline` (AGR-017, главный трек)** — ▶ волна R 2026-07-19 (goal G-001, роли AGR-023): umbrella T1 ✅ · S1 26/26 DoD, review-цикл 2 (fixer добивает хвосты) · **S2 svp-sdd-core COMPLETE 9/9, DoD 22/22, батарея зелёная — первичное codex-ревью зоны в полёте** · S4 9/9 impl, review-цикл 2 (ABA-blocker в работе) (детали `status.md`, доска COORDINATION); spec-ready база: 3 круга codex-ревью + ремедиация 75/75, батарея 10/10, S9 ревью waived (AGR-022); порядок T1 → S1 → S7 → S4 → S2 → S8 → S9 → S6 → S3 → S5 — детали в `roadmap.md` § Group
+- ⬜ W0.5 — [opencode-first-adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md) — OpenCode native plugin, host-agnostic dispatch, hook parity
+- ⬜ W12 — [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) → folded into Phase 4 above
+- ⏸ [goal-driven-autopilot phase roadmap](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — superseded by `specs/dynamic-flow/` + the SEQUENCE plan; planning umbrella only
+
+## ✅ Done (detail → `progress.md` · `plans/done/` · `roadmap.md`)
+
+- ✅ spec `openspec-adapter` — T1–T6 implemented (parse+convert+write core, CLI dispatcher, re-import/anchor-map, `--normalize` opt-in LLM layer); commits `0f39618`/`4bebbbc`/`226e65f` — ⬜ one item left: `/mb openspec` router entry in `commands/mb.md` — **deferred, commands/mb.md under adapter-parity FREEZE**, lands when the freeze lifts
+- ✅ docs-site + landing refresh — 5/5 stages (MkDocs Material skeleton · 12 new pages · quick-start workflow/pipeline/surfaces blocks · combined Pages deploy `/docs/` · landing first-screen v2 + agreements card) — [plan](plans/2026-07-15_feature_docs-site-and-landing-refresh.md); push pending
+- ✅ spec `tier1-graph-memory` — 17/17 tasks, v5.1.0 prepped (PyPI publish + tag pending explicit go)
+- ✅ codex remediation Wave 1 — I-082 security-hardening (4 stages) · I-083 verification-gates · I-085 logic-correctness-portability (6 stages)
+- ✅ I-087 — session-capture correctness + MB drift hygiene — [plan](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md); follow-ups I-088..I-092
+- ✅ I-093 — `/mb work` engine resilience (9 stages: durable state · gated flip · external parse · codex preflight) — [plan](plans/2026-07-04_fix_mb-work-resilience.md)
+- ✅ I-094 — safe parallel `/mb work` runs (10 stages: slots · per-run state/budget/claim · baseline diff · locked append) — [plan](plans/2026-07-04_fix_mb-work-parallel-runs.md)
+- ✅ install + cross-agent parity — [plan](plans/2026-07-04_fix_install-and-cross-agent-parity.md), Tracks A/B/C complete
+- ✅ W3 — handoff-v2 (5/5 tasks, governed dual-review + judge)
+- ✅ dynamic-flow Phase 1 + Phase 2 — goal primitive · `mb-flow-sync` fence · THE firewall `mb-flow-verify.sh` · `mb-fanout.sh` · closure wiring
+- ✅ cross-session coordination — `references/coordination.md` protocol + `COORDINATION.md` board wiring
+- ✅ GraphRAG-lite code context · rule-profiles-and-stack-presets · global-storage (core + agent-support) · sdd-unification · Wave 0 CI baseline
+
+### status.md — прежняя шапка (дословно)
+
+**Current phase:** `mb-work-cost-diet` Sprint 1 закрыт 7/7 (2026-09-13, `/mb verify` PASS 44/44, `plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md`; done-гейты форсированы через pre-existing неродственные тестовые провалы — NOTE в `progress.md`). Живые треки: `long-running-sessions` SEQUENCE Phase 3 `drive-loop` (Task 3 + Task 5 открыты), `sdd-vision-pipeline` group G-001 (детали — `checklist.md`/`COORDINATION.md`), `graph-semantic-adoption` (план создан AGR-038, 0/7).
+**Focus:** `graph-semantic-adoption` (пререквизит Sprint 2 по AGR-044, порядок стадий 6→2→3→1→5→4→7) → Sprint 2 `mb-work-cost-diet` → Sprint 3 → `drive-loop` Task 3 (trend/pivot wiring) → `sdd-vision-pipeline` по DAG T1→S1→S7→S4→S2→S8→S9→S6→S3→S5 (AGR-029).
+
+### status.md — строки, выпавшие из Recently done (дословно)
+
+- 2026-06-14 — [specs/tier1-graph-memory/](specs/tier1-graph-memory/) — feature — Tier-1 graph + session memory (17/17): RRF/import-aware/PageRank graph, progressive-disclosure recall, `/mb recap`+`/mb conflicts`+`/mb consolidate`, `--sessions` graph layer, wiki staleness+decisions; + 5.1.0 release prep
+- 2026-06-10 — [specs/composable-work-pipeline/](specs/composable-work-pipeline/) — feature — composable `/mb work` pipeline (review off by default) + v5.0.0 release prep
+- 2026-06-09 — [plans/done/2026-06-09_feature_mb-research-tooling-core.md](plans/done/2026-06-09_feature_mb-research-tooling-core.md) — feature — mb-research-tooling-core
+- 2026-06-07 — [plans/done/2026-06-07_refactor_rules-context-economy.md](plans/done/2026-06-07_refactor_rules-context-economy.md) — refactor — rules-context-economy
+- 2026-05-27 — [plans/done/2026-05-24_fix_ci-baseline-wave-0.md](plans/done/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1; latest green `26528106396`)
+- 2026-05-24 — [plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
+- 2026-05-24 — [plans/done/2026-05-21_feature_global-storage-agent-support.md](plans/done/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
+- 2026-05-24 — [plans/done/2026-05-21_feature_global-storage.md](plans/done/2026-05-21_feature_global-storage.md) — feature — global-storage-core
+- 2026-06-15 — [specs/handoff-v2/](specs/handoff-v2/) — feature — Handoff 2.0 (5/5): handoff capsule + PreCompact/SessionStart hooks + mandatory `/mb done` gates + append-only sha256 progress chain + docs; governed dual-review (Codex + lead) + judge, fix-cycle per task

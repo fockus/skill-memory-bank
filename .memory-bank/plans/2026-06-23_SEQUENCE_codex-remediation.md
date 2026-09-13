@@ -2,7 +2,7 @@
 type: sequence
 scope: codex-remediation
 created: 2026-06-23
-status: active
+status: in_progress
 priority: HIGH
 covers: [I-082, I-083, I-084, I-085, I-086]
 source: reports/2026-06-23_codex-gpt5.5-skill-review.md

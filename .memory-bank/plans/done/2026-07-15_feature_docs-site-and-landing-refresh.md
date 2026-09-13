@@ -1,7 +1,7 @@
 ---
 title: "Docs site (MkDocs Material) + landing refresh"
 type: feature
-status: draft
+status: done
 created: 2026-07-15
 owner: main-agent (Opus) — plan; /mb work — execution
 roles: "implement=sonnet · review=codex gpt-5.5 · judge=opus"
