@@ -3450,3 +3450,30 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage-agent-support.md](plans/done/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage.md](plans/done/2026-05-21_feature_global-storage.md) — feature — global-storage-core
 - 2026-06-15 — [specs/handoff-v2/](specs/handoff-v2/) — feature — Handoff 2.0 (5/5): handoff capsule + PreCompact/SessionStart hooks + mandatory `/mb done` gates + append-only sha256 progress chain + docs; governed dual-review (Codex + lead) + judge, fix-cycle per task
+
+## [checklist archive] 2026-09-14 — 2026-09-13_fix_skill-audit-data-safety.md
+
+<!-- mb-plan:2026-09-13_fix_skill-audit-data-safety.md -->
+## data safety — 2/2
+- ✅ Stage 1 — Install/uninstall roundtrip and explicit init target
+- ✅ Stage 2 — Consistent private-span handling in search/index
+
+## [checklist archive] 2026-09-14 — 2026-09-13_fix_skill-audit-runtime.md
+
+<!-- mb-plan:2026-09-13_fix_skill-audit-runtime.md -->
+## runtime and command contracts — 4/4
+- ✅ Stage 1 — Source-bound completion and cwd-independent done gates
+- ✅ Stage 2 — Resume drive state and select first actionable item
+- ✅ Stage 3 — Keep structural source matches in bounded code context
+- ✅ Stage 4 — Executable global-bank/session/verify instructions
+
+
+## 2026-09-14
+
+### Skill audit remediation — R01–R15
+
+Исправлены все 15 замечаний аудита 2026-09-13: install/reinstall/uninstall и explicit init target; private search/index; immutable source-bound completion; cwd-independent done gates; drive resume/first step; source discovery; global-bank и spec-only command contracts. Новые регрессии прошли RED→GREEN; независимая проверка 6/6 этапов завершена PASS после устранения остаточных edge cases.
+
+Финальный общий pytest: 2614 passed, 1 skipped in 578.09s, exit 0. Связанные Bats прошли (drive217+1skip, install74, privacy37, completion/state/eval92, agreement docs17); Ruff/ShellCheck/diff-check чистые. Wheel/sdist собраны, установленный во временный target wheel прошёл index/private-search/source-bound completion smoke.
+
+Оба audit-плана закрыты в plans/done/. Отчёт: [skill-audit-remediation](reports/2026-09-14_skill-audit-remediation.md). Чужой незакоммиченный банк сохранён; commits/push/реальные установки клиентов не выполнялись. G-001 и старые backlog blockers не объявлены завершёнными. Генератор traceability добавлял ложные связи synthetic REQ-001 fixture с чужими спеками; удалены только эти новые связи, исходный traceability сохранён.

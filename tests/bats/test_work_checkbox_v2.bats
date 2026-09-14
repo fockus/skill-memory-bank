@@ -34,7 +34,7 @@ EOF
 - ⬜ Stage 2 — ship the widget
 EOF
 
-  printf '{"phase":"done","item_no":1}\n' > "$MB/.work-state.json"
+  PLAN_PATH="$PLAN" python3 -c 'import json,os,pathlib; print(json.dumps({"phase":"done","item_no":1,"source_path":str(pathlib.Path(os.environ["PLAN_PATH"]).resolve())}))' > "$MB/.work-state.json"
 }
 
 teardown() {

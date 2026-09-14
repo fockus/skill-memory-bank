@@ -48,6 +48,22 @@ gen_run_id() {
   python3 -c 'import uuid; print(uuid.uuid4().hex)'
 }
 
+# Bind relative/legacy locators while the init caller's cwd is still known.
+init_canonical_source_path() {
+  MB_SD="$SCRIPT_DIR" BANK="$1" SOURCE_PATH="$2" SOURCE_TOPIC="$3" LEGACY="$4" python3 - <<'PY'
+import os, sys
+from pathlib import Path
+sys.path.insert(0, os.environ["MB_SD"])
+from mb_work_source import canonical_init_source
+try:
+    print(canonical_init_source(Path(os.environ["BANK"]), os.environ["SOURCE_PATH"],
+                                os.environ["SOURCE_TOPIC"], os.environ["LEGACY"]))
+except (OSError, ValueError) as exc:
+    print(f"[work-state] init: {exc}", file=sys.stderr)
+    raise SystemExit(2)
+PY
+}
+
 # ── declaration binding (review [2]) ──────────────────────────────────────
 # The Eval a task DECLARES is the only command this gate may run. Without this
 # binding a caller could hand the helper an unrelated toggle-script that prints
@@ -87,24 +103,10 @@ eval_declaration() {
 import os, pathlib, sys
 sys.path.insert(0, os.environ["MB_SD"])
 bank = pathlib.Path(os.environ["BANK"])
-candidates = []
-sp = os.environ.get("SRC_PATH", "").strip()
-st = os.environ.get("SRC_TOPIC", "").strip()
-if sp:
-    p = pathlib.Path(sp)
-    candidates.append(p if p.suffix == ".md" else p / "tasks.md")
-if st:
-    candidates.append(bank / "specs" / st / "tasks.md")
-    candidates.append(pathlib.Path(st) / "tasks.md")
-# Legacy positional `init <topic> <n>` callers (pre source_topic). Harmless as a
-# fallback: a real topic resolves, while the bare CATEGORY ("spec"/"plan") does
-# not exist as `<bank>/specs/spec/tasks.md` and still fails closed — which is
-# the whole point of review [9].
-sl = os.environ.get("SRC_LEGACY", "").strip()
-if sl and sl not in ("spec", "plan"):
-    p = pathlib.Path(sl)
-    candidates.append(p if p.suffix == ".md" else bank / "specs" / sl / "tasks.md")
-    candidates.append(p / "tasks.md")
+from mb_work_source import declaration_candidates
+candidates = declaration_candidates(bank, os.environ.get("SRC_PATH", ""),
+                                    os.environ.get("SRC_TOPIC", ""),
+                                    os.environ.get("SRC_LEGACY", ""))
 for p in candidates:
     if not p.is_file():
         continue

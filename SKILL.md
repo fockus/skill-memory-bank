@@ -208,6 +208,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-contract.sh` | Per-stage "what done means" contract under `<bank>/contracts/<topic>_stage-<N>.md` — `create` / `read` / `validate` / `path`; the reviewer can judge against it |
 | `mb-workflow.sh` | Resolve the active workflow + per-step `model`/`thinking` config from `pipeline.yaml` for `/mb work` |
 | `mb-drive.sh` | Autonomous goal-driven loop: `next` reads goal-acceptance + the firewall + work-state + budget and emits exactly one action (`implement` / `repair` / `pivot` / `stop_*`). Stateless, fail-closed — `stop_success` requires a green firewall AND 100% acceptance (REQ-DR-014) |
+| `mb-drive-preflight.sh` | Initialize missing drive components or resume the same run without resetting cycles, steps, limits, or spend; refuse corrupt state and conflicting resume limits |
 | `mb-drive-stop.sh` | Drive-loop stop telemetry + per-run drive state: `arm` marks a drive live (arms the Stop-hook resume-gate), `record --reason\|--action` writes the stop reason once into the `mb-flow` fence, `progress.md`, and the run's state slot (REQ-DR-033/034) |
 | `mb-work-state.sh` | Durable `/mb work` loop-state + `max_cycles` enforcement; optional per-run isolation/claim under `MB_WORK_PARALLEL` |
 | `mb-work-slots.sh` | Sourced helper: per-run state/budget/drive slot-path resolution + source→run claim index (gated behind `MB_WORK_PARALLEL`) |
@@ -290,6 +291,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-state-eval.sh` | Sourced eval-first layer for `mb-work-state.sh`: the red→green Eval gate. Not a standalone entry point |
 | `mb-work-state-lib.sh` | Sourced helpers for `mb-work-state.sh` that shell out to external tooling (pipeline YAML, uuid). Not a standalone entry point |
 | `mb_work_eval_proof.py` | Canonical eval-proof payload for the `mb-work-state` red→green gate |
+| `mb_work_source.py` | Shared declaration-source resolution for work-state init and Eval; canonicalizes relative locators before they can change with cwd |
 | `mb_work_plan_wrapper.py` | Wrapper-plan resolution for `mb-work-plan.sh` (`linked_spec` / `<!-- mb-stage:N -->`) |
 | `mb-backlog-state.sh` | Backlog state machine, hierarchy, and briefs: `transition <I-NNN> <STATE>`, `annotate --brief --parent` |
 | `mb_backlog_state_engine.py` | Backlog parser + state engine behind the backlog scripts |

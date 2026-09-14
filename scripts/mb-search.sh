@@ -50,40 +50,19 @@ else
 fi
 
 # ═══ REDACT filter for output ═══
-# By default, strip `<private>...</private>` (inline and multi-line).
-# For lines with an opening `<private>` without a closing tag on the same line, redact the whole line.
+# By default, redact private spans while preserving public text on the same lines.
 redact() {
   if [ "$SHOW_PRIVATE" -eq 1 ]; then
     cat
     return
   fi
-  # Inline closed: <private>...</private> → [REDACTED]
-  # Lines with <private> but no </private> on the same line → [REDACTED multi-line private]
-  # Lines with </private> but no <private> on the same line (block tail) → [REDACTED multi-line private]
-  awk '
-    {
-      line = $0
-      has_open = index(line, "<private>")
-      has_close = index(line, "</private>")
-      if (has_open > 0 && has_close > 0 && has_close > has_open) {
-        # closed inline → substitute contents.
-        gsub(/<private>[^<]*<\/private>/, "[REDACTED]", line)
-        print line
-        next
-      }
-      if (has_open > 0 || has_close > 0) {
-        print "[REDACTED — multi-line private]"
-        in_block = (has_open > 0 && has_close == 0)
-        if (has_close > 0) in_block = 0
-        next
-      }
-      if (in_block) {
-        print "[REDACTED — multi-line private]"
-        next
-      }
-      print line
-    }
-  '
+  MB_SEARCH_ROOT="$(dirname "$0")/.." python3 -c '
+import os, sys
+sys.path.insert(0, os.environ["MB_SEARCH_ROOT"])
+from memory_bank_skill.private import redact_private_lines
+for line in redact_private_lines(sys.stdin.read()):
+    print(line)
+'
 }
 
 # ═══ Tag mode ═══
@@ -165,16 +144,17 @@ if [ "$SHOW_PRIVATE" -eq 1 ]; then
   fi
 else
   # Safe mode: annotate private spans and redact hits inside those spans.
-  QUERY="$QUERY" MB="$MB_PATH" INCLUDE_ARCHIVED="$INCLUDE_ARCHIVED" python3 - <<'PYEOF'
-import os, re
+  QUERY="$QUERY" MB="$MB_PATH" INCLUDE_ARCHIVED="$INCLUDE_ARCHIVED" \
+    MB_SEARCH_ROOT="$(dirname "$0")/.." python3 - <<'PYEOF'
+import os, sys
 from pathlib import Path
+
+sys.path.insert(0, os.environ["MB_SEARCH_ROOT"])
+from memory_bank_skill.private import redact_private_lines
 
 query = os.environ["QUERY"].lower()
 mb = Path(os.environ["MB"])
 include_archived = os.environ.get("INCLUDE_ARCHIVED") == "1"
-priv_closed = re.compile(r"<private>.*?</private>", re.DOTALL)
-priv_open = re.compile(r"<private>.*\Z", re.DOTALL)
-
 REDACTED_STUB = "[REDACTED match in private block]"
 
 found = False
@@ -187,32 +167,14 @@ for md in sorted(mb.rglob("*.md")):
     except (OSError, UnicodeDecodeError):
         continue
 
-    # Spans of all private blocks (closed and open).
-    spans = [m.span() for m in priv_closed.finditer(text)]
-    for m in priv_open.finditer(text):
-        spans.append(m.span())
-
-    lines = text.splitlines()
     hits = []
-    offset = 0
-    for i, line in enumerate(lines, 1):
-        line_start = offset
-        offset += len(line) + 1  # +1 for \n
-
+    for i, (line, display) in enumerate(zip(text.splitlines(), redact_private_lines(text)), 1):
         if query not in line.lower():
             continue
 
-        # Line contains an opening/closing fence — inline private.
-        if "<private>" in line or "</private>" in line:
-            display = priv_closed.sub("[REDACTED]", line)
-            if "<private>" in display or "</private>" in display:
-                display = REDACTED_STUB
-            hits.append((i, display))
-        # Line is inside fences (multi-line block).
-        elif any(s <= line_start < e for s, e in spans):
-            hits.append((i, REDACTED_STUB))
-        else:
-            hits.append((i, line))
+        if display == "[REDACTED]":
+            display = REDACTED_STUB
+        hits.append((i, display))
 
     if hits:
         found = True

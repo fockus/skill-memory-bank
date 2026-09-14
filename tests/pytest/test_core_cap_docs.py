@@ -8,6 +8,7 @@ that enforces it and the strict-actualize contract that repairs an overflow.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -34,7 +35,7 @@ def test_manager_documents_strict_actualize_contract() -> None:
 
 def test_done_step_five_runs_the_cap_fixer() -> None:
     text = _read("commands/done.md")
-    assert "mb-core-cap.sh fix" in text
+    assert re.search(r'mb-core-cap\.sh["\x27]?\s+fix\b', text)
     # `fix` composes Stage 4 rotation — the doc must keep naming it, so nobody
     # thinks rotation was dropped.
     assert "mb-status-rotate.sh" in text

@@ -78,20 +78,11 @@ fi
 RUN_ID="${MB_WORK_RUN_ID:-$(bash "$SKILL_DIR/scripts/mb-work-state.sh" new-run-id)}"
 export MB_WORK_RUN_ID="$RUN_ID"
 
-# Durable cycle counter. `--max-cycles` reaches the run HERE or nowhere: it is
-# what turns `stop_human max-cycle` from a constant into a user-set ceiling.
-bash "$SKILL_DIR/scripts/mb-work-state.sh" init drive 0 --run-id "$RUN_ID" --mb "$BANK" ${MAX_CYCLES:+--max-cycles "$MAX_CYCLES"} >/dev/null
-
-# Budget is stamped ONLY when --budget was given. A drive without --budget must
-# not inherit or invent a ceiling — mb-drive.sh then never emits `stop_budget`.
-if [ -n "$BUDGET" ]; then
-  bash "$SKILL_DIR/scripts/mb-work-budget.sh" init "$BUDGET" --run-id "$RUN_ID" --mb "$BANK" >/dev/null
-fi
-
-# Arm stop-telemetry LAST — only a drive that actually starts is RUNNING. This
-# is also the only thing that arms hooks/mb-drive-resume-gate.sh, so ordinary
-# sessions are never gated (REQ-DR-033/034).
-bash "$SKILL_DIR/scripts/mb-drive-stop.sh" arm --bank "$BANK" --run-id "$RUN_ID" >/dev/null
+# Initialize missing components; keep same-run cycles, steps, limits and spend.
+# New runs get a budget only when requested. Resumes retain a stored budget
+# even without a repeated --budget flag. Invalid state/conflicting limits refuse
+# before writes; stop-telemetry arms last (REQ-DR-033/034).
+bash "$SKILL_DIR/scripts/mb-drive-preflight.sh" --bank "$BANK" --run-id "$RUN_ID" --max-cycles "$MAX_CYCLES" --budget "$BUDGET" || exit $?
 ```
 
 Only an exit `0` here means the loop may start.
@@ -165,10 +156,15 @@ finished on anything other than `stop_success`.
 
 ## 5. Resume after a kill
 
-There is nothing to resume — all state lives in files (`goal.md`, the
+All state lives in files (`goal.md`, the
 `mb-flow` fence in `status.md`, `scripts/mb-work-state.sh`'s durable cycle
-counter). Re-run the preflight and call `next` again; the loop picks up exactly
-where it stopped (ADR-2).
+counter and the work budget). Set `MB_WORK_RUN_ID` to the original run id and
+keep the same `MB_WORK_PARALLEL` mode, then re-run the preflight and call `next`
+again. Without the original id the preflight creates a new run.
+The same run keeps its cycle, steps, limits and spent tokens. Omit limit flags
+on resume or repeat their stored values; conflicting values refuse to start.
+Missing components from an interrupted preflight are initialized separately;
+corrupt existing state refuses with a diagnostic (ADR-2).
 
 ## Exit codes
 

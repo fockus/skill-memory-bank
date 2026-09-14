@@ -276,11 +276,11 @@ fv_pass_stub() {
   fake_bin "$1" 0 '{"checks":[],"totals":{"blocker":0,"major":0,"minor":0},"gate":"PASS","verdict":"pass"}'
 }
 
-@test "next: red acceptance (real scripts, no stub) -> repair" {
+@test "next: pending acceptance (real scripts, no stub) -> concrete implement" {
   goal_with_pending_item
   run bash "$RUN" next --bank "$BANK"
   [ "$status" -eq 0 ]
-  [[ "$output" == repair* ]]
+  [ "$output" = "implement auto ship the thing" ]
 }
 
 @test "next: stubbed all-green firewall + a pending item -> implement <route> <item>" {

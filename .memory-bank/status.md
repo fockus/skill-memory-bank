@@ -8,6 +8,7 @@
 
 - VERSION: **5.3.1**; scripts: 42 sh / 9 py; hooks: 10; agents: 17 dispatchable + partials; commands: 24
 - Tests (baseline 2026-06-10): pytest 1190 / bats 779, 0 failed — свежие числа по сессиям в `progress.md`
+- Audit fixes 2026-09-14: R01–R15 закрыты; полный pytest **2614 passed, 1 skipped**, связанные Bats/linters/wheel smoke прошли; независимая проверка 6/6 этапов ([отчёт](reports/2026-09-14_skill-audit-remediation.md)).
 - Site: https://fockus.github.io/skill-memory-bank/ · remote: `fockus/skill-memory-bank`
 - Last compact: 2026-09-10 (`actualize --strict`, AGR-043 — 10 секций архивировано в `progress.md`)
 
@@ -31,6 +32,8 @@
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-09-14 — [plans/done/2026-09-13_fix_skill-audit-runtime.md](plans/done/2026-09-13_fix_skill-audit-runtime.md) — runtime and command contracts
+- 2026-09-14 — [plans/done/2026-09-13_fix_skill-audit-data-safety.md](plans/done/2026-09-13_fix_skill-audit-data-safety.md) — data safety
 - 2026-09-13 — [plans/done/2026-07-04_feature_code-graph-activation.md](plans/done/2026-07-04_feature_code-graph-activation.md) — Code-Graph Activation (Path A — all four steps)
 - 2026-09-13 — [plans/done/2026-07-04_fix_install-and-cross-agent-parity.md](plans/done/2026-07-04_fix_install-and-cross-agent-parity.md) — fix — Install reliability + cross-agent parity
 - 2026-09-13 — [plans/done/2026-07-04_fix_session-capture-and-mb-hygiene.md](plans/done/2026-07-04_fix_session-capture-and-mb-hygiene.md) — fix — Session-capture correctness + Memory-Bank drift hygiene
@@ -39,8 +42,6 @@
 - 2026-09-13 — [plans/done/2026-07-18_fix_spec-group-round3-remediation.md](plans/done/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
 - 2026-09-13 — [plans/done/2026-05-23_feature_work-loop-v2.md](plans/done/2026-05-23_feature_work-loop-v2.md) — feature — Work loop 2.0 (S2 of harness-upgrade)
 - 2026-09-13 — [plans/done/2026-05-23_feature_reviewer-v2.md](plans/done/2026-05-23_feature_reviewer-v2.md) — feature — Reviewer 2.0 (S1 of harness-upgrade)
-- 2026-09-13 — [plans/done/2026-05-23_feature_handoff-v2.md](plans/done/2026-05-23_feature_handoff-v2.md) — feature — Handoff 2.0 (S3 of harness-upgrade)
-- 2026-09-13 — [plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md](plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение»
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)

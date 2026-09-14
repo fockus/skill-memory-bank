@@ -56,6 +56,7 @@ def _init_mb(tmp_path: Path) -> Path:
 def _write_state(
     mb: Path,
     *,
+    source_path: Path,
     item_no: int,
     phase: str = "done",
     run_id: str = "r1",
@@ -64,6 +65,7 @@ def _write_state(
     state = {
         "run_id": run_id,
         "source": source,
+        "source_path": str(source_path),
         "item_no": item_no,
         "heading": "Stage",
         "cycle": 1,
@@ -79,6 +81,7 @@ def _write_run_state(
     mb: Path,
     run_id: str,
     *,
+    source_path: Path,
     item_no: int,
     phase: str = "done",
     source: str = "plan",
@@ -89,6 +92,7 @@ def _write_run_state(
     state = {
         "run_id": run_id,
         "source": source,
+        "source_path": str(source_path),
         "item_no": item_no,
         "heading": "Stage",
         "cycle": 1,
@@ -125,7 +129,7 @@ def test_flip_marks_item_checkboxes_done(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
-    _write_state(mb, item_no=2, phase="done")
+    _write_state(mb, source_path=plan, item_no=2, phase="done")
 
     r = _run("flip", str(plan), "2", mb=mb)
 
@@ -139,7 +143,7 @@ def test_flip_scopes_to_item_block_only(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
-    _write_state(mb, item_no=2, phase="done")
+    _write_state(mb, source_path=plan, item_no=2, phase="done")
 
     r = _run("flip", str(plan), "2", mb=mb)
 
@@ -154,7 +158,7 @@ def test_flip_refused_when_state_not_done(tmp_path: Path) -> None:
     plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     original = plan.read_bytes()
-    _write_state(mb, item_no=2, phase="in-progress")
+    _write_state(mb, source_path=plan, item_no=2, phase="in-progress")
 
     r = _run("flip", str(plan), "2", mb=mb)
 
@@ -166,7 +170,7 @@ def test_flip_is_idempotent(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
-    _write_state(mb, item_no=2, phase="done")
+    _write_state(mb, source_path=plan, item_no=2, phase="done")
 
     r1 = _run("flip", str(plan), "2", mb=mb)
     assert r1.returncode == 0, r1.stderr
@@ -181,7 +185,7 @@ def test_flip_spec_task_block(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     spec = tmp_path / "tasks.md"
     spec.write_text(SPEC_TASK, encoding="utf-8")
-    _write_state(mb, item_no=1, phase="done", source="spec")
+    _write_state(mb, source_path=spec, item_no=1, phase="done", source="spec")
 
     r = _run("flip", str(spec), "1", mb=mb)
 
@@ -195,7 +199,7 @@ def test_flip_missing_item_is_usage_error(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
-    _write_state(mb, item_no=99, phase="done")
+    _write_state(mb, source_path=plan, item_no=99, phase="done")
 
     r = _run("flip", str(plan), "99", mb=mb)
 
@@ -221,8 +225,8 @@ def test_parallel_flip_reads_own_run_slot(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
-    _write_run_state(mb, "r1", item_no=2, phase="done")
-    _write_run_state(mb, "r2", item_no=3, phase="in-progress")
+    _write_run_state(mb, "r1", source_path=plan, item_no=2, phase="done")
+    _write_run_state(mb, "r2", source_path=plan, item_no=3, phase="in-progress")
 
     r = _run("flip", str(plan), "2", "--run-id", "r1", mb=mb, env={"MB_WORK_PARALLEL": "1"})
 
@@ -237,8 +241,8 @@ def test_parallel_flip_refused_on_foreign_run_state(tmp_path: Path) -> None:
     plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
     original = plan.read_bytes()
-    _write_run_state(mb, "r1", item_no=2, phase="done")
-    _write_run_state(mb, "r2", item_no=3, phase="in-progress")
+    _write_run_state(mb, "r1", source_path=plan, item_no=2, phase="done")
+    _write_run_state(mb, "r2", source_path=plan, item_no=3, phase="in-progress")
 
     # r2's own slot says item 3, in-progress — flipping item 2 under r2 must refuse
     # via the gate mismatch on r2's *own* state (not a "no active work-state" refusal,
@@ -254,7 +258,7 @@ def test_default_singleton_flip_unchanged(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     plan = tmp_path / "stage-plan.md"
     plan.write_text(PLAN_MULTI_STAGE, encoding="utf-8")
-    _write_state(mb, item_no=2, phase="done")
+    _write_state(mb, source_path=plan, item_no=2, phase="done")
 
     # MB_WORK_PARALLEL unset: a --run-id must NOT redirect to a per-run slot —
     # the singleton is read exactly as today, byte-identical default behaviour.

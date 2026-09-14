@@ -181,6 +181,7 @@ cmd_init() {
     source_topic=${_loc%%$'\037'*}
     source_path=${_loc#*$'\037'}
   fi
+  source_path=$(init_canonical_source_path "$bank_early" "$source_path" "$source_topic" "$source_") || exit 2
 
   [ -z "$run_id" ] && run_id="${MB_WORK_RUN_ID:-}"
   [ -z "$run_id" ] && run_id=$(gen_run_id)

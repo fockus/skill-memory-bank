@@ -252,10 +252,18 @@ _mbd_gather() {
   MBD_DONE_PCT=0
   [ "$acc_ok" = "true" ] && MBD_DONE_PCT=100
 
-  # firewall (contract: exits ONLY 0/1/2) -> MBD_GATE, MBD_BROKEN_CHECK
+  # Pending acceptance names future work, not a failure of the current item.
+  # Reuse the firewall's supported skip selector for that signal only. Once
+  # acceptance is complete, run the FULL firewall before stop_success.
+  # All other red/broken checks retain their normal repair/stop semantics.
   bin="${MB_FLOW_VERIFY_BIN:-$SCRIPT_DIR/mb-flow-verify.sh}"
+  local gate_args=("$bank")
+  [ -z "$phase" ] || gate_args+=(--phase "$phase")
+  if [ "$acc_ok" = "false" ] && [ -z "$broken_name" ]; then
+    gate_args+=(--skip acceptance)
+  fi
   set +e
-  if [ -n "$phase" ]; then out="$(_mbd_run "$bin" "$bank" --phase "$phase" 2>/dev/null)"; else out="$(_mbd_run "$bin" "$bank" 2>/dev/null)"; fi
+  out="$(_mbd_run "$bin" "${gate_args[@]}" 2>/dev/null)"
   rc=$?
   set -e
   case "$rc" in

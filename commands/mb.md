@@ -13,6 +13,23 @@ Arguments: `$ARGUMENTS`
 
 Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words are parameters for that subcommand.
 
+For bank-dependent operations below (`recall`, `recap`, `conflicts`, `consolidate`, `verify`), set `SKILL_DIR` to the absolute directory containing the loaded `SKILL.md`, or use `MB_SKILLS_ROOT`. Set `MB_AGENT` to the current host id for a global registry. Keep the project as cwd and include this setup in the same shell invocation as the operation. `init` and bank-independent commands such as user profiles do not require an existing bank; do not run this guard for them. `start` and `done` have their own setup in the canonical command files.
+
+<!-- mb-runtime:setup -->
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:?Set SKILL_DIR from the loaded skill path}}"
+source "$SKILL_DIR/scripts/_lib.sh"
+BANK="$(mb_resolve_path)"
+if [ ! -d "$BANK" ]; then
+  echo "[MEMORY BANK: ABSENT]"
+  exit 0
+fi
+BANK="$(cd "$BANK" && pwd -P)"
+export MB_PATH="$BANK"
+```
+
+For the snippets below, parse the remaining user arguments into the named Bash array (`ARGS_AFTER_RECAP`, `ARGS_AFTER_CONFLICTS`, or `ARGS_AFTER_CONSOLIDATE`); use an empty array when omitted. Preserve each argument as a separate element, without `eval` or shell-string interpolation.
+
 ### Routing
 
 #### GraphRAG-lite retrieval routing
@@ -121,7 +138,7 @@ Searches `.memory-bank/session/` + `.memory-bank/notes/` via ripgrep (fallback g
 session files — `_recent.md` is otherwise only updated incrementally on SessionEnd):
 
 ```bash
-bash "$(dirname "$0")/../scripts/mb-session-recent-rebuild.sh"   # newest MB_RECENT_KEEP (default 5) with a ## Summary
+bash "$SKILL_DIR/scripts/mb-session-recent-rebuild.sh" "$BANK"   # newest MB_RECENT_KEEP (default 5) with a ## Summary
 ```
 
 ### recap <sid>
@@ -133,7 +150,7 @@ every other `progress.md` entry stays byte-for-byte intact (append-only discipli
 directly (no subagent):
 
 ```bash
-bash "$(dirname "$0")/../scripts/mb-recap.sh" $ARGS_AFTER_RECAP
+bash "$SKILL_DIR/scripts/mb-recap.sh" "${ARGS_AFTER_RECAP[@]}"
 ```
 
 Guarantees: missing session file → exit non-zero, **no writes**; a real (non-stub) entry already
@@ -153,7 +170,7 @@ deprecated | вместо | больше не | заменили | устаре�
 output, exit 0. Run directly (no subagent):
 
 ```bash
-bash "$(dirname "$0")/../scripts/mb-conflicts.sh" $ARGS_AFTER_CONFLICTS
+bash "$SKILL_DIR/scripts/mb-conflicts.sh" "${ARGS_AFTER_CONFLICTS[@]}"
 ```
 
 `--judge` adds one Sonnet `claude -p` call per candidate to confirm or reject the conflict, and for
@@ -180,7 +197,7 @@ Dry-run is the **DEFAULT** — it prints the plan and writes nothing (the bank s
 pass `--apply` to perform it. Run directly (no subagent):
 
 ```bash
-bash "$(dirname "$0")/../scripts/mb-consolidate.sh" $ARGS_AFTER_CONSOLIDATE
+bash "$SKILL_DIR/scripts/mb-consolidate.sh" "${ARGS_AFTER_CONSOLIDATE[@]}"
 ```
 
 ### research <query>
@@ -530,10 +547,31 @@ bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb
 
 ### verify
 
-Plan verification — confirm that code matches the plan, all DoD items are satisfied, and nothing important is missing.
+Plan or spec verification — confirm that code matches the actual work source, all DoD items are satisfied, and nothing important is missing.
 
-1. Find the active plan in `.memory-bank/plans/` (not in `done/`). If there are several, use the most recent one or the one specified in the arguments.
-2. Run the Plan Verifier subagent:
+1. Set `VERIFY_TARGET` to the explicit user target when supplied. Otherwise use the current run's `source_path` (with `MB_WORK_RUN_ID` for parallel runs). Never choose the newest plan: if no trustworthy source is available, request the exact target. A spec-only bank is supported through `specs/<topic>/tasks.md`; an empty `plans/` does not skip verification.
+2. Resolve and enumerate the exact source with the same helpers used by `/mb work`. `mb-work-plan.sh` handles plan wrappers, spec tasks, and their Covers/DoD/Testing metadata. A resolution error stops verification; it is not a passing result.
+
+<!-- mb-verify:resolve -->
+```bash
+if [ -z "${VERIFY_TARGET:-}" ]; then
+  VERIFY_STATE="$(bash "$SKILL_DIR/scripts/mb-work-state.sh" status --mb "$BANK")" || exit 1
+  VERIFY_TARGET="$(printf '%s' "$VERIFY_STATE" | python3 -c '
+import json, sys
+state = json.load(sys.stdin)
+path = state.get("source_path") if isinstance(state, dict) else None
+print(path if isinstance(path, str) else "")
+')" || exit 1
+fi
+if [ -z "$VERIFY_TARGET" ]; then
+  echo "[verify] Specify the exact plan/spec target; current source is unavailable." >&2
+  exit 1
+fi
+VERIFY_SOURCE="$(bash "$SKILL_DIR/scripts/mb-work-resolve.sh" "$VERIFY_TARGET" --mb "$BANK")" || exit 1
+bash "$SKILL_DIR/scripts/mb-work-plan.sh" --target "$VERIFY_SOURCE" --mb "$BANK"
+```
+
+3. Run the Plan Verifier subagent with the emitted `source_path` and `source` category, resolved `BANK`, and verified item range. For `source=spec`, read sibling `requirements.md` and `design.md` as well as `tasks.md`; check each task's Covers/DoD/Testing and REQ coverage. Do not substitute a plan or infer requirements from memory.
 
 Inline `agents/mb-tooling-core.md` ahead of the plan-verifier prompt so it can use the graph tools (`graph_impact` for blast-radius, `graph_tests` for coverage) while auditing DoD coverage:
 
@@ -542,13 +580,16 @@ Agent(
   subagent_type="general-purpose",
   model="sonnet",
   description="Plan Verifier: plan verification",
-  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-tooling-core.md>
+  prompt="<contents of ${SKILL_DIR}/agents/mb-tooling-core.md>
 
 ---
 
-<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/plan-verifier.md>
+<contents of ${SKILL_DIR}/agents/plan-verifier.md>
 
-Plan file: <path to plan>
+Source file: <emitted source_path: plan Markdown or spec tasks.md>
+Source kind: <plan|spec>
+Bank path: <absolute BANK>
+Skill path: <absolute SKILL_DIR>
 
 Context: <description of current work, which stages are considered complete>"
 )
@@ -565,7 +606,7 @@ forces the overall verdict to FAIL, with the explicit choice: fix the implementa
 `mb-agree.sh add "..." --supersedes N`. No `agreements.md` in the bank → the step is skipped
 silently (lazy contract, REQ-010 does not apply).
 
-**IMPORTANT:** `/mb verify` is **REQUIRED** before `/mb done` when the work followed a plan. Do not close out a plan without verification.
+**IMPORTANT:** `/mb verify` is **REQUIRED** before `/mb done` when the work followed a plan or spec tasks. Do not close out either source without verification.
 
 ### map [focus]
 

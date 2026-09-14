@@ -110,7 +110,21 @@ def _backup_path(entry: str) -> str:
     return parts[1] if len(parts) == 2 else ""
 
 
-backups = _ordered_unique([b for b in raw_backups if os.path.exists(_backup_path(b))])
+path = os.environ["MANIFEST_PATH"]
+# Identity shortcuts do not create new backups. Carry the live original
+# mappings across reinstall, including skill backups outside discovery dirs.
+try:
+    with open(path) as previous_file:
+        previous = json.load(previous_file)
+except (OSError, ValueError):
+    previous = {}
+previous_backups = previous.get("backups", []) if isinstance(previous, dict) else []
+if not isinstance(previous_backups, list):
+    previous_backups = []
+backups = _ordered_unique([
+    b for b in [*previous_backups, *raw_backups]
+    if isinstance(b, str) and os.path.lexists(_backup_path(b))
+])
 manifest = {
     "schema_version": 1,
     "installed_at": os.environ["INSTALL_DATE"],
@@ -142,7 +156,6 @@ manifest = {
     # and update-notify all ship natively — nothing to declare as limited.
     "platform_limited": [],
 }
-path = os.environ["MANIFEST_PATH"]
 d = os.path.dirname(path) or "."
 fd, tmp = tempfile.mkstemp(dir=d, prefix=".mb-manifest.")
 try:

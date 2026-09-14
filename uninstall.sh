@@ -104,6 +104,13 @@ if [ "$NON_INTERACTIVE" -eq 0 ]; then
   [ "$c" != "y" ] && exit 0
 fi
 
+remove_files_and_restore_backups() {
+# Run only after every helper/adapter has finished: the managed files can
+# include this script's own bundle. Snapshot rollback metadata before its
+# co-located manifest can disappear with the bundle.
+local backup_entries
+backup_entries=$(MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(b) for b in json.load(open(os.environ['MANIFEST_PATH'])).get('backups',[])]" 2>/dev/null || true)
+
 echo -e "\n${BLUE}Removing files...${NC}"
 # A22: `|| true` so a corrupt manifest (only reachable here via --force,
 # gated above) degrades to "nothing to remove" instead of a hard `set -e
@@ -112,7 +119,7 @@ echo -e "\n${BLUE}Removing files...${NC}"
 MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
   [ -z "$filepath" ] && continue
   case "$filepath" in
-    "$CLAUDE_DIR/CLAUDE.md"|"$CLAUDE_DIR/settings.json"|"$OPENCODE_DIR/AGENTS.md"|"$CODEX_DIR/AGENTS.md"|"$CURSOR_DIR/AGENTS.md"|"$CURSOR_DIR/hooks.json"|"$PI_AGENT_DIR/AGENTS.md")
+    "$CLAUDE_DIR/CLAUDE.md"|"$CLAUDE_DIR/settings.json"|"$OPENCODE_DIR/AGENTS.md"|"$CODEX_DIR/AGENTS.md"|"$CURSOR_DIR/AGENTS.md"|"$CURSOR_DIR/hooks.json"|"$PI_AGENT_DIR/AGENTS.md"|"$PI_AGENT_DIR/settings.json")
       echo "  keep $filepath (managed merged file)"
       continue
       ;;
@@ -128,7 +135,7 @@ done || true
 
 echo -e "\n${BLUE}Restoring backups...${NC}"
 # A22: same `|| true` rationale as "Removing files" above.
-MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(b) for b in json.load(open(os.environ['MANIFEST_PATH'])).get('backups',[])]" 2>/dev/null | while read -r bp; do
+printf '%s\n' "$backup_entries" | while read -r bp; do
   [ -n "$bp" ] && echo "$bp" | grep -q '|' && {
     orig="${bp%%|*}"; bak="${bp##*|}"
     case "$orig" in
@@ -153,6 +160,7 @@ MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(b) for b in json.
     fi
   }
 done || true
+}
 
 echo -e "\n${BLUE}Cleaning settings.json...${NC}"
 [ -f "$CLAUDE_DIR/settings.json" ] && SETTINGS_PATH="$CLAUDE_DIR/settings.json" "$MB_PY" << 'PYEOF' 2>/dev/null || true
@@ -177,6 +185,33 @@ except BaseException:
     raise
 print('  Hooks cleaned')
 PYEOF
+
+# Pi settings are merge-managed: retain all live user settings and remove
+# only the skill entry installed by install_pi_settings_skill.
+if [ -f "$PI_AGENT_DIR/settings.json" ]; then
+  "$MB_PY" - "$PI_AGENT_DIR/settings.json" <<'PYEOF'
+import json
+import os
+import sys
+import tempfile
+
+path = sys.argv[1]
+with open(path) as source:
+    settings = json.load(source)
+skills = settings.get("skills") if isinstance(settings, dict) else None
+if isinstance(skills, list) and "~/.pi/agent/skills/memory-bank" in skills:
+    settings["skills"] = [item for item in skills if item != "~/.pi/agent/skills/memory-bank"]
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as output:
+            json.dump(settings, output, indent=2, ensure_ascii=False)
+            output.write("\n")
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
+PYEOF
+fi
 
 # Clean CLAUDE.md MB section — A13 (M-5): strip strictly between the paired
 # start/end markers so content the user placed AFTER the section survives
@@ -224,6 +259,7 @@ if [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
   fi
 fi
 
+remove_files_and_restore_backups
 rm -f "$MANIFEST"
 rmdir "$CLAUDE_DIR/skills" 2>/dev/null || true
 rmdir "$CODEX_DIR/skills" 2>/dev/null || true

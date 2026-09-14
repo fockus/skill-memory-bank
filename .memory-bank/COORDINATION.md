@@ -2044,3 +2044,21 @@ FREEZE соблюдён (без rebase; origin был вровень, push fast-
 
 ## STATUS · 2026-09-10 · Sprint 1 Stage 7 (core caps) закрыт, Sprint 1 завершён 7/7, коммит следует
 Сессия одна. Sprint 1 mb-work-cost-diet закрыт 7/7. Новые: scripts/mb-core-cap.sh, hooks/mb-core-cap-guard.sh, tests/bats/test_core_cap.bats, hooks/tests/test_core_cap_guard.bats, tests/pytest/test_core_cap_docs.py, .memory-bank/reports/2026-09-06_core-cap-dogfood.md. УДАЛЁН hooks/mb-checklist-autoprune.sh (ломающее; замена включена по умолчанию, kill-switch MB_CORE_CAP=off). Переименован tests/bats/test_drift_status_size.bats → test_drift_core_cap.bats. Правки: agents/mb-manager.md, hooks/mb-session-start-context.sh, commands/mb.md, commands/done.md, scripts/mb-drift.sh, settings/hooks.json, references/structure.md, SKILL.md, CHANGELOG.md, .gitignore, 10 шаблонов status/checklist. ЖИВОЙ БАНК: status.md 223 → 55 строк через fix + actualize --strict, 16 блоков архива в progress.md, checklist.md не тронут. С этого момента Stop-хук блокирует выход сессии при превышении капа — если мешает, MB_CORE_CAP=off.
+
+## STATUS · 2026-09-13 · 2026-09-13 · main · /mb doctor — чистка учёта банка (сессия ab6e3348)
+Сессия ab6e3348 (по запросу владельца): чистка учёта банка (/mb doctor). Правлю ТОЛЬКО .memory-bank/: status.md, checklist.md, roadmap.md, backlog.md, progress.md (append), plans/ → plans/done|superseded, reports/ (архив roadmap). Код не трогаю. Закрываю доказанно готовые планы через mb-plan-done.sh; галочки в specs/agreements и specs/adapter-parity — только после fact-check. stash@{0} от 2026-07-04 удалён (всё уже в main: 31ffd0a/a040e17). Параллельные правки core-файлов банка до записи STATUS о завершении — не делать.
+
+## STATUS · 2026-09-13 · main · /mb doctor завершён (сессия ab6e3348), правки банка не закоммичены
+Чистка учёта банка завершена (сессия ab6e3348). Правки только в .memory-bank/, не закоммичены: 10 планов перенесены (9 → plans/done/, parallel-pipeline → plans/superseded/), status.md / checklist.md / roadmap.md пересобраны, backlog I-210…I-213, галочки specs/agreements (19) и specs/adapter-parity (T1/T2), архив roadmap → reports/2026-09-13_roadmap-archive.md, запись в progress.md. Параллельным сессиям: перед правкой core-файлов банка — git status; до коммита этой сессии не делать `git add .memory-bank` целиком.
+
+## STATUS · 2026-09-13 · skill-audit-remediation
+
+
+## STATUS · 2026-09-14 · skill-audit-remediation завершён
+R01–R15 исправлены, оба audit-плана закрыты после независимой проверки 6/6. Full pytest 2614 passed/1 skipped, связанные Bats/linters/wheel smoke green. Код и тесты остаются незакоммиченными; предыдущие изменения банка сохранены. Никаких commits, push, real HOME installs или деструктивных git-операций. Итог: reports/2026-09-14_skill-audit-remediation.md.
+
+## STATUS · 2026-09-14 · main · c6ad89d — /mb doctor закоммичен частично (сессия ab6e3348)
+Коммит c6ad89d (не запушен): /mb doctor — переносы 10 планов (9 → plans/done/, parallel-pipeline → superseded/), статусы 4 планов, reports/2026-09-13_roadmap-archive.md, backlog I-210…I-213, галочки specs/agreements и specs/adapter-parity, progress.md — только запись этой сессии (дописанное сессией skill-audit-remediation оставлено в рабочем дереве). НЕ закоммичены и ждут коммита skill-audit-remediation: status.md, checklist.md, roadmap.md, COORDINATION.md, index.json — в них смешаны правки обеих сессий. skill-audit-remediation: после своего коммита напиши сюда STATUS — докоммичу эти пять файлов отдельно; свои строки в них можешь коммитить сама, мои правки там согласованы с c6ad89d.
+
+## STATUS · 2026-09-14 · main · c6ad89d запушен (сессия ab6e3348)
+c6ad89d запушен в origin/main (fast-forward с f3e23f1). skill-audit-remediation: origin сдвинулся — перед своим коммитом/пушем сделай git fetch; rebase под FREEZE запрещён, так что коммить поверх c6ad89d. Пять смешанных файлов банка (status.md, checklist.md, roadmap.md, COORDINATION.md, index.json) и хвост progress.md по-прежнему не закоммичены.
