@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import os
 import re
 import sys
 import time
@@ -40,13 +41,30 @@ def _write(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _plan_file(plans_dir: Path | None, name: str, *, done: bool = False) -> Path | None:
+    """The plan's file under `plans/` (or `plans/done/`), or None when it is not there.
+
+    The ONLY place a marker-supplied name is joined onto a path. The name must
+    be a plain segment, and the file it names must still resolve inside
+    `plans/` — a symlink leading out of the bank is not this plan's file
+    (I-195, mirroring `resolve_spec_source`).
+    """
+    if plans_dir is None or not cl.is_safe_plan_name(name):
+        return None
+    candidate = plans_dir / "done" / name if done else plans_dir / name
+    if not candidate.is_file():
+        return None
+    root = Path(os.path.realpath(plans_dir))
+    if root not in Path(os.path.realpath(candidate)).parents:
+        return None
+    return candidate
+
+
 def _titles(plans_dir: Path | None, plans: set[str]) -> dict[str, str]:
     out: dict[str, str] = {}
-    if plans_dir is None:
-        return out
     for name in plans:
-        for candidate in (plans_dir / name, plans_dir / "done" / name):
-            if candidate.is_file():
+        for candidate in (_plan_file(plans_dir, name), _plan_file(plans_dir, name, done=True)):
+            if candidate is not None:
                 out[name] = cl.plan_title(candidate.read_text(encoding="utf-8"), name)
                 break
     return out
@@ -54,9 +72,10 @@ def _titles(plans_dir: Path | None, plans: set[str]) -> dict[str, str]:
 
 def _is_closed(plans_dir: Path | None, plan: str) -> bool:
     """A plan is closed when its file sits in `plans/done/` and not in `plans/`."""
-    if plans_dir is None:
-        return False
-    return (plans_dir / "done" / plan).is_file() and not (plans_dir / plan).is_file()
+    return (
+        _plan_file(plans_dir, plan, done=True) is not None
+        and _plan_file(plans_dir, plan) is None
+    )
 
 
 def _archivable(lines: list[str], plans_dir: Path | None) -> list[dict[str, str]]:

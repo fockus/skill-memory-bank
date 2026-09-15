@@ -189,6 +189,23 @@ def legacy_key(section: LegacySection, text: str) -> str:
     return f"legacy:{digest}:{section.heading}"
 
 
+def is_safe_plan_name(name: str) -> bool:
+    """True when `name` is one plain path segment, safe to join onto `plans/`.
+
+    A plan name reaches us from an `<!-- mb-plan:… -->` marker, i.e. arbitrary
+    text; joining it onto a directory let a crafted marker read any file on
+    disk (I-195). Same rule, and the same before-the-join placement, as
+    `resolve_spec_source` in scripts/mb-work-state-lib.sh.
+    """
+    return bool(
+        name
+        and "/" not in name
+        and "\\" not in name
+        and not name.startswith(".")
+        and all(c.isalnum() or c in "._-" for c in name)
+    )
+
+
 def plan_title(plan_text: str, fallback: str) -> str:
     """First `# ` line of a plan file, minus a leading `Plan: <type> — ` style prefix."""
     for line in plan_text.splitlines():

@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — a plan name from an `mb-plan` marker can no longer leave `plans/`
+
+- `<!-- mb-plan:../../secret/leak.md -->` used to be joined straight onto the plans directory, so
+  `mb-checklist-v2.py apply` opened that file and rendered its `# ` heading as the block title, and
+  a crafted marker could flip a live plan to "closed" (I-195). A marker value is now checked before
+  any join — `memory_bank_skill/checklist_v2.py::is_safe_plan_name`, the rule `resolve_spec_source`
+  already applies to spec locators — and the resolved file must still sit under `plans/`, so a
+  symlink pointing out of the bank is not that plan's file. The block itself is never deleted or
+  rewritten: it keeps its stages and falls back to the raw marker value as its title (AGR-043).
+
 ### Fixed — `mb-checklist-prune.sh`: an archive is identified by its text, not its heading
 
 - Two `### ` sections sharing one heading no longer collide (I-194): the drop key is

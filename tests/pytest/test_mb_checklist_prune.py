@@ -480,3 +480,82 @@ def test_stale_archive_heading_without_body_does_not_certify_removal(
     assert "ONLY BODY MARKER" not in (mb / "progress.md").read_text(encoding="utf-8")
     assert r.returncode == 0
     assert "unconfirmed" in r.stderr
+
+
+# ---------------------------------------------------------------------------
+# I-195 — a plan name parsed from an `mb-plan` marker never leaves plans/
+# ---------------------------------------------------------------------------
+
+TRAVERSAL_MARKER = """# Project — Чеклист
+
+<!-- mb-plan:../../secret/leak.md -->
+## Stage 1: some stage
+- ⬜ some stage
+"""
+
+
+def test_traversal_marker_never_reads_a_file_outside_plans_dir(tmp_path: Path) -> None:
+    # The marker value is attacker-controlled text, not a vetted path: joining
+    # it onto plans/ let `apply` open any file and render its heading as a
+    # block title. The block itself is kept (AGR-043) with a fallback title.
+    mb = _init_mb(tmp_path, TRAVERSAL_MARKER)
+    (mb / "plans").mkdir()
+    secret = tmp_path / "secret"
+    secret.mkdir()
+    (secret / "leak.md").write_text("# top secret project title\n\nbody\n", encoding="utf-8")
+    r = _run(mb, "--apply")
+    assert r.returncode == 0, r.stdout + r.stderr
+    after = (mb / "checklist.md").read_text(encoding="utf-8")
+    assert "top secret" not in after
+    assert "<!-- mb-plan:../../secret/leak.md -->" in after
+    assert "some stage" in after
+    progress = mb / "progress.md"
+    if progress.exists():
+        assert "top secret" not in progress.read_text(encoding="utf-8")
+
+
+SYMLINKED_DONE_PLAN = """# Project — Чеклист
+
+<!-- mb-plan:2026-01-01_fix_z.md -->
+## Z — 2/2
+- ✅ Stage 1 — one
+- ✅ Stage 2 — two
+"""
+
+
+def test_symlinked_done_plan_outside_the_bank_is_not_closed(tmp_path: Path) -> None:
+    # "Closed" means the plan file sits in plans/done/. A symlink whose target
+    # is outside the bank is not that file, and must not archive the block.
+    mb = _init_mb(tmp_path, SYMLINKED_DONE_PLAN)
+    (mb / "plans" / "done").mkdir(parents=True)
+    outside = tmp_path / "outside.md"
+    outside.write_text("# outside plan\n", encoding="utf-8")
+    (mb / "plans" / "done" / "2026-01-01_fix_z.md").symlink_to(outside)
+    r = _run(mb, "--apply")
+    assert r.returncode == 0, r.stdout + r.stderr
+    after = (mb / "checklist.md").read_text(encoding="utf-8")
+    assert "<!-- mb-plan:2026-01-01_fix_z.md -->" in after
+    assert "- ✅ Stage 1 — one" in after
+    assert not (mb / "progress.md").exists()
+
+
+NON_BASENAME_MARKER = """# Project — Чеклист
+
+<!-- mb-plan:done/2026-01-01_fix_z.md -->
+## Stage 1: some stage
+- ⬜ some stage
+"""
+
+
+def test_a_marker_that_is_not_a_plain_basename_is_never_resolved(tmp_path: Path) -> None:
+    # Containment alone would accept this: the file IS under plans/. A plan
+    # name is one path segment, so a marker addressing a plan through a
+    # traversal resolves to nothing and the block keeps its raw-marker title.
+    mb = _init_mb(tmp_path, NON_BASENAME_MARKER)
+    _init_plans(mb, "2026-01-01_fix_z.md", "# Plan: fix — Zed\n", done=True)
+    r = _run(mb, "--apply")
+    assert r.returncode == 0, r.stdout + r.stderr
+    after = (mb / "checklist.md").read_text(encoding="utf-8")
+    assert "Zed" not in after
+    assert "<!-- mb-plan:done/2026-01-01_fix_z.md -->" in after
+    assert "some stage" in after

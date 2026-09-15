@@ -11,8 +11,11 @@ resets a ✅, `upsert` never touches a stage it did not add, and a v1 block fold
 into v2 with every stage and its status intact.
 """
 
+import pytest
+
 from memory_bank_skill.checklist_v2 import (
     flip,
+    is_safe_plan_name,
     legacy_key,
     legacy_text,
     merge,
@@ -142,3 +145,31 @@ def test_rewrite_drops_only_the_legacy_section_named_by_its_key():
     out = "\n".join(rewrite(list(LEGACY_TWIN), drop={legacy_key(first, legacy_text(LEGACY_TWIN, first))}))
     assert "first body." not in out
     assert "second body." in out
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["2026-01-01_fix_x.md", "x.md", "a_b-c.1.md"],
+)
+def test_is_safe_plan_name_accepts_a_plain_basename(name: str) -> None:
+    assert is_safe_plan_name(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "../../secret/leak.md",
+        "/etc/passwd",
+        ".hidden.md",
+        "a/b.md",
+        "a\\b.md",
+        "..",
+        ".",
+        "",
+        "x y.md",
+    ],
+)
+def test_is_safe_plan_name_rejects_anything_that_can_leave_plans_dir(name: str) -> None:
+    # Same rule as resolve_spec_source (scripts/mb-work-state-lib.sh): a plan
+    # name is one path segment, checked BEFORE it is ever joined onto a path.
+    assert not is_safe_plan_name(name)

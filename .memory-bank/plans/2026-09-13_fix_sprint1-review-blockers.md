@@ -82,14 +82,14 @@ created: 2026-09-13
 - `tests/pytest/test_mb_checklist_prune.py` (CLI-интеграция через `mb-checklist-prune.sh --apply`, фикстура как у судьи):
   - `test_traversal_marker_never_reads_a_file_outside_plans_dir` — `<tmp>/secret/leak.md` с `# top secret project title`; чеклист с `<!-- mb-plan:../../secret/leak.md -->` + `## x — 0/1` + `- ⬜ Stage 1 — s`; после `--apply`: `top secret` отсутствует в checklist.md и progress.md, блок с маркером на месте, rc 0. До правки: заголовок утекает в checklist.md.
   - `test_symlinked_done_plan_outside_the_bank_is_not_closed` — `plans/done/2026-01-01_fix_z.md` → symlink на файл вне банка, `plans/2026-01-01_fix_z.md` отсутствует, блок `2/2`; после `--apply` блок остаётся в чеклисте, progress.md не создан. До правки: блок архивируется как закрытый.
-- Mutation-улики: убрать вызов `is_safe_plan_name` → traversal-тест красный; убрать realpath-containment → symlink-тест красный.
+- Mutation-улики (атрибуция по фактическому прогону 2026-09-16, каждая мутация в изоляции): убрать realpath-containment → красный `test_symlinked_done_plan_outside_the_bank_is_not_closed`; убрать вызов `is_safe_plan_name` → traversal-тест ОСТАЁТСЯ зелёным (containment ловит выход за `plans/` независимо), поэтому вызов guard'а доказывается отдельным тестом `test_a_marker_that_is_not_a_plain_basename_is_never_resolved` (маркер `done/<plan>.md` — файл внутри `plans/`, containment пропускает, спасает только правило имени).
 
 **DoD (Definition of Done):**
-- [ ] Маркер `<!-- mb-plan:../../secret/leak.md -->` при существующем файле по этому пути: `apply` не читает файл (заголовок секрета отсутствует в checklist.md и progress.md), блок остаётся в чеклисте с fallback-заголовком (тест зелёный, красный до правки — вывод приложен).
-- [ ] `is_safe_plan_name` отвергает абсолютный путь, `..`, разделители `/` и `\`, ведущую точку, пробел и пустое имя (параметризованный тест зелёный).
-- [ ] Symlink в `plans/done/`, ведущий вне банка, не делает план закрытым — блок не архивируется (тест зелёный, красный до правки).
-- [ ] Одна точка склейки: `grep -n 'plans_dir /' scripts/mb-checklist-v2.py` находит только тело `_plan_file`; `_titles` и `_is_closed` вызывают его.
-- [ ] Прежние тесты Stage 5 (см. Stage 1 DoD) зелёные без правок; `python3 -m py_compile`; `CHANGELOG.md` содержит строку про I-195.
+- [x] Маркер `<!-- mb-plan:../../secret/leak.md -->` при существующем файле по этому пути: `apply` не читает файл (заголовок секрета отсутствует в checklist.md и progress.md), блок остаётся в чеклисте с fallback-заголовком (тест зелёный, красный до правки — вывод приложен).
+- [x] `is_safe_plan_name` отвергает абсолютный путь, `..`, разделители `/` и `\`, ведущую точку, пробел и пустое имя (параметризованный тест зелёный).
+- [x] Symlink в `plans/done/`, ведущий вне банка, не делает план закрытым — блок не архивируется (тест зелёный, красный до правки).
+- [x] Одна точка склейки: `grep -n 'plans_dir /' scripts/mb-checklist-v2.py` находит только тело `_plan_file`; `_titles` и `_is_closed` вызывают его.
+- [x] Прежние тесты Stage 5 (см. Stage 1 DoD) зелёные без правок; `python3 -m py_compile`; `CHANGELOG.md` содержит строку про I-195.
 
 **Edge cases:** `plans_dir` не существует (`realpath` даёт несуществующий путь — кандидат не файл → None); маркер с пробелами внутри значения (MARKER_RE уже strip'ает края; внутренний пробел → небезопасно); имя из одних точек; регистр расширения не проверяется (не наша забота — `mb-plan.sh` всегда пишет `.md`).
 
