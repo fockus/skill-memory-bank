@@ -543,6 +543,38 @@ src() {
   refute_file "$BANK/briefs/../escape"
 }
 
+@test "brief_cmd: topic-locale-any — a non-lowercase topic is refused under ANY locale" {
+  # `grep -qE '^[a-z0-9][a-z0-9-]*$'` expands its ranges by the LOCALE'S
+  # COLLATION: under en_US.UTF-8 uppercase letters sort between the lowercase
+  # ones, so `Foo` matched [a-z] and reached the filesystem (I-208 B).
+  local c loc bad
+  for loc in C en_US.UTF-8; do
+    for bad in Foo TOPIC café -a ; do
+      c="$(cand bad-topic.md --inputs '')"
+      run --separate-stderr env LC_ALL="$loc" "$BRIEF" create --mb "$BANK" \
+        --topic "$bad" --candidate "$c"
+      [ "$status" -eq 2 ] || { echo "LC_ALL=$loc accepted topic <$bad>"; false; }
+      assert_substring "$stderr" "error=usage"
+      refute_file "$BANK/briefs/$bad/brief.md"
+    done
+  done
+}
+
+@test "brief_cmd: topic-locale-any — valid kebab topics still publish under ANY locale" {
+  # The locale fix must not narrow the accepted grammar.
+  local c loc good
+  for loc in C en_US.UTF-8; do
+    for good in a a-b a1-b2 x9 ; do
+      c="$(cand "good-$good.md" --inputs '')"
+      rm -rf "$BANK/briefs/$good"
+      run --separate-stderr env LC_ALL="$loc" "$BRIEF" create --mb "$BANK" \
+        --topic "$good" --candidate "$c"
+      [ "$status" -eq 0 ] || { echo "LC_ALL=$loc rejected topic <$good>: $stderr"; false; }
+      [ -f "$BANK/briefs/$good/brief.md" ] || { echo "no brief for <$good>"; false; }
+    done
+  done
+}
+
 # ─────────────────────────── context manifest ───────────────────────────────
 
 @test "brief_cmd: context-absent — no brief means exactly one line" {

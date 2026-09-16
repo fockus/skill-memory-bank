@@ -89,9 +89,13 @@ eval_declared_anchors() {
 #
 #   CMD      — a real, non-waived Eval is declared (command follows)
 #   WAIVED   — the task exists and declares `Eval: none` (explicit waiver)
-#   NOITEM   — the declaration surface (a resolved `tasks.md`) resolved but has
-#              no such task, or is empty/marker-mangled/unparseable → fail closed
-#   NOFILE   — no declaration surface at all (plain plan stage / ad-hoc source)
+#   NOITEM   — the declaration surface resolved but cannot answer for this item:
+#              a `tasks.md` holding tasks but not this one, or one the reader
+#              cannot enumerate at all (empty, marker-mangled, unparseable)
+#              → fail closed
+#   NOFILE   — no declaration surface at all (plain plan stage / ad-hoc source).
+#              A file of `stage` markers is a plan however it is named, so a
+#              legacy locator resolving `work/` to `work/tasks.md` lands here.
 #
 # The distinction matters for the `done` gate (review [11]): NOITEM means the
 # binding is broken and must never certify, while NOFILE means there is genuinely
@@ -111,10 +115,14 @@ candidates = declaration_candidates(bank, os.environ.get("SRC_PATH", ""),
 for p in candidates:
     if not p.is_file():
         continue
-    # A resolved `tasks.md` IS the declaration surface, whatever state it is
-    # in: empty, marker-mangled or unparseable, the binding is broken and must
-    # fail closed (NOITEM). A plan file — stage markers or none — is not a
-    # surface and falls through to NOFILE, which is the 85e39bb fix.
+    # A resolved `tasks.md` the reader cannot enumerate — empty, marker-mangled
+    # (no element comes back), or unparseable (the parser refuses, whatever the
+    # file holds) — IS the declaration surface: the binding is broken and must
+    # fail closed (NOITEM). A file whose elements are
+    # `stage` markers is a PLAN however it is named (a legacy locator resolves
+    # a `work/` directory to `work/tasks.md`), and falls through to NOFILE,
+    # which is the 85e39bb fix. So the name alone cannot decide: it is read
+    # together with what the file actually contains.
     # Keyed on the file's own name, not on the caller's 5th argument: that
     # argument is one value for the whole call (the category recorded at init,
     # or a bare topic from a legacy positional caller), so it cannot say WHICH
@@ -129,7 +137,7 @@ for p in candidates:
             sys.exit(0)
         continue
     if not any(it.kind == "task" for it in items):
-        if surface:
+        if surface and not items:
             sys.stdout.write("NOITEM\n")
             sys.exit(0)
         continue

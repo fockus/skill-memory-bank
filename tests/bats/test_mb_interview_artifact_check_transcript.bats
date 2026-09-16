@@ -247,7 +247,7 @@ _legacy_check() {
 
 # ─── r2 review [12]: the inherited heading must match exactly ───
 
-@test "artifact_check: malformed ## УнаследованоBROKEN does NOT satisfy --require-inherited" {
+@test "artifact_check: malformed inherited heading (glued suffix) does NOT satisfy --require-inherited" {
   # A glued suffix used to satisfy the C4 inherited-section gate via a prefix
   # match, so a transcript with no inherited section at all returned exit 0.
   local f="$BATS_TEST_TMPDIR/t.md"
@@ -257,7 +257,7 @@ _legacy_check() {
   echo "$stderr" | grep -q ':missing_inherited$'
 }
 
-@test "artifact_check: ## Унаследовано with trailing text stays valid" {
+@test "artifact_check: inherited heading with trailing text stays valid" {
   # The exact heading, optionally followed by whitespace-separated text, is the
   # legal C4 form — the tightened matcher must not reject it.
   local f="$BATS_TEST_TMPDIR/t.md"
@@ -282,7 +282,7 @@ _legacy_check() {
   echo "$stderr" | grep -q ':decision_missing$'
 }
 
-@test "artifact_check: strict decision without Отклонено → rejected_alternatives_missing" {
+@test "artifact_check: strict decision without rejected alternatives → rejected_alternatives_missing" {
   local f="$BATS_TEST_TMPDIR/t.md"
   printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**.\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
   run --separate-stderr "$SCRIPT" transcript "$f"
@@ -298,7 +298,7 @@ _legacy_check() {
   echo "$stderr" | grep -q ':missing_final_gate$'
 }
 
-@test "artifact_check: gate without **Ответ.** → gate_answer_missing" {
+@test "artifact_check: gate without the answer marker → gate_answer_missing" {
   local f="$BATS_TEST_TMPDIR/t.md"
   printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n' > "$f"
   run --separate-stderr "$SCRIPT" transcript "$f"
@@ -306,7 +306,7 @@ _legacy_check() {
   echo "$stderr" | grep -q ':gate_answer_missing$'
 }
 
-@test "artifact_check: two gates without круг → gate_round_missing" {
+@test "artifact_check: two gates without a round number → gate_round_missing" {
   local f="$BATS_TEST_TMPDIR/t.md"
   printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.** yes\n\n**Финальный гейт.** more?\n**Ответ.** No.\n' > "$f"
   run --separate-stderr "$SCRIPT" transcript "$f"
@@ -314,7 +314,7 @@ _legacy_check() {
   echo "$stderr" | grep -q ':gate_round_missing$'
 }
 
-@test "artifact_check: круг 2 before круг 1 → gate_round_out_of_order" {
+@test "artifact_check: round 2 before round 1 → gate_round_out_of_order" {
   local f="$BATS_TEST_TMPDIR/t.md"
   printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** x → **D-01**. Отклонено: none\n\n**Финальный гейт, круг 2.** add?\n**Ответ.** yes\n\n**Финальный гейт, круг 1.** more?\n**Ответ.** No.\n' > "$f"
   run --separate-stderr "$SCRIPT" transcript "$f"
@@ -369,7 +369,7 @@ _legacy_check() {
   echo "$stderr" | grep -q ':answer_missing$'
 }
 
-@test "artifact_check: empty Отклонено: marker → rejected_alternatives_missing" {
+@test "artifact_check: empty rejected-alternatives marker → rejected_alternatives_missing" {
   local f="$BATS_TEST_TMPDIR/t.md"
   printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** ans → **D-01**. Отклонено:\n\n**Финальный гейт.** add?\n**Ответ.** No.\n' > "$f"
   run --separate-stderr "$SCRIPT" transcript "$f"
@@ -385,7 +385,7 @@ _legacy_check() {
   echo "$stderr" | grep -q ':missing_final_gate$'
 }
 
-@test "artifact_check: empty **Ответ.** at the gate → gate_answer_missing" {
+@test "artifact_check: empty answer marker at the gate → gate_answer_missing" {
   local f="$BATS_TEST_TMPDIR/t.md"
   printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** ans → **D-01**. Отклонено: none\n\n**Финальный гейт.** add?\n**Ответ.**\n' > "$f"
   run --separate-stderr "$SCRIPT" transcript "$f"
@@ -458,7 +458,7 @@ _legacy_check() {
   echo "$stderr" | grep -q ':answer_missing$'
 }
 
-@test "artifact_check: gate round optional form **Финальный гейт, круг 2.** stays valid" {
+@test "artifact_check: gate round optional form (final gate, round 2) stays valid" {
   local f="$BATS_TEST_TMPDIR/t.md"
   printf '# Interview transcript: foo (2026-07-17)\n\n## Q&A\n\n**Q1 (a).** q?\n**A1.** ans → **D-01**. Отклонено: none\n\n**Финальный гейт, круг 1.** add?\n**Ответ.** yes → **D-02**. Отклонено: none\n\n**Финальный гейт, круг 2.** more?\n**Ответ.** No.\n' > "$f"
   run --separate-stderr "$SCRIPT" transcript "$f"
@@ -502,7 +502,7 @@ _legacy_check() {
 
 # ─── duplicate inherited sections (r3 review [22]) ───
 
-@test "artifact_check: two ## Унаследовано sections are rejected" {
+@test "artifact_check: two inherited sections are rejected" {
   # Only the first heading was remembered, so a transcript carrying two
   # contradictory inherited decision sets passed --require-inherited as ok.
   local f="$BATS_TEST_TMPDIR/t.md"

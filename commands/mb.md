@@ -57,6 +57,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `index`                                                  | Registry of all entries                                                                                                                                                                                                                                                                                  |
 | `done`                                                   | End session (`actualize + note + progress`; rotates `status.md` via `mb-status-rotate.sh --apply`)                                                                                                                                                                                                                                                              |
 | `plan <type> <topic>`                                    | Create a plan                                                                                                                                                                                                                                                                                            |
+| `brief <topic>`                                          | Formalize a raw request plus attached documents into a one-page brief under `briefs/<topic>/` — first stage of `brief → discuss → sdd → work`. `[--request <text> \| --request-file <path>] [--input <path>]… [--auto]`; `--input` is repeatable. Not an interview: at most five clarifying questions. See `### brief` below / `commands/brief.md`.                                                      |
 | `discuss <topic>`                                        | 5-phase requirements-elicitation interview → EARS-validated `context/<topic>.md` (Phase 1 Purpose & Users / Phase 2 Functional EARS / Phase 3 Non-Functional / Phase 4 Constraints / Phase 5 Edge Cases). Feeds traceability matrix.                                                                     |
 | `ask_me <topic>`                                         | **Alias for `discuss`** — same interview, easier to remember. Dispatch identically.                                                                                                                                                                                                                      |
 | `groom <topic>` (also `grooming`)                        | Critical grooming session for any task/idea at any stage: challenge necessity + approach, cover white spots, propose solutions. Summary → `context/<topic>-groom.md`; confirmed decisions routed to `agreements.md` (AGR) / backlog `## ADR` / `## Ideas`; proposes next steps (spec/plan). No EARS. See `commands/groom.md`. |
@@ -396,6 +397,22 @@ Show the result to the user.
 **Alias** for `/plan` — dispatch to `commands/plan.md`. The canonical planning command lives there: mb-plan.sh scaffold → fill with `<!-- mb-stage:N -->` markers + SMART DoD + TDD per stage → mb-plan-sync.sh to reconcile with `checklist.md` + `roadmap.md`.
 
 Allowed `type` values: `feature`, `fix`, `refactor`, `experiment`. If `type` is missing, ask the user.
+
+### brief <topic>
+
+`/mb brief <topic> [--request <text> | --request-file <path>] [--input <path>]… [--auto]`
+
+Turn a raw request plus its attached documents into a validated one-page brief stored with its sources under `briefs/<topic>/`, so the work enters the pipeline already shaped: `brief → discuss → sdd → work`. Deliberately **not** an interview — `/mb discuss` owns the deep elicitation; briefing asks at most five clarifying questions, and only when the essence or the goal cannot be extracted from the request and its inputs.
+
+**Alias** for `/brief` — dispatch to `commands/brief.md` for the canonical workflow.
+
+- `--request <text>` — the request inline. `--request-file <path>` — the request read from a file. At most one of the two: passing both is `error=usage`, exit 2; passing neither leaves the text of the user message that carried the invocation as the request.
+- `--input <path>` — **repeatable**: each occurrence names one source document to scan and copy into `inputs/`.
+- `--auto` — skip the clarifying-question gate and infer on best effort; requires a non-empty `assumptions_note`.
+
+There is no overwrite or re-publish flag: re-formalizing happens on a new `<topic>`, or after the user deletes `briefs/<topic>/` by hand.
+
+**Underlying:** `"$SKILL_DIR/scripts/mb-brief.sh" create --mb <bank> --topic <topic> --candidate <path> [--input <path>]… [--auto]` — the only path that publishes a brief.
 
 ### discuss <topic>
 

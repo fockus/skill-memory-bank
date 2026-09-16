@@ -23,7 +23,7 @@ setup() {
 }
 
 teardown() {
-  [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ] && rm -rf "$TMPROOT"
+  if [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ]; then rm -rf "$TMPROOT"; fi
 }
 
 # ─── Case 1: baseline mode emits profile block with sources=baseline ──────────

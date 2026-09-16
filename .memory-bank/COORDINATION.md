@@ -2070,3 +2070,16 @@ c6ad89d запушен в origin/main (fast-forward с f3e23f1). skill-audit-rem
 
 ## STATUS · 2026-09-16 · 2026-09-16 · main · Stage 3 fix sprint1-review-blockers (I-196) закрыт, план 3/3, коммит следует
 Сессия одна. Stage 3 fix sprint1-review-blockers (I-196) закрыт, план 3/3. Правки: scripts/mb-work-state-lib.sh (eval_declaration — резолвнутый tasks.md = поверхность декларации; пустой/битый/непарсимый → NOITEM, done exit 5), tests/bats/test_mb_work_state_plan_source.bats (+3), CHANGELOG.md. С этого момента /mb work НЕ закроет item спеки, чья tasks.md пуста или сломана — раньше это проходило как unverified:no_declaration_surface с rc 0. Stage-only план и Eval: none не затронуты. Коммит следует, дальше — закрытие плана.
+
+## STATUS · 2026-09-16 · Открыт план fix_i208-test-battery (8 стадий) — закрытие красной батареи
+Сессия одна. Открыт план .memory-bank/plans/2026-09-16_fix_i208-test-battery.md (8 стадий) — закрытие I-208 «полная батарея не зелёная».
+
+Baseline на 0c0e50a (macOS, .venv python 3.14, bats 1.13.0):
+- pytest tests/pytest: 12 failed, 2550 passed, 26 skipped
+- bats tests/bats: 13 падений + 10 тестов НЕ ИСПОЛНЯЮТСЯ (Executed 3356 вместо 3366)
+
+Двенадцать корневых причин, все воспроизведены вручную; таблица A…L в § Context плана. Продуктовых багов три (eval_declaration после aaa1b2b, valid_topic зависит от локали, mb-lint-run парсит раскрашенный ruff), остальное — харнес, устаревшие тесты, необъявленная dev-зависимость и пробел в commands/mb.md.
+
+Затрагиваемые файлы: scripts/mb-work-state-lib.sh, scripts/mb-interview-artifact-write.sh, scripts/mb-brief.sh, scripts/mb-lint-run.sh, commands/mb.md, pyproject.toml, семь файлов под tests/. agents/plan-verifier.md НЕ трогаем (правится тест, не роль).
+
+Вне объёма: I-192 (go test без таймаута) — mb-test-run.sh в этом плане не запускается.

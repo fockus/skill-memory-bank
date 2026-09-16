@@ -65,6 +65,22 @@ failure_json() {
 }
 
 
+# Strip ANSI colour escapes from a captured log, in place. Runners ask their
+# child not to colourize (run_uncolored below), but pytest colourizes into a
+# file anyway when FORCE_COLOR is set in the environment, so the parse must not
+# depend on whether a given tool version honours the variable.
+strip_ansi_file() {
+  local f="$1" tmp
+  tmp="$(mktemp)"
+  sed $'s/\033\[[0-9;]*[a-zA-Z]//g' "$f" >"$tmp"
+  mv "$tmp" "$f"
+}
+
+# Run a command with colour output disabled in the child environment.
+run_uncolored() {
+  env -u FORCE_COLOR -u CLICOLOR_FORCE NO_COLOR=1 "$@"
+}
+
 # Collect *.bats paths relative to DIR (tests/ or hooks/tests/).
 find_bats_files() {
   local d f
@@ -120,7 +136,8 @@ run_python() {
   log="$(mktemp)"
   # -q: quiet; --tb=line: one-line traceback; -r a: summary for all; -p no:cacheprovider to avoid stale cache.
   # Exit codes: 0 passed, 1 failed, 5 no tests collected.
-  (cd "$DIR" && "${pytest_cmd[@]}" -q --tb=line --no-header -r a -p no:cacheprovider) >"$log" 2>&1 || true
+  (cd "$DIR" && run_uncolored "${pytest_cmd[@]}" -q --tb=line --no-header -r a -p no:cacheprovider) >"$log" 2>&1 || true
+  strip_ansi_file "$log"
   local rc=0
   # Use grep exit codes to infer.
   # Parse summary line: "X failed, Y passed in Zs" | "N passed in Zs" | "no tests ran".
@@ -234,7 +251,8 @@ run_bats() {
     [ -n "$f" ] || continue
     file_args+=("$f")
   done <<< "$files"
-  (cd "$DIR" && bats "${file_args[@]}") >"$log" 2>&1 || true
+  (cd "$DIR" && run_uncolored bats "${file_args[@]}") >"$log" 2>&1 || true
+  strip_ansi_file "$log"
   local summary total failed
   summary="$(grep -E '^[0-9]+ tests?, [0-9]+ failures?' "$log" | tail -n1 || true)"
   if [[ -z "$summary" ]]; then

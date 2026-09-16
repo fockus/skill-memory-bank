@@ -24,7 +24,7 @@ setup() {
 }
 
 teardown() {
-  [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ] && rm -rf "$TMPROOT"
+  if [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ]; then rm -rf "$TMPROOT"; fi
 }
 
 @test "tdd: src file changed without matching test → CRITICAL" {

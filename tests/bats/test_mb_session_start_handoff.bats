@@ -30,7 +30,7 @@ setup() {
 }
 
 teardown() {
-  [ -n "${PROJECT:-}" ] && [ -d "$PROJECT" ] && rm -rf "$PROJECT"
+  if [ -n "${PROJECT:-}" ] && [ -d "$PROJECT" ]; then rm -rf "$PROJECT"; fi
 }
 
 # Run hook → capture stdout (JSON), stderr, status.

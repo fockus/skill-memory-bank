@@ -4,6 +4,43 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — a colourized pytest run is no longer read as "no tests"
+
+- `mb-test-run.sh::run_python` anchored the pytest summary line on `^` with a digit, but pytest
+  colourizes even when writing to a file whenever `FORCE_COLOR` is set in the environment, so the
+  line starts with an escape sequence: nothing matched and a fully green suite was reported as
+  `tests_total=0, tests_pass=null` — the field the Gate reads as "battery green" (I-208 M). The
+  pytest and bats children are now run with colour disabled (`NO_COLOR=1`, `FORCE_COLOR`/
+  `CLICOLOR_FORCE` unset) AND their log is stripped of ANSI escapes before parsing. The go runner
+  is untouched (`go test` does not colourize; its missing timeout is I-192).
+
+### Fixed — a colourized linter run is no longer read as clean
+
+- `mb-lint-run.sh` kept only output lines matching `:<line>:<col>:`, but ruff >= 0.15
+  colourizes its diagnostics even when stdout is a file whenever `FORCE_COLOR` is set in the
+  environment: the ANSI escapes sit between the colons, nothing matched, and a file with a
+  real F401 was reported `ok=true` (I-208 C). Linters are now run with colour disabled
+  (`NO_COLOR=1`, `FORCE_COLOR`/`CLICOLOR_FORCE` unset in the child) AND their output is
+  stripped of ANSI escapes before matching, for both the python and the shell runner.
+
+### Fixed — a topic slug is validated by ASCII, not by the locale's collation
+
+- `[a-z0-9-]` ranges are expanded by the collation of the active locale: under `en_US.UTF-8`
+  uppercase letters sort between the lowercase ones, so `mb-interview-artifact-write.sh install-plan
+  --topic Foo` passed its `case … *[!a-z0-9-]*` guard, installed the file, and — because no
+  rejection happened — left the credential-bearing candidate readable under `<bank>/tmp` (I-208 B).
+  Both slug validators (`mb-interview-artifact-write.sh::valid_topic` and the `--topic` guard in
+  `mb-brief.sh`, where the same range is latent under a glibc `grep`) now spell the allowed set out
+  character by character. The accepted grammar is unchanged.
+
+### Fixed — a stage-marker plan resolved at a `tasks.md` path is a plan again
+
+- The I-196 guard below treated ANY resolved `tasks.md` as a declaration surface, so the legacy
+  locator `mb-work-state.sh init work 1` — which resolves the directory `work/` to `work/tasks.md`,
+  where a stage-marker PLAN lives — answered `NOITEM` and `done` exited 5 (I-208). The surface test
+  now reads the file's contents alongside its name: no element at all is still the broken surface
+  (`NOITEM`, fail closed), `stage` elements mean a plan and fall through to `NOFILE` as before.
+
 ### Fixed — a broken spec `tasks.md` no longer certifies as "nothing to gate"
 
 - `mb-work-state.sh done` used to exit 0 with `eval_gate: unverified:no_declaration_surface` for a

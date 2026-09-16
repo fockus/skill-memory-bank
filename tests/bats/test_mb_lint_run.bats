@@ -30,7 +30,9 @@ setup() {
 
 teardown() {
   export PATH="$ORIG_PATH"
-  [ -n "${WORK:-}" ] && rm -rf "$WORK"
+  # `if`, not `&&`: when setup skips before WORK is assigned the chained form
+  # returns 1 and bats reports the SKIPPED test as `not ok` (I-208 / Stage 6).
+  if [ -n "${WORK:-}" ]; then rm -rf "$WORK"; fi
 }
 
 json_of() {
@@ -236,4 +238,35 @@ STUB
   run bash "$RUN" --dir "$WORK" --stack shell
   [ "$status" -eq 0 ]
   echo "$(json_of "$output")" | jq -e '.ok == false'
+}
+
+# ---- colorized output (I-208 / stage C) -------------------------------------
+
+install_colorized_ruff() {
+  cat >"$STUB_DIR/ruff" <<'STUB'
+#!/usr/bin/env bash
+# ruff stub that ANSI-colorizes its diagnostics even when stdout is a file
+# (ruff >= 0.15 does this whenever FORCE_COLOR is set in the environment).
+printf 'Ruff check (JSON parse failed, falling back)\n'
+# byte-for-byte the shape real ruff 0.15 emits under FORCE_COLOR
+printf '\033[1mbad.py\033[0m\033[36m:\033[0m1\033[36m:\033[0m8\033[36m:\033[0m \033[1m\033[31mF401\033[0m [\033[36m*\033[0m] `os` imported but unused\n'
+printf 'Found 1 error.\n'
+exit 1
+STUB
+  chmod +x "$STUB_DIR/ruff"
+}
+
+@test "lint: a colorized ruff run still yields ok=false" {
+  install_colorized_ruff
+  printf '[project]\nname="x"\nversion="0.0.0"\n' >"$WORK/pyproject.toml"
+  printf 'import os\n' >"$WORK/bad.py"
+  FORCE_COLOR=3 run bash "$RUN" --dir "$WORK"
+  [ "$status" -eq 0 ]
+  local js
+  js="$(json_of "$output")"
+  echo "$js" | jq -e '.ok == false'
+  echo "$js" | jq -e '(.findings | length) >= 1'
+  # findings must carry no ANSI escape bytes into the JSON
+  echo "$js" | jq -r '.findings[]' | grep -q 'F401'
+  ! echo "$js" | jq -r '.findings[]' | grep -q $'\033'
 }

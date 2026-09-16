@@ -25,7 +25,7 @@ setup() {
 }
 
 teardown() {
-  [ -n "${BANK:-}" ] && rm -rf "$(dirname "$BANK")"
+  if [ -n "${BANK:-}" ]; then rm -rf "$(dirname "$BANK")"; fi
 }
 
 # ---- helpers ----------------------------------------------------------------

@@ -17,6 +17,8 @@
 #     }
 #   Exit code: 0 always — pass/fail is in the JSON, not the shell exit.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   RUN="$REPO_ROOT/scripts/mb-test-run.sh"
@@ -33,7 +35,7 @@ TOML
 }
 
 teardown() {
-  [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ] && rm -rf "$TMPROOT"
+  if [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ]; then rm -rf "$TMPROOT"; fi
 }
 
 @test "python: all-passing suite → tests_pass=true, tests_failed=0" {
@@ -89,4 +91,49 @@ PY
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.tests_total == 0'
   echo "$output" | jq -e '.tests_pass == null or .tests_pass == true'
+}
+
+# --- colourized pytest output (Stage 9 / I-208 M) -----------------------------
+# pytest colourizes even when writing to a file if FORCE_COLOR is set in the
+# environment, so the summary line starts with an escape sequence. The parser
+# must not depend on that.
+
+@test "python: FORCE_COLOR pytest output → tests_total=2, tests_pass=true" {
+  mkdir -p tests
+  cat > tests/test_ok.py <<'PY'
+def test_one(): assert 1 == 1
+def test_two(): assert "a" + "b" == "ab"
+PY
+  run env FORCE_COLOR=3 bash "$RUN" --dir "$TMPROOT" --out json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.tests_total == 2'
+  echo "$output" | jq -e '.tests_pass == true'
+  echo "$output" | jq -e '.tests_failed == 0'
+}
+
+@test "python: FORCE_COLOR 1 pass + 1 fail → tests_failed=1, failure name free of ANSI" {
+  mkdir -p tests
+  cat > tests/test_mix.py <<'PY'
+def test_pass(): assert True
+def test_fail():
+    expected = 2
+    actual = 1 + 0
+    assert actual == expected
+PY
+  run env FORCE_COLOR=3 bash "$RUN" --dir "$TMPROOT" --out json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.tests_pass == false'
+  echo "$output" | jq -e '.tests_total == 2'
+  echo "$output" | jq -e '.tests_failed == 1'
+  echo "$output" | jq -e '.failures | length == 1'
+  echo "$output" | jq -e '.failures[0].name | test("test_fail")'
+  local name err
+  name="$(echo "$output" | jq -r '.failures[0].name')"
+  err="$(echo "$output" | jq -r '.failures[0].error_head')"
+  [ -n "$name" ]
+  # refute_substring, not `! … | grep -q`: a negated pipeline is exempt from
+  # set -e unless it is the body's last command, so the second of the two would
+  # never have been able to fail (I-147, tests/pytest/test_bats_assertion_contract.py).
+  refute_substring "$name" $'\033'
+  refute_substring "$err" $'\033'
 }

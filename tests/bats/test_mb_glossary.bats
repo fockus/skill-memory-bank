@@ -176,11 +176,15 @@ _concurrent_upserts() {
   done
   for i in $(seq 1 "$n"); do
     (
+      # `|| rc=$?` instead of a bare call: under errexit a non-zero upsert kills
+      # the subshell before the rc is written, and the racer that could not take
+      # the lock — the very case these tests assert on — leaves no evidence.
+      rc=0
       MB_GLOSSARY_LOCK_TIMEOUT="${MB_GLOSSARY_LOCK_TIMEOUT:-90}" \
         "$SCRIPT" upsert --mb "$BANK" \
           --term-file "$BATS_TEST_TMPDIR/t$i.txt" \
-          --definition-file "$BATS_TEST_TMPDIR/d$i.txt" >/dev/null 2>&1
-      printf '%d' "$?" > "$RC_DIR/$i"
+          --definition-file "$BATS_TEST_TMPDIR/d$i.txt" >/dev/null 2>&1 || rc=$?
+      printf '%d' "$rc" > "$RC_DIR/$i"
     ) &
   done
   wait
@@ -203,6 +207,21 @@ _concurrent_upserts() {
   [ -z "$missing" ] || { echo "upserts reported ok but lost:$missing"; cat "$GLOSS"; false; }
   # And no phantom entries: line count == number of successful upserts.
   [ "$(grep -c ' — ' "$GLOSS")" -eq "$n_ok" ]
+}
+
+@test "mb_glossary: a failing racer still records its rc" {
+  # The rc file is the only evidence the concurrency tests have. Under errexit
+  # a failing racer used to die before writing it, so `cat $RC_DIR/$i` blew up
+  # with "No such file" — the harness lost exactly the case these tests exist
+  # for (a racer that could not take the lock). Every racer must leave an rc.
+  local i rc
+  mkdir -p "$BANK/.locks/glossary.lock/owner.$$-held"   # lock nobody will release
+  MB_GLOSSARY_LOCK_TIMEOUT=1 MB_GLOSSARY_LOCK_TTL=3600 _concurrent_upserts 3
+  for i in 1 2 3; do
+    [ -f "$RC_DIR/$i" ] || { echo "racer $i left no rc file"; ls -la "$RC_DIR"; false; }
+    rc="$(cat "$RC_DIR/$i")"
+    [ "$rc" -ne 0 ] || { echo "racer $i reported success while the lock was held"; false; }
+  done
 }
 
 @test "mb_glossary: with an adequate lock timeout every concurrent upsert succeeds" {

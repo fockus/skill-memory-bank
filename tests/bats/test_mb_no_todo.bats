@@ -19,7 +19,7 @@ setup() {
 }
 
 teardown() {
-  [ -n "${WORK:-}" ] && rm -rf "$WORK"
+  if [ -n "${WORK:-}" ]; then rm -rf "$WORK"; fi
 }
 
 json_of() {

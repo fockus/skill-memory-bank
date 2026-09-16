@@ -45,7 +45,7 @@ codegraph = [
   "networkx>=3.0",
 ]
 yaml = ["PyYAML>=6.0"]
-dev = ["pytest>=7", "pytest-cov>=4", "PyYAML>=6.0", "ruff>=0.5"]
+dev = ["pytest>=7", "pytest-cov>=4", "PyYAML>=6.0", "ruff>=0.5", "networkx>=3.0"]
 docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
 
 [dependency-groups]

@@ -18,8 +18,8 @@ setup() {
 }
 
 teardown() {
-  [ -n "${PROJECT:-}" ] && [ -d "$PROJECT" ] && rm -rf "$PROJECT"
-  [ -n "${SANDBOX_HOME:-}" ] && [ -d "$SANDBOX_HOME" ] && rm -rf "$SANDBOX_HOME"
+  if [ -n "${PROJECT:-}" ] && [ -d "$PROJECT" ]; then rm -rf "$PROJECT"; fi
+  if [ -n "${SANDBOX_HOME:-}" ] && [ -d "$SANDBOX_HOME" ]; then rm -rf "$SANDBOX_HOME"; fi
 }
 
 run_script() {

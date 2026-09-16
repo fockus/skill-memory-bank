@@ -20,7 +20,7 @@ setup() {
 }
 
 teardown() {
-  [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ] && rm -rf "$TMPROOT"
+  if [ -n "${TMPROOT:-}" ] && [ -d "$TMPROOT" ]; then rm -rf "$TMPROOT"; fi
 }
 
 @test "clean_arch: domain python file importing from infrastructure → CRITICAL" {

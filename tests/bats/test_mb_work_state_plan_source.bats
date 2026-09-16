@@ -114,3 +114,21 @@ teardown() {
   run bash "$WS" done --mb "$BANK"
   [ "$status" -eq 5 ] || { echo "unparseable tasks.md certified (rc=$status): $output"; false; }
 }
+
+# A stage-marker PLAN that a legacy locator resolves at the `tasks.md` path is
+# still a plan: the surface test must look at what the file CONTAINS, not at
+# what it is called (I-208 / A).
+
+@test "work_state_plan: a stage-marker plan resolved at tasks.md is a plan, not a task surface" {
+  mkdir -p "$TMP/work"
+  cp "$PLAN" "$TMP/work/tasks.md"
+  # The legacy locator `work` resolves the directory to `work/tasks.md`
+  # relative to the init caller's cwd — so the call must be made from there.
+  run bash -c 'cd "$1" && bash "$2" init work 1 --mb "$3"' _ "$TMP" "$WS" "$BANK"
+  [ "$status" -eq 0 ] || { echo "init failed: $output"; false; }
+  run bash -c 'cd "$1" && bash "$2" done --mb "$3"' _ "$TMP" "$WS" "$BANK"
+  [ "$status" -eq 0 ] || { echo "done refused a plan at tasks.md (rc=$status): $output"; false; }
+  run bash "$WS" status --mb "$BANK"
+  [[ "$output" == *'"verdict": "NOFILE"'* ]] \
+    || { echo "plan at tasks.md classified as a declaration surface: $output"; false; }
+}

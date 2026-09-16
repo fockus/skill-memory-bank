@@ -24,7 +24,11 @@ _role_agents() {
 
 @test "all skill role agents reference the impact command" {
   for f in $(_agents); do
-    run grep -F "mb-graph-query.py impact" "$AGENTS_DIR/$f"
+    # Optional closing quote: roles may spell the path literally
+    # (~/.claude/skills/.../mb-graph-query.py impact) or through a resolved variable
+    # ("$SKILL_DIR/scripts/mb-graph-query.py" impact). The command reference is what
+    # matters, not the quoting style of the path.
+    run grep -E 'mb-graph-query\.py"? impact' "$AGENTS_DIR/$f"
     [ "$status" -eq 0 ] || { echo "missing impact command in $f"; return 1; }
   done
 }
@@ -49,7 +53,7 @@ _role_agents() {
 
 @test "role files use graph-query status not /mb context for freshness" {
   for f in $(_role_agents); do
-    run grep -F "mb-graph-query.py status" "$AGENTS_DIR/$f"
+    run grep -E 'mb-graph-query\.py"? status' "$AGENTS_DIR/$f"
     [ "$status" -eq 0 ] || { echo "missing mb-graph-query.py status in $f"; return 1; }
 
     run grep -F "/mb context" "$AGENTS_DIR/$f"

@@ -116,9 +116,13 @@ phys_dir() { cd -P "$1" 2>/dev/null && pwd -P; }
 # by single dashes, no leading/trailing/double dash. A '/', '.', or '..' cannot
 # appear, so <topic> can never widen the target path outside <bank> (R3-001,
 # path-traversal guard). Returns 0 when valid.
+# The allowed set is spelled out character by character on purpose: a range
+# like [!a-z0-9-] is expanded by the LOCALE'S COLLATION, and under en_US.UTF-8
+# uppercase letters sort between the lowercase ones — `Foo` passed the negated
+# class and reached the filesystem (I-208 B).
 valid_topic() {
   case "$1" in
-    ''|*[!a-z0-9-]*) return 1 ;;
+    ''|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) return 1 ;;
     -*|*-|*--*) return 1 ;;
   esac
   return 0

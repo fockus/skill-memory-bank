@@ -84,6 +84,25 @@ emit_findings() {
   emit false "${capped[@]+"${capped[@]}"}"
 }
 
+# Read linter output, strip ANSI colour escapes, keep only diagnostic lines
+# ("path:line:col: ..."). Linters are asked not to colourize (NO_COLOR below),
+# but ruff >= 0.15 colourizes into a file anyway when FORCE_COLOR is set, so
+# the escapes are stripped here too: the parse must not depend on whether a
+# given linter version honours the variable.
+collect_findings() {
+  local log="$1" line
+  FINDINGS=()
+  while IFS= read -r line; do
+    [[ "$line" =~ :[0-9]+:[0-9]+: ]] || continue
+    FINDINGS+=("$line")
+  done < <(sed $'s/\033\[[0-9;]*[a-zA-Z]//g' "$log")
+}
+
+# Run a linter with colour output disabled in the child environment.
+run_uncolored() {
+  env -u FORCE_COLOR -u CLICOLOR_FORCE NO_COLOR=1 "$@"
+}
+
 # ---- stack detection --------------------------------------------------------
 
 if [[ -n "$FORCE_STACK" ]]; then
@@ -105,18 +124,13 @@ run_python() {
   log="$(mktemp)"
   # `ruff check` exits 1 when findings exist; capture both and never let the
   # non-zero rc bubble out (ADR-3 — only the JSON carries the verdict).
-  (cd "$DIR" && ruff check . --output-format concise) >"$log" 2>&1 || true
-  local -a findings=()
-  while IFS= read -r line; do
-    # Keep diagnostic lines that look like "path:line:col: CODE message".
-    [[ "$line" =~ :[0-9]+:[0-9]+: ]] || continue
-    findings+=("$line")
-  done < "$log"
+  (cd "$DIR" && run_uncolored ruff check . --output-format concise) >"$log" 2>&1 || true
+  collect_findings "$log"
   rm -f "$log"
-  if [[ "${#findings[@]}" -eq 0 ]]; then
+  if [[ "${#FINDINGS[@]}" -eq 0 ]]; then
     emit true
   fi
-  emit_findings "${findings[@]}"
+  emit_findings "${FINDINGS[@]}"
 }
 
 run_shell() {
@@ -139,17 +153,13 @@ run_shell() {
   local log
   log="$(mktemp)"
   # GCC format → one "file:line:col: level: message" per finding line.
-  shellcheck --format=gcc "${sh_files[@]}" >"$log" 2>&1 || true
-  local -a findings=()
-  while IFS= read -r line; do
-    [[ "$line" =~ :[0-9]+:[0-9]+: ]] || continue
-    findings+=("$line")
-  done < "$log"
+  run_uncolored shellcheck --format=gcc "${sh_files[@]}" >"$log" 2>&1 || true
+  collect_findings "$log"
   rm -f "$log"
-  if [[ "${#findings[@]}" -eq 0 ]]; then
+  if [[ "${#FINDINGS[@]}" -eq 0 ]]; then
     emit true
   fi
-  emit_findings "${findings[@]}"
+  emit_findings "${FINDINGS[@]}"
 }
 
 case "$STACK" in

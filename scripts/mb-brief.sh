@@ -95,7 +95,12 @@ done
 [ -n "$TOPIC" ] || usage_error
 # The topic is pasted straight into paths, so its grammar is proven BEFORE any
 # path is built: `../escape` must never reach a mkdir.
-printf '%s' "$TOPIC" | grep -qE '^[a-z0-9][a-z0-9-]*$' || usage_error
+# Same grammar as before (`^[a-z0-9][a-z0-9-]*$`), spelled as a literal
+# character set: ranges — in ERE just as in a glob — are expanded by the
+# locale's collation, so under en_US.UTF-8 `[a-z]` also matched `F` (I-208 B).
+case "$TOPIC" in
+  ''|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*|-*) usage_error ;;
+esac
 [ -d "$MB" ] || usage_error
 
 DEST="$MB/briefs/$TOPIC"

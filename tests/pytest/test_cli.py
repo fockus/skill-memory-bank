@@ -7,6 +7,7 @@ Platform behavior mocked; shell invocations use bundled install.sh --help.
 from __future__ import annotations
 
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -17,6 +18,11 @@ from unittest.mock import patch
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# The sandbox these helpers build is a substituted $HOME — not a substituted
+# PATH. Pinning PATH to a literal list drops Homebrew prefixes (/opt/homebrew/bin
+# on Apple Silicon), so install.sh resolves the system python3 (3.9) and
+# honestly refuses to install. Inherit the PATH the suite actually runs under.
+SANDBOX_PATH = os.environ.get("PATH") or os.defpath
 sys.path.insert(0, str(REPO_ROOT))
 
 from memory_bank_skill import __version__, cli  # noqa: E402
@@ -470,7 +476,7 @@ def _run_install_sh(sandbox_home: Path, repo_root: Path) -> subprocess.Completed
     """Run the real install.sh against a sandboxed $HOME."""
     env = {
         "HOME": str(sandbox_home),
-        "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "PATH": SANDBOX_PATH,
     }
     return subprocess.run(
         ["bash", str(repo_root / "install.sh"), "--non-interactive"],
@@ -489,7 +495,7 @@ def _run_uninstall_sh(
 ) -> subprocess.CompletedProcess:
     env = {
         "HOME": str(sandbox_home),
-        "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "PATH": SANDBOX_PATH,
     }
     return subprocess.run(
         ["bash", str(repo_root / "uninstall.sh"), *extra_args],
@@ -557,7 +563,7 @@ def test_install_sh_routes_python_through_mb_python(tmp_path):
 
     env = {
         "HOME": str(sandbox),
-        "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "PATH": SANDBOX_PATH,
         "MB_PYTHON": str(fake_py),
     }
     result = subprocess.run(
@@ -621,7 +627,7 @@ def test_cross_agent_adapters_route_python_through_mb_python(tmp_path):
 
     env = {
         "HOME": str(sandbox),
-        "PATH": f"{poison_dir}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "PATH": f"{poison_dir}:{SANDBOX_PATH}",
         "MB_PYTHON": str(real_py),
     }
     result = subprocess.run(

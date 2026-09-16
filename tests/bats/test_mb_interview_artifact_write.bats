@@ -343,6 +343,37 @@ EOF
   [ "$stderr" = "error=topic" ]
 }
 
+@test "artifact_write: a non-lowercase topic is refused under ANY locale" {
+  # `case $t in *[!a-z0-9-]*` expands the a-z range by the LOCALE'S COLLATION,
+  # not ASCII: under en_US.UTF-8 uppercase letters sort between the lowercase
+  # ones, so `Foo` slipped through the negated class and was installed.
+  local loc bad
+  for loc in C en_US.UTF-8; do
+    for bad in Foo TOPIC café a--b -a a- ; do
+      _valid_open_plan "$CAND"
+      run --separate-stderr env LC_ALL="$loc" "$SCRIPT" install-plan \
+        --mb "$BANK" --topic "$bad" --candidate "$CAND"
+      [ "$status" -eq 2 ] || { echo "LC_ALL=$loc accepted topic <$bad>"; false; }
+      [ "$stderr" = "error=topic" ] || { echo "LC_ALL=$loc topic <$bad>: $stderr"; false; }
+    done
+  done
+}
+
+@test "artifact_write: valid kebab topics still install under ANY locale" {
+  # The locale fix must not narrow the accepted grammar.
+  local loc good
+  for loc in C en_US.UTF-8; do
+    for good in a a-b a1-b2 x9 ; do
+      _valid_open_plan "$CAND"
+      rm -f "$BANK/tmp/interview-plan-$good.md"
+      run --separate-stderr env LC_ALL="$loc" "$SCRIPT" install-plan \
+        --mb "$BANK" --topic "$good" --candidate "$CAND"
+      [ "$status" -eq 0 ] || { echo "LC_ALL=$loc rejected topic <$good>: $stderr"; false; }
+      [ -f "$BANK/tmp/interview-plan-$good.md" ] || { echo "no target for <$good>"; false; }
+    done
+  done
+}
+
 @test "artifact_write: kebab-case multi-word topic still installs" {
   _valid_open_plan "$CAND"
   run --separate-stderr "$SCRIPT" install-plan --mb "$BANK" --topic svp-interview-upgrade --candidate "$CAND"
@@ -705,51 +736,70 @@ EOF
 }
 
 @test "artifact_write: a signal before the claim does not delete another run's candidate" {
-  # Cleanup owned a PATHNAME. Between arming it and claiming the file, a second
-  # run replaced the candidate with its own — and this run's SIGTERM handler
-  # then `rm -f`'d the newcomer (r5 review [1], second interleaving).
+  # The window: cleanup is armed at `trap _scrub_candidate EXIT` / `_on_signal 15`
+  # TERM, and the candidate is CLAIMED (renamed into private 0700 staging) only
+  # further down, in the publish-transcript loop. Between the two the writer runs
+  # `_ensure_stage`, whose `mkdir -m 700` is the LAST external command before the
+  # claiming `mv` — so interposing `mkdir` parks the writer inside that exact
+  # window: scrub armed, staging created, nothing claimed yet.
   #
-  # `basename` is interposed to park the writer inside that exact window: the
-  # scrub is armed (the arm loop has run) and the claim has not happened yet.
+  # Parking is pinned to that command, not to "the Nth call of some utility": the
+  # old fixture waited for a second `basename`, and when the ownership path stopped
+  # calling `basename` twice it silently never parked at all.
+  #
+  # The interposed mkdir does what the second run does — republish its own
+  # candidate at the shared path — and then signals. Cleanup owns a private
+  # directory, never a shared pathname, so the newcomer must survive untouched,
+  # the staging must be gone, and the writer must terminate through its OWN
+  # handler (exit 143) instead of being killed where it stood (-SIGTERM).
   local cand="$BANK/tmp/interview-transcript-foo.candidate.md"
-  local bin="$BATS_TEST_TMPDIR/bin-own" pidf="$BATS_TEST_TMPDIR/pid-own"
-  local parked="$BATS_TEST_TMPDIR/.parked" go="$BATS_TEST_TMPDIR/.go"
-  local other="$BATS_TEST_TMPDIR/other.md"
+  local bin="$BATS_TEST_TMPDIR/bin-own" other="$BATS_TEST_TMPDIR/other.md"
   mkdir -p "$BANK/context" "$bin"
   _credential_candidate "$cand"
+  printf 'ANOTHER RUN CANDIDATE\n' > "$other"
 
-  local realbn; realbn="$(command -v basename)"
-  cat > "$bin/basename" <<EOF
+  local realmkdir realcp
+  realmkdir="$(command -v mkdir)"; realcp="$(command -v cp)"
+  cat > "$bin/mkdir" <<EOF
 #!/usr/bin/env bash
-n=0
-[ -f "$BATS_TEST_TMPDIR/.bn" ] && n=\$(cat "$BATS_TEST_TMPDIR/.bn")
-n=\$((n + 1)); printf '%s' "\$n" > "$BATS_TEST_TMPDIR/.bn"
-if [ "\$n" -eq 2 ]; then
-  : > "$parked"
-  i=0
-  while [ ! -e "$go" ] && [ "\$i" -lt 1000 ]; do sleep 0.01; i=\$((i + 1)); done
-fi
-exec "$realbn" "\$@"
+"$realmkdir" "\$@"; rc=\$?
+# Keyed on the staging directory's own name, not on "the Nth mkdir of this
+# process": an ordinal parks wherever the code happens to call the utility
+# first, so any later mkdir added above the window would silently move the
+# park out of it and leave the test green while asserting nothing. The
+# \`.mb-iaw.\` staging dir is what the window structurally requires.
+case "\$*" in
+  *.mb-iaw.*)
+    if [ ! -e "$BATS_TEST_TMPDIR/.staged-once" ]; then
+      : > "$BATS_TEST_TMPDIR/.staged-once"
+      "$realcp" "$other" "$cand"
+      kill -TERM \$PPID 2>/dev/null
+      sleep 2
+    fi
+    ;;
+esac
+exit \$rc
 EOF
-  chmod +x "$bin/basename"
+  chmod +x "$bin/mkdir"
 
-  ( echo $BASHPID > "$pidf"
-    exec env PATH="$bin:$PATH" "$SCRIPT" publish-transcript \
-      --mb "$BANK" --topic foo --candidate "$cand" ) >/dev/null 2>&1 &
-  local bg=$! i=0
-  while [ ! -e "$parked" ] && [ "$i" -lt 1000 ]; do sleep 0.01; i=$((i + 1)); done
-  [ -e "$parked" ] || { kill "$bg" 2>/dev/null; echo "the writer never parked"; false; }
-
-  # The OTHER run publishes its own candidate at the shared path, then this run
-  # is killed while it still believes it owns that pathname.
-  printf 'ANOTHER RUN CANDIDATE\n' > "$cand"
-  cp "$cand" "$other"
-  kill -TERM "$(cat "$pidf")" 2>/dev/null || true
-  : > "$go"
-  wait "$bg" 2>/dev/null || true
+  # python3 launches the writer because the shell collapses both endings to 143:
+  # a handler that exits 143 and a process killed by SIGTERM are only told apart
+  # by WIFSIGNALED, which surfaces here as a negative returncode.
+  local rc
+  rc="$(MB_STUB_PATH="$bin:$PATH" python3 -c '
+import os, subprocess, sys
+env = dict(os.environ, PATH=os.environ["MB_STUB_PATH"])
+p = subprocess.run([sys.argv[1], "publish-transcript", "--mb", sys.argv[2],
+                    "--topic", "foo", "--candidate", sys.argv[3]],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+print(p.returncode)' "$SCRIPT" "$BANK" "$cand")"
 
   [ -f "$cand" ] || { echo "the other run's candidate was deleted"; false; }
   cmp -s "$other" "$cand" || { echo "the other run's candidate was modified"; false; }
+  local left; left="$(find "$BANK/tmp" -maxdepth 1 -name '.mb-iaw.*' 2>/dev/null)"
+  [ -z "$left" ] || { echo "private staging stranded by the signal: $left"; false; }
+  [ -z "$(ls -A "$BANK/context")" ] || { echo "a signalled run published anyway"; false; }
+  [ "$rc" = "143" ] || { echo "writer did not self-terminate through its handler (rc=$rc)"; false; }
 }
 
 # ─── signal cleanup covers the install temp too (r2 review [7]) ───

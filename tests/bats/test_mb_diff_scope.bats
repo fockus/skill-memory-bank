@@ -28,7 +28,7 @@ setup() {
 }
 
 teardown() {
-  [ -n "${GIT_REPO:-}" ] && rm -rf "$GIT_REPO"
+  if [ -n "${GIT_REPO:-}" ]; then rm -rf "$GIT_REPO"; fi
 }
 
 json_of() {

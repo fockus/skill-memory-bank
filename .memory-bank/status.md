@@ -32,6 +32,7 @@
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-09-17 — [plans/done/2026-09-16_fix_i208-test-battery.md](plans/done/2026-09-16_fix_i208-test-battery.md) — fix — i208-test-battery · полная батарея зелёная (I-208)
 - 2026-09-16 — [plans/done/2026-09-13_fix_sprint1-review-blockers.md](plans/done/2026-09-13_fix_sprint1-review-blockers.md) — fix — sprint1-review-blockers · три воспроизведённых блокера судьи Sprint 1
 - 2026-09-14 — [plans/done/2026-09-13_fix_skill-audit-runtime.md](plans/done/2026-09-13_fix_skill-audit-runtime.md) — runtime and command contracts
 - 2026-09-14 — [plans/done/2026-09-13_fix_skill-audit-data-safety.md](plans/done/2026-09-13_fix_skill-audit-data-safety.md) — data safety
@@ -41,7 +42,6 @@
 - 2026-09-13 — [plans/done/2026-07-04_fix_session-capture-and-mb-hygiene.md](plans/done/2026-07-04_fix_session-capture-and-mb-hygiene.md) — fix — Session-capture correctness + Memory-Bank drift hygiene
 - 2026-09-13 — [plans/done/2026-07-13_feature_update-notify.md](plans/done/2026-07-13_feature_update-notify.md) — feature — Update notification + cross-install upgrade
 - 2026-09-13 — [plans/done/2026-07-15_feature_docs-site-and-landing-refresh.md](plans/done/2026-07-15_feature_docs-site-and-landing-refresh.md) — feature — Docs site (MkDocs Material) + landing refresh
-- 2026-09-13 — [plans/done/2026-07-18_fix_spec-group-round3-remediation.md](plans/done/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)
