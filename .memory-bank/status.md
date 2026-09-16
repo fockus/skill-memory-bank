@@ -32,12 +32,12 @@
 - [2026-05-23] `paused` [2026-05-23_feature_goal-driven-autopilot-phase.md](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — feature — Plan: feature — goal-driven-autopilot (Phase roadmap)
 - [2026-07-18] [plans/2026-07-18_fix_spec-group-round3-remediation.md](plans/2026-07-18_fix_spec-group-round3-remediation.md) — fix — spec-group-round3-remediation
 - [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
-- [2026-09-13] [plans/2026-09-13_fix_sprint1-review-blockers.md](plans/2026-09-13_fix_sprint1-review-blockers.md) — fix — sprint1-review-blockers · три воспроизведённых блокера судьи Sprint 1
 <!-- /mb-active-plans -->
 
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-09-16 — [plans/done/2026-09-13_fix_sprint1-review-blockers.md](plans/done/2026-09-13_fix_sprint1-review-blockers.md) — fix — sprint1-review-blockers · три воспроизведённых блокера судьи Sprint 1
 - 2026-09-13 — [plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md](plans/done/2026-09-05_fix_mb-work-cost-diet-sprint1.md) — fix — mb-work-cost-diet · Sprint 1 «context-diet + измерение»
 - 2026-06-15 — [specs/handoff-v2/](specs/handoff-v2/) — feature — Handoff 2.0 (5/5): handoff capsule + PreCompact/SessionStart hooks + mandatory `/mb done` gates + append-only sha256 progress chain + docs; governed dual-review (Codex + lead) + judge, fix-cycle per task
 - 2026-06-14 — [specs/tier1-graph-memory/](specs/tier1-graph-memory/) — feature — Tier-1 graph + session memory (17/17): RRF/import-aware/PageRank graph, progressive-disclosure recall, `/mb recap`+`/mb conflicts`+`/mb consolidate`, `--sessions` graph layer, wiki staleness+decisions; + 5.1.0 release prep
@@ -47,7 +47,6 @@
 - 2026-05-27 — [plans/done/2026-05-24_fix_ci-baseline-wave-0.md](plans/done/2026-05-24_fix_ci-baseline-wave-0.md) — fix — CI baseline (Wave 0 before Wave 1; latest green `26528106396`)
 - 2026-05-24 — [plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md](plans/done/2026-05-21_feature_rule-profiles-and-stack-presets.md) — feature — rule-profiles-and-stack-presets
 - 2026-05-24 — [plans/done/2026-05-21_feature_global-storage-agent-support.md](plans/done/2026-05-21_feature_global-storage-agent-support.md) — feature — global-storage-agent-support
-- 2026-05-24 — [plans/done/2026-05-21_feature_global-storage.md](plans/done/2026-05-21_feature_global-storage.md) — feature — global-storage-core
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)

@@ -1,7 +1,7 @@
 ---
 type: fix
 topic: sprint1-review-blockers
-status: in_progress
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: []
