@@ -30,14 +30,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-try:
-    from memory_bank_skill._io import atomic_write
-except ModuleNotFoundError:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from memory_bank_skill._io import atomic_write
+# Prefer this source bundle before Python caches an older installed package.
+# Wheel layouts have no package under this root and use their site-packages copy.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from memory_bank_skill._io import atomic_write  # noqa: E402
+from memory_bank_skill.private import strip_private as _strip_private  # noqa: E402
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", re.DOTALL)
-LESSON_RE = re.compile(r"^#{2,3}\s+(L-\d+)[:\-\s]+(.+?)\s*$", re.MULTILINE)
+LESSON_RE = re.compile(r"^#{2,3}[ \t]+(L-\d+)[:\- \t]+(\S[^\r\n]*?)[ \t]*$", re.MULTILINE)
 _KEBAB_RE_1 = re.compile(r"(.)([A-Z][a-z]+)")
 _KEBAB_RE_2 = re.compile(r"([a-z0-9])([A-Z])")
 
@@ -48,20 +48,6 @@ def _kebab_case(s: str) -> str:
     s = _KEBAB_RE_1.sub(r"\1-\2", s)
     s = _KEBAB_RE_2.sub(r"\1-\2", s)
     return s.lower()
-
-
-# PII markers: `<private>...</private>` — content must not enter the index.
-# Closed blocks are fully removed; open blocks without closing tag extend to EOF
-# (protects against leaks when `</private>` is forgotten).
-PRIVATE_CLOSED_RE = re.compile(r"<private>.*?</private>", re.DOTALL)
-PRIVATE_OPEN_RE = re.compile(r"<private>.*\Z", re.DOTALL)
-
-
-def _strip_private(text: str) -> tuple[str, bool]:
-    """Remove <private>...</private> blocks. Return (clean_text, had_private)."""
-    new, n_closed = PRIVATE_CLOSED_RE.subn("", text)
-    new, n_open = PRIVATE_OPEN_RE.subn("", new)
-    return new, (n_closed + n_open) > 0
 
 
 def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
@@ -172,7 +158,7 @@ def _index_lessons(mb_path: Path) -> list[dict[str, str]]:
     if not lessons_file.is_file():
         return []
 
-    text = lessons_file.read_text(encoding="utf-8")
+    text, _ = _strip_private(lessons_file.read_text(encoding="utf-8"))
     return [{"id": m.group(1), "title": m.group(2).strip()} for m in LESSON_RE.finditer(text)]
 
 

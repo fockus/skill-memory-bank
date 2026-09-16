@@ -104,7 +104,7 @@ AGENTS.md-адаптерах — через adapter-parity (AGR-012…014). Ав
 - `scripts/mb-flow-sync.sh:130`, `scripts/mb-handoff.sh:111` [MAJOR] trap-string interpolates lock path → exec on `EXIT` for a path with `'`. Fix: cleanup function + globals, `trap _cleanup EXIT`.
 - `hooks/file-change-log.sh:127` [MAJOR] prints full secret line to stderr → transcript/log leak. Fix: emit only `file:line`+var name, value `[REDACTED]`.
 
-**Plan:** `plans/2026-06-23_fix_security-hardening.md`
+**Plan:** `plans/done/2026-06-23_fix_security-hardening.md`
 **Outcome:** no shell-string interpolation of untrusted paths; no `source` of repo-controlled files; all bank/pipeline/index paths canonicalized under their root; `<private>` honored on persist; protected-path guard covers Bash writes.
 
 ### I-083 — Verification gates fail-closed + multi-stack test runner + CI surface [HIGH, DONE 2026-07-15, 2026-06-23] — Wave 1, commit 49f9ad5, план plans/done/2026-06-23_fix_verification-gates.md
@@ -116,7 +116,7 @@ AGENTS.md-адаптерах — через adapter-parity (AGR-012…014). Ав
 - `.github/workflows/test.yml:44` + `hooks/tests/*.bats` [MAJOR] tracked `hooks/tests/` not run in CI. Fix: add `bats hooks/tests/*.bats` (+ any pytest) to CI + README verification commands.
 - `.github/workflows/test.yml:77` [MINOR] shellcheck skips `hooks/lib/*.sh`, adapters, install; ruff skips `scripts/*.py`, `hooks/lib/*.py`, `memory_bank_skill/`. Fix: expand static-analysis targets.
 
-**Plan:** `plans/2026-06-23_fix_verification-gates.md`
+**Plan:** `plans/done/2026-06-23_fix_verification-gates.md`
 **Outcome:** gates fail-closed on un-run/crashed/null; runner covers the project's real stacks incl. bats; CI runs the full test+lint surface.
 
 ### I-084 — Capability dispatcher: wire into execution + transports + default routing [HIGH, OPEN, 2026-06-23]
@@ -152,7 +152,7 @@ AGENTS.md-адаптерах — через adapter-parity (AGR-012…014). Ав
 - `scripts/mb-conflicts.sh:81` [MINOR] `--threshold nan/inf` accepted. Fix: require finite `0<=t<=1`, else exit 64.
 - `scripts/mb-work-resolve.sh:124` [MINOR] bank-relative `specs/<topic>/tasks.md` targets fail. Fix: resolve `plans/*`/`specs/*` relative to `BANK` before sanitization.
 
-**Plan:** `plans/2026-06-23_fix_logic-correctness-portability.md`
+**Plan:** `plans/done/2026-06-23_fix_logic-correctness-portability.md`
 **Outcome:** range/route/frontmatter false-positives eliminated; conflict bodies decoded portably; one validated mtime helper across all call sites.
 
 ### I-086 — Config validation, executable defaults & doc-vs-code drift [MED, OPEN, 2026-06-23]
@@ -583,7 +583,7 @@ _`scripts/mb-idea.sh` computes the next idea id by scanning `backlog.md` alone. 
 
 ### I-087 — Session-capture correctness + Memory-Bank drift hygiene [HIGH, RESOLVED 2026-07-04]
 
-_Plan `plans/2026-07-04_fix_session-capture-and-mb-hygiene.md`. Track A (capture correctness,
+_Plan `plans/done/2026-07-04_fix_session-capture-and-mb-hygiene.md`. Track A (capture correctness,
 A1-A7) + Track B (drift/enforcement, B1-B4) shipped, TDD red→green, governed review
 (codex-cli gpt-5.5 CHANGES_REQUESTED → all findings fixed) + mb-judge (NO_GO on one broken
 proxy test → fixed → clean). Commits `89caee6`/`37a4409`/`27e4d6a`/`cd6c387`/`e2bce6c`/`f2b2d56`/`4a8e29c`/`740cf5d`/`f4d8051`/`3ca4653`/`85c57ff`/`6207346`.
@@ -637,7 +637,7 @@ to run_id; (T2) `mb-work-checkbox.sh` deterministic DoD flip gated on `phase=don
 codex-reviewer SKIPPED contract, one bounded retry; (T4) `mb-work-codex-preflight.sh` fail-safe
 health-check + loud `cross-model review SKIPPED` degradation + --auto confirmation hard-stop.
 Verification: 49 pytest + 22 bats green, shellcheck clean, all scripts <=400 lines.
-Plan: `plans/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087 (verified)._
+Plan: `plans/done/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with I-087 (verified)._
 
 
 ### I-095 — reviewer-2.0 backlog: DRY-fold resolve_touched_files/resolve_diff_text in mb-review.sh (~85% dup) [LOW, NEW, 2026-07-05]
@@ -1167,3 +1167,10 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-209 — [review S1 reviewer C] references/coordination.md — документ обещает, что тегированный LIFT снимает legacy-заморозку, а mb-coord.sh этого не умеет (scope у нетегированной записи пустой): переписать фразу на «перевыпустить заморозку тегом, затем LIFT» либо сделать scope выводимым [MED, NEW, 2026-09-13]
 
+### I-210 — [/mb doctor 2026-09-13] scripts/mb-plan-done.sh:96 — парсер стадий понимает только `## Stage N:` (цифра + двоеточие); планы с `## Stage 1 — …` или буквенно-цифровыми id (`## Stage A1 — …`) падают с `[error] Failed to extract stages` и не закрываются — 4 плана (install-and-cross-agent-parity, session-capture-and-mb-hygiene, update-notify, docs-site-and-landing-refresh) закрыты вручную тем же набором шагов; принять тире и буквенные id либо закрывать план без стадий, если чеклист-блока нет [MED, NEW, 2026-09-13]
+
+### I-211 — [/mb doctor 2026-09-13, fact-check code-graph-activation] scripts/mb-context.sh:231 — хвосты закрытого плана code-graph-activation: (1) подсказка пересборки в stale-ветке `mb-codegraph.py --apply --docs . .` передаёт `.` вместо пути банка (первый аргумент — bank, mb-codegraph.py:431,438) → по подсказке граф пишется в `./codebase/graph.json` корня проекта; not-built-ветка (:212) верна; bats test_context_integration.bats:141-147 проверяет только подстроку `--apply`; (2) нет тестов Stage 7: прирост вывода < 2 KB (замер вручную 571 B) и фолбэк без python3 (он же не печатает mtime вопреки DoD); (3) freshness/adoption-остаток (cooldown catch-up на 113 MB графе taskloom, swarmline отстаёт на 33 коммита, mb-graph-query 7 вызовов / mb-semantic-search 0 против цели ≥20/≥5) — к graph-semantic-adoption; (4) taskloom `.claude/agents/documentor.md:52` — старая формулировка `/mb context` [MED, NEW, 2026-09-13]
+
+### I-212 — [/mb doctor 2026-09-13, fact-check specs/agreements] tests/bats/test_mb_agree.bats — 5 из 24 пунктов спеки agreements не подтверждены (19 отмечены по доказательствам): (1) tasks.md:90 — утверждение сценария 6 `*"prune"* || *"26"*` проходит всегда (id AGR-026 в stdout), сценарий 5 не сравнивает байты вокруг блока, сценарий 1 не проверяет, что новый AGENTS.md содержит только блок — три мутанта выжили; (2) tasks.md:110 — нет теста на `.mb-config` off при существующем реестре (мутант выжил); (3) tasks.md:46 — сценарий 2 (requirements.md:92) противоречит design.md:60 (суффикс `[supersedes AGR-NNN]`); (4) tasks.md:175 — dogfood: 8 решений фичи (design.md:92-99) не записаны в реестр, в корневом AGENTS.md (gitignored) нет блока соглашений; (5) tasks.md:174 — CI красный на всех прогонах с фичей (не из-за agree-тестов); (6) расхождения со спекой: нет подкоманды `supersede` (REQ-002, SKILL.md:572), `MB_AGREEMENTS=on` не перебивает `.mb-config` off (mb-agree.sh:181-187), свой лок вместо `_lib.sh::mb_lock_acquire`, нет теста terminology-guard Task 6, лишняя строка `ok` в stdout (mb-agree.sh:608), prune-ворнинг печатается дважды (:405-409, :643-647) [MED, NEW, 2026-09-13]
+
+### I-213 — [/mb doctor 2026-09-13, fact-check specs/adapter-parity] adapter-parity T8 (lifecycle) не начат — улики для исполнителя: (1) `scripts/mb-upgrade.sh:256-283` перезапускает install без `--with-extensions`, `install.sh:548` пропускает оффер в non-interactive → обновлённое расширение не копируется, `extensions_installed` сбрасывается в `[]` при файлах на диске; (2) `adapters/_lib_pi_extensions.sh:32-55` молча перезаписывает пользовательскую правку расширения, без бэкапа; (3) `uninstall.sh` не трогает глобальные расширения: остаются `~/.pi/agent/extensions` (4), `~/.pi/agent/agents` (27), `~/.config/opencode/agent` (54) и оба `.mb-global-extensions-manifest.json`; (4) docs: `platform_limited` 0 раз в `docs/`+README, таблица клиентов README без уровней расширений; (5) NFR-001-тест `tests/bats/test_extensions_offer.bats:507-508` сравнивает `HEAD:install.sh` сам с собой — нужен закреплённый pre-spec baseline; (6) у T1 (941b154) нет записи ревью/судьи, GO судьи T2 (4652e91) только в сообщении коммита; галочки T1/T2 отмечены по поведенческим доказательствам, маркеры `done:` не ставились. Связаны I-118, I-124 [MED, NEW, 2026-09-13]

@@ -1,7 +1,7 @@
 ---
 type: feature
 topic: work-loop-v2
-status: queued
+status: done
 depends_on: ["2026-05-23_feature_reviewer-v2.md"]
 parallel_safe: false
 linked_specs: ["specs/work-loop-v2/design.md"]

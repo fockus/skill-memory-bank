@@ -180,11 +180,12 @@ json_escape_raw() {
 run_tests_gate() {
   local runner_cmd="${MB_TEST_RUNNER_CMD:-}"
   local out rc parse_line verdict not_applicable parse_ok
-  if [[ -z "$runner_cmd" ]]; then
-    runner_cmd="bash $SCRIPT_DIR/mb-test-run.sh --dir $DIR --out json"
-  fi
   set +e
-  out="$($runner_cmd 2>/dev/null)"
+  if [[ -z "$runner_cmd" ]]; then
+    out="$(bash "$SCRIPT_DIR/mb-test-run.sh" --dir "$DIR" --out json 2>/dev/null)"
+  else
+    out="$($runner_cmd 2>/dev/null)"
+  fi
   rc=$?
   set -e
 
@@ -267,7 +268,7 @@ run_rules_gate() {
   files_csv="$(changed_files_csv)"
 
   set +e
-  out="$($rules_cmd --files "$files_csv" --diff-files "$files_csv" --out json 2>/dev/null)"
+  out="$(cd "$DIR" && $rules_cmd --files "$files_csv" --diff-files "$files_csv" --out json 2>/dev/null)"
   rc=$?
   set -e
 
@@ -288,8 +289,8 @@ run_placeholders_gate() {
   files_csv="$(changed_files_csv)"
 
   set +e
-  MB_PLACEHOLDER_DENY="$PLACEHOLDER_DENY" \
-    $rules_cmd --placeholders-only --files "$files_csv" --out json >/dev/null 2>&1
+  (cd "$DIR" && MB_PLACEHOLDER_DENY="$PLACEHOLDER_DENY" \
+    $rules_cmd --placeholders-only --files "$files_csv" --out json) >/dev/null 2>&1
   rc=$?
   set -e
 

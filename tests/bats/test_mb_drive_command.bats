@@ -335,25 +335,24 @@ EOF
 # ---- FIX-2 [MAJOR]: --budget / --max-cycles are actually wired --------------
 
 @test "FIX-2: preflight fence initialises the budget only when --budget was given" {
-  local fence
-  fence="$(extract_preflight)"
-  [[ "$fence" == *"mb-work-budget.sh"* ]]
-  [[ "$fence" == *"init"* ]]
-  # Conditional, not unconditional: a drive without --budget must not stamp one.
-  run bash -c 'printf %s "$1" | grep -c "mb-work-budget.sh\" init"' _ "$fence"
-  [ "$output" -ge 1 ]
-  [[ "$fence" == *'if [ -n "$BUDGET" ]'* ]] || [[ "$fence" == *'[ -n "$BUDGET" ]'* ]]
+  write_valid_goal
+  run_preflight
+  [ "$status" -eq 0 ]
+  [ ! -f "$BANK/.work-budget.json" ]
+  BUDGET=1000 run_preflight
+  [ "$status" -eq 0 ]
+  run python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["total"])' "$BANK/.work-budget.json"
+  [ "$status" -eq 0 ]
+  [ "$output" = "1000" ]
 }
 
 @test "FIX-2: preflight fence passes --max-cycles into mb-work-state.sh init" {
-  local fence state_line
-  fence="$(extract_preflight)"
-  [[ "$fence" == *"mb-work-state.sh"* ]]
-  [[ "$fence" == *"--max-cycles"* ]]
-  # --max-cycles must reach the state init, not float unused.
-  state_line="$(printf '%s\n' "$fence" | grep -n 'mb-work-state.sh" init' | head -1)"
-  [ -n "$state_line" ]
-  [[ "$fence" == *'MAX_CYCLES'* ]]
+  write_valid_goal
+  MAX_CYCLES=7 run_preflight
+  [ "$status" -eq 0 ]
+  run python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["max_cycles"])' "$BANK/.work-state.json"
+  [ "$status" -eq 0 ]
+  [ "$output" = "7" ]
 }
 
 @test "FIX-2: one run-id threads through state, budget, stop-telemetry and the loop" {
@@ -363,9 +362,18 @@ EOF
   # A single run id is minted once...
   [[ "$fence" == *"new-run-id"* ]]
   [[ "$fence" == *"RUN_ID"* ]]
-  # ...and reaches every stateful consumer.
-  [[ "$fence" == *'mb-work-state.sh" init'* ]]
+  # ...and reaches every stateful consumer through the resume-aware helper.
+  [[ "$fence" == *'mb-drive-preflight.sh'* ]]
   [[ "$fence" == *'--run-id "$RUN_ID"'* ]]
+  write_valid_goal
+  MB_WORK_RUN_ID=drive-contract BUDGET=1000 run_preflight
+  [ "$status" -eq 0 ]
+  local component
+  for component in work-state work-budget drive-state; do
+    run python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["run_id"])' "$BANK/.$component.json"
+    [ "$status" -eq 0 ]
+    [ "$output" = "drive-contract" ]
+  done
   # the loop itself must carry it too
   [[ "$body" == *'--run-id "$RUN_ID"'* ]]
 }
@@ -485,10 +493,12 @@ EOF
 # ---- FIX-5 [MAJOR]: T4 stop-telemetry wiring -------------------------------
 
 @test "FIX-5: preflight arms stop-telemetry after a successful preflight" {
-  local fence
-  fence="$(extract_preflight)"
-  [[ "$fence" == *"mb-drive-stop.sh"* ]]
-  [[ "$fence" == *"arm"* ]]
+  write_valid_goal
+  run_preflight
+  [ "$status" -eq 0 ]
+  run python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$BANK/.drive-state.json"
+  [ "$status" -eq 0 ]
+  [ "$output" = "driving" ]
 }
 
 @test "FIX-5: the loop records every stop_* action before exiting" {

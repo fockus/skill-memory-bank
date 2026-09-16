@@ -2,7 +2,7 @@
 type: feature
 scope: code-graph-activation
 created: 2026-07-04
-status: queued
+status: done
 priority: HIGH
 backlog: I-087
 parallel_safe: true

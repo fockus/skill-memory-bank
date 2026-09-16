@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "mb-code-context.py"
 
@@ -103,6 +105,100 @@ def _run(args: list[str]) -> subprocess.CompletedProcess[str]:
 
 def _json(result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
     return json.loads(result.stdout)
+
+
+@pytest.mark.parametrize("with_graph", [True, False])
+def test_exact_source_with_many_memory_mentions_remains_recommended(
+    tmp_path: Path, with_graph: bool
+) -> None:
+    project, mb, _semantic = _fixture_project(tmp_path)
+    notes = mb / "notes"
+    notes.mkdir()
+    for n in range(15):
+        (notes / f"{n:02d}-history.md").write_text("Historical handle_order discussion.\n")
+    if not with_graph:
+        (mb / "codebase" / "graph.json").unlink()
+
+    result = _run(
+        ["--query", "handle_order", "--project-root", str(project), "--mb-path", str(mb), "--json"]
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = _json(result)
+    assert "app/service.py" in payload["candidate_files"]
+    assert "app/service.py" in payload["recommended_next_reads"]
+    assert len(payload["candidate_files"]) <= payload["limits"]["max_files"]
+
+
+@pytest.mark.parametrize("mode", ["auto", "semantic"])
+def test_exact_definition_with_full_semantic_list_keeps_mode_contract(tmp_path: Path, mode: str) -> None:
+    project, mb, semantic = _fixture_project(tmp_path)
+    notes = mb / "notes"
+    notes.mkdir()
+    candidates = []
+    for n in range(12):
+        relative = f".memory-bank/notes/{n}.md"
+        (project / relative).write_text("Historical handle_order discussion.\n")
+        candidates.append({"file": relative, "score": 0.9})
+    semantic.write_text(json.dumps({"candidates": candidates}), encoding="utf-8")
+
+    result = _run([
+        "--query", "handle_order", "--project-root", str(project), "--mb-path", str(mb),
+        "--semantic-candidates", str(semantic), "--mode", mode, "--json",
+    ])
+
+    assert result.returncode == 0, result.stderr
+    payload = _json(result)
+    assert len(payload["candidate_files"]) == payload["limits"]["max_files"]
+    assert len(payload["recommended_next_reads"]) <= payload["limits"]["max_files"]
+    assert ("app/service.py" in payload["recommended_next_reads"]) is (mode == "auto")
+    assert ".memory-bank/notes/0.md" in payload["candidate_files"]
+    if mode == "semantic":
+        assert payload["candidate_files"] == [candidate["file"] for candidate in candidates[:10]]
+        assert payload["channels_used"] == ["semantic", "read"]
+
+
+@pytest.mark.parametrize("qualified", [False, True])
+@pytest.mark.parametrize(
+    "code, symbol",
+    [
+        ("class Order:\n    @classmethod\n    def handle_order(cls):\n        return True\n", "Order.handle_order"),
+        ("def outer():\n    def handle_order():\n        return True\n    return handle_order\n", "outer.handle_order"),
+    ],
+    ids=["classmethod", "nested-function"],
+)
+def test_qualified_definition_from_real_parser_survives_semantic_saturation(
+    tmp_path: Path, qualified: bool, code: str, symbol: str
+) -> None:
+    from memory_bank_skill.codegraph_python import parse_file
+
+    project, mb, semantic = _fixture_project(tmp_path)
+    source = project / "app/service.py"
+    source.write_text(code)
+    parsed = parse_file(source, project)
+    assert symbol in {node["name"] for node in parsed["nodes"]}
+    records = [{"type": "node", **node} for node in parsed["nodes"]]
+    records.extend({"type": "edge", **edge} for edge in parsed["edges"])
+    if qualified:
+        decoys = []
+        for n in range(12):
+            other = project / f"app/other{n}.py"
+            other.write_text(f"class Other{n}:\n    def handle_order(self):\n        return False\n")
+            decoys.extend({"type": "node", **node} for node in parse_file(other, project)["nodes"])
+        records = decoys + records
+    _write_graph(mb / "codebase/graph.json", records)
+    semantic.write_text(json.dumps({"candidates": [{"file": f"docs/mention-{n}.md"} for n in range(12)]}))
+
+    result = _run([
+        "--query", symbol if qualified else "handle_order", "--project-root", str(project),
+        "--mb-path", str(mb), "--semantic-candidates", str(semantic), "--json",
+    ])
+
+    assert result.returncode == 0, result.stderr
+    payload = _json(result)
+    assert "app/service.py" in payload["candidate_files"]
+    assert "app/service.py" in payload["recommended_next_reads"]
+    assert len(payload["candidate_files"]) <= payload["limits"]["max_files"]
 
 
 def test_code_context_returns_evidence_pack_with_semantic_graph_and_tests(tmp_path: Path) -> None:

@@ -11,7 +11,8 @@
 # `mb-work-plan.sh` recognises) but ONLY inside the requested item's marker
 # block (`<!-- mb-stage:N -->` / `<!-- mb-task:N -->` up to the next marker
 # or EOF), and ONLY when the resolved work-state file says the gate already
-# passed for that exact item (`phase == "done"` AND `item_no` matches).
+# passed for that exact source file and item (`phase == "done"`, bound source,
+# and matching `item_no`). Relative or noncanonical legacy locators refuse.
 # Everywhere else this is a fail-safe refusal — never a blind flip.
 #
 # `--run-id` (fallback `$MB_WORK_RUN_ID`) selects WHICH state file is
@@ -97,9 +98,10 @@ cmd_flip() {
 	fi
 
 	local gate
-	gate=$(STATE="$state" ITEM_NO="$item_no" python3 - <<'PY'
+	gate=$(STATE="$state" ITEM_NO="$item_no" TARGET_FILE="$file" python3 - <<'PY'
 import json
 import os
+from pathlib import Path
 
 try:
     with open(os.environ["STATE"], encoding="utf-8") as fh:
@@ -114,16 +116,30 @@ try:
 except (TypeError, ValueError):
     state_item = None
 
-if data.get("phase") == "done" and state_item == target:
-    print("ok")
+file = Path(os.environ["TARGET_FILE"]).resolve()
+source_path = data.get("source_path")
+source = data.get("source")
+candidates = []
+if isinstance(source_path, str) and source_path:
+    path = Path(source_path)
+    if path.is_absolute():
+        candidates = [path]
+elif isinstance(source, str) and Path(source).is_absolute():
+    legacy = Path(source)
+    candidates = [legacy if legacy.suffix == ".md" else legacy / "tasks.md"]
+# Old relative locators cannot identify their original cwd; never guess at flip.
+resolved = {path for path in candidates if path.is_file() and path.resolve() == path}
+if data.get("phase") == "done" and state_item == target and resolved == {file}:
+    print(file)
 else:
     print("refuse")
 PY
 	)
-	if [ "$gate" != "ok" ]; then
-		echo "[checkbox] refused: work-state phase != done or item_no mismatch for item $item_no" >&2
+	if [[ "$gate" != /* ]]; then
+		echo "[checkbox] refused: work-state phase != done, item_no mismatch, or source mismatch/unbound for item $item_no; re-init with --source-path before verification" >&2
 		exit 1
 	fi
+	file="$gate"  # Mutate the verified canonical source, preserving any target alias.
 
 	FILE="$file" ITEM_NO="$item_no" python3 - <<'PY'
 import os

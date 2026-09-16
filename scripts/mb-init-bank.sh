@@ -27,7 +27,7 @@
 #
 # Exit codes:
 #   0 — success
-#   2 — invalid locale or invalid agent
+#   2 — invalid arguments, locale, storage mode or agent
 #   3 — missing template bundle
 #   4 — refuses implicit local→global migration
 
@@ -83,7 +83,25 @@ AGENT_FLAG=""
 PROJECT_ROOT_FLAG=""
 FORCE=0
 
-for arg in "$@"; do
+while [ $# -gt 0 ]; do
+  arg="$1"
+  shift
+  case "$arg" in
+    --lang|--mb-root|--storage|--agent|--project-root)
+      if [ $# -eq 0 ] || [ -z "$1" ] || [[ "$1" == -* ]]; then
+        echo "mb-init-bank: $arg requires a value" >&2
+        exit 2
+      fi
+      arg="$arg=$1"
+      shift
+      ;;
+  esac
+  case "$arg" in
+    --lang=|--mb-root=|--storage=|--agent=|--project-root=)
+      echo "mb-init-bank: ${arg%=} requires a value" >&2
+      exit 2
+      ;;
+  esac
   case "$arg" in
     --lang=*)         LANG_FLAG="${arg#--lang=}" ;;
     --mb-root=*)      MB_ROOT_OVERRIDE="${arg#--mb-root=}" ;;
@@ -100,6 +118,7 @@ Usage:
                   [--project-root=PATH] [--mb-root=PATH] [--force]
 
 Options:
+  Value options accept both --option=VALUE and --option VALUE.
   --lang=XX           Locale (en|ru|es|zh). Default: MB_LANG, .mb-config, or en.
   --storage=MODE      `local` (default) — bank at <project>/.memory-bank/.
                       `global`         — bank under agent global storage,
@@ -122,6 +141,10 @@ Examples:
                                  --project-root "$PWD" --lang=ru
 USAGE
       exit 0
+      ;;
+    *)
+      echo "mb-init-bank: unknown argument '$arg' (see --help)" >&2
+      exit 2
       ;;
   esac
 done

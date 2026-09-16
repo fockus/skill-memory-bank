@@ -471,10 +471,24 @@
       "summary": "Date: 2026-09-13 16:17 - Closed `plans/2026-09-05_fix_mb-work-cost-diet-sprint1.md` (7/7 stages, 26/26 DoD ✅) via `mb-plan-done.sh` after whole-plan `/mb verify` PASS (44 agreements checked, 0 violated) and done-gates forced past pre-existing unrelated test failures (NOTE in `progress.md`, 2026-09-13).",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-09-14_00-40_audit-boundary-regressions.md",
+      "type": "pattern",
+      "tags": [
+        "audit",
+        "regression",
+        "source-identity",
+        "privacy"
+      ],
+      "importance": "high",
+      "summary": "- Подтверждение задачи связывается с canonical source в момент init; повторный resolve после done может перенести подтверждение через symlink. - Relative/legacy paths должны одинаково разрешаться при init и Eval; неоднозначное состояние не даёт право менять DoD.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-09-13T13:17:38Z",
+  "generated_at": "2026-09-13T21:41:56Z",
   "progress_chain": {
     "version": 1,
     "tail": [

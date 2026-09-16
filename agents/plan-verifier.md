@@ -34,9 +34,15 @@ code or the test is a CRITICAL gap, not a pass. An item you cannot confirm from 
 
 ## Verification algorithm
 
-### Step 1: Read the plan
+### Step 1: Read the exact work source
 
-Read the plan file (its path is provided in the task). Extract:
+Use the caller's `Source file` and `Source kind` (`plan` or `spec`); legacy `Plan file` remains a valid plan input. Never select a different source by modification time. Use the provided absolute `Bank path` for bank reads; resolve it through `mb_resolve_path` if omitted.
+
+Bind `PLAN_FILE` to that exact source (also for a spec), `BANK` to the resolved bank, and `SKILL_DIR` to the supplied skill path. Export `MB_PATH="$BANK"` for helper calls and keep cwd at the project, not the bank or installed bundle. Include these bindings again for each fresh tool shell.
+
+For a **spec**, read `tasks.md` plus its sibling `requirements.md` and `design.md`. Enumerate `<!-- mb-task:N -->` tasks and validate each task's Covers/DoD/Testing, requirement coverage, and any declared scenarios/Eval. Missing required spec artifacts or no executable tasks is a CRITICAL gap. Apply the algorithm below to tasks wherever it says stages; spec-only work needs no plan wrapper. The diff baseline comes from the actual source or caller-provided baseline, with the same fallback warnings as below.
+
+For a **plan**, read the plan file (its path is provided in the task). Extract:
 
 - all stages and their descriptions
 - each stage’s DoD (Definition of Done) — concrete criteria
@@ -87,9 +93,11 @@ Agent(
   subagent_type="general-purpose",
   model="sonnet",
   description="mb-test-runner: structured test execution",
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-test-runner.md>
+  prompt="<contents of ${SKILL_DIR}/agents/mb-test-runner.md>
 
 dir: .
+bank: <absolute BANK>
+skill_root: <absolute SKILL_DIR>
 session_diff_range: <Baseline commit>...HEAD"
 )
 ```
@@ -108,9 +116,9 @@ Do **not** call `mb-metrics.sh --run` directly here — that would double-run th
 RULES drift is the silent killer of architectural integrity. Read the effective rules file with project-first precedence — `./.memory-bank/RULES.md` overrides the global fallback at `~/.claude/RULES.md`:
 
 ```bash
-# Project-local rules override global.
-if [ -f ./.memory-bank/RULES.md ]; then
-  RULES=./.memory-bank/RULES.md
+# Rules in the resolved bank override global.
+if [ -f "$BANK/RULES.md" ]; then
+  RULES="$BANK/RULES.md"
 elif [ -f "$HOME/.claude/RULES.md" ]; then     # ~/.claude/RULES.md
   RULES="$HOME/.claude/RULES.md"
 else
@@ -260,18 +268,21 @@ WARNING as "unverified — risk", never silently in PASS.)
 The caller appends after this prompt:
 
 ```text
-Plan file: <path to .memory-bank/plans/<file>.md>
+Source file: <absolute plan path or spec tasks.md>
+Source kind: <plan|spec>
+Bank path: <absolute resolved bank>
+Skill path: <absolute installed skill root>
 Context: <free-form description of the session — which stages are claimed done>
 ```
 
-Start from Step 1. If the plan file does not exist, respond with `❌ FAIL — plan file not found at <path>`. Do not fabricate the plan from memory.
+Start from Step 1. If the source file does not exist, respond with `❌ FAIL — source file not found at <path>`. Do not fabricate the plan or spec from memory.
 
 
 ## Code-graph routing (when the graph is fresh)
-Before structural greps, run `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py status --graph .memory-bank/codebase/graph.json`. If it reports `fresh`:
-- who-calls / blast-radius / which-tests → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph .memory-bank/codebase/graph.json --symbol <Name>`
-- neighbors / relates-to → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py neighbors --graph .memory-bank/codebase/graph.json --symbol <Name>`
-- concept / "where is the logic for X" → `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<question>" .memory-bank --source-only`
+Before structural greps, run `python3 "$SKILL_DIR/scripts/mb-graph-query.py" status --graph "$BANK/codebase/graph.json"`. If it reports `fresh`:
+- who-calls / blast-radius / which-tests → `python3 "$SKILL_DIR/scripts/mb-graph-query.py" impact --graph "$BANK/codebase/graph.json" --symbol <Name>`
+- neighbors / relates-to → `python3 "$SKILL_DIR/scripts/mb-graph-query.py" neighbors --graph "$BANK/codebase/graph.json" --symbol <Name>`
+- concept / "where is the logic for X" → `python3 "$SKILL_DIR/scripts/mb-semantic-search.py" "<question>" "$BANK" --source-only`
 Otherwise (stale/absent) fall back to `Grep`/`Glob`/`Read`. Never block on the graph.
 
 ## Report delivery (background runs)

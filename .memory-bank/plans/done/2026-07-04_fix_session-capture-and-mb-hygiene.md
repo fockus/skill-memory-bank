@@ -2,7 +2,7 @@
 type: fix
 scope: session-capture-and-mb-hygiene
 created: 2026-07-04
-status: queued
+status: done
 priority: HIGH
 backlog: I-087
 ---

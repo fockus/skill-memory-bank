@@ -1,7 +1,7 @@
 ---
 type: feature
 topic: handoff-v2
-status: queued
+status: done
 depends_on: ["2026-05-24_fix_ci-baseline-wave-0.md"]
 parallel_safe: true
 linked_specs: ["specs/handoff-v2/design.md"]

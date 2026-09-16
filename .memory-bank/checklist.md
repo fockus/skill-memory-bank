@@ -6,9 +6,9 @@
 ## 🔄 Active — long-running autonomous sessions (SEQUENCE)
 
 Plan: [plans/2026-07-05_SEQUENCE_long-running-sessions.md](plans/2026-07-05_SEQUENCE_long-running-sessions.md).
-Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.5** · judge=**opus** (`pipeline.yaml`).
+Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.6-sol** · judge=**opus** (`pipeline.yaml`).
 
-- ⬜ Phase 0 — doc-drift cleanup (no code): status/roadmap still claim dynamic-flow Phase 2 paused; it is DONE on disk
+- ✅ Phase 0 — doc-drift cleanup (no code): status/roadmap still claim dynamic-flow Phase 2 paused; it is DONE on disk — закрыто `/mb doctor` 2026-09-13
 - ✅ Phase 1 — reviewer-2.0 (6/6 tasks) — payload orchestrator + layered rubric examples + strict verdict parse + calibration
 - ✅ Phase 2 — work-loop-v2 (5/5 tasks) — trend · contract · pivot · `on_max_cycles` fail-fast · docs
 - 🔄 Phase 3 — drive-loop (`/mb drive`), spec `specs/drive-loop/`
@@ -29,12 +29,13 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 
 ## ⏭ Queued waves
 
-- ⬜ **drive-loop T2+T4** (`/mb drive` + AGENTS.md loop-контракт · stop-телеметрия + Stop-hook resume-gate + parallel keying) — вытащены вперёд очереди ближайшим слотом (AGR-024, искл. из AGR-011); T3+T5 остаются в donor v5.6.0
-- 🔄 **Group `sdd-vision-pipeline` (AGR-017, главный трек)** — ▶ волна R 2026-07-19 (goal G-001, роли AGR-023): umbrella T1 ✅ · S1 26/26 DoD, review-цикл 2 (fixer добивает хвосты) · **S2 svp-sdd-core COMPLETE 9/9, DoD 22/22, батарея зелёная — первичное codex-ревью зоны в полёте** · S4 9/9 impl, review-цикл 2 (ABA-blocker в работе) (детали `status.md`, доска COORDINATION); spec-ready база: 3 круга codex-ревью + ремедиация 75/75, батарея 10/10, S9 ревью waived (AGR-022); порядок T1 → S1 → S7 → S4 → S2 → S8 → S9 → S6 → S3 → S5 — детали в `roadmap.md` § Group
-- ⬜ W0.5 — [opencode-first-adaptation](plans/2026-05-24_feature_opencode-first-adaptation.md) — OpenCode native plugin, host-agnostic dispatch, hook parity
+- ⬜ **Fix-слайс по ревью Sprint 1** (судья NO_GO 2026-09-13, [отчёт](reports/2026-09-13_sprint1-review.md)): I-194 · I-195 · I-196 — HIGH, точечные правки; I-208 — HIGH, 22 предсуществующих + 11 средовых красных тестов. Плана ещё нет
+- ⬜ **mb-work-cost-diet** — `graph-semantic-adoption` (блок ниже, пререквизит по AGR-044) → [Sprint 2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) → [Sprint 3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md)
+- ⏸ **Group `sdd-vision-pipeline`** (AGR-017, goal G-001, пауза с 2026-07-27): S1 ✅ 6/6 · S2 ✅ 9/9 · S7 2/4 · S4 3/9 · S8 3/8 (по T7/T8 есть коммиты, судьи не было) · S9 2/5 · S6/S3/S5 не начаты; порядок AGR-029; живые счётчики — `roadmap.md` § Group
+- ⬜ openspec-adapter — последний пункт: строка `/mb openspec` в `commands/mb.md` (заморозка файла снята AGR-033)
+- ⬜ cursor-extension Task 9 — hook-rename sync после handoff-v2 ([план](plans/2026-05-24_fix_cursor-compatibility-remediation.md) 20/23)
+- ⬜ I-084 — [dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) (после I-086)
 - ⬜ W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)
-- ⬜ W12 — [parallel-pipeline](plans/2026-05-24_feature_parallel-pipeline.md) → folded into Phase 4 above
-- ⏸ [goal-driven-autopilot phase roadmap](plans/2026-05-23_feature_goal-driven-autopilot-phase.md) — superseded by `specs/dynamic-flow/` + the SEQUENCE plan; planning umbrella only
 
 ## 🔓 Open backlog
 
@@ -45,21 +46,6 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - **Harness chain (from Phases 1–3):** I-095 (DRY-fold) · I-096 (inert cache path) · I-097 (pipeline review_examples wiring) · I-098 (split mb-review.sh) · I-099 (cache-key reconcile) · I-100 (composable `--review` empty loop) · I-101 (traceability `.bats` suffix) · I-102 (mb-drive.sh 455>400 → split)
 - **Older:** I-023 (`grep → find` cleanup) · I-062 (EARS validator hardening)
 
-## ✅ Done (detail → `progress.md` · `plans/done/` · `roadmap.md`)
-
-- ✅ spec `openspec-adapter` — T1–T6 implemented (parse+convert+write core, CLI dispatcher, re-import/anchor-map, `--normalize` opt-in LLM layer); commits `0f39618`/`4bebbbc`/`226e65f` — ⬜ one item left: `/mb openspec` router entry in `commands/mb.md` — **deferred, commands/mb.md under adapter-parity FREEZE**, lands when the freeze lifts
-- ✅ docs-site + landing refresh — 5/5 stages (MkDocs Material skeleton · 12 new pages · quick-start workflow/pipeline/surfaces blocks · combined Pages deploy `/docs/` · landing first-screen v2 + agreements card) — [plan](plans/2026-07-15_feature_docs-site-and-landing-refresh.md); push pending
-- ✅ spec `tier1-graph-memory` — 17/17 tasks, v5.1.0 prepped (PyPI publish + tag pending explicit go)
-- ✅ codex remediation Wave 1 — I-082 security-hardening (4 stages) · I-083 verification-gates · I-085 logic-correctness-portability (6 stages)
-- ✅ I-087 — session-capture correctness + MB drift hygiene — [plan](plans/2026-07-04_fix_session-capture-and-mb-hygiene.md); follow-ups I-088..I-092
-- ✅ I-093 — `/mb work` engine resilience (9 stages: durable state · gated flip · external parse · codex preflight) — [plan](plans/2026-07-04_fix_mb-work-resilience.md)
-- ✅ I-094 — safe parallel `/mb work` runs (10 stages: slots · per-run state/budget/claim · baseline diff · locked append) — [plan](plans/2026-07-04_fix_mb-work-parallel-runs.md)
-- ✅ install + cross-agent parity — [plan](plans/2026-07-04_fix_install-and-cross-agent-parity.md), Tracks A/B/C complete
-- ✅ W3 — handoff-v2 (5/5 tasks, governed dual-review + judge)
-- ✅ dynamic-flow Phase 1 + Phase 2 — goal primitive · `mb-flow-sync` fence · THE firewall `mb-flow-verify.sh` · `mb-fanout.sh` · closure wiring
-- ✅ cross-session coordination — `references/coordination.md` protocol + `COORDINATION.md` board wiring
-- ✅ GraphRAG-lite code context · rule-profiles-and-stack-presets · global-storage (core + agent-support) · sdd-unification · Wave 0 CI baseline
-
 ## See also
 
 - `roadmap.md` — full wave order and release gate.
@@ -67,15 +53,6 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - `backlog.md` — open ideas/ADRs (SSOT).
 - `traceability.md` — generated REQ coverage matrix.
 - `progress.md` — append-only historical log.
-
-<!-- mb-plan:2026-07-18_fix_spec-group-round3-remediation.md -->
-## spec-group-round3-remediation — 6/6
-- ✅ Stage 1 — Пакеты находок и ТЗ для 4 фиксеров
-- ✅ Stage 2 — Волна 1 — F1 owners-state (umbrella + S4) на Opus
-- ✅ Stage 3 — Волна 1 — F2 owners-norms (S2 + S1) на Opus
-- ✅ Stage 4 — Волна 2 — F3 consumers-west (S7 + S3 + S5) на Opus
-- ✅ Stage 5 — Волна 2 — F4 consumers-east (S6 + S8) на Opus
-- ✅ Stage 6 — Финальный централизованный проход и актуализация банка
 
 <!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
 ## graph-semantic-adoption — 0/7

@@ -15,6 +15,7 @@ MAX_GRAPH_FACTS = 20
 TEXT_EXTENSIONS = {".py", ".sh", ".md", ".txt", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".java"}
 PROTECTED_NAMES = {".env", ".envrc"}
 PROTECTED_PATTERNS = (".env.*", "*.env", "*secret*", "*credentials*")
+IGNORED_DIRS = {".git", ".memory-bank", ".claude", ".codex", ".venv", "venv", "node_modules", "__pycache__"}
 
 JsonObj = dict[str, Any]
 
@@ -72,8 +73,13 @@ def text_search(project_root: Path, query: str) -> list[str]:
     if not tokens:
         return []
     matches: list[str] = []
-    for path in sorted(project_root.rglob("*")):
-        if not path.is_file() or is_protected(path) or ".git" in path.parts:
+    paths = sorted(
+        project_root.rglob("*"),
+        key=lambda path: (path.suffix in {".md", ".txt"}, safe_rel(path, project_root)),
+    )
+    for path in paths:
+        relative = path.relative_to(project_root)
+        if not path.is_file() or is_protected(path) or IGNORED_DIRS.intersection(relative.parts):
             continue
         if path.suffix not in TEXT_EXTENSIONS:
             continue
@@ -114,17 +120,26 @@ def seed_candidates(
     nodes: list[JsonObj],
 ) -> list[str]:
     files: list[str] = []
+    tokens = set(tokenize(query))
+    exact_names = tokens | set(re.findall(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+", query.lower()))
+    # Exact source definitions keep a slot even when semantic recall fills its limit.
+    for node in sorted(nodes, key=lambda node: str(node.get("name", "")).lower() not in exact_names):
+        file_name = str(node.get("file", ""))
+        if (
+            graph_query.short_name(str(node.get("name", "")).lower()) in tokens
+            and not IGNORED_DIRS.intersection(Path(file_name).parts)
+            and not is_protected(project_root / file_name)
+        ):
+            add_unique(files, file_name)
     for candidate in semantic_candidates:
         add_unique(files, str(candidate.get("file", "")))
-    for file_name in text_candidates:
-        add_unique(files, file_name)
-
-    tokens = set(tokenize(query))
     for node in nodes:
         name = str(node.get("name", ""))
         file_name = str(node.get("file", ""))
         if any(token in name.lower() for token in tokens):
             add_unique(files, file_name)
+    for file_name in text_candidates:
+        add_unique(files, file_name)
     return [file_name for file_name in files if not is_protected(project_root / file_name)]
 
 
