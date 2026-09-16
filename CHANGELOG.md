@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — a broken spec `tasks.md` no longer certifies as "nothing to gate"
+
+- `mb-work-state.sh done` used to exit 0 with `eval_gate: unverified:no_declaration_surface` for a
+  spec whose `tasks.md` was empty, marker-mangled, or rejected by the parser (I-196): the guard that
+  correctly lets a stage-only plan through was keyed on "no task items", which a broken surface also
+  satisfies. A resolved `tasks.md` is now the declaration surface whatever state it is in — a broken
+  one answers `NOITEM` and `done` refuses with exit 5, as the contract in that file always said. A
+  plan file still answers `NOFILE` and stays ungated; `Eval: none` still waives.
+
 ### Fixed — a plan name from an `mb-plan` marker can no longer leave `plans/`
 
 - `<!-- mb-plan:../../secret/leak.md -->` used to be joined straight onto the plans directory, so

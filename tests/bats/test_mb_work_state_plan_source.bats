@@ -80,3 +80,37 @@ teardown() {
   run bash "$WS" done --mb "$BANK"
   [ "$status" -eq 5 ] || { echo "missing task certified (rc=$status): $output"; false; }
 }
+
+# I-196 — a resolved `tasks.md` IS the declaration surface. Whatever state it
+# is in, the gate is bound to it: empty, marker-mangled or unparseable, the
+# binding is broken and `done` must refuse — never certify
+# `unverified:no_declaration_surface`, which means "there was nothing to gate".
+
+@test "work_state_plan: an empty spec tasks.md is a broken surface — done refused" {
+  : >"$BANK/specs/demo/tasks.md"
+  run bash "$WS" init spec 1 --source-path "$BANK/specs/demo/tasks.md" --source-topic demo --mb "$BANK"
+  [ "$status" -eq 0 ] || { echo "init failed: $output"; false; }
+  run bash "$WS" done --mb "$BANK"
+  [ "$status" -eq 5 ] || { echo "empty tasks.md certified (rc=$status): $output"; false; }
+  run bash "$WS" status --mb "$BANK"
+  [[ "$output" != *"unverified:no_declaration_surface"* ]] \
+    || { echo "broken surface recorded as 'nothing to gate': $output"; false; }
+}
+
+@test "work_state_plan: a spec tasks.md with mangled markers is a broken surface — done refused" {
+  printf '# Tasks: demo\n\nprose only, and a typo marker\n\n<!-- mbtask:1 -->\n## Task 1: x\n' \
+    >"$BANK/specs/demo/tasks.md"
+  run bash "$WS" init spec 1 --source-path "$BANK/specs/demo/tasks.md" --source-topic demo --mb "$BANK"
+  [ "$status" -eq 0 ] || { echo "init failed: $output"; false; }
+  run bash "$WS" done --mb "$BANK"
+  [ "$status" -eq 5 ] || { echo "mangled tasks.md certified (rc=$status): $output"; false; }
+}
+
+@test "work_state_plan: a spec tasks.md the parser rejects is a broken surface — done refused" {
+  printf '# Tasks: demo\n\n<!-- mb-stage:1 -->\n### Stage 1: s\n\n<!-- mb-task:1 -->\n## Task 1: t\n' \
+    >"$BANK/specs/demo/tasks.md"
+  run bash "$WS" init spec 1 --source-path "$BANK/specs/demo/tasks.md" --source-topic demo --mb "$BANK"
+  [ "$status" -eq 0 ] || { echo "init failed: $output"; false; }
+  run bash "$WS" done --mb "$BANK"
+  [ "$status" -eq 5 ] || { echo "unparseable tasks.md certified (rc=$status): $output"; false; }
+}

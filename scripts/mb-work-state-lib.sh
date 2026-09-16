@@ -73,7 +73,8 @@ eval_declared_anchors() {
 #
 #   CMD      — a real, non-waived Eval is declared (command follows)
 #   WAIVED   — the task exists and declares `Eval: none` (explicit waiver)
-#   NOITEM   — the declaration file resolved but has no such task → fail closed
+#   NOITEM   — the declaration surface (a resolved `tasks.md`) resolved but has
+#              no such task, or is empty/marker-mangled/unparseable → fail closed
 #   NOFILE   — no declaration surface at all (plain plan stage / ad-hoc source)
 #
 # The distinction matters for the `done` gate (review [11]): NOITEM means the
@@ -108,13 +109,27 @@ if sl and sl not in ("spec", "plan"):
 for p in candidates:
     if not p.is_file():
         continue
+    # A resolved `tasks.md` IS the declaration surface, whatever state it is
+    # in: empty, marker-mangled or unparseable, the binding is broken and must
+    # fail closed (NOITEM). A plan file — stage markers or none — is not a
+    # surface and falls through to NOFILE, which is the 85e39bb fix.
+    # Keyed on the file's own name, not on the caller's 5th argument: that
+    # argument is one value for the whole call (the category recorded at init,
+    # or a bare topic from a legacy positional caller), so it cannot say WHICH
+    # candidate in the list is the surface — only the candidate itself can.
+    surface = p.name == "tasks.md"
     try:
         import mb_work_items as w
         items = list(w.parse_work_items(p))
     except Exception:
+        if surface:
+            sys.stdout.write("NOITEM\n")
+            sys.exit(0)
         continue
-    # A plan (stage-only items) carries no Eval surface: NOFILE, never NOITEM.
     if not any(it.kind == "task" for it in items):
+        if surface:
+            sys.stdout.write("NOITEM\n")
+            sys.exit(0)
         continue
     for it in items:
         if it.kind == "task" and str(it.item_no) == os.environ["ITEM_NO"]:

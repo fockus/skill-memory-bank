@@ -116,11 +116,11 @@ created: 2026-09-13
 - Mutation-улика: вернуть безусловный `continue` → все три новых теста красные, старые зелёные.
 
 **DoD (Definition of Done):**
-- [ ] Пустой `specs/demo/tasks.md`: `init spec 1` rc 0, `done` rc 5 с сообщением про сломанный binding, `eval_gate` не равен `unverified:no_declaration_surface` (тест зелёный, красный до правки — вывод приложен).
-- [ ] Искалеченные маркеры и mixed-markers (`ValueError` парсера) → `done` rc 5 (два теста зелёные, красные до правки).
-- [ ] Stage-only план по-прежнему сертифицируется `unverified:no_declaration_surface`; `tasks.md` без нужного item — по-прежнему NOITEM (прежние 2 теста файла не редактировались и зелёные).
-- [ ] Контракт NOITEM/NOFILE в комментарии `mb-work-state-lib.sh` (74-82) описывает новое поведение; `tests/bats/test_mb_work_state_eval.bats` и `test_mb_work_state_eval_r3.bats` зелёные.
-- [ ] `shellcheck scripts/mb-work-state-lib.sh` без новых замечаний; `CHANGELOG.md` содержит строку про I-196.
+- [x] Пустой `specs/demo/tasks.md`: `init spec 1` rc 0, `done` rc 5 с сообщением про сломанный binding, `eval_gate` не равен `unverified:no_declaration_surface` (тест зелёный, красный до правки — вывод приложен).
+- [x] Искалеченные маркеры и mixed-markers (`ValueError` парсера) → `done` rc 5 (два теста зелёные, красные до правки).
+- [x] Stage-only план по-прежнему сертифицируется `unverified:no_declaration_surface`; `tasks.md` без нужного item — по-прежнему NOITEM (прежние 2 теста файла не редактировались и зелёные).
+- [x] Контракт NOITEM/NOFILE в комментарии `mb-work-state-lib.sh` (74-82) описывает новое поведение; `tests/bats/test_mb_work_state_eval.bats` и `test_mb_work_state_eval_r3.bats` зелёные.
+- [x] `shellcheck scripts/mb-work-state-lib.sh` без новых замечаний; `CHANGELOG.md` содержит строку про I-196.
 
 **Edge cases:** несколько кандидатов в списке (SRC_PATH + SRC_TOPIC на один и тот же файл) — первый резолвнутый `tasks.md` решает; `tasks.md`, где есть task-элементы, но нужного номера нет — NOITEM как раньше; `tasks.md` с `Eval: none` — WAIVED как раньше; отсутствие файла вовсе — NOFILE как раньше.
 

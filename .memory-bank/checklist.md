@@ -88,8 +88,8 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - ⬜ Stage 7 — Граф в каждом диспатче `/mb work` + замер adoption
 
 <!-- mb-plan:2026-09-13_fix_sprint1-review-blockers.md -->
-## sprint1-review-blockers · три воспроизведённых блокера судьи Sprint 1 — 2/3
+## sprint1-review-blockers · три воспроизведённых блокера судьи Sprint 1 — 3/3
 - ✅ Stage 1 — I-194 — архивация legacy-секций устойчива к одинаковым заголовкам
 - ✅ Stage 2 — I-195 — имя плана из маркера `mb-plan` никогда не выходит за `plans/`
-- ⬜ Stage 3 — I-196 — пустой или искалеченный spec `tasks.md` даёт NOITEM, а не NOFILE
+- ✅ Stage 3 — I-196 — пустой или искалеченный spec `tasks.md` даёт NOITEM, а не NOFILE
 

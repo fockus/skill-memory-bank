@@ -1139,7 +1139,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-195 — [review S1 J2, major/security, judge-reproduced] scripts/mb-checklist-v2.py:47 — [slice B, reviewer line 'mb-checklist-v2.py:47'] `_titles` joins the plan name parsed from `<!-- mb-plan:.. [HIGH, DONE 2026-09-16, 2026-09-13] — plan sprint1-review-blockers Stage 2 (run 506bb6f9): is_safe_plan_name + единственная точка склейки _plan_file с realpath-containment; тесты +3, verifier PASS с воспроизведением мутаций
 
-### I-196 — [review S1 J3, major/logic, judge-reproduced] scripts/mb-work-state-lib.sh:117 — [slice A, reviewer line 'mb-work-state-lib.sh:116'] The file IS in the sprint range — `git log --oneline 364164a..a18235b -- scripts/mb-work [HIGH, NEW, 2026-09-13]
+### I-196 — [review S1 J3, major/logic, judge-reproduced] scripts/mb-work-state-lib.sh:117 — [slice A, reviewer line 'mb-work-state-lib.sh:116'] The file IS in the sprint range — `git log --oneline 364164a..a18235b -- scripts/mb-work [HIGH, DONE 2026-09-16, 2026-09-13] — plan sprint1-review-blockers Stage 3 (run 506bb6f9): резолвнутый tasks.md = поверхность декларации, пустой/битый/непарсимый → NOITEM (done exit 5); bats +3, verifier PASS
 
 ### I-197 — [review S1 reviewer A] memory_bank_skill/cost_report.py:43 — cost_report.py: marker regexes match any substring, so `cat pytest.ini` counts as a test run [MED, NEW, 2026-09-13]
 
