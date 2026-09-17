@@ -9,7 +9,7 @@ created: 2026-07-28
 ---
 # Plan: fix — graph-semantic-adoption
 
-**Baseline commit:** b5f074c453e43cf6f8f20c3c1a394ac54b63a69b
+**Baseline commit:** (пере-базирован 2026-09-17, стадии не начинались) — см. коммит, закрывающий подготовку; исходная редакция плана ссылалась на b5f074c453e43cf6f8f20c3c1a394ac54b63a69b
 
 ## Context
 
@@ -62,18 +62,20 @@ created: 2026-07-28
 ### Stage 2: Bootstrap векторного индекса при `/mb graph --apply`
 
 **What to do:**
+- **Порт бэкенда на fastembed (AGR-045, добавлено 2026-09-17).** `memory_bank_skill/semantic_embeddings.py` сегодня импортирует `sentence_transformers`, а `hooks/mb-semantic-bootstrap.sh` ставит `fastembed` — код разошёлся с хуком, `available` всегда False, `--backend embeddings` молча падает в bm25. Переписать ретривер на `fastembed.TextEmbedding` (~50 МБ ONNX, без torch); формат кэша `embeddings.npy`/`embeddings.key` и публичный контракт `EmbeddingRetriever` (`available`/`index`/`search`) сохранить байт-в-байт, чтобы `make_retriever`/`FusedRetriever` не менялись.
 - В конец пайплайна `scripts/mb-codegraph.py --apply` добавить построение/обновление `.index/codesearch/` через `memory_bank_skill/semantic_search.py` — fail-safe: нет venv/fastembed → одна честная строка «semantic index skipped (no fastembed)» и exit 0 (прецедент honest degradation AGR-013).
 - Инкрементальность: пересобирать только при изменившемся наборе исходников (сверка по существующему `embeddings.key`-механизму).
-- Разовый backfill: прогнать `--apply` (или только индекс-шаг) в 4 активных банках.
+- Разовый backfill: прогнать `--apply` (или только индекс-шаг) в 4 активных банках — `skill-memory-bank`, `~/Apps/code-agent`, `~/Apps/harness`, `~/Apps/techflow` (AGR-046; репозиториев taskloom / code-agent-cli / FaberlicApp из исходной редакции плана больше не существует).
 
 **Testing (TDD):**
-- pytest: `--apply` со stub-эмбеддером создаёт `.index/codesearch/{embeddings.npy,embeddings.key}`; без fastembed — скип с сообщением и rc=0; повторный прогон без изменений исходников не пересобирает (mtime не меняется).
+- pytest (порт бэкенда): `available` False без fastembed и True с ним (стаб-модуль в `sys.modules`); `index()` пишет `embeddings.npy`+`embeddings.key`; ключ кэша меняется при смене корпуса и совпадает при неизменном; `search()` возвращает те же поля, что раньше.
+- pytest (индекс-шаг): `--apply` со stub-эмбеддером создаёт `.index/codesearch/{embeddings.npy,embeddings.key}`; без fastembed — скип с сообщением и rc=0; повторный прогон без изменений исходников не пересобирает (mtime не меняется).
 
 **DoD:**
 - [ ] pytest-кейсы красные до реализации, зелёные после
 - [ ] `.index/codesearch/` существует в skill-memory-bank после реального `--apply` (прогон в verify)
 - [ ] `mb-semantic-search.py "<query>" --backend embeddings` отвечает без построения индекса (тёплый старт) — реальный прогон
-- [ ] Backfill выполнен в taskloom / code-agent-cli / FaberlicApp (индексы существуют)
+- [ ] Backfill выполнен в `~/Apps/code-agent`, `~/Apps/harness`, `~/Apps/techflow` (графы свежие, индексы существуют) — AGR-046
 
 **Code rules:** Contract-First (скип-путь — часть контракта), YAGNI (без новых конфигов).
 

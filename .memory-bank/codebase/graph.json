@@ -1,4 +1,4 @@
-{"type": "meta", "schema": 1, "generated_at": "2026-09-16T10:13:51Z", "commit": "0d74cd191b78", "nodes": 3560, "edges": 20069, "src_root": ".", "flags": ["--docs"]}
+{"type": "meta", "schema": 1, "generated_at": "2026-09-17T11:05:52Z", "commit": "e225fc275f04", "nodes": 3627, "edges": 20666, "src_root": ".", "flags": ["--docs"]}
 {"type": "node", "kind": "module", "name": "adapters/pi_graph_rag_extension.ts", "file": "adapters/pi_graph_rag_extension.ts", "line": 1}
 {"type": "node", "kind": "function", "name": "memoryBankGraphRagExtension", "file": "adapters/pi_graph_rag_extension.ts", "line": 56, "signature": "function memoryBankGraphRagExtension(pi: ExtensionAPI)"}
 {"type": "node", "kind": "function", "name": "execute", "file": "adapters/pi_graph_rag_extension.ts", "line": 108, "signature": "async execute(_toolCallId, params)"}
@@ -414,6 +414,10 @@
 {"type": "node", "kind": "function", "name": "_yaml_dup_loader.construct_mapping", "file": "memory_bank_skill/pipeline_yaml.py", "line": 15, "signature": "(loader, node, deep=False)"}
 {"type": "node", "kind": "function", "name": "load_text", "file": "memory_bank_skill/pipeline_yaml.py", "line": 33, "signature": "(text: str)"}
 {"type": "node", "kind": "function", "name": "load_file", "file": "memory_bank_skill/pipeline_yaml.py", "line": 55, "signature": "(path: str)"}
+{"type": "node", "kind": "module", "name": "memory_bank_skill/private.py", "file": "memory_bank_skill/private.py", "line": 1, "doc": "Pure private-span handling shared by Memory Bank search and indexing."}
+{"type": "node", "kind": "function", "name": "_private_spans", "file": "memory_bank_skill/private.py", "line": 10, "signature": "(text: str)", "doc": "Return disjoint original-text spans; an unfinished outer block ends at EOF."}
+{"type": "node", "kind": "function", "name": "strip_private", "file": "memory_bank_skill/private.py", "line": 29, "signature": "(text: str)", "doc": "Remove complete private spans and return (public_text, had_private)."}
+{"type": "node", "kind": "function", "name": "redact_private_lines", "file": "memory_bank_skill/private.py", "line": 41, "signature": "(text: str)", "doc": "Redact each span's overlap with a line, preserving public text and line numbers."}
 {"type": "node", "kind": "module", "name": "memory_bank_skill/progress_chain.py", "file": "memory_bank_skill/progress_chain.py", "line": 1, "doc": "Append-only physical integrity for ``progress.md`` — hash chain. Design: ``.memory-bank/specs/handoff-v2/design.md`` §6 (GAP-8). A hash chain of the last ``N=20`` ``## YYYY-MM-DD`` entries lives in ``"}
 {"type": "node", "kind": "function", "name": "_iso_now", "file": "memory_bank_skill/progress_chain.py", "line": 58, "signature": "()"}
 {"type": "node", "kind": "function", "name": "parse_entries", "file": "memory_bank_skill/progress_chain.py", "line": 62, "signature": "(text: str)", "doc": "Split ``progress.md`` text into ordered ``(heading, canonical_body)`` entries. ``canonical_body`` is the entry's heading line plus its non-separator body lines, with line endings normalised to ``\\n`` "}
@@ -572,15 +576,14 @@
 {"type": "node", "kind": "function", "name": "main", "file": "scripts/mb-import.py", "line": 293, "signature": "(argv: list[str])"}
 {"type": "node", "kind": "module", "name": "scripts/mb-index-json.py", "file": "scripts/mb-index-json.py", "line": 1, "doc": "Build .memory-bank/index.json — pragmatic frontmatter index. Usage: mb-index-json.py <mb_path> Scans <mb_path>/notes/ for markdown files with YAML frontmatter (``type``, ``tags``, ``importance``) plus"}
 {"type": "node", "kind": "function", "name": "_kebab_case", "file": "scripts/mb-index-json.py", "line": 45, "signature": "(s: str)", "doc": "camelCase/PascalCase/UPPER → kebab-case (lowercase with hyphens)."}
-{"type": "node", "kind": "function", "name": "_strip_private", "file": "scripts/mb-index-json.py", "line": 60, "signature": "(text: str)", "doc": "Remove <private>...</private> blocks. Return (clean_text, had_private)."}
-{"type": "node", "kind": "function", "name": "_parse_frontmatter", "file": "scripts/mb-index-json.py", "line": 67, "signature": "(text: str)", "doc": "Return (metadata, body). If parse fails → ({}, original text)."}
-{"type": "node", "kind": "function", "name": "_simple_yaml_parse", "file": "scripts/mb-index-json.py", "line": 87, "signature": "(raw: str)", "doc": "Tiny fallback YAML: handles `key: value` and `key: [a, b]`. Not full YAML — good enough for well-formed frontmatter when PyYAML is unavailable or full parse fails."}
-{"type": "node", "kind": "function", "name": "_summary", "file": "scripts/mb-index-json.py", "line": 113, "signature": "(body: str, max_lines: int=2)"}
-{"type": "node", "kind": "function", "name": "_index_notes", "file": "scripts/mb-index-json.py", "line": 127, "signature": "(mb_path: Path)"}
-{"type": "node", "kind": "function", "name": "_index_lessons", "file": "scripts/mb-index-json.py", "line": 170, "signature": "(mb_path: Path)"}
-{"type": "node", "kind": "function", "name": "_preserved_keys", "file": "scripts/mb-index-json.py", "line": 179, "signature": "(mb_path: Path)", "doc": "Read keys that must survive a full rebuild from the existing index.json. The hash chain (``progress_chain``, handoff-v2 §6) lives in index.json but is owned by ``mb-progress-chain.sh``, not this build"}
-{"type": "node", "kind": "function", "name": "build_index", "file": "scripts/mb-index-json.py", "line": 216, "signature": "(mb_path_str: str)", "doc": "Scan mb_path, write index.json atomically, return the index data."}
-{"type": "node", "kind": "function", "name": "main", "file": "scripts/mb-index-json.py", "line": 236, "signature": "(argv: list[str])"}
+{"type": "node", "kind": "function", "name": "_parse_frontmatter", "file": "scripts/mb-index-json.py", "line": 53, "signature": "(text: str)", "doc": "Return (metadata, body). If parse fails → ({}, original text)."}
+{"type": "node", "kind": "function", "name": "_simple_yaml_parse", "file": "scripts/mb-index-json.py", "line": 73, "signature": "(raw: str)", "doc": "Tiny fallback YAML: handles `key: value` and `key: [a, b]`. Not full YAML — good enough for well-formed frontmatter when PyYAML is unavailable or full parse fails."}
+{"type": "node", "kind": "function", "name": "_summary", "file": "scripts/mb-index-json.py", "line": 99, "signature": "(body: str, max_lines: int=2)"}
+{"type": "node", "kind": "function", "name": "_index_notes", "file": "scripts/mb-index-json.py", "line": 113, "signature": "(mb_path: Path)"}
+{"type": "node", "kind": "function", "name": "_index_lessons", "file": "scripts/mb-index-json.py", "line": 156, "signature": "(mb_path: Path)"}
+{"type": "node", "kind": "function", "name": "_preserved_keys", "file": "scripts/mb-index-json.py", "line": 165, "signature": "(mb_path: Path)", "doc": "Read keys that must survive a full rebuild from the existing index.json. The hash chain (``progress_chain``, handoff-v2 §6) lives in index.json but is owned by ``mb-progress-chain.sh``, not this build"}
+{"type": "node", "kind": "function", "name": "build_index", "file": "scripts/mb-index-json.py", "line": 202, "signature": "(mb_path_str: str)", "doc": "Scan mb_path, write index.json atomically, return the index data."}
+{"type": "node", "kind": "function", "name": "main", "file": "scripts/mb-index-json.py", "line": 222, "signature": "(argv: list[str])"}
 {"type": "node", "kind": "module", "name": "scripts/mb-openspec.py", "file": "scripts/mb-openspec.py", "line": 1, "doc": "OpenSpec → Memory Bank one-way import adapter (T1-T3 core, T5 re-import, T4 CLI dispatcher: list/status/sync). Reads an OpenSpec change directory (``proposal.md`` + optional ``design.md`` + delta spec"}
 {"type": "node", "kind": "function", "name": "_slugify", "file": "scripts/mb-openspec.py", "line": 66, "signature": "(text: str)"}
 {"type": "node", "kind": "function", "name": "_validate_topic_slug", "file": "scripts/mb-openspec.py", "line": 74, "signature": "(topic: str)", "doc": "Reject any topic that is not a single safe path segment (F1, REQ-003/NFR-002). ``--as``/``sync``/``status`` topics flow straight into ``spec_dir = mb_path / \"specs\" / topic``; an unvalidated topic (``"}
@@ -673,17 +676,17 @@
 {"type": "node", "kind": "function", "name": "frontmatter", "file": "scripts/mb_brief_candidate.py", "line": 31, "signature": "(src)"}
 {"type": "node", "kind": "function", "name": "attachments_body", "file": "scripts/mb_brief_candidate.py", "line": 74, "signature": "(src)"}
 {"type": "node", "kind": "module", "name": "scripts/mb_code_context_core.py", "file": "scripts/mb_code_context_core.py", "line": 1, "doc": "Core GraphRAG-lite evidence pack builder."}
-{"type": "node", "kind": "function", "name": "is_protected", "file": "scripts/mb_code_context_core.py", "line": 22, "signature": "(path: Path)"}
-{"type": "node", "kind": "function", "name": "safe_rel", "file": "scripts/mb_code_context_core.py", "line": 30, "signature": "(path: Path, root: Path)"}
-{"type": "node", "kind": "function", "name": "tokenize", "file": "scripts/mb_code_context_core.py", "line": 37, "signature": "(query: str)"}
-{"type": "node", "kind": "function", "name": "read_semantic_candidates", "file": "scripts/mb_code_context_core.py", "line": 46, "signature": "(path: Path | None, provider: str, warnings: list[str])"}
-{"type": "node", "kind": "function", "name": "text_search", "file": "scripts/mb_code_context_core.py", "line": 70, "signature": "(project_root: Path, query: str)"}
-{"type": "node", "kind": "function", "name": "load_graph", "file": "scripts/mb_code_context_core.py", "line": 93, "signature": "(graph_path: Path, warnings: list[str])"}
-{"type": "node", "kind": "function", "name": "add_unique", "file": "scripts/mb_code_context_core.py", "line": 103, "signature": "(items: list[str], value: str)"}
-{"type": "node", "kind": "function", "name": "seed_candidates", "file": "scripts/mb_code_context_core.py", "line": 108, "signature": "(*, project_root: Path, query: str, semantic_candidates: list[JsonObj], text_candidates: list[str], nodes: list[JsonObj])"}
-{"type": "node", "kind": "function", "name": "graph_expand", "file": "scripts/mb_code_context_core.py", "line": 131, "signature": "(nodes: list[JsonObj], edges: list[JsonObj], candidate_files: list[str], query: str)"}
-{"type": "node", "kind": "function", "name": "recommended_reads", "file": "scripts/mb_code_context_core.py", "line": 163, "signature": "(candidate_files: list[str], graph_facts: list[JsonObj], test_files: list[str])"}
-{"type": "node", "kind": "function", "name": "build_evidence", "file": "scripts/mb_code_context_core.py", "line": 178, "signature": "(*, query: str, project_root: Path, mb_path: Path, mode: str, semantic_candidates_path: Path | None, semantic_provider: str)"}
+{"type": "node", "kind": "function", "name": "is_protected", "file": "scripts/mb_code_context_core.py", "line": 23, "signature": "(path: Path)"}
+{"type": "node", "kind": "function", "name": "safe_rel", "file": "scripts/mb_code_context_core.py", "line": 31, "signature": "(path: Path, root: Path)"}
+{"type": "node", "kind": "function", "name": "tokenize", "file": "scripts/mb_code_context_core.py", "line": 38, "signature": "(query: str)"}
+{"type": "node", "kind": "function", "name": "read_semantic_candidates", "file": "scripts/mb_code_context_core.py", "line": 47, "signature": "(path: Path | None, provider: str, warnings: list[str])"}
+{"type": "node", "kind": "function", "name": "text_search", "file": "scripts/mb_code_context_core.py", "line": 71, "signature": "(project_root: Path, query: str)"}
+{"type": "node", "kind": "function", "name": "load_graph", "file": "scripts/mb_code_context_core.py", "line": 99, "signature": "(graph_path: Path, warnings: list[str])"}
+{"type": "node", "kind": "function", "name": "add_unique", "file": "scripts/mb_code_context_core.py", "line": 109, "signature": "(items: list[str], value: str)"}
+{"type": "node", "kind": "function", "name": "seed_candidates", "file": "scripts/mb_code_context_core.py", "line": 114, "signature": "(*, project_root: Path, query: str, semantic_candidates: list[JsonObj], text_candidates: list[str], nodes: list[JsonObj])"}
+{"type": "node", "kind": "function", "name": "graph_expand", "file": "scripts/mb_code_context_core.py", "line": 146, "signature": "(nodes: list[JsonObj], edges: list[JsonObj], candidate_files: list[str], query: str)"}
+{"type": "node", "kind": "function", "name": "recommended_reads", "file": "scripts/mb_code_context_core.py", "line": 178, "signature": "(candidate_files: list[str], graph_facts: list[JsonObj], test_files: list[str])"}
+{"type": "node", "kind": "function", "name": "build_evidence", "file": "scripts/mb_code_context_core.py", "line": 193, "signature": "(*, query: str, project_root: Path, mb_path: Path, mode: str, semantic_candidates_path: Path | None, semantic_provider: str)"}
 {"type": "node", "kind": "module", "name": "scripts/mb_contract_gate.py", "file": "scripts/mb_contract_gate.py", "line": 1, "doc": "Runner for the Contract-checkers registry — svp-contract-test-loop C3a. mb_contract_gate.py red|verify --spec SPEC_DIR --mb BANK [--json] Driven by `scripts/mb-contract-gate.sh`; see that file for the"}
 {"type": "node", "kind": "class", "name": "GateError", "file": "scripts/mb_contract_gate.py", "line": 62, "signature": "(Exception)", "doc": "Refusal before any checker runs; carries the process exit code."}
 {"type": "node", "kind": "function", "name": "GateError.__init__", "file": "scripts/mb_contract_gate.py", "line": 65, "signature": "(self, code: int, *messages: str)"}
@@ -981,6 +984,9 @@
 {"type": "node", "kind": "function", "name": "strip_yaml_comment", "file": "scripts/mb_work_plan_wrapper.py", "line": 25, "signature": "(val: str)"}
 {"type": "node", "kind": "function", "name": "parse_scalar", "file": "scripts/mb_work_plan_wrapper.py", "line": 49, "signature": "(raw: str)"}
 {"type": "node", "kind": "function", "name": "fm_value", "file": "scripts/mb_work_plan_wrapper.py", "line": 58, "signature": "(fm: str, key: str)"}
+{"type": "node", "kind": "module", "name": "scripts/mb_work_source.py", "file": "scripts/mb_work_source.py", "line": 1, "doc": "Shared declaration-source resolution for work-state initialization and Eval."}
+{"type": "node", "kind": "function", "name": "declaration_candidates", "file": "scripts/mb_work_source.py", "line": 8, "signature": "(bank: Path, source_path: str, source_topic: str, legacy: str)", "doc": "Resolve explicit file first; otherwise use the existing topic/legacy locations."}
+{"type": "node", "kind": "function", "name": "canonical_init_source", "file": "scripts/mb_work_source.py", "line": 26, "signature": "(bank: Path, source_path: str, source_topic: str, legacy: str)", "doc": "Bind a unique source to its canonical path; unknown ad-hoc sources stay unbound. An explicit locator is canonicalized even before its file exists, so it cannot change identity with cwd. Ambiguous lega"}
 {"type": "node", "kind": "module", "name": "settings/merge-hooks.py", "file": "settings/merge-hooks.py", "line": 1, "doc": "Merge skill hooks into ~/.claude/settings.json idempotently. Guarantees a deterministic final state: 1. Remove ALL existing memory-bank managed hook entries (marker-based + legacy-pattern-based) from "}
 {"type": "node", "kind": "function", "name": "_first_cmd", "file": "settings/merge-hooks.py", "line": 61, "signature": "(entry: object)"}
 {"type": "node", "kind": "function", "name": "_is_mb_managed", "file": "settings/merge-hooks.py", "line": 73, "signature": "(cmd: str)", "doc": "True if a hook command is owned by the memory-bank skill."}
@@ -1009,6 +1015,64 @@
 {"type": "node", "kind": "function", "name": "hello", "file": "tests/fixtures/python/src/example.py", "line": 1, "signature": "()"}
 {"type": "node", "kind": "module", "name": "tests/fixtures/rust/src/main.rs", "file": "tests/fixtures/rust/src/main.rs", "line": 1}
 {"type": "node", "kind": "function", "name": "main", "file": "tests/fixtures/rust/src/main.rs", "line": 1, "signature": "fn main()"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_audit_command_contracts.py", "file": "tests/pytest/test_audit_command_contracts.py", "line": 1, "doc": "Execute the documented command paths from a project outside the skill bundle."}
+{"type": "node", "kind": "function", "name": "_block", "file": "tests/pytest/test_audit_command_contracts.py", "line": 14, "signature": "(command: str, section: str, index: int=0)"}
+{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_audit_command_contracts.py", "line": 20, "signature": "(tmp_path: Path, block: str, *, setup: str='', **extra)"}
+{"type": "node", "kind": "function", "name": "test_start_global_bank_is_active_without_repo_local_bank", "file": "tests/pytest/test_audit_command_contracts.py", "line": 34, "signature": "(tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_done_global_bank_supplies_gate_configuration", "file": "tests/pytest/test_audit_command_contracts.py", "line": 41, "signature": "(tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_command_setup_resolves_global_bank_and_absence_without_mutation", "file": "tests/pytest/test_audit_command_contracts.py", "line": 52, "signature": "(tmp_path, command)"}
+{"type": "node", "kind": "function", "name": "test_start_uses_registered_global_bank_and_reads_its_context", "file": "tests/pytest/test_audit_command_contracts.py", "line": 64, "signature": "(tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_memory_tool_snippet_runs_from_project_cwd", "file": "tests/pytest/test_audit_command_contracts.py", "line": 90, "signature": "(tmp_path, section, args_name)"}
+{"type": "node", "kind": "function", "name": "test_verify_selects_spec_source_even_with_unrelated_newer_plan", "file": "tests/pytest/test_audit_command_contracts.py", "line": 104, "signature": "(tmp_path, explicit, unrelated_plan)"}
+{"type": "node", "kind": "function", "name": "test_verify_missing_current_source_does_not_guess_latest_plan", "file": "tests/pytest/test_audit_command_contracts.py", "line": 126, "signature": "(tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "file": "tests/pytest/test_audit_command_contracts.py", "line": 136, "signature": "()"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_audit_completion.py", "file": "tests/pytest/test_audit_completion.py", "line": 1, "doc": "Completion identity and target-directory regression contracts (R03/R04)."}
+{"type": "node", "kind": "function", "name": "run_script", "file": "tests/pytest/test_audit_completion.py", "line": 15, "signature": "(name: str, *args: object, cwd: Path)"}
+{"type": "node", "kind": "function", "name": "test_completed_spec_cannot_certify_another_spec_with_same_item", "file": "tests/pytest/test_audit_completion.py", "line": 25, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_unbound_legacy_done_state_refuses_certification", "file": "tests/pytest/test_audit_completion.py", "line": 51, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_done_source_relative_init_cannot_certify_other_cwd", "file": "tests/pytest/test_audit_completion.py", "line": 65, "signature": "(tmp_path: Path, locator: str)"}
+{"type": "node", "kind": "function", "name": "test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "file": "tests/pytest/test_audit_completion.py", "line": 94, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_legacy_relative_identity_without_init_cwd_refuses_flip", "file": "tests/pytest/test_audit_completion.py", "line": 114, "signature": "(tmp_path: Path, field: str)"}
+{"type": "node", "kind": "function", "name": "test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "file": "tests/pytest/test_audit_completion.py", "line": 129, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "file": "tests/pytest/test_audit_completion.py", "line": 145, "signature": "(tmp_path, replace, legacy)"}
+{"type": "node", "kind": "function", "name": "test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "file": "tests/pytest/test_audit_completion.py", "line": 173, "signature": "(tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "file": "tests/pytest/test_audit_completion.py", "line": 193, "signature": "(tmp_path: Path, ambiguous: bool)"}
+{"type": "node", "kind": "function", "name": "test_done_gates_explicit_directory_detects_violation_from_other_cwd", "file": "tests/pytest/test_audit_completion.py", "line": 220, "signature": "(tmp_path: Path, directory: str)"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_audit_drive.py", "file": "tests/pytest/test_audit_drive.py", "line": 1, "doc": "Real drive preflight and firewall regression contracts (R05/R10)."}
+{"type": "node", "kind": "function", "name": "drive", "file": "tests/pytest/test_audit_drive.py", "line": 17, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "run", "file": "tests/pytest/test_audit_drive.py", "line": 34, "signature": "(drive, script: str, *args: object)"}
+{"type": "node", "kind": "function", "name": "preflight", "file": "tests/pytest/test_audit_drive.py", "line": 42, "signature": "(drive)"}
+{"type": "node", "kind": "function", "name": "slot", "file": "tests/pytest/test_audit_drive.py", "line": 53, "signature": "(drive, kind: str)"}
+{"type": "node", "kind": "function", "name": "test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "file": "tests/pytest/test_audit_drive.py", "line": 61, "signature": "(drive, parallel)"}
+{"type": "node", "kind": "function", "name": "test_drive_pending_goal_with_default_firewall_selects_concrete_implement", "file": "tests/pytest/test_audit_drive.py", "line": 82, "signature": "(drive)"}
+{"type": "node", "kind": "function", "name": "test_drive_failed_current_work_with_default_firewall_repairs_current_item", "file": "tests/pytest/test_audit_drive.py", "line": 92, "signature": "(drive)"}
+{"type": "node", "kind": "function", "name": "test_drive_complete_signal_still_runs_full_firewall_acceptance", "file": "tests/pytest/test_audit_drive.py", "line": 104, "signature": "(drive, tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_drive_complete_goal_with_default_firewall_stops_success", "file": "tests/pytest/test_audit_drive.py", "line": 117, "signature": "(drive)"}
+{"type": "node", "kind": "function", "name": "test_preflight_corrupt_existing_component_refuses_without_reset", "file": "tests/pytest/test_audit_drive.py", "line": 131, "signature": "(drive, kind, corruption)"}
+{"type": "node", "kind": "function", "name": "test_preflight_partial_start_only_initializes_missing_component", "file": "tests/pytest/test_audit_drive.py", "line": 146, "signature": "(drive, kind)"}
+{"type": "node", "kind": "function", "name": "test_preflight_conflicting_resume_limit_refuses_without_reset", "file": "tests/pytest/test_audit_drive.py", "line": 166, "signature": "(drive, flag)"}
+{"type": "node", "kind": "function", "name": "test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "file": "tests/pytest/test_audit_drive.py", "line": 180, "signature": "(drive)"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_audit_install_roundtrip.py", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 1, "doc": "Real installer/init contracts in copied bundles and subprocess-scoped homes."}
+{"type": "node", "kind": "function", "name": "sandbox", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 19, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "copy_bundle", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 38, "signature": "(destination: Path)"}
+{"type": "node", "kind": "function", "name": "run_script", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 53, "signature": "(script: Path, project: Path, env: dict[str, str], *args: str)"}
+{"type": "node", "kind": "function", "name": "install", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 62, "signature": "(bundle: Path, project: Path, env: dict[str, str], clients: str='claude-code')"}
+{"type": "node", "kind": "function", "name": "test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 70, "signature": "(sandbox: tuple[Path, Path, dict[str, str]], tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_identical_reinstall_retains_original_backup_and_restores_it", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 97, "signature": "(sandbox: tuple[Path, Path, dict[str, str]], tmp_path: Path, relative: str)"}
+{"type": "node", "kind": "function", "name": "test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 119, "signature": "(sandbox: tuple[Path, Path, dict[str, str]])"}
+{"type": "node", "kind": "function", "name": "test_init_explicit_project_root_selects_target_from_another_cwd", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 151, "signature": "(sandbox: tuple[Path, Path, dict[str, str]], tmp_path: Path, storage: str, separate: bool)"}
+{"type": "node", "kind": "function", "name": "test_init_invalid_arguments_fail_before_filesystem_mutation", "file": "tests/pytest/test_audit_install_roundtrip.py", "line": 180, "signature": "(sandbox: tuple[Path, Path, dict[str, str]], args: list[str])"}
+{"type": "node", "kind": "module", "name": "tests/pytest/test_audit_privacy.py", "file": "tests/pytest/test_audit_privacy.py", "line": 1, "doc": "R06/R07/R08: search and index must hide private spans without hiding public text. Contracts under test are the existing search and index CLIs. Fixtures pair private markers with visible evidence, incl"}
+{"type": "node", "kind": "function", "name": "bank", "file": "tests/pytest/test_audit_privacy.py", "line": 24, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "_note", "file": "tests/pytest/test_audit_privacy.py", "line": 30, "signature": "(bank: Path, body: str)"}
+{"type": "node", "kind": "function", "name": "_search", "file": "tests/pytest/test_audit_privacy.py", "line": 36, "signature": "(bank: Path, *args: str, reveal_env: bool=False)"}
+{"type": "node", "kind": "function", "name": "_index", "file": "tests/pytest/test_audit_privacy.py", "line": 48, "signature": "(bank: Path)"}
+{"type": "node", "kind": "function", "name": "test_index_source_bundle_works_with_older_package_on_pythonpath", "file": "tests/pytest/test_audit_privacy.py", "line": 60, "signature": "(bank, tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_search_private_blocks_nested_or_unclosed_keep_public_text", "file": "tests/pytest/test_audit_privacy.py", "line": 108, "signature": "(bank, body, public, mode)"}
+{"type": "node", "kind": "function", "name": "test_freetext_public_lines_between_closed_and_unclosed_spans_remain_visible", "file": "tests/pytest/test_audit_privacy.py", "line": 123, "signature": "(bank, newline)"}
+{"type": "node", "kind": "function", "name": "test_index_lessons_closed_private_content_excluded_before_extraction", "file": "tests/pytest/test_audit_privacy.py", "line": 167, "signature": "(bank, private_record, suffix)"}
+{"type": "node", "kind": "function", "name": "test_index_lessons_unclosed_block_after_closed_span_hides_only_actual_tail", "file": "tests/pytest/test_audit_privacy.py", "line": 184, "signature": "(bank)"}
+{"type": "node", "kind": "function", "name": "test_search_private_reveal_requires_both_opt_ins", "file": "tests/pytest/test_audit_privacy.py", "line": 199, "signature": "(bank, mode, env_enabled, flag_enabled)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_bats_assertion_contract.py", "file": "tests/pytest/test_bats_assertion_contract.py", "line": 1, "doc": "I-147: a bats assertion that cannot fail is not an assertion. THE TRAP. Bats runs a test body under ``set -e``, but ``! cmd`` is explicitly EXEMPT from it -- POSIX treats a negated command as a tested"}
 {"type": "node", "kind": "function", "name": "_test_blocks", "file": "tests/pytest/test_bats_assertion_contract.py", "line": 85, "signature": "(lines: list[str])", "doc": "Yield (start, end) line indices of each `@test ... { ... }` body."}
 {"type": "node", "kind": "function", "name": "_logical_line", "file": "tests/pytest/test_bats_assertion_contract.py", "line": 105, "signature": "(lines: list[str], start: int)", "doc": "Join backslash-continued physical lines into one logical statement."}
@@ -1059,62 +1123,62 @@
 {"type": "node", "kind": "function", "name": "test_is_safe_plan_name_accepts_a_plain_basename", "file": "tests/pytest/test_checklist_v2.py", "line": 154, "signature": "(name: str)"}
 {"type": "node", "kind": "function", "name": "test_is_safe_plan_name_rejects_anything_that_can_leave_plans_dir", "file": "tests/pytest/test_checklist_v2.py", "line": 172, "signature": "(name: str)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_cli.py", "file": "tests/pytest/test_cli.py", "line": 1, "doc": "Tests for memory_bank_skill.cli. Covers: argparse, version, bundle resolution, bash discovery, shell wrapper. Platform behavior mocked; shell invocations use bundled install.sh --help."}
-{"type": "node", "kind": "function", "name": "_protect_repo_install_manifest", "file": "tests/pytest/test_cli.py", "line": 27, "signature": "()", "doc": "Back up & restore `REPO_ROOT/.installed-manifest.json`. `install.sh:17` hard-codes the manifest path to `$SOURCE_SKILL_DIR/...`, so every install-related test in this module overwrites the repo's own "}
-{"type": "node", "kind": "function", "name": "test_python_version_matches_bundle_version", "file": "tests/pytest/test_cli.py", "line": 55, "signature": "()"}
-{"type": "node", "kind": "function", "name": "test_version_subcommand", "file": "tests/pytest/test_cli.py", "line": 59, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_top_level_version_flag", "file": "tests/pytest/test_cli.py", "line": 67, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_no_subcommand_shows_help_and_exits_nonzero", "file": "tests/pytest/test_cli.py", "line": 75, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_unknown_subcommand_errors", "file": "tests/pytest/test_cli.py", "line": 82, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_self_update_prints_pipx_command", "file": "tests/pytest/test_cli.py", "line": 92, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_init_prints_claude_code_hint", "file": "tests/pytest/test_cli.py", "line": 100, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_init_hint_documents_local_and_global_storage_modes", "file": "tests/pytest/test_cli.py", "line": 107, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_doctor_reports_bundle_platform_and_bash", "file": "tests/pytest/test_cli.py", "line": 117, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_find_bundle_root_resolves_dev_layout", "file": "tests/pytest/test_cli.py", "line": 132, "signature": "()"}
-{"type": "node", "kind": "function", "name": "test_bundle_override_env", "file": "tests/pytest/test_cli.py", "line": 138, "signature": "(tmp_path, monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_bundle_not_found_raises", "file": "tests/pytest/test_cli.py", "line": 146, "signature": "(monkeypatch, tmp_path)"}
-{"type": "node", "kind": "function", "name": "test_is_windows_detects", "file": "tests/pytest/test_cli.py", "line": 161, "signature": "()"}
-{"type": "node", "kind": "function", "name": "test_is_windows_false_on_posix", "file": "tests/pytest/test_cli.py", "line": 166, "signature": "()"}
-{"type": "node", "kind": "function", "name": "test_find_bash_posix_returns_which_result", "file": "tests/pytest/test_cli.py", "line": 171, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_find_bash_env_override_wins", "file": "tests/pytest/test_cli.py", "line": 178, "signature": "(monkeypatch, tmp_path)"}
-{"type": "node", "kind": "function", "name": "test_find_bash_env_override_ignored_if_missing", "file": "tests/pytest/test_cli.py", "line": 187, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_find_bash_windows_path_discovery", "file": "tests/pytest/test_cli.py", "line": 195, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_find_bash_windows_skips_system32", "file": "tests/pytest/test_cli.py", "line": 206, "signature": "(monkeypatch)", "doc": "shutil.which may return C:\\Windows\\System32\\bash.exe (WSL launcher shim). That invocation form doesn't handle script forwarding reliably, so the discoverer must skip it and prefer Git Bash / explicit "}
-{"type": "node", "kind": "function", "name": "test_find_bash_windows_wsl_fallback", "file": "tests/pytest/test_cli.py", "line": 226, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_find_bash_windows_wsl_fallback.fake_which", "file": "tests/pytest/test_cli.py", "line": 230, "signature": "(name)"}
-{"type": "node", "kind": "function", "name": "test_find_bash_windows_no_bash_returns_none", "file": "tests/pytest/test_cli.py", "line": 242, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_require_bash_exits_with_hint_on_windows", "file": "tests/pytest/test_cli.py", "line": 250, "signature": "(monkeypatch, capsys)"}
-{"type": "node", "kind": "function", "name": "test_require_bash_exits_on_posix_without_bash", "file": "tests/pytest/test_cli.py", "line": 260, "signature": "(monkeypatch, capsys)"}
-{"type": "node", "kind": "function", "name": "test_run_shell_invokes_install_help_via_bundle", "file": "tests/pytest/test_cli.py", "line": 274, "signature": "()", "doc": "install.sh --help prints usage and exits 0 (real subprocess smoke test)."}
-{"type": "node", "kind": "function", "name": "test_run_shell_missing_script", "file": "tests/pytest/test_cli.py", "line": 280, "signature": "(capsys)"}
-{"type": "node", "kind": "function", "name": "test_run_shell_passes_interpreter_via_env", "file": "tests/pytest/test_cli.py", "line": 287, "signature": "(monkeypatch)", "doc": "run_shell must hand the bundled script the interpreter that owns the package (``sys.executable``) through ``MB_PYTHON``. Regression for the pipx/pip/brew install bug: install.sh shells out to ``python"}
-{"type": "node", "kind": "function", "name": "test_run_shell_passes_interpreter_via_env.fake_run", "file": "tests/pytest/test_cli.py", "line": 300, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_passes_clients_flag", "file": "tests/pytest/test_cli.py", "line": 313, "signature": "(tmp_path, monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_passes_clients_flag.fake_run", "file": "tests/pytest/test_cli.py", "line": 316, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_passes_language_flag", "file": "tests/pytest/test_cli.py", "line": 331, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_passes_language_flag.fake_run", "file": "tests/pytest/test_cli.py", "line": 334, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_no_args_calls_install_sh", "file": "tests/pytest/test_cli.py", "line": 346, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_no_args_calls_install_sh.fake_run", "file": "tests/pytest/test_cli.py", "line": 349, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_forwards_non_interactive", "file": "tests/pytest/test_cli.py", "line": 360, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_forwards_non_interactive.fake_run", "file": "tests/pytest/test_cli.py", "line": 363, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_rejects_invalid_clients_before_shell", "file": "tests/pytest/test_cli.py", "line": 374, "signature": "(monkeypatch, capsys)"}
-{"type": "node", "kind": "function", "name": "test_install_cmd_rejects_invalid_clients_before_shell.fake_run_shell", "file": "tests/pytest/test_cli.py", "line": 377, "signature": "(*args, **kwargs)"}
-{"type": "node", "kind": "function", "name": "test_uninstall_cmd_calls_uninstall_sh", "file": "tests/pytest/test_cli.py", "line": 388, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_uninstall_cmd_calls_uninstall_sh.fake_run", "file": "tests/pytest/test_cli.py", "line": 391, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_uninstall_cmd_forwards_non_interactive", "file": "tests/pytest/test_cli.py", "line": 402, "signature": "(monkeypatch)"}
-{"type": "node", "kind": "function", "name": "test_uninstall_cmd_forwards_non_interactive.fake_run", "file": "tests/pytest/test_cli.py", "line": 405, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_run_shell_wsl_wrapper_mode", "file": "tests/pytest/test_cli.py", "line": 416, "signature": "(monkeypatch)", "doc": "When bash path is wsl.exe, run_shell should prepend 'bash' to cmd."}
-{"type": "node", "kind": "function", "name": "test_run_shell_wsl_wrapper_mode.fake_run", "file": "tests/pytest/test_cli.py", "line": 420, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_run_shell_plain_bash_mode", "file": "tests/pytest/test_cli.py", "line": 435, "signature": "(monkeypatch)", "doc": "When bash is a regular bash binary, no 'bash' prefix is needed."}
-{"type": "node", "kind": "function", "name": "test_run_shell_plain_bash_mode.fake_run", "file": "tests/pytest/test_cli.py", "line": 439, "signature": "(cmd, check, **kw)"}
-{"type": "node", "kind": "function", "name": "test_run_shell_returns_bash_not_found_when_subprocess_spawn_fails", "file": "tests/pytest/test_cli.py", "line": 453, "signature": "(monkeypatch, capsys)"}
-{"type": "node", "kind": "function", "name": "test_run_shell_returns_bash_not_found_when_subprocess_spawn_fails.fake_run", "file": "tests/pytest/test_cli.py", "line": 454, "signature": "(*args, **kwargs)"}
-{"type": "node", "kind": "function", "name": "_run_install_sh", "file": "tests/pytest/test_cli.py", "line": 469, "signature": "(sandbox_home: Path, repo_root: Path)", "doc": "Run the real install.sh against a sandboxed $HOME."}
-{"type": "node", "kind": "function", "name": "_run_uninstall_sh", "file": "tests/pytest/test_cli.py", "line": 484, "signature": "(sandbox_home: Path, repo_root: Path, *extra_args: str, input_text: str | None='y\\n')"}
-{"type": "node", "kind": "function", "name": "test_cli_install_uninstall_smoke_with_cursor_global", "file": "tests/pytest/test_cli.py", "line": 506, "signature": "(tmp_path)", "doc": "Smoke test: memory-bank install/uninstall don't crash with Cursor global steps."}
-{"type": "node", "kind": "function", "name": "test_install_sh_routes_python_through_mb_python", "file": "tests/pytest/test_cli.py", "line": 541, "signature": "(tmp_path)", "doc": "install.sh must run Python through ``$MB_PYTHON`` (the interpreter the CLI hands it), not a bare system ``python3``. Deterministic regression for the pipx/pip/brew bug: when the package lives only in "}
-{"type": "node", "kind": "function", "name": "test_cross_agent_adapters_route_python_through_mb_python", "file": "tests/pytest/test_cli.py", "line": 581, "signature": "(tmp_path)", "doc": "Cross-agent adapters (e.g. cursor.sh ``run_texttool``) must run Python through ``$MB_PYTHON``, not a bare ``python3``. Regression for the pipx/pyenv break: ``memory_bank_skill`` lives only in the inte"}
-{"type": "node", "kind": "function", "name": "test_uninstall_non_interactive_flag_works_without_stdin", "file": "tests/pytest/test_cli.py", "line": 658, "signature": "(tmp_path)"}
-{"type": "node", "kind": "function", "name": "test_install_manifest_has_schema_version_and_stable_file_order", "file": "tests/pytest/test_cli.py", "line": 670, "signature": "(tmp_path)"}
+{"type": "node", "kind": "function", "name": "_protect_repo_install_manifest", "file": "tests/pytest/test_cli.py", "line": 33, "signature": "()", "doc": "Back up & restore `REPO_ROOT/.installed-manifest.json`. `install.sh:17` hard-codes the manifest path to `$SOURCE_SKILL_DIR/...`, so every install-related test in this module overwrites the repo's own "}
+{"type": "node", "kind": "function", "name": "test_python_version_matches_bundle_version", "file": "tests/pytest/test_cli.py", "line": 61, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_version_subcommand", "file": "tests/pytest/test_cli.py", "line": 65, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_top_level_version_flag", "file": "tests/pytest/test_cli.py", "line": 73, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_no_subcommand_shows_help_and_exits_nonzero", "file": "tests/pytest/test_cli.py", "line": 81, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_unknown_subcommand_errors", "file": "tests/pytest/test_cli.py", "line": 88, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_self_update_prints_pipx_command", "file": "tests/pytest/test_cli.py", "line": 98, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_init_prints_claude_code_hint", "file": "tests/pytest/test_cli.py", "line": 106, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_init_hint_documents_local_and_global_storage_modes", "file": "tests/pytest/test_cli.py", "line": 113, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_doctor_reports_bundle_platform_and_bash", "file": "tests/pytest/test_cli.py", "line": 123, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_find_bundle_root_resolves_dev_layout", "file": "tests/pytest/test_cli.py", "line": 138, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_bundle_override_env", "file": "tests/pytest/test_cli.py", "line": 144, "signature": "(tmp_path, monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_bundle_not_found_raises", "file": "tests/pytest/test_cli.py", "line": 152, "signature": "(monkeypatch, tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_is_windows_detects", "file": "tests/pytest/test_cli.py", "line": 167, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_is_windows_false_on_posix", "file": "tests/pytest/test_cli.py", "line": 172, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_find_bash_posix_returns_which_result", "file": "tests/pytest/test_cli.py", "line": 177, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_find_bash_env_override_wins", "file": "tests/pytest/test_cli.py", "line": 184, "signature": "(monkeypatch, tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_find_bash_env_override_ignored_if_missing", "file": "tests/pytest/test_cli.py", "line": 193, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_find_bash_windows_path_discovery", "file": "tests/pytest/test_cli.py", "line": 201, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_find_bash_windows_skips_system32", "file": "tests/pytest/test_cli.py", "line": 212, "signature": "(monkeypatch)", "doc": "shutil.which may return C:\\Windows\\System32\\bash.exe (WSL launcher shim). That invocation form doesn't handle script forwarding reliably, so the discoverer must skip it and prefer Git Bash / explicit "}
+{"type": "node", "kind": "function", "name": "test_find_bash_windows_wsl_fallback", "file": "tests/pytest/test_cli.py", "line": 232, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_find_bash_windows_wsl_fallback.fake_which", "file": "tests/pytest/test_cli.py", "line": 236, "signature": "(name)"}
+{"type": "node", "kind": "function", "name": "test_find_bash_windows_no_bash_returns_none", "file": "tests/pytest/test_cli.py", "line": 248, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_require_bash_exits_with_hint_on_windows", "file": "tests/pytest/test_cli.py", "line": 256, "signature": "(monkeypatch, capsys)"}
+{"type": "node", "kind": "function", "name": "test_require_bash_exits_on_posix_without_bash", "file": "tests/pytest/test_cli.py", "line": 266, "signature": "(monkeypatch, capsys)"}
+{"type": "node", "kind": "function", "name": "test_run_shell_invokes_install_help_via_bundle", "file": "tests/pytest/test_cli.py", "line": 280, "signature": "()", "doc": "install.sh --help prints usage and exits 0 (real subprocess smoke test)."}
+{"type": "node", "kind": "function", "name": "test_run_shell_missing_script", "file": "tests/pytest/test_cli.py", "line": 286, "signature": "(capsys)"}
+{"type": "node", "kind": "function", "name": "test_run_shell_passes_interpreter_via_env", "file": "tests/pytest/test_cli.py", "line": 293, "signature": "(monkeypatch)", "doc": "run_shell must hand the bundled script the interpreter that owns the package (``sys.executable``) through ``MB_PYTHON``. Regression for the pipx/pip/brew install bug: install.sh shells out to ``python"}
+{"type": "node", "kind": "function", "name": "test_run_shell_passes_interpreter_via_env.fake_run", "file": "tests/pytest/test_cli.py", "line": 306, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_passes_clients_flag", "file": "tests/pytest/test_cli.py", "line": 319, "signature": "(tmp_path, monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_passes_clients_flag.fake_run", "file": "tests/pytest/test_cli.py", "line": 322, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_passes_language_flag", "file": "tests/pytest/test_cli.py", "line": 337, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_passes_language_flag.fake_run", "file": "tests/pytest/test_cli.py", "line": 340, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_no_args_calls_install_sh", "file": "tests/pytest/test_cli.py", "line": 352, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_no_args_calls_install_sh.fake_run", "file": "tests/pytest/test_cli.py", "line": 355, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_forwards_non_interactive", "file": "tests/pytest/test_cli.py", "line": 366, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_forwards_non_interactive.fake_run", "file": "tests/pytest/test_cli.py", "line": 369, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_rejects_invalid_clients_before_shell", "file": "tests/pytest/test_cli.py", "line": 380, "signature": "(monkeypatch, capsys)"}
+{"type": "node", "kind": "function", "name": "test_install_cmd_rejects_invalid_clients_before_shell.fake_run_shell", "file": "tests/pytest/test_cli.py", "line": 383, "signature": "(*args, **kwargs)"}
+{"type": "node", "kind": "function", "name": "test_uninstall_cmd_calls_uninstall_sh", "file": "tests/pytest/test_cli.py", "line": 394, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_uninstall_cmd_calls_uninstall_sh.fake_run", "file": "tests/pytest/test_cli.py", "line": 397, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_uninstall_cmd_forwards_non_interactive", "file": "tests/pytest/test_cli.py", "line": 408, "signature": "(monkeypatch)"}
+{"type": "node", "kind": "function", "name": "test_uninstall_cmd_forwards_non_interactive.fake_run", "file": "tests/pytest/test_cli.py", "line": 411, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_run_shell_wsl_wrapper_mode", "file": "tests/pytest/test_cli.py", "line": 422, "signature": "(monkeypatch)", "doc": "When bash path is wsl.exe, run_shell should prepend 'bash' to cmd."}
+{"type": "node", "kind": "function", "name": "test_run_shell_wsl_wrapper_mode.fake_run", "file": "tests/pytest/test_cli.py", "line": 426, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_run_shell_plain_bash_mode", "file": "tests/pytest/test_cli.py", "line": 441, "signature": "(monkeypatch)", "doc": "When bash is a regular bash binary, no 'bash' prefix is needed."}
+{"type": "node", "kind": "function", "name": "test_run_shell_plain_bash_mode.fake_run", "file": "tests/pytest/test_cli.py", "line": 445, "signature": "(cmd, check, **kw)"}
+{"type": "node", "kind": "function", "name": "test_run_shell_returns_bash_not_found_when_subprocess_spawn_fails", "file": "tests/pytest/test_cli.py", "line": 459, "signature": "(monkeypatch, capsys)"}
+{"type": "node", "kind": "function", "name": "test_run_shell_returns_bash_not_found_when_subprocess_spawn_fails.fake_run", "file": "tests/pytest/test_cli.py", "line": 460, "signature": "(*args, **kwargs)"}
+{"type": "node", "kind": "function", "name": "_run_install_sh", "file": "tests/pytest/test_cli.py", "line": 475, "signature": "(sandbox_home: Path, repo_root: Path)", "doc": "Run the real install.sh against a sandboxed $HOME."}
+{"type": "node", "kind": "function", "name": "_run_uninstall_sh", "file": "tests/pytest/test_cli.py", "line": 490, "signature": "(sandbox_home: Path, repo_root: Path, *extra_args: str, input_text: str | None='y\\n')"}
+{"type": "node", "kind": "function", "name": "test_cli_install_uninstall_smoke_with_cursor_global", "file": "tests/pytest/test_cli.py", "line": 512, "signature": "(tmp_path)", "doc": "Smoke test: memory-bank install/uninstall don't crash with Cursor global steps."}
+{"type": "node", "kind": "function", "name": "test_install_sh_routes_python_through_mb_python", "file": "tests/pytest/test_cli.py", "line": 547, "signature": "(tmp_path)", "doc": "install.sh must run Python through ``$MB_PYTHON`` (the interpreter the CLI hands it), not a bare system ``python3``. Deterministic regression for the pipx/pip/brew bug: when the package lives only in "}
+{"type": "node", "kind": "function", "name": "test_cross_agent_adapters_route_python_through_mb_python", "file": "tests/pytest/test_cli.py", "line": 587, "signature": "(tmp_path)", "doc": "Cross-agent adapters (e.g. cursor.sh ``run_texttool``) must run Python through ``$MB_PYTHON``, not a bare ``python3``. Regression for the pipx/pyenv break: ``memory_bank_skill`` lives only in the inte"}
+{"type": "node", "kind": "function", "name": "test_uninstall_non_interactive_flag_works_without_stdin", "file": "tests/pytest/test_cli.py", "line": 664, "signature": "(tmp_path)"}
+{"type": "node", "kind": "function", "name": "test_install_manifest_has_schema_version_and_stable_file_order", "file": "tests/pytest/test_cli.py", "line": 676, "signature": "(tmp_path)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_cli_lang.py", "file": "tests/pytest/test_cli_lang.py", "line": 1, "doc": "`memory-bank` CLI locale flag wiring (v3.1.1+). Covers the Python CLI surface for locale selection: - `memory-bank install --language XX` accepts the four supported locales (en, ru, es, zh) via argpar"}
 {"type": "node", "kind": "function", "name": "test_install_accepts_supported_locale", "file": "tests/pytest/test_cli_lang.py", "line": 23, "signature": "(locale: str)"}
 {"type": "node", "kind": "function", "name": "test_install_rejects_unsupported_locale", "file": "tests/pytest/test_cli_lang.py", "line": 29, "signature": "()"}
@@ -1127,16 +1191,19 @@
 {"type": "node", "kind": "function", "name": "test_vetted_locale_does_not_use_fallback", "file": "tests/pytest/test_cli_lang.py", "line": 96, "signature": "(locale: str)"}
 {"type": "node", "kind": "function", "name": "test_language_strings_cli_subcommand_reports_fallback", "file": "tests/pytest/test_cli_lang.py", "line": 103, "signature": "(capsys: pytest.CaptureFixture[str])", "doc": "install.sh shells out via `_texttools language-strings` — the CLI surface must expose the same fallback flag so it can print the honest \"not yet localized\" warning instead of silently swallowing it."}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_code_context.py", "file": "tests/pytest/test_code_context.py", "line": 1, "doc": "Contract tests for scripts/mb-code-context.py. code_context is the portable GraphRAG-lite orchestrator: semantic candidates are optional, graph expansion is deterministic, and evidence packs stay boun"}
-{"type": "node", "kind": "function", "name": "_write_graph", "file": "tests/pytest/test_code_context.py", "line": 19, "signature": "(path: Path, records: list[dict[str, Any]])"}
-{"type": "node", "kind": "function", "name": "_fixture_project", "file": "tests/pytest/test_code_context.py", "line": 24, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_code_context.py", "line": 95, "signature": "(args: list[str])"}
-{"type": "node", "kind": "function", "name": "_json", "file": "tests/pytest/test_code_context.py", "line": 104, "signature": "(result: subprocess.CompletedProcess[str])"}
-{"type": "node", "kind": "function", "name": "test_code_context_returns_evidence_pack_with_semantic_graph_and_tests", "file": "tests/pytest/test_code_context.py", "line": 108, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_code_context_semantic_unavailable_warns_and_falls_back_to_graph_text", "file": "tests/pytest/test_code_context.py", "line": 138, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_code_context_graph_mode_bypasses_semantic_candidates", "file": "tests/pytest/test_code_context.py", "line": 166, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_code_context_missing_graph_fails_open_with_warning", "file": "tests/pytest/test_code_context.py", "line": 191, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_code_context_evidence_pack_is_bounded_and_excludes_env_contents", "file": "tests/pytest/test_code_context.py", "line": 218, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_code_context_accepts_semantic_only_alias", "file": "tests/pytest/test_code_context.py", "line": 252, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "_write_graph", "file": "tests/pytest/test_code_context.py", "line": 21, "signature": "(path: Path, records: list[dict[str, Any]])"}
+{"type": "node", "kind": "function", "name": "_fixture_project", "file": "tests/pytest/test_code_context.py", "line": 26, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_code_context.py", "line": 97, "signature": "(args: list[str])"}
+{"type": "node", "kind": "function", "name": "_json", "file": "tests/pytest/test_code_context.py", "line": 106, "signature": "(result: subprocess.CompletedProcess[str])"}
+{"type": "node", "kind": "function", "name": "test_exact_source_with_many_memory_mentions_remains_recommended", "file": "tests/pytest/test_code_context.py", "line": 111, "signature": "(tmp_path: Path, with_graph: bool)"}
+{"type": "node", "kind": "function", "name": "test_exact_definition_with_full_semantic_list_keeps_mode_contract", "file": "tests/pytest/test_code_context.py", "line": 134, "signature": "(tmp_path: Path, mode: str)"}
+{"type": "node", "kind": "function", "name": "test_qualified_definition_from_real_parser_survives_semantic_saturation", "file": "tests/pytest/test_code_context.py", "line": 170, "signature": "(tmp_path: Path, qualified: bool, code: str, symbol: str)"}
+{"type": "node", "kind": "function", "name": "test_code_context_returns_evidence_pack_with_semantic_graph_and_tests", "file": "tests/pytest/test_code_context.py", "line": 204, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_code_context_semantic_unavailable_warns_and_falls_back_to_graph_text", "file": "tests/pytest/test_code_context.py", "line": 234, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_code_context_graph_mode_bypasses_semantic_candidates", "file": "tests/pytest/test_code_context.py", "line": 262, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_code_context_missing_graph_fails_open_with_warning", "file": "tests/pytest/test_code_context.py", "line": 287, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_code_context_evidence_pack_is_bounded_and_excludes_env_contents", "file": "tests/pytest/test_code_context.py", "line": 314, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_code_context_accepts_semantic_only_alias", "file": "tests/pytest/test_code_context.py", "line": 348, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_codegraph.py", "file": "tests/pytest/test_codegraph.py", "line": 1, "doc": "Tests for scripts/mb-codegraph.py — Python ast-based code graph builder. Contract: mb-codegraph.py [--dry-run|--apply] [mb_path] [src_root] Parses *.py files in src_root, extracts: - Nodes: module, fu"}
 {"type": "node", "kind": "function", "name": "_load_codegraph_module", "file": "tests/pytest/test_codegraph.py", "line": 33, "signature": "()"}
 {"type": "node", "kind": "function", "name": "cg_mod", "file": "tests/pytest/test_codegraph.py", "line": 41, "signature": "()"}
@@ -1456,13 +1523,13 @@
 {"type": "node", "kind": "function", "name": "test_cluster_unrelated_sessions_do_not_link", "file": "tests/pytest/test_consolidate.py", "line": 207, "signature": "()"}
 {"type": "node", "kind": "function", "name": "test_cluster_links_on_lexical_overlap_above_threshold", "file": "tests/pytest/test_consolidate.py", "line": 215, "signature": "()"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_core_cap_docs.py", "file": "tests/pytest/test_core_cap_docs.py", "line": 1, "doc": "mb-work-cost-diet Sprint 1 Stage 7 — the core-file caps are wired, not declared. AGR-043: `status.md` and `checklist.md` are strict registries with hard line caps enforced by code. A cap that only liv"}
-{"type": "node", "kind": "function", "name": "_read", "file": "tests/pytest/test_core_cap_docs.py", "line": 18, "signature": "(rel: str)"}
-{"type": "node", "kind": "function", "name": "test_manager_documents_strict_actualize_contract", "file": "tests/pytest/test_core_cap_docs.py", "line": 22, "signature": "()"}
-{"type": "node", "kind": "function", "name": "test_done_step_five_runs_the_cap_fixer", "file": "tests/pytest/test_core_cap_docs.py", "line": 35, "signature": "()"}
-{"type": "node", "kind": "function", "name": "test_mb_router_exposes_update_strict", "file": "tests/pytest/test_core_cap_docs.py", "line": 43, "signature": "()"}
-{"type": "node", "kind": "function", "name": "test_status_templates_declare_the_hard_cap", "file": "tests/pytest/test_core_cap_docs.py", "line": 59, "signature": "(template: str)"}
-{"type": "node", "kind": "function", "name": "test_structure_reference_documents_core_file_caps", "file": "tests/pytest/test_core_cap_docs.py", "line": 66, "signature": "()"}
-{"type": "node", "kind": "function", "name": "test_drift_check_is_core_cap_not_status_size", "file": "tests/pytest/test_core_cap_docs.py", "line": 73, "signature": "()"}
+{"type": "node", "kind": "function", "name": "_read", "file": "tests/pytest/test_core_cap_docs.py", "line": 19, "signature": "(rel: str)"}
+{"type": "node", "kind": "function", "name": "test_manager_documents_strict_actualize_contract", "file": "tests/pytest/test_core_cap_docs.py", "line": 23, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_done_step_five_runs_the_cap_fixer", "file": "tests/pytest/test_core_cap_docs.py", "line": 36, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_mb_router_exposes_update_strict", "file": "tests/pytest/test_core_cap_docs.py", "line": 44, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_status_templates_declare_the_hard_cap", "file": "tests/pytest/test_core_cap_docs.py", "line": 60, "signature": "(template: str)"}
+{"type": "node", "kind": "function", "name": "test_structure_reference_documents_core_file_caps", "file": "tests/pytest/test_core_cap_docs.py", "line": 67, "signature": "()"}
+{"type": "node", "kind": "function", "name": "test_drift_check_is_core_cap_not_status_size", "file": "tests/pytest/test_core_cap_docs.py", "line": 74, "signature": "()"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_coverage_omit_is_honest.py", "file": "tests/pytest/test_coverage_omit_is_honest.py", "line": 1, "doc": "The `omit` list in .coveragerc must name tested code, never hide untested code. Most of this skill's Python is a library behind a shell CLI. `mb-spec-validate.sh` runs `python3 scripts/mb_spec_validat"}
 {"type": "node", "kind": "function", "name": "_omitted_paths", "file": "tests/pytest/test_coverage_omit_is_honest.py", "line": 59, "signature": "()"}
 {"type": "node", "kind": "function", "name": "test_every_omitted_module_is_mapped_to_a_test", "file": "tests/pytest/test_coverage_omit_is_honest.py", "line": 66, "signature": "()", "doc": "No silent additions: `omit` and the map above must agree exactly."}
@@ -2214,19 +2281,19 @@
 {"type": "node", "kind": "function", "name": "test_default_singleton_path_unchanged", "file": "tests/pytest/test_mb_work_budget.py", "line": 205, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_mb_work_checkbox.py", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 1, "doc": "I-093 Stage 4 (T2) — `scripts/mb-work-checkbox.sh` deterministic DoD flip. The flipper is only allowed to mutate an item's DoD checkboxes when ``<bank>/.work-state.json`` says the gate already passed "}
 {"type": "node", "kind": "function", "name": "_init_mb", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 50, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "_write_state", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 56, "signature": "(mb: Path, *, item_no: int, phase: str='done', run_id: str='r1', source: str='plan')"}
-{"type": "node", "kind": "function", "name": "_write_run_state", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 78, "signature": "(mb: Path, run_id: str, *, item_no: int, phase: str='done', source: str='plan')", "doc": "Write a per-run state slot at ``<bank>/.work-state/<run_id>.json`` (I-094 S3)."}
-{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 103, "signature": "(*args: str, mb: Path, env: dict[str, str] | None=None)"}
-{"type": "node", "kind": "function", "name": "test_flip_marks_item_checkboxes_done", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 124, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_flip_scopes_to_item_block_only", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 138, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_flip_refused_when_state_not_done", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 152, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_flip_is_idempotent", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 165, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_flip_spec_task_block", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 180, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_flip_missing_item_is_usage_error", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 194, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_flip_missing_state_is_fail_safe_refuse", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 205, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_parallel_flip_reads_own_run_slot", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 220, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_parallel_flip_refused_on_foreign_run_state", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 235, "signature": "(tmp_path: Path)"}
-{"type": "node", "kind": "function", "name": "test_default_singleton_flip_unchanged", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 253, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "_write_state", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 56, "signature": "(mb: Path, *, source_path: Path, item_no: int, phase: str='done', run_id: str='r1', source: str='plan')"}
+{"type": "node", "kind": "function", "name": "_write_run_state", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 80, "signature": "(mb: Path, run_id: str, *, source_path: Path, item_no: int, phase: str='done', source: str='plan')", "doc": "Write a per-run state slot at ``<bank>/.work-state/<run_id>.json`` (I-094 S3)."}
+{"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 107, "signature": "(*args: str, mb: Path, env: dict[str, str] | None=None)"}
+{"type": "node", "kind": "function", "name": "test_flip_marks_item_checkboxes_done", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 128, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_flip_scopes_to_item_block_only", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 142, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_flip_refused_when_state_not_done", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 156, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_flip_is_idempotent", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 169, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_flip_spec_task_block", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 184, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_flip_missing_item_is_usage_error", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 198, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_flip_missing_state_is_fail_safe_refuse", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 209, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_parallel_flip_reads_own_run_slot", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 224, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_parallel_flip_refused_on_foreign_run_state", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 239, "signature": "(tmp_path: Path)"}
+{"type": "node", "kind": "function", "name": "test_default_singleton_flip_unchanged", "file": "tests/pytest/test_mb_work_checkbox.py", "line": 257, "signature": "(tmp_path: Path)"}
 {"type": "node", "kind": "module", "name": "tests/pytest/test_mb_work_codex_preflight.py", "file": "tests/pytest/test_mb_work_codex_preflight.py", "line": 1, "doc": "I-093 Stage 8 — `scripts/mb-work-codex-preflight.sh` fail-safe codex CLI availability/auth health-check, run before a cross-model review wave (`/mb work` step 5d). Must never block a session: always e"}
 {"type": "node", "kind": "function", "name": "_stub_codex", "file": "tests/pytest/test_mb_work_codex_preflight.py", "line": 23, "signature": "(tmp_path: Path, body: str)", "doc": "Write an executable `codex` stub into a fresh temp bin dir; return that dir."}
 {"type": "node", "kind": "function", "name": "_run", "file": "tests/pytest/test_mb_work_codex_preflight.py", "line": 33, "signature": "(*args: str, path: str, extra_env: dict[str, str] | None=None, timeout: float=15)"}
@@ -6476,6 +6543,35 @@
 {"type": "edge", "src": "memory_bank_skill/pipeline_yaml.py:load_file", "dst": "open", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/pipeline_yaml.py:load_file", "dst": "load_text", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/pipeline_yaml.py:load_file", "dst": "fh.read", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "memory_bank_skill/private.py", "dst": "re", "kind": "import"}
+{"type": "edge", "src": "memory_bank_skill/private.py", "dst": "re.compile", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:_private_spans", "dst": "_MARKER_RE.finditer", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:_private_spans", "dst": "marker.group", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:_private_spans", "dst": "marker.start", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:_private_spans", "dst": "spans.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:_private_spans", "dst": "marker.end", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:_private_spans", "dst": "spans.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:_private_spans", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:strip_private", "dst": "_private_spans", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:strip_private", "dst": "parts.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:strip_private", "dst": "parts.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:strip_private", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:strip_private", "dst": "bool", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "_private_spans", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "text.splitlines", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "raw_line.splitlines", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "parts.extend", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "max", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "min", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "parts.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "result.append", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "tests.bats.fixtures.brief.mkbrief.join", "kind": "call"}
+{"type": "edge", "src": "memory_bank_skill/private.py:redact_private_lines", "dst": "len", "kind": "call"}
 {"type": "edge", "src": "memory_bank_skill/progress_chain.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "memory_bank_skill/progress_chain.py", "dst": "contextlib", "kind": "import"}
 {"type": "edge", "src": "memory_bank_skill/progress_chain.py", "dst": "hashlib", "kind": "import"}
@@ -7936,12 +8032,12 @@
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "datetime.datetime", "kind": "import"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "pathlib.Path", "kind": "import"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "typing.Any", "kind": "import"}
-{"type": "edge", "src": "scripts/mb-index-json.py", "dst": "memory_bank_skill._io.atomic_write", "kind": "import"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "sys.path.insert", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "Path.resolve", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "pathlib.Path", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "memory_bank_skill._io.atomic_write", "kind": "import"}
+{"type": "edge", "src": "scripts/mb-index-json.py", "dst": "memory_bank_skill.private.strip_private", "kind": "import"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "re.compile", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "re.compile", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py", "dst": "re.compile", "kind": "call"}
@@ -7952,10 +8048,6 @@
 {"type": "edge", "src": "scripts/mb-index-json.py:_kebab_case", "dst": "_KEBAB_RE_1.sub", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_kebab_case", "dst": "_KEBAB_RE_2.sub", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_kebab_case", "dst": "s.lower", "kind": "call"}
-{"type": "edge", "src": "scripts/mb-index-json.py", "dst": "re.compile", "kind": "call"}
-{"type": "edge", "src": "scripts/mb-index-json.py", "dst": "re.compile", "kind": "call"}
-{"type": "edge", "src": "scripts/mb-index-json.py:_strip_private", "dst": "PRIVATE_CLOSED_RE.subn", "kind": "call"}
-{"type": "edge", "src": "scripts/mb-index-json.py:_strip_private", "dst": "PRIVATE_OPEN_RE.subn", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_parse_frontmatter", "dst": "FRONTMATTER_RE.match", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_parse_frontmatter", "dst": "m.group", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_parse_frontmatter", "dst": "m.group", "kind": "call"}
@@ -7995,7 +8087,7 @@
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "_kebab_case", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "set", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "seen.add", "kind": "call"}
-{"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "_strip_private", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "memory_bank_skill.private.strip_private", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "note.relative_to.as_posix", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "note.relative_to", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "rel.startswith", "kind": "call"}
@@ -8005,6 +8097,7 @@
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "meta.get", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_notes", "dst": "_summary", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_lessons", "dst": "lessons_file.is_file", "kind": "call"}
+{"type": "edge", "src": "scripts/mb-index-json.py:_index_lessons", "dst": "memory_bank_skill.private.strip_private", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_lessons", "dst": "lessons_file.read_text", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_lessons", "dst": "m.group", "kind": "call"}
 {"type": "edge", "src": "scripts/mb-index-json.py:_index_lessons", "dst": "m.group.strip", "kind": "call"}
@@ -8961,8 +9054,11 @@
 {"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "tokenize", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "sorted", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "project_root.rglob", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "safe_rel", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "path.relative_to", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "path.is_file", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "is_protected", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "IGNORED_DIRS.intersection", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "safe_rel", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "rel.lower", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:text_search", "dst": "haystacks.append", "kind": "call"}
@@ -8976,18 +9072,35 @@
 {"type": "edge", "src": "scripts/mb_code_context_core.py:load_graph", "dst": "warnings.append", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:add_unique", "dst": "len", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:add_unique", "dst": "items.append", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "tokenize", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "set", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "re.findall", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "query.lower", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "sorted", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "str.lower", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "node.get", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "node.get", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "graph_query.short_name", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "str.lower", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "node.get", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "IGNORED_DIRS.intersection", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "is_protected", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "add_unique", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "add_unique", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "candidate.get", "kind": "call"}
-{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "add_unique", "kind": "call"}
-{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "set", "kind": "call"}
-{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "tokenize", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "node.get", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "node.get", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "any", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "name.lower", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "add_unique", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "add_unique", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:seed_candidates", "dst": "is_protected", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_code_context_core.py:graph_expand", "dst": "set", "kind": "call"}
@@ -11965,6 +12078,27 @@
 {"type": "edge", "src": "scripts/mb_work_plan_wrapper.py", "dst": "sys.exit", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_work_plan_wrapper.py", "dst": "os.path.basename", "kind": "call"}
 {"type": "edge", "src": "scripts/mb_work_plan_wrapper.py", "dst": "print", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "scripts/mb_work_source.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "scripts/mb_work_source.py:declaration_candidates", "dst": "source_path.strip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:declaration_candidates", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:declaration_candidates", "dst": "source_path.strip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:declaration_candidates", "dst": "source_topic.strip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:declaration_candidates", "dst": "source_topic.strip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:declaration_candidates", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:declaration_candidates", "dst": "legacy.strip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:declaration_candidates", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "declaration_candidates", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "source_path.strip", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "resolve", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "path.resolve", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "path.is_file", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "ValueError", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "next", "kind": "call"}
+{"type": "edge", "src": "scripts/mb_work_source.py:canonical_init_source", "dst": "iter", "kind": "call"}
 {"type": "edge", "src": "settings/merge-hooks.py", "dst": "json", "kind": "import"}
 {"type": "edge", "src": "settings/merge-hooks.py", "dst": "os", "kind": "import"}
 {"type": "edge", "src": "settings/merge-hooks.py", "dst": "re", "kind": "import"}
@@ -12159,6 +12293,482 @@
 {"type": "edge", "src": "tests/fixtures/go/main.go", "dst": "fmt.Println", "kind": "call"}
 {"type": "edge", "src": "tests/fixtures/go/main.go", "dst": "fmt", "kind": "import"}
 {"type": "edge", "src": "tests/fixtures/java/src/main/java/Main.java", "dst": "System.out.println", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py", "dst": "json", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py", "dst": "os", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py", "dst": "re", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py", "dst": "subprocess", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_block", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_block", "dst": "text.split", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_block", "dst": "re.findall", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "project.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "os.environ.items", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "key.startswith", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:_run", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_global_bank_is_active_without_repo_local_bank", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_global_bank_is_active_without_repo_local_bank", "dst": "_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_global_bank_is_active_without_repo_local_bank", "dst": "result.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_global_bank_is_active_without_repo_local_bank", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_done_global_bank_supplies_gate_configuration", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_done_global_bank_supplies_gate_configuration", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_done_global_bank_supplies_gate_configuration", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_done_global_bank_supplies_gate_configuration", "dst": "_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_done_global_bank_supplies_gate_configuration", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "result.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "result.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "missing.exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_command_setup_resolves_global_bank_and_absence_without_mutation", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "project.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "registry.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "registry.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "project.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_start_uses_registered_global_bank_and_reads_its_context", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_memory_tool_snippet_runs_from_project_cwd", "dst": "session.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_memory_tool_snippet_runs_from_project_cwd", "dst": "session.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_memory_tool_snippet_runs_from_project_cwd", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_memory_tool_snippet_runs_from_project_cwd", "dst": "_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_memory_tool_snippet_runs_from_project_cwd", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "spec.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "spec.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "plan.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "plan.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "result.stdout.splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "all", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "all", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_selects_spec_source_even_with_unrelated_newer_plan", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_missing_current_source_does_not_guess_latest_plan", "dst": "plans.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_missing_current_source_does_not_guess_latest_plan", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_missing_current_source_does_not_guess_latest_plan", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_missing_current_source_does_not_guess_latest_plan", "dst": "_block", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_missing_current_source_does_not_guess_latest_plan", "dst": "result.stderr.lower", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "split", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "read_text.split", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "re.findall", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "path.replace", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_command_contracts.py:test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install", "dst": "resolved.is_file", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py", "dst": "json", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py", "dst": "os", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py", "dst": "subprocess", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:run_script", "dst": "dict", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:run_script", "dst": "env.pop", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:run_script", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:run_script", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:run_script", "dst": "map", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "spec.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "other.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "other.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_completed_spec_cannot_certify_another_spec_with_same_item", "dst": "own.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_unbound_legacy_done_state_refuses_certification", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_unbound_legacy_done_state_refuses_certification", "dst": "plan.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_unbound_legacy_done_state_refuses_certification", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_unbound_legacy_done_state_refuses_certification", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_unbound_legacy_done_state_refuses_certification", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_unbound_legacy_done_state_refuses_certification", "dst": "plan.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "other.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "target.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "target.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_source_relative_init_cannot_certify_other_cwd", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "dst": "mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "dst": "target.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_unresolved_path_cannot_certify_new_bank_relative_candidate", "dst": "target.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_relative_identity_without_init_cwd_refuses_flip", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_relative_identity_without_init_cwd_refuses_flip", "dst": "plan.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_relative_identity_without_init_cwd_refuses_flip", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_relative_identity_without_init_cwd_refuses_flip", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_relative_identity_without_init_cwd_refuses_flip", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_relative_identity_without_init_cwd_refuses_flip", "dst": "plan.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_relative_identity_without_init_cwd_refuses_flip", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "plan.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "plan.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_absolute_identity_preserves_same_source_idempotent_flip", "dst": "plan.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "path.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "path.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "state_file.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "state.pop", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "state_file.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "own.rename", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "own.with_name", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "own.symlink_to", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "own.parent.rename", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "own.parent.with_name", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "own.parent.symlink_to", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "other.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_canonical_done_source_retargeted_by_symlink_refuses_foreign_flip", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "dst": "own.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "dst": "own.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "dst": "alias.symlink_to", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "dst": "own.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_target_symlink_to_unchanged_canonical_source_updates_source_and_keeps_alias", "dst": "alias.is_symlink", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "target.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "target.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "local.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "local.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "target.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_legacy_topic_init_binds_unique_source_or_refuses_ambiguity", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "target.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "result.stdout.splitlines", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "line.startswith", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "next", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "g.get", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "next", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "g.get", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_completion.py:test_done_gates_explicit_directory_detects_violation_from_other_cwd", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "json", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "os", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "re", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "subprocess", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "bank.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "os.environ.items", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "key.startswith", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:drive", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:run", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:run", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:run", "dst": "map", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:preflight", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:preflight", "dst": "re.search", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:preflight", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:preflight", "dst": "snippet.group", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:slot", "dst": "env.get", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "exhausted.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_same_run_preserves_cycle_steps_limits_and_spend", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_pending_goal_with_default_firewall_selects_concrete_implement", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_pending_goal_with_default_firewall_selects_concrete_implement", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_pending_goal_with_default_firewall_selects_concrete_implement", "dst": "result.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_failed_current_work_with_default_firewall_repairs_current_item", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_failed_current_work_with_default_firewall_repairs_current_item", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_failed_current_work_with_default_firewall_repairs_current_item", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_failed_current_work_with_default_firewall_repairs_current_item", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_failed_current_work_with_default_firewall_repairs_current_item", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_failed_current_work_with_default_firewall_repairs_current_item", "dst": "result.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_signal_still_runs_full_firewall_acceptance", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_signal_still_runs_full_firewall_acceptance", "dst": "acceptance.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_signal_still_runs_full_firewall_acceptance", "dst": "acceptance.chmod", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_signal_still_runs_full_firewall_acceptance", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_signal_still_runs_full_firewall_acceptance", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_signal_still_runs_full_firewall_acceptance", "dst": "result.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_goal_with_default_firewall_stops_success", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_goal_with_default_firewall_stops_success", "dst": "goal.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_goal_with_default_firewall_stops_success", "dst": "goal.read_text.replace", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_goal_with_default_firewall_stops_success", "dst": "goal.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_goal_with_default_firewall_stops_success", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_goal_with_default_firewall_stops_success", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_drive_complete_goal_with_default_firewall_stops_success", "dst": "result.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "slot.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_corrupt_existing_component_refuses_without_reset", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "slot.unlink", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "slot.is_file", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_partial_start_only_initializes_missing_component", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_conflicting_resume_limit_refuses_without_reset", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_conflicting_resume_limit_refuses_without_reset", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_conflicting_resume_limit_refuses_without_reset", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_conflicting_resume_limit_refuses_without_reset", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_conflicting_resume_limit_refuses_without_reset", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_conflicting_resume_limit_refuses_without_reset", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_conflicting_resume_limit_refuses_without_reset", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_conflicting_resume_limit_refuses_without_reset", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "env.pop", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "env.pop", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "preflight", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "slot.read_bytes", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "slot", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_drive.py:test_preflight_resume_without_repeated_flags_keeps_exhausted_budget", "dst": "action.stdout.strip", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "json", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "os", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "shutil", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "subprocess", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "sys", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "home.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "project.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "os.environ.items", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "key.startswith", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "env.update", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:sandbox", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:copy_bundle", "dst": "destination.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:copy_bundle", "dst": "source.is_dir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:copy_bundle", "dst": "shutil.copytree", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:copy_bundle", "dst": "shutil.ignore_patterns", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:copy_bundle", "dst": "shutil.copy2", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:run_script", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:run_script", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:install", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:install", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "copy_bundle", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "settings.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "settings.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "install", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "settings.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "scripts.mb_sdd_judge_journal.append", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "settings.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "install", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "settings.is_file", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_pi_settings_roundtrip_preserves_existing_and_later_user_changes", "dst": "settings.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "copy_bundle", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "original.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "original.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "install", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "relative.endswith", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "next", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "entry.startswith", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "install", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "original.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "Path.exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "mapping.split", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_identical_reinstall_retains_original_backup_and_restores_it", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "copy_bundle", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "rules.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "agents.parent.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "agents.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "project_agents.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "install", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "is_file", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "agents.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "agents.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "agents.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "project_agents.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "project_agents.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "rules.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_uninstall_from_canonical_bundle_completes_global_and_project_cleanup", "dst": "bundle.exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "cwd.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "is_file", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "project.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "Path.is_file", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "project.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "exists", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_explicit_project_root_selects_target_from_another_cwd", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_invalid_arguments_fail_before_filesystem_mutation", "dst": "run_script", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_invalid_arguments_fail_before_filesystem_mutation", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_invalid_arguments_fail_before_filesystem_mutation", "dst": "project.iterdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_invalid_arguments_fail_before_filesystem_mutation", "dst": "list", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_invalid_arguments_fail_before_filesystem_mutation", "dst": "home.iterdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_install_roundtrip.py:test_init_invalid_arguments_fail_before_filesystem_mutation", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "json", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "os", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "shutil", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "subprocess", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "sys", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "pathlib.Path", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "pytest", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "Path.resolve", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:bank", "dst": "mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_note", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_search", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_search", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_search", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_index", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_index", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_index", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_index", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:_index", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "package.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "shutil.copy2", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "subprocess.run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_source_bundle_works_with_older_package_on_pythonpath", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_blocks_nested_or_unclosed_keep_public_text", "dst": "_note", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_blocks_nested_or_unclosed_keep_public_text", "dst": "_search", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_blocks_nested_or_unclosed_keep_public_text", "dst": "_search", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_blocks_nested_or_unclosed_keep_public_text", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_blocks_nested_or_unclosed_keep_public_text", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_freetext_public_lines_between_closed_and_unclosed_spans_remain_visible", "dst": "newline.join", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_freetext_public_lines_between_closed_and_unclosed_spans_remain_visible", "dst": "_note", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_freetext_public_lines_between_closed_and_unclosed_spans_remain_visible", "dst": "_search", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_freetext_public_lines_between_closed_and_unclosed_spans_remain_visible", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_lessons_closed_private_content_excluded_before_extraction", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_lessons_closed_private_content_excluded_before_extraction", "dst": "_index", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_lessons_closed_private_content_excluded_before_extraction", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_lessons_closed_private_content_excluded_before_extraction", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_lessons_closed_private_content_excluded_before_extraction", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_lessons_unclosed_block_after_closed_span_hides_only_actual_tail", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_lessons_unclosed_block_after_closed_span_hides_only_actual_tail", "dst": "_index", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_index_lessons_unclosed_block_after_closed_span_hides_only_actual_tail", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_reveal_requires_both_opt_ins", "dst": "_note", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_reveal_requires_both_opt_ins", "dst": "args.insert", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_reveal_requires_both_opt_ins", "dst": "_search", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_reveal_requires_both_opt_ins", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_audit_privacy.py:test_search_private_reveal_requires_both_opt_ins", "dst": "pytest.mark.parametrize", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_bats_assertion_contract.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_bats_assertion_contract.py", "dst": "pathlib", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_bats_assertion_contract.py", "dst": "re", "kind": "import"}
@@ -12407,6 +13017,7 @@
 {"type": "edge", "src": "tests/pytest/test_checklist_v2.py:test_is_safe_plan_name_rejects_anything_that_can_leave_plans_dir", "dst": "pytest.mark.parametrize", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "__future__.annotations", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "json", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "os", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "platform", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "shutil", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "subprocess", "kind": "import"}
@@ -12416,6 +13027,7 @@
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "pytest", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "Path.resolve", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "pathlib.Path", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "os.environ.get", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "sys.path.insert", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_cli.py", "dst": "memory_bank_skill.__version__", "kind": "import"}
@@ -12670,6 +13282,7 @@
 {"type": "edge", "src": "tests/pytest/test_code_context.py", "dst": "sys", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py", "dst": "pathlib.Path", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py", "dst": "typing.Any", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py", "dst": "pytest", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py", "dst": "Path.resolve", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py", "dst": "pathlib.Path", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py:_write_graph", "dst": "path.parent.mkdir", "kind": "call"}
@@ -12690,6 +13303,53 @@
 {"type": "edge", "src": "tests/pytest/test_code_context.py:_run", "dst": "subprocess.run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py:_run", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py:_json", "dst": "json.loads", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "_fixture_project", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "notes.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "unlink", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "_json", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_source_with_many_memory_mentions_remains_recommended", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "_fixture_project", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "notes.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "candidates.append", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "semantic.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "_json", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_exact_definition_with_full_semantic_list_keeps_mode_contract", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py", "dst": "memory_bank_skill.codegraph_python.parse_file", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "_fixture_project", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "source.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "memory_bank_skill.codegraph_python.parse_file", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "records.extend", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "other.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "decoys.extend", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "memory_bank_skill.codegraph_python.parse_file", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "_write_graph", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "semantic.write_text", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "json.dumps", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "range", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "_run", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "str", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "_json", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "len", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "pytest.mark.parametrize", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_code_context.py:test_qualified_definition_from_real_parser_survives_semantic_saturation", "dst": "pytest.mark.parametrize", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py:test_code_context_returns_evidence_pack_with_semantic_graph_and_tests", "dst": "_fixture_project", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py:test_code_context_returns_evidence_pack_with_semantic_graph_and_tests", "dst": "_run", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_code_context.py:test_code_context_returns_evidence_pack_with_semantic_graph_and_tests", "dst": "str", "kind": "call"}
@@ -14191,6 +14851,7 @@
 {"type": "edge", "src": "tests/pytest/test_consolidate.py:test_cluster_links_on_lexical_overlap_above_threshold", "dst": "cz.cluster_sessions", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_consolidate.py:test_cluster_links_on_lexical_overlap_above_threshold", "dst": "len", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "__future__.annotations", "kind": "import"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "re", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "pathlib.Path", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "pytest", "kind": "import"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py", "dst": "Path.resolve", "kind": "call"}
@@ -14198,6 +14859,7 @@
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:_read", "dst": "scripts.mb_backlog_state_engine.read_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_manager_documents_strict_actualize_contract", "dst": "_read", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_done_step_five_runs_the_cap_fixer", "dst": "_read", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_done_step_five_runs_the_cap_fixer", "dst": "re.search", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_mb_router_exposes_update_strict", "dst": "_read", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_status_templates_declare_the_hard_cap", "dst": "_read", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_core_cap_docs.py:test_status_templates_declare_the_hard_cap", "dst": "text.lower", "kind": "call"}
@@ -17659,9 +18321,11 @@
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py", "dst": "Path.resolve", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py", "dst": "pathlib.Path", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_init_mb", "dst": "mb.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_write_state", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_write_state", "dst": "write_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_write_state", "dst": "json.dumps", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_write_run_state", "dst": "state_dir.mkdir", "kind": "call"}
+{"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_write_run_state", "dst": "str", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_write_run_state", "dst": "write_text", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_write_run_state", "dst": "json.dumps", "kind": "call"}
 {"type": "edge", "src": "tests/pytest/test_mb_work_checkbox.py:_run", "dst": "dict", "kind": "call"}

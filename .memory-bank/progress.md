@@ -3576,3 +3576,15 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 - ✅ Stage 7 — J + K + L — три теста, проверяющие не то, что есть
 - ✅ Stage 8 — закрытие — батарея зелёная целиком, реестры обновлены
 - ✅ Stage 9 — M — `mb-test-run.sh` перестаёт терять python-тесты (исполняется ДО Stage 8)
+
+## 2026-09-17
+
+### Auto-capture 2026-09-17 (session c4ccb6f2)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-17
+
+### Auto-capture 2026-09-17 (session d6e97fa4)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
