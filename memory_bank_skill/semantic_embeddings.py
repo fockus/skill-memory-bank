@@ -1,12 +1,20 @@
 """Optional local-embedding retriever for semantic code search.
 
-Gated behind ``HAS_SENTENCE_TRANSFORMERS`` — when ``sentence-transformers`` (and
-``numpy``) are not installed, ``EmbeddingRetriever.available`` is ``False`` and the
-factory in ``semantic_search`` falls back to BM25. This keeps the skill's
+Gated behind ``HAS_FASTEMBED`` — when ``fastembed`` is not installed,
+``EmbeddingRetriever.available`` is ``False`` and the factory in
+``semantic_search`` falls back to BM25. This keeps the skill's
 zero-required-dependency contract: embeddings are strictly opt-in.
 
+Backend is ``fastembed`` (ONNX, ~50 MB, no torch) — exactly what
+``hooks/mb-semantic-bootstrap.sh`` installs (AGR-045); the previous
+``sentence-transformers`` import never matched the bootstrap, so ``available``
+was always ``False`` in practice.
+
 Embeddings are local (no API key, no network at inference once the model is
-cached). Default model: ``all-MiniLM-L6-v2`` (small, fast, offline).
+cached). Default model: ``sentence-transformers/all-MiniLM-L6-v2`` (384-dim,
+small, fast, offline) — the same weights as before under the namespaced id
+fastembed requires. The id is part of ``corpus_key``, so it names the encoder
+that actually produced the vectors instead of a name it no longer uses.
 """
 
 from __future__ import annotations
@@ -16,9 +24,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-# numpy is decoupled from sentence-transformers so the on-disk vector cache is
-# usable (and unit-testable) wherever numpy exists, independent of whether the
-# heavy embedding model dependency is installed.
+# numpy is decoupled from fastembed so the on-disk vector cache is usable (and
+# unit-testable) wherever numpy exists, independent of whether the embedding
+# model dependency is installed.
 HAS_NUMPY = False
 try:
     import numpy as np
@@ -26,14 +34,14 @@ try:
 except ImportError:  # pragma: no cover - exercised when numpy is missing
     np = None  # type: ignore[assignment]
 
-HAS_SENTENCE_TRANSFORMERS = False
+HAS_FASTEMBED = False
 try:  # optional dependency — graceful degradation when absent
-    from sentence_transformers import SentenceTransformer
-    HAS_SENTENCE_TRANSFORMERS = True
+    from fastembed import TextEmbedding
+    HAS_FASTEMBED = True
 except ImportError:  # pragma: no cover - exercised when the dep is missing
-    SentenceTransformer = None  # type: ignore[assignment,misc]
+    TextEmbedding = None  # type: ignore[assignment,misc]
 
-_DEFAULT_MODEL = "all-MiniLM-L6-v2"
+_DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def corpus_key(model_name: str, texts: list[str]) -> str:
@@ -118,12 +126,21 @@ class EmbeddingRetriever:
 
     @property
     def available(self) -> bool:
-        return HAS_SENTENCE_TRANSFORMERS
+        return HAS_FASTEMBED
 
     def _ensure_model(self) -> Any:  # pragma: no cover - requires optional model
         if self._model is None:
-            self._model = SentenceTransformer(self.model_name)
+            self._model = TextEmbedding(self.model_name)
         return self._model
+
+    def _encode(self, texts: list[str]) -> Any:  # pragma: no cover - optional model
+        """Embed texts into an ``(n, dim)`` matrix.
+
+        ``TextEmbedding.embed`` yields one vector per text (already L2-normalised
+        for this model), so cosine similarity stays a plain dot product — the
+        matrix shape and the on-disk cache format are unchanged.
+        """
+        return np.asarray(list(self._ensure_model().embed(texts)), dtype="float32")
 
     def index(self, docs: list[dict[str, Any]]) -> None:  # pragma: no cover - optional model
         self._docs = list(docs)
@@ -137,14 +154,14 @@ class EmbeddingRetriever:
             if cached is not None:
                 self._emb = cached
                 return
-        self._emb = self._ensure_model().encode(texts, normalize_embeddings=True)
+        self._emb = self._encode(texts)
         if self._cache_dir is not None:
             _save_cache(self._cache_dir, key, self._emb)
 
     def search(self, query: str, k: int = 10) -> list[dict[str, Any]]:  # pragma: no cover
         if self._emb is None or not self._docs:
             return []
-        q = self._ensure_model().encode([query], normalize_embeddings=True)[0]
+        q = self._encode([query])[0]
         sims = self._emb @ q
         order = np.argsort(-sims)[:k]
         return [{

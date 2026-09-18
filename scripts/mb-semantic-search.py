@@ -7,7 +7,7 @@ Usage:
 
 Ranks function/class/module symbols (+ wiki articles, if `/mb wiki` was run) by
 relevance to the query. Default backend is pure-Python BM25 (deterministic, $0,
-zero deps); `--backend embeddings` uses local sentence-transformers when installed
+zero deps); `--backend embeddings` uses local fastembed embeddings when installed
 (falls back to BM25 otherwise). Complements the deterministic structural queries in
 `mb-graph-query.py` — use this for "where is the logic for X?" questions.
 

@@ -24,7 +24,7 @@
 - [2026-06-23] `in_progress` [2026-06-23_fix_config-validation-docs.md](plans/2026-06-23_fix_config-validation-docs.md) — fix — Config Validation & Doc Consistency
 - [2026-07-05] `in_progress` [2026-07-05_SEQUENCE_long-running-sessions.md](plans/2026-07-05_SEQUENCE_long-running-sessions.md) — sequence-plan — SEQUENCE — Long-running autonomous sessions
 - [2026-07-15] `queued` [2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md](plans/2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md) — feature — mb-donor-evolution — v5.4.0 Trustworthy Baseline
-- [2026-07-28] `in_progress` [2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
+- [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
 - [2026-09-05] `queued` [2026-09-05_fix_mb-work-cost-diet-sprint2.md](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) — fix — mb-work-cost-diet · Sprint 2 «work-loop-diet»
 - [2026-09-05] `queued` [2026-09-05_fix_mb-work-cost-diet-sprint3.md](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md) — fix — mb-work-cost-diet · Sprint 3 «instruction-diet + гигиена»
 <!-- /mb-active-plans -->

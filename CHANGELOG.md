@@ -4,6 +4,38 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — `/mb graph --apply` warms the semantic vector index
+
+- `memory_bank_skill/semantic_index.py`: the graph build now ends by refreshing
+  `<bank>/.index/codesearch/`, so the first `mb-semantic-search.py --backend embeddings`
+  reads a cached matrix instead of encoding the whole corpus at query time. That cost is why
+  the index existed in no bank at all: the first query had to pay minutes, so nobody ran one.
+- The parent only hashes the corpus (~0.1 s on 9 275 symbols) and spawns the encoder DETACHED —
+  `--apply` stays at ~1.4 s, which it must: `codegraph_catchup` SIGKILLs the build's process
+  group after a 30 s budget. Re-encoding happens only when the corpus hash changed; an unchanged
+  corpus prints `semantic index: up to date (N docs)` and leaves the cache files untouched.
+  A second builder exits on a non-blocking `flock` rather than encoding the same corpus twice.
+- Honest degradation (AGR-013): with no fastembed venv the step prints
+  `semantic index skipped (no fastembed)` and the graph build is unaffected. The line carries no
+  `=`, so `codegraph_catchup`'s key=value parsing of `--apply` stdout is unchanged.
+- Backfilled: `skill-memory-bank` (9 275 docs, 14 MB), `code-agent` (19 670 docs, 30 MB),
+  `techflow` (2 796 docs, 4 MB), `harness` (30 docs) — a warm embeddings query answers in ~0.7 s.
+
+### Fixed — the embeddings backend imported a package nothing installs
+
+- `memory_bank_skill/semantic_embeddings.py` imported `sentence_transformers`, while
+  `hooks/mb-semantic-bootstrap.sh` installs `fastembed`: `EmbeddingRetriever.available` was
+  therefore always `False` and `--backend embeddings` silently fell back to BM25 with a warning
+  that told the user to install the wrong package. The retriever now uses
+  `fastembed.TextEmbedding` (AGR-045) — ONNX, ~50 MB, no torch. `available` / `index` / `search`
+  and the `embeddings.npy` + `embeddings.key` cache format are unchanged; only the encode seam
+  moved from `.encode(texts)` to the generator `.embed(texts)`.
+- The model is the same weights under the id fastembed requires
+  (`sentence-transformers/all-MiniLM-L6-v2`, 384-dim). The id is part of the cache key on
+  purpose, so a cached matrix always names the encoder that produced it.
+- `mb-deps-check.sh` reports the optional dep as `fastembed` and points at
+  `hooks/mb-semantic-bootstrap.sh` instead of `pip3 install sentence-transformers`.
+
 ### Added — the code graph now covers Bash and Bats, always on
 
 - `memory_bank_skill/codegraph_shell.py`: a pure, regex-based extractor for `.sh` and `.bats`,

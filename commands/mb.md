@@ -836,6 +836,8 @@ Build a code graph for the project with 0 new deps: Python through stdlib `ast`,
 
 Extraction engines live in the `memory_bank_skill` package: `codegraph_python` (stdlib `ast`), `codegraph_shell` (Bash/Bats via stdlib `re`), `codegraph_treesitter` (opt-in multi-language), `codegraph_analytics` (degree split / communities / betweenness), `codegraph_cochange` (git co-change). `mb-codegraph.py` is a thin orchestrator over them.
 
+`--apply` ends by warming the semantic vector index (`<bank>/.index/codesearch/`) from the graph it just wrote, so the first `mb-semantic-search.py --backend embeddings` reads a cache instead of encoding for minutes. The encoding runs detached (the graph build itself stays seconds) and only when the corpus changed; without the fastembed venv the step prints `semantic index skipped (no fastembed)` and exits 0. Install it with `bash ~/.claude/hooks/mb-semantic-bootstrap.sh`.
+
 **What it parses:**
 
 - **Nodes:** module (per file), function (top-level + nested), class
@@ -949,7 +951,7 @@ feed semantic search.
 
 **Semantic search** (companion tool, not a `/mb` subcommand): `scripts/mb-semantic-search.py
 "<query>" [mb_path] [--backend auto|bm25|embeddings] [--source-only] [--k N]`. Default backend
-`auto` = local `sentence-transformers` **embeddings** when installed (best for concept/synonym
+`auto` = local `fastembed` **embeddings** when installed (best for concept/synonym
 queries), else pure-Python **BM25** ($0, zero deps, deterministic — best for exact identifiers),
 over graph symbols + wiki articles. `--source-only` drops test/spec files. First embeddings query
 loads the model (~5-15s); subsequent queries reuse a cached vector matrix under

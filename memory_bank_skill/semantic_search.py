@@ -312,7 +312,8 @@ def make_retriever(
         return FusedRetriever(Bm25Retriever(), embedder)
     if backend == "embeddings":
         warns.append(
-            "embeddings backend unavailable (install sentence-transformers); falling back to bm25"
+            "embeddings backend unavailable (run hooks/mb-semantic-bootstrap.sh to install "
+            "fastembed); falling back to bm25"
         )
     return Bm25Retriever()
 

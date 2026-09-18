@@ -127,7 +127,7 @@ def test_apply_churn_multiplier_stable_when_empty_churn_map():
 
 def test_run_search_without_churn_attrs_is_unchanged(tmp_path: Path, monkeypatch):
     """No node-attr rows → ranking byte-identical to pre-churn behaviour."""
-    monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False)
+    monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False)
     mb = tmp_path / ".memory-bank"
     _write_graph(mb)  # no churn rows
     result = ss.run_search(query="login", mb_path=str(mb), backend="bm25")
@@ -141,7 +141,7 @@ def test_run_search_without_churn_attrs_is_unchanged(tmp_path: Path, monkeypatch
 
 def test_run_search_hot_file_outranks_cold_when_churn_present(tmp_path: Path, monkeypatch):
     """Two files matching 'login' equally; the higher-churn file ranks first."""
-    monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False)
+    monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False)
     mb = tmp_path / ".memory-bank"
     # Both auth.py and session.py define `login`; identical BM25 text → tie.
     _write_graph(
@@ -167,7 +167,7 @@ def test_run_search_churn_reranks_over_full_candidate_set_not_topk_window(
     the hot file must be the single returned result. The old ``fetch_k = k*3``
     window (=3 here) excluded rank-4, so it could never be promoted.
     """
-    monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False)
+    monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False)
     mb = tmp_path / ".memory-bank"
     cb = mb / "codebase"
     cb.mkdir(parents=True, exist_ok=True)
@@ -215,7 +215,7 @@ def test_run_search_churn_reranks_over_full_candidate_set_not_topk_window(
 
 def test_run_search_churn_changes_ranking_vs_no_churn(tmp_path: Path, monkeypatch):
     """The same corpus ranks differently once churn attrs are present."""
-    monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False)
+    monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False)
     mb_plain = tmp_path / "plain"
     _write_graph(mb_plain)
     plain = ss.run_search(query="login", mb_path=str(mb_plain), backend="bm25")

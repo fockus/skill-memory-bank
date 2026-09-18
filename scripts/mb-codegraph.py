@@ -548,6 +548,18 @@ def run(
     _write_graph_jsonl(graph, codebase / "graph.json", communities, churn_attrs, meta=meta)
     atomic_write(codebase / "god-nodes.md", god_nodes_md)
 
+    # Warm the semantic vector index from the graph just written, so the first
+    # `mb-semantic-search.py --backend embeddings` reads a cache instead of
+    # encoding for minutes. The encoding itself runs detached (this call stays in
+    # the millisecond range); no fastembed venv → one honest line, build unaffected.
+    try:
+        from memory_bank_skill.semantic_index import refresh_index
+
+        index_line = refresh_index(mb)
+    except ImportError:  # pragma: no cover - partial install
+        index_line = "semantic index skipped (no fastembed)"
+    print(index_line)
+
     return summary
 
 

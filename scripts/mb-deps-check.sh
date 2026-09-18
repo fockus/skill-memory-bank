@@ -6,7 +6,7 @@
 # Required:   bash, python3, jq, git
 # Optional:   rg (ripgrep), shellcheck, tree_sitter (Python package),
 #             PyYAML (Python package), networkx (Python package),
-#             sentence_transformers (Python package — opt-in semantic search)
+#             fastembed (Python package — opt-in semantic search)
 #
 # Output (stdout, key=value — machine-parseable):
 #   dep_<name>=ok | missing | optional-missing
@@ -83,7 +83,7 @@ hint_for() {
     macos:tree_sitter) echo "pip3 install tree-sitter tree-sitter-python tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java" ;;
     macos:PyYAML)      echo "pip3 install PyYAML" ;;
     macos:networkx)    echo "pip3 install networkx" ;;
-    macos:sentence_transformers) echo "pip3 install sentence-transformers" ;;
+    macos:fastembed)   echo "bash ~/.claude/hooks/mb-semantic-bootstrap.sh" ;;
     debian:python3)     echo "sudo apt install python3" ;;
     "debian:python3>=3.11") echo "sudo apt install python3.11 (or: pyenv install 3.11)" ;;
     debian:jq)          echo "sudo apt install jq" ;;
@@ -93,7 +93,7 @@ hint_for() {
     debian:tree_sitter) echo "pip3 install tree-sitter tree-sitter-python tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java" ;;
     debian:PyYAML)      echo "pip3 install PyYAML" ;;
     debian:networkx)    echo "pip3 install networkx" ;;
-    debian:sentence_transformers) echo "pip3 install sentence-transformers" ;;
+    debian:fastembed)   echo "bash ~/.claude/hooks/mb-semantic-bootstrap.sh" ;;
     fedora:python3)     echo "sudo dnf install python3" ;;
     "fedora:python3>=3.11") echo "sudo dnf install python3.11" ;;
     fedora:jq)          echo "sudo dnf install jq" ;;
@@ -198,7 +198,7 @@ check_optional "shellcheck" "shellcheck"
 check_pymod_optional "tree_sitter" "tree_sitter"
 check_pymod_optional "PyYAML"      "yaml"
 check_pymod_optional "networkx"    "networkx"
-check_pymod_optional "sentence_transformers" "sentence_transformers"
+check_pymod_optional "fastembed" "fastembed"
 
 echo "deps_required_missing=$REQUIRED_MISSING"
 echo "deps_optional_missing=$OPTIONAL_MISSING"

@@ -111,7 +111,7 @@ class TestScenario1NoBM25OnlyAuto:
     def test_make_retriever_auto_without_embeddings_returns_bm25(self, monkeypatch):
         """auto backend falls back to BM25 when embeddings are unavailable."""
         monkeypatch.setattr(
-            "memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False
+            "memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False
         )
         r = ss.make_retriever("auto")
         assert r.name == "bm25"
@@ -119,7 +119,7 @@ class TestScenario1NoBM25OnlyAuto:
     def test_make_retriever_auto_without_embeddings_single_retriever(self, monkeypatch):
         """auto without embeddings returns a single BM25 Retriever (not a fused one)."""
         monkeypatch.setattr(
-            "memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False
+            "memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False
         )
         r = ss.make_retriever("auto")
         assert isinstance(r, ss.Bm25Retriever)
@@ -129,7 +129,7 @@ class TestScenario1NoBM25OnlyAuto:
     ):
         """run_search(backend='auto') with no embeddings reports backend='bm25'."""
         monkeypatch.setattr(
-            "memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False
+            "memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False
         )
         mb = tmp_path / ".memory-bank"
         _write_graph(mb)
@@ -140,7 +140,7 @@ class TestScenario1NoBM25OnlyAuto:
     def test_run_search_auto_without_embeddings_returns_hits(self, tmp_path: Path, monkeypatch):
         """run_search(backend='auto') without embeddings still returns relevant hits."""
         monkeypatch.setattr(
-            "memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False
+            "memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False
         )
         mb = tmp_path / ".memory-bank"
         _write_graph(mb)
@@ -151,7 +151,7 @@ class TestScenario1NoBM25OnlyAuto:
     def test_run_search_auto_without_embeddings_exit0_equivalent(self, tmp_path: Path, monkeypatch):
         """run_search without embeddings completes without error (exit 0 equivalent)."""
         monkeypatch.setattr(
-            "memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False
+            "memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False
         )
         mb = tmp_path / ".memory-bank"
         _write_graph(mb)
@@ -170,7 +170,7 @@ class TestScenario1NoBM25OnlyAuto:
         BM25, not just "return some hits").
         """
         monkeypatch.setattr(
-            "memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False
+            "memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False
         )
         mb = tmp_path / ".memory-bank"
         _write_graph(mb)
@@ -188,7 +188,7 @@ class TestScenario2RRFFusion:
 
     def test_make_retriever_auto_with_embeddings_returns_fused(self, monkeypatch):
         """make_retriever('auto') with embeddings available returns a FusedRetriever."""
-        monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", True)
+        monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", True)
         monkeypatch.setattr(
             "memory_bank_skill.semantic_embeddings.EmbeddingRetriever",
             FakeEmbeddingRetriever,
@@ -372,7 +372,7 @@ class TestExplicitBackendRegression:
     def test_explicit_embeddings_falls_back_to_bm25_without_dep(self, monkeypatch):
         """explicit embeddings still falls back to BM25 when dep is missing (unchanged)."""
         monkeypatch.setattr(
-            "memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", False
+            "memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", False
         )
         warnings: list[str] = []
         r = ss.make_retriever("embeddings", warnings=warnings)
@@ -407,7 +407,7 @@ class TestScenario2ProductionPath:
 
     def _patch_embedding_retriever(self, monkeypatch):
         """Replace EmbeddingRetriever inside semantic_search with FakeEmbeddingRetriever."""
-        monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_SENTENCE_TRANSFORMERS", True)
+        monkeypatch.setattr("memory_bank_skill.semantic_embeddings.HAS_FASTEMBED", True)
         # Patch the class that make_retriever instantiates
         monkeypatch.setattr(
             "memory_bank_skill.semantic_embeddings.EmbeddingRetriever",

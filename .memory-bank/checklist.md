@@ -55,7 +55,7 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - `progress.md` — append-only historical log.
 
 <!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## graph-semantic-adoption — 1/7
+## graph-semantic-adoption — 1/8
 - ⬜ Stage 1 — Nudge v2 — повторяемый и действенный
 - ⬜ Stage 2 — Bootstrap векторного индекса при `/mb graph --apply`
 - ⬜ Stage 3 — Auto-catchup графа на SessionStart
@@ -63,4 +63,5 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - ⬜ Stage 5 — Статус графа в диспатче субагентов
 - ✅ Stage 6 — Покрытие — bash и bats в графе
 - ⬜ Stage 7 — Граф в каждом диспатче `/mb work` + замер adoption
+- ⬜ Stage 8 — Тёплый индекс доступен документированной командой
 

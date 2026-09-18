@@ -4,11 +4,17 @@
 EmbeddingRetriever.index hit/miss) is exercised via an injected fake model and is
 guarded by `pytest.importorskip("numpy")` — it runs locally where numpy is present
 and SKIPS in CI (numpy absent), matching the `# pragma: no cover` on those paths.
+
+The embedding backend is `fastembed` (AGR-045): its `TextEmbedding.embed(texts)`
+yields one vector per text, so the fake model below mimics a generator, not the
+single matrix the old sentence-transformers `.encode()` returned.
 """
 
 from __future__ import annotations
 
+import importlib
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -46,21 +52,25 @@ def test_has_numpy_flag_is_bool():
 # ── numpy-backed cache (injected fake model; skipped in CI) ───────────
 
 class _SpyModel:
-    """Fake sentence-transformer: counts encode() calls, returns ones-matrix."""
+    """Fake fastembed TextEmbedding: counts embed() calls, yields ones-vectors.
+
+    Exposes ONLY `embed` — a retriever that still called `.encode()` would raise
+    AttributeError here, so every cache test below also pins the fastembed seam.
+    """
 
     def __init__(self, np_) -> None:
         self.np = np_
         self.calls = 0
 
-    def encode(self, texts, normalize_embeddings=True):  # noqa: ARG002
+    def embed(self, texts, **kwargs):  # noqa: ARG002
         self.calls += 1
-        return self.np.ones((len(texts), 4), dtype="float32")
+        return (self.np.ones(4, dtype="float32") for _ in texts)
 
 
 def _embedder_with_spy(np_, cache):
     r = se.EmbeddingRetriever(cache_dir=cache)
     spy = _SpyModel(np_)
-    r._model = spy  # inject fake model so _ensure_model() skips loading sentence-transformers
+    r._model = spy  # inject fake model so _ensure_model() never loads the real fastembed model
     return r, spy
 
 
@@ -142,3 +152,82 @@ def test_load_cache_corrupt_npy_falls_back_to_reencode(tmp_path: Path):
     r, spy = _embedder_with_spy(np_, cache)
     r.index(docs)
     assert spy.calls == 1                          # corrupt matrix → recover by re-encode
+
+
+# ── fastembed availability flag (module-level import, needs reload) ───
+
+def _stub_fastembed() -> types.ModuleType:
+    """Minimal stand-in for the `fastembed` package (TextEmbedding.embed)."""
+    mod = types.ModuleType("fastembed")
+
+    class TextEmbedding:  # noqa: D401 - stub
+        def __init__(self, model_name, **kwargs):  # noqa: ARG002
+            self.model_name = model_name
+
+        def embed(self, texts, **kwargs):  # noqa: ARG002
+            import numpy as np
+            return (np.ones(4, dtype="float32") for _ in texts)
+
+    mod.TextEmbedding = TextEmbedding
+    return mod
+
+
+@pytest.fixture
+def reload_se():
+    """Reload semantic_embeddings (re-evaluates the optional import), restore after."""
+    missing = object()
+    saved = sys.modules.get("fastembed", missing)
+
+    def _reload():
+        importlib.reload(se)
+
+    yield _reload
+    if saved is missing:
+        sys.modules.pop("fastembed", None)
+    else:  # pragma: no cover - only when fastembed is really installed
+        sys.modules["fastembed"] = saved
+    importlib.reload(se)
+
+
+def test_available_is_false_without_fastembed(reload_se):
+    sys.modules["fastembed"] = None  # None in sys.modules → `import fastembed` raises
+    reload_se()
+    assert se.HAS_FASTEMBED is False
+    assert se.EmbeddingRetriever().available is False
+
+
+def test_available_is_true_with_fastembed(reload_se):
+    sys.modules["fastembed"] = _stub_fastembed()
+    reload_se()
+    assert se.HAS_FASTEMBED is True
+    assert se.EmbeddingRetriever().available is True
+
+
+def test_ensure_model_builds_fastembed_text_embedding(reload_se):
+    sys.modules["fastembed"] = _stub_fastembed()
+    reload_se()
+    r = se.EmbeddingRetriever()
+    model = r._ensure_model()
+    assert model.model_name == se._DEFAULT_MODEL
+    assert r._ensure_model() is model  # loaded once, then reused
+
+
+def test_default_model_is_the_fastembed_model_id():
+    # fastembed requires the namespaced id; a bare name is not resolvable there.
+    assert se._DEFAULT_MODEL == "sentence-transformers/all-MiniLM-L6-v2"
+
+
+def test_index_encodes_into_a_matrix_of_one_row_per_doc(tmp_path: Path):
+    np_ = pytest.importorskip("numpy")
+    r, spy = _embedder_with_spy(np_, tmp_path / "codesearch")
+    r.index([{"id": str(i), "file": "a", "text": f"t{i}"} for i in range(3)])
+    assert spy.calls == 1
+    assert r._emb.shape == (3, 4)  # generator of 3 vectors → (3, 4) matrix
+
+
+def test_search_hit_fields_are_unchanged(tmp_path: Path):
+    np_ = pytest.importorskip("numpy")
+    r, _ = _embedder_with_spy(np_, tmp_path / "codesearch")
+    r.index([{"id": "a.py:f", "file": "a.py", "text": "x", "kind": "function"}])
+    hits = r.search("x", k=1)
+    assert hits and set(hits[0]) == {"id", "file", "score", "snippet", "kind", "is_test"}

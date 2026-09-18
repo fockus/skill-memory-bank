@@ -1196,3 +1196,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-223 — Флак bats: 'flow-verify: default set on an unknown-stack bank with a MET goal' (test_mb_flow_verify.bats:309) падает по [ status -eq 0 ] при параллельной нагрузке — тест запускает вложенный mb-test-run.sh (родня I-158/I-131); изолированно 7/7 зелёный, под искусственной нагрузкой не воспроизвёлся [MED, NEW, 2026-09-18]
 
 ### I-224 — Флак bats: 'update-notify: warm cache … well under 100ms' (test_mb_update_notify.bats:780) — утверждение [ elapsed_ms -lt 100 ] меряет стенные часы вокруг запуска bash-хука; при load average ~8 падает 1 из 3 даже изолированно. Порог времени в тесте не отделяет регресс от занятой машины [MED, NEW, 2026-09-18]
+
+### I-225 — /mb graph --apply системным python3 (без networkx) молча ужимает git-отслеживаемый god-nodes.md на ~83 строки — Communities и Bridge files исчезают. Пометка в отчёт пишется, но содержимое коммитится разное в зависимости от интерпретатора; --apply должен либо требовать networkx, либо не перезаписывать секции, которые не может построить [MED, NEW, 2026-09-18]
+
+### I-226 — plan-sync теряет метку статуса плана в status.md: у graph-semantic-adoption во frontmatter status: in_progress, а в блоке mb-active-plans строка после синхронизации осталась без ярлыка (у соседних планов queued/in_progress на месте) [LOW, NEW, 2026-09-18]

@@ -81,7 +81,7 @@ python3 scripts/mb-semantic-search.py "<query>" .memory-bank \
 
 Ranks graph symbols (+ wiki articles, if built) by relevance.
 
-- **`--backend auto`** (default) = when local `sentence-transformers`
+- **`--backend auto`** (default) = when local `fastembed`
   **embeddings** are installed, the embeddings and BM25 rankings are fused via
   **Reciprocal Rank Fusion** (RRF) — combining concept recall with exact-name
   precision; without embeddings it stays pure-Python **BM25** (\$0, zero deps,
@@ -129,7 +129,7 @@ using **host subagents** (no API key; cost is only the subagent calls):
 | "give me a map / the non-obvious links" / "why" | `/mb wiki`, or `/mb recall` for past decisions |
 
 **Fail open:** missing/stale graph → suggest `/mb graph --apply`; missing
-optional dep (`networkx`, `sentence-transformers`) → degrade and surface the
+optional dep (`networkx`, `fastembed`) → degrade and surface the
 install, never block the task.
 
 ---

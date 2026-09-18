@@ -119,7 +119,7 @@ def test_make_retriever_bm25_explicit():
 def test_make_retriever_embeddings_falls_back_when_unavailable():
     warnings: list[str] = []
     r = ss.make_retriever("embeddings", warnings=warnings)
-    if not se.HAS_SENTENCE_TRANSFORMERS:
+    if not se.HAS_FASTEMBED:
         assert r.name == "bm25"
         assert any("bm25" in w for w in warnings)
     else:  # pragma: no cover - only when the optional dep is installed
@@ -128,13 +128,13 @@ def test_make_retriever_embeddings_falls_back_when_unavailable():
 
 def test_make_retriever_auto_uses_bm25_without_embeddings():
     r = ss.make_retriever("auto")
-    if not se.HAS_SENTENCE_TRANSFORMERS:
+    if not se.HAS_FASTEMBED:
         assert r.name == "bm25"
 
 
 def test_embedding_retriever_available_reflects_dependency():
     r = se.EmbeddingRetriever()
-    assert r.available == se.HAS_SENTENCE_TRANSFORMERS
+    assert r.available == se.HAS_FASTEMBED
 
 
 def test_retriever_protocol_contract():
