@@ -71,7 +71,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `upgrade`                                                | Update the skill from GitHub (`git pull + re-install`). Flags: `--check` (check only), `--force` (skip confirmation)                                                                                                                                                                                     |
 | `compact [--dry-run|--apply]`                            | Status-based decay: plans in `done/` older than 60d → BACKLOG archive, low-importance notes older than 90d → `notes/archive/`. Active plans are not touched. `--dry-run` (default) = reasoning only                                                                                                      |
 | `import --project <path> [--since YYYY-MM-DD] [--apply]` | Bootstrap MB from Claude Code JSONL (`~/.claude/projects/<slug>/*.jsonl`). Extracts `progress.md` (daily), `notes/` (architecture-discussion heuristic), PII auto-wrap. Dedup via SHA256 + resume state                                                                                                  |
-| `graph [--apply] [--cochange] [--questions] [src_root]`  | Multi-language code graph: Python (stdlib `ast`, always on) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in through `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines, `community` ids) + `codebase/god-nodes.md` (Top symbols / Top modules + Communities & Bridge files via optional networkx). Incremental SHA256 cache. Opt-in `--cochange` adds deterministic git co-change file edges (`co_change` kind); `--questions` appends deterministic suggested questions to `god-nodes.md` |
+| `graph [--apply] [--cochange] [--questions] [src_root]`  | Multi-language code graph. Always on: Python + Bash + Bats (stdlib `ast` / `re`, 0 deps) + Go/JS/TS/Rust/Java (via tree-sitter, opt-in through `pip install tree-sitter tree-sitter-go ...`). Output: `codebase/graph.json` (JSON Lines, `community` ids) + `codebase/god-nodes.md` (Top symbols / Top modules + Communities & Bridge files via optional networkx). Incremental SHA256 cache. Opt-in `--cochange` adds deterministic git co-change file edges (`co_change` kind); `--questions` appends deterministic suggested questions to `god-nodes.md` |
 | `wiki [--dry-run] [src_root]`                            | **Opt-in LLM layer** (see `### wiki` below). Codebase wiki (one article per community, Haiku) + "surprising connection" `semantic` edges the static graph misses (Sonnet), via host subagents — no API key. Deterministic prep in `scripts/mb-wiki.py`. Default `/mb graph` untouched |
 | `tags [--apply] [--auto-merge]`                          | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 against a closed vocabulary and propose merges. `--auto-merge` only applies distance ≤1. Vocabulary is in `.memory-bank/tags-vocabulary.md` (fallback: `references/tags-vocabulary.md`). `mb-index-json.py` auto-normalizes to kebab-case |
 | `init [--minimal|--full]`                                | Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only                                                                                                                                                                                     |
@@ -832,9 +832,9 @@ User: /mb import --project ~/.claude/projects/-Users-fockus-Apps-myproject/ --si
 
 ### graph [--apply] [--cochange] [--questions] [--docs] [src_root]
 
-Build a code graph for the Python part of the project through stdlib `ast` (0 new deps). Replaces `grep` for questions like "where is X called?", "which classes inherit from Y?", "what is imported from model.py?" — deterministic, fast, incremental.
+Build a code graph for the project with 0 new deps: Python through stdlib `ast`, Bash (`.sh`) and Bats (`.bats`) through stdlib `re`. Replaces `grep` for questions like "where is X called?", "which classes inherit from Y?", "what is imported from model.py?" — deterministic, fast, incremental.
 
-Extraction engines live in the `memory_bank_skill` package: `codegraph_python` (stdlib `ast`), `codegraph_treesitter` (opt-in multi-language), `codegraph_analytics` (degree split / communities / betweenness), `codegraph_cochange` (git co-change). `mb-codegraph.py` is a thin orchestrator over them.
+Extraction engines live in the `memory_bank_skill` package: `codegraph_python` (stdlib `ast`), `codegraph_shell` (Bash/Bats via stdlib `re`), `codegraph_treesitter` (opt-in multi-language), `codegraph_analytics` (degree split / communities / betweenness), `codegraph_cochange` (git co-change). `mb-codegraph.py` is a thin orchestrator over them.
 
 **What it parses:**
 
@@ -903,10 +903,10 @@ User: /mb graph --apply
 
 **Language support (v2.2 + Stage 6.5):**
 
-- **Always works** (stdlib `ast`): Python (`.py`)
+- **Always works** (stdlib only, no install): Python (`.py`) via `ast`; Bash (`.sh`) and Bats (`.bats`) via `re`
 - **Opt-in** (requires tree-sitter + grammars): Go (`.go`), JavaScript (`.js`/`.jsx`/`.mjs`), TypeScript (`.ts`/`.tsx`), Rust (`.rs`), Java (`.java`)
 - Install tree-sitter: `pip install tree-sitter tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java`
-- Without tree-sitter: non-Python files are silently skipped (graceful degradation). The `HAS_TREE_SITTER` flag in the script reflects the status
+- Without tree-sitter: files outside the always-on set (Python/Bash/Bats) are silently skipped (graceful degradation). The `HAS_TREE_SITTER` flag in the script reflects the status
 - Skipped directories: `.venv`, `node_modules`, `__pycache__`, `.git`, `target`, `dist`, `build`, any `.`*
 
 **Limitations:**
@@ -1008,7 +1008,7 @@ Check all required and optional skill dependencies. This runs automatically befo
 
 - `rg` (ripgrep) — speeds up `mb-search`, with fallback to `grep`
 - `shellcheck` — dev-only (CI lint)
-- `tree_sitter` (Python package) + grammars — multi-language `/mb graph` (Go/JS/TS/Rust/Java). Without it, only Python works
+- `tree_sitter` (Python package) + grammars — multi-language `/mb graph` (Go/JS/TS/Rust/Java). Without it, the always-on extractors (Python/Bash/Bats) still work
 - `PyYAML` — strict YAML parsing in frontmatter, with fallback to the simple parser
 
 **Output format** (key=value, machine-parseable):

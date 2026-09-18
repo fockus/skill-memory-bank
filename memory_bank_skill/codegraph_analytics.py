@@ -68,14 +68,15 @@ def compute_degree(graph: dict[str, Any]) -> dict[str, int]:
     uses **two-pass** target resolution: pass 1 credits an EXACT ``dst == name``
     (O(1) via a precomputed name set) so a qualified dst like ``b.process`` is
     never shadowed by a homonymous short name; pass 2 (only when no exact match)
-    credits the first node whose short name matches, iterating **sorted** so an
-    ambiguous short name binds to the alphabetically-first definition
-    deterministically — independent of node order / ``PYTHONHASHSEED``
+    credits the node whose short name matches via ``codegraph_rank.short_name_index``
+    — an ambiguous short name binds to the alphabetically-first definition
+    deterministically, independent of node order / ``PYTHONHASHSEED``
     (NFR-002: byte-identical god-nodes output across processes).
     """
     degree: dict[str, int] = {}
     node_names = sorted({n["name"] for n in graph["nodes"]})
     name_set = frozenset(node_names)
+    first_by_short = _cgrank.short_name_index(node_names)
     for e in graph["edges"]:
         src_key = e["src"].split(":")[-1] if ":" in e["src"] else e["src"]
         degree[src_key] = degree.get(src_key, 0) + 1
@@ -83,11 +84,9 @@ def compute_degree(graph: dict[str, Any]) -> dict[str, int]:
         if dst in name_set:  # pass 1: exact match wins over any suffix homonym
             degree[dst] = degree.get(dst, 0) + 1
             continue
-        for name in node_names:  # pass 2: short-name / suffix fallback (sorted)
-            short = name.split(".")[-1]
-            if dst == short or dst.endswith(f".{short}"):
-                degree[name] = degree.get(name, 0) + 1
-                break
+        match = first_by_short.get(dst.split(".")[-1])  # pass 2: suffix fallback
+        if match is not None:
+            degree[match] = degree.get(match, 0) + 1
     return degree
 
 

@@ -13,6 +13,7 @@ builds a graph, writes outputs (``--apply`` only):
 
 Extraction engines live in the ``memory_bank_skill`` package:
   * ``codegraph_python``      — Python via stdlib ``ast`` (always on)
+  * ``codegraph_shell``       — Bash/Bats via stdlib ``re`` (always on)
   * ``codegraph_treesitter``  — Go/JS/TS/Rust/Java via tree-sitter (opt-in extras)
   * ``codegraph_analytics``   — degree split, communities, betweenness, render
   * ``codegraph_cochange``    — git co-change file edges (opt-in via ``--cochange``)
@@ -61,6 +62,7 @@ try:
     from memory_bank_skill import codegraph_python as cgpy
     from memory_bank_skill import codegraph_questions as cgq
     from memory_bank_skill import codegraph_sessions as cgs
+    from memory_bank_skill import codegraph_shell as cgsh
     from memory_bank_skill import codegraph_treesitter as cgts
     from memory_bank_skill._io import atomic_write
     from memory_bank_skill.codegraph_common import rel, sha256
@@ -71,6 +73,7 @@ except ModuleNotFoundError:
     from memory_bank_skill import codegraph_python as cgpy
     from memory_bank_skill import codegraph_questions as cgq
     from memory_bank_skill import codegraph_sessions as cgs
+    from memory_bank_skill import codegraph_shell as cgsh
     from memory_bank_skill import codegraph_treesitter as cgts
     from memory_bank_skill._io import atomic_write
     from memory_bank_skill.codegraph_common import rel, sha256
@@ -185,8 +188,9 @@ def build_graph(
     if not src_root.exists():
         return {"nodes": [], "edges": [], "reparsed": 0, "cached": 0}
 
-    # Collect all files: Python via `ast` + tree-sitter-supported types if installed.
-    supported_exts = {".py"}
+    # Collect all files: Python via `ast`, Bash/Bats via `re` (both always on)
+    # + tree-sitter-supported types if installed.
+    supported_exts = {".py"} | set(cgsh.SHELL_EXTS)
     if cgts.HAS_TREE_SITTER:
         supported_exts.update(cgts.LANG_CONFIG.keys())
 
@@ -242,6 +246,8 @@ def build_graph(
         try:
             if ext == ".py":
                 result = cgpy.parse_file(src_file, src_root, include_docs=include_docs)
+            elif ext in cgsh.SHELL_EXTS:
+                result = cgsh.parse_file(src_file, src_root, include_docs=include_docs)
             elif ext in cgts.LANG_CONFIG and cgts.HAS_TREE_SITTER:
                 lang_name, module_name = cgts.LANG_CONFIG[ext]
                 result = cgts.parse_ts_file(
@@ -301,6 +307,12 @@ def build_graph(
                 definitions[name].append(file_rel)
 
     all_edges = cgpy.bind_calls(all_edges, all_import_bindings, definitions, all_star_imports)
+
+    # ── Shell binding (Bash/Bats files only) ─────────────────────────────────
+    # Resolves `source`/invocation paths against the files actually walked and
+    # drops call candidates that name no reachable function. Non-shell edges are
+    # passed through untouched, so the Python half of the graph is unaffected.
+    all_edges = cgsh.bind_shell_edges(all_nodes, all_edges)
 
     return {"nodes": all_nodes, "edges": all_edges, "reparsed": reparsed, "cached": cached}
 

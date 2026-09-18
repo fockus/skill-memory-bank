@@ -239,7 +239,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb_openspec_convert.py` | Deterministic OpenSpec → MB spec-triple converter (anchors, EARS classify, re-import anchor reuse) |
 | `mb_openspec_normalize.py` | Opt-in `--normalize` LLM slot layer + source-hash cache for the OpenSpec adapter (fail-open) |
 | `mb-agree.sh` | Single writer for the running list of agreements (`agreements.md`): `add\|defer\|reject\|question\|resolve\|list\|sync` + managed-block sync |
-| `mb-codegraph.py` | Code graph orchestrator. Extractors in `memory_bank_skill/`: `codegraph_python` (stdlib `ast`), `codegraph_treesitter` (multi-language, opt-in), `codegraph_analytics` (communities/cohesion/betweenness, optional networkx), `codegraph_cochange` (git co-change edges via opt-in `--cochange`) |
+| `mb-codegraph.py` | Code graph orchestrator. Extractors in `memory_bank_skill/`: `codegraph_python` (stdlib `ast`), `codegraph_shell` (Bash/Bats via stdlib `re`) — both always on — `codegraph_treesitter` (multi-language, opt-in), `codegraph_analytics` (communities/cohesion/betweenness, optional networkx), `codegraph_cochange` (git co-change edges via opt-in `--cochange`) |
 | `mb-graph-query.py` | Query `codebase/graph.json`: `neighbors`, `impact`, `tests`, `explain`, `summary` with JSON/markdown output |
 | `mb_graph_query_core.py` | Core graph loading, matching and payload builders for `mb-graph-query.py` |
 | `mb_graph_query_render.py` | Markdown summary renderers for graph-query output |

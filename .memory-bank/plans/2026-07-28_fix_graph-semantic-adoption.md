@@ -154,9 +154,9 @@ created: 2026-07-28
 - Регрессия: `test_codegraph*.py` существующие зелёные; `.py`-часть `graph.json` байт-идентична до/после (сравнение узлов/рёбер python-модулей на фикстуре).
 
 **DoD:**
-- [ ] На этом репо после `/mb graph --apply`: модулей `.sh` ≥ 150 и `.bats` ≥ 240; `python3 scripts/mb-graph-query.py tests --file scripts/mb-status-rotate.sh` → `tests/bats/test_status_rotate.bats`; `impact --symbol mb_resolve_path` ≥ 20 вызывающих; сборка ≤ 30 с.
-- [ ] 9 новых pytest зелёные, старые `test_codegraph*` зелёные; `ruff` чист; строки в `SKILL.md` § Tools (`mb-codegraph.py` — «Python + Bash + Bats») и `commands/mb.md` (`graph`); CHANGELOG `### Added`.
-- [ ] `god-nodes.md` этого банка показывает bash-функции `_lib.sh` в Top symbols (проверка глазами в verify + assert «≥ 1 символ из `_lib.sh`»).
+- [x] На этом репо после `/mb graph --apply`: модулей `.sh` ≥ 150 и `.bats` ≥ 240; `python3 scripts/mb-graph-query.py tests --file scripts/mb-status-rotate.sh` → `tests/bats/test_status_rotate.bats`; `impact --symbol mb_resolve_path` ≥ 20 вызывающих; сборка ≤ 30 с.
+- [x] 9 новых pytest зелёные, старые `test_codegraph*` зелёные; `ruff` чист; строки в `SKILL.md` § Tools (`mb-codegraph.py` — «Python + Bash + Bats») и `commands/mb.md` (`graph`); CHANGELOG `### Added`.
+- [x] `god-nodes.md` этого банка показывает bash-функции `_lib.sh` в Top symbols (проверка глазами в verify + assert «≥ 1 символ из `_lib.sh`»).
 
 **Code rules:** чистый модуль без IO (по образцу `codegraph_python`), детерминизм, 0 новых зависимостей.
 

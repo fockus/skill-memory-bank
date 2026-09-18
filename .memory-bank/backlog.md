@@ -1184,3 +1184,15 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-217 — Двухслойная защита от раскраски в mb-lint-run.sh и mb-test-run.sh (NO_COLOR у ребёнка + снятие ANSI перед матчингом) полностью взаимно перекрыта тестами: отключение ЛЮБОГО одного слоя оставляет наборы зелёными, краснеет только отключение обоих. Каждый слой может сгнить молча. Нужен тест, который спасает только strip_ansi_file — раскрасить вывод ребёнка способом, который NO_COLOR не гасит [MED, NEW, 2026-09-17]
 
 ### I-218 — Два валидатора слага разошлись по грамматике и это не сведено: valid_topic в mb-interview-artifact-write.sh отвергает 'a--b' и 'a-', а mb-brief.sh их принимает (и до, и после локале-фикса Stage 3). Плюс красный прогон brief-половины на darwin/BSD grep физически недостижим — BSD grep не раскрывает [a-z] по collation, симптом только на glibc; TDD-обязательство закрыто мутацией продукта, подтвердить красным на linux-CI [LOW, NEW, 2026-09-17]
+
+### I-219 — detect_communities недетерминирован по PYTHONHASHSEED — god-nodes.md не воспроизводим между прогонами [HIGH, NEW, 2026-09-18]
+
+### I-220 — Top symbols засоряют омонимы коротких имён (append/run/open/read/join) — degree тысяч несвязанных вызовов схлопывается в один узел, bash-функции вытесняются [MED, NEW, 2026-09-18]
+
+### I-221 — Имена @test bats попадают в Top symbols целой фразой — узел 'codex: re-install drops the version/_mb_warning...' нечитаем в отчёте [LOW, NEW, 2026-09-18]
+
+### I-222 — Две предсуществующие находки ruff: SIM108 (tests/bats/fixtures/brief/mkbrief.py:160) и SIM105 (tools/prove_assertions.py:264) — полная батарея их не ловит, ruff check . в неё не входит [LOW, NEW, 2026-09-18]
+
+### I-223 — Флак bats: 'flow-verify: default set on an unknown-stack bank with a MET goal' (test_mb_flow_verify.bats:309) падает по [ status -eq 0 ] при параллельной нагрузке — тест запускает вложенный mb-test-run.sh (родня I-158/I-131); изолированно 7/7 зелёный, под искусственной нагрузкой не воспроизвёлся [MED, NEW, 2026-09-18]
+
+### I-224 — Флак bats: 'update-notify: warm cache … well under 100ms' (test_mb_update_notify.bats:780) — утверждение [ elapsed_ms -lt 100 ] меряет стенные часы вокруг запуска bash-хука; при load average ~8 падает 1 из 3 даже изолированно. Порог времени в тесте не отделяет регресс от занятой машины [MED, NEW, 2026-09-18]

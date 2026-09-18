@@ -3588,3 +3588,21 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 ### Auto-capture 2026-09-17 (session d6e97fa4)
 - Session ended without an explicit /mb done
 - Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+Stage 6 плана graph-semantic-adoption — граф покрывает bash и bats, всегда включено.
+
+Исполнитель-сабагент встал на 11 часов (статус running, ни одного живого процесса, транскрипт мёртв с 14:18, последняя реплика «Red confirmed. Now the fix.»). Остановлен, остаток доделан основной сессией.
+
+Сделано им: memory_bank_skill/codegraph_shell.py (316 строк, stdlib re, 0 новых зависимостей, двухфазный по образцу codegraph_python — parse_file чистая и file-local, bind_shell_edges резолвит пути против реально обойдённых файлов и выбрасывает call-кандидаты, не указывающие на достижимую функцию); регистрация в scripts/mb-codegraph.py; поддержка shell в scripts/mb_graph_query_core.py; 10 тестов (7 по плану + регрессионный на неизменность Python-части + 2 на запросы); ускорение compute_degree и _resolve_dst с O(рёбра×узлы) до O(рёбра+узлы) через предпосчитанный индекс коротких имён — без него утроившийся граф не тянул.
+
+Сделано основной сессией: SKILL.md, commands/mb.md (Always on: Python + Bash + Bats), CHANGELOG ### Added, пересборка графа.
+
+Результат: .sh модулей 162 (нужно ≥150), .bats 258 (≥240), .py 283. Граф 3627→9232 узлов, 20666→25638 рёбер. tests --file scripts/mb-status-rotate.sh → tests/bats/test_status_rotate.bats. impact --symbol mb_resolve_path → 163–194 зависимых (≥20). god-nodes.md Top symbols строка 18 = mb_resolve_path · scripts/_lib.sh:299. Холодная сборка 2.5–3.8 с (≤30 с).
+
+Верификация: plan-verifier PASS, 0 CRITICAL, 3 WARNING (предсуществующий SRP-перебор в mb-codegraph.py/codegraph_analytics.py, формальная TDD-дельта, покрытая старыми зелёными тестами, косметика в тексте I-222). Верификатор прогнал полную pytest-батарею самостоятельно: 2587 passed / 11 skipped (было 2577 — ровно +10 новых). Соответствие соглашениям: AGR-044 и AGR-038 satisfied, нарушений нет.
+
+Батарея bats: 3375 ok / 1 not ok из 3376, в двух прогонах падали РАЗНЫЕ тесты, оба тайминг-зависимые и оба вне зоны Stage 6 — flow-verify (запускает вложенный mb-test-run.sh, родня I-158/I-131) и update-notify (утверждение [ elapsed_ms -lt 100 ] вокруг запуска bash-хука, падает 1 из 3 даже изолированно при load average ~8). Заведены I-223 и I-224.
+
+Находки в бэклоге: I-219 (HIGH) — detect_communities недетерминирован по PYTHONHASHSEED: на ОДНОМ И ТОМ ЖЕ graph.json сиды 1/2/3 дают 220/219/218 сообществ и три разных дайджеста, вопреки докстрингу «deterministic via seed» и «NFR-002: byte-identical god-nodes output across processes». Проверено на до-Stage-6 графе из 871e407 — там то же (13/14/14), значит поломка предсуществующая; Stage 6 лишь сделал её заметной, подняв число файлов с 280 до 711. Не чинилось внутри стадии как другой предмет. Также I-220 (омонимы коротких имён вытесняют bash-функции из Top symbols), I-221 (имя bats-теста попадает в отчёт целой фразой), I-222 (SIM108+SIM105, батарея ruff не гоняет).
+
+Решения владельца по плану до старта: AGR-045 (Stage 2 переводит embeddings на fastembed вместо sentence-transformers — код разошёлся с hooks/mb-semantic-bootstrap.sh; venv поднят, fastembed 0.8.0, 188 МБ, модель та же all-MiniLM-L6-v2/384) и AGR-046 (backfill в skill-memory-bank / code-agent / harness / techflow — репозиториев из исходного DoD больше нет).

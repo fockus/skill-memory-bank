@@ -33,36 +33,48 @@ _PAGERANK_TOL = 1.0e-6  # networkx default L1 convergence tolerance
 _RANK_EDGE_KINDS = ("call", "import", "inherit")
 
 
-def _resolve_dst(dst: str, sorted_names: list[str], name_set: frozenset[str]) -> str | None:
+def short_name_index(sorted_names: list[str]) -> dict[str, str]:
+    """``short name → alphabetically-first full name`` — the suffix-fallback target.
+
+    A node ``name`` matches an edge ``dst`` by suffix exactly when their last
+    dotted segments are equal (a short name never contains a dot, so
+    ``dst == short`` and ``dst.endswith("." + short)`` both reduce to that).
+    Precomputing the map therefore keeps the documented "alphabetically-first
+    definition wins" semantics while turning the per-edge O(N) scan into O(1) —
+    the whole-graph cost drops from O(edges x nodes) to O(edges + nodes).
+    """
+    index: dict[str, str] = {}
+    for name in sorted_names:
+        index.setdefault(name.split(".")[-1], name)
+    return index
+
+
+def _resolve_dst(dst: str, first_by_short: dict[str, str], name_set: frozenset[str]) -> str | None:
     """Resolve an edge target to a node name, exact match first (two-pass).
 
     Pass 1 — exact ``dst == name`` via the precomputed ``name_set`` (O(1), and
     deterministic since a qualified name resolves to itself). This guards against
     import-aware qualified dsts (``pkg.mod.func``): a homonymous short name must
     never shadow an exact hit. Pass 2 (only when no exact match) — the short-name
-    / suffix fallback over the *sorted* list, so an ambiguous short name binds to
-    the alphabetically-first definition deterministically. ``name_set`` removes
-    the per-edge O(N) scan for the common exact-match case.
+    / suffix fallback via ``short_name_index``, so an ambiguous short name binds
+    to the alphabetically-first definition deterministically.
     """
     if dst in name_set:
         return dst
-    for name in sorted_names:
-        short = name.split(".")[-1]
-        if dst == short or dst.endswith(f".{short}"):
-            return name
-    return None
+    return first_by_short.get(dst.split(".")[-1])
 
 
 def _resolved_edges(graph: dict[str, Any], sorted_names: list[str]) -> set[tuple[str, str]]:
     """Directed (caller, callee) symbol pairs from call/import/inherit edges."""
     directed: set[tuple[str, str]] = set()
     name_set = frozenset(sorted_names)
+    first_by_short = short_name_index(sorted_names)
     for e in graph["edges"]:
         if e.get("kind") not in _RANK_EDGE_KINDS:
             continue
         src = e["src"]
         src_key = src.split(":")[-1] if ":" in src else src
-        dst_name = _resolve_dst(e["dst"], sorted_names, name_set)
+        dst_name = _resolve_dst(e["dst"], first_by_short, name_set)
         if dst_name is None or dst_name == src_key:
             continue
         directed.add((src_key, dst_name))

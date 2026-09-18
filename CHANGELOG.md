@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — the code graph now covers Bash and Bats, always on
+
+- `memory_bank_skill/codegraph_shell.py`: a pure, regex-based extractor for `.sh` and `.bats`,
+  enabled unconditionally like the Python `ast` extractor — stdlib `re` only, no new dependency
+  and no opt-in flag. `.sh` files yield a module node, a function node per `name() {` /
+  `function name {`, an `import` edge per `source`/`. <path>` and per `*.sh` path mentioned in
+  code (`bash "$SCRIPT_DIR/x.sh"`), and a `call` edge for a command-position token naming a
+  function of the same or a transitively sourced file. `.bats` files yield a module node, a
+  function node per `@test "…"`, and `import` edges for mentioned scripts and `load '<helper>'`.
+- Binding is two-phase like the Python extractor: `parse_file` stays pure and file-local,
+  `bind_shell_edges` resolves paths against the files actually walked and drops call candidates
+  that name no reachable function — so a bare `grep` or a homonymous `usage` never becomes an edge.
+- On this repo the graph went from 280 modules (Python only) to 283 `.py` + 162 `.sh` + 257
+  `.bats`; 3627 → 9232 nodes and 20666 → 25638 edges. `graph_tests --file scripts/x.sh` now
+  answers with the `.bats` files that exercise it, and bash functions such as `mb_resolve_path`
+  appear in `god-nodes.md` Top symbols. Cold rebuild stays at ~2.5 s.
+- `codegraph_analytics.compute_degree` and `codegraph_rank._resolve_dst` now resolve the
+  short-name fallback through a precomputed index instead of scanning every node per edge
+  (O(edges x nodes) → O(edges + nodes)), which keeps the tripled graph fast. Resolution
+  semantics are unchanged: exact match first, then the alphabetically-first definition.
+- tree-sitter-bash is deliberately not used; regexes cover definitions, sourcing and
+  command-position calls. Upgrade path if nested constructs ever matter: add `.sh` to
+  `codegraph_treesitter.LANG_CONFIG`.
+
 ### Fixed — a colourized pytest run is no longer read as "no tests"
 
 - `mb-test-run.sh::run_python` anchored the pytest summary line on `^` with a digit, but pytest

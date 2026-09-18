@@ -26,8 +26,35 @@ def load_graph(path: Path) -> tuple[list[JsonObj], list[JsonObj]]:
     return _load_graph(path)
 
 
+# Suffixes of files the graph walks. A node/edge name ending in one of these is a
+# FILE, not a dotted symbol, so its last segment is an extension — never a symbol.
+_SOURCE_SUFFIXES = (
+    ".py",
+    ".sh",
+    ".bats",
+    ".bash",
+    ".go",
+    ".js",
+    ".mjs",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".rs",
+    ".java",
+)
+
+
 def short_name(value: str) -> str:
+    """Bare symbol of a qualified name: ``file.py:Cls.method`` → ``method``.
+
+    Path-like values (``scripts/x.sh``, ``install.sh``) are returned unchanged:
+    stripping their last dotted segment would yield the file extension, and a
+    target set containing ``"sh"`` matches every shell path in the graph — which
+    is how ``tests --file scripts/x.sh`` would report every suite in the repo.
+    """
     tail = value.rsplit(":", 1)[-1]
+    if "/" in tail or tail.endswith(_SOURCE_SUFFIXES):
+        return tail
     return tail.rsplit(".", 1)[-1]
 
 
