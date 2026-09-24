@@ -84,15 +84,16 @@ export function translateToolsToPi(tools) {
 }
 
 /**
- * Minimal frontmatter reader for agents/<role>.md — only `tools:` + body are
- * needed for dispatch scoping (the caller already names the role
- * explicitly, so name/description/model discovery isn't required here).
+ * Minimal frontmatter reader for agents/<role>.md — `tools:`, `thinking:` (the
+ * installer maps the agent's `effort` to it) and the body are what dispatch
+ * needs; the caller already names the role explicitly.
  * @param {string} content
- * @returns {{ tools: string[], systemPrompt: string }}
+ * @returns {{ tools: string[], thinking: string, systemPrompt: string }}
  */
 export function parseAgentFile(content) {
   const lines = content.split("\n");
   let tools = [];
+  let thinking = "";
   let bodyStart = 0;
   if (lines[0]?.trim() === "---") {
     let end = -1;
@@ -103,10 +104,12 @@ export function parseAgentFile(content) {
       }
       const m = lines[i].match(/^tools:\s*(.*)$/);
       if (m) tools = m[1].split(",").map((t) => t.trim()).filter(Boolean);
+      const th = lines[i].match(/^thinking:\s*([A-Za-z]+)\s*$/);
+      if (th) thinking = th[1];
     }
     bodyStart = end >= 0 ? end + 1 : 0;
   }
-  return { tools, systemPrompt: lines.slice(bodyStart).join("\n").trim() };
+  return { tools, thinking, systemPrompt: lines.slice(bodyStart).join("\n").trim() };
 }
 
 /**
@@ -130,13 +133,18 @@ export async function loadRoleAgent(role) {
  * `scripts/mb-subinvoke-resolve.sh --agent pi --role <role>` emits for the
  * fan-out path, so both entry points share the exact same D-09 mechanism.
  *
+ * Model: the explicit `model`, else the parent session's model. Thinking: the
+ * explicit `thinking`, else the role's `thinking:` frontmatter, else the parent's
+ * level — the same inheritance as pi's reference subagent extension.
+ *
  * @param {string} role
  * @param {string} task
  * @param {string | undefined} model
  * @param {string} cwd
+ * @param {{ thinking?: string, parentModel?: string, parentThinking?: string }} [options]
  * @returns {Promise<{ dispatched: boolean, warning?: string, output: string, exitCode: number | null }>}
  */
-export async function dispatchRole(role, task, model, cwd) {
+export async function dispatchRole(role, task, model, cwd, options = {}) {
   const agent = await loadRoleAgent(role);
   if (!agent) {
     return {
@@ -150,7 +158,10 @@ export async function dispatchRole(role, task, model, cwd) {
   }
 
   const args = ["--mode", "json", "-p", "--no-session"];
-  if (model) args.push("--model", model);
+  const resolvedModel = model || options.parentModel;
+  if (resolvedModel) args.push("--model", resolvedModel);
+  const thinking = options.thinking || agent.thinking || options.parentThinking;
+  if (thinking) args.push("--thinking", thinking);
   const piTools = translateToolsToPi(agent.tools);
   if (piTools.length > 0) args.push("--tools", piTools.join(","));
 
@@ -184,7 +195,13 @@ export async function dispatchRole(role, task, model, cwd) {
       let settled = false;
       let proc;
       try {
-        proc = spawn(PI_BIN, args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+        // The child is a subagent turn of this session, not a session of its own.
+        proc = spawn(PI_BIN, args, {
+          cwd,
+          shell: false,
+          stdio: ["ignore", "pipe", "pipe"],
+          env: { ...process.env, MB_SESSION_CAPTURE: "off" },
+        });
       } catch (err) {
         resolve({
           dispatched: false,

@@ -156,14 +156,13 @@ export default function mbPiSessionExtension(pi: ExtensionAPI) {
     const sessionDir = join(mbPath, "session");
     await mkdir(sessionDir, { recursive: true }).catch(() => {});
 
-    // Get or derive session id from Pi session manager
-    sessionId = ctx.sessionManager?.getSessionFile?.() ?? null;
-    // Pi's own session-manager save file doubles as the closest analogue to
-    // Claude Code's `transcript_path` field (REQ-007 v2 schema parity).
-    let transcript = sessionId ?? "";
+    // Session id from Pi's session manager. Its save file doubles as the closest
+    // analogue to Claude Code's `transcript_path` (REQ-007 v2 schema parity) —
+    // it is a path, so it never names the capture file.
+    const sf = ctx.sessionManager?.getSessionFile?.() ?? null;
+    const transcript = sf ?? "";
+    sessionId = ctx.sessionManager?.getSessionId?.() ?? null;
     if (!sessionId) {
-      // Fallback: generate from Pi session file path
-      const sf = ctx.sessionManager?.getSessionFile?.();
       sessionId = sf ? sf.replace(/[^a-zA-Z0-9]/g, "-").slice(-36) : `pi-${Date.now().toString(36)}`;
     }
 
@@ -211,6 +210,8 @@ export default function mbPiSessionExtension(pi: ExtensionAPI) {
 
   pi.on("input", async (event, ctx) => {
     if (!sessionFile || captureDisabled()) return;
+    // Extension-injected input (e.g. the /mb router text) is not something the user typed.
+    if (event.source === "extension") return;
     const ts = new Date().toLocaleTimeString("en-GB", { hour12: false });
     const text = (event.text || "").slice(0, 200); // cap user text
     const entry = `- ${ts} — User: "${text}"\n`;

@@ -1,9 +1,9 @@
 ---
 name: mb-research
-description: Use when researching a codebase or the web — "how does X work", "who calls / what depends on X", "what's the blast-radius / which tests cover X", "find the code that does Y", "what did we decide about Z", "how do I use library L", "how do others implement P on GitHub", or "research Q on the internet". Routes structural questions to the Memory Bank code graph, concepts to semantic search, decisions to /mb recall, library/API docs to context7 (if available), prior-art to GitHub code search via gh, and the open web to WebSearch/WebFetch — and falls back to plain Grep/Glob/Read when an index is stale or absent. Dispatches parallel subagents for broad sweeps and returns file:line / source-grounded conclusions — never blind grep guessing.
-tools: Bash, Read, Grep, Glob, SendMessage
-model: sonnet
+description: Read-only research over this codebase, project memory, library docs, GitHub prior art, and the open web. Routes each question to the Memory Bank code graph, semantic search, /mb recall, context7, gh, or web search, falls back to Grep/Read when an index is stale or absent, and returns conclusions cited to file:line or a URL. Does not write code.
+tools: Bash, Read, Grep, Glob, WebSearch, WebFetch, SendMessage
 color: cyan
+effort: medium
 ---
 
 # mb-research — graph-first, multi-source research subagent
@@ -45,8 +45,9 @@ plain `Grep`/`Glob`/`Read` are first-class for raw text, regex, freshly-changed,
 | **open web** (reviews, fresh facts) | `WebSearch` → `WebFetch` the best 1-3 hits |
 
 > First embeddings query loads the model (~5-15s); then cached under `.memory-bank/.index/codesearch/`.
-> If structural answers look stale, rebuild the graph first:
-> `rm -rf .memory-bank/codebase/.cache && python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply --docs .memory-bank .`
+> If structural answers look stale, run the bounded catch-up once:
+> `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py catchup --graph .memory-bank/codebase/graph.json --src-root . --json`
+> (never `mb-codegraph.py --apply` from an agent; on `locked`/`cooldown`/`timed_out` proceed on the stale graph).
 
 ## Optional-source availability (check before relying; degrade gracefully)
 - **context7** — only when the context7 MCP tools (`resolve-library-id`, `query-docs`) are actually
@@ -64,11 +65,10 @@ plain `Grep`/`Glob`/`Read` are first-class for raw text, regex, freshly-changed,
 **Narrow question (one symbol/concept/library):** run the single routed command, then `Read` /
 `WebFetch` what it points at. Report with `file:line` / source citations.
 
-**Broad sweep (multi-area):** dispatch **parallel subagents** (Task tool, one per area). Give EACH:
-1. its slice of the question, 2. this routing table (graph-first, then source; context7 for libs; `gh`
-for prior art; `Grep`/`Read` for raw), 3. the instruction: *"return only conclusions grounded in
-`file:line` or a cited source; prefer the MB graph / semantic search / context7 over blind grep; quote
-the key code."* Then synthesize. This is the fan-out that replaces plain `general-purpose` sweeps.
+**Broad sweep (multi-area):** work area by area with the routing table (graph-first, then source;
+context7 for libs; `gh` for prior art; `Grep`/`Read` for raw) and synthesize at the end. When the
+areas are independent and large, the caller fans out instead: it dispatches one `mb-research` agent
+per area in parallel and merges their cited conclusions.
 
 ## Output discipline (anti-hallucination)
 - Every structural claim is backed by a graph query or a `file:line`. No "probably calls".

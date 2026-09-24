@@ -21,24 +21,16 @@ If `./.memory-bank/codebase/ARCHITECTURE.md` and `./.memory-bank/codebase/CONCER
 
 Read every changed file in full, not just the diff — you need full context for architectural analysis.
 
-## 2. Principles + architecture — delegated to `mb-rules-enforcer`
+## 2. Principles + architecture — deterministic check first
 
-Do NOT inline SOLID / Clean Architecture / TDD-delta checks here. Delegate to the dedicated subagent, which returns a structured JSON report + human summary:
+Run the rules checker on the changed files (deterministic SRP / Clean Architecture / TDD-delta):
 
-```
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  description="mb-rules-enforcer: principles + architecture audit",
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-rules-enforcer.md>
-
-files: <comma-separated list from step 1 (git diff --name-only)>
-diff_range: HEAD...HEAD
-rules_path: .memory-bank/RULES.md"
-)
+```bash
+bash "${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-rules-check.sh" --files <comma-separated list from step 1> --base HEAD --out json
 ```
 
-The enforcer runs `scripts/mb-rules-check.sh` (deterministic SRP / Clean Arch / TDD-delta) and adds LLM-level judgment for ISP / DRY. Parse its JSON for the Report in step 8 — every `CRITICAL` violation becomes a Critical item, every `WARNING` a Serious item.
+Every `CRITICAL` violation becomes a Critical item in the Report (step 8), every `WARNING` a Serious item.
+Thresholds and their meaning are defined once in `rules/RULES.md`.
 
 Apply the remaining judgment-only checks inline:
 

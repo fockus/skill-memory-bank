@@ -133,11 +133,10 @@ def test_verify_missing_current_source_does_not_guess_latest_plan(tmp_path):
     assert "target" in result.stderr.lower()
 
 
-def test_verify_dispatch_prompts_resolve_from_loaded_skill_without_claude_install():
+def test_verify_dispatches_the_installed_verifier_without_re_typing_agent_files():
     text = (ROOT / "commands" / "mb.md").read_text().split("### verify", 1)[1].split("### map", 1)[0]
     verifier = (ROOT / "agents" / "plan-verifier.md").read_text()
-    paths = re.findall(r"<contents of ([^>]+)>", text + verifier)
-    assert len(paths) == 3
-    for path in paths:
-        resolved = Path(path.replace("${SKILL_DIR}", str(ROOT)))
-        assert resolved.is_file(), f"Prompt does not resolve from the loaded skill: {path}"
+    assert 'subagent_type="plan-verifier"' in text
+    assert re.findall(r"<contents of ([^>]+)>", text + verifier) == []
+    for script in re.findall(r'"\$SKILL_DIR/scripts/([\w.-]+)"', verifier):
+        assert (ROOT / "scripts" / script).is_file(), script

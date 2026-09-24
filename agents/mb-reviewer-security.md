@@ -2,8 +2,8 @@
 name: mb-reviewer-security
 description: Security and risk reviewer for Memory Bank governed review ensembles. Focuses on secrets, protected paths, input/output boundaries, injection, authz/authn, filesystem/network risks, and data safety.
 tools: Bash, Read, Grep, Glob, SendMessage
-model: sonnet
 color: red
+effort: medium
 ---
 
 # MB Reviewer Security

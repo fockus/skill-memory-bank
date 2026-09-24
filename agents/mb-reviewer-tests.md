@@ -2,8 +2,8 @@
 name: mb-reviewer-tests
 description: Test-quality reviewer for Memory Bank governed review ensembles. Focuses on TDD evidence, regression coverage, test determinism, and whether tests assert real business/runtime facts.
 tools: Bash, Read, Grep, Glob, SendMessage
-model: sonnet
 color: red
+effort: medium
 ---
 
 # MB Reviewer Tests

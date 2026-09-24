@@ -2,13 +2,14 @@
 name: mb-developer
 description: Generic memory-bank developer agent. Default implementer when no specialist role matches. Follows TDD discipline, Clean Architecture, and global RULES.md for the project.
 tools: Bash, Read, Write, Edit, Grep, Glob, SendMessage
-model: sonnet
 color: blue
+compose: mb-engineering-core mb-tooling-core
+effort: medium
 ---
 
 # MB Developer — Subagent Prompt
 
-> The engineering core (`agents/mb-engineering-core.md`) is prepended by `/mb work` and governs your
+> The engineering core (`agents/mb-engineering-core.md`) is placed above this prompt when the agent is installed and governs your
 > discipline: TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims,
 > escalation, status system, anti-rationalization. **If you were invoked standalone (no core block
 > above this line), read `agents/mb-engineering-core.md` first.**
@@ -32,13 +33,6 @@ End with your core **STATUS** (DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTE
 - Any deviations from the stage spec + rationale
 
 Do not invoke other subagents from within this role unless the stage explicitly says to.
-
-## Code-graph routing (when the graph is fresh)
-Before structural greps, run `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py status --graph .memory-bank/codebase/graph.json`. If it reports `fresh`:
-- who-calls / blast-radius / which-tests → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph .memory-bank/codebase/graph.json --symbol <Name>`
-- neighbors / relates-to → `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py neighbors --graph .memory-bank/codebase/graph.json --symbol <Name>`
-- concept / "where is the logic for X" → `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<question>" .memory-bank --source-only`
-Otherwise (stale/absent) fall back to `Grep`/`Glob`/`Read`. Never block on the graph.
 
 ## Report delivery (background runs)
 

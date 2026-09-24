@@ -49,15 +49,13 @@ def test_mb_md_has_research_section() -> None:
     assert "### research" in _read(), "### research section header missing in mb.md"
 
 
-def test_research_section_dispatches_mb_research_agent_via_task() -> None:
-    """The section must reference the dispatched agent and the dispatch mechanism."""
+def test_research_section_dispatches_mb_research_agent_by_name() -> None:
+    """The section dispatches the installed mb-research agent by name."""
     region = _research_section(_read())
-    assert RESEARCH_AGENT_REF in region, (
-        "the `### research` section must reference agents/mb-research.md (the dispatched agent)"
+    assert 'subagent_type="mb-research"' in region, (
+        "the `### research` section must dispatch the mb-research agent by name"
     )
-    assert "Task" in region, (
-        "the `### research` section must reference Task (the dispatch mechanism)"
-    )
+    assert RESEARCH_AGENT_REF not in region, "the agent file must not be re-typed into the prompt"
 
 
 def test_research_section_documents_fan_out_for_broad_sweeps() -> None:

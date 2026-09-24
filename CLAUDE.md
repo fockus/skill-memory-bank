@@ -4,9 +4,9 @@ Long-term project memory through `.memory-bank/`, engineering rules, SDD specs, 
 
 ## Hard Rules
 
-1. Resolve the active Memory Bank before project work.
-   - Existing bank → print `[MEMORY BANK: ACTIVE]`.
-   - No bank → print `[MEMORY BANK: ABSENT]`; do not initialize unless explicitly requested.
+1. Resolve the active Memory Bank before project work and say its state in your first reply.
+   - Existing bank → `[MEMORY BANK: ACTIVE]`.
+   - No bank → `[MEMORY BANK: ABSENT]`; do not initialize unless explicitly requested.
 2. Read the project rules and Memory Bank context before implementation:
    - global rules: `rules/RULES.md` from this skill bundle;
    - project overrides: `<repo>/AGENTS.md`, `<repo>/RULES.md` or `<bank>/RULES.md` when present;
@@ -24,7 +24,7 @@ When a project has an active Memory Bank and the user says: implement, fix, cont
 3. Treat `specs/<topic>/tasks.md` blocks marked `<!-- mb-task:N -->` as executable source of truth.
 4. If using a wrapper plan, it must have `linked_spec` or `<!-- mb-stage:N -->` markers. If not, stop and fix the wrapper before coding.
 5. Follow resolved steps exactly. For governed workflows this means: `implement → verify → review → judge → fix/backlog → done`.
-6. Pass exact `model` and `thinking` from `pipeline.yaml`/JSON lines to subagents. Do not use fuzzy model names.
+6. Dispatch the resolved `agent` by name with the exact `model` from `pipeline.yaml`/JSON lines; do not use fuzzy model names. `thinking` maps to the agent's `effort:` frontmatter in Claude Code.
 7. Do not claim completion until configured verification/review/judge gates are satisfied, or the user explicitly chooses a simpler workflow.
 
 Manual inline implementation is only acceptable for trivial non-plan work or an explicit user request to skip `/mb work`; TDD and verification still apply.

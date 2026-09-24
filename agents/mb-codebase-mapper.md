@@ -3,6 +3,7 @@ name: mb-codebase-mapper
 description: Explores the codebase and writes structured Markdown documents into .memory-bank/codebase/. Invoked from /mb map with focus = stack|arch|quality|concerns|all. Output is integrated into /mb context.
 tools: Read, Bash, Grep, Glob, Write
 color: cyan
+effort: medium
 ---
 
 <role>
@@ -44,30 +45,20 @@ This sets the direction for exploration (which manifests to read, which test run
 **Graph-first policy.** Prefer `graph.json` over ad-hoc source scans. Before any exploration, check whether `/mb graph --apply` has produced a usable artifact:
 
 ```bash
-GRAPH=".memory-bank/codebase/graph.json"
-GOD_NODES=".memory-bank/codebase/god-nodes.md"
-STALE_HOURS="${MB_GRAPH_STALE_HOURS:-24}"
-
-graph_usable=0
-if [ -f "$GRAPH" ]; then
-  # mtime-based freshness check (portable macOS+Linux)
-  age_seconds=$(( $(date +%s) - $(stat -f %m "$GRAPH" 2>/dev/null || stat -c %Y "$GRAPH") ))
-  max=$(( STALE_HOURS * 3600 ))
-  if [ "$age_seconds" -le "$max" ] && [ -s "$GRAPH" ]; then
-    graph_usable=1
-  fi
-fi
+python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py status \
+  --graph .memory-bank/codebase/graph.json --src-root . --json
 ```
 
-Decision:
-- `graph_usable=1` → prefer graph.json / god-nodes.md over raw grep. Record `graph: used (age=<N>h, nodes=<K>)` in the output header.
-- `graph_usable=0` → `graph.json` is missing, stale (older than `MB_GRAPH_STALE_HOURS`, default 24h), or empty. Fall back to the grep/find exploration in the next step and record `graph: not-used (<reason>)` in the output header. Never error — graceful degradation is the contract.
+This is the same freshness check every other MB agent uses (`agents/mb-tooling-core.md`). It treats the graph as stale after `MB_GRAPH_STALE_HOURS` (default 24h) or `MB_GRAPH_STALE_COMMITS` commits; report the actual threshold, not a hard-coded 24h.
 
-The caller may also override staleness via `MB_GRAPH_STALE_HOURS=168` etc. Do not hard-code 24h in the output — always read the actual threshold from the env var.
+Decision:
+- `exists: true, stale: false` → prefer graph.json / god-nodes.md over raw grep. Record `graph: used` in the output header.
+- `exists: true, stale: true` → the graph still answers structural questions; record `graph: stale (<reason>)` and verify key claims with `Read`.
+- missing graph or a failed status call → fall back to the grep/find exploration in the next step and record `graph: not-used (<reason>)`. Never error — graceful degradation is the contract.
 </step>
 
 <step name="explore_by_focus">
-**Fill the graph with grep only when `graph_usable=0` OR when graph-derived answers leave gaps** (e.g., god-nodes.md is empty on tiny repos). For each focus, use Glob/Grep/Read. Example commands:
+**Fill the graph with grep only when the graph is not used (see `check_graph`) OR when graph-derived answers leave gaps** (e.g., god-nodes.md is empty on tiny repos). For each focus, use Glob/Grep/Read. Example commands:
 
 **stack** (manifests, dependencies, integrations):
 ```bash
@@ -102,7 +93,7 @@ find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.go" \) 2>/dev/null | 
 </step>
 
 <step name="derive_from_graph">
-When `graph_usable=1` (from `check_graph`), derive the following **before** you fall back to grep. The graph is authoritative for structural questions; grep fills only the prose gaps.
+When the graph is used (from `check_graph`), derive the following **before** you fall back to grep. The graph is authoritative for structural questions; grep fills only the prose gaps.
 
 **For `quality` focus (CONVENTIONS.md) — naming-pattern stats from graph:**
 
@@ -140,7 +131,7 @@ Write the dominant style into `CONVENTIONS.md` "Naming" section (e.g., "Function
 - Safe change: extract handlers before touching signature.
 ```
 
-If `god-nodes.md` is missing but `graph.json` exists, recompute the top-5 inline from the JSON. If both are missing (`graph_usable=0`), keep the original `wc -l` heuristic.
+If `god-nodes.md` is missing but `graph.json` exists, recompute the top-5 inline from the JSON. If both are missing, keep the original `wc -l` heuristic.
 </step>
 
 <step name="write_documents">

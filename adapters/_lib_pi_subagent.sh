@@ -39,7 +39,9 @@ _install_pi_agents_roster() {
   for f in "$SKILL_DIR"/agents/*.md; do
     [ -f "$f" ] || continue
     _pi_agent_is_partial "$f" && continue
-    cp "$f" "$dest_dir/$(basename "$f")"
+    # Composed partials, `effort` → `thinking`, pi tool names (scripts/mb-agent-render.py).
+    python3 "$SKILL_DIR/scripts/mb-agent-render.py" "$f" --skill-dir "$SKILL_DIR" \
+      --host pi > "$dest_dir/$(basename "$f")"
     printf '%s\n' "$dest_dir/$(basename "$f")"
   done
 }

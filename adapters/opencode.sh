@@ -243,6 +243,11 @@ export const MemoryBankPlugin = async ({ directory }) => {
   // single OpenCode plugin instance can serve MULTIPLE concurrent sessions.
   const ocSessionState = new Map();
 
+  // Sessions OpenCode created for a task() subagent (session.created carries a
+  // parentID). Their idle/delete is a step of the parent session, not a session
+  // end, so they get no progress.md auto-capture or summary of their own.
+  const childSessions = new Set();
+
   const finalizeSessionCapture = async (sessionId) => {
     const state = ocSessionState.get(sessionId);
     if (!state) return;
@@ -272,10 +277,17 @@ export const MemoryBankPlugin = async ({ directory }) => {
     // MB_OC_PARITY_EXTENDED or capture state.
     event: async ({ event }) => {
       try {
+        if (event?.type === 'session.created' && event?.properties?.info?.parentID) {
+          childSessions.add(event.properties.info.id);
+        }
         if (event?.type === 'session.idle' || event?.type === 'session.deleted') {
           const sessionId = event?.properties?.info?.id ?? event?.properties?.sessionID ?? 'oc-unknown';
-          appendProgress(sessionId);
-          runSummarize(sessionId);
+          const isChild = childSessions.has(sessionId) || Boolean(event?.properties?.info?.parentID);
+          if (event.type === 'session.deleted') childSessions.delete(sessionId);
+          if (!isChild) {
+            appendProgress(sessionId);
+            runSummarize(sessionId);
+          }
           if (MB_OC_PARITY_EXTENDED) {
             await finalizeSessionCapture(sessionId).catch(() => {});
           }
@@ -476,9 +488,14 @@ _opencode_backup_once() {
   cp "$f" "$f.pre-mb-backup.$(date +%s).$$" 2>/dev/null || true
 }
 
+# Renders the agent for OpenCode (composed partials, Claude-only keys dropped —
+# scripts/mb-agent-render.py --host opencode), then maps tools/colors to OpenCode's schema.
 _opencode_write_agent_file() {
-  local src="$1" dst="$2"
-  python3 - "$src" "$dst" <<'PY'
+  local src="$1" dst="$2" rendered
+  rendered="$(mktemp)"
+  python3 "$SKILL_DIR/scripts/mb-agent-render.py" "$src" --skill-dir "$SKILL_DIR" --host opencode \
+    > "$rendered" || { rm -f "$rendered"; return 1; }
+  python3 - "$rendered" "$dst" <<'PY'
 import re
 import sys
 
@@ -546,14 +563,20 @@ for tool in tools:
         permissions.append(permission)
         seen.add(permission)
 
-if permissions:
+# OpenCode allows every tool by default, so a role declared without Write/Edit
+# (reviewers, verifier, judge, research) is made read-only explicitly.
+deny_edit = bool(tools) and "edit" not in seen
+if permissions or deny_edit:
     lines.append("permission:")
     for permission in permission_order:
         if permission in seen:
             lines.append(f"  {permission}: allow")
+    if deny_edit:
+        lines.append("  edit: deny")
 
 open(dst, "w", encoding="utf-8").write("---\n" + "\n".join(lines) + "\n---\n" + body)
 PY
+  rm -f "$rendered"
 }
 
 # ═══ Install ═══
@@ -625,14 +648,13 @@ install_opencode() {
   #     render surface exists in OpenCode.
   #   - role-routing: same closed-vocabulary term as Pi's (adapter-parity
   #     T4/backlog I-121) — OpenCode has its own genuine subagent-dispatch
-  #     primitive, but `/mb work`'s per-role automated dispatch
-  #     (commands/work.md step 5a) only ever calls the Claude Code Task
-  #     tool; no cross-host routing wiring exists for ANY non-CC host yet.
+  #     primitive and /mb work names it (SKILL.md § Invocation), but no
+  #     deterministic harness drives or verifies per-role routing here.
   local platform_limited_json='["statusline","role-routing"]'
   local platform_limited_notes_json
   platform_limited_notes_json=$(jq -n \
     --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in OpenCode." \
-    --arg role_routing "OpenCode's own .opencode/agent/*.md discovery is a genuine, working native subagent-dispatch primitive; /mb work's per-role automated dispatch (commands/work.md 5a) only calls the Claude Code Task tool — no cross-host routing harness exists yet (backlog I-121/I-122)." \
+    --arg role_routing "OpenCode's own .opencode/agent/*.md discovery is a genuine, working native subagent-dispatch primitive, and /mb work names OpenCode's task(subagent_type) tool for it (SKILL.md § Invocation); the model makes that call from the command text — no deterministic harness drives or verifies per-role routing on OpenCode yet (backlog I-121/I-122)." \
     '{"statusline": $statusline, "role-routing": $role_routing}')
 
   adapter_write_manifest \
@@ -684,7 +706,7 @@ install_global_extensions() {
   local platform_limited_notes_json
   platform_limited_notes_json=$(jq -n \
     --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in OpenCode." \
-    --arg role_routing "OpenCode's own .opencode/agent/*.md discovery (project AND global scope) is a genuine, working native subagent-dispatch primitive; /mb work's per-role automated dispatch (commands/work.md 5a) only calls the Claude Code Task tool — no cross-host routing harness exists yet (backlog I-121/I-122)." \
+    --arg role_routing "OpenCode's own .opencode/agent/*.md discovery (project AND global scope) is a genuine, working native subagent-dispatch primitive, and /mb work names OpenCode's task(subagent_type) tool for it (SKILL.md § Invocation); the model makes that call from the command text — no deterministic harness drives or verifies per-role routing on OpenCode yet (backlog I-121/I-122)." \
     '{"statusline": $statusline, "role-routing": $role_routing}')
 
   adapter_write_manifest \

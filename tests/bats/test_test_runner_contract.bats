@@ -86,9 +86,9 @@ setup() {
   grep -Fq 'duration_ms' "$PROMPT"
 }
 
-@test "delegation: plan-verifier.md Step 3.5 invokes mb-test-runner" {
+@test "plan-verifier.md Step 3.5 runs mb-test-run.sh itself (it has no Agent tool to delegate)" {
   [ -f "$PV" ]
-  # Must reference the agent by name — replaces or augments the earlier
-  # direct `mb-metrics.sh --run` call.
-  grep -Fq 'mb-test-runner' "$PV"
+  grep -Fq 'mb-test-run.sh" --dir . --out json' "$PV"
+  run grep -E '^tools:.*\bAgent\b' "$PV"
+  [ "$status" -ne 0 ]
 }

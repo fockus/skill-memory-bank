@@ -56,7 +56,7 @@ PI_END_MARKER="<!-- memory-bank-pi:end -->"
 . "$(dirname "$0")/_lib_pi_global.sh"
 
 install_skill_mode() {
-  install_pi_global_agents
+  install_pi_global_agents >/dev/null
   install_pi_settings_skill
 
   if [ -L "$PI_SKILL_DIR" ]; then

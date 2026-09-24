@@ -44,12 +44,19 @@ export default function memoryBankSubagentExtension(pi: ExtensionAPI) {
     parameters: Type.Object({
       role: Type.String({ description: "Agent role name, e.g. mb-backend, mb-reviewer" }),
       task: Type.String({ description: "Task description to hand to the role" }),
-      model: Type.Optional(Type.String({ description: "Model id override" })),
+      model: Type.Optional(Type.String({ description: "Model id override; defaults to the current session model" })),
+      thinking: Type.Optional(
+        Type.String({ description: "Thinking level (off, minimal, low, medium, high, xhigh); defaults to the role's thinking, then the session's" }),
+      ),
       cwd: Type.Optional(Type.String({ description: "Working directory; defaults to the current project" })),
     }),
-    async execute(_toolCallId, params) {
-      const cwd = params.cwd || process.cwd();
-      const result = await dispatchRole(params.role, params.task, params.model, cwd);
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const cwd = params.cwd || ctx?.cwd || process.cwd();
+      const result = await dispatchRole(params.role, params.task, params.model, cwd, {
+        thinking: params.thinking,
+        parentModel: ctx?.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined,
+        parentThinking: ctx?.thinkingLevel,
+      });
       if (!result.dispatched) {
         const warning = result.warning || "[mb-pi-dispatch] dispatch failed — falling back to inline execution.";
         return { content: [{ type: "text", text: warning }], details: result };

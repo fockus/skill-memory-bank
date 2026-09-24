@@ -24,6 +24,7 @@ the final task numbering — that is checked afterwards by `mb-spec-validate.sh`
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -612,7 +613,8 @@ def test_sdd_step_3a_commands_run_on_a_fresh_triple(tmp_path: Path) -> None:
         .replace("<pipeline.yaml>", str(tmp_path / "pipeline.yaml"))
     )
     proc = subprocess.run(
-        ["bash", "-e", "-c", script], capture_output=True, text=True, cwd=str(REPO_ROOT)
+        ["bash", "-e", "-c", script], capture_output=True, text=True, cwd=str(REPO_ROOT),
+        env={**os.environ, "SKILL_DIR": str(REPO_ROOT)},
     )
     assert proc.returncode == 0, "Step 3a is not runnable:\n%s\n%s" % (script, proc.stderr)
     payload = json.loads(proc.stdout)

@@ -1,18 +1,19 @@
 ---
 partial: true
 name: mb-tooling-core
-description: "[PARTIAL — not a standalone agent] Code-understanding tool routing prepended by /mb work before every dev-role agent. Graph-first, fail-open. Do not dispatch directly."
+description: "[PARTIAL — not a standalone agent] Code-understanding tool routing composed into the dev-role agents, mb-reviewer, and plan-verifier at install time. Graph-first, fail-open. Do not dispatch directly."
 ---
 
 # MB Tooling Core — code-understanding routing
 
-**This is a prepended partial, not an agent.** `/mb work` inlines this block ahead of the
-role-specific agent delta. It carries the single routing table every MB implementer uses to
-understand code before touching it.
+**This is a partial, not an agent.** The installer places it above the text of every agent that
+lists it under `compose:`. It is the single routing table MB agents use to understand code before
+touching it; agents do not keep their own copies.
 
 ## Code-understanding tools (graph-first, fail-open)
 
-For code-understanding questions, prefer Memory Bank graph tools over `grep`:
+For code-understanding questions, prefer Memory Bank graph tools over `grep`. Check the graph first with
+`scripts/mb-graph-query.py status --graph <bank>/codebase/graph.json --src-root . --json`:
 
 | Intent | Token | Canonical command |
 |--------|-------|-------------------|

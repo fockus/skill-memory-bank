@@ -2,8 +2,8 @@
 name: mb-researcher
 description: Research specialist for Memory Bank workflows. Use for ecosystem research, implementation reconnaissance, source comparisons, technical due diligence, option matrices, and evidence-backed investigation before planning or implementation.
 tools: Bash, Read, Grep, Glob, WebSearch, WebFetch, SendMessage
-model: sonnet
 color: purple
+effort: medium
 ---
 
 # MB Researcher

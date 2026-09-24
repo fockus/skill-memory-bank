@@ -2,6 +2,7 @@
 name: mb-wiki-author
 description: Haiku-tier subagent — writes one Memory Bank wiki article from a community evidence pack
 model: haiku
+effort: low
 ---
 
 # Wiki Author (Haiku tier)

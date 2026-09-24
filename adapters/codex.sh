@@ -475,20 +475,21 @@ install_codex() {
   # adapter-parity T7 (REQ-015/017, scenario 5): D-03's honest-degradation
   # tier, made explicit. update-notify (T6, before-prompt hook) genuinely
   # renders — NOT limited. What genuinely stays absent, verified by direct
-  # inspection: no statusline surface; no Task-tool-equivalent subagent
-  # dispatch (`codex exec` only); no session-start-class hook (only the
+  # inspection: no statusline surface; no session-start-class hook (only the
   # experimental prompt-submit hook + git-hooks-fallback, neither of which is
   # a CC SessionStart/PreCompact/Stop equivalent); session capture is
   # git-hooks-fallback's one-line progress.md stub, not CC v2-schema
   # session/*.md.
-  local platform_limited_json='["statusline","subagents","lifecycle-hooks","session-memory"]'
+  # Subagents are not limited: Codex dispatches roles in-session with
+  # spawn_agent(agent_type=<name>), and install.sh writes every role as TOML to
+  # ~/.codex/agents/ (install_codex_agent_roles, scripts/mb-agent-render.py --host codex).
+  local platform_limited_json='["statusline","lifecycle-hooks","session-memory"]'
   local platform_limited_notes_json
   platform_limited_notes_json=$(jq -n \
     --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in Codex." \
-    --arg subagents "Codex has no Task-tool-equivalent subagent dispatch; \`codex exec\` is a plain CLI invocation, not an in-session dispatch primitive (D-03)." \
     --arg lifecycle_hooks "Only the experimental before-prompt (UserPromptSubmit) hook exists — no session-start-class hook (CC's SessionStart/PreCompact/Stop set has no equivalent)." \
     --arg session_memory "git-hooks-fallback appends a one-line stub note to progress.md on commit, not the CC v2-schema session/*.md capture." \
-    '{"statusline": $statusline, "subagents": $subagents, "lifecycle-hooks": $lifecycle_hooks, "session-memory": $session_memory}')
+    '{"statusline": $statusline, "lifecycle-hooks": $lifecycle_hooks, "session-memory": $session_memory}')
 
   adapter_write_manifest \
     "$MANIFEST" \

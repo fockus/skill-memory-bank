@@ -106,7 +106,7 @@ _wmd() { printf '%s' "$REPO_ROOT/commands/work.md"; }
 }
 
 @test "prod_binding: work.md threads --run-id through the checkbox flip" {
-  grep -Eq 'mb-work-checkbox\.sh flip <source> <item_no> \$\{RUN_ID:\+--run-id' "$(_wmd)" \
+  grep -Eq 'mb-work-checkbox\.sh flip <source_path> <item_no> \$\{RUN_ID:\+--run-id' "$(_wmd)" \
     || { echo "work.md 'flip' block does not thread --run-id"; false; }
 }
 

@@ -4,22 +4,19 @@ allowed-tools: [Bash, Read, Glob, Grep, Task]
 argument-hint: "[test-filter]"
 ---
 
-## 1. Delegate execution to `mb-test-runner`
+## 1. Run the suite
 
-```
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  description="mb-test-runner: run + parse project tests",
-  prompt="<contents of ~/.claude/skills/memory-bank/agents/mb-test-runner.md>
-
-dir: ."
-)
+```bash
+bash "${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-test-run.sh" --dir . --out both
 ```
 
-The agent detects stack via `mb-metrics.sh`, runs tests with per-stack parsing through `scripts/mb-test-run.sh`, and returns structured JSON: `{stack, tests_pass, tests_total, tests_failed, failures[], coverage, duration_ms}` plus a human summary. Use the JSON as the authoritative source for the rest of this flow.
+The script detects the stack via `mb-metrics.sh`, runs the tests with per-stack parsing, and prints
+structured JSON — `{stack, tests_pass, tests_total, tests_failed, failures[], coverage, duration_ms}` —
+plus a human summary. It exits 0 even when tests fail; use `tests_pass` as the verdict for the rest of
+this flow.
 
-If `stack=unknown` or the runner is missing, the agent reports `tests_pass=null`. Offer to create `.memory-bank/metrics.sh` (see `references/templates.md`).
+If `stack=unknown` or no runner applies, `tests_pass` is `null`. Offer to create
+`.memory-bank/metrics.sh` (see `references/templates.md`).
 
 If `$ARGUMENTS` provided a filter (test file, name, marker), pass it in the invocation context so the agent can narrow the run. Stage 3 of the runner does full-suite; filter support is follow-up work.
 

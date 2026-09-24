@@ -5,6 +5,16 @@ manages a single `<bank>/pipeline.yaml`, `/mb pipeline` lets a project keep
 several pipelines side by side — each with its own model routing and workflow —
 and select between them per run or automatically per code-agent host.
 
+## Skill bundle root
+
+Every bundled helper below runs through the skill bundle root, never a bare `scripts/…` path (the
+working directory is the user's project, where `scripts/` is absent or belongs to someone else):
+
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+[ -f "$SKILL_DIR/scripts/_lib.sh" ] || { echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
+```
+
 ## Why named pipelines?
 
 One repository is often driven by more than one agent (Claude Code, pi, opencode,
@@ -46,7 +56,7 @@ named pipeline.
 ## Subcommands
 
 ```bash
-bash scripts/mb-pipeline.sh <subcommand> [args...] [mb_path]
+bash "$SKILL_DIR"/scripts/mb-pipeline.sh <subcommand> [args...] [mb_path]
 ```
 
 | Subcommand | Behavior |

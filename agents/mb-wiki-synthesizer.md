@@ -1,7 +1,7 @@
 ---
 name: mb-wiki-synthesizer
 description: Sonnet-tier subagent — finds surprising cross-community connections, emits strict JSON edges
-model: sonnet
+effort: medium
 ---
 
 # Wiki Synthesizer (Sonnet tier)

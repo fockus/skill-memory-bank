@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def test_settings_hooks_use_agent_not_task() -> None:
     hooks = (REPO_ROOT / "settings" / "hooks.json").read_text(encoding="utf-8")
     assert "Task(" not in hooks
-    assert "Agent(" in hooks
+    assert '"matcher": "Task|Agent"' in hooks
 
 
 def test_codex_docs_do_not_promise_native_mb_install_surface() -> None:

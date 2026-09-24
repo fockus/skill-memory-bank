@@ -37,7 +37,7 @@ def test_agent_frontmatter_keys(agent: str) -> None:
     parts = text.split("---\n", 2)
     assert len(parts) >= 3, f"{agent}: malformed frontmatter"
     fm = parts[1]
-    for key in ("name", "description", "model"):
+    for key in ("name", "description", "effort"):
         assert re.search(rf"^{key}:", fm, re.M), f"{agent}: missing '{key}'"
 
 
@@ -50,8 +50,7 @@ def test_agent_name_matches_filename(agent: str) -> None:
 
 
 @pytest.mark.parametrize("agent", EXPECTED_AGENTS)
-def test_agent_model_is_sonnet(agent: str) -> None:
+def test_agent_model_is_not_pinned(agent: str) -> None:
+    # The model comes from pipeline.yaml (or the session); reasoning depth from `effort:`.
     text = (AGENTS / f"{agent}.md").read_text(encoding="utf-8")
-    m = re.search(r"^model:\s*([\w\-]+)\s*$", text.split("---\n", 2)[1], re.M)
-    assert m is not None
-    assert m.group(1) == "sonnet", f"{agent}: model must be 'sonnet'"
+    assert not re.search(r"^model:", text.split("---\n", 2)[1], re.M), f"{agent}: model is pinned"

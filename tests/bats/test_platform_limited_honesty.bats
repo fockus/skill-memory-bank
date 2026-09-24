@@ -171,7 +171,7 @@ manifest_opencode_global_extensions() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# (2) subagents — declared on cursor/windsurf/cline/kilo/codex; genuinely
+# (2) subagents — declared on cursor/windsurf/cline/kilo; genuinely
 # absent means no dispatch mechanism reaches these hosts. Verified via
 # scripts/mb-subinvoke-resolve.sh's TABLE (the single cross-host dispatch
 # registry — pi.sh/opencode.sh cite it as such) having no entry for them.
@@ -179,7 +179,7 @@ manifest_opencode_global_extensions() {
 
 @test "honesty negative: subagents is declared limited (with a reason) and genuinely absent, on hosts with no dispatch primitive" {
   local adapter
-  for adapter in cursor windsurf cline kilo codex; do
+  for adapter in cursor windsurf cline kilo; do
     local m
     m="$(manifest_$adapter)"
     [ -f "$m" ]
@@ -197,34 +197,9 @@ manifest_opencode_global_extensions() {
       || fail "$a: mb-subinvoke-resolve.sh has a dispatch entry — subagents is not actually absent"
   done
 
-  # adapter-parity T7 Codex-review fix (MAJOR): codex is NOT simply absent
-  # from mb-subinvoke-resolve.sh's TABLE like cursor/windsurf/cline/kilo —
-  # adapters/codex.sh HAS a `subinvoke` path (codex_subinvoke_cmd) and the
-  # resolver has a `codex` TABLE entry, so the "not in the registry" check
-  # above cannot prove codex's claim. What "subagents" actually means here
-  # (design.md D-03): a Task-tool-equivalent IN-SESSION role/subagent
-  # dispatch primitive — NOT a plain CLI fan-out invocation. Prove the
-  # distinction genuinely: the resolver's --role scoping (the actual
-  # per-ROLE dispatch mechanism — agents/<role>.md --tools/
-  # --append-system-prompt injection, D-09) is implemented ONLY for pi;
-  # passing --role to the codex arm must be silently ignored (same generic
-  # `codex exec ... "$MB_FANOUT_PROMPT"` template regardless of role) — if a
-  # future change made codex's template role-sensitive, that WOULD be a
-  # genuine subagent-dispatch primitive and this assertion must fail.
-  local codex_generic codex_with_role
-  codex_generic="$(bash "$REPO_ROOT/scripts/mb-subinvoke-resolve.sh" --agent codex)"
-  codex_with_role="$(bash "$REPO_ROOT/scripts/mb-subinvoke-resolve.sh" --agent codex --role mb-backend)"
-  [ "$codex_generic" = "$codex_with_role" ] \
-    || fail "codex: mb-subinvoke-resolve.sh --role changes the codex template — a real per-role subagent-dispatch primitive now exists, subagents is not actually absent"
-
-  # And: no /mb work per-role headless dispatch call to codex exists either
-  # (the in-session Task-tool-equivalent commands/work.md would need to
-  # genuinely route per-role to codex to constitute "subagents").
-  refute_grep -Eq -- '--agent codex --role' "$REPO_ROOT/commands/work.md" \
-    || fail "codex: commands/work.md routes per-role to codex — subagents is not actually absent"
 }
 
-@test "honesty negative: opencode/pi are NOT declared subagents-limited — both have a genuine native dispatch primitive" {
+@test "honesty negative: opencode/pi/codex are NOT declared subagents-limited — each has a genuine native dispatch primitive" {
   local m
   m="$(manifest_opencode)"
   jq -e '.platform_limited | index("subagents") == null' "$m" >/dev/null \
@@ -234,6 +209,12 @@ manifest_opencode_global_extensions() {
   m="$(manifest_pi)"
   jq -e '.platform_limited | index("subagents") == null' "$m" >/dev/null \
     || fail "pi: subagents wrongly declared — mb_dispatch_subagent is a genuine opt-in dispatch tool (pi.sh)"
+
+  # codex: spawn_agent(agent_type=<name>) runs the TOML roles install.sh writes to ~/.codex/agents/
+  m="$(manifest_codex)"
+  jq -e '.platform_limited | index("subagents") == null' "$m" >/dev/null \
+    || fail "codex: subagents wrongly declared — install.sh installs spawn_agent roles (install_codex_agent_roles)"
+  grep -q -- '--host codex' "$REPO_ROOT/install.sh"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -446,10 +427,10 @@ manifest_opencode_global_extensions() {
   _absent_from_code "$REPO_ROOT/adapters/opencode.sh" "mb-statusline.py" \
     || fail "opencode (global manifest): adapter source references mb-statusline.py — statusline is not actually absent"
 
-  # Structural proof: commands/work.md's implement step dispatches
-  # exclusively via the Claude Code Task tool — no per-role headless
-  # dispatch call to any non-CC host exists in the executor.
-  grep -q "Dispatch via \`Task\`" "$REPO_ROOT/commands/work.md"
+  # Structural proof: the executor only names each host's dispatch tool
+  # (SKILL.md § Invocation) for the model to call — no deterministic per-role
+  # headless dispatch to a non-CC host exists in it.
+  grep -q "SKILL.md § Invocation" "$REPO_ROOT/commands/work.md"
   ! grep -Eq -- '--agent (pi|opencode) --role' "$REPO_ROOT/commands/work.md"
 }
 
@@ -470,7 +451,7 @@ TESTED_PAIRS=(
   "kilo:statusline" "kilo:subagents" "kilo:lifecycle-hooks" "kilo:session-memory" "kilo:update-notify"
   "opencode:statusline" "opencode:role-routing"
   "pi:statusline" "pi:role-routing"
-  "codex:statusline" "codex:subagents" "codex:lifecycle-hooks" "codex:session-memory"
+  "codex:statusline" "codex:lifecycle-hooks" "codex:session-memory"
   "opencode_global_extensions:statusline" "opencode_global_extensions:role-routing"
 )
 

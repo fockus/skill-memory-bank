@@ -13,7 +13,7 @@ Arguments: `$ARGUMENTS`
 
 Determine the subcommand from the first word of `$ARGUMENTS`. Remaining words are parameters for that subcommand.
 
-For bank-dependent operations below (`recall`, `recap`, `conflicts`, `consolidate`, `verify`), set `SKILL_DIR` to the absolute directory containing the loaded `SKILL.md`, or use `MB_SKILLS_ROOT`. Set `MB_AGENT` to the current host id for a global registry. Keep the project as cwd and include this setup in the same shell invocation as the operation. `init` and bank-independent commands such as user profiles do not require an existing bank; do not run this guard for them. `start` and `done` have their own setup in the canonical command files.
+`$SKILL_DIR` below always means the absolute directory containing the loaded `SKILL.md` (or `MB_SKILLS_ROOT`); bundled scripts run through it, never through a bare `scripts/…` path. For bank-dependent operations below (`recall`, `recap`, `conflicts`, `consolidate`, `verify`), resolve the bank with the setup block. Set `MB_AGENT` to the current host id for a global registry. Keep the project as cwd and include this setup in the same shell invocation as the operation. `init` and bank-independent commands such as user profiles do not require an existing bank; do not run this guard for them. `start` and `done` have their own setup in the canonical command files.
 
 <!-- mb-runtime:setup -->
 ```bash
@@ -27,6 +27,8 @@ fi
 BANK="$(cd "$BANK" && pwd -P)"
 export MB_PATH="$BANK"
 ```
+
+Subagents below are dispatched by name (the Claude Code form is shown; OpenCode, Codex, and Pi use the tools in SKILL.md § Invocation); the prompt carries only the task data, and the agent's model, effort, and tools come from its installed definition. If your agent cannot dispatch a subagent by name, read `$SKILL_DIR/agents/<name>.md` plus each partial listed in its `compose:` frontmatter and pass that text ahead of the prompt.
 
 For the snippets below, parse the remaining user arguments into the named Bash array (`ARGS_AFTER_RECAP`, `ARGS_AFTER_CONFLICTS`, or `ARGS_AFTER_CONSOLIDATE`); use an empty array when omitted. Preserve each argument as a separate element, without `eval` or shell-string interpolation.
 
@@ -76,6 +78,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `tags [--apply] [--auto-merge]`                          | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 against a closed vocabulary and propose merges. `--auto-merge` only applies distance ≤1. Vocabulary is in `.memory-bank/tags-vocabulary.md` (fallback: `references/tags-vocabulary.md`). `mb-index-json.py` auto-normalizes to kebab-case |
 | `init [--minimal|--full]`                                | Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only                                                                                                                                                                                     |
 | `profile <subcommand>`                                   | Manage rule profiles: `init`, `show`, `path`, `validate`, `set`. See `commands/profile.md`. Example: `mb-profile.sh init --scope=user --role=backend --stack=go`                                                                                                                                        |
+| `language <code> [--comments <code>] \| off \| show`     | Per-project response / code-comment language (`en ru es pt zh`), overriding the global install choice. Writes a managed block at the top of the project's `AGENTS.md` and `CLAUDE.md`; `off` removes it |
 | `install [<clients>]`                                    | Install Memory Bank for the project. If `<clients>` is empty, ask for an 8-client multiselect (`claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex`). Calls `memory-bank install --clients ... --project-root $PWD`                                                                                |
 | `statusline [--force]`                                   | Claude Code only. Install the context-window statusline (`% of context filled` + model · branch · project) by running `scripts/mb-statusline.py --install`, which patches `~/.claude/settings.json` (backup first, refuses to clobber an existing `statusLine` unless `--force`)                          |
 | `help [subcommand]`                                      | Help. No argument → list all subcommands. With argument → show details for that specific one (`/mb help compact`, `/mb help tags`, ...)                                                                                                                                                                  |
@@ -118,7 +121,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 - `sync [<topic>] [--normalize]` — re-import only topics whose source hash drifted; a hash match is a pure no-op (no write). No topic → sync every imported topic.
 - `--normalize` (opt-in) fills LLM text slots (prose-SHALL → EARS, missing scenario, `Covers`), cached by source-requirement hash so an unchanged requirement never regenerates, and fail-open (LLM unavailable → deterministic fallback + warn). Omit for the byte-deterministic path.
 
-Run directly: `bash scripts/mb-openspec.sh <sub> ...`. Spec: `.memory-bank/specs/openspec-adapter/`.
+Run directly: `bash "$SKILL_DIR"/scripts/mb-openspec.sh <sub> ...`. Spec: `.memory-bank/specs/openspec-adapter/`.
 
 Invoking `/mb start` = invoking `/start` — same scripts, same subagents, same outcome. Do not duplicate the logic here; read the primary command file and follow it.
 
@@ -129,7 +132,7 @@ session-memory subsystem that auto-logs each session to `.memory-bank/session/` 
 hooks). Run directly (no subagent):
 
 ```bash
-bash ~/.claude/hooks/mb-recall.sh $ARGS_AFTER_RECALL
+bash "$SKILL_DIR"/hooks/mb-recall.sh $ARGS_AFTER_RECALL
 ```
 
 Searches `.memory-bank/session/` + `.memory-bank/notes/` via ripgrep (fallback grep), prints `file:line`
@@ -211,12 +214,9 @@ agent (it researches; it never writes code):
 
 ```
 Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
+  subagent_type="mb-research",
   description="mb-research: <query>",
-  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-research.md>
-
-Question: <the remainder of $ARGUMENTS after `research`>
+  prompt="Question: <the remainder of $ARGUMENTS after `research`>
 
 Context: <current work / what is already known>"
 )
@@ -250,12 +250,9 @@ For these subcommands, run the MB Manager subagent:
 
 ```
 Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
+  subagent_type="mb-manager",
   description="MB Manager: <action>",
-  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-manager.md>
-
-action: <action>
+  prompt="action: <action>
 
 <task description and current-session context>"
 )
@@ -298,9 +295,9 @@ git diff --stat HEAD~3 2>/dev/null | tail -5
 
 ```
 Agent(
-  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-manager.md>
-
-action: actualize
+  subagent_type="mb-manager",
+  description="MB Manager: actualize",
+  prompt="action: actualize
 
 Current metrics from code (from mb-metrics.sh):
 - Stack: <detected>
@@ -310,9 +307,7 @@ Current metrics from code (from mb-metrics.sh):
 - Recent commits: <git log>
 - Changed files: <git diff stat>
 
-Update core files (STATUS metrics, checklist, plan focus) using REAL data from the codebase. Do not rely on the narrative description — verify through grep/find/bash.",
-  subagent_type="general-purpose",
-  model="sonnet"
+Update core files (STATUS metrics, checklist, plan focus) using REAL data from the codebase. Do not rely on the narrative description — verify through grep/find/bash."
 )
 ```
 
@@ -320,7 +315,7 @@ Update core files (STATUS metrics, checklist, plan focus) using REAL data from t
 
 #### `update --strict` — cap repair
 
-Run when `bash ~/.claude/skills/memory-bank/scripts/mb-core-cap.sh check --mb .memory-bank` exits non-zero
+Run when `bash "$SKILL_DIR"/scripts/mb-core-cap.sh check --mb .memory-bank` exits non-zero
 (the Stop hook `mb-core-cap-guard.sh` says so once per session). First try the deterministic repair:
 
 ```bash
@@ -363,9 +358,9 @@ Run the MB Doctor subagent:
 
 ```
 Agent(
-  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-doctor.md>
-
-action: doctor
+  subagent_type="mb-doctor",
+  description="MB Doctor",
+  prompt="action: doctor
 
 Check consistency across all core files in .memory-bank/:
 - roadmap.md statuses vs checklist.md
@@ -374,9 +369,7 @@ Check consistency across all core files in .memory-bank/:
 - backlog.md vs roadmap.md
 - progress.md completeness
 - plan files in plans/ vs their statuses
-- duplicates and stale references",
-  subagent_type="general-purpose",
-  model="sonnet"
+- duplicates and stale references"
 )
 ```
 
@@ -436,8 +429,8 @@ Run a 5-phase requirements-elicitation interview that produces an EARS-validated
 **Finalize:**
 
 - Render `context/<topic>.md` per the template in `references/templates.md` ("Context (`context/<topic>.md`)" section).
-- `bash scripts/mb-ears-validate.sh "$CONTEXT_FILE"` — must exit 0 before commit. On violations, fix in place and retry.
-- `bash scripts/mb-traceability-gen.sh "$MB_PATH"` — regenerate matrix.
+- `bash "$SKILL_DIR"/scripts/mb-ears-validate.sh "$CONTEXT_FILE"` — must exit 0 before commit. On violations, fix in place and retry.
+- `bash "$SKILL_DIR"/scripts/mb-traceability-gen.sh "$MB_PATH"` — regenerate matrix.
 - Set frontmatter `status: ready`.
 
 **Exit conditions:**
@@ -453,8 +446,8 @@ Run a 5-phase requirements-elicitation interview that produces an EARS-validated
 
 **Related scripts:**
 
-- `bash scripts/mb-req-next-id.sh [--spec <name>] [mb_path]` — emits the next `REQ-NNN`. Default: project-wide max+1 across `specs/*/requirements.md`, `specs/*/design.md`, `context/*.md`. With `--spec <name>`: per-spec-local max+1 scoped to `specs/<name>/{requirements,design}.md` + `context/<name>.md` (a brand-new spec starts at `REQ-001`).
-- `bash scripts/mb-ears-validate.sh <file>|-` — exit 0 if every `- **REQ-NNN** ...` bullet matches an EARS pattern; exit 1 with violation list on stderr otherwise; exit 2 on usage error.
+- `bash "$SKILL_DIR"/scripts/mb-req-next-id.sh [--spec <name>] [mb_path]` — emits the next `REQ-NNN`. Default: project-wide max+1 across `specs/*/requirements.md`, `specs/*/design.md`, `context/*.md`. With `--spec <name>`: per-spec-local max+1 scoped to `specs/<name>/{requirements,design}.md` + `context/<name>.md` (a brand-new spec starts at `REQ-001`).
+- `bash "$SKILL_DIR"/scripts/mb-ears-validate.sh <file>|-` — exit 0 if every `- **REQ-NNN** ...` bullet matches an EARS pattern; exit 1 with violation list on stderr otherwise; exit 2 on usage error.
 
 ### ask_me <topic>
 
@@ -479,7 +472,7 @@ Create the Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`
 3. If `<mb>/context/<safe_topic>.md` exists → copy its `## Functional Requirements (EARS)` block verbatim into `requirements.md` (REQ-IDs preserved).
 4. Write `requirements.md` (EARS reference + REQ list), `design.md` (Architecture / Interfaces / Decisions / Risks scaffold), `tasks.md` (numbered tasks with `**Covers:** REQ-NNN` placeholders).
 
-**Underlying:** `bash scripts/mb-sdd.sh <topic> [--force] [mb_path]`.
+**Underlying:** `bash "$SKILL_DIR"/scripts/mb-sdd.sh <topic> [--force] [mb_path]`.
 
 **Connection with `/mb plan`:** the spec triple is the *source of truth* for the topic. `/mb plan <type> <topic>` auto-detects `<mb>/context/<safe_topic>.md` (or accepts `--context <path>`) and adds a `## Linked context` section to the plan. `--sdd` flag in `/mb plan` enforces EARS validity before plan creation.
 
@@ -511,7 +504,7 @@ All subcommands accept a trailing `[mb_path]` arg pointing at an alternative ban
 2. `init` writes a byte-for-byte copy of the default. Idempotency guard refuses without `--force`.
 3. `validate` exits 0 if schema-clean, 1 with `[validate] <key>: <reason>` lines on stderr otherwise.
 
-**Underlying:** `bash scripts/mb-pipeline.sh <subcommand> [args...]`.
+**Underlying:** `bash "$SKILL_DIR"/scripts/mb-pipeline.sh <subcommand> [args...]`.
 
 **Why pipeline.yaml?** Different teams need different defaults — workflow modes, review tolerance, max review cycles, role-to-agent mapping, protected paths. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project, version-controlled, and reviewable.
 
@@ -531,7 +524,7 @@ Manage **multiple named pipelines** in one project. Each `<bank>/pipelines/<name
 
 **Selection ladder** (used by `path`/`show` and `/mb work`): `--pipeline NAME` / `$MB_PIPELINE` → host binding (`agents:`) → `.mb-config pipeline=NAME` → in-file `default: true` → legacy `<bank>/pipeline.yaml` → bundled default. All subcommands accept a trailing `[mb_path]`.
 
-**Underlying:** `bash scripts/mb-pipeline.sh <list|new|use|show|path|validate> [args...]`.
+**Underlying:** `bash "$SKILL_DIR"/scripts/mb-pipeline.sh <list|new|use|show|path|validate> [args...]`.
 
 ### work [target] [--workflow NAME] [--pipeline NAME] [--review|--judge|--fix|--brainstorm|--sdd|--plan (+ --no-*)] [--loop N] [--stages CSV] [--range A-B] [--dry-run]
 
@@ -554,10 +547,10 @@ Execute a composable workflow. **Default mode is `execution`: implement (TDD) �
 **Underlying scripts:**
 
 ```bash
-bash scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix] [--brainstorm|--sdd|--plan] [--stages <csv>] [--json|--steps|--loop|--max-cycles]
-bash scripts/mb-work-resolve.sh [target] [--mb <path>]
-bash scripts/mb-work-range.sh <plan> [--range <expr>]
-bash scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
+bash "$SKILL_DIR"/scripts/mb-workflow.sh [--mb <path>] [--workflow <name>] [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix] [--brainstorm|--sdd|--plan] [--stages <csv>] [--json|--steps|--loop|--max-cycles]
+bash "$SKILL_DIR"/scripts/mb-work-resolve.sh [target] [--mb <path>]
+bash "$SKILL_DIR"/scripts/mb-work-range.sh <plan> [--range <expr>]
+bash "$SKILL_DIR"/scripts/mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
 ```
 
 **Out of scope:** fully deterministic host-side orchestration for every client UI. The command contract defines the required loop; clients/orchestrators must follow it and use the helper scripts for target resolution, review parsing, severity gates, budget tracking, and protected-path checks.
@@ -590,20 +583,13 @@ bash "$SKILL_DIR/scripts/mb-work-plan.sh" --target "$VERIFY_SOURCE" --mb "$BANK"
 
 3. Run the Plan Verifier subagent with the emitted `source_path` and `source` category, resolved `BANK`, and verified item range. For `source=spec`, read sibling `requirements.md` and `design.md` as well as `tasks.md`; check each task's Covers/DoD/Testing and REQ coverage. Do not substitute a plan or infer requirements from memory.
 
-Inline `agents/mb-tooling-core.md` ahead of the plan-verifier prompt so it can use the graph tools (`graph_impact` for blast-radius, `graph_tests` for coverage) while auditing DoD coverage:
+The installed `plan-verifier` agent already carries `agents/mb-tooling-core.md` (graph tools such as `graph_impact` for blast-radius and `graph_tests` for coverage):
 
 ```
 Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
+  subagent_type="plan-verifier",
   description="Plan Verifier: plan verification",
-  prompt="<contents of ${SKILL_DIR}/agents/mb-tooling-core.md>
-
----
-
-<contents of ${SKILL_DIR}/agents/plan-verifier.md>
-
-Source file: <emitted source_path: plan Markdown or spec tasks.md>
+  prompt="Source file: <emitted source_path: plan Markdown or spec tasks.md>
 Source kind: <plan|spec>
 Bank path: <absolute BANK>
 Skill path: <absolute SKILL_DIR>
@@ -641,14 +627,11 @@ Run the MB Codebase Mapper subagent:
 
 ```
 Agent(
-  prompt="<contents of ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/agents/mb-codebase-mapper.md>
+  subagent_type="mb-codebase-mapper",
+  description="MB Codebase Mapper: focus=<focus>",
+  prompt="focus: <stack|arch|quality|concerns|all>
 
-focus: <stack|arch|quality|concerns|all>
-
-Analyze the current project and write MD documents directly to `.memory-bank/codebase/`. Use `mb-metrics.sh` for stack detection, follow the ≤70-line templates, and return confirmation only.",
-  subagent_type="general-purpose",
-  model="sonnet",
-  description="MB Codebase Mapper: focus=<focus>"
+Analyze the current project and write MD documents directly to `.memory-bank/codebase/`. Use `mb-metrics.sh` for stack detection, follow the ≤70-line templates, and return confirmation only."
 )
 ```
 
@@ -836,7 +819,7 @@ Build a code graph for the project with 0 new deps: Python through stdlib `ast`,
 
 Extraction engines live in the `memory_bank_skill` package: `codegraph_python` (stdlib `ast`), `codegraph_shell` (Bash/Bats via stdlib `re`), `codegraph_treesitter` (opt-in multi-language), `codegraph_analytics` (degree split / communities / betweenness), `codegraph_cochange` (git co-change). `mb-codegraph.py` is a thin orchestrator over them.
 
-`--apply` ends by warming the semantic vector index (`<bank>/.index/codesearch/`) from the graph it just wrote, so the first `mb-semantic-search.py --backend embeddings` reads a cache instead of encoding for minutes. The encoding runs detached (the graph build itself stays seconds) and only when the corpus changed; without the fastembed venv the step prints `semantic index skipped (no fastembed)` and exits 0. Install it with `bash ~/.claude/hooks/mb-semantic-bootstrap.sh`.
+`--apply` ends by warming the semantic vector index (`<bank>/.index/codesearch/`) from the graph it just wrote, so the first `mb-semantic-search.py --backend embeddings` reads a cache instead of encoding for minutes. The encoding runs detached (the graph build itself stays seconds) and only when the corpus changed; without the fastembed venv the step prints `semantic index skipped (no fastembed)` and exits 0. Install it with `MB_SEMANTIC_VENV="$HOME/.claude/hooks/.venv" bash "$SKILL_DIR"/hooks/mb-semantic-bootstrap.sh` (the index builder reads the venv from that path on every host).
 
 **What it parses:**
 
@@ -1151,10 +1134,10 @@ Where should this project's Memory Bank live?
 
 ```bash
 # Local mode (team-shared):
-bash scripts/mb-init-bank.sh --storage=local --lang=ru
+bash "$SKILL_DIR"/scripts/mb-init-bank.sh --storage=local --lang=ru
 
 # Global mode (personal, repo stays clean):
-bash scripts/mb-init-bank.sh --storage=global --agent=pi \
+bash "$SKILL_DIR"/scripts/mb-init-bank.sh --storage=global --agent=pi \
                              --project-root "$PWD" --lang=ru
 ```
 
@@ -1343,6 +1326,22 @@ mb-profile.sh validate .memory-bank/rules-profile.json
 **Dispatch:** run `scripts/mb-profile.sh <subcommand> [flags]` directly. Full subcommand reference: `commands/profile.md`.
 
 **Immutable baseline reminder:** skipping a profile keeps the immutable baseline active (no-placeholders, protected-files, destructive-confirm, fail-fast, DRY/KISS/YAGNI, verification-before-completion, explicit-storage-choice). The immutable baseline cannot be disabled by any profile.
+
+---
+
+### language <code> [--comments <code>] | off | show
+
+Per-project language. The global choice comes from `install.sh --language` / `--comments-language`;
+this overrides it for one project, for every agent: the block goes at the top of the project's
+`AGENTS.md` (Codex, OpenCode, Pi, Cursor) and `CLAUDE.md` (Claude Code), created if missing.
+
+```bash
+python3 "$SKILL_DIR"/scripts/mb-language.py set ru --comments en   # respond in Russian, comments in English
+python3 "$SKILL_DIR"/scripts/mb-language.py off                    # back to the global choice
+python3 "$SKILL_DIR"/scripts/mb-language.py show
+```
+
+Report the files it printed. The block takes effect in the next session (instructions load at start).
 
 ---
 

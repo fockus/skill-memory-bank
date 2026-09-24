@@ -7,6 +7,16 @@ allowed-tools: [Bash, Read]
 
 Manage the project's execution `pipeline.yaml` — the declarative config consumed by `/mb work`. Defines roles → agents mapping, local workflow modes (`workflow.default` + `workflows.*`), per-item loops, severity gates, sprint context guard, review rubric, and SDD enforcement policy.
 
+## Skill bundle root
+
+Every bundled helper below runs through the skill bundle root, never a bare `scripts/…` path (the
+working directory is the user's project, where `scripts/` is absent or belongs to someone else):
+
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+[ -f "$SKILL_DIR/scripts/_lib.sh" ] || { echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
+```
+
 ## Why pipeline.yaml?
 
 `/mb work <target>` resolves a named workflow from `pipeline.yaml`, defaulting to `execution` (`implement → verify → done` — **review is off by default**). Opt into review/judge per run (`--review`/`--judge`) or persist with `review.enabled: true` / `<stage>.enabled: true`; projects can also select `full` (the whole chain), `governed-execution`, `full-cycle`, planning-only, review-only, or custom loops with different `max_cycles`. Different teams need different defaults — review severity tolerance, max review cycles, role-to-agent mapping, protected-paths policy. Hard-coding these would lock the engine. `pipeline.yaml` makes them per-project and version-controlled.
@@ -41,10 +51,10 @@ All subcommands accept an optional trailing `[mb_path]` to point at an alternati
 ## Underlying scripts
 
 ```bash
-bash scripts/mb-pipeline.sh init [--force] [mb_path]
-bash scripts/mb-pipeline.sh show              [mb_path]
-bash scripts/mb-pipeline.sh path              [mb_path]
-bash scripts/mb-pipeline.sh validate [file]   [mb_path]
+bash "$SKILL_DIR"/scripts/mb-pipeline.sh init [--force] [mb_path]
+bash "$SKILL_DIR"/scripts/mb-pipeline.sh show              [mb_path]
+bash "$SKILL_DIR"/scripts/mb-pipeline.sh path              [mb_path]
+bash "$SKILL_DIR"/scripts/mb-pipeline.sh validate [file]   [mb_path]
 ```
 
 ## Schema (high level)

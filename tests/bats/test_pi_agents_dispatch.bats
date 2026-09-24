@@ -149,6 +149,8 @@ _extract_append_system_prompt_path() {
   [ -n "$tmpfile" ]
   [ -f "$tmpfile" ]
   grep -q "MB Backend" "$tmpfile"
+  # partials listed in the role's `compose:` are part of the prompt, not left for the caller
+  grep -q "^# MB Engineering Core" "$tmpfile"
   rm -f "$tmpfile"
 }
 
@@ -327,4 +329,38 @@ EOF
   run node "$harness"
   [ "$status" -eq 0 ]
   [ "$output" = '["bash","read","write","edit","grep","find"]' ]
+}
+
+@test "pi_subagent_dispatch_core: thinking comes from the role, then the parent; the child runs without session capture" {
+  command -v node >/dev/null || skip "node required"
+  local core="$REPO_ROOT/adapters/pi_subagent_dispatch_core.mjs"
+  local agents_dir="$SANDBOX_HOME/.pi/agent/agents"
+  mkdir -p "$agents_dir"
+  python3 "$REPO_ROOT/scripts/mb-agent-render.py" "$REPO_ROOT/agents/mb-reviewer.md" \
+    --skill-dir "$REPO_ROOT" --host pi > "$agents_dir/mb-reviewer.md"
+  printf -- '---\nname: bare\ntools: read\n---\n\nBody\n' > "$agents_dir/bare.md"
+
+  local stub
+  stub="$(mktemp -d)"
+  cat > "$stub/pi" <<'STUB'
+#!/bin/sh
+echo "ARGS:$* CAPTURE:$MB_SESSION_CAPTURE"
+STUB
+  chmod +x "$stub/pi"
+
+  local harness="$PROJECT/harness-thinking.mjs"
+  cat > "$harness" <<EOF
+import { dispatchRole } from "$core";
+const parent = { parentModel: "prov/parent-model", parentThinking: "low" };
+console.log((await dispatchRole("mb-reviewer", "t", undefined, process.cwd(), parent)).output.trim());
+console.log((await dispatchRole("bare", "t", undefined, process.cwd(), parent)).output.trim());
+console.log((await dispatchRole("bare", "t", "x/y", process.cwd(), { ...parent, thinking: "off" })).output.trim());
+EOF
+  run env PI_CODING_AGENT_DIR="$SANDBOX_HOME/.pi/agent" PATH="$stub:$PATH" node "$harness"
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == *"--model prov/parent-model --thinking high"* ]] || false
+  [[ "${lines[1]}" == *"--model prov/parent-model --thinking low"* ]] || false
+  [[ "${lines[2]}" == *"--model x/y --thinking off"* ]] || false
+  [[ "${lines[0]}" == *"CAPTURE:off"* ]] || false
+  rm -rf "$stub"
 }

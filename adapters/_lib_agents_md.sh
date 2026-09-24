@@ -30,18 +30,14 @@ _owners_require_jq() {
 }
 
 mb_preferred_language() {
-  local lang="${MB_LANGUAGE:-${LANGUAGE:-en}}"
-  case "$lang" in
-    en|ru) printf '%s' "$lang" ;;
-    *) printf '%s' "en" ;;
-  esac
+  printf '%s' "${MB_LANGUAGE:-${LANGUAGE:-en}}"
 }
 
+# Emit a rules file with its language lines localized through the same
+# memory_bank_skill._texttools strings install.sh uses (responses + code comments,
+# MB_LANGUAGE / MB_COMMENTS_LANGUAGE; unknown codes fall back to English).
 mb_emit_rules_file() {
   local rules_file="$1"
-  local lang
-  lang="$(mb_preferred_language)"
-
   if [ ! -f "$rules_file" ]; then
     return 1
   fi
@@ -53,29 +49,29 @@ mb_emit_rules_file() {
     return 0
   fi
 
+  local skill_root
+  skill_root="$(cd "$(dirname "$rules_file")/.." && pwd)"
   TARGET_RULES_FILE="$rules_file" \
-  MB_RULE_LANGUAGE="$lang" \
+  MB_RULE_LANGUAGE="$(mb_preferred_language)" \
+  MB_RULE_COMMENTS_LANGUAGE="${MB_COMMENTS_LANGUAGE:-}" \
+  PYTHONPATH="$skill_root${PYTHONPATH:+:$PYTHONPATH}" \
   "$py" <<'PYEOF'
-from pathlib import Path
 import os
-import re
 import sys
+from pathlib import Path
 
-path = Path(os.environ["TARGET_RULES_FILE"])
-text = path.read_text()
-lang = os.environ["MB_RULE_LANGUAGE"]
+from memory_bank_skill._texttools import localize_language_text, resolve_language_strings
 
-if lang == "ru":
-    replacement = "1. **Language**: Russian — responses and code comments. Technical terms may remain in English."
-else:
-    replacement = "1. **Language**: English — responses and code comments. Technical terms may remain in English."
-
-text = re.sub(
-    r"1\. \*\*[^*]+\*\*: .+",
-    replacement,
-    text,
+strings = resolve_language_strings(
+    os.environ["MB_RULE_LANGUAGE"], os.environ.get("MB_RULE_COMMENTS_LANGUAGE") or None
 )
-sys.stdout.write(text)
+text = Path(os.environ["TARGET_RULES_FILE"]).read_text(encoding="utf-8")
+sys.stdout.write(localize_language_text(
+    text,
+    rule_full=strings.rule_full,
+    rule_short=strings.rule_short,
+    comments_language=strings.comments_language,
+))
 PYEOF
 }
 
@@ -92,6 +88,37 @@ _mb_skill_version() {
   else
     echo "unknown"
   fi
+}
+
+# Write SECTION_FILE (a block that carries its own START/END marker lines) into
+# FILE: replace the existing block, or append it after the user's content, or
+# create the file. Blank lines left before the block are trimmed each time, so a
+# reinstall never grows the file. Prints `created`, `refreshed`, or `merged`.
+mb_upsert_marked_block() {
+  local file="$1" start="$2" end="$3" section="$4" state=merged kept
+  mkdir -p "$(dirname "$file")"
+  if [ ! -f "$file" ]; then
+    cat "$section" > "$file"
+    echo created
+    return 0
+  fi
+  grep -qF -- "$start" "$file" && state=refreshed
+  kept="$(mktemp)"
+  awk -v s="$start" -v e="$end" '
+    index($0, s) { inside = 1; next }
+    index($0, e) { inside = 0; next }
+    !inside { lines[++n] = $0; if (NF) last = n }
+    END { for (i = 1; i <= last; i++) print lines[i] }
+  ' "$file" > "$kept"
+  {
+    if [ -s "$kept" ]; then
+      cat "$kept"
+      printf '\n'
+    fi
+    cat "$section"
+  } > "$file"
+  rm -f "$kept"
+  echo "$state"
 }
 
 # ───────── Build section content ─────────

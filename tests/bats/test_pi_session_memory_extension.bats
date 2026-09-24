@@ -401,3 +401,42 @@ EOF
   resolved_proj="$(cd "$PROJECT" && pwd)"
   grep -qE "^const PROJECT_ROOT = \"$(printf '%s' "$resolved_proj" | sed 's/[\/&]/\\&/g')\";\$" "$local_graph_ext"
 }
+
+@test "pi session-memory extension: a real pi session (file path + id) is captured; extension-injected input is skipped" {
+  _install_global_session_ext
+
+  local harness="$PROJECT/harness-real-session.mjs"
+  cat > "$harness" <<'EOF'
+const [, , extPath, projectRoot] = process.argv;
+const handlers = {};
+const mod = await import(extPath);
+mod.default({ on: (name, fn) => { handlers[name] = fn; } });
+const ctx = {
+  cwd: projectRoot,
+  sessionManager: {
+    getSessionFile: () => "/Users/someone/.pi/agent/sessions/--proj--/2026-09-24_0198c0de.jsonl",
+    getSessionId: () => "0198c0de-7a2b-4c1d-9e8f-001122334455",
+  },
+  ui: { notify: () => {} },
+};
+await handlers.session_start({}, ctx);
+await handlers.input({ text: "typed by the user", source: "interactive" }, ctx);
+await handlers.input({ text: "ROUTER TEXT from sendUserMessage", source: "extension" }, ctx);
+console.log("HARNESS_OK");
+EOF
+
+  run env MB_SESSION_CAPTURE=auto MB_UPDATE_CHECK=off node --experimental-strip-types "$harness" "$EXT" "$PROJECT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"HARNESS_OK"* ]] || false
+
+  local sf=""
+  for f in "$PROJECT/.memory-bank/session"/*_pi_0198c0de.md; do
+    [ -f "$f" ] && sf="$f"
+  done
+  [ -n "$sf" ]
+  grep -q "^session_id: 0198c0de-7a2b-4c1d-9e8f-001122334455$" "$sf"
+  grep -q "^transcript: /Users/someone/.pi/agent/sessions/" "$sf"
+  grep -q 'typed by the user' "$sf"
+  run grep -c 'ROUTER TEXT' "$sf"
+  [ "$output" = "0" ]
+}

@@ -3,6 +3,7 @@ name: mb-doctor
 description: Memory Bank diagnostician — finds and fixes internal inconsistencies across core files (roadmap.md ↔ checklist.md ↔ status.md ↔ backlog.md ↔ plans/). Invoked by /mb doctor. Uses deterministic mb-drift.sh first.
 tools: Read, Edit, Grep, Bash, SendMessage
 color: red
+effort: medium
 ---
 
 # MB Doctor — Subagent Prompt

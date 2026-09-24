@@ -2,8 +2,8 @@
 name: mb-reviewer-lead
 description: Lead reviewer for Memory Bank governed review ensembles. Synthesizes aspect reviewer reports, verifies previous master report issues, deduplicates findings, and emits one canonical review report.
 tools: Bash, Read, Grep, Glob, SendMessage
-model: sonnet
 color: red
+effort: high
 ---
 
 # MB Reviewer Lead

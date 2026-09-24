@@ -9,6 +9,16 @@ Generate a Kiro/Kilo-compatible spec triple under `.memory-bank/specs/<topic>/`.
 
 `/mb sdd` is a **generation pipeline**, not a blank scaffolder: it reads the discuss/self-interview transcript, generates full content, gates the size, publishes the triple as **draft**, and runs the deterministic C8 self-check battery before anything is called ready. The raw scaffold writer still exists for direct use (see *Scaffold boundary*).
 
+## Skill bundle root
+
+Every bundled helper below runs through the skill bundle root, never a bare `scripts/…` path (the
+working directory is the user's project, where `scripts/` is absent or belongs to someone else):
+
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+[ -f "$SKILL_DIR/scripts/_lib.sh" ] || { echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
+```
+
 ## Hybrid requirements format
 
 `requirements.md` pairs the two industry conventions instead of choosing one:
@@ -74,8 +84,8 @@ Ask the user which of the three layers this spec gets: `contract_first`, `integr
 Then render deterministically — this is code, not prompt judgement:
 
 ```bash
-bash scripts/mb-rules-resolve.sh --repo . --mb <bank> --json > <bank>/tmp/sdd/<topic>/rules.json
-python3 scripts/mb-sdd-layers-render.py \
+bash "$SKILL_DIR"/scripts/mb-rules-resolve.sh --repo . --mb <bank> --json > <bank>/tmp/sdd/<topic>/rules.json
+python3 "$SKILL_DIR"/scripts/mb-sdd-layers-render.py \
   --requirements <bank>/tmp/sdd/<topic>/requirements.md \
   --pipeline <pipeline.yaml> --rules-json <bank>/tmp/sdd/<topic>/rules.json --json
 ```
@@ -95,7 +105,7 @@ Generate the implementation tasks as a **candidate**, written to `<bank>/tmp/sdd
 Run the size gate on the candidate — exactly the generated file, never a stale final. Keep the stdout verdict for the promotion step:
 
 ```bash
-bash scripts/mb-estimate-check.sh --tasks-file <bank>/tmp/sdd/<topic>/tasks.candidate.md
+bash "$SKILL_DIR"/scripts/mb-estimate-check.sh --tasks-file <bank>/tmp/sdd/<topic>/tasks.candidate.md
 ```
 
 `spec=over`, `task_over`, or `stage_over` triggers the **Escalation menu (D-35)** below. `spec=near` is advisory. The estimator is a pure checker — it never writes or moves the candidate.
@@ -109,7 +119,7 @@ Resolve the candidate's `Blocked-by` graph and confirm it is acyclic and that ev
 Assemble the staged draft triple in `<bank>/tmp/sdd/<topic>/` (the generated `requirements.md`, `design.md`, and the candidate as `tasks.md`) and run the deterministic battery on it — **the accepted `specs/<topic>/tasks.md` is not touched yet**. The pipeline **calls** the helper; it does not reproduce the preflight by prompt judgement. Pass `--mb <bank>` so the check honours the selected storage (local OR global):
 
 ```bash
-bash scripts/mb-sdd-self-check.sh --spec <bank>/tmp/sdd/<topic> --mb <bank>
+bash "$SKILL_DIR"/scripts/mb-sdd-self-check.sh --spec <bank>/tmp/sdd/<topic> --mb <bank>
 ```
 
 The helper prints `self_check=ready|invalid`, then one `eval.<task-id>=ready|pending_materialization|invalid` line per task, and owns the exit code. A non-zero exit (any `invalid`, cycle, structural failure) **stops the pipeline before promotion**, discards the candidate, and leaves the previously accepted `specs/<topic>/tasks.md` **byte-identical**. `pending_materialization` is not a failure.
@@ -125,7 +135,7 @@ If `sdd.spec_review.enabled` is true: first call `mb-sdd-review-result.sh check 
 Only now — after C8 passed and review resolved — promote the staged draft into `specs/`. The tasks.md promotion is an atomic same-filesystem rename through the deterministic lifecycle helper, which re-parses the C3 verdict and keeps the accepted target byte-identical on any refusal:
 
 ```bash
-bash scripts/mb-sdd-candidate.sh publish --topic <topic> \
+bash "$SKILL_DIR"/scripts/mb-sdd-candidate.sh publish --topic <topic> \
      --candidate <bank>/tmp/sdd/<topic>/tasks.candidate.md \
      --estimate-file <estimate-stdout> --mb <bank> [--override user] [--force]
 ```
@@ -164,7 +174,7 @@ Publication in `specs/` ≠ acceptance. Neither the helper nor the orchestrator 
 - `status` becomes `ready` **only** after `mb-sdd-self-check.sh` exit 0 (C8=pass) **and** one of: review disabled (`sdd.spec_review.enabled=false`); review returned **APPROVED** (`mb-sdd-review-result.sh record` exit 0); or an explicit human/orchestrator decision to accept on **SKIPPED** or on dismissed issues, recorded through the same single writer as its own JSONL line:
 
 ```bash
-bash scripts/mb-sdd-review-result.sh decide --topic <topic> --attempt <n> --input - --mb <bank> <<'IN'
+bash "$SKILL_DIR"/scripts/mb-sdd-review-result.sh decide --topic <topic> --attempt <n> --input - --mb <bank> <<'IN'
 {"kind":"decision","decision":"accept","basis":"skipped","rationale":"<why this is acceptable>","decided_by":"<who>"}
 IN
 ```
@@ -182,7 +192,7 @@ IN
 The raw writer stays byte-identical and scaffold-only for direct calls:
 
 ```bash
-bash scripts/mb-sdd.sh <topic> [--force] [mb_path]
+bash "$SKILL_DIR"/scripts/mb-sdd.sh <topic> [--force] [mb_path]
 ```
 
 `--scaffold-only` on `/mb sdd` is an alias that selects this same writer (its stdout and exit codes do not change). `/mb sdd` without `--scaffold-only` does NOT call the scaffold writer before the D-35 gate is cleared.
@@ -196,16 +206,16 @@ Generated `tasks.md` uses `<!-- mb-task:N -->` markers so `mb_work_items.py` (an
 After editing `tasks.md`, validate the triple:
 
 ```bash
-bash scripts/mb-spec-validate.sh <topic>
+bash "$SKILL_DIR"/scripts/mb-spec-validate.sh <topic>
 # stricter, when the spec carries gated SHALL/MUST requirements:
-bash scripts/mb-spec-validate.sh --require-scenarios <topic>
+bash "$SKILL_DIR"/scripts/mb-spec-validate.sh --require-scenarios <topic>
 ```
 
 To upgrade a legacy `tasks.md` (old `## N. ...` headings without markers):
 
 ```bash
-bash scripts/mb-spec-tasks-migrate.sh <topic>            # dry-run
-bash scripts/mb-spec-tasks-migrate.sh <topic> --apply    # writes a backup, idempotent
+bash "$SKILL_DIR"/scripts/mb-spec-tasks-migrate.sh <topic>            # dry-run
+bash "$SKILL_DIR"/scripts/mb-spec-tasks-migrate.sh <topic> --apply    # writes a backup, idempotent
 ```
 
 ## Out of scope
@@ -218,5 +228,5 @@ bash scripts/mb-spec-tasks-migrate.sh <topic> --apply    # writes a backup, idem
 - `/mb discuss <topic>` — produces the EARS-validated transcript/context that feeds `requirements.md`.
 - `/mb plan <type> <topic> --sdd` — strict mode, refuses without an EARS-valid context.
 - `/mb traceability-gen` — regenerate `traceability.md` after edits to `specs/*/requirements.md`.
-- `bash scripts/mb-req-next-id.sh --spec <topic>` — emit the next per-spec-local REQ-NNN.
-- `bash scripts/mb-ears-validate.sh <file>|-` — verify REQ lines.
+- `bash "$SKILL_DIR"/scripts/mb-req-next-id.sh --spec <topic>` — emit the next per-spec-local REQ-NNN.
+- `bash "$SKILL_DIR"/scripts/mb-ears-validate.sh <file>|-` — verify REQ lines.

@@ -7,7 +7,9 @@
 # user content.
 #
 # Expects the sourcing script to have defined these globals beforehand (they are
-# resolved at call time): PI_START_MARKER, PI_END_MARKER, PI_AGENT_DIR, SKILL_DIR.
+# resolved at call time): PI_START_MARKER, PI_END_MARKER, PI_AGENT_DIR, SKILL_DIR —
+# and to have sourced _lib_agents_md.sh (mb_emit_rules_file, mb_upsert_marked_block).
+# install.sh and adapters/pi.sh both use this file, so the Pi section has one source.
 #
 # Usage (from pi.sh):
 #   # shellcheck source=./_lib_pi_global.sh
@@ -42,7 +44,7 @@ When Memory Bank is ACTIVE and the user asks to implement, fix, continue, resume
 2. Resolve the target/range via \`mb-work-resolve.sh\` and \`mb-work-plan.sh\`; spec tasks with \`<!-- mb-task:N -->\` are executable source of truth.
 3. If a wrapper plan points to a spec, ensure \`linked_spec\` is present; if no executable \`mb-stage\`/\`mb-task\` exists, stop and repair the plan/spec before implementation.
 4. Follow the resolved workflow steps exactly (\`implement\`, \`verify\`, \`review\`, \`judge\`, \`fix\`, \`done\`). If \`review\`/\`judge\` are configured, do not claim completion before those gates or an explicit user-approved workflow override.
-5. Dispatch agents with the exact \`model\` and \`thinking\` from the JSON line / \`pipeline.yaml\`; never rely on fuzzy model aliases or agent frontmatter defaults.
+5. Dispatch each role by name — \`mb_dispatch_subagent(role=<agent>, task=…)\` (or pi-subagents \`subagent\`). The installed role carries its prompt, tools, and \`thinking\`; pass \`model\`/\`thinking\` only when the JSON line sets them, otherwise the current session model applies.
 6. Manual inline work is allowed only for trivial non-plan tasks or when the user explicitly says to skip \`/mb work\`; still apply TDD and verification.
 
 This gate exists to prevent the agent from rationalizing around Memory Bank after compaction, stash restores, or mid-session pivots.
@@ -50,49 +52,21 @@ This gate exists to prevent the agent from rationalizing around Memory Bank afte
 ## Core Memory Bank rules
 
 EOF
-  sed 's#~/.claude/RULES.md#~/.pi/agent/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.pi/agent/skills/memory-bank#g' "$SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+  mb_emit_rules_file "$SKILL_DIR/rules/CLAUDE-GLOBAL.md" \
+    | sed 's#~/.claude/RULES.md#~/.pi/agent/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.pi/agent/skills/memory-bank#g'
   cat <<EOF
 
 $PI_END_MARKER
 EOF
 }
 
+# Prints created|refreshed|merged (mb_upsert_marked_block in _lib_agents_md.sh).
 install_pi_global_agents() {
-  local agents_file="$PI_AGENT_DIR/AGENTS.md"
-  local tmp section_tmp
-  mkdir -p "$PI_AGENT_DIR"
-  section_tmp="$(mktemp)"
-  pi_global_agents_section > "$section_tmp"
-
-  if [ -f "$agents_file" ] && grep -q "$PI_START_MARKER" "$agents_file" 2>/dev/null; then
-    tmp="$agents_file.tmp"
-    awk -v s="$PI_START_MARKER" -v e="$PI_END_MARKER" '
-      BEGIN { inside=0 }
-      index($0, s) { inside=1; next }
-      index($0, e) { inside=0; next }
-      !inside { print }
-    ' "$agents_file" > "$tmp"
-    {
-      if grep -q '[^[:space:]]' "$tmp"; then
-        awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$tmp"
-        printf '\n\n'
-      fi
-      cat "$section_tmp"
-    } > "$agents_file"
-    rm -f "$tmp" "$section_tmp"
-    return 0
-  fi
-
-  if [ -f "$agents_file" ]; then
-    {
-      printf '\n'
-      cat "$section_tmp"
-    } >> "$agents_file"
-    rm -f "$section_tmp"
-    return 0
-  fi
-
-  mv "$section_tmp" "$agents_file"
+  local section
+  section="$(mktemp)"
+  pi_global_agents_section > "$section"
+  mb_upsert_marked_block "$PI_AGENT_DIR/AGENTS.md" "$PI_START_MARKER" "$PI_END_MARKER" "$section"
+  rm -f "$section"
 }
 
 install_pi_settings_skill() {

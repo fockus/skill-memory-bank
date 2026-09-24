@@ -56,17 +56,13 @@ def test_work_md_engineering_core_precedes_tooling_core() -> None:
     )
 
 
-def test_work_md_references_tooling_core_in_implement_and_review() -> None:
-    """tooling-core wired into BOTH §3a (implement) and §3c (review).
-
-    It must appear at least twice: once in the implement-step prompt and once
-    in the reviewer-step prompt.
-    """
-    text = _read(WORK_MD)
-    assert text.count(TOOLING_CORE_REF) >= 2, (
-        "mb-tooling-core.md must appear in both the implement (§3a) and "
-        f"review (§3c) Task prompts; found {text.count(TOOLING_CORE_REF)}"
-    )
+def test_tooling_core_reaches_implementers_and_reviewer() -> None:
+    """tooling-core is composed into the implement and review agents at install time."""
+    assert TOOLING_CORE_REF in _read(WORK_MD)
+    agents = WORK_MD.parents[1] / "agents"
+    for agent in ("mb-developer", "mb-backend", "mb-reviewer", "plan-verifier"):
+        head = (agents / f"{agent}.md").read_text(encoding="utf-8").split("\n---\n", 1)[0]
+        assert "compose:" in head and "mb-tooling-core" in head, agent
 
 
 def test_mb_md_verify_section_references_tooling_core() -> None:

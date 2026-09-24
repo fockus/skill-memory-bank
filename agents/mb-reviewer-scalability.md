@@ -2,8 +2,8 @@
 name: mb-reviewer-scalability
 description: Performance/scalability reviewer for Memory Bank governed review ensembles. Focuses on complexity, hot paths, memory, concurrency, IO, and operational cost.
 tools: Bash, Read, Grep, Glob, SendMessage
-model: sonnet
 color: red
+effort: medium
 ---
 
 # MB Reviewer Scalability

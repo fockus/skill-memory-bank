@@ -126,6 +126,34 @@ STUB
   grep -q "$PROJECT" "$marker"
 }
 
+@test "opencode: a task() child session's idle writes no progress.md auto-capture and no summary" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/memory-bank-plugin-child.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+  mkdir -p "$PROJECT/.memory-bank"
+  printf '# Progress\n' > "$PROJECT/.memory-bank/progress.md"
+  local marker="$PROJECT/summarize-child.json"
+  local stub="$PROJECT/stub-summarize-child.sh"
+  printf '#!/usr/bin/env bash\ncat > "%s"\n' "$marker" > "$stub"
+  chmod +x "$stub"
+
+  run env MB_SUMMARIZE_BIN="$stub" node -e "
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      await plugin.event({ event: { type: 'session.created', properties: { info: { id: 'child-1', parentID: 'parent-1' } } } });
+      await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 'child-1' } } });
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  [ "$status" -eq 0 ]
+  sleep 0.5
+  [ ! -f "$marker" ]
+  run grep -c 'Auto-capture' "$PROJECT/.memory-bank/progress.md"
+  [ "$output" = "0" ]
+}
+
 # A16 (M-8): plugins/memory-bank.js used to be clobbered with a plain `>`
 # redirect — no backup of a user-modified copy, and non-atomic (a crash
 # mid-write would leave a truncated/corrupt plugin file OpenCode then tries

@@ -3,6 +3,7 @@ name: mb-rules-enforcer
 description: Engineering-rules enforcer — runs deterministic SRP / Clean Architecture / TDD-delta checks against changed files and returns a structured JSON report. Invoked by /review, /commit, /pr, and plan-verifier Step 3.6.
 tools: Read, Bash, Grep, Glob, SendMessage
 color: magenta
+effort: low
 ---
 
 # MB Rules Enforcer — Subagent Prompt
@@ -62,7 +63,7 @@ bash ~/.claude/skills/memory-bank/scripts/mb-rules-check.sh \
 
 The script emits JSON with the closed rule-ID vocabulary:
 
-- `solid/srp` — SRP, file > 300 lines (single offender = WARNING, ≥ 3 offenders = CRITICAL each)
+- `solid/srp` — SRP, file > 300 lines: WARNING; CRITICAL when `--base` shows this change pushed the file over the threshold
 - `clean_arch/direction` — domain/ importing from infrastructure/ (CRITICAL)
 - `tdd/delta` — source changed without matching test in the diff (CRITICAL unless exempt)
 

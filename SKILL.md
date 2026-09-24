@@ -218,6 +218,8 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-work-codex-preflight.sh` | Fail-safe codex CLI availability/auth health-check before a cross-model review wave |
 | `mb-session-doctor.sh` | Diagnose session-memory subsystem health (unsummarized sessions, missing index/adapters, legacy stubs) |
 | `mb-agent-caps.sh` | Capability-aware dispatch: resolve CLI transport (pi/opencode/codex/claude-agent) + concrete model per role by probing CLI presence and model availability |
+| `mb-agent-render.py` | Installer helper: builds the installed form of an agent by placing the partials listed in its `compose:` frontmatter above its body (`--host` adapts the frontmatter for OpenCode, pi, or Codex; for Codex it writes a TOML role) |
+| `mb-language.py` | `/mb language`: per-project response / code-comment language as a managed block at the top of the project's `AGENTS.md` and `CLAUDE.md` (`set`, `off`, `show`) |
 | `mb-reviewer-resolve.sh` | Pick the active reviewer agent name |
 | `mb-review.sh` | Review orchestrator entry point: deterministic 5-section payload assembly (diff + calibration examples + test evidence + auto-findings), model-agnostic, `--emit-payload`/`--input` |
 | `mb-review-cache.sh` | Touched-file test-evidence cache: `compute_touched_sha` + TTL HIT/MISS resolution under `.memory-bank/tmp/` |
@@ -313,14 +315,14 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 
 ---
 
-## Agents — subagents (sonnet)
+## Agents — subagents
 
 | Agent | When to invoke | Prompt |
 |-------|----------------|--------|
 | `mb-manager` | `/mb context`, `search`, `note`, `tasks`, `done`, `update`, PreCompact hook | `agents/mb-manager.md` |
 | `mb-doctor` | `/mb doctor` — memory-bank inconsistencies (use `mb-plan-sync.sh` first, only edit for semantic drift) | `agents/mb-doctor.md` |
 | `mb-codebase-mapper` | `/mb map [focus]` — scan the codebase → `.memory-bank/codebase/{STACK,ARCHITECTURE,CONVENTIONS,CONCERNS}.md` | `agents/mb-codebase-mapper.md` |
-| `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan. Uses `**Baseline commit:**` from plan header for `git diff`, delegates tests to `mb-test-runner`, enforces RULES.md via `mb-rules-enforcer` | `agents/plan-verifier.md` |
+| `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan. Uses `**Baseline commit:**` from plan header for `git diff`, runs `mb-test-run.sh` and `mb-rules-check.sh` directly | `agents/plan-verifier.md` |
 | `mb-rules-enforcer` | `/review`, `/commit`, `/pr`, `plan-verifier` step 3.6 — runs `mb-rules-check.sh` (solid/srp, clean_arch/direction, tdd/delta) + LLM ISP/DRY judgment. Returns strict JSON + summary | `agents/mb-rules-enforcer.md` |
 | `mb-test-runner` | `/test`, `plan-verifier` step 3.5 — runs `mb-test-run.sh`, correlates failures with session diff. Returns JSON `{stack, tests_pass, tests_total, failures[], coverage, duration_ms}` | `agents/mb-test-runner.md` |
 | `mb-reviewer` | `/mb work` legacy single-reviewer fallback — reads stage diff + `pipeline.yaml:review_rubric`, emits structured JSON verdict | `agents/mb-reviewer.md` |
@@ -331,8 +333,8 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-reviewer-scalability` | `/mb work` governed review ensemble — performance / scalability aspect reviewer | `agents/mb-reviewer-scalability.md` |
 | `mb-reviewer-lead` | `/mb work` governed review — synthesizes aspect reports, verifies previous master report closure, separates blockers from backlog | `agents/mb-reviewer-lead.md` |
 | `mb-judge` | `/mb work` governed final gate — decides GO / GO_WITH_BACKLOG / NO_GO from plan, verifier, lead-review, and evidence | `agents/mb-judge.md` |
-| `mb-engineering-core` | **[partial — not dispatched directly]** Prepended by `/mb work` ahead of every dev-role agent below. Carries the shared discipline: TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims (Iron Law), escalation, STATUS contract, anti-rationalization. Excluded from the `~/.claude/agents/` registry via `partial: true` frontmatter. | `agents/mb-engineering-core.md` |
-| `mb-tooling-core` | **[partial — not dispatched directly]** Prepended by `/mb work` alongside `mb-engineering-core`. Carries the graph-first, fail-open code-understanding routing (`code_context` / `graph_neighbors` / `graph_impact` / `graph_tests` / `search_code` / `recall`). Optional indexes degrade to `Grep`/`Read`. Excluded from the registry via `partial: true`. | `agents/mb-tooling-core.md` |
+| `mb-engineering-core` | **[partial — not dispatched directly]** Composed into every dev-role agent below at install time (`compose:` frontmatter). Carries the shared discipline: TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims (Iron Law), escalation, STATUS contract, anti-rationalization. Excluded from the `~/.claude/agents/` registry via `partial: true` frontmatter. | `agents/mb-engineering-core.md` |
+| `mb-tooling-core` | **[partial — not dispatched directly]** Composed at install time into the dev-role agents, `mb-reviewer`, and `plan-verifier`. Carries the graph-first, fail-open code-understanding routing (`code_context` / `graph_neighbors` / `graph_impact` / `graph_tests` / `search_code` / `recall`). Optional indexes degrade to `Grep`/`Read`. Excluded from the registry via `partial: true`. | `agents/mb-tooling-core.md` |
 | `mb-developer` | `/mb work` — generic implementer when no specialist role matches. Discipline from `mb-engineering-core` + DoD-driven implementation | `agents/mb-developer.md` |
 | `mb-architect` | `/mb work` — architecture / ADR / system-design specialist. Domain modelling, interface definition, refactoring strategy | `agents/mb-architect.md` |
 | `mb-backend` | `/mb work` — APIs, services, database, async/concurrency, server-side business logic | `agents/mb-backend.md` |
@@ -344,30 +346,33 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | `mb-analyst` | `/mb work` — data / analytics / metrics: SQL, dashboards, cohorts, ETL pipelines, instrumentation | `agents/mb-analyst.md` |
 | `mb-research` | `/mb research` (and broad `/mb work` research steps) — graph-first, multi-source research over codebase + project memory + library docs + GitHub prior-art + open web; read-only (no Write/Edit), returns `file:line` / source-grounded conclusions, degrades to `Grep` when indexes are absent | `agents/mb-research.md` |
 | `mb-researcher` | `/mb work` governed research role (wired in `pipeline.default.yaml`) — ecosystem research, implementation reconnaissance, source comparisons, technical due diligence, and evidence-backed option matrices before planning or implementation | `agents/mb-researcher.md` |
-| `mb-wiki-author` | `/mb wiki` — **Haiku tier.** Writes one codebase-wiki article per community from a deterministic evidence pack | `agents/mb-wiki-author.md` |
-| `mb-wiki-synthesizer` | `/mb wiki` — **Sonnet tier.** Finds surprising cross-community connections, emits strict-JSON `semantic` edges | `agents/mb-wiki-synthesizer.md` |
+| `mb-wiki-author` | `/mb wiki` — bulk worker pinned to a small model (`model: haiku`). Writes one codebase-wiki article per community from a deterministic evidence pack | `agents/mb-wiki-author.md` |
+| `mb-wiki-synthesizer` | `/mb wiki` — finds surprising cross-community connections, emits strict-JSON `semantic` edges | `agents/mb-wiki-synthesizer.md` |
 
-> **Composition (dev-role agents).** When `/mb work` dispatches a dev-role agent (developer / backend /
-> frontend / ios / android / architect / devops / qa / analyst), it inlines `mb-engineering-core.md`
-> **first**, then the role file, then the work item — `prompt = core + "\n---\n" + role + body`. The
-> role files carry only their domain delta and reference the core; the prepend is what delivers the
-> shared discipline. A role file dispatched alone (outside `/mb work`) is discipline-thin by design —
-> read the core first if you invoke one standalone.
+> **Composition.** An agent lists the partials it needs under `compose:` in its frontmatter; the
+> installer (`scripts/mb-agent-render.py`) places those partials above the agent's own text, so the
+> installed agent carries the shared discipline and a dispatch by name needs only the task data.
+> Reading a role file from the skill directory directly (clients without named dispatch) means reading
+> its `compose:` partials first.
 
-Do **NOT** delegate plan creation, architectural decisions, or ML-result evaluation to a subagent — that is main-agent work.
+Plan authoring and ML-result evaluation stay with the main agent: it holds the user's context and decisions. `mb-architect` executes the architecture items of an approved plan.
 
 > **Plan hierarchy:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for size thresholds, terminology, and when to use which level. Cyrillic «Этап / Спринт / Фаза» — legacy alias, allowed only in `plans/done/*.md`.
 
-### Invocation format
+### Invocation
 
-```
-Agent(
-  subagent_type="general-purpose",
-  model="sonnet",
-  description="<description>",
-  prompt="<contents of agents/<agent>.md>\n\naction: <action>\n\n<context>"
-)
-```
+Dispatch agents by name — `Agent(subagent_type="mb-manager", description="…", prompt="action: <action>\n\n<context>")`.
+Model, reasoning effort, and tools come from the installed agent definition or `pipeline.yaml`, not from the call.
+The commands write this Claude Code form; other hosts dispatch the same installed role with their own tool:
+
+| Host | Dispatch by name | Where the role is installed |
+|---|---|---|
+| Claude Code | `Agent(subagent_type=<name>, prompt=…)` (older builds: `Task`) | `~/.claude/agents/<name>.md` |
+| OpenCode | `task(subagent_type=<name>, prompt=…)` | `.opencode/agent/<name>.md` |
+| Codex | `spawn_agent(agent_type=<name>, message=…)`; a pipeline `thinking` goes to `reasoning_effort` | `~/.codex/agents/<name>.toml` |
+| Pi | `mb_dispatch_subagent(role=<name>, task=…)` or pi-subagents `subagent(agent=<name>, task=…)`; `thinking` passes through | `~/.pi/agent/agents/<name>.md` |
+
+A host without named dispatch reads the role file and its `compose:` partials and does the work inline.
 
 ---
 

@@ -93,7 +93,7 @@ setup() {
 @test "doc threads budget init/check with --run-id from mb-work-state.sh init" {
   run grep -q -- "--run-id" "${DOCS[@]}"
   [ "$status" -eq 0 ]
-  run grep -q "RUN_ID=\$(bash scripts/mb-work-state.sh init" "${DOCS[@]}"
+  run grep -q 'RUN_ID=$(bash "$SKILL_DIR"/scripts/mb-work-state.sh init' "${DOCS[@]}"
   [ "$status" -eq 0 ]
 }
 

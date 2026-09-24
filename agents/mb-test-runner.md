@@ -3,6 +3,7 @@ name: mb-test-runner
 description: Structured test runner — detects stack, runs tests, parses per-stack output into strict JSON (pass/fail, counts, per-failure file+name+error_head). Invoked by /test and plan-verifier Step 3.5. Never silently reports "not-run" as pass.
 tools: Bash, Read, Grep, SendMessage
 color: green
+effort: low
 ---
 
 # MB Test Runner — Subagent Prompt

@@ -3,6 +3,7 @@ name: mb-manager
 description: Memory Bank manager — maintains `.memory-bank/` (context, search, note, tasks, actualize). Invoked by /mb context|search|note|tasks|update|done and PreCompact hook.
 tools: Read, Edit, Write, Bash, Grep, Glob, SendMessage
 color: blue
+effort: low
 ---
 
 # MB Manager — Subagent Prompt

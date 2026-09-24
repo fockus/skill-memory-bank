@@ -258,7 +258,10 @@ case "$AGENT" in
       # that case. tests/bats/test_pi_agents_dispatch.bats does this for
       # every resolve-only assertion.
       _role_prompt_file="$(mktemp)"
-      awk 'BEGIN{d=0} /^---[ \t]*$/{d++; next} d>=2{print}' "$_role_file" > "$_role_prompt_file"
+      # The installed form of the role (partials from `compose:` included), body only.
+      "${MB_PYTHON:-python3}" "$SKILL_DIR/scripts/mb-agent-render.py" "$_role_file" \
+        --skill-dir "$SKILL_DIR" --host pi \
+        | awk 'BEGIN{d=0} d<2 && /^---[ \t]*$/{d++; next} d>=2{print}' > "$_role_prompt_file"
       # printf %q (not a manual double-quote) shell-escapes the tmpfile path
       # so it round-trips safely through bash -c even in the (unlikely, but
       # not impossible on every platform) case TMPDIR/mktemp produces a path
