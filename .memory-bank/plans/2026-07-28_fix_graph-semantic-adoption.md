@@ -72,10 +72,10 @@ created: 2026-07-28
 - pytest (индекс-шаг): `--apply` со stub-эмбеддером создаёт `.index/codesearch/{embeddings.npy,embeddings.key}`; без fastembed — скип с сообщением и rc=0; повторный прогон без изменений исходников не пересобирает (mtime не меняется).
 
 **DoD:**
-- [ ] pytest-кейсы красные до реализации, зелёные после
-- [ ] `.index/codesearch/` существует в skill-memory-bank после реального `--apply` (прогон в verify)
-- [ ] `mb-semantic-search.py "<query>" --backend embeddings` отвечает без построения индекса (тёплый старт) — реальный прогон
-- [ ] Backfill выполнен в `~/Apps/code-agent`, `~/Apps/harness`, `~/Apps/techflow` (графы свежие, индексы существуют) — AGR-046
+- [x] pytest-кейсы красные до реализации, зелёные после
+- [x] `.index/codesearch/` существует в skill-memory-bank после реального `--apply` (прогон в verify)
+- [x] `mb-semantic-search.py "<query>" --backend embeddings` отвечает без построения индекса (тёплый старт) — реальный прогон
+- [x] Backfill выполнен в `~/Apps/code-agent`, `~/Apps/harness`, `~/Apps/techflow` (графы свежие, индексы существуют) — AGR-046
 
 **Code rules:** Contract-First (скип-путь — часть контракта), YAGNI (без новых конфигов).
 
@@ -207,13 +207,13 @@ created: 2026-07-28
 - `test_semantic_index.py`: промах кэша не кодирует синхронно (стаб-эмбеддер не вызывается), отдаёт BM25 и порождает фоновую сборку; интерпретатор СУЩЕСТВУЕТ, но fastembed в нём не импортируется (`MB_SEMANTIC_PY` на системный python3) → второй вызов `refresh_index()` печатает честный skip и НЕ порождает потомка повторно; ветка `"locked"` в `build_index()` покрыта (сегодня 0 тестов — WARNING-2 из verify Stage 2).
 
 **DoD:**
-- [ ] Новые тесты красные до реализации, зелёные после; старые `test_semantic_*` зелёные
-- [ ] Реальный прогон: `python3 scripts/mb-semantic-search.py "<query>" .memory-bank --backend embeddings` СИСТЕМНЫМ python3 отвечает `backend: embeddings` без пересборки индекса
-- [ ] Реальный прогон: та же команда без `--backend` (auto) тоже использует векторы
-- [ ] Реальный прогон: `--source-only` не пересобирает индекс — `embeddings.key` и mtime `embeddings.npy` не меняются
-- [ ] Промах кэша отвечает за <2 с (BM25) и оставляет фоновую сборку; `ruff` чист; CHANGELOG
-- [ ] Воспроизведённый сценарий CRITICAL-1 закрыт: при `MB_SEMANTIC_PY`, указывающем на интерпретатор без fastembed, второй `refresh_index()` печатает skip вместо `refreshing in background`
-- [ ] Воспроизведённый сценарий CRITICAL-2 закрыт: чередование `--source-only` и обычного запроса на тёплом индексе не даёт переднего кодирования (замер verify Stage 2: 1:00.89 и затем 3:49.81 — должно стать <2 с)
+- [x] Новые тесты красные до реализации, зелёные после; старые `test_semantic_*` зелёные
+- [x] Реальный прогон: `python3 scripts/mb-semantic-search.py "<query>" .memory-bank --backend embeddings` СИСТЕМНЫМ python3 отвечает `backend: embeddings` без пересборки индекса
+- [x] Реальный прогон: та же команда без `--backend` (auto) тоже использует векторы
+- [x] Реальный прогон: `--source-only` не пересобирает индекс — `embeddings.key` и mtime `embeddings.npy` не меняются
+- [x] Промах кэша отвечает за <2 с (BM25) и оставляет фоновую сборку; `ruff` чист; CHANGELOG
+- [x] Воспроизведённый сценарий CRITICAL-1 закрыт: при `MB_SEMANTIC_PY`, указывающем на интерпретатор без fastembed, второй `refresh_index()` печатает skip вместо `refreshing in background`
+- [x] Воспроизведённый сценарий CRITICAL-2 закрыт: чередование `--source-only` и обычного запроса на тёплом индексе не даёт переднего кодирования (замер verify Stage 2: 1:00.89 и затем 3:49.81 — должно стать <2 с)
 
 **Code rules:** fail-open на всех путях (нет venv / нет индекса / фоновый запуск не удался → BM25, никогда не блокировать), 0 новых зависимостей.
 

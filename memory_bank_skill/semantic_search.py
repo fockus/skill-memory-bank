@@ -251,6 +251,11 @@ class FusedRetriever:
         self._docs: list[dict[str, Any]] = []
         self._by_id: dict[str, dict[str, Any]] = {}
 
+    def is_warm(self, docs: list[dict[str, Any]]) -> bool:
+        """Delegate the cache probe to the embedding half (BM25 needs no cache)."""
+        probe = getattr(self._emb, "is_warm", None)
+        return probe(docs) if probe is not None else True
+
     def index(self, docs: list[dict[str, Any]]) -> None:
         self._docs = list(docs)
         # Build the id→doc map once at index time so query-time fusion stays
@@ -328,7 +333,9 @@ def run_search(
 ) -> dict[str, Any]:
     """Load the graph, build the corpus, search. Returns a JSON-serialisable dict.
 
-    ``source_only`` drops test/spec docs before indexing (works for any backend).
+    ``source_only`` drops test/spec hits AFTER retrieval — the indexed corpus is
+    always the full one, so every query variant shares the single embedding cache
+    slot instead of evicting it (AGR-048).
     """
     mb = Path(mb_path)
     graph_path = mb / "codebase" / "graph.json"
@@ -352,20 +359,33 @@ def run_search(
 
     wiki_dir = mb / "codebase" / "wiki"
     corpus = build_corpus(nodes, wiki_dir if wiki_dir.is_dir() else None)
-    if source_only:
-        corpus = [d for d in corpus if not d.get("is_test")]
     cache_dir = mb / ".index" / "codesearch"
     retriever = make_retriever(backend, warnings=warnings, cache_dir=cache_dir)
+    # A cold vector cache costs minutes to encode (9k symbols ≈ 3:49 measured), which
+    # a search must never spend in the foreground (AGR-048). Answer from BM25 now and
+    # let `/mb graph --apply`'s detached builder warm the matrix for the next query.
+    # Retrievers without `is_warm` (BM25, test doubles) never take this path.
+    is_warm = getattr(retriever, "is_warm", None)
+    if is_warm is not None and not is_warm(corpus):
+        from memory_bank_skill import semantic_index
+
+        warnings.append(f"{semantic_index.refresh_index(mb)}; answering with bm25")
+        retriever = Bm25Retriever()
     retriever.index(corpus)
     # Churn re-rank (design §A4) multiplies final scores then re-sorts, so it must
     # run over the FULL candidate set — a hot file below an arbitrary k*N window
     # could otherwise never be promoted into top-k. Fetch the whole corpus when
     # churn is present (graph nodes are a small corpus; retrievers already score
     # everything internally). No churn → fetch_k = k stays byte-identical.
+    # `source_only` filters AFTER retrieval, so it needs the same headroom as churn:
+    # with fetch_k = k a corpus whose tests outrank its sources returns fewer than k.
     churn = load_churn(graph_path)
-    fetch_k = len(corpus) if churn else k
+    fetch_k = len(corpus) if (churn or source_only) else k
     hits = retriever.search(query, fetch_k)
-    hits = apply_churn_multiplier(hits, churn)[:k]
+    hits = apply_churn_multiplier(hits, churn)
+    if source_only:
+        hits = [h for h in hits if not h.get("is_test")]
+    hits = hits[:k]
     result: dict[str, Any] = {
         "ok": True,
         "query": query,

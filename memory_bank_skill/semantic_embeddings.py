@@ -73,6 +73,21 @@ def _cache_paths(cache_dir: Path) -> tuple[Path, Path]:
     return d / "embeddings.npy", d / "embeddings.key"
 
 
+def cache_key_matches(cache_dir: Path | str, key: str) -> bool:
+    """True when the persisted matrix was built from exactly this (model, corpus).
+
+    Key compare only — no matrix load, no fastembed import — so any interpreter can
+    ask "is the index warm?" in microseconds. Single source of truth for that
+    question: the query path (``is_warm``) and the builder (``semantic_index``)
+    both route through here.
+    """
+    _, keyf = _cache_paths(Path(cache_dir))
+    try:
+        return keyf.read_text(encoding="utf-8").strip() == key
+    except OSError:
+        return False
+
+
 def _load_cache(cache_dir: Path, key: str, n_rows: int) -> Any:  # pragma: no cover - numpy path
     """Return the cached matrix when key + row-count match, else None."""
     if not HAS_NUMPY:
@@ -127,6 +142,18 @@ class EmbeddingRetriever:
     @property
     def available(self) -> bool:
         return HAS_FASTEMBED
+
+    def is_warm(self, docs: list[dict[str, Any]]) -> bool:
+        """True when ``index(docs)`` would read the cache instead of encoding.
+
+        The query path asks this BEFORE indexing (AGR-048): encoding a 9k-symbol
+        corpus takes minutes, which a search must never spend in the foreground.
+        No cache dir (unit/ad-hoc use) counts as cold.
+        """
+        if self._cache_dir is None:
+            return False
+        texts = [d["text"] for d in docs]
+        return bool(texts) and cache_key_matches(self._cache_dir, corpus_key(self.model_name, texts))
 
     def _ensure_model(self) -> Any:  # pragma: no cover - requires optional model
         if self._model is None:

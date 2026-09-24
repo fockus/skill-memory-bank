@@ -88,8 +88,12 @@ Ranks graph symbols (+ wiki articles, if built) by relevance.
   deterministic, byte-identical to the embeddings-absent path). Explicit
   `--backend bm25` / `embeddings` skip the fusion.
 - `--source-only` drops test/spec files (find the implementation, not its tests).
-- First embeddings query loads the model (~5–15 s); subsequent queries reuse a
-  cached vector matrix under `.memory-bank/.index/codesearch/` (sub-second).
+  It filters after retrieval, so it reuses the same cached matrix as a full query.
+- Queries read the cached vector matrix under `.memory-bank/.index/codesearch/`
+  (~1 s), warmed in the background by `/mb graph --apply`. The command above
+  re-execs itself under the interpreter that has `fastembed`, so a plain `python3`
+  reaches that cache too. A cold index answers from BM25 with a warning and warms
+  itself in a detached child rather than making you wait for the encode.
 - Build with `/mb graph --apply --docs` so the index matches intent.
 
 ### `/mb wiki` — per-community articles + surprising connections
