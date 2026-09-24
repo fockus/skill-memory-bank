@@ -28,7 +28,7 @@ teardown() { [ -n "${TMP:-}" ] && [ -d "$TMP" ] && rm -rf "$TMP"; }
   ctx="$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext')"
   echo "$ctx" | grep -q '# How to use project memory'
   echo "$ctx" | grep -q '/mb recall'
-  echo "$ctx" | grep -q 'graphify'
+  echo "$ctx" | grep -q 'mb-graph-query'
   echo "$ctx" | grep -q '# Recent Sessions'
 }
 

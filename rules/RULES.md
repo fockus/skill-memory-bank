@@ -5,38 +5,32 @@
 
 ---
 
-## CRITICAL — violation means failure
+## Core rules
 
 1. **Language**: English — responses and code comments. Technical terms may remain in English.
 2. **No placeholder code**: no `...`, `TODO`, or `pass` (exception: staged stubs behind a feature flag with a docstring)
 3. **Destructive actions only after explicit "go"**
 4. **Protected files** (`.env`, `ci/`**, Docker/K8s/Terraform) — do not touch without an explicit request
 5. **New logic = tests FIRST** (TDD)
-6. **Principles**: TDD / SOLID / DRY / KISS / YAGNI / Clean Architecture — no exceptions
+6. **Principles**: TDD / SOLID / DRY / KISS / YAGNI / Clean Architecture
 7. **Contract-First**: interface → contract tests → implementation
-8. **Fail Fast**: if you are unsure about direction, write a 3-5 line plan and ask
-9. **RULES.md is a mandatory standard**: ALL work MUST follow this file plus the project `RULES.MD`. It is not a recommendation; it is a hard requirement.
+8. **Fail Fast**: when different readings of the task would lead to materially different work, say so briefly with your proposed approach and ask; make routine judgment calls yourself and state the assumption
+9. **This file is the standard**: work follows it together with the project `RULES.md`; where they differ, the project file wins.
 
 ---
 
-## Mandatory first response guard
+## Memory Bank status line
 
-This is an output-format invariant for agents that load these rules into their prompt.
+Open your first reply to the user in a project session with one status line: `[MEMORY BANK: ACTIVE]` when a bank resolves for this project (then read the core files), `[MEMORY BANK: ABSENT]` when none does, and `[MEMORY BANK: INITIALIZED]` only right after an explicit `/mb init` or user request. The line is for the human: leave it out of later replies, subagent reports, and output that a script parses.
 
-Before any substantive response in a project directory:
-1. Resolve the active Memory Bank through `scripts/_lib.sh::mb_resolve_path`. The bank may be **local** (`<project>/.memory-bank/`), **global** (`<agent_config>/memory-bank/projects/<id>/.memory-bank/`, registered through `/mb init --storage=global --agent=<name>`), or **legacy** (`.claude-workspace`). Agent-agnostic global storage is the new recommended layout for personal use; local stays default and team-friendly.
-2. If the resolver returns an existing bank, start with `[MEMORY BANK: ACTIVE]` and read the core files at session start.
-3. If no bank is resolved, start with `[MEMORY BANK: ABSENT]`.
-4. Do not silently initialize Memory Bank for meta/install/debug questions.
-5. Print `[MEMORY BANK: INITIALIZED]` only after explicit `/mb init` or user request.
-6. Distinguish global skill installation from project Memory Bank activation. A global install never implies an active bank.
+`scripts/_lib.sh::mb_resolve_path` resolves a **local** bank (`<project>/.memory-bank/`), a **global** one (`<agent_config>/memory-bank/projects/<id>/.memory-bank/`, registered through `/mb init --storage=global --agent=<name>`), or a **legacy** `.claude-workspace`. Global storage suits personal use; local stays the default and is team-friendly. A global skill install never implies an active bank. Do not silently initialize Memory Bank for meta/install/debug questions.
 
 ### Rules-only mode
 
 `[MEMORY BANK: ABSENT]` is a deliberate user choice for many third-party repositories. In rules-only mode:
 
 - `/mb` lifecycle commands stay inactive — do not auto-initialize, do not write `.memory-bank/` files.
-- All engineering rules above (TDD, SOLID, Clean Architecture / FSD, DRY/KISS/YAGNI, Testing Trophy, protected files, no placeholders, verification before completion) **still apply** to ordinary code work. The agent must NOT relax discipline because Memory Bank is absent.
+- All engineering rules above (TDD, SOLID, Clean Architecture / FSD, DRY/KISS/YAGNI, Testing Trophy, protected files, no placeholders, verification before completion) **still apply** to ordinary code work; an absent bank does not relax discipline.
 
 ---
 
@@ -120,7 +114,7 @@ Choose ONE macro style per service and record it in the project `RULES.MD` / Mem
 
 - **Serverless (FaaS)** — functions as deploy units (Lambda / Cloud Functions / Workers). Keep each handler thin; business logic lives in Application/Domain so it is testable without the runtime. No shared mutable state between invocations.
 - **Microservices** — independently deployable services, each owning its own data. Communicate over explicit contracts (HTTP / gRPC / events), never a shared database. One bounded context per service.
-- **Modular monolith** — one deploy unit, internal modules by bounded context. **Modules MUST NOT depend on each other directly** — cross-module communication goes ONLY through a shared layer (`shared/`) or explicit published contracts/interfaces. A module imports `shared`, never a sibling module's internals. This keeps modules independently reasoned and extractable into services later.
+- **Modular monolith** — one deploy unit, internal modules by bounded context. **Modules do not depend on each other directly** — cross-module communication goes ONLY through a shared layer (`shared/`) or explicit published contracts/interfaces. A module imports `shared`, never a sibling module's internals. This keeps modules independently reasoned and extractable into services later.
 
 In all three the Clean Architecture dependency direction holds **inside** each function / service / module. The macro style only decides the deploy + coupling boundary; it never licenses an Infrastructure→Domain import.
 
@@ -134,7 +128,7 @@ Group modules into coherent sub-packages by **responsibility / bounded context**
 
 ### SOLID
 
-- **SRP** (Single Responsibility): one module = one reason to change. More than 3 public methods of different kinds is a violation. A class with more than 300 lines is a split candidate
+- **SRP** (Single Responsibility): one module = one reason to change. A file over 300 lines, or with more than 3 public methods of different nature, is a split candidate (WARNING). It blocks (CRITICAL) when a change pushes the file over the threshold or adds a new responsibility to a file that is already over it
 - **OCP** (Open/Closed): extend through composition and the Strategy pattern, not by modifying old code. New behavior = new class, not `if-else` inside old code
 - **LSP** (Liskov Substitution): a subclass must work everywhere the parent works. Violation: overriding a method with different semantics
 - **ISP** (Interface Segregation): Protocol/Interface ≤5 methods. A client must not depend on methods it does not use. A fat interface should be split into thinner ones
@@ -142,8 +136,8 @@ Group modules into coherent sub-packages by **responsibility / bounded context**
 
 ### DRY / KISS / YAGNI
 
-- **DRY**: duplication more than 2 times → extract function/class. BUT do not extract if the similarity is accidental (different domains, different reasons to change)
-- **KISS**: simple solutions beat complex ones. Three repeated lines are better than premature abstraction. If a solution requires a lot of explanation, it is too complex
+- **DRY**: the same logic in 3+ places → extract a function/class; two similar spots stay as they are. Do not extract when the similarity is accidental (different domains, different reasons to change)
+- **KISS**: simple solutions beat complex ones; three repeated lines are better than a premature abstraction. If a solution requires a lot of explanation, it is too complex
 - **YAGNI**: do not write code for hypothetical future needs. Do not add feature flags, config, or abstractions for imagined requirements. Add only what is needed NOW
 
 ### Training / Inference separation (ML projects)
@@ -332,7 +326,7 @@ assert loss < initial_loss * 0.8
 - Full imports, valid syntax, complete functions — code must be copy-paste ready
 - No placeholders: no `TODO`, `...`, or pseudocode
 - No new libraries/frameworks without an explicit request
-- Multi-file changes → plan first, then implement
+- Multi-stage work → plan first (`/mb plan`), then implement
 
 ### Refactoring
 
@@ -348,12 +342,7 @@ assert loss < initial_loss * 0.8
 
 ### Response format
 
-- Structure: **Goal → Action → Result**
-- Before any substantive response in a project directory, check `./.memory-bank/` and start with the status line:
-  - `[MEMORY BANK: ACTIVE]` when `./.memory-bank/` exists
-  - `[MEMORY BANK: ABSENT]` when it does not exist
-  - `[MEMORY BANK: INITIALIZED]` only after explicit initialization
-- Do not confuse global skill installation with project `./.memory-bank/` activation
+- Status line: § Memory Bank status line (first reply only)
 - Code: full functions, copy-paste ready, complete imports
 
 ---
@@ -396,7 +385,7 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
 
 ## Subagents
 
-All subagents run on **sonnet** unless noted; prompts in `~/.claude/skills/memory-bank/agents/<name>.md`. **Full roster + when-to-invoke → `SKILL.md` § Agents** — lifecycle / quality-gate agents (`mb-manager`, `plan-verifier`, `mb-doctor`, `mb-codebase-mapper`, `mb-rules-enforcer`, `mb-test-runner`, `mb-reviewer`), the 9 `/mb work` dev-role agents (`mb-developer` / `mb-architect` / `mb-backend` / `mb-frontend` / `mb-ios` / `mb-android` / `mb-devops` / `mb-qa` / `mb-analyst`), and the `/mb wiki` agents.
+Each subagent's model and effort come from its definition or `pipeline.yaml`; prompts in `~/.claude/skills/memory-bank/agents/<name>.md`. **Full roster + when-to-invoke → `SKILL.md` § Agents** — lifecycle / quality-gate agents (`mb-manager`, `plan-verifier`, `mb-doctor`, `mb-codebase-mapper`, `mb-rules-enforcer`, `mb-test-runner`, `mb-reviewer`), the 9 `/mb work` dev-role agents (`mb-developer` / `mb-architect` / `mb-backend` / `mb-frontend` / `mb-ios` / `mb-android` / `mb-devops` / `mb-qa` / `mb-analyst`), and the `/mb wiki` agents.
 
 `/mb work` prepends the **partial** `mb-engineering-core` before every dev-role agent (core + role + work-item): the core carries shared discipline (TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims / Iron Law, escalation), each role file only its domain delta — a role file invoked standalone is discipline-thin by design.
 
@@ -406,10 +395,10 @@ Do **NOT** delegate plan creation, architectural decisions, or ML-result interpr
 
 ## `/mb` Commands
 
-The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineering RULES in this file + a dev toolkit of 25 commands. **Full command reference → `/mb help` (or `commands/mb.md`); scripts table → `SKILL.md` § Tools.** Essentials:
+The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineering RULES in this file + a dev toolkit of slash commands. **Full command reference → `/mb help` (or `commands/mb.md`); scripts table → `SKILL.md` § Tools.** Essentials:
 
 - **Lifecycle / context:** `/mb` (context), `/mb start`, `/mb done`, `/mb update`, `/mb search`, `/mb recall`, `/mb index`, `/mb init` (`--storage=local` default | `--storage=global --agent=<name>`).
-- **Planning / SDD:** `/mb plan <type> <topic>`, `/mb discuss`, `/mb sdd`, `/mb work`, `/mb verify` (**MANDATORY before `/mb done` when work followed a plan**), `/mb idea`, `/mb idea-promote`, `/mb adr`.
+- **Planning / SDD:** `/mb plan <type> <topic>`, `/mb discuss`, `/mb sdd`, `/mb work`, `/mb verify` (run it before `/mb done` when work followed a plan), `/mb idea`, `/mb idea-promote`, `/mb adr`.
 - **Codebase / housekeeping:** `/mb map`, `/mb graph --apply` (`--questions` / `--cochange`), `/mb wiki`, `/mb doctor`, `/mb compact`, `/mb config`, `/mb profile`, `/mb roadmap-sync`, `/mb traceability-gen`, `/mb upgrade`.
 - **Standalone toolkit** (top-level, not under `/mb`): `/commit` · `/pr` · `/review` · `/test` · `/refactor` · `/doc` · `/changelog` · `/catchup` · `/contract` · `/security-review` · `/api-contract` · `/db-migration` · `/observability` — most mirror the `/mb` equivalents and also run `mb-rules-enforcer` / `mb-test-runner` where relevant.
 
@@ -436,7 +425,7 @@ The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineer
 3. Summarize the focus in 1-3 sentences
 4. If there is an active plan in `plans/` → read it in full
 5. Check `.memory-bank/codebase/`:
-  - If missing or contains no `*.md` files → suggest `/mb map all` (subagent `mb-codebase-mapper`, sonnet). Default answer = skip; never auto-invoke the mapper
+  - If missing or contains no `*.md` files → suggest `/mb map all` (subagent `mb-codebase-mapper`). Default answer = skip; never auto-invoke the mapper
   - If populated → `mb-context.sh` already folded the per-doc summaries into the gathered context (use `/mb context --deep` to expand)
 
 ### During work — when to update files
@@ -460,7 +449,7 @@ The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineer
 
 ### `/mb done` — end of session
 
-1. **If work followed a plan** → run `/mb verify` **MANDATORILY** before `/mb done`:
+1. **If work followed a plan** → run `/mb verify` before `/mb done`:
   - Plan Verifier rereads the plan, checks `git diff`, and finds mismatches
   - CRITICAL → must be fixed
   - WARNING → optional / user decision
@@ -481,7 +470,7 @@ Use when: an intermediate stage is finished but the session continues.
 
 ### Before compaction
 
-Run `/mb update` to save current progress BEFORE context compression.
+`/mb update` saves current progress; the PreCompact hook also records a handoff before compaction.
 
 ---
 
@@ -505,7 +494,7 @@ The complete lifecycle of a Memory Bank session. Use this as the canonical seque
 | `/mb search <query>` | Targeted keyword search across the bank |
 | `/mb tasks` | Only unfinished checklist items |
 
-**After `/mb start` the agent MUST output a 1-3 sentence focus summary**: "We are doing X, on stage Y, next step is Z."
+**After `/mb start`, give a 1-3 sentence focus summary**: "We are doing X, on stage Y, next step is Z."
 
 ### Phase 2 — Plan creation
 
@@ -536,7 +525,7 @@ Alternative entry points:
 
 ### Phase 4 — Verification (`/mb verify`)
 
-**MANDATORY before `/mb done` whenever work followed a plan.**
+**Run before `/mb done` whenever work followed a plan.**
 
 `plan-verifier` subagent:
 1. Rereads the active plan file in `plans/`
@@ -674,7 +663,7 @@ Script: `~/.claude/skills/memory-bank/scripts/mb-index.sh`.
 
 | Work                                                                            | Owner                                                     |
 | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Mechanical actualization (`checklist` ⬜→✅, `progress` append, `STATUS` metrics) | MB Manager (sonnet subagent)                              |
+| Mechanical actualization (`checklist` ⬜→✅, `progress` append, `STATUS` metrics) | MB Manager subagent                                       |
 | Plan creation (`plans/`)                                                        | Main agent (requires depth, DoD, TDD)                     |
 | Architectural decisions (ADR)                                                   | Main agent formulates → MB Manager stores in `backlog.md` |
 | ML result interpretation                                                        | Main agent interprets → MB Manager updates `research.md`  |

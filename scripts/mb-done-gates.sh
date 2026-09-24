@@ -266,9 +266,12 @@ run_rules_gate() {
   [[ -z "$rules_cmd" ]] && rules_cmd="bash $SCRIPT_DIR/mb-rules-check.sh"
   local files_csv out rc
   files_csv="$(changed_files_csv)"
+  # SRP blocks only for files this uncommitted change pushed over the threshold.
+  local base_args=()
+  git -C "$DIR" rev-parse --verify -q HEAD >/dev/null 2>&1 && base_args=(--base HEAD)
 
   set +e
-  out="$(cd "$DIR" && $rules_cmd --files "$files_csv" --diff-files "$files_csv" --out json 2>/dev/null)"
+  out="$(cd "$DIR" && $rules_cmd --files "$files_csv" --diff-files "$files_csv" ${base_args[@]+"${base_args[@]}"} --out json 2>/dev/null)"
   rc=$?
   set -e
 

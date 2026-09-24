@@ -1,6 +1,15 @@
 # shellcheck shell=bash
 # Baseline deterministic checks for mb-rules-check.sh.
 
+# Line count of a file at $BASE_REF (0 when it did not exist there). Paths may be relative
+# or absolute; the lookup uses the path from the repository root.
+_srp_lines_at_base() {
+  local f="$1" dir prefix
+  dir="$(cd "$(dirname "$f")" 2>/dev/null && pwd)" || { printf '0'; return; }
+  prefix="$(git -C "$dir" rev-parse --show-prefix 2>/dev/null)" || { printf '0'; return; }
+  { git -C "$dir" show "${BASE_REF}:${prefix}$(basename "$f")" 2>/dev/null || true; } | wc -l | tr -d ' '
+}
+
 check_srp() {
   CHECKS_RUN=$((CHECKS_RUN + 1))
   local -a offenders=()
@@ -16,18 +25,22 @@ check_srp() {
       counts+=("$n")
     fi
   done
-  local total="${#offenders[@]}"
-  (( total == 0 )) && return 0
-  local sev="WARNING"
-  if (( total >= 3 )); then
-    sev="CRITICAL"
-  fi
-  local i
+  (( ${#offenders[@]} == 0 )) && return 0
+  # Size alone is a split candidate (WARNING). With --base, a file this change pushed over
+  # the threshold (or created over it) blocks: CRITICAL. Canon: rules/RULES.md § SOLID.
+  local i sev rationale base_n
   for i in "${!offenders[@]}"; do
+    sev="WARNING"
+    rationale="File exceeds SRP threshold (>${SRP_THRESHOLD}); split candidate."
+    if [[ -n "${BASE_REF:-}" ]]; then
+      base_n="$(_srp_lines_at_base "${offenders[$i]}")"
+      if (( ${base_n:-0} <= SRP_THRESHOLD )); then
+        sev="CRITICAL"
+        rationale="This change pushed the file over the SRP threshold (${base_n:-0} → ${counts[$i]} lines); split it."
+      fi
+    fi
     emit_violation "solid/srp" "$sev" "${offenders[$i]}" 1 \
-      "${counts[$i]} lines" \
-      "File exceeds SRP threshold (>${SRP_THRESHOLD}); consider splitting into cohesive modules." \
-      "solid/srp" "baseline"
+      "${counts[$i]} lines" "$rationale" "solid/srp" "baseline"
   done
 }
 

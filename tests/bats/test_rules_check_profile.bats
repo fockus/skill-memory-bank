@@ -160,8 +160,11 @@ EOF
 # ─── Case 5: strictness=block exits non-zero on CRITICAL ──────────────────────
 
 @test "rules-check: strictness=block exits non-zero on CRITICAL" {
-  # Create a file that triggers solid/srp CRITICAL (3+ large files)
+  # solid/srp is CRITICAL when this change pushes files over the threshold (--base)
   mkdir -p src
+  git init -q . && git config user.email t@t.t && git config user.name t
+  git commit -q --allow-empty -m base
+  base="$(git rev-parse HEAD)"
   for name in alpha beta gamma; do
     python3 -c "
 for i in range(350):
@@ -184,6 +187,7 @@ EOF
   run bash "$CHECK" \
     --files "src/alpha.py,src/beta.py,src/gamma.py" \
     --profile "$TMPROOT/profile-block.json" \
+    --base "$base" \
     --out json
   # Must exit non-zero because of CRITICAL violations
   [ "$status" -ne 0 ]

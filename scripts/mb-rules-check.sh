@@ -3,7 +3,8 @@
 #
 # Usage:
 #   mb-rules-check.sh --files <csv> [--diff-files <csv>] [--out json|human|both]
-#                     [--srp-threshold <N>] [--profile <path>]
+#                     [--srp-threshold <N>] [--profile <path>] [--base <git-ref>]
+#   --base: SRP is CRITICAL only for files this change pushed over the threshold.
 #
 # Rules implemented:
 #   - solid/srp
@@ -36,6 +37,7 @@ FILES_CSV=""
 DIFF_CSV=""
 OUT="json"
 SRP_THRESHOLD="${MB_SRP_THRESHOLD:-300}"
+BASE_REF=""
 PROFILE_PATH="${MB_PROFILE:-}"
 PLACEHOLDERS_ONLY=0
 
@@ -49,6 +51,7 @@ while [[ $# -gt 0 ]]; do
     --diff-files) DIFF_CSV="${2:-}"; shift 2 ;;
     --out) OUT="${2:-json}"; shift 2 ;;
     --srp-threshold) SRP_THRESHOLD="${2:-300}"; shift 2 ;;
+    --base) BASE_REF="${2:-}"; shift 2 ;;
     --profile) PROFILE_PATH="${2:-}"; shift 2 ;;
     --placeholders-only) PLACEHOLDERS_ONLY=1; shift ;;
     --help|-h) print_help; exit 0 ;;

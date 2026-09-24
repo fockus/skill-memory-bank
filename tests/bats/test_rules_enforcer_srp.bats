@@ -3,10 +3,10 @@
 #
 # Contract (Stage 2 of plans/2026-04-21_refactor_agents-quality.md):
 #   Usage: mb-rules-check.sh --files <file>[,<file>...] [--out json|human|both]
-#   Severity policy (SRP):
-#     - file > 300 lines                        → 1 violation per file
-#     - 1 offending file                        → severity=WARNING
-#     - ≥ 3 offending files                     → severity=CRITICAL (each)
+#   Severity policy (SRP, canon in rules/RULES.md § SOLID):
+#     - file > 300 lines                        → 1 violation per file, severity=WARNING
+#     - with --base <ref>: the file was ≤ 300 lines (or absent) at <ref>
+#       and is > 300 now, i.e. this change pushed it over → severity=CRITICAL
 #   Exclusions (no SRP hit): *.md, *.json, *.lock, *.svg, files under
 #   vendor/, node_modules/, __pycache__/, any .*/, and generated files
 #   matching `# GENERATED` marker on line 1.
@@ -60,14 +60,46 @@ make_file() {
   echo "$output" | jq -e '(.violations | map(select(.rule == "solid/srp")) | length) == 0'
 }
 
-@test "srp: three big files → all CRITICAL (cluster escalation)" {
+@test "srp: three big files without --base → WARNING each (size alone does not block)" {
   make_file "src/a.py" 310
   make_file "src/b.py" 320
   make_file "src/c.py" 330
   run bash "$CHECK" --files "src/a.py,src/b.py,src/c.py" --out json
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '(.violations | map(select(.rule == "solid/srp")) | length) == 3'
-  echo "$output" | jq -e 'all(.violations[]; .severity == "CRITICAL")'
+  echo "$output" | jq -e 'all(.violations[]; .severity == "WARNING")'
+}
+
+_git_base() {  # commit the current tree and print the ref
+  git init -q . && git config user.email t@t.t && git config user.name t
+  git add -A && git commit -qm base && git rev-parse HEAD
+}
+
+@test "srp --base: change pushes a file over the threshold → CRITICAL" {
+  make_file "src/grow.py" 280
+  base="$(_git_base)"
+  make_file "src/grow.py" 320
+  run bash "$CHECK" --files "src/grow.py" --base "$base" --out json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.violations[0].rule == "solid/srp" and .violations[0].severity == "CRITICAL"'
+}
+
+@test "srp --base: new file created over the threshold → CRITICAL" {
+  make_file "src/keep.py" 10
+  base="$(_git_base)"
+  make_file "src/new.py" 350
+  run bash "$CHECK" --files "src/new.py" --base "$base" --out json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.violations[0].severity == "CRITICAL"'
+}
+
+@test "srp --base: file already over the threshold at base → WARNING" {
+  make_file "src/legacy.py" 400
+  base="$(_git_base)"
+  make_file "src/legacy.py" 420
+  run bash "$CHECK" --files "src/legacy.py" --base "$base" --out json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.violations[0].severity == "WARNING"'
 }
 
 @test "srp: excluded extensions (.md, .json) ignored even when > 300 lines" {

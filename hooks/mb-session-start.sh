@@ -69,8 +69,8 @@ if [ "${MB_SESSION_CHEATSHEET:-on}" = "off" ]; then
 else
   cheat="$(cat <<'EOF'
 # How to use project memory (quick ref)
-- Code structure ("who calls/imports X", "how does X relate to Y") → graph/code-graph queries (graphify / `/mb graph`), not raw grep.
-- Past chats & decisions ("what did we decide about X", "was this done before") → `/mb recall <query>` — model-free BM25 over agreements/progress/notes/sessions, ~50 ms. It is CHEAP: run it before asking the user about past decisions; `/mb recall --expand <id>` opens a hit in full.
+- Code structure ("who calls/imports X", "how does X relate to Y") → `/mb graph` queries (`mb-graph-query.py`); Grep stays fine for regex and raw text.
+- Past chats & decisions ("what did we decide about X", "was this done before") → `/mb recall <query>` — model-free BM25 over agreements/progress/notes/sessions, ~50 ms, so run it before asking the user about past decisions; `/mb recall --expand <id>` opens a hit in full.
 - Project state (status / plans / decisions / lessons) → Memory Bank core files via `/mb context`.
 - The `# Relevant Memory` (per-prompt) and `# Recent Sessions` (below) blocks are auto-injected past-session context — use them.
 EOF

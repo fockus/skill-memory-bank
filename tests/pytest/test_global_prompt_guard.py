@@ -7,34 +7,38 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_claude_global_rules_define_first_response_guard_before_coding_rules() -> None:
+def test_claude_global_rules_define_status_line_before_coding_rules() -> None:
     text = (REPO_ROOT / "rules" / "CLAUDE-GLOBAL.md").read_text(encoding="utf-8")
 
-    guard_pos = text.index("## Mandatory first response guard")
-    critical_pos = text.index("# CRITICAL RULES")
+    guard_pos = text.index("## Memory Bank status line")
+    rules_pos = text.index("# Engineering rules")
 
-    assert guard_pos < critical_pos
-    assert "This is an output-format invariant, not optional workflow advice." in text
-    assert "Before any substantive response in a project directory:" in text
-    assert "`[MEMORY BANK: ACTIVE]`" in text
-    assert "`[MEMORY BANK: ABSENT]`" in text
-    assert "`[MEMORY BANK: INITIALIZED]`" in text
-    assert "Do not silently initialize Memory Bank for meta/install/debug questions." in text
-    # Sprint 1 / Stage 5: wording updated to be storage-mode-agnostic. Accept either
-    # the historical `./.memory-bank/` phrasing or the new "project Memory Bank" wording.
-    assert (
-        "Did I distinguish global skill installation from project `./.memory-bank/` activation?"
-        in text
-        or "Did I distinguish global skill installation from project Memory Bank activation?"
-        in text
-    )
+    assert guard_pos < rules_pos
+    guard = text[guard_pos:rules_pos]
+    assert "first reply" in guard
+    assert "`[MEMORY BANK: ACTIVE]`" in guard
+    assert "`[MEMORY BANK: ABSENT]`" in guard
+    assert "`[MEMORY BANK: INITIALIZED]`" in guard
+    assert "Do not silently initialize Memory Bank for meta/install/debug questions." in guard
+    assert "A globally installed skill never means this project has a bank" in guard
 
 
-def test_detailed_rules_repeat_first_response_guard() -> None:
+def test_status_line_stays_out_of_subagent_and_machine_output() -> None:
+    # Written as an "invariant ... MUST ... never omit" rule, models put the marker at the
+    # top of subagent reports and of output that scripts parse.
+    for rules_file in ("CLAUDE-GLOBAL.md", "RULES.md"):
+        text = (REPO_ROOT / "rules" / rules_file).read_text(encoding="utf-8")
+        assert "subagent reports" in text, rules_file
+        assert "output-format invariant" not in text, rules_file
+        assert "Before final answer, verify" not in text, rules_file
+        assert "Never omit this status line" not in text, rules_file
+
+
+def test_detailed_rules_carry_the_same_status_line_rule() -> None:
     text = (REPO_ROOT / "rules" / "RULES.md").read_text(encoding="utf-8")
 
-    assert "## Mandatory first response guard" in text
-    assert "Before any substantive response in a project directory" in text
+    assert "## Memory Bank status line" in text
+    assert "first reply" in text
     assert "[MEMORY BANK: ACTIVE]" in text
     assert "[MEMORY BANK: ABSENT]" in text
     assert "Do not silently initialize Memory Bank for meta/install/debug questions." in text
@@ -89,8 +93,8 @@ def test_pi_install_embeds_guard_into_global_agents_prompt(tmp_path: Path) -> No
 
     assert agents.startswith("<!-- memory-bank-pi:start -->")
     assert "Pi loads this file at startup and injects it into the agent prompt." in agents
-    assert "## Mandatory first response guard" in agents
-    assert agents.index("## Mandatory first response guard") < agents.index("# CRITICAL RULES")
+    assert "## Memory Bank status line" in agents
+    assert agents.index("## Memory Bank status line") < agents.index("# Engineering rules")
     assert "`[MEMORY BANK: ABSENT]`" in agents
     assert "Do not silently initialize Memory Bank for meta/install/debug questions." in agents
     assert "**Language** — respond in Russian; technical terms may remain in English." in agents
