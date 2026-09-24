@@ -4,6 +4,117 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — subagents are dispatched by name; the installer composes their shared discipline
+
+- Agents list the partials they need in a new `compose:` frontmatter key
+  (`mb-engineering-core`, `mb-tooling-core`); `scripts/mb-agent-render.py` places those partials
+  above the agent text at install time (Claude Code `~/.claude/agents`, OpenCode `.opencode/agent`,
+  pi agent roster). `/mb work`, `/mb`, `/mb drive`, and `SKILL.md` dispatch `subagent_type="<agent>"`
+  with only the task data instead of re-typing 11–16 KB of agent files into every prompt, which
+  also made the agents' `model`/`tools` frontmatter take effect. Clients without named dispatch
+  read the role file and its `compose:` partials, as before.
+- The Agent tool has no `thinking` parameter; commands no longer pass one. `pipeline.yaml`
+  keeps `thinking` per role; Claude Code takes reasoning depth from a new `effort:` frontmatter
+  key on every agent. `mb-agent-render.py --host` adapts it per client: OpenCode drops it (and the
+  Claude `model` alias — unknown keys reach the provider as model options), pi gets `thinking:`
+  and pi tool names, Codex gets `model_reasoning_effort`.
+- Codex subagents: `install.sh` writes every role as a TOML file to `~/.codex/agents/`, which Codex
+  runs in-session through `spawn_agent(agent_type=<name>)`; roles without Write/Edit get
+  `sandbox_mode = "read-only"`. The Codex manifest no longer lists `subagents` as a limit.
+- `SKILL.md` § Invocation maps dispatch by name per host (Claude Code `Agent`, OpenCode `task`,
+  Codex `spawn_agent`, pi `mb_dispatch_subagent`); `/mb work`, `/mb`, and `/mb drive` point to it.
+- pi dispatcher: passes `--thinking` (the call's, else the role's, else the session's) and the
+  session model when the call names none, as pi's reference subagent extension does; the child
+  process runs with `MB_SESSION_CAPTURE=off`. The pi AGENTS.md block no longer tells the agent to
+  ignore the role's frontmatter, and install.sh and `adapters/pi.sh` share one generator for it,
+  localized like the other clients.
+- OpenCode: the global `~/.config/opencode/AGENTS.md` block carries the compact rules core
+  (`CLAUDE-GLOBAL.md`, ~15 KB) like the Codex and pi global blocks. It used to embed the full
+  `RULES.md`, and OpenCode also loads the project `AGENTS.md` with the same `RULES.md`, so every
+  request carried ~47 KB of rules twice.
+- Commands run bundled scripts and hooks through `"$SKILL_DIR"` instead of the Claude Code path
+  `~/.claude/skills/memory-bank/…` (`/adr`, `/commit`, `/plan`, `/catchup`, `/api-contract`,
+  `/db-migration`, `/observability`, `/security-review`, `/roadmap-sync`, `/traceability-gen`, and
+  `/mb recall`); `sc_semantic_py` also finds `~/.claude/hooks/.venv` when the hook runs from the skill
+  directory, so `/mb recall` keeps its semantic hits.
+- OpenCode: global agents (`install-global-agents`) are rendered like project ones — they used to
+  ship `compose:`/`effort:` raw and without the composed discipline. Roles without Write/Edit get
+  `permission.edit: deny` (OpenCode allows every tool by default).
+- `model: sonnet` removed from 20 agents: the model comes from `pipeline.yaml` or the session.
+  `mb-wiki-author` keeps `model: haiku` as a deliberate bulk worker.
+- `plan-verifier` runs `mb-test-run.sh` directly (it has no Agent tool, so the old delegation to
+  `mb-test-runner` could not run); `/test` and `/review` run `mb-test-run.sh` and
+  `mb-rules-check.sh` in the main session instead of dispatching a subagent for a script.
+- `mb-engineering-core` reads only the project `RULES.md` (the global rules already reach the agent)
+  and gains a "Scope — the item is the deliverable" section: no neighbouring fixes, stated
+  assumptions for ambiguous items, surgical edits. `mb-reviewer` and `plan-verifier` use an
+  evidence standard (file:line and a concrete failing input; blocking severities only for
+  correctness, security, unmet DoD) instead of an adversarial default.
+- `mb-research` gets the `WebSearch`/`WebFetch` tools its description promised.
+- Command snippets run bundled scripts through `$SKILL_DIR` instead of a bare `scripts/…` path,
+  which only resolved inside the skill repo.
+
+### Changed — always-loaded rules written for current models
+
+- `rules/CLAUDE-GLOBAL.md` and `rules/RULES.md`: the `[MEMORY BANK: …]` status line opens only the
+  first reply to the user — not later replies, subagent reports, or machine-parsed output — and
+  the pre-answer checklist is gone. "CRITICAL RULES — DO NOT FORGET DURING COMPACTION" becomes
+  "Engineering rules"; Fail Fast asks only when readings of a task lead to materially different
+  work; the mandatory "Goal → Action → Result" response format is removed; stale counts
+  ("25 commands"), model pins, and references to agents that do not exist are gone.
+- One canonical SRP/DRY/KISS wording in `rules/RULES.md`, referenced by the engineering core, the
+  reviewers, and the verifier. `mb-rules-check.sh --base <ref>`: a file over 300 lines is a
+  WARNING; it is CRITICAL only when this change pushed it over the threshold (or created it over
+  it). `/mb work`, `/review`, and the `/mb done` gate pass `--base HEAD`. The code-graph routing
+  table lives only in `mb-tooling-core`.
+
+### Added — Spanish, Portuguese, Chinese; separate code-comment language; per-project override
+
+- `--language` accepts `en`, `ru`, `es`, `pt`, `zh` with full rule strings and translated
+  `.memory-bank/` templates (script anchors stay English). `--comments-language` sets the
+  code-comment language when it differs; both persist in the install manifest and are reapplied by
+  `mb-upgrade.sh`. Adapter rules files (pi, Cursor, Windsurf, Cline, Kilo, Codex) render the
+  language through the same `_texttools` strings as the Claude install.
+- `/mb language <code> [--comments <code>] | off | show` (`scripts/mb-language.py`) overrides the
+  language for one project: a managed block at the top of the project's `AGENTS.md` and `CLAUDE.md`,
+  which every client reads natively after its global rules.
+
+### Fixed — pi and OpenCode session capture; global AGENTS.md growth; tests that touched the real HOME
+
+- `tests/bats/test_install_interactive.bats` ran the real installer to completion against the
+  developer's own `$HOME` and working directory; it now runs in a sandbox.
+- `/mb work` step 5g named the flip argument `<source>` (the category `plan`/`spec` used by
+  `mb-work-state.sh init`); `mb-work-checkbox.sh flip` needs the source file path, now `<source_path>`.
+
+- pi: the session capture used the session file path as the id, so the capture file name held a
+  `/` and every write failed silently. It now uses `getSessionId()`, and input injected by an
+  extension (the `/mb` router text) is no longer logged as a user message.
+- OpenCode: a `task()` subagent's child session no longer adds its own "Auto-capture" entry to
+  `progress.md` and runs no session summary.
+- Reinstalling added a blank line before the managed block in `~/.codex/AGENTS.md` and
+  `~/.config/opencode/AGENTS.md` every time; all global AGENTS.md blocks now go through one upsert
+  helper that trims them.
+
+### Fixed — Claude Code hooks that never reached the model they were written for
+
+- The subagent-dispatch hooks (`mb-context-slim-pre-agent.sh`, `mb-sprint-context-guard.sh`) were
+  registered on matcher `Task` and returned early unless `tool_name` was `Task`. Claude Code 2.1
+  calls the tool `Agent`, so neither hook ran and the sprint token guard never stopped anything.
+  Both now match `Task|Agent`.
+- Removed the `Setup` echo and the `PreToolUse:Write` `[PRE-WRITE]` echo: Claude Code does not show
+  plain stdout from those events to the model, so they only spawned a process. The `PreCompact`
+  echo told the compaction summarizer to launch a Sonnet agent; it now lists what the summary must
+  keep and says not to call tools. Upgrading removes the old entries (they carry the
+  `[memory-bank-skill]` marker); user hooks are untouched.
+- `mb-graph-nudge.sh` throttled on `CLAUDE_SESSION_ID`, which Claude Code does not export to hooks,
+  so it fell back to an hourly key and nudged up to once an hour. It now keys on `session_id` from
+  the hook input (sanitized), then the env var, then the date.
+- `mb-semantic-recall.sh` no longer searches memory for harness-generated turns
+  (`<task-notification>`, `<system-reminder>`, `<local-command…>`, `[SYSTEM NOTIFICATION`).
+- `mb-freshness.sh`: the SessionStart banner reports drift without telling the model to run
+  `mb-auto-commit.sh --force`; the Stop nudge and report print an absolute script path instead of
+  `bash scripts/…`, which only resolved inside the skill repo.
+
 ### Added — `/mb graph --apply` warms the semantic vector index
 
 - `memory_bank_skill/semantic_index.py`: the graph build now ends by refreshing
