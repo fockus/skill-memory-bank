@@ -20,6 +20,12 @@ CWD="$(printf '%s' "$INPUT" | "$JQ" -r '.cwd // empty' 2>/dev/null)"; [ -n "$CWD
 # imperatives ("fix it") are commands, not questions — a search process for
 # them is pure cost. MB_SEMANTIC_MIN_PROMPT=0 disables the length gate.
 case "$PROMPT" in "/"*) printf '{}\n'; exit 0 ;; esac
+# Harness-generated turns (task notifications, reminders, local-command echoes) are not
+# the user's question; searching on them returns other notifications.
+case "${PROMPT#"${PROMPT%%[![:space:]]*}"}" in
+  "<task-notification>"*|"<system-reminder>"*|"<local-command"*|"[SYSTEM NOTIFICATION"*)
+    printf '{}\n'; exit 0 ;;
+esac
 MIN="${MB_SEMANTIC_MIN_PROMPT:-24}"
 [ "${#PROMPT}" -ge "$MIN" ] 2>/dev/null || { printf '{}\n'; exit 0; }
 

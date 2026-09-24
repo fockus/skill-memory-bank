@@ -22,6 +22,23 @@ _code_commit() {  # a commit that does NOT touch .memory-bank/
   git -C "$DIR" commit -qm "code $1"
 }
 
+@test "banner reports drift without telling the model to force-commit" {
+  _code_commit a.py "one"
+  run env MB_DRIFT_WARN_COMMITS=1 bash "$SCRIPT" --banner "$DIR"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q 'drift'
+  [[ "$output" != *"--force"* ]] || false
+  [[ "$output" != *"bash scripts/"* ]] || false
+}
+
+@test "stop-nudge remediation path resolves outside the skill repo" {
+  _code_commit a.py "one"
+  run env MB_DRIFT_WARN_COMMITS=1 bash "$SCRIPT" --stop-nudge "$DIR"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"bash scripts/"* ]] || false
+  [[ "$output" == *"$REPO_ROOT/scripts/mb-auto-commit.sh"* ]] || false
+}
+
 @test "B1: --porcelain reports commits behind the last bank commit" {
   _code_commit a.py "one"
   _code_commit b.py "two"

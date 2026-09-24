@@ -18,6 +18,8 @@ set -u
 
 MODE="report"
 MB_ARG=""
+# Absolute path, so the remediation works from any project (not only the skill repo).
+AUTO_COMMIT="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/mb-auto-commit.sh"
 for a in "$@"; do
   case "$a" in
     --porcelain)  MODE="porcelain" ;;
@@ -72,16 +74,16 @@ case "$MODE" in
     printf 'behind=%s dirty=%s\n' "$behind" "$dirty"
     ;;
   stop-nudge)
-    [ "$over" -eq 1 ] && printf '[MEMORY BANK] [memory-bank-skill] drift: %s commit(s) since the last .memory-bank commit, %s uncommitted bank change(s). Run: bash scripts/mb-auto-commit.sh --force  (or /mb done)\n' "$behind" "$dirty"
+    [ "$over" -eq 1 ] && printf '[MEMORY BANK] [memory-bank-skill] drift: %s commit(s) since the last .memory-bank commit, %s uncommitted bank change(s). Run: /mb done  (or: bash %s --force)\n' "$behind" "$dirty" "$AUTO_COMMIT"
     ;;
   banner)
     # shellcheck disable=SC2016  # backticks are literal markdown code-spans in the banner text
-    [ "$over" -eq 1 ] && printf '# Memory Bank freshness\n- drift: %s commit(s) behind the last bank commit, %s uncommitted bank change(s) — run `/mb done` or `bash scripts/mb-auto-commit.sh --force`\n' "$behind" "$dirty"
+    [ "$over" -eq 1 ] && printf '# Memory Bank freshness\n- drift: %s commit(s) behind the last bank commit, %s uncommitted bank change(s). Mention it when relevant; `/mb done` actualizes the bank, and committing it is the user'"'"'s call.\n' "$behind" "$dirty"
     ;;
   *)
     printf 'Memory Bank freshness: behind=%s dirty=%s (warn: commits>=%s dirty>=%s)\n' "$behind" "$dirty" "$warn_commits" "$warn_dirty"
     # shellcheck disable=SC2016  # backticks are literal markdown code-spans in the report text
-    [ "$over" -eq 1 ] && printf 'DRIFT: bank is stale — run `/mb done` or `bash scripts/mb-auto-commit.sh --force`\n'
+    [ "$over" -eq 1 ] && printf 'DRIFT: bank is stale — run `/mb done` or `bash %s --force`\n' "$AUTO_COMMIT"
     ;;
 esac
 exit 0

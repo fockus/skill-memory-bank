@@ -81,6 +81,30 @@ _run_hook() {  # $1 = stdin JSON
   [[ "$output" != *"mb-graph-query"* ]]
 }
 
+@test "nudge throttle keys on the session_id Claude Code sends on stdin" {
+  # CLAUDE_SESSION_ID is not exported to hooks; without the stdin key the
+  # throttle fell back to an hourly bucket and re-nudged every hour.
+  _fresh
+  unset CLAUDE_SESSION_ID
+  run _run_hook "{\"session_id\":\"s-1\",\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
+  [[ "$output" == *"mb-graph-query"* ]] || false
+  [ -e "$MB/.index/.graph-nudge.s-1" ]
+  run _run_hook "{\"session_id\":\"s-1\",\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
+  [[ "$output" != *"mb-graph-query"* ]] || false
+  run _run_hook "{\"session_id\":\"s-2\",\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
+  [[ "$output" == *"mb-graph-query"* ]] || false
+}
+
+@test "nudge session key from stdin cannot escape the index dir" {
+  _fresh
+  unset CLAUDE_SESSION_ID
+  run _run_hook "{\"session_id\":\"../../evil\",\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
+  [ "$status" -eq 0 ]
+  [ ! -e "$CWD/evil" ]
+  [ ! -e "$MB/evil" ]
+  [ ! -e "$MB/.index/../../evil" ]
+}
+
 @test "nudge fires on bare rg (recursive by default) when fresh" {
   _fresh
   run _run_hook "{\"tool_name\":\"Bash\",\"cwd\":\"$CWD\",\"tool_input\":{\"command\":\"rg Foo\"}}"

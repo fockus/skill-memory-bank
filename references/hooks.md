@@ -110,7 +110,7 @@ This complements `/mb plan --sdd` (strict) and `/mb sdd` (hard EARS requirement)
 ## 4. `hooks/mb-context-slim-pre-agent.sh` — emit slim-context advisory on Task dispatch
 
 **Event:** `PreToolUse`
-**Matchers:** `tool_name == "Task"` and `MB_WORK_MODE=slim` is set in the environment.
+**Matchers:** `tool_name` is `Agent` (Claude Code 2.1+) or `Task` (earlier versions) and `MB_WORK_MODE=slim` is set in the environment.
 
 **Behavior (Sprint 2):**
 
@@ -126,7 +126,7 @@ This complements `/mb plan --sdd` (strict) and `/mb sdd` (hard EARS requirement)
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Task",
+        "matcher": "Task|Agent",
         "hooks": [
           { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/hooks/mb-context-slim-pre-agent.sh" }
         ]
@@ -143,7 +143,7 @@ To opt in for a session: `MB_WORK_MODE=slim claude` (or `/mb work --slim`, which
 ## 5. `hooks/mb-sprint-context-guard.sh` — runtime token-spend watcher
 
 **Event:** `PreToolUse`
-**Matchers:** `tool_name == "Task"`.
+**Matchers:** `tool_name` is `Agent` (Claude Code 2.1+) or `Task` (earlier versions).
 
 **Behavior:**
 
@@ -161,7 +161,7 @@ To opt in for a session: `MB_WORK_MODE=slim claude` (or `/mb work --slim`, which
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Task",
+        "matcher": "Task|Agent",
         "hooks": [
           { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/hooks/mb-sprint-context-guard.sh" }
         ]
@@ -204,7 +204,7 @@ To register all five at once, merge the array entries above. Order does not matt
         ]
       },
       {
-        "matcher": "Task",
+        "matcher": "Task|Agent",
         "hooks": [
           { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/hooks/mb-context-slim-pre-agent.sh" },
           { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/hooks/mb-sprint-context-guard.sh" }

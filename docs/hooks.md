@@ -76,7 +76,7 @@ catches a manual edit to `requirements.md` even when the user bypasses the slash
 ### 4. `hooks/mb-context-slim-pre-agent.sh` — slim-context advisory on Task dispatch
 
 **Event:** `PreToolUse`
-**Matchers:** `tool_name == "Task"` and `MB_WORK_MODE=slim` is set.
+**Matchers:** `tool_name` is `Agent` (Claude Code 2.1+) or `Task` (earlier versions) and `MB_WORK_MODE=slim` is set.
 
 When active and the dispatched prompt advertises `Plan: <path.md>` and `Stage: <N>` markers, this
 hook delegates to `scripts/mb-context-slim.py` to build a trimmed view — the active stage block,
@@ -90,7 +90,7 @@ Opt in for a session: `MB_WORK_MODE=slim claude` (or `/mb work --slim`).
 ### 5. `hooks/mb-sprint-context-guard.sh` — runtime token-spend watcher
 
 **Event:** `PreToolUse`
-**Matchers:** `tool_name == "Task"`.
+**Matchers:** `tool_name` is `Agent` (Claude Code 2.1+) or `Task` (earlier versions).
 
 Estimates running session token spend by accumulating the character length of every dispatched
 Task prompt (rule of thumb: 1 token ≈ 4 chars), persisted via `scripts/mb-session-spend.sh` to
@@ -135,7 +135,7 @@ once, merge the array entries:
         ]
       },
       {
-        "matcher": "Task",
+        "matcher": "Task|Agent",
         "hooks": [
           { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/hooks/mb-context-slim-pre-agent.sh" },
           { "type": "command", "command": "bash $CLAUDE_PROJECT_DIR/hooks/mb-sprint-context-guard.sh" }

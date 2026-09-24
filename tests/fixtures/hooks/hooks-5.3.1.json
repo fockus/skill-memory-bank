@@ -1,5 +1,24 @@
 {
+  "Setup": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "cat << 'CONTEXT'\n[SYSTEM] [memory-bank-skill] Read ~/.claude/CLAUDE.md before starting work.\nPrinciples: TDD · Testing Trophy · Contract-First · SOLID · DRY · KISS · YAGNI · Clean Architecture · Fail Fast\nMemory Bank: ./.memory-bank/ — if it exists, run /mb start or Agent(MB Manager, action: context) to load context.\nCONTEXT"
+        }
+      ]
+    }
+  ],
   "PreToolUse": [
+    {
+      "matcher": "Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo '[PRE-WRITE] [memory-bank-skill] TDD · Contract-First · no TODO/placeholders · complete imports · comments in English · error handling'"
+        }
+      ]
+    },
     {
       "matcher": "Bash",
       "hooks": [
@@ -23,7 +42,7 @@
       ]
     },
     {
-      "matcher": "Task|Agent",
+      "matcher": "Task",
       "hooks": [
         {
           "type": "command",
@@ -88,7 +107,7 @@
         },
         {
           "type": "command",
-          "command": "echo '[memory-bank-skill] Keep in the summary: the active plan or spec path and the current stage or task number; checklist items finished or added this session; decisions the user confirmed (with AGR ids if recorded); .memory-bank files changed but not yet actualized. CLAUDE.md is reloaded after compaction, so do not restate it. Write the summary only; do not call tools.'"
+          "command": "echo '[COMPACTION] [memory-bank-skill] Before compaction, run MB Manager (Agent, model: sonnet) to actualize .memory-bank/ — checklist, progress, STATUS. Then preserve key principles from CLAUDE.md and the current task context.'"
         }
       ]
     }

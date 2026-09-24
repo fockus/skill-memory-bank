@@ -54,6 +54,14 @@ def test_unset_mode_no_op() -> None:
     assert r.stdout.strip() == ""
 
 
+def test_agent_tool_name_emits_advisory() -> None:
+    # Claude Code 2.1 renamed the subagent tool Task → Agent.
+    payload = {"tool_name": "Agent", "tool_input": {"description": "x", "prompt": "do thing"}}
+    r = _run(payload, env={"MB_WORK_MODE": "slim"})
+    assert r.returncode == 0
+    assert "slim" in (r.stdout + r.stderr).lower()
+
+
 def test_non_task_tool_ignored() -> None:
     payload = {"tool_name": "Write", "tool_input": {"file_path": "x", "content": "y"}}
     r = _run(payload, env={"MB_WORK_MODE": "slim"})

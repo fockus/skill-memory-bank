@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mb-context-slim-pre-agent.sh — PreToolUse hook for Task (subagent dispatch).
+# mb-context-slim-pre-agent.sh — PreToolUse hook for Agent/Task (subagent dispatch).
 #
 # Sprint 1: advisory only.
 # Sprint 2 (this version): when MB_WORK_MODE=slim and the prompt advertises
@@ -21,7 +21,7 @@ fi
 
 INPUT=$(cat)
 TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
-[ "$TOOL" = "Task" ] || exit 0
+case "$TOOL" in Task|Agent) ;; *) exit 0 ;; esac  # Claude Code 2.1 renamed Task → Agent
 
 if [ "${MB_WORK_MODE:-}" != "slim" ]; then
   exit 0

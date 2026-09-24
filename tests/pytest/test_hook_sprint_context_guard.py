@@ -67,6 +67,15 @@ def test_soft_threshold_warns(tmp_path: Path) -> None:
     assert "warn" in r.stderr.lower() or "soft" in r.stderr.lower()
 
 
+def test_agent_tool_name_hard_threshold_blocks(tmp_path: Path) -> None:
+    # Claude Code 2.1 renamed the subagent tool Task → Agent.
+    mb = _init_mb(tmp_path)
+    _spend("init", "--soft", "100", "--hard", "200", mb=mb)
+    payload = {"tool_name": "Agent", "tool_input": {"description": "x", "prompt": "x" * 1000}}
+    r = _run(payload, env={"MB_SESSION_BANK": str(mb)})
+    assert r.returncode == 2
+
+
 def test_non_task_tool_ignored(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     _spend("init", "--soft", "100", "--hard", "200", mb=mb)

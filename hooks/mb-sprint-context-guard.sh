@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mb-sprint-context-guard.sh — PreToolUse hook for Task (subagent dispatch).
+# mb-sprint-context-guard.sh — PreToolUse hook for Agent/Task (subagent dispatch).
 #
 # Approximates session token spend by accumulating the character length of
 # every dispatched Task prompt (estimate: 1 token ≈ 4 chars). Persists state
@@ -24,7 +24,7 @@ fi
 
 INPUT=$(cat)
 TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
-[ "$TOOL" = "Task" ] || exit 0
+case "$TOOL" in Task|Agent) ;; *) exit 0 ;; esac  # Claude Code 2.1 renamed Task → Agent
 
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=hooks/_skill_root.sh

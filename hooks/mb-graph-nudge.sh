@@ -74,7 +74,11 @@ IS_STALE=0
 printf '%s' "$STATUS" | "$JQ" -e '.stale==true' >/dev/null 2>&1 && IS_STALE=1
 
 # ── Throttle: at most one nudge per session ──
-SESSION="${CLAUDE_SESSION_ID:-$(date +%Y%m%d%H 2>/dev/null || echo bucket)}"
+# Claude Code passes session_id on stdin (it does not export CLAUDE_SESSION_ID to hooks);
+# other agents may set the env var. Without either, fall back to one nudge per day.
+SESSION="$(printf '%s' "$INPUT" | "$JQ" -r '.session_id // empty' 2>/dev/null)"
+[ -n "$SESSION" ] || SESSION="${CLAUDE_SESSION_ID:-$(date +%Y%m%d 2>/dev/null || echo bucket)}"
+SESSION="$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_-' '_')"
 MARKER="$MB/.index/.graph-nudge.$SESSION"
 [ -e "$MARKER" ] && _silent
 mkdir -p "$MB/.index" 2>/dev/null || true

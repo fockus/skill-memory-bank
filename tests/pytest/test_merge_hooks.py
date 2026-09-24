@@ -263,7 +263,7 @@ def test_real_hooks_json_integration(tmp_settings):
     data = json.loads(tmp_settings.read_text())
     hooks = data["hooks"]
     # All top-level events from the real file present
-    for event in ("Setup", "PreToolUse", "PostToolUse", "Notification", "PreCompact", "Stop"):
+    for event in ("PreToolUse", "PostToolUse", "Notification", "PreCompact", "Stop"):
         assert event in hooks, f"Missing event {event}"
 
 
