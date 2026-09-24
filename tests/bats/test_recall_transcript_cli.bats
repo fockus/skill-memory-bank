@@ -61,3 +61,41 @@ teardown() {
   [[ "$output" != *"hello one"* ]]
   [[ "$output" != *"hello five"* ]]
 }
+
+# --- sc_semantic_py: which python mb-recall.sh uses for semantic hits ----------
+# Run from "$SKILL_DIR"/hooks there is no venv beside the hook dir; the global venv
+# that mb-semantic-bootstrap.sh creates (~/.claude/hooks/.venv) must still be found.
+
+_semantic_py() {  # <home> <hook_dir> <mb_root>
+  env -u MB_SEMANTIC_PY HOME="$1" bash -c '. "$0/hooks/lib/session-common.sh"; sc_semantic_py "$1" "$2"' \
+    "$REPO_ROOT" "$2" "$3"
+}
+
+_stub_py() { mkdir -p "$(dirname "$1")"; printf '#!/bin/sh\n' > "$1"; chmod +x "$1"; }
+
+@test "sc_semantic_py: falls back to the global ~/.claude/hooks venv when none sits beside the hook dir" {
+  _stub_py "$TMP/home/.claude/hooks/.venv/bin/python"
+  mkdir -p "$TMP/skill/hooks"
+  out="$(_semantic_py "$TMP/home" "$TMP/skill/hooks" "$MB")"
+  [ "$out" = "$TMP/home/.claude/hooks/.venv/bin/python" ]
+}
+
+@test "sc_semantic_py: venv beside the hook dir wins over the global venv" {
+  _stub_py "$TMP/home/.claude/hooks/.venv/bin/python"
+  _stub_py "$TMP/skill/hooks/.venv/bin/python"
+  out="$(_semantic_py "$TMP/home" "$TMP/skill/hooks" "$MB")"
+  [ "$out" = "$TMP/skill/hooks/.venv/bin/python" ]
+}
+
+@test "sc_semantic_py: MB_SEMANTIC_PY override wins over every venv" {
+  _stub_py "$TMP/home/.claude/hooks/.venv/bin/python"
+  out="$(HOME="$TMP/home" MB_SEMANTIC_PY=/pinned/python bash -c \
+    '. "$0/hooks/lib/session-common.sh"; sc_semantic_py "$1" "$2"' "$REPO_ROOT" "$TMP/skill/hooks" "$MB")"
+  [ "$out" = "/pinned/python" ]
+}
+
+@test "sc_semantic_py: no venv anywhere -> python3" {
+  mkdir -p "$TMP/home" "$TMP/skill/hooks"
+  out="$(_semantic_py "$TMP/home" "$TMP/skill/hooks" "$MB")"
+  [ "$out" = "python3" ]
+}

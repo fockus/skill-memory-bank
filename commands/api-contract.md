@@ -6,6 +6,16 @@ argument-hint: <generate|check|test>
 
 # API Contract: $ARGUMENTS
 
+## Skill bundle root
+
+Every bundled helper below runs through the skill bundle root, never a bare `scripts/…` path (the
+working directory is the user's project, where `scripts/` is absent or belongs to someone else):
+
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+[ -f "$SKILL_DIR/scripts/_lib.sh" ] || { echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
+```
+
 ## 0. Validate arguments
 
 If `$ARGUMENTS` is empty, stop and ask the user which action to perform (`generate`, `check`, `test`).
@@ -13,7 +23,7 @@ If `$ARGUMENTS` is empty, stop and ask the user which action to perform (`genera
 ## 1. Stack detection
 
 ```bash
-eval "$(bash ~/.claude/skills/memory-bank/scripts/mb-metrics.sh)"
+eval "$(bash "$SKILL_DIR"/scripts/mb-metrics.sh)"
 ```
 
 If `stack=unknown`, ask the user for the framework / language in use.

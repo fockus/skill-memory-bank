@@ -265,14 +265,19 @@ sc_build_summary_src() {
 }
 
 # sc_semantic_py <hook_dir> <mb_root> — echo the python for the semantic CLI.
-# Prefers a venv beside the installed hooks (global ~/.claude/hooks/.venv, or a
-# project-local bin/.venv), then a legacy .memory-bank/.venv, then system python3.
+# Order: MB_SEMANTIC_PY override → a venv beside the running hooks (project-local
+# bin/.venv, or ~/.claude/hooks/.venv for the installed copies) → the global
+# ~/.claude/hooks/.venv that mb-semantic-bootstrap.sh creates (also what
+# semantic_index.py reads — found even when the hook runs from "$SKILL_DIR"/hooks)
+# → a legacy .memory-bank/.venv → system python3.
 sc_semantic_py() {
   # Explicit override wins (interpreter pinning / deterministic tests). When set to a
   # non-runnable path, callers' `command -v` guard fails-open and skips the semantic step.
   if [ -n "${MB_SEMANTIC_PY:-}" ]; then printf '%s' "$MB_SEMANTIC_PY"; return; fi
   if [ -x "$1/.venv/bin/python" ]; then
     printf '%s' "$1/.venv/bin/python"
+  elif [ -x "$HOME/.claude/hooks/.venv/bin/python" ]; then
+    printf '%s' "$HOME/.claude/hooks/.venv/bin/python"
   elif [ -n "${2:-}" ] && [ -x "$2/.venv/bin/python" ]; then
     printf '%s' "$2/.venv/bin/python"
   else

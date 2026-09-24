@@ -4,18 +4,28 @@ allowed-tools: [Bash, Read]
 argument-hint: "[message-override]"
 ---
 
+## Skill bundle root
+
+Every bundled helper below runs through the skill bundle root, never a bare `scripts/…` path (the
+working directory is the user's project, where `scripts/` is absent or belongs to someone else):
+
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+[ -f "$SKILL_DIR/scripts/_lib.sh" ] || { echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
+```
+
 ## 0. Pre-flight safety checks
 
 ```bash
 # Memory Bank drift — if the bank exists
-[ -d .memory-bank ] && bash ~/.claude/skills/memory-bank/scripts/mb-drift.sh .
+[ -d .memory-bank ] && bash "$SKILL_DIR"/scripts/mb-drift.sh .
 
 # Conflict markers / whitespace errors in what is about to be committed
 git diff --check --cached
 git diff --check
 
 # Cross-session coordination board — if parallel sessions share this tree
-[ -f .memory-bank/COORDINATION.md ] && bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-coord.sh active
+[ -f .memory-bank/COORDINATION.md ] && bash "$SKILL_DIR"/scripts/mb-coord.sh active
 ```
 
 If `drift_warnings > 0`, show the warnings to the user and ask whether to proceed. If `git diff --check` finds conflict markers or trailing-whitespace errors, stop and surface them — do not commit broken content.

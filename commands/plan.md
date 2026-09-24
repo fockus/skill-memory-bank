@@ -10,6 +10,16 @@ Canonical planning command. `/mb plan` is an alias that dispatches here.
 
 > **Storage note.** Resolve the active bank path through `mb_resolve_path` (in `scripts/_lib.sh`). The plan file ends up at `<resolved-bank>/plans/<YYYY-MM-DD>_<type>_<topic>.md` regardless of whether the bank is local, registered global storage, or legacy `.claude-workspace`. If `[MEMORY BANK: ABSENT]` (rules-only mode), refuse to plan and tell the user to run `/mb init` first — but do **not** auto-initialize.
 
+## Skill bundle root
+
+Every bundled helper below runs through the skill bundle root, never a bare `scripts/…` path (the
+working directory is the user's project, where `scripts/` is absent or belongs to someone else):
+
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+[ -f "$SKILL_DIR/scripts/_lib.sh" ] || { echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
+```
+
 ## 0. Validate arguments
 
 Parse `$ARGUMENTS` into `<type> <topic>`. Allowed `type`: `feature`, `fix`, `refactor`, `experiment`. If `type` is missing or not in the allowed set, stop and ask the user. If `topic` is empty, stop and ask.
@@ -21,7 +31,7 @@ Parse `$ARGUMENTS` into `<type> <topic>`. Allowed `type`: `feature`, `fix`, `ref
 Read before you start:
 
 1. `~/.claude/CLAUDE.md` — global rules
-2. `~/.claude/skills/memory-bank/references/templates.md` — **MUST read the "Plan decomposition — Phase → Sprint → Stage" section**
+2. `$SKILL_DIR/references/templates.md` — **MUST read the "Plan decomposition — Phase → Sprint → Stage" section**
 3. `./RULES.MD` (project-level, if present) — project-specific decomposition rules + 200k-per-Sprint hard limit
 4. `./.memory-bank/roadmap.md` — current priorities (if present)
 5. `./.memory-bank/checklist.md` — current tasks (if present)
@@ -67,7 +77,7 @@ If the work expands into a **Phase** (≥2 Sprints with dependencies):
 Use the scaffolding script — it creates the file with `<!-- mb-stage:N -->` markers that `mb-plan-sync.sh` relies on later:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"
+bash "$SKILL_DIR"/scripts/mb-plan.sh <type> "<topic>"
 # Prints the created path, for example:
 # .memory-bank/plans/2026-04-21_refactor_<topic>.md
 ```
@@ -78,13 +88,13 @@ When the topic has a pre-written EARS-validated context document under `.memory-
 
 ```bash
 # Auto-detect: looks for .memory-bank/context/<sanitized_topic>.md
-bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>"
+bash "$SKILL_DIR"/scripts/mb-plan.sh <type> "<topic>"
 
 # Explicit context path (any location)
-bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>" --context path/to/context.md
+bash "$SKILL_DIR"/scripts/mb-plan.sh <type> "<topic>" --context path/to/context.md
 
 # Strict mode: require context AND pass EARS validation (mb-ears-validate.sh exit 0)
-bash ~/.claude/skills/memory-bank/scripts/mb-plan.sh <type> "<topic>" --sdd
+bash "$SKILL_DIR"/scripts/mb-plan.sh <type> "<topic>" --sdd
 ```
 
 When a context file is resolved (auto-detected or explicit), the scaffold injects a `## Linked context` section right after Context with a Markdown link. Use `--sdd` for spec-driven work where requirements must be EARS-validated before any planning happens — the script fails fast otherwise.
@@ -118,7 +128,7 @@ If `lessons.md` has entries relevant to this topic, incorporate them into the st
 After filling the plan, run:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-plan-sync.sh <plan-file-path>
+bash "$SKILL_DIR"/scripts/mb-plan-sync.sh <plan-file-path>
 ```
 
 The script is idempotent and:

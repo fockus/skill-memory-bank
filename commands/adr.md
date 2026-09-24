@@ -6,6 +6,16 @@ argument-hint: <decision-title>
 
 # ADR: $ARGUMENTS
 
+## Skill bundle root
+
+Every bundled helper below runs through the skill bundle root, never a bare `scripts/…` path (the
+working directory is the user's project, where `scripts/` is absent or belongs to someone else):
+
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+[ -f "$SKILL_DIR/scripts/_lib.sh" ] || { echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
+```
+
 ## 0. Validate arguments
 
 If `$ARGUMENTS` is empty, stop and ask the user for the decision title. Do not proceed with an empty title.
@@ -63,7 +73,7 @@ Append under the `## Architectural decisions (ADR)` section. Do not rewrite exis
 If the decision is significant enough that future sessions will benefit from a full note:
 
 ```bash
-bash ~/.claude/skills/memory-bank/scripts/mb-note.sh "adr-NNN-<slug>"
+bash "$SKILL_DIR"/scripts/mb-note.sh "adr-NNN-<slug>"
 ```
 
 Fill the returned file with frontmatter (`type: decision`, relevant `tags`, `importance: high`) and expand each section of the ADR.
