@@ -58,7 +58,7 @@ def test_wheel_ships_templates_locales(built_dists: tuple[Path, Path]) -> None:
     wheel, _ = built_dists
     names = _wheel_names(wheel)
     # Every supported locale must carry its .memory-bank/status.md into the wheel.
-    for lang in ("en", "ru", "es", "zh"):
+    for lang in ("en", "ru", "es", "pt", "zh"):
         needle = f"{WHEEL_DATA_PREFIX}/templates/locales/{lang}/.memory-bank/status.md"
         assert any(n.endswith(needle) for n in names), (
             f"wheel is missing {needle}; templates not packaged as shared-data"

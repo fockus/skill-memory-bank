@@ -87,7 +87,7 @@ teardown() {
 # Scaffold locales
 # ═══════════════════════════════════════════════════════════════
 
-@test "init --lang=es: writes scaffold + preserves canonical English markers" {
+@test "init --lang=es: writes the translated bank + keeps canonical English markers" {
   run bash "$INIT" --lang=es
   [ "$status" -eq 0 ]
 
@@ -96,19 +96,40 @@ teardown() {
   grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
   grep -q "^## ADR$" "$TMPROOT/.memory-bank/backlog.md"
 
-  # Scaffold banner is visible (reminds the user / contributor of the WIP state)
-  grep -q "TODO(i18n-es)" "$TMPROOT/.memory-bank/roadmap.md" || \
-    grep -q "TODO(i18n-es)" "$TMPROOT/.memory-bank/status.md"
+  # Prose is translated, not a scaffold
+  grep -qF "# Proyecto — Plan" "$TMPROOT/.memory-bank/roadmap.md"
+  run grep -rq "TODO(i18n-" "$TMPROOT/.memory-bank"
+  [ "$status" -ne 0 ]
 }
 
-@test "init --lang=zh: writes scaffold + preserves canonical English markers" {
+@test "init --lang=pt: writes the translated bank + keeps canonical English markers" {
+  run bash "$INIT" --lang=pt
+  [ "$status" -eq 0 ]
+
+  # Markers stay English (script contract)
+  grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
+  grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
+  grep -q "^## ADR$" "$TMPROOT/.memory-bank/backlog.md"
+
+  # Prose is translated, not a scaffold
+  grep -qF "# Projeto — Plano" "$TMPROOT/.memory-bank/roadmap.md"
+  run grep -rq "TODO(i18n-" "$TMPROOT/.memory-bank"
+  [ "$status" -ne 0 ]
+}
+
+@test "init --lang=zh: writes the translated bank + keeps canonical English markers" {
   run bash "$INIT" --lang=zh
   [ "$status" -eq 0 ]
 
+  # Markers stay English (script contract)
   grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
   grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
-  grep -q "TODO(i18n-zh)" "$TMPROOT/.memory-bank/roadmap.md" || \
-    grep -q "TODO(i18n-zh)" "$TMPROOT/.memory-bank/status.md"
+  grep -q "^## ADR$" "$TMPROOT/.memory-bank/backlog.md"
+
+  # Prose is translated, not a scaffold
+  grep -qF "# 项目 — 计划" "$TMPROOT/.memory-bank/roadmap.md"
+  run grep -rq "TODO(i18n-" "$TMPROOT/.memory-bank"
+  [ "$status" -ne 0 ]
 }
 
 # ═══════════════════════════════════════════════════════════════

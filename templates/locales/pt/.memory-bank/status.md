@@ -1,4 +1,4 @@
-# 项目 — 状态
+# Projeto — Status
 <!-- status.md = the CURRENT state only. Everything historical (dated sections,
      archives, closed backlogs) belongs in progress.md and is moved there
      VERBATIM by mb-status-rotate.sh — nothing is ever deleted (AGR-043).
@@ -7,15 +7,15 @@
 
 
 
-**当前阶段：** —
-**重点：** —
-**阻塞：** 无
+**Fase atual:** —
+**Foco:** —
+**Bloqueios:** nenhum
 
-## 指标
+## Métricas
 
-- 测试：0
-- 覆盖率：—
-- 上次 compact：—
+- Testes: 0
+- Cobertura: —
+- Último compact: —
 
 ## Active plans
 
@@ -29,6 +29,6 @@
 <!-- /mb-recent-done -->
 
 
-## 路线图（概览）
+## Roteiro (visão geral)
 
-参见 [backlog.md](backlog.md)：想法登记与 ADR。
+Veja [backlog.md](backlog.md): registro de ideias e ADRs.

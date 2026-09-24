@@ -1,5 +1,3 @@
-> TODO(i18n-zh): translate this file. See docs/i18n.md.
+# 进展
 
-# Progress
-
-(append-only — never delete old entries)
+（只追加——切勿删除旧条目）

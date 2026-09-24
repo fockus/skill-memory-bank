@@ -1,6 +1,4 @@
-> TODO(i18n-es): translate this file. See docs/i18n.md.
-
-# Project — Status
+# Proyecto — Estado
 <!-- status.md = the CURRENT state only. Everything historical (dated sections,
      archives, closed backlogs) belongs in progress.md and is moved there
      VERBATIM by mb-status-rotate.sh — nothing is ever deleted (AGR-043).
@@ -9,15 +7,15 @@
 
 
 
-**Current phase:** —
-**Focus:** —
-**Blockers:** none
+**Fase actual:** —
+**Enfoque:** —
+**Bloqueos:** ninguno
 
-## Metrics
+## Métricas
 
-- Tests: 0
-- Coverage: —
-- Last compact: —
+- Pruebas: 0
+- Cobertura: —
+- Último compact: —
 
 ## Active plans
 
@@ -31,6 +29,6 @@
 <!-- /mb-recent-done -->
 
 
-## Roadmap (high level)
+## Hoja de ruta (alto nivel)
 
-See [backlog.md](backlog.md) for the idea registry and ADRs.
+Consulta [backlog.md](backlog.md): registro de ideas y ADR.

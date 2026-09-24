@@ -7,9 +7,7 @@ the chosen locale.
 
 Supported locales:
     - en  — reference (full English content)
-    - ru  — full Russian translation
-    - es  — scaffold (EN copy + TODO(i18n-es) banner)
-    - zh  — scaffold (EN copy + TODO(i18n-zh) banner)
+    - ru, es, pt, zh — full translations (prose translated; script anchors stay English)
 
 Invariants that MUST hold for every locale:
     1. All 7 core files present: status.md, roadmap.md, checklist.md, backlog.md,
@@ -19,8 +17,8 @@ Invariants that MUST hold for every locale:
        marker pairs.
     4. backlog.md has `## Ideas` and `## ADR` headings (strict EN — scripts
        use these as canonical anchors across all locales).
-    5. Scaffold locales (es/zh) must carry a `TODO(i18n-<lang>)` banner.
-    6. Fully-translated locales (en/ru) must NOT carry a TODO(i18n) banner.
+    5. No locale carries a `TODO(i18n-<lang>)` scaffold banner.
+    6. Every translated locale differs from English in its prose (not an EN copy).
 """
 
 from __future__ import annotations
@@ -33,9 +31,9 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent.parent
 LOCALES_DIR = REPO / "templates" / "locales"
 
-SUPPORTED_LOCALES = ("en", "ru", "es", "zh")
-FULL_LOCALES = ("en", "ru")
-SCAFFOLD_LOCALES = ("es", "zh")
+SUPPORTED_LOCALES = ("en", "ru", "es", "pt", "zh")
+FULL_LOCALES = SUPPORTED_LOCALES
+TRANSLATED_LOCALES = ("ru", "es", "pt", "zh")
 
 CORE_FILES = (
     "status.md",
@@ -105,15 +103,10 @@ def test_backlog_has_canonical_english_anchors(locale: str) -> None:
     )
 
 
-@pytest.mark.parametrize("locale", SCAFFOLD_LOCALES)
-@pytest.mark.parametrize("name", CORE_FILES)
-def test_scaffold_locale_has_todo_banner(locale: str, name: str) -> None:
-    text = _read(locale, name)
-    banner = f"TODO(i18n-{locale})"
-    assert banner in text, (
-        f"scaffold locale '{locale}' must mark untranslated file '{name}' "
-        f"with `{banner}` banner (expected for contributor PRs)"
-    )
+@pytest.mark.parametrize("locale", TRANSLATED_LOCALES)
+@pytest.mark.parametrize("name", ("status.md", "roadmap.md", "checklist.md", "research.md", "progress.md", "lessons.md"))
+def test_translated_locale_is_not_an_english_copy(locale: str, name: str) -> None:
+    assert _read(locale, name) != _read("en", name), f"{locale}/{name} is still the English text"
 
 
 @pytest.mark.parametrize("locale", FULL_LOCALES)

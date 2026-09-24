@@ -19,7 +19,7 @@ import pytest
 from memory_bank_skill import cli
 
 
-@pytest.mark.parametrize("locale", ["en", "ru", "es", "zh"])
+@pytest.mark.parametrize("locale", ["en", "ru", "es", "pt", "zh"])
 def test_install_accepts_supported_locale(locale: str) -> None:
     parser = cli.build_parser()
     args = parser.parse_args(["install", "--language", locale, "--non-interactive"])
@@ -33,7 +33,7 @@ def test_install_rejects_unsupported_locale() -> None:
     assert excinfo.value.code == 2
 
 
-@pytest.mark.parametrize("locale", ["en", "ru", "es", "zh"])
+@pytest.mark.parametrize("locale", ["en", "ru", "es", "pt", "zh"])
 def test_init_accepts_lang_flag(locale: str) -> None:
     parser = cli.build_parser()
     args = parser.parse_args(["init", "--lang", locale])
@@ -58,7 +58,7 @@ def test_init_hint_mentions_selected_locale(capsys: pytest.CaptureFixture[str]) 
 
 
 def test_valid_languages_covers_supported_locales() -> None:
-    assert set(cli.VALID_LANGUAGES) >= {"en", "ru", "es", "zh"}
+    assert set(cli.VALID_LANGUAGES) >= {"en", "ru", "es", "pt", "zh"}
 
 
 # ═══ A18 (CDX-I4): es/zh must not yield an empty language rule ═══
@@ -70,7 +70,7 @@ def test_valid_languages_covers_supported_locales() -> None:
 # that install.sh now consults instead of its own hardcoded case statements.
 
 
-@pytest.mark.parametrize("locale", ["en", "ru", "es", "zh"])
+@pytest.mark.parametrize("locale", ["en", "ru", "es", "pt", "zh"])
 def test_language_strings_never_empty(locale: str) -> None:
     from memory_bank_skill._texttools import resolve_language_strings
 
@@ -80,7 +80,7 @@ def test_language_strings_never_empty(locale: str) -> None:
     assert result.comments_language.strip(), f"comments_language empty for locale={locale!r}"
 
 
-@pytest.mark.parametrize("locale", ["es", "zh"])
+@pytest.mark.parametrize("locale", ["xx", "de"])
 def test_unlocalized_locale_falls_back_to_english_and_flags_it(locale: str) -> None:
     from memory_bank_skill._texttools import resolve_language_strings
 
@@ -92,7 +92,7 @@ def test_unlocalized_locale_falls_back_to_english_and_flags_it(locale: str) -> N
     assert result.used_fallback is True
 
 
-@pytest.mark.parametrize("locale", ["en", "ru"])
+@pytest.mark.parametrize("locale", ["en", "ru", "es", "pt", "zh"])
 def test_vetted_locale_does_not_use_fallback(locale: str) -> None:
     from memory_bank_skill._texttools import resolve_language_strings
 
@@ -108,7 +108,7 @@ def test_language_strings_cli_subcommand_reports_fallback(
     honest "not yet localized" warning instead of silently swallowing it."""
     from memory_bank_skill._texttools import main as texttools_main
 
-    rc = texttools_main(["language-strings", "--language", "es"])
+    rc = texttools_main(["language-strings", "--language", "xx"])
     assert rc == 0
     out = capsys.readouterr().out
     assert "RULE_FULL=" in out

@@ -21,7 +21,7 @@
 
 set -eu
 
-SUPPORTED_LOCALES=(en ru es zh)
+SUPPORTED_LOCALES=(en ru es pt zh)
 
 print_usage() {
   cat <<'USAGE'

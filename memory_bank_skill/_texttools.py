@@ -9,28 +9,17 @@ from pathlib import Path
 
 from memory_bank_skill._io import atomic_write
 
-# ═══ A18 (CDX-I4): single source of truth for the localized language-rule
-# strings install.sh/uninstall.sh inline into RULES.md/CLAUDE.md/settings.json.
-#
-# `install.sh` accepts es/zh in VALID_LANGUAGES (they are documented as
-# "scaffolds awaiting community translations" in --help), but its own
-# hardcoded bash case statements only had en/ru branches — any other locale
-# fell through to an empty string, so `> **Language** — ` ended up with
-# nothing after the dash. Locales without vetted translations now fall back
-# to the English strings (never empty) and report that fact via
-# `used_fallback` so callers can print an honest one-time warning instead of
-# silently shipping an empty rule.
-LANGUAGE_RULES: dict[str, dict[str, str]] = {
-    "en": {
-        "full": "English — responses and code comments. Technical terms may remain in English.",
-        "short": "respond in English; technical terms may remain in English.",
-        "comments": "English",
-    },
-    "ru": {
-        "full": "Russian — responses and code comments. Technical terms may remain in English.",
-        "short": "respond in Russian; technical terms may remain in English.",
-        "comments": "Russian",
-    },
+# ═══ Single source of truth for the language-rule strings install.sh, the adapters, and
+# uninstall.sh write into RULES.md / CLAUDE.md / AGENTS.md. Response and code-comment
+# languages are named in English inside the rules text, so a new locale needs only its
+# display name here (plus the install.sh / mb-upgrade.sh / cli.py lists). Unknown codes fall
+# back to English (never an empty rule) and report it via `used_fallback`.
+LANGUAGE_NAMES: dict[str, str] = {
+    "en": "English",
+    "ru": "Russian",
+    "es": "Spanish",
+    "pt": "Portuguese",
+    "zh": "Chinese (Simplified)",
 }
 FALLBACK_LANGUAGE = "en"
 
@@ -43,18 +32,27 @@ class LanguageStrings:
     used_fallback: bool
 
 
-def resolve_language_strings(language: str) -> LanguageStrings:
-    """Look up the localized language-rule strings for `language`.
+def resolve_language_strings(language: str, comments_language: str | None = None) -> LanguageStrings:
+    """Build the language-rule strings for a response language and a code-comment language.
 
-    Never returns an empty string: locales without a vetted translation yet
-    (see LANGUAGE_RULES vs. install.sh's broader VALID_LANGUAGES) fall back to
-    the English strings and set `used_fallback=True`.
+    `comments_language` defaults to the response language. Unknown codes fall back to English
+    and set `used_fallback=True`, so callers can warn instead of shipping an empty rule.
     """
-    entry = LANGUAGE_RULES.get(language)
-    if entry is not None:
-        return LanguageStrings(entry["full"], entry["short"], entry["comments"], False)
-    fallback = LANGUAGE_RULES[FALLBACK_LANGUAGE]
-    return LanguageStrings(fallback["full"], fallback["short"], fallback["comments"], True)
+    comments_code = comments_language or language
+    used_fallback = language not in LANGUAGE_NAMES or comments_code not in LANGUAGE_NAMES
+    response = LANGUAGE_NAMES.get(language, LANGUAGE_NAMES[FALLBACK_LANGUAGE])
+    comments = LANGUAGE_NAMES.get(comments_code, response)
+    if comments == response:
+        full = f"{response} — responses and code comments. Technical terms may remain in English."
+        short = f"respond in {response}; technical terms may remain in English."
+    else:
+        full = f"{response} — responses; {comments} — code comments. Technical terms may remain in English."
+        short = (f"respond in {response}; write code comments in {comments}; "
+                 "technical terms may remain in English.")
+    return LanguageStrings(full, short, comments, used_fallback)
+
+
+_COMMENTS_IN = re.compile(r"comments in (?:" + "|".join(re.escape(n) for n in LANGUAGE_NAMES.values()) + r")")
 
 
 def strip_between_markers(text: str, start_marker: str, end_marker: str) -> str:
@@ -106,8 +104,7 @@ def localize_language_text(
         f"> **Language** — {rule_short}",
         target,
     )
-    target = target.replace("comments in English", f"comments in {comments_language}")
-    target = target.replace("comments in Russian", f"comments in {comments_language}")
+    target = _COMMENTS_IN.sub(f"comments in {comments_language}", target)
     return prefix + target
 
 
@@ -200,6 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
     # without a JSON dependency.
     lang_strings = sub.add_parser("language-strings")
     lang_strings.add_argument("--language", required=True)
+    lang_strings.add_argument("--comments-language", default=None)
 
     return parser
 
@@ -231,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     if args.command == "language-strings":
-        result = resolve_language_strings(args.language)
+        result = resolve_language_strings(args.language, args.comments_language)
         print(f"RULE_FULL={result.rule_full}")
         print(f"RULE_SHORT={result.rule_short}")
         print(f"COMMENTS_LANGUAGE={result.comments_language}")

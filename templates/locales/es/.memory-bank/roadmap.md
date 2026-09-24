@@ -1,12 +1,10 @@
-> TODO(i18n-es): translate this file. See docs/i18n.md.
-
-# Project — Plan
+# Proyecto — Plan
 
 
 
-## Current focus
+## Enfoque actual
 
-Initial project setup.
+Configuración inicial del proyecto.
 
 ## Active plans
 
@@ -14,12 +12,12 @@ Initial project setup.
 <!-- /mb-active-plans -->
 
 
-## Next up
+## Siguiente
 
-See [backlog.md](backlog.md) — ideas with priority, ADRs.
+Consulta [backlog.md](backlog.md): ideas con prioridad y ADR.
 
-## Deferred
+## Aplazado
 
 
 
-## Declined
+## Descartado

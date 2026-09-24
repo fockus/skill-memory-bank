@@ -33,7 +33,7 @@
 
 set -eu
 
-SUPPORTED_LOCALES=(en ru es zh)
+SUPPORTED_LOCALES=(en ru es pt zh)
 SUPPORTED_AGENTS=(claude-code cursor codex opencode pi windsurf cline kilo)
 CORE_FILES=(status.md roadmap.md checklist.md backlog.md research.md progress.md lessons.md)
 CORE_DIRS=(plans plans/done notes reports experiments codebase)

@@ -1,4 +1,4 @@
-> TODO(i18n-es): translate this file. See docs/i18n.md.
+# Proyecto — Lista de tareas
 
 <!-- checklist.md = open TODO only, one block per plan in flight. Execution detail
      (commit hashes, test counts, closeouts) belongs in progress.md, not here.
@@ -8,12 +8,8 @@
      mb-core-cap.sh check|fix and the Stop hook mb-core-cap-guard.sh
      (MB_CORE_CAP=off disables). -->
 
-# Project — Checklist
-
-
-
 ## Setup
 
-- ⬜ Define the stack and architecture
-- ⬜ Set up CI/CD
-- ⬜ Write the first tests
+- ⬜ Definir el stack y la arquitectura
+- ⬜ Configurar CI/CD
+- ⬜ Escribir las primeras pruebas

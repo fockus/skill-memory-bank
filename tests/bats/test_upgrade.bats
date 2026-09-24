@@ -186,6 +186,36 @@ EOF
   [[ "$output" == *"/tmp/some-persisted-project"* ]]
 }
 
+@test "upgrade: --force reapplies a persisted comments language" {
+  _a21_setup_upgradeable_skill
+  cat > "$TMPDIR/skill/.installed-manifest.json" <<'EOF'
+{
+  "schema_version": 1,
+  "language": "pt",
+  "comments_language": "en",
+  "clients_requested": "codex",
+  "project_root": "",
+  "files": [],
+  "backups": [],
+  "clients": ["codex"]
+}
+EOF
+
+  MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --force
+  [ "$status" -eq 0 ]
+  run cat "$TMPDIR/skill/.install-args-recorded"
+  [[ "$output" == *$'--language\npt'* ]] || false
+  [[ "$output" == *$'--comments-language\nen'* ]] || false
+}
+
+@test "upgrade: explicit --comments-language is passed through" {
+  _a21_setup_upgradeable_skill
+  MB_SKILL_DIR="$TMPDIR/skill" run bash "$SCRIPT" --force --language ru --comments-language en --clients codex
+  [ "$status" -eq 0 ]
+  run cat "$TMPDIR/skill/.install-args-recorded"
+  [[ "$output" == *$'--comments-language\nen'* ]] || false
+}
+
 @test "upgrade: pre-A21 manifest (no persisted options) falls back to defaults with a warning" {
   _a21_setup_upgradeable_skill
 

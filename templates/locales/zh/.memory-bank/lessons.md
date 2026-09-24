@@ -1,5 +1,3 @@
-> TODO(i18n-zh): translate this file. See docs/i18n.md.
+# 经验教训
 
-# Lessons
-
-(anti-patterns and recurring mistakes)
+（反模式与反复出现的错误）

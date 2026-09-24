@@ -116,6 +116,19 @@ EOF
   grep -q '1. \*\*Language\*\*: Russian — responses and code comments' "$PROJECT/.cursor/rules/memory-bank.mdc"
 }
 
+@test "install.sh --language pt --comments-language en splits the rule in project adapter files" {
+  bash "$REPO_ROOT/install.sh" --clients cursor,codex --language pt --comments-language en --project-root "$PROJECT" >/dev/null
+  grep -q '1. \*\*Language\*\*: Portuguese — responses; English — code comments' "$PROJECT/AGENTS.md"
+  grep -q '1. \*\*Language\*\*: Portuguese — responses; English — code comments' "$PROJECT/.cursor/rules/memory-bank.mdc"
+}
+
+@test "install.sh --language zh localizes project adapter rules without fallback" {
+  run bash "$REPO_ROOT/install.sh" --clients codex --language zh --project-root "$PROJECT"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"not yet localized"* ]] || false
+  grep -q '1. \*\*Language\*\*: Chinese (Simplified) — responses and code comments' "$PROJECT/AGENTS.md"
+}
+
 @test "install.sh --clients invalidname → exit non-zero with validation error" {
   run bash "$REPO_ROOT/install.sh" --clients invalidname --project-root "$PROJECT"
   [ "$status" -ne 0 ]
@@ -212,4 +225,20 @@ assert 'codex' in m.get('adapters_failed', []), m
 "
 
   _a17_cleanup_skill_copy
+}
+
+@test "install.sh: global OpenCode AGENTS.md carries the compact rules core; the project block keeps full RULES.md" {
+  bash "$REPO_ROOT/install.sh" --clients opencode --project-root "$PROJECT" --non-interactive >/dev/null 2>&1
+  local global="$HOME/.config/opencode/AGENTS.md"
+  [ -f "$global" ]
+  # OpenCode loads the global file AND the project AGENTS.md; full RULES.md in both
+  # put the same 47 KB of rules into every request twice.
+  run grep -c 'Staged stubs (allowed)' "$global"
+  [ "$output" = "0" ]
+  grep -q '## Memory Bank status line' "$global"
+  grep -q '~/.config/opencode/skills/memory-bank/rules/RULES.md' "$global"
+  run grep -c '~/.claude/RULES.md' "$global"
+  [ "$output" = "0" ]
+  [ "$(wc -c < "$global")" -lt 25000 ]
+  grep -q 'Staged stubs (allowed)' "$PROJECT/AGENTS.md"
 }

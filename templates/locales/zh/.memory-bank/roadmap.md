@@ -1,12 +1,10 @@
-> TODO(i18n-zh): translate this file. See docs/i18n.md.
-
-# Project — Plan
+# 项目 — 计划
 
 
 
-## Current focus
+## 当前重点
 
-Initial project setup.
+项目初始设置。
 
 ## Active plans
 
@@ -14,12 +12,12 @@ Initial project setup.
 <!-- /mb-active-plans -->
 
 
-## Next up
+## 下一步
 
-See [backlog.md](backlog.md) — ideas with priority, ADRs.
+参见 [backlog.md](backlog.md)：带优先级的想法与 ADR。
 
-## Deferred
+## 已推迟
 
 
 
-## Declined
+## 已拒绝

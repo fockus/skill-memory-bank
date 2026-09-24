@@ -15,6 +15,17 @@
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   INSTALL="$REPO_ROOT/install.sh"
+  # The valid-client cases run the real installer to completion: sandbox HOME
+  # (global ~/.claude, ~/.codex, …) and PWD (the default --project-root), or
+  # every run reinstalls Memory Bank into the developer's own machine.
+  SANDBOX="$(mktemp -d)"
+  export HOME="$SANDBOX/home"
+  mkdir -p "$HOME" "$SANDBOX/project"
+  cd "$SANDBOX/project" || return 1
+}
+
+teardown() {
+  [ -n "${SANDBOX:-}" ] && rm -rf "$SANDBOX"
 }
 
 run_install() {

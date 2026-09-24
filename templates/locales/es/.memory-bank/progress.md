@@ -1,5 +1,3 @@
-> TODO(i18n-es): translate this file. See docs/i18n.md.
+# Progreso
 
-# Progress
-
-(append-only — never delete old entries)
+(solo se añade — nunca borres entradas antiguas)

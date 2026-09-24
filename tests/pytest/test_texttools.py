@@ -147,3 +147,52 @@ def test_localize_language_text_does_not_replace_other_critical_rules() -> None:
 def test_scripts_no_longer_define_private_atomic_write(relative_path: str) -> None:
     content = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
     assert "def _atomic_write" not in content
+
+
+@pytest.mark.parametrize(
+    ("code", "name"),
+    [("en", "English"), ("ru", "Russian"), ("es", "Spanish"), ("pt", "Portuguese"), ("zh", "Chinese")],
+)
+def test_supported_languages_resolve_without_fallback(code: str, name: str) -> None:
+    result = _texttools.resolve_language_strings(code)
+    assert result.used_fallback is False
+    assert result.rule_short.startswith(f"respond in {name}")
+    assert result.rule_full.startswith(f"{name}")
+    assert result.comments_language.startswith(name)
+
+
+def test_unknown_language_falls_back_to_english_and_says_so() -> None:
+    result = _texttools.resolve_language_strings("xx")
+    assert result.used_fallback is True
+    assert result.rule_short.startswith("respond in English")
+
+
+def test_comments_language_defaults_to_the_response_language() -> None:
+    result = _texttools.resolve_language_strings("ru")
+    assert result.rule_full == "Russian — responses and code comments. Technical terms may remain in English."
+    assert result.comments_language == "Russian"
+
+
+def test_comments_language_can_differ_from_the_response_language() -> None:
+    result = _texttools.resolve_language_strings("ru", comments_language="en")
+    assert result.rule_full == "Russian — responses; English — code comments. Technical terms may remain in English."
+    assert result.rule_short == "respond in Russian; write code comments in English; technical terms may remain in English."
+    assert result.comments_language == "English"
+
+
+def test_localize_rewrites_both_language_lines_for_split_languages() -> None:
+    result = _texttools.resolve_language_strings("es", comments_language="en")
+    text = "1. **Language**: English — responses and code comments.\n> **Language** — respond in English; x\n"
+    out = _texttools.localize_language_text(
+        text, rule_full=result.rule_full, rule_short=result.rule_short,
+        comments_language=result.comments_language,
+    )
+    assert "1. **Language**: Spanish — responses; English — code comments." in out
+    assert "> **Language** — respond in Spanish; write code comments in English;" in out
+
+
+def test_language_strings_cli_accepts_a_comments_language(capsys: pytest.CaptureFixture[str]) -> None:
+    assert _texttools.main(["language-strings", "--language", "pt", "--comments-language", "en"]) == 0
+    out = capsys.readouterr().out
+    assert "RULE_SHORT=respond in Portuguese; write code comments in English;" in out
+    assert "COMMENTS_LANGUAGE=English" in out

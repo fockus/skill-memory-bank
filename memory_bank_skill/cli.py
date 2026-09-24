@@ -39,7 +39,7 @@ VALID_CLIENTS = (
     "pi",
     "codex",
 )
-VALID_LANGUAGES = ("en", "ru", "es", "zh")
+VALID_LANGUAGES = ("en", "ru", "es", "pt", "zh")
 EXIT_INVALID_USAGE = 2
 EXIT_MISSING_SCRIPT = 3
 EXIT_BASH_NOT_FOUND = 4
@@ -192,6 +192,8 @@ def cmd_install(args: argparse.Namespace) -> int:
         sh_args.extend(["--clients", args.clients])
     if args.language:
         sh_args.extend(["--language", args.language])
+    if args.comments_language:
+        sh_args.extend(["--comments-language", args.comments_language])
     if args.project_root:
         sh_args.extend(["--project-root", args.project_root])
     if args.non_interactive:
@@ -291,7 +293,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_install.add_argument(
         "--language",
         choices=VALID_LANGUAGES,
-        help=f"Preferred installed rules language. Valid: {', '.join(VALID_LANGUAGES)}.",
+        help=f"Language of agent responses (and, by default, code comments). "
+        f"Valid: {', '.join(VALID_LANGUAGES)}.",
+    )
+    p_install.add_argument(
+        "--comments-language",
+        choices=VALID_LANGUAGES,
+        help="Language of code comments when it differs from --language.",
     )
     p_install.add_argument(
         "--project-root", help="Target directory for cross-agent adapters (default: PWD)"

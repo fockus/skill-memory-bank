@@ -1,5 +1,3 @@
-> TODO(i18n-es): translate this file. See docs/i18n.md.
+# Lecciones
 
-# Lessons
-
-(anti-patterns and recurring mistakes)
+(antipatrones y errores recurrentes)

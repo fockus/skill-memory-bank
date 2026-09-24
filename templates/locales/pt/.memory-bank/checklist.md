@@ -1,4 +1,4 @@
-# 项目 — 检查清单
+# Projeto — Checklist
 
 <!-- checklist.md = open TODO only, one block per plan in flight. Execution detail
      (commit hashes, test counts, closeouts) belongs in progress.md, not here.
@@ -10,6 +10,6 @@
 
 ## Setup
 
-- ⬜ 确定技术栈和架构
-- ⬜ 配置 CI/CD
-- ⬜ 编写第一批测试
+- ⬜ Definir a stack e a arquitetura
+- ⬜ Configurar CI/CD
+- ⬜ Escrever os primeiros testes

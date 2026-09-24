@@ -31,7 +31,9 @@ PI_SKILL_ALIAS="$PI_AGENT_DIR/skills/memory-bank"
 OPENCODE_SKILL_ALIAS="$OPENCODE_DIR/skills/memory-bank"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
+# shellcheck disable=SC2034  # read by adapters/_lib_pi_global.sh
 PI_START_MARKER="<!-- memory-bank-pi:start -->"
+# shellcheck disable=SC2034
 PI_END_MARKER="<!-- memory-bank-pi:end -->"
 # A13 (M-5): paired markers for the ~/.claude/CLAUDE.md MB section. Before this,
 # refresh only had a start marker and blindly consumed start..EOF, destroying
@@ -89,6 +91,7 @@ flush_manifest() {
     EXTENSIONS_INSTALLED_STR="$(printf '%s\n' ${EXTENSIONS_INSTALLED[@]+"${EXTENSIONS_INSTALLED[@]}"})" \
     MANIFEST_PROJECT_ROOT="${PROJECT_ROOT:-}" \
     MANIFEST_LANGUAGE="${LANGUAGE:-}" \
+    MANIFEST_COMMENTS_LANGUAGE="${COMMENTS_LANGUAGE:-}" \
     MANIFEST_CLIENTS_REQUESTED="${CLIENTS:-}" \
     MANIFEST_PATH="$MANIFEST" \
     INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -148,6 +151,7 @@ manifest = {
     # including claude-code) so `mb-upgrade.sh` can reapply them non-interactively
     # on the next re-install instead of silently resetting to en/claude-code-only.
     "language": os.environ.get("MANIFEST_LANGUAGE", ""),
+    "comments_language": os.environ.get("MANIFEST_COMMENTS_LANGUAGE", ""),
     "clients_requested": os.environ.get("MANIFEST_CLIENTS_REQUESTED", ""),
     # adapter-parity T7 (REQ-015/017): this global manifest is claude-code's
     # own manifest (it has no separate adapters/claude-code.sh manifest file —
@@ -187,6 +191,8 @@ _mb_on_exit() {
 
 # shellcheck disable=SC1091
 . "$SOURCE_SKILL_DIR/adapters/_lib_agents_md.sh"
+# shellcheck source=adapters/_lib_pi_global.sh
+. "$SOURCE_SKILL_DIR/adapters/_lib_pi_global.sh"
 # scripts/_lib.sh already sourced above (needed early for mb_resolve_manifest_path).
 
 count_matching_files() {
@@ -195,9 +201,10 @@ count_matching_files() {
 
 # ═══ Arg parsing ═══
 VALID_CLIENTS=(claude-code cursor windsurf cline kilo opencode pi codex)
-VALID_LANGUAGES=(en ru es zh)
+VALID_LANGUAGES=(en ru es pt zh)
 CLIENTS=""                  # unset sentinel — triggers interactive or default
 LANGUAGE=""                 # unset sentinel — triggers interactive or default
+COMMENTS_LANGUAGE=""        # empty = same as LANGUAGE
 PROJECT_ROOT="$PWD"
 NON_INTERACTIVE=0
 # adapter-parity T2: opt-in host parity-extension offer (pi/opencode only).
@@ -219,11 +226,14 @@ Options:
                                  opencode, pi, codex
                           If omitted and running in a TTY → interactive menu.
                           Non-TTY default: claude-code only.
-  --language <code>       Preferred locale for rules + .memory-bank/ templates.
-                          Valid: en, ru, es, zh
-                          (es/zh ship as scaffolds awaiting community translations)
+  --language <code>       Language of agent responses (and, by default, code comments).
+                          Valid: en, ru, es, pt, zh
                           If omitted and running in a TTY → interactive prompt.
                           Non-TTY default: en.
+  --comments-language <code>
+                          Language of code comments when it differs from --language
+                          (e.g. --language ru --comments-language en). Same codes.
+                          A project can override both: /mb language <code> [--comments <code>].
   --project-root <path>   Target directory for cross-agent adapters (default: PWD).
   --non-interactive       Never prompt; use defaults when --clients not passed.
   --with-extensions[=<list>]
@@ -264,6 +274,11 @@ while [ $# -gt 0 ]; do
       [ -z "$LANGUAGE" ] && { echo "[install.sh] --language requires an argument" >&2; exit 1; }
       shift 2
       ;;
+    --comments-language)
+      COMMENTS_LANGUAGE="${2:-}"
+      [ -z "$COMMENTS_LANGUAGE" ] && { echo "[install.sh] --comments-language requires an argument" >&2; exit 1; }
+      shift 2
+      ;;
     --non-interactive)
       NON_INTERACTIVE=1; shift ;;
     --with-extensions)
@@ -290,6 +305,9 @@ if [ -z "$CLIENTS" ] && [ -n "${MB_CLIENTS:-}" ]; then
 fi
 if [ -z "$LANGUAGE" ] && [ -n "${MB_LANGUAGE:-}" ]; then
   LANGUAGE="$MB_LANGUAGE"
+fi
+if [ -z "$COMMENTS_LANGUAGE" ] && [ -n "${MB_COMMENTS_LANGUAGE:-}" ]; then
+  COMMENTS_LANGUAGE="$MB_COMMENTS_LANGUAGE"
 fi
 # adapter-parity T2 (REQ-005): MB_WITH_EXTENSIONS env has the same contract as
 # --with-extensions[=<list>] — an explicit CLI flag always wins. `+x` (not
@@ -370,6 +388,9 @@ interactive_pick_language() {
   echo ""
   echo "  [1]* en  English"
   echo "  [2]  ru  Russian"
+  echo "  [3]  es  Spanish"
+  echo "  [4]  pt  Portuguese"
+  echo "  [5]  zh  Chinese (Simplified)"
   echo ""
   echo "  Press Enter for English."
   echo ""
@@ -387,8 +408,11 @@ interactive_pick_language() {
       LANGUAGE="ru"
       echo "  -> selected language: ru"
       ;;
+    "3"|"es") LANGUAGE="es"; echo "  -> selected language: es" ;;
+    "4"|"pt") LANGUAGE="pt"; echo "  -> selected language: pt" ;;
+    "5"|"zh") LANGUAGE="zh"; echo "  -> selected language: zh" ;;
     *)
-      echo "[install.sh] invalid language '$reply' (valid: en, ru)" >&2
+      echo "[install.sh] invalid language '$reply' (valid: ${VALID_LANGUAGES[*]})" >&2
       exit 1
       ;;
   esac
@@ -586,6 +610,18 @@ if [ "$valid_language" -eq 0 ]; then
   echo "[install.sh] invalid language '$LANGUAGE'. Valid: ${VALID_LANGUAGES[*]}" >&2
   exit 1
 fi
+if [ -n "$COMMENTS_LANGUAGE" ]; then
+  valid_language=0
+  for lang in "${VALID_LANGUAGES[@]}"; do
+    [ "$COMMENTS_LANGUAGE" = "$lang" ] && valid_language=1 && break
+  done
+  if [ "$valid_language" -eq 0 ]; then
+    echo "[install.sh] invalid comments language '$COMMENTS_LANGUAGE'. Valid: ${VALID_LANGUAGES[*]}" >&2
+    exit 1
+  fi
+fi
+# Adapters (AGENTS.md rules for pi/cursor/windsurf/...) render the same language pair.
+export MB_LANGUAGE="$LANGUAGE" MB_COMMENTS_LANGUAGE="$COMMENTS_LANGUAGE"
 
 echo ""
 echo -e "${BOLD}═══ Installing skill-memory-bank ═══${NC}"
@@ -599,7 +635,7 @@ echo "  • $COMMAND_COUNT dev commands (/mb, /commit, /review, /test, etc.)"
 echo "  • $AGENT_COUNT agents (mb-doctor, mb-manager, plan-verifier, mb-codebase-mapper)"
 echo "  • $HOOK_COUNT hooks (block-dangerous, file-change-log, session-end-autosave, mb-pre-compact)"
 echo "  • $SCRIPT_COUNT mb-* scripts (plan-sync, plan-done, idea, idea-promote, adr, migrate-structure, compact, …)"
-echo "  • Settings hooks (Setup, PreCompact, Stop)"
+echo "  • Settings hooks (SessionStart, PreCompact, Stop, …)"
 echo "  • Preferred language: $LANGUAGE"
 echo ""
 
@@ -782,7 +818,7 @@ LANG_COMMENTS_NAME=""
 resolve_language_strings() {
   [ "$LANG_STRINGS_RESOLVED" = "1" ] && return 0
   local out used_fallback
-  out="$(run_texttool language-strings --language "$LANGUAGE")"
+  out="$(run_texttool language-strings --language "$LANGUAGE" ${COMMENTS_LANGUAGE:+--comments-language "$COMMENTS_LANGUAGE"})"
   LANG_RULE_FULL="$(printf '%s\n' "$out" | sed -n 's/^RULE_FULL=//p')"
   LANG_RULE_SHORT="$(printf '%s\n' "$out" | sed -n 's/^RULE_SHORT=//p')"
   LANG_COMMENTS_NAME="$(printf '%s\n' "$out" | sed -n 's/^COMMENTS_LANGUAGE=//p')"
@@ -928,47 +964,39 @@ ensure_skill_aliases() {
   echo -e "  ${GREEN}✓${NC} Claude/Codex/Cursor/Pi/OpenCode skill aliases"
 }
 
-# include_ext_nudge is hardcoded to 1 in every _agents_md_section call below:
-# this writes ~/.config/opencode/AGENTS.md specifically, so the host is
-# opencode by construction regardless of what --clients was passed for THIS
-# project (see the A25 note above this function's call site).
+# The compact rules core (CLAUDE-GLOBAL.md), like the Codex and Pi global blocks.
+# OpenCode also loads the project AGENTS.md, whose shared block carries the full
+# RULES.md; putting RULES.md here too sent the same rules twice with every request.
+opencode_agents_section() {
+  cat <<EOF
+$MB_START_MARKER
+
+# Memory Bank — OpenCode Global Entry Point
+
+Global Memory Bank skill: \`~/.config/opencode/skills/memory-bank/SKILL.md\`. OpenCode loads this file at
+startup; treat the section below as always-on Memory Bank guidance. Subagent roles are dispatched by
+name with \`task(subagent_type=<name>)\`.
+
+On a bare OpenCode host (parity extensions not installed yet), suggest running
+\`install.sh --with-extensions=opencode\` once per session, then stay silent once installed.
+
+EOF
+  sed 's#~/.claude/RULES.md#~/.config/opencode/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.config/opencode/skills/memory-bank#g' "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+  cat <<EOF
+
+$MB_END_MARKER
+EOF
+}
+
 install_opencode_global_agents() {
-  local agents_file="$OPENCODE_DIR/AGENTS.md"
-  local tmp
-  mkdir -p "$OPENCODE_DIR"
-
-  if [ -f "$agents_file" ] && grep -q "$MB_START_MARKER" "$agents_file" 2>/dev/null; then
-    tmp="$agents_file.tmp"
-    awk -v s="$MB_START_MARKER" -v e="$MB_END_MARKER" '
-      BEGIN { inside=0 }
-      index($0, s) { inside=1; next }
-      index($0, e) { inside=0; next }
-      !inside { print }
-    ' "$agents_file" > "$tmp"
-    {
-      cat "$tmp"
-      printf '\n'
-      _agents_md_section "$SOURCE_SKILL_DIR" 1
-    } > "$agents_file"
-    rm -f "$tmp"
-    INSTALLED_FILES+=("$agents_file")
-    echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md (refreshed)"
-    return
-  fi
-
-  if [ -f "$agents_file" ]; then
-    {
-      printf '\n'
-      _agents_md_section "$SOURCE_SKILL_DIR" 1
-    } >> "$agents_file"
-    INSTALLED_FILES+=("$agents_file")
-    echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md (merged)"
-    return
-  fi
-
-  _agents_md_section "$SOURCE_SKILL_DIR" 1 > "$agents_file"
-  INSTALLED_FILES+=("$agents_file")
-  echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md (created)"
+  local section state
+  section="$(mktemp)"
+  opencode_agents_section > "$section"
+  localize_path_inplace "$section" "$MB_START_MARKER"
+  state="$(mb_upsert_marked_block "$OPENCODE_DIR/AGENTS.md" "$MB_START_MARKER" "$MB_END_MARKER" "$section")"
+  rm -f "$section"
+  INSTALLED_FILES+=("$OPENCODE_DIR/AGENTS.md")
+  echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md ($state)"
 }
 
 codex_agents_section() {
@@ -986,6 +1014,7 @@ Bundled resources available to Codex:
 - Commands: \`~/.codex/skills/memory-bank/commands/\`
 - Agents: \`~/.codex/skills/memory-bank/agents/\`
 - Hooks: \`~/.codex/skills/memory-bank/hooks/\`
+- Subagent roles: \`~/.codex/agents/<name>.toml\` — where a Memory Bank command dispatches an agent by name, call \`spawn_agent(agent_type="<name>", message=…)\`; a pipeline \`thinking\` goes to \`reasoning_effort\`.
 
 ## Storage modes
 
@@ -1032,180 +1061,36 @@ EOF
 }
 
 install_codex_global_agents() {
-  local agents_file="$CODEX_DIR/AGENTS.md"
-  local tmp section_tmp
-  mkdir -p "$CODEX_DIR"
+  local section state
   # Localize the section like the Claude/Pi blocks — without this a `--language ru`
   # install left "respond in English" inside ~/.codex/AGENTS.md.
-  section_tmp="$(mktemp)"
-  codex_agents_section > "$section_tmp"
-  localize_path_inplace "$section_tmp" "$CODEX_START_MARKER"
-
-  if [ -f "$agents_file" ] && grep -q "$CODEX_START_MARKER" "$agents_file" 2>/dev/null; then
-    tmp="$agents_file.tmp"
-    awk -v s="$CODEX_START_MARKER" -v e="$CODEX_END_MARKER" '
-      BEGIN { inside=0 }
-      index($0, s) { inside=1; next }
-      index($0, e) { inside=0; next }
-      !inside { print }
-    ' "$agents_file" > "$tmp"
-    {
-      cat "$tmp"
-      printf '\n'
-      cat "$section_tmp"
-    } > "$agents_file"
-    rm -f "$tmp" "$section_tmp"
-    INSTALLED_FILES+=("$agents_file")
-    echo -e "  ${GREEN}✓${NC} Codex AGENTS.md (refreshed)"
-    return
-  fi
-
-  if [ -f "$agents_file" ]; then
-    {
-      printf '\n'
-      cat "$section_tmp"
-    } >> "$agents_file"
-    rm -f "$section_tmp"
-    INSTALLED_FILES+=("$agents_file")
-    echo -e "  ${GREEN}✓${NC} Codex AGENTS.md (merged)"
-    return
-  fi
-
-  cat "$section_tmp" > "$agents_file"
-  rm -f "$section_tmp"
-  INSTALLED_FILES+=("$agents_file")
-  echo -e "  ${GREEN}✓${NC} Codex AGENTS.md (created)"
+  section="$(mktemp)"
+  codex_agents_section > "$section"
+  localize_path_inplace "$section" "$CODEX_START_MARKER"
+  state="$(mb_upsert_marked_block "$CODEX_DIR/AGENTS.md" "$CODEX_START_MARKER" "$CODEX_END_MARKER" "$section")"
+  rm -f "$section"
+  INSTALLED_FILES+=("$CODEX_DIR/AGENTS.md")
+  echo -e "  ${GREEN}✓${NC} Codex AGENTS.md ($state)"
 }
 
-pi_agents_section() {
-  cat <<EOF
-$PI_START_MARKER
-
-# Memory Bank — Pi Global Entry Point
-
-Global Memory Bank skill is registered at:
-- \`~/.pi/agent/skills/memory-bank/SKILL.md\`
-
-Pi loads this file at startup and injects it into the agent prompt. Treat the section below as always-on Memory Bank guidance.
-
-Bundled resources available to Pi:
-- Slash prompt templates: \`~/.pi/agent/prompts/\` (for \`/mb\`, \`/start\`, \`/done\`, \`/plan\`, etc.)
-- Skill resources: \`~/.pi/agent/skills/memory-bank/{commands,agents,hooks,scripts,references,rules}/\`
-
-Recommended workflow:
-- If \`./.memory-bank/\` exists, Memory Bank is active: read \`status.md\`, \`checklist.md\`, \`roadmap.md\`, and \`research.md\` at session start.
-- Use \`/mb start\` to restore project context and \`/mb done\` to save progress.
-- Before implementation, prefer \`/mb plan <feature|fix|refactor|experiment> <topic>\` and follow TDD.
-- Detailed rules live at \`~/.pi/agent/skills/memory-bank/rules/RULES.md\`.
-
-### Mandatory \`/mb work\` execution gate
-
-When Memory Bank is ACTIVE and the user asks to implement, fix, continue, resume, "do the next step", "go by the plan", or work from an existing plan/spec, **do not implement manually first**. Before editing production code or restoring paused WIP, resolve the Memory Bank work item and workflow:
-
-1. Resolve the effective workflow from \`<bank>/pipeline.yaml\` via \`mb-workflow.sh\` (default may be project-specific, e.g. governed execution).
-2. Resolve the target/range via \`mb-work-resolve.sh\` and \`mb-work-plan.sh\`; spec tasks with \`<!-- mb-task:N -->\` are executable source of truth.
-3. If a wrapper plan points to a spec, ensure \`linked_spec\` is present; if no executable \`mb-stage\`/\`mb-task\` exists, stop and repair the plan/spec before implementation.
-4. Follow the resolved workflow steps exactly (\`implement\`, \`verify\`, \`review\`, \`judge\`, \`fix\`, \`done\`). If \`review\`/\`judge\` are configured, do not claim completion before those gates or an explicit user-approved workflow override.
-5. Dispatch agents with the exact \`model\` and \`thinking\` from the JSON line / \`pipeline.yaml\`; never rely on fuzzy model aliases or agent frontmatter defaults.
-6. Manual inline work is allowed only for trivial non-plan tasks or when the user explicitly says to skip \`/mb work\`; still apply TDD and verification.
-
-This gate exists to prevent the agent from rationalizing around Memory Bank after compaction, stash restores, or mid-session pivots.
-
-## Core Memory Bank rules
-
-EOF
-  sed 's#~/.claude/RULES.md#~/.pi/agent/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.pi/agent/skills/memory-bank#g' "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
-  cat <<EOF
-
-$PI_END_MARKER
-EOF
+# Codex discovers subagent roles as TOML in ~/.codex/agents/ and runs them through
+# `spawn_agent(agent_type=<name>)`; the renderer composes partials and maps `effort`.
+install_codex_agent_roles() {
+  local f name roles_tmp count=0
+  roles_tmp="$(mktemp -d)"
+  for f in "$SOURCE_SKILL_DIR"/agents/*.md; do
+    [ -f "$f" ] || continue
+    head -5 "$f" | grep -qiE '^partial:[[:space:]]*true[[:space:]]*$' && continue
+    name="$(basename "$f" .md)"
+    "$MB_PY" "$SOURCE_SKILL_DIR/scripts/mb-agent-render.py" "$f" --skill-dir "$SOURCE_SKILL_DIR" \
+      --host codex > "$roles_tmp/$name.toml"
+    install_file "$roles_tmp/$name.toml" "$CODEX_DIR/agents/$name.toml"
+    count=$((count + 1))
+  done
+  rm -rf "$roles_tmp"
+  echo -e "  ${GREEN}✓${NC} Codex subagent roles ($count in $CODEX_DIR/agents)"
 }
 
-install_pi_global_agents() {
-  local agents_file="$PI_AGENT_DIR/AGENTS.md"
-  local tmp section_tmp
-  mkdir -p "$PI_AGENT_DIR"
-  section_tmp="$(mktemp)"
-  pi_agents_section > "$section_tmp"
-  localize_path_inplace "$section_tmp" "$PI_START_MARKER"
-
-  if [ -f "$agents_file" ] && grep -q "$PI_START_MARKER" "$agents_file" 2>/dev/null; then
-    tmp="$agents_file.tmp"
-    awk -v s="$PI_START_MARKER" -v e="$PI_END_MARKER" '
-      BEGIN { inside=0 }
-      index($0, s) { inside=1; next }
-      index($0, e) { inside=0; next }
-      !inside { print }
-    ' "$agents_file" > "$tmp"
-    {
-      if grep -q '[^[:space:]]' "$tmp"; then
-        awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$tmp"
-        printf '\n\n'
-      fi
-      cat "$section_tmp"
-    } > "$agents_file"
-    rm -f "$tmp" "$section_tmp"
-    INSTALLED_FILES+=("$agents_file")
-    echo -e "  ${GREEN}✓${NC} Pi AGENTS.md (refreshed)"
-    return
-  fi
-
-  if [ -f "$agents_file" ]; then
-    {
-      printf '\n'
-      cat "$section_tmp"
-    } >> "$agents_file"
-    rm -f "$section_tmp"
-    INSTALLED_FILES+=("$agents_file")
-    echo -e "  ${GREEN}✓${NC} Pi AGENTS.md (merged)"
-    return
-  fi
-
-  mv "$section_tmp" "$agents_file"
-  INSTALLED_FILES+=("$agents_file")
-  echo -e "  ${GREEN}✓${NC} Pi AGENTS.md (created)"
-}
-
-install_pi_settings_skill() {
-  local settings_file="$PI_AGENT_DIR/settings.json"
-  mkdir -p "$PI_AGENT_DIR"
-
-  SETTINGS_FILE="$settings_file" "$MB_PY" <<'PYEOF'
-import json
-import os
-from pathlib import Path
-
-path = Path(os.environ["SETTINGS_FILE"])
-skill = "~/.pi/agent/skills/memory-bank"
-
-if path.exists():
-    try:
-        data = json.loads(path.read_text())
-    except json.JSONDecodeError as exc:
-        raise SystemExit(f"invalid Pi settings.json, refusing to overwrite: {exc}")
-    if not isinstance(data, dict):
-        raise SystemExit("invalid Pi settings.json: root must be an object")
-else:
-    data = {}
-
-raw_skills = data.get("skills", [])
-if raw_skills is None:
-    raw_skills = []
-if not isinstance(raw_skills, list):
-    raise SystemExit("invalid Pi settings.json: skills must be an array")
-
-skills = []
-for item in [skill, *raw_skills]:
-    if item not in skills:
-        skills.append(item)
-
-data["skills"] = skills
-path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
-PYEOF
-
-  INSTALLED_FILES+=("$settings_file")
-  echo -e "  ${GREEN}✓${NC} Pi settings.json (memory-bank skill merged)"
-}
 
 # ═══ Step 1: Rules ═══
 echo -e "${BLUE}[1/7] Rules${NC}"
@@ -1329,23 +1214,32 @@ echo -e "  ${GREEN}✓${NC} language preference ($LANGUAGE)"
 # implemented here (see docs/cross-agent-setup.md "Global agent resources").
 install_opencode_global_agents
 install_codex_global_agents
-install_pi_global_agents
-install_pi_settings_skill
+install_codex_agent_roles
+pi_agents_state="$(SKILL_DIR="$SOURCE_SKILL_DIR" install_pi_global_agents)"
+INSTALLED_FILES+=("$PI_AGENT_DIR/AGENTS.md")
+echo -e "  ${GREEN}✓${NC} Pi AGENTS.md ($pi_agents_state)"
+MB_PYTHON="$MB_PY" install_pi_settings_skill
+INSTALLED_FILES+=("$PI_AGENT_DIR/settings.json")
+echo -e "  ${GREEN}✓${NC} Pi settings.json (memory-bank skill merged)"
 
 # ═══ Step 2: Agents ═══
 echo -e "${BLUE}[2/7] Agents${NC}"
 agents_installed=0
+agents_render_dir="$(mktemp -d)"
 for f in "$SOURCE_SKILL_DIR"/agents/*.md; do
   [ -f "$f" ] || continue
   # Skip partials (frontmatter `partial: true`, e.g. mb-engineering-core): they are
-  # prepended by /mb work via the skill alias, not standalone subagents — keep them
-  # out of the ~/.claude/agents/ registry so they never show up as dispatchable.
+  # composed into the agents that declare `compose:` (scripts/mb-agent-render.py),
+  # not standalone subagents — keep them out of the ~/.claude/agents/ registry.
   if head -5 "$f" | grep -qiE '^partial:[[:space:]]*true[[:space:]]*$'; then
     continue
   fi
-  install_file "$f" "$CLAUDE_DIR/agents/$(basename "$f")"
+  "$MB_PY" "$SOURCE_SKILL_DIR/scripts/mb-agent-render.py" "$f" --skill-dir "$SOURCE_SKILL_DIR" \
+    > "$agents_render_dir/$(basename "$f")"
+  install_file "$agents_render_dir/$(basename "$f")" "$CLAUDE_DIR/agents/$(basename "$f")"
   agents_installed=$((agents_installed + 1))
 done
+rm -rf "$agents_render_dir"
 echo -e "  ${GREEN}✓${NC} ${agents_installed} agents (partials excluded from registry)"
 
 # ═══ Step 3: Hooks ═══

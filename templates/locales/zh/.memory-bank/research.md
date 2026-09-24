@@ -1,9 +1,7 @@
-> TODO(i18n-zh): translate this file. See docs/i18n.md.
+# 研究
 
-# Research
+## 活跃假设
+（暂无）
 
-## Active Hypotheses
-(none yet)
-
-## Findings
-(none yet)
+## 发现
+（暂无）
