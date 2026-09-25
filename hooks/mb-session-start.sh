@@ -41,6 +41,26 @@ if _mb_graph_auto_should_rebuild; then
   fi
 fi
 
+# Background code-graph catch-up (AGR-044): the graph is only useful to
+# implementer/verifier/reviewer if it is fresh, and nobody refreshes it by hand.
+# `mb-graph-query.py catchup` is the bounded single-consumer path (non-blocking
+# flock, hard MB_GRAPH_CATCHUP_BUDGET, cooldown after failure), so I-131/I-133
+# hold: the hook only DISPATCHES it detached and returns immediately — no
+# synchronous heavy work, no unbounded builder. Absent graph → nothing (the
+# first build stays manual). Off: MB_GRAPH_CATCHUP=off.
+if [ "${MB_GRAPH_CATCHUP:-on}" != "off" ] && [ -f "$MB/codebase/graph.json" ] \
+  && command -v python3 >/dev/null 2>&1; then
+  _cgq="$HOOK_DIR/../scripts/mb-graph-query.py"
+  [ -f "$_cgq" ] || _cgq="$HOME/.claude/skills/memory-bank/scripts/mb-graph-query.py"
+  if [ -f "$_cgq" ]; then
+    # Detached double-fork (macOS has no setsid). The result — including an
+    # honest `timed_out`/`cooldown` — lands in .graph-catchup.log instead of
+    # /dev/null, so a graph that never catches up is visible, not silent.
+    ( python3 "$_cgq" catchup --graph "$MB/codebase/graph.json" --src-root "$CWD" --json \
+        </dev/null > "$MB/codebase/.graph-catchup.log" 2>&1 & ) >/dev/null 2>&1
+  fi
+fi
+
 RECENT="$MB/session/_recent.md"
 [ -f "$RECENT" ] || { printf '{}\n'; exit 0; }
 content="$(cat "$RECENT")"

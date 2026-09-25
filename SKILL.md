@@ -529,7 +529,11 @@ A richer, native alternative to the placeholder auto-capture above. Logs every s
   `env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 claude -p --strict-mcp-config --no-session-persistence --no-chrome`.
 - **SessionStart → `mb-session-start.sh`** — injects `# Recent Sessions` from `_recent.md`;
   drains stdin (`exec < /dev/null`) to avoid hanging on `claude --resume` (macOS). Read-only (runs
-  even while capture is `off`).
+  even while capture is `off`). When a code graph exists it also dispatches the bounded
+  `mb-graph-query.py catchup` detached (flock + budget + cooldown, result in
+  `codebase/.graph-catchup.log`) without blocking startup. It catches the graph up to new
+  commits and tracked edits only — a bank whose graph is merely OLD (no drift, empty dirty
+  queue) still needs `/mb graph --apply`. `MB_GRAPH_CATCHUP=off` disables it.
 - **Recall:** `/mb recall <query>` → hybrid semantic + lexical search over `session/` + `notes/`,
   fused by RRF (Reciprocal Rank Fusion) when the semantic backend is available; fails open to
   lexical-only otherwise.

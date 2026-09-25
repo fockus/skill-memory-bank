@@ -3606,3 +3606,136 @@ Stage 6 плана graph-semantic-adoption — граф покрывает bash 
 Находки в бэклоге: I-219 (HIGH) — detect_communities недетерминирован по PYTHONHASHSEED: на ОДНОМ И ТОМ ЖЕ graph.json сиды 1/2/3 дают 220/219/218 сообществ и три разных дайджеста, вопреки докстрингу «deterministic via seed» и «NFR-002: byte-identical god-nodes output across processes». Проверено на до-Stage-6 графе из 871e407 — там то же (13/14/14), значит поломка предсуществующая; Stage 6 лишь сделал её заметной, подняв число файлов с 280 до 711. Не чинилось внутри стадии как другой предмет. Также I-220 (омонимы коротких имён вытесняют bash-функции из Top symbols), I-221 (имя bats-теста попадает в отчёт целой фразой), I-222 (SIM108+SIM105, батарея ruff не гоняет).
 
 Решения владельца по плану до старта: AGR-045 (Stage 2 переводит embeddings на fastembed вместо sentence-transformers — код разошёлся с hooks/mb-semantic-bootstrap.sh; venv поднят, fastembed 0.8.0, 188 МБ, модель та же all-MiniLM-L6-v2/384) и AGR-046 (backfill в skill-memory-bank / code-agent / harness / techflow — репозиториев из исходного DoD больше нет).
+
+## 2026-09-18
+
+### Auto-capture 2026-09-18 (session 374fef68)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-18
+
+### Auto-capture 2026-09-18 (session 4e6496c3)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-21
+
+### Auto-capture 2026-09-21 (session 42272248)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-21
+
+### Auto-capture 2026-09-21 (session 0ce9613c)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-21
+
+### Auto-capture 2026-09-21 (session 0c4c23e9)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-24
+
+### Auto-capture 2026-09-24 (session a3e115e9)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-24
+
+### Auto-capture 2026-09-24 (session eac73c9e)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-24
+
+### Auto-capture 2026-09-24 (session 525f3020)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-24
+
+### Auto-capture 2026-09-24 (session bd62aca1)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-24
+
+### Auto-capture 2026-09-24 (session c42b4b43)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+
+## 2026-09-24
+
+### graph-semantic-adoption Stage 8 + Stage 2 закрыты — тёплый индекс наконец достижим документированной командой
+
+**Stage 8** («Тёплый индекс доступен документированной командой») добавлена 2026-09-18 по решениям владельца AGR-047/AGR-048 после того, как Stage 2 построила индекс, но выяснилось, что дойти до него документированной командой нельзя. Исполнена вне исходного порядка плана, до Stage 3.
+
+**Что чинилось.** Четыре вещи, три из которых — регрессии или ложь, внесённые Stage 2:
+- Маршрутизация интерпретатора (AGR-047): `scripts/mb-semantic-search.py` делает `os.execv` под интерпретатором из `semantic_index._semantic_python()`, когда fastembed недоступен в текущем python — и для `--backend embeddings`, и для дефолтного `auto`. До этого документированная команда системным python3 доставала только BM25, то есть цель всего плана (адоптация семантики) не достигалась.
+- Один слот кэша (AGR-048): `--source-only` перестал формировать усечённый корпус ДО индексации и стал фильтром ПОСЛЕ выдачи; `fetch_k` расширяется так же, как уже было сделано для churn.
+- Никакого переднего кодирования (AGR-048): промах кэша отвечает BM25 с честным предупреждением и запускает фоновую `refresh_index()`.
+- Честный skip вместо вечного «refreshing» (CRITICAL-1 из verify Stage 2): потомок записывает терминальный статус в `.index/codesearch/.index.status`, родитель читает его перед порождением нового потомка.
+
+**Две ловушки, которые тесты бы не поймали** (найдены исполнителем при живом прогоне документированной команды, каждая потом закрыта тестом):
+1. `realpath`-сравнение интерпретаторов убивало бы всю фичу: venv-python — симлинк на базовый бинарник, `~/.claude/hooks/.venv/bin/python` и `/opt/homebrew/bin/python3` резолвятся в один путь, и re-exec не происходил никогда. Сравнение идёт по литеральному пути (`scripts/mb-semantic-search.py:56`).
+2. Статус должен ключеваться на путь, который породил РОДИТЕЛЬ: `sys.executable` потомка — `/opt/homebrew/opt/python@3.14/bin/python3.14`, тогда как родитель звал `/opt/homebrew/bin/python3`; на ключе из взгляда потомка родитель не узнавал собственный вердикт.
+
+**Замеры (verify, независимые от исполнителя), тёплый живой индекс 9275 док:**
+
+| запрос | было (verify Stage 2) | стало |
+|---|---|---|
+| `--backend embeddings` | — | 0.855 s |
+| `--backend auto` (путь агентов) | bm25 | 0.924 s |
+| `--source-only` | 1:00.89 | 0.677 s |
+| следующий обычный | 3:49.81 | 0.713 s |
+
+`embeddings.key` и mtime/размер/md5 `embeddings.npy` не изменились ни разу. Верификатор отдельно доказал, что это действительно векторы, а не BM25 под вывеской: пересечение топ-10 `embeddings` и `bm25` на одном русском запросе — 0 из 10, скоры в косинусной шкале, `warnings=[]`.
+
+CRITICAL-1 верификатор воспроизвёл НА BASELINE `cfee2e0` (три вызова подряд → `refreshing in background` трижды, `.index/` не существует) и на текущем коде (вызов 1 — refreshing, вызовы 2–3 — `semantic index skipped (no fastembed)`), то есть баг был реальный, а не теоретический.
+
+**TDD (AGR-027).** 17 новых кейсов. Исторические RED-прогоны исполнителя из рабочего дерева ненаблюдаемы, поэтому верификатор заменил их эквивалентом: собрал изолированную копию с тестами из рабочего дерева и продуктовыми файлами из `cfee2e0` → 11 новых тестов красные. Плюс 10 мутаций на чистом дереве, каждая восстановлена `cp`+`cmp` байт-в-байт (`git checkout/restore/stash/reset` не применялись — на репозитории FREEZE). Четыре теста, зелёные с baseline, доказаны мутациями отдельно: два отрицательных утверждения выполнялись вакуумно (re-exec ещё не существовал), один — добор покрытия ветки `"locked"` (WARNING-2 из verify Stage 2), один — выполнялся по построению.
+
+**Вердикт verify Stage 8: PASS**, 0 CRITICAL. Полная батарея 2632 passed, 4 skipped; bats 3376/3376; ruff чист; 0 новых зависимостей (единственный новый импорт — `sysconfig`, stdlib).
+
+**Stage 2 закрыта тем же ходом.** Её код был закоммичен как `cfee2e0` с явной пометкой «СТАДИЯ НЕ ЗАКРЫТА»: verify дал PARTIAL с двумя воспроизведёнными CRITICAL, и отмечать стадию выполненной, пока живут внесённые ею регрессии, было бы неправдой в реестре. Обе регрессии закрыты Stage 8, четвёртый пункт DoD (backfill AGR-046) проверен отдельно: графы и `.index/codesearch/` существуют в `code-agent` (19670 узлов), `harness` (30 — репозиторий доков и презентаций, кода почти нет) и `techflow` (2796).
+
+**Заведено в бэклог:** I-227 (MED — окно гонки между `os.replace` матрицы и ключа возвращает переднее кодирование), I-228 (LOW — расклеивание skip не работает при `pip install --user`), I-229 (LOW — exotic-ветка `_site_packages()` молча воскрешает CRITICAL-1). Ранее по этой же стадии: I-226 (plan-sync теряет метку статуса в status.md).
+
+**Остаточный риск, принятый владельцем:** каждый вызов из обычного python3 платит ~0.7–0.9 s re-exec против ~0.19 s чистого BM25 (AGR-047); на первом запросе к новому банку выдача может быть пустой, пока фоновая сборка не закончилась (AGR-048).
+
+**Дальше по плану:** Stage 3 (auto-catchup на SessionStart) → 1 → 5 → 4 → 7.
+
+
+### graph-semantic-adoption Stage 3 закрыта — граф догоняет себя на старте сессии
+
+**Что сделано.** `hooks/mb-session-start.sh` при существующем `graph.json` детачит `mb-graph-query.py catchup` (двойной форк — на macOS нет `setsid`), результат кладёт в `codebase/.graph-catchup.log`, а не в `/dev/null`: иначе `timed_out`/`cooldown` были бы молчанием, а DoD требует честного отчёта. Off-switch `MB_GRAPH_CATCHUP=off`, бюджет берётся из `codegraph_catchup.maybe_catchup` (новой константы не заводили).
+
+**I-131/I-133 — главный архитектурный вопрос стадии.** Инвариант I-133 гласит: lifecycle-хуки только МЕТЯТ граф грязным, пересборка идёт внутри следующего graph-запроса. Механический чек `hooks/tests/graph-discipline.bats` грепает только `mb-codegraph.py … &`, а детачится `mb-graph-query.py catchup`, который внутри поднимает `mb-codegraph.py --apply`. Формально гард зелёный, по духу — смягчение. Исполнитель поднял это сам, верификатор проверил по существу экспериментом, а не по букве грепа:
+
+```
+5 одновременных mb-session-start.sh на банке 9312 узлов
+t=1s codegraph=0 graphquery=5      ← 5 диспатчей стартовали
+t=2s codegraph=1 graphquery=1      ← РОВНО ОДИН builder
+t=3s codegraph=0 graphquery=0
+```
+Остальные четыре мгновенно вернулись по неблокирующему `flock`. Путь `timed_out` (бюджет 0.5 с): лог `{"result":"timed_out","budget":0.5}`, `graph.json` побайтно не изменился, cooldown поставлен, сирот нет (`start_new_session=True` + kill по группе реапает и git-внуков), повторный запуск → `{"result":"cooldown"}`. Свойство, ради которого существует I-133 — никакого неограниченного фонового builder'а — держится. Смягчение принято по AGR-044 и дословному предписанию плана.
+
+**Замер времени хука.** Исполнитель заявил +19.2 мс; его прогоны шли под load average ~144 и ничего не значили. Перемер на тихой машине, 8 чередующихся A/B-прогонов на копии банка с настоящим 5-МБ графом: `base mean=142.8 med=148.0` против `new mean=145.7 med=148.6` — **+2.8 мс по среднему, +0.6 мс по медиане** при лимите +100 мс.
+
+**Протухший банк.** Проверено дважды на клоне этого репо (9312 узлов, не на игрушечном harness-37): (а) дрейф HEAD → `refreshed`, `reparsed=715`, `stale=false`; (б) непустая dirty-очередь → `refreshed`, `cached=714, reparsed=1` (инкрементальность работает), очередь потреблена. На `techflow` catchup честно вернул `clean`: `commit == HEAD`, очередь пуста, догонять нечего. Это **не** делает пункт фиктивным, но означает, что age-only staleness не лечится никогда — формулировку в `SKILL.md` поправили под правду.
+
+**Правки после верификации (оркестратор).** Две находки на одну строку каждая закрыты сразу:
+- WARNING-2: внешний `( … & ) >/dev/null 2>&1` нагружен (без него на банке только для чтения в stderr хука уходит ~200 байт `Permission denied`), но ни одним тестом не был закрыт — мутация «снять только внешний редирект» оставляла все 6 кейсов зелёными. Добавлен кейс 7, доказан красным: `not ok 7 … \`[ ! -s "$TMP/hook.err" ]' failed`, восстановление `cp`+`cmp`. По дороге промежуточное упрощение (`run … 2>file`) сделало утверждение пустым — `2>file` перенаправляет stderr самого `run`, а не хука, и тест краснел уже по другой причине (jq parse error). Это ровно класс I-147, поэтому вернули форму с редиректом внутри потомка и `# shellcheck disable=SC2016`.
+- WARNING-3: `SKILL.md` обещал «graph stays fresh», хотя catchup реагирует только на коммиты и отслеженные правки. Формулировка приведена к правде.
+
+**Прочее.** `shellcheck -x` чист на хуке и на тесте. Fail-open проверен матрицей: нет python3 · нет `mb-graph-query.py` · нет графа · банк только для чтения · off-switch — везде rc 0 и валидный JSON. Вывод catchup в SessionStart-JSON не течёт. `.gitignore` +1 строка на `.graph-catchup.log` (лог пишется в трекаемый `codebase/`, иначе висел бы в каждом `git status`).
+
+**Вердикт verify Stage 3: PASS**, 0 CRITICAL, 3 WARNING (две закрыты сразу, третья в бэклоге).
+
+**Расхождение pytest объяснено.** Мои baseline-2632 против 2677 у исполнителя — не признак несобиравшихся тестов: диф стадии collection-нейтрален (2681 collected во всех трёх конфигурациях — как есть, с убранным новым bats-файлом, с откаченным `SKILL.md`). Разница пришла из другого воркtree: часть тестов параметризуется содержимым банка и шаблонов (`test_roadmap_order.py` 48 параметров, `test_index_json.py` 50, `test_spec_corpus_battery.py` читает `specs/*`, `test_flow_route_templates.py` 157), а `.memory-bank/**` у воркtree'ев разное.
+
+**Заведено в бэклог:** I-230 (HIGH), I-231 (LOW).

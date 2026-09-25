@@ -115,6 +115,33 @@ All notable changes to this project are documented here. The format follows [Kee
   `mb-auto-commit.sh --force`; the Stop nudge and report print an absolute script path instead of
   `bash scripts/…`, which only resolved inside the skill repo.
 
+### Fixed — the warm vector index was unreachable from the documented command
+
+- `scripts/mb-semantic-search.py` re-execs itself under the interpreter that carries
+  `fastembed` (`MB_SEMANTIC_PY` → `~/.claude/hooks/.venv/bin/python` → `<bank>/.venv`), guarded by
+  `MB_SEMANTIC_REEXEC` against recursion. The documented invocation is a bare `python3`, which
+  never has `fastembed`, so every documented call — and every agent call, which omits the flag —
+  answered from BM25 while the matrix built by `/mb graph --apply` sat unused. Applies to
+  `--backend embeddings` AND the default `auto` (AGR-047); `--backend bm25` is answered in place,
+  and no suitable interpreter still means BM25. The interpreter is compared by literal path, never
+  `realpath`: a venv python is a symlink to the base binary, and resolving it skipped the re-exec.
+- `memory_bank_skill/semantic_search.py`: `--source-only` now filters test/spec hits AFTER
+  retrieval over the full corpus (with churn-sized `fetch_k` so k results survive the filter).
+  Filtering before indexing gave it a different `corpus_key`, so alternating a `--source-only`
+  query with a plain one re-encoded the whole corpus each way — measured at 1:00.89 then 3:49.81
+  on the 9 275-doc index. Both are now ~0.6 s, and `embeddings.key`/`.npy` are left untouched.
+- A query never encodes in the foreground (AGR-048): a cold cache answers from BM25 with an honest
+  warning and spawns the detached builder, so the next query is warm (measured 0.63 s cold → 0.56 s
+  warm). `EmbeddingRetriever.is_warm()` / `cache_key_matches()` answer "is the matrix ready?" from
+  the key file alone — no matrix load, no `fastembed` import.
+- `memory_bank_skill/semantic_index.py`: the builder persists its terminal status
+  (`built`/`skipped`/`current`) to `.index/codesearch/.index.status`, keyed to the path the PARENT
+  spawned plus that interpreter's `site-packages` mtime, and `refresh_index()` reads it back. The
+  child runs on `DEVNULL`, so its `skipped` return was visible to nobody: an interpreter without
+  `fastembed` made every later `--apply` print `refreshing in background` while the index never
+  appeared. It now prints `semantic index skipped (no fastembed)` once and stops re-spawning —
+  and un-sticks by itself when fastembed is later installed into that interpreter.
+
 ### Added — `/mb graph --apply` warms the semantic vector index
 
 - `memory_bank_skill/semantic_index.py`: the graph build now ends by refreshing

@@ -53,6 +53,7 @@ htmlcov/
 .memory-bank/codebase/.graph-dirty
 .memory-bank/codebase/.graph.lock
 .memory-bank/codebase/.graph-catchup.cooldown
+.memory-bank/codebase/.graph-catchup.log
 # /mb work per-run state slots + source→run claim index (mb-work-slots.sh) —
 # machine-local, rewritten on every run.
 .memory-bank/.work-state.json

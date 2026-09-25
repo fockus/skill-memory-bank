@@ -936,9 +936,11 @@ feed semantic search.
 "<query>" [mb_path] [--backend auto|bm25|embeddings] [--source-only] [--k N]`. Default backend
 `auto` = local `fastembed` **embeddings** when installed (best for concept/synonym
 queries), else pure-Python **BM25** ($0, zero deps, deterministic — best for exact identifiers),
-over graph symbols + wiki articles. `--source-only` drops test/spec files. First embeddings query
-loads the model (~5-15s); subsequent queries reuse a cached vector matrix under
-`.memory-bank/.index/codesearch/`. Build with `/mb graph --apply --docs` to index
+over graph symbols + wiki articles. `--source-only` drops test/spec files (filtered after
+retrieval, so it shares the one cached matrix). Queries reuse the vector matrix under
+`.memory-bank/.index/codesearch/` warmed by `/mb graph --apply` — the CLI re-execs itself under
+the interpreter that carries `fastembed`, so a plain `python3` reaches it; a cold index answers
+from BM25 and warms itself in the background. Build with `/mb graph --apply --docs` to index
 docstrings+signatures. Use it for "where is the logic for X?" — it complements the structural
 `graph_*` queries.
 

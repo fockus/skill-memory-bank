@@ -17,6 +17,7 @@ optional and absent in CI).
 
 from __future__ import annotations
 
+import fcntl
 import importlib
 import importlib.util
 import json
@@ -142,7 +143,11 @@ def test_build_index_skips_without_fastembed(tmp_path: Path, si):
         else:  # pragma: no cover - only when fastembed is really installed
             sys.modules["fastembed"] = saved
         importlib.reload(se)
-    assert not (mb / ".index").exists()         # nothing written on the skip path
+    # Stage 8: the skip path writes its verdict (and nothing else) so the parent
+    # stops re-spawning a child that can never build — no vectors, no lock.
+    cache = mb / ".index" / "codesearch"
+    assert sorted(p.name for p in cache.iterdir()) == [".index.status"]
+    assert cache.joinpath(".index.status").read_text(encoding="utf-8").split("\t")[0] == "skipped"
 
 
 def test_build_index_without_graph_reports_no_graph(tmp_path: Path, si):
@@ -271,3 +276,159 @@ def test_semantic_python_falls_back_to_a_bank_local_venv(tmp_path: Path, si, mon
     venv_py.write_text("#!/bin/sh\n", encoding="utf-8")
     os.chmod(venv_py, 0o755)
     assert si._semantic_python(tmp_path) == str(venv_py)
+
+
+# ── the child's terminal status: an honest skip, not an eternal "refreshing" ──
+
+def test_build_index_locked_when_another_builder_holds_the_lock(
+    tmp_path: Path, si, with_fastembed
+):
+    """WARNING-2 of verify Stage 2: the documented `locked` branch had no test."""
+    pytest.importorskip("numpy")
+    mb = tmp_path / ".memory-bank"
+    _write_graph(mb)
+    cache = mb / ".index" / "codesearch"
+    cache.mkdir(parents=True)
+    with open(cache / ".index.lock", "w") as held:
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        assert si.build_index(mb) == "locked"
+    assert not (cache / "embeddings.npy").exists()   # the holder does the encoding
+
+
+def test_build_index_records_its_terminal_status(tmp_path: Path, si, with_fastembed):
+    pytest.importorskip("numpy")
+    mb = tmp_path / ".memory-bank"
+    _write_graph(mb)
+    assert si.build_index(mb) == "built"
+    status = (mb / ".index" / "codesearch" / ".index.status").read_text(encoding="utf-8")
+    assert status.split("\t")[0] == "built"
+
+
+def test_refresh_index_stops_spawning_once_the_child_reported_no_fastembed(
+    tmp_path: Path, si, monkeypatch
+):
+    """CRITICAL-1: `MB_SEMANTIC_PY` runs but has no fastembed → skip, not a loop.
+
+    The child is spawned with both streams on DEVNULL, so its `skipped` return is
+    invisible to the parent; before the status file every later `--apply` printed
+    `refreshing in background` while the index never appeared.
+    """
+    mb = tmp_path / ".memory-bank"
+    _write_graph(mb)
+    monkeypatch.setenv("MB_SEMANTIC_PY", sys.executable)   # real python, no fastembed
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+
+    spawns: list[list[str]] = []
+    real_popen = si.subprocess.Popen
+
+    def counting_popen(argv, **kwargs):
+        spawns.append(list(argv))
+        return real_popen(argv, **kwargs)
+
+    monkeypatch.setattr(si.subprocess, "Popen", counting_popen)
+
+    assert si.refresh_index(mb) == "semantic index: refreshing in background (2 docs)"
+    status = mb / ".index" / "codesearch" / ".index.status"
+    deadline = time.time() + 30
+    while time.time() < deadline and not status.is_file():
+        time.sleep(0.1)
+    assert status.is_file(), "the child must persist its terminal status"
+    assert status.read_text(encoding="utf-8").split("\t")[0] == "skipped"
+
+    assert si.refresh_index(mb) == "semantic index skipped (no fastembed)"
+    assert len(spawns) == 1, "a reported skip must not spawn the same doomed child again"
+
+
+def test_run_search_cache_miss_answers_bm25_and_warms_in_background(
+    tmp_path: Path, si, with_fastembed, monkeypatch
+):
+    """AGR-048: a query never pays the encode — CRITICAL-2 (1:00 and 3:49 runs)."""
+    pytest.importorskip("numpy")
+    from memory_bank_skill import semantic_search as ss
+
+    mb = tmp_path / ".memory-bank"
+    _write_graph(mb)
+
+    def never(self, texts):  # noqa: ARG001
+        raise AssertionError("run_search must not encode in the foreground")
+
+    monkeypatch.setattr(se.EmbeddingRetriever, "_encode", never)
+    refreshed: list[str] = []
+    monkeypatch.setattr(si, "refresh_index", lambda mb_path: refreshed.append(str(mb_path)) or "x")
+
+    result = ss.run_search(query="authenticate", mb_path=str(mb), backend="embeddings")
+    assert result["ok"] is True
+    assert result["backend"] == "bm25"
+    assert result["hits"], "a cold index still answers, from BM25"
+    assert refreshed == [str(mb)], "the cold query must kick off a background build"
+
+
+def test_run_search_uses_the_warm_matrix_without_encoding(
+    tmp_path: Path, si, with_fastembed, monkeypatch
+):
+    pytest.importorskip("numpy")
+    from memory_bank_skill import semantic_search as ss
+
+    mb = tmp_path / ".memory-bank"
+    _write_graph(mb, texts=("authenticate_user", "render_cart"))
+    # A test doc makes --source-only a REAL filter: under the old pre-index filter
+    # the two queries had different corpus keys and evicted each other's matrix.
+    cb = mb / "codebase" / "graph.json"
+    cb.write_text(
+        cb.read_text(encoding="utf-8")
+        + json.dumps({"type": "node", "kind": "function", "name": "test_authenticate_user",
+                      "file": "tests/test_auth.py", "line": 1})
+        + "\n",
+        encoding="utf-8",
+    )
+    assert si.build_index(mb) == "built"          # warm the one cache slot
+
+    def never(self, texts):  # noqa: ARG001
+        if len(texts) > 1:
+            raise AssertionError("corpus re-encoded despite a warm cache")
+        return se.np.ones((1, 4), dtype="float32")
+
+    monkeypatch.setattr(se.EmbeddingRetriever, "_encode", never)
+    for source_only in (False, True):
+        result = ss.run_search(query="authenticate", mb_path=str(mb),
+                               backend="embeddings", source_only=source_only)
+        assert result["backend"] == "embeddings", f"source_only={source_only} fell back"
+
+
+def test_refresh_index_skip_is_keyed_to_the_path_the_PARENT_spawned(
+    tmp_path: Path, si, monkeypatch
+):
+    """The child's own `sys.executable` is NOT the path the parent resolved.
+
+    Live repro: `MB_SEMANTIC_PY=$(which python3)` spawns `/opt/homebrew/bin/python3`
+    while the child reports `/opt/homebrew/opt/python@3.14/bin/python3.14`. Keyed on
+    the child's view, the parent never recognises its own verdict and re-spawns the
+    doomed builder forever. A `sh` shim reproduces that indirection exactly.
+    """
+    mb = tmp_path / ".memory-bank"
+    _write_graph(mb)
+    shim = tmp_path / "bin" / "python3"
+    shim.parent.mkdir(parents=True)
+    shim.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n', encoding="utf-8")
+    shim.chmod(0o755)
+    monkeypatch.setenv("MB_SEMANTIC_PY", str(shim))
+    monkeypatch.delenv("PYTHONPATH", raising=False)
+
+    spawns: list[list[str]] = []
+    real_popen = si.subprocess.Popen
+    monkeypatch.setattr(
+        si.subprocess, "Popen",
+        lambda argv, **kw: (spawns.append(list(argv)), real_popen(argv, **kw))[1],
+    )
+
+    assert si.refresh_index(mb).startswith("semantic index: refreshing in background")
+    status = mb / ".index" / "codesearch" / ".index.status"
+    deadline = time.time() + 30
+    while time.time() < deadline and not status.is_file():
+        time.sleep(0.1)
+    assert status.is_file()
+    fields = status.read_text(encoding="utf-8").strip().split("\t")
+    assert fields[1] == str(shim), "the status must name the interpreter the parent spawned"
+
+    assert si.refresh_index(mb) == "semantic index skipped (no fastembed)"
+    assert len(spawns) == 1

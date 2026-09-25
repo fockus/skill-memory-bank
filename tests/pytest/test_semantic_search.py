@@ -299,3 +299,71 @@ def test_make_retriever_bm25_ignores_cache_dir(tmp_path: Path):
     r.index([{"id": "1", "file": "a", "text": "x", "kind": "function", "is_test": False}])
     r.search("x")
     assert list(tmp_path.iterdir()) == []          # nothing persisted by BM25
+
+
+# ── one cache slot: --source-only must not evict the warm matrix (AGR-048) ──
+
+def _write_graph_test_ranks_first(mb: Path) -> None:
+    """Corpus where the test docs outrank the source docs for "authenticate".
+
+    Each test doc carries the term twice (symbol name + file path), the source
+    docs once, so a naive `fetch_k = k` followed by a post-retrieval filter
+    returns fewer than k results.
+    """
+    cb = mb / "codebase"
+    cb.mkdir(parents=True)
+    lines = [
+        {"type": "node", "kind": "function", "name": "authenticate",
+         "file": f"tests/authenticate_{n}_test.py", "line": 1}
+        for n in ("a", "b", "c")
+    ] + [
+        {"type": "node", "kind": "function", "name": f"authenticate_{n}",
+         "file": f"src/{n}.py", "line": 1}
+        for n in ("one", "two")
+    ]
+    (cb / "graph.json").write_text("\n".join(json.dumps(x) for x in lines) + "\n",
+                                   encoding="utf-8")
+
+
+def _record_indexed_corpora(monkeypatch) -> list[list[str]]:
+    """Capture the texts handed to `Retriever.index` on every run_search call."""
+    indexed: list[list[str]] = []
+    original = ss.make_retriever
+
+    def patched(backend: str = "auto", **kwargs):
+        retriever = original(backend, **kwargs)
+        inner = retriever.index
+
+        def spy(docs):
+            indexed.append([d["text"] for d in docs])
+            inner(docs)
+
+        retriever.index = spy  # type: ignore[method-assign]
+        return retriever
+
+    monkeypatch.setattr(ss, "make_retriever", patched)
+    return indexed
+
+
+def test_source_only_indexes_the_same_corpus_key_as_a_full_query(tmp_path: Path, monkeypatch):
+    """Both queries must key the ONE embedding cache slot, or each evicts the other."""
+    mb = tmp_path / ".memory-bank"
+    _write_graph_with_test(mb)
+    indexed = _record_indexed_corpora(monkeypatch)
+    ss.run_search(query="authenticate", mb_path=str(mb), backend="bm25")
+    ss.run_search(query="authenticate", mb_path=str(mb), backend="bm25", source_only=True)
+    assert len(indexed) == 2
+    assert se.corpus_key(se._DEFAULT_MODEL, indexed[0]) == se.corpus_key(
+        se._DEFAULT_MODEL, indexed[1]
+    ), "--source-only must index the FULL corpus and filter after retrieval"
+
+
+def test_source_only_still_returns_k_hits_when_tests_outrank_sources(tmp_path: Path):
+    mb = tmp_path / ".memory-bank"
+    _write_graph_test_ranks_first(mb)
+    full = ss.run_search(query="authenticate", mb_path=str(mb), backend="bm25", k=2)
+    assert all(h["is_test"] for h in full["hits"]), "fixture must rank test docs first"
+    src = ss.run_search(query="authenticate", mb_path=str(mb), backend="bm25", k=2,
+                        source_only=True)
+    assert len(src["hits"]) == 2
+    assert all(not h["is_test"] for h in src["hits"])

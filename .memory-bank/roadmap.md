@@ -8,8 +8,8 @@
 - [2026-06-23_SEQUENCE_codex-remediation](plans/2026-06-23_SEQUENCE_codex-remediation.md) — Execution Sequence — codex/GPT-5.5 remediation (I-082..I-086) — progress=0% stages(done=0,in_progress=0,planned=0,total=0)
 - [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency — progress=28% stages(done=1,in_progress=2,planned=3,total=6)
 - [2026-07-05_SEQUENCE_long-running-sessions](plans/2026-07-05_SEQUENCE_long-running-sessions.md) — SEQUENCE — Long-running autonomous sessions — progress=0% stages(done=0,in_progress=0,planned=0,total=0)
-- [graph-semantic-adoption](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption — progress=10% stages(done=1,in_progress=0,planned=7,total=8)
-- [command-skill-root-paths](plans/2026-09-24_fix_command-skill-root-paths.md) — fix — command-skill-root-paths — progress=0% stages(done=0,in_progress=0,planned=1,total=1)
+- [graph-semantic-adoption](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption — progress=58% stages(done=4,in_progress=0,planned=4,total=8)
+- [command-skill-root-paths](plans/2026-09-24_fix_command-skill-root-paths.md) — fix — command-skill-root-paths — progress=100% stages(done=1,in_progress=0,planned=0,total=1)
 - [opus55-prompt-fit](plans/2026-09-24_fix_opus55-prompt-fit.md) — fix — opus55-prompt-fit · скил под Opus 5.5 / Fable 5.1 и любые агенты — progress=80% stages(done=5,in_progress=0,planned=3,total=8)
 
 ## Next (strict order — depends)

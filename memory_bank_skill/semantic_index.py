@@ -25,10 +25,15 @@ import fcntl
 import os
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from typing import Any
 
-from memory_bank_skill.semantic_embeddings import _DEFAULT_MODEL, corpus_key
+from memory_bank_skill.semantic_embeddings import (
+    _DEFAULT_MODEL,
+    cache_key_matches,
+    corpus_key,
+)
 from memory_bank_skill.semantic_search import build_corpus, load_graph
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -42,10 +47,11 @@ def _cache_dir(mb: Path) -> Path:
 
 
 def _corpus(mb: Path) -> list[dict[str, Any]] | None:
-    """Docs exactly as ``run_search`` builds them — full corpus, no ``source_only``.
+    """Docs exactly as ``run_search`` builds them — always the FULL corpus.
 
-    The cache holds one matrix, so it is keyed to the default (unfiltered) query
-    path; a ``--source-only`` query has a different corpus and still re-encodes.
+    The cache holds one matrix and every query keys it identically: ``run_search``
+    indexes the full corpus and applies ``--source-only`` after retrieval (AGR-048),
+    so no query variant can evict the warm matrix.
     """
     try:
         nodes, _ = load_graph(mb / "codebase" / "graph.json")
@@ -56,8 +62,52 @@ def _corpus(mb: Path) -> list[dict[str, Any]] | None:
 
 
 def _is_current(mb: Path, key: str) -> bool:
+    return cache_key_matches(_cache_dir(mb), key)
+
+
+def _site_packages() -> tuple[str, str]:
+    """(site-packages dir, its mtime) — changes when anything is pip-installed.
+
+    Recorded with a ``skipped`` status so the skip un-sticks by itself once
+    ``hooks/mb-semantic-bootstrap.sh`` installs fastembed into that interpreter,
+    instead of pinning "no fastembed" forever.
+    """
     try:
-        return (_cache_dir(mb) / "embeddings.key").read_text(encoding="utf-8").strip() == key
+        purelib = sysconfig.get_paths()["purelib"]
+        return purelib, str(os.stat(purelib).st_mtime_ns)
+    except (OSError, KeyError):  # pragma: no cover - exotic/relocated installs
+        return "", "0"
+
+
+def _write_status(mb: Path, word: str, python: str | None = None) -> None:
+    """Persist the child's terminal status: ``<word>\\t<python>\\t<site-packages>\\t<mtime>``.
+
+    *python* is the path the PARENT spawned, not ``sys.executable``: launching
+    ``/opt/homebrew/bin/python3`` yields a child that calls itself
+    ``/opt/homebrew/opt/python@3.14/bin/python3.14``, and a status filed under that
+    second name is one the parent can never recognise as its own verdict.
+    """
+    try:
+        cache = _cache_dir(mb)
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / ".index.status").write_text(
+            "\t".join((word, python or sys.executable, *_site_packages())) + "\n",
+            encoding="utf-8",
+        )
+    except OSError:  # pragma: no cover - a status note must never fail a build
+        pass
+
+
+def _reported_skip(mb: Path, python: str) -> bool:
+    """True when THIS interpreter already reported "no fastembed" and nothing changed."""
+    try:
+        fields = (_cache_dir(mb) / ".index.status").read_text(encoding="utf-8").strip().split("\t")
+    except OSError:
+        return False
+    if len(fields) != 4 or fields[0] != "skipped" or fields[1] != python:
+        return False
+    try:
+        return str(os.stat(fields[2]).st_mtime_ns) == fields[3]
     except OSError:
         return False
 
@@ -77,12 +127,14 @@ def _semantic_python(mb: Path) -> str | None:
     return None
 
 
-def build_index(mb_path: Path | str) -> str:
+def build_index(mb_path: Path | str, python: str | None = None) -> str:
     """Encode the corpus into ``<mb>/.index/codesearch`` (the slow half).
 
     Returns ``built`` · ``current`` (corpus unchanged, nothing rewritten) ·
     ``skipped`` (no fastembed) · ``no-graph`` · ``locked`` (another builder holds
-    the lock — exit instead of burning the same minutes twice).
+    the lock — exit instead of burning the same minutes twice). Terminal statuses
+    are also persisted under *python* (the name the parent knows this interpreter
+    by) so the parent can read the verdict back instead of re-spawning blindly.
     """
     mb = Path(mb_path)
     docs = _corpus(mb)
@@ -93,9 +145,13 @@ def build_index(mb_path: Path | str) -> str:
 
     retriever = EmbeddingRetriever(cache_dir=_cache_dir(mb))
     if not retriever.available:
+        # Persisted, not just returned: the parent starts this child on DEVNULL and
+        # would otherwise re-spawn the same doomed process on every graph build.
+        _write_status(mb, "skipped", python)
         return "skipped"
     key = corpus_key(retriever.model_name, [d["text"] for d in docs])
     if _is_current(mb, key):
+        _write_status(mb, "current", python)
         return "current"
 
     cache = _cache_dir(mb)
@@ -106,6 +162,7 @@ def build_index(mb_path: Path | str) -> str:
         except OSError:
             return "locked"
         retriever.index(docs)
+    _write_status(mb, "built", python)
     return "built"
 
 
@@ -126,14 +183,15 @@ def refresh_index(mb_path: Path | str) -> str:
         if python is None:
             return "semantic index skipped (no fastembed)"
         # A venv that exists but lacks fastembed (the bootstrap hook's failed-install
-        # branch) is reported by the child, not here — the parent would have to pay a
-        # ~1 s fastembed import to find out, and that cost belongs nowhere near a
-        # graph build. Upgrade path if it ever matters: have the child leave its
-        # status word in the cache dir and read it back on the next run.
+        # branch) costs a ~1 s fastembed import to detect, which belongs nowhere near
+        # a graph build — so the child pays it once and leaves its verdict in
+        # `.index.status`, and we read it back instead of spawning it again.
+        if _reported_skip(mb, python):
+            return "semantic index skipped (no fastembed)"
         code = (
             f"import sys;sys.path.insert(0,{str(_ROOT)!r});"
             "from memory_bank_skill.semantic_index import build_index;"
-            f"build_index({str(mb)!r})"
+            f"build_index({str(mb)!r},{python!r})"
         )
         subprocess.Popen(  # noqa: S603 - fixed argv, interpreter path is ours
             [python, "-c", code],
