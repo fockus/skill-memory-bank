@@ -758,6 +758,35 @@ mb_install_flavor() {
   return 0
 }
 
+# Resolve the interpreter that owns `memory_bank_skill` (Python >= 3.11).
+# Precedence: $MB_PYTHON (exported by the packaged `memory-bank` CLI) → the
+# interpreter of the environment the wheel was installed into → `python3`.
+#
+# In a wheel install (pipx, `uv tool`, pip into a venv) the skill bundle is
+# shared-data at <prefix>/share/memory-bank-skill while the package lives in
+# <prefix>'s site-packages, so a bare `python3` — and the `$REPO_ROOT`
+# PYTHONPATH fallback, which points at share/ — cannot import it whenever
+# a script is run directly (agents invoke them that way) instead of through
+# the CLI. <prefix> is derived from the bundle's physical path, so no install
+# location is hard-coded. scripts/mb-index-json.py mirrors this rule for
+# `python3 mb-index-json.py` invocations, which cannot source this file.
+mb_resolve_python() {
+  local skill_dir="${1:-}" physical wheel_py
+  if [ -z "${MB_PYTHON:-}" ] && [ -n "$skill_dir" ] \
+    && physical="$(cd "$skill_dir" 2>/dev/null && pwd -P)"; then
+    case "$physical" in
+      */share/memory-bank-skill)
+        wheel_py="${physical%/share/memory-bank-skill}/bin/python3"  # a path, used only when MB_PYTHON is unset
+        if [ -x "$wheel_py" ]; then
+          printf '%s\n' "$wheel_py"
+          return 0
+        fi
+        ;;
+    esac
+  fi
+  printf '%s\n' "${MB_PYTHON:-python3}"
+}
+
 # mb_upgrade_command <flavor> [install_dir] — the native "how do I update"
 # command for a flavor, as printed to the user (informational only —
 # callers never invoke a package manager on the user's behalf). Never

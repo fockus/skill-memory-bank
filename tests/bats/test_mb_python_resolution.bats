@@ -53,6 +53,11 @@ _assert_no_bare_python3() {
   [ "$status" -eq 0 ]
 }
 
+@test "invariant: scripts/mb-progress-chain.sh has no bare python3 outside \${MB_PYTHON:-python3}" {
+  run _assert_no_bare_python3 "$REPO_ROOT/scripts/mb-progress-chain.sh"
+  [ "$status" -eq 0 ]
+}
+
 # ═══ Functional — MB_PYTHON is actually honored, not just grep-shaped ═══
 
 _make_marker_python() {
@@ -117,4 +122,91 @@ EOF
   [ -f "$PI_EXT" ]
   grep -q 'process\.env\.MB_PYTHON' "$PI_EXT"
   ! grep -q 'execFileAsync("python3"' "$PI_EXT"
+}
+
+# ═══ Wheel installs (pipx / uv tool / pip into a venv) — scripts run directly ═══
+# The bundle is shared-data at <prefix>/share/memory-bank-skill while the
+# package lives in <prefix>'s site-packages. Agents run the scripts directly
+# (no CLI, so no MB_PYTHON); a bare python3 cannot import memory_bank_skill.
+
+# Build <prefix>/share/memory-bank-skill/scripts (copies of the named scripts,
+# no memory_bank_skill package next to them) plus a <prefix>/bin/python3 that
+# only records its argv — enough to prove which interpreter was chosen.
+_make_wheel_layout() {
+  local prefix="$TMPDIR/prefix" f
+  mkdir -p "$prefix/share/memory-bank-skill/scripts" "$prefix/bin"
+  for f in "$@"; do cp "$REPO_ROOT/scripts/$f" "$prefix/share/memory-bank-skill/scripts/"; done
+  cat > "$prefix/bin/python3" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$@" > "$TMPDIR/wheel-python.argv"
+EOF
+  chmod +x "$prefix/bin/python3"
+  printf '%s' "$prefix"
+}
+
+@test "mb_resolve_python: MB_PYTHON wins over the wheel interpreter" {
+  local prefix
+  prefix="$(_make_wheel_layout)"
+  run env MB_PYTHON=/custom/python bash -c "
+    source '$LIB'
+    mb_resolve_python '$prefix/share/memory-bank-skill'
+  "
+  [ "$status" -eq 0 ]
+  [ "$output" = "/custom/python" ]
+}
+
+@test "mb_resolve_python: wheel layout resolves to <prefix>/bin/python3, also via a symlinked bundle" {
+  local prefix
+  prefix="$(_make_wheel_layout)"
+  ln -s "$prefix/share/memory-bank-skill" "$TMPDIR/skill-link"
+  run env -u MB_PYTHON bash -c "source '$LIB'; mb_resolve_python '$prefix/share/memory-bank-skill'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(cd "$prefix" && pwd -P)/bin/python3" ]
+  run env -u MB_PYTHON bash -c "source '$LIB'; mb_resolve_python '$TMPDIR/skill-link'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(cd "$prefix" && pwd -P)/bin/python3" ]
+}
+
+@test "mb_resolve_python: source checkout and wheel layout without bin/python3 fall back to python3" {
+  local prefix
+  run env -u MB_PYTHON bash -c "source '$LIB'; mb_resolve_python '$REPO_ROOT'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "python3" ]
+  prefix="$(_make_wheel_layout)"
+  rm "$prefix/bin/python3"
+  run env -u MB_PYTHON bash -c "source '$LIB'; mb_resolve_python '$prefix/share/memory-bank-skill'"
+  [ "$status" -eq 0 ]
+  [ "$output" = "python3" ]
+}
+
+@test "mb-progress-chain.sh run directly from a wheel layout uses <prefix>/bin/python3" {
+  local prefix bank="$TMPDIR/bank"
+  prefix="$(_make_wheel_layout _lib.sh mb-progress-chain.sh)"
+  mkdir -p "$bank" && printf '# Progress\n\n## 2026-01-01\n- entry\n' > "$bank/progress.md"
+  run env -u MB_PYTHON bash "$prefix/share/memory-bank-skill/scripts/mb-progress-chain.sh" --verify "$bank"
+  [ "$status" -eq 0 ]
+  [ -f "$TMPDIR/wheel-python.argv" ]
+  [ "$(sed -n '1,3p' "$TMPDIR/wheel-python.argv" | tr '\n' ' ')" = "-m memory_bank_skill.progress_chain --verify " ]
+}
+
+@test "mb-index-json.py run with a bare python3 from a wheel layout re-execs under <prefix>/bin/python3" {
+  local prefix script
+  prefix="$(_make_wheel_layout mb-index-json.py)"
+  script="$(cd "$prefix" && pwd -P)/share/memory-bank-skill/scripts/mb-index-json.py"
+  # -I -S: keep any dev-installed memory_bank_skill off sys.path so the
+  # interpreter really cannot import the package (the wheel-install case).
+  run env -u MB_PYTHON -u _MB_INDEX_JSON_REEXEC python3 -I -S "$script" "$TMPDIR/bank"
+  [ "$status" -eq 0 ]
+  [ -f "$TMPDIR/wheel-python.argv" ]
+  [ "$(cat "$TMPDIR/wheel-python.argv")" = "$(printf '%s\n%s' "$script" "$TMPDIR/bank")" ]
+}
+
+@test "mb-index-json.py re-execs at most once (no loop), then fails loudly" {
+  local prefix
+  prefix="$(_make_wheel_layout mb-index-json.py)"
+  run env -u MB_PYTHON _MB_INDEX_JSON_REEXEC=1 python3 -I -S \
+    "$prefix/share/memory-bank-skill/scripts/mb-index-json.py" "$TMPDIR/bank"
+  [ "$status" -ne 0 ]
+  [ ! -f "$TMPDIR/wheel-python.argv" ]
+  [[ "$output" == *"ModuleNotFoundError"* ]]
 }
