@@ -25,9 +25,17 @@ import json
 import re
 import sys
 from collections.abc import Iterator
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+if __name__ == "__main__":  # re-exec under an interpreter that can import the package
+    # Explicit: `python3 -P` / `-I` / PYTHONSAFEPATH do not put the script dir on sys.path.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from _mb_skill_python import ensure_skill_python
+
+    ensure_skill_python(__file__)
+
+from datetime import UTC, datetime  # noqa: E402  (3.11+: must follow the bootstrap)
 
 try:
     from memory_bank_skill._io import atomic_write

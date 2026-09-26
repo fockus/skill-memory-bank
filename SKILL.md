@@ -151,6 +151,7 @@ Fail open: missing graph, stale graph, missing semantic provider, or unavailable
 | Script | Purpose |
 |--------|---------|
 | `_lib.sh` | Shared helpers sourced by other scripts |
+| `_mb_skill_python.py` | Shared interpreter bootstrap for Python entry points: re-execs once under `$MB_PYTHON` or the wheel install's `<prefix>/bin/python3` when a bare `python3` cannot import `memory_bank_skill` |
 | `mb-context.sh [--deep]` | Build context from core files (`STATUS` + `plan` + `checklist` + `RESEARCH` + codebase summary). `--deep` shows full codebase docs, `--full` disables the per-file byte cap (`MB_CONTEXT_MAX_BYTES` / `context_max_bytes`, default 12 KB) |
 | `mb-statusline.py [--install]` | Claude Code statusline showing context-window fill `%` (`used/limit`, 1M-aware) + model · branch · project. Reads the status JSON on stdin; `--install` wires it into `~/.claude/settings.json` (backup, no clobber) |
 | `mb-search.sh <q> [--tag t]` | Keyword search across the memory bank. `--tag` filters via `index.json` |

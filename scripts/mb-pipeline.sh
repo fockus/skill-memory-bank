@@ -286,7 +286,7 @@ cmd_validate_all() {
   done
 
   REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-  MB_PDIR="$pdir" PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 - <<'PY' || had_error=1
+  MB_PDIR="$pdir" PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$(mb_resolve_python "$REPO_ROOT")" - <<'PY' || had_error=1
 import os, glob, sys
 
 pdir = os.environ["MB_PDIR"]

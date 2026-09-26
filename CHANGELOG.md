@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — scripts run directly from a wheel install no longer fail on `memory_bank_skill`
+
+- In a wheel install (pipx, `uv tool`, pip into a venv) the bundle is shared-data at
+  `<prefix>/share/memory-bank-skill` while `memory_bank_skill` lives in `<prefix>`'s
+  site-packages. Agents run the helper scripts directly (`python3 …/mb-index-json.py`,
+  `bash …/mb-progress-chain.sh`), without the CLI, so `MB_PYTHON` is unset and the bare
+  `python3` — plus the `$REPO_ROOT` fallback, which points at `share/` — cannot import the
+  package: `ModuleNotFoundError: memory_bank_skill`, or `ImportError: datetime.UTC` on a
+  pre-3.11 system `python3`. New `_lib.sh::mb_resolve_python` picks `$MB_PYTHON`, else
+  `<prefix>/bin/python3` derived from the bundle's physical path, else `python3`;
+  `mb-progress-chain.sh` uses it, and `mb-index-json.py` re-execs itself once under the same
+  interpreter before any 3.11-only import. Source checkouts are unchanged.
+- The same fix now covers every entry point. The re-exec bootstrap moved into one shared
+  `scripts/_mb_skill_python.py` (`ensure_skill_python(__file__)`, guarded by
+  `__name__ == "__main__"`, so importing a script from a test runner never `execv`s it).
+  `mb-index-json.py`, `mb-codegraph.py`, `mb-import.py`, `mb-wiki.py`, `mb-openspec.py`,
+  `mb-graph-query.py`, `mb-code-context.py` and `mb-semantic-search.py` all call it; it also
+  works under `python3 -I` / `-P` / `PYTHONSAFEPATH`. The one-shot guard is now
+  `_MB_SKILL_PYTHON_REEXEC`. Shell callers that import the package now use
+  `mb_resolve_python`: `mb-handoff.sh`, `mb-profile.sh`, `mb-rules-check.sh` (it silently fell
+  back to the baseline profile and ignored `--profile`), `mb-consolidate.sh`,
+  `mb-pipeline.sh validate --all`, `mb-pipeline-validate.sh` and `_lib.sh::mb_pipeline_meta`.
+- `mb_pipeline_validate_core.py`: with PyYAML importable but `memory_bank_skill` not, it
+  crashed with `NameError: PipelineYamlError` from its own `except` clause; it now falls back
+  to the minimal loader.
+
 ### Fixed — a colourized pytest run is no longer read as "no tests"
 
 - `mb-test-run.sh::run_python` anchored the pytest summary line on `^` with a digit, but pytest

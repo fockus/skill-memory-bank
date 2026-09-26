@@ -403,7 +403,7 @@ mb_pipeline_meta() {
   fi
   local _repo_root
   _repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" PYTHONPATH="$_repo_root${PYTHONPATH:+:$PYTHONPATH}" "${MB_PYTHON:-python3}" - <<'PY'
+  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" PYTHONPATH="$_repo_root${PYTHONPATH:+:$PYTHONPATH}" "$(mb_resolve_python "$_repo_root")" - <<'PY'
 import os
 
 path = os.environ["MB_PIPE_FILE"]
@@ -756,6 +756,35 @@ mb_install_flavor() {
 
   printf '%s\n' "unknown"
   return 0
+}
+
+# Resolve the interpreter that owns `memory_bank_skill` (Python >= 3.11).
+# Precedence: $MB_PYTHON (exported by the packaged `memory-bank` CLI) → the
+# interpreter of the environment the wheel was installed into → `python3`.
+#
+# In a wheel install (pipx, `uv tool`, pip into a venv) the skill bundle is
+# shared-data at <prefix>/share/memory-bank-skill while the package lives in
+# <prefix>'s site-packages, so a bare `python3` — and the `$REPO_ROOT`
+# PYTHONPATH fallback, which points at share/ — cannot import it whenever
+# a script is run directly (agents invoke them that way) instead of through
+# the CLI. <prefix> is derived from the bundle's physical path, so no install
+# location is hard-coded. scripts/_mb_skill_python.py mirrors this rule for
+# Python entry points run as `python3 scripts/mb-*.py`, which cannot source this file.
+mb_resolve_python() {
+  local skill_dir="${1:-}" physical wheel_py
+  if [ -z "${MB_PYTHON:-}" ] && [ -n "$skill_dir" ] \
+    && physical="$(cd "$skill_dir" 2>/dev/null && pwd -P)"; then
+    case "$physical" in
+      */share/memory-bank-skill)
+        wheel_py="${physical%/share/memory-bank-skill}/bin/python3"  # a path, used only when MB_PYTHON is unset
+        if [ -x "$wheel_py" ]; then
+          printf '%s\n' "$wheel_py"
+          return 0
+        fi
+        ;;
+    esac
+  fi
+  printf '%s\n' "${MB_PYTHON:-python3}"
 }
 
 # mb_upgrade_command <flavor> [install_dir] — the native "how do I update"

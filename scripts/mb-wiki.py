@@ -23,6 +23,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+if __name__ == "__main__":  # re-exec under an interpreter that can import the package
+    # Explicit: `python3 -P` / `-I` / PYTHONSAFEPATH do not put the script dir on sys.path.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from _mb_skill_python import ensure_skill_python
+
+    ensure_skill_python(__file__)
+
 try:
     from memory_bank_skill import codegraph_analytics as cga
     from memory_bank_skill import wiki_evidence as we
