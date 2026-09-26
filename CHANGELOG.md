@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — scripts run directly from a wheel install no longer fail on `memory_bank_skill`
+
+- In a wheel install (pipx, `uv tool`, pip into a venv) the bundle is shared-data at
+  `<prefix>/share/memory-bank-skill` while `memory_bank_skill` lives in `<prefix>`'s
+  site-packages. Agents run the helper scripts directly (`python3 …/mb-index-json.py`,
+  `bash …/mb-progress-chain.sh`), without the CLI, so `MB_PYTHON` is unset and the bare
+  `python3` — plus the `$REPO_ROOT` fallback, which points at `share/` — cannot import the
+  package: `ModuleNotFoundError: memory_bank_skill`, or `ImportError: datetime.UTC` on a
+  pre-3.11 system `python3`. New `_lib.sh::mb_resolve_python` picks `$MB_PYTHON`, else
+  `<prefix>/bin/python3` derived from the bundle's physical path, else `python3`;
+  `mb-progress-chain.sh` uses it, and `mb-index-json.py` re-execs itself once under the same
+  interpreter before any 3.11-only import. Source checkouts are unchanged.
+
 ### Fixed — a colourized pytest run is no longer read as "no tests"
 
 - `mb-test-run.sh::run_python` anchored the pytest summary line on `^` with a digit, but pytest

@@ -22,13 +22,54 @@ Shape::
 from __future__ import annotations
 
 import contextlib
+import importlib.util
 import json
 import os
 import re
+import shutil
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+
+def _reexec_under_skill_python() -> None:
+    """Re-exec once under the interpreter that owns ``memory_bank_skill``.
+
+    In a wheel install (pipx, ``uv tool``, pip into a venv) this script is
+    shared-data at ``<prefix>/share/memory-bank-skill/scripts`` while the
+    package lives in ``<prefix>``'s site-packages, so ``python3
+    mb-index-json.py`` fails with ModuleNotFoundError (or, on a pre-3.11
+    system python3, on ``datetime.UTC``). Mirrors ``_lib.sh::mb_resolve_python``:
+    ``$MB_PYTHON`` first, then ``<prefix>/bin/python3``. A no-op when the
+    current interpreter already works, and in a source checkout. Must run
+    before any 3.11-only import.
+    """
+    bundle = Path(__file__).resolve().parents[1]
+    importable = (
+        importlib.util.find_spec("memory_bank_skill") is not None
+        or (bundle / "memory_bank_skill").is_dir()
+    )
+    # Popped on entry so the guard never leaks into this process's children.
+    already_reexeced = os.environ.pop("_MB_INDEX_JSON_REEXEC", None) == "1"
+    if already_reexeced or (importable and sys.version_info >= (3, 11)):
+        return  # re-exec'd once already (never loop), or works as-is
+    candidate = os.environ.get("MB_PYTHON", "")
+    if not candidate and bundle.name == "memory-bank-skill" and bundle.parent.name == "share":
+        prefix = bundle.parents[1]
+        # Compare environments via sys.prefix, not realpath: every venv's
+        # bin/python3 is a symlink to the same base interpreter.
+        if Path(sys.prefix).resolve() != prefix.resolve():
+            candidate = str(prefix / "bin" / "python3")
+    target = shutil.which(candidate) if candidate else None
+    if not target or os.path.abspath(target) == os.path.abspath(sys.executable):
+        return  # nothing better to try: the import below fails loudly
+    env = dict(os.environ, _MB_INDEX_JSON_REEXEC="1")
+    os.execve(target, [target, str(Path(__file__).resolve()), *sys.argv[1:]], env)
+
+
+_reexec_under_skill_python()
+
+from datetime import UTC, datetime  # noqa: E402  (3.11+: must follow the bootstrap)
 
 # Prefer this source bundle before Python caches an older installed package.
 # Wheel layouts have no package under this root and use their site-packages copy.
