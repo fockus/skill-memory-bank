@@ -8,7 +8,7 @@ load_profile() {
   fi
 
   PROFILE_JSON="$(PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -m memory_bank_skill.rules_profile resolve \
+    "$(mb_resolve_python "$REPO_ROOT")" -m memory_bank_skill.rules_profile resolve \
     "${py_args[@]+"${py_args[@]}"}" 2>/dev/null)" || true
 
   if [[ -z "$PROFILE_JSON" ]]; then

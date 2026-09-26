@@ -191,11 +191,11 @@ EOF
 
 @test "mb-index-json.py run with a bare python3 from a wheel layout re-execs under <prefix>/bin/python3" {
   local prefix script
-  prefix="$(_make_wheel_layout mb-index-json.py)"
+  prefix="$(_make_wheel_layout mb-index-json.py _mb_skill_python.py)"
   script="$(cd "$prefix" && pwd -P)/share/memory-bank-skill/scripts/mb-index-json.py"
   # -I -S: keep any dev-installed memory_bank_skill off sys.path so the
   # interpreter really cannot import the package (the wheel-install case).
-  run env -u MB_PYTHON -u _MB_INDEX_JSON_REEXEC python3 -I -S "$script" "$TMPDIR/bank"
+  run env -u MB_PYTHON -u _MB_SKILL_PYTHON_REEXEC python3 -I -S "$script" "$TMPDIR/bank"
   [ "$status" -eq 0 ]
   [ -f "$TMPDIR/wheel-python.argv" ]
   [ "$(cat "$TMPDIR/wheel-python.argv")" = "$(printf '%s\n%s' "$script" "$TMPDIR/bank")" ]
@@ -203,10 +203,33 @@ EOF
 
 @test "mb-index-json.py re-execs at most once (no loop), then fails loudly" {
   local prefix
-  prefix="$(_make_wheel_layout mb-index-json.py)"
-  run env -u MB_PYTHON _MB_INDEX_JSON_REEXEC=1 python3 -I -S \
+  prefix="$(_make_wheel_layout mb-index-json.py _mb_skill_python.py)"
+  run env -u MB_PYTHON _MB_SKILL_PYTHON_REEXEC=1 python3 -I -S \
     "$prefix/share/memory-bank-skill/scripts/mb-index-json.py" "$TMPDIR/bank"
   [ "$status" -ne 0 ]
   [ ! -f "$TMPDIR/wheel-python.argv" ]
   [[ "$output" == *"ModuleNotFoundError"* ]]
+}
+
+@test "every Python entry point run with a bare python3 from a wheel layout re-execs via _mb_skill_python.py" {
+  local prefix script s
+  for s in mb-codegraph.py mb-import.py mb-wiki.py mb-openspec.py mb-graph-query.py mb-code-context.py mb-semantic-search.py; do
+    rm -rf "$TMPDIR/prefix" "$TMPDIR/wheel-python.argv"
+    prefix="$(_make_wheel_layout "$s" _mb_skill_python.py)"
+    script="$(cd "$prefix" && pwd -P)/share/memory-bank-skill/scripts/$s"
+    run env -u MB_PYTHON -u _MB_SKILL_PYTHON_REEXEC python3 -I -S "$script" --probe-arg
+    [ "$status" -eq 0 ] || { echo "$s: status=$status $output"; return 1; }
+    [ "$(cat "$TMPDIR/wheel-python.argv")" = "$(printf '%s\n%s' "$script" --probe-arg)" ] || { echo "$s argv mismatch"; return 1; }
+  done
+}
+
+@test "shell callers of memory_bank_skill (profile, consolidate) use <prefix>/bin/python3 from a wheel layout" {
+  local prefix bank="$TMPDIR/bank"
+  prefix="$(_make_wheel_layout _lib.sh mb-profile.sh mb-consolidate.sh)"
+  mkdir -p "$bank" && printf '# Progress\n' > "$bank/progress.md"
+  run env -u MB_PYTHON bash "$prefix/share/memory-bank-skill/scripts/mb-profile.sh" show
+  [ "$(sed -n '1,2p' "$TMPDIR/wheel-python.argv" | tr '\n' ' ')" = "-m memory_bank_skill.rules_profile " ]
+  rm -f "$TMPDIR/wheel-python.argv"
+  run env -u MB_PYTHON bash "$prefix/share/memory-bank-skill/scripts/mb-consolidate.sh" "$bank"
+  [ "$(sed -n '1,2p' "$TMPDIR/wheel-python.argv" | tr '\n' ' ')" = "-m memory_bank_skill.consolidate " ]
 }

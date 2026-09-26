@@ -23,6 +23,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# shellcheck source=_lib.sh
+source "$SCRIPT_DIR/_lib.sh"
 # shellcheck source=mb_rules_check_lib.sh
 source "$SCRIPT_DIR/mb_rules_check_lib.sh"
 # shellcheck source=mb_rules_check_profile.sh

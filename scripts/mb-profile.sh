@@ -33,7 +33,8 @@ MB_PROFILE_PYTHON_MODULE="memory_bank_skill.rules_profile"
 # ---------------------------------------------------------------------------
 
 _python() {
-  python3 -m "$MB_PROFILE_PYTHON_MODULE" "$@"
+  # mb_resolve_python: MB_PYTHON > pipx venv interpreter > python3 (see _lib.sh).
+  "$(mb_resolve_python "$SCRIPT_DIR/..")" -m "$MB_PROFILE_PYTHON_MODULE" "$@"
 }
 
 _die() {

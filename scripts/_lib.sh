@@ -403,7 +403,7 @@ mb_pipeline_meta() {
   fi
   local _repo_root
   _repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" PYTHONPATH="$_repo_root${PYTHONPATH:+:$PYTHONPATH}" "${MB_PYTHON:-python3}" - <<'PY'
+  MB_PIPE_FILE="$file" MB_PIPE_FIELD="$field" PYTHONPATH="$_repo_root${PYTHONPATH:+:$PYTHONPATH}" "$(mb_resolve_python "$_repo_root")" - <<'PY'
 import os
 
 path = os.environ["MB_PIPE_FILE"]
@@ -768,8 +768,8 @@ mb_install_flavor() {
 # PYTHONPATH fallback, which points at share/ — cannot import it whenever
 # a script is run directly (agents invoke them that way) instead of through
 # the CLI. <prefix> is derived from the bundle's physical path, so no install
-# location is hard-coded. scripts/mb-index-json.py mirrors this rule for
-# `python3 mb-index-json.py` invocations, which cannot source this file.
+# location is hard-coded. scripts/_mb_skill_python.py mirrors this rule for
+# Python entry points run as `python3 scripts/mb-*.py`, which cannot source this file.
 mb_resolve_python() {
   local skill_dir="${1:-}" physical wheel_py
   if [ -z "${MB_PYTHON:-}" ] && [ -n "$skill_dir" ] \

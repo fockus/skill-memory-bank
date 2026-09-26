@@ -5,7 +5,9 @@ Validates pipeline.yaml against spec §9 structural rules.
 
 from __future__ import annotations
 
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -372,3 +374,24 @@ def test_pipeline_name_empty_fails(tmp_path: Path) -> None:
     r = _run(p)
     assert r.returncode == 1
     assert "pipeline_name" in r.stderr.lower()
+
+
+def test_core_package_unimportable_with_pyyaml_degrades_to_minimal_loader(tmp_path: Path) -> None:
+    """PyYAML importable but ``memory_bank_skill.pipeline_yaml`` not (a bare python3 on a
+    wheel install): the core must fall back to the minimal loader, not crash with a
+    NameError on the ``except PipelineYamlError`` clause."""
+    shadow = tmp_path / "memory_bank_skill"  # cwd is sys.path[0] for the core
+    shadow.mkdir()
+    (shadow / "__init__.py").write_text("", encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    env["MB_PIPELINE_PATH"] = str(DEFAULT)
+    proc = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "mb_pipeline_validate_core.py")],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "NameError" not in proc.stderr
+    assert proc.returncode == 0, proc.stderr

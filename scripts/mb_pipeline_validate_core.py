@@ -49,14 +49,21 @@ else:
         from memory_bank_skill.pipeline_yaml import (
             load_text as _pipeline_load_text,
         )
-
-        cfg = _pipeline_load_text(text) if text.strip() else None
-    except PipelineYamlError as exc:
-        err(str(exc))
-        cfg = None
-    except Exception as exc:
-        err(f"YAML parse error: {exc}")
-        cfg = None
+    except ModuleNotFoundError:
+        # Package not importable from this interpreter: the `except PipelineYamlError`
+        # below would raise NameError, so degrade to the minimal loader instead.
+        _pipeline_load_text = None
+    if _pipeline_load_text is None:
+        cfg = minimal_pipeline_load(text) if text.strip() else None
+    else:
+        try:
+            cfg = _pipeline_load_text(text) if text.strip() else None
+        except PipelineYamlError as exc:
+            err(str(exc))
+            cfg = None
+        except Exception as exc:
+            err(f"YAML parse error: {exc}")
+            cfg = None
 
 if cfg is None:
     for e in errors:

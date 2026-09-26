@@ -16,6 +16,19 @@ All notable changes to this project are documented here. The format follows [Kee
   `<prefix>/bin/python3` derived from the bundle's physical path, else `python3`;
   `mb-progress-chain.sh` uses it, and `mb-index-json.py` re-execs itself once under the same
   interpreter before any 3.11-only import. Source checkouts are unchanged.
+- The same fix now covers every entry point. The re-exec bootstrap moved into one shared
+  `scripts/_mb_skill_python.py` (`ensure_skill_python(__file__)`, guarded by
+  `__name__ == "__main__"`, so importing a script from a test runner never `execv`s it).
+  `mb-index-json.py`, `mb-codegraph.py`, `mb-import.py`, `mb-wiki.py`, `mb-openspec.py`,
+  `mb-graph-query.py`, `mb-code-context.py` and `mb-semantic-search.py` all call it; it also
+  works under `python3 -I` / `-P` / `PYTHONSAFEPATH`. The one-shot guard is now
+  `_MB_SKILL_PYTHON_REEXEC`. Shell callers that import the package now use
+  `mb_resolve_python`: `mb-handoff.sh`, `mb-profile.sh`, `mb-rules-check.sh` (it silently fell
+  back to the baseline profile and ignored `--profile`), `mb-consolidate.sh`,
+  `mb-pipeline.sh validate --all`, `mb-pipeline-validate.sh` and `_lib.sh::mb_pipeline_meta`.
+- `mb_pipeline_validate_core.py`: with PyYAML importable but `memory_bank_skill` not, it
+  crashed with `NameError: PipelineYamlError` from its own `except` clause; it now falls back
+  to the minimal loader.
 
 ### Fixed — a colourized pytest run is no longer read as "no tests"
 

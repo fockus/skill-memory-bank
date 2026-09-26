@@ -111,7 +111,10 @@ cmd_actualize() {
 
   # Render the capsule body (data collection + 1500-char truncation in Python).
   local tmp="$hdir/.latest.tmp.$$"
-  if ! "${MB_PYTHON:-python3}" -m memory_bank_skill.handoff_capsule build \
+  # mb_resolve_python: MB_PYTHON > pipx venv interpreter > python3 (see _lib.sh).
+  local mb_py
+  mb_py="$(mb_resolve_python "$REPO_ROOT")"
+  if ! "$mb_py" -m memory_bank_skill.handoff_capsule build \
         --bank "$mb" \
         --created "$created" \
         --trigger "$trigger" \
