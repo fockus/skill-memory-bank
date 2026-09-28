@@ -2130,3 +2130,17 @@ Baseline на 0c0e50a (macOS, .venv python 3.14, bats 1.13.0):
 - I-230 (HIGH): `tests/bats/test_bats_test_names.bats` не завершается под bats (потомок крутит 99% CPU). Батарею гонять списком файлов без него. Убитые прогоны оставляют процессы, они копятся между воркtree'ями и загоняют машину в load average >100 — видел остатки из `skill-memory-bank-opus55` и `/tmp/mb-opus55/base`, после чистки load упал с 144 до 1.8. На таком фоне врут любые замеры времени.
 - I-232 (MED): 14 красных в `hooks/tests/`, три разные причины. Главная: `61d922c` научил `mb-session-end.sh` детачить себя, `session-end-judge.bats` и `session-end-summary.bats` получили `export MB_SESSION_END_DETACHED=1`, а `session-end-summary-v2.bats` — нет, и его 11 кейсов гоняются наперегонки с фоновым потомком.
 - I-231 (LOW): общий `.graph-catchup.log` затирается конкурентными сессиями.
+
+## STATUS · 2026-09-28 · harness-20: feat/opus55-prompt-fit влита в main (2a6f96e) и запушена
+Сессия harness-20. По решению пользователя (2026-09-28) ветка feat/opus55-prompt-fit влита в main перемоткой и запушена: main = origin/main = 2a6f96e.
+
+Для сессии graph-semantic-adoption:
+- Stage 1 (nudge v2) закоммичена пользователем 5afcdf3 без verify: DoD 0/4, стадия открыта, verify за владельцем.
+- В `hooks/mb-graph-nudge.sh` к счётчику main добавлен ключ сессии: `session_id` из stdin хука → `CLAUDE_SESSION_ID` → дата (`%Y%m%d`), санитизация `tr -c 'A-Za-z0-9_-' '_'`. `--reset` чистит все маркеры, от ключа не зависит. Bats по хуку зелёный (223/223 в 11 файлах).
+- `settings/hooks.json`: обе записи nudge (PreToolUse и SessionStart:compact `--reset`) на месте; удалены echo-хуки Setup/PRE-WRITE, PreCompact переписан (Stage 1 плана opus55).
+- `commands/*.md`: скрипты скила запускаются через `"$SKILL_DIR"/...`; контракт — tests/pytest/test_commands_skill_root.py (в Stage 4/7 новые вызовы писать так же).
+- Субагенты вызываются по имени; общая дисциплина собирается установщиком через `compose:` во фронтматтере (scripts/mb-agent-render.py). Stage 7 (agents/mb-*.md) — не вписывать ядро в тело агента руками.
+- `tests/bats/test_install_interactive.bats` теперь в песочнице HOME/PWD — батарею можно гонять без HOME=$(mktemp -d).
+
+Проверка перед слиянием на 2a6f96e: pytest 3032 passed / 0 failed; bats 3413 ok, 1 флак по времени (update-notify <100ms), зелёный при повторе.
+Работа графа в main проверена: 40 файлов графа без наших правок совпадают байт в байт, в 11 общих файлах сняты только строки, которые меняли мы.
