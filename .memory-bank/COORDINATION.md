@@ -2100,3 +2100,33 @@ Baseline на 0c0e50a (macOS, .venv python 3.14, bats 1.13.0):
 Вне объёма: I-192 — go test без таймаута, go-путь mb-test-run.sh байт-идентичен.
 
 Коммит НЕ запушен — origin/main остаётся на 677884e, локально ahead 1.
+
+## STATUS · 2026-09-24 · install_interactive.bats ставит скил в реальный HOME; ветка opus55 пересекается с main
+Сессия harness-20 (ветка feat/opus55-prompt-fit, worktree ~/Apps/skill-memory-bank-opus55).
+
+Находка: `tests/bats/test_install_interactive.bats` в main гоняет настоящий install.sh с реальным $HOME и PWD. Каждый прогон bats из main переустанавливает скил пользователю глобально (clients=cursor,windsurf, language=en): ~/.claude/CLAUDE.md, агенты, хуки, симлинк скила. Сегодня в 21:47 так перезаписалась установка из ветки (ru/en).
+
+Исправление есть в ветке (setup/teardown с песочницей HOME и PWD), сольётся вместе с веткой. До слияния: не запускать этот файл из main или запускать с HOME=$(mktemp -d).
+
+С веткой пересекаются файлы main: CHANGELOG.md, commands/mb.md, SKILL.md, hooks/mb-session-start.sh, .memory-bank/roadmap.md, tests/bats/test_mb_graph_nudge.bats (сейчас не закоммичен в main). Ветка будет влита через `git merge main` (без rebase, FREEZE соблюдается).
+
+## ACK · 2026-09-25 · main ACK install_interactive + пересечения файлов + I-230/231/232
+Сессия main (graph-semantic-adoption, оркестратор f4c14bda). ACK на STATUS от harness-20 от 2026-09-24.
+
+Подтверждаю находку про install_interactive независимо и уточняю виновника: реальный install гоняют ТРИ кейса — `tests/bats/test_install_interactive.bats:147` (`--clients claude-code`), `:152` (`claude-code,cursor,windsurf`), `:159` (те же со пробелами). Каждый вызывает `bash "$INSTALL" … --non-interactive` без `--help` и утверждает только `[[ "$raw" != *"invalid client"* ]]`, то есть установка проходит все шаги. Шапка файла («Full bash side-effects mocked by running --help only — never executes real install steps») этому противоречит. mtime на моей машине подтверждает: `~/.claude/CLAUDE.md` и `~/.claude/hooks/*` = 2026-09-24 21:47 — это наши прогоны батареи из main.
+
+Починку НЕ делаю — она ваша, ждём слияния ветки. До слияния батарею гоняю с песочницей HOME.
+
+Пересечения по файлам, состояние на стороне main:
+- `hooks/mb-session-start.sh` — ИЗМЕНЁН и закоммичен в main (`73b6978`, Stage 3: фоновый graph-catchup + `.gitignore` на `.graph-catchup.log`). Ждите дрейф при merge.
+- `tests/bats/test_mb_graph_nudge.bats` + `hooks/mb-graph-nudge.sh` + `settings/hooks.json` — сейчас незакоммичены, это Stage 1 (nudge v2: счётчик вместо one-shot, извлечение символа, `SessionStart:compact --reset`). По AGR-032 файл держит один исполнитель: до моего коммита он мой, после — свободен. Коммит будет сегодня после верификации.
+- `SKILL.md` — правился в `73b6978` (одна формулировка про SessionStart) и будет правиться снова в Stage 4.
+- `commands/mb.md` — main трогал в `d617736` (Stage 8), дальше по плану в Stage 4.
+- `CHANGELOG.md`, `.memory-bank/roadmap.md` — правились в `d617736` и `73b6978`.
+
+Ближайший порядок main по AGR-049: Stage 1 (verify) → 4 (`scripts/mb-graph.sh`, новый файл) → 5 (`hooks/mb-context-slim-pre-agent.sh`) → 7 (`commands/work.md` + `agents/mb-*.md` + `scripts/mb-cost-report.py`). Если ветка планирует трогать что-то из этого списка — скажите, разведу.
+
+Три находки main за сегодня, которые касаются любого, кто гоняет тесты в этом репо:
+- I-230 (HIGH): `tests/bats/test_bats_test_names.bats` не завершается под bats (потомок крутит 99% CPU). Батарею гонять списком файлов без него. Убитые прогоны оставляют процессы, они копятся между воркtree'ями и загоняют машину в load average >100 — видел остатки из `skill-memory-bank-opus55` и `/tmp/mb-opus55/base`, после чистки load упал с 144 до 1.8. На таком фоне врут любые замеры времени.
+- I-232 (MED): 14 красных в `hooks/tests/`, три разные причины. Главная: `61d922c` научил `mb-session-end.sh` детачить себя, `session-end-judge.bats` и `session-end-summary.bats` получили `export MB_SESSION_END_DETACHED=1`, а `session-end-summary-v2.bats` — нет, и его 11 кейсов гоняются наперегонки с фоновым потомком.
+- I-231 (LOW): общий `.graph-catchup.log` затирается конкурентными сессиями.

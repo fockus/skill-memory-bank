@@ -152,6 +152,15 @@
   ],
   "SessionStart": [
     {
+      "matcher": "compact",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/hooks/mb-graph-nudge.sh --reset # [memory-bank-skill]"
+        }
+      ]
+    },
+    {
       "hooks": [
         {
           "type": "command",
