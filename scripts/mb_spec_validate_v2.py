@@ -333,6 +333,7 @@ def load_roles() -> set[str]:
         "frontend",
         "developer",
         "qa",
+        "debugger",
         "architect",
         "ios",
         "android",

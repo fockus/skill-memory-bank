@@ -49,9 +49,10 @@ Read ALL core files:
 1. `status.md` — phase, metrics, roadmap, limitations
 2. `checklist.md` — tasks ✅/⬜
 3. `roadmap.md` — master plan, focus, DoD
-4. `backlog.md` — plans, ADRs, statuses
-5. `progress.md` — date-based work log
-6. `lessons.md` — anti-patterns
+4. `backlog.md` — ideas, plan links, statuses
+5. `adr.md` — ADR registry (if `backlog.md` still has `### ADR-` blocks → suggest `mb-adr-migrate.sh --apply`)
+6. `progress.md` — date-based work log
+7. `lessons.md` — anti-patterns
 
 ### Step 2: Cross-reference checks
 

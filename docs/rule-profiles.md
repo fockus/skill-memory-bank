@@ -315,7 +315,7 @@ mb-profile.sh init --scope=project --role=backend --stack=python
 
 ## Immutable baseline
 
-The following 7 rules are always active. They **cannot be disabled** by any profile, task instruction, or user choice. A profile that attempts to disable any of them is rejected at validation time.
+The following 6 rules are always active. They **cannot be disabled** by any profile, task instruction, or user choice. A profile that attempts to disable any of them is rejected at validation time.
 
 | Rule ID | What it enforces | Rationale |
 |---------|-----------------|-----------|
@@ -323,9 +323,10 @@ The following 7 rules are always active. They **cannot be disabled** by any prof
 | `protected-files` | `.env`, `ci/`, Docker/K8s/Terraform require explicit user request | Accidental infra changes can take down production |
 | `destructive-confirm` | Force-push, hard-reset, mass-delete require explicit confirmation | Destructive operations cannot be undone; human confirmation is non-negotiable |
 | `fail-fast` | Uncertain implementation → stop and propose a short plan | Guessing wastes time and creates subtle bugs that are hard to trace |
-| `dry-kiss-yagni` | DRY/KISS/YAGNI baseline | Code written for imagined futures adds maintenance cost with no present benefit |
 | `verification-before-completion` | Claim "done" only after running declared verification commands | Unverified "done" means the next session starts with broken code |
 | `explicit-storage-choice` | Tooling never silently writes profiles or banks outside the chosen scope | Surprise writes to `~/.claude/` or the project tree violate user trust |
+
+SOLID/DRY/KISS/YAGNI are not in the baseline: on by default, switchable per principle — `/mb rules set principle kiss off` (AGR-077).
 
 A profile may **strengthen** these rules (e.g. set `strictness=block` for a configurable rule) but never weaken them.
 

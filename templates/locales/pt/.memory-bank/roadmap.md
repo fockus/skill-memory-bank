@@ -14,7 +14,7 @@ Configuração inicial do projeto.
 
 ## A seguir
 
-Veja [backlog.md](backlog.md): ideias com prioridade e ADRs.
+Veja [backlog.md](backlog.md): ideias com prioridade; decisões em [adr.md](adr.md).
 
 ## Adiado
 

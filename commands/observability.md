@@ -1,5 +1,5 @@
 ---
-description: Add structured logging, metrics, and tracing to a module
+description: "Adds structured logging, metrics, and tracing to a module. Use when a module needs observability — «добавь логи», «добавь метрики», OpenTelemetry instrumentation."
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
 argument-hint: <module-path>
 ---

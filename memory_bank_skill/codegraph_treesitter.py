@@ -14,6 +14,7 @@ intentionally minimal — this is an MVP, not full semantic analysis.
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,17 @@ LANG_CONFIG = {
     ".java": ("java", "tree_sitter_java"),
 }
 
+
+def available_modules() -> tuple[str, ...]:
+    """tree-sitter core + grammar modules this interpreter has (``find_spec``, no import).
+
+    ``mb-codegraph.py`` re-execs only into an interpreter that has all of them,
+    so switching interpreters never drops a parsed language.
+    """
+    if not HAS_TREE_SITTER:
+        return ()
+    grammars = sorted({mod for _, mod in LANG_CONFIG.values()})
+    return ("tree_sitter", *(m for m in grammars if importlib.util.find_spec(m)))
 
 def get_ts_parser(lang_name: str, module_name: str) -> Any | None:
     """Lazy-load tree-sitter parser for a language. Returns None on failure."""

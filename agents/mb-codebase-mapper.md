@@ -45,8 +45,8 @@ This sets the direction for exploration (which manifests to read, which test run
 **Graph-first policy.** Prefer `graph.json` over ad-hoc source scans. Before any exploration, check whether `/mb graph --apply` has produced a usable artifact:
 
 ```bash
-python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py status \
-  --graph .memory-bank/codebase/graph.json --src-root . --json
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+bash "$SKILL_DIR"/scripts/mb-graph.sh status --json
 ```
 
 This is the same freshness check every other MB agent uses (`agents/mb-tooling-core.md`). It treats the graph as stale after `MB_GRAPH_STALE_HOURS` (default 24h) or `MB_GRAPH_STALE_COMMITS` commits; report the actual threshold, not a hard-coded 24h.

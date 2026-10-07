@@ -1,5 +1,5 @@
 ---
-description: Regenerate roadmap.md autosync block from plans/*.md frontmatter
+description: "Regenerates the roadmap.md autosync block from plans/*.md frontmatter. Use when plans were added or changed and the roadmap must catch up — «обнови роадмап»."
 allowed-tools: [Bash, Read]
 ---
 

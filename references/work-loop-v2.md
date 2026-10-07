@@ -1,5 +1,13 @@
 # `/mb work` — sprint contracts, progress trend, strategic pivoting
 
+## Contents
+
+- [Sprint contracts, progress trend, and strategic pivoting (work-loop-v2)](#sprint-contracts-progress-trend-and-strategic-pivoting-work-loop-v2)
+  - [Sprint contract phase (opt-in, runs before 5a)](#sprint-contract-phase-opt-in-runs-before-5a)
+  - [Progress trend (computed every review cycle, inside 5d)](#progress-trend-computed-every-review-cycle-inside-5d)
+  - [Strategic pivoting (on a CHANGES_REQUESTED verdict, before the re-dispatch in 5f)](#strategic-pivoting-on-a-changes_requested-verdict-before-the-re-dispatch-in-5f)
+  - [Max-cycle policy (already covered by 5f — restated for completeness)](#max-cycle-policy-already-covered-by-5f--restated-for-completeness)
+
 Companion to `commands/work.md` / `references/work-reference.md`. Split out so
 each file stays within the 400-line project limit (S2 review [26]); the content
 is unchanged from the move.

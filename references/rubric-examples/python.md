@@ -1,5 +1,13 @@
 # Calibration examples — python
 
+## Contents
+
+- `PY-SRP-001` — code_rules (blocker)
+- `PY-LOGIC-001` — logic (blocker)
+- `PY-SEC-001` — security (blocker)
+- `PY-SCALE-001` — scalability (major)
+- `PY-TESTS-001` — tests (blocker)
+
 Python-specific skill-baseline examples (reviewer-2.0, design.md §4). The
 first block (`PY-SRP-001`) is the worked example from design.md §4 "File
 format", reproduced verbatim as the calibration seed.

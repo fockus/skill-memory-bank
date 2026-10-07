@@ -1,3 +1,8 @@
+---
+description: "Manages multiple named execution pipelines in one project and selects one per run or per code-agent host. Use when several agents (Claude Code, pi, opencode) need different model routing."
+allowed-tools: [Bash, Read]
+---
+
 # /mb pipeline <subcommand>
 
 Manage **multiple named execution pipelines** in one project. Where `/mb config`

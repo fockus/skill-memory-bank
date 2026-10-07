@@ -1,5 +1,5 @@
 ---
-description: Run tests, analyze failures, and propose fixes
+description: "Runs tests, analyzes failures, and proposes fixes. Use when the user says «прогони тесты», «почему падает тест», or tests are red."
 allowed-tools: [Bash, Read, Glob, Grep, Task]
 argument-hint: "[test-filter]"
 ---

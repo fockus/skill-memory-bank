@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
 # skill-memory-bank — Installer
-# Long-term project memory + global rules + 33 dev commands
+# Long-term project memory + global rules + 34 dev commands
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 
@@ -31,6 +31,10 @@ PI_SKILL_ALIAS="$PI_AGENT_DIR/skills/memory-bank"
 OPENCODE_SKILL_ALIAS="$OPENCODE_DIR/skills/memory-bank"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
+# Own marker pair for the OpenCode global block. Before agents-md-diet Stage 3 it
+# shared the project AGENTS.md pair; install_opencode_global_agents migrates it.
+OPENCODE_START_MARKER="<!-- memory-bank-opencode:start -->"
+OPENCODE_END_MARKER="<!-- memory-bank-opencode:end -->"
 # shellcheck disable=SC2034  # read by adapters/_lib_pi_global.sh
 PI_START_MARKER="<!-- memory-bank-pi:start -->"
 # shellcheck disable=SC2034
@@ -212,6 +216,7 @@ NON_INTERACTIVE=0
 # Empty value = accept every offered host; non-empty = comma list of hosts.
 WITH_EXTENSIONS_FLAG=0
 WITH_EXTENSIONS_VALUE=""
+KEY_RULES_MODE=""           # default|keep; empty = prompt on a TTY, else default/keep
 
 show_help() {
   cat <<HELP_EOF
@@ -236,6 +241,10 @@ Options:
                           A project can override both: /mb language <code> [--comments <code>].
   --project-root <path>   Target directory for cross-agent adapters (default: PWD).
   --non-interactive       Never prompt; use defaults when --clients not passed.
+  --key-rules <mode>      Key rules selection (the block at the top of CLAUDE.md /
+                          AGENTS.md): default = catalog defaults, keep = current
+                          user selection. If omitted: checklist prompt on a TTY;
+                          otherwise default on first install, keep on re-install.
   --with-extensions[=<list>]
                           Opt in to pi/opencode host parity extensions (session
                           memory, subagent dispatch, GraphRAG promotion)
@@ -281,6 +290,14 @@ while [ $# -gt 0 ]; do
       ;;
     --non-interactive)
       NON_INTERACTIVE=1; shift ;;
+    --key-rules|--key-rules=*)
+      if [ "$1" = "--key-rules" ]; then KEY_RULES_MODE="${2:-}"; shift; else KEY_RULES_MODE="${1#--key-rules=}"; fi
+      shift
+      case "$KEY_RULES_MODE" in
+        default|keep) ;;
+        *) echo "[install.sh] --key-rules must be default or keep" >&2; exit 1 ;;
+      esac
+      ;;
     --with-extensions)
       WITH_EXTENSIONS_FLAG=1; WITH_EXTENSIONS_VALUE=""; shift ;;
     --with-extensions=*)
@@ -964,36 +981,45 @@ ensure_skill_aliases() {
   echo -e "  ${GREEN}✓${NC} Claude/Codex/Cursor/Pi/OpenCode skill aliases"
 }
 
-# The compact rules core (CLAUDE-GLOBAL.md), like the Codex and Pi global blocks.
-# OpenCode also loads the project AGENTS.md, whose shared block carries the full
-# RULES.md; putting RULES.md here too sent the same rules twice with every request.
+# Global host blocks (Codex / OpenCode / Pi): a short host header plus the compact
+# rules core (CLAUDE-GLOBAL.md). The Key rules block above them is written by
+# Step 5.5 (mb-rules.sh sync --scope=user); detailed rules stay in the skill's
+# rules/RULES.md (AGR-063, AGR-066).
 opencode_agents_section() {
   cat <<EOF
-$MB_START_MARKER
+$OPENCODE_START_MARKER
 
 # Memory Bank — OpenCode Global Entry Point
 
-Global Memory Bank skill: \`~/.config/opencode/skills/memory-bank/SKILL.md\`. OpenCode loads this file at
-startup; treat the section below as always-on Memory Bank guidance. Subagent roles are dispatched by
-name with \`task(subagent_type=<name>)\`.
-
-On a bare OpenCode host (parity extensions not installed yet), suggest running
-\`install.sh --with-extensions=opencode\` once per session, then stay silent once installed.
+OpenCode loads this file at startup. Skill: \`~/.config/opencode/skills/memory-bank/SKILL.md\`.
+- Subagent roles are dispatched by name with \`task(subagent_type=<name>)\`.
+- On a bare OpenCode host (parity extensions not installed yet), suggest running
+  \`install.sh --with-extensions=opencode\` once per session, then stay silent once installed.
 
 EOF
   sed 's#~/.claude/RULES.md#~/.config/opencode/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.config/opencode/skills/memory-bank#g' "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
   cat <<EOF
 
-$MB_END_MARKER
+$OPENCODE_END_MARKER
 EOF
 }
 
 install_opencode_global_agents() {
-  local section state
+  local section state file="$OPENCODE_DIR/AGENTS.md" tmp
+  # Upgrade: rename the old shared marker pair in place so the upsert below
+  # refreshes the block instead of appending a second one.
+  if [ -f "$file" ] && grep -qxF -- "<!-- memory-bank:start -->" "$file"; then
+    tmp="$(mktemp "$file.XXXXXX")"
+    cp -p "$file" "$tmp"
+    awk -v os="<!-- memory-bank:start -->" -v oe="<!-- memory-bank:end -->" \
+      -v ns="$OPENCODE_START_MARKER" -v ne="$OPENCODE_END_MARKER" '
+      $0 == os { $0 = ns } $0 == oe { $0 = ne } { print }
+    ' "$file" > "$tmp" && mv -f "$tmp" "$file" || rm -f "$tmp"
+  fi
   section="$(mktemp)"
   opencode_agents_section > "$section"
-  localize_path_inplace "$section" "$MB_START_MARKER"
-  state="$(mb_upsert_marked_block "$OPENCODE_DIR/AGENTS.md" "$MB_START_MARKER" "$MB_END_MARKER" "$section")"
+  localize_path_inplace "$section" "$OPENCODE_START_MARKER"
+  state="$(mb_upsert_marked_block "$file" "$OPENCODE_START_MARKER" "$OPENCODE_END_MARKER" "$section")"
   rm -f "$section"
   INSTALLED_FILES+=("$OPENCODE_DIR/AGENTS.md")
   echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md ($state)"
@@ -1005,52 +1031,12 @@ $CODEX_START_MARKER
 
 # Memory Bank — Codex Global Entry Point
 
-Global Memory Bank skill is registered at:
-- \`~/.codex/skills/memory-bank/SKILL.md\`
-
-Codex loads this file at startup and injects it into the agent prompt. Treat the section below as always-on Memory Bank guidance.
-
-Bundled resources available to Codex:
-- Commands: \`~/.codex/skills/memory-bank/commands/\`
-- Agents: \`~/.codex/skills/memory-bank/agents/\`
-- Hooks: \`~/.codex/skills/memory-bank/hooks/\`
-- Subagent roles: \`~/.codex/agents/<name>.toml\` — where a Memory Bank command dispatches an agent by name, call \`spawn_agent(agent_type="<name>", message=…)\`; a pipeline \`thinking\` goes to \`reasoning_effort\`.
-
-## Storage modes
-
-Memory Bank supports three storage modes — choose the right one for your workflow:
-
-- **Local** (default): \`/mb init\` or \`/mb init --storage=local\` — bank lives in the repo (\`./.memory-bank/\`), committable, team-shared.
-- **Global** (opt-in personal storage): \`/mb init --storage=global --agent=codex\` — bank lives under \`~/.codex/memory-bank/projects/<id>/.memory-bank\`, NOT in the repo, must not be committed.
-- **Rules-only**: no \`/mb init\` at all — \`[MEMORY BANK: ABSENT]\` state; \`/mb\` lifecycle commands stay inactive until explicit init; all engineering rules below still apply unconditionally.
-
-Resolve the active bank through \`scripts/_lib.sh::mb_resolve_path\` (precedence: explicit arg → \`MB_PATH\` env → local → registered global → legacy \`.claude-workspace\`).
-
-## Recommended workflow
-
-- Storage resolver determines active bank — do NOT assume \`./.memory-bank/\` is always the bank location.
-- If \`./.memory-bank/\` exists OR a global bank is registered, Memory Bank is active: read \`status.md\`, \`checklist.md\`, \`roadmap.md\`, and \`research.md\` at session start.
-- Use \`/mb start\` to restore project context and \`/mb done\` to save progress.
-- Before implementation, prefer \`/mb plan <feature|fix|refactor|experiment> <topic>\` and follow TDD.
-- Detailed rules live at \`~/.codex/skills/memory-bank/rules/RULES.md\`.
-
-## Engineering baseline — TDD, SOLID, Clean Architecture, DRY, KISS, YAGNI
-
-Always-on rules that apply regardless of Memory Bank state (including \`[MEMORY BANK: ABSENT]\`):
-
-- **TDD** — tests first, then code.
-- **SOLID** — SRP (≤300 lines/class), ISP (≤5 methods/interface), DIP (constructor injection).
-- **Clean Architecture** — Infrastructure → Application → Domain; never the reverse.
-- **DRY / KISS / YAGNI** — extract after 3+ duplications; simplest solution; no future-proofing.
-
-See "## Core Memory Bank rules" below for the full baseline.
-
-Codex hooks support is conservative:
-- Global Claude-style lifecycle parity is NOT guaranteed.
-- Prefer project-level \`.codex/\` adapter files for Codex hook/config integration.
-- Treat \`.codex/hooks.json\` as experimental unless documented otherwise.
-
-## Core Memory Bank rules
+Codex loads this file at startup. Skill: \`~/.codex/skills/memory-bank/SKILL.md\`.
+- Codex has no native \`/mb\` slash commands: for \`/mb <command>\` read
+  \`~/.codex/skills/memory-bank/commands/mb.md\` (it routes to \`commands/<command>.md\`) and follow it.
+- Subagent roles: \`~/.codex/agents/<name>.toml\` — dispatch by name with
+  \`spawn_agent(agent_type="<name>", message=…)\`; a pipeline \`thinking\` goes to \`reasoning_effort\`.
+- Global lifecycle hooks are not guaranteed on Codex; the project \`.codex/\` adapter files carry them.
 
 EOF
   sed 's#~/.claude/RULES.md#~/.codex/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.codex/skills/memory-bank#g' "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
@@ -1075,15 +1061,19 @@ install_codex_global_agents() {
 
 # Codex discovers subagent roles as TOML in ~/.codex/agents/ and runs them through
 # `spawn_agent(agent_type=<name>)`; the renderer composes partials and maps `effort`.
+# The tier model comes from the same pipeline as `adapters/codex.sh render-agents`
+# (`/mb config init --host codex`): the project's .memory-bank/pipeline.yaml, else
+# the shipped default — so a reinstall keeps the `model = "…"` lines byte-identical.
 install_codex_agent_roles() {
-  local f name roles_tmp count=0
+  local f name roles_tmp count=0 pipeline="$PROJECT_ROOT/.memory-bank/pipeline.yaml"
+  [ -f "$pipeline" ] || pipeline="$SOURCE_SKILL_DIR/references/pipeline.default.yaml"
   roles_tmp="$(mktemp -d)"
   for f in "$SOURCE_SKILL_DIR"/agents/*.md; do
     [ -f "$f" ] || continue
     head -5 "$f" | grep -qiE '^partial:[[:space:]]*true[[:space:]]*$' && continue
     name="$(basename "$f" .md)"
     "$MB_PY" "$SOURCE_SKILL_DIR/scripts/mb-agent-render.py" "$f" --skill-dir "$SOURCE_SKILL_DIR" \
-      --host codex > "$roles_tmp/$name.toml"
+      --host codex --pipeline "$pipeline" > "$roles_tmp/$name.toml"
     install_file "$roles_tmp/$name.toml" "$CODEX_DIR/agents/$name.toml"
     count=$((count + 1))
   done
@@ -1155,7 +1145,11 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
     # longer exists at that path.
     claude_before_tmp="$CLAUDE_DIR/CLAUDE.md.before.tmp"
     claude_after_tmp="$CLAUDE_DIR/CLAUDE.md.after.tmp"
+    # The Key rules block is ours too (re-rendered at Step 5.5): leave it out of
+    # the user slice so it never triggers a backup.
     awk -v s="$CLAUDE_MB_START_MARKER" '
+      index($0, "<!-- mb-key-rules:start -->") { kr = 1 }
+      kr { if (index($0, "<!-- mb-key-rules:end -->")) kr = 0; next }
       index($0, s) { exit }
       { print }
     ' "$CLAUDE_DIR/CLAUDE.md" > "$claude_before_tmp"
@@ -1291,7 +1285,18 @@ _cursor_global_up_to_date() {
   have="$(jq -r '.skill_version // empty' "$manifest" 2>/dev/null || true)"
   want_lang="${LANGUAGE:-en}"
   have_lang="$(jq -r '.lang // empty' "$manifest" 2>/dev/null || true)"
-  [ -n "$have" ] && [ "$have" = "$want" ] && [ "$have_lang" = "$want_lang" ]
+  [ -n "$have" ] && [ "$have" = "$want" ] && [ "$have_lang" = "$want_lang" ] || return 1
+  # Same VERSION can still ship a changed ~/.cursor/AGENTS.md section: compare its hash.
+  [ "$(jq -r '.section_sha // empty' "$manifest" 2>/dev/null)" = \
+    "$(bash "$SOURCE_SKILL_DIR/adapters/cursor.sh" section-sha 2>/dev/null)" ] || return 1
+  # Version + language alone left installs that predate ~/.cursor/agents (or lost
+  # files since) without them: every managed file must exist, subagents included.
+  local f agents=0
+  while IFS= read -r f; do
+    [ -e "$f" ] || return 1
+    case "$f" in */.cursor/agents/*) agents=1 ;; esac
+  done < <(jq -r '.files[]? // empty' "$manifest" 2>/dev/null)
+  [ "$agents" -eq 1 ]
 }
 if _cursor_global_up_to_date; then
   echo -e "  ${GREEN}✓${NC} Cursor global artifacts already current (skip)"
@@ -1307,6 +1312,20 @@ if [ -f "$HOME/.cursor/memory-bank-user-rules.md" ]; then
     echo -e "       (interactive paste prompt runs at end of cursor adapter install-global)"
   fi
 fi
+
+# ═══ Step 5.5: Key rules ═══
+# The managed `## Key rules` block at the top of the global CLAUDE.md / AGENTS.md
+# files (scripts/mb-rules.sh). The selection lives in the user rules profile.
+# On a TTY, `init --interactive` asks the checklist, own rules, then the Quality
+# step (architecture, TDD, Trophy, coverage — memory_bank_skill/key_rules_prompt.py).
+MB_RULES_SH="$SOURCE_SKILL_DIR/scripts/mb-rules.sh"
+if [ -z "$KEY_RULES_MODE" ] && [ "$NON_INTERACTIVE" -eq 0 ] && [ -t 0 ]; then
+  MB_PYTHON="$MB_PY" bash "$MB_RULES_SH" init --interactive --scope=user
+elif [ "$KEY_RULES_MODE" = default ]; then
+  MB_PYTHON="$MB_PY" bash "$MB_RULES_SH" init --scope=user >/dev/null
+fi
+MB_PYTHON="$MB_PY" bash "$MB_RULES_SH" sync --scope=user >/dev/null
+echo -e "  ${GREEN}✓${NC} Key rules + Quality (/mb rules to change)"
 
 # ═══ Step 6: Settings hooks ═══
 echo -e "${BLUE}[6/7] Settings${NC}"
@@ -1348,7 +1367,12 @@ echo "  Manifest saved"
 # a stderr line while the top-level install reports success — it's collected
 # in ADAPTERS_FAILED and fails the overall exit code AFTER every adapter has
 # had its turn, so one broken adapter can't block its healthy siblings.
-for c in "${CLIENTS_ARR[@]}"; do
+# Cursor runs last: its .mdc leaves out the Key rules when the project AGENTS.md
+# (written by the codex/opencode/pi adapters) already carries them.
+ORDERED_CLIENTS=()
+for c in "${CLIENTS_ARR[@]}"; do [ "${c// /}" = cursor ] || ORDERED_CLIENTS+=("$c"); done
+for c in "${CLIENTS_ARR[@]}"; do [ "${c// /}" != cursor ] || ORDERED_CLIENTS+=("$c"); done
+for c in "${ORDERED_CLIENTS[@]}"; do
   c_trimmed="${c// /}"
   [ "$c_trimmed" = "claude-code" ] && continue  # already done above
   adapter="$SOURCE_SKILL_DIR/adapters/$c_trimmed.sh"
@@ -1392,9 +1416,8 @@ echo "  Pi prompts:      $PI_AGENT_DIR/prompts/"
 echo "  Uninstall: $SOURCE_SKILL_DIR/uninstall.sh"
 echo ""
 echo "  Optional — multi-language code graph (Go/JS/TS/Rust/Java via tree-sitter):"
-echo "    pip install tree-sitter tree-sitter-python tree-sitter-go \\"
-echo "                tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java"
-echo "  Without these, /mb graph works for Python-only (via stdlib ast)."
+echo "    bash $SOURCE_SKILL_DIR/hooks/mb-semantic-bootstrap.sh  (tree-sitter + grammars + networkx)"
+echo "  Without these, /mb graph covers Python/Bash/Bats only (stdlib ast/re), no clusters."
 
 # A17: surface adapter failures in the exit code. Everything else above has
 # already run to completion (global install + every other adapter) — this is

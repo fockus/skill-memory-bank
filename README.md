@@ -52,7 +52,8 @@ Every new AI coding session is amnesia: you re-explain the project, re-state the
 ├── checklist.md       ← current tasks (✅ / ⬜)
 ├── roadmap.md         ← priorities, direction
 ├── research.md        ← hypotheses log (H-NNN) + current experiment
-├── backlog.md         ← parking lot for ideas + ADRs
+├── backlog.md         ← parking lot for ideas (I-NNN)
+├── adr.md             ← architecture decision records (ADR-NNN)
 ├── progress.md        ← work log (append-only)
 ├── lessons.md         ← mistakes not to repeat
 ├── notes/             ← knowledge (5-15 line snippets)
@@ -280,7 +281,7 @@ Beyond `status.md`/`checklist.md`, the bank has four surfaces you accumulate kno
 
 - **`notes/`** — short, reusable **patterns and lessons** (5–15 lines each, not a chronological log). Write one with `/mb note <topic>`; `/mb done` also drops a note when a session learned something worth keeping, and `/mb consolidate` distils recurring facts from old sessions into notes automatically.
 - **Research reports** — `/mb research <query>` dispatches the `mb-research` agent (graph → semantic → web) and returns `file:line`-grounded findings; larger investigations and audits land as dated files under `reports/`, which you can point later prompts at (*"follow the plan from the competitive-landscape report"*).
-- **`backlog.md`** — the running list of **ideas and ADRs** with monotonic IDs (`I-NNN`, `ADR-NNN` via `/mb adr <title>`). Governed reviews feed it on their own: a `GO_WITH_BACKLOG` judge verdict registers every non-blocking finding here before the work is marked done — so nothing is lost, and nothing blocks a clean stage.
+- **`backlog.md`** — the running list of **ideas** with monotonic IDs (`I-NNN`). Architecture decisions live separately in **`adr.md`** (`ADR-NNN` via `/mb adr <title>`). Governed reviews feed it on their own: a `GO_WITH_BACKLOG` judge verdict registers every non-blocking finding here before the work is marked done — so nothing is lost, and nothing blocks a clean stage.
 - **`roadmap.md`** — the prioritized plan queue. Its autosync block is regenerated from `plans/*.md` frontmatter by `/mb roadmap-sync`, so the roadmap always reflects the real plans instead of drifting.
 - **`agreements.md`** — the running registry of **confirmed decisions**. When you settle something with the agent ("we deploy as one artifact", "engine X, not Y"), it records `AGR-NNN` with a one-line statement; a changed decision supersedes the old one (`--supersedes N`) instead of leaving two active. The active list is mirrored into `CLAUDE.md`/`AGENTS.md`, so every future session — and every subagent — starts already knowing what was agreed. Manage with `/mb agree` (`add` / `question` / `list`); unconfirmed ideas park as questions until you decide.
 
@@ -318,7 +319,7 @@ The agent reads these rules at session start and follows them without you having
 
 ### 3. Dev-workflow commands
 
-**33 top-level slash-commands** (live in `commands/`):
+**34 top-level slash-commands** (live in `commands/`):
 
 | Command | Purpose |
 |---------|---------|
@@ -335,6 +336,7 @@ The agent reads these rules at session start and follows them without you having
 | `/config` | Manage `pipeline.yaml` engine config (init / show / validate / path) |
 | `/pipeline` | Manage multiple named pipelines (`pipelines/<name>.yaml`) — different models + workflow, host auto-binding (list / new / use / show / path / validate) |
 | `/profile` | Manage rule profiles and stack presets (init / show / validate / set / path) |
+| `/rules` | Key rules block at the top of CLAUDE.md / AGENTS.md — list / enable / disable / add / remove / init (onboarding) / sync, `--scope=user\|project` |
 | `/commit` | Conventional-commit message with MB context |
 | `/pr` | Create pull request with structured description |
 | `/review` | Full code review (correctness + security + perf + style) |

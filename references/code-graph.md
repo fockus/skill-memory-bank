@@ -1,5 +1,19 @@
 # Code Graph — usage
 
+## Contents
+
+- [Data schema](#data-schema)
+- [Basic jq queries](#basic-jq-queries)
+- [Practical use cases](#practical-use-cases)
+- [Decision table — graph vs grep/code-read](#decision-table--graph-vs-grepcode-read)
+- [Caveats](#caveats)
+- [When to rebuild](#when-to-rebuild)
+- [Automation](#automation)
+- [Keep the graph fresh on commit (opt-in)](#keep-the-graph-fresh-on-commit-opt-in)
+- [Intelligence layer (opt-in) — suggested questions · semantic search · wiki](#intelligence-layer-opt-in--suggested-questions--semantic-search--wiki)
+- [Semantic code search — when & how (benchmark-grounded)](#semantic-code-search--when--how-benchmark-grounded)
+- [Session memory — cross-session recall](#session-memory--cross-session-recall)
+
 > On-demand reference. The structural code-graph cookbook — jq query library,
 > `graph.json` data schema, the opt-in intelligence layer, benchmark-grounded
 > semantic-search routing, and `/mb recall` session memory — lives here so the
@@ -9,6 +23,10 @@
 
 `.memory-bank/codebase/graph.json` encodes the structural layer of the project (module/function/class nodes + import/call edges) in JSON Lines format. Use it in place of `grep -rn` for **structural** questions — deterministic, fast, and semantically grounded.
 
+`.memory-bank/codebase/`: 4 MD docs (`STACK`/`ARCHITECTURE`/`CONVENTIONS`/`CONCERNS`, via `/mb map`, auto-loaded by `/mb context`) + `graph.json` + `god-nodes.md` (`/mb graph --apply`). Prefer the graph over `grep -rn` for structural questions. Example: `jq -c 'select(.type=="edge" and .dst=="WriteFile")' .memory-bank/codebase/graph.json`.
+
+- **Opt-in layers** (off by default, base output byte-identical): `/mb graph --questions` (suggested questions in `god-nodes.md`) · `/mb graph --cochange` (`co_change` edges from git history) · `/mb graph --docs` (enrich nodes with `signature`+`doc` for richer semantic search) · `mb-graph.sh search "<query>" [--source-only]` (semantic search — a phrase → embeddings, one exact name → BM25; cached under `.index/codesearch/`) · `/mb wiki` (LLM per-community wiki + "surprising connections" = `semantic` edges, runs as subagents, no API key). **Routing:** concept/exact name→`mb-graph.sh search` · who-calls/impact/tests→`mb-graph.sh <cmd> <Symbol>` · god-node→`god-nodes.md` · why→wiki/`recall`. Table → `references/code-graph.md` (`/mb help`).
+
 ### Data schema
 
 ```jsonc
@@ -17,6 +35,9 @@
 {"type":"node", "kind":"function", "name":"FuncName",         "file":"...", "line":N}
 {"type":"node", "kind":"class",    "name":"ClassName",        "file":"...", "line":N}
 // Optional: "community":N — Louvain cluster id, added when networkx is installed.
+//   Absent on files with no file-level edge (singletons are not clusters).
+//   `mb-codegraph.py` re-execs under the bootstrap venv (`hooks/mb-semantic-bootstrap.sh`
+//   installs the [codegraph] extra there) when the current python lacks networkx.
 // Optional (only with `/mb graph --apply --docs`): "signature" + "doc" enrich nodes
 //   so semantic search matches intent words, not just identifiers:
 {"type":"node", "kind":"function", "name":"verifySignature", "file":"...", "line":N, "signature":"(req, secret)", "doc":"HMAC-SHA256 verify with nonce TTL"}
@@ -102,7 +123,7 @@ jq -r 'select(.type=="edge" and .kind=="import" and (.dst|contains("internal/cor
 
 - **Call resolution.** Python `call` edges are **import-aware** — resolved through the file's actual imports (local `def` > explicit/relative/aliased import > star-import > unique project-wide fallback; homonyms suppressed). The tree-sitter languages (Go/JS/TS/Rust/Java) stay **name-based** (no type inference): generic names (`Error`, `New`, `String`, `Run`, `Close`, `Background`, `Now`, `Execute`) in `god-nodes.md` are lexical false-positives there — filter generics when analysing top-degree nodes.
 - **Vendored code.** By default `skip_dirs = {.venv, __pycache__, node_modules, .git, target, dist, build}`. Projects with `vendor/` or `third_party/` (e.g. Go projects vendoring langchaingo) need a **project-local patched copy** in `.memory-bank/scripts/mb-codegraph-local.py` that adds those paths to `skip_dirs`. Run with: `PYTHONPATH="$HOME/.claude/skills/memory-bank" python3 .memory-bank/scripts/mb-codegraph-local.py --apply`.
-- **Language coverage.** Python always works (stdlib `ast`). Go / JS / TS / Rust / Java require `pip install tree-sitter tree-sitter-<lang>` (opt-in). Without tree-sitter, non-Python files are silently skipped (graceful degradation).
+- **Language coverage.** Python always works (stdlib `ast`). Go / JS / TS / Rust / Java require tree-sitter + grammars (opt-in): `hooks/mb-semantic-bootstrap.sh` installs them with networkx into the bootstrap venv, and `mb-codegraph.py` re-execs under it. Without tree-sitter, non-Python files are silently skipped (graceful degradation).
 - **Rebuild cost.** Incremental via SHA256 cache in `.cache/` — unchanged files are skipped. First run on a 1000-file project: ~3-5 min. Subsequent runs: seconds.
 
 ### When to rebuild
@@ -146,7 +167,7 @@ Beyond the deterministic structural graph, three **opt-in** layers add what plai
 
 - **Suggested questions** — `/mb graph --apply --questions`. Appends a *"Suggested questions"* section to `god-nodes.md`: deterministic, $0 starting points derived from graph structure (highest-degree symbols, bridge files by betweenness, large / low-cohesion clusters, co-changing pairs). Use it to orient in an unfamiliar codebase before diving in.
 - **Co-change edges** — `/mb graph --apply --cochange`. Adds `co_change` edges from **git history** (files that change together across commits) — coupling the static graph misses. Query: `jq -c 'select(.type=="edge" and .kind=="co_change")' .memory-bank/codebase/graph.json`. High co-change with **no** structural edge = hidden/implicit coupling worth a second look.
-- **Semantic search** — `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<query>" [--backend auto|bm25|embeddings] [--source-only] [--k N]`. Answers *"where is the logic for X?"* by ranking graph symbols (+ wiki articles, if built) by relevance. `--backend auto` (default) = when local `fastembed` **embeddings** are installed, the embeddings and BM25 rankings are **fused via Reciprocal Rank Fusion (RRF)** (concept recall + exact-name precision); without embeddings it stays pure-Python **BM25** ($0, zero deps, byte-identical to the embeddings-absent path). Explicit `--backend bm25`/`embeddings` skip the fusion. `--source-only` drops test/spec files (find the implementation, not its tests) — it filters AFTER retrieval, so it shares the one warm matrix instead of re-encoding a second corpus. `/mb graph --apply` warms that cache in the background, and the CLI re-execs itself under the interpreter that has `fastembed` (`~/.claude/hooks/.venv/bin/python`), so the plain `python3 …` invocation above reads the ready vector matrix from `.memory-bank/.index/codesearch/` (~1 s). A cold index never blocks a query: it answers from BM25 with a warning and builds the matrix in a detached child, so the next query is warm. Build the graph with `/mb graph --apply --docs` so nodes carry `signature`+`doc` and the index matches intent, not just names. See the routing table below.
+- **Semantic search** — `bash "$SKILL_DIR"/scripts/mb-graph.sh search "<query>" [--source-only] [--k N]` (one token → BM25, a phrase → embeddings); the underlying `python3 "$SKILL_DIR"/scripts/mb-semantic-search.py "<query>" [--backend auto|bm25|embeddings] [--source-only] [--k N]` exposes the backend choice. Answers *"where is the logic for X?"* by ranking graph symbols (+ wiki articles, if built) by relevance. `--backend auto` (default) = when local `fastembed` **embeddings** are installed, the embeddings and BM25 rankings are **fused via Reciprocal Rank Fusion (RRF)** (concept recall + exact-name precision); without embeddings it stays pure-Python **BM25** ($0, zero deps, byte-identical to the embeddings-absent path). Explicit `--backend bm25`/`embeddings` skip the fusion. `--source-only` drops test/spec files (find the implementation, not its tests) — it filters AFTER retrieval, so it shares the one warm matrix instead of re-encoding a second corpus. `/mb graph --apply` warms that cache in the background, and the CLI re-execs itself under the interpreter that has `fastembed` (`~/.claude/hooks/.venv/bin/python`), so the plain `python3 …` invocation above reads the ready vector matrix from `.memory-bank/.index/codesearch/` (~1 s). A cold index never blocks a query: it answers from BM25 with a warning and builds the matrix in a detached child, so the next query is warm. Build the graph with `/mb graph --apply --docs` so nodes carry `signature`+`doc` and the index matches intent, not just names. See the routing table below.
 - **Wiki + surprising connections** — `/mb wiki` (LLM, via host subagents — **no API key**). **Haiku** writes one article per community → `codebase/wiki/community-<N>.md` + `index.md`; **Sonnet** finds *surprising connections* (semantically related files with **no** import/call/inherit edge) and merges them as `semantic` edges (`confidence` + `rationale`, validated + **idempotent**). The wiki articles also feed semantic search. Run/refresh after a major feature when you want a navigable map + the non-obvious links the static graph cannot derive. `--dry-run` previews the dispatch plan without spending tokens.
 
 #### `semantic` edge confidence bands
@@ -165,21 +186,23 @@ confidence by them, and `mb-wiki.py merge-edges` enforces the floor (`wiki_store
 The `< 0.5` floor is enforced deterministically, so a `semantic` edge in `graph.json`
 always means `confidence ≥ 0.5` regardless of what the model proposed.
 
-**Routing for the code-agent:** exact structural question ("who calls / imports / inherits X?") → `jq` over `graph.json`; intent/fuzzy ("where is the logic for X?", "find similar") → `mb-semantic-search.py`; "what else changes with this file?" → `co_change` edges; "give me a map / the non-obvious links" → `/mb wiki`. **Fail open:** missing/stale graph → suggest `/mb graph --apply`; missing optional dep (`networkx` for communities, `fastembed` for embeddings) → degrade and surface the one-line install, never block the task.
+**Routing for the code-agent:** exact structural question ("who calls X?") → `mb-graph.sh who-calls X` ("imports / inherits" → `jq` over `graph.json`); intent/fuzzy ("where is the logic for X?", "find similar") → `mb-graph.sh search "<query>"`; "what else changes with this file?" → `co_change` edges; "give me a map / the non-obvious links" → `/mb wiki`. **Fail open:** missing/stale graph → suggest `/mb graph --apply`; missing optional dep (`networkx` for communities, `fastembed` for embeddings) → degrade and surface the one-line install, never block the task.
 
 ### Semantic code search — when & how (benchmark-grounded)
 
 `mb-semantic-search.py` ranks code-graph symbols by relevance; `mb-graph-query.py` traverses the graph structurally. They answer *different* questions — pick by intent (empirically benchmarked on a real repo: embeddings win concept queries, BM25 wins exact names, neither does graph-analytics):
 
-Shorthand below: `$G = .memory-bank/codebase/graph.json` (mb-graph-query requires `--graph $G` on every subcommand).
+The lead command is `mb-graph.sh` (`bash "$SKILL_DIR"/scripts/mb-graph.sh …` with `SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"` bound in the same shell call, run from the project; it finds the bank from any subdirectory, `MB_PATH=<bank>` for a global bank). It wraps both tools; exit codes: 0 ok, 1 no match, 2 usage, 3 missing graph, 4 no Memory Bank. Shorthand for the underlying reference commands: `$G = .memory-bank/codebase/graph.json` (mb-graph-query requires `--graph $G` on every subcommand).
 
 | You want… | Command | Why |
 |---|---|---|
-| concept / "how does X work" / synonym (no exact name) | `mb-semantic-search.py "how does auth work" .memory-bank --backend embeddings` | vectors match *meaning* — finds `auth/*` even with no "authentication" token (requires `fastembed`; else degrades to BM25) |
-| an exact symbol/keyword you already know | `mb-semantic-search.py "pickWeighted" .memory-bank --backend bm25` | lexical, sharp score separation, fastest |
+| concept / "how does X work" / synonym (no exact name) | `mb-graph.sh search "how does auth work"` (a phrase → embeddings) | vectors match *meaning* — finds `auth/*` even with no "authentication" token (requires `fastembed`; else degrades to BM25) |
+| an exact symbol/keyword you already know | `mb-graph.sh search pickWeighted` (one token → BM25) | lexical, sharp score separation, fastest |
 | the implementation, not its tests | append `--source-only` | drops `*test*` / `*.spec.*` / `__tests__/` / `test_*.py` |
-| "what breaks if I change X" / blast-radius | `mb-graph-query.py impact --graph $G --symbol X` | directed dependents — a *retriever cannot answer this* |
-| which tests cover X | `mb-graph-query.py tests --graph $G --symbol X` | call-edge traversal into test files |
+| who calls X | `mb-graph.sh who-calls X` (= `mb-graph-query.py neighbors --graph $G --symbol X --direction in`) | only edges whose target is X itself — no file-level imports, no outgoing calls |
+| "what breaks if I change X" / blast-radius | `mb-graph.sh impact X` (= `mb-graph-query.py impact --graph $G --symbol X`) | directed dependents — a *retriever cannot answer this* |
+| which tests cover X | `mb-graph.sh tests X` (= `mb-graph-query.py tests --graph $G --symbol X`) | call-edge traversal into test files |
+| a file instead of a symbol, both directions, JSON | `mb-graph-query.py neighbors\|impact\|tests --graph $G --file path [--direction out\|both] [--json]` | flags the wrapper does not carry |
 | the most-connected hub / refactor bridge | `mb-graph-query.py summary --graph $G --out-dir .memory-bank/codebase` + `god-nodes.md` | a fact about node *degree*, not text — search misses it |
 | "why was it built this way" (rationale/trade-off) | `/mb wiki` `semantic` edges · `/mb recall` | design intent isn't in code symbols |
 
@@ -191,5 +214,5 @@ Shorthand below: `$G = .memory-bank/codebase/graph.json` (mb-graph-query require
 The skill logs every session to `.memory-bank/session/*.md` (git-tracked markdown) via lifecycle hooks (Stop → per-turn bullet, SessionEnd → Haiku summary + gated Sonnet auto-notes, SessionStart → injects recent sessions). This is **persistent project memory that carries across chats**, distinct from the codebase graph.
 
 - **`/mb recall <query>`** — **progressive-disclosure** recall over `session/` + `notes/`: the default is a compact index (one `id · age · summary · source` line per hit, no chunk bodies), `--expand <id>` returns one full chunk, `--full` keeps the legacy bodies. Semantic + lexical hits are **RRF-fused** when the semantic backend is available (fail-open to **lexical-only** otherwise); `[SUPERSEDED]` chunks sort last. Use for *"did we discuss X before?"*, *"why did we choose Y?"*, *"have we hit this error?"* — before re-deriving something from scratch.
-- Distinct from `/mb search` (searches core MB files) and from semantic code search (`mb-semantic-search.py`, searches the code graph). Session memory = conversation history; code graph = structure; core files = status/plan.
+- Distinct from `/mb search` (searches core MB files) and from semantic code search (`mb-graph.sh search`, searches the code graph). Session memory = conversation history; code graph = structure; core files = status/plan.
 - **Off-switch:** `export MB_SESSION_CAPTURE=off` disables capture. Recall stays read-only and safe even when capture is off.

@@ -60,18 +60,28 @@ def test_rules_md_points_to_code_graph_reference():
 
 
 # ── rules/CLAUDE-GLOBAL.md — the injected CLAUDE.md block ─────────────────
+# The global block is loaded in every session of every project, so the opt-in
+# layer and session-memory procedures moved verbatim into the skill references
+# (anthropic-skill-guide-compliance Sprint 2 Stage 3). These tests follow them
+# there and keep the global block from growing them back.
 
-def test_claude_global_mentions_opt_in_layers():
+SESSION_MEMORY = REPO_ROOT / "references" / "session-memory.md"
+
+
+def test_opt_in_layers_summary_lives_in_code_graph_ref_not_global_block():
+    assert "**Opt-in layers**" in _text(CODE_GRAPH), \
+        "references/code-graph.md must carry the opt-in layers summary"
     txt = _text(CLAUDE_GLOBAL)
-    assert "mb-semantic-search" in txt or "/mb wiki" in txt, \
-        "rules/CLAUDE-GLOBAL.md must mention the opt-in graph layers"
-    assert "--questions" in txt and "--cochange" in txt, \
-        "rules/CLAUDE-GLOBAL.md must mention --questions and --cochange"
+    assert "--questions" not in txt and "--cochange" not in txt, \
+        "rules/CLAUDE-GLOBAL.md is always loaded; opt-in graph layers belong to the skill"
 
 
-def test_claude_global_mentions_session_memory_recall():
-    assert "/mb recall" in _text(CLAUDE_GLOBAL), \
-        "rules/CLAUDE-GLOBAL.md must point the agent at /mb recall (session memory)"
+def test_session_memory_recall_summary_lives_in_session_memory_ref_not_global_block():
+    assert "**Session memory (cross-chat):**" in _text(SESSION_MEMORY), \
+        "references/session-memory.md must point the agent at /mb recall"
+    assert "/mb recall" in _text(SESSION_MEMORY)
+    assert "MB_SESSION_CAPTURE=off" not in _text(CLAUDE_GLOBAL), \
+        "rules/CLAUDE-GLOBAL.md is always loaded; session-memory procedure belongs to the skill"
 
 
 # ── references/claude-md-template.md — generated project CLAUDE.md ────────

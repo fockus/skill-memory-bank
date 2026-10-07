@@ -1,5 +1,13 @@
 # Calibration examples — frontend
 
+## Contents
+
+- `FE-LOGIC-001` — logic (major)
+- `FE-CODE-001` — code_rules (major)
+- `FE-SEC-001` — security (blocker)
+- `FE-SCALE-001` — scalability (major)
+- `FE-TESTS-001` — tests (blocker)
+
 React/Vue/Svelte UI-specific skill-baseline examples (reviewer-2.0,
 design.md §4). One block per reviewer category
 (`logic`/`code_rules`/`security`/`scalability`/`tests`).

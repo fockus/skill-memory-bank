@@ -1,5 +1,5 @@
 ---
-description: Scan code for security vulnerabilities (OWASP, secrets, dependencies)
+description: "Scans code for security vulnerabilities (OWASP, secrets, dependencies). Use when asked «проверь безопасность», a security audit, or before releasing auth or input-handling code."
 allowed-tools: [Read, Glob, Grep, Bash]
 argument-hint: "[scope-path]"
 ---

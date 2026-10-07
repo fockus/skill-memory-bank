@@ -1,5 +1,16 @@
 # Command File — Canonical Template
 
+## Contents
+
+- [Frontmatter contract](#frontmatter-contract)
+  - [Keys](#keys)
+  - [Anti-patterns to avoid](#anti-patterns-to-avoid)
+- [Body structure](#body-structure)
+- [Example 1 — minimal command (≤20 lines)](#example-1--minimal-command-20-lines)
+- [Example 2 — complex command with stack detection](#example-2--complex-command-with-stack-detection)
+- [Alias commands](#alias-commands)
+- [Validation checklist (before committing a command change)](#validation-checklist-before-committing-a-command-change)
+
 Shape rules for every file in `commands/` (except `mb.md`, which has a custom router structure).
 
 Read before creating or editing a command so the description, tool whitelist, and argument hint all load into the host UI (Claude Code, OpenCode, Cursor).

@@ -107,7 +107,8 @@ actions_pending=4
   - plan.md: add <!-- mb-active-plans --> block
   - STATUS.md: add <!-- mb-active-plans --> block
   - STATUS.md: add <!-- mb-recent-done --> block
-  - BACKLOG.md: restructure to skeleton (## Ideas + ## ADR)
+  - BACKLOG.md: restructure to skeleton (## Ideas)
+  - adr.md: create ADR registry
 ```
 
 ### 3. Apply
@@ -124,8 +125,8 @@ This:
   into proper block entries.
 - Renames heading `## Active plan` → `## Active plans`.
 - Ensures `STATUS.md` has the two new marker blocks (empty if you had none).
-- Ensures `BACKLOG.md` has `## Ideas` and `## ADR` sections (appended if
-  missing, leaves existing content untouched).
+- Ensures `BACKLOG.md` has a `## Ideas` section (appended if missing, leaves
+  existing content untouched) and creates `adr.md` (the ADR registry) if absent.
 
 Rerunning is a no-op (`actions_pending=0`).
 
@@ -147,7 +148,7 @@ grep -c "<!-- mb-active-plans -->" .memory-bank/plan.md .memory-bank/STATUS.md
 | -------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `/mb idea "<title>" [HIGH\|MED\|LOW]`        | Append a new idea to `BACKLOG.md ## Ideas` with monotonic `I-NNN`.                   |
 | `/mb idea-promote <I-NNN> <type>`            | Promote idea to a plan (`feature\|fix\|refactor\|experiment`); flips status.         |
-| `/mb adr "<title>"`                          | Capture an ADR in `BACKLOG.md ## ADR` with the standard skeleton.                    |
+| `/mb adr "<title>"`                          | Capture an ADR in `adr.md` with the standard skeleton.                               |
 | `/mb migrate-structure [--dry-run\|--apply]` | One-shot structural migration (this doc).                                            |
 | `/mb compact [--apply]`                      | Existing decay pass — now also compacts `checklist.md` and `plan.md` (see above).    |
 

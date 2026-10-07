@@ -207,9 +207,11 @@ fi
 # Fail-open: any error skips the section without aborting mb-context.sh (set -e safe).
 _graph_section() {
   local graph_json="$MB_PATH/codebase/graph.json"
-  local gq
-  gq="$(dirname "$0")/mb-graph-query.py"
-  local build_cmd="python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply --docs $MB_PATH ."
+  # Resolved bundle dir: every printed command runs on any host (no ~/.claude alias).
+  local sd gq build_cmd
+  sd="$(cd "$(dirname "$0")" && pwd)"
+  gq="$sd/mb-graph-query.py"
+  build_cmd="python3 $sd/mb-codegraph.py --apply --docs $MB_PATH ."
   echo "--- Code graph ---"
   if [[ ! -f "$graph_json" ]]; then
     echo "  not built → build: $build_cmd"
@@ -228,7 +230,7 @@ age = d.get("age_hours")
 behind = d.get("commits_behind")
 age_s = "age %.0fh" % age if isinstance(age, (int, float)) else "age n/a"
 behind_s = "" if behind is None else ", %d commits behind" % behind
-rebuild = "python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply --docs . ."
+rebuild = sys.argv[1]
 if d.get("stale"):
     print("  stale (%s%s) -> rebuild: %s" % (age_s, behind_s, rebuild))
 else:
@@ -238,15 +240,16 @@ e = d.get("edges")
 n = "?" if n is None else n
 e = "?" if e is None else e
 print("  nodes=%s edges=%s" % (n, e))
-' 2>/dev/null || echo "  (freshness parse unavailable)"
+' "$build_cmd" 2>/dev/null || echo "  (freshness parse unavailable)"
   else
     # Degrade to existence + mtime only (no python3 / no query script).
     echo "  present (freshness unavailable — needs python3); rebuild: $build_cmd"
     echo "  nodes=? edges=?"
   fi
   echo "  god-nodes: $MB_PATH/codebase/god-nodes.md"
-  echo "  impact before refactor: python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph $graph_json --symbol <Name>"
-  echo "  concept search: python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py \"<question>\" $MB_PATH --source-only"
+  local mgs="$sd/mb-graph.sh"
+  echo "  query: bash $mgs who-calls|impact|tests <Name>"
+  echo "  concept search: bash $mgs search \"<question>\" --source-only"
   echo ""
 }
 if [[ -d "$MB_PATH/codebase" ]]; then

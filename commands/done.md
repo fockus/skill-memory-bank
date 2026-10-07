@@ -1,5 +1,5 @@
 ---
-description: End session — actualize core MB files, create a note, append to progress
+description: "Ends the session — actualizes core MB files, creates a note, appends to progress. Use when wrapping up — «закончили», «сохрани прогресс», end of session."
 allowed-tools: [Bash, Read, Edit, Write, Task]
 ---
 

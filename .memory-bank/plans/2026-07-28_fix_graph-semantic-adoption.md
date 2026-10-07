@@ -15,9 +15,9 @@ created: 2026-07-28
 
 **Замер 2026-09-06 (владелец: «графы не используются — сделать, чтобы использовались», AGR-044).** Прогон `/mb work` Stage 4 cost-diet на этом репо: implementer (opus) — 7 запросов к графу (`status`, `catchup`, `impact`×2, `neighbors`×2, `tests`) против 6 grep, потому что его промпт (`mb-developer.md`) велит начать со `status`; verifier (sonnet) — **0** запросов к графу против 16 grep: в диспатч verify (`commands/work.md` §5c) `mb-tooling-core.md` не подмешивается, в отличие от §5a; nudge-хук в сабагентах не сработал ни разу — лимит «раз за сессию» израсходовала основная сессия. Покрытие: `graph.json` содержит 267 модулей `.py` и **ни одного из 155 `.sh` и 249 `.bats`** — для основного кода этого скила граф пуст, `graph_tests scripts/x.sh` не может ничего вернуть; семантический индекс `.index/codesearch/` не построен. Вывод: три причины неиспользования — (1) нечего спрашивать (покрытие), (2) никто не подсказывает в нужный момент (nudge/диспатч), (3) ответ нужно «тянуть», а не получать готовым (push-модель). Стадии 6–7 закрывают (1) и (3) и контракты ролей; стадии 1–5 — (2) и свежесть индексов. Сторожевой LLM-сабагент не нужен: детерминированные хуки + метрика `graph_share` + INFO-строка verifier'а дают ту же информацию без затрат.
 
-**Порядок исполнения:** 6 (покрытие) → 2 (bootstrap индексов) → 8 (тёплый индекс достижим) → 3 (catchup) → 1 (nudge v2) → **4 (враппер) → 5 (статус в диспатче)** → 7 (граф в каждом диспатче + замер). План — пререквизит cost-diet Sprint 2 (`depends_on` там).
+**Порядок исполнения:** 6 (покрытие) → 2 (bootstrap индексов) → 8 (тёплый индекс достижим) → 3 (catchup) → 1 (nudge v2) → **4 (враппер) → 9 (Communities без networkx) → 10 (networkx в bootstrap) → 11 (детерминизм кластеров) → 5 (статус в диспатче)** → 7 (граф в каждом диспатче + замер). План — пререквизит cost-diet Sprint 2 (`depends_on` там).
 
-Хвост пере-упорядочен 2026-09-25 по AGR-049: исходный `1 → 5 → 4 → 7` противоречив — Stage 5 обязана инжектить готовую команду `mb-graph.sh`, который создаётся только Stage 4, а текст nudge из Stage 1 иначе правится дважды. Stage 8 вставлена между 2 и 3 по AGR-047/AGR-048.
+Хвост пере-упорядочен 2026-09-25 по AGR-049: исходный `1 → 5 → 4 → 7` противоречив — Stage 5 обязана инжектить готовую команду `mb-graph.sh`, который создаётся только Stage 4, а текст nudge из Stage 1 иначе правится дважды. Stage 8 вставлена между 2 и 3 по AGR-047/AGR-048. Stage 9 вставлена между 4 и 5 по AGR-050; стадии 10 и 11 — после 9 по AGR-051 и AGR-052.
 
 **Problem:** Замер по транскриптам за 14 дней (28.07.2026): ~7 400 bash-grep против 43 вызовов `mb-graph-query`, ~0 настоящих вызовов `mb-semantic-search` — при том, что весь инструментарий реализован. Причины, подтверждённые фактами:
 1. Векторный индекс `.index/codesearch/` физически существует только в FaberlicApp; в skill-memory-bank / taskloom / code-agent-cli его нет — первый запрос должен минуты строить индекс, поэтому не бутстрапится никогда (паттерн AGR-025/memsearch). Venv с fastembed при этом готов (`~/.claude/hooks/.venv`).
@@ -51,10 +51,10 @@ created: 2026-07-28
 - bats (`test_mb_graph_nudge.bats`, новые кейсы красными до правок): re-nudge на (N+1)-м структурном вызове; извлечение символа из `grep -rn "def resolve_target" src/`; отсутствие nudge при `MB_GRAPH_NUDGE=off`; нестуктурный Bash-вызов → `{}` без создания маркера.
 
 **DoD (Definition of Done):**
-- [ ] Новые bats-кейсы были красными до реализации (прогон зафиксирован), зелёные после; старые кейсы не сломаны
-- [ ] Nudge содержит подставленный символ из реального паттерна (проверено в bats на фикстурном вводе)
-- [ ] Повторный nudge наблюдаем: 2 nudge за один прогон с 2N+1 структурными вызовами (bats)
-- [ ] shellcheck чистый по изменённому хуку
+- [x] Новые bats-кейсы были красными до реализации (прогон зафиксирован), зелёные после; старые кейсы не сломаны
+- [x] Nudge содержит подставленный символ из реального паттерна (проверено в bats на фикстурном вводе)
+- [x] Повторный nudge наблюдаем: 2 nudge за один прогон с 2N+1 структурными вызовами (bats)
+- [x] shellcheck чистый по изменённому хуку
 
 **Code rules:** KISS (счётчик в файле, без нового состояния), fail-safe `{}` на всех ошибочных путях.
 
@@ -113,9 +113,10 @@ created: 2026-07-28
 - bats: `who-calls` делегирует с правильными аргументами (стаб mb-graph-query.py фиксирует argv); резолв банка из подкаталога проекта; неизвестная подкоманда → usage + rc≠0; `search <CamelCase>` уходит в bm25, фразовый запрос — в embeddings.
 
 **DoD:**
-- [ ] bats красные → зелёные; shellcheck чистый
-- [ ] Подсказка в nudge и quick-ref ≤2 строк и использует `mb-graph.sh` (grep по текстам хуков в bats)
-- [ ] Реальный прогон: `scripts/mb-graph.sh who-calls WriteFile` в этом репо отвечает <2с
+- [x] bats красные → зелёные; shellcheck чистый
+- [x] Подсказка в nudge и quick-ref ≤2 строк и использует `mb-graph.sh` (grep по текстам хуков в bats)
+- [x] Реальный прогон: `scripts/mb-graph.sh who-calls mb_resolve_path` в этом репо отвечает <2с и возвращает вызывающих (rc 0)
+  _Уточнено 2026-09-30 по verify Stage 4: исходный `WriteFile` — Go-пример из CLAUDE.md, в графе этого репо его нет; прогон укладывался в 0.19 с, но отвечал `no_match`, то есть проверял только время, не корректность._
 
 **Code rules:** DRY — все подсказки ссылаются на одну команду; тонкий враппер без логики.
 
@@ -173,7 +174,7 @@ created: 2026-07-28
 - `commands/work.md`: §5c (verify), §5d (review), §5e (judge) подмешивают `agents/mb-tooling-core.md` перед промптом роли так же, как §5a (сегодня — только §5a, отсюда 0 запросов у verifier). Push-модель: оркестратор кладёт в промпт всех трёх ролей готовый блок `## Graph` — вывод `mb-graph-query.py tests|impact` по `Files:` item (≤ 40 строк, fail-open: нет графа → одна строка «graph unavailable: <reason>»); когда появится context pack (cost-diet Sprint 2 Stage 3), блок переезжает туда.
 - Контракты ролей: `agents/mb-engineering-core.md` §1 «graph-first» + в отчёт implementer строка `Graph: <n> queries (impact/neighbors/tests) | unavailable: <reason>`; `agents/plan-verifier.md` Step 3.5 — тесты для diff берутся через `graph_tests`, INFO если в отчёте implementer нет строки `Graph:`; `agents/mb-reviewer.md`, `mb-reviewer-logic.md`, `mb-judge.md` — blast-radius через `impact` для каждого touched-файла перед вердиктом (детерминированно, дёшево).
 - `hooks/mb-graph-nudge.sh`: маркер троттла ключуется по сессии **и** агенту (`CLAUDE_AGENT_ID` / путь транскрипта), чтобы каждый сабагент имел свой бюджет nudge (сегодня основная сессия съедает единственный); совместимо со Stage 1 (повтор каждые N).
-- `scripts/mb-cost-report.py`: per role `graph_calls` (Bash-команды с `mb-graph-query.py|mb-semantic-search.py|mb-code-context.py`), `grep_calls` (Grep-tool + Bash `grep -r`/`rg `), `graph_share = graph/(graph+grep)` (0 без lookups) в таблице и `--json`; `--since 7` — недельный замер adoption (AGR-038).
+- `scripts/mb-cost-report.py`: per role `graph_calls` (Bash-команды с `mb-graph.sh|mb-graph-query.py|mb-semantic-search.py|mb-code-context.py` — `mb-graph.sh` добавлен 2026-09-30: с Stage 4 это ведущая команда во всех подсказках и инструкциях, без неё адопшен враппера в замере невидим), `grep_calls` (Grep-tool + Bash `grep -r`/`rg `), `graph_share = graph/(graph+grep)` (0 без lookups) в таблице и `--json`; `--since 7` — недельный замер adoption (AGR-038).
 - Сторожевой сабагент не добавляется — обоснование в Context.
 
 **Testing (TDD):**
@@ -218,6 +219,102 @@ created: 2026-07-28
 - [x] Воспроизведённый сценарий CRITICAL-2 закрыт: чередование `--source-only` и обычного запроса на тёплом индексе не даёт переднего кодирования (замер verify Stage 2: 1:00.89 и затем 3:49.81 — должно стать <2 с)
 
 **Code rules:** fail-open на всех путях (нет venv / нет индекса / фоновый запуск не удался → BM25, никогда не блокировать), 0 новых зависимостей.
+
+---
+
+<!-- mb-stage:9 -->
+### Stage 9: `--apply` без networkx не стирает Communities и Bridge files
+
+**Role:** developer
+
+**Добавлена 2026-09-30** по AGR-050 (фикс I-225). Исполняется между Stage 4 и Stage 5.
+
+**Проблема (факты).** `god-nodes.md` отслеживается git'ом, а его содержимое зависит от интерпретатора, которым пересобран граф: с networkx в отчёте есть `## Communities` и `## Bridge files`, без него — только degree-ранжирование и строка-подсказка про установку. В git-истории секция Communities есть ровно в трёх коммитах, где сборка шла под dev-`.venv` (`9fb7b32`, `3bf7ff1`, `cfee2e0`), и отсутствует во всех остальных, включая текущий HEAD. Stage 3 превратила эпизодический баг в постоянный: фоновый catchup на SessionStart поднимает `mb-codegraph.py --apply` через `sys.executable` системного `python3`, а networkx там нет — ни в системном python, ни в `~/.claude/hooks/.venv` (он ставит только fastembed+numpy). Networkx есть только в dev-`.venv` этого репо, то есть у пользователей скила его нет почти никогда.
+
+**Выбор решения.** Резолв интерпретатора с networkx (по образцу `semantic_index._semantic_python()`) у пользователей ничего не найдёт — лечит только этот репо. Поэтому чинится запись отчёта: когда networkx недоступен, а в существующем `god-nodes.md` секции Communities / Bridge files есть, `--apply` переносит их дословно из прежнего файла с явной пометкой, что они от предыдущей сборки. Без networkx секции не пересчитываются, но и не пропадают; с networkx — считаются заново, как сегодня. Установка networkx в bootstrap-venv — отдельное решение владельца (новая зависимость на машине пользователя), в объём стадии не входит.
+
+**What to do:**
+- В `memory_bank_skill/codegraph_analytics.py` (функция, собирающая отчёт `god-nodes.md`) при `communities is None` и `betweenness is None` читать прежний `god-nodes.md`, если он есть, и переносить блоки `## Communities …` и `## Bridge files …` до следующего заголовка `## ` дословно, добавив под заголовком строку-пометку `_Carried over from the previous build: networkx is unavailable in this interpreter, so these sections were not recomputed._`. Строку-подсказку про установку networkx оставить.
+- Пометку при следующей сборке с networkx не накапливать: секции пересчитываются с нуля.
+- Прежнего файла нет или секций в нём нет → поведение как сегодня.
+
+**Testing (TDD — тесты ПЕРЕД реализацией):**
+- pytest: без networkx (стаб `HAS_NX=False` / monkeypatch) и с прежним `god-nodes.md`, где есть Communities и Bridge files → новый отчёт содержит обе секции дословно + пометку, Top symbols пересчитаны.
+- pytest: без networkx и без прежнего файла → отчёта-регресса нет (секций нет, подсказка есть) — байт-в-байт как сегодня.
+- pytest: с networkx и прежним файлом, где уже стоит пометка → пометки в новом отчёте нет (не накапливается).
+- pytest: перенос не захватывает соседние секции (блок кончается на следующем `## `).
+
+**DoD:**
+- [x] pytest-кейсы красные до реализации, зелёные после; старые `test_codegraph*` зелёные
+- [x] Реальный прогон: `god-nodes.md` этого репо с секциями Communities → `python3 scripts/mb-codegraph.py --apply .memory-bank .` СИСТЕМНЫМ python3 → секции на месте с пометкой, `git diff --stat` по файлу не показывает удаления ~80 строк
+- [x] Реальный прогон: фоновый catchup на SessionStart (Stage 3) после правки исходника не удаляет Communities
+- [x] `ruff` чист; CHANGELOG
+
+**Code rules:** 0 новых зависимостей; fail-open (прежний файл нечитаем → поведение как сегодня); без изменения формата `graph.json`.
+
+---
+
+<!-- mb-stage:10 -->
+### Stage 10: networkx в bootstrap-venv + `mb-codegraph.py` под ним
+
+**Role:** developer
+
+**Добавлена 2026-09-30** по AGR-051. Исполняется после Stage 9, до Stage 11.
+
+**Проблема (факты, verify Stage 9).** Stage 9 сохранила секции Communities / Bridge files в `god-nodes.md`, но зависимость от интерпретатора осталась в двух других местах: под системным `python3` `graph.json` теряет поле `community` у всех 9491 узлов (под `.venv` — 9491 из 9491), а Top symbols / Top modules в `god-nodes.md` переключаются с PageRank на degree (~45 строк). Git-отслеживаемый граф прыгает на ~9.5 тыс. строк при каждой смене интерпретатора; `/mb wiki` читает кластеры из `graph.json` (`commands/mb.md:917`). networkx нет ни в системном `python3`, ни в `~/.claude/hooks/.venv` — только в dev-`.venv` этого репо.
+
+**What to do:**
+- `hooks/mb-semantic-bootstrap.sh`: ставить `networkx` рядом с `fastembed numpy`. Проверка готовности должна включать networkx — иначе у существующих пользователей (venv с fastembed уже есть) bootstrap напишет «ready» и networkx не доставит никогда. Если fastembed ставится, а networkx нет (или наоборот) — честная строка про то, чего не хватает, exit 0.
+- `scripts/mb-codegraph.py`: когда networkx в текущем интерпретаторе не импортируется, а `semantic_index._semantic_python()` находит интерпретатор — re-exec под ним по образцу `scripts/mb-semantic-search.py` (Stage 8, AGR-047): сравнение путей литеральное (НЕ `realpath` — venv-python симлинк на базовый бинарник, Stage 8 на этом уже спотыкалась), env-флаг против рекурсии, `OSError` от `execv` → работа как сегодня (fail-open), коды выхода и stdout не меняются. Кандидат без networkx (старый venv) — не re-exec'ать впустую: проверка импорта в кандидате или отказ после первой неудачи.
+- Путь catchup (`codegraph_catchup.py:194`, `sys.executable` + `mb-codegraph.py --apply`) и документированная команда `python3 …/mb-codegraph.py --apply` должны оба приходить к сборке с networkx — через re-exec самого `mb-codegraph.py`, а не отдельной логикой в каждом вызывающем.
+- `scripts/mb-deps-check.sh`: подсказка для networkx указывает на тот же bootstrap.
+- Документация: `commands/mb.md`, `references/code-graph.md`, `SKILL.md` — где сказано, что networkx опционален и как его получить; CHANGELOG.
+
+**Testing (TDD — tests BEFORE implementation):**
+- bats (bootstrap): venv с fastembed+numpy, но без networkx → bootstrap НЕ пишет «ready» и доставляет networkx (стаб pip фиксирует argv); всё есть → «ready», pip не зовётся.
+- pytest (re-exec): без networkx и с кандидатом → `os.execv` вызван с кандидатом (стаб); env-флаг выставлен → повтора нет; кандидат — симлинк на текущий бинарник → re-exec всё равно происходит; нет кандидата / `execv` бросает `OSError` → сборка идёт в текущем python; networkx есть в текущем → re-exec нет.
+
+**DoD:**
+- [x] Новые тесты красные до реализации, зелёные после; старые `test_codegraph*` и bootstrap-тесты зелёные
+- [x] Реальный прогон: после bootstrap `~/.claude/hooks/.venv/bin/python -c "import networkx"` → rc 0
+- [x] Реальный прогон: `python3 scripts/mb-codegraph.py --apply .memory-bank .` СИСТЕМНЫМ python3 даёт `graph.json` с `community` у всех модульных узлов и `god-nodes.md` с PageRank-ранжированием — `git diff --stat` против сборки под `.venv` на том же коде = 0 (при условии детерминизма кластеров — если I-219 мешает, сравнивать всё, кроме разбивки, и явно это отметить)
+- [x] Фоновый catchup Stage 3 приходит к тому же результату
+- [x] shellcheck, ruff, CHANGELOG
+
+**Code rules:** fail-open на всех путях; одна новая зависимость (networkx, AGR-051) и только в bootstrap-venv; переиспользовать `_semantic_python()`, не дублировать резолв.
+
+---
+
+<!-- mb-stage:11 -->
+### Stage 11: детерминированная кластеризация (I-219)
+
+**Role:** developer
+
+**Добавлена 2026-09-30** по AGR-052. Исполняется после Stage 10, до Stage 5.
+
+**Проблема (факты).** `detect_communities` (`memory_bank_skill/codegraph_analytics.py:162`) зовёт `nx.community.louvain_communities(G, seed=_SEED)` — seed задан, докстринг обещает детерминизм, но на фиксированном графе разные `PYTHONHASHSEED` дают разное число сообществ (замер I-219: 220/219/218; на графе коммита `871e407`: 13/14/14). Вероятная причина — порядок вставки узлов/рёбер в `_nx_file_graph` зависит от итерации по set/dict. После Stage 3 (фоновый catchup на SessionStart) это значит: `god-nodes.md` и поля `community` в `graph.json` меняются в git без изменений в коде. Вдобавок 188 из 217 сообществ — одиночки (132 `tests/bats/*.bats`, 16 `scripts/*.sh`, 11 `hooks/tests/*.bats`…): связь «тест → скрипт по пути» не считается файловым ребром, а одиночки дают louvain лишнюю свободу и раздувают сводку `communities=N`.
+
+**What to do:**
+- `_nx_file_graph` / `detect_communities`: строить граф с отсортированными узлами и рёбрами, чтобы результат не зависел от `PYTHONHASHSEED`. Если одной сортировки недостаточно — найти реальный источник недетерминизма и закрыть его (замером, не догадкой).
+- Одиночек (файлы без файловых рёбер) в louvain не подавать; у них нет поля `community` либо единый явный id — выбрать и задокументировать; сводка `communities=N` считает только настоящие кластеры.
+- Сохранить правило id: 0 — самое большое, тай-брейк по алфавитно первому члену.
+- Докстринг — правдивый.
+- **Дополнено 2026-09-30 по итогам verify Stage 10.** (а) `Bridge files` (выборочный betweenness поверх set `files`) тоже зависит от `PYTHONHASHSEED`: два прогона одного python подряд дают разные строки. Закрыть тем же приёмом: отсортированный вход, фиксированный seed выборки. (б) Кластеры зависят от версии networkx: при `PYTHONHASHSEED=0` dev-`.venv` (3.6.1) и bootstrap-venv (3.7) дают разные Communities (6 строк `god-nodes.md`). Сборка разработчика и фоновый catchup тогда по очереди переписывают git-отслеживаемый файл. Выровнять: одна minor-версия networkx в `pyproject.toml [codegraph]` и `hooks/lib/venv-requirements.sh` (их синхронность держит тест), dev-`.venv` обновить до неё.
+
+**Testing (TDD):**
+- pytest: один и тот же граф-фикстура под `PYTHONHASHSEED=0,1,2` (подпроцессы) → идентичный mapping файл → id. Фикстура должна воспроизводить недетерминизм на текущем коде (красный прогон обязателен — если на маленькой фикстуре не краснеет, взять граф крупнее или реальный `graph.json` этого репо).
+- pytest: одиночки не получают id кластера и не входят в сводку.
+- pytest/bats: две последовательные сборки без изменений кода → `god-nodes.md` и `graph.json` байт-в-байт.
+
+**DoD:**
+- [x] Тесты красные до реализации, зелёные после; старые `test_codegraph*` зелёные
+- [x] Реальный прогон: `.venv/bin/python scripts/mb-codegraph.py --apply .memory-bank .` три раза с `PYTHONHASHSEED=0,1,2` → `cmp` всех трёх `god-nodes.md` и `graph.json` идентичен
+- [x] Реальный прогон: фоновый catchup Stage 3 без изменений в коде не оставляет `god-nodes.md` и тело `graph.json` (всё, кроме строки meta) в `git diff`; `src_root` в meta относительный (AGR-054, 2026-10-01: meta с `generated_at`/`commit` меняется после каждого коммита по построению)
+- [x] Bootstrap readiness сверяет установленные версии с `hooks/lib/venv-requirements.sh` и переставляет несовпавший пакет; реальный `~/.claude/hooks/.venv` после bootstrap на networkx 3.6.x (AGR-054)
+- [x] Реальный прогон: сборка `.venv/bin/python` и сборка системным `python3` (re-exec в bootstrap-venv) дают побайтно одинаковые `god-nodes.md` и `graph.json`, включая Communities и Bridge files
+- [x] Сводка `communities=N` без одиночек; ruff; CHANGELOG; I-219 закрыт в бэклоге
+
+**Code rules:** 0 новых зависимостей; формат `graph.json` меняется только в части `community` у одиночек (задокументировать).
 
 ---
 

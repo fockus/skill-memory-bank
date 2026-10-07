@@ -1,5 +1,5 @@
 ---
-description: Review staged changes and create a commit
+description: "Reviews staged changes and creates a commit. Use when the user says «закоммить», «сделай коммит», commit this."
 allowed-tools: [Bash, Read]
 argument-hint: "[message-override]"
 ---
@@ -51,6 +51,18 @@ Check for (in added lines only):
 - Files that should not be committed: `.env`, `*.pem`, `*.key`, `credentials.json`
 
 If any match appears, show the findings and ask whether to continue.
+
+## 2b. Full test suite
+
+During work only targeted tests ran (AGR-071); the commit is where the full suite runs once:
+
+```bash
+bash "$SKILL_DIR"/scripts/mb-test-run.sh --dir . --out json
+```
+
+Skip it only when the full suite already ran green on this same tree state in this session (no edits
+since) — then show that earlier output instead of re-running. `tests_pass == false` → show the failures
+and ask whether to continue; `null` → say the tests were not measured.
 
 ## 3. Draft the commit message
 

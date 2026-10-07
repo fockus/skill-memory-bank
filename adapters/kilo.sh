@@ -51,24 +51,7 @@ install_kilo() {
   mkdir -p "$KILO_DIR/rules"
 
   # 1. Rules file
-  {
-    echo '# Memory Bank — Project Rules'
-    echo ''
-    echo 'This project uses the Memory Bank skill for long-term memory + dev workflow.'
-    echo ''
-    echo '**Workflow:**'
-    echo '- Start of session: read `.memory-bank/status.md`, `checklist.md`, `roadmap.md`, `research.md`'
-    echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
-    echo '- Before context window fill: manual actualize'
-    echo ''
-    if [ -f "$SKILL_DIR/rules/RULES.md" ]; then
-      echo '---'
-      echo ''
-      echo '# Global Rules'
-      echo ''
-      mb_emit_rules_file "$SKILL_DIR/rules/RULES.md"
-    fi
-  } > "$RULES_FILE"
+  mb_rule_file_body "$SKILL_DIR" "$PROJECT_ROOT" > "$RULES_FILE"
 
   # 2. Install git-hooks-fallback (mandatory — Kilo has no native hooks)
   # Pass MB_AGENT=kilo so the closure pre-commit bakes the KILO agent and resolves

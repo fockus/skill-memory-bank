@@ -48,7 +48,6 @@ IMMUTABLE_RULES: tuple[str, ...] = (
     "protected-files",
     "destructive-confirm",
     "fail-fast",
-    "dry-kiss-yagni",
     "verification-before-completion",
     "explicit-storage-choice",
 )
@@ -67,6 +66,9 @@ _CANONICAL_KEYS = frozenset(
         "strictness",
         "extras",
         "baseline",
+        "key_rules",
+        "quality",
+        "discipline",
     }
 )
 
@@ -156,16 +158,6 @@ def validate_profile(data: dict) -> list[ValidationError]:
             )
         )
 
-    # architecture (optional — defaults applied at resolve time)
-    arch = data.get("architecture", "")
-    if arch and arch not in ALLOWED_ARCHITECTURES:
-        errors.append(
-            ValidationError(
-                field="architecture",
-                message=f"architecture {arch!r} not in allowed values: {ALLOWED_ARCHITECTURES}",
-            )
-        )
-
     # delivery
     delivery = data.get("delivery", "")
     if delivery and delivery not in ALLOWED_DELIVERY:
@@ -208,6 +200,16 @@ def validate_profile(data: dict) -> list[ValidationError]:
                     )
                 )
 
+    # quality / architecture (name, list, {"custom": text}) / discipline
+    from memory_bank_skill import quality  # noqa: PLC0415 — quality imports this module
+
+    errors.extend(quality.validate_settings(data))
+
+    if "key_rules" in data:
+        from memory_bank_skill import key_rules  # noqa: PLC0415 — key_rules imports this module
+
+        errors.extend(key_rules.validate_key_rules(data["key_rules"], key_rules.load_catalog()))
+
     return errors
 
 
@@ -231,11 +233,17 @@ def parse_profile(path: Path | str) -> Profile:
         scope=data.get("scope", "user"),
         role=data["role"],
         stack=data["stack"],
-        architecture=data.get("architecture", _DEFAULTS["architecture"]),
+        architecture=_architecture_label(data.get("architecture", _DEFAULTS["architecture"])),
         delivery=data.get("delivery", _DEFAULTS["delivery"]),
         strictness=data.get("strictness", _DEFAULTS["strictness"]),
         extras=dict(data.get("extras") or {}),
     )
+
+
+def _architecture_label(value: object) -> str:
+    from memory_bank_skill.quality import architecture_label  # noqa: PLC0415 — circular import
+
+    return architecture_label(value)
 
 
 def parse_profile_safe(path: Path | str) -> Profile | None:

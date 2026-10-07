@@ -1,5 +1,18 @@
 # Running list of agreements — `.memory-bank/agreements.md`
 
+## Contents
+
+- [What IS an agreement](#what-is-an-agreement)
+- [What is NOT an agreement (anti-examples)](#what-is-not-an-agreement-anti-examples)
+- [The 4 statuses](#the-4-statuses)
+- [The visible-announce rule](#the-visible-announce-rule)
+- [ADR routing](#adr-routing)
+- [Subagents propose, never write](#subagents-propose-never-write)
+- [Lazy activation and kill-switch](#lazy-activation-and-kill-switch)
+- [Compact rules-layer trigger](#compact-rules-layer-trigger)
+- [Relation to other MB files](#relation-to-other-mb-files)
+- [At a glance (moved from SKILL.md)](#at-a-glance-moved-from-skillmd)
+
 Protocol for the canonical registry of **confirmed decisions currently in force** — a layer
 distinct from `progress.md` (what happened), ADRs (why we chose it), and `RULES.md` (how we always
 work). Battle-tested problem: in long sessions decisions get buried in dozens of messages — the
@@ -110,7 +123,17 @@ The always-on trigger text that ships in `rules/CLAUDE-GLOBAL.md` and `rules/RUL
   block, edit the registry and run `sync`.
 - `progress.md` stays the narrative log (what happened, when); the registry is not a duplicate of
   it — an agreement is the *outcome* of a discussion, not the discussion itself.
-- `backlog.md`'s ADR section carries rationale for the subset of agreements big enough to need one
+- `adr.md` (the ADR registry) carries rationale for the subset of agreements big enough to need one
   (`→ ADR-NNN`); the registry never repeats that rationale.
 - `/mb verify` (`agents/plan-verifier.md`) reads `## Active` and checks the plan/diff against every
   entry — see the "Agreement Compliance" step there for the fail-or-supersede gate.
+
+## At a glance (moved from SKILL.md)
+
+- **Lazy activation, opt-in by nature:** the rules trigger ships with the skill for every project,
+  but zero files/blocks exist until the first `/mb agree add` — no added tokens in banks that never
+  use the feature. Kill-switch: `MB_AGREEMENTS=off` (env or `.mb-config`).
+- **Model conduct:** only an explicitly confirmed user decision is written, announced visibly as
+  `→ AGR-NNN записано: <statement>`; unconfirmed hypotheses go to Open Questions instead.
+- **`/mb verify` integration:** when `agreements.md` exists, the Plan Verifier classifies every
+  active agreement as satisfied / violated / not-applicable; a violation fails the verdict.

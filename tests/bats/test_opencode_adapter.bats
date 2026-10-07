@@ -28,6 +28,9 @@ setup() {
   # Isolated $HOME sandbox (adapter-parity T5: global agent roster lands under
   # $HOME/.config/opencode/agent — must never touch the real dev machine).
   SANDBOX_HOME="$(mktemp -d)"
+  # Keep a user-site PyYAML importable when a test moves HOME (tier-model render).
+  PYTHONUSERBASE="$(python3 -m site --user-base)"
+  export PYTHONUSERBASE
   export HOME="$SANDBOX_HOME"
 }
 
@@ -423,6 +426,7 @@ EOF
   # Partials (prepended by /mb work, never dispatched standalone) must be excluded.
   [ ! -f "$agent_dir/mb-engineering-core.md" ]
   [ ! -f "$agent_dir/mb-tooling-core.md" ]
+  [ ! -f "$agent_dir/mb-discipline-strict.md" ]
   # At least 5 dispatchable agents installed (DoD: "≥5 others").
   local n
   n=$(find "$agent_dir" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
@@ -810,6 +814,7 @@ STUB
   [ -f "$gdir/mb-reviewer.md" ]
   [ ! -f "$gdir/mb-engineering-core.md" ]
   [ ! -f "$gdir/mb-tooling-core.md" ]
+  [ ! -f "$gdir/mb-discipline-strict.md" ]
   grep -q '^# MB Developer' "$gdir/mb-developer.md"
   # Project scope was never touched by this global-only action.
   [ ! -d "$PROJECT/.opencode/agent" ]
@@ -877,4 +882,35 @@ STUB
   n2=$(find "$gdir" -maxdepth 1 -type f -name '*.md' ! -name '*.pre-mb-backup.*' | wc -l | tr -d ' ')
   [ "$n1" -eq "$n2" ]
   grep -q '^# MB Developer' "$gdir/mb-developer.md"
+}
+
+# ═══ Stage 4b (AGR-074): the tier model lands in the installed agents ═══
+
+@test "opencode: install renders the project profile model into .opencode/agent (provider/id)" {
+  python3 -c 'import yaml' 2>/dev/null || skip "PyYAML required"
+  printf 'roles:\n  developer: {agent: mb-developer}\n  reviewer: {agent: mb-reviewer}\nmodel_profiles:\n  opencode: {premium: openai/gpt-6-astra, mid: openai/gpt-6.1-sol}\n' \
+    > "$PROJECT/.memory-bank/pipeline.yaml"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  assert_substring "$(cat "$PROJECT/.opencode/agent/mb-developer.md")" $'\nmodel: openai/gpt-6.1-sol\n'
+  assert_substring "$(cat "$PROJECT/.opencode/agent/mb-reviewer.md")" $'\nmodel: openai/gpt-6-astra\n'
+  refute_substring "$(cat "$PROJECT/.opencode/agent/mb-doctor.md")" $'\nmodel:'
+}
+
+@test "opencode: no profile → installed agents carry no model" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  refute_substring "$(cat "$PROJECT/.opencode/agent/mb-developer.md")" $'\nmodel:'
+}
+
+@test "opencode: render-agents re-renders installed agents from a given pipeline, no backups" {
+  python3 -c 'import yaml' 2>/dev/null || skip "PyYAML required"
+  run_adapter install "$PROJECT"
+  printf 'roles:\n  developer: {agent: mb-developer}\nmodel_profiles:\n  opencode: {premium: a/p, mid: a/m}\n' > "$PROJECT/p.yaml"
+  run_adapter render-agents "$PROJECT" "$PROJECT/p.yaml"
+  [ "$status" -eq 0 ]
+  assert_substring "$output" "re-rendered"
+  assert_substring "$(cat "$PROJECT/.opencode/agent/mb-developer.md")" $'\nmodel: a/m\n'
+  run ls "$PROJECT/.opencode/agent"
+  refute_substring "$output" "pre-mb-backup"
 }

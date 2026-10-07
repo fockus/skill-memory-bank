@@ -1,5 +1,5 @@
 ---
-description: Select a route directly (skip classification) — the explicit override escape-hatch
+description: "Selects a route directly (skip classification) — the explicit override escape-hatch. Use when the user already knows the route and wants to bypass /mb analyze-task."
 allowed-tools: [Bash, Read]
 ---
 

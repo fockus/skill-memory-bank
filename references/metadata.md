@@ -1,5 +1,17 @@
 # Memory Bank — metadata protocol
 
+## Contents
+
+- [Frontmatter format](#frontmatter-format)
+  - [Rules](#rules)
+- [Index protocol](#index-protocol)
+  - [Format: `{mb_path}/index.json`](#format-mb_pathindexjson)
+  - [Regeneration](#regeneration)
+  - [Usage](#usage)
+  - [Fallback](#fallback)
+- [Key Memory Bank rules](#key-memory-bank-rules)
+- [Supersede convention](#supersede-convention)
+
 Detailed description of YAML frontmatter for `notes/` and the `index.json` structure.
 
 ---
@@ -98,7 +110,7 @@ Agent reads `index.json` → filters by `tags` / `importance` → reads only rel
 5. **Checklist**: ✅ = done, ⬜ = not done. Update every session.
 6. **Do not paste logs, stack traces, or large code blocks.** Only distilled notes.
 7. **ML experiments**: hypothesis (SMART) → baseline → one change → run → result (p-value, Cohen's d).
-8. **Architectural decisions** → ADR in `backlog.md` (context → decision → alternatives → consequences).
+8. **Architectural decisions** → ADR in `adr.md` via `/mb adr` (context → decision → alternatives → consequences).
 9. **Supersede convention**: when a fact is invalidated, append the new entry and
    mark the old one in place with `[SUPERSEDED: YYYY-MM-DD -> <ref>]` — never edit
    or delete the old fact's substance.

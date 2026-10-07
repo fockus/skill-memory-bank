@@ -1,5 +1,13 @@
 # Calibration examples — mobile
 
+## Contents
+
+- `MOB-LOGIC-001` — logic (major)
+- `MOB-CODE-001` — code_rules (major)
+- `MOB-SEC-001` — security (blocker)
+- `MOB-SCALE-001` — scalability (major)
+- `MOB-TESTS-001` — tests (blocker)
+
 iOS (Swift) and Android (Kotlin) skill-baseline examples (reviewer-2.0,
 design.md §4). One block per reviewer category
 (`logic`/`code_rules`/`security`/`scalability`/`tests`).

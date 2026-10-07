@@ -1,8 +1,21 @@
 # Memory Bank — planning and verification
 
+## Contents
+
+- [Plan creation rules](#plan-creation-rules)
+  - [Steps](#steps)
+  - [Stage markers](#stage-markers)
+  - [Consistency — REQUIRED when creating a plan](#consistency--required-when-creating-a-plan)
+  - [Source-of-truth chain](#source-of-truth-chain)
+- [Plan Verifier — plan verification](#plan-verifier--plan-verification)
+  - [When to run it](#when-to-run-it)
+  - [What it checks (v3.2+)](#what-it-checks-v32)
+  - [Invocation format](#invocation-format)
+  - [Issue categories](#issue-categories)
+
 Rules for plan creation and the verification process through Plan Verifier.
 
-> **Plan hierarchy:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for size thresholds and the canonical decomposition rules.
+> **Plan hierarchy:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for when to add a stage and the canonical decomposition rules.
 
 ---
 
@@ -16,13 +29,13 @@ Plan creation belongs to the **main agent** (not MB Manager).
    - The scaffold now captures `**Baseline commit:** <git HEAD>` at creation time. `plan-verifier` diff's against this ref instead of `HEAD~N`, so the audit sees exactly what was written against this plan. Outside a git repo → field stores `unknown` and the verifier falls back to ctime lookup.
 2. Fill the sections:
    - **Context**: the problem, what triggered the plan, expected outcome.
-   - **Stages**: each with SMART DoD (specific, measurable, achievable, realistic, time-bounded).
-   - **Testing**: unit + integration tests BEFORE implementation (TDD).
-   - **Each stage**: what to test, edge cases, lint requirements.
+   - **Stages**: one by default; each extra stage marks a dependency, layer/owner, risk or parallel boundary and lists its `Files:`.
+   - **Testing**: unit + integration tests BEFORE implementation (TDD), with edge cases — for the plan as a whole.
+   - **DoD**: SMART (specific, measurable, achievable, realistic, time-bounded) for the plan; per stage only when that stage has its own verifiable boundary.
    - **Code rules**: SOLID, DRY, KISS, YAGNI, Clean Architecture/FSD/Mobile — per `RULES.md`.
    - **Risks**: probability (H/M/L), mitigation.
    - **Gate**: success criterion for the whole plan.
-3. Stages must be atomic and dependency-ordered.
+3. Order stages by dependency. A single-stage plan is valid; there is no minimum stage count or per-stage size limit. Verification runs once at the end of the plan by default (AGR-075).
 4. No placeholders — every step must be concrete.
 5. Every `assert` in tests must verify a business requirement or edge case.
 

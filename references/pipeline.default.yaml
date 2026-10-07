@@ -18,6 +18,7 @@ roles:
   researcher: { agent: mb-researcher, fallback: mb-analyst }
   devops:    { agent: mb-devops,    fallback: mb-developer }
   qa:        { agent: mb-qa,        fallback: mb-developer }
+  debugger:  { agent: mb-debugger,  fallback: mb-developer }
   analyst:   { agent: mb-analyst }
   reviewer:
     agent: mb-reviewer
@@ -36,8 +37,16 @@ roles:
 # ===== Workflow modes for /mb work =====
 # Projects may override workflow.default or any workflows.<name> block locally.
 # The default /mb work mode starts from an already-created plan/spec.
+# Complexity presets (AGR-074): simple < medium < complex < governed.
+# `verify.cadence` (AGR-075) decides which items get a verifier dispatch:
+#   stage — after every plan stage / spec task
+#   plan  — once, after the last item of the plan/spec (full suite, whole diff)
+#   run   — once, at the end of a run that may span several plans
+#   off   — no verifier; `/mb verify` stays available by hand
+# A workflow without `verify.cadence` verifies once at plan end (`plan`).
+# `/mb work --verify=<cadence>` overrides it for one run.
 workflow:
-  default: execution
+  default: medium
   aliases:
     everything: full
     from-scratch: full-cycle
@@ -45,8 +54,18 @@ workflow:
     planning: requirements-plan
     implement: implement-only
     review: review-fix
-    governed: governed-execution
-    strict: governed-execution
+    execution: medium
+    governed-execution: governed
+    strict: governed
+
+# Task effort tier (AGR-067) → workflow, for `mb-workflow.sh --tier <name>`.
+# `trivial` is never mapped: it needs no /mb work at all. `large` expects a
+# spec first (discuss → sdd), then runs `complex`. Projects may override.
+effort_tiers:
+  small: simple
+  standard: medium
+  large: complex
+  extra: governed
 
 workflows:
   full:
@@ -76,15 +95,37 @@ workflows:
     entrypoint: freeform_or_topic
     interactive: true
 
-  execution:
-    description: Simple default /mb work path from an existing plan/spec.
+  simple:
+    description: Implementer only; it self-checks with targeted tests and the DoD. No separate verifier.
+    steps: [implement, done]
+    entrypoint: plan_or_spec
+    implement: {self_verify: true}
+
+  medium:
+    description: Default /mb work path from an existing plan/spec; one verifier pass at the end of the plan.
     steps: [implement, verify, done]
     entrypoint: plan_or_spec
+    verify: {cadence: plan}
 
-  governed-execution:
+  complex:
+    description: Implement, verify at plan end, one reviewer per item, bounded fix loop.
+    steps: [implement, verify, review, fix, done]
+    entrypoint: plan_or_spec
+    review_profile: single
+    verify: {cadence: plan}
+    loop:
+      after: review
+      until: severity_gate_pass
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: stop_for_human
+      approval_required: false
+
+  governed:
     description: Advanced quality gate with verifier, review ensemble, lead reviewer, independent judge, bounded fix loop, and backlog handoff.
     steps: [implement, verify, review, judge, fix, done]
     entrypoint: plan_or_spec
+    verify: {cadence: plan}
     review_profile: ensemble
     judge_profile: independent
     loop:
@@ -155,7 +196,7 @@ stage_pipeline:
 # here. When active, `/mb work` runs implement → verify → review → done: the
 # reviewer agent is resolved via mb-reviewer-resolve.sh and its findings are gated
 # by mb-work-severity-gate.sh against severity_gate below. (The heavyweight
-# multi-reviewer ensemble lives in workflows.governed-execution / review_ensemble.)
+# multi-reviewer ensemble lives in workflows.governed / review_ensemble.)
 review:
   enabled: false
   role: reviewer
@@ -236,13 +277,27 @@ sprint_context_guard:
   soft_warn_tokens: 150000
   hard_stop_tokens: 190000
 
+# ===== ADaPT — decompose as needed (references/adapt.md, AGR-080/082) =====
+# The implementer takes an item whole; the fork opens on its complexity_escalation
+# block, after verify failed verify_fail_cycles times on one item, or when the item
+# spent more than item_token_budget tokens (null = off). auto: the planner splits
+# that item into 2-5 sub-items; HITL: continue / simplify / decompose / skip.
+# Sub-items nest at most max_depth levels. `/mb work --no-adapt` = halt as before.
+adapt: {enabled: true, verify_fail_cycles: 3, item_token_budget: null, max_depth: 2}
+
 # ===== Review rubric — fixed keys, extensible items =====
+# Stock bullets tagged `SOLID:`/`DRY:`/`KISS:`/`YAGNI:` and the `(Testing Trophy)` one are
+# dropped from the review payload when the project switches that principle / Trophy off
+# (`mb-profile.sh quality`, AGR-076); bullets a project writes itself are always kept.
 review_rubric:
   logic:
     - "Every EARS requirement has at least one assertion in tests"
     - "Edge cases from requirements covered"
   code_rules:
     - "SOLID: SRP — files <300 lines OR <=3 public methods"
+    - "DRY: the same logic in 3+ places is extracted"
+    - "KISS: the simplest design that meets the requirement"
+    - "YAGNI: no code for needs the task does not state"
     - "No placeholders (TODO/...)"
     - "Imports complete, functions copy-paste ready"
   security:
@@ -331,8 +386,48 @@ dispatch:
   enumerable: [pi, opencode]
   # Map a role's contract model -> the concrete id per transport. Omit a transport
   # to use the contract id verbatim on it (pi often accepts provider/id as-is).
-  model_map: {}                           # e.g. { "openai-codex/gpt-5.5": { codex: gpt-5.5, opencode: opencode/gpt-5.2 } }
+  model_map: {}                           # e.g. { "openai-codex/gpt-6.1-sol": { codex: gpt-6.1-sol, opencode: openai/gpt-6.1-sol } }
   # Claude Code Agent tool model used when no contract transport is available.
   # Unlisted roles default by tier: reviewer/judge/planner/architect -> opus, else sonnet.
   fallback:
     claude-agent: {}
+
+# ===== Discipline — instruction tone by model strength (AGR-068) =====
+# `mb-work-plan.sh` marks an item `discipline: strict` when its resolved model
+# matches one of these glob patterns (case-insensitive; matched against the full
+# id and the part after the last `/`), else `calm`. On `strict`, `/mb work`
+# appends agents/mb-discipline-strict.md (Iron Law, NEVER rules, rationalization
+# table) to the dispatch prompt. Default list: Haiku and small/local open models,
+# which follow hard rules more reliably than reasons; strong models over-trigger
+# on aggressive phrasing, so they get the calm core alone. A project
+# pipeline.yaml that sets this block replaces the list (empty list = all calm).
+discipline:
+  strict_models: ["*haiku*", "*-mini", "*-nano", "qwen*", "llama*", "mistral*", "gemma*", "phi*"]
+
+# ===== Cost tiers — model per role class (AGR-074) =====
+# The tier changes only the model; reasoning effort stays in the agent file.
+# Per role, first match wins: `mb-work-plan.sh --model` (item role only) ▸
+# `roles.<role>.model` ▸ model_profiles[host][cost_tiers[cost][class]] ▸ inherit.
+# Cost: `--cost` ▸ hosts.<host>.cost ▸ `cost`. Host: `--host` ▸ auto-detect
+# (MB_PIPELINE_HOST / MB_AGENT / host env). A project block replaces the
+# default one key by key (a tier, a host profile). Details:
+# docs/pipeline-yaml.md § cost tiers and model profiles.
+# Classes: implementer (developer backend frontend ios android devops qa
+# debugger analyst), planner (architect planner), researcher, verifier,
+# reviewer (reviewer, reviewer_*), judge.
+cost: optimal
+cost_tiers:
+  premium: {implementer: premium, planner: premium, researcher: premium, verifier: premium, reviewer: premium, judge: premium}
+  optimal: {implementer: mid, planner: premium, researcher: mid, verifier: mid, reviewer: premium, judge: premium}
+  economy: {implementer: mid, planner: mid, researcher: mid, verifier: mid, reviewer: mid, judge: mid}
+# Two slots per host: `premium` and `mid` (never the host's cheapest model).
+# Pi needs `provider/id` of one provider (bare opus/sonnet collapse to the
+# parent model, AGR-056); OpenCode and Cursor take the model only statically.
+# Pi and OpenCode work with any provider, so they ship no profile here (they
+# inherit): `/mb config init --host pi|opencode --model-mid <provider/id>`
+# writes one from the host's current model. Ids per host: docs/pipeline-yaml.md.
+model_profiles:
+  claude-code: {premium: opus, mid: sonnet}
+  codex: {premium: gpt-6-astra, mid: gpt-6.1-sol}
+  cursor: {premium: claude-opus-5-5, mid: claude-sonnet-5-5}
+# Per-host overrides, e.g. `hosts: {codex: {cost: economy, preset: complex, verify: stage}}`.

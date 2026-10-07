@@ -52,7 +52,8 @@ Use Read to inspect files, Edit to update existing files, and Write to create ne
 ├── roadmap.md         # Priorities, focus, next steps
 ├── checklist.md    # Tasks: ✅ done, ⬜ in progress/pending
 ├── research.md     # Hypotheses, findings, current experiment
-├── backlog.md      # Ideas (HIGH/LOW), ADRs (architectural decisions)
+├── backlog.md      # Ideas (HIGH/LOW)
+├── adr.md          # ADR registry (append-only, ADR-NNN)
 ├── progress.md     # Date-based execution log (APPEND-ONLY!)
 ├── lessons.md      # Anti-patterns, repeated mistakes, insights
 ├── experiments/    # EXP-NNN.md — ML experiments
@@ -69,7 +70,8 @@ Use Read to inspect files, Edit to update existing files, and Write to create ne
 | `roadmap.md`      | Direction change                   |
 | `checklist.md` | Every session                      |
 | `research.md`  | ML results, experiments            |
-| `backlog.md`   | New idea or architectural decision |
+| `backlog.md`   | New idea                           |
+| `adr.md`       | Architectural decision (`/mb adr`) |
 | `progress.md`  | End of session (APPEND-ONLY)       |
 | `lessons.md`   | Repeated pattern discovered        |
 
@@ -178,11 +180,11 @@ Date: YYYY-MM-DD HH:MM
 | H-NNN | <Hypothesis> | ⬜ Not tested | — | — | — |
 ```
 
-### ADR in `backlog.md`
+### ADR in `adr.md`
 
-```markdown
-- ADR-NNN: <Decision> — <context, alternatives> [YYYY-MM-DD]
-```
+Create with `mb-adr.sh "<title>"` (next monotonic ID + skeleton), then fill the four fields —
+1–2 sentences each, ≤ 1200 bytes per record. Format: `references/templates.md` § ADR registry.
+Never rewrite an earlier record; a superseded one only gets `· status: superseded by ADR-NNN`.
 
 ### Experiment (`experiments/EXP-NNN.md`)
 
@@ -270,7 +272,7 @@ Actualize core files based on the provided description of completed work.
 3. **`progress.md`** — APPEND a new entry at the end (date + what was done + next step)
 4. **`research.md`** — update if there were ML results (hypothesis confirmed/refuted, new finding)
 5. **`lessons.md`** — add an entry if an anti-pattern or repeated mistake was found
-6. **`backlog.md`** — add an idea (HIGH/LOW) or ADR if there was an architectural decision
+6. **`backlog.md`** — add an idea (HIGH/LOW); an architectural decision goes to **`adr.md`** via `mb-adr.sh`
 7. **`roadmap.md`** — update focus if priorities shifted
 8. **`index.json`** — regenerate through the script (never by hand):
   ```bash

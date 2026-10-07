@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
+from memory_bank_skill import codegraph_carryover as _cgcarry
 from memory_bank_skill import codegraph_rank as _cgrank
 
 try:  # optional dependency — graceful degradation when absent
@@ -145,11 +146,13 @@ def build_file_graph(graph: dict[str, Any]) -> tuple[set[str], set[frozenset]]:
     return files, edges
 
 
-def _nx_file_graph(graph: dict[str, Any]):
+def _nx_file_graph(graph: dict[str, Any], *, isolated: bool = True):
+    """Sorted insertion: networkx samples over insertion order, sets follow PYTHONHASHSEED."""
     files, edges = build_file_graph(graph)
     G = nx.Graph()
-    G.add_nodes_from(files)
-    G.add_edges_from(tuple(e) for e in edges)
+    if isolated:
+        G.add_nodes_from(sorted(files))
+    G.add_edges_from(sorted(tuple(sorted(e)) for e in edges))
     return G
 
 
@@ -161,15 +164,18 @@ def _nx_file_graph(graph: dict[str, Any]):
 def detect_communities(graph: dict[str, Any]) -> dict[str, int] | None:
     """File → community id (``0`` = largest). ``None`` when networkx is unavailable.
 
-    Uses Louvain modularity (deterministic via ``seed``). Community ids are stable:
-    sorted by size descending, then by the alphabetically-first member.
+    Seeded Louvain over the sorted file graph → independent of ``PYTHONHASHSEED``.
+    networkx minors may still cluster differently, so one minor is pinned in the
+    ``codegraph`` extra and ``hooks/lib/venv-requirements.sh``; the bootstrap
+    reinstalls a venv's networkx that falls outside it. Files with no
+    file-level edge are not clusters: no id, so ``graph.json`` omits ``community``.
+    Ids: size descending, tie-break by the alphabetically-first member.
     """
     if not HAS_NETWORKX:
         return None
-    files, _ = build_file_graph(graph)
-    if not files:
+    G = _nx_file_graph(graph, isolated=False)
+    if not G:
         return {}
-    G = _nx_file_graph(graph)
     communities = nx.community.louvain_communities(G, seed=_SEED)
     ordered = sorted(communities, key=lambda c: (-len(c), sorted(c)[0]))
     mapping: dict[str, int] = {}
@@ -294,6 +300,8 @@ def render_god_nodes_md(
     communities: dict[str, int] | None = None,
     betweenness: dict[str, float] | None = None,
     pagerank: dict[str, float] | None = None,
+    previous_md: str | None = None,
+    carry_source: str | None = None,
 ) -> str:
     """Render the god-nodes + analytics markdown report.
 
@@ -301,7 +309,8 @@ def render_god_nodes_md(
     rank by PageRank as the primary column, keeping degree as a secondary column.
     Without it the report degrades to degree-only ranking plus a one-line networkx
     install hint (REQ-005 / REQ-006). Adds Communities + Bridge files when
-    ``communities`` is provided.
+    ``communities`` is provided; otherwise carries those two sections over from
+    ``previous_md`` (the prior report) under an explicit marker.
     """
     degree = compute_degree(graph)
     split = split_god_nodes(graph, degree, pagerank=pagerank)
@@ -388,10 +397,13 @@ def render_god_nodes_md(
                 [[i, f"`{f}`", f"{s:.3f}"] for i, (f, s) in enumerate(top, 1)],
             )
     else:
+        # No networkx: keep the previous build's sections instead of wiping them.
+        live = {n["file"] for n in graph.get("nodes", []) if n.get("file")}
+        lines += _cgcarry.carried_sections(previous_md, carry_source, live)
         lines += [
             "",
-            "_Install `networkx` (optional) to rank by PageRank "
-            "and unlock community detection + betweenness (bridge) analysis._",
+            "_Install `networkx` (optional: `bash <skill>/hooks/mb-semantic-bootstrap.sh`) "
+            "to rank by PageRank and unlock community detection + betweenness (bridge) analysis._",
         ]
 
     lines.append("")

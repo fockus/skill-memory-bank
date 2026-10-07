@@ -1,5 +1,5 @@
 ---
-description: Scaffold and validate the durable goal.md + project.md artifacts
+description: "Scaffolds and validates the durable goal.md + project.md artifacts. Use when setting a long-running project goal — «поставь цель», success criteria for /mb drive."
 allowed-tools: [Bash, Read, Write]
 ---
 

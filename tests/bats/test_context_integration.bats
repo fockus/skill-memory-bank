@@ -6,6 +6,8 @@
 #   adds a "Codebase summary" section with 1-line-per-MD output.
 #   With --deep flag, includes full content of each codebase MD.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-context.sh"
@@ -138,6 +140,19 @@ EOF
   [[ "$output" != *'"type": "node"'* ]]
 }
 
+@test "context: graph quick-ref is at most 2 lines through mb-graph.sh" {
+  # graph-semantic-adoption Stage 4: one short command replaces the python calls,
+  # named by the script's own resolved path so it runs on any host.
+  _write_graph "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  run bash "$SCRIPT" "$TMPBANK"
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | grep -c 'mb-graph\.sh')" -le 2 ]
+  assert_substring "$output" "bash $REPO_ROOT/scripts/mb-graph.sh who-calls|impact|tests <Name>"
+  assert_substring "$output" "bash $REPO_ROOT/scripts/mb-graph.sh search \"<question>\""
+  refute_substring "$output" "mb-graph-query.py impact"
+  refute_substring "$output" "python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py"
+}
+
 @test "context: shows stale graph hint with rebuild command" {
   _write_graph "2020-01-01T00:00:00Z"
   run bash "$SCRIPT" "$TMPBANK"
@@ -153,4 +168,20 @@ EOF
   [[ "$output" == *"Code graph"* ]]
   [[ "$output" == *"not built"* ]]
   [[ "$output" == *"mb-codegraph.py --apply"* ]]
+}
+
+@test "context: build/rebuild hints name mb-codegraph.py by its resolved path" {
+  _write_graph "2020-01-01T00:00:00Z"
+  run bash "$SCRIPT" "$TMPBANK"
+  [ "$status" -eq 0 ]
+  assert_substring "$output" "python3 $REPO_ROOT/scripts/mb-codegraph.py --apply"
+  # mb-codegraph.py takes (mb_path, src_root) positionally: `. .` would write
+  # ./codebase/ into the project root instead of the bank.
+  assert_substring "$output" "rebuild: python3 $REPO_ROOT/scripts/mb-codegraph.py --apply --docs $TMPBANK ."
+  refute_substring "$output" "~/.claude"
+  rm -f "$TMPBANK/codebase/graph.json"
+  run bash "$SCRIPT" "$TMPBANK"
+  [ "$status" -eq 0 ]
+  assert_substring "$output" "not built → build: python3 $REPO_ROOT/scripts/mb-codegraph.py --apply"
+  refute_substring "$output" "~/.claude"
 }

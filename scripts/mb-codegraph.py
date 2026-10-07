@@ -58,7 +58,9 @@ def _generated_at_now() -> str:
 
 try:
     from memory_bank_skill import codegraph_analytics as cga
+    from memory_bank_skill import codegraph_carryover as cgcarry
     from memory_bank_skill import codegraph_cochange as cgco
+    from memory_bank_skill import codegraph_loader as cgload
     from memory_bank_skill import codegraph_python as cgpy
     from memory_bank_skill import codegraph_questions as cgq
     from memory_bank_skill import codegraph_sessions as cgs
@@ -69,7 +71,9 @@ try:
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from memory_bank_skill import codegraph_analytics as cga
+    from memory_bank_skill import codegraph_carryover as cgcarry
     from memory_bank_skill import codegraph_cochange as cgco
+    from memory_bank_skill import codegraph_loader as cgload
     from memory_bank_skill import codegraph_python as cgpy
     from memory_bank_skill import codegraph_questions as cgq
     from memory_bank_skill import codegraph_sessions as cgs
@@ -324,9 +328,18 @@ def _render_god_nodes(
     cochange_edges: list[dict[str, Any]] | None = None,
     questions: list[dict[str, Any]] | None = None,
     pagerank: dict[str, float] | None = None,
+    previous_md: str | None = None,
+    carry_source: str | None = None,
 ) -> str:
     """Delegate to analytics renderer; append co-change / questions sections when present."""
-    body = cga.render_god_nodes_md(graph, communities, betweenness, pagerank=pagerank)
+    body = cga.render_god_nodes_md(
+        graph,
+        communities,
+        betweenness,
+        pagerank=pagerank,
+        previous_md=previous_md,
+        carry_source=carry_source,
+    )
     if cochange_edges:
         body = body.rstrip("\n") + "\n\n" + cgco.render_cochange_section(cochange_edges) + "\n"
     if questions:
@@ -510,8 +523,26 @@ def run(
     # Render god-nodes.md from the structural graph BEFORE the session layer, so a
     # busy session never appears as a structural god-node (work history ≠ code
     # structure). graph.json (written below) still carries the session rows.
+    # Without networkx the renderer carries Communities / Bridge files over from
+    # the previous report; unreadable → None (fail-open, today's behaviour).
+    # The previous graph.json stamp names the build the sections came from.
+    previous_md: str | None = None
+    carry_source: str | None = None
+    if communities is None:
+        try:
+            previous_md = (codebase / "god-nodes.md").read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            previous_md = None
+        carry_source = cgcarry.source_from_meta(cgload.read_meta(codebase / "graph.json"))
     god_nodes_md = _render_god_nodes(
-        graph, communities, betweenness, cochange_edges, suggested, pagerank
+        graph,
+        communities,
+        betweenness,
+        cochange_edges,
+        suggested,
+        pagerank,
+        previous_md,
+        carry_source,
     )
 
     # Opt-in: bridge session work-history into the graph (session nodes +
@@ -542,7 +573,7 @@ def run(
         "commit": _git_head_commit(src),
         "nodes": len(graph["nodes"]),
         "edges": len(graph["edges"]),
-        "src_root": str(src),
+        "src_root": cgload.meta_src_root(mb, src),
         "flags": flags_used,
     }
     _write_graph_jsonl(graph, codebase / "graph.json", communities, churn_attrs, meta=meta)
@@ -561,6 +592,27 @@ def run(
     print(index_line)
 
     return summary
+
+
+_REEXEC_ENV = "MB_CODEGRAPH_REEXEC"
+
+
+def _maybe_reexec(mb_path: str, argv: list[str]) -> None:
+    """Re-run this builder under the bootstrap venv python when networkx is absent here.
+
+    Without networkx ``graph.json`` loses ``community`` and Top symbols drop from
+    PageRank to degree, so the tracked graph flipped with the interpreter (AGR-053).
+    Covers the catchup path too (it spawns ``sys.executable``). Only into a
+    candidate with networkx AND every tree-sitter module this python has.
+    """
+    if cga.HAS_NETWORKX:
+        return
+    try:
+        from memory_bank_skill.semantic_index import reexec_under_semantic_python
+    except ImportError:  # pragma: no cover - partial install
+        return
+    needs = ("networkx", *cgts.available_modules())
+    reexec_under_semantic_python(mb_path, Path(__file__).resolve(), argv, _REEXEC_ENV, needs)
 
 
 def main(argv: list[str]) -> int:
@@ -597,6 +649,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("mb_path", nargs="?", default=".memory-bank")
     parser.add_argument("src_root", nargs="?", default=".")
     args = parser.parse_args(argv[1:])
+    _maybe_reexec(args.mb_path, argv[1:])
 
     mode = "apply" if args.apply else "dry-run"
     try:

@@ -29,7 +29,6 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 
 ## ⏭ Queued waves
 
-- ⬜ **Fix-слайс по ревью Sprint 1** (судья NO_GO 2026-09-13, [отчёт](reports/2026-09-13_sprint1-review.md)): I-194 · I-195 · I-196 — HIGH, точечные правки; I-208 — HIGH, 22 предсуществующих + 11 средовых красных тестов. Плана ещё нет
 - ⬜ **mb-work-cost-diet** — `graph-semantic-adoption` (блок ниже, пререквизит по AGR-044) → [Sprint 2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) → [Sprint 3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md)
 - ⏸ **Group `sdd-vision-pipeline`** (AGR-017, goal G-001, пауза с 2026-07-27): S1 ✅ 6/6 · S2 ✅ 9/9 · S7 2/4 · S4 3/9 · S8 3/8 (по T7/T8 есть коммиты, судьи не было) · S9 2/5 · S6/S3/S5 не начаты; порядок AGR-029; живые счётчики — `roadmap.md` § Group
 - ⬜ openspec-adapter — последний пункт: строка `/mb openspec` в `commands/mb.md` (заморозка файла снята AGR-033)
@@ -55,13 +54,31 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - `progress.md` — append-only historical log.
 
 <!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## graph-semantic-adoption — 4/8
-- ⬜ Stage 1 — Nudge v2 — повторяемый и действенный
+## graph-semantic-adoption — 9/11
+- ✅ Stage 1 — Nudge v2 — повторяемый и действенный
 - ✅ Stage 2 — Bootstrap векторного индекса при `/mb graph --apply`
 - ✅ Stage 3 — Auto-catchup графа на SessionStart
-- ⬜ Stage 4 — Короткий враппер `mb-graph.sh` + короткие тексты подсказок
+- ✅ Stage 4 — Короткий враппер `mb-graph.sh` + короткие тексты подсказок
 - ⬜ Stage 5 — Статус графа в диспатче субагентов
 - ✅ Stage 6 — Покрытие — bash и bats в графе
 - ⬜ Stage 7 — Граф в каждом диспатче `/mb work` + замер adoption
 - ✅ Stage 8 — Тёплый индекс доступен документированной командой
+- ✅ Stage 9 — `--apply` без networkx не стирает Communities и Bridge files
+- ✅ Stage 10 — networkx в bootstrap-venv + `mb-codegraph.py` под ним
+- ✅ Stage 11 — детерминированная кластеризация (I-219)
+
+<!-- mb-plan:2026-10-05_feature_pi-native-integration.md -->
+## Pi native Memory Bank integration — Implementation Plan — 0/5
+- ⬜ Stage 1 — Native commands and governed pi-subagents bridge
+- ⬜ Stage 2 — Project-isolated capture, restore and compaction
+- ⬜ Stage 3 — Native GraphRAG, vector cache and graph lifecycle
+- ⬜ Stage 4 — Native guard hooks and synchronization
+- ⬜ Stage 5 — Safe installation and real Pi acceptance
+
+<!-- mb-plan:2026-10-07_fix_proportional-effortsprint2-execution-economy.md -->
+## proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер» — 3/4
+- ✅ Stage 1 — Целевой прогон тестов
+- ✅ Stage 2 — Пропорциональная проверка в агентах и `/mb work`
+- ✅ Stage 3 — Тон по силе модели
+- ⬜ Stage 4 — Замер на боевых задачах
 

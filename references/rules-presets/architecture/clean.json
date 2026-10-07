@@ -3,6 +3,7 @@
   "kind": "architecture",
   "name": "clean",
   "description": "Clean Architecture: Infra→App→Domain layer direction, pure domain, DIP.",
+  "one_liner": "Clean Architecture: Infra → App → Domain, never backward; Domain has 0 external deps",
   "rules": [
     {
       "rule_id": "architecture.clean.layer-direction",

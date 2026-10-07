@@ -10,11 +10,11 @@ setup() {
 }
 
 _agents() {
-  echo "mb-developer.md mb-backend.md mb-frontend.md mb-architect.md mb-qa.md plan-verifier.md"
+  echo "mb-developer.md mb-backend.md mb-frontend.md mb-architect.md mb-qa.md mb-debugger.md plan-verifier.md"
 }
 
 _role_agents() {
-  echo "mb-developer.md mb-backend.md mb-frontend.md mb-qa.md mb-architect.md plan-verifier.md"
+  echo "mb-developer.md mb-backend.md mb-frontend.md mb-qa.md mb-architect.md mb-debugger.md plan-verifier.md"
 }
 
 _rendered() {  # installed form of an agent (partials from `compose:` placed above it)
@@ -31,12 +31,10 @@ _rendered() {  # installed form of an agent (partials from `compose:` placed abo
 
 @test "all skill role agents reference the impact command" {
   for f in $(_agents); do
-    # Optional closing quote: roles may spell the path literally
-    # (~/.claude/skills/.../mb-graph-query.py impact) or through a resolved variable
-    # ("$SKILL_DIR/scripts/mb-graph-query.py" impact). The command reference is what
-    # matters, not the quoting style of the path.
+    # graph-semantic-adoption Stage 4: the same short command the hooks print
+    # ("$SKILL_DIR"/scripts/mb-graph.sh impact), not the long python form.
     run _rendered "$f"
-    [[ "$output" =~ mb-graph-query\.py\"?\ impact ]] || { echo "missing impact command in $f"; return 1; }
+    [[ "$output" =~ mb-graph\.sh\ impact ]] || { echo "missing impact command in $f"; return 1; }
   done
 }
 
@@ -58,10 +56,10 @@ _rendered() {  # installed form of an agent (partials from `compose:` placed abo
   [ "$status" -ne 0 ] || { echo "legacy rebuild lock still referenced"; return 1; }
 }
 
-@test "role files use graph-query status not /mb context for freshness" {
+@test "role files use mb-graph.sh status not /mb context for freshness" {
   for f in $(_role_agents); do
     run _rendered "$f"
-    [[ "$output" =~ mb-graph-query\.py\"?\ status ]] || { echo "missing mb-graph-query.py status in $f"; return 1; }
+    [[ "$output" =~ mb-graph\.sh\ status ]] || { echo "missing mb-graph.sh status in $f"; return 1; }
     [[ "$output" != *"/mb context"* ]] || { echo "stale /mb context freshness reference still present in $f"; return 1; }
   done
 }

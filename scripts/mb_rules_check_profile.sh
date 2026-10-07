@@ -12,8 +12,44 @@ load_profile() {
     "${py_args[@]+"${py_args[@]}"}" 2>/dev/null)" || true
 
   if [[ -z "$PROFILE_JSON" ]]; then
-    PROFILE_JSON='{"role":"backend","stack":"generic","architecture":"clean","delivery":"tdd","strictness":"warn","sources":{"role":"baseline","stack":"baseline","architecture":"baseline","delivery":"baseline","strictness":"baseline"},"immutable_rules":["no-placeholders","protected-files","destructive-confirm","fail-fast","dry-kiss-yagni","verification-before-completion","explicit-storage-choice"],"prompt_summary":"# Active Rule Profile\nrole=backend  stack=generic  architecture=clean\ndelivery=tdd  strictness=warn\n\n## Sources\n  All: baseline\n\n## Immutable Baseline (non-overridable)\n  All safety rules active\n\n## Guidance\nFollow clean architecture with tdd delivery.\nStrictness: warn."}'
+    PROFILE_JSON='{"role":"backend","stack":"generic","architecture":"clean","delivery":"tdd","strictness":"warn","sources":{"role":"baseline","stack":"baseline","architecture":"baseline","delivery":"baseline","strictness":"baseline"},"immutable_rules":["no-placeholders","protected-files","destructive-confirm","fail-fast","verification-before-completion","explicit-storage-choice"],"prompt_summary":"# Active Rule Profile\nrole=backend  stack=generic  architecture=clean\ndelivery=tdd  strictness=warn\n\n## Sources\n  All: baseline\n\n## Immutable Baseline (non-overridable)\n  All safety rules active\n\n## Guidance\nFollow clean architecture with tdd delivery.\nStrictness: warn."}'
   fi
+}
+
+# Effective quality settings from the one resolver (user → project, AGR-076/077):
+#   ARCH_NAMES    selected architectures, space-separated. An architecture nobody
+#                 chose (source `default`) falls back to the rules-profile label, so
+#                 the default list never switches extra architecture checks on.
+#   QUALITY_TDD   on|off|small+ (small+ counts as on for the checks)
+#   QUALITY_SOLID on|off
+# An unreadable/invalid profile leaves both switches on (today's behaviour).
+load_quality() {
+  local out arch="" tdd="" solid=""
+  out="$(bash "$SCRIPT_DIR/mb-profile.sh" quality --json --project="${PROFILE_PATH:-/dev/null}" 2>/dev/null | \
+    python3 -c 'import sys,json; d=json.load(sys.stdin); q=d["quality"]
+print(" ".join(d["architecture"]["names"]) if d["sources"]["architecture"] != "default" else "")
+print(q["tdd"]); print(q["principles"]["solid"])' 2>/dev/null)" || true
+  { IFS= read -r arch; IFS= read -r tdd; IFS= read -r solid; } <<< "$out" || true
+  ARCH_NAMES="$arch"
+  # shellcheck disable=SC2034  # both read by mb_rules_check_baseline.sh
+  QUALITY_TDD="${tdd:-on}" QUALITY_SOLID="${solid:-on}"
+  [[ -n "$ARCH_NAMES" ]] || ARCH_NAMES="$(profile_field architecture | tr '+' ' ')"
+}
+
+# Severity the architecture preset gives <rule_id> (block→CRITICAL, warn→WARNING,
+# advisory→INFO); <fallback> when the preset or the rule is absent.
+preset_severity() {
+  local rule_id="$1" fallback="$2" name="${1#architecture.}"
+  name="${name%%.*}"
+  python3 - "$REPO_ROOT/references/rules-presets/architecture/$name.json" "$rule_id" "$fallback" 2>/dev/null <<'PY' \
+    || printf '%s\n' "$fallback"
+import json, sys
+path, rule_id, fallback = sys.argv[1:]
+levels = {"block": "CRITICAL", "warn": "WARNING", "advisory": "INFO"}
+with open(path, encoding="utf-8") as fh:
+    rules = json.load(fh).get("rules", [])
+print(next((levels[r["severity"]] for r in rules if r.get("rule_id") == rule_id), fallback))
+PY
 }
 
 profile_field() {

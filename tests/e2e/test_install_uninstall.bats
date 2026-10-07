@@ -231,8 +231,8 @@ EOF
 
 @test "install: OpenCode AGENTS.md has memory-bank markers" {
   bash "$REPO_ROOT/install.sh" >/dev/null
-  grep -q "<!-- memory-bank:start -->" "$HOME/.config/opencode/AGENTS.md"
-  grep -q "<!-- memory-bank:end -->" "$HOME/.config/opencode/AGENTS.md"
+  grep -q "<!-- memory-bank-opencode:start -->" "$HOME/.config/opencode/AGENTS.md"
+  grep -q "<!-- memory-bank-opencode:end -->" "$HOME/.config/opencode/AGENTS.md"
 }
 
 @test "install: Codex AGENTS.md has managed memory-bank block" {
@@ -301,7 +301,9 @@ PY
   python3 - <<PY
 from pathlib import Path
 text = Path('$HOME/.claude/CLAUDE.md').read_text(encoding='utf-8')
-assert text.startswith('# [MEMORY-BANK-SKILL]')
+# The Key rules block (mb-rules.sh sync --scope=user) comes first, once.
+assert text.startswith('<!-- mb-key-rules:start -->') and text.count('<!-- mb-key-rules:start -->') == 1
+assert text.split('<!-- mb-key-rules:end -->\n', 1)[1].lstrip('\n').startswith('# [MEMORY-BANK-SKILL]')
 PY
 }
 
@@ -314,7 +316,9 @@ PY
   python3 - <<PY
 from pathlib import Path
 text = Path('$HOME/.pi/agent/AGENTS.md').read_text(encoding='utf-8')
-assert text.startswith('<!-- memory-bank-pi:start -->')
+# The Key rules block (mb-rules.sh sync --scope=user) comes first, once.
+assert text.startswith('<!-- mb-key-rules:start -->') and text.count('<!-- mb-key-rules:start -->') == 1
+assert text.split('<!-- mb-key-rules:end -->\n', 1)[1].lstrip('\n').startswith('<!-- memory-bank-pi:start -->')
 PY
 }
 
@@ -579,7 +583,8 @@ EOF
 
   grep -q "User OpenCode rules" "$HOME/.config/opencode/AGENTS.md"
   grep -q "Keep answers concise" "$HOME/.config/opencode/AGENTS.md"
-  ! grep -q "memory-bank:start" "$HOME/.config/opencode/AGENTS.md"
+  refute_grep -q "memory-bank-opencode:start" "$HOME/.config/opencode/AGENTS.md"
+  refute_grep -q "memory-bank:start" "$HOME/.config/opencode/AGENTS.md"
 }
 
 @test "uninstall: preserves user Codex AGENTS.md content above skill section" {

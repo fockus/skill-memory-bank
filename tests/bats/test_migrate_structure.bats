@@ -12,7 +12,8 @@
 #   Actions:
 #     • Upgrade markers: `<!-- mb-active-plan -->` → `<!-- mb-active-plans -->` in plan.md + STATUS.md
 #     • Add `<!-- mb-recent-done -->` block to STATUS.md if missing
-#     • Restructure BACKLOG.md to skeleton with `## Ideas` + `## ADR` sections
+#     • Restructure BACKLOG.md to skeleton with `## Ideas` (ideas only — no `## ADR`)
+#     • Create adr.md (`# Architecture Decision Records`) if absent (AGR-062)
 #     • Remove done-stage sections from checklist.md referencing files in plans/done/ older than 30d
 #   Idempotent: second --apply is no-op.
 
@@ -80,21 +81,23 @@ teardown() {
   grep -q '<!-- /mb-recent-done -->'  "$TMPBANK/STATUS.md"
 }
 
-@test "migrate: --apply restructures BACKLOG.md to skeleton with Ideas + ADR sections" {
+@test "migrate: --apply restructures BACKLOG.md to Ideas-only skeleton and creates adr.md" {
   bash "$MIGRATE" --apply "$TMPBANK"
 
   grep -qE '^## Ideas' "$TMPBANK/BACKLOG.md"
-  grep -qE '^## ADR'   "$TMPBANK/BACKLOG.md"
+  refute_grep -qE '^## ADR' "$TMPBANK/BACKLOG.md"
+  [ "$(head -1 "$TMPBANK/adr.md")" = "# Architecture Decision Records" ]
   # legacy placeholder should be removed
   ! grep -qF $'\u043f\u043e\u043a\u0430 \u043d\u0435\u0442' "$TMPBANK/BACKLOG.md"
 }
 
 @test "migrate: --apply is idempotent (second run no-op on already-migrated bank)" {
   bash "$MIGRATE" --apply "$TMPBANK"
-  sum1=$(shasum "$TMPBANK/plan.md" "$TMPBANK/STATUS.md" "$TMPBANK/BACKLOG.md" "$TMPBANK/checklist.md" | shasum)
+  sum1=$(shasum "$TMPBANK/plan.md" "$TMPBANK/STATUS.md" "$TMPBANK/BACKLOG.md" "$TMPBANK/checklist.md" "$TMPBANK/adr.md" | shasum)
 
-  bash "$MIGRATE" --apply "$TMPBANK"
-  sum2=$(shasum "$TMPBANK/plan.md" "$TMPBANK/STATUS.md" "$TMPBANK/BACKLOG.md" "$TMPBANK/checklist.md" | shasum)
+  run bash "$MIGRATE" --apply "$TMPBANK"
+  assert_substring "$output" "actions_pending=0"
+  sum2=$(shasum "$TMPBANK/plan.md" "$TMPBANK/STATUS.md" "$TMPBANK/BACKLOG.md" "$TMPBANK/checklist.md" "$TMPBANK/adr.md" | shasum)
 
   [ "$sum1" = "$sum2" ]
 }

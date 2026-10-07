@@ -233,14 +233,15 @@ EOF
 # Project adapter — no double `# Global Rules` heading
 # ═══════════════════════════════════════════════════════════════
 
-@test "cursor-global: project adapter .cursor/rules/memory-bank.mdc has exactly one # Global Rules heading" {
+@test "cursor-global: project adapter .cursor/rules/memory-bank.mdc is the compact block, no RULES.md copy" {
   PROJECT_ROOT="$(mktemp -d)"
   bash "$REPO_ROOT/install.sh" --clients claude-code,cursor --project-root "$PROJECT_ROOT" >/dev/null
 
   mdc="$PROJECT_ROOT/.cursor/rules/memory-bank.mdc"
   [ -f "$mdc" ]
-  heading_count=$(grep -c '^# Global Rules$' "$mdc")
-  [ "$heading_count" -eq 1 ]
+  # agents-md-diet Stage 4: Key rules + MB pointers, not a pasted rules/RULES.md.
+  refute_grep -q '^# Global Rules$' "$mdc"
+  assert_grep -qF '<!-- mb-key-rules:start -->' "$mdc"
 
   rm -rf "$PROJECT_ROOT"
 }

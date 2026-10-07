@@ -16,7 +16,9 @@ Whitelisting rules:
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -145,7 +147,30 @@ def test_git_hooks_fallback_post_commit_resolves_mb_path() -> None:
 
 # ---------------------------------------------------------------------------
 # 4. Codex global AGENTS.md surface must embed critical engineering rules.
+#    agents-md-diet Stage 3: the rules reach the file through the Key rules
+#    block (mb-rules.sh sync --scope=user) and the compact rules core
+#    (rules/CLAUDE-GLOBAL.md), not a retelling in codex_agents_section — so the
+#    contract is checked on the installed file.
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def codex_global_agents(tmp_path_factory: pytest.TempPathFactory) -> str:
+    home = tmp_path_factory.mktemp("codex-home")
+    env = os.environ.copy()
+    env["HOME"] = str(home)
+    # Keep the repo's own manifest out of it (parallel installs collide on it).
+    env["MB_MANIFEST_PATH"] = str(home / "installed-manifest.json")
+    result = subprocess.run(
+        ["bash", str(INSTALL_SH), "--language", "en", "--non-interactive"],
+        env=env,
+        cwd=home,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return (home / ".codex" / "AGENTS.md").read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize(
@@ -161,63 +186,33 @@ def test_git_hooks_fallback_post_commit_resolves_mb_path() -> None:
     ],
 )
 def test_codex_global_agents_section_embeds_rules_only_baseline(
+    codex_global_agents: str,
     rule_token: str,
 ) -> None:
-    """`install.sh codex_agents_section` writes `~/.codex/AGENTS.md` for
-    global Codex installs. Without project `.memory-bank/` Codex still runs
-    under our skill — the section must therefore include the always-on quality
-    rules (TDD/SOLID/Clean Architecture/DRY/KISS/YAGNI) and the rules-only
-    marker `[MEMORY BANK: ABSENT]`, so Codex respects the same baseline as
+    """`~/.codex/AGENTS.md` is loaded by Codex even without a project
+    `.memory-bank/` — it must carry the always-on quality rules
+    (TDD/SOLID/Clean Architecture/DRY/KISS/YAGNI) and the rules-only marker
+    `[MEMORY BANK: ABSENT]`, so Codex respects the same baseline as
     Claude/Cursor/Pi.
     """
-    text = INSTALL_SH.read_text(encoding="utf-8")
-    # Scope to the codex_agents_section heredoc body.
-    match = re.search(
-        r"codex_agents_section\(\)\s*\{\s*cat\s*<<EOF(.*?)\nEOF",
-        text,
-        re.DOTALL,
-    )
-    assert match, (
-        "install.sh codex_agents_section() definition not found — structure "
-        "unexpectedly changed."
-    )
-    body = match.group(1)
-    assert rule_token in body, (
-        f"install.sh codex_agents_section() must mention {rule_token!r} so the "
-        "global Codex AGENTS.md carries the always-on engineering baseline. "
-        "Either inline the rules or sed-merge them from rules/CLAUDE-GLOBAL.md "
-        "(see pi_agents_section() for a working pattern)."
+    assert rule_token in codex_global_agents, (
+        f"~/.codex/AGENTS.md must mention {rule_token!r} so the global Codex "
+        "instructions carry the always-on engineering baseline."
     )
 
 
 # ---------------------------------------------------------------------------
-# 5. install.sh codex_agents_section must not hard-code only local
-#    `.memory-bank/` workflow — global storage mode should be mentioned.
+# 5. The Codex global AGENTS.md must not describe only the local
+#    `.memory-bank/` workflow — global storage / the resolver is mentioned.
 # ---------------------------------------------------------------------------
 
 
-def test_codex_global_agents_section_mentions_storage_resolver() -> None:
+def test_codex_global_agents_section_mentions_storage_resolver(codex_global_agents: str) -> None:
     """In global mode the Codex bank is stored under
     `~/.codex/memory-bank/projects/<id>/.memory-bank`. The global AGENTS.md
-    section must point at the resolver / storage modes, not at the literal
+    must point at the resolver / storage modes, not at the literal
     `./.memory-bank/` only."""
-    text = INSTALL_SH.read_text(encoding="utf-8")
-    match = re.search(
-        r"codex_agents_section\(\)\s*\{\s*cat\s*<<EOF(.*?)\nEOF",
-        text,
-        re.DOTALL,
-    )
-    assert match, "codex_agents_section() definition missing"
-    body = match.group(1)
-    has_resolver_mention = (
-        "global storage" in body.lower()
-        or "--storage" in body
-        or "mb_resolve_path" in body
-        or "MEMORY BANK: ABSENT" in body
-    )
-    assert has_resolver_mention, (
-        "install.sh codex_agents_section() still describes only local "
-        "`./.memory-bank/` workflow. Mention storage modes (local/global) or "
-        "the rules-only ABSENT state so Codex users understand the full "
-        "support matrix."
-    )
+    body = codex_global_agents
+    assert "mb_resolve_path" in body, "the bank resolver must be named"
+    assert "--storage=global" in body, "global storage mode must be mentioned"
+    assert "`[MEMORY BANK: ABSENT]`" in body, "the rules-only state must be mentioned"

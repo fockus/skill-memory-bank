@@ -1,8 +1,28 @@
 # Session Memory — contract v2
 
+## Contents
+
+- [Design principles](#design-principles)
+- [File layout](#file-layout)
+- [Session file schema v2](#session-file-schema-v2)
+  - [Section `## Live log`](#section--live-log)
+  - [Section `## Summary`](#section--summary)
+- [Lifecycle states](#lifecycle-states)
+- [Adapter contracts](#adapter-contracts)
+  - [Claude Code adapter](#claude-code-adapter)
+  - [Pi adapter](#pi-adapter)
+  - [Codex / OpenCode / Cursor / Windsurf / others](#codex--opencode--cursor--windsurf--others)
+- [Recall subsystem](#recall-subsystem)
+- [Doctor checks](#doctor-checks)
+- [Environment variables](#environment-variables)
+- [Privacy and redaction](#privacy-and-redaction)
+- [Failure modes](#failure-modes)
+
 Agent-agnostic session-memory subsystem inside Memory Bank. Records every agent session as
 structured Markdown in `.memory-bank/session/`, summarizes finished sessions, maintains a
 rolling `_recent.md` handoff window, and exposes lexical/semantic recall.
+
+- **Session memory (cross-chat):** lifecycle hooks log each session to `.memory-bank/session/*.md`; **`/mb recall <query>`** does lexical recall over `session/` + `notes/`. Off: `MB_SESSION_CAPTURE=off`. Distinct from `/mb search` (core files) and `mb-graph.sh search` (code graph).
 
 ## Design principles
 

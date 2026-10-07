@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -42,25 +41,15 @@ def _maybe_reexec(backend: str, mb_path: str, argv: list[str]) -> None:
     ``auto`` (agents call without a flag); ``bm25`` is answered right here.
     Fail-open: no such interpreter, or an exec that fails, keeps today's behaviour.
     """
-    if backend == "bm25" or os.environ.get(_REEXEC_ENV):
+    if backend == "bm25":
         return
     from memory_bank_skill import semantic_embeddings as sem_emb
 
     if sem_emb.HAS_FASTEMBED:
         return
-    from memory_bank_skill.semantic_index import _semantic_python
+    from memory_bank_skill.semantic_index import reexec_under_semantic_python
 
-    python = _semantic_python(Path(mb_path))
-    # Literal compare, never realpath: a venv python is a SYMLINK to the base
-    # interpreter, so resolving it would call the venv "the same interpreter we are
-    # already running" and skip the very re-exec that reaches fastembed.
-    if not python or python == sys.executable:
-        return
-    os.environ[_REEXEC_ENV] = "1"  # the child answers or degrades; it never re-execs
-    try:
-        os.execv(python, [python, str(Path(__file__).resolve()), *argv])
-    except OSError:
-        os.environ.pop(_REEXEC_ENV, None)
+    reexec_under_semantic_python(mb_path, Path(__file__).resolve(), argv, _REEXEC_ENV)
 
 
 def main(argv: list[str]) -> int:

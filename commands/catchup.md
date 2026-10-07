@@ -1,5 +1,5 @@
 ---
-description: Reload the current context after a reset or compaction
+description: "Reloads the current context after a reset or compaction. Use when the session lost context — «что мы делали», «восстанови контекст», after /compact or /clear."
 allowed-tools: [Bash, Read]
 ---
 

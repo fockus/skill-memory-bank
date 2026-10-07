@@ -171,7 +171,7 @@ manifest_opencode_global_extensions() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# (2) subagents — declared on cursor/windsurf/cline/kilo; genuinely
+# (2) subagents — declared on windsurf/cline/kilo; genuinely
 # absent means no dispatch mechanism reaches these hosts. Verified via
 # scripts/mb-subinvoke-resolve.sh's TABLE (the single cross-host dispatch
 # registry — pi.sh/opencode.sh cite it as such) having no entry for them.
@@ -179,7 +179,7 @@ manifest_opencode_global_extensions() {
 
 @test "honesty negative: subagents is declared limited (with a reason) and genuinely absent, on hosts with no dispatch primitive" {
   local adapter
-  for adapter in cursor windsurf cline kilo; do
+  for adapter in windsurf cline kilo; do
     local m
     m="$(manifest_$adapter)"
     [ -f "$m" ]
@@ -192,15 +192,21 @@ manifest_opencode_global_extensions() {
   # single source of truth cited by pi.sh/codex.sh for their own dispatch
   # declarations) — genuinely nothing to route to.
   local a
-  for a in cursor windsurf cline kilo; do
+  for a in windsurf cline kilo; do
     refute_grep -q "\-\-agent $a\b" "$REPO_ROOT/scripts/mb-subinvoke-resolve.sh" \
       || fail "$a: mb-subinvoke-resolve.sh has a dispatch entry — subagents is not actually absent"
   done
 
 }
 
-@test "honesty negative: opencode/pi/codex are NOT declared subagents-limited — each has a genuine native dispatch primitive" {
+@test "honesty negative: opencode/pi/codex/cursor are NOT declared subagents-limited — each has a genuine native dispatch primitive" {
   local m
+  # cursor (I-244): Cursor discovers ~/.cursor/agents/*.md natively; install-global renders the roles there
+  m="$(manifest_cursor)"
+  jq -e '.platform_limited | index("subagents") == null' "$m" >/dev/null \
+    || fail "cursor: subagents wrongly declared — ~/.cursor/agents/*.md is Cursor's native subagent discovery"
+  grep -q -- '--host cursor' "$REPO_ROOT/adapters/cursor.sh"
+
   m="$(manifest_opencode)"
   jq -e '.platform_limited | index("subagents") == null' "$m" >/dev/null \
     || fail "opencode: subagents wrongly declared — .opencode/agent/*.md is a genuine native dispatch primitive (opencode.sh)"
@@ -392,13 +398,17 @@ manifest_opencode_global_extensions() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# (6) role-routing — declared on pi (both manifests) + opencode; genuinely
+# (6) role-routing — declared on pi (both manifests) + opencode + cursor; genuinely
 # means /mb work's dispatch (commands/work.md 5a) never branches per host,
 # only ever calling the Claude Code Task tool (backlog I-121/I-122).
 # ═══════════════════════════════════════════════════════════════
 
-@test "honesty negative: role-routing is declared limited (with a reason) on pi + opencode, and /mb work never routes per-host" {
+@test "honesty negative: role-routing is declared limited (with a reason) on pi + opencode + cursor, and /mb work never routes per-host" {
   local m
+  m="$(manifest_cursor)"
+  jq -e '.platform_limited | index("role-routing") != null' "$m" >/dev/null
+  jq -e '.platform_limited_notes["role-routing"] | length > 0' "$m" >/dev/null
+
   m="$(manifest_opencode)"
   jq -e '.platform_limited | index("role-routing") != null' "$m" >/dev/null
   jq -e '.platform_limited_notes["role-routing"] | length > 0' "$m" >/dev/null
@@ -431,7 +441,7 @@ manifest_opencode_global_extensions() {
   # (SKILL.md § Invocation) for the model to call — no deterministic per-role
   # headless dispatch to a non-CC host exists in it.
   grep -q "SKILL.md § Invocation" "$REPO_ROOT/commands/work.md"
-  ! grep -Eq -- '--agent (pi|opencode) --role' "$REPO_ROOT/commands/work.md"
+  ! grep -Eq -- '--agent (pi|opencode|cursor) --role' "$REPO_ROOT/commands/work.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -445,7 +455,7 @@ CLOSED_VOCAB=(statusline subagents lifecycle-hooks session-memory update-notify 
 
 # (client:capability) pairs asserted as genuinely-absent-with-a-reason above.
 TESTED_PAIRS=(
-  "cursor:statusline" "cursor:subagents"
+  "cursor:statusline" "cursor:role-routing"
   "windsurf:statusline" "windsurf:subagents" "windsurf:lifecycle-hooks" "windsurf:session-memory" "windsurf:update-notify"
   "cline:statusline" "cline:subagents" "cline:lifecycle-hooks" "cline:session-memory" "cline:update-notify"
   "kilo:statusline" "kilo:subagents" "kilo:lifecycle-hooks" "kilo:session-memory" "kilo:update-notify"

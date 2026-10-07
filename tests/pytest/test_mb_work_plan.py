@@ -114,6 +114,20 @@ def test_role_auto_detect_qa(tmp_path: Path) -> None:
     assert obj["role"] == "qa"
 
 
+def test_role_auto_detect_debugger_for_bug_stage(tmp_path: Path) -> None:
+    mb = _init_mb(tmp_path)
+    plan = mb / "plans" / "p.md"
+    plan.write_text(
+        _plan([_stage(1, "Fix flaky crash in parser", "- ✅ root cause found\n")]),
+        encoding="utf-8",
+    )
+    r = _run("--target", str(plan), mb=mb)
+    assert r.returncode == 0, r.stderr
+    obj = _parse_jsonl(r.stdout)[0]
+    assert obj["role"] == "debugger"
+    assert obj["agent"] == "mb-debugger"
+
+
 def test_role_default_developer(tmp_path: Path) -> None:
     mb = _init_mb(tmp_path)
     plan = mb / "plans" / "p.md"

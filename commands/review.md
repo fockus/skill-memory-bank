@@ -1,5 +1,5 @@
 ---
-description: Full review of uncommitted code — principles, architecture, tests, security
+description: "Full review of uncommitted code — principles, architecture, tests, security. Use when the user asks «сделай ревью», «проверь код», review my changes before commit."
 allowed-tools: [Read, Glob, Grep, Bash, Write]
 ---
 

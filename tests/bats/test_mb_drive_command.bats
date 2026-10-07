@@ -296,8 +296,9 @@ EOF
   run diff "$BATS_TEST_TMPDIR/u3" "$PROJECT/AGENTS.md"
   [ "$status" -eq 0 ]
 
-  # User content survives verbatim, interior blank lines included.
-  run head -5 "$PROJECT/AGENTS.md"
+  # User content survives verbatim, interior blank lines included. The managed
+  # blocks sit at the top of the file (agents-md-diet), so it is the tail.
+  run tail -n 5 "$PROJECT/AGENTS.md"
   [ "$status" -eq 0 ]
   [ "$output" = "$(printf '# User doc\n\npara one\n\npara two')" ]
   [ "$(grep -c 'memory-bank:start' "$PROJECT/AGENTS.md")" -eq 1 ]

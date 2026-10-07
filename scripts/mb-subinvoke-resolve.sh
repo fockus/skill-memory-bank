@@ -42,14 +42,14 @@
 #      `mb-fanout --cmd` and a baked env stay authoritative (even for an agent the
 #      table does not know).
 #   2. Built-in table for the active agent:
-#        codex       → codex exec --model "${MB_SUBINVOKE_MODEL:-gpt-5.5}" \
+#        codex       → codex exec --model "${MB_SUBINVOKE_MODEL:-gpt-6.1-sol}" \
 #                        --sandbox read-only "$MB_FANOUT_PROMPT"
 #        claude-code → env -u CLAUDECODE MB_CAPTURE_SUBPROCESS=1 \
 #                        claude -p "$MB_FANOUT_PROMPT" --model \
 #                        "${MB_SUBINVOKE_MODEL:-sonnet}" --strict-mcp-config \
 #                        --no-session-persistence --no-chrome  (anti-recursion env)
 #        pi          → pi -p --no-session --model \
-#                        "${MB_SUBINVOKE_MODEL:-openai-codex/gpt-5.5}" \
+#                        "${MB_SUBINVOKE_MODEL:-openai-codex/gpt-6.1-sol}" \
 #                        "$MB_FANOUT_PROMPT"
 #        opencode    → opencode run --model \
 #                        "${MB_SUBINVOKE_MODEL:-opencode/gpt-5.2}" "$MB_FANOUT_PROMPT"
@@ -71,6 +71,13 @@
 # them are printed literally (the prompt is never expanded here).
 
 set -euo pipefail
+
+# Built-in Codex model defaults (I-243). gpt-6.1-sol is the Codex docs'
+# "start here" tier (learn.chatgpt.com/docs/models) — near-Astra quality at lower
+# cost, the right default for a fan-out branch (Claude's counterpart is sonnet).
+# GPT-5.5 retires for ChatGPT sign-in on 2026-10-14. MB_SUBINVOKE_MODEL overrides.
+DEFAULT_CODEX_MODEL="gpt-6.1-sol"
+DEFAULT_PI_CODEX_MODEL="openai-codex/$DEFAULT_CODEX_MODEL"
 
 # Resolves adapters/../agents/<role>.md for the --role scoping below (Task 4).
 # Not used at all when --role is omitted, so this never affects existing
@@ -131,7 +138,7 @@ SUB_MODEL="${MB_SUBINVOKE_MODEL:-}"
 # live shell. Validate against a conservative model-id grammar (letters, digits,
 # and . _ / -); anything else — spaces, $, (), backticks, quotes — is a config
 # error rejected HERE, before emission, so command substitution can never fire.
-# The built-in defaults (gpt-5.5 / sonnet) are safe constants and bypass this.
+# The built-in defaults (DEFAULT_*_MODEL / sonnet) are safe constants and bypass this.
 if [ -n "$SUB_MODEL" ]; then
   case "$SUB_MODEL" in
     *[!A-Za-z0-9._/-]*)
@@ -143,10 +150,11 @@ fi
 case "$AGENT" in
   codex)
     # `codex exec` headless run; read-only sandbox is the safe default for a
-    # fan-out branch (REQ-DF-082). The model defaults to gpt-5.5 when unset.
+    # fan-out branch (REQ-DF-082). The model defaults to
+    # $DEFAULT_CODEX_MODEL when unset.
     # printf with a %s for the (trusted) model keeps the model interpolated while
     # the literal $MB_FANOUT_PROMPT token is printed verbatim (never expanded).
-    [ -n "$SUB_MODEL" ] || SUB_MODEL="gpt-5.5"
+    [ -n "$SUB_MODEL" ] || SUB_MODEL="$DEFAULT_CODEX_MODEL"
     # shellcheck disable=SC2016  # $MB_FANOUT_PROMPT MUST stay literal — the seam:
     # it is expanded later by mb-fanout's `bash -c` with the prompt in the env,
     # never spliced in here. Only the trusted model (%s) is interpolated.
@@ -173,7 +181,7 @@ case "$AGENT" in
     # Pi headless (`pi -p --no-session`) sub-invoke (B7/CDX-2). `--no-session`
     # keeps a fan-out branch from persisting/resuming a shared Pi session. The
     # model defaults to a provider/id form Pi accepts verbatim when unset.
-    [ -n "$SUB_MODEL" ] || SUB_MODEL="openai-codex/gpt-5.5"
+    [ -n "$SUB_MODEL" ] || SUB_MODEL="$DEFAULT_PI_CODEX_MODEL"
 
     if [ -n "$ROLE" ]; then
       # adapter-parity Task 4 (REQ-008/009): role-scoped dispatch is the D-09

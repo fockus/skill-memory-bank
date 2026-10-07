@@ -1,5 +1,15 @@
 # Route: research
 
+## Contents
+
+- [Phases](#phases)
+- [Per-phase skill](#per-phase-skill)
+- [Boundary checks](#boundary-checks)
+- [Retry rule](#retry-rule)
+- [Sequential fallback](#sequential-fallback)
+- [Patterns invoked](#patterns-invoked)
+- [Firewall](#firewall)
+
 An investigation or spike — **no production code change is expected**. The
 termination condition is a written report / decision, NOT merged code. The
 firewall runs its standard fixed check set (`--phase` is informational and does

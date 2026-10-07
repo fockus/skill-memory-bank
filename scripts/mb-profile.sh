@@ -7,6 +7,8 @@
 #   path     Print active profile file paths and which layers exist.
 #   validate Validate a profile file; non-zero exit on failure.
 #   set      Update one field in an existing profile (--scope required).
+#   key-rules Print the effective key-rules list (catalog defaults + user + project).
+#   quality  Print the effective quality settings (defaults + user + project, per key).
 #
 # Usage examples:
 #   mb-profile.sh init --scope=user --role=backend --stack=go \
@@ -33,7 +35,7 @@ MB_PROFILE_PYTHON_MODULE="memory_bank_skill.rules_profile"
 # ---------------------------------------------------------------------------
 
 _python() {
-  python3 -m "$MB_PROFILE_PYTHON_MODULE" "$@"
+  PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" "${MB_PYTHON:-python3}" -m "$MB_PROFILE_PYTHON_MODULE" "$@"
 }
 
 _die() {
@@ -86,6 +88,20 @@ Subcommands:
            --scope=user|project   (required)
            --file=<path>          profile file to update
            <key>=<value>          field to update
+
+  key-rules  Print effective key rules (rules/key-rules.json defaults, then user,
+             then project key_rules on top; locked rules always on); exit 2 if a
+             profile's key_rules field is invalid.
+           --mb=<path>        Memory Bank whose rules-profile.json is the project layer
+           --agent=<agent>    code-agent name for user-scope path (default: claude-code)
+           --user=<path> / --project=<path>   explicit profile paths
+           --json             JSON {rules:[{id,group,text,locked,ref}], custom:[...], discipline}
+
+  quality    Print effective quality settings — tdd, testing_trophy, coverage,
+             principles, architecture, delivery, discipline — each with its source
+             (default|user|project); exit 2 if a profile's quality fields are invalid.
+           Same options as key-rules; --json prints
+           {quality:{...}, architecture:{names,custom}, delivery, discipline, sources}
 
 Examples:
   mb-profile.sh init --scope=user --role=backend --stack=go --architecture=clean \
@@ -285,6 +301,39 @@ _cmd_set() {
 }
 
 # ---------------------------------------------------------------------------
+# Subcommands: key-rules, quality
+# ---------------------------------------------------------------------------
+
+# Shared by key-rules and quality: same layer paths, different python module ($1).
+_cmd_layered() {
+  local module="$1" user_path="" project_path="" agent="claude-code" mb_path="" json=""
+  shift
+
+  for arg in "$@"; do
+    case "$arg" in
+      --user=*)    user_path="${arg#--user=}" ;;
+      --project=*) project_path="${arg#--project=}" ;;
+      --agent=*)   agent="${arg#--agent=}" ;;
+      --mb=*)      mb_path="${arg#--mb=}" ;;
+      --json)      json="--json" ;;
+      *)           _die "unknown option: $arg" ;;
+    esac
+  done
+
+  [ -n "$user_path" ] || user_path="$(_user_profile_path "$agent")"
+  if [ -z "$project_path" ]; then
+    [ -n "$mb_path" ] || mb_path="$(mb_resolve_path "")" || true
+    [ -n "$mb_path" ] && project_path="$mb_path/rules-profile.json"
+  fi
+
+  local py_args=(resolve "--user=$user_path")
+  [ -n "$project_path" ] && py_args+=("--project=$project_path")
+  [ -n "$json" ] && py_args+=("$json")
+
+  MB_PROFILE_PYTHON_MODULE="$module" _python "${py_args[@]}"
+}
+
+# ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
 
@@ -302,6 +351,8 @@ main() {
     path)     _cmd_path     "$@" ;;
     validate) _cmd_validate "$@" ;;
     set)      _cmd_set      "$@" ;;
+    key-rules) _cmd_layered memory_bank_skill.key_rules "$@" ;;
+    quality)  _cmd_layered memory_bank_skill.quality "$@" ;;
     "")       _usage ;;
     *)        _die "unknown subcommand: $subcommand. Run --help for usage." ;;
   esac

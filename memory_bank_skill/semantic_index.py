@@ -127,6 +127,47 @@ def _semantic_python(mb: Path) -> str | None:
     return None
 
 
+def _has_modules(python: str, modules: list[str]) -> bool:
+    """True when *python* can find every module (``find_spec``: no import cost)."""
+    code = (
+        "import importlib.util as u,sys;sys.exit(any(u.find_spec(m) is None for m in sys.argv[1:]))"
+    )
+    try:
+        run = subprocess.run(  # noqa: S603 - fixed argv, interpreter path is ours
+            [python, "-c", code, *modules], capture_output=True, timeout=10, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return run.returncode == 0
+
+
+def reexec_under_semantic_python(
+    mb: Path | str, script: Path, argv: list[str], guard_env: str, needs: tuple[str, ...] = ()
+) -> None:
+    """Replace this process with ``script argv`` under ``_semantic_python()``.
+
+    Shared by the CLIs that want the bootstrap venv (AGR-047 search, AGR-053 graph).
+    ``os.execv`` keeps the PID, so a caller's process-group kill still reaches it.
+    Returns (keeps running here) when *guard_env* is set, there is no candidate,
+    the candidate lacks any of *needs*, or the exec fails — fail-open everywhere.
+    """
+    if os.environ.get(guard_env):
+        return
+    python = _semantic_python(Path(mb))
+    # Literal compare, never realpath: a venv python is a SYMLINK to the base
+    # interpreter, so resolving it would call the venv "the same interpreter we are
+    # already running" and skip the very re-exec that reaches its packages.
+    if not python or python == sys.executable:
+        return
+    if needs and not _has_modules(python, list(needs)):
+        return
+    os.environ[guard_env] = "1"  # the child runs or degrades; it never re-execs
+    try:
+        os.execv(python, [python, str(script), *argv])
+    except OSError:
+        os.environ.pop(guard_env, None)
+
+
 def build_index(mb_path: Path | str, python: str | None = None) -> str:
     """Encode the corpus into ``<mb>/.index/codesearch`` (the slow half).
 

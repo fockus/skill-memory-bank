@@ -65,3 +65,31 @@ def read_meta(path: Path) -> JsonObj | None:
     except (OSError, json.JSONDecodeError):
         return None
     return None
+
+
+def _project_root(mb: Path) -> Path | None:
+    """Project root a ``.memory-bank`` lives in; ``None`` for other bank layouts."""
+    return mb.parent if mb.name == ".memory-bank" else None
+
+
+def meta_src_root(mb: Path, src: Path) -> str:
+    """``src_root`` for the meta row: relative to the project root when inside it.
+
+    A manual build passes ``.`` and the SessionStart catch-up an absolute path;
+    both must write the same value or the tracked meta line flips per builder.
+    Outside the project (or a non-``.memory-bank`` bank) the path stays as given.
+    """
+    root = _project_root(mb.resolve())
+    if root is not None:
+        try:
+            return src.resolve().relative_to(root).as_posix()
+        except ValueError:
+            pass
+    return str(src)
+
+
+def resolve_src_root(graph_path: Path, value: str | None) -> Path:
+    """Inverse of :func:`meta_src_root`: anchor a relative value at the project root."""
+    p = Path(value or ".")
+    root = None if p.is_absolute() else _project_root(Path(graph_path).resolve().parents[1])
+    return root / p if root is not None else p

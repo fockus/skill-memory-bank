@@ -39,7 +39,7 @@ code or the test is a CRITICAL gap, not a pass. An item you cannot confirm from 
 
 ### Step 1: Read the exact work source
 
-Use the caller's `Source file` and `Source kind` (`plan` or `spec`); legacy `Plan file` remains a valid plan input. Never select a different source by modification time. Use the provided absolute `Bank path` for bank reads; resolve it through `mb_resolve_path` if omitted.
+Use the caller's `Source file` and `Source kind` (`plan` or `spec`); legacy `Plan file` remains a valid plan input. A `/mb work` run with verify cadence `run` passes one `Source file:` line per plan: verify each source in turn, report per source, and run the full suite once. Never select a different source by modification time. Use the provided absolute `Bank path` for bank reads; resolve it through `mb_resolve_path` if omitted.
 
 Bind `PLAN_FILE` to that exact source (also for a spec), `BANK` to the resolved bank, and `SKILL_DIR` to the supplied skill path. Export `MB_PATH="$BANK"` for helper calls and keep cwd at the project, not the bank or installed bundle. Include these bindings again for each fresh tool shell.
 
@@ -90,12 +90,29 @@ For every plan stage, verify every DoD item:
 ### Step 3.5: Run tests
 
 Tests being *present* is not enough — a DoD like "tests pass" or "coverage ≥ 85%" is only ✅ if tests
-actually run green. Run the suite once with the structured runner (it exits 0 even when tests fail;
-the verdict is `tests_pass` in the JSON):
+actually run green. Run them once with the structured runner (it exits 0 even when tests fail; the
+verdict is `tests_pass` in the JSON). How much to run depends on what you were asked to verify (AGR-071):
 
-```bash
-bash "$SKILL_DIR/scripts/mb-test-run.sh" --dir . --out json
-```
+- **One `/mb work` item, not the last** — the prompt says `Verify only item <N>` and `Final item: no`.
+  Run the tests for this item's own files — the prompt's `Item files:` (its `Files:` ∩ files changed
+  since baseline, comma-separated). The baseline does not move between uncommitted items, so a
+  `--changed-since` run would also pick up every earlier item's tests:
+
+  ```bash
+  bash "$SKILL_DIR/scripts/mb-test-run.sh" --files <Item files> --out json
+  ```
+
+  Only when the prompt has no `Item files:` (the item declares no `Files:`), run the files changed
+  since the item's baseline (`Baseline ref:`; without one, the plan's **Baseline commit**):
+  `bash "$SKILL_DIR/scripts/mb-test-run.sh" --changed-since <Baseline ref> --out json`.
+
+  `selection: "full"` with a `reason` means the runner could not map the change and ran everything —
+  that is expected, not an error.
+- **The whole plan (`/mb verify`), or the final item** (`Final item: yes`) — run the full suite once:
+
+  ```bash
+  bash "$SKILL_DIR/scripts/mb-test-run.sh" --dir . --out json
+  ```
 
 A failure whose file is in `git diff --name-only <Baseline commit>` is a regression introduced by this
 work; list those first.
@@ -105,7 +122,7 @@ work; list those first.
 - `tests_pass == true`  → Tests row in the report = `pass`.
 - `tests_pass == false` → Tests row = `fail` + CRITICAL for every plan stage whose DoD requires "tests pass". List regressions in files changed since the baseline first.
 - `tests_pass == null`  → Tests row = `not-run`. **Do NOT silently pass** — flag WARNING: "tests not measured (stack=<stack>); plan DoD may be unverifiable here".
-- If the DoD specifies coverage ≥ X% and `coverage.overall` is populated (pytest `--cov`, `go test -cover`, `jest --coverage`), compare; otherwise mark coverage as "not measured" rather than falsely ✅.
+- **Coverage follows the project settings** (AGR-076): `bash "$SKILL_DIR/scripts/mb-profile.sh" quality --json --mb=<bank>` → `.quality.coverage`. `coverage.enabled: true` → compare `coverage.overall` (pytest `--cov`, `go test -cover`, `jest --coverage`) with the profile's `overall`, and `core`/`infra` where the runner reports them; below = WARNING. `false` (the default) → the profile requires nothing: report `Coverage: not enabled`, not a WARNING. Either way a DoD that itself states coverage ≥ X% is compared (CRITICAL when below). Not populated → "not measured", never a false ✅.
 
 ### Step 3.6: Check RULES.md adherence
 
@@ -129,7 +146,7 @@ For every changed source file in the diff, apply deterministic checks:
 | **SRP** | file length > 300 lines AND file is not a generated/vendor file (`mb-rules-check.sh --base <Baseline commit>`) | CRITICAL when this work pushed the file over the threshold; WARNING when it was already over |
 | **ISP** | interface / trait / protocol with > 5 methods introduced or grown | WARNING |
 | **DIP / Clean Architecture direction** | `grep -E 'from.*infrastructure\|import .*infrastructure'` inside any `domain/` file (layer crossing: domain depends on infrastructure — forbidden direction) | CRITICAL |
-| **TDD delta** | a source file under `src/`, `scripts/`, `agents/`, `lib/` changed without a matching test file touched in the same diff range (match by basename stem under `tests/`) | CRITICAL unless file matches a documented exception (`docs/`, `*.md`, migrations, generated code) |
+| **TDD delta** (only when `quality.tdd` is not `off` in `mb-profile.sh quality --json`; `off` → the checker reports `tdd/delta` as INFO skipped) | a source file under `src/`, `scripts/`, `agents/`, `lib/` changed without a matching test file touched in the same diff range (match by basename stem under `tests/`) | CRITICAL unless file matches a documented exception (`docs/`, `*.md`, migrations, generated code) |
 | **DRY** | the same logic added in 3+ places in the diff | WARNING |
 
 Record each hit in the report under `RULES violations:` with the rule name, file, line, and one-sentence rationale. Do not duplicate violations already covered by the plan's own DoD.
@@ -226,7 +243,7 @@ Issue categories:
 ### Tests
 - Tests run: pass | fail | not-run
 - Tests found: N
-- Coverage: X% | not-measured
+- Coverage: X% | not-measured | not enabled
 - DoD coverage: <yes/partial/no>
 - Missing tests for: <list>
 

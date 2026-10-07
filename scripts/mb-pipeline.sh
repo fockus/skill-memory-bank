@@ -3,6 +3,9 @@
 #
 # Subcommands:
 #   init  [--force] [mb_path]   Copy bundled default into <bank>/pipeline.yaml
+#         [--host H --preset P --cost C --model-premium X --model-mid Y]
+#                               …rendered as a host template (mb_config_hosts.py)
+#   matrix [--host …] [mb_path] Effective workflow + per-role model matrix
 #   show              [mb_path] Print the resolved pipeline (project → default)
 #   path              [mb_path] Print absolute path to the resolved pipeline
 #   validate [path]   [mb_path] Validate the resolved (or given) pipeline
@@ -30,7 +33,9 @@ usage() {
 mb-pipeline — manage execution pipeline.yaml
 
 Usage:
-  mb-pipeline init  [--force] [mb_path]
+  mb-pipeline init  [--force] [--host H] [--preset P] [--cost C]
+                    [--model-premium X] [--model-mid Y] [mb_path]
+  mb-pipeline matrix [--host H] [--cost C] [--preset P] [--verify V] [mb_path]
   mb-pipeline list                 [mb_path]
   mb-pipeline new  NAME [--agent a,b] [--from NAME|default] [--default] [--force] [mb_path]
   mb-pipeline use  NAME            [mb_path]
@@ -217,11 +222,16 @@ resolve_selected_pipeline_path() {
 cmd_init() {
   local force=0
   local mb_arg=""
-  for arg in "$@"; do
-    case "$arg" in
-      --force) force=1 ;;
+  local tpl=()   # host template flags → scripts/mb_config_hosts.py (AGR-074)
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --force) force=1; shift ;;
+      --host|--preset|--cost|--model-premium|--model-mid)
+        if [ "$#" -ge 2 ]; then tpl+=("$1" "$2"); shift 2;
+        else echo "[pipeline] $1 requires a value" >&2; exit 2; fi ;;
+      --host=*|--preset=*|--cost=*|--model-premium=*|--model-mid=*) tpl+=("${1%%=*}" "${1#*=}"); shift ;;
       -h|--help) usage; exit 0 ;;
-      *) if [ -z "$mb_arg" ]; then mb_arg="$arg"; fi ;;
+      *) if [ -z "$mb_arg" ]; then mb_arg="$1"; fi; shift ;;
     esac
   done
 
@@ -232,6 +242,12 @@ cmd_init() {
     exit 1
   fi
   local target="$mb/pipeline.yaml"
+  if [ "${#tpl[@]}" -gt 0 ]; then
+    local force_flag=()
+    [ "$force" -eq 0 ] || force_flag=(--force)
+    exec python3 "$SCRIPT_DIR/mb_config_hosts.py" init --default "$DEFAULT_YAML" --target "$target" \
+      --root "$PWD" "${tpl[@]}" "${force_flag[@]+"${force_flag[@]}"}"
+  fi
   if [ -f "$target" ] && [ "$force" -eq 0 ]; then
     echo "[pipeline] $target already exists (use --force to overwrite)" >&2
     exit 1
@@ -250,6 +266,12 @@ cmd_show() {
   resolved=$(resolve_selected_pipeline_path "$SELECT_MB" "$SELECT_NAME") || rc=$?
   if [ "$rc" -ne 0 ]; then exit "$rc"; fi
   cat "$resolved"
+}
+
+# matrix [--host H] [--cost C] [--preset P] [--verify V] [mb_path] — effective
+# workflow + role → agent → model → source → discipline (`/mb config show`).
+cmd_matrix() {
+  exec python3 "$SCRIPT_DIR/mb_config_hosts.py" show "$@"
 }
 
 cmd_path() {
@@ -548,6 +570,7 @@ main() {
     use) shift; cmd_use "$@" ;;
     list) shift; cmd_list "$@" ;;
     show) shift; cmd_show "$@" ;;
+    matrix) shift; cmd_matrix "$@" ;;
     path) shift; cmd_path "$@" ;;
     validate) shift; cmd_validate "$@" ;;
     *)

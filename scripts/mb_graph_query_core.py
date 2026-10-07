@@ -167,24 +167,30 @@ def find_tests(edges: list[JsonObj], target_names: set[str], target_files: set[s
 
 
 def neighbors_payload(
-    nodes: list[JsonObj], edges: list[JsonObj], symbol: str | None, file_name: str | None
+    nodes: list[JsonObj],
+    edges: list[JsonObj],
+    symbol: str | None,
+    file_name: str | None,
+    direction: str = "both",
 ) -> JsonObj:
+    """``direction="in"`` answers "who calls X": only edges whose dst IS the symbol
+    (file-level edges that merely touch its file are dropped); ``"out"`` only what
+    it uses. The omitted side's key is absent. ``"both"`` is the original payload."""
     matches, target_names, target_files = resolve_target(nodes, symbol=symbol, file_name=file_name)
-    incoming = dedupe_edges(
-        [edge for edge in edges if edge_is_incoming(edge, target_names, target_files)]
-    )
-    outgoing = dedupe_edges(
-        [edge for edge in edges if edge_is_outgoing(edge, target_names, target_files)]
-    )
-    if not matches and not incoming and not outgoing:
-        return {"ok": False, "error": "no_match", "query": {"symbol": symbol, "file": file_name}}
-    return {
-        "ok": True,
-        "query": {"symbol": symbol, "file": file_name},
-        "matches": matches,
-        "incoming": incoming,
-        "outgoing": outgoing,
-    }
+    query = {"symbol": symbol, "file": file_name}
+    sides: JsonObj = {}
+    if direction != "out":
+        in_files = set() if direction == "in" and symbol is not None else target_files
+        sides["incoming"] = dedupe_edges(
+            [edge for edge in edges if edge_is_incoming(edge, target_names, in_files)]
+        )
+    if direction != "in":
+        sides["outgoing"] = dedupe_edges(
+            [edge for edge in edges if edge_is_outgoing(edge, target_names, target_files)]
+        )
+    if not matches and not any(sides.values()):
+        return {"ok": False, "error": "no_match", "query": query}
+    return {"ok": True, "query": query, "matches": matches, **sides}
 
 
 def impact_payload(

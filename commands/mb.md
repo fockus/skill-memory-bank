@@ -1,5 +1,5 @@
 ---
-description: "Memory Bank — long-term project memory management"
+description: "Memory Bank — long-term project memory management: context, plans, specs, work, verify, done. Use when the user types /mb or asks about project memory or status — «что в работе», «восстанови контекст»."
 allowed-tools: [Bash, Read, Write, Edit, Task, Glob, Grep]
 ---
 
@@ -36,9 +36,9 @@ For the snippets below, parse the remaining user arguments into the named Bash a
 
 #### GraphRAG-lite retrieval routing
 
-`code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" and "find similar implementation". Exact structural questions use graph tools directly: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or impact analysis → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code`, served by `scripts/mb-semantic-search.py` (BM25 by default, opt-in local embeddings); respect explicit tool intent.
+`code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" and "find similar implementation". Exact structural questions use graph tools directly: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or impact analysis → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code`, served by `bash "$SKILL_DIR"/scripts/mb-graph.sh search "<query>"` (one token → BM25, a phrase → local embeddings); respect explicit tool intent.
 
-Fail open: for missing graph or stale graph, explain the limitation and suggest `/mb graph --apply`; for missing semantic provider or unavailable native extension, use `scripts/mb-code-context.py`, `scripts/mb-graph-query.py`, `rg`, and `read` as CLI fallback instead of blocking.
+Fail open: for missing graph or stale graph, explain the limitation and suggest `/mb graph --apply`; for missing semantic provider or unavailable native extension, use `scripts/mb-code-context.py`, `bash "$SKILL_DIR"/scripts/mb-graph.sh who-calls|impact|tests <Symbol>`, `rg`, and `read` as CLI fallback instead of blocking.
 
 
 | Subcommand                                               | Action                                                                                                                                                                                                                                                                                                   |
@@ -62,12 +62,12 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `brief <topic>`                                          | Formalize a raw request plus attached documents into a one-page brief under `briefs/<topic>/` — first stage of `brief → discuss → sdd → work`. `[--request <text> \| --request-file <path>] [--input <path>]… [--auto]`; `--input` is repeatable. Not an interview: at most five clarifying questions. See `### brief` below / `commands/brief.md`.                                                      |
 | `discuss <topic>`                                        | 5-phase requirements-elicitation interview → EARS-validated `context/<topic>.md` (Phase 1 Purpose & Users / Phase 2 Functional EARS / Phase 3 Non-Functional / Phase 4 Constraints / Phase 5 Edge Cases). Feeds traceability matrix.                                                                     |
 | `ask_me <topic>`                                         | **Alias for `discuss`** — same interview, easier to remember. Dispatch identically.                                                                                                                                                                                                                      |
-| `groom <topic>` (also `grooming`)                        | Critical grooming session for any task/idea at any stage: challenge necessity + approach, cover white spots, propose solutions. Summary → `context/<topic>-groom.md`; confirmed decisions routed to `agreements.md` (AGR) / backlog `## ADR` / `## Ideas`; proposes next steps (spec/plan). No EARS. See `commands/groom.md`. |
+| `groom <topic>` (also `grooming`)                        | Critical grooming session for any task/idea at any stage: challenge necessity + approach, cover white spots, propose solutions. Summary → `context/<topic>-groom.md`; confirmed decisions routed to `agreements.md` (AGR) / `adr.md` (ADR) / backlog `## Ideas`; proposes next steps (spec/plan). No EARS. See `commands/groom.md`. |
 | `sdd <topic> [--force]`                                  | Create Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md`. If `context/<topic>.md` exists, EARS section copied verbatim into `requirements.md`. `--force` overwrites.                                                                                                                 |
 | `openspec <import\|list\|status\|sync> [args]`           | One-way import adapter: OpenSpec `changes/<id>/` → MB spec triple `specs/<topic>/` via `scripts/mb-openspec.sh` (no `openspec` CLI dep). `import <dir> [--as <topic>] [--normalize]` writes the triple + drift frontmatter; `list [--all]`/`status <topic>` show imported/drifted/not-imported; `sync [<topic>]` re-imports only on hash drift. Opt-in `--normalize` fills LLM text slots (EARS/scenario/Covers), cached + fail-open. See `### openspec` below.                                     |
 | `config <init\|show\|validate\|path>`                    | Manage execution `pipeline.yaml` (spec §9). `init` copies bundled default into `<bank>/pipeline.yaml`; `show` prints resolved config; `validate` runs schema check; `path` prints absolute path of resolved file.                                                                                       |
 | `pipeline <list\|new\|use\|show\|path\|validate>`        | Manage **multiple named pipelines** under `<bank>/pipelines/<name>.yaml` (different models + workflow per pipeline). `list` shows all + active; `new NAME [--agent a,b] [--from NAME] [--default]` scaffolds one; `use NAME` switches the default; `show`/`path`/`validate [--all]` inspect. Each can bind a code-agent host (`agents:`) for auto-selection by `/mb work`.                                                       |
-| `work [target] [--range A-B] [--dry-run]`                | Execute stages from a plan. Auto-selects role-agent per stage (mb-backend / mb-frontend / mb-ios / mb-android / mb-architect / mb-devops / mb-qa / mb-analyst, fallback mb-developer). Sprint 2: implement-step dispatch + dry-run; Sprint 3 adds review-loop, severity gates, verifier integration.    |
+| `work [target] [--range A-B] [--dry-run]`                | Execute stages from a plan. Auto-selects role-agent per stage (mb-backend / mb-frontend / mb-ios / mb-android / mb-architect / mb-devops / mb-qa / mb-debugger / mb-analyst, fallback mb-developer). Sprint 2: implement-step dispatch + dry-run; Sprint 3 adds review-loop, severity gates, verifier integration.    |
 | `verify`                                                 | Verify plan execution (plan vs code)                                                                                                                                                                                                                                                                     |
 | `map [focus]`                                            | Scan the codebase and write MD documents to `.memory-bank/codebase/`. Focus: `stack / arch / quality / concerns / all` (default: `all`)                                                                                                                                                                  |
 | `upgrade`                                                | Update the skill from GitHub (`git pull + re-install`). Flags: `--check` (check only), `--force` (skip confirmation)                                                                                                                                                                                     |
@@ -78,6 +78,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `tags [--apply] [--auto-merge]`                          | Normalize frontmatter tags: detect synonyms via Levenshtein ≤2 against a closed vocabulary and propose merges. `--auto-merge` only applies distance ≤1. Vocabulary is in `.memory-bank/tags-vocabulary.md` (fallback: `references/tags-vocabulary.md`). `mb-index-json.py` auto-normalizes to kebab-case |
 | `init [--minimal|--full]`                                | Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only                                                                                                                                                                                     |
 | `profile <subcommand>`                                   | Manage rule profiles: `init`, `show`, `path`, `validate`, `set`. See `commands/profile.md`. Example: `mb-profile.sh init --scope=user --role=backend --stack=go`                                                                                                                                        |
+| `rules <subcommand>`                                     | Key rules block at the top of `CLAUDE.md`/`AGENTS.md`: `list`, `enable\|disable <id>`, `add "<text>"`, `remove <n>`, `init` (onboarding), `sync`; `--scope=user\|project`. See `commands/rules.md` |
 | `language <code> [--comments <code>] \| off \| show`     | Per-project response / code-comment language (`en ru es pt zh`), overriding the global install choice. Writes a managed block at the top of the project's `AGENTS.md` and `CLAUDE.md`; `off` removes it |
 | `install [<clients>]`                                    | Install Memory Bank for the project. If `<clients>` is empty, ask for an 8-client multiselect (`claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex`). Calls `memory-bank install --clients ... --project-root $PWD`                                                                                |
 | `statusline [--force]`                                   | Claude Code only. Install the context-window statusline (`% of context filled` + model · branch · project) by running `scripts/mb-statusline.py --install`, which patches `~/.claude/settings.json` (backup first, refuses to clobber an existing `statusLine` unless `--force`)                          |
@@ -87,13 +88,13 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `coord <active\|append> [args]`                          | Read/write the cross-session coordination board without loading it. `active [--tail N]` prints active FREEZEs, HANDOVERs with no ACK, the last N entries (default 3) and a totals line — a few hundred bytes instead of a 200 KB append-only file; `append --type <FREEZE\|LIFT\|HANDOVER\|ACK\|STATUS> --title <t> [--body-file <f>]` writes a canonically tagged entry through a locked atomic append. No board → `no board`, exit 0.                                      |
 | `idea <title> [HIGH\|MED\|LOW]`                          | Capture new idea in `backlog.md` with auto-generated monotonic `I-NNN` ID (priority defaults to `MED`)                                                                                                                                                                                                    |
 | `idea-promote <I-NNN> <type>`                            | Promote an idea → plan. Creates plan file via `mb-plan.sh`, flips idea status `NEW\|TRIAGED → PLANNED`, adds `**Plan:** [plans/...]` link, runs plan-sync. `type ∈ feature\|fix\|refactor\|experiment`                                                                                                    |
-| `adr <title>`                                            | Capture Architecture Decision Record with auto-generated monotonic `ADR-NNN` ID inside `backlog.md ## ADR` section — skeleton includes Context / Options / Decision / Rationale / Consequences                                                                                                           |
+| `adr <title>`                                            | Capture Architecture Decision Record with auto-generated monotonic `ADR-NNN` ID in the ADR registry `adr.md` — skeleton includes Context / Decision / Alternatives / Consequences (1–2 sentences each, ≤ 1200 bytes)                                                                                |
 | `agree <subcommand>`                                     | Manage the running list of agreements — the canonical registry of confirmed decisions in `<bank>/agreements.md` (`add [--supersedes N] \| defer \| reject \| question \| resolve \| list \| sync`), auto-synced into a managed block in `CLAUDE.md`/`AGENTS.md`. See `commands/agree.md` + `references/agreements.md`                                       |
 | `goal`                                                   | Scaffold `.memory-bank/goal.md` + `.memory-bank/project.md` from templates (copy-if-absent), then validate the goal with `scripts/mb-goal-validate.sh`. Phase-1 Dynamic Flow primitive (REQ-DF-001..005). See `commands/goal.md`                                                                          |
 | `analyze-task`                                           | Auto-classify goal + git-diff scope into ONE route and write it into the `mb-flow` fence (default Dynamic Flow router). See `commands/analyze-task.md` (REQ-DF-020/022)                                                                                                                                   |
 | `flow <route>`                                           | Explicitly select a route (skip auto-classification); the deterministic route-floor + firewall STILL apply. Escape-hatch. See `commands/flow.md` (REQ-DF-025)                                                                                                                                            |
 | `drive [--route R] [--phase P] [--budget TOK] [--max-cycles N]` | Drive `goal.md` to completion over the deterministic firewall: call `scripts/mb-drive.sh next`, execute the ONE action it prints, repeat until a `stop_*`. Refuses without a resolvable goal. See `commands/drive.md` (REQ-DR-001/003/030/031)                                                    |
-| `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `status.md`, restructures `backlog.md` to `## Ideas` + `## ADR` skeleton. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
+| `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `status.md`, restructures `backlog.md` to the `## Ideas` skeleton, creates `adr.md` if absent. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
 | (unrecognized)                                           | Search by `$ARGUMENTS`                                                                                                                                                                                                                                                                                   |
 
 
@@ -828,11 +829,11 @@ Extraction engines live in the `memory_bank_skill` package: `codegraph_python` (
 
 **Output (`--apply`):**
 
-- `<mb>/codebase/graph.json` — JSON Lines (one node/edge per line, grep-friendly, streamable). Node lines carry a `community` id when networkx is installed. With `--cochange`, additional `{"kind":"co_change","weight":N}` edges are appended. With `--docs`, function/class/module nodes gain optional `signature`+`doc` fields (richer semantic search).
+- `<mb>/codebase/graph.json` — JSON Lines (one node/edge per line, grep-friendly, streamable). Node lines carry a `community` id when networkx is installed; files with no file-level edge are not clusters and carry none. With `--cochange`, additional `{"kind":"co_change","weight":N}` edges are appended. With `--docs`, function/class/module nodes gain optional `signature`+`doc` fields (richer semantic search).
 - `<mb>/codebase/god-nodes.md` — analytics report: **Top symbols** + **Top modules** (degree, split so test-module hubs no longer drown real abstractions) and, when networkx is available, **Communities** (auto-detected module clusters + cohesion score) + **Bridge files** (highest betweenness — refactoring/risk hotspots). With `--cochange`, a **Co-changing file pairs** section is appended.
 - `<mb>/codebase/.cache/<hash>.json` — per-file SHA256 → parsed entities
 
-**Analytics (optional `networkx`):** file-level community detection (Louvain, `seed=42` → deterministic), per-cluster cohesion, and betweenness all live in the pure module `memory_bank_skill/codegraph_analytics.py`. Without networkx the report degrades gracefully (Top symbols / Top modules still render; community/bridge sections are omitted with a one-line note). Install: `pip3 install networkx`.
+**Analytics (optional `networkx`):** file-level community detection (Louvain, `seed=42` over a sorted file graph → the same clusters under any `PYTHONHASHSEED`; the `[codegraph]` extra pins one networkx minor; `communities=N` counts real clusters, not singleton files), per-cluster cohesion, and betweenness all live in the pure module `memory_bank_skill/codegraph_analytics.py`. Without networkx the report degrades gracefully (Top symbols / Top modules still render; the Communities / Bridge files sections of the previous `god-nodes.md` are carried over, not recomputed, under a line naming the commit and date of the build that computed them; rows naming files no longer in the graph are dropped; with no previous sections they are omitted; a one-line install note is always added). Install: `MB_SEMANTIC_VENV="$HOME/.claude/hooks/.venv" bash "$SKILL_DIR"/hooks/mb-semantic-bootstrap.sh` (puts the whole `[codegraph]` extra — tree-sitter, its grammars, networkx — into the bootstrap venv next to fastembed); `mb-codegraph.py` run under any python without networkx re-execs itself under that venv, as long as it has every tree-sitter module the current python has — so the tracked graph no longer depends on which interpreter rebuilt it.
 
 **Co-change edges (opt-in `--cochange`):** files that change together across git history are coupled regardless of static imports/calls — a deterministic, $0 signal the AST/tree-sitter graph cannot see (e.g. a config file and the code that reads it, a test and its subject). Computed in the pure module `memory_bank_skill/codegraph_cochange.py` from `git log` (last 200 commits, bulk commits >25 files skipped, pairs needing ≥2 shared commits). Requires `--apply`; `git` is already a required dependency. Default (flag off) keeps `graph.json` + `god-nodes.md` byte-identical. Outside a git repo it degrades to zero co-change edges.
 
@@ -890,7 +891,7 @@ User: /mb graph --apply
 
 - **Always works** (stdlib only, no install): Python (`.py`) via `ast`; Bash (`.sh`) and Bats (`.bats`) via `re`
 - **Opt-in** (requires tree-sitter + grammars): Go (`.go`), JavaScript (`.js`/`.jsx`/`.mjs`), TypeScript (`.ts`/`.tsx`), Rust (`.rs`), Java (`.java`)
-- Install tree-sitter: `pip install tree-sitter tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java`
+- Install tree-sitter (with networkx — the whole `[codegraph]` extra): `MB_SEMANTIC_VENV="$HOME/.claude/hooks/.venv" bash "$SKILL_DIR"/hooks/mb-semantic-bootstrap.sh`; `mb-codegraph.py` re-execs under that venv when the current python lacks networkx
 - Without tree-sitter: files outside the always-on set (Python/Bash/Bats) are silently skipped (graceful degradation). The `HAS_TREE_SITTER` flag in the script reflects the status
 - Skipped directories: `.venv`, `node_modules`, `__pycache__`, `.git`, `target`, `dist`, `build`, any `.`*
 
@@ -915,7 +916,7 @@ tested `scripts/mb-wiki.py`; the LLM steps dispatch subagents via the `Agent` to
 **Pipeline:**
 
 1. Ensure graph + communities: `mb-codegraph.py --apply .memory-bank .` (communities
-   need `networkx`; absent → tell the user to `pip3 install networkx` and stop).
+   need `networkx`; absent → tell the user to run `MB_SEMANTIC_VENV="$HOME/.claude/hooks/.venv" bash "$SKILL_DIR"/hooks/mb-semantic-bootstrap.sh` and stop).
 2. `mb-wiki.py packs .memory-bank .` → writes `codebase/.wiki-packs.json` (per-community
    files / key symbols / code excerpts).
 3. `mb-wiki.py plan --json .memory-bank .` → dispatch plan (Haiku count + 1 Sonnet).
@@ -932,8 +933,9 @@ tested `scripts/mb-wiki.py`; the LLM steps dispatch subagents via the `Agent` to
 `{"kind":"semantic","confidence":x,"rationale":...}` edges. The wiki articles also
 feed semantic search.
 
-**Semantic search** (companion tool, not a `/mb` subcommand): `scripts/mb-semantic-search.py
-"<query>" [mb_path] [--backend auto|bm25|embeddings] [--source-only] [--k N]`. Default backend
+**Semantic search** (companion tool, not a `/mb` subcommand): `bash "$SKILL_DIR"/scripts/mb-graph.sh search
+"<query>" [--source-only] [--k N]`, a front for `scripts/mb-semantic-search.py "<query>" [mb_path]
+[--backend auto|bm25|embeddings]`. Default backend
 `auto` = local `fastembed` **embeddings** when installed (best for concept/synonym
 queries), else pure-Python **BM25** ($0, zero deps, deterministic — best for exact identifiers),
 over graph symbols + wiki articles. `--source-only` drops test/spec files (filtered after
@@ -1171,7 +1173,8 @@ Core files (templates — `${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/r
 - `roadmap.md` — "Current focus: define", `## Active plan` section with markers `<!-- mb-active-plan -->` / `<!-- /mb-active-plan -->` (for auto-sync)
 - `checklist.md` — empty checklist
 - `research.md` — header + empty hypothesis table
-- `backlog.md` — header + empty sections (HIGH/LOW ideas, ADRs)
+- `backlog.md` — header + empty `## Ideas` section
+- `adr.md` — header only (ADR registry, filled by `/mb adr`)
 - `progress.md` — header
 - `lessons.md` — header
 
@@ -1219,22 +1222,22 @@ Augment with framework information (grep imports/deps):
 - Go: gin, echo, fiber (go.mod)
 - Frontend: React/Vue/Angular/Svelte + FSD layers (check `src/app/`, `src/pages/`, `src/features/`, `src/entities/`, `src/shared/`)
 
-Store the results: `{LANGUAGE}`, `{FRAMEWORK}`, `{STRUCTURE}`, `{TOOLS}`.
+Store the results: `{LANGUAGE}`, `{LANGUAGE_VERSION}`, `{FRAMEWORKS}`, `{PACKAGE_MANAGER}`, `{BUILD_CMD}`, `{TEST_CMD}`, `{LINT_CMD}`, `{RUN_CMD}`, plus the project layout for `{ARCHITECTURE_DETAILS}`.
 
 ---
 
 #### Step 4: Generate `CLAUDE.md` (`--full` only)
 
-Use the template from `${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/references/claude-md-template.md`. Fill in `{LANGUAGE}`, `{FRAMEWORK}`, `{TOOLS}`, project structure, and key dependencies.
+Use the template from `${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/references/claude-md-template.md`. Fill in `{LANGUAGE}`, `{FRAMEWORKS}`, `{PACKAGE_MANAGER}`, project structure, and key dependencies. Fill `{BUILD_CMD}`, `{TEST_CMD}`, `{LINT_CMD}`, `{RUN_CMD}` from detected tooling (`package.json` scripts, `pyproject.toml` / tox / nox, `Makefile` / `justfile` targets, `go`/`cargo` defaults); drop a line rather than guess a command.
 
 Required sections in generated `CLAUDE.md`:
 
 - **Project** — name and description
-- **Technology Stack** — languages, runtime, frameworks, package manager
-- **Conventions** — naming patterns (detect from existing code), code style
-- **Architecture** — for backend: Clean Architecture dependency direction; for frontend: FSD layers
-- **Rules** — link to `~/.claude/RULES.md` + `.memory-bank/RULES.md` + short critical rules (TDD, Contract-First, Clean Arch/FSD, SOLID thresholds, coverage)
-- **Memory Bank** — `/mb` command and key files
+- **Commands** — build / test / lint / run commands of this project
+- **Stack & conventions** — 3–5 facts not derivable from code + pointer to `codebase/STACK.md` / `CONVENTIONS.md`
+- **Architecture** — this project's layout (backend: Clean Architecture layers; frontend: FSD slices)
+- **Project rules** — only overrides of the global rules (`~/.claude/CLAUDE.md` + `~/.claude/RULES.md`); do not restate them
+- **Memory Bank** — session pipeline, `/mb verify` before `/mb done`, coordination board, key files
 
 **Show the user the draft before writing it.** Ask: "Write CLAUDE.md? Anything to add or change?"
 
@@ -1551,7 +1554,7 @@ The idea's `**Plan:**` link lets anyone navigate from `backlog.md` to the live p
 
 ### adr <title>
 
-Capture an Architecture Decision Record (ADR) inside `backlog.md ## ADR`.
+Capture an Architecture Decision Record (ADR) in the ADR registry `adr.md`. Full flow and record format: `commands/adr.md`.
 
 **Arguments:**
 
@@ -1559,9 +1562,9 @@ Capture an Architecture Decision Record (ADR) inside `backlog.md ## ADR`.
 
 **Effect:**
 
-- Appends `### ADR-NNN — <title> [YYYY-MM-DD]` under `## ADR` (creates the section if missing).
-- ID is monotonic across the entire `backlog.md`.
-- Skeleton includes: `**Context:**`, `**Options:**`, `**Decision:**`, `**Rationale:**`, `**Consequences:**` — all with `<!-- hint -->` placeholders for the user to fill in.
+- Appends `### ADR-NNN — <title> [YYYY-MM-DD] · status: accepted` to `adr.md` (creates the file if missing).
+- ID is monotonic over `adr.md` and any not-yet-migrated ADRs in `backlog.md` (`mb-adr-migrate.sh --apply` moves those).
+- Skeleton includes: `**Context:**`, `**Decision:**`, `**Alternatives:**`, `**Consequences:**` — `<!-- hint -->` placeholders, 1–2 sentences each, ≤ 1200 bytes per record.
 - Idempotent per call — each invocation creates a new ADR (no de-dup by title; ADR history is cumulative).
 
 Run directly:
@@ -1575,7 +1578,7 @@ bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-adr.sh "<tit
 ```
 User: /mb adr "Use OIDC for PyPI publishing"
 → ADR-003
-  [writes ### ADR-003 — Use OIDC for PyPI publishing [2026-04-21] + skeleton]
+  [writes ### ADR-003 — Use OIDC for PyPI publishing [2026-04-21] · status: accepted + skeleton to adr.md]
 ```
 
 After capture, open `backlog.md` and fill in Context / Options / Decision / Rationale / Consequences. The skeleton is intentionally short — the value is in the completed reasoning, not the template.
@@ -1719,15 +1722,17 @@ One-shot migrator for the v3.0 → v3.1 Memory Bank file structure. Safe to run 
 - `roadmap.md` has singular `<!-- mb-active-plan -->` marker (but not plural variant).
 - `roadmap.md` uses the legacy text-only "## Active plan" + "**Active plan:** `plans/...`" without a HTML-comment block.
 - `status.md` is missing `<!-- mb-active-plans -->` or `<!-- mb-recent-done -->` blocks.
-- `backlog.md` contains legacy placeholder markers such as `(empty)` or lacks `## ADR`.
+- `backlog.md` contains legacy placeholder markers such as `(empty)` or lacks `## Ideas`.
+- `adr.md` (the ADR registry) is missing.
 
 **Effect of `--apply`:**
 
 1. Backs up `roadmap.md`, `status.md`, `backlog.md`, `checklist.md` → `.memory-bank/.pre-migrate/<timestamp>/`.
 2. Upgrades `roadmap.md` singular → plural marker block, rebuilds `## Active plans` with correct entries.
 3. Ensures `status.md` has `## Active plans` + `## Recently done` sections with proper markers.
-4. Rewrites `backlog.md` skeleton: strips placeholders, guarantees `## Ideas` + `## ADR` sections.
-5. Prints a per-action summary.
+4. Rewrites `backlog.md` skeleton: strips placeholders, guarantees the `## Ideas` section (ADRs are not stored in `backlog.md`).
+5. Creates `adr.md` with the `# Architecture Decision Records` header if absent.
+6. Prints a per-action summary.
 
 `--dry-run` (default) — prints the action plan, 0 file changes.
 
@@ -1745,7 +1750,7 @@ User: /mb migrate-structure
   actions_pending=3
     - roadmap.md: add <!-- mb-active-plans --> block
     - status.md: add <!-- mb-recent-done --> block
-    - backlog.md: restructure to skeleton (## Ideas + ## ADR)
+    - backlog.md: restructure to skeleton (## Ideas)
 
 User: /mb migrate-structure --apply
 → [apply] backup → .pre-migrate/20260421_093045/

@@ -1,5 +1,5 @@
 ---
-description: Drive a goal to completion over the deterministic firewall — the autonomous goal-driven loop
+description: "Drives a goal to completion over the deterministic firewall — the autonomous goal-driven loop. Use when the user wants hands-off execution until done — «доведи до конца», «работай автономно»."
 allowed-tools: [Bash, Read, Write, Task]
 ---
 

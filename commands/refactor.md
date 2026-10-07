@@ -1,5 +1,5 @@
 ---
-description: Refactor the specified module while preserving behavior
+description: "Refactors the specified module while preserving behavior. Use when asked «отрефактори», clean up, split or restructure code without changing what it does."
 allowed-tools: [Bash, Read, Write, Edit, Glob, Grep]
 argument-hint: <module-or-path>
 ---

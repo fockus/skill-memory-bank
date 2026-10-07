@@ -49,7 +49,8 @@ Full text: [`references/design-principles.md`](../../references/design-principle
 ├── roadmap.md        high-level direction, active plans, focus
 ├── progress.md       append-only history of finished work
 ├── lessons.md        anti-patterns and insights worth remembering
-├── backlog.md        ideas (I-NNN), ADRs (ADR-NNN)
+├── backlog.md        ideas (I-NNN)
+├── adr.md            architecture decision records (ADR-NNN)
 ├── research.md       hypotheses (H-NNN), experiment results
 ├── plans/            detailed multi-stage plans with DoD and TDD rules
 │   └── done/         archived plans

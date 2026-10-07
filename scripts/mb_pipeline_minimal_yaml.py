@@ -260,13 +260,14 @@ def minimal_pipeline_load(text: str) -> dict:
     # Every remaining block the validators inspect. Without these the stdlib-only
     # path validated a strictly smaller config than the PyYAML path (review [18]).
     for _name in (
+        "workflow",
         "workflows",
+        "effort_tiers",
         "review",
         "judge",
         "review_ensemble",
-        "done_gates",
-        "done_placeholders",
-        "dispatch",
+        "done_gates", "done_placeholders", "dispatch", "adapt",
+        "cost_tiers", "model_profiles", "hosts", "discipline",
         "agents",
         "aliases",
     ):

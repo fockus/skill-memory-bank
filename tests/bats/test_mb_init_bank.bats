@@ -7,6 +7,7 @@
 #   Effect:
 #     - Creates PROJECT/.memory-bank/{plans,plans/done,notes,reports,experiments,codebase}/
 #     - Copies 7 core files from templates/locales/<lang>/.memory-bank/ (never overwrites)
+#     - Creates adr.md (ADR registry, AGR-062) when missing
 #     - Writes PROJECT/.memory-bank/.mb-config with `lang=<lang>`
 #
 #   Resolution of <lang> (highest → lowest):
@@ -58,6 +59,16 @@ teardown() {
   grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
 }
 
+@test "init: new bank gets adr.md registry; backlog.md has no ADR section" {
+  run bash "$INIT"
+  [ "$status" -eq 0 ]
+
+  [ "$(head -1 "$TMPROOT/.memory-bank/adr.md")" = "# Architecture Decision Records" ]
+  grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
+  run grep -qE "^## ADR" "$TMPROOT/.memory-bank/backlog.md"
+  [ "$status" -eq 1 ]
+}
+
 @test "init: creates plans/done, notes, reports, experiments, codebase dirs" {
   bash "$INIT"
   for d in plans plans/done notes reports experiments codebase; do
@@ -94,7 +105,6 @@ teardown() {
   # Markers stay English (script contract)
   grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
   grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
-  grep -q "^## ADR$" "$TMPROOT/.memory-bank/backlog.md"
 
   # Prose is translated, not a scaffold
   grep -qF "# Proyecto — Plan" "$TMPROOT/.memory-bank/roadmap.md"
@@ -109,7 +119,6 @@ teardown() {
   # Markers stay English (script contract)
   grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
   grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
-  grep -q "^## ADR$" "$TMPROOT/.memory-bank/backlog.md"
 
   # Prose is translated, not a scaffold
   grep -qF "# Projeto — Plano" "$TMPROOT/.memory-bank/roadmap.md"
@@ -124,7 +133,6 @@ teardown() {
   # Markers stay English (script contract)
   grep -q "<!-- mb-active-plans -->" "$TMPROOT/.memory-bank/roadmap.md"
   grep -q "^## Ideas$" "$TMPROOT/.memory-bank/backlog.md"
-  grep -q "^## ADR$" "$TMPROOT/.memory-bank/backlog.md"
 
   # Prose is translated, not a scaffold
   grep -qF "# 项目 — 计划" "$TMPROOT/.memory-bank/roadmap.md"

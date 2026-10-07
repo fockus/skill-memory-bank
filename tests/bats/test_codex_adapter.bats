@@ -20,6 +20,9 @@ setup() {
   ADAPTER="$REPO_ROOT/adapters/codex.sh"
   OC_ADAPTER="$REPO_ROOT/adapters/opencode.sh"
   PROJECT="$(mktemp -d)"
+  # Keep a user-site PyYAML importable when a test moves HOME (tier-model render).
+  PYTHONUSERBASE="$(python3 -m site --user-base)"
+  export PYTHONUSERBASE
   mkdir -p "$PROJECT/.memory-bank"
   echo '# Progress' > "$PROJECT/.memory-bank/progress.md"
   command -v jq >/dev/null || skip "jq required"
@@ -782,4 +785,22 @@ run_before_prompt() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"update available"* ]]
   [ "$(checker_call_count)" -eq 2 ]
+}
+
+# ═══ Stage 4b (AGR-074): render-agents writes the tier model into installed roles ═══
+
+@test "codex: render-agents re-renders installed ~/.codex/agents roles with the tier model" {
+  python3 -c 'import yaml' 2>/dev/null || skip "PyYAML required"
+  local home
+  home="$(mktemp -d)"
+  mkdir -p "$home/.codex/agents"
+  python3 "$REPO_ROOT/scripts/mb-agent-render.py" "$REPO_ROOT/agents/mb-developer.md" \
+    --skill-dir "$REPO_ROOT" --host codex > "$home/.codex/agents/mb-developer.toml"
+  run env HOME="$home" bash "$ADAPTER" render-agents "$PROJECT" "$REPO_ROOT/references/pipeline.default.yaml"
+  [ "$status" -eq 0 ]
+  assert_substring "$output" "re-rendered: 1"
+  assert_substring "$(cat "$home/.codex/agents/mb-developer.toml")" 'model = "gpt-6.1-sol"'
+  # only installed roles are re-rendered, nothing new appears
+  [ ! -e "$home/.codex/agents/mb-reviewer.toml" ]
+  rm -rf "$home"
 }

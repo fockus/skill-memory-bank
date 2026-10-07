@@ -327,3 +327,32 @@ def test_status_subcommand_missing_graph_exit3(tmp_path: Path) -> None:
     assert result.returncode == 3
     payload = _json(result)
     assert payload["exists"] is False
+
+
+def test_neighbors_direction_in_returns_only_callers_of_the_symbol(tmp_path: Path) -> None:
+    # `mb-graph.sh who-calls` rides on this: callers only — no outgoing calls and
+    # no file-level edges that merely touch the symbol's file (`tests` → service.py).
+    graph = _fixture_graph(tmp_path)
+
+    result = _run(
+        ["neighbors", "--graph", str(graph), "--symbol", "handle_order", "--direction", "in"]
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = _json(result)
+    assert [(e["kind"], e["src"]) for e in payload["incoming"]] == [
+        ("call", "tests/test_service.py:test_handle_order")
+    ]
+    assert "outgoing" not in payload
+
+
+def test_neighbors_direction_both_is_the_unchanged_default(tmp_path: Path) -> None:
+    graph = _fixture_graph(tmp_path)
+    base = ["neighbors", "--graph", str(graph), "--symbol", "handle_order"]
+
+    default = _run(base)
+    both = _run([*base, "--direction", "both"])
+
+    assert default.returncode == both.returncode == 0
+    assert both.stdout == default.stdout
+    assert {e["src"] for e in _json(default)["outgoing"]} >= {"app/service.py:handle_order"}

@@ -151,7 +151,8 @@ _ts_const() {
   grep -q "graph_neighbors" "$agents"
   grep -q "graph_impact" "$agents"
   grep -q "graph_tests" "$agents"
-  grep -q "search_code" "$agents"
+  # search_code is not asserted: it came only from the pasted rules/RULES.md
+  # copy, which agents-md-diet removed (detail lives in RULES.md on demand).
   grep -q "scripts/mb-code-context.py" "$agents"
   grep -q "scripts/mb-graph-query.py" "$agents"
 }

@@ -28,6 +28,7 @@ roles:
   researcher: { agent: mb-researcher, fallback: mb-analyst }
   devops:    { agent: mb-devops,    model: opus, fallback: mb-developer }
   qa:        { agent: mb-qa,        model: opus, fallback: mb-developer }
+  debugger:  { agent: mb-debugger,  model: opus, fallback: mb-developer }
   analyst:   { agent: mb-analyst }
   # DUAL parallel review (codex-cli + main-agent inline); judge = mb-judge.
   reviewer:

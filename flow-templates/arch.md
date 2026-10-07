@@ -1,5 +1,15 @@
 # Route: arch
 
+## Contents
+
+- [Phases](#phases)
+- [Per-phase skill](#per-phase-skill)
+- [Boundary checks](#boundary-checks)
+- [Retry rule](#retry-rule)
+- [Sequential fallback](#sequential-fallback)
+- [Patterns invoked](#patterns-invoked)
+- [Firewall](#firewall)
+
 An architectural change — it touches contracts, domain rules, ports/interfaces,
 or cross-module structure. This route is **mandatory**: the deterministic
 route-floor (REQ-DF-022 / ADR-4) can FORCE `arch` regardless of the LLM's pick or

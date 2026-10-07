@@ -235,6 +235,10 @@ for f in "${CORE_FILES[@]}"; do
   cp "$SRC/$f" "$BANK/$f"
 done
 
+# ADR registry (AGR-062): the header is a canonical English anchor in every
+# locale, so it is written here rather than shipped per locale.
+[ -f "$BANK/adr.md" ] || printf '# Architecture Decision Records\n' > "$BANK/adr.md"
+
 # ── Bank-local ignore rules ──────────────────────────────────────────────────
 # <bank>/tmp/ holds throwaway scratch artifacts — above all the RAW /mb discuss
 # interview candidate, credentials included, before it has been scanned

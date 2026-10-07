@@ -862,137 +862,6 @@ update поверх 0600 давал 644 (то есть он повреждени
 ревью; остальные 5 — отдельным проходом.
 
 
-### ADR-001 — Оставить skill structure под ~/.claude/skills/memory-bank/ [2026-04-19]
-
-**Context:** native plugins пока недостаточно зрелые для multi-file distribution.
-**Options:**
-- A: plugin-based packaging — требует manifest rewrite и migration
-- B: keep as-is — zero migration cost
-
-**Decision:** B.
-**Rationale:** скорость выпуска важнее canonical form; пересмотреть в v3.
-**Consequences:** users продолжают клонировать skill repo; нет CI/CD через Anthropic plugin marketplace (пока).
-
-### ADR-002 — Bats-core для shell, pytest для Python [2026-04-19]
-
-**Context:** нужна unified testing story, но shell и Python имеют разные idioms.
-**Options:**
-- A: только bats, мокать Python через shell
-- B: перевести merge-hooks.py → shell
-- C: раздельные frameworks
-
-**Decision:** C.
-**Rationale:** native test idioms побеждают искусственную унификацию.
-**Consequences:** CI запускает оба набора; developers знают оба framework'а.
-
-### ADR-003 — index.json минимальная реализация (без vector) [2026-04-19]
-
-**Context:** sqlite-vec добавляет runtime dependency и усложняет install.
-**Options:**
-- A: полный semantic search
-- B: только frontmatter index (tags/type/importance)
-- C: отказаться от index.json
-
-**Decision:** B.
-**Rationale:** покрывает 80% use-cases при 20% сложности.
-**Consequences:** semantic queries невозможны без отдельного opt-in (ADR-007).
-
-### ADR-004 — Профиль развития — гибрид C (personal → public через v3.0) [2026-04-20]
-
-**Context:** skill опубликован на GitHub, но не рекламируется; пользователь хочет продолжать для себя, затем публично продвигать.
-**Options:**
-- A: только personal — minimal invest, теряем потенциал
-- B: сразу public — преждевременные npm/benchmarks без отработки на себе
-- C: гибрид — v2.1/v2.2 для себя, v3.0 для public
-
-**Decision:** C.
-**Rationale:** dogfooding даёт реальный signal до public commitment.
-**Consequences:** двухфазный release cycle; Stage 9 готовит PyPI/Homebrew к public.
-
-### ADR-005 — Auto-capture через SessionEnd + Haiku [2026-04-20]
-
-**Context:** `progress.md` append-only; нужен cheap auto-summary без полного actualize.
-**Options:**
-- A: Sonnet — overhead на каждой сессии
-- B: без LLM (bash append) — теряем summary
-- C: Haiku с ограниченной областью (только progress.md)
-
-**Decision:** C.
-**Rationale:** Haiku 4× дешевле; full actualize остаётся в manual `/mb done` с Sonnet.
-**Consequences:** две точки записи (auto + manual); доп. сложность в coordination.
-
-### ADR-006 — Code graph через tree-sitter — opt-in через extras [2026-04-20]
-
-**Context:** tree-sitter = C-extensions, install может быть heavy на Windows/legacy системах.
-**Options:**
-- A: всегда включено — ломает install в 10% случаев
-- B: separate package — users пропустят
-- C: opt-in через `pip install memory-bank[codegraph]`
-
-**Decision:** C.
-**Rationale:** default работает без codegraph; advanced users включают явно.
-**Consequences:** документация должна чётко показать когда нужен extras.
-
-### ADR-007 — Отказ от sqlite-vec в v2.1/v2.2 [2026-04-20]
-
-**Context:** ревью настаивало на semantic search, но benefits не подтверждены реальным usage.
-**Options:**
-- A: включить в v2.2 — preemptive complexity
-- B: v3.1+ backlog — ждём реальной потребности
-
-**Decision:** B.
-**Rationale:** (1) keyword+tags+codegraph покрывают 80%; (2) sqlite-vec+MiniLM ~100MB download; (3) benchmark покажет нужно ли.
-**Consequences:** I-002 остаётся DEFERRED; пересмотр после реальных v3.0 use cases.
-
-### ADR-008 — Distribution — pipx/PyPI primary, Homebrew secondary [2026-04-20]
-
-**Context:** mix-stack skill (88% bash + 12% Python).
-**Options:**
-- A: npm — требует Node.js runtime при отсутствии JS-кода
-- B: pipx/PyPI — Python уже in-stack, `pipx` изолирует env, `pipx upgrade` решает update story
-- C: Homebrew tap — native macOS/linuxbrew, но ограниченная аудитория
-- D: `curl | bash` — простейший, но security concerns
-
-**Decision:** B primary + C secondary + Anthropic plugin tertiary.
-**Rationale:** pipx канонично для CLI с mix deps; Homebrew — secondary для macOS-only пользователей.
-**Consequences:** npm убран; scope `@fockus/memory-bank` зарезервирован. PyPI имя `memory-bank-skill` (не `skill-memory-bank`) — избегаем rename pain.
-
-### ADR-009 — Benchmarks отложены в v3.1+ backlog [2026-04-20]
-
-**Context:** ревью настаивало на benchmarks как обязательная фича v3.0 для public release.
-**Options:**
-- A: synthetic benchmark сразу — low-value
-- B: отложить до реальной usage-baseline
-- C: skip навсегда — теряем adoption
-
-**Decision:** B.
-**Rationale:** для valid baseline нужно 1+ месяц реального использования v3.0; без сравнения с claude-mem — single-point measurement.
-**Consequences:** I-001 остаётся DEFERRED; differentiator сейчас — TDD/plan-verifier/cross-agent, не recall цифры.
-
-### ADR-010 — Codex CLI 7-м adapter в Stage 8 [2026-04-20]
-
-**Context:** OpenAI Codex CLI использует `AGENTS.md` как стандарт конфига (совпадает с OpenCode).
-**Options:**
-- A: не добавлять — пропустим аудиторию
-- B: `AGENTS.md` shared с OpenCode — конфликт при одновременной установке
-- C: `AGENTS.md` + optional `.codex/config.toml` — явный marker владения
-
-**Decision:** C.
-**Rationale:** manifest фиксирует ownership per-client; совместная установка с OpenCode возможна при shared `AGENTS.md`.
-**Consequences:** 6→7 adapters; 14→16 e2e tests; uninstall одного не затирает файл пока второй active.
-
-### ADR-011 — Repository migration claude-skill-memory-bank → skill-memory-bank [2026-04-20]
-
-**Context:** после Stage 8 skill работает с 7 клиентами, имя `claude-skill-*` misleading.
-**Options:**
-- A: оставить старое имя + rebrand в README — запутано
-- B: fresh public repo с clean-break history — теряем ADR/research transparency
-- C: full history migration в новый `skill-memory-bank` + archive старого
-
-**Decision:** C.
-**Rationale:** canonical path; сохраняет authorship и link continuity.
-**Consequences:** Stage 8.5 до Stage 9 (иначе PyPI/Homebrew нужен перевыпуск). PyPI имя остаётся `memory-bank-skill` (ADR-008 — не переименовываем). URL в project_urls.Repository → `fockus/skill-memory-bank`.
-
 ### I-134 — Ручной запуск embeddings-пути молчал при отсутствии зависимостей [LOW, 2026-07-19]
 
 **Context:** живой прогон I-132/133 (сессия 1910cfed): `python3 mb-semantic.py reindex/search`
@@ -1185,7 +1054,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-218 — Два валидатора слага разошлись по грамматике и это не сведено: valid_topic в mb-interview-artifact-write.sh отвергает 'a--b' и 'a-', а mb-brief.sh их принимает (и до, и после локале-фикса Stage 3). Плюс красный прогон brief-половины на darwin/BSD grep физически недостижим — BSD grep не раскрывает [a-z] по collation, симптом только на glibc; TDD-обязательство закрыто мутацией продукта, подтвердить красным на linux-CI [LOW, NEW, 2026-09-17]
 
-### I-219 — detect_communities недетерминирован по PYTHONHASHSEED — god-nodes.md не воспроизводим между прогонами [HIGH, NEW, 2026-09-18]
+### I-219 — detect_communities недетерминирован по PYTHONHASHSEED — god-nodes.md не воспроизводим между прогонами **Дополнение 2026-09-30:** после Stage 6 (bash/bats в графе) сводка `communities=217`, но 188 из них — одиночки (132 `tests/bats/*.bats`, 16 `scripts/*.sh`, 11 `hooks/tests/*.bats` …): связь «тест → скрипт по пути» не считается ребром между модулями для louvain. На `graph_tests` это не влияет (сверено с grep на 4 скриптах — совпадение), но число сообществ в сводке вводит в заблуждение, и одиночки дают louvain лишнюю свободу. Дёшево: не считать одиночек в сводке либо не подавать их в louvain. [HIGH, DONE 2026-10-01, 2026-09-18] — graph-semantic-adoption Stage 11: узлы и рёбра в networkx вставляются отсортированными (источник — порядок set, замер мутациями), одиночки не подаются в louvain (219 → 31 сообщество), пин networkx исполняется bootstrap-ом (AGR-052, AGR-054); PYTHONHASHSEED=0,1,2, .venv и системный python3, catchup — побайтно
 
 ### I-220 — Top symbols засоряют омонимы коротких имён (append/run/open/read/join) — degree тысяч несвязанных вызовов схлопывается в один узел, bash-функции вытесняются [MED, NEW, 2026-09-18]
 
@@ -1197,7 +1066,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-224 — Флак bats: 'update-notify: warm cache … well under 100ms' (test_mb_update_notify.bats:780) — утверждение [ elapsed_ms -lt 100 ] меряет стенные часы вокруг запуска bash-хука; при load average ~8 падает 1 из 3 даже изолированно. Порог времени в тесте не отделяет регресс от занятой машины [MED, NEW, 2026-09-18]
 
-### I-225 — /mb graph --apply системным python3 (без networkx) молча ужимает git-отслеживаемый god-nodes.md на ~83 строки — Communities и Bridge files исчезают. Пометка в отчёт пишется, но содержимое коммитится разное в зависимости от интерпретатора; --apply должен либо требовать networkx, либо не перезаписывать секции, которые не может построить [MED, NEW, 2026-09-18]
+### I-225 — /mb graph --apply системным python3 (без networkx) молча ужимает git-отслеживаемый god-nodes.md на ~83 строки — Communities и Bridge files исчезают. Пометка в отчёт пишется, но содержимое коммитится разное в зависимости от интерпретатора; --apply должен либо требовать networkx, либо не перезаписывать секции, которые не может построить  **Эскалация 2026-09-30:** баг не эпизодический, а постоянный. Секция `## Communities` в git-истории `god-nodes.md` есть ровно в тех коммитах, где граф пересобирали под `.venv` (`9fb7b32`, `3bf7ff1`, `cfee2e0`), и отсутствует во всех остальных, включая текущий HEAD (последний раз снесена в `ba445aa`). Stage 3 закрепила это окончательно: `hooks/mb-session-start.sh` детачит `python3 mb-graph-query.py catchup`, а тот поднимает `mb-codegraph.py --apply` через `sys.executable` — системный python3, в котором networkx нет. Значит, каждый catchup, реально пересобирающий граф, будет сносить Communities и Bridge files. Лечение по-прежнему одно из двух: `--apply` без networkx не перезаписывает секции, которые не может построить (сохраняет прежние), либо резолвит интерпретатор с networkx по образцу `semantic_index._semantic_python()` из Stage 8 [HIGH, NEW, 2026-09-18]
 
 ### I-226 — plan-sync теряет метку статуса плана в status.md: у graph-semantic-adoption во frontmatter status: in_progress, а в блоке mb-active-plans строка после синхронизации осталась без ярлыка (у соседних планов queued/in_progress на месте) [LOW, NEW, 2026-09-18]
 
@@ -1212,3 +1081,47 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-231 — Общий `.memory-bank/codebase/.graph-catchup.log` затирается конкурентными сессиями. Каждая сессия открывает его через `>` (O_TRUNC в момент диспатча) и пишет со смещения 0 в момент завершения (`hooks/mb-session-start.sh:59-60`). При порядке «победитель гонки записал длинный результат раньше, опоздавший `locked` записал короткий позже» получается склейка, невалидная для jq. Это подрывает свойство, ради которого лог и заведён («a graph that never catches up is visible, not silent»): честный `timed_out` может быть частично затёрт. Вероятность низкая (обычно победитель пишет последним — в 5-параллельном прогоне verify лог вышел корректным), ущерб только диагностический, самолечится на следующем старте. Лечение на одну строку: писать в `.graph-catchup.log.$$` + `mv`, либо `>>` с меткой времени. Находка verify Stage 3 [LOW, NEW, 2026-09-24]
 
 ### I-232 — 14 красных в `hooks/tests/`, ТРИ разные причины (диагностировано 2026-09-24). **(a) 11 из 13 в `session-end-summary-v2.bats`** — коммит `61d922c` («выход из сессии больше не ждёт два холодных старта claude -p») научил `hooks/mb-session-end.sh` детачить самого себя: без `MB_SESSION_END_DETACHED=1` хук возвращается сразу, а работу делает фоновый потомок. Соседние `session-end-judge.bats` и `session-end-summary.bats` тогда получили `export MB_SESSION_END_DETACHED=1` на строке 10, а v2-файл — нет, и его тесты гоняются наперегонки с потомком. Доказано: тот же сценарий с выставленной переменной вызывает стаб и создаёт `stdin_seen`; продукт при этом РАБОТАЕТ — детачнутый потомок дописывает `summarized: true` в файл сессии. Правка на одну строку в setup. **(b) 2 в `session-end-summary.bats`** (`fallback to Live log when transcript file missing`, `oversized transcript → summarize distilled Live-log`) — у этого файла переменная ВЫСТАВЛЕНА, `stdin_seen` создаётся, но не содержит `second request please`. Версия «судья перезаписывает захват» проверена и ОТВЕРГНУТА: с `MB_SESSION_JUDGE=off` те же два падают. Причина не найдена, нужна отдельная сессия. **(c) 1 в `recall-disclosure.bats`** — `id-collision: two sources colliding on slug+hash6 → distinct ids` ожидает 2 различных id, получает иное число. Не связано с session-end. Важно для дисциплины отчётности: закрытие I-208 («батарея зелёная») мерило `tests/bats`, `hooks/tests/` в тот счёт не входил — то есть «полная батарея зелёная» в этом репо сейчас неверно. Репро: `bats hooks/tests/session-end-summary-v2.bats hooks/tests/session-end-summary.bats hooks/tests/recall-disclosure.bats` [MED, NEW, 2026-09-24]
+
+### I-233 — Маркер nudge, недоступный на запись при доступном каталоге, глушит подсказки до конца сессии [LOW, NEW, 2026-09-30]
+
+### I-234 — MB_GRAPH_NUDGE_EVERY с минусом уходит в дефолт 25, а не в 1 — case перехватывает нечисловое раньше [LOW, NEW, 2026-09-30]
+
+### I-235 — MB_SKILLS_ROOT означает разное: хуки и commands читают его как каталог скила, adapters/cursor.sh и mb-reviewer-resolve.sh задают как родителя (~/.cursor/skills) — запасная ветка резолва хрупкая [LOW, NEW, 2026-09-30]
+
+### I-236 — ~40 запусков ~/.claude/... к скриптам вне графа остались в agents/ (mb-manager, mb-doctor, mb-test-runner, mb-rules-enforcer, mb-codebase-mapper:mb-metrics) и references/ (templates, planning-and-verification, command-template, metadata) — тот же класс, что d31a5fb: на Codex/OpenCode/pi работает только через алиас Claude [MED, NEW, 2026-09-30]
+
+### I-237 — mb-wiki.py plan на графе этого репо не завершается за 10 мин: wiki_store.community_hash → _record_in_files → _candidate_files хеширует весь граф на каждое из 219 сообществ (квадратично); раньше маскировалось 0 сообществ без networkx, Stage 10 это вскрыло [MED, NEW, 2026-09-30]
+
+### I-238 — mb-idea.sh принимает '--help' как заголовок и создаёт идею (I-237 родилась так, переименована); нужен отказ на заголовки, начинающиеся с '-', и честный --help [LOW, NEW, 2026-09-30]
+
+### I-239 — mb-deps-check.sh проверяет networkx и tree_sitter только в системном python3 — пишет 'отсутствует', хотя они есть в bootstrap-venv, куда mb-codegraph.py делает re-exec (Stage 10) [LOW, NEW, 2026-09-30]
+
+### I-240 — mb-semantic-bootstrap.sh без отрицательного кэша: пакет, который не ставится никогда, заставляет каждый /mb reindex заново делать до 11 вызовов pip (офлайн — десятки секунд) [LOW, NEW, 2026-09-30]
+
+### I-241 — progress_chain: auto-capture пишет дубли заголовков '## YYYY-MM-DD' — якорь цепочки становится неоднозначным (anchor_lost, CRITICAL drift); нужен уникальный заголовок или различение дублей по позиции [MED, NEW, 2026-10-06]
+
+### I-242 — /mb cost (memory_bank_skill/cost_report.py::session_stats) не дедуплицирует usage по message.id: Claude Code пишет одно API-сообщение несколькими записями с одинаковым usage → input/cache завышены в 1.5–3 раза; mb-effort-report.sh уже считает правильно, переиспользовать [MED, NEW, 2026-10-07]
+
+### I-243 — GPT-5.5 снимается с ChatGPT-входа 2026-10-14: дефолт scripts/mb-subinvoke-resolve.sh и пример pipeline.default.yaml:335 ссылаются на него — перевести на актуальную модель Codex (reports/2026-10-07_host-model-matrix.md) [HIGH, DONE 2026-10-07, 2026-10-07] — дефолт скрипта → `gpt-6.1-sol` / `openai-codex/gpt-6.1-sol` (константы DEFAULT_CODEX_MODEL/DEFAULT_PI_CODEX_MODEL, bats в test_subinvoke_resolve.bats); пример в pipeline.default.yaml обновляет его владелец
+
+### I-244 — adapters/cursor.sh ошибочно утверждает, что у Cursor нет сабагентов: Cursor читает ~/.cursor/agents и ~/.claude/agents (видит mb-* агентов); проверить совместимость frontmatter (model: haiku и др.) [MED, DONE 2026-10-07, 2026-10-07] — `adapters/cursor.sh install-global` рендерит не-partial роли в `~/.cursor/agents/` через `mb-agent-render.py --host cursor` (frontmatter только name/description, без model = inherit; `.cursor/` перекрывает `~/.claude/agents` по имени — cursor.com/docs/agent/subagents), файлы в манифесте, uninstall снимает только их; platform_limited `subagents` → `role-routing`; bats в test_cursor_adapter.bats + test_platform_limited_honesty.bats, pytest в test_agent_render.py
+
+### I-245 — tests/bats/test_bats_test_names.bats падает внутри bats без трассы ('from function `'' in test file , line 0'), хотя та же проверка вне bats чистая (grep rc=1) — сломан сам гард, нужна диагностика (2026-10-07) [MED, NEW, 2026-10-07]
+
+### I-246 — /mb work verify при cadence stage: baseline_ref пунктов не сдвигается (между пунктами нет коммита), поэтому целевой прогон пункта N копит тесты всех предыдущих пунктов; передавать в 5c mb-test-run.sh --files <Files ∩ changed> вместо --changed-since <baseline> (найдено тестом test_proportional_full_suite_once.bats) [LOW, DONE 2026-10-07, 2026-10-07] — commands/work.md 5c передаёт verifier-у `Item files:` (Files ∩ changed, тот же список, что для mb-work-diff.sh); agents/plan-verifier.md Step 3.5 для не-финального пункта гоняет `mb-test-run.sh --files <Item files>`, `--changed-since <baseline>` — только без `Files:`; test_proportional_full_suite_once.bats сценарий 2: пункт 2 гоняет только тесты beta, + гард на текст обоих документов
+
+### I-247 — ADaPT-lite: гард item_token_budget не имеет счётчика на пункт — mb-work-budget.sh ведёт итог на запуск, оркестратор передаёт --item-tokens вручную; нужен снимок spent при init пункта в mb-work-state-lib.sh [LOW, NEW, 2026-10-07]
+
+### I-248 — proportional-effort Sprint 2 Stage 4: замер экономии «после» на боевых задачах (AGR-072) [HIGH, NEW, 2026-10-07]
+
+### I-249 — Ужать rules/CLAUDE-GLOBAL.md ради запаса глобальных инструкций: Pi 7895/8192 B, цель Cursor 7000 B не достигнута (7289 B) [MED, NEW, 2026-10-07]
+
+### I-250 — Переустановка: разовые копии *.pre-mb-backup.* для файлов, которыми владеет скил (не плодить бэкапы на каждый reinstall) [LOW, NEW, 2026-10-07]
+
+### I-251 — Проектные Key rules как дельта считаются при sync — устаревают после смены глобальных правил до следующего project sync [MED, NEW, 2026-10-07]
+
+### I-252 — Механические архитектурные проверки есть только для fsd — нет для clean/ddd/mobile профилей [LOW, NEW, 2026-10-07]
+
+### I-253 — Не проведён живой интерактивный прогон /mb init --full (онбординг Key rules) [MED, NEW, 2026-10-07]
+
+### I-254 — Пред-существующий красный: hollow negations в test_pi_agents_dispatch.bats:239-240 (test_bats_assertion_contract) и неотслеживаемый hooks/lib/venv-requirements.sh [MED, NEW, 2026-10-07]

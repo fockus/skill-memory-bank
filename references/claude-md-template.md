@@ -1,148 +1,48 @@
 # CLAUDE.md Template
 
 Template used by `/mb init --full` to generate `CLAUDE.md`.
-Variables in `{VARIABLE}` are filled through auto-detection.
+Variables in `{VARIABLE}` are filled through auto-detection. Keep the generated file short: only facts
+Claude needs in every session. Engineering rules and the status-line rule come from the global
+`~/.claude/CLAUDE.md` — do not copy them here.
 
 ---
 
 ## Project
 
-**{PROJECT_NAME}**
+**{PROJECT_NAME}** — {PROJECT_DESCRIPTION}
 
-{PROJECT_DESCRIPTION}
+## Commands
 
-### Constraints
+```bash
+{BUILD_CMD}    # build / install
+{TEST_CMD}     # run tests
+{LINT_CMD}     # lint + type-check
+{RUN_CMD}      # run locally
+```
 
-- **Tech stack**: {LANGUAGE} {LANGUAGE_VERSION}+, {KEY_DEPS}
-- **Testing**: 85%+ overall, 95%+ core/business coverage. TDD mandatory.
-- **Architecture**: SOLID, KISS, DRY, YAGNI, Clean Architecture
+## Stack & conventions
 
-## Technology Stack
-
-## Languages
-
-- {LANGUAGE} {LANGUAGE_VERSION}+ — all application source code in `{SRC_DIR}/`
-
-## Runtime
-
-- {RUNTIME_INFO}
-- {PACKAGE_MANAGER} — primary manager
-
-## Frameworks
-
-- {FRAMEWORKS}
-
-## Key Dependencies
-
-{KEY_DEPENDENCIES}
-
-## Configuration
-
-{CONFIG_FILES}
-
-## Conventions
-
-## Naming Patterns
-
-{NAMING_CONVENTIONS}
-
-## Code Style
-
-- Tool: `{LINTER}` (`{LINTER}>={LINTER_VERSION}`)
-- Line length: {LINE_LENGTH} characters
-- Target: {LANGUAGE} {LANGUAGE_VERSION} syntax
+- {LANGUAGE} {LANGUAGE_VERSION}+ with {FRAMEWORKS}; package manager: {PACKAGE_MANAGER}
+- {STACK_FACTS} <!-- 1–3 facts not derivable from code: runtime quirks, env setup, generated dirs -->
+- Full stack, naming and code style: `.memory-bank/codebase/STACK.md`, `.memory-bank/codebase/CONVENTIONS.md`
 
 ## Architecture
 
-## Pattern Overview
-
-- All cross-layer dependencies point inward: Infrastructure → Application → Domain
-- Domain layer contains zero external dependencies
-- All components receive dependencies via constructor injection
-
 {ARCHITECTURE_DETAILS}
+<!-- generator: describe this project's layout — backend: layers and where they live (Clean Architecture);
+     frontend: FSD slices in use. State facts about this codebase, not the general rule. -->
 
-## Rules
+## Project rules
 
-Detailed rules: `~/.claude/RULES.md` + `.memory-bank/RULES.md`
+Engineering rules come from the global `~/.claude/CLAUDE.md` + `~/.claude/RULES.md` (plus `.memory-bank/RULES.md` when present); list only this project's overrides here.
 
-### Critical rules (always follow)
-
-> **Contract-First** — Protocol/ABC → contract tests → implementation. Tests must pass for ANY correct implementation.
-> **TDD** — tests first, then code. Allowed skip: typos, formatting, exploratory prototypes.
-> **Clean Architecture** — `Infrastructure → Application → Domain` (never the other way around). Domain = 0 external dependencies.
-> **SOLID thresholds** — SRP: >300 lines or >3 public methods of different nature = split candidate. ISP: Interface ≤5 methods. DIP: constructor takes abstractions.
-> **DRY / KISS / YAGNI** — duplicate >2 times → extract. Three identical lines are better than premature abstraction. Do not write code "for the future."
-> **Testing Trophy** — integration > unit > e2e. Mock only external services. >5 mocks → candidate for an integration test.
-> **Test quality** — naming: `test_<what>_<condition>_<result>`. Assert business facts. Arrange-Act-Assert. `@parametrize` over copy-paste.
-> **Coverage** — overall 85%+, core/business 95%+, infrastructure 70%+.
-> **No placeholders** — no TODO, `...`, or pseudocode. Code must be copy-paste ready.
-> **Language** — respond in English; technical terms may remain in English.
+{PROJECT_RULE_OVERRIDES}
 
 ## Memory Bank
 
-**If `./.memory-bank/` exists → `[MEMORY BANK: ACTIVE]`.**
-
-**Session pipeline (one-liner):**
-
-```
-/mb start  →  /mb plan <type> <topic>  →  [work]  →  /mb verify  →  /mb done
-```
-
-**`/mb verify` is MANDATORY before `/mb done` when work followed a plan.**
-
-**Parallel sessions (one working tree):** coordinate via the append-only board `.memory-bank/COORDINATION.md` — read it with `scripts/mb-coord.sh active` at session start, before each stage/commit, and before editing shared files; `git add` is scoped only (never `-A`). Protocol: skill `references/coordination.md`.
-
-
-| Command                                     | Description                                                   |
-| ------------------------------------------- | ------------------------------------------------------------- |
-| `/mb start` / `/mb context [--deep]`        | Restore context (core files + codebase summary)               |
-| `/mb plan <type> <topic>`                   | Create plan with SMART DoD + TDD (types: feature/fix/refactor/experiment) |
-| `/mb verify`                                | Verify code vs plan (plan-verifier subagent)                  |
-| `/mb done`                                  | End session — actualize + note + progress                     |
-| `/mb update`                                | Intermediate actualize (no note) — before compaction          |
-| `/mb map [focus]` / `/mb graph [--apply]`   | Refresh codebase map (MD docs) / code graph (JSON Lines)      |
-| `/mb idea "<t>" [HIGH\|MED\|LOW]` / `/mb adr "<t>"` | Capture idea (I-NNN) / ADR (ADR-NNN)                          |
-| `/mb init --full`                           | Rebuild `CLAUDE.md` with stack auto-detection                 |
-
-
-### `.memory-bank/` structure
-
-
-| File           | Purpose                         | When to update            |
-| -------------- | ------------------------------- | ------------------------- |
-| `status.md`    | Current state, roadmap, metrics | Stage completed           |
-| `checklist.md` | Tasks ✅/⬜                       | Every session             |
-| `roadmap.md`      | Priorities, direction           | Focus change              |
-| `RULES.md`     | Project rules                   | When updated              |
-| `research.md`  | Hypotheses + findings           | New finding               |
-| `progress.md`  | Completed work (append-only)    | End of session            |
-| `lessons.md`   | Anti-patterns                   | When a pattern is noticed |
-| `plans/`       | Detailed plans (`YYYY-MM-DD_<type>_<name>.md`) | Before complex work |
-| `codebase/`    | Codebase map + code graph (`STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `CONCERNS.md`, `graph.json`, `god-nodes.md`) | After `/mb init`, stack change, or major refactor |
-
-
-### Code Graph (structural queries)
-
-`.memory-bank/codebase/graph.json` — JSON Lines graph (module/function/class nodes + import/call edges). Prefer it over `grep -rn` for structural questions:
-
-```bash
-# Who calls function X?
-jq -r 'select(.type=="edge" and .kind=="call" and .dst=="X") | .src' \
-  .memory-bank/codebase/graph.json | sort -u
-```
-
-**Routing:** exact structural ("who calls/imports X?") → `jq` over `graph.json`; intent/fuzzy ("where is the logic for X?") → `scripts/mb-semantic-search.py "<query>"` (BM25 $0 default, optional embeddings). **Opt-in layers** (off by default): `/mb graph --questions` (suggested questions) · `/mb graph --cochange` (`co_change` edges from git history) · `/mb wiki` (LLM per-community wiki + "surprising connections" `semantic` edges, no API key). Cross-chat memory: `/mb recall <query>` over `session/` + `notes/`.
-
-Full jq query library + schema + decision table + intelligence layer → `~/.claude/RULES.md § Code Graph — usage`.
-
-### Read detailed rules on demand
-
-Before specific commands/workflows, **read the matching section of `~/.claude/RULES.md`** (and this project's `.memory-bank/RULES.md` for overrides):
-
-- `/mb plan` → `§ Session Pipeline` + `§ Source of Truth`
-- `/mb verify` / `/mb done` → `§ Session Pipeline § Phase 4/5`
-- `/mb graph` / jq queries → `§ Code Graph — usage`
-- Writing tests → `§ Tests — Testing Trophy`
-- ADR, architecture change → `§ Architecture` + `§ Coding Standards`
-
+- Size the task first — memory-bank skill § Task routing (`references/effort-tiers.md`); trivial and small tasks need no plan.
+- `/mb work` runs when the task refers to an existing plan or spec in `.memory-bank/`; planned work: `/mb plan <type> <topic>` → `/mb work` → `/mb verify` → `/mb done`.
+- Run `/mb verify` before `/mb done` when work followed a plan — it checks every DoD item against the code.
+- Parallel sessions in one working tree: read `.memory-bank/COORDINATION.md` via `scripts/mb-coord.sh active` before stages and commits; scoped `git add` only.
+- Key files: `status.md` (current state), `checklist.md` (active tasks), `roadmap.md` (priorities), `plans/` (stage plans), `progress.md` (append-only log).
+- Code graph & search → memory-bank skill (`/mb graph`, `mb-graph.sh`; opt-in `/mb wiki`).

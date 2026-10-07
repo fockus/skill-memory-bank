@@ -19,8 +19,8 @@
 
 PIPELINE="$SCRIPT_DIR/mb-pipeline.sh"
 
-# max_cycles resolves from the pipeline's
-# workflows.governed-execution.loop.max_cycles, falling back to 2 (PyYAML-
+# max_cycles resolves from the pipeline's workflows.governed.loop.max_cycles,
+# then the legacy workflows.governed-execution block, then 2 (PyYAML-
 # optional, same pattern as scripts/mb-work-budget.sh). Fail-safe: any
 # missing/corrupt pipeline, or a missing PyYAML, degrades to 2 — never a
 # non-zero exit from this file.
@@ -37,7 +37,8 @@ import os
 try:
     import yaml  # type: ignore
     cfg = yaml.safe_load(open(os.environ["PIPELINE_YAML"], encoding="utf-8")) or {}
-    loop = (((cfg.get("workflows") or {}).get("governed-execution") or {}).get("loop") or {})
+    wf = cfg.get("workflows") or {}
+    loop = ((wf.get("governed") or wf.get("governed-execution") or {}).get("loop") or {})
     print(int(loop.get("max_cycles", 2)))
 except Exception:
     print(2)

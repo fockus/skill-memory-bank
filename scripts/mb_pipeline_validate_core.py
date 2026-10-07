@@ -186,6 +186,8 @@ ALLOWED_WORKFLOW_STEPS = {
 }
 VALID_UNTIL = {"reviewer_approved", "severity_gate_pass", "verification_pass", "judge_go", "manual"}
 VALID_ENTRYPOINTS = {"freeform_or_topic", "plan_or_spec", "plan_or_spec_or_diff", "diff", "topic"}
+VALID_CADENCES = ("stage", "plan", "run", "off")
+VALID_TIERS = ("small", "standard", "large", "extra")
 
 if workflow_cfg is not None and not isinstance(workflow_cfg, dict):
     err("workflow: must be a mapping")
@@ -295,6 +297,40 @@ if workflows_cfg:
             err(f"workflows.{wname}: judge step requires verify step")
         if "judge" in steps and "review" not in steps:
             err(f"workflows.{wname}: judge step requires review step")
+        verify_block = wspec.get("verify")
+        if verify_block is not None:
+            cadence = verify_block.get("cadence") if isinstance(verify_block, dict) else None
+            if not isinstance(verify_block, dict) or cadence not in VALID_CADENCES:
+                err(f"workflows.{wname}.verify.cadence: '{cadence}' not in {list(VALID_CADENCES)}")
+        implement_block = wspec.get("implement")
+        if implement_block is not None and (
+            not isinstance(implement_block, dict)
+            or not isinstance(implement_block.get("self_verify", False), bool)
+        ):
+            err(f"workflows.{wname}.implement.self_verify: must be boolean")
+
+    # effort_tiers: task tier (AGR-067) → declared workflow; trivial never maps.
+    tiers = cfg.get("effort_tiers")
+    if tiers is not None and not isinstance(tiers, dict):
+        err("effort_tiers: must be a mapping")
+    elif tiers:
+        for tier_name, target in tiers.items():
+            if tier_name not in VALID_TIERS:
+                err(f"effort_tiers.{tier_name}: unknown tier; allowed {list(VALID_TIERS)}")
+            elif not isinstance(target, str) or aliases.get(target, target) not in workflows_cfg:
+                err(f"effort_tiers.{tier_name}: workflow '{target}' is not declared")
+
+# cost / cost_tiers / model_profiles / hosts (AGR-074) — schema lives with the resolver.
+import mb_work_models as _models  # noqa: E402
+
+_aliases = workflow_cfg.get("aliases") if isinstance(workflow_cfg, dict) else None
+_wf_names = (set(workflows_cfg) | set(_aliases if isinstance(_aliases, dict) else {})) if workflows_cfg else None
+_models.validate(cfg, err, _wf_names, _models.load_default())
+
+# adapt (ADaPT-lite) — schema lives with the runtime helper.
+import mb_work_adapt as _adapt  # noqa: E402
+
+_adapt.validate(cfg, err)
 
 # Per-block validators live in a sibling module (S2 review [25]); the shared
 # context is passed explicitly so neither file depends on the other's globals.

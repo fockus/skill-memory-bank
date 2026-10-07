@@ -326,3 +326,10 @@ def test_render_notes_missing_networkx(monkeypatch):
     md = cga.render_god_nodes_md(_two_cluster_graph(), communities=None, betweenness=None)
     assert "networkx" in md.lower()
     assert "Top symbols" in md  # core report still renders
+
+
+def test_render_missing_networkx_points_at_the_bootstrap(monkeypatch):
+    """AGR-053: one install path — the bootstrap venv the builder re-execs into."""
+    monkeypatch.setattr(cga, "HAS_NETWORKX", False)
+    md = cga.render_god_nodes_md(_two_cluster_graph(), communities=None, betweenness=None)
+    assert "hooks/mb-semantic-bootstrap.sh" in md

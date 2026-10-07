@@ -14,7 +14,7 @@ Configuración inicial del proyecto.
 
 ## Siguiente
 
-Consulta [backlog.md](backlog.md): ideas con prioridad y ADR.
+Consulta [backlog.md](backlog.md): ideas con prioridad; decisiones en [adr.md](adr.md).
 
 ## Aplazado
 

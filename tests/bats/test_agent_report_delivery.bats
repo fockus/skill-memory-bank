@@ -3,6 +3,8 @@
 # they need the SendMessage tool plus the standardized report-delivery
 # sentinel, or a finished background run silently stalls the orchestrator.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   AGENTS_DIR="$REPO_ROOT/agents"
@@ -26,7 +28,13 @@ _report_role_agents() {
   done
 }
 
-@test "engineering-core carries the silent-finish rationalization row" {
-  run grep -F "SendMessage to the dispatcher, or it didn't happen" "$AGENTS_DIR/mb-engineering-core.md"
-  [ "$status" -eq 0 ] || { echo "missing silent-finish rationalization row in mb-engineering-core.md"; return 1; }
+@test "strict discipline partial carries the silent-finish rationalization row" {
+  assert_substring "$(cat "$AGENTS_DIR/mb-discipline-strict.md")" "SendMessage to the dispatcher, or it didn't happen"
+}
+
+@test "engineering-core tells a background run to SendMessage its report" {
+  local core
+  core="$(cat "$AGENTS_DIR/mb-engineering-core.md")"
+  assert_substring "$core" "## 12. Report delivery"
+  assert_substring "$core" "Send the report to the dispatcher with \`SendMessage\`"
 }

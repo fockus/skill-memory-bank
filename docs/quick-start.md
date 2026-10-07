@@ -119,7 +119,7 @@ when you do:
 **Or just describe the intent in a prompt** — *"execute the billing spec with
 review and an independent judge"* runs `/mb work billing --review --judge`. To make
 a choice permanent, set it in `pipeline.yaml` (`review.enabled: true`,
-`workflow.default: governed-execution`) or keep several presets side by side with
+`workflow.default: governed`) or keep several presets side by side with
 named pipelines (`/mb pipeline new codex --agent claude-code`, `/mb pipeline use
 codex`). Full schema: [pipeline.yaml Schema](pipeline-yaml.md).
 
@@ -179,8 +179,9 @@ The agent reads and writes them directly.
   (graph → semantic → web) and returns `file:line`-grounded findings; larger
   investigations and audits land as dated files under `reports/`, which you can
   point later prompts at.
-- **`backlog.md`** — the running list of **ideas and ADRs** with monotonic IDs
-  (`I-NNN`, `ADR-NNN` via `/mb adr <title>`). Governed reviews feed it on their
+- **`backlog.md`** — the running list of **ideas** with monotonic IDs
+  (`I-NNN`); architecture decisions live in **`adr.md`** (`ADR-NNN` via
+  `/mb adr <title>`). Governed reviews feed it on their
   own: a `GO_WITH_BACKLOG` judge verdict registers every non-blocking finding
   here before the work is marked done — nothing is lost, nothing blocks a clean
   stage.

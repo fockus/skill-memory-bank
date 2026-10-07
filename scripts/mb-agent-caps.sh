@@ -23,7 +23,7 @@
 # lines (hermetic for CI, no pi/opencode needed):
 #   transport pi
 #   transport opencode
-#   model pi openai-codex/gpt-5.5
+#   model pi openai-codex/gpt-6.1-sol
 #   model opencode opencode-go/deepseek-v4-pro
 #
 # Exit codes:

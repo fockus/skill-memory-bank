@@ -1,5 +1,26 @@
 # Memory Bank — Workflow
 
+## Contents
+
+- [Session pipeline](#session-pipeline)
+- [Session start](#session-start)
+- [During work](#during-work)
+  - [When to update each file](#when-to-update-each-file)
+  - [When to create files](#when-to-create-files)
+  - [Plan consistency (REQUIRED)](#plan-consistency-required)
+  - [Decision tree: who updates what](#decision-tree-who-updates-what)
+- [Session finish](#session-finish)
+- [Before compaction](#before-compaction)
+- [Spec scenarios layer](#spec-scenarios-layer)
+
+## Session pipeline
+
+```
+plan-based:  /mb start → /mb plan <type> <topic> → [work] → /mb verify → /mb done
+spec-driven: /mb start → /mb discuss <topic> → /mb sdd <topic> → /mb work <topic> → /mb verify → /mb done
+```
+**Run `/mb verify` before `/mb done` when work followed a plan** — it checks every DoD item against the code. SDD adds EARS-validated requirements + optional GIVEN/WHEN/THEN scenarios → executable `tasks.md` (`<!-- mb-task:N -->`). `/mb work` is the executor: drives plan stages or spec tasks through a per-item **implement→verify→done** loop (composable — **review off by default**, opt in with `--review`/`--judge` or `pipeline.yaml`) with severity-gates + `pipeline.yaml` protected-paths/budget. Full `/mb` reference + SDD + work engine → `~/.claude/RULES.md` or `/mb help`.
+
 ## Session start
 
 ```text
@@ -124,7 +145,8 @@ ML results
    ├── status.md: update if milestone changed
    ├── research.md: update if there are ML results
    ├── lessons.md: add if an anti-pattern was found
-   ├── backlog.md: add if there is an idea/ADR
+   ├── backlog.md: add if there is an idea
+   ├── adr.md: add via /mb adr if there is an architectural decision
    ├── roadmap.md: update if focus changed
    └── notes/: create a note about the completed work
 
@@ -139,4 +161,14 @@ ML results
 1. Run MB Manager (action: actualize) to save current progress
 2. All useful knowledge from the session must be in the bank BEFORE compaction
 3. After compaction — run /mb start to restore context
+```
+
+## Spec scenarios layer
+
+```text
+# requirements.md may add an optional `## Scenarios` layer: <!-- mb-scenario:N --> blocks
+# (### Scenario: + **Covers:** REQ-x + GIVEN/WHEN/THEN). They become a test-plan
+# (mb-scenario-extract.py) that /mb plan links and /mb work turns into one real test
+# per scenario in the project's stack. Enforce coverage with
+# `mb-spec-validate.sh --require-scenarios`; off by default (EARS-only specs stay valid).
 ```

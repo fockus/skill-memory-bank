@@ -3,6 +3,16 @@
 #
 # Usage:
 #   mb-test-run.sh [--dir <path>] [--out json|human|both]
+#                  [--changed-since <git-ref>] [--files <path>[,<path>...]]
+#
+# Targeted run: --changed-since (diff vs ref + untracked files) and/or --files
+# (comma-separated, repeatable) run only tests related to those files: changed
+# test files, naming convention (foo.py -> test_foo*.py / foo_test.py,
+# x.sh -> test_x*.bats, x.go -> its package dir) and, when the code graph is
+# fresh, `mb-graph-query.py tests --file`. Falls back to the full suite (with
+# "reason") on an invalid ref, an empty mapping or a shared test-infra change.
+# JSON then gains "selection", "selected" and "reason"; without these flags the
+# output is unchanged.
 #
 # Wraps scripts/mb-metrics.sh for stack detection, then runs tests directly
 # with predictable flags so output parsing is deterministic.
@@ -11,6 +21,8 @@
 # so callers do not confuse "script broke" with "tests failed".
 #
 # Supported stacks: bats (*.bats under tests/ or hooks/tests/), python (pytest), go (go test).
+# Every stack with tests runs; counts and failures are summed and "stack" joins
+# them with "+" (e.g. "bats+python"). A single-stack repo reports as before.
 # --test-command / MB_TEST_COMMAND for explicit override; empty dirs emit not_applicable=true.
 
 set -euo pipefail
@@ -22,14 +34,20 @@ DIR="."
 OUT="json"
 
 TEST_CMD_CLI=""
+CHANGED_SINCE=""
+FILES_ARG=""
+TARGETED_REQ=0
 
+# shellcheck disable=SC2034  # CHANGED_SINCE is read by _test_select.sh
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dir)  DIR="${2:-.}";   shift 2 ;;
     --out)  OUT="${2:-json}"; shift 2 ;;
     --test-command) TEST_CMD_CLI="${2:-}"; shift 2 ;;
+    --changed-since) CHANGED_SINCE="${2:-}"; TARGETED_REQ=1; shift 2 ;;
+    --files) FILES_ARG="${FILES_ARG:+$FILES_ARG,}${2:-}"; TARGETED_REQ=1; shift 2 ;;
     --help|-h)
-      sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -93,6 +111,12 @@ find_bats_files() {
   done
 }
 
+# shellcheck source=_test_select.sh
+source "$(dirname "$0")/_test_select.sh"
+
+SELECTION=""        # "" (no targeted request) | targeted | full
+SELECT_REASON=""
+SEL_BATS=(); SEL_PY=(); SEL_GO=()
 
 NOT_APPLICABLE="false"
 RUNNER_ERROR="false"
@@ -114,6 +138,19 @@ COV_OVERALL="null"
 
 START_MS="$(now_ms)"
 
+# Add one stack's counts to the accumulators; verdict follows the totals.
+add_counts() {
+  TESTS_TOTAL=$((TESTS_TOTAL + $1))
+  TESTS_FAILED=$((TESTS_FAILED + $2))
+  if (( TESTS_TOTAL == 0 )); then
+    TESTS_PASS="null"
+  elif (( TESTS_FAILED == 0 )); then
+    TESTS_PASS="true"
+  else
+    TESTS_PASS="false"
+  fi
+}
+
 # ---- per-stack runners ------------------------------------------------------
 
 run_python() {
@@ -123,20 +160,21 @@ run_python() {
   # Use `python -m pytest` (NOT the pytest entry script): -m prepends the CWD
   # to sys.path, which repos rely on for `from tests....` helper imports —
   # the entry script omits it and dies with collection ImportErrors.
+  # A bare `pytest` on PATH may be a wrapper, so probe the interpreters.
   local -a pytest_cmd=()
-  if [[ -x "$DIR/.venv/bin/pytest" ]]; then
+  if [[ -x "$DIR/.venv/bin/python" ]] && "$DIR/.venv/bin/python" -c 'import pytest' >/dev/null 2>&1; then
     pytest_cmd=("$DIR/.venv/bin/python" -m pytest)
-  elif command -v pytest >/dev/null; then
+  elif python3 -c 'import pytest' >/dev/null 2>&1; then
     pytest_cmd=(python3 -m pytest)
   else
-    echo "[warn] no $DIR/.venv/bin/pytest and pytest not in PATH; skipping python run" >&2
+    echo "[warn] pytest importable from neither $DIR/.venv/bin/python nor python3; skipping python run" >&2
     return 0
   fi
   local log
   log="$(mktemp)"
   # -q: quiet; --tb=line: one-line traceback; -r a: summary for all; -p no:cacheprovider to avoid stale cache.
   # Exit codes: 0 passed, 1 failed, 5 no tests collected.
-  (cd "$DIR" && run_uncolored "${pytest_cmd[@]}" -q --tb=line --no-header -r a -p no:cacheprovider) >"$log" 2>&1 || true
+  (cd "$DIR" && run_uncolored "${pytest_cmd[@]}" -q --tb=line --no-header -r a -p no:cacheprovider ${SEL_PY[@]+"${SEL_PY[@]}"}) >"$log" 2>&1 || true
   strip_ansi_file "$log"
   local rc=0
   # Use grep exit codes to infer.
@@ -157,16 +195,7 @@ run_python() {
   failed="${failed:-0}"
   errors="${errors:-0}"
 
-  TESTS_TOTAL=$((passed + failed + errors))
-  TESTS_FAILED=$((failed + errors))
-
-  if (( TESTS_TOTAL == 0 )); then
-    TESTS_PASS="null"
-  elif (( TESTS_FAILED == 0 )); then
-    TESTS_PASS="true"
-  else
-    TESTS_PASS="false"
-  fi
+  add_counts $((passed + failed + errors)) $((failed + errors))
 
   # Extract FAILED lines from pytest short summary:
   # "FAILED tests/foo.py::test_bar - AssertionError: ..."
@@ -196,7 +225,9 @@ run_go() {
   }
   local log
   log="$(mktemp)"
-  (cd "$DIR" && go test ./... -v 2>&1) >"$log" || true
+  local -a pkgs=(./...)
+  [[ "$SELECTION" == "targeted" ]] && pkgs=("${SEL_GO[@]}")
+  (cd "$DIR" && go test "${pkgs[@]}" -v 2>&1) >"$log" || true
 
   local passed failed
   passed="$(grep -cE '^--- PASS:' "$log" || true)"
@@ -204,16 +235,7 @@ run_go() {
   passed="${passed:-0}"
   failed="${failed:-0}"
 
-  TESTS_TOTAL=$((passed + failed))
-  TESTS_FAILED=$failed
-
-  if (( TESTS_TOTAL == 0 )); then
-    TESTS_PASS="null"
-  elif (( TESTS_FAILED == 0 )); then
-    TESTS_PASS="true"
-  else
-    TESTS_PASS="false"
-  fi
+  add_counts $((passed + failed)) "$failed"
 
   # Each "--- FAIL: TestName (0.00s)" line → failure entry.
   while IFS= read -r line; do
@@ -241,16 +263,15 @@ run_bats() {
   command -v bats >/dev/null || {
     echo "[warn] bats not in PATH; cannot run shell tests" >&2
     NOT_APPLICABLE="true"
-    STACK="bats"
     return 0
   }
-  STACK="bats"
   local log
   log="$(mktemp)"
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     file_args+=("$f")
   done <<< "$files"
+  [[ "$SELECTION" == "targeted" ]] && file_args=("${SEL_BATS[@]}")
   (cd "$DIR" && run_uncolored bats "${file_args[@]}") >"$log" 2>&1 || true
   strip_ansi_file "$log"
   local summary total failed
@@ -266,15 +287,7 @@ run_bats() {
     total="${total:-0}"
     failed="${failed:-0}"
   fi
-  TESTS_TOTAL=$total
-  TESTS_FAILED=$failed
-  if (( TESTS_TOTAL == 0 )); then
-    TESTS_PASS="null"
-  elif (( TESTS_FAILED == 0 )); then
-    TESTS_PASS="true"
-  else
-    TESTS_PASS="false"
-  fi
+  add_counts "$total" "$failed"
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     local num name rest
@@ -309,19 +322,42 @@ run_test_command() {
   return 0
 }
 
-# Dispatch: explicit test command → bats files → python/go → not_applicable.
+# Dispatch: explicit test command → every detected stack → not_applicable.
 EFFECTIVE_CMD="${TEST_CMD_CLI:-${MB_TEST_COMMAND:-}}"
 if [[ -n "$EFFECTIVE_CMD" ]]; then
+  if (( TARGETED_REQ == 1 )); then
+    SELECTION="full"
+    SELECT_REASON="custom test command: targeted selection unsupported"
+  fi
   run_test_command "$EFFECTIVE_CMD"
-elif [[ -n "$(find_bats_files)" ]]; then
-  run_bats
-elif [[ "$STACK" == "python" ]]; then
-  run_python
-elif [[ "$STACK" == "go" ]]; then
-  run_go
 else
-  NOT_APPLICABLE="true"
-  TESTS_PASS="null"
+  STACKS="$(detect_test_stacks)"
+  if (( TARGETED_REQ == 1 )) && [[ -n "$STACKS" ]]; then
+    select_tests "$STACKS"
+  fi
+  RAN=""
+  for st in $STACKS; do
+    if [[ "$SELECTION" == "targeted" ]]; then
+      case "$st" in
+        bats) (( ${#SEL_BATS[@]} )) || continue ;;
+        python) (( ${#SEL_PY[@]} )) || continue ;;
+        go) (( ${#SEL_GO[@]} )) || continue ;;
+      esac
+    fi
+    case "$st" in
+      bats) run_bats ;;
+      python) run_python ;;
+      go) run_go ;;
+    esac
+    RAN="${RAN:+$RAN+}$st"
+  done
+  if [[ -n "$RAN" ]]; then
+    STACK="$RAN"
+    if (( TESTS_TOTAL > 0 )); then NOT_APPLICABLE="false"; fi
+  else
+    NOT_APPLICABLE="true"
+    TESTS_PASS="null"
+  fi
 fi
 
 END_MS="$(now_ms)"
@@ -340,8 +376,20 @@ emit_json() {
     (( i > 0 )) && printf ','
     printf '%s' "${FAILURES_JSON[$i]}"
   done
-  printf '],"coverage":{"overall":%s,"per_file":{}},"duration_ms":%d}\n' \
+  printf '],"coverage":{"overall":%s,"per_file":{}},"duration_ms":%d' \
     "$COV_OVERALL" "$DURATION"
+  if [[ -n "$SELECTION" ]]; then
+    printf ',"selection":%s,"selected":[' "$(json_escape "$SELECTION")"
+    if [[ "$SELECTION" == "targeted" ]]; then
+      local sep="" f
+      for f in ${SEL_BATS[@]+"${SEL_BATS[@]}"} ${SEL_PY[@]+"${SEL_PY[@]}"} ${SEL_GO[@]+"${SEL_GO[@]}"}; do
+        printf '%s' "$sep"; json_escape "$f"; sep=","
+      done
+    fi
+    printf '],"reason":'
+    if [[ -n "$SELECT_REASON" ]]; then json_escape "$SELECT_REASON"; else printf 'null'; fi
+  fi
+  printf '}\n'
 }
 
 emit_human() {
@@ -353,6 +401,11 @@ emit_human() {
   esac
   printf 'test-run: stack=%s verdict=%s total=%d failed=%d duration=%dms\n' \
     "$STACK" "$verdict" "$TESTS_TOTAL" "$TESTS_FAILED" "$DURATION"
+  if [[ "$SELECTION" == "targeted" ]]; then
+    printf 'selection=targeted files: %s\n' "${SEL_BATS[*]+${SEL_BATS[*]} }${SEL_PY[*]+${SEL_PY[*]} }${SEL_GO[*]-}"
+  elif [[ -n "$SELECTION" ]]; then
+    printf 'selection=full reason: %s\n' "$SELECT_REASON"
+  fi
   if (( ${#FAILURES_JSON[@]} > 0 )); then
     printf 'failures:\n'
     local f name file err

@@ -1,5 +1,5 @@
 ---
-description: Generate or update documentation for a module
+description: "Generates or updates documentation for a module. Use when asked to document code — «задокументируй модуль», write a README or API docs for a path."
 allowed-tools: [Read, Glob, Grep, Bash, Write]
 argument-hint: <module-path>
 agent: explorer

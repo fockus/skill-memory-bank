@@ -1,5 +1,5 @@
 ---
-description: Turn a raw request plus attached documents into a validated one-page brief under briefs/<topic>/
+description: "Turns a raw request plus attached documents into a validated one-page brief under briefs/{topic}/. Use when a raw idea, ticket or docs need formalizing — «оформи бриф», step before discuss."
 allowed-tools: [Bash, Read, Write, AskUserQuestion]
 ---
 

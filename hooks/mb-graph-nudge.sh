@@ -114,7 +114,8 @@ PY="${PYTHON:-python3}"
 command -v "$PY" >/dev/null 2>&1 || _silent
 HOOK_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)" || _silent
 GQ="$HOOK_DIR/../scripts/mb-graph-query.py"
-[ -f "$GQ" ] || GQ="$HOME/.claude/skills/memory-bank/scripts/mb-graph-query.py"
+[ -f "$GQ" ] || GQ="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}/scripts/mb-graph-query.py"
+GQ="$(cd "$(dirname "$GQ")" 2>/dev/null && pwd)/mb-graph-query.py"
 [ -f "$GQ" ] || _silent
 
 STATUS="$("$PY" "$GQ" status --graph "$GRAPH" --src-root "$CWD" --json 2>/dev/null || true)"
@@ -141,10 +142,13 @@ SYMBOL="$(printf '%s' "$RAW" \
   | tr -c 'A-Za-z0-9_/.-' ' ' | tr ' ' '\n' \
   | grep -vE '/|\.|^-' \
   | grep -E '^[A-Za-z_][A-Za-z0-9_]{2,}$' \
-  | grep -vwE 'grep|egrep|rg|rtk|xargs|head|tail|sort|uniq|cat|find|def|class|function|const|let|var|import|from|return|async|await|func|type|struct|interface|public|private|static|void' \
+  | grep -vwE 'grep|egrep|rg|rtk|xargs|head|tail|sort|uniq|cat|find|def|class|function|const|let|var|import|from|return|async|await|func|type|struct|interface|public|private|static|void|done|then|else|elif|fi|do|while|for|case|esac|echo|printf|local|export|true|false' \
   | tail -1 2>/dev/null || true)"
 [ -n "$SYMBOL" ] || SYMBOL="<Name>"
 
+# Printed commands use the bundle we resolved above, so they run on any host
+# (no ~/.claude alias assumed).
+SCRIPTS="$(dirname "$GQ")"
 if [ "$IS_STALE" -eq 1 ]; then
   # I-133: a stale graph must NOT silence the nudge — the old fresh-only gate
   # created the vicious circle (stale → silent → never used → never rebuilt).
@@ -153,15 +157,14 @@ if [ "$IS_STALE" -eq 1 ]; then
   # git-HEAD drift; age-only staleness needs a manual refresh — say which.
   if [ "$REASON" = "commits" ] || [ -e "$MB/codebase/.graph-dirty" ]; then
     MSG="The code graph exists but is stale (reason: $REASON). Structural queries still work and trigger a bounded auto-catchup on the next graph query; for full freshness + analytics run: /mb graph --apply
-  (or: python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply .memory-bank .). Grep stays fine for regex/raw text."
+  (or: python3 $SCRIPTS/mb-codegraph.py --apply .memory-bank .). Grep stays fine for regex/raw text."
   else
     MSG="The code graph exists but is stale (reason: $REASON — no pending edits or commit drift, so an automatic refresh will not fire). Refresh manually: /mb graph --apply
-  (or: python3 ~/.claude/skills/memory-bank/scripts/mb-codegraph.py --apply .memory-bank .). Queries still work on the stale graph; Grep stays fine for regex/raw text."
+  (or: python3 $SCRIPTS/mb-codegraph.py --apply .memory-bank .). Queries still work on the stale graph; Grep stays fine for regex/raw text."
   fi
 else
-  MSG="Structural query detected — the fresh code graph answers it deterministically. Run this instead:
-  python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph .memory-bank/codebase/graph.json --symbol $SYMBOL
-(swap impact for neighbors|tests: who-calls/blast-radius vs relations vs covering tests). Grep stays fine for regex/raw text."
+  MSG="Structural query — the fresh code graph answers it: bash $SCRIPTS/mb-graph.sh who-calls $SYMBOL
+(or impact|tests <Name>, search \"<phrase>\"). Grep stays fine for regex/raw text."
 fi
 
 # shellcheck disable=SC2016 # $c is a jq variable bound via --arg, not a shell expansion.

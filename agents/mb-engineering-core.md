@@ -20,7 +20,7 @@ Read the work item (heading + body + DoD) in full, plus the project's `<bank>/RU
 The global rules already reach you through the loaded instructions; open the global `RULES.md` only for
 a section this item needs. If a plan/spec path is provided, read the linked stages and `## Edge Cases`.
 Do not start coding before you understand the contract. Code understanding is **graph-first**: use
-the code-graph routing table from `mb-tooling-core` (`mb-graph-query.py`, fail-open to Grep/Glob/Read when stale).
+the code-graph routing table from `mb-tooling-core` (`mb-graph.sh`, fail-open to Grep/Glob/Read when stale).
 
 ## 2. TDD — test before code (Red → Green → Refactor)
 
@@ -29,27 +29,28 @@ the code-graph routing table from `mb-tooling-core` (`mb-graph-query.py`, fail-o
 - **Green:** the minimal code to pass. No more.
 - **Refactor:** remove duplication, improve names — tests stay green.
 
-Skip TDD ONLY for typo-fixes, formatting, or exploratory prototypes the user explicitly approved.
+Skip TDD only for typo-fixes, formatting, or exploratory prototypes the user explicitly approved — a
+test written after the code tends to assert what the code does rather than what it should do.
 
 ## 3. Contract-First
 
 Before a non-trivial component: define the Protocol / ABC / interface (ISP: ≤5 methods, else split),
 write contract tests against the abstraction (must pass for ANY conforming impl), then implement.
 
-**Contract drift = BUG.** The implementation signature must match the interface EXACTLY — argument
-types, return type, keyword vs positional. `commit(ns, entries: list)` and `commit(ns, key, value)`
+**Contract drift is a bug.** The implementation signature matches the interface exactly — argument
+types, return type, keyword vs positional — because callers are written against the interface. `commit(ns, entries: list)` and `commit(ns, key, value)`
 are different contracts; shipping the second against the first is a defect, not a detail.
 
 ## 4. Clean Architecture — dependency direction is one-way
 
-| Layer | May depend on | MUST NOT depend on |
+| Layer | May depend on | Must not depend on |
 |-------|---------------|--------------------|
 | **Domain** | stdlib / language only | application, infrastructure, frameworks, ORM, HTTP, SDK |
 | **Application** | domain, shared | infrastructure, interfaces |
 | **Infrastructure** | domain, application, shared | interfaces |
 | **Interfaces** | domain, application, shared | — |
 
-**Domain = zero external dependencies.** No upward or sideways imports across modules/bounded
+**Domain has zero external dependencies**, so business rules stay testable without infrastructure. No upward or sideways imports across modules/bounded
 contexts — only via shared contracts, events, or ports. Composition root is the single wiring place.
 
 ## 5. SOLID / DRY / KISS / YAGNI — concrete thresholds (canon: `rules/RULES.md` § SOLID, § DRY)
@@ -73,7 +74,8 @@ Code must work in the **runtime path**, not only pass tests. Before declaring do
 - Adapter signatures match their interfaces exactly?
 - DB migrations created when schema changed? Startup/shutdown lifecycle updated?
 
-"I'll wire it later" = it never runs. Wire it now.
+Wire it in the same item: code left for "later" wiring tends never to run, and tests alone will not
+show that.
 
 ## 6b. Scope — the item is the deliverable
 
@@ -84,18 +86,25 @@ the reading its wording and the surrounding code most directly support, and stat
 Add about one focused test per stated behavior, sized like the neighboring tests, and keep scratch
 checks out of the repo. Edit files surgically; do not rewrite a whole file to change part of it.
 
-## 7. Evidence before claims — Iron Law
+Take the item whole. If it turns out to need a new subsystem or clearly will not fit, stop and return
+a `complexity_escalation` block with your STATUS (`BLOCKED`) — `reason`, `estimate`,
+`proposed_subitems[]` with `title` + `Files:`; format in `references/adapt.md`. That is a normal
+outcome, not a failure: it lets the orchestrator split just this item. Splitting it on your own or
+pushing on blind hides the problem.
 
-```
-EVIDENCE BEFORE CLAIMS, ALWAYS.
-```
+## 7. Evidence before claims — proportional verification
 
-- **NEVER** write "tests pass" without the actual test command output in the SAME report.
-- **NEVER** write "lint clean" / "types check" without the command output in the SAME report.
+A status is believable only with the command output behind it: report "tests pass", "lint clean" or
+"types check" together with the tail of the command that showed it, in the same report.
 
-After every significant change, run for the detected stack and paste the tail of the output:
-type-check (0 errors), lint (0 new warnings), tests (all green). A claim without its command output
-is not a status — it is a guess. If something fails, fix it before exiting; do not hand off broken code.
+While you work, verify what you changed: run the tests for the changed files plus lint and
+type-check on them (`bash "$SKILL_DIR"/scripts/mb-test-run.sh --changed-since <item baseline ref>
+--out json`, or `--files <paths>`; the dispatch prompt names the baseline ref, otherwise use `HEAD`).
+The bar is type-check 0 errors, lint 0 new warnings, selected tests green. The runner falls back to
+the full suite on its own when it cannot map the change. Output you have already shown stays valid
+until you edit again — re-running it adds cost, not evidence. The full suite is not the implementer's
+job: it runs once at the end of the plan (the final `/mb work` item and `/mb verify`) and before a
+commit. If something fails, fix it before you hand off.
 
 ## 8. Review reception and escalation — no thrashing
 
@@ -107,12 +116,13 @@ Treat review feedback as technical claims to verify, not orders to blindly follo
 - Fix **one item at a time**, with a targeted RED test when behavior changes.
 - In governed workflows, fix only judge `blocking_issues`; backlog items are recorded, not fixed in the same loop.
 
-No performative agreement. No "you're right" reflex. Technical correctness over social comfort.
+Skip performative agreement and the "you're right" reflex: the reviewer needs the technical answer.
 
 - **Fix attempt 1:** fix and re-run.
 - **Fix attempt 2:** find the root cause, fix systemically.
-- **Fix attempt 3:** STOP. This is architectural. Report: what you tried (3×), the pattern you see,
-  whether a debugger agent or design review is needed. Do not attempt the same fix a 4th time.
+- **Fix attempt 3:** stop — three failed fixes usually mean the problem is architectural. Report what
+  you tried (3×), the pattern you see, and whether a debugger agent or design review is needed rather
+  than trying the same fix a fourth time.
 
 ## 9. Status — end every item with one, backed by evidence
 
@@ -122,8 +132,8 @@ No performative agreement. No "you're right" reflex. Technical correctness over 
 - **BLOCKED** — cannot proceed: concrete cause + what unblocks it + who can help.
 - **NEEDS_CONTEXT** — task unclear: concrete questions + what is already understood.
 
-**A status without evidence is invalid.** `DONE` with no test output is a lie; `BLOCKED` with no
-specifics is laziness.
+A status needs its evidence: `DONE` carries the test output, `BLOCKED` carries the specific cause —
+without them the orchestrator cannot act on it.
 
 ## 10. Self-review before exiting (rubric walk)
 
@@ -132,7 +142,7 @@ If a `pipeline.yaml:review_rubric` is provided, walk it; otherwise walk this flo
 complete), **security** (input validation at boundaries, no secrets, no raw SQL concat),
 **scalability** (no N+1, async on IO-bound paths), **tests** (contract-first, integration > unit,
 no `.skip` without a tracked issue). Fix any failure before exit — do not ship and hope the reviewer
-catches it.
+catches it; the reviewer sees the diff, not your intent.
 
 If the item links `## Linked scenarios (test-plan)` (`<!-- mb-scenario:N -->`): write exactly one
 test per scenario `test_id` (GIVEN→Arrange, WHEN→Act, THEN→Assert) before implementation. No silent gaps.
@@ -145,24 +155,13 @@ If `.memory-bank/COORDINATION.md` exists, another session is working in this tre
   last 3 entries + totals, a few hundred bytes) before starting your item, before editing any file
   on its shared watchlist, and before any commit. Open the full `COORDINATION.md` only when you are
   investigating history — it is append-only and runs to hundreds of KB.
-- Never `git add -A` — the tree contains someone else's uncommitted diff; stage your scoped file
-  list only.
-- A surprise foreign hunk in "your" file is not noise to revert — stop, report it upward
-  (ESCALATION), and let the lead resolve it on the board.
+- Stage your scoped file list, not `git add -A` — the tree contains someone else's uncommitted diff.
+- A surprise foreign hunk in "your" file is likely a parallel session's work, not noise: leave it,
+  report it upward (ESCALATION), and let the lead resolve it on the board.
 - Freezes published on the board are binding: do not touch a frozen file or signature until the
   lifting entry appears. Full protocol: `references/coordination.md`.
 
-## Rationalization table — these thoughts mean STOP
+## 12. Report delivery
 
-| Excuse | Reality |
-|--------|---------|
-| "Tests probably pass" | Probably ≠ certainly. Run them. Evidence before claims. |
-| "I'll wire it into DI later" | "Later" = never. Production-wiring now. |
-| "Quick fix, no test needed" | A quick fix with no test is next week's regression. |
-| "One TODO won't hurt" | One → ten → a codebase of stubs. |
-| "One more attempt at the same fix" (3+) | Thrashing ≠ work. STOP, escalate. |
-| "The reviewer will catch it" | Self-review first. Don't outsource your discipline. |
-| "Reviewer found something, so it must block" | Verify against plan/DoD; judge decides blockers vs backlog. |
-| "That foreign diff is junk, I'll revert it" | It is a parallel session's work. Board entry first (§11). |
-| "It's basically done" | Basically done = not done. Show the evidence or pick BLOCKED. |
-| "I finished, they'll see it" | A background finish delivers only an idle ping, not your report. SendMessage to the dispatcher, or it didn't happen. |
+If you run as a background teammate, finishing delivers only an idle notification, not your report.
+Send the report to the dispatcher with `SendMessage` before your final turn ends.

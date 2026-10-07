@@ -17,6 +17,8 @@
 #   - The script's own help text no longer promises "Task 13 adds pi/opencode"
 #     as a future extension — pi/opencode are documented as resolved.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   RESOLVE="$REPO_ROOT/scripts/mb-subinvoke-resolve.sh"
@@ -145,4 +147,30 @@ setup() {
   [ "$status" -ne 0 ]
   [[ "$output" == *"WARN"* ]]
   [[ "$output" == *"totally-unknown-agent"* ]]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# I-243: built-in Codex defaults off GPT-5.5 (retired for ChatGPT sign-in
+# 2026-10-14) onto gpt-6.1-sol, in both the bare and openai-codex/ forms.
+# ═══════════════════════════════════════════════════════════════
+
+@test "subinvoke_resolve_codex_default_model_is_gpt_6_1_sol" {
+  run bash "$RESOLVE" --agent codex
+  [ "$status" -eq 0 ]
+  assert_substring "$output" 'codex exec --model "gpt-6.1-sol"'
+  refute_substring "$output" "gpt-5.5"
+}
+
+@test "subinvoke_resolve_pi_default_model_is_openai_codex_gpt_6_1_sol" {
+  run bash "$RESOLVE" --agent pi
+  [ "$status" -eq 0 ]
+  assert_substring "$output" '--model "openai-codex/gpt-6.1-sol"'
+  refute_substring "$output" "gpt-5.5"
+}
+
+@test "subinvoke_resolve_codex_model_override_still_wins_over_default" {
+  MB_SUBINVOKE_MODEL="gpt-6-astra" run bash "$RESOLVE" --agent codex
+  [ "$status" -eq 0 ]
+  assert_substring "$output" '--model "gpt-6-astra"'
+  refute_substring "$output" "gpt-6.1-sol"
 }

@@ -1,5 +1,13 @@
 # Calibration examples — common (cross-stack)
 
+## Contents
+
+- `COMMON-SEC-001` — security (blocker)
+- `COMMON-CODE-001` — code_rules (major)
+- `COMMON-SCALE-001` — scalability (major)
+- `COMMON-TESTS-001` — tests (blocker)
+- `COMMON-LOGIC-001` — logic (major)
+
 Skill-baseline, stack-agnostic examples for `mb-reviewer` few-shot
 calibration (reviewer-2.0, design.md §4). Each block is delimited by `---`
 lines with YAML front-matter, a `### Bad` snippet, and an

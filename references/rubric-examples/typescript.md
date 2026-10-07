@@ -1,5 +1,13 @@
 # Calibration examples — typescript
 
+## Contents
+
+- `TS-LOGIC-001` — logic (major)
+- `TS-CODE-001` — code_rules (major)
+- `TS-SEC-001` — security (blocker)
+- `TS-SCALE-001` — scalability (major)
+- `TS-TESTS-001` — tests (blocker)
+
 TypeScript/JavaScript-specific skill-baseline examples (reviewer-2.0,
 design.md §4). One block per reviewer category
 (`logic`/`code_rules`/`security`/`scalability`/`tests`).

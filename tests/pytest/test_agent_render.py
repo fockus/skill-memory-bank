@@ -7,6 +7,7 @@ without the orchestrator re-typing partial files into every prompt.
 
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys
 import tomllib
@@ -116,3 +117,78 @@ def test_shipped_role_agents_render_with_engineering_core() -> None:
         line for line in (REPO_ROOT / "agents" / "mb-engineering-core.md").read_text(
             encoding="utf-8").splitlines() if line.startswith("# "))
     assert core_heading in r.stdout
+
+
+def test_render_for_cursor_keeps_only_documented_keys_and_composes_partials(skill: Path) -> None:
+    (skill / "agents" / "pinned.md").write_text(
+        "---\nname: pinned\ndescription: P.\ntools: Bash, Read\nmodel: haiku\neffort: low\n"
+        "color: blue\ncompose: core-a\n---\n\nBody\n", encoding="utf-8")
+    out = _render(skill / "agents" / "pinned.md", skill, "--host", "cursor").stdout
+    # Cursor subagent frontmatter: name/description; no model = inherit (Claude aliases are not Cursor ids)
+    assert out.startswith("---\nname: pinned\ndescription: P.\n---\n\n")
+    assert out.index("# Core A") < out.index("Body")
+
+
+# ── Stage 4b (AGR-074): the role's tier model in installed agents ──────────────────────────────
+DEFAULT_PIPELINE = REPO_ROOT / "references" / "pipeline.default.yaml"
+needs_yaml = pytest.mark.skipif(importlib.util.find_spec("yaml") is None, reason="PyYAML required")
+
+
+def _agent(name: str) -> Path:
+    return REPO_ROOT / "agents" / f"{name}.md"
+
+
+def _pipeline(tmp_path: Path, body: str) -> Path:
+    path = tmp_path / "pipeline.yaml"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+@needs_yaml
+@pytest.mark.parametrize(("agent", "cost", "model"), [
+    ("mb-developer", "optimal", "claude-sonnet-5-5"),
+    ("mb-reviewer", "optimal", "claude-opus-5-5"),
+    ("mb-developer", "premium", "claude-opus-5-5"),
+])
+def test_render_for_cursor_with_pipeline_writes_tier_model(agent: str, cost: str, model: str) -> None:
+    r = _render(_agent(agent), REPO_ROOT, "--host", "cursor", "--pipeline", str(DEFAULT_PIPELINE), "--cost", cost)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.startswith(f"---\nname: {agent}\ndescription: ")
+    assert f"\nmodel: {model}\n---\n" in r.stdout
+
+
+@needs_yaml
+def test_render_with_pipeline_leaves_agents_without_a_role_unchanged() -> None:
+    plain = _render(_agent("mb-doctor"), REPO_ROOT, "--host", "cursor").stdout
+    with_pipe = _render(_agent("mb-doctor"), REPO_ROOT, "--host", "cursor", "--pipeline", str(DEFAULT_PIPELINE))
+    assert with_pipe.stdout == plain
+
+
+def test_render_for_opencode_without_a_host_profile_is_unchanged() -> None:
+    plain = _render(_agent("mb-developer"), REPO_ROOT, "--host", "opencode").stdout
+    with_pipe = _render(_agent("mb-developer"), REPO_ROOT, "--host", "opencode", "--pipeline", str(DEFAULT_PIPELINE))
+    assert with_pipe.stdout == plain
+    assert "model:" not in plain
+
+
+@needs_yaml
+def test_render_for_opencode_with_profile_writes_provider_model(tmp_path: Path) -> None:
+    pipe = _pipeline(tmp_path, "roles:\n  developer: {agent: mb-developer}\n"
+                     "model_profiles:\n  opencode: {premium: openai/gpt-6-astra, mid: openai/gpt-6.1-sol}\n")
+    out = _render(_agent("mb-developer"), REPO_ROOT, "--host", "opencode", "--pipeline", str(pipe)).stdout
+    assert "\nmodel: openai/gpt-6.1-sol\n---\n" in out
+
+
+@needs_yaml
+def test_render_for_opencode_skips_a_role_model_without_provider(tmp_path: Path) -> None:
+    pipe = _pipeline(tmp_path, "roles:\n  developer: {agent: mb-developer, model: opus}\n")
+    out = _render(_agent("mb-developer"), REPO_ROOT, "--host", "opencode", "--pipeline", str(pipe)).stdout
+    assert "model:" not in out
+
+
+@needs_yaml
+def test_render_for_codex_with_pipeline_writes_model_key() -> None:
+    out = _render(_agent("mb-developer"), REPO_ROOT, "--host", "codex", "--pipeline", str(DEFAULT_PIPELINE)).stdout
+    role = tomllib.loads(out)
+    assert role["model"] == "gpt-6.1-sol"
+    assert role["name"] == "mb-developer"

@@ -1,7 +1,43 @@
 # Global Rules
 
+## Contents
+
+- [Core rules](#core-rules)
+- [Memory Bank status line](#memory-bank-status-line)
+- [GraphRAG-lite retrieval routing](#graphrag-lite-retrieval-routing)
+- [Naming conventions](#naming-conventions)
+- [Source of Truth — planning chain](#source-of-truth--planning-chain)
+- [Architecture](#architecture)
+- [TDD — Test-Driven Development](#tdd--test-driven-development)
+- [Tests — Testing Trophy](#tests--testing-trophy)
+- [Coding Standards](#coding-standards)
+- [ML: device, reproducibility, numerical hygiene](#ml-device-reproducibility-numerical-hygiene)
+- [Staged stubs (allowed)](#staged-stubs-allowed)
+- [Memory Bank Operations](#memory-bank-operations)
+- [Skill and Tools](#skill-and-tools)
+- [Subagents](#subagents)
+- [`/mb` Commands](#mb-commands)
+- [`.memory-bank/` Structure](#memory-bank-structure)
+- [Workflow](#workflow)
+- [Session Pipeline (full cycle)](#session-pipeline-full-cycle)
+- [SDD — spec-driven flow](#sdd--spec-driven-flow)
+- [`/mb work` — execution engine](#mb-work--execution-engine)
+- [Code Graph — usage](#code-graph--usage)
+- [Edge cases: `notes/` vs `reports/`](#edge-cases-notes-vs-reports)
+- [`/mb index` — entry registry](#mb-index--entry-registry)
+- [Who updates files](#who-updates-files)
+- [Key Rules](#key-rules)
+- [Cross-session coordination — shared working tree](#cross-session-coordination--shared-working-tree)
+- [File Formats (short)](#file-formats-short)
+- [Rule profiles](#rule-profiles)
+- [Private content — `<private>…</private>`](#private-content--privateprivate)
+- [`.memory-bank/` vs native auto-memory](#memory-bank-vs-native-auto-memory)
+- [Design contract](#design-contract)
+
 > Universal coding and process rules.
 > Apply to ALL projects. Project-specific rules belong in the repository root `RULES.MD`.
+
+Before these, read the matching `~/.claude/RULES.md` section: `/mb plan` → `§ Session Pipeline` + `§ Planning chain`; `/mb discuss` / `/mb sdd` → `§ SDD — spec-driven flow`; `/mb work` → `§ /mb work — execution engine`; `/mb verify` / `/mb done` → `§ Session Pipeline`; `/mb graph` / `/mb map` / jq → `§ Code Graph — usage`; `/mb profile` → `§ Rule profiles`; subagents → `§ Subagents`; tests → `§ Tests — Testing Trophy`; ADR → `§ Architecture`.
 
 ---
 
@@ -11,7 +47,7 @@
 2. **No placeholder code**: no `...`, `TODO`, or `pass` (exception: staged stubs behind a feature flag with a docstring)
 3. **Destructive actions only after explicit "go"**
 4. **Protected files** (`.env`, `ci/`**, Docker/K8s/Terraform) — do not touch without an explicit request
-5. **New logic = tests FIRST** (TDD)
+5. **Size the task first** — trivial / small / standard / large / extra (`references/effort-tiers.md`, `SKILL.md` § Task routing); plan, tests, docs and checks follow the tier. New logic at standard+ = tests FIRST (TDD)
 6. **Principles**: TDD / SOLID / DRY / KISS / YAGNI / Clean Architecture
 7. **Contract-First**: interface → contract tests → implementation
 8. **Fail Fast**: when different readings of the task would lead to materially different work, say so briefly with your proposed approach and ask; make routine judgment calls yourself and state the assumption
@@ -49,7 +85,7 @@ Use Memory Bank code intelligence in this order. `code_context is the default` f
 
 Agent examples:
 - **Pi**: prefer native tools `code_context`, `graph_neighbors`, `graph_impact`, and `graph_tests` when installed; use CLI fallback otherwise.
-- **Claude Code**: use slash-command guidance and CLI fallback through `scripts/mb-code-context.py` and `scripts/mb-graph-query.py`.
+- **Claude Code**: use slash-command guidance and CLI fallback through `scripts/mb-code-context.py` and `scripts/mb-graph.sh` (`who-calls|impact|tests <Symbol>`, `search "<query>"`).
 - **Codex**: follow `AGENTS.md` instructions and call the portable CLI scripts directly.
 - **OpenCode**: prefer native plugin tools when installed; use the same CLI fallback when plugin/native tool support is unavailable.
 - **generic AGENTS.md** agents: follow this routing table and call portable scripts directly.
@@ -60,7 +96,7 @@ Fail open / fail open behavior: if the graph is missing graph or stale graph is 
 
 ## Naming conventions
 
-**Plan hierarchy:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for the size thresholds and when to use which level. Cyrillic «Этап / Спринт / Фаза» — legacy alias, allowed only in `plans/done/*.md` and historical archives. New work uses the English triple.
+**Plan hierarchy:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for when to add a stage and which level to use. Cyrillic «Этап / Спринт / Фаза» — legacy alias, allowed only in `plans/done/*.md` and historical archives. New work uses the English triple.
 
 ---
 
@@ -85,7 +121,7 @@ status.md        ← Phase, blockers, audit findings
   - `roadmap.md` — link in the "Active plan" field + updated focus
   - `status.md` — updated roadmap ("In Progress" section)
   - `checklist.md` — plan tasks represented as ⬜ items
-2. **Tasks come ONLY from the detailed plan**. Do not invent off-plan tasks.
+2. **Planned work takes its tasks ONLY from the detailed plan**. Do not invent off-plan tasks; a trivial or small request outside the plan is done inline at its tier (`references/effort-tiers.md`).
 3. `**checklist.md` reflects the plan**: each stage in `plans/<file>.md` = one ⬜ item in the checklist.
 4. `**status.md` reflects facts**: update the roadmap on actual completion, not on planning.
 5. **When the active plan changes**: update `roadmap.md` + `status.md` + `checklist.md`.
@@ -255,7 +291,7 @@ Red → Green → Refactor
 - **Contract tests (BEFORE implementation):** output shape, gradient flow, range invariants, determinism (seed), no NaN/Inf, device-agnostic behavior
 - **Statistical tests (AFTER implementation):** convergence (`final_loss < initial * threshold`), sanity checks. Mark with `@pytest.mark.slow`
 
-**When it is acceptable to skip TDD:** typos, formatting, exploratory prototypes.
+**TDD follows the tier** (`references/effort-tiers.md`): a trivial edit (typo, config value, rename, formatting) needs no new test; a small task gets one test per stated behavior; standard and above run full Red → Green → Refactor on the new logic. Exploratory prototypes skip TDD with the user's approval.
 
 ### Contract-First Development
 
@@ -312,9 +348,8 @@ assert loss < initial_loss * 0.8
 
 ### Coverage
 
-- Target: **85%+** overall
-- Core/business logic: **95%+**
-- Infrastructure/adapters: **70%+**
+- Coverage is a gate only when enabled in the project profile (the `coverage` key rule, off by default; `/mb rules`); the `extra` tier turns it on for the task.
+- Thresholds (overall / core / infrastructure) come from the profile (project-quality-settings); a common starting point is 85 / 95 / 70.
 - Project-specific per-layer targets belong in the project `RULES.MD`
 
 ---
@@ -326,7 +361,7 @@ assert loss < initial_loss * 0.8
 - Full imports, valid syntax, complete functions — code must be copy-paste ready
 - No placeholders: no `TODO`, `...`, or pseudocode
 - No new libraries/frameworks without an explicit request
-- Multi-stage work → plan first (`/mb plan`), then implement
+- Planning follows the tier: standard and above → `/mb plan` first, then implement; trivial and small tasks need no plan
 
 ### Refactoring
 
@@ -338,7 +373,7 @@ assert loss < initial_loss * 0.8
 
 - Significant decision → ADR (context → decision → alternatives → consequences)
 - Before making an architectural change, check existing ADRs
-- If Memory Bank exists → put ADRs in `.memory-bank/backlog.md`
+- If Memory Bank exists → record ADRs with `/mb adr` in `.memory-bank/adr.md` (4 short fields, ≤ 1200 bytes)
 
 ### Response format
 
@@ -385,9 +420,11 @@ A stub must be behind a feature flag. Without a feature flag, it is not a stub; 
 
 ## Subagents
 
-Each subagent's model and effort come from its definition or `pipeline.yaml`; prompts in `~/.claude/skills/memory-bank/agents/<name>.md`. **Full roster + when-to-invoke → `SKILL.md` § Agents** — lifecycle / quality-gate agents (`mb-manager`, `plan-verifier`, `mb-doctor`, `mb-codebase-mapper`, `mb-rules-enforcer`, `mb-test-runner`, `mb-reviewer`), the 9 `/mb work` dev-role agents (`mb-developer` / `mb-architect` / `mb-backend` / `mb-frontend` / `mb-ios` / `mb-android` / `mb-devops` / `mb-qa` / `mb-analyst`), and the `/mb wiki` agents.
+Each subagent's model and effort come from its definition or `pipeline.yaml`; prompts in `~/.claude/skills/memory-bank/agents/<name>.md`. **Full roster + when-to-invoke → `references/agents.md`** (skill bundle) — lifecycle / quality-gate agents (`mb-manager`, `plan-verifier`, `mb-doctor`, `mb-codebase-mapper`, `mb-rules-enforcer`, `mb-test-runner`, `mb-reviewer`), the 9 `/mb work` dev-role agents (`mb-developer` / `mb-architect` / `mb-backend` / `mb-frontend` / `mb-ios` / `mb-android` / `mb-devops` / `mb-qa` / `mb-analyst`), and the `/mb wiki` agents.
 
 `/mb work` prepends the **partial** `mb-engineering-core` before every dev-role agent (core + role + work-item): the core carries shared discipline (TDD, Contract-First, Clean Architecture, production-wiring, evidence-before-claims / Iron Law, escalation), each role file only its domain delta — a role file invoked standalone is discipline-thin by design.
+
+**Agent routing (unless the user says otherwise):** author plans with `/mb plan`; its template carries these rules (TDD-first, SOLID, Clean Architecture/FSD, SMART DoD). Size numbers are guidelines: the only mechanical size check is SRP at 300 lines and it warns, so don't reshape a module just to meet a number. Execute plans/specs with `/mb work`, which dispatches the `mb-*` role agents with the engineering core built in (review is opt-in). Use the host's general research agent and `mb-research` for research, not for plans or code: they don't carry that core.
 
 Do **NOT** delegate plan creation, architectural decisions, or ML-result interpretation to a subagent — that is main-agent work.
 
@@ -395,7 +432,7 @@ Do **NOT** delegate plan creation, architectural decisions, or ML-result interpr
 
 ## `/mb` Commands
 
-The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineering RULES in this file + a dev toolkit of slash commands. **Full command reference → `/mb help` (or `commands/mb.md`); scripts table → `SKILL.md` § Tools.** Essentials:
+The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineering RULES in this file + a dev toolkit of slash commands. **Full command reference → `/mb help` (or `commands/mb.md`); scripts table → `references/scripts.md` (entry points: `SKILL.md` § Tools).** Essentials:
 
 - **Lifecycle / context:** `/mb` (context), `/mb start`, `/mb done`, `/mb update`, `/mb search`, `/mb recall`, `/mb index`, `/mb init` (`--storage=local` default | `--storage=global --agent=<name>`).
 - **Planning / SDD:** `/mb plan <type> <topic>`, `/mb discuss`, `/mb sdd`, `/mb work`, `/mb verify` (run it before `/mb done` when work followed a plan), `/mb idea`, `/mb idea-promote`, `/mb adr`.
@@ -406,7 +443,7 @@ The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineer
 
 ## `.memory-bank/` Structure
 
-**Full file/folder reference → `references/structure.md`.** Core (read every session): `status.md` (where we are, metrics, gates), `checklist.md` (tasks ✅/⬜ — update **immediately** on completion), `roadmap.md` (priorities / direction), `research.md` (hypotheses + findings). Detailed (read on demand): `backlog.md` (ideas / ADRs / rejected), `progress.md` (**append-only**, end of session), `lessons.md`, `experiments/`, `plans/`, `reports/`, `notes/`, `codebase/` (map + `graph.json` / `god-nodes.md`, via `/mb map` / `/mb graph`).
+**Full file/folder reference → `references/structure.md`.** Core (read every session): `status.md` (where we are, metrics, gates), `checklist.md` (tasks ✅/⬜ — update **immediately** on completion), `roadmap.md` (priorities / direction), `research.md` (hypotheses + findings). Detailed (read on demand): `backlog.md` (ideas / rejected), `adr.md` (ADR registry), `progress.md` (**append-only**, end of session), `lessons.md`, `experiments/`, `plans/`, `reports/`, `notes/`, `codebase/` (map + `graph.json` / `god-nodes.md`, via `/mb map` / `/mb graph`).
 
 ---
 
@@ -441,7 +478,7 @@ The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineer
 | New hypothesis                   | `research.md`: add a table row (`📋 PLANNED`)                    |
 | Start of an ML experiment        | `experiments/EXP-NNN_<n>.md` + status 🔬 in `research.md`        |
 | Experiment completed             | `research.md`: status ✅/🔴/⚠️ + finding. `experiments/`: results |
-| Architectural decision           | `backlog.md`: ADR-NNN (context → decision → alternatives)        |
+| Architectural decision           | `adr.md`: ADR-NNN via `/mb adr` (context → decision → alternatives → consequences) |
 | Detailed multi-stage work        | `plans/`: create a file via `/mb plan <type> <topic>`            |
 | Anti-pattern noticed             | `lessons.md`: add an entry with context                          |
 | Focus/priorities changed         | `roadmap.md`: update it                                             |
@@ -458,7 +495,7 @@ The skill is **three-in-one**: long-term memory (`.memory-bank/`) + the engineer
 4. `status.md`: update if a milestone completed or the roadmap changed
 5. `research.md`: update if there are ML results (hypothesis status, finding)
 6. `lessons.md`: add an entry if an anti-pattern was found
-7. `backlog.md`: add an item if there is a new idea or ADR
+7. `backlog.md`: add an item if there is a new idea; `adr.md`: a new decision via `/mb adr`
 8. `roadmap.md`: update if the focus changed
 9. `notes/`: create a note for the completed work
 
@@ -507,14 +544,14 @@ Allowed types: `feature | fix | refactor | experiment | architecture`.
 
 Required plan structure:
 - Stages with markers `<!-- mb-stage:N -->` — `mb-plan-sync.sh` automatically adds them to `checklist.md` and the active block of `roadmap.md`
-- **SMART DoD** per stage (Specific, Measurable, Achievable, Relevant, Time-bound)
-- **TDD requirements** — tests FIRST (red → green → refactor), explicitly written into each stage
-- Atomicity + declared dependencies between stages
+- **SMART DoD** (Specific, Measurable, Achievable, Relevant, Time-bound) for the plan; per stage only when that stage has its own verifiable boundary
+- **TDD requirements** — tests FIRST (red → green → refactor), stated in the plan
+- A stage marks a dependency, layer/owner, risk or parallel (disjoint `Files:`) boundary, not a size unit; a single-stage plan is valid and usual for small/standard work, and verification runs once at the end of the plan by default
 
 Alternative entry points:
 - `/mb idea "<title>" [HIGH|MED|LOW]` → records the idea in `backlog.md` with auto-generated `I-NNN`
 - `/mb idea-promote I-NNN <type>` → idea becomes an active plan (flips status `NEW|TRIAGED → PLANNED`, adds `**Plan:**` link)
-- `/mb adr "<title>"` → Architecture Decision Record in `backlog.md` with auto-generated `ADR-NNN`
+- `/mb adr "<title>"` → Architecture Decision Record in `adr.md` with auto-generated `ADR-NNN`
 
 ### Phase 3 — Work (atomic updates)
 
@@ -665,7 +702,7 @@ Script: `~/.claude/skills/memory-bank/scripts/mb-index.sh`.
 | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | Mechanical actualization (`checklist` ⬜→✅, `progress` append, `STATUS` metrics) | MB Manager subagent                                       |
 | Plan creation (`plans/`)                                                        | Main agent (requires depth, DoD, TDD)                     |
-| Architectural decisions (ADR)                                                   | Main agent formulates → MB Manager stores in `backlog.md` |
+| Architectural decisions (ADR)                                                   | Main agent formulates → MB Manager stores in `adr.md`     |
 | ML result interpretation                                                        | Main agent interprets → MB Manager updates `research.md`  |
 
 
@@ -729,9 +766,18 @@ Statuses: 📋 PLANNED → 🔬 TESTING → ✅ CONFIRMED / 🔴 REFUTED / ⚠�
 
 ```markdown
 ## Ideas (HIGH / MEDIUM / LOW)
-## Architectural Decisions (ADR)
 ## Rejected Ideas
 ```
+
+### adr.md
+
+```markdown
+# Architecture Decision Records
+### ADR-NNN — <title> [YYYY-MM-DD] · status: accepted
+**Context:** / **Decision:** / **Alternatives:** / **Consequences:** — 1–2 sentences each, ≤ 1200 bytes
+```
+
+Full format: `references/templates.md` § ADR registry.
 
 ### experiments/EXP-NNN
 

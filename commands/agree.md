@@ -1,5 +1,5 @@
 ---
-description: Manage the running list of agreements — the canonical registry of confirmed decisions
+description: "Manages the running list of agreements — the canonical registry of confirmed decisions. Use when the user confirms or changes a decision — «договорились», «запиши договорённость»."
 allowed-tools: [Read, Bash, Grep, Glob]
 argument-hint: <subcommand> [args]
 ---

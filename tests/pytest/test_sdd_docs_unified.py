@@ -21,9 +21,9 @@ def test_skill_md_documents_mb_task_marker() -> None:
 
 
 def test_skill_md_lists_mb_work_items_in_tools() -> None:
-    """SKILL.md Tools table contains mb_work_items.py."""
-    content = _read("SKILL.md")
-    assert "mb_work_items.py" in content, "SKILL.md Tools table must list mb_work_items.py"
+    """The scripts table (references/scripts.md, linked from SKILL.md) lists mb_work_items.py."""
+    content = _read("references/scripts.md")
+    assert "mb_work_items.py" in content, "references/scripts.md must list mb_work_items.py"
 
 
 def test_skill_md_lists_mb_spec_validate_in_tools() -> None:
@@ -35,10 +35,10 @@ def test_skill_md_lists_mb_spec_validate_in_tools() -> None:
 
 
 def test_skill_md_lists_mb_spec_tasks_migrate_in_tools() -> None:
-    """SKILL.md Tools table contains mb-spec-tasks-migrate.sh."""
-    content = _read("SKILL.md")
+    """The scripts table (references/scripts.md, linked from SKILL.md) lists mb-spec-tasks-migrate.sh."""
+    content = _read("references/scripts.md")
     assert "mb-spec-tasks-migrate.sh" in content, (
-        "SKILL.md Tools table must list mb-spec-tasks-migrate.sh"
+        "references/scripts.md must list mb-spec-tasks-migrate.sh"
     )
 
 

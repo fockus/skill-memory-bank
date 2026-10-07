@@ -1,5 +1,5 @@
 ---
-description: Create and manage DB migrations across 8+ tools
+description: "Creates and manages DB migrations across 8+ tools. Use when the schema changes — «нужна миграция», add a column or table, roll back a migration."
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
 argument-hint: <migration-description>
 ---

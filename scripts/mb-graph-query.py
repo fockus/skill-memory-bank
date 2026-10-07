@@ -45,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     for name in ("neighbors", "impact", "tests", "explain"):
         add_common(sub.add_parser(name))
+    sub.choices["neighbors"].add_argument(
+        "--direction",
+        choices=("in", "out", "both"),
+        default="both",
+        help="in = callers of the symbol only (who-calls); out = what it uses",
+    )
 
     summary = sub.add_parser("summary")
     add_common(summary, selector_required=False)
@@ -142,7 +148,7 @@ def run(args: argparse.Namespace) -> int:
         return EXIT_INVALID_INPUT
 
     if args.command == "neighbors":
-        payload = neighbors_payload(nodes, edges, symbol, file_name)
+        payload = neighbors_payload(nodes, edges, symbol, file_name, args.direction)
     elif args.command == "impact":
         payload = impact_payload(nodes, edges, symbol, file_name)
     elif args.command == "tests":

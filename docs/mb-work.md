@@ -11,18 +11,23 @@ Plans created with `/mb plan` carry `<!-- mb-stage:N -->` markers, a DoD, and TD
 Specs created with `/mb sdd` carry `<!-- mb-task:N -->` markers in `specs/<topic>/tasks.md`, each
 one linked to REQ-IDs from `requirements.md`. `/mb work` consumes both as first-class executable
 sources: it picks a work item, routes it to the right role-agent (`mb-backend`, `mb-frontend`,
-`mb-ios`, `mb-android`, `mb-architect`, `mb-devops`, `mb-qa`, `mb-analyst`, with `mb-developer` as
+`mb-ios`, `mb-android`, `mb-architect`, `mb-devops`, `mb-qa`, `mb-debugger`, `mb-analyst`, with `mb-developer` as
 the generic fallback), lets that agent implement against the item's DoD, verifies the result, and
 — when the workflow calls for it — puts the diff through a real reviewer-approval loop instead of
 trusting the implementer's own "looks done to me."
 
 ## The default loop: implement → verify → done
 
-By design, `/mb work` is **simple by default**. The built-in `execution` workflow is:
+By design, `/mb work` is **simple by default**. The built-in `medium` workflow (old name
+`execution`) is:
 
 ```
 implement → verify → done
 ```
+
+The verifier runs **once, after the last item of the plan** (`verify.cadence: plan`), with the
+whole plan's diff and the full test suite; each implementer runs targeted tests for its own item.
+`--verify=stage` restores a verifier after every item.
 
 Review is **OFF by default**. There is no reviewer dispatch, no judge, no fix-cycle unless you
 explicitly ask for one. This matters because the composable pipeline described below layers
@@ -43,14 +48,18 @@ below. Composition only ever adds or removes the composable stages from this ord
 reorders them, except through the `--stages` escape hatch which sets an explicit list. Three layers combine, in
 increasing precedence:
 
-1. **Built-in default** — the `execution` preset (`implement → verify → done`).
+1. **Built-in default** — the `medium` preset (`implement → verify → done`).
 2. **`pipeline.yaml`** (project-persistent) — `workflow.default: <preset>` selects a named preset;
    per-stage `<stage>.enabled: true` toggles a stage on for every run in this project.
 3. **Launch flags** (per-run, highest precedence) — these win over `pipeline.yaml`.
 
 | Flag | Effect |
 |------|--------|
-| `--workflow <preset>` | Select a named preset (`full`, `codex-governed`, `governed-execution`, `full-cycle`, `requirements-plan`, `implement-only`, `review-fix`, `review-only`, …). |
+| `--workflow <preset>` | Select a named preset (`simple`, `medium`, `complex`, `governed`, `full`, `full-cycle`, `requirements-plan`, `implement-only`, `review-fix`, `review-only`, …). |
+| `--tier <tier>` | Pick the preset from the task's effort tier (`effort_tiers`: small → simple, standard → medium, large → complex, extra → governed; trivial needs no `/mb work`). |
+| `--cost <tier>` | Cost tier for this run: `premium`, `optimal` (default), `economy`; picks each role's model from `model_profiles` (explicit `roles.<role>.model` still wins). See `docs/pipeline-yaml.md` § cost tiers. |
+| `--host <id>` | Host whose `model_profiles` / `hosts.<host>` apply (`claude-code`, `codex`, `pi`, `opencode`, `cursor`); default: auto-detect. `/mb config show --host <id>` previews the result. |
+| `--verify=<cadence>` | Verifier cadence for this run: `stage` (every item), `plan` (once at plan end), `run` (once at the end of a multi-plan run), `off` (none; `/mb verify` by hand). |
 | `--review` / `--no-review` | Add / remove the single-reviewer stage for this run. |
 | `--judge` / `--no-judge` | Add / remove the independent judge (requires `--review`). |
 | `--brainstorm` / `--no-brainstorm` | Add / remove the `discuss` stage. |
@@ -61,23 +70,47 @@ increasing precedence:
 
 The single-reviewer path resolved by `--review` goes through `mb-reviewer-resolve.sh` and is
 gated by `mb-work-severity-gate.sh`. The heavier 5-reviewer ensemble (aspect reviewers + a lead
-reviewer synthesizing one report) only exists behind `--workflow governed-execution` or an
+reviewer synthesizing one report) only exists behind `--workflow governed` or an
 equivalent named workflow with `review_profile: ensemble`.
 
 ## Cost ladder
 
-Presets differ mostly in how many subagent dispatches and test runs one work item costs.
-Pick the cheapest rung that still gives you the evidence you need.
+Presets are complexity levels (AGR-074). They differ in how many subagent dispatches one work
+item costs and in how often the verifier runs. Pick the cheapest rung that still gives you the
+evidence you need.
 
-| Preset | Steps | Dispatches per item | Test runs per item | When to choose |
-|--------|-------|--------------------:|-------------------:|----------------|
-| `implement-only` | implement → verify | 2 | ~28 | A spike or prototype you will read by hand. |
-| `execution` | implement → verify → done | 2 | ~28 | **Default.** A plan or spec exists, the change is S/M, and the tests are the evidence. |
-| `codex-governed` | implement → verify → review → judge → fix → done | 4 clean, 10-12 with fix cycles | ~35 per cycle | Risky, cross-cutting, or a security / data-path change; or a spec group that mandates cross-model review (AGR-028/029: `sdd-vision-pipeline` runs it explicitly). |
-| `governed-execution` | implement → verify → review ensemble → judge → fix → done | 9 clean, up to ~25 with fix cycles | ~65+ | A release gate or an architecture change that needs five aspect reviewers plus a lead. |
+| Preset (effort tier) | Steps | Dispatches per item | Verifier (default cadence) | Full test suite | When to choose |
+|--------|-------|--------------------:|----------|----------|----------------|
+| `simple` (small) | implement → done | 1 | none; the implementer self-checks (targeted tests + DoD) | never in the loop; `/mb verify` or before commit | A small change that still came as a plan. |
+| `medium` (standard) | implement → verify → done | 1, plus 1 verifier per plan | once, after the last item (`plan`) | once, at plan end | **Default.** A plan or spec exists and the tests are the evidence. |
+| `complex` (large) | implement → verify → review → fix → done | 2 clean, up to 6 with 2 fix cycles; plus 1 verifier per plan | once, after the last item (`plan`) | once, at plan end | Cross-cutting work from a spec (`discuss → sdd` first); one reviewer per item. |
+| `governed` (extra) | implement → verify → review ensemble → judge → fix → done | 8 clean, up to ~25 with fix cycles; plus 1 verifier per plan | once, after the last item (`plan`) | once, at plan end | Security, reliability, or accuracy work; release gates. |
 
-Numbers are the Sprint-1 baseline (2026-09-05, cost audit + `scripts/mb-cost-report.py`; averages
-over 554 dispatches across three projects) and will be refreshed after Sprint 2.
+`--verify=stage` puts a verifier after every item (targeted tests, full suite on the last one);
+`--verify=run` verifies once at the end of a run over several plans; `--verify=off` skips it and
+logs `verification skipped (cadence=off)` to `progress.md`. Old names keep working as aliases:
+`execution` → `medium`, `governed-execution` / `strict` → `governed`. `implement-only` and this
+repo's own `codex-governed` (a single cross-model reviewer + judge) are still separate presets.
+A project workflow without `verify.cadence` verifies once at plan end (`plan`); set `cadence: stage` for the old per-item verifier.
+
+**Preset × tier × host.** The preset fixes the steps above; the cost tier fixes the model per
+role, independently of the preset; the host supplies the two model ids:
+
+| Tier | implementer, verifier, researcher | planner, reviewer, judge |
+|------|-----------------------------------|--------------------------|
+| `premium` | premium | premium |
+| `optimal` (default) | mid | premium |
+| `economy` | mid | mid |
+
+| Host | premium / mid |
+|------|---------------|
+| `claude-code` | `opus` / `sonnet` |
+| `codex` | `gpt-6-astra` / `gpt-6.1-sol` |
+| `cursor` | `claude-opus-5-5` / `claude-sonnet-5-5` (static frontmatter) |
+| `pi`, `opencode` | your current model / `--model-mid`, written by `/mb config init --host` |
+
+`/mb config show --host <h> --preset <p> --cost <c>` prints the resulting role → agent → model
+matrix; explicit `roles.<role>.model` entries win over every tier.
 
 ## Target resolution
 
@@ -115,7 +148,7 @@ For each pending item the loop resolved from the target:
 - **Fix cycle (5f)** — only on `NO_GO`, bounded by `workflow.loop.max_cycles` (default 2), enforced
   by the durable state machine in `mb-work-state.sh` so cycle-counting survives a crash or a
   compaction. Exhausting the budget triggers `on_max_cycles` handling — the bundled governed
-  workflows with a fix step (`governed-execution`, `review-fix`) default to `judge_decides`;
+  workflows with a fix step (`governed`, `review-fix`) default to `judge_decides`;
   `stop_for_human` is only the no-fix `review-only` preset's terminal behavior.
 - **Done (5g)** — only after every selected-workflow gate has passed for this item. The loop runs
   `mb-work-state.sh done` then `mb-work-checkbox.sh flip <source> <item_no>` — the only mechanism

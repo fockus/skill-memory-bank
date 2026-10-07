@@ -156,7 +156,8 @@ _Active specs/<topic>/ directories._
 
 ## See also
 - traceability.md — REQ coverage matrix
-- backlog.md — future ideas & ADR
+- backlog.md — future ideas
+- adr.md — architecture decision records
 - checklist.md — current in-flight tasks
 
 ---

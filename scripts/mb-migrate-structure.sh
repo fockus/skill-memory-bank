@@ -32,6 +32,7 @@ MB_PATH=$(cd "$MB_PATH" && pwd)
 PLAN="$MB_PATH/plan.md"
 STATUS="$MB_PATH/STATUS.md"
 BACKLOG="$MB_PATH/BACKLOG.md"
+ADR_FILE="$MB_PATH/adr.md"
 LEGACY_NONE_YET=$'пока нет'
 
 mtime_days() {
@@ -236,10 +237,13 @@ if [ -f "$STATUS" ]; then
 fi
 
 if [ -f "$BACKLOG" ]; then
-  if grep -qF "$LEGACY_NONE_YET" "$BACKLOG" || grep -qE '\(empty\)' "$BACKLOG" || ! grep -qE '^## ADR\s*$' "$BACKLOG"; then
-    actions+=("BACKLOG.md: restructure to skeleton (## Ideas + ## ADR)")
+  if grep -qF "$LEGACY_NONE_YET" "$BACKLOG" || grep -qE '\(empty\)' "$BACKLOG" || ! grep -qE '^## Ideas\s*$' "$BACKLOG"; then
+    actions+=("BACKLOG.md: restructure to skeleton (## Ideas)")
   fi
 fi
+
+# ADRs live in their own registry, not in BACKLOG.md (AGR-062).
+[ -f "$ADR_FILE" ] || actions+=("adr.md: create ADR registry")
 
 [ "$checklist_count" -gt 0 ] && actions+=("checklist.md: remove $checklist_count completed section(s)")
 [ "$plan_md_count" -gt 0 ] && actions+=("plan.md: migrate $plan_md_count deferred/declined idea(s) to BACKLOG.md")
@@ -348,13 +352,15 @@ if not re.search(r'(?m)^# ', text):
 if not re.search(r'(?m)^## Ideas\s*$', text):
     text = text.rstrip('\n') + '\n\n## Ideas\n'
 
-if not re.search(r'(?m)^## ADR\s*$', text):
-    text = text.rstrip('\n') + '\n\n## ADR\n'
-
 text = re.sub(r'\n{3,}', '\n\n', text).rstrip('\n') + '\n'
 open(path, 'w', encoding='utf-8').write(text)
 PY
   echo "[apply] BACKLOG.md skeleton ensured"
+fi
+
+if [ ! -f "$ADR_FILE" ]; then
+  printf '# Architecture Decision Records\n' > "$ADR_FILE"
+  echo "[apply] adr.md created"
 fi
 
 if [ "$checklist_count" -gt 0 ]; then

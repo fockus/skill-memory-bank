@@ -10,6 +10,7 @@
 # Usage:
 #   adapters/opencode.sh install [PROJECT_ROOT]
 #   adapters/opencode.sh uninstall [PROJECT_ROOT]
+#   adapters/opencode.sh render-agents PROJECT_ROOT [PIPELINE]  (re-render installed agents)
 
 set -euo pipefail
 
@@ -490,11 +491,13 @@ _opencode_backup_once() {
 
 # Renders the agent for OpenCode (composed partials, Claude-only keys dropped —
 # scripts/mb-agent-render.py --host opencode), then maps tools/colors to OpenCode's schema.
+# $3 (optional) = pipeline.yaml: the role's tier model is written as `model: provider/id`
+# when that pipeline resolves one for OpenCode (AGR-074); otherwise the agent inherits.
 _opencode_write_agent_file() {
-  local src="$1" dst="$2" rendered
+  local src="$1" dst="$2" pipeline="${3:-}" rendered
   rendered="$(mktemp)"
   python3 "$SKILL_DIR/scripts/mb-agent-render.py" "$src" --skill-dir "$SKILL_DIR" --host opencode \
-    > "$rendered" || { rm -f "$rendered"; return 1; }
+    ${pipeline:+--pipeline "$pipeline"} > "$rendered" || { rm -f "$rendered"; return 1; }
   python3 - "$rendered" "$dst" <<'PY'
 import re
 import sys
@@ -579,6 +582,33 @@ PY
   rm -f "$rendered"
 }
 
+# The project's pipeline.yaml (its opencode profile / role models), if any.
+_opencode_project_pipeline() {
+  local p="$PROJECT_ROOT/.memory-bank/pipeline.yaml"
+  [ -f "$p" ] && printf '%s' "$p"
+  return 0
+}
+
+# Re-render the already-installed project agents (`/mb config init --host opencode`):
+# same writer as install, only files we installed (manifest present), in place.
+render_opencode_agents() {
+  local pipeline="${1:-}" f dst n=0
+  [ -n "$pipeline" ] || pipeline="$(_opencode_project_pipeline)"
+  if [ ! -f "$MANIFEST" ]; then
+    echo "[opencode-adapter] not installed in $PROJECT_ROOT; agents not rendered"
+    return 0
+  fi
+  for f in "$SKILL_DIR"/agents/*.md; do
+    [ -f "$f" ] || continue
+    _opencode_agent_is_partial "$f" && continue
+    dst="$AGENT_DIR/$(basename "$f")"
+    [ -f "$dst" ] || continue
+    _opencode_write_agent_file "$f" "$dst" "$pipeline"
+    n=$((n + 1))
+  done
+  echo "[opencode-adapter] agents re-rendered: $n ($AGENT_DIR)"
+}
+
 # ═══ Install ═══
 install_opencode() {
   adapter_require_jq "opencode-adapter" || exit 1
@@ -615,7 +645,7 @@ install_opencode() {
     [ -f "$f" ] || continue
     _opencode_agent_is_partial "$f" && continue
     _opencode_backup_once "$AGENT_DIR/$(basename "$f")"
-    _opencode_write_agent_file "$f" "$AGENT_DIR/$(basename "$f")"
+    _opencode_write_agent_file "$f" "$AGENT_DIR/$(basename "$f")" "$(_opencode_project_pipeline)"
   done
 
   local files_json
@@ -753,8 +783,9 @@ case "$ACTION" in
   install)                install_opencode ;;
   uninstall)               uninstall_opencode ;;
   install-global-agents)   install_global_extensions ;;
+  render-agents)           render_opencode_agents "${3:-}" ;;
   *)
-    echo "Usage: $0 install|uninstall|install-global-agents [PROJECT_ROOT]" >&2
+    echo "Usage: $0 install|uninstall|install-global-agents [PROJECT_ROOT] | render-agents PROJECT_ROOT [PIPELINE]" >&2
     exit 1
     ;;
 esac

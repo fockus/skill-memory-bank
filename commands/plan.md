@@ -1,5 +1,5 @@
 ---
-description: Create a detailed work plan with DoD and save it in memory-bank
+description: "Creates a detailed work plan with DoD and saves it in memory-bank. Use when multi-stage work needs planning — «составь план», «распланируй задачу»."
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
 argument-hint: <type> <topic>
 ---
@@ -31,8 +31,8 @@ Parse `$ARGUMENTS` into `<type> <topic>`. Allowed `type`: `feature`, `fix`, `ref
 Read before you start:
 
 1. `~/.claude/CLAUDE.md` — global rules
-2. `$SKILL_DIR/references/templates.md` — **MUST read the "Plan decomposition — Phase → Sprint → Stage" section**
-3. `./RULES.MD` (project-level, if present) — project-specific decomposition rules + 200k-per-Sprint hard limit
+2. `$SKILL_DIR/references/templates.md` — the "Plan decomposition — Phase → Sprint → Stage" section (what a stage is, when to add one)
+3. `./RULES.MD` (project-level, if present) — project-specific decomposition rules
 4. `./.memory-bank/roadmap.md` — current priorities (if present)
 5. `./.memory-bank/checklist.md` — current tasks (if present)
 6. `./.memory-bank/lessons.md` — known anti-patterns (if present)
@@ -40,24 +40,26 @@ Read before you start:
 
 Study the codebase in the context of the topic. Find and read the files relevant to `"$ARGUMENTS"`.
 
-## 1.5. Decompose by size — Phase / Sprint / Stage
+## 1.5. Decompose — Phase / Sprint / Stage
 
-Before scaffolding, estimate the scope:
+A stage exists to mark a boundary, not to cap size. Add a new stage only when one of these holds:
 
-| Estimate | Target structure | Plan file(s) |
-|----------|------------------|--------------|
-| ≤ 3 stages, one session | **Plain plan** (no Phase/Sprint) | 1 file, 3-5 `<!-- mb-stage:N -->` markers |
-| 3-7 stages, several days | **One Sprint** = one plan file | 1 file, 5-7 stages |
+- **dependency boundary** — the next part needs the previous one finished and in place;
+- **layer or owner change** — e.g. domain → infrastructure, or a different role agent takes over;
+- **risky checkpoint** — a point where you want to stop and confirm before going further (a migration, a public contract);
+- **parallel chunk** — a piece whose `Files:` are disjoint from the other stages, so it can run in its own wave.
+
+Otherwise keep the work in one stage. A single-stage plan is valid and is the usual shape for
+small/standard work (`references/effort-tiers.md`); splitting without a boundary only adds hand-offs
+and checks. There is no file, test or time limit per stage and no minimum stage count.
+Plan coarse; decompose as needed — ADaPT: an item that turns out too big is split during `/mb work`,
+only that item (`references/adapt.md`).
+
+| Shape of the work | Target structure | Plan file(s) |
+|-------------------|------------------|--------------|
+| One coherent change, one session | **Plain plan** (no Phase/Sprint) | 1 file, usually 1 stage |
+| Several boundaries, several days | **One Sprint** = one plan file | 1 file, roughly up to ~7 stages as a guideline |
 | ≥ 2 Sprints with dependencies | **Phase** roadmap + one plan file per Sprint | 1 roadmap + N Sprint plan files |
-
-**🔴 Hard check — 200k tokens per Sprint:**
-- > 5 large files (>500 lines) to read, OR
-- > 15 new/modified files, OR
-- > 3000 lines of new code, OR
-- > 60 new tests, OR
-- cross-layer refactor touching core + service + infra in one pass
-
-→ **Split into 2+ Sprints along an architectural boundary**. State the split explicitly to the user before scaffolding. Two clean Sprints beat one truncated Sprint.
 
 ### Phase-level workflow
 
@@ -74,7 +76,7 @@ If the work expands into a **Phase** (≥2 Sprints with dependencies):
 
 ## 2. Scaffold the plan file
 
-Use the scaffolding script — it creates the file with `<!-- mb-stage:N -->` markers that `mb-plan-sync.sh` relies on later:
+Use the scaffolding script — it creates the file with one `<!-- mb-stage:1 -->` stage (markers are what `mb-plan-sync.sh` relies on later); add more stages only at the boundaries from section 1.5:
 
 ```bash
 bash "$SKILL_DIR"/scripts/mb-plan.sh <type> "<topic>"
@@ -106,20 +108,19 @@ Open the created file and fill each section. Required structure:
 - **Context** — problem, expected result, related files
 - **Stages** — each wrapped with `<!-- mb-stage:N -->` markers (do not remove them), with:
   - Clear title
+  - *Files:* — the files the stage edits; `/mb work` computes parallel waves from these lines
   - *What to do* — concrete actions
-  - *Testing (TDD — tests BEFORE implementation)* — unit / integration / e2e per applicability
-  - *DoD (SMART)* — specific, measurable, achievable, relevant, time-bound checkboxes. Every DoD item must answer «how do we verify?». Include TDD, lint, SOLID/DRY/KISS adherence, architectural direction.
+  - *Testing (TDD — tests BEFORE implementation)* and *DoD (SMART)* — for the plan as a whole; give a
+    stage its own only when it has its own verifiable boundary. Every DoD item answers «how do we verify?».
   - *Code rules* — one-line reference to the principles that apply
 - **Risks and mitigation** — table with Risk / Probability / Mitigation
 - **Gate** — overall success criterion (**mandatory** for a Sprint-level plan; single, measurable)
 
-Stages must be atomic (1-5 files, ~5-15 tests, 5-30 min each), ordered by dependency, and small enough to pick up independently.
+Order stages by dependency. Verification runs once at the end of the plan by default (`/mb work`,
+AGR-075), so a stage does not need its own independent check.
 
-**Sprint-level sanity check before proceeding:**
-- 3-7 stages total
-- ≤ 15 files touched across the Sprint
-- ≤ 60 tests total
-- All Stages reachable in one 200k context — if not, revisit section 1.5 and split.
+**Sanity check before proceeding:** every stage boundary has a reason from section 1.5, and the whole
+Sprint fits one session's context — if not, revisit section 1.5.
 
 If `lessons.md` has entries relevant to this topic, incorporate them into the stages.
 

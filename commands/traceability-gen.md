@@ -1,5 +1,5 @@
 ---
-description: Regenerate traceability.md from specs + plans + tests
+description: "Regenerates traceability.md from specs + plans + tests. Use when checking REQ-to-test coverage or after specs or plans changed — «обнови трассировку»."
 allowed-tools: [Bash, Read]
 ---
 

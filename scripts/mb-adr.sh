@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# mb-adr.sh — capture an Architecture Decision Record in backlog.md.
+# mb-adr.sh — capture an Architecture Decision Record in the ADR registry adr.md.
 #
 # Usage:
 #   mb-adr.sh <title> [mb_path]
 #
-# Effect: append to `## ADR` section in backlog.md:
-#   ### ADR-NNN — <title> [YYYY-MM-DD]
-#   **Context:** …
-#   **Options:**
-#   - …
-#   **Decision:** …
-#   **Rationale:** …
-#   **Consequences:** …
+# Effect: append to <bank>/adr.md (created with `# Architecture Decision Records`
+# when missing):
+#   ### ADR-NNN — <title> [YYYY-MM-DD] · status: accepted
+#   **Context:** / **Decision:** / **Alternatives:** / **Consequences:**
 #
-# Exit: 0 OK, 1 missing backlog.md.
+# NNN = max ADR id over adr.md AND backlog.md + 1 — banks whose old ADRs still
+# sit in backlog.md (not yet migrated by mb-adr-migrate.sh) get no collisions.
+# backlog.md is only read, never written. Format: references/templates.md § ADR.
+#
+# Exit: 0 OK, 1 bank directory missing.
 
 set -euo pipefail
 
@@ -22,77 +22,25 @@ source "$(dirname "$0")/_lib.sh"
 
 TITLE="${1:?Usage: mb-adr.sh <title> [mb_path]}"
 MB_PATH=$(mb_resolve_path "${2:-}")
+[ -d "$MB_PATH" ] || { echo "[error] memory bank not found: $MB_PATH" >&2; exit 1; }
 
+ADR_FILE="$MB_PATH/adr.md"
 BACKLOG="$MB_PATH/backlog.md"
-[ -f "$BACKLOG" ] || { echo "[error] backlog.md not found: $BACKLOG" >&2; exit 1; }
 
-max_id=$(grep -Eo 'ADR-[0-9]{3}' "$BACKLOG" 2>/dev/null | awk -F- '{print $2+0}' | sort -n | tail -1 || true)
-next=$(printf '%03d' $(( ${max_id:-0} + 1 )))
-ID="ADR-${next}"
+max_id=$(cat "$ADR_FILE" "$BACKLOG" 2>/dev/null | grep -Eo 'ADR-[0-9]{3,}' | awk -F- '{print $2+0}' | sort -n | tail -1 || true)
+ID=$(printf 'ADR-%03d' $(( ${max_id:-0} + 1 )))
 TODAY=$(date +%Y-%m-%d)
 
-# Skeleton — double-space indent on Options bullet is intentional for nested readability.
-SKELETON=$(cat <<EOF
+[ -f "$ADR_FILE" ] || printf '# Architecture Decision Records\n' > "$ADR_FILE"
 
-### ${ID} — ${TITLE} [${TODAY}]
+cat >> "$ADR_FILE" <<EOF
 
-**Context:** <!-- what problem triggered this decision -->
+### ${ID} — ${TITLE} [${TODAY}] · status: accepted
 
-**Options:**
-- A: <!-- option A --> — <!-- pros / cons -->
-- B: <!-- option B --> — <!-- pros / cons -->
-
-**Decision:** <!-- chosen option and short why -->
-
-**Rationale:** <!-- deeper reasoning -->
-
-**Consequences:** <!-- what changes because of this decision -->
+**Context:** <!-- 1–2 sentences: the problem that forced a decision -->
+**Decision:** <!-- 1–2 sentences: what was chosen and the one main reason -->
+**Alternatives:** <!-- 1–2 sentences: what was rejected and why -->
+**Consequences:** <!-- 1–2 sentences: what becomes easier / more expensive -->
 EOF
-)
-
-tmp=$(mktemp)
-skel_file=$(mktemp)
-printf '%s\n' "$SKELETON" > "$skel_file"
-
-if grep -qE '^## ADR[[:space:]]*$' "$BACKLOG"; then
-  # Insert SKELETON before the next `## ` after `## ADR`, or at EOF if ADR is last.
-  awk -v skel_file="$skel_file" '
-    BEGIN {
-      skel=""
-      while ((getline line < skel_file) > 0) {
-        skel = skel line "\n"
-      }
-      close(skel_file)
-      in_adr=0
-      done=0
-    }
-    /^## ADR[[:space:]]*$/ { print; in_adr=1; next }
-    in_adr && /^## / && !/^## ADR/ {
-      printf "%s", skel
-      print ""
-      in_adr=0
-      done=1
-      print
-      next
-    }
-    { print }
-    END {
-      if (in_adr && !done) {
-        printf "%s", skel
-      }
-    }
-  ' "$BACKLOG" > "$tmp"
-  mv "$tmp" "$BACKLOG"
-else
-  # `## ADR` heading missing — append a new ADR section.
-  {
-    cat "$BACKLOG"
-    printf '\n## ADR\n'
-    cat "$skel_file"
-  } > "$tmp"
-  mv "$tmp" "$BACKLOG"
-fi
-
-rm -f "$skel_file"
 
 printf '%s\n' "$ID"

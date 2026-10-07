@@ -10,7 +10,7 @@ Slow-changing, non-negotiable project facts read at flow start (REQ-DF-002).
 This is the stable backdrop a Dynamic Flow loads BEFORE picking a route — the
 constraints that must hold regardless of which goal is active. Keep it small
 (~30-80 lines); fast-moving status lives in status.md, code structure in
-codebase/, decisions in backlog.md / ADRs. Do NOT duplicate those here —
+codebase/, decisions in adr.md (ADRs). Do NOT duplicate those here —
 reference them.
 -->
 

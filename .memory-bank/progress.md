@@ -3739,3 +3739,325 @@ t=3s codegraph=0 graphquery=0
 **Расхождение pytest объяснено.** Мои baseline-2632 против 2677 у исполнителя — не признак несобиравшихся тестов: диф стадии collection-нейтрален (2681 collected во всех трёх конфигурациях — как есть, с убранным новым bats-файлом, с откаченным `SKILL.md`). Разница пришла из другого воркtree: часть тестов параметризуется содержимым банка и шаблонов (`test_roadmap_order.py` 48 параметров, `test_index_json.py` 50, `test_spec_corpus_battery.py` читает `specs/*`, `test_flow_route_templates.py` 157), а `.memory-bank/**` у воркtree'ев разное.
 
 **Заведено в бэклог:** I-230 (HIGH), I-231 (LOW).
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session 008fdaed)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session ffcb0b57)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session 80deb63e)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session c47d4398)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session 44d69c6d)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session e1c0adcf)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session 70632626)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session 3dac0e32)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session 42b75201)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session c648a46a)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+
+## 2026-09-30
+
+### graph-semantic-adoption Stage 1 и Stage 4 — nudge v2 и `mb-graph.sh`
+
+**Stage 1 (nudge v2)** закоммичена чужой сессией как `5afcdf3` 2026-09-28 с пометкой «verify не пройден» — пометка неверна: verify дал PASS (0 CRITICAL, 5 WARNING). После verify оркестратор закрыл три WARNING кодом, каждый через красный тест: символ берётся из определения (`def|class|func|…`), а не последний идентификатор — на самых частых паттернах прежнее правило давало `--symbol target` и `--symbol Base`; счётчик сбрасывается ДО гейта свежести (провал гейта больше не паркует его на N); непишущийся счётчик деградирует в тишину, а не в nudge на каждом вызове. Замер verify: на 25 структурных вызовах python спавнится 1 раз вместо 25. Остатки — I-233, I-234.
+
+**Stage 4 (`mb-graph.sh`)** — три раунда до PASS. Исполнитель дважды и верификатор трижды обрывались на `ECONNREFUSED` от API, каждый раз возобновлялись с контекстом.
+
+Раунд 1 → verify PARTIAL. Две HIGH: (1) `who-calls` отвечал не на свой вопрос — `neighbors` отдаёт оба направления и матчит по файлу символа, для `mb_resolve_path` это 194 «входящих» (91 настоящий вызов + 103 импорта `_lib.sh`) и 20 исходящих (18 — от других функций файла), ~29 КБ; (2) DRY: хук учил `mb-graph.sh`, а инструкции агентов — длинной форме (21 место `mb-graph-query.py` + 16 `mb-semantic-search.py`, `mb-graph.sh` — 0); на хостах без хуков агент о враппере не узнал бы.
+
+Раунд 2: `neighbors --direction in|out|both` (default both — `neighbors`/`impact` байт-в-байт как в HEAD), `who-calls` → `--direction in` → 92 вызывающих, все `call`, 12.4 КБ. Инструкции переведены (34 упоминания в 12 файлах, остаток длинной формы — справочник/инвентарь/catchup, каждый объяснён). Пустые утверждения I-147 на :69/:85 nudge-теста доказаны мутацией (до — зелёные, после — красные). Коды возврата: 2 usage, 4 нет банка, делегат пробрасывается. Шелл-ключевые слова в исключениях символа (живой nudge выхватывал `done`). Спор про аргументы пересборки разрешён в пользу исполнителя: `mb-codegraph.py` берёт позиционно `mb_path src_root`, прежняя подсказка `--docs . .` писала бы `./codebase/graph.json` в корень проекта.
+
+Раунд 3 → закрыл WARNING-A: `"$SKILL_DIR"` в `mb-tooling-core.md` был описан словами, но не присвоен — команда, скопированная в Bash, падала с rc 127, а tooling-core подмешивается во все роли `/mb work`. Теперь присваивание + связь со строкой `Skill path:` диспатча; контрактный тест требует присваивания в каждом файле, запускающем враппер через `$SKILL_DIR`. Плюс `--src-root` для глобального банка от git toplevel, закреплены проброс кода делегата и пара `--docs <bank> .`, тест на запуск длинной формы вне явного allowlist.
+
+Проверено оркестратором независимо: репро WARNING-A → rc 0; `who-calls mb_resolve_path` → 92 вызывающих, только `call`, без `outgoing`, 0.12 с; 225 pytest + 24 bats зелёные.
+
+DoD п.3 уточнён в плане: `WriteFile` (Go-пример из CLAUDE.md, в графе нет, прогон проверял только время) → `mb_resolve_path`.
+
+**Попутные решения и находки.** AGR-049 — хвост плана `1 → 4 → 5 → 7`. AGR-050 — Stage 9 (Communities без networkx) между 4 и 5: I-225 эскалирован до HIGH — в истории `god-nodes.md` секция Communities есть только в трёх коммитах, собранных под dev-`.venv`; networkx нет ни в системном python3, ни в `~/.claude/hooks/.venv`, а catchup Stage 3 пересобирает граф системным python3. В Stage 7 метрика `graph_share` дополнена `mb-graph.sh` — иначе адопшен враппера в недельном замере невидим. `tests/bats/test_install_interactive.bats` гонял настоящий `install.sh` против реального `$HOME` тремя кейсами — наши прогоны батареи 2026-09-24 21:47 переустановили глобальный скил и снесли установку параллельной сессии (фикс — в её ветке, ACK на доске). Бэклог: I-230 (гард кириллицы в bats не завершается), I-231 (общий лог catchup затирается), I-232 (14 красных в `hooks/tests/`, три причины: главная — `session-end-summary-v2.bats` не получил `MB_SESSION_END_DETACHED=1` после `61d922c`), I-235 (двусмысленность `MB_SKILLS_ROOT`), I-236 (~40 прошитых `~/.claude` к не-графовым скриптам в agents/ и references/).
+
+Коммитов по Stage 4 нет — решение владельца.
+
+
+### graph-semantic-adoption Stage 9 закрыта — `--apply` без networkx не стирает Communities и Bridge files (AGR-050)
+
+Без networkx `--apply` переносит секции `## Communities` и `## Bridge files` из прежнего `god-nodes.md` с пометкой, называющей коммит и дату сборки, в которой они были ПОСЧИТАНЫ (повторный перенос источник не сдвигает), и убирает из перенесённых строк файлы, которых нет в текущем графе. Логика — новый модуль `memory_bank_skill/codegraph_carryover.py` (`codegraph_analytics.py` уже 403 строки, новая ответственность туда не добавлялась). Сборка без networkx идемпотентна (3 прогона — `cmp` идентичен); с networkx секции пересчитываются, пометки нет. `commands/mb.md:835` приведён к поведению.
+
+Verify: PASS (0 CRITICAL), 13 мутаций убиты, перенос дословный 33/33 строк на реальном `god-nodes.md`; путь хук → catchup → `mb-codegraph.py --apply` под системным python3 проходит через новый код. Раунд правок закрыл WARNING-1 (пометка «from the previous build» после N фоновых catchup лгала о свежести; удалённые файлы оставались в кластерах — репро с `src/gone.py`) и WARNING-2 (документация). Проверено оркестратором: 260 pytest, ruff чист; `god-nodes.md` репо — секции есть, пометок 0.
+
+**Главное, что стадия НЕ закрыла (WARNING-3 verify):** под системным python3 `graph.json` теряет `community` у всех 9491 узлов, а Top symbols переключаются с PageRank на degree (~45 строк) — git-отслеживаемый граф по-прежнему зависит от интерпретатора. Владелец решил: AGR-051 — networkx в bootstrap-venv + re-exec `mb-codegraph.py` (Stage 10); AGR-052 — детерминизм louvain (I-219) Stage 11. 188 из 217 сообществ — одиночки (связь «тест → скрипт по пути» не файловое ребро); на `graph_tests` не влияет — сверено с grep на 4 скриптах.
+
+**Урок (заметка `notes/2026-09-30_mutation-testing-stale-pyc.md`):** мутация, не меняющая размер файла и откатанная в ту же секунду mtime, оставляет устаревший `.pyc` — `cmp` говорит «восстановлено», а тесты гоняют мутанта. Мутационные циклы — с `PYTHONDONTWRITEBYTECODE=1`.
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session 7bfd92c8)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30
+
+### Auto-capture 2026-09-30 (session 4373c78a)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-09-30 — graph-semantic-adoption Stage 10 закрыта (без коммита)
+
+- Bootstrap-venv (`hooks/mb-semantic-bootstrap.sh`) ставит весь extra `[codegraph]` (AGR-053): tree-sitter, 6 грамматик и networkx рядом с fastembed numpy. Список пакетов — один, `hooks/lib/venv-requirements.sh`; тест держит его равным `pyproject.toml`. Проверка готовности — все 10 модулей; при сбое pip пакеты ставятся поштучно, строка `missing: …`, exit 0.
+- Общий хелпер `semantic_index.reexec_under_semantic_python(…, needs=)`. `mb-codegraph.py` без networkx уходит только в кандидата-надмножество (networkx + все tree-sitter-модули текущего python; `codegraph_treesitter.available_modules()`). `mb-semantic-search.py` переведён на тот же хелпер.
+- `mb-wiki.py` берёт `community` из `graph.json` и пересчитывает, только если поля нет: под системным python3 было 0 сообществ, стало 219.
+- Реальный `~/.claude/hooks/.venv`: networkx 3.7 и все 10 модулей. Системный python3 через re-exec: `community` у 9531/9531 узлов, 8 tree-sitter-модулей; при фиксированном seed побайтно равен сборке под hooks-venv, фоновый catchup тоже.
+- Verify: PARTIAL (5/5 DoD, 0 CRITICAL, 3 WARNING) → раунд доработки закрыл WARNING 1 (wiki) и 3 (тест на одну недостающую грамматику, мутация убита). WARNING 2 (networkx 3.6.1 против 3.7 и недетерминизм Bridge files) перенесён в Stage 11.
+- Открыто: `test_semantic_file_is_git_tracked[hooks/lib/venv-requirements.sh]` красный, пока файл не в git (коммиты отложены решением владельца). Бэклог: I-237 (квадратичный `mb-wiki plan`), I-238 (`mb-idea.sh --help` создаёт идею), I-239 (deps-check смотрит только системный python), I-240 (bootstrap без отрицательного кэша).
+
+## 2026-10-01 — graph-semantic-adoption Stage 11 закрыта (I-219, без коммита)
+
+- Причина недетерминизма найдена замером: networkx делает выборку (перемешивание в louvain, опорные узлы в betweenness) по порядку вставки, а тот шёл из set. `_nx_file_graph` вставляет отсортированные узлы и рёбра; мутации показали, что нужны обе сортировки.
+- Одиночки (файлы без файлового ребра) в louvain не подаются и поля `community` не получают: сообществ 219 → 31.
+- AGR-054: DoD сужен до `god-nodes.md` и тела `graph.json` — строка meta меняется после каждого коммита по построению; `src_root` в meta стал относительным (`codegraph_loader.meta_src_root`/`resolve_src_root`). Пин `networkx>=3.6,<3.7` теперь исполняется: `hooks/lib/venv_unmet.py` сверяет версии, bootstrap переставляет несовпавшие пакеты; реальный `~/.claude/hooks/.venv` 3.7 → 3.6.1.
+- Граф репо пересобран с `--docs` (слой терялся в промежуточных пересборках): 9559 узлов, 3551 с `signature`.
+- Доказательства: `PYTHONHASHSEED=0,1,2`, сборка `.venv` против системного python3 через re-exec и фоновый catchup — побайтно (тело `graph.json` и `god-nodes.md`).
+- Verify раунд 1: PARTIAL (2 CRITICAL: meta-строка, I-219 не закрыт; WARNING: пин не исполнялся, потерян `--docs`) → раунд 2 закрыл всё; I-219 → DONE.
+- Перед коммитом: `git add` для `hooks/lib/venv-requirements.sh`, `hooks/lib/venv_unmet.py`, `tests/pytest/test_venv_unmet.py`; `venv_unmet.py` внести в `SEMANTIC_FILES` (test_session_memory_packaging.py).
+
+## 2026-10-02
+
+### Auto-capture 2026-10-02 (session 4c2bdcf7)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-10-02
+
+### Auto-capture 2026-10-02 (session f60e8605)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+2026-10-05 Pi native integration: AGR-055 approved; executable 5-stage plan and baseline dirty-tree snapshot saved. 27 existing composed MB roles onboarded, codex-cli independent reviewer registered, native workflow validated. First run b0046821-2c29-4382-b1ed-f11218dc716d / child ee12a53e-31ef-4553-8b12-9028fbde0c4d failed before code on Anthropic OAuth HTTP400 invalid_grant. All baseline product hashes unchanged; partial diff and auth-blocker.json captured. Owner correction AGR-056: native roles default to the orchestrator provider/model, legacy opus/sonnet aliases must not select Anthropic. Removed explicit Anthropic pins from the launch script; mb-developer resolves openai/gpt-6.1-sol medium, mb-judge resolves openai/gpt-6.1-sol high. Preparing a fresh governed pi-subagents run on corrected inheritance; old failed run preserved, no gates bypassed, no adapter installed, stages remain 0/5.
+
+
+## 2026-10-05 — Pi native dual-backend scope and timeout checkpoint
+
+- AGR-057: approved unified Nico/Tintin integration; one selected backend per run, Nico default, no fallback, inherited parent provider/model. Existing five stages and original RED/baseline preserved; plan, scoped core records and public-doc provenance synchronized.
+- Workflow b84105c3-491b-454e-8d2a-ad99bfa249e3 and child 51fc7ad7-e0fc-425e-a9db-eab9293f89b8 failed with `Subagent timed out after 3600000ms.` Both are terminal; the original report is a Nico-only candidate, not acceptance of expanded Stage 1.
+- Captured owned files/hashes/diff, original report and terminal receipt in `reports/pi-native-integration/timeout-20261005/`; dirty shared cwd, main at e351a17b8f114bb985dcc2efbdd5709c731736e6. No reset, rollback, commits, host install or accepted stages (0/5).
+- Recovery workflow `reports/pi-native-integration/workflow-dual-recovery.js` validated: explicit retained-child resume, new output labels, original slot/history preserved, independent verify→review→judge→parent gates. Runtime eligibility/launch remains a separate gate; no transport fallback authorized.
+
+
+## 2026-10-05 — Pi dual-backend public host-binding blocker
+
+- Retained native resume succeeded: child b3772376-ef7e-4a2f-81dd-f20a3051bfd5, gpt-6.1-sol/medium. Pinned Tintin API inspection identified isolation auto-commit/drop and automatic-mentions boundaries; fail-closed contract approved without foreign settings changes.
+- Bounded public-API probe did not demonstrate authoritative host inventory/current settings attribution from ordinary ExtensionAPI. Public SDK exports including InteractiveMode confirmed by parent, but a managed startup/producer path is not implemented or accepted.
+- Parent intentionally interrupted the child pending owner scope decision. Child status paused/process terminal observed; workflow 0074da11-6766-48bd-b906-7e22c0a39866 reports failed due to explicit pause. No automatic retry. Latest child ID, prior slot and history retained.
+- All ten owned product hashes/modes unchanged since timeout; no added product paths. Checkpoint/receipt/diff: reports/pi-native-integration/host-binding-blocker-20261005/. Plan remains 0/5; no real-host Tintin/native adapter installation. Owner choice: opt-in public-SDK bootstrap, weaker ordinary-startup contract, or deferral.
+
+## 2026-10-05 — AGR-058: approved opt-in SDK-managed Pi startup
+
+- Owner selected public-SDK composition using existing runtime/TUI and Nico/Tintin, not an alternate executor; AGR-058 recorded, Q-002 resolved, ADR-012 added without rewriting prior ADRs.
+- Same five-stage plan/design amended with exact Stage 1 bootstrap/binding files, observed behavioral RED and real model-free SDK smoke; Stage 5 retains owned entrypoint installer and live TUI/backend/model acceptance. 0/5 accepted; no product edits or real host installation by parent.
+- Preimages/modes/diff and bounded handoff: reports/pi-native-integration/managed-startup-scope/. Latest retained writer b3772376-ef7e-4a2f-81dd-f20a3051bfd5 remains paused pending governed resume; old receipts, source slot and original Nico evidence preserved. All freezes/foreign scopes remain.
+
+## 2026-10-05 — AGR-058 governed retained resume started
+
+- Same-protocol retained resume launched: workflow ccfb3206-47a3-4eaa-bc45-0d7f6e8f72a5, mission b9d31986-21e5-44b8-919a-06df3e8f83f6; latest sole writer 18c4eea8-72af-47e7-a1ab-95e9224de09e resumed from b3772376-ef7e-4a2f-81dd-f20a3051bfd5. Fresh native status reports running. Updated AGR-058 scope/handoff/validation and pre-resume diff/hashes captured; original ten product files unchanged before launch, four host-bootstrap paths absent. No model override, new executor, host install/reload, commits or fallback. Same MB prefix/source/stages/cycle history, 0/5 accepted. Parent owns status/coord/progress updates; writer owns authorized Stage 1 code/tests. All freezes and prior failed/paused receipts remain. Evidence: reports/pi-native-integration/managed-startup-scope/launch.json and workflow-managed-recovery.js. Native notifications, not polling/wait loops.
+- Implementation/API/SDK/TUI/live-provider proofs remain pending independent gates; launch/status receipt is not acceptance.
+
+## 2026-10-05 — Managed SDK continuation timed out; WIP preserved
+
+Workflow ccfb3206-47a3-4eaa-bc45-0d7f6e8f72a5 / latest writer 18c4eea8-72af-47e7-a1ab-95e9224de09e terminal failed: Subagent timed out after 3600000ms.; process terminal observed, no active writer. Verification/review/judge not launched. Five owned files changed/eight new scoped files snapshotted with modes/hash alongside partial diffs, status/receipt/activity/test logs: reports/pi-native-integration/managed-timeout-20261005-1244/. Last full targeted 71 passed/1 failed, followed by backend edit; parent focused external-Codex regression rerun 1 passed in 1.65s, not full GREEN. SDK/both-factory smoke is candidate evidence, not acceptance. Follow-up d4c5946a failed unconsumed (0 delivered); constraints must be repeated explicitly on future resume. Original prefix/slot/source/history preserved, 0/5 accepted. Parent proposes bounded remaining-work same-protocol retained recovery, NOT launched. All freezes/foreign ownership remain; no manual product fix/reset/stash/commit/host install or alternate executor.
+
+## 2026-10-05 — Owner approved bounded retained Stage 1 recovery
+
+Owner confirmed bounded recovery («да, давай»): latest retained 18c4eea8-72af-47e7-a1ab-95e9224de09e, same model/tools/native protocol/deadline, ONLY remaining Stage 1 checks/report and prior independent gates; no fresh broad implementation/reconnaissance, no Stages 2–5/install/host reload. Handoff repeats the undelivered overlay guard explicitly: reports/pi-native-integration/bounded-recovery-handoff.md. New stage1-only workflow script validated ok; dynamic-spawn warning retained. Fresh dirty-shared-main prelaunch diff/status plus 18 owned path snapshots/hashes/modes preserved under bounded-recovery-prelaunch/. Prefix/source/slot/history and freezes unchanged. Recovery launch is next; 0/5 accepted, parent owns MB core records.
+
+## 2026-10-05 — Bounded Stage 1 native recovery launched
+
+Stage-1-only bounded workflow ac76eea7-3c29-48d6-a561-2be61412c421 launched natively/async under existing mission b9d31986-21e5-44b8-919a-06df3e8f83f6, concurrency 1. Requested retained resume 18c4eea8-72af-47e7-a1ab-95e9224de09e; new child eligibility/identity awaits native result, no launch-as-acceptance. Same agent/model/tools/deadline, no fallback; snapshots/validation/launch in bounded-recovery-prelaunch/, explicit guard/checklist in bounded-recovery-handoff.md. Only remaining checks/report and minimal scoped RED-first fixes, then fresh verify/external Codex/judge/parent barrier. No host install/reload, no Stages 2–5, no core records by writer, 0/5 accepted.
+
+## 2026-10-05 — Bounded green checkpoint and public leaf evidence decision
+
+Current retained writer 83d1fe63-8802-4f35-b8a7-3f8b507badb1 reported focused GREEN: native 72 passed in 101.00s, adapter 16/16, pipeline 16 passed; dispatch Bats stale #17 import assertion minimally updated inside prior authorized block, fresh rerun pending. No independent verification/acceptance yet. Supervisor e1ea0a24 decision replied: complete real model-free overlay bind/reload observations; ONE separate short (target <=15min) public native leaf startup/inspect/abort probe allowed only after demonstrable pre-model boundary with guaranteed zero model/provider/network requests. Otherwise no launch, precise public capability BLOCKED. Keep producer smoke at modelCalls=0/childCalls=0; leaf proof separate, no double records/extra observer extensions/private imports/callback overwrite/new executor/dependency/real host changes. Same gates, 0/5 accepted. Decision evidence: bounded-recovery-prelaunch/supervisor-leaf-probe-decision.json.
+
+## 2026-10-05 — Bounded writer BLOCKED; parent emit failure preserved
+
+Workflow ac76eea7-3c29-48d6-a561-2be61412c421 terminal FAILED after completed writer 83d1fe63-8802-4f35-b8a7-3f8b507badb1 returned STATUS BLOCKED. Exact parent error: emit.outputPathMapping must be a JSON value; received undefined. Scoped final logs: native 73, dispatch 22/22, adapter 16/16, pipeline 16 green; real post-bind/reload zero-call producer smoke and new stale-settings rebind RED→GREEN. Five bounded changes and all 18 owned snapshots/diffs/logs/receipt/status preserved in bounded-result-20261005/. Helper omission reproduced RED, new report-only safe copy passes contract/native validate, NOT launched. Independent gates never launched; actual public safe native-leaf proof missing, both-engine full matrix/customization gaps remain; 0/5 accepted. No active writer, retry, host change, commit/reset/stash. Owner decision #21 pending for separate controlled actual-leaf acceptance technique; producer-zero-call and real-provider acceptance remain distinct. Latest retained ID 83d1fe63; previous IDs historical.
+
+## 2026-10-05 — AGR-059 isolated native-leaf probe authorized
+
+Owner approved AGR-059 separate actual native-leaf public API probe with isolated external LLM transport/service double; actual backend/SDK/session/tools stay real, inherited provider/model IDs stay unchanged, synthetic credentials/owned scratch only, no real-provider requests. This is NOT zero-call leaf testing: simulated model calls are counted separately; producer remains zero-model/zero-child, Stage 5 live-provider acceptance separate. Plan/design updated within same Stage 1/IDs/0 accepted; preimages and 18-path dirty-shared-main snapshot/diff under leaf-probe-scope/. New single-retained-child script workflow-leaf-probe.js passes reference contract and native validation; max orchestration spawns 1, no output undefined. Resume candidate 83d1fe63 terminal observed. Handoff: first public feasibility <=15min, total short probe <=30min target, existing stored deadline unchanged; no production changes, private hooks, extra observer extensions, new executor/dependencies or inherited guard bypass. Missing isolation/observability stops BLOCKED. Scope preserves source/cycles/freeze; full matrix/preservation and independent gates remain. Launch next, no acceptance.
+
+## 2026-10-05 — AGR-059 isolated actual-leaf native probe launched
+
+AGR-059 probe-only native workflow 0b836252-e61d-43de-a16c-5d74e4ffdf6d launched, mission b9d31986-21e5-44b8-919a-06df3e8f83f6, max orchestration spawns 1/concurrency 1. Requested retained 83d1fe63-8802-4f35-b8a7-3f8b507badb1; new child eligibility/identity awaits native result, no launch acceptance. Actual pinned SDK/backend/session/tools, only external LLM transport simulated; inherited provider/model identity, synthetic isolated config, no real-provider requests. Producer smoke stays separate zero-call; no production/host/private API/observer-extension/executor/dependency changes. Public isolation/observation feasibility required before native leaf startup; inherited guard restriction stops for parent, no bypass/fallback. Short <=15min feasibility/<=30min total targets, stored hour unchanged, parent barrier after probe. Existing matrix/preservation/gates remain, 0/5 accepted. Handoff/preimages/18-path prelaunch diff/contract/native validation/launch: leaf-probe-scope/.
+
+## 2026-10-05 — Child guard preserved; legitimate operator test context confirmed
+
+AGR-059 retained writer 06d1e15a-c0e2-4098-9e2a-e4b5913c7720 correctly reported inherited PI_SUBAGENT_CHILD=1 eligibility barrier; managed root/Nico owner service refuse. Supervisor 8a282ebc replied: do NOT clear/forge guard or reuse guard-clearing fixture path. Worker prepares focused public external-transport/session observation feasibility and finite scoped fixture/assertions/commands only; no guarded leaf launch or eligibility failure called business RED/PASS. Main parent natural environment checked read-only: PI_SUBAGENT_CHILD=null, PI_SUBAGENT_DEPTH=null, no env mutation. Parent may review/run finite product SDK integration test in this genuine operator context using approved pinned SDK/engines/owned scratch/mock external service; this is not another MB executor or CLI agent fallback. Missing public isolation/observability remains BLOCKED. Native request already replied; pending supervisor queue empty. Records: leaf-probe-scope/operator-context-decision.json. No real provider/profile changes, no Stage 1 acceptance or scope weakening, 0/5.
+
+## 2026-10-05 — Parent model/routing prerequisites observed; fixture preparation handoff
+
+Probe workflow 0b836252-e61d-43de-a16c-5d74e4ffdf6d and writer 06d1e15a-c0e2-4098-9e2a-e4b5913c7720 completed; semantic BLOCKED, no fixture/native leaf. All 18 owned product hashes unchanged; terminal receipt/report/comparison preserved in leaf-probe-scope/result/. Parent now obtained actual inherited catalog descriptor via documented live codemode models API (openai/gpt-6.1-sol, openai-responses), no auth/model call; public SDK scratch routing test exit 0 preserves all metadata, synthetic models_json_key, actual loopback model baseUrl, no OAuth, 0 calls/children, scratch removed. Initial optional-type/auth-URL assumptions diagnosed via public typed lookup/source; retained diagnostics, NOT new business RED/product fixes. Full child transport confinement/public inventory still unproved. Same-protocol retained preparation handoff supplies descriptor/routing artifacts and requires test-first parent RED checkpoint before fixture plumbing; no child guard clear/leaf launch or broad rework. New single-writer preparation script validated/ref contract PASS, launch next; 0/5 accepted, original scope/cycles/freeze intact.
+
+## 2026-10-05 — Retained fixture preparation launched with observed prerequisites
+
+Fixture/contract preparation workflow 12d789f4-bed8-4330-9445-a94346a1f8d1 launched natively async, one stored writer requested from 06d1e15a, same model/tools/deadline, no fallback. Actual live model descriptor/public synthetic auth-loopback routing artifacts provided; no native leaf/model requests yet. Required parent RED checkpoint before fixture plumbing; child guard retained, no production/host changes. Handoff and launch in leaf-probe-scope/. Existing broader matrix/preservation/gates pending; 0/5 accepted.
+
+## 2026-10-05 — Parent actual SDK zero-child control reaches leaf-contract RED
+
+Writer d73331ef-c8fe-479b-aad8-0f7c6dedfa6f produced report-owned contract + parent runner and paused before leaf/service plumbing. Parent read both full sources/preimages and bootstrap; executed natural-operator Node runner with exact pinned Tintin root, subprocess deadline 60s, guards never cleared. Exit 1 at exact actual-native-leaf-required assertion AFTER genuine producerReady/routingVerified=true, real SDK1.0.2/Tintin0.19.0 producer session 01a10ca4-a9b3-7191-aef5-5c66f45e4130, scratch removed/SDK disposed, 0 simulated/native calls. This RED is the new probe runner contract versus its zero-child producer control, NOT product defect/TDD remediation or runtime PASS. Logs/receipt/helper hashes saved parent-native-leaf-red.*. Supervisor 41d19e72 replied: minimal owned report fixture/service plumbing allowed, no production edits/guarded launch; parent reviews/runs GREEN. Require full actual public configured/callable/active inventories/loaded extensions, including MB and both-engine delegation/workflow exclusions; cleanup every failure. Nico exact public inventory/session-resource gap remains, not a fallback. No stage/source/cycle changes, 0/5 accepted.
+
+## 2026-10-05 — Actual Tintin controlled leaf passes in parent; Nico public observation gap remains
+
+Fixture workflow12d789f4 and writerd733 completed PROBE_PREPARED, full reports/terminal receipts retained. Parent reviewed helper/service/bootstrap/public declarations, observed metadata/route negative refusals before root/native launch (0 requests), then preserved attempt1 setup failure caused by parent venv realpath invocation under isolated HOME. Exact isolated reproduction confirms existing venv path works; no dependency install/substitution. Same-protocol attempt2 frozen sources, only parent invocation path corrected: exit0 actual Tintin0.19.0 child 6b4e3eff-2854-488, real distinct SDK1.0.2 leaf/producer sessions, inherited openai/gpt-6.1-sol/openai-responses full metadata, actual all/callable/active/request tools read only, loaded leaf extensions empty. One simulated loopback request, 0 tool calls/results, completed consumed child, no running children/cleanup errors, SDK/service/scratch closed. Guard preserved, no production changes; all18 owned product hashes unchanged. Real-provider/live acceptance not claimed; Nico complete public child tool/resource inventory still unestablished/BLOCKED, no engine fallback. Full matrix/preservation/failure-cleanup/independent verify-Codex-judge-parent/Eval still pending. Parent assessment/receipts/logs/hashes under leaf-probe-scope/, terminal snapshots fixture-result/. Slot/source/cycles unchanged; 0/5 accepted.
+
+## 2026-10-06
+
+### Auto-capture 2026-10-06 (session 9ee9af3e)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-10-06
+
+### Auto-capture 2026-10-06 (session 5e62c412)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## [status archive] Pi native integration — 2026-10-05 — historical checkpoints
+
+Historical execution checkpoints (retained, not current status):
+
+Approved AGR-055/056/057; [plan](plans/2026-10-05_feature_pi-native-integration.md) **0/5 accepted**. Workflow `b84105c3-491b-454e-8d2a-ad99bfa249e3` and Stage 1 child `51fc7ad7-e0fc-425e-a9db-eab9293f89b8` are terminal **failed**: `Subagent timed out after 3600000ms.` The Nico-only candidate report records 40 pytest / 22 dispatch Bats / 16 adapter Bats / 13 pipeline tests green, but independent gates and the expanded dual-backend contract remain unverified. Original report, partial product files/hashes/diff and terminal receipt are preserved in [timeout evidence](reports/pi-native-integration/timeout-20261005/failure.json); existing MB slot remains open at verify, not reset or done. Recovery workflow `0074da11-6766-48bd-b906-7e22c0a39866` restored child `b3772376-ef7e-4a2f-81dd-f20a3051bfd5` with gpt-6.1-sol/medium. The parent then intentionally interrupted it at a public-API blocker: child is **paused**, process terminal observed; workflow reports failed with `Paused after interrupt. Waiting for explicit next action.` No new product files/changes since the timeout checkpoint ([comparison](reports/pi-native-integration/host-binding-blocker-20261005/checkpoint.json)). AGR-058 resolves Q-002: owner approved a separate opt-in public-SDK startup using existing Pi runtime/TUI and Nico/Tintin executors, without changing ordinary pi/foreign config or adding a child executor. Updated Stage 1 now requires a minimal authoritative host-binding/bootstrap core plus real model-free SDK smoke; Stage 5 owns installed entrypoint and live TUI/backend acceptance. Governed workflow ccfb3206-47a3-4eaa-bc45-0d7f6e8f72a5 and latest retained writer 18c4eea8-72af-47e7-a1ab-95e9224de09e are now terminal failed after `Subagent timed out after 3600000ms.`; process terminal observed, no active writer. Five owned files changed and eight new scoped files exist; partial diff/snapshots/receipts/test evidence are preserved in [managed timeout checkpoint](reports/pi-native-integration/managed-timeout-20261005-1244/assessment.md). Child's last full target suite was 71 passed/1 failed, followed by a backend edit; parent focused Codex regression rerun passes 1/1, not full GREEN. SDK/both-factory smoke candidate artifacts exist but independent verification/review/judge were not launched. Queued overlay clarification was not consumed; no compliance claim. Owner confirmed bounded recovery («да, давай»); Stage-1-only workflow ac76eea7-3c29-48d6-a561-2be61412c421 is terminal FAILED at parent emit: `emit.outputPathMapping must be a JSON value; received undefined.` Writer 83d1fe63-8802-4f35-b8a7-3f8b507badb1 completed with semantic STATUS BLOCKED, not accepted. Final candidate logs: native 73 passed, dispatch Bats 22/22, adapter 16/16, pipeline 16 passed; stale-settings rebind observed RED→minimal GREEN and actual model-free post-bind/reload mentions/lifecycle smoke. Five scoped bounded changes/snapshots/logs/report/terminal receipt are preserved under reports/pi-native-integration/bounded-result-20261005/. No real leaf/model was launched: public Tintin 0.19 has no demonstrated guaranteed pre-model inspection/abort boundary. Both-engine negative/control/resume/concurrency matrix and generalized preservation remain mandatory gaps too. Independent verify/Codex/judge were not launched. Parent helper error reproduced with missing optional metadata (RED); a new report-only workflow-bounded-recovery-safe.js omits undefined fields (local GREEN/native validate), original failed script retained. Safe script NOT launched; helper fix alone cannot remove implementation blockers. Owner approved AGR-059: a separate short actual native-leaf public feasibility/runtime probe with only external LLM transport simulated, synthetic isolated config, inherited provider/model identity and no real-provider requests; producer smoke remains zero-model/zero-child and Stage 5 real-provider acceptance separate. Plan/design/handoff updated without changing IDs/source/cycles or accepting a stage. Single-writer workflow 0b836252-e61d-43de-a16c-5d74e4ffdf6d launched, requesting retained 83d1fe63; retained child is 06d1e15a-c0e2-4098-9e2a-e4b5913c7720. It correctly reported PI_SUBAGENT_CHILD=1 operator eligibility refusal. Parent supervisor response preserves that guard: worker prepares public feasibility/finite fixture only, never clears ownership to launch. Main parent natural PI_SUBAGENT_CHILD/DEPTH are absent (read-only check, no env mutation); after fixture review it can execute the finite product SDK test in this genuine operator context, not a different MB executor/CLI fallback. Native supervisor queue is empty after reply; no actual leaf runtime proof yet. Records/snapshots/validation/launch and operator-context decision: reports/pi-native-integration/leaf-probe-scope/. Probe-only workflow 0b836252 completed with BLOCKED; no fixture, 18 product hashes unchanged. Parent retrieved actual live catalog descriptor and confirmed public scratch synthetic auth/model-loopback routing metadata (0 model/child calls, no OAuth, scratch removed). This is not stream/leaf/confinement evidence. New same-protocol fixture/contract preparation workflow 12d789f4-bed8-4330-9445-a94346a1f8d1 requests latest 06d1e15a with those artifacts; only test preparation, child guard remains, parent owns reviewed finite RED/integration execution. No production/host/private API/new executor changes; full stage gates remain pending. 0/5 accepted; prior serialization-failed receipt remains historical, no automatic fallback. Prelaunch snapshots/diff/validation and launch are in reports/pi-native-integration/bounded-recovery-prelaunch/, repeated undelivered guard and remaining checklist in bounded-recovery-handoff.md. Only scoped checks/report/minimal test-first regression fixes, then fresh verify/Codex/judge/parent; no Stage 2–5 or real install/reload. No alternate executor or automatic fresh fallback. Earlier launch/scope records: reports/pi-native-integration/managed-startup-scope/. 0/5 accepted. [Capability decisions](reports/pi-native-integration/dual-backend-scope/public-capability-decisions.md) preserve the findings and prerequisites. No automatic retry, weakened guarantees or replacement executor. One selected backend/run, Nico default, no fallback and parent provider/model inheritance remain mandatory. Candidate @tintinweb/pi-subagents 0.19.0 matches host peers nominally only; no real-host adapter/Tintin installation or live acceptance. Earlier Anthropic OAuth failure remains historical [evidence](reports/pi-native-integration/auth-blocker.json); native roles inherit openai/gpt-6.1-sol and quality gates remain.
+
+## [status archive] Current phase/Focus (до 2026-10-06)
+
+**Current phase:** учёт банка вычищен `/mb doctor` 2026-09-13 (9 готовых планов → `plans/done/`, `parallel-pipeline` → `plans/superseded/`, статусы канонизированы). `mb-work-cost-diet` Sprint 1 закрыт 7/7 (2026-09-13), но cross-model ревью после закрытия дало **NO_GO** судьи: 3 блокирующих I-194/I-195/I-196 + I-208 ([отчёт](reports/2026-09-13_sprint1-review.md)). Живые треки: SEQUENCE `long-running-sessions` Phase 3 `drive-loop` (T3, T5), I-086 `config-validation-docs` (Stages 3–6), группа `sdd-vision-pipeline` G-001 (пауза с 2026-07-27), `graph-semantic-adoption` (0/7).
+**Focus:** `graph-semantic-adoption` (пререквизит Sprint 2 по AGR-044, порядок стадий 6→2→3→1→5→4→7) → Sprint 2 `mb-work-cost-diet` → Sprint 3 → `drive-loop` Task 3 (trend/pivot wiring) → `sdd-vision-pipeline` по DAG T1→S1→S7→S4→S2→S8→S9→S6→S3→S5 (AGR-029). Параллельно HIGH: fix-слайс по ревью Sprint 1 (I-194/I-195/I-196, I-208) — плана ещё нет.
+
+## [checklist archive] Queued waves — Fix-слайс по ревью Sprint 1 (закрыт: plans/done/2026-09-13_fix_sprint1-review-blockers.md, plans/done/2026-09-16_fix_i208-test-battery.md)
+
+- ⬜ **Fix-слайс по ревью Sprint 1** (судья NO_GO 2026-09-13, [отчёт](reports/2026-09-13_sprint1-review.md)): I-194 · I-195 · I-196 — HIGH, точечные правки; I-208 — HIGH, 22 предсуществующих + 11 средовых красных тестов. Плана ещё нет
+
+## [checklist archive] 2026-10-06 — 2026-10-06_fix_anthropic-skill-guide-compliance-sprint1-skill.md
+
+<!-- mb-plan:2026-10-06_fix_anthropic-skill-guide-compliance-sprint1-skill.md -->
+## anthropic-skill-guide-compliance · Sprint 1 «скил memory-bank» — 0/6
+- ⬜ Stage 1 — Тест-гейт соответствия (контракт до правок)
+- ⬜ Stage 2 — SKILL.md — оглавление, а не справочник (R3)
+- ⬜ Stage 3 — Оглавления и одноуровневые ссылки (R1, R2)
+- ⬜ Stage 4 — Описания команд — «что + когда» (R4)
+- ⬜ Stage 5 — Осознанные отклонения и ловушки Claude Code
+- ⬜ Stage 6 — Eval — старая против новой версии (R7, шаг 6б гайда)
+
+## [checklist archive] 2026-10-06 — 2026-10-06_fix_adr-registry.md
+
+<!-- mb-plan:2026-10-06_fix_adr-registry.md -->
+## adr-registry · отдельный реестр ADR и короткие записи — 0/3
+- ⬜ Stage 1 — Реестр `adr.md` и `mb-adr.sh`
+- ⬜ Stage 2 — Промпт `/mb adr` — только ключевое
+- ⬜ Stage 3 — Миграция существующих банков и этого репо
+
+## 2026-10-06
+
+### Auto-capture 2026-10-06 (session b27b3402)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-10-06
+
+### Auto-capture 2026-10-06 (session 4f166fc7)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-10-07
+
+### Auto-capture 2026-10-07 (session b583d2ac)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-10-07
+
+### Auto-capture 2026-10-07 (session 4e40adef)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## [checklist archive] 2026-10-07 — 2026-10-06_feature_key-rules-onboarding.md
+
+<!-- mb-plan:2026-10-06_feature_key-rules-onboarding.md -->
+## key-rules-onboarding · каталог ключевых правил, онбординг и `/mb rules` — 0/4
+- ⬜ Stage 1 — Каталог `rules/key-rules.json` (контракт)
+- ⬜ Stage 2 — Профиль + резолвер выбора
+- ⬜ Stage 3 — Рендер секции `## Key rules` вверху файлов
+- ⬜ Stage 4 — Онбординг в `install.sh` + `/mb rules`
+
+## [checklist archive] 2026-10-07 — 2026-10-06_fix_agents-md-diet.md
+
+<!-- mb-plan:2026-10-06_fix_agents-md-diet.md -->
+## agents-md-diet · always-loaded инструкции хостов без копии RULES.md — 0/5
+- ⬜ Stage 1 — Тест-гейт размеров always-loaded файлов
+- ⬜ Stage 2 — Общий проектный блок `_lib_agents_md.sh`
+- ⬜ Stage 3 — Глобальные блоки Codex / Pi / OpenCode / Cursor
+- ⬜ Stage 4 — Cursor / Windsurf / Cline / Kilo проектные файлы
+- ⬜ Stage 5 — Переустановка и замер
+
+## [checklist archive] 2026-10-07 — 2026-10-06_fix_anthropic-skill-guide-compliance-sprint2-instructions.md
+
+<!-- mb-plan:2026-10-06_fix_anthropic-skill-guide-compliance-sprint2-instructions.md -->
+## anthropic-skill-guide-compliance · Sprint 2 «CLAUDE.md: глобальный, проектный, шаблон» — 0/4
+- ⬜ Stage 1 — Бюджет блока соглашений (P1)
+- ⬜ Stage 2 — Шаблон проектного CLAUDE.md (T1–T6)
+- ⬜ Stage 3 — Глобальный CLAUDE-GLOBAL.md (G1, G2)
+- ⬜ Stage 4 — Проектные CLAUDE.md / AGENTS.md этого репо (P2, P3)
+
+## 2026-10-07
+
+### Экономия усилий: уровни задачи, пресеты, настройки качества, ADaPT-lite, диета инструкций
+- Экономия: 5 уровней задачи + роутинг в SKILL.md; тон строгий/спокойный по силе модели; гейт `/mb work` только при наличии плана/спеки; целевые тесты (`mb-test-run.sh --changed-since/--files`, полный прогон один раз на план); параллельные волны (AGR-073); пресеты simple/medium/complex/governed, частота verifier (по умолчанию plan), cost tiers premium/optimal/economy с профилями моделей для 5 хостов; настройки качества проекта в профиле (архитектура, TDD, Trophy, coverage по умолчанию выкл, SOLID/DRY/KISS/YAGNI выключаемы); ADaPT-lite (verify guard 3, retry внутри запуска); онбординг Key rules + `/mb rules`; диета always-loaded (проектный AGENTS.md ~51 KB → ~4.3 KB, глобальные ≤8 KB, Cursor 7289 B); AGR-083 — проектные Key rules как дельта (2723 B → 145 B).
+- Фиксы после verify: `mb-workflow.sh` падает на встроенные presets/aliases/effort_tiers для legacy проектного `pipeline.yaml`; `rules check` учитывает `quality.tdd/solid` off и читает `rules-profile.json` банка без `--profile`; задокументированы семантика ADaPT retry и атрибуция cadence plan; обновлены устаревшие docs (config.md, pipeline-yaml.md, пример схемы).
+- Закрыты планы (plan-verifier PASS_WITH_NOTES): key-rules-onboarding, agents-md-diet, anthropic-skill-guide-compliance Sprint 2, proportional-effort Sprint 1, pipeline-presets-cost-tiers, project-quality-settings, adapt-lite. Открыт proportional-effort Sprint 2 (3/4, остался Stage 4).
+- Договорённости: AGR-064..083 (см. agreements.md).
+- Tests: полный прогон 2026-10-07 — pytest 3879 passed / 2 pre-existing failures (test_bats_assertion_contract на test_pi_agents_dispatch.bats:239-240 — файл другой сессии; неотслеживаемый hooks/lib/venv-requirements.sh); bats 3670, 0 not ok.
+- Next step: Sprint 2 Stage 4 — замер «после» на боевых задачах (AGR-072).

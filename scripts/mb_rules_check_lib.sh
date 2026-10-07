@@ -91,6 +91,7 @@ is_fully_excluded() {
 # TDD-delta exclusions: these files are allowed to change without tests.
 is_tdd_exempt() {
   local f="$1"
+  [[ "${f##*/}" == ya.make ]] && return 0
   case "$f" in
     *.md|*.lock|*.json|*.yaml|*.yml|*.toml|*.svg|*.png|*.jpg|*.jpeg|*.gif|*.ico) return 0 ;;
   esac
@@ -190,7 +191,7 @@ is_test_file() {
 # Given a source basename stem, check if any file in DIFF_FILES matches
 # a test pattern for that stem.
 has_matching_test() {
-  local stem="$1" src_basename="$2"
+  local stem="$1" src_basename="$2" src_path="${3:-}"
   # Build the candidate stem list: original + dash/underscore variants +
   # versions with a leading `mb-` prefix stripped. Scripts named `mb-foo.sh`
   # are routinely covered by `test_foo_*.bats` (the test targets the
@@ -214,6 +215,11 @@ has_matching_test() {
   # same-stem convention used by most projects.
   for df in "${DIFF_FILES[@]+"${DIFF_FILES[@]}"}"; do
     base="$(basename "$df")"
+    # Go feature tests belong to the same package directory as the source.
+    if [[ "$src_basename" == *.go && -n "$src_path" && "${df%/*}" == "${src_path%/*}" \
+          && "$base" == "${stem}_"*_test.go ]]; then
+      return 0
+    fi
     for s in "${stems[@]}"; do
       if [[ "$base" == "test_${s}."* || "$base" == "${s}_test."* \
             || "$base" == "${s}.test."* || "$base" == "${s}.spec."* ]]; then

@@ -1,6 +1,6 @@
 # Agents reference
 
-The skill ships **29 agent definitions** in `agents/`: 27 dispatchable subagents plus 2 shared
+The skill ships **30 agent definitions** in `agents/`: 28 dispatchable subagents plus 2 shared
 "core" preambles that are prepended to other agents and never dispatched directly. Your host
 agent (Claude Code, OpenCode, …) picks them up automatically after `memory-bank install`.
 
@@ -23,6 +23,7 @@ Architecture/FSD, SOLID, no placeholders) and the `mb-tooling-core` routing prea
 | `mb-android` | Jetpack Compose, coroutines, Hilt, Room | Android stages |
 | `mb-devops` | CI/CD, Docker, K8s, Terraform, observability | Infra stages |
 | `mb-qa` | Test design, coverage strategy, edge cases | Test-focused stages |
+| `mb-debugger` | Systematic debugging: root cause before fix (adapted from superpowers, MIT) | Bug / flaky / crash / failing-test stages |
 | `mb-analyst` | SQL, dashboards, ETL, A/B analysis | Data/metrics stages (no production code) |
 | `mb-architect` | Domain modelling, ADRs, refactoring strategy | Design stages (doesn't ship features alone) |
 
@@ -74,4 +75,4 @@ Architecture/FSD, SOLID, no placeholders) and the `mb-tooling-core` routing prea
 ## See also
 
 - [Composable `/mb work` pipeline](../commands/work.md) — how stages map to agents
-- [SKILL.md § Agents](../SKILL.md) — the agent-facing roster table
+- [references/agents.md](../references/agents.md) — the agent-facing roster table (moved out of SKILL.md)

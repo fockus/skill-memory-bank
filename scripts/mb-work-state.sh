@@ -8,7 +8,9 @@
 # [--max-cycles N] [--heading TXT] [--takeover] (prints run_id) · new-run-id ·
 # step <name> · cycle (exit 3 when exhausted) · status [--all] · list · done ·
 # clear (both free any claim) · eval-red --cmd-file <path> --output-re <ERE>
-# [--expected-exit N] · eval-green --cmd-file <path> (svp-sdd-core C6, REQ-008).
+# [--expected-exit N] · eval-green --cmd-file <path> (svp-sdd-core C6, REQ-008) ·
+# ADaPT (references/adapt.md, scripts/mb_work_adapt.py): split <item> --subitems
+# <json> [--no-adapt] · sub-done <sub-item> · adapt-check [item] [--item-tokens N].
 #
 # `source` is the CATEGORY (plan|spec); --source-path/--source-topic carry the
 # concrete declaration file and MUST be threaded from mb-work-plan.sh's JSON —
@@ -45,7 +47,8 @@
 #
 # Exit codes: 0 ok · 2 usage error · 3 cycle budget exhausted (I-093) · 4 claim
 # refused under MB_WORK_PARALLEL (I-094; --takeover overrides) · 5 done refused,
-# declared Eval unproven (review [11]).
+# declared Eval unproven (review [11]) · 6 ADaPT refusal (disabled, past
+# adapt.max_depth, or done/sub-done while sub-items are open).
 #
 # Fail-safe: status/claim-index reads on missing/corrupt data degrade to `{}` /
 # "unclaimed" — never crash or wedge a session.
@@ -64,7 +67,7 @@ source "$SCRIPT_DIR/mb-work-state-lib.sh"
 source "$SCRIPT_DIR/mb-work-state-eval.sh"
 
 usage() {
-  sed -n '2,52p' "$0" >&2
+  sed -n '2,54p' "$0" >&2
 }
 
 state_path() {
@@ -74,12 +77,7 @@ state_path() {
   mbw_state_slot "$bank" "${2:-}"
 }
 
-is_uint() {
-  case "${1:-}" in
-    ''|*[!0-9]*) return 1 ;;
-    *) return 0 ;;
-  esac
-}
+is_uint() { case "${1:-}" in ''|*[!0-9]*) return 1 ;; esac; }
 
 # Fails closed with a usage error unless $1 exists AND parses as JSON.
 require_valid_state() {
@@ -93,12 +91,9 @@ json.loads(open(sys.argv[1], encoding="utf-8").read())
   fi
 }
 
-# Shared flag parser for step/cycle/status/list/done/clear: consumes
-# --run-id/--run-id=X, --mb/--mb=X, --all, -h/--help (exits via usage) from
-# "$@". Sets globals PARSED_RUN_ID (falls back to $MB_WORK_RUN_ID),
-# PARSED_MB, PARSED_ALL (0/1) and REST_ARGS (bash-3.2-safe indexed array)
-# with everything else, in order. `init` has extra flags, so it parses on
-# its own instead of using this helper.
+# Shared flag parser (all but `init`): consumes --run-id, --mb (both also =X),
+# --all, -h/--help from "$@"; sets PARSED_RUN_ID (default $MB_WORK_RUN_ID),
+# PARSED_MB, PARSED_ALL (0/1) and REST_ARGS (bash-3.2-safe array, in order).
 parse_common_flags() {
   PARSED_RUN_ID=""
   PARSED_MB=""
@@ -157,10 +152,9 @@ cmd_init() {
     exit 2
   fi
 
-  # `spec`/`plan` are CATEGORIES, not locators. A spec task always lives in a
-  # tasks.md, so `init spec 1` with no locator is malformed by construction —
-  # and it used to silently produce a state whose eval gate could never resolve,
-  # letting `done` pass unchecked. Refuse it here rather than labelling it later.
+  # `spec`/`plan` are CATEGORIES, not locators: `init spec 1` with no locator
+  # once produced a state whose eval gate never resolved, so `done` passed
+  # unchecked. Refuse it here rather than labelling it later.
   case "$source_" in
     spec|plan)
       if [ -z "$source_path" ] && [ -z "$source_topic" ]; then
@@ -216,6 +210,8 @@ cmd_init() {
   tmp=$(mktemp)
   write_init_state "$tmp" "$run_id" "$source_" "$item_no" "$heading" \
     "$source_path" "$source_topic" "$decl_json" "$max_cycles" "$baseline_ref"
+  # Re-arming the same still-open item keeps its ADaPT sub-items (resume).
+  [ -f "$state" ] && python3 "$SCRIPT_DIR/mb_work_adapt.py" carry --from "$state" --to "$tmp" 2>/dev/null || true
   mv "$tmp" "$state"
 
   if mbw_parallel_on; then
@@ -225,9 +221,13 @@ cmd_init() {
   printf '%s\n' "$run_id"
 }
 
-# ── new-run-id ──────────────────────────────────────────────────────────
-cmd_new_run_id() {
-  gen_run_id
+# ── ADaPT: split / sub-done / adapt-check (exit 6 = refusal) ───────────
+cmd_adapt() {
+  local sub="$1" state; shift; parse_common_flags "$@"
+  state=$(state_path "$PARSED_MB" "$PARSED_RUN_ID"); require_valid_state "$state"
+  python3 "$SCRIPT_DIR/mb_work_adapt.py" "$sub" --state "$state" --bank "$(mb_resolve_path "$PARSED_MB")" \
+    --pipeline "$(bash "$SCRIPT_DIR/mb-pipeline.sh" path "$PARSED_MB" 2>/dev/null || true)" \
+    ${REST_ARGS[@]+"${REST_ARGS[@]}"}
 }
 
 # ── step ────────────────────────────────────────────────────────────────
@@ -283,9 +283,7 @@ PY
   mv "$tmp" "$state"
 
   local cyc max flag
-  cyc=$(printf '%s' "$exhausted" | awk '{print $1}')
-  max=$(printf '%s' "$exhausted" | awk '{print $2}')
-  flag=$(printf '%s' "$exhausted" | awk '{print $3}')
+  read -r cyc max flag <<<"$exhausted"
 
   if [ "$flag" = "1" ]; then
     echo "[work-state] cycle budget exhausted (cycle=$cyc max_cycles=$max)" >&2
@@ -326,6 +324,8 @@ cmd_done() {
   local state tmp
   state=$(state_path "$PARSED_MB" "$PARSED_RUN_ID")
   require_valid_state "$state"
+  # ADaPT: the parent closes only after its last sub-item (exit 6 otherwise).
+  python3 "$SCRIPT_DIR/mb_work_adapt.py" gate --state "$state" || exit 6
 
   # A declared, non-waived Eval must have gone red→green first (review [11]):
   # `done` is the last gate before the DoD checkboxes flip.
@@ -383,7 +383,7 @@ main() {
   case "$1" in
     -h|--help) usage; exit 0 ;;
     init) shift; cmd_init "$@" ;;
-    new-run-id) shift; cmd_new_run_id "$@" ;;
+    new-run-id) gen_run_id ;;
     step) shift; cmd_step "$@" ;;
     cycle) shift; cmd_cycle "$@" ;;
     status) shift; cmd_status "$@" ;;
@@ -392,6 +392,7 @@ main() {
     clear) shift; cmd_clear "$@" ;;
     eval-red) shift; cmd_eval_red "$@" ;;
     eval-green) shift; cmd_eval_green "$@" ;;
+    split|sub-done|adapt-check) cmd_adapt "$@" ;;
     *) echo "[work-state] unknown subcommand '$1'" >&2; usage; exit 2 ;;
   esac
 }

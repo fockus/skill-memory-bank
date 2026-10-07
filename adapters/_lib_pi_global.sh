@@ -15,41 +15,25 @@
 #   # shellcheck source=./_lib_pi_global.sh
 #   . "$(dirname "$0")/_lib_pi_global.sh"
 
+# Short host header + the compact rules core. The Key rules block above it is
+# written by install.sh Step 5.5 (mb-rules.sh sync --scope=user); detailed rules
+# stay in the skill's rules/RULES.md (AGR-063, AGR-066).
 pi_global_agents_section() {
   cat <<EOF
 $PI_START_MARKER
 
 # Memory Bank — Pi Global Entry Point
 
-Global Memory Bank skill is registered at:
-- \`~/.pi/agent/skills/memory-bank/SKILL.md\`
-
-Pi loads this file at startup and injects it into the agent prompt. Treat the section below as always-on Memory Bank guidance.
-
-Bundled resources available to Pi:
-- Slash prompt templates: \`~/.pi/agent/prompts/\` (for \`/mb\`, \`/start\`, \`/done\`, \`/plan\`, etc.)
-- Skill resources: \`~/.pi/agent/skills/memory-bank/{commands,agents,hooks,scripts,references,rules}/\`
-
-Recommended workflow:
-- If \`./.memory-bank/\` exists, Memory Bank is active: read \`status.md\`, \`checklist.md\`, \`roadmap.md\`, and \`research.md\` at session start.
-- Use \`/mb start\` to restore project context and \`/mb done\` to save progress.
-- Before implementation, prefer \`/mb plan <feature|fix|refactor|experiment> <topic>\` and follow TDD.
-- Detailed rules live at \`~/.pi/agent/skills/memory-bank/rules/RULES.md\`.
+Pi loads this file at startup and injects it into the agent prompt. Skill: \`~/.pi/agent/skills/memory-bank/SKILL.md\`; prompt templates (\`/mb\`, \`/start\`, \`/done\`, …): \`~/.pi/agent/prompts/\`.
 
 ### Mandatory \`/mb work\` execution gate
 
-When Memory Bank is ACTIVE and the user asks to implement, fix, continue, resume, "do the next step", "go by the plan", or work from an existing plan/spec, **do not implement manually first**. Before editing production code or restoring paused WIP, resolve the Memory Bank work item and workflow:
+With Memory Bank ACTIVE, a request to implement, fix, continue, resume or go by the plan/spec runs through \`/mb work\`, not manual edits:
+1. Workflow: \`mb-workflow.sh\` on \`<bank>/pipeline.yaml\`; target: \`mb-work-resolve.sh\` + \`mb-work-plan.sh\`. Spec tasks \`<!-- mb-task:N -->\` are the source of truth; a wrapper plan without \`linked_spec\`/\`mb-stage\` is fixed before coding.
+2. Run the resolved steps exactly; claim completion only after the configured gates or an explicit user override.
+3. Dispatch roles by name: \`mb_dispatch_subagent(role=<agent>, task=…)\`; \`model\`/\`thinking\` only when the JSON line sets them.
 
-1. Resolve the effective workflow from \`<bank>/pipeline.yaml\` via \`mb-workflow.sh\` (default may be project-specific, e.g. governed execution).
-2. Resolve the target/range via \`mb-work-resolve.sh\` and \`mb-work-plan.sh\`; spec tasks with \`<!-- mb-task:N -->\` are executable source of truth.
-3. If a wrapper plan points to a spec, ensure \`linked_spec\` is present; if no executable \`mb-stage\`/\`mb-task\` exists, stop and repair the plan/spec before implementation.
-4. Follow the resolved workflow steps exactly (\`implement\`, \`verify\`, \`review\`, \`judge\`, \`fix\`, \`done\`). If \`review\`/\`judge\` are configured, do not claim completion before those gates or an explicit user-approved workflow override.
-5. Dispatch each role by name — \`mb_dispatch_subagent(role=<agent>, task=…)\` (or pi-subagents \`subagent\`). The installed role carries its prompt, tools, and \`thinking\`; pass \`model\`/\`thinking\` only when the JSON line sets them, otherwise the current session model applies.
-6. Manual inline work is allowed only for trivial non-plan tasks or when the user explicitly says to skip \`/mb work\`; still apply TDD and verification.
-
-This gate exists to prevent the agent from rationalizing around Memory Bank after compaction, stash restores, or mid-session pivots.
-
-## Core Memory Bank rules
+Manual inline work: trivial non-plan tasks or an explicit skip of \`/mb work\`; TDD and verification still apply.
 
 EOF
   mb_emit_rules_file "$SKILL_DIR/rules/CLAUDE-GLOBAL.md" \

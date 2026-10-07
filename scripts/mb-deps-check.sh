@@ -80,9 +80,9 @@ hint_for() {
     macos:git)         echo "brew install git" ;;
     macos:rg)          echo "brew install ripgrep" ;;
     macos:shellcheck)  echo "brew install shellcheck" ;;
-    macos:tree_sitter) echo "pip3 install tree-sitter tree-sitter-python tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java" ;;
+    macos:tree_sitter) echo "bash ~/.claude/hooks/mb-semantic-bootstrap.sh" ;;
     macos:PyYAML)      echo "pip3 install PyYAML" ;;
-    macos:networkx)    echo "pip3 install networkx" ;;
+    macos:networkx)    echo "bash ~/.claude/hooks/mb-semantic-bootstrap.sh" ;;
     macos:fastembed)   echo "bash ~/.claude/hooks/mb-semantic-bootstrap.sh" ;;
     debian:python3)     echo "sudo apt install python3" ;;
     "debian:python3>=3.11") echo "sudo apt install python3.11 (or: pyenv install 3.11)" ;;
@@ -90,9 +90,9 @@ hint_for() {
     debian:git)         echo "sudo apt install git" ;;
     debian:rg)          echo "sudo apt install ripgrep" ;;
     debian:shellcheck)  echo "sudo apt install shellcheck" ;;
-    debian:tree_sitter) echo "pip3 install tree-sitter tree-sitter-python tree-sitter-go tree-sitter-javascript tree-sitter-typescript tree-sitter-rust tree-sitter-java" ;;
+    debian:tree_sitter) echo "bash ~/.claude/hooks/mb-semantic-bootstrap.sh" ;;
     debian:PyYAML)      echo "pip3 install PyYAML" ;;
-    debian:networkx)    echo "pip3 install networkx" ;;
+    debian:networkx)    echo "bash ~/.claude/hooks/mb-semantic-bootstrap.sh" ;;
     debian:fastembed)   echo "bash ~/.claude/hooks/mb-semantic-bootstrap.sh" ;;
     fedora:python3)     echo "sudo dnf install python3" ;;
     "fedora:python3>=3.11") echo "sudo dnf install python3.11" ;;

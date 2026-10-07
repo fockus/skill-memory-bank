@@ -1,5 +1,5 @@
 ---
-description: 5-phase requirements-elicitation interview that produces an EARS-validated context/<topic>.md
+description: "Runs a 5-phase requirements-elicitation interview that produces an EARS-validated context/{topic}.md. Use when requirements are unclear before a spec — «давай обсудим», «уточни требования»."
 allowed-tools: [Bash, Read, Write, AskUserQuestion, Task]
 ---
 
@@ -49,7 +49,7 @@ The manifest's bank-relative paths are the only way in: ad-hoc parsing of `brief
 Then gather the rest:
 
 1. **Core context** (best-effort, skip if missing): `roadmap.md`, `research.md`, `backlog.md`, `codebase/STACK.md`, `codebase/ARCHITECTURE.md`.
-2. **Codebase recon** — map the topic's touchpoints: code graph (`jq` over `codebase/graph.json`) or `mb-semantic-search.py "<topic>"` for concepts, `grep`/`Glob` fallback. Record exact `file:line` for every place the feature will touch.
+2. **Codebase recon** — map the topic's touchpoints: code graph (`jq` over `codebase/graph.json`) or `mb-graph.sh search "<topic>"` for concepts, `grep`/`Glob` fallback. Record exact `file:line` for every place the feature will touch.
 3. **Prior decisions** — `/mb recall <topic>` over `session/` + `notes/`; check `plans/` and `specs/` for earlier attempts at the same topic.
 4. **External research** (only when the topic involves an external library, protocol, standard, or ecosystem prior art): dispatch the `mb-researcher` subagent (WebSearch/WebFetch) and demand source URLs. Skip for purely internal topics — don't research what the repo already answers.
 

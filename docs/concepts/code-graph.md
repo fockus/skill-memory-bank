@@ -116,7 +116,7 @@ using **host subagents** (no API key; cost is only the subagent calls):
   everything). A fully-fresh cache → zero subagent dispatches.
 - Outputs: `codebase/wiki/community-<N>.md` + `index.md`. The articles also feed
   semantic search. `--dry-run` stops after printing the dispatch plan.
-- Communities need `networkx` (`pip3 install networkx`); 0 communities → no-op.
+- Communities need `networkx` (`bash ~/.claude/hooks/mb-semantic-bootstrap.sh` installs it with tree-sitter into the bootstrap venv); 0 communities → no-op.
 
 ---
 

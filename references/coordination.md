@@ -1,5 +1,20 @@
 # Cross-session coordination — `.memory-bank/COORDINATION.md`
 
+## Contents
+
+- [The board file](#the-board-file)
+  - [File layout](#file-layout)
+- [Reading the board — `scripts/mb-coord.sh active`](#reading-the-board--scriptsmb-coordsh-active)
+  - [Tag grammar](#tag-grammar)
+  - [Writing an entry](#writing-an-entry)
+- [Checkpoints — when a session MUST read the board](#checkpoints--when-a-session-must-read-the-board)
+- [Entry conventions (prefix the topic)](#entry-conventions-prefix-the-topic)
+- [Hard rules of a shared tree](#hard-rules-of-a-shared-tree)
+- [Races and trust](#races-and-trust)
+- [Hooking up a new session](#hooking-up-a-new-session)
+- [Relation to other MB files](#relation-to-other-mb-files)
+- [At a glance (moved from SKILL.md)](#at-a-glance-moved-from-skillmd)
+
 Protocol for two or more agent sessions (or agent + human) working in the SAME working tree or repository in parallel. Battle-tested pattern: uncommitted diffs interleave, shared files collide, `git add -A` captures foreign hunks, plans silently contradict each other. The board makes coordination explicit, asynchronous, and compaction-proof.
 
 ## The board file
@@ -117,3 +132,9 @@ The board only works if every session knows about it. Two mechanisms:
 - `COORDINATION.md` is **cross-session transport**, not memory: decisions that outlive the parallel work go to `progress.md` / ADRs / plans as usual.
 - Do not duplicate plan content on the board — link to the plan and quote only the load-bearing line.
 - When the parallel work ends (both tracks merged/committed), append a final CLOSED entry; the file stays as history (append-only), a new parallel episode continues in the same file.
+
+## At a glance (moved from SKILL.md)
+
+- Entries `## <TYPE> · YYYY-MM-DD · <scope>` (`FREEZE` / `LIFT` / `HANDOVER` / `ACK` / `STATUS`), never edited after append (same invariant as `progress.md`); a LIFT cancels an earlier FREEZE with the same scope, an ACK cancels an earlier HANDOVER. Untagged legacy headings read as STATUS.
+- Checkpoints — every session reads the board: at session start (`/mb start` / `/mb context` surface it when present), before starting a stage/plan item, before ANY commit, before editing a shared-watchlist file; and appends a COMMIT entry (hash + scoped file list) after committing.
+- Shared-tree hard rules: never `git add -A`; commit only your own work with ordering for interleaved files agreed on the board; full suite green before commit; surprise foreign diffs escalate on the board instead of being reverted; affected plans carry a ⚠️ pointer to the board (compaction-proof).

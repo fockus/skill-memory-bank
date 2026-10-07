@@ -1,5 +1,12 @@
 # Calibration examples — go
 
+## Contents
+
+- `GO-CODE-001` — code_rules (blocker)
+- `GO-SCALE-001` — scalability (major)
+- `GO-LOGIC-001` — logic (major)
+- `GO-TESTS-001` — tests (blocker)
+
 Go-specific skill-baseline examples (reviewer-2.0, design.md §4).
 
 ---

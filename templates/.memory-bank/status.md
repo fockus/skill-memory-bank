@@ -31,4 +31,4 @@
 
 ## Roadmap (high level)
 
-See [backlog.md](backlog.md) for the idea registry and ADRs.
+See [backlog.md](backlog.md) for the idea registry and [adr.md](adr.md) for decisions.

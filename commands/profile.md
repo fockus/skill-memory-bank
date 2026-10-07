@@ -1,5 +1,5 @@
 ---
-description: "Manage rule profiles and stack presets — personalize the configurable rules layer without weakening the immutable safety baseline"
+description: "Manages rule profiles and stack presets — personalizes the configurable rules layer without weakening the immutable safety baseline. Use when tuning rules to a role, stack or architecture."
 allowed-tools: [Bash, Read, Write, Edit]
 ---
 
@@ -101,15 +101,16 @@ built-in configurable defaults
 
 ## Immutable baseline reminder
 
-The following 7 rules apply regardless of any profile and **cannot be disabled**:
+The following 6 rules apply regardless of any profile and **cannot be disabled**:
 
 - `no-placeholders` — no `TODO`, `...`, or pseudocode in production code.
 - `protected-files` — `.env`, `ci/`, Docker/K8s/Terraform changes require explicit user request.
 - `destructive-confirm` — force-push, hard-reset, mass-delete require explicit confirmation.
 - `fail-fast` — uncertain implementation → stop and propose a short plan instead of guessing.
-- `dry-kiss-yagni` — DRY/KISS/YAGNI baseline always applies.
 - `verification-before-completion` — claim "done" only after running declared verification commands.
 - `explicit-storage-choice` — tooling never silently writes profiles or banks outside explicitly chosen scope.
+
+SOLID/DRY/KISS/YAGNI are on by default but switchable per principle: `/mb rules set principle kiss off` (AGR-077).
 
 A profile may **strengthen** the baseline (e.g. set `strictness=block`) but never **weaken** it.
 

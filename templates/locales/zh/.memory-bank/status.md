@@ -31,4 +31,4 @@
 
 ## 路线图（概览）
 
-参见 [backlog.md](backlog.md)：想法登记与 ADR。
+参见 [backlog.md](backlog.md)：想法登记；决策见 [adr.md](adr.md)。

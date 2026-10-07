@@ -12,6 +12,8 @@
 
 # shellcheck disable=SC2317
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   CHECK="$REPO_ROOT/scripts/mb-rules-check.sh"
@@ -19,7 +21,11 @@ setup() {
   command -v jq >/dev/null || skip "jq required"
 
   TMPROOT="$(mktemp -d)"
-  cd "$TMPROOT"
+  # The architecture list is resolved user → project (mb-profile.sh quality);
+  # an empty HOME keeps the developer's own user profile out of the run.
+  mkdir -p "$TMPROOT/home"
+  export HOME="$TMPROOT/home"
+  cd "$TMPROOT" || return 1
 }
 
 teardown() {
@@ -280,4 +286,97 @@ EOF
   summary_len="$(echo "$output" | jq -r '.profile.prompt_summary' | wc -c | tr -d ' ')"
   # Must be under 4096 bytes (4 KB)
   [ "$summary_len" -lt 4096 ]
+}
+
+# ─── Case 9: architecture list (AGR-076) — every selected preset applies ─────
+
+fsd_entity_fixture() {
+  mkdir -p "src/entities/user"
+  printf 'import { UserForm } from "../../features/user-form/ui";\n' > "src/entities/user/model.ts"
+  printf '{"schema_version":1,"scope":"project","role":"frontend","stack":"typescript","architecture":%s,"delivery":"tdd","strictness":"warn"}\n' \
+    "$1" > "$TMPROOT/profile.json"
+}
+
+@test "rules-check: architecture [clean, fsd] runs the fsd check with the preset severity" {
+  fsd_entity_fixture '["clean","fsd"]'
+  run bash "$CHECK" --files "src/entities/user/model.ts" --profile "$TMPROOT/profile.json" --out json
+  [ "$status" -eq 0 ]
+  # fsd.json gives import-direction severity "block" → CRITICAL
+  echo "$output" | jq -e '
+    [.violations[] | select(.rule_id == "architecture.fsd.import-direction")] | length >= 1 and all(.severity == "CRITICAL")
+  '
+}
+
+@test "rules-check: architecture clean alone does not run the fsd check" {
+  fsd_entity_fixture '"clean"'
+  run bash "$CHECK" --files "src/entities/user/model.ts" --profile "$TMPROOT/profile.json" --out json
+  [ "$status" -eq 0 ]
+  refute_substring "$output" "architecture.fsd.import-direction"
+}
+
+@test "rules-check: an architecture nobody set never turns the fsd check on" {
+  # No --profile, empty HOME: the resolver default (whatever list it ships)
+  # must not change today's baseline behaviour.
+  fsd_entity_fixture '"clean"'
+  run bash "$CHECK" --files "src/entities/user/model.ts" --out json
+  [ "$status" -eq 0 ]
+  refute_substring "$output" "architecture.fsd.import-direction"
+}
+
+# ─── Case 10: quality switches (AGR-077) — tdd / solid off skip their checks ─
+
+# src/big.py: >300 lines (solid/srp) and no co-changed test (tdd/delta).
+quality_fixture() {
+  mkdir -p src
+  python3 -c "
+for i in range(350):
+    print(f'line_{i} = {i}')
+" > src/big.py
+  printf '{"schema_version":1,"scope":"project","quality":%s}\n' "$1" > "$TMPROOT/profile.json"
+}
+
+run_quality_check() {
+  run bash "$CHECK" --files "src/big.py" --diff-files "src/big.py" \
+    --profile "$TMPROOT/profile.json" --out json
+}
+
+@test "rules-check: quality.tdd off skips tdd/delta and reports it as INFO" {
+  quality_fixture '{"tdd":"off"}'
+  run_quality_check
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "tdd/delta" and .severity != "INFO")] | length == 0'
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "tdd/delta" and .severity == "INFO")] | length == 1'
+  assert_substring "$output" "quality.tdd is off"
+  # the other baseline checks still run
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "solid/srp" and .severity == "WARNING")] | length == 1'
+}
+
+@test "rules-check: quality.principles.solid off skips solid/srp and reports it as INFO" {
+  quality_fixture '{"principles":{"solid":"off"}}'
+  run_quality_check
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "solid/srp" and .severity != "INFO")] | length == 0'
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "solid/srp" and .severity == "INFO")] | length == 1'
+  assert_substring "$output" "quality.principles.solid is off"
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "tdd/delta" and .severity == "CRITICAL")] | length == 1'
+}
+
+@test "rules-check: quality.tdd small+ keeps tdd/delta CRITICAL" {
+  quality_fixture '{"tdd":"small+","principles":{"solid":"on"}}'
+  run_quality_check
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "tdd/delta" and .severity == "CRITICAL")] | length == 1'
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "solid/srp" and .severity == "WARNING")] | length == 1'
+  refute_substring "$output" "is off in the rules profile"
+}
+
+@test "rules-check: without --profile the project bank's rules-profile.json is the project layer" {
+  quality_fixture '{"tdd":"off"}'
+  mkdir -p .memory-bank
+  printf '# Status\n' > .memory-bank/status.md
+  cp "$TMPROOT/profile.json" .memory-bank/rules-profile.json
+  run bash "$CHECK" --files "src/big.py" --diff-files "src/big.py" --out json
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '[.violations[] | select(.rule_id == "tdd/delta" and .severity == "INFO")] | length == 1'
+  assert_substring "$output" "quality.tdd is off"
 }

@@ -1,10 +1,15 @@
 #!/usr/bin/env bats
 # Tests for adapters/cursor.sh — Cursor IDE cross-agent adapter.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   ADAPTER="$REPO_ROOT/adapters/cursor.sh"
   PROJECT="$(mktemp -d)"
+  # Keep a user-site PyYAML importable when a test moves HOME (tier-model render).
+  PYTHONUSERBASE="$(python3 -m site --user-base)"
+  export PYTHONUSERBASE
   command -v jq >/dev/null || skip "jq required"
 }
 
@@ -341,6 +346,31 @@ EOF
   rm -rf "$home"
 }
 
+# agents-md-diet Stage 3: the global section is a short host header + the rules
+# core with Cursor paths; the manifest records its hash for the install.sh guard.
+@test "cursor: install-global writes the slim global section with Cursor paths and a section hash" {
+  command -v jq >/dev/null || skip "jq required"
+  local home f
+  home="$(mktemp -d)"
+  run env HOME="$home" MB_LANGUAGE=en bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  f="$(cat "$home/.cursor/AGENTS.md")"
+  assert_substring "$f" '~/.cursor/skills/memory-bank/SKILL.md'
+  assert_substring "$f" '~/.cursor/agents/mb-*.md'
+  assert_substring "$f" 'Task tool'
+  assert_substring "$f" '~/.cursor/hooks.json'
+  assert_substring "$f" '~/.cursor/skills/memory-bank/rules/RULES.md'
+  refute_substring "$f" 'Recommended workflow'
+  refute_substring "$f" 'pbcopy'
+  refute_substring "$f" '~/.claude/RULES.md'
+  [ "$(wc -c < "$home/.cursor/AGENTS.md")" -le 7000 ]
+  run bash "$ADAPTER" section-sha
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+  jq -e --arg h "$output" '.section_sha == $h' "$home/.cursor/.mb-manifest.json" >/dev/null
+  rm -rf "$home"
+}
+
 @test "cursor: reinstall removes legacy mb-compact-reminder.sh copy left by old install" {
   # Simulate an old install that left a physical copy of the renamed hook.
   run_adapter install "$PROJECT"
@@ -351,4 +381,160 @@ EOF
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   [ ! -f "$PROJECT/.cursor/hooks/mb-compact-reminder.sh" ]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# I-244: Cursor has native subagents (cursor.com/docs/agent/subagents) — user
+# subagents live in ~/.cursor/agents/*.md, frontmatter name/description/model/
+# readonly/is_background. install-global renders our mb-* roles there.
+# ═══════════════════════════════════════════════════════════════
+
+@test "cursor: install-global writes rendered mb-* subagents into ~/.cursor/agents (I-244)" {
+  local home agents f body
+  home="$(mktemp -d)"
+  run env HOME="$home" MB_LANGUAGE=en bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  agents="$home/.cursor/agents"
+  [ -f "$agents/mb-backend.md" ]
+  [ -f "$agents/mb-wiki-author.md" ]
+  # partials are composed into roles, never installed on their own
+  [ ! -e "$agents/mb-engineering-core.md" ]
+  [ ! -e "$agents/mb-tooling-core.md" ]
+  [ ! -e "$agents/mb-discipline-strict.md" ]
+  for f in "$agents"/*.md; do
+    body="$(cat "$f")"
+    refute_substring "$body" $'\ncompose:'
+    refute_substring "$body" $'\npartial:'
+    refute_substring "$body" $'\neffort:'
+    # a Claude alias is never written; a role gets a Cursor id from the default profile
+    refute_substring "$body" $'\nmodel: haiku'
+    refute_substring "$body" $'\nmodel: sonnet'
+    refute_substring "$body" $'\nmodel: opus'
+    refute_substring "$body" $'\ncolor:'
+    refute_substring "$body" $'\ntools:'
+    assert_substring "$body" $'\ndescription:'
+  done
+  body="$(cat "$agents/mb-backend.md")"
+  assert_substring "$body" $'---\nname: mb-backend\n'
+  assert_substring "$body" "# MB Engineering Core"
+  rm -rf "$home"
+}
+
+@test "cursor: install-global re-run keeps subagent files byte-identical (I-244)" {
+  local home snap
+  home="$(mktemp -d)"
+  snap="$(mktemp -d)"
+  run env HOME="$home" MB_LANGUAGE=en bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  cp "$home/.cursor/agents/"*.md "$snap/"
+  run env HOME="$home" MB_LANGUAGE=en bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  run diff -r "$snap" "$home/.cursor/agents"
+  [ "$status" -eq 0 ]
+  run ls "$home/.cursor/agents"
+  refute_substring "$output" "pre-mb-backup"
+  rm -rf "$home" "$snap"
+}
+
+@test "cursor: uninstall-global removes only our subagents, a user's own agent survives (I-244)" {
+  local home
+  home="$(mktemp -d)"
+  mkdir -p "$home/.cursor/agents"
+  printf -- '---\nname: my-agent\ndescription: mine\n---\nUSER_AGENT_MARKER\n' > "$home/.cursor/agents/my-agent.md"
+  run env HOME="$home" MB_LANGUAGE=en bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  [ -f "$home/.cursor/agents/mb-backend.md" ]
+  run env HOME="$home" bash "$ADAPTER" uninstall-global </dev/null
+  [ "$status" -eq 0 ]
+  run ls "$home/.cursor/agents"
+  [ "$status" -eq 0 ]
+  refute_substring "$output" "mb-"
+  assert_substring "$(cat "$home/.cursor/agents/my-agent.md")" "USER_AGENT_MARKER"
+  rm -rf "$home"
+}
+
+@test "cursor: capability notes no longer call subagents reference-only (I-244)" {
+  local home manifest
+  home="$(mktemp -d)"
+  run env HOME="$home" MB_LANGUAGE=en bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  manifest="$(cat "$home/.cursor/.mb-manifest.json")"
+  refute_substring "$manifest" "reference-only"
+  refute_substring "$manifest" '"subagents"'
+  assert_substring "$manifest" ".cursor/agents/mb-backend.md"
+  run_adapter install "$PROJECT"
+  manifest="$(cat "$PROJECT/.cursor/.mb-manifest.json")"
+  refute_substring "$manifest" "reference-only"
+  refute_substring "$manifest" '"subagents"'
+  rm -rf "$home"
+}
+
+# agents-md-diet Stage 4: the .mdc is the compact block (Key rules + MB pointers),
+# never a copy of rules/RULES.md; Cursor also reads the root AGENTS.md, so when
+# that already carries the Key rules the .mdc keeps only the MB pointers.
+@test "cursor: .mdc carries Key rules and the RULES.md path, no RULES.md copy" {
+  # shellcheck disable=SC2030,SC2031  # per-test sandbox HOME, intentionally local
+  export HOME="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$HOME"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local body
+  body="$(cat "$PROJECT/.cursor/rules/memory-bank.mdc")"
+  assert_substring "$body" 'alwaysApply: true'
+  assert_substring "$body" '<!-- mb-key-rules:start -->'
+  assert_substring "$body" "\`$REPO_ROOT/rules/RULES.md\`"
+  refute_substring "$body" '## Source of Truth'
+}
+
+@test "cursor: .mdc skips Key rules when the root AGENTS.md already carries them" {
+  # shellcheck disable=SC2030,SC2031  # per-test sandbox HOME, intentionally local
+  export HOME="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$HOME"
+  # shellcheck source=/dev/null
+  source "$REPO_ROOT/adapters/_lib_agents_md.sh"
+  agents_md_install "$PROJECT" codex "$REPO_ROOT" >/dev/null
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local body
+  body="$(cat "$PROJECT/.cursor/rules/memory-bank.mdc")"
+  refute_substring "$body" '<!-- mb-key-rules:start -->'
+  assert_substring "$body" '## Memory Bank'
+  assert_substring "$body" "\`$REPO_ROOT/rules/RULES.md\`"
+}
+
+# ═══ Stage 4b (AGR-074): Cursor's global agents carry the tier model ═══
+# Global agents read the shipped default pipeline (cost from MB_COST, else
+# `cost: optimal`); `/mb config init --host cursor` re-renders them from the
+# project pipeline through `render-agents`.
+
+@test "cursor: install-global writes the default-profile tier model (optimal)" {
+  python3 -c 'import yaml' 2>/dev/null || skip "PyYAML required"
+  local home
+  home="$(mktemp -d)"
+  run env HOME="$home" MB_LANGUAGE=en bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  assert_substring "$(cat "$home/.cursor/agents/mb-developer.md")" $'\nmodel: claude-sonnet-5-5\n---\n'
+  assert_substring "$(cat "$home/.cursor/agents/mb-reviewer.md")" $'\nmodel: claude-opus-5-5\n---\n'
+  refute_substring "$(cat "$home/.cursor/agents/mb-doctor.md")" $'\nmodel:'
+  rm -rf "$home"
+}
+
+@test "cursor: MB_COST=premium puts the premium model on implementers" {
+  python3 -c 'import yaml' 2>/dev/null || skip "PyYAML required"
+  local home
+  home="$(mktemp -d)"
+  run env HOME="$home" MB_LANGUAGE=en MB_COST=premium bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  assert_substring "$(cat "$home/.cursor/agents/mb-developer.md")" $'\nmodel: claude-opus-5-5\n'
+  rm -rf "$home"
+}
+
+@test "cursor: render-agents without a global install writes nothing" {
+  local home
+  home="$(mktemp -d)"
+  run env HOME="$home" bash "$ADAPTER" render-agents </dev/null
+  [ "$status" -eq 0 ]
+  assert_substring "$output" "not installed"
+  [ ! -e "$home/.cursor" ]
+  rm -rf "$home"
 }

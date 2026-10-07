@@ -61,7 +61,7 @@ def test_agent_compose_names_existing_partials(path: Path) -> None:
 
 def test_implementer_roles_compose_the_engineering_core() -> None:
     roles = ["mb-developer", "mb-backend", "mb-frontend", "mb-ios", "mb-android",
-             "mb-devops", "mb-qa", "mb-analyst", "mb-architect"]
+             "mb-devops", "mb-qa", "mb-analyst", "mb-architect", "mb-debugger"]
     for role in roles:
         assert "mb-engineering-core" in _frontmatter(REPO_ROOT / "agents" / f"{role}.md").get("compose", ""), role
 

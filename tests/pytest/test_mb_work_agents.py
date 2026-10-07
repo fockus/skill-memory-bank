@@ -19,6 +19,7 @@ EXPECTED_AGENTS = (
     "mb-architect",
     "mb-devops",
     "mb-qa",
+    "mb-debugger",
     "mb-analyst",
     "mb-reviewer",
 )

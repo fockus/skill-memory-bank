@@ -1,5 +1,5 @@
 ---
-description: Create a PR from the current branch
+description: "Creates a PR from the current branch. Use when the user says «создай PR», «открой пулреквест», open a pull request."
 allowed-tools: [Bash, Read]
 argument-hint: "[title-override]"
 ---

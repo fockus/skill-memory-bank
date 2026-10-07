@@ -15,8 +15,8 @@ Invariants that MUST hold for every locale:
     2. roadmap.md has exactly one `<!-- mb-active-plans -->` marker pair.
     3. status.md has both `<!-- mb-active-plans -->` and `<!-- mb-recent-done -->`
        marker pairs.
-    4. backlog.md has `## Ideas` and `## ADR` headings (strict EN — scripts
-       use these as canonical anchors across all locales).
+    4. backlog.md has the `## Ideas` heading (strict EN — scripts use it as the
+       canonical anchor across all locales) and no `## ADR` section (AGR-062).
     5. No locale carries a `TODO(i18n-<lang>)` scaffold banner.
     6. Every translated locale differs from English in its prose (not an EN copy).
 """
@@ -98,8 +98,8 @@ def test_backlog_has_canonical_english_anchors(locale: str) -> None:
     assert re.search(r"^## Ideas\s*$", text, re.MULTILINE), (
         f"{locale}/backlog.md must keep canonical `## Ideas` heading"
     )
-    assert re.search(r"^## ADR\s*$", text, re.MULTILINE), (
-        f"{locale}/backlog.md must keep canonical `## ADR` heading"
+    assert not re.search(r"^## ADR", text, re.MULTILINE), (
+        f"{locale}/backlog.md must not carry an ADR section — ADRs live in adr.md"
     )
 
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+load 'lib/assert'
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-plan.sh"
@@ -20,7 +22,38 @@ teardown() {
   grep -q '^# Plan: refactor — review-hardening$' "$output"
   grep -Eq '^\*\*Baseline commit:\*\* [0-9a-f]{40}$' "$output"
   grep -q '<!-- mb-stage:1 -->' "$output"
-  grep -q '<!-- mb-stage:2 -->' "$output"
+}
+
+# AGR-078: a stage is a dependency/layer/risk/parallel boundary, not a size
+# unit, so the scaffold starts with exactly one stage that still declares
+# `Files:` (parallel waves are computed from it).
+@test "mb-plan: scaffold has exactly one stage marker with a Files line" {
+  run bash "$SCRIPT" feature "One Stage" "$MB"
+  [ "$status" -eq 0 ]
+  body="$(cat "$output")"
+  assert_substring "$body" '<!-- mb-stage:1 -->'
+  refute_substring "$body" '<!-- mb-stage:2 -->'
+  assert_substring "$body" '**Files:**'
+  assert_substring "$body" 'dependency'
+}
+
+@test "mb-plan: one-stage scaffold flows through plan-sync and work-plan" {
+  plan="$(bash "$SCRIPT" fix "Single Flow" "$MB")"
+  sed -i.bak 's|^### Stage 1: .*|### Stage 1: do the whole fix|' "$plan" && rm -f "$plan.bak"
+  printf '# Checklist\n' > "$MB/checklist.md"
+  printf '# Roadmap\n' > "$MB/roadmap.md"
+
+  run bash "$REPO_ROOT/scripts/mb-plan-sync.sh" "$plan" "$MB"
+  [ "$status" -eq 0 ]
+  checklist="$(cat "$MB/checklist.md")"
+  assert_substring "$checklist" '— 0/1'
+  assert_substring "$checklist" '- ⬜ Stage 1 — do the whole fix'
+  refute_substring "$checklist" 'Stage 2'
+
+  run bash "$REPO_ROOT/scripts/mb-work-plan.sh" --target "$plan" --mb "$MB" --dry-run
+  [ "$status" -eq 0 ]
+  assert_substring "$output" '"stage_no": 1'
+  refute_substring "$output" '"stage_no": 2'
 }
 
 @test "mb-plan: emits roadmap-sync frontmatter (status/type/topic) so the plan is not skipped" {

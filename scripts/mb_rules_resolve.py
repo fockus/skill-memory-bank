@@ -62,7 +62,7 @@ def check_grammar(path, detail_prefix):
         die_usage("%s:traversal" % detail_prefix)
 
 
-def load_rubric():
+def load_rubric(pipeline=PIPELINE):
     """`pipeline.yaml:review_rubric` flattened to canonical bullets, in AUTHOR
     order — a sorted or regrouped rubric is a different document (R2-012)."""
 
@@ -72,11 +72,11 @@ def load_rubric():
         # verdict against a criterion nobody noticed was empty. This is REQ-017's
         # rule — fail loudly rather than fall back quietly — applied to the
         # second half of the same block.
-        sys.stderr.write("review_rubric_unreadable=%s detail=%s\n" % (PIPELINE, detail))
+        sys.stderr.write("review_rubric_unreadable=%s detail=%s\n" % (pipeline, detail))
         raise SystemExit(2)
 
     try:
-        with open(PIPELINE, encoding="utf-8") as fh:
+        with open(pipeline, encoding="utf-8") as fh:
             text = fh.read()
     except OSError:
         unreadable("open_failed")
@@ -107,6 +107,23 @@ def load_rubric():
             # reviewer is shown this list without the file it came from.
             bullets.append("%s: %s" % (category, item))
     return bullets
+
+
+def project_rubric():
+    """The rubric minus the stock bullets of a principle / Trophy the project
+    switched off (`mb_rubric_quality`). No quality settings → as authored."""
+    bullets = load_rubric()
+    try:
+        quality = json.loads(os.environ.get("MBR_QUALITY_JSON") or "{}").get("quality")
+    except ValueError:
+        quality = None
+    if not quality:
+        return bullets
+    sys.path.insert(0, os.path.join(SKILL_ROOT, "scripts"))
+    from mb_rubric_quality import filter_rubric
+
+    stock = set(load_rubric(os.path.join(SKILL_ROOT, "references", "pipeline.default.yaml")))
+    return filter_rubric(bullets, stock, quality)
 
 
 def parse_quality_dod(design_path):
@@ -193,7 +210,7 @@ def emit(sources, fallback_used):
         json.dumps(
             {
                 "sources": sources,
-                "review_rubric": load_rubric(),
+                "review_rubric": project_rubric(),
                 "fallback_used": fallback_used,
                 "checker": CHECKER,
             },

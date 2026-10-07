@@ -8,8 +8,8 @@ Guarantees relied on by `mb-plan-sync.sh`, `mb-plan-done.sh`,
                and `## Declined` sections.
 - status.md:   `<!-- mb-active-plans -->` and `<!-- mb-recent-done -->` blocks,
                plus `## Metrics`, `## Active plans`, `## Recently done`.
-- backlog.md:  `## Ideas` and `## ADR` sections, without a legacy `(none yet)`
-               placeholder.
+- backlog.md:  `## Ideas` section, no `## ADR` section (ADRs live in adr.md,
+               AGR-062), without a legacy `(none yet)` placeholder.
 - checklist.md: starts with `# Project — Checklist` (or `# Checklist`) and
                contains at least one ⬜ item (smoke).
 
@@ -88,10 +88,10 @@ def test_status_md_has_required_sections() -> None:
 # ── backlog.md ───────────────────────────────────────────────────────────
 
 
-def test_backlog_has_ideas_and_adr_sections() -> None:
+def test_backlog_has_ideas_and_no_adr_section() -> None:
     text = _read("backlog.md")
     assert re.search(r"^## Ideas\s*$", text, re.MULTILINE), "BACKLOG missing `## Ideas`"
-    assert re.search(r"^## ADR\s*$", text, re.MULTILINE), "BACKLOG missing `## ADR`"
+    assert not re.search(r"^## ADR", text, re.MULTILINE), "ADRs live in adr.md, not backlog.md"
 
 
 def test_backlog_has_no_legacy_placeholder() -> None:

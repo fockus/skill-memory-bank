@@ -101,7 +101,12 @@ def plan_staleness(mb_path: str, src_root: str, *, force: bool = False) -> dict[
 def _prep(mb_path: str, src_root: str) -> tuple[Path, list[dict[str, Any]], dict | None]:
     mb = Path(mb_path)
     nodes, edges = load_graph(mb / "codebase" / "graph.json")
-    communities = cga.detect_communities({"nodes": nodes, "edges": edges})
+    # The build already clustered the graph (graph.json `community`, the same ids
+    # god-nodes.md shows) — read them, so a python without networkx still sees
+    # them and the wiki agrees with god-nodes.md. Recompute only when absent.
+    communities = {
+        n["file"]: n["community"] for n in nodes if n.get("file") and "community" in n
+    } or cga.detect_communities({"nodes": nodes, "edges": edges})
     packs = we.build_community_packs(nodes, edges, communities, src_root) if communities else []
     return mb, packs, communities
 
@@ -115,7 +120,10 @@ def _cmd_plan(args: argparse.Namespace) -> int:
     if communities is None:
         # No staleness data without communities → dispatch every pack (legacy behaviour).
         plan = plan_dispatch(packs)
-        plan["warning"] = "networkx not installed — no communities; run `pip3 install networkx`"
+        plan["warning"] = (
+            "networkx not installed — no communities; run "
+            "`bash <skill>/hooks/mb-semantic-bootstrap.sh`, then `/mb graph --apply`"
+        )
     else:
         # Incremental rebuild (REQ-027): compute the $0 staleness split FIRST, then
         # dispatch ONLY the scheduled communities (no LLM anywhere in this path).

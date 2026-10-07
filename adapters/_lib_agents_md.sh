@@ -94,8 +94,15 @@ _mb_skill_version() {
 # FILE: replace the existing block, or append it after the user's content, or
 # create the file. Blank lines left before the block are trimmed each time, so a
 # reinstall never grows the file. Prints `created`, `refreshed`, or `merged`.
+#
+# POSITION=top (5th arg) puts the block at the top of the file instead — right
+# after the line holding ANCHOR (6th arg, e.g. the mb-language end marker) when
+# present — one blank line around it, the rest of the file byte-for-byte. Top
+# mode writes atomically (temp file + mv), so FILE must be a real path, not a
+# symlink (the caller resolves it).
 mb_upsert_marked_block() {
-  local file="$1" start="$2" end="$3" section="$4" state=merged kept
+  local file="$1" start="$2" end="$3" section="$4" position="${5:-end}" anchor="${6:-}"
+  local state=merged kept tmp
   mkdir -p "$(dirname "$file")"
   if [ ! -f "$file" ]; then
     cat "$section" > "$file"
@@ -103,6 +110,25 @@ mb_upsert_marked_block() {
     return 0
   fi
   grep -qF -- "$start" "$file" && state=refreshed
+  if [ "$position" = top ]; then
+    tmp="$(mktemp "$file.XXXXXX")"
+    cp -p "$file" "$tmp"  # keep FILE's mode; mktemp creates 0600
+    awk -v s="$start" -v e="$end" -v a="$anchor" -v sec="$section" '
+      index($0, s) { inside = 1; next }
+      index($0, e) { inside = 0; next }
+      !inside { lines[++n] = $0; if (a != "" && !at && index($0, a)) at = n }
+      END {
+        for (i = 1; i <= at; i++) print lines[i]
+        if (at) print ""
+        while ((getline l < sec) > 0) print l
+        for (i = at + 1; i <= n && lines[i] == ""; i++) ;
+        if (i <= n) print ""
+        for (; i <= n; i++) print lines[i]
+      }
+    ' "$file" > "$tmp" && mv -f "$tmp" "$file" || { rm -f "$tmp"; return 1; }
+    echo "$state"
+    return 0
+  fi
   kept="$(mktemp)"
   awk -v s="$start" -v e="$end" '
     index($0, s) { inside = 1; next }
@@ -122,90 +148,127 @@ mb_upsert_marked_block() {
 }
 
 # ───────── Build section content ─────────
+# The project's AGENTS.md carries, top-down: the mb-language block (written by
+# mb-language.py), the Key rules block (scripts/mb-rules.sh), the short MB block
+# below, then the agreements block (mb-agree.sh). Detailed rules stay in the
+# installed skill's rules/RULES.md and are read on demand (AGR-063, AGR-066).
+MB_KR_START="<!-- mb-key-rules:start -->"
+MB_KR_END="<!-- mb-key-rules:end -->"
+MB_LANGUAGE_END="<!-- mb-language:end -->"
+_MB_AGENTS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# $1 = project_root, $2 = mode: delta (default — only the project's differences from
+# the user-level rules, the host loads the full block from its global file, AGR-083)
+# or full (hosts without a global instructions file). The Key rules block (with its
+# markers), rendered by scripts/mb-rules.sh. Fail-open: prints nothing when it cannot render.
+_agents_md_key_rules() {
+  local project_root="$1" mode="${2:-delta}" rules_sh="$_MB_AGENTS_LIB_DIR/../scripts/mb-rules.sh" out
+  [ -f "$rules_sh" ] && [ -d "$project_root" ] || return 0
+  out="$(bash "$rules_sh" render --target=project --mode="$mode" --project="$project_root" 2>/dev/null)" || return 0
+  [ -n "$out" ] && printf '%s\n' "$out"
+  return 0
+}
+
 # $1 = skill_dir
-# $2 = include_ext_nudge (0|1, default 0) — emit the "Host parity extensions
-#      (Pi/OpenCode)" nudge only for hosts that actually have parity
-#      extensions to offer (pi, opencode). Codex/cline/kilo/windsurf share the
-#      same AGENTS.md format but have no `--with-extensions` target, so a
-#      codex-only install must not advertise a flag that does nothing for it
-#      (REQ-020 is literally scoped to "a pi or opencode host").
-_agents_md_section() {
+# $2 = include_ext_nudge (0|1, default 0) — emit the extensions nudge only for
+#      hosts that have parity extensions to offer (pi, opencode). Codex/cline/
+#      kilo/windsurf share the AGENTS.md format but have no `--with-extensions`
+#      target (REQ-020 is scoped to "a pi or opencode host").
+# $3 = has_key_rules (0|1, default 0) — 1 when the Key rules block (which ends
+#      with the project RULES.md pointer) sits right above; 0 adds the pointer here.
+_agents_md_mb_block() {
+  echo "$MB_START_MARKER"
+  echo "<!-- memory-bank-skill-version: $(_mb_skill_version "$1") -->"
+  _agents_md_mb_body "$@"
+  echo "$MB_END_MARKER"
+}
+
+# The MB block without its markers — same arguments as _agents_md_mb_block.
+# Also the body of the per-host rule files (mb_rule_file_body).
+_agents_md_mb_body() {
   local skill_dir="$1"
   local include_ext_nudge="${2:-0}"
-  echo "$MB_START_MARKER"
-  echo "<!-- memory-bank-skill-version: $(_mb_skill_version "$skill_dir") -->"
-  echo ''
+  local has_key_rules="${3:-0}"
+  echo '## Memory Bank'
+  echo "- Language: $(_mb_language_rule)"
+  # shellcheck disable=SC2016
+  echo '- First reply: `[MEMORY BANK: ACTIVE]` if a bank resolves (local or global), else `[MEMORY BANK: ABSENT]`; never init one unasked. Run `/mb context` first.'
+  if [ "$has_key_rules" != "1" ]; then
+    # The Key rules block normally carries this pointer (AGR-066).
+    # shellcheck disable=SC2016
+    echo '- Own rules: `RULES.md` / `.memory-bank/RULES.md`.'
+  fi
+  # shellcheck disable=SC2016
+  echo '- Firewall: with `.memory-bank/goal.md`, done = `mb-flow-verify.sh` exit 0; on red, repair and re-run — never self-certify. Hookless Pi: a no-commit false-done shows only at commit-time.'
+  # shellcheck disable=SC2016
+  echo '- `/mb drive`: you are the runtime — loop `mb-drive.sh next --bank <bank>`, run the action, repeat until `stop_success|stop_human|stop_budget`; exact agent/model/thinking from `pipeline.yaml` roles (implement, codex review, judge); `stop_success` also needs `mb-goal-acceptance.sh` 100%; no goal: refuses (fix via `mb-goal-validate.sh`).'
+  # shellcheck disable=SC2016
+  echo '- GraphRAG-lite routing: `code_context` (`scripts/mb-code-context.py`) for fuzzy questions, `graph_neighbors|graph_impact|graph_tests` (`scripts/mb-graph-query.py`); fail open to grep.'
+  if [ "$include_ext_nudge" = "1" ]; then
+    # shellcheck disable=SC2016
+    echo '- Bare Pi/OpenCode: offer `install.sh --with-extensions=pi,opencode` once per session.'
+  fi
+  if [ -f "$skill_dir/rules/RULES.md" ]; then
+    echo "- Read \`$skill_dir/rules/RULES.md\` § TDD, § Architecture, § Tests, § Session Pipeline, § \`/mb work\` when the task touches them. Scripts named here live in \`$skill_dir/scripts/\`."
+  fi
+}
+
+# The localized language rule (MB_LANGUAGE / MB_COMMENTS_LANGUAGE, same strings
+# install.sh uses); English when python or the skill package is unavailable.
+_mb_language_rule() {
+  local py="${MB_PYTHON:-python3}" out=""
+  if command -v "$py" >/dev/null 2>&1; then
+    out="$(MB_RULE_LANGUAGE="$(mb_preferred_language)" \
+      MB_RULE_COMMENTS_LANGUAGE="${MB_COMMENTS_LANGUAGE:-}" \
+      PYTHONPATH="$_MB_AGENTS_LIB_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
+      "$py" -c 'import os
+from memory_bank_skill._texttools import resolve_language_strings as r
+print(r(os.environ["MB_RULE_LANGUAGE"], os.environ.get("MB_RULE_COMMENTS_LANGUAGE") or None).rule_full)' 2>/dev/null)" || out=""
+  fi
+  printf '%s\n' "${out:-English — responses and code comments. Technical terms may remain in English.}"
+}
+
+# Per-host project rules file body (Cursor .mdc, Windsurf, Cline, Kilo — hosts
+# that read one always-on file, no skill loading): title, Key rules, MB body.
+# $1 = skill_dir, $2 = project_root, $3 = with_key_rules (1|0, default 1) —
+# 0 when the project's AGENTS.md already carries the Key rules (Cursor reads both);
+# $4 = Key rules mode: full (default — Windsurf/Cline/Kilo have no global
+# instructions file) or delta (Cursor, which also loads ~/.cursor/AGENTS.md).
+mb_rule_file_body() {
+  local key_rules=""
   echo '# Memory Bank — Project Rules'
   echo ''
   echo 'This project uses Memory Bank for long-term memory + dev workflow.'
   echo ''
-  echo '**Workflow:**'
-  # shellcheck disable=SC2016
-  echo '- Start of session: read `.memory-bank/status.md`, `checklist.md`, `roadmap.md`, `research.md`'
-  # shellcheck disable=SC2016
-  echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
-  echo '- Before context window fill: manual actualize'
-  echo ''
-  echo '## GraphRAG-lite routing'
-  echo ''
-  echo 'For code-understanding questions, prefer Memory Bank graph tools over `grep`:'
-  # shellcheck disable=SC2016
-  echo '- `code_context` — ambiguous "where is the logic for X?" / "find similar implementation". Default for fuzzy code-context lookups; runs semantic candidates + graph expansion + read fallback via `scripts/mb-code-context.py`.'
-  # shellcheck disable=SC2016
-  echo '- `graph_neighbors` — "who calls X?" / "what imports Y?" / "where is X defined?". Direct structural query via `scripts/mb-graph-query.py neighbors`.'
-  # shellcheck disable=SC2016
-  echo '- `graph_impact` — "change impact" / "reverse deps". `scripts/mb-graph-query.py impact`.'
-  # shellcheck disable=SC2016
-  echo '- `graph_tests` — "what tests cover this file/symbol?". `scripts/mb-graph-query.py tests`.'
-  echo ''
-  echo 'Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block work — CLI scripts are the universal fallback.'
-  echo ''
-  if [ "$include_ext_nudge" = "1" ]; then
-    echo '## Host parity extensions (Pi/OpenCode)'
-    echo ''
-    # shellcheck disable=SC2016
-    echo 'On a bare Pi or OpenCode host (no parity extensions installed yet), suggest running `install.sh --with-extensions=pi,opencode` once per session, then stay silent once installed.'
-    echo ''
+  [ "${3:-1}" = "1" ] && key_rules="$(_agents_md_key_rules "$2" "${4:-full}")"
+  if [ -n "$key_rules" ]; then
+    printf '%s\n\n' "$key_rules"
+    _agents_md_mb_body "$1" 0 1
+  else
+    _agents_md_mb_body "$1" 0 0
   fi
-  echo '## Dynamic-flow firewall (completion gate)'
-  echo ''
-  # shellcheck disable=SC2016
-  echo 'When a dynamic-flow is active — i.e. `.memory-bank/goal.md` exists — completion is gated by a deterministic firewall, NOT by your own judgement. The firewall exit code, not your self-assessment, decides "done".'
-  echo ''
-  # shellcheck disable=SC2016
-  echo '- Run `scripts/mb-flow-verify.sh <bank>` and treat ONLY exit 0 as finished.'
-  # shellcheck disable=SC2016
-  echo '- On a red (non-zero) exit, repair the failing check and re-run the firewall; loop until it exits 0. Never self-certify completion over a red firewall.'
-  # shellcheck disable=SC2016
-  echo '- Hookless agent (e.g. Pi) with no live Stop-hook: a no-commit false-done cannot be blocked live — it is only detectable after the fact via the commit-time git-hooks fallback (`mb-flow-verify.sh` runs in `pre-commit` and blocks a red flow).'
-  echo ''
-  echo '## drive-loop contract (autonomous goal-driven runs)'
-  echo ''
-  # shellcheck disable=SC2016
-  echo 'When `/mb drive` is running, YOU are the runtime — there is no daemon. `scripts/mb-drive.sh` is a stateless decision function: it prints ONE next action and exits. Call it, execute that action, then call it again.'
-  echo ''
-  # shellcheck disable=SC2016
-  echo '- Loop: `scripts/mb-drive.sh next --bank <bank>` → execute the printed action → repeat, until the action starts with `stop_`.'
-  # shellcheck disable=SC2016
-  echo '- Action grammar: `implement <route> <item>` | `repair <item>` | `pivot <in_role|via_architect> <item>` | `stop_success` | `stop_human <why>` | `stop_budget`.'
-  # shellcheck disable=SC2016
-  echo '- Dispatch is RESOLVED, never guessed: the tiers live in `pipeline.yaml` under `roles:` (locate the resolved file with `scripts/mb-pipeline.sh path`) — read the `roles:` entry for the step and pass its exact `agent`/`model`/`thinking`. `implement`/`repair`/`pivot` → the pipeline'"'"'s implement role-agent; review → the pipeline'"'"'s external codex reviewer; judge → the pipeline'"'"'s judge role (it terminates the review loop). Never a fuzzy model name, and never a tier hardcoded here.'
-  # shellcheck disable=SC2016
-  echo '- NEVER self-certify done. `stop_success` is the only done signal, and it requires `scripts/mb-flow-verify.sh` exit 0 AND `scripts/mb-goal-acceptance.sh` acceptance 100% — your own assessment that the work looks complete is not a stop condition.'
-  # shellcheck disable=SC2016
-  echo '- No resolvable `.memory-bank/goal.md` → `/mb drive` refuses with exit 1 and a `scripts/mb-goal-validate.sh` fix-hint. Fix the goal; never start the loop anyway.'
-  # shellcheck disable=SC2016
-  echo '- A killed run resumes for free: all state lives in files (`goal.md`, the `mb-flow` fence, `scripts/mb-work-state.sh`). Re-run the preflight and call `next` again.'
-  echo ''
-  if [ -f "$skill_dir/rules/RULES.md" ]; then
-    echo '---'
-    echo ''
-    echo '## Global Rules'
-    echo ''
-    mb_emit_rules_file "$skill_dir/rules/RULES.md"
-    echo ''
+}
+
+# $1 = skill_dir, $2 = include_ext_nudge, $3 = project_root (default: $PWD).
+# The full project section as it lands in AGENTS.md: Key rules, then the MB block.
+_agents_md_section() {
+  local key_rules
+  key_rules="$(_agents_md_key_rules "${3:-$PWD}")"
+  if [ -n "$key_rules" ]; then
+    printf '%s\n\n' "$key_rules"
+    _agents_md_mb_block "$1" "${2:-0}" 1
+  else
+    _agents_md_mb_block "$1" "${2:-0}" 0
   fi
-  echo "$MB_END_MARKER"
+}
+
+# Drop the Key rules and MB blocks from FILE (stdout); everything else verbatim.
+_agents_md_strip() {
+  awk -v s="$MB_START_MARKER" -v e="$MB_END_MARKER" -v ks="$MB_KR_START" -v ke="$MB_KR_END" '
+    index($0, s) || index($0, ks) { inside = 1; next }
+    index($0, e) || index($0, ke) { inside = 0; next }
+    !inside { print }
+  ' "$1"
 }
 
 # ───────── Owners refcount helpers ─────────
@@ -236,6 +299,42 @@ _owners_write() {
   tmp=$(mktemp "$(dirname "$target")/.mb-agents-owners.XXXXXXXX")
   printf '%s\n' "$data" > "$tmp"
   mv "$tmp" "$target"
+}
+
+# Write the Key rules + MB blocks at the top of AGENTS.md (after the mb-language
+# block when present); user content and other managed blocks (agreements) follow
+# verbatim. Old blocks are dropped first, together with the trailing blank run, so
+# a file from the old layout (MB block appended at the end) migrates cleanly and
+# every re-install is byte-identical.
+_agents_md_write() {
+  local file="$1" skill_dir="$2" nudge="$3" project_root="$4" real kr mb tmp rc=0
+  real="$file"
+  if [ -L "$file" ]; then
+    real="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$file")" || return 1
+  fi
+  kr="$(mktemp)"
+  mb="$(mktemp)"
+  _agents_md_key_rules "$project_root" > "$kr"
+  if [ -s "$kr" ]; then
+    _agents_md_mb_block "$skill_dir" "$nudge" 1 > "$mb"
+  else
+    _agents_md_mb_block "$skill_dir" "$nudge" 0 > "$mb"
+  fi
+  if [ -f "$real" ]; then
+    tmp="$(mktemp "$real.XXXXXX")"
+    cp -p "$real" "$tmp"
+    _agents_md_strip "$real" \
+      | awk '{ l[++n] = $0; if (NF) last = n } END { for (i = 1; i <= last; i++) print l[i] }' > "$tmp" \
+      && mv -f "$tmp" "$real" || { rm -f "$tmp"; rc=1; }
+  fi
+  if [ "$rc" -eq 0 ]; then
+    mb_upsert_marked_block "$real" "$MB_START_MARKER" "$MB_END_MARKER" "$mb" top "$MB_LANGUAGE_END" >/dev/null || rc=1
+  fi
+  if [ "$rc" -eq 0 ] && [ -s "$kr" ]; then
+    mb_upsert_marked_block "$real" "$MB_KR_START" "$MB_KR_END" "$kr" top "$MB_LANGUAGE_END" >/dev/null || rc=1
+  fi
+  rm -f "$kr" "$mb"
+  return "$rc"
 }
 
 # ───────── Install ─────────
@@ -275,40 +374,12 @@ agents_md_install() {
 
   local created_by_us=false
   if [ ! -f "$agents_md" ]; then
-    # First install ever — we create the file
     created_by_us=true
-    _agents_md_section "$skill_dir" "$effective_nudge" > "$agents_md"
     owners=$(echo "$owners" | jq '.initial_had_user_content = false')
-  elif ! grep -q "$MB_START_MARKER" "$agents_md"; then
-    # File exists (user content) but no MB section yet — append
-    {
-      echo ''
-      _agents_md_section "$skill_dir" "$effective_nudge"
-    } >> "$agents_md"
+  elif ! grep -qF -- "$MB_START_MARKER" "$agents_md"; then
     owners=$(echo "$owners" | jq '.initial_had_user_content = true')
-  else
-    # Section already present from another MB adapter — replace with fresh content
-    local tmp="$agents_md.tmp"
-    awk -v s="$MB_START_MARKER" -v e="$MB_END_MARKER" '
-      BEGIN { inside=0 }
-      index($0, s) { inside=1; next }
-      index($0, e) { inside=0; next }
-      !inside { print }
-    ' "$agents_md" > "$tmp"
-    # Idempotency: emit the user-content separator ONLY when user content
-    # actually survives the strip, and drop the trailing blank run first.
-    # Otherwise every re-install (upgrade, second adapter, `install.sh` re-run)
-    # prepended one more blank line and the file grew without bound — the
-    # rendered block must be byte-identical across repeated renders.
-    {
-      if grep -q '[^[:space:]]' "$tmp" 2>/dev/null; then
-        awk 'NF { while (pending-- > 0) print ""; pending = 0; print; next } { pending++ }' "$tmp"
-        echo ''
-      fi
-      _agents_md_section "$skill_dir" "$effective_nudge"
-    } > "$agents_md"
-    rm -f "$tmp"
   fi
+  _agents_md_write "$agents_md" "$skill_dir" "$effective_nudge" "$project_root" || return 1
 
   _owners_write "$project_root" "$owners"
 
@@ -348,12 +419,7 @@ agents_md_uninstall() {
     if [ "$had_user" = "true" ]; then
       # Strip our section, preserve user content
       local tmp="$agents_md.tmp"
-      awk -v s="$MB_START_MARKER" -v e="$MB_END_MARKER" '
-        BEGIN { inside=0 }
-        index($0, s) { inside=1; next }
-        index($0, e) { inside=0; next }
-        !inside { print }
-      ' "$agents_md" > "$tmp"
+      _agents_md_strip "$agents_md" > "$tmp"
       # Remove file if fully empty
       if ! grep -q '[^[:space:]]' "$tmp" 2>/dev/null; then
         rm -f "$agents_md"

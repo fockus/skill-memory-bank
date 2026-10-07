@@ -485,94 +485,108 @@
       "summary": "- Подтверждение задачи связывается с canonical source в момент init; повторный resolve после done может перенести подтверждение через symlink. - Relative/legacy paths должны одинаково разрешаться при init и Eval; неоднозначное состояние не даёт право менять DoD.",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-09-30_mutation-testing-stale-pyc.md",
+      "type": "note",
+      "tags": [
+        "testing",
+        "mutation",
+        "python",
+        "agr-027"
+      ],
+      "importance": "high",
+      "summary": "AGR-027 mutation proof (`cp` backup → mutate → run → `cp` restore → `cmp`) has a Python-specific hole. If the mutant keeps the file SIZE and the restore lands in the same mtime SECOND, the interpreter's",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-09-16T23:09:15Z",
+  "generated_at": "2026-10-07T12:34:59Z",
   "progress_chain": {
     "version": 1,
     "tail": [
       {
-        "heading": "## 2026-09-05",
-        "sha256": "7cb3465f0e334812c320f5095ff81c5fef7cd02629d5f9ae02672512c0602e43"
+        "heading": "## 2026-10-05 — AGR-058 governed retained resume started",
+        "sha256": "bab0c4984b29f983f76883b13f31addbf3a28a0681a1656dc8aad2f0628aaa9b"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "6f263d33f8bfe28323d85afe16980b5f9f7111ce6fea2dc9a41da691fd924f1a"
+        "heading": "## 2026-10-05 — Managed SDK continuation timed out; WIP preserved",
+        "sha256": "b99ee1df0c03a965ece0c8968034721274c4b0a6c2c93160aded0faf965f41ed"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "0a831291f1d57cf019eac22084102a694341b8b5602951065064c1e97b33a092"
+        "heading": "## 2026-10-05 — Owner approved bounded retained Stage 1 recovery",
+        "sha256": "2b80f117dc533c4a9de4c98c12135ed0b34c7b35671402b43ca31a794bf857fb"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "81c278b76b6f6fd880abb9aaba018736efce470a9fefcb6efd99f456821c078d"
+        "heading": "## 2026-10-05 — Bounded Stage 1 native recovery launched",
+        "sha256": "955d902791f13865b08f5d0075e2954ec34685a099af89f928f4240ab8a57f2e"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "8bbb5788c3dcd9dd0ac02a5c6257dfe978d697f8844dfbfcef7b8c8ff08e66e4"
+        "heading": "## 2026-10-05 — Bounded green checkpoint and public leaf evidence decision",
+        "sha256": "837bb0ea4500c83f94e2cacbbfcc8e88b4c98d77148efc005e321749c4a381e8"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "1724fb214bb7ad7ded1aab24c2ad727f099da08361cb160bbece036dba29d811"
+        "heading": "## 2026-10-05 — Bounded writer BLOCKED; parent emit failure preserved",
+        "sha256": "c408b526e11c314f76dc7e1bee782cd560061f4ab8b20a5cc9848220d3474f61"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "367d13943e4809483fd105a08a2d26678298fc287b1e96e6e28911b045a3ab97"
+        "heading": "## 2026-10-05 — AGR-059 isolated native-leaf probe authorized",
+        "sha256": "4d454eca70d099e9d362b84ed55e16abbd222bbe4a650c89d3333529eb24fbb2"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "3e532a6a9c1df3f204d5bcfb4cf6c025a4bee36d43280c347198040f2621d570"
+        "heading": "## 2026-10-05 — AGR-059 isolated actual-leaf native probe launched",
+        "sha256": "70a9eeee6470de1249639c9f58bbd4c21f7090a6a3579a30b59dbbfdca2043c5"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "a5fd8f11cdcc08367fc28a9da44799f7e93908713f72ce57c7d4ce2ce6dc3197"
+        "heading": "## 2026-10-05 — Child guard preserved; legitimate operator test context confirmed",
+        "sha256": "d4a17f2ac73448af1f07d5c38384b175e40e8362672ae2371378d37965680f38"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "2d3b2b94a5360342da733208fdb911782485ebff71f3c582da9ff8117d1e99fe"
+        "heading": "## 2026-10-05 — Parent model/routing prerequisites observed; fixture preparation handoff",
+        "sha256": "38678e23acac143b923c2d664ab2d9f4f8b65114e9a70905beee1604dcbbd388"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "ec2a786e8581c3421cdce04547440661a2bc98e76b4e9ebc47275151a01313fe"
+        "heading": "## 2026-10-05 — Retained fixture preparation launched with observed prerequisites",
+        "sha256": "2b531f32128306c817a16b0919add60bbd87bfed45c684651310cbf833d96c65"
       },
       {
-        "heading": "## 2026-09-05",
-        "sha256": "419c74e28eb0741d5a050eb4daf894d063e0e25001d3930e87b6cb8488c97f74"
+        "heading": "## 2026-10-05 — Parent actual SDK zero-child control reaches leaf-contract RED",
+        "sha256": "c84ccd5b4e44b0a586e6540e6dfc2a3bee6d4569d3fc28775b85088e1da364fa"
       },
       {
-        "heading": "## 2026-09-06",
-        "sha256": "bbc9b3c9dcebfddfcd917116d052d77596584c1785cccfdb691438b617c912b2"
+        "heading": "## 2026-10-05 — Actual Tintin controlled leaf passes in parent; Nico public observation gap remains",
+        "sha256": "653dfdf4a992121965a647840b3db315c27d30a0e13e85226c1b5a5babb03ce0"
       },
       {
-        "heading": "## 2026-09-06",
-        "sha256": "f3bd4765cf463e47e3a2c066f337d0b75214f38d1d744026dfde5ffbc0f29b83"
+        "heading": "## 2026-10-06",
+        "sha256": "1233dd1cc95c58428ac24f6938ccd47448c3a7fab0aeff35a5bdc7810e538b46"
       },
       {
-        "heading": "## 2026-09-06",
-        "sha256": "31ec89cddfcdd84e449615d13a361fc96e8b14fcea6698b1919ae367bbdbe65f"
+        "heading": "## 2026-10-06",
+        "sha256": "0bfdc954796f3ac843d22d1d76b341156e10f3311af918c16a7632062618119d"
       },
       {
-        "heading": "## 2026-09-06 — Sprint 1 Stage 5: `checklist.md` v2 — один блок на план, закрытое → `progress.md` (/mb work, execution)",
-        "sha256": "0d5c4bac49edea2cfcadde63cf5fc3733bd886454ef628001aaccc8b8b410b66"
+        "heading": "## 2026-10-06",
+        "sha256": "1620be087a2453ab2853d30a8681b730505710d033fb6807553ff595c534003c"
       },
       {
-        "heading": "## 2026-09-10 — Sprint 1 Stage 6: `mb-coord.sh active` — доска без 200 KB (/mb work, execution)",
-        "sha256": "2327d6753010490e1d6c979d0ca3c40678a98414b931b500dbd31d0fbcccd03b"
+        "heading": "## 2026-10-06",
+        "sha256": "ef3f75fb1a28adee80aa4297bd26d9b09d7ff452511e0fba1db209987b5d9477"
       },
       {
-        "heading": "## 2026-09-10 — Sprint 1 Stage 7: жёсткие капы core-файлов — Stop-хук + `actualize --strict` (/mb work, execution)",
-        "sha256": "d6d912ada8160dd86da1a14ebe2a31cfb4586e2031761b9bd6a40598218c3396"
+        "heading": "## 2026-10-07",
+        "sha256": "35fff5b893a5d861c89b56935f5e32057d8eb2e5a3dd6de2d6f2804d8392d931"
       },
       {
-        "heading": "## 2026-09-13",
-        "sha256": "71e2cc9632b1b0a666e3e275dda4589117cb8f7754ba2f575ee90bae8f43f6a2"
+        "heading": "## 2026-10-07",
+        "sha256": "794ec58669252b9035d642e94e021a327231cc58625c079c0a3d4aec0eaacfae"
       },
       {
-        "heading": "## 2026-09-13",
-        "sha256": "c2209cea8ad42e856ade8986d56c1521a950272477cdc6e62287fd0f97c3282a"
+        "heading": "## 2026-10-07",
+        "sha256": "2878a39a74f80a7961a2d403d5922565cc538667230d87708c80d61ed83bfcde"
       }
     ],
-    "last_synced_at": "2026-09-13T13:17:38Z"
+    "last_synced_at": "2026-10-07T12:34:59Z"
   }
 }

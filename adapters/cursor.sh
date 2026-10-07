@@ -10,6 +10,8 @@
 # Usage:
 #   adapters/cursor.sh install [PROJECT_ROOT]
 #   adapters/cursor.sh uninstall [PROJECT_ROOT]
+#   adapters/cursor.sh install-global|uninstall-global
+#   adapters/cursor.sh render-agents [PIPELINE]   (re-render installed ~/.cursor/agents)
 #
 # Idempotent. Preserves user-owned hooks in existing .cursor/hooks.json via jq merge.
 # Manifest in .cursor/.mb-manifest.json tracks ownership for clean uninstall.
@@ -38,6 +40,7 @@ MANIFEST="$CURSOR_DIR/.mb-manifest.json"
 GLOBAL_CURSOR_DIR="$HOME/.cursor"
 GLOBAL_HOOKS_DIR="$GLOBAL_CURSOR_DIR/hooks"
 GLOBAL_COMMANDS_DIR="$GLOBAL_CURSOR_DIR/commands"
+GLOBAL_AGENTS_DIR="$GLOBAL_CURSOR_DIR/agents"
 GLOBAL_HOOKS_JSON="$GLOBAL_CURSOR_DIR/hooks.json"
 GLOBAL_AGENTS_FILE="$GLOBAL_CURSOR_DIR/AGENTS.md"
 GLOBAL_USER_RULES_FILE="$GLOBAL_CURSOR_DIR/memory-bank-user-rules.md"
@@ -154,24 +157,25 @@ cursor_binding_events_json() {
 # Cursor gets the full CC-compatible lifecycle hook set (sessionStart/stop/
 # sessionEnd/preCompact/tool guards, twelve `_mb_owned` entries) and genuine
 # update-notify + session/*.md v2-schema capture (see the REQ-021 tests in
-# tests/bats/test_cursor_adapter.bats) — those are NOT limited. Two genuine
-# ceilings remain, verified by direct inspection of this adapter:
+# tests/bats/test_cursor_adapter.bats) — those are NOT limited. Subagents are
+# not limited either (I-244): Cursor natively discovers subagents from
+# ~/.cursor/agents/*.md (cursor.com/docs/agent/subagents) and its Task tool
+# dispatches them by name; install-global renders our roles there. Two genuine
+# ceilings remain:
 #   - statusline: no equivalent to Claude Code's stdin-JSON statusLine render
 #     surface (scripts/mb-statusline.py) exists in Cursor's hooks API.
-#   - subagents: `agents/*.md` are copied to
-#     ~/.cursor/skills/memory-bank/agents/ as a reference-only prompt
-#     library (docs/cursor-extension.md) — no invocation/dispatch mechanism
-#     wires them into Cursor's own agent loop, unlike OpenCode's native
-#     `.opencode/agent/*.md` discovery or Pi's opt-in dispatch tool.
+#   - role-routing: same closed-vocabulary term as OpenCode/Pi — the model
+#     makes the Task call from the command text; no deterministic harness
+#     drives or verifies per-role routing on Cursor.
 cursor_platform_limited_json() {
-  jq -n '["statusline","subagents"]'
+  jq -n '["statusline","role-routing"]'
 }
 
 cursor_platform_limited_notes_json() {
   jq -n \
     --arg statusline "Claude Code's stdin-JSON statusLine render surface (scripts/mb-statusline.py) has no equivalent in Cursor's hooks API." \
-    --arg subagents "Bundled agent .md files under ~/.cursor/skills/memory-bank/agents/ are a reference-only prompt library — no dispatch mechanism invokes them from Cursor's own agent loop." \
-    '{"statusline": $statusline, "subagents": $subagents}'
+    --arg role_routing "Cursor natively discovers subagents from ~/.cursor/agents/*.md (install-global renders the mb-* roles there; ~/.claude/agents is also read, .cursor wins on a name clash) and dispatches them through its Task tool; the model makes that call from the command text — no deterministic harness drives or verifies per-role routing on Cursor." \
+    '{"statusline": $statusline, "role-routing": $role_routing}'
 }
 
 cursor_resolve_skill_hooks_dir() {
@@ -397,35 +401,82 @@ global_install_file() {
   eval "$files_list_name+=(\"$dst\")"
 }
 
+# I-244: Cursor subagents (cursor.com/docs/agent/subagents) — user scope is
+# ~/.cursor/agents/*.md. Each role is rendered for Cursor (partials composed,
+# frontmatter reduced to name/description + the role's tier model). Cursor also
+# reads ~/.claude/agents/, but on a name clash `.cursor/` wins, so this copy
+# shadows the Claude-rendered one (whose `model: haiku` etc. are not Cursor
+# ids). Partials (`partial: true`) are never installed on their own.
+#
+# Tier model (AGR-074): these agents are global, so no project pipeline applies
+# at install time — the shipped default pipeline (cursor profile) is used, cost
+# from MB_COST, else its `cost`. `/mb config init --host cursor` re-renders them
+# from that project's pipeline (render-agents PIPELINE); the last render wins.
+cursor_render_agent() {  # $1 = agent source, $2 = pipeline (optional) → stdout
+  "${MB_PYTHON:-python3}" "$SKILL_DIR/scripts/mb-agent-render.py" "$1" --skill-dir "$SKILL_DIR" --host cursor \
+    --pipeline "${2:-$SKILL_DIR/references/pipeline.default.yaml}" ${MB_COST:+--cost "$MB_COST"}
+}
+
+cursor_agent_is_partial() {
+  head -5 "$1" | grep -qiE '^partial:[[:space:]]*true[[:space:]]*$'
+}
+
+cursor_install_global_agents() {
+  local files_list_name="$1" backups_list_name="$2" f rendered
+  for f in "$SKILL_DIR"/agents/*.md; do
+    [ -f "$f" ] || continue
+    cursor_agent_is_partial "$f" && continue
+    rendered="$(mktemp)"
+    cursor_render_agent "$f" > "$rendered" || { rm -f "$rendered"; return 1; }
+    global_install_file "$rendered" "$GLOBAL_AGENTS_DIR/$(basename "$f")" "$files_list_name" "$backups_list_name"
+    rm -f "$rendered"
+  done
+}
+
+# Re-render the installed global agents in place (they are ours: manifest-tracked
+# by install-global, so no backup). Nothing is installed when install-global never ran.
+cursor_render_global_agents() {
+  local pipeline="${1:-}" f dst rendered n=0
+  if [ ! -f "$GLOBAL_MANIFEST" ]; then
+    echo "[cursor-adapter] global agents not installed (run install-global); nothing rendered"
+    return 0
+  fi
+  for f in "$SKILL_DIR"/agents/*.md; do
+    [ -f "$f" ] || continue
+    cursor_agent_is_partial "$f" && continue
+    dst="$GLOBAL_AGENTS_DIR/$(basename "$f")"
+    [ -f "$dst" ] || continue
+    rendered="$(mktemp "$GLOBAL_AGENTS_DIR/.mb-render.XXXXXX")"
+    cursor_render_agent "$f" "$pipeline" > "$rendered" || { rm -f "$rendered"; return 1; }
+    if cmp -s "$rendered" "$dst"; then rm -f "$rendered"; else mv "$rendered" "$dst"; fi
+    n=$((n + 1))
+  done
+  echo "[cursor-adapter] agents re-rendered: $n ($GLOBAL_AGENTS_DIR)"
+}
+
+# Short host header + the compact rules core with Cursor paths. The Key rules block
+# above it is written by install.sh Step 5.5 (mb-rules.sh sync --scope=user);
+# detailed rules stay in the skill's rules/RULES.md (AGR-063, AGR-066).
 global_cursor_agents_section() {
   cat <<EOF
 $CURSOR_START_MARKER
 
 # Memory Bank — Cursor Global Entry Point
 
-Global Memory Bank skill is registered at:
-- \`~/.cursor/skills/memory-bank/SKILL.md\`
-
-Bundled resources available to Cursor agents:
-- Commands: \`~/.cursor/commands/\` (mirror of skill \`commands/\`)
-- Agent prompts: \`~/.cursor/skills/memory-bank/agents/\`
-- Hooks: bundled at \`~/.cursor/skills/memory-bank/hooks/\` wired via \`~/.cursor/hooks.json\`
-
-Recommended workflow:
-- Start by reading \`.memory-bank/status.md\`, \`checklist.md\`, \`roadmap.md\`, \`research.md\`
-- Use \`/mb\` as the entrypoint for Memory Bank flows
-- Update \`checklist.md\` immediately (⬜ → ✅) when tasks complete
-
-Cursor surfaces user-level rules only through **Settings → Rules → User Rules**.
-The same content is mirrored to \`~/.cursor/memory-bank-user-rules.md\` for copy-paste:
-- macOS:  \`pbcopy < ~/.cursor/memory-bank-user-rules.md\`
-- Linux:  \`xclip -selection clipboard < ~/.cursor/memory-bank-user-rules.md\`
-
----
+Skill: \`~/.cursor/skills/memory-bank/SKILL.md\`; commands: \`~/.cursor/commands/\`.
+- Subagents: \`~/.cursor/agents/mb-*.md\` — dispatch by name through the Task tool.
+- Hooks: \`~/.cursor/skills/memory-bank/hooks/\`, wired via \`~/.cursor/hooks.json\`.
+- User Rules (Settings → Rules) have no file API: paste \`~/.cursor/memory-bank-user-rules.md\` once.
 
 EOF
-  cat "$SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+  sed 's#~/.claude/RULES.md#~/.cursor/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.cursor/skills/memory-bank#g' "$SKILL_DIR/rules/CLAUDE-GLOBAL.md"
   printf '\n%s\n' "$CURSOR_END_MARKER"
+}
+
+# Hash of the rendered section: the manifest stores it so install.sh re-runs
+# install-global when the section text changes on the same VERSION.
+global_cursor_section_sha() {
+  global_cursor_agents_section | cksum | awk '{print $1 "-" $2}'
 }
 
 # ═══ Install ═══
@@ -448,19 +499,13 @@ install_cursor() {
     echo 'alwaysApply: true'
     echo '---'
     echo ''
-    echo '# Memory Bank — Project Rules'
-    echo ''
-    echo 'This project uses the Memory Bank skill for long-term memory + dev workflow.'
-    echo ''
-    echo '**Workflow:**'
-    echo '- Start of session: read `.memory-bank/status.md`, `checklist.md`, `roadmap.md`, `research.md`'
-    echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
-    echo '- Before context window fill: manual actualize via Memory Bank workflow'
-    echo ''
-    if [ -f "$SKILL_DIR/rules/RULES.md" ]; then
-      echo '---'
-      echo ''
-      mb_emit_rules_file "$SKILL_DIR/rules/RULES.md"
+    # Cursor also reads the root AGENTS.md: when it already carries the Key
+    # rules block, the .mdc keeps only the MB pointers (no duplicate rules).
+    # Otherwise the project delta: ~/.cursor/AGENTS.md carries the full block.
+    if grep -qF -- "$MB_KR_START" "$PROJECT_ROOT/AGENTS.md" 2>/dev/null; then
+      mb_rule_file_body "$SKILL_DIR" "$PROJECT_ROOT" 0
+    else
+      mb_rule_file_body "$SKILL_DIR" "$PROJECT_ROOT" 1 delta
     fi
   } > "$RULES_FILE"
 
@@ -578,6 +623,8 @@ install_cursor_global() {
     global_install_file "$f" "$GLOBAL_COMMANDS_DIR/$(basename "$f")" managed_files backups
   done
 
+  cursor_install_global_agents managed_files backups
+
   our_hooks_json=$(cursor_build_hooks_json "$skill_hooks_dir")
   cursor_merge_hooks_json "$GLOBAL_HOOKS_JSON" "$our_hooks_json"
 
@@ -634,12 +681,13 @@ EOF
   extra_json=$(jq -n \
     --arg scope "global" \
     --arg lang "${MB_LANGUAGE:-en}" \
+    --arg section_sha "$(global_cursor_section_sha)" \
     --argjson events "$events_json" \
     --argjson backups "$backups_json" \
     --arg bundle "$skill_hooks_dir" \
     --argjson platform_limited "$(cursor_platform_limited_json)" \
     --argjson platform_limited_notes "$(cursor_platform_limited_notes_json)" \
-    '{scope: $scope, lang: $lang, hooks_events: $events, backups: $backups, hooks_bundle: $bundle, platform_limited: $platform_limited, platform_limited_notes: $platform_limited_notes}')
+    '{scope: $scope, lang: $lang, section_sha: $section_sha, hooks_events: $events, backups: $backups, hooks_bundle: $bundle, platform_limited: $platform_limited, platform_limited_notes: $platform_limited_notes}')
 
   adapter_write_manifest \
     "$GLOBAL_MANIFEST" \
@@ -700,6 +748,7 @@ uninstall_cursor_global() {
   rm -f "$GLOBAL_MANIFEST"
   rmdir "$GLOBAL_HOOKS_DIR" 2>/dev/null || true
   rmdir "$GLOBAL_COMMANDS_DIR" 2>/dev/null || true
+  rmdir "$GLOBAL_AGENTS_DIR" 2>/dev/null || true
   rmdir "$GLOBAL_CURSOR_DIR" 2>/dev/null || true
 
   echo "[cursor-adapter] global uninstall completed"
@@ -710,8 +759,10 @@ case "$ACTION" in
   uninstall) uninstall_cursor ;;
   install-global) install_cursor_global ;;
   uninstall-global) uninstall_cursor_global ;;
+  render-agents) cursor_render_global_agents "${2:-}" ;;
+  section-sha) global_cursor_section_sha ;;
   *)
-    echo "Usage: $0 install|uninstall [PROJECT_ROOT] | install-global|uninstall-global" >&2
+    echo "Usage: $0 install|uninstall [PROJECT_ROOT] | install-global|uninstall-global | render-agents [PIPELINE] | section-sha" >&2
     exit 1
     ;;
 esac

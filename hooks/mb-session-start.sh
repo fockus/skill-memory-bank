@@ -89,7 +89,7 @@ if [ "${MB_SESSION_CHEATSHEET:-on}" = "off" ]; then
 else
   cheat="$(cat <<'EOF'
 # How to use project memory (quick ref)
-- Code structure ("who calls/imports X", "how does X relate to Y") → `/mb graph` queries (`mb-graph-query.py`); Grep stays fine for regex and raw text.
+- Code structure ("who calls/imports X", "how does X relate to Y") → `/mb graph` queries (`mb-graph.sh`); Grep stays fine for regex and raw text.
 - Past chats & decisions ("what did we decide about X", "was this done before") → `/mb recall <query>` — model-free BM25 over agreements/progress/notes/sessions, ~50 ms, so run it before asking the user about past decisions; `/mb recall --expand <id>` opens a hit in full.
 - Project state (status / plans / decisions / lessons) → Memory Bank core files via `/mb context`.
 - The `# Relevant Memory` (per-prompt) and `# Recent Sessions` (below) blocks are auto-injected past-session context — use them.
@@ -100,11 +100,12 @@ EOF
   _GRAPH="$MB/codebase/graph.json"
   if [ -f "$_GRAPH" ] && command -v python3 >/dev/null 2>&1; then
     _gq="$HOOK_DIR/../scripts/mb-graph-query.py"
-    [ -f "$_gq" ] || _gq="$HOME/.claude/skills/memory-bank/scripts/mb-graph-query.py"
+    [ -f "$_gq" ] || _gq="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}/scripts/mb-graph-query.py"
     if [ -f "$_gq" ]; then
+      _mgs="$(cd "$(dirname "$_gq")" && pwd)/mb-graph.sh"   # resolved path: runs on any host
       gline="$(python3 "$_gq" status --graph "$_GRAPH" --src-root "$CWD" 2>/dev/null | head -1)"
       # shellcheck disable=SC2016 # literal backticks for markdown, no expansion wanted
-      [ -n "$gline" ] && cheat="$(printf '%s\n- %s — query it: \`python3 <skill>/scripts/mb-graph-query.py impact|neighbors|tests --graph .memory-bank/codebase/graph.json --symbol <Name>\`; refresh: \`/mb graph --apply\`.' "$cheat" "$gline")"
+      [ -n "$gline" ] && cheat="$(printf '%s\n- %s — query it: `bash %s who-calls|impact|tests <Name>`; refresh: `/mb graph --apply`.' "$cheat" "$gline" "$_mgs")"
     fi
   fi
   ctx="$(printf '%s\n\n%s' "$cheat" "$recent_block")"

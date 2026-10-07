@@ -130,21 +130,7 @@ install_windsurf() {
     echo 'trigger: always_on'
     echo '---'
     echo ''
-    echo '# Memory Bank — Project Rules'
-    echo ''
-    echo 'This project uses Memory Bank for long-term memory + dev workflow.'
-    echo ''
-    echo '**Workflow:**'
-    echo '- Start of session: read `.memory-bank/status.md`, `checklist.md`, `roadmap.md`, `research.md`'
-    echo '- Update `checklist.md` immediately (⬜ → ✅) when tasks done'
-    echo ''
-    if [ -f "$SKILL_DIR/rules/RULES.md" ]; then
-      echo '---'
-      echo ''
-      echo '# Global Rules'
-      echo ''
-      mb_emit_rules_file "$SKILL_DIR/rules/RULES.md"
-    fi
+    mb_rule_file_body "$SKILL_DIR" "$PROJECT_ROOT"
   } > "$RULES_FILE"
 
   # 2. Hook scripts — A16 (M-8): back up a pre-existing (possibly

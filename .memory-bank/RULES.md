@@ -1,3 +1,26 @@
+<!-- mb-project-rules:start -->
+## Project quality settings
+
+Managed by `/mb rules set` (rules profile); text outside this block is yours.
+
+### Architecture
+
+**clean** — Clean Architecture: Infra→App→Domain layer direction, pure domain, DIP.
+- [block] layer-direction: Dependency direction: Infrastructure → Application → Domain. Domain layer has zero external (framework/DB/HTTP) imports. Violations are hard architecture errors.
+- [block] domain-pure: Domain entities and use-cases depend only on each other and stdlib. No ORM annotations, HTTP status codes, or framework annotations in domain classes.
+- [warn] dip: High-level modules define interfaces (ports). Low-level modules implement them (adapters). Dependency inversion enables replacing infrastructure without touching domain.
+- [advisory] use-case-per-action: Each use-case class or function represents a single business action. Avoid fat service classes with 10+ methods — split by cohesion.
+
+### Principles
+
+SOLID: on · DRY: on · KISS: on · YAGNI: on
+
+### Tests
+
+- TDD: small+ (standard+ tier; small: one test per behavior)
+- Testing Trophy: on
+- Coverage: off (not checked)
+<!-- mb-project-rules:end -->
 
 # Project Rules — skill-memory-bank
 

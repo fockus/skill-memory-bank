@@ -213,6 +213,12 @@ if isinstance(skills, list) and "~/.pi/agent/skills/memory-bank" in skills:
 PYEOF
 fi
 
+# Key rules block (install → scripts/mb-rules.sh sync --scope=user) at the top
+# of the global files; stripped first so empty host files can be removed below.
+for kr_file in "$CLAUDE_DIR/CLAUDE.md" "$CODEX_DIR/AGENTS.md" "$PI_AGENT_DIR/AGENTS.md" "$OPENCODE_DIR/AGENTS.md" "$CURSOR_DIR/AGENTS.md"; do
+  [ -f "$kr_file" ] && grep -qF "<!-- mb-key-rules:start -->" "$kr_file" && run_texttool strip-between-markers --path "$kr_file" --start-marker "<!-- mb-key-rules:start -->" --end-marker "<!-- mb-key-rules:end -->" 2>/dev/null || true
+done
+
 # Clean CLAUDE.md MB section — A13 (M-5): strip strictly between the paired
 # start/end markers so content the user placed AFTER the section survives
 # (the old strip-after-marker ate everything to EOF). Files written before
@@ -220,8 +226,10 @@ fi
 # to-EOF behavior for those (nothing worse than before, no regression).
 [ -f "$CLAUDE_DIR/CLAUDE.md" ] && grep -q "\[MEMORY-BANK-SKILL\]" "$CLAUDE_DIR/CLAUDE.md" && run_texttool strip-between-markers --path "$CLAUDE_DIR/CLAUDE.md" --start-marker "# [MEMORY-BANK-SKILL]" --end-marker "<!-- /memory-bank-skill -->" 2>/dev/null && echo "  CLAUDE.md cleaned" || true
 
-# Clean OpenCode AGENTS.md MB section
-[ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank:start" "$OPENCODE_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$OPENCODE_DIR/AGENTS.md" --start-marker "<!-- memory-bank:start -->" --end-marker "<!-- memory-bank:end -->" 2>/dev/null && echo "  OpenCode AGENTS.md cleaned" || true
+# Clean OpenCode AGENTS.md MB section — its own marker pair, plus the shared
+# `memory-bank` pair that installs before agents-md-diet Stage 3 wrote there.
+[ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank-opencode:start" "$OPENCODE_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$OPENCODE_DIR/AGENTS.md" --start-marker "<!-- memory-bank-opencode:start -->" --end-marker "<!-- memory-bank-opencode:end -->" 2>/dev/null && echo "  OpenCode AGENTS.md cleaned" || true
+[ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank:start" "$OPENCODE_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$OPENCODE_DIR/AGENTS.md" --start-marker "<!-- memory-bank:start -->" --end-marker "<!-- memory-bank:end -->" 2>/dev/null && echo "  OpenCode AGENTS.md cleaned (legacy marker)" || true
 
 # Clean Codex AGENTS.md MB section
 [ -f "$CODEX_DIR/AGENTS.md" ] && grep -q "memory-bank-codex:start" "$CODEX_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$CODEX_DIR/AGENTS.md" --start-marker "$CODEX_START_MARKER" --end-marker "$CODEX_END_MARKER" 2>/dev/null && echo "  Codex AGENTS.md cleaned" || true

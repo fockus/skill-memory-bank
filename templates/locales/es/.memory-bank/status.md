@@ -31,4 +31,4 @@
 
 ## Hoja de ruta (alto nivel)
 
-Consulta [backlog.md](backlog.md): registro de ideas y ADR.
+Consulta [backlog.md](backlog.md): registro de ideas; decisiones en [adr.md](adr.md).

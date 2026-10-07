@@ -46,14 +46,16 @@ pipeline contract is unaffected.
 
 ```yaml
 workflow:
-  default: execution
+  default: medium
   aliases:
     everything: full
-    governed: governed-execution
+    execution: medium
+    governed-execution: governed
 ```
 
 `workflow.default` picks which named preset `/mb work` uses when no `--workflow` flag is passed.
-`aliases` lets a project give a preset a shorter or more memorable name.
+`aliases` lets a project give a preset a shorter or more memorable name. The bundled aliases keep
+the pre-2026-10 names working: `execution` → `medium`, `governed-execution` / `strict` → `governed`.
 
 ## workflows — the named presets themselves
 
@@ -61,15 +63,17 @@ Each entry under `workflows.<name>` declares an ordered `steps` list plus option
 
 ```yaml
 workflows:
-  execution:
-    description: Simple default /mb work path from an existing plan/spec.
+  medium:
+    description: Default /mb work path from an existing plan/spec; one verifier pass at plan end.
     steps: [implement, verify, done]
     entrypoint: plan_or_spec
+    verify: {cadence: plan}
 
-  governed-execution:
+  governed:
     description: Verifier, review ensemble, lead reviewer, independent judge, bounded fix loop.
     steps: [implement, verify, review, judge, fix, done]
     entrypoint: plan_or_spec
+    verify: {cadence: plan}
     review_profile: ensemble
     judge_profile: independent
     loop:
@@ -80,9 +84,10 @@ workflows:
       on_max_cycles: judge_decides
 ```
 
-The bundled default ships eight presets: `execution` (the review-free baseline), `full` (the whole
-composable chain from `discuss` to `done`), `governed-execution`, `full-cycle`, `requirements-plan`,
-`implement-only`, `review-fix`, and `review-only`. `review_profile: single` resolves one reviewer
+The bundled default ships four complexity presets — `simple` (implementer only, self-check),
+`medium` (the review-free default), `complex` (one reviewer, bounded fix loop) and `governed`
+(review ensemble + judge) — plus `full` (the whole composable chain from `discuss` to `done`),
+`full-cycle`, `requirements-plan`, `implement-only`, `review-fix`, and `review-only`. `review_profile: single` resolves one reviewer
 via `mb-reviewer-resolve.sh`; `review_profile: ensemble` dispatches the 3-5 aspect reviewers plus a
 lead-role synthesis, driven by the `review_ensemble` block below.
 
@@ -135,7 +140,7 @@ the missing prerequisite.
 `review.pivot_after_cycles` / `review.pivot_escalate_to_architect_on` feed the strategic-pivoting
 behavior documented in [/mb work § Sprint contracts](mb-work.md#sprint-contracts-progress-trend-and-strategic-pivoting-work-loop-v2).
 
-## review_ensemble — the governed-execution reviewer wave
+## review_ensemble — the governed reviewer wave
 
 ```yaml
 review_ensemble:
@@ -213,6 +218,69 @@ The five top-level keys (`logic`, `code_rules`, `security`, `scalability`, `test
 and match the reviewer's own category set — `mb-pipeline-validate.sh` errors if any of the five is
 missing or not a non-empty list of strings. The bullet list under each key is freely extensible
 per project.
+
+## cost tiers and model profiles
+
+```yaml
+cost: optimal                         # premium | optimal | economy
+cost_tiers:                           # role class → premium | mid, one table for every host
+  premium: {implementer: premium, planner: premium, researcher: premium, verifier: premium, reviewer: premium, judge: premium}
+  optimal: {implementer: mid, planner: premium, researcher: mid, verifier: mid, reviewer: premium, judge: premium}
+  economy: {implementer: mid, planner: mid, researcher: mid, verifier: mid, reviewer: mid, judge: mid}
+model_profiles:                       # two model ids per host
+  claude-code: {premium: opus, mid: sonnet}
+  codex: {premium: gpt-6-astra, mid: gpt-6.1-sol}
+  cursor: {premium: claude-opus-5-5, mid: claude-sonnet-5-5}
+hosts:                                # optional per-host overrides
+  codex: {cost: economy, preset: complex, verify: stage}
+```
+
+The tier picks only the model; reasoning effort stays in the agent file. Role classes:
+`implementer` (developer, backend, frontend, ios, android, devops, qa, debugger, analyst),
+`planner` (architect, planner), `researcher`, `verifier`, `reviewer` (reviewer and every
+`reviewer_*`), `judge`. `mb-work-plan.sh` resolves each role, first match wins:
+
+1. `--model <id>` — the item's own role only (`model_source: cli`);
+2. `roles.<role>.model` — an item role without one takes `roles.developer.model`, as before (`role`);
+3. `model_profiles[host][cost_tiers[cost][class]]` (`profile`);
+4. `inherit` — the dispatch passes no model; a profile with an unset slot warns and inherits.
+
+Cost: `--cost` ▸ `hosts.<host>.cost` ▸ `cost` ▸ `optimal`. Host: `--host` ▸ auto-detect
+(`MB_PIPELINE_HOST`, `MB_AGENT`, host environment). `hosts.<host>.preset` sits between `--tier`
+and `workflow.default`; `hosts.<host>.verify` between `--verify` and the workflow's
+`verify.cadence`. Each JSON line carries `model`, `model_source`, `cost`, `host` and
+`step_models` (verifier, reviewer, judge); `discipline` follows the resolved model. A project
+block replaces the default key by key (one tier, one host profile). The `claude-code` profile
+matches the `mb-agent-caps.sh` claude-agent fallback.
+
+Host templates (`/mb config init --host <host>`; ids from
+`.memory-bank/reports/2026-10-07_host-model-matrix.md`):
+
+| Host | premium | mid | Shipped in the default | Applied |
+|------|---------|-----|------------------------|---------|
+| `claude-code` | `opus` | `sonnet` | yes | per dispatch (`model=`) |
+| `codex` | `gpt-6-astra` | `gpt-6.1-sol` | yes | per dispatch; installed `.toml` roles carry the tier model |
+| `cursor` | `claude-opus-5-5` | `claude-sonnet-5-5` | yes | static frontmatter, written by install and `config init --host cursor` |
+| `pi` | `defaultProvider/defaultModel` from `.pi/settings.json` ▸ `~/.pi/agent/settings.json`, or `--model-premium` | `--model-mid`, same provider | no (any provider) | per dispatch; bare aliases collapse to the parent |
+| `opencode` | `model` from `opencode.json` (global ▸ `$OPENCODE_CONFIG` ▸ project ▸ `$OPENCODE_CONFIG_CONTENT`), or `--model-premium` | `--model-mid` (never `small_model`) | no (any provider) | static agent file, written by install and `config init --host opencode` |
+
+`config init --host pi|opencode` exits 2 when no current model is found and `--model-premium` is
+missing, when `--model-mid` is missing, when a value is not `provider/id`, or (Pi) when mid uses
+another provider. Nothing is written in those cases, so no placeholder reaches `pipeline.yaml`.
+`/mb config show` prints what each role will actually get.
+
+Host constraints:
+
+- **Pi** maps `opus`/`sonnet`/`haiku` to the parent model (AGR-056), so a Pi profile needs
+  `provider/id` values from one provider; the validator rejects bare aliases.
+- **OpenCode, Cursor** take a subagent model only statically (agent file / config), so a tier
+  applies when the agents are rendered (`/mb config init`), not per dispatch.
+- `dispatch.model_map` and `mb-agent-caps.sh` translate a model for another CLI transport; they
+  are not consulted for the host's own model and `/mb work` does not call them.
+
+The validator rejects an unknown tier or role class, a slot other than `premium|mid`, a profile
+without both slots, a `mid` model that matches `discipline.strict_models` (no cheapest model),
+unknown `hosts.<host>` keys and an undeclared `hosts.<host>.preset`.
 
 ## Validating a pipeline
 

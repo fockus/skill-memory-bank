@@ -1,8 +1,9 @@
 """mb-work-cost-diet Sprint 1 Stage 2 — cheap default + a documented cost ladder.
 
 Two contracts:
-  * both `/mb work` docs carry a "Cost ladder" table listing all four presets,
-    so the cheap path is a visible choice rather than folklore;
+  * both `/mb work` docs carry a "Cost ladder" table listing the four
+    complexity presets (pipeline-presets-cost-tiers Stage 2), so the cheap path
+    is a visible choice rather than folklore;
   * this repository's own bank resolves to `execution` (implement → verify →
     done) with the governed cycle reachable only via `--workflow codex-governed`.
 """
@@ -20,7 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_SH = REPO_ROOT / "scripts" / "mb-workflow.sh"
 REPO_BANK = REPO_ROOT / ".memory-bank"
 
-PRESETS = ("implement-only", "execution", "codex-governed", "governed-execution")
+PRESETS = ("simple", "medium", "complex", "governed")
 COST_LADDER_RE = re.compile(r"^#+\s+cost ladder\b", re.IGNORECASE | re.MULTILINE)
 
 

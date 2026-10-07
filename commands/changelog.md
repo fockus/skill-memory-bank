@@ -1,5 +1,5 @@
 ---
-description: Generate a changelog from commits
+description: "Generates a changelog from commits. Use when preparing a release or asked «обнови CHANGELOG», «что изменилось с прошлой версии»."
 allowed-tools: [Bash, Read, Edit]
 argument-hint: "[version]"
 ---

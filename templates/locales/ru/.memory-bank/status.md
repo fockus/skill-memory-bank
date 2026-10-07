@@ -31,4 +31,4 @@
 
 ## Дорожная карта (верхний уровень)
 
-См. [backlog.md](backlog.md) — реестр идей и ADR.
+См. [backlog.md](backlog.md) — реестр идей; решения — [adr.md](adr.md).

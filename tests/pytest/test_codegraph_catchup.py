@@ -20,6 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 QUERY_CLI = REPO_ROOT / "scripts" / "mb-graph-query.py"
 BUILD_CLI = REPO_ROOT / "scripts" / "mb-codegraph.py"
@@ -288,3 +290,31 @@ def test_query_cli_catchup_subcommand(tmp_path):
     payload = json.loads(r.stdout)
     assert payload.get("result") == "refreshed", payload
     assert "beta_new_symbol" in graph.read_text()
+
+
+@pytest.mark.parametrize(("sub", "expected"), [("", "."), ("src", "src")])
+def test_meta_src_root_is_relative_to_project_root(tmp_path, sub, expected):
+    """AGR-054: the catch-up passes an absolute ``--src-root`` while a manual build
+    passes ``.`` — meta must record the same project-relative path for both, or the
+    tracked graph.json flips its meta line with every builder."""
+    mb, _ = _mk_project(tmp_path)
+    src = tmp_path / sub if sub else tmp_path
+    graph = _build(mb, src.resolve())
+    assert json.loads(graph.read_text().splitlines()[0])["src_root"] == expected
+
+
+def test_catchup_resolves_relative_meta_src_root_from_project_root(tmp_path, monkeypatch):
+    """A relative meta ``src_root`` is anchored at the project root, not the cwd."""
+    monkeypatch.delenv("MB_GRAPH_AUTOUPDATE", raising=False)
+    mb, src = _mk_project(tmp_path)
+    graph = _build(mb, src)
+    (src / "beta.py").write_text("def beta_from_meta_root():\n    return 2\n")
+    (mb / "codebase" / ".graph-dirty").write_text("src/beta.py\n")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    res = maybe_catchup(graph)
+
+    assert res["result"] == "refreshed", res
+    assert "beta_from_meta_root" in graph.read_text()

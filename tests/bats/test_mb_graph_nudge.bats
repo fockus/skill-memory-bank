@@ -42,21 +42,21 @@ _run_hook() {  # $1 = stdin JSON
   _fresh
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"mb-graph-query"* ]]
+  [[ "$output" == *"mb-graph.sh"* ]]
 }
 
 @test "nudge fires on rtk grep Bash when graph is fresh" {
   _fresh
   run _run_hook "{\"tool_name\":\"Bash\",\"cwd\":\"$CWD\",\"tool_input\":{\"command\":\"rtk grep -rn foo src/\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"mb-graph-query"* ]]
+  [[ "$output" == *"mb-graph.sh"* ]]
 }
 
 @test "nudge silent when graph absent" {
   rm -f "$MB/codebase/graph.json"
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"mb-graph-query"* ]]
+  [[ "$output" != *"mb-graph.sh"* ]]
 }
 
 @test "nudge on a stale graph offers a refresh instead of going silent" {
@@ -66,7 +66,7 @@ _run_hook() {  # $1 = stdin JSON
   _stale
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"stale"* ]]
+  assert_substring "$output" "stale"
   [[ "$output" == *"graph --apply"* ]]
 }
 
@@ -74,7 +74,7 @@ _run_hook() {  # $1 = stdin JSON
   _fresh
   run bash -c "printf '%s' '{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}' | MB_GRAPH_NUDGE=off PATH=\"$REPO_ROOT/.venv/bin:\$PATH\" bash \"$HOOK\""
   [ "$status" -eq 0 ]
-  [[ "$output" != *"mb-graph-query"* ]]
+  [[ "$output" != *"mb-graph.sh"* ]]
 }
 
 @test "nudge throttled on second call in same session" {
@@ -82,10 +82,10 @@ _run_hook() {  # $1 = stdin JSON
   export CLAUDE_SESSION_ID="sess-abc"
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"mb-graph-query"* ]]
+  assert_substring "$output" "mb-graph.sh"
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"mb-graph-query"* ]]
+  [[ "$output" != *"mb-graph.sh"* ]]
 }
 
 @test "nudge throttle keys on the session_id Claude Code sends on stdin" {
@@ -94,12 +94,12 @@ _run_hook() {  # $1 = stdin JSON
   _fresh
   unset CLAUDE_SESSION_ID
   run _run_hook "{\"session_id\":\"s-1\",\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
-  [[ "$output" == *"mb-graph-query"* ]] || false
+  [[ "$output" == *"mb-graph.sh"* ]] || false
   [ -e "$MB/.index/.graph-nudge.s-1" ]
   run _run_hook "{\"session_id\":\"s-1\",\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
-  [[ "$output" != *"mb-graph-query"* ]] || false
+  [[ "$output" != *"mb-graph.sh"* ]] || false
   run _run_hook "{\"session_id\":\"s-2\",\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
-  [[ "$output" == *"mb-graph-query"* ]] || false
+  [[ "$output" == *"mb-graph.sh"* ]] || false
 }
 
 @test "nudge session key from stdin cannot escape the index dir" {
@@ -116,20 +116,20 @@ _run_hook() {  # $1 = stdin JSON
   _fresh
   run _run_hook "{\"tool_name\":\"Bash\",\"cwd\":\"$CWD\",\"tool_input\":{\"command\":\"rg Foo\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"mb-graph-query"* ]]
+  [[ "$output" == *"mb-graph.sh"* ]]
 }
 
 @test "nudge ignores non-structural Bash" {
   _fresh
   run _run_hook "{\"tool_name\":\"Bash\",\"cwd\":\"$CWD\",\"tool_input\":{\"command\":\"ls -la\"}}"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"mb-graph-query"* ]]
+  [[ "$output" != *"mb-graph.sh"* ]]
 }
 
 @test "nudge fail-safe on malformed stdin" {
   run _run_hook "not json at all {{{"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"mb-graph-query"* ]]
+  [[ "$output" != *"mb-graph.sh"* ]]
 }
 
 # ── Stage 1 (nudge v2) ────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ _markers() { ls "$MB"/.index/.graph-nudge.* 2>/dev/null; }
   local i fired=""
   for i in 1 2 3 4 5 6 7; do
     out="$(_run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"resolve_target\"}}")"
-    case "$out" in *mb-graph-query*) fired="$fired $i" ;; esac
+    case "$out" in *mb-graph.sh*) fired="$fired $i" ;; esac
   done
   [ "$fired" = " 1 4 7" ]
 }
@@ -155,21 +155,21 @@ _markers() { ls "$MB"/.index/.graph-nudge.* 2>/dev/null; }
   _fresh
   run _run_hook '{"tool_name":"Bash","cwd":"'"$CWD"'","tool_input":{"command":"grep -rn \"def resolve_target\" src/"}}'
   [ "$status" -eq 0 ]
-  assert_substring "$output" "--symbol resolve_target"
+  assert_substring "$output" "who-calls resolve_target"
 }
 
 @test "nudge substitutes the symbol from the Grep tool pattern" {
   _fresh
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"class WorkResolver\"}}"
   [ "$status" -eq 0 ]
-  assert_substring "$output" "--symbol WorkResolver"
+  assert_substring "$output" "who-calls WorkResolver"
 }
 
 @test "nudge keeps the generic placeholder when no symbol can be lifted" {
   _fresh
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"^\\\\s*\\\\{\\\\}\"}}"
   [ "$status" -eq 0 ]
-  assert_substring "$output" "--symbol <Name>"
+  assert_substring "$output" "who-calls <Name>"
 }
 
 @test "off-switch leaves no nudge marker behind" {
@@ -177,7 +177,7 @@ _markers() { ls "$MB"/.index/.graph-nudge.* 2>/dev/null; }
   export CLAUDE_SESSION_ID="sess-off"
   run bash -c "printf '%s' '{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}' | MB_GRAPH_NUDGE=off PATH=\"$REPO_ROOT/.venv/bin:\$PATH\" bash \"$HOOK\""
   [ "$status" -eq 0 ]
-  refute_substring "$output" "mb-graph-query"
+  refute_substring "$output" "mb-graph.sh"
   [ -z "$(_markers)" ]
 }
 
@@ -194,13 +194,13 @@ _markers() { ls "$MB"/.index/.graph-nudge.* 2>/dev/null; }
   _fresh
   export CLAUDE_SESSION_ID="sess-compact"
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
-  assert_substring "$output" "mb-graph-query"
+  assert_substring "$output" "mb-graph.sh"
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
-  refute_substring "$output" "mb-graph-query"
+  refute_substring "$output" "mb-graph.sh"
   run bash -c "CLAUDE_PROJECT_DIR=\"$CWD\" PATH=\"$REPO_ROOT/.venv/bin:\$PATH\" bash \"$HOOK\" --reset </dev/null"
   [ "$status" -eq 0 ]
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
-  assert_substring "$output" "mb-graph-query"
+  assert_substring "$output" "mb-graph.sh"
 }
 
 @test "the compact reset is wired in settings/hooks.json (SessionStart:compact)" {
@@ -220,16 +220,16 @@ _markers() { ls "$MB"/.index/.graph-nudge.* 2>/dev/null; }
   _fresh
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"def resolve_target(self, target)\"}}"
   [ "$status" -eq 0 ]
-  refute_substring "$output" "--symbol target"
-  assert_substring "$output" "--symbol resolve_target"
+  refute_substring "$output" "who-calls target"
+  assert_substring "$output" "who-calls resolve_target"
 }
 
 @test "definition keyword wins over the last identifier (class with a base)" {
   _fresh
   run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"class WorkResolver(Base):\"}}"
   [ "$status" -eq 0 ]
-  refute_substring "$output" "--symbol Base"
-  assert_substring "$output" "--symbol WorkResolver"
+  refute_substring "$output" "who-calls Base"
+  assert_substring "$output" "who-calls WorkResolver"
 }
 
 @test "an unpersistable counter goes silent instead of nudging on every call" {
@@ -243,7 +243,7 @@ _markers() { ls "$MB"/.index/.graph-nudge.* 2>/dev/null; }
   local nudges=0 i
   for i in 1 2 3 4; do
     if _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}" \
-        2>/dev/null | grep -q 'mb-graph-query'; then nudges=$((nudges + 1)); fi
+        2>/dev/null | grep -q 'mb-graph.sh'; then nudges=$((nudges + 1)); fi
   done
   rm -f "$MB/.index"
   [ "$nudges" -eq 0 ]
@@ -264,4 +264,53 @@ _markers() { ls "$MB"/.index/.graph-nudge.* 2>/dev/null; }
   done
   # 6 calls at N=3 must reach the gate twice (calls 1 and 4), not six times.
   [ "$(wc -l < "$pycalls" | tr -d ' ')" -le 2 ]
+}
+
+# ── Stage 4: short form through mb-graph.sh ───────────────────────────────────
+
+_ctx() { printf '%s' "$1" | jq -r '.hookSpecificOutput.additionalContext'; }
+
+@test "fresh nudge is at most 2 lines and runs mb-graph.sh by its resolved path" {
+  # The hook resolves its own skill bundle, so the printed path works on any host
+  # — not only where the ~/.claude/skills alias exists (d31a5fb).
+  _fresh
+  run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"class WorkResolver\"}}"
+  [ "$status" -eq 0 ]
+  local ctx; ctx="$(_ctx "$output")"
+  [ "$(printf '%s\n' "$ctx" | wc -l | tr -d ' ')" -le 2 ]
+  assert_substring "$ctx" "bash $REPO_ROOT/scripts/mb-graph.sh who-calls WorkResolver"
+  refute_substring "$ctx" "~/.claude"
+  refute_substring "$ctx" "mb-graph-query"
+}
+
+@test "a hook copied out of the bundle points at MB_SKILLS_ROOT's mb-graph.sh" {
+  # install.sh copies hooks into ~/.claude/hooks, where ../scripts is not the skill.
+  _fresh
+  mkdir -p "$CWD/copied-hooks"
+  cp "$HOOK" "$CWD/copied-hooks/"
+  run bash -c "printf '%s' '{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"class WorkResolver\"}}' | MB_SKILLS_ROOT='$REPO_ROOT' PATH=\"$REPO_ROOT/.venv/bin:\$PATH\" bash '$CWD/copied-hooks/mb-graph-nudge.sh'"
+  [ "$status" -eq 0 ]
+  assert_substring "$(_ctx "$output")" "bash $REPO_ROOT/scripts/mb-graph.sh who-calls WorkResolver"
+}
+
+@test "shell keywords of a loop are never lifted as the symbol" {
+  # Live verify run: `for …; do grep …; done` produced `who-calls done`.
+  _fresh
+  run _run_hook '{"tool_name":"Bash","cwd":"'"$CWD"'","tool_input":{"command":"for f in *.py; do grep -n foo \"$f\"; done"}}'
+  [ "$status" -eq 0 ]
+  assert_substring "$output" "mb-graph.sh who-calls"
+  refute_substring "$output" "who-calls done"
+}
+
+@test "stale nudge names mb-codegraph.py by its resolved path, not ~/.claude" {
+  local reason_case
+  for reason_case in age dirty; do
+    _stale
+    rm -f "$MB/codebase/.graph-dirty" "$MB"/.index/.graph-nudge.*
+    [ "$reason_case" = dirty ] && : > "$MB/codebase/.graph-dirty"
+    run _run_hook "{\"tool_name\":\"Grep\",\"cwd\":\"$CWD\",\"tool_input\":{\"pattern\":\"foo\"}}"
+    [ "$status" -eq 0 ]
+    assert_substring "$output" "python3 $REPO_ROOT/scripts/mb-codegraph.py --apply"
+    refute_substring "$output" "~/.claude"
+  done
 }

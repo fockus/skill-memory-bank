@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "groups": [
+    {"id": "principles", "title": "Principles"},
+    {"id": "minimal-code", "title": "Minimal code & comments"},
+    {"id": "architecture", "title": "Architecture"},
+    {"id": "tests", "title": "Tests"},
+    {"id": "process", "title": "Process"}
+  ],
+  "rules": [
+    {"id": "solid", "group": "principles", "text": "SOLID: SRP — >300 lines or >3 unrelated public methods = split; ISP ≤5 methods; DIP — constructors take abstractions", "default": true, "locked": false, "ref": "solid"},
+    {"id": "dry", "group": "principles", "text": "DRY: the same logic in 3+ places → extract; three identical lines beat a premature abstraction", "default": true, "locked": false, "ref": "dry--kiss--yagni"},
+    {"id": "kiss", "group": "principles", "text": "KISS: the simplest working solution wins", "default": true, "locked": false, "ref": "dry--kiss--yagni"},
+    {"id": "yagni", "group": "principles", "text": "YAGNI: no code, flags or config for imagined needs", "default": true, "locked": false, "ref": "dry--kiss--yagni"},
+    {"id": "fail-fast", "group": "principles", "text": "Fail Fast: ask only when readings of the task lead to materially different work; else decide and state the assumption", "default": true, "locked": true, "ref": "core-rules"},
+    {"id": "no-placeholders", "group": "principles", "text": "No placeholders: no TODO, `...` or pseudocode; code is copy-paste ready (stubs only behind a feature flag)", "default": true, "locked": true, "ref": "general"},
+    {"id": "root-cause", "group": "principles", "text": "Fix the root cause, not the symptom: check every caller and fix once in the shared path", "default": true, "locked": true, "ref": null},
+    {"id": "ladder", "group": "minimal-code", "text": "Before writing code: does it need to exist → already in the codebase → stdlib → native platform → installed dependency → one line → minimal code", "default": true, "locked": false, "ref": null},
+    {"id": "no-unrequested-abstractions", "group": "minimal-code", "text": "No unrequested abstractions: no single-implementation interface, one-product factory or config for a constant", "default": true, "locked": false, "ref": null},
+    {"id": "deletion-over-addition", "group": "minimal-code", "text": "Deletion over addition, boring over clever", "default": true, "locked": false, "ref": null},
+    {"id": "shortest-diff", "group": "minimal-code", "text": "Shortest working diff wins — but only after you understand the problem and the code it touches", "default": true, "locked": false, "ref": null},
+    {"id": "comments-why-only", "group": "minimal-code", "text": "Comments only for the non-obvious why; never restate the code", "default": true, "locked": false, "ref": null},
+    {"id": "ponytail-marker", "group": "minimal-code", "text": "Mark a deliberate shortcut with a `ponytail:` comment naming its ceiling and upgrade path", "default": true, "locked": false, "ref": null},
+    {"id": "never-simplify-safety", "group": "minimal-code", "text": "Never simplify away trust-boundary validation, security, or error handling that prevents data loss", "default": true, "locked": false, "ref": null},
+    {"id": "one-runnable-check", "group": "minimal-code", "text": "Non-trivial logic (branch, loop, parser, money/security path) leaves one runnable check behind", "default": true, "locked": false, "ref": null},
+    {"id": "architecture", "group": "architecture", "source": "architecture", "text": "Architecture: one line per selected preset (`mb-rules.sh set architecture <name[,name]|custom:text>`)", "default": true, "locked": false, "ref": null},
+    {"id": "tdd", "group": "tests", "source": "quality.tdd", "text": "TDD: new logic → failing test first, then code (skip only typos, formatting, exploratory prototypes)", "variants": {"small+": "TDD: new logic → failing test first, then code (standard+ tier; small: one test per behavior)"}, "default": true, "locked": false, "ref": "tdd--test-driven-development"},
+    {"id": "contract-first", "group": "tests", "text": "Contract-First: Protocol/ABC → contract tests → implementation; tests pass for ANY correct implementation", "default": true, "locked": false, "ref": "contract-first-development"},
+    {"id": "testing-trophy", "group": "tests", "source": "quality.testing_trophy", "text": "Testing Trophy: integration > unit > e2e; mock only external boundaries; >5 mocks → integration test", "default": true, "locked": false, "ref": "priority-testing-trophy"},
+    {"id": "test-behavior", "group": "tests", "text": "Tests check behavior, not lines: test_<what>_<condition>_<result>, AAA; no mock-tests of glue, config or external SDK calls", "default": true, "locked": false, "ref": "test-writing-rules"},
+    {"id": "coverage", "group": "tests", "source": "quality.coverage", "text": "Coverage: overall {overall}%+, core/business {core}%+, infrastructure {infra}%+", "default": false, "locked": false, "ref": "coverage"},
+    {"id": "effort-tiers", "group": "process", "text": "Size the task first (trivial/small/standard/large/extra); plan, tests, docs and checks follow the tier — SKILL.md § Task routing", "default": true, "locked": true, "ref": null},
+    {"id": "targeted-verification", "group": "process", "text": "Evidence before \"done\": targeted tests + lint of changed files while working; full suite in /mb verify and before commit; don't re-run what was shown", "default": true, "locked": false, "ref": null},
+    {"id": "docs-minimal", "group": "process", "text": "No new documents unless asked; README/CHANGELOG get 1–2 lines", "default": true, "locked": false, "ref": null},
+    {"id": "protected-files", "group": "process", "text": "Protected files (.env, CI, Docker/K8s/Terraform) — touch only on explicit request", "default": true, "locked": false, "ref": "core-rules"},
+    {"id": "scoped-git", "group": "process", "text": "Scoped `git add` only; no destructive git (reset --hard, force-push, mass delete) without an explicit request", "default": true, "locked": false, "ref": null},
+    {"id": "no-scope-creep", "group": "process", "text": "Do not expand scope without a request; report unrelated findings as follow-ups", "default": true, "locked": false, "ref": null},
+    {"id": "static-analysis", "group": "process", "text": "Static analysis (lint, type checks) — always", "default": true, "locked": false, "ref": null}
+  ],
+  "strict_lines": [
+    "Strict: no done/tests-pass claim without the command output",
+    "Test + lint changed files after each edit; never hand off red code",
+    "Same fix failed 3× → stop, escalate; full suite before commit"
+  ]
+}

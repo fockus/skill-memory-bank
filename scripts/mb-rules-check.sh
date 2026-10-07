@@ -59,6 +59,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Without --profile the project layer is the resolved bank's rules-profile.json (AGR-076).
+if [[ -z "$PROFILE_PATH" ]]; then
+  _bank="$(bash -c 'source "$1/_lib.sh" && mb_resolve_path ""' _ "$SCRIPT_DIR" 2>/dev/null || true)"
+  [[ -n "$_bank" && -f "$_bank/rules-profile.json" ]] && PROFILE_PATH="$_bank/rules-profile.json"
+fi
+
 case "$OUT" in
   json|human|both) ;;
   *) printf 'invalid --out: %s (allowed: json|human|both)\n' "$OUT" >&2; exit 2 ;;
@@ -92,7 +98,7 @@ fi
 
 load_profile
 PROFILE_STACK="$(profile_field stack)"
-PROFILE_ARCH="$(profile_field architecture)"
+load_quality
 PROFILE_STRICTNESS="$(profile_field strictness)"
 
 check_srp
@@ -106,9 +112,11 @@ case "$PROFILE_STACK" in
   javascript) check_stack_javascript ;;
 esac
 
-case "$PROFILE_ARCH" in
-  fsd) check_arch_fsd ;;
-esac
+for arch in $ARCH_NAMES; do
+  case "$arch" in
+    fsd) check_arch_fsd ;;
+  esac
+done
 
 END_MS="$(now_ms)"
 DURATION=$((END_MS - START_MS))

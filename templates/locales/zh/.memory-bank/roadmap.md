@@ -14,7 +14,7 @@
 
 ## 下一步
 
-参见 [backlog.md](backlog.md)：带优先级的想法与 ADR。
+参见 [backlog.md](backlog.md)：带优先级的想法；决策见 [adr.md](adr.md)。
 
 ## 已推迟
 

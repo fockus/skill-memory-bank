@@ -1,5 +1,22 @@
 # Memory Bank Hooks — Installation & Reference
 
+## Contents
+
+- [1. `hooks/mb-protected-paths-guard.sh` — block writes to protected paths](#1-hooksmb-protected-paths-guardsh--block-writes-to-protected-paths)
+- [2. `hooks/mb-plan-sync-post-write.sh` — keep bank consistent after Markdown edits](#2-hooksmb-plan-sync-post-writesh--keep-bank-consistent-after-markdown-edits)
+- [3. `hooks/mb-ears-pre-write.sh` — block invalid EARS requirements before they land](#3-hooksmb-ears-pre-writesh--block-invalid-ears-requirements-before-they-land)
+- [4. `hooks/mb-context-slim-pre-agent.sh` — emit slim-context advisory on Task dispatch](#4-hooksmb-context-slim-pre-agentsh--emit-slim-context-advisory-on-task-dispatch)
+- [5. `hooks/mb-sprint-context-guard.sh` — runtime token-spend watcher](#5-hooksmb-sprint-context-guardsh--runtime-token-spend-watcher)
+- [Combined snippet](#combined-snippet)
+- [Operational notes](#operational-notes)
+- [Related](#related)
+- [Session-memory lifecycle hooks](#session-memory-lifecycle-hooks)
+  - [Claude Code hooks](#claude-code-hooks)
+  - [Pi adapter hooks](#pi-adapter-hooks)
+  - [Doctor diagnostics](#doctor-diagnostics)
+- [Cursor adapter wiring](#cursor-adapter-wiring)
+- [Hook inventory](#hook-inventory)
+
 This document covers the Memory Bank lifecycle hooks. The first five entries are Claude Code tool hooks that run around writes and subagent dispatches; the Cursor section at the end documents the 10-hook Cursor adapter contract. Hooks are installed automatically by `install.sh`; the JSON snippets below remain useful for manual debugging or custom hosts.
 
 ---
@@ -303,3 +320,37 @@ Cursor 1.7+ uses Claude-Code-compatible `hooks.json`. The `adapters/cursor.sh` i
 Each entry is tagged `"_mb_owned": true` so reinstall/uninstall preserves user hooks. `mb-pre-compact.sh` maps to Cursor `preCompact`: on compaction it runs `scripts/mb-handoff.sh --actualize` to write a fresh `handoff/latest.md` capsule (handoff-v2). It is bounded to ~2s and never blocks compaction (on timeout/failure it WARNs and exits 0).
 
 Opt-out: `MB_AUTOLOAD_CONTEXT=off` disables `sessionStart` auto-context injection.
+
+---
+
+## Hook inventory
+
+Lifecycle hooks shipped in `hooks/`. Installed automatically by `install.sh` (Claude Code, Cursor, Codex, OpenCode); see `references/hooks.md` for per-host wiring details.
+
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| `_skill_root.sh` | sourced helper | Resolve bundled skill root and effective Memory Bank path for hook scripts |
+| `block-dangerous.sh` | PreToolUse (Bash) | Block dangerous shell patterns (`rm -rf /`, `~`, `/*`) — best-effort guardrail |
+| `mb-protected-paths-guard.sh` | PreToolUse (Write/Edit) | Block writes to `pipeline.yaml:protected_paths` (e.g. `.env`, CI configs) |
+| `mb-ears-pre-write.sh` | PreToolUse (Write) | Validate REQ bullets in `context/<topic>.md` against EARS patterns before save |
+| `mb-context-slim-pre-agent.sh` | PreToolUse (Task) | Slim oversized agent prompts on subagent dispatch |
+| `mb-sprint-context-guard.sh` | PreToolUse (Task) | Hard-stop subagent dispatch if `mb-session-spend.sh` shows budget exhaustion |
+| `mb-graph-nudge.sh` | PreToolUse (Grep/Bash) | Non-blocking nudge toward `mb-graph-query` on structural greps, whenever the code graph exists (stale included — I-133); repeats every `MB_GRAPH_NUDGE_EVERY` structural calls (default 25) and carries the symbol lifted from the pattern, `SessionStart:compact` resets the counter, `MB_GRAPH_NUDGE=off`, fail-safe |
+| `mb-plan-sync-post-write.sh` | PostToolUse (Write) | Auto-sync plan ↔ checklist + roadmap after editing a plan file |
+| `file-change-log.sh` | PostToolUse (Write/Edit) | Append change log + scan for placeholders / secrets in committed files |
+| `session-end-autosave.sh` | SessionEnd | Memory Bank auto-capture (`MB_AUTO_CAPTURE=auto\|strict\|off`) when `/mb done` was skipped |
+| `mb-core-cap-guard.sh` | Stop | Enforce the core-file line caps (AGR-043): runs `mb-core-cap.sh fix`, and when the bank is still over cap blocks the stop **once per session** (marker `<bank>/.core-cap.nudged.<session_id>`) with `dispatch MB Manager action: actualize --strict`. **On by default** — kill-switch `MB_CORE_CAP=off` (env or `.mb-config core_cap=off`); `stop_hook_active`, no bank, or any tool error → allow |
+| `mb-pre-compact.sh` | PreCompact (Claude Code) / preCompact (Cursor) | Handoff-v2: runs `mb-handoff.sh --actualize` to write a fresh `handoff/latest.md` capsule before compaction. Bounded to ~2s, never blocks (`MB_PRECOMPACT_HANDOFF=off` to disable) |
+| `mb-session-start-context.sh` | sessionStart (Cursor) | Auto-inject compact Memory Bank context at session start (`MB_AUTOLOAD_CONTEXT=off` to disable) |
+| `mb-session-turn.sh` | Stop | Session memory: append one per-turn bullet (request + tools + files) to `session/*.md`, no LLM (`MB_SESSION_CAPTURE=off` to disable) |
+| `mb-session-end.sh` | SessionEnd | Session memory: Haiku summary + gated Sonnet auto-notes; updates `session/_recent.md` |
+| `mb-session-start.sh` | SessionStart | Session memory: inject `# Recent Sessions` from `session/_recent.md` + a how-to cheat-sheet (graph / `/mb recall` / `/mb context` quick ref), read-only (`MB_SESSION_CHEATSHEET=off` to drop the cheat-sheet) |
+| `mb-update-notify.sh` | SessionStart | "A newer release is out?" notice: silent when current, else a ≤3-line notice with `current -> latest` + the exact upgrade command for the detected install flavor (git/pipx/pip/brew), local-only (`--cache-only`, no network), fail-open, never blocks (`MB_UPDATE_CHECK=off` to disable). Opt-in `MB_AUTO_UPDATE=on` auto-applies for a clean git-clone install only |
+| `mb-recall.sh` | `/mb recall <query>` | Session memory: hybrid recall — model-free BM25 matches first (over `agreements.md` + `progress.md` + `notes/` + `session/`; embeddings opt-in via `MB_SEMANTIC_BACKEND=embeddings`) + ripgrep lexical fallback |
+| `mb-semantic-recall.sh` | UserPromptSubmit | Session memory: inject `# Relevant Memory` — top-K relevant past-chat snippets via the model-free BM25 index (I-132: ~50 MB / <0.5 s per prompt; prompt-gated — slash-commands and prompts under `MB_SEMANTIC_MIN_PROMPT` chars skip the spawn); fail-safe (`MB_SEMANTIC=off` to disable) |
+| `mb-reindex.sh` | `/mb reindex` | Session memory: (re)build the per-project semantic vector index (`--full`/`--incremental`); bootstraps the venv if needed |
+| `mb-semantic-bootstrap.sh` | sourced by `/mb reindex` | Session memory: idempotent venv + fastembed/numpy installer (opt-in; semantic layer falls back to lexical without it) |
+| `mb-flow-closure-guard.sh` | Stop | Dynamic-flow closure gate: when a flow is active, blocks the Stop event if `mb-flow-verify.sh` exits non-zero, preventing the agent from declaring done on a red firewall (REQ-DF-045) |
+| `mb-drive-resume-gate.sh` | Stop | Drive-loop resume-gate: while a `/mb drive` loop is armed, blocks a stop when the goal is not done AND no stop condition fired, so the loop resumes instead of ending early (REQ-DR-032). Decides by reading files only — never runs the firewall or a test battery (`MB_DRIVE_RESUME_GATE=off` to disable) |
+| `mb-session-catchup.sh` | SessionStart | Lazy summarize sessions left `summarized:false` by a prior SIGKILLed SessionEnd; dispatched in the background so session startup is never delayed (`MB_CATCHUP_MAX` tuneable, off via `MB_SESSION_CAPTURE=off`) |
+| `mb-session-summarize.sh` | sourced/dispatched (not directly registered) | Generate the Haiku `## Summary` for one session file and rotate `_recent.md`; extracted from `mb-session-end.sh` (DRY) and driven by both the SessionEnd hook and `mb-session-catchup.sh` |

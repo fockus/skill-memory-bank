@@ -1,5 +1,5 @@
 ---
-description: Contract-First — define the interface, write contract tests, then implement
+description: "Contract-First — defines the interface, writes contract tests, then implements. Use when building a new component or port and the abstraction must come before the code."
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
 argument-hint: <module-or-interface-name>
 ---

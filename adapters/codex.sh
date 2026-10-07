@@ -9,6 +9,7 @@
 # Usage:
 #   adapters/codex.sh install [PROJECT_ROOT]
 #   adapters/codex.sh uninstall [PROJECT_ROOT]
+#   adapters/codex.sh render-agents PROJECT_ROOT [PIPELINE]  (re-render installed ~/.codex/agents)
 
 set -euo pipefail
 
@@ -520,6 +521,29 @@ codex_subinvoke_cmd() {
   env -u MB_SUBINVOKE_CMD MB_AGENT=codex bash "$SKILL_DIR/scripts/mb-subinvoke-resolve.sh" --agent codex
 }
 
+# ═══ Role models (AGR-074) ═══
+# install.sh writes every role as ~/.codex/agents/<name>.toml through
+# scripts/mb-agent-render.py --host codex. `/mb config init --host codex` calls this
+# to re-render the roles that are already installed with the tier model
+# (`model = "<id>"`) the pipeline resolves; roles that are not installed stay absent.
+# Pipeline: $1 ▸ the project's .memory-bank/pipeline.yaml ▸ the shipped default.
+render_codex_agents() {
+  local pipeline="${1:-}" dir="$HOME/.codex/agents" f dst rendered n=0
+  [ -n "$pipeline" ] || pipeline="$PROJECT_ROOT/.memory-bank/pipeline.yaml"
+  [ -f "$pipeline" ] || pipeline="$SKILL_DIR/references/pipeline.default.yaml"
+  for f in "$SKILL_DIR"/agents/*.md; do
+    [ -f "$f" ] || continue
+    dst="$dir/$(basename "$f" .md).toml"
+    [ -f "$dst" ] || continue
+    rendered="$(mktemp "$dir/.mb-render.XXXXXX")"
+    "${MB_PYTHON:-python3}" "$SKILL_DIR/scripts/mb-agent-render.py" "$f" --skill-dir "$SKILL_DIR" \
+      --host codex --pipeline "$pipeline" > "$rendered" || { rm -f "$rendered"; return 1; }
+    if cmp -s "$rendered" "$dst"; then rm -f "$rendered"; else mv "$rendered" "$dst"; fi
+    n=$((n + 1))
+  done
+  echo "[codex-adapter] agents re-rendered: $n ($dir)"
+}
+
 # ═══ Uninstall ═══
 uninstall_codex() {
   if [ ! -f "$MANIFEST" ]; then
@@ -573,8 +597,9 @@ case "$ACTION" in
   install)   install_codex ;;
   uninstall) uninstall_codex ;;
   subinvoke) codex_subinvoke_cmd ;;
+  render-agents) render_codex_agents "${3:-}" ;;
   *)
-    echo "Usage: $0 install|uninstall|subinvoke [PROJECT_ROOT]" >&2
+    echo "Usage: $0 install|uninstall|subinvoke [PROJECT_ROOT] | render-agents PROJECT_ROOT [PIPELINE]" >&2
     exit 1
     ;;
 esac

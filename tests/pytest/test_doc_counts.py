@@ -26,6 +26,11 @@ HOOKS_DIR = REPO_ROOT / "hooks"
 REFERENCES_DIR = REPO_ROOT / "references"
 INSTALL_SH = REPO_ROOT / "install.sh"
 SESSION_MEMORY_MD = REFERENCES_DIR / "session-memory.md"
+# Full inventories moved out of SKILL.md (skill-guide compliance Sprint 1 Stage 2):
+# SKILL.md keeps entry points + pointers; the tables live in one-level references.
+SCRIPTS_MD = REFERENCES_DIR / "scripts.md"
+AGENTS_MD = REFERENCES_DIR / "agents.md"
+HOOKS_MD = REFERENCES_DIR / "hooks.md"
 
 CODE_SPAN_FIRST_COL_RE = re.compile(r"^\|\s*`([^`]+)`")
 
@@ -104,64 +109,72 @@ def test_skill_md_command_count_matches_filesystem() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 2. SKILL.md — script table covers every scripts/*.{sh,py}
+# 2. references/scripts.md — script tables cover every scripts/*.{sh,py}
 # ---------------------------------------------------------------------------
 
 
 def test_skill_md_script_table_lists_all_scripts() -> None:
-    """Every shell + python script must appear in the SKILL.md script table."""
+    """Every shell + python script must appear in the references/scripts.md tables."""
     fs_scripts = _filesystem_basenames(SCRIPTS_DIR, (".sh", ".py"))
     # Python package marker is not a tool — only present so `from scripts.X import ...`
     # works in tests after the sdd-unification Sprint 1.
     fs_scripts.discard("__init__.py")
-    text = SKILL_MD.read_text(encoding="utf-8")
-    section = _section_lines(text, "## Tools")
-    assert section, "SKILL.md must contain a '## Tools' section listing scripts"
-    documented = _table_first_column_codespans(section)
+    # The file is grouped under ### headings, one table per group — scan every table row.
+    lines = SCRIPTS_MD.read_text(encoding="utf-8").splitlines()
+    assert any(line.startswith("## Tools") for line in lines), (
+        "references/scripts.md must contain a '## Tools' section listing scripts"
+    )
+    documented = _table_first_column_codespans(lines)
     missing = sorted(fs_scripts - documented)
     extras = sorted(documented - fs_scripts - {"_lib.sh"})  # _lib is a shared helper, not a tool
     # _lib.sh is allowed as a documented helper
     assert not missing, (
-        f"SKILL.md '## Tools' table missing {len(missing)} scripts: {missing}. Add a row for each."
+        f"references/scripts.md tables missing {len(missing)} scripts: {missing}. Add a row for each."
     )
-    assert not extras, f"SKILL.md '## Tools' table references non-existent scripts: {extras}."
+    assert not extras, f"references/scripts.md tables reference non-existent scripts: {extras}."
+    assert "references/scripts.md" in SKILL_MD.read_text(encoding="utf-8"), (
+        "SKILL.md must link references/scripts.md from its Tools section"
+    )
 
 
 # ---------------------------------------------------------------------------
-# 3. SKILL.md — agents table covers every agents/*.md
+# 3. references/agents.md — agents table covers every agents/*.md
 # ---------------------------------------------------------------------------
 
 
 def test_skill_md_agents_table_lists_all_agents() -> None:
     fs_agents = {p.stem for p in AGENTS_DIR.glob("*.md")}
-    text = SKILL_MD.read_text(encoding="utf-8")
+    text = AGENTS_MD.read_text(encoding="utf-8")
     section = _section_lines(text, "## Agents")
-    assert section, "SKILL.md must contain a '## Agents' section listing subagents"
+    assert section, "references/agents.md must contain a '## Agents' section listing subagents"
     documented = _table_first_column_codespans(section)
     missing = sorted(fs_agents - documented)
     extras = sorted(documented - fs_agents)
-    assert not missing, f"SKILL.md '## Agents' table missing {len(missing)} agents: {missing}."
-    assert not extras, f"SKILL.md '## Agents' table references non-existent agents: {extras}."
+    assert not missing, f"references/agents.md '## Agents' table missing {len(missing)} agents: {missing}."
+    assert not extras, f"references/agents.md '## Agents' table references non-existent agents: {extras}."
+    assert "references/agents.md" in SKILL_MD.read_text(encoding="utf-8"), (
+        "SKILL.md must link references/agents.md from its Agents section"
+    )
 
 
 # ---------------------------------------------------------------------------
-# 4. SKILL.md — hooks table covers every hooks/*.sh
+# 4. references/hooks.md — Hook inventory table covers every hooks/*.sh
 # ---------------------------------------------------------------------------
 
 
 def test_skill_md_hooks_table_lists_all_hooks() -> None:
     fs_hooks = _filesystem_basenames(HOOKS_DIR, (".sh",))
-    text = SKILL_MD.read_text(encoding="utf-8")
-    section = _section_lines(text, "## Hooks")
+    text = HOOKS_MD.read_text(encoding="utf-8")
+    section = _section_lines(text, "## Hook inventory")
     assert section, (
-        "SKILL.md must contain a '## Hooks' section listing all hooks/*.sh files. "
-        "Add a section after Agents documenting each hook with its trigger."
+        "references/hooks.md must contain a '## Hook inventory' section listing all hooks/*.sh "
+        "files, each with its trigger."
     )
     documented = _table_first_column_codespans(section)
     missing = sorted(fs_hooks - documented)
     extras = sorted(documented - fs_hooks)
-    assert not missing, f"SKILL.md '## Hooks' table missing {len(missing)} hooks: {missing}."
-    assert not extras, f"SKILL.md '## Hooks' table references non-existent hooks: {extras}."
+    assert not missing, f"references/hooks.md '## Hook inventory' missing {len(missing)} hooks: {missing}."
+    assert not extras, f"references/hooks.md '## Hook inventory' references non-existent hooks: {extras}."
 
 
 # ---------------------------------------------------------------------------

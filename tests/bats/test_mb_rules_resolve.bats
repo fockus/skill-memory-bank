@@ -375,3 +375,41 @@ EOF
   [ "$status" -eq 2 ] || { echo "$output"; false; }
   assert_substring "$output" "section_absent"
 }
+
+# ─────────── review rubric follows the project quality settings (AGR-076) ────
+
+rubric_of() { printf '%s' "$1" | python3 -c 'import json,sys; print("\n".join(json.load(sys.stdin)["review_rubric"]))'; }
+
+@test "rules_resolve_review_rubric_lists_every_principle_by_default" {
+  export HOME="$BATS_TEST_TMPDIR/home"
+  run --separate-stderr "$SCRIPT" --repo "$REPO" --mb "$BANK" --json
+  [ "$status" -eq 0 ]
+  local rubric; rubric="$(rubric_of "$output")"
+  for item in "code_rules: SOLID:" "code_rules: DRY:" "code_rules: KISS:" "code_rules: YAGNI:" "(Testing Trophy)"; do
+    assert_substring "$rubric" "$item"
+  done
+}
+
+@test "rules_resolve_review_rubric_drops_switched_off_principle_and_trophy" {
+  export HOME="$BATS_TEST_TMPDIR/home"
+  printf '{"schema_version":1,"scope":"project","quality":{"principles":{"kiss":"off"},"testing_trophy":"off"}}\n' \
+    > "$BANK/rules-profile.json"
+  run --separate-stderr "$SCRIPT" --repo "$REPO" --mb "$BANK" --json
+  [ "$status" -eq 0 ]
+  local rubric; rubric="$(rubric_of "$output")"
+  refute_substring "$rubric" "KISS"
+  refute_substring "$rubric" "Testing Trophy"
+  assert_substring "$rubric" "code_rules: DRY:"
+  assert_substring "$rubric" "tests: No test.skip"
+}
+
+@test "rules_resolve_review_rubric_keeps_project_authored_bullets" {
+  # A bullet the project wrote itself is an override: the switch only drops the
+  # stock bullets that came from pipeline.default.yaml.
+  export HOME="$BATS_TEST_TMPDIR/home"
+  printf 'version: 1\nreview_rubric:\n  code_rules:\n    - "KISS: our own wording"\n' > "$BANK/pipeline.yaml"
+  printf '{"schema_version":1,"scope":"project","quality":{"principles":{"kiss":"off"}}}\n' > "$BANK/rules-profile.json"
+  run --separate-stderr "$SCRIPT" --repo "$REPO" --mb "$BANK" --json
+  [ "$status" -eq 0 ]
+  assert_substring "$(rubric_of "$output")" "code_rules: KISS: our own wording"
+}

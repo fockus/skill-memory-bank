@@ -2,13 +2,24 @@
 # mb-work-plan.sh — emit per-stage execution plan as JSON Lines (spec §8).
 #
 # Usage:
-#   mb-work-plan.sh [--target <ref>] [--range <expr>] [--dry-run] [--mb <path>]
+#   mb-work-plan.sh [--target <ref>]... [--range <expr>] [--dry-run] [--mb <path>]
+#                   [--workflow <name>] [--verify=stage|plan|run|off]
+#                   [--cost premium|optimal|economy] [--host <id>] [--model <id>]
 #
 # Output (per stage, one JSON object per line):
 #   {"plan": "...", "stage_no": N, "item_no": N, "heading": "...", "role": "...",
 #    "agent": "...", "status": "pending|in-progress|done", "dod_lines": K,
 #    "source": "plan|spec", "source_topic": "...", "source_path": "/abs/....md",
-#    "kind": "stage|task", "covers": [...]}
+#    "kind": "stage|task", "covers": [...], "discipline": "strict|calm",
+#    "model": "...", "model_source": "cli|role|profile|inherit", "cost": "...",
+#    "host": "...", "step_models": {"verifier", "reviewer", "judge"},
+#    "verify": bool, "final_verify": bool, "wave": N}
+# Models: scripts/mb_work_models.py (cost tiers × host profiles, AGR-074);
+# --model forces the item role only, --host overrides auto-detection.
+# `verify`: run the verifier after this item; `final_verify`: the full-suite pass.
+# Cadence (mb-workflow.sh): stage = every item, plan = last pending item, run =
+# last pending item of the last --target (several = one run), off = none.
+# `discipline` is `strict` when the resolved model matches discipline.strict_models.
 # `source` is the category; source_topic/source_path locate the declaration file
 # and MUST reach `mb-work-state.sh init` — the eval gate binds them (review [9]).
 #
@@ -29,54 +40,74 @@ WORK_ITEMS="$SCRIPT_DIR/mb_work_items.py"
 source "$SCRIPT_DIR/_lib.sh"
 
 usage() {
-	sed -n '2,16p' "$0" >&2
+	sed -n '2,30p' "$0" >&2
 }
 
-TARGET=""
+TARGETS=()
+WORKFLOW=""
+VERIFY=""
+COST=""
+HOST=""
+MODEL=""
 RANGE=""
 DRY_RUN=0
 MB_ARG=""
 while [ "$#" -gt 0 ]; do
 	case "$1" in
-	--target)
-		TARGET="${2:-}"
-		shift 2
-		;;
-	--target=*)
-		TARGET="${1#--target=}"
-		shift
-		;;
-	--range)
-		RANGE="${2:-}"
-		shift 2
-		;;
-	--range=*)
-		RANGE="${1#--range=}"
-		shift
-		;;
-	--dry-run)
-		DRY_RUN=1
-		shift
-		;;
-	--mb)
-		MB_ARG="${2:-}"
-		shift 2
-		;;
-	--mb=*)
-		MB_ARG="${1#--mb=}"
-		shift
-		;;
-	-h | --help)
-		usage
-		exit 0
-		;;
-	*)
-		echo "[work-plan] unknown arg '$1'" >&2
-		usage
-		exit 2
-		;;
+	--target) TARGETS+=("${2:-}"); shift 2 ;;
+	--target=*) TARGETS+=("${1#--target=}"); shift ;;
+	--workflow) WORKFLOW="${2:-}"; shift 2 ;;
+	--workflow=*) WORKFLOW="${1#--workflow=}"; shift ;;
+	--verify) VERIFY="${2:-}"; shift 2 ;;
+	--verify=*) VERIFY="${1#--verify=}"; shift ;;
+	--cost) COST="${2:-}"; shift 2 ;;
+	--cost=*) COST="${1#--cost=}"; shift ;;
+	--host) HOST="${2:-}"; shift 2 ;;
+	--host=*) HOST="${1#--host=}"; shift ;;
+	--model) MODEL="${2:-}"; shift 2 ;;
+	--model=*) MODEL="${1#--model=}"; shift ;;
+	--range) RANGE="${2:-}"; shift 2 ;;
+	--range=*) RANGE="${1#--range=}"; shift ;;
+	--dry-run) DRY_RUN=1; shift ;;
+	--mb) MB_ARG="${2:-}"; shift 2 ;;
+	--mb=*) MB_ARG="${1#--mb=}"; shift ;;
+	-h | --help) usage; exit 0 ;;
+	*) echo "[work-plan] unknown arg '$1'" >&2; usage; exit 2 ;;
 	esac
 done
+
+case "$VERIFY" in
+"" | stage | plan | run | off) ;;
+*) echo "[work-plan] --verify '$VERIFY' not in stage, plan, run, off" >&2; exit 2 ;;
+esac
+case "$COST" in
+"" | premium | optimal | economy) ;;
+*) echo "[work-plan] --cost '$COST' not in premium, optimal, economy" >&2; exit 2 ;;
+esac
+[ -n "$HOST" ] || HOST=$(mb_detect_host)
+
+# Cadence: mb-workflow.sh (flag > workflow block > plan); unresolvable config
+# falls back to the flag or `plan` (AGR-075), so emission never depends on it.
+CADENCE=$(bash "$SCRIPT_DIR/mb-workflow.sh" --mb "$MB_ARG" ${WORKFLOW:+--workflow "$WORKFLOW"} \
+	${VERIFY:+--verify "$VERIFY"} ${HOST:+--host "$HOST"} --json 2>/dev/null |
+	python3 -c 'import json,sys; print(json.load(sys.stdin)["verify_cadence"])' 2>/dev/null) || CADENCE=""
+[ -n "$CADENCE" ] || CADENCE="${VERIFY:-plan}"
+
+# Several targets = one run; under `run` only the last plan carries the verify.
+if [ "${#TARGETS[@]}" -gt 1 ]; then
+	[ -z "$RANGE" ] || { echo "[work-plan] --range needs a single --target" >&2; exit 2; }
+	LAST=$((${#TARGETS[@]} - 1))
+	DRY_FLAG=""
+	[ "$DRY_RUN" -eq 0 ] || DRY_FLAG="--dry-run"
+	for i in "${!TARGETS[@]}"; do
+		SUB="$CADENCE"
+		[ "$CADENCE" != run ] || { [ "$i" -eq "$LAST" ] && SUB=plan || SUB=off; }
+		bash "$0" --target "${TARGETS[$i]}" --mb "$MB_ARG" --verify "$SUB" ${COST:+--cost "$COST"} \
+			${HOST:+--host "$HOST"} ${MODEL:+--model "$MODEL"} $DRY_FLAG || exit $?
+	done
+	exit 0
+fi
+TARGET="${TARGETS[0]:-}"
 
 if [ -n "$TARGET" ]; then
 	PLAN=$(bash "$RESOLVE" "$TARGET" --mb "$MB_ARG") || exit $?
@@ -130,6 +161,7 @@ PLAN_PATH="$PLAN" \
 	PLAN_BASENAME="$(basename "$PLAN")" \
 	WRAPPER_BASENAME="$WRAPPER_BASENAME" \
 	WORK_ITEMS="$WORK_ITEMS" \
+	CADENCE="$CADENCE" COST="$COST" HOST="$HOST" MODEL="$MODEL" SCRIPT_DIR="$SCRIPT_DIR" \
 	python3 - <<'PY'
 import json
 import os
@@ -153,16 +185,28 @@ try:
     cfg = yaml.safe_load(open(pipeline_path, encoding="utf-8")) or {}
     roles = cfg.get("roles") or {}
 except Exception:
-    roles = {}
+    cfg, roles = {}, {}
 
+sys.path.insert(0, os.environ["SCRIPT_DIR"])
+import mb_work_models as models  # noqa: E402
+import mb_work_waves  # noqa: E402
+
+DEFAULT_CFG = models.load_default()
+STRICT_MODELS = models.strict_models(cfg, DEFAULT_CFG)
+HOST = os.environ.get("HOST", "")
+COST = models.resolve_cost(cfg, DEFAULT_CFG, HOST, os.environ.get("COST", ""))
+
+
+def model_for(role, cli_model="", legacy_developer=False):
+    return models.resolve_model(role, cfg, DEFAULT_CFG, HOST, COST, cli_model, legacy_developer)
+
+
+STEP_MODELS = {r: model_for(r)[0] for r in models.STEP_ROLES}
 ROLE_AGENT: dict[str, str] = {}
-ROLE_MODEL: dict[str, str] = {}
 ROLE_THINKING: dict[str, str] = {}
 for rname, rspec in roles.items():
     if isinstance(rspec, dict) and rspec.get("agent"):
         ROLE_AGENT[rname] = rspec["agent"]
-        if rspec.get("model"):
-            ROLE_MODEL[rname] = rspec["model"]
         if rspec.get("thinking"):
             ROLE_THINKING[rname] = rspec["thinking"]
 
@@ -173,6 +217,7 @@ ROLE_RULES = [
     ("frontend",  [r"\breact\b", r"\bvue\b", r"\bui component\b", r"\btailwind\b", r"\bcss\b", r"\b ui\b"]),
     ("backend",   [r"\bapi\b", r"\bfastapi\b", r"\bdjango\b", r"\bpydantic\b", r"\bsqlalchemy\b", r"\bendpoint\b"]),
     ("devops",    [r"\bdocker\b", r"\bdockerfile\b", r"\bk8s\b", r"\bkubernetes\b", r"\bci\b", r"\bcd\b", r"\binfrastructure\b", r"\bterraform\b"]),
+    ("debugger",  [r"\bbugs?\b", r"\bdebug(ging)?\b", r"\bflaky\b", r"\bcrash(es|ing)?\b", r"\bfix(es)? (a |the )?regression\b", r"\bfix(es)? failing\b", r"\broot cause\b"]),
     ("qa",        [r"\bred tests\b", r"\bpytest\b", r"\bbats\b", r"\btest cases\b", r"\bcoverage\b", r"\bedge case\b"]),
     ("architect", [r"\barchitecture\b", r"\badr\b", r"\bdesign doc\b", r"\bdomain model\b", r"\binterfaces\b"]),
     ("researcher", [r"\bresearch\b", r"\binvestigate\b", r"\bsource extraction\b", r"\bbenchmark\b", r"\bcomparison\b", r"\btrade[- ]off\b", r"\boption matrix\b"]),
@@ -261,6 +306,9 @@ if dry_run:
     print(f"stages: {','.join(str(s) for s in requested)}")
     print()
 
+cadence = os.environ.get("CADENCE", "plan")
+emitted = []
+
 for n in requested:
     if n not in items_by_no:
         sys.stderr.write(f"[work-plan] stage {n} missing in {plan_basename}\n")
@@ -283,7 +331,7 @@ for n in requested:
         role = parsed_role if parsed_role != "developer" else detected_role
 
     agent = ROLE_AGENT.get(role) or ROLE_AGENT.get("developer") or f"mb-{role}"
-    model = ROLE_MODEL.get(role) or ROLE_MODEL.get("developer", "")
+    model, model_source = model_for(role, os.environ.get("MODEL", ""), legacy_developer=True)
     thinking = ROLE_THINKING.get(role) or ROLE_THINKING.get("developer", "")
 
     # dod_lines and status: source-dependent
@@ -313,6 +361,22 @@ for n in requested:
         "source_path": os.path.realpath(plan_path),
         "kind": item["kind"],
         "covers": covers,
+        "discipline": models.discipline_for(model, STRICT_MODELS),
+        "model_source": model_source,
+        "cost": COST,
+        "host": HOST,
+        "step_models": STEP_MODELS,
     }
+    emitted.append(obj)
+
+# The verify pass goes after the last item still to run; a resumed plan whose
+# final stage is already done would otherwise never get verified.
+pending = [i for i, o in enumerate(emitted) if o["status"] != "done"]
+last = pending[-1] if pending else len(emitted) - 1
+waves = mb_work_waves.assign_waves([items_by_no[o["item_no"]] for o in emitted])
+for i, obj in enumerate(emitted):
+    obj["verify"] = cadence == "stage" or (cadence in ("plan", "run") and i == last)
+    obj["final_verify"] = cadence != "off" and i == last
+    obj["wave"] = waves[i]  # parallel wave (mb_work_waves.py, AGR-073)
     print(json.dumps(obj, ensure_ascii=False))
 PY

@@ -60,6 +60,7 @@ REQUIRED_ROLES = (
     "architect",
     "devops",
     "qa",
+    "debugger",
     "analyst",
     "reviewer",
     "verifier",

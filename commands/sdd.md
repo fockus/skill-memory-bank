@@ -1,5 +1,5 @@
 ---
-description: Generate a Kiro-style spec triple — specs/<topic>/{requirements,design,tasks}.md
+description: "Generates a Kiro-style spec triple — specs/{topic}/{requirements,design,tasks}.md. Use when requirements are agreed and need an executable spec — «сделай спеку», after /mb discuss."
 allowed-tools: [Bash, Read, Write, Task]
 ---
 

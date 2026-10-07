@@ -31,4 +31,4 @@
 
 ## Roteiro (visão geral)
 
-Veja [backlog.md](backlog.md): registro de ideias e ADRs.
+Veja [backlog.md](backlog.md): registro de ideias; decisões em [adr.md](adr.md).

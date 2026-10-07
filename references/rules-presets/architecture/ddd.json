@@ -3,6 +3,7 @@
   "kind": "architecture",
   "name": "ddd",
   "description": "Domain-Driven Design: bounded contexts, aggregates, repositories as interfaces.",
+  "one_liner": "DDD folders: group by bounded context in every layer; no flat dump, no single-file folders",
   "rules": [
     {
       "rule_id": "architecture.ddd.bounded-contexts",

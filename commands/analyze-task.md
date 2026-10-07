@@ -1,5 +1,5 @@
 ---
-description: Auto-classify the goal + diff scope into one route and write it into the mb-flow fence
+description: "Runs auto-classify on the goal + diff scope: picks one route and writes it into the mb-flow fence. Use when starting a task and the route (quick fix, plan or spec) must be chosen automatically."
 allowed-tools: [Bash, Read]
 ---
 

@@ -4,6 +4,150 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — `/mb work` default is `medium`, verifier once per plan
+
+- Complexity presets `simple` / `medium` / `complex` / `governed` (AGR-074); `workflow.default` is
+  `medium` (was `execution`, now its alias; `governed-execution` → `governed`). The verifier runs
+  once after the last item of the plan (`verify.cadence: plan`, AGR-075), was: after every item.
+  `--verify=stage|plan|run|off` changes it per run; `effort_tiers` + `--tier` pick the preset.
+  A workflow without `verify.cadence` (including older project workflows such as `execution`)
+  now also verifies once at plan end; set `verify.cadence: stage` to keep the per-item verifier.
+
+### Added — Key rules, `/mb rules`, project quality settings; always-loaded files slimmed
+
+- Key rules (`rules/key-rules.json`) open every CLAUDE.md/AGENTS.md block (≤ 3 KB); pick them in the
+  install checklist or with `/mb rules` (enable/disable/add, own rules). The install also asks for
+  architecture, TDD, Testing Trophy and coverage; they live in the rules profile (`quality`) and
+  reach Key rules, the project `RULES.md` block, the verifier and the review rubric.
+- Always-loaded files no longer copy `RULES.md`: project AGENTS.md ~51 KB → ~4.3 KB, rule files
+  ~47 KB → ≤ 4.3 KB, global AGENTS.md ≤ 8 KB. The `/mb init --full` CLAUDE.md template is ~40 lines;
+  an already generated CLAUDE.md is not rewritten — regenerate it to pick up the short form.
+- The project CLAUDE.md/AGENTS.md Key rules block lists only what the project changes against your
+  user-level rules (~150–300 B instead of ~2.7 KB); Windsurf/Cline/Kilo rule files keep the full block.
+
+### Added — task tiers, targeted test runs, tone by model
+
+- Five task tiers (`references/effort-tiers.md`, SKILL.md § Task routing) pick the preset; coverage
+  thresholds are off by default (`/mb rules set coverage 85/95/70` turns them on).
+- `mb-test-run.sh --changed-since <ref>` / `--files` runs only the tests mapped to the changed files.
+  Without a flag it now runs every detected stack (`bats+python`); before, only the first one found.
+- `discipline: auto|strict|calm` (`strict_models`, `mb-rules.sh discipline`): strict wording for weaker models.
+- A project `pipeline.yaml` scaffolded before the presets takes them, their aliases and `effort_tiers`
+  from the bundled default; a project workflow of the same name still wins.
+
+### Added — `/mb work` cost tiers: model per role class and host
+
+- `cost: premium|optimal|economy` (default `optimal`: implementer/verifier/researcher on the mid
+  model, planner/reviewer/judge on the premium one), `cost_tiers`, `model_profiles.<host>`
+  (default profile `claude-code: {premium: opus, mid: sonnet}`) and `hosts.<host>.{cost,preset,verify}`.
+  `mb-work-plan.sh --cost/--host/--model` emits `model_source`, `cost`, `host` and
+  `step_models`; explicit `roles.<role>.model` still wins. Verifier and judge now get a tier
+  model (before: `roles.<role>.model` or the session model).
+
+### Changed — Codex and Cursor get tier models; installed agents carry them
+
+- `model_profiles` ships `codex: {premium: gpt-6-astra, mid: gpt-6.1-sol}` and
+  `cursor: {premium: claude-opus-5-5, mid: claude-sonnet-5-5}`. A project on Codex or Cursor
+  without explicit `roles.<role>.model` now runs on tier models: under `optimal` the implementer
+  roles use `gpt-6.1-sol` / `claude-sonnet-5-5`, before they inherited the session model.
+- Installed agents carry the tier model: `mb-agent-render.py --pipeline` writes it into
+  OpenCode `.opencode/agent/*.md` (`model: provider/id`), Cursor `~/.cursor/agents/mb-*.md`
+  and Codex `~/.codex/agents/*.toml` (`model = "<id>"`). `/mb config init --host
+  opencode|cursor|codex` re-renders the installed agents from the new pipeline; Cursor
+  `install-global` uses the bundled default profile (`MB_COST` picks the tier). `inherit` or no
+  profile → no model key. `/mb config show` marks these hosts `applied: static (installed agents)`.
+
+### Fixed — Codex sub-invoke default moves off retiring GPT-5.5
+
+- `mb-subinvoke-resolve.sh` defaults the codex / pi fan-out model to `gpt-6.1-sol` / `openai-codex/gpt-6.1-sol` (GPT-5.5 leaves ChatGPT sign-in on 2026-10-14); `MB_SUBINVOKE_MODEL` still overrides (I-243).
+
+### Changed — the agreements block in CLAUDE.md/AGENTS.md is an index capped at 4 KB
+
+- `mb-agree.sh sync` renders each active agreement as one index line — `- AGR-NNN:` plus the
+  first sentence, at most 140 characters, with `…` when shortened — instead of its full text.
+  The whole managed block fits in 4096 bytes: on overflow the newest agreements stay and a line
+  `- … K more → /mb agree list` counts the rest. `agreements.md` keeps the full text and stays
+  the single source of truth. On this repo `CLAUDE.md` drops from 35 KB to 8 KB.
+
+### Fixed — code-graph clusters and bridge files no longer depend on `PYTHONHASHSEED`
+
+- `codegraph_analytics` builds the file graph with sorted nodes and edges before louvain and
+  sampled betweenness, so Communities, Bridge files and `graph.json` `community` ids are the same
+  in every process (I-219). Files with no file-level edge are no longer fed to louvain: they get
+  no `community` field and `communities=N` counts real clusters only (219 → 31 on this repo).
+  `networkx` is pinned to one minor (`>=3.6,<3.7`) in the `[codegraph]`/`dev` extras and the
+  bootstrap venv list, and `hooks/mb-semantic-bootstrap.sh` now enforces it: readiness checks
+  installed versions against `hooks/lib/venv-requirements.sh` (new `hooks/lib/venv_unmet.py`),
+  not just imports, and reinstalls a package outside its pin (an existing venv on networkx 3.7
+  moves to 3.6.x). The meta row of `graph.json` records `src_root` relative to the project root,
+  so the SessionStart catch-up (absolute `--src-root`) and a manual `--apply .memory-bank .`
+  write the same line; the catch-up resolves a relative value from the project root.
+
+### Fixed — the tracked graph no longer depends on which python rebuilt it
+
+- `hooks/mb-semantic-bootstrap.sh` installs the whole `[codegraph]` extra (tree-sitter, six
+  grammars, `networkx`) next to `fastembed numpy` and counts every package in its readiness
+  check, so a venv made before this release gets them on the next run. The list lives in one
+  place, `hooks/lib/venv-requirements.sh`, and a test holds it equal to the extra in
+  `pyproject.toml`. A failed combined install retries package by package; a partial result
+  names the missing modules and still exits 0.
+- `mb-codegraph.py` under a python without `networkx` re-execs itself under the bootstrap venv
+  (the same resolver and re-exec helper `mb-semantic-search.py` uses), so `graph.json` keeps
+  `community` and Top symbols keep PageRank — including the SessionStart catch-up, which spawns
+  `sys.executable`. It re-execs only into an interpreter that has `networkx` AND every
+  tree-sitter module the current one has; otherwise, or when the exec fails, it builds in place
+  as before. `mb-deps-check.sh` now points the networkx and tree-sitter hints at the bootstrap (AGR-053).
+
+### Fixed — a rebuild without networkx no longer wipes Communities and Bridge files
+
+- `mb-codegraph.py --apply` under an interpreter without `networkx` (the SessionStart catch-up
+  runs under the system `python3`, where it is almost never installed) used to drop the
+  `## Communities` and `## Bridge files` sections from the git-tracked `god-nodes.md`. It now
+  carries both blocks over from the previous report, with a line under each heading saying they
+  were not recomputed and naming the commit and date of the build that computed them (taken from
+  the previous `graph.json` stamp; repeated carries keep that source rather than the date of an
+  intermediate build). Rows naming files that are no longer in the graph are dropped, the Files
+  count is recounted, bridge rows are renumbered, and the line says so. A build with `networkx`
+  recomputes the sections and the line goes away. No previous file, no such sections in it, or an
+  unreadable file → the report is byte-identical to before. Top symbols / modules are always
+  recomputed (I-225).
+
+### Added — `mb-graph.sh`, one short command for the code graph and semantic search
+
+- `scripts/mb-graph.sh who-calls|impact|tests|status|search` resolves the bank and delegates to
+  `mb-graph-query.py` / `mb-semantic-search.py`. `search` routes a single identifier to BM25 and a
+  phrase to embeddings. Exit codes: 2 usage, 4 no Memory Bank, anything else is the delegate's
+  (1 no match, 3 no graph).
+- `who-calls` answers only its own question: `mb-graph-query.py neighbors` gained
+  `--direction in|out|both` (default `both`, output unchanged), and `in` keeps only edges whose
+  destination is the symbol itself. For `mb_resolve_path` that is 92 callers and nothing else —
+  `neighbors` returned 194 "incoming" edges, 103 of them imports of the whole file, plus 20
+  outgoing ones.
+- Every hint points at the one command: the nudge, the SessionStart cheat sheet and
+  `mb-context.sh` print a two-line `bash <abs>/scripts/mb-graph.sh …` instead of a three-line
+  python call, and so do the agent instructions (`mb-tooling-core`, `mb-research`,
+  `mb-codebase-mapper`, `SKILL.md`, `commands/`, `references/code-graph.md`, `rules/`). Hooks print
+  the absolute path they resolved themselves; instructions assign `SKILL_DIR` explicitly, because
+  the variable does not exist in an agent's Bash tool.
+- Stale-graph hints no longer hard-code `~/.claude/skills/memory-bank`, and the `mb-context.sh`
+  rebuild hint passes the bank path (`--docs <bank> .`) — the old `--docs . .` would have written
+  `./codebase/graph.json` into the project root.
+
+### Changed — the code-graph nudge repeats and names a symbol
+
+- `hooks/mb-graph-nudge.sh` no longer fires once per session: the marker file now holds a counter,
+  so the nudge returns every `MB_GRAPH_NUDGE_EVERY` structural calls (default 25). A single hint
+  scrolls out of context long before the grep habit changes.
+- The message carries a candidate symbol lifted from the actual pattern, so it is a runnable
+  command rather than a reminder. The identifier being *defined* wins (`def foo`, `class Foo(Base)`)
+  — the plain "last identifier" rule picked `target` and `Base` on exactly the commonest patterns.
+- New `SessionStart` registration with `matcher: compact` calls the hook with `--reset`, because
+  compaction drops the nudge from context. It exits before reading stdin (a SessionStart hook that
+  blocks on `cat` hangs `claude --resume` on macOS).
+- The counter is checked *before* the freshness gate spawns python, so 24 of every 25 structural
+  calls now cost nothing at all — previously every structural grep paid for `mb-graph-query status`.
+  A counter that cannot be persisted degrades to silence instead of nudging on every call.
+
 ### Changed — subagents are dispatched by name; the installer composes their shared discipline
 
 - Agents list the partials they need in a new `compose:` frontmatter key

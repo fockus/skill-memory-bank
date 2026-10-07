@@ -78,7 +78,7 @@ gating, track it as a follow-up rather than assuming today's behavior will chang
 
 ### Cursor (full global parity + project adapter)
 
-Cursor is a first-class **global** target: `install.sh` writes all five artifacts
+Cursor is a first-class **global** target: `install.sh` writes all six artifacts
 automatically with **no `--clients cursor` flag required**. The project-level
 adapter (`.cursor/rules/*.mdc` + `.cursor/hooks.json`) is an optional add-on.
 
@@ -96,6 +96,12 @@ Creates under `~/.cursor/`:
   `beforeShellExecution` (block-dangerous), four `preToolUse` entries (protected paths, EARS, context-slim, sprint-guard),
   two `postToolUse` entries (file-change-log, plan-sync)
 - `commands/*.md` — user-level slash commands mirrored from the skill
+- `agents/mb-*.md` — the roles as native [Cursor subagents](https://cursor.com/docs/agent/subagents)
+  (dispatch by name via the Task tool or `/mb-backend …`). Rendered with
+  `scripts/mb-agent-render.py --host cursor`: partials composed in, frontmatter cut to
+  `name`/`description`, no `model` so the subagent inherits the parent model. Cursor also reads
+  `~/.claude/agents/`; on a same-name clash `.cursor/` wins, so these copies replace the Claude ones.
+  `adapters/cursor.sh uninstall-global` removes only the files listed in `~/.cursor/.mb-manifest.json`
 - `AGENTS.md` — marker section `memory-bank-cursor:start/end` (managed block,
   user content above/below is preserved)
 - `memory-bank-user-rules.md` — paste-ready bundle for **Settings → Rules → User Rules**
@@ -311,7 +317,7 @@ update-notify notice on every session start (REQ-013).
 |----------|---------------|--------------|---------------|-------------------------------|
 | `SKILL.md` | `~/.claude/skills/memory-bank/` | `~/.codex/skills/memory-bank/` | `~/.cursor/skills/memory-bank/` | Yes, via skill discovery |
 | `commands/` | bundled + Claude commands installed | bundled in Codex skill alias | bundled + mirrored to `~/.cursor/commands/` | No separate native slash-command install |
-| `agents/` | bundled + Claude global agents installed | bundled in Codex skill alias | bundled in skill (`~/.cursor/skills/memory-bank/agents/`) | No separate global agent registry assumed |
+| `agents/` | bundled + Claude global agents installed | bundled in Codex skill alias | rendered roles in `~/.cursor/agents/mb-*.md` (native subagents) | No separate global agent registry assumed |
 | `hooks/` | bundled + Claude global hooks installed | bundled in Codex skill alias | bundled at `~/.cursor/skills/memory-bank/hooks/` + twelve `_mb_owned` entries in `~/.cursor/hooks.json` | Conservative/project-level only |
 | Global rules | `~/.claude/CLAUDE.md` managed section | `~/.codex/AGENTS.md` managed section | `~/.cursor/AGENTS.md` managed section **+** paste-file for Settings → Rules → User Rules | n/a |
 
@@ -392,5 +398,5 @@ A: Should not happen — refcount design prevents it. If it does, file an issue 
 
 - [Research notes (2026-04-20)](../.memory-bank/notes/2026-04-20_03-36_cross-agent-research.md)
 - [Plan Stage 8](https://github.com/fockus/skill-memory-bank/blob/main/.memory-bank/plans/done/2026-04-20_refactor_skill-v2.1.md)
-- [ADR-010 (Codex)](../.memory-bank/backlog.md)
-- [ADR-011 (Repo migration)](../.memory-bank/backlog.md)
+- [ADR-010 (Codex)](../.memory-bank/adr.md)
+- [ADR-011 (Repo migration)](../.memory-bank/adr.md)

@@ -1,5 +1,5 @@
 ---
-description: Manage API contracts — OpenAPI, gRPC, GraphQL, breaking-change detection
+description: "Manages API contracts — OpenAPI, gRPC, GraphQL — with breaking-change detection. Use when generating, checking or testing an API spec, or asked «сломает ли это клиентов»."
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
 argument-hint: <generate|check|test>
 ---

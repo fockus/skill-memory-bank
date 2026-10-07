@@ -200,8 +200,15 @@ def test_no_cyrillic_planning_terms_outside_whitelist() -> None:
             text = full_path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, FileNotFoundError):
             continue
+        # The mb-agree managed block mirrors owner-authored agreements.md verbatim (that file is
+        # whitelisted as history), so its text is not our wording to canonicalize.
+        in_agreements = False
         for lineno, line in enumerate(text.splitlines(), start=1):
-            if CYRILLIC_PLANNING_RE.search(line):
+            if "<!-- mb-agreements:start -->" in line:
+                in_agreements = True
+            elif "<!-- mb-agreements:end -->" in line:
+                in_agreements = False
+            elif not in_agreements and CYRILLIC_PLANNING_RE.search(line):
                 violations.append(f"{rel_path}:{lineno}:{line}")
 
     assert not violations, "Cyrillic planning terms found outside whitelist:\n" + "\n".join(

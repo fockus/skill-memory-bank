@@ -88,6 +88,7 @@ SEMANTIC_FILES = [
     "hooks/lib/semantic_store.py",
     "hooks/lib/indexer.py",
     "hooks/lib/searcher.py",
+    "hooks/lib/venv-requirements.sh",
 ]
 
 
@@ -113,3 +114,11 @@ def test_install_sh_copies_hook_python_files() -> None:
     txt = INSTALL_SH.read_text(encoding="utf-8")
     assert "hooks/*.py" in txt, "install.sh must copy hooks/*.py (semantic CLI)"
     assert "hooks/lib/*.py" in txt, "install.sh must copy hooks/lib/*.py (semantic libs)"
+    assert "hooks/lib/*.sh" in txt, "install.sh must copy hooks/lib/*.sh (venv-requirements.sh)"
+
+
+def test_install_sh_points_optional_graph_deps_at_the_bootstrap() -> None:
+    """AGR-053: tree-sitter + networkx arrive through one path, the bootstrap venv."""
+    txt = INSTALL_SH.read_text(encoding="utf-8")
+    assert "pip install tree-sitter" not in txt
+    assert "hooks/mb-semantic-bootstrap.sh" in txt

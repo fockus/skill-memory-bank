@@ -2,6 +2,8 @@
 
 # Direct tests for adapters/_lib_agents_md.sh shared ownership logic.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   LIB="$REPO_ROOT/adapters/_lib_agents_md.sh"
@@ -192,4 +194,13 @@ EOF
       return 1
     fi
   done <<< "$refs"
+}
+
+# agents-md-diet: the RULES.md copy (which carried the localized language rule)
+# is gone, so the MB block states the language itself.
+@test "agents-md: MB block carries the localized language rule (MB_LANGUAGE)" {
+  MB_LANGUAGE=ru agents_md_install "$PROJECT" "codex" "$SKILL_DIR" >/dev/null
+  local body
+  body="$(cat "$PROJECT/AGENTS.md")"
+  assert_substring "$body" "- Language: Russian"
 }

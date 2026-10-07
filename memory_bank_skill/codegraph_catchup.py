@@ -30,10 +30,10 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from memory_bank_skill.codegraph_loader import read_meta
+    from memory_bank_skill.codegraph_loader import read_meta, resolve_src_root
 except ModuleNotFoundError:  # pragma: no cover - bootstrap when run as a bare script module
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from memory_bank_skill.codegraph_loader import read_meta
+    from memory_bank_skill.codegraph_loader import read_meta, resolve_src_root
 
 DEFAULT_BUDGET = 30.0  # seconds — incremental rebuild is SHA-cached, usually seconds
 DEFAULT_COOLDOWN = 600.0  # seconds — back-off after a timed-out/broken rebuild
@@ -149,7 +149,7 @@ def maybe_catchup(
             return {"result": "absent"}
 
         meta = read_meta(graph_path) or {}
-        src = Path(src_root) if src_root else Path(str(meta.get("src_root") or "."))
+        src = Path(src_root) if src_root else resolve_src_root(graph_path, meta.get("src_root"))
         dirty = dirty_path(graph_path)
         if not dirty.exists():
             commit = meta.get("commit")

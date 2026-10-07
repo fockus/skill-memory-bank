@@ -136,8 +136,9 @@ check_stack_javascript() {
 check_arch_fsd() {
   (( ${#FILES[@]} == 0 )) && return 0
   CHECKS_RUN=$((CHECKS_RUN + 1))
-  local arch_source f
+  local arch_source sev f
   arch_source="$(profile_source_for architecture)"
+  sev="$(preset_severity architecture.fsd.import-direction WARNING)"
   for f in "${FILES[@]+"${FILES[@]}"}"; do
     [[ -f "$f" ]] || continue
     case "$f" in */entities/*|entities/*|*/shared/*|shared/*) ;; *) continue ;; esac
@@ -146,7 +147,7 @@ check_arch_fsd() {
       lineno=$((lineno + 1))
       if [[ "$line" =~ from[[:space:]]+[\"\'].*features/ ]] || \
          [[ "$line" =~ from[[:space:]]+[\"\'].*widgets/ ]]; then
-        emit_violation "architecture.fsd.import-direction" "WARNING" "$f" "$lineno" \
+        emit_violation "architecture.fsd.import-direction" "$sev" "$f" "$lineno" \
           "${line:0:120}" \
           "FSD violation: entities/ and shared/ must not import from features/ or widgets/ (upward import)." \
           "architecture.fsd.import-direction" "$arch_source"

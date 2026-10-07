@@ -1,5 +1,13 @@
 # Calibration examples — backend
 
+## Contents
+
+- `BACK-LOGIC-001` — logic (major)
+- `BACK-CODE-001` — code_rules (blocker)
+- `BACK-SEC-001` — security (blocker)
+- `BACK-SCALE-001` — scalability (major)
+- `BACK-TESTS-001` — tests (blocker)
+
 Backend-architecture skill-baseline examples (reviewer-2.0, design.md §4):
 Clean Architecture layering, concurrency/idempotency, and API authorization
 concerns that cut across languages. One block per reviewer category

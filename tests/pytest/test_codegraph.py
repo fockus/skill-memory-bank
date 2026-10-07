@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -312,9 +313,11 @@ def test_writer_two_builds_with_source_date_epoch_are_byte_identical(
     cg_mod.run(mb_path=str(mb_path), src_root=str(src_root), mode="apply")
     first = (mb_path / "codebase" / "graph.json").read_bytes()
 
-    mb_path2 = tmp_path / ".memory-bank-2"
+    # A second project with the same layout: meta ``src_root`` is project-relative.
+    mb_path2 = tmp_path / "p2" / ".memory-bank"
     (mb_path2 / "codebase").mkdir(parents=True)
-    cg_mod.run(mb_path=str(mb_path2), src_root=str(src_root), mode="apply")
+    shutil.copytree(src_root, tmp_path / "p2" / "src")
+    cg_mod.run(mb_path=str(mb_path2), src_root=str(tmp_path / "p2" / "src"), mode="apply")
     second = (mb_path2 / "codebase" / "graph.json").read_bytes()
 
     assert first == second

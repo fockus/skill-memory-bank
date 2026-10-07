@@ -10,7 +10,15 @@ _srp_lines_at_base() {
   { git -C "$dir" show "${BASE_REF}:${prefix}$(basename "$f")" 2>/dev/null || true; } | wc -l | tr -d ' '
 }
 
+# A check the rules profile switched off (AGR-077): one INFO entry with the reason
+# instead of silence. <rule> <profile key>.
+_emit_skipped() {
+  emit_violation "$1" "INFO" "" 0 "skipped" \
+    "Skipped: $2 is off in the rules profile (AGR-077)." "$1" "$2"
+}
+
 check_srp() {
+  [[ "${QUALITY_SOLID:-on}" == "off" ]] && { _emit_skipped "solid/srp" "quality.principles.solid"; return 0; }
   CHECKS_RUN=$((CHECKS_RUN + 1))
   local -a offenders=()
   local -a counts=()
@@ -65,6 +73,7 @@ check_clean_arch() {
 }
 
 check_tdd_delta() {
+  [[ "${QUALITY_TDD:-on}" == "off" ]] && { _emit_skipped "tdd/delta" "quality.tdd"; return 0; }
   (( ${#DIFF_FILES[@]} == 0 )) && return 0
   CHECKS_RUN=$((CHECKS_RUN + 1))
   local f
@@ -78,7 +87,7 @@ check_tdd_delta() {
     local base stem
     base="$(basename "$f")"
     stem="${base%.*}"
-    if ! has_matching_test "$stem" "$base"; then
+    if ! has_matching_test "$stem" "$base" "$f"; then
       emit_violation "tdd/delta" "CRITICAL" "$f" 1 \
         "no matching test in diff" \
         "Source file changed without a co-changed test; add or update tests in the same commit range." \

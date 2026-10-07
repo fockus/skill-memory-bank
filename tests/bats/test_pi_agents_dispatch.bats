@@ -53,6 +53,7 @@ teardown() {
   local dest="$SANDBOX_HOME/.pi/agent/agents"
   [ ! -f "$dest/mb-engineering-core.md" ]
   [ ! -f "$dest/mb-tooling-core.md" ]
+  [ ! -f "$dest/mb-discipline-strict.md" ]
 }
 
 @test "pi agents: installed roster count matches the source minus partials" {
@@ -60,7 +61,7 @@ teardown() {
   [ "$status" -eq 0 ]
   local dest="$SANDBOX_HOME/.pi/agent/agents"
   local src_count dest_count
-  src_count=$(find "$REPO_ROOT/agents" -maxdepth 1 -name '*.md' ! -name 'mb-engineering-core.md' ! -name 'mb-tooling-core.md' | wc -l | tr -d ' ')
+  src_count=$(find "$REPO_ROOT/agents" -maxdepth 1 -name '*.md' ! -name 'mb-engineering-core.md' ! -name 'mb-tooling-core.md' ! -name 'mb-discipline-strict.md' | wc -l | tr -d ' ')
   dest_count=$(find "$dest" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
   [ "$src_count" = "$dest_count" ]
 }

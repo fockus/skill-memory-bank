@@ -31,12 +31,25 @@ plain `Grep`/`Glob`/`Read` are first-class for raw text, regex, freshly-changed,
 
 ## Routing table (pick the source by question type)
 
+Bind the wrapper in the same shell call as the query (shell state does not persist). If your prompt
+carries a `Skill path: <dir>` line, that `<dir>` is the skill bundle root — use `SKILL_DIR="<dir>"`;
+otherwise:
+
+```bash
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+G="$SKILL_DIR/scripts/mb-graph.sh"
+```
+
+It wraps `mb-graph-query.py` / `mb-semantic-search.py`; trailing
+flags pass through (`--json`, `--source-only`). Call those scripts directly only for what the wrapper
+does not expose (`--file`, `neighbors --direction out|both`, `explain`, `summary`).
+
 | Question | Tool (run from repo root) |
 |---|---|
-| **who depends on / blast-radius / which tests cover** a symbol (`graph_impact`) | `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py impact --graph .memory-bank/codebase/graph.json --symbol <Name>` (→ `dependents` + `test_files`) |
-| **neighbors / what relates to** a symbol (`graph_neighbors`) | `… mb-graph-query.py neighbors --graph .memory-bank/codebase/graph.json --symbol <Name>` |
-| **concept / "how does X work" / synonym** (`search_code`) | `python3 ~/.claude/skills/memory-bank/scripts/mb-semantic-search.py "<question>" .memory-bank --backend embeddings` (`--source-only` to skip tests) |
-| **exact symbol/file name** | `… mb-semantic-search.py "<exactName>" .memory-bank --backend bm25` |
+| **who depends on / blast-radius / which tests cover** a symbol (`graph_impact`) | `bash "$G" impact <Name>` (→ `dependents` + `test_files`) |
+| **who calls** a symbol (`graph_neighbors`) | `bash "$G" who-calls <Name>` (callers only) |
+| **concept / "how does X work" / synonym** (`search_code`) | `bash "$G" search "<question>"` → embeddings (`--source-only` to skip tests) |
+| **exact symbol/file name** | `bash "$G" search <exactName>` → BM25 (one token routes there) |
 | **raw text / regex / freshly-changed / un-indexed code** | `Grep` (ripgrep) + `Glob`, then `Read`. Use directly — do NOT force everything through the graph. |
 | **"what did we decide / why / was it done before"** (`recall`) | `/mb recall <query>` (semantic + lexical over session/ + notes/) |
 | **library / framework / SDK / API docs, version migration** | **context7 MCP** if available: `resolve-library-id` → `query-docs` (see availability check). Fallback: `WebSearch` + `WebFetch` the official docs. |
@@ -46,7 +59,7 @@ plain `Grep`/`Glob`/`Read` are first-class for raw text, regex, freshly-changed,
 
 > First embeddings query loads the model (~5-15s); then cached under `.memory-bank/.index/codesearch/`.
 > If structural answers look stale, run the bounded catch-up once:
-> `python3 ~/.claude/skills/memory-bank/scripts/mb-graph-query.py catchup --graph .memory-bank/codebase/graph.json --src-root . --json`
+> `python3 "$SKILL_DIR"/scripts/mb-graph-query.py catchup --graph .memory-bank/codebase/graph.json --src-root . --json`
 > (never `mb-codegraph.py --apply` from an agent; on `locked`/`cooldown`/`timed_out` proceed on the stale graph).
 
 ## Optional-source availability (check before relying; degrade gracefully)
@@ -80,7 +93,7 @@ per area in parallel and merges their cited conclusions.
   an assumption.
 
 ## Examples
-- **"Can I swap the search backend safely?"** → `mb-graph-query.py impact --symbol SearchPort` →
+- **"Can I swap the search backend safely?"** → `bash "$G" impact SearchPort` →
   dependents = the DI wiring + the capping/enriching decorators; `test_files` = the port's contract
   test. Conclude: one-seam swap at the DI module; new impl must pass the contract test. (graph-grounded)
 - **"How do I configure HNSW indexes in this client?"** → context7 `resolve-library-id` →

@@ -2,6 +2,8 @@
 # Tests for hooks/mb-session-start.sh — inject _recent.md as # Recent Sessions
 # plus the how-to cheat-sheet (graph + recall quick ref). macOS-safe (no hang).
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   HOOK="$REPO_ROOT/hooks/mb-session-start.sh"
@@ -28,7 +30,7 @@ teardown() { [ -n "${TMP:-}" ] && [ -d "$TMP" ] && rm -rf "$TMP"; }
   ctx="$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext')"
   echo "$ctx" | grep -q '# How to use project memory'
   echo "$ctx" | grep -q '/mb recall'
-  echo "$ctx" | grep -q 'mb-graph-query'
+  echo "$ctx" | grep -q 'mb-graph.sh'
   echo "$ctx" | grep -q '# Recent Sessions'
 }
 
@@ -59,6 +61,23 @@ teardown() { [ -n "${TMP:-}" ] && [ -d "$TMP" ] && rm -rf "$TMP"; }
   printf '## x\nbody\n' > "$MB/session/_recent.md"
   run bash -c "CLAUDE_PROJECT_DIR='$PROJ' bash '$HOOK'"
   [ "$status" -ne 124 ]
+}
+
+@test "graph quick-ref: at most 2 lines, runs mb-graph.sh by its resolved path" {
+  # graph-semantic-adoption Stage 4: the short wrapper replaces the python call.
+  printf '## x\nbody\n' > "$MB/session/_recent.md"
+  mkdir -p "$MB/codebase"
+  printf '{"type":"meta","generated_at":"%s","commit":null,"nodes":0,"edges":0}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MB/codebase/graph.json"
+  run bash -c "CLAUDE_PROJECT_DIR='$PROJ' PATH=\"$REPO_ROOT/.venv/bin:\$PATH\" bash '$HOOK'"
+  [ "$status" -eq 0 ]
+  ctx="$(echo "$output" | jq -r '.hookSpecificOutput.additionalContext')"
+  [ "$(printf '%s\n' "$ctx" | grep -c 'mb-graph')" -le 2 ]
+  assert_substring "$ctx" "bash $REPO_ROOT/scripts/mb-graph.sh who-calls|impact|tests <Name>"
+  refute_substring "$ctx" "mb-graph-query"
+  # Markdown code spans, not literal backslash-backtick pairs.
+  assert_substring "$ctx" "\`bash $REPO_ROOT/scripts/mb-graph.sh who-calls"
+  refute_substring "$ctx" '\`'
 }
 
 # ═══ Stage 5 — opt-in background code-graph rebuild (MB_GRAPH_AUTO) ═══

@@ -5,12 +5,15 @@
 #   mb-workflow.sh [--mb <path>] [--workflow <name>]
 #                  [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix]
 #                  [--brainstorm|--no-brainstorm] [--sdd|--no-sdd] [--plan|--no-plan]
-#                  [--stages <csv>] [--json|--steps|--loop|--max-cycles|--approval-required]
+#                  [--stages <csv>] [--verify=stage|plan|run|off] [--tier <effort-tier>]
+#                  [--host <id>] [--no-adapt]
+#                  [--json|--steps|--loop|--max-cycles|--approval-required]
 #
 # Resolution (3-layer, precedence: launch flags > pipeline.yaml > built-in default):
 #   1. Read effective pipeline.yaml via mb-pipeline.sh path.
-#   2. Resolve the preset: --workflow ▸ workflow.default ▸ "execution"
-#      (aliases applied; workflows absent → legacy stage_pipeline).
+#   2. Resolve the preset: --workflow ▸ --tier (effort_tiers map) ▸
+#      hosts.<host>.preset ▸ workflow.default ▸ "execution" (aliases applied; workflows absent →
+#      legacy stage_pipeline). `--tier trivial` exits 2: no /mb work needed.
 #   3. Compose stages: preset steps, then pipeline.yaml `<stage>.enabled: true`
 #      adds a composable stage, then launch flags add/remove (flags win), then
 #      re-sort into canonical order. `--stages <csv>` overrides everything.
@@ -18,6 +21,13 @@
 #   `--brainstorm` is an alias of `discuss`. `judge` and `fix` require `review`
 #   (fail-fast). A flag-added `fix` on a preset with no loop block gets loop
 #   defaults (returns_to: verify) so the cycle has a termination condition.
+#   4. Verifier cadence (JSON `verify_cadence`): --verify ▸ hosts.<host>.verify ▸
+#      workflows.<name>.verify.cadence ▸ "plan" (AGR-075); forced to "off" when the steps hold no verify.
+#      JSON `self_verify` mirrors workflows.<name>.implement.self_verify.
+#   Host: --host ▸ mb_detect_host (_lib.sh); JSON `host`.
+#   5. ADaPT (JSON `adapt`, once per run): pipeline.yaml `adapt:` over defaults
+#      {enabled: true, verify_fail_cycles: 3, item_token_budget: null, max_depth: 2};
+#      --no-adapt forces enabled=false (references/adapt.md).
 #
 # Exit codes:
 #   0 — resolved
@@ -28,6 +38,8 @@ set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PIPELINE="$SCRIPT_DIR/mb-pipeline.sh"
+# shellcheck source=_lib.sh
+source "$SCRIPT_DIR/_lib.sh"
 
 MB_ARG=""
 WORKFLOW=""
@@ -39,6 +51,10 @@ FLAG_DISCUSS=""
 FLAG_SDD=""
 FLAG_PLAN=""
 STAGES_OVERRIDE=""
+VERIFY_CADENCE=""
+TIER=""
+HOST=""
+NO_ADAPT=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -60,15 +76,24 @@ while [ "$#" -gt 0 ]; do
     --no-plan) FLAG_PLAN="off"; shift ;;
     --stages) STAGES_OVERRIDE="${2:-}"; shift 2 ;;
     --stages=*) STAGES_OVERRIDE="${1#--stages=}"; shift ;;
+    --verify) VERIFY_CADENCE="${2:-}"; shift 2 ;;
+    --verify=*) VERIFY_CADENCE="${1#--verify=}"; shift ;;
+    --tier) TIER="${2:-}"; shift 2 ;;
+    --tier=*) TIER="${1#--tier=}"; shift ;;
+    --host) HOST="${2:-}"; shift 2 ;;
+    --host=*) HOST="${1#--host=}"; shift ;;
+    --no-adapt) NO_ADAPT="1"; shift ;;
     --json) OUTPUT="json"; shift ;;
     --steps) OUTPUT="steps"; shift ;;
     --loop) OUTPUT="loop"; shift ;;
     --max-cycles) OUTPUT="max-cycles"; shift ;;
     --approval-required) OUTPUT="approval-required"; shift ;;
-    -h|--help) sed -n '2,27p' "$0" >&2; exit 0 ;;
+    -h|--help) sed -n '2,36p' "$0" >&2; exit 0 ;;
     *) echo "[workflow] unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
+
+[ -n "$HOST" ] || HOST=$(mb_detect_host)
 
 PIPELINE_PATH=$(bash "$PIPELINE" path "$MB_ARG" 2>/dev/null || true)
 if [ -z "$PIPELINE_PATH" ]; then
@@ -78,6 +103,7 @@ fi
 PIPELINE_YAML="$PIPELINE_PATH" WORKFLOW_NAME="$WORKFLOW" OUTPUT="$OUTPUT" \
 FLAG_REVIEW="$FLAG_REVIEW" FLAG_JUDGE="$FLAG_JUDGE" FLAG_FIX="$FLAG_FIX" FLAG_DISCUSS="$FLAG_DISCUSS" \
 FLAG_SDD="$FLAG_SDD" FLAG_PLAN="$FLAG_PLAN" STAGES_OVERRIDE="$STAGES_OVERRIDE" \
+VERIFY_CADENCE="$VERIFY_CADENCE" TIER="$TIER" HOST="$HOST" NO_ADAPT="$NO_ADAPT" MB_SD="$SCRIPT_DIR" \
 python3 - <<'PY'
 import json
 import os
@@ -130,11 +156,47 @@ aliases = workflow_cfg.get("aliases") or {}
 if not isinstance(aliases, dict):
     aliases = {}
 
-default_name = workflow_cfg.get("default") or "execution"
-name = requested or default_name
-name = aliases.get(name, name)
+# A project pipeline scaffolded before the presets lacks them: take presets,
+# aliases and effort_tiers from the bundled default; project keys win.
+try:
+    _default_path = os.path.join(os.environ["MB_SD"], "..", "references", "pipeline.default.yaml")
+    default_cfg = yaml.safe_load(open(_default_path, encoding="utf-8")) or {}
+except Exception:
+    default_cfg = {}
+if isinstance(cfg.get("workflows"), dict) and cfg["workflows"]:
+    cfg["workflows"] = {**(default_cfg.get("workflows") or {}), **cfg["workflows"]}
+    aliases = {**((default_cfg.get("workflow") or {}).get("aliases") or {}), **aliases}
+    cfg["effort_tiers"] = {**(default_cfg.get("effort_tiers") or {}), **(cfg.get("effort_tiers") or {})}
 
+CADENCES = ("stage", "plan", "run", "off")
+cli_cadence = os.environ.get("VERIFY_CADENCE", "")
+if cli_cadence and cli_cadence not in CADENCES:
+    sys.stderr.write(f"[workflow] --verify '{cli_cadence}' not in {', '.join(CADENCES)}\n")
+    sys.exit(2)
+
+tier = os.environ.get("TIER", "")
+if tier and not requested:
+    if tier == "trivial":
+        sys.stderr.write(
+            "[workflow] tier 'trivial': no /mb work needed — make the change and "
+            "check it with one command\n"
+        )
+        sys.exit(2)
+    tiers = cfg.get("effort_tiers")
+    if not isinstance(tiers, dict) or tier not in tiers:
+        sys.stderr.write(f"[workflow] unknown effort tier '{tier}' (no effort_tiers.{tier} in pipeline.yaml)\n")
+        sys.exit(2)
+    requested = str(tiers[tier])
+
+host = os.environ.get("HOST", "")
+host_cfg = (cfg.get("hosts") or {}).get(host) if isinstance(cfg.get("hosts"), dict) else None
+host_cfg = host_cfg if isinstance(host_cfg, dict) else {}
+default_name = host_cfg.get("preset") or workflow_cfg.get("default") or "execution"
 workflows = cfg.get("workflows") or {}
+name = requested or default_name
+if not (isinstance(workflows, dict) and name in workflows):
+    name = aliases.get(name, name)
+
 if workflows and not isinstance(workflows, dict):
     sys.stderr.write("[workflow] workflows must be a mapping\n")
     sys.exit(1)
@@ -149,6 +211,10 @@ if name in workflows:
     loop = spec.get("loop") or {}
     entrypoint = spec.get("entrypoint")
     interactive = bool(spec.get("interactive", False))
+    verify_block = spec.get("verify") if isinstance(spec.get("verify"), dict) else {}
+    implement_block = spec.get("implement") if isinstance(spec.get("implement"), dict) else {}
+    yaml_cadence = verify_block.get("cadence")
+    self_verify = implement_block.get("self_verify") is True
 elif not workflows:
     # Backward compatibility: derive from stage_pipeline.
     source = "stage_pipeline"
@@ -169,6 +235,8 @@ elif not workflows:
     }
     entrypoint = "plan_or_spec"
     interactive = False
+    yaml_cadence = None
+    self_verify = False
 else:
     available = ", ".join(sorted(workflows.keys()))
     sys.stderr.write(f"[workflow] unknown workflow '{name}'. Available: {available}\n")
@@ -273,6 +341,14 @@ if "fix" in steps and not loop:
         "approval_required": bool(review_cfg.get("approval_required", False)),
     }
 
+# Verifier cadence: launch flag > workflow block > once at plan end (AGR-075).
+cadence = cli_cadence or host_cfg.get("verify") or yaml_cadence or "plan"
+if cadence not in CADENCES:
+    sys.stderr.write(f"[workflow] workflows.{name}.verify.cadence '{cadence}' not in {', '.join(CADENCES)}\n")
+    sys.exit(1)
+if "verify" not in steps:
+    cadence = "off"
+
 resolved = {
     "name": name,
     "source": source,
@@ -280,7 +356,14 @@ resolved = {
     "entrypoint": entrypoint,
     "interactive": interactive,
     "loop": loop,
+    "verify_cadence": cadence,
+    "self_verify": self_verify,
+    "host": host,
 }
+sys.path.insert(0, os.environ["MB_SD"])
+import mb_work_adapt  # noqa: E402
+
+resolved["adapt"] = mb_work_adapt.load_config(path, bool(os.environ.get("NO_ADAPT")))
 
 if output == "json":
     print(json.dumps(resolved, ensure_ascii=False))

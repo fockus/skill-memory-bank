@@ -165,12 +165,15 @@ created: DATE_PLACEHOLDER
 <!-- mb-stage:1 -->
 ### Stage 1: <!-- title -->
 
+<!-- One stage by default. Add a stage only at a dependency, layer/owner, risk or parallel boundary (references/templates.md § Plan decomposition). -->
+
+**Files:** <!-- files this stage edits; /mb work computes parallel waves from these lines -->
+
 **What to do:**
 - <!-- concrete actions -->
 
 **Testing (TDD — tests BEFORE implementation):**
-- <!-- unit tests: what they verify, edge cases -->
-- <!-- integration tests: which components interact -->
+- <!-- tests for the plan as a whole: behavior, edge cases -->
 
 **DoD (Definition of Done):**
 - [ ] <!-- concrete, measurable criterion (SMART) -->
@@ -178,20 +181,6 @@ created: DATE_PLACEHOLDER
 - [ ] lint clean
 
 **Code rules:** SOLID, DRY, KISS, YAGNI, Clean Architecture
-
----
-
-<!-- mb-stage:2 -->
-### Stage 2: <!-- title -->
-
-**What to do:**
--
-
-**Testing (TDD):**
--
-
-**DoD:**
-- [ ]
 
 ---
 

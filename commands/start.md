@@ -1,5 +1,5 @@
 ---
-description: Load current project context from memory-bank
+description: "Loads the current project context from memory-bank. Use when starting project work — «начнём», «что в работе», «загрузи контекст»."
 allowed-tools: [Bash, Read, Task]
 ---
 

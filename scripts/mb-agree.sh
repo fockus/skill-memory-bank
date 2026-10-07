@@ -508,26 +508,64 @@ def cmd_list(args):
         print("(none)")
 
 
+BLOCK_BUDGET = 4096
+SUMMARY_MAX = 140
+
+
+def _summary(text):
+    # Index form of a statement: first sentence, at most SUMMARY_MAX chars.
+    text = re.sub(r" \[supersedes AGR-[0-9]+\]", "", text).strip()
+    if len(text) <= SUMMARY_MAX:
+        return text
+    head = text[:SUMMARY_MAX + 1]
+    # Prefer the first sentence end, else the last clause break past mid-range,
+    # else a word boundary.
+    dot = head.find(". ")
+    clause = max(head.rfind("; "), head.rfind(" — "))
+    if dot >= 0:
+        cut = text[:dot + 1]
+    elif clause >= SUMMARY_MAX // 2:
+        cut = text[:clause]
+    else:
+        cut = head[:SUMMARY_MAX].rsplit(" ", 1)[0]
+    return cut.rstrip() + "…"
+
+
 def _entry_to_block_line(line):
-    m = re.match(r"^- (AGR-[0-9]+) \([^)]*\):\s?(.*)$", line)
+    m = re.match(r"^- (AGR-([0-9]+)) \([^)]*\):\s?(.*)$", line)
     if m:
-        return "- %s: %s" % (m.group(1), m.group(2))
-    return line
+        return int(m.group(2)), "- %s: %s" % (m.group(1), _summary(m.group(3)))
+    return 0, line
 
 
-def build_block(sections, pointer_path):
-    active = sections["Active"]
-    lines = ["## Active Agreements"]
-    for line in active:
-        lines.append(_entry_to_block_line(line))
-    lines.append("")
-    lines.append(
+def _render_block(lines, hidden, pointer_path):
+    body = ["## Active Agreements"] + lines
+    if hidden:
+        body.append("- … %d more → /mb agree list" % hidden)
+    body.append("")
+    body.append(
         "История, superseded и "
         "правила ведения "
         "→ %s (`/mb agree`)" % pointer_path
     )
-    body = "\n".join(lines)
-    return "%s\n%s\n%s" % (MARKER_START, body, MARKER_END), len(active)
+    return "%s\n%s\n%s" % (MARKER_START, "\n".join(body), MARKER_END)
+
+
+def build_block(sections, pointer_path):
+    # Index of active agreements within BLOCK_BUDGET bytes (trailing newline
+    # included); on overflow the oldest (lowest ids) are dropped first.
+    active = sections["Active"]
+    entries = sorted(
+        (_entry_to_block_line(line) + (pos,) for pos, line in enumerate(active)),
+        key=lambda e: (e[0], e[2]),
+    )
+    drop = 0
+    while True:
+        kept = sorted(entries[drop:], key=lambda e: e[2])
+        block = _render_block([e[1] for e in kept], drop, pointer_path)
+        if len((block + "\n").encode("utf-8")) <= BLOCK_BUDGET or drop >= len(entries):
+            return block, len(active)
+        drop += 1
 
 
 def _find_markers(text):

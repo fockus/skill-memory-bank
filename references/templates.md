@@ -1,5 +1,43 @@
 # Memory Bank — Templates
 
+## Contents
+
+- [Note (`notes/`)](#note-notes)
+- [`progress.md` entry (append)](#progressmd-entry-append)
+- [`lessons.md` entry](#lessonsmd-entry)
+- [Hypothesis in `research.md`](#hypothesis-in-researchmd)
+- [ADR registry (`adr.md`)](#adr-registry-adrmd)
+- [Experiment (`experiments/EXP-NNN.md`)](#experiment-experimentsexp-nnnmd)
+- [Plan decomposition — Phase → Sprint → Stage](#plan-decomposition--phase--sprint--stage)
+  - [When to use which level](#when-to-use-which-level)
+  - [When to add a stage](#when-to-add-a-stage)
+  - [DoD and tests — per plan, per stage only at a boundary](#dod-and-tests--per-plan-per-stage-only-at-a-boundary)
+  - [Required per Sprint — Gate](#required-per-sprint--gate)
+  - [Terminology](#terminology)
+- [Plan (`plans/YYYY-MM-DD_<type>_<topic>.md`)](#plan-plansyyyy-mm-dd_type_topicmd)
+- [New Memory Bank initialization (`/mb init`)](#new-memory-bank-initialization-mb-init)
+- [Drift checks (`scripts/mb-drift.sh`)](#drift-checks-scriptsmb-driftsh)
+  - [Usage](#usage)
+  - [Output (stdout — `key=value`)](#output-stdout--keyvalue)
+  - [8 checkers](#8-checkers)
+  - [Integration with `mb-doctor`](#integration-with-mb-doctor)
+  - [Pre-commit hook (optional)](#pre-commit-hook-optional)
+- [Custom metrics override (`.memory-bank/metrics.sh`)](#custom-metrics-override-memory-bankmetricssh)
+- [Interview plan template](#interview-plan-template)
+- [Glossary template](#glossary-template)
+- [Interview transcript template](#interview-transcript-template)
+- [Context (`context/<topic>.md`) — `/mb discuss` output (Phase 2 SDD)](#context-contexttopicmd--mb-discuss-output-phase-2-sdd)
+- [Spec Requirements (`specs/<topic>/requirements.md`) — Phase 2 Sprint 2](#spec-requirements-specstopicrequirementsmd--phase-2-sprint-2)
+- [Spec Design (`specs/<topic>/design.md`) — Phase 2 Sprint 2](#spec-design-specstopicdesignmd--phase-2-sprint-2)
+- [Spec Tasks v2 (`specs/<topic>/tasks.md`) — executable task block](#spec-tasks-v2-specstopictasksmd--executable-task-block)
+  - [Test-layer tasks and Quality DoD (C8 — rendered, not hand-written)](#test-layer-tasks-and-quality-dod-c8--rendered-not-hand-written)
+  - [§Contract seam block (design.md, C9)](#contract-seam-block-designmd-c9)
+  - [Structural Eval sample (docs / config task, REQ-049)](#structural-eval-sample-docs--config-task-req-049)
+  - [Waiver form (non-gated only)](#waiver-form-non-gated-only)
+  - [Escalation menu (D-35) — size overflow at generation time](#escalation-menu-d-35--size-overflow-at-generation-time)
+- [Plan as execution wrapper](#plan-as-execution-wrapper)
+- [Brief one-pager (`briefs/<topic>/brief.md`)](#brief-one-pager-briefstopicbriefmd)
+
 ## Note (`notes/`)
 
 File: `notes/YYYY-MM-DD_HH-MM_<topic>.md`
@@ -60,10 +98,23 @@ Statuses: `⬜ Not tested` → `🔬 Testing` → `✅ Confirmed` / `❌ Refuted
 
 ---
 
-## ADR in `backlog.md`
+## ADR registry (`adr.md`)
+
+`<bank>/adr.md` holds ADRs only: append-only, monotonic `ADR-NNN` (never reused), a superseded
+record keeps its text and gets `· status: superseded by ADR-NNN` in its heading. Created by
+`mb-adr.sh` (`/mb adr`); old banks move their ADRs here with `mb-adr-migrate.sh --apply`.
+Each field is 1–2 sentences, the whole record ≤ 1200 bytes; longer reasoning goes to a note.
 
 ```markdown
-- ADR-NNN: <Decision> — <context, considered alternatives, consequences> [YYYY-MM-DD]
+# Architecture Decision Records
+
+### ADR-NNN — <Decision title> [YYYY-MM-DD] · status: accepted
+
+**Context:** <the problem that forced a decision now>
+**Decision:** <what was chosen and the one main reason>
+**Alternatives:** <which option was rejected and why>
+**Consequences:** <what becomes easier and what becomes more expensive>
+**Details:** notes/<file>.md   (optional)
 ```
 
 ---
@@ -106,54 +157,50 @@ Principle: one change per experiment (single-change policy).
 
 ## Plan decomposition — Phase → Sprint → Stage
 
-Formal 3-level hierarchy for planning. **Choose the level by the size of the work — not everything needs to be wrapped in a Phase.**
+Formal 3-level hierarchy for planning. **Choose the level by the shape of the work — not everything needs to be wrapped in a Phase, and most plans need one stage.**
 
 > **Canonical decomposition note:** When a spec exists under `specs/<topic>/`, the
 > `tasks.md` file is the canonical decomposition. Plan files act as sprint slices
 > (via `linked_spec` frontmatter) or standalone tactical wrappers when no spec
 > exists. Do not duplicate task definitions in both plan stages and spec tasks.
 
-| Level | Purpose | Size threshold | Context |
-|-------|---------|----------------|---------|
-| **Stage** | Atomic unit of work. Marker `<!-- mb-stage:N -->` inside a plan file | 1-5 files, ~5-15 tests, 5-30 min | Fits in one tool series |
-| **Sprint** | Group of related Stages sharing the same architectural context. = **one plan file** | 3-7 stages, ≤15 files, ≤60 tests, ~3000 lines of new code | **≤ 200k tokens** (one session) |
-| **Phase** | Major direction with ≥2 Sprints and dependencies between them | ≥2 Sprints, > 1 week of work, has roadmap/gates | Multiple plan files |
+| Level | Purpose | Guideline |
+|-------|---------|-----------|
+| **Stage** | A boundary inside a plan: dependency, layer/owner change, risky checkpoint, or parallel chunk. Marker `<!-- mb-stage:N -->` + `Files:` line | Not a size unit — no file, test or time limit |
+| **Sprint** | Group of related Stages sharing the same architectural context. = **one plan file** | Roughly up to ~7 stages |
+| **Phase** | Major direction with ≥2 Sprints and dependencies between them | ≥2 Sprints, has roadmap/gates; multiple plan files |
 
 ### When to use which level
 
-| Work size | Structure | Example |
-|-----------|-----------|---------|
-| ≤ 3 stages, 1 session | **Plain plan**, no Phase/Sprint | Bugfix, small refactor |
-| 3-7 stages, several days | One **Sprint** = one plan file | New mid-size feature |
+| Work shape | Structure | Example |
+|------------|-----------|---------|
+| One coherent change, 1 session | **Plain plan**, usually one stage | Bugfix, small refactor, new endpoint |
+| Several boundaries, several days | One **Sprint** = one plan file | New mid-size feature |
 | ≥ 2 Sprints with dependencies | **Phase** = roadmap + multiple plan files (one per Sprint) | Large initiative |
 
-### 🔴 Hard rule — 200k context window per Sprint
+### When to add a stage
 
-**One Sprint must fit in a single Claude 200k-token context** — from reading code to final verification and Memory Bank actualization.
+Start from one stage and add another only when one of these holds (AGR-078):
 
-Budget per Sprint (indicative):
-- ~30k — reading inputs (source files + plan + checklist)
-- ~30k — planning + TDD red phase
-- ~100k — implementation
-- ~30k — verification + test runs + output
-- ~10k — buffer for errors and corrections
+- **dependency boundary** — the next part needs the previous one finished and in place;
+- **layer or owner change** — e.g. domain → infrastructure, or a different role agent takes over;
+- **risky checkpoint** — a point to stop and confirm before going further (a migration, a public contract);
+- **parallel chunk** — a piece whose `Files:` are disjoint from the other stages, so `/mb work` can run it in its own wave.
 
-**If you estimate a Sprint at >200k — split it into 2 Sprints** along an architectural boundary. Two clean Sprints beat one truncated Sprint.
+A single-stage plan is valid and preferred for small/standard work (`references/effort-tiers.md`).
+There is no minimum stage count: each extra stage adds a hand-off, so it should buy a boundary.
+Plan coarse; decompose as needed — ADaPT: only an item that gets stuck is split, during `/mb work`
+(`references/adapt.md`).
 
-**Symptoms that require a split:**
-- > 5 large files (>500 lines each) to read
-- > 15 new/modified files
-- > 3000 lines of new code
-- > 60 new tests
-- cross-layer refactor (core + service + infra all at once, all large)
+### DoD and tests — per plan, per stage only at a boundary
 
-### Required per Stage — SMART DoD
-
-Each Stage in a plan file must have:
+The plan states its tests (TDD — written before implementation) and SMART DoD as a whole; each item
+answers «how do we verify?». A stage gets its own Testing/DoD only when it has its own verifiable
+boundary (a contract other stages build on, a risky checkpoint). Verification runs once at the end of
+the plan by default (AGR-075) — a stage does not need an independent check. Each stage still has:
 - **Title** — what is being done
+- **Files:** — the files it edits (parallel waves are computed from these lines)
 - **Actions** — concrete files/functions
-- **Tests (TDD — BEFORE implementation)** — unit / integration / e2e where applicable
-- **DoD** (SMART: Specific / Measurable / Achievable / Relevant / Time-bound) as checkboxes; each item answers «how do we verify?»
 - **Code rules** — one-line reference to principles (TDD/SOLID/DRY/KISS/Clean Arch)
 
 ### Required per Sprint — Gate
@@ -188,12 +235,15 @@ Types: `feature`, `fix`, `refactor`, `experiment`
 
 ### Stage 1: <name>
 
+<!-- One stage by default. Add a stage only at a dependency, layer/owner, risk or parallel boundary. -->
+
+**Files:** <files this stage edits>
+
 **What to do:**
 - <concrete actions>
 
 **Testing (TDD — tests BEFORE implementation):**
-- <unit tests: what they verify, edge cases>
-- <integration tests: which components together>
+- <tests for the plan as a whole: behavior, edge cases>
 
 **DoD (Definition of Done):**
 - [ ] <concrete, measurable criterion (SMART)>
@@ -201,19 +251,6 @@ Types: `feature`, `fix`, `refactor`, `experiment`
 - [ ] lint clean
 
 **Code rules:** SOLID, DRY, KISS, YAGNI, Clean Architecture
-
----
-
-### Stage 2: <name>
-
-**What to do:**
-- 
-
-**Testing (TDD):**
-- 
-
-**DoD:**
-- [ ]
 
 ---
 
@@ -240,7 +277,8 @@ Creates the minimal structure:
 ├── roadmap.md         # Header + "Current focus: define"
 ├── checklist.md    # Header + empty checklist
 ├── research.md     # Header + empty hypothesis table
-├── backlog.md      # Header + empty sections
+├── backlog.md      # Header + empty `## Ideas` section
+├── adr.md          # Header only; ADR registry filled by /mb adr
 ├── progress.md     # Header
 ├── lessons.md      # Header
 ├── experiments/    # Empty; filled by experiment authors (EXP-NNN.md)

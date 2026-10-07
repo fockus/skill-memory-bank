@@ -1,5 +1,20 @@
 # `/mb work` — reference material
 
+## Contents
+
+- [Workflow modes from pipeline.yaml](#workflow-modes-from-pipelineyaml)
+  - [Composing the pipeline (per-stage flags + precedence)](#composing-the-pipeline-per-stage-flags--precedence)
+  - [Verifier cadence](#verifier-cadence-verifycadence-agr-075)
+- [JSON Lines schema](#json-lines-schema)
+- [Examples](#examples)
+- [Underlying scripts](#underlying-scripts)
+- [Parallel runs](#parallel-runs)
+- [Spec tasks as executable source (Sprint 2)](#spec-tasks-as-executable-source-sprint-2)
+- [Plan-as-wrapper UX](#plan-as-wrapper-ux)
+- [Range parsing (spec §8.3)](#range-parsing-spec-83)
+- [Sprint contracts, progress trend, strategic pivoting](#sprint-contracts-progress-trend-strategic-pivoting)
+- [Project quality settings](#project-quality-settings)
+
 Companion to `commands/work.md`, which owns the NORMATIVE per-item loop.
 Split out so each file stays within the 400-line project limit (S2 review
 [26]); nothing here changed in the move. Read this file when you need the
@@ -12,29 +27,24 @@ guidance.
 
 ```yaml
 workflow:
-  default: execution
-  aliases:
-    everything: full
-
+  default: medium
+  aliases: {execution: medium, governed-execution: governed}
+effort_tiers: {small: simple, standard: medium, large: complex, extra: governed}
 workflows:
-  execution:
-    steps: [implement, verify, done]
-
-governed-execution:
-  steps: [implement, verify, review, judge, fix, done]
-  review_profile: ensemble
-  judge_profile: independent
-  loop:
-    after: judge
-    until: judge_go
-    returns_to: verify
-    max_cycles: 2
-    on_max_cycles: judge_decides
+  simple: {steps: [implement, done], implement: {self_verify: true}}
+  medium: {steps: [implement, verify, done], verify: {cadence: plan}}
+  governed:
+    steps: [implement, verify, review, judge, fix, done]
+    verify: {cadence: plan}
+    review_profile: ensemble
+    judge_profile: independent
+    loop: {after: judge, until: judge_go, returns_to: verify, max_cycles: 2, on_max_cycles: judge_decides}
 ```
 
 Resolution rules:
 
-1. `--workflow NAME` wins.
+1. `--workflow NAME` wins; else `--tier <tier>` picks `effort_tiers.<tier>` (`trivial` exits 2:
+   no `/mb work` needed).
 2. If omitted, use `workflow.default`; if absent, use `execution`.
 3. Apply `workflow.aliases.NAME` when present.
 4. Resolve `workflows.<name>`.
@@ -43,7 +53,8 @@ Resolution rules:
 Use the helper instead of hand-parsing YAML:
 
 ```bash
-bash scripts/mb-workflow.sh --mb <bank> --workflow execution --json
+bash scripts/mb-workflow.sh --mb <bank> --workflow medium --verify=stage --json
+bash scripts/mb-workflow.sh --mb <bank> --tier extra --json
 bash scripts/mb-workflow.sh --mb <bank> --workflow full --steps
 bash scripts/mb-workflow.sh --mb <bank> --workflow review --max-cycles
 ```
@@ -52,9 +63,11 @@ Built-in default modes:
 
 | Workflow | Steps | Use when |
 |---|---|---|
-| `execution` | `implement → verify → done` | Plan/spec already exists; this is the simple default `/mb work` path. **Review is OFF by default.** |
+| `simple` | `implement → done` | Small change that still came as a plan; the implementer self-checks (targeted tests + DoD), no verifier. |
+| `medium` | `implement → verify → done` | **Default** (alias `execution`). Plan/spec already exists; one verifier pass at plan end. **Review is OFF by default.** |
+| `complex` | `implement → verify → review → fix → done` | Large work from a spec; one reviewer per item, fix loop bounded at 2 cycles (`stop_for_human`). |
 | `full` | `discuss → sdd → plan → implement → verify → review → judge → done` | The complete composable chain — brainstorm to verified, reviewed, judged work. Alias: `everything`. |
-| `governed-execution` | `implement → verify → review ensemble → judge → fix/backlog → done` | Project opts into stronger gates without endless review/fix loops. |
+| `governed` | `implement → verify → review ensemble → judge → fix/backlog → done` | Alias `governed-execution` / `strict`. Stronger gates without endless review/fix loops. |
 | `full-cycle` | `discuss → sdd → plan → implement → verify → done` | One interactive pass from fuzzy idea to verified work. |
 | `requirements-plan` | `discuss → sdd → plan` | Requirements and plans only; stop before implementation. |
 | `implement-only` | `implement → verify` | Implement and structurally verify; stop before reviewer. |
@@ -65,13 +78,15 @@ Built-in default modes:
 
 The stage list is composed from **three layers**, in increasing precedence:
 
-1. **Built-in default** — the `execution` preset (`implement → verify → done`). **Review and judge are OFF by default.**
+1. **Built-in default** — the `medium` preset (`implement → verify → done`). **Review and judge are OFF by default.**
 2. **`pipeline.yaml`** (project-persistent) — `workflow.default: <preset>` selects a preset; per-stage `<stage>.enabled: true` adds a composable stage on top of it.
 3. **Launch flags** (per-run, highest) — these win over `pipeline.yaml`.
 
 | Flag | Effect |
 |---|---|
-| `--workflow <preset>` | Select a preset (e.g. `full`, `governed-execution`). |
+| `--workflow <preset>` | Select a preset (e.g. `simple`, `complex`, `governed`, `full`). |
+| `--tier <tier>` | Select the preset mapped by `effort_tiers` (small/standard/large/extra). |
+| `--verify=<cadence>` | Verifier cadence for this run (`stage`/`plan`/`run`/`off`); see *Verifier cadence*. |
 | `--review` / `--no-review` | Add / remove the single-reviewer stage. |
 | `--judge` / `--no-judge` | Add / remove the independent judge (requires review). |
 | `--brainstorm` / `--no-brainstorm` | Add / remove the `discuss` stage (brainstorm is an alias of discuss). |
@@ -84,8 +99,28 @@ Rules:
 
 - **Canonical order** is fixed: `discuss → sdd → plan → implement → verify → review → judge → done`. Composition only adds/removes stages; it never reorders them (except `--stages`, which sets an explicit order).
 - **`pipeline.yaml` turns stages ON** (`<stage>.enabled: true`); **launch flags turn them ON or OFF** and win over `pipeline.yaml`. The shipped `enabled: false` entries are the off-baseline.
-- **`--review` is the single-reviewer path** (resolved via `mb-reviewer-resolve.sh`, gated by `mb-work-severity-gate.sh`). The heavyweight 5-reviewer ensemble stays behind `--workflow governed-execution`.
+- **`--review` is the single-reviewer path** (resolved via `mb-reviewer-resolve.sh`, gated by `mb-work-severity-gate.sh`). The heavyweight 5-reviewer ensemble stays behind `--workflow governed`.
 - **Fail-fast** — `--judge` without review, or `--stages` naming `sdd`/`plan` with no topic/spec input, aborts before execution with a message naming the missing prerequisite.
+
+### Verifier cadence (`verify.cadence`, AGR-075)
+
+`workflows.<name>.verify.cadence` decides which items get a `plan-verifier` dispatch; the
+verifier's own targeted/full-suite logic (`agents/plan-verifier.md` Step 3.5) is unchanged.
+
+| Cadence | Verifier runs | Diff handed over | Tests |
+|---|---|---|---|
+| `stage` | after every item | the item's scoped diff | targeted; full suite on the last item |
+| `plan` | once, after the last pending item of the plan/spec | the whole plan diff since `baseline_ref` | full suite |
+| `run` | once, after the last pending item of the last plan in the run | the whole run diff | full suite |
+| `off` | never; append `verification skipped (cadence=off)` to `progress.md` | — | — (`/mb verify` by hand) |
+
+Precedence: `--verify=<cadence>` ▸ `hosts.<host>.verify` ▸ `verify.cadence` ▸ `plan` (a workflow
+without a cadence verifies once at plan end; set `stage` explicitly for per-item); no `verify` step → `off`. `mb-workflow.sh --json` reports `verify_cadence`;
+`mb-work-plan.sh --verify=<cadence>` marks each line `verify` / `final_verify`. A multi-plan run
+passes `--target` once per plan (no `--range`). An item with `verify: false` skips §5c and gets the
+self-check line; `final_verify: true` → `Final item: yes` with the unscoped baseline diff. A fix
+loop's `returns_to: verify` on a `verify: false` item re-enters at `review`. A run stopped before
+its last item never reaches the verifier — run `/mb verify` before commit.
 
 #### Selecting a named pipeline (multi-pipeline projects)
 
@@ -164,15 +199,14 @@ Field reference:
 | `heading` | string | Stage or task heading text |
 | `role` | string | Detected role (backend, frontend, etc.) |
 | `agent` | string | Resolved agent name (from `pipeline.yaml:roles.<role>.agent`) |
-| `model` | string | Resolved model id (from `pipeline.yaml:roles.<role>.model`, if configured) |
+| `model` | string | Resolved model id; `model_source` = `cli` (`--model`, item role only) ▸ `role` (`roles.<role>.model`; an item role without one takes `roles.developer.model`) ▸ `profile` (`model_profiles[host][cost_tiers[cost][class]]`) ▸ `inherit` (omit the dispatch model). Also `cost`, `host`, `step_models` {verifier, reviewer, judge} — [cost tiers](../docs/pipeline-yaml.md#cost-tiers-and-model-profiles) |
 | `thinking` | string | Resolved thinking level (from `pipeline.yaml:roles.<role>.thinking`, if configured) |
 | `status` | string | `pending`, `in-progress`, or `done` |
 | `dod_lines` | int | Number of DoD checkbox lines in the item body |
 | `source` | string | `plan` for `<!-- mb-stage:N -->` items; `spec` for `<!-- mb-task:N -->` items |
 | `kind` | string | `stage` (plan item) or `task` (spec item) |
 | `covers` | array | REQ-IDs this task covers (empty list `[]` for stages without Covers) |
-
-Existing consumers that read `stage_no` continue to work — `item_no` is an alias with the same value.
+| `wave` | int | Parallel wave, 1-based (`scripts/mb_work_waves.py`, AGR-073): scanned in order, an item joins the current wave when its `Files:` set (spec: `Scope:`) is non-empty, disjoint from every member's and it is not `Blocked-by` one of them (plans: explicit lines only; spec: C1 default = previous task); no `Files:` → its own wave |
 
 ## Examples
 
@@ -187,9 +221,6 @@ Existing consumers that read `stage_no` continue to work — `item_no` is an ali
 # Narrow to spec tasks 1-2 using --range
 /mb work inventory-sync --range 1-2
 
-# Single spec task by number
-/mb work inventory-sync --range 3
-
 # Plan-as-wrapper: thin plan delegates execution to linked spec
 # (plan frontmatter: linked_spec: specs/inventory-sync, tasks: 1-3)
 /mb work plans/2026-05-21_feature_inventory-sync-sprint-1.md
@@ -200,26 +231,17 @@ Existing consumers that read `stage_no` continue to work — `item_no` is an ali
 # Backward compat: classic plan with mb-stage markers (no linked_spec)
 /mb work plans/2026-05-21_refactor_auth-service.md
 
-# Classic plan with stage range
-/mb work auth-refactor --range 2-4
-
 # Autopilot with budget cap using workflow.default (usually execution)
 /mb work --auto --budget 200000
 
 # Full interactive one-pass flow: discuss -> sdd -> plan -> implement -> verify -> review -> fix
 /mb work "inventory sync" --workflow full-cycle
 
-# Requirements/planning only, then stop
-/mb work "inventory sync" --workflow requirements-plan
-
 # Implement and verify only, no reviewer
 /mb work inventory-sync --workflow implement-only --range 2
 
 # Review existing changes and loop fixes until approval
 /mb work inventory-sync --workflow review-fix
-
-# Allow up to 5 review cycles per item (overrides workflow.loop.max_cycles)
-/mb work --auto --max-cycles 5
 ```
 
 ## Underlying scripts
@@ -288,7 +310,7 @@ Two supported patterns for driving several `/mb work` runs concurrently from one
 
 | Pattern | When to use | How |
 |---|---|---|
-| **Intra-plan waves** | Several **independent stages of the same plan** (a "wave" with no dependency between them) need to run at once, in one worktree. | Each stage's dispatch mints its own `run_id` via `mb-work-state.sh new-run-id`, threads `--run-id` through state/budget/checkbox, and claims its own `<source>` (the plan/spec + item) via `init`. **A single owner per shared file** — never let two concurrently-running stages write the same file. |
+| **Intra-plan waves** | Items sharing a `wave` number in `mb-work-plan.sh` output (disjoint `Files:`, no dependency) run at once, in one worktree; waves run in order. | Each stage's dispatch mints its own `run_id` via `mb-work-state.sh new-run-id`, threads `--run-id` through state/budget/checkbox, and claims its own `<source>` (the plan/spec + item) via `init`. **A single owner per shared file** — never let two concurrently-running stages write the same file. |
 | **Inter-plan worktrees** | Two or more **unrelated plans** need to run at once. | One `git worktree` per plan (see the worktree rule above) — each gets its own working tree, index, `progress.md`, and `checklist.md`, so cross-plan writes never contend. Per-run state/budget slots still apply per worktree. |
 
 **Sync vs. async spawn rule.** Dispatch **sync** (wait for the Task/agent to return before continuing) whenever the next step in *this* item's sequence depends on the result — e.g. verify waiting on implement, judge waiting on review. Dispatch **async** (background) **only** for truly independent waves — stages/items with no dependency on each other's output, typically distinct intra-plan-wave stages or separate inter-plan-worktree plans.
@@ -364,3 +386,15 @@ Underlying script: `bash scripts/mb-work-range.sh <plan-or-spec> [--range expr]`
 ## Sprint contracts, progress trend, strategic pivoting
 
 See **`references/work-loop-v2.md`**.
+
+## Project quality settings
+
+The implementer's TDD line in `commands/work.md` step 5a comes from `.quality.tdd` (`mb-profile.sh quality --json`, AGR-076); the tier is `--tier`, or the preset `effort_tiers` maps to it (`simple` = small):
+
+| `quality.tdd` | Line appended to the implementer prompt |
+|---|---|
+| `on` | none — the engineering core's Red → Green → Refactor applies |
+| `small+` | small tier: `TDD (project small+, small tier): one focused test per stated behaviour; no separate RED step.` — standard and above: none |
+| `off` | `TDD is off for this project (quality.tdd=off): no RED-first requirement; still ship tests for the behaviour you change.` |
+
+A spec task's declared `**Eval:**` is the spec's contract, not the project TDD switch: its eval-red/green (5a0) and the `done` exit-5 gate still apply under `off`; a non-gated task drops it only with a waiver in the spec.

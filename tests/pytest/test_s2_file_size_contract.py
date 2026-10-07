@@ -35,6 +35,7 @@ ZONE_FILES = [
     "scripts/mb-work-plan.sh",
     "scripts/mb_work_plan_wrapper.py",
     "scripts/mb_work_eval_proof.py",
+    "scripts/mb_work_adapt.py",
     "scripts/mb-sdd-candidate.sh",
     "scripts/mb-sdd-review-result.sh",
     "scripts/mb-sdd-self-check.sh",

@@ -96,11 +96,16 @@ fi
 # repo under inspection so the answer is about THAT repo and not this one.
 PROFILE_JSON="$(cd "$REPO" && bash "$SCRIPT_DIR/mb-profile.sh" path 2>/dev/null || printf '{}')"
 
+# Project quality settings (AGR-076) — the review rubric drops the stock bullets
+# of a principle / Testing Trophy the project switched off. Unreadable → '{}' →
+# the rubric as authored.
+QUALITY_JSON="$(cd "$REPO" && bash "$SCRIPT_DIR/mb-profile.sh" quality --json --mb="$BANK" 2>/dev/null || printf '{}')"
+
 PIPELINE="$BANK/pipeline.yaml"
 [ -f "$PIPELINE" ] || PIPELINE="$SKILL_ROOT/references/pipeline.default.yaml"
 
 export MBR_REPO="$REPO" MBR_BANK="$BANK" MBR_SPEC="$SPEC" \
        MBR_SKILL_ROOT="$SKILL_ROOT" MBR_PIPELINE="$PIPELINE" \
-       MBR_PROFILE_JSON="$PROFILE_JSON"
+       MBR_PROFILE_JSON="$PROFILE_JSON" MBR_QUALITY_JSON="$QUALITY_JSON"
 
 python3 "$SCRIPT_DIR/mb_rules_resolve.py" ${DECLARED[@]+"${DECLARED[@]}"}
