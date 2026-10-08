@@ -1,0 +1,16 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_managed_factory_binding_is_ready_before_work _______________
+
+tmp_path = PosixPath('/private/var/folders/p8/4h4w4npn5696mjqsrkv9qkv80000gn/T/pytest-of-anton-one/pytest-226/test_managed_factory_binding_i0')
+
+    def test_managed_factory_binding_is_ready_before_work(tmp_path):
+        result = managed_host(tmp_path)
+>       assert result["ready"], result
+E       AssertionError: {'childCalls': 0, 'modelCalls': 0, 'ready': False, 'sdkVersion': '1.0.2', ...}
+E       assert False
+
+tests/pytest/test_pi_native_host.py:33: AssertionError
+=========================== short test summary info ============================
+FAILED tests/pytest/test_pi_native_host.py::test_managed_factory_binding_is_ready_before_work
+1 failed, 12 deselected in 0.75s

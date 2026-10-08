@@ -40,8 +40,12 @@ _install_pi_agents_roster() {
     [ -f "$f" ] || continue
     _pi_agent_is_partial "$f" && continue
     # Composed partials, `effort` → `thinking`, pi tool names (scripts/mb-agent-render.py).
+    local tmp
+    tmp="$(mktemp "$dest_dir/.$(basename "$f").mbtmp.XXXXXX")"
     python3 "$SKILL_DIR/scripts/mb-agent-render.py" "$f" --skill-dir "$SKILL_DIR" \
-      --host pi > "$dest_dir/$(basename "$f")"
+      --host pi > "$tmp"
+    chmod 644 "$tmp"
+    _pi_owned_put "$tmp" "$dest_dir/$(basename "$f")"
     printf '%s\n' "$dest_dir/$(basename "$f")"
   done
 }
@@ -64,13 +68,82 @@ _install_pi_subagent_extension() {
   local ok_ext ok_core
   ok_ext=$(_install_pi_extension_template \
     "$SKILL_DIR/adapters/pi_subagent_extension.ts" \
-    "$dest_dir/memory-bank-subagent.ts" "")
+    "$dest_dir/memory-bank-subagent.ts" "" owned)
   ok_core=$(_install_pi_extension_template \
     "$SKILL_DIR/adapters/pi_subagent_dispatch_core.mjs" \
-    "$dest_dir/pi_subagent_dispatch_core.mjs" "")
-  if [ "$ok_ext" = "true" ] && [ "$ok_core" = "true" ]; then
+    "$dest_dir/pi_subagent_dispatch_core.mjs" "" owned)
+  if [ "$ok_ext" = "true" ] && [ "$ok_core" = "true" ] && _install_pi_native_helpers; then
     echo "true"
   else
     echo "false"
   fi
+}
+
+# The native extension imports its pi_native_*.mjs siblings relatively, and
+# bin/mb-pi imports the bootstrap from the same folder, so host authority is one
+# module instance. Verbatim copies; .mjs is not auto-loaded by Pi discovery.
+# Prints installed paths; fails when a helper is missing from the bundle.
+_install_pi_native_helpers() {
+  local f found=0
+  for f in "$SKILL_DIR"/adapters/pi_native_*.mjs; do
+    [ -f "$f" ] || continue
+    _pi_owned_copy "$f" "$PI_AGENT_DIR/extensions/$(basename "$f")" >&2
+    found=1
+  done
+  [ "$found" = 1 ]
+}
+
+# Owned opt-in entrypoint <agentDir>/bin/mb-pi (AGR-058). Never replaces a
+# foreign file at that name; ordinary pi, PATH and shell rc files are untouched.
+# The ESM lives in bin/mb-pi.mjs behind a sh launcher: an extensionless file is
+# loaded as CommonJS when the agentDir package.json says {"type":"commonjs"}.
+_pi_entrypoint() { printf '%s\n' "$PI_AGENT_DIR/bin/mb-pi"; }
+_pi_entrypoint_module() { printf '%s\n' "$PI_AGENT_DIR/bin/mb-pi.mjs"; }
+
+_pi_launcher_write() {
+  cat > "$1" <<'EOF'
+#!/bin/sh
+# Memory Bank managed Pi launcher (owned by adapters/pi.sh): runs mb-pi.mjs from
+# the directory of the real launcher file, following symlinks.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink -- "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname -- "$self")/$link ;;
+  esac
+done
+dir=$(CDPATH='' cd -- "$(dirname -- "$self")" && pwd -P) || exit 1
+# Same Node as Pi's own launcher: the Pi installer's node is not on shell PATH.
+pi_node_bin=${XDG_DATA_HOME:-$HOME/.local/share}/pi-node/current/bin
+if [ -x "$pi_node_bin/node" ]; then
+  PATH=$pi_node_bin:$PATH
+  export PATH
+fi
+exec node "$dir/mb-pi.mjs" "$@"
+EOF
+}
+
+_pi_path_foreign() {
+  [ -e "$1" ] || [ -L "$1" ] || return 1
+  [ "$(_pi_owned_state "$1" "$2")" = foreign ]
+}
+
+_pi_entrypoint_foreign() {
+  local tmp launcher_sha
+  tmp="$(mktemp)"
+  _pi_launcher_write "$tmp"
+  launcher_sha="$(_pi_sha256 "$tmp")"
+  rm -f "$tmp"
+  _pi_path_foreign "$(_pi_entrypoint)" "$launcher_sha" ||
+    _pi_path_foreign "$(_pi_entrypoint_module)" "$(_pi_sha256 "$SKILL_DIR/adapters/pi_managed_entrypoint.mjs")"
+}
+
+_install_pi_entrypoint() {
+  local tmp
+  _pi_owned_copy "$SKILL_DIR/adapters/pi_managed_entrypoint.mjs" "$(_pi_entrypoint_module)" 644
+  tmp="$(mktemp "$(_pi_entrypoint).mbtmp.XXXXXX")"
+  _pi_launcher_write "$tmp"
+  chmod 755 "$tmp"
+  _pi_owned_put "$tmp" "$(_pi_entrypoint)"
 }

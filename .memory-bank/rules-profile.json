@@ -5,5 +5,12 @@
   "stack": "python",
   "architecture": "clean",
   "delivery": "tdd",
-  "strictness": "warn"
+  "strictness": "warn",
+  "key_rules": {
+    "enabled": [],
+    "disabled": [],
+    "custom": [
+      "English for everything written to the repo: code comments, commit messages, PR titles and descriptions; replies to the user stay in Russian"
+    ]
+  }
 }

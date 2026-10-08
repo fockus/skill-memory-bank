@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -63,3 +64,34 @@ def _repo_checkout_untouched(tmp_path_factory):
 @pytest.fixture(autouse=True)
 def _no_background_embedder(monkeypatch, tmp_path_factory):
     monkeypatch.setenv("MB_SEMANTIC_PY", str(tmp_path_factory.getbasetemp() / "absent-python"))
+
+
+def _installed_pi_sdk() -> str | None:
+    """The real Pi SDK, resolved once with the real HOME (tests then swap HOME).
+
+    Managed install (Pi >= 1.1): ~/.pi/agent/install/current-version names the
+    release; older global npm installs live under `npm root -g`.
+    """
+    agent = Path(os.environ.get("PI_CODING_AGENT_DIR") or Path.home() / ".pi" / "agent")
+    try:
+        version = (agent / "install" / "current-version").read_text().strip()
+        release = agent / "install" / "releases" / version / "node_modules"
+        managed = release / "@earendil-works" / "pi-coding-agent"
+        if version and "/" not in version and (managed / "package.json").is_file():
+            return str(managed)
+    except OSError:
+        pass
+    try:
+        npm = subprocess.run(["npm", "root", "-g"], text=True, capture_output=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    legacy = Path(npm.stdout.strip()) / "@earendil-works" / "pi-coding-agent"
+    return str(legacy) if (legacy / "package.json").is_file() else None
+
+
+# Every Pi harness (fixtures read PI_PACKAGE_ROOT / PI_SDK_ROOT, mb-pi reads
+# MB_PI_SDK_ROOT) gets the same explicit SDK instead of guessing under a sandbox HOME.
+_PI_SDK = os.environ.get("MB_PI_SDK_ROOT") or _installed_pi_sdk()
+if _PI_SDK:
+    for _name in ("MB_PI_SDK_ROOT", "PI_PACKAGE_ROOT", "PI_SDK_ROOT"):
+        os.environ.setdefault(_name, _PI_SDK)

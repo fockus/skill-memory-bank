@@ -40,6 +40,7 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-10-08 — [plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md](plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md) — Ordinary Pi Memory Bank dispatch
 - 2026-10-08 — [plans/done/2026-10-07_fix_upgrade-safe-install.md](plans/done/2026-10-07_fix_upgrade-safe-install.md) — fix — установка поверх старой версии + хвосты I-249…I-254
 - 2026-10-07 — [plans/done/2026-10-07_feature_adapt-lite.md](plans/done/2026-10-07_feature_adapt-lite.md) — feature — adapt-lite · дробление по необходимости (первый срез svp-adapt-escalation)
 - 2026-10-07 — [plans/done/2026-10-07_feature_project-quality-settings.md](plans/done/2026-10-07_feature_project-quality-settings.md) — feature — project-quality-settings · coverage, TDD, Testing Trophy, архитектура и принципы как настройки проекта

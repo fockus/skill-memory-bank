@@ -90,3 +90,59 @@ data["skills"] = skills
 path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
 PYEOF
 }
+
+# Native managed runtime (AGR-057/088): request the pinned Tintin package with its
+# extension filtered out, so Pi's own package manager installs it while ordinary
+# sessions never load it; only <agentDir>/bin/mb-pi composes it. Additive: an
+# existing entry for the package (any form) is the user's and is left alone.
+# $1 = add|remove|check; add prints added|created|preexisting. $2=1 on remove:
+# the file was created by add, so drop it once nothing else remains. Invalid
+# settings refuse without a write.
+PI_TINTIN_PACKAGE="npm:@tintinweb/pi-subagents@0.19.0"
+
+pi_settings_tintin() {
+  SETTINGS_FILE="$PI_AGENT_DIR/settings.json" ACTION="$1" CREATED="${2:-0}" SOURCE="$PI_TINTIN_PACKAGE" \
+    "${MB_PYTHON:-python3}" <<'PYEOF'
+import json
+import os
+import sys
+from pathlib import Path
+
+path = Path(os.environ["SETTINGS_FILE"])
+action, source = os.environ["ACTION"], os.environ["SOURCE"]
+entry = {"source": source, "extensions": []}
+name = source.rsplit("@", 1)[0]
+
+data = {}
+if path.exists():
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        sys.exit(f"[pi-adapter] invalid Pi settings.json, refusing to modify: {exc}")
+if not isinstance(data, dict) or not isinstance(data.get("packages", []), list):
+    sys.exit("[pi-adapter] Pi settings.json root/packages has an unexpected shape, refusing to modify")
+packages = data.get("packages", [])
+
+def is_tintin(item):
+    src = item if isinstance(item, str) else (item or {}).get("source", "")
+    return src == name or src.startswith(name + "@")
+
+if action == "check":
+    sys.exit(0)
+if action == "add":
+    if any(is_tintin(item) for item in packages):
+        print("preexisting")
+        sys.exit(0)
+    created = not path.exists()
+    data["packages"] = [*packages, entry]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    print("created" if created else "added")
+elif action == "remove" and entry in packages:
+    data["packages"] = [item for item in packages if item != entry]
+    if data == {"packages": []} and os.environ["CREATED"] == "1":
+        path.unlink()
+    else:
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+PYEOF
+}

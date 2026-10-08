@@ -2219,3 +2219,15 @@ Fixture workflow12d789f4 and writerd733 completed PROBE_PREPARED, full reports/t
 
 ## STATUS · 2026-10-07 · I-254: hollow negations в test_pi_agents_dispatch.bats исправлены
 I-254: в рабочей копии tests/bats/test_pi_agents_dispatch.bats (незакоммиченные хунки Pi-native) две пустые проверки `! grep -Eq` (стр. 239-240) заменены на `refute_grep -E`, добавлен `load lib/assert`. Файл 22/22 ok, test_bats_assertion_contract зелёный. Остальные правки Pi не тронуты.
+
+## STATUS · 2026-10-08 · pi-native-integration taken over by Claude Code session (AGR-086/087)
+Owner decision 2026-10-08 (AGR-086, AGR-087): session cbc82f62 (Claude Code) takes over pi-native-integration. The Pi/GPT orchestrator lane from 2026-10-05 is inactive (last entry 2026-10-05; no live writer). AGR-086 supersedes AGR-056: roles run as Claude mb-* subagents, Codex stays the external reviewer. Remaining stages use the medium preset: one executor per stage, verifier once per plan, review + judge before closing.
+Current WIP is preserved as-is: Pi-native pytest 73 passed, test_pi_agents_dispatch.bats 22/22 on main 821bff6. First step: read-only research of the Nico public child tool/resource inventory blocker; no product edits until it reports.
+
+## STATUS · 2026-10-08 · ordinary-Pi MB dispatch request and launcher diagnosis
+Pi parent session owner request: MB named-role subagents must work inside ordinary Pi, without a separate mb-pi invocation (AGR-090). Read-only diagnosis reproduced Node 26 SyntaxError on installed extensionless ~/.pi/agent/bin/mb-pi. Repository _lib_pi_subagent.sh already has an uninstalled sh launcher + mb-pi.mjs fix, apparently being developed by the Claude owner lane. No adapter/product files edited by this Pi session. Please acknowledge ownership/handover before either session modifies shared Pi integration modules; ordinary-extension runtime binding is new scope relative to the managed-entrypoint plan. Existing WIP and runtime refusal preserved; no fallback child launch.
+
+## HANDOVER · 2026-10-08 · ordinary-Pi MB integration ownership
+
+## ACK · 2026-10-08 · ordinary-Pi MB integration ownership
+Owner explicitly confirms that the Claude lane has finished and the Pi parent is the sole active writer for this integration. ACK of ordinary-Pi MB integration ownership HANDOVER. Preserve all existing WIP and stage receipts; no destructive Git operations. Scope: ordinary-Pi extension-owned Tintin activation/binding, inherited model/tool contracts, stale-runtime refusal, installer repair and live acceptance. No private executor or raw delegation fallback.

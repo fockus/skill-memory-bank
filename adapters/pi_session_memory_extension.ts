@@ -15,78 +15,18 @@
 // stay quiet" half of the same state machine, not a gap.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 // ── Install-time placeholders (replaced by adapters/pi.sh) ────────────────
 const PROJECT_ROOT = __MB_PROJECT_ROOT_JSON__;
 // adapter-parity T3: the skill root, used to resolve hooks/scripts/* siblings
 // regardless of WHERE this file is installed (project-local .pi/extensions/
-// or the global ~/.pi/agent/extensions/ accept path) — a bare
-// dirname(__dirname) breaks in both real destinations (it only worked by
-// accident for a file sitting directly under the un-installed source tree).
+// or the global ~/.pi/agent/extensions/ accept path). The session lifecycle
+// itself lives in the skill bundle (adapters/pi_native_session.mjs), so a
+// single-file install keeps working without copying sibling modules.
 const SKILL_DIR = __MB_SKILL_DIR_JSON__;
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/** Walk up from dir to find nearest .memory-bank/ */
-function resolveMemoryBank(fromDir: string): string | null {
-  let dir: string = fromDir;
-  while (true) {
-    const mb = join(dir, ".memory-bank");
-    if (existsSync(mb)) return mb;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
-}
-
-/** Format a date as YYYY-MM-DD */
-function fmtDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-/** Pad to 2 digits */
-function pad(n: number): string {
-  return n.toString().padStart(2, "0");
-}
-
-/** Build a session filename: <date>_<hhmm>_pi_<sid8>.md */
-function sessionFileName(sessionId: string): string {
-  const d = new Date();
-  const sid8 = sessionId.slice(0, 8);
-  return `${fmtDate(d)}_${pad(d.getHours())}${pad(d.getMinutes())}_pi_${sid8}.md`;
-}
-
-/** Check if session capture is disabled */
-function captureDisabled(): boolean {
-  return process.env.MB_SESSION_CAPTURE === "off";
-}
-
-/** Get a safe timestamp ISO string */
-function nowISO(): string {
-  return new Date().toISOString();
-}
-
-/** Best-effort current branch name — same fallback as hooks/mb-session-turn.sh ('-'). */
-async function resolveBranch(cwd: string): Promise<string> {
-  try {
-    const { execFile } = await import("node:child_process");
-    const { promisify } = await import("node:util");
-    const execFileAsync = promisify(execFile);
-    const { stdout } = await execFileAsync(
-      "git",
-      ["-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
-      { timeout: 2000 },
-    );
-    const branch = stdout.trim();
-    return branch || "-";
-  } catch {
-    return "-";
-  }
-}
 
 /**
  * Render the update-notify notice (REQ-013). Fail-open (REQ-019): a missing
@@ -119,180 +59,33 @@ async function renderUpdateNotice(skillDir: string, cwd: string): Promise<string
 // ── Extension ──────────────────────────────────────────────────────────────
 
 export default function mbPiSessionExtension(pi: ExtensionAPI) {
-  let mbPath: string | null = null;
-  let sessionFile: string | null = null;
-  let sessionId: string | null = null;
-  let turnCount = 0;
+  // Handlers register synchronously; the lifecycle module loads once per runtime.
+  const memory = import(pathToFileURL(join(SKILL_DIR, "adapters", "pi_native_session.mjs")).href)
+    .then((mod) => ({ mod, api: mod.createSessionMemory({ skillDir: SKILL_DIR, projectRoot: PROJECT_ROOT }) }))
+    .catch((error) => ({ error }));
 
   pi.on("session_start", async (event, ctx) => {
     const cwd = PROJECT_ROOT || ctx.cwd;
-
-    // REQ-013/019: update-notify is a SEPARATE transport from session
-    // capture (MB_SESSION_CAPTURE governs capture only) — render it BEFORE
-    // the capture-disabled gate below, otherwise MB_SESSION_CAPTURE=off
-    // would silently also suppress the update notice, which is not what
-    // that switch is documented to control. Independent of whether a
-    // Memory Bank resolves below — an out-of-date skill is worth knowing
-    // about even in a bare project. renderUpdateNotice already swallows
-    // every internal error; the outer .catch is belt-and-suspenders so a
-    // host whose event loop treats a rejected handler as fatal never sees
-    // one from this call.
+    // REQ-013/019: update-notify is a separate transport from session capture
+    // (MB_SESSION_CAPTURE governs capture only) and must never block startup.
     const notice = await renderUpdateNotice(SKILL_DIR, cwd).catch(() => null);
-    if (notice && typeof ctx.ui?.notify === "function") {
+    const loaded = await memory;
+    const message = loaded.error
+      ? `Memory Bank session memory unavailable (${SKILL_DIR}/adapters/pi_native_session.mjs): ${String(loaded.error).split("\n")[0]}`
+      : null;
+    for (const text of [notice, message]) {
+      if (!text || typeof ctx.ui?.notify !== "function") continue;
       try {
-        ctx.ui.notify(notice);
+        ctx.ui.notify(text);
       } catch {
         // fail-open: a host whose ctx.ui.notify throws must not block session_start.
       }
     }
-
-    if (captureDisabled()) return;
-
-    // Resolve Memory Bank from project root or cwd
-    mbPath = resolveMemoryBank(cwd);
-    if (!mbPath) return;
-
-    // Ensure session directory exists
-    const sessionDir = join(mbPath, "session");
-    await mkdir(sessionDir, { recursive: true }).catch(() => {});
-
-    // Session id from Pi's session manager. Its save file doubles as the closest
-    // analogue to Claude Code's `transcript_path` (REQ-007 v2 schema parity) —
-    // it is a path, so it never names the capture file.
-    const sf = ctx.sessionManager?.getSessionFile?.() ?? null;
-    const transcript = sf ?? "";
-    sessionId = ctx.sessionManager?.getSessionId?.() ?? null;
-    if (!sessionId) {
-      sessionId = sf ? sf.replace(/[^a-zA-Z0-9]/g, "-").slice(-36) : `pi-${Date.now().toString(36)}`;
-    }
-
-    const fname = sessionFileName(sessionId);
-    sessionFile = join(sessionDir, fname);
-
-    const branch = await resolveBranch(cwd);
-
-    // Write header — same v2 schema fields as the Claude Code capture
-    // (session_id/transcript/started/branch/turns/last_turn/summarized —
-    // hooks/mb-session-turn.sh), plus `agent: pi` (host marker) and
-    // `summary_schema: v2` (REQ-007).
-    const header = [
-      "---",
-      `session_id: ${sessionId}`,
-      `transcript: ${transcript}`,
-      "agent: pi",
-      `started: ${nowISO()}`,
-      `branch: ${branch}`,
-      "turns: 0",
-      "last_turn:",
-      "summarized: false",
-      "summary_schema: v2",
-      "---",
-      "",
-      "## Live log",
-      "",
-    ].join("\n");
-
-    await appendFile(sessionFile, header, "utf-8").catch(() => {});
-
-    // Fire-and-forget: run catchup in background via shell if available
-    const catchupScript = join(SKILL_DIR, "hooks", "mb-session-catchup.sh");
-    if (existsSync(catchupScript)) {
-      const { spawn } = await import("node:child_process");
-      const proc = spawn("bash", [catchupScript], {
-        cwd,
-        env: { ...process.env, MB_CATCHUP_FOREGROUND: "0", MB_SESSION_CAPTURE: "on" },
-        stdio: "ignore",
-        detached: true,
-      });
-      proc.unref();
-    }
+    return loaded.api?.session_start(event, ctx);
   });
 
-  pi.on("input", async (event, ctx) => {
-    if (!sessionFile || captureDisabled()) return;
-    // Extension-injected input (e.g. the /mb router text) is not something the user typed.
-    if (event.source === "extension") return;
-    const ts = new Date().toLocaleTimeString("en-GB", { hour12: false });
-    const text = (event.text || "").slice(0, 200); // cap user text
-    const entry = `- ${ts} — User: "${text}"\n`;
-    await appendFile(sessionFile, entry, "utf-8").catch(() => {});
-  });
-
-  pi.on("tool_execution_end", async (event, ctx) => {
-    if (!sessionFile || captureDisabled()) return;
-    const ts = new Date().toLocaleTimeString("en-GB", { hour12: false });
-    const toolName = event.toolName || "unknown";
-    const isError = event.isError ? " · ERROR" : "";
-    const entry = `  - Tools: ${toolName}${isError}\n  - Outcome: ${isError ? "error" : "ok"}\n`;
-    await appendFile(sessionFile, entry, "utf-8").catch(() => {});
-  });
-
-  pi.on("agent_end", async (event, ctx) => {
-    if (!sessionFile || captureDisabled()) return;
-    turnCount++;
-    // REQ-007: last_turn is part of the shared v2 schema (dedup anchor on
-    // the Claude Code side); Pi has no transcript uuid to anchor on, so a
-    // stable per-turn counter id fills the same field.
-    const lastTurn = `pi-turn-${turnCount}`;
-    // Update turns + last_turn in frontmatter
-    const { readFile, writeFile } = await import("node:fs/promises");
-    try {
-      let content = await readFile(sessionFile, "utf-8");
-      content = content.replace(/^turns: \d+$/m, `turns: ${turnCount}`);
-      content = content.replace(/^last_turn:.*$/m, `last_turn: ${lastTurn}`);
-      await writeFile(sessionFile, content, "utf-8");
-    } catch {}
-
-    // Append turn summary
-    const entry = `- Turn ${turnCount}: completed\n`;
-    await appendFile(sessionFile, entry, "utf-8").catch(() => {});
-  });
-
-  pi.on("session_before_compact", async (event, ctx) => {
-    if (!sessionFile || !mbPath || captureDisabled()) return;
-    const handoffEntry = [
-      "",
-      "## Handoff capsule",
-      `- ${new Date().toISOString()}: context compaction — ${event.reason || "threshold"}`,
-      `- Turns captured: ${turnCount}`,
-      "",
-    ].join("\n");
-    await appendFile(sessionFile, handoffEntry, "utf-8").catch(() => {});
-  });
-
-  pi.on("session_shutdown", async (event, ctx) => {
-    if (!sessionFile || !mbPath || captureDisabled()) return;
-
-    // Finalize session
-    const ended = [
-      `ended: ${nowISO()}`,
-      `turns: ${turnCount}`,
-    ].join("\n");
-    await appendFile(sessionFile, "\n" + ended, "utf-8").catch(() => {});
-
-    // Best-effort: recent rebuild via shell
-    const recentScript = join(SKILL_DIR, "scripts", "mb-session-recent-rebuild.sh");
-    if (existsSync(recentScript)) {
-      const { spawn } = await import("node:child_process");
-      const proc = spawn("bash", [recentScript, mbPath], {
-        env: { ...process.env, MB_SESSION_CAPTURE: "on" },
-        stdio: "ignore",
-      });
-      proc.unref();
-    }
-
-    // I-132 spawn discipline: never detach an indexer — mark the index dirty
-    // and let the next `mb-semantic.py search` catch up inline under its
-    // non-blocking flock (same contract as the Claude Code lifecycle hooks).
-    try {
-      const indexDir = process.env.MB_INDEX_DIR || join(mbPath, ".index");
-      await mkdir(indexDir, { recursive: true });
-      await writeFile(join(indexDir, ".dirty"), "");
-    } catch {}
-
-    // Reset state
-    sessionFile = null;
-    sessionId = null;
-    turnCount = 0;
-  });
+  for (const name of ["input", "tool_execution_start", "tool_execution_end", "agent_end", "before_agent_start",
+    "session_before_compact", "session_compact", "session_compact_failed", "session_shutdown"]) {
+    pi.on(name as any, async (event: any, ctx: any) => (await memory).api?.[name](event, ctx));
+  }
 }

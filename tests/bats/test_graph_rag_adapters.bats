@@ -35,13 +35,17 @@ run_script() {
 
   local ext="$PROJECT/.pi/extensions/memory-bank-graph-rag.ts"
   [ -f "$ext" ]
-  grep -q "pi.registerTool" "$ext"
-  grep -q "name: \"code_context\"" "$ext"
-  grep -q "registerGraphTool(\"graph_neighbors\"" "$ext"
-  grep -q "registerGraphTool(\"graph_impact\"" "$ext"
-  grep -q "registerGraphTool(\"graph_tests\"" "$ext"
-  grep -q "scripts/mb-code-context.py" "$ext"
-  grep -q "scripts/mb-graph-query.py" "$ext"
+  # Thin glue: the tools live in the skill-bundle module (runtime contract:
+  # tests/pytest/test_pi_native_graph.py).
+  grep -q "pi_native_graph.mjs" "$ext"
+  grep -q "registerGraphRag(pi" "$ext"
+  local mod="$REPO_ROOT/adapters/pi_native_graph.mjs"
+  for tool in code_context search_code graph_neighbors graph_impact graph_tests; do
+    grep -q "$tool" "$mod"
+  done
+  grep -q "mb-code-context.py" "$mod"
+  grep -q "mb-graph-query.py" "$mod"
+  grep -q "mb-semantic-search.py" "$mod"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -92,25 +96,13 @@ _ts_const() {
   [ "$(printf '%s' "$proj_val" | jq -r .)" = "$(cd "$sp" && pwd)" ]
 }
 
-@test "graph-rag adapters: pi wrappers preserve JSON payloads on fail-open exits" {
-  run_script "$PI_ADAPTER" install "$PROJECT"
-  [ "$status" -eq 0 ]
-
-  local ext="$PROJECT/.pi/extensions/memory-bank-graph-rag.ts"
-  grep -q "catch (caught" "$ext"
-  grep -q '"stdout" in caught' "$ext"
-  grep -q "JSON.parse(stdout)" "$ext"
-  grep -q "tool_execution_failed" "$ext"
-}
-
-@test "graph-rag adapters: pi graph tools honor custom mbPath" {
-  run_script "$PI_ADAPTER" install "$PROJECT"
-  [ "$status" -eq 0 ]
-
-  local ext="$PROJECT/.pi/extensions/memory-bank-graph-rag.ts"
-  grep -q "mbPath: Type.Optional" "$ext"
-  grep -q "params.mbPath || path.join(projectRoot, \".memory-bank\")" "$ext"
-  grep -q "graphPath(projectRoot, mbPath)" "$ext"
+@test "graph-rag adapters: pi tools fail explicitly and resolve only the live project's bank" {
+  # Stage 3 contract change: JSON on stdout is no longer success after a failed exit, and a
+  # model-supplied mbPath/projectRoot can no longer redirect a tool to another project.
+  local mod="$REPO_ROOT/adapters/pi_native_graph.mjs"
+  grep -q "failed: " "$mod"
+  refute_grep -q "params.mbPath" "$mod"
+  refute_grep -q "params.projectRoot" "$mod"
 }
 
 @test "graph-rag adapters: pi manifest tracks native extension and uninstall removes it" {

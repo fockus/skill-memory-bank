@@ -1,0 +1,76 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_________ test_selected_engine_runs_common_native_pipeline[False-nico] _________
+
+tmp_path = PosixPath('/private/var/folders/p8/4h4w4npn5696mjqsrkv9qkv80000gn/T/pytest-of-anton-one/pytest-232/test_selected_engine_runs_comm0')
+backend = 'nico', named = False
+
+    @pytest.mark.parametrize("backend", ["nico", "tintin"])
+    @pytest.mark.parametrize("named", [False, True])
+    def test_selected_engine_runs_common_native_pipeline(tmp_path, backend, named):
+        mb, source = project(tmp_path, named=named)
+        result = host(tmp_path, tmp_path, args=f"work sample --range 1 --backend {backend}")
+>       assert not result.get("error"), result
+E       AssertionError: {'cancelled': False, 'commands': ['mb', 'mb-adr', 'mb-agree', 'mb-analyze-task', 'mb-api-contract', 'mb-brief', ...], 'error': 'Error: Unsupported work flag: --backend', 'launches': [], ...}
+E       assert not 'Error: Unsupported work flag: --backend'
+E        +  where 'Error: Unsupported work flag: --backend' = <built-in method get of dict object at 0x109774900>('error')
+E        +    where <built-in method get of dict object at 0x109774900> = {'cancelled': False, 'commands': ['mb', 'mb-adr', 'mb-agree', 'mb-analyze-task', 'mb-api-contract', 'mb-brief', ...], 'error': 'Error: Unsupported work flag: --backend', 'launches': [], ...}.get
+
+tests/pytest/test_pi_native_backends.py:15: AssertionError
+________ test_selected_engine_runs_common_native_pipeline[False-tintin] ________
+
+tmp_path = PosixPath('/private/var/folders/p8/4h4w4npn5696mjqsrkv9qkv80000gn/T/pytest-of-anton-one/pytest-232/test_selected_engine_runs_comm1')
+backend = 'tintin', named = False
+
+    @pytest.mark.parametrize("backend", ["nico", "tintin"])
+    @pytest.mark.parametrize("named", [False, True])
+    def test_selected_engine_runs_common_native_pipeline(tmp_path, backend, named):
+        mb, source = project(tmp_path, named=named)
+        result = host(tmp_path, tmp_path, args=f"work sample --range 1 --backend {backend}")
+>       assert not result.get("error"), result
+E       AssertionError: {'cancelled': False, 'commands': ['mb', 'mb-adr', 'mb-agree', 'mb-analyze-task', 'mb-api-contract', 'mb-brief', ...], 'error': 'Error: Unsupported work flag: --backend', 'launches': [], ...}
+E       assert not 'Error: Unsupported work flag: --backend'
+E        +  where 'Error: Unsupported work flag: --backend' = <built-in method get of dict object at 0x109782c00>('error')
+E        +    where <built-in method get of dict object at 0x109782c00> = {'cancelled': False, 'commands': ['mb', 'mb-adr', 'mb-agree', 'mb-analyze-task', 'mb-api-contract', 'mb-brief', ...], 'error': 'Error: Unsupported work flag: --backend', 'launches': [], ...}.get
+
+tests/pytest/test_pi_native_backends.py:15: AssertionError
+_________ test_selected_engine_runs_common_native_pipeline[True-nico] __________
+
+tmp_path = PosixPath('/private/var/folders/p8/4h4w4npn5696mjqsrkv9qkv80000gn/T/pytest-of-anton-one/pytest-232/test_selected_engine_runs_comm2')
+backend = 'nico', named = True
+
+    @pytest.mark.parametrize("backend", ["nico", "tintin"])
+    @pytest.mark.parametrize("named", [False, True])
+    def test_selected_engine_runs_common_native_pipeline(tmp_path, backend, named):
+        mb, source = project(tmp_path, named=named)
+        result = host(tmp_path, tmp_path, args=f"work sample --range 1 --backend {backend}")
+>       assert not result.get("error"), result
+E       AssertionError: {'cancelled': False, 'commands': ['mb', 'mb-adr', 'mb-agree', 'mb-analyze-task', 'mb-api-contract', 'mb-brief', ...], 'error': 'Error: Unsupported work flag: --backend', 'launches': [], ...}
+E       assert not 'Error: Unsupported work flag: --backend'
+E        +  where 'Error: Unsupported work flag: --backend' = <built-in method get of dict object at 0x109768e40>('error')
+E        +    where <built-in method get of dict object at 0x109768e40> = {'cancelled': False, 'commands': ['mb', 'mb-adr', 'mb-agree', 'mb-analyze-task', 'mb-api-contract', 'mb-brief', ...], 'error': 'Error: Unsupported work flag: --backend', 'launches': [], ...}.get
+
+tests/pytest/test_pi_native_backends.py:15: AssertionError
+________ test_selected_engine_runs_common_native_pipeline[True-tintin] _________
+
+tmp_path = PosixPath('/private/var/folders/p8/4h4w4npn5696mjqsrkv9qkv80000gn/T/pytest-of-anton-one/pytest-232/test_selected_engine_runs_comm3')
+backend = 'tintin', named = True
+
+    @pytest.mark.parametrize("backend", ["nico", "tintin"])
+    @pytest.mark.parametrize("named", [False, True])
+    def test_selected_engine_runs_common_native_pipeline(tmp_path, backend, named):
+        mb, source = project(tmp_path, named=named)
+        result = host(tmp_path, tmp_path, args=f"work sample --range 1 --backend {backend}")
+>       assert not result.get("error"), result
+E       AssertionError: {'cancelled': False, 'commands': ['mb', 'mb-adr', 'mb-agree', 'mb-analyze-task', 'mb-api-contract', 'mb-brief', ...], 'error': 'Error: Unsupported work flag: --backend', 'launches': [], ...}
+E       assert not 'Error: Unsupported work flag: --backend'
+E        +  where 'Error: Unsupported work flag: --backend' = <built-in method get of dict object at 0x10978d000>('error')
+E        +    where <built-in method get of dict object at 0x10978d000> = {'cancelled': False, 'commands': ['mb', 'mb-adr', 'mb-agree', 'mb-analyze-task', 'mb-api-contract', 'mb-brief', ...], 'error': 'Error: Unsupported work flag: --backend', 'launches': [], ...}.get
+
+tests/pytest/test_pi_native_backends.py:15: AssertionError
+=========================== short test summary info ============================
+FAILED tests/pytest/test_pi_native_backends.py::test_selected_engine_runs_common_native_pipeline[False-nico]
+FAILED tests/pytest/test_pi_native_backends.py::test_selected_engine_runs_common_native_pipeline[False-tintin]
+FAILED tests/pytest/test_pi_native_backends.py::test_selected_engine_runs_common_native_pipeline[True-nico]
+FAILED tests/pytest/test_pi_native_backends.py::test_selected_engine_runs_common_native_pipeline[True-tintin]
+4 failed, 13 deselected in 1.01s

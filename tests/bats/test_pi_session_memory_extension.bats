@@ -169,7 +169,7 @@ EOF
 # REQ-019: extension failure degrades to fallback, never blocks the session.
 # ═══════════════════════════════════════════════════════════════
 
-@test "pi session-memory extension: a broken skill dir + a THROWING ctx.ui.notify never blocks session_start, capture still works" {
+@test "pi session-memory extension: a broken skill dir + a THROWING ctx.ui.notify never blocks session_start" {
   local fake_skill="$PROJECT/fake-skill"
   # A REAL hooks/mb-update-notify.sh that DOES produce a notice — the point
   # of this test is to prove a THROWING ctx.ui.notify is caught (REQ-019),
@@ -208,13 +208,10 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"SESSION_START_COMPLETED"* ]]
 
-  # Fallback intact: session capture itself is unaffected by the missing
-  # update-notify script or a throwing host notify().
-  local found=0
-  for f in "$PROJECT/.memory-bank/session"/*.md; do
-    [ -f "$f" ] && found=1
-  done
-  [ "$found" -eq 1 ]
+  # Capture lives in the skill bundle (adapters/pi_native_session.mjs): a skill
+  # dir without it disables capture (disclosed via notify) instead of writing
+  # a partial log, and never fails the host.
+  [ ! -d "$PROJECT/.memory-bank/session" ]
 }
 
 @test "pi session-memory extension: a hanging hooks/mb-update-notify.sh (no internal timeout of its own) is bounded by the extension's own 3s timeout" {
@@ -430,7 +427,9 @@ EOF
   [[ "$output" == *"HARNESS_OK"* ]] || false
 
   local sf=""
-  for f in "$PROJECT/.memory-bank/session"/*_pi_0198c0de.md; do
+  # Canonical v2 name <date>_<hhmm>_<sid8>.md (agent: pi lives in frontmatter),
+  # so recent-rebuild/catch-up/sc_find_session_file treat Pi sessions like any other.
+  for f in "$PROJECT/.memory-bank/session"/*_0198c0de.md; do
     [ -f "$f" ] && sf="$f"
   done
   [ -n "$sf" ]

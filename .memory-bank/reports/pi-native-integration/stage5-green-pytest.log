@@ -1,0 +1,4 @@
+...........                                                              [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/pytest/test_pi_native_embeddings.py:280: no FastEmbed interpreter or no locally cached model (no download allowed)
+154 passed, 1 skipped in 206.89s (0:03:26)

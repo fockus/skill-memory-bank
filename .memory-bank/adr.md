@@ -145,3 +145,24 @@
 **Rationale:** SDK экспортирует DefaultResourceLoader, session/runtime, event bus и InteractiveMode. Владелец этой composition root может связать действительно загруженные компоненты и factory settings с живой session/runtime generation, не выводя их из косвенных признаков. Это ещё требует реализации и независимой проверки, а не подтверждает live compatibility само по себе.
 
 **Consequences:** Stage 1 получает минимальный bootstrap/binding producer/consumer и реальный model-free SDK smoke через TDD. Stage 5 проверяет установку, существующий TUI, оба backend, модели и сохранение пользовательской конфигурации. Unknown/stale bindings, неизвестные mentions и unsupported isolation блокируют запуск; private imports, второй executor и provider/backend fallback запрещены. Остальные хосты и обычный Pi не меняются; исторические receipts/RED и latest retained writer сохраняются.
+
+### ADR-013 — Pi-native: Tintin by default, Nico opt-in under a capability ceiling [2026-10-08] · status: accepted
+
+**Context:** Stage 1 of pi-native-integration requires public proof of a child's effective tools and loaded resources. Tintin exposes the child SDK session through its public registry (actual leaf probe passed); Nico 0.76 exposes only launch intent (preflight plan, `launchContractDigest`, `toolCount`) and no public child-session getter.
+**Decision:** Tintin is the default backend (`--backend` → `.mb-config pi_subagent_backend` → tintin); Nico stays opt-in, runs under `registerSubagentCapabilityCeiling` (`allowedTools`, `allowedAgents: []`, `denyExtensions: true`) next to the digest checks, and its runtime inventory is reported UNVERIFIED instead of blocking (AGR-088).
+**Alternatives:** keep Nico default and block the stage until upstream adds a child inventory (no timeline); inject a child-side self-report extension (plan forbids observer extensions, still cannot list loaded extensions); private imports (forbidden).
+**Consequences:** Stage 1 can close with full runtime evidence on the default path; Nico users get enforced limits but no verified inventory until Nico ships a public one. Supersedes the "Nico by default" part of AGR-057.
+
+### ADR-014 — Explicit ESM launcher [2026-10-08] · status: accepted
+
+**Context:** Node parses the installed extensionless mb-pi as CommonJS and rejects its imports.
+**Decision:** Keep the existing installer fix: an owned shell launcher executes an adjacent mb-pi.mjs with Pi's Node runtime.
+**Alternatives:** Changing the user's package.json would affect unrelated modules; shell aliases would not fix installation.
+**Consequences:** Both files require ownership tracking and install/uninstall tests; ordinary pi stays untouched.
+
+### ADR-015 — Extension-owned ordinary Pi dispatch [2026-10-08] · status: accepted
+
+**Context:** AGR-090 requires MB roles in ordinary Pi; the current dispatcher only accepts an SDK-root binding.
+**Decision:** Activate the pinned Tintin public factory inside the opted-in MB extension and bind its attributed service to the live public session context. Retain model, tool-scope, lifecycle and no-fallback checks.
+**Alternatives:** Replacing pi would alter the host; removing the binding guard would allow unverified services; a second executor would duplicate Tintin.
+**Consequences:** The extension owns startup and teardown, refuses duplicate services and stale contexts, and needs actual ordinary-Pi acceptance. mb-pi remains optional.

@@ -4096,3 +4096,9 @@ Approved AGR-055/056/057; [plan](plans/2026-10-05_feature_pi-native-integration.
 ### Auto-capture 2026-10-08 (session b3f98147)
 - Session ended without an explicit /mb done
 - Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## [checklist archive] 2026-10-08 — 2026-10-08_fix_ordinary-pi-mb-dispatch.md
+
+<!-- mb-plan:2026-10-08_fix_ordinary-pi-mb-dispatch.md -->
+## Ordinary Pi Memory Bank dispatch — 1/1
+- ✅ Stage 1 — Ordinary extension activation and installation

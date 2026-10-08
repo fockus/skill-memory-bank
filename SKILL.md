@@ -234,6 +234,7 @@ sees every active agreement without being reminded.
 - Host-specific notes (Claude Code, Codex, Cursor): `references/hosts.md`
 - Privacy and capture (`<private>`, auto-capture, session logging, PreCompact handoff): `references/privacy-and-capture.md`
 - Codex native hooks adapter: `references/codex-native-hooks.md`
+- Pi native integration: `references/pi-native-integration.md`
 - Adapter manifest schema: `references/adapter-manifest-schema.md`
 - Tags vocabulary: `references/tags-vocabulary.md`
 - CLAUDE.md auto-generation template: `references/claude-md-template.md`

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,34 @@ except ImportError:  # pragma: no cover - exercised when the dep is missing
     TextEmbedding = None  # type: ignore[assignment,misc]
 
 _DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+
+
+class EmbeddingModelUnavailable(RuntimeError):
+    """The query encoder cannot be loaded (missing offline, corrupt, unreadable cache)."""
+
+
+def model_cache_dir() -> Path:
+    """Where FastEmbed model files live — persistent, never the OS temp dir by default.
+
+    FastEmbed's own default is ``<tempdir>/fastembed_cache``: macOS purges it and a
+    sandboxed or restarted process can see a different ``TMPDIR``, so an offline query
+    after a restart found no model (Pi-native Stage 3 diagnosis). Same location and
+    override as session recall (``hooks/lib/semantic_embed.py``): ``FASTEMBED_CACHE_PATH``,
+    else ``~/.cache/fastembed``. A model that only exists in the legacy temp cache is read
+    from there (no copy, no re-download) until the persistent cache holds one.
+    """
+    override = os.environ.get("FASTEMBED_CACHE_PATH")
+    if override:
+        return Path(override)
+    persistent = Path.home() / ".cache" / "fastembed"
+    legacy = Path(tempfile.gettempdir()) / "fastembed_cache"
+
+    def has_model(root: Path) -> bool:
+        return any(root.glob("models--*/**/*.onnx"))
+
+    if not has_model(persistent) and has_model(legacy):
+        return legacy
+    return persistent
 
 
 def corpus_key(model_name: str, texts: list[str]) -> str:
@@ -157,7 +186,14 @@ class EmbeddingRetriever:
 
     def _ensure_model(self) -> Any:  # pragma: no cover - requires optional model
         if self._model is None:
-            self._model = TextEmbedding(self.model_name)
+            cache = model_cache_dir()
+            try:
+                self._model = TextEmbedding(self.model_name, cache_dir=str(cache))
+            except Exception as exc:  # fastembed raises ValueError/ONNX/OSError variants
+                raise EmbeddingModelUnavailable(
+                    f"embedding model unavailable ({self.model_name} from {cache}): "
+                    f"{type(exc).__name__}: {str(exc)[:300]}"
+                ) from exc
         return self._model
 
     def _encode(self, texts: list[str]) -> Any:  # pragma: no cover - optional model

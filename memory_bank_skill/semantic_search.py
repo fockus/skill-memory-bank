@@ -371,7 +371,6 @@ def run_search(
 
         warnings.append(f"{semantic_index.refresh_index(mb)}; answering with bm25")
         retriever = Bm25Retriever()
-    retriever.index(corpus)
     # Churn re-rank (design §A4) multiplies final scores then re-sorts, so it must
     # run over the FULL candidate set — a hot file below an arbitrary k*N window
     # could otherwise never be promoted into top-k. Fetch the whole corpus when
@@ -381,7 +380,20 @@ def run_search(
     # with fetch_k = k a corpus whose tests outrank its sources returns fewer than k.
     churn = load_churn(graph_path)
     fetch_k = len(corpus) if (churn or source_only) else k
-    hits = retriever.search(query, fetch_k)
+    unavailable: tuple[type[Exception], ...] = ()
+    if not isinstance(retriever, Bm25Retriever):  # already imported by make_retriever
+        from memory_bank_skill.semantic_embeddings import EmbeddingModelUnavailable
+
+        unavailable = (EmbeddingModelUnavailable,)
+    try:
+        retriever.index(corpus)
+        hits = retriever.search(query, fetch_k)
+    except unavailable as exc:
+        # A warm matrix alone cannot answer: the query still needs the encoder.
+        warnings.append(f"{exc}; answering with bm25")
+        retriever = Bm25Retriever()
+        retriever.index(corpus)
+        hits = retriever.search(query, fetch_k)
     hits = apply_churn_multiplier(hits, churn)
     if source_only:
         hits = [h for h in hits if not h.get("is_test")]

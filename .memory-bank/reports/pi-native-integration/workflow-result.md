@@ -1,0 +1,6 @@
+Error: Run 'stage1-cycle0-implement' failed: Run fan-out: 1/64 used, 63 remaining
+OAuth refresh failed for anthropic: Anthropic token refresh request failed. url=https://platform.claude.com/v1/oauth/token; details=Error: HTTP request failed. status=400; url=https://platform.claude.com/v1/oauth/token; body={"error": "invalid_grant", "error_description": "Refresh token not found or invalid"}; stack=Error: HTTP request failed. status=400; url=https://platform.claude.com/v1/oauth/token; body={"error": "invalid_grant", "error_description": "Refresh token not found or invalid"}
+    at postJson (file:///opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/oauth/anthropic.js:79:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async refreshAnthropicToken (file:///opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/oauth/anthropic.js:201:24)
+  … (truncated; full error: /var/folders/p8/4h4w4npn5696mjqsrkv9qkv80000gn/T/pi-subagents-uid-501/async-subagent-runs/b0046821-2c29-4382-b1ed-f11218dc716d/status.json (error)) Preflight advisory: workflow key 'stage1-cycle0-implement' launched without a declared lane. Preflight advisory: declared lane 'pi-native-stages' was not launched.

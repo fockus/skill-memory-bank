@@ -29,8 +29,11 @@
 # string is falsy in the extensions' own `PROJECT_ROOT || ctx.cwd` /
 # `params.projectRoot || PROJECT_ROOT || process.cwd()` fallback chains, so
 # the live per-session cwd always wins for a global install instead.
+#
+# $4 = "owned" routes the write through _pi_owned_put (global installs under
+# $PI_AGENT_DIR: hash ledger, preimage of a replaced foreign file).
 _install_pi_extension_template() {
-  local src="$1" dest="$2" proj_root="${3-$PROJECT_ROOT}"
+  local src="$1" dest="$2" proj_root="${3-$PROJECT_ROOT}" owned="${4:-}"
   if [ ! -f "$src" ]; then
     echo "false"
     return 0
@@ -45,7 +48,11 @@ _install_pi_extension_template() {
        | gsub("__MB_SKILL_DIR_JSON__"; ($skill | @json))
        | gsub("__MB_PROJECT_ROOT_JSON__"; ($proj | @json))' \
       > "$tmp" 2>/dev/null; then
-    mv "$tmp" "$dest"
+    if [ "$owned" = "owned" ]; then
+      _pi_owned_put "$tmp" "$dest" >&2
+    else
+      mv "$tmp" "$dest"
+    fi
     echo "true"
   else
     rm -f "$tmp"
@@ -78,6 +85,8 @@ _install_graph_rag_extension() {
 # _install_pi_subagent_extension.
 # shellcheck source=./_lib_pi_subagent.sh
 . "$(dirname "$0")/_lib_pi_subagent.sh"
+# shellcheck source=./_lib_pi_owned.sh
+. "$(dirname "$0")/_lib_pi_owned.sh"
 
 # adapter-parity T3 (REQ-006/007/010): installs BOTH parity extensions
 # (session-memory + graph-rag) into the GLOBAL Pi extensions dir
@@ -104,16 +113,34 @@ _install_graph_rag_extension() {
 # just the one active at accept time; the empty bake makes each extension's
 # own runtime fallback (ctx.cwd / process.cwd()) resolve the LIVE project on
 # every session/tool-call instead of a frozen accept-time path.
+#
+# Stage 5 (AGR-058): every write is owned (hash ledger + preimages, see
+# _lib_pi_owned.sh). Refusals (foreign mb-pi, unreadable settings) happen before
+# the first write; the manifest is marked in_progress with no capabilities until
+# the run completes, so an interrupted install declares nothing it did not load.
 install_global_extensions() {
   adapter_require_jq "pi-adapter" || return 1
   local dest_dir="$PI_AGENT_DIR/extensions"
+  local global_manifest="$PI_AGENT_DIR/.mb-global-extensions-manifest.json"
+  local version
+  version="$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)"
+  if _pi_entrypoint_foreign; then
+    echo "[pi-adapter] refusing: $(_pi_entrypoint) or $(_pi_entrypoint_module) exists and is not owned by Memory Bank" >&2
+    return 1
+  fi
+  pi_settings_tintin check || return 1
+  local previous_files='[]'
+  [ -f "$global_manifest" ] && previous_files="$(jq -c '.files // []' "$global_manifest" 2>/dev/null || echo '[]')"
+  mkdir -p "$PI_AGENT_DIR"
+  adapter_write_manifest "$global_manifest" "pi" "$version" "$previous_files" '{"install_state": "in_progress"}'
+
   local ok_session ok_graph ok_subagent
   ok_session=$(_install_pi_extension_template \
     "$SKILL_DIR/adapters/pi_session_memory_extension.ts" \
-    "$dest_dir/memory-bank-session.ts" "")
+    "$dest_dir/memory-bank-session.ts" "" owned)
   ok_graph=$(_install_pi_extension_template \
     "$SKILL_DIR/adapters/pi_graph_rag_extension.ts" \
-    "$dest_dir/memory-bank-graph-rag.ts" "")
+    "$dest_dir/memory-bank-graph-rag.ts" "" owned)
   ok_subagent=$(_install_pi_subagent_extension)
 
   local agent_files agent_count
@@ -123,13 +150,26 @@ install_global_extensions() {
     agent_count=$(printf '%s\n' "$agent_files" | grep -c .)
   fi
 
+  local tintin_entry=""
+  if [ "$ok_subagent" = "true" ]; then
+    tintin_entry="$(pi_settings_tintin add)"
+    # Our own entry from an earlier run is still ours, not the user's.
+    local previous_entry
+    previous_entry="$(jq -r '.settings.tintin_entry // empty' "$(_pi_ledger)" 2>/dev/null || true)"
+    if [ "$tintin_entry" = preexisting ] && { [ "$previous_entry" = added ] || [ "$previous_entry" = created ]; }; then
+      tintin_entry="$previous_entry"
+    fi
+    # shellcheck disable=SC2016  # jq variables, not shell
+    _pi_ledger_update '.settings.tintin_entry = $e' --arg e "$tintin_entry"
+    _install_pi_entrypoint
+  fi
+
   echo "[pi-adapter] parity extensions: session-memory=$ok_session graph-rag=$ok_graph subagent-dispatch=$ok_subagent agents=$agent_count -> $dest_dir"
 
   # Global extensions manifest (Task 4, new): tracks every file THIS
   # accept-path install wrote (extensions + agent roster), the artifact
   # Task 8's upgrade/uninstall lifecycle needs. T3 shipped without one for
   # this path — this is the first manifest write here, additive only.
-  local global_manifest="$PI_AGENT_DIR/.mb-global-extensions-manifest.json"
   local files_json
   files_json=$(
     {
@@ -138,6 +178,11 @@ install_global_extensions() {
       if [ "$ok_subagent" = "true" ]; then
         printf '%s\n' "$dest_dir/memory-bank-subagent.ts"
         printf '%s\n' "$dest_dir/pi_subagent_dispatch_core.mjs"
+        for helper in "$SKILL_DIR"/adapters/pi_native_*.mjs; do
+          printf '%s\n' "$dest_dir/$(basename "$helper")"
+        done
+        _pi_entrypoint
+        _pi_entrypoint_module
       fi
       if [ -n "$agent_files" ]; then printf '%s\n' "$agent_files"; fi
       true
@@ -163,15 +208,47 @@ install_global_extensions() {
   platform_limited_notes_json=$(jq -n \
     --arg note "Pi's opt-in mb_dispatch_subagent tool + the mb-subinvoke-resolve.sh --role registry primitive are the D-09 guaranteed floor; deterministic /mb work per-role dispatch on Pi (or any non-Claude-Code host) has no harness yet — see backlog I-121/I-122." \
     '{"role-routing": $note}')
+  # Provenance of the managed runtime: which skill bundle, which pinned package,
+  # which backend new runs select by default (AGR-088: Tintin; Nico opt-in).
+  local native_json='null'
+  if [ "$subagent_bool" = "true" ]; then
+    native_json=$(jq -n --arg skill "$SKILL_DIR" --arg version "$version" \
+      --arg pkg "$PI_TINTIN_PACKAGE" --arg entry "$tintin_entry" --arg ep "$(_pi_entrypoint)" \
+      '{skill_dir: $skill, skill_version: $version, default_backend: "tintin", tintin_package: $pkg,
+        tintin_entry: $entry, nico: "opt-in (mb-pi --with-nico), runtime inventory UNVERIFIED", entrypoint: $ep}')
+  fi
   adapter_write_manifest \
     "$global_manifest" \
     "pi" \
-    "$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)" \
+    "$version" \
     "$files_json" \
-    "{\"session_memory\": $session_bool, \"graph_rag\": $graph_bool, \"subagent_dispatch\": $subagent_bool, \"agents_installed\": $agent_count, \"platform_limited\": $platform_limited_json, \"platform_limited_notes\": $platform_limited_notes_json}"
+    "{\"install_state\": \"complete\", \"session_memory\": $session_bool, \"graph_rag\": $graph_bool, \"subagent_dispatch\": $subagent_bool, \"managed_entrypoint\": $subagent_bool, \"native\": $native_json, \"agents_installed\": $agent_count, \"platform_limited\": $platform_limited_json, \"platform_limited_notes\": $platform_limited_notes_json}"
 
   if [ "$ok_session" != "true" ] && [ "$ok_graph" != "true" ] && [ "$ok_subagent" != "true" ]; then
     return 1
   fi
   return 0
+}
+
+# Reverses install_global_extensions: unchanged owned files are removed,
+# replaced preimages restored, user edits kept, and the Tintin settings entry
+# dropped only when this installer added it.
+uninstall_global_extensions() {
+  adapter_require_jq "pi-adapter" || return 1
+  local ledger entry
+  ledger="$(_pi_ledger)"
+  if [ -f "$ledger" ]; then
+    entry="$(jq -r '.settings.tintin_entry // empty' "$ledger")"
+    case "$entry" in
+      added) pi_settings_tintin remove ;;
+      created) pi_settings_tintin remove 1 ;;
+    esac
+  fi
+  _pi_owned_remove_all
+  rm -f "$PI_AGENT_DIR/.mb-global-extensions-manifest.json"
+  local dir
+  for dir in extensions agents bin; do
+    rmdir "$PI_AGENT_DIR/$dir" 2>/dev/null || true
+  done
+  echo "[pi-adapter] global extensions uninstalled from $PI_AGENT_DIR"
 }

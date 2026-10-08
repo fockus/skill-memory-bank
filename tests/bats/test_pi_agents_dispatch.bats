@@ -18,6 +18,8 @@
 #      failure path NEVER drops silently (REQ-009: inline-execution warning)
 #      and a native `/mb` `registerCommand` (REQ-022).
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   RESOLVE="$REPO_ROOT/scripts/mb-subinvoke-resolve.sh"
@@ -218,18 +220,28 @@ _extract_append_system_prompt_path() {
 #     harness — assert the contract at the source level instead.)
 # ═══════════════════════════════════════════════════════════════
 
-@test "pi_subagent_extension.ts registers the mb_dispatch_subagent tool and a native /mb command" {
+@test "pi_subagent_extension.ts registers the role tool and delegates native /mb registration to its sibling" {
   local ext="$REPO_ROOT/adapters/pi_subagent_extension.ts"
+  local commands="$REPO_ROOT/adapters/pi_native_commands.mjs"
   [ -f "$ext" ]
-  grep -q 'name: "mb_dispatch_subagent"' "$ext"
-  grep -q 'registerCommand("mb"' "$ext"
+  [ -f "$commands" ]
+  grep -Eq "name: ['\"]mb_dispatch_subagent['\"]" "$ext"
   grep -q 'pi.registerTool' "$ext"
+  grep -Eq 'registerNativeCommands\(pi,' "$ext"
+  grep -Eq "registerCommand\(['\"]mb['\"]" "$commands"
 }
 
-@test "pi_subagent_extension.ts imports its dispatch-core sibling by the SAME basename installed alongside it" {
+@test "pi_subagent_extension.ts imports native command and public-RPC siblings, not the legacy executor" {
   local ext="$REPO_ROOT/adapters/pi_subagent_extension.ts"
-  grep -q 'from "./pi_subagent_dispatch_core.mjs"' "$ext"
-  [ -f "$REPO_ROOT/adapters/pi_subagent_dispatch_core.mjs" ]
+  grep -Eq "from ['\"]\./pi_native_commands\.mjs['\"]" "$ext"
+  grep -Eq "from ['\"]\./pi_native_backend\.mjs['\"]" "$ext"
+  grep -Eq "from ['\"]\./pi_native_subagents\.mjs['\"]" "$REPO_ROOT/adapters/pi_native_backend.mjs"
+  grep -Eq "from ['\"]\./pi_native_tintin\.mjs['\"]" "$REPO_ROOT/adapters/pi_native_backend.mjs"
+  grep -q 'resolveSubagentLaunchContract' "$REPO_ROOT/adapters/pi_native_bootstrap.mjs"
+  refute_grep -E "from ['\"]pi-subagents/preflight['\"]" "$ext"
+  refute_grep -E "from ['\"]\./pi_subagent_dispatch_core\.mjs['\"]" "$ext"
+  [ -f "$REPO_ROOT/adapters/pi_native_commands.mjs" ]
+  [ -f "$REPO_ROOT/adapters/pi_native_subagents.mjs" ]
 }
 
 # ═══════════════════════════════════════════════════════════════

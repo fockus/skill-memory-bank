@@ -248,8 +248,9 @@ case "$ACTION" in
   install)                   install_pi ;;
   uninstall)                 uninstall_pi ;;
   install-global-extensions) install_global_extensions ;;
+  uninstall-global-extensions) uninstall_global_extensions ;;
   *)
-    echo "Usage: [MB_PI_MODE=agents-md|skill] $0 install|uninstall|install-global-extensions [PROJECT_ROOT]" >&2
+    echo "Usage: [MB_PI_MODE=agents-md|skill] $0 install|uninstall|install-global-extensions|uninstall-global-extensions [PROJECT_ROOT]" >&2
     exit 1
     ;;
 esac
