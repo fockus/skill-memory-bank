@@ -120,4 +120,7 @@ fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
-MB_PIPELINE_PATH="$PATH_ARG" python3 "$SCRIPT_DIR/mb_pipeline_validate_core.py"
+# shellcheck source=_lib.sh
+source "$SCRIPT_DIR/_lib.sh"
+# mb_resolve_python: MB_PYTHON > pipx venv interpreter > python3 (see _lib.sh).
+MB_PIPELINE_PATH="$PATH_ARG" "$(mb_resolve_python "$REPO_ROOT")" "$SCRIPT_DIR/mb_pipeline_validate_core.py"

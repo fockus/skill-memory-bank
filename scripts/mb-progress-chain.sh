@@ -31,8 +31,8 @@ _self_realpath() {
   local target="$1"
   if command -v readlink >/dev/null 2>&1 && readlink -f "$target" >/dev/null 2>&1; then
     readlink -f "$target"
-  elif command -v python3 >/dev/null 2>&1; then
-    python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$target"
+  elif command -v "${MB_PYTHON:-python3}" >/dev/null 2>&1; then
+    "${MB_PYTHON:-python3}" -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$target"
   else
     # Fallback: logical path (works when not a symlink, degrades gracefully).
     cd "$(dirname "$target")" && pwd -P
@@ -75,5 +75,7 @@ esac
 MB_PATH="$(mb_resolve_path "${2:-}")"
 
 # Delegate hashing/JSON to the Python module (3.11/3.12-safe, stdlib only).
+# mb_resolve_python: $MB_PYTHON > wheel-install interpreter > python3.
+MB_PY="$(mb_resolve_python "$REPO_ROOT")"
 PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-  python3 -m memory_bank_skill.progress_chain "$MODE" "$MB_PATH"
+  "$MB_PY" -m memory_bank_skill.progress_chain "$MODE" "$MB_PATH"

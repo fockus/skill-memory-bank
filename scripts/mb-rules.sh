@@ -139,7 +139,7 @@ render_block() {
   fi
   _resolved "$profile" \
     | PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
-      "${MB_PYTHON:-python3}" -m memory_bank_skill.key_rules block "--pointer=$pointer" ${base[@]+"${base[@]}"} ${stamp[@]+"${stamp[@]}"} \
+      "$(mb_resolve_python "$SCRIPT_DIR/..")" -m memory_bank_skill.key_rules block "--pointer=$pointer" ${base[@]+"${base[@]}"} ${stamp[@]+"${stamp[@]}"} \
       3< <([ ${#base[@]} -eq 0 ] || _resolved /dev/null)
 }
 
@@ -152,7 +152,7 @@ _edit() {
     _die "no Memory Bank at $bank — use --scope=user or run /mb init"
   fi
   PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
-    "${MB_PYTHON:-python3}" -m memory_bank_skill.key_rules_edit "$op" "--scope=$scope" \
+    "$(mb_resolve_python "$SCRIPT_DIR/..")" -m memory_bank_skill.key_rules_edit "$op" "--scope=$scope" \
     "--user=$user_profile" "--project=$bank/rules-profile.json" "$@" || rc=$?
   [ "$rc" -eq 0 ] || exit "$rc"
   case "$op" in init|prompt) CREATE_RULES_MD=1 ;; esac

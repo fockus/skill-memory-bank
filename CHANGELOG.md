@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — scripts run directly from a pipx/pip install find the right Python
+
+- Helper scripts run without the CLI (as agents do) no longer fail with `ModuleNotFoundError: memory_bank_skill`
+  or `datetime.UTC` on an old system `python3`: `_lib.sh::mb_resolve_python` and `scripts/_mb_skill_python.py`
+  pick `$MB_PYTHON`, else the install's `<prefix>/bin/python3` (#8, #9 — thanks @xiaofenglg).
+
 ### Fixed — installing over an older version
 
 - Installing `main` over v5.3.1 now gives the same files as a clean install and keeps the saved language/clients;

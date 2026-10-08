@@ -42,6 +42,8 @@ RECENT_REBUILD="$(dirname "$0")/mb-session-recent-rebuild.sh"
 # Repo root (scripts/..) so `python3 -m memory_bank_skill.consolidate` resolves.
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PY_MODULE="memory_bank_skill.consolidate"
+# mb_resolve_python: MB_PYTHON > pipx venv interpreter > python3 (see _lib.sh).
+MB_PY="$(mb_resolve_python "$REPO_ROOT")"
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 MB_ARG=""
@@ -88,7 +90,7 @@ MB_PATH="$(mb_normalize_path "$MB_PATH")"
 # Fewer than two windowed sessions / nothing clusters → no lines → bank untouched.
 PLAN="$(
   cd "$REPO_ROOT" && \
-  MB_PATH="$MB_PATH" MB_DAYS="$DAYS" python3 -m "$PY_MODULE" plan
+  MB_PATH="$MB_PATH" MB_DAYS="$DAYS" "$MB_PY" -m "$PY_MODULE" plan
 )"
 
 # ── Nothing to consolidate → empty output, exit 0, no writes ─────────────────
@@ -159,7 +161,7 @@ if [ -f "$PROGRESS" ]; then
   ( cd "$REPO_ROOT" && \
     MB_PROGRESS="$PROGRESS" MB_KEEP="$KEEP_FILE" MB_STUBS="$STUBS_FILE" \
     MB_MOVEDFLAG="$MOVED_FLAG" MB_ARCHIVED_SIDS="$ARCHIVED_SIDS" \
-    python3 -m "$PY_MODULE" split )
+    "$MB_PY" -m "$PY_MODULE" split )
 
   MOVED="$(cat "$MOVED_FLAG" 2>/dev/null || echo 0)"
   rm -f "$MOVED_FLAG"
