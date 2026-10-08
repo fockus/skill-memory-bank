@@ -83,3 +83,9 @@ adapter_remove_manifest_files() {
     [ -n "$file_path" ] && [ -f "$file_path" ] && rm -f "$file_path" || true
   done
 }
+
+# I-250: true when $1 is listed in adapter manifest $2 and was not edited after
+# that manifest was written — our own file, replaced without a backup.
+_mb_owned_unedited() {
+  [ ! "$1" -nt "$2" ] && jq -e --arg f "$1" '(.files // []) | any(. == $f)' "$2" >/dev/null 2>&1
+}

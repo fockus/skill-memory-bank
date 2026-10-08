@@ -4,6 +4,25 @@
   "name": "modular-monolith",
   "description": "Modular Monolith: explicit module contracts, no cross-module internal access.",
   "one_liner": "Modular monolith: modules talk only via public APIs; no cross-module internals or tables",
+  "mechanical": true,
+  "check": {
+    "rule_id": "architecture.modular-monolith.no-cross-module-internals",
+    "kind": "cross-module",
+    "roots": [
+      "modules"
+    ],
+    "public": [
+      "index",
+      "__init__",
+      "api",
+      "public",
+      "contracts"
+    ],
+    "shared": [
+      "shared",
+      "common"
+    ]
+  },
   "rules": [
     {
       "rule_id": "architecture.modular-monolith.explicit-module-boundaries",

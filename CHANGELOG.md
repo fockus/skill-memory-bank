@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — installing over an older version
+
+- Installing `main` over v5.3.1 now gives the same files as a clean install and keeps the saved language/clients;
+  own unedited files get no `*.pre-mb-backup.*`; pipx/pip/brew upgrade re-runs `memory-bank install`.
+- A stale managed project block prints one refresh command at session start (`MB_AUTO_REFRESH=on` refreshes it);
+  `mb-rules-check.sh` checks import direction for clean, modular-monolith, microservices, ddd, hexagonal, mobile-udf.
+
 ### Changed — `/mb work` default is `medium`, verifier once per plan
 
 - Complexity presets `simple` / `medium` / `complex` / `governed` (AGR-074); `workflow.default` is

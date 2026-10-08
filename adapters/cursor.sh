@@ -271,6 +271,7 @@ MB_CURSOR_BACKUPS=()
 _cursor_backup_once() {
   local f="$1" b backup
   [ -f "$f" ] || return 0
+  _mb_owned_unedited "$f" "$MANIFEST" && return 0
   for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
   backup="$f.pre-mb-backup.$(date +%s).$$"
   cp "$f" "$backup" 2>/dev/null && MB_CURSOR_BACKUPS+=("$backup")
@@ -348,10 +349,12 @@ cursor_merge_hooks_json() {
             + ($new[0].hooks[$evt])
           )
       )
+      | .hooks |= (to_entries | sort_by(.key) | from_entries)
     ' "$target")
   else
-    merged=$(echo "$our_hooks_json" | jq '.version = 1')
+    merged=$(echo "$our_hooks_json" | jq '.version = 1 | .hooks |= (to_entries | sort_by(.key) | from_entries)')
   fi
+  # Events sorted: the same hooks.json whatever order an older version wrote.
   echo "$merged" > "$target"
 }
 
@@ -363,6 +366,11 @@ global_backup_if_exists() {
   if [ -e "$target" ] || [ -L "$target" ]; then
     if [ -n "$expected" ] && [ -f "$expected" ] && cmp -s "$target" "$expected"; then
       return 2
+    fi
+    # I-250: a file our previous global install wrote, unedited since, is ours — no backup.
+    if [ -f "$target" ] && _mb_owned_unedited "$target" "$GLOBAL_MANIFEST"; then
+      rm -f -- "$target"
+      return 0
     fi
     # H-4: preserve the OLDEST backup (user's TRUE original) — prune only newer
     # MB-generated backups; if an original already exists, re-record it and take
@@ -671,7 +679,7 @@ EOF
   if [ -f "$GLOBAL_USER_RULES_FILE" ] && cmp -s "$tmp" "$GLOBAL_USER_RULES_FILE"; then
     rm -f "$tmp"
   else
-    global_backup_if_exists "$GLOBAL_USER_RULES_FILE" backups
+    # Our generated paste-file (uninstall removes it by name): no backup (I-250).
     mv "$tmp" "$GLOBAL_USER_RULES_FILE"
   fi
 

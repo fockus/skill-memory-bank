@@ -9,6 +9,7 @@ setup() {
   MB="$PROJECT/.memory-bank"
   mkdir -p "$MB/plans"
   (cd "$PROJECT" && git init -q && git config user.email t@t && git config user.name t && echo init > README.md && git add README.md && git commit -q -m init)
+  cd "$PROJECT"   # mb-plan.sh reads the baseline commit from the cwd's repo
 }
 
 teardown() {

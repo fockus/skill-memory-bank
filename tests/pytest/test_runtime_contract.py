@@ -119,11 +119,13 @@ def test_codex_global_agents_md_includes_critical_rules_after_install(
     """
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
+    # Manifest + default project root (cwd) outside the repo checkout.
+    env["MB_MANIFEST_PATH"] = str(tmp_path / "installed-manifest.json")
 
     result = subprocess.run(
         ["bash", str(REPO_ROOT / "install.sh"), "--language", "en"],
         env=env,
-        cwd=REPO_ROOT,
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         check=False,
@@ -155,11 +157,13 @@ def test_codex_global_agents_md_language_ru_localizes_rule(tmp_path: Path) -> No
     """
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
+    # Manifest + default project root (cwd) outside the repo checkout.
+    env["MB_MANIFEST_PATH"] = str(tmp_path / "installed-manifest.json")
 
     result = subprocess.run(
         ["bash", str(REPO_ROOT / "install.sh"), "--language", "ru", "--non-interactive"],
         env=env,
-        cwd=REPO_ROOT,
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         check=False,

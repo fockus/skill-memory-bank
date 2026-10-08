@@ -13,6 +13,43 @@ CWD="${CLAUDE_PROJECT_DIR:-$PWD}"
 MB="$(sc_resolve_mb "$CWD")"
 [ -n "$MB" ] || { printf '{}\n'; exit 0; }
 
+# Managed project blocks (CLAUDE.md / AGENTS.md / rule files) with a stale mb-stamp
+# (I-251): one hint line naming the refresh command; MB_AUTO_REFRESH=on refreshes in
+# place. Local files only, no python on the fresh path.
+BLOCKS_HINT=""
+_mb_lib="$HOOK_DIR/../adapters/_lib_agents_md.sh"
+[ -f "$_mb_lib" ] || _mb_lib="$HOME/.claude/skills/memory-bank/adapters/_lib_agents_md.sh"
+if [ -f "$_mb_lib" ]; then
+  # shellcheck source=../adapters/_lib_agents_md.sh
+  BLOCKS_HINT="$(. "$_mb_lib" && mb_project_blocks_hint "${MB%/.memory-bank}" 2>/dev/null)" || BLOCKS_HINT=""
+fi
+
+# _emit CONTEXT — the SessionStart JSON; the blocks hint leads the context and is also
+# shown to the user (systemMessage). Nothing at all → {}.
+_emit() {
+  local c="$1" esc
+  if [ -n "$BLOCKS_HINT" ]; then
+    c="$BLOCKS_HINT${c:+$(printf '\n\n%s' "$c")}"
+  fi
+  [ -n "$c" ] || { printf '{}\n'; exit 0; }
+  if command -v "${JQ:-jq}" >/dev/null 2>&1; then
+    # shellcheck disable=SC2016  # $c/$m are jq variables, not shell expansions
+    "${JQ:-jq}" -n --arg c "$c" --arg m "$BLOCKS_HINT" \
+      '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}
+       + (if $m == "" then {} else {systemMessage:$m} end)'
+  elif command -v python3 >/dev/null 2>&1; then
+    esc="$(printf '%s' "$c" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))' 2>/dev/null || true)"
+    if [ -n "$esc" ]; then
+      printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":%s}}\n' "$esc"
+    else
+      printf '{}\n'
+    fi
+  else
+    printf '{}\n'
+  fi
+  exit 0
+}
+
 # Opt-in code-graph freshness marking (MB_GRAPH_AUTO, default off). Runs BEFORE the
 # _recent.md early-exit so it fires on any active bank, not just ones with session
 # history. I-133 discipline: session-start NEVER spawns a rebuild (the old detached
@@ -62,9 +99,9 @@ if [ "${MB_GRAPH_CATCHUP:-on}" != "off" ] && [ -f "$MB/codebase/graph.json" ] \
 fi
 
 RECENT="$MB/session/_recent.md"
-[ -f "$RECENT" ] || { printf '{}\n'; exit 0; }
+[ -f "$RECENT" ] || _emit ""
 content="$(cat "$RECENT")"
-[ -n "$content" ] || { printf '{}\n'; exit 0; }
+[ -n "$content" ] || _emit ""
 
 # A5: hard-cap the injected _recent.md so a bloated file can't silently inflate every
 # session start's context. head -c is byte-based (bash-3.2 safe). Opt-out: large MB_RECENT_MAX_BYTES.
@@ -122,19 +159,4 @@ if [ "${MB_FRESHNESS_BANNER:-on}" != "off" ]; then
   fi
 fi
 
-JQ="${JQ:-jq}"
-if command -v "$JQ" >/dev/null 2>&1; then
-  # shellcheck disable=SC2016  # $c is a jq variable (--arg c), not a shell expansion
-  "$JQ" -n --arg c "$ctx" \
-    '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}'
-elif command -v python3 >/dev/null 2>&1; then
-  esc="$(printf '%s' "$ctx" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))' 2>/dev/null || true)"
-  if [ -n "$esc" ]; then
-    printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":%s}}\n' "$esc"
-  else
-    printf '{}\n'
-  fi
-else
-  printf '{}\n'
-fi
-exit 0
+_emit "$ctx"

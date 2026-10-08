@@ -14,10 +14,13 @@
 #       only the project's differences from the user-level rules (AGR-083); full =
 #       every rule. Global target: always full.
 #   mb-rules.sh sync [--scope=project|user] [--project=DIR] [--mb=PATH]
-#       project: <project>/CLAUDE.md and AGENTS.md (delta), the Key rules block already
-#       in the Cursor .mdc (delta) and Windsurf/Cline/Kilo rule files (full), plus the settings block
+#       project: every managed project block — Key rules in <project>/CLAUDE.md and
+#       AGENTS.md (delta), the AGENTS.md Memory Bank block, the body of existing per-host
+#       rule files (Cursor .mdc delta, Windsurf/Cline/Kilo full), plus the settings block
 #       <!-- mb-project-rules:start/end --> on top of <project>/RULES.md (else
-#       <bank>/RULES.md); user: ~/.claude/CLAUDE.md and the global AGENTS.md of Codex,
+#       <bank>/RULES.md). Each block is stamped (mb-stamp:); the session-start hook
+#       prints this command when a stamp is stale (MB_AUTO_REFRESH=on runs it).
+#       user: ~/.claude/CLAUDE.md and the global AGENTS.md of Codex,
 #       Pi, OpenCode and Cursor. Only files that already exist (init --scope=project
 #       creates <project>/RULES.md when neither RULES.md exists).
 #   mb-rules.sh list | enable <id> | disable <id> | add "<text>" | remove <n> [--scope=...]
@@ -39,10 +42,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
 # shellcheck source=../adapters/_lib_agents_md.sh
 source "$SCRIPT_DIR/../adapters/_lib_agents_md.sh"
+# shellcheck source=mb_rules_sync_lib.sh
+source "$SCRIPT_DIR/mb_rules_sync_lib.sh"
 
 KR_START="<!-- mb-key-rules:start -->"
 KR_END="<!-- mb-key-rules:end -->"
@@ -120,10 +126,11 @@ _resolved() { bash "$SCRIPT_DIR/mb-profile.sh" key-rules --json "--project=$1"; 
 # full = every rule, for hosts without one (Windsurf, Cline, Kilo rule files).
 render_block() {
   local target="$1" host="$2" project="$3" bank="$4" mode="${5:-delta}" profile pointer
-  local -a base=()
+  local -a base=() stamp=()
   if [ "$target" = project ]; then
     profile="$bank/rules-profile.json"
     pointer="$(_project_pointer "$project" "$bank")"
+    stamp=("--stamp=$(mb_project_stamp "$project")")
     [ "$mode" = delta ] && base=("--base=/dev/fd/3")
   else
     # Global files carry the user selection only, always in full.
@@ -132,73 +139,8 @@ render_block() {
   fi
   _resolved "$profile" \
     | PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
-      "${MB_PYTHON:-python3}" -m memory_bank_skill.key_rules block "--pointer=$pointer" ${base[@]+"${base[@]}"} \
+      "${MB_PYTHON:-python3}" -m memory_bank_skill.key_rules block "--pointer=$pointer" ${base[@]+"${base[@]}"} ${stamp[@]+"${stamp[@]}"} \
       3< <([ ${#base[@]} -eq 0 ] || _resolved /dev/null)
-}
-
-# _sync_rules_md PROJECT BANK — the settings block on top of the project RULES.md
-# (<project>/RULES.md, else <bank>/RULES.md); with CREATE_RULES_MD=1 a missing
-# <project>/RULES.md is created first.
-CREATE_RULES_MD=0
-_sync_rules_md() {
-  local project="$1" bank="$2" file="" section state
-  if [ -f "$project/RULES.md" ]; then
-    file="$project/RULES.md"
-  elif [ -f "$bank/RULES.md" ]; then
-    file="$bank/RULES.md"
-  elif [ "$CREATE_RULES_MD" = 1 ]; then
-    file="$project/RULES.md"
-    # shellcheck disable=SC2016  # backticks are literal markdown
-    printf '## Own rules\n\nYour project rules go here; `/mb rules` never edits text outside the managed block.\n' > "$file"
-  else
-    return 0
-  fi
-  section="$(mktemp)"
-  if ! bash "$SCRIPT_DIR/mb-profile.sh" quality --json "--project=$bank/rules-profile.json" \
-      | PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
-        "${MB_PYTHON:-python3}" -m memory_bank_skill.quality rules-md > "$section"; then
-    rm -f "$section"
-    _die "render failed for $file"
-  fi
-  state="$(mb_upsert_marked_block "$(_realpath "$file")" "$PR_START" "$PR_END" "$section" top)"
-  rm -f "$section"
-  printf '%s %s\n' "$state" "$file"
-}
-
-_realpath() {
-  "${MB_PYTHON:-python3}" -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1"
-}
-
-# _sync_file FILE TARGET HOST PROJECT BANK MODE [inplace] — upsert the block at the top
-# of FILE (symlinks resolved; each real file once — SEEN tracks them). `inplace`: the
-# per-host rule files — refresh an existing block where it stands, never add one.
-SEEN=""
-_sync_file() {
-  local file="$1" real section state tmp
-  [ -f "$file" ] || return 0
-  [ "${7:-}" != inplace ] || grep -qF -- "$KR_START" "$file" || return 0
-  real="$(_realpath "$file")"
-  case "$SEEN" in *"|$real|"*) return 0 ;; esac
-  SEEN="$SEEN|$real|"
-  section="$(mktemp)"
-  if ! render_block "$2" "$3" "$4" "$5" "$6" > "$section"; then
-    rm -f "$section"
-    _die "render failed for $file"
-  fi
-  if [ "${7:-}" = inplace ]; then
-    tmp="$(mktemp "$real.XXXXXX")"
-    cp -p "$real" "$tmp"  # keep the file's mode; mktemp creates 0600
-    awk -v s="$KR_START" -v e="$KR_END" -v sec="$section" '
-      index($0, s) { while ((getline l < sec) > 0) print l; skip = 1; next }
-      skip { if (index($0, e)) skip = 0; next }
-      { print }
-    ' "$real" > "$tmp" && mv -f "$tmp" "$real" || { rm -f "$tmp" "$section"; _die "write failed: $file"; }
-    state=refreshed
-  else
-    state="$(mb_upsert_marked_block "$real" "$KR_START" "$KR_END" "$section" top "$LANGUAGE_END")"
-  fi
-  rm -f "$section"
-  printf '%s %s\n' "$state" "$file"
 }
 
 # _edit OP SCOPE PROJECT BANK [ARGS...] — change the scope's key_rules, then sync it.
@@ -224,13 +166,22 @@ _sync() {
       # RULES.md first: a freshly created one changes the Key rules pointer.
       _sync_rules_md "$project" "$bank"
       _sync_file "$project/CLAUDE.md" project claude "$project" "$bank" delta
-      _sync_file "$project/AGENTS.md" project claude "$project" "$bank" delta
-      # Per-host rule files: Cursor also has a global AGENTS.md; Windsurf, Cline and
-      # Kilo have no global instructions file, so they keep the full block.
-      _sync_file "$project/.cursor/rules/memory-bank.mdc" project claude "$project" "$bank" delta inplace
+      if grep -qxF -- "$MB_START_MARKER" "$project/AGENTS.md" 2>/dev/null; then
+        _sync_agents_md "$project"
+      else
+        _sync_file "$project/AGENTS.md" project claude "$project" "$bank" delta
+      fi
+      # Per-host rule files, as the adapters write them: the Cursor .mdc skips the Key
+      # rules when AGENTS.md carries them (else the delta — Cursor has a global
+      # AGENTS.md); Windsurf, Cline and Kilo have no global file and keep the full block.
+      if grep -qF -- "$KR_START" "$project/AGENTS.md" 2>/dev/null; then
+        _sync_rule_file "$project/.cursor/rules/memory-bank.mdc" "$project" 0
+      else
+        _sync_rule_file "$project/.cursor/rules/memory-bank.mdc" "$project" 1 delta
+      fi
       for f in .windsurf/rules/memory-bank.md .clinerules/memory-bank.md .clinerules \
                .kilocode/rules/memory-bank.md; do
-        _sync_file "$project/$f" project claude "$project" "$bank" full inplace
+        _sync_rule_file "$project/$f" "$project"
       done
       ;;
     user)
@@ -282,7 +233,7 @@ main() {
       _edit "$cmd" "$scope" "$project" "$bank" ${pass[@]+"${pass[@]}"}
       ;;
     *)
-      sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,39p' "$0" | sed 's/^# \{0,1\}//'
       [ "$cmd" = "-h" ] || [ "$cmd" = "--help" ] || exit 1
       ;;
   esac

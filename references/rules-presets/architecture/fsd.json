@@ -4,6 +4,7 @@
   "name": "fsd",
   "description": "Feature-Sliced Design: layer direction app→pages→widgets→features→entities→shared, public slice API.",
   "one_liner": "FSD (frontend): app→pages→widgets→features→entities→shared; imports only downward",
+  "mechanical": true,
   "rules": [
     {
       "rule_id": "architecture.fsd.import-direction",

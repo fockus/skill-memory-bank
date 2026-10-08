@@ -40,6 +40,16 @@ fi
 
 CONTEXT="[MEMORY BANK: ACTIVE]\n\n"
 
+# Stale managed project blocks (I-251) — same one-line hint / MB_AUTO_REFRESH=on
+# refresh as the Claude Code SessionStart hook.
+MB_LIB="$HOOK_DIR/../adapters/_lib_agents_md.sh"
+[ -f "$MB_LIB" ] || MB_LIB="$HOME/.cursor/skills/memory-bank/adapters/_lib_agents_md.sh"
+if [ -f "$MB_LIB" ]; then
+  # shellcheck source=../adapters/_lib_agents_md.sh
+  blocks_hint="$(. "$MB_LIB" && mb_project_blocks_hint "$WORKSPACE" 2>/dev/null)" || blocks_hint=""
+  [ -z "$blocks_hint" ] || CONTEXT+="${blocks_hint}\n\n"
+fi
+
 # ── Core-file cap notice (AGR-043) ──
 # One line, only when a core registry is over its cap. Placed right after the
 # banner so it survives the 2500-byte truncation below. Fail-open: a missing or

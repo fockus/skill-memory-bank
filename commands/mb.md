@@ -1236,10 +1236,16 @@ Required sections in generated `CLAUDE.md`:
 - **Commands** — build / test / lint / run commands of this project
 - **Stack & conventions** — 3–5 facts not derivable from code + pointer to `codebase/STACK.md` / `CONVENTIONS.md`
 - **Architecture** — this project's layout (backend: Clean Architecture layers; frontend: FSD slices)
-- **Project rules** — only overrides of the global rules (`~/.claude/CLAUDE.md` + `~/.claude/RULES.md`); do not restate them
+- **Project rules** — pointer to the project's `RULES.md` (repo root, else `.memory-bank/RULES.md`, AGR-066) + only this project's overrides; do not restate the global rules
 - **Memory Bank** — session pipeline, `/mb verify` before `/mb done`, coordination board, key files
 
 **Show the user the draft before writing it.** Ask: "Write CLAUDE.md? Anything to add or change?"
+
+After writing, add the managed Key rules block (only this project's differences from the user-level rules, AGR-083) on top of `CLAUDE.md`:
+
+```bash
+bash ${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-rules.sh sync --scope=project
+```
 
 ---
 

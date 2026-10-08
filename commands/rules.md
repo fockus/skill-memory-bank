@@ -35,7 +35,7 @@ bash "${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}/scripts/mb-rules.sh" <
 | `remove <n>` | Remove own rule number `n` from `list` |
 | `init [--enable=id,id] [--disable=id,id] [--custom="<text>"]...` | Replace the scope's whole selection (used by onboarding below) |
 | `set <key> <value>` | Change one quality setting (table below) |
-| `sync` | Re-render the block (and the project `RULES.md` block) from the profiles |
+| `sync` | Re-render the block (and the project `RULES.md` block) from the profiles; `--scope=project` also refreshes the AGENTS.md Memory Bank block and existing per-host rule files — the command the session-start hint names when a block's `mb-stamp` is stale (`MB_AUTO_REFRESH=on` runs it automatically) |
 
 | `set` key | Values | Example |
 |---|---|---|

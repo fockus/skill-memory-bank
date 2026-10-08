@@ -5,13 +5,16 @@
 #   1. Second install on already-installed system → zero new .pre-mb-backup.* files.
 #   2. Install after source file bump → exactly one backup per changed file.
 #   3. Install after external delete of managed files → zero backups (nothing to back up).
-#   4. Language swap (en → ru) → RULES.md backed up (localized differently), other files untouched.
+#   4. Language swap (en → ru) → no backups: the re-localized files are the skill's own,
+#      unedited since the previous install (I-250).
 #   5. Manifest `.backups[]` contains only paths that still exist on disk.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
+  # Per-test manifest: never the repo's own (the owner's live install manifest).
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
 
   command -v python3 >/dev/null || skip "python3 not installed"
   command -v jq      >/dev/null || skip "jq not installed"
@@ -89,10 +92,10 @@ count_backups() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Scenario 4 — language swap → only localize-target files backed up
+# Scenario 4 — language swap → our own re-localized files are replaced, no backup (I-250)
 # ═══════════════════════════════════════════════════════════════
 
-@test "idempotent: language swap en->ru backs up RULES.md but not commands/agents/hooks" {
+@test "idempotent: language swap en->ru re-localizes RULES.md without any backup (I-250)" {
   bash "$REPO_ROOT/install.sh" --non-interactive --language en --clients claude-code,cursor >/dev/null
   [ "$(count_backups)" -eq 0 ]
 
@@ -105,9 +108,10 @@ count_backups() {
   hooks_backups=$(find "$HOME/.claude/hooks" "$HOME/.cursor/hooks" -name "*.pre-mb-backup.*" 2>/dev/null | wc -l | tr -d ' ')
   agents_backups=$(find "$HOME/.claude/agents" -name "*.pre-mb-backup.*" 2>/dev/null | wc -l | tr -d ' ')
 
-  # localize-target files: RULES.md + cursor user rules paste-file got backed up (language changed their content)
-  [ "$rules_backups" -ge 1 ]
-  [ "$cursor_user_rules_backups" -ge 1 ]
+  # localize-target files changed language but were written by the previous install → no backup
+  [ "$rules_backups" -eq 0 ]
+  [ "$cursor_user_rules_backups" -eq 0 ]
+  grep -q 'Russian\|русск' "$HOME/.claude/RULES.md"
 
   # non-localize files: identical content → zero backups
   [ "$commands_backups" -eq 0 ]
@@ -126,7 +130,7 @@ count_backups() {
   sleep 2
   bash "$REPO_ROOT/install.sh" --non-interactive --language en --clients claude-code >/dev/null
 
-  manifest="$REPO_ROOT/.installed-manifest.json"
+  manifest="$MB_MANIFEST_PATH"
   [ -f "$manifest" ]
 
   # Count backups recorded in manifest before external delete

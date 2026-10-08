@@ -17,7 +17,7 @@ memory-bank install --language ru                   # install Russian rule wordi
 Upgrades:
 
 ```bash
-pipx upgrade memory-bank-skill
+pipx upgrade memory-bank-skill && memory-bank install   # re-install keeps your saved language/clients
 ```
 
 Verify:
@@ -39,7 +39,7 @@ memory-bank install --clients cursor --project-root .  # optional project-level 
 memory-bank install --language en
 ```
 
-Upgrades: `brew upgrade memory-bank`.
+Upgrades: `brew upgrade memory-bank && memory-bank install`.
 
 ## Path C — git clone (developers / contributors)
 
@@ -50,7 +50,8 @@ cd ~/.claude/skills/skill-memory-bank
 ./install.sh --language ru
 ```
 
-Upgrade via `scripts/mb-upgrade.sh` (reads `git fetch origin`).
+Upgrade via `scripts/mb-upgrade.sh` (reads `git fetch origin`), or `git pull && ./install.sh` — a plain re-run keeps the saved options (project adapters go to the project you run it from, or the saved project when run outside one). Without a previous manifest (`pipx install --force`, a cleaned
+Homebrew keg) language comes from `~/.claude/memory-bank-config.json` and clients from the adapter manifests; pass `--clients` once if some are missing.
 
 ## CLI reference (pipx / Homebrew)
 

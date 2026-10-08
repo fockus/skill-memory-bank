@@ -114,9 +114,11 @@ mb_upsert_marked_block() {
     tmp="$(mktemp "$file.XXXXXX")"
     cp -p "$file" "$tmp"  # keep FILE's mode; mktemp creates 0600
     awk -v s="$start" -v e="$end" -v a="$anchor" -v sec="$section" '
-      index($0, s) { inside = 1; next }
-      index($0, e) { inside = 0; next }
-      !inside { lines[++n] = $0; if (a != "" && !at && index($0, a)) at = n }
+      index($0, s) { inside = 1; while (n > at && lines[n] == "") n--; next }
+      index($0, e) { inside = 0; seam = 1; next }
+      inside { next }
+      seam && $0 == "" && (n == 0 || lines[n] == "") { next }
+      { seam = 0; lines[++n] = $0; if (a != "" && !at && index($0, a)) at = n }
       END {
         for (i = 1; i <= at; i++) print lines[i]
         if (at) print ""
@@ -131,9 +133,11 @@ mb_upsert_marked_block() {
   fi
   kept="$(mktemp)"
   awk -v s="$start" -v e="$end" '
-    index($0, s) { inside = 1; next }
-    index($0, e) { inside = 0; next }
-    !inside { lines[++n] = $0; if (NF) last = n }
+    index($0, s) { inside = 1; while (n > 0 && lines[n] == "") n--; next }
+    index($0, e) { inside = 0; seam = 1; next }
+    inside { next }
+    seam && $0 == "" && (n == 0 || lines[n] == "") { next }
+    { seam = 0; lines[++n] = $0; if (NF) last = n }
     END { for (i = 1; i <= last; i++) print lines[i] }
   ' "$file" > "$kept"
   {
@@ -169,6 +173,15 @@ _agents_md_key_rules() {
   return 0
 }
 
+# Title line of the per-host rule files (mb_rule_file_body; the stamp lib and
+# mb-rules.sh find those files by it).
+MB_RULE_FILE_TITLE='# Memory Bank — Project Rules'
+
+# Freshness stamp of the managed blocks (I-251): mb_project_stamp,
+# mb_project_stale_files, mb_project_blocks_hint.
+# shellcheck source=./_lib_project_stamp.sh
+. "$_MB_AGENTS_LIB_DIR/_lib_project_stamp.sh"
+
 # $1 = skill_dir
 # $2 = include_ext_nudge (0|1, default 0) — emit the extensions nudge only for
 #      hosts that have parity extensions to offer (pi, opencode). Codex/cline/
@@ -176,10 +189,11 @@ _agents_md_key_rules() {
 #      target (REQ-020 is scoped to "a pi or opencode host").
 # $3 = has_key_rules (0|1, default 0) — 1 when the Key rules block (which ends
 #      with the project RULES.md pointer) sits right above; 0 adds the pointer here.
+# $4 = project_root (default $PWD) — the freshness stamp rides on the version line.
 _agents_md_mb_block() {
   echo "$MB_START_MARKER"
-  echo "<!-- memory-bank-skill-version: $(_mb_skill_version "$1") -->"
-  _agents_md_mb_body "$@"
+  echo "<!-- memory-bank-skill-version: $(_mb_skill_version "$1") $(mb_project_stamp "${4:-$PWD}") -->"
+  _agents_md_mb_body "$1" "${2:-0}" "${3:-0}"
   echo "$MB_END_MARKER"
 }
 
@@ -215,9 +229,14 @@ _agents_md_mb_body() {
 
 # The localized language rule (MB_LANGUAGE / MB_COMMENTS_LANGUAGE, same strings
 # install.sh uses); English when python or the skill package is unavailable.
+# Without MB_LANGUAGE (a refresh outside install.sh) the rule install.sh saved in
+# memory-bank-config.json wins, so a refresh never flips the installed language.
 _mb_language_rule() {
-  local py="${MB_PYTHON:-python3}" out=""
-  if command -v "$py" >/dev/null 2>&1; then
+  local py="${MB_PYTHON:-python3}" out="" cfg="$HOME/.claude/memory-bank-config.json"
+  if [ -z "${MB_LANGUAGE:-}" ] && [ -f "$cfg" ]; then
+    out="$(sed -n 's/.*"language_rule": *"\([^"]*\)".*/\1/p' "$cfg" | head -n 1)"
+  fi
+  if [ -z "$out" ] && command -v "$py" >/dev/null 2>&1; then
     out="$(MB_RULE_LANGUAGE="$(mb_preferred_language)" \
       MB_RULE_COMMENTS_LANGUAGE="${MB_COMMENTS_LANGUAGE:-}" \
       PYTHONPATH="$_MB_AGENTS_LIB_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
@@ -236,7 +255,8 @@ print(r(os.environ["MB_RULE_LANGUAGE"], os.environ.get("MB_RULE_COMMENTS_LANGUAG
 # instructions file) or delta (Cursor, which also loads ~/.cursor/AGENTS.md).
 mb_rule_file_body() {
   local key_rules=""
-  echo '# Memory Bank — Project Rules'
+  echo "$MB_RULE_FILE_TITLE"
+  echo "<!-- $(mb_project_stamp "$2") -->"
   echo ''
   echo 'This project uses Memory Bank for long-term memory + dev workflow.'
   echo ''
@@ -256,18 +276,21 @@ _agents_md_section() {
   key_rules="$(_agents_md_key_rules "${3:-$PWD}")"
   if [ -n "$key_rules" ]; then
     printf '%s\n\n' "$key_rules"
-    _agents_md_mb_block "$1" "${2:-0}" 1
+    _agents_md_mb_block "$1" "${2:-0}" 1 "${3:-$PWD}"
   else
-    _agents_md_mb_block "$1" "${2:-0}" 0
+    _agents_md_mb_block "$1" "${2:-0}" 0 "${3:-$PWD}"
   fi
 }
 
 # Drop the Key rules and MB blocks from FILE (stdout); everything else verbatim.
 _agents_md_strip() {
   awk -v s="$MB_START_MARKER" -v e="$MB_END_MARKER" -v ks="$MB_KR_START" -v ke="$MB_KR_END" '
-    index($0, s) || index($0, ks) { inside = 1; next }
-    index($0, e) || index($0, ke) { inside = 0; next }
-    !inside { print }
+    index($0, s) || index($0, ks) { inside = 1; while (n > 0 && l[n] == "") n--; next }
+    index($0, e) || index($0, ke) { inside = 0; seam = 1; next }
+    inside { next }
+    seam && $0 == "" && (n == 0 || l[n] == "") { next }
+    { seam = 0; l[++n] = $0 }
+    END { for (i = 1; i <= n; i++) print l[i] }
   ' "$1"
 }
 
@@ -316,9 +339,9 @@ _agents_md_write() {
   mb="$(mktemp)"
   _agents_md_key_rules "$project_root" > "$kr"
   if [ -s "$kr" ]; then
-    _agents_md_mb_block "$skill_dir" "$nudge" 1 > "$mb"
+    _agents_md_mb_block "$skill_dir" "$nudge" 1 "$project_root" > "$mb"
   else
-    _agents_md_mb_block "$skill_dir" "$nudge" 0 > "$mb"
+    _agents_md_mb_block "$skill_dir" "$nudge" 0 "$project_root" > "$mb"
   fi
   if [ -f "$real" ]; then
     tmp="$(mktemp "$real.XXXXXX")"

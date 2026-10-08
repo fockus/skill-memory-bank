@@ -502,14 +502,10 @@
     }
   ],
   "lessons": [],
-  "generated_at": "2026-10-07T12:34:59Z",
+  "generated_at": "2026-10-07T22:23:29Z",
   "progress_chain": {
     "version": 1,
     "tail": [
-      {
-        "heading": "## 2026-10-05 — AGR-058 governed retained resume started",
-        "sha256": "bab0c4984b29f983f76883b13f31addbf3a28a0681a1656dc8aad2f0628aaa9b"
-      },
       {
         "heading": "## 2026-10-05 — Managed SDK continuation timed out; WIP preserved",
         "sha256": "b99ee1df0c03a965ece0c8968034721274c4b0a6c2c93160aded0faf965f41ed"
@@ -584,9 +580,13 @@
       },
       {
         "heading": "## 2026-10-07",
-        "sha256": "2878a39a74f80a7961a2d403d5922565cc538667230d87708c80d61ed83bfcde"
+        "sha256": "6b40199bdbdce83a4848ad902ef18831c84daa9a2e435c55002efbbc9809ecfc"
+      },
+      {
+        "heading": "## 2026-10-08 — установка поверх старой версии + хвосты I-249…I-254",
+        "sha256": "f848c61478cad60cd5b28f8b76fa44fe589574b3351d85aee8e922c1c45f333a"
       }
     ],
-    "last_synced_at": "2026-10-07T12:34:59Z"
+    "last_synced_at": "2026-10-07T22:23:29Z"
   }
 }

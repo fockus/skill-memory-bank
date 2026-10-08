@@ -4,6 +4,23 @@
   "name": "microservices",
   "description": "Microservices: service boundaries, contract checks, distributed tracing, no cross-service DB sharing.",
   "one_liner": "Microservices: each service owns its data; talk via versioned contracts, never a shared DB",
+  "mechanical": true,
+  "check": {
+    "rule_id": "architecture.microservices.service-ownership",
+    "kind": "cross-module",
+    "roots": [
+      "services"
+    ],
+    "public": [
+      "contracts",
+      "proto"
+    ],
+    "shared": [
+      "shared",
+      "common",
+      "libs"
+    ]
+  },
   "rules": [
     {
       "rule_id": "architecture.microservices.service-ownership",

@@ -26,14 +26,14 @@ $PI_START_MARKER
 
 Pi loads this file at startup and injects it into the agent prompt. Skill: \`~/.pi/agent/skills/memory-bank/SKILL.md\`; prompt templates (\`/mb\`, \`/start\`, \`/done\`, …): \`~/.pi/agent/prompts/\`.
 
-### Mandatory \`/mb work\` execution gate
+### \`/mb work\` gate
 
-With Memory Bank ACTIVE, a request to implement, fix, continue, resume or go by the plan/spec runs through \`/mb work\`, not manual edits:
+The gate applies when the request refers to an existing plan or spec in the bank (implement, fix, continue, resume, go by it). Without one, size the task (SKILL.md § Task routing): trivial and small tasks are done inline. When it applies:
 1. Workflow: \`mb-workflow.sh\` on \`<bank>/pipeline.yaml\`; target: \`mb-work-resolve.sh\` + \`mb-work-plan.sh\`. Spec tasks \`<!-- mb-task:N -->\` are the source of truth; a wrapper plan without \`linked_spec\`/\`mb-stage\` is fixed before coding.
 2. Run the resolved steps exactly; claim completion only after the configured gates or an explicit user override.
 3. Dispatch roles by name: \`mb_dispatch_subagent(role=<agent>, task=…)\`; \`model\`/\`thinking\` only when the JSON line sets them.
 
-Manual inline work: trivial non-plan tasks or an explicit skip of \`/mb work\`; TDD and verification still apply.
+Planned work runs inline only when the user asks to skip \`/mb work\`; the tier's tests and verification still apply.
 
 EOF
   mb_emit_rules_file "$SKILL_DIR/rules/CLAUDE-GLOBAL.md" \

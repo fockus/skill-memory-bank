@@ -568,7 +568,7 @@ Every Claude Code session start, the skill checks (at most once per `MB_UPDATE_C
 window) whether a newer release exists — GitHub Release first, PyPI JSON as fallback — and, only
 when one is available, prints a short notice naming `current -> latest` plus the exact upgrade
 command for *your* install flavor (`git pull` for a clone; `pipx upgrade` / `pip install -U` /
-`brew upgrade` otherwise). An up-to-date install sees nothing. The check itself never touches the
+`brew upgrade` followed by `memory-bank install` otherwise — the re-install keeps your saved options). An up-to-date install sees nothing. The check itself never touches the
 network from the hook path (it reads a local TTL cache and refreshes it in the background), is
 fail-open, and never blocks a session.
 
@@ -646,7 +646,7 @@ A: Partial — where native hooks don't exist or aren't stable, we ship graceful
 A: No. Adapters use a marker pattern (`<!-- memory-bank:start/end -->` for MD files, `_mb_owned: true` for JSON hooks) and merge idempotently. User content is preserved; uninstall only removes MB-owned sections.
 
 **Q: How do I upgrade?**
-A: `pipx upgrade memory-bank-skill` or `brew upgrade memory-bank`. Git-clone install: `cd ~/.claude/skills/skill-memory-bank && git pull && ./install.sh`.
+A: `pipx upgrade memory-bank-skill && memory-bank install` or `brew upgrade memory-bank && memory-bank install`. Git-clone install: `cd ~/.claude/skills/skill-memory-bank && git pull && ./install.sh`.
 
 **Q: Does reinstalling create `.pre-mb-backup.*` files every time?**
 A: No. Since `3.0.0`, `install.sh` is byte-level idempotent: each target is compared via `cmp -s` to the expected post-install content (including localization) and backup is created only if content actually differs. Repeat installs on an up-to-date tree produce zero backups. Language swap (`--language en` → `--language ru`) backs up exactly the localize-target files (`RULES.md`, `memory-bank-user-rules.md`) and nothing else.

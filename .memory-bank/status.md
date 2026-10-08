@@ -1,7 +1,7 @@
 # claude-skill-memory-bank: Статус проекта
 
 **Current phase:** экономия усилий закрыта 2026-10-07 (5 уровней задачи + роутинг, тон по модели, пресеты simple/medium/complex/governed + cost tiers, настройки качества проекта, ADaPT-lite, Key rules onboarding, диета always-loaded, `anthropic-skill-guide-compliance` Sprint 2); открыт только `proportional-effort` Sprint 2 Stage 4 (замер «после», AGR-072). `graph-semantic-adoption` 9/11; Pi native integration 0/5 accepted. Живые треки: `drive-loop` (T3, T5), I-086 `config-validation-docs` (Stages 3–6), `sdd-vision-pipeline` G-001 (пауза с 2026-07-27).
-**Focus:** замер экономии на боевых задачах (Sprint 2 Stage 4, AGR-072) → `graph-semantic-adoption` (пререквизит cost-diet по AGR-044) → Sprint 2/3 `mb-work-cost-diet` → `drive-loop` Task 3 → `sdd-vision-pipeline` (AGR-029).
+**Focus:** собственный тест переустановки владельцем из main → замер экономии на боевых задачах (I-248, AGR-072) → замер экономии на боевых задачах (Sprint 2 Stage 4, AGR-072) → `graph-semantic-adoption` (пререквизит cost-diet по AGR-044) → Sprint 2/3 `mb-work-cost-diet` → `drive-loop` Task 3 → `sdd-vision-pipeline` (AGR-029).
 **Blockers:** нет для текущей работы; действует репо-wide FREEZE на деструктивные git-операции (rebase / `reset --hard` / `checkout .` / whole-tree stash) — см. `COORDINATION.md`.
 
 ## Pi native integration — 2026-10-05
@@ -40,6 +40,7 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-10-08 — [plans/done/2026-10-07_fix_upgrade-safe-install.md](plans/done/2026-10-07_fix_upgrade-safe-install.md) — fix — установка поверх старой версии + хвосты I-249…I-254
 - 2026-10-07 — [plans/done/2026-10-07_feature_adapt-lite.md](plans/done/2026-10-07_feature_adapt-lite.md) — feature — adapt-lite · дробление по необходимости (первый срез svp-adapt-escalation)
 - 2026-10-07 — [plans/done/2026-10-07_feature_project-quality-settings.md](plans/done/2026-10-07_feature_project-quality-settings.md) — feature — project-quality-settings · coverage, TDD, Testing Trophy, архитектура и принципы как настройки проекта
 - 2026-10-07 — [plans/done/2026-10-07_feature_pipeline-presets-cost-tiers.md](plans/done/2026-10-07_feature_pipeline-presets-cost-tiers.md) — feature — pipeline-presets-cost-tiers · уровни сложности, тиры стоимости, шаблоны для код-агентов, частота верификатора
@@ -49,7 +50,6 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - 2026-10-07 — [plans/done/2026-10-06_feature_key-rules-onboarding.md](plans/done/2026-10-06_feature_key-rules-onboarding.md) — feature — key-rules-onboarding · каталог ключевых правил, онбординг и `/mb rules`
 - 2026-10-06 — [plans/done/2026-10-06_fix_adr-registry.md](plans/done/2026-10-06_fix_adr-registry.md) — fix — adr-registry · отдельный реестр ADR и короткие записи
 - 2026-10-06 — [plans/done/2026-10-06_fix_anthropic-skill-guide-compliance-sprint1-skill.md](plans/done/2026-10-06_fix_anthropic-skill-guide-compliance-sprint1-skill.md) — fix — anthropic-skill-guide-compliance · Sprint 1 «скил memory-bank»
-- 2026-09-17 — [plans/done/2026-09-16_fix_i208-test-battery.md](plans/done/2026-09-16_fix_i208-test-battery.md) — fix — i208-test-battery · полная батарея зелёная (I-208)
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)

@@ -28,31 +28,6 @@ sys.path.insert(0, str(REPO_ROOT))
 from memory_bank_skill import __version__, cli  # noqa: E402
 from memory_bank_skill._bundle import find_bundle_root  # noqa: E402
 
-
-@pytest.fixture(autouse=True)
-def _protect_repo_install_manifest():
-    """Back up & restore `REPO_ROOT/.installed-manifest.json`.
-
-    `install.sh:17` hard-codes the manifest path to `$SOURCE_SKILL_DIR/...`,
-    so every install-related test in this module overwrites the repo's own
-    manifest regardless of `$HOME` sandboxing. Without this fixture, tests
-    that call `_run_install_sh`/`_run_uninstall_sh` leak state into the
-    repo (and therefore into all subsequent tests in the same session).
-    Root cause of the audit-time flake on `test_cli_install_uninstall_smoke_with_cursor_global`
-    + `test_uninstall_non_interactive_flag_works_without_stdin`.
-    """
-    manifest = REPO_ROOT / ".installed-manifest.json"
-    original = manifest.read_bytes() if manifest.exists() else None
-    try:
-        yield
-    finally:
-        if original is None:
-            if manifest.exists():
-                manifest.unlink()
-        else:
-            manifest.write_bytes(original)
-
-
 # ═══════════════════════════════════════════════════════════════
 # Version + basic argparse
 # ═══════════════════════════════════════════════════════════════
@@ -472,15 +447,26 @@ def test_run_shell_returns_bash_not_found_when_subprocess_spawn_fails(monkeypatc
 # ═══════════════════════════════════════════════════════════════
 
 
-def _run_install_sh(sandbox_home: Path, repo_root: Path) -> subprocess.CompletedProcess:
-    """Run the real install.sh against a sandboxed $HOME."""
-    env = {
+def _sandbox_manifest(sandbox_home: Path) -> Path:
+    # Never the repo's own .installed-manifest.json: that is the owner's live
+    # install manifest (the installed skill symlinks to this checkout).
+    return sandbox_home.parent / "installed-manifest.json"
+
+
+def _sandbox_env(sandbox_home: Path) -> dict[str, str]:
+    return {
         "HOME": str(sandbox_home),
         "PATH": SANDBOX_PATH,
+        "MB_MANIFEST_PATH": str(_sandbox_manifest(sandbox_home)),
     }
+
+
+def _run_install_sh(sandbox_home: Path, repo_root: Path) -> subprocess.CompletedProcess:
+    """Run the real install.sh against a sandboxed $HOME."""
     return subprocess.run(
         ["bash", str(repo_root / "install.sh"), "--non-interactive"],
-        env=env,
+        env=_sandbox_env(sandbox_home),
+        cwd=sandbox_home.parent,
         capture_output=True,
         text=True,
         check=False,
@@ -493,13 +479,10 @@ def _run_uninstall_sh(
     *extra_args: str,
     input_text: str | None = "y\n",
 ) -> subprocess.CompletedProcess:
-    env = {
-        "HOME": str(sandbox_home),
-        "PATH": SANDBOX_PATH,
-    }
     return subprocess.run(
         ["bash", str(repo_root / "uninstall.sh"), *extra_args],
-        env=env,
+        env=_sandbox_env(sandbox_home),
+        cwd=sandbox_home.parent,
         input=input_text,
         capture_output=True,
         text=True,
@@ -561,14 +544,11 @@ def test_install_sh_routes_python_through_mb_python(tmp_path):
     fake_py.write_text(f'#!/usr/bin/env bash\ntouch "{marker}"\nexec python3 "$@"\n')
     fake_py.chmod(0o755)
 
-    env = {
-        "HOME": str(sandbox),
-        "PATH": SANDBOX_PATH,
-        "MB_PYTHON": str(fake_py),
-    }
+    env = {**_sandbox_env(sandbox), "MB_PYTHON": str(fake_py)}
     result = subprocess.run(
         ["bash", str(REPO_ROOT / "install.sh"), "--non-interactive"],
         env=env,
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         check=False,
@@ -626,7 +606,7 @@ def test_cross_agent_adapters_route_python_through_mb_python(tmp_path):
     bare_py.chmod(0o755)
 
     env = {
-        "HOME": str(sandbox),
+        **_sandbox_env(sandbox),
         "PATH": f"{poison_dir}:{SANDBOX_PATH}",
         "MB_PYTHON": str(real_py),
     }
@@ -677,26 +657,17 @@ def test_install_manifest_has_schema_version_and_stable_file_order(tmp_path):
     sandbox = tmp_path / "home"
     sandbox.mkdir()
 
-    manifest_path = REPO_ROOT / ".installed-manifest.json"
-    original_manifest = (
-        manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else None
-    )
+    manifest_path = _sandbox_manifest(sandbox)
 
-    try:
-        first = _run_install_sh(sandbox, REPO_ROOT)
-        assert first.returncode == 0, first.stderr
-        manifest_1 = json.loads(manifest_path.read_text(encoding="utf-8"))
+    first = _run_install_sh(sandbox, REPO_ROOT)
+    assert first.returncode == 0, first.stderr
+    manifest_1 = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-        second = _run_install_sh(sandbox, REPO_ROOT)
-        assert second.returncode == 0, second.stderr
-        manifest_2 = json.loads(manifest_path.read_text(encoding="utf-8"))
+    second = _run_install_sh(sandbox, REPO_ROOT)
+    assert second.returncode == 0, second.stderr
+    manifest_2 = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-        assert manifest_1["schema_version"] == 1
-        assert manifest_2["schema_version"] == 1
-        assert manifest_1["files"] == manifest_2["files"]
-        assert manifest_1["backups"] == manifest_2["backups"]
-    finally:
-        if original_manifest is None:
-            manifest_path.unlink(missing_ok=True)
-        else:
-            manifest_path.write_text(original_manifest, encoding="utf-8")
+    assert manifest_1["schema_version"] == 1
+    assert manifest_2["schema_version"] == 1
+    assert manifest_1["files"] == manifest_2["files"]
+    assert manifest_1["backups"] == manifest_2["backups"]

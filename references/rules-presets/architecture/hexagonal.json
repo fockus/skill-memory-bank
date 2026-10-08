@@ -4,6 +4,21 @@
   "name": "hexagonal",
   "description": "Hexagonal (Ports & Adapters): ports in domain, adapters in infra, no framework leakage into core.",
   "one_liner": "Hexagonal: the core defines ports, infra adapters implement them; no framework in the core",
+  "mechanical": true,
+  "check": {
+    "rule_id": "architecture.hexagonal.ports-in-domain",
+    "kind": "layer",
+    "from": [
+      "core",
+      "domain"
+    ],
+    "to": [
+      "adapters",
+      "adapter",
+      "infrastructure",
+      "infra"
+    ]
+  },
   "rules": [
     {
       "rule_id": "architecture.hexagonal.ports-in-domain",

@@ -12,6 +12,7 @@
 - [command-skill-root-paths](plans/2026-09-24_fix_command-skill-root-paths.md) — fix — command-skill-root-paths — progress=100% stages(done=1,in_progress=0,planned=0,total=1)
 - [opus55-prompt-fit](plans/2026-09-24_fix_opus55-prompt-fit.md) — fix — opus55-prompt-fit · скил под Opus 5.5 / Fable 5.1 и любые агенты — progress=80% stages(done=5,in_progress=0,planned=3,total=8)
 - [2026-10-05_feature_pi-native-integration](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan — progress=0% stages(done=0,in_progress=0,planned=5,total=5)
+- [proportional-effortsprint2-execution-economy](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер» — progress=85% stages(done=3,in_progress=1,planned=0,total=4)
 
 ## Next (strict order — depends)
 

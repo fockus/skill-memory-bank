@@ -4,6 +4,25 @@
   "name": "mobile-udf",
   "description": "Mobile UDF: View→ViewModel→UseCase→Repository→DataSource layering, single source of truth.",
   "one_liner": "Mobile UDF: View→ViewModel→UseCase→Repository (SSOT)→DataSource; immutable UI state",
+  "mechanical": true,
+  "check": {
+    "rule_id": "architecture.mobile-udf.layer-contracts",
+    "kind": "layer",
+    "from": [
+      "usecase",
+      "usecases",
+      "domain"
+    ],
+    "to": [
+      "ui",
+      "presentation",
+      "view",
+      "views",
+      "viewmodel",
+      "viewmodels",
+      "screens"
+    ]
+  },
   "rules": [
     {
       "rule_id": "architecture.mobile-udf.layer-contracts",

@@ -228,19 +228,19 @@ EOF
 @test "mb_upgrade_command: pipx → pipx upgrade memory-bank-skill" {
   run mb_upgrade_command pipx
   [ "$status" -eq 0 ]
-  [ "$output" = "pipx upgrade memory-bank-skill" ]
+  [ "$output" = "pipx upgrade memory-bank-skill && memory-bank install" ]
 }
 
 @test "mb_upgrade_command: pip → pip install --upgrade memory-bank-skill" {
   run mb_upgrade_command pip
   [ "$status" -eq 0 ]
-  [ "$output" = "pip install --upgrade memory-bank-skill" ]
+  [ "$output" = "pip install --upgrade memory-bank-skill && memory-bank install" ]
 }
 
 @test "mb_upgrade_command: brew → brew upgrade memory-bank" {
   run mb_upgrade_command brew
   [ "$status" -eq 0 ]
-  [ "$output" = "brew upgrade memory-bank" ]
+  [ "$output" = "brew upgrade memory-bank && memory-bank install" ]
 }
 
 @test "mb_upgrade_command: unknown → a loud actionable hint, never empty" {

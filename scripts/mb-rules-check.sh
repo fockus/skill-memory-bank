@@ -17,6 +17,7 @@
 #   - stack.typescript.no-any
 #   - stack.javascript.strict-equality
 #   - architecture.fsd.import-direction
+#   - architecture.<name>.* for presets with a "check" block (mb_rules_check_arch.sh)
 
 # shellcheck disable=SC1091,SC2034
 set -euo pipefail
@@ -32,6 +33,8 @@ source "$SCRIPT_DIR/mb_rules_check_profile.sh"
 source "$SCRIPT_DIR/mb_rules_check_baseline.sh"
 # shellcheck source=mb_rules_check_stack.sh
 source "$SCRIPT_DIR/mb_rules_check_stack.sh"
+# shellcheck source=mb_rules_check_arch.sh
+source "$SCRIPT_DIR/mb_rules_check_arch.sh"
 
 FILES_CSV=""
 DIFF_CSV=""
@@ -115,6 +118,7 @@ esac
 for arch in $ARCH_NAMES; do
   case "$arch" in
     fsd) check_arch_fsd ;;
+    *) check_arch_preset "$arch" ;;
   esac
 done
 

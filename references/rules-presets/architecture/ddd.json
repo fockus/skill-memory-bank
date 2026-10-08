@@ -4,6 +4,21 @@
   "name": "ddd",
   "description": "Domain-Driven Design: bounded contexts, aggregates, repositories as interfaces.",
   "one_liner": "DDD folders: group by bounded context in every layer; no flat dump, no single-file folders",
+  "mechanical": true,
+  "check": {
+    "rule_id": "architecture.ddd.bounded-contexts",
+    "kind": "cross-module",
+    "roots": [
+      "domain"
+    ],
+    "public": [],
+    "shared": [
+      "shared",
+      "common",
+      "kernel",
+      "shared_kernel"
+    ]
+  },
   "rules": [
     {
       "rule_id": "architecture.ddd.bounded-contexts",

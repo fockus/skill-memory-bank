@@ -124,7 +124,8 @@ EOF
   [ "$status" -eq 0 ]
 
   grep -q '^# Existing Pi Rules$' "$HOME/.pi/agent/AGENTS.md"
-  grep -q 'Mandatory `/mb work` execution gate' "$HOME/.pi/agent/AGENTS.md"
+  grep -q '### `/mb work` gate' "$HOME/.pi/agent/AGENTS.md"
+  grep -q 'existing plan or spec' "$HOME/.pi/agent/AGENTS.md"
   grep -q 'mb-workflow.sh' "$HOME/.pi/agent/AGENTS.md"
   local count
   count=$(grep -c 'memory-bank-pi:start' "$HOME/.pi/agent/AGENTS.md")

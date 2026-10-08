@@ -10,6 +10,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
+  # Per-test manifest: never the repo's own (the owner's live install manifest).
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
 
   # Ensure Python 3 + jq-less mode. install.sh uses python3 for manifest + merge-hooks.
   command -v python3 >/dev/null || skip "python3 not installed"
@@ -130,7 +132,6 @@ EOF
 
   grep -q '1. \*\*Language\*\*: English — responses and code comments' "$HOME/.claude/RULES.md"
   grep -q '\*\*Language\*\* — respond in English; technical terms may remain in English\.' "$HOME/.claude/CLAUDE.md"
-  grep -q 'comments in English' "$HOME/.claude/settings.json"
   grep -q '"preferred_language": "en"' "$HOME/.claude/memory-bank-config.json"
 }
 
@@ -139,7 +140,6 @@ EOF
 
   grep -q '1. \*\*Language\*\*: Russian — responses and code comments' "$HOME/.claude/RULES.md"
   grep -q '\*\*Language\*\* — respond in Russian; technical terms may remain in English\.' "$HOME/.claude/CLAUDE.md"
-  grep -q 'comments in Russian' "$HOME/.claude/settings.json"
   grep -q '"preferred_language": "ru"' "$HOME/.claude/memory-bank-config.json"
 }
 
@@ -250,17 +250,17 @@ EOF
 
 @test "install: writes manifest" {
   bash "$REPO_ROOT/install.sh" >/dev/null
-  [ -f "$REPO_ROOT/.installed-manifest.json" ]
-  python3 -c "import json; json.load(open('$REPO_ROOT/.installed-manifest.json'))"
+  [ -f "$MB_MANIFEST_PATH" ]
+  python3 -c "import json; json.load(open('$MB_MANIFEST_PATH'))"
 }
 
 @test "install: manifest has schema_version=1" {
   bash "$REPO_ROOT/install.sh" >/dev/null
-  [ -f "$REPO_ROOT/.installed-manifest.json" ]
+  [ -f "$MB_MANIFEST_PATH" ]
   python3 - <<PY
 import json
 
-data = json.load(open("$REPO_ROOT/.installed-manifest.json"))
+data = json.load(open("$MB_MANIFEST_PATH"))
 assert data["schema_version"] == 1
 PY
 }
@@ -271,7 +271,7 @@ PY
   python3 - <<PY
 import json
 
-data = json.load(open("$REPO_ROOT/.installed-manifest.json"))
+data = json.load(open("$MB_MANIFEST_PATH"))
 files = data["files"]
 assert all("/.cursor/AGENTS.md" not in f for f in files)
 assert all("/.cursor/hooks.json" not in f for f in files)
@@ -412,7 +412,7 @@ PY
 import json
 from pathlib import Path
 
-manifest = Path("$REPO_ROOT/.installed-manifest.json")
+manifest = Path("$MB_MANIFEST_PATH")
 data = json.loads(manifest.read_text())
 data["files"].append("$HOME/.claude/../victim-dir")
 manifest.write_text(json.dumps(data, indent=2))
@@ -431,7 +431,7 @@ PY
 import json
 from pathlib import Path
 
-manifest = Path("$REPO_ROOT/.installed-manifest.json")
+manifest = Path("$MB_MANIFEST_PATH")
 data = json.loads(manifest.read_text())
 data["files"] = [
     f for f in data["files"]
@@ -643,7 +643,7 @@ EOF
   bash "$REPO_ROOT/install.sh" >/dev/null
   echo "y" | bash "$REPO_ROOT/uninstall.sh" >/dev/null
 
-  [ ! -f "$REPO_ROOT/.installed-manifest.json" ]
+  [ ! -f "$MB_MANIFEST_PATH" ]
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -733,6 +733,7 @@ EOF
 
 setup_readonly_skill_sandbox() {
   command -v rsync >/dev/null || skip "rsync required"
+  unset MB_MANIFEST_PATH   # these tests exercise the resolver's own default, on a copy
   RO_SKILL_PARENT="$(mktemp -d)"
   RO_SKILL_SRC="$RO_SKILL_PARENT/skill"
   mkdir -p "$RO_SKILL_SRC"

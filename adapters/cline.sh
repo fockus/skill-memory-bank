@@ -195,6 +195,7 @@ _cline_real_path() {
 _cline_backup_once() {
   local f="$1" b
   [ -f "$f" ] || return 0
+  _mb_owned_unedited "$f" "$MANIFEST" || _mb_owned_unedited "$f" "$CLINE_FILE_MANIFEST" && return 0
   for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
   cp "$f" "$f.pre-mb-backup.$$" 2>/dev/null || true
 }

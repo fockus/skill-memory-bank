@@ -3,7 +3,8 @@
 Template used by `/mb init --full` to generate `CLAUDE.md`.
 Variables in `{VARIABLE}` are filled through auto-detection. Keep the generated file short: only facts
 Claude needs in every session. Engineering rules and the status-line rule come from the global
-`~/.claude/CLAUDE.md` — do not copy them here.
+`~/.claude/CLAUDE.md` — do not copy them here. After writing the file, `/mb init` runs
+`mb-rules.sh sync --scope=project`, which adds the managed `## Key rules` block on top (AGR-083).
 
 ---
 
@@ -34,7 +35,7 @@ Claude needs in every session. Engineering rules and the status-line rule come f
 
 ## Project rules
 
-Engineering rules come from the global `~/.claude/CLAUDE.md` + `~/.claude/RULES.md` (plus `.memory-bank/RULES.md` when present); list only this project's overrides here.
+Detailed rules: the project's `RULES.md` (repo root, else `.memory-bank/RULES.md`). List only this project's overrides here.
 
 {PROJECT_RULE_OVERRIDES}
 
@@ -43,6 +44,6 @@ Engineering rules come from the global `~/.claude/CLAUDE.md` + `~/.claude/RULES.
 - Size the task first — memory-bank skill § Task routing (`references/effort-tiers.md`); trivial and small tasks need no plan.
 - `/mb work` runs when the task refers to an existing plan or spec in `.memory-bank/`; planned work: `/mb plan <type> <topic>` → `/mb work` → `/mb verify` → `/mb done`.
 - Run `/mb verify` before `/mb done` when work followed a plan — it checks every DoD item against the code.
-- Parallel sessions in one working tree: read `.memory-bank/COORDINATION.md` via `scripts/mb-coord.sh active` before stages and commits; scoped `git add` only.
+- Parallel sessions in one working tree: read `.memory-bank/COORDINATION.md` via the memory-bank skill's `mb-coord.sh active` before stages and commits; scoped `git add` only.
 - Key files: `status.md` (current state), `checklist.md` (active tasks), `roadmap.md` (priorities), `plans/` (stage plans), `progress.md` (append-only log).
 - Code graph & search → memory-bank skill (`/mb graph`, `mb-graph.sh`; opt-in `/mb wiki`).

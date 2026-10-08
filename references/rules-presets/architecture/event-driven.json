@@ -4,6 +4,7 @@
   "name": "event-driven",
   "description": "Event-Driven Architecture: event versioning, idempotency, dead-letter handling.",
   "one_liner": "Event-driven: versioned events, idempotent consumers, dead-letter for failures",
+  "mechanical": false,
   "rules": [
     {
       "rule_id": "architecture.event-driven.event-versioning",

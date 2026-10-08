@@ -8,6 +8,8 @@ set -euo pipefail
 SOURCE_SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
 . "$SOURCE_SKILL_DIR/scripts/_lib.sh"
+# shellcheck source=scripts/_install_options.sh
+. "$SOURCE_SKILL_DIR/scripts/_install_options.sh"
 # Interpreter that owns the memory_bank_skill package. The `memory-bank` CLI
 # exports MB_PYTHON=sys.executable so pipx/pip/Homebrew installs invoke the
 # venv's python (a bare system python3 cannot import the package). Falls back
@@ -100,7 +102,7 @@ flush_manifest() {
     MANIFEST_PATH="$MANIFEST" \
     INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$MB_PY" << 'PYEOF' 2>&1
-import json, os, tempfile
+import hashlib, json, os, tempfile
 files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
 raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
 clients = [c for c in os.environ.get("CLIENTS_INSTALLED_STR", "").split("\n") if c]
@@ -110,6 +112,11 @@ extensions_installed = [e for e in os.environ.get("EXTENSIONS_INSTALLED_STR", ""
 
 def _ordered_unique(items):
     return list(dict.fromkeys(items))
+
+
+def _sha256(path: str) -> str:
+    with open(path, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
 
 
 def _backup_path(entry: str) -> str:
@@ -137,6 +144,9 @@ manifest = {
     "installed_at": os.environ["INSTALL_DATE"],
     "skill": "skill-memory-bank",
     "files": _ordered_unique(files),
+    # Content of each regular file as written, so the next install can tell an
+    # untouched leftover of this version from a file the user edited.
+    "file_sha256": {f: _sha256(f) for f in _ordered_unique(files) if os.path.isfile(f) and not os.path.islink(f)},
     "backups": backups,
     # A10: per-project cross-agent adapters invoked at install time (excludes
     # claude-code, whose lifecycle is managed directly by install/uninstall.sh)
@@ -151,6 +161,8 @@ manifest = {
     # offer shown — never inferred, always the literal accepted set (REQ-002).
     "extensions_installed": _ordered_unique(extensions_installed),
     "project_root": os.environ.get("MANIFEST_PROJECT_ROOT", ""),
+    # Whose install this is: saved options and owned files apply only to this HOME.
+    "home": os.environ.get("HOME", ""),
     # A21: the install options as requested (language, full --clients list
     # including claude-code) so `mb-upgrade.sh` can reapply them non-interactively
     # on the next re-install instead of silently resetting to en/claude-code-only.
@@ -188,6 +200,7 @@ PYEOF
 
 _mb_on_exit() {
   local rc=$?   # preserve the triggering exit code across the flush
+  rm -rf "$MB_RUN_TMP"
   [ "$MB_MANIFEST_FLUSHED" = "1" ] && return "$rc"
   flush_manifest
   return "$rc"
@@ -204,12 +217,12 @@ count_matching_files() {
 }
 
 # ═══ Arg parsing ═══
-VALID_CLIENTS=(claude-code cursor windsurf cline kilo opencode pi codex)
-VALID_LANGUAGES=(en ru es pt zh)
+VALID_CLIENTS=("${MB_VALID_CLIENTS[@]}")
+VALID_LANGUAGES=("${MB_VALID_LANGUAGES[@]}")
 CLIENTS=""                  # unset sentinel — triggers interactive or default
 LANGUAGE=""                 # unset sentinel — triggers interactive or default
 COMMENTS_LANGUAGE=""        # empty = same as LANGUAGE
-PROJECT_ROOT="$PWD"
+PROJECT_ROOT=""             # empty = saved project root, else PWD
 NON_INTERACTIVE=0
 # adapter-parity T2: opt-in host parity-extension offer (pi/opencode only).
 # WITH_EXTENSIONS_FLAG=1 means "don't prompt — decide from WITH_EXTENSIONS_VALUE".
@@ -255,6 +268,11 @@ Options:
                           --clients includes pi and/or opencode. Declining
                           (the default) leaves the install unchanged.
   --help                  Show this message.
+
+A re-install reuses the options saved by the previous one (language, comments
+language, clients, project root); pass a flag to change one. With no saved
+manifest (pipx install --force, a cleaned Homebrew keg) they are inferred from
+~/.claude/memory-bank-config.json and the clients' adapter manifests.
 
 Examples:
   install.sh                                         # Interactive menu (TTY)
@@ -334,6 +352,45 @@ if [ "$WITH_EXTENSIONS_FLAG" != "1" ] && [ -n "${MB_WITH_EXTENSIONS+x}" ]; then
   WITH_EXTENSIONS_FLAG=1
   WITH_EXTENSIONS_VALUE="$MB_WITH_EXTENSIONS"
 fi
+
+# A plain re-run keeps the previous install's choices (saved in the manifest);
+# whatever was passed explicitly (flag or MB_* env) wins. The project root: run
+# inside a project (.git / .memory-bank, not the skill checkout itself) → that
+# project, as before A21; elsewhere (pipx from ~, the skill dir) → the saved one.
+CWD_IS_PROJECT=0
+if { [ -e "$PWD/.git" ] || [ -d "$PWD/.memory-bank" ]; } && ! [ "$PWD" -ef "$SOURCE_SKILL_DIR" ]; then
+  CWD_IS_PROJECT=1
+fi
+PREV_MANIFEST_SRC="$(mb_previous_manifest "$SOURCE_SKILL_DIR" "$MANIFEST")"
+# No usable manifest (pipx --force / reinstall, a cleaned brew keg): infer the
+# options from what the earlier install left in $HOME and this project.
+MB_INFERRED_FROM=""
+if { [ -z "$CLIENTS" ] || [ -z "$LANGUAGE" ] || [ -z "$PROJECT_ROOT" ]; } \
+  && { mb_saved_install_options "$PREV_MANIFEST_SRC" \
+    || mb_inferred_install_options "${PROJECT_ROOT:-$PWD}"; }; then
+  if [ -z "$LANGUAGE" ]; then
+    LANGUAGE="$MB_SAVED_LANGUAGE"
+    [ -z "$COMMENTS_LANGUAGE" ] && COMMENTS_LANGUAGE="$MB_SAVED_COMMENTS_LANGUAGE"
+  fi
+  [ -z "$CLIENTS" ] && CLIENTS="$MB_SAVED_CLIENTS"
+  if [ -z "$PROJECT_ROOT" ] && [ "$CWD_IS_PROJECT" = 1 ]; then
+    PROJECT_ROOT="$PWD"
+    [ -n "$MB_SAVED_PROJECT_ROOT" ] && ! [ "$PWD" -ef "$MB_SAVED_PROJECT_ROOT" ] \
+      && echo "[install.sh] installing into the current project $PWD (previous install: $MB_SAVED_PROJECT_ROOT)" >&2
+  elif [ -z "$PROJECT_ROOT" ] && [ -n "$MB_SAVED_PROJECT_ROOT" ]; then
+    if [ -d "$MB_SAVED_PROJECT_ROOT" ]; then
+      PROJECT_ROOT="$MB_SAVED_PROJECT_ROOT"
+    else
+      echo "[install.sh] saved project root $MB_SAVED_PROJECT_ROOT is gone — using $PWD" >&2
+    fi
+  fi
+  if [ -n "$MB_INFERRED_FROM" ]; then
+    echo "[install.sh] no previous install manifest — options inferred from $MB_INFERRED_FROM: language=${LANGUAGE:-en} clients=${CLIENTS:-claude-code} project=${PROJECT_ROOT:-$PWD} (pass --language/--clients/--project-root to change)" >&2
+  else
+    echo "[install.sh] saved options: language=$LANGUAGE clients=${CLIENTS:-claude-code} project=${PROJECT_ROOT:-$PWD} (pass --language/--clients/--project-root to change)" >&2
+  fi
+fi
+[ -z "$PROJECT_ROOT" ] && PROJECT_ROOT="$PWD"
 
 interactive_pick_clients() {
   echo ""
@@ -668,6 +725,52 @@ if [ "${MB_SKIP_DEPS_CHECK:-0}" != "1" ]; then
   fi
 fi
 
+# The previous install's manifest, read before this run rewrites it. PREV_OWNED:
+# the files it wrote; PREV_UNCHANGED: those still exactly as it wrote them
+# (sha256 from the manifest; a manifest without hashes: not modified after the
+# manifest itself was written). An unchanged file of ours is replaced without a
+# backup (I-250); an edited one keeps its backup; files only the old version
+# wrote are cleaned up by remove_previous_orphans.
+MB_RUN_TMP="$(mktemp -d)"
+MB_RUN_START="$MB_RUN_TMP/run-start"
+touch "$MB_RUN_START"
+PREV_MANIFEST="$MB_RUN_TMP/prev-manifest.json"
+PREV_OWNED="$MB_RUN_TMP/prev-owned.txt"
+PREV_UNCHANGED="$MB_RUN_TMP/prev-unchanged.txt"
+: > "$PREV_OWNED"
+: > "$PREV_UNCHANGED"
+if [ -n "$PREV_MANIFEST_SRC" ] && cp -p "$PREV_MANIFEST_SRC" "$PREV_MANIFEST" 2>/dev/null; then
+  # Only a manifest of this HOME counts (a shared checkout can carry another HOME's list).
+  MB_HOME_DIR="$HOME" "$MB_PY" - "$PREV_MANIFEST" "$PREV_OWNED" "$PREV_UNCHANGED" 2>/dev/null <<'PY' || : > "$PREV_OWNED"
+import hashlib, json, os, sys
+manifest, owned_out, unchanged_out = sys.argv[1:4]
+prev = json.load(open(manifest))
+home = os.environ["MB_HOME_DIR"].rstrip("/") + "/"
+hashes = prev.get("file_sha256") or {}
+written_at = os.path.getmtime(manifest)
+owned = [f for f in dict.fromkeys(prev.get("files") or []) if isinstance(f, str) and f.startswith(home)]
+
+def unchanged(path):
+    if not os.path.isfile(path) or os.path.islink(path):
+        return False
+    if path in hashes:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest() == hashes[path]
+    return int(os.path.getmtime(path)) <= int(written_at)
+
+with open(owned_out, "w") as fh:
+    fh.write("".join(f + "\n" for f in owned))
+with open(unchanged_out, "w") as fh:
+    fh.write("".join(f + "\n" for f in owned if unchanged(f)))
+PY
+fi
+# No previous manifest at all: ownership is judged per file instead
+# (scripts/_install_options.sh::mb_written_by_last_install).
+MB_LAST_INSTALL_AT=""
+if [ -z "$PREV_MANIFEST_SRC" ] && [ -f "$CLAUDE_DIR/memory-bank-config.json" ]; then
+  MB_LAST_INSTALL_AT="$(mb_mtime "$CLAUDE_DIR/memory-bank-config.json")"
+fi
+
 # python3 is now confirmed usable → arm the manifest flush for ANY exit (A7/H-5).
 trap _mb_on_exit EXIT
 
@@ -680,6 +783,8 @@ trap _mb_on_exit EXIT
 # source), instead of writing files with no recorded evidence they exist.
 _mb_offer_extensions
 
+_mb_has_claude_marker() { grep -qxF -- "$CLAUDE_MB_START_MARKER" "$1"; }
+
 backup_if_exists() {
   # Skip-when-identical backup with rotation (keeps only the latest backup).
   # Args: $1 = target path, $2 (optional) = expected content path.
@@ -687,6 +792,21 @@ backup_if_exists() {
   # Legacy 1-arg callers keep previous behavior: unconditional backup.
   local target="$1"
   local expected="${2:-}"
+  # I-250: a file the previous install wrote and nobody edited since is ours —
+  # replace it, no backup. Edited files, foreign files and directories (a real
+  # checkout may sit at a skill path) keep the backup below.
+  # MB_BLOCK_FILE=1: a file holding our marked block that the caller rewrites
+  # keeping the user's text verbatim — ours if the previous install wrote it.
+  # MB_ALWAYS_BACKUP=1 forces one for a caller that cannot keep the user's text.
+  # Without a previous manifest: a file written by the last install and not
+  # edited since, or a block file carrying our marker.
+  local own_list="$PREV_UNCHANGED" own_now=mb_written_by_last_install
+  [ "${MB_BLOCK_FILE:-0}" = 1 ] && own_list="$PREV_OWNED" && own_now=_mb_has_claude_marker
+  if [ "${MB_ALWAYS_BACKUP:-0}" != 1 ] && [ -f "$target" ] && [ ! -L "$target" ] \
+    && { grep -qxF -- "$target" "$own_list" || { [ -z "$PREV_MANIFEST_SRC" ] && "$own_now" "$target"; }; }; then
+    rm -f -- "$target"
+    return 0
+  fi
   if [ -e "$target" ] || [ -L "$target" ]; then
     if [ -L "$target" ]; then
       local managed_root resolved_target
@@ -921,6 +1041,7 @@ write_language_config() {
   cat > "$config_path" <<EOF
 {
   "preferred_language": "$LANGUAGE",
+  "comments_language": "$COMMENTS_LANGUAGE",
   "language_rule": "$(language_rule_full)"
 }
 EOF
@@ -1106,7 +1227,7 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
     # install — CDX-I9 / A20).
     claude_orig_tmp="$CLAUDE_DIR/CLAUDE.md.orig.tmp"
     cp "$CLAUDE_DIR/CLAUDE.md" "$claude_orig_tmp"
-    backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
+    MB_BLOCK_FILE=1 backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
     {
       if grep -q '[^[:space:]]' "$claude_orig_tmp"; then
         awk 'NF { last=NR } { lines[NR]=$0 } END { for (i=1; i<=last; i++) print lines[i] }' "$claude_orig_tmp"
@@ -1127,7 +1248,7 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
     # (recoverable via uninstall.sh's backup-restore step) and append a
     # fresh, properly paired block rather than destructively consuming
     # start..EOF (the old M-5 bug).
-    backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
+    MB_ALWAYS_BACKUP=1 backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
     {
       printf '\n%s\n\n' "$CLAUDE_MB_START_MARKER"
       cat "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
@@ -1164,7 +1285,7 @@ if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
     # non-idempotent. When user content IS present, backup_if_exists still
     # applies H-4 (keep the oldest true original, re-record it, take no new one).
     if grep -q '[^[:space:]]' "$claude_before_tmp" || grep -q '[^[:space:]]' "$claude_after_tmp"; then
-      backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
+      MB_BLOCK_FILE=1 backup_if_exists "$CLAUDE_DIR/CLAUDE.md"
     fi
     {
       if grep -q '[^[:space:]]' "$claude_before_tmp"; then
@@ -1390,12 +1511,44 @@ for c in "${ORDERED_CLIENTS[@]}"; do
   fi
 done
 
+# Files the previous install wrote and this one did not (an older version's
+# leftovers, e.g. a retired hook). Unchanged since then (sha256 recorded in the
+# manifest; older manifests: not modified after their install time) → removed.
+# Edited → moved to <file>.pre-mb-backup.<epoch> with a warning. Only regular
+# files and symlinks under the global dirs this script manages; anything this
+# run (re)wrote, adapters included, is skipped.
+remove_previous_orphans() {
+  [ -s "$PREV_OWNED" ] || return 0
+  INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}"})" \
+  MB_ROOTS="$(printf '%s\n' "$CLAUDE_DIR" "$CODEX_DIR" "$OPENCODE_DIR" "$PI_AGENT_DIR")" \
+    "$MB_PY" - "$PREV_OWNED" "$PREV_UNCHANGED" "$MB_RUN_START" <<'PY'
+import os, sys, time
+owned, unchanged = ([l for l in open(p).read().split("\n") if l] for p in sys.argv[1:3])
+unchanged = set(unchanged)
+run_start = os.path.getmtime(sys.argv[3])
+current = set(os.environ.get("INSTALLED_FILES_STR", "").split("\n"))
+roots = [r.rstrip("/") + "/" for r in os.environ["MB_ROOTS"].split("\n") if r]
+removed = 0
+for path in owned:
+    if path in current or not any(path.startswith(r) for r in roots):
+        continue
+    if os.path.islink(path) or path in unchanged:
+        os.unlink(path)
+        removed += 1
+    elif os.path.isfile(path) and os.path.getmtime(path) < run_start:
+        backup = f"{path}.pre-mb-backup.{int(time.time())}"
+        os.replace(path, backup)
+        print(f"  ! {path} is no longer part of Memory Bank but was edited — moved to {backup}", file=sys.stderr)
+if removed:
+    print(f"  ~ removed {removed} file(s) left by the previous version")
+PY
+}
+remove_previous_orphans
+
 # A10/A17: re-flush the manifest now that ADAPTERS_INVOKED/ADAPTERS_FAILED/
 # PROJECT_ROOT are known, so uninstall.sh can look up which per-project
 # adapters to uninstall and the manifest reflects any adapter failure.
-if [ "${#ADAPTERS_INVOKED[@]}" -gt 0 ] || [ "${#ADAPTERS_FAILED[@]}" -gt 0 ]; then
-  flush_manifest
-fi
+flush_manifest
 
 echo ""
 echo -e "${GREEN}═══ Memory Bank installed ═══${NC}"

@@ -1,4 +1,5 @@
 <!-- mb-key-rules:start -->
+<!-- mb-stamp: 5.3.1-27b615b7 -->
 ## Key rules — project overrides
 
 Global Key rules apply with these differences:
@@ -86,6 +87,7 @@ Inline implementation of planned work is fine when the user explicitly asks to s
 - AGR-079: Правило «200k токенов на Sprint» удаляется из правил планирования как устаревшее: размер Sprint определяется архитектурными границами и…
 - AGR-082: ADaPT-lite внедряется сейчас как первый срез spec svp-adapt-escalation: план крупный, исполнитель берёт пункт целиком…
 - AGR-083: Проектный блок Key rules в CLAUDE.md/AGENTS.md содержит только отличия проекта от пользовательских правил (включено, выключено, свои…
+- AGR-084: Релиз 5.4.0 пока не делаем: сначала тестируем сами, важные пользователи забирают обновления из main…
 - … 59 more → /mb agree list
 
 История, superseded и правила ведения → .memory-bank/agreements.md (`/mb agree`)

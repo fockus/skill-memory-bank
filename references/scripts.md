@@ -28,6 +28,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | Script | Purpose |
 |--------|---------|
 | `_lib.sh` | Shared helpers sourced by other scripts |
+| `_install_options.sh` | Sourced by `install.sh`: install options and file ownership when no previous install manifest exists (`pipx install --force`, a cleaned Homebrew keg) |
 | `mb-context.sh [--deep]` | Build context from core files (`STATUS` + `plan` + `checklist` + `RESEARCH` + codebase summary). `--deep` shows full codebase docs, `--full` disables the per-file byte cap (`MB_CONTEXT_MAX_BYTES` / `context_max_bytes`, default 12 KB) |
 | `mb-statusline.py [--install]` | Claude Code statusline showing context-window fill `%` (`used/limit`, 1M-aware) + model · branch · project. Reads the status JSON on stdin; `--install` wires it into `~/.claude/settings.json` (backup, no clobber) |
 | `mb-search.sh <q> [--tag t]` | Keyword search across the memory bank. `--tag` filters via `index.json` |
@@ -190,9 +191,11 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | Script | Purpose |
 |--------|---------|
 | `mb_rules_check_lib.sh` | Shared helper library for `mb-rules-check.sh` |
+| `mb_rules_sync_lib.sh` | File writers behind `mb-rules.sh sync` (Key rules, RULES.md settings, AGENTS.md and per-host rule files; keeps adapter ownership of rewritten rule files) |
 | `mb_rules_check_profile.sh` | Profile resolution and output emitters for `mb-rules-check.sh` |
 | `mb_rules_check_baseline.sh` | Baseline SRP / Clean Architecture / TDD checks for `mb-rules-check.sh` |
 | `mb_rules_check_stack.sh` | Stack-aware and FSD checks for `mb-rules-check.sh` |
+| `mb_rules_check_arch.sh` | Architecture-preset import checks (preset `check` block: clean, modular-monolith, microservices, ddd, hexagonal, mobile-udf) for `mb-rules-check.sh` |
 | `mb_work_models.py` | Per-role model resolver for `mb-work-plan.sh` (cost tiers × host `model_profiles`, AGR-074) and the `cost`/`cost_tiers`/`model_profiles`/`hosts` schema for `mb-pipeline-validate.sh` |
 | `mb_config_hosts.py` | Host templates for `mb-pipeline.sh init --host` (`/mb config init`) and the role → model matrix of `mb-pipeline.sh matrix` (`/mb config show`), AGR-074 |
 | `mb_work_adapt.py` | ADaPT-lite for `/mb work`: `adapt:` config + schema, `complexity_escalation` parsing (`parse`), sub-items in run state behind `mb-work-state.sh split`/`sub-done`/`adapt-check` and the `done` gate (`references/adapt.md`) |

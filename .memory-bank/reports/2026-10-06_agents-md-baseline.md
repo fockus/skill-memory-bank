@@ -97,3 +97,33 @@ plugin), Cursor `.mdc`, Windsurf и Cline hooks. Третий прогон но�
 **Репо.** `adapters/opencode.sh install <repo>` (temp HOME; plain install ничего не пишет в HOME) оставил `AGENTS.md`
 без изменений — 7 987 Б, блоки key-rules / memory-bank / agreements. Пользовательского текста вне маркеров нет,
 `.mb-agents-owners.json` не изменился.
+
+## I-249 — запас глобальных файлов (2026-10-07)
+
+План `2026-10-07_fix_upgrade-safe-install.md`, Stage 3. `rules/CLAUDE-GLOBAL.md`: 31 строка / 3 868 Б → 25 строк / 2 640 Б.
+Замер — `install.sh --non-interactive --clients claude-code,codex,pi,opencode,cursor` в пустой temp HOME, `wc -c`.
+
+| Файл | До | После | Запас до 8 192 |
+|---|---|---|---|
+| `~/.claude/CLAUDE.md` | 6 828 | 5 600 | 2 592 |
+| `~/.codex/AGENTS.md` | 7 463 | 6 235 | 1 957 |
+| `~/.pi/agent/AGENTS.md` | 7 895 | 6 667 | 1 525 |
+| `~/.config/opencode/AGENTS.md` | 7 307 | 6 079 | 2 113 |
+| `~/.cursor/AGENTS.md` | 7 289 | 6 061 | 2 131 |
+
+**Что убрано** (всё есть в Key rules, `rules/RULES.md` или `references/`):
+- Заголовок `## Coding & Reasoning`; «Specification by Example», «Strangler Fig» — есть в RULES.md (§ Tests — Testing Trophy, § Coding Standards).
+  От ADR-строки осталось «significant decision → ADR».
+- Длинная строка про размер задачи: дублировала Key rules «Size the task first…». Осталась короткая: нет плана для
+  trivial/small, SMART DoD на план, coverage по профилю, ссылка на § Task routing.
+- `**Skill:** / **Command:** / **Path:**`, `/mb context --deep` — путь и флаг есть в SKILL.md и RULES.md.
+- «procedures and opt-in layers live in the skill» в строке про граф.
+- Из координации: перечень того, что показывает `mb-coord.sh active`, и «scoped `git add` only (never `-A`)» — первое есть
+  в `references/coordination.md`, второе в Key rules.
+- Из соглашений: «never leave two active», «Kill-switch `MB_AGREEMENTS=off`» — есть в `references/agreements.md`.
+- В строке статуса: пути `registry.json` и `<project>/` (резолвер и `--storage=global` остались).
+- Отдельная строка «Project-specific overrides…» слита со строкой «Details: `~/.claude/RULES.md`».
+- Выделение `**…**` и «never/immediately» заменены спокойными формулировками (AGR-068).
+
+Гард: `tests/pytest/test_global_prompt_guard.py::test_global_host_files_keep_one_kb_headroom` — самый большой
+глобальный файл ≤ 8 192 − 1 024 Б. Существующие гарды смысла не менялись, все зелёные.

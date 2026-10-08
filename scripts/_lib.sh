@@ -762,7 +762,9 @@ mb_install_flavor() {
 # command for a flavor, as printed to the user (informational only —
 # callers never invoke a package manager on the user's behalf). Never
 # empty, even for `unknown`: a silent empty string is worse than a loud
-# reinstall hint. Always exits 0.
+# reinstall hint. Always exits 0. Package flavors chain `memory-bank install`:
+# the package manager only swaps the bundle, the re-install refreshes the
+# global files and restores the saved options (mb_saved_install_options).
 #
 # `install_dir` (optional) is the resolved skill bundle root. It only
 # affects the `git` flavor: without it, a cwd-relative command is printed
@@ -782,13 +784,13 @@ mb_upgrade_command() {
       fi
       ;;
     pipx)
-      printf '%s\n' "pipx upgrade memory-bank-skill"
+      printf '%s\n' "pipx upgrade memory-bank-skill && memory-bank install"
       ;;
     pip)
-      printf '%s\n' "pip install --upgrade memory-bank-skill"
+      printf '%s\n' "pip install --upgrade memory-bank-skill && memory-bank install"
       ;;
     brew)
-      printf '%s\n' "brew upgrade memory-bank"
+      printf '%s\n' "brew upgrade memory-bank && memory-bank install"
       ;;
     *)
       printf '%s\n' "No known upgrade path — reinstall: git clone https://github.com/fockus/skill-memory-bank.git <dir>, or pipx install memory-bank-skill, or pip install memory-bank-skill"
@@ -824,6 +826,15 @@ mb_resolve_manifest_path() {
   local user_manifest="$user_dir/.installed-manifest.json"
   local local_manifest="$skill_dir/.installed-manifest.json"
 
+  # A Homebrew keg is versioned (Cellar/<formula>/<version>/): `brew upgrade`
+  # moves to a new keg and cleans the old one, taking a co-located manifest —
+  # and the saved install options — with it. Use the user dir there, except
+  # for an install that already wrote into this keg (uninstall must find it).
+  case "$skill_dir" in
+    */Cellar/*)
+      [ -f "$local_manifest" ] || { printf '%s\n' "$user_manifest"; return 0; } ;;
+  esac
+
   if [ -w "$skill_dir" ]; then
     if [ ! -f "$local_manifest" ] && [ -f "$user_manifest" ]; then
       printf '%s\n' "$user_manifest"
@@ -834,6 +845,94 @@ mb_resolve_manifest_path() {
   fi
 
   printf '%s\n' "$user_manifest"
+}
+
+# mb_previous_manifest <skill_dir> <manifest> — the manifest of the previous
+# install: <manifest> when it exists; for a Homebrew keg without one, the newest
+# manifest at the same path in a sibling keg (<Cellar>/<formula>/*/…) — brew
+# installs before the user-dir manifest kept it inside their versioned keg.
+# Prints nothing when there is none.
+mb_previous_manifest() {
+  local skill_dir="${1:?skill_dir required}" manifest="${2:?manifest required}"
+  if [ -f "$manifest" ]; then
+    printf '%s\n' "$manifest"
+    return 0
+  fi
+  case "$skill_dir" in */Cellar/*/*) ;; *) return 0 ;; esac
+  local cellar="${skill_dir%/Cellar/*}/Cellar" rest="${skill_dir##*/Cellar/}"
+  local formula="${rest%%/*}" rel="${rest#*/}" m best=""
+  case "$rel" in */*) rel="${rel#*/}" ;; *) rel="" ;; esac
+  for m in "$cellar/$formula"/*/"$rel"/.installed-manifest.json; do
+    [ -f "$m" ] || continue
+    if [ -z "$best" ] || [ "$m" -nt "$best" ]; then best="$m"; fi
+  done
+  [ -n "$best" ] && printf '%s\n' "$best"
+  return 0
+}
+
+# Install options install.sh accepts. mb-upgrade.sh and the saved-options
+# reader below share them, so a retired client never fails a re-install.
+# shellcheck disable=SC2034  # read by install.sh / mb-upgrade.sh
+MB_VALID_CLIENTS=(claude-code cursor windsurf cline kilo opencode pi codex)
+# shellcheck disable=SC2034
+MB_VALID_LANGUAGES=(en ru es pt zh)
+
+# mb_saved_install_options <manifest> — the options the previous install saved
+# (A21). Sets MB_SAVED_LANGUAGE, MB_SAVED_COMMENTS_LANGUAGE, MB_SAVED_CLIENTS,
+# MB_SAVED_PROJECT_ROOT, sanitized for this version (unknown clients dropped,
+# an unknown language becomes en — each with a warning on stderr).
+# Returns 1 when there is nothing usable: no/unreadable manifest, a manifest
+# without "language" (pre-A21), or one written for another HOME (its "home",
+# or — older manifests — none of its files under $HOME), or none of whose
+# files exist any more.
+mb_saved_install_options() {
+  local manifest="${1:-}" raw
+  [ -f "$manifest" ] || return 1
+  raw="$(MANIFEST_PATH="$manifest" MB_HOME_DIR="$HOME" \
+    MB_CLIENTS_OK="${MB_VALID_CLIENTS[*]}" MB_LANGS_OK="${MB_VALID_LANGUAGES[*]}" \
+    "${MB_PYTHON:-python3}" - <<'PY'
+import json, os, sys
+try:
+    with open(os.environ["MANIFEST_PATH"]) as fh:
+        data = json.load(fh)
+    language = data.get("language") or ""
+except Exception:
+    raise SystemExit(1)
+home = os.environ["MB_HOME_DIR"].rstrip("/") + "/"
+files = [f for f in data.get("files") or [] if isinstance(f, str)]
+if data.get("home"):
+    foreign = data["home"].rstrip("/") + "/" != home
+else:  # manifests before the "home" key
+    foreign = bool(files) and not any(f.startswith(home) for f in files)
+# Nothing of that install left (HOME wiped) → a first install, not a re-install.
+if not language or foreign or (files and not any(os.path.lexists(f) for f in files)):
+    raise SystemExit(1)
+langs = os.environ["MB_LANGS_OK"].split()
+if language not in langs:
+    print(f"[warning] saved language '{language}' is no longer supported — using en", file=sys.stderr)
+    language = "en"
+comments = data.get("comments_language") or ""
+if comments and comments not in langs:
+    print(f"[warning] saved comments language '{comments}' is not supported — using the response language", file=sys.stderr)
+    comments = ""
+ok = os.environ["MB_CLIENTS_OK"].split()
+asked = [c.strip() for c in (data.get("clients_requested") or "").split(",") if c.strip()]
+dropped = [c for c in asked if c not in ok]
+if dropped:
+    print(f"[warning] dropping clients no longer supported by this version: {','.join(dropped)}", file=sys.stderr)
+clients = ",".join(c for c in asked if c in ok) or ("claude-code" if asked else "")
+print(language, clients, data.get("project_root") or "", comments, sep="\n")
+PY
+  )" || return 1
+  # shellcheck disable=SC2034  # read by the caller
+  MB_SAVED_LANGUAGE="$(printf '%s\n' "$raw" | sed -n '1p')"
+  # shellcheck disable=SC2034
+  MB_SAVED_CLIENTS="$(printf '%s\n' "$raw" | sed -n '2p')"
+  # shellcheck disable=SC2034
+  MB_SAVED_PROJECT_ROOT="$(printf '%s\n' "$raw" | sed -n '3p')"
+  # shellcheck disable=SC2034
+  MB_SAVED_COMMENTS_LANGUAGE="$(printf '%s\n' "$raw" | sed -n '4p')"
+  return 0
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

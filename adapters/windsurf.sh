@@ -115,6 +115,7 @@ HOOK_EOF
 _windsurf_backup_once() {
   local f="$1" b
   [ -f "$f" ] || return 0
+  _mb_owned_unedited "$f" "$MANIFEST" && return 0
   for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
   cp "$f" "$f.pre-mb-backup.$(date +%s).$$" 2>/dev/null || true
 }
@@ -181,8 +182,12 @@ install_windsurf() {
     merged="$our_hooks_json"
   fi
   # A16 (M-8): back up a pre-existing hooks.json (may carry foreign/user hook
-  # entries merged in above) before overwriting, and write atomically.
-  _windsurf_backup_once "$HOOKS_JSON"
+  # entries merged in above) before overwriting, and write atomically. One
+  # that holds exactly our own hooks is ours, unedited — no backup.
+  if [ -f "$HOOKS_JSON" ] \
+    && [ "$(jq -S . "$HOOKS_JSON" 2>/dev/null)" != "$(printf '%s' "$our_hooks_json" | jq -S .)" ]; then
+    _windsurf_backup_once "$HOOKS_JSON"
+  fi
   local hooks_json_tmp
   hooks_json_tmp=$(mktemp "$WINDSURF_DIR/.hooks.json.XXXXXXXX")
   printf '%s\n' "$merged" > "$hooks_json_tmp"

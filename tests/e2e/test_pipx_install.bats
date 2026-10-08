@@ -9,14 +9,23 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   WHEEL_DIR="/tmp/mb-e2e-dist-$$"
   VENV_DIR="$(mktemp -d)/venv"
+  # `memory-bank install`/`init` must never see the real ~ or write into the repo.
+  PYTHONUSERBASE="$(/usr/bin/python3 -m site --user-base)"
+  export PYTHONUSERBASE
+  SANDBOX_HOME="$(mktemp -d)"
+  export HOME="$SANDBOX_HOME"
+  export MB_MANIFEST_PATH="$SANDBOX_HOME/.installed-manifest.json"
+  PROJECT="$SANDBOX_HOME/project"
+  mkdir -p "$PROJECT"
+  cd "$PROJECT" || return 1
   command -v python3 >/dev/null || skip "python3 required"
   python3 -c "import build" 2>/dev/null || skip "python build module missing"
   mkdir -p "$WHEEL_DIR"
 }
 
 teardown() {
-  [ -n "${WHEEL_DIR:-}" ] && rm -rf "$WHEEL_DIR"
-  [ -n "${VENV_DIR:-}" ] && [ -d "$VENV_DIR" ] && rm -rf "$(dirname "$VENV_DIR")"
+  rm -rf "${WHEEL_DIR:-}" "${SANDBOX_HOME:-}"
+  [ -z "${VENV_DIR:-}" ] || rm -rf "$(dirname "$VENV_DIR")"
 }
 
 build_and_install() {
@@ -71,7 +80,7 @@ build_and_install() {
 @test "pipx-like install: install --clients validation rejects bad name" {
   build_and_install
   # Exit non-zero on invalid client (validation happens in install.sh, which CLI wraps)
-  run "$VENV_DIR/bin/memory-bank" install --clients invalidname --project-root /tmp
+  run "$VENV_DIR/bin/memory-bank" install --clients invalidname --project-root "$PROJECT"
   [ "$status" -ne 0 ]
 }
 

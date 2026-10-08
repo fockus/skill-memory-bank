@@ -19,7 +19,6 @@
 set -euo pipefail
 
 SKILL_DIR="${MB_SKILL_DIR:-$HOME/.claude/skills/skill-memory-bank}"
-MB_PY="${MB_PYTHON:-python3}"
 # shellcheck disable=SC1091
 . "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
@@ -47,71 +46,9 @@ while [ $# -gt 0 ]; do
 done
 
 # ═══ A21 (CDX-I10): persist + reapply install options across upgrade ═══
-# install.sh persists {language, clients_requested, project_root} into its own
-# manifest (scripts/_lib.sh::mb_resolve_manifest_path — the same resolution
-# uninstall.sh already uses). A plain re-run of install.sh used to silently
-# reset the locale to en and drop the user's chosen --clients on every
-# upgrade; this reapplies the previous choices non-interactively instead.
-# Keep in sync with install.sh:VALID_CLIENTS / VALID_LANGUAGES.
-UPGRADE_VALID_CLIENTS=(claude-code cursor windsurf cline kilo opencode pi codex)
-UPGRADE_VALID_LANGUAGES=(en ru es pt zh)
-
-_mb_upgrade_in_list() {
-  local needle="$1"; shift
-  local hay
-  for hay in "$@"; do [ "$hay" = "$needle" ] && return 0; done
-  return 1
-}
-
-# Drops any persisted client no longer recognized by this version of
-# install.sh instead of letting install.sh hard-fail the whole re-install.
-_mb_upgrade_sanitize_clients() {
-  local input="$1" kept="" dropped="" part
-  local IFS=','
-  for part in $input; do
-    part="${part// /}"
-    [ -z "$part" ] && continue
-    if _mb_upgrade_in_list "$part" "${UPGRADE_VALID_CLIENTS[@]}"; then
-      kept="${kept:+$kept,}$part"
-    else
-      dropped="${dropped:+$dropped,}$part"
-    fi
-  done
-  if [ -n "$dropped" ]; then
-    echo "[warning] dropping clients no longer supported by this version: $dropped" >&2
-  fi
-  printf '%s' "$kept"
-}
-
-# Reads {language, clients_requested, project_root} from install.sh's
-# manifest. Returns 1 (PERSISTED_* left unset) when the manifest is missing,
-# unreadable, or predates A21 (no "language" key) — callers fall back to
-# install.sh's own defaults and print a warning instead of failing the upgrade.
-resolve_persisted_install_options() {
-  local manifest raw
-  manifest="$(mb_resolve_manifest_path "$SKILL_DIR")"
-  [ -f "$manifest" ] || return 1
-  raw="$(MANIFEST_PATH="$manifest" "$MB_PY" -c '
-import json, os
-try:
-    with open(os.environ["MANIFEST_PATH"]) as fh:
-        data = json.load(fh)
-except Exception:
-    raise SystemExit(1)
-language = data.get("language") or ""
-if not language:
-    raise SystemExit(1)
-print(language)
-print(data.get("clients_requested") or "")
-print(data.get("project_root") or "")
-print(data.get("comments_language") or "")
-' 2>/dev/null)" || return 1
-  PERSISTED_LANGUAGE="$(printf '%s\n' "$raw" | sed -n '1p')"
-  PERSISTED_CLIENTS="$(printf '%s\n' "$raw" | sed -n '2p')"
-  PERSISTED_PROJECT_ROOT="$(printf '%s\n' "$raw" | sed -n '3p')"
-  PERSISTED_COMMENTS_LANGUAGE="$(printf '%s\n' "$raw" | sed -n '4p')"
-  return 0
-}
+# install.sh saves {language, comments_language, clients_requested,
+# project_root} in its manifest and restores them itself on a plain re-run;
+# scripts/_lib.sh::mb_saved_install_options is the one reader both use.
 
 # ═══ Pre-flight: skill directory exists ═══
 if [ ! -d "$SKILL_DIR" ]; then
@@ -264,27 +201,14 @@ if [ -x "$SKILL_DIR/install.sh" ]; then
   resolved_project_root="$OVERRIDE_PROJECT_ROOT"
 
   if [ -z "$resolved_language" ] && [ -z "$resolved_clients" ]; then
-    if resolve_persisted_install_options; then
-      resolved_language="$PERSISTED_LANGUAGE"
-      resolved_clients="$PERSISTED_CLIENTS"
-      [ -z "$resolved_comments_language" ] && resolved_comments_language="$PERSISTED_COMMENTS_LANGUAGE"
-      [ -z "$resolved_project_root" ] && resolved_project_root="$PERSISTED_PROJECT_ROOT"
+    if mb_saved_install_options "$(mb_resolve_manifest_path "$SKILL_DIR")"; then
+      resolved_language="$MB_SAVED_LANGUAGE"
+      resolved_clients="$MB_SAVED_CLIENTS"
+      [ -z "$resolved_comments_language" ] && resolved_comments_language="$MB_SAVED_COMMENTS_LANGUAGE"
+      [ -z "$resolved_project_root" ] && resolved_project_root="$MB_SAVED_PROJECT_ROOT"
     else
       echo "[warning] no persisted install options found (pre-upgrade-support manifest, or first install) — re-running install.sh with its own defaults" >&2
     fi
-  fi
-
-  if [ -n "$resolved_language" ] && ! _mb_upgrade_in_list "$resolved_language" "${UPGRADE_VALID_LANGUAGES[@]}"; then
-    echo "[warning] persisted language '$resolved_language' is no longer supported — using en" >&2
-    resolved_language="en"
-  fi
-  if [ -n "$resolved_comments_language" ] && ! _mb_upgrade_in_list "$resolved_comments_language" "${UPGRADE_VALID_LANGUAGES[@]}"; then
-    echo "[warning] comments language '$resolved_comments_language' is not supported — using the response language" >&2
-    resolved_comments_language=""
-  fi
-  if [ -n "$resolved_clients" ]; then
-    resolved_clients="$(_mb_upgrade_sanitize_clients "$resolved_clients")"
-    [ -z "$resolved_clients" ] && resolved_clients="claude-code"
   fi
 
   [ -n "$resolved_language" ] && install_args+=(--language "$resolved_language")

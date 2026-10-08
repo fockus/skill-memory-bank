@@ -914,3 +914,34 @@ STUB
   run ls "$PROJECT/.opencode/agent"
   refute_substring "$output" "pre-mb-backup"
 }
+
+# upgrade-safe-install Stage 2: the plugin's session start also surfaces the
+# stale-project-blocks hint (mb_project_blocks_hint, stubbed via MB_AGENTS_LIB),
+# only when the project has a bank.
+@test "opencode: session-start hook renders the stale project blocks hint only with a bank" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  command -v node >/dev/null || skip "node required"
+
+  local plugin_mjs="$PROJECT/mb-plugin-hint.mjs"
+  cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
+  local lib="$PROJECT/stub-agents-lib.sh"
+  printf '%s\n' 'mb_project_blocks_hint() { echo "[memory-bank] Outdated managed blocks in AGENTS.md"; }' > "$lib"
+  local js="
+    import('file://$plugin_mjs').then(async (mod) => {
+      const plugin = await mod.default({ directory: '$PROJECT' });
+      const out = { system: [] };
+      await plugin['experimental.chat.system.transform']({ sessionID: 's-hint' }, out);
+      console.log(JSON.stringify(out.system));
+    }).catch((e) => { console.error(e); process.exitCode = 1; });
+  "
+  mkdir -p "$PROJECT/.memory-bank"
+  run env MB_AGENTS_LIB="$lib" MB_UPDATE_NOTIFY_BIN=/nonexistent node -e "$js"
+  [ "$status" -eq 0 ]
+  assert_substring "$output" "Outdated managed blocks in AGENTS.md"
+
+  rm -rf "$PROJECT/.memory-bank"
+  run env MB_AGENTS_LIB="$lib" MB_UPDATE_NOTIFY_BIN=/nonexistent node -e "$js"
+  [ "$status" -eq 0 ]
+  refute_substring "$output" "Outdated managed blocks"
+}

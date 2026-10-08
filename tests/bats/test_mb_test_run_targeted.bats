@@ -61,12 +61,19 @@ make_bats_fixture() {
   SH="$d"
 }
 
-# assert_same_as_head <dir> — json/human/both output of the HEAD runner and the
-# current one match byte for byte once durations are normalised.
+# The runner before targeted selection existed (proportional-effort Sprint 2):
+# no-flag output must stay byte-identical to it. A shallow clone without this
+# commit skips the comparison.
+PRE_TARGETED_REF=e351a17
+
+# assert_same_as_head <dir> — json/human/both output of the pre-targeted runner
+# and the current one match byte for byte once durations are normalised.
 assert_same_as_head() {
   local old="$TMPROOT/old"
   mkdir -p "$old"
-  git -C "$REPO_ROOT" show HEAD:scripts/mb-test-run.sh >"$old/mb-test-run.sh"
+  git -C "$REPO_ROOT" cat-file -e "$PRE_TARGETED_REF:scripts/mb-test-run.sh" 2>/dev/null \
+    || skip "baseline commit $PRE_TARGETED_REF not available (shallow clone)"
+  git -C "$REPO_ROOT" show "$PRE_TARGETED_REF:scripts/mb-test-run.sh" >"$old/mb-test-run.sh"
   cp "$REPO_ROOT/scripts/_lib.sh" "$REPO_ROOT/scripts/mb-metrics.sh" "$old/"
   local mode norm='s/"duration_ms":[0-9]*/"duration_ms":0/; s/duration=[0-9]*ms/duration=0ms/'
   for mode in json human both; do

@@ -26,7 +26,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   command -v jq >/dev/null || skip "jq required"
   command -v rsync >/dev/null || skip "rsync required"
-  unset MB_WITH_EXTENSIONS MB_CLIENTS MB_LANGUAGE
+  # MB_MANIFEST_PATH: the manifest must land in the SKILL_SRC copy (asserted below).
+  unset MB_WITH_EXTENSIONS MB_CLIENTS MB_LANGUAGE MB_MANIFEST_PATH
 
   FAKE_HOME="$(mktemp -d)"
   PROJECT="$(mktemp -d)"

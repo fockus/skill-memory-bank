@@ -299,7 +299,7 @@ assert isinstance(data["update_available"], bool), data["update_available"]
     MB_VERSION_CHECK_CACHE="$CACHE_FILE" MB_VERSION_CHECK_FETCH_BIN="$fetch" run bash "$SCRIPT"
   [ "$status" -eq 0 ]
   [ "$(json_field "$output" flavor)" = "pipx" ]
-  [ "$(json_field "$output" upgrade_command)" = "pipx upgrade memory-bank-skill" ]
+  [ "$(json_field "$output" upgrade_command)" = "pipx upgrade memory-bank-skill && memory-bank install" ]
 }
 
 # ═══ fail-open: python interpreter missing (B1) ═══

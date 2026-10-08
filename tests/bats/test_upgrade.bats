@@ -8,6 +8,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-upgrade.sh"
   TMPDIR="$(mktemp -d)"
+  # The tests seed $TMPDIR/skill/.installed-manifest.json — the resolver's own default.
+  unset MB_MANIFEST_PATH
 
   [ -f "$SCRIPT" ] || skip "scripts/mb-upgrade.sh not implemented yet (TDD red)"
 }

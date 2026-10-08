@@ -240,8 +240,9 @@ def cmd_version(_args: argparse.Namespace) -> int:
 def cmd_self_update(_args: argparse.Namespace) -> int:
     sys.stdout.write(
         f"To update memory-bank-skill:\n"
-        f"    pipx upgrade {PACKAGE_NAME}\n\n"
-        f"Or (if installed via pip): pip install --upgrade {PACKAGE_NAME}\n"
+        f"    pipx upgrade {PACKAGE_NAME} && memory-bank install\n\n"
+        f"Or (if installed via pip): pip install --upgrade {PACKAGE_NAME} && memory-bank install\n"
+        f"`memory-bank install` refreshes the global files and keeps your saved options.\n"
     )
     return 0
 

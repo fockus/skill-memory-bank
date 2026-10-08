@@ -605,6 +605,7 @@ PY
 
 setup_codex_prompts_sandbox() {
   command -v rsync >/dev/null || skip "rsync required"
+  unset MB_MANIFEST_PATH   # the manifest must land in the SKILL_SRC copy (asserted below)
   FAKE_HOME="$(mktemp -d)"
   INSTALL_PROJECT="$(mktemp -d)"
   SKILL_SRC="$(mktemp -d)/skill"

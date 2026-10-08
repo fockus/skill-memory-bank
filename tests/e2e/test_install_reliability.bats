@@ -14,6 +14,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
+  # Per-test manifest: never the repo's own (the owner's live install manifest).
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   PROJECT="$(mktemp -d)"
 
   command -v python3 >/dev/null || skip "python3 not installed"
@@ -50,6 +52,7 @@ _make_skill_copy() {
 # user cannot write into (A12/A22 manifest-fallback scenarios).
 _make_readonly_skill_copy() {
   command -v rsync >/dev/null || skip "rsync required"
+  unset MB_MANIFEST_PATH   # these tests exercise the resolver's own default, on a copy
   RO_SKILL_PARENT="$(mktemp -d)"
   RO_SKILL_SRC="$RO_SKILL_PARENT/skill"
   mkdir -p "$RO_SKILL_SRC"

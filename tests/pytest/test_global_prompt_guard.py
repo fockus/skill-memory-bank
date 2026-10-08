@@ -78,11 +78,13 @@ def test_global_storage_wording_mentions_agent_agnostic_resolver() -> None:
 def test_pi_install_embeds_guard_into_global_agents_prompt(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
+    # Manifest + default project root (cwd) outside the repo checkout.
+    env["MB_MANIFEST_PATH"] = str(tmp_path / "installed-manifest.json")
 
     result = subprocess.run(
         ["bash", str(REPO_ROOT / "install.sh"), "--language", "ru"],
         env=env,
-        cwd=REPO_ROOT,
+        cwd=tmp_path,
         capture_output=True,
         text=True,
         check=False,
@@ -144,3 +146,42 @@ def test_claude_global_leaves_memory_bank_procedures_to_the_skill() -> None:
     # The invariants that must hold before the skill loads stay, one line each.
     for invariant in ("append-only", "mb-coord.sh active", "mb-agree.sh add", "/mb context"):
         assert invariant in text, invariant
+
+
+GLOBAL_FILE_LIMIT = 8192
+GLOBAL_FILE_HEADROOM = 1024
+
+
+def test_global_host_files_keep_one_kb_headroom(tmp_path: Path) -> None:
+    # I-249: every global file = host header + Key rules + this core. The core
+    # grows with the skill, so the largest file (Pi) keeps >= 1 KB under the
+    # 8192 B budget gated in tests/bats/test_always_loaded_budget.bats.
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    env["MB_MANIFEST_PATH"] = str(tmp_path / "installed-manifest.json")
+    env["MB_SKIP_DEPS_CHECK"] = "1"
+    result = subprocess.run(
+        [
+            "bash", str(REPO_ROOT / "install.sh"), "--language", "en", "--non-interactive",
+            "--clients", "claude-code,codex,pi,opencode,cursor",
+        ],
+        env=env,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+    sizes = {
+        rel: (tmp_path / rel).stat().st_size
+        for rel in (
+            ".claude/CLAUDE.md",
+            ".codex/AGENTS.md",
+            ".pi/agent/AGENTS.md",
+            ".config/opencode/AGENTS.md",
+            ".cursor/AGENTS.md",
+        )
+    }
+    largest = max(sizes, key=sizes.get)
+    assert sizes[largest] <= GLOBAL_FILE_LIMIT - GLOBAL_FILE_HEADROOM, sizes

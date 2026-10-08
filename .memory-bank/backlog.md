@@ -1114,14 +1114,24 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-248 — proportional-effort Sprint 2 Stage 4: замер экономии «после» на боевых задачах (AGR-072) [HIGH, NEW, 2026-10-07]
 
-### I-249 — Ужать rules/CLAUDE-GLOBAL.md ради запаса глобальных инструкций: Pi 7895/8192 B, цель Cursor 7000 B не достигнута (7289 B) [MED, NEW, 2026-10-07]
+### I-249 — Ужать rules/CLAUDE-GLOBAL.md ради запаса глобальных инструкций: Pi 7895/8192 B, цель Cursor 7000 B не достигнута (7289 B) [MED, DONE 2026-10-08, 2026-10-07] — rules/CLAUDE-GLOBAL.md ужат, Pi global 7895 → 6667 B; гейт /mb work в Pi global условный (AGR-069)
 
-### I-250 — Переустановка: разовые копии *.pre-mb-backup.* для файлов, которыми владеет скил (не плодить бэкапы на каждый reinstall) [LOW, NEW, 2026-10-07]
+### I-250 — Переустановка: разовые копии *.pre-mb-backup.* для файлов, которыми владеет скил (не плодить бэкапы на каждый reinstall) [LOW, DONE 2026-10-08, 2026-10-07] — бэкапы *.pre-mb-backup.* только для чужих файлов: владение по манифесту+sha256, без манифеста — эвристика mtime ±60 с
 
-### I-251 — Проектные Key rules как дельта считаются при sync — устаревают после смены глобальных правил до следующего project sync [MED, NEW, 2026-10-07]
+### I-251 — Проектные Key rules как дельта считаются при sync — устаревают после смены глобальных правил до следующего project sync [MED, DONE 2026-10-08, 2026-10-07] — штамп свежести проектного блока `mb-stamp` + подсказка на session-start (Claude Code/Codex/Cursor/OpenCode), `MB_AUTO_REFRESH=on` для автообновления
 
-### I-252 — Механические архитектурные проверки есть только для fsd — нет для clean/ddd/mobile профилей [LOW, NEW, 2026-10-07]
+### I-252 — Механические архитектурные проверки есть только для fsd — нет для clean/ddd/mobile профилей [LOW, DONE 2026-10-08, 2026-10-07] — архитектурные проверки для clean (полное направление слоёв), modular-monolith, microservices, ddd, hexagonal, mobile-udf
 
-### I-253 — Не проведён живой интерактивный прогон /mb init --full (онбординг Key rules) [MED, NEW, 2026-10-07]
+### I-253 — Не проведён живой интерактивный прогон /mb init --full (онбординг Key rules) [MED, DONE 2026-10-08, 2026-10-07] — живой прогон /mb init --full проведён, найдено и исправлено 3 бага шаблонов
 
-### I-254 — Пред-существующий красный: hollow negations в test_pi_agents_dispatch.bats:239-240 (test_bats_assertion_contract) и неотслеживаемый hooks/lib/venv-requirements.sh [MED, NEW, 2026-10-07]
+### I-254 — Пред-существующий красный: hollow negations в test_pi_agents_dispatch.bats:239-240 (test_bats_assertion_contract) и неотслеживаемый hooks/lib/venv-requirements.sh [MED, DONE 2026-10-08, 2026-10-07] — hollow negations в test_pi_agents_dispatch.bats исправлены, venv-requirements.sh разобран; full run зелёный
+
+### I-255 — pipx-путь не прогоняется в тестах: build не объявлен dev-зависимостью (9 e2e pipx skipped) [LOW, NEW, 2026-10-08]
+
+### I-256 — Pi: нет подсказки свежести проектного блока на session-start (в Pi-расширении чужой WIP) [LOW, NEW, 2026-10-08]
+
+### I-257 — SRP-предупреждения: scripts/_lib.sh 1136, adapters/opencode.sh 820, cursor.sh 778, _lib_agents_md.sh 460 строк [LOW, NEW, 2026-10-08]
+
+### I-258 — Key rules: полный блок всего на 107 B ниже бюджета 3072 B [LOW, NEW, 2026-10-08]
+
+### I-259 — Эвристика владения mtime ±60 с: без манифеста файлы, неизменные за несколько установок, всё равно получают бэкап [LOW, NEW, 2026-10-08]

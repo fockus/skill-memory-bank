@@ -225,6 +225,28 @@ export const MemoryBankPlugin = async ({ directory }) => {
     }
   };
 
+  // upgrade-safe-install Stage 2: one line when this project's managed blocks
+  // are stale (adapters/_lib_project_stamp.sh). Only with a local bank; fail-open
+  // like renderUpdateNotice. MB_AGENTS_LIB overrides the library path (test seam).
+  const renderBlocksHint = async () => {
+    try {
+      if (!fs.existsSync(path.join(directory, '.memory-bank'))) return null;
+      const lib = process.env.MB_AGENTS_LIB
+        ?? path.join(os.homedir(), '.config', 'opencode', 'skills', 'memory-bank', 'adapters', '_lib_agents_md.sh');
+      if (!fs.existsSync(lib)) return null;
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const { stdout } = await promisify(execFile)(
+        'bash', ['-c', '. "$1" && mb_project_blocks_hint "$2"', '_', lib, directory],
+        { cwd: directory, timeout: 3000, env: process.env },
+      );
+      const text = stdout.trim();
+      return text.length > 0 ? text : null;
+    } catch {
+      return null;
+    }
+  };
+
   // REQ-020: the exact accept-path command, mirrored from
   // scripts/mb-session-doctor.sh's Pi hint / the T2 AGENTS.md nudge text.
   // This handler is the STATE-DRIVEN half (checks the baked
@@ -313,6 +335,10 @@ export const MemoryBankPlugin = async ({ directory }) => {
         const notice = await renderUpdateNotice().catch(() => null);
         if (notice && Array.isArray(output?.system)) {
           output.system.push(notice);
+        }
+        const blocksHint = await renderBlocksHint().catch(() => null);
+        if (blocksHint && Array.isArray(output?.system)) {
+          output.system.push(blocksHint);
         }
         if (!MB_OC_PARITY_EXTENDED && Array.isArray(output?.system)) {
           output.system.push(MB_OC_NUDGE_TEXT);
@@ -485,6 +511,7 @@ _opencode_agent_is_partial() {
 _opencode_backup_once() {
   local f="$1" b
   [ -f "$f" ] || return 0
+  _mb_owned_unedited "$f" "$MANIFEST" || _mb_owned_unedited "$f" "$OC_GLOBAL_MANIFEST" && return 0
   for b in "$f".pre-mb-backup.*; do [ -f "$b" ] && return 0; done
   cp "$f" "$f.pre-mb-backup.$(date +%s).$$" 2>/dev/null || true
 }

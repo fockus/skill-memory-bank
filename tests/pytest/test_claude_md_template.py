@@ -96,3 +96,26 @@ def test_mb_init_step4_required_sections_match_template() -> None:
     listed = re.findall(r"^- \*\*(.+?)\*\*", required, re.M)
     template_sections = [t for lvl, t in _headings(_body()) if lvl == 2]
     assert listed == template_sections
+
+
+def _init_step4() -> str:
+    step4 = MB_COMMAND.read_text(encoding="utf-8").split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
+    return step4.split("\n---\n", 1)[0]
+
+
+def test_mb_init_step4_syncs_project_key_rules_block() -> None:
+    # AGR-083: the generated CLAUDE.md carries the project Key rules (delta) block;
+    # the live /mb init --full run (I-253) produced none without this step.
+    assert "mb-rules.sh sync --scope=project" in _init_step4()
+
+
+def test_template_points_to_project_local_rules_md() -> None:
+    # AGR-066: project CLAUDE.md points to the project's own RULES.md, not the global one.
+    rules = _body().split("\n## Project rules\n", 1)[1].split("\n## ", 1)[0]
+    assert "`RULES.md`" in rules and "`.memory-bank/RULES.md`" in rules
+    assert "~/.claude/RULES.md" not in rules
+
+
+def test_template_names_skill_script_not_project_path() -> None:
+    # A user project has no scripts/ dir; skill scripts must be named as such.
+    assert "`scripts/mb-coord.sh" not in _body()

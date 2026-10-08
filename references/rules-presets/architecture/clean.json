@@ -4,6 +4,42 @@
   "name": "clean",
   "description": "Clean Architecture: Infra→App→Domain layer direction, pure domain, DIP.",
   "one_liner": "Clean Architecture: Infra → App → Domain, never backward; Domain has 0 external deps",
+  "mechanical": true,
+  "check": [
+    {
+      "rule_id": "architecture.clean.layer-direction",
+      "kind": "layer",
+      "from": [
+        "domain"
+      ],
+      "to": [
+        "application",
+        "interfaces",
+        "presentation",
+        "api",
+        "ui"
+      ]
+    },
+    {
+      "rule_id": "architecture.clean.layer-direction",
+      "kind": "layer",
+      "from": [
+        "application",
+        "usecases",
+        "use_cases"
+      ],
+      "to": [
+        "infrastructure",
+        "infra",
+        "interfaces",
+        "presentation",
+        "api"
+      ]
+    }
+  ],
+  "unchecked_guidance": [
+    "Domain has 0 external deps (framework/DB/HTTP): guidance only, no script checks it (architecture.clean.domain-pure and that part of layer-direction). domain -> infrastructure is the baseline clean_arch/direction check."
+  ],
   "rules": [
     {
       "rule_id": "architecture.clean.layer-direction",

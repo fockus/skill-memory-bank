@@ -4061,3 +4061,38 @@ Approved AGR-055/056/057; [plan](plans/2026-10-05_feature_pi-native-integration.
 - Договорённости: AGR-064..083 (см. agreements.md).
 - Tests: полный прогон 2026-10-07 — pytest 3879 passed / 2 pre-existing failures (test_bats_assertion_contract на test_pi_agents_dispatch.bats:239-240 — файл другой сессии; неотслеживаемый hooks/lib/venv-requirements.sh); bats 3670, 0 not ok.
 - Next step: Sprint 2 Stage 4 — замер «после» на боевых задачах (AGR-072).
+
+## [checklist archive] 2026-10-08 — 2026-10-07_fix_upgrade-safe-install.md
+
+<!-- mb-plan:2026-10-07_fix_upgrade-safe-install.md -->
+## установка поверх старой версии + хвосты I-249…I-254 — 5/5
+- ✅ Stage 1 — Установка поверх старой версии (install.sh / upgrade)
+- ✅ Stage 2 — Свежесть проектных блоков (другие проекты + I-251)
+- ✅ Stage 3 — I-249 — запас глобальных файлов
+- ✅ Stage 4 — I-252 — механические проверки архитектур
+- ✅ Stage 5 — I-253 — живой `/mb init --full`; I-254 — старые красные
+
+## 2026-10-08 — установка поверх старой версии + хвосты I-249…I-254
+
+- install.sh восстанавливает сохранённые опции при простом повторном запуске (один читатель `mb_saved_install_options`); upgrade v5.3.1 → main = чистая установка для всех 8 клиентов; уборка сирот по манифесту+sha256; бэкапы своих файлов не создаются (I-250); правило корня проекта (проект из cwd побеждает); поиск манифеста в соседнем keg brew; фоллбэк без манифеста (язык из memory-bank-config.json, клиенты из манифестов адаптеров, владение по mtime ±60 с); команда обновления pipx/pip/brew перезапускает `memory-bank install`.
+- Свежесть проектного блока: `mb-stamp` + подсказка на session-start в Claude Code/Codex/Cursor/OpenCode, `MB_AUTO_REFRESH=on` (I-251).
+- CLAUDE-GLOBAL ужат, Pi global 7895 → 6667 B (I-249); гейт Pi global условный (AGR-069).
+- Архитектурные проверки: clean (полное направление слоёв), modular-monolith, microservices, ddd, hexagonal, mobile-udf (I-252).
+- Живой `/mb init --full` — найдено и исправлено 3 бага шаблонов (I-253); I-254 исправлен.
+- SRP-разрезы: `_lib_project_stamp.sh`, `mb_rules_sync_lib.sh`, `_install_options.sh`.
+- Гигиена тестов: e2e/pytest больше не пишут в репозиторий (repo guard в setup_suite + conftest, `test_repo_hygiene.bats`); загрязнённые файлы удалены.
+- Тесты (полный прогон): pytest 3887 passed, bats 3721 / 0 not ok, e2e 123 / 0 not ok (9 pipx skipped — `build` не зависимость).
+- Соглашения: AGR-083, AGR-084. План закрыт → plans/done/. Остаточные риски → I-255…I-259.
+- Следующий шаг: собственный тест переустановки владельцем из main, затем замер на боевых задачах (I-248).
+
+## 2026-10-08
+
+### Auto-capture 2026-10-08 (session 02bae448)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized
+
+## 2026-10-08
+
+### Auto-capture 2026-10-08 (session b3f98147)
+- Session ended without an explicit /mb done
+- Summary auto-captured to session/ (searchable via /mb recall); core files were not actualized

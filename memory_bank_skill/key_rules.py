@@ -6,8 +6,9 @@ existing rules profile (`references/rules-profile.schema.md`, field `key_rules`)
 CLI (invoked by `mb-profile.sh key-rules` and `mb-rules.sh render`):
     python3 -m memory_bank_skill.key_rules resolve [--user=<path>] [--project=<path>]
         [--catalog=<path>] [--json]
-    python3 -m memory_bank_skill.key_rules block --pointer=<line> [--base=<resolved.json>]
-        (resolved JSON on stdin; --base = the user-level selection → delta block, AGR-083)
+    python3 -m memory_bank_skill.key_rules block --pointer=<line> [--base=<resolved.json>] [--stamp=<s>]
+        (resolved JSON on stdin; --base = the user-level selection → delta block, AGR-083;
+        --stamp = freshness stamp line after the start marker, project blocks only)
 """
 
 from __future__ import annotations
@@ -178,7 +179,8 @@ def _delta_lines(resolved: dict, base: dict, catalog: dict | None) -> list[str]:
     return lines
 
 
-def render_block(resolved: dict, pointer: str, catalog: dict | None = None, base: dict | None = None) -> str:
+def render_block(resolved: dict, pointer: str, catalog: dict | None = None, base: dict | None = None,
+                 stamp: str | None = None) -> str:
     """The managed Key rules block, then the pointer line.
 
     Full (base None): one line per rule, custom last. Delta (`base` = the user-level selection,
@@ -193,7 +195,8 @@ def render_block(resolved: dict, pointer: str, catalog: dict | None = None, base
         body = ["## Key rules — project overrides", "", "Global Key rules apply with these differences:", *lines]
     else:
         body = ["## Key rules", "", "Global Key rules apply; this project has no overrides."]
-    return "\n".join([BLOCK_START, *body, "", pointer, BLOCK_END]) + "\n"
+    head = [BLOCK_START, f"<!-- {stamp} -->"] if stamp else [BLOCK_START]
+    return "\n".join([*head, *body, "", pointer, BLOCK_END]) + "\n"
 
 
 def _read_layer(path: str | None, catalog: dict) -> tuple[dict | None, list[ValidationError]]:
@@ -209,7 +212,8 @@ def _cli_main(argv: list[str]) -> int:
     if argv and argv[0] == "block":
         opts = dict(a[2:].split("=", 1) for a in argv[1:] if a.startswith("--") and "=" in a)
         base = json.loads(Path(opts["base"]).read_text(encoding="utf-8")) if "base" in opts else None
-        sys.stdout.write(render_block(json.load(sys.stdin), opts.get("pointer", ""), base=base))
+        sys.stdout.write(render_block(json.load(sys.stdin), opts.get("pointer", ""), base=base,
+                                      stamp=opts.get("stamp")))
         return 0
     if not argv or argv[0] != "resolve":
         print("Usage: key_rules.py resolve [--user=<p>] [--project=<p>] [--catalog=<p>] [--json]", file=sys.stderr)
