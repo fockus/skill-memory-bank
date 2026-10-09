@@ -1135,3 +1135,5 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-258 — Key rules: полный блок всего на 107 B ниже бюджета 3072 B [LOW, NEW, 2026-10-08]
 
 ### I-259 — Эвристика владения mtime ±60 с: без манифеста файлы, неизменные за несколько установок, всё равно получают бэкап [LOW, NEW, 2026-10-08]
+
+### I-263 — Parallel /mb work claims use plan/spec categories rather than source/item keys, blocking independent stage runs and path-based skip-claimed resolution on both hosts [MED, NEW, 2026-10-09]

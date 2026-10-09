@@ -18,12 +18,12 @@ Rule of thumb: if it helps a teammate pick up the project tomorrow, store it in 
 
 ### Codex
 
-For native lifecycle/tool hooks, use the additive [Codex hooks adapter](references/codex-native-hooks.md). It reuses the existing MB checks, adapts `apply_patch`/`spawn_agent`, and documents the remaining Claude-only capture hooks. Installation and host trust are separate; verify runtime events before claiming hooks are active.
+For native lifecycle/tool hooks, use the additive [Codex hooks adapter](codex-native-hooks.md). It reuses the existing MB checks, adapts `apply_patch`/`spawn_agent`, and adds model-free root conversation capture plus child context. Claude model-backed summaries remain separate. Installation and host trust are separate; verify runtime events before claiming hooks are active.
 
 For Codex, this skill is positioned as a global skill bundle plus a guidance layer:
 - discovery goes through `~/.codex/skills/memory-bank/`
 - global entrypoint/guidance goes through `~/.codex/AGENTS.md`
-- hook/config integration remains primarily project-level through `.codex/`
+- native lifecycle hooks are installed globally in `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`); review and trust them in `/hooks`
 
 Codex therefore uses the same Memory Bank workflow, but it does not need to expose the same native command surface as Claude Code/OpenCode.
 
@@ -56,5 +56,5 @@ The project-level adapter (`.cursor/rules/memory-bank.mdc` + `.cursor/hooks.json
 Supported host model:
 - **Claude Code / OpenCode** — native command surface + global install.
 - **Cursor** — native full support: global skill alias (`~/.cursor/skills/memory-bank/`), global hooks (`~/.cursor/hooks.json`), global slash commands (`~/.cursor/commands/`), native subagents (`~/.cursor/agents/mb-*.md`), `~/.cursor/AGENTS.md` with managed section, plus a paste-ready file for Settings → Rules → User Rules. Project-level `.cursor/` adapter remains available as an add-on via `--clients cursor`.
-- **Codex** — global skill discovery + `AGENTS.md` hints + project-level `.codex/` adapter; no separate native slash-command surface.
+- **Codex** — global skill discovery + `AGENTS.md` + native hooks and agent roles; optional project `.codex/` settings; no separate native slash-command surface.
 - **Other code agents** — via adapters, `AGENTS.md`, local hooks/configs, or direct CLI/script usage.

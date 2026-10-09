@@ -89,12 +89,15 @@ All scripts live in `scripts/` next to this `SKILL.md`. In global installs, the 
 - Cursor: `~/.cursor/skills/memory-bank/`
 
 Scripts work with `.memory-bank/` in the current directory or through the `mb_path` argument.
+Set `SKILL_DIR` to the absolute directory containing the loaded `SKILL.md` (or `MB_SKILLS_ROOT`)
+in the same shell invocation as each command; on Codex this is normally its skill alias above.
+Use `SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:?Set SKILL_DIR from the loaded skill path}}"` after binding that path.
 
 ### GraphRAG-lite retrieval routing
 
 `code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" or "find similar implementation". Exact structural questions route directly to graph tools: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or change impact → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code` because explicit tool intent wins.
 
-Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block the agent. Optional dependencies (tree-sitter, networkx, fastembed) are not assumed installed: `bash "$SKILL_DIR"/scripts/mb-deps-check.sh --install-hints` prints the exact install command. Use `bash "$SKILL_DIR"/scripts/mb-graph.sh who-calls|impact|tests <Symbol>` / `search "<query>"` / `status` (`SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"`, i.e. this skill's directory) and `scripts/mb-code-context.py` as the universal CLI fallback; Pi and OpenCode may expose native tool wrappers, while Claude Code, Codex, and generic AGENTS.md agents can call the scripts directly.
+Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block the agent. Optional dependencies (tree-sitter, networkx, fastembed) are not assumed installed: `bash "$SKILL_DIR"/scripts/mb-deps-check.sh --install-hints` prints the exact install command. Use `bash "$SKILL_DIR"/scripts/mb-graph.sh who-calls|impact|tests <Symbol>` / `search "<query>"` / `status` and `scripts/mb-code-context.py` as the universal CLI fallback; Pi and OpenCode may expose native tool wrappers, while Claude Code, Codex, and generic AGENTS.md agents can call the scripts directly.
 
 **Entry points agents call** (full grouped table incl. internal libraries → [`references/scripts.md`](references/scripts.md)):
 
@@ -165,14 +168,16 @@ Plan authoring and ML-result evaluation stay with the main agent: it holds the u
 ### Invocation
 
 Dispatch agents by name — `Agent(subagent_type="mb-manager", description="…", prompt="action: <action>\n\n<context>")`.
-Model, reasoning effort, and tools come from the installed agent definition or `pipeline.yaml`, not from the call.
+The installed agent definition supplies defaults; `pipeline.yaml` may request different model/effort
+values. Use per-call overrides only when the host allows them for that role; otherwise render and
+reload a matching role before dispatch, or report the mismatch without silently substituting values.
 The commands write this Claude Code form; other hosts dispatch the same installed role with their own tool:
 
 | Host | Dispatch by name | Where the role is installed |
 |---|---|---|
 | Claude Code | `Agent(subagent_type=<name>, prompt=…)` (older builds: `Task`) | `~/.claude/agents/<name>.md` |
 | OpenCode | `task(subagent_type=<name>, prompt=…)` | `.opencode/agent/<name>.md` |
-| Codex | `spawn_agent(agent_type=<name>, message=…)`; a pipeline `thinking` goes to `reasoning_effort` | `~/.codex/agents/<name>.toml` |
+| Codex | `spawn_agent(agent_type=<name>, message=…)`; installed roles carry model/effort; runtime overrides depend on host support | `~/.codex/agents/<name>.toml` |
 | Pi | `mb_dispatch_subagent(role=<name>, task=…)` or pi-subagents `subagent(agent=<name>, task=…)`; `thinking` passes through | `~/.pi/agent/agents/<name>.md` |
 
 A host without named dispatch reads the role file and its `compose:` partials and does the work inline.
@@ -181,6 +186,7 @@ A host without named dispatch reads the role file and its `compose:` partials an
 
 ## Hooks, hosts, privacy and capture
 
+- Codex native hooks include model-free root-session memory and child context after user trust; `MB_SESSION_CAPTURE=off` opts out. Details: [`references/codex-native-hooks.md`](references/codex-native-hooks.md).
 - Lifecycle hooks (inventory + per-host wiring): [`references/hooks.md`](references/hooks.md) § Hook inventory.
 - Host-specific notes (Claude Code native memory, Codex, Cursor): [`references/hosts.md`](references/hosts.md).
 - `<private>` content, auto-capture (`MB_AUTO_CAPTURE`), session logging, PreCompact handoff: [`references/privacy-and-capture.md`](references/privacy-and-capture.md). `/mb done` can auto-commit the bank (`MB_AUTO_COMMIT=1`, `scripts/mb-auto-commit.sh`).

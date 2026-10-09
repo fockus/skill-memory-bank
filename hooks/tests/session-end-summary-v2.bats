@@ -9,6 +9,8 @@
 # claude is mocked; the stub captures the exact stdin the summarizer received.
 
 setup() {
+  # Content assertions run in-process; scheduling is covered by session-end-detach.bats.
+  export MB_SESSION_END_DETACHED=1
   BIN="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   HOOK="$BIN/mb-session-end.sh"
   REBUILD="$(cd "$BIN/../scripts" && pwd)/mb-session-recent-rebuild.sh"

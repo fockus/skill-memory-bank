@@ -104,10 +104,13 @@ mb_hook_resolve_mb_path() {
   local agent lib hit hook_dir
 
   if [ -n "${MB_PATH:-}" ]; then
+    [ -d "$MB_PATH" ] || return 1
     printf '%s' "$MB_PATH"
     return 0
   fi
 
+  [ -d "$cwd" ] || return 1
+  cwd="$(cd "$cwd" && pwd)" || return 1
   if [ -d "$cwd/.memory-bank" ]; then
     printf '%s' "$cwd/.memory-bank"
     return 0
@@ -116,16 +119,29 @@ mb_hook_resolve_mb_path() {
   agent="$(mb_hook_default_agent)"
   hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   lib="$(mb_skill_lib_sh "$hook_dir" 2>/dev/null || true)"
-  if [ -n "$lib" ] && [ -f "$lib" ]; then
-    hit=$(
+  hit=$(
+    if [ -n "$lib" ] && [ -f "$lib" ]; then
       # shellcheck source=/dev/null
       . "$lib" >/dev/null 2>&1 || exit 0
-      mb_registry_lookup "$agent" "${MB_PROJECT_ROOT:-$cwd}" 2>/dev/null || true
-    )
-    if [ -n "$hit" ] && [ -d "$hit" ]; then
-      printf '%s' "$hit"
-      return 0
     fi
+    MB_AGENT="$agent"
+    cd "${MB_PROJECT_ROOT:-$cwd}" || exit 0
+    while :; do
+      hit=".memory-bank"
+      if declare -F mb_resolve_path >/dev/null; then
+        hit="$(mb_resolve_path)"
+      fi
+      if [ -d "$hit" ]; then
+        cd "$hit" && pwd
+        exit 0
+      fi
+      [ "$PWD" = / ] && break
+      cd .. || break
+    done
+  )
+  if [ -n "$hit" ] && [ -d "$hit" ]; then
+    printf '%s' "$hit"
+    return 0
   fi
 
   return 1

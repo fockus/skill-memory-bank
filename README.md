@@ -404,7 +404,7 @@ One `.memory-bank/` directory, 8 AI clients:
 | **Cline** | ✅ `.clinerules/hooks/*.sh` | `.clinerules/memory-bank.md` + `hooks/` |
 | **Kilo** | ❌ (fallback to git hooks) | `.kilocode/rules/` + `.git/hooks/` |
 | **OpenCode** | ✅ TypeScript plugins + native commands | `~/.config/opencode/{AGENTS.md,commands/}` + project `AGENTS.md` + `opencode.json` + TS plugin |
-| **Codex** (OpenAI) | ✅ Conservative global support + experimental project hooks | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + project `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
+| **Codex** (OpenAI) | ✅ Global native hooks, session memory, skill and roles | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + `~/.codex/hooks.json` + optional project settings |
 | **Pi Code** | Global skill + global prompts + `AGENTS.md` | `~/.pi/agent/skills/memory-bank`, `~/.pi/agent/prompts/*.md`, `~/.pi/agent/AGENTS.md` + optional project `AGENTS.md` |
 
 `AGENTS.md` is shared across OpenCode, Codex, Pi — ownership is refcount-tracked, so uninstalling one client doesn't break the others.
@@ -640,7 +640,7 @@ A: Yes. Everything is local. No data sent anywhere unless your AI agent itself c
 A: That's the whole point. Install per-client: `memory-bank install --clients cursor,windsurf,claude-code`. One memory bank, everyone reads it.
 
 **Q: Cursor hooks are experimental / Codex hooks are experimental — is that a problem?**
-A: Partial — where native hooks don't exist or aren't stable, we ship graceful fallbacks or conservative integration. Cursor global install wires 10 hooks including `sessionStart`, matcher-aware `preToolUse`, and matcher-aware `postToolUse`. For Codex, global support means skill discovery + `~/.codex/AGENTS.md` hints; hook/config integration is still primarily project-level via `.codex/`. See [docs/cross-agent-setup.md](docs/cross-agent-setup.md) for specifics.
+A: Partial — where native hooks don't exist or aren't stable, we ship graceful fallbacks or conservative integration. Cursor global install wires 10 hooks including `sessionStart`, matcher-aware `preToolUse`, and matcher-aware `postToolUse`. Codex installs global native hooks; review and trust their definitions in `/hooks` before they run. See [docs/cross-agent-setup.md](docs/cross-agent-setup.md) for specifics.
 
 **Q: My existing `AGENTS.md` / `.cursor/hooks.json` — will this overwrite them?**
 A: No. Adapters use a marker pattern (`<!-- memory-bank:start/end -->` for MD files, `_mb_owned: true` for JSON hooks) and merge idempotently. User content is preserved; uninstall only removes MB-owned sections.

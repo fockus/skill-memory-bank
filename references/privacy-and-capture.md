@@ -100,6 +100,13 @@ Active only where an active Memory Bank resolves.
 
 ---
 
+Codex uses a separate model-free capture helper on root Stop, PreCompact and bounded
+SessionEnd. It preserves sanitized final turns and extractive summaries, with atomic
+cursor state and retained bounded parts; it never invokes Claude. `MB_SESSION_CAPTURE`
+controls this memory, while `MB_AUTO_CAPTURE=off` still suppresses only the legacy
+progress stub (Codex does not create one). See [Codex native hooks](codex-native-hooks.md)
+for filtering, permissions, opt-outs, supported platforms and transcript-format limits.
+
 ## PreCompact handoff capsule (handoff-v2)
 
 The PreCompact hook `hooks/mb-pre-compact.sh` runs just before context compaction. It invokes

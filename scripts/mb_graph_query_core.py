@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from memory_bank_skill.codegraph_binding import file_to_module
     from memory_bank_skill.codegraph_loader import load_graph as _load_graph
 except ModuleNotFoundError:  # pragma: no cover - bootstrap when imported as a bare script module
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from memory_bank_skill.codegraph_binding import file_to_module
     from memory_bank_skill.codegraph_loader import load_graph as _load_graph
 
 EXIT_OK = 0
@@ -83,34 +85,32 @@ def match_node(node: JsonObj, *, symbol: str | None, file_name: str | None) -> b
         return node_file == file_name or node_name == file_name
     if symbol is None:
         return False
-    return node_name == symbol or short_name(node_name) == symbol
+    return (
+        node_name == symbol
+        or short_name(node_name) == symbol
+        or f"{node_file}:{node_name}" == symbol
+        or (
+            node_file.endswith(".py")
+            and f"{file_to_module(node_file)}.{node_name}" == symbol
+        )
+    )
 
 
 def edge_matches_target(edge: JsonObj, target_names: set[str], target_files: set[str]) -> bool:
-    src = str(edge.get("src", ""))
-    dst = str(edge.get("dst", ""))
-    src_file = edge_file(src)
-    src_symbol = src.rsplit(":", 1)[-1]
-    return (
-        src in target_names
-        or src_symbol in target_names
-        or dst in target_names
-        or short_name(dst) in target_names
-        or src_file in target_files
-        or dst in target_files
+    return edge_is_outgoing(edge, target_names, target_files) or edge_is_incoming(
+        edge, target_names, target_files
     )
 
 
 def edge_is_outgoing(edge: JsonObj, target_names: set[str], target_files: set[str]) -> bool:
     src = str(edge.get("src", ""))
     src_file = edge_file(src)
-    src_symbol = src.rsplit(":", 1)[-1]
-    return src in target_names or src_symbol in target_names or src_file in target_files
+    return src in target_names or src_file in target_files
 
 
 def edge_is_incoming(edge: JsonObj, target_names: set[str], target_files: set[str]) -> bool:
     dst = str(edge.get("dst", ""))
-    return dst in target_names or short_name(dst) in target_names or dst in target_files
+    return dst in target_names or dst in target_files
 
 
 def resolve_target(
@@ -124,15 +124,34 @@ def resolve_target(
         target_names.add(symbol)
     if file_name is not None:
         target_files.add(file_name)
+        if file_name.endswith(".py"):
+            target_names.add(file_to_module(file_name))
+
+    scoped = file_name is not None or any(
+        symbol not in {str(node.get("name", "")), short_name(str(node.get("name", "")))}
+        for node in matches
+    )
+    alias_files: dict[str, set[str]] = {}
+    if scoped:
+        for node in nodes:
+            name = str(node.get("name", ""))
+            for alias in {name, short_name(name)} - {""}:
+                alias_files.setdefault(alias, set()).add(str(node.get("file", "")))
 
     for node in matches:
         name = str(node.get("name", ""))
-        if name:
-            target_names.add(name)
-            target_names.add(short_name(name))
         file_value = str(node.get("file", ""))
         if file_value:
             target_files.add(file_value)
+        if name:
+            for alias in {name, short_name(name)}:
+                if not scoped or len(alias_files[alias]) == 1:
+                    target_names.add(alias)
+            if file_value:
+                target_names.add(f"{file_value}:{name}")
+                if file_value.endswith(".py") and name != file_value:
+                    module = file_to_module(file_value)
+                    target_names.add(f"{module}.{name}" if module else name)
     return matches, target_names, target_files
 
 
@@ -152,16 +171,11 @@ def find_tests(edges: list[JsonObj], target_names: set[str], target_files: set[s
     test_files: set[str] = set()
     for edge in edges:
         src = str(edge.get("src", ""))
-        dst = str(edge.get("dst", ""))
         src_file = edge_file(src)
         kind = str(edge.get("kind", ""))
-        graph_test_link = kind == "tests" and (
-            dst in target_files or dst in target_names or short_name(dst) in target_names
-        )
-        test_file_call = is_test_file(src_file) and (
-            dst in target_names or short_name(dst) in target_names or dst in target_files
-        )
-        if graph_test_link or test_file_call:
+        if (kind == "tests" or is_test_file(src_file)) and edge_is_incoming(
+            edge, target_names, target_files
+        ):
             test_files.add(src_file)
     return sorted(test_files)
 

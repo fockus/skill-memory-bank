@@ -23,6 +23,10 @@ setup() {
   # Keep a user-site PyYAML importable when a test moves HOME (tier-model render).
   PYTHONUSERBASE="$(python3 -m site --user-base)"
   export PYTHONUSERBASE
+  # Legacy project contracts must not depend on the real global native hooks.
+  export HOME="$PROJECT/home"
+  unset CODEX_HOME
+  mkdir -p "$HOME"
   mkdir -p "$PROJECT/.memory-bank"
   echo '# Progress' > "$PROJECT/.memory-bank/progress.md"
   command -v jq >/dev/null || skip "jq required"

@@ -18,7 +18,7 @@ Per-project adapters write client-specific configs + hooks.
 | 4 | Cline | `.clinerules/hooks/*.sh` | `.clinerules/*.md` + `hooks/` |
 | 5 | Kilo | ❌ (FR #5827 open) — git-hooks fallback | `.kilocode/rules/*.md` |
 | 6 | OpenCode | TypeScript plugins (`session.*`, `tool.execute.*`, `experimental.session.compacting`) + native slash commands | `~/.config/opencode/{AGENTS.md,commands/}` + `AGENTS.md` + `opencode.json` |
-| 7 | Codex | Conservative global support + experimental project hooks | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + `AGENTS.md` + `.codex/config.toml` + `.codex/hooks.json` |
+| 7 | Codex | Global native hooks + skill and roles | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + `~/.codex/hooks.json` + optional project settings |
 | 8 | Pi Code | Global skill + prompt templates + `AGENTS.md` | `~/.pi/agent/skills/memory-bank`, `~/.pi/agent/prompts/*.md`, `~/.pi/agent/AGENTS.md` + optional project `AGENTS.md` |
 
 ## Storage modes per agent
@@ -206,31 +206,28 @@ overridable via `MB_SUMMARIZE_BIN`) — fail-open if that script is absent (B4).
 
 ### Codex (OpenAI)
 
+The standard installer registers the skill, `AGENTS.md`, native agent roles, and all
+eight Memory Bank lifecycle hooks globally. `CODEX_HOME` selects the Codex directory;
+the default is `~/.codex`. Hooks run across projects after the user reviews and trusts
+their current definitions in Codex `/hooks`. Installation does not grant that trust.
+
 ```bash
-adapters/codex.sh install ~/my-project
+bash install.sh --clients codex --project-root ~/my-project
 ```
 
-Creates:
-- `~/.codex/skills/memory-bank` — global skill alias to the canonical bundle
-- `~/.codex/AGENTS.md` — global Memory Bank entrypoint and conservative hook guidance
-- `AGENTS.md` — shared format
-- `.codex/config.toml` — project settings (`project_doc_max_bytes=65536`,
-  `approval_policy="on-request"`)
-- `.codex/hooks.json` — `UserPromptSubmit` prompt guard. Only the `hooks` key sits at the top
-  level: Codex ignores the whole file when it carries unknown top-level keys. Codex loads
-  project hooks only for a trusted project (`[projects."<path>"] trust_level = "trusted"`).
-- `.git/hooks/post-commit` + `.git/hooks/pre-commit` (via `git-hooks-fallback.sh`,
-  when the project is a git repo — B5) — the same session-capture fallback Kilo/Pi
-  get, since Codex's own lifecycle hooks are still experimental/limited (above).
-  Skipped (not an error) outside a git repo.
+The selected project receives shared `AGENTS.md` and `.codex/config.toml` settings.
+Where global hooks are installed, the adapter removes its own local legacy/native
+registrations to prevent duplicate execution and preserves foreign hooks. For other
+previously configured projects, re-run `adapters/codex.sh install PROJECT_ROOT`.
+Standalone project adapters without global native hooks retain the legacy fallback.
 
-**⚠️ Important:** Codex global support is broader than just the project adapter:
-- bundled `commands/`, `agents/`, `hooks/`, `scripts/`, `references/` are available through `~/.codex/skills/memory-bank/`;
-- `~/.codex/AGENTS.md` is the global entrypoint;
-- actual hook/config execution remains primarily project-level via `.codex/`.
+Global agent roles use the shipped Codex model profile, independent of the project
+from which installation runs. Explicit `adapters/codex.sh render-agents PROJECT_ROOT`
+can apply a project's pipeline to the global roles; reload Codex afterward. Per-call
+model/effort overrides depend on the host's support for overriding loaded roles.
 
-**⚠️ Experimental:** Codex hooks schema may change. Re-run `adapters/codex.sh install`
-after upgrading Codex CLI.
+See [native Codex hooks](../references/codex-native-hooks.md) for event mappings,
+trust, migration, model-free conversation capture, child context and remaining limits.
 
 ### Pi Code
 
@@ -291,12 +288,12 @@ categories; not every category has an equivalent on every host.
 
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
-| SessionStart context injection | `sessionStart` (`mb-session-start-context.sh`) | — | — | — | — | — | — |
-| Stop turn capture (creates `session/*.md`) | `stop` (`mb-session-turn.sh`, CC-compatible — adapter-parity T7/REQ-021) | — | — | — | `chat.message`/`system.transform` (genuine per-turn capture, T5) | (session-memory extension, accept-path only) | — |
-| SessionEnd auto-capture (summarize) | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | `post-commit` (git-hooks-fallback, same mechanism as Kilo/Codex) | `post-commit` (git-hooks-fallback, B5) |
-| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — (no installed fallback; git hooks only fire on commit) | guidance via `~/.codex/AGENTS.md`, project hook pending |
-| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | — (no installed fallback) | project `UserPromptSubmit` (exit 2) |
-| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | git-fallback (`post-commit` staleness check) | guidance only |
+| SessionStart context injection | `sessionStart` (`mb-session-start-context.sh`) | — | — | — | — | — | global `SessionStart` and `SubagentStart` |
+| Stop turn capture (creates `session/*.md`) | `stop` (`mb-session-turn.sh`, CC-compatible — adapter-parity T7/REQ-021) | — | — | — | `chat.message`/`system.transform` (genuine per-turn capture, T5) | (session-memory extension, accept-path only) | global `Stop` (model-free Codex capture) |
+| SessionEnd auto-capture (summarize) | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | `post-commit` (git-hooks-fallback, same mechanism as Kilo/Codex) | global `SessionEnd` (bounded extractive fallback); project commit fallback remains separate |
+| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — (no installed fallback; git hooks only fire on commit) | global `PreCompact` (capture + portable handoff) |
+| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | — (no installed fallback) | global `PreToolUse` (Bash/edit/agent guards) |
+| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | git-fallback (`post-commit` staleness check) | global `Stop` freshness reminder |
 
 **Pi native extension status:** `adapters/pi_session_memory_extension.ts` (a TypeScript extension listening
 to `session_start`/`input`/`tool_execution_end`/`agent_end`/`session_before_compact`/`session_shutdown`
@@ -317,8 +314,8 @@ update-notify notice on every session start (REQ-013).
 |----------|---------------|--------------|---------------|-------------------------------|
 | `SKILL.md` | `~/.claude/skills/memory-bank/` | `~/.codex/skills/memory-bank/` | `~/.cursor/skills/memory-bank/` | Yes, via skill discovery |
 | `commands/` | bundled + Claude commands installed | bundled in Codex skill alias | bundled + mirrored to `~/.cursor/commands/` | No separate native slash-command install |
-| `agents/` | bundled + Claude global agents installed | bundled in Codex skill alias | rendered roles in `~/.cursor/agents/mb-*.md` (native subagents) | No separate global agent registry assumed |
-| `hooks/` | bundled + Claude global hooks installed | bundled in Codex skill alias | bundled at `~/.cursor/skills/memory-bank/hooks/` + twelve `_mb_owned` entries in `~/.cursor/hooks.json` | Conservative/project-level only |
+| `agents/` | bundled + Claude global agents installed | rendered roles in `$CODEX_HOME/agents/` (default `~/.codex/agents/`) | rendered roles in `~/.cursor/agents/mb-*.md` (native subagents) | Named native subagent roles |
+| `hooks/` | bundled + Claude global hooks installed | eight events in `$CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`) | bundled at `~/.cursor/skills/memory-bank/hooks/` + twelve `_mb_owned` entries in `~/.cursor/hooks.json` | Global native lifecycle hooks; user trust required |
 | Global rules | `~/.claude/CLAUDE.md` managed section | `~/.codex/AGENTS.md` managed section | `~/.cursor/AGENTS.md` managed section **+** paste-file for Settings → Rules → User Rules | n/a |
 
 ## Uninstall

@@ -163,5 +163,6 @@ If `.memory-bank/COORDINATION.md` exists, another session is working in this tre
 
 ## 12. Report delivery
 
-If you run as a background teammate, finishing delivers only an idle notification, not your report.
-Send the report to the dispatcher with `SendMessage` before your final turn ends.
+Codex subagents deliver their final response to the parent automatically; put the complete report there.
+On hosts whose background teammates deliver only an idle notification, send the report to the
+dispatcher with `SendMessage` before your final turn ends.

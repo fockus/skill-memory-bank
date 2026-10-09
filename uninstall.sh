@@ -11,7 +11,7 @@ MB_PY="${MB_PYTHON:-python3}"
 # path a pip/sudo install (root-owned SKILL_DIR) would have used instead.
 MANIFEST="$(mb_resolve_manifest_path "$SKILL_DIR")"
 CLAUDE_DIR="$HOME/.claude"
-CODEX_DIR="$HOME/.codex"
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CURSOR_DIR="$HOME/.cursor"
 OPENCODE_DIR="$HOME/.config/opencode"
 PI_AGENT_DIR="$HOME/.pi/agent"
@@ -119,7 +119,7 @@ echo -e "\n${BLUE}Removing files...${NC}"
 MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
   [ -z "$filepath" ] && continue
   case "$filepath" in
-    "$CLAUDE_DIR/CLAUDE.md"|"$CLAUDE_DIR/settings.json"|"$OPENCODE_DIR/AGENTS.md"|"$CODEX_DIR/AGENTS.md"|"$CURSOR_DIR/AGENTS.md"|"$CURSOR_DIR/hooks.json"|"$PI_AGENT_DIR/AGENTS.md"|"$PI_AGENT_DIR/settings.json")
+    "$CLAUDE_DIR/CLAUDE.md"|"$CLAUDE_DIR/settings.json"|"$OPENCODE_DIR/AGENTS.md"|"$CODEX_DIR/AGENTS.md"|"$CODEX_DIR/hooks.json"|"$CODEX_DIR/config.toml"|"$CURSOR_DIR/AGENTS.md"|"$CURSOR_DIR/hooks.json"|"$PI_AGENT_DIR/AGENTS.md"|"$PI_AGENT_DIR/settings.json")
       echo "  keep $filepath (managed merged file)"
       continue
       ;;
@@ -139,7 +139,7 @@ printf '%s\n' "$backup_entries" | while read -r bp; do
   [ -n "$bp" ] && echo "$bp" | grep -q '|' && {
     orig="${bp%%|*}"; bak="${bp##*|}"
     case "$orig" in
-      "$CLAUDE_DIR/CLAUDE.md")
+      "$CLAUDE_DIR/CLAUDE.md"|"$CODEX_DIR/hooks.json"|"$CODEX_DIR/config.toml")
         # A20 (CDX-I9): CLAUDE.md is a merge-managed file with paired A13
         # start/end markers (see the "keep ... (managed merged file)" skip
         # above) and install.sh now keeps the live file self-contained
@@ -161,6 +161,8 @@ printf '%s\n' "$backup_entries" | while read -r bp; do
   }
 done || true
 }
+
+"$MB_PY" "$SKILL_DIR/adapters/codex-native-hooks.py" uninstall "$CODEX_DIR"
 
 echo -e "\n${BLUE}Cleaning settings.json...${NC}"
 [ -f "$CLAUDE_DIR/settings.json" ] && SETTINGS_PATH="$CLAUDE_DIR/settings.json" "$MB_PY" << 'PYEOF' 2>/dev/null || true

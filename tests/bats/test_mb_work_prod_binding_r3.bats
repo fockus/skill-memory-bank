@@ -82,6 +82,41 @@ _cmd_file() {
 
 _wmd() { printf '%s' "$REPO_ROOT/commands/work.md"; }
 
+@test "prod_binding: documented judge-less review gate rejects red and accepts green" {
+  local gate_cmd report="$TMP/review.json"
+  gate_cmd="$(python3 - "$(_wmd)" <<'PY'
+import pathlib, re, sys
+text = pathlib.Path(sys.argv[1]).read_text()
+command = re.search(r'run `(bash [^`]*mb-work-severity-gate\.sh[^`]*)`', text).group(1)
+print(command.replace('<selected-workflow>', 'complex').replace('<bank>', '"$BANK"').replace('<normalized-report>', '"$REPORT"'))
+PY
+  )"
+  printf '%s\n' '{"verdict":"CHANGES_REQUESTED","counts":{"blocker":1,"major":0,"minor":0},"issues":[]}' > "$report"
+  run env SKILL_DIR="$REPO_ROOT" BANK="$BANK" REPORT="$report" bash -c "$gate_cmd"
+  [ "$status" -eq 1 ]
+  printf '%s\n' '{"verdict":"APPROVED","counts":{"blocker":0,"major":0,"minor":0},"issues":[]}' > "$report"
+  run env SKILL_DIR="$REPO_ROOT" BANK="$BANK" REPORT="$report" bash -c "$gate_cmd"
+  [ "$status" -eq 0 ]
+}
+
+@test "prod_binding: documented cycle updates its parallel run" {
+  export MB_WORK_PARALLEL=1
+  local rid cycle_cmd
+  rid="$(bash "$WS" new-run-id)"
+  bash "$WS" init spec 1 --run-id "$rid" --source-topic "$TOPIC" --mb "$BANK" >/dev/null
+  cycle_cmd="$(python3 - "$(_wmd)" <<'PY'
+import pathlib, re, sys
+text = pathlib.Path(sys.argv[1]).read_text()
+command = re.search(r'Call `(bash [^`]*mb-work-state\.sh cycle[^`]*)`', text).group(1)
+print(command.replace('<bank>', '"$BANK"'))
+PY
+  )"
+  run env SKILL_DIR="$REPO_ROOT" RUN_ID="$rid" BANK="$BANK" bash -c "$cycle_cmd"
+  [ "$status" -eq 0 ]
+  [ "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["cycle"])' "$BANK/.work-state/$rid.json")" = 1 ]
+  [ ! -f "$BANK/.work-state.json" ]
+}
+
 @test "prod_binding: the documented parallel done carries --run-id" {
   # Behavioural half: a per-run init followed by a singleton `done` fails.
   export MB_WORK_PARALLEL=1

@@ -279,9 +279,8 @@ Never inflate severity to force a `CHANGES_REQUESTED`. Never deflate to force an
 
 ## Report delivery (background runs)
 
-If you were spawned as a background teammate, your final turn text is NOT
-automatically delivered to the team lead — only an idle notification is.
-Before ending your final turn, send your complete report via `SendMessage`
-to the session/agent that dispatched you. If `SendMessage` is unavailable at
-runtime, write the report to `<bank>/.reports/<your-name>-<item>.md` so the
-orchestrator can pick it up from disk.
+Codex subagents deliver their final response to the parent automatically; put the complete report
+there. No separate message or report file is needed.
+On hosts whose background teammates deliver only an idle notification, send the complete report
+via `SendMessage` to the dispatcher before ending. If messaging is unavailable and your permissions
+allow it, write `<bank>/.reports/<your-name>-<item>.md`; otherwise return the report in your final response.

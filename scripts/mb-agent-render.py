@@ -25,6 +25,7 @@ mb_work_models.resolve_model (role model ▸ model_profiles[host][cost tier] ▸
 same resolution /mb work uses. A resolved id is written as `model: <id>` (Cursor, OpenCode —
 OpenCode only a `provider/id`) or `model = "<id>"` (Codex). `inherit`, no role, no profile or
 no PyYAML → no model key, output identical to a render without `--pipeline`.
+Codex inherits for Claude-only aliases; an explicit role `thinking` overrides its Markdown effort.
 
 Usage: mb-agent-render.py SRC --skill-dir DIR [--host claude|opencode|pi|cursor|codex]
                           [--pipeline PATH [--cost premium|optimal|economy]]
@@ -48,8 +49,8 @@ CURSOR_KEYS = {"name", "description"}
 MODEL_HOSTS = ("opencode", "cursor", "codex")  # pipeline host key == renderer host name
 
 
-def role_model(agent: str, host: str, pipeline: Path, cost: str = "") -> str:
-    """Tier model for the agent's role on `host`, or "" (= inherit, key omitted)."""
+def role_settings(agent: str, host: str, pipeline: Path, cost: str = "") -> tuple[str, str]:
+    """Resolved model and explicit thinking for the role; empty values inherit."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import mb_work_models as models
 
@@ -58,20 +59,21 @@ def role_model(agent: str, host: str, pipeline: Path, cost: str = "") -> str:
 
         cfg = yaml.safe_load(pipeline.read_text(encoding="utf-8")) or {}
     except Exception:  # no PyYAML / unreadable pipeline: fail open to inherit
-        return ""
+        return "", ""
     default_cfg = models.load_default()
     roles = cfg.get("roles") or default_cfg.get("roles") or {}
     role = next((r for r, spec in roles.items() if isinstance(spec, dict) and spec.get("agent") == agent), "")
     if not role:
-        return ""
+        return "", ""
     # Same call as mb-work-plan.sh / config show: item roles fall back to roles.developer.model.
     item_role = role != "planner" and models.role_class(role) not in models.STEP_ROLES
     model, _ = models.resolve_model(role, cfg, default_cfg, host,
                                     models.resolve_cost(cfg, default_cfg, host, cost),
                                     legacy_developer=item_role)
-    if model == "inherit" or (host == "opencode" and "/" not in model):
-        return ""
-    return model
+    if (model == "inherit" or (host == "opencode" and "/" not in model)
+            or (host == "codex" and model.lower() in {"opus", "sonnet", "haiku", "fable"})):
+        model = ""
+    return model, str(roles[role].get("thinking") or "")
 
 
 def split_frontmatter(text: str) -> tuple[list[str], str] | None:
@@ -162,9 +164,11 @@ def render(src: Path, skill_dir: Path, host: str = "claude", pipeline: Path | No
         converted = _pi_line(line) if host == "pi" else line
         if converted is not None:
             kept.append(converted)
-    model = role_model(fields.get("name") or src.stem, host, pipeline, cost) \
-        if pipeline and host in MODEL_HOSTS else ""
+    model, thinking = role_settings(fields.get("name") or src.stem, host, pipeline, cost) \
+        if pipeline and host in MODEL_HOSTS else ("", "")
     if host == "codex":
+        if thinking:
+            fields["effort"] = thinking
         return _codex_toml(src, fields, tools, _compose_body(src, skill_dir, compose, body).rstrip("\n"), model)
     if model:
         kept.append(f"model: {model}")

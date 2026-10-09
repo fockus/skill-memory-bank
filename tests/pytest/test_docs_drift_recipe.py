@@ -7,6 +7,7 @@ cannot silently drift out of the docs.
 
 from __future__ import annotations
 
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -51,16 +52,16 @@ def _table_row(text: str, row_label: str) -> str:
     raise AssertionError(f"table row {row_label!r} not found in {CROSS_AGENT_SETUP.name}")
 
 
-def test_hook_matrix_codex_sessionend_is_git_hooks_fallback() -> None:
-    """D-2: Codex has no native SessionEnd hook — the auto-capture row must say
-    'git-hooks-fallback' honestly instead of implying a native capability."""
-    text = CROSS_AGENT_SETUP.read_text(encoding="utf-8")
-    row = _table_row(text, "SessionEnd auto-capture (summarize)")
-    codex_cell = [c.strip() for c in row.strip().strip("|").split("|")][-1]
-    assert "git-hooks-fallback" in codex_cell, (
-        "cross-agent-setup.md hook matrix: Codex 'SessionEnd auto-capture' cell must say "
-        f"'git-hooks-fallback' (B5), not overclaim a native SessionEnd hook. Got: {codex_cell!r}"
-    )
+def test_hook_matrix_codex_sessionend_describes_native_capture() -> None:
+    """The native event registration and documented bounded capture agree."""
+    events = runpy.run_path(str(ROOT / "adapters/codex-native-hooks.py"))["EVENTS"]
+    assert "SessionEnd" in events
+    row = _table_row(CROSS_AGENT_SETUP.read_text(encoding="utf-8"),
+                     "SessionEnd auto-capture (summarize)")
+    codex_cell = [cell.strip() for cell in row.strip().strip("|").split("|")][-1]
+    assert "global `SessionEnd`" in codex_cell
+    assert "bounded extractive fallback" in codex_cell
+    assert "commit fallback remains separate" in codex_cell
 
 
 def test_hook_matrix_pi_extension_claim_does_not_overclaim_wiring() -> None:

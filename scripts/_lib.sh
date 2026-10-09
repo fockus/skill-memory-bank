@@ -125,7 +125,7 @@ mb_agent_config_dir() {
   case "$agent" in
     claude-code) printf '%s\n' "$HOME/.claude" ;;
     cursor)      printf '%s\n' "$HOME/.cursor" ;;
-    codex)       printf '%s\n' "$HOME/.codex" ;;
+    codex)       printf '%s\n' "${CODEX_HOME:-$HOME/.codex}" ;;
     opencode)    printf '%s\n' "$HOME/.config/opencode" ;;
     pi)          printf '%s\n' "$HOME/.pi/agent" ;;
     windsurf)    printf '%s\n' "$HOME/.windsurf" ;;

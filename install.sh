@@ -16,7 +16,7 @@ SOURCE_SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
 # to python3 for a direct `bash install.sh` from a git checkout.
 MB_PY="${MB_PYTHON:-python3}"
 CLAUDE_DIR="$HOME/.claude"
-CODEX_DIR="$HOME/.codex"
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CURSOR_DIR="$HOME/.cursor"
 OPENCODE_DIR="$HOME/.config/opencode"
 OPENCODE_LEGACY_DIR="$HOME/.opencode"
@@ -1147,20 +1147,26 @@ install_opencode_global_agents() {
 }
 
 codex_agents_section() {
+  local codex_ref="$CODEX_DIR"
+  # shellcheck disable=SC2088 # Literal instruction pointer; runtime paths use CODEX_DIR.
+  [ "$CODEX_DIR" != "$HOME/.codex" ] || codex_ref="~/.codex"
   cat <<EOF
 $CODEX_START_MARKER
 
 # Memory Bank — Codex Global Entry Point
 
-Codex loads this file at startup. Skill: \`~/.codex/skills/memory-bank/SKILL.md\`.
+Codex loads this file at startup. Skill: \`$codex_ref/skills/memory-bank/SKILL.md\`.
 - Codex has no native \`/mb\` slash commands: for \`/mb <command>\` read
-  \`~/.codex/skills/memory-bank/commands/mb.md\` (it routes to \`commands/<command>.md\`) and follow it.
-- Subagent roles: \`~/.codex/agents/<name>.toml\` — dispatch by name with
-  \`spawn_agent(agent_type="<name>", message=…)\`; a pipeline \`thinking\` goes to \`reasoning_effort\`.
-- Global lifecycle hooks are not guaranteed on Codex; the project \`.codex/\` adapter files carry them.
+  \`$codex_ref/skills/memory-bank/commands/mb.md\` (it routes to \`commands/<command>.md\`) and follow it.
+- Subagent roles: \`$codex_ref/agents/<name>.toml\` — dispatch by name with
+  \`spawn_agent(agent_type="<name>", message=…)\`; roles carry model/effort; overrides require host support.
+- Global native hooks: \`$codex_ref/hooks.json\`; review/trust with \`/hooks\`.
+- Before coding, read relevant \`$codex_ref/skills/memory-bank/rules/RULES.md\` and project RULES; links do not inject contents.
+- Active bank + standard/large/extra implementation: automatically use \`/mb work\`: read \`$codex_ref/skills/memory-bank/commands/work.md\`; run its helpers/named roles. Trivial/small follow Task routing.
 
 EOF
-  sed 's#~/.claude/RULES.md#~/.codex/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.codex/skills/memory-bank#g' "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
+  "$MB_PY" -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).read_text().replace("~/.claude/RULES.md", sys.argv[2] + "/rules/RULES.md").replace("~/.claude/skills/memory-bank", sys.argv[2]), end="")' \
+    "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md" "$codex_ref/skills/memory-bank"
   cat <<EOF
 
 $CODEX_END_MARKER
@@ -1182,12 +1188,9 @@ install_codex_global_agents() {
 
 # Codex discovers subagent roles as TOML in ~/.codex/agents/ and runs them through
 # `spawn_agent(agent_type=<name>)`; the renderer composes partials and maps `effort`.
-# The tier model comes from the same pipeline as `adapters/codex.sh render-agents`
-# (`/mb config init --host codex`): the project's .memory-bank/pipeline.yaml, else
-# the shipped default — so a reinstall keeps the `model = "…"` lines byte-identical.
+# Global roles use shipped defaults; a project pipeline must not leak into other projects.
 install_codex_agent_roles() {
-  local f name roles_tmp count=0 pipeline="$PROJECT_ROOT/.memory-bank/pipeline.yaml"
-  [ -f "$pipeline" ] || pipeline="$SOURCE_SKILL_DIR/references/pipeline.default.yaml"
+  local f name roles_tmp count=0 pipeline="$SOURCE_SKILL_DIR/references/pipeline.default.yaml"
   roles_tmp="$(mktemp -d)"
   for f in "$SOURCE_SKILL_DIR"/agents/*.md; do
     [ -f "$f" ] || continue
@@ -1392,6 +1395,14 @@ echo -e "  ${GREEN}✓${NC} $(count_matching_files "$SOURCE_SKILL_DIR/commands" 
 # ═══ Step 5: Skill files ═══
 echo -e "${BLUE}[5/7] Skill registration${NC}"
 ensure_skill_aliases
+
+# Global registration uses the installed alias and never grants hook trust.
+"$MB_PY" "$CODEX_SKILL_ALIAS/adapters/codex-native-hooks.py" install "$CODEX_DIR"
+INSTALLED_FILES+=("$CODEX_DIR/hooks.json" "$CODEX_DIR/config.toml")
+# Migrate only the selected project; global installation must not scan user projects.
+if [ -f "$PROJECT_ROOT/.codex/hooks.json" ] && [ ! "$PROJECT_ROOT/.codex/hooks.json" -ef "$CODEX_DIR/hooks.json" ]; then
+  "$MB_PY" "$CODEX_SKILL_ALIAS/adapters/codex-native-hooks.py" uninstall "$PROJECT_ROOT/.codex"
+fi
 # Idempotency guard: install-global is safe to repeat but wasteful on every run
 # (redundant writes + backup rotation). Skip it ONLY when the Cursor global
 # manifest already records BOTH the current skill version AND the requested

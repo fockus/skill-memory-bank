@@ -86,3 +86,20 @@ _code_commit() {  # a commit that does NOT touch .memory-bank/
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+@test "explicit external bank keeps its identity and never falls back to cwd" {
+  external="$DIR/global-memory"
+  mv "$MB" "$external"
+  git -C "$DIR" add -A
+  git -C "$DIR" commit -qm "move bank"
+  printf 'changed\n' >> "$external/status.md"
+  cd "$DIR"
+  run env MB_DRIFT_WARN_DIRTY_LINES=1 bash "$SCRIPT" --stop-nudge "$external"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"drift:"* ]]
+  mkdir -p "$MB"
+  printf 'fallback\n' > "$MB/status.md"
+  run env MB_DRIFT_WARN_DIRTY_LINES=1 bash "$SCRIPT" --stop-nudge "$TMP/missing"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}

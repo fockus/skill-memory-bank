@@ -29,12 +29,16 @@ _report_role_agents() {
 }
 
 @test "strict discipline partial carries the silent-finish rationalization row" {
-  assert_substring "$(cat "$AGENTS_DIR/mb-discipline-strict.md")" "SendMessage to the dispatcher, or it didn't happen"
+  local strict
+  strict="$(cat "$AGENTS_DIR/mb-discipline-strict.md")"
+  assert_substring "$strict" "Codex delivers the final response automatically"
+  assert_substring "$strict" "hosts that only notify on idle need \`SendMessage\`"
 }
 
 @test "engineering-core tells a background run to SendMessage its report" {
   local core
   core="$(cat "$AGENTS_DIR/mb-engineering-core.md")"
   assert_substring "$core" "## 12. Report delivery"
-  assert_substring "$core" "Send the report to the dispatcher with \`SendMessage\`"
+  assert_substring "$core" "Codex subagents deliver their final response to the parent automatically"
+  assert_substring "$core" "dispatcher with \`SendMessage\` before your final turn ends"
 }

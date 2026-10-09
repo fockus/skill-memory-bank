@@ -192,3 +192,22 @@ def test_render_for_codex_with_pipeline_writes_model_key() -> None:
     role = tomllib.loads(out)
     assert role["model"] == "gpt-6.1-sol"
     assert role["name"] == "mb-developer"
+
+
+@needs_yaml
+@pytest.mark.parametrize("model", ["opus", "sonnet", "haiku", "fable"])
+def test_render_for_codex_with_claude_alias_inherits_model(tmp_path: Path, model: str) -> None:
+    pipe = _pipeline(tmp_path, f"roles:\n  developer: {{agent: mb-developer, model: {model}}}\n")
+    result = _render(_agent("mb-developer"), REPO_ROOT, "--host", "codex", "--pipeline", str(pipe))
+    assert result.returncode == 0, result.stderr
+    assert "model" not in tomllib.loads(result.stdout)
+
+
+@needs_yaml
+def test_render_for_codex_with_pipeline_thinking_overrides_frontmatter(tmp_path: Path) -> None:
+    pipe = _pipeline(tmp_path, "roles:\n  developer: {agent: mb-developer, model: custom-model, thinking: xhigh}\n")
+    result = _render(_agent("mb-developer"), REPO_ROOT, "--host", "codex", "--pipeline", str(pipe))
+    assert result.returncode == 0, result.stderr
+    role = tomllib.loads(result.stdout)
+    assert role["model"] == "custom-model"
+    assert role["model_reasoning_effort"] == "xhigh"

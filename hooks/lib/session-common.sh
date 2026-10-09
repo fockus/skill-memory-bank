@@ -3,22 +3,16 @@
 # Sourced by mb-session-turn.sh / mb-session-end.sh / mb-session-start.sh / mb-recall.sh.
 # Defines functions only — no side effects on source. Do NOT `set -u` here (sourced into bats).
 
-# Resolve the active Memory Bank directory by walking up from a start dir.
-# Echoes the absolute path of the nearest <dir>/.memory-bank, or nothing.
-sc_resolve_mb() {
-  local dir="${1:-$PWD}"
+# Keep session history and semantic recall on the same bank as lifecycle guards.
+sc_resolve_mb() (
+  local dir="${1:-$PWD}" hook_dir agent="${MB_AGENT:-claude-code}"
   [ -d "$dir" ] || dir="$PWD"
-  dir="$(cd "$dir" 2>/dev/null && pwd)" || return 0
-  while [ -n "$dir" ]; do
-    if [ -d "$dir/.memory-bank" ]; then
-      printf '%s\n' "$dir/.memory-bank"
-      return 0
-    fi
-    [ "$dir" = "/" ] && break
-    dir="$(dirname "$dir")"
-  done
-  return 0
-}
+  hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || return 0
+  # shellcheck source=hooks/_skill_root.sh
+  . "$hook_dir/_skill_root.sh" || return 0
+  # Codex/Cursor/Pi adapters set MB_AGENT; copied Claude hooks do not.
+  MB_AGENT="$agent" mb_hook_resolve_mb_path "$dir" || true
+)
 
 # Build the per-session file path: <mb>/session/<date>_<hhmm>_<sid8>.md
 sc_session_file() {
@@ -344,12 +338,19 @@ sc_run_bounded() {
   local secs="$1"; shift
   local out rc watcher pid
   out="$(mktemp "${TMPDIR:-/tmp}/sc_bounded.XXXXXX")" || return 1
-  "$@" >"$out" 2>/dev/null &
+  "$@" <&0 >"$out" 2>/dev/null &
   pid=$!
   # The watcher MUST NOT inherit our stdout: a caller using $(sc_run_bounded ...) waits
   # for every writer to close the pipe, so a watcher holding it makes EVERY call take the
   # full bound — slower than the unbounded original. Caught by timing the fast path.
-  ( sleep "$secs"; kill -TERM "$pid" 2>/dev/null ) >/dev/null 2>&1 &
+  (
+    timer=""
+    trap 'if [ -n "$timer" ]; then kill "$timer" 2>/dev/null; wait "$timer" 2>/dev/null; fi; exit 0' TERM INT
+    sleep "$secs" &
+    timer=$!
+    wait "$timer"
+    kill -TERM "$pid" 2>/dev/null
+  ) </dev/null >/dev/null 2>&1 &
   watcher=$!
   wait "$pid" 2>/dev/null; rc=$?
   kill "$watcher" 2>/dev/null; wait "$watcher" 2>/dev/null

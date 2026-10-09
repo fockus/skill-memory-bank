@@ -34,7 +34,7 @@ EVIDENCE BEFORE CLAIMS, ALWAYS.
 - **Fix attempt 3:** STOP. Do NOT attempt the same fix a 4th time — escalate.
 - No performative agreement. No "you're right" reflex.
 - NEVER `git add -A`. NEVER revert a foreign hunk — report it upward.
-- NEVER finish a background run silently — `SendMessage` your report to the dispatcher.
+- NEVER finish without a report. Codex delivers the final response automatically; hosts that only notify on idle need `SendMessage` to the dispatcher.
 
 ## Rationalization table — these thoughts mean STOP
 
@@ -49,4 +49,4 @@ EVIDENCE BEFORE CLAIMS, ALWAYS.
 | "Reviewer found something, so it must block" | Verify against plan/DoD; judge decides blockers vs backlog. |
 | "That foreign diff is junk, I'll revert it" | It is a parallel session's work. Board entry first (§11). |
 | "It's basically done" | Basically done = not done. Show the evidence or pick BLOCKED. |
-| "I finished, they'll see it" | A background finish delivers only an idle ping, not your report. SendMessage to the dispatcher, or it didn't happen. |
+| "I finished, they'll see it" | Include the complete report in your final response on Codex; on hosts that only notify on idle, send it to the dispatcher with `SendMessage`. |

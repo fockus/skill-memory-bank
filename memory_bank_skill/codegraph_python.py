@@ -33,6 +33,7 @@ from memory_bank_skill.codegraph_binding import (
     resolve_relative_module,
 )
 from memory_bank_skill.codegraph_common import rel, sha256
+from memory_bank_skill.codegraph_invocations import script_invocations
 
 # Re-exported for back-compat: callers (orchestrator, tests) import
 # ``file_to_module`` / ``bind_calls`` from this module. The implementations live
@@ -47,7 +48,7 @@ __all__ = [
 # Bump this integer whenever the edge/node schema changes so that stale cache
 # entries are automatically re-parsed rather than served.  Consumers compare
 # cached_data["cache_version"] against this constant; any mismatch → re-parse.
-CACHE_VERSION: int = 2
+CACHE_VERSION: int = 3
 
 _DOC_MAX = 200  # truncate docstrings; keeps graph.json grep-friendly and compact
 
@@ -261,6 +262,7 @@ def parse_file(py_path: Path, src_root: Path, include_docs: bool = False) -> dic
             module_node["doc"] = doc
     extractor.nodes.append(module_node)
     extractor.visit(tree)
+    extractor.edges.extend(script_invocations(tree, py_path, src_root))
     return {
         "nodes": extractor.nodes,
         "edges": extractor.edges,

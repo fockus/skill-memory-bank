@@ -130,9 +130,13 @@ read-only debugging aid, not part of the loop.
 
 Never guess a model. The dispatch tiers live in **`pipeline.yaml` `roles:`** and
 nowhere else — locate the resolved file with `scripts/mb-pipeline.sh path`, read
-the `roles:` entry for the step, dispatch its **exact** `agent` by name and pass its
-exact `model`; `thinking` is the reasoning depth, which Claude Code takes from the agent's
-`effort:` frontmatter (pass it only where your dispatch accepts a reasoning-effort setting; per-host tools: SKILL.md § Invocation). (`scripts/mb-workflow.sh` is a different question: it
+the `roles:` entry for the step and dispatch its **exact** `agent` by name. Pass its
+`model` and `thinking` only when the host permits those overrides for the role.
+Claude Code takes reasoning depth from the agent's `effort:` frontmatter. For static
+Codex roles, verify the loaded model/effort matches the resolved values; otherwise
+render and reload a matching role through the supported host mechanism, or stop the
+dispatch with the mismatch. Never silently use different values (per-host tools:
+SKILL.md § Invocation). (`scripts/mb-workflow.sh` is a different question: it
 resolves the step *sequence* — `steps`, `loop`, `entrypoint` — and carries no
 role tiers.) The roles:
 

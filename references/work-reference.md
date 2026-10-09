@@ -118,7 +118,7 @@ Precedence: `--verify=<cadence>` ▸ `hosts.<host>.verify` ▸ `verify.cadence` 
 without a cadence verifies once at plan end; set `stage` explicitly for per-item); no `verify` step → `off`. `mb-workflow.sh --json` reports `verify_cadence`;
 `mb-work-plan.sh --verify=<cadence>` marks each line `verify` / `final_verify`. A multi-plan run
 passes `--target` once per plan (no `--range`). An item with `verify: false` skips §5c and gets the
-self-check line; `final_verify: true` → `Final item: yes` with the unscoped baseline diff. A fix
+self-check line; declared Eval/checker evidence in §5b1 still runs before completion, even at cadence `off`. `final_verify: true` → `Final item: yes` with the unscoped baseline diff. A fix
 loop's `returns_to: verify` on a `verify: false` item re-enters at `review`. A run stopped before
 its last item never reaches the verifier — run `/mb verify` before commit.
 
@@ -306,16 +306,16 @@ bash scripts/mb-work-pivot.sh prompt-prefix --mode pivot_in_role|pivot_via_archi
 
 ## Parallel runs
 
-Two supported patterns for driving several `/mb work` runs concurrently from one Claude Code session — both opt in via `MB_WORK_PARALLEL=1` and everything documented above (per-run slots, `new-run-id`, claim exit-4, baseline-scoped diff, `--skip-claimed`, the append helper):
+Two patterns for concurrent `/mb work` runs from one host session — both opt in via `MB_WORK_PARALLEL=1` and everything documented above (per-run slots, `new-run-id`, claim exit-4, baseline-scoped diff, `--skip-claimed`, the append helper):
 
 | Pattern | When to use | How |
 |---|---|---|
-| **Intra-plan waves** | Items sharing a `wave` number in `mb-work-plan.sh` output (disjoint `Files:`, no dependency) run at once, in one worktree; waves run in order. | Each stage's dispatch mints its own `run_id` via `mb-work-state.sh new-run-id`, threads `--run-id` through state/budget/checkbox, and claims its own `<source>` (the plan/spec + item) via `init`. **A single owner per shared file** — never let two concurrently-running stages write the same file. |
+| **Intra-plan waves** | Items sharing a `wave` number in `mb-work-plan.sh` output (disjoint `Files:`, no dependency) run at once, in one worktree; waves run in order. | Each stage's dispatch mints its own `run_id` via `mb-work-state.sh new-run-id`, threads `--run-id` through state/budget/checkbox, and calls `init` before dispatch. Current `plan`/`spec` category claims may refuse another stage (exit 4); serialize that wave after its owner completes, never override a live claim. Path-based `--skip-claimed` cannot guarantee exclusion of category claims (I-263). **A single owner per shared file** — never let two concurrently-running stages write the same file. |
 | **Inter-plan worktrees** | Two or more **unrelated plans** need to run at once. | One `git worktree` per plan (see the worktree rule above) — each gets its own working tree, index, `progress.md`, and `checklist.md`, so cross-plan writes never contend. Per-run state/budget slots still apply per worktree. |
 
 **Sync vs. async spawn rule.** Dispatch **sync** (wait for the Task/agent to return before continuing) whenever the next step in *this* item's sequence depends on the result — e.g. verify waiting on implement, judge waiting on review. Dispatch **async** (background) **only** for truly independent waves — stages/items with no dependency on each other's output, typically distinct intra-plan-wave stages or separate inter-plan-worktree plans.
 
-**Mandatory background report delivery.** An async/background agent's final turn text is **not** automatically delivered to the team lead / orchestrator — only an idle notification reaches it. Every background dispatch **MUST** deliver its complete final report via `SendMessage` to the dispatching session/agent before ending its turn; if `SendMessage` is unavailable at runtime, it must write the report to `<bank>/.reports/<name>-<item>.md` instead, so the orchestrator can pick it up from disk. Skipping this means the work happened but the result is silently lost to the lead.
+**Mandatory background report delivery.** Codex subagents deliver their final response to the parent automatically; include the complete report there, without a separate message or report file. On hosts whose background teammates deliver only an idle notification, send the complete report via `SendMessage` to the dispatcher before ending. If messaging is unavailable and permissions allow it, write `<bank>/.reports/<name>-<item>.md`; otherwise return the report in the final response and tell the orchestrator that it must collect it through the host's result API.
 
 **Optional self-claim pull mode.** Instead of the orchestrator assigning each item to a specific agent up front, it may **publish all pending items as tasks BEFORE spawning any agent**, then spawn a pool of agents that each **self-claim** a task by calling `mb-work-state.sh init <source> <item_no> --run-id "$RUN_ID"`: exit 0 means this agent now owns that item, **exit 4** means another agent already claimed it — the losing agent picks the next unclaimed pending item instead of double-working the same one. This mode still needs **a single writer per shared file**: if two self-claimed items touch the same file, that file's edits must be serialized (sequential dispatch, or one owning agent) regardless of how the items themselves were claimed.
 

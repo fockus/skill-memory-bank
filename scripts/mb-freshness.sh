@@ -35,9 +35,9 @@ cand="${MB_ARG:-$PWD}"
 BANK=""
 if [ -d "$cand/.memory-bank" ]; then
   BANK="$cand/.memory-bank"
-elif [ "$(basename "$cand" 2>/dev/null)" = ".memory-bank" ] && [ -d "$cand" ]; then
+elif [ -n "$MB_ARG" ] && [ -d "$cand" ]; then
   BANK="$cand"
-elif [ -d "$PWD/.memory-bank" ]; then
+elif [ -z "$MB_ARG" ] && [ -d "$PWD/.memory-bank" ]; then
   BANK="$PWD/.memory-bank"
 fi
 [ -n "$BANK" ] || exit 0

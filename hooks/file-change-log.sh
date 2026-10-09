@@ -1,6 +1,6 @@
 #!/bin/bash
 # PostToolUse hook: file-change log + placeholder/secret checks.
-#   - logs Write/Edit events to ~/.claude/file-changes.log
+#   - logs Write/Edit events to the active host's file-changes.log
 #   - rotates the log after 10 MB (→ .log.1, .log.2)
 #   - searches TODO/FIXME/HACK/XXX/PLACEHOLDER/NotImplementedError in CODE (not
 #     in docstrings and not in plain-text files)
@@ -25,11 +25,14 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 [ -z "$FILE_PATH" ] && exit 0
 
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-if [ "${MB_AGENT:-}" = "cursor" ] || [ -d "$HOME/.cursor/skills/memory-bank" ]; then
+if [ "${MB_AGENT:-}" = "codex" ]; then
+  LOG_FILE="${CODEX_HOME:-$HOME/.codex}/file-changes.log"
+elif [ "${MB_AGENT:-}" = "cursor" ] || [ -d "$HOME/.cursor/skills/memory-bank" ]; then
   LOG_FILE="$HOME/.cursor/file-changes.log"
 else
   LOG_FILE="$HOME/.claude/file-changes.log"
 fi
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
 MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10 MB
 
 # ═══ Log rotation ═══
@@ -70,15 +73,30 @@ fi
 # ═══ I-133: mark the code graph dirty on source edits ═══
 # Append-only queue consumed inline (flock + budget) by the next graph query /
 # SessionEnd catchup — a PostToolUse hook never spawns a rebuild itself.
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=hooks/_skill_root.sh
+. "$HOOK_DIR/_skill_root.sh"
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+MB_DIR="$(mb_hook_resolve_mb_path "${CWD:-${CLAUDE_PROJECT_DIR:-$PWD}}" 2>/dev/null || true)"
+if [ -d "$MB_DIR" ]; then
+  MB_DIR="$(cd "$MB_DIR" && pwd -P)"
+fi
 case "$FILE_PATH" in
   *.py|*.go|*.js|*.jsx|*.ts|*.tsx|*.rs|*.java)
-    CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-    MB_DIR="${MB_PATH:-${CWD:-${CLAUDE_PROJECT_DIR:-$PWD}}/.memory-bank}"
-    if [ -f "$MB_DIR/codebase/graph.json" ]; then
+    if [ -n "$MB_DIR" ] && [ -f "$MB_DIR/codebase/graph.json" ]; then
       echo "$FILE_PATH" >> "$MB_DIR/codebase/.graph-dirty" 2>/dev/null || true
     fi
     ;;
 esac
+
+if [ -n "$MB_DIR" ]; then
+  case "$FILE_PATH" in
+    "$MB_DIR"/*.md)
+      INDEX_DIR="${MB_INDEX_DIR:-$MB_DIR/.index}"
+      [ ! -d "$INDEX_DIR" ] || : > "$INDEX_DIR/.dirty" 2>/dev/null || true
+      ;;
+  esac
+fi
 
 [ -f "$FILE_PATH" ] || exit 0
 
@@ -125,7 +143,8 @@ PLACEHOLDERS=$(printf '%s\n' "$stripped" \
 
 if [ -n "$PLACEHOLDERS" ]; then
   echo "WARNING: Placeholders found in $FILE_PATH:" >&2
-  echo "$PLACEHOLDERS" >&2
+  # Matching source lines can also contain credentials.
+  printf '%s\n' "$PLACEHOLDERS" | sed -E 's/^([0-9]+):.*/  line \1/' >&2
 fi
 
 # ═══ <private> markers in .md files ═══

@@ -27,7 +27,7 @@ setup() {
   PROJECT="$T/project"
   SRC="$T/skill"
   export MB_SKIP_DEPS_CHECK=1 MB_USER_RULES_AUTO_PROMPT=off
-  unset MB_CLIENTS MB_LANGUAGE MB_COMMENTS_LANGUAGE MB_WITH_EXTENSIONS MB_PATH MB_AGENT MB_MANIFEST_PATH XDG_DATA_HOME || true
+  unset MB_CLIENTS MB_LANGUAGE MB_COMMENTS_LANGUAGE MB_WITH_EXTENSIONS MB_PATH MB_AGENT MB_MANIFEST_PATH XDG_DATA_HOME CODEX_HOME || true
   command -v jq >/dev/null || skip "jq required"
   command -v rsync >/dev/null || skip "rsync required"
   _fresh
@@ -108,6 +108,9 @@ for d, dirs, files in os.walk(root):
     for name in sorted(dirs + files):
         p = os.path.join(d, name)
         rel = os.path.relpath(p, root)
+        # Migration artifacts are verified byte-for-byte before this comparison.
+        if rel in ("project/.codex/hooks.json", "project/.codex/hooks.json.pre-mb-native"):
+            continue
         if os.path.islink(p):
             out.append(f"{rel} -> {os.readlink(p)}")
             if name in dirs:
@@ -150,8 +153,14 @@ _snapshot() {
   git -C "$REPO_ROOT" archive "$OLD_REF" | tar -x -C "$SRC"
   _install --non-interactive --language ru --clients "$CLIENTS_ALL" --project-root "$PROJECT"
   _add_user_text
+  cp "$PROJECT/.codex/hooks.json" "$T/legacy-codex-hooks.json"
   _sync_current
   _install
+  cmp "$T/legacy-codex-hooks.json" "$PROJECT/.codex/hooks.json.pre-mb-native"
+  # Only the old owned local registration disappears; the original is recoverable.
+  jq -e '.hooks == {}' "$PROJECT/.codex/hooks.json"
+  [ ! -e "$T/clean/project/.codex/hooks.json" ]
+  [ ! -e "$T/clean/project/.codex/hooks.json.pre-mb-native" ]
   run _backups
   [ -z "$output" ]
   _snapshot upgraded

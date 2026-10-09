@@ -82,3 +82,16 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - ✅ Stage 3 — Тон по силе модели
 - ⬜ Stage 4 — Замер на боевых задачах
 
+
+<!-- mb-plan:2026-10-09_fix_codex-global-native-hooks.md -->
+## codex-global-native-hooks — 1/2
+- ✅ Stage 1 — Global installation and migration
+- ⬜ Stage 2 — Runtime contracts and audit
+
+<!-- mb-plan:2026-10-09_feature_codex-memory-parity.md -->
+## Codex memory and lifecycle completion — 0/4
+- ⬜ Stage 1 — Durable model-free Codex session memory
+- ⬜ Stage 2 — Preserve graph file identity
+- ⬜ Stage 3 — Native child context and bounded lifecycle wiring
+- ⬜ Stage 4 — Native proof, review and documentation
+

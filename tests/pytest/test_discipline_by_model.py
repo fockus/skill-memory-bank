@@ -31,7 +31,8 @@ def test_strict_partial_is_a_partial_carrying_the_iron_law() -> None:
     assert strict.splitlines()[1].strip() == "partial: true"
     assert "EVIDENCE BEFORE CLAIMS, ALWAYS." in strict
     assert "Rationalization table" in strict
-    assert "SendMessage to the dispatcher, or it didn't happen" in strict
+    assert "Codex delivers the final response automatically" in strict
+    assert "hosts that only notify on idle need `SendMessage` to the dispatcher" in strict
 
 
 def test_work_md_appends_strict_partial_on_strict_discipline() -> None:

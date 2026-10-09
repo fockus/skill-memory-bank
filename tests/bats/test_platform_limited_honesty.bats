@@ -111,7 +111,7 @@ manifest_pi_global_extensions() {
 manifest_codex() {
   local project
   project="$(mktemp -d -p "$WORKDIR")"
-  bash "$REPO_ROOT/adapters/codex.sh" install "$project" >/dev/null 2>&1
+  CODEX_HOME="$project/codex-home" bash "$REPO_ROOT/adapters/codex.sh" install "$project" >/dev/null 2>&1
   printf '%s' "$project/.codex/.mb-manifest.json"
 }
 

@@ -3,8 +3,7 @@
 #
 # Codex reads AGENTS.md for project instructions (shared format with OpenCode
 # and Pi fallback). Project-level settings live in .codex/config.toml.
-# Hooks live in .codex/hooks.json (Codex's UserPromptSubmit command schema;
-# MB wires only the prompt guard).
+# Global native hooks take precedence; the project prompt guard is a legacy fallback.
 #
 # Usage:
 #   adapters/codex.sh install [PROJECT_ROOT]
@@ -58,8 +57,6 @@ project_doc_max_bytes = 65536
 # Fallback filenames when AGENTS.md is missing at a directory level
 project_doc_fallback_filenames = ["CLAUDE.md", "CURSOR.md"]
 
-# Approval policy — MB recommends on-request for defense-in-depth
-approval_policy = "on-request"
 $CONFIG_MARKER_END
 TOML_EOF
 }
@@ -439,20 +436,24 @@ install_codex() {
   codex_backup_if_exists "$CONFIG_TOML" "$CONFIG_MARKER_START"
   codex_upsert_config_toml "$CONFIG_TOML"
 
-  # 3. hooks.json (experimental) — back up once, then jq-merge preserving user keys
-  codex_backup_if_exists "$HOOKS_JSON" '_mb_owned'
-  codex_merge_hooks_json "$HOOKS_JSON"
+  # Global native registration owns the lifecycle; avoid duplicate project guards.
+  local global_hooks="${CODEX_HOME:-$HOME/.codex}/hooks.json" native_hooks=false
+  if [ -f "$global_hooks" ] && jq -e '[.hooks[][]?.hooks[]? | select(._mb_codex_native == true)] | length > 0' "$global_hooks" >/dev/null 2>&1; then
+    native_hooks=true
+    if [ ! "$global_hooks" -ef "$HOOKS_JSON" ]; then
+      "${MB_PYTHON:-python3}" "$SKILL_DIR/adapters/codex-native-hooks.py" uninstall "$CODEX_DIR"
+    fi
+    if grep -qF 'memory-bank: managed hook' "$CODEX_DIR/hooks/before-prompt.sh" 2>/dev/null; then
+      rm -f "$CODEX_DIR/hooks/before-prompt.sh"
+    fi
+  else
+    codex_backup_if_exists "$HOOKS_JSON" '_mb_owned'
+    codex_merge_hooks_json "$HOOKS_JSON"
+    before_prompt_body > "$CODEX_DIR/hooks/before-prompt.sh"
+    chmod +x "$CODEX_DIR/hooks/before-prompt.sh"
+  fi
 
-  # 4. Pre-prompt script
-  before_prompt_body > "$CODEX_DIR/hooks/before-prompt.sh"
-  chmod +x "$CODEX_DIR/hooks/before-prompt.sh"
-
-  # 4b. Session capture via git-hooks-fallback (B5 / F-5): Codex has no native
-  # lifecycle hooks wired by MB (only the UserPromptSubmit guard above) —
-  # mirror pi.sh's wiring so Codex users still get post-commit auto-capture +
-  # pre-commit <private> warnings in a git repo. `git rev-parse --git-dir`
-  # (not `[ -d .git ]`) so a worktree (.git is a FILE there, per A9) is still
-  # detected correctly. Wiring only — hook bodies live in git-hooks-fallback.sh.
+  # Commit-time capture remains a fallback; rev-parse also recognizes worktrees.
   local git_hooks_installed=false
   if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     MB_AGENT=codex bash "$GIT_FALLBACK" install "$PROJECT_ROOT" >/dev/null
@@ -473,24 +474,19 @@ install_codex() {
     backups_json='[]'
   fi
 
-  # adapter-parity T7 (REQ-015/017, scenario 5): D-03's honest-degradation
-  # tier, made explicit. update-notify (T6, before-prompt hook) genuinely
-  # renders — NOT limited. What genuinely stays absent, verified by direct
-  # inspection: no statusline surface; no session-start-class hook (only the
-  # experimental prompt-submit hook + git-hooks-fallback, neither of which is
-  # a CC SessionStart/PreCompact/Stop equivalent); session capture is
-  # git-hooks-fallback's one-line progress.md stub, not CC v2-schema
-  # session/*.md.
-  # Subagents are not limited: Codex dispatches roles in-session with
-  # spawn_agent(agent_type=<name>), and install.sh writes every role as TOML to
-  # ~/.codex/agents/ (install_codex_agent_roles, scripts/mb-agent-render.py --host codex).
+  # Standalone project installs retain the legacy prompt-only fallback.
   local platform_limited_json='["statusline","lifecycle-hooks","session-memory"]'
   local platform_limited_notes_json
   platform_limited_notes_json=$(jq -n \
     --arg statusline "No equivalent to Claude Code's stdin-JSON statusLine render surface exists in Codex." \
-    --arg lifecycle_hooks "Only the experimental before-prompt (UserPromptSubmit) hook exists — no session-start-class hook (CC's SessionStart/PreCompact/Stop set has no equivalent)." \
+    --arg lifecycle_hooks "Global native hooks are not installed; this project uses only the legacy UserPromptSubmit guard." \
     --arg session_memory "git-hooks-fallback appends a one-line stub note to progress.md on commit, not the CC v2-schema session/*.md capture." \
     '{"statusline": $statusline, "lifecycle-hooks": $lifecycle_hooks, "session-memory": $session_memory}')
+
+  if [ "$native_hooks" = true ]; then
+    platform_limited_json='["statusline"]'
+    platform_limited_notes_json=$(printf '%s' "$platform_limited_notes_json" | jq 'del(.["lifecycle-hooks"], .["session-memory"])')
+  fi
 
   adapter_write_manifest \
     "$MANIFEST" \
@@ -528,7 +524,7 @@ codex_subinvoke_cmd() {
 # (`model = "<id>"`) the pipeline resolves; roles that are not installed stay absent.
 # Pipeline: $1 ▸ the project's .memory-bank/pipeline.yaml ▸ the shipped default.
 render_codex_agents() {
-  local pipeline="${1:-}" dir="$HOME/.codex/agents" f dst rendered n=0
+  local pipeline="${1:-}" dir="${CODEX_HOME:-$HOME/.codex}/agents" f dst rendered n=0
   [ -n "$pipeline" ] || pipeline="$PROJECT_ROOT/.memory-bank/pipeline.yaml"
   [ -f "$pipeline" ] || pipeline="$SKILL_DIR/references/pipeline.default.yaml"
   for f in "$SKILL_DIR"/agents/*.md; do

@@ -4102,3 +4102,20 @@ Approved AGR-055/056/057; [plan](plans/2026-10-05_feature_pi-native-integration.
 <!-- mb-plan:2026-10-08_fix_ordinary-pi-mb-dispatch.md -->
 ## Ordinary Pi Memory Bank dispatch — 1/1
 - ✅ Stage 1 — Ordinary extension activation and installation
+
+
+## 2026-10-09 — Codex global hooks and integration audit
+
+Implemented default global native hook registration with owned-only migration/uninstall and preserved trust/settings. Updated the actual Codex profile and rendered 28 roles; all seven events are discovered without duplicates in this project and harness, but remain untrusted. Runtime now restores bounded core/handoff, forwards update notices, guards Bash and edits, invalidates graph/recall indexes, and resolves nested/global banks through the shared path. Corrected Codex skill/role report delivery and explicit RULES loading.
+
+Final runtime/resolver checks: 45 pytest and 12 subtests passed; installer 13, renderer 23, adapter 50 Bats, resolver39 Bats and source/security16 Bats passed. Independent review found and verified fixes for bank precedence, missing-path bank creation, cross-host registry selection and mixed secret/placeholder warnings. Real isolated note→recall and source→graph refresh probes passed. Full pytest: 4006 passed, 11 skipped, 6 failures and a teardown error; the scoped line-limit failure is fixed, Pi failures are environment restrictions, optional embeddings also fail on extracted HEAD, and the teardown error observed our authorized live hook migration. Full Bats is still running; affected Codex/extension fixtures were fixed and passed focused reruns.
+
+Remaining gaps: native event delivery needs user trust in /hooks; unrecorded conversation transcript capture, child bootstrap and Codex cost accounting are absent; shared graph matching can be noisy. See references/codex-native-hooks.md and plan 2026-10-09_fix_codex-global-native-hooks.md. The unrelated paused goal and pre-existing firewall failures were preserved; no /mb done certification, commit or push.
+
+
+## 2026-10-09 — Codex native Memory Bank and shared work-command acceptance
+
+- Completed the owner-approved global hooks and six parity follow-ups. Real Codex delivery proves all eight trusted user hooks, automatic sanitized chat A capture/chat B recall, persisted compaction, child context, source-edit logging and bounded SessionEnd (542 ms). Foreign hooks and approval policy are preserved.
+- Shared /mb work retains Claude Task dispatch and explicitly maps Codex to spawn_agent. Real helper/documented-command checks pass on both hosts. Repaired shared bounded-command stdin/timer handling; 41 Claude summary/judge/detach compatibility checks pass. No live Claude model workflow was exercised.
+- Scoped verifier PASS, lead/security/tests APPROVED, final judge GO_WITH_BACKLOG with zero blockers; I-263 retains the pre-existing optional parallel category-claim limit. Current full pytest: 4093 pass/11 skip/9 fail (+22 subtests). Full Bats: 3968 pass/18 skip/49 failed cases plus teardown. All failures classified; scoped repairs and environmental reruns pass, while unrelated Pi, lexical recall/expand-ID and embedding baseline failures remain explicitly recorded in the parity plan.
+- Formal closure is held: unchanged repository lint/pattern findings and paused SVP acceptance keep the firewall red. No /mb done, deterministic done/checkbox bypass, commit, push or release. Premature evidence checkmarks were reset; the plan remains in_progress. Preserve foreign Pi/bank changes. Clear only codex-parity-20261009 ephemeral runtime state/claim after saving its held pre-clear state; leave historical Pi state intact.

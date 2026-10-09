@@ -11,7 +11,8 @@
 - [Adapter contracts](#adapter-contracts)
   - [Claude Code adapter](#claude-code-adapter)
   - [Pi adapter](#pi-adapter)
-  - [Codex / OpenCode / Cursor / Windsurf / others](#codex--opencode--cursor--windsurf--others)
+  - [Codex adapter](#codex-adapter)
+  - [OpenCode / Cursor / Windsurf / others](#opencode--cursor--windsurf--others)
 - [Recall subsystem](#recall-subsystem)
 - [Doctor checks](#doctor-checks)
 - [Environment variables](#environment-variables)
@@ -53,7 +54,7 @@ rolling `_recent.md` handoff window, and exposes lexical/semantic recall.
 Every session file is Markdown with YAML frontmatter and the sections below. This lists
 the fields the Claude Code adapter (`hooks/mb-session-turn.sh`, `hooks/mb-session-summarize.sh`,
 `hooks/mb-session-end.sh`) actually emits today — `agent`, `ended`, `mtime`, and
-`summary_backend` are **not currently written** by any hook and must not be relied upon.
+`summary_backend` are **not currently written** by that adapter and must not be relied upon for Claude Code records. The Codex adapter below writes `agent: codex`.
 
 ```yaml
 ---
@@ -149,11 +150,26 @@ report rather than being omitted.
 - No transcript hook — Pi sessions are JSONL inside `~/.pi/agent/sessions/`
 - Summary backend: `pi` (through `ctx` model) or external `command`
 
-### Codex / OpenCode / Cursor / Windsurf / others
+### Codex adapter
 
-- Each agent has its own adapter via `adapters/<name>.sh` or `adapters/<name>.ts`
-- Must implement at minimum: session start context injection, turn-level capture,
-  session-end summarization (best-effort)
+- Eight global native events include root lifecycle capture and `SubagentStart` context.
+- Root Stop persists sanitized user requests and final assistant messages from the
+  host-provided Codex JSONL; PreCompact and bounded SessionEnd provide fallback.
+- Summary backend is model-free extractive (`summary_mode: extractive`,
+  `summarized: true`). Atomic cursor/state makes repeated hooks and resume idempotent.
+- Long sessions retain indexed 1 MiB parts; recent history can show multiple parts.
+- `MB_SESSION_CAPTURE=off` disables persistence. `MB_AUTO_CAPTURE` controls the legacy
+  progress stub, which Codex does not create. Existing banks only; POSIX/WSL capture.
+- Recall/recent consume the records. Existing Claude `/mb recap` looks up legacy
+  filenames and replaces a progress stub; it does not process Codex extractive parts.
+- Native execution requires trust; see [Codex native hooks](codex-native-hooks.md)
+  for privacy filters, schema limits, child behavior and the end deadline.
+
+### OpenCode / Cursor / Windsurf / others
+
+- Each agent has its own adapter via `adapters/<name>.sh` or `adapters/<name>.ts`.
+- Full parity requires session start context injection, turn-level capture and
+  session-end summarization (best-effort); check each host's installed transport.
 
 ## Recall subsystem
 

@@ -27,7 +27,7 @@ setup() {
   command -v jq >/dev/null || skip "jq required"
   command -v rsync >/dev/null || skip "rsync required"
   # MB_MANIFEST_PATH: the manifest must land in the SKILL_SRC copy (asserted below).
-  unset MB_WITH_EXTENSIONS MB_CLIENTS MB_LANGUAGE MB_MANIFEST_PATH
+  unset MB_WITH_EXTENSIONS MB_CLIENTS MB_LANGUAGE MB_MANIFEST_PATH CODEX_HOME
 
   FAKE_HOME="$(mktemp -d)"
   PROJECT="$(mktemp -d)"
@@ -333,272 +333,78 @@ run_install() {
   [[ "$output" == *"unknown --with-extensions host"* ]]
 }
 
-# ═══════════════════════════════════════════════════════════════
-# NFR-001 regression fixture: declined path stays byte-identical to the
-# pre-task install.sh + adapters/_lib_agents_md.sh (the only two files this
-# task touches for the install flow). Every other file in the working tree
-# may already carry unrelated concurrent WIP — reusing identical absolute
-# paths for BOTH runs (same SKILL_SRC/HOME/PROJECT path, repopulated between
-# runs, never regenerated) isolates the diff to exactly this task's delta,
-# AND means stdout needs no volatile-path normalization: nothing in either
-# run's stdout can legitimately differ, so it is compared byte-for-byte
-# with a plain `=`.
-#
-# Filesystem diff keeps two — and only two — EXACT deltas, verified per file
-# (not a regex-class exclusion that would wave through any other change to a
-# same-named file):
-#   - AGENTS.md: gains EXACTLY the host-parity nudge block (checked by
-#     reconstructing the expected post-fix content from the pre-fix content
-#     and requiring a byte match — not "any AGENTS.md diff").
-#   - *manifest*.json: may differ ONLY in `installed_at` / `extensions_installed`
-#     (checked via `jq -S 'del(...)'` equality — not "any manifest diff").
-# Any file present in only one tree, or differing in any other way, fails.
-# ═══════════════════════════════════════════════════════════════
-
-# Reconstructs the expected post-fix AGENTS.md from a pre-fix one by
-# inserting the EXACT host-parity nudge block _agents_md_section emits —
-# single source of truth so the NFR-001 assertion below is "this diff IS the
-# nudge block", not "this diff merely mentions AGENTS.md".
-_nfr001_insert_nudge_block() {
-  awk '
-    /^## Dynamic-flow firewall \(completion gate\)$/ && !done {
-      print "## Host parity extensions (Pi/OpenCode)"
-      print ""
-      print "On a bare Pi or OpenCode host (no parity extensions installed yet), suggest running `install.sh --with-extensions=pi,opencode` once per session, then stay silent once installed."
-      print ""
-      done = 1
-    }
-    { print }
-  ' "$1"
-}
-
-# drive-loop Task 2 (REQ-DR-003/030/031) adds a second EXACT block to the
-# shared section: the drive loop-contract. Same single-source-of-truth
-# treatment as the nudge above — the NFR-001 assertion stays "this diff IS
-# the nudge block plus the drive block", never "any AGENTS.md diff".
-# Written with a quoted heredoc rather than awk because the block contains
-# literal single quotes (`the pipeline's implement role-agent`).
-_nfr001_drive_block() {
-  cat <<'DRIVEBLOCK'
-## drive-loop contract (autonomous goal-driven runs)
-
-When `/mb drive` is running, YOU are the runtime — there is no daemon. `scripts/mb-drive.sh` is a stateless decision function: it prints ONE next action and exits. Call it, execute that action, then call it again.
-
-- Loop: `scripts/mb-drive.sh next --bank <bank>` → execute the printed action → repeat, until the action starts with `stop_`.
-- Action grammar: `implement <route> <item>` | `repair <item>` | `pivot <in_role|via_architect> <item>` | `stop_success` | `stop_human <why>` | `stop_budget`.
-- Dispatch is RESOLVED, never guessed: the tiers live in `pipeline.yaml` under `roles:` (locate the resolved file with `scripts/mb-pipeline.sh path`) — read the `roles:` entry for the step and pass its exact `agent`/`model`/`thinking`. `implement`/`repair`/`pivot` → the pipeline's implement role-agent; review → the pipeline's external codex reviewer; judge → the pipeline's judge role (it terminates the review loop). Never a fuzzy model name, and never a tier hardcoded here.
-- NEVER self-certify done. `stop_success` is the only done signal, and it requires `scripts/mb-flow-verify.sh` exit 0 AND `scripts/mb-goal-acceptance.sh` acceptance 100% — your own assessment that the work looks complete is not a stop condition.
-- No resolvable `.memory-bank/goal.md` → `/mb drive` refuses with exit 1 and a `scripts/mb-goal-validate.sh` fix-hint. Fix the goal; never start the loop anyway.
-- A killed run resumes for free: all state lives in files (`goal.md`, the `mb-flow` fence, `scripts/mb-work-state.sh`). Re-run the preflight and call `next` again.
-DRIVEBLOCK
-}
-
-# Inserts the drive block immediately before the section's first `---`
-# separator (the one preceding `## Global Rules`), matching where
-# _agents_md_section emits it.
-# Idempotent by construction: the baseline is HEAD, and HEAD MOVES. Before the
-# drive-loop commit the block was working-tree-only and had to be inserted here;
-# once that work is committed the baseline already carries it, and inserting a
-# second copy would fabricate a delta that never existed. Keying on the block's
-# own heading makes this reconstruction correct on both sides of that commit
-# instead of expiring the moment the branch lands.
-_nfr001_insert_drive_block() {
-  if grep -qF '## drive-loop contract (autonomous goal-driven runs)' "$1"; then
-    cat "$1"
-    return 0
-  fi
-  local inserted=0 line
-  while IFS= read -r line; do
-    if [ "$inserted" -eq 0 ] && [ "$line" = "---" ]; then
-      _nfr001_drive_block
-      echo ''
-      inserted=1
-    fi
-    printf '%s\n' "$line"
-  done < "$1"
-}
-
-# The full pre-task → post-task reconstruction.
-#
-# The nudge is NOT re-inserted here: HEAD (the baseline) already emits it, so
-# it is present in BOTH snapshots — re-inserting would fabricate a duplicate.
-# `_nfr001_insert_nudge_block` above is kept as the executable record of the
-# original pre-nudge baseline (see the NOTE in the test body); it becomes live
-# again only if a future task moves the baseline back before the nudge.
-# The drive block IS inserted: it lands in the working tree but not in HEAD.
-#
-# The leading blank run is stripped for the same reason. On a file owned by
-# two adapters the second install takes the replace branch, which under HEAD
-# prepended one blank line per re-install (unbounded growth). Task 2 makes
-# that branch idempotent, so the post-task file no longer opens with a blank
-# line. Modelling it here keeps the assertion exact instead of loosening it:
-# a correct AGENTS.md never legitimately starts blank.
-_nfr001_expected_agents_md() {
-  local tmp_stripped
-  tmp_stripped="$(mktemp)"
-  awk 'NF { started = 1 } started { print }' "$1" > "$tmp_stripped"
-  _nfr001_insert_drive_block "$tmp_stripped"
-  rm -f "$tmp_stripped"
-}
-
-# $1 = old snapshot dir, $2 = new (live) dir. Every relative path must exist
-# in both, byte-identical, EXCEPT the two named deltas above — verified
-# individually per differing file, not filtered out by a broad pattern.
+# NFR-001: equivalent ways to skip extensions produce identical installations.
+# Compare the current installer against itself, independent of unrelated HEAD changes.
 _nfr001_assert_exact_tree_delta() {
-  local old_dir="$1" new_dir="$2"
-  local old_list new_list
-  old_list="$(cd "$old_dir" && find . -type f | sort)"
-  new_list="$(cd "$new_dir" && find . -type f | sort)"
+  local old_dir="$1" new_dir="$2" old_list new_list rel of nf
+  old_list="$(cd "$old_dir" && find . \( -type f -o -type l \) | sort)"
+  new_list="$(cd "$new_dir" && find . \( -type f -o -type l \) | sort)"
   if [ "$old_list" != "$new_list" ]; then
-    echo "file set changed under $old_dir vs $new_dir:" >&2
     diff <(printf '%s\n' "$old_list") <(printf '%s\n' "$new_list") >&2 || true
     return 1
   fi
-
-  local rel of nf base tmp_expected
   while IFS= read -r rel; do
-    [ -z "$rel" ] && continue
+    [ -n "$rel" ] || continue
     of="$old_dir/$rel"
     nf="$new_dir/$rel"
-    cmp -s "$of" "$nf" && continue   # byte-identical — nothing to verify
-
-    base="$(basename "$rel")"
-    case "$base" in
-      *manifest*.json)
-        if ! diff -q <(jq -S 'del(.installed_at, .extensions_installed)' "$of") \
-                      <(jq -S 'del(.installed_at, .extensions_installed)' "$nf") >/dev/null 2>&1; then
-          echo "manifest content differs beyond installed_at/extensions_installed: $rel" >&2
-          diff <(jq -S 'del(.installed_at, .extensions_installed)' "$of") \
-               <(jq -S 'del(.installed_at, .extensions_installed)' "$nf") >&2 || true
+    if [ -L "$of" ] || [ -L "$nf" ]; then
+      [ -L "$of" ] && [ -L "$nf" ] && [ "$(readlink "$of")" = "$(readlink "$nf")" ] || return 1
+    elif ! cmp -s "$of" "$nf"; then
+      case "$(basename "$rel")" in
+        *manifest*.json)
+          diff <(jq -S 'del(.installed_at)' "$of") <(jq -S 'del(.installed_at)' "$nf") || return 1
+          ;;
+        *)
+          echo "unexpected filesystem delta: $rel" >&2
+          diff "$of" "$nf" >&2 || true
           return 1
-        fi
-        ;;
-      AGENTS.md)
-        tmp_expected="$(mktemp)"
-        _nfr001_expected_agents_md "$of" > "$tmp_expected"
-        if ! diff -q "$tmp_expected" "$nf" >/dev/null 2>&1; then
-          echo "AGENTS.md delta is not EXACTLY the nudge + drive-loop blocks: $rel" >&2
-          diff "$tmp_expected" "$nf" >&2 || true
-          rm -f "$tmp_expected"
-          return 1
-        fi
-        rm -f "$tmp_expected"
-        ;;
-      *)
-        echo "unexpected filesystem delta outside the two named NFR-001 exceptions: $rel" >&2
-        diff "$of" "$nf" >&2 || true
-        return 1
-        ;;
-    esac
+          ;;
+      esac
+    fi
   done <<< "$old_list"
-
-  return 0
 }
 
-@test "extensions-offer: declined install is byte-identical to the pre-task install.sh (NFR-001)" {
-  git -C "$REPO_ROOT" cat-file -e HEAD:install.sh 2>/dev/null || skip "no git HEAD to diff against"
-  git -C "$REPO_ROOT" cat-file -e HEAD:adapters/_lib_agents_md.sh 2>/dev/null || skip "no git HEAD to diff against"
-
-  local old_home_snap old_project_snap old_stdout new_stdout
+_nfr001_compare_declined_installs() {
+  local clients="$1" old_home_snap old_project_snap old_stdout new_stdout
+  shift
   old_home_snap="$(mktemp -d)"
   old_project_snap="$(mktemp -d)"
   EXTRA_TMP_DIRS=("$old_home_snap" "$old_project_snap")
 
-  # --- OLD run: pre-task install.sh + _lib_agents_md.sh, everything else as-is ---
-  git -C "$REPO_ROOT" show HEAD:install.sh > "$SKILL_SRC/install.sh"
-  git -C "$REPO_ROOT" show HEAD:adapters/_lib_agents_md.sh > "$SKILL_SRC/adapters/_lib_agents_md.sh"
-  chmod +x "$SKILL_SRC/install.sh"
-
+  # No flag and no TTY is the baseline silent skip.
   old_stdout="$(HOME="$FAKE_HOME" MB_SKIP_DEPS_CHECK=1 bash "$INSTALL" \
-    --clients pi,opencode --project-root "$PROJECT" --non-interactive </dev/null 2>&1)"
-  [ "$?" -eq 0 ]
-
+    --clients "$clients" --project-root "$PROJECT" --language en </dev/null 2>&1)" \
+    || { printf '%s\n' "$old_stdout" >&2; return 1; }
+  jq -e '.extensions_installed == []' "$MANIFEST" >/dev/null
   rsync -a "$FAKE_HOME/" "$old_home_snap/"
   rsync -a "$PROJECT/" "$old_project_snap/"
 
-  # Reset HOME/PROJECT (SKILL_SRC/HOME/PROJECT paths stay the SAME absolute
-  # strings across both runs — only their contents are reset), restore the
-  # working-tree (post-task) install.sh/_lib_agents_md.sh.
+  # Keep absolute paths identical so no output or instruction normalization is needed.
   rm -rf "$FAKE_HOME" "$PROJECT"
   mkdir -p "$FAKE_HOME" "$PROJECT"
-  rsync -a "$REPO_ROOT/install.sh" "$SKILL_SRC/install.sh"
-  rsync -a "$REPO_ROOT/adapters/_lib_agents_md.sh" "$SKILL_SRC/adapters/_lib_agents_md.sh"
-
-  # --- NEW run: post-task install.sh + _lib_agents_md.sh, declined path ---
   new_stdout="$(HOME="$FAKE_HOME" MB_SKIP_DEPS_CHECK=1 bash "$INSTALL" \
-    --clients pi,opencode --project-root "$PROJECT" --non-interactive </dev/null 2>&1)"
-  [ "$?" -eq 0 ]
-
-  # Same absolute paths both runs → exact compare, no normalization needed.
+    --clients "$clients" --project-root "$PROJECT" --language en "$@" </dev/null 2>&1)" \
+    || { printf '%s\n' "$new_stdout" >&2; return 1; }
+  jq -e '.extensions_installed == []' "$MANIFEST" >/dev/null
   if [ "$old_stdout" != "$new_stdout" ]; then
     diff <(printf '%s\n' "$old_stdout") <(printf '%s\n' "$new_stdout") >&2 || true
-    echo "stdout diverged on the declined path — NFR-001 violated" >&2
     return 1
   fi
-
   _nfr001_assert_exact_tree_delta "$old_home_snap" "$FAKE_HOME"
   _nfr001_assert_exact_tree_delta "$old_project_snap" "$PROJECT"
-
-  # NOTE: this fixture uses HEAD:install.sh / HEAD:_lib_agents_md.sh as the
-  # "old" baseline. Once adapter-parity (T2) is COMMITTED, HEAD already carries
-  # the offer machinery, so the OLD and NEW declined-path outputs are identical
-  # by design — the test now guards "a later task (T3+) must not change the
-  # DECLINED path vs the last committed version", verified by the exact-tree-
-  # delta above (any drift → fail). We deliberately do NOT assert "the nudge
-  # delta happened" here (that was only meaningful against a pre-nudge
-  # baseline): nudge PRESENCE is covered by the dedicated tests
-  # "AGENTS.md managed block includes the nudge" / "pi-only ... carries the
-  # nudge" / "codex + pi ... keeps the nudge".
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Codex-only variant of the NFR-001 fixture: after the REQ-020 scoping fix,
-# a codex-only project's AGENTS.md carries no nudge at all — so unlike the
-# pi/opencode case above, it is byte-identical to the pre-task output too,
-# not merely excluded from the diff.
-# ═══════════════════════════════════════════════════════════════
+@test "extensions-offer: explicit non-interactive skip matches implicit declined install (NFR-001)" {
+  _nfr001_compare_declined_installs pi,opencode --non-interactive
+  [ ! -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts" ]
+  [ ! -f "$FAKE_HOME/.config/opencode/agent/mb-developer.md" ]
+  grep -q '^const MB_OC_PARITY_EXTENDED = false;' "$PROJECT/.opencode/plugins/memory-bank.js"
+}
 
-@test "extensions-offer: codex-only declined install's project AGENTS.md is byte-identical (NFR-001)" {
-  git -C "$REPO_ROOT" cat-file -e HEAD:install.sh 2>/dev/null || skip "no git HEAD to diff against"
-  git -C "$REPO_ROOT" cat-file -e HEAD:adapters/_lib_agents_md.sh 2>/dev/null || skip "no git HEAD to diff against"
-  git -C "$REPO_ROOT" cat-file -e HEAD:adapters/codex.sh 2>/dev/null || skip "no git HEAD to diff against"
-
-  local snap_dir old_agents_md new_agents_md old_stdout new_stdout
-  snap_dir="$(mktemp -d)"
-  EXTRA_TMP_DIRS=("$snap_dir")
-  old_agents_md="$snap_dir/old-AGENTS.md"
-  new_agents_md="$snap_dir/new-AGENTS.md"
-
-  git -C "$REPO_ROOT" show HEAD:install.sh > "$SKILL_SRC/install.sh"
-  git -C "$REPO_ROOT" show HEAD:adapters/_lib_agents_md.sh > "$SKILL_SRC/adapters/_lib_agents_md.sh"
-  git -C "$REPO_ROOT" show HEAD:adapters/codex.sh > "$SKILL_SRC/adapters/codex.sh"
-  chmod +x "$SKILL_SRC/install.sh"
-
-  old_stdout="$(HOME="$FAKE_HOME" MB_SKIP_DEPS_CHECK=1 bash "$INSTALL" \
-    --clients codex --project-root "$PROJECT" --non-interactive </dev/null 2>&1)"
-  [ "$?" -eq 0 ]
-  cp "$PROJECT/AGENTS.md" "$old_agents_md"
-
-  rm -rf "$FAKE_HOME" "$PROJECT"
-  mkdir -p "$FAKE_HOME" "$PROJECT"
-  rsync -a "$REPO_ROOT/install.sh" "$SKILL_SRC/install.sh"
-  rsync -a "$REPO_ROOT/adapters/_lib_agents_md.sh" "$SKILL_SRC/adapters/_lib_agents_md.sh"
-  rsync -a "$REPO_ROOT/adapters/codex.sh" "$SKILL_SRC/adapters/codex.sh"
-
-  new_stdout="$(HOME="$FAKE_HOME" MB_SKIP_DEPS_CHECK=1 bash "$INSTALL" \
-    --clients codex --project-root "$PROJECT" --non-interactive </dev/null 2>&1)"
-  [ "$?" -eq 0 ]
-  cp "$PROJECT/AGENTS.md" "$new_agents_md"
-
-  # Same absolute paths both runs → exact compare, no normalization needed.
-  [ "$old_stdout" = "$new_stdout" ]
-
-  # Still no nudge on a codex-only project, but drive-loop Task 2 adds the
-  # drive loop-contract to the shared block for every host — so the expected
-  # post-task content is the pre-task content plus EXACTLY that block.
-  local expected_agents_md
-  expected_agents_md="$snap_dir/expected-AGENTS.md"
-  _nfr001_insert_drive_block "$old_agents_md" > "$expected_agents_md"
-  ! grep -q 'Host parity extensions' "$new_agents_md"
-  diff -q "$expected_agents_md" "$new_agents_md"
+@test "extensions-offer: codex-only declined install ignores unrelated extension opt-in (NFR-001)" {
+  _nfr001_compare_declined_installs codex --non-interactive --with-extensions=pi,opencode
+  [ ! -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts" ]
+  [ ! -f "$FAKE_HOME/.config/opencode/agent/mb-developer.md" ]
+  run grep -q 'Host parity extensions' "$PROJECT/AGENTS.md"
+  [ "$status" -eq 1 ]
 }
