@@ -110,7 +110,7 @@ if not isinstance(sp, list) or not sp:
     sp = []
 
 valid_max_cycles = {"stop_for_human", "continue_with_warning", "judge_decides"}
-SEVERITY_KEYS = {"blocker", "major", "minor"}
+SEVERITY_KEYS = {"blocker", "major", "medium", "minor"}  # medium optional (AGR-097)
 ALLOWED_ROLE_NAMES = set(roles.keys()) | {"auto"}
 step_positions: dict[str, int] = {}
 
@@ -344,6 +344,11 @@ _adapt.validate(cfg, err)
 import mb_pipeline_validate_blocks as _blocks  # noqa: E402
 
 _blocks.run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS)
+
+# team (/mb team, AGR-097) — optional; schema shared with the team resolver.
+import mb_pipeline_validate_team as _team  # noqa: E402
+
+_team.validate(cfg.get("team"), err, text)
 
 # ── final ─────────────────────────────────────────────────────────
 if errors:

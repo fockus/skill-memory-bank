@@ -431,3 +431,68 @@ model_profiles:
   codex: {premium: gpt-6-astra, mid: gpt-6.1-sol}
   cursor: {premium: claude-opus-5-5, mid: claude-sonnet-5-5}
 # Per-host overrides, e.g. `hosts: {codex: {cost: economy, preset: complex, verify: stage}}`.
+
+# ===== /mb team — track pipelines of an orchestrator-led team (AGR-097) =====
+# Layers, later wins: presets[size] -> overrides -> init attrs -> track attrs ->
+# explicit prompt. A project block replaces presets size by size (key-wise) and
+# may add `overrides`, `rules`, `resources` and `checkpoint`. Nested block
+# mappings and scalar inline lists only: the stdlib fallback parser must agree
+# with PyYAML. Models take a slot (premium | mid), an exact id or inherit;
+# `models` sets roles (executor, verifier, reviewer, lead) and lenses (`lenses`
+# for all, `lens: {<name>: …}` per lens as a block mapping) separately.
+# `mode: work` runs the track source through /mb work: `work: orchestrated`
+# (the orchestrator drives the loop) or `work: light` (the track agent walks
+# the stages, the orchestrator runs verifier and review after).
+team:
+  default_size: standard
+  max_parallel: 6
+  presets:
+    trivial:
+      mode: direct
+      tdd: optional
+      verifier: none
+      review: none
+      models: {executor: mid}
+      effort: low
+    small:
+      mode: direct
+      tdd: required
+      verifier: none
+      review: none
+      models: {executor: mid}
+      effort: medium
+    standard:
+      mode: direct
+      tdd: required
+      verifier: plan-verifier
+      review: none
+      models: {executor: mid, verifier: mid}
+      effort: medium
+    large:
+      mode: work
+      work: orchestrated
+      tdd: required
+      verifier: plan-verifier
+      review: lenses
+      lenses: [logic, tests, code_rules, security, scalability]
+      models: {executor: premium, verifier: mid, lenses: premium, lead: premium}
+      effort: high
+    extra:
+      mode: work
+      work: orchestrated
+      tdd: required
+      verifier: plan-verifier
+      review: lenses
+      lenses: [logic, tests, code_rules, security, scalability]
+      models: {executor: premium, verifier: mid, lenses: premium, lead: premium}
+      effort: high
+  # Team review of the whole package: opt-in, the most expensive path.
+  # `medium` is an optional severity level (AGR-097); the bundled limit is 0.
+  review:
+    enabled: false
+    lenses: [logic, tests, code_rules, security, scalability]
+    clean_when: {blocker: 0, major: 0, medium: 0}
+    max_cycles: 5
+    models: {lenses: premium, lead: premium}
+  checkpoint:
+    max_untracked_mb: 512

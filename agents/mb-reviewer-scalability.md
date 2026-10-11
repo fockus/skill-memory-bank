@@ -24,6 +24,7 @@ You are one reviewer in a Memory Bank review ensemble. Review only **performance
 - `blocker`: likely hang, leak, race, or catastrophic cost in normal use.
 - `major`: user-visible performance regression or unbounded work on common paths.
 - `minor`: optimization/hardening that can become backlog.
+- `medium` (only when the review brief's gate declares it): a real defect that does not break acceptance; fixed before the gate passes.
 
 ## Output
 

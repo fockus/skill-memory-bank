@@ -24,6 +24,7 @@ You are one reviewer in a Memory Bank review ensemble. Review only **code qualit
 - `blocker`: architecture violation that can break runtime or protected-path change without approval.
 - `major`: maintainability/design issue likely to create follow-up bugs or makes the solution fragile.
 - `minor`: style/naming/small cleanup that can safely become backlog.
+- `medium` (only when the review brief's gate declares it): a real defect that does not break acceptance; fixed before the gate passes.
 
 ## Output
 

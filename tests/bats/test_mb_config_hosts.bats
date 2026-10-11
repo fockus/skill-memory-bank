@@ -19,7 +19,7 @@ setup() {
   BANK="$PROJ/.memory-bank"
   mkdir -p "$BANK" "$TMPROOT/home"
   # Keep a user-site PyYAML importable after HOME moves.
-  PYTHONUSERBASE="$(python3 -m site --user-base)"
+  PYTHONUSERBASE="$(python3 -m site --user-base || true)"
   export PYTHONUSERBASE
   export HOME="$TMPROOT/home"
   unset XDG_CONFIG_HOME OPENCODE_CONFIG OPENCODE_CONFIG_CONTENT MB_PATH MB_PIPELINE \

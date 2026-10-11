@@ -212,6 +212,32 @@ EOF
   [ -f "$HOME/.pi/agent/skills/memory-bank/hooks/session-end-autosave.sh" ]
 }
 
+@test "install: ships the /mb team bundle; uninstall removes it" {
+  bash "$REPO_ROOT/install.sh" >/dev/null
+
+  skill="$HOME/.claude/skills/memory-bank"
+  for s in mb-team.sh mb-team-review.sh mb-team-checkpoint.sh mb-lock.sh mb_vcs.sh; do
+    [ -x "$skill/scripts/$s" ]
+  done
+  for m in mb_team_config mb_team_ops mb_team_pipeline mb_team_render mb_team_review \
+    mb_team_review_core mb_team_review_external mb_team_state mb_team_status mb_team_tracks \
+    mb_team_vocab mb_lock_queue mb_lock_resource mb_pipeline_validate_team mb_work_light; do
+    [ -f "$skill/scripts/$m.py" ]
+  done
+  for t in brief track-prompt external-review; do
+    [ -f "$skill/templates/team/$t.md" ]
+  done
+  [ -f "$HOME/.claude/commands/team.md" ]
+  [ -f "$HOME/.codex/prompts/team.md" ]
+
+  bash "$REPO_ROOT/uninstall.sh" -y >/dev/null
+  [ ! -e "$skill/scripts/mb-team.sh" ]
+  [ ! -e "$skill/scripts/mb-lock.sh" ]
+  [ ! -e "$skill/templates/team/brief.md" ]
+  [ ! -e "$HOME/.claude/commands/team.md" ]
+  [ ! -e "$HOME/.codex/prompts/team.md" ]
+}
+
 @test "install: Claude and Codex aliases resolve to canonical skill path" {
   bash "$REPO_ROOT/install.sh" >/dev/null
 

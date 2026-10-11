@@ -1,0 +1,67 @@
+# Golden team block: copy of specs/mb-team/examples.md section 1.
+team:
+  default_size: standard
+  max_parallel: 6
+
+  # Size → track pipeline. This table IS the project default (AGR-148 layer 1).
+  # Omitted sizes fall back to the bundled presets in references/pipeline.default.yaml.
+  presets:
+    small:
+      mode: direct
+      tdd: required
+      verifier: none
+      review: none
+      models: {executor: mid}
+      effort: medium
+    standard:
+      mode: direct
+      tdd: required
+      verifier: none            # AGR-147 in this project: quality comes from the team lens review
+      review: none
+      models: {executor: mid}
+      effort: medium
+    large:
+      mode: direct
+      tdd: required
+      verifier: none
+      review: single
+      models: {executor: premium, reviewer: premium}
+      effort: high
+
+  # Forced on every track whatever its size (applied after the preset).
+  overrides:
+    tdd: required
+
+  # Project rules rendered into every brief, after the built-in rules.
+  rules:
+    - "Go code: gofmt and go vet clean before you report."
+    - "Dockerfile and Helm are not edited; environment goes into the client code."
+    - "Do not run find or du over the whole home directory."
+
+  review:
+    enabled: true             # opt-in; bundled default is false
+    lenses: [logic, security, tests, scalability, quality]
+    clean_when: {blocker: 0, major: 0, medium: 0}
+    max_cycles: 5
+    models: {lenses: premium, lead: premium}
+
+  resources:
+    build:
+      kind: mutex
+      scope: host               # one native build per machine, across trees and banks
+      preconditions:
+        free_disk_gb: 25
+        disk_path: /System/Volumes/Data
+        check: "test -x ./ya"
+      stop_threshold:
+        free_disk_gb: 12
+      maintenance: "./ya gc cache"
+      watch_interval_s: 30
+    full-tests:
+      kind: mutex
+      scope: bank               # the repository's full suite flakes under parallel load (I-223)
+
+  checkpoint:
+    dir: ../.local-stand/backups
+    max_untracked_mb: 512
+    extra: "bash .local-stand/r-work/vm_snapshot.sh"

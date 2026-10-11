@@ -273,3 +273,59 @@ EOF
   assert_substring "$output" 'board: 1 entries'
   assert_substring "$output" 'first ever entry'
 }
+
+# --- track-aware board (BLOCKED / COMMIT / --track / tracks --json) ---------
+
+@test "append --track writes '<ID>: <title>' in the heading" {
+  run bash "$SCRIPT" append --mb "$BANK" --track D3 --type STATUS --title "disk 12 GiB"
+  [ "$status" -eq 0 ]
+  grep -qE '^## STATUS · [0-9-]+ · D3: disk 12 GiB$' "$BOARD"
+}
+
+@test "append rejects an invalid track id" {
+  run bash "$SCRIPT" append --mb "$BANK" --track 'bad id!' --type STATUS --title t
+  [ "$status" -eq 1 ]
+  [ ! -f "$BOARD" ]
+}
+
+@test "BLOCKED is listed by active until an ACK with the same scope" {
+  bash "$SCRIPT" append --mb "$BANK" --track D3 --type BLOCKED --title "disk short"
+  run bash "$SCRIPT" active --mb "$BANK" --tail 0
+  [[ "$output" == *"BLOCKED (no ACK): 1"* ]] || false
+  [[ "$output" == *"D3: disk short"* ]] || false
+  bash "$SCRIPT" append --mb "$BANK" --track D3 --type ACK --title "disk short"
+  run bash "$SCRIPT" active --mb "$BANK" --tail 0
+  [[ "$output" == *"BLOCKED (no ACK): 0"* ]]
+}
+
+@test "COMMIT is accepted and never listed as open" {
+  run bash "$SCRIPT" append --mb "$BANK" --type COMMIT --title "ba6a8066"
+  [ "$status" -eq 0 ]
+  run bash "$SCRIPT" active --mb "$BANK" --tail 0
+  [[ "$output" == *"BLOCKED (no ACK): 0"* ]]
+}
+
+@test "tracks --json reports latest entry per track and ignores legacy entries" {
+  printf '# COORDINATION\n\n## some legacy untagged heading\nbody\n\n## STATUS · 2026-09-09 · main · filler\nx\n' > "$BOARD"
+  bash "$SCRIPT" append --mb "$BANK" --track A --type STATUS --title "started"
+  bash "$SCRIPT" append --mb "$BANK" --track D3 --type BLOCKED --title "disk short"
+  bash "$SCRIPT" append --mb "$BANK" --track A --type HANDOVER --title "contract change"
+  run bash "$SCRIPT" tracks --mb "$BANK" --json
+  [ "$status" -eq 0 ]
+  echo "$output" | python3 -c '
+import json,sys
+d=json.load(sys.stdin)
+assert sorted(d["tracks"])==["A","D3"], d["tracks"]
+assert d["tracks"]["A"]["type"]=="HANDOVER" and d["tracks"]["A"]["open"] is True
+assert d["tracks"]["A"]["title"]=="contract change"
+assert d["tracks"]["D3"]["type"]=="BLOCKED" and d["tracks"]["D3"]["open"] is True
+assert len(d["open_blocked"])==1 and d["open_blocked"][0]["track"]=="D3"
+assert len(d["open_handover"])==1 and d["open_handover"][0]["track"]=="A"
+'
+}
+
+@test "tracks --json on a missing board is an empty document" {
+  run bash "$SCRIPT" tracks --mb "$BANK" --json
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"tracks":{},"open_blocked":[],"open_handover":[]}' ]
+}

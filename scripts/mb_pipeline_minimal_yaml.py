@@ -101,7 +101,8 @@ def _parse_entries(entries: list[tuple[int, str]], pos: int, indent: int):
         while pos < len(entries) and entries[pos][0] == indent and entries[pos][1].startswith("- "):
             body = entries[pos][1][2:].strip()
             key, sep, value = body.partition(":")
-            if sep and not body.startswith(("[", "{")):
+            # A quoted scalar may contain ':' ("Go code: gofmt …") — not a mapping.
+            if sep and not body.startswith(("[", "{", '"', "'")):
                 # `- key: value` starts a mapping item at the bullet's own level.
                 item = {key.strip(): parse_value(value)} if value.strip() else {}
                 pos += 1
@@ -270,6 +271,7 @@ def minimal_pipeline_load(text: str) -> dict:
         "cost_tiers", "model_profiles", "hosts", "discipline",
         "agents",
         "aliases",
+        "team",
     ):
         _value = parse_nested_block(lines, _name)
         if _value is not None:

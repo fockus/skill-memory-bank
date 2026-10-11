@@ -4,8 +4,9 @@
 #
 # Usage:
 #   mb-coord.sh active [--tail N] [--mb <path>]
-#   mb-coord.sh append --type <FREEZE|LIFT|HANDOVER|ACK|STATUS> --title <t>
-#                      [--body-file <f>] [--mb <path>]
+#   mb-coord.sh append --type <FREEZE|LIFT|HANDOVER|ACK|STATUS|BLOCKED|COMMIT> --title <t>
+#                      [--track <id>] [--body-file <f>] [--mb <path>]
+#   mb-coord.sh tracks --json [--mb <path>]
 #
 # Why: `<bank>/COORDINATION.md` is append-only and grows without bound (200 KB /
 # 2000 lines in this repo). Every agent was told to "read the board" before
@@ -21,7 +22,10 @@
 #
 #   ## <TYPE> · YYYY-MM-DD · <scope/title>
 #
-# TYPE ∈ FREEZE | LIFT | HANDOVER | ACK | STATUS. `scope` is the text after the
+# TYPE ∈ FREEZE | LIFT | HANDOVER | ACK | STATUS | BLOCKED | COMMIT. BLOCKED is
+# cancelled by a later ACK with the same scope; COMMIT is informational.
+# `append --track D3` prefixes the title with `D3: `; `tracks --json` attributes
+# entries by that prefix (legacy entries without it are ignored). `scope` is the text after the
 # LAST `·`; a LIFT cancels an EARLIER freeze with the same scope, an ACK cancels
 # an earlier HANDOVER with the same scope.
 #
@@ -54,7 +58,7 @@ LOCK_TIMEOUT="${MB_COORD_LOCK_TIMEOUT:-10}"
 LOCK_TTL="${MB_COORD_LOCK_TTL:-120}"
 
 usage() {
-  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//' >&2
+  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//' >&2
 }
 
 die() {
@@ -161,7 +165,7 @@ raw = open(board, "rb").read()
 text = raw.decode("utf-8", "replace")
 lines = text.splitlines()
 
-TAG_RE = re.compile(r"^##\s+(FREEZE|LIFT|HANDOVER|ACK|STATUS)\s+·\s*(.*)$")
+TAG_RE = re.compile(r"^##\s+(FREEZE|LIFT|HANDOVER|ACK|STATUS|BLOCKED|COMMIT)\s+·\s*(.*)$")
 FREEZE_MARKER_RE = re.compile(r"FREEZE REQUEST|⚠️\s*FREEZE")
 
 entries = []
@@ -210,6 +214,7 @@ for e in entries:
         freezes.append(("tagged", e))
 
 handovers = [e for e in entries if e["type"] == "HANDOVER" and not cancelled(e, "ACK")]
+blocked = [e for e in entries if e["type"] == "BLOCKED" and not cancelled(e, "ACK")]
 
 out = []
 out.append("FREEZE (active): %d" % len(freezes))
@@ -222,6 +227,11 @@ for kind, e in freezes:
 out.append("")
 out.append("HANDOVER (no ACK): %d" % len(handovers))
 for e in handovers:
+    out.append("- %s" % clip(e["heading"].lstrip("# ")))
+
+out.append("")
+out.append("BLOCKED (no ACK): %d" % len(blocked))
+for e in blocked:
     out.append("- %s" % clip(e["heading"].lstrip("# ")))
 
 if tail_n > 0 and entries:
@@ -240,9 +250,17 @@ PY
 }
 
 cmd_append() {
-  local type="" title="" body_file="" mb_arg=""
+  local type="" title="" body_file="" mb_arg="" track=""
   while [ $# -gt 0 ]; do
     case "$1" in
+      --track)
+        track="${2:-}"
+        shift 2
+        ;;
+      --track=*)
+        track="${1#--track=}"
+        shift
+        ;;
       --type)
         type="${2:-}"
         shift 2
@@ -280,10 +298,14 @@ cmd_append() {
   done
 
   case "$type" in
-    FREEZE | LIFT | HANDOVER | ACK | STATUS) : ;;
-    *) die "--type must be one of FREEZE|LIFT|HANDOVER|ACK|STATUS, got: '$type'" ;;
+    FREEZE | LIFT | HANDOVER | ACK | STATUS | BLOCKED | COMMIT) : ;;
+    *) die "--type must be one of FREEZE|LIFT|HANDOVER|ACK|STATUS|BLOCKED|COMMIT, got: '$type'" ;;
   esac
   [ -n "$title" ] || die "--title is required and must be non-empty"
+  if [ -n "$track" ]; then
+    [[ "$track" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$ ]] || die "--track must match [A-Za-z0-9][A-Za-z0-9_-]{0,31}, got: '$track'"
+    title="$track: $title"
+  fi
 
   local body=""
   if [ -n "$body_file" ]; then
@@ -343,6 +365,72 @@ cmd_append() {
   }
 }
 
+cmd_tracks() {
+  local mb_arg=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --json) shift ;;
+      --mb)
+        mb_arg="${2:-}"
+        shift 2
+        ;;
+      --mb=*)
+        mb_arg="${1#--mb=}"
+        shift
+        ;;
+      *) die "unknown arg for tracks: $1" ;;
+    esac
+  done
+  local bank
+  bank="$(mb_resolve_path "$mb_arg")"
+  MB_COORD_BOARD="$bank/COORDINATION.md" python3 - <<'PY'
+import json
+import os
+import re
+
+TAG_RE = re.compile(r"^##\s+(FREEZE|LIFT|HANDOVER|ACK|STATUS|BLOCKED|COMMIT)\s+·\s*(.*)$")
+TRACK_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_-]{0,31}):\s*(.*)$")
+
+entries = []
+board = os.environ["MB_COORD_BOARD"]
+if os.path.isfile(board):
+    with open(board, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            m = TAG_RE.match(line.rstrip("\n"))
+            if not m:
+                continue
+            parts = [p.strip() for p in m.group(2).split("·")]
+            scope = parts[-1]
+            tm = TRACK_RE.match(scope)
+            entries.append({
+                "type": m.group(1),
+                "date": parts[0] if len(parts) > 1 else "",
+                "scope": scope.casefold(),
+                "track": tm.group(1) if tm else None,
+                "title": tm.group(2) if tm else scope,
+            })
+
+for i, e in enumerate(entries):
+    canceller = {"BLOCKED": "ACK", "HANDOVER": "ACK"}.get(e["type"])
+    e["open"] = bool(canceller) and not any(
+        o["type"] == canceller and o["scope"] == e["scope"] for o in entries[i + 1:]
+    )
+
+tracks = {}
+for e in entries:
+    if e["track"]:
+        tracks[e["track"]] = {k: e[k] for k in ("type", "date", "title", "open")}
+
+
+def opened(kind):
+    return [{k: e[k] for k in ("track", "date", "title")} for e in entries if e["type"] == kind and e["open"]]
+
+
+print(json.dumps({"tracks": tracks, "open_blocked": opened("BLOCKED"), "open_handover": opened("HANDOVER")},
+                 separators=(",", ":"), ensure_ascii=False))
+PY
+}
+
 main() {
   [ $# -gt 0 ] || {
     usage
@@ -353,6 +441,7 @@ main() {
   case "$sub" in
     active) cmd_active "$@" ;;
     append) cmd_append "$@" ;;
+    tracks) cmd_tracks "$@" ;;
     -h | --help)
       usage
       exit 0

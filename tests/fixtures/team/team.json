@@ -1,0 +1,54 @@
+{
+  "schema": 1, "topic": "sso-20261010", "title": "Corporate SSO on-prem", "created": "2026-10-10T09:12:00Z",
+  "goal": "G-002", "plan": "plans/2026-10-09_feature_onprem-corporate-sso.md",
+  "tree": "/Users/me/arcadia-int", "mirror": "/Users/me/arcadia3", "vcs": "arc",
+  "baseline": "133e077c0755559b750221e967317f623e049c5f",
+  "brief": "reports/sso-20261010/brief.md", "max_parallel": 6, "budget_run_id": null,
+  "known_red": [{"id": "library/harness TestRace", "reason": "trunk data race", "since": "2026-10-09"}],
+  "known_open": ["YDB recipe timeouts on Mac (environment)"],
+  "tracks": [
+    {
+      "id": "K", "title": "realm, mappers, service client in the kit",
+      "task": "The delivery kit creates the realm, the `harness_uid` mapper and the confidential service client `harness-admin-users`.",
+      "dod": ["A fresh kit install creates the realm with the mapper and the service client; a test proves it."],
+      "role": "devops", "agent": "mb-devops", "size": "standard", "source": null,
+      "files": ["bundle/**"], "deps": [], "resources": ["build"],
+      "pipeline": {"size": "standard", "mode": "direct", "work": null, "tdd": "required", "verifier": "none", "review": "none",
+                   "lenses": [], "effort": "medium", "models": {"executor": "sonnet"}},
+      "provenance": {"mode": "preset:standard"},
+      "prompt": "reports/sso-20261010/tracks/K.prompt.md", "report": "reports/sso-20261010/K.md",
+      "status": "planned", "run_id": null, "fix_cycle": 0, "collected": false,
+      "dispatched_at": null, "returned_at": null, "summary": null
+    },
+    {
+      "id": "A", "title": "admin: users page, roles, secret file",
+      "task": "The admin users page lists Keycloak users of the delivery realm and assigns only `harness-user` and `harness-admin`\nthrough the service client `harness-admin-users`, reading its secret from `KEYCLOAK_USERS_CLIENT_SECRET_FILE`.",
+      "dod": ["Assigning `harness-session-auditor` from the page is refused with 403 and a test proves it.",
+              "A missing or group-readable secret file stops the admin at start with a clear error; tests cover both.",
+              "Build and tests of the touched packages are green under `mb-lock.sh run build`."],
+      "role": "backend", "agent": "mb-backend", "size": "large", "source": null,
+      "files": ["neuroexpert/backend/harness-admin/**", "neuroexpert/frontend/admin/src/pages/users/**"],
+      "deps": ["K"], "resources": ["build"],
+      "pipeline": {"size": "large", "mode": "direct", "work": null, "tdd": "required", "verifier": "none", "review": "single",
+                   "lenses": [], "effort": "high", "models": {"executor": "opus", "reviewer": "opus"}},
+      "provenance": {"mode": "prompt", "review": "prompt"},
+      "prompt": "reports/sso-20261010/tracks/A.prompt.md", "report": "reports/sso-20261010/A.md",
+      "status": "planned", "run_id": null, "fix_cycle": 0, "collected": false,
+      "dispatched_at": null, "returned_at": null, "summary": null
+    },
+    {
+      "id": "C", "title": "Core: user resolution order, 403 rules",
+      "task": "Core resolves the user by explicit binding, then by `harness_uid` with role `harness-user`, otherwise answers 403.",
+      "dod": ["Each resolution branch and the 403 case have a test."],
+      "role": "backend", "agent": "mb-backend", "size": "small", "source": null,
+      "files": ["neuroexpert/backend/core/auth/**"], "deps": [], "resources": [],
+      "pipeline": {"size": "small", "mode": "direct", "work": null, "tdd": "required", "verifier": "none", "review": "none",
+                   "lenses": [], "effort": "medium", "models": {"executor": "sonnet"}},
+      "provenance": {"mode": "preset:small"},
+      "prompt": "reports/sso-20261010/tracks/C.prompt.md", "report": "reports/sso-20261010/C.md",
+      "status": "planned", "run_id": null, "fix_cycle": 0, "collected": false,
+      "dispatched_at": null, "returned_at": null, "summary": null
+    }
+  ],
+  "reviews": [], "checkpoints": [], "commits": []
+}

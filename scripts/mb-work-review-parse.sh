@@ -12,7 +12,7 @@
 #     "verdict": "APPROVED" | "CHANGES_REQUESTED",
 #     "counts": {"blocker": int, "major": int, "minor": int},   # all >= 0
 #     "issues": [
-#       {"severity": "blocker|major|minor",
+#       {"severity": "blocker|major|minor",   # or "medium" (optional level)
 #        "category": "...",
 #        "file": "...",
 #        "line": int,
@@ -20,6 +20,10 @@
 #        "fix": "..."}    # optional
 #     ]
 #   }
+#
+# `medium` is optional (AGR-097): a report that uses it (a counts.medium key
+# or a medium issue) gets counts.medium in the output; a report without it is
+# normalized exactly as before, with no medium key.
 #
 # Cross-checks:
 #   - verdict == CHANGES_REQUESTED requires len(issues) > 0
@@ -36,7 +40,7 @@
 #     "issues":[]}, exit 0 — the parser never fabricates a verdict for a
 #     skipped review.
 #   - issue schema mapping: description->message, recommendation->fix,
-#     severity "info" (or any value outside blocker|major|minor)->"minor",
+#     severity "info" (or any value outside blocker|major|medium|minor)->"minor",
 #     missing/invalid line->0.
 #   - counts are always recomputed from the normalized issues — a cross-model
 #     reviewer's self-reported counts are never trusted.
@@ -73,7 +77,7 @@ while [ "$#" -gt 0 ]; do
     --lenient) LENIENT=1; shift ;;
     --external) EXTERNAL=1; shift ;;
     --require-tests-blocker) REQUIRE_TESTS_BLOCKER=1; shift ;;
-    -h|--help) sed -n '2,64p' "$0" >&2; exit 0 ;;
+    -h|--help) sed -n '2,68p' "$0" >&2; exit 0 ;;
     *) echo "[review-parse] unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
@@ -102,6 +106,18 @@ AUTO_TESTS_BLOCKER_MESSAGE = (
 )
 
 
+SEVERITIES = ("blocker", "major", "medium", "minor")
+
+
+def zero_counts(with_medium: bool) -> dict:
+    return {k: 0 for k in SEVERITIES if with_medium or k != "medium"}
+
+
+def uses_medium(counts, issues) -> bool:
+    return (isinstance(counts, dict) and "medium" in counts) or any(
+        isinstance(i, dict) and i.get("severity") == "medium" for i in issues)
+
+
 def fail(msg: str) -> None:
     sys.stderr.write(f"[review-parse] {msg}\n")
     sys.exit(1)
@@ -112,8 +128,8 @@ def parse_markdown(s: str) -> dict | None:
     if not m_v:
         return None
     verdict = m_v.group(1)
-    counts = {"blocker": 0, "major": 0, "minor": 0}
     m_c = re.search(r"counts\s*:\s*\{([^}]*)\}", s)
+    counts = zero_counts(bool(m_c and re.search(r"medium\s*:", m_c.group(1))))
     if m_c:
         for k in counts:
             mm = re.search(rf"{k}\s*:\s*(\d+)", m_c.group(1))
@@ -199,7 +215,7 @@ if external:
         if not isinstance(raw, dict):
             fail(f"issues[{idx}]: must be an object")
         sev = raw.get("severity")
-        if sev not in ("blocker", "major", "minor"):
+        if sev not in SEVERITIES:
             sev = "minor"
         message = raw.get("message") or raw.get("description") or ""
         line = raw.get("line")
@@ -217,7 +233,7 @@ if external:
             item["fix"] = fix
         normalized_issues.append(item)
 
-    normalized_counts = {"blocker": 0, "major": 0, "minor": 0}
+    normalized_counts = zero_counts(uses_medium(None, normalized_issues))
     for item in normalized_issues:
         normalized_counts[item["severity"]] += 1
 
@@ -235,8 +251,9 @@ else:
     if not isinstance(counts, dict):
         fail("counts: must be an object")
 
-    normalized_counts = {"blocker": 0, "major": 0, "minor": 0}
-    for k in ("blocker", "major", "minor"):
+    with_medium = uses_medium(counts, issues)
+    normalized_counts = zero_counts(with_medium)
+    for k in normalized_counts:
         if k in counts:
             v = counts[k]
             if not isinstance(v, int) or isinstance(v, bool) or v < 0:
@@ -247,8 +264,8 @@ else:
         if not isinstance(raw, dict):
             fail(f"issues[{idx}]: must be an object")
         sev = raw.get("severity")
-        if sev not in ("blocker", "major", "minor"):
-            fail(f"issues[{idx}].severity: must be blocker|major|minor (got {sev!r})")
+        if sev not in SEVERITIES:
+            fail(f"issues[{idx}].severity: must be blocker|major|medium|minor (got {sev!r})")
         for required in ("category", "file", "message"):
             if not raw.get(required):
                 fail(f"issues[{idx}].{required}: required, missing or empty")
@@ -290,7 +307,7 @@ else:
         # (same technique --external already always applies) closes the whole
         # count-lie class. Only runs under the opt-in flag -- self-reported
         # counts stay authoritative without it, so REQ-105 byte-identity holds.
-        normalized_counts = {"blocker": 0, "major": 0, "minor": 0}
+        normalized_counts = zero_counts(with_medium)
         for item in normalized_issues:
             normalized_counts[item["severity"]] += 1
 

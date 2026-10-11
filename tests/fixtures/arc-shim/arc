@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Test shim for `arc`: answers the subset mb_vcs.sh uses, backed by git in the current directory.
+# Output shapes were probed against the real arc (see .memory-bank/reports/mb-team/D.md).
+case "$1" in
+  root) git rev-parse --show-toplevel ;;
+  rev-parse) shift; git rev-parse "$@" ;;
+  status) git status --short -uall ;;
+  diff) shift; args=(); for a in "$@"; do [ "$a" = --git ] || args+=("$a"); done; git diff "${args[@]}" ;;
+  show) shift; git show "$@" ;;
+  add|commit) git "$@" ;;
+  *) echo "arc-shim: unsupported: $*" >&2; exit 1 ;;
+esac

@@ -319,7 +319,7 @@ The agent reads these rules at session start and follows them without you having
 
 ### 3. Dev-workflow commands
 
-**34 top-level slash-commands** (live in `commands/`):
+**35 top-level slash-commands** (live in `commands/`):
 
 | Command | Purpose |
 |---------|---------|
@@ -333,6 +333,7 @@ The agent reads these rules at session start and follows them without you having
 | `/sdd` | Kiro-style spec triple → `specs/<topic>/{requirements,design,tasks}.md` |
 | `/work` | Execute plan/spec stages with role-agents; composable pipeline (`--review`/`--judge`/`--stages`, review **off by default**) |
 | `/drive` | Autonomous goal-driven loop over the deterministic firewall — drives `goal.md` to completion, `stop_success` requires a green firewall AND 100% acceptance |
+| `/team` | Run one task as parallel tracks in one shared tree — brief, per-track pipeline by size, fair resource locks, `next`-driven orchestrator loop, scoped y/N commit |
 | `/config` | Manage `pipeline.yaml` engine config (init / show / validate / path) |
 | `/pipeline` | Manage multiple named pipelines (`pipelines/<name>.yaml`) — different models + workflow, host auto-binding (list / new / use / show / path / validate) |
 | `/profile` | Manage rule profiles and stack presets (init / show / validate / set / path) |

@@ -25,6 +25,7 @@ You are one reviewer in a Memory Bank review ensemble. Review only **security, s
 - `blocker`: exploit/data loss/secret exposure/protected-path violation.
 - `major`: missing boundary validation or unsafe operational behavior.
 - `minor`: low-risk hardening or observability improvement that can become backlog.
+- `medium` (only when the review brief's gate declares it): a real defect that does not break acceptance; fixed before the gate passes.
 
 ## Output
 

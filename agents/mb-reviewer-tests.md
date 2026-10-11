@@ -25,6 +25,7 @@ You are one reviewer in a Memory Bank review ensemble. Review only **tests and v
 - `blocker`: tests fail, build fails, or no test exists for a required acceptance criterion.
 - `major`: test exists but misses the real runtime path or critical edge case.
 - `minor`: naming/organization issue that does not reduce coverage materially.
+- `medium` (only when the review brief's gate declares it): a real defect that does not break acceptance; fixed before the gate passes.
 
 ## Output
 

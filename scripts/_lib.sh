@@ -292,10 +292,13 @@ PY
 # Precedence (first match wins):
 #   1. explicit positional argument
 #   2. MB_PATH env override
-#   3. local <cwd>/.memory-bank/ directory
-#   4. global registry hit for MB_AGENT (only if MB_AGENT is set)
-#   5. legacy .claude-workspace `storage: external` pointer (backward compat)
-#   6. relative ".memory-bank" fallback
+#   3. cwd inside a bank: the nearest ancestor-or-self dir named .memory-bank
+#      that holds a core file (status.md, progress.md, ...), so a run from
+#      inside the bank never creates a nested .memory-bank
+#   4. local <cwd>/.memory-bank/ directory
+#   5. global registry hit for MB_AGENT (only if MB_AGENT is set)
+#   6. legacy .claude-workspace `storage: external` pointer (backward compat)
+#   7. relative ".memory-bank" fallback
 mb_resolve_path() {
   if [ -n "${1:-}" ]; then
     printf '%s\n' "$1"
@@ -306,6 +309,21 @@ mb_resolve_path() {
     printf '%s\n' "$MB_PATH"
     return 0
   fi
+
+  # Inside a bank (cwd is it or a subdir): return that bank, never a nested
+  # relative ".memory-bank" below it.
+  local _d="$PWD" _f
+  while [ "$_d" != "/" ] && [ -n "$_d" ]; do
+    if [ "${_d##*/}" = ".memory-bank" ]; then
+      for _f in status.md progress.md checklist.md roadmap.md COORDINATION.md; do
+        if [ -f "$_d/$_f" ]; then
+          printf '%s\n' "$_d"
+          return 0
+        fi
+      done
+    fi
+    _d="${_d%/*}"
+  done
 
   if [ -d ".memory-bank" ]; then
     printf '%s\n' ".memory-bank"

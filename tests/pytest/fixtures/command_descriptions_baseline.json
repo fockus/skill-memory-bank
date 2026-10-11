@@ -32,5 +32,6 @@
   "start.md": "Load current project context from memory-bank",
   "test.md": "Run tests, analyze failures, and propose fixes",
   "traceability-gen.md": "Regenerate traceability.md from specs + plans + tests",
-  "work.md": "Execute Memory Bank workflow modes from pipeline.yaml — existing plan/spec execution by default, optional full-cycle requirements→plan→implementation→review flows."
+  "work.md": "Execute Memory Bank workflow modes from pipeline.yaml — existing plan/spec execution by default, optional full-cycle requirements→plan→implementation→review flows.",
+  "team.md": "Runs parallel tracks of one task in a shared tree"
 }

@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — `/mb team`: parallel tracks in one tree
+
+- `/mb team` (`commands/team.md`, `scripts/mb-team.sh`) runs one task as parallel tracks: brief, per-track pipeline
+  by size with provenance, a stateless `next` loop, team review cycles, checkpoints and a scoped y/N commit (no push).
+- `scripts/mb-lock.sh` serializes shared heavy commands with a fair FIFO queue, disk preconditions and a stop threshold.
+
 ### Fixed — scripts run directly from a pipx/pip install find the right Python
 
 - Helper scripts run without the CLI (as agents do) no longer fail with `ModuleNotFoundError: memory_bank_skill`

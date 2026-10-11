@@ -395,3 +395,22 @@ def test_core_package_unimportable_with_pyyaml_degrades_to_minimal_loader(tmp_pa
     )
     assert "NameError" not in proc.stderr
     assert proc.returncode == 0, proc.stderr
+
+
+_GATE = "  severity_gate:\n    blocker: 0\n    major: 0\n    minor: 3\n"
+
+
+@pytest.mark.parametrize(
+    ("gate", "code"),
+    [("{blocker: 0, major: 0, medium: 0, minor: 3}", 0), ("{blocker: 0, critical: 0}", 1)],
+)
+def test_severity_gate_accepts_optional_medium(tmp_path: Path, gate: str, code: int) -> None:
+    """AGR-097: `medium` is an optional fourth level; an unknown level still fails."""
+    text = DEFAULT.read_text(encoding="utf-8")
+    assert _GATE in text
+    p = tmp_path / "pipeline.yaml"
+    p.write_text(text.replace(_GATE, f"  severity_gate: {gate}\n"), encoding="utf-8")
+    r = _run(p)
+    assert r.returncode == code, r.stderr
+    if code:
+        assert "critical" in r.stderr

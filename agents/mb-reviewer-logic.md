@@ -27,6 +27,7 @@ The orchestrator provides: plan/spec paths, DoD, verifier report, diff, optional
 - `blocker`: shipped behavior violates an acceptance criterion, data/security risk, broken test/build.
 - `major`: likely user-visible bug, missing required test, runtime path unproven.
 - `minor`: non-blocking edge case, naming, small cleanup.
+- `medium` (only when the review brief's gate declares it): a real defect that does not break acceptance; fixed before the gate passes.
 
 ## Output
 

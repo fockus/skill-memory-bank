@@ -22,7 +22,7 @@ setup() {
   command -v git >/dev/null || skip "git required"
   REAL_BATS="$(command -v bats)" || skip "bats required"
   # Temp HOME; keep PyYAML from the real user site-packages importable.
-  PYTHONUSERBASE="$(python3 -m site --user-base)"
+  PYTHONUSERBASE="$(python3 -m site --user-base || true)"
   export PYTHONUSERBASE
   TMPROOT="$(mktemp -d)"
   export HOME="$TMPROOT/home"

@@ -11,6 +11,7 @@ directly; this file is the single full table (the doc-count test checks it again
 - [Graph and search](#graph-and-search)
 - [Session memory](#session-memory)
 - [Coordination and agreements](#coordination-and-agreements)
+- [Team runs and resource locks](#team-runs-and-resource-locks)
 - [Install and maintenance](#install-and-maintenance)
 - [Internal libraries](#internal-libraries)
 
@@ -173,6 +174,16 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-coord.sh active [--tail N]` / `mb-coord.sh append --type <T> --title <t>` | Read/write the cross-session board `COORDINATION.md` without loading it: `active` prints active FREEZEs (tagged, plus `[legacy]` ones declared in a **bolded** body marker), HANDOVERs with no ACK, the last N entries (default 3) and a `board: <entries>, <bytes>` line — a few hundred bytes instead of hundreds of KB. `append` writes `## <TYPE> · YYYY-MM-DD · <title>` through a locked atomic append. No board → `no board`, exit 0 |
 | `mb-agree.sh` | Single writer for the running list of agreements (`agreements.md`): `add\|defer\|reject\|question\|resolve\|list\|sync` + managed-block sync |
 
+### Team runs and resource locks
+
+| Script | Purpose |
+|--------|---------|
+| `mb-team.sh` | `/mb team` dispatcher: `init`, `track add\|set`, `plan`, `prompt`, `next`, `status`, `collect`, `checkpoint`, `commit`, `known-red`, `close`, `review start\|gate\|external\|ingest`. Stateless `next` plus the single writer of `reports/<topic>/team.json`; refuses a cwd inside a bank; no push path |
+| `mb-team-review.sh` | Team review cycles: `start` (cycle brief), `gate` (exit 0 clean / 1 fixes by owner track / 2 broken input / 3 review off), `external` (outside-reviewer prompt), `ingest` (validate `findings.json` + `prior-closure.json`) |
+| `mb-team-checkpoint.sh` | Checkpoint `create` (binary-safe diff from the baseline, untracked tarball under a size cap, manifest, sha256) and `verify`; restore commands are printed, never run |
+| `mb-lock.sh` | Named resource locks with a fair FIFO ticket queue: `run`, `acquire`, `release`, `maint`, `status`, `watch`, `break`. Live holders are never removed; disk preconditions, maintenance under the lock, stop threshold; exit 75 / 76 / 77 |
+| `mb_vcs.sh` | VCS seam (git, arc) for team operations: `kind`, `root`, `head`, `diff`, `changed`, `untracked`, `add`, `commit -m <msg> -- <path>...` (only the listed paths), `show` |
+
 ### Install and maintenance
 
 | Script | Purpose |
@@ -241,3 +252,18 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_pipeline_validate_blocks.py` | Per-block pipeline validators (budget … named-pipeline metadata) |
 | `mb_pipeline_minimal_yaml.py` | PyYAML-optional minimal loader for `pipeline.yaml` — the zero-dep base |
 | `mb_fs_atomic.py` | One atomic file-publish primitive, shared by every writer |
+| `mb_work_light.py` | `accept` for a `light` work-mode track report: STATUS, every pending stage reported `done`, no undeclared stage, no pending non-waived Eval |
+| `mb_team_state.py` | `team.json` single writer (flock + atomic replace), track status machine, glob ownership and overlap |
+| `mb_team_tracks.py` | `init`, `track add\|set`, `prompt`, `known-red`, `plan` behind `mb-team.sh` |
+| `mb_team_status.py` | `next` (pure `decide()` over gathered facts) and `status` (team, board, reports, locks, goal, last review) |
+| `mb_team_ops.py` | `collect`, `checkpoint`, `commit` (through `mb_vcs.sh`), `close`, `review-gate` (records `reviews[]`) |
+| `mb_team_config.py` | Reads `team:` from the resolved pipeline: `show`, `resource <name>` (resource JSON; exit 2 invalid, 3 unknown) |
+| `mb_team_pipeline.py` | Layered track pipeline resolver with per-field provenance (`resolve`) and prompt-phrase mapping (`parse-prompt`) |
+| `mb_team_vocab.py` | Closed prompt vocabulary for `parse-prompt`: explicit phrases map, anything else becomes a question |
+| `mb_team_render.py` | Renders the team brief, track prompts (one-stage plans) and the external-review prompt; lists unfilled hints |
+| `mb_team_review.py` | `start` and `gate` CLI behind `mb-team-review.sh` |
+| `mb_team_review_core.py` | Shared team-review state: config, cycle paths and masters, owner routing |
+| `mb_team_review_external.py` | `external` prompt and `ingest` schema check + merge for outside reviewers |
+| `mb_lock_queue.py` | Lock ticket queue, liveness by pid + process start time, dead-holder reclaim, status JSON |
+| `mb_lock_resource.py` | Resource config for `mb-lock.sh` (`--resource-json` or `mb_team_config.py`), disk and check conditions, status text |
+| `mb_pipeline_validate_team.py` | Schema of the `team:` block, shared by the validator, the config reader and the resolver |

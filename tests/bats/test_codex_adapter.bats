@@ -21,7 +21,7 @@ setup() {
   OC_ADAPTER="$REPO_ROOT/adapters/opencode.sh"
   PROJECT="$(mktemp -d)"
   # Keep a user-site PyYAML importable when a test moves HOME (tier-model render).
-  PYTHONUSERBASE="$(python3 -m site --user-base)"
+  PYTHONUSERBASE="$(python3 -m site --user-base || true)"
   export PYTHONUSERBASE
   # Legacy project contracts must not depend on the real global native hooks.
   export HOME="$PROJECT/home"

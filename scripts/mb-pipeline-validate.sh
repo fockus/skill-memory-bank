@@ -30,7 +30,7 @@ In file mode, validates the file against the spec §9 schema:
   - roles entries have an 'agent' field
   - stage_pipeline references only declared roles ('auto' permitted for implement/fix dispatch)
   - optional workflow/workflows local override profiles are structurally valid
-  - review severity_gate keys ⊆ {blocker, major, minor}, values int >= 0
+  - review severity_gate keys ⊆ {blocker, major, medium, minor}, values int >= 0
   - max_cycles >= 1, on_max_cycles ∈ {stop_for_human, continue_with_warning, judge_decides}
   - sprint_context_guard.hard_stop_tokens > soft_warn_tokens, both > 0
   - budget.warn_at_percent / stop_at_percent ∈ [0, 100]

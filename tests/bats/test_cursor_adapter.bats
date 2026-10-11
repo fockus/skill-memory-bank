@@ -8,7 +8,7 @@ setup() {
   ADAPTER="$REPO_ROOT/adapters/cursor.sh"
   PROJECT="$(mktemp -d)"
   # Keep a user-site PyYAML importable when a test moves HOME (tier-model render).
-  PYTHONUSERBASE="$(python3 -m site --user-base)"
+  PYTHONUSERBASE="$(python3 -m site --user-base || true)"
   export PYTHONUSERBASE
   command -v jq >/dev/null || skip "jq required"
 }

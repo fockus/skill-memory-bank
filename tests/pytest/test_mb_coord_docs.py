@@ -22,5 +22,5 @@ def test_board_readers_are_pointed_at_mb_coord_active(doc: str) -> None:
 
 def test_coordination_reference_documents_the_tag_grammar() -> None:
     text = (REPO_ROOT / "references/coordination.md").read_text(encoding="utf-8")
-    for tag in ("FREEZE", "LIFT", "HANDOVER", "ACK", "STATUS"):
+    for tag in ("FREEZE", "LIFT", "HANDOVER", "ACK", "STATUS", "BLOCKED", "COMMIT"):
         assert f"## {tag} ·" in text, f"tag grammar for {tag} is undocumented"

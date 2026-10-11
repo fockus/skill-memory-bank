@@ -70,6 +70,10 @@ It prints only what a session must act on — active FREEZEs, HANDOVERs with no 
 | `## HANDOVER · <date> · <scope>` | work item `<scope>` transferred | a LATER `## ACK ·` with the same scope |
 | `## ACK · <date> · <scope>` | receipt of an entry about `<scope>` | — |
 | `## STATUS · <date> · <scope>` | where you are, what is in flight | — |
+| `## BLOCKED · <date> · <scope>` | a track cannot continue; listed by `active` while open | a LATER `## ACK ·` with the same scope |
+| `## COMMIT · <date> · <scope>` | a commit was made (hash and scoped files in the body) | — (informational) |
+
+`append --track D3` writes the scope as `D3: <title>`; `mb-coord.sh tracks --json` attributes entries to tracks by that `<ID>:` prefix and lists open BLOCKED/HANDOVER (legacy entries without a prefix are ignored).
 
 `<scope>` is the text after the LAST `·` — matching is exact (whitespace- and case-normalized), so a LIFT must repeat the freeze's scope text verbatim.
 

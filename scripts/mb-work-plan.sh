@@ -5,6 +5,7 @@
 #   mb-work-plan.sh [--target <ref>]... [--range <expr>] [--dry-run] [--mb <path>]
 #                   [--workflow <name>] [--verify=stage|plan|run|off]
 #                   [--cost premium|optimal|economy] [--host <id>] [--model <id>]
+#                   [--step-model verifier|reviewer|judge=<model>]...
 #
 # Output (per stage, one JSON object per line):
 #   {"plan": "...", "stage_no": N, "item_no": N, "heading": "...", "role": "...",
@@ -15,7 +16,7 @@
 #    "host": "...", "step_models": {"verifier", "reviewer", "judge"},
 #    "verify": bool, "final_verify": bool, "wave": N}
 # Models: scripts/mb_work_models.py (cost tiers × host profiles, AGR-074);
-# --model forces the item role only, --host overrides auto-detection.
+# --model forces the item role only, --step-model one step model, --host overrides auto-detection.
 # `verify`: run the verifier after this item; `final_verify`: the full-suite pass.
 # Cadence (mb-workflow.sh): stage = every item, plan = last pending item, run =
 # last pending item of the last --target (several = one run), off = none.
@@ -40,7 +41,7 @@ WORK_ITEMS="$SCRIPT_DIR/mb_work_items.py"
 source "$SCRIPT_DIR/_lib.sh"
 
 usage() {
-	sed -n '2,30p' "$0" >&2
+	sed -n '2,31p' "$0" >&2
 }
 
 TARGETS=()
@@ -49,6 +50,7 @@ VERIFY=""
 COST=""
 HOST=""
 MODEL=""
+STEP_MODELS=()
 RANGE=""
 DRY_RUN=0
 MB_ARG=""
@@ -66,6 +68,8 @@ while [ "$#" -gt 0 ]; do
 	--host=*) HOST="${1#--host=}"; shift ;;
 	--model) MODEL="${2:-}"; shift 2 ;;
 	--model=*) MODEL="${1#--model=}"; shift ;;
+	--step-model) STEP_MODELS+=("${2:-}"); shift 2 ;;
+	--step-model=*) STEP_MODELS+=("${1#--step-model=}"); shift ;;
 	--range) RANGE="${2:-}"; shift 2 ;;
 	--range=*) RANGE="${1#--range=}"; shift ;;
 	--dry-run) DRY_RUN=1; shift ;;
@@ -84,6 +88,13 @@ case "$COST" in
 "" | premium | optimal | economy) ;;
 *) echo "[work-plan] --cost '$COST' not in premium, optimal, economy" >&2; exit 2 ;;
 esac
+STEP_FLAGS=()
+for sm in ${STEP_MODELS[@]+"${STEP_MODELS[@]}"}; do
+	case "$sm" in
+	verifier=?* | reviewer=?* | judge=?*) STEP_FLAGS+=(--step-model "$sm") ;;
+	*) echo "[work-plan] --step-model '$sm' must be verifier|reviewer|judge=<model>" >&2; exit 2 ;;
+	esac
+done
 [ -n "$HOST" ] || HOST=$(mb_detect_host)
 
 # Cadence: mb-workflow.sh (flag > workflow block > plan); unresolvable config
@@ -103,7 +114,7 @@ if [ "${#TARGETS[@]}" -gt 1 ]; then
 		SUB="$CADENCE"
 		[ "$CADENCE" != run ] || { [ "$i" -eq "$LAST" ] && SUB=plan || SUB=off; }
 		bash "$0" --target "${TARGETS[$i]}" --mb "$MB_ARG" --verify "$SUB" ${COST:+--cost "$COST"} \
-			${HOST:+--host "$HOST"} ${MODEL:+--model "$MODEL"} $DRY_FLAG || exit $?
+			${HOST:+--host "$HOST"} ${MODEL:+--model "$MODEL"} ${STEP_FLAGS[@]+"${STEP_FLAGS[@]}"} $DRY_FLAG || exit $?
 	done
 	exit 0
 fi
@@ -162,6 +173,7 @@ PLAN_PATH="$PLAN" \
 	WRAPPER_BASENAME="$WRAPPER_BASENAME" \
 	WORK_ITEMS="$WORK_ITEMS" \
 	CADENCE="$CADENCE" COST="$COST" HOST="$HOST" MODEL="$MODEL" SCRIPT_DIR="$SCRIPT_DIR" \
+	STEP_MODEL_OVERRIDES="$(printf '%s\n' ${STEP_MODELS[@]+"${STEP_MODELS[@]}"})" \
 	python3 - <<'PY'
 import json
 import os
@@ -202,6 +214,7 @@ def model_for(role, cli_model="", legacy_developer=False):
 
 
 STEP_MODELS = {r: model_for(r)[0] for r in models.STEP_ROLES}
+STEP_MODELS.update(ln.split("=", 1) for ln in os.environ.get("STEP_MODEL_OVERRIDES", "").splitlines() if ln)
 ROLE_AGENT: dict[str, str] = {}
 ROLE_THINKING: dict[str, str] = {}
 for rname, rspec in roles.items():

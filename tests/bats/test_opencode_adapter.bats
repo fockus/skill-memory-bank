@@ -29,7 +29,7 @@ setup() {
   # $HOME/.config/opencode/agent — must never touch the real dev machine).
   SANDBOX_HOME="$(mktemp -d)"
   # Keep a user-site PyYAML importable when a test moves HOME (tier-model render).
-  PYTHONUSERBASE="$(python3 -m site --user-base)"
+  PYTHONUSERBASE="$(python3 -m site --user-base || true)"
   export PYTHONUSERBASE
   export HOME="$SANDBOX_HOME"
 }

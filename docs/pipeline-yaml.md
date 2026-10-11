@@ -282,6 +282,59 @@ The validator rejects an unknown tier or role class, a slot other than `premium|
 without both slots, a `mid` model that matches `discipline.strict_models` (no cheapest model),
 unknown `hosts.<host>` keys and an undeclared `hosts.<host>.preset`.
 
+## team — `/mb team` presets, review, resources, checkpoints
+
+Read only by the team scripts (`mb_team_config.py`, `mb_team_pipeline.py`); a project that never runs
+`/mb team` is unaffected. Nested block mappings and scalar inline lists only, so PyYAML and the stdlib
+fallback parser agree.
+
+```yaml
+team:
+  default_size: standard
+  max_parallel: 6
+  presets:                  # size -> track pipeline; omitted sizes fall back to the bundled ones
+    standard:
+      mode: direct          # direct | work
+      tdd: required         # required | optional
+      verifier: none        # none | plan-verifier
+      review: none          # none | single | lenses
+      models: {executor: mid}
+      effort: medium        # low | medium | high
+  overrides:                # forced on every track after the preset
+    tdd: required
+  rules:
+    - "Go code: gofmt and go vet clean before you report."
+  review:                   # team review cycles, opt-in
+    enabled: false
+    lenses: [logic, tests, code_rules, security, scalability]
+    clean_when: {blocker: 0, major: 0, medium: 0}
+    max_cycles: 5
+    models: {lenses: premium, lead: premium}
+  resources:
+    build:
+      kind: mutex
+      scope: host           # host: one per machine (MB_LOCK_DIR) · bank: <bank>/.locks/res
+      preconditions:
+        free_disk_gb: 25
+        disk_path: /
+        check: "test -x ./build.sh"
+      stop_threshold:
+        free_disk_gb: 12
+      maintenance: "./build.sh clean-cache"
+      watch_interval_s: 30
+  checkpoint:
+    dir: backups/team       # bank-relative
+    max_untracked_mb: 512
+```
+
+Bundled presets: `trivial`/`small`/`standard` run `direct` (standard adds `plan-verifier`); `large` and
+`extra` run `mode: work` (`work: orchestrated`, or `light`) with `plan-verifier` and all five review lenses.
+A preset may also set `work`, `lenses` (`quality` is an alias of `code_rules`) and `models` keys `executor`,
+`verifier`, `reviewer`, `lead`, `lenses`; model values are a slot (`premium`/`mid`), an exact id or `inherit`.
+For a resource, `preconditions` gate the start (`check` exit 0 = ok) and `stop_threshold` stops a running
+command (`check` non-zero = breached); `maintenance` runs under the lock when preconditions fail.
+`checkpoint.extra` is an optional command run after each checkpoint. See [commands/team.md](../commands/team.md).
+
 ## Validating a pipeline
 
 ```bash

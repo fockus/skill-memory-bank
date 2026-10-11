@@ -37,6 +37,7 @@ NOT_A_SPEC = {"superseded"}
 KNOWN_FAILING = {
     "cursor-extension": "pre-EARS spec: REQ-319 and REQ-322 do not match any EARS pattern",
     "mb-research-tooling-core": "design.md only — requirements.md and tasks.md were never written",
+    "mb-team": "requirements.md + design.md only — the tasks live in plans/2026-10-10_feature_mb-team.md",
     "parallel-team-execution": "REQ-PTE-070/071/072 are orphans: no task Covers them",
     "sdd-vision-pipeline": "umbrella: 53 gated REQs have no covering Eval, 10 CPR-D drifts, no Seams block",
     "svp-adapt-escalation": "5 CPR-D drifts, no Seams block, and 2 tasks whose Eval tests are not written yet",

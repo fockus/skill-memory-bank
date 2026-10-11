@@ -177,3 +177,23 @@ def test_budget_section_shape(cfg: dict) -> None:
     assert "stop_at_percent" in budget
     assert 0 <= budget["warn_at_percent"] <= 100
     assert 0 <= budget["stop_at_percent"] <= 100
+
+
+# ── team: block (/mb team presets, AGR-097) ─────────────────────────────────
+
+
+def test_team_presets_follow_agr_097(cfg: dict) -> None:
+    presets = cfg["team"]["presets"]
+    assert set(presets) == {"trivial", "small", "standard", "large", "extra"}
+    assert presets["small"]["verifier"] == "none" and presets["small"]["tdd"] == "required"
+    assert (presets["standard"]["mode"], presets["standard"]["verifier"], presets["standard"]["review"]) == (
+        "direct", "plan-verifier", "none")
+    for size in ("large", "extra"):
+        assert (presets[size]["mode"], presets[size]["review"]) == ("work", "lenses")
+
+
+def test_team_review_is_opt_in_and_resources_empty(cfg: dict) -> None:
+    team = cfg["team"]
+    assert team["review"]["enabled"] is False
+    assert team["review"]["clean_when"] == {"blocker": 0, "major": 0, "medium": 0}
+    assert "resources" not in team

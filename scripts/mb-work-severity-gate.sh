@@ -15,6 +15,10 @@
 # review is configured anywhere the gate is a PASS no-op (review is opt-in).
 # --gate overrides severity limits only.
 #
+# `medium` is optional (AGR-097): a gate that declares `medium` enforces it (an
+# absent medium count is 0); a gate without it is a three-level gate, where
+# medium findings count toward `minor` — the verdicts of existing configs stay.
+#
 # --ignore-approval skips reviewer-approval enforcement (approval_required) and
 # applies ONLY the severity arithmetic. For non-reviewer callers — e.g. the
 # dynamic-flow firewall (mb-flow-verify.sh) — that supply raw counts with no
@@ -49,7 +53,7 @@ while [ "$#" -gt 0 ]; do
     --mb=*) MB_ARG="${1#--mb=}"; shift ;;
     --workflow) WORKFLOW_NAME="${2:-}"; shift 2 ;;
     --workflow=*) WORKFLOW_NAME="${1#--workflow=}"; shift ;;
-    -h|--help) sed -n '2,26p' "$0" >&2; exit 0 ;;
+    -h|--help) sed -n '2,30p' "$0" >&2; exit 0 ;;
     *) echo "[severity-gate] unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
@@ -313,11 +317,18 @@ elif verdict is not None and verdict not in {"APPROVED", "CHANGES_REQUESTED"}:
     sys.exit(2)
 
 breaches = []
-for sev in ("blocker", "major", "minor"):
+medium = counts.get("medium", 0)
+if not isinstance(medium, int) or isinstance(medium, bool):
+    sys.stderr.write(f"[severity-gate] counts.medium: must be int (got {medium!r})\n")
+    sys.exit(2)
+levels = ("blocker", "major", "medium", "minor") if "medium" in gate else ("blocker", "major", "minor")
+for sev in levels:
     actual = counts.get(sev, 0)
     if not isinstance(actual, int) or isinstance(actual, bool):
         sys.stderr.write(f"[severity-gate] counts.{sev}: must be int (got {actual!r})\n")
         sys.exit(2)
+    if sev == "minor" and "medium" not in gate:
+        actual += medium
     limit = gate.get(sev)
     if limit is None:
         # Severity not declared in gate — treat as 0 (strict)
@@ -327,7 +338,8 @@ for sev in ("blocker", "major", "minor"):
 
 if breaches:
     for sev, actual, limit in breaches:
-        sys.stderr.write(f"[severity-gate] FAIL: {sev}={actual} > gate={limit}\n")
+        folded = f" (incl. medium={medium})" if sev == "minor" and medium and "medium" not in gate else ""
+        sys.stderr.write(f"[severity-gate] FAIL: {sev}={actual}{folded} > gate={limit}\n")
     sys.exit(1)
 
 print("[severity-gate] PASS")
