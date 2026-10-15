@@ -11,7 +11,7 @@ setup() {
 }
 
 _report_role_agents() {
-  echo "mb-analyst.md mb-android.md mb-devops.md mb-ios.md mb-reviewer-lead.md mb-reviewer-logic.md mb-reviewer-quality.md mb-reviewer-scalability.md mb-reviewer-security.md mb-reviewer-tests.md mb-rules-enforcer.md mb-test-runner.md mb-doctor.md mb-research.md mb-researcher.md"
+  echo "mb-analyst.md mb-android.md mb-devops.md mb-ios.md mb-reviewer-lead.md mb-reviewer-logic.md mb-reviewer-quality.md mb-reviewer-scalability.md mb-reviewer-security.md mb-reviewer-tests.md mb-rules-enforcer.md mb-test-runner.md mb-doctor.md mb-research.md mb-researcher.md mb-qa-runner.md"
 }
 
 @test "every report-role agent declares SendMessage in tools" {

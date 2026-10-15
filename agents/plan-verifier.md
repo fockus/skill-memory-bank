@@ -212,7 +212,7 @@ Issue categories:
 ```
 ## Plan Verification: <plan name>
 
-### Status: ✅ PASS / ⚠️ PARTIAL / ❌ FAIL
+### Status: ✅ PASS / ⚠️ PARTIAL / ❌ FAIL / ➖ NOTHING TO VERIFY
 
 **Baseline commit:** <hash or unknown> (fallback: <none|ctime|HEAD~10>)
 **Tests run:** pass | fail | not-run
@@ -287,6 +287,15 @@ Bank path: <absolute resolved bank>
 Skill path: <absolute installed skill root>
 Context: <free-form description of the session — which stages are claimed done>
 ```
+
+Optional source lines from `/mb work`, read by you: `Spec:`, `Plan wrapper:`, `QA cases:`, `QA report:` (each `none` when absent).
+
+## Sources, coverage and divergence
+
+- With both a plan wrapper and a spec, report `### Plan DoD (<wrapper>)` and `### Spec REQ coverage (<spec>)` as separate sections; spec coverage maps each REQ to the tasks whose `Covers:` name it.
+- Report CRITICAL `plan-spec divergence: …` for a REQ in the wrapper's scope that no task covers, or wrapper DoD/stage work no spec task or REQ asks for; scope is all REQs for an unranged wrapper, the `Covers:` union of the range for `tasks: A-B` (other REQs: INFO "outside this slice").
+- With QA cases, add `### QA coverage` as the table `| REQ | Case | Origin | Proof | Live | Test |`: Live is the case's Results status in `QA report:` (`pending` without one, `n/a` for `proof: test`), Test is the `file:line` of `mb:case <id>` or `none`; a large/extra REQ without a case, or a fixed regression case without an `mb:case` test, is a WARNING.
+- Status `➖ NOTHING TO VERIFY` when the source has no REQ, no DoD item and no case; never PASS.
 
 Start from Step 1. If the source file does not exist, respond with `❌ FAIL — source file not found at <path>`. Do not fabricate the plan or spec from memory.
 

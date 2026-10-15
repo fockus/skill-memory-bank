@@ -182,14 +182,14 @@ def test_budget_section_shape(cfg: dict) -> None:
 # ── team: block (/mb team presets, AGR-097) ─────────────────────────────────
 
 
-def test_team_presets_follow_agr_097(cfg: dict) -> None:
+def test_team_presets_follow_agr_103(cfg: dict) -> None:
     presets = cfg["team"]["presets"]
     assert set(presets) == {"trivial", "small", "standard", "large", "extra"}
     assert presets["small"]["verifier"] == "none" and presets["small"]["tdd"] == "required"
-    assert (presets["standard"]["mode"], presets["standard"]["verifier"], presets["standard"]["review"]) == (
-        "direct", "plan-verifier", "none")
+    assert all(p["mode"] == "work" and p["work"] == "orchestrated" for p in presets.values())
+    assert (presets["standard"]["verifier"], presets["standard"]["review"]) == ("plan-verifier", "none")
     for size in ("large", "extra"):
-        assert (presets[size]["mode"], presets[size]["review"]) == ("work", "lenses")
+        assert presets[size]["review"] == "lenses"
 
 
 def test_team_review_is_opt_in_and_resources_empty(cfg: dict) -> None:

@@ -9,7 +9,7 @@ Three-in-one skill for code agents:
 
 1. **Memory Bank** — long-term project memory through `.memory-bank/` (`status.md`, `checklist.md`, `roadmap.md`, `research.md`, `backlog.md`, `adr.md`, `progress.md`, `lessons.md`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
-3. **Dev toolkit** — 35 commands: `/mb`, `/start`, `/done`, `/plan`, `/brief`, `/discuss`, `/groom`, `/sdd`, `/work`, `/drive`, `/team`, `/config`, `/pipeline`, `/profile`, `/rules`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
+3. **Dev toolkit** — 36 commands: `/mb`, `/start`, `/done`, `/plan`, `/brief`, `/discuss`, `/groom`, `/sdd`, `/work`, `/drive`, `/team`, `/qa`, `/config`, `/pipeline`, `/profile`, `/rules`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
 
 > **Design contract.** Memory Bank rests on one inviolable promise — *agents remember* — and a stack of fully configurable, token-economical layers above it. Default behaviour never changes without explicit opt-in; user customisations survive upgrades; expensive paths are off by default. See [`references/design-principles.md`](references/design-principles.md) for the full contract.
 
@@ -29,6 +29,7 @@ Work in a Memory Bank project follows this order. Depth scales with task complex
 | 4 | **Verification** | `/mb verify` | plan-verifier audits diff vs plan/spec DoD; **mandatory before `/mb done`** when work followed a plan/spec |
 | 5 | **Review** *(optional)* | `/mb work <target> --review` | Reviewer verdict (subagent ensemble or external codex) + severity gate; off by default |
 | 6 | **Judge** *(optional)* | `/mb work <target> --judge` | `mb-judge` decides GO / GO_WITH_BACKLOG / NO_GO and terminates the review loop |
+| 6a | **QA** *(optional)* | `/mb qa run` | Walk the md acceptance scenarios in `<bank>/qa/test_cases/` in a real browser (Playwright MCP) on the live stand; after a stand update, before close |
 | 7 | **Close** | `/mb done` | Actualize bank: progress append, checklist/status update |
 
 **Grooming (any stage).** `/mb groom <topic>` (also `grooming`) runs a critical grooming session outside the fixed order — for a raw idea, a task that already has a spec, or a decision worth revisiting. Unlike `/mb discuss`, the goal is not a spec: the agent challenges necessity and approach, proposes its own solutions, covers white spots; the summary lands in `context/<topic>-groom.md`, confirmed decisions go to `agreements.md` / backlog (ADR/Ideas), and the session ends with proposed next steps (e.g. `/mb sdd`).

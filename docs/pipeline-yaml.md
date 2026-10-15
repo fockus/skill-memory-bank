@@ -294,7 +294,8 @@ team:
   max_parallel: 6
   presets:                  # size -> track pipeline; omitted sizes fall back to the bundled ones
     standard:
-      mode: direct          # direct | work
+      mode: work            # work (direct is retired, REQ-001)
+      work: orchestrated    # orchestrated (light is retired)
       tdd: required         # required | optional
       verifier: none        # none | plan-verifier
       review: none          # none | single | lenses
@@ -313,7 +314,7 @@ team:
   resources:
     build:
       kind: mutex
-      scope: host           # host: one per machine (MB_LOCK_DIR) · bank: <bank>/.locks/res
+      scope: host           # host: one per machine (MB_LOCK_DIR or /tmp/mb-locks-<uid>, 0700, TMPDIR-independent) · bank: <bank>/.locks/res
       preconditions:
         free_disk_gb: 25
         disk_path: /
@@ -327,13 +328,45 @@ team:
     max_untracked_mb: 512
 ```
 
-Bundled presets: `trivial`/`small`/`standard` run `direct` (standard adds `plan-verifier`); `large` and
-`extra` run `mode: work` (`work: orchestrated`, or `light`) with `plan-verifier` and all five review lenses.
+Bundled presets: every size runs `mode: work`, `work: orchestrated` (AGR-103: `direct` and `light` are refused);
+`standard`, `large` and `extra` add `plan-verifier`, and `large` and `extra` add all five review lenses.
 A preset may also set `work`, `lenses` (`quality` is an alias of `code_rules`) and `models` keys `executor`,
 `verifier`, `reviewer`, `lead`, `lenses`; model values are a slot (`premium`/`mid`), an exact id or `inherit`.
 For a resource, `preconditions` gate the start (`check` exit 0 = ok) and `stop_threshold` stops a running
 command (`check` non-zero = breached); `maintenance` runs under the lock when preconditions fail.
 `checkpoint.extra` is an optional command run after each checkpoint. See [commands/team.md](../commands/team.md).
+
+## qa — acceptance QA inside `/mb work`
+
+`qa.enabled` is `auto` (default), `true` or `false`. `auto`: `/mb plan` and `/mb sdd` declare `qa: on` in the plan for standard, large and extra tiers (small stays off, `--no-qa` opts out) and `/mb work` runs QA for a plan that says `qa: on`; `true`: QA on for every tier and every run; `false`: off. `/mb work --qa` turns it on for one run; `hosts.<host>.qa` overrides keys per host.
+Part of verify (AGR-098), not a step of its own, so it works in every preset.
+
+```yaml
+qa:
+  enabled: auto                  # auto | true | false (see above)
+  cadence: plan                  # stage = every item · plan = last item · run = last item of the run
+  position: before_review        # before_review (after verify PASS) | after_review (after the review/judge gate)
+  selector: "all"                # scenario selection, as in /mb qa run
+  prepare: ""                    # shell command that refreshes the stand before every QA run
+  gate: {critical: 0, major: 0}  # max open bugs of the run per severity; unnamed levels are unlimited
+  max_cycles: 3                  # QA fix cycles per item
+  on_max_cycles: stop_for_human  # stop_for_human | continue_with_warning
+```
+
+The loop ([commands/work.md](../commands/work.md) § 5c2):
+1. `prepare` refreshes the stand; a non-zero exit halts the run (environment, not a bug).
+2. `mb-qa-runner` walks `selector` against the stand, filing bugs tagged with the run id.
+3. `mb-qa-bug.sh gate --run <id>` applies `gate` to that run's open bugs; pass → the chain continues.
+4. Fail → the implementer gets the blocking bugs, then verify and QA run again, up to `max_cycles`.
+5. Medium/low bugs stay in `qa/bugs.md` and are listed in the run summary; any BLOCKED or SKIP scenario means QA did not finish and halts the run.
+
+## drive — `/mb drive`
+
+```yaml
+drive: {parallel: true}   # only a literal `false` turns it off
+```
+
+With `parallel: true` (default) `mb-drive.sh next` prints `team <plan> <plan>…` when two or more ready plans have no dependency between them and disjoint declared files, and `work <plan>` otherwise. `false`, like `/mb drive --serial` or `--host-serial`, keeps every dispatch a single `/mb work`.
 
 ## Validating a pipeline
 

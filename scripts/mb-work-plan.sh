@@ -5,7 +5,7 @@
 #   mb-work-plan.sh [--target <ref>]... [--range <expr>] [--dry-run] [--mb <path>]
 #                   [--workflow <name>] [--verify=stage|plan|run|off]
 #                   [--cost premium|optimal|economy] [--host <id>] [--model <id>]
-#                   [--step-model verifier|reviewer|judge=<model>]...
+#                   [--step-model verifier|reviewer|judge=<model>]... [--qa | --qa=stage|plan|run|none|off]
 #
 # Output (per stage, one JSON object per line):
 #   {"plan": "...", "stage_no": N, "item_no": N, "heading": "...", "role": "...",
@@ -14,12 +14,14 @@
 #    "kind": "stage|task", "covers": [...], "discipline": "strict|calm",
 #    "model": "...", "model_source": "cli|role|profile|inherit", "cost": "...",
 #    "host": "...", "step_models": {"verifier", "reviewer", "judge"},
-#    "verify": bool, "final_verify": bool, "wave": N}
+#    "verify": bool, "final_verify": bool, ["qa": bool,] "wave": N}
 # Models: scripts/mb_work_models.py (cost tiers × host profiles, AGR-074);
 # --model forces the item role only, --step-model one step model, --host overrides auto-detection.
 # `verify`: run the verifier after this item; `final_verify`: the full-suite pass.
 # Cadence (mb-workflow.sh): stage = every item, plan = last pending item, run =
 # last pending item of the last --target (several = one run), off = none.
+# `qa` (AGR-098): only when QA is on (`qa.enabled`, --qa, --qa=<cadence> skips the resolver);
+# set from `qa.cadence` like `verify`; `none` = on, no item marked (earlier targets of a run).
 # `discipline` is `strict` when the resolved model matches discipline.strict_models.
 # `source` is the category; source_topic/source_path locate the declaration file
 # and MUST reach `mb-work-state.sh init` — the eval gate binds them (review [9]).
@@ -41,7 +43,7 @@ WORK_ITEMS="$SCRIPT_DIR/mb_work_items.py"
 source "$SCRIPT_DIR/_lib.sh"
 
 usage() {
-	sed -n '2,31p' "$0" >&2
+	sed -n '2,32p' "$0" >&2
 }
 
 TARGETS=()
@@ -54,6 +56,7 @@ STEP_MODELS=()
 RANGE=""
 DRY_RUN=0
 MB_ARG=""
+QA_FLAG="" QA_CADENCE=""
 while [ "$#" -gt 0 ]; do
 	case "$1" in
 	--target) TARGETS+=("${2:-}"); shift 2 ;;
@@ -73,6 +76,8 @@ while [ "$#" -gt 0 ]; do
 	--range) RANGE="${2:-}"; shift 2 ;;
 	--range=*) RANGE="${1#--range=}"; shift ;;
 	--dry-run) DRY_RUN=1; shift ;;
+	--qa) QA_FLAG=1; shift ;;
+	--qa=*) QA_CADENCE="${1#--qa=}"; shift ;;
 	--mb) MB_ARG="${2:-}"; shift 2 ;;
 	--mb=*) MB_ARG="${1#--mb=}"; shift ;;
 	-h | --help) usage; exit 0 ;;
@@ -84,6 +89,8 @@ case "$VERIFY" in
 "" | stage | plan | run | off) ;;
 *) echo "[work-plan] --verify '$VERIFY' not in stage, plan, run, off" >&2; exit 2 ;;
 esac
+case "$QA_CADENCE" in "" | stage | plan | run | none | off) ;; *)
+	echo "[work-plan] --qa '$QA_CADENCE' not in stage, plan, run, none, off" >&2; exit 2 ;; esac
 case "$COST" in
 "" | premium | optimal | economy) ;;
 *) echo "[work-plan] --cost '$COST' not in premium, optimal, economy" >&2; exit 2 ;;
@@ -99,10 +106,13 @@ done
 
 # Cadence: mb-workflow.sh (flag > workflow block > plan); unresolvable config
 # falls back to the flag or `plan` (AGR-075), so emission never depends on it.
-CADENCE=$(bash "$SCRIPT_DIR/mb-workflow.sh" --mb "$MB_ARG" ${WORKFLOW:+--workflow "$WORKFLOW"} \
-	${VERIFY:+--verify "$VERIFY"} ${HOST:+--host "$HOST"} --json 2>/dev/null |
-	python3 -c 'import json,sys; print(json.load(sys.stdin)["verify_cadence"])' 2>/dev/null) || CADENCE=""
-[ -n "$CADENCE" ] || CADENCE="${VERIFY:-plan}"
+CADENCES=$(bash "$SCRIPT_DIR/mb-workflow.sh" --mb "$MB_ARG" ${WORKFLOW:+--workflow "$WORKFLOW"} \
+	${VERIFY:+--verify "$VERIFY"} ${HOST:+--host "$HOST"} ${QA_FLAG:+--qa} --json 2>/dev/null |
+	python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["verify_cadence"], (d.get("qa") or {}).get("cadence", "off"))' \
+	2>/dev/null) || CADENCES=""
+[ -n "$CADENCES" ] || CADENCES="${VERIFY:-plan} $([ -n "$QA_FLAG" ] && echo plan || echo off)"
+CADENCE="${CADENCES% *}"
+QA_CADENCE="${QA_CADENCE:-${CADENCES#* }}"
 
 # Several targets = one run; under `run` only the last plan carries the verify.
 if [ "${#TARGETS[@]}" -gt 1 ]; then
@@ -113,7 +123,9 @@ if [ "${#TARGETS[@]}" -gt 1 ]; then
 	for i in "${!TARGETS[@]}"; do
 		SUB="$CADENCE"
 		[ "$CADENCE" != run ] || { [ "$i" -eq "$LAST" ] && SUB=plan || SUB=off; }
-		bash "$0" --target "${TARGETS[$i]}" --mb "$MB_ARG" --verify "$SUB" ${COST:+--cost "$COST"} \
+		SUB_QA="$QA_CADENCE"
+		[ "$QA_CADENCE" != run ] || { [ "$i" -eq "$LAST" ] && SUB_QA=plan || SUB_QA=none; }
+		bash "$0" --target "${TARGETS[$i]}" --mb "$MB_ARG" --verify "$SUB" --qa="$SUB_QA" ${COST:+--cost "$COST"} \
 			${HOST:+--host "$HOST"} ${MODEL:+--model "$MODEL"} ${STEP_FLAGS[@]+"${STEP_FLAGS[@]}"} $DRY_FLAG || exit $?
 	done
 	exit 0
@@ -126,10 +138,7 @@ else
 	PLAN=$(bash "$RESOLVE" --mb "$MB_ARG") || exit $?
 fi
 
-if [ ! -f "$PLAN" ]; then
-	echo "[work-plan] resolved path is not a file: $PLAN" >&2
-	exit 1
-fi
+[ -f "$PLAN" ] || { echo "[work-plan] resolved path is not a file: $PLAN" >&2; exit 1; }
 
 # Detect plan-as-wrapper: parse linked_spec and tasks from frontmatter.
 # If present, redirect PLAN to the spec's tasks.md and override RANGE.
@@ -142,11 +151,11 @@ if [ "$WRAPPER_INFO" != "none" ]; then
 	SPEC_TASKS=$(printf '%s' "$WRAPPER_INFO" | cut -f2)
 	WRAPPER_BASENAME=$(printf '%s' "$WRAPPER_INFO" | cut -f3)
 	WRAPPER_RANGE=$(printf '%s' "$WRAPPER_INFO" | cut -f4)
+	PLAN_OF=$(printf '%s' "$WRAPPER_INFO" | cut -f5)
 	# Redirect to spec; override range only when wrapper specifies it
 	PLAN="$SPEC_TASKS"
-	if [ -n "$WRAPPER_RANGE" ]; then
-		RANGE="$WRAPPER_RANGE"
-	fi
+	[ -z "$WRAPPER_RANGE" ] || RANGE="$WRAPPER_RANGE"
+else PLAN_OF=$(python3 "$SCRIPT_DIR/mb_work_plan_wrapper.py" --plan-of "$PLAN" "$MB_ARG")
 fi
 
 # Get filtered item indices via mb-work-range.sh
@@ -160,9 +169,7 @@ fi
 
 # Get effective pipeline.yaml path (for role→agent mapping)
 PIPELINE_PATH=$(bash "$PIPELINE" path "$MB_ARG" 2>/dev/null || true)
-if [ -z "$PIPELINE_PATH" ]; then
-	PIPELINE_PATH="$SCRIPT_DIR/../references/pipeline.default.yaml"
-fi
+[ -n "$PIPELINE_PATH" ] || PIPELINE_PATH="$SCRIPT_DIR/../references/pipeline.default.yaml"
 
 PLAN_PATH="$PLAN" \
 	PIPELINE_YAML="$PIPELINE_PATH" \
@@ -170,9 +177,9 @@ PLAN_PATH="$PLAN" \
 	RANGE_REQUESTED="$RANGE_REQUESTED" \
 	DRY_RUN="$DRY_RUN" \
 	PLAN_BASENAME="$(basename "$PLAN")" \
-	WRAPPER_BASENAME="$WRAPPER_BASENAME" \
+	WRAPPER_BASENAME="$WRAPPER_BASENAME" PLAN_OF="$PLAN_OF" \
 	WORK_ITEMS="$WORK_ITEMS" \
-	CADENCE="$CADENCE" COST="$COST" HOST="$HOST" MODEL="$MODEL" SCRIPT_DIR="$SCRIPT_DIR" \
+	CADENCE="$CADENCE" QA_CADENCE="$QA_CADENCE" COST="$COST" HOST="$HOST" MODEL="$MODEL" SCRIPT_DIR="$SCRIPT_DIR" \
 	STEP_MODEL_OVERRIDES="$(printf '%s\n' ${STEP_MODELS[@]+"${STEP_MODELS[@]}"})" \
 	python3 - <<'PY'
 import json
@@ -248,13 +255,7 @@ def detect_role(heading: str, body: str) -> str:
 
 
 def _plan_checkbox_states(body: str) -> list[str]:
-    """Return checkbox states from plan bodies.
-
-    Active plans historically used both emoji bullets (``- ⬜`` / ``- ✅``)
-    and Markdown task-list bullets (``- [ ]`` / ``- [x]``). Treat both as
-    executable DoD markers so ``/mb work`` does not drop stage acceptance
-    criteria when plans are authored with standard Markdown checkboxes.
-    """
+    """Checkbox states of a plan body: emoji (``- ⬜``/``- ✅``) and Markdown (``- [ ]``/``- [x]``) DoD bullets."""
     states: list[str] = []
     for match in re.finditer(r"^\s*-\s+(?:([⬜✅])|\[([ xX])\])", body, re.M):
         emoji_state, markdown_state = match.groups()
@@ -320,6 +321,7 @@ if dry_run:
     print()
 
 cadence = os.environ.get("CADENCE", "plan")
+qa_cadence = os.environ.get("QA_CADENCE", "off")
 emitted = []
 
 for n in requested:
@@ -372,6 +374,7 @@ for n in requested:
         # target `<bank>/specs/spec/tasks.md` and ungated it (review [9]).
         "source_topic": item.get("topic", ""),
         "source_path": os.path.realpath(plan_path),
+        **({"spec_path": os.path.dirname(os.path.realpath(plan_path)), **({"plan_path": os.environ["PLAN_OF"]} if os.environ["PLAN_OF"] else {})} if source == "spec" else {}),
         "kind": item["kind"],
         "covers": covers,
         "discipline": models.discipline_for(model, STRICT_MODELS),
@@ -390,6 +393,8 @@ waves = mb_work_waves.assign_waves([items_by_no[o["item_no"]] for o in emitted])
 for i, obj in enumerate(emitted):
     obj["verify"] = cadence == "stage" or (cadence in ("plan", "run") and i == last)
     obj["final_verify"] = cadence != "off" and i == last
+    if qa_cadence != "off":
+        obj["qa"] = qa_cadence == "stage" or (qa_cadence != "none" and i == last)
     obj["wave"] = waves[i]  # parallel wave (mb_work_waves.py, AGR-073)
     print(json.dumps(obj, ensure_ascii=False))
 PY

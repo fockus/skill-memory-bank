@@ -21,6 +21,8 @@ import pathlib
 import subprocess
 import sys
 
+import pytest
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SCRIPTS = REPO_ROOT / "scripts"
 VALIDATE = SCRIPTS / "mb-pipeline-validate.sh"
@@ -83,6 +85,14 @@ def test_fallback_loads_the_blocks_the_validator_checks() -> None:
     cfg = minimal_pipeline_load(BASE)
     missing = [k for k in ("workflows", "review", "judge") if not cfg.get(k)]
     assert missing == [], f"stdlib fallback dropped validated blocks: {missing}"
+
+
+def test_fallback_loads_the_qa_block_like_pyyaml() -> None:
+    yaml = pytest.importorskip("yaml")
+    from mb_pipeline_minimal_yaml import minimal_pipeline_load
+
+    expected = yaml.safe_load(BASE)["qa"]
+    assert minimal_pipeline_load(BASE).get("qa") == expected
 
 
 def test_fallback_rejects_a_bad_judge_decision_enum(tmp_path: pathlib.Path) -> None:

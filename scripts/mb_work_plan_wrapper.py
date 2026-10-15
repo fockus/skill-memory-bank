@@ -7,20 +7,11 @@ zone already uses for `mb_spec_validate_*.py`. Behaviour is unchanged: argv is
 `wrapper\t<spec tasks.md>\t<wrapper basename>\t<tasks range>`.
 """
 
+import glob
 import os
 import re
 import sys
 
-plan_path = sys.argv[1]
-mb_arg = sys.argv[2] if len(sys.argv) > 2 else ""
-
-with open(plan_path, encoding="utf-8") as _fh:
-    text = _fh.read()
-m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
-if not m:
-    # No frontmatter — plain plan, no wrapper
-    print("none")
-    sys.exit(0)
 
 def strip_yaml_comment(val: str) -> str:
     in_quote = None
@@ -63,39 +54,71 @@ def fm_value(fm: str, key: str):
     return None
 
 
-fm = m.group(1)
-linked_spec = fm_value(fm, "linked_spec")
-tasks_range = fm_value(fm, "tasks")
+def frontmatter(path: str):
+    with open(path, encoding="utf-8") as fh:
+        m = re.match(r"^---\n(.*?)\n---\n", fh.read(), re.S)
+    return m.group(1) if m else None
 
-if linked_spec is None:
-    print("none")
-    sys.exit(0)
 
-# Resolve spec tasks.md relative to memory-bank root
-plan_dir = os.path.dirname(os.path.realpath(plan_path))
-# Try mb_arg first, then go up from plan_dir (plans/ → .memory-bank/)
-mb_root = os.path.realpath(mb_arg) if mb_arg else os.path.dirname(plan_dir)
+def main() -> None:
+    if sys.argv[1] == "--plan-of":
+        # Reverse lookup (planning-qa-sources C4): the one active wrapper whose
+        # linked_spec names the spec dir of <tasks.md>; several -> omitted + notice.
+        spec_dir = os.path.dirname(os.path.realpath(sys.argv[2]))
+        mb_root = os.path.realpath(sys.argv[3]) if sys.argv[3] else os.path.dirname(os.path.dirname(spec_dir))
+        hits = []
+        for cand in sorted(glob.glob(os.path.join(mb_root, "plans", "*.md"))):
+            ls = fm_value(frontmatter(cand) or "", "linked_spec")
+            if ls and os.path.realpath(os.path.join(mb_root, ls)) == spec_dir:
+                hits.append(os.path.realpath(cand))
+        if len(hits) > 1:
+            sys.stderr.write(f"[work-plan] several wrappers link {spec_dir}; plan_path omitted\n")
+        print(hits[0] if len(hits) == 1 else "")
+        sys.exit(0)
 
-# Containment (r3 review [2]). os.path.join DISCARDS mb_root when linked_spec is
-# absolute, so `linked_spec: /tmp/evil` bound the eval gate to a tasks.md the
-# bank does not own — a file whose Eval declaration can change under the gate at
-# will. A traversing or symlink-escaping value does the same thing. linked_spec
-# is a bank-relative locator and nothing else.
-# Containment (r3 [2]): os.path.join DISCARDS mb_root for an absolute
-# linked_spec, so absolute, traversing and symlink-escaping values all land
-# outside the bank and are refused by this one check.
-spec_tasks = os.path.join(mb_root, linked_spec, "tasks.md")
-real_root = os.path.realpath(mb_root)
-if os.path.commonpath([real_root, os.path.realpath(spec_tasks)]) != real_root:
-    sys.stderr.write(f"[work-plan] linked_spec escapes the bank: {linked_spec}\n")
-    sys.exit(1)
+    plan_path = sys.argv[1]
+    mb_arg = sys.argv[2] if len(sys.argv) > 2 else ""
+    fm = frontmatter(plan_path)
+    if fm is None:
+        # No frontmatter — plain plan, no wrapper
+        print("none")
+        sys.exit(0)
+    linked_spec = fm_value(fm, "linked_spec")
+    tasks_range = fm_value(fm, "tasks")
 
-if not os.path.isfile(spec_tasks):
-    sys.stderr.write(
-        f"[work-plan] linked_spec tasks not found: {spec_tasks}\n"
-    )
-    sys.exit(1)
+    if linked_spec is None:
+        print("none")
+        sys.exit(0)
 
-wrapper_basename = os.path.basename(plan_path)
-tasks_range_out = tasks_range if tasks_range is not None else ""
-print(f"wrapper\t{spec_tasks}\t{wrapper_basename}\t{tasks_range_out}")
+    # Resolve spec tasks.md relative to memory-bank root
+    plan_dir = os.path.dirname(os.path.realpath(plan_path))
+    # Try mb_arg first, then go up from plan_dir (plans/ → .memory-bank/)
+    mb_root = os.path.realpath(mb_arg) if mb_arg else os.path.dirname(plan_dir)
+
+    # Containment (r3 review [2]). os.path.join DISCARDS mb_root when linked_spec is
+    # absolute, so `linked_spec: /tmp/evil` bound the eval gate to a tasks.md the
+    # bank does not own — a file whose Eval declaration can change under the gate at
+    # will. A traversing or symlink-escaping value does the same thing. linked_spec
+    # is a bank-relative locator and nothing else.
+    # Containment (r3 [2]): os.path.join DISCARDS mb_root for an absolute
+    # linked_spec, so absolute, traversing and symlink-escaping values all land
+    # outside the bank and are refused by this one check.
+    spec_tasks = os.path.join(mb_root, linked_spec, "tasks.md")
+    real_root = os.path.realpath(mb_root)
+    if os.path.commonpath([real_root, os.path.realpath(spec_tasks)]) != real_root:
+        sys.stderr.write(f"[work-plan] linked_spec escapes the bank: {linked_spec}\n")
+        sys.exit(1)
+
+    if not os.path.isfile(spec_tasks):
+        sys.stderr.write(
+            f"[work-plan] linked_spec tasks not found: {spec_tasks}\n"
+        )
+        sys.exit(1)
+
+    wrapper_basename = os.path.basename(plan_path)
+    tasks_range_out = tasks_range if tasks_range is not None else ""
+    print(f"wrapper\t{spec_tasks}\t{wrapper_basename}\t{tasks_range_out}\t{os.path.realpath(plan_path)}")
+
+
+if __name__ == "__main__":
+    main()

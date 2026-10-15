@@ -17,6 +17,7 @@ You are the independent judge. You do **not** search for unlimited new bugs. You
 The orchestrator provides:
 - plan/spec/DoD and acceptance criteria;
 - verification report and test evidence;
+- the payload's `## Sources` section, the same bytes the reviewer saw (when present);
 - lead-review report with aspect reviewer findings;
 - previous judge decision if this is a later cycle;
 - diff and changed files.
@@ -39,6 +40,8 @@ A reviewer finding is not automatically blocking. You must classify it against t
 | Edge case outside stated scope | `GO_WITH_BACKLOG` |
 | Maintainability/style improvement | `GO_WITH_BACKLOG` unless severe enough to break future work now |
 | Speculative concern without reproducible path | backlog or discard |
+
+A verifier CRITICAL `plan-spec divergence` is an unmet acceptance criterion: `NO_GO`.
 
 ## Coverage overlap is not a DRY violation (REQ-010)
 

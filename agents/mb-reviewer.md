@@ -69,6 +69,7 @@ with 5 fixed sections, in this order — this is everything you get; you do not 
    dropped/downgraded entry as a safety net (REQ-103) — do not rely on it; emit it correctly yourself.
    **Never present in `review_mode: contract`** (below) — a contract precedes implementation, so
    there are no tests yet to have passed or failed.
+6. `## Sources` — optional, always the payload's last section: spec REQs, plan wrapper and QA report, verbatim; judge findings against its REQs and the wrapper DoD.
 
 On fix-cycle iterations, the payload additionally carries the previous cycle's issue list inline —
 verify each previous issue is either resolved or explicitly justified (see "Fix-cycle behavior"

@@ -6,7 +6,7 @@
 #                  [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix]
 #                  [--brainstorm|--no-brainstorm] [--sdd|--no-sdd] [--plan|--no-plan]
 #                  [--stages <csv>] [--verify=stage|plan|run|off] [--tier <effort-tier>]
-#                  [--host <id>] [--no-adapt] [--lenses <csv>]
+#                  [--host <id>] [--no-adapt] [--lenses <csv>] [--qa]
 #                  [--json|--steps|--loop|--max-cycles|--approval-required]
 #
 # Resolution (3-layer, precedence: launch flags > pipeline.yaml > built-in default):
@@ -31,6 +31,9 @@
 #   6. --lenses <csv> (ensemble workflows only): JSON `review_lenses`, the
 #      review_ensemble focus values to dispatch (alias quality → code_rules);
 #      the key is absent without the flag. Unknown lens → exit 2.
+#   7. QA (JSON `qa`, AGR-098): bundled `qa:` defaults ◂ pipeline.yaml `qa:` ◂
+#      hosts.<host>.qa (shallow merge). The key is emitted only when the result
+#      is enabled or --qa (env FLAG_QA=on) is given; QA off leaves the JSON as before.
 #
 # Exit codes:
 #   0 — resolved
@@ -59,6 +62,7 @@ TIER=""
 HOST=""
 NO_ADAPT=""
 LENSES=""
+FLAG_QA="${FLAG_QA:-}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -89,12 +93,13 @@ while [ "$#" -gt 0 ]; do
     --no-adapt) NO_ADAPT="1"; shift ;;
     --lenses) LENSES="${2:-}"; shift 2 ;;
     --lenses=*) LENSES="${1#--lenses=}"; shift ;;
+    --qa) FLAG_QA="on"; shift ;;
     --json) OUTPUT="json"; shift ;;
     --steps) OUTPUT="steps"; shift ;;
     --loop) OUTPUT="loop"; shift ;;
     --max-cycles) OUTPUT="max-cycles"; shift ;;
     --approval-required) OUTPUT="approval-required"; shift ;;
-    -h|--help) sed -n '2,39p' "$0" >&2; exit 0 ;;
+    -h|--help) sed -n '2,42p' "$0" >&2; exit 0 ;;
     *) echo "[workflow] unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
@@ -109,7 +114,7 @@ fi
 PIPELINE_YAML="$PIPELINE_PATH" WORKFLOW_NAME="$WORKFLOW" OUTPUT="$OUTPUT" \
 FLAG_REVIEW="$FLAG_REVIEW" FLAG_JUDGE="$FLAG_JUDGE" FLAG_FIX="$FLAG_FIX" FLAG_DISCUSS="$FLAG_DISCUSS" \
 FLAG_SDD="$FLAG_SDD" FLAG_PLAN="$FLAG_PLAN" STAGES_OVERRIDE="$STAGES_OVERRIDE" \
-VERIFY_CADENCE="$VERIFY_CADENCE" TIER="$TIER" HOST="$HOST" NO_ADAPT="$NO_ADAPT" MB_SD="$SCRIPT_DIR" LENSES="$LENSES" \
+VERIFY_CADENCE="$VERIFY_CADENCE" TIER="$TIER" HOST="$HOST" NO_ADAPT="$NO_ADAPT" MB_SD="$SCRIPT_DIR" LENSES="$LENSES" FLAG_QA="$FLAG_QA" \
 python3 - <<'PY'
 import json
 import os
@@ -393,6 +398,13 @@ import mb_work_adapt  # noqa: E402
 resolved["adapt"] = mb_work_adapt.load_config(path, bool(os.environ.get("NO_ADAPT")))
 if review_lenses is not None:
     resolved["review_lenses"] = review_lenses
+qa = {**(default_cfg.get("qa") or {})}
+for layer in (cfg.get("qa"), host_cfg.get("qa")):
+    qa.update(layer if isinstance(layer, dict) else {})
+if os.environ.get("FLAG_QA") == "on":
+    qa["enabled"] = True
+if qa.get("enabled") is True:
+    resolved["qa"] = qa
 
 if output == "json":
     print(json.dumps(resolved, ensure_ascii=False))

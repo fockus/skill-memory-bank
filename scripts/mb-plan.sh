@@ -2,7 +2,8 @@
 # mb-plan.sh — create a plan file in Memory Bank.
 #
 # Usage:
-#   mb-plan.sh <type> <topic> [--context <path>] [--sdd] [mb_path]
+#   mb-plan.sh <type> <topic> [--context <path>] [--sdd] [--tier small|standard|large|extra]
+#              [--qa|--no-qa] [--spec <topic>] [mb_path]
 #
 # Types: feature, fix, refactor, experiment
 #
@@ -11,9 +12,10 @@
 #   --sdd             Strict mode: fail unless context exists AND passes
 #                     EARS validation (mb-ears-validate.sh exit 0).
 #
-# Auto-detect: when --context is omitted, mb-plan.sh checks
-# `<mb>/context/<sanitized_topic>.md`; if present, the plan gets a
-# `## Linked context` section with a Markdown link.
+# --tier adds `qa: on | off — <reason>` (rules: references/effort-tiers.md § QA declaration);
+# --spec <topic> makes a wrapper plan with `linked_spec: specs/<topic>`.
+#
+# Auto-detect: without --context, `<mb>/context/<sanitized_topic>.md` is linked when present.
 #
 # Creates `plans/YYYY-MM-DD_<type>_<topic>.md` from a template (DoD, TDD, risks, gate).
 # `<!-- mb-stage:N -->` markers in the template are used by `mb-plan-sync.sh`.
@@ -28,8 +30,8 @@ TOPIC=""
 CONTEXT_PATH=""
 SDD_STRICT=0
 MB_ARG=""
+TIER="" QA_FLAG="" SPEC_TOPIC="" QA_DECL="" SPEC_SAFE=""
 
-# Hand-rolled arg parsing (positional + optional flags interleaved).
 while [ $# -gt 0 ]; do
   case "$1" in
     --context)
@@ -41,8 +43,11 @@ while [ $# -gt 0 ]; do
       SDD_STRICT=1
       shift
       ;;
+    --tier) TIER="${2:-}"; shift 2 ;;
+    --qa|--no-qa) [ "$QA_FLAG" = "--no-qa" ] || QA_FLAG="$1"; shift ;; # --no-qa wins in any order
+    --spec) SPEC_TOPIC="${2:-}"; [ -n "$SPEC_TOPIC" ] || { echo "[error] --spec requires a topic" >&2; exit 1; }; shift 2 ;;
     -h|--help)
-      sed -n '2,18p' "$0"
+      sed -n '2,19p' "$0"
       exit 0
       ;;
     *)
@@ -62,23 +67,21 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$TYPE" ] || [ -z "$TOPIC" ]; then
-  echo "Usage: mb-plan.sh <type> <topic> [--context <path>] [--sdd] [mb_path]. Types: feature, fix, refactor, experiment" >&2
+  echo "Usage: mb-plan.sh <type> <topic> [--context <path>] [--sdd] [--tier T] [--qa|--no-qa] [--spec <topic>] [mb_path]. Types: feature, fix, refactor, experiment" >&2
   exit 1
 fi
 
 MB_PATH=$(mb_resolve_path "$MB_ARG")
 PLANS_DIR="$MB_PATH/plans"
 
+case "$TIER" in ""|small|standard|large|extra) ;; *) echo "[error] --tier must be small|standard|large|extra" >&2; exit 1 ;; esac
+
 case "$TYPE" in
   feature|fix|refactor|experiment) ;;
   *) echo "Unknown type: $TYPE. Allowed: feature, fix, refactor, experiment" >&2; exit 1 ;;
 esac
 
-# Soft-warn on legacy Cyrillic planning terminology in <topic>.
-# Canonical hierarchy is Phase / Sprint / Stage (`references/templates.md` § Plan
-# decomposition). Cyrillic «Этап / Эпик / Спринт / Фаза» are legacy aliases —
-# allowed only in archived plans/done/. We warn but do not block: the user
-# retains the right to name plans freely.
+# Soft-warn (never block) on legacy Cyrillic Этап/Эпик/Спринт/Фаза in <topic>; canon is Phase/Sprint/Stage.
 if printf '%s' "$TOPIC" | grep -qiE '\b(Этап|Эпик|Спринт|Фаза)\b'; then
   echo "[mb-plan] WARN: topic contains legacy Cyrillic naming; prefer Phase/Sprint/Stage. See references/templates.md." >&2
 fi
@@ -90,8 +93,7 @@ if [[ -z "$SAFE_TOPIC" ]]; then
   exit 1
 fi
 
-# Phase 2 Sprint 2: SDD-lite context resolution.
-# Order: explicit --context wins; otherwise auto-detect <mb>/context/<safe_topic>.md.
+# SDD-lite context resolution.
 RESOLVED_CONTEXT=""
 if [ -n "$CONTEXT_PATH" ]; then
   if [ -f "$CONTEXT_PATH" ]; then
@@ -117,6 +119,19 @@ if [ "$SDD_STRICT" -eq 1 ]; then
       exit 1
     fi
   fi
+fi
+
+# QA declaration (first match wins). Plan time reads qa.enabled only.
+if [ -n "$TIER" ]; then
+  QA_ENABLED=$(awk '/^qa:/{f=1;next} /^[^ #]/{f=0} f && $1=="enabled:"{print $2; exit}' "$MB_PATH/pipeline.yaml" 2>/dev/null || true)
+  if [ "$QA_FLAG" = "--no-qa" ] || [ "$QA_ENABLED" = "false" ]; then QA_DECL="off — disabled"
+  elif [ "$TIER" = small ] && [ "$QA_FLAG" != "--qa" ] && [ "$QA_ENABLED" != "true" ]; then QA_DECL="off — small tier"
+  elif [ ! -f "$MB_PATH/qa/README.md" ]; then QA_DECL="off — no QA target"; else QA_DECL="on"; fi
+fi
+
+if [ -n "$SPEC_TOPIC" ]; then
+  SPEC_SAFE=$(mb_sanitize_topic "$SPEC_TOPIC")
+  [ -f "$MB_PATH/specs/$SPEC_SAFE/tasks.md" ] || { echo "[error] --spec: specs/$SPEC_SAFE/tasks.md not found" >&2; exit 1; }
 fi
 
 DATE=$(date +"%Y-%m-%d")
@@ -202,10 +217,26 @@ else
   sed -i '' "s|TYPE|$TYPE|g; s|TOPIC|$SAFE_TOPIC|g; s|BASELINE_COMMIT_PLACEHOLDER|$BASELINE_COMMIT|g; s|DATE_PLACEHOLDER|$DATE|g" "$FILEPATH"
 fi
 
-# Phase 2 Sprint 2 (SDD-lite): inject `## Linked context` section right after
-# the Context block when a context file was resolved.
+# QA declaration and spec wrapper: frontmatter lines, the QA DoD item, the single wrapper stage.
+if [ -n "$QA_DECL" ] || [ -n "$SPEC_SAFE" ]; then
+  PLAN_FILE="$FILEPATH" QA_DECL="$QA_DECL" SPEC_SAFE="$SPEC_SAFE" TOPIC_SAFE="$SAFE_TOPIC" python3 - <<'PY'
+import os
+e = os.environ
+text = open(e["PLAN_FILE"], encoding="utf-8").read()
+fm = ("linked_spec: specs/%s\n" % e["SPEC_SAFE"] if e["SPEC_SAFE"] else "") + ("qa: %s\n" % e["QA_DECL"] if e["QA_DECL"] else "")
+text = text.replace("linked_specs: []\n", "linked_specs: []\n" + fm, 1)
+if e["SPEC_SAFE"]:
+    t = e["SPEC_SAFE"]
+    text = text.replace("### Stage 1: <!-- title -->", "### Stage 1: Execute specs/" + t, 1)
+    text = text.replace("- <!-- concrete actions -->", "**Run:** `/mb work <this plan>` — `specs/" + t + "/tasks.md` is the source of truth.", 1)
+if e["QA_DECL"] == "on":
+    text = text.replace("- [ ] lint clean\n", "- [ ] lint clean\n- [ ] QA: `/mb qa run @%s` passes qa.gate (no open critical or major bug)\n" % e["TOPIC_SAFE"], 1)
+open(e["PLAN_FILE"], "w", encoding="utf-8").write(text)
+PY
+fi
+
+# Inject `## Linked context` after the Context block when a context file was resolved.
 if [ -n "$RESOLVED_CONTEXT" ]; then
-  # Render path relative to MB_PATH for portability across moves
   REL_CONTEXT="${RESOLVED_CONTEXT#"$MB_PATH/"}"
   PLAN_FILE="$FILEPATH" REL_CTX="$REL_CONTEXT" python3 - <<'PY'
 import os

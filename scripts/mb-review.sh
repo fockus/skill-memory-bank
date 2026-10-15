@@ -79,6 +79,12 @@
 #                       `strictness: block` -- this project's profile says
 #                       `warn`, so an exit-code gate could never fire here.
 #
+# --source <path>       Repeatable. Appends `## Sources` AFTER `## Quality DoD`
+#                       (the payload's last section): per source `### <path>`
+#                       and its content verbatim; a spec directory contributes
+#                       its requirements.md. Missing path -> exit 2. Without
+#                       --source the payload is byte-identical to before.
+#
 # The calibration-examples section is rendered by the layered loader in
 # scripts/mb-review-examples.sh (design.md §4) via render_examples_section().
 #
@@ -99,7 +105,7 @@ PIPELINE_SH="$SCRIPT_DIR/mb-pipeline.sh"
 EXAMPLES_SH="${MB_REVIEW_EXAMPLES_SH:-$SCRIPT_DIR/mb-review-examples.sh}"
 
 usage_short() {
-  echo "Usage: mb-review.sh --emit-payload [--input <case-dir>] [--mb <path>] [--plan <path>] [--item <N>] [--run-id <id>] [--refresh-tests] [--ttl <seconds>]" >&2
+  echo "Usage: mb-review.sh --emit-payload [--input <case-dir>] [--mb <path>] [--plan <path>] [--item <N>] [--run-id <id>] [--source <path>]... [--refresh-tests] [--ttl <seconds>]" >&2
 }
 
 # ---- section renderers ------------------------------------------------------
@@ -476,6 +482,7 @@ REFRESH_TESTS=0
 TTL_ARG=""
 QUALITY_DOD_ARG=""
 RULES_CHECK_ARG=""
+SOURCES=()
 
 # Guards against the bash "shift count out of range" crash when a
 # value-taking flag is the LAST arg with no following value: without this,
@@ -503,6 +510,8 @@ while [ "$#" -gt 0 ]; do
     --quality-dod=*) QUALITY_DOD_ARG="${1#--quality-dod=}"; shift ;;
     --rules-check-json) require_value "$@"; RULES_CHECK_ARG="$2"; shift 2 ;;
     --rules-check-json=*) RULES_CHECK_ARG="${1#--rules-check-json=}"; shift ;;
+    --source) require_value "$@"; SOURCES+=("$2"); shift 2 ;;
+    --source=*) SOURCES+=("${1#--source=}"); shift ;;
     --refresh-tests) REFRESH_TESTS=1; shift ;;
     --ttl) require_value "$@"; TTL_ARG="$2"; shift 2 ;;
     --ttl=*) TTL_ARG="${1#--ttl=}"; shift ;;
@@ -572,6 +581,11 @@ if [ -n "$QUALITY_DOD_ARG" ] && [ ! -f "$QUALITY_DOD_ARG" ]; then
   exit 2
 fi
 
+for src in ${SOURCES[@]+"${SOURCES[@]}"}; do
+  if [ -d "$src" ] && [ -f "$src/requirements.md" ]; then continue; fi
+  if [ ! -f "$src" ]; then echo "[review] source not found: $src" >&2; exit 2; fi
+done
+
 # ---- assemble + print (stdout only — no reviewer dispatch, no network) ------
 
 {
@@ -590,5 +604,15 @@ fi
   if [ -n "$QUALITY_DOD_ARG" ]; then
     echo
     render_quality_dod_section "$QUALITY_DOD_ARG"
+  fi
+  if [ "${#SOURCES[@]}" -gt 0 ]; then
+    echo
+    echo "## Sources"
+    for src in "${SOURCES[@]}"; do
+      echo
+      echo "### $src"
+      echo
+      if [ -d "$src" ]; then cat "$src/requirements.md"; else cat "$src"; fi
+    done
   fi
 }

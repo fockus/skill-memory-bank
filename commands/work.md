@@ -3,7 +3,7 @@ description: "Executes Memory Bank workflow modes from pipeline.yaml — existin
 allowed-tools: [Bash, Read, Task]
 ---
 
-# /mb work [target] [--workflow NAME] [--tier T] [--verify stage|plan|run|off] [--review] [--fix] [--loop N] [--range A-B] [--auto] [--dry-run] [--budget TOK] [--max-cycles N] [--allow-protected]
+# /mb work [target] [--workflow NAME] [--tier T] [--verify stage|plan|run|off] [--review] [--fix] [--loop N] [--range A-B] [--auto] [--dry-run] [--budget TOK] [--max-cycles N] [--qa] [--allow-protected]
 
 Run the executable engine using a workflow mode resolved from `pipeline.yaml`. By default (`medium`), `/mb work` is intentionally simple: **implement → verify → done** from an already-created plan/spec, with one verifier pass at the end of the plan. Presets run from **simple** (implementer self-check only) through **complex** (+ one reviewer) to **governed** (`implement → verify → review ensemble → judge → fix/backlog → done`); other modes: **full-cycle** (`discuss → sdd → plan → implement → verify → done`), **requirements-plan**, **implement-only**, **review-fix**, or **review-only**. Severity gates, judge gates, token budgets, protected-path checks, and the sprint context guard provide hard stops for `--auto` mode.
 
@@ -56,10 +56,10 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
 1. **Resolve workflow mode.** Resolve the effective pipeline and selected workflow:
 
    ```bash
-   bash "$SKILL_DIR"/scripts/mb-workflow.sh --mb <bank> --workflow <name-or-empty> [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix] [--brainstorm] [--sdd] [--plan] [--stages a,b,c] [--tier T] [--verify=C] [--host H] [--no-adapt] --json
+   bash "$SKILL_DIR"/scripts/mb-workflow.sh --mb <bank> --workflow <name-or-empty> [--review|--no-review] [--judge|--no-judge] [--fix|--no-fix] [--brainstorm] [--sdd] [--plan] [--stages a,b,c] [--tier T] [--verify=C] [--host H] [--no-adapt] [--qa] --json
    ```
 
-   **Thread every supported composition flag the user typed into this call verbatim** — that is what turns `/mb work <target> --review --fix --loop 4` into `implement → verify → review → fix → done` with a bounded fix-cycle. `--fix` and `--judge` each require `review` (exit 2 otherwise); a flag-added `fix` on a preset with no loop block gets loop defaults (`returns_to: verify`, `max_cycles` from `pipeline.yaml:review`). The returned JSON contains `steps`, `entrypoint`, `interactive`, `loop`, `verify_cadence`, `self_verify`, and `adapt` (step 5c1). `--tier trivial` exits 2: no `/mb work` needed. The orchestrator MUST follow this workflow instead of hard-coding one order. `--auto`, `--budget`, `--range`, `--loop N` and `--max-cycles N` are driver flags, not arguments to this resolver (`--loop` and `--max-cycles` here only select output). `--max-cycles N` — and its alias **`--loop N`** — overrides `workflow.loop.max_cycles` for this run only: it is the ceiling on review→fix cycles before `on_max_cycles` handling fires (step 5f), not a count of review dispatches to run unconditionally.
+   **Thread every supported composition flag the user typed into this call verbatim** — that is what turns `/mb work <target> --review --fix --loop 4` into `implement → verify → review → fix → done` with a bounded fix-cycle. `--fix` and `--judge` each require `review` (exit 2 otherwise); a flag-added `fix` on a preset with no loop block gets loop defaults (`returns_to: verify`, `max_cycles` from `pipeline.yaml:review`). The returned JSON contains `steps`, `entrypoint`, `interactive`, `loop`, `verify_cadence`, `self_verify`, `adapt` (step 5c1), and `qa` only when QA is on (step 5c2). `--tier trivial` exits 2: no `/mb work` needed. The orchestrator MUST follow this workflow instead of hard-coding one order. `--auto`, `--budget`, `--range`, `--loop N` and `--max-cycles N` are driver flags, not arguments to this resolver (`--loop` and `--max-cycles` here only select output). `--max-cycles N` — and its alias **`--loop N`** — overrides `workflow.loop.max_cycles` for this run only: it is the ceiling on review→fix cycles before `on_max_cycles` handling fires (step 5f), not a count of review dispatches to run unconditionally. A plan's `qa: on` declaration counts as `--qa` for both this call and step 3's `mb-work-plan.sh` (a spec target: the wrapper linking it, `grep -l '^linked_spec: *specs/<topic>' <bank>/plans/*.md`); without it, no flag.
 
 2. **Run planning steps only when selected.** If the selected workflow contains:
 
@@ -72,10 +72,10 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
 3. **Resolve execution target when execution/review steps are present.** If the workflow contains any of `implement`, `verify`, `review`, `fix`, or `done`, resolve the target and range:
 
    ```bash
-   bash "$SKILL_DIR"/scripts/mb-work-plan.sh [--target ...] [--range ...] --verify=<json.verify_cadence> [--cost C] [--host H] --mb <bank>
+   bash "$SKILL_DIR"/scripts/mb-work-plan.sh [--target ...] [--range ...] --verify=<json.verify_cadence> [--cost C] [--host H] [--qa] --mb <bank>
    ```
 
-   The script outputs JSON Lines as described above, including resolved `agent`, `model` (+ `model_source`, `cost`, `host`, `step_models` for verifier/reviewer/judge — cost tiers, `references/work-reference.md` § JSON Lines schema), and `thinking`, plus `verify` / `final_verify` per item (a multi-plan run repeats `--target`).
+   The script outputs JSON Lines as described above, including resolved `agent`, `model` (+ `model_source`, `cost`, `host`, `step_models` for verifier/reviewer/judge — cost tiers, `references/work-reference.md` § JSON Lines schema), and `thinking`, plus `verify` / `final_verify` (and `qa` when on) per item (a multi-plan run repeats `--target`).
 
    **Parallel waves (`wave`, AGR-073).** Equal-wave items have disjoint `Files:` and no dependency. Export `MB_WORK_PARALLEL=1`; each item needs its own run_id/claim, one owner per shared file, and progress through `mb-work-progress-append.sh`. Dispatch independent items together only after their claims succeed. Current category claims can refuse a second item (exit 4); then complete the owning item and retry the remaining wave serially, never `--takeover` a live worker. Subsequent waves wait for the current one. `verify`/`final_verify` keep their cadence; final verification remains on the last item.
 
@@ -155,9 +155,7 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
 
    ### 5a. Implement step (only if workflow includes `implement`)
 
-   Dispatch the resolved role agent by name. The installer composes `agents/mb-engineering-core.md`
-   and `agents/mb-tooling-core.md` (its `compose:` list) above the role text, so the prompt holds only
-   the item data — never re-type agent files into it. Pass the JSON Line's `model` (unless `inherit`) and `thinking` only when the host allows those overrides for that role; Claude Code takes reasoning depth from `effort:` frontmatter.
+   Dispatch the resolved role agent by name. The installer composes `agents/mb-engineering-core.md` and `agents/mb-tooling-core.md` (its `compose:` list) above the role text, so the prompt holds only the item data — never re-type agent files into it. Pass the JSON Line's `model` (unless `inherit`) and `thinking` only when the host allows those overrides for that role; Claude Code takes reasoning depth from `effort:` frontmatter.
    For static Codex roles, compare the loaded model/effort with the resolved values before dispatch. If they differ, render and reload through the supported host mechanism; if unavailable, report the mismatch and stop that dispatch.
    Never silently substitute model or reasoning level; this also applies to verifier, reviewer, judge and fix dispatches below.
    Other hosts dispatch by name with their own tool (SKILL.md § Invocation); without named dispatch, read the role file and its `compose:` partials.
@@ -214,12 +212,13 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
      description="mb-work verify item <N>",
      subagent_type="plan-verifier",
      model="<json.step_models.verifier>",
-     prompt="Source file: <plan or spec path>\nSource kind: <plan|spec>\nBank path: <absolute bank>\nSkill path: <SKILL_DIR>\nVerify only item <N> — <heading>\nBaseline ref: <state baseline_ref>\nItem files: <the --files list, comma-separated>\nFinal item: <yes|no>\nDiff:\n<output of mb-work-diff.sh above>"
+     prompt="Source file: <plan or spec path>\nSource kind: <plan|spec>\nBank path: <absolute bank>\nSkill path: <SKILL_DIR>\nVerify only item <N> — <heading>\nBaseline ref: <state baseline_ref>\nItem files: <the --files list, comma-separated>\nFinal item: <yes|no>\nSpec: <json.spec_path|none>\nPlan wrapper: <json.plan_path|none>\nQA cases: <bank>/qa/test_cases/<wrapper topic, else json.source_topic>/|none\nQA report: <newest <bank>/qa/runs/$RUN_ID-qa<n>/report.md|none>\nDiff:\n<output of mb-work-diff.sh above>"
    )
    ```
 
    `<state baseline_ref>` is `baseline_ref` from `mb-work-state.sh status ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>`. `Final item: yes` only when the item has `final_verify: true`: the verifier runs targeted tests per item and the full suite once there (AGR-071).
    - **Verdict PASS** → continue.
+   - **`NOTHING TO VERIFY`** (no REQ, DoD item or case in the source) halts the item.
    - **Verdict FAIL** → record `mb-work-state.sh step verify_fail` and run the ADaPT check (5c1). Below `adapt.verify_fail_cycles` re-dispatch the implementer with the findings and verify again; at the threshold the fork opens; with ADaPT off or no fork, **halt** the loop. Under `plan`/`run` cadence the fail counts on each item the findings name (`references/adapt.md`). Surface findings. Do not spend reviewer cycles on a verifier-failing item unless the selected workflow explicitly omits `verify`.
 
    ### 5c1. ADaPT fork (only when step 1's `adapt.enabled`; `--no-adapt` = today's halt)
@@ -232,6 +231,15 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
 
    Procedure: `references/adapt.md` § "/mb work handling".
 
+   ### 5c2. QA (only when step 1 JSON has `qa` and the item has `qa: true`)
+
+   Runs at `qa.position`: `before_review` → right after a 5c PASS (after 5b1 when the item has `verify: false`); `after_review` → after the review/judge gate passes, before 5g. `QA_RUN="$RUN_ID-qa<n>"`, `<n>` = `qa_cycle` from `mb-work-state.sh status` (absent = 0). Medium/low bugs are listed in the item report and §6, never fixed here.
+   1. **Stand.** Run `qa.prepare` when non-empty; a non-zero exit **halts** with its output — an environment failure, not a bug, no cycle spent.
+   2. **Run.** Dispatch `mb-qa-runner` as `commands/qa.md` § run says, with `selection` = `@<topic>` (the plan's `topic:`) for QA from the declaration at cadence `stage` or `plan`, else `qa.selector`, `run_id = $QA_RUN`, `expected_build = $(git rev-parse HEAD)` (the loop does not commit, so `prepare` deploys the working tree). Any scenario BLOCKED or SKIP (report title) → **halt**: QA did not finish (dead or stale stand, missing precondition), an environment failure, never a fix cycle.
+   3. **Gate.** `bash "$SKILL_DIR"/scripts/mb-qa-bug.sh --mb <bank> gate --run "$QA_RUN" --gate '<qa.gate as JSON>'`. Exit 0 → continue the chain; exit 2 → halt (input error); exit 1 → `bash "$SKILL_DIR"/scripts/mb-work-state.sh qa-cycle --max <qa.max_cycles> ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>`:
+      - exit 0 → re-dispatch the implementer (5a prompt) with the full bodies of the blocking bugs (`mb-qa-bug.sh list --json --open --run "$QA_RUN"` names them; bodies in `<bank>/qa/bugs.md`), their evidence paths under `<bank>/qa/runs/$QA_RUN/`, and: "Regression test first when the defect is reachable from tests; never edit `<bank>/qa/`"; the regression test for a blocking bug carries `mb:case reg-<bug id lowercased>` in a comment. A fix diff touching `<bank>/qa/test_cases/` (other than `reg-*.md` written by `mb-qa-bug.sh`) → **halt**. Then 5b, 5b1, 5c, and back to 5c2.
+      - exit 3 → `qa.on_max_cycles`: `stop_for_human` halts; `continue_with_warning` needs explicit human confirmation before the item continues as WARN.
+
    ### 5d. Review step (only if workflow includes `review`)
 
    **Assemble the payload deterministically first — never a hand-rolled prompt.** Before dispatching any reviewer, build the review payload with the reviewer-2.0 orchestrator, which owns diff discovery, calibration examples, and touched-file test-cache resolution so the reviewer only has to judge one pre-assembled document (REQ-100):
@@ -242,17 +250,9 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
      ${QUALITY_DOD:+--quality-dod "$QUALITY_DOD"} --rules-check-json <bank>/tmp/rules-check-<N>.json
    ```
 
-   Run the checker ONCE and reuse the same JSON for the reviewer and the judge (C6). `mb-review.sh` exits 1 without emitting a payload when that JSON carries a CRITICAL violation — code that already breaks the agreed rules does not get a review spent on it, and no reviewer is dispatched.
+   Run the checker ONCE and reuse the same JSON for the reviewer and the judge (C6). `mb-review.sh` exits 1 without emitting a payload when that JSON carries a CRITICAL violation — code that already breaks the agreed rules does not get a review spent on it, and no reviewer is dispatched. Add `--source` for each present locator (`spec_path`, `plan_path`, the last QA report); it appends `## Sources`.
 
-   **Detecting touched-file test status — a single, unambiguous check:** the assembled payload
-   contains a `## Auto-generated findings (MUST INCLUDE)` heading **if and only if** this item's
-   touched-file tests were failing (`mb-review.sh` only emits that heading when its resolved
-   `tests_pass` is exactly `false` — verified: its `## Prior evidence` section then also prints the
-   literal line `tests_pass: False`). Concretely: `grep -q '^## Auto-generated findings' <payload>`
-   (or, equivalently, `grep -q 'tests_pass: False' <payload>`) — record the result (e.g.
-   `TESTS_FAILING=1` on a match) for the parsing step below. Absence of the heading means tests were
-   passing, or no cached evidence existed for this run; treat both the same (do not pass
-   `--require-tests-blocker`).
+   **Detecting touched-file test status — a single, unambiguous check:** the assembled payload contains a `## Auto-generated findings (MUST INCLUDE)` heading **if and only if** this item's touched-file tests were failing (`mb-review.sh` only emits that heading when its resolved `tests_pass` is exactly `false` — verified: its `## Prior evidence` section then also prints the literal line `tests_pass: False`). Concretely: `grep -q '^## Auto-generated findings' <payload>` (or, equivalently, `grep -q 'tests_pass: False' <payload>`) — record the result (e.g. `TESTS_FAILING=1` on a match) for the parsing step below. Absence of the heading means tests were passing, or no cached evidence existed for this run; treat both the same (do not pass `--require-tests-blocker`).
 
    If the workflow has no `review_profile`, resolve the single reviewer agent with `mb-reviewer-resolve.sh` (it reads `roles.reviewer.agent` — e.g. this project's `codex-cli`, or the skill-default `mb-reviewer` fallback — and applies `override_if_skill_present`, e.g. routing to `superpowers:requesting-code-review` when that skill is installed). Dispatch **that resolved agent** (`model=<json.step_models.reviewer>`; ensemble aspect reviewers take the same unless `roles.<reviewer_x>.model` is set) with the assembled payload as its prompt — never a hard-coded `Task(mb-reviewer)` — and parse the verdict with `mb-work-review-parse.sh`.
 
@@ -271,7 +271,7 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
 
    ### 5e. Judge step (only if workflow includes `judge`)
 
-   Dispatch `roles.judge` with `model=<json.step_models.judge>` (omit when `inherit`). Give it: plan/spec/DoD, verifier report, lead-review report, previous judge decision, diff, verification evidence, and the **verbatim contents of `"$QUALITY_DOD"`** — the same bytes §5a and §5d received.
+   Dispatch `roles.judge` with `model=<json.step_models.judge>` (omit when `inherit`). Give it: plan/spec/DoD, verifier report, lead-review report, previous judge decision, diff, verification evidence, and the **verbatim contents of `"$QUALITY_DOD"`** — the same bytes §5a and §5d received; plus the payload's `## Sources` section verbatim, the same bytes the reviewer saw.
 
    The judge returns strict JSON with `decision`:
 
@@ -322,7 +322,7 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
    - Without `--auto` or existing whole-plan authorization: confirm before moving to the next item.
    - With `--auto`: continue to the next item unless one of the hard stops (below) fired.
 
-6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used. Run `bash "$SKILL_DIR"/scripts/mb-work-budget.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` and `bash "$SKILL_DIR"/scripts/mb-work-state.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` to remove the budget and loop-state — the same run-id threading as `done`/`flip`, so a parallel run clears its own slot rather than the singleton.
+6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used; with QA on: QA runs, QA cycles used, bugs opened/fixed/left open by severity, and the `qa/runs/<id>/report.md` paths. Run `bash "$SKILL_DIR"/scripts/mb-work-budget.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` and `bash "$SKILL_DIR"/scripts/mb-work-state.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` to remove the budget and loop-state — the same run-id threading as `done`/`flip`, so a parallel run clears its own slot rather than the singleton.
 
 ## Concurrent core-file writes
 
@@ -362,6 +362,7 @@ The autopilot continues without per-item prompts **except** when:
 | Trigger | Surfaced via | Halt? |
 |---------|--------------|-------|
 | `max_cycles` reached (cycle-exhausted) | `mb-work-state.sh cycle` exit 3 at step 5f + `on_max_cycles` handling | yes |
+| QA environment failure or QA cycles spent | step 5c2 (`qa.prepare` non-zero, any scenario BLOCKED or SKIP, `qa-cycle` exit 3) | yes |
 | `plan-verifier` returns FAIL | step 5c | yes |
 | `Write` / `Edit` attempt at a `protected_paths` glob without `--allow-protected` | step 5b (`mb-work-protected-check.sh`) | yes |
 | `--budget` exhausted | `mb-work-budget.sh check` exit 2 after Task | yes |
@@ -378,7 +379,7 @@ When any hard stop fires, the loop halts even under `--auto`. The orchestrator s
 |------|---------|--------|
 | `<target>` | Plan / spec topic / freeform / empty | 2 |
 | `--workflow NAME` / `--tier T` | Select a named workflow from `pipeline.yaml:workflows`, or the one `effort_tiers.T` maps to | 4 |
-| `--verify stage\|plan\|run\|off` / `--cost premium\|optimal\|economy` / `--host H` | Verifier cadence; cost tier (models per role class); host override for this run | presets |
+| `--verify stage\|plan\|run\|off` / `--cost premium\|optimal\|economy` / `--host H` / `--qa` | Verifier cadence; cost tier (models per role class); host override; QA on for this run (5c2) | presets |
 | `--range A-B` | Range over stages (plan) or tasks (spec) or sprints (phase) | 2 |
 | `--dry-run` | Print selected workflow + execution plan, don't dispatch | 2 |
 | `--auto` | Continue the authorized scope without per-item prompts; obey hard stops | 3 |

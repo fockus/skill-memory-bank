@@ -26,6 +26,7 @@ tier → `/mb work` preset mapping lives in `pipeline.yaml` `effort_tiers:`
 - **Plan:** none. **Tests:** no new tests. **Docs:** none.
 - **Verification:** one command — the test or lint that covers the touched line.
 - **Workflow:** none — edit directly, no `/mb work`.
+- **QA:** none — no plan.
 
 ### small
 
@@ -33,6 +34,7 @@ tier → `/mb work` preset mapping lives in `pipeline.yaml` `effort_tiers:`
 - **Plan:** none, no `/mb work`. **Tests:** one test per stated behavior, no mock-tests of glue,
   config or external SDK calls. **Docs:** no new documents; README/CHANGELOG get 1–2 lines if relevant.
 - **Verification:** targeted tests and lint of the changed files.
+- **QA:** off under `auto` (`--qa` or `qa.enabled: true` turns it on).
 - **Workflow:** inline; when the user does ask for `/mb work`, preset `simple` (implementer self-checks).
 
 ### standard
@@ -41,6 +43,7 @@ tier → `/mb work` preset mapping lives in `pipeline.yaml` `effort_tiers:`
 - **Plan:** `/mb plan` with SMART DoD for the plan (per stage only at a real boundary). **Tests:** TDD on the new logic, behavior not lines.
   **Docs:** update the touched docs; new documents only on request.
 - **Verification:** targeted checks while working; the full suite in `/mb verify` and before commit.
+- **QA:** on under `auto` when `qa/README.md` exists.
 - **Workflow:** `/mb work`, preset `medium` (implementer + one verifier pass at the end of the plan).
 
 ### large
@@ -49,6 +52,7 @@ tier → `/mb work` preset mapping lives in `pipeline.yaml` `effort_tiers:`
 - **Plan:** `/mb discuss` → `/mb sdd` → tasks; the spec is the source of truth. **Tests:** TDD,
   one test per spec scenario. **Docs:** what the spec requires.
 - **Verification:** per the spec; the full suite in `/mb verify` and before commit.
+- **QA:** on under `auto` when `qa/README.md` exists.
 - **Workflow:** `/mb work` on the spec, preset `complex` (adds one reviewer and a bounded fix loop).
 
 ### extra
@@ -57,7 +61,15 @@ tier → `/mb work` preset mapping lives in `pipeline.yaml` `effort_tiers:`
 - **Plan:** a plan or spec. **Tests:** full rules — TDD, contract tests, coverage on for the task.
   **Docs:** what the change needs to be operated safely.
 - **Verification:** the full suite and every configured gate.
+- **QA:** on under `auto` when `qa/README.md` exists.
 - **Workflow:** `/mb work`, preset `governed` (verifier, review ensemble, independent judge, fix loop).
+
+## QA declaration
+
+`mb-plan.sh --tier <tier>` writes `qa: on` or `qa: off — <reason>` into the plan frontmatter; the first match wins:
+`--no-qa` or `qa.enabled: false` → `off — disabled`; tier small without `--qa` under `auto` → `off — small tier`;
+absent `qa/README.md` declares `off — no QA target` (the plan is still created); otherwise `on`, with a QA item in the plan DoD
+and one test-case authoring dispatch (`commands/plan.md` § 3.5). `qa.enabled: true` makes every tier `on`; `auto` is the bundled default.
 
 ## Parallel work (AGR-073)
 

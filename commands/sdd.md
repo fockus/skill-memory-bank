@@ -148,6 +148,10 @@ The triple lands as **status: draft** — promotion is not acceptance. `specs/<t
 
 Apply the C7 status state machine (below) to decide `draft → ready`, then print the final report (`sdd_status`, three paths, and the `eval.<task-id>=…` lines).
 
+### Plan wrapper (after Step 10)
+
+Offer a plan wrapper that records how the spec is executed and whether QA runs: `bash "$SKILL_DIR"/scripts/mb-plan.sh <type> <topic> --spec <topic> --tier <tier>` (`--no-qa` when the user asked to skip QA; tier per `references/effort-tiers.md`). Offer it; create it without asking under `--auto` or when QA would be on (`qa/README.md` present and the tier above small under `qa.enabled: auto`), then run `commands/plan.md` § 3.5 on it.
+
 ## Escalation menu (D-35)
 
 When Step 5 reports an overflow, present the four-option menu and act on the choice — never silently accept an oversized spec:

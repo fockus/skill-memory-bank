@@ -12,6 +12,7 @@ Full roster of the bundled subagents. Dispatch rules (by name, per host) stay in
 | `plan-verifier` | `/mb verify` — required before `/mb done` when work followed a plan. Uses `**Baseline commit:**` from plan header for `git diff`, runs `mb-test-run.sh` and `mb-rules-check.sh` directly | `agents/plan-verifier.md` |
 | `mb-rules-enforcer` | `/review`, `/commit`, `/pr`, `plan-verifier` step 3.6 — runs `mb-rules-check.sh` (solid/srp, clean_arch/direction, tdd/delta) + LLM ISP/DRY judgment. Returns strict JSON + summary | `agents/mb-rules-enforcer.md` |
 | `mb-test-runner` | `/test`, `plan-verifier` step 3.5 — runs `mb-test-run.sh`, correlates failures with session diff. Returns JSON `{stack, tests_pass, tests_total, failures[], coverage, duration_ms}` | `agents/mb-test-runner.md` |
+| `mb-qa-runner` | `/mb qa run` — walks md acceptance scenarios against the live product (browser via Playwright MCP or `@playwright/cli`, CLI, HTTP API), files bugs by severity through `mb-qa-bug.sh`, writes `qa/runs/<run-id>/report.md` | `agents/mb-qa-runner.md` |
 | `mb-reviewer` | `/mb work` legacy single-reviewer fallback — reads stage diff + `pipeline.yaml:review_rubric`, emits structured JSON verdict | `agents/mb-reviewer.md` |
 | `mb-reviewer-logic` | `/mb work` governed review ensemble — correctness / logic aspect reviewer with scoped context | `agents/mb-reviewer-logic.md` |
 | `mb-reviewer-tests` | `/mb work` governed review ensemble — test-coverage / quality-of-tests aspect reviewer | `agents/mb-reviewer-tests.md` |

@@ -708,6 +708,9 @@ tasks: 1-3
 `linked_spec` — path to the spec directory (relative to `.memory-bank/`).
 `tasks` — optional range; limits `/mb work` to that task subset for sprint slicing.
 
+`qa:` — the QA declaration (`on` or `off — <reason>`, `references/effort-tiers.md` § QA declaration);
+`mb-plan.sh <type> <topic> --spec <topic> --tier <tier>` creates the wrapper with `linked_spec` and `qa:`.
+
 The plan basename is used for traceability only. Spec tasks remain the source of truth.
 
 ---

@@ -1,6 +1,6 @@
 ---
 description: "Creates a detailed work plan with DoD and saves it in memory-bank. Use when multi-stage work needs planning — «составь план», «распланируй задачу»."
-allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
+allowed-tools: [Read, Glob, Grep, Bash, Edit, Write, Task]
 argument-hint: <type> <topic>
 ---
 
@@ -84,6 +84,8 @@ bash "$SKILL_DIR"/scripts/mb-plan.sh <type> "<topic>"
 # .memory-bank/plans/2026-04-21_refactor_<topic>.md
 ```
 
+Size the plan with `references/effort-tiers.md`, then pass `--tier <tier>` and `--no-qa` when the user asks to skip QA; the scaffold writes the `qa:` declaration (`references/effort-tiers.md` § QA declaration).
+
 ### SDD-lite flags (optional)
 
 When the topic has a pre-written EARS-validated context document under `.memory-bank/context/`, the scaffold can link it automatically:
@@ -123,6 +125,10 @@ AGR-075), so a stage does not need its own independent check.
 Sprint fits one session's context — if not, revisit section 1.5.
 
 If `lessons.md` has entries relevant to this topic, incorporate them into the stages.
+
+## 3.5. QA test cases
+
+This step runs only when the plan says `qa: on` in its frontmatter; any `off — …` declaration skips it. When it does, dispatch `mb-qa` exactly once in test-case authoring mode (`agents/mb-qa.md`) with the plan path, the topic, the tier and the requirements source (spec `requirements.md`, linked context, or the plan DoD), using the host adapter table of `commands/qa.md` § run. The cases land in `<bank>/qa/test_cases/<topic>/`.
 
 ## 4. Synchronize with checklist and roadmap.md
 
@@ -173,6 +179,7 @@ no spec exists. Do not duplicate task definitions in both locations.
 
 Tell the user:
 - Path to the plan file
+- The QA declaration (`qa: on` or `qa: off — <reason>`) and, when on, the number of cases written
 - Number of stages created
 - First stage to execute
 - Reminder: after work, `/verify` (or `/mb verify`) before `/done`

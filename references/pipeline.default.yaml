@@ -285,6 +285,24 @@ sprint_context_guard:
 # Sub-items nest at most max_depth levels. `/mb work --no-adapt` = halt as before.
 adapt: {enabled: true, verify_fail_cycles: 3, item_token_budget: null, max_depth: 2}
 
+# ===== Drive — /mb drive (commands/drive.md) =====
+# parallel: two or more ready, independent plans with disjoint files run as one /mb team; only a
+# literal `false` turns it off (then every plan runs through /mb work, one at a time).
+drive: {parallel: true}
+
+# ===== QA — acceptance scenarios inside /mb work (commands/qa.md, AGR-098) =====
+# Part of verify, not a step of its own. `/mb work --qa` turns it on for one run, a plan with `qa: on` for its own;
+# hosts.<host>.qa overrides these keys per host.
+qa:
+  enabled: auto                  # auto = QA on at plan time for standard+ tiers · true = every tier and every run · false = off
+  cadence: plan                  # stage = every item · plan = last item · run = last item of the run
+  position: before_review        # before_review | after_review (after the review/judge gate)
+  selector: "all"                # scenario selection passed to /mb qa run
+  prepare: ""                    # shell command that refreshes the stand before every QA run
+  gate: {critical: 0, major: 0}  # max open bugs of the run per severity (critical|major|medium|low)
+  max_cycles: 3                  # QA fix cycles per item before on_max_cycles
+  on_max_cycles: stop_for_human  # stop_for_human | continue_with_warning
+
 # ===== Review rubric — fixed keys, extensible items =====
 # Stock bullets tagged `SOLID:`/`DRY:`/`KISS:`/`YAGNI:` and the `(Testing Trophy)` one are
 # dropped from the review payload when the project switches that principle / Trophy off
@@ -440,29 +458,32 @@ model_profiles:
 # with PyYAML. Models take a slot (premium | mid), an exact id or inherit;
 # `models` sets roles (executor, verifier, reviewer, lead) and lenses (`lenses`
 # for all, `lens: {<name>: …}` per lens as a block mapping) separately.
-# `mode: work` runs the track source through /mb work: `work: orchestrated`
-# (the orchestrator drives the loop) or `work: light` (the track agent walks
-# the stages, the orchestrator runs verifier and review after).
+# Every track runs through /mb work (AGR-103): `mode: work`, `work: orchestrated`
+# (the orchestrator drives the loop); `direct` and `light` are refused. A track
+# without a plan or spec runs on its own prompt, a one-stage plan.
 team:
   default_size: standard
   max_parallel: 6
   presets:
     trivial:
-      mode: direct
+      mode: work
+      work: orchestrated
       tdd: optional
       verifier: none
       review: none
       models: {executor: mid}
       effort: low
     small:
-      mode: direct
+      mode: work
+      work: orchestrated
       tdd: required
       verifier: none
       review: none
       models: {executor: mid}
       effort: medium
     standard:
-      mode: direct
+      mode: work
+      work: orchestrated
       tdd: required
       verifier: plan-verifier
       review: none

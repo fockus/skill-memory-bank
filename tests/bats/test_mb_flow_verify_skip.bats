@@ -61,7 +61,7 @@ teardown() {
   run bash "$VERIFY" "$TMPBANK" --check "tests=printf '%s' '{\"name\":\"tests\",\"ok\":true,\"findings\":[]}'"
   names="$(printf '%s' "$output" | python3 -c 'import json,sys; print(",".join(c["name"] for c in json.loads(sys.stdin.read())["checks"]))')"
   [ "$names" = "tests" ]
-  grep -q 'CHECK_NAMES=( tests lint no_todo diff_scope acceptance )' "$VERIFY"
+  grep -q 'CHECK_NAMES=( tests lint no_todo diff_scope acceptance qa )' "$VERIFY"
 }
 
 @test "skip: --skip of an explicit --check name is honoured too" {

@@ -18,7 +18,7 @@ import sys
 
 TIERS = ("premium", "optimal", "economy")
 SLOTS = ("premium", "mid")
-HOST_KEYS = ("cost", "preset", "verify")
+HOST_KEYS = ("cost", "preset", "verify", "qa")
 CADENCES = ("stage", "plan", "run", "off")
 CLASSES = ("implementer", "planner", "researcher", "verifier", "reviewer", "judge")
 _ROLE_CLASS = {

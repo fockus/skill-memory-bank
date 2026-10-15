@@ -339,6 +339,48 @@ import mb_work_adapt as _adapt  # noqa: E402
 
 _adapt.validate(cfg, err)
 
+# qa (AGR-098) — the block and its per-host overrides share one schema.
+QA_ENUMS = {
+    "cadence": ("stage", "plan", "run"),
+    "position": ("before_review", "after_review"),
+    "on_max_cycles": ("stop_for_human", "continue_with_warning"),
+}
+
+
+def validate_qa(block, where: str) -> None:
+    if not isinstance(block, dict):
+        err(f"{where}: must be a mapping")
+        return
+    for key in sorted(set(block) - {"enabled", "selector", "prepare", "gate", "max_cycles", *QA_ENUMS}):
+        err(f"{where}: unknown key '{key}'")
+    if "enabled" in block and not (isinstance(block["enabled"], bool) or block["enabled"] == "auto"):
+        err(f"{where}.enabled: must be true, false or auto")
+    for key, allowed in QA_ENUMS.items():
+        if key in block and block[key] not in allowed:
+            err(f"{where}.{key}: {block[key]!r} not in {list(allowed)}")
+    for key in ("selector", "prepare"):
+        if key in block and not isinstance(block[key], str):
+            err(f"{where}.{key}: must be a string")
+    mc = block.get("max_cycles", 1)
+    if not isinstance(mc, int) or isinstance(mc, bool) or mc < 1:
+        err(f"{where}.max_cycles: must be int >= 1 (got {mc!r})")
+    gate = block.get("gate", {})
+    if not isinstance(gate, dict):
+        err(f"{where}.gate: must be a mapping")
+        return
+    for sev in sorted(set(gate) - {"critical", "major", "medium", "low"}):
+        err(f"{where}.gate: unknown key '{sev}'; allowed critical|major|medium|low")
+    for sev, limit in gate.items():
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 0:
+            err(f"{where}.gate.{sev}: must be int >= 0")
+
+
+if "qa" in cfg:
+    validate_qa(cfg["qa"], "qa")
+for _host, _spec in (cfg["hosts"] if isinstance(cfg.get("hosts"), dict) else {}).items():
+    if isinstance(_spec, dict) and "qa" in _spec:
+        validate_qa(_spec["qa"], f"hosts.{_host}.qa")
+
 # Per-block validators live in a sibling module (S2 review [25]); the shared
 # context is passed explicitly so neither file depends on the other's globals.
 import mb_pipeline_validate_blocks as _blocks  # noqa: E402

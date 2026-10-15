@@ -1,0 +1,1 @@
+{"name": "medium", "source": "workflows", "steps": ["implement", "verify", "done"], "entrypoint": "plan_or_spec", "interactive": false, "loop": {}, "verify_cadence": "plan", "self_verify": false, "host": "claude-code", "adapt": {"enabled": true, "verify_fail_cycles": 3, "item_token_budget": null, "max_depth": 2}}

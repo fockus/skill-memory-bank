@@ -269,9 +269,7 @@ def minimal_pipeline_load(text: str) -> dict:
         "review_ensemble",
         "done_gates", "done_placeholders", "dispatch", "adapt",
         "cost_tiers", "model_profiles", "hosts", "discipline",
-        "agents",
-        "aliases",
-        "team",
+        "agents", "aliases", "team", "qa",
     ):
         _value = parse_nested_block(lines, _name)
         if _value is not None:

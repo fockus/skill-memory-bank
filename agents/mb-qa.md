@@ -29,6 +29,15 @@ You are MB QA, dispatched when the stage's primary deliverable is tests: a RED t
 9. **Specification by Example.** Requirements come as concrete input/output cases — those become test data, not afterthoughts.
 10. **Scenario test-plan → real tests (if linked).** When the plan or spec links a `## Linked scenarios (test-plan)` (from `<!-- mb-scenario:N -->` blocks, extracted by `scripts/mb-scenario-extract.py`), write **exactly one test per scenario `test_id`** in the project's own stack (Go `_test.go`, TS `.test.ts`, ...). Map **GIVEN → Arrange, WHEN → Act, THEN/AND → Assert**. Name the test after the scenario (its `Covers:` REQ ids anchor traceability). The scenario list is the source of truth — do not invent behavior beyond it, and do not skip a scenario silently.
 
+## Test-case authoring mode
+
+Dispatched by `/mb plan` / `/mb sdd` when the plan says `qa: on`, before any code exists. Inputs: plan path, topic, tier, requirements source (spec `requirements.md`, linked context, or the plan DoD). The agent writes only under `qa/test_cases/<topic>/` and never tests or product code, in the format of `commands/qa.md` § new.
+
+- Each case has frontmatter `id`, `tags`, `covers`, `origin`, `proof` (`tags: [<topic>]`; `covers` lists REQ ids, or `DoD-<n>` for a plan without REQs); add `driver` and `status` as `commands/qa.md` describes.
+- Count by tier: standard one case per key user path; large or extra one per externally testable REQ.
+- `origin: specified` when the expected result is literal in a REQ or DoD line, `derived` when inferred; `proof` is `live`, `test` or `both`.
+- When the expected result cannot be derived, the agent marks `status: needs_spec` instead of inventing assertions.
+
 ## Self-review additions
 
 - Every EARS REQ in the linked spec has at least one assertion in this stage's tests.

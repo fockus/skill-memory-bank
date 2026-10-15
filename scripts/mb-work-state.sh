@@ -6,7 +6,8 @@
 # Subcommands (all take [--mb <path>]; per-run ones also [--run-id ID] /
 # $MB_WORK_RUN_ID): init <source> <item_no> [--source-path P] [--source-topic T]
 # [--max-cycles N] [--heading TXT] [--takeover] (prints run_id) · new-run-id ·
-# step <name> · cycle (exit 3 when exhausted) · status [--all] · list · done ·
+# step <name> · cycle (exit 3 when exhausted) · qa-cycle [--max N] (own counter
+# qa_cycle, default max 3, exit 3 when exhausted) · status [--all] · list · done ·
 # clear (both free any claim) · eval-red --cmd-file <path> --output-re <ERE>
 # [--expected-exit N] · eval-green --cmd-file <path> (svp-sdd-core C6, REQ-008) ·
 # ADaPT (references/adapt.md, scripts/mb_work_adapt.py): split <item> --subitems
@@ -67,7 +68,7 @@ source "$SCRIPT_DIR/mb-work-state-lib.sh"
 source "$SCRIPT_DIR/mb-work-state-eval.sh"
 
 usage() {
-  sed -n '2,54p' "$0" >&2
+  sed -n '2,55p' "$0" >&2
 }
 
 state_path() {
@@ -255,40 +256,35 @@ PY
   mv "$tmp" "$state"
 }
 
-# ── cycle ───────────────────────────────────────────────────────────────
-cmd_cycle() {
+# ── cycle / qa-cycle ────────────────────────────────────────────────────
+cmd_cycle() {  # <counter key> [--max N]; exit 3 once the counter passes its max
+  local key="$1" max_arg="" state tmp out
+  shift
   parse_common_flags "$@"
+  if [ "${REST_ARGS[0]:-}" = --max ] && is_uint "${REST_ARGS[1]:-}"; then
+    max_arg="${REST_ARGS[1]}"; REST_ARGS=("${REST_ARGS[@]:2}")
+  fi
   if [ "${#REST_ARGS[@]}" -gt 0 ]; then
     echo "[work-state] unexpected arg '${REST_ARGS[0]}'" >&2
     exit 2
   fi
-
-  local state tmp exhausted
   state=$(state_path "$PARSED_MB" "$PARSED_RUN_ID")
   require_valid_state "$state"
-
   tmp=$(mktemp)
-  exhausted=$(STATE="$state" TMP="$tmp" python3 - <<'PY'
+  out=$(STATE="$state" TMP="$tmp" KEY="$key" MAX="$max_arg" python3 - <<'PY'
 import json, os, datetime
-p = os.environ["STATE"]
-data = json.loads(open(p, encoding="utf-8").read())
-cycle = int(data.get("cycle", 0)) + 1
-max_cycles = int(data.get("max_cycles", 0))
-data["cycle"] = cycle
+data = json.loads(open(os.environ["STATE"], encoding="utf-8").read())
+key = os.environ["KEY"]
+data[key] = int(data.get(key, 0)) + 1
+cap = int(os.environ["MAX"] or (3 if key == "qa_cycle" else data.get("max_cycles", 0)))
 data["updated"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 open(os.environ["TMP"], "w", encoding="utf-8").write(json.dumps(data) + "\n")
-print(f"{cycle} {max_cycles} {'1' if cycle > max_cycles else '0'}")
+if data[key] > cap:
+    print(f"{key}={data[key]} max_cycles={cap}")
 PY
 )
   mv "$tmp" "$state"
-
-  local cyc max flag
-  read -r cyc max flag <<<"$exhausted"
-
-  if [ "$flag" = "1" ]; then
-    echo "[work-state] cycle budget exhausted (cycle=$cyc max_cycles=$max)" >&2
-    exit 3
-  fi
+  [ -z "$out" ] || { echo "[work-state] $key budget exhausted ($out)" >&2; exit 3; }
 }
 
 # ── status ──────────────────────────────────────────────────────────────
@@ -385,7 +381,8 @@ main() {
     init) shift; cmd_init "$@" ;;
     new-run-id) gen_run_id ;;
     step) shift; cmd_step "$@" ;;
-    cycle) shift; cmd_cycle "$@" ;;
+    cycle) shift; cmd_cycle cycle "$@" ;;
+    qa-cycle) shift; cmd_cycle qa_cycle "$@" ;;
     status) shift; cmd_status "$@" ;;
     list) shift; cmd_list "$@" ;;
     done) shift; cmd_done "$@" ;;

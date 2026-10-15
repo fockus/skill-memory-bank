@@ -37,6 +37,7 @@
 #   diff_scope  → blocker   (ADR-4 backstop: an out-of-scope/surgical-arch change is the
 #                            most dangerous under-escalation case)
 #   protected   → blocker   (a protected-path breach)
+#   qa          → blocker   (an open critical/major bug in <bank>/qa/bugs.md)
 #   rules       → major     (a deterministic engineering-rule violation)
 #   lint        → major     (a style/static-analysis finding)
 #   no_todo     → major     (a residual placeholder shipped in code — conservative)
@@ -71,6 +72,7 @@
 #   no_todo    → mb-no-todo.sh
 #   diff_scope → mb-diff-scope.sh      (ok:null unless a scope is configured)
 #   acceptance → mb-goal-acceptance.sh
+#   qa         → mb-qa-bug.sh list --json --open (ok:null without <bank>/qa/bugs.md)
 #   (build is intentionally absent — REQ-DF-043.)
 #
 # Output: a single structured JSON summary on stdout REGARDLESS of exit code —
@@ -295,13 +297,36 @@ print('{"name":"tests","ok":%s,"findings":[%s]}' % (ok, ",".join(parts)))
 PY
 }
 
+# Open critical/major bugs in <bank>/qa/bugs.md block closure. No registry → skip,
+# so projects without QA are unaffected. A crashed mb-qa-bug.sh propagates → broke.
+# shellcheck disable=SC2329
+_flow_qa_check() {
+  local mb="$1" raw
+  if [ ! -f "$mb/qa/bugs.md" ]; then
+    printf '%s\n' '{"name":"qa","ok":null,"findings":[]}'
+    return 0
+  fi
+  raw="$(bash "$SCRIPT_DIR/mb-qa-bug.sh" --mb "$mb" list --json --open)" || return 2
+  MB_QA_JSON="$raw" python3 -c '
+import json, os
+issues = json.loads(os.environ["MB_QA_JSON"])["issues"]
+label = {"blocker": "critical", "major": "major"}
+findings = []
+for i in issues:
+    sev = label.get(i["severity"])
+    if sev:
+        bug_id, _, title = i["message"].partition(" ")
+        findings.append(f"{bug_id} {sev} {title}")
+print(json.dumps({"name": "qa", "ok": not findings, "findings": findings}))'
+}
+
 # ---------------------------------------------------------------------------
 # Default check set — used only when the caller passed NO --check.
 # Each command emits the canonical runner JSON {name, ok, findings} and exits 0.
 # build is deliberately absent (REQ-DF-043 — build resolves to skip).
 # ---------------------------------------------------------------------------
 if [ "${#CHECK_NAMES[@]}" -eq 0 ]; then
-  CHECK_NAMES=( tests lint no_todo diff_scope acceptance )
+  CHECK_NAMES=( tests lint no_todo diff_scope acceptance qa )
   # Every check is scoped to the bank's project root (PROJECT_ROOT), never the
   # caller's cwd. lint/diff_scope take an explicit dir flag; no_todo keeps its
   # git-diff semantics so it must RUN from the project root (a subshell cd).
@@ -323,6 +348,7 @@ if [ "${#CHECK_NAMES[@]}" -eq 0 ]; then
     "( cd $_q_pr && bash $_q_todo )"
     "bash $_q_scope --repo $_q_pr"
     "bash $_q_accept '' $_q_mb"
+    "_flow_qa_check $_q_mb"
   )
 fi
 
@@ -421,6 +447,7 @@ SEVERITY = {
     "tests": "blocker",
     "diff_scope": "blocker",
     "protected": "blocker",
+    "qa": "blocker",
     "rules": "major",
     "lint": "major",
     "no_todo": "major",

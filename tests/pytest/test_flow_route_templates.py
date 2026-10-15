@@ -122,7 +122,7 @@ L2_SKILL_WORDS = frozenset(
 # `--phase` flag is informational and does NOT change the gate; `mb_updated` is
 # not a check at all, and `build` resolves to skip (ADR-6 / REQ-DF-043). A route
 # must not promise the firewall runs a check it does not.
-KNOWN_FIREWALL_CHECKS = frozenset({"tests", "lint", "no_todo", "diff_scope", "acceptance"})
+KNOWN_FIREWALL_CHECKS = frozenset({"tests", "lint", "no_todo", "diff_scope", "acceptance", "qa"})
 
 # The loop hops code-change must NOT re-decompose into separate phase items
 # (ADR-7 — implement→review→fix stay the one work.md loop).
@@ -590,7 +590,7 @@ def test_route_routes_result_through_firewall(name: str) -> None:
 def test_route_does_not_invent_a_firewall_check(name: str) -> None:
     """A route's Firewall / Boundary-checks must not promise the firewall runs a
     check it does not. `scripts/mb-flow-verify.sh` runs a FIXED default set
-    {tests,lint,no_todo,diff_scope,acceptance}; `--phase` is informational and
+    {tests,lint,no_todo,diff_scope,acceptance,qa}; `--phase` is informational and
     "does not change the gate"; `mb_updated` is not a check at all and `build`
     resolves to skip (ADR-6). A research route in particular must NOT claim the
     firewall gates on `mb_updated` or skips `tests` by phase."""

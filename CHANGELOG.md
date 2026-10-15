@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — QA declared at plan time
+
+- `qa.enabled` is now `auto | true | false`, default `auto`: `mb-plan.sh --tier` declares `qa: on` for standard+ plans (small off, `--qa`/`--no-qa`, no `qa/README.md` → off), `/mb plan` dispatches `mb-qa` once to write test cases, `/mb sdd` offers a `--spec` plan wrapper. A copied `qa.enabled: false` keeps QA off — change it to `auto`.
+
+### Added — `/mb qa`: acceptance QA with a bug registry
+
+- `/mb qa run [all|<name>|@<tag>|<dir>/]` walks md scenarios against the live product in an `mb-qa-runner` subagent
+  (browser via Playwright MCP or `@playwright/cli`, CLI, HTTP API) on Claude Code, Codex, OpenCode and Pi.
+- Strict run report; bugs go to `qa/bugs.md` through `scripts/mb-qa-bug.sh` with `critical|major|medium|low` severity.
+- `/mb drive` and `/mb team` firewall (`mb-flow-verify.sh`) gains a `qa` check: an open critical/major bug blocks closure; skipped without `qa/bugs.md`.
+
 ### Added — `/mb team`: parallel tracks in one tree
 
 - `/mb team` (`commands/team.md`, `scripts/mb-team.sh`) runs one task as parallel tracks: brief, per-track pipeline
