@@ -88,7 +88,7 @@
         },
         {
           "type": "command",
-          "command": "echo '[memory-bank-skill] Keep in the summary: the active plan or spec path and the current stage or task number; checklist items finished or added this session; decisions the user confirmed (with AGR ids if recorded); .memory-bank files changed but not yet actualized. CLAUDE.md is reloaded after compaction, so do not restate it. Write the summary only; do not call tools.'"
+          "command": "echo '[memory-bank-skill] Keep in the summary: the active plan or spec path and the current stage or task number; checklist items finished or added this session; decisions the user confirmed (with AGR ids if recorded); the path to orchestrator-console.md if you orchestrate background agents; .memory-bank files changed but not yet actualized. CLAUDE.md is reloaded after compaction, so do not restate it. Write the summary only; do not call tools.'"
         }
       ]
     }

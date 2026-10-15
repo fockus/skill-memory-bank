@@ -130,6 +130,8 @@ team next      # one action per line, priority order; changes nothing
 team status    # table: tracks, board, report STATUS lines, locks, goal, last review, next
 ```
 
+Update `<bank>/orchestrator-console.md` (`references/orchestrator-console.md`) at every dispatch, return and decision.
+
 Run `next` after every track return and every board change you are told about; execute **all** printed actions,
 parallel ones in one turn:
 

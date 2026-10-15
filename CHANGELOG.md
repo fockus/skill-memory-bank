@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added — orchestrator console
+
+- A prompt-level rule and `templates/orchestrator-console.md`: an orchestrator driving background agents keeps `<bank>/orchestrator-console.md` (open questions, running tracks, awaited events, unrecorded decisions), updates it at every milestone and reads it first after compaction; the PreCompact hint now names it and the SessionStart hook injects it (capped, `MB_CONSOLE_MAX_BYTES`); post-compaction checks (console, AGR tail, coordination board, team status) are part of the rule. See `references/orchestrator-console.md`.
+
 ### Fixed — spec layers, bank ignore rules, QA regression cases, drive checks
 
 - An inline `layers: {...}` map in a spec is refused instead of read as empty (I-284); `/mb init` ignores the bank's runtime state (`.drive/`, `.work-state*`, `.work-budget*`, locks; I-285); a regression case is written only under `qa/test_cases/`, and `mb-plan.sh --tier` without a value fails loudly (I-286); `/mb drive` runs each `check:` once per loop pass; `/mb askme` is an alias of `/mb discuss`; `mb_work_light.py` is removed.

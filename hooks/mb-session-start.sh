@@ -159,4 +159,13 @@ if [ "${MB_FRESHNESS_BANNER:-on}" != "off" ]; then
   fi
 fi
 
+# Orchestrator console (working state of a background-agent orchestrator): injected first on
+# every start incl. after compaction; capped like _recent.md.
+if [ -s "$MB/orchestrator-console.md" ]; then
+  oc="$(head -c "${MB_CONSOLE_MAX_BYTES:-4000}" "$MB/orchestrator-console.md")"
+  [ "$(wc -c < "$MB/orchestrator-console.md")" -gt "${MB_CONSOLE_MAX_BYTES:-4000}" ] && oc="$oc
+…[console truncated]…"
+  ctx="$(printf '# Orchestrator console (read first)\n\n%s\n\n%s' "$oc" "$ctx")"
+fi
+
 _emit "$ctx"
