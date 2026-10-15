@@ -42,6 +42,13 @@ Body is the durable contract: end-state + the deterministic termination
 condition. The `## Acceptance criteria` `- [ ]` list IS that condition
 (REQ-DF-001) — the goal is "done" only when every item is `- [x]` AND the
 deterministic firewall (mb-flow-verify.sh) exits 0.
+
+A criterion may link its evidence; it is then met only when the linked plans
+are closed and the checks exit 0 (commands/goal.md § Evidence links):
+
+  - [ ] Users can pay by card
+    - plan: plans/2026-10-15_feature_checkout.md
+    - check: bats tests/bats/test_checkout.bats
 -->
 
 # Goal: <title>

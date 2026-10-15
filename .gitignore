@@ -58,6 +58,8 @@ htmlcov/
 # machine-local, rewritten on every run.
 .memory-bank/.work-state.json
 .memory-bank/.work-state/
+# /mb drive run files, one per drive run (mb_drive_state.py) — machine-local.
+.memory-bank/.drive/
 # Running token-spend counter (mb-session-spend.sh) — per-session, per-machine.
 .memory-bank/.session-spend.json
 # Transient inter-agent handoff drops (patches, staged artifacts).

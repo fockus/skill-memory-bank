@@ -1,7 +1,7 @@
 ---
 topic: quality-track
 created: 2026-07-15
-status: ready
+status: parked
 ---
 
 # Context: quality-track

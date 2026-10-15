@@ -1,23 +1,18 @@
 #!/usr/bin/env bats
-# Tests for scripts/mb-drive-stop.sh — drive-loop stop telemetry + per-run
-# drive state (drive-loop Task 4 — REQ-DR-033, REQ-DR-034).
+# Tests for scripts/mb-drive-stop.sh — drive stop telemetry on the drive run
+# files <bank>/.drive/<run_id>.json (drive-autopilot design C4).
 #
 # Contract under test:
-#   - `arm` marks a drive as running (the ONLY thing that makes the Stop-hook
-#     resume-gate active); without it every gate/telemetry path is inert.
-#   - `record --reason <R>` writes the stop reason in THREE places, once:
-#       1. the drive-state slot (status=stopped, stop_reason=R)
+#   - `record --reason <R>` writes the stop in three places, once:
+#       1. the selected run file (phase=stopped, stop_reason=R)
 #       2. the `mb-flow` fence in status.md (via mb-flow-sync.sh, the fence's
 #          single writer — no second fence-writing path)
 #       3. progress.md (via mb-work-progress-append.sh, the append-only
 #          single-writer primitive — no second append path)
-#   - Closed reason vocabulary: success | human:check-broke[:<name>] |
-#     human:max-cycle | human:stall | human:undecidable | budget.
-#   - `--action "<mb-drive.sh action line>"` maps the decision function's
-#     action grammar onto that vocabulary, so the loop never hand-rolls a
-#     reason string.
-#   - MB_WORK_PARALLEL=1 + --run-id keys the drive state per run (I-094 dirs);
-#     two runs never contaminate each other. Unset ⇒ legacy singleton path.
+#   - Closed reason vocabulary; `--action "<mb-drive.sh action line>"` maps
+#     the decision function's action grammar onto it.
+#   - Two runs never contaminate each other's run file.
+#   - New-vocabulary and gate cases live in test_drive_stop_gate.bats.
 
 bats_require_minimum_version 1.5.0
 
@@ -25,15 +20,20 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   RUN="$REPO_ROOT/scripts/mb-drive-stop.sh"
   BANK="$BATS_TEST_TMPDIR/bank"
-  mkdir -p "$BANK"
+  mkdir -p "$BANK/.drive"
   printf '# Status\n\nWorking.\n' > "$BANK/status.md"
   printf '# Progress\n\n' > "$BANK/progress.md"
   unset MB_WORK_PARALLEL MB_WORK_RUN_ID
 }
 
+# write_run [run_id] — a live execution-phase run file.
+write_run() {
+  printf '{"run_id":"%s","bank":"%s","goal":"%s/goal.md","session":null,"phase":"execution","stop_reason":""}\n' \
+    "${1:-R1}" "$BANK" "$BANK" > "$BANK/.drive/${1:-R1}.json"
+}
+
 state_field() {
-  # $1 = state file, $2 = json field → prints the value ("" when absent or
-  # the file is missing/corrupt; a read failure is not a test signal here).
+  # $1 = run file, $2 = field → its value ("" when absent or unreadable).
   python3 -c '
 import json, sys
 try:
@@ -52,10 +52,9 @@ print(v if isinstance(v, str) else json.dumps(v))
   [ -x "$RUN" ]
 }
 
-@test "--help exits 0 and documents arm/record/state/path" {
+@test "--help exits 0 and documents record/state/path" {
   run bash "$RUN" --help
   [ "$status" -eq 0 ]
-  [[ "$output" == *"arm"* ]]
   [[ "$output" == *"record"* ]]
   [[ "$output" == *"state"* ]]
   [[ "$output" == *"path"* ]]
@@ -66,25 +65,16 @@ print(v if isinstance(v, str) else json.dumps(v))
   [ "$status" -eq 2 ]
 }
 
-# ---- arm --------------------------------------------------------------------
+# ---- state ------------------------------------------------------------------
 
-@test "arm: creates the drive-state slot with status=driving and empty stop_reason" {
-  run bash "$RUN" arm --bank "$BANK"
-  [ "$status" -eq 0 ]
-  [ -f "$BANK/.drive-state.json" ]
-  [ "$(state_field "$BANK/.drive-state.json" status)" = "driving" ]
-  [ "$(state_field "$BANK/.drive-state.json" stop_reason)" = "" ]
+@test "state: no live run -> exit 1" {
+  run bash "$RUN" state --bank "$BANK"
+  [ "$status" -eq 1 ]
 }
 
-@test "state: with no slot at all degrades to {} and exit 0 (fail-safe)" {
-  run bash "$RUN" state --bank "$BANK"
-  [ "$status" -eq 0 ]
-  [ "$output" = "{}" ]
-}
-
-@test "state: a corrupt slot degrades to {} and exit 0 (fail-safe)" {
-  printf 'not json {{{' > "$BANK/.drive-state.json"
-  run bash "$RUN" state --bank "$BANK"
+@test "state: a corrupt run file degrades to {} and exit 0 (fail-safe)" {
+  printf 'not json {{{' > "$BANK/.drive/R1.json"
+  run bash "$RUN" state --bank "$BANK" --run-id R1
   [ "$status" -eq 0 ]
   [ "$output" = "{}" ]
 }
@@ -92,10 +82,10 @@ print(v if isinstance(v, str) else json.dumps(v))
 # ---- record: the closed reason vocabulary -----------------------------------
 
 @test "record: rejects a reason outside the closed vocabulary (exit 2, nothing written)" {
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   run bash "$RUN" record --bank "$BANK" --reason "because-i-said-so"
   [ "$status" -eq 2 ]
-  [ "$(state_field "$BANK/.drive-state.json" status)" = "driving" ]
+  [ "$(state_field "$BANK/.drive/R1.json" phase)" = "execution" ]
   run grep -c "because-i-said-so" "$BANK/progress.md"
   [ "$output" = "0" ]
 }
@@ -105,22 +95,22 @@ print(v if isinstance(v, str) else json.dumps(v))
   [ "$status" -eq 2 ]
 }
 
-@test "record success: state flips to stopped with the reason" {
-  bash "$RUN" arm --bank "$BANK"
+@test "record success: the run file flips to stopped with the reason" {
+  write_run
   run bash "$RUN" record --bank "$BANK" --reason success
   [ "$status" -eq 0 ]
-  [ "$(state_field "$BANK/.drive-state.json" status)" = "stopped" ]
-  [ "$(state_field "$BANK/.drive-state.json" stop_reason)" = "success" ]
+  [ "$(state_field "$BANK/.drive/R1.json" phase)" = "stopped" ]
+  [ "$(state_field "$BANK/.drive/R1.json" stop_reason)" = "success" ]
 }
 
 # ---- record: every stop branch reaches BOTH sinks ----------------------------
 
 @test "record: every stop reason lands in the mb-flow fence AND progress.md" {
   for reason in success human:check-broke human:max-cycle human:stall budget; do
-    rm -f "$BANK/.drive-state.json"
+    rm -f "$BANK/.drive/R1.json"
     printf '# Status\n\nWorking.\n' > "$BANK/status.md"
     printf '# Progress\n\n' > "$BANK/progress.md"
-    bash "$RUN" arm --bank "$BANK"
+    write_run
 
     run bash "$RUN" record --bank "$BANK" --reason "$reason"
     [ "$status" -eq 0 ]
@@ -138,7 +128,7 @@ print(v if isinstance(v, str) else json.dumps(v))
 }
 
 @test "record: the stop line is written INSIDE the mb-flow fence" {
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   bash "$RUN" record --bank "$BANK" --reason budget
   open_ln=$(grep -n '<!-- mb-flow -->' "$BANK/status.md" | cut -d: -f1)
   stop_ln=$(grep -n '^stop_reason: budget$' "$BANK/status.md" | cut -d: -f1)
@@ -161,7 +151,7 @@ print(v if isinstance(v, str) else json.dumps(v))
   before="$(sed -n '/<!-- mb-flow -->/,/<!-- \/mb-flow -->/p' "$BANK/status.md" |
     grep -v '^stop_reason:')"
 
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   run bash "$RUN" record --bank "$BANK" --reason success
   [ "$status" -eq 0 ]
 
@@ -184,7 +174,7 @@ print(v if isinstance(v, str) else json.dumps(v))
 
 @test "record: progress append is append-only (pre-existing content survives)" {
   printf '# Progress\n\n- earlier entry\n' > "$BANK/progress.md"
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   bash "$RUN" record --bank "$BANK" --reason human:stall
   run grep -c "earlier entry" "$BANK/progress.md"
   [ "$output" = "1" ]
@@ -193,7 +183,7 @@ print(v if isinstance(v, str) else json.dumps(v))
 }
 
 @test "record: check-broke carries the broken check name through to both sinks" {
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   run bash "$RUN" record --bank "$BANK" --reason "human:check-broke:tests"
   [ "$status" -eq 0 ]
   grep -q '^stop_reason: human:check-broke:tests$' "$BANK/status.md"
@@ -201,7 +191,7 @@ print(v if isinstance(v, str) else json.dumps(v))
 }
 
 @test "record: --item is recorded in the progress line when given" {
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   bash "$RUN" record --bank "$BANK" --reason human:max-cycle --item "T4"
   grep -q 'T4' "$BANK/progress.md"
 }
@@ -212,10 +202,10 @@ print(v if isinstance(v, str) else json.dumps(v))
   # action line (mb-drive.sh grammar) -> expected fence reason
   while IFS='|' read -r action expected; do
     [ -n "$action" ] || continue
-    rm -f "$BANK/.drive-state.json"
+    rm -f "$BANK/.drive/R1.json"
     printf '# Status\n\nWorking.\n' > "$BANK/status.md"
     printf '# Progress\n\n' > "$BANK/progress.md"
-    bash "$RUN" arm --bank "$BANK"
+    write_run
 
     run bash "$RUN" record --bank "$BANK" --action "$action"
     [ "$status" -eq 0 ]
@@ -231,68 +221,40 @@ EOF
 }
 
 @test "record --action: a non-stop action is refused (exit 2) — only stops are telemetry" {
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   run bash "$RUN" record --bank "$BANK" --action "implement code-change T4"
   [ "$status" -eq 2 ]
-  [ "$(state_field "$BANK/.drive-state.json" status)" = "driving" ]
+  [ "$(state_field "$BANK/.drive/R1.json" phase)" = "execution" ]
 }
 
-# ---- REQ-DR-034: per-run keying under MB_WORK_PARALLEL ----------------------
+# ---- per-run isolation --------------------------------------------------------
 
-@test "keying: MB_WORK_PARALLEL unset -> legacy singleton slot even with a run-id" {
-  run bash "$RUN" path --bank "$BANK" --run-id run-a
-  [ "$status" -eq 0 ]
-  [ "$output" = "$BANK/.drive-state.json" ]
-}
-
-@test "keying: MB_WORK_PARALLEL=1 + run-id -> per-run slot under .drive-state/" {
-  MB_WORK_PARALLEL=1 run bash "$RUN" path --bank "$BANK" --run-id run-a
-  [ "$status" -eq 0 ]
-  [ "$output" = "$BANK/.drive-state/run-a.json" ]
-}
-
-@test "keying: MB_WORK_PARALLEL=1 without a run-id -> singleton slot (no half-isolation)" {
-  MB_WORK_PARALLEL=1 run bash "$RUN" path --bank "$BANK"
-  [ "$status" -eq 0 ]
-  [ "$output" = "$BANK/.drive-state.json" ]
-}
-
-@test "keying: two parallel runs do not contaminate each other's drive state" {
-  export MB_WORK_PARALLEL=1
-  bash "$RUN" arm --bank "$BANK" --run-id run-a
-  bash "$RUN" arm --bank "$BANK" --run-id run-b
-
-  # Stop ONLY run-a.
+@test "isolation: stopping one run leaves another run's file live" {
+  write_run run-a
+  write_run run-b
   bash "$RUN" record --bank "$BANK" --run-id run-a --reason budget
-
-  [ "$(state_field "$BANK/.drive-state/run-a.json" status)" = "stopped" ]
-  [ "$(state_field "$BANK/.drive-state/run-a.json" stop_reason)" = "budget" ]
-
-  # run-b is untouched: still driving, no stop reason.
-  [ "$(state_field "$BANK/.drive-state/run-b.json" status)" = "driving" ]
-  [ "$(state_field "$BANK/.drive-state/run-b.json" stop_reason)" = "" ]
-
-  # And the legacy singleton was never created by a parallel run.
-  [ ! -f "$BANK/.drive-state.json" ]
+  [ "$(state_field "$BANK/.drive/run-a.json" phase)" = "stopped" ]
+  [ "$(state_field "$BANK/.drive/run-a.json" stop_reason)" = "budget" ]
+  [ "$(state_field "$BANK/.drive/run-b.json" phase)" = "execution" ]
+  [ "$(state_field "$BANK/.drive/run-b.json" stop_reason)" = "" ]
 }
 
-@test "keying: MB_WORK_RUN_ID env is honoured like --run-id" {
-  export MB_WORK_PARALLEL=1 MB_WORK_RUN_ID=run-env
-  bash "$RUN" arm --bank "$BANK"
-  [ -f "$BANK/.drive-state/run-env.json" ]
-  run bash "$RUN" state --bank "$BANK"
-  [[ "$output" == *"run-env"* ]]
+@test "isolation: MB_WORK_RUN_ID does not select the run" {
+  write_run run-a
+  write_run run-b
+  MB_WORK_RUN_ID=run-a run bash "$RUN" record --bank "$BANK" --reason success
+  [ "$status" -eq 2 ]
+  [ "$(state_field "$BANK/.drive/run-a.json" phase)" = "execution" ]
 }
 
-@test "keying: a per-run stop leaves another run's state readable through --run-id" {
-  export MB_WORK_PARALLEL=1
-  bash "$RUN" arm --bank "$BANK" --run-id run-a
-  bash "$RUN" arm --bank "$BANK" --run-id run-b
-  bash "$RUN" record --bank "$BANK" --run-id run-a --reason success
-
-  run bash "$RUN" state --bank "$BANK" --run-id run-b
-  [ "$status" -eq 0 ]
-  [[ "$output" == *'"status": "driving"'* ]] || [[ "$output" == *'"status":"driving"'* ]]
+@test "isolation: several live runs without --run-id are listed, not swallowed" {
+  write_run run-a
+  write_run run-b
+  for sub in record state path; do
+    run bash "$RUN" "$sub" --bank "$BANK" --reason budget
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"run-a"* && "$output" == *"run-b"* ]]
+  done
 }
 
 # ---- reuse discipline (no second write path) --------------------------------
@@ -309,7 +271,7 @@ EOF
 exit 0
 EOF
   chmod +x "$stub_dir/append.sh"
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   MB_PROGRESS_APPEND_BIN="$stub_dir/append.sh" run bash "$RUN" record --bank "$BANK" --reason success
   [ "$status" -eq 0 ]
   run grep -c "success" "$BANK/progress.md"
@@ -324,14 +286,14 @@ EOF
 exit 0
 EOF
   chmod +x "$stub_dir/sync.sh"
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   MB_FLOW_SYNC_BIN="$stub_dir/sync.sh" run bash "$RUN" record --bank "$BANK" --reason success
   [ "$status" -eq 0 ]
   run grep -c "stop_reason" "$BANK/status.md"
   [ "$output" = "0" ]
 }
 
-@test "record: a failing sink does not wedge the loop (fail-safe exit 0, state still stopped)" {
+@test "record: a failing sink does not wedge the loop (fail-safe exit 0, run still stopped)" {
   stub_dir="$BATS_TEST_TMPDIR/stub3"
   mkdir -p "$stub_dir"
   cat > "$stub_dir/boom.sh" <<'EOF'
@@ -340,9 +302,9 @@ echo "boom" >&2
 exit 7
 EOF
   chmod +x "$stub_dir/boom.sh"
-  bash "$RUN" arm --bank "$BANK"
+  write_run
   MB_FLOW_SYNC_BIN="$stub_dir/boom.sh" MB_PROGRESS_APPEND_BIN="$stub_dir/boom.sh" \
     run bash "$RUN" record --bank "$BANK" --reason success
   [ "$status" -eq 0 ]
-  [ "$(state_field "$BANK/.drive-state.json" stop_reason)" = "success" ]
+  [ "$(state_field "$BANK/.drive/R1.json" stop_reason)" = "success" ]
 }

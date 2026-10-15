@@ -23,6 +23,7 @@
   "plan.md": "Create a detailed work plan with DoD and save it in memory-bank",
   "pr.md": "Create a PR from the current branch",
   "profile.md": "Manage rule profiles and stack presets — personalize the configurable rules layer without weakening the immutable safety baseline",
+  "qa.md": "Run md acceptance scenarios against a live product and file bugs",
   "refactor.md": "Refactor the specified module while preserving behavior",
   "review.md": "Full review of uncommitted code — principles, architecture, tests, security",
   "roadmap-sync.md": "Regenerate roadmap.md autosync block from plans/*.md frontmatter",
@@ -30,8 +31,8 @@
   "sdd.md": "Generate a Kiro-style spec triple — specs/<topic>/{requirements,design,tasks}.md",
   "security-review.md": "Scan code for security vulnerabilities (OWASP, secrets, dependencies)",
   "start.md": "Load current project context from memory-bank",
+  "team.md": "Runs parallel tracks of one task in a shared tree",
   "test.md": "Run tests, analyze failures, and propose fixes",
   "traceability-gen.md": "Regenerate traceability.md from specs + plans + tests",
-  "work.md": "Execute Memory Bank workflow modes from pipeline.yaml — existing plan/spec execution by default, optional full-cycle requirements→plan→implementation→review flows.",
-  "team.md": "Runs parallel tracks of one task in a shared tree"
+  "work.md": "Execute Memory Bank workflow modes from pipeline.yaml — existing plan/spec execution by default, optional full-cycle requirements→plan→implementation→review flows."
 }

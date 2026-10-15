@@ -81,6 +81,17 @@ ZONE_FILES = [
     "scripts/mb_spec_validate_scope_eval.py",
     "tests/bats/test_mb_spec_validate_scope_eval.bats",
     "tests/pytest/test_s2_file_size_contract.py",
+    # drive-autopilot Task 2: the drive brain (REQ-049).
+    "scripts/mb-drive.sh",
+    "scripts/mb-drive-stop.sh",
+    "hooks/mb-drive-resume-gate.sh",
+    "scripts/mb_drive_state.py",
+    "scripts/mb_drive_decide.py",
+    "tests/pytest/test_mb_drive_brain.py",
+    # drive-autopilot Task 4: the final QA fix cycle (REQ-053).
+    "scripts/mb_drive_qa.py",
+    "scripts/mb_goal_evidence.py",
+    "tests/pytest/test_mb_drive_final_qa.py",
 ]
 
 

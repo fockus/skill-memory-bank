@@ -37,17 +37,46 @@ inside `status.md`, so the acceptance aggregator can grep `goal.md` for
 
 ```bash
 # Scaffold both artifacts if absent, then validate the goal.
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"   # memory-bank skill bundle root
-BANK=".memory-bank"
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+[ -f "$SKILL_DIR/scripts/_lib.sh" ] || { echo "mb: skill bundle not found at $SKILL_DIR — set MB_SKILLS_ROOT" >&2; exit 2; }
+. "$SKILL_DIR/scripts/_lib.sh"
+BANK="$(mb_resolve_path "${BANK:-}")"
 
 [ -f "$BANK/goal.md" ]    || cp "$SKILL_DIR/templates/goal.md"    "$BANK/goal.md"
 [ -f "$BANK/project.md" ] || cp "$SKILL_DIR/templates/project.md" "$BANK/project.md"
 
-bash "$SKILL_DIR/scripts/mb-goal-validate.sh" "$BANK/goal.md"
+bash "$SKILL_DIR/scripts/mb-goal-validate.sh" "$BANK/goal.md" "$BANK"
 ```
 
 Run it before starting a goal-driven flow. Fix any hint the validator prints,
 then re-run until it exits `0`.
+
+## Evidence links
+
+A criterion may carry indented link sub-bullets; checkbox counting ignores them:
+
+```markdown
+## Acceptance criteria
+
+- [ ] Users can pay by card
+  - plan: plans/2026-10-15_feature_checkout.md
+  - check: bats tests/bats/test_checkout.bats
+```
+
+- `plan: <bank-relative path>` is closed only when every work item it resolves to is done: its
+  `<!-- mb-stage:N -->` blocks, or for a spec wrapper the spec's `<!-- mb-task:N -->` blocks in its
+  `tasks:` range. A missing path falls back to `plans/done/<basename>`.
+- `check: <command>` runs from the project root only after every linked plan of the criterion is closed; it passes on exit 0 (timeout `MB_GOAL_CHECK_TIMEOUT`, default 900 s).
+- A linked criterion is met only from that evidence; a hand tick `[x]` without that evidence does not count and is listed under `unbacked`.
+- In a goal with links, a criterion without one is unmet (`no evidence link`). A goal without any
+  link keeps plain checkbox counting.
+
+`scripts/mb-goal-acceptance.sh <goal> <bank>` reports it; `--tick` also writes each linked box to its
+result, `--ticks-only` counts boxes without reading plans or running checks.
+
+## Several drives in one bank
+
+`<bank>/goal.md` is the default goal. A second `/mb drive` takes `--goal <path>`: each drive owns its own goal file and passes it as the first argument of `mb-goal-acceptance.sh`. Scaffold it from `templates/goal.md` the same way.
 
 ## Exit codes (validator)
 

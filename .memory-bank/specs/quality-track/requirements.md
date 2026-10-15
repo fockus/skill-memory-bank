@@ -1,5 +1,7 @@
 # Requirements: quality-track
 
+> **Status: parked (2026-10-15, AGR-102).** Re-scoped as white-box test evidence over the shipped `/mb qa` cases. Out of this spec now: the `/mb qa` command surface (owned by `commands/qa.md`), the `quality:` pipeline block (`qa:` exists), and `specs/<topic>/qa.md` (cases live in `qa/test_cases/<topic>/` with `covers: REQ-…`, `origin`, `needs_spec` — `context/drive-autopilot.md`). REQ-001…004, REQ-025/026 and Task 14 are superseded by AGR-098/AGR-101. Kept: markers, runner adapters, evidence/freshness, gate findings, semantic audit, generation — still after donor v6.1.0. Full rework (REQs, tasks, lightweight cut) when v6.1.0 is taken up; do not execute as written.
+
 > Spec triple — see also: design.md, tasks.md.
 > Source context: `context/quality-track.md` (discuss interview 2026-07-15, AGR-008/AGR-009).
 > Release: donor program **v6.2.0**, queued after v6.1.0 (evidence core §7.5 is a dependency, not part of this spec).

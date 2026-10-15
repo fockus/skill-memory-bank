@@ -215,7 +215,7 @@ _agents_md_mb_body() {
   # shellcheck disable=SC2016
   echo '- Firewall: with `.memory-bank/goal.md`, done = `mb-flow-verify.sh` exit 0; on red, repair and re-run — never self-certify. Hookless Pi: a no-commit false-done shows only at commit-time.'
   # shellcheck disable=SC2016
-  echo '- `/mb drive`: you are the runtime — loop `mb-drive.sh next --bank <bank>`, run the action, repeat until `stop_success|stop_human|stop_budget`; exact agent/model/thinking from `pipeline.yaml` roles (implement, codex review, judge); `stop_success` also needs `mb-goal-acceptance.sh` 100%; no goal: refuses (fix via `mb-goal-validate.sh`).'
+  echo '- `/mb drive`: you are the runtime — `mb-drive.sh start` (refuses an invalid goal: `mb-goal-validate.sh`), plan with the user, then loop `mb-drive.sh next`, run the action via `/mb work`/`/mb team`, `mb-drive.sh returned`, until `stop_success|stop_human|stop_budget` (`mb-drive-stop.sh record`); never self-certify: needs `mb-goal-acceptance.sh` + `mb-flow-verify.sh`.'
   # shellcheck disable=SC2016
   echo '- GraphRAG-lite routing: `code_context` (`scripts/mb-code-context.py`) for fuzzy questions, `graph_neighbors|graph_impact|graph_tests` (`scripts/mb-graph-query.py`); fail open to grep.'
   if [ "$include_ext_nudge" = "1" ]; then

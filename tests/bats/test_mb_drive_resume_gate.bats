@@ -1,21 +1,15 @@
 #!/usr/bin/env bats
-# Tests for hooks/mb-drive-resume-gate.sh — the Claude Code Stop-hook
-# resume-gate for the drive loop (drive-loop Task 4 — REQ-DR-032, ADR-5).
+# Tests for hooks/mb-drive-resume-gate.sh — the Stop-hook resume gate for
+# `/mb drive` on the drive run files (drive-autopilot design C4, REQ-045).
 #
-# Contract (CC Stop-hook, mirrors hooks/mb-flow-closure-guard.sh):
-#   - JSON object on STDIN (stop_hook_active, cwd).
-#   - BLOCK: print {"decision":"block","reason":"..."} on stdout, exit 0.
-#   - ALLOW: exit 0 with no decision.
-#   - LOOP-GUARD: stop_hook_active==true → ALWAYS allow.
+# Stop-hook contract: JSON object on STDIN (stop_hook_active, cwd,
+# session_id); BLOCK prints {"decision":"block",...} and exits 0; ALLOW exits
+# 0 with no decision; stop_hook_active==true always allows.
 #
-# Gate semantics (REQ-DR-032): block a stop when the drive loop is ARMED AND
-# the goal is not done AND no stop condition has fired. Everything else allows.
-#
-# COST CONTRACT (backlog I-131 — the whole reason this hook is separate from
-# mb-flow-closure-guard.sh): the decision is made by READING FILES ONLY.
-# The hook must NEVER invoke the firewall (mb-flow-verify.sh), a test battery,
-# or an LLM on the Stop path — that is what wedges a session for minutes.
-# Pinned by an explicit test below.
+# COST CONTRACT (backlog I-131): the decision reads files only — never the
+# firewall (mb-flow-verify.sh), a test battery or an LLM. Session matching,
+# the several-runs warning and the poisoned check/firewall cases live in
+# test_drive_stop_gate.bats.
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -25,10 +19,9 @@ setup() {
   TMPROOT="$(mktemp -d)"
   PROJECT="$TMPROOT/proj"
   BANK="$PROJECT/.memory-bank"
-  mkdir -p "$BANK"
+  mkdir -p "$BANK/.drive"
   printf '# Status\n\nWorking.\n' > "$BANK/status.md"
   printf '# Progress\n\n' > "$BANK/progress.md"
-  command -v jq >/dev/null || skip "jq required"
   unset MB_WORK_PARALLEL MB_WORK_RUN_ID MB_DRIVE_RESUME_GATE
 }
 
@@ -54,13 +47,19 @@ Ship it.
 EOF
 }
 
+# write_run <phase> — run R1 of session S1 driving $BANK/goal.md.
+write_run() {
+  printf '{"run_id":"R1","bank":"%s","goal":"%s/goal.md","session":"S1","phase":"%s","stop_reason":""}\n' \
+    "$BANK" "$BANK" "$1" > "$BANK/.drive/R1.json"
+}
+
 run_gate() {
   local payload="$1"
   run bash -c 'printf "%s" "$1" | bash "$2"' _ "$payload" "$GATE"
 }
 
 payload() {
-  printf '{"cwd":"%s","stop_hook_active":%s}' "$PROJECT" "${1:-false}"
+  printf '{"cwd":"%s","session_id":"S1","stop_hook_active":%s}' "$PROJECT" "${1:-false}"
 }
 
 assert_allow() {
@@ -83,7 +82,7 @@ assert_block() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Inert unless a drive is actually armed (never gate normal sessions)
+# Inert unless a run is executing (never gate normal sessions)
 # ═══════════════════════════════════════════════════════════════
 
 @test "resume-gate: no bank -> allow" {
@@ -92,87 +91,52 @@ assert_block() {
   assert_allow
 }
 
-@test "resume-gate: goal.md present but NO drive armed -> allow (inert)" {
+@test "resume-gate: goal.md present but no run file -> allow (inert)" {
   write_goal ' '
   run_gate "$(payload)"
   assert_allow
 }
 
-@test "resume-gate: drive armed but no goal.md -> allow" {
-  bash "$STOP" arm --bank "$BANK"
-  run_gate "$(payload)"
-  assert_allow
-}
-
-@test "resume-gate: a drive that already stopped -> allow (stop condition recorded)" {
+@test "resume-gate: a run that recorded a stop -> allow (stop condition recorded)" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
-  bash "$STOP" record --bank "$BANK" --reason human:max-cycle
+  write_run execution
+  bash "$STOP" record --bank "$BANK" --run-id R1 --reason human:stall
   run_gate "$(payload)"
   assert_allow
 }
 
 # ═══════════════════════════════════════════════════════════════
-# REQ-DR-032 — the block: armed + goal not done + no stop condition
+# REQ-045 — the block: execution phase + goal not met
 # ═══════════════════════════════════════════════════════════════
 
-@test "resume-gate: armed + unmet acceptance + no stop condition -> BLOCK" {
+@test "resume-gate: execution + unmet goal -> BLOCK" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run_gate "$(payload)"
   assert_block
 }
 
-@test "resume-gate: the block reason names the loop and how to proceed" {
+@test "resume-gate: the block reason names the run and how to proceed" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run_gate "$(payload)"
   assert_block
-  [[ "$output" == *"mb-drive.sh"* ]]
+  [[ "$output" == *"mb-drive.sh"* && "$output" == *"R1"* ]]
 }
 
-@test "resume-gate: armed + acceptance 100% -> allow (goal done)" {
+@test "resume-gate: execution + acceptance 100% -> allow (goal done)" {
   write_goal 'x'
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run_gate "$(payload)"
   assert_allow
 }
 
-@test "resume-gate: armed + goal with zero acceptance criteria -> allow (nothing to judge)" {
+@test "resume-gate: execution + goal with zero acceptance criteria -> allow (nothing to judge)" {
   cat > "$BANK/goal.md" <<'EOF'
 # Goal
 No criteria section at all.
 EOF
-  bash "$STOP" arm --bank "$BANK"
-  run_gate "$(payload)"
-  assert_allow
-}
-
-@test "resume-gate: armed + max_cycles exhausted -> allow (max-cycle IS a stop condition)" {
-  write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
-  printf '{"run_id":"r","source":"s","item_no":1,"cycle":3,"max_cycles":3}\n' \
-    > "$BANK/.work-state.json"
-  run_gate "$(payload)"
-  assert_allow
-}
-
-@test "resume-gate: armed + cycles remaining -> BLOCK (not a stop condition yet)" {
-  write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
-  printf '{"run_id":"r","source":"s","item_no":1,"cycle":1,"max_cycles":3}\n' \
-    > "$BANK/.work-state.json"
-  run_gate "$(payload)"
-  assert_block
-}
-
-@test "resume-gate: a stop_reason in the mb-flow fence -> allow" {
-  write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
-  # Fence records a stop even if the drive-state slot were lost.
-  rm -f "$BANK/.drive-state.json"
-  bash "$STOP" arm --bank "$BANK"
-  printf '\n<!-- mb-flow -->\nstop_reason: budget\n<!-- /mb-flow -->\n' >> "$BANK/status.md"
+  write_run execution
   run_gate "$(payload)"
   assert_allow
 }
@@ -183,7 +147,7 @@ EOF
 
 @test "resume-gate: stop_hook_active=true on a blockable state -> allow (loop-guard)" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run_gate "$(payload true)"
   assert_allow
 }
@@ -194,35 +158,35 @@ EOF
 
 @test "resume-gate: empty stdin -> allow" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run_gate ""
   assert_allow
 }
 
 @test "resume-gate: garbage stdin -> allow" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run_gate "not json at all {{{"
   assert_allow
 }
 
 @test "resume-gate: a JSON array (not an object) -> allow" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run_gate '["nope"]'
   assert_allow
 }
 
-@test "resume-gate: corrupt drive-state slot -> allow (cannot prove a drive is live)" {
+@test "resume-gate: corrupt run file -> allow (cannot prove a drive is live)" {
   write_goal ' '
-  printf 'garbage{{{' > "$BANK/.drive-state.json"
+  printf 'garbage{{{' > "$BANK/.drive/R1.json"
   run_gate "$(payload)"
   assert_allow
 }
 
 @test "resume-gate: missing acceptance helper -> allow (fail-safe, never wedge)" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run bash -c 'printf "%s" "$1" | MB_GOAL_ACCEPTANCE_BIN=/nonexistent/nope.sh bash "$2"' \
     _ "$(payload)" "$GATE"
   assert_allow
@@ -230,14 +194,14 @@ EOF
 
 @test "resume-gate: kill-switch MB_DRIVE_RESUME_GATE=off -> allow (I-131 lesson)" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run bash -c 'printf "%s" "$1" | MB_DRIVE_RESUME_GATE=off bash "$2"' _ "$(payload)" "$GATE"
   assert_allow
 }
 
 @test "resume-gate: MB_CAPTURE_SUBPROCESS sentinel -> allow (no re-entry)" {
   write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
+  write_run execution
   run bash -c 'printf "%s" "$1" | MB_CAPTURE_SUBPROCESS=1 bash "$2"' _ "$(payload)" "$GATE"
   assert_allow
 }
@@ -252,61 +216,4 @@ EOF
   code="$(grep -vE '^[[:space:]]*(#|$)' "$GATE")"
   run bash -c 'printf "%s" "$1" | grep -cE "mb-flow-verify|mb-test-run|pytest|bats"' _ "$code"
   [ "$output" = "0" ]
-}
-
-@test "resume-gate: a blocking decision costs no firewall run (proven by a poisoned firewall)" {
-  write_goal ' '
-  bash "$STOP" arm --bank "$BANK"
-  # Poison the firewall: if the hook ran it, this marker file would appear
-  # (and the hook would hang for 30s — the exact I-131 failure mode).
-  poison="$TMPROOT/firewall-was-run"
-  cat > "$TMPROOT/fake-verify.sh" <<EOF
-#!/usr/bin/env bash
-touch "$poison"
-sleep 30
-EOF
-  chmod +x "$TMPROOT/fake-verify.sh"
-  run bash -c 'printf "%s" "$1" | MB_FLOW_VERIFY_BIN="$3" bash "$2"' \
-    _ "$(payload)" "$GATE" "$TMPROOT/fake-verify.sh"
-  assert_block
-  [ ! -f "$poison" ]
-}
-
-# ═══════════════════════════════════════════════════════════════
-# REQ-DR-034 — per-run keying: no cross-run contamination
-# ═══════════════════════════════════════════════════════════════
-
-@test "resume-gate: run-scoped — run-b still driving does not gate run-a's stop" {
-  write_goal ' '
-  export MB_WORK_PARALLEL=1
-  bash "$STOP" arm --bank "$BANK" --run-id run-a
-  bash "$STOP" arm --bank "$BANK" --run-id run-b
-  bash "$STOP" record --bank "$BANK" --run-id run-a --reason success
-
-  # The session that owns run-a stopped legitimately → allow, even though
-  # run-b is still driving in another session.
-  run bash -c 'printf "%s" "$1" | MB_WORK_PARALLEL=1 MB_WORK_RUN_ID=run-a bash "$2"' \
-    _ "$(payload)" "$GATE"
-  assert_allow
-}
-
-@test "resume-gate: run-scoped — run-b is still gated after run-a stopped" {
-  write_goal ' '
-  export MB_WORK_PARALLEL=1
-  bash "$STOP" arm --bank "$BANK" --run-id run-a
-  bash "$STOP" arm --bank "$BANK" --run-id run-b
-  bash "$STOP" record --bank "$BANK" --run-id run-a --reason success
-
-  run bash -c 'printf "%s" "$1" | MB_WORK_PARALLEL=1 MB_WORK_RUN_ID=run-b bash "$2"' \
-    _ "$(payload)" "$GATE"
-  assert_block
-}
-
-@test "resume-gate: run-scoped — an unknown run-id is inert (allow)" {
-  write_goal ' '
-  export MB_WORK_PARALLEL=1
-  bash "$STOP" arm --bank "$BANK" --run-id run-a
-  run bash -c 'printf "%s" "$1" | MB_WORK_PARALLEL=1 MB_WORK_RUN_ID=run-zzz bash "$2"' \
-    _ "$(payload)" "$GATE"
-  assert_allow
 }

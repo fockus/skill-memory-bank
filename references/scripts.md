@@ -37,6 +37,9 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-note.sh <topic>` | Create `notes/YYYY-MM-DD_HH-MM_<topic>.md`. Collision-safe (`_2` / `_3`) |
 | `mb-idea.sh <title> [HIGH\|MED\|LOW]` | Capture a new idea in `backlog.md` with monotonic `I-NNN` |
 | `mb-idea-promote.sh <I-NNN>` | Promote an idea (I-NNN) into an active plan |
+| `mb-qa-bug.sh [--mb B] add\|set\|list` | QA bug registry `qa/bugs.md`: monotonic `BUG-NNN`, severity `critical\|major\|medium\|low`, open-title dedupe, status `open\|fixed\|wontfix` |
+| `mb-qa-bug.sh [--mb B] list --json [--open] [--run ID]` | Bugs in the normalized review shape (`counts` `{blocker,major,medium,minor}` + `issues`); `--run` keeps one run's bugs |
+| `mb-qa-bug.sh [--mb B] gate --run ID [--gate JSON]` | Apply `qa.gate` (max open bugs per severity) to one run's open bugs through `mb-work-severity-gate.sh`; exit 0 pass · 1 fail · 2 input error |
 | `mb-adr.sh <title>` | Capture an Architecture Decision Record in `adr.md` (ADR-NNN) |
 | `mb-adr-migrate.sh [--dry-run\|--apply] [mb_path]` | Move ADR blocks/lines from `backlog.md` into `adr.md` verbatim, sorted by ID (idempotent, `.bak` backup) |
 | `mb-init-bank.sh` | Deterministic, locale-aware `.memory-bank/` scaffolder |
@@ -115,10 +118,13 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-work-pivot.sh` | Decide `refine` / `pivot_in_role` / `pivot_via_architect` from the trend + cycle count, instead of grinding the same fix (`pivot_after_cycles`, `pivot_escalate_to_architect_on`) |
 | `mb-work-contract.sh` | Per-stage "what done means" contract under `<bank>/contracts/<topic>_stage-<N>.md` — `create` / `read` / `validate` / `path`; the reviewer can judge against it |
 | `mb-workflow.sh` | Resolve the active workflow + per-step `model`/`thinking` config from `pipeline.yaml` for `/mb work` |
-| `mb-drive.sh` | Autonomous goal-driven loop: `next` reads goal-acceptance + the firewall + work-state + budget and emits exactly one action (`implement` / `repair` / `pivot` / `stop_*`). Stateless, fail-closed — `stop_success` requires a green firewall AND 100% acceptance (REQ-DR-014) |
-| `mb-drive-preflight.sh` | Initialize missing drive components or resume the same run without resetting cycles, steps, limits, or spend; refuse corrupt state and conflicting resume limits |
-| `mb-drive-stop.sh` | Drive-loop stop telemetry + per-run drive state: `arm` marks a drive live (arms the Stop-hook resume-gate), `record --reason\|--action` writes the stop reason once into the `mb-flow` fence, `progress.md`, and the run's state slot (REQ-DR-033/034) |
-| `mb-work-state.sh` | Durable `/mb work` loop-state + `max_cycles` enforcement; optional per-run isolation/claim under `MB_WORK_PARALLEL` |
+| `mb-drive.sh` | `/mb drive` CLI: `start` (run file `.drive/<run_id>.json`), `resume`, `phase execution` (planning gate), `next` (ONE action: `plan` / `work` / `team` / `pivot` / `qa` / `wait` / `final_qa` / `stop_*`), `returned` (budget, stalls, QA, goal ticks), `status` |
+| `mb-drive-stop.sh` | Drive stop telemetry: `record --reason\|--action` writes the stop into the run file, the `mb-flow` fence and `progress.md`; `state` / `path` print the selected run file |
+| `mb_drive_state.py` | Drive run files `.drive/<run_id>.json` and run selection; `start`, `resume`, `returned`, `stop` behind `mb-drive.sh` |
+| `mb_drive_decide.py` | Drive facts, the pure `decide()` table behind `next`, the planning gate (`phase execution`) and `status` |
+| `mb_drive_qa.py` | Drive final QA: `selection` prints the final run id and the run's `@<topic>` selectors; blocking bugs become fix plans |
+| `mb_goal_evidence.py` | Goal evidence links (`plan:` / `check:`) behind `mb-goal-acceptance.sh`: plan closure, lazy checks, `--tick` |
+| `mb-work-state.sh` | Durable `/mb work` loop-state + `max_cycles` enforcement; `qa-cycle [--max N]` counts QA re-runs (default 3, exit 3 when exhausted); optional per-run isolation/claim under `MB_WORK_PARALLEL` |
 | `mb-work-checkbox.sh` | Deterministic DoD-checkbox flip, gated on the run's work-state phase (single-writer for `checklist.md`) |
 | `mb-work-diff.sh` | Baseline-scoped diff for a `/mb work` run — feeds verify/review with the stage's own changes only |
 | `mb-work-progress-append.sh` | Locked, atomic, append-only writer for `<bank>/progress.md` (safe under concurrent runs) |
@@ -214,7 +220,7 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_work_waves.py` | Parallel `wave` per item for `mb-work-plan.sh` from `Files:` / spec `Scope:` sets and `Blocked-by` (AGR-073) |
 | `mb_work_items.py` | Shared parser for plan stages (`<!-- mb-stage:N -->`) and spec tasks (`<!-- mb-task:N -->`); CLI emits JSON Lines |
 | `mb_req_id.py` | Shared REQ-ID grammar (single source of truth) used by traceability / spec-validate / ears-validate. Supports prefixed schemes (`REQ-RS-008`), distinguishes a definition from a mid-line mention, expands `REQ-RS-002/003` slash-shorthand, and maps pytest identifiers (`req_rs_008`) onto canonical ids |
-| `mb-work-slots.sh` | Sourced helper: per-run state/budget/drive slot-path resolution + source→run claim index (gated behind `MB_WORK_PARALLEL`) |
+| `mb-work-slots.sh` | Sourced helper: per-run state/budget slot paths and the source→run claim index (gated behind `MB_WORK_PARALLEL`); drive run file path |
 | `mb_openspec_model.py` | Dataclasses shared by the OpenSpec adapter's parser/converter |
 | `mb_openspec_parse.py` | Read-only OpenSpec change parser (`parse_change`, `compute_source_hash`) |
 | `mb_openspec_convert.py` | Deterministic OpenSpec → MB spec-triple converter (anchors, EARS classify, re-import anchor reuse) |
@@ -252,7 +258,7 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_pipeline_validate_blocks.py` | Per-block pipeline validators (budget … named-pipeline metadata) |
 | `mb_pipeline_minimal_yaml.py` | PyYAML-optional minimal loader for `pipeline.yaml` — the zero-dep base |
 | `mb_fs_atomic.py` | One atomic file-publish primitive, shared by every writer |
-| `mb_work_light.py` | `accept` for a `light` work-mode track report: STATUS, every pending stage reported `done`, no undeclared stage, no pending non-waived Eval |
+| `mb_work_light.py` | `accept` for a light-mode track report (unused by the team runtime since AGR-103): STATUS, every pending stage reported `done`, no undeclared stage, no pending non-waived Eval |
 | `mb_team_state.py` | `team.json` single writer (flock + atomic replace), track status machine, glob ownership and overlap |
 | `mb_team_tracks.py` | `init`, `track add\|set`, `prompt`, `known-red`, `plan` behind `mb-team.sh` |
 | `mb_team_status.py` | `next` (pure `decide()` over gathered facts) and `status` (team, board, reports, locks, goal, last review) |

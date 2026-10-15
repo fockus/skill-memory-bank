@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — /mb drive plans, then dispatches through /mb work and /mb team
+
+- `/mb drive` plans every goal criterion with the user, then dispatches `/mb work`/`/mb team` per `mb-drive.sh next`; several drives per bank with `--goal`; `--route/--phase/--max-cycles` and `mb-drive-preflight.sh` are removed; state lives in `.drive/<run_id>.json`.
+
 ### Changed — /mb team runs every track through /mb work
 
 - The `direct` and `light` track modes are retired: every `/mb team` track runs through `/mb work` (AGR-103).

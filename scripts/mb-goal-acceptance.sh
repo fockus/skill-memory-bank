@@ -12,7 +12,7 @@
 # (mb-flow-verify.sh) owns exit codes.
 #
 # Usage:
-#   mb-goal-acceptance.sh [goal-path] [mb_path]
+#   mb-goal-acceptance.sh [goal-path] [mb_path] [--tick | --ticks-only]
 #     goal-path : optional explicit path to a goal.md
 #                 (default: <mb>/goal.md, mb via mb_resolve_path; an empty
 #                  first arg "" also falls back to the resolved default)
@@ -23,6 +23,14 @@
 #     ok=true   → N>=1 criteria AND all are [x]; findings=[]
 #     ok=false  → >=1 unchecked criterion; findings list the unchecked items
 #     ok=null   → no goal.md OR zero acceptance criteria (skip / N/A)
+#
+# Evidence links (drive-autopilot C1): when any criterion carries an indented
+# `- plan: <bank-relative path>` or `- check: <cmd>` sub-bullet, acceptance comes
+# from scripts/mb_goal_evidence.py instead — `ok` from closed plans + passing
+# checks, plus "unbacked" (ticked but unmet) and "criteria". A goal without
+# links keeps the output above byte for byte.
+#     --tick       also rewrite each linked criterion's box to its result
+#     --ticks-only count checkboxes only: no plan read, no check run
 
 set -euo pipefail
 
@@ -31,12 +39,17 @@ source "$(dirname "$0")/_lib.sh"
 
 GOAL_PATH=""
 MB_ARG=""
+MODE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help|-h)
-      sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
+      ;;
+    --tick|--ticks-only)
+      MODE="$1"
+      shift
       ;;
     -*)
       echo "unknown arg: $1" >&2
@@ -93,6 +106,18 @@ emit() {
 if [[ ! -f "$GOAL_PATH" ]]; then
   echo "[acceptance] no goal.md at $GOAL_PATH — skipping (ok=null)" >&2
   emit null
+fi
+
+# ---- evidence links (C1) ----------------------------------------------------
+# The module prints nothing for a goal without links; then the checkbox count
+# below stays the answer.
+
+if [[ "$MODE" != "--ticks-only" ]]; then
+  if EVIDENCE="$(python3 "$(dirname "$0")/mb_goal_evidence.py" "$GOAL_PATH" "$MB_PATH" ${MODE:+"$MODE"})"; then
+    [[ -n "$EVIDENCE" ]] && { printf '%s\n' "$EVIDENCE"; exit 0; }
+  else
+    emit false "evidence evaluation failed for $GOAL_PATH"
+  fi
 fi
 
 # ---- count + collect unchecked items (code-fence-aware) ---------------------

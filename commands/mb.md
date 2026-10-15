@@ -93,8 +93,9 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `goal`                                                   | Scaffold `.memory-bank/goal.md` + `.memory-bank/project.md` from templates (copy-if-absent), then validate the goal with `scripts/mb-goal-validate.sh`. Phase-1 Dynamic Flow primitive (REQ-DF-001..005). See `commands/goal.md`                                                                          |
 | `analyze-task`                                           | Auto-classify goal + git-diff scope into ONE route and write it into the `mb-flow` fence (default Dynamic Flow router). See `commands/analyze-task.md` (REQ-DF-020/022)                                                                                                                                   |
 | `flow <route>`                                           | Explicitly select a route (skip auto-classification); the deterministic route-floor + firewall STILL apply. Escape-hatch. See `commands/flow.md` (REQ-DF-025)                                                                                                                                            |
-| `drive [--route R] [--phase P] [--budget TOK] [--max-cycles N]` | Drive `goal.md` to completion over the deterministic firewall: call `scripts/mb-drive.sh next`, execute the ONE action it prints, repeat until a `stop_*`. Refuses without a resolvable goal. See `commands/drive.md` (REQ-DR-001/003/030/031)                                                    |
+| `drive [--goal PATH] [--budget TOK] [--serial] [--host-serial] [--resume [RUN_ID]]` | Plan a goal with the user, then run it unattended: `scripts/mb-drive.sh next` prints ONE action (`work`, `team`, `pivot`, `qa`, `wait`, `final_qa`, `stop_*`), executed through `/mb work` or `/mb team` until a `stop_*`. See `commands/drive.md` |
 | `team <subcommand> [args]`                               | Run one task as parallel tracks in one tree: brief, per-track pipeline by size, fair resource locks (`mb-lock.sh`), `next`-driven orchestrator loop, team review cycles, scoped y/N commit. See `commands/team.md` |
+| `qa <run [all\|<name>\|@<tag>\|<dir>/] \| new <name> \| list \| bugs>` | Acceptance QA: md scenarios in `<bank>/qa/test_cases/` run by the `mb-qa-runner` subagent (browser, CLI, API); strict report in `qa/runs/<run-id>/report.md`, bugs by severity in `qa/bugs.md`. See `commands/qa.md` |
 | `migrate-structure [--dry-run\|--apply]`                 | One-shot v3.0 → v3.1 structural migrator. Upgrades singular `<!-- mb-active-plan -->` to plural, adds `mb-active-plans` + `mb-recent-done` blocks to `status.md`, restructures `backlog.md` to the `## Ideas` skeleton, creates `adr.md` if absent. Creates `.pre-migrate/<timestamp>/` backup. Idempotent                    |
 | (unrecognized)                                           | Search by `$ARGUMENTS`                                                                                                                                                                                                                                                                                   |
 
@@ -1664,11 +1665,12 @@ Scaffold and validate the durable Dynamic Flow goal artifacts. See `commands/goa
 Run directly (no LLM needed — validation is deterministic):
 
 ```bash
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BANK=".memory-bank"
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+. "$SKILL_DIR/scripts/_lib.sh"
+BANK="$(mb_resolve_path "${BANK:-}")"
 [ -f "$BANK/goal.md" ]    || cp "$SKILL_DIR/templates/goal.md"    "$BANK/goal.md"
 [ -f "$BANK/project.md" ] || cp "$SKILL_DIR/templates/project.md" "$BANK/project.md"
-bash "$SKILL_DIR/scripts/mb-goal-validate.sh" "$BANK/goal.md"
+bash "$SKILL_DIR/scripts/mb-goal-validate.sh" "$BANK/goal.md" "$BANK"
 ```
 
 After scaffolding, fill in `## Description` + `## Acceptance criteria` + `progress_source` in `goal.md`, then re-run until it exits `0`.
@@ -1681,7 +1683,8 @@ After scaffolding, fill in `## Description` + `## Acceptance criteria` + `progre
 
 ```bash
 # <pick> = the route you classified from goal.md + the diff scope.
-bash "$(dirname "$0")/../scripts/mb-flow-route.sh" --candidate <pick>
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+bash "$SKILL_DIR/scripts/mb-flow-route.sh" --candidate <pick>
 ```
 
 Report the **resolved** route from the JSON the resolver prints; if `floor_triggered` is `true`, name the `reasons` (the floor overrode your candidate on purpose). On a red phase-boundary `mb-flow-verify.sh` (diff-scope breach / unmet acceptance, REQ-DF-024) HALT and re-run `analyze-task`; on a mid-flight goal change rewrite `goal.md` and re-run (REQ-DF-023).
@@ -1694,7 +1697,8 @@ Report the **resolved** route from the JSON the resolver prints; if `floor_trigg
 
 ```bash
 # <route> ∈ bugfix | code-change | arch | migration | research
-bash "$(dirname "$0")/../scripts/mb-flow-route.sh" --route <route>
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+bash "$SKILL_DIR/scripts/mb-flow-route.sh" --route <route>
 ```
 
 Auto-routing (`/mb analyze-task`) is the default; reach for `/mb flow <route>` only to deliberately pin a route.
@@ -1703,20 +1707,23 @@ Auto-routing (`/mb analyze-task`) is the default; reach for `/mb flow <route>` o
 
 ### drive
 
-**Alias** for `/drive` — dispatch to `commands/drive.md` for the canonical workflow. The autonomous goal-driven loop (REQ-DR-001/003/030/031): drive `goal.md` to completion over the deterministic firewall.
+**Alias** for `/drive` — dispatch to `commands/drive.md` for the canonical workflow: plan a goal with the user, then drive it to `stop_success` through `/mb work` and `/mb team`.
 
 ```
-/mb drive [--route R] [--phase P] [--budget TOK] [--max-cycles N]
+/mb drive [--goal PATH] [--budget TOK] [--serial] [--host-serial] [--resume [RUN_ID]]
 ```
 
-**You are the runtime.** `scripts/mb-drive.sh` is a stateless decision function — it prints exactly ONE next action and exits, starts no daemon, and dispatches nothing itself. Run the `<!-- mb-drive:preflight -->` fence from `commands/drive.md` first (it resolves the bank, refuses on an unresolvable `goal.md`, mints the run id, wires `--budget`/`--max-cycles` and arms stop-telemetry), then loop:
+**You are the runtime.** Run the `<!-- mb-drive:start -->` fence of `commands/drive.md` (`mb-drive.sh start` refuses an absent or invalid goal and prints the run id), plan every criterion with the user and open execution with `mb-drive.sh phase execution`, then loop:
 
 ```bash
-# → one action line: implement | repair | pivot | stop_success | stop_human <why> | stop_budget
-bash "$(dirname "$0")/../scripts/mb-drive.sh" next --bank "$BANK" --run-id "$RUN_ID"
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+. "$SKILL_DIR/scripts/_lib.sh"
+BANK="$(mb_resolve_path "${BANK:-}")"
+# → one action line: plan | work | team | pivot | qa | wait | final_qa | stop_success | stop_human <why> | stop_budget
+bash "$SKILL_DIR/scripts/mb-drive.sh" next --bank "$BANK" --run-id <run_id>
 ```
 
-Execute the printed action, then call `next` again — until it starts with `stop_`. Record every stop with `scripts/mb-drive-stop.sh record --action "$ACTION"` before breaking. Role dispatch comes from `pipeline.yaml` `roles:`, never a guessed model. `stop_success` is the ONLY done signal — never self-certify (REQ-DR-014). Full contract, exit codes and the loop table: `commands/drive.md`.
+Run the action, report it with `mb-drive.sh returned --action "<line>" --tokens N`, and call `next` again until it starts with `stop_`. Record every stop with `scripts/mb-drive-stop.sh record --run-id <run_id> --action "<line>"`. `stop_success` is the ONLY done signal — never self-certify. Several drives share a bank on distinct goal files (`--goal`); `--resume [RUN_ID]` continues a stored run.
 
 ---
 
