@@ -18,10 +18,8 @@ MODEL_RE = re.compile(r"\b(opus|sonnet|haiku|fable|premium|mid|inherit|(?:gpt|cl
 
 # (pattern, assignments) — checked in order inside one clause.
 PHRASES: tuple[tuple[str, dict], ...] = (
-    (r"облегченн\w*|\bwork[- ]light\b|\blight\b", {"mode": "work", "work": "light"}),
     (r"оркестратор ведет|\borchestrated\b", {"mode": "work", "work": "orchestrated"}),
     (r"через\s*/?mb work|по движку|\bvia\s*/?mb work\b", {"mode": "work"}),
-    (r"без work|напрямую|\bdirect\b", {"mode": "direct"}),
     (r"без tdd|тесты не обязательн\w*|\bno tdd\b|\btdd optional\b", {"tdd": "optional"}),
     (r"(?:^|\s)с tdd|tdd обязател\w*|\btdd required\b", {"tdd": "required"}),
     (r"без верификатора|\bno verifier\b|\bwithout verifier\b", {"verifier": "none"}),
@@ -39,7 +37,7 @@ PHRASES: tuple[tuple[str, dict], ...] = (
 
 # A field mentioned without a mapped value is a question, not a default.
 TRIGGERS = {
-    "mode": r"\bwork\b|движ",
+    "mode": r"\bwork\b|движ|облегченн|напрямую|\blight\b|\bdirect\b",
     "tdd": r"\btdd\b|тест",
     "verifier": r"верификатор|\bverifier\b",
     "review": r"ревью|ревьюер|\breview",

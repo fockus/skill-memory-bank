@@ -11,9 +11,9 @@ Deadline: <!-- fill: code freeze and delivery dates, or "none" -->
 ## Tracks
 | Track | Role | Model | Size | Pipeline | Task | Depends on | Resources | Report |
 |---|---|---|---|---|---|---|---|---|
-| K | devops | sonnet | standard | direct · TDD | realm, mappers, service client in the kit | — | build | /Users/me/proj/.memory-bank/reports/sso-20261010/K.md |
-| A | backend | opus | large | direct · TDD · review single | admin: users page, roles, secret file | K | build | /Users/me/proj/.memory-bank/reports/sso-20261010/A.md |
-| C | backend | sonnet | small | direct · TDD | Core: user resolution order, 403 rules | — | — | /Users/me/proj/.memory-bank/reports/sso-20261010/C.md |
+| K | devops | sonnet | standard | work · TDD | realm, mappers, service client in the kit | — | build | /Users/me/proj/.memory-bank/reports/sso-20261010/K.md |
+| A | backend | opus | large | work · TDD · review single | admin: users page, roles, secret file | K | build | /Users/me/proj/.memory-bank/reports/sso-20261010/A.md |
+| C | backend | sonnet | small | work · TDD | Core: user resolution order, 403 rules | — | — | /Users/me/proj/.memory-bank/reports/sso-20261010/C.md |
 
 ## Not doing
 <!-- fill: what this run leaves out, one bullet each -->
@@ -56,6 +56,6 @@ STATUS when you start and when you finish; BLOCKED when you cannot continue; rea
 `bash /Users/me/.claude/skills/memory-bank/scripts/mb-coord.sh active --mb /Users/me/proj/.memory-bank` before editing a file another track owns.
 
 ## Report
-`/Users/me/proj/.memory-bank/reports/sso-20261010/<track>.md`, first line `STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT`, then:
+`/Users/me/proj/.memory-bank/reports/sso-20261010/<track>.md`, a `STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT` line (the last one counts), then:
 Files · Tests (failing before → passing after, with output; each failing test marked new or known-red) · Remaining ·
 Questions for the orchestrator · Follow-ups.

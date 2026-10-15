@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — /mb team runs every track through /mb work
+
+- The `direct` and `light` track modes are retired: every `/mb team` track runs through `/mb work` (AGR-103).
+- The host lock root is now `MB_LOCK_DIR` or `/tmp/mb-locks-<uid>` (0700, owner/symlink checked, TMPDIR-independent); locks under the old `$TMPDIR/mb-locks` are no longer seen.
+
 ### Added — QA declared at plan time
 
 - `qa.enabled` is now `auto | true | false`, default `auto`: `mb-plan.sh --tier` declares `qa: on` for standard+ plans (small off, `--qa`/`--no-qa`, no `qa/README.md` → off), `/mb plan` dispatches `mb-qa` once to write test cases, `/mb sdd` offers a `--spec` plan wrapper. A copied `qa.enabled: false` keeps QA off — change it to `auto`.

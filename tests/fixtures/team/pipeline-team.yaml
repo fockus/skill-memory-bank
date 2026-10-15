@@ -7,21 +7,24 @@ team:
   # Omitted sizes fall back to the bundled presets in references/pipeline.default.yaml.
   presets:
     small:
-      mode: direct
+      mode: work
+      work: orchestrated
       tdd: required
       verifier: none
       review: none
       models: {executor: mid}
       effort: medium
     standard:
-      mode: direct
+      mode: work
+      work: orchestrated
       tdd: required
       verifier: none            # AGR-147 in this project: quality comes from the team lens review
       review: none
       models: {executor: mid}
       effort: medium
     large:
-      mode: direct
+      mode: work
+      work: orchestrated
       tdd: required
       verifier: none
       review: single

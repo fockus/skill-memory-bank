@@ -23,6 +23,7 @@ Exit codes: 0 ok · 1 refused or a step failed · 2 bad input · gate code for r
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -35,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import mb_team_state as st  # noqa: E402
 from mb_team_state import TeamError  # noqa: E402
-from mb_team_status import collectable, light_acceptance, report_status  # noqa: E402
+from mb_team_status import collectable, report_status  # noqa: E402
 
 STATUS_OF = {"DONE": "done", "DONE_WITH_CONCERNS": "done_with_concerns"}
 
@@ -67,10 +68,9 @@ def cmd_collect(args) -> int:
     bank = args.mb
     result = {"collected": [], "goal": [], "evidence": [], "questions": [], "followups": [], "errors": []}
     with st.locked(bank, st.find_topic(bank, args.topic)) as team:
-        light = light_acceptance(bank, team)
         for t in team["tracks"]:
             rs = report_status(bank, t)
-            if not collectable(t, rs, light.get(t["id"], {}).get("accepted", False)):
+            if not collectable(t, rs):
                 continue
             report = Path(bank) / t["report"]
             text = report.read_text(encoding="utf-8") if report.is_file() else ""
@@ -122,8 +122,8 @@ def _print_collect(result: dict, as_json: bool) -> None:
         print(f"error: {e}", file=sys.stderr)
 
 
-def _vcs(team: dict, *args: str) -> str:
-    r = st.run(["bash", st.script("mb_vcs.sh"), args[0], "--tree", team["tree"], *args[1:]])
+def _vcs(team: dict, *args: str, stdin: str | None = None) -> str:
+    r = st.run(["bash", st.script("mb_vcs.sh"), args[0], "--tree", team["tree"], *args[1:]], input=stdin)
     if r.returncode != 0:
         raise TeamError(f"mb_vcs.sh {args[0]}: {r.stderr.strip()}", 1)
     return r.stdout
@@ -166,8 +166,17 @@ def cmd_commit(args) -> int:
             raise TeamError("no TTY to confirm: rerun with --yes to commit; nothing was staged", 1)
         if input(f"Commit {len(owned)} files? [y/N] ").strip().lower() not in ("y", "yes"):
             raise TeamError("aborted; nothing was staged", 1)
-    _vcs(team, "add", "--", *owned)
-    _vcs(team, "commit", "-m", args.m, "--", *owned)
+    snapshot = None
+    with contextlib.suppress(TeamError):  # no index snapshot: commit without rollback
+        snapshot = _vcs(team, "index-save", "--", *owned)
+    try:
+        _vcs(team, "add", "--", *owned)
+        _vcs(team, "commit", "-m", args.m, "--", *owned)
+    except TeamError as exc:
+        if snapshot is None:
+            raise TeamError(f"{exc}; staged, not restored (arc): " + " ".join(owned), 1) from exc
+        _vcs(team, "index-restore", "--", *owned, stdin=snapshot)
+        raise TeamError(f"{exc}; index restored", 1) from exc
     rev = _vcs(team, "head").strip()
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as body:
         body.write(f"{args.m}\n\n" + "".join(f"- {p}\n" for p in owned))
@@ -195,7 +204,7 @@ def cmd_checkpoint(args) -> int:
                 "--dir", out, "--label", args.label or "cp", "--max-untracked-mb", str(cfg.get("max_untracked_mb", 512))])
     sys.stderr.write(r.stderr)
     if r.returncode != 0:
-        raise TeamError("checkpoint failed", 1)
+        raise TeamError("checkpoint failed", 2 if r.returncode == 2 else 1)
     cid = r.stdout.strip().splitlines()[-1]
 
     def rel(name: str) -> str:
@@ -230,7 +239,13 @@ def cmd_review_gate(args) -> int:
     sys.stdout.write(r.stdout)
     sys.stderr.write(r.stderr)
     if r.returncode in (0, 1):
-        gate = json.loads(r.stdout)
+        try:
+            gate = json.loads(r.stdout)
+            if not isinstance(gate, dict):
+                raise ValueError
+        except ValueError:
+            print("[team] review gate: output is not a JSON verdict", file=sys.stderr)
+            return 2
         entry = {"cycle": args.cycle, "scope": "team", "master": f"reports/{topic}/review/cycle-{args.cycle}/master.json",
                  "verdict": gate.get("verdict"), "counts": gate.get("counts"), "actions": gate.get("actions", []),
                  "at": st.now()}

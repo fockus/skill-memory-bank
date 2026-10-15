@@ -25,7 +25,7 @@ CLEAN = {"blocker": 0, "major": 0, "medium": 0}
 
 
 def track(tid, status="planned", files=None, deps=None, verifier="none", review="none",
-          mode="direct", work=None, collected=False):
+          mode="work", work="orchestrated", collected=False):
     return {"id": tid, "status": status, "files": files or [f"{tid.lower()}/**"], "deps": deps or [],
             "collected": collected, "report": f"reports/t/{tid}.md", "source": None,
             "pipeline": {"mode": mode, "work": work, "verifier": verifier, "review": review}}
@@ -38,9 +38,9 @@ def team(*tracks, max_parallel=6, reviews=None, goal="G-001"):
 
 def facts(**over):
     base = {"board": {"tracks": {}, "open_blocked": [], "open_handover": []}, "reports": {},
-            "brief_unfilled": 0, "budget_stop": False, "light": {},
+            "brief_unfilled": 0, "budget_stop": False,
             "review": {"enabled": False, "clean_when": CLEAN, "max_cycles": 5},
-            "goal_ok": lambda: True, "flow_ok": lambda: True}
+            "goal_ok": lambda: True, "flow_red": lambda: []}
     base.update(over)
     return base
 
@@ -69,7 +69,7 @@ def test_next_respects_max_parallel():
 
 def test_next_blocked_track_gives_stop_human():
     t = team(track("A", "blocked"), track("B"))
-    assert status_mod.decide(t, facts()) == ["stop_human blocked:A", "dispatch B"]
+    assert status_mod.decide(t, facts()) == ["stop_human blocked:A"]
     board = {"tracks": {}, "open_blocked": [{"track": "B", "date": "2026-10-10", "title": "disk"}],
              "open_handover": []}
     t = team(track("A"), track("B", "dispatched"))
@@ -85,14 +85,14 @@ def test_next_unfilled_brief_gives_stop_human_and_no_dispatch():
 
 def test_next_budget_stop_blocks_new_dispatch():
     t = team(track("A"), track("B", "done"))
-    assert status_mod.decide(t, facts(budget_stop=True)) == ["stop_human budget", "collect"]
+    assert status_mod.decide(t, facts(budget_stop=True)) == ["stop_human budget"]
 
 
-def test_next_post_steps_follow_the_track_pipeline():
+def test_next_collects_returned_tracks_with_a_done_report_and_never_verifies():
     t = team(track("A", "returned", verifier="plan-verifier"), track("B", "returned", review="single"),
-             track("C", "returned"), track("D", "fixing"), track("W", "returned", mode="work", work="orchestrated"))
-    done = {"C": "DONE", "W": "DONE_WITH_CONCERNS"}
-    assert status_mod.decide(t, facts(reports=done)) == ["verify A", "review B", "collect"]
+             track("C", "returned"), track("D", "fixing"))
+    done = {"A": "DONE", "B": "DONE_WITH_CONCERNS", "C": "DONE"}
+    assert status_mod.decide(t, facts(reports=done)) == ["collect"]
 
 
 def test_next_waits_for_a_track_already_fixing_instead_of_a_second_dispatch():
@@ -100,29 +100,11 @@ def test_next_waits_for_a_track_already_fixing_instead_of_a_second_dispatch():
     assert status_mod.decide(t, facts()) == ["wait"]
 
 
-def test_next_collects_an_accepted_light_track_without_verifier_or_review():
-    t = team(track("L", "returned", mode="work", work="light"))
-    accepted = {"L": {"accepted": True, "status": "DONE", "errors": []}}
-    assert status_mod.decide(t, facts(light=accepted, reports={"L": "DONE"})) == ["collect"]
-    assert status_mod.collectable(t["tracks"][0], "DONE", accepted=True)
-    assert not status_mod.collectable(t["tracks"][0], "DONE", accepted=False)
-
-
 def test_next_stops_for_the_human_when_a_track_used_up_its_fix_cycles():
-    rejected = {"L": {"accepted": False, "status": "DONE", "errors": ["stage 1: not reported done"]}}
-    light, running = track("L", "returned", mode="work", work="light"), track("A", "fixing")
-    light["fix_cycle"], running["fix_cycle"] = 5, 6
-    assert status_mod.decide(team(light), facts(light=rejected)) == ["stop_human fix-cycles:L"]
+    running = track("A", "fixing")
+    running["fix_cycle"] = 6
     assert status_mod.decide(team(running), facts()) == ["stop_human fix-cycles:A"]
     assert status_mod.decide(team(track("C", "returned")), facts()) == ["stop_human no-report:C"]
-
-
-def test_next_light_track_rejected_goes_to_fix_accepted_to_verify():
-    t = team(track("L", "returned", mode="work", work="light", verifier="plan-verifier"))
-    rejected = {"L": {"accepted": False, "status": "DONE", "errors": ["stage 1: not reported done"]}}
-    assert status_mod.decide(t, facts(light=rejected)) == ["fix L"]
-    accepted = {"L": {"accepted": True, "status": "DONE", "errors": []}}
-    assert status_mod.decide(t, facts(light=accepted)) == ["verify L"]
 
 
 def test_next_team_review_when_enabled_and_all_finished():
@@ -186,8 +168,9 @@ def test_next_no_stop_success_when_one_condition_fails(breaks):
     elif breaks == "goal":
         f["goal_ok"] = lambda: False
     else:
-        f["flow_ok"] = lambda: False
-    assert "stop_success" not in status_mod.decide(t, f)
+        f["flow_red"] = lambda: ["tests"]
+    got = status_mod.decide(t, f)
+    assert "stop_success" not in got and "wait" not in got
 
 
 def test_next_no_tracks_is_stop_human():
@@ -280,8 +263,8 @@ def test_track_add_refuses_bad_input(tmp_path):
     assert _cli(bank, "track", "add", "A", "--task", "x").returncode == 2  # no DoD
     bad = _cli(bank, "track", "add", "A", "--task", "x", "--dod", "y", "--review", "maybe")
     assert bad.returncode == 2 and "review" in bad.stderr
-    work = _cli(bank, "track", "add", "A", "--task", "x", "--dod", "y", "--size", "large")
-    assert work.returncode == 2 and "source" in work.stderr
+    retired = _cli(bank, "track", "add", "A", "--task", "x", "--dod", "y", "--mode", "direct")
+    assert retired.returncode == 2 and "REQ-001" in retired.stderr
     assert _team(bank)["tracks"] == []
     assert _cli(bank, "track", "add", "A", "--task", "x", "--dod", "y").returncode == 0
     assert _cli(bank, "track", "add", "A", "--task", "x", "--dod", "y").returncode == 2  # duplicate

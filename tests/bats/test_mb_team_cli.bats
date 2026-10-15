@@ -162,24 +162,6 @@ JSON
   [ "$output" = "fix A" ]
 }
 
-@test "team: an accepted work:light track without verifier or review is collected, not left waiting" {
-  printf -- '---\ntype: feature\ntopic: t\n---\n# L\n\n<!-- mb-stage:1 -->\n### Stage 1: one\n\n**DoD:**\n- [ ] bit\n' >"$BANK/light.md"
-  team init demo --no-goal --tree "$PROJ" >/dev/null
-  team track add L --task "light" --dod "bit" --files "a/**" --size small --mode work:light \
-    --verifier none --review none --source "$BANK/light.md" >/dev/null
-  team_fill_brief demo
-  printf 'STATUS: DONE\n\n## Stages\n- 1: done\n' >"$BANK/reports/demo/L.md"
-  team track set L --status dispatched >/dev/null
-  team track set L --status returned >/dev/null
-  run team next
-  [ "$output" = "collect" ]
-  run team collect
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"collected: L"* ]] || false
-  run team next
-  [ "$output" = "stop_success" ]
-}
-
 @test "team: collect prints report questions as inert shell words (no command substitution)" {
   team_two_tracks; team_fill_brief demo
   team_return A

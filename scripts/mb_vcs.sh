@@ -2,9 +2,11 @@
 # mb_vcs.sh — VCS seam (contract C6) for git and arc. Read-mostly; `add`/`commit` act only on the
 # explicit file list given (`commit` is path-scoped: git --only, arc commit <paths>). There is no push/rebase/reset path.
 #   mb_vcs.sh <op> --tree <dir> [args]
-#   ops: kind | root | head | diff <base> | changed <base> | untracked | add -- <files> | commit -m <msg> -- <paths> | show <rev>:<path>
+#   ops: kind | root | head | diff <base> | changed <base> | untracked | add -- <files> | index-save|index-restore -- <paths> | commit -m <msg> -- <paths> | show <rev>:<path>
 # `changed` and `untracked` print NUL-separated raw paths relative to the root (no git quoting; a rename
 # lists both sides); `untracked` excludes ignored files.
+# `index-save` prints the index entries of <paths> (NUL records); `index-restore` reads them from stdin and puts exactly
+# those entries back for <paths> (git only; arc exits 3).
 # Detection: git, then arc; MB_VCS=git|arc overrides. Not inside any tree -> exit 2.
 set -euo pipefail
 
@@ -66,6 +68,16 @@ case "$op" in
           # Path-scoped: anything else already staged (another session) stays staged and out of the commit.
           if [ "$kind" = git ]; then git --literal-pathspecs commit --only -m "${rest[1]}" -- "${rest[@]:3}"
           else arc commit -m "${rest[1]}" -- "${rest[@]:3}"; fi ;;
+  index-save|index-restore)
+    [ "$kind" = git ] || { echo "mb_vcs: $op is not supported for $kind" >&2; exit 3; }
+    [ "${rest[0]:-}" = "--" ] && rest=("${rest[@]:1}")
+    [ "${#rest[@]}" -gt 0 ] || { echo "mb_vcs: $op needs paths after --" >&2; exit 2; }
+    if [ "$op" = index-save ]; then git --literal-pathspecs ls-files -s -z -- "${rest[@]}"
+    else
+      snap=$(mktemp); trap 'rm -f "$snap"' EXIT; cat >"$snap"
+      git --literal-pathspecs rm -r -q --cached --ignore-unmatch -- "${rest[@]}"
+      git update-index -z --index-info <"$snap"
+    fi ;;
   show) "$kind" show "${rest[0]:?rev:path required}" ;;
   *) echo "mb_vcs: unknown op '$op'" >&2; exit 2 ;;
 esac

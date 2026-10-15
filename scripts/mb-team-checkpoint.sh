@@ -3,7 +3,7 @@
 # writes only into --dir. Restore commands are printed, never run.
 #   create --tree <dir> --baseline <rev> --topic <t> --dir <out> [--label L] [--max-untracked-mb N]
 #   verify --dir <out> <id>
-# Exit: 0 ok · 1 verify mismatch · 2 usage / not inside a tree.
+# Exit: 0 ok · 1 verify mismatch or id already exists · 2 usage / not inside a tree.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sub="${1:-}"; [ -n "$sub" ] && shift || { echo "usage: create|verify ..." >&2; exit 2; }
@@ -23,8 +23,12 @@ case "$sub" in
     vcs=$(bash "$here/mb_vcs.sh" kind --tree "$tree") || exit 2
     root=$(bash "$here/mb_vcs.sh" root --tree "$tree")
     head=$(bash "$here/mb_vcs.sh" head --tree "$tree")
+    [[ "$label" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || { echo "invalid --label '$label'" >&2; exit 2; }
     mkdir -p "$out"
-    cid="$(date +%Y-%m-%d-%H%M)-$topic-$label"
+    cid="$(date +%Y-%m-%d-%H%M%S)-$topic-$label"
+    if [ -e "$out/$cid.diff" ] || [ -e "$out/$cid-manifest.json" ]; then
+      echo "checkpoint $cid already exists; nothing written" >&2; exit 1
+    fi
     bash "$here/mb_vcs.sh" diff --tree "$tree" "$base" >"$out/$cid.diff"
     bash "$here/mb_vcs.sh" changed --tree "$tree" "$base" >"$out/.$cid.changed"
     bash "$here/mb_vcs.sh" untracked --tree "$tree" >"$out/.$cid.untracked"

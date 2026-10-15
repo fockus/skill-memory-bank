@@ -143,3 +143,14 @@ def test_reviewer_lead_previous_issues_carry_an_id():
 @pytest.mark.parametrize("flag", ["--layer", "--source", "--team-review", "--summary-file"])
 def test_team_flag_probe_is_not_vacuous(flag):
     assert flag in _cli_flags()
+
+
+def test_team_hosts_section_names_four_hosts_and_links_skill_invocation():
+    text = _text()
+    hosts = text.split("## 9. Hosts", 1)[1].split("## 10.", 1)[0]
+    for host in ("Claude Code", "Codex", "OpenCode", "Pi"):
+        assert f"| {host} |" in hosts
+    assert "SKILL.md" in hosts and "Invocation" in hosts
+    invocation = (ROOT / "SKILL.md").read_text(encoding="utf-8").split("### Invocation", 1)[1]
+    for host in ("Claude Code", "OpenCode", "Codex", "Pi"):
+        assert f"| {host} |" in invocation

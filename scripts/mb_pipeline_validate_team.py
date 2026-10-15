@@ -14,13 +14,14 @@ SIZES = ("trivial", "small", "standard", "large", "extra")
 LENSES = ("logic", "tests", "code_rules", "security", "scalability")
 LENS_ALIASES = {"quality": "code_rules"}
 ENUMS = {
-    "mode": ("direct", "work"),
-    "work": ("orchestrated", "light"),
+    "mode": ("work",),
+    "work": ("orchestrated",),
     "tdd": ("required", "optional"),
     "verifier": ("none", "plan-verifier"),
     "review": ("none", "single", "lenses"),
     "effort": ("low", "medium", "high"),
 }
+RETIRED = {"mode": ("direct",), "work": ("light",)}  # AGR-103 / REQ-001
 PIPELINE_KEYS = (*ENUMS, "lenses", "models")
 ROLE_MODEL_KEYS = ("executor", "verifier", "reviewer", "lead", "lenses")
 SEVERITIES = ("blocker", "major", "medium", "minor")
@@ -77,7 +78,10 @@ def check_lenses(err, field: str, value) -> None:
 def check_value(err, field: str, key: str, value) -> None:
     """One pipeline field (`mode`, `lenses`, …); `field` is the full name for messages."""
     if key in ENUMS:
-        if value not in ENUMS[key]:
+        if value in RETIRED.get(key, ()):
+            err(f"{field}: {value!r} is retired (REQ-001: every track runs through /mb work); "
+                f"use {key}: {ENUMS[key][0]}")
+        elif value not in ENUMS[key]:
             err(f"{field}: {value!r} not in {list(ENUMS[key])}")
     elif key == "lenses":
         check_lenses(err, field, value)

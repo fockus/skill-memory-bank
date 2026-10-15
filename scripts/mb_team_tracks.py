@@ -11,7 +11,7 @@ Usage (through mb-team.sh, which adds --mb <bank>):
   mb_team_tracks.py plan [--json]   # table, provenance, waves, effort mismatches, readiness
 Pipeline attrs: --size --mode --tdd --verifier --review --effort --model key=value (repeatable).
 Every command takes --mb <bank> and --topic T (default: the only open team of the bank).
-`--source` and `--plan` take a bank-relative or absolute path. `track add` resolves the pipeline
+`--source` defaults to the track prompt (a one-stage plan); `--source` and `--plan` take a bank-relative or absolute path. `track add` resolves the pipeline
 through mb_team_pipeline.resolve, stores title and DoD, renders the track prompt and refreshes
 the brief tracks table while the brief is untouched. `init` requires a valid goal.md unless
 --no-goal, records the VCS root, kind and HEAD of --tree, and posts `FREEZE · contract:<topic>`.
@@ -116,7 +116,7 @@ def cmd_track_add(args) -> int:
         base = f"reports/{topic}"
         track = {"id": tid, "title": args.title or task.strip().splitlines()[0][:80], "task": task.strip(),
                  "dod": args.dod, "role": args.role, "agent": f"mb-{args.role}", "size": None,
-                 "source": _rel(bank, args.source) if args.source else None, "files": split(args.files),
+                 "source": _rel(bank, args.source) if args.source else f"{base}/tracks/{tid}.prompt.md", "files": split(args.files),
                  "deps": split(args.deps), "resources": split(args.resources),
                  "layers": {"track": [], "prompt": []}, "pipeline": None, "provenance": None,
                  "prompt": f"{base}/tracks/{tid}.prompt.md", "report": f"{base}/{tid}.md", "status": "planned",
@@ -142,7 +142,7 @@ def cmd_track_set(args) -> int:
             if args.status == "fixing":
                 track["fix_cycle"] += 1
                 # A fix reopens the track: its return must be collected again, or a team-review
-                # fix on a track without post-steps stays `returned` and `next` waits forever.
+                # fix on a returned track stays `returned` and `next` waits forever.
                 track["collected"] = False
             stamp = {"dispatched": "dispatched_at", "returned": "returned_at"}.get(args.status)
             if stamp:

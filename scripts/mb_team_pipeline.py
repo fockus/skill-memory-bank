@@ -15,10 +15,11 @@ team.default_size [default] -> --team -> --attr / --size -> --prompt.
 
 Keys: size mode work tdd verifier review lenses effort models.executor
 models.verifier models.reviewer models.lead models.lenses models.lens.<name>.
-Shorthands: review=lenses:logic,security · mode=work:light. Model values take a
+Shorthand: review=lenses:logic,security. Every track runs through /mb work (REQ-001):
+mode=direct and work=light are refused. Model values take a
 slot (premium|mid -> model_profiles[host]), an exact id, or inherit.
 
-Exit codes: 0 ok · 2 unknown key/value, mode work without --source, bad config
+Exit codes: 0 ok · 2 unknown or retired key/value, bad config
 (the message names the field) · parse-prompt: 3 when the phrase needs a question.
 """
 
@@ -36,9 +37,9 @@ import mb_team_vocab  # noqa: E402
 import mb_work_models as models_mod  # noqa: E402
 from mb_team_config import ConfigError, load_configs  # noqa: E402
 
-DEFAULTS = {"mode": "direct", "tdd": "required", "verifier": "none", "review": "none",
+DEFAULTS = {"mode": "work", "work": "orchestrated", "tdd": "required", "verifier": "none", "review": "none",
             "lenses": [], "effort": "medium"}
-RANKS = {"mode": ("direct", "work"), "tdd": ("optional", "required"),
+RANKS = {"tdd": ("optional", "required"),
          "verifier": ("none", "plan-verifier"), "review": ("none", "single", "lenses"),
          "effort": ("low", "medium", "high")}
 STEP_ROLE = {"verifier": "verifier", "reviewer": "reviewer", "lead": "reviewer_lead",
@@ -111,7 +112,9 @@ def _model(value: str, project: dict, bundled: dict, host: str, warnings: list) 
 
 def resolve(team: dict, project: dict, bundled: dict, layers: dict, *, host: str = "claude-code",
             role: str = "developer", source: str = "") -> dict:
-    """layers: {"team"|"track"|"prompt": flat dict}. Raises ConfigError naming the field."""
+    """`source` is accepted for callers and unused: a track without one runs on its prompt.
+
+    layers: {"team"|"track"|"prompt": flat dict}. Raises ConfigError naming the field."""
     values: dict = {"size": team["default_size"]}
     prov: dict = {"size": "default"}
     for name in ("team", "track", "prompt"):
@@ -129,14 +132,6 @@ def resolve(team: dict, project: dict, bundled: dict, layers: dict, *, host: str
         if key not in values:
             values[key], prov[key] = value, "default"
     warnings: list[str] = []
-    if values["mode"] == "work":
-        if not source:
-            raise ConfigError([f"mode: work (set by {prov['mode']}) needs a plan or spec source "
-                               "(--source); create one with /mb plan or /mb sdd first"])
-        if "work" not in values:
-            values["work"], prov["work"] = "orchestrated", "default"
-    else:
-        values["work"], prov["work"] = None, "default"
     if values["review"] != "lenses":
         if values["lenses"] and prov["lenses"] != f"preset:{size}":
             warnings.append(f"lenses ignored: review={values['review']}")

@@ -59,7 +59,7 @@ def _yaml_fields(flat: dict, indent: int) -> str:
 
 
 # Base preset with every step on, so every model key is part of the output.
-BASE = {"mode": "direct", "tdd": "required", "verifier": "plan-verifier", "review": "lenses",
+BASE = {"mode": "work", "tdd": "required", "verifier": "plan-verifier", "review": "lenses",
         "lenses": ["logic", "security"], "effort": "medium", "models.executor": "sonnet"}
 
 LAYERS = ("preset:large", "override", "team", "track", "prompt")
@@ -67,8 +67,6 @@ FLAG = {"team": "--team", "track": "--attr", "prompt": "--prompt"}
 
 # Two alternating values per key; layer i gets VALUES[key][i % 2].
 VALUES = {
-    "mode": ("work", "direct"),
-    "work": ("light", "orchestrated"),
     "tdd": ("optional", "required"),
     "verifier": ("none", "plan-verifier"),
     "review": ("single", "lenses"),
@@ -91,8 +89,6 @@ def _matrix_pipeline(tmp_path: Path, key: str, upto: int) -> tuple[Path, list[st
     preset = dict(BASE)
     if key == "models.reviewer":
         preset["review"] = "single"
-    if key == "work":
-        preset["mode"] = "work"
     preset[key] = VALUES[key][0]
     text = "team:\n  presets:\n    large:\n" + _yaml_fields(preset, 6)
     if upto >= 1:
@@ -148,8 +144,8 @@ def test_size_layers_default_team_track_prompt(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("size", "mode", "verifier", "review"),
-    [("small", "direct", "none", "none"),
-     ("standard", "direct", "plan-verifier", "none"),
+    [("small", "work", "none", "none"),
+     ("standard", "work", "plan-verifier", "none"),
      ("large", "work", "plan-verifier", "lenses"),
      ("extra", "work", "plan-verifier", "lenses")],
 )
@@ -165,19 +161,10 @@ def test_review_lenses_shorthand_and_quality_alias() -> None:
     assert out["provenance"]["lenses"] == out["provenance"]["review"] == "prompt"
 
 
-def test_mode_work_without_source_exits_2_naming_mode() -> None:
-    r = _resolve(BUNDLED, "--size", "standard", "--attr", "mode=work")
-    assert r.returncode == 2
-    assert "mode" in r.stderr and "source" in r.stderr
-
-
-def test_mode_work_variant_default_and_light_shorthand() -> None:
-    out = _ok(BUNDLED, "--size", "standard", "--attr", "mode=work", "--source", "plans/x.md")
-    assert (out["pipeline"]["work"], out["provenance"]["work"]) == ("orchestrated", "default")
-    out = _ok(BUNDLED, "--size", "standard", "--attr", "mode=work:light", "--source", "plans/x.md")
-    assert (out["pipeline"]["mode"], out["pipeline"]["work"]) == ("work", "light")
-    direct = _ok(BUNDLED, "--size", "standard")["pipeline"]
-    assert direct["work"] is None
+def test_work_mode_needs_no_source_and_defaults_to_orchestrated() -> None:
+    out = _ok(BUNDLED, "--size", "standard")
+    assert (out["pipeline"]["mode"], out["pipeline"]["work"], out["provenance"]["work"]) == (
+        "work", "orchestrated", "preset:standard")
 
 
 @pytest.mark.parametrize(
@@ -223,11 +210,11 @@ def test_prompt_example_maps_to_closed_keys() -> None:
 
 @pytest.mark.parametrize(
     ("text", "expected"),
-    [("через /mb work, облегчённый", {"mode": "work", "work": "light"}),
+    [("через /mb work, оркестратор ведёт", {"mode": "work", "work": "orchestrated"}),
      ("без TDD, без верификатора", {"tdd": "optional", "verifier": "none"}),
      ("линзами [logic, security], effort high", {"review": "lenses", "lenses": "logic,security",
                                                 "effort": "high"}),
-     ("напрямую, без ревью, думай глубже", {"mode": "direct", "review": "none", "effort": "high"})],
+     ("без ревью, думай глубже", {"review": "none", "effort": "high"})],
 )
 def test_prompt_phrases(text: str, expected: dict) -> None:
     code, out = _parse(text)
@@ -237,7 +224,7 @@ def test_prompt_phrases(text: str, expected: dict) -> None:
 @pytest.mark.parametrize(
     "text",
     ["ревью построже", "без ревью, линзами", "модель получше", "линзами [logic, vibes]",
-     "на opus или sonnet"],
+     "на opus или sonnet", "облегчённо", "напрямую"],
 )
 def test_ambiguous_prompt_returns_question_not_guess(text: str) -> None:
     code, out = _parse(text)

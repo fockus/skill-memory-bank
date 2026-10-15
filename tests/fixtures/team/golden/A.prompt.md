@@ -20,7 +20,7 @@ through the service client `harness-admin-users`, reading its secret from `KEYCL
 <!-- /mb-stage:1 -->
 
 ## Pipeline (resolved — do not change it)
-- You implement directly. After you return, the orchestrator runs one reviewer (opus) on your diff; there is no verifier.
+- This track runs through /mb work on /Users/me/proj/.memory-bank/reports/sso-20261010/tracks/A.prompt.md, driven by the orchestrator: you are dispatched per stage, and the verifier and review gates run inside that loop.
 - TDD is required: failing test first; paste the command and output before and after into the report.
 - Resource `build`: see the brief, section Resources. Run it in the background with `--owner A`.
 

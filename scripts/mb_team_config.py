@@ -41,6 +41,19 @@ class ConfigError(Exception):
         self.errors = errors
 
 
+def host_lock_root() -> str:
+    """Host-wide lock directory: MB_LOCK_DIR or /tmp/mb-locks-<uid> (never TMPDIR), private to this user."""
+    root = os.environ.get("MB_LOCK_DIR") or f"/tmp/mb-locks-{os.getuid()}"
+    try:
+        os.makedirs(root, mode=0o700, exist_ok=True)
+        info = os.lstat(root)
+    except OSError as exc:
+        raise ConfigError([f"lock root {root} is unusable: {exc}"]) from exc
+    if os.path.islink(root) or info.st_uid != os.getuid():
+        raise ConfigError([f"lock root {root} is a symlink or not owned by this user"])
+    return root
+
+
 def load(path: Path) -> tuple[dict, str]:
     """(config, text) with PyYAML when importable, else the stdlib fallback parser."""
     text = path.read_text(encoding="utf-8")
@@ -122,8 +135,7 @@ def resource_json(team: dict, name: str, bank: str) -> dict:
             raise ConfigError([f"team.resources.{name}.scope: bank scope needs --mb <bank>"])
         path = os.path.join(os.path.abspath(bank), ".locks", "res", name)
     else:
-        base = os.environ.get("MB_LOCK_DIR") or os.path.join(os.environ.get("TMPDIR") or "/tmp", "mb-locks")
-        path = os.path.join(base, name)
+        path = os.path.join(host_lock_root(), name)
     return {
         "name": name, "kind": spec["kind"], "scope": spec["scope"], "path": path,
         "preconditions": {k: pre.get(k) for k in ("free_disk_gb", "disk_path", "check")},

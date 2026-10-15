@@ -43,7 +43,7 @@ def _unfilled(path: Path):
 @pytest.mark.parametrize(
     ("args", "golden"),
     [(("brief",), "brief.md"), (("track", "A"), "A.prompt.md"), (("track", "C"), "C.prompt.md")],
-    ids=["brief", "track-large-direct-review", "track-small-direct"],
+    ids=["brief", "track-large-work-review", "track-small-work"],
 )
 def test_render_matches_golden(args: tuple, golden: str) -> None:
     assert _ok(*args) == (FIX / "golden" / golden).read_text(encoding="utf-8")
@@ -91,16 +91,13 @@ def test_pipeline_in_words_for_work_and_lenses(tmp_path: Path) -> None:
     team = json.loads((FIX / "team.json").read_text(encoding="utf-8"))
     track = team["tracks"][1]
     track["source"] = "plans/2026-10-09_feature_admin.md"
-    track["pipeline"].update({"mode": "work", "work": "light", "verifier": "plan-verifier", "review": "lenses",
-                              "lenses": ["logic", "security"],
-                              "models": {"executor": "opus", "verifier": "sonnet", "lead": "opus", "lenses": "opus"}})
+    track["pipeline"].update({"verifier": "plan-verifier", "review": "lenses", "lenses": ["logic", "security"]})
     path = tmp_path / "team.json"
     path.write_text(json.dumps(team), encoding="utf-8")
     r = _render("track", "A", team=path)
     assert r.returncode == 0, r.stderr
-    assert f"You walk the stages of {BANK}/plans/2026-10-09_feature_admin.md yourself" in r.stdout
-    assert "plan-verifier (sonnet)" in r.stdout
-    assert "lens reviewers (logic, security) on opus and a lead (opus)" in r.stdout
+    assert f"runs through /mb work on {BANK}/plans/2026-10-09_feature_admin.md, driven by the orchestrator" in r.stdout
+    assert "You walk the stages" not in r.stdout and "You implement directly" not in r.stdout
 
 
 def test_track_without_dod_is_refused(tmp_path: Path) -> None:

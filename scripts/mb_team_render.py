@@ -68,8 +68,8 @@ def _abs(bank: str, rel) -> str:
 
 
 def pipeline_words(p: dict) -> str:
-    """Short form for the tracks table: `direct · TDD · review single`."""
-    parts = ["direct" if p["mode"] == "direct" else f"work ({p.get('work') or 'orchestrated'})"]
+    """Short form for the tracks table: `work · TDD · review single`."""
+    parts = ["work"]
     parts.append("TDD" if p["tdd"] == "required" else "TDD optional")
     if p["verifier"] != "none":
         parts.append("verifier")
@@ -80,33 +80,11 @@ def pipeline_words(p: dict) -> str:
     return " · ".join(parts)
 
 
-def _post_steps(p: dict) -> str:
-    models = p.get("models") or {}
-    steps = []
-    if p["verifier"] != "none":
-        steps.append(f"plan-verifier ({models.get('verifier', 'inherit')}) against the DoD above")
-    if p["review"] == "single":
-        steps.append(f"one reviewer ({models.get('reviewer', 'inherit')}) on your diff")
-    elif p["review"] == "lenses":
-        steps.append(f"lens reviewers ({', '.join(p['lenses'])}) on {models.get('lenses', 'inherit')} "
-                     f"and a lead ({models.get('lead', 'inherit')}) on your diff")
-    if not steps:
-        return "the orchestrator runs no verifier and no per-track review."
-    tail = "; there is no verifier." if p["verifier"] == "none" else "."
-    return "the orchestrator runs " + ", then ".join(steps) + tail
-
-
 def pipeline_lines(track: dict, bank: str) -> list[str]:
     p = track["pipeline"]
     source = _abs(bank, track.get("source"))
-    if p["mode"] == "direct":
-        first = "You implement directly. After you return, " + _post_steps(p)
-    elif p.get("work") == "light":
-        first = (f"You walk the stages of {source} yourself, in order, ticking each DoD box as it is met. "
-                 "After you return, " + _post_steps(p))
-    else:
-        first = (f"This track runs through /mb work on {source}, driven by the orchestrator: you are "
-                 "dispatched per stage, and the verifier and review gates run inside that loop.")
+    first = (f"This track runs through /mb work on {source}, driven by the orchestrator: you are "
+             "dispatched per stage, and the verifier and review gates run inside that loop.")
     lines = [first]
     if p["tdd"] == "required":
         lines.append("TDD is required: failing test first; paste the command and output before and after into the report.")

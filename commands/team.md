@@ -81,7 +81,7 @@ team track add A --task "Admin users page lists the realm users" \
 untouched; after you edit the brief it prints a note and leaves the brief alone.
 
 **Pipeline attributes** (on `init`, `track add`, `track set`): `--size trivial|small|standard|large|extra`,
-`--mode direct|work` (`work:light` shorthand), `--tdd required|optional`, `--verifier plan-verifier|none`,
+`--mode work` (`direct` and `light` are refused: every track runs through `/mb work`), `--tdd required|optional`, `--verifier plan-verifier|none`,
 `--review none|single|lenses[:a,b]`, `--model key=value` (repeatable; keys `executor verifier reviewer lead lenses
 lens.<name>`; values `premium`, `mid`, an exact id or `inherit`), `--effort low|medium|high`, and
 `--layer track|attr|prompt` (`attr` = `track`; `prompt` marks an explicit user request).
@@ -90,9 +90,9 @@ lens.<name>`; values `premium`, `mid`, an exact id or `inherit`), `--effort low|
 
 | Size | mode | tdd | verifier | review | executor | effort |
 |---|---|---|---|---|---|---|
-| trivial | direct | optional | none | none | mid | low |
-| small | direct | required | none | none | mid | medium |
-| standard | direct | required | plan-verifier | none | mid | medium |
+| trivial | work (orchestrated) | optional | none | none | mid | low |
+| small | work (orchestrated) | required | none | none | mid | medium |
+| standard | work (orchestrated) | required | plan-verifier | none | mid | medium |
 | large | work (orchestrated) | required | plan-verifier | lenses (all five) | premium | high |
 | extra | work (orchestrated) | required | plan-verifier | lenses (all five) | premium | high |
 
@@ -107,8 +107,8 @@ question to the user, never a guess. `python3 "$SKILL_DIR/scripts/mb_team_pipeli
 | Phrase (ru / en) | `--layer prompt` value |
 |---|---|
 | «через /mb work», «по движку», "via mb work" | `mode=work` |
-| «облегчённо», "light" · «оркестратор ведёт», "orchestrated" | `mode=work` + `work=light` · `mode=work` + `work=orchestrated` |
-| «без work», «напрямую», "direct" | `mode=direct` |
+| «оркестратор ведёт», "orchestrated" | `mode=work` + `work=orchestrated` |
+| «облегчённо», «напрямую», "light", "direct" | no value: `direct` and `light` are retired (REQ-001), so it becomes a question |
 | «без TDD», «тесты не обязательны» · «с TDD» | `tdd=optional` · `tdd=required` |
 | «с верификатором» · «без верификатора» | `verifier=plan-verifier` · `verifier=none` |
 | «без ревью» · «одним ревьюером» · «линзами [logic, security]» | `review=none` · `review=single` · `review=lenses` + `lenses=logic,security` |
@@ -135,14 +135,12 @@ parallel ones in one turn:
 
 | Action | What you do |
 |---|---|
-| `stop_human <why>` | Stop and ask the user: `brief-unfilled`, `no-tracks`, `budget`, `blocked:<id>`, `needs_context:<id>`, `no-report:<id>`, `claim:<id>`, `review-cycles`, `review-unowned`, `fix-cycles:<id>` (the track used `team.review.max_cycles` fixes) |
-| `fix <id>` | `team track set <id> --status fixing`, re-dispatch the track with the findings (team review or a rejected light report) |
-| `verify <id>` | `team track set <id> --status verifying`, run `plan-verifier` (below) |
-| `review <id>` | `team track set <id> --status reviewing`, run the track review (below) |
+| `stop_human <why>` | Stop and ask the user: `brief-unfilled`, `no-tracks`, `budget`, `blocked:<id>`, `needs_context:<id>`, `no-report:<id>`, `claim:<id>`, `review-cycles`, `review-unowned`, `fix-cycles:<id>` (the track used `team.review.max_cycles` fixes), `blocked:dep-cancelled:<id>` (a planned track depends on a cancelled one), `goal-red` (goal acceptance below 100 %), `flow-red:<checks>` (`mb-flow-verify.sh --skip acceptance` failed). A `stop_human` is printed alone: no `fix`, `dispatch` or `collect` until the user resolves it |
+| `fix <id>` | `team track set <id> --status fixing`, re-dispatch the track with the findings (team review findings) |
 | `dispatch <id>` | `team track set <id> --status dispatched`, start the agent with the track prompt |
 | `collect` | `team collect` (§7) |
 | `team_review <N>` | Run team review cycle N (§8) |
-| `stop_success` | Every track finished and collected, last team review clean (when on), goal acceptance 100 %, `mb-flow-verify.sh` exit 0 — report and `team close` |
+| `stop_success` | Every track finished and collected, last team review clean (when on), goal acceptance 100 %, flow (acceptance skipped) green — report and `team close` |
 | `wait` | Something is running, `fixing`, `verifying` or `reviewing`: wait for a return or a board entry |
 
 **Dispatch.** The agent gets the track prompt path (`reports/<topic>/tracks/<id>.prompt.md`) and nothing else to
@@ -159,23 +157,18 @@ team track set "$ID" --status returned --summary-file "$BANK/reports/$TOPIC/$ID.
 Status machine: `planned → dispatched → returned → verifying → reviewing → done | done_with_concerns`; any state →
 `blocked | needs_context | cancelled`; `reviewing → fixing → returned` (each `fixing` counts `fix_cycle`); a finished
 track may go back to `fixing` for a team-review fix. `verifying` and `reviewing` mean "in progress": `next` answers
-`wait` for them, and **you** move the track on — after a passed verifier to `reviewing` (and start the review) or to
-`done`; after a passed review to `done` or `done_with_concerns`; after a failed verifier or review to `fixing`,
-and re-dispatch the track with the findings yourself: `next` answers `wait` for a `fixing` track.
+`wait` for them. A returned track whose report ends `STATUS: DONE` is collected (§7); a `fixing` track is
+re-dispatched with the findings by you, and `next` answers `wait` for it.
 
-**`mode: direct` post-steps.** `plan-verifier` takes the track prompt as `Source file` with `Source kind: plan`. The
-diff is `mb-work-diff.sh --run-id team-<topic>-<id> --baseline <team baseline> --files "<changed ∩ track globs>"`.
-The review uses the same diff; the severity gate takes `team.review.clean_when` for lens review, else
-`review.severity_gate`.
-
-**`mode: work`.** `work: orchestrated` — you run the real `/mb work` loop for the track (per-run slot, eval gates,
-checkbox flips): export `MB_WORK_PARALLEL=1`, mint a run id with `mb-work-state.sh new-run-id`, pick the workflow —
+**One execution path.** Every track runs through `/mb work` (AGR-103): the track's `source` is its plan or spec, or,
+when `track add` got no `--source`, its own prompt (a one-stage plan). You run the real `/mb work` loop for the track
+(per-run slot, eval gates, checkbox flips); the claim is keyed by the source path, so two tracks never share one: pass the track's source PATH as the positional `<source>` of `mb-work-state.sh init` (not the JSON `source` category). For several items of one source run in parallel, use `<path>#<item_no>` as the claim key.
+Export `MB_WORK_PARALLEL=1`, mint a run id with `mb-work-state.sh new-run-id`, pick the workflow —
 verifier and review none → `--workflow simple`; verifier only → `medium`; review single → `complex` (`--verify off`
 without a verifier); lenses → `governed --no-judge --lenses <csv>` — and pass models through
 `mb-work-plan.sh --model <executor> --step-model verifier=… --step-model reviewer=…`. The gates ran inside the loop,
-so `next` adds no post-steps. Claim refused (exit 4) → `stop_human claim:<id>`. `work: light` — the agent walks the
-stages itself and reports `## Stages` (`- <N>: done|blocked|skipped`); `next` checks it with
-`mb_work_light.py accept` and answers `fix <id>` when it is rejected, else `verify`/`review` as configured.
+so `next` adds no post-steps: a returned track with a `DONE` report is `collect`. Claim refused (exit 4) →
+`stop_human claim:<id>`.
 
 **Relay.** Read the board (`mb-coord.sh active`, `mb-coord.sh tracks --json`) on every return. A finding that affects
 another running track → `SendMessage` to that track with the finding and your decision; a BLOCKED or HANDOVER → decide
@@ -230,13 +223,19 @@ Opt-in (`team.review.enabled`, or `init --team-review`): five lenses plus a lead
 
 ## 9. Hosts
 
-- **Claude Code** — dispatch with the Agent/Task tool, `run_in_background: true`, several tracks in one message;
-  relay mid-flight with `SendMessage`. A subagent cannot dispatch subagents, so `mode: work` orchestrated is driven by
-  you. Effort comes from the agent's `effort:` frontmatter; `plan` prints mismatches.
-- **Codex** — spawn the same role agents with its subagent tool; effort and model go as `thinking`/`model` per spawn.
-  Without mid-flight messaging, relay at the track boundary: the next dispatch of that track carries the addendum.
-- **Pi** — dispatch through the pi subagent extension with the role, model and `thinking` from the resolved
-  pipeline; relay at the track boundary the same way.
+Dispatch each track by role name with the host's tool — the table in [`SKILL.md`](../SKILL.md) § Invocation. Team deltas:
+
+| Host | Parallel tracks | Mid-flight relay |
+|---|---|---|
+| Claude Code | `run_in_background: true`, several `Agent` calls in one message | `SendMessage` |
+| Codex | several `spawn_agent` calls in one turn | at the track boundary: the next dispatch carries the addendum |
+| OpenCode | several `task` calls in one turn | at the track boundary |
+| Pi | several `mb_dispatch_subagent` calls in one turn | at the track boundary (`SendMessage` is dropped on Pi) |
+
+A host that runs dispatches one at a time runs the tracks serially, with a one-line notice. A subagent cannot
+dispatch subagents, so each track's `/mb work` loop is driven by you. Effort comes from the role's frontmatter or
+`thinking`; `plan` prints mismatches. Under `/mb drive` the team starts with `--no-goal`, ends at `stop_success`
+once tracks are collected and the flow is green, and every `stop_human` returns to drive.
 
 ## 10. Safety
 

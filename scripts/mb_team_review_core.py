@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import fnmatch
 import json
 import os
 import sys
@@ -13,6 +12,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import mb_pipeline_validate_team as schema  # noqa: E402
+import mb_team_state as st  # noqa: E402
 from mb_team_config import load_configs  # noqa: E402
 
 SEVERITIES = schema.SEVERITIES
@@ -74,10 +74,13 @@ class Ctx:
         if issue.get("owner") in ids:
             return issue["owner"]
         path = str(issue.get("file") or "")
-        tree = (self.team.get("tree") or "").rstrip("/") + "/"
-        path = path[len(tree):] if path.startswith(tree) else path
+        for root in (self.team.get("tree"), self.team.get("mirror")):
+            prefix = (root or "").rstrip("/") + "/"
+            if root and path.startswith(prefix):
+                path = path[len(prefix):]
+                break
         for track in self.team.get("tracks") or []:
-            if any(fnmatch.fnmatchcase(path, g) for g in track.get("files") or []):
+            if st.owns(track, path):
                 return track["id"]
         return None
 

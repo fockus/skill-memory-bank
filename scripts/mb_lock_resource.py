@@ -17,6 +17,10 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+
+from mb_team_config import ConfigError, host_lock_root  # noqa: E402
+
 _DF_ROW = re.compile(r"(\d+)\s+(\d+)\s+(\d+)\s+\d+%\s")
 
 
@@ -44,7 +48,10 @@ def free_gb(path: str) -> float | None:
 def lock_root(a, scope: str | None) -> Path:
     if scope == "bank" and a.mb:
         return Path(a.mb) / ".locks" / "res"
-    return Path(os.environ.get("MB_LOCK_DIR") or Path(os.environ.get("TMPDIR", "/tmp")) / "mb-locks")
+    try:
+        return Path(host_lock_root())
+    except ConfigError as e:
+        die(str(e), 2)
 
 
 def load_res(a) -> dict:

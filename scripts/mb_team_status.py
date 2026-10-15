@@ -6,12 +6,13 @@ Usage (through mb-team.sh, which adds --mb <bank>):
   mb_team_status.py status [--topic T] [--json]
 
 `next` prints one action per line in priority order and changes nothing:
-  stop_human <why> · fix <id> · verify <id> · review <id> · dispatch <id> · collect ·
+  stop_human <why> · fix <id> · dispatch <id> · collect ·
   team_review <N> · stop_success · wait
+A non-empty stop list is printed alone.
 `decide(team, facts)` is the pure rule; `gather()` collects the facts: the board
 (`mb-coord.sh tracks --json`), report STATUS lines, unfilled brief hints, the budget
-(`mb-work-budget.sh check`), light-track acceptance (`mb_work_light.accept`), the team
-review config, goal acceptance (`mb-goal-acceptance.sh`) and `mb-flow-verify.sh`; the last
+(`mb-work-budget.sh check`), the team
+review config, goal acceptance (`mb-goal-acceptance.sh`) and `mb-flow-verify.sh --skip acceptance`; the last
 two run only when everything else already allows stop_success.
 """
 
@@ -27,7 +28,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import mb_team_render as render  # noqa: E402
-import mb_work_light  # noqa: E402
 from mb_team_state import (  # noqa: E402
     FINISHED,
     TERMINAL,
@@ -44,37 +44,12 @@ ACTIVE = ("dispatched", "returned", "verifying", "reviewing", "fixing")
 SEVERITIES = ("blocker", "major", "medium", "minor")
 
 
-def _light(track: dict) -> bool:
-    p = track["pipeline"]
-    return p["mode"] == "work" and p.get("work") == "light"
-
-
-def post_steps(track: dict, accepted: bool = False) -> bool:
-    """True when a returned track still owes the orchestrator a verifier, a review or light acceptance."""
-    p = track["pipeline"]
-    if p["mode"] == "work" and not _light(track):
-        return False  # the /mb work loop ran its own gates
-    return (_light(track) and not accepted) or p["verifier"] != "none" or p["review"] != "none"
-
-
-def collectable(track: dict, report_status: str | None, accepted: bool = False) -> bool:
+def collectable(track: dict, report_status: str | None) -> bool:
     if track.get("collected"):
         return False
     if track["status"] in FINISHED:
         return True
-    return (track["status"] == "returned" and not post_steps(track, accepted)
-            and report_status in ("DONE", "DONE_WITH_CONCERNS"))
-
-
-def light_acceptance(bank: str, team: dict) -> dict:
-    """mb_work_light.accept for every returned light track: {id: {"accepted": bool, ...}}."""
-    out = {}
-    for t in team["tracks"]:
-        if t["status"] == "returned" and _light(t):
-            report = Path(bank) / t["report"]
-            out[t["id"]] = (mb_work_light.accept(Path(bank) / t["source"], report.read_text(encoding="utf-8"))
-                            if report.is_file() else {"accepted": False, "errors": ["no report"]})
-    return out
+    return track["status"] == "returned" and report_status in ("DONE", "DONE_WITH_CONCERNS")
 
 
 def review_clean(review: dict, clean_when: dict) -> bool:
@@ -99,11 +74,16 @@ def review_actions(team: dict, last: dict) -> tuple[list[str], list[str]]:
     return stop, fix
 
 
+def cancelled_deps(track: dict, tracks: list[dict]) -> list[str]:
+    cancelled = {t["id"] for t in tracks if t["status"] == "cancelled"}
+    return [d for d in track.get("deps") or [] if d in cancelled]
+
+
 def decide(team: dict, facts: dict) -> list[str]:
     tracks, reports = team["tracks"], facts["reports"]
     if not tracks:
         return ["stop_human no-tracks"]
-    stop, fix, verify, review, dispatch = [], [], [], [], []
+    stop, fix, dispatch = [], [], []
     cap = facts["review"]["max_cycles"]
 
     def route_fix(t: dict) -> None:  # a fix past the cap would loop verify <-> fix forever
@@ -111,7 +91,6 @@ def decide(team: dict, facts: dict) -> list[str]:
             stop.append(f"stop_human fix-cycles:{t['id']}")
         else:
             fix.append(f"fix {t['id']}")
-    accepted = {tid: bool(v.get("accepted")) for tid, v in facts["light"].items()}
     if facts["brief_unfilled"]:
         stop.append("stop_human brief-unfilled")
     if facts["budget_stop"]:
@@ -125,17 +104,10 @@ def decide(team: dict, facts: dict) -> list[str]:
             stop.append(f"stop_human blocked:{tid}")
         elif st == "returned" and reports.get(tid) in ("BLOCKED", "NEEDS_CONTEXT"):
             stop.append(f"stop_human {reports[tid].lower()}:{tid}")
-        elif st == "returned" and not post_steps(t, accepted.get(tid, False)) and reports.get(tid) is None:
+        elif st == "returned" and reports.get(tid) is None:
             stop.append(f"stop_human no-report:{tid}")
         elif st == "fixing" and t.get("fix_cycle", 0) > cap:
             stop.append(f"stop_human fix-cycles:{tid}")
-        elif st == "returned" and post_steps(t, accepted.get(tid, False)):
-            if _light(t) and not accepted.get(tid):
-                route_fix(t)
-            elif t["pipeline"]["verifier"] != "none":
-                verify.append(f"verify {tid}")
-            elif t["pipeline"]["review"] != "none":
-                review.append(f"review {tid}")
     cfg = facts["review"]
     reviews = team.get("reviews") or []
     last_clean = bool(reviews) and review_clean(reviews[-1], cfg["clean_when"])
@@ -160,26 +132,53 @@ def decide(team: dict, facts: dict) -> list[str]:
                 continue
             dispatch.append(f"dispatch {t['id']}")
             running.append(t)
-    out = stop + fix + verify + review + dispatch
-    if any(collectable(t, reports.get(t["id"]), accepted.get(t["id"], False)) for t in tracks):
+    for t in tracks:
+        if t["status"] == "planned":
+            stop += [f"stop_human blocked:dep-cancelled:{d}" for d in cancelled_deps(t, tracks)]
+    if stop:  # a pending stop holds fix, dispatch and collect back until the human resolves it
+        return list(dict.fromkeys(stop))
+    out = fix + dispatch
+    if any(collectable(t, reports.get(t["id"])) for t in tracks):
         out.append("collect")
     if out:
         return out
     if all_done and all_collected:
         if cfg["enabled"] and not last_clean:
             return [f"team_review {len(reviews) + 1}"]
-        if facts["goal_ok"]() and facts["flow_ok"]():
-            return ["stop_success"]
+        if not facts["goal_ok"]():
+            return ["stop_human goal-red"]
+        if red := facts["flow_red"]():
+            return [f"stop_human flow-red:{','.join(red)}"]
+        return ["stop_success"]
     return ["wait"]
 
 
+STATUS_RE = re.compile(r"^\s*\**STATUS:?\**:?\s*(DONE_WITH_CONCERNS|DONE|BLOCKED|NEEDS_CONTEXT)\b")
+
+
 def report_status(bank: str, track: dict) -> str | None:
+    """STATUS of the last matching line: a track may append a final STATUS after its notes."""
     path = Path(bank) / track["report"]
     if not path.is_file():
         return None
-    first = next((ln.strip() for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()), "")
-    m = re.match(r"^STATUS:\s*(\S+)", first)
-    return m.group(1) if m else None
+    hits = [m.group(1) for ln in path.read_text(encoding="utf-8").splitlines() if (m := STATUS_RE.match(ln))]
+    return hits[-1] if hits else None
+
+
+def flow_red(bank: str, tree: str) -> list[str]:
+    """Names of failing checks of mb-flow-verify (acceptance is judged by goal_ok); ["broke"] when unparsable."""
+    r = run(["bash", script("mb-flow-verify.sh"), bank, "--skip", "acceptance"], cwd=tree)
+    if r.returncode == 0:
+        return []
+    for ln in r.stdout.splitlines():
+        try:
+            checks = json.loads(ln)["checks"]
+        except (ValueError, KeyError, TypeError):
+            continue
+        names = [c["name"] for c in checks if c.get("status") in ("fail", "broke")]
+        if names:
+            return names
+    return ["broke"]
 
 
 def _json(cmd: list[str], **kw) -> dict:
@@ -193,7 +192,6 @@ def _json(cmd: list[str], **kw) -> dict:
 def gather(bank: str, team: dict) -> dict:
     reports = {t["id"]: report_status(bank, t) for t in team["tracks"]}
     brief = Path(bank) / team["brief"]
-    light = light_acceptance(bank, team)
     budget_stop = False
     if team.get("budget_run_id"):
         budget_stop = run(["bash", script("mb-work-budget.sh"), "check", "--run-id", team["budget_run_id"],
@@ -205,9 +203,9 @@ def gather(bank: str, team: dict) -> dict:
     return {"board": _json(["bash", script("mb-coord.sh"), "tracks", "--json", "--mb", bank]) or
             {"tracks": {}, "open_blocked": [], "open_handover": []},
             "reports": reports, "brief_unfilled": len(render.unfilled(str(brief))) if brief.is_file() else 1,
-            "budget_stop": budget_stop, "light": light, "review": review,
+            "budget_stop": budget_stop, "review": review,
             "goal_ok": lambda: not team.get("goal") or goal(bank).get("ok") is True,
-            "flow_ok": lambda: run(["bash", script("mb-flow-verify.sh"), bank], cwd=team["tree"]).returncode == 0}
+            "flow_red": lambda: flow_red(bank, team["tree"])}
 
 
 def goal(bank: str) -> dict:
@@ -215,11 +213,16 @@ def goal(bank: str) -> dict:
 
 
 def words(p: dict) -> str:
-    parts = [p["mode"] if p["mode"] == "direct" else f"work:{p.get('work')}"]
+    parts = [f"work:{p.get('work') or 'orchestrated'}"]
     parts += ["tdd"] if p["tdd"] == "required" else []
     parts += ["verify"] if p["verifier"] != "none" else []
     parts += {"single": ["review:1"], "lenses": [f"lenses:{len(p['lenses'])}"]}.get(p["review"], [])
     return "/".join(parts)
+
+
+def dep_status(t: dict, tracks: list[dict]) -> str:
+    dead = cancelled_deps(t, tracks) if t["status"] == "planned" else []
+    return f"blocked:dep-cancelled:{dead[0]}" if dead else t["status"]
 
 
 def status_json(bank: str, team: dict) -> dict:
@@ -229,7 +232,7 @@ def status_json(bank: str, team: dict) -> dict:
     return {"topic": team["topic"], "tree": team["tree"], "vcs": team["vcs"], "baseline": team["baseline"],
             "goal": {"id": team.get("goal"), **(goal(bank) if team.get("goal") else {})},
             "budget_run_id": team.get("budget_run_id"),
-            "tracks": [{"id": t["id"], "status": t["status"], "pipeline": words(t["pipeline"]),
+            "tracks": [{"id": t["id"], "status": dep_status(t, team["tracks"]), "pipeline": words(t["pipeline"]),
                         "board": board.get("tracks", {}).get(t["id"]), "report": facts["reports"][t["id"]],
                         "collected": t.get("collected", False)} for t in team["tracks"]],
             "resources": locks.get("resources", []), "open_blocked": board.get("open_blocked", []),
