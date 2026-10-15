@@ -11,6 +11,7 @@ setup() {
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
   export MB_SKIP_DEPS_CHECK=1
+  export MB_MANIFEST_PATH="$SANDBOX_HOME/.installed-manifest.json"
   command -v python3 >/dev/null || skip "python3 required"
 }
 
@@ -18,7 +19,7 @@ teardown() {
   [ -n "${SANDBOX_HOME:-}" ] && [ -d "$SANDBOX_HOME" ] && rm -rf "$SANDBOX_HOME"
 }
 
-@test "install: CLAUDE.md refresh preserves user content after the MB section + backs it up (A13)" {
+@test "install: CLAUDE.md refresh preserves user content after the MB section without a redundant backup (A13, I-250)" {
   mkdir -p "$HOME/.claude"
   cat > "$HOME/.claude/CLAUDE.md" <<'EOF'
 # [MEMORY-BANK-SKILL]
@@ -38,12 +39,8 @@ EOF
   grep -q "# My Own Notes" "$HOME/.claude/CLAUDE.md"
   # The MB section was actually refreshed (old placeholder content is gone).
   refute_grep -q "OLD MB CONTENT" "$HOME/.claude/CLAUDE.md"
-  # A backup of the pre-refresh file was taken.
-  local found=0
-  for b in "$HOME/.claude/CLAUDE.md.pre-mb-backup."*; do
-    [ -f "$b" ] && grep -q "USER_TAIL_MUST_SURVIVE" "$b" && found=1
-  done
-  [ "$found" -eq 1 ]
+  # I-250: a marked block file is ours and its user text is kept verbatim, so no backup.
+  refute_cmd compgen -G "$HOME/.claude/CLAUDE.md.pre-mb-backup.*"
 }
 
 @test "install: CLAUDE.md refresh replaces strictly between paired markers (A13)" {
