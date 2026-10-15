@@ -28,7 +28,7 @@ SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
 | EARS enforcement | Yes | No |
 | Fixed phases | 5 phases + size triage + transcript contracts | Free-form, driven by white spots |
 
-Alias note: `/mb ask_me` is an alias for `/mb discuss`, not for groom.
+Alias note: `/mb askme` (and `/mb ask_me`) is an alias for `/mb discuss`, not for groom.
 
 ## Workflow
 

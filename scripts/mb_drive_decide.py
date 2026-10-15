@@ -11,6 +11,7 @@ the work-claim listing only; criterion checks run from rule 13, the firewall
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -161,7 +162,8 @@ def gather(st: dict, cheap: bool) -> dict:
         return f
     bank = pathlib.Path(st["bank"])
     try:
-        f["crits"] = ev.parse_goal(pathlib.Path(st["goal"]).read_text(encoding="utf-8").splitlines())
+        raw = pathlib.Path(st["goal"]).read_bytes()
+        f["crits"] = ev.parse_goal(raw.decode("utf-8").splitlines())
         items = goal_plans(pathlib.Path(st["goal"]))
     except OSError:
         return {**f, "broken": "acceptance"}
@@ -179,10 +181,11 @@ def gather(st: dict, cheap: bool) -> dict:
     except ValueError:
         return {**f, "broken": "budget"}
     f["qa_on"] = any(i["qa_on"] for i in f["items"]) and (bank / "qa" / "README.md").is_file()
-    if cheap:
-        f["unmet"] = lambda: next((n for n, c in enumerate(f["crits"], 1) if not c["ticked"]), None)
-    else:
-        f["unmet"], f["firewall"] = (lambda: first_unmet(f["crits"], bank)), (lambda: firewall(bank))
+    f["unmet"] = lambda: next((n for n, c in enumerate(f["crits"], 1) if not c["ticked"]), None)
+    if not cheap:
+        f["firewall"] = lambda: firewall(bank)
+        if st.get("ticked_sha") != hashlib.sha256(raw).hexdigest():  # ticks of the last `returned` are stale
+            f["unmet"] = lambda: first_unmet(f["crits"], bank)
     return f
 
 

@@ -254,6 +254,16 @@ def test_unknown_key_in_block_raises(tmp_path):
     assert exc.value.field == "smoke_tests"
 
 
+def test_inline_layers_map_is_refused_not_read_as_empty(tmp_path):
+    # I-284: an inline map used to parse as an empty block, so a spec that said
+    # contract_first: false silently got the pipeline default (on).
+    req = write_spec(tmp_path, 'layers: {contract_first: false, contract_first_reason: "docs only"}\n')
+    with pytest.raises(spec_layers_error()) as exc:
+        read_spec_layers(req, PIPELINE_DEFAULT)
+    assert exc.value.code == "malformed_block"
+    assert "indented" in exc.value.field
+
+
 def test_non_boolean_layer_value_raises(tmp_path):
     req = write_spec(tmp_path, "layers:\n  contract_first: maybe\n")
     with pytest.raises(spec_layers_error()) as exc:

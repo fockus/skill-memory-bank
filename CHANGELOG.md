@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed — spec layers, bank ignore rules, QA regression cases, drive checks
+
+- An inline `layers: {...}` map in a spec is refused instead of read as empty (I-284); `/mb init` ignores the bank's runtime state (`.drive/`, `.work-state*`, `.work-budget*`, locks; I-285); a regression case is written only under `qa/test_cases/`, and `mb-plan.sh --tier` without a value fails loudly (I-286); `/mb drive` runs each `check:` once per loop pass; `/mb askme` is an alias of `/mb discuss`; `mb_work_light.py` is removed.
+
 ### Changed — /mb drive plans, then dispatches through /mb work and /mb team
 
 - `/mb drive` plans every goal criterion with the user, then dispatches `/mb work`/`/mb team` per `mb-drive.sh next`; several drives per bank with `--goal`; `--route/--phase/--max-cycles` and `mb-drive-preflight.sh` are removed; state lives in `.drive/<run_id>.json`.

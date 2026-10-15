@@ -140,6 +140,10 @@ if not hit:
 field = lambda key: next((x[len(key):] for x in body if x.startswith(key)), "")
 src = re.sub(r", step \d+$", "", field("- Scenario: "))
 src_path = os.path.join(bank, src)
+cases = os.path.realpath(os.path.join(bank, "qa", "test_cases"))
+if src and not os.path.realpath(src_path).startswith(cases + os.sep):
+    print("regression_case=none reason=scenario_outside_test_cases")
+    raise SystemExit
 if not src or not os.path.isfile(src_path):
     print("regression_case=none reason=no_scenario")
     raise SystemExit

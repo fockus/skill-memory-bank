@@ -264,8 +264,12 @@ import sys
 import tempfile
 
 path = sys.argv[1]
-RULE = "/tmp/"
-COMMENT = "# Memory Bank scratch: raw interview candidates never reach git (REQ-007)."
+# /tmp/ first: raw interview candidates never reach git (REQ-007). The rest is
+# machine-local runtime state of /mb work, /mb drive and /mb team (I-285).
+RULES = ("/tmp/", "/.drive/", "/.work-state.json", "/.work-state/", "/.work-budget.json",
+         "/.work-budget/", "/.locks/", "/.session-lock", "/.auto-lock", "/.session-spend.json",
+         "/.*.md.bak.*")
+COMMENT = "# Memory Bank scratch and runtime state: never reach git (REQ-007)."
 
 try:
     st = os.lstat(path)
@@ -288,24 +292,27 @@ else:
     except (OSError, UnicodeError):
         sys.exit(1)
     mode = stat.S_IMODE(st.st_mode)
-    # Idempotent, but on the EFFECTIVE rule rather than on mere presence.
-    # git is last-match-wins, so `/tmp/` followed by `!/tmp/` leaves the path
-    # UNIGNORED while a naive presence check reported success — check-ignore then
-    # returned 1 and `git add .` staged the raw candidate (r4 [5]).
-    effective = None
-    for line in existing.split("\n"):
-        t = line.strip()
-        if t == RULE:
-            effective = True
-        elif t == "!" + RULE:
-            effective = False
-    if effective:
-        sys.exit(0)
+
+# Idempotent, but on the EFFECTIVE rule rather than on mere presence.
+# git is last-match-wins, so `/tmp/` followed by `!/tmp/` leaves the path
+# UNIGNORED while a naive presence check reported success — check-ignore then
+# returned 1 and `git add .` staged the raw candidate (r4 [5]).
+effective = {}
+for line in existing.split("\n"):
+    t = line.strip()
+    for rule in RULES:
+        if t == rule:
+            effective[rule] = True
+        elif t == "!" + rule:
+            effective[rule] = False
+missing = [rule for rule in RULES if not effective.get(rule)]
+if not missing:
+    sys.exit(0)
 
 # Guarantee the separating newline before appending.
 if existing and not existing.endswith("\n"):
     existing += "\n"
-content = existing + COMMENT + "\n" + RULE + "\n"
+content = existing + COMMENT + "\n" + "".join(rule + "\n" for rule in missing)
 
 directory = os.path.dirname(path) or "."
 try:

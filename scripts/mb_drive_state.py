@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import pathlib
@@ -220,6 +221,9 @@ def cmd_returned(a: argparse.Namespace, bank: pathlib.Path) -> None:
         final_qa_returned(st, bank, a.outcome)
     save(st)
     sh("mb-goal-acceptance.sh", st["goal"], str(bank), "--tick")
+    # next trusts these ticks while the goal file is byte-identical: each check: runs once per pass.
+    st["ticked_sha"] = hashlib.sha256(pathlib.Path(st["goal"]).read_bytes()).hexdigest()
+    save(st)
 
 
 def main(argv: list[str]) -> int:

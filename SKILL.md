@@ -23,7 +23,7 @@ Work in a Memory Bank project follows this order. Depth scales with task complex
 
 | # | Stage | Command | Notes |
 |---|-------|---------|-------|
-| 1 | **Interview** | `/mb discuss <topic>` (alias `/mb ask_me`) | Grilling interview → decisions + EARS-validated requirements draft in `context/<topic>.md` |
+| 1 | **Interview** | `/mb discuss <topic>` (alias `/mb askme`) | Grilling interview → decisions + EARS-validated requirements draft in `context/<topic>.md` |
 | 2 | **Spec or plan** | `/mb sdd <topic>` · `/mb plan <type> <topic>` | Pick by complexity: feature/multi-task → spec triple (`specs/<topic>/requirements+design+tasks.md`, executable `<!-- mb-task:N -->`); smaller bounded change → plan (`plans/*.md`, `<!-- mb-stage:N -->`); trivial fix → no artifact (rules still apply) |
 | 3 | **Development** | `/mb work <target>` | Executes spec tasks / plan stages one by one through an implement → verify loop with role subagents (TDD, contract-first) |
 | 4 | **Verification** | `/mb verify` | plan-verifier audits diff vs plan/spec DoD; **mandatory before `/mb done`** when work followed a plan/spec |
@@ -39,7 +39,7 @@ Work in a Memory Bank project follows this order. Depth scales with task complex
 **Command index — all `/mb` subcommands** (know these exist; suggest them to the user when relevant; details per subcommand → `commands/mb.md` or `/mb help <sub>`):
 
 - **Session & context:** `context` (default, empty arg) · `start` · `done` · `update` · `tasks` · `note <topic>` · `index`
-- **Requirements & decisions:** `discuss <topic>` (alias `ask_me`) · `groom <topic>` (alias `grooming`) · `sdd <topic>` · `openspec <import|list|status|sync>` · `plan <type> <topic>` · `idea <title>` · `idea-promote <I-NNN>` · `adr <title>` · `agree <sub>` · `goal`
+- **Requirements & decisions:** `discuss <topic>` (alias `askme`) · `groom <topic>` (alias `grooming`) · `sdd <topic>` · `openspec <import|list|status|sync>` · `plan <type> <topic>` · `idea <title>` · `idea-promote <I-NNN>` · `adr <title>` · `agree <sub>` · `goal`
 - **Execution:** `work [target]` · `verify` · `config <sub>` · `pipeline <sub>` · `flow <route>` · `analyze-task`
 - **Codebase intelligence & memory:** `map [focus]` · `graph` · `wiki` · `research <query>` · `search <query>` · `recall <query>` · `recap <sid>` · `conflicts` · `consolidate` · `tags`
 - **Setup & maintenance:** `init` · `install` · `profile <sub>` · `rules <sub>` · `doctor` · `compact` · `migrate-structure` · `import` · `upgrade` · `deps` · `statusline` · `help [sub]`

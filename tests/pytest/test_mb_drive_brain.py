@@ -345,3 +345,19 @@ def test_status_names_items_by_path_and_first_pending_heading(bank: Path) -> Non
     assert status["items"][0]["files"] == ["src/a.py"]
     assert status["action"] == f"work {a}"
     assert not (bank.parent / "fv.log").exists()
+
+
+def test_returned_tick_is_reused_by_next_until_the_goal_file_changes(bank: Path) -> None:
+    # A check: runs once per loop pass: `returned --tick` evaluates it, `next` trusts those ticks
+    # while the goal file is byte-identical, and re-evaluates after any edit (a hand tick included).
+    count = bank.parent / "checks.log"
+    a = plan(bank, "a", "src/a.py", done=True)
+    path = goal(bank, ("A", [f"plan: {a}", f"check: echo x >> {count}"]))
+    rid = started(bank)
+    ret(bank, rid, f"work {a}")
+    assert count.read_text().count("x") == 1
+    assert nxt(bank, rid) == "stop_success"
+    assert count.read_text().count("x") == 1
+    path.write_text(path.read_text() + "\n")
+    assert nxt(bank, rid) == "stop_success"
+    assert count.read_text().count("x") == 2

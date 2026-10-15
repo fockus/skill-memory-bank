@@ -114,6 +114,9 @@ def _layers_block(front: list):
             break
     if start is None:
         return None
+    if front[start].split(":", 1)[1].split("#", 1)[0].strip():
+        # An inline map would otherwise read as an empty block and silently take the defaults (I-284).
+        raise SpecLayersError("malformed_block", "layers: use the indented block form, one key per line")
 
     block = {}
     for line in front[start + 1 :]:

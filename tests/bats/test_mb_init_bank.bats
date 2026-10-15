@@ -164,3 +164,20 @@ teardown() {
   [ "$status" -eq 0 ]
   grep -q "^lang=ru$" "$TMPROOT/.memory-bank/.mb-config"
 }
+
+@test "init-bank: the bank .gitignore hides runtime state, idempotently (I-285)" {
+  local proj="$TMPROOT/ign"
+  mkdir -p "$proj"
+  git -C "$proj" init -q .
+  bash "$INIT" "--project-root=$proj" >/dev/null
+  bash "$INIT" "--project-root=$proj" >/dev/null
+  local b="$proj/.memory-bank"
+  mkdir -p "$b/.drive" "$b/.work-state" "$b/.work-budget" "$b/.locks"
+  for f in .drive/r.json .work-state.json .work-state/r.json .work-budget.json .work-budget/r.json \
+           .locks/x .session-lock .session-spend.json .status.md.bak.1; do
+    : > "$b/$f"
+    git -C "$proj" check-ignore -q ".memory-bank/$f" || { echo "not ignored: $f"; false; }
+  done
+  git -C "$proj" check-ignore -q .memory-bank/status.md && { echo "status.md must stay tracked"; false; }
+  [ "$(grep -cxF '/.drive/' "$b/.gitignore")" -eq 1 ]
+}

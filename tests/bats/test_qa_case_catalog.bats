@@ -114,3 +114,16 @@ $body"
   assert_clause "$RUNNER" runner-not-verified
   assert_clause_load_bearing "$RUNNER" runner-not-verified
 }
+
+@test "qa_catalog: a scenario path outside qa/test_cases writes no case (I-286)" {
+  mkdir -p "$MB/../outside"
+  cp "$MB/qa/test_cases/checkout/pay.md" "$MB/../outside/pay.md"
+  cp "$MB/qa/test_cases/checkout/pay.md" "$MB/notes-pay.md"
+  for scen in '../outside/pay.md' "$MB/../outside/pay.md" 'notes-pay.md' 'qa/test_cases/../../outside/pay.md'; do
+    id="$(add_bug major "- Scenario: $scen, step 1")"
+    run bash "$BUG" --mb "$MB" set "$id" fixed
+    [ "$status" -eq 0 ]
+    [ "$output" = "regression_case=none reason=scenario_outside_test_cases" ]
+  done
+  [ -z "$(find "$MB/.." "$MB" -maxdepth 2 -name 'reg-*.md' -not -path '*/qa/test_cases/*')" ]
+}

@@ -116,7 +116,7 @@ EOF
   cat > "$HOME/.opencode/plugins/memory-bank.js" <<'EOF'
 // Memory Bank — OpenCode plugin
 // memory-bank: managed plugin (do not remove marker line)
-export default async function MemoryBankPlugin() { return {}; }
+export default { id: 'memory-bank', async setup() {} };
 EOF
 
   bash "$REPO_ROOT/install.sh" --clients opencode --non-interactive >/dev/null
@@ -221,7 +221,7 @@ EOF
   done
   for m in mb_team_config mb_team_ops mb_team_pipeline mb_team_render mb_team_review \
     mb_team_review_core mb_team_review_external mb_team_state mb_team_status mb_team_tracks \
-    mb_team_vocab mb_lock_queue mb_lock_resource mb_pipeline_validate_team mb_work_light; do
+    mb_team_vocab mb_lock_queue mb_lock_resource mb_pipeline_validate_team; do
     [ -f "$skill/scripts/$m.py" ]
   done
   for t in brief track-prompt external-review; do

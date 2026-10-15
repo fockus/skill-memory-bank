@@ -212,3 +212,9 @@ _validate() { bash "$REPO_ROOT/scripts/mb-pipeline-validate.sh" "$1"; }
   bash "$REPO_ROOT/scripts/mb-workflow.sh" --mb "$MB" --host claude-code --json > "$BATS_TEST_TMPDIR/wf.json"
   cmp -s "$REPO_ROOT/tests/bats/fixtures/qa-golden/workflow.json" "$BATS_TEST_TMPDIR/wf.json"
 }
+
+@test "planning_qa: --tier without a value is a loud usage error (I-286)" {
+  run bash "$SCRIPT" feature checkout --tier
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"--tier requires"* ]]
+}

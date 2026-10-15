@@ -43,7 +43,7 @@ while [ $# -gt 0 ]; do
       SDD_STRICT=1
       shift
       ;;
-    --tier) TIER="${2:-}"; shift 2 ;;
+    --tier) TIER="${2:-}"; [ -n "$TIER" ] || { echo "[error] --tier requires small|standard|large|extra" >&2; exit 1; }; shift 2 ;;
     --qa|--no-qa) [ "$QA_FLAG" = "--no-qa" ] || QA_FLAG="$1"; shift ;; # --no-qa wins in any order
     --spec) SPEC_TOPIC="${2:-}"; [ -n "$SPEC_TOPIC" ] || { echo "[error] --spec requires a topic" >&2; exit 1; }; shift 2 ;;
     -h|--help)

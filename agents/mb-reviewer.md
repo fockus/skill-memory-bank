@@ -53,7 +53,7 @@ accordingly.
 ## Inputs — one pre-assembled payload (design.md §7)
 
 In the orchestrated case (the common path), `scripts/mb-review.sh` sends you ONE markdown payload
-with 5 fixed sections, in this order — this is everything you get; you do not load files from disk:
+with 5 fixed sections (plus an optional 6th, `## Sources`), in this order — this is everything you get; you do not load files from disk:
 
 1. `## Plan context` — plan/spec path, active stage heading, the item body (your DoD reference).
 2. `## Diff` — the unified diff of touched files against the stage's baseline.

@@ -258,7 +258,6 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_pipeline_validate_blocks.py` | Per-block pipeline validators (budget … named-pipeline metadata) |
 | `mb_pipeline_minimal_yaml.py` | PyYAML-optional minimal loader for `pipeline.yaml` — the zero-dep base |
 | `mb_fs_atomic.py` | One atomic file-publish primitive, shared by every writer |
-| `mb_work_light.py` | `accept` for a light-mode track report (unused by the team runtime since AGR-103): STATUS, every pending stage reported `done`, no undeclared stage, no pending non-waived Eval |
 | `mb_team_state.py` | `team.json` single writer (flock + atomic replace), track status machine, glob ownership and overlap |
 | `mb_team_tracks.py` | `init`, `track add\|set`, `prompt`, `known-red`, `plan` behind `mb-team.sh` |
 | `mb_team_status.py` | `next` (pure `decide()` over gathered facts) and `status` (team, board, reports, locks, goal, last review) |
