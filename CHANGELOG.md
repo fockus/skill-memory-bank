@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed — closure gate waits quietly
+
+- The Stop hook `mb-flow-closure-guard.sh` no longer blocks a red flow while known work runs (an open `/mb team` with working tracks or a fresh `/mb work` run, `scripts/mb_flow_busy.py`); it prints one reminder per `flow_closure_remind` minutes (default 30) and blocks again once the work ends or goes stale past `flow_closure_busy_max_age` (default 120, `0` = old behaviour) — both in `.mb-config` or `MB_FLOW_CLOSURE_*` env (I-288).
+
 ### Added — orchestrator console
 
 - A prompt-level rule and `templates/orchestrator-console.md`: an orchestrator driving background agents keeps `<bank>/orchestrator-console.md` (open questions, running tracks, awaited events, unrecorded decisions), updates it at every milestone and reads it first after compaction; the PreCompact hint now names it and the SessionStart hook injects it (capped, `MB_CONSOLE_MAX_BYTES`); post-compaction checks (console, AGR tail, coordination board, team status) are part of the rule. See `references/orchestrator-console.md`.

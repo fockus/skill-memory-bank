@@ -139,6 +139,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-flow-branch-sink.sh` | Per-branch result sinks with write-once discipline for `<!-- mb-flow -->` fence: each parallel branch writes to its own `.mb-flow/branch-<i>.json` to prevent races (ADR-9) |
 | `mb-flow-route.sh` | Deterministic route resolver: apply route-floor rules (REQ-DF-022) to an LLM-proposed or user-supplied route and write the resolved `route:` into the `<!-- mb-flow -->` fence in status.md |
 | `mb-flow-sync.sh` | Regenerate the `<!-- mb-flow -->` runtime fence in status.md: emit route, phase, checks, gate, last-verify-sha, stall-count, and stop-reason fields (REQ-DF-030/031/032, REQ-DR-033) |
+| `mb_flow_busy.py` | Closure-gate busy predicate (I-288): exit 0 + summary when an open `/mb team` has dispatched/verifying/reviewing/fixing tracks or a `/mb work` run is in progress, both within `--max-age-min`; exit 1 idle |
 | `mb-flow-verify.sh` | THE firewall fan-out: run route-relevant check runners, normalize verdicts via `mb-work-severity-gate.sh`, and exit 0/1/2 — the sole exit-code authority of the dynamic-flow firewall (ADR-3) |
 | `mb-goal-acceptance.sh` | L5 goal-acceptance aggregator: parse `## Acceptance criteria` checkboxes in goal.md and report whether every criterion is satisfied (exits 0, JSON report; REQ-DF-042) |
 | `mb-goal-validate.sh` | Validate a goal.md before a Dynamic Flow run: enforce required sections, acceptance-criteria items, and field completeness — fail-loud exit 1 on malformed goals (REQ-DF-004) |

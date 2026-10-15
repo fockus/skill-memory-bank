@@ -223,6 +223,7 @@ sees every active agreement without being reminded.
 - Metadata protocol + `index.json` + 8 key rules: `references/metadata.md`
 - Plan decomposition (Phase / Sprint / Stage), templates, drift checks: `references/templates.md`
 - Planning + Plan Verifier workflow: `references/planning-and-verification.md`
+- Orchestrator console (running tracks, open questions, post-compaction checks): `references/orchestrator-console.md`
 - Effort tiers (sizing a task to trivial … extra and matching plan/tests/docs/checks): `references/effort-tiers.md`
 - ADaPT-lite — decompose only a stuck item, `complexity_escalation`: [`references/adapt.md`](references/adapt.md)
 - `/mb work` reference material (workflow modes, JSON schema, examples, scripts, parallel runs): `references/work-reference.md`

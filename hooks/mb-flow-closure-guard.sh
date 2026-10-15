@@ -363,6 +363,56 @@ PY
   fi
 fi
 
+# ---------------------------------------------------------------------------
+# Red but busy (I-288). An orchestrator waiting on background work has nothing
+# to repair yet, so blocking every reply is noise. scripts/mb_flow_busy.py
+# reports an open /mb team with working tracks or a fresh /mb work run; then the
+# stop is allowed, with at most one reminder line per remind interval. When the
+# work ends (or goes stale past max-age), the block returns on the next Stop.
+# Config: env → <bank>/.mb-config → default, whole minutes:
+#   MB_FLOW_CLOSURE_BUSY_MAX_AGE / flow_closure_busy_max_age (120; 0 = never defer)
+#   MB_FLOW_CLOSURE_REMIND / flow_closure_remind (30; 0 = silent)
+# ---------------------------------------------------------------------------
+_cfg_min() {  # <ENV_NAME> <config_key> <default>
+  local raw="${!1:-}"
+  if [ -z "$raw" ] && [ -f "$BANK/.mb-config" ] && [ ! -L "$BANK/.mb-config" ]; then
+    raw="$(grep -E "^$2=" "$BANK/.mb-config" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+  fi
+  case "$raw" in ''|*[!0-9]*) raw="$3" ;; esac
+  printf '%s' "$raw"
+}
+
+defer_if_busy() {
+  local max_age remind busy last now msg
+  local helper="$HOOK_DIR/../scripts/mb_flow_busy.py" stamp="$BANK/tmp/flow-closure-reminder"
+  max_age="$(_cfg_min MB_FLOW_CLOSURE_BUSY_MAX_AGE flow_closure_busy_max_age 120)"
+  [ "$max_age" = "0" ] && return 0
+  if [ ! -f "$helper" ] && command -v mb_skill_script_path >/dev/null 2>&1; then
+    helper="$(mb_skill_script_path "mb_flow_busy.py" "$HOOK_DIR" 2>/dev/null || true)"
+  fi
+  if [ ! -f "$helper" ] || ! command -v python3 >/dev/null 2>&1; then
+    return 0
+  fi
+  busy="$(python3 "$helper" "$BANK" --max-age-min "$max_age" 2>/dev/null)" || return 0
+  remind="$(_cfg_min MB_FLOW_CLOSURE_REMIND flow_closure_remind 30)"
+  [ "$remind" = "0" ] && allow
+  now="$(date +%s)"
+  last="$(cat "$stamp" 2>/dev/null || echo 0)"
+  case "$last" in ''|*[!0-9]*) last=0 ;; esac
+  [ $(( now - last )) -lt $(( remind * 60 )) ] && allow
+  mkdir -p "$BANK/tmp" 2>/dev/null && printf '%s\n' "$now" > "$stamp" 2>/dev/null
+  msg="Flow is red (verify exit $VERIFY_RC); closure deferred while work runs ($busy)."
+  if command -v jq >/dev/null 2>&1; then
+    jq -cn --arg m "$msg" '{systemMessage:$m}'
+  else
+    msg="${msg//\\/\\\\}"
+    printf '{"systemMessage":"%s"}\n' "${msg//\"/\\\"}"
+  fi
+  exit 0
+}
+
+case "$VERIFY_RC" in 1|2) defer_if_busy ;; esac
+
 case "$VERIFY_RC" in
   0)
     allow
