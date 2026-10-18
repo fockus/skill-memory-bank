@@ -5,11 +5,13 @@
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 
-SOURCE_SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+SOURCE_SKILL_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 # shellcheck disable=SC1091
 . "$SOURCE_SKILL_DIR/scripts/_lib.sh"
 # shellcheck source=scripts/_install_options.sh
 . "$SOURCE_SKILL_DIR/scripts/_install_options.sh"
+# shellcheck source=adapters/_framework.sh
+. "$SOURCE_SKILL_DIR/adapters/_framework.sh"
 # Interpreter that owns the memory_bank_skill package. The `memory-bank` CLI
 # exports MB_PYTHON=sys.executable so pipx/pip/Homebrew installs invoke the
 # venv's python (a bare system python3 cannot import the package). Falls back
@@ -18,7 +20,7 @@ MB_PY="${MB_PYTHON:-python3}"
 CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CURSOR_DIR="$HOME/.cursor"
-OPENCODE_DIR="$HOME/.config/opencode"
+OPENCODE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 OPENCODE_LEGACY_DIR="$HOME/.opencode"
 PI_AGENT_DIR="$HOME/.pi/agent"
 CANONICAL_SKILL_DIR="$CLAUDE_DIR/skills/skill-memory-bank"
@@ -55,9 +57,6 @@ CLAUDE_MB_END_MARKER="<!-- /memory-bank-skill -->"
 # user-writable XDG location instead, and uninstall.sh applies the exact same
 # resolution so it finds what install.sh actually wrote.
 MANIFEST="$(mb_resolve_manifest_path "$SOURCE_SKILL_DIR")"
-if ! mkdir -p "$(dirname "$MANIFEST")" 2>/dev/null; then
-  echo "[install.sh] warning: could not create manifest directory $(dirname "$MANIFEST")" >&2
-fi
 if [ -z "${MB_MANIFEST_PATH:-}" ] && [ "$MANIFEST" != "$SOURCE_SKILL_DIR/.installed-manifest.json" ]; then
   echo "[install.sh] $SOURCE_SKILL_DIR is not writable — manifest will be stored at $MANIFEST instead" >&2
 fi
@@ -76,6 +75,10 @@ ADAPTERS_FAILED=()
 # whose extension offer was explicitly accepted THIS run. Empty on decline/
 # skip — the manifest field of the same name mirrors this array honestly.
 EXTENSIONS_INSTALLED=()
+ADAPTERS_VISITED=()
+OC_BACKUP_HASHES='{}'
+OC_PENDING_HASHES='{}'
+MB_MANIFEST_FAILED=0
 
 # ─── Manifest flush (A7 / H-5) ──────────────────────────────────────────────
 # The manifest is the uninstall rollback source. Write it INCREMENTALLY via an
@@ -94,15 +97,24 @@ flush_manifest() {
     BACKED_UP_STR="$(printf '%s\n' ${BACKED_UP_FILES[@]+"${BACKED_UP_FILES[@]}"})" \
     CLIENTS_INSTALLED_STR="$(printf '%s\n' ${ADAPTERS_INVOKED[@]+"${ADAPTERS_INVOKED[@]}"})" \
     CLIENTS_FAILED_STR="$(printf '%s\n' ${ADAPTERS_FAILED[@]+"${ADAPTERS_FAILED[@]}"})" \
+    CLIENTS_VISITED_STR="$(printf '%s\n' ${ADAPTERS_VISITED[@]+"${ADAPTERS_VISITED[@]}"})" \
+    MB_OC_BACKUP_HASHES="$OC_BACKUP_HASHES" \
+    MB_OC_PENDING_HASHES="$OC_PENDING_HASHES" \
     EXTENSIONS_INSTALLED_STR="$(printf '%s\n' ${EXTENSIONS_INSTALLED[@]+"${EXTENSIONS_INSTALLED[@]}"})" \
     MANIFEST_PROJECT_ROOT="${PROJECT_ROOT:-}" \
     MANIFEST_LANGUAGE="${LANGUAGE:-}" \
     MANIFEST_COMMENTS_LANGUAGE="${COMMENTS_LANGUAGE:-}" \
     MANIFEST_CLIENTS_REQUESTED="${CLIENTS:-}" \
+    MANIFEST_ONLY="${ONLY:-}" \
     MANIFEST_PATH="$MANIFEST" \
+    MB_OC_ROOT="$OPENCODE_DIR" MB_OC_LEGACY="$OPENCODE_LEGACY_DIR" MB_OC_ALIAS="$OPENCODE_SKILL_ALIAS" MB_OC_SOURCE="$SOURCE_SKILL_DIR" \
     INSTALL_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$MB_PY" << 'PYEOF' 2>&1
-import hashlib, json, os, tempfile
+import hashlib, json, os, tempfile, sys
+from pathlib import Path
+sys.path.insert(0, os.path.join(os.environ["MB_OC_SOURCE"], "adapters"))
+from opencode_files import absolute
+from opencode_install_io import checkpoint
 files = [f for f in os.environ.get("INSTALLED_FILES_STR", "").split("\n") if f]
 raw_backups = [b for b in os.environ.get("BACKED_UP_STR", "").split("\n") if b]
 clients = [c for c in os.environ.get("CLIENTS_INSTALLED_STR", "").split("\n") if c]
@@ -132,6 +144,8 @@ try:
         previous = json.load(previous_file)
 except (OSError, ValueError):
     previous = {}
+if not isinstance(previous, dict):
+    previous = {}
 previous_backups = previous.get("backups", []) if isinstance(previous, dict) else []
 if not isinstance(previous_backups, list):
     previous_backups = []
@@ -139,14 +153,45 @@ backups = _ordered_unique([
     b for b in [*previous_backups, *raw_backups]
     if isinstance(b, str) and os.path.lexists(_backup_path(b))
 ])
+oc_root = os.environ["MB_OC_ROOT"].rstrip("/") + "/"
+oc_roots = (oc_root, os.environ["MB_OC_LEGACY"].rstrip("/") + "/")
+oc_prior = previous if previous.get("home", os.environ.get("HOME")) == os.environ.get("HOME") else {}
+oc_previous = [f for f in oc_prior.get("files", []) if isinstance(f, str) and f.startswith(oc_roots)]
+hashes = {f: h for f, h in (oc_prior.get("file_sha256") or {}).items() if f.startswith(oc_roots)}
+alias = os.environ["MB_OC_ALIAS"]
+if "home" not in oc_prior:
+    oc_previous = [f for f in oc_previous if f != alias and not str(hashes.get(f, "")).startswith(("symlink:", "backup:"))]
+    hashes = {f: h for f, h in hashes.items() if f in oc_previous}
+hashes.update(json.loads(os.environ["MB_OC_BACKUP_HASHES"]))
+hashes.update({f: _sha256(f) for f in _ordered_unique(files) if not f.startswith(oc_roots) and os.path.isfile(f) and not os.path.islink(f)})
+delta = {}
+for file, digest in json.loads(os.environ["MB_OC_PENDING_HASHES"]).items():
+    # Overlapping roots need the most-specific requested spelling for ownership.
+    for root in sorted(oc_roots, key=lambda root: len(str(absolute(root))), reverse=True):
+        canonical_root = str(absolute(root)).rstrip("/") + "/"
+        if file.startswith(canonical_root):
+            file = root + file[len(canonical_root):]
+            break
+    delta[file] = digest
+hashes.update({f: h for f, h in delta.items() if h is not None})
+removed = {f for f, h in delta.items() if h is None}
+hashes = {f: h for f, h in hashes.items() if f not in removed}
+project_root = os.environ.get("MANIFEST_PROJECT_ROOT", "")
+visited = os.environ.get("CLIENTS_VISITED_STR", "").splitlines()
+if not visited or oc_prior.get("project_root") == project_root:
+    # Early refusals leave previous successes AND failures discoverable for rollback.
+    clients += [c for c in oc_prior.get("clients", []) if c not in visited]
+    clients_failed += [c for c in oc_prior.get("adapters_failed", []) if c not in visited]
+    if not visited and (oc_prior.get("clients") or oc_prior.get("adapters_failed")):
+        project_root = oc_prior.get("project_root", "")
 manifest = {
     "schema_version": 1,
     "installed_at": os.environ["INSTALL_DATE"],
     "skill": "skill-memory-bank",
-    "files": _ordered_unique(files),
+    "files": [f for f in _ordered_unique([*files, *oc_previous]) if f not in removed],
     # Content of each regular file as written, so the next install can tell an
     # untouched leftover of this version from a file the user edited.
-    "file_sha256": {f: _sha256(f) for f in _ordered_unique(files) if os.path.isfile(f) and not os.path.islink(f)},
+    "file_sha256": hashes,
     "backups": backups,
     # A10: per-project cross-agent adapters invoked at install time (excludes
     # claude-code, whose lifecycle is managed directly by install/uninstall.sh)
@@ -160,7 +205,7 @@ manifest = {
     # offer was explicitly accepted this run. Empty array on decline/skip/no
     # offer shown — never inferred, always the literal accepted set (REQ-002).
     "extensions_installed": _ordered_unique(extensions_installed),
-    "project_root": os.environ.get("MANIFEST_PROJECT_ROOT", ""),
+    "project_root": project_root,
     # Whose install this is: saved options and owned files apply only to this HOME.
     "home": os.environ.get("HOME", ""),
     # A21: the install options as requested (language, full --clients list
@@ -176,12 +221,33 @@ manifest = {
     # and update-notify all ship natively — nothing to declare as limited.
     "platform_limited": [],
 }
+if os.environ.get("MANIFEST_ONLY") == "opencode":
+    # A shared record retains every other host's options and authority verbatim.
+    foreign_files = [f for f in previous.get("files", []) if not f.startswith(oc_roots)]
+    foreign_hashes = {f: h for f, h in (previous.get("file_sha256") or {}).items() if not f.startswith(oc_roots)}
+    manifest["files"] = _ordered_unique([*foreign_files, *manifest["files"]])
+    manifest["file_sha256"] = foreign_hashes | manifest["file_sha256"]
+    manifest["backups"] = _ordered_unique([
+        *[b for b in previous_backups if not b.split("|", 1)[0].startswith(oc_roots)],
+        *[b for b in backups if b.split("|", 1)[0].startswith(oc_roots)],
+    ])
+    manifest["platform_limited"] = previous.get("platform_limited", [])
+    manifest["extensions_installed"] = _ordered_unique([
+        *[h for h in previous.get("extensions_installed", []) if h != "opencode"],
+        *extensions_installed,
+    ])
+    manifest["clients_requested"] = previous.get("clients_requested", "")
+    manifest = previous | manifest | {"install_scope": "opencode"}
 d = os.path.dirname(path) or "."
 fd, tmp = tempfile.mkstemp(dir=d, prefix=".mb-manifest.")
 try:
     with os.fdopen(fd, "w") as f:
         json.dump(manifest, f, indent=2)
-    os.replace(tmp, path)
+    context = os.environ.get("_MB_OC_IO_CONTEXT")
+    if context and Path(context, "pending.json").is_file():
+        checkpoint(Path(context), path, tmp)
+    else:
+        os.replace(tmp, path)
 except Exception:
     try:
         os.unlink(tmp)
@@ -194,15 +260,27 @@ PYEOF
     while IFS= read -r line; do
       printf '    %s\n' "$line"
     done <<< "$mf_output" >&2
+    MB_MANIFEST_FAILED=1
+    return 1
   fi
   MB_MANIFEST_FLUSHED=1
+  OC_PENDING_HASHES='{}'
 }
 
 _mb_on_exit() {
   local rc=$?   # preserve the triggering exit code across the flush
+  if [ -n "${_MB_OC_IO_CONTEXT:-}" ] && [ -f "$_MB_OC_IO_CONTEXT/pending.json" ]; then
+    if [ ! -f "$_MB_OC_IO_CONTEXT/rollback-started" ]; then
+      _mb_oc_io mark "${_MB_OC_EXPECTED_POSTS:-}" >/dev/null && _mb_oc_io abort || rc=1
+    else
+      rc=1
+    fi
+  fi
+  if [ "$MB_MANIFEST_FLUSHED" != 1 ] && [ "$MB_MANIFEST_FAILED" != 1 ]; then
+    flush_manifest || rc=1
+  fi
+  _mb_oc_close || rc=1
   rm -rf "$MB_RUN_TMP"
-  [ "$MB_MANIFEST_FLUSHED" = "1" ] && return "$rc"
-  flush_manifest
   return "$rc"
 }
 
@@ -224,6 +302,7 @@ LANGUAGE=""                 # unset sentinel — triggers interactive or default
 COMMENTS_LANGUAGE=""        # empty = same as LANGUAGE
 PROJECT_ROOT=""             # empty = saved project root, else PWD
 NON_INTERACTIVE=0
+ONLY=""
 # adapter-parity T2: opt-in host parity-extension offer (pi/opencode only).
 # WITH_EXTENSIONS_FLAG=1 means "don't prompt — decide from WITH_EXTENSIONS_VALUE".
 # Empty value = accept every offered host; non-empty = comma list of hosts.
@@ -239,6 +318,7 @@ Installs Memory Bank (global ~/.claude/) and optionally writes cross-agent
 adapters (.cursor/, .windsurf/, .clinerules/, etc.) into a project directory.
 
 Options:
+  --only opencode        Install/update only OpenCode; keep other hosts untouched.
   --clients <list>        Comma-separated client list.
                           Valid: claude-code, cursor, windsurf, cline, kilo,
                                  opencode, pi, codex
@@ -266,11 +346,12 @@ Options:
                           scopes acceptance to those hosts only. Same effect
                           as the MB_WITH_EXTENSIONS env var. Ignored unless
                           --clients includes pi and/or opencode. Declining
-                          (the default) leaves the install unchanged.
+                          (the fresh-install default) keeps base mode;
+                          recorded extension consent survives reinstall.
   --help                  Show this message.
 
-A re-install reuses the options saved by the previous one (language, comments
-language, clients, project root); pass a flag to change one. With no saved
+A re-install reuses saved scope, extension consent, language, comments
+language, clients and project root; pass a flag to change supported options. With no saved
 manifest (pipx install --force, a cleaned Homebrew keg) they are inferred from
 ~/.claude/memory-bank-config.json and the clients' adapter manifests.
 
@@ -286,6 +367,9 @@ HELP_EOF
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --only)
+      [ "${2:-}" = opencode ] || { echo '[install.sh] --only requires opencode' >&2; exit 1; }
+      ONLY=opencode; shift 2 ;;
     --clients)
       CLIENTS="${2:-}"
       [ -z "$CLIENTS" ] && { echo "[install.sh] --clients requires an argument" >&2; exit 1; }
@@ -353,6 +437,10 @@ if [ "$WITH_EXTENSIONS_FLAG" != "1" ] && [ -n "${MB_WITH_EXTENSIONS+x}" ]; then
   WITH_EXTENSIONS_VALUE="$MB_WITH_EXTENSIONS"
 fi
 
+mb_opencode_install_scope || exit 1
+mb_validate_opencode_scope || exit 1
+if [ "$ONLY" = opencode ]; then CLIENTS=opencode; fi
+
 # A plain re-run keeps the previous install's choices (saved in the manifest);
 # whatever was passed explicitly (flag or MB_* env) wins. The project root: run
 # inside a project (.git / .memory-bank, not the skill checkout itself) → that
@@ -362,6 +450,17 @@ if { [ -e "$PWD/.git" ] || [ -d "$PWD/.memory-bank" ]; } && ! [ "$PWD" -ef "$SOU
   CWD_IS_PROJECT=1
 fi
 PREV_MANIFEST_SRC="$(mb_previous_manifest "$SOURCE_SKILL_DIR" "$MANIFEST")"
+# Recorded consent is not inferred from installed plugin contents.
+if [ "$WITH_EXTENSIONS_FLAG" = 0 ] && [ -f "$PREV_MANIFEST_SRC" ]; then
+  saved_extensions=$(jq -r --arg home "$HOME" 'if .home == $home then (.extensions_installed // [] | join(",")) else "" end' "$PREV_MANIFEST_SRC") || exit 1
+  if [ -n "$saved_extensions" ]; then
+    WITH_EXTENSIONS_FLAG=1; WITH_EXTENSIONS_VALUE="$saved_extensions"
+    if [ "$ONLY" = opencode ]; then
+      case ",$saved_extensions," in *,opencode,*) WITH_EXTENSIONS_VALUE=opencode ;; *) WITH_EXTENSIONS_VALUE="none" ;; esac
+      if [ "$WITH_EXTENSIONS_VALUE" = none ]; then WITH_EXTENSIONS_FLAG=0; WITH_EXTENSIONS_VALUE=""; fi
+    fi
+  fi
+fi
 # No usable manifest (pipx --force / reinstall, a cleaned brew keg): infer the
 # options from what the earlier install left in $HOME and this project.
 MB_INFERRED_FROM=""
@@ -671,6 +770,8 @@ _mb_offer_extensions() {
     if [ "$accept" -eq 1 ]; then
       if mb_install_host_extensions "$host"; then
         EXTENSIONS_INSTALLED+=("$host")
+      elif [ "$host" = opencode ]; then
+        ADAPTERS_FAILED+=("opencode")
       fi
     fi
   done
@@ -771,8 +872,51 @@ if [ -z "$PREV_MANIFEST_SRC" ] && [ -f "$CLAUDE_DIR/memory-bank-config.json" ]; 
   MB_LAST_INSTALL_AT="$(mb_mtime "$CLAUDE_DIR/memory-bank-config.json")"
 fi
 
-# python3 is now confirmed usable → arm the manifest flush for ANY exit (A7/H-5).
+_mb_oc_preflight_existing() {
+  local src kind=owned-alias
+  for src in "$SOURCE_SKILL_DIR"/commands/*.md; do
+    [ -f "$src" ] || continue
+    _mb_oc_require_owned "$OPENCODE_DIR/commands/$(basename "$src")" "$PREV_MANIFEST" "$OPENCODE_DIR" || return $?
+  done
+  if [ -d "$OPENCODE_SKILL_ALIAS" ] && [ ! -L "$OPENCODE_SKILL_ALIAS" ]; then kind=owned-directory; fi
+  _mb_oc_require_owned "$OPENCODE_SKILL_ALIAS" "$PREV_MANIFEST" "$OPENCODE_DIR" "$kind"
+}
+
+if [ "$ONLY" = opencode ]; then
+  _mb_strict_file uninstall-manifest "$MANIFEST" "$MANIFEST" "$OPENCODE_DIR" || { rm -rf "$MB_RUN_TMP"; exit 1; }
+  if [ -f "$MANIFEST" ] && ! jq -e --arg project "$PROJECT_ROOT" '
+    .project_root == $project or
+    ((.clients // []) + (.adapters_failed // []) | all(. == "opencode"))
+  ' "$MANIFEST" >/dev/null; then
+    echo "[install.sh] cannot change project for foreign host records in $MANIFEST; use the same project or a separate authoritative manifest via MB_MANIFEST_PATH" >&2
+    rm -rf "$MB_RUN_TMP"
+    exit 1
+  fi
+  _mb_oc_preflight_existing || { rm -rf "$MB_RUN_TMP"; exit 1; }
+  _mb_strict_file regular "$OPENCODE_DIR/AGENTS.md" "$PREV_MANIFEST" "$OPENCODE_DIR" || { rm -rf "$MB_RUN_TMP"; exit 1; }
+  MB_OC_PREFLIGHT_EXTENSIONS="$WITH_EXTENSIONS_FLAG" bash "$SOURCE_SKILL_DIR/adapters/opencode.sh" preflight "$PROJECT_ROOT" || { rm -rf "$MB_RUN_TMP"; exit 1; }
+fi
+
+# Probe metadata I/O and existing OpenCode authority before any user-file writer.
+_mb_oc_context || { rm -rf "$MB_RUN_TMP"; exit 1; }
+if ! _mb_oc_io probe "$MANIFEST" "$OPENCODE_DIR" || ! _mb_oc_preflight_existing; then
+  _mb_oc_close || true
+  rm -rf "$MB_RUN_TMP"
+  exit 1
+fi
+if [ -f "$MANIFEST" ] && jq -e --arg project "$PROJECT_ROOT" '
+  (.project_root // "") as $prior |
+  $prior != "" and $prior != $project and
+  ([.clients[]?, .adapters_failed[]?] | index("opencode") != null)
+' "$MANIFEST" >/dev/null; then
+  echo "[install.sh] unresolved OpenCode project ownership; uninstall the recorded project before switching" >&2
+  _mb_oc_close || true
+  rm -rf "$MB_RUN_TMP"
+  exit 1
+fi
+export _MB_OC_INSTALL_RECORD="$MANIFEST" _MB_OC_INSTALL_ROOT="$OPENCODE_DIR"
 trap _mb_on_exit EXIT
+[ -f "$MANIFEST" ] || flush_manifest
 
 # Invariant: the extension offer/install runs AFTER every argument-validation
 # step above (client list, --with-extensions closed-set, language) AND AFTER
@@ -782,6 +926,7 @@ trap _mb_on_exit EXIT
 # fails partway still leaves a manifest record of what landed (rollback
 # source), instead of writing files with no recorded evidence they exist.
 _mb_offer_extensions
+[ ! -f "$_MB_OC_IO_CONTEXT/failed" ] && [ ! -f "$_MB_OC_IO_CONTEXT/pending.json" ] || exit 1
 
 _mb_has_claude_marker() { grep -qxF -- "$CLAUDE_MB_START_MARKER" "$1"; }
 
@@ -834,7 +979,7 @@ backup_if_exists() {
     # across repeat installs). We keep only the freshest snapshot.
     # Pi scans ~/.pi/agent/skills/* as skills, so keep Pi skill backups outside
     # that discovery directory to avoid duplicate "memory-bank" skill conflicts.
-    local old backup
+    local old backup proof
     if [ "$target" = "$PI_SKILL_ALIAS" ]; then
       mkdir -p "$PI_AGENT_DIR/.memory-bank-backups"
       for old in "$PI_AGENT_DIR/.memory-bank-backups/memory-bank.pre-mb-backup."*; do
@@ -843,12 +988,11 @@ backup_if_exists() {
       done
       backup="$PI_AGENT_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.$(date +%s)"
     elif [ "$target" = "$OPENCODE_SKILL_ALIAS" ]; then
+      proof=$(_mb_strict_file backup-hash "$target" "$PREV_MANIFEST" "$OPENCODE_DIR") || return 1
+      _mb_strict_file path "$OPENCODE_DIR/.memory-bank-backups/backup" "$PREV_MANIFEST" "$OPENCODE_DIR" || return 1
       mkdir -p "$OPENCODE_DIR/.memory-bank-backups"
-      for old in "$OPENCODE_DIR/.memory-bank-backups/memory-bank.pre-mb-backup."*; do
-        [ -e "$old" ] || [ -L "$old" ] || continue
-        rm -rf -- "$old"
-      done
-      backup="$OPENCODE_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.$(date +%s)"
+      backup="$(mktemp -d "$OPENCODE_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.XXXXXXXX")"
+      rmdir "$backup"
     else
       # H-4: NEVER rotate away the OLDEST backup — it holds the user's TRUE
       # original. If one already exists, the current file is an MB artifact from a
@@ -873,6 +1017,9 @@ backup_if_exists() {
     fi
     mv "$target" "$backup"
     BACKED_UP_FILES+=("$target|$backup")
+    if [ "$target" = "$OPENCODE_SKILL_ALIAS" ]; then
+      OC_BACKUP_HASHES=$(printf '%s' "$OC_BACKUP_HASHES" | jq --arg p "$backup" --arg h "$proof" '. + {($p): $h}') || return 1
+    fi
   fi
 }
 
@@ -888,6 +1035,11 @@ quarantine_legacy_opencode_skill_backups() {
   for old in "$legacy_skills"/memory-bank.backup.* "$legacy_skills"/memory-bank.pre-mb-backup.*; do
     [ -e "$old" ] || [ -L "$old" ] || continue
     [ -e "$old/SKILL.md" ] || [ -L "$old/SKILL.md" ] || continue
+    if ! _mb_strict_file owned-directory "$old" "$PREV_MANIFEST" "$OPENCODE_LEGACY_DIR"; then
+      echo "[install.sh] preserved unverified legacy OpenCode backup: $old" >&2
+      continue
+    fi
+    _mb_strict_file path "$backup_root/backup" "$PREV_MANIFEST" "$OPENCODE_LEGACY_DIR" || return 1
     mkdir -p "$backup_root"
     base="$(basename "$old")"
     dest="$backup_root/$base"
@@ -896,8 +1048,9 @@ quarantine_legacy_opencode_skill_backups() {
       dest="$backup_root/$base.$i"
       i=$((i + 1))
     done
-    mv "$old" "$dest"
-    BACKED_UP_FILES+=("$old|$dest")
+    _mb_oc_apply "$MANIFEST" "$OPENCODE_LEGACY_DIR" \
+      "$(jq -cn --arg path "$old" --arg retain "$dest" '[{path:$path,retain:$retain,expected:null},{path:$retain}]')" \
+      oc_checkpoint oc_record_quarantine "$old" "$dest" || return 1
   done
 }
 
@@ -908,8 +1061,12 @@ quarantine_legacy_opencode_managed_plugin() {
   local backup_root="$OPENCODE_LEGACY_DIR/.memory-bank-backups/plugins"
   local dest i
   { [ -e "$old" ] || [ -L "$old" ]; } || return 0
-  grep -q "memory-bank: managed plugin" "$old" 2>/dev/null || return 0
+  if ! _mb_strict_file owned "$old" "$PREV_MANIFEST" "$OPENCODE_LEGACY_DIR"; then
+    echo "[install.sh] preserved unverified legacy OpenCode plugin: $old" >&2
+    return 0
+  fi
 
+  _mb_strict_file path "$backup_root/backup" "$PREV_MANIFEST" "$OPENCODE_LEGACY_DIR" || return 1
   mkdir -p "$backup_root"
   dest="$backup_root/memory-bank.js.pre-mb-backup.$(date +%s)"
   i=2
@@ -917,12 +1074,29 @@ quarantine_legacy_opencode_managed_plugin() {
     dest="$backup_root/memory-bank.js.pre-mb-backup.$(date +%s).$i"
     i=$((i + 1))
   done
-  mv "$old" "$dest"
+  _mb_oc_apply "$MANIFEST" "$OPENCODE_LEGACY_DIR" "$(_mb_oc_paths "$old" "$dest")" oc_checkpoint \
+    oc_quarantine_plugin "$old" "$dest"
+}
+
+oc_quarantine_plugin() {
+  mv "$1" "$2" || return 1
+  oc_record_quarantine "$1" "$2"
+}
+
+oc_record_quarantine() {
+  local old="$1" dest="$2"
+  INSTALLED_FILES+=("$dest")
   BACKED_UP_FILES+=("$old|$dest")
 }
 
 install_file() {
   local src="$1" dst="$2"
+  case "$dst" in "$OPENCODE_DIR"/*)
+    _mb_oc_require_owned "$dst" "$PREV_MANIFEST" "$OPENCODE_DIR" || return $?
+    _mb_oc_apply "$MANIFEST" "$OPENCODE_DIR" "$(_mb_oc_source_paths "$dst" "$src")" oc_checkpoint oc_install_file "$src" "$dst"
+    return $?
+    ;;
+  esac
   mkdir -p "$(dirname "$dst")"
 
   # Content-identity shortcut — avoid spurious .pre-mb-backup.* on repeat installs.
@@ -936,6 +1110,16 @@ install_file() {
   cp "$src" "$dst"
   [[ "$dst" == *.sh || "$dst" == *.py ]] && chmod +x "$dst"
   INSTALLED_FILES+=("$dst")
+}
+
+oc_checkpoint() {
+  OC_PENDING_HASHES="$_MB_OC_POST_HASHES"
+  flush_manifest
+}
+
+oc_install_file() {
+  _mb_strict_file write "$2" "$PREV_MANIFEST" "$OPENCODE_DIR" "$1" || return 1
+  INSTALLED_FILES+=("$2")
 }
 
 # A18 (CDX-I4): the language-rule strings are resolved through
@@ -1051,6 +1235,31 @@ EOF
 install_symlink() {
   local source="$1"
   local dest="$2"
+  if [ "$dest" = "$OPENCODE_SKILL_ALIAS" ]; then
+    _mb_strict_file path "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR" || return 1
+    local ownership=owned-alias
+    [ ! -d "$dest" ] || [ -L "$dest" ] || ownership=owned-directory
+    if { [ -e "$dest" ] || [ -L "$dest" ]; } && ! _mb_strict_file "$ownership" "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR"; then
+      echo "[install.sh] preserved unmanaged alias: $dest; inspect it before retrying" >&2
+      return 1
+    fi
+    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$source" ]; then
+      INSTALLED_FILES+=("$dest")
+      return 0
+    fi
+    local backup="" paths
+    mkdir -p "$(dirname "$dest")" || return 1
+    paths="$(jq -cn --arg path "$dest" --arg link "$source" '[{path:$path,expected:{link:$link}}]')" || return 1
+    if [ "$ownership" = owned-directory ]; then
+      _mb_strict_file path "$OPENCODE_DIR/.memory-bank-backups/backup" "$PREV_MANIFEST" "$OPENCODE_DIR" || return 1
+      mkdir -p "$OPENCODE_DIR/.memory-bank-backups" || return 1
+      backup="$(mktemp -d "$OPENCODE_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.XXXXXXXX")" || return 1
+      rmdir "$backup" || return 1
+      paths="$(jq -cn --arg path "$dest" --arg retain "$backup" --arg link "$source" '[{path:$path,retain:$retain,expected:{link:$link}},{path:$retain}]')" || return 1
+    fi
+    _mb_oc_apply "$MANIFEST" "$OPENCODE_DIR" "$paths" oc_checkpoint oc_install_alias "$source" "$dest" "$backup"
+    return $?
+  fi
   mkdir -p "$(dirname "$dest")"
 
   if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$source" ]; then
@@ -1067,6 +1276,14 @@ install_symlink() {
   fi
   ln -s "$source" "$dest"
   INSTALLED_FILES+=("$dest")
+}
+
+oc_install_alias() {
+  local source="$1" dest="$2" backup="$3"
+  if [ -L "$dest" ]; then rm -f "$dest" || return 1; fi
+  _mb_strict_file symlink "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR" "$source" || return 1
+  INSTALLED_FILES+=("$dest")
+  if [ -n "$backup" ]; then BACKED_UP_FILES+=("$dest|$backup"); fi
 }
 
 resolve_dir() {
@@ -1107,41 +1324,81 @@ ensure_skill_aliases() {
 # Step 5.5 (mb-rules.sh sync --scope=user); detailed rules stay in the skill's
 # rules/RULES.md (AGR-063, AGR-066).
 opencode_agents_section() {
-  cat <<EOF
+  cat <<EOF || return 1
 $OPENCODE_START_MARKER
 
 # Memory Bank — OpenCode Global Entry Point
 
-OpenCode loads this file at startup. Skill: \`~/.config/opencode/skills/memory-bank/SKILL.md\`.
-- Subagent roles are dispatched by name with \`task(subagent_type=<name>)\`.
-- On a bare OpenCode host (parity extensions not installed yet), suggest running
-  \`install.sh --with-extensions=opencode\` once per session, then stay silent once installed.
+- Native OpenCode 2 dispatch: \`subagent({agent, description, prompt, model?: "provider/model#variant", sessionID?, background?})\`.
+- Omit model for role pins/inheritance; \`/mb work --model inherit\` and \`--step-model role=inherit\` override pins for this run only.
+- Before changes, read applicable detailed rules at the pointer below and project \`RULES.md\` / \`.memory-bank/RULES.md\`; links do not load rules.
+- Without parity extensions, suggest \`install.sh --with-extensions=opencode\` once per session; stay silent once installed.
 
 EOF
-  sed 's#~/.claude/RULES.md#~/.config/opencode/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.config/opencode/skills/memory-bank#g' "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md"
-  cat <<EOF
+  OPENCODE_SKILL_ALIAS="$OPENCODE_SKILL_ALIAS" "$MB_PY" - "$SOURCE_SKILL_DIR/rules/CLAUDE-GLOBAL.md" <<'PY' || return 1
+import os
+import sys
+from pathlib import Path
+
+root = os.environ["OPENCODE_SKILL_ALIAS"]
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+print(text.replace("~/.claude/RULES.md", root + "/rules/RULES.md")
+      .replace("~/.claude/skills/memory-bank", root))
+PY
+  cat <<EOF || return 1
 
 $OPENCODE_END_MARKER
 EOF
 }
 
 install_opencode_global_agents() {
-  local section state file="$OPENCODE_DIR/AGENTS.md" tmp
+  _mb_strict_file regular "$OPENCODE_DIR/AGENTS.md" "$PREV_MANIFEST" "$OPENCODE_DIR" || return 1
+  _mb_oc_apply "$MANIFEST" "$OPENCODE_DIR" "$(_mb_oc_paths "$OPENCODE_DIR/AGENTS.md")" oc_checkpoint oc_install_global_block
+}
+
+oc_install_global_block() {
+  local section state file="$OPENCODE_DIR/AGENTS.md" tmp legacy=1
+  _mb_strict_file regular "$file" "$PREV_MANIFEST" "$OPENCODE_DIR" || return 1
+  section="$(mktemp)" || return 1
+  if ! opencode_agents_section > "$section"; then
+    rm -f "$section"
+    return 1
+  fi
+  # One required Python call prevents shell substitutions from hiding resolver errors.
+  if ! PYTHONPATH="$SOURCE_SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+    "$MB_PY" - "$section" "$LANGUAGE" "$COMMENTS_LANGUAGE" "$OPENCODE_START_MARKER" <<'PY'
+import sys
+
+from memory_bank_skill._texttools import localize_file, resolve_language_strings
+
+strings = resolve_language_strings(sys.argv[2], sys.argv[3] or None)
+if strings.used_fallback:
+    print(f"[install] language '{sys.argv[2]}' not yet localized — using en", file=sys.stderr)
+if not localize_file(sys.argv[1], rule_full=strings.rule_full, rule_short=strings.rule_short,
+                     comments_language=strings.comments_language, after_marker=sys.argv[4]):
+    raise FileNotFoundError(sys.argv[1])
+PY
+  then
+    rm -f "$section"
+    return 1
+  fi
+  if [ -f "$file" ]; then
+    legacy=0
+    grep -qxF -- "<!-- memory-bank:start -->" "$file" || legacy=$?
+  fi
+  [ "$legacy" -le 1 ] || { rm -f "$section"; return 1; }
   # Upgrade: rename the old shared marker pair in place so the upsert below
   # refreshes the block instead of appending a second one.
-  if [ -f "$file" ] && grep -qxF -- "<!-- memory-bank:start -->" "$file"; then
-    tmp="$(mktemp "$file.XXXXXX")"
-    cp -p "$file" "$tmp"
+  if [ "$legacy" = 0 ]; then
+    tmp="$(mktemp "$file.XXXXXX")" || { rm -f "$section"; return 1; }
+    cp -p "$file" "$tmp" || { rm -f "$tmp" "$section"; return 1; }
     awk -v os="<!-- memory-bank:start -->" -v oe="<!-- memory-bank:end -->" \
       -v ns="$OPENCODE_START_MARKER" -v ne="$OPENCODE_END_MARKER" '
       $0 == os { $0 = ns } $0 == oe { $0 = ne } { print }
-    ' "$file" > "$tmp" && mv -f "$tmp" "$file" || rm -f "$tmp"
+    ' "$file" > "$tmp" && mv -f "$tmp" "$file" || { rm -f "$tmp" "$section"; return 1; }
   fi
-  section="$(mktemp)"
-  opencode_agents_section > "$section"
-  localize_path_inplace "$section" "$OPENCODE_START_MARKER"
-  state="$(mb_upsert_marked_block "$file" "$OPENCODE_START_MARKER" "$OPENCODE_END_MARKER" "$section")"
-  rm -f "$section"
+  state="$(_mb_oc_upsert "$file" "$OPENCODE_START_MARKER" "$OPENCODE_END_MARKER" "$section")" || { rm -f "$section"; return 1; }
+  rm -f "$section" || return 1
   INSTALLED_FILES+=("$OPENCODE_DIR/AGENTS.md")
   echo -e "  ${GREEN}✓${NC} OpenCode AGENTS.md ($state)"
 }
@@ -1207,6 +1464,14 @@ install_codex_agent_roles() {
 
 
 # ═══ Step 1: Rules ═══
+if [ "$ONLY" = opencode ]; then
+  install_opencode_global_agents
+  for f in "$SOURCE_SKILL_DIR"/commands/*.md; do
+    [ -f "$f" ] || continue
+    install_file "$f" "$OPENCODE_DIR/commands/$(basename "$f")"
+  done
+  install_symlink "$SOURCE_SKILL_DIR" "$OPENCODE_SKILL_ALIAS"
+else
 echo -e "${BLUE}[1/7] Rules${NC}"
 install_file_localized "$SOURCE_SKILL_DIR/rules/RULES.md" "$CLAUDE_DIR/RULES.md"
 echo -e "  ${GREEN}✓${NC} RULES.md"
@@ -1457,6 +1722,35 @@ elif [ "$KEY_RULES_MODE" = default ]; then
   MB_PYTHON="$MB_PY" bash "$MB_RULES_SH" init --scope=user >/dev/null
 fi
 MB_PYTHON="$MB_PY" bash "$MB_RULES_SH" sync --scope=user >/dev/null
+# The shared sync targets the legacy directory; render OpenCode's native XDG
+# block only after this install's rule selection has been finalized.
+if [ "$OPENCODE_DIR" != "$HOME/.config/opencode" ]; then
+  opencode_key_rules_section="$(mktemp)"
+  if ! MB_PYTHON="$MB_PY" bash "$MB_RULES_SH" render --target=global --host=opencode > "$opencode_key_rules_section"; then
+    rm -f "$opencode_key_rules_section"
+    exit 1
+  fi
+  if ! OPENCODE_SKILL_ALIAS="$OPENCODE_SKILL_ALIAS" "$MB_PY" - "$opencode_key_rules_section" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+file = Path(sys.argv[1])
+file.write_text(file.read_text(encoding="utf-8").replace(
+    "~/.config/opencode/skills/memory-bank", os.environ["OPENCODE_SKILL_ALIAS"]
+), encoding="utf-8")
+PY
+  then
+    rm -f "$opencode_key_rules_section"
+    exit 1
+  fi
+  if ! _mb_oc_apply "$MANIFEST" "$OPENCODE_DIR" "$(_mb_oc_paths "$OPENCODE_DIR/AGENTS.md")" oc_checkpoint \
+    _mb_oc_upsert "$OPENCODE_DIR/AGENTS.md" '<!-- mb-key-rules:start -->' '<!-- mb-key-rules:end -->' "$opencode_key_rules_section" >/dev/null; then
+    rm -f "$opencode_key_rules_section"
+    exit 1
+  fi
+  rm -f "$opencode_key_rules_section"
+fi
 echo -e "  ${GREEN}✓${NC} Key rules + Quality (/mb rules to change)"
 
 # ═══ Step 6: Settings hooks ═══
@@ -1487,12 +1781,12 @@ else
 fi
 
 # ═══ Step 7: Manifest ═══
+fi
 # Single canonical writer is flush_manifest() (defined up top). Calling it here on
 # the success path sets MB_MANIFEST_FLUSHED so the EXIT trap becomes a no-op; on a
 # partial failure BEFORE this line, the trap flushes the same manifest instead.
 echo -e "${BLUE}[7/7] Manifest${NC}"
 flush_manifest
-echo "  Manifest saved"
 
 # ═══ Step 8: Cross-agent adapters (optional) ═══
 # A17: a failing (or missing/not-executable) adapter no longer disappears into
@@ -1507,6 +1801,15 @@ for c in "${CLIENTS_ARR[@]}"; do [ "${c// /}" != cursor ] || ORDERED_CLIENTS+=("
 for c in "${ORDERED_CLIENTS[@]}"; do
   c_trimmed="${c// /}"
   [ "$c_trimmed" = "claude-code" ] && continue  # already done above
+  if [ "$c_trimmed" = opencode ]; then
+    # An unsuccessful extension upgrade must not rewrite an already-extended plugin.
+    case " ${ADAPTERS_FAILED[*]-} " in *" opencode "*) continue ;; esac
+  fi
+  ADAPTERS_VISITED+=("$c_trimmed")
+  if [ "$c_trimmed" = opencode ]; then
+    ADAPTERS_FAILED+=("opencode")
+    flush_manifest || exit 1
+  fi
   adapter="$SOURCE_SKILL_DIR/adapters/$c_trimmed.sh"
   if [ ! -x "$adapter" ]; then
     echo -e "  ${RED}✗${NC} adapter missing or not executable: $adapter" >&2
@@ -1516,10 +1819,18 @@ for c in "${ORDERED_CLIENTS[@]}"; do
   echo -e "${BLUE}[8/8] Cross-agent: $c_trimmed${NC}"
   if MB_LANGUAGE="$LANGUAGE" bash "$adapter" install "$PROJECT_ROOT"; then
     ADAPTERS_INVOKED+=("$c_trimmed")
+    if [ "$c_trimmed" = opencode ]; then
+      kept_failures=()
+      for failed_client in ${ADAPTERS_FAILED[@]+"${ADAPTERS_FAILED[@]}"}; do
+        [ "$failed_client" = opencode ] || kept_failures+=("$failed_client")
+      done
+      ADAPTERS_FAILED=(${kept_failures[@]+"${kept_failures[@]}"})
+    fi
   else
     echo -e "  ${RED}✗${NC} adapter $c_trimmed failed" >&2
-    ADAPTERS_FAILED+=("$c_trimmed")
+    [ "$c_trimmed" = opencode ] || ADAPTERS_FAILED+=("$c_trimmed")
   fi
+  [ ! -f "$_MB_OC_IO_CONTEXT/failed" ] && [ ! -f "$_MB_OC_IO_CONTEXT/pending.json" ] || exit 1
 done
 
 # Files the previous install wrote and this one did not (an older version's
@@ -1531,9 +1842,12 @@ done
 remove_previous_orphans() {
   [ -s "$PREV_OWNED" ] || return 0
   INSTALLED_FILES_STR="$(printf '%s\n' ${INSTALLED_FILES[@]+"${INSTALLED_FILES[@]}"})" \
+  MB_OC_ROOT="$OPENCODE_DIR" MB_PREV_MANIFEST="$PREV_MANIFEST" MB_SOURCE="$SOURCE_SKILL_DIR" \
   MB_ROOTS="$(printf '%s\n' "$CLAUDE_DIR" "$CODEX_DIR" "$OPENCODE_DIR" "$PI_AGENT_DIR")" \
     "$MB_PY" - "$PREV_OWNED" "$PREV_UNCHANGED" "$MB_RUN_START" <<'PY'
 import os, sys, time
+sys.path.insert(0, os.path.join(os.environ["MB_SOURCE"], "adapters"))
+import opencode_files
 owned, unchanged = ([l for l in open(p).read().split("\n") if l] for p in sys.argv[1:3])
 unchanged = set(unchanged)
 run_start = os.path.getmtime(sys.argv[3])
@@ -1542,6 +1856,18 @@ roots = [r.rstrip("/") + "/" for r in os.environ["MB_ROOTS"].split("\n") if r]
 removed = 0
 for path in owned:
     if path in current or not any(path.startswith(r) for r in roots):
+        continue
+    if path.startswith(os.environ["MB_OC_ROOT"].rstrip("/") + "/"):
+        try:
+            if opencode_files.owned(path, os.environ["MB_PREV_MANIFEST"], os.environ["MB_OC_ROOT"]):
+                os.unlink(path)
+                removed += 1
+            elif os.path.lexists(path):
+                print(f"  ! preserved modified/unmanaged orphan: {path}", file=sys.stderr)
+        except (OSError, ValueError) as exc:
+            print(f"  ! preserved {path}: {exc}", file=sys.stderr)
+            if isinstance(exc, OSError):
+                raise
         continue
     if os.path.islink(path) or path in unchanged:
         os.unlink(path)
@@ -1554,15 +1880,20 @@ if removed:
     print(f"  ~ removed {removed} file(s) left by the previous version")
 PY
 }
-remove_previous_orphans
+if [ "$ONLY" != opencode ]; then remove_previous_orphans; fi
 
 # A10/A17: re-flush the manifest now that ADAPTERS_INVOKED/ADAPTERS_FAILED/
 # PROJECT_ROOT are known, so uninstall.sh can look up which per-project
 # adapters to uninstall and the manifest reflects any adapter failure.
 flush_manifest
+echo "  Manifest saved"
 
 echo ""
-echo -e "${GREEN}═══ Memory Bank installed ═══${NC}"
+if [ "${#ADAPTERS_FAILED[@]}" -gt 0 ]; then
+  echo -e "${YELLOW}═══ Memory Bank partially installed — adapter failures ═══${NC}"
+else
+  echo -e "${GREEN}═══ Memory Bank installed ═══${NC}"
+fi
 if [ "${#ADAPTERS_INVOKED[@]}" -gt 0 ]; then
   echo -e "  Cross-agent adapters: ${ADAPTERS_INVOKED[*]} (project: $PROJECT_ROOT)"
 fi
@@ -1571,6 +1902,10 @@ if [ "${#EXTENSIONS_INSTALLED[@]}" -gt 0 ]; then
 fi
 echo ""
 echo "  Next: /mb init — init .memory-bank/ + auto-generate CLAUDE.md (--full, default)"
+if [ "$ONLY" = opencode ]; then
+  echo "  OpenCode alias: $OPENCODE_SKILL_ALIAS -> $SOURCE_SKILL_DIR"
+  echo "  Uninstall: $SOURCE_SKILL_DIR/uninstall.sh --only opencode"
+else
 echo "  Canonical skill: $CANONICAL_SKILL_DIR"
 echo "  Claude alias:    $CLAUDE_SKILL_ALIAS"
 echo "  Codex alias:     $CODEX_SKILL_ALIAS"
@@ -1578,6 +1913,7 @@ echo "  Cursor alias:    $CURSOR_SKILL_ALIAS"
 echo "  Pi alias:        $PI_SKILL_ALIAS"
 echo "  Pi prompts:      $PI_AGENT_DIR/prompts/"
 echo "  Uninstall: $SOURCE_SKILL_DIR/uninstall.sh"
+fi
 echo ""
 echo "  Optional — multi-language code graph (Go/JS/TS/Rust/Java via tree-sitter):"
 echo "    bash $SOURCE_SKILL_DIR/hooks/mb-semantic-bootstrap.sh  (tree-sitter + grammars + networkx)"

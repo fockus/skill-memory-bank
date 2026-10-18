@@ -148,7 +148,7 @@ How the skill fits with each AI coding agent.
 - Cursor *(coming)* — global vs project install, User Rules paste flow,
   hooks integration.
 - Codex *(coming)* — global skill bundle + project-level adapter.
-- OpenCode *(coming)* — TS plugin, `experimental.session.compacting`.
+- **[OpenCode 2](cross-agent-setup.md#opencode)** — native commands/hooks, opt-in model-free memory, workflow routing and limits.
 - Pi *(coming)* — dual-mode discovery.
 - CI/CD *(coming)* — using `mb-test-run.sh` / `mb-drift.sh` from
   pipelines.

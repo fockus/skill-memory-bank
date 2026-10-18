@@ -197,6 +197,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 |--------|---------|
 | `mb-deps-check.sh [--install-hints]` | Preflight dependency checker (python3, jq, git + optional tree-sitter, networkx) |
 | `mb-agent-render.py` | Installer helper: builds the installed form of an agent by placing the partials listed in its `compose:` frontmatter above its body (`--host` adapts the frontmatter for OpenCode, pi, or Codex; for Codex it writes a TOML role) |
+| [OpenCode adapter I/O](../adapters/opencode_install_io.py) | Installer-internal `adapters/opencode_install_io.py`: pending-operation preimages, existing-manifest checkpoints and guarded rollback; retained recovery material never grants ownership or automatic replay. |
 | `mb-migrate-v2.sh` | One-shot v1 → v2 migrator for `.memory-bank/` |
 | `mb-migrate-structure.sh` | One-shot v3.0 → v3.1 structure migrator for `.memory-bank/` |
 | `mb-import.py` | Claude Code JSONL → Memory Bank bootstrap importer |
@@ -241,6 +242,7 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb-work-state-eval.sh` | Sourced eval-first layer for `mb-work-state.sh`: the red→green Eval gate. Not a standalone entry point |
 | `mb-work-state-lib.sh` | Sourced helpers for `mb-work-state.sh` that shell out to external tooling (pipeline YAML, uuid). Not a standalone entry point |
 | `mb_work_eval_proof.py` | Canonical eval-proof payload for the `mb-work-state` red→green gate |
+| `mb_work_retention.py` | Internal bounded, opt-in state I/O for native work retention; no workflow policy |
 | `mb_work_source.py` | Shared declaration-source resolution for work-state init and Eval; canonicalizes relative locators before they can change with cwd |
 | `mb_work_plan_wrapper.py` | Wrapper-plan resolution for `mb-work-plan.sh` (`linked_spec` / `<!-- mb-stage:N -->`) |
 | `mb_backlog_state_engine.py` | Backlog parser + state engine behind the backlog scripts |

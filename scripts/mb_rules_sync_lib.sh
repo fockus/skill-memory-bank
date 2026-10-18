@@ -49,6 +49,10 @@ _seen() {
 # (symlinks resolved; each real file once).
 _sync_file() {
   local file="$1" real section state
+  if [ "$2" = global ] && [ "$3" = opencode ]; then
+    "${MB_PYTHON:-python3}" "$SKILL_ROOT/adapters/opencode_files.py" regular "$file" "" \
+      "${XDG_CONFIG_HOME:-$HOME/.config}/opencode" || _die "unsafe OpenCode instructions: $file"
+  fi
   [ -f "$file" ] || return 0
   real="$(_realpath "$file")"
   _seen "$real" && return 0
@@ -57,9 +61,29 @@ _sync_file() {
     rm -f "$section"
     _die "render failed for $file"
   fi
-  state="$(mb_upsert_marked_block "$real" "$KR_START" "$KR_END" "$section" top "$LANGUAGE_END")"
+  if [ "$2" = global ] && [ "$3" = opencode ] && [ -n "${_MB_OC_INSTALL_RECORD:-}" ]; then
+    # Only an installer-provided, execution-scoped context checkpoints this rewrite.
+    # shellcheck source=../adapters/_framework.sh
+    . "$SKILL_ROOT/adapters/_framework.sh"
+    _mb_oc_start "$_MB_OC_INSTALL_RECORD" "$_MB_OC_INSTALL_ROOT" || _die "OpenCode ownership preflight failed"
+    state="$(_mb_oc_apply "$_MB_OC_INSTALL_RECORD" "$_MB_OC_INSTALL_ROOT" "$(_mb_oc_paths "$real")" \
+      _sync_opencode_checkpoint _mb_oc_upsert "$real" "$KR_START" "$KR_END" "$section" top "$LANGUAGE_END")" \
+      || _die "OpenCode rule rewrite failed; inspect reported recovery material"
+  else
+    state="$(mb_upsert_marked_block "$real" "$KR_START" "$KR_END" "$section" top "$LANGUAGE_END")"
+  fi
   rm -f "$section"
   printf '%s %s\n' "$state" "$file"
+}
+
+_sync_opencode_checkpoint() {
+  local tmp
+  tmp="$(mktemp "$_MB_OC_IO_RECORD.XXXXXXXX")" || return 1
+  if ! jq --argjson delta "$_MB_OC_POST_HASHES" '.file_sha256 += $delta' "$_MB_OC_IO_RECORD" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  _mb_oc_io checkpoint "$_MB_OC_IO_RECORD" "$tmp"
 }
 
 # _sync_agents_md PROJECT — an AGENTS.md with the Memory Bank block: rewrite the Key

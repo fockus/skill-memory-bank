@@ -12,6 +12,7 @@
 #       explicit reason, never silently passed or failed.
 
 load lib/assert
+load lib/v2_plugin_harness
 
 setup() {
   # Hermetic env: these hooks read their mode from the ambient shell. A dev with
@@ -151,15 +152,31 @@ EOF
 }
 
 # ═══════════════════════════════════════════════════════════════
-# (d) OpenCode plugin — summarize wiring resolves to the real hook binary
+# (d) OpenCode plugin — completed public context drives model-free capture
 # ═══════════════════════════════════════════════════════════════
 
-@test "parity: OpenCode plugin's summarize wiring resolves to the real mb-session-end.sh hook" {
-  grep -q "summarizeHookPath" "$REPO_ROOT/adapters/opencode.sh"
-  grep -q "mb-session-end.sh" "$REPO_ROOT/adapters/opencode.sh"
+@test "parity: OpenCode plugin captures completed public work without a foreign-host summarizer" {
+  command -v node >/dev/null || skip "node required for native capture"
+  mkdir -p "$PROJECT/.memory-bank"
+  MB_OC_PARITY_ACCEPTED=1 run bash "$REPO_ROOT/adapters/opencode.sh" install "$PROJECT"
+  [ "$status" -eq 0 ]
+  MB_SUMMARIZE_BIN='' MB_SESSION_CAPTURE=on run v2_node <<'JS'
+const history = { parity: completedTurn('u1', 'a1', 'Preserve public parity work.', 'What changed: Native model-free capture works.\nDecision: Keep the shared memory schema.') };
+const plugin = await loadV2({}, history);
+assert(!fs.existsSync(path.join(directory, '.memory-bank/session')));
+await plugin.emit('session.execution.succeeded', { sessionID: 'parity' });
+await plugin.dispose();
+const files = fs.readdirSync(path.join(directory, '.memory-bank/session')).filter(file => file.endsWith('.md') && file !== '_recent.md');
+assert.equal(files.length, 1);
+const text = fs.readFileSync(path.join(directory, '.memory-bank/session', files[0]), 'utf8');
+assert.match(text, /^session_id: parity$/m); assert.match(text, /^agent: opencode$/m);
+assert.match(text, /^summary_schema: v2$/m); assert.match(text, /Native model-free capture works/);
+assert.match(text, /Keep the shared memory schema/);
+JS
+  [ "$status" -eq 0 ]
   # D-6 regression guard: must describe GraphRAG-lite access as agent/CLI-routed,
   # not as registered native OpenCode tool wrappers (adapter never registers any).
-  ! grep -q "native tool wrappers may expose" "$REPO_ROOT/adapters/opencode.sh"
+  refute_grep -q "native tool wrappers may expose" "$REPO_ROOT/adapters/opencode.sh"
 }
 
 # ═══════════════════════════════════════════════════════════════

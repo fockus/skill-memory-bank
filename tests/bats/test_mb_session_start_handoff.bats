@@ -91,6 +91,19 @@ trigger: pre_compact
   [[ "$stderr_text" == *"using fresh handoff capsule"* ]]
 }
 
+@test "session-start: full private spans are removed before handoff clipping" {
+  {
+    printf '<private>\nPRIVATE_HANDOFF_START_CANARY\n'
+    printf '%2000s' 'private filler'
+    printf '\n</private>\npublic capsule work\n'
+  } > "$MB/handoff/latest.md"
+  set_capsule_mtime 202606141200
+  run_hook_split MB_AUTO_REFRESH=off
+  [ "$status" -eq 0 ]
+  [[ "$(injected_context)" != *"PRIVATE_HANDOFF_START_CANARY"* ]]
+  [[ "$(injected_context)" == *"public capsule work"* ]]
+}
+
 @test "session-start: capsule is PREPENDED ahead of status.md" {
   write_capsule "$CAPSULE_BODY"
   set_capsule_mtime 202606141200

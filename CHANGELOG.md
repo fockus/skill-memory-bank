@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- OpenCode 2: native command/tool hooks, opt-in model-free root memory and run-scoped model/variant routing; [contracts and limits](docs/cross-agent-setup.md#opencode).
+- Installer/CLI: `--only opencode` isolates installation, owned updates and uninstall; public extension opt-in survives reinstall. Other hosts and retained user configuration remain unchanged.
+
 ### Changed — closure gate waits quietly
 
 - The Stop hook `mb-flow-closure-guard.sh` no longer blocks a red flow while known work runs (an open `/mb team` with working tracks or a fresh `/mb work` run, `scripts/mb_flow_busy.py`); it prints one reminder per `flow_closure_remind` minutes (default 30) and blocks again once the work ends or goes stale past `flow_closure_busy_max_age` (default 120, `0` = old behaviour) — both in `.mb-config` or `MB_FLOW_CLOSURE_*` env (I-288).

@@ -188,6 +188,10 @@ def cmd_install(args: argparse.Namespace) -> int:
             )
             return EXIT_INVALID_USAGE
     sh_args: list[str] = []
+    if args.only:
+        sh_args.extend(["--only", args.only])
+    if args.with_extensions is not None:
+        sh_args.append(f"--with-extensions={args.with_extensions}")
     if args.clients:
         sh_args.extend(["--clients", args.clients])
     if args.language:
@@ -203,6 +207,10 @@ def cmd_install(args: argparse.Namespace) -> int:
 
 def cmd_uninstall(args: argparse.Namespace) -> int:
     sh_args: list[str] = []
+    if args.only:
+        sh_args.extend(["--only", args.only])
+    if args.project_root:
+        sh_args.extend(["--project-root", args.project_root])
     if args.non_interactive:
         sh_args.append("-y")
     return run_shell("uninstall.sh", *sh_args)
@@ -286,6 +294,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_install = sub.add_parser(
         "install", help="Install skill globally + optional cross-agent adapters"
     )
+    p_install.add_argument("--only", choices=("opencode",), help="Change only OpenCode resources.")
+    p_install.add_argument("--with-extensions", nargs="?", const="", metavar="HOSTS",
+                           help="Opt in to host extensions (pi,opencode); retained on reinstall.")
     p_install.add_argument(
         "--clients",
         help=f"Comma-separated client list. Valid: {', '.join(VALID_CLIENTS)}. "
@@ -313,6 +324,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_install.set_defaults(func=cmd_install)
 
     p_uninstall = sub.add_parser("uninstall", help="Remove global skill install")
+    p_uninstall.add_argument("--only", choices=("opencode",), help="Remove only owned OpenCode resources.")
+    p_uninstall.add_argument("--project-root", help="Require this recorded project for scoped removal.")
     p_uninstall.add_argument(
         "-y",
         "--non-interactive",

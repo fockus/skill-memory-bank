@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2030,SC2031 # Bats intentionally isolates each test.
 # Tests for adapters/opencode.sh — OpenCode cross-agent adapter.
 #
 # Contract:
@@ -11,12 +12,10 @@
 #   <project>/.opencode/plugins/memory-bank.js — auto-discovered JS plugin
 #   <project>/.opencode/.mb-manifest.json    — ownership tracking
 #
-# OpenCode plugins: TS/JS modules exporting a plugin function that returns
-# hook callbacks directly. Files under .opencode/plugins/ are auto-discovered.
-# Key events: session.created/idle/deleted, tool.execute.before/after,
-#             experimental.session.compacting (PreCompact equivalent).
+# The generated bootstrap is exercised through the native V2 context contract.
 
 load lib/assert
+load lib/v2_plugin_harness
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -32,6 +31,404 @@ setup() {
   PYTHONUSERBASE="$(python3 -m site --user-base || true)"
   export PYTHONUSERBASE
   export HOME="$SANDBOX_HOME"
+  unset XDG_CONFIG_HOME MB_PATH MB_SKILLS_ROOT MB_OC_PARITY_ACCEPTED
+  unset MB_SUMMARIZE_BIN MB_UPDATE_NOTIFY_BIN MB_AGENTS_LIB MB_AUTO_REFRESH
+  unset MB_SESSION_CAPTURE MB_AUTO_CAPTURE MB_CAPTURE_SUBPROCESS MB_MANIFEST_PATH
+  export XDG_DATA_HOME="$HOME/.local/share" XDG_STATE_HOME="$HOME/.local/state" XDG_CACHE_HOME="$HOME/.cache"
+  export XDG_CONFIG_DIRS="$HOME/config-dirs" XDG_DATA_DIRS="$HOME/data-dirs"
+  export XDG_RUNTIME_DIR="$HOME/run" CODEX_HOME="$HOME/.codex"
+  export MB_MANIFEST_PATH="$HOME/install-manifest.json"
+  export TMPDIR="$HOME/tmp"
+  mkdir -p "$TMPDIR" "$XDG_RUNTIME_DIR"
+}
+
+# Full installer aliases must resolve to this private bundle, never the checkout.
+opencode_frozen_bundle() {
+  local bundle="$SANDBOX_HOME/frozen-bundle"
+  mkdir -p "$bundle"
+  rsync -a --exclude='.env*' --exclude='__pycache__' \
+    "$REPO_ROOT/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,settings,memory_bank_skill} \
+    "$REPO_ROOT/"{install.sh,uninstall.sh,VERSION,SKILL.md} "$bundle/"
+  REPO_ROOT="$bundle"
+  ADAPTER="$bundle/adapters/opencode.sh"
+}
+
+assert_opencode_preserved() {
+  assert_unchanged "$1" "$2"
+  assert_substring "$output" "$1"
+  printf '%s\n' "$output" | grep -Eiq 'preserv|refus|skip|manual|modified|unmanaged'
+  [ "$status" -ne 0 ]
+}
+
+@test "opencode S5: pristine upgrade and rerender remain owned through reinstall and uninstall" {
+  opencode_frozen_bundle
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  printf '\nUpgrade command sentinel\n' >> "$REPO_ROOT/commands/mb.md"
+  printf 'roles:\n  developer: {agent: mb-developer, model: fixture/upgrade}\n' > "$PROJECT/.memory-bank/pipeline.yaml"
+  MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  grep -q 'Upgrade command sentinel' "$PROJECT/.opencode/commands/mb.md"
+  grep -q 'extended: true' "$PROJECT/.opencode/plugins/memory-bank.js"
+  grep -q '^model: fixture/upgrade$' "$PROJECT/.opencode/agent/mb-developer.md"
+  snapshot "$PROJECT/.opencode/commands/mb.md" "$PROJECT/command.before"
+  MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  assert_unchanged "$PROJECT/.opencode/commands/mb.md" "$PROJECT/command.before"
+  printf 'roles:\n  developer: {agent: mb-developer, model: fixture/rerender}\n' > "$PROJECT/.memory-bank/pipeline.yaml"
+  run_adapter render-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  grep -q '^model: fixture/rerender$' "$PROJECT/.opencode/agent/mb-developer.md"
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  refute_file "$PROJECT/.opencode/commands/mb.md"
+  refute_file "$PROJECT/.opencode/plugins/memory-bank.js"
+  refute_file "$PROJECT/.opencode/agent/mb-developer.md"
+  [ -z "$(find "$PROJECT/.opencode" -name '*.pre-mb-backup.*' 2>/dev/null)" ]
+}
+
+@test "opencode S5: reinstall preserves edited plugin command role and replaced symlinks without blessing them" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local rel file
+  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md agent/mb-doctor.md; do
+    file="$PROJECT/.opencode/$rel"
+    cp -p "$file" "$PROJECT/mtime"
+    printf '\nUser post-install edit: %s\n' "$rel" >> "$file"
+    touch -r "$PROJECT/mtime" "$file"
+    snapshot "$file" "$PROJECT/$(basename "$file").before"
+  done
+  jq --arg p "$PROJECT/.opencode/agent/mb-doctor.md" 'del(.file_sha256[$p])' \
+    "$PROJECT/.opencode/.mb-manifest.json" > "$PROJECT/manifest.new"
+  mv "$PROJECT/manifest.new" "$PROJECT/.opencode/.mb-manifest.json"
+  printf 'Private symlink target\n' > "$PROJECT/target"
+  snapshot "$PROJECT/target" "$PROJECT/target.before"
+  rm "$PROJECT/.opencode/commands/start.md"
+  ln -s "$PROJECT/target" "$PROJECT/.opencode/commands/start.md"
+
+  run_adapter install "$PROJECT"
+  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md agent/mb-doctor.md; do
+    file="$PROJECT/.opencode/$rel"
+    assert_opencode_preserved "$file" "$PROJECT/$(basename "$file").before"
+  done
+  [ -L "$PROJECT/.opencode/commands/start.md" ]
+  [ "$(readlink "$PROJECT/.opencode/commands/start.md")" = "$PROJECT/target" ]
+  assert_unchanged "$PROJECT/target" "$PROJECT/target.before"
+  run_adapter uninstall "$PROJECT"
+  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md agent/mb-doctor.md; do
+    assert_unchanged "$PROJECT/.opencode/$rel" "$PROJECT/$(basename "$rel").before"
+  done
+  [ -L "$PROJECT/.opencode/commands/start.md" ]
+  assert_unchanged "$PROJECT/target" "$PROJECT/target.before"
+}
+
+@test "opencode S5: reinstall preserves a replaced plugin symlink even when target bytes match" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
+  snapshot "$plugin" "$PROJECT/target"
+  snapshot "$PROJECT/target" "$PROJECT/target.before"
+  rm "$plugin"
+  ln -s "$PROJECT/target" "$plugin"
+  run_adapter install "$PROJECT"
+  [ -L "$plugin" ]
+  [ "$(readlink "$plugin")" = "$PROJECT/target" ]
+  assert_opencode_preserved "$plugin" "$PROJECT/target.before"
+  assert_unchanged "$PROJECT/target" "$PROJECT/target.before"
+}
+
+@test "opencode S5: render-agents preserves edited roles and changed symlinks" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local role="$PROJECT/.opencode/agent/mb-developer.md"
+  cp -p "$role" "$PROJECT/mtime"
+  printf '\nUser role instructions\n' >> "$role"
+  touch -r "$PROJECT/mtime" "$role"
+  snapshot "$role" "$PROJECT/role.before"
+  printf 'User linked role\n' > "$PROJECT/target"
+  snapshot "$PROJECT/target" "$PROJECT/target.before"
+  rm "$PROJECT/.opencode/agent/mb-reviewer.md"
+  ln -s "$PROJECT/target" "$PROJECT/.opencode/agent/mb-reviewer.md"
+  run_adapter render-agents "$PROJECT"
+  assert_opencode_preserved "$role" "$PROJECT/role.before"
+  [ -L "$PROJECT/.opencode/agent/mb-reviewer.md" ]
+  assert_unchanged "$PROJECT/target" "$PROJECT/target.before"
+  # shellcheck source=/dev/null
+  source "$REPO_ROOT/adapters/_framework.sh"
+  run _mb_owned_unedited "$role" "$PROJECT/.opencode/.mb-manifest.json" "$PROJECT/.opencode"
+  [ "$status" -ne 0 ]
+}
+
+@test "opencode S5: global role reinstall preserves edits and changed symlinks" {
+  run_adapter install-global-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  local dir="$HOME/.config/opencode/agent" role="$HOME/.config/opencode/agent/mb-developer.md"
+  cp -p "$role" "$PROJECT/mtime"
+  printf '\nUser global role instructions\n' >> "$role"
+  touch -r "$PROJECT/mtime" "$role"
+  snapshot "$role" "$PROJECT/role.before"
+  printf 'User linked global role\n' > "$PROJECT/target"
+  snapshot "$PROJECT/target" "$PROJECT/target.before"
+  rm "$dir/mb-reviewer.md"
+  ln -s "$PROJECT/target" "$dir/mb-reviewer.md"
+  run_adapter install-global-agents "$PROJECT"
+  assert_opencode_preserved "$role" "$PROJECT/role.before"
+  [ -L "$dir/mb-reviewer.md" ]
+  assert_unchanged "$PROJECT/target" "$PROJECT/target.before"
+  # shellcheck source=/dev/null
+  source "$REPO_ROOT/adapters/_framework.sh"
+  run _mb_owned_unedited "$role" "$HOME/.config/opencode/.mb-global-extensions-manifest.json" "$HOME/.config/opencode"
+  [ "$status" -ne 0 ]
+}
+
+@test "opencode S5: uninstall preserves modified managed files and changed symlink identity" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local rel file
+  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md; do
+    file="$PROJECT/.opencode/$rel"
+    cp -p "$file" "$PROJECT/mtime"
+    printf '\nUser edit\n' >> "$file"
+    touch -r "$PROJECT/mtime" "$file"
+    snapshot "$file" "$PROJECT/$(basename "$file").before"
+  done
+  printf 'User target\n' > "$PROJECT/target"
+  snapshot "$PROJECT/target" "$PROJECT/target.before"
+  rm "$PROJECT/.opencode/commands/start.md"
+  ln -s "$PROJECT/target" "$PROJECT/.opencode/commands/start.md"
+  run_adapter uninstall "$PROJECT"
+  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md; do
+    file="$PROJECT/.opencode/$rel"
+    assert_unchanged "$file" "$PROJECT/$(basename "$file").before"
+    assert_substring "$output" "$file"
+  done
+  [ -L "$PROJECT/.opencode/commands/start.md" ]
+  [ "$(readlink "$PROJECT/.opencode/commands/start.md")" = "$PROJECT/target" ]
+  assert_unchanged "$PROJECT/target" "$PROJECT/target.before"
+  refute_file "$PROJECT/.opencode/commands/done.md"
+}
+
+@test "opencode S5: uninstall refuses hash-matched manifest paths outside root or through unsafe ancestors" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  mkdir -p "$PROJECT/outside"
+  printf 'Outside-root canary\n' > "$PROJECT/outside/canary"
+  snapshot "$PROJECT/outside/canary" "$PROJECT/canary.before"
+  ln -s "$PROJECT/outside" "$PROJECT/.opencode/escape"
+  local path
+  for path in "$PROJECT/outside/canary" "$PROJECT/.opencode/escape/canary"; do
+    jq --arg p "$path" --arg h "$(shasum -a 256 "$path" | cut -d' ' -f1)" \
+      '.files += [$p] | .file_sha256[$p] = $h' "$PROJECT/.opencode/.mb-manifest.json" > "$PROJECT/manifest.new"
+    mv "$PROJECT/manifest.new" "$PROJECT/.opencode/.mb-manifest.json"
+  done
+  run_adapter uninstall "$PROJECT"
+  assert_unchanged "$PROJECT/outside/canary" "$PROJECT/canary.before"
+  [ -L "$PROJECT/.opencode/escape" ]
+  printf '%s\n' "$output" | grep -Eiq 'unsafe|outside|refus|skip'
+}
+
+@test "opencode V2: native definition registers hooks and disposes without a server" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  v2_node <<'JS'
+const plugin = await loadV2();
+assert(plugin.hooks.has('session.context'));
+assert(plugin.hooks.has('tool.execute.before'));
+await plugin.dispose();
+JS
+}
+
+@test "opencode V2: parent and child get current Key rules and compact applicable RULES pointers" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  mkdir -p "$HOME/.config/opencode"
+  printf '<!-- mb-key-rules:start -->\nGlobal key rule sentinel\n<!-- mb-key-rules:end -->\n' > "$HOME/.config/opencode/AGENTS.md"
+  printf '\n<!-- mb-key-rules:start -->\nProject key rule sentinel\n<!-- mb-key-rules:end -->\n' >> "$PROJECT/AGENTS.md"
+  printf 'Global detailed rule body must stay on disk\n%.0s' {1..1000} > "$HOME/.config/opencode/RULES.md"
+  printf 'Project detailed rule body must stay on disk\n%.0s' {1..1000} > "$PROJECT/RULES.md"
+  printf 'Bank detailed rule body must stay on disk\n%.0s' {1..1000} > "$PROJECT/.memory-bank/RULES.md"
+  REPO_ROOT="$REPO_ROOT" v2_node <<'JS'
+const plugin = await loadV2({ child: { id: 'child', parentID: 'root', location: { directory } } });
+const globalAgents = path.join(process.env.HOME, '.config/opencode/AGENTS.md');
+const projectAgents = path.join(directory, 'AGENTS.md');
+const rules = [
+  path.join(process.env.REPO_ROOT, 'rules/RULES.md'),
+  path.join(process.env.HOME, '.config/opencode/RULES.md'),
+  path.join(directory, 'RULES.md'),
+  path.join(directory, '.memory-bank/RULES.md'),
+];
+async function assertContext(id, prefix = '') {
+  const event = request(id);
+  await plugin.hook('session.context', event);
+  const text = event.system.map(p => p.text).join('\n');
+  assert(text.includes(`${prefix}Global key rule sentinel`));
+  assert(text.includes(`${prefix}Project key rule sentinel`));
+  for (const file of rules) assert(text.includes(file), `missing applicable rules pointer: ${file}`);
+  assert.doesNotMatch(text, /detailed rule body must stay on disk/);
+  assert(text.length < 3000, `instruction binding must stay compact, got ${text.length} chars`);
+  assert.match(text, /subagent.*agent.*description.*prompt/);
+  return text;
+}
+for (const id of ['root', 'child']) await assertContext(id);
+for (const file of [globalAgents, projectAgents]) {
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/(Global|Project) key rule sentinel/g, 'Updated $1 key rule sentinel'));
+}
+for (const id of ['root', 'child']) await assertContext(id, 'Updated ');
+fs.unlinkSync(path.join(directory, 'RULES.md'));
+const withoutRootRules = request('child');
+await plugin.hook('session.context', withoutRootRules);
+assert(!withoutRootRules.system.some(p => p.text.includes(path.join(directory, 'RULES.md'))), 'missing rules file must not be presented as applicable');
+await plugin.dispose();
+JS
+}
+
+@test "opencode V2: global roles honor XDG and never enable a global plugin" {
+  export XDG_CONFIG_HOME="$SANDBOX_HOME/custom config"
+  run_adapter install-global-agents "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$XDG_CONFIG_HOME/opencode/agent/mb-backend.md" ]
+  [ -f "$XDG_CONFIG_HOME/opencode/.mb-global-extensions-manifest.json" ]
+  [ ! -e "$HOME/.config/opencode/agent" ]
+  [ ! -e "$XDG_CONFIG_HOME/opencode/plugins" ]
+  [ ! -e "$PROJECT/.opencode" ]
+}
+
+@test "opencode V2: dangerous native shell input is blocked before execution" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  v2_node <<'JS'
+const plugin = await loadV2();
+await assert.rejects(plugin.hook('tool.execute.before', { tool: 'shell', input: { command: 'rm -rf /' } }), /BLOCKED/);
+await plugin.hook('tool.execute.before', { tool: 'shell', input: { command: 'printf safe' } });
+await plugin.dispose();
+JS
+}
+
+@test "opencode V2: native no-bank requests do not initialize memory" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  rm -rf "$PROJECT/.memory-bank"
+  printf '#!/usr/bin/env bash\necho invoked > "%s"\n' "$PROJECT/no-bank-summary" > "$PROJECT/summary.sh"
+  export MB_SUMMARIZE_BIN="$PROJECT/summary.sh"
+  v2_node <<'JS'
+const plugin = await loadV2();
+const event = request();
+await plugin.hook('session.context', event);
+await plugin.emit('session.status', { sessionID: 'root', status: { type: 'idle' } });
+assert(!fs.existsSync(path.join(directory, '.memory-bank')));
+assert(!fs.existsSync(path.join(directory, 'no-bank-summary')));
+assert(event.system.some(p => p.text.includes('subagent(')));
+await plugin.dispose();
+JS
+}
+
+@test "opencode V2: installer preserves other-host resources and XDG foreign settings on reinstall" {
+  opencode_frozen_bundle
+  export XDG_CONFIG_HOME="$SANDBOX_HOME/config space"
+  export MB_MANIFEST_PATH="$SANDBOX_HOME/install-manifest.json" MB_SKIP_DEPS_CHECK=1
+  mkdir -p "$XDG_CONFIG_HOME/opencode" "$HOME/.claude" "$HOME/.codex" "$HOME/.pi/agent"
+  printf 'Foreign OpenCode rules\n' > "$XDG_CONFIG_HOME/opencode/AGENTS.md"
+  printf '{"plugins":["foreign-plugin"],"theme":"foreign"}\n' > "$XDG_CONFIG_HOME/opencode/opencode.json"
+  echo 'Foreign Claude rules' > "$HOME/.claude/CLAUDE.md"
+  echo 'Foreign Codex rules' > "$HOME/.codex/AGENTS.md"
+  echo 'Foreign Pi rules' > "$HOME/.pi/agent/AGENTS.md"
+  for _ in 1 2; do
+    run bash "$REPO_ROOT/install.sh" --non-interactive --clients opencode --project-root "$PROJECT"
+    [ "$status" -eq 0 ]
+  done
+  [ -f "$XDG_CONFIG_HOME/opencode/skills/memory-bank/adapters/opencode_plugin.mjs" ]
+  [ ! -e "$XDG_CONFIG_HOME/opencode/plugins" ]
+  grep -q 'Foreign OpenCode rules' "$XDG_CONFIG_HOME/opencode/AGENTS.md"
+  grep -q 'mb-key-rules:start' "$XDG_CONFIG_HOME/opencode/AGENTS.md"
+  grep -q 'subagent({agent, description, prompt' "$XDG_CONFIG_HOME/opencode/AGENTS.md"
+  [ "$(grep -c 'memory-bank-opencode:start' "$XDG_CONFIG_HOME/opencode/AGENTS.md")" -eq 1 ]
+  jq -e '.plugins == ["foreign-plugin"] and .theme == "foreign"' "$XDG_CONFIG_HOME/opencode/opencode.json"
+  grep -q 'Foreign Claude rules' "$HOME/.claude/CLAUDE.md"
+  grep -q 'Foreign Codex rules' "$HOME/.codex/AGENTS.md"
+  grep -q 'Foreign Pi rules' "$HOME/.pi/agent/AGENTS.md"
+  [ -f "$HOME/.claude/agents/mb-backend.md" ]
+  grep -q '^model = ' "$HOME/.codex/agents/mb-backend.toml" || grep -q '^developer_instructions = ' "$HOME/.codex/agents/mb-backend.toml"
+  refute_grep -q 'OpenCode 2 host binding' "$HOME/.claude/CLAUDE.md"
+  refute_grep -q 'OpenCode 2 host binding' "$HOME/.codex/AGENTS.md"
+  refute_grep -q 'OpenCode 2 host binding' "$HOME/.pi/agent/AGENTS.md"
+}
+
+@test "opencode V2: XDG Key rules use the new default selection in the same install" {
+  opencode_frozen_bundle
+  export XDG_CONFIG_HOME="$SANDBOX_HOME/config space"
+  export MB_MANIFEST_PATH="$SANDBOX_HOME/install-manifest.json" MB_SKIP_DEPS_CHECK=1
+  mkdir -p "$HOME/.claude"
+  echo 'Foreign Claude rules' > "$HOME/.claude/CLAUDE.md"
+  run bash "$REPO_ROOT/scripts/mb-rules.sh" init --scope=user --disable=testing-trophy --custom='Existing custom rule sentinel'
+  [ "$status" -eq 0 ]
+  grep -q 'Existing custom rule sentinel' "$HOME/.claude/memory-bank/rules-profile.json"
+  refute_grep -q 'Testing Trophy:' "$HOME/.claude/CLAUDE.md"
+  mkdir -p "$XDG_CONFIG_HOME/opencode"
+  echo 'Foreign OpenCode rules' > "$XDG_CONFIG_HOME/opencode/AGENTS.md"
+
+  run bash "$REPO_ROOT/install.sh" --non-interactive --clients opencode --project-root "$PROJECT" --key-rules=default
+  [ "$status" -eq 0 ]
+  local file
+  for file in "$XDG_CONFIG_HOME/opencode/AGENTS.md" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "$HOME/.pi/agent/AGENTS.md"; do
+    grep -q 'Testing Trophy:' "$file"
+    refute_grep -q 'Existing custom rule sentinel' "$file"
+    [ "$(grep -c 'mb-key-rules:start' "$file")" -eq 1 ]
+  done
+  grep -q 'Foreign OpenCode rules' "$XDG_CONFIG_HOME/opencode/AGENTS.md"
+  grep -qF "$XDG_CONFIG_HOME/opencode/skills/memory-bank/rules/RULES.md" "$XDG_CONFIG_HOME/opencode/AGENTS.md"
+}
+
+@test "opencode V2: native catalogs contain exactly the shared nonpartial roles and commands" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local src role_count=0 command_count=0
+  for src in "$REPO_ROOT"/agents/*.md; do
+    head -5 "$src" | grep -q '^partial: true' && continue
+    [ -f "$PROJECT/.opencode/agent/$(basename "$src")" ]
+    role_count=$((role_count + 1))
+  done
+  [ "$(find "$PROJECT/.opencode/agent" -name '*.md' | wc -l | tr -d ' ')" -eq "$role_count" ]
+  for src in "$REPO_ROOT"/commands/*.md; do
+    cmp "$src" "$PROJECT/.opencode/commands/$(basename "$src")"
+    command_count=$((command_count + 1))
+  done
+  jq -e --argjson count "$((role_count + command_count + 1))" '.files | length == $count' "$PROJECT/.opencode/.mb-manifest.json"
+}
+
+@test "opencode V2: upgrade strips only owned references in both config formats" {
+  printf '%s\n' '{"plugin":["foreign-v1","./.opencode/plugins/memory-bank.js"],"plugins":[{"package":"foreign-v2","options":{"keep":true}},{"package":"./.opencode/plugins/memory-bank.js"}],"model":"fixture/model"}' > "$PROJECT/opencode.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  jq -e '.plugin == ["foreign-v1"] and .plugins == [{"package":"foreign-v2","options":{"keep":true}}] and .model == "fixture/model"' "$PROJECT/opencode.json"
+}
+
+@test "opencode V2: bootstrap imports bundle runtime with spaces and shell metacharacters" {
+  local bundle="$SANDBOX_HOME/bundle space \$literal"
+  mkdir -p "$bundle"
+  cp -R "$REPO_ROOT/adapters" "$REPO_ROOT/scripts" "$REPO_ROOT/hooks" "$REPO_ROOT/rules" "$REPO_ROOT/agents" "$REPO_ROOT/commands" "$REPO_ROOT/templates" "$REPO_ROOT/memory_bank_skill" "$REPO_ROOT/references" "$bundle/"
+  cp "$REPO_ROOT/VERSION" "$REPO_ROOT/SKILL.md" "$bundle/"
+  ADAPTER="$bundle/adapters/opencode.sh"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  v2_node <<'JS'
+const plugin = await loadV2();
+await plugin.hook('session.context', request());
+await plugin.dispose();
+JS
+}
+
+@test "opencode V2: generated plugin and roles preserve existing modes" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  chmod 640 "$PROJECT/.opencode/plugins/memory-bank.js"
+  chmod 660 "$PROJECT/.opencode/agent/mb-backend.md"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  local plugin_mode role_mode
+  plugin_mode=$(stat -c '%a' "$PROJECT/.opencode/plugins/memory-bank.js" 2>/dev/null || stat -f '%Lp' "$PROJECT/.opencode/plugins/memory-bank.js")
+  role_mode=$(stat -c '%a' "$PROJECT/.opencode/agent/mb-backend.md" 2>/dev/null || stat -f '%Lp' "$PROJECT/.opencode/agent/mb-backend.md")
+  [ "$plugin_mode" = 640 ]
+  [ "$role_mode" = 660 ]
 }
 
 teardown() {
@@ -49,8 +446,8 @@ run_adapter() {
 assert_opencode_agent_frontmatter() {
   local f="$1"
   [ -f "$f" ]
-  ! grep -q '^tools:' "$f"
-  grep -Eq '^color: (primary|secondary|accent|success|warning|error|info|#[0-9a-fA-F]{6})$' "$f"
+  refute_grep -q '^tools:' "$f"
+  grep -Eq '^color: "#[0-9a-fA-F]{6}"$' "$f"
   grep -q '^mode: subagent$' "$f"
   grep -q '^permission:$' "$f"
   grep -q '^  read: allow$' "$f"
@@ -75,18 +472,18 @@ assert_opencode_agent_frontmatter() {
   [ ! -f "$PROJECT/opencode.json" ]
 }
 
-@test "opencode: install creates plugin JS file with top-level hooks" {
+@test "opencode: install creates a thin V2 bootstrap loading the bundle runtime" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
-  # Current OpenCode plugin contract returns hook callbacks directly,
-  # not nested under a stale { hooks: { ... } } wrapper.
-  refute_grep -q "hooks:" "$plugin"
-  grep -q "event: async" "$plugin"
-  # Plugin must reference key events.
-  grep -q "session.idle\|session.deleted" "$plugin"
-  grep -q "experimental.session.compacting\|tool.execute.before" "$plugin"
+  [ "$(wc -l < "$plugin" | tr -d ' ')" -le 5 ]
+  v2_node <<'JS'
+const plugin = await loadV2();
+assert(plugin.hooks.has('session.compaction'));
+assert(plugin.hooks.has('session.prompt'));
+await plugin.dispose();
+JS
 }
 
 # B4 (F-4): the plugin only wrote a placeholder progress.md entry — it never
@@ -111,25 +508,19 @@ cat > "$marker"
 STUB
   chmod +x "$stub"
 
-  run env MB_SUMMARIZE_BIN="$stub" node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      await plugin.event({ event: { type: 'session.idle', properties: { info: { id: 'oc-summarize-test' } } } });
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_SUMMARIZE_BIN="$stub" run v2_node <<'JS'
+const plugin = await loadV2();
+await plugin.emit('session.status', { sessionID: 'oc-summarize-test', status: { type: 'idle' } });
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
 
-  local i
-  for i in $(seq 1 30); do
-    [ -f "$marker" ] && break
-    sleep 0.1
-  done
   [ -f "$marker" ]
   grep -q "oc-summarize-test" "$marker"
   grep -q "$PROJECT" "$marker"
 }
 
-@test "opencode: a task() child session's idle writes no progress.md auto-capture and no summary" {
+@test "opencode: a native child session's idle writes no progress.md auto-capture and no summary" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   command -v node >/dev/null || skip "node required"
@@ -143,44 +534,29 @@ STUB
   printf '#!/usr/bin/env bash\ncat > "%s"\n' "$marker" > "$stub"
   chmod +x "$stub"
 
-  run env MB_SUMMARIZE_BIN="$stub" node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      await plugin.event({ event: { type: 'session.created', properties: { info: { id: 'child-1', parentID: 'parent-1' } } } });
-      await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 'child-1' } } });
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_SUMMARIZE_BIN="$stub" run v2_node <<'JS'
+const plugin = await loadV2({ 'child-1': { id: 'child-1', parentID: 'parent-1', location: { directory } } });
+await plugin.emit('session.created', { sessionID: 'child-1', parentID: 'parent-1', location: { directory } });
+await plugin.emit('session.status', { sessionID: 'child-1', status: { type: 'idle' } });
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
-  sleep 0.5
   [ ! -f "$marker" ]
   run grep -c 'Auto-capture' "$PROJECT/.memory-bank/progress.md"
   [ "$output" = "0" ]
 }
 
-# A16 (M-8): plugins/memory-bank.js used to be clobbered with a plain `>`
-# redirect — no backup of a user-modified copy, and non-atomic (a crash
-# mid-write would leave a truncated/corrupt plugin file OpenCode then tries
-# to load).
-@test "opencode: install backs up an existing user-modified plugin file before overwriting (A16)" {
+@test "opencode S5: install preserves an unmanaged plugin collision in place" {
   mkdir -p "$PROJECT/.opencode/plugins"
   cat > "$PROJECT/.opencode/plugins/memory-bank.js" <<'EOF'
 // USER_CUSTOM_PLUGIN_MARKER
 export const MemoryBankPlugin = async () => ({});
 EOF
 
-  run_adapter install "$PROJECT"
-  [ "$status" -eq 0 ]
-
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
-  [ -f "$plugin" ]
-  # Freshly generated (the user's custom marker is gone from the live file)...
-  refute_grep -q "USER_CUSTOM_PLUGIN_MARKER" "$plugin"
-  # ...but recoverable: a backup exists and holds the original content.
-  local found=0
-  for b in "$plugin".pre-mb-backup.*; do
-    [ -f "$b" ] && grep -q "USER_CUSTOM_PLUGIN_MARKER" "$b" && found=1
-  done
-  [ "$found" -eq 1 ]
+  snapshot "$plugin" "$PROJECT/plugin.before"
+  run_adapter install "$PROJECT"
+  assert_opencode_preserved "$plugin" "$PROJECT/plugin.before"
 }
 
 @test "opencode: install does not leave a stray tmp file after writing the plugin (A16 atomic write)" {
@@ -199,25 +575,14 @@ EOF
   [ -f "$PROJECT/.opencode/commands/done.md" ]
 }
 
-# A23 (CDX-I8): project commands are copied with a plain `cp "$f" "$COMMANDS_DIR/…"`
-# — no backup, unlike the sibling agent-file copy loop right below it (which
-# already calls _opencode_backup_once). A user's own same-named command file
-# is silently clobbered.
-@test "opencode: install backs up a pre-existing user command file with the same name (A23)" {
+@test "opencode S5: install preserves an unmanaged command collision in place" {
   mkdir -p "$PROJECT/.opencode/commands"
   echo "# my own mb command" > "$PROJECT/.opencode/commands/mb.md"
 
-  run_adapter install "$PROJECT"
-  [ "$status" -eq 0 ]
-
   local cmd="$PROJECT/.opencode/commands/mb.md"
-  # Freshly generated (MB's own command content installed)...
-  refute_grep -q "my own mb command" "$cmd"
-  # ...but the user's original is recoverable via a backup.
-  local bk
-  bk=$(ls "$cmd".pre-mb-backup.* 2>/dev/null | head -1)
-  [ -n "$bk" ]
-  grep -q "my own mb command" "$bk"
+  snapshot "$cmd" "$PROJECT/command.before"
+  run_adapter install "$PROJECT"
+  assert_opencode_preserved "$cmd" "$PROJECT/command.before"
 }
 
 @test "opencode: install writes manifest" {
@@ -271,7 +636,8 @@ EOF
   # User entries preserved, stale Memory Bank registration removed.
   jq -e '.share == "manual"' "$PROJECT/opencode.json" >/dev/null
   jq -e '.plugin | map(.) | index("./user/my-plugin.js")' "$PROJECT/opencode.json" >/dev/null
-  ! jq -e '.plugin | map(.) | any(contains("memory-bank"))' "$PROJECT/opencode.json" >/dev/null
+  run jq -e '.plugin | map(.) | any(contains("memory-bank"))' "$PROJECT/opencode.json"
+  [ "$status" -ne 0 ]
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -305,7 +671,7 @@ EOF
   [ "$status" -eq 0 ]
   [ -f "$PROJECT/AGENTS.md" ]
   grep -q "Custom user instructions" "$PROJECT/AGENTS.md"
-  ! grep -q "memory-bank:start" "$PROJECT/AGENTS.md"
+  refute_grep -q "memory-bank:start" "$PROJECT/AGENTS.md"
 }
 
 @test "opencode: uninstall removes our plugin from opencode.json, preserves user entries" {
@@ -323,7 +689,8 @@ EOF
   jq -e '.share == "manual"' "$PROJECT/opencode.json" >/dev/null
   jq -e '.plugin | map(.) | index("./user/my-plugin.js")' "$PROJECT/opencode.json" >/dev/null
   # Our plugin reference gone
-  ! jq -e '.plugin | map(.) | any(contains("memory-bank"))' "$PROJECT/opencode.json" >/dev/null
+  run jq -e '.plugin | map(.) | any(contains("memory-bank"))' "$PROJECT/opencode.json"
+  [ "$status" -ne 0 ]
 }
 
 @test "opencode: uninstall no-op if never installed" {
@@ -340,10 +707,16 @@ EOF
   [ "$status" -eq 0 ]
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
-  # Plugin must NOT use hard-coded path.join(app.path.cwd, '.memory-bank') as sole resolver
-  refute_grep -qF "path.join(app.path.cwd, '.memory-bank')" "$plugin"
-  # Plugin must check MB_PATH env override
-  grep -q "MB_PATH" "$plugin"
+  mkdir -p "$PROJECT/global-bank"
+  echo '# Global progress' > "$PROJECT/global-bank/progress.md"
+  MB_PATH="$PROJECT/global-bank" run v2_node <<'JS'
+const plugin = await loadV2();
+await plugin.emit('session.idle', { sessionID: 'override' });
+await plugin.dispose();
+assert.match(fs.readFileSync(path.join(directory, 'global-bank/progress.md'), 'utf8'), /Auto-capture/);
+assert.doesNotMatch(fs.readFileSync(path.join(directory, '.memory-bank/progress.md'), 'utf8'), /Auto-capture/);
+JS
+  [ "$status" -eq 0 ]
 }
 
 @test "opencode: plugin JS falls back to local .memory-bank when MB_PATH unset" {
@@ -351,10 +724,13 @@ EOF
   [ "$status" -eq 0 ]
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
-  # Fallback to local path must use current OpenCode plugin input.
-  refute_grep -q "app.path.cwd" "$plugin"
-  grep -q "directory" "$plugin"
-  grep -q '\.memory-bank' "$plugin"
+  run v2_node <<'JS'
+const plugin = await loadV2();
+await plugin.emit('session.idle', { sessionID: 'localbank' });
+await plugin.dispose();
+assert.match(fs.readFileSync(path.join(directory, '.memory-bank/progress.md'), 'utf8'), /Auto-capture/);
+JS
+  [ "$status" -eq 0 ]
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -383,7 +759,7 @@ EOF
   run_adapter install "$PROJECT"
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
-  n=$(ls "$PROJECT"/opencode.json.pre-mb-backup.* 2>/dev/null | wc -l | tr -d ' ')
+  n=$(find "$PROJECT" -maxdepth 1 -type f -name 'opencode.json.pre-mb-backup.*' | wc -l | tr -d ' ')
   [ "$n" = "1" ]
 }
 
@@ -456,15 +832,12 @@ EOF
   [ ! -d "$PROJECT/.opencode/agent" ]
 }
 
-@test "opencode: install preserves an existing user agent file with the same name (backup)" {
+@test "opencode S5: install preserves an unmanaged role collision in place" {
   mkdir -p "$PROJECT/.opencode/agent"
   echo "# my custom developer agent" > "$PROJECT/.opencode/agent/mb-developer.md"
+  snapshot "$PROJECT/.opencode/agent/mb-developer.md" "$PROJECT/role.before"
   run_adapter install "$PROJECT"
-  [ "$status" -eq 0 ]
-  local bk
-  bk=$(ls "$PROJECT/.opencode/agent/mb-developer.md".pre-mb-backup.* 2>/dev/null | head -1)
-  [ -n "$bk" ]
-  grep -q "my custom developer agent" "$bk"
+  assert_opencode_preserved "$PROJECT/.opencode/agent/mb-developer.md" "$PROJECT/role.before"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -500,13 +873,13 @@ EOF
 @test "opencode: plain install (no accept) writes the BASE plugin variant" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
-  grep -q "MB_OC_PARITY_EXTENDED = false" "$PROJECT/.opencode/plugins/memory-bank.js"
+  grep -q 'extended: false' "$PROJECT/.opencode/plugins/memory-bank.js"
 }
 
 @test "opencode: MB_OC_PARITY_ACCEPTED=1 install writes the EXTENDED plugin variant" {
   MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
-  grep -q "MB_OC_PARITY_EXTENDED = true" "$PROJECT/.opencode/plugins/memory-bank.js"
+  grep -q 'extended: true' "$PROJECT/.opencode/plugins/memory-bank.js"
 }
 
 # REQ-013/REQ-020: session-start context injection via
@@ -529,14 +902,13 @@ echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
 STUB
   chmod +x "$stub"
 
-  run env MB_UPDATE_NOTIFY_BIN="$stub" node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      const out = { system: [] };
-      await plugin['experimental.chat.system.transform']({ sessionID: 'sess-base' }, out);
-      console.log(JSON.stringify(out.system));
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_UPDATE_NOTIFY_BIN="$stub" run v2_node <<'JS'
+const plugin = await loadV2();
+const out = request('sess-base');
+await plugin.hook('session.context', out);
+console.log(JSON.stringify(out.system));
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [[ "$output" == *"update available: 1.0.0 -> 2.0.0"* ]]
   [[ "$output" == *"--with-extensions=opencode"* ]]
@@ -557,14 +929,13 @@ echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
 STUB
   chmod +x "$stub"
 
-  run env MB_UPDATE_NOTIFY_BIN="$stub" node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      const out = { system: [] };
-      await plugin['experimental.chat.system.transform']({ sessionID: 'sess-ext' }, out);
-      console.log(JSON.stringify(out.system));
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_UPDATE_NOTIFY_BIN="$stub" run v2_node <<'JS'
+const plugin = await loadV2();
+const out = request('sess-ext');
+await plugin.hook('session.context', out);
+console.log(JSON.stringify(out.system));
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [[ "$output" == *"update available: 1.0.0 -> 2.0.0"* ]]
   [[ "$output" != *"--with-extensions=opencode"* ]]
@@ -588,14 +959,11 @@ echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
 STUB
   chmod +x "$stub"
 
-  run env MB_UPDATE_NOTIFY_BIN="$stub" node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      await plugin['experimental.chat.system.transform']({ sessionID: 'same-sess' }, { system: [] });
-      await plugin['experimental.chat.system.transform']({ sessionID: 'same-sess' }, { system: [] });
-      await plugin['experimental.chat.system.transform']({ sessionID: 'same-sess' }, { system: [] });
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_UPDATE_NOTIFY_BIN="$stub" run v2_node <<'JS'
+const plugin = await loadV2();
+for (let i = 0; i < 3; i++) await plugin.hook('session.context', request('same-sess'));
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [ -f "$counter" ]
   local calls
@@ -614,32 +982,33 @@ STUB
   local plugin_mjs="$PROJECT/mb-plugin-capture.mjs"
   cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
 
-  run env MB_SESSION_CAPTURE=on node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      const out1 = { message: { id: 'm1', sessionID: 'sess-cap' }, parts: [{ type: 'text', text: 'hello world' }] };
-      await plugin['chat.message']({ sessionID: 'sess-cap' }, out1);
-      const out2 = { message: { id: 'm2', sessionID: 'sess-cap' }, parts: [{ type: 'text', text: 'second turn' }] };
-      await plugin['chat.message']({ sessionID: 'sess-cap' }, out2);
-      await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 'sess-cap' } } });
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_SESSION_CAPTURE=on run v2_node <<'JS'
+const history = { 'sess-cap': [] };
+const plugin = await loadV2({}, history);
+await plugin.hook('session.prompt', { sessionID: 'sess-cap', messageID: 'm1', prompt: { text: 'hello world' } });
+assert(!fs.existsSync(path.join(directory, '.memory-bank/session')), 'admission is not a completed turn');
+history['sess-cap'] = [...completedTurn('m1', 'a1', 'hello world'), ...completedTurn('m2', 'a2', 'second turn')];
+await plugin.emit('session.status', { sessionID: 'sess-cap', status: { type: 'idle' } });
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
 
   local sfile
-  sfile=$(ls "$PROJECT/.memory-bank/session/"*.md 2>/dev/null | grep -v _recent | head -1)
+  sfile=$(find "$PROJECT/.memory-bank/session" -maxdepth 1 -type f -name '*.md' ! -name '_recent*' -print -quit)
   [ -n "$sfile" ]
   grep -q "^session_id: sess-cap$" "$sfile"
   grep -q "^agent: opencode$" "$sfile"
   grep -q "^summary_schema: v2$" "$sfile"
-  grep -q "^summarized: false$" "$sfile"
+  grep -q "^summarized: true$" "$sfile"
   grep -q "^turns: 2$" "$sfile"
   grep -q "hello world" "$sfile"
   grep -q "second turn" "$sfile"
   grep -q "^ended:" "$sfile"
+  grep -q '^### Decisions$' "$sfile"
+  grep -q '^### Open questions$' "$sfile"
 }
 
-@test "opencode: base (non-extended) plugin's chat.message hook is a no-op (no capture)" {
+@test "opencode: base (non-extended) plugin's native prompt hook is a no-op (no capture)" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   command -v node >/dev/null || skip "node required"
@@ -647,13 +1016,12 @@ STUB
   local plugin_mjs="$PROJECT/mb-plugin-nocap.mjs"
   cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
 
-  run env MB_SESSION_CAPTURE=on node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      const out1 = { message: { id: 'm1' }, parts: [{ type: 'text', text: 'hello' }] };
-      await plugin['chat.message']({ sessionID: 'sess-base-nocap' }, out1);
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_SESSION_CAPTURE=on run v2_node <<'JS'
+const plugin = await loadV2({}, { 'sess-base-nocap': completedTurn('m1', 'a1', 'hello') });
+await plugin.hook('session.prompt', { sessionID: 'sess-base-nocap', messageID: 'm1', prompt: { text: 'hello' } });
+await plugin.emit('session.status', { sessionID: 'sess-base-nocap', status: { type: 'idle' } });
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [ ! -d "$PROJECT/.memory-bank/session" ]
 }
@@ -666,13 +1034,12 @@ STUB
   local plugin_mjs="$PROJECT/mb-plugin-capoff.mjs"
   cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
 
-  run env MB_SESSION_CAPTURE=off node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      const out1 = { message: { id: 'm1' }, parts: [{ type: 'text', text: 'hello' }] };
-      await plugin['chat.message']({ sessionID: 'sess-capoff' }, out1);
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_SESSION_CAPTURE=off run v2_node <<'JS'
+const plugin = await loadV2({}, { 'sess-capoff': completedTurn('m1', 'a1', 'hello') });
+await plugin.hook('session.prompt', { sessionID: 'sess-capoff', messageID: 'm1', prompt: { text: 'hello' } });
+await plugin.emit('session.status', { sessionID: 'sess-capoff', status: { type: 'idle' } });
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [ ! -d "$PROJECT/.memory-bank/session" ]
 }
@@ -683,7 +1050,7 @@ STUB
 # calling it — an unguarded handler would reject the outer promise (the
 # node script's own .catch prints "CRASHED" and exits 1); a properly
 # fail-open handler swallows it and the script completes normally.
-@test "opencode: chat.message handler throw never breaks the session (REQ-019)" {
+@test "opencode: completed capture retries after I/O failure without marking the turn processed" {
   MB_OC_PARITY_ACCEPTED=1 run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   command -v node >/dev/null || skip "node required"
@@ -691,20 +1058,25 @@ STUB
   local plugin_mjs="$PROJECT/mb-plugin-throw1.mjs"
   cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
 
-  run node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      Array.isArray = () => { throw new Error('forced-throw'); };
-      const out = { message: { id: 'm1' }, parts: [{ type: 'text', text: 'x' }] };
-      await plugin['chat.message']({ sessionID: 'sess-throw' }, out);
-      console.log('SURVIVED');
-    }).catch((e) => { console.error('CRASHED: ' + e); process.exitCode = 1; });
-  "
+  echo 'not a directory' > "$PROJECT/.memory-bank/session"
+  run v2_node <<'JS'
+const plugin = await loadV2({}, { 'sess-throw': completedTurn('m1', 'a1', 'x') });
+await plugin.hook('session.prompt', { sessionID: 'sess-throw', messageID: 'm1', prompt: { text: 'x' } });
+await plugin.emit('session.status', { sessionID: 'sess-throw', status: { type: 'idle' } });
+assert.equal(fs.readFileSync(path.join(directory, '.memory-bank/session'), 'utf8').trim(), 'not a directory');
+fs.unlinkSync(path.join(directory, '.memory-bank/session'));
+await plugin.emit('session.status', { sessionID: 'sess-throw', status: { type: 'idle' } });
+const files = fs.readdirSync(path.join(directory, '.memory-bank/session')).filter(f => f.endsWith('.md') && f !== '_recent.md');
+assert.equal(files.length, 1);
+assert.match(fs.readFileSync(path.join(directory, '.memory-bank/session', files[0]), 'utf8'), /^turns: 1$/m);
+console.log('SURVIVED');
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [[ "$output" == *"SURVIVED"* ]]
 }
 
-@test "opencode: experimental.chat.system.transform handler throw never breaks the session (REQ-019)" {
+@test "opencode: optional native context helpers may fail without blocking a request (REQ-019)" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   command -v node >/dev/null || skip "node required"
@@ -712,14 +1084,12 @@ STUB
   local plugin_mjs="$PROJECT/mb-plugin-throw2.mjs"
   cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
 
-  run node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      Array.isArray = () => { throw new Error('forced-throw'); };
-      await plugin['experimental.chat.system.transform']({ sessionID: 'sess-throw2' }, { system: [] });
-      console.log('SURVIVED');
-    }).catch((e) => { console.error('CRASHED: ' + e); process.exitCode = 1; });
-  "
+  MB_UPDATE_NOTIFY_BIN=/nonexistent MB_AGENTS_LIB=/nonexistent run v2_node <<'JS'
+const plugin = await loadV2();
+await plugin.hook('session.context', request('sess-throw2'));
+console.log('SURVIVED');
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [[ "$output" == *"SURVIVED"* ]]
 }
@@ -744,13 +1114,12 @@ STUB
   rm -f "$PROJECT/.memory-bank/progress.md"
   mkdir -p "$PROJECT/.memory-bank/progress.md"
 
-  run node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 'sess-throw3' } } });
-      console.log('SURVIVED');
-    }).catch((e) => { console.error('CRASHED: ' + e); process.exitCode = 1; });
-  "
+  run v2_node <<'JS'
+const plugin = await loadV2();
+await plugin.emit('session.idle', { sessionID: 'sess-throw3' });
+console.log('SURVIVED');
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [[ "$output" == *"SURVIVED"* ]]
 }
@@ -781,14 +1150,13 @@ echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
 STUB
   chmod +x "$stub"
 
-  run env MB_UPDATE_NOTIFY_BIN="$stub" node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      await plugin['experimental.chat.system.transform']({ sessionID: 'reused-sess' }, { system: [] });
-      await plugin.event({ event: { type: 'session.idle', properties: { sessionID: 'reused-sess' } } });
-      await plugin['experimental.chat.system.transform']({ sessionID: 'reused-sess' }, { system: [] });
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  MB_UPDATE_NOTIFY_BIN="$stub" run v2_node <<'JS'
+const plugin = await loadV2();
+await plugin.hook('session.context', request('reused-sess'));
+await plugin.emit('session.idle', { sessionID: 'reused-sess' });
+await plugin.hook('session.context', request('reused-sess'));
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   [ -f "$counter" ]
   local calls
@@ -853,16 +1221,13 @@ STUB
   done < <(jq -r '.files[]?' "$m")
 }
 
-@test "opencode: install-global-agents preserves an existing user global agent file (backup)" {
+@test "opencode S5: global install preserves an unmanaged role collision in place" {
   mkdir -p "$SANDBOX_HOME/.config/opencode/agent"
   echo "# my custom global developer agent" > "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md"
+  local role="$HOME/.config/opencode/agent/mb-developer.md"
+  snapshot "$role" "$PROJECT/global-role.before"
   run_adapter install-global-agents "$PROJECT"
-  [ "$status" -eq 0 ]
-  local bk
-  bk=$(ls "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md".pre-mb-backup.* 2>/dev/null | head -1)
-  [ -n "$bk" ]
-  grep -q "my custom global developer agent" "$bk"
-  refute_grep -q "my custom global developer agent" "$SANDBOX_HOME/.config/opencode/agent/mb-developer.md"
+  assert_opencode_preserved "$role" "$PROJECT/global-role.before"
 }
 
 @test "opencode: install-global-agents 2x run stays safe — same roster, live files stay fresh" {
@@ -903,6 +1268,42 @@ STUB
   refute_substring "$(cat "$PROJECT/.opencode/agent/mb-developer.md")" $'\nmodel:'
 }
 
+@test "opencode: install uses the shared host-bound named pipeline, not legacy" {
+  mkdir -p "$PROJECT/.memory-bank/pipelines"
+  printf 'roles:\n  developer: {agent: mb-developer, model: legacy/model}\n' > "$PROJECT/.memory-bank/pipeline.yaml"
+  printf 'agents: [opencode]\nroles:\n  developer: {agent: mb-developer, model: local/team/coder#deep}\n' > "$PROJECT/.memory-bank/pipelines/native.yaml"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  assert_substring "$(cat "$PROJECT/.opencode/agent/mb-developer.md")" $'\nmodel: local/team/coder\nvariant: "deep"\n'
+  [ ! -e "$PROJECT/.memory-bank/pipelines/opencode.yaml" ]
+}
+
+@test "opencode: explicit missing pipeline refuses before publishing resources" {
+  export MB_PIPELINE=missing
+  run_adapter install "$PROJECT"
+  [ "$status" -ne 0 ]
+  [ ! -e "$PROJECT/.opencode/agent/mb-developer.md" ]
+  assert_substring "$output" "named pipeline not found"
+}
+
+@test "opencode S4-HOST-5: native guards ignore an ambient foreign host but honor an explicit pipeline" {
+  mkdir -p "$PROJECT/.memory-bank/pipelines"
+  printf 'agents: [opencode]\nprotected_paths: [sensitive.txt]\n' > "$PROJECT/.memory-bank/pipelines/native.yaml"
+  printf 'agents: [codex]\nprotected_paths: []\n' > "$PROJECT/.memory-bank/pipelines/foreign.yaml"
+  export MB_PIPELINE_HOST=codex MB_OC_PARITY_ACCEPTED=1
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  v2_node <<'JS'
+const plugin = await loadV2();
+const event = { tool: 'write', id: 'native-policy', sessionID: 'root', input: { path: path.join(directory, 'sensitive.txt'), content: 'Must remain protected' } };
+await assert.rejects(plugin.hook('tool.execute.before', event), /BLOCKED/);
+assert(!fs.existsSync(event.input.path));
+process.env.MB_PIPELINE = 'foreign';
+await plugin.hook('tool.execute.before', { ...event, id: 'explicit-policy' });
+await plugin.dispose();
+JS
+}
+
 @test "opencode: render-agents re-renders installed agents from a given pipeline, no backups" {
   python3 -c 'import yaml' 2>/dev/null || skip "PyYAML required"
   run_adapter install "$PROJECT"
@@ -927,21 +1328,25 @@ STUB
   cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
   local lib="$PROJECT/stub-agents-lib.sh"
   printf '%s\n' 'mb_project_blocks_hint() { echo "[memory-bank] Outdated managed blocks in AGENTS.md"; }' > "$lib"
-  local js="
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$PROJECT' });
-      const out = { system: [] };
-      await plugin['experimental.chat.system.transform']({ sessionID: 's-hint' }, out);
-      console.log(JSON.stringify(out.system));
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
   mkdir -p "$PROJECT/.memory-bank"
-  run env MB_AGENTS_LIB="$lib" MB_UPDATE_NOTIFY_BIN=/nonexistent node -e "$js"
+  MB_AGENTS_LIB="$lib" MB_UPDATE_NOTIFY_BIN=/nonexistent run v2_node <<'JS'
+const plugin = await loadV2();
+const out = request('s-hint');
+await plugin.hook('session.context', out);
+console.log(JSON.stringify(out.system));
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   assert_substring "$output" "Outdated managed blocks in AGENTS.md"
 
   rm -rf "$PROJECT/.memory-bank"
-  run env MB_AGENTS_LIB="$lib" MB_UPDATE_NOTIFY_BIN=/nonexistent node -e "$js"
+  MB_AGENTS_LIB="$lib" MB_UPDATE_NOTIFY_BIN=/nonexistent run v2_node <<'JS'
+const plugin = await loadV2();
+const out = request('s-hint');
+await plugin.hook('session.context', out);
+console.log(JSON.stringify(out.system));
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
   refute_substring "$output" "Outdated managed blocks"
 }

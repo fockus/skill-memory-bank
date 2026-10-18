@@ -32,6 +32,77 @@ teardown() {
   jq -e '.hooks_events == ["sessionEnd"]' "$MANIFEST" >/dev/null
 }
 
+@test "framework S5: legacy ownership and removal signatures keep pristine other-adapter behavior" {
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+  printf 'Legacy Cursor artifact\n' > "$TMPDIR/cursor.md"
+  adapter_write_manifest "$MANIFEST" cursor 1.0 \
+    "$(printf '%s\n' "$TMPDIR/cursor.md" | adapter_json_array_from_lines)"
+  touch -r "$MANIFEST" "$TMPDIR/cursor.md"
+  run _mb_owned_unedited "$TMPDIR/cursor.md" "$MANIFEST"
+  [ "$status" -eq 0 ]
+  run adapter_remove_manifest_files "$MANIFEST"
+  [ "$status" -eq 0 ]
+  refute_file "$TMPDIR/cursor.md"
+}
+
+# Optional contained-root arguments select strict OpenCode policy; old callers do not.
+@test "framework S5: strict ownership validates hashes not membership or preserved mtime" {
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+  mkdir "$TMPDIR/owned"
+  local root="$TMPDIR/owned" file="$TMPDIR/owned/role.md"
+  printf 'Managed role\n' > "$file"
+  local files extra
+  files="$(printf '%s\n' "$file" | adapter_json_array_from_lines)"
+  extra="$(jq -n --arg p "$file" --arg h "$(shasum -a 256 "$file" | cut -d' ' -f1)" '{file_sha256: {($p): $h}}')"
+  adapter_write_manifest "$MANIFEST" opencode 1.0 "$files" "$extra"
+  run _mb_owned_unedited "$file" "$MANIFEST" "$root"
+  [ "$status" -eq 0 ]
+  printf 'User edit\n' >> "$file"
+  touch -r "$MANIFEST" "$file"
+  run _mb_owned_unedited "$file" "$MANIFEST" "$root"
+  [ "$status" -ne 0 ]
+  adapter_write_manifest "$MANIFEST" opencode 1.0 "$files"
+  touch -r "$MANIFEST" "$file"
+  run _mb_owned_unedited "$file" "$MANIFEST" "$root"
+  [ "$status" -ne 0 ]
+}
+
+@test "framework S5: strict removal preserves edited legacy symlink and escaped files" {
+  # shellcheck source=/dev/null
+  source "$FRAMEWORK"
+  mkdir "$TMPDIR/owned" "$TMPDIR/outside"
+  local root="$TMPDIR/owned" name files extra
+  for name in pristine edited legacy link; do printf '%s\n' "$name" > "$root/$name"; done
+  printf 'Outside canary\n' > "$TMPDIR/outside/canary"
+  cp "$TMPDIR/outside/canary" "$root/link"
+  ln -s "$TMPDIR/outside" "$root/escape"
+  files="$(printf '%s\n' "$root/"{pristine,edited,legacy,link,escape/canary} "$TMPDIR/outside/canary" | adapter_json_array_from_lines)"
+  extra="$(python3 - "$files" <<'PY'
+import hashlib, json, sys
+files = json.loads(sys.argv[1])
+print(json.dumps({'file_sha256': {p: hashlib.sha256(open(p, 'rb').read()).hexdigest() for p in files if not p.endswith('/legacy')}}))
+PY
+)"
+  adapter_write_manifest "$MANIFEST" opencode 1.0 "$files" "$extra"
+  printf 'Edited after install\n' >> "$root/edited"
+  touch -r "$MANIFEST" "$root/edited"
+  snapshot "$root/edited" "$TMPDIR/edited.before"
+  snapshot "$TMPDIR/outside/canary" "$TMPDIR/outside.before"
+  rm "$root/link"
+  ln -s "$TMPDIR/outside/canary" "$root/link"
+  run adapter_remove_manifest_files "$MANIFEST" "$root"
+  refute_file "$root/pristine"
+  assert_unchanged "$root/edited" "$TMPDIR/edited.before"
+  [ -f "$root/legacy" ]
+  [ -L "$root/link" ]
+  [ "$(readlink "$root/link")" = "$TMPDIR/outside/canary" ]
+  [ -L "$root/escape" ]
+  assert_unchanged "$TMPDIR/outside/canary" "$TMPDIR/outside.before"
+  printf '%s\n' "$output" | grep -Eiq 'preserv|refus|skip|unsafe|outside'
+}
+
 # ═══ A22 (CDX-I11): atomic manifest write ═══
 #
 # adapter_write_manifest used to redirect `jq ... > "$manifest_path"` directly

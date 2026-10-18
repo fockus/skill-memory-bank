@@ -4,7 +4,7 @@ Memory Bank works across 7+ AI coding clients. Canonical global skill lives unde
 `~/.claude/skills/skill-memory-bank`; Claude, Codex, and Cursor consume it through
 managed aliases (`~/.claude/skills/memory-bank`, `~/.codex/skills/memory-bank`,
 `~/.cursor/skills/memory-bank`). OpenCode also gets native global files under
-`~/.config/opencode/`. Cursor additionally receives global hooks, slash commands,
+`${XDG_CONFIG_HOME:-$HOME/.config}/opencode/`. Cursor additionally receives global hooks, slash commands,
 an `AGENTS.md` marker section, and a paste-ready rules file at the user level.
 Per-project adapters write client-specific configs + hooks.
 
@@ -17,7 +17,7 @@ Per-project adapters write client-specific configs + hooks.
 | 3 | Windsurf | Cascade Hooks (JSON+shell) | `.windsurf/rules/*.md` + `.windsurf/hooks.json` |
 | 4 | Cline | `.clinerules/hooks/*.sh` | `.clinerules/*.md` + `hooks/` |
 | 5 | Kilo | ❌ (FR #5827 open) — git-hooks fallback | `.kilocode/rules/*.md` |
-| 6 | OpenCode | TypeScript plugins (`session.*`, `tool.execute.*`, `experimental.session.compacting`) + native slash commands | `~/.config/opencode/{AGENTS.md,commands/}` + `AGENTS.md` + `opencode.json` |
+| 6 | OpenCode 2 | V2 plugin `setup`; native command, session and tool hooks; memory tier opt-in | `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/` + project `AGENTS.md` and `.opencode/` |
 | 7 | Codex | Global native hooks + skill and roles | `~/.codex/skills/memory-bank` + `~/.codex/AGENTS.md` + `~/.codex/hooks.json` + optional project settings |
 | 8 | Pi Code | Global skill + prompt templates + `AGENTS.md` | `~/.pi/agent/skills/memory-bank`, `~/.pi/agent/prompts/*.md`, `~/.pi/agent/AGENTS.md` + optional project `AGENTS.md` |
 
@@ -30,7 +30,7 @@ Memory Bank supports **local**, **global**, and **rules-only** storage modes. Th
 | Claude Code | `~/.claude` | `/mb init --storage=local` | `/mb init --storage=global --agent=claude-code` | ✅ `[MEMORY BANK: ABSENT]` |
 | Cursor | `~/.cursor` | `/mb init --storage=local` | `/mb init --storage=global --agent=cursor` | ✅ `[MEMORY BANK: ABSENT]` |
 | Codex | `~/.codex` | `/mb init --storage=local` | `/mb init --storage=global --agent=codex` | ✅ `[MEMORY BANK: ABSENT]` |
-| OpenCode | `~/.config/opencode` | `/mb init --storage=local` | `/mb init --storage=global --agent=opencode` | ✅ `[MEMORY BANK: ABSENT]` |
+| OpenCode | `${XDG_CONFIG_HOME:-$HOME/.config}/opencode` | `/mb init --storage=local` | `/mb init --storage=global --agent=opencode` | ✅ `[MEMORY BANK: ABSENT]` |
 | Pi Code | `~/.pi/agent` | `/mb init --storage=local` | `/mb init --storage=global --agent=pi` | ✅ `[MEMORY BANK: ABSENT]` |
 | Windsurf | `~/.windsurf` | `/mb init --storage=local` | via `MB_AGENT=windsurf` (adapter-only) | ✅ rules via adapter |
 | Cline | `~/.cline` | `/mb init --storage=local` | via `MB_AGENT=cline` (adapter-only) | ✅ rules via adapter |
@@ -41,6 +41,7 @@ Memory Bank supports **local**, **global**, and **rules-only** storage modes. Th
 - **Global mode** — bank lives under `~/.<agent>/memory-bank/projects/<id>/.memory-bank`, personal storage, **do not commit to the repo**. Requires `--storage=global --agent=<agent>` on init.
 - **Rules-only mode** — no `/mb init` at all; engineering rules (TDD, SOLID, Clean Architecture, DRY/KISS/YAGNI) are always-on via globally installed rules files; Memory Bank lifecycle commands stay inactive. Valid steady state for projects that want rules without bank overhead.
 - Native-skill agents (Claude Code, Cursor, Codex, OpenCode, Pi) support all three modes directly. Adapter-only agents (Windsurf, Cline, Kilo) support local and rules-only; global mode is available via `MB_AGENT` env override.
+- OpenCode global host files honor XDG; the shared bank registry remains at `$HOME/.config/opencode/memory-bank/registry.json`. XDG does not relocate that registry.
 
 ## Install
 
@@ -51,28 +52,61 @@ bash install.sh --clients claude-code,cursor,windsurf --project-root .
 # All supported clients
 bash install.sh --clients claude-code,cursor,windsurf,cline,kilo,opencode,codex,pi --project-root .
 
-# Only cross-agent adapters (no Claude Code)
+# Select project adapters; global host resources still update
 bash install.sh --clients cursor,opencode --project-root ~/my-project
 ```
 
 **Flags:**
-- `--clients <list>` — comma-separated. Default: `claude-code` only.
+- `--clients <list>` — comma-separated project adapters. Default: `claude-code` only; not a global-host selector.
 - `--project-root <path>` — where to place adapters. Default: `$PWD`.
 - `--help` — full usage.
 
-### Global agent resources always install (A25 / CDX-I13)
+### OpenCode-only lifecycle
 
-`install.sh` calls `install_opencode_global_agents`, `install_codex_global_agents`, and
-`install_pi_global_agents` unconditionally on every run, **independently of `--clients`**.
+Use the existing installer with an explicit scope, from a stable bundle location:
+
+```bash
+memory-bank install --only opencode --project-root ~/my-project --non-interactive
+# Explicit extension opt-in; retained on subsequent installs/updates:
+memory-bank install --only opencode --project-root ~/my-project --non-interactive --with-extensions=opencode
+memory-bank uninstall --only opencode --project-root ~/my-project --non-interactive
+```
+
+The same flags work with `bash install.sh` / `bash uninstall.sh`. This scope points
+only OpenCode's skill alias directly at the selected bundle; it does not replace
+the shared Claude alias, change other hosts, rewrite user OpenCode configuration,
+or select global rules/pipelines. MB instruction blocks may be refreshed, retaining
+user text outside them. Conflicting `--clients`, non-OpenCode extensions, `--key-rules`
+and scoped uninstall `--force` are refused before installation writes.
+
+Fresh scoped installs keep ownership/options in
+`${XDG_CONFIG_HOME:-$HOME/.config}/opencode/.mb-install-manifest.json`, outside the
+package bundle. A plain `memory-bank install` then retains this scope and recorded
+extension opt-in, including after package updates. `mb-upgrade.sh` also accepts
+`--only opencode --with-extensions=opencode`. Package managers independently replace
+their own bundle; the installer cannot isolate those changes for other bundle users.
+
+Edited or hashless resources are preserved with a nonzero refusal. Restore the
+authoritative manifest or arrange separately approved exact manual replacements;
+matching incoming bytes or managed markers do not authorize adoption. For an owned
+older mixed install, explicitly select its existing record with `MB_MANIFEST_PATH`
+on install/update/uninstall; keep this override across updates. Scoped removal
+retains other-host entries in that record. Known conflicts are preflighted; handled
+I/O failures retain the existing recovery material when restoration cannot finish.
+This is not whole-install atomicity, crash recovery or concurrent-installer support.
+
+### Default global resources (A25 / CDX-I13)
+
+Without an explicit or recorded `--only` scope, `install.sh` calls
+`install_opencode_global_agents`, `install_codex_global_agents`, and
+`install_pi_global_agents` on every run, **independently of `--clients`**.
 That means the global skill alias, global `AGENTS.md` entrypoint, and prompt templates for
 OpenCode, Codex, and Pi are installed even when `--clients` doesn't include them — so those
 hosts are ready to use the moment you open them, without a separate install step. Only the
 **project-local** adapter (`.codex/config.toml`, `.opencode/plugins/…`, project `AGENTS.md`,
 etc.) is actually gated by `--clients`.
 
-**Open question:** gating the global-resource install itself by the selected `--clients`
-is a deliberate, separate product decision — not implemented here. If you want that
-gating, track it as a follow-up rather than assuming today's behavior will change.
+`--clients` still selects project adapters only; use `--only opencode` for isolation.
 
 ## Per-client cheatsheet
 
@@ -181,28 +215,84 @@ Post-commit auto-captures to `progress.md` (respects `.session-lock`,
 
 ### OpenCode
 
+**OpenCode 2 integration draft: final acceptance is pending.** Enable the native
+memory tier explicitly:
+
 ```bash
-adapters/opencode.sh install ~/my-project
+bash install.sh --clients opencode --project-root ~/my-project --with-extensions=opencode
 ```
 
-Creates:
-- `~/.config/opencode/AGENTS.md` — global OpenCode rules for prompt injection
-- `~/.config/opencode/commands/*.md` — native slash commands in OpenCode menu
-- `AGENTS.md` — shared format, refcount-tracked via `.mb-agents-owners.json`
-- `.opencode/commands/*.md` — project-local slash commands (works even without global install)
-- `.opencode/plugins/memory-bank.js` — TS plugin with `session.idle`,
-  `session.deleted`, `tool.execute.before`, and **`experimental.session.compacting`**
-  (direct PreCompact equivalent). Registration contract is **auto-discovery**:
-  OpenCode loads any module under `.opencode/plugins/` on its own, so no
-  `opencode.json` entry is required or written. If a project's `opencode.json`
-  carries a *stale legacy* reference to `./.opencode/plugins/memory-bank.js`
-  from an older skill version, install removes just that entry (atomic
-  rewrite via `jq`) and preserves every other user key untouched.
+`--clients` selects project adapters only: the full installer still updates global
+host resources. OpenCode host files use `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/`
+(`AGENTS.md`, `commands/`, the skill alias and opted-in roles); the bank registry
+stays at `$HOME/.config/opencode/memory-bank/registry.json`. The project uses shared
+`AGENTS.md`, `.opencode/commands/`, `.opencode/agent/` and the auto-discovered
+`.opencode/plugins/memory-bank.js`. No global lifecycle plugin is installed.
 
-On `session.idle`/`session.deleted`, the plugin also invokes the same
-CC-compatible summarize capture Cursor wires (`mb-session-end.sh`, resolved
-via the OpenCode skill alias `~/.config/opencode/skills/memory-bank/hooks/`,
-overridable via `MB_SUMMARIZE_BIN`) — fail-open if that script is absent (B4).
+**Native boundary.** The bootstrap imports the bundle's
+[`{id, setup(ctx)}` plugin](../adapters/opencode_plugin.mjs). It uses command
+bindings, `ctx.session.hook` for `context`, `prompt` and `compaction`, and native
+tool-before/tool-after hooks. Cleanup disposes registrations and subscriptions.
+Parents and children receive current Key rules, task context and pointers to
+applicable [detailed RULES](../rules/RULES.md), not full rulebook copies.
+Native `subagent` dispatch takes `agent`, `description` and `prompt`; `model` is optional.
+
+**Memory and retrieval** ([source](../adapters/opencode_session.mjs)):
+- `session.execution.succeeded` reconciles completed root turns once into shared session records, with model-free
+  extractive sections: What changed, Decisions, Open questions and Files. Private
+  spans and secrets are filtered; tool bodies, reasoning and attachment contents
+  are excluded. Children receive context but cannot capture or close the parent
+  bank; foreign project/location/workspace events are excluded.
+- `MB_SESSION_CAPTURE=off` disables completed-turn capture independently of
+  `MB_AUTO_CAPTURE`, which controls the legacy progress stub. Context autoload and
+  precompact handoff retain their own switches. No bank is created implicitly.
+- Restore uses core/recent memory and persisted handoff. Optional automatic recall
+  uses the shared in-memory BM25 retriever and bounded, filtered note/session bodies;
+  it creates no persistent index and runs no hidden semantic catchup.
+  Explicit graph/semantic helpers remain available through
+  [`mb-graph.sh` and `mb-code-context.py`](../SKILL.md#graphrag-lite-retrieval-routing).
+- No implicit paid summarizer or Claude CLI fallback runs. An external summarizer
+  requires explicit `MB_SUMMARIZE_BIN`; ordinary capture is model-free.
+
+**Workflow and guards** ([source](../adapters/opencode_workflow.mjs)):
+- `/mb work` and `/work` reuse the selected pipeline and canonical item/step,
+  Eval and checkbox helpers. Native guards enforce dangerous-command,
+  protected-path, EARS and budget policies before actions; guard errors refuse
+  the action, optional retrieval failures do not. Writes reuse shared post-write sync.
+- Explicit provider/model/variant pins remain authoritative. Requested inheritance
+  uses the exact parent reference for that run without changing permanent pins.
+  Unsupported selections refuse explicitly; permissions and nesting are not widened.
+  OpenCode 2.0.29 Markdown roles retain separate `model` and `variant` fields.
+- Grouped canonical `done; flip; clear` (including repeated clear) retains and
+  revalidates run-specific completion proof before releasing the run override.
+  Failed Eval, stale checkboxes, missing state and idle are not completion proof.
+  A plan with no declared Eval stays `UNVERIFIED`, not verified success.
+- Resume unfinished work explicitly with the same target, flags and matching
+  `--run-id`; foreign/prior runs are not adopted. After reload, re-invoke `/mb work`;
+  transparent continuation is not guaranteed.
+
+**Limits and safe upgrades:**
+- Capture reconciles only active context through public `ctx.session.context`:
+  at most the last 128 messages; serialized batches above 512 KiB are rejected.
+  The API returns the active array before local slicing, so this is not a transport
+  or pagination bound. A 1 MiB session-record ceiling stops new commits without
+  overwriting prior data. Compacted/deleted history cannot be replayed; opaque
+  provider-native compaction coverage is unproven.
+- Session idle never certifies done; there is no native blocking Stop veto.
+  Tool, commit and workflow gates remain the enforcement points.
+- AGR-110 cleanup covers process groups and observed descendants of trusted bundled
+  hooks only. Fast unobserved reparenting or a detached fork/`setsid` can escape;
+  no OS sandbox, absolute containment or concurrent-filesystem safety is promised.
+- On whole-file user-edited or unowned collisions, the installer refuses replacement
+  or removal and leaves files in place. Inspect ownership and reconcile explicitly
+  with the owner; do not delete or reset configuration to bypass a refusal.
+  A manifest entry alone is not removal authority.
+- Automatic OpenCode upgrades require verifiable ownership; hashless v5.3.1 installs and files left after manifest deletion are preserved and automatic replacement is refused.
+  Manual migration requires separately approved exact preimages and replacements; inferred options, matching bytes and existing backups do not authorize adoption.
+
+API background:
+[V2 migration](https://opencode.ai/v2/docs/migrate-v1),
+[V2 plugins](https://opencode.ai/v2/docs/build/plugins).
 
 ### Codex (OpenAI)
 
@@ -277,7 +367,7 @@ Ownership is refcounted in `.mb-agents-owners.json`:
 
 **Uninstall rules:**
 - Remove one client → refcount decremented, section kept
-- Remove last client → section removed (file deleted if `initial_had_user_content: false`)
+- Remove last client → managed section removed; delete only a genuinely empty remainder, preserving later user additions.
 
 ## Hook matrix — our hook categories → client events
 
@@ -288,12 +378,12 @@ categories; not every category has an equivalent on every host.
 
 | Our hook | Cursor | Windsurf | Cline | Kilo | OpenCode | Pi | Codex |
 |----------|--------|----------|-------|------|----------|-----|-------|
-| SessionStart context injection | `sessionStart` (`mb-session-start-context.sh`) | — | — | — | — | — | global `SessionStart` and `SubagentStart` |
-| Stop turn capture (creates `session/*.md`) | `stop` (`mb-session-turn.sh`, CC-compatible — adapter-parity T7/REQ-021) | — | — | — | `chat.message`/`system.transform` (genuine per-turn capture, T5) | (session-memory extension, accept-path only) | global `Stop` (model-free Codex capture) |
-| SessionEnd auto-capture (summarize) | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.idle`/`deleted` (+ summarize hook wired, B4) | `post-commit` (git-hooks-fallback, same mechanism as Kilo/Codex) | global `SessionEnd` (bounded extractive fallback); project commit fallback remains separate |
-| PreCompact actualize | **`preCompact`** | — | — | — | **`experimental.session.compacting`** | — (no installed fallback; git hooks only fire on commit) | global `PreCompact` (capture + portable handoff) |
-| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `tool.execute.before` throw | — (no installed fallback) | global `PreToolUse` (Bash/edit/agent guards) |
-| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | `session.idle` check | git-fallback (`post-commit` staleness check) | global `Stop` freshness reminder |
+| SessionStart context injection | `sessionStart` (`mb-session-start-context.sh`) | — | — | — | `ctx.session.hook("context")`: root/child rules; opt-in memory restore | — | global `SessionStart` and `SubagentStart` |
+| Stop turn capture (creates `session/*.md`) | `stop` (`mb-session-turn.sh`, CC-compatible — adapter-parity T7/REQ-021) | — | — | — | Opt-in completed-root capture via `ctx.session.context`; no Stop veto | (session-memory extension, accept-path only) | global `Stop` (model-free Codex capture) |
+| SessionEnd auto-capture (summarize) | `sessionEnd` (`mb-session-end.sh`, CC-compatible) | `model-response` | `afterToolExecution` | `post-commit` (git) | `session.execution.succeeded` reconciles completed root turns; model-free capture, no Stop veto | `post-commit` (git-hooks-fallback, same mechanism as Kilo/Codex) | global `SessionEnd` (bounded extractive fallback); project commit fallback remains separate |
+| PreCompact actualize | **`preCompact`** | — | — | — | `ctx.session.hook("compaction")`: portable handoff; public surface only | — (no installed fallback; git hooks only fire on commit) | global `PreCompact` (capture + portable handoff) |
+| PreToolUse block | `preToolUse`+`beforeShellExecution` | Cascade pre-hook (exit 2) | `beforeToolExecution` (exit 2) | rules guidance | `ctx.tool.hook("execute.before")`: portable guard refusal | — (no installed fallback) | global `PreToolUse` (Bash/edit/agent guards) |
+| Weekly compact reminder | `sessionEnd` check | `model-response` check | `onNotification` | git-fallback | Idle notice only, never completion certification | git-fallback (`post-commit` staleness check) | global `Stop` freshness reminder |
 
 **Pi native extension status:** `adapters/pi_session_memory_extension.ts` (a TypeScript extension listening
 to `session_start`/`input`/`tool_execution_end`/`agent_end`/`session_before_compact`/`session_shutdown`
@@ -338,9 +428,9 @@ Adapters preserve user content:
 ## Troubleshooting
 
 **Q: My `AGENTS.md` lost its custom sections after uninstall.**
-A: Only our marker section (between `<!-- memory-bank:start/end -->`) is removed.
-If your custom content was outside that marker, it's preserved. If not — recovery via
-git: `git checkout HEAD -- AGENTS.md`.
+A: Only our managed marker sections are removed; content outside them is preserved.
+Compare the current file with a saved version and reconcile missing sections with
+the owner. Do not overwrite the whole file: that can discard newer user edits.
 
 **Q: Cursor hooks don't fire reliably (e.g. `sessionEnd` auto-capture missing).**
 A: This is an IDE limitation, not a CLI one — the Cursor *agent CLI* fires the full

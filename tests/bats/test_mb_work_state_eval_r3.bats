@@ -138,6 +138,13 @@ _init_spec() {   # _init_spec <bank> <args...>  → prints rc
   [ "$(_init_spec "$b2" --source-topic demo --source-path "$b2/specs/demo/tasks.md")" = "0" ]
 }
 
+@test "work_state_eval: a bare source-path with a dot parent cannot invent its topic" {
+  cp "$BANK/.work-state.json" "$TMP/state-before.json"
+  run bash "$WS" init spec 1 --source-path "$BANK/specs/demo/./tasks.md" --mb "$BANK"
+  [ "$status" -eq 2 ]
+  cmp -s "$TMP/state-before.json" "$BANK/.work-state.json"
+}
+
 # ═══ r3 [1]: the DECLARATION is bound at init, not re-read at done ═════════
 #
 # `done` re-read the declaration from the live tasks.md, so swapping a real

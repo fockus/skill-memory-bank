@@ -86,6 +86,48 @@ teardown() {
   [ ! -f "$PROJECT/.mb-agents-owners.json" ]
 }
 
+@test "agents-md S5: last owner strips only MB blocks after user appends to an MB-created file" {
+  local client root mode
+  for client in opencode pi codex; do
+    root="$PROJECT/$client"
+    mkdir "$root"
+    agents_md_install "$root" "$client" "$SKILL_DIR" >/dev/null
+    jq -e '.initial_had_user_content == false' "$root/.mb-agents-owners.json"
+    printf '\nUser instructions added after creation\n<!-- unrelated:start -->\nKeep this other block\n<!-- unrelated:end -->\n' > "$root/user.txt"
+    cat "$root/user.txt" >> "$root/AGENTS.md"
+    chmod 640 "$root/AGENTS.md"
+    run agents_md_uninstall "$root" "$client"
+    [ "$status" -eq 0 ]
+    [ -f "$root/AGENTS.md" ]
+    grep -q 'User instructions added after creation' "$root/AGENTS.md"
+    grep -qF '<!-- unrelated:start -->' "$root/AGENTS.md"
+    grep -qF '<!-- unrelated:end -->' "$root/AGENTS.md"
+    refute_grep -q 'memory-bank:start\|mb-key-rules:start' "$root/AGENTS.md"
+    mode="$(stat -c '%a' "$root/AGENTS.md" 2>/dev/null || stat -f '%Lp' "$root/AGENTS.md")"
+    [ "$mode" = 640 ]
+    refute_file "$root/.mb-agents-owners.json"
+  done
+}
+
+@test "agents-md S5: removing OpenCode leaves remaining Pi or Codex owner's exact bytes and mode" {
+  local client root mode
+  for client in pi codex; do
+    root="$PROJECT/$client"
+    mkdir "$root"
+    agents_md_install "$root" opencode "$SKILL_DIR" >/dev/null
+    agents_md_install "$root" "$client" "$SKILL_DIR" >/dev/null
+    printf '\nUser post-install instructions\n' >> "$root/AGENTS.md"
+    chmod 640 "$root/AGENTS.md"
+    snapshot "$root/AGENTS.md" "$root/before"
+    run agents_md_uninstall "$root" opencode
+    [ "$status" -eq 0 ]
+    assert_unchanged "$root/AGENTS.md" "$root/before"
+    jq -e --arg c "$client" '.owners == [$c]' "$root/.mb-agents-owners.json"
+    mode="$(stat -c '%a' "$root/AGENTS.md" 2>/dev/null || stat -f '%Lp' "$root/AGENTS.md")"
+    [ "$mode" = 640 ]
+  done
+}
+
 @test "agents-md: owners file write leaves valid json and no temp leftovers" {
   _owners_write "$PROJECT" '{"owners":["cursor"],"initial_had_user_content":false}'
   jq -e '.owners == ["cursor"]' "$PROJECT/.mb-agents-owners.json" >/dev/null

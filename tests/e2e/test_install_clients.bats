@@ -14,6 +14,11 @@ setup() {
   PROJECT="$(mktemp -d)"
   (cd "$PROJECT" && git init -q && git config user.email t@t && git config user.name t)
   export HOME="$SANDBOX_HOME"
+  export XDG_CONFIG_HOME="$HOME/.config" XDG_DATA_HOME="$HOME/.local/share"
+  export XDG_STATE_HOME="$HOME/.local/state" XDG_CACHE_HOME="$HOME/.cache"
+  export XDG_RUNTIME_DIR="$HOME/run" XDG_CONFIG_DIRS="$HOME/config-dirs" XDG_DATA_DIRS="$HOME/data-dirs"
+  export CODEX_HOME="$HOME/.codex" MB_MANIFEST_PATH="$HOME/installed-manifest.json" TMPDIR="$HOME/tmp"
+  mkdir -p "$TMPDIR" "$XDG_RUNTIME_DIR"
   export MB_SKIP_DEPS_CHECK=1
   command -v python3 >/dev/null || skip "python3 required"
   command -v jq >/dev/null || skip "jq required"
@@ -230,15 +235,18 @@ assert 'codex' in m.get('adapters_failed', []), m
 }
 
 @test "install.sh: global OpenCode AGENTS.md carries the compact rules core; neither file copies RULES.md" {
+  export XDG_CONFIG_HOME="$HOME/selected-config"
   bash "$REPO_ROOT/install.sh" --clients opencode --project-root "$PROJECT" --non-interactive >/dev/null 2>&1
-  local global="$HOME/.config/opencode/AGENTS.md"
+  local global="$XDG_CONFIG_HOME/opencode/AGENTS.md" rules="$XDG_CONFIG_HOME/opencode/skills/memory-bank/rules/RULES.md"
   [ -f "$global" ]
   # OpenCode loads the global file AND the project AGENTS.md; full RULES.md in both
   # put the same 47 KB of rules into every request twice.
   run grep -c 'Staged stubs (allowed)' "$global"
   [ "$output" = "0" ]
   grep -q '## Memory Bank status line' "$global"
-  grep -q '~/.config/opencode/skills/memory-bank/rules/RULES.md' "$global"
+  grep -qF "$rules" "$global"
+  cmp -s "$rules" "$REPO_ROOT/rules/RULES.md"
+  # shellcheck disable=SC2088 # Match the legacy literal pointer, not HOME.
   run grep -c '~/.claude/RULES.md' "$global"
   [ "$output" = "0" ]
   [ "$(wc -c < "$global")" -lt 25000 ]

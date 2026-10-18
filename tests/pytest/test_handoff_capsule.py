@@ -32,6 +32,21 @@ REQUIRED_HEADERS = [
 ]
 
 
+def test_handoff_collectors_filter_full_private_sources_before_selection(tmp_path: Path) -> None:
+    bank = _bank(
+        tmp_path,
+        checklist="<private>\n- [ ] PRIVATE_CAPSULE_CHECKLIST\n</private>\n- [ ] public remaining task\n",
+        progress="<private>\n### PRIVATE_CAPSULE_PROGRESS\nprivate body\n</private>\n### public completed work\npublic body\n",
+        backlog="<private>\n### I-001 PRIVATE_CAPSULE_BACKLOG [HIGH, NEW]\n</private>\n",
+        roadmap="<!-- mb-active-plans -->\n<private>\n- [private](plans/PRIVATE_CAPSULE_PLAN.md)\n</private>\n- [public](plans/public.md)\n<!-- /mb-active-plans -->\n",
+    )
+    result = _build(bank)
+    assert "PRIVATE_CAPSULE" not in result
+    assert "public remaining task" in result
+    assert "public completed work" in result
+    assert "plans/public.md" in result
+
+
 def _bank(tmp_path: Path, **files: str) -> Path:
     bank = tmp_path / ".memory-bank"
     bank.mkdir()

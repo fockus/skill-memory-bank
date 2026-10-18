@@ -31,16 +31,14 @@ HOSTS = SHIPPED + DETECTED
 HOST_NOTES = {
     "pi": "Pi: bare aliases (opus/sonnet/haiku/inherit) collapse to the parent model and "
           "models must be provider/id of the parent's provider (AGR-056).",
-    "opencode": "OpenCode: the subagent model is static. `config init --host opencode` writes the "
-                "role's model (`model: provider/id`) into the installed project agents "
-                "(.opencode/agent/*.md); adapter install reads .memory-bank/pipeline.yaml too.",
+    "opencode": "OpenCode 2: config init renders provider/model#variant role pins; /mb work resolves the "
+                 "selected pipeline per run. Inherit overrides use the native session model, never this config default.",
     "cursor": "Cursor: the subagent model is static frontmatter. `config init --host cursor` writes it "
               "into the installed global ~/.cursor/agents/mb-*.md from this pipeline (the last init "
               "wins); a plain install-global uses the shipped default profile and MB_COST.",
     "codex": "Codex: `config init --host codex` writes `model` into the installed "
              "~/.codex/agents/*.toml; a reinstall renders them without it until the next init.",
 }
-# Hosts whose subagent model lives in the installed agent file → adapter re-render entry.
 STATIC_HOSTS = {"opencode": "opencode.sh", "cursor": "cursor.sh", "codex": "codex.sh"}
 ADAPTERS_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "adapters")
 _PLAIN = re.compile(r"^[A-Za-z0-9._/-]+$")
@@ -74,7 +72,7 @@ def pi_current(root: str) -> str:
 
 
 def opencode_current(root: str) -> str:
-    """OpenCode `model` by its precedence; `small_model` is the cheap slot and never read."""
+    """Configured OpenCode default, not the session selection; never read small_model."""
     cfg_home = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
     layers = [_json(os.path.join(cfg_home, "opencode", "opencode.json")),
               _json(os.environ["OPENCODE_CONFIG"]) if os.environ.get("OPENCODE_CONFIG") else {},
@@ -84,7 +82,12 @@ def opencode_current(root: str) -> str:
     model = ""
     for layer in layers:
         if isinstance(layer, dict) and layer.get("model"):
-            model = str(layer["model"])
+            value = layer["model"]
+            if isinstance(value, dict):
+                model = (f"{value['providerID']}/{value['model']}" +
+                         (f"#{value['variant']}" if value.get("variant") else "")) if value.get("providerID") and value.get("model") else ""
+            else:
+                model = str(value)
     return model
 
 
@@ -192,7 +195,7 @@ def cmd_init(a) -> int:
 def render_installed_agents(host: str, root: str, pipeline: str) -> int:
     """Re-render the host's installed agents with this pipeline's tier models (the adapter writes)."""
     cmd = ["bash", os.path.join(ADAPTERS_DIR, STATIC_HOSTS[host]), "render-agents"]
-    cmd += [pipeline] if host == "cursor" else [root, pipeline]
+    cmd += [pipeline] if host == "cursor" else [root] if host == "opencode" else [root, pipeline]
     out = subprocess.run(cmd, capture_output=True, text=True)
     if out.returncode != 0:
         sys.stderr.write(out.stdout + out.stderr)

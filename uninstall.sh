@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 # shellcheck disable=SC1091
 . "$SKILL_DIR/scripts/_lib.sh"
+# shellcheck source=adapters/_framework.sh
+. "$SKILL_DIR/adapters/_framework.sh"
+# shellcheck source=scripts/_install_options.sh
+. "$SKILL_DIR/scripts/_install_options.sh"
 # Interpreter that owns the memory_bank_skill package (set by the `memory-bank`
 # CLI to sys.executable); falls back to python3 for a direct `bash uninstall.sh`.
 MB_PY="${MB_PYTHON:-python3}"
@@ -13,7 +17,7 @@ MANIFEST="$(mb_resolve_manifest_path "$SKILL_DIR")"
 CLAUDE_DIR="$HOME/.claude"
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CURSOR_DIR="$HOME/.cursor"
-OPENCODE_DIR="$HOME/.config/opencode"
+OPENCODE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 PI_AGENT_DIR="$HOME/.pi/agent"
 CODEX_START_MARKER="<!-- memory-bank-codex:start -->"
 CODEX_END_MARKER="<!-- memory-bank-codex:end -->"
@@ -26,6 +30,7 @@ YELLOW='\033[1;33m'
 
 managed_roots=("$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR" "$OPENCODE_DIR" "$PI_AGENT_DIR")
 NON_INTERACTIVE=0
+ONLY="" PROJECT_ROOT=""
 # A22 (CDX-I11): explicit opt-in to proceed past a corrupt manifest (below).
 FORCE=0
 
@@ -36,6 +41,13 @@ run_texttool() {
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --only)
+      [ "${2:-}" = opencode ] || { echo '[uninstall.sh] --only requires opencode' >&2; exit 1; }
+      ONLY=opencode; shift 2 ;;
+    --project-root)
+      PROJECT_ROOT="${2:-}"
+      [ -n "$PROJECT_ROOT" ] || { echo '[uninstall.sh] --project-root requires a path' >&2; exit 1; }
+      shift 2 ;;
     -y|--non-interactive)
       NON_INTERACTIVE=1
       shift
@@ -46,10 +58,10 @@ while [ $# -gt 0 ]; do
       ;;
     --help|-h)
       cat <<'EOF'
-Usage: uninstall.sh [-y|--non-interactive] [--force]
+Usage: uninstall.sh [-y|--non-interactive] [--force] [--only opencode] [--project-root PATH]
 
   -y, --non-interactive   Skip confirmation prompt and uninstall immediately.
-  --force                 Proceed even if the manifest is corrupt/unreadable
+  --force                 Proceed even if the manifest contains corrupt JSON
                            (treated as empty — only generic cleanup runs).
 EOF
       exit 0
@@ -61,9 +73,19 @@ EOF
   esac
 done
 
+mb_opencode_install_scope || exit 1
+mb_validate_opencode_scope || exit 1
+if [ -n "$PROJECT_ROOT" ] && [ "$ONLY" != opencode ]; then
+  echo '[uninstall.sh] --project-root requires --only opencode' >&2; exit 1
+fi
+
 echo -e "\n${BOLD}═══ Uninstalling skill-memory-bank ═══${NC}\n"
 
 if [ ! -f "$MANIFEST" ]; then
+  if [ "$ONLY" = opencode ]; then
+    echo "[uninstall.sh] no OpenCode ownership record: $MANIFEST; keep installed files and restore the authoritative record before retrying" >&2
+    exit 1
+  fi
   echo -e "${RED}No manifest found.${NC} Manual cleanup:"
   echo "  rm ~/.claude/commands/{mb,adr,plan,start,done,commit,review,test,doc,pr,changelog,catchup,refactor,security-review,contract,api-contract,db-migration,observability}.md"
   echo "  rm ~/.claude/agents/{mb-doctor,mb-manager,plan-verifier,mb-codebase-mapper}.md"
@@ -74,18 +96,17 @@ if [ ! -f "$MANIFEST" ]; then
   exit 1
 fi
 
-# A22 (CDX-I11): a truncated/corrupt manifest used to be silently treated as
-# EMPTY (every downstream reader `2>/dev/null`s the JSON parse and gets no
-# lines back), so uninstall.sh quietly removed nothing while reporting
-# success. Fail loudly instead, unless the caller explicitly opts in via
-# --force (manifest is then treated as empty — only the generic/manual
-# cleanup steps below still run).
-if ! MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; json.load(open(os.environ['MANIFEST_PATH']))" >/dev/null 2>&1; then
-  if [ "$FORCE" -eq 1 ]; then
-    echo -e "${YELLOW}~${NC} manifest at $MANIFEST is corrupt/unreadable — proceeding anyway (--force)" >&2
+MB_CORRUPT_MANIFEST=0
+# --force may waive malformed JSON, never operational manifest read failures.
+manifest_status=0
+_mb_strict_file uninstall-manifest "$MANIFEST" "$MANIFEST" "$OPENCODE_DIR" >/dev/null || manifest_status=$?
+if [ "$manifest_status" -ne 0 ]; then
+  if [ "$FORCE" -eq 1 ] && [ "$manifest_status" -eq 2 ]; then
+    MB_CORRUPT_MANIFEST=1
+    echo -e "${YELLOW}~${NC} manifest at $MANIFEST is corrupt JSON — proceeding anyway (--force)" >&2
   else
-    echo -e "${RED}Manifest is corrupt or unreadable:${NC} $MANIFEST" >&2
-    echo "  Re-run with --force to proceed anyway (treated as empty — only generic cleanup runs)." >&2
+    echo -e "${RED}Manifest is unsafe, corrupt or unreadable:${NC} $MANIFEST" >&2
+    echo "  Restore read access, or use --force only for corrupt JSON." >&2
     exit 1
   fi
 fi
@@ -104,21 +125,32 @@ if [ "$NON_INTERACTIVE" -eq 0 ]; then
   [ "$c" != "y" ] && exit 0
 fi
 
+if [ "$ONLY" = opencode ]; then
+  # shellcheck source=adapters/_opencode_preflight.sh
+  . "$SKILL_DIR/adapters/_opencode_preflight.sh"
+  # shellcheck source=adapters/_opencode_scoped_uninstall.sh
+  . "$SKILL_DIR/adapters/_opencode_scoped_uninstall.sh"
+  opencode_scoped_uninstall
+  exit $?
+fi
+
+# Validate and snapshot metadata before any cleanup can remove the installed bundle.
+backup_entries="" file_entries=""
+if [ "$MB_CORRUPT_MANIFEST" = 0 ]; then
+  backup_entries=$(_mb_strict_file legacy-backups "$MANIFEST" "$MANIFEST" "$OPENCODE_DIR") || exit 1
+  file_entries=$(_mb_strict_file legacy-files "$MANIFEST" "$MANIFEST" "$OPENCODE_DIR") || exit 1
+fi
+
 remove_files_and_restore_backups() {
-# Run only after every helper/adapter has finished: the managed files can
-# include this script's own bundle. Snapshot rollback metadata before its
-# co-located manifest can disappear with the bundle.
-local backup_entries
-backup_entries=$(MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(b) for b in json.load(open(os.environ['MANIFEST_PATH'])).get('backups',[])]" 2>/dev/null || true)
+  [ "$MB_CORRUPT_MANIFEST" = 0 ] || return 0
+_mb_strict_file global-remove "$MANIFEST" "$MANIFEST" "$OPENCODE_DIR" || return 1
 
 echo -e "\n${BLUE}Removing files...${NC}"
-# A22: `|| true` so a corrupt manifest (only reachable here via --force,
-# gated above) degrades to "nothing to remove" instead of a hard `set -e
-# -o pipefail` crash on the JSON-parse failure — consistent with every other
-# manifest reader in this script (Restoring backups, per-project adapters).
-MANIFEST_PATH="$MANIFEST" "$MB_PY" -c "import json, os; [print(f) for f in json.load(open(os.environ['MANIFEST_PATH'])).get('files',[])]" 2>/dev/null | while read -r filepath; do
+# OpenCode mandatory I/O has completed before legacy best-effort cleanup.
+printf '%s\n' "$file_entries" | while read -r filepath; do
   [ -z "$filepath" ] && continue
   case "$filepath" in
+    "$OPENCODE_DIR"/*) continue ;;
     "$CLAUDE_DIR/CLAUDE.md"|"$CLAUDE_DIR/settings.json"|"$OPENCODE_DIR/AGENTS.md"|"$CODEX_DIR/AGENTS.md"|"$CODEX_DIR/hooks.json"|"$CODEX_DIR/config.toml"|"$CURSOR_DIR/AGENTS.md"|"$CURSOR_DIR/hooks.json"|"$PI_AGENT_DIR/AGENTS.md"|"$PI_AGENT_DIR/settings.json")
       echo "  keep $filepath (managed merged file)"
       continue
@@ -139,7 +171,7 @@ printf '%s\n' "$backup_entries" | while read -r bp; do
   [ -n "$bp" ] && echo "$bp" | grep -q '|' && {
     orig="${bp%%|*}"; bak="${bp##*|}"
     case "$orig" in
-      "$CLAUDE_DIR/CLAUDE.md"|"$CODEX_DIR/hooks.json"|"$CODEX_DIR/config.toml")
+      "$CLAUDE_DIR/CLAUDE.md"|"$CODEX_DIR/hooks.json"|"$CODEX_DIR/config.toml"|"$OPENCODE_DIR/AGENTS.md")
         # A20 (CDX-I9): CLAUDE.md is a merge-managed file with paired A13
         # start/end markers (see the "keep ... (managed merged file)" skip
         # above) and install.sh now keeps the live file self-contained
@@ -153,6 +185,7 @@ printf '%s\n' "$backup_entries" | while read -r bp; do
         continue
         ;;
     esac
+    case "$orig" in "$OPENCODE_DIR"/*) continue ;; esac
     if mb_path_is_within "$orig" "${managed_roots[@]}"; then
       { [ -e "$bak" ] || [ -L "$bak" ]; } && mv "$bak" "$orig" && echo "  restored $orig"
     else
@@ -217,7 +250,7 @@ fi
 
 # Key rules block (install → scripts/mb-rules.sh sync --scope=user) at the top
 # of the global files; stripped first so empty host files can be removed below.
-for kr_file in "$CLAUDE_DIR/CLAUDE.md" "$CODEX_DIR/AGENTS.md" "$PI_AGENT_DIR/AGENTS.md" "$OPENCODE_DIR/AGENTS.md" "$CURSOR_DIR/AGENTS.md"; do
+for kr_file in "$CLAUDE_DIR/CLAUDE.md" "$CODEX_DIR/AGENTS.md" "$PI_AGENT_DIR/AGENTS.md" "$CURSOR_DIR/AGENTS.md"; do
   [ -f "$kr_file" ] && grep -qF "<!-- mb-key-rules:start -->" "$kr_file" && run_texttool strip-between-markers --path "$kr_file" --start-marker "<!-- mb-key-rules:start -->" --end-marker "<!-- mb-key-rules:end -->" 2>/dev/null || true
 done
 
@@ -228,10 +261,8 @@ done
 # to-EOF behavior for those (nothing worse than before, no regression).
 [ -f "$CLAUDE_DIR/CLAUDE.md" ] && grep -q "\[MEMORY-BANK-SKILL\]" "$CLAUDE_DIR/CLAUDE.md" && run_texttool strip-between-markers --path "$CLAUDE_DIR/CLAUDE.md" --start-marker "# [MEMORY-BANK-SKILL]" --end-marker "<!-- /memory-bank-skill -->" 2>/dev/null && echo "  CLAUDE.md cleaned" || true
 
-# Clean OpenCode AGENTS.md MB section — its own marker pair, plus the shared
-# `memory-bank` pair that installs before agents-md-diet Stage 3 wrote there.
-[ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank-opencode:start" "$OPENCODE_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$OPENCODE_DIR/AGENTS.md" --start-marker "<!-- memory-bank-opencode:start -->" --end-marker "<!-- memory-bank-opencode:end -->" 2>/dev/null && echo "  OpenCode AGENTS.md cleaned" || true
-[ -f "$OPENCODE_DIR/AGENTS.md" ] && grep -q "memory-bank:start" "$OPENCODE_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$OPENCODE_DIR/AGENTS.md" --start-marker "<!-- memory-bank:start -->" --end-marker "<!-- memory-bank:end -->" 2>/dev/null && echo "  OpenCode AGENTS.md cleaned (legacy marker)" || true
+# shellcheck source=adapters/opencode_uninstall.sh
+. "$SKILL_DIR/adapters/opencode_uninstall.sh" || exit $?
 
 # Clean Codex AGENTS.md MB section
 [ -f "$CODEX_DIR/AGENTS.md" ] && grep -q "memory-bank-codex:start" "$CODEX_DIR/AGENTS.md" && run_texttool strip-between-markers --path "$CODEX_DIR/AGENTS.md" --start-marker "$CODEX_START_MARKER" --end-marker "$CODEX_END_MARKER" 2>/dev/null && echo "  Codex AGENTS.md cleaned" || true
@@ -250,7 +281,7 @@ fi
 # `uninstall` so it removes its project artifacts AND decrements the shared
 # AGENTS.md owners refcount (adapters/_lib_agents_md.sh) — otherwise stale
 # project files + an inflated refcount are left behind.
-if [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
+if [ "$MB_CORRUPT_MANIFEST" = 0 ] && [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
   MB_UNINSTALL_PROJECT_ROOT="$(jq -r '.project_root // empty' "$MANIFEST" 2>/dev/null || true)"
   if [ -n "$MB_UNINSTALL_PROJECT_ROOT" ] && [ -d "$MB_UNINSTALL_PROJECT_ROOT" ]; then
     while IFS= read -r mb_client; do
@@ -260,17 +291,18 @@ if [ -f "$MANIFEST" ] && command -v jq >/dev/null 2>&1; then
         echo -e "${YELLOW}  ~ $mb_client adapter script missing, skipped (manual cleanup may be needed)${NC}" >&2
         continue
       fi
-      if bash "$mb_adapter" uninstall "$MB_UNINSTALL_PROJECT_ROOT" >/dev/null 2>&1; then
+      if bash "$mb_adapter" uninstall "$MB_UNINSTALL_PROJECT_ROOT" >/dev/null; then
         echo "  $mb_client project adapter cleaned ($MB_UNINSTALL_PROJECT_ROOT)"
       else
         echo -e "${YELLOW}  ~ $mb_client adapter uninstall reported an error (see manual cleanup)${NC}" >&2
+        [ "$mb_client" != opencode ] || exit 1
       fi
-    done < <(jq -r '.clients[]? // empty' "$MANIFEST" 2>/dev/null)
+    done < <(jq -r '[(.clients[]? // empty), (.adapters_failed[]? | select(. == "opencode"))] | unique[]' "$MANIFEST" 2>/dev/null)
   fi
 fi
 
-remove_files_and_restore_backups
-rm -f "$MANIFEST"
+remove_files_and_restore_backups || exit $?
+rm -f "$MANIFEST" || exit 1
 rmdir "$CLAUDE_DIR/skills" 2>/dev/null || true
 rmdir "$CODEX_DIR/skills" 2>/dev/null || true
 rmdir "$CODEX_DIR/prompts" 2>/dev/null || true

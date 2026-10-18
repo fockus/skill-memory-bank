@@ -22,6 +22,8 @@
 # — install from a TMP copy of the repo + a sandboxed $HOME so nothing under
 # the real repo or the real $HOME is ever mutated.
 
+load lib/assert
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   command -v jq >/dev/null || skip "jq required"
@@ -124,7 +126,7 @@ run_install() {
   # ~/.config/opencode/agent/, and this project's plugin.js is the
   # EXTENDED variant (session-start context injection + per-turn capture).
   [ -f "$FAKE_HOME/.config/opencode/agent/mb-developer.md" ]
-  grep -q "^const MB_OC_PARITY_EXTENDED = true;" \
+  grep -qF 'export default createMemoryBankPlugin({ extended: true });' \
     "$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$MANIFEST" ]
   jq -e '.extensions_installed == ["pi", "opencode"]' "$MANIFEST" >/dev/null
@@ -204,44 +206,30 @@ run_install() {
   # project's plugin.js upgraded to the extended (session-start injection +
   # per-turn capture) variant.
   [ -f "$FAKE_HOME/.config/opencode/agent/mb-developer.md" ]
-  ! grep -q '__MB_' "$FAKE_HOME/.config/opencode/agent/mb-developer.md"
-  grep -q "^const MB_OC_PARITY_EXTENDED = true;" \
+  refute_grep -q '__MB_' "$FAKE_HOME/.config/opencode/agent/mb-developer.md"
+  grep -qF 'export default createMemoryBankPlugin({ extended: true });' \
     "$PROJECT/.opencode/plugins/memory-bank.js"
   # No stray un-designed .opencode/extensions dir — OpenCode's global
   # artifact is the agent roster, not a project-local extensions/ dir.
   [ ! -d "$PROJECT/.opencode/extensions" ]
 }
 
-# Codex review fix (major #1): a failed install-global-agents used to leave
-# MB_OC_PARITY_ACCEPTED=1 exported anyway (it was set BEFORE the success
-# check) — Step 8's unconditional plugin write then still upgraded to the
-# EXTENDED variant despite opencode never being recorded in
-# extensions_installed[]. Force the failure SURGICALLY: pre-create
-# ~/.config/opencode as a real DIRECTORY (so install.sh's own unrelated,
-# pre-existing install_opencode_global_agents step — which also does
-# `mkdir -p "$HOME/.config/opencode"` for the global AGENTS.md — keeps
-# working) but put a REGULAR FILE at .../opencode/agent, the exact path
-# adapters/opencode.sh install-global-agents needs as a directory. Per the
-# documented "never fatal" extension-offer contract
-# (mb_install_host_extensions's own header comment: "Non-zero → offer
-# accepted but installation failed; the host is NOT recorded, install
-# continues"), the overall install.sh run still exits 0 — only the
-# opencode-specific artifacts must reflect the failure honestly.
-@test "extensions-offer: a failed opencode global-agents install leaves the plugin at the BASE variant (not extended)" {
+# A global-role refusal must not enable a fresh project plugin or overwrite its blocker.
+@test "extensions-offer: a failed opencode global-agents install refuses without enabling a fresh plugin" {
   mkdir -p "$FAKE_HOME/.config/opencode"
-  : > "$FAKE_HOME/.config/opencode/agent"  # regular file where a dir is expected
+  printf 'User agent blocker\n' > "$FAKE_HOME/.config/opencode/agent"
+  snapshot "$FAKE_HOME/.config/opencode/agent" "$BATS_TEST_TMPDIR/blocker.before"
 
   run_install --clients opencode --project-root "$PROJECT" --non-interactive --with-extensions=opencode
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
   [[ "$output" == *"global agents install failed"* ]]
+  [ -f "$FAKE_HOME/.config/opencode/agent" ]
+  assert_unchanged "$FAKE_HOME/.config/opencode/agent" "$BATS_TEST_TMPDIR/blocker.before"
   # extensions_installed must NOT record opencode on a failed install.
   [ -f "$MANIFEST" ]
   jq -e '.extensions_installed == []' "$MANIFEST" >/dev/null
-  # The project's plugin.js must stay the BASE variant — the dishonest-state
-  # bug this test guards against.
-  [ -f "$PROJECT/.opencode/plugins/memory-bank.js" ]
-  grep -q "^const MB_OC_PARITY_EXTENDED = false;" \
-    "$PROJECT/.opencode/plugins/memory-bank.js"
+  jq -e '.adapters_failed == ["opencode"]' "$MANIFEST" >/dev/null
+  refute_file "$PROJECT/.opencode/plugins/memory-bank.js"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -398,7 +386,7 @@ _nfr001_compare_declined_installs() {
   _nfr001_compare_declined_installs pi,opencode --non-interactive
   [ ! -f "$FAKE_HOME/.pi/agent/extensions/memory-bank-session.ts" ]
   [ ! -f "$FAKE_HOME/.config/opencode/agent/mb-developer.md" ]
-  grep -q '^const MB_OC_PARITY_EXTENDED = false;' "$PROJECT/.opencode/plugins/memory-bank.js"
+  grep -qF 'export default createMemoryBankPlugin({ extended: false });' "$PROJECT/.opencode/plugins/memory-bank.js"
 }
 
 @test "extensions-offer: codex-only declined install ignores unrelated extension opt-in (NFR-001)" {

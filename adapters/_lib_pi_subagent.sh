@@ -130,13 +130,27 @@ _pi_path_foreign() {
 }
 
 _pi_entrypoint_foreign() {
-  local tmp launcher_sha
-  tmp="$(mktemp)"
-  _pi_launcher_write "$tmp"
-  launcher_sha="$(_pi_sha256 "$tmp")"
-  rm -f "$tmp"
-  _pi_path_foreign "$(_pi_entrypoint)" "$launcher_sha" ||
-    _pi_path_foreign "$(_pi_entrypoint_module)" "$(_pi_sha256 "$SKILL_DIR/adapters/pi_managed_entrypoint.mjs")"
+  # 0 = foreign, 1 = safe, 2 = required I/O failed; the caller must distinguish.
+  local tmp launcher_sha module_sha path expected current recorded
+  tmp="$(mktemp "${TMPDIR:-/tmp}/mb-pi-entrypoint.XXXXXX")" || return 2
+  if ! _pi_launcher_write "$tmp" || ! launcher_sha="$(_pi_sha256 "$tmp")" || [ -z "$launcher_sha" ]; then
+    rm -f "$tmp"
+    return 2
+  fi
+  rm -f "$tmp" || return 2
+  module_sha="$(_pi_sha256 "$SKILL_DIR/adapters/pi_managed_entrypoint.mjs")" || return 2
+  [ -n "$module_sha" ] || return 2
+  # The boolean path helper masks read failures; check each required read here.
+  for path in "$(_pi_entrypoint)" "$(_pi_entrypoint_module)"; do
+    [ -e "$path" ] || continue
+    current="$(_pi_sha256 "$path")" || return 2
+    [ -n "$current" ] || return 2
+    recorded="$(_pi_owned_sha "$path")" || return 2
+    expected="$module_sha"
+    [ "$path" != "$(_pi_entrypoint)" ] || expected="$launcher_sha"
+    if [ "$current" != "$expected" ] && [ -z "$recorded" ]; then return 0; fi
+  done
+  return 1
 }
 
 _install_pi_entrypoint() {

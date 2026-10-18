@@ -27,6 +27,8 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
 if [ "${MB_AGENT:-}" = "codex" ]; then
   LOG_FILE="${CODEX_HOME:-$HOME/.codex}/file-changes.log"
+elif [ "${MB_AGENT:-}" = "opencode" ]; then
+  LOG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/file-changes.log"
 elif [ "${MB_AGENT:-}" = "cursor" ] || [ -d "$HOME/.cursor/skills/memory-bank" ]; then
   LOG_FILE="$HOME/.cursor/file-changes.log"
 else

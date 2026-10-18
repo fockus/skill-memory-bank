@@ -40,6 +40,20 @@ fi
 
 CONTEXT="[MEMORY BANK: ACTIVE]\n\n"
 
+# Strip complete spans before line selection can discard their delimiters.
+public_source() {
+  "${MB_PYTHON:-python3}" - "$HOOK_DIR/.." "$1" 2>/dev/null <<'PY' || true
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from memory_bank_skill.private import strip_private
+try:
+    sys.stdout.write(strip_private(Path(sys.argv[2]).read_text(encoding="utf-8"))[0])
+except (OSError, UnicodeError):
+    sys.exit(1)
+PY
+}
+
 # Stale managed project blocks (I-251) — same one-line hint / MB_AUTO_REFRESH=on
 # refresh as the Claude Code SessionStart hook.
 MB_LIB="$HOOK_DIR/../adapters/_lib_agents_md.sh"
@@ -69,18 +83,18 @@ if [ -f "$CAP_SH" ]; then
 fi
 
 if [ -f "$MB/status.md" ]; then
-  CONTEXT+="## status.md\n$(head -30 "$MB/status.md")\n\n"
+  CONTEXT+="## status.md\n$(public_source "$MB/status.md" | head -30)\n\n"
 fi
 
 if [ -f "$MB/checklist.md" ]; then
-  unfinished=$(grep -E '^- \[ \]' "$MB/checklist.md" 2>/dev/null | head -10 || true)
+  unfinished=$(public_source "$MB/checklist.md" | grep -E '^- \[ \]' | head -10 || true)
   if [ -n "$unfinished" ]; then
     CONTEXT+="## checklist (unfinished)\n${unfinished}\n\n"
   fi
 fi
 
 if [ -f "$MB/roadmap.md" ]; then
-  roadmap_hint=$(grep -E '^(## Now|## Next|_None\.)' "$MB/roadmap.md" 2>/dev/null | head -5 || true)
+  roadmap_hint=$(public_source "$MB/roadmap.md" | grep -E '^(## Now|## Next|_None\.)' | head -5 || true)
   if [ -n "$roadmap_hint" ]; then
     CONTEXT+="## roadmap\n${roadmap_hint}\n\n"
   fi
@@ -117,7 +131,7 @@ if [ -f "$HANDOFF_LATEST" ]; then
   # A heading may carry a trailing parenthetical, e.g. `## 2026-06-07 (topic)`.
   last_progress_epoch=0
   if [ -f "$MB/progress.md" ]; then
-    last_date=$(grep -oE '^## [0-9]{4}-[0-9]{2}-[0-9]{2}' "$MB/progress.md" 2>/dev/null \
+    last_date=$(public_source "$MB/progress.md" | grep -oE '^## [0-9]{4}-[0-9]{2}-[0-9]{2}' \
       | sed -E 's/^## //' | sort -r | head -1 || true)
     if [ -n "$last_date" ]; then
       # BSD date (-j -f) then GNU date (-d); fall back to 0 on parse failure.
@@ -127,7 +141,7 @@ if [ -f "$HANDOFF_LATEST" ]; then
   fi
 
   if [ "$capsule_mtime" -gt "$last_progress_epoch" ]; then
-    capsule_body=$(head -c "$HANDOFF_CAP" "$HANDOFF_LATEST" 2>/dev/null || true)
+    capsule_body=$(public_source "$HANDOFF_LATEST" | head -c "$HANDOFF_CAP" || true)
     if [ -n "$capsule_body" ]; then
       CONTEXT="[MEMORY BANK: ACTIVE]\n\n## Handoff capsule (fresh — restored from PreCompact)\n${capsule_body}\n\n${CONTEXT#\[MEMORY BANK: ACTIVE\]\\n\\n}"
       echo "[mb] using fresh handoff capsule" >&2

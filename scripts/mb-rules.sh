@@ -68,7 +68,7 @@ _host_file() {
     claude)   printf '%s\n' "$HOME/.claude/CLAUDE.md" ;;
     codex)    printf '%s\n' "$HOME/.codex/AGENTS.md" ;;
     pi)       printf '%s\n' "$HOME/.pi/agent/AGENTS.md" ;;
-    opencode) printf '%s\n' "$HOME/.config/opencode/AGENTS.md" ;;
+    opencode) printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/AGENTS.md" ;;
     cursor)   printf '%s\n' "$HOME/.cursor/AGENTS.md" ;;
     *)        _die "unknown host: $1" ;;
   esac
@@ -82,7 +82,10 @@ _host_rules() {
     claude)   printf '%s\n' '~/.claude/RULES.md' ;;
     codex)    printf '%s\n' '~/.codex/skills/memory-bank/rules/RULES.md' ;;
     pi)       printf '%s\n' '~/.pi/agent/skills/memory-bank/rules/RULES.md' ;;
-    opencode) printf '%s\n' '~/.config/opencode/skills/memory-bank/rules/RULES.md' ;;
+    opencode)
+      if [ -n "${XDG_CONFIG_HOME:-}" ]; then
+        printf '%s\n' "$XDG_CONFIG_HOME/opencode/skills/memory-bank/rules/RULES.md"
+      else printf '%s\n' '~/.config/opencode/skills/memory-bank/rules/RULES.md'; fi ;;
     cursor)   printf '%s\n' '~/.cursor/skills/memory-bank/rules/RULES.md' ;;
     *)        _die "unknown host: $1" ;;
   esac

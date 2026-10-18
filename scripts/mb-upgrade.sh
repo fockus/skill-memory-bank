@@ -9,7 +9,7 @@
 #                              # override the persisted install options (A21)
 #
 # Env:
-#   MB_SKILL_DIR — path to the cloned repo. Default: ~/.claude/skills/skill-memory-bank
+#   MB_SKILL_DIR — path to the cloned repo. Default: this script's bundle
 #
 # Requirements:
 #   - skill installed via `git clone` (not ZIP)
@@ -18,9 +18,11 @@
 
 set -euo pipefail
 
-SKILL_DIR="${MB_SKILL_DIR:-$HOME/.claude/skills/skill-memory-bank}"
+SKILL_DIR="${MB_SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 # shellcheck disable=SC1091
 . "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
+# shellcheck source=_install_options.sh
+. "$(cd "$(dirname "$0")" && pwd)/_install_options.sh"
 
 CHECK_ONLY=0
 FORCE=0
@@ -29,6 +31,7 @@ OVERRIDE_LANGUAGE=""
 OVERRIDE_COMMENTS_LANGUAGE=""
 OVERRIDE_CLIENTS=""
 OVERRIDE_PROJECT_ROOT=""
+ONLY="" WITH_EXTENSIONS_FLAG=0 WITH_EXTENSIONS_VALUE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --check) CHECK_ONLY=1; shift ;;
@@ -37,6 +40,11 @@ while [ $# -gt 0 ]; do
     --comments-language) OVERRIDE_COMMENTS_LANGUAGE="${2:-}"; shift 2 ;;
     --clients) OVERRIDE_CLIENTS="${2:-}"; shift 2 ;;
     --project-root) OVERRIDE_PROJECT_ROOT="${2:-}"; shift 2 ;;
+    --only)
+      [ "${2:-}" = opencode ] || { echo '[upgrade] --only requires opencode' >&2; exit 1; }
+      ONLY=opencode; shift 2 ;;
+    --with-extensions) WITH_EXTENSIONS_FLAG=1; shift ;;
+    --with-extensions=*) WITH_EXTENSIONS_FLAG=1; WITH_EXTENSIONS_VALUE="${1#*=}"; shift ;;
     -h|--help)
       sed -n '2,17p' "$0"
       exit 0
@@ -44,6 +52,11 @@ while [ $# -gt 0 ]; do
     *) shift ;;
   esac
 done
+
+MANIFEST="$(mb_resolve_manifest_path "$SKILL_DIR")"
+mb_opencode_install_scope || exit 1
+# Upgrade --force only waives its own confirmation, never ownership checks.
+CLIENTS="$OVERRIDE_CLIENTS" FORCE=0 mb_validate_opencode_scope || exit 1
 
 # ═══ A21 (CDX-I10): persist + reapply install options across upgrade ═══
 # install.sh saves {language, comments_language, clients_requested,
@@ -195,15 +208,18 @@ if [ -x "$SKILL_DIR/install.sh" ]; then
   # A21: reapply the previous install's language/clients/project-root
   # non-interactively instead of resetting to install.sh's bare defaults.
   install_args=(--non-interactive)
+  [ -z "$ONLY" ] || install_args+=(--only "$ONLY")
+  [ "$WITH_EXTENSIONS_FLAG" = 0 ] || install_args+=("--with-extensions=$WITH_EXTENSIONS_VALUE")
   resolved_language="$OVERRIDE_LANGUAGE"
   resolved_comments_language="$OVERRIDE_COMMENTS_LANGUAGE"
   resolved_clients="$OVERRIDE_CLIENTS"
   resolved_project_root="$OVERRIDE_PROJECT_ROOT"
 
   if [ -z "$resolved_language" ] && [ -z "$resolved_clients" ]; then
-    if mb_saved_install_options "$(mb_resolve_manifest_path "$SKILL_DIR")"; then
+    if mb_saved_install_options "$MANIFEST"; then
       resolved_language="$MB_SAVED_LANGUAGE"
       resolved_clients="$MB_SAVED_CLIENTS"
+      [ "$ONLY" != opencode ] || resolved_clients=opencode
       [ -z "$resolved_comments_language" ] && resolved_comments_language="$MB_SAVED_COMMENTS_LANGUAGE"
       [ -z "$resolved_project_root" ] && resolved_project_root="$MB_SAVED_PROJECT_ROOT"
     else

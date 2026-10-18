@@ -4,6 +4,44 @@
 # cleaned the old keg. Sourced by install.sh after scripts/_lib.sh
 # (MB_VALID_CLIENTS, MB_VALID_LANGUAGES).
 
+# Keep selective options outside a package-manager-owned bundle. No inference
+# from markers, incoming bytes or aliases confers ownership of installed files.
+mb_opencode_install_scope() {
+  local native="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/.mb-install-manifest.json" saved=""
+  if [ -z "${MB_MANIFEST_PATH:-}" ] && { [ "${ONLY:-}" = opencode ] || [ -f "$native" ]; }; then
+    MANIFEST="$native"
+  fi
+  if [ -f "$MANIFEST" ]; then
+    if ! saved=$(jq -r --arg home "$HOME" 'if .home == $home then .install_scope // "" else "" end' "$MANIFEST" 2>/dev/null); then
+      # Leave the old unscoped corrupt-manifest policy to its existing validator.
+      if [ -n "${ONLY:-}" ] || [ "$MANIFEST" = "$native" ]; then
+        echo "[install] cannot read selective ownership/options: $MANIFEST; restore its authoritative record" >&2
+        return 1
+      fi
+      saved=""
+    fi
+  fi
+  ONLY="${ONLY:-$saved}"
+  [ -z "$ONLY" ] || [ "$ONLY" = opencode ] || { echo '[install] unsupported saved scope' >&2; return 1; }
+}
+
+mb_validate_opencode_scope() {
+  [ "${ONLY:-}" = opencode ] || return 0
+  if [ -n "${CLIENTS:-}" ] && [ "$CLIENTS" != opencode ]; then
+    echo '[install] --only opencode conflicts with --clients; omit --clients or use opencode' >&2
+    return 1
+  fi
+  if [ -n "${KEY_RULES_MODE:-}" ] || [ "${FORCE:-0}" = 1 ]; then
+    echo '[install] --only opencode does not support --key-rules or --force; preserve existing selections' >&2
+    return 1
+  fi
+  case "${WITH_EXTENSIONS_VALUE:-}" in
+    ''|opencode) ;;
+    *) echo '[install] --only opencode accepts only --with-extensions=opencode' >&2; return 1 ;;
+  esac
+  export MB_INSTALL_ONLY=opencode
+}
+
 # mb_inferred_install_options <project_root> — the options an earlier install
 # left traces of. Sets the same MB_SAVED_* variables as mb_saved_install_options
 # (MB_SAVED_PROJECT_ROOT stays empty: the caller's cwd rule decides) plus

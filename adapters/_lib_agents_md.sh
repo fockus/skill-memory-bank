@@ -410,8 +410,7 @@ agents_md_install() {
 }
 
 # ───────── Uninstall ─────────
-# Removes client from owners. If owners becomes empty: remove section (and file
-# if initial_had_user_content == false).
+# Removes client from owners. Last-owner removal strips only managed blocks.
 agents_md_uninstall() {
   local project_root="$1"
   local client="$2"
@@ -423,10 +422,10 @@ agents_md_uninstall() {
   [ -f "$owners_file" ] || return 0
 
   local owners
-  owners=$(cat "$owners_file")
-  owners=$(echo "$owners" | jq --arg c "$client" '.owners = ((.owners // []) - [$c])')
+  owners=$(cat "$owners_file") || return 1
+  owners=$(echo "$owners" | jq --arg c "$client" '.owners = ((.owners // []) - [$c])') || return 1
   local remaining
-  remaining=$(echo "$owners" | jq '.owners | length')
+  remaining=$(echo "$owners" | jq '.owners | length') || return 1
 
   if [ "$remaining" -gt 0 ]; then
     # Other MB adapters still installed — keep section, just update refcount
@@ -435,26 +434,19 @@ agents_md_uninstall() {
   fi
 
   # No more MB adapters — remove section
-  local had_user
-  had_user=$(echo "$owners" | jq -r '.initial_had_user_content')
-
   if [ -f "$agents_md" ]; then
-    if [ "$had_user" = "true" ]; then
-      # Strip our section, preserve user content
-      local tmp="$agents_md.tmp"
-      _agents_md_strip "$agents_md" > "$tmp"
-      # Remove file if fully empty
-      if ! grep -q '[^[:space:]]' "$tmp" 2>/dev/null; then
-        rm -f "$agents_md"
-      else
-        mv "$tmp" "$agents_md"
-      fi
-      rm -f "$tmp"
-    else
-      # We created the file — remove entirely
-      rm -f "$agents_md"
-    fi
+    local tmp content_rc=0
+    tmp=$(mktemp "$agents_md.XXXXXXXX") || return 1
+    cp -p "$agents_md" "$tmp" || { rm -f "$tmp"; return 1; }
+    _agents_md_strip "$agents_md" > "$tmp" || { rm -f "$tmp"; return 1; }
+    grep -q '[^[:space:]]' "$tmp" || content_rc=$?
+    case "$content_rc" in
+      0) mv "$tmp" "$agents_md" || { rm -f "$tmp"; return 1; } ;;
+      1) rm -f "$agents_md" || { rm -f "$tmp"; return 1; } ;;
+      *) rm -f "$tmp"; return 1 ;;
+    esac
+    rm -f "$tmp" || return 1
   fi
 
-  rm -f "$owners_file"
+  rm -f "$owners_file" || return 1
 }

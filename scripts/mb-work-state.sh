@@ -75,22 +75,14 @@ state_path() {
   # $1 = mb_arg, $2 = run_id (optional) → echoes the state-file path
   local bank
   bank=$(mb_resolve_path "${1:-}")
-  mbw_state_slot "$bank" "${2:-}"
+  local slot; slot=$(mbw_state_slot "$bank" "${2:-}")
+  if [ "${MB_WORK_RETAIN_STATE:-}" = 1 ]; then
+    python3 "$SCRIPT_DIR/mb_work_retention.py" guard "$bank" "${2:-}" "$slot" || return 2
+  fi
+  printf '%s\n' "$slot"
 }
 
 is_uint() { case "${1:-}" in ''|*[!0-9]*) return 1 ;; esac; }
-
-# Fails closed with a usage error unless $1 exists AND parses as JSON.
-require_valid_state() {
-  local state="$1"
-  if [ ! -f "$state" ] || ! python3 -c '
-import json, sys
-json.loads(open(sys.argv[1], encoding="utf-8").read())
-' "$state" >/dev/null 2>&1; then
-    echo "[work-state] no active work-state; run init first" >&2
-    exit 2
-  fi
-}
 
 # Shared flag parser (all but `init`): consumes --run-id, --mb (both also =X),
 # --all, -h/--help from "$@"; sets PARSED_RUN_ID (default $MB_WORK_RUN_ID),
@@ -206,6 +198,10 @@ cmd_init() {
 
   local state tmp
   state=$(mbw_state_slot "$bank" "$run_id")
+  if [ "${MB_WORK_RETAIN_STATE:-}" = 1 ]; then
+    python3 "$SCRIPT_DIR/mb_work_retention.py" guard "$bank" "$run_id" "$state" || exit 2
+    python3 "$SCRIPT_DIR/mb_work_retention.py" drop "$bank" "$run_id" || exit 2
+  fi
   mkdir -p "$(dirname "$state")"
 
   tmp=$(mktemp)
@@ -363,6 +359,9 @@ cmd_clear() {
   parse_common_flags "$@"
   local state
   state=$(state_path "$PARSED_MB" "$PARSED_RUN_ID")
+  if [ "${MB_WORK_RETAIN_STATE:-}" = 1 ]; then
+    native_retention clear "$(mb_resolve_path "$PARSED_MB")" "$PARSED_RUN_ID" "$state" || exit 2
+  fi
 
   # Release this run's source claim before removing its slot (I-094).
   if mbw_parallel_on && [ -f "$state" ]; then
@@ -385,6 +384,7 @@ main() {
     qa-cycle) shift; cmd_cycle qa_cycle "$@" ;;
     status) shift; cmd_status "$@" ;;
     list) shift; cmd_list "$@" ;;
+    retained) shift; parse_common_flags "$@"; native_retention read "$(mb_resolve_path "$PARSED_MB")" "$PARSED_RUN_ID" ;;
     done) shift; cmd_done "$@" ;;
     clear) shift; cmd_clear "$@" ;;
     eval-red) shift; cmd_eval_red "$@" ;;

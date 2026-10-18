@@ -2,9 +2,9 @@
 # Installing `main` over an older install (plan 2026-10-07_fix_upgrade-safe-install, Stage 1):
 #   - a re-run of install.sh with no flags restores the saved options (language,
 #     comments language, clients, project root); an explicit flag wins;
-#   - an upgrade from v5.3.1 ends in the same files as a clean install of the
-#     current tree: no leftovers of the old version, user text around the
-#     managed blocks intact;
+#   - hashless v5.3.1 and deleted-manifest installs preserve candidate files
+#     and refuse automatic OpenCode replacement; inference supplies options,
+#     never ownership; established-ownership upgrades remain supported;
 #   - I-250: files the previous install wrote are overwritten without a
 #     `.pre-mb-backup.*` copy; a foreign file at a managed path still gets one;
 #   - a file the old install wrote and the new one does not is removed when
@@ -28,6 +28,11 @@ setup() {
   SRC="$T/skill"
   export MB_SKIP_DEPS_CHECK=1 MB_USER_RULES_AUTO_PROMPT=off
   unset MB_CLIENTS MB_LANGUAGE MB_COMMENTS_LANGUAGE MB_WITH_EXTENSIONS MB_PATH MB_AGENT MB_MANIFEST_PATH XDG_DATA_HOME CODEX_HOME || true
+  export XDG_CONFIG_HOME="$HOME/.config" XDG_DATA_HOME="$HOME/.local/share"
+  export XDG_CACHE_HOME="$HOME/.cache" XDG_STATE_HOME="$HOME/.local/state"
+  export XDG_RUNTIME_DIR="$HOME/run" XDG_CONFIG_DIRS="$HOME/config-dirs" XDG_DATA_DIRS="$HOME/data-dirs"
+  export CODEX_HOME="$HOME/.codex" TMPDIR="$T/tmp"
+  mkdir -p "$TMPDIR" "$XDG_RUNTIME_DIR"
   command -v jq >/dev/null || skip "jq required"
   command -v rsync >/dev/null || skip "rsync required"
   _fresh
@@ -44,9 +49,10 @@ _fresh() {
 # even while the repo is being edited.
 _sync_current() {
   if [ ! -d "$T/current" ]; then
-    rsync -a --exclude='.git' --exclude='.index' --exclude='.memsearch' \
-      --exclude='/tests' --exclude='node_modules' --exclude='.venv' --exclude='/.pi' \
-      --exclude='/.memory-bank' --exclude='.installed-manifest.json' "$REPO_ROOT/" "$T/current/"
+    mkdir -p "$T/current"
+    rsync -a --exclude='.env*' --exclude='__pycache__' \
+      "$REPO_ROOT/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,settings,memory_bank_skill} \
+      "$REPO_ROOT/"{install.sh,uninstall.sh,VERSION,SKILL.md} "$T/current/"
   fi
   rsync -a --delete --exclude='.installed-manifest.json' "$T/current/" "$SRC/"
 }
@@ -80,39 +86,31 @@ _add_user_text() {
   done < <(_instruction_files)
 }
 
-# _tree_listing <dir> — one line per path: type + content hash. Manifest
-# timestamps and backup lists are dropped; project .git internals other than
-# hooks are skipped (a fresh `git init` differs in nothing we manage).
+# _tree_listing <dir> — exact candidate bytes and file/link identities.
+# Git internals other than hooks are not installer candidates.
 _tree_listing() {
   /usr/bin/python3 - "$1" <<'PY'
-import hashlib, json, os, sys
+import hashlib, os, stat, sys
 root = sys.argv[1]
-VOLATILE = {"installed_at", "backups"}
-def norm(v):
-    if isinstance(v, dict):
-        return {k: norm(x) for k, x in v.items() if k not in VOLATILE}
-    if isinstance(v, list):
-        return [norm(x) for x in v]
-    return v
 out = []
-for d, dirs, files in os.walk(root):
+def failed(exc):
+    raise exc
+for d, dirs, files in os.walk(root, onerror=failed):
     rel_d = os.path.relpath(d, root)
-    if rel_d.split(os.sep)[:2] == ["project", ".git"] or rel_d == os.path.join("project", ".git"):
-        keep = rel_d in (os.path.join("project", ".git"), os.path.join("project", ".git", "hooks"))
-        if not keep:
+    if rel_d == '.git' or rel_d.startswith('.git' + os.sep):
+        if rel_d not in ('.git', os.path.join('.git', 'hooks')):
             dirs[:] = []
             continue
-        if rel_d == os.path.join("project", ".git"):
+        if rel_d == '.git':
             dirs[:] = [x for x in dirs if x == "hooks"]
             files = [f for f in files if f.startswith("mb-")]
     for name in sorted(dirs + files):
         p = os.path.join(d, name)
         rel = os.path.relpath(p, root)
-        # Migration artifacts are verified byte-for-byte before this comparison.
-        if rel in ("project/.codex/hooks.json", "project/.codex/hooks.json.pre-mb-native"):
-            continue
+        info = os.lstat(p)
+        identity = f'{info.st_dev}:{info.st_ino}:{stat.S_IMODE(info.st_mode):o}:{info.st_uid}:{info.st_gid}'
         if os.path.islink(p):
-            out.append(f"{rel} -> {os.readlink(p)}")
+            out.append(f"{rel} {identity} -> {os.readlink(p)}")
             if name in dirs:
                 dirs.remove(name)
             continue
@@ -120,58 +118,60 @@ for d, dirs, files in os.walk(root):
             out.append(f"{rel}/")
             continue
         data = open(p, "rb").read()
-        if "manifest" in name and name.endswith(".json"):
-            try:
-                data = json.dumps(norm(json.loads(data)), sort_keys=True).encode()
-            except ValueError:
-                pass
-        out.append(f"{rel} {hashlib.sha256(data).hexdigest()[:16]}")
+        out.append(f"{rel} {identity} {hashlib.sha256(data).hexdigest()}")
 print("\n".join(sorted(out)))
 PY
 }
 
 _snapshot() {
-  rm -rf "${T:?}/$1"
-  mkdir -p "$T/$1"
-  cp -a "$HOME" "$PROJECT" "$T/$1/"
+  _tree_listing "$HOME" > "$T/$1.home" || return 1
+  _tree_listing "$PROJECT" > "$T/$1.project"
 }
 
-@test "upgrade from $OLD_REF with no flags equals a clean install of the current tree" {
+_assert_snapshot_unchanged() {
+  _snapshot after || return 1
+  cmp "$T/before.home" "$T/after.home" || return 1
+  cmp "$T/before.project" "$T/after.project"
+}
+
+_sha256() {
+  /usr/bin/python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())'
+}
+
+_inferred_options() {
+  bash -c '
+    source "$1/scripts/_lib.sh" || exit $?
+    source "$1/scripts/_install_options.sh" || exit $?
+    mb_inferred_install_options "$2" || exit $?
+    printf "language=%s\ncomments=%s\nclients=%s\n" "$MB_SAVED_LANGUAGE" "$MB_SAVED_COMMENTS_LANGUAGE" "$MB_SAVED_CLIENTS"
+  ' _ "$SRC" "$PROJECT"
+}
+
+@test "upgrade from genuine $OLD_REF without hashes refuses replacement and preserves every candidate" {
   git -C "$REPO_ROOT" rev-parse -q --verify "$OLD_REF^{commit}" >/dev/null || skip "$OLD_REF tag not available"
 
-  # Reference: clean current install, user text added, plain re-run.
-  _sync_current
-  _install --non-interactive --language ru --clients "$CLIENTS_ALL" --project-root "$PROJECT"
-  _add_user_text
-  _install
-  run _backups
-  [ -z "$output" ]
-  _snapshot clean
-
-  # Upgrade: the old release installs, the user adds text, main is pulled over it.
-  _fresh
+  # Authentic producer, not a current fixture retroactively granted hashes.
   git -C "$REPO_ROOT" archive "$OLD_REF" | tar -x -C "$SRC"
   _install --non-interactive --language ru --clients "$CLIENTS_ALL" --project-root "$PROJECT"
   _add_user_text
+  jq -e '.file_sha256 == null' "$SRC/.installed-manifest.json"
+  snapshot "$SRC/.installed-manifest.json" "$T/legacy-manifest.before"
   cp "$PROJECT/.codex/hooks.json" "$T/legacy-codex-hooks.json"
   _sync_current
-  _install
-  cmp "$T/legacy-codex-hooks.json" "$PROJECT/.codex/hooks.json.pre-mb-native"
-  # Only the old owned local registration disappears; the original is recoverable.
-  jq -e '.hooks == {}' "$PROJECT/.codex/hooks.json"
-  [ ! -e "$T/clean/project/.codex/hooks.json" ]
-  [ ! -e "$T/clean/project/.codex/hooks.json.pre-mb-native" ]
-  run _backups
-  [ -z "$output" ]
-  _snapshot upgraded
-
-  _tree_listing "$T/clean" > "$T/clean.list"
-  _tree_listing "$T/upgraded" > "$T/upgraded.list"
-  run diff "$T/clean.list" "$T/upgraded.list"
-  if [ "$status" -ne 0 ]; then
-    echo "$output" >&3
-  fi
+  run _inferred_options
   [ "$status" -eq 0 ]
+  assert_substring "$output" 'language=ru'
+  _snapshot before
+  mv "$T/install.log" "$T/producer-install.log"
+  run _install
+  [ "$status" -ne 0 ]
+  assert_grep -qiE 'verifiable.*ownership' "$T/install.log"
+  assert_grep -qF "$HOME/.config/opencode/commands/adr.md" "$T/install.log"
+  refute_grep -qF 'Manifest saved' "$T/install.log"
+  _assert_snapshot_unchanged
+  assert_unchanged "$SRC/.installed-manifest.json" "$T/legacy-manifest.before"
+  assert_unchanged "$PROJECT/.codex/hooks.json" "$T/legacy-codex-hooks.json"
+  jq -e '.file_sha256 == null' "$SRC/.installed-manifest.json"
 
   local f
   while IFS= read -r f; do
@@ -179,9 +179,6 @@ _snapshot() {
     assert_grep -qF "$USER_HEAD" "$f"
     assert_grep -qF "$USER_TAIL" "$f"
   done < <(_instruction_files)
-  [ "$(_manifest .language)" = ru ]
-  [ "$(_manifest .clients_requested)" = "$CLIENTS_ALL" ]
-  [ "$(_manifest .project_root)" = "$PROJECT" ]
 }
 
 @test "re-run without flags keeps the saved options; an explicit flag overrides one of them" {
@@ -207,7 +204,11 @@ _snapshot() {
   _sync_current
   _install --non-interactive --language ru --clients claude-code,codex --project-root "$PROJECT"
   export HOME="$T/other-home"
-  mkdir -p "$HOME"
+  export XDG_CONFIG_HOME="$HOME/.config" XDG_DATA_HOME="$HOME/.local/share"
+  export XDG_CACHE_HOME="$HOME/.cache" XDG_STATE_HOME="$HOME/.local/state"
+  export XDG_RUNTIME_DIR="$HOME/run" XDG_CONFIG_DIRS="$HOME/config-dirs" XDG_DATA_DIRS="$HOME/data-dirs"
+  export CODEX_HOME="$HOME/.codex" TMPDIR="$HOME/tmp"
+  mkdir -p "$TMPDIR" "$XDG_RUNTIME_DIR"
   _install
   [ "$(_manifest .language)" = en ]
   [ "$(_manifest .clients_requested)" = claude-code ]
@@ -217,18 +218,24 @@ _snapshot() {
   _sync_current
   _install --non-interactive --language ru --clients "$CLIENTS_ALL" --project-root "$PROJECT"
   # What an older version left behind: same paths, other content, recorded as
-  # written by that install (sha256 in the main manifest; adapter files dated
-  # no later than their adapter manifest).
-  local f old_agent="$HOME/.claude/agents/mb-doctor.md" old_rules="$HOME/.claude/RULES.md"
+  # written by that install, with the actual installed hashes in both manifests.
+  local f sha old_agent="$HOME/.claude/agents/mb-doctor.md" old_rules="$HOME/.claude/RULES.md"
   local old_prompt="$HOME/.codex/prompts/mb.md" oc_agent="$PROJECT/.opencode/agent/mb-doctor.md"
   printf 'old agent\n' > "$old_agent"
   printf 'old rules\n' > "$old_rules"
   printf 'old command\n' > "$old_prompt"
   printf 'old oc agent\n' > "$oc_agent"
-  touch -r "$PROJECT/.opencode/.mb-manifest.json" "$oc_agent"
+  local oc_manifest="$PROJECT/.opencode/.mb-manifest.json"
+  sha="$(_sha256 < "$oc_agent")" || return 1
+  [[ "$sha" =~ ^[0-9a-f]{64}$ ]]
+  jq --arg f "$oc_agent" --arg s "$sha" \
+    '.file_sha256[$f] = $s' "$oc_manifest" > "$T/oc-m.json"
+  mv "$T/oc-m.json" "$oc_manifest"
   local m="$SRC/.installed-manifest.json"
   for f in "$old_agent" "$old_rules" "$old_prompt"; do
-    jq --arg f "$f" --arg s "$(shasum -a 256 "$f" | cut -d' ' -f1)" '.file_sha256[$f] = $s' "$m" > "$T/m.json"
+    sha="$(_sha256 < "$f")" || return 1
+    [[ "$sha" =~ ^[0-9a-f]{64}$ ]]
+    jq --arg f "$f" --arg s "$sha" '.file_sha256[$f] = $s' "$m" > "$T/m.json"
     mv "$T/m.json" "$m"
   done
   # A file of ours the user edited after the install.
@@ -263,7 +270,8 @@ _snapshot() {
   printf 'shipped\n' > "$edited"
   printf 'mine\n' > "$foreign"
   local sha
-  sha="$(printf 'shipped\n' | shasum -a 256 | cut -d' ' -f1)"
+  sha="$(printf 'shipped\n' | _sha256)" || return 1
+  [[ "$sha" =~ ^[0-9a-f]{64}$ ]]
   jq --arg a "$kept" --arg b "$edited" --arg s "$sha" \
     '.files += [$a, $b] | .file_sha256[$a] = $s | .file_sha256[$b] = $s' \
     "$SRC/.installed-manifest.json" > "$T/m.json"
@@ -357,11 +365,12 @@ _snapshot() {
 }
 
 # _install_here <args...> — run the skill copy's installer from the project dir.
+# shellcheck disable=SC2120 # Bats run forwards the explicit --language argument.
 _install_here() {
   (cd "$PROJECT" && bash "$SRC/install.sh" "$@" </dev/null >>"$T/install.log" 2>"$T/err.log")
 }
 
-@test "no previous manifest (pipx --force): options are inferred from the config and client traces; only edited files get backups" {
+@test "no previous manifest (pipx --force): inferred options do not authorize replacement of genuine legacy files" {
   git -C "$REPO_ROOT" rev-parse -q --verify "$OLD_REF^{commit}" >/dev/null || skip "$OLD_REF tag not available"
   git -C "$REPO_ROOT" archive "$OLD_REF" | tar -x -C "$SRC"
   _install --non-interactive --language ru --clients claude-code,codex,cursor --project-root "$PROJECT"
@@ -373,35 +382,51 @@ _install_here() {
   _sync_current
   rm -f "$SRC/.installed-manifest.json"
 
-  _install_here
-  [ "$(_manifest .language)" = ru ]
-  [ "$(_manifest .clients_requested)" = claude-code,cursor,codex ]
-  [ "$(_manifest .project_root)" = "$PROJECT" ]
+  run _inferred_options
+  [ "$status" -eq 0 ]
+  assert_substring "$output" 'language=ru'
+  assert_substring "$output" 'clients=claude-code,cursor,codex'
+  _snapshot before
+  mv "$T/install.log" "$T/producer-install.log"
+  run _install_here
+  [ "$status" -ne 0 ]
   assert_grep -qF 'inferred' "$T/err.log"
   assert_grep -qF 'memory-bank-config.json' "$T/err.log"
-  run _backups
-  [ "$output" = "$(ls "$HOME"/.claude/commands/mb.md.pre-mb-backup.*)" ]
-  assert_grep -qF 'my tweak' "$HOME"/.claude/commands/mb.md.pre-mb-backup.*
+  assert_grep -qiE 'verifiable.*ownership' "$T/err.log" "$T/install.log"
+  refute_grep -qF 'Manifest saved' "$T/install.log"
+  [ ! -e "$SRC/.installed-manifest.json" ]
+  _assert_snapshot_unchanged
+  assert_grep -qF 'my tweak' "$HOME/.claude/commands/mb.md"
   local f
   while IFS= read -r f; do
     [ -f "$f" ] || continue
     assert_grep -qF "$USER_HEAD" "$f"
   done < <(_instruction_files)
 
-  # An explicit flag still wins over what is inferred.
-  rm -f "$SRC/.installed-manifest.json"
-  _install_here --language en
-  [ "$(_manifest .language)" = en ]
-  [ "$(_manifest .clients_requested)" = claude-code,cursor,codex ]
+  # An explicit option wins, but still supplies no ownership authority.
+  run _install_here --language en
+  [ "$status" -ne 0 ]
+  assert_grep -qF 'Preferred language: en' "$T/install.log"
+  [ ! -e "$SRC/.installed-manifest.json" ]
+  _assert_snapshot_unchanged
 }
 
-@test "no previous manifest: the comments language is restored from the config" {
+@test "no previous manifest: comments language inference survives a preservation-safe refusal" {
   _sync_current
   _install --non-interactive --language ru --comments-language en --clients claude-code --project-root "$PROJECT"
   rm -f "$SRC/.installed-manifest.json"
-  _install_here
-  [ "$(_manifest .language)" = ru ]
-  [ "$(_manifest .comments_language)" = en ]
+  run _inferred_options
+  [ "$status" -eq 0 ]
+  assert_substring "$output" 'language=ru'
+  assert_substring "$output" 'comments=en'
+  _snapshot before
+  mv "$T/install.log" "$T/producer-install.log"
+  run _install_here
+  [ "$status" -ne 0 ]
+  assert_grep -qiE 'verifiable.*ownership' "$T/err.log" "$T/install.log"
+  [ ! -e "$SRC/.installed-manifest.json" ]
+  refute_grep -qF 'Manifest saved' "$T/install.log"
+  _assert_snapshot_unchanged
 }
 
 @test "fresh HOME without any previous install: defaults, nothing inferred" {
@@ -410,4 +435,38 @@ _install_here() {
   [ "$(_manifest .language)" = en ]
   [ "$(_manifest .clients_requested)" = claude-code ]
   refute_grep -qF 'inferred' "$T/err.log"
+}
+
+@test "S5-DISCOVERY-8: an early refusal never adopts a failed project from another HOME" {
+  _sync_current
+  bash "$SRC/adapters/opencode.sh" install "$PROJECT" >/dev/null
+  local previous="$PROJECT" current="$T/new-project"
+  snapshot "$previous/.opencode/commands/start.md" "$T/project.before"
+  mkdir "$current"
+  jq -n --arg h "$T/foreign-home" --arg p "$previous" \
+    '{home:$h,project_root:$p,files:[],backups:[],file_sha256:{},clients:[],adapters_failed:["opencode"]}' \
+    > "$SRC/.installed-manifest.json"
+  mkdir -p "$T/home/.config/opencode/commands"
+  printf 'Unmanaged global command\n' > "$T/home/.config/opencode/commands/mb.md"
+  _snapshot before
+  snapshot "$SRC/.installed-manifest.json" "$T/manifest.before"
+  _tree_listing "$current" > "$T/current.before"
+  run _install --non-interactive --clients opencode --project-root "$current"
+  [ "$status" -ne 0 ]
+  assert_grep -qF 'manifest HOME does not match current HOME' "$T/install.log"
+  assert_grep -qF 'recovery: ' "$T/install.log"
+  _assert_snapshot_unchanged
+  assert_unchanged "$SRC/.installed-manifest.json" "$T/manifest.before"
+  _tree_listing "$current" > "$T/current.after"
+  cmp "$T/current.before" "$T/current.after"
+  run bash "$SRC/uninstall.sh" -y
+  [ "$status" -ne 0 ]
+  assert_substring "$output" 'manifest HOME does not match current HOME'
+  assert_substring "$output" 'inspect the path before retrying'
+  _assert_snapshot_unchanged
+  assert_unchanged "$SRC/.installed-manifest.json" "$T/manifest.before"
+  _tree_listing "$current" > "$T/current.after"
+  cmp "$T/current.before" "$T/current.after"
+  assert_unchanged "$previous/.opencode/commands/start.md" "$T/project.before"
+  [ -f "$previous/.mb-agents-owners.json" ]
 }

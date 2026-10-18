@@ -163,78 +163,17 @@ sys.stdout.write("NOFILE\n")
 PY
 }
 
-# ── source containment (r3 review [2]) ────────────────────────────────────
-# `init spec 1 --source-path <anywhere>` and `--source-topic ../../fake` were
-# accepted and stored verbatim, so the eval gate could be bound to a tasks.md
-# the bank does not own — a file whose declaration can change under the gate at
-# will. For source=spec there is exactly ONE legal locator:
-# `<bank>/specs/<safe-topic>/tasks.md`.
-#
-# `resolve_spec_source <bank> <topic> <path>` echoes that canonical path on
-# success, or nothing (rc 1) when the locator is not contained.
-resolve_spec_source() {
-  BANK="$1" TOPIC="$2" SRCPATH="$3" python3 - <<'PY'
-import os, pathlib, sys
-
-bank = os.environ["BANK"]
-topic = os.environ.get("TOPIC", "").strip()
-srcpath = os.environ.get("SRCPATH", "").strip()
-
-# The topic is a single safe path segment: no separators, no dot segments, no
-# leading dot, no traversal. Checked BEFORE it is ever joined onto a path.
-if (
-    not topic
-    or "/" in topic
-    or "\\" in topic
-    or topic.startswith(".")
-    or topic in (".", "..")
-    or not all(c.isalnum() or c in "._-" for c in topic)
-):
-    sys.exit(1)
-
-try:
-    bank_real = pathlib.Path(os.path.realpath(bank))
-    specs_real = pathlib.Path(os.path.realpath(bank_real / "specs"))
-except OSError:
-    sys.exit(1)
-
-canonical = bank_real / "specs" / topic / "tasks.md"
-if not canonical.is_file():
-    sys.exit(1)
-
-# realpath AFTER resolution: a symlinked spec dir pointing outside the bank
-# resolves away from <bank>/specs and is refused here.
-real = pathlib.Path(os.path.realpath(canonical))
-if not (real == specs_real or specs_real in real.parents):
-    sys.exit(1)
-
-# An explicit --source-path is allowed only when it names the same file.
-if srcpath:
-    try:
-        if pathlib.Path(os.path.realpath(srcpath)) != real:
-            sys.exit(1)
-    except OSError:
-        sys.exit(1)
-
-sys.stdout.write(str(canonical))
-PY
-}
-
-# `init_spec_locator <bank> <topic> <path>` echoes `<topic>\x1f<canonical path>`
-# for a contained spec locator, or fails (rc 1). Accepts either a topic or a
-# bare --source-path naming a spec inside the bank; both are re-checked through
-# resolve_spec_source, so only <bank>/specs/<safe-topic>/tasks.md survives.
+# A contained spec locator is emitted as <topic>\x1f<canonical path>, or rc 1.
 init_spec_locator() {
-  local bank="$1" topic="$2" path="$3" canonical="" derived
-  if [ -n "$topic" ]; then
-    canonical=$(resolve_spec_source "$bank" "$topic" "$path" 2>/dev/null || true)
-  elif [ -n "$path" ]; then
-    derived=$(basename "$(dirname "$path")")
-    canonical=$(resolve_spec_source "$bank" "$derived" "$path" 2>/dev/null || true)
-    [ -n "$canonical" ] && topic="$derived"
-  fi
-  [ -n "$canonical" ] || return 1
-  printf '%s\037%s' "$topic" "$canonical"
+  MB_SD="$SCRIPT_DIR" BANK="$1" TOPIC="$2" SRCPATH="$3" python3 - <<'PY'
+import os, sys
+from pathlib import Path
+sys.path.insert(0, os.environ["MB_SD"])
+from mb_work_source import init_spec_locator
+locator = init_spec_locator(Path(os.environ["BANK"]), os.environ["TOPIC"], os.environ["SRCPATH"])
+if locator is None: raise SystemExit(1)
+sys.stdout.write(locator)
+PY
 }
 
 # ── declaration binding (r3 review [1]) ───────────────────────────────────
@@ -390,3 +329,59 @@ for p in paths:
 print(json.dumps(entries))
 PY
 }
+
+# Fails closed with a usage error unless $1 exists AND parses as JSON.
+require_valid_state() {
+  local state="$1"
+  if [ ! -f "$state" ] || ! python3 -c '
+import json, sys
+json.loads(open(sys.argv[1], encoding="utf-8").read())
+' "$state" >/dev/null 2>&1; then
+    echo "[work-state] no active work-state; run init first" >&2
+    exit 2
+  fi
+}
+
+# Native opt-in retains existing state bytes; the ordinary done gates remain authoritative.
+native_retention() (
+  umask 077
+  local action="$1" bank="$2" run="$3" slot="${4:-}" snap phase gate recorded canonical reuse=0
+  if [ "${MB_WORK_RETAIN_STATE:-}" != 1 ]; then
+    echo "[work-state] retained requires explicit native opt-in" >&2; exit 2
+  fi
+  snap=$(mktemp); trap 'rm -f "$snap"' EXIT
+  if [ "$action" = clear ]; then
+    python3 "$SCRIPT_DIR/mb_work_retention.py" snapshot "$bank" "$run" "$slot" > "$snap" || exit 2
+    if [ "$(eval_state_field "$snap" run_id)" = "$run" ]; then
+      python3 "$SCRIPT_DIR/mb_work_retention.py" drop "$bank" "$run" || exit 2
+    else
+      python3 "$SCRIPT_DIR/mb_work_retention.py" read "$bank" "$run" > "$snap" || exit 2
+      reuse=1
+    fi
+  else
+    python3 "$SCRIPT_DIR/mb_work_retention.py" read "$bank" "$run" > "$snap" || exit 2
+  fi
+  phase=$(eval_state_field "$snap" phase)
+  if [ "$phase" = "done" ]; then
+    canonical=$(init_canonical_source_path "$bank" "$(eval_state_field "$snap" source_path)" \
+      "$(eval_state_field "$snap" source_topic)" "$(eval_state_field "$snap" source)") || exit 2
+    [ "$canonical" = "$(eval_state_field "$snap" source_path)" ] || exit 2
+    if gate=$(export PARSED_EVAL_MB="$bank"; eval_require_done_proof "$snap"; printf '%s' "$MBW_DONE_GATE") \
+      && python3 "$SCRIPT_DIR/mb_work_adapt.py" gate --state "$snap" >/dev/null 2>&1; then
+      recorded=$(eval_state_field "$snap" eval_gate)
+      if [ "$gate" = "$recorded" ]; then
+        if [ "$action" = clear ] && [ "$reuse" = 0 ]; then
+          python3 "$SCRIPT_DIR/mb_work_retention.py" store "$bank" "$run" < "$snap"
+        elif [ "$action" = read ]; then
+          cat "$snap"
+        fi
+        exit $?
+      fi
+    fi
+  fi
+  if [ "$action" = clear ]; then
+    python3 "$SCRIPT_DIR/mb_work_retention.py" drop "$bank" "$run" || exit 2
+  else
+    printf '{}\n'
+  fi
+)

@@ -17,6 +17,7 @@ import json
 import sys
 from pathlib import Path
 
+from memory_bank_skill._bundle import bundle_file
 from memory_bank_skill.quality import (
     PRINCIPLE_IDS,
     load_architecture_preset,
@@ -25,7 +26,6 @@ from memory_bank_skill.quality import (
 )
 from memory_bank_skill.rules_profile import ValidationError
 
-CATALOG_PATH = Path(__file__).resolve().parents[1] / "rules" / "key-rules.json"
 CUSTOM_MAX_CHARS = 200
 _BUCKETS = ("enabled", "disabled", "custom")
 BLOCK_START = "<!-- mb-key-rules:start -->"
@@ -43,7 +43,7 @@ class SelectionError(Exception):
 
 
 def load_catalog(path: Path | str | None = None) -> dict:
-    return json.loads(Path(path or CATALOG_PATH).read_text(encoding="utf-8"))
+    return json.loads(Path(path or bundle_file("rules/key-rules.json")).read_text(encoding="utf-8"))
 
 
 def _err(field: str, code: str, message: str) -> ValidationError:

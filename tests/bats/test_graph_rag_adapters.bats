@@ -2,6 +2,7 @@
 # GraphRAG-lite adapter contracts for Pi/OpenCode/Codex/generic AGENTS.md surfaces.
 
 load lib/assert
+load lib/v2_plugin_harness
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -123,13 +124,30 @@ _ts_const() {
 
   local plugin="$PROJECT/.opencode/plugins/memory-bank.js"
   [ -f "$plugin" ]
-  grep -q "code_context" "$plugin"
-  grep -q "graph_neighbors" "$plugin"
-  grep -q "graph_impact" "$plugin"
-  grep -q "graph_tests" "$plugin"
-  grep -q "scripts/mb-code-context.py" "$plugin"
-  grep -q "scripts/mb-graph-query.py" "$plugin"
-  grep -q "CLI fallback" "$plugin"
+  v2_node <<'JS'
+const plugin = await loadV2();
+try {
+  const event = request();
+  await plugin.hook('session.context', event);
+  const guidance = event.system.map(part => part.text ?? '').join('\n');
+  assert(guidance.includes('GraphRAG CLI: scripts/mb-graph.sh, scripts/mb-code-context.py'));
+  assert(guidance.includes('no native wrappers'));
+  for (const name of ['code_context', 'search_code', 'graph_neighbors', 'graph_impact', 'graph_tests']) {
+    assert.equal(event.tools[name], undefined);
+  }
+} finally {
+  await plugin.dispose();
+}
+JS
+  run python3 "$REPO_ROOT/scripts/mb-code-context.py" --help
+  [ "$status" -eq 0 ]
+  run python3 "$REPO_ROOT/scripts/mb-graph-query.py" --help
+  [ "$status" -eq 0 ]
+  mkdir "$BATS_TEST_TMPDIR/no-bank"
+  run bash -c 'cd "$1" && bash "$2/scripts/mb-graph.sh" status' _ "$BATS_TEST_TMPDIR/no-bank" "$REPO_ROOT"
+  [ "$status" -eq 4 ]
+  run bash -c 'cd "$1" && bash "$2/scripts/mb-graph.sh" status' _ "$PROJECT" "$REPO_ROOT"
+  [ "$status" -eq 3 ]
 }
 
 @test "graph-rag adapters: AGENTS.md guidance exposes cross-agent routing and CLI commands" {

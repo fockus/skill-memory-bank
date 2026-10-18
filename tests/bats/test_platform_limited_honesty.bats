@@ -13,6 +13,7 @@
 # session-memory, update-notify, role-routing.
 
 load lib/assert
+load lib/v2_plugin_harness
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -210,7 +211,16 @@ manifest_opencode_global_extensions() {
   m="$(manifest_opencode)"
   jq -e '.platform_limited | index("subagents") == null' "$m" >/dev/null \
     || fail "opencode: subagents wrongly declared — .opencode/agent/*.md is a genuine native dispatch primitive (opencode.sh)"
-  grep -q "OpenCode natively discovers dispatchable subagents" "$REPO_ROOT/adapters/opencode.sh"
+  local role_dir role
+  role_dir="$(dirname "$m")/agent"
+  [ -f "$role_dir/mb-backend.md" ]
+  [ -f "$role_dir/plan-verifier.md" ]
+  grep -q '^permission:$' "$role_dir/mb-backend.md"
+  grep -q '^permission:$' "$role_dir/plan-verifier.md"
+  for role in "$role_dir"/*.md; do
+    grep -q '^mode: subagent$' "$role"
+    refute_grep -q '^tools:' "$role"
+  done
 
   m="$(manifest_pi)"
   jq -e '.platform_limited | index("subagents") == null' "$m" >/dev/null \
@@ -261,7 +271,16 @@ manifest_opencode_global_extensions() {
 
   m="$(manifest_opencode)"
   jq -e '.platform_limited | index("lifecycle-hooks") == null' "$m" >/dev/null
-  grep -q "session.created\|session\.idle" "$REPO_ROOT/adapters/opencode.sh"
+  command -v node >/dev/null || skip "node required for the native lifecycle proof"
+  PROJECT="$(dirname "$(dirname "$m")")" run v2_node <<'JS'
+const plugin = await loadV2();
+for (const name of ['session.context', 'session.prompt', 'session.compaction']) assert(plugin.hooks.has(name));
+const event = request('lifecycle');
+await plugin.hook('session.context', event);
+assert(event.system.some(part => part.text.includes('OpenCode 2 host binding')));
+await plugin.dispose();
+JS
+  [ "$status" -eq 0 ]
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -329,17 +348,8 @@ manifest_opencode_global_extensions() {
   # end-to-end creates a real session/*.md); re-asserting the wiring here.
   grep -q '"stop:mb-session-turn.sh"' "$REPO_ROOT/adapters/cursor.sh"
 
-  # adapter-parity T7 Codex-review fix (BLOCKER): manifest_opencode() alone
-  # installs the BASE (declined) plugin variant, whose chat.message handler
-  # is a deliberate no-op (MB_OC_PARITY_EXTENDED=false — see
-  # test_opencode_adapter.bats's "base (non-extended) plugin's chat.message
-  # hook is a no-op" test). Grepping for the string "chat.message" only
-  # proves a gated handler EXISTS in the source, not that the manifest
-  # state under evaluation genuinely supports session-memory. Install with
-  # MB_OC_PARITY_ACCEPTED=1 (the actual "session-memory NOT limited" state,
-  # set by install.sh's accept path — AGR-013) and prove capture by RUNNING
-  # the extended plugin's chat.message handler, asserting a real CC
-  # v2-schema session/*.md file is created — not a source-grep proxy.
+  # Admission is not completion: the accepted extension must reconcile a
+  # completed public turn into a real v2 record through its installed bootstrap.
   local oc_project
   oc_project="$(mktemp -d -p "$WORKDIR")"
   MB_OC_PARITY_ACCEPTED=1 bash "$REPO_ROOT/adapters/opencode.sh" install "$oc_project" >/dev/null 2>&1
@@ -349,24 +359,26 @@ manifest_opencode_global_extensions() {
 
   command -v node >/dev/null || skip "node required for the opencode runtime session-memory proof"
   mkdir -p "$oc_project/.memory-bank"
-  local plugin_mjs="$oc_project/mb-plugin-honesty.mjs"
-  cp "$oc_project/.opencode/plugins/memory-bank.js" "$plugin_mjs"
-  run env MB_SESSION_CAPTURE=on node -e "
-    import('file://$plugin_mjs').then(async (mod) => {
-      const plugin = await mod.default({ directory: '$oc_project' });
-      const out = { message: { id: 'm1', sessionID: 'honesty-sess' }, parts: [{ type: 'text', text: 'honesty check' }] };
-      await plugin['chat.message']({ sessionID: 'honesty-sess' }, out);
-    }).catch((e) => { console.error(e); process.exitCode = 1; });
-  "
+  PROJECT="$oc_project" MB_SESSION_CAPTURE=on run v2_node <<'JS'
+const history = { 'honesty-sess': [] };
+const plugin = await loadV2({}, history);
+await plugin.hook('session.prompt', { sessionID: 'honesty-sess', messageID: 'm1', prompt: { text: 'honesty check' } });
+assert(!fs.existsSync(path.join(directory, '.memory-bank/session')));
+history['honesty-sess'] = completedTurn('m1', 'a1', 'honesty check', 'What changed: Completed native honesty work.\nDecision: Preserve completed public evidence.');
+await plugin.emit('session.execution.succeeded', { sessionID: 'honesty-sess' });
+await plugin.dispose();
+JS
   [ "$status" -eq 0 ]
 
   local sfile
-  sfile=$(ls "$oc_project/.memory-bank/session/"*.md 2>/dev/null | head -1)
+  sfile=$(find "$oc_project/.memory-bank/session" -maxdepth 1 -type f -name '*.md' ! -name '_recent*' -print -quit)
   [ -n "$sfile" ] \
-    || fail "opencode: MB_OC_PARITY_ACCEPTED=1 chat.message did not create a real session/*.md file — session-memory would then be genuinely limited, not falsely claimed as unlimited"
+    || fail "opencode: accepted extension did not capture a completed public turn"
   grep -q "^session_id: honesty-sess$" "$sfile"
   grep -q "^agent: opencode$" "$sfile"
   grep -q "^summary_schema: v2$" "$sfile"
+  grep -q "Completed native honesty work" "$sfile"
+  grep -q "Preserve completed public evidence" "$sfile"
 }
 
 # ═══════════════════════════════════════════════════════════════

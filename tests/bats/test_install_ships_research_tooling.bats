@@ -110,7 +110,8 @@ run_fresh_install() {
   local before=""
   [ -f "$repo_manifest" ] && before="$(shasum "$repo_manifest" | awk '{print $1}')"
 
-  run_fresh_install
+  run env -u MB_MANIFEST_PATH HOME="$FAKE_HOME" MB_SKIP_DEPS_CHECK=1 \
+    bash "$INSTALL" --clients claude-code --project-root "$PROJECT" --non-interactive
   [ "$status" -eq 0 ]
 
   # The manifest lands in the TMP skill copy, proving the repo copy is bypassed.

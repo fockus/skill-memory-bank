@@ -10,6 +10,11 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
+  export XDG_CONFIG_HOME="$HOME/.config" XDG_DATA_HOME="$HOME/.local/share"
+  export XDG_STATE_HOME="$HOME/.local/state" XDG_CACHE_HOME="$HOME/.cache"
+  export XDG_RUNTIME_DIR="$HOME/run" XDG_CONFIG_DIRS="$HOME/config-dirs" XDG_DATA_DIRS="$HOME/data-dirs"
+  export CODEX_HOME="$HOME/.codex" TMPDIR="$HOME/tmp"
+  mkdir -p "$TMPDIR" "$XDG_RUNTIME_DIR"
   # Per-test manifest: never the repo's own (the owner's live install manifest).
   export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
 
@@ -19,6 +24,319 @@ setup() {
 
 teardown() {
   [ -n "${SANDBOX_HOME:-}" ] && [ -d "$SANDBOX_HOME" ] && rm -rf "$SANDBOX_HOME"
+}
+
+# Exercise the real broad installer only in a private, frozen runtime bundle.
+s5_private_bundle() {
+  local source="$REPO_ROOT"
+  REPO_ROOT="$BATS_TEST_TMPDIR/frozen-bundle"
+  mkdir -p "$REPO_ROOT"
+  rsync -a --exclude='.env*' --exclude='__pycache__' \
+    "$source/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,settings,memory_bank_skill} \
+    "$source/"{install.sh,uninstall.sh,VERSION,SKILL.md} "$REPO_ROOT/"
+  PROJECT="$BATS_TEST_TMPDIR/project"
+  mkdir -p "$PROJECT" "$SANDBOX_HOME/tmp" "$SANDBOX_HOME/run"
+}
+
+s5_private_command() {
+  env -i PATH="$PATH" HOME="$SANDBOX_HOME" TMPDIR="$SANDBOX_HOME/tmp" \
+    XDG_CONFIG_HOME="${S5_CONFIG_HOME:-$SANDBOX_HOME/.config}" \
+    XDG_DATA_HOME="$SANDBOX_HOME/.local/share" XDG_STATE_HOME="$SANDBOX_HOME/.local/state" \
+    XDG_CACHE_HOME="$SANDBOX_HOME/.cache" XDG_RUNTIME_DIR="$SANDBOX_HOME/run" \
+    XDG_CONFIG_DIRS="$SANDBOX_HOME/config-dirs" XDG_DATA_DIRS="$SANDBOX_HOME/data-dirs" \
+    CODEX_HOME="$SANDBOX_HOME/.codex" MB_MANIFEST_PATH="$MB_MANIFEST_PATH" \
+    MB_SKIP_DEPS_CHECK=1 MB_USER_RULES_AUTO_PROMPT=off PYTHONDONTWRITEBYTECODE=1 \
+    bash "$REPO_ROOT/$1" "${@:2}"
+}
+
+s5_record_skill_directory() {
+  local root="$1" directory="$1/skills/memory-bank" proof
+  proof="$(python3 "$REPO_ROOT/adapters/opencode_files.py" backup-hash "$directory" "$MB_MANIFEST_PATH" "$root")" || return 1
+  jq -n --arg h "$HOME" --arg p "${PROJECT:-$PWD}" --arg f "$directory" --arg proof "$proof" \
+    '{home:$h,project_root:$p,clients:[],adapters_failed:[],backups:[],files:[$f],file_sha256:{($f):$proof}}' > "$MB_MANIFEST_PATH"
+}
+
+s5_global_cleanup_fixture() {
+  s5_private_bundle
+  local root="$HOME/.config/opencode"
+  mkdir -p "$root/agent"
+  printf 'User before\n<!-- memory-bank-opencode:start -->\nManaged block\n<!-- memory-bank-opencode:end -->\n' > "$root/AGENTS.md"
+  chmod 660 "$root/AGENTS.md"
+  printf 'Owned role\n' > "$root/agent/owned.md"
+  jq -n --arg h "$HOME" --arg p "$PROJECT" --arg f "$root/AGENTS.md" \
+    '{home:$h,project_root:$p,clients:[],adapters_failed:[],files:[$f],backups:[],file_sha256:{}}' > "$MB_MANIFEST_PATH"
+  jq -n --arg f "$root/agent/owned.md" --arg h "$(shasum -a 256 "$root/agent/owned.md" | cut -d' ' -f1)" \
+    '{files:[$f],file_sha256:{($f):$h}}' > "$root/.mb-global-extensions-manifest.json"
+  printf 'User after\n' >> "$root/AGENTS.md"
+  snapshot "$root/AGENTS.md" "$BATS_TEST_TMPDIR/global-agents.before"
+  snapshot "$MB_MANIFEST_PATH" "$BATS_TEST_TMPDIR/global-top.before"
+  snapshot "$root/.mb-global-extensions-manifest.json" "$BATS_TEST_TMPDIR/global-extensions.before"
+}
+
+@test "OpenCode global AGENTS: unreadable merged instructions retain exact retry metadata" {
+  s5_global_cleanup_fixture
+  local root="$HOME/.config/opencode" first
+  chmod 000 "$root/AGENTS.md"
+  [ ! -r "$root/AGENTS.md" ]
+  run s5_private_command uninstall.sh -y
+  first="$status"
+  if [ -n "${S5_EVIDENCE_DIR:-}" ]; then printf '%s\n' "$output" > "$S5_EVIDENCE_DIR/global-read-refusal.log"; fi
+  chmod 660 "$root/AGENTS.md"
+  [ "$first" -ne 0 ]
+  assert_unchanged "$root/AGENTS.md" "$BATS_TEST_TMPDIR/global-agents.before"
+  assert_unchanged "$MB_MANIFEST_PATH" "$BATS_TEST_TMPDIR/global-top.before"
+  assert_unchanged "$root/.mb-global-extensions-manifest.json" "$BATS_TEST_TMPDIR/global-extensions.before"
+  [ -f "$root/agent/owned.md" ]
+  run s5_private_command uninstall.sh -y
+  [ "$status" -eq 0 ]
+  grep -qx 'User before' "$root/AGENTS.md"
+  if [ -n "${S5_EVIDENCE_DIR:-}" ]; then printf '%s\n' "$output" > "$S5_EVIDENCE_DIR/global-read-retry.log"; fi
+  grep -qx 'User after' "$root/AGENTS.md"
+  refute_grep -q 'memory-bank-opencode:start' "$root/AGENTS.md"
+  [ "$(python3 -c 'import os,stat,sys; print(oct(stat.S_IMODE(os.stat(sys.argv[1]).st_mode))[2:])' "$root/AGENTS.md")" = 660 ]
+  refute_file "$MB_MANIFEST_PATH"
+}
+
+@test "OpenCode global AGENTS: unsafe symlink preservation remains warning-only" {
+  s5_global_cleanup_fixture
+  local root="$HOME/.config/opencode"
+  mv "$root/AGENTS.md" "$BATS_TEST_TMPDIR/foreign-agents"
+  ln -s "$BATS_TEST_TMPDIR/foreign-agents" "$root/AGENTS.md"
+  run s5_private_command uninstall.sh -y
+  if [ -n "${S5_EVIDENCE_DIR:-}" ]; then printf '%s\n' "$output" > "$S5_EVIDENCE_DIR/global-policy-preserve.log"; fi
+  [ "$status" -eq 0 ]
+  [ -L "$root/AGENTS.md" ]
+  assert_unchanged "$BATS_TEST_TMPDIR/foreign-agents" "$BATS_TEST_TMPDIR/global-agents.before"
+  refute_file "$root/agent/owned.md"
+}
+
+@test "OpenCode global AGENTS: conditional cleanup seam propagates a real strip write failure" {
+  s5_global_cleanup_fixture
+  local root="$HOME/.config/opencode"
+  python3 - "$root/AGENTS.md" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+path.write_text(path.read_text() + 'User instruction retained.\n' * 800)
+PY
+  snapshot "$root/AGENTS.md" "$BATS_TEST_TMPDIR/global-agents.before"
+  run python3 - "$REPO_ROOT" "$root" "$MB_MANIFEST_PATH" <<'PY'
+import resource
+import signal
+import subprocess
+import sys
+def limit_child():
+    resource.setrlimit(resource.RLIMIT_FSIZE, (1024, 1024))
+    signal.signal(signal.SIGXFSZ, signal.SIG_DFL)
+script = '''
+SKILL_DIR=$1; OPENCODE_DIR=$2; MANIFEST=$3; MB_PY=python3
+source "$SKILL_DIR/adapters/_framework.sh"
+run_texttool() {
+  PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" "$MB_PY" -m memory_bank_skill._texttools "$@"
+}
+if source "$SKILL_DIR/adapters/opencode_uninstall.sh"; then exit 0; else exit $?; fi
+'''
+result = subprocess.run(['bash', '-c', script, '_', *sys.argv[1:]],
+                        preexec_fn=limit_child, capture_output=True, timeout=30)
+sys.stdout.buffer.write(result.stdout)
+sys.stderr.buffer.write(result.stderr)
+raise SystemExit(result.returncode if result.returncode >= 0 else 128 - result.returncode)
+PY
+  if [ -n "${S5_EVIDENCE_DIR:-}" ]; then printf '%s\n' "$output" > "$S5_EVIDENCE_DIR/global-strip-write.log"; fi
+  [ "$status" -ne 0 ]
+  assert_unchanged "$root/AGENTS.md" "$BATS_TEST_TMPDIR/global-agents.before"
+  assert_unchanged "$MB_MANIFEST_PATH" "$BATS_TEST_TMPDIR/global-top.before"
+  assert_unchanged "$root/.mb-global-extensions-manifest.json" "$BATS_TEST_TMPDIR/global-extensions.before"
+  [ "$(python3 -c 'import os,stat,sys; print(oct(stat.S_IMODE(os.stat(sys.argv[1]).st_mode))[2:])' "$root/AGENTS.md")" = 660 ]
+  run s5_private_command uninstall.sh -y
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^User instruction retained.$' "$root/AGENTS.md")" -eq 800 ]
+  refute_grep -q 'memory-bank-opencode:start' "$root/AGENTS.md"
+}
+
+@test "install S5: pristine default-root OpenCode roundtrip removes owned artifacts without a global plugin" {
+  s5_private_bundle
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  [ "$status" -eq 0 ]
+  local root="$HOME/.config/opencode"
+  [ -f "$root/commands/mb.md" ]
+  [ -f "$PROJECT/.opencode/plugins/memory-bank.js" ]
+  grep -q 'extended: false' "$PROJECT/.opencode/plugins/memory-bank.js"
+  refute_file "$root/plugins"
+  refute_file "$root/agent"
+  python3 - "$root/skills/memory-bank" "$REPO_ROOT" <<'PY'
+import os, sys
+assert os.path.realpath(sys.argv[1]) == sys.argv[2]
+PY
+  run s5_private_command uninstall.sh -y
+  [ "$status" -eq 0 ]
+  refute_file "$root/commands/mb.md"
+  refute_file "$root/skills/memory-bank"
+  refute_file "$PROJECT/.opencode/plugins/memory-bank.js"
+}
+
+@test "install S5: global command reinstall preserves edits without advancing ownership to unwritten bytes" {
+  s5_private_bundle
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  [ "$status" -eq 0 ]
+  local file="$HOME/.config/opencode/commands/mb.md"
+  local installed_hash
+  installed_hash="$(jq -r --arg p "$file" '.file_sha256[$p]' "$MB_MANIFEST_PATH")"
+  cp -p "$file" "$BATS_TEST_TMPDIR/mtime"
+  printf '\nUser global command edit\n' >> "$file"
+  touch -r "$BATS_TEST_TMPDIR/mtime" "$file"
+  snapshot "$file" "$BATS_TEST_TMPDIR/command.before"
+  local edited_hash
+  edited_hash="$(shasum -a 256 "$file" | cut -d' ' -f1)"
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  assert_unchanged "$file" "$BATS_TEST_TMPDIR/command.before"
+  assert_substring "$output" "$file"
+  printf '%s\n' "$output" | grep -Eiq 'preserv|refus|skip|modified'
+  [ "$status" -ne 0 ]
+  jq -e --arg p "$file" --arg h "$edited_hash" '.file_sha256[$p] != $h' "$MB_MANIFEST_PATH"
+  jq -e --arg p "$file" --arg h "$installed_hash" '.file_sha256[$p] == $h' "$MB_MANIFEST_PATH"
+  run s5_private_command uninstall.sh -y
+  [ "$status" -eq 0 ]
+  assert_unchanged "$file" "$BATS_TEST_TMPDIR/command.before"
+  refute_file "$HOME/.config/opencode/commands/start.md"
+  refute_file "$PROJECT/.opencode/plugins/memory-bank.js"
+}
+
+s5_edited_global_roundtrip() {
+  s5_private_bundle
+  local root="${S5_CONFIG_HOME:-$HOME/.config}/opencode" host file
+  mkdir -p "$root/skills/memory-bank" "$root/plugins" "$HOME/.claude" "$HOME/.codex" "$HOME/.pi/agent"
+  printf 'Original local skill\n' > "$root/skills/memory-bank/SKILL.md"
+  s5_record_skill_directory "$root"
+  printf 'User OpenCode rules before install\n' > "$root/AGENTS.md"
+  printf '{"plugins":["foreign-plugin"],"theme":"user"}\n' > "$root/opencode.json"
+  printf '// Unrelated plugin\n' > "$root/plugins/user.js"
+  snapshot "$root/opencode.json" "$BATS_TEST_TMPDIR/settings.before"
+  snapshot "$root/plugins/user.js" "$BATS_TEST_TMPDIR/plugin.before"
+  for host in .claude/CLAUDE.md .codex/AGENTS.md .pi/agent/AGENTS.md; do
+    printf 'Other-host user instructions: %s\n' "$host" > "$HOME/$host"
+  done
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT" --with-extensions=opencode
+  [ "$status" -eq 0 ]
+  [ -f "$root/agent/mb-developer.md" ]
+  grep -q 'extended: true' "$PROJECT/.opencode/plugins/memory-bank.js"
+  refute_file "$root/plugins/memory-bank.js"
+  for file in "$root/commands/mb.md" "$root/agent/mb-developer.md"; do
+    cp -p "$file" "$BATS_TEST_TMPDIR/mtime"
+    printf '\nUser post-install edit\n' >> "$file"
+    touch -r "$BATS_TEST_TMPDIR/mtime" "$file"
+    snapshot "$file" "$BATS_TEST_TMPDIR/$(basename "$(dirname "$file")").before"
+    chmod 640 "$file"
+  done
+  printf '\nUser OpenCode rules after install\n' >> "$root/AGENTS.md"
+  chmod 640 "$root/AGENTS.md"
+  printf 'User command target\n' > "$BATS_TEST_TMPDIR/target"
+  snapshot "$BATS_TEST_TMPDIR/target" "$BATS_TEST_TMPDIR/target.before"
+  rm "$root/commands/plan.md"
+  ln -s "$BATS_TEST_TMPDIR/target" "$root/commands/plan.md"
+  mkdir "$BATS_TEST_TMPDIR/user-skill"
+  printf 'New user skill\n' > "$BATS_TEST_TMPDIR/user-skill/SKILL.md"
+  rm "$root/skills/memory-bank"
+  ln -s "$BATS_TEST_TMPDIR/user-skill" "$root/skills/memory-bank"
+
+  run s5_private_command uninstall.sh -y
+  refute_file "$root/commands/start.md"
+  refute_file "$root/agent/mb-doctor.md"
+  assert_unchanged "$root/commands/mb.md" "$BATS_TEST_TMPDIR/commands.before"
+  assert_unchanged "$root/agent/mb-developer.md" "$BATS_TEST_TMPDIR/agent.before"
+  [ -L "$root/commands/plan.md" ]
+  [ "$(readlink "$root/commands/plan.md")" = "$BATS_TEST_TMPDIR/target" ]
+  assert_unchanged "$BATS_TEST_TMPDIR/target" "$BATS_TEST_TMPDIR/target.before"
+  [ -L "$root/skills/memory-bank" ]
+  [ "$(readlink "$root/skills/memory-bank")" = "$BATS_TEST_TMPDIR/user-skill" ]
+  grep -q 'New user skill' "$root/skills/memory-bank/SKILL.md"
+  find "$root/.memory-bank-backups" -name SKILL.md -exec grep -l 'Original local skill' {} \; | grep -q .
+  grep -q 'User OpenCode rules before install' "$root/AGENTS.md"
+  grep -q 'User OpenCode rules after install' "$root/AGENTS.md"
+  refute_grep -q 'memory-bank-opencode:start\|mb-key-rules:start' "$root/AGENTS.md"
+  assert_unchanged "$root/opencode.json" "$BATS_TEST_TMPDIR/settings.before"
+  assert_unchanged "$root/plugins/user.js" "$BATS_TEST_TMPDIR/plugin.before"
+  for file in "$root/AGENTS.md" "$root/commands/mb.md" "$root/agent/mb-developer.md"; do
+    [ "$(stat -c '%a' "$file" 2>/dev/null || stat -f '%Lp' "$file")" = 640 ]
+  done
+  for host in .claude/CLAUDE.md .codex/AGENTS.md .pi/agent/AGENTS.md; do
+    grep -qF "Other-host user instructions: $host" "$HOME/$host"
+  done
+  printf '%s\n' "$output" | grep -Eiq 'preserv|refus|skip|modified'
+}
+
+@test "OpenCode rollback: partial project refusal retains removable ownership without deleting edits" {
+  s5_private_bundle
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  [ "$status" -eq 0 ]
+  printf '\nUser plugin edit\n' >> "$PROJECT/.opencode/plugins/memory-bank.js"
+  snapshot "$PROJECT/.opencode/plugins/memory-bank.js" "$BATS_TEST_TMPDIR/plugin.before"
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  [ "$status" -ne 0 ]
+  assert_substring "$output" 'partially installed'
+  run s5_private_command uninstall.sh -y
+  [ "$status" -eq 0 ]
+  assert_unchanged "$PROJECT/.opencode/plugins/memory-bank.js" "$BATS_TEST_TMPDIR/plugin.before"
+  refute_file "$PROJECT/.opencode/commands/start.md"
+}
+
+@test "OpenCode rollback: a recreated same-target skill alias keeps its new identity" {
+  s5_private_bundle
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  [ "$status" -eq 0 ]
+  local alias="$HOME/.config/opencode/skills/memory-bank" target
+  target="$(readlink "$alias")"
+  mv "$alias" "$BATS_TEST_TMPDIR/original-alias"
+  ln -s "$target" "$alias"
+  run s5_private_command uninstall.sh -y
+  [ "$status" -eq 0 ]
+  [ -L "$alias" ]
+  [ "$(readlink "$alias")" = "$target" ]
+}
+
+@test "OpenCode rollback: force does not hide a required backup-restore I/O failure" {
+  s5_private_bundle
+  local root="$HOME/.config/opencode" first retained=0
+  mkdir -p "$root/skills/memory-bank"
+  printf 'Original local skill\n' > "$root/skills/memory-bank/SKILL.md"
+  s5_record_skill_directory "$root"
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  [ "$status" -eq 0 ]
+  rm "$root/skills/memory-bank"
+  chmod 500 "$root/skills"
+  run s5_private_command uninstall.sh -y --force
+  first="$status"
+  [ -f "$MB_MANIFEST_PATH" ] || retained=1
+  if [ -d "$root/skills" ]; then chmod 700 "$root/skills"; fi
+  [ "$first" -ne 0 ]
+  [ "$retained" -eq 0 ]
+  run s5_private_command uninstall.sh -y
+  [ "$status" -eq 0 ]
+  grep -qx 'Original local skill' "$root/skills/memory-bank/SKILL.md"
+}
+
+@test "OpenCode rollback: replacing a managed skill alias with a directory is not adoption permission" {
+  s5_private_bundle
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  [ "$status" -eq 0 ]
+  local alias="$HOME/.config/opencode/skills/memory-bank"
+  rm "$alias"
+  mkdir "$alias"
+  printf 'User replacement skill\n' > "$alias/SKILL.md"
+  snapshot "$alias/SKILL.md" "$BATS_TEST_TMPDIR/skill.before"
+  run s5_private_command install.sh --non-interactive --clients opencode --project-root "$PROJECT"
+  [ "$status" -ne 0 ]
+  [ ! -L "$alias" ]
+  assert_unchanged "$alias/SKILL.md" "$BATS_TEST_TMPDIR/skill.before"
+}
+
+@test "uninstall S5: default-root lifecycle preserves edits symlinks merged instructions and backup collisions" {
+  s5_edited_global_roundtrip
+}
+
+@test "uninstall S5: custom-XDG lifecycle cleans the actual install root while preserving user content" {
+  S5_CONFIG_HOME="$HOME/custom config"
+  s5_edited_global_roundtrip
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -85,6 +403,8 @@ name: memory-bank
 ---
 # old local OpenCode skill
 EOF
+
+  s5_record_skill_directory "$HOME/.config/opencode"
 
   bash "$REPO_ROOT/install.sh" --clients opencode --non-interactive >/dev/null
 

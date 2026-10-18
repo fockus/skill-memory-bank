@@ -124,10 +124,15 @@ install_global_extensions() {
   local global_manifest="$PI_AGENT_DIR/.mb-global-extensions-manifest.json"
   local version
   version="$(cat "$SKILL_DIR/VERSION" 2>/dev/null || echo unknown)"
-  if _pi_entrypoint_foreign; then
-    echo "[pi-adapter] refusing: $(_pi_entrypoint) or $(_pi_entrypoint_module) exists and is not owned by Memory Bank" >&2
-    return 1
-  fi
+  local entrypoint_status=0
+  _pi_entrypoint_foreign || entrypoint_status=$?
+  case "$entrypoint_status" in
+    0)
+      echo "[pi-adapter] refusing: $(_pi_entrypoint) or $(_pi_entrypoint_module) exists and is not owned by Memory Bank" >&2
+      return 1 ;;
+    1) ;;
+    *) echo "[pi-adapter] entrypoint preflight failed; no Pi files were written" >&2; return "$entrypoint_status" ;;
+  esac
   pi_settings_tintin check || return 1
   local previous_files='[]'
   [ -f "$global_manifest" ] && previous_files="$(jq -c '.files // []' "$global_manifest" 2>/dev/null || echo '[]')"

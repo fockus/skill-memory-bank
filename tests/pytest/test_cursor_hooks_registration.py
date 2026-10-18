@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -38,7 +39,7 @@ def _install_project(tmp: Path) -> Path:
 
 
 @pytest.fixture()
-def project_dir() -> Path:
+def project_dir() -> Iterator[Path]:
     with tempfile.TemporaryDirectory() as td:
         yield Path(td)
 
@@ -196,3 +197,15 @@ def test_session_start_hook_caps_context() -> None:
         assert r.returncode == 0
         out = json.loads(r.stdout.strip())
         assert len(out["additional_context"]) <= 2500
+
+
+def test_cursor_context_filters_private_sources_before_extracting_bullets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    bank = tmp_path / ".memory-bank"
+    bank.mkdir()
+    (bank / "checklist.md").write_text("<private>\n- [ ] PRIVATE_CURSOR_CANARY\n</private>\n- [ ] public remaining task\n")
+    monkeypatch.setenv("MB_PATH", str(bank))
+    monkeypatch.setenv("MB_AUTO_REFRESH", "off")
+    result = subprocess.run(["bash", str(REPO_ROOT / "hooks/mb-session-start-context.sh")], input=json.dumps({"workspace_roots": [str(tmp_path)]}), capture_output=True, text=True, check=False)
+    assert result.returncode == 0
+    assert "PRIVATE_CURSOR_CANARY" not in result.stdout + result.stderr
+    assert "public remaining task" in json.loads(result.stdout)["additional_context"]

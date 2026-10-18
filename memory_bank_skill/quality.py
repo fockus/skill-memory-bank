@@ -15,6 +15,7 @@ import json
 import sys
 from pathlib import Path
 
+from memory_bank_skill._bundle import bundle_file
 from memory_bank_skill.rules_profile import ALLOWED_ARCHITECTURES, ALLOWED_DELIVERY, ValidationError
 
 PRINCIPLE_IDS = ("solid", "dry", "kiss", "yagni")
@@ -24,7 +25,6 @@ DISCIPLINE_VALUES = ("auto", "strict", "calm")
 COVERAGE_KEYS = ("overall", "core", "infra")
 CUSTOM_MAX_CHARS = 200
 ARCHITECTURES = tuple(a for a in ALLOWED_ARCHITECTURES if a != "custom")
-PRESETS_DIR = Path(__file__).resolve().parents[1] / "references" / "rules-presets" / "architecture"
 RULES_MD_START = "<!-- mb-project-rules:start -->"
 RULES_MD_END = "<!-- mb-project-rules:end -->"
 
@@ -185,7 +185,7 @@ def resolve_quality(user: dict | None, project: dict | None) -> dict:
 
 
 def load_architecture_preset(name: str) -> dict:
-    return json.loads((PRESETS_DIR / f"{name}.json").read_text(encoding="utf-8"))
+    return json.loads((bundle_file("references/rules-presets/architecture") / f"{name}.json").read_text(encoding="utf-8"))
 
 
 def render_project_rules(resolved: dict) -> str:

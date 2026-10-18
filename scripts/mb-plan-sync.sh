@@ -222,6 +222,8 @@ echo "[sync] plan=$BASENAME stages=$stage_count added=$added_count"
 # ═══════════════════════════════════════════════════════════════
 # Chain: roadmap-sync + traceability-gen (best-effort — warn, don't fail)
 # ═══════════════════════════════════════════════════════════════
+# The shared batch hook finalizes once after all plan upserts.
+[ "${MB_PLAN_SYNC_DEFER_FINALIZE:-0}" = "1" ] && exit 0
 if [ -x "$SCRIPT_DIR/mb-roadmap-sync.sh" ]; then
   "$SCRIPT_DIR/mb-roadmap-sync.sh" "$MB_PATH" || echo "[warn] mb-roadmap-sync.sh failed (non-fatal)" >&2
 fi

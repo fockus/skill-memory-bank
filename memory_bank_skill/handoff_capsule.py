@@ -25,6 +25,8 @@ import re
 import sys
 from pathlib import Path
 
+from .private import strip_private
+
 CAP_DEFAULT = 1500
 ELLIPSIS_LINE = "..."
 # A single bullet is clipped to this many characters (plus a trailing ellipsis)
@@ -52,7 +54,7 @@ _BACKLOG_OPEN_STATUSES = {"NEW", "PLANNED", "IN_PROGRESS"}
 
 def _read(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8")
+        return strip_private(path.read_text(encoding="utf-8"))[0]
     except (OSError, UnicodeDecodeError):
         return ""
 

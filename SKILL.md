@@ -177,17 +177,18 @@ The commands write this Claude Code form; other hosts dispatch the same installe
 | Host | Dispatch by name | Where the role is installed |
 |---|---|---|
 | Claude Code | `Agent(subagent_type=<name>, prompt=…)` (older builds: `Task`) | `~/.claude/agents/<name>.md` |
-| OpenCode | `task(subagent_type=<name>, prompt=…)` | `.opencode/agent/<name>.md` |
+| OpenCode | `subagent({agent: "mb-developer", description: "Implement assigned task", prompt: "Implement the assigned task and verify its definition of done."})` | `.opencode/agent/<name>.md`; global opt-in: [setup](docs/cross-agent-setup.md#opencode) |
 | Codex | `spawn_agent(agent_type=<name>, message=…)`; installed roles carry model/effort; runtime overrides depend on host support | `~/.codex/agents/<name>.toml` |
 | Pi | `mb_dispatch_subagent(role=<name>, task=…)` or pi-subagents `subagent(agent=<name>, task=…)`; `thinking` passes through | `~/.pi/agent/agents/<name>.md` |
 
-A host without named dispatch reads the role file and its `compose:` partials and does the work inline.
+OpenCode's `model` argument is optional. A host without named dispatch reads the role file and its `compose:` partials and does the work inline.
 
 ---
 
 ## Hooks, hosts, privacy and capture
 
 - Codex native hooks include model-free root-session memory and child context after user trust; `MB_SESSION_CAPTURE=off` opts out. Details: [`references/codex-native-hooks.md`](references/codex-native-hooks.md).
+- OpenCode 2 uses native commands/hooks and opt-in model-free root capture; run-local model/variant inheritance leaves permanent pins unchanged. Setup, capture switches and limits: [OpenCode 2](docs/cross-agent-setup.md#opencode).
 - Lifecycle hooks (inventory + per-host wiring): [`references/hooks.md`](references/hooks.md) § Hook inventory.
 - Host-specific notes (Claude Code native memory, Codex, Cursor): [`references/hosts.md`](references/hosts.md).
 - `<private>` content, auto-capture (`MB_AUTO_CAPTURE`), session logging, PreCompact handoff: [`references/privacy-and-capture.md`](references/privacy-and-capture.md). `/mb done` can auto-commit the bank (`MB_AUTO_COMMIT=1`, `scripts/mb-auto-commit.sh`).
