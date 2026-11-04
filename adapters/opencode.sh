@@ -117,13 +117,19 @@ _opencode_begin_io() {
 _opencode_checkpoint() {
   local extra="${OC_IO_EXTRA:-}"
   [ -n "$extra" ] || extra='{}'
-  _opencode_save_manifest "$_MB_OC_IO_RECORD" "$OC_IO_ROOT" "${OC_IO_WRITTEN:-}" "$extra"
+  _opencode_save_manifest "$_MB_OC_IO_RECORD" "$OC_IO_ROOT" "${OC_IO_WRITTEN:-}" "$extra" "${OC_IO_QUARANTINED:-}"
 }
 
+# A path a pre-hash record lists is moved to a recorded backup in the same operation.
 _opencode_write_owned() {
-  local dst="$1" record="$2" root="$3" source="$4" OC_IO_WRITTEN="$1" OC_IO_ROOT="$3"
-  _mb_oc_require_owned "$dst" "$record" "$root" || return $?
-  _mb_oc_apply "$record" "$root" "$(_mb_oc_source_paths "$dst" "$source")" _opencode_checkpoint _mb_strict_file write "$dst" "$record" "$root" "$source"
+  local dst="$1" record="$2" root="$3" source="$4" OC_IO_WRITTEN="$1" OC_IO_ROOT="$3" OC_IO_QUARANTINED="" state backup=""
+  state="$(_mb_oc_require_replaceable "$dst" "$record" "$root")" || return $?
+  if [ "$state" = legacy ]; then
+    backup="$(_mb_oc_legacy_backup "$dst" "$record" "$root")" || return 1
+    OC_IO_QUARANTINED="$dst|$backup"
+  fi
+  _mb_oc_apply "$record" "$root" "$(_mb_oc_source_paths "$dst" "$source" ${backup:+"$backup"})" _opencode_checkpoint \
+    _mb_oc_replace "$dst" "$record" "$root" "$source" "$backup"
 }
 
 _opencode_write_agent_file() {

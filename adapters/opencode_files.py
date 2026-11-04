@@ -100,17 +100,27 @@ def manifest(file: str) -> dict:
     return data
 
 
-def owned(file: str, record: str, root: str, *, alias: bool = False, directory: bool = False) -> bool:
+def claim(file: str, record: str, root: str, *, alias: bool = False, directory: bool = False) -> tuple[Path, str | None] | None:
+    """(path, recorded hash or None when the record predates hashes) for a listed path, else None."""
     path = contained(file, root)
     if file != lexical(file):
         raise ValueError("noncanonical ownership key")
     data = manifest(record)
     if (alias or directory or "home" in data) and data.get("home") != os.environ.get("HOME"):
-        return False
-    expected = (data.get("file_sha256") or {}).get(file)
-    if file not in data.get("files", []) or not expected:
-        return False
-    return expected == (backup_hash(path) if directory else fingerprint(path, alias=alias))
+        return None
+    hashes = data.get("file_sha256") or {}
+    if file not in data.get("files", []):
+        return None
+    return path, (hashes[file] or "") if file in hashes else None
+
+
+def identity(path: Path, *, alias: bool = False, directory: bool = False) -> str:
+    return backup_hash(path) if directory else fingerprint(path, alias=alias)
+
+
+def owned(file: str, record: str, root: str, *, alias: bool = False, directory: bool = False) -> bool:
+    listed = claim(file, record, root, alias=alias, directory=directory)
+    return bool(listed and listed[1]) and listed[1] == identity(listed[0], alias=alias, directory=directory)
 
 
 def backup_hash(path: Path) -> str:
@@ -146,7 +156,7 @@ def file_identity(path: Path) -> list | None:
         info = path.lstat()
     except FileNotFoundError:
         return None
-    digest = backup_hash(path) if stat.S_ISDIR(info.st_mode) else fingerprint(path, alias=stat.S_ISLNK(info.st_mode))
+    digest = identity(path, alias=stat.S_ISLNK(info.st_mode), directory=stat.S_ISDIR(info.st_mode))
     return [info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_gid, info.st_mtime_ns, digest]
 
 
@@ -224,6 +234,9 @@ def remove(record: str, root: str, *, global_install: bool = False) -> None:
         else:
             print(f"[opencode] preserved {file} (modified, unmanaged or unsafe)", file=sys.stderr)
     if not global_install:
+        for original, _, backup in (entry.partition("|") for entry in data.get("backups", [])):
+            if os.path.lexists(backup):
+                print(f"[opencode] retained quarantined original {original} at {backup}", file=sys.stderr)
         return
     for entry in data.get("backups", []):
         original, separator, backup = entry.partition("|")
@@ -255,6 +268,9 @@ def main(args: list[str]) -> int:
     action, file, record, root = args[:4]
     if action in {"owned", "owned-alias", "owned-directory"}:
         return 0 if owned(file, record, root, alias=action == "owned-alias", directory=action == "owned-directory") else 1
+    if action.startswith(("legacy-owned", "quarantine")):
+        from opencode_legacy import main as legacy
+        return legacy(action, file, record, root, args[4:])
     if action == "write":
         write(args[4], file, record, root)
     elif action == "records":

@@ -298,3 +298,27 @@ durable_case() {
   assert_unchanged "$OC/commands/adr.md" "$T/command.before"
   refute_substring "$output" 'Manifest saved'
 }
+
+@test "RST10: legacy quarantine metadata failure restores the original and removes its new backup" {
+  local root="$PROJECT/.opencode" record="$PROJECT/.opencode/.mb-manifest.json" target original
+  call bash "$SRC/adapters/opencode.sh" install "$PROJECT"; [ "$status" -eq 0 ]
+  target="$root/plugins/memory-bank.js"
+  jq 'del(.file_sha256)' "$record" > "$T/record.json"; mv "$T/record.json" "$record"
+  printf '\n// User edit to a legacy plugin\n' >> "$target"
+  snapshot "$target" "$T/target.before"
+  original="$(_file_sha256 "$target")" || return 1
+  fault_fixture
+  call env PYTHONPATH="$T/fault" FAULT_RECORD="$record" FAULT_TARGET="$target" FAULT_ORIGINAL="$original" \
+    FAULT_FIRED="$T/fault/fired" bash "$SRC/adapters/opencode.sh" install "$PROJECT"
+  local first_exit="$status"
+  chmod u+w "$root"
+  [ -f "$T/fault/fired" ]
+  [ "$first_exit" -ne 0 ]
+  assert_unchanged "$target" "$T/target.before"
+  [ -z "$(find "$root" -name '*.pre-mb-backup.*' -print)" ]
+  call python3 "$SRC/adapters/opencode_files.py" legacy-owned "$target" "$record" "$root"
+  [ "$status" -eq 0 ]
+  call bash "$SRC/adapters/opencode.sh" install "$PROJECT"
+  [ "$status" -eq 0 ]
+  assert_unchanged "$(jq -r --arg p "$target|" '.backups[] | select(startswith($p)) | split("|")[1]' "$record")" "$T/target.before"
+}

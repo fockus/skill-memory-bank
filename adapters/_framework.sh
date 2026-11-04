@@ -157,22 +157,69 @@ _mb_oc_paths() {
   printf '%s\n' "$@" | jq -R '{path: .}' | jq -sc .
 }
 
-_mb_oc_require_owned() {
-  local file="$1" record="$2" root="$3" kind="${4:-owned}" rc=0
+# Prints the authority to replace $1: absent, owned (hash-verified) or, with mode
+# "legacy", legacy (listed by a record that predates content hashes; the caller
+# must quarantine it). Anything else is refused with status 1.
+_mb_oc_authority() {
+  local file="$1" record="$2" root="$3" kind="$4" mode="$5" rc=0
   _mb_strict_file path "$file" "$record" "$root" || return $?
-  [ -e "$file" ] || [ -L "$file" ] || return 0
+  if [ ! -e "$file" ] && [ ! -L "$file" ]; then echo absent; return 0; fi
   _mb_strict_file "$kind" "$file" "$record" "$root" || rc=$?
+  if [ "$rc" -eq 0 ]; then echo owned; return 0; fi
   [ "$rc" -eq 1 ] || return "$rc"
+  if [ "$mode" = legacy ]; then
+    rc=0
+    _mb_strict_file "legacy-$kind" "$file" "$record" "$root" || rc=$?
+    if [ "$rc" -eq 0 ]; then echo legacy; return 0; fi
+    [ "$rc" -eq 1 ] || return "$rc"
+  fi
   echo "[opencode] preserved $file: automatic replacement requires verifiable ownership; restore an authoritative manifest or request separately approved exact manual replacements." >&2
   return 1
 }
 
+_mb_oc_require_owned() {
+  _mb_oc_authority "$1" "$2" "$3" "${4:-owned}" strict >/dev/null
+}
+
+# Install/upgrade writers only: also admits legacy-listed paths, which they quarantine.
+_mb_oc_require_replaceable() {
+  _mb_oc_authority "$1" "$2" "$3" "${4:-owned}" legacy
+}
+
+# Fresh quarantine path for a legacy-owned $1, flat under <root>/.memory-bank-backups
+# so no host discovery glob (commands/, agent/, plugins/, skills/) can reach it.
+_mb_oc_legacy_backup() {
+  local file="$1" record="$2" root="$3" name dest i=2
+  name="${file#"$root"/}"
+  dest="$root/.memory-bank-backups/${name//\//__}.pre-mb-backup.$(date +%s)"
+  name="$dest"
+  while [ -e "$dest" ] || [ -L "$dest" ]; do dest="$name.$i"; i=$((i + 1)); done
+  case "$file$dest" in *'|'*) echo "[opencode] preserved $file: unsupported '|' in quarantine mapping" >&2; return 1 ;; esac
+  _mb_strict_file path "$dest" "$record" "$root" || return 1
+  mkdir -p "$root/.memory-bank-backups" || return 1
+  printf '%s\n' "$dest"
+}
+
+# Moves a legacy-owned destination aside when a quarantine path is given, then writes $4.
+_mb_oc_replace() {
+  local dst="$1" record="$2" root="$3" source="$4" backup="${5:-}"
+  if [ -n "$backup" ]; then _mb_strict_file quarantine "$dst" "$record" "$root" "$backup" || return 1; fi
+  _mb_strict_file write "$dst" "$record" "$root" "$source"
+}
+
+# Expected postimages: $1 gets the bytes of $2; an optional quarantine path $3 gets the current $1.
 _mb_oc_source_paths() {
-  python3 - "$1" "$2" <<'PY'
+  python3 - "$(dirname "$_MB_STRICT_FILES")" "$@" <<'PY'
 import hashlib, json, sys
-with open(sys.argv[2], 'rb') as source:
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from opencode_files import fingerprint
+with open(sys.argv[3], 'rb') as source:
     digest = hashlib.file_digest(source, 'sha256').hexdigest()
-print(json.dumps([{'path': sys.argv[1], 'expected': digest}]))
+entries = [{'path': sys.argv[2], 'expected': digest}]
+if len(sys.argv) > 4:
+    entries.append({'path': sys.argv[4], 'expected': fingerprint(Path(sys.argv[2]))})
+print(json.dumps(entries))
 PY
 }
 
@@ -208,15 +255,17 @@ _mb_oc_apply() {
 }
 
 _mb_oc_save_manifest() {
-  local record="$1" root="$2" written="$3" extra="$4" previous ownership delta="${_MB_OC_POST_HASHES:-}"
+  local record="$1" root="$2" written="$3" extra="$4" quarantined="${5:-}" previous ownership delta="${_MB_OC_POST_HASHES:-}"
   [ -n "$delta" ] || delta='{}'
   [ ! -f "$_MB_OC_IO_CONTEXT/failed" ] || return 1
   previous='{}'
   if [ -f "$record" ]; then previous="$(jq -c . "$record")" || return 1; fi
   ownership=$(printf '%s' "$written" | _mb_strict_file records "$record" "$record" "$root") || return 1
   extra=$(jq -n --argjson prior "$previous" --argjson extra "$extra" --argjson owned "$ownership" \
-    --argjson delta "$delta" '
+    --argjson delta "$delta" --arg quarantined "$quarantined" '
     $prior + $extra + {files:$owned.files,file_sha256: ($owned.file_sha256 + ($delta | with_entries(select(.value != null and (.key as $path | $owned.files | index($path) != null)))))}
+    | if $quarantined == "" then . else .backups = (reduce ((.backups // []) + ($quarantined | split("\n") | map(select(length > 0))))[] as $b
+        ([]; if any(.[]; . == $b) then . else . + [$b] end)) end
     | del(.schema_version,.installed_at,.adapter,.skill_version)') || return 1
   if ! adapter_write_manifest "$record" opencode "$(cat "$(dirname "$_MB_STRICT_FILES")/../VERSION")" "$(printf '%s' "$ownership" | jq '.files')" "$extra"; then
     if [ ! -f "$_MB_OC_IO_CONTEXT/pending.json" ]; then _mb_oc_io abort || true; fi

@@ -291,3 +291,102 @@ SH
   assert_unchanged "$PROJECT/.mb-agents-owners.json" "$T/owners.before"
   refute_file "$MB_MANIFEST_PATH"
 }
+
+# Records written before bde42c6 listed installed paths in `files` only, without content hashes.
+legacy_record() {
+  jq 'del(.file_sha256, .backups)' "$1" > "$T/legacy-record.json" || return 1
+  mv "$T/legacy-record.json" "$1"
+}
+
+quarantined_backup() {
+  jq -r --arg p "$2|" '(.backups // [])[] | select(startswith($p)) | split("|")[1]' "$1"
+}
+
+@test "S5-LEGACY-9: upgrade quarantines unhashed legacy-listed files, writes new ones and records hashes" {
+  install; [ "$status" -eq 0 ]
+  local record="$PROJECT/.opencode/.mb-manifest.json" command="$PROJECT/.opencode/commands/adr.md"
+  local plugin="$PROJECT/.opencode/plugins/memory-bank.js" global="$OC/commands/adr.md" backup
+  legacy_record "$record"; legacy_record "$MB_MANIFEST_PATH"
+  printf '\nUser edit to a legacy command\n' >> "$command"
+  printf '\nUser edit to a legacy global command\n' >> "$global"
+  snapshot "$command" "$T/command.before"; snapshot "$global" "$T/global.before"
+  snapshot "$plugin" "$T/plugin.before"
+  printf '\nUpgrade sentinel\n' >> "$SRC/commands/adr.md"
+  install
+  [ "$status" -eq 0 ]
+  assert_grep -qF 'Upgrade sentinel' "$command"
+  assert_grep -qF 'Upgrade sentinel' "$global"
+  for pair in "$command|$record|$PROJECT/.opencode|command" "$plugin|$record|$PROJECT/.opencode|plugin" \
+    "$global|$MB_MANIFEST_PATH|$OC|global"; do
+    IFS='|' read -r file manifest root name <<< "$pair"
+    call python3 "$SRC/adapters/opencode_files.py" owned "$file" "$manifest" "$root"
+    [ "$status" -eq 0 ]
+    backup="$(quarantined_backup "$manifest" "$file")"
+    [ -n "$backup" ] && [ -f "$backup" ]
+    assert_unchanged "$backup" "$T/$name.before"
+    [[ "$backup" == "$root/.memory-bank-backups/"* ]]
+  done
+  call python3 "$SRC/adapters/opencode_files.py" owned-alias "$OC/skills/memory-bank" "$MB_MANIFEST_PATH" "$OC"
+  [ "$status" -eq 0 ]
+}
+
+@test "S5-LEGACY-9: uninstall after a legacy upgrade removes managed files and retains quarantined originals" {
+  install; [ "$status" -eq 0 ]
+  local record="$PROJECT/.opencode/.mb-manifest.json" command="$PROJECT/.opencode/commands/adr.md" backup
+  legacy_record "$record"
+  printf '\nUser edit to a legacy command\n' >> "$command"
+  snapshot "$command" "$T/command.before"
+  install; [ "$status" -eq 0 ]
+  backup="$(quarantined_backup "$record" "$command")"
+  [ -n "$backup" ]
+  uninstall
+  [ "$status" -eq 0 ]
+  refute_file "$command"
+  refute_file "$PROJECT/.opencode/plugins/memory-bank.js"
+  assert_unchanged "$backup" "$T/command.before"
+  assert_substring "$output" "$backup"
+}
+
+@test "S5-LEGACY-9: a pre-existing file absent from the legacy record is still refused" {
+  call bash "$SRC/adapters/opencode.sh" install "$PROJECT"; [ "$status" -eq 0 ]
+  local record="$PROJECT/.opencode/.mb-manifest.json" command="$PROJECT/.opencode/commands/adr.md"
+  jq --arg p "$command" 'del(.file_sha256) | .files -= [$p]' "$record" > "$T/record.json"
+  mv "$T/record.json" "$record"
+  printf 'Unmanaged user command\n' > "$command"
+  snapshot "$command" "$T/command.before"
+  call bash "$SRC/adapters/opencode.sh" install "$PROJECT"
+  [ "$status" -ne 0 ]
+  assert_unchanged "$command" "$T/command.before"
+  assert_substring "$output" "$command"
+  [ -z "$(quarantined_backup "$record" "$command")" ]
+}
+
+@test "S5-LEGACY-9: a hashed file modified after installation is still refused next to legacy entries" {
+  call bash "$SRC/adapters/opencode.sh" install "$PROJECT"; [ "$status" -eq 0 ]
+  local record="$PROJECT/.opencode/.mb-manifest.json" command="$PROJECT/.opencode/commands/adr.md"
+  jq --arg p "$command" '.file_sha256 |= with_entries(select(.key == $p))' "$record" > "$T/record.json"
+  mv "$T/record.json" "$record"
+  printf '\nUser edit after a hashed install\n' >> "$command"
+  snapshot "$command" "$T/command.before"
+  call bash "$SRC/adapters/opencode.sh" install "$PROJECT"
+  [ "$status" -ne 0 ]
+  assert_unchanged "$command" "$T/command.before"
+  assert_substring "$output" "$command"
+  [ -z "$(quarantined_backup "$record" "$command")" ]
+  [ -z "$(find "$PROJECT/.opencode" -name 'commands__adr.md.pre-mb-backup.*' -print)" ]
+}
+
+@test "S5-LEGACY-9: a legacy-listed alias symlink to another target is quarantined, not refused" {
+  install; [ "$status" -eq 0 ]
+  local alias="$OC/skills/memory-bank" backup
+  mkdir -p "$T/old-skill"; printf 'Old skill\n' > "$T/old-skill/SKILL.md"
+  rm "$alias"; ln -s "$T/old-skill" "$alias"
+  legacy_record "$MB_MANIFEST_PATH"
+  install
+  [ "$status" -eq 0 ]
+  [ "$(readlink "$alias")" != "$T/old-skill" ]
+  backup="$(quarantined_backup "$MB_MANIFEST_PATH" "$alias")"
+  [ -L "$backup" ] && [ "$(readlink "$backup")" = "$T/old-skill" ]
+  call python3 "$SRC/adapters/opencode_files.py" owned-alias "$alias" "$MB_MANIFEST_PATH" "$OC"
+  [ "$status" -eq 0 ]
+}

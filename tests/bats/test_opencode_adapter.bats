@@ -87,7 +87,7 @@ assert_opencode_preserved() {
   [ -z "$(find "$PROJECT/.opencode" -name '*.pre-mb-backup.*' 2>/dev/null)" ]
 }
 
-@test "opencode S5: reinstall preserves edited plugin command role and replaced symlinks without blessing them" {
+@test "opencode S5: reinstall preserves edited plugin command role and replaced symlinks without blessing them; an unhashed entry is quarantined" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local rel file
@@ -107,17 +107,24 @@ assert_opencode_preserved() {
   ln -s "$PROJECT/target" "$PROJECT/.opencode/commands/start.md"
 
   run_adapter install "$PROJECT"
-  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md agent/mb-doctor.md; do
+  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md; do
     file="$PROJECT/.opencode/$rel"
     assert_opencode_preserved "$file" "$PROJECT/$(basename "$file").before"
   done
+  # Listed without a hash = pre-hash ownership: the edit moves to a recorded backup.
+  local doctor="$PROJECT/.opencode/agent/mb-doctor.md" backup
+  backup="$(jq -r --arg p "$doctor|" '.backups[] | select(startswith($p)) | split("|")[1]' "$PROJECT/.opencode/.mb-manifest.json")"
+  assert_unchanged "$backup" "$PROJECT/mb-doctor.md.before"
+  python3 "$REPO_ROOT/adapters/opencode_files.py" owned "$doctor" "$PROJECT/.opencode/.mb-manifest.json" "$PROJECT/.opencode"
   [ -L "$PROJECT/.opencode/commands/start.md" ]
   [ "$(readlink "$PROJECT/.opencode/commands/start.md")" = "$PROJECT/target" ]
   assert_unchanged "$PROJECT/target" "$PROJECT/target.before"
   run_adapter uninstall "$PROJECT"
-  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md agent/mb-doctor.md; do
+  for rel in plugins/memory-bank.js commands/mb.md agent/mb-developer.md; do
     assert_unchanged "$PROJECT/.opencode/$rel" "$PROJECT/$(basename "$rel").before"
   done
+  refute_file "$doctor"
+  assert_unchanged "$backup" "$PROJECT/mb-doctor.md.before"
   [ -L "$PROJECT/.opencode/commands/start.md" ]
   assert_unchanged "$PROJECT/target" "$PROJECT/target.before"
 }

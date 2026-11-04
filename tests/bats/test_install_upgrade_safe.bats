@@ -2,9 +2,12 @@
 # Installing `main` over an older install (plan 2026-10-07_fix_upgrade-safe-install, Stage 1):
 #   - a re-run of install.sh with no flags restores the saved options (language,
 #     comments language, clients, project root); an explicit flag wins;
-#   - hashless v5.3.1 and deleted-manifest installs preserve candidate files
-#     and refuse automatic OpenCode replacement; inference supplies options,
-#     never ownership; established-ownership upgrades remain supported;
+#   - a hashless record proves provenance only: listed OpenCode files may be
+#     quarantined and replaced, but v5.3.1 also records no HOME, so its skill
+#     alias stays unverifiable and the upgrade refuses before any mutation;
+#     deleted-manifest installs preserve candidate files and refuse automatic
+#     OpenCode replacement; inference supplies options, never ownership;
+#     established-ownership upgrades remain supported;
 #   - I-250: files the previous install wrote are overwritten without a
 #     `.pre-mb-backup.*` copy; a foreign file at a managed path still gets one;
 #   - a file the old install wrote and the new one does not is removed when
@@ -147,14 +150,14 @@ _inferred_options() {
   ' _ "$SRC" "$PROJECT"
 }
 
-@test "upgrade from genuine $OLD_REF without hashes refuses replacement and preserves every candidate" {
+@test "upgrade from genuine $OLD_REF without hashes or HOME refuses the unverifiable alias and preserves every candidate" {
   git -C "$REPO_ROOT" rev-parse -q --verify "$OLD_REF^{commit}" >/dev/null || skip "$OLD_REF tag not available"
 
   # Authentic producer, not a current fixture retroactively granted hashes.
   git -C "$REPO_ROOT" archive "$OLD_REF" | tar -x -C "$SRC"
   _install --non-interactive --language ru --clients "$CLIENTS_ALL" --project-root "$PROJECT"
   _add_user_text
-  jq -e '.file_sha256 == null' "$SRC/.installed-manifest.json"
+  jq -e '.file_sha256 == null and .home == null' "$SRC/.installed-manifest.json"
   snapshot "$SRC/.installed-manifest.json" "$T/legacy-manifest.before"
   cp "$PROJECT/.codex/hooks.json" "$T/legacy-codex-hooks.json"
   _sync_current
@@ -166,7 +169,7 @@ _inferred_options() {
   run _install
   [ "$status" -ne 0 ]
   assert_grep -qiE 'verifiable.*ownership' "$T/install.log"
-  assert_grep -qF "$HOME/.config/opencode/commands/adr.md" "$T/install.log"
+  assert_grep -qF "$HOME/.config/opencode/skills/memory-bank" "$T/install.log"
   refute_grep -qF 'Manifest saved' "$T/install.log"
   _assert_snapshot_unchanged
   assert_unchanged "$SRC/.installed-manifest.json" "$T/legacy-manifest.before"

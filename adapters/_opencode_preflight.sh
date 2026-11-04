@@ -19,10 +19,10 @@ opencode_preflight() {
   "${MB_PYTHON:-python3}" "$SKILL_DIR/adapters/opencode_models.py" "$pipeline" >/dev/null || return 1
   _mb_strict_file uninstall-manifest "$MANIFEST" "$MANIFEST" "$OC_DIR" || return 1
   opencode_preflight_instructions || return 1
-  _mb_oc_require_owned "$PLUGIN_FILE" "$MANIFEST" "$OC_DIR" || return 1
+  _mb_oc_require_replaceable "$PLUGIN_FILE" "$MANIFEST" "$OC_DIR" >/dev/null || return 1
   for f in "$SKILL_DIR"/commands/*.md; do
     [ -f "$f" ] || continue
-    _mb_oc_require_owned "$COMMANDS_DIR/$(basename "$f")" "$MANIFEST" "$OC_DIR" || return 1
+    _mb_oc_require_replaceable "$COMMANDS_DIR/$(basename "$f")" "$MANIFEST" "$OC_DIR" >/dev/null || return 1
   done
   if [ "${MB_OC_PREFLIGHT_EXTENSIONS:-0}" = 1 ]; then
     _mb_strict_file uninstall-manifest "$OC_GLOBAL_MANIFEST" "$OC_GLOBAL_MANIFEST" "$OC_GLOBAL_DIR" || return 1
@@ -31,9 +31,9 @@ opencode_preflight() {
     [ -f "$f" ] || continue
     _opencode_agent_is_partial "$f" && continue
     dst="$(basename "$f")"
-    _mb_oc_require_owned "$AGENT_DIR/$dst" "$MANIFEST" "$OC_DIR" || return 1
+    _mb_oc_require_replaceable "$AGENT_DIR/$dst" "$MANIFEST" "$OC_DIR" >/dev/null || return 1
     if [ "${MB_OC_PREFLIGHT_EXTENSIONS:-0}" = 1 ]; then
-      _mb_oc_require_owned "$OC_GLOBAL_AGENT_DIR/$dst" "$OC_GLOBAL_MANIFEST" "$OC_GLOBAL_DIR" || return 1
+      _mb_oc_require_replaceable "$OC_GLOBAL_AGENT_DIR/$dst" "$OC_GLOBAL_MANIFEST" "$OC_GLOBAL_DIR" >/dev/null || return 1
     fi
   done
 }

@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - OpenCode 2: native command/tool hooks, opt-in model-free root memory and run-scoped model/variant routing; [contracts and limits](docs/cross-agent-setup.md#opencode).
 - Installer/CLI: `--only opencode` isolates installation, owned updates and uninstall; public extension opt-in survives reinstall. Other hosts and retained user configuration remain unchanged.
+- OpenCode upgrade from a pre-hash ownership record: a path listed in `files` without a `file_sha256` entry no longer fails the adapter; it is moved to a recorded backup under `<root>/.memory-bank-backups/` (outside host discovery), then rewritten and hashed. Uninstall keeps those backups and names them. Unlisted files and hashed files edited since installation are still refused.
 
 ### Changed — closure gate waits quietly
 

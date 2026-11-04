@@ -876,10 +876,10 @@ _mb_oc_preflight_existing() {
   local src kind=owned-alias
   for src in "$SOURCE_SKILL_DIR"/commands/*.md; do
     [ -f "$src" ] || continue
-    _mb_oc_require_owned "$OPENCODE_DIR/commands/$(basename "$src")" "$PREV_MANIFEST" "$OPENCODE_DIR" || return $?
+    _mb_oc_require_replaceable "$OPENCODE_DIR/commands/$(basename "$src")" "$PREV_MANIFEST" "$OPENCODE_DIR" >/dev/null || return $?
   done
   if [ -d "$OPENCODE_SKILL_ALIAS" ] && [ ! -L "$OPENCODE_SKILL_ALIAS" ]; then kind=owned-directory; fi
-  _mb_oc_require_owned "$OPENCODE_SKILL_ALIAS" "$PREV_MANIFEST" "$OPENCODE_DIR" "$kind"
+  _mb_oc_require_replaceable "$OPENCODE_SKILL_ALIAS" "$PREV_MANIFEST" "$OPENCODE_DIR" "$kind" >/dev/null
 }
 
 if [ "$ONLY" = opencode ]; then
@@ -1035,7 +1035,7 @@ quarantine_legacy_opencode_skill_backups() {
   for old in "$legacy_skills"/memory-bank.backup.* "$legacy_skills"/memory-bank.pre-mb-backup.*; do
     [ -e "$old" ] || [ -L "$old" ] || continue
     [ -e "$old/SKILL.md" ] || [ -L "$old/SKILL.md" ] || continue
-    if ! _mb_strict_file owned-directory "$old" "$PREV_MANIFEST" "$OPENCODE_LEGACY_DIR"; then
+    if ! _mb_oc_require_replaceable "$old" "$PREV_MANIFEST" "$OPENCODE_LEGACY_DIR" owned-directory >/dev/null 2>&1; then
       echo "[install.sh] preserved unverified legacy OpenCode backup: $old" >&2
       continue
     fi
@@ -1061,7 +1061,7 @@ quarantine_legacy_opencode_managed_plugin() {
   local backup_root="$OPENCODE_LEGACY_DIR/.memory-bank-backups/plugins"
   local dest i
   { [ -e "$old" ] || [ -L "$old" ]; } || return 0
-  if ! _mb_strict_file owned "$old" "$PREV_MANIFEST" "$OPENCODE_LEGACY_DIR"; then
+  if ! _mb_oc_require_replaceable "$old" "$PREV_MANIFEST" "$OPENCODE_LEGACY_DIR" >/dev/null 2>&1; then
     echo "[install.sh] preserved unverified legacy OpenCode plugin: $old" >&2
     return 0
   fi
@@ -1092,8 +1092,11 @@ oc_record_quarantine() {
 install_file() {
   local src="$1" dst="$2"
   case "$dst" in "$OPENCODE_DIR"/*)
-    _mb_oc_require_owned "$dst" "$PREV_MANIFEST" "$OPENCODE_DIR" || return $?
-    _mb_oc_apply "$MANIFEST" "$OPENCODE_DIR" "$(_mb_oc_source_paths "$dst" "$src")" oc_checkpoint oc_install_file "$src" "$dst"
+    local state backup=""
+    state="$(_mb_oc_require_replaceable "$dst" "$PREV_MANIFEST" "$OPENCODE_DIR")" || return $?
+    if [ "$state" = legacy ]; then backup="$(_mb_oc_legacy_backup "$dst" "$PREV_MANIFEST" "$OPENCODE_DIR")" || return 1; fi
+    _mb_oc_apply "$MANIFEST" "$OPENCODE_DIR" "$(_mb_oc_source_paths "$dst" "$src" ${backup:+"$backup"})" oc_checkpoint \
+      oc_install_file "$src" "$dst" "$backup"
     return $?
     ;;
   esac
@@ -1118,7 +1121,8 @@ oc_checkpoint() {
 }
 
 oc_install_file() {
-  _mb_strict_file write "$2" "$PREV_MANIFEST" "$OPENCODE_DIR" "$1" || return 1
+  _mb_oc_replace "$2" "$PREV_MANIFEST" "$OPENCODE_DIR" "$1" "${3:-}" || return 1
+  if [ -n "${3:-}" ]; then BACKED_UP_FILES+=("$2|$3"); fi
   INSTALLED_FILES+=("$2")
 }
 
@@ -1236,28 +1240,32 @@ install_symlink() {
   local source="$1"
   local dest="$2"
   if [ "$dest" = "$OPENCODE_SKILL_ALIAS" ]; then
-    _mb_strict_file path "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR" || return 1
-    local ownership=owned-alias
+    local ownership=owned-alias state
     [ ! -d "$dest" ] || [ -L "$dest" ] || ownership=owned-directory
-    if { [ -e "$dest" ] || [ -L "$dest" ]; } && ! _mb_strict_file "$ownership" "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR"; then
+    if ! state="$(_mb_oc_require_replaceable "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR" "$ownership")"; then
       echo "[install.sh] preserved unmanaged alias: $dest; inspect it before retrying" >&2
       return 1
     fi
-    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$source" ]; then
+    # A legacy alias is re-created so its identity gets recorded; a foreign target is quarantined.
+    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$source" ] && [ "$state" != legacy ]; then
       INSTALLED_FILES+=("$dest")
       return 0
     fi
-    local backup="" paths
+    local backup="" quarantine="" paths
     mkdir -p "$(dirname "$dest")" || return 1
     paths="$(jq -cn --arg path "$dest" --arg link "$source" '[{path:$path,expected:{link:$link}}]')" || return 1
-    if [ "$ownership" = owned-directory ]; then
+    if [ "$state" = legacy ] && [ -L "$dest" ] && [ "$(readlink "$dest")" != "$source" ]; then
+      quarantine="$(_mb_oc_legacy_backup "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR")" || return 1
+      paths="$(jq -cn --arg path "$dest" --arg link "$source" --arg q "$quarantine" --arg old "$(readlink "$dest")" \
+        '[{path:$path,expected:{link:$link}},{path:$q,expected:{link:$old}}]')" || return 1
+    elif [ "$ownership" = owned-directory ]; then
       _mb_strict_file path "$OPENCODE_DIR/.memory-bank-backups/backup" "$PREV_MANIFEST" "$OPENCODE_DIR" || return 1
       mkdir -p "$OPENCODE_DIR/.memory-bank-backups" || return 1
       backup="$(mktemp -d "$OPENCODE_DIR/.memory-bank-backups/memory-bank.pre-mb-backup.XXXXXXXX")" || return 1
       rmdir "$backup" || return 1
       paths="$(jq -cn --arg path "$dest" --arg retain "$backup" --arg link "$source" '[{path:$path,retain:$retain,expected:{link:$link}},{path:$retain}]')" || return 1
     fi
-    _mb_oc_apply "$MANIFEST" "$OPENCODE_DIR" "$paths" oc_checkpoint oc_install_alias "$source" "$dest" "$backup"
+    _mb_oc_apply "$MANIFEST" "$OPENCODE_DIR" "$paths" oc_checkpoint oc_install_alias "$source" "$dest" "$backup" "$quarantine"
     return $?
   fi
   mkdir -p "$(dirname "$dest")"
@@ -1279,8 +1287,11 @@ install_symlink() {
 }
 
 oc_install_alias() {
-  local source="$1" dest="$2" backup="$3"
-  if [ -L "$dest" ]; then rm -f "$dest" || return 1; fi
+  local source="$1" dest="$2" backup="$3" quarantine="${4:-}"
+  if [ -n "$quarantine" ]; then
+    _mb_strict_file quarantine-alias "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR" "$quarantine" || return 1
+    BACKED_UP_FILES+=("$dest|$quarantine")
+  elif [ -L "$dest" ]; then rm -f "$dest" || return 1; fi
   _mb_strict_file symlink "$dest" "$PREV_MANIFEST" "$OPENCODE_DIR" "$source" || return 1
   INSTALLED_FILES+=("$dest")
   if [ -n "$backup" ]; then BACKED_UP_FILES+=("$dest|$backup"); fi
