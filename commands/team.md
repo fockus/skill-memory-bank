@@ -75,6 +75,7 @@ team track add A --task "Admin users page lists the realm users" \
 | `--deps A,B` | Tracks that must finish first; **add dependencies before the tracks that depend on them** |
 | `--resources r1` | Resources from `team.resources` the track may lock (§6) |
 | `--source P` | Plan or spec for `mode=work` (required there); bank-relative or absolute |
+| `--contract C` | Executable contract (`<bank>/contracts/<id>.md`, `scripts/mb_contract.py`): spec REQ checks, rules checks, DoD checks. Write it before dispatch (you or plan-verifier in `Mode: contract`), freeze it (`mb_contract.py freeze`: spec items must be red); `track set --status dispatched` refuses an unfrozen or changed one, the prompt tells the track to run it, `commit` runs it. `plan` warns about a standard+ track without one |
 
 `track add` resolves the pipeline, stores `title` and `dod`, renders `tracks/<id>.prompt.md` (a one-stage plan:
 `<!-- mb-stage:1 -->` around task and DoD) and refreshes the tracks table of the brief while the brief is still
@@ -116,11 +117,23 @@ question to the user, never a guess. `python3 "$SKILL_DIR/scripts/mb_team_pipeli
 | «трек маленький / стандартный / крупный» | `size=small` · `size=standard` · `size=large` |
 | «effort low / medium / high», «думай глубже» | `effort=low` · `effort=medium` · `effort=high` |
 
+**Shared mechanisms registry.** `<bank>/shared-mechanisms.md` is a table `| Mechanism | Home | Status | Keywords |`
+(status `exists` or `being-extracted`). Every track prompt lists the rows its task or globs touch ("use X from Y; do
+not copy"); a reviewer treats a second copy of a listed mechanism outside its home as a blocker. Add a row as soon as
+a foundation track starts extracting a mechanism (`being-extracted`) and flip it to `exists` when it lands.
+
 ## 3. Plan and confirm — `plan`
 
 `team plan [--json]` prints the track table with the resolved pipeline and provenance, the waves (from deps and glob
 overlap), effort mismatches against the agent's `effort:` frontmatter, prompt warnings and readiness errors. Show it
 to the user and get a yes before the first dispatch. `team prompt <id>` re-renders one track prompt and prints its path.
+
+**Shared foundations (blocking).** Tracks forbidden to touch each other's files each write their own copy of a
+mechanism they all need. `plan` lists every signal ≥2 tracks share — a `platform/`, `shared/`, `common/` or `kit/`
+path in their globs or task, a `<word> kit|boundary|client|registry` phrase, a registry row — as `BLOCKING shared
+foundation` with a suggested foundation track; `next` answers `stop_human shared-foundation:<signal>` while a track of
+the group is still planned. Resolve it by adding a foundation track and putting it in the others' `--deps` (add it
+first), by a registry row with status `exists`, or, when the overlap is harmless, `team plan --accept-shared <signal>`.
 
 ## 4. The loop — `next`
 
@@ -137,9 +150,11 @@ parallel ones in one turn:
 
 | Action | What you do |
 |---|---|
-| `stop_human <why>` | Stop and ask the user: `brief-unfilled`, `no-tracks`, `budget`, `blocked:<id>`, `needs_context:<id>`, `no-report:<id>`, `claim:<id>`, `review-cycles`, `review-unowned`, `fix-cycles:<id>` (the track used `team.review.max_cycles` fixes), `blocked:dep-cancelled:<id>` (a planned track depends on a cancelled one), `goal-red` (goal acceptance below 100 %), `flow-red:<checks>` (`mb-flow-verify.sh --skip acceptance` failed). A `stop_human` is printed alone: no `fix`, `dispatch` or `collect` until the user resolves it |
+| `stop_human <why>` | Stop and ask the user: `brief-unfilled`, `no-tracks`, `budget`, `blocked:<id>`, `needs_context:<id>`, `no-report:<id>`, `claim:<id>`, `review-cycles`, `review-unowned`, `fix-cycles:<id>` (the track used `team.review.max_cycles` fixes), `blocked:dep-cancelled:<id>` (a planned track depends on a cancelled one), `goal-red` (goal acceptance below 100 %), `flow-red:<checks>` (`mb-flow-verify.sh --skip acceptance` failed), `shared-foundation:<signal>` (§3), `spec-gaps:<spec>` (the last whole-spec check found REQs without code + test evidence). A `stop_human` is printed alone: no `fix`, `dispatch` or `collect` until the user resolves it |
 | `fix <id>` | `team track set <id> --status fixing`, re-dispatch the track with the findings (team review findings) |
 | `dispatch <id>` | `team track set <id> --status dispatched`, start the agent with the track prompt |
+| `extract <id> <mechanism>` | Track `<id>` posted `HANDOVER · extract:<mechanism>`: it needs shared code in another track's zone and stopped that part instead of copying. Decide the home (a foundation track, or the owner track takes it), add a registry row `being-extracted`, `ACK` the handover with your decision, and relay it to `<id>` |
+| `spec_verify <spec>` | Every track is collected: run plan-verifier in whole-spec mode (`Source kind: spec`, `Verify: whole spec`, the spec's `tasks.md`) over the full `requirements.md`, then `team spec-check <spec> --gaps N --report <file>`. Gaps → `stop_human spec-gaps:<spec>`: add next-wave tracks (or backlog items with the user's yes) and verify again |
 | `collect` | `team collect` (§7) |
 | `team_review <N>` | Run team review cycle N (§8) |
 | `stop_success` | Every track finished and collected, last team review clean (when on), goal acceptance 100 %, flow (acceptance skipped) green — report and `team close` |
@@ -197,12 +212,18 @@ declared in `team.resources` (`docs/pipeline-yaml.md` § team).
 - `team collect [--dry-run] [--json]` — one `progress.md` entry per newly finished track (through
   `mb-work-progress-append.sh`), marks it `collected`; a second run appends nothing. Prints the reports' Questions and
   Follow-ups as `mb-agree.sh question` / `mb-idea.sh` commands and, with a goal, the acceptance items with evidence.
+  With ≥2 finished tracks it scans the lines they added since the baseline for cross-track copies (normalised
+  5-line windows) and prints `duplicate: A path:line ~ B path:line (N lines)` — candidates: read both, then extract
+  (registry row + foundation work) or accept.
 - `team checkpoint [label]` — diff from the baseline, untracked files (under `max_untracked_mb`), manifest and
   sha256 into `team.checkpoint.dir` (bank-relative, default `backups/team`), then `checkpoint.extra`.
   `team checkpoint --verify <id>` recomputes the hashes. Restore commands are printed, never run.
 - `team commit --tracks A,B -m <msg> [--yes]` — files = changed ∩ globs of the selected tracks; refuses unfinished
-  tracks, an open BLOCKED/HANDOVER for them and files co-owned by an unfinished unselected track; lists excluded
-  foreign files; **asks y/N, default No** (`--yes` only after the user said yes); commits exactly that list through
+  tracks, an open BLOCKED/HANDOVER for them and files co-owned by an unfinished unselected track; runs the **rules
+  gate** — `team.rules_gate` from `pipeline.yaml` (e.g. `make lint-new`) in the tree, then `mb-rules-check.sh --base
+  <baseline>` on each track's files, plus the track's frozen contract — and on a failure or any CRITICAL sends that track back to `fixing`, prints the
+  findings and stages nothing (re-dispatch it; dispatch `mb-rules-enforcer` on its files for the judgment checks); lists
+  excluded foreign files; **asks y/N, default No** (`--yes` only after the user said yes); commits exactly that list through
   `mb_vcs.sh commit -m <msg> -- <paths>`; posts `COMMIT` on the board. Never pushes.
 - `team known-red add <test-id> --reason R` · `team known-red list` — tests red on the baseline; the brief tells
   tracks not to fix or count them.
@@ -253,9 +274,11 @@ once tracks are collected and the flow is green, and every `stop_human` returns 
 | Subcommand | Attributes |
 |---|---|
 | `init <topic>` | `--goal G \| --no-goal`, `--plan`, `--tree`, `--mirror`, `--max-parallel`, `--budget`, `--team-review`, `--title`, `--host`, pipeline attributes |
-| `track add <id>` | `--task \| --task-file`, `--dod`…, `--title`, `--role`, `--files`, `--deps`, `--resources`, `--source`, pipeline attributes, `--layer` |
+| `track add <id>` | `--task \| --task-file`, `--dod`…, `--title`, `--role`, `--files`, `--deps`, `--resources`, `--source`, `--contract`, pipeline attributes, `--layer` |
 | `track set <id>` | `--status S [--summary-file F]`, or pipeline attributes with `--layer` |
-| `plan` · `next` · `status` | `--json` |
+| `plan` | `--json`, `--accept-shared <signal>` (repeatable) |
+| `next` · `status` | `--json` |
+| `spec-check <spec>` | `--gaps N`, `--report F` |
 | `prompt <id>` | — |
 | `checkpoint [label]` | `--verify <id>` |
 | `review start\|gate\|external\|ingest` | `--cycle N`, `--lenses`, `--range`, `--name`, `--rev`, `--pipeline` |

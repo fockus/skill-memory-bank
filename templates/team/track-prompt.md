@@ -16,7 +16,7 @@ Working tree: {{tree}} · Bank: {{bank}}
 {{dod}}
 <!-- /mb-stage:1 -->
 
-## Pipeline (resolved — do not change it)
+{{contract}}{{shared}}## Pipeline (resolved — do not change it)
 {{pipeline}}
 
 ## Report and reply

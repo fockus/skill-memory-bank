@@ -33,6 +33,7 @@ Frozen on the board as `FREEZE · contract:sso-20261010`. Change it only through
 - Do not read or print secrets. Protected paths: .env*, CI, Docker/K8s/Terraform.
 - Report to the orchestrator only; never message other tracks. Findings that affect another track: HANDOVER on the board.
 - A safety-filter refusal is reported as BLOCKED, not worked around.
+- Shared code you need that belongs to another track's files or to a shared-mechanisms home: do not copy it. Stop that part, post `HANDOVER · extract:<mechanism>` (`mb-coord.sh append --type HANDOVER --track <id> --title extract:<mechanism>`) and go on with the rest.
 - Go code: gofmt and go vet clean before you report.
 - Dockerfile and Helm are not edited; environment goes into the client code.
 - Do not run find or du over the whole home directory.

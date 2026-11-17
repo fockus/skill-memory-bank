@@ -82,7 +82,6 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - ✅ Stage 3 — Тон по силе модели
 - ⬜ Stage 4 — Замер на боевых задачах
 
-
 <!-- mb-plan:2026-10-09_fix_codex-global-native-hooks.md -->
 ## codex-global-native-hooks — 1/2
 - ✅ Stage 1 — Global installation and migration

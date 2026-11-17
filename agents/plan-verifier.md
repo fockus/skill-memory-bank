@@ -43,7 +43,7 @@ Use the caller's `Source file` and `Source kind` (`plan` or `spec`); legacy `Pla
 
 Bind `PLAN_FILE` to that exact source (also for a spec), `BANK` to the resolved bank, and `SKILL_DIR` to the supplied skill path. Export `MB_PATH="$BANK"` for helper calls and keep cwd at the project, not the bank or installed bundle. Include these bindings again for each fresh tool shell.
 
-For a **spec**, read `tasks.md` plus its sibling `requirements.md` and `design.md`. Enumerate `<!-- mb-task:N -->` tasks and validate each task's Covers/DoD/Testing, requirement coverage, and any declared scenarios/Eval. Missing required spec artifacts or no executable tasks is a CRITICAL gap. Apply the algorithm below to tasks wherever it says stages; spec-only work needs no plan wrapper. The diff baseline comes from the actual source or caller-provided baseline, with the same fallback warnings as below.
+For a **spec**, read `tasks.md` plus its sibling `requirements.md` and `design.md`. Enumerate `<!-- mb-task:N -->` tasks and validate each task's Covers/DoD/Testing, requirement coverage, and any declared scenarios/Eval. **Every REQ a task's `Covers:` names is checked against that REQ's own text and acceptance criteria in `requirements.md`, not against the task DoD**: a task can name REQ-028 ("access recovery only through an operator") and keep only "a recovery flag" in its text. For each such REQ find the code that implements the REQ text and a test that exercises it; a REQ with no such code and test evidence is CRITICAL `REQ covered by task text only, no code/test evidence: <REQ-ID> — <what the REQ text requires that is missing>`. Missing required spec artifacts or no executable tasks is a CRITICAL gap. Apply the algorithm below to tasks wherever it says stages; spec-only work needs no plan wrapper. The diff baseline comes from the actual source or caller-provided baseline, with the same fallback warnings as below.
 
 For a **plan**, read the plan file (its path is provided in the task). Extract:
 
@@ -52,6 +52,29 @@ For a **plan**, read the plan file (its path is provided in the task). Extract:
 - testing requirements (unit, integration, e2e)
 - the overall gate / success criteria for the full plan
 - the expected result from the “Context” section
+
+### Step 1.5: Run the contract first
+
+When the caller passes `Contract: <path>` (or `<bank>/contracts/<id>.md` exists for this stage, task or track),
+run it before anything else — it is the executable form of the spec REQs, the rules and the DoD, written and
+frozen before the implementation:
+
+```bash
+python3 "$SKILL_DIR/scripts/mb_contract.py" run <contract> --tree <project> --json
+```
+
+- every `fail` item is CRITICAL (`contract <section> <id>: <reason>`), `frozen: drifted` is CRITICAL (changed
+  after freeze without `freeze --amend`), `frozen: no` is a WARNING (never frozen — no red evidence);
+- a covered REQ without a spec item is CRITICAL (the runner reports it);
+- your own judgement goes to the `manual` items and to the quality of the tests the spec items run (does the test
+  exercise the REQ text, or only a flag?). Executable items that pass need no re-proof by reading.
+
+**Contract mode** (`Mode: contract`, before implementation): write `<bank>/contracts/<id>.md` from the plan stage
+or task and the full text of every REQ it covers — `**Covers:**`, `## spec` (per REQ: the acceptance test and its
+run command, or `manual: <reason>`), `## rules` (the project's `rules_gate` command, forbidden-import greps,
+mechanically checkable `RULES.md` thresholds), `## dod` (each DoD bullet as a command, or `manual:`) — using the
+Eval anchors `exit: N`, `output~: <regex>`, `output-empty`; then `mb_contract.py freeze <contract>` (spec items
+must fail now). Do not write the implementation.
 
 ### Step 2: Inspect code changes (baseline-aware)
 
@@ -126,18 +149,23 @@ work; list those first.
 
 ### Step 3.6: Check RULES.md adherence
 
-RULES drift is the silent killer of architectural integrity. Read the effective rules file with project-first precedence — `./.memory-bank/RULES.md` overrides the global fallback at `~/.claude/RULES.md`:
+RULES drift is the silent killer of architectural integrity. Read the effective rules file with project-first precedence — the project's root `RULES.md` (its §0 checklist and thresholds), then the bank copy `./.memory-bank/RULES.md`, then the global fallback at `~/.claude/RULES.md`. `mb-rules-check.sh` reports the same choice as `rules_source`:
 
 ```bash
-# Rules in the resolved bank override global.
-if [ -f "$BANK/RULES.md" ]; then
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -f "$PROJECT_ROOT/RULES.md" ]; then       # project root rules win
+  RULES="$PROJECT_ROOT/RULES.md"
+elif [ -f "$BANK/RULES.md" ]; then
   RULES="$BANK/RULES.md"
 elif [ -f "$HOME/.claude/RULES.md" ]; then     # ~/.claude/RULES.md
   RULES="$HOME/.claude/RULES.md"
 else
-  RULES=""   # neither file exists — emit WARNING, skip rules checks
+  RULES=""   # no file exists — emit WARNING, skip rules checks
 fi
 ```
+
+Judge function length, parameter count, file size and layer imports against the thresholds in `$RULES`; a
+project value overrides the bundled default.
 
 For every changed source file in the diff, apply deterministic checks:
 
@@ -189,6 +217,7 @@ Issue categories:
 - a DoD item is not satisfied
 - tests are missing when the plan requires them
 - changed files contain TODOs/placeholders/stubs
+- a REQ named in a task's `Covers:` has no code + test evidence for its own text (`REQ covered by task text only, no code/test evidence`)
 - an active agreement is classified `violated` (Step 3.7) — forces FAIL regardless of every other axis
 
 **WARNING (needs attention):**
@@ -288,7 +317,7 @@ Skill path: <absolute installed skill root>
 Context: <free-form description of the session — which stages are claimed done>
 ```
 
-Optional source lines from `/mb work`, read by you: `Spec:`, `Plan wrapper:`, `QA cases:`, `QA report:` (each `none` when absent).
+Optional source lines from `/mb work`, read by you: `Spec:`, `Plan wrapper:`, `QA cases:`, `QA report:`, `Contract:`, `Mode: contract` (each `none` when absent).
 
 ## Sources, coverage and divergence
 
@@ -296,6 +325,7 @@ Optional source lines from `/mb work`, read by you: `Spec:`, `Plan wrapper:`, `Q
 - Report CRITICAL `plan-spec divergence: …` for a REQ in the wrapper's scope that no task covers, or wrapper DoD/stage work no spec task or REQ asks for; scope is all REQs for an unranged wrapper, the `Covers:` union of the range for `tasks: A-B` (other REQs: INFO "outside this slice").
 - With QA cases, add `### QA coverage` as the table `| REQ | Case | Origin | Proof | Live | Test |`: Live is the case's Results status in `QA report:` (`pending` without one, `n/a` for `proof: test`), Test is the `file:line` of `mb:case <id>` or `none`; a large/extra REQ without a case, or a fixed regression case without an `mb:case` test, is a WARNING.
 - Status `➖ NOTHING TO VERIFY` when the source has no REQ, no DoD item and no case; never PASS.
+- **Whole-spec mode** (`Verify: whole spec`, the `/mb team` wave-end `spec_verify`, or `/mb verify` on a spec): run `python3 "$SKILL_DIR/scripts/mb_spec_coverage.py" <spec-dir> --tree <project> --json` first. It lists every REQ of `requirements.md` with its text, the tasks whose `Covers:` name it and the test files that name it. A `tested` row still needs a test that exercises the REQ text (read it); a `task-only` row needs code + test evidence found by reading, otherwise CRITICAL `REQ covered by task text only, no code/test evidence`; an `uncovered` row is CRITICAL `REQ not implemented by any task`. Report `### Spec REQ coverage (<spec>)` with one line per REQ and end with `Gaps: N` — the number the orchestrator records with `mb-team.sh spec-check <spec> --gaps N --report <file>`.
 
 Start from Step 1. If the source file does not exist, respond with `❌ FAIL — source file not found at <path>`. Do not fabricate the plan or spec from memory.
 

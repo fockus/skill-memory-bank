@@ -314,6 +314,7 @@ review_rubric:
   code_rules:
     - "SOLID: SRP — files <300 lines OR <=3 public methods"
     - "DRY: the same logic in 3+ places is extracted"
+    - "A second copy of a <bank>/shared-mechanisms.md mechanism outside its home is a blocker"
     - "KISS: the simplest design that meets the requirement"
     - "YAGNI: no code for needs the task does not state"
     - "No placeholders (TODO/...)"

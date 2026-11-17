@@ -27,7 +27,7 @@ ROLE_MODEL_KEYS = ("executor", "verifier", "reviewer", "lead", "lenses")
 SEVERITIES = ("blocker", "major", "medium", "minor")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$")
 
-_TEAM_KEYS = ("default_size", "max_parallel", "presets", "overrides", "rules", "review",
+_TEAM_KEYS = ("default_size", "max_parallel", "presets", "overrides", "rules", "rules_gate", "review",
               "resources", "checkpoint")
 _REVIEW_KEYS = ("enabled", "lenses", "clean_when", "max_cycles", "models")
 _RESOURCE_KEYS = ("kind", "scope", "preconditions", "stop_threshold", "maintenance",
@@ -235,6 +235,8 @@ def validate(team, err, text: str | None = None) -> None:
     rules = team.get("rules")
     if rules is not None and (not isinstance(rules, list) or not all(isinstance(r, str) and r for r in rules)):
         err("team.rules: must be a list of non-empty strings")
+    if team.get("rules_gate") is not None:
+        _string(err, "team.rules_gate", team["rules_gate"])
     if "review" in team:
         _check_review(err, team["review"])
     for name, spec in _mapping(err, "team.resources", team.get("resources")).items():

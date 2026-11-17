@@ -5,10 +5,12 @@ Usage (through mb-team.sh, which adds --mb <bank>):
   mb_team_tracks.py init <topic> (--goal G | --no-goal) [--plan P] [--tree D] [--mirror D]
       [--max-parallel N] [--budget TOK] [--team-review] [--title T] [--host H] [pipeline attrs]
   mb_team_tracks.py track add <id> (--task T | --task-file F) --dod D [--dod D]... [--title T]
-      [--role R] [--files g1,g2] [--deps A,B] [--resources r1] [--source P] [pipeline attrs] [--layer attr|prompt]
+      [--role R] [--files g1,g2] [--deps A,B] [--resources r1] [--source P] [--contract C] [pipeline attrs]
+      [--layer attr|prompt]   (--contract: frozen mb_contract.py file; `dispatched` refuses an unfrozen one)
   mb_team_tracks.py track set <id> [--status S [--summary-file F]] [pipeline attrs] [--layer attr|prompt]
   mb_team_tracks.py prompt <id> · known-red add <test-id> --reason R · known-red list
-  mb_team_tracks.py plan [--json]   # table, provenance, waves, effort mismatches, readiness
+  mb_team_tracks.py spec-check specs/<topic> --gaps N [--report F]   # record a wave-end spec verification
+  mb_team_tracks.py plan [--json] [--accept-shared S]   # mb_team_plan.py: table, waves, readiness
 Pipeline attrs: --size --mode --tdd --verifier --review --effort --model key=value (repeatable).
 Every command takes --mb <bank> and --topic T (default: the only open team of the bank).
 `--source` defaults to the track prompt (a one-stage plan); `--source` and `--plan` take a bank-relative or absolute path. `track add` resolves the pipeline
@@ -22,16 +24,16 @@ Exit codes: 0 ok · 2 refused (bad input, unknown track, invalid move, missing g
 from __future__ import annotations
 
 import argparse
-import json
 import os
-import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import mb_contract as contract_mod  # noqa: E402
 import mb_team_pipeline as pipeline_mod  # noqa: E402
-import mb_team_render as render  # noqa: E402
+import mb_team_plan as plan_mod  # noqa: E402
+import mb_team_spec as spec_mod  # noqa: E402
 import mb_team_state as st  # noqa: E402
 from mb_team_state import TeamError  # noqa: E402
 
@@ -121,7 +123,7 @@ def cmd_track_add(args) -> int:
                  "layers": {"track": [], "prompt": []}, "pipeline": None, "provenance": None,
                  "prompt": f"{base}/tracks/{tid}.prompt.md", "report": f"{base}/{tid}.md", "status": "planned",
                  "run_id": None, "fix_cycle": 0, "collected": False, "dispatched_at": None, "returned_at": None,
-                 "summary": None}
+                 "summary": None, "contract": _rel(bank, args.contract) if args.contract else None}
         track["layers"][args.layer] = st.pipeline_attrs(args)
         st.resolve_track(bank, team, track)
         team["tracks"].append(track)
@@ -139,6 +141,10 @@ def cmd_track_set(args) -> int:
         if args.status:
             if not st.can_move(track["status"], args.status):
                 raise TeamError(f"track {args.id}: {track['status']} -> {args.status} is not allowed")
+            contract = Path(bank) / track["contract"] if track.get("contract") else None
+            if args.status == "dispatched" and contract and contract_mod.frozen_state(contract) != "yes":
+                raise TeamError(f"track {args.id}: contract {contract} is not frozen (or changed since): "
+                                f"python3 {st.HERE}/mb_contract.py freeze {contract} --tree {team['tree']}")
             if args.status == "fixing":
                 track["fix_cycle"] += 1
                 # A fix reopens the track: its return must be collected again, or a team-review
@@ -168,6 +174,15 @@ def cmd_prompt(args) -> int:
     return 0
 
 
+def cmd_spec_check(args) -> int:
+    if args.gaps < 0 or not spec_mod.SPEC_RE.search(args.spec.rstrip("/") + "/"):
+        raise TeamError("spec-check specs/<topic> --gaps N (N >= 0) [--report F]")
+    with st.locked(args.mb, st.find_topic(args.mb, args.topic)) as team:
+        team.setdefault("spec_checks", {})[args.spec.rstrip("/")] = {
+            "gaps": args.gaps, "report": args.report or None, "wave": spec_mod.wave_key(team), "at": st.now()}
+    return 0
+
+
 def cmd_known_red(args) -> int:
     bank, topic = args.mb, st.find_topic(args.mb, args.topic)
     if args.action == "list":
@@ -180,51 +195,6 @@ def cmd_known_red(args) -> int:
         team["known_red"].append({"id": args.test_id, "reason": args.reason, "since": st.now()[:10]})
         st.refresh_brief(bank, team)
     return 0
-
-
-def agent_effort(agent: str) -> str | None:
-    path = st.HERE.parent / "agents" / f"{agent}.md"
-    m = re.search(r"^effort:\s*(\S+)", path.read_text(encoding="utf-8"), re.M) if path.is_file() else None
-    return m.group(1) if m else None
-
-
-def plan_json(bank: str, team: dict) -> dict:
-    waves: dict[str, int] = {}
-    for t in team["tracks"]:  # deps are added before their dependants
-        waves[t["id"]] = 1 + max((waves.get(d, 0) for d in t.get("deps") or []), default=0)
-    warnings, overlaps = [], []
-    for t in team["tracks"]:
-        have = agent_effort(t["agent"])
-        if have and have != t["pipeline"]["effort"]:
-            warnings.append(f"{t['id']} effort={t['pipeline']['effort']} but agent {t['agent']} has effort: {have} "
-                            "(Claude Code reads effort from the agent) — accept or change")
-    for i, a in enumerate(team["tracks"]):
-        for b in team["tracks"][i + 1:]:
-            if waves[a["id"]] == waves[b["id"]] and any(st.globs_overlap(x, y) for x in a["files"] for y in b["files"]):
-                overlaps.append(f"{a['id']}/{b['id']}")
-    brief = Path(bank) / team["brief"]
-    return {"tracks": [{"id": t["id"], "role": t["role"], "size": t["size"], "pipeline": t["pipeline"],
-                        "provenance": t["provenance"], "wave": waves[t["id"]], "deps": t.get("deps") or []}
-                       for t in team["tracks"]],
-            "warnings": warnings,
-            "ready": {"brief_unfilled": len(render.unfilled(str(brief))) if brief.is_file() else 1,
-                      "glob_overlaps_in_wave": overlaps}}
-
-
-def print_plan(p: dict) -> None:
-    print(f"{'ID':<6}{'ROLE':<10}{'SIZE':<10}{'MODE':<8}{'TDD':<10}{'VERIFIER':<15}{'REVIEW':<8}"
-          f"{'EXECUTOR':<12}{'EFFORT':<8}WAVE")
-    for t in p["tracks"]:
-        q = t["pipeline"]
-        deps = f" (deps {','.join(t['deps'])})" if t["deps"] else ""
-        print(f"{t['id']:<6}{t['role']:<10}{t['size']:<10}{q['mode']:<8}{q['tdd']:<10}{q['verifier']:<15}"
-              f"{q['review']:<8}{q['models'].get('executor', '-'):<12}{q['effort']:<8}{t['wave']}{deps}")
-    for t in p["tracks"]:
-        print(f"provenance {t['id']}: " + " ".join(f"{k}={v}" for k, v in t["provenance"].items()))
-    for w in p["warnings"]:
-        print(f"warning: {w}")
-    r = p["ready"]
-    print(f"ready: brief unfilled hints {r['brief_unfilled']} · overlaps in a wave {r['glob_overlaps_in_wave'] or 'none'}")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -251,7 +221,7 @@ def _parser() -> argparse.ArgumentParser:
     track = sub.add_parser("track").add_subparsers(dest="action", required=True)
     add = track.add_parser("add", parents=[common, attrs])
     add.add_argument("id")
-    for flag in ("--task", "--task-file", "--title", "--files", "--deps", "--resources", "--source"):
+    for flag in ("--task", "--task-file", "--title", "--files", "--deps", "--resources", "--source", "--contract"):
         add.add_argument(flag, default="")
     add.add_argument("--dod", action="append", default=[])
     add.add_argument("--role", default="developer")
@@ -265,7 +235,13 @@ def _parser() -> argparse.ArgumentParser:
     known.add_argument("action", choices=("add", "list"))
     known.add_argument("test_id", nargs="?", default="")
     known.add_argument("--reason", default="")
-    sub.add_parser("plan", parents=[common]).add_argument("--json", action="store_true")
+    spec_check = sub.add_parser("spec-check", parents=[common])
+    spec_check.add_argument("spec")
+    spec_check.add_argument("--gaps", type=int, required=True)
+    spec_check.add_argument("--report", default="")
+    plan = sub.add_parser("plan", parents=[common])
+    plan.add_argument("--json", action="store_true")
+    plan.add_argument("--accept-shared", action="append", default=[], help="signal printed by plan")
     return parser
 
 
@@ -274,14 +250,13 @@ def main(argv: list[str]) -> int:
     args.mb = os.path.abspath(args.mb)
     if getattr(args, "layer", "") == "attr":
         args.layer = "track"
-    handler = {"init": cmd_init, "prompt": cmd_prompt, "known-red": cmd_known_red}.get(args.cmd)
+    handler = {"init": cmd_init, "prompt": cmd_prompt, "known-red": cmd_known_red,
+               "spec-check": cmd_spec_check}.get(args.cmd)
     if args.cmd == "track":
         handler = cmd_track_add if args.action == "add" else cmd_track_set
     try:
         if args.cmd == "plan":
-            p = plan_json(args.mb, st.load(args.mb, st.find_topic(args.mb, args.topic)))
-            print(json.dumps(p, ensure_ascii=False)) if args.json else print_plan(p)
-            return 0
+            return plan_mod.cmd_plan(args)
         return handler(args)
     except TeamError as exc:
         print(f"[team] {exc}", file=sys.stderr)

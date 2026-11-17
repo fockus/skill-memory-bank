@@ -205,3 +205,10 @@ def resolve_track(bank: str, team: dict, track: dict) -> None:
     for warning in out["warnings"]:
         print(f"warning: track {track['id']}: {warning}", file=sys.stderr)
     track.update(size=out["pipeline"]["size"], pipeline=out["pipeline"], provenance=out["provenance"])
+
+
+def vcs(team: dict, *args: str, stdin: str | None = None) -> str:
+    r = run(["bash", script("mb_vcs.sh"), args[0], "--tree", team["tree"], *args[1:]], input=stdin)
+    if r.returncode != 0:
+        raise TeamError(f"mb_vcs.sh {args[0]}: {r.stderr.strip()}", 1)
+    return r.stdout

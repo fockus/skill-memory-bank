@@ -262,7 +262,15 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_pipeline_minimal_yaml.py` | PyYAML-optional minimal loader for `pipeline.yaml` — the zero-dep base |
 | `mb_fs_atomic.py` | One atomic file-publish primitive, shared by every writer |
 | `mb_team_state.py` | `team.json` single writer (flock + atomic replace), track status machine, glob ownership and overlap |
-| `mb_team_tracks.py` | `init`, `track add\|set`, `prompt`, `known-red`, `plan` behind `mb-team.sh` |
+| `mb_team_tracks.py` | `init`, `track add\|set`, `prompt`, `known-red`, `spec-check`, `plan` behind `mb-team.sh` |
+| `mb_team_plan.py` | `plan`: track table, waves, effort mismatches, readiness (brief, glob overlap, shared foundations; `--accept-shared`) |
+| `mb_team_shared.py` | Shared-mechanisms registry (`<bank>/shared-mechanisms.md`), foundation detection across tracks, `extract` actions |
+| `mb_team_spec.py` | Wave-end whole-spec verification: team specs, `spec_verify` / `spec-gaps` actions, staleness key |
+| `mb_team_collect.py` | `collect`: progress entries, goal criteria, questions/follow-ups, cross-track duplicate candidates |
+| `mb_team_gate.py` | Rules gate of `team commit`: `team.rules_gate` + `mb-rules-check.sh --base`; failing tracks → `fixing` |
+| `mb_dup_scan.py` | Language-agnostic duplicate windows across tracks' added lines (stdlib) |
+| `mb_contract.py` | Executable stage contracts: `run` (spec/rules/dod items with Eval anchors, `manual:`), `freeze` (red dry run + lock, `--amend`) |
+| `mb_spec_coverage.py` | Per-REQ coverage of a spec: REQ text, covering tasks, naming tests; `task-only`/`uncovered` gaps exit 1 |
 | `mb_team_status.py` | `next` (pure `decide()` over gathered facts) and `status` (team, board, reports, locks, goal, last review) |
 | `mb_team_ops.py` | `collect`, `checkpoint`, `commit` (through `mb_vcs.sh`), `close`, `review-gate` (records `reviews[]`) |
 | `mb_team_config.py` | Reads `team:` from the resolved pipeline: `show`, `resource <name>` (resource JSON; exit 2 invalid, 3 unknown) |

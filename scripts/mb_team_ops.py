@@ -9,12 +9,11 @@ Usage (through mb-team.sh, which adds --mb <bank>):
   mb_team_ops.py review-gate --cycle N
 Every command takes --mb <bank> and --topic T.
 
-collect: one progress entry per newly returned track (mb-work-progress-append.sh), marks it
-collected; with a goal, lists the goal criteria next to the collected reports; prints report
-questions and follow-ups as mb-agree.sh / mb-idea.sh commands for the orchestrator to run.
+collect: mb_team_collect.py (progress entries, goal criteria, questions, cross-track duplicates).
 commit: changed (vs HEAD) and untracked files owned by the selected finished tracks only, through
 mb_vcs.sh; refuses unfinished tracks, open BLOCKED/HANDOVER for them and files co-owned by an
-unfinished unselected track; asks y/N (no TTY and no --yes: does nothing); posts COMMIT. No push.
+unfinished unselected track; runs the rules gate (mb_team_gate.py: team.rules_gate + mb-rules-check.sh),
+a failing track goes back to `fixing`; asks y/N (no TTY and no --yes: does nothing); posts COMMIT. No push.
 checkpoint: mb-team-checkpoint.sh into team.checkpoint.dir (bank-relative, default backups/team),
 then team.checkpoint.extra in the tree. review-gate: mb-team-review.sh gate, recorded in reviews[].
 Exit codes: 0 ok · 1 refused or a step failed · 2 bad input · gate code for review-gate.
@@ -26,107 +25,16 @@ import argparse
 import contextlib
 import json
 import os
-import re
-import shlex
 import sys
 import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import mb_team_collect as collect  # noqa: E402
+import mb_team_gate as gate  # noqa: E402
 import mb_team_state as st  # noqa: E402
 from mb_team_state import TeamError  # noqa: E402
-from mb_team_status import collectable, report_status  # noqa: E402
-
-STATUS_OF = {"DONE": "done", "DONE_WITH_CONCERNS": "done_with_concerns"}
-
-
-def _sections(text: str, word: str) -> list[str]:
-    out, inside = [], False
-    for line in text.splitlines():
-        if line.startswith("#"):
-            inside = word in line.lower()
-        elif inside and re.match(r"^\s*-\s+\S", line):
-            out.append(re.sub(r"^\s*-\s+", "", line).strip())
-    return out
-
-
-def goal_criteria(bank: str) -> list[dict]:
-    path = Path(bank) / "goal.md"
-    out, inside, fence = [], False, False
-    for line in path.read_text(encoding="utf-8").splitlines() if path.is_file() else []:
-        if line.lstrip().startswith(("```", "~~~")):
-            fence = not fence
-        elif not fence and line.startswith("## "):
-            inside = line[3:].strip().lower() == "acceptance criteria"
-        elif inside and not fence and (m := re.match(r"^\s*-\s+\[([ xX])\]\s+(.*)$", line)):
-            out.append({"criterion": m.group(2).strip(), "checked": m.group(1) != " "})
-    return out
-
-
-def cmd_collect(args) -> int:
-    bank = args.mb
-    result = {"collected": [], "goal": [], "evidence": [], "questions": [], "followups": [], "errors": []}
-    with st.locked(bank, st.find_topic(bank, args.topic)) as team:
-        for t in team["tracks"]:
-            rs = report_status(bank, t)
-            if not collectable(t, rs):
-                continue
-            report = Path(bank) / t["report"]
-            text = report.read_text(encoding="utf-8") if report.is_file() else ""
-            if not args.dry_run:
-                entry = (f"## {st.now()[:10]} — team {team['topic']} · track {t['id']} ({rs or t['status']})\n"
-                         f"{t['title']}\nReport: {report}\n" + (f"{t['summary']}\n" if t.get("summary") else ""))
-                r = st.run(["bash", st.script("mb-work-progress-append.sh"), "--text", entry, "--mb", bank])
-                if r.returncode != 0 or "skipping append" in r.stderr:
-                    result["errors"].append(f"{t['id']}: progress append failed: {r.stderr.strip()}")
-                    break
-                if t["status"] == "returned":
-                    t["status"] = STATUS_OF[rs]
-                t["collected"] = True
-            result["collected"].append(t["id"])
-            result["evidence"].append(str(report))
-            result["questions"] += _sections(text, "question")
-            result["followups"] += _sections(text, "follow")
-        if args.dry_run:
-            raise _DryRun(result)
-        if team.get("goal"):
-            result["goal"] = goal_criteria(bank)
-    _print_collect(result, args.json)
-    return 1 if result["errors"] else 0
-
-
-class _DryRun(Exception):
-    """Leaves locked() without writing team.json."""
-
-    def __init__(self, result: dict):
-        super().__init__("dry run")
-        self.result = result
-
-
-def _print_collect(result: dict, as_json: bool) -> None:
-    if as_json:
-        print(json.dumps(result, ensure_ascii=False))
-        return
-    print("collected: " + (", ".join(result["collected"]) or "none"))
-    for g in result["goal"]:
-        print(f"goal [{'x' if g['checked'] else ' '}] {g['criterion']}")
-    for path in result["evidence"] if result["goal"] else []:
-        print(f"  evidence: {path}")
-    skill = st.HERE
-    for q in result["questions"]:
-        print(f"question: bash {shlex.quote(f'{skill}/mb-agree.sh')} question {shlex.quote(q)}")
-    for f in result["followups"]:
-        print(f"follow-up: bash {shlex.quote(f'{skill}/mb-idea.sh')} {shlex.quote(f)}")
-    for e in result["errors"]:
-        print(f"error: {e}", file=sys.stderr)
-
-
-def _vcs(team: dict, *args: str, stdin: str | None = None) -> str:
-    r = st.run(["bash", st.script("mb_vcs.sh"), args[0], "--tree", team["tree"], *args[1:]], input=stdin)
-    if r.returncode != 0:
-        raise TeamError(f"mb_vcs.sh {args[0]}: {r.stderr.strip()}", 1)
-    return r.stdout
 
 
 def commit_plan(team: dict, board: dict, ids: list[str]) -> tuple[list[str], list[str]]:
@@ -139,8 +47,8 @@ def commit_plan(team: dict, board: dict, ids: list[str]) -> tuple[list[str], lis
     for kind in ("blocked", "handover"):
         problems += [f"open {kind.upper()} for {e['track']}: {e['title']}" for e in board.get(f"open_{kind}", [])
                      if e.get("track") in ids]
-    changed = [p for p in _vcs(team, "changed", "HEAD").split("\0") if p]
-    changed += [p for p in _vcs(team, "untracked").split("\0") if p and p not in changed]
+    changed = [p for p in st.vcs(team, "changed", "HEAD").split("\0") if p]
+    changed += [p for p in st.vcs(team, "untracked").split("\0") if p and p not in changed]
     owned = [p for p in changed if any(st.owns(by_id[i], p) for i in ids)]
     for p in owned:
         problems += [f"{p} is also owned by unfinished track {t['id']}" for t in team["tracks"]
@@ -158,6 +66,12 @@ def cmd_commit(args) -> int:
     ids = [x.strip() for x in args.tracks.split(",") if x.strip()]
     board = json.loads(st.run(["bash", st.script("mb-coord.sh"), "tracks", "--json", "--mb", bank]).stdout or "{}")
     owned, foreign = commit_plan(team, board, ids)
+    by_id = {t["id"]: t for t in team["tracks"]}
+    failures = gate.check(team, bank, {i: [p for p in owned if st.owns(by_id[i], p)] for i in ids})
+    if failures:
+        gate.send_back(bank, topic, list(failures))
+        raise TeamError("commit refused by the rules gate; back to fixing:\n" + "".join(
+            f"  {tid}:\n" + "".join(f"    {line}\n" for line in lines) for tid, lines in failures.items()), 1)
     print(f"to commit ({len(owned)}):\n" + "".join(f"  {p}\n" for p in owned), end="")
     if foreign:
         print(f"foreign, not staged ({len(foreign)}):\n" + "".join(f"  {p}\n" for p in foreign), end="")
@@ -168,16 +82,16 @@ def cmd_commit(args) -> int:
             raise TeamError("aborted; nothing was staged", 1)
     snapshot = None
     with contextlib.suppress(TeamError):  # no index snapshot: commit without rollback
-        snapshot = _vcs(team, "index-save", "--", *owned)
+        snapshot = st.vcs(team, "index-save", "--", *owned)
     try:
-        _vcs(team, "add", "--", *owned)
-        _vcs(team, "commit", "-m", args.m, "--", *owned)
+        st.vcs(team, "add", "--", *owned)
+        st.vcs(team, "commit", "-m", args.m, "--", *owned)
     except TeamError as exc:
         if snapshot is None:
             raise TeamError(f"{exc}; staged, not restored (arc): " + " ".join(owned), 1) from exc
-        _vcs(team, "index-restore", "--", *owned, stdin=snapshot)
+        st.vcs(team, "index-restore", "--", *owned, stdin=snapshot)
         raise TeamError(f"{exc}; index restored", 1) from exc
-    rev = _vcs(team, "head").strip()
+    rev = st.vcs(team, "head").strip()
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as body:
         body.write(f"{args.m}\n\n" + "".join(f"- {p}\n" for p in owned))
     r = st.run(["bash", st.script("mb-coord.sh"), "append", "--type", "COMMIT", "--title",
@@ -275,13 +189,10 @@ def main(argv: list[str]) -> int:
     sub.add_parser("review-gate", parents=[common]).add_argument("--cycle", type=int, required=True)
     args = parser.parse_args(argv)
     args.mb = os.path.abspath(args.mb)
-    handler = {"collect": cmd_collect, "commit": cmd_commit, "checkpoint": cmd_checkpoint,
+    handler = {"collect": collect.cmd_collect, "commit": cmd_commit, "checkpoint": cmd_checkpoint,
                "close": cmd_close, "review-gate": cmd_review_gate}[args.cmd]
     try:
         return handler(args)
-    except _DryRun as dry:
-        _print_collect(dry.result, args.json)
-        return 0
     except TeamError as exc:
         print(f"[team] {exc}", file=sys.stderr)
         return exc.code

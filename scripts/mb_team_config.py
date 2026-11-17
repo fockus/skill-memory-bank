@@ -106,6 +106,7 @@ def effective_team(project: dict, bundled: dict) -> dict:
         "presets": presets,
         "overrides": {**_block(b, "overrides"), **_block(p, "overrides")},
         "rules": list(p.get("rules") or b.get("rules") or []),
+        "rules_gate": p.get("rules_gate", b.get("rules_gate")),
         "review": review,
         "resources": {**_block(b, "resources"), **_block(p, "resources")},
         "checkpoint": {**_block(b, "checkpoint"), **_block(p, "checkpoint")},

@@ -29,6 +29,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import mb_team_shared as shared  # noqa: E402
 from mb_team_config import ConfigError, load_configs, resource_json  # noqa: E402
 
 TEMPLATES = HERE.parent / "templates" / "team"
@@ -42,6 +43,9 @@ BUILTIN_RULES = (
     "Report to the orchestrator only; never message other tracks. Findings that affect another track: "
     "HANDOVER on the board.",
     "A safety-filter refusal is reported as BLOCKED, not worked around.",
+    "Shared code you need that belongs to another track's files or to a shared-mechanisms home: do not copy it. "
+    "Stop that part, post `HANDOVER · extract:<mechanism>` (`mb-coord.sh append --type HANDOVER --track <id> "
+    "--title extract:<mechanism>`) and go on with the rest.",
 )
 
 
@@ -158,6 +162,16 @@ def render_brief(team: dict, bank: str, skill: str, team_cfg: dict) -> str:
     return fill((TEMPLATES / "brief.md").read_text(encoding="utf-8"), slots)
 
 
+def _contract_section(track: dict, team: dict, bank: str, skill: str) -> str:
+    if not track.get("contract"):
+        return ""
+    path = _abs(bank, track["contract"])
+    return ("## Contract (frozen — run it, never edit it)\n"
+            f"`python3 {skill}/scripts/mb_contract.py run {path} --tree {team['tree']}` must pass before you report "
+            "DONE; paste its summary line into the report. A contract item you think is wrong: BLOCKED with the "
+            "reason — only the orchestrator amends a frozen contract.\n\n")
+
+
 def render_track(team: dict, track_id: str, bank: str, skill: str) -> str:
     track = next((t for t in team["tracks"] if t["id"] == track_id), None)
     if track is None:
@@ -175,6 +189,8 @@ def render_track(team: dict, track_id: str, bank: str, skill: str) -> str:
         "files": ", ".join(f"`{os.path.join(team['tree'], g)}`" for g in track.get("files") or []) or "—",
         "deps": "; ".join(deps) or "—", "dod": "\n".join(f"- [ ] {d}" for d in track["dod"]),
         "pipeline": "\n".join(pipeline_lines(track, bank)), "report": reports[track_id],
+        "shared": shared.prompt_section(shared.relevant(shared.load_registry(bank), track)),
+        "contract": _contract_section(track, team, bank, skill),
     }
     return fill((TEMPLATES / "track-prompt.md").read_text(encoding="utf-8"), slots)
 

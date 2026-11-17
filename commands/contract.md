@@ -26,6 +26,25 @@ Show me first:
 
 **Ask for confirmation before continuing.**
 
+## 2a. Executable contract file
+
+For a plan stage, spec task or `/mb team` track, write the contract as `<bank>/contracts/<id>.md` — the form the
+verifier and the team commit gate run (`scripts/mb_contract.py`, format in its header):
+
+```markdown
+**Covers:** REQ-001, REQ-002
+## spec
+- REQ-002 recovery only through an operator — `go test ./internal/access -run TestRecovery_REQ_002` — exit: 0
+## rules
+- lint on new code — `make lint-new` — exit: 0
+- no domain→infra import — `grep -rn "infrastructure" internal/domain || true` — output-empty
+## dod
+- README documents the endpoint — manual: reviewer reads README
+```
+
+Then `python3 <skill>/scripts/mb_contract.py freeze <contract>`: every spec item must fail now (red evidence goes
+to `<contract>.lock.json`). The executor never edits it; a change needs `freeze --amend --reason R`.
+
 ## 3. Contract tests
 
 After the contract is approved:

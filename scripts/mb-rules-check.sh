@@ -64,11 +64,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+_bank="$(bash -c 'source "$1/_lib.sh" && mb_resolve_path ""' _ "$SCRIPT_DIR" 2>/dev/null || true)"
 # Without --profile the project layer is the resolved bank's rules-profile.json (AGR-076).
 if [[ -z "$PROFILE_PATH" ]]; then
-  _bank="$(bash -c 'source "$1/_lib.sh" && mb_resolve_path ""' _ "$SCRIPT_DIR" 2>/dev/null || true)"
   [[ -n "$_bank" && -f "$_bank/rules-profile.json" ]] && PROFILE_PATH="$_bank/rules-profile.json"
 fi
+# Rules text the enforcer/verifier judge against: the project's root RULES.md, then the bank copy, then the
+# bundled canon. Reported as `rules_source` so every caller reads the same file; the bundled canon is the
+# stable label `bundled:rules/RULES.md` (relative to the skill root), so the output does not depend on the host.
+_bank_abs="$( [[ -n "$_bank" && -d "$_bank" ]] && cd "$_bank" && pwd || true)"
+_project="$PWD"
+[[ "$(basename "${_bank_abs:-x}")" == ".memory-bank" ]] && _project="$(dirname "$_bank_abs")"
+RULES_SOURCE="bundled:rules/RULES.md"
+for _rules in "$_project/RULES.md" "${_bank_abs:+$_bank_abs/RULES.md}"; do
+  [[ -n "$_rules" && -f "$_rules" ]] && { RULES_SOURCE="$_rules"; break; }
+done
 
 case "$OUT" in
   json|human|both) ;;

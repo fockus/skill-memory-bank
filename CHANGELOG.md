@@ -8,6 +8,17 @@ All notable changes to this project are documented here. The format follows [Kee
 - Installer/CLI: `--only opencode` isolates installation, owned updates and uninstall; public extension opt-in survives reinstall. Other hosts and retained user configuration remain unchanged.
 - OpenCode upgrade from a pre-hash ownership record: a path listed in `files` without a `file_sha256` entry no longer fails the adapter; it is moved to a recorded backup under `<root>/.memory-bank-backups/` (outside host discovery), then rewritten and hashed. Uninstall keeps those backups and names them. Unlisted files and hashed files edited since installation are still refused.
 
+### Added — /mb team: shared foundations, rules gate, whole-spec verification
+
+- Shared-mechanisms registry `<bank>/shared-mechanisms.md` (`| Mechanism | Home | Status | Keywords |`): track prompts list the relevant rows ("use X from Y; do not copy"), and a second copy of a listed mechanism outside its home is a reviewer blocker.
+- `team plan` reports shared foundations — a `platform/`/`shared/`/`common/`/`kit/` path, a `<word> kit|boundary|client|registry` phrase or a registry row named by ≥2 tracks with no foundation dependency — as blocking, with a suggested foundation track; `next` stops with `stop_human shared-foundation:<signal>` (`plan --accept-shared` waives one).
+- EXTRACT handover: the brief tells a track that needs shared code in another track's zone to post `HANDOVER · extract:<mechanism>` instead of copying; `next` prints `extract <track> <mechanism>`.
+- `team collect` prints cross-track duplicate candidates over the lines finished tracks added since the baseline (`scripts/mb_dup_scan.py`, stdlib).
+- `team commit` runs a rules gate: `team.rules_gate` (e.g. `make lint-new`) plus `mb-rules-check.sh --base <baseline>`; a failure or any CRITICAL sends the track back to `fixing` and stages nothing.
+- `mb-rules-check.sh` reports `rules_source` — the project's root `RULES.md`, then `<bank>/RULES.md`, then the bundled canon; `mb-rules-enforcer` and `plan-verifier` read that file first.
+- Executable contracts (contract-first, minimal): `<bank>/contracts/<id>.md` lists spec REQ checks, rules checks and DoD checks as commands with Eval anchors (`exit:`, `output~:`, `output-empty`) or `manual:`; `scripts/mb_contract.py run` reports each item, `freeze` requires the spec items to be red and locks the contract (`--amend` for a recorded change). `/mb team`: `track add --contract`, dispatch refuses an unfrozen contract, `commit` runs it; plan-verifier runs the contract first and judges only `manual` items and test quality (`Mode: contract` writes one).
+- Wave-end whole-spec verification: `next` asks for `spec_verify <spec>` once every track is collected, `team spec-check` records the result and gaps stop the team; `scripts/mb_spec_coverage.py` lists every REQ with its text, covering tasks and naming tests. plan-verifier checks each `Covers:` REQ against its own text: no code/test evidence is CRITICAL.
+
 ### Changed — closure gate waits quietly
 
 - The Stop hook `mb-flow-closure-guard.sh` no longer blocks a red flow while known work runs (an open `/mb team` with working tracks or a fresh `/mb work` run, `scripts/mb_flow_busy.py`); it prints one reminder per `flow_closure_remind` minutes (default 30) and blocks again once the work ends or goes stale past `flow_closure_busy_max_age` (default 120, `0` = old behaviour) — both in `.mb-config` or `MB_FLOW_CLOSURE_*` env (I-288).

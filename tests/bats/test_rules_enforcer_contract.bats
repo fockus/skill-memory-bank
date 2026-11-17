@@ -90,3 +90,27 @@ setup() {
   [[ "$output" == *"solid/srp"* ]] || [[ "$output" == *"SRP"* ]] || [[ "$output" == *"src/big.py"* ]]
   rm -rf "$TMPROOT"
 }
+
+@test "rules_source: the project root RULES.md wins over the bank copy, then the bank, then the bundle" {
+  proj="$BATS_TEST_TMPDIR/proj"
+  mkdir -p "$proj/.memory-bank"
+  git -C "$BATS_TEST_TMPDIR" init -q proj
+  printf '# root rules\n' >"$proj/RULES.md"
+  printf '# bank rules\n' >"$proj/.memory-bank/RULES.md"
+  printf 'x = 1\n' >"$proj/a.py"
+  run bash -c "cd '$proj' && bash '$CHECK' --files a.py --out json"
+  [ "$(printf '%s' "$output" | tail -n1 | jq -r .rules_source)" = "$proj/RULES.md" ]
+  rm "$proj/RULES.md"
+  run bash -c "cd '$proj' && bash '$CHECK' --files a.py --out json"
+  [ "$(printf '%s' "$output" | tail -n1 | jq -r .rules_source)" = "$proj/.memory-bank/RULES.md" ]
+  rm "$proj/.memory-bank/RULES.md"
+  run bash -c "cd '$proj' && bash '$CHECK' --files a.py --out json"
+  [ "$(printf '%s' "$output" | tail -n1 | jq -r .rules_source)" = "bundled:rules/RULES.md" ]
+}
+
+@test "contract: enforcer reads the rules_source the checker resolved, project root RULES.md first" {
+  grep -Fq 'rules_source' "$PROMPT"
+  grep -Fq '<project>/RULES.md' "$PROMPT"
+  # The resolution list (one source per bullet) puts the project root first.
+  awk '!p && /^ *- `<project>\/RULES.md`/{p=NR} !b && /^ *- `<bank>\/RULES.md`/{b=NR} END{exit !(p && b && p<b)}' "$PROMPT"
+}

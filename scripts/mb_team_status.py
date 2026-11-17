@@ -6,8 +6,8 @@ Usage (through mb-team.sh, which adds --mb <bank>):
   mb_team_status.py status [--topic T] [--json]
 
 `next` prints one action per line in priority order and changes nothing:
-  stop_human <why> · fix <id> · dispatch <id> · collect ·
-  team_review <N> · stop_success · wait
+  stop_human <why> · fix <id> · dispatch <id> · extract <id> <mechanism> · collect ·
+  team_review <N> · spec_verify <spec> · stop_success · wait
 A non-empty stop list is printed alone.
 `decide(team, facts)` is the pure rule; `gather()` collects the facts: the board
 (`mb-coord.sh tracks --json`), report STATUS lines, unfilled brief hints, the budget
@@ -28,6 +28,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import mb_team_render as render  # noqa: E402
+import mb_team_shared as shared  # noqa: E402
+import mb_team_spec as spec  # noqa: E402
 from mb_team_state import (  # noqa: E402
     FINISHED,
     TERMINAL,
@@ -95,6 +97,7 @@ def decide(team: dict, facts: dict) -> list[str]:
         stop.append("stop_human brief-unfilled")
     if facts["budget_stop"]:
         stop.append("stop_human budget")
+    stop += [f"stop_human shared-foundation:{s}" for s in facts.get("shared_foundation") or []]
     board_blocked = {b["track"] for b in facts["board"].get("open_blocked", [])}
     for t in tracks:
         tid, st = t["id"], t["status"]
@@ -137,7 +140,7 @@ def decide(team: dict, facts: dict) -> list[str]:
             stop += [f"stop_human blocked:dep-cancelled:{d}" for d in cancelled_deps(t, tracks)]
     if stop:  # a pending stop holds fix, dispatch and collect back until the human resolves it
         return list(dict.fromkeys(stop))
-    out = fix + dispatch
+    out = fix + dispatch + shared.extract_actions(facts["board"])
     if any(collectable(t, reports.get(t["id"])) for t in tracks):
         out.append("collect")
     if out:
@@ -145,6 +148,8 @@ def decide(team: dict, facts: dict) -> list[str]:
     if all_done and all_collected:
         if cfg["enabled"] and not last_clean:
             return [f"team_review {len(reviews) + 1}"]
+        if wave_end := spec.actions(team):  # whole-spec verification before goal and flow
+            return wave_end
         if not facts["goal_ok"]():
             return ["stop_human goal-red"]
         if red := facts["flow_red"]():
@@ -204,6 +209,7 @@ def gather(bank: str, team: dict) -> dict:
             {"tracks": {}, "open_blocked": [], "open_handover": []},
             "reports": reports, "brief_unfilled": len(render.unfilled(str(brief))) if brief.is_file() else 1,
             "budget_stop": budget_stop, "review": review,
+            "shared_foundation": shared.blocking(team, shared.load_registry(bank)),
             "goal_ok": lambda: not team.get("goal") or goal(bank).get("ok") is True,
             "flow_red": lambda: flow_red(bank, team["tree"])}
 

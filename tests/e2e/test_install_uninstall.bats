@@ -541,7 +541,8 @@ EOF
   done
   for m in mb_team_config mb_team_ops mb_team_pipeline mb_team_render mb_team_review \
     mb_team_review_core mb_team_review_external mb_team_state mb_team_status mb_team_tracks \
-    mb_team_vocab mb_lock_queue mb_lock_resource mb_pipeline_validate_team; do
+    mb_team_vocab mb_team_shared mb_team_plan mb_team_collect mb_team_gate mb_team_spec mb_dup_scan \
+    mb_spec_coverage mb_contract mb_lock_queue mb_lock_resource mb_pipeline_validate_team; do
     [ -f "$skill/scripts/$m.py" ]
   done
   for t in brief track-prompt external-review; do

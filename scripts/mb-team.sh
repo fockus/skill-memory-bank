@@ -3,7 +3,7 @@
 # this script is the stateless brain plus the single writer of reports/<topic>/team.json.
 #
 # Usage: mb-team.sh [--mb <bank>] [--topic T] <subcommand> …
-#   init <topic> · track add|set <id> · plan · prompt <id> · known-red add|list   (mb_team_tracks.py)
+#   init <topic> · track add|set <id> · plan · prompt <id> · known-red · spec-check (mb_team_tracks.py)
 #   next · status                                                                  (mb_team_status.py)
 #   collect · commit · checkpoint · close                                          (mb_team_ops.py)
 #   review gate --cycle N       → mb-team-review.sh gate, recorded in team.json reviews[]
@@ -44,7 +44,7 @@ bank="$(cd "$bank" && pwd)"
 tail_args=(${topic[@]+"${topic[@]}"} --mb "$bank")
 
 case "${args[0]}" in
-  init | track | plan | prompt | known-red) exec python3 "$SCRIPT_DIR/mb_team_tracks.py" "${args[@]}" "${tail_args[@]}" ;;
+  init | track | plan | prompt | known-red | spec-check) exec python3 "$SCRIPT_DIR/mb_team_tracks.py" "${args[@]}" "${tail_args[@]}" ;;
   next | status) exec python3 "$SCRIPT_DIR/mb_team_status.py" "${args[@]}" "${tail_args[@]}" ;;
   collect | commit | checkpoint | close) exec python3 "$SCRIPT_DIR/mb_team_ops.py" "${args[@]}" "${tail_args[@]}" ;;
   review)

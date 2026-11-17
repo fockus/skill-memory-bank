@@ -90,8 +90,8 @@ print(json.dumps(out))
     (( i > 0 )) && printf ','
     printf '%s' "${VIOLATIONS[$i]}"
   done
-  printf '],"profile":%s,"stats":{"files_scanned":%d,"checks_run":%d,"duration_ms":%d}}\n' \
-    "$profile_json" "${#FILES[@]}" "$CHECKS_RUN" "$DURATION"
+  printf '],"profile":%s,"rules_source":%s,"stats":{"files_scanned":%d,"checks_run":%d,"duration_ms":%d}}\n' \
+    "$profile_json" "$(json_escape "${RULES_SOURCE:-}")" "${#FILES[@]}" "$CHECKS_RUN" "$DURATION"
 }
 
 emit_human() {

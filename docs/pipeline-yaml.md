@@ -305,6 +305,7 @@ team:
     tdd: required
   rules:
     - "Go code: gofmt and go vet clean before you report."
+  rules_gate: "make lint-new"   # run in the tree before `team commit`; non-zero → the track goes back to fixing
   review:                   # team review cycles, opt-in
     enabled: false
     lenses: [logic, tests, code_rules, security, scalability]
@@ -334,7 +335,9 @@ A preset may also set `work`, `lenses` (`quality` is an alias of `code_rules`) a
 `verifier`, `reviewer`, `lead`, `lenses`; model values are a slot (`premium`/`mid`), an exact id or `inherit`.
 For a resource, `preconditions` gate the start (`check` exit 0 = ok) and `stop_threshold` stops a running
 command (`check` non-zero = breached); `maintenance` runs under the lock when preconditions fail.
-`checkpoint.extra` is an optional command run after each checkpoint. See [commands/team.md](../commands/team.md).
+`checkpoint.extra` is an optional command run after each checkpoint. `rules_gate` (optional string) is the project's
+"lint on new code" command; `team commit` runs it, then `mb-rules-check.sh --base <baseline>` per track, and sends a
+failing track back to `fixing`. See [commands/team.md](../commands/team.md).
 
 ## qa — acceptance QA inside `/mb work`
 

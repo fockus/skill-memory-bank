@@ -132,6 +132,9 @@ Walk the diff once per category. For each violation, capture: file, line, catego
   nature is a split candidate: `minor`. It is `major` when this diff pushed the file over the threshold or
   added a new responsibility to a file already over it.
 - **DRY** — the same logic in 3+ places justifies extraction; three identical lines beat a premature abstraction.
+- **Shared mechanisms** — `<bank>/shared-mechanisms.md` lists mechanisms with their home path. A diff that
+  implements a listed mechanism again outside its home (a second error mapper, a second idempotency table) is a
+  **blocker**, whatever the line count: the fix is to use the one at its home.
 - **No placeholders** — no `TODO`, `FIXME`, `...` in function body, `pass  # stub`, `throw new Error("not implemented")`. Exception: explicit `staged stub behind feature flag <name>` with docstring.
 - Imports complete. Functions copy-paste ready.
 - No dead code, no unused vars, no commented-out blocks.

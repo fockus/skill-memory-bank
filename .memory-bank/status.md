@@ -42,6 +42,7 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-11-17 — [plans/done/2026-11-17_feature_team-shared-gates.md](plans/done/2026-11-17_feature_team-shared-gates.md) — feature — team-shared-gates
 - 2026-10-08 — [plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md](plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md) — Ordinary Pi Memory Bank dispatch
 - 2026-10-08 — [plans/done/2026-10-07_fix_upgrade-safe-install.md](plans/done/2026-10-07_fix_upgrade-safe-install.md) — fix — установка поверх старой версии + хвосты I-249…I-254
 - 2026-10-07 — [plans/done/2026-10-07_feature_adapt-lite.md](plans/done/2026-10-07_feature_adapt-lite.md) — feature — adapt-lite · дробление по необходимости (первый срез svp-adapt-escalation)
@@ -51,8 +52,6 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - 2026-10-07 — [plans/done/2026-10-06_fix_anthropic-skill-guide-compliance-sprint2-instructions.md](plans/done/2026-10-06_fix_anthropic-skill-guide-compliance-sprint2-instructions.md) — fix — anthropic-skill-guide-compliance · Sprint 2 «CLAUDE.md: глобальный, проектный, шаблон»
 - 2026-10-07 — [plans/done/2026-10-06_fix_agents-md-diet.md](plans/done/2026-10-06_fix_agents-md-diet.md) — fix — agents-md-diet · always-loaded инструкции хостов без копии RULES.md
 - 2026-10-07 — [plans/done/2026-10-06_feature_key-rules-onboarding.md](plans/done/2026-10-06_feature_key-rules-onboarding.md) — feature — key-rules-onboarding · каталог ключевых правил, онбординг и `/mb rules`
-- 2026-10-06 — [plans/done/2026-10-06_fix_adr-registry.md](plans/done/2026-10-06_fix_adr-registry.md) — fix — adr-registry · отдельный реестр ADR и короткие записи
-- 2026-10-06 — [plans/done/2026-10-06_fix_anthropic-skill-guide-compliance-sprint1-skill.md](plans/done/2026-10-06_fix_anthropic-skill-guide-compliance-sprint1-skill.md) — fix — anthropic-skill-guide-compliance · Sprint 1 «скил memory-bank»
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)

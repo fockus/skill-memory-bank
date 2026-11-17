@@ -48,3 +48,7 @@ setup() {
   # The report template must carry this literal row so callers can grep it.
   grep -Fq 'RULES violations' "$PROMPT"
 }
+
+@test "rules: project root RULES.md is read before the bank copy" {
+  awk '/Step 3.6/{s=1} s && !p && /PROJECT_ROOT\/RULES.md/{p=NR} s && !b && /\$BANK\/RULES.md/{b=NR} END{exit !(p && b && p<b)}' "$PROMPT"
+}

@@ -21,7 +21,8 @@ You are one reviewer in a Memory Bank review ensemble. Review only **code qualit
 
 ## Severity
 
-- `blocker`: architecture violation that can break runtime or protected-path change without approval.
+- `blocker`: architecture violation that can break runtime or protected-path change without approval; a second
+  copy of a mechanism listed in `<bank>/shared-mechanisms.md`, written outside its home.
 - `major`: maintainability/design issue likely to create follow-up bugs or makes the solution fragile.
 - `minor`: style/naming/small cleanup that can safely become backlog.
 - `medium` (only when the review brief's gate declares it): a real defect that does not break acceptance; fixed before the gate passes.

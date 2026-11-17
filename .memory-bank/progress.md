@@ -4119,3 +4119,20 @@ Remaining gaps: native event delivery needs user trust in /hooks; unrecorded con
 - Shared /mb work retains Claude Task dispatch and explicitly maps Codex to spawn_agent. Real helper/documented-command checks pass on both hosts. Repaired shared bounded-command stdin/timer handling; 41 Claude summary/judge/detach compatibility checks pass. No live Claude model workflow was exercised.
 - Scoped verifier PASS, lead/security/tests APPROVED, final judge GO_WITH_BACKLOG with zero blockers; I-263 retains the pre-existing optional parallel category-claim limit. Current full pytest: 4093 pass/11 skip/9 fail (+22 subtests). Full Bats: 3968 pass/18 skip/49 failed cases plus teardown. All failures classified; scoped repairs and environmental reruns pass, while unrelated Pi, lexical recall/expand-ID and embedding baseline failures remain explicitly recorded in the parity plan.
 - Formal closure is held: unchanged repository lint/pattern findings and paused SVP acceptance keep the firewall red. No /mb done, deterministic done/checkbox bypass, commit, push or release. Premature evidence checkmarks were reset; the plan remains in_progress. Preserve foreign Pi/bank changes. Clear only codex-parity-20261009 ephemeral runtime state/claim after saving its held pre-clear state; leave historical Pi state intact.
+
+## [checklist archive] 2026-11-17 — 2026-11-17_feature_team-shared-gates.md
+
+<!-- mb-plan:2026-11-17_feature_team-shared-gates.md -->
+## team-shared-gates — 0/5
+- ⬜ Stage 1 — Shared-mechanisms registry, foundation detection, EXTRACT handover (items 1–3)
+- ⬜ Stage 2 — Cross-track duplication scan at `collect` (item 4)
+- ⬜ Stage 3 — Rules gate before `team commit`; project root RULES.md first (item 5a, 5b)
+- ⬜ Stage 4 — Whole-spec verification at wave end; REQ text check in plan-verifier (items 5c, 6)
+- ⬜ Stage 5 — Docs, changelog, full suite
+
+## 2026-11-17 — /mb team: shared foundations, rules gate, whole-spec verification, executable contracts
+
+- Plan plans/done/2026-11-17_feature_team-shared-gates.md (6 stages, all DoD met) on branch feat/team-shared-gates; triggered by a Go backend team run (copies instead of shared code, rule thresholds never enforced, a Covers: REQ dropped from task text).
+- New: shared-mechanisms registry + prompt injection + reviewer blocker; blocking shared-foundation readiness in team plan/next (--accept-shared); EXTRACT handover action; cross-track duplicate scan at collect; team.rules_gate + mb-rules-check.sh (+ track contract) at team commit, failing track -> fixing; rules_source (project root RULES.md first); spec_verify/spec-check at wave end + mb_spec_coverage.py; plan-verifier REQ-text CRITICAL; mb_contract.py run/freeze (red anchor, lock, amend), track --contract, dispatch refuses unfrozen.
+- Deferred: built-in function-length/param-count checker (project rules_gate covers it); spec-level contract as the wave-end check.
+
