@@ -54,6 +54,17 @@ def _project_slug(cwd: Path) -> str | None:
     return project.slug if project else None
 
 
+def _trusted(*paths: Path) -> bool:
+    """A folder bank feeds the system prompt and receives writes: accept it only when this user owns it
+    and nobody else can write to it or its folder (e.g. a planted /tmp/.memory-bank is refused)."""
+    try:
+        stats = [path.stat() for path in paths]
+    except OSError:
+        return False
+    uid = os.getuid() if hasattr(os, "getuid") else None
+    return all((uid is None or st.st_uid == uid) and not st.st_mode & 0o002 for st in stats)
+
+
 def resolve_bank(cwd: str) -> tuple[Path, str]:
     home = _hermes_home()
     if cwd and Path(cwd).is_absolute() and Path(cwd).is_dir():
@@ -62,7 +73,7 @@ def resolve_bank(cwd: str) -> tuple[Path, str]:
         for folder in (start, *start.parents):
             if folder in stop:
                 break
-            if (folder / ".memory-bank").is_dir():
+            if (folder / ".memory-bank").is_dir() and _trusted(folder, folder / ".memory-bank"):
                 return folder / ".memory-bank", "folder"
         slug = _project_slug(start)
         if slug and _SLUG.fullmatch(slug):
