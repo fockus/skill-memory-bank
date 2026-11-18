@@ -198,7 +198,8 @@ fi
 # ── Form 2: substring search in plans/ (excluding done/) ────────────
 plans_dir="$BANK/plans"
 if [ -d "$plans_dir" ]; then
-  matches=$(find "$plans_dir" -maxdepth 1 -type f -name '*.md' 2>/dev/null | grep -F "$TARGET" || true)
+  # Match the file name only: a parent directory (e.g. TMPDIR) may contain the target.
+  matches=$(find "$plans_dir" -maxdepth 1 -type f -name '*.md' 2>/dev/null | T="$TARGET" awk -F/ 'index($NF, ENVIRON["T"])' || true)
   count=0
   if [ -n "$matches" ]; then
     count=$(printf '%s\n' "$matches" | grep -c .)

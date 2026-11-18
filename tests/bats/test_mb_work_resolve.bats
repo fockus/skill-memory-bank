@@ -38,3 +38,16 @@ teardown() {
   [[ "$output" != /etc/passwd ]]
   [[ "$output" != /private/etc/passwd ]]
 }
+
+@test "work_resolve: substring matches the plan file name, not its parent directories" {
+  # A TMPDIR like /var/folders/vj/d87hwmp15j1... contains "p1": every plan under
+  # it used to match the target "p1", making it ambiguous.
+  local bank="$SANDBOX/p1-home/bank"
+  mkdir -p "$bank/plans"
+  printf '# plan\n' > "$bank/plans/p1.md"
+  printf '# plan\n' > "$bank/plans/p2.md"
+  cd "$WORKDIR" || exit 1
+  run bash "$RESOLVE" p1 --mb "$bank"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"/plans/p1.md" ]]
+}
