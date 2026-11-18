@@ -422,6 +422,24 @@ EOF
   [[ "$output" == *'"verdict":"pass"'* ]]
 }
 
+@test "flow-verify: tests adapter — the project's tests never see a git hook's GIT_DIR/GIT_INDEX_FILE" {
+  # A pre-commit hook in a linked worktree exports an absolute GIT_DIR. Tests run
+  # under it that `git -C <tmp> init`/install hooks hit the committing repo instead.
+  local prj="$TMPROOT/tr_gitenv" other="$TMPROOT/tr_other" seen="$TMPROOT/tr_seen" stub
+  setup_clean_project "$prj"
+  git init -q "$other"
+  stub="$BINDIR/fake-testrun-env.sh"
+  cat > "$stub" <<EOF
+#!/usr/bin/env bash
+printf '%s %s\n' "\${GIT_DIR-unset}" "\${GIT_INDEX_FILE-unset}" > "$seen"
+printf '%s\n' '{"tests_pass":true}'
+EOF
+  chmod +x "$stub"
+  export MB_TEST_RUN_BIN="$stub"
+  run env GIT_DIR="$other/.git" GIT_INDEX_FILE="$other/.git/index" bash "$VERIFY" "$prj/.memory-bank"
+  [ "$(cat "$seen")" = "unset unset" ] || { echo "runner saw: $(cat "$seen")"; false; }
+}
+
 @test "flow-verify: default checks are scoped to the bank's project, not the caller cwd" {
   local prj="$TMPROOT/scoped"
   mkdir -p "$prj/.memory-bank"

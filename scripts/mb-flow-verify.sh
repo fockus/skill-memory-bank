@@ -250,7 +250,12 @@ _flow_tests_check() {
   # is missing (→127), or hit a usage error → the check itself BROKE. Do NOT
   # `|| true` that away: swallowing it would mis-report a broken test runner as
   # a clean skip and let the firewall exit 0 (violates ADR-3 / REQ-DF-060).
-  raw="$("${MB_TEST_RUN_BIN:-$SCRIPT_DIR/mb-test-run.sh}" --dir "$dir" --out json 2>/dev/null)"
+  # Drop the repo-local git env a hook exports (a linked worktree's pre-commit sets
+  # an absolute GIT_DIR): the project's tests create their own repos, and under it
+  # every `git -C <tmp> init`/hook install would land in the committing repo.
+  # shellcheck disable=SC2046  # one variable name per word
+  raw="$(unset $(git rev-parse --local-env-vars 2>/dev/null)
+         "${MB_TEST_RUN_BIN:-$SCRIPT_DIR/mb-test-run.sh}" --dir "$dir" --out json 2>/dev/null)"
   rc=$?
   if [ "$rc" -ne 0 ]; then
     return 2
