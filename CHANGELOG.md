@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Installer/CLI: `--only opencode` isolates installation, owned updates and uninstall; public extension opt-in survives reinstall. Other hosts and retained user configuration remain unchanged.
 - OpenCode upgrade from a pre-hash ownership record: a path listed in `files` without a `file_sha256` entry no longer fails the adapter; it is moved to a recorded backup under `<root>/.memory-bank-backups/` (outside host discovery), then rewritten and hashed. Uninstall keeps those backups and names them. Unlisted files and hashed files edited since installation are still refused.
 
+### Fixed — /mb drive on Python 3.11
+
+- `mb-drive.sh phase execution` no longer fails with "unrecognized arguments" on Python older than 3.12, where a drive could not leave planning.
+
 ### Added — /mb team: shared foundations, rules gate, whole-spec checks, executable contracts
 
 - `/mb team` blocks shared foundations named by several tracks (registry `<bank>/shared-mechanisms.md`, `extract` handovers, cross-track duplicate candidates), gates `team commit` on `team.rules_gate` + `mb-rules-check.sh` + a frozen contract (`scripts/mb_contract.py`), and verifies every spec REQ at wave end (`spec_verify`, `scripts/mb_spec_coverage.py`); see [commands/team.md](commands/team.md).

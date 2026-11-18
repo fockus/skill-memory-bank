@@ -92,7 +92,7 @@ ICE = Impact × Confidence × Ease (1–10). Порядок = ICE с попра�
 | v5.4.0 | Trustworthy Baseline | P0 | 8 | 9 | 9 | **648** | Next — после `adapter-parity` (AGR-012); wrapper `2026-07-15_feature_mb-donor-evolution-v5-4-baseline` |
 | v5.5.0 | Spec Control Plane | P0 | 8 | 8 | 6 | **384** | Next |
 | v6.1.0 | Evidence, UAT & Gap Closure | P1 | 9 | 7 | 5 | **315** | Next (после 6.0 — жёсткая зависимость) |
-| v5.6.0 | Long-Session Kernel & Event Journal **+ drive-loop** | P0 | 10 | 7 | 4 | **280** | Next — поглощает остаток `specs/drive-loop` (AGR-011); **T2+T4 вытащены вперёд очереди (AGR-024)**, в слайсе дожимаются T3+T5 |
+| v5.6.0 | Long-Session Kernel & Event Journal **+ drive-loop** | P0 | 10 | 7 | 4 | **280** | Next — поглощает остаток `specs/drive-loop` (AGR-011); **T2+T4 вытащены вперёд очереди (AGR-024)**, T3+T5 закрыты `drive-autopilot` (2026-11-18) |
 | v6.2.0 | **Quality Track — QA & Evidence Graph** (`specs/quality-track`, 29 REQ) | P1 | 9 | 7 | 4 | **252** | Next (сразу после 6.1.0 — строится поверх его evidence-ядра EV-01…05, не дублируя его; AGR-008). Высокий impact, высокая сложность — потому середина очереди, а не старт |
 | v5.7.0 | Plan IR & Typed Workflow Planner | P0 | 8 | 7 | 4 | **224** | Next |
 | v6.0.0 | Isolated Mixed-Node Execution | P1 | 8 | 6 | 3 | **144** | Next (разблокирует 6.1) |
@@ -108,7 +108,7 @@ ICE = Impact × Confidence × Ease (1–10). Порядок = ICE с попра�
 ICE-примечания: 6.1 имеет третий score программы, но заперт за 6.0 — это главный аргумент не откладывать 6.0. **Quality Track (6.2.0): сырой ICE 252 поставил бы его пятым, но жёсткая зависимость от evidence-ядра 6.1.0 (манифест §7.5, freshness, коллекторы EV-01…05) фиксирует его сразу за 6.1 — раньше физически нельзя без двойной постройки evidence-слоя (D-01/D-02 в `context/quality-track.md`); позже — нельзя оправдать, его ICE выше всего хвоста.** 6.3 — единственный кандидат на параллельный лейн (зависит только от 5.5). Icebox честный: оба optional-движка — самые дорогие (E=2) и наименее подтверждённые потребностью (I=3) части программы; их REQ/задачи (mb-task 102–132) остаются в umbrella-спеке и активируются JIT-слайсами при разморозке.
 
 **Пересечения с legacy-дорожкой** (правило «donor побеждает», замораживать на старте релиза):
-- `drive-loop` + `SEQUENCE_long-running-sessions` ↔ **5.6.0** — исключение из заморозки (AGR-011): оставшиеся фазы drive-loop входят в слайс v5.6.0 и ДОДЕЛЫВАЮТСЯ в нём (много вложенной работы, фича важная); **AGR-024 (2026-07-19): T2 (`/mb drive` + loop-контракт) и T4 (resume-gate) вытащены вперёд очереди ближайшим слотом, в 5.6.0 остаются T3+T5**;
+- `drive-loop` + `SEQUENCE_long-running-sessions` ↔ **5.6.0** — исключение из заморозки (AGR-011): оставшиеся фазы drive-loop входят в слайс v5.6.0 и ДОДЕЛЫВАЮТСЯ в нём (много вложенной работы, фича важная); **AGR-024 (2026-07-19): T2 (`/mb drive` + loop-контракт) и T4 (resume-gate) вытащены вперёд очереди ближайшим слотом, в 5.6.0 остаются T3+T5**; 2026-11-18: T3+T5 закрыты спекой `drive-autopilot`, drive-loop superseded — в 5.6.0 от него ничего не остаётся;
 - `work-loop-v2` ↔ 5.6.0/5.7.0 (execution state machine `/mb work`);
 - `reviewer-2.0` ↔ 6.1.0 (evidence/review);
 - `quality-track` ↔ 6.2.0 — это и ЕСТЬ релиз 6.2.0 (AGR-008), спека уже написана (29 REQ), задачи авторятся JIT при старте слайса;
@@ -124,7 +124,7 @@ ICE-примечания: 6.1 имеет третий score программы, 
 | Fix-слайс по ревью Sprint 1 | backlog I-194 · I-195 · I-196 · I-208; [отчёт](reports/2026-09-13_sprint1-review.md) | судья NO_GO, плана нет | HIGH, параллельно фокусу |
 | graph-semantic-adoption | [план](plans/2026-07-28_fix_graph-semantic-adoption.md) | 0/7 стадий | Now — пререквизит Sprint 2 (AGR-044), порядок стадий 6→2→3→1→5→4→7 |
 | mb-work-cost-diet Sprint 2 → Sprint 3 | [sprint2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) · [sprint3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md) | 0/12 · 0/13 DoD | Next — раздел Phase выше |
-| drive-loop остаток | `specs/drive-loop` + SEQUENCE `long-running-sessions` Phase 3 | T1, T2, T4 ✅ · T3, T5 ⬜ | внутри donor v5.6.0 (AGR-011, AGR-024) |
+| `/mb drive` | `specs/drive-autopilot` (заменил `specs/drive-loop`) | 7/7 ✅ | закрыт 2026-11-18; T3/T5 drive-loop покрыты drive-autopilot |
 | long-running-sessions Phase 4–6 | SEQUENCE + `specs/parallel-team-execution` (0/10) + `specs/cost-multi-model` (0/4) | не начаты | parallel-team-execution заморожен на старте v6.0.0; cost-multi-model ↔ v6.3.0 |
 | dynamic-flow хвост | `specs/dynamic-flow` | T1–T12 ✅ · T13–T14 ⬜ (pi/opencode sub-invoke) | Phase 5 SEQUENCE |
 | sdd-vision-pipeline (G-001) | umbrella + 9 child-спек, § Group в авто-блоке | S1 ✅ · S2 ✅ · S7 2/4 · S4 3/9 · S8 3/8 · S9 2/5 · S6, S3, S5 не начаты | главный трек (AGR-017), пауза с 2026-07-27; порядок AGR-029 |

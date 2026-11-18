@@ -4140,3 +4140,10 @@ Remaining gaps: native event delivery needs user trust in /hooks; unrecorded con
 ## 2026-11-18 — /mb team shared-gates: independent review closed
 
 - Review of b728474: plan-verifier FAIL, mb-reviewer CHANGES_REQUESTED (9 major). Fixed in 41c9ca4, 71da7a0, 3daadc6 with red-first tests; two re-reviews; mb-judge GO_WITH_BACKLOG (0 blockers). Backlog I-289..I-292 (dup-scan Go noise, quoted diff paths, built-in function-length check, portable symlink test).
+
+
+## 2026-11-18 — /mb drive closed: Python <3.12 fix, drive-loop superseded
+
+- Bug: mb-drive.sh passes --bank between the subcommand and its target; mb_drive_decide.py used parse_args(), which drops the target before Python 3.12 (`phase execution` → "unrecognized arguments"). 38/44 drive pytest red on Python 3.11 (project minimum), drive stuck in planning there. Fix: parse_intermixed_args(); regression test test_phase_target_after_bank_flag_parses_on_every_supported_python (red on 3.11 before the fix).
+- Evidence: drive pytest 45 pass on 3.11 and 3.13; drive bats 97/97; ruff clean. The repo guard flagged .opencode/.codex/.installed-manifest rewrites by an outside reinstall during the run (identical hashes, untracked), not by the tests.
+- Bank: drive-autopilot 7/7 recorded; specs/drive-loop → superseded (T3 pivot and T5 docs shipped in drive-autopilot); I-142 resolved, I-144 obsolete.

@@ -278,7 +278,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--bank", required=True)
     ap.add_argument("--run-id")
     ap.add_argument("--approve")
-    a = ap.parse_args(argv)
+    # mb-drive.sh puts --bank before the target; plain parse_args() drops it before Python 3.12.
+    a = ap.parse_intermixed_args(argv)
     if (a.cmd == "phase") != (a.target == "execution") or (a.approve and a.cmd != "phase"):
         die("usage: mb-drive.sh phase execution [--approve t1,t2] | next | status", 2)
     st = select(pathlib.Path(a.bank).resolve(), a.run_id)

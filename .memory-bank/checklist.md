@@ -11,12 +11,12 @@ Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.
 - ✅ Phase 0 — doc-drift cleanup (no code): status/roadmap still claim dynamic-flow Phase 2 paused; it is DONE on disk — закрыто `/mb doctor` 2026-09-13
 - ✅ Phase 1 — reviewer-2.0 (6/6 tasks) — payload orchestrator + layered rubric examples + strict verdict parse + calibration
 - ✅ Phase 2 — work-loop-v2 (5/5 tasks) — trend · contract · pivot · `on_max_cycles` fail-fast · docs
-- 🔄 Phase 3 — drive-loop (`/mb drive`), spec `specs/drive-loop/`
+- ✅ Phase 3 — `/mb drive`: `specs/drive-loop/` superseded by `specs/drive-autopilot/` (7/7, commit cb928f4; argparse fix for Python <3.12 2026-11-18). T3 pivot lives in `mb_drive_decide.py`, T5 docs in `commands/drive.md` + CHANGELOG
   - ✅ Task 1 — `mb-drive.sh next` stateless decision fn (fail-closed; `stop_success` needs green firewall AND 100% acceptance)
   - ✅ Task 2 — `/mb drive` command + AGENTS.md loop-contract (governed: 2 judge-цикла, codex ×3, GO_WITH_BACKLOG I-141…143)
-  - ⬜ Task 3 — trend/pivot + route-reeval wiring (stall/last_pivot from the `mb-flow` fence)
+  - ⏭ Task 3 — superseded: per-item stall/pivot in drive-autopilot Task 2 (drive owns no route re-eval)
   - ✅ Task 4 — stop telemetry + Stop-hook resume-gate + parallel keying (governed: 2 judge-цикла, codex ×2, GO_WITH_BACKLOG I-135…140; fence preserve-on-partial в mb-flow-sync.sh)
-  - ⬜ Task 5 — docs
+  - ⏭ Task 5 — superseded: drive-autopilot Task 5 (`commands/drive.md`, `commands/goal.md`, CHANGELOG)
 - ⬜ Phase 4 — parallel execution (`parallel-pipeline` + `parallel-team-execution`, on `mb-fanout.sh`)
 - ⬜ Phase 5 — cost-multi-model + dynamic-flow Phase 3 (Tasks 13–14: pi/opencode sub-invoke arms)
 - ⬜ Phase 6 — documentation: "how to use all of this"

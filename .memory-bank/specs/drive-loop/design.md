@@ -1,7 +1,8 @@
 ---
 type: spec-design
 topic: drive-loop — autonomous goal-driven session driver over the firewall
-status: ready
+status: superseded
+superseded_by: specs/drive-autopilot (T1/T2/T4 shipped here, T3 pivot and T5 docs shipped in drive-autopilot)
 created: 2026-07-05
 authors: [Anton Ivanov]
 linked_requirements: requirements.md

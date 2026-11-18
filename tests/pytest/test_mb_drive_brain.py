@@ -162,6 +162,15 @@ def ret(bank: Path, rid: str, action: str, *flags: str) -> None:
     assert res.returncode == 0, res.stderr
 
 
+def test_phase_target_after_bank_flag_parses_on_every_supported_python(bank: Path) -> None:
+    # mb-drive.sh inserts --bank between the subcommand and its target; before Python 3.12
+    # plain parse_args() dropped the target there ("unrecognized arguments: execution").
+    res = subprocess.run([sys.executable, str(SCRIPTS / "mb_drive_decide.py"), "phase", "--bank", str(bank),
+                          "execution"], capture_output=True, text=True)
+    assert "unrecognized arguments" not in res.stderr
+    assert "usage: mb-drive.sh phase execution" not in res.stderr
+
+
 def test_cli_help_unknown_and_fail_closed(bank: Path) -> None:
     help_out = drive(bank, "--help")
     assert help_out.returncode == 0 and "returned" in help_out.stdout
