@@ -141,14 +141,30 @@ def test_section_says_who_shares_the_bank_and_how_to_search(plugin, tmp_path):
     assert "/mb recall" in text and "mb-graph.sh" in text
 
 
-def test_global_rules_sections_come_from_the_skill(plugin, tmp_path):
+def test_global_rules_are_synced_into_soul_not_plugin_sections(plugin, tmp_path):
+    soul = tmp_path / "profile" / "SOUL.md"
+    soul.parent.mkdir(parents=True)
+    soul.write_text("Intro.\n\nPriority when instructions conflict: rules first.\n\nWorking rules.\n")
     host = Host(tmp_path)
+
     plugin.register(host)
-    key_rules = host.sections["mb-key-rules"]({"cwd": str(tmp_path)})
-    engineering = host.sections["mb-engineering-rules"]({"cwd": str(tmp_path)})
-    assert "## Key rules" in key_rules and "<!--" not in key_rules
-    assert "Memory Bank" in engineering
-    assert len(key_rules) <= 4000 and len(engineering) <= 4000
+
+    text = soul.read_text()
+    assert "## Key rules" in text and "Memory Bank" in text
+    assert "respond in English" not in text  # Hermes chats in the user's language (USER.md / SOUL)
+    assert text.index("Priority when instructions conflict") < text.index("## Key rules") < text.index("Working rules")
+    assert set(host.sections) == {"memory-bank"}  # Hermes caps all plugin sections at 8000 chars together
+    mtime = soul.stat().st_mtime_ns
+    plugin.register(Host(tmp_path))
+    assert soul.stat().st_mtime_ns == mtime and soul.read_text() == text  # unchanged rules: no rewrite
+
+
+def test_memory_bank_section_fits_the_plugin_budget(plugin, tmp_path):
+    bank = tmp_path / "repo" / ".memory-bank"
+    bank.mkdir(parents=True)
+    (bank / "status.md").write_text("# Status\n" + "long status line\n" * 2000)
+    _, text = render(plugin, tmp_path / "repo")
+    assert len(text) <= plugin.SECTION_CAP
 
 
 def test_bank_in_world_writable_folder_is_not_trusted(plugin, tmp_path):

@@ -25,6 +25,7 @@ _banks: dict[
     str, Path
 ] = {}  # ponytail: one entry per session for the gateway's lifetime; prune on finalize
 _init_lock = threading.Lock()
+SECTION_CAP = 6000
 _SHARED = {
     "folder": "this project folder's own bank, shared by every session and agent working in it",
     "project": "this Hermes project's bank, shared by every session of the project",
@@ -124,15 +125,16 @@ def _section(info) -> str:
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         logger.warning("memory-bank: context unavailable: %s", type(error).__name__)
         return ""
-    return (
+    head = (
         f"Memory Bank ({kind}): {bank}, {_SHARED[kind]}.\n"
         "It holds plans, status, decisions and progress; curated knowledge belongs to LLM Wiki. "
         "Keep it current with the memory-bank skill; /mb <command> runs its commands, and terminal commands get "
         "MB_PATH and MB_SKILLS_ROOT. Search it with /mb recall <query> (BM25 plus local semantic vectors over "
         "notes, progress and sessions); for a project's code use "
         'bash "$MB_SKILLS_ROOT/scripts/mb-graph.sh" search "<query>" (or who-calls / impact / tests <symbol>).\n\n'
-        + context
     )
+    # Hermes caps all plugin prompt sections at 8000 chars together; keep room for llm-wiki.
+    return (head + context)[:SECTION_CAP]
 
 
 def _session_env(session_id: str, ctx) -> dict:
@@ -198,28 +200,54 @@ def _on_finalize(*, session_id="", **kwargs):
 _COMMENT = re.compile(r"<!--.*?-->\n?", re.DOTALL)
 
 
-def _key_rules(info) -> str:
-    """The user's global Key rules block, rendered by the skill itself (single source with Claude Code)."""
+_RULES_START, _RULES_END = "<!-- mb-rules:start -->", "<!-- mb-rules:end -->"
+_LANGUAGE_LINE = re.compile(r"^.*\*\*Language\*\*.*\n?", re.MULTILINE)
+
+
+def _rules_block() -> str:
+    """Key rules + Memory Bank engineering rules, rendered from the skill (single source with Claude Code).
+    The language line is dropped: Hermes answers in the user's language (USER.md, SOUL.md)."""
+    key = _script("scripts/mb-rules.sh", "render", "--target=global")
+    engineering = (SKILL_ROOT / "rules" / "CLAUDE-GLOBAL.md").read_text(encoding="utf-8")
+    body = _LANGUAGE_LINE.sub("", _COMMENT.sub("", key + "\n\n" + engineering)).strip()
+    return f"{_RULES_START}\n{body}\n{_RULES_END}"
+
+
+def _sync_soul_rules() -> None:
+    """Keep the rules block in SOUL.md current. SOUL has no plugin-section size cap and is read at session start."""
+    soul = _hermes_home() / "SOUL.md"
+    if not soul.is_file():
+        return  # no SOUL.md: Hermes uses its built-in identity, which a rules-only file would replace
     try:
-        return _COMMENT.sub("", _script("scripts/mb-rules.sh", "render", "--target=global")).strip()
+        block = _rules_block()
+        text = soul.read_text(encoding="utf-8")
     except (OSError, subprocess.SubprocessError) as error:
-        logger.warning("memory-bank: key rules unavailable: %s", type(error).__name__)
-        return ""
-
-
-def _engineering_rules(info) -> str:
-    try:
-        return _COMMENT.sub(
-            "", (SKILL_ROOT / "rules" / "CLAUDE-GLOBAL.md").read_text(encoding="utf-8")
-        ).strip()
-    except OSError:
-        return ""
+        logger.warning("memory-bank: rules sync skipped: %s", type(error).__name__)
+        return
+    if _RULES_START in text and _RULES_END in text:
+        before, rest = text.split(_RULES_START, 1)
+        updated = before + block + rest.split(_RULES_END, 1)[1]
+    else:
+        paragraphs = text.split("\n\n")
+        at = next(
+            (
+                i + 1
+                for i, para in enumerate(paragraphs)
+                if para.startswith("Priority when instructions conflict")
+            ),
+            len(paragraphs),
+        )
+        updated = "\n\n".join(paragraphs[:at] + [block] + paragraphs[at:])
+    if updated != text:
+        try:
+            soul.write_text(updated, encoding="utf-8")
+        except OSError as error:
+            logger.warning("memory-bank: rules sync failed: %s", type(error).__name__)
 
 
 def register(ctx):
+    _sync_soul_rules()
     ctx.register_system_prompt_section("memory-bank", _section)
-    ctx.register_system_prompt_section("mb-key-rules", _key_rules)
-    ctx.register_system_prompt_section("mb-engineering-rules", _engineering_rules)
     ctx.register_session_env(
         ["MB_PATH", "MB_SKILLS_ROOT"], lambda session_id: _session_env(session_id, ctx)
     )
