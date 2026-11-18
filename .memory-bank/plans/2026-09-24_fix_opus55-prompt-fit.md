@@ -169,6 +169,8 @@ recall не срабатывает на служебные уведомлени�
 <!-- mb-stage:6 -->
 ### Stage 6: объём и детерминированная работа
 
+> Done 2026-11-18 via master-completion Stage 12 for the `commands/mb.md` split (`references/mb/<sub>.md`, `/mb help <sub>`); the `mb-done-finalize.sh` box is dropped (optional) and the SKILL.md / tasks / agent-wrapper bullets are not part of this stage any more.
+
 - `commands/mb.md`: оставить маршрутизацию и setup; разделы `### <sub>` → `references/mb/<sub>.md`,
   чтение по требованию; `/mb help` продолжает работать.
 - `SKILL.md`: таблицы скриптов, хуков и раздел Cursor/Codex → `references/`, в SKILL.md ссылка.
@@ -179,12 +181,14 @@ recall не срабатывает на служебные уведомлени�
   тонкими обёртками на скрипт (совместимость) с пометкой deprecated.
 
 **DoD:**
-- [ ] тест: `/mb help <sub>` находит каждый раздел после выноса;
-- [ ] тест: `mb-done-finalize.sh` повторяет шаги 3–9 и хеш-цепочку, mb-drift без CRITICAL после него;
-- [ ] размер `commands/mb.md` ≤ 4K токенов (оценка), `SKILL.md` ≤ 9K.
+- [x] тест: `/mb help <sub>` находит каждый раздел после выноса (`tests/pytest/test_mb_router_targets.py`);
+- [x] dropped (master-completion Stage 12): тест: `mb-done-finalize.sh` повторяет шаги 3–9 и хеш-цепочку, mb-drift без CRITICAL после него;
+- [x] размер `commands/mb.md` ≤ 16384 байт (~4K токенов); `SKILL.md` ≤ 9K не входит в этот этап.
 
 <!-- mb-stage:7 -->
 ### Stage 7: состав агентов (отдельный релиз)
+
+> **dropped (AGR-102)** — the opus55 line covers only Opus 5.5 / Fable; no agent-roster change.
 
 - `mb-implementer` (engineering-core + tooling-core + `Role:` + `references/roles/<role>.md`)
   вместо developer/backend/frontend/ios/android/devops/qa/analyst; `mb-architect` остаётся.

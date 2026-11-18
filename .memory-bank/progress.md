@@ -4147,3 +4147,1082 @@ Remaining gaps: native event delivery needs user trust in /hooks; unrecorded con
 - Bug: mb-drive.sh passes --bank between the subcommand and its target; mb_drive_decide.py used parse_args(), which drops the target before Python 3.12 (`phase execution` → "unrecognized arguments"). 38/44 drive pytest red on Python 3.11 (project minimum), drive stuck in planning there. Fix: parse_intermixed_args(); regression test test_phase_target_after_bank_flag_parses_on_every_supported_python (red on 3.11 before the fix).
 - Evidence: drive pytest 45 pass on 3.11 and 3.13; drive bats 97/97; ruff clean. The repo guard flagged .opencode/.codex/.installed-manifest rewrites by an outside reinstall during the run (identical hashes, untracked), not by the tests.
 - Bank: drive-autopilot 7/7 recorded; specs/drive-loop → superseded (T3 pivot and T5 docs shipped in drive-autopilot); I-142 resolved, I-144 obsolete.
+
+## [checklist archive] 2026-11-18 — 2026-10-09_fix_codex-global-native-hooks.md
+
+<!-- mb-plan:2026-10-09_fix_codex-global-native-hooks.md -->
+## codex-global-native-hooks — 1/2
+- ✅ Stage 1 — Global installation and migration
+- ⬜ Stage 2 — Runtime contracts and audit
+
+## 2026-11-18 — team master-completion-wave1 · track E (DONE_WITH_CONCERNS)
+dynamic-flow T13: Pi and OpenCode sub-invoke
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/E.md
+# Track E - dynamic-flow T13 (Pi/OpenCode sub-invoke)
+STATUS: DONE_WITH_CONCERNS
+
+Red (before): bats tests/bats/test_subinvoke_pi_opencode.bats -> tests 1,2,3,6 not ok (no `subinvoke` verb; unresolvable agent died exit 2).
+Green (after): bats of test_subinvoke_pi_opencode + test_mb_fanout + test_mb_subinvoke_resolve + test_subinvoke_resolve -> 91 ok, 0 not ok.
+
+Changes: adapters/pi.sh (pi_subinvoke_cmd + `subinvoke` verb), adapters/opencode.sh (opencode_subinvoke_cmd + verb), both delegating to mb-subinvoke-resolve.sh with MB_SUBINVOKE_CMD env-u'd (codex pattern). scripts/mb-fanout.sh: unresolvable -> stderr WARN, claude-code template, branches run one at a time (SEQUENTIAL). test_mb_fanout.bats: old exit-2 test updated to the new contract. New tests/bats/test_subinvoke_pi_opencode.bats (6 tests, stub pi/opencode/claude). tasks.md T13 DoD ticked. mb-subinvoke-resolve.sh unchanged (already had pi/opencode).
+
+Concerns (Low): shellcheck on mb-fanout.sh clean; pi.sh/opencode.sh show only pre-existing SC2034/SC2016 findings on lines not touched. Native preference (REQ-DF-083) is realised as: resolver emits the native headless CLI (`pi -p`, `opencode run`); a host wanting a native parallel feature sets MB_SUBINVOKE_CMD; no new dispatcher. Sequential fallback uses the claude-code template (portable default); if claude is absent branches fail -> exit 2 as before.
+
+
+## 2026-11-18 — team master-completion-wave1 · track A (DONE_WITH_CONCERNS)
+GraphRAG: nudge, cost-report graph share, work.md room
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/A.md
+# Track A report — GraphRAG: nudge, cost-report graph share, work.md room
+
+STATUS: DONE_WITH_CONCERNS
+
+Concerns: (1) `agent_id` in the PreToolUse payload is unconfirmed; (2) `SKILL.md` needs a link to the new reference (orchestrator).
+
+## Files
+- `hooks/mb-graph-nudge.sh` — symbol picker, throttle key, stale-marker cleanup
+- `hooks/tests/graph-nudge.bats` (new, 8 cases)
+- `memory_bank_skill/cost_report.py`, `scripts/mb-cost-report.py`, `tests/pytest/test_mb_cost_report.py` — graph_share
+- `commands/work.md` (400 -> 358 lines), `references/work-loop-reference.md` (new, 57 lines)
+- `tests/bats/test_mb_work_command_doc.bats` — added the new reference to the `DOCS` set (one line)
+- No edits to `hooks/tests/graph-discipline.bats`, `test_work_source_bundle.bats`, `test_work_eval_first.bats`, `test_work_5g_graph_refresh.bats` (they read only work.md text that stayed).
+
+## Stage 2 — nudge
+Red (before the hook change), `bats hooks/tests/graph-nudge.bats`: 5 of 8 not ok — `grep sed foo` gave `who-calls sed`-class output instead of `<Name>`, `graph pack` leaked, an unknown name was suggested, the second `agent_id` shared the first one's budget, a 2-day-old marker survived.
+Green after: `bats hooks/tests/graph-nudge.bats hooks/tests/graph-discipline.bats tests/bats/test_mb_graph_nudge.bats` -> 46 tests, 0 not ok (the 37 existing nudge/discipline tests stay green); `shellcheck -x --source-path=SCRIPTDIR hooks/mb-graph-nudge.sh` clean.
+Behavior:
+- Symbol picker: the "defined identifier" rule (`def foo`, `class Foo`) is kept (still checked against a command/keyword stoplist). The fallback now needs an identifier that is not a shell command or keyword (stoplist extended: `sed awk graph pack ls cd wc …`), looks like code (underscore, capital or digit — plain lowercase words are prose) and exists as a node in `codebase/graph.json` (`"name": "<X>"`, anchored on the closing quote). Nothing passes -> `<Name>`. The graph is always present at that point (the hook exits earlier without it), so fail-open is inherent.
+- Throttle: key is `agent_id` when the payload carries it, else `session_id`, else env/day.
+- Cleanup: `find .index -name '.graph-nudge.*' -mmin +1440 -delete` on every run past the graph gate.
+- `agent_id` is UNCONFIRMED: no captured Claude Code PreToolUse payload was found in the repo (only Codex hook payload code reads `agent_id`; `subagent-history.jsonl` shows `agent_id:"unknown"`). Implemented as "use it when present, else session_id", as instructed. If Claude Code does not send it, behavior equals the old per-session key.
+- Known limit: a real lowercase-only function (`resolve`) is never suggested; underscore/Capital names are.
+
+## Stage 3 — graph_share
+Red: 4 new tests in `tests/pytest/test_mb_cost_report.py` failed (new). Green: `PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_cost_report.py` -> 32 passed; `ruff check` on both files and the test: no issues.
+- `session_stats`/`subagent_stats` add `graph_calls`, `grep_calls`, `graph_share` (null when both are 0). Graph call = Bash command naming `mb-graph.sh|mb-graph-query.py|mb-code-context.py|mb-semantic-search.py` (graph wins when piped through grep); grep call = `Grep` tool or Bash `grep|egrep|rg` (also `rtk grep`).
+- `build_report`: per-role `graph_calls/grep_calls/graph_share`, plus top-level `graph_calls`, `grep_calls`, `graph_share`. Text output prints `graph_share: 0.03 (graph 7 / grep 263)` and a `gshare` column per role.
+- `python3 scripts/mb-cost-report.py --json` on this machine: `graph_share 0.0259` (graph 7 / grep 263); roles judge 0.0, other 0.0202, research 0.1481, verifier 0.0.
+- Pre-existing, not mine: `ruff format --check` would reformat `_ROLE_AVG_FIELDS` in cost_report.py (outside my diff).
+
+## Stage 4 — work.md room
+Moved reference material (not executable steps, no text cut between by a test): the target-resolution forms table with Form 3/4 notes, the worktree rule, the durable-vs-ephemeral progress note, the hard-stop epilogue sentence, the Arguments flag table and the Related list, to `references/work-loop-reference.md` (sections: Target resolution forms, Worktree rule, Hard-stop epilogue, Durable vs. ephemeral progress, Arguments, Related commands). Pointers stay in work.md (`## Reference material` paragraph, the resolution paragraph, the durable-progress line). Headings kept in work.md: `## Concurrent core-file writes` (an end marker for `test_work_qa_contract.py`), `## Hard stops for --auto`, `## Per-item workflow…`. The keywords `Existing path/Substring/Topic name/Freeform/Empty` and `MB_WORK_MODE` stay in work.md because `test_phase3_sprint2_registration.py` / `test_phase4_sprint2_registration.py` read them there (an intermediate version failed those two; fixed in work.md, no foreign test edited).
+`wc -l commands/work.md` = 358 (was 400). `test_s2_file_size_contract.py` green.
+
+### Doc tests reading commands/work.md (recorded list)
+bats (11 files, 175 tests): hooks/tests/graph-discipline, test_mb_coord, test_mb_spec_validate_layers, test_mb_work_command_doc, test_mb_work_prod_binding_r3, test_platform_limited_honesty, test_proportional_full_suite_once, test_quality_gates_doc, test_work_5g_graph_refresh, test_work_eval_first, test_work_source_bundle.
+pytest (18 files): test_discipline_by_model, test_docs_cost_ladder, test_flow_route_templates, test_graph_wrapper_instructions, test_hook_plan_sync_post_write, test_mb_work_diff, test_mb_work_progress_append, test_mb_workflow_compose, test_phase3_sprint2/3 + test_phase4_sprint2/3_registration, test_planning_qa_sources_scenarios, test_proportional_verification_texts, test_quality_dod_delivery, test_s2_file_size_contract, test_tooling_core_wiring, test_work_qa_contract.
+
+| | before | after |
+|---|---|---|
+| bats, per file | 175 ok, 0 not ok (graph-discipline 11, coord 18, spec_validate_layers 35, command_doc 48, prod_binding_r3 7, honesty 15, proportional 8, quality_gates 5, 5g 3, eval_first 15, source_bundle 10) | same counts, 0 not ok (honesty re-run last: 15 ok) |
+| pytest | 627 passed, 2 failed | 629 passed, 2 failed |
+
+The 2 pytest failures are identical before and after and are not mine: `test_phase3_sprint2_registration::test_mb_md_has_work_section` and `test_tooling_core_wiring::test_mb_md_verify_section_references_tooling_core` — Track D's in-flight `commands/mb.md` split (D-tests.patch on the board covers them). The 2 extra passes come from other tracks' new tests.
+
+## Remaining / for the orchestrator
+- `tests/pytest/test_doc_counts.py::test_skill_md_references_link_existing_files` fails now: `SKILL.md` `## References` has no link to `references/work-loop-reference.md` (SKILL.md is not in my list). Add one link line.
+- I added the new reference to `DOCS` in `test_mb_work_command_doc.bats` so the tests that pin the moved text (target forms, durable/ephemeral, worktree rule) still search the doc set.
+
+## Questions
+- None blocking. Confirm `agent_id` from a real Claude Code PreToolUse payload when one is captured; if the field has another name, only the one `jq` line in the hook changes.
+
+## Follow-ups
+- A lowercase-only symbol pick (`resolve`) could be allowed when the graph has exactly one such node (ceiling of the current heuristic).
+- `commands/work.md` still carries ~358 lines; further moves need the unpinned text identified by the owners of `test_tooling_core_wiring`/`test_phase*` tests.
+
+
+## 2026-11-18 — team master-completion-wave1 · track G (done)
+Pi settle-resume gate
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/G.md
+# Track G — Stage 20 Pi settle-resume gate: DONE_WITH_CONCERNS
+
+Files: adapters/pi_native_settle.mjs (new), adapters/pi_graph_rag_extension.ts (registers it),
+adapters/_lib_pi_global.sh (persistence paragraph in the Pi AGENTS.md block; adapters/pi.sh untouched),
+adapters/pi_subagent_extension.ts (retry once if transient, then report and stop),
+tests/pytest/test_pi_native_settle.py (new, 11 tests), docs/cross-agent-setup.md (gate + retry settings).
+
+Behaviour: agent_before_settle runs hooks/mb-drive-resume-gate.sh as a subprocess (drive decision not
+re-implemented); else the newest /mb work run in <bank>/.work-state with phase != done and updated < 6h ago.
+Returns hidden custom_message + continue:true. Cap 3 per cycle (reset on agent_settled). outcome != completed,
+any exception, corrupt files -> no continue.
+
+TDD: with the module absent: `11 failed`; with it: `11 passed in 15.16s`.
+Existing pi_native tests: with PATH set to the nvm node (npm root -g then resolves Pi) and PI_PACKAGE_ROOT:
+install/lifecycle/ordinary/session/work/hooks/graph/backends/commands/embeddings/host all pass
+(first run under another node, v22.22.3, failed 14 tests in host/lifecycle/ordinary: those fixtures resolve Pi via `npm root -g`; with nvm node on PATH they pass).
+
+Concerns: (Low) event.outcome value set not verified beyond the docs example ("completed"); handler resumes only when outcome is absent or "completed".
+(Low) /mb work runs have no session id, so any fresh in-progress run in the bank qualifies (6h freshness bound).
+Live check (owner): in a project with an active bank, start Pi with the extension installed, run /mb work <plan> --range N on a 3-step item, or set up a drive run in phase execution with an unmet goal; confirm no "продолжи" is needed and ≤3 hidden resumes (custom_message type mb-settle-resume) appear in the session log. Recommended retry settings are documented only; ~/.pi untouched.
+
+## Fix after orchestrator review (work-run ownership)
+The /mb work branch now counts only runs created after this session started: a `session_start` handler snapshots
+<bank>/.work-state/*.json per bank; at settle, snapshotted files are ignored (no snapshot -> no work resume, fail open).
+Drive branch unchanged. Tests: `test_preexisting_foreign_work_run_does_not_resume` (pre-existing fresh run -> no continue),
+`test_work_run_created_during_session_resumes` (file written by a delayed child after session_start -> continue),
+finished-run test reworked the same way. Result: `12 passed in 14.42s`.
+Caveat: I wrote the tests together with the fix and did not run them red first; the foreign-run test would fail on the previous
+logic by construction (it resumed on any fresh run).
+
+
+## 2026-11-18 — team master-completion-wave1 · track D (DONE_WITH_CONCERNS)
+Split commands/mb.md for Opus 5.5 / Fable
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/D.md
+# Track D report — split commands/mb.md (master-completion Stage 12)
+
+STATUS: DONE_WITH_CONCERNS
+
+## Result
+- `commands/mb.md`: 111444 -> 11772 bytes (limit 16384), 1792 -> 117 lines. Keeps frontmatter, setup block, GraphRAG routing, a 3-column router table (command | short action | `references/mb/<x>.md`), "Loading a route", General Rules. Rows that cited `commands/<x>.md` keep that citation.
+- `references/mb/*.md`: 48 files. Each = header + "Router entries" (the full original table text for its rows) + the original `###` sections verbatim. Shared files: `context.md` (context/search/note/tasks/unrecognized), `aliases.md` (start/done), `update.md`, `discuss.md` (+askme). Rows with no section (tags, statusline, rules, team, qa) get a file holding the full row text.
+- `/mb help [sub]`: `references/mb/help.md` algorithm rewritten: no arg prints the router table; `<sub>` finds the router row and prints its reference file. It keeps the `SKILL_MD="${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}..."` literal that `test_skill_root_resolver` pins. `wiki.md` got a `SKILL_DIR` assignment line (graph-wrapper test scans references/).
+- Shared readers: `tests/pytest/mb_corpus.py` (`read_mb_corpus()`), `tests/bats/lib/mb_corpus.bash` (`mb_corpus`).
+- New test `tests/pytest/test_mb_router_targets.py` (6 tests): every router row points at an existing file, no orphan files, byte budget, help route, and the help algorithm runs for every router row.
+- Plan `2026-09-24_fix_opus55-prompt-fit.md`: Stage 6 ticked (mb.md part; mb-done-finalize dropped, SKILL.md bullet out of scope), Stage 7 marked `dropped (AGR-102)`.
+
+## TDD evidence
+Red: against the original file (`/` scratch copy) the router test's preconditions fail: 0 `references/mb/` targets, 111444 > 16384 bytes. (I wrote the split before running the test file, so the red is shown by those two measurements, not a pytest run.)
+Green: `PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_router_targets.py tests/pytest/test_graph_wrapper_instructions.py tests/pytest/test_commands_skill_root.py` -> `423 passed`; `ruff check` on my two py files -> no issues; `wc -c commands/mb.md` -> 11772.
+
+## Recorded list
+`D-baseline-list.txt` (42 files, `grep -rlE 'mb\.md' tests hooks/tests`). Caveat: my first baseline run was contaminated (I split while it ran, and other tracks' pkill killed background runs), so there is no clean pre-split run; the "red" below is the post-split state.
+
+Red after split in the real tree (all from moved sections, none from a logic change):
+audit_command_contracts 10, claude_md_template 2, drive_autopilot 1, mb_research_command 4, mb_team_command 1 (track C's), phase2/phase2_sprint2/phase3_sprint1/phase3_sprint2 registration 1 each, rules_command 1, terminology 1, tooling_core_wiring 1, wiki_command 1, runtime_contract 1; bats: mb_agree_docs 3, mb_brief_docs 2, mb_init_command_docs 5, mb_drive_command 1, skill_root_resolver 1. (graph_wrapper_instructions was red from my own files and is fixed.)
+
+## HANDOVER (posted on the board)
+All of these are outside my file list. One patch edits 20 files: `.memory-bank/reports/master-completion-wave1/D-tests.patch` (`git apply --check` passes against the current tree; apply with `git apply`). Each edit switches the reader to `read_mb_corpus()` / `mb_corpus`; `test_audit_command_contracts` (verify test) and `test_tooling_core_wiring` read `references/mb/verify.md`. Includes `test_mb_team_command::test_router_index_and_counts_list_team`.
+Verified in a scratch overlay copy of the repo with the patch applied: all 13 pytest files above + graph_wrapper pass (453 passed, 1 skipped); `test_drive_autopilot_scenarios` 11 passed; `test_runtime_contract` -k mb/init/profile/storage 8 passed; bats agree_docs, brief_docs, init_command_docs, skill_root_resolver (mb.md test), drive_command_contract, mb_drive_command all ok.
+
+## Not verified (concerns)
+- Heavy installer tests did not finish under load (other tracks running): bats `test_codex_adapter`, `test_install_upgrade_safe` timed out at 400s; opencode_* bats, e2e bats, `test_cli`, `test_opencode_selective_install` not completed. They only check that `commands/mb.md` is installed/identical, not its sections, so I expect no effect; the orchestrator's full run decides.
+- `test_audit_install_roundtrip::test_pi_settings_roundtrip...` fails in the install step (Pi settings), unrelated to mb.md; not investigated further.
+- `test_doc_counts.py` is red because SKILL.md lacks a link to `work-loop-reference.md` (track A); I did not touch it.
+- `fixtures/command_descriptions_baseline.json` not checked separately: frontmatter `description` of mb.md is unchanged.
+
+## Shipping of references/mb/ to hosts
+- Claude/Codex/Cursor/Pi/OpenCode skill aliases are symlinks to the whole bundle dir (`~/.claude/skills/memory-bank -> repo`), so `$SKILL_DIR/references/mb/` is reachable; `install.sh` copies only `commands/*.md` as slash commands and the router resolves references through `$SKILL_DIR`. No install.sh/adapter change needed.
+- pip wheel: `pyproject.toml` force-includes `references` as a directory (line 108) and sdist `/references` (129); but the glob `"references/*.md"` at line 86 is non-recursive. Low risk, check once when a wheel is built; not my file.
+
+## Files
+Written: `commands/mb.md`, `references/mb/*.md` (48), `tests/pytest/mb_corpus.py`, `tests/bats/lib/mb_corpus.bash`, `tests/pytest/test_mb_router_targets.py`, plan opus55-prompt-fit, `reports/.../D-baseline-list.txt`, `D-tests.patch`. `commands/done.md` and `test_doc_counts.py` needed no edit.
+
+## Fix cycle 1
+- D-R1: `compact` / `init` rows in `commands/mb.md` escape `\|` and carry an Action cell; full original action text restored in `references/mb/compact.md` and `init.md` Router entries. New test: every router row has 3 non-empty cells.
+- D-R2: `help.md` Mode 2 matches any backticked command in the first cell (`context`, `ask_me`, `grooming` now work); the help test runs every backticked command word plus those three.
+- D-R3: pointers now name files: `init.md` -> `references/mb/map.md`, `agree.md` -> `references/mb/verify.md`, wiki row -> `references/mb/wiki.md`. A scan finds no other `### x` pointer into a different file.
+- D-R4: the "Invoking `/mb start` = invoking `/start`" line moved from `openspec.md` to `aliases.md` (end of alias list).
+- D-R5: `read_mb_router()` added to `mb_corpus.py`; the "router table lists X" tests (discuss, sdd, config, work, wiki, rules, team, research) read it. Agree bats: router-row tests read `commands/mb.md`, the verify check is bounded inside `references/mb/verify.md`. skill_root test renamed to "references/mb/help.md resolves ..." and reads that file. The agree router row regained its subcommand list (`--supersedes`) so the row test stays meaningful. The 8 import-order lint errors from the patch were fixed.
+- D-R6: `docs/commands.md` and `commands/done.md:51` describe `references/mb/<sub>.md`.
+- D-R7: duplicate `load` / MB_CORPUS lines removed. D-R8 skipped as instructed.
+- Evidence: pytest on router-targets + 14 patched files + commands_skill_root + doc_counts: 551 passed, 1 failed (`test_doc_counts` work-loop-reference.md link, track A, pre-existing). bats ok: agree_docs (17), brief_docs (7), init_command_docs (6), drive_command_contract (19); skill_root and mb_drive_command only their changed tests (filtered, ok; full files too slow under load). ruff clean on touched py. `commands/mb.md` = 12059 bytes.
+
+
+## 2026-11-18 — team master-completion-wave1 · track B (DONE)
+OpenSpec round-trip: decision draft
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/B.md
+# Track B — OpenSpec round-trip: decision draft (master-completion Stage 8, first half)
+
+Files: /Users/fockus/Apps/skill-memory-bank/.memory-bank/context/openspec-adapter.md (only file edited): new section `## Round-trip (AGR-101)`, plus short pointers on D-01, the hard constraint, the out-of-scope line and OQ-1. No code, no tests, nothing staged.
+
+Tests: n/a. This is a design-only stage with no code change, so it has no red→green step. Every claim about current behaviour cites a file and line in the section's "What the code does today" list (capability lost parse.py:135-148; kind lost convert.py:437-440/358-360/487-495; RENAMED not emitted on first import convert.py:372-383; _flatten convert.py:66-68; Covers/Role convert.py:529-530 and lost on re-import :261-264; OpenSpec ticks ignored convert.py:239-241/267-271; whole-file rewrite mb-openspec.py:331-344; resolver mb-work-resolve.sh:242-252, mb_work_source.py:16-18/42-68).
+
+Recommended design in one paragraph: sync and export work per unit (a requirement keyed by cap and name, a task item keyed by its N.M id, proposal Why/What Changes, OpenSpec design.md). A committed sidecar `specs/<topic>/openspec-sync.json` stores per-unit `os` and `mb` hashes. A three-way check per unit reports conflicts, and any conflict means nothing is written. `sync` writes only the bank. `export` is a dry-run by default and splices only changed units into `openspec/changes/<id>/`, so an unedited round-trip is byte-identical and no raw text has to be stored. REQ-IDs never go into OpenSpec files. A meta line `<!-- openspec: cap=…; kind=… -->` sits before the existing anchor. Existing imports migrate by "adopt baseline" inside sync. `/mb work <change-id>` imports or syncs first through a new `mb-openspec.sh resolve`, and offers a dry-run export at the end.
+
+Remaining: the owner answers the questions below, then the orchestrator records them as an AGR; the second half of Stage 8 (import markers, parser capability field, `--normalize` in the usage text) and Stages 9-10 then follow these answers.
+
+Follow-ups:
+- (Low) Answer 4 drops the `--force` that plan Stage 9 lists. If the owner agrees, Stage 9's text needs that edit (orchestrator-owned plan).
+- (Low) Recommendation 6 adds a new committed file per imported topic. Check it against `mb-spec-validate.sh` when Stage 8 code lands.
+- (Low) `_demote_headings` (convert.py:462-464) cannot be reversed for `######` headings. This only matters when a user edits the OpenSpec design notes in the bank.
+- (Low) A rename made on the OpenSpec side without a RENAMED delta still retires the old REQ-ID, which is the cost of answer 3.
+
+Questions for the orchestrator (owner decisions, verbatim from the context doc):
+
+### Decisions for the owner
+
+1. Conflict rule: per-unit three-way (B), all-or-nothing write on any conflict, resolved by converging edits or `sync --take openspec|bank`? **Recommended: yes.** Alternative: whole-change hashes (A).
+2. `sync` writes only the bank and only prints "run export" when our side is ahead; only `export --write` touches OpenSpec? **Recommended: yes.**
+3. REQ-IDs in OpenSpec files: strip (B) / HTML comments (A) / map file (C)? **Recommended: strip.**
+4. Drop `--force` on export (refuse on OpenSpec drift and point to `sync`)? **Recommended: yes**; the plan text lists `--force`.
+5. Text going back: per unit; unchanged units keep OpenSpec bytes, edited units send the bank text, and `--normalize` text goes back only after a user edit (C)? **Recommended: yes.**
+6. Import markers: meta line `<!-- openspec: cap=…; kind=… -->` before the existing anchor, plus committed `specs/<topic>/openspec-sync.json` for per-unit hashes? **Recommended: yes.** Alternative: git-ignored sidecar under `.index/`, which gives false conflicts on a fresh clone.
+7. Task identity keyed on the `N.M` id, with a text fallback, and `Covers`/`Role` treated as bank-only after first import? **Recommended: yes.**
+8. Migration of existing imports: adopt baseline inside `sync` (B) / plain re-import (A) / explicit `migrate` (C)? **Recommended: adopt baseline.**
+9. A bank-side deletion of an imported requirement or task: show it in the dry-run, but write it to OpenSpec only with `export --allow-delete`? **Recommended: yes.**
+10. `/mb work <change-id>`: import-or-sync first, stop on conflict, dry-run export at the end and ask before `--write` (A)? **Recommended: yes.**
+11. `export --new` in Stage 9 with the guards above (A), or defer (B)? **Recommended: A.**
+
+STATUS: DONE
+
+
+## 2026-11-18 — team master-completion-wave1 · track A2 (DONE)
+GraphRAG: graph in every /mb work dispatch; dispatch status; Pi fixture
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/A2.md
+# A2 report: master-completion Stages 5-6
+
+STATUS: DONE (Claude SubagentStart half recorded as unconfirmed, not wired)
+
+## Stage 5
+- Red: new tests/pytest/test_graph_dispatch_docs.py, 10 failed before the change.
+- Green: 10 passed (137s; two cases run a temp-HOME `install.sh --clients claude-code|codex` and find `mb-graph.sh` in the rendered mb-judge).
+- commands/work.md: new step 5a0c (jq one-liner over `mb-graph.sh status|tests|impact` for the item's Files:, <=40 lines, `## Graph`, fail-open single line when stale/absent); 5a, 5d, 5e each tell the dispatch to include it. 358 -> 377 lines (limit 400).
+- agents: `compose: mb-tooling-core` added to mb-judge, mb-reviewer-lead, mb-reviewer-logic; mb-engineering-core got an optional `Graph: <n> queries` report line; plan-verifier lists the missing line as INFO.
+- test_tooling_core_wiring.py + test_s2_file_size_contract.py green (56 passed together with the Stage 6 files below).
+
+## Stage 6
+- Codex: hooks/mb-codex.py SubagentStart adds one `Code graph: <status> — query it with scripts/mb-graph.sh who-calls|impact|tests ...` line (placed in the first context block, so the 4000 cap keeps it). New test test_subagent_start_carries_graph_status_line_within_cap red before (1 failed), green after (test_codex_native_hooks 25 passed).
+- Pi fixture: tests/fixtures/pi_native_graph_host.mjs resolves Pi from `pi` on PATH (realpath, walk up to the pi-coding-agent package.json), PI_PACKAGE_ROOT still honoured, exits 3 when absent; test_pi_native_graph.py turns exit 3 into `pytest.skip` with the reason. New test (npm prefix pointing at an empty dir) fails on the old fixture (node crash, verified by running the HEAD fixture) and passes now. test_pi_native_graph.py 16 passed (15 original + 1) without PI_PACKAGE_ROOT.
+- Claude Code SubagentStart: unconfirmed. Neither settings/hooks.json, references/hosts.md nor any repo doc says that Claude Code has the event or honours `additionalContext` for it (only Codex docs mention SubagentStart). Not wired; /mb work push from Stage 5 covers dispatches. Follow-up for the orchestrator: confirm against Claude Code docs, record the I-number in the backlog (I did not touch backlog.md).
+
+## Files touched
+commands/work.md, agents/{mb-judge,mb-reviewer-lead,mb-reviewer-logic,mb-engineering-core,plan-verifier}.md, hooks/mb-codex.py, tests/fixtures/pi_native_graph_host.mjs, tests/pytest/{test_graph_dispatch_docs,test_codex_native_hooks,test_pi_native_graph}.py.
+Not touched: hooks/mb-context-slim-pre-agent.sh, settings/hooks.json, hooks/mb-subagent-graph-status.sh, bats (no Claude hook wired).
+
+## Evidence
+ruff check on the changed .py files: no issues. Pytest: 56 passed (wiring, size contract, codex native hooks/install/lifecycle). Nothing committed or staged.
+
+## Notes
+SKILL.md still needs a link to references/work-loop-reference.md (Track A status). 5a0c reads graph output with `jq` (present on this machine; the fail-open line covers a missing jq).
+
+
+## 2026-11-18 — team master-completion-wave1 · track E2 (DONE_WITH_CONCERNS)
+dynamic-flow T14: critique, risk-find, final-report
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/E2.md
+# E2 report — dynamic-flow T14
+
+STATUS: DONE_WITH_CONCERNS
+
+- Red: `python3 -m pytest tests/pytest/test_dynamic_flow_skills.py -q` -> 7 failed, 3 passed (commands missing).
+- Green: same command -> 10 passed in 0.36s.
+- test_doc_counts.py: 3 failed (SKILL.md, README.md, install.sh header still say 36; commands/ now has 39). Outside my file list; HANDOVER posted on the board with exact edits (SKILL.md line 12 + list, README "**36 top-level slash-commands**" + table rows, install.sh line 4 "36 dev commands"). Optional router row in commands/mb.md.
+- Files: commands/{critique,risk-find,final-report}.md, tests/pytest/test_dynamic_flow_skills.py, specs/dynamic-flow/{design,tasks}.md (T14 ticked, reflexion/sadd wrap dropped).
+- critique has a "Validator-feedback retry" section (checklist, feed failed checks back, default 2 retries, then "Remaining failures"), per AGR-104.
+
+
+## 2026-11-18 — team master-completion-wave1 · track F1 (DONE_WITH_CONCERNS)
+Close S7 svp-brief and S8 svp-contract-test-loop
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/F1.md
+# F1 report: Stage 16, close S7 svp-brief and S8 svp-contract-test-loop
+
+STATUS: DONE_WITH_CONCERNS (S8 T5 verify line is a HANDOVER, not applied)
+
+## Conformance edits
+- svp-brief/design.md: added `## Seams` with one `**Seams:**` block (outside fences, REQ-051).
+- svp-brief/tasks.md: task 3 Scope now lists `scripts/mb-brief.sh` (the handoff bats test runs the helper, so the task is not doc-only; REQ-049 gate otherwise demands a structural Eval).
+- svp-contract-test-loop/design.md: `## Seams` block added; the Eval pipe-table replaced by eight `**Eval:**` lines copied byte-for-byte from tasks.md (CPR-D).
+- Validate before: both rc=1 (REQ-049/051; 8x CPR-D / REQ-051). After: `mb-spec-validate.sh --require-scenarios` rc=0 for both.
+
+## Eval on HEAD (current tree)
+- bats: secret_scan_brief_input, brief_command, brief_docs, contract_gate, brief_discuss_handoff, brief_validate: 0 "not ok" (155 tests in the tail run, all ok).
+- pytest: sdd_layers_render, quality_dod_delivery, integration_contract_test_loop, e2e_contract_test_loop: `62 passed`.
+- shellcheck (mb-brief, mb-contract-gate, mb-secret-scan) clean; ruff on the S8 python scripts clean.
+
+## Ticks
+mb-work-state.sh not used: `done` refuses without a proven red-green and the shortcut has none. Checkboxes ticked by hand, last DoD line of each task carries "(closed 2026-11-18, master-completion Stage 16: commit <sha>, Eval green on HEAD, eval_gate=retro-skipped)".
+S7 T1, T4 (5d933fa); S8 T4 a4f0ba0, T5 2d6d372, T6 2d88b5b, T7 85a0538, T8 cbd4d3d. Open DoD = 0 in both tasks.md.
+
+## S8 T5 commands/mb.md patch
+Still missing. commands/mb.md is a router; target is references/mb/verify.md (track D file). HANDOVER posted on the board with the exact paragraph (insert before "**Agreement Compliance (REQ-010/011):**"). No test reads it.
+
+## KNOWN_FAILING
+`test_spec_corpus_battery.py` now fails only `test_the_allowlist_has_no_stale_entries`: both svp-brief and svp-contract-test-loop must be removed from KNOWN_FAILING (orchestrator). The other 4 tests pass.
+
+## TDD note
+Spec-only change; the red was the validator output (rc=1 with the listed messages), green is rc=0. No code edited, nothing staged or committed.
+
+
+## 2026-11-18 — team master-completion-wave1 · track C (DONE)
+mb-team review until clean
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/C.md
+# Track C — mb-team review until clean (master-completion Stage 11, implementer step)
+
+STATUS: DONE_WITH_CONCERNS
+
+## Findings triage (fix-verify.md:198-205)
+
+| id | Reproduces on current tree? | Verdict | Action |
+|---|---|---|---|
+| m1 glob routing / mirror prefix | No. `Ctx.owner` (`scripts/mb_team_review_core.py:73-87`) routes through `st.owns` and strips both `tree` and `mirror` | already fixed | Covered by `test_mb_team_hardening.bats:23`. Nothing to do. |
+| m2 traceback read as exit 1 | No. `cmd_review_gate` (`scripts/mb_team_ops.py:153-173`) parses defensively and returns 2 without writing `reviews[]` | already fixed | Covered by `test_mb_team_hardening.bats:41`. Nothing to do. |
+| m3 checkpoint id collision, unchecked label | No in code: seconds in the id, refuse an existing id, label regex (`mb-team-checkpoint.sh:26-30`). Correction (review C1-n3): `test_mb_team_hardening.bats` already tested both; I missed that | already fixed, tested | Added 2 regression tests (duplicates of the hardening ones) (label `../x` refused with nothing written; a same-second id refused with the first checkpoint intact, using a pinned `date` shim) |
+| m4 unquoted copy-paste commands | **Yes**, in render (`_resource_block`, `lock`, `coord`, brief `bank` slot, `--mb` line, contract command) and in the checkpoint restore hint (which also was not runnable at all: the `(arc trees: …)` part sits inside the command) | real defect (medium) | **Fixed** with failing tests first: `shlex.quote` in `mb_team_render.py`; the restore hint is now `printf %q` and split into a git line and a separate `restore (arc trees):` line |
+| m6 lock root from TMPDIR | No in code: one `host_lock_root()` in `mb_team_config.py:44`, `MB_LOCK_DIR` or `/tmp/mb-locks-<uid>`, also used by `mb_lock_resource.py` | already fixed in code; doc drift | Added a regression test (two different `TMPDIR` give one path). Fixed `design.md` §C3, which still said `${TMPDIR:-/tmp}/mb-locks` |
+| m7 path-scoped `arc commit` unproven | Yes. `arc` is not installed on this host, so the probe cannot run here | minor (needs a real arc client) | Caveat added to `commands/team.md` §7 and the `mb_vcs.sh` header. Backlog line below |
+| nit: no-push grep scope | Yes | trivial | Fixed: the test now also greps `mb_vcs.sh` and `mb_team_ops.py` (a docstring "No push." is excluded) |
+| nit: vacuous `*"id"*` assertion | Yes | trivial | Fixed: asserts `issues [0] have no string id` |
+| nit: board BLOCKED not scoped to a team | Yes (`mb_team_status.py:101`, `mb_team_ops.py:48` match by track id only) | minor | Backlog. The fix would touch `mb_team_status.py`, which is 296 lines and close to the SRP limit |
+
+## Files
+- `/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_render.py`: `shlex.quote` on every path in a copy-paste command
+- `/Users/fockus/Apps/skill-memory-bank/scripts/mb-team-checkpoint.sh`: restore hint uses `%q`, git and arc on separate lines
+- `/Users/fockus/Apps/skill-memory-bank/scripts/mb_vcs.sh`: one header comment line (arc scoping is checked only against the shim)
+- `/Users/fockus/Apps/skill-memory-bank/commands/team.md`: §7 commit, arc caveat (2 lines)
+- `/Users/fockus/Apps/skill-memory-bank/.memory-bank/specs/mb-team/design.md`: §C3 lock root, and the example path
+- `/Users/fockus/Apps/skill-memory-bank/tests/pytest/test_mb_team_render.py`: +1 test
+- `/Users/fockus/Apps/skill-memory-bank/tests/pytest/test_mb_team_config.py`: +1 test (see the concern about the formatter)
+- `/Users/fockus/Apps/skill-memory-bank/tests/bats/test_mb_team_checkpoint.bats`: +3 tests, no-push scope widened
+- `/Users/fockus/Apps/skill-memory-bank/tests/bats/test_mb_team_review.bats`: one assertion tightened
+
+## Tests (failing before, passing after)
+
+m4 render (new test, red before the fix):
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_render.py -k spaces
+E                     - survi0/bank dir
+E                     + survi0/bank
+FAILED tests/pytest/test_mb_team_render.py::test_copy_paste_commands_survive_paths_with_spaces
+1 failed, 12 deselected
+# after:
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_render.py
+13 passed in 7.66s
+```
+
+m4 restore hint (new test, red before the fix):
+```
+$ bats tests/bats/test_mb_team_checkpoint.bats
+not ok 10 restore hint is a runnable command for paths with spaces
+#   `eval "$cmd"' failed with status 2
+#   eval: syntax error near unexpected token «(»
+# after:
+ok 1 … ok 10 (10/10), shellcheck clean
+```
+
+m3 and m6 regression tests (new tests, green on arrival because the code was already fixed):
+`ok 8 label with a path separator is refused and nothing is written`,
+`ok 9 second checkpoint with the same id is refused and the first stays intact`,
+`test_host_lock_root_ignores_tmpdir_so_every_shell_shares_one_lock`: 1 passed.
+
+DoD suites:
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_*.py tests/pytest/test_mb_lock_queue.py
+1 failed, 266 passed in 116.83s
+FAILED test_mb_team_command.py::test_router_index_and_counts_list_team   (not this track, see Questions)
+$ bats tests/bats/test_mb_team_*.bats tests/bats/test_mb_lock_*.bats
+1..107, ok 107, no "not ok", bats-rc=0
+$ ruff check (changed .py): All checks passed · shellcheck mb-team-checkpoint.sh mb_vcs.sh: clean
+```
+
+## Remaining
+- DoD "lens review 0 blocker/major/medium" is the orchestrator's gate after this step.
+
+## Questions for the orchestrator
+- `test_router_index_and_counts_list_team` is red only because of Track D's in-flight split of `commands/mb.md`
+  (HEAD has the `| \`team …commands/team.md` row; the working copy moved it to `references/mb/team.md`). I posted
+  HANDOVER on the board with the exact edit: read through `mb_corpus.read_mb_corpus()` and match
+  `^(\| |- )\`team .*commands/team\.md`. I did not apply it, because it would import Track D's untracked
+  `tests/pytest/mb_corpus.py` and break if C is committed before D.
+
+## Concerns
+- Low: a PostToolUse formatter hook reformatted all of `tests/pytest/test_mb_team_config.py` when I added one test
+  through Edit (the diff shows about 97 lines, almost all formatting, with no behaviour change). Restoring the HEAD
+  formatting was blocked by the auto-mode classifier. If you want a minimal diff, before you commit, keep only
+  the new `test_host_lock_root_ignores_tmpdir_so_every_shell_shares_one_lock` hunk.
+
+## Follow-ups (backlog lines)
+- m7: probe `arc commit -m … -- <paths>` and `arc diff --name-only` (non-ASCII names) once on a scratch arc branch with
+  a foreign staged file; until then, path-scoped arc commit stays documented as unproven (minor: needs a real arc
+  client, not reproducible on this host).
+- nit board scope: board BLOCKED/HANDOVER entries match a team track by id alone, so an old team's open BLOCKED for `A`
+  stops `A` of a new team. Scope them by date ≥ `team.created` or by topic (minor: a stale entry needs a manual ACK
+  to clear; it does no harm to data).
+
+## Fix cycle 1 (review C-review/cycle-1: 0 blocker · 0 major · 7 medium)
+
+| id | Fix | Test (red → green) | Files |
+|---|---|---|---|
+| C1-M1 | `init` refuses an existing team before `mb-work-budget.sh init` (which resets spent to 0) | `test_mb_team_cli.bats` "a refused re-init with --budget keeps the live team's spent budget": red `[[ "$output" == *"spent=400"* ]] failed` → ok | `scripts/mb_team_tracks.py`, `tests/bats/test_mb_team_cli.bats` |
+| C1-M2 | `create`: `umask 077`, `chmod 700` on the dir, `.gitignore` with `*` when there is none; the Python block drops untracked paths whose realpath is under realpath(dir) (arc, or a kept `.gitignore`) | `test_mb_team_checkpoint.bats` "checkpoint dir inside the tree is private, git-ignored and never tars itself": red on the mode-700 check → ok. "checkpoint dir the VCS still lists (own .gitignore kept) is left out of the tar": green with the fix, and red with the filter mutated out (`[ "$output" = "new.txt" ]` failed), so it pins the realpath filter | `scripts/mb-team-checkpoint.sh`, `tests/bats/test_mb_team_checkpoint.bats` |
+| C1-M3 | Liveness split into the new `scripts/mb_lock_liveness.py` (`HOST`, `proc_start`, `alive`, `holder_alive`). An unknown start time counts as alive, and `proc_start` returns None on `OSError` (no `ps`). `mb_lock_queue.py` imports them: 299 → 261 lines (C1-m19) | `test_mb_lock_queue.py::test_live_pid_with_unknown_start_time_is_alive_and_never_reclaimed[no-lstart, no-ps]`: red 2 failed → green. It patches `subprocess.run`, so it does not depend on module layout | `scripts/mb_lock_liveness.py` (new), `scripts/mb_lock_queue.py`, `tests/pytest/test_mb_lock_queue.py` |
+| C1-M4 | Every `[ ] && [ ]` assertion in `test_mb_team_checkpoint.bats` is split into separate lines; `[[ ]]` gets `\|\| false`. The other `&&` lines in `test_mb_lock_*.bats` are teardown guards and wait loops, not assertions | 12/12 ok | `tests/bats/test_mb_team_checkpoint.bats` |
+| C1-M5 | Test-only: commit gate with a contract | `test_mb_team_gate.py`: a failing frozen item → rc 1, `contract spec REQ-001`, A to fixing, HEAD and index unchanged; unfrozen → rc 1 `not frozen`, HEAD unchanged; frozen and passing → committed, A done. 3 passed (a test-only gap, so green on arrival) | `tests/pytest/test_mb_team_gate.py` |
+| C1-M6 | Test-only: fix-cycle cap boundaries | `test_mb_team_state.py`: gate-routed fix at 4 → `fix A`, at 5 → `stop_human fix-cycles:A`; fixing track at 5 → `wait`, at 6 → stop. 5 passed (green on arrival; `>=`→`>` in `route_fix` would fail the 5 case) | `tests/pytest/test_mb_team_state.py` |
+| C1-M7 | Test-only: AGR-097 lease | `test_mb_lock_resource.bats` "a waiter never takes an expired lease…": an expired lease with a live pid → `run --wait 1` exits 75, meta unchanged; `break` → 0, lock gone, `broke dead lock of L` on the board; a live lease → `break` exits 1. ok, and red when the `not meta.get("lease_until")` guard is mutated out (`[ "$status" -eq 75 ]` failed) | `tests/bats/test_mb_lock_resource.bats` |
+
+Suites after fix cycle 1:
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_*.py tests/pytest/test_mb_lock_queue.py
+276 passed, rc=0          (the router test is green again: Track D's mb.md change has settled)
+$ bats tests/bats/test_mb_team_*.bats tests/bats/test_mb_lock_*.bats
+1..111, ok 111, bats-rc=0
+$ ruff check (changed .py): All checks passed · shellcheck scripts/mb-team-checkpoint.sh: clean
+```
+
+Minors and nits fixed along the way: C1-m19 (the liveness split). The others are untouched.
+
+HANDOVER posted (outside my files): the new `scripts/mb_lock_liveness.py` needs a row in `references/scripts.md`,
+or `tests/pytest/test_doc_counts.py::test_skill_md_script_table_lists_all_scripts` stays red (verified red). The exact
+row is on the board. Optionally, add `mb_lock_liveness` to the installed-module list in `tests/e2e/test_install_uninstall.bats:545`.
+
+STATUS: DONE_WITH_CONCERNS
+
+## Fix cycle 2 (review C-review/cycle-2: C1-M1..M7 resolved, new C2-M1)
+
+| id | Fix | Test (red → green) | Files |
+|---|---|---|---|
+| C2-M1 | `create` resolves realpath(--dir) and realpath(tree root). When --dir equals the root or contains it, it exits 2 with `--dir … contains the tree …` before writing anything. `chmod 700` and the `*` .gitignore apply only to a dir this call created or one strictly inside the tree; an existing dir outside the tree is left alone. The default `<bank>/backups/team` sits inside the tree and behaves as before | New bats tests "checkpoint dir equal to the tree root is refused and nothing is written" and "…an ancestor of the tree is refused…": both checked rc 2, the dir listing unchanged, the tree mode unchanged, `new.txt` still in `git status --porcelain`, and no root `.gitignore`. Before: `not ok 13/14 … refuse_dir failed`; after: ok | `scripts/mb-team-checkpoint.sh`, `tests/bats/test_mb_team_checkpoint.bats` |
+| C2-n2 | The restore-hint test builds `W` under `$BATS_TEST_TMPDIR`, so bats cleans it up even when an assertion fails | ok | `tests/bats/test_mb_team_checkpoint.bats` |
+
+```
+$ bats tests/bats/test_mb_team_checkpoint.bats
+before: not ok 2 checkpoint dir equal to the tree root … / not ok 3 … ancestor of the tree …   (`refuse_dir` failed)
+after:  1..14, ok 1 … ok 14
+$ bats tests/bats/test_mb_team_cli.bats tests/bats/test_mb_team_hardening.bats
+1..19, ok 19, exit 0
+$ shellcheck -x --source-path=SCRIPTDIR scripts/mb-team-checkpoint.sh: clean
+```
+
+STATUS: DONE
+
+## Fix cycle 3 (review C-review/cycle-3: C2-M1 and C2-n2 resolved, new C3-M1)
+
+| id | Fix | Test (red → green) | Files |
+|---|---|---|---|
+| C3-M1 | An existing --dir strictly inside the tree must hold only checkpoint artifacts: `.gitignore`, `*.diff`, `*-manifest.json`, `*-untracked.tar.gz`, `*.sha256`, `.<cid>.changed`, `.<cid>.untracked`. Anything else exits 2 with `--dir … is not a dedicated checkpoint dir`, before chmod, `.gitignore` or any write. A new dir and the default `backups/team` are unchanged | New bats test "an existing dir inside the tree that holds other work is refused as --dir" checks rc 2, no `.gitignore`, mode 755 kept, nothing written, `src/work.txt` still in `git status`. It failed before (`[ "$status" -eq 2 ]` failed) and passes now. The existing tests 11 and 12 (former :107 and :120) are unchanged and green | `scripts/mb-team-checkpoint.sh`, `tests/bats/test_mb_team_checkpoint.bats` |
+| C3-n1 | `mkdir -p "$out" \|\| exit 2`, so a dangling-symlink --dir is a usage error | New test "a dangling symlink as --dir is a usage error (exit 2)": red (exit 1) → ok | same |
+| C2-n1 | Blank-line layout fixed: `ruff --select E3 --preview` is clean on both files, and the state-test diff against HEAD is now only the new tests | — | `tests/pytest/test_mb_lock_queue.py`, `tests/pytest/test_mb_team_state.py` |
+
+```
+$ bats tests/bats/test_mb_team_checkpoint.bats -f "other work|dangling"
+before: not ok 1 … refused as --dir ([ "$status" -eq 2 ] failed) · not ok 2 … dangling symlink … ([ "$status" -eq 2 ] failed)
+$ bats tests/bats/test_mb_team_checkpoint.bats tests/bats/test_mb_team_cli.bats tests/bats/test_mb_team_hardening.bats
+1..35, bats-rc=0 (checkpoint 16/16)
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_*.py tests/pytest/test_mb_lock_queue.py
+276 passed, rc=0
+$ shellcheck scripts/mb-team-checkpoint.sh: clean · ruff (incl. E3 preview) on changed tests: clean
+```
+
+STATUS: DONE
+
+## Fix cycle 4 (review C-review/cycle-4: C3-M1, C3-n1 and C2-n1 resolved, new C4-M1)
+
+C4-M1 is fixed at the root: ownership, not file names. The artifact-name allowlist is gone. `create` treats an existing
+--dir as its own only when it carries `.mb-team-checkpoint` (a regular file: `-f` and `! -L`), when it is empty
+(adopted, so the marker gets written), or when the caller passes `--adopt`. `mb_team_ops.py` passes `--adopt` only
+when the resolved dir equals the default `<bank>/backups/team`. The script has no way to know the bank, so the
+caller decides; a default dir created before this change keeps working. An owned dir gets `chmod 700`, a `*`
+.gitignore (unless one exists) and the marker. Any other existing dir inside the tree exits 2 before anything is
+written. A foreign existing dir outside the tree is left untouched; the self-exclusion filter matches nothing there.
+
+| Case | Test | Before → after |
+|---|---|---|
+| user `fix.diff` / subdir `work.diff/` / symlink `link.diff` | 3 bats cases via `spoof_dir`: rc 2, the listing and mode 755 unchanged | not ok → ok |
+| symlinked marker | "a symlinked marker does not make a dir ours" | ok before (the old allowlist refused it as well) and after; it pins `! -L` |
+| empty existing dir adopted, marker written, mode 700, second call accepted | "an existing empty dir is adopted and gets the marker" | not ok → ok |
+| marker-owned dir the VCS still lists (the filter case of old test 12) | "a marker-owned dir the VCS still lists is left out of the tar" | not ok → ok |
+| default dir that predates the marker | `test_mb_team_cli.bats` "the default checkpoint dir is adopted even when it predates the ownership marker" (via `team checkpoint`) | not ok (rc 2) → ok |
+| `--adopt` on a populated dir | "--adopt takes over an existing populated dir…" | not ok → ok |
+
+**Behaviour change (orchestrator decision):** old test 12, a dir holding only a user `.gitignore`, was accepted
+before and is now refused with exit 2 ("an existing dir holding only a user .gitignore is not ours and is
+refused"). A dir with pre-marker checkpoint artifacts at a **non-default** path is also refused (probe p3); the
+fix is to add `.mb-team-checkpoint` or use a new dir. One line in `commands/team.md` §7 states the rule.
+
+The reviewer's probes (`scratchpad/c4r/run2.sh`): p1, an empty dir, gives rc 0; p2 to p13 all give rc 2 with
+"not a dedicated checkpoint dir", spoofs p9 to p13 included.
+
+```
+$ bats tests/bats/test_mb_team_checkpoint.bats tests/bats/test_mb_team_cli.bats tests/bats/test_mb_team_hardening.bats
+1..43, bats-rc=0 (checkpoint 23/23)
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_*.py tests/pytest/test_mb_lock_queue.py
+276 passed, rc=0
+$ shellcheck scripts/mb-team-checkpoint.sh: clean · ruff scripts/mb_team_ops.py: clean
+```
+Files: `scripts/mb-team-checkpoint.sh`, `scripts/mb_team_ops.py`, `commands/team.md`,
+`tests/bats/test_mb_team_checkpoint.bats`, `tests/bats/test_mb_team_cli.bats`.
+
+STATUS: DONE
+
+
+## 2026-11-18 — team master-completion-wave1 · track B2 (DONE_WITH_CONCERNS)
+OpenSpec import keeps what export needs + sync sidecar
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/B2.md
+# B2 — OpenSpec import keeps what export needs + sync sidecar (Stage 8 code)
+
+STATUS: DONE_WITH_CONCERNS
+
+## Files
+- `scripts/mb_openspec_model.py`: `OSRequirement` gains `capability` and `raw` (raw is in memory only and goes into the sidecar `os` hash).
+- `scripts/mb_openspec_parse.py`: capability comes from `specs/<cap>/`, and the raw block is kept. RENAMED text is now EARS-shaped (`The system SHALL keep requirement 'X' under the new name 'Y'.`) so that importing a rename no longer raises an EARS warning.
+- `scripts/mb_openspec_convert.py`:
+  - New `meta_line()`, which writes `<!-- openspec: cap=…; kind=…[; from=…] -->` before every anchor and every Removed-scope heading.
+  - New `assign_anchors()`, one anchor-disambiguation path shared with the sidecar.
+  - RENAMED is emitted on the first import with the next REQ, and the "Deferred renames" section is gone. On re-import the anchor resolves through FROM, then TO, then a fresh ID.
+  - `merge_task_state()` matches tasks by `N.M` id first and falls back to text. It keeps the prior group's `**Covers:**`/`**Role:**`.
+  - New public `task_id()`.
+- `scripts/mb_openspec_sync.py` (new, 298 lines):
+  - Unit model: `req:<anchor>`, `removed:<name>`, `group:N`, `task:N.M` or `task:N:<text>`, `proposal:why`, `proposal:what-changes`, `design`.
+  - Functions: `os_units`, `bank_units`, `build_sidecar`, `sidecar_text`, `read_sidecar` (returns None when the file is missing or corrupt), `bank_moved_units`, `insert_meta_lines` (only inserts lines), `plan_adoption`.
+- `scripts/mb-openspec.py`:
+  - `import` writes `specs/<topic>/openspec-sync.json` through `atomic_write`, after tasks.md and before requirements.md (the hash marker stays last).
+  - `sync` with no usable sidecar adopts a baseline (`_adopt_baseline`).
+  - `sync` on a drifted source refuses with exit 1 and writes nothing when bank units changed since the last sync.
+  - Results are printed by `_print_sync_results`.
+- `scripts/mb-openspec.sh`: the usage text lists `[--normalize]` for import and sync with a one-line explanation; exit 1 now also covers a sync conflict.
+- Tests: `tests/pytest/test_openspec_roundtrip.py` (new, 15 tests), `tests/pytest/test_openspec_convert.py` (2 tests changed on purpose, see below), `tests/bats/test_mb_openspec.bats` (+1).
+- Spec: `.memory-bank/specs/openspec-adapter/requirements.md` (REQ-021..026), `design.md` (an AGR-105 groundwork paragraph under Decisions), `tasks.md` (Task 7 added at the end; the foreign hunk at line 114, `c89d5fd` router row, is kept untouched).
+- `scripts/mb_spec_validate_v2.py` is unchanged: the validator already ignores `openspec-sync.json` (a test now proves it).
+
+### Golden fixtures changed on purpose (NFR-001)
+- `tests/pytest/fixtures/openspec/golden/add-metadata-tracking/requirements.md`:
+  - A meta line was added before each of the 3 anchors (cap=change-tracking; kind=added/added/modified).
+  - A new `Requirement 4: Change Author` was added (kind=renamed; from=Change Owner, REQ-004, stub scenario 4), because RENAMED is now imported on the first import.
+- `tests/pytest/fixtures/openspec/golden/add-metadata-tracking/design.md`:
+  - A meta line was added before `### Legacy Status Comment` (kind=removed).
+  - The "Deferred renames (re-import required)" section was removed because RENAMED is no longer deferred.
+- `golden/.../tasks.md` is unchanged.
+- Path note: the golden fixtures live at `tests/pytest/fixtures/openspec/`, not at the `tests/fixtures/openspec*` path the track prompt gives. I edited them there, since they are the NFR-001 goldens the DoD names.
+
+### Existing tests changed on purpose
+- `test_convert_renamed_requirement_is_deferred_not_emitted_as_req` was replaced by `test_convert_renamed_requirement_is_emitted_with_the_next_req_id`, because the behaviour was reversed by AGR-105.
+- `test_convert_neutralizes_comment_delimiters_in_a_malicious_requirement_name` now also removes the one well-formed meta line (`cap=; kind=added`) before it checks for a stray `-->`. The meta line's values go through `anchor_safe`, so the test still guards against forged markers.
+
+## Tests
+RED (new test file before implementation; `PYTHONPATH=. python3 -m pytest -q tests/pytest/test_openspec_roundtrip.py`):
+```
+Pytest: 1 passed, 13 failed
+```
+- All 13 failures were new tests: capability, meta line, removed meta line, RENAMED imported, N.M merge, Covers/Role kept, sidecar hashes, sidecar crash order, adopt clean, adopt bank edit, adopt conflict, corrupt sidecar, bank-edit guard.
+- The one pass was `test_spec_validate_accepts_a_spec_folder_with_the_sidecar`, which was already true on HEAD (the validator ignores unknown files). It stays as a regression guard.
+
+RED, added later: `test_sync_adopt_treats_a_rename_the_old_importer_deferred_as_pending` failed with:
+```
+E   AssertionError: assert 'export candidates' not in 'meta: basel...ge Author)\n'
+E     meta: baseline adopted (bank edits kept, export candidates: req:Change Author)
+```
+RED in bats: `not ok 3 mb-openspec.sh: --help lists --normalize for import and sync`.
+
+GREEN:
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_openspec_*.py
+Pytest: 96 passed
+$ bats tests/bats/test_mb_openspec.bats         -> 1..16, 16 ok, 0 not ok
+$ bash scripts/mb-test-run.sh --files <changed> --out human
+test-run: stack=bats+python verdict=✅ PASS total=126 failed=0
+$ <py3.11 venv>/bin/python -m pytest -q tests/pytest/test_openspec_*.py
+96 passed in 8.31s
+$ ruff check scripts/mb-openspec.py scripts/mb_openspec_*.py tests/pytest/test_openspec_*.py -> No issues found
+$ ruff format --check (changed .py)  -> already formatted
+$ shellcheck -x --source-path=SCRIPTDIR scripts/mb-openspec.sh -> clean
+$ bash scripts/mb-spec-validate.sh .memory-bank/specs/openspec-adapter -> rc=0
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_spec_corpus_battery.py tests/pytest/test_mb_spec_validate.py -> 24 passed
+$ bats tests/bats/test_mb_python_resolution.bats -> 0 not ok
+```
+- mypy introduced no new errors. The remaining errors were already on HEAD: 2 in convert (`slots` typed as object) and 1 in the CLI.
+
+Manual check against real pre-sidecar output: I imported the golden fixture with the HEAD code (`git show HEAD:scripts/...` copied to the scratchpad) and then ran the new `sync`. Result: rc=0, `baseline adopted`. The meta lines and sidecar were added, and no other bank text changed. Since the pending-rename fix, the deferred `Change Author` is reported as a pending rename, not as a bank edit.
+
+## Sidecar format (for Stage 9)
+- Top-level fields: `{"format": 1, "change_id", "openspec_hash", "units": {key: entry}}`, written with sorted keys and indent 2.
+- Each entry has `os` and `mb` (SHA-256 hex, or null when the unit exists on only one side) and these optional fields:
+  - `cap`, `kind`, `name`, `from` (requirements); `cap`, `name` (removed).
+  - `os_checked` and `mb_checked` (checkbox task items only).
+- `mb` is always the hash of the *rendered* unit, which is the baseline. Meta lines and positional `mb-scenario` markers are excluded from the hash, so old and new formats compare equal.
+- A pending rename has `mb: null`.
+
+## Remaining / concerns
+- Medium: re-import is still whole-file, as today. An explicit `import`, or `sync` on a topic whose bank did not change, still overwrites requirements.md and design.md and drops bank-added design sections and task prose. The per-unit three-way merge is Stage 9.
+  - Mitigation now: `sync` refuses (exit 1) when bank units changed since the last sync.
+  - Bank-only content that is not a unit (bank-added design sections, an un-anchored requirement) is not guarded until Stage 9.
+- Low: `sync --take openspec|bank` does not exist yet (Stage 9). For now the conflict messages point to `import` as the way to take the OpenSpec side.
+- Low: a `# H1` inside an OpenSpec `design.md` is demoted to `## `, which splits the bank `design` unit at that heading. Old and new renderings agree, so adoption is consistent, but Stage 9 export should hash the OpenSpec design section by its own bounds.
+- Low: `mb-openspec.py` (777 lines) and `mb_openspec_convert.py` (646) were already over 300 lines before this track; they grew by about 115 and 22. The new logic went into `mb_openspec_sync.py` (298).
+- Low: adoption with a bank that was imported with `--normalize` but synced without it reports the normalized requirements as bank edits (kept, never lost). Passing `--normalize` to sync avoids this through the cache.
+
+## Questions for the orchestrator
+- None that block. Please confirm that the golden fixture path (`tests/pytest/fixtures/openspec/`, outside the prompt's literal glob) is acceptable.
+
+## Follow-ups
+- Stage 9: three-way per-unit sync, `--take`, export using `mb`/`os` baselines, and preserving bank-only design sections and task prose on re-import.
+- Split `mb-openspec.py` (CLI, writer and sync orchestration) and `mb_openspec_convert.py` (requirements, design and tasks builders) below 300 lines.
+
+
+## 2026-11-18 — team master-completion-wave1 · track G2 (DONE_WITH_CONCERNS)
+pi-dynamic-workflows: borrow ideas + isolated spike
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/G2.md
+# G2 report
+STATUS: DONE_WITH_CONCERNS (live spike could not run: isolated dir has no provider auth; measurements from source; verdict no-go)
+
+Files: .memory-bank/experiments/EXP-pdw-spike.md (new), .memory-bank/specs/dynamic-flow/design.md (ADR-11), flow-templates/patterns/loop-until-done.md (dry-round stop section).
+
+~/.pi: `ls -laT ~/.pi/agent` before/after identical (diff output: "[ok] Files are identical").
+
+Tests: docs-only change. Red: `grep -c "dry\|pdw" design.md patterns/*.md` found no matching rule before; green: ADR-11 and "dry-round" present (1 each).
+`PYTHONPATH=. python3 -m pytest tests/pytest/test_flow_pattern_templates.py -q` -> 114 passed in 0.23s.
+
+Concerns: (Med) live fanout-synthesize and cost comparison not measured; install OK, `pi -p` hung without auth and was killed. Tool-scope mismatch (Claude-case vs Pi lowercase) is by source reading only. Backlog text is in the EXP report.
+
+
+## 2026-11-18 — team master-completion-wave1 · track F2 (DONE_WITH_CONCERNS)
+S4 svp-roadmap-backlog-db remainder
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/F2.md
+# F2 report — S4 svp-roadmap-backlog-db remainder (T9, T7, T3, T8, T4, T5)
+
+STATUS: DONE_WITH_CONCERNS
+
+## Result
+- All six tasks implemented test-first; every task DoD ticked in specs/svp-roadmap-backlog-db/tasks.md (0 open `[ ]`).
+- `bash scripts/mb-spec-validate.sh --require-scenarios .memory-bank/specs/svp-roadmap-backlog-db` -> rc=0 (added the REQ-051 `**Seams:**` block in design.md; REQ-049 for T5 satisfied because the docs test references only documents).
+- Bats: 449 tests across test_mb_backlog_*, test_mb_idea_promote_v2, test_idea, test_idea_promote, test_mb_idea_regex_safety, test_mb_bank_lint, test_mb_roadmap_* (incl. sync_ice, sync_group), test_mb_lock_helper, test_lib, test_lib_strict_mode, test_mb_agree_docs, test_plan* -> zero `not ok`. Re-run of the T9/T3/T8/T4 files under /bin/bash 3.2 -> all ok. Pytest doc/template suites (86) pass. shellcheck clean on the five scripts; ruff clean on the new python.
+
+## Red evidence (before code)
+- T9: `bats tests/bats/test_mb_backlog_id_alloc.bats` -> 15 of 17 `not ok N backlog_id_alloc: ...` (e.g. `not ok 1 backlog_id_alloc: I-079 collision — progress.md I-075 beats backlog max I-074`; the two oks were behaviours the old script already had). Green after: 17/17 + idea_promote 12/12.
+- T7: `not ok 1 backlog_hierarchy: list --tree prints parents before children with depth` ... 6 of 9 red; green 9/9.
+- T3: script moved away -> 15/15 `not ok N backlog_migrate: ...`; green 15/15.
+- T8: run against HEAD versions of mb-idea.sh and the engine -> 10 of 13 `not ok N backlog_out_of_scope: ...`; green 13/13.
+- T4: script moved away -> 20 of 22 `not ok N bank_lint: ...`; green 22/22.
+- T5: run against HEAD docs -> 6 of 7 `not ok N roadmap_backlog_docs: ...`; green 7/7.
+- `mb-work-state.sh eval-red` could not be used: the loop run is bound to master-completion Stage 17 and answers "no Eval declaration resolvable for ...#17#17", so red output is pasted instead.
+- Ordering honesty: for T3, T4, T8 and T5 I wrote the implementation before running the new test file; red was then reproduced by removing/reverting the implementation (above), not by a first run.
+
+## Files
+Track files: scripts/_lib.sh (mb_next_backlog_id only), scripts/mb-idea.sh, scripts/mb-idea-promote.sh, scripts/mb-backlog-state.sh, new scripts/mb-backlog-migrate.sh, new scripts/mb-bank-lint.sh, references/mb/idea.md, references/mb/idea-promote.md, references/templates.md, CLAUDE.md (new "Backlog Invariants" section outside the managed blocks), tests/bats/{test_mb_backlog_id_alloc, test_mb_idea_promote_v2, test_mb_backlog_state_hierarchy, test_mb_backlog_migrate, test_mb_backlog_out_of_scope, test_mb_bank_lint, test_mb_roadmap_backlog_docs}.bats, test_mb_backlog_state.bats (its `--tree -> exit 2` case became `--bogus -> exit 2`), spec design.md/tasks.md/requirements.md untouched except design.md/tasks.md edits below.
+
+## Deviations (files outside the track list, each needed by the item)
+- New helper modules in scripts/: mb_backlog_similar.py (similarity), mb_backlog_blocks.py (move block to Out of scope, shared by engine + migrator), mb_backlog_migrate.py, mb_bank_lint.py, mb_bank_lint_roadmap.py, mb_bank_lint_backlog.py. Kept the shell scripts thin and each module under 300 lines.
+- scripts/mb_backlog_state_engine.py (T2's engine): `list --tree`, WONTFIX move to Out of scope, `transition-locked --check`. T7/T8 cannot work without it. The task Scope lines in tasks.md now list these modules.
+- tests/bats/test_idea_promote.bats: the old NEW -> PLANNED contract is superseded by C7; fixture became READY+Brief and the status assertion READY -> IN-PROGRESS. Old test_idea.bats unchanged and green.
+- tasks.md/design.md: T5 Scope and red-prose point at references/mb/idea.md + idea-promote.md (commands/mb.md is a router now); Seams block added. The T5 test finds scripts by file name (`find -name`) so it stays a pure document-contract test (REQ-049); that is a deliberate choice, not a shortcut around the check: it still runs the scripts' `--help`.
+
+## Behaviour notes
+- `mb-idea.sh` now also writes a `**Type:** IDEA` line on every new entry (SPEC entries get the four typed lines); the header line and stdout `I-NNN` are byte-identical to before for positional calls.
+- Promote recovery: an existing plan is found by glob `plans/*_<type>_<slug>.md`; IN-PROGRESS + `**Plan:**` link whose plan is missing from roadmap.md is healed by re-running sync (exit 0). `plan=` in `promote_partial` is bank-relative (`plans/<file>`). Test seam: `MB_PROMOTE_FAULT=after_plan|after_rename`.
+- `list --tree`: a parent that exists only under `## Out of scope` makes the child a root instead of failing; flat `list` does no parent validation.
+- Migrator never run on the live backlog; the live-copy dry run I tried was denied by the sandbox, so real-backlog behaviour (OBSOLETE and odd tokens produce `unknown_legacy_state` warnings) is covered only by the anonymised fixture.
+
+## Follow-ups / HANDOVER posted on the board
+1. scripts/mb-plan-done.sh `flip_status` tuple must include "IN-PROGRESS": promote now writes IN-PROGRESS, so plan-done will not mark the linked idea DONE until then (Med; fix before the next release).
+2. Stale `NEW -> TRIAGED -> PLANNED -> DONE` text in references/structure.md:190-196, docs/MIGRATION-v3-v3.1.md:68-70, docs/concepts/memory-bank-layout.md:79; commands/mb.md router row for idea-promote is still generic (fine).
+3. `mb-bank-lint.sh` on duplicate I-NNN exits via the engine (code 2), no lint code exists for it.
+
+## Fix cycle 1
+- scripts/mb-plan-done.sh: flip tuple now includes IN-PROGRESS (PLANNED kept). Test first: new `done-multi: flips idea status IN-PROGRESS → DONE ...` in tests/bats/test_plan_done_multi.bats was red (`not ok 10`), green after; PLANNED case still green. test_plan_done_multi + test_plan_done_v2: 15/15 ok.
+- Lifecycle text updated in references/structure.md, docs/concepts/memory-bank-layout.md; docs/MIGRATION-v3-v3.1.md kept as history with a pointer note to the new lifecycle.
+- Live backlog dry run not attempted. HANDOVER item 1 resolved.
+- references/scripts.md: rows for the 8 new scripts added; test_doc_counts green.
+
+## Fix cycle 1 — addendum 2 (migrator gaps found on the live copy)
+Cause: the engine's strict heading grammar needs `[PRIO, STATE, created-date]` ending the line, so headings with no created date (`[HIGH, RESOLVED 2026-06-14 — 306835a]`), text after the bracket, a date in the state slot, or no bracket were skipped silently.
+Fix (scripts/mb_backlog_migrate.py `loose_pass`, test first: 3 red cases in test_mb_backlog_migrate.bats, 20 -> 20 green plus 5 new cases with the exact shapes): a lenient pass on headings outside the strict grammar rewrites only the status token via the same table (RESOLVED -> DONE, text kept byte-for-byte; DONE untouched), warns `unknown_legacy_state=<TOKEN> item=<id>`, and reports `missing_state ids=...` / `unparsed_heading ids=...` without guessing a state. A loose DECLINED is rewritten but not moved (stated in the action text).
+Re-run on a fresh scratch copy of the original (scratchpad/f2live): actions_pending=34 (was 28), second apply idempotent (no output change, 241/241 I-headings kept, line count +1 for the added `## Out of scope` heading area).
+Warnings summary: `unknown_legacy_state=OBSOLETE item=I-144`; `missing_state ids=I-132,I-133,I-134`; `unparsed_heading` none (on this copy no heading lacks a `[HIGH|MED|LOW, ...]` bracket; I could not reproduce the "19" figure, the headings that were skipped before are now handled by the lenient pass). I-072 uses the non-standard priority `MEDIUM` and is parsed strictly, so it is not reported by the migrator.
+Remaining S4 bats (backlog_*, promote_v2, bank_lint, docs): green.
+
+
+## 2026-11-18 — team master-completion-wave1 · track H2 (DONE)
+Opus run: duplicate I-NNN lint
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/H2.md
+# H2 — duplicate I-NNN lint (backlog I-296 slice)
+
+STATUS: DONE
+
+## Files
+- `scripts/mb_bank_lint_backlog.py`: new `ID_HEADING_RE` and `_duplicate_ids()`. `check_backlog()` emits one `duplicate_id` error for each id that heads more than one entry. The finding sits at the id's first heading line, and its detail reads `I-NNN appears K times: lines a, b`. When there are duplicates, those are the only findings. The reason: `parse_backlog` refuses an ambiguous index and exits 2 (`assert_unique_ids`), and every other check looks entries up by id.
+- `scripts/mb-bank-lint.sh`: header error list gains `duplicate_id` (help text only).
+- `tests/bats/test_mb_bank_lint.bats`: new case `bank_lint: duplicate_id error lists every duplicated id with its heading lines`. Header now says 16 codes.
+- `scripts/mb_bank_lint.py`: no change needed.
+
+Design note: the scan matches any `### I-NNN` heading, even one the full header grammar rejects. I-296 records that the grammar misses 29 of 241 live headings, so a malformed twin of an id would otherwise go unflagged.
+
+## Tests
+Before (new test, red). The engine aborts the lint with rc=2 and prints no finding line:
+```
+$ bats -f duplicate_id tests/bats/test_mb_bank_lint.bats
+not ok 1 bank_lint: duplicate_id error lists every duplicated id with its heading lines
+#   `[ "$status" -eq 1 ]' failed
+$ bash scripts/mb-bank-lint.sh backlog --mb <tmp bank with two I-001>
+code=duplicate_id ids=I-001 detail=each I-NNN must appear exactly once in backlog.md
+rc=2
+```
+After:
+```
+$ bats tests/bats/test_mb_bank_lint.bats tests/bats/test_mb_roadmap_backlog_docs.bats
+1..30
+ok 19 bank_lint: duplicate_id error lists every duplicated id with its heading lines
+(30/30 ok, no `not ok`)
+$ ruff check scripts/mb_bank_lint_backlog.py scripts/mb_bank_lint.py
+No issues found
+$ shellcheck -x --source-path=SCRIPTDIR scripts/mb-bank-lint.sh
+shellcheck-ok
+```
+Real bank: `mb-bank-lint.sh backlog --mb .memory-bank | grep -c duplicate_id` gives 0.
+
+Graph: 3 queries
+- `mb-graph.sh tests scripts/mb_bank_lint_backlog.py` (no test_files mapped for the module)
+- `mb-graph.sh impact scripts/mb-bank-lint.sh` (dependents: test_mb_bank_lint.bats, test_mb_roadmap_backlog_docs.bats)
+- `mb-graph.sh who-calls parse_backlog` (found the engine entry point and its `assert_unique_ids` gate)
+Plus one `grep` to find docs that list the lint codes: only the lint file and a fixture list them.
+
+## Remaining
+- none for this slice. The other parts of I-296 (promote reuse, re-promote exit code, header grammar misses, engine split) were out of scope.
+
+## Questions for the orchestrator
+- none
+
+## Follow-ups
+- The graph maps no tests to `scripts/mb_bank_lint_backlog.py` (the `tests` query returned `[]`), even though test_mb_bank_lint.bats covers it through the shell wrapper. This is a graph test-mapping gap for Python modules that are only reached through a .sh entry point.
+- The scripts are still untracked in git (`??`), so the orchestrator's commit must include them.
+
+
+## 2026-11-18 — team master-completion-wave1 · track H1 (DONE)
+Fable run: J-1 symlinked default checkpoint dir
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/H1.md
+# Track H1 — J-1 symlinked default checkpoint dir
+
+## Files
+- `scripts/mb_team_ops.py` — `cmd_checkpoint`: `--adopt` is passed only when the configured dir is the default
+  and `realpath(out) == realpath(bank)/backups/team` (a symlink at `backups/` or `backups/team` drops `--adopt`;
+  a symlinked bank itself still adopts). 208 → 211 lines.
+- `tests/bats/test_mb_team_cli.bats` — one new test.
+- `scripts/mb-team-checkpoint.sh`, `tests/bats/test_mb_team_checkpoint.bats` — not changed: without `--adopt`
+  the script's existing ownership guard already refuses a foreign dir inside the tree (exit 2, before any write).
+
+## Tests
+New: `team: a default checkpoint dir that is a symlink into the tree is not adopted (exit 2, nothing written)`
+(`<bank>/backups/team -> <tree>/a`; asserts exit 2, the refusal message, target listing and mode unchanged,
+no checkpoint recorded in team.json).
+
+Before (red, new test):
+```
+$ bats tests/bats/test_mb_team_cli.bats -f 'symlink into the tree'
+1..1
+not ok 1 team: a default checkpoint dir that is a symlink into the tree is not adopted (exit 2, nothing written)
+# (in test file tests/bats/test_mb_team_cli.bats, line 144)
+#   `[ "$status" -eq 2 ]' failed
+```
+After:
+```
+$ bats tests/bats/test_mb_team_cli.bats -f 'symlink into the tree'
+1..1
+ok 1 team: a default checkpoint dir that is a symlink into the tree is not adopted (exit 2, nothing written)
+$ bats tests/bats/test_mb_team_checkpoint.bats tests/bats/test_mb_team_cli.bats tests/bats/test_mb_team_hardening.bats | grep -v '^ok'
+1..44                      # no "not ok" lines; 43 existing + 1 new
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_*.py
+261 passed in 85.44s (0:01:25)
+$ ruff check scripts/mb_team_ops.py
+All checks passed!
+```
+
+Graph: 5 queries
+- `mb-graph.sh status` — fresh
+- `mb-graph.sh tests scripts/mb_team_ops.py` — test_mb_team_gate.py, test_mb_dup_scan.py (bats callers through mb-team.sh are not linked)
+- `mb-graph.sh impact scripts/mb-team-checkpoint.sh` — dependents: test_mb_team_checkpoint.bats, test_mb_team_hardening.bats, e2e/test_install_uninstall.bats
+- `mb-graph.sh who-calls checkpoint` — matched an unrelated `adapters/opencode_install_io.py::checkpoint`, no incoming edges
+- `mb-graph.sh who-calls cmd_checkpoint` / `tests cmd_checkpoint` — no incoming edges (argparse dispatch); same two pytest files
+Grep was used once, for `@test`/`adopt` lines in the two bats files of the track.
+
+## Remaining
+- none
+
+## Questions for the orchestrator
+- none
+
+## Follow-ups
+- A default dir symlinked to a dir outside the tree, or to an empty/marker-owned dir, still gets a checkpoint
+  (the script's normal ownership rules apply, just without `--adopt`). This matches the judge's J-1 wording; a
+  blanket refusal of any symlinked default would be a behaviour change beyond J-1.
+- Graph gap (Stage 7 input): `mb-graph.sh tests scripts/mb_team_ops.py` does not return the bats files that reach
+  it through `mb-team.sh`, and argparse-dispatched `cmd_*` functions have no incoming call edges.
+- All four track files already carried uncommitted changes from track C before this run; this diff adds one hunk
+  in `mb_team_ops.py` and one test block in `test_mb_team_cli.bats`.
+
+STATUS: DONE
+
+
+## 2026-11-18 — team master-completion-wave1 · track F3a (DONE_WITH_CONCERNS)
+S5 rebaseline on ADaPT-lite (spec only)
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/F3a.md
+# F3a report: svp-adapt-escalation rebased on ADaPT-lite (master-completion Stage 18a)
+
+STATUS: DONE_WITH_CONCERNS
+
+Concern (Med, orchestrator): `tests/pytest/test_spec_corpus_battery.py` now fails
+`test_the_allowlist_has_no_stale_entries` because `svp-adapt-escalation` passes the validator. Delete the
+`"svp-adapt-escalation"` line from `KNOWN_FAILING` (file is orchestrator-owned, not touched).
+
+## Files
+- `/Users/fockus/Apps/skill-memory-bank/.memory-bank/specs/svp-adapt-escalation/requirements.md` (rebase map, amended REQ-002..006 wording, scenarios 1-11 in English, frontmatter `blocked_by` without `svp-parallel-engine`)
+- `/Users/fockus/Apps/skill-memory-bank/.memory-bank/specs/svp-adapt-escalation/design.md` (677 → ~270 lines; Seams block outside fences; Eval lines byte-identical to tasks.md)
+- `/Users/fockus/Apps/skill-memory-bank/.memory-bank/specs/svp-adapt-escalation/tasks.md` (5 tasks, all Eval/Scope/Budget in the svp-sdd-core grammar)
+- `/Users/fockus/Apps/skill-memory-bank/references/adapt.md` (§ Lite slice: status table only)
+- No code, no tests, no stage, no commit. `adapt.verify_fail_cycles: 3` untouched.
+
+## REQ map (code evidence from `scripts/mb_work_adapt.py`, graph fresh)
+
+| REQ | Result | Evidence / owner |
+|---|---|---|
+| 001 | covered by `scripts/mb_work_adapt.py:155` `parse_escalation`, `commands/work.md` step 5c1, test `test_escalation_block_parses_with_and_without_pyyaml`, commit 190251c → waiver (Task 1) | |
+| 002 | partly covered (`mb_work_adapt.py:247` `check`: verify + token guards, 190251c); open → Task 2 on `mb_work_adapt.py` (scope guard against the item's `Files:`, review/judge/eval-not-green counters) | |
+| 003 | partly covered (`adapt.verify_fail_cycles: 3`, `references/pipeline.default.yaml:286`, `mb_work_adapt.py:37/51`); open → Task 2 (`review_cycles: 3`, `judge_cycles: 2`, `cascade_stop: 3` in the `adapt:` block) | |
+| 004 | open → Task 5 (`stub-backlog` + autonomous branch in `commands/work.md`; stub is the fallback when the auto split is refused at `max_depth`) | |
+| 005 | covered by `references/adapt.md` § Fork + `commands/work.md` 5c1 (continue/simplify/decompose/skip), 190251c → waiver (Task 1), wording amended | |
+| 006 | covered by `mb_work_adapt.py:195/227/239` (`split`, `sub_done`, `gate`), 190251c → waiver (Task 1), wording amended (in-run sub-items, no spec registry) | |
+| 007 | open → Task 3 (`mb_work_adapt_journal.py`, journal under `mb_lock_acquire` via a bash holder) | |
+| 008 | open → Task 3 (`esc-summary`; stub lines come from journal `stub_continue` resolutions, Tasks 4-5 feed them) | |
+| 009 | open → Task 4 (`verify-stub`, Python `subprocess` timeout replaces the bash bounded-run helper) | |
+| 010 | open → Task 3 (`consecutive` in `esc-open`, `decision=stop_run`, `esc-clean`) | |
+
+Dropped from revisions 1-3 as superseded by the lite code (YAGNI): `scripts/mb-work-adapt.sh`,
+`escalation:` config section, `MB_WORK_RESULT_JSON` envelope in nine agents, `replan-gate` with
+`requirements_sha256`, the child-spec registry route, S3 `mb-work-scope-check.sh` dependency.
+
+## Tests (spec work: the validator is the test)
+
+Before (baseline run at start):
+```
+$ bash scripts/mb-spec-validate.sh --require-scenarios .memory-bank/specs/svp-adapt-escalation
+[spec-validate] REQ-049: task 3 has a documentation/configuration-only Scope but its Eval is not structural ...
+[spec-validate] REQ-049: task 4 has a documentation/configuration-only Scope but its Eval is not structural ...
+[spec-validate] REQ-051: design.md declares no **Seams:** block (C9 requires exactly one)
+rc=1
+```
+After (known-red marker: new, now green):
+```
+$ bash scripts/mb-spec-validate.sh --require-scenarios .memory-bank/specs/svp-adapt-escalation
+[spec-validate] layers=legacy
+rc=0
+```
+Existing lite tests stay green (Task 1 green evidence); retro-red: `git show 190251c~1:scripts/mb_work_adapt.py` → `fatal: path ... exists on disk, but not in '190251c~1'`:
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_adapt_lite_rules.py tests/pytest/test_mb_work_adapt.py
+23 passed in 2.84s
+```
+Side effect (known, orchestrator-owned file): `tests/pytest/test_spec_corpus_battery.py::test_the_allowlist_has_no_stale_entries` FAILED, `svp-adapt-escalation` now passes the battery, entry in `KNOWN_FAILING` must be removed.
+
+## Remaining
+Stage 18b (code, role backend): Tasks 2-5 in order, one writer on `scripts/mb_work_adapt.py`, `commands/work.md`, `tests/pytest/test_mb_work_adapt*.py`. Task 3-5 add two sibling modules `scripts/mb_work_adapt_journal.py` and `scripts/mb_work_adapt_stub.py` (the dispatcher is already 338 lines, past the SRP threshold). Every `commands/work.md` edit must be net-zero lines (cap 400, `test_s2_file_size_contract.py`); Task 2 also updates the pinned `DEFAULT_LINE` in `tests/pytest/test_mb_work_adapt.py`.
+
+## Questions for the orchestrator
+1. Owner confirmation of the amended wording: REQ-004 (stub only when the auto split is refused at `max_depth`, since AGR-082 makes auto = split), REQ-005 (`decompose` instead of `replan`, requirement change = `simplify`), REQ-006 (in-run sub-items, no child-spec registry). Recorded as an open question in design.md; needs an AGR if the owner agrees.
+2. Delete `svp-adapt-escalation` from `KNOWN_FAILING` in the corpus battery (see Concern).
+3. Mixed-language corpus: I wrote the rebased spec in English (AGR-085); the umbrella and sibling specs are still Russian.
+
+## Follow-ups
+- `umbrella` REQ-030..032 mapping in `specs/sdd-vision-pipeline` untouched; umbrella T6 Eval (escalations logged as JSONL) becomes satisfiable after Task 3.
+- `commands/work.md` was 377 lines in the working tree at the time of this run (the brief says 400); Track A owns it in wave 1, so Stage 18b must re-read the live size.
+
+
+## 2026-11-18 — team master-completion-wave1 · track B3 (DONE_WITH_CONCERNS)
+OpenSpec export, three-way sync, export --new
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/B3.md
+# B3 — OpenSpec export, three-way sync, export --new (Stage 9)
+
+STATUS: DONE_WITH_CONCERNS
+
+## Files
+New modules. `mb-openspec.py` (777 lines) and `mb_openspec_convert.py` (646) are split; every touched module is now under 300 lines:
+- `scripts/mb_openspec_ids.py` (201): anchors, meta lines, REQ-ID allocation. Moved out of convert unchanged.
+- `scripts/mb_openspec_tasks.py` (144): `build_tasks`, `merge_task_state`, `task_id`. Moved out of convert unchanged.
+- `scripts/mb_openspec_spans.py` (157): one parser that finds where each unit sits in a bank file. Hashing and splicing both use it, so the text a unit is hashed by is exactly the text a splice replaces.
+- `scripts/mb_openspec_merge.py` (174): `plan_sync` decides each unit three ways:
+  - only OpenSpec changed: the bank takes it;
+  - only the bank changed: kept, and listed as an export candidate;
+  - both changed to the same text: converged;
+  - both changed to different text: conflict, unless `--take` resolves it;
+  - checkboxes merge as booleans and never conflict.
+  It also has `bank_changes`, which lists export candidates.
+- `scripts/mb_openspec_splice.py` (221): applies the plan to requirements.md, design.md and tasks.md one unit at a time. Bank-added sections, task prose and Covers/Role keep their bytes. When units are inserted or deleted, Requirement headings and scenario markers are renumbered. A rename is applied in place.
+- `scripts/mb_openspec_bank.py` (280): bank helpers moved from the CLI: topic guards, frontmatter, reading the triple, backlog orphans, `load_topic`, and `set_frontmatter_hash`.
+- `scripts/mb_openspec_ops.py` (274):
+  - `import`, `sync`, `list` and `status`.
+  - A re-import is the same merge with `take=openspec`.
+  - Write order is unchanged: design → backlog → tasks → sidecar → requirements (last).
+  - A sidecar whose `openspec_hash` differs from requirements.md (left by an interrupted write) is treated as unusable, and a baseline is adopted instead.
+- `scripts/mb_openspec_osfmt.py` (207): writes a bank unit in OpenSpec syntax and splices it into proposal.md, spec.md or tasks.md, replacing only that block. No REQ-IDs, `**Covers:**` lines or stub scenarios are written.
+- `scripts/mb_openspec_export.py` (272):
+  - Guard checks: `guard_change_dir` allows only `openspec/changes/<id>`, never `archive/`; `guard_target` allows only the four change files, with a valid `<cap>` and no symlinks.
+  - Every OpenSpec read goes through the guard first, so a bad cap or a symlink cannot leak file contents into the diff.
+  - `run_export` prints a dry-run diff by default and applies it with `--write`.
+  - It refuses when OpenSpec changed since the last sync, and there is no `--force`.
+  - Deletions need `--allow-delete`; files are never deleted.
+  - Edits it cannot export are skipped with a warning and stay candidates: RENAMED or duplicate-named requirements, a missing cap, a deleted section.
+  - After a write, `rebaseline` updates the baseline.
+- `scripts/mb_openspec_export_new.py` (191): `export <topic> --new`. Bank `## Why`/`## What Changes` go to proposal.md. Each REQ becomes an ADDED requirement named after its group title, with ` <k>` added when a group has several REQs, plus the scenarios that cover it. Each `mb-task` becomes a `## N.` group with `N.M` items. The bank then gets frontmatter, meta lines, anchors, `N.M` ids on its checkboxes, and the sidecar.
+
+Changed:
+- `scripts/mb-openspec.py` (260): now only parses arguments and prints results. It owns the one `atomic_write` seam, which tests patch. It keeps the old names that tests use (`run_import`, `run_sync`, `_parse_frontmatter`, …). New: `sync --take openspec|bank`, which requires a topic, and `export [--write] [--allow-delete] [--new --id --cap --openspec]`.
+- `scripts/mb_openspec_convert.py` (298): moved code out and re-exports `anchor_map`, `anchor_safe`, `merge_task_state` and the rest for existing callers.
+- `scripts/mb_openspec_sync.py` (198):
+  - `bank_units` now comes from the shared spans.
+  - Unit boundaries: a requirement unit now also ends at the next anchor or a `##` heading, and a task group ends at a `##` heading. Files written by the importer hash the same as before, so the format stays 1 and needs no migration.
+  - `plan_adoption`/`Adoption` were replaced by `synthetic_sidecar`, so adoption now runs through the normal merge.
+- `scripts/mb-openspec.sh`: dispatches `export`; the usage text lists `export`, `--new` and `--take`.
+- Tests:
+  - new: `tests/pytest/test_openspec_sync3.py` (10), `tests/pytest/test_openspec_export.py` (16), `tests/pytest/test_openspec_export_new.py` (4);
+  - `tests/bats/test_mb_openspec.bats`: +2 tests, and the `--help` assertion now includes `--take`;
+  - `tests/pytest/test_openspec_roundtrip.py`: 2 changed on purpose, see below.
+- Spec:
+  - `requirements.md`: REQ-026 rewritten to the conflict rule; REQ-027..034 added.
+  - `design.md`: an "AGR-105 export and three-way sync" bullet, which supersedes D-05 for requirements and design.
+  - `tasks.md`: Task 8. `mb-spec-validate` rc=0 and `mb-ears-validate` rc=0.
+
+### Existing tests changed on purpose (B2's interim behaviour is now replaced by Stage 9's)
+- `test_sync_refuses_reimport_over_a_bank_edit_recorded_in_the_sidecar` is deleted. Sync now merges per unit instead of refusing; the new `test_sync_keeps_a_bank_only_edit_merges_openspec_units_and_points_to_export` covers that case.
+- `test_sync_adopt_treats_a_rename_the_old_importer_deferred_as_pending` is renamed to `…_brings_in_a_rename_the_old_importer_deferred`. Adoption now brings the deferred RENAMED requirement into the bank, so its sidecar `mb` is a hash, not `None`.
+
+## Tests
+RED. The new tests were run against the pre-change code in a scratch copy of the baseline:
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_openspec_sync3.py tests/pytest/test_openspec_export_new.py
+12 failed, 2 passed
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_openspec_export.py      (module import stubbed)
+15 failed, 1 passed
+$ bats tests/bats/test_mb_openspec.bats
+not ok 3 / not ok 4 / not ok 18
+```
+In the live tree, before any code existed, `test_openspec_export.py` failed at collection with `ModuleNotFoundError: No module named 'mb_openspec_export'`.
+
+All failures were in new tests. Three tests passed on the old code:
+- `test_sync_new_openspec_requirement_lands_after_its_neighbour_with_a_fresh_id`: the old whole-file re-render already did this. It stays as a regression guard.
+- `test_sync_take_requires_a_topic`: the old argparse rejected the unknown `--take` with rc 2.
+- `test_export_has_no_force_flag`: the old code had no `export` subcommand, so it exited with rc 2.
+
+GREEN:
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_openspec_*.py            -> 125 passed
+$ <py3.11 venv>/bin/python -m pytest -q tests/pytest/test_openspec_*.py      -> 125 passed in 26.18s
+$ bats tests/bats/test_mb_openspec.bats                                        -> 1..18, 18 ok
+$ bash scripts/mb-test-run.sh --files <19 changed files> --out human
+test-run: stack=bats+python verdict=✅ PASS total=145 failed=0
+$ ruff check / ruff format --check (all openspec .py)  -> No issues found / 26 files already formatted
+$ shellcheck -x --source-path=SCRIPTDIR scripts/mb-openspec.sh -> clean
+$ bats tests/bats/test_mb_python_resolution.bats -> 1..15, 0 not ok
+$ mypy (new and changed modules) -> only the 2 errors already on HEAD in mb_openspec_convert.py:185/191
+```
+
+DoD coverage (one test each):
+- Round-trip byte identity:
+  - `test_export_after_import_without_edits_keeps_the_change_byte_identical`
+  - `test_export_round_trip_of_the_golden_fixture_is_byte_identical` (covers REMOVED, RENAMED and a non-checkbox line)
+  - `test_export_write_splices_only_changed_units_without_req_ids` (asserts exact bytes for spec.md, tasks.md and proposal.md, keeps the `## Impact` section, and checks that sync and export are then no-ops)
+- Conflict exits 1 and writes nothing, checked by bytes and mtime_ns for both the bank and OpenSpec: `test_sync_conflict_when_both_sides_changed_writes_nothing`
+- Write guard:
+  - `test_write_guard_refuses_paths_outside_the_allowed_change_files` (6 paths)
+  - `test_write_guard_refuses_an_archived_or_misplaced_change_dir`
+  - `test_export_refuses_a_symlinked_target_file_and_writes_nothing`
+- `--allow-delete`: `test_export_deletes_only_with_allow_delete`
+- No `--force`: `test_export_has_no_force_flag`
+- Refusal when OpenSpec drifted: `test_export_refuses_when_openspec_moved_since_the_last_sync`
+- `--take`: `test_sync_take_openspec_…`, `test_sync_take_bank_…` (the bank text then shows in the export diff)
+- `--new` reads back to the same REQ bullets and task items, and sync and export are then no-ops: `test_export_new_creates_a_change_the_importer_reads_back_to_the_same_units`
+- A bank-added design section and task prose survive both sync and re-import:
+  - `test_sync_takes_an_openspec_edit_and_keeps_bank_added_design_section_and_task_prose` (also checks that sync writes nothing to OpenSpec)
+  - `test_reimport_keeps_bank_added_design_section_and_task_prose`
+
+Manual checks on the golden fixture, beyond the tests:
+- Bank edits went out with one `export --write`, and `sync` and `export` were then no-ops: a tick, an added task, a new group, a Removed-scope reason, and design notes.
+- OpenSpec edits came in with one `sync`, and the bank-added `## Bank notes` section survived: a deleted requirement (its heading went and the rest renumbered), a reworded `2.1`, an OpenSpec tick on `2.2`, a new RENAMED target, and design.md added and then removed.
+- Interrupted export (crash before requirements.md): the next `export` refused, the next `sync` adopted a baseline with no conflict, and `export` then had nothing to do.
+
+## Remaining
+- Medium: the full-suite guard `tests/pytest/test_doc_counts.py` is red because `references/scripts.md` has no rows for the 10 new modules or for B2's `mb_openspec_sync.py`. That file is outside B3. I posted `HANDOVER · extract:scripts-md-rows` with the exact 11 rows. The same test also names 8 non-OpenSpec scripts (`mb-backlog-migrate.sh`, `mb-bank-lint.sh`, `mb_backlog_*`, `mb_bank_lint*`) from another track.
+- Low: an exported requirement goes back as the bank text. A source body with several paragraphs or a list comes back flattened, and the dry-run diff shows it (Q4 C).
+  - Q4's dry-run warning for text that came from `--normalize` is not implemented.
+  - The SHALL/MUST warning is implemented.
+- Low: some edits are skipped with a warning and stay export candidates: a RENAMED requirement edited in the bank, an edit to a requirement whose name was disambiguated as a duplicate (`name#2`), and a bank-added requirement with no `cap` meta line when the change has more than one capability.
+- Low: rewording a task that has no `N.M` id looks like a delete plus an add. Without `--allow-delete`, export adds the new line and keeps the old one, and the diff shows both.
+- Low: with `--new`, the bank's checkbox lines gain `N.M ` prefixes. This follows the design ("checkboxes as N.M") and keeps unit keys aligned. Plain bullets (What to do, Testing) are treated as prose and never exported.
+- Low: inserting a unit into a bank-authored requirements.md (several REQs per heading) gives the new unit its own heading. Scenario markers are renumbered in document order whenever requirements.md is spliced.
+- Low, unchanged from B2: a `# H1` inside an OpenSpec design.md is demoted to `##` and ends the bank `design` unit at that heading.
+- Out of scope, not done (Stage 10): `/mb work <change-id>` resolve (Q6), the `commands/mb.md` router, `references/mb/openspec.md`, and the `references/scripts.md` rows 89-90 that still say "one-way".
+
+## Questions for the orchestrator
+- Please apply the `references/scripts.md` HANDOVER, or hand it to Stage 10, before the full suite runs.
+- Confirm the two B2 tests changed on purpose (above).
+
+## Follow-ups
+- `tests/pytest/test_spec_corpus_battery.py::test_the_allowlist_has_no_stale_entries` is red: `svp-roadmap-backlog-db` now passes and should be removed from `KNOWN_FAILING`. That file belongs to the orchestrator; it is unrelated to B3.
+- Optional: warn in the export dry-run when an edited requirement's text came from `--normalize` (normalize cache lookup).
+
+
+## Fix cycle 1 (Codex review CHANGES_REQUESTED: 1 blocker, 7 major, 1 minor, 1 info)
+
+I checked every finding against the code before changing anything. All ten were real; none was a false positive.
+
+RED: the new tests were run before the fix.
+- `tests/pytest/test_openspec_sync_safety.py`: 6 failed.
+- `test_openspec_export.py`: 3 failed, 16 passed.
+- `test_openspec_export_new.py`: 3 failed, 4 passed. The strengthened read-back test (item 9) already passed, because the projection was right; it was under-tested, not broken.
+
+GREEN: every item passes after the fix. "new" marks a test added in this cycle.
+
+| # | Finding | Fix | Test (red → green) |
+|---|---|---|---|
+| 1 | BLOCKER: re-import forced `take=openspec` and could re-link a topic | `run_import` first checks the topic's `openspec_source` (`_assert_linked_to`): an unlinked topic, or one linked to another change, raises and nothing is written. For the same change it runs the three-way merge without `take`; a conflict writes nothing and the CLI exits 1 with the conflict report. | new: `test_reimport_conflict_on_both_sides_writes_nothing_and_exits_1`, `test_import_refuses_a_topic_linked_to_another_change`, `test_import_refuses_an_existing_topic_not_linked_to_openspec` |
+| 2 | No sidecar: OpenSpec's checkbox was taken as the baseline | `synthetic_sidecar` marks a checkbox that differs while the source moved as `UNKNOWN` on both sides. `plan_sync` reports it as a conflict (`[x]` vs `[ ]`); `--take openspec\|bank` resolves it, and with `bank` it stays an export candidate. | new: `test_sync_without_sidecar_reports_a_checkbox_that_differs_as_a_conflict` (also covers `--take openspec`) |
+| 3 | Batch sync was not all-or-nothing | `merge_topic` now only plans and returns `_write`; `apply_merge` performs the writes. `run_sync` plans every topic first and writes only when no topic conflicts or errors; otherwise the clean topics are reported as `held`. | new: `test_batch_sync_writes_no_topic_when_another_topic_conflicts` (bytes and mtime of the whole bank) |
+| 4 | Export had no compare-and-swap | Before the first write, `_assert_unchanged` re-reads every OpenSpec file it diffed, recomputes the source hash, and re-reads the bank triple; any drift aborts with nothing written. `rebaseline` re-checks the bank and refuses to write a stale `requirements.md`. | new: `test_export_aborts_when_openspec_changes_after_the_check`, `test_export_aborts_when_the_bank_changes_after_the_check` |
+| 5 | `export --new` was not atomic | `_create_change` writes into a sibling temp dir (`openspec/changes/.<id>.*`), then renames it into place and removes the temp dir on any error. A rerun that finds an identical change (`_same_change`) only finishes the bank writes; a different existing change is still refused. Bank write order: tasks → sidecar → requirements (the link) last. | new: `test_export_new_crash_while_creating_the_change_leaves_no_partial_change`, `test_export_new_rerun_completes_bank_linking_after_a_crash` |
+| 6 | The write guard only looked at the nearest parents for `archive` | `guard_change_dir` refuses when `archive` appears anywhere in the real or the absolute path. | new: `test_write_guard_refuses_archive_anywhere_in_the_real_path` (nested, and through a symlinked parent) |
+| 7 | `--new` could name a requirement by its REQ-ID | A REQ with no group, or a group title containing a REQ-ID, is named `Requirement <k>`; a duplicate name gets ` (n)`, never ` (REQ-…)`. | new: `test_export_new_never_names_an_ungrouped_requirement_by_its_req_id` (no `REQ-` in any created file) |
+| 8 | A sync error exited 0 | `action == "error"` sets rc=1 and prints `[error]`. | new: `test_sync_of_a_topic_whose_source_is_gone_exits_1` (CLI exits 1, bank unchanged) |
+| 9 | minor: the read-back check was weak | The read-back is now compared file by file with a golden triple, `tests/pytest/fixtures/openspec/golden/export-new-gadgets/{requirements,design,tasks}.md` (frontmatter hash excluded). The golden pins scenario placement and Covers, design Why/What Changes, and tasks. The test also asserts the meta line and anchor in the original bank. | strengthened `test_export_new_creates_a_change_the_importer_reads_back_to_the_same_units` |
+| 10 | info: SRP | Path guards moved to `scripts/mb_openspec_paths.py` (115 lines; `mb_openspec_bank` re-exports them, 207 lines). `list`/`status` moved to `scripts/mb_openspec_listing.py`, which keeps `mb_openspec_ops.py` at 263 lines. | covered by the existing tests |
+
+GREEN after the fix:
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_openspec_*.py      -> 137 passed
+$ <py3.11 venv>/bin/python -m pytest -q tests/pytest/test_openspec_*.py -> 137 passed
+$ bats tests/bats/test_mb_openspec.bats                                  -> 1..18, all ok
+$ bash scripts/mb-test-run.sh --files <12 changed files> --out human
+test-run: stack=python verdict=✅ PASS total=109 failed=0
+$ ruff check scripts/ ; ruff format --check (openspec py) -> All checks passed / 29 files already formatted
+$ shellcheck scripts/mb-openspec.sh -> clean
+$ mypy (changed modules) -> only the 2 errors already on HEAD in mb_openspec_convert.py
+$ mb-spec-validate / mb-ears-validate openspec-adapter -> rc=0 / rc=0
+```
+
+Spec updates:
+- `requirements.md`: REQ-035 (import refuses a topic not linked to that change) and REQ-036 (a batch sync writes nothing when any topic conflicts or errors).
+- `design.md`: the re-import, all-or-nothing, compare-and-swap and atomic `--new` wording.
+- `tasks.md`: Task 8 now covers both REQs and the new tests.
+
+Behaviour changes for callers:
+- A re-import no longer takes OpenSpec silently on a conflict; the user resolves with `sync <topic> --take openspec`.
+- `import --as <topic>` into a topic linked to a different change is refused.
+
+Added to the HANDOVER (`references/scripts.md`): rows for `mb_openspec_paths.py` and `mb_openspec_listing.py`, posted as an addendum. All modules stay under 300 lines; the largest are export (289) and convert (298).
+
+STATUS: DONE_WITH_CONCERNS
+
+
+## Fix cycle 2 (Codex re-review: 7 of 10 prior findings fixed; open: blockers A and B, majors 1-4, mediums 1-2)
+
+I checked each finding against the code before changing anything, and all were real.
+
+RED: the new tests were run before the fix.
+- `test_openspec_sync_safety.py`: 4 failed, 6 passed.
+- `test_openspec_export_new.py`: 3 failed, 7 passed.
+
+The medium 2 test first failed with "DID NOT RAISE". On the old code the rename replaced the empty directory, so the content assertion would also have failed. The test now asserts the CLI exits 1 (the CLI catches RuntimeError) and that the reserved directory stays empty.
+
+| # | Finding | Fix | Test (new, red → green) |
+|---|---|---|---|
+| A | BLOCKER: scenarios in a shared `## Scenarios` section were lost when an edited requirement was exported | A requirement unit now includes every shared `mb-scenario` block whose `**Covers:**` names its REQ-ID (`spans.shared_scenarios`, `req_id_of`). The unit text drops blank lines, markers and Covers lines, so an inline scenario and a shared one hash the same. Export renders the shared scenarios into the requirement's OpenSpec block. When sync takes the requirement from OpenSpec, its REQ-ID is removed from the shared blocks' Covers (a block that then covers nothing is removed), because the scenario now sits inline. Sidecar format goes to 2; a format-1 sidecar is re-adopted, which serves as the migration. | `test_export_after_new_keeps_the_scenarios_of_an_edited_requirement`, `test_sync_after_new_takes_an_openspec_edit_without_duplicating_shared_scenarios` |
+| B | BLOCKER: the link check was skipped for an incomplete topic | Any existing `specs/<topic>/` directory goes through the `openspec_source` check first. An incomplete topic that is linked is refused too. In both cases nothing is written. | `test_import_refuses_an_incomplete_existing_topic` |
+| 1 | Batch apply was not transactional | New `scripts/mb_openspec_publish.py`. `publish_topics` re-reads each topic's triple, stages every new file (backlog included) as `.<name>.<tag>.staged` next to its target, then renames them all. Any failure before the renames removes the staged files. Single-topic import keeps the crash-safe direct order (`write_topic`, moved here). | `test_batch_sync_write_failure_leaves_every_topic_untouched` |
+| 2-4 | Races in batch sync, export rebaseline and export --new | Per your decision, no more point re-checks. `bank_io.bank_lock` holds one bank lock for the whole `import`/`sync`/`export`/`export --new` (CLI layer). It reuses the existing `mb_fs_atomic._dir_lock`: `flock` on `<bank>/specs`, blocking, released by the kernel on exit or crash, no lock file. The pre-write re-read of OpenSpec bytes stays as the guard against outside OpenSpec editors. The bank triple is re-read under the lock before writing (export `_assert_unchanged`, export --new, `publish_topics`). | `test_sync_waits_while_another_openspec_operation_holds_the_bank_lock` (a second `sync` blocks and writes nothing while the lock is held, then completes) |
+| m1 | A task added on both sides with different ticks was accepted | No checkbox baseline at all is treated like an unknown one: differing ticks are a conflict until `--take`. | `test_sync_reports_a_task_added_on_both_sides_with_different_ticks` |
+| m2 | `rename` could replace a concurrently created empty change dir | `_create_change` reserves the target with an exclusive `os.mkdir` (`FileExistsError` → refused) and then renames the temp dir over its own empty reservation. On failure it removes the reservation and the temp dir. | `test_export_new_never_replaces_a_change_dir_created_concurrently` |
+
+Lock choice: I did not use `_lib.sh mb_lock_acquire`, because it records the caller shell's `$$` and so cannot be held from a Python process without a bash wrapper (its own note X6-01). `mb-lock.sh` needs a team resource config. `_dir_lock` is a private name of `mb_fs_atomic.py`, imported here unchanged.
+
+Known limits:
+- Other bank editors (a person, `/mb work`) do not take this lock; the re-reads under the lock catch their edits, though a small window remains.
+- A rename that fails partway through a staged batch (all temps are already written) would leave a partial publication. That needs a filesystem failure in the middle of `os.replace`.
+- The lock blocks with no timeout, like `_dir_lock` does.
+
+GREEN after the fix:
+```
+$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_openspec_*.py      -> 144 passed
+$ <py3.11 venv>/bin/python -m pytest -q tests/pytest/test_openspec_*.py -> 144 passed
+$ bats tests/bats/test_mb_openspec.bats                                  -> 1..18, all ok
+$ ruff check scripts/ ; ruff format --check -> All checks passed / 30 files already formatted
+$ shellcheck scripts/mb-openspec.sh -> clean
+$ mypy (changed modules) -> only the 2 errors already on HEAD in mb_openspec_convert.py
+$ mb-spec-validate / mb-ears-validate openspec-adapter -> rc=0 / rc=0
+```
+
+Spec: REQ-037 (shared scenarios belong to the requirement unit) and REQ-038 (one bank lock), plus a design.md note. HANDOVER addendum 2: a `references/scripts.md` row for `mb_openspec_publish.py`. All modules are under 300 lines; the largest are export (289), convert (298) and CLI (277).
+
+STATUS: DONE_WITH_CONCERNS
+

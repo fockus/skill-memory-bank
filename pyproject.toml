@@ -83,7 +83,7 @@ include = [
   "rules/*.md",
   "scripts/*.sh",
   "scripts/*.py",
-  "references/*.md",
+  "references/**/*.md",
   "settings/*.json",
   "settings/*.py",
   "docs/*.md",

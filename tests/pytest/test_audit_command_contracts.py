@@ -7,12 +7,13 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from mb_corpus import read_mb_corpus
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def _block(command: str, section: str, index: int = 0) -> str:
-    text = (ROOT / "commands" / command).read_text()
+    text = read_mb_corpus() if command == "mb.md" else (ROOT / "commands" / command).read_text()
     tail = text.split(section, 1)[1]
     return re.findall(r"```bash\n(.*?)\n```", tail, re.S)[index]
 
@@ -134,7 +135,7 @@ def test_verify_missing_current_source_does_not_guess_latest_plan(tmp_path):
 
 
 def test_verify_dispatches_the_installed_verifier_without_re_typing_agent_files():
-    text = (ROOT / "commands" / "mb.md").read_text().split("### verify", 1)[1].split("### map", 1)[0]
+    text = (ROOT / "references" / "mb" / "verify.md").read_text().split("### verify", 1)[1]
     verifier = (ROOT / "agents" / "plan-verifier.md").read_text()
     assert 'subagent_type="plan-verifier"' in text
     assert re.findall(r"<contents of ([^>]+)>", text + verifier) == []

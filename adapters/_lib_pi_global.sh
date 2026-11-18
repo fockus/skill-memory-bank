@@ -33,6 +33,8 @@ The gate applies when the request refers to an existing plan or spec in the bank
 2. Run the resolved steps exactly; claim completion only after the configured gates or an explicit user override.
 3. Dispatch roles by name: \`mb_dispatch_subagent(role=<agent>, task=…)\`; \`model\`/\`thinking\` only when the JSON line sets them.
 
+Persistence: inside an approved plan or workflow, do not end a turn with a status update or a "next step" note — keep calling tools until a gate or a real blocker. Ask only for decisions outside the granted scope. A failed subagent dispatch is retried once if transient, then reported.
+
 Planned work runs inline only when the user asks to skip \`/mb work\`; the tier's tests and verification still apply.
 
 EOF

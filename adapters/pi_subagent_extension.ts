@@ -22,7 +22,7 @@ export default async function memoryBankSubagentExtension(pi: ExtensionAPI) {
     label: "Memory Bank named role",
     description: "Launch a named leaf role through the owned native service in ordinary Pi or the optional mb-pi runtime. Inherits the live parent model/provider. No inline, CLI or engine fallback.",
     promptSnippet: "Use mb_dispatch_subagent for explicitly authorized named-role work.",
-    promptGuidelines: ["Use the exact registered agent name. Failed dispatch is not completion; retain the partial work and stop."],
+    promptGuidelines: ["Use the exact registered agent name. Failed dispatch is not completion: retry once if the failure is transient, then report it, retain the partial work and stop."],
     parameters: Type.Object({
       role: Type.String(),
       task: Type.String(),

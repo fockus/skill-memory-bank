@@ -1,0 +1,40 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "counts": {
+    "blocker": 0,
+    "major": 0,
+    "minor": 3
+  },
+  "issues": [
+    {
+      "severity": "minor",
+      "category": "logic",
+      "file": "scripts/mb_bank_lint_backlog.py",
+      "line": 46,
+      "message": "Suppression is wider than the engine gate it is meant to protect against. ID_HEADING_RE (line 21) matches any '### I-N' heading, but parse_backlog/assert_unique_ids only exits 2 when two headings that pass the FULL HEADER_RE grammar share an id. Reproduced: backlog with '### I-001 — a [MED, BOGUS, ...]', '### I-001 malformed twin', '### I-002 — b [MED, BOGUS, ...]' prints only duplicate_id; both invalid_state errors are hidden even though parse_backlog would parse this file without dying. Flagging the malformed twin is right; hiding unrelated findings is not needed in that case. (A real full-grammar duplicate must still suppress, since parse_backlog would otherwise abort with rc=2.)",
+      "fix": "Return early only when a duplicated id has 2+ HEADER_RE-valid headings; otherwise append the duplicate_id findings to the normal check_backlog findings."
+    },
+    {
+      "severity": "minor",
+      "category": "tests",
+      "file": "tests/bats/test_mb_bank_lint.bats",
+      "line": 198,
+      "message": "The new case proves the DoD (rc=1, exact lines and detail for two duplicated ids, asserted on real output). The two extra design claims in the report are unproven: (a) duplicates are the only backlog findings (nothing asserts that a co-present BOGUS-state entry is NOT reported, or that rc stays 1 instead of 2), and (b) a malformed twin heading that the header grammar rejects still counts as a duplicate. Neither is a DoD item, so this is not blocking.",
+      "fix": "Add a BOGUS-state entry plus a '### I-001 malformed' twin to a case and assert duplicate_id is present, invalid_state is absent (or present, after issue 1), and status is 1."
+    },
+    {
+      "severity": "minor",
+      "category": "code_rules",
+      "file": ".memory-bank/specs/svp-roadmap-backlog-db/design.md",
+      "line": 466,
+      "message": "The spec's canonical lint-code table (design.md C5, lines 450-466) and tasks.md:275 ('15 codes') still list 15 codes with no duplicate_id row. The script header and the bats header now say 16, so the spec has drifted from the code. The executor's grep missed it because it only looked at shipped docs. The spec is outside the track's Files list, so treat this as a follow-up, not a fix-cycle item.",
+      "fix": "Add an 'error | duplicate_id | an I-NNN heads more than one ### entry (only backlog finding when the engine would refuse the file)' row and change '15' to '16' in tasks.md:275."
+    }
+  ],
+  "strengths": [
+    "scripts/mb_bank_lint_backlog.py:21-33: the lint regex is a superset of HEADER_RE (I-\\d+ with a (?!\\d) guard), so every duplicate that would make parse_backlog die with rc=2 is caught first. The lint no longer crashes with exit 2 on a duplicated id. Verified on CRLF, triple duplicates, '## I-001', '#### I-001', indented headings, and I-001 vs I-0011, which do not collide.",
+    "Output stays in the shared (severity, code, rel, line, detail) tuple: severity=error, line = first heading, detail lists every heading line, and exit is 1 through the shared mb_bank_lint.py path. In 'all' scope, roadmap findings are not suppressed.",
+    "Ids inside fenced code blocks, inside HTML comments, and the same id in '## Out of scope' are all flagged. That matches the engine, which does not skip fences or comments either and which moves an idea to Out of scope rather than copying it, so each of these really would make backlog tooling refuse the file. bats tests/bats/test_mb_bank_lint.bats 23/23 ok, ruff clean, shellcheck clean. The shell change is comment-only, so Bash 3.2 is not affected."
+  ]
+}
+Graph: 3 queries (who-calls parse_backlog, impact scripts/mb-bank-lint.sh, tests scripts/mb-bank-lint.sh; plus 1 status check)

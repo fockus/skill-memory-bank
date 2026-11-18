@@ -107,6 +107,22 @@ def test_next_stops_for_the_human_when_a_track_used_up_its_fix_cycles():
     assert status_mod.decide(team(track("C", "returned")), facts()) == ["stop_human no-report:C"]
 
 
+@pytest.mark.parametrize(("cycle", "expected"), [(4, ["fix A"]), (5, ["stop_human fix-cycles:A"])])
+def test_gate_routed_fix_stops_for_the_human_at_the_fix_cycle_cap(cycle, expected):
+    review = {"enabled": True, "clean_when": CLEAN, "max_cycles": 5}
+    a = track("A", "done", collected=True)
+    a["fix_cycle"] = cycle
+    gate = {"cycle": 1, "verdict": "fixes_needed", "actions": ["fix A"], "fix_cycles": {"A": cycle}}
+    assert status_mod.decide(team(a, reviews=[gate]), facts(review=review)) == expected
+
+
+@pytest.mark.parametrize(("cycle", "expected"), [(5, ["wait"]), (6, ["stop_human fix-cycles:A"])])
+def test_fixing_track_stops_only_above_the_fix_cycle_cap(cycle, expected):
+    running = track("A", "fixing")
+    running["fix_cycle"] = cycle
+    assert status_mod.decide(team(running), facts()) == expected
+
+
 def test_next_team_review_when_enabled_and_all_finished():
     review = {"enabled": True, "clean_when": CLEAN, "max_cycles": 2}
     t = team(track("A", "done", collected=True))
@@ -196,6 +212,7 @@ def test_status_machine(old, new, ok):
 
 
 # ── writer: lock + atomic replace, through processes ─────────────────────────
+
 
 def _bank(tmp_path: Path) -> Path:
     proj = tmp_path / "proj with space"

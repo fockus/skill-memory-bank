@@ -1,0 +1,164 @@
+{
+  "verdict": "GO_WITH_BACKLOG",
+  "reasons": [
+    "C4-M1 (the only open item in the latest master, cycle-4) is resolved at the root: scripts/mb-team-checkpoint.sh:37-46 now decides ownership by a regular-file marker `.mb-team-checkpoint` (-f and ! -L), an empty dir, or --adopt; any other existing dir inside the tree exits 2 before mkdir/chmod/.gitignore/tar. Name-based matching is gone, so artifact-like names (fix.diff, release.sha256, work.diff/, .secret.untracked, link.diff) no longer grant ownership.",
+    "Judge reran the cycle-4 probe (scratchpad/c4r/run2.sh into scratchpad/judgeC/probe1 and probe2): p1 (empty dir) rc 0, mode 700, marker + `*` .gitignore written, tar holds only new.txt; p2-p13 all rc 2 with 'not a dedicated checkpoint dir', listing unchanged, mode 755 kept, user files still in git status. The Python traceback in p3 output comes from the probe's own inspection of the pre-existing empty fake tar, not from the script.",
+    "Scoped suites green: bats test_mb_team_checkpoint/cli/hardening 1..43 all ok (rc 0), including new tests 14-19 (artifact-named file/subdir/symlink refused, symlinked marker refused, empty dir adopted, --adopt on populated default dir) and cli test 33 (default dir predating the marker still works). pytest test_mb_team_*.py + test_mb_lock_queue.py: 276 passed.",
+    "Ownership path residual check: (a) marker spoofing requires the user to create `.mb-team-checkpoint` themselves, which is an explicit opt-in, not a defect; (b) --adopt is passed by scripts/mb_team_ops.py:124 only when the normalized checkpoint.dir equals <bank>/backups/team, so user config cannot reach it for any other path (an absolute or ../ path that is not the default gets no --adopt); the only residue is a user-made symlink at the default path (J-1, minor, backlog); (c) migration: an existing default dir is adopted (cli test 33); a pre-marker custom dir is refused fail-closed with no writes (J-2, minor, backlog; feature unreleased per AGR-084). No medium or higher remains.",
+    "All earlier cycle items are resolved per the cycle 2-4 masters (C1-M1..M7, C2-M1, C2-n1, C2-n2, C3-M1, C3-n1); with C4-M1 now verified, review blockers/majors/mediums remaining = 0. Cycle budget overrun (4 fix cycles vs max 2) is a process note, not a defect: each cycle closed its blocker and the new findings were narrowing regressions of the same guard, now converged.",
+    "Stage 11 closure still requires its remaining DoD steps, which are post-judge workflow steps, not review findings: the orchestrator records this verdict as the cycle-4 C4-M1 resolution evidence (latest master.json still shows medium 1 because there was no cycle-5 lead pass), runs plan-verifier, ticks mb-team plan lines 288-289 (45/47 now), and moves 2026-10-10_feature_mb-team.md to plans/done/. Cycle-1 minors/nits go to backlog before done."
+  ],
+  "backlog": [
+    {
+      "title": "C1-m1: `--goal G-NNN` is stored as team.goal but never checked against the id in goal.md frontmatter; validation and",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_tracks.py:56 (C-review/cycle-1/master.json C1-m1, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m2: `_merge` dedups external findings by bare id, so a finding whose id collides with a master issue id is silentl",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_review_external.py:100 (C-review/cycle-1/master.json C1-m2, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m3: `reopened` falls back to the previous_issues stub (no file/owner) for an item carried open from cycle n-2, so",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_review.py:136 (C-review/cycle-1/master.json C1-m3, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m4: Board reads fail open: `commit` ignores the mb-coord.sh exit code and treats empty stdout as {} (non-JSON rais",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_ops.py:67 (C-review/cycle-1/master.json C1-m4, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m5: `close` does not check stop_success readiness, `close --pause` on a closed team sets closed=False (reopens it)",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_ops.py:142 (C-review/cycle-1/master.json C1-m5, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m6: `track set --status dispatched` bypasses the deps/overlap/max_parallel/unfilled-brief checks that only `next`",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_tracks.py:148 (C-review/cycle-1/master.json C1-m6, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m7: `break` proceeds when holder_alive is None (meta unreadable). Meta writes are atomic (take via dir rename, set",
+      "severity": "minor",
+      "evidence": "scripts/mb_lock_queue.py:266 (C-review/cycle-1/master.json C1-m7, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m8: `status` without a name lists only resources with a lock or queue on disk; declared but unused resources and t",
+      "severity": "minor",
+      "evidence": "scripts/mb_lock_resource.py:118 (C-review/cycle-1/master.json C1-m8, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m9: Spec drift: REQ-TEAM-010/020 still describe mode direct and REQ-TEAM-016/021 work-only, while the code refuses",
+      "severity": "minor",
+      "evidence": ".memory-bank/specs/mb-team/requirements.md:0 (C-review/cycle-1/master.json C1-m9, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m10: Residual of m4: some rendered copy-paste commands are still unquoted: the freeze hint (`{contract}` and `--tre",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_tracks.py:153 (C-review/cycle-1/master.json C1-m10, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m11: commit_plan stages every changed or untracked non-ignored file matching a track glob with no protected-path fi",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_ops.py:40 (C-review/cycle-1/master.json C1-m11, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m12: `--topic` is not validated in the script (cid becomes a path; `../x` writes outside --dir) and find_topic (mb_",
+      "severity": "minor",
+      "evidence": "scripts/mb-team-checkpoint.sh:21 (C-review/cycle-1/master.json C1-m12, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m13: No barging test: a `run` arriving while the lock is free but older tickets exist must not jump them.",
+      "severity": "minor",
+      "evidence": "tests/bats/test_mb_lock_resource.bats:61 (C-review/cycle-1/master.json C1-m13, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m14: The 3daadc6 regression (longest-first root stripping) skips unless tmp_path starts with /private, so Linux CI",
+      "severity": "minor",
+      "evidence": "tests/pytest/test_mb_team_gate.py:275 (C-review/cycle-1/master.json C1-m14, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m15: Deleted-file commit asserts only rc 0, not that the deletion is in the commit; refusal tests (lines 181, 188)",
+      "severity": "minor",
+      "evidence": "tests/pytest/test_mb_team_gate.py:209 (C-review/cycle-1/master.json C1-m15, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m16: Action order of decide() (fix, dispatch, extract, collect; mb_team_status.py:143-145) is not pinned, though co",
+      "severity": "minor",
+      "evidence": "tests/pytest/test_mb_team_next.py:30 (C-review/cycle-1/master.json C1-m16, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m17: Two atomic-write helpers: write_atomic uses a fixed `<name>.tmp` without fsync for review artifacts, mb_team_s",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_review_core.py:48 (C-review/cycle-1/master.json C1-m17, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m18: main catches KeyError/AttributeError/TypeError (and mb_team_render.py:227 catches KeyError/ValueError) and rep",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_review.py:186 (C-review/cycle-1/master.json C1-m18, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m19: 299 lines (at the SRP limit) mixing liveness, ticket queue, status and 7 op handlers; flock for team.json is a",
+      "severity": "minor",
+      "evidence": "scripts/mb_lock_queue.py:1 (C-review/cycle-1/master.json C1-m19, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m20: mb_team_status.py (296), mb_team_tracks.py (279), mb_team_render.py (239) are close to the 300-line limit; sta",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_status.py:1 (C-review/cycle-1/master.json C1-m20, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-m21: Verdict validation uses try/raise ValueError/except ValueError as control flow.",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_ops.py:161 (C-review/cycle-1/master.json C1-m21, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-n1: verify joins names from the .sha256 file without a basename check. Downgraded from minor: the sha file sits in",
+      "severity": "nit",
+      "evidence": "scripts/mb-team-checkpoint.sh:76 (C-review/cycle-1/master.json C1-n1, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-n2: `mktemp && rm -f` then later `: >\"$BREACH\"` recreates the marker at a known random name (small TOCTOU).",
+      "severity": "nit",
+      "evidence": "scripts/mb-lock.sh:157 (C-review/cycle-1/master.json C1-n2, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-n3: The m3 label and same-id tests are duplicated in test_mb_team_checkpoint.bats:75/81 (C.md 'no tests existed' w",
+      "severity": "nit",
+      "evidence": "tests/bats/test_mb_team_hardening.bats:52 (C-review/cycle-1/master.json C1-n3, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-n4: Host lock-root test writes to the real /tmp/mb-locks-$UID without teardown.",
+      "severity": "nit",
+      "evidence": "tests/bats/test_mb_team_hardening.bats:81 (C-review/cycle-1/master.json C1-n4, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-n5: The fix-cycles test also asserts an unrelated no-report stop; gate/next test modules import helpers from test_",
+      "severity": "nit",
+      "evidence": "tests/pytest/test_mb_team_state.py:107 (C-review/cycle-1/master.json C1-n5, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-n6: ADVISORY_RULES is a one-element tuple.",
+      "severity": "nit",
+      "evidence": "scripts/mb_team_gate.py:27 (C-review/cycle-1/master.json C1-n6, deferred in cycles 2-4)"
+    },
+    {
+      "title": "C1-n7: Seven CLI mains repeat the same ConfigError print-and-return-2 block.",
+      "severity": "nit",
+      "evidence": "scripts/mb_team_review.py:186 (C-review/cycle-1/master.json C1-n7, deferred in cycles 2-4)"
+    },
+    {
+      "title": "J-1: --adopt trusts the default path even when <bank>/backups/team is a symlink into the tree",
+      "severity": "minor",
+      "evidence": "scripts/mb_team_ops.py:115-124 compares normpath only; mb-team-checkpoint.sh:40 then treats a symlinked default dir as owned (chmod 700 + `*` .gitignore at the symlink target). Needs the user to symlink backups/team into their own work, so no realistic path; fix: pass --adopt only when os.path.realpath(out) == os.path.realpath(default) and not os.path.islink(out)."
+    },
+    {
+      "title": "J-2: custom checkpoint.dir created before the ownership marker is now refused (exit 2)",
+      "severity": "minor",
+      "evidence": "Probe p3 (C-review/cycle-4 run2.sh) and commands/team.md:222. Fail-closed with a clear message, nothing written, unreleased feature (AGR-084); consider a CHANGELOG line or a one-time hint to `touch <dir>/.mb-team-checkpoint`."
+    }
+  ],
+  "blocking": []
+}

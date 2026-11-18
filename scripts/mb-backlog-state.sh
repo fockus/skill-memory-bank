@@ -4,14 +4,16 @@
 # Usage:
 #   mb-backlog-state.sh transition <I-NNN> <NEW_STATE> [--reason TEXT] [--mb PATH]
 #   mb-backlog-state.sh annotate   <I-NNN> --brief <TEXT> [--parent <I-NNN|none>] [--mb PATH]
-#   mb-backlog-state.sh list [--mb PATH]
+#   mb-backlog-state.sh list [--tree] [--mb PATH]
 #
 # Machine: NEW → NEEDS-INFO ⇄ TRIAGED → READY → IN-PROGRESS → DONE | WONTFIX.
 # `transition` rewrites only the state token (extra detail after it is byte-
 # preserved); READY requires a valid `**Brief:**` (behavioral, no file paths /
 # line numbers). `annotate` is the single writer of `**Brief:**` / `**Parent:**`.
-# `list` is flat (depth=0, numeric I-NNN order, JSON titles); `## Out of scope`
-# entries are not listed. `--tree` is NOT accepted here (Task 7) → exit 2.
+# `list` is flat (depth=0, numeric I-NNN order, JSON titles); `list --tree` is
+# pre-order (parent first, siblings by numeric id) with `depth=`; a missing
+# parent / parent cycle → empty stdout, exit 1 (`code=missing_parent|parent_cycle`).
+# `## Out of scope` entries are not listed.
 #
 # All mutations serialize on <bank>/.locks/backlog.lock (owner-marker lock, C6)
 # and write atomically (temp + rename). stdout carries only the success line;
@@ -30,7 +32,7 @@ LOCK_TIMEOUT="${MB_BACKLOG_LOCK_TIMEOUT:-10}"
 LOCK_TTL="${MB_BACKLOG_LOCK_TTL:-120}"
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,/^set -/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'
 }
 
 # _require_value <flag> [next...] — a dangling option (no value after it) is a
@@ -107,7 +109,7 @@ main() {
   esac
 
   local mb_arg="" id="" state="" reason="" reason_set=0
-  local brief="" brief_set=0 parent="" parent_set=0
+  local brief="" brief_set=0 parent="" parent_set=0 tree=0
 
   # The CLI contract is `<I-NNN>` — exactly three digits. `I-1` used to be
   # accepted and MUTATED because the parser's `I-\d+` is laxer than the
@@ -166,6 +168,7 @@ main() {
     list)
       while [ "$#" -gt 0 ]; do
         case "$1" in
+          --tree) tree=1; shift ;;
           --mb) _require_value "$@"; mb_arg="$2"; shift 2 ;;
           *) echo "[mb-backlog-state] unexpected argument: $1" >&2; exit 2 ;;
         esac
@@ -180,7 +183,11 @@ main() {
 
   case "$sub" in
     list)
-      run_engine list "$backlog"
+      if [ "$tree" -eq 1 ]; then
+        run_engine list "$backlog" --tree
+      else
+        run_engine list "$backlog"
+      fi
       exit 0
       ;;
     transition)

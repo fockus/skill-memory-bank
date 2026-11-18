@@ -90,6 +90,37 @@ consequences:
   (accepted one-way cost, OQ-1).
 - **D-07 deltas** → ADDED+MODIFIED become REQ bullets; REMOVED becomes a design.md "Removed scope"
   note with its reason. Living `specs/` never read for execution (D-02).
+- **AGR-105 round-trip groundwork** (master-completion Stage 8; full design in
+  `context/openspec-adapter.md` § Round-trip): a `<!-- openspec: cap=…; kind=…[; from=…] -->` meta
+  line precedes each anchor and each Removed-scope heading; RENAMED is emitted on the first import;
+  tasks merge on the `N.M` id, then text; Covers/Role are bank-only after the first import.
+  `mb_openspec_sync.py` keeps the committed `specs/<topic>/openspec-sync.json` sidecar: per unit
+  (`req:<anchor>`, `removed:<name>`, `group:N`, `task:N.M` or `task:N:<text>`, `proposal:why`,
+  `proposal:what-changes`, `design`) it stores `os`/`mb` SHA-256 hashes plus location fields
+  (`cap`, `kind`, `name`, `from`) and task check-states, written before requirements.md. `sync`
+  adopts a baseline when the sidecar is missing or unreadable and refuses a re-import that would
+  overwrite bank units edited since the last sync. Export and three-way sync build on this (Stage 9).
+- **AGR-105 export and three-way sync** (master-completion Stage 9; supersedes the D-05 bullet for
+  requirements.md/design.md): every bank write after the first import is a per-unit three-way merge
+  (`mb_openspec_merge.plan_sync`) against the sidecar baseline, applied by a per-unit splice
+  (`mb_openspec_splice`) over shared unit spans (`mb_openspec_spans`), so bank-added sections, task
+  prose and Covers/Role keep their bytes. Only-OpenSpec-moved units are taken, only-bank-moved units
+  are export candidates, a differing double move is a conflict (nothing written, exit 1) unless
+  `sync <topic> --take openspec|bank`; checkboxes merge as booleans. A re-`import` is the same merge
+  (no `take`), allowed only for the change the topic is linked to; a missing or mismatched sidecar is replaced by a synthetic baseline
+  (adoption). `export <topic>` (`mb_openspec_export`, text splicers in `mb_openspec_osfmt`) prints a
+  diff of the bank's changed units and, with `--write`, splices only those into the change — after
+  refusing an OpenSpec change that moved since the last sync, guarding every read and write to the
+  four change files (no symlinks, no `archive/`, no `openspec/specs/`), and deleting only with
+  `--allow-delete`. `export <topic> --new` (`mb_openspec_export_new`) projects a bank spec into a new
+  change (built in a sibling temp dir, renamed into place, resumable) and links the topic. A batch
+  `sync` writes nothing when any topic conflicts or errors; export re-checks OpenSpec and the bank
+  right before writing (compare-and-swap). Every `import`/`sync`/`export` holds one
+  bank lock (`flock` on `<bank>/specs`, reusing `mb_fs_atomic._dir_lock`) for the whole operation;
+  a batch `sync` stages every file before renaming any (`mb_openspec_publish`). A requirement unit
+  includes the shared `mb-scenario` blocks that cover it (sidecar format 2; a format-1 sidecar is
+  re-adopted), and taking it from OpenSpec moves its scenarios inline. The CLI `mb-openspec.py` only parses arguments and owns the
+  `atomic_write` seam; bank helpers live in `mb_openspec_bank`, import/sync in `mb_openspec_ops`.
 
 ## Risks & mitigation
 

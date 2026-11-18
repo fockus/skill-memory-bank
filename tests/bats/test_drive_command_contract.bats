@@ -9,12 +9,14 @@
 bats_require_minimum_version 1.5.0
 
 load 'lib/discuss_contract'
+load 'lib/mb_corpus'
 
 setup() {
   REPO_ROOT="$MB_DISCUSS_REPO_ROOT"
   DOC="$REPO_ROOT/commands/drive.md"
   GOAL_MD="$REPO_ROOT/commands/goal.md"
-  ROUTER_DOC="$REPO_ROOT/commands/mb.md"
+  ROUTER_DOC="$BATS_TEST_TMPDIR/mb_corpus.md"
+  mb_corpus > "$ROUTER_DOC"
 
   local plan="2\\. Planning phase" act="4\\. Executing an action" hosts="7\\. Hosts"
   local res="8\\. Resume and several drives"

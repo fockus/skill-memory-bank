@@ -42,6 +42,24 @@
 - **REQ-018** (event-driven): When an OpenSpec RENAMED delta is imported, the system shall move the REQ anchor from the old name to the new name and preserve the existing REQ-NNN and its task progress.
 - **REQ-019** (optional): Where an OpenSpec project is detected, the system shall list available changes and their import status.
 - **REQ-020** (unwanted): If EARS validation of an imported requirement fails, then the system shall record a warning and continue rather than aborting the import.
+- **REQ-021** (event-driven): When importing a requirement delta, the system shall write a meta line with its capability and delta kind before the requirement anchor and before each removed-scope entry.
+- **REQ-022** (event-driven): When an OpenSpec RENAMED delta is imported and neither its old nor its new name is anchored yet, the system shall emit it as a requirement with the next REQ-NNN.
+- **REQ-023** (event-driven): When re-importing tasks, the system shall match task items by their `N.M` id before normalized text and shall keep the Covers and Role lines of an existing task group.
+- **REQ-024** (event-driven): When importing a change, the system shall atomically write `specs/<topic>/openspec-sync.json` with per-unit hashes of the OpenSpec text and of the bank rendering.
+- **REQ-025** (unwanted): If sync finds a topic without a usable sync sidecar, then the system shall adopt a per-unit baseline, keeping differing bank units when the source hash is unchanged and writing nothing when it moved.
+- **REQ-026** (unwanted): If sync finds a unit that both OpenSpec and the bank changed since the last sync to different text, then the system shall write nothing for that topic, report both texts and exit with status 1.
+- **REQ-027** (event-driven): When sync or a re-import finds a unit that only OpenSpec changed since the last sync, the system shall replace only that unit in the bank and keep every other bank line, including bank-added design sections and task prose.
+- **REQ-028** (event-driven): When sync finds units that only the bank changed since the last sync, the system shall keep them and name them as export candidates.
+- **REQ-029** (optional): Where the user passes a take option naming OpenSpec or the bank to sync for one topic, the system shall resolve each conflicting unit to the named side.
+- **REQ-030** (event-driven): When the user runs export for a topic, the system shall print a unified diff of the bank units changed since the last sync and shall write OpenSpec files only when the write option is passed.
+- **REQ-031** (unwanted): If the OpenSpec change moved since the last sync, then the system shall refuse to export and point the user to sync.
+- **REQ-032** (ubiquitous): The system shall write during export only `proposal.md`, `design.md`, `tasks.md` and `specs/<cap>/spec.md` of the topic's own `openspec/changes/<id>/` directory, never through a symlink, keeping the bytes of every unchanged unit and never writing REQ-IDs.
+- **REQ-033** (optional): Where the allow-delete option is passed, the system shall delete from OpenSpec the units deleted in the bank, and it shall never delete a file.
+- **REQ-034** (event-driven): When the user exports a bank-authored spec as a new change, the system shall create `openspec/changes/<id>/` and link the topic to it so that a later sync and export find no differences.
+- **REQ-035** (unwanted): If an import targets an existing topic that is not linked to that OpenSpec change, then the system shall write nothing and exit with status 1.
+- **REQ-036** (unwanted): If a sync of several topics finds a conflict or an error in any topic, then the system shall write no topic and exit with status 1.
+- **REQ-037** (ubiquitous): The system shall treat every scenario whose Covers names a requirement as part of that requirement unit when hashing, splicing and exporting it.
+- **REQ-038** (state-driven): While an import, sync or export writes a bank, the system shall hold one bank lock so that a second such operation waits.
 
 
 ## Scenarios

@@ -194,11 +194,11 @@ Docs:
 
 **Outcome (целевой):** Декомпозиция = durable ревьюируемый артефакт; гейт на план до траты токенов исполнителей; безопасный параллелизм by construction (непересекающиеся `owns_paths`).
 
-### I-061 — Cursor compatibility remediation (hook bundle paths + global storage) [HIGH, PLANNED, 2026-05-24]
+### I-061 — Cursor compatibility remediation (hook bundle paths + global storage) [HIGH, DONE, 2026-05-24]
 
 **Context:** Audit `reports/2026-05-24_cursor-compatibility-audit.md`. Copied hooks in `.cursor/hooks/` break `scripts/` resolution; five hooks fail silently. Global storage not wired without `MB_AGENT=cursor`.
 
-**Plan:** `plans/2026-05-24_fix_cursor-compatibility-remediation.md`  
+**Plan:** `plans/done/2026-05-24_fix_cursor-compatibility-remediation.md`  
 **Spec:** `specs/cursor-extension/` (REQ-300..REQ-324)
 
 **Outcome:** Ten CC-compat hooks functional from skill bundle; docs accurate; optional W12 `adapters/cursor/dispatch.md`.
@@ -711,7 +711,9 @@ Plan: `plans/done/2026-07-04_fix_mb-work-resilience.md`. Zero file overlap with 
 ### I-126 — openspec-adapter: strengthen non-discriminating security tests (absolute-path-leak via absolute arg; R4 cache-OSError e2e) [LOW, NEW, 2026-07-15]
 
 
-### I-127 — openspec-adapter: wire /mb openspec router entry into commands/mb.md — DEFERRED under adapter-parity FREEZE; last step before openspec-adapter tag/release [HIGH, NEW, 2026-07-15]
+### I-127 — openspec-adapter: wire /mb openspec router entry into commands/mb.md [HIGH, DONE, 2026-07-15 → 2026-11-18]
+
+**Outcome:** landed in `c89d5fd` (v5.3.1): router row + `### openspec` section in `commands/mb.md`; closed by master-completion Stage 1.
 
 
 ### I-128 — v5.3.2 hotfix: green the 9 foreign red tests shipped in v5.3.1 — docs-site landing/pages (styles.css asset + path: ./site), .opencode STATUS/plan.md stale refs, cursor 11v10 hooks, adapters/pi.sh SRP 398 lines, Cyrillic terminology in roadmap/status donor planning, install.sh command-count 29->30 [HIGH, NEW, 2026-07-15]
@@ -1147,3 +1149,26 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-291 — team rules gate: optional built-in function-length / param-count check for projects without a lint-new rules_gate (scripts/mb_team_gate.py) [LOW, NEW, 2026-11-18]
 
 ### I-292 — team gate test: portable symlinked-tree variant so Linux CI covers longest-root-first stripping (tests/pytest/test_mb_team_gate.py) [LOW, NEW, 2026-11-18]
+
+### I-293 — Claude Code SubagentStart hook: confirm whether the event exists and whether its additionalContext reaches the subagent; if yes, wire the graph status line (Codex already has it in hooks/mb-codex.py). Ad-hoc Agent dispatches outside /mb work get no graph context until then. [MED, NEW, 2026-11-18]
+
+### I-294 — mb-team review backlog: 30 deferred minor/nit findings (cycle-1 minors and nits + judge J-1 symlinked default checkpoint dir, J-2 pre-marker custom checkpoint dir refused) — list in .memory-bank/reports/master-completion-wave1/C-review/judge.json [LOW, NEW, 2026-11-18]
+
+### I-295 — Pi roster tool-name mapping: our agents declare Claude-style tool names (Bash/Read/Grep/Glob); any Pi-side engine that binds the roster (e.g. pi-dynamic-workflows agentType) needs a mapping to bash/read/grep/find. pdw spike no-go (EXP-pdw-spike); revisit only if a live run with credentials is approved. [LOW, NEW, 2026-11-19]
+**Type:** IDEA
+
+### I-296 — S4 backlog-db follow-ups from Stage 17 verification: promote can reuse an unrelated plan matching plans/*_<type>_<slug>.md (mb-idea-promote.sh:118-123); re-promote of an IN-PROGRESS idea exits 0 when its plan is not in roadmap.md (:99-107); list and bank-lint miss 29 of 241 live headings and I-144 (OBSOLETE) gets no lint error (T2 heading grammar); no duplicate-ID lint; mb_backlog_state_engine.py is 441 lines (split). Evidence: reports/master-completion-wave1/F2-verify.md [MED, NEW, 2026-11-19]
+**Type:** IDEA
+
+**Also (H2 review, minors):** duplicate_id hides other backlog findings even when only a malformed twin heading is duplicated (return early only for full-grammar duplicates, scripts/mb_bank_lint_backlog.py:46); no test for 'duplicates are the only findings' and 'malformed twin counts'; svp-roadmap-backlog-db design.md:466 / tasks.md:275 lint-code table lacks `duplicate_id` (16 codes now). Evidence: reports/master-completion-wave1/H2-review.json.
+
+### I-297 — Code graph: 'mb-graph.sh tests <py module>' maps no tests to Python modules that tests reach only through a .sh entry point (e.g. scripts/mb_bank_lint_backlog.py via mb-bank-lint.sh, covered by tests/bats/test_mb_bank_lint.bats). Link sh→py invocation edges into the test mapping so agents get the real test set (found in the Stage 7 graph demo, H2). [HIGH, NEW, 2026-11-19]
+**Type:** IDEA
+
+**Also (H1, Stage 7 demo):** `mb-graph.sh tests scripts/mb_team_ops.py` misses the bats files that reach it through `mb-team.sh`, and argparse-dispatched `cmd_*` functions have no incoming call edges, so `who-calls cmd_checkpoint` returns nothing.
+
+### I-298 — mb-team checkpoint: add tests for the two untested comment claims in scripts/mb_team_ops.py:117 — a symlinked backups/ loses --adopt, and a bank opened through a symlink still adopts (H1 review minor 2, reports/master-completion-wave1/H1-review.json) [LOW, NEW, 2026-11-19]
+**Type:** IDEA
+
+### I-299 — OpenSpec round-trip backlog after Stage 9 judge (GO_WITH_BACKLOG): race window vs editors that don't take the bank lock; mid-batch rename failure can leave a partial publication and stray .staged files; bank_lock has no timeout or waiting message and imports private mb_fs_atomic._dir_lock; export --new can create a requirement with no scenario; blank line after inline-moved scenario; codex re-review of fix cycle 2 (do in Stage 10 review); pre-existing mypy error mb_openspec_convert.py:185. Evidence: reports/master-completion-wave1/B3-judge.json [LOW, NEW, 2026-11-19]
+**Type:** IDEA

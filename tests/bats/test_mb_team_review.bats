@@ -161,7 +161,7 @@ JSON
   master 1 <<<'{"verdict": "CHANGES_REQUESTED", "counts": {"blocker": 0, "major": 1, "minor": 0}, "issues": [{"severity": "major", "category": "x", "file": "a", "line": 1, "message": "no id"}]}'
   run rv gate --cycle 1
   [ "$status" -eq 2 ]
-  [[ "$output" == *"id"* ]]
+  [[ "$output" == *"issues [0] have no string id"* ]]
 }
 
 @test "gate: max_cycles reached without a clean cycle stops for the user" {

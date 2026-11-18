@@ -83,13 +83,20 @@ GRAPH="$MB/codebase/graph.json"
 EVERY="${MB_GRAPH_NUDGE_EVERY:-25}"
 case "$EVERY" in '' | *[!0-9]*) EVERY=25 ;; esac
 [ "$EVERY" -lt 1 ] && EVERY=1
-# Claude Code passes session_id on stdin (it does not export CLAUDE_SESSION_ID to hooks);
-# other agents may set the env var. Without either, fall back to one counter per day.
-SESSION="$(printf '%s' "$INPUT" | "$JQ" -r '.session_id // empty' 2>/dev/null)"
+# One budget per subagent: key by agent_id when the payload carries it (unconfirmed
+# against a captured Claude Code PreToolUse payload — absent means the old
+# per-session key). Claude Code passes session_id on stdin (it does not export
+# CLAUDE_SESSION_ID to hooks); other agents may set the env var. Without any of
+# them, fall back to one counter per day.
+SESSION="$(printf '%s' "$INPUT" | "$JQ" -r '.agent_id // empty' 2>/dev/null)"
+[ -n "$SESSION" ] || SESSION="$(printf '%s' "$INPUT" | "$JQ" -r '.session_id // empty' 2>/dev/null)"
 [ -n "$SESSION" ] || SESSION="${CLAUDE_SESSION_ID:-$(date +%Y%m%d 2>/dev/null || echo bucket)}"
 SESSION="$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_-' '_')"
 MARKER="$MB/.index/.graph-nudge.$SESSION"
 mkdir -p "$MB/.index" 2>/dev/null || true
+# Markers of dead sessions/subagents pile up (64 seen); a live one is rewritten on
+# every structural call, so anything untouched for 24 h is stale.
+find "$MB/.index" -maxdepth 1 -name '.graph-nudge.*' -mmin +1440 -delete 2>/dev/null || true
 if [ -f "$MARKER" ]; then
   SEEN="$(head -1 "$MARKER" 2>/dev/null || echo 0)"
   case "$SEEN" in '' | *[!0-9]*) SEEN=0 ;; esac
@@ -128,8 +135,12 @@ printf '%s' "$STATUS" | "$JQ" -e '.stale==true' >/dev/null 2>&1 && IS_STALE=1
 # real patterns the plain "last identifier" rule picked the argument or the base
 # class (`--symbol target`, `--symbol Base`), which answers nothing and sends the
 # agent straight back to grep (verify Stage 1, WARNING-1). Fallback: the last
-# identifier, minus path-ish tokens, flags and language keywords; nothing
-# survives → the generic `<Name>` placeholder stays. ──
+# identifier that is not a command/keyword, looks like code (an underscore, a
+# capital or a digit — plain lowercase words are prose) and exists as a node in
+# the graph. No suggestion beats a wrong one: nothing survives → the generic
+# `<Name>` placeholder stays. ──
+# Shell commands and keywords that are never symbols (also catches `sed`, `graph`, `pack`).
+NOT_SYMBOL='grep|egrep|rg|rtk|xargs|head|tail|sort|uniq|cat|find|sed|awk|ls|cd|wc|cut|tr|tee|echo|printf|test|bash|sh|python|python3|node|git|jq|mb|graph|pack|def|class|function|const|let|var|import|from|return|async|await|func|type|struct|interface|public|private|static|void|done|then|else|elif|fi|do|while|for|case|esac|local|export|true|false|self|this|None|True|False'
 if [ "$TOOL" = "Grep" ]; then
   RAW="$(printf '%s' "$INPUT" | "$JQ" -r '.tool_input.pattern // empty' 2>/dev/null || true)"
 else
@@ -138,12 +149,19 @@ fi
 SYMBOL="$(printf '%s' "$RAW" \
   | grep -oE '(def|class|func|function|struct|interface|type)[[:space:]]+[A-Za-z_][A-Za-z0-9_]{2,}' \
   | tail -1 | awk '{print $NF}' 2>/dev/null || true)"
-[ -n "$SYMBOL" ] || SYMBOL="$(printf '%s' "$RAW" \
-  | tr -c 'A-Za-z0-9_/.-' ' ' | tr ' ' '\n' \
-  | grep -vE '/|\.|^-' \
-  | grep -E '^[A-Za-z_][A-Za-z0-9_]{2,}$' \
-  | grep -vwE 'grep|egrep|rg|rtk|xargs|head|tail|sort|uniq|cat|find|def|class|function|const|let|var|import|from|return|async|await|func|type|struct|interface|public|private|static|void|done|then|else|elif|fi|do|while|for|case|esac|echo|printf|local|export|true|false' \
-  | tail -1 2>/dev/null || true)"
+if printf '%s' "$SYMBOL" | grep -qxE "$NOT_SYMBOL"; then SYMBOL=""; fi
+if [ -z "$SYMBOL" ]; then
+  while IFS= read -r CAND; do
+    printf '%s' "$CAND" | grep -qE '[_A-Z0-9]' || continue
+    # Anchored on the closing quote, so `Work` does not match `WorkResolver`.
+    if grep -qE "\"name\": ?\"$CAND\"" "$GRAPH" 2>/dev/null; then SYMBOL="$CAND"; break; fi
+  done < <(printf '%s' "$RAW" \
+    | tr -c 'A-Za-z0-9_/.-' ' ' | tr ' ' '\n' \
+    | grep -vE '/|\.|^-' \
+    | grep -E '^[A-Za-z_][A-Za-z0-9_]{2,}$' \
+    | grep -vwE "$NOT_SYMBOL" \
+    | awk '{a[NR]=$0} END{for(i=NR;i>0;i--)print a[i]}')
+fi
 [ -n "$SYMBOL" ] || SYMBOL="<Name>"
 
 # Printed commands use the bundle we resolved above, so they run on any host

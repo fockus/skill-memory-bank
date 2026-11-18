@@ -1,0 +1,463 @@
+--- a/tests/pytest/test_audit_command_contracts.py
++++ b/tests/pytest/test_audit_command_contracts.py
+@@ -7,12 +7,13 @@
+ from pathlib import Path
+ 
+ import pytest
++from mb_corpus import read_mb_corpus
+ 
+ ROOT = Path(__file__).resolve().parents[2]
+ 
+ 
+ def _block(command: str, section: str, index: int = 0) -> str:
+-    text = (ROOT / "commands" / command).read_text()
++    text = read_mb_corpus() if command == "mb.md" else (ROOT / "commands" / command).read_text()
+     tail = text.split(section, 1)[1]
+     return re.findall(r"```bash\n(.*?)\n```", tail, re.S)[index]
+ 
+@@ -134,7 +135,7 @@
+ 
+ 
+ def test_verify_dispatches_the_installed_verifier_without_re_typing_agent_files():
+-    text = (ROOT / "commands" / "mb.md").read_text().split("### verify", 1)[1].split("### map", 1)[0]
++    text = (ROOT / "references" / "mb" / "verify.md").read_text().split("### verify", 1)[1]
+     verifier = (ROOT / "agents" / "plan-verifier.md").read_text()
+     assert 'subagent_type="plan-verifier"' in text
+     assert re.findall(r"<contents of ([^>]+)>", text + verifier) == []
+--- a/tests/pytest/test_claude_md_template.py
++++ b/tests/pytest/test_claude_md_template.py
+@@ -13,6 +13,7 @@
+ from pathlib import Path
+ 
+ import pytest
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ TEMPLATE = REPO_ROOT / "references" / "claude-md-template.md"
+@@ -90,7 +91,7 @@
+ 
+ 
+ def test_mb_init_step4_required_sections_match_template() -> None:
+-    step4 = MB_COMMAND.read_text(encoding="utf-8").split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
++    step4 = read_mb_corpus().split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
+     step4 = step4.split("\n---\n", 1)[0]
+     required = step4.split("Required sections", 1)[1]
+     listed = re.findall(r"^- \*\*(.+?)\*\*", required, re.M)
+@@ -99,7 +100,7 @@
+ 
+ 
+ def _init_step4() -> str:
+-    step4 = MB_COMMAND.read_text(encoding="utf-8").split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
++    step4 = read_mb_corpus().split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
+     return step4.split("\n---\n", 1)[0]
+ 
+ 
+--- a/tests/pytest/test_drive_autopilot_scenarios.py
++++ b/tests/pytest/test_drive_autopilot_scenarios.py
+@@ -31,6 +31,7 @@
+     started,
+ )
+ from test_mb_drive_final_qa import bug, fix_plans, qa_bank  # noqa: E402
++from mb_corpus import read_mb_corpus
+ 
+ bank = test_mb_drive_brain.bank  # the brain's temp-bank fixture (git project + firewall stub)
+ 
+@@ -274,7 +275,7 @@
+ 
+ def test_REQ_046__drive_commands_resolve_paths_and_match_the_scripts() -> None:
+     drive_md = (ROOT / "commands/drive.md").read_text()
+-    mb_md = (ROOT / "commands/mb.md").read_text()
++    mb_md = read_mb_corpus()
+     drive_section = mb_md.split("### drive", 1)[1].split("\n### ", 1)[0]
+     agents_line = next(line for line in (ROOT / "adapters/_lib_agents_md.sh").read_text().splitlines()
+                        if "`/mb drive`" in line)
+--- a/tests/pytest/test_mb_research_command.py
++++ b/tests/pytest/test_mb_research_command.py
+@@ -18,6 +18,7 @@
+ from __future__ import annotations
+ 
+ from pathlib import Path
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ MB_MD = REPO_ROOT / "commands" / "mb.md"
+@@ -26,7 +27,7 @@
+ 
+ 
+ def _read() -> str:
+-    return MB_MD.read_text(encoding="utf-8")
++    return read_mb_corpus()
+ 
+ 
+ def _research_section(text: str) -> str:
+--- a/tests/pytest/test_mb_team_command.py
++++ b/tests/pytest/test_mb_team_command.py
+@@ -10,6 +10,7 @@
+ 
+ import pytest
+ import yaml
++from mb_corpus import read_mb_corpus
+ 
+ ROOT = Path(__file__).resolve().parents[2]
+ TEAM_MD = ROOT / "commands" / "team.md"
+@@ -127,7 +128,7 @@
+ 
+ 
+ def test_router_index_and_counts_list_team():
+-    router = (ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    router = read_mb_corpus()
+     assert re.search(r"^\| `team .*commands/team\.md", router, re.M)
+     assert "`/team`" in (ROOT / "SKILL.md").read_text(encoding="utf-8")
+     assert re.search(r"^\| `/team` \|", (ROOT / "README.md").read_text(encoding="utf-8"), re.M)
+--- a/tests/pytest/test_phase2_registration.py
++++ b/tests/pytest/test_phase2_registration.py
+@@ -12,6 +12,7 @@
+ from __future__ import annotations
+ 
+ from pathlib import Path
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ 
+@@ -43,13 +44,13 @@
+ 
+ 
+ def test_mb_router_table_lists_discuss() -> None:
+-    mb_md = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    mb_md = read_mb_corpus()
+     # Look for the row in the routing table
+     assert "`discuss <topic>`" in mb_md, "discuss row missing from /mb router table"
+ 
+ 
+ def test_mb_md_has_discuss_section() -> None:
+-    mb_md = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    mb_md = read_mb_corpus()
+     assert "### discuss <topic>" in mb_md, "### discuss <topic> section missing"
+ 
+ 
+--- a/tests/pytest/test_phase2_sprint2_registration.py
++++ b/tests/pytest/test_phase2_sprint2_registration.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ from pathlib import Path
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ 
+@@ -24,12 +25,12 @@
+ 
+ 
+ def test_mb_router_table_lists_sdd() -> None:
+-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     assert "`sdd <topic>" in text
+ 
+ 
+ def test_mb_md_has_sdd_section() -> None:
+-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     assert "### sdd <topic>" in text
+ 
+ 
+--- a/tests/pytest/test_phase3_sprint1_registration.py
++++ b/tests/pytest/test_phase3_sprint1_registration.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ from pathlib import Path
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ 
+@@ -24,12 +25,12 @@
+ 
+ 
+ def test_mb_router_table_lists_config() -> None:
+-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     assert "`config" in text
+ 
+ 
+ def test_mb_md_has_config_section() -> None:
+-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     assert "### config" in text
+ 
+ 
+--- a/tests/pytest/test_phase3_sprint2_registration.py
++++ b/tests/pytest/test_phase3_sprint2_registration.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ from pathlib import Path
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ 
+@@ -30,12 +31,12 @@
+ 
+ 
+ def test_mb_router_table_lists_work() -> None:
+-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     assert "`work " in text
+ 
+ 
+ def test_mb_md_has_work_section() -> None:
+-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     assert "### work " in text
+ 
+ 
+--- a/tests/pytest/test_rules_command.py
++++ b/tests/pytest/test_rules_command.py
+@@ -5,6 +5,7 @@
+ from pathlib import Path
+ 
+ import yaml
++from mb_corpus import read_mb_corpus
+ 
+ REPO = Path(__file__).resolve().parents[2]
+ RULES_CMD = REPO / "commands" / "rules.md"
+@@ -30,7 +31,7 @@
+ 
+ 
+ def test_mb_router_routes_rules() -> None:
+-    text = (REPO / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     assert "| `rules <subcommand>`" in text
+     assert "commands/rules.md" in text
+ 
+--- a/tests/pytest/test_terminology_canonicalization.py
++++ b/tests/pytest/test_terminology_canonicalization.py
+@@ -15,6 +15,7 @@
+ from pathlib import Path
+ 
+ import pytest
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ TEMPLATES_REF = "references/templates.md"
+@@ -75,7 +76,7 @@
+ 
+ 
+ def test_commands_mb_md_links_to_terminology_reference() -> None:
+-    text = _read("commands/mb.md")
++    text = read_mb_corpus()
+     assert TEMPLATES_REF in text, (
+         "commands/mb.md must cross-link to references/templates.md from the /mb plan section"
+     )
+--- a/tests/pytest/test_tooling_core_wiring.py
++++ b/tests/pytest/test_tooling_core_wiring.py
+@@ -67,7 +67,7 @@
+ 
+ def test_mb_md_verify_section_references_tooling_core() -> None:
+     """The plan-verifier dispatch in `### verify` inlines tooling-core."""
+-    text = _read(MB_MD)
++    text = _read(REPO_ROOT / "references" / "mb" / "verify.md")
+     verify_idx = text.find("### verify")
+     assert verify_idx != -1, "### verify section not found in mb.md"
+     # Scope to the verify region: from `### verify` to the next top-level `### `.
+--- a/tests/pytest/test_wiki_command.py
++++ b/tests/pytest/test_wiki_command.py
+@@ -11,6 +11,7 @@
+ import json
+ import sys
+ from pathlib import Path
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ sys.path.insert(0, str(REPO_ROOT))
+@@ -103,7 +104,7 @@
+ def test_wiki_command_doc_exists_with_required_sections():
+     # /mb wiki is a subcommand documented in commands/mb.md (like graph/search/tags),
+     # not a standalone top-level command file.
+-    doc = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    doc = read_mb_corpus()
+     assert "### wiki" in doc
+     assert "Haiku" in doc and "Sonnet" in doc
+     assert "--dry-run" in doc
+@@ -118,7 +119,7 @@
+ 
+ 
+ def test_mb_router_lists_wiki_subcommand():
+-    router = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    router = read_mb_corpus()
+     assert "`wiki" in router or "| `wiki`" in router
+ 
+ 
+--- a/tests/pytest/test_runtime_contract.py
++++ b/tests/pytest/test_runtime_contract.py
+@@ -7,6 +7,7 @@
+ from pathlib import Path
+ 
+ import pytest
++from mb_corpus import read_mb_corpus
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[2]
+ 
+@@ -81,7 +82,7 @@
+ 
+ 
+ def test_mb_md_init_section_documents_storage_modes() -> None:
+-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     # mb.md must show both storage modes for /mb init
+     assert "--storage=local" in text or "--storage local" in text
+     assert "--storage=global" in text or "--storage global" in text
+@@ -229,7 +230,7 @@
+ 
+ def test_commands_mb_md_lists_profile() -> None:
+     """commands/mb.md must route to profile subcommand."""
+-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
++    text = read_mb_corpus()
+     has_profile_route = (
+         "### profile" in text
+         or "profile.md" in text
+--- a/tests/bats/test_mb_agree_docs.bats
++++ b/tests/bats/test_mb_agree_docs.bats
+@@ -4,8 +4,16 @@
+ # implemented separately; this suite only asserts the documentation
+ # invariants — same style as test_agent_report_delivery.bats.
+ 
++load 'lib/mb_corpus'
++
++load 'lib/mb_corpus'
++
+ setup() {
+   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
++  MB_CORPUS="$BATS_TEST_TMPDIR/mb_corpus.md"
++  mb_corpus > "$MB_CORPUS"
++  MB_CORPUS="$BATS_TEST_TMPDIR/mb_corpus.md"
++  mb_corpus > "$MB_CORPUS"
+ }
+ 
+ @test "rules/CLAUDE-GLOBAL.md carries the agreements trigger" {
+@@ -34,12 +42,12 @@
+ }
+ 
+ @test "commands/mb.md has the agree router row" {
+-  run command grep -E '\| .agree <subcommand>. +\|' "$REPO_ROOT/commands/mb.md"
++  run command grep -E '\| .agree <subcommand>. +\|' "$MB_CORPUS"
+   [ "$status" -eq 0 ]
+ }
+ 
+ @test "commands/mb.md router row does not list a bare 'supersede' subcommand" {
+-  run command grep -F 'agree <subcommand>' "$REPO_ROOT/commands/mb.md"
++  run command grep -F 'agree <subcommand>' "$MB_CORPUS"
+   [ "$status" -eq 0 ]
+   line="$output"
+   echo "$line" | command grep -qF -- '--supersedes'
+@@ -48,12 +56,12 @@
+ }
+ 
+ @test "commands/mb.md has a ### agree implementation section" {
+-  run command grep -E '^### agree' "$REPO_ROOT/commands/mb.md"
++  run command grep -E '^### agree' "$MB_CORPUS"
+   [ "$status" -eq 0 ]
+ }
+ 
+ @test "commands/mb.md verify section mentions agreement compliance" {
+-  run command awk '/^### verify/,/^### map/' "$REPO_ROOT/commands/mb.md"
++  run command awk '/^### verify/,/^### map/' "$MB_CORPUS"
+   [ "$status" -eq 0 ]
+   echo "$output" | command grep -qi 'agreement'
+ }
+--- a/tests/bats/test_mb_brief_docs.bats
++++ b/tests/bats/test_mb_brief_docs.bats
+@@ -10,10 +10,13 @@
+ bats_require_minimum_version 1.5.0
+ load 'lib/assert'
+ load 'lib/discuss_contract'
++load 'lib/mb_corpus'
++load 'lib/mb_corpus'
+ 
+ setup() {
+   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+-  MBMD="$REPO_ROOT/commands/mb.md"
++  MBMD="$BATS_TEST_TMPDIR/mb_corpus.md"
++  mb_corpus > "$MBMD"
+   BRIEFMD="$REPO_ROOT/commands/brief.md"
+   README="$REPO_ROOT/README.md"
+   CLAUDEMD="$REPO_ROOT/CLAUDE.md"
+--- a/tests/bats/test_mb_init_command_docs.bats
++++ b/tests/bats/test_mb_init_command_docs.bats
+@@ -5,10 +5,14 @@
+ # show non-interactive examples for scripts/CLI, and clarify that the default
+ # remains local + project-shared while global mode keeps the repository clean.
+ 
++load 'lib/mb_corpus'
++
++load 'lib/mb_corpus'
++
+ setup() {
+   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+-  MB_MD="$REPO_ROOT/commands/mb.md"
+-  [ -f "$MB_MD" ] || skip "commands/mb.md missing"
++  MB_MD="$BATS_TEST_TMPDIR/mb_corpus.md"
++  mb_corpus > "$MB_MD"
+ }
+ 
+ @test "mb init docs: both storage modes named in the routing table or section" {
+--- a/tests/bats/test_mb_drive_command.bats
++++ b/tests/bats/test_mb_drive_command.bats
+@@ -18,11 +18,16 @@
+ 
+ bats_require_minimum_version 1.5.0
+ 
++load 'lib/mb_corpus'
++
++load 'lib/mb_corpus'
++
+ setup() {
+   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+   DOC="$REPO_ROOT/commands/drive.md"
+   LIB="$REPO_ROOT/adapters/_lib_agents_md.sh"
+-  ROUTER_DOC="$REPO_ROOT/commands/mb.md"
++  ROUTER_DOC="$BATS_TEST_TMPDIR/mb_corpus.md"
++  mb_corpus > "$ROUTER_DOC"
+   BANK="$BATS_TEST_TMPDIR/bank"
+   PROJECT="$BATS_TEST_TMPDIR/project"
+   mkdir -p "$BANK" "$PROJECT"
+--- a/tests/bats/test_drive_command_contract.bats
++++ b/tests/bats/test_drive_command_contract.bats
+@@ -9,12 +9,15 @@
+ bats_require_minimum_version 1.5.0
+ 
+ load 'lib/discuss_contract'
++load 'lib/mb_corpus'
++load 'lib/mb_corpus'
+ 
+ setup() {
+   REPO_ROOT="$MB_DISCUSS_REPO_ROOT"
+   DOC="$REPO_ROOT/commands/drive.md"
+   GOAL_MD="$REPO_ROOT/commands/goal.md"
+-  ROUTER_DOC="$REPO_ROOT/commands/mb.md"
++  ROUTER_DOC="$BATS_TEST_TMPDIR/mb_corpus.md"
++  mb_corpus > "$ROUTER_DOC"
+ 
+   local plan="2\\. Planning phase" act="4\\. Executing an action" hosts="7\\. Hosts"
+   local res="8\\. Resume and several drives"
+--- a/tests/bats/test_skill_root_resolver.bats
++++ b/tests/bats/test_skill_root_resolver.bats
+@@ -1,6 +1,8 @@
+ #!/usr/bin/env bats
+ # Tests for hooks/_skill_root.sh — skill bundle resolution from hook scripts.
+ 
++load 'lib/mb_corpus'
++
+ setup() {
+   REPO_ROOT="$(cd "${BATS_TEST_DIRNAME:-$(dirname "$BATS_TEST_FILENAME")}/../.." && pwd)"
+   cd "$REPO_ROOT"
+@@ -123,8 +125,8 @@
+ }
+ 
+ @test "skill_root: commands/mb.md resolves the skill root via MB_SKILLS_ROOT (overridable), not a bare hardcode" {
+-  local mb_md="$REPO_ROOT/commands/mb.md"
+-  [ -f "$mb_md" ] || skip "commands/mb.md missing"
++  local mb_md="$BATS_TEST_TMPDIR/mb_corpus.md"
++  mb_corpus > "$mb_md"
+   # The command doc must honour an MB_SKILLS_ROOT override with the historical
+   # Claude alias as its default fallback (backward compatible).
+   grep -qF '${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}' "$mb_md"

@@ -48,6 +48,14 @@ TEST_CMD_RE = re.compile(r"pytest|bats|go test|ya make -t")
 _IDENTITY_WINDOW = 400
 _IDENTITY_LINE_RE = re.compile(r"\s*(#|name:)")
 
+# graph_share = graph / (graph + grep): how often a code-understanding question
+# went to the code graph instead of text search. A Bash call that names a graph
+# tool counts as graph even when it pipes through grep (graph-first).
+GRAPH_CMD_RE = re.compile(
+    r"mb-graph\.sh|mb-graph-query\.py|mb-code-context\.py|mb-semantic-search\.py"
+)
+GREP_CMD_RE = re.compile(r"(^|[;&|(\s])(egrep|grep|rg)(\s|$)")
+
 ITEM_OPEN_RE = re.compile(r"mb-work-state\.sh init")
 ITEM_CLOSE_RE = re.compile(r"mb-work-checkbox\.sh flip")
 
@@ -101,6 +109,24 @@ def _bash_command(tool_use: dict[str, Any]) -> str:
     if tool_use.get("name") != "Bash":
         return ""
     return str((tool_use.get("input") or {}).get("command") or "")
+
+
+def _search_kind(tool_use: dict[str, Any]) -> str | None:
+    """Classify a tool call as a ``graph`` or ``grep`` code search, else ``None``."""
+    if tool_use.get("name") == "Grep":
+        return "grep"
+    command = _bash_command(tool_use)
+    if GRAPH_CMD_RE.search(command):
+        return "graph"
+    if GREP_CMD_RE.search(command):
+        return "grep"
+    return None
+
+
+def graph_share(graph_calls: int, grep_calls: int) -> float | None:
+    """Graph fraction of all code searches; ``None`` when there were none."""
+    total = graph_calls + grep_calls
+    return round(graph_calls / total, 4) if total else None
 
 
 def _minutes(start: datetime | None, end: datetime | None) -> float:
@@ -157,6 +183,8 @@ def session_stats(path: Path) -> dict[str, Any]:
         "input_tokens": 0,
         "peak_context": 0,
         "compactions": 0,
+        "graph_calls": 0,
+        "grep_calls": 0,
     }
     start = end = None
     for record in iter_records(path):
@@ -182,6 +210,10 @@ def session_stats(path: Path) -> dict[str, Any]:
                 stats["tasks"] += 1
             elif TEST_CMD_RE.search(_bash_command(tool_use)):
                 stats["test_runs"] += 1
+            kind = _search_kind(tool_use)
+            if kind:
+                stats[f"{kind}_calls"] += 1
+    stats["graph_share"] = graph_share(stats["graph_calls"], stats["grep_calls"])
     stats["started_at"] = start.isoformat() if start else None
     stats["ended_at"] = end.isoformat() if end else None
     stats["duration_min"] = _minutes(start, end)
@@ -250,16 +282,19 @@ _ROLE_AVG_FIELDS = (
 )
 
 
-def _aggregate_roles(subagents: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
+def _aggregate_roles(subagents: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     buckets: dict[str, list[dict[str, Any]]] = {}
     for sub in subagents:
         buckets.setdefault(sub["role"], []).append(sub)
-    roles: dict[str, dict[str, float]] = {}
+    roles: dict[str, dict[str, Any]] = {}
     for role, rows in sorted(buckets.items()):
         n = len(rows)
-        summary: dict[str, float] = {"n": n}
+        summary: dict[str, Any] = {"n": n}
         for key in _ROLE_AVG_FIELDS:
             summary[f"avg_{key}"] = round(sum(r[key] for r in rows) / n, 2)
+        summary["graph_calls"] = sum(r["graph_calls"] for r in rows)
+        summary["grep_calls"] = sum(r["grep_calls"] for r in rows)
+        summary["graph_share"] = graph_share(summary["graph_calls"], summary["grep_calls"])
         roles[role] = summary
     return roles
 
@@ -303,11 +338,17 @@ def build_report(
         subagents.extend(subagent_stats(sub) for sub in subs)
         items.extend(item_segments(main))
 
+    searched = [*sessions, *subagents]
+    graph_calls = sum(r["graph_calls"] for r in searched)
+    grep_calls = sum(r["grep_calls"] for r in searched)
     return {
         "generated_at": now.isoformat(),
         "project": str(project_dir),
         "since_days": since_days,
         "sessions": sessions,
+        "graph_calls": graph_calls,
+        "grep_calls": grep_calls,
+        "graph_share": graph_share(graph_calls, grep_calls),
         "roles": _aggregate_roles(subagents),
         "items": items,
     }

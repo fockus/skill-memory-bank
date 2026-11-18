@@ -159,6 +159,17 @@ per-type command they asked for (Q1) without contradicting the article's own pri
 pattern-named commands; mirrors the proven `/mb work --workflow` override precedent. **Consequence.** The override is a thin
 selector, not a parallel code path — it feeds the same template interpreter the router would have chosen.
 
+### ADR-11 — Borrowed from pi-dynamic-workflows (ideas only, no dependency; AGR-104)
+**Decision.** Two ideas are borrowed as documented rules; the package is not installed or wired (spike: `experiments/EXP-pdw-spike.md`).
+(1) **Branch-output schema check (companion to REQ-DF-084).** Besides "branch failed / non-JSON", a fan-out branch result is checked
+against the pattern's declared top-level object shape (`type: object` plus required keys); a mismatch is a failed branch (exit 2 +
+per-branch marker), never a silently accepted result. A non-object top-level result (array or scalar) must be wrapped in an object
+by the branch prompt. (2) **loopUntilDry stop rule** (see `flow-templates/patterns/loop-until-done.md`): for discovery loops, stop
+after N consecutive rounds that add no new items (items keyed by a stable identity; null, non-array and duplicate-only rounds count as
+dry; default N=2), under the same hard round cap. **Rationale.** Both close silent-drop and unbounded-loop gaps without a new engine.
+**Consequence.** Critique's validator-feedback retry already landed in Stage 15; budget exhaustion must not be reported as dry, so the
+loop keeps its stop reason (dry / cap / budget) outside the helper.
+
 ## Risks & mitigation
 
 | Risk | Prob | Impact | Mitigation |
@@ -197,4 +208,5 @@ selector, not a parallel code path — it feeds the same template interpreter th
 
 > `tasks.md` carries the phased MVP. Phase 2 scope is CONFIRMED (2026-06-16): router (auto + `/mb flow` override) + route-floor +
 > explicit pattern engine (`mb-fanout.sh` + six pattern templates) + full five-route catalogue, in dependency-ordered sub-waves.
+> `critique`/`risk-find`/`final-report` ship as self-contained commands (no reflexion/sadd wrap); `critique` validates its output against a checklist and retries with the failed checks (default 2 retries).
 > Phase 3 broadens per-agent sub-invocation + ships the `critique`/`risk-find`/`final-report` skills.

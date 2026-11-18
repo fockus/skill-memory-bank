@@ -247,6 +247,16 @@ PY
   grep -qE 'I-001 — idea for feature a \[HIGH, DONE' "$TMPBANK/backlog.md"
 }
 
+@test "done-multi: flips idea status IN-PROGRESS → DONE (written by promote) with an Outcome placeholder" {
+  sed -i.bak 's/\[HIGH, PLANNED,/[HIGH, IN-PROGRESS,/' "$TMPBANK/backlog.md"; rm -f "$TMPBANK/backlog.md.bak"
+  grep -q 'HIGH, IN-PROGRESS' "$TMPBANK/backlog.md"
+  bash "$DONE" "$PLAN_A" "$TMPBANK"
+
+  refute_grep -q 'I-001 — idea for feature a \[HIGH, IN-PROGRESS' "$TMPBANK/backlog.md"
+  grep -qE 'I-001 — idea for feature a \[HIGH, DONE' "$TMPBANK/backlog.md"
+  grep -q '\*\*Outcome:\*\*' "$TMPBANK/backlog.md"
+}
+
 @test "done-multi: adds Outcome placeholder for auto-closed idea" {
   bash "$DONE" "$PLAN_A" "$TMPBANK"
   grep -q '\*\*Outcome:\*\*' "$TMPBANK/backlog.md"

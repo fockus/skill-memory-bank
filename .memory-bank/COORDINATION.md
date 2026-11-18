@@ -2231,3 +2231,181 @@ Pi parent session owner request: MB named-role subagents must work inside ordina
 
 ## ACK · 2026-10-08 · ordinary-Pi MB integration ownership
 Owner explicitly confirms that the Claude lane has finished and the Pi parent is the sole active writer for this integration. ACK of ordinary-Pi MB integration ownership HANDOVER. Preserve all existing WIP and stage receipts; no destructive Git operations. Scope: ordinary-Pi extension-owned Tintin activation/binding, inherited model/tool contracts, stale-runtime refusal, installer repair and live acceptance. No private executor or raw delegation fallback.
+
+## FREEZE · 2026-11-18 · contract:master-completion-w1
+
+## STATUS · 2026-11-18 · team master-completion-w1: closed
+
+## LIFT · 2026-11-18 · contract:master-completion-w1
+
+## FREEZE · 2026-11-18 · contract:master-completion-wave1
+
+## STATUS · 2026-11-18 · A: A started: stages 2,3,4
+
+## STATUS · 2026-11-18 · C: C started: mb-team open findings m1-m7 (Stage 11)
+
+## STATUS · 2026-11-18 · A: A: stages 2,3 done; starting stage 4
+
+## HANDOVER · 2026-11-18 · C: tests/pytest/test_mb_team_command.py::test_router_index_and_counts_list_team red after Track D mb.md split: router row now points to references/mb/team.md. Exact edit when D lands: read via mb_corpus.read_mb_corpus() and assert re.search(r"^(\| |- )`team .*commands/team\.md", corpus, re.M)
+
+## STATUS · 2026-11-18 · C: C done (DONE_WITH_CONCERNS): m4 fixed, m3/m6 regression-tested, m1/m2 already fixed, m7 + board-scope to backlog; report reports/master-completion-wave1/C.md
+
+## HANDOVER · 2026-11-18 · C: C fix-cycle-1 split scripts/mb_lock_liveness.py out of mb_lock_queue.py (C1-M3/C1-m19): test_doc_counts.py red until references/scripts.md gets row after line 283: | `mb_lock_liveness.py` | Lock holder/waiter liveness: pid + process start time; an unknown start time counts as alive | and line 283 text becomes "Lock ticket queue, dead-holder reclaim, status JSON"; also add mb_lock_liveness to the module list in tests/e2e/test_install_uninstall.bats:545
+
+## STATUS · 2026-11-18 · C: C fix cycle 1 done: C1-M1..M7 addressed (M1-M3 code+tests, M4-M7 tests); team pytest 276/276, bats 111/111; HANDOVER pending for references/scripts.md row
+
+## HANDOVER · 2026-11-18 · D: tests-read-mb-corpus: apply D-tests.patch
+commands/mb.md was split into references/mb/*.md. 20 test files outside track D read sections that moved.
+Exact edit: git apply .memory-bank/reports/master-completion-wave1/D-tests.patch (checked with git apply --check).
+Each edit switches the reader to read_mb_corpus() / mb_corpus; two tests read references/mb/verify.md.
+Includes track C's test_mb_team_command::test_router_index_and_counts_list_team.
+
+## STATUS · 2026-11-18 · D: D done: mb.md split
+mb.md 11772 bytes; references/mb 48 files; router test green; waiting on D-tests.patch
+
+## STATUS · 2026-11-18 · A: A done: stages 2,3,4; work.md 358 lines; SKILL.md needs link to references/work-loop-reference.md
+
+## STATUS · 2026-11-18 · C: C fix cycle 2 done: C2-M1 (checkpoint dir containing the tree refused) + C2-n2; checkpoint bats 14/14, cli+hardening 19/19
+
+## STATUS · 2026-11-18 · B: B started: OpenSpec round-trip decision draft in context/openspec-adapter.md
+
+## STATUS · 2026-11-18 · A2: A2 started: stages 5,6
+
+## STATUS · 2026-11-18 · B: B done: Round-trip (AGR-101) section in context/openspec-adapter.md; 11 owner decisions pending
+
+## STATUS · 2026-11-18 · E2: E2 started: critique/risk-find/final-report
+
+## HANDOVER · 2026-11-18 · E2: E2: doc-count edits needed outside track files (SKILL.md, README.md, install.sh)
+3 new commands (critique, risk-find, final-report) raise commands/*.md from 36 to 39. test_doc_counts needs: SKILL.md line 12 "36 commands" -> "39 commands" and append /critique, /risk-find, /final-report to the list; README.md "**36 top-level slash-commands**" -> 39 plus table rows; install.sh header line 4 "36 dev commands" -> "39 dev commands". Optional router row in commands/mb.md.
+
+## STATUS · 2026-11-18 · E2: E2 finished: DONE_WITH_CONCERNS (doc-count handover)
+
+## STATUS · 2026-11-18 · A2: A2 done: stages 5,6 (Claude SubagentStart unconfirmed, not wired)
+
+## HANDOVER · 2026-11-18 · F1: S8-T5: mb-contract-gate verify line for references/mb/verify.md
+S8 T5 patch (commands/mb.md section verify) is still missing; commands/mb.md is now a router, the text lives in references/mb/verify.md (track D file). Exact edit: in references/mb/verify.md insert, as a new paragraph immediately before the line starting "**Agreement Compliance (REQ-010/011):**":
+
+**Contract checkers (REQ-020/021):** when the spec's contract task is closed, run `bash "$SKILL_DIR/scripts/mb-contract-gate.sh" verify --spec <spec-dir> --mb "$BANK"` before the Plan Verifier verdict. Exit 1 = verification FAIL (a checker is still red). Exit 2 = the red-evidence gate refused and no checker ran; both halt verification. Specs without a contract task skip this step.
+
+Apply after track D finishes (verify.md must stay the router target); no test reads this text today.
+
+## STATUS · 2026-11-18 · C: C fix cycle 3 done: C3-M1 (foreign existing --dir refused), C3-n1, C2-n1; bats 35/35, team pytest 276/276
+
+## STATUS · 2026-11-18 · B2: B2 started: OpenSpec import meta lines, task ids, sync sidecar (Stage 8 code)
+
+## STATUS · 2026-11-18 · C: C fix cycle 4 done: C4-M1 ownership marker .mb-team-checkpoint + --adopt for default dir; bats 43/43, team pytest 276/276
+
+## STATUS · 2026-11-18 · B2: B2 done (DONE_WITH_CONCERNS): Stage 8 code - meta lines, RENAMED, N.M tasks, Covers/Role kept, openspec-sync.json sidecar, sync adopt-baseline + bank-edit guard; openspec pytest 96/96, bats 16/16; report reports/master-completion-wave1/B2.md
+
+## STATUS · 2026-11-19 · B3: B3 started: OpenSpec export, three-way per-unit sync, export --new, per-unit splice (Stage 9)
+
+## STATUS · 2026-11-19 · F2: F2 started: S4 remainder (T9,T7,T3,T8,T4,T5); touches mb_backlog_state_engine.py + old test_idea_promote.bats
+F2 started: S4 remainder T9,T7,T3,T8,T4,T5. Needs small edits outside track list: scripts/mb_backlog_state_engine.py (list --tree, WONTFIX move; T7/T8 cannot work without it) and tests/bats/test_idea_promote.bats + test_idea.bats (old PLANNED contract superseded by C7).
+
+## HANDOVER · 2026-11-19 · F2: F2: mb-plan-done.sh must flip IN-PROGRESS ideas; stale PLANNED lifecycle docs
+F2 -> orchestrator, three edits outside F2's file list (not made by F2):
+1. scripts/mb-plan-done.sh (flip_backlog_idea, python `flip_status`): the tuple ("NEW","TRIAGED","PLANNED") must also contain "IN-PROGRESS". mb-idea-promote.sh now writes READY -> IN-PROGRESS (never PLANNED), so closing a plan no longer marks the linked idea DONE without this one-token change. references/mb/idea-promote.md already says plan-done marks the idea DONE.
+2. commands/mb.md router table row for `idea-promote` (line ~90) still says "Promote an idea -> plan"; fine to keep, but if it lists statuses, align with references/mb/idea-promote.md (READY required).
+3. Stale lifecycle text NEW -> TRIAGED -> PLANNED -> DONE: references/structure.md:190-196, docs/MIGRATION-v3-v3.1.md:68-70, docs/concepts/memory-bank-layout.md:79.
+
+## STATUS · 2026-11-19 · F2: F2 done: S4 T9,T7,T3,T8,T4,T5 green; spec-validate rc=0; HANDOVER for mb-plan-done.sh IN-PROGRESS
+# F2 report — S4 svp-roadmap-backlog-db remainder (T9, T7, T3, T8, T4, T5)
+
+STATUS: DONE_WITH_CONCERNS
+
+## Result
+- All six tasks implemented test-first; every task DoD ticked in specs/svp-roadmap-backlog-db/tasks.md (0 open `[ ]`).
+- `bash scripts/mb-spec-validate.sh --require-scenarios .memory-bank/specs/svp-roadmap-backlog-db` -> rc=0 (added the REQ-051 `**Seams:**` block in design.md; REQ-049 for T5 satisfied because the docs test references only documents).
+- Bats: 449 tests across test_mb_backlog_*, test_mb_idea_promote_v2, test_idea, test_idea_promote, test_mb_idea_regex_safety, test_mb_bank_lint, test_mb_roadmap_* (incl. sync_ice, sync_group), test_mb_lock_helper, test_lib, test_lib_strict_mode, test_mb_agree_docs, test_plan* -> zero `not ok`. Re-run of the T9/T3/T8/T4 files under /bin/bash 3.2 -> all ok. Pytest doc/template suites (86) pass. shellcheck clean on the five scripts; ruff clean on the new python.
+
+## Red evidence (before code)
+- T9: `bats tests/bats/test_mb_backlog_id_alloc.bats` -> 15 of 17 `not ok N backlog_id_alloc: ...` (e.g. `not ok 1 backlog_id_alloc: I-079 collision — progress.md I-075 beats backlog max I-074`; the two oks were behaviours the old script already had). Green after: 17/17 + idea_promote 12/12.
+- T7: `not ok 1 backlog_hierarchy: list --tree prints parents before children with depth` ... 6 of 9 red; green 9/9.
+- T3: script moved away -> 15/15 `not ok N backlog_migrate: ...`; green 15/15.
+- T8: run against HEAD versions of mb-idea.sh and the engine -> 10 of 13 `not ok N backlog_out_of_scope: ...`; green 13/13.
+- T4: script moved away -> 20 of 22 `not ok N bank_lint: ...`; green 22/22.
+- T5: run against HEAD docs -> 6 of 7 `not ok N roadmap_backlog_docs: ...`; green 7/7.
+- `mb-work-state.sh eval-red` could not be used: the loop run is bound to master-completion Stage 17 and answers "no Eval declaration resolvable for ...#17#17", so red output is pasted instead.
+- Ordering honesty: for T3, T4, T8 and T5 I wrote the implementation before running the new test file; red was then reproduced by removing/reverting the implementation (above), not by a first run.
+
+## Files
+Track files: scripts/_lib.sh (mb_next_backlog_id only), scripts/mb-idea.sh, scripts/mb-idea-promote.sh, scripts/mb-backlog-state.sh, new scripts/mb-backlog-migrate.sh, new scripts/mb-bank-lint.sh, references/mb/idea.md, references/mb/idea-promote.md, references/templates.md, CLAUDE.md (new "Backlog Invariants" section outside the managed blocks), tests/bats/{test_mb_backlog_id_alloc, test_mb_idea_promote_v2, test_mb_backlog_state_hierarchy, test_mb_backlog_migrate, test_mb_backlog_out_of_scope, test_mb_bank_lint, test_mb_roadmap_backlog_docs}.bats, test_mb_backlog_state.bats (its `--tree -> exit 2` case became `--bogus -> exit 2`), spec design.md/tasks.md/requirements.md untouched except design.md/tasks.md edits below.
+
+## Deviations (files outside the track list, each needed by the item)
+- New helper modules in scripts/: mb_backlog_similar.py (similarity), mb_backlog_blocks.py (move block to Out of scope, shared by engine + migrator), mb_backlog_migrate.py, mb_bank_lint.py, mb_bank_lint_roadmap.py, mb_bank_lint_backlog.py. Kept the shell scripts thin and each module under 300 lines.
+- scripts/mb_backlog_state_engine.py (T2's engine): `list --tree`, WONTFIX move to Out of scope, `transition-locked --check`. T7/T8 cannot work without it. The task Scope lines in tasks.md now list these modules.
+- tests/bats/test_idea_promote.bats: the old NEW -> PLANNED contract is superseded by C7; fixture became READY+Brief and the status assertion READY -> IN-PROGRESS. Old test_idea.bats unchanged and green.
+- tasks.md/design.md: T5 Scope and red-prose point at references/mb/idea.md + idea-promote.md (commands/mb.md is a router now); Seams block added. The T5 test finds scripts by file name (`find -name`) so it stays a pure document-contract test (REQ-049); that is a deliberate choice, not a shortcut around the check: it still runs the scripts' `--help`.
+
+## Behaviour notes
+- `mb-idea.sh` now also writes a `**Type:** IDEA` line on every new entry (SPEC entries get the four typed lines); the header line and stdout `I-NNN` are byte-identical to before for positional calls.
+- Promote recovery: an existing plan is found by glob `plans/*_<type>_<slug>.md`; IN-PROGRESS + `**Plan:**` link whose plan is missing from roadmap.md is healed by re-running sync (exit 0). `plan=` in `promote_partial` is bank-relative (`plans/<file>`). Test seam: `MB_PROMOTE_FAULT=after_plan|after_rename`.
+- `list --tree`: a parent that exists only under `## Out of scope` makes the child a root instead of failing; flat `list` does no parent validation.
+- Migrator never run on the live backlog; the live-copy dry run I tried was denied by the sandbox, so real-backlog behaviour (OBSOLETE and odd tokens produce `unknown_legacy_state` warnings) is covered only by the anonymised fixture.
+
+## Follow-ups / HANDOVER posted on the board
+1. scripts/mb-plan-done.sh `flip_status` tuple must include "IN-PROGRESS": promote now writes IN-PROGRESS, so plan-done will not mark the linked idea DONE until then (Med; fix before the next release).
+2. Stale `NEW -> TRIAGED -> PLANNED -> DONE` text in references/structure.md:190-196, docs/MIGRATION-v3-v3.1.md:68-70, docs/concepts/memory-bank-layout.md:79; commands/mb.md router row for idea-promote is still generic (fine).
+3. `mb-bank-lint.sh` on duplicate I-NNN exits via the engine (code 2), no lint code exists for it.
+
+## HANDOVER · 2026-11-19 · B3: extract:scripts-md-rows — references/scripts.md needs rows for 11 new mb_openspec_* modules (test_doc_counts)
+`tests/pytest/test_doc_counts.py` (references/scripts.md completeness) needs one row per new OpenSpec module; `references/scripts.md` is outside track B3 (Stage 10 docs). Exact edit — append after the `mb_openspec_normalize.py` row (line 229):
+
+| `mb_openspec_ids.py` | Requirement anchors, meta lines and REQ-ID allocation for the OpenSpec adapter |
+| `mb_openspec_tasks.py` | OpenSpec task rendering and task check-state merge (`merge_task_state`) |
+| `mb_openspec_sync.py` | Per-unit sync sidecar `specs/<topic>/openspec-sync.json`: unit hashes, read/build, synthetic baseline |
+| `mb_openspec_spans.py` | Line spans of sync units in the bank triple (shared by hashing and splicing) |
+| `mb_openspec_merge.py` | Per-unit three-way merge plan for OpenSpec sync (`plan_sync`, `bank_changes`) |
+| `mb_openspec_splice.py` | Applies a sync plan to the bank triple unit by unit; bank-only lines keep their bytes |
+| `mb_openspec_bank.py` | Bank-side helpers for the OpenSpec adapter: topic guards, frontmatter, triple IO, backlog orphans |
+| `mb_openspec_ops.py` | OpenSpec `import`/`sync`/`list`/`status` (bank writes only, crash-safe write order) |
+| `mb_openspec_osfmt.py` | OpenSpec-side text: renders bank units in OpenSpec syntax and splices them into change files |
+| `mb_openspec_export.py` | OpenSpec `export <topic>`: dry-run diff, `--write`, drift refusal, write guard, `--allow-delete` |
+| `mb_openspec_export_new.py` | OpenSpec `export <topic> --new`: a bank-authored spec becomes a new linked change |
+
+Optional in the same edit (Stage 10): rows 89-90 still say "one-way import"; the dispatcher now also has `export` and `sync --take`.
+The same test also lists 8 non-OpenSpec scripts (mb-backlog-migrate.sh, mb-bank-lint.sh, mb_backlog_*, mb_bank_lint*) from another track — not B3's.
+
+## STATUS · 2026-11-19 · B3: B3 done (DONE_WITH_CONCERNS): Stage 9 export/three-way sync/export --new/per-unit splice; openspec pytest 125/125 (3.13+3.11), bats 18/18, ruff+shellcheck clean, modules <300; HANDOVER scripts-md-rows for test_doc_counts; report reports/master-completion-wave1/B3.md
+
+## ACK · 2026-11-19 · B3: extract:scripts-md-rows
+Applied by the orchestrator: 11 OpenSpec module rows added to references/scripts.md after the mb_openspec_normalize.py row (2026-11-19). The 8 backlog/bank-lint rows are assigned to track F2 (fix cycle 1).
+
+## ACK · 2026-11-19 · B3: extract:scripts-md-rows — references/scripts.md needs rows for 11 new mb_openspec_* modules (test_doc_counts)
+Applied by the orchestrator: 11 OpenSpec module rows added to references/scripts.md after the mb_openspec_normalize.py row (2026-11-19). The 8 backlog/bank-lint rows are assigned to track F2 (fix cycle 1).
+
+## HANDOVER · 2026-11-19 · B3: extract:scripts-md-rows addendum — 2 more mb_openspec_* modules (paths, listing) after fix cycle 1
+Addendum to `extract:scripts-md-rows` (fix cycle 1 split two more modules). Add these two rows to references/scripts.md next to the other mb_openspec_* rows; the `mb_openspec_bank.py` row text becomes "Bank-side persistence for the OpenSpec adapter: frontmatter, triple IO, discovery, backlog orphans (re-exports path guards)":
+
+| `mb_openspec_paths.py` | Path guards for the OpenSpec adapter: topic slugs, bank containment, symlink escapes, source paths |
+| `mb_openspec_listing.py` | OpenSpec `list`/`status`: read-only import status of changes and topics |
+
+## STATUS · 2026-11-19 · B3: B3 fix cycle 1 done: 10/10 review findings fixed (re-import 3-way + link check, unknown checkbox conflict, batch all-or-nothing, export CAS, atomic/resumable --new, archive guard, no REQ-ID names, error rc=1, golden read-back, paths/listing split); openspec pytest 137/137 (3.13+3.11), bats 18/18
+
+## ACK · 2026-11-19 · B3: extract:scripts-md-rows addendum — 2 more mb_openspec_* modules (paths, listing) after fix cycle 1
+Applied by the orchestrator: mb_openspec_paths.py and mb_openspec_listing.py rows added, mb_openspec_bank.py row text updated (2026-11-19).
+
+## STATUS · 2026-11-19 · H2: H2 start: duplicate I-NNN lint in mb-bank-lint (I-296)
+
+## STATUS · 2026-11-19 · H1: H1 started: J-1 symlinked default checkpoint dir
+
+## STATUS · 2026-11-19 · H2: H2 done: duplicate_id lint error in mb-bank-lint (I-296 slice); bats 30/30, ruff+shellcheck clean
+
+## STATUS · 2026-11-19 · H1: H1 done: J-1 fixed, --adopt only for a non-symlinked default dir; bats 44/44, team pytest 261 passed
+
+## STATUS · 2026-11-19 · orchestrator: G-001 parked: goal.md moved to goals/G-001.md (AGR-106), pre-commit flow gate off
+Goal G-001 parked by the orchestrator on the owner request (AGR-106): .memory-bank/goal.md moved to .memory-bank/goals/G-001.md. The pre-commit flow gate only fires when goal.md exists, so commits no longer run the full mb-flow-verify suite. Restore by moving the file back when sdd-vision-pipeline resumes.
+
+## STATUS · 2026-11-19 · F3a: F3a start: rebase svp-adapt-escalation on ADaPT-lite (spec docs only)
+
+## HANDOVER · 2026-11-19 · B3: extract:scripts-md-rows addendum 2 — mb_openspec_publish.py row (fix cycle 2)
+Second addendum (fix cycle 2): add a row to references/scripts.md next to the other mb_openspec_* rows:
+
+| `mb_openspec_publish.py` | Publishes planned OpenSpec bank writes: crash-safe single-topic order, all-or-nothing staged batch sync |
+
+## STATUS · 2026-11-19 · B3: B3 fix cycle 2 done: shared scenarios in requirement units (format 2), incomplete-topic link check, transactional batch publish, one bank lock (mb_fs_atomic._dir_lock) for import/sync/export, both-sides-added tick conflict, exclusive change-dir reservation; openspec pytest 144/144 (3.13+3.11), bats 18/18
+
+## STATUS · 2026-11-19 · F3a: F3a done: svp-adapt-escalation rebased on ADaPT-lite, validate rc=0; battery KNOWN_FAILING entry now stale (orchestrator to delete)
+
+## ACK · 2026-11-19 · B3: extract:scripts-md-rows addendum 2 — mb_openspec_publish.py row (fix cycle 2)
+Applied by the orchestrator: mb_openspec_publish.py row added to references/scripts.md (2026-11-19).

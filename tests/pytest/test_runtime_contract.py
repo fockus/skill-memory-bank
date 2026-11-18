@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from mb_corpus import read_mb_corpus
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -81,7 +82,7 @@ def test_commands_describe_resolver_not_only_local_path() -> None:
 
 
 def test_mb_md_init_section_documents_storage_modes() -> None:
-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    text = read_mb_corpus()
     # mb.md must show both storage modes for /mb init
     assert "--storage=local" in text or "--storage local" in text
     assert "--storage=global" in text or "--storage global" in text
@@ -229,7 +230,7 @@ def test_readme_documents_three_storage_modes() -> None:
 
 def test_commands_mb_md_lists_profile() -> None:
     """commands/mb.md must route to profile subcommand."""
-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    text = read_mb_corpus()
     has_profile_route = (
         "### profile" in text
         or "profile.md" in text

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from mb_corpus import read_mb_corpus, read_mb_router
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -24,12 +26,12 @@ def test_config_command_documents_subcommands() -> None:
 
 
 def test_mb_router_table_lists_config() -> None:
-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    text = read_mb_router()
     assert "`config" in text
 
 
 def test_mb_md_has_config_section() -> None:
-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    text = read_mb_corpus()
     assert "### config" in text
 
 

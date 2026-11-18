@@ -81,6 +81,7 @@ def _split_scenarios(block: str) -> tuple[list[OSScenario], str]:
 
 
 def _parse_requirement_blocks(body: str, change_kind: str, spec_file: Path) -> list[OSRequirement]:
+    capability = spec_file.parent.name
     headers = list(_REQ_HEADER_RE.finditer(body))
     reqs: list[OSRequirement] = []
     for idx, hm in enumerate(headers):
@@ -105,6 +106,8 @@ def _parse_requirement_blocks(body: str, change_kind: str, spec_file: Path) -> l
                 change_kind=change_kind,
                 reason=reason,
                 scenarios=scenarios,
+                capability=capability,
+                raw=(hm.group(0) + block).strip(),
             )
         )
     return reqs
@@ -121,12 +124,16 @@ def _parse_renamed_block(body: str, spec_file: Path) -> list[OSRequirement]:
         return []
     out: list[OSRequirement] = []
     for old_name, new_name in zip(froms, tos, strict=True):
+        old, new = old_name.strip(), new_name.strip()
         out.append(
             OSRequirement(
-                name=new_name.strip(),
-                text=f"Renamed from '{old_name.strip()}' to '{new_name.strip()}'.",
+                name=new,
+                # EARS-shaped so a first import does not trip the EARS warning.
+                text=f"The system SHALL keep requirement '{old}' under the new name '{new}'.",
                 change_kind="renamed",
-                renamed_from=old_name.strip(),
+                renamed_from=old,
+                capability=spec_file.parent.name,
+                raw=f"FROM: {old}\nTO: {new}",
             )
         )
     return out

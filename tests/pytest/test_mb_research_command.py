@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from mb_corpus import read_mb_corpus, read_mb_router
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MB_MD = REPO_ROOT / "commands" / "mb.md"
 
@@ -26,7 +28,7 @@ RESEARCH_AGENT_REF = "mb-research.md"
 
 
 def _read() -> str:
-    return MB_MD.read_text(encoding="utf-8")
+    return read_mb_corpus()
 
 
 def _research_section(text: str) -> str:
@@ -39,7 +41,7 @@ def _research_section(text: str) -> str:
 
 def test_router_table_lists_research_row() -> None:
     """The `## Subcommands` table must carry a `research` row."""
-    assert "| `research" in _read(), (
+    assert "| `research" in read_mb_router(), (
         "commands/mb.md router table missing a `research` row "
         "(expected a `| `research ...` table line)"
     )

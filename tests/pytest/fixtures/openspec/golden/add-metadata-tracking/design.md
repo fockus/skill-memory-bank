@@ -27,10 +27,7 @@ Store metadata as YAML rather than JSON for human readability.
 
 ## Removed scope
 
+<!-- openspec: cap=change-tracking; kind=removed -->
 ### Legacy Status Comment
 
 **Reason:** Superseded by the structured status field; free-text comments were never validated and drifted from reality.
-
-## Deferred renames (re-import required)
-
-- `Change Owner` -> `Change Author` — anchor move handled on re-import (T5).

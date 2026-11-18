@@ -1,0 +1,116 @@
+{
+ "status": "OK",
+ "verdict": "CHANGES_REQUESTED",
+ "issues": [
+  {
+   "severity": "blocker",
+   "file": "scripts/mb_openspec_export.py",
+   "line": 153,
+   "description": "Scenarios placed in the shared '## Scenarios' section by export --new are outside the requirement unit (requirement_spans stops at '##'). A later export of an edited requirement replaces the OpenSpec block without them, silently deleting scenarios.",
+   "recommendation": "Include Covers-linked scenarios in unit/hash/export rendering; add regression --new -> edit requirement -> export keeping scenarios."
+  },
+  {
+   "severity": "blocker",
+   "file": "scripts/mb_openspec_ops.py",
+   "line": 169,
+   "description": "Link check runs only for a complete triple. An existing topic missing requirements.md or tasks.md makes read_prior_triple() return None and import takes the fresh path (lines 188-199), overwriting authored files or relinking without conflict (REQ-035).",
+   "recommendation": "Check topic existence and openspec_source independently of triple completeness; reject an incomplete existing topic with no writes."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_ops.py",
+   "line": 257,
+   "description": "Batch sync is all-or-nothing only in planning. apply_merge writes topics sequentially; a writer/path-guard failure in topic 2 leaves topic 1 modified (REQ-036).",
+   "recommendation": "Validate all destinations before writing; apply transactionally or with journal/rollback."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_ops.py",
+   "line": 257,
+   "description": "No snapshot re-check between reading/planning the bank triple and write_topic; a concurrent bank edit is overwritten by the planned stale version.",
+   "recommendation": "Re-verify triple and sidecar per topic immediately before apply, under a lock."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_export.py",
+   "line": 250,
+   "description": "CAS still has a TOCTOU window: unconditional writes follow _assert_unchanged (250-252); rebaseline checks the bank at 276 then writes sidecar and stale requirements.md at 289.",
+   "recommendation": "Combine validation and publication in a locked transaction; check drift at each replace; recover from partial apply."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_export_new.py",
+   "line": 159,
+   "description": "export --new reads the bank once and, after create/resume of the change, rewrites tasks.md and requirements.md (222-228) without re-checking; a concurrent bank edit is lost.",
+   "recommendation": "Re-compare bank snapshot before linking; guard the three bank writes in one transaction."
+  },
+  {
+   "severity": "medium",
+   "file": "scripts/mb_openspec_merge.py",
+   "line": 98,
+   "description": "A task unit added on both sides with the same text but different checkbox states has no baseline and is not UNKNOWN; sync reports no conflict and records divergent states as baseline.",
+   "recommendation": "With no checkbox baseline and differing values, require conflict/--take as for UNKNOWN."
+  },
+  {
+   "severity": "medium",
+   "file": "scripts/mb_openspec_export_new.py",
+   "line": 143,
+   "description": "No-clobber race between exists() and os.rename(): POSIX rename can replace a concurrently created empty destination directory.",
+   "recommendation": "Reserve the destination exclusively or use NOREPLACE-style atomic publication."
+  }
+ ],
+ "counts": {
+  "blocker": 2,
+  "major": 4,
+  "medium": 2,
+  "minor": 0,
+  "info": 0
+ },
+ "prior_issues": [
+  {
+   "id": 1,
+   "status": "NOT_FIXED"
+  },
+  {
+   "id": 2,
+   "status": "FIXED"
+  },
+  {
+   "id": 3,
+   "status": "NOT_FIXED"
+  },
+  {
+   "id": 4,
+   "status": "NOT_FIXED"
+  },
+  {
+   "id": 5,
+   "status": "FIXED"
+  },
+  {
+   "id": 6,
+   "status": "FIXED"
+  },
+  {
+   "id": 7,
+   "status": "FIXED"
+  },
+  {
+   "id": 8,
+   "status": "FIXED"
+  },
+  {
+   "id": 9,
+   "status": "FIXED"
+  },
+  {
+   "id": 10,
+   "status": "FIXED"
+  }
+ ],
+ "raw_output": "/private/tmp/claude-502/-Users-fockus-Apps-skill-memory-bank/dc795ad2-23d2-4e73-bc4c-6c49e807e25c/scratchpad/raw3.txt",
+ "model": "gpt-5.6-sol",
+ "effort": "medium",
+ "rounds": 2,
+ "note": "first run at high timed out at 900s (empty); retry at medium succeeded. 'medium' severity used as requested by caller; parsers limited to blocker|major|minor|info should treat it as minor."
+}

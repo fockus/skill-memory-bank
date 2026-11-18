@@ -263,16 +263,23 @@ uninstall_opencode() {
   echo "[opencode-adapter] uninstalled from $PROJECT_ROOT"
 }
 
+# Per-agent sub-invoke declaration (dynamic-flow T13): delegates to the resolver's
+# opencode table entry; the operator override is env-u'd (see adapters/codex.sh).
+opencode_subinvoke_cmd() {
+  env -u MB_SUBINVOKE_CMD MB_AGENT=opencode bash "$SKILL_DIR/scripts/mb-subinvoke-resolve.sh" --agent opencode
+}
+
 case "$ACTION" in install|install-global-agents|render-agents) trap _mb_oc_exit EXIT ;; esac
 case "$ACTION" in
   preflight) opencode_preflight ;;
   preflight-remove)
     opencode_preflight_remove "$MANIFEST" "$OC_DIR"
     opencode_preflight_instructions ;;
+  subinvoke) opencode_subinvoke_cmd ;;
   install) install_opencode ;;
   uninstall) uninstall_opencode ;;
   install-global-agents) install_global_extensions ;;
   render-agents) render_opencode_agents "${3:-}" ;;
-  *) echo "Usage: $0 install|uninstall|install-global-agents [PROJECT_ROOT] | render-agents PROJECT_ROOT [PIPELINE]" >&2; exit 1 ;;
+  *) echo "Usage: $0 install|uninstall|subinvoke|install-global-agents [PROJECT_ROOT] | render-agents PROJECT_ROOT [PIPELINE]" >&2; exit 1 ;;
 esac
-adapter_contract_require_functions install_opencode uninstall_opencode >/dev/null
+adapter_contract_require_functions install_opencode uninstall_opencode opencode_subinvoke_cmd >/dev/null

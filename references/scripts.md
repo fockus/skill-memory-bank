@@ -37,6 +37,8 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-note.sh <topic>` | Create `notes/YYYY-MM-DD_HH-MM_<topic>.md`. Collision-safe (`_2` / `_3`) |
 | `mb-idea.sh <title> [HIGH\|MED\|LOW]` | Capture a new idea in `backlog.md` with monotonic `I-NNN` |
 | `mb-idea-promote.sh <I-NNN>` | Promote an idea (I-NNN) into an active plan |
+| `mb-backlog-migrate.sh [--dry-run\|--apply] [mb_path]` | Migrate a legacy `backlog.md` to the state machine (token table, `Out of scope` move, typed `[SPEC:]` entries) with backup |
+| `mb-bank-lint.sh <roadmap\|backlog\|all> [--mb PATH]` | Read-only lint of roadmap frontmatter and `backlog.md`: one `severity=… code=…` line per finding |
 | `mb-qa-bug.sh [--mb B] add\|set\|list` | QA bug registry `qa/bugs.md`: monotonic `BUG-NNN`, severity `critical\|major\|medium\|low`, open-title dedupe, status `open\|fixed\|wontfix` |
 | `mb-qa-bug.sh [--mb B] list --json [--open] [--run ID]` | Bugs in the normalized review shape (`counts` `{blocker,major,medium,minor}` + `issues`); `--run` keeps one run's bugs |
 | `mb-qa-bug.sh [--mb B] gate --run ID [--gate JSON]` | Apply `qa.gate` (max open bugs per severity) to one run's open bugs through `mb-work-severity-gate.sh`; exit 0 pass · 1 fail · 2 input error |
@@ -227,6 +229,20 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_openspec_parse.py` | Read-only OpenSpec change parser (`parse_change`, `compute_source_hash`) |
 | `mb_openspec_convert.py` | Deterministic OpenSpec → MB spec-triple converter (anchors, EARS classify, re-import anchor reuse) |
 | `mb_openspec_normalize.py` | Opt-in `--normalize` LLM slot layer + source-hash cache for the OpenSpec adapter (fail-open) |
+| `mb_openspec_ids.py` | Requirement anchors, meta lines and REQ-ID allocation for the OpenSpec adapter |
+| `mb_openspec_tasks.py` | OpenSpec task rendering and task check-state merge (`merge_task_state`) |
+| `mb_openspec_sync.py` | Per-unit sync sidecar `specs/<topic>/openspec-sync.json`: unit hashes, read/build, synthetic baseline |
+| `mb_openspec_spans.py` | Line spans of sync units in the bank triple (shared by hashing and splicing) |
+| `mb_openspec_merge.py` | Per-unit three-way merge plan for OpenSpec sync (`plan_sync`, `bank_changes`) |
+| `mb_openspec_splice.py` | Applies a sync plan to the bank triple unit by unit; bank-only lines keep their bytes |
+| `mb_openspec_bank.py` | Bank-side persistence for the OpenSpec adapter: frontmatter, triple IO, discovery, backlog orphans (re-exports path guards) |
+| `mb_openspec_paths.py` | Path guards for the OpenSpec adapter: topic slugs, bank containment, symlink escapes, source paths |
+| `mb_openspec_listing.py` | OpenSpec `list`/`status`: read-only import status of changes and topics |
+| `mb_openspec_publish.py` | Publishes planned OpenSpec bank writes: crash-safe single-topic order, all-or-nothing staged batch sync |
+| `mb_openspec_ops.py` | OpenSpec `import`/`sync`/`list`/`status` (bank writes only, crash-safe write order) |
+| `mb_openspec_osfmt.py` | OpenSpec-side text: renders bank units in OpenSpec syntax and splices them into change files |
+| `mb_openspec_export.py` | OpenSpec `export <topic>`: dry-run diff, `--write`, drift refusal, write guard, `--allow-delete` |
+| `mb_openspec_export_new.py` | OpenSpec `export <topic> --new`: a bank-authored spec becomes a new linked change |
 | `mb_graph_query_core.py` | Core graph loading, matching and payload builders for `mb-graph-query.py` |
 | `mb_graph_query_render.py` | Markdown summary renderers for graph-query output |
 | `mb_code_context_core.py` | Core evidence-pack orchestration for `mb-code-context.py` |
@@ -247,6 +263,12 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_work_plan_wrapper.py` | Wrapper-plan resolution for `mb-work-plan.sh` (`linked_spec` / `<!-- mb-stage:N -->`) |
 | `mb_backlog_state_engine.py` | Backlog parser + state engine behind the backlog scripts |
 | `mb_backlog_validate.py` | Backlog metadata validation: the brief gate (REQ-007) + single-line safety |
+| `mb_backlog_blocks.py` | Move whole backlog entry blocks into `## Out of scope` (shared by the engine and the migrator) |
+| `mb_backlog_migrate.py` | Engine behind `mb-backlog-migrate.sh`: legacy status table, SPEC typing, backup + atomic write |
+| `mb_backlog_similar.py` | Out-of-scope title similarity lookup used by `mb-idea.sh` |
+| `mb_bank_lint.py` | CLI engine of `mb-bank-lint.sh`: finding format, ordering, exit code |
+| `mb_bank_lint_backlog.py` | Backlog checks for `mb-bank-lint.sh` (state alphabet, READY brief, WONTFIX reason, parents) |
+| `mb_bank_lint_roadmap.py` | Roadmap checks for `mb-bank-lint.sh` (ice, pin, group, blocked_by, orphan groups, sync drift) |
 | `mb_roadmap_group.py` | Group-section rendering + progress aggregation for `mb-roadmap-sync.sh` |
 | `mb_roadmap_order.py` | Pure ICE-component parsing + priority ordering for `mb-roadmap-sync.sh` |
 | `mb_roadmap_plans.py` | Plan-frontmatter parsing + collection for `mb-roadmap-sync.sh` |
@@ -280,6 +302,7 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_team_review.py` | `start` and `gate` CLI behind `mb-team-review.sh` |
 | `mb_team_review_core.py` | Shared team-review state: config, cycle paths and masters, owner routing |
 | `mb_team_review_external.py` | `external` prompt and `ingest` schema check + merge for outside reviewers |
-| `mb_lock_queue.py` | Lock ticket queue, liveness by pid + process start time, dead-holder reclaim, status JSON |
+| `mb_lock_queue.py` | Lock ticket queue, dead-holder reclaim, status JSON |
+| `mb_lock_liveness.py` | Lock holder/waiter liveness: pid + process start time; an unknown start time counts as alive |
 | `mb_lock_resource.py` | Resource config for `mb-lock.sh` (`--resource-json` or `mb_team_config.py`), disk and check conditions, status text |
 | `mb_pipeline_validate_team.py` | Schema of the `team:` block, shared by the validator, the config reader and the resolver |

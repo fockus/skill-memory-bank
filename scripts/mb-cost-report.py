@@ -40,8 +40,17 @@ def _k(value: float) -> str:
     return f"{value / 1000:.1f}k" if value >= 1000 else f"{value:.0f}"
 
 
+def _share(value: float | None) -> str:
+    return "n/a" if value is None else f"{value:.2f}"
+
+
 def render_table(report: dict[str, Any]) -> str:
-    lines = [f"project: {report['project']}", ""]
+    lines = [
+        f"project: {report['project']}",
+        f"graph_share: {_share(report['graph_share'])}"
+        f" (graph {report['graph_calls']} / grep {report['grep_calls']})",
+        "",
+    ]
 
     lines.append("sessions:")
     lines.append(
@@ -65,13 +74,13 @@ def render_table(report: dict[str, Any]) -> str:
 
     lines += ["", "subagent roles:"]
     lines.append(
-        "  {:<12} {:>4} {:>7} {:>7} {:>7} {:>9} {:>9} {:>8}".format(
-            "role", "n", "turns", "tools", "tests", "out", "peak_ctx", "dur_min"
+        "  {:<12} {:>4} {:>7} {:>7} {:>7} {:>9} {:>9} {:>8} {:>7}".format(
+            "role", "n", "turns", "tools", "tests", "out", "peak_ctx", "dur_min", "gshare"
         )
     )
     for role, r in report["roles"].items():
         lines.append(
-            "  {:<12} {:>4} {:>7.1f} {:>7.1f} {:>7.1f} {:>9} {:>9} {:>8.1f}".format(
+            "  {:<12} {:>4} {:>7.1f} {:>7.1f} {:>7.1f} {:>9} {:>9} {:>8.1f} {:>7}".format(
                 role,
                 int(r["n"]),
                 r["avg_turns"],
@@ -80,6 +89,7 @@ def render_table(report: dict[str, Any]) -> str:
                 _k(r["avg_output_tokens"]),
                 _k(r["avg_peak_context"]),
                 r["avg_duration_min"],
+                _share(r["graph_share"]),
             )
         )
 

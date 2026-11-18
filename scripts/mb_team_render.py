@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -103,7 +104,7 @@ def pipeline_lines(track: dict, bank: str) -> list[str]:
 def _resource_block(res: dict, lock: str, bank: str) -> str:
     pre, stop = res["preconditions"], res["stop_threshold"]
     text = (f"- **{res['name']}** — every command that needs it goes through\n"
-            f"  `{lock} run {res['name']} --owner <track> --mb {bank} -- <command>`.\n"
+            f"  `{lock} run {res['name']} --owner <track> --mb {shlex.quote(bank)} -- <command>`.\n"
             "  Start it in the background and keep writing code and tests while it waits.")
     sentences = []
     if res["maintenance"] and pre["free_disk_gb"] is not None:
@@ -141,7 +142,7 @@ def render_brief(team: dict, bank: str, skill: str, team_cfg: dict) -> str:
     tree = f"- Edit only in {team['tree']} ({team['vcs']})."
     if team.get("mirror"):
         tree += f" {team['mirror']} is a clean mirror for bundles: do not touch."
-    lock = f"bash {skill}/scripts/mb-lock.sh"
+    lock = f"bash {shlex.quote(skill + '/scripts/mb-lock.sh')}"
     resources = []
     for name in used:
         if name not in team_cfg["resources"]:
@@ -152,11 +153,11 @@ def render_brief(team: dict, bank: str, skill: str, team_cfg: dict) -> str:
     slots = {
         "title": team.get("title") or team["topic"], "date": team["created"][:10], "topic": team["topic"],
         "plan": _abs(bank, team.get("plan")) or "none", "goal": goal, "tracks": "\n".join(rows),
-        "working_tree": tree + f"\n- Run Memory Bank commands with `--mb {bank}`, never from inside the bank directory.",
+        "working_tree": tree + f"\n- Run Memory Bank commands with `--mb {shlex.quote(bank)}`, never from inside the bank directory.",
         "rules": "\n".join(f"- {r}" for r in (*BUILTIN_RULES, *team_cfg["rules"])),
         "resources": "\n".join(resources) or "- none",
         "known_red": "\n".join(known) or "- none",
-        "coord": f"bash {skill}/scripts/mb-coord.sh", "bank": bank,
+        "coord": f"bash {shlex.quote(skill + '/scripts/mb-coord.sh')}", "bank": shlex.quote(bank),
         "reports": os.path.dirname(_abs(bank, team["brief"])),
     }
     return fill((TEMPLATES / "brief.md").read_text(encoding="utf-8"), slots)
@@ -167,7 +168,7 @@ def _contract_section(track: dict, team: dict, bank: str, skill: str) -> str:
         return ""
     path = _abs(bank, track["contract"])
     return ("## Contract (frozen — run it, never edit it)\n"
-            f"`python3 {skill}/scripts/mb_contract.py run {path} --tree {team['tree']}` must pass before you report "
+            f"`python3 {shlex.quote(skill + '/scripts/mb_contract.py')} run {shlex.quote(path)} --tree {shlex.quote(team['tree'])}` must pass before you report "
             "DONE; paste its summary line into the report. A contract item you think is wrong: BLOCKED with the "
             "reason — only the orchestrator amends a frozen contract.\n\n")
 

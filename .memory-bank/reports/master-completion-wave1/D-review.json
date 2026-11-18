@@ -1,0 +1,70 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "issues": [
+    {
+      "id": "D-R1",
+      "severity": "medium",
+      "file": "commands/mb.md",
+      "line": 74,
+      "problem": "Two old router rows lost their Action text. HEAD had an unescaped '|' inside the code span (`compact [--dry-run|--apply]`, `init [--minimal|--full]`), and the splitter treated it as a cell boundary. So mb.md:74/79 have no Action cell, and references/mb/compact.md:7 and references/mb/init.md:7 show a mangled `[--dry-run — --apply]` / `[--minimal — --full]` with no description. Lost text: 'Status-based decay: plans in `done/` older than 60d → BACKLOG archive, low-importance notes older than 90d → `notes/archive/`. Active plans are not touched. `--dry-run` (default) = reasoning only' and 'Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only'. These are the only 2 of the 55 old rows whose action text is not found anywhere in references/mb/ (scratch check). This also contradicts the report's claim that Router entries hold the full original row text.",
+      "fix": "In mb.md, write the cells as `compact [--dry-run\\|--apply]` and `init [--minimal\\|--full]` and give each an Action cell. Restore the full original action text in the Router entries of compact.md and init.md. Make the router-target test fail on any row that has fewer than 3 cells."
+    },
+    {
+      "id": "D-R2",
+      "severity": "minor",
+      "file": "references/mb/help.md",
+      "line": 47,
+      "problem": "Mode 2 of the help algorithm only matches the first backticked command at the start of a row. Running the extracted algorithm gives exit 1 ('No subcommand') for `/mb help context`, `/mb help ask_me` and `/mb help grooming`, even though the router lists all three. `context` is a regression: the old `### context / search / note / tasks` header matched. test_help_algorithm_prints_the_reference_for_every_router_row skips the `(empty) or `context`` row and only tries the first word of each row, so it does not catch this.",
+      "fix": "Match `sub` against every backticked token (and the 'also X' alias) in the first cell, e.g. re.search(r\"`\" + re.escape(sub) + r\"[`\\s<\\[]\", first_cell). Extend the test to cover context, ask_me and grooming."
+    },
+    {
+      "id": "D-R3",
+      "severity": "minor",
+      "file": "references/mb/init.md",
+      "line": 93,
+      "problem": "Some section pointers now point into other files, while mb.md:106 says 'Load only the matched file'. init.md:93 says 'run the subagent exactly as documented in `### map [focus]`', but that text is now in references/mb/map.md, which an agent running /mb init never loads. agree.md:61 says 'see `### verify` below', which now lives in verify.md. mb.md:77 router row says '(see `### wiki` below)'.",
+      "fix": "Change these to file pointers: `$SKILL_DIR/references/mb/map.md` (init.md:93), `references/mb/verify.md` (agree.md:61), and `references/mb/wiki.md` (mb.md:77)."
+    },
+    {
+      "id": "D-R4",
+      "severity": "minor",
+      "file": "references/mb/openspec.md",
+      "line": 21,
+      "problem": "This existed before the split: in HEAD, the line 'Invoking `/mb start` = invoking `/start` — same scripts, same subagents, same outcome. Do not duplicate the logic here; read the primary command file and follow it.' sat at the end of the openspec section. It moved verbatim into openspec.md, so it is not in aliases.md, the file that `/mb start` and `/mb done` now load.",
+      "fix": "Move that line from openspec.md to the end of the alias list in aliases.md."
+    },
+    {
+      "id": "D-R5",
+      "severity": "minor",
+      "file": "tests/pytest/test_phase2_registration.py",
+      "line": 47,
+      "problem": "Some assertions got weaker because they now read the whole corpus. (a) Router-presence tests read read_mb_corpus(), so the Router entries in reference files satisfy them even if the router row in mb.md is removed. Examples: test_mb_router_table_lists_discuss/sdd/config/work, test_mb_router_lists_wiki_subcommand, test_rules_command::test_mb_router_routes_rules, test_mb_team_command::test_router_index_and_counts_list_team. The orphan-file test only pins file names, not command rows (e.g. dropping the `askme` row would stay green). (b) test_mb_agree_docs.bats 'verify section mentions agreement compliance' uses awk '/^### verify/,/^### map/' on the corpus. map.md sorts before verify.md, so the range runs to the end of the corpus instead of stopping at the end of the verify section. (c) test_skill_root_resolver 'commands/mb.md resolves ... via MB_SKILLS_ROOT' is now satisfied only by help.md. The test titles still say commands/mb.md. Other changes only switch where the text is read from, or make the check stronger (refute_grep --update now scans every reference). The 108 targeted pytest and 30 targeted bats tests pass.",
+      "fix": "Router-row assertions should read MB_MD (they still pass, because mb.md keeps every command cell). Section-body assertions should read the corpus or the specific references/mb/<sub>.md. Scope the agree awk to references/mb/verify.md. Rename or reword the skill_root test to say references/mb/help.md."
+    },
+    {
+      "id": "D-R6",
+      "severity": "minor",
+      "file": "docs/commands.md",
+      "line": 61,
+      "problem": "Shipped docs still describe how things worked before the split. docs/commands.md:61 says '/mb help <subcommand> extracts the exact `### <subcommand>` block from commands/mb.md'. commands/done.md:51 says 'through the `commands/mb.md` verify resolver'; this still works through the router, but it is stale. docs/concepts/code-graph.md:173 and session-memory.md:211 cite commands/mb.md as the reference for specific subcommands.",
+      "fix": "Change the text to say `/mb help <sub>` prints references/mb/<sub>.md. Point done.md:51 at `references/mb/verify.md`. Optionally update the two concept-doc pointers."
+    },
+    {
+      "id": "D-R7",
+      "severity": "nit",
+      "file": "tests/bats/test_mb_agree_docs.bats",
+      "line": 7,
+      "problem": "The patch was applied with duplicate lines: `load 'lib/mb_corpus'` appears twice in test_mb_agree_docs, test_mb_brief_docs, test_mb_init_command_docs, test_mb_drive_command and test_drive_command_contract. test_mb_agree_docs.bats:13-16 also assigns MB_CORPUS and runs mb_corpus twice. This is harmless but noisy.",
+      "fix": "Delete the duplicate load lines and the duplicate MB_CORPUS assignment and mb_corpus call."
+    },
+    {
+      "id": "D-R8",
+      "severity": "nit",
+      "file": "commands/mb.md",
+      "line": 96,
+      "problem": "16 router actions are cut off mid-phrase with '...'. For example, drive: '(`work`, `team`,... (see `commands/drive.md`)'. Routing still works because the full text is in each reference file's Router entries, but some rows read as broken.",
+      "fix": "Cut at a clause boundary or rewrite as a short one-line summary. The byte budget has about 4.6 KB of headroom."
+    }
+  ],
+  "summary": "The split itself is sound. A scratch comparison of HEAD:commands/mb.md with the new commands/mb.md plus references/mb/*.md found every old ### section (45 of 45, except help) as a verbatim block in exactly one reference file, and General Rules is still in mb.md. The only rewritten section is `### help`, which is intentional (new router-based algorithm). The only removed lines are the old table rows, the '## Subcommand implementation' heading and some '---' separators. 53 of 55 old router actions survive verbatim in Router entries. compact and init lost their action text (D-R1), which is the one real content loss. Routing: all 55 rows point at an existing file. The setup block, the SKILL_DIR binding, the subagent-dispatch rule, the ARGS_AFTER_* convention, GraphRAG routing and General Rules are all still in mb.md. The Loading-a-route paragraph clearly says to read $SKILL_DIR/references/mb/<name>.md and only that file. /mb help works for every first word but not for context, ask_me or grooming (D-R2). A few pointers still point to sections now in other files (D-R3, D-R4). Tests: the 20-file patch only switches the text source and adds no new skips or deletions, but some router-presence checks are weaker because they now read the corpus (D-R5). Targeted runs were green: 108 pytest (router_targets plus 11 patched files) and 30 bats (agree, brief and init docs). Shipping is fine. install.sh symlinks the whole bundle as the skill alias for every host and copies commands/*.md verbatim. The wheel has shared-data 'references' (the whole directory) and sdist '/references', and the hatch include is now 'references/**/*.md'. The router resolves files through $SKILL_DIR, the same way scripts are resolved, so nothing new is needed on hosts."
+}

@@ -286,3 +286,49 @@ def test_realpath_gate_output_names_the_track_when_the_tree_is_a_symlink(tmp_pat
                        env={**os.environ, "PYTHONHASHSEED": seed})
     assert r.returncode == 1
     assert _statuses(bank) == {"A": "fixing", "B": "done"}, r.stderr
+
+
+def _contract_track(tmp_path: Path, item: str, *, freeze: bool) -> tuple[Path, Path]:
+    """A finished track A whose frozen (or unfrozen) contract has one spec item."""
+    bank, tree = _finished_track(tmp_path, None, "small file\n")
+    path = bank / "contracts" / "a-1.md"
+    path.parent.mkdir()
+    path.write_text(f"# Contract: a-1\n\n## spec\n- REQ-001 a done — `{item}` — exit: 0\n", encoding="utf-8")
+    if freeze:
+        r = subprocess.run([sys.executable, str(SCRIPTS / "mb_contract.py"), "freeze", str(path), "--tree", str(tree)],
+                           capture_output=True, text=True)
+        assert r.returncode == 0, r.stdout + r.stderr
+    team_path = bank / "reports" / "demo" / "team.json"
+    team = json.loads(team_path.read_text(encoding="utf-8"))
+    team["tracks"][0]["contract"] = "contracts/a-1.md"
+    team_path.write_text(json.dumps(team), encoding="utf-8")
+    return bank, tree
+
+
+def test_failing_frozen_contract_item_returns_the_track_to_fixing_and_commits_nothing(tmp_path):
+    bank, tree = _contract_track(tmp_path, "test -f a/never.txt", freeze=True)
+    head = _git(tree, "rev-parse", "HEAD")
+    r = _commit(bank, tree)
+    assert r.returncode == 1
+    assert "contract spec REQ-001" in r.stderr
+    assert _team(bank)["tracks"][0]["status"] == "fixing"
+    assert _git(tree, "rev-parse", "HEAD") == head
+    assert _git(tree, "diff", "--cached", "--name-only") == ""
+
+
+def test_unfrozen_contract_refuses_the_commit(tmp_path):
+    bank, tree = _contract_track(tmp_path, "true", freeze=False)
+    head = _git(tree, "rev-parse", "HEAD")
+    r = _commit(bank, tree)
+    assert r.returncode == 1
+    assert "not frozen" in r.stderr
+    assert _git(tree, "rev-parse", "HEAD") == head
+
+
+def test_frozen_passing_contract_lets_the_commit_through(tmp_path):
+    bank, tree = _contract_track(tmp_path, "test -f a/ok.txt", freeze=True)
+    (tree / "a" / "ok.txt").write_text("ok\n", encoding="utf-8")
+    r = _commit(bank, tree)
+    assert r.returncode == 0, r.stderr
+    assert "a/ok.txt" in _git(tree, "show", "--name-only", "--format=", "HEAD")
+    assert _team(bank)["tracks"][0]["status"] == "done"

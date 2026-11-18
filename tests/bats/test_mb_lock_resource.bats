@@ -173,6 +173,38 @@ hold() { # hold <res> → token of a lease holder
   grep -q 'crashed build' "$BANK/COORDINATION.md"
 }
 
+# lease_meta <until-offset-seconds> <pid> — a lease holder on this host whose lease ends at now+offset.
+lease_meta() {
+  mkdir -p "$T/locks/build.lock"
+  python3 - "$T/locks/build.lock/meta.json" "$1" "$2" <<'PY'
+import json, socket, sys, time
+path, off, pid = sys.argv[1], float(sys.argv[2]), int(sys.argv[3])
+json.dump({"owner": "L", "token": "t", "pid": pid, "pid_start": None, "child": None, "child_start": None,
+           "host": socket.gethostname(), "since": 1, "cmd": "lease", "lease_until": time.time() + off},
+          open(path, "w"))
+PY
+}
+
+@test "lock: a waiter never takes an expired lease (AGR-097); break removes it, a live lease refuses break" {
+  res build
+  sleep 30 &
+  PIDS+=("$!")
+  lease_meta -5 "$!"
+  before="$(cat "$T/locks/build.lock/meta.json")"
+  run lk run build --owner B --wait 1 --resource-json "$T/build.json" -- echo ran
+  [ "$status" -eq 75 ]
+  [[ "$output" != *ran* ]] || false
+  [ "$(cat "$T/locks/build.lock/meta.json")" = "$before" ]
+  run lk break build --reason 'lease ran out' --resource-json "$T/build.json"
+  [ "$status" -eq 0 ]
+  [ ! -e "$T/locks/build.lock" ]
+  grep -q '^## STATUS · .* · resource build: broke dead lock of L' "$BANK/COORDINATION.md"
+  lease_meta 120 "$$"
+  run lk break build --reason early --resource-json "$T/build.json"
+  [ "$status" -eq 1 ]
+  [ -e "$T/locks/build.lock/meta.json" ]
+}
+
 @test "lock: exit 77 when preconditions still fail after maintenance; the command is not run" {
   res build ", \"preconditions\": {\"check\": \"test -f '$T/ok'\"}, \"maintenance\": \"echo m >>'$T/maint'\""
   run lk run build --owner D3 --resource-json "$T/build.json" -- touch "$T/ran"

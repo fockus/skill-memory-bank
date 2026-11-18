@@ -176,7 +176,8 @@ export async function runWork(port) {
           if (!judgment.backlog_items.length) throw new Error('GO_WITH_BACKLOG omitted backlog evidence');
           for (const entry of judgment.backlog_items) {
             if (![entry.title, entry.rationale, entry.source].every(v => typeof v === 'string' && v.trim()) || !['minor', 'major'].includes(entry.severity)) throw new Error('Malformed judge backlog item');
-            await exec('mb-idea.sh', [`${entry.title} — ${entry.rationale} (source: ${entry.source}; native run ${runId})`, entry.severity === 'major' ? 'HIGH' : 'MED', bank]);
+            // Judge items are a deliberate write: --force bypasses only the out-of-scope similarity refusal.
+            await exec('mb-idea.sh', ['--force', `${entry.title} — ${entry.rationale} (source: ${entry.source}; native run ${runId})`, entry.severity === 'major' ? 'HIGH' : 'MED', bank]);
           }
         }
         judgePassed = true;

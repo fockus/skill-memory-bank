@@ -111,7 +111,7 @@
   error, exit ≠ 0.
 
 **DoD:**
-- [~] `import`/`sync`/`list`/`status` reachable via `scripts/mb-openspec.sh`; `/mb openspec` router entry DEFERRED (commands/mb.md under adapter-parity FREEZE — lands when freeze lifts).
+- [x] `import`/`sync`/`list`/`status` reachable via `scripts/mb-openspec.sh`; `/mb openspec` router entry landed in `c89d5fd` (`commands/mb.md` router row + `### openspec` section; verified 2026-11-18).
 - [x] `sync` re-imports only on hash drift (REQ-015).
 - [x] tests pass
 - [x] shellcheck clean
@@ -164,3 +164,44 @@
 - [x] LLM-unavailable falls back deterministically without failing the import (REQ-010).
 - [x] tests pass
 - [x] lint clean
+
+<!-- mb-task:7 -->
+## Task 7: Round-trip groundwork — meta lines, task ids, sync sidecar (AGR-105)
+
+**Covers:** REQ-021, REQ-022, REQ-023, REQ-024, REQ-025, REQ-026
+**Role:** backend
+
+**What to do:**
+- Parser keeps the capability; converter writes the cap/kind meta line, emits RENAMED, merges tasks by `N.M` id and keeps bank Covers/Role.
+- `scripts/mb_openspec_sync.py`: per-unit hashes, sidecar build/read, baseline adoption, bank-edit guard; `import` writes the sidecar atomically before requirements.md.
+- `mb-openspec.sh` usage lists `--normalize`.
+
+**Testing (TDD — tests BEFORE implementation):**
+- `tests/pytest/test_openspec_roundtrip.py`: cap/kind survive, RENAMED imported, reworded `N.M` task keeps state, hand-set Covers/Role kept, sidecar hashes, sidecar crash ordering, baseline adoption (clean, bank edit, conflict, corrupt sidecar, deferred rename), bank-edit guard, spec validation with the sidecar present.
+
+**DoD:**
+- [x] Golden fixtures updated deliberately; every behaviour above red before, green after.
+- [x] tests pass
+- [x] lint clean
+
+<!-- mb-task:8 -->
+## Task 8: Export and per-unit three-way sync (AGR-105)
+
+**Covers:** REQ-026, REQ-027, REQ-028, REQ-029, REQ-030, REQ-031, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036, REQ-037, REQ-038
+**Role:** backend
+
+**What to do:**
+- `sync`/re-`import`: per-unit three-way merge against the sidecar, per-unit splice of the bank files, `sync <topic> --take openspec|bank`.
+- `export <topic>`: dry-run diff by default, `--write`, refuse on OpenSpec drift (no `--force`), `--allow-delete`, write guard limited to the four files of `openspec/changes/<id>/`.
+- `export <topic> --new`: a bank-authored spec becomes a new change and is linked.
+- Split `mb-openspec.py` and `mb_openspec_convert.py` below 300 lines.
+
+**Testing (TDD — tests BEFORE implementation):**
+- `tests/pytest/test_openspec_sync3.py`: OpenSpec-only edit taken with bank sections and task prose kept (sync and re-import), bank-only edit kept and named for export, conflict writes nothing (bytes and mtimes), converged edits, `--take` both ways, OpenSpec tick merged with a bank tick, new requirement placed and numbered, `--take` needs a topic.
+- `tests/pytest/test_openspec_export.py`: round-trip byte identity (widget change and golden fixture), dry-run, splice of changed units only without REQ-IDs, drift refusal, no `--force`, `--allow-delete`, ADDED requirement, write guard, symlinked target, `--new` dry-run, read-back and refusals.
+- `tests/bats/test_mb_openspec.bats`: usage lists `export` and `--take`; dispatcher forwards `export`.
+- `tests/pytest/test_openspec_sync_safety.py` (fix cycle 1): re-import conflict and link checks, unknown checkbox baseline, batch all-or-nothing, error exit code; export compare-and-swap, archive guard, atomic and resumable `--new`.
+
+**DoD:**
+- [x] every behaviour above red before, green after; existing OpenSpec tests green
+- [x] lint clean; touched modules under 300 lines

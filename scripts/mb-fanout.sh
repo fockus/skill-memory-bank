@@ -118,6 +118,7 @@ emit_fallback_aggregate() {
 MB_ARG=""
 CMD=""
 CMD_SET=0
+SEQUENTIAL=0
 MAX_BRANCHES="$DEFAULT_MAX_BRANCHES"
 COST_PER_BRANCH=""
 DRY_RUN=0
@@ -207,7 +208,14 @@ if [ "$CMD_SET" -ne 1 ]; then
   _resolve_rc=$?
   set -e
   if [ "$_resolve_rc" -ne 0 ] || [ -z "$CMD" ]; then
-    die_usage "--cmd omitted and no sub-invoke command resolvable for the active agent (set --cmd / MB_SUBINVOKE_CMD / MB_AGENT)"
+    # T13 (REQ-DF-052/053): last resort, not the default — fall back to the
+    # portable claude-code template and run the branches ONE AT A TIME, loudly.
+    printf '[mb-fanout] WARN: no sub-invoke command resolvable for the active agent — running branches sequentially with the claude-code fallback (set --cmd / MB_SUBINVOKE_CMD / MB_AGENT to fan out)\n' >&2
+    set +e
+    CMD="$(bash "$RESOLVE_BIN" --agent claude-code 2>/dev/null)"
+    set -e
+    [ -n "$CMD" ] || die_usage "no sub-invoke command resolvable, not even the sequential fallback"
+    SEQUENTIAL=1
   fi
   CMD_SET=1
 fi
@@ -394,6 +402,7 @@ while [ "$i" -lt "$N" ]; do
       bash -c "$CMD" >"$out_file" 2>"$err_file"
     printf '%s' "$?" >"$rc_file"
   ) &
+  [ "$SEQUENTIAL" -ne 1 ] || wait
   i=$((i + 1))
 done
 

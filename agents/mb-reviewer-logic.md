@@ -2,6 +2,7 @@
 name: mb-reviewer-logic
 description: Logic/spec-compliance reviewer for Memory Bank governed review ensembles. Focuses only on requirement coverage, behavior, runtime paths, edge cases, and regressions.
 tools: Bash, Read, Grep, Glob, SendMessage
+compose: mb-tooling-core
 color: red
 effort: medium
 ---

@@ -122,7 +122,7 @@ the alias `quality` → `code_rules`.
 `python3 mb_team_config.py resource <name> --mb <bank> --json` → exit 0 / 3 unknown / 2 invalid:
 
 ```json
-{"name": "build", "kind": "mutex", "scope": "host", "path": "/tmp/mb-locks/build",
+{"name": "build", "kind": "mutex", "scope": "host", "path": "/tmp/mb-locks-501/build",
  "preconditions": {"free_disk_gb": 25, "disk_path": "/System/Volumes/Data", "check": "test -x ./ya"},
  "stop_threshold": {"free_disk_gb": 12, "check": null}, "maintenance": "./ya gc cache",
  "watch_interval_s": 30, "poll_s": 5}
@@ -130,7 +130,7 @@ the alias `quality` → `code_rules`.
 
 Check polarity: `preconditions.check` exit 0 = ok; `stop_threshold.check` non-zero exit = the stop threshold is
 breached (same polarity: exit 0 = ok).
-`scope: host` → `${MB_LOCK_DIR:-${TMPDIR:-/tmp}/mb-locks}/<name>`; `scope: bank` → `<bank>/.locks/res/<name>`.
+`scope: host` → `${MB_LOCK_DIR:-/tmp/mb-locks-<uid>}/<name>` (never `TMPDIR`: shells with different `TMPDIR` must share one lock); `scope: bank` → `<bank>/.locks/res/<name>`.
 `mb-lock.sh` also accepts `--resource-json <file>` so it is testable without a pipeline.
 
 ### C4. Lock status JSON

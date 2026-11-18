@@ -1,7 +1,7 @@
 ---
 spec_id: mb-research-tooling-core
 topic: mb-research as a first-class MB agent + shared tooling-core partial
-status: ready
+status: done
 author: brainstorming-session
 created: 2026-06-09
 ---

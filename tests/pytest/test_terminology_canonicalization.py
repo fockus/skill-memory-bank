@@ -15,6 +15,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from mb_corpus import read_mb_corpus
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES_REF = "references/templates.md"
@@ -75,7 +76,7 @@ def test_commands_plan_md_has_hierarchy_reminder() -> None:
 
 
 def test_commands_mb_md_links_to_terminology_reference() -> None:
-    text = _read("commands/mb.md")
+    text = read_mb_corpus()
     assert TEMPLATES_REF in text, (
         "commands/mb.md must cross-link to references/templates.md from the /mb plan section"
     )

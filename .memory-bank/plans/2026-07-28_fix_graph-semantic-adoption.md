@@ -168,6 +168,8 @@ created: 2026-07-28
 <!-- mb-stage:7 -->
 ### Stage 7: Граф в каждом диспатче `/mb work` + замер adoption
 
+> **Progress 2026-11-18 (master-completion Stage 1):** already done — `mb-tooling-core` composed into `mb-developer`, `plan-verifier`, `mb-reviewer` (`8d21698`); graph-first rule in `agents/mb-engineering-core.md:22`. The rest moves to master-completion Stages 3, 5, 7.
+
 **Role:** developer
 
 **What to do:**

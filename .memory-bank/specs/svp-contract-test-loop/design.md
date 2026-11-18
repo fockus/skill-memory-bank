@@ -457,6 +457,11 @@ S5 отсрочила бы немедленный отказ REQ-005 до исч
   использовать его тут значило бы соврать в семантике. Требование переформулируется или явно
   помечается как проверяемое только LLM-ревью.
 
+## Seams
+
+**Seams:**
+- CLI-поверхность детерминированных helper'ов и рендерера (`mb-rules-resolve.sh`, `mb-contract-gate.sh`, `mb-spec-validate.sh`, `mb-sdd-layers-render.py`) — процесс из bats/pytest (stdout + exit-код); существующий шов репозитория, новых не вводится (D-17).
+
 ## Decisions
 
 S8-D-01…11 — в `context/svp-contract-test-loop.md`, подтверждены пользователем как **AGR-018**.
@@ -480,16 +485,24 @@ Red-условие описывает поведение **после матер
 exit-only якорь обманулся бы); `pytest <missing>` → exit 4 + `no tests collected`. Якоря ниже
 именуют **конкретный тест**, поэтому ни один из этих случаев их не матчит.
 
-| Task | Eval | Red-условие ПОСЛЕ материализации + якорь |
-|---|---|---|
-| T1 | `bats tests/bats/test_mb_rules_resolve.bats` | `mb-rules-resolve.sh` не реализован: проектный источник не побеждает fallback → `exit: 1`; `output~: not ok [0-9]+ rules_resolve_project_source_wins` |
-| T2 | `pytest tests/pytest/test_spec_layers.py` | модуль `spec_layers` не реализован: спека без блока не читается как легаси → `exit: 1`; `output~: FAILED tests/pytest/test_spec_layers\.py::test_missing_block_is_legacy` |
-| T3 | `bats tests/bats/test_mb_spec_validate_layers.bats` | гейты слоёв не добавлены: фикстура без контрактной задачи проходит зелёной → `exit: 1`; `output~: not ok [0-9]+ spec_validate_missing_contract_task_fails` |
-| T4 | `pytest tests/pytest/test_sdd_layers_render.py` | рендерер C8 не существует: порядок contract → impl → integration → e2e не рендерится → `exit: 1`; `output~: FAILED tests/pytest/test_sdd_layers_render\.py::test_task_order_contract_impl_integration_e2e` |
-| T5 | `bats tests/bats/test_mb_contract_gate.bats` | `mb-contract-gate.sh` не существует: зелёный-до-реализации чекер не даёт `fake_red` → `exit: 1`; `output~: not ok [0-9]+ contract_gate_fake_red_fails` |
-| T6 | `pytest tests/pytest/test_quality_dod_delivery.py` | доставки нет: три payload не несут байт-идентичный блок → `exit: 1`; `output~: FAILED tests/pytest/test_quality_dod_delivery\.py::test_three_payloads_share_one_sha256` |
-| T7 | `pytest tests/pytest/test_integration_contract_test_loop.py` | связка не собрана: спека со слоями не проходит валидатор → `exit: 1`; `output~: FAILED tests/pytest/test_integration_contract_test_loop\.py::test_REQ_001__contract_task_comes_first` |
-| T8 | `pytest tests/pytest/test_e2e_contract_test_loop.py` | сквозной путь не собран: verify не гоняет чекеры → `exit: 1`; `output~: FAILED tests/pytest/test_e2e_contract_test_loop\.py::test_REQ_020__verify_runs_the_contract_checkers` |
+**Byte-identity design↔tasks (закрывает CPR-D).** Строки `**Eval:**` ниже — **byte-identical** соответствующим `**Eval:**`-строкам одноимённых задач в `tasks.md`; единственный источник истины якоря — задача. Список НАМЕРЕННО не оформлен markdown-таблицей: пайп-таблица вынудила бы экранировать `|` как `\|`, а `\|` в POSIX ERE матчит литерал `|`, а не альтернативу.
+
+- **T1** — Eval задачи 1 (red-условие и якорь ниже в строке):
+  **Eval:** `bats tests/bats/test_mb_rules_resolve.bats` — red: `mb-rules-resolve.sh` не реализован, проектный источник не побеждает fallback; exit: 1; output~: not ok [0-9]+ rules_resolve_project_source_wins
+- **T2** — Eval задачи 2 (red-условие и якорь ниже в строке):
+  **Eval:** `pytest tests/pytest/test_spec_layers.py && bats tests/bats/test_mb_pipeline_sdd_layers.bats` — red: модуль `spec_layers` не реализован, спека без блока не читается как легаси; exit: 1; output~: FAILED tests/pytest/test_spec_layers\.py::test_missing_block_is_legacy
+- **T3** — Eval задачи 3 (red-условие и якорь ниже в строке):
+  **Eval:** `bats tests/bats/test_mb_spec_validate_layers.bats` — red: гейты слоёв не добавлены, фикстура без контрактной задачи проходит зелёной; exit: 1; output~: not ok [0-9]+ spec_validate_missing_contract_task_fails
+- **T4** — Eval задачи 4 (red-условие и якорь ниже в строке):
+  **Eval:** `pytest tests/pytest/test_sdd_layers_render.py` — red: рендерер C8 не существует, порядок contract → impl → integration → e2e не рендерится; exit: 1; output~: FAILED tests/pytest/test_sdd_layers_render\.py::test_task_order_contract_impl_integration_e2e
+- **T5** — Eval задачи 5 (red-условие и якорь ниже в строке):
+  **Eval:** `bats tests/bats/test_mb_contract_gate.bats` — red: `mb-contract-gate.sh` не существует, зелёный-до-реализации чекер не даёт `fake_red`; exit: 1; output~: not ok [0-9]+ contract_gate_fake_red_fails
+- **T6** — Eval задачи 6 (red-условие и якорь ниже в строке):
+  **Eval:** `pytest tests/pytest/test_quality_dod_delivery.py` — red: доставки нет, три payload не несут байт-идентичный блок; exit: 1; output~: FAILED tests/pytest/test_quality_dod_delivery\.py::test_three_payloads_share_one_sha256
+- **T7** — Eval задачи 7 (red-условие и якорь ниже в строке):
+  **Eval:** `pytest tests/pytest/test_integration_contract_test_loop.py` — red: связка не собрана, спека со слоями не проходит валидатор; exit: 1; output~: FAILED tests/pytest/test_integration_contract_test_loop\.py::test_REQ_001__contract_task_comes_first
+- **T8** — Eval задачи 8 (red-условие и якорь ниже в строке):
+  **Eval:** `pytest tests/pytest/test_e2e_contract_test_loop.py` — red: сквозной путь не собран, verify не гоняет контрактные чекеры; exit: 1; output~: FAILED tests/pytest/test_e2e_contract_test_loop\.py::test_REQ_020__verify_runs_the_contract_checkers
 
 ### C8. `scripts/mb-sdd-layers-render.py` — детерминированный шов генерации (закрывает R2-010)
 

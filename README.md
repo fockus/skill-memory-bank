@@ -319,7 +319,7 @@ The agent reads these rules at session start and follows them without you having
 
 ### 3. Dev-workflow commands
 
-**36 top-level slash-commands** (live in `commands/`):
+**39 top-level slash-commands** (live in `commands/`):
 
 | Command | Purpose |
 |---------|---------|
@@ -357,6 +357,9 @@ The agent reads these rules at session start and follows them without you having
 | `/traceability-gen` | Regenerate REQ → Plan → Test traceability matrix |
 | `/goal` | Scaffold + validate the durable `goal.md`/`project.md` Dynamic Flow artifacts |
 | `/analyze-task` | Auto-classify goal + diff scope into a flow route (Dynamic Flow default entry point) |
+| `/critique` | Critique an artifact against an explicit checklist with validator-feedback retries (Dynamic Flow step) |
+| `/risk-find` | List concrete risks of a change and, for a defect, author the failing repro test (Dynamic Flow step) |
+| `/final-report` | Write the closing report of a flow: what changed, evidence, decisions, open follow-ups (Dynamic Flow step) |
 | `/flow` | Explicitly select a flow route, skipping auto-classification (manual override) |
 | `/agree` | Running list of agreements — the canonical registry of confirmed decisions (`add` / `question` / `--supersedes`) |
 

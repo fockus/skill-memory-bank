@@ -244,15 +244,24 @@ uninstall_pi() {
   echo "[pi-adapter] uninstalled from $PROJECT_ROOT"
 }
 
+# Per-agent sub-invoke declaration (dynamic-flow T13, REQ-DF-083): the single source of
+# truth is scripts/mb-subinvoke-resolve.sh (Pi headless `pi -p`, the native non-interactive
+# entry). The operator override is env-u'd so the declaration stays a stable contract; a
+# host that prefers a native parallel feature sets MB_SUBINVOKE_CMD for the fan-out itself.
+pi_subinvoke_cmd() {
+  env -u MB_SUBINVOKE_CMD MB_AGENT=pi bash "$SKILL_DIR/scripts/mb-subinvoke-resolve.sh" --agent pi
+}
+
 case "$ACTION" in
+  subinvoke)                 pi_subinvoke_cmd ;;
   install)                   install_pi ;;
   uninstall)                 uninstall_pi ;;
   install-global-extensions) install_global_extensions ;;
   uninstall-global-extensions) uninstall_global_extensions ;;
   *)
-    echo "Usage: [MB_PI_MODE=agents-md|skill] $0 install|uninstall|install-global-extensions|uninstall-global-extensions [PROJECT_ROOT]" >&2
+    echo "Usage: [MB_PI_MODE=agents-md|skill] $0 install|uninstall|subinvoke|install-global-extensions|uninstall-global-extensions [PROJECT_ROOT]" >&2
     exit 1
     ;;
 esac
 
-adapter_contract_require_functions install_pi uninstall_pi >/dev/null
+adapter_contract_require_functions install_pi uninstall_pi pi_subinvoke_cmd >/dev/null

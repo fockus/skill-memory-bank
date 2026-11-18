@@ -54,12 +54,12 @@ handful also have short aliases (`/start`, `/done`, `/plan`, `/discuss`, `/sdd`,
 
 ```bash
 /mb help                # router table (this page's source of truth)
-/mb help work            # full "### work" section: behavior, examples, underlying scripts
-/mb help compact         # full "### compact" section
+/mb help work            # references/mb/work.md: behavior, examples, underlying scripts
+/mb help compact         # references/mb/compact.md
 ```
 
-`/mb help <subcommand>` extracts the exact `### <subcommand>` block from `commands/mb.md` — the
-same content this page condenses, kept as the single source of truth so the two never drift.
+`/mb help <subcommand>` prints `references/mb/<subcommand>.md` (the file the router in `commands/mb.md`
+names for that subcommand) — the same content this page condenses, kept as the single source of truth so the two never drift.
 
 ## Related
 

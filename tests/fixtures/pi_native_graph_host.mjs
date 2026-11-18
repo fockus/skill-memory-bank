@@ -1,15 +1,29 @@
 // Event harness: the real GraphRAG extension (installed shape, through Pi's own jiti) with real
 // scripts on a real filesystem. Only Pi's tool registry and event dispatch are simulated.
 import { readFile, writeFile, mkdtemp, stat } from 'node:fs/promises';
+import { existsSync, realpathSync } from 'node:fs';
+import { delimiter, dirname } from 'node:path';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { execFileSync } from 'node:child_process';
 
 let raw = '';
 for await (const chunk of process.stdin) raw += chunk;
 const input = JSON.parse(raw);
 const root = process.cwd();
-const packageRoot = process.env.PI_PACKAGE_ROOT || join(execFileSync('npm', ['root', '-g'], { encoding: 'utf8' }).trim(), '@earendil-works/pi-coding-agent');
+// Resolve Pi from the `pi` binary on PATH (realpath -> package root); exit 3 = not installed.
+function piPackageRoot() {
+  if (process.env.PI_PACKAGE_ROOT) return process.env.PI_PACKAGE_ROOT;
+  for (const entry of (process.env.PATH || '').split(delimiter)) {
+    const bin = join(entry, 'pi');
+    if (!entry || !existsSync(bin)) continue;
+    for (let dir = dirname(realpathSync(bin)); dir !== dirname(dir); dir = dirname(dir)) {
+      if (existsSync(join(dir, 'package.json')) && dir.endsWith('pi-coding-agent')) return dir;
+    }
+  }
+  return null;
+}
+const packageRoot = piPackageRoot();
+if (!packageRoot) { console.error('Pi (pi-coding-agent) not found: no `pi` binary on PATH'); process.exit(3); }
 const require = createRequire(join(packageRoot, 'package.json'));
 const { createJiti } = require('jiti');
 const dir = await mkdtemp(join(input.home, 'ext-'));

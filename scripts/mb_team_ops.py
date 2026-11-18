@@ -112,14 +112,19 @@ def cmd_commit(args) -> int:
 def cmd_checkpoint(args) -> int:
     bank, topic = args.mb, st.find_topic(args.mb, args.topic)
     team, cfg = st.load(bank, topic), st.configs(bank)[2]["checkpoint"]
+    default = os.path.normpath(os.path.join(bank, "backups/team"))
     out = os.path.normpath(os.path.join(bank, cfg.get("dir") or "backups/team"))
+    # The default dir is ours; another one must prove it. A symlink at backups/ or backups/team resolves
+    # to some other dir, which is not the default any more (a symlinked bank itself is fine).
+    adopt = out == default and os.path.realpath(out) == os.path.join(os.path.realpath(bank), "backups", "team")
     tool = ["bash", st.script("mb-team-checkpoint.sh")]
     if args.verify:
         r = st.run([*tool, "verify", "--dir", out, args.verify])
         print(f"{args.verify}: {'ok' if r.returncode == 0 else 'MISMATCH'}{r.stderr.strip() and chr(10) + r.stderr.strip()}")
         return r.returncode
     r = st.run([*tool, "create", "--tree", team["tree"], "--baseline", team["baseline"], "--topic", topic,
-                "--dir", out, "--label", args.label or "cp", "--max-untracked-mb", str(cfg.get("max_untracked_mb", 512))])
+                "--dir", out, "--label", args.label or "cp", "--max-untracked-mb", str(cfg.get("max_untracked_mb", 512)),
+                *(["--adopt"] if adopt else [])])
     sys.stderr.write(r.stderr)
     if r.returncode != 0:
         raise TeamError("checkpoint failed", 2 if r.returncode == 2 else 1)

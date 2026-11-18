@@ -244,3 +244,87 @@ def test_missing_project_dir_exits_nonzero_with_message(tmp_path: Path) -> None:
 
     assert proc.returncode != 0
     assert "nope" in proc.stderr
+
+
+# ── graph_share ──────────────────────────────────────────────────────
+
+
+def _assistant(*tool_uses: dict) -> str:
+    return json.dumps(
+        {
+            "type": "assistant",
+            "timestamp": "2026-09-06T10:00:00Z",
+            "message": {"content": [{"type": "tool_use", **tu} for tu in tool_uses], "usage": {}},
+        }
+    )
+
+
+def _bash(command: str) -> dict:
+    return {"name": "Bash", "input": {"command": command}}
+
+
+def test_graph_share_counts_graph_calls_against_grep_calls(tmp_path: Path) -> None:
+    transcript = tmp_path / "mixed.jsonl"
+    transcript.write_text(
+        "\n".join(
+            [
+                _assistant(_bash("bash scripts/mb-graph.sh who-calls Foo")),
+                _assistant(_bash("bash scripts/mb-graph.sh impact Foo | grep -c x")),
+                _assistant({"name": "Grep", "input": {"pattern": "foo"}}),
+                _assistant(_bash("rtk grep -rn foo src/")),
+                _assistant(_bash("git status")),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    stats = cost_report.session_stats(transcript)
+
+    assert stats["graph_calls"] == 2
+    assert stats["grep_calls"] == 2
+    assert stats["graph_share"] == pytest.approx(0.5)
+
+
+def test_graph_share_is_null_without_graph_or_grep_calls(tmp_path: Path) -> None:
+    transcript = tmp_path / "quiet.jsonl"
+    transcript.write_text(_assistant(_bash("git status")) + "\n", encoding="utf-8")
+
+    stats = cost_report.session_stats(transcript)
+
+    assert stats["graph_calls"] == 0
+    assert stats["grep_calls"] == 0
+    assert stats["graph_share"] is None
+
+
+def test_build_report_graph_share_per_role_and_overall(tmp_path: Path) -> None:
+    (tmp_path / "sess.jsonl").write_text(
+        _assistant(_bash("bash scripts/mb-graph.sh tests Foo")) + "\n", encoding="utf-8"
+    )
+    subs = tmp_path / "sess" / "subagents"
+    subs.mkdir(parents=True)
+    prompt = json.dumps({"type": "user", "message": {"content": "# MB Engineering Core\nx"}})
+    (subs / "impl.jsonl").write_text(
+        "\n".join([prompt, _assistant({"name": "Grep", "input": {}}), _assistant(_bash("rg foo"))])
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = cost_report.build_report(tmp_path, now=NOW)
+
+    assert report["roles"]["implementer"]["graph_share"] == pytest.approx(0.0)
+    assert report["graph_share"] == pytest.approx(1 / 3, abs=1e-3)
+
+
+def test_graph_share_present_in_json_and_text_output() -> None:
+    cmd = [sys.executable, str(SCRIPT), "--project", str(FIXTURES)]
+    as_json = subprocess.run(
+        [*cmd, "--json"], capture_output=True, text=True, check=False, cwd=REPO_ROOT
+    )
+    as_text = subprocess.run(cmd, capture_output=True, text=True, check=False, cwd=REPO_ROOT)
+
+    assert as_json.returncode == 0, as_json.stderr
+    payload = json.loads(as_json.stdout)
+    assert "graph_share" in payload
+    assert "graph_share" in payload["roles"]["implementer"]
+    assert "graph_share" in as_text.stdout

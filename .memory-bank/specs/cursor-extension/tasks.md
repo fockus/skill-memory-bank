@@ -178,8 +178,8 @@ When `handoff-v2` lands, update Cursor `EVENT_BINDINGS` + docs for `mb-pre-compa
 - When handoff-v2 lands: extend `tests/bats/test_cursor_adapter.bats` to assert the renamed hook (`mb-pre-compact.sh`) is registered in `hooks.json` and the old name is absent from the generated bindings.
 
 **DoD:**
-- [ ] Cursor adapter registers renamed hook
-- [ ] Old copy removed from MB_HOOKS if renamed
+- [x] Cursor adapter registers renamed hook (`adapters/cursor.sh:62`)
+- [x] Old copy removed from MB_HOOKS if renamed (`LEGACY_MB_HOOKS`, `adapters/cursor.sh:211-227`; test `test_cursor_adapter.bats:374`)
 
 ---
 

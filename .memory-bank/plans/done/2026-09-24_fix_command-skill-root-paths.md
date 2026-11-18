@@ -1,7 +1,7 @@
 ---
 type: fix
 topic: command-skill-root-paths
-status: in_progress
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: []

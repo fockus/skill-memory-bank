@@ -333,6 +333,11 @@ path=<p>` — всё до записи кандидата). Без них Task 1
   уронить клаузу при живой теме). Голый `grep -q <слово>` и co-occurrence двух слов запрещены как
   assertion-гейт.
 
+## Seams
+
+**Seams:**
+- CLI-поверхность `scripts/mb-brief.sh`, `scripts/mb-brief-validate.sh`, `scripts/mb-secret-scan.sh --policy brief-input` — процесс из bats (stdout `key=value` + exit-код); клаузы prompt-файлов (`commands/brief.md`, `commands/discuss.md`, `commands/mb.md`) проверяются харнессом S1-C9 на том же bats-шве, поэтому шов один и уже существует в репозитории (D-17).
+
 ## Decisions
 
 Assumptions S7-A-01…04 (подтверждены 2026-07-17) + D-34 — в context-файлах; не дублируются.

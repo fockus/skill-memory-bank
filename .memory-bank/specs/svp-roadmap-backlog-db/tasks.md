@@ -103,7 +103,7 @@
 **Covers:** REQ-009, REQ-010, REQ-011
 **Role:** backend
 **Blocked-by:** 2, 9
-**Scope:** scripts/mb-backlog-migrate.sh, tests/bats/test_mb_backlog_migrate.bats, tests/fixtures/**
+**Scope:** scripts/mb-backlog-migrate.sh, scripts/mb_backlog_migrate.py, tests/bats/test_mb_backlog_migrate.bats, tests/fixtures/**
 **Budget:** 100000
 
 **What to do:**
@@ -124,9 +124,9 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] C4 реализован полностью по финальной таблице; мигратор пишет под общим lock'ом атомарно
-- [ ] Grandfather-предикат переживает миграцию (нет `Type: IDEA` на исторических записях)
-- [ ] bats green (были red)
+- [x] C4 реализован полностью по финальной таблице; мигратор пишет под общим lock'ом атомарно
+- [x] Grandfather-предикат переживает миграцию (нет `Type: IDEA` на исторических записях)
+- [x] bats green (были red)
 <!-- /mb-task:3 -->
 
 <!-- mb-task:6 -->
@@ -171,7 +171,7 @@
 **Covers:** REQ-006
 **Role:** backend
 **Blocked-by:** 2
-**Scope:** scripts/mb-backlog-state.sh, tests/bats/test_mb_backlog_state_hierarchy.bats
+**Scope:** scripts/mb-backlog-state.sh, scripts/mb_backlog_state_engine.py, tests/bats/test_mb_backlog_state_hierarchy.bats
 **Budget:** 70000
 
 **What to do:**
@@ -189,9 +189,9 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] Иерархия + грамматика `item=… depth=… title=<JSON>` реализованы для `list` и `list --tree`
-- [ ] Fail-fast (missing_parent/parent_cycle) без частичного вывода
-- [ ] bats green (были red)
+- [x] Иерархия + грамматика `item=… depth=… title=<JSON>` реализованы для `list` и `list --tree`
+- [x] Fail-fast (missing_parent/parent_cycle) без частичного вывода
+- [x] bats green (были red)
 <!-- /mb-task:7 -->
 
 <!-- mb-task:9 -->
@@ -201,7 +201,7 @@
 **Covers:** REQ-005, REQ-011, NFR-003
 **Role:** backend
 **Blocked-by:** 2
-**Scope:** scripts/_lib.sh, scripts/mb-idea.sh, scripts/mb-idea-promote.sh, tests/bats/test_mb_backlog_id_alloc.bats, tests/bats/test_mb_idea_promote_v2.bats
+**Scope:** scripts/_lib.sh, scripts/mb-idea.sh, scripts/mb-idea-promote.sh, scripts/mb_backlog_state_engine.py, scripts/mb_backlog_similar.py, tests/bats/test_mb_backlog_id_alloc.bats, tests/bats/test_mb_idea_promote_v2.bats
 **Budget:** 110000
 
 **What to do:**
@@ -223,10 +223,10 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] `mb_next_backlog_id` — единственный аллокатор; коллизия I-079 воспроизведена тестом и не повторяется; самодельный аллокатор в `mb-idea.sh` удалён
-- [ ] `mb-idea-promote.sh` не пишет `PLANNED` ни в одной ветке; единственный переход — READY→IN-PROGRESS через общий примитив
-- [ ] Старые позиционные вызовы `mb-idea.sh` byte-identical; `--force`/`--` разобраны по C3
-- [ ] bats green (были red)
+- [x] `mb_next_backlog_id` — единственный аллокатор; коллизия I-079 воспроизведена тестом и не повторяется; самодельный аллокатор в `mb-idea.sh` удалён
+- [x] `mb-idea-promote.sh` не пишет `PLANNED` ни в одной ветке; единственный переход — READY→IN-PROGRESS через общий примитив
+- [x] Старые позиционные вызовы `mb-idea.sh` byte-identical; `--force`/`--` разобраны по C3
+- [x] bats green (были red)
 <!-- /mb-task:9 -->
 
 <!-- mb-task:8 -->
@@ -236,7 +236,7 @@
 **Covers:** REQ-008, REQ-009
 **Role:** backend
 **Blocked-by:** 2, 7, 9
-**Scope:** scripts/mb-backlog-state.sh, scripts/mb-idea.sh, tests/bats/test_mb_backlog_out_of_scope.bats
+**Scope:** scripts/mb-backlog-state.sh, scripts/mb-idea.sh, scripts/mb_backlog_state_engine.py, scripts/mb_backlog_blocks.py, scripts/mb_backlog_similar.py, tests/bats/test_mb_backlog_out_of_scope.bats
 **Budget:** 110000
 
 **What to do:**
@@ -255,9 +255,9 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] WONTFIX-перенос + similarity-хук реализованы; SPEC-записи гейт не блокирует
-- [ ] `mb-idea.sh` пишет typed SPEC-запись сразу; паритет с мигратором доказан тестом (мигратор = no-op)
-- [ ] bats green (были red)
+- [x] WONTFIX-перенос + similarity-хук реализованы; SPEC-записи гейт не блокирует
+- [x] `mb-idea.sh` пишет typed SPEC-запись сразу; паритет с мигратором доказан тестом (мигратор = no-op)
+- [x] bats green (были red)
 <!-- /mb-task:8 -->
 
 <!-- mb-task:4 -->
@@ -267,7 +267,7 @@
 **Covers:** REQ-004, REQ-012
 **Role:** backend
 **Blocked-by:** 1, 2, 6, 7
-**Scope:** scripts/mb-bank-lint.sh, tests/bats/test_mb_bank_lint.bats
+**Scope:** scripts/mb-bank-lint.sh, scripts/mb_bank_lint.py, scripts/mb_bank_lint_roadmap.py, scripts/mb_bank_lint_backlog.py, tests/bats/test_mb_bank_lint.bats
 **Budget:** 100000
 
 **What to do:**
@@ -289,8 +289,8 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] C5 реализован (15 кодов, детерминированный порядок, read-only); `legacy_state`/`invalid_state` разделены
-- [ ] bats green (были red)
+- [x] C5 реализован (15 кодов, детерминированный порядок, read-only); `legacy_state`/`invalid_state` разделены
+- [x] bats green (были red)
 <!-- /mb-task:4 -->
 
 <!-- mb-task:5 -->
@@ -300,22 +300,22 @@
 **Covers:** REQ-001, REQ-002, REQ-003, REQ-005, REQ-006, REQ-007, REQ-008, REQ-009
 **Role:** developer
 **Blocked-by:** 1, 2, 3, 4, 6, 7, 8, 9
-**Scope:** commands/mb.md, references/templates.md, CLAUDE.md, tests/bats/test_mb_roadmap_backlog_docs.bats
+**Scope:** references/mb/idea.md, references/mb/idea-promote.md, references/templates.md, CLAUDE.md, tests/bats/test_mb_roadmap_backlog_docs.bats
 **Budget:** 60000
 
 **What to do:**
-- Обновить `commands/mb.md` (idea/idea-promote/agree-блоки: машина `NEW→NEEDS-INFO⇄TRIAGED→READY→IN-PROGRESS→DONE|WONTFIX`, `**Type:**`/`**Parent:**`/`**Brief:**`, synopsis `mb-backlog-state.sh`/`mb-bank-lint.sh`/`mb-backlog-migrate.sh`, идентичный `--help` скриптов).
+- Обновить `references/mb/idea.md` и `references/mb/idea-promote.md` (`commands/mb.md` теперь роутер; idea/idea-promote-блоки: машина `NEW→NEEDS-INFO⇄TRIAGED→READY→IN-PROGRESS→DONE|WONTFIX`, `**Type:**`/`**Parent:**`/`**Brief:**`, synopsis `mb-backlog-state.sh`/`mb-bank-lint.sh`/`mb-backlog-migrate.sh`, идентичный `--help` скриптов).
 - **Задокументировать смену поведения `mb-idea-promote.sh`** (design.md C7): promote требует `READY`; путь `NEW → NEEDS-INFO → TRIAGED → READY (нужен Brief) → promote`; токен `PLANNED` больше не пишется, легаси-`PLANNED` мигрируется в `IN-PROGRESS`. Это единственная ломающая привычки правка слайса — она обязана быть в доках, а не только в stderr.
 - Обновить `references/templates.md`: frontmatter-схема `group`/`ice: {impact, confidence, ease}` (1..10, score = I×C×E считает скрипт)/`ice_confirmed`/`pin`/`blocked_by` для спек и планов (design.md C1).
 - Обновить `CLAUDE.md`-инварианты: стейт-машина вместо `NEW/TRIAGED/PLANNED/DONE/DECLINED/DEFERRED`; I-NNN аллоцируется глобально по банку одним хелпером (design.md C6).
 
-**Eval:** `bats tests/bats/test_mb_roadmap_backlog_docs.bats` — red: bats-файл материализован; `commands/mb.md`, `references/templates.md` и `CLAUDE.md` не обновлены — кейсы сверки доков с реализацией падают; exit: 1; output~: `not ok [0-9]+ roadmap_backlog_docs: `
+**Eval:** `bats tests/bats/test_mb_roadmap_backlog_docs.bats` — red: bats-файл материализован; `references/mb/idea.md`, `references/mb/idea-promote.md`, `references/templates.md` и `CLAUDE.md` не обновлены — кейсы сверки доков с реализацией падают; exit: 1; output~: `not ok [0-9]+ roadmap_backlog_docs: `
 
 **Testing (TDD — tests BEFORE implementation):**
 - **Конвенция именования (обязательна — она и есть red-якорь)**: имя каждого bats-теста файла начинается с `roadmap_backlog_docs: ` (обоснование — то же, что в T1).
-- bats извлекает документированные блоки и assert-ит точное совпадение с реализацией: полный список допустимых переходов; READY-брифо-гейт; WONTFIX reason/out-of-scope; promote требует READY и `PLANNED` не пишется; frontmatter-поля `topic/group/ice{impact,confidence,ease}/ice_confirmed/pin/status/created/blocked_by` документированы; CLI synopsis в `commands/mb.md` совпадает с `--help`/usage-комментарием каждого нового скрипта; `CLAUDE.md` содержит инвариант state-машины и глобального аллокатора.
+- bats извлекает документированные блоки и assert-ит точное совпадение с реализацией: полный список допустимых переходов; READY-брифо-гейт; WONTFIX reason/out-of-scope; promote требует READY и `PLANNED` не пишется; frontmatter-поля `topic/group/ice{impact,confidence,ease}/ice_confirmed/pin/status/created/blocked_by` документированы; CLI synopsis в `references/mb/idea.md` совпадает с `--help`/usage-комментарием каждого нового скрипта; `CLAUDE.md` содержит инвариант state-машины и глобального аллокатора.
 
 **DoD:**
-- [ ] Доки обновлены по всем пунктам, включая смену поведения promote
-- [ ] bats green (был red)
+- [x] Доки обновлены по всем пунктам, включая смену поведения promote
+- [x] bats green (был red)
 <!-- /mb-task:5 -->

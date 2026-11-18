@@ -40,13 +40,9 @@ KNOWN_FAILING = {
     "mb-team": "requirements.md + design.md only — the tasks live in plans/2026-10-10_feature_mb-team.md",
     "parallel-team-execution": "REQ-PTE-070/071/072 are orphans: no task Covers them",
     "sdd-vision-pipeline": "umbrella: 53 gated REQs have no covering Eval, 10 CPR-D drifts, no Seams block",
-    "svp-adapt-escalation": "5 CPR-D drifts, no Seams block, and 2 tasks whose Eval tests are not written yet",
-    "svp-brief": "no Seams block; task 3's Eval test drives scripts/mb-brief.sh, so it is not structural",
-    "svp-contract-test-loop": "8 CPR-D drifts and no Seams block",
     "svp-docs-wiki": "7 CPR-D drifts, no Seams block, task 5's Eval test is not written yet",
     "svp-interview-upgrade": "6 CPR-D drifts and no Seams block",
     "svp-parallel-engine": "10 CPR-D drifts and no Seams block",
-    "svp-roadmap-backlog-db": "9 CPR-D drifts, no Seams block, task 5's Eval test is not written yet",
     "svp-spec-review-loop": "REQ-014..017 orphans, 4 gated REQs without Eval, 5 CPR-D drifts, no Seams block",
 }
 

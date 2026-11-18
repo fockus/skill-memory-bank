@@ -1,0 +1,57 @@
+{
+  "verdict": "GO_WITH_BACKLOG",
+  "reasons": [
+    "Tests green, re-run by the judge: PYTHONPATH=. pytest tests/pytest/test_openspec_*.py -> 144 passed; bats tests/bats/test_mb_openspec.bats -> 18/18 ok; ruff clean on scripts/mb_openspec_*.py and mb-openspec.py; mb-spec-validate openspec-adapter rc=0; mypy shows only the pre-existing convert.py:185 error.",
+    "Core safety promise holds in a scratch copy of the golden fixture. (1) Import, then export with no edits: 'nothing to export' for both dry-run and --write; every OpenSpec file byte-identical by sha. (2) Editing the same requirement on both sides: sync exits 1 with a conflict report, and re-import exits 1 too; every bank file keeps its sha and mtime; export refuses because OpenSpec drifted. (3) After sync --take bank, export --write changed only openspec/changes/<id>/specs/change-tracking/spec.md plus the bank's own requirements.md hash and sidecar (the intended rebaseline); no file outside the change dir and no leftover temp files; the follow-up sync and export are no-ops.",
+    "Blocker A (shared scenarios outside the requirement unit) is FIXED. bank_units/splice/export now fold every Covers-linked shared mb-scenario block into the requirement unit (mb_openspec_spans.shared_scenarios, mb_openspec_sync.bank_units). Judge probe after export --new: editing the shared scenario in the bank exported it into both OpenSpec requirement blocks; an OpenSpec edit to one requirement's copy synced cleanly, the scenario moved inline for REQ-001, the shared block's Covers narrowed to REQ-003, no scenario was lost or duplicated, and export/sync are no-ops afterwards. Regression tests test_export_after_new_keeps_the_scenarios_of_an_edited_requirement and test_sync_after_new_takes_an_openspec_edit_without_duplicating_shared_scenarios pass.",
+    "Blocker B (incomplete existing topic skipped the link check) is FIXED. mb_openspec_ops.run_import checks openspec_source for any existing specs/<topic>/ before it checks completeness. Judge probe: a topic with only requirements.md (unlinked), one with only tasks.md, and one linked but missing tasks.md were each refused with exit 1 and left byte-identical.",
+    "Major 1 (batch sync not transactional) is FIXED for the reviewed failure mode. mb_openspec_publish.publish_topics re-reads every triple, stages every file (backlog included) as a .staged sibling, removes the staged files if anything fails before the renames, and only then runs os.replace. test_batch_sync_write_failure_leaves_every_topic_untouched shows a write failure in topic 2 leaves the whole bank unchanged. What remains, a failure partway through the os.replace loop, needs a filesystem fault during a same-directory rename after staging succeeded; that is backlog, not a blocker.",
+    "Majors 2-4 (TOCTOU in batch sync, export rebaseline, export --new): the one-bank-lock decision adequately covers them for this tool's real usage. The realistic concurrent writer is a second mb-openspec run from another session or agent, and an flock on <bank>/specs held across import, sync, export and export --new now serialises those runs completely (tested: a second sync blocks, then completes). For writers that do not take the lock (a person or /mb work editing the bank, someone editing OpenSpec), the triple and the OpenSpec bytes are re-read under the lock just before writing, so the window shrinks to the gap between that re-read and a rename. No CLI can close that gap against a non-cooperating editor without OS-level mandatory locking. No reproducible data-loss path in normal use remains, so the residual goes to backlog.",
+    "Medium 1 (task added on both sides with different ticks) is FIXED: _unknown_tick treats a missing baseline like UNKNOWN, and a test covers it. Medium 2 (rename could replace a concurrently created empty dir) is FIXED: an exclusive os.mkdir reservation, then a rename over its own empty reservation; a test covers it.",
+    "Stage 9 DoD: the round-trip golden, the both-changed conflict with nothing touched (mtime and hash), the write guard limited to the change dir, --new read-back against a golden triple, the bank-added design section surviving import and sync (test_openspec_sync3), and ruff clean are all met. On the DoD item 'external review has no blocker/major open': codex has not re-reviewed the cycle-2 fixes, because the fix budget ran out. The judge verified each open cycle-2 item independently, as listed above, and finds no blocker or major left that blocks acceptance. The orchestrator should record that this DoD item was closed by the judge, not by a third codex pass (see backlog).",
+    "Convergence: this is a later cycle. Every cycle-2 blocker is fixed, no regression showed up in the tests or probes, so per the monotonic-gate rule the verdict is GO_WITH_BACKLOG."
+  ],
+  "blocking": [],
+  "backlog": [
+    {
+      "title": "OpenSpec adapter: residual race against bank/OpenSpec editors that do not take the lock",
+      "severity": "minor",
+      "evidence": "scripts/mb_openspec_export.py:270-289 (rebaseline re-reads the triple, then writes requirements.md), scripts/mb_openspec_publish.py:75-97, scripts/mb_openspec_export_new.py bank writes. Concurrent mb-openspec runs are serialised by bank_lock; a person or /mb work editing the same file between the under-lock re-read and os.replace can still be overwritten. Option: compare mtime_ns/inode immediately before each replace, and have /mb work take the same bank_lock. Source: codex cycle-2 majors 2-4, judge."
+    },
+    {
+      "title": "publish_topics: a rename failing mid-batch leaves a partial publication, and a crash leaves .staged files",
+      "severity": "minor",
+      "evidence": "scripts/mb_openspec_publish.py:96-97 runs os.replace in a loop with no journal; a crash after staging leaves .<name>.<tag>.staged files in specs/<topic>/ and <bank>/ with no sweep. Option: write a small journal, or sweep or roll forward stale .staged files on the next run. Source: executor's known limits, codex cycle-2 major 1."
+    },
+    {
+      "title": "bank_lock: no timeout and no 'waiting for lock' message",
+      "severity": "minor",
+      "evidence": "scripts/mb_openspec_bank.py:130-141 uses a blocking flock through mb_fs_atomic._dir_lock. A hung mb-openspec process blocks every other import/sync/export, including dry runs, without any output. Option: try LOCK_NB first and print 'waiting for another OpenSpec operation', optionally with a timeout. Source: executor's known limits."
+    },
+    {
+      "title": "bank_lock imports the private mb_fs_atomic._dir_lock",
+      "severity": "minor",
+      "evidence": "scripts/mb_openspec_bank.py:19,30 import a private name across modules; promote it to a public dir_lock in mb_fs_atomic.py. Source: judge."
+    },
+    {
+      "title": "export --new can create an OpenSpec requirement with no scenario",
+      "severity": "minor",
+      "evidence": "Judge probe: in the authored 'gadgets' topic REQ-002 has no covering scenario, so the created spec.md has '### Requirement: Gadget Store 2' with no '#### Scenario:', and re-reading it warns 'has no scenarios; using a deterministic stub'. OpenSpec's own validator may reject a requirement without a scenario (not run here). Option: warn or refuse in --new when a REQ has no covering scenario. Source: judge."
+    },
+    {
+      "title": "Cosmetic: after sync moves a shared scenario inline, no blank line separates it from the next requirement",
+      "severity": "minor",
+      "evidence": "Judge probe: after sync takes the OpenSpec edit, '<!-- /mb-scenario:1 -->' is followed directly by the next '<!-- openspec: ... -->' meta line, and mb-scenario markers are renumbered. Content and hashes are correct; only readability suffers. Source: judge."
+    },
+    {
+      "title": "External codex re-review of the cycle-2 fixes (shared scenarios, publish, bank lock) during Stage 10 review",
+      "severity": "minor",
+      "evidence": "The Stage 9 DoD item 'external review has no blocker/major open' was closed by the judge after the fix budget ran out (cycle-2 majors stayed open in B3-review-cycle2.json). Fold a codex pass over mb_openspec_publish.py, mb_openspec_spans.py and mb_openspec_splice.py into the Stage 10 review. Source: judge."
+    },
+    {
+      "title": "Pre-existing mypy error in mb_openspec_convert.py:185",
+      "severity": "minor",
+      "evidence": "mypy scripts/mb_openspec_*.py reports '[attr-defined] \"object\" has no attribute \"__iter__\"' at convert.py:185; it predates B3. Source: judge."
+    }
+  ]
+}

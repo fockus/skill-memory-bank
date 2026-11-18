@@ -1,0 +1,63 @@
+{
+  "cycle": 4,
+  "verdict": "CHANGES_REQUESTED",
+  "counts": {
+    "blocker": 0,
+    "major": 0,
+    "medium": 1,
+    "minor": 0,
+    "nit": 0
+  },
+  "previous": [
+    {
+      "id": "C3-M1",
+      "status": "resolved",
+      "scope_note": "Resolved for the cases it named: a populated source dir (src) or the bank itself, where the files have ordinary names. The new guard's name matcher is too loose and can still be spoofed. That residue is tracked as C4-M1.",
+      "evidence": "scripts/mb-team-checkpoint.sh:31-43 classifies --dir as contains/outside/foreign/inside before any mkdir, chmod or write, and exits 2 on 'foreign'. :48-51 apply chmod 700 and the `*` .gitignore only when the dir was created by this call or is 'inside'. tests/bats/test_mb_team_checkpoint.bats:155-166 is green. Scratch c4r/run.sh case 5 (--dir=<tree>/src) gives rc 2, mode 755 kept, no tar, and src/work.txt plus a later src/later.txt both show in git status. Case 6 (--dir=<tree>/.memory-bank) gives rc 2 and .memory-bank/note.md stays visible. Scratch c4r/run2.sh: p4 (notes.md), p5 (hidden .env) and p6 (subdir sub/f) each give rc 2, an unchanged listing, mode 755 and the file still in git status. p1 (empty dir), p2 (own `*` .gitignore) and p3 (prior artifacts plus .gitignore) are accepted."
+    },
+    {
+      "id": "C3-n1",
+      "status": "resolved",
+      "evidence": "scripts/mb-team-checkpoint.sh:45 `mkdir -p \"$out\" || exit 2`. tests/bats/test_mb_team_checkpoint.bats:168-172 is green. Scratch c4r/run.sh case 9 (dangling symlink) gives rc 2."
+    },
+    {
+      "id": "C2-n1",
+      "status": "resolved",
+      "evidence": "tests/pytest/test_mb_lock_queue.py:88-89 now has two blank lines before `def _ps`, and test_mb_team_state.py:123-124 has two before `def test_next_team_review_when_enabled_and_all_finished`. `ruff check --select E3 --preview` is clean on both files."
+    }
+  ],
+  "issues": [
+    {
+      "id": "C4-M1",
+      "severity": "medium",
+      "lenses": ["logic", "data-safety"],
+      "file": "scripts/mb-team-checkpoint.sh",
+      "line": 33,
+      "problem": "The artifact-only guard can be spoofed. The `own` regex accepts any entry whose name merely ends with an artifact suffix, such as `.+\\.diff`, `.+\\.sha256` or `\\..+\\.(changed|untracked)`. It also accepts any entry type, including directories and symlinks. So a populated user dir inside the tree still passes as 'inside' and gets the C3-M1 treatment: chmod 700, a self-hiding `*` .gitignore, and its untracked contents left out of the tar by the self-exclusion filter, with rc 0 and no warning. This was reproduced in scratch c4r/run2.sh against --dir=<tree>/d. p9: a user patch d/fix.diff (a realistic `patches/` dir) gives rc 0, mode 755->700, a `*` .gitignore, a tar of only new.txt, and fix.diff gone from git status. p10: release.sha256 behaves the same. p11: a subdir d/work.diff/ holding a.md is accepted, and a.md is hidden and left out of the tar, which breaks the 'any subdirectory -> exit 2' rule. p12: a hidden d/.secret.untracked behaves the same. p13: a symlink link.diff is accepted. Nothing is deleted, but the user files vanish from git status and from every later checkpoint and `team commit`. That is the same consequence class as C3-M1.",
+      "fix": "In the python classifier, treat an entry as an artifact only when (a) it is a regular file (`os.path.isfile(p) and not os.path.islink(p)`), and (b) its name has the shape this script writes. Anchor the name to the cid timestamp: `^(\\.gitignore|\\d{4}-\\d{2}-\\d{2}-\\d{6}-.+(\\.diff|-manifest\\.json|-untracked\\.tar\\.gz|\\.sha256)|\\.\\d{4}-\\d{2}-\\d{2}-\\d{6}-.+\\.(changed|untracked))$`. Add one bats test: an existing in-tree dir holding an untracked `fix.diff`, and a second case with a subdir named `work.diff/`, each exits 2 with no .gitignore, mode kept, and the file still in git status. The existing tests 11 and 12 and p1-p3 stay accepted, because they hold only real artifact names or a .gitignore.",
+      "owner": "C"
+    }
+  ],
+  "not_raised": [
+    {
+      "topic": "lone user .gitignore",
+      "decision": "Not raised. This differs from the orchestrator brief, which expected exit 2, so the orchestrator should decide.",
+      "rationale": "Scratch p7 (an empty .gitignore) and p8 (a `*.log` .gitignore) are accepted with rc 0. The user's .gitignore is kept unchanged and no user file is hidden or lost. The dir gets chmod 700 and the checkpoint files appear in git status. tests/bats/test_mb_team_checkpoint.bats:120-130 (test 12) pins this acceptance, and cycle 3 recorded it as by design: the script respects the user's .gitignore, and git status shows the files, so nothing is hidden. Changing it to exit 2 would mean reversing test 12 and the default-dir behaviour it covers. That is a design choice, not a defect."
+    }
+  ],
+  "backlog_candidates_carried": "Cycle-1 minors and nits stay deferred, unchanged, as recorded in cycles 2 and 3.",
+  "reviewers_consulted": [
+    "mb-reviewer-lead (independent re-review: read the code and fix diff, reran the 11 cycle-3 scratch cases, ran 13 new artifact-only probes, ran the scoped suites)"
+  ],
+  "verification": {
+    "bats": "bats tests/bats/test_mb_team_checkpoint.bats tests/bats/test_mb_team_cli.bats tests/bats/test_mb_team_hardening.bats: 1..35, 35 ok, 0 not ok, exit 0",
+    "pytest": "PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_*.py tests/pytest/test_mb_lock_queue.py: 276 passed, exit 0",
+    "shellcheck": "shellcheck scripts/mb-team-checkpoint.sh: clean. With -x --source-path=SCRIPTDIR: clean",
+    "ruff": "ruff check, and ruff check --select E3 --preview, on test_mb_lock_queue.py and test_mb_team_state.py: clean",
+    "scratch": [
+      "/private/tmp/claude-502/-Users-fockus-Apps-skill-memory-bank/dc795ad2-23d2-4e73-bc4c-6c49e807e25c/scratchpad/c4r/run.sh",
+      "/private/tmp/claude-502/-Users-fockus-Apps-skill-memory-bank/dc795ad2-23d2-4e73-bc4c-6c49e807e25c/scratchpad/c4r/run2.sh"
+    ]
+  },
+  "notes": "Not clean: one medium is open. C3-M1, C3-n1 and C2-n1 are closed with evidence. The 11 cycle-3 edge cases still pass: symlinks, relative paths, the repo root above a sub-tree, the prefix sibling, a dir outside the tree with spaces, and an in-tree dir with its own .gitignore. The rest of the fix diff adds no other regressions. C4-M1 is a narrow tightening of the new matcher: anchor names to the cid shape and accept regular files only. It needs one more bats case."
+}

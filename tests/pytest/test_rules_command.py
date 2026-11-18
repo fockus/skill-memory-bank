@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
+from mb_corpus import read_mb_router
 
 REPO = Path(__file__).resolve().parents[2]
 RULES_CMD = REPO / "commands" / "rules.md"
@@ -30,7 +31,7 @@ def test_rules_command_documents_every_subcommand_and_scope() -> None:
 
 
 def test_mb_router_routes_rules() -> None:
-    text = (REPO / "commands" / "mb.md").read_text(encoding="utf-8")
+    text = read_mb_router()
     assert "| `rules <subcommand>`" in text
     assert "commands/rules.md" in text
 

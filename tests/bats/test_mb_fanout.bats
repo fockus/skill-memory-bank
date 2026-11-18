@@ -59,11 +59,15 @@ json_line() {
   [[ "$output" == *"--branch"* ]]
 }
 
-@test "fanout: missing --cmd AND no resolvable sub-invoke → exit 2 usage" {
-  # No --cmd, no MB_SUBINVOKE_CMD override, and an agent the resolver does not
-  # know → the resolve-fallback fails loud, mb-fanout stays exit 2 (never 1).
-  MB_AGENT=totally-unknown run bash "$FANOUT" "$TMPBANK" --branch "do a thing"
+@test "fanout: missing --cmd AND no resolvable sub-invoke → WARN + sequential fallback (T13), never exit 1" {
+  # Unknown agent → WARN, sequential claude-code fallback; a failing branch
+  # (no claude stub here) is the loud exit 2, never a bare 1.
+  local stub; stub="$(mktemp -d)"
+  printf '#!/bin/sh\nexit 1\n' >"$stub/claude"; chmod +x "$stub/claude"
+  MB_AGENT=totally-unknown PATH="$stub:$PATH" run bash "$FANOUT" "$TMPBANK" --branch "do a thing"
+  rm -rf "$stub"
   [ "$status" -eq 2 ]
+  [[ "$output" == *"WARN"* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════

@@ -342,6 +342,28 @@ also installs the git-hooks fallback; otherwise it safely installs only
 existing global Pi skill symlink unchanged so it cannot overwrite the bundled
 `SKILL.md` installed by `memory-bank install`.
 
+#### Pi settle-resume gate and retry settings
+
+Pi ends a turn as soon as a response has no tool calls, so a text-only "next step" note stops an
+unfinished `/mb drive` or `/mb work` run. The GraphRAG extension therefore handles Pi's
+`agent_before_settle` event (`adapters/pi_native_settle.mjs`): while a drive run is in phase
+`execution` with its goal unmet (the read-only `hooks/mb-drive-resume-gate.sh` decision) or a recent
+`/mb work` run in `<bank>/.work-state/` is not `done`, it adds a hidden message naming the next
+command and returns `continue: true`. At most 3 resumes per settle cycle (the counter resets when Pi
+really settles); error and aborted responses and any failure of the gate settle normally. The Pi
+`AGENTS.md` block adds the matching persistence rule: inside an approved plan, keep calling tools
+until a gate or a real blocker.
+
+Provider errors are hard exits that no extension can resume, so also set Pi's retry knobs. We do not
+write `~/.pi/agent/settings.json`; add this yourself (values are a starting point):
+
+```json
+{
+  "retry": { "maxRetries": 5, "maxAgentDelayMs": 120000 },
+  "httpIdleTimeoutMs": 300000
+}
+```
+
 ## Shared AGENTS.md coexistence
 
 OpenCode, Codex, and Pi (agents-md mode) all use `AGENTS.md`. Cline also reads it

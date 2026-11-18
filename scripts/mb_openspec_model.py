@@ -33,6 +33,10 @@ class OSRequirement:
     reason: str | None = None  # REMOVED only (`**Reason**:`)
     renamed_from: str | None = None  # RENAMED only (the `FROM:` name)
     scenarios: list[OSScenario] = field(default_factory=list)
+    capability: str = ""  # the `specs/<cap>/spec.md` directory the delta came from
+    # The requirement's source text as written (header through body, stripped);
+    # hashed into the sync sidecar, never stored in the bank (AGR-105).
+    raw: str = ""
 
 
 @dataclass

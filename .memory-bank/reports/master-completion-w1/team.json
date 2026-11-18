@@ -1,0 +1,318 @@
+{
+  "schema": 1,
+  "topic": "master-completion-w1",
+  "title": "master-completion wave 1",
+  "created": "2026-11-18T14:26:53Z",
+  "goal": null,
+  "plan": "plans/2026-11-18_feature_master-completion.md",
+  "tree": "/Users/fockus/Apps/skill-memory-bank",
+  "mirror": null,
+  "vcs": "git",
+  "baseline": "1815bcc1e16b5b2b5a1c9300c12953261198dd01",
+  "brief": "reports/master-completion-w1/brief.md",
+  "max_parallel": 4,
+  "budget_run_id": null,
+  "host": "claude-code",
+  "team_attrs": [],
+  "team_review": false,
+  "known_red": [],
+  "known_open": [],
+  "tracks": [
+    {
+      "id": "A",
+      "title": "GraphRAG: nudge, cost-report graph share, work.md room",
+      "task": "Execute master-completion Stages 2, 3 and 4 in order (plan plans/2026-11-18_feature_master-completion.md, sections 'Stage 2', 'Stage 3', 'Stage 4'): graph nudge suggests only real graph symbols with a per-subagent budget and stale-marker cleanup; graph_share in the cost report; move >=40 reference lines out of commands/work.md into new references/work-loop-reference.md.",
+      "dod": [
+        "Stage 2 DoD: new nudge bats red before and green after; existing nudge bats green; shellcheck clean on hooks/mb-graph-nudge.sh",
+        "Stage 3 DoD: tests/pytest/test_mb_cost_report.py green with graph_share cases; scripts/mb-cost-report.py --json prints graph_share",
+        "Stage 4 DoD: wc -l commands/work.md <= 360; test_s2_file_size_contract.py and every doc test reading commands/work.md green before and after"
+      ],
+      "role": "debugger",
+      "agent": "mb-debugger",
+      "size": "standard",
+      "source": "plans/2026-11-18_feature_master-completion.md",
+      "files": [
+        "hooks/mb-graph-nudge.sh",
+        "hooks/tests/graph-discipline.bats",
+        "hooks/tests/*nudge*",
+        "memory_bank_skill/cost_report.py",
+        "scripts/mb-cost-report.py",
+        "tests/pytest/test_mb_cost_report.py",
+        "commands/work.md",
+        "references/work-loop-reference.md",
+        "tests/bats/test_mb_work_command_doc.bats",
+        "tests/bats/test_work_*.bats"
+      ],
+      "deps": [],
+      "resources": [],
+      "layers": {
+        "track": [
+          "size=standard"
+        ],
+        "prompt": []
+      },
+      "pipeline": {
+        "size": "standard",
+        "mode": "work",
+        "work": "orchestrated",
+        "tdd": "required",
+        "verifier": "plan-verifier",
+        "review": "none",
+        "lenses": [],
+        "effort": "medium",
+        "models": {
+          "executor": "sonnet",
+          "verifier": "sonnet"
+        }
+      },
+      "provenance": {
+        "size": "track",
+        "mode": "preset:standard",
+        "work": "preset:standard",
+        "tdd": "preset:standard",
+        "verifier": "preset:standard",
+        "review": "preset:standard",
+        "models.executor": "preset:standard",
+        "models.verifier": "preset:standard",
+        "effort": "preset:standard",
+        "lenses": "default"
+      },
+      "prompt": "reports/master-completion-w1/tracks/A.prompt.md",
+      "report": "reports/master-completion-w1/A.md",
+      "status": "planned",
+      "run_id": null,
+      "fix_cycle": 0,
+      "collected": false,
+      "dispatched_at": null,
+      "returned_at": null,
+      "summary": null,
+      "contract": null
+    },
+    {
+      "id": "C",
+      "title": "mb-team review until clean",
+      "task": "Execute master-completion Stage 11 (plan plans/2026-11-18_feature_master-completion.md). Read .memory-bank/reports/mb-team/review.md and fix-verify.md. Fix the open findings m1, m2, m3, m4, m6, m7 that are real defects (blocker/major/medium); for each you judge minor, write a one-line backlog entry text in your report (orchestrator files it). Then the governed lens review of this track is the clean-review gate.",
+      "dod": [
+        "Every open finding from reports/mb-team/fix-verify.md:198-205 is either fixed with a test or listed in the report as minor with a reason",
+        "Team bats (tests/bats/test_mb_team_*.bats, tests/bats/test_mb_lock_*.bats) and pytest (tests/pytest/test_mb_team_*.py, test_mb_lock_queue.py) green",
+        "Lens review of the track ends with 0 blocker, 0 major, 0 medium"
+      ],
+      "role": "developer",
+      "agent": "mb-developer",
+      "size": "large",
+      "source": "plans/2026-11-18_feature_master-completion.md",
+      "files": [
+        "scripts/mb_team_*.py",
+        "scripts/mb-team*.sh",
+        "scripts/mb-lock.sh",
+        "scripts/mb_lock_*.py",
+        "scripts/mb_vcs.sh",
+        "commands/team.md",
+        ".memory-bank/specs/mb-team/**",
+        "tests/bats/test_mb_team_*.bats",
+        "tests/bats/test_mb_lock_*.bats",
+        "tests/pytest/test_mb_team_*.py",
+        "tests/pytest/test_mb_lock_queue.py"
+      ],
+      "deps": [],
+      "resources": [],
+      "layers": {
+        "track": [
+          "size=large"
+        ],
+        "prompt": []
+      },
+      "pipeline": {
+        "size": "large",
+        "mode": "work",
+        "work": "orchestrated",
+        "tdd": "required",
+        "verifier": "plan-verifier",
+        "review": "lenses",
+        "lenses": [
+          "logic",
+          "tests",
+          "code_rules",
+          "security",
+          "scalability"
+        ],
+        "effort": "high",
+        "models": {
+          "executor": "opus",
+          "verifier": "sonnet",
+          "lead": "opus",
+          "lenses": "opus"
+        }
+      },
+      "provenance": {
+        "size": "track",
+        "mode": "preset:large",
+        "work": "preset:large",
+        "tdd": "preset:large",
+        "verifier": "preset:large",
+        "review": "preset:large",
+        "lenses": "preset:large",
+        "models.executor": "preset:large",
+        "models.verifier": "preset:large",
+        "models.lenses": "preset:large",
+        "models.lead": "preset:large",
+        "effort": "preset:large"
+      },
+      "prompt": "reports/master-completion-w1/tracks/C.prompt.md",
+      "report": "reports/master-completion-w1/C.md",
+      "status": "planned",
+      "run_id": null,
+      "fix_cycle": 0,
+      "collected": false,
+      "dispatched_at": null,
+      "returned_at": null,
+      "summary": null,
+      "contract": null
+    },
+    {
+      "id": "D",
+      "title": "Split commands/mb.md for Opus 5.5 / Fable",
+      "task": "Execute master-completion Stage 12 (plan plans/2026-11-18_feature_master-completion.md): commands/mb.md keeps only the router table and always-needed rules (<=16384 bytes); each subcommand section moves to references/mb/<sub>.md, loaded on route; add /mb help <sub>. About 45 test files read commands/mb.md: prefer one shared test helper that reads the whole command corpus (commands/mb.md + references/mb/*.md) and switch those tests to it, instead of editing assertions one by one. Mark opus55-prompt-fit Stage 7 dropped (AGR-102).",
+      "dod": [
+        "wc -c < commands/mb.md <= 16384; a new test proves every router row points at an existing references/mb/*.md",
+        "Every test that read commands/mb.md before the split (recorded list) is green after it",
+        "opus55-prompt-fit plan: Stage 6 ticked, Stage 7 marked dropped (AGR-102)"
+      ],
+      "role": "developer",
+      "agent": "mb-developer",
+      "size": "standard",
+      "source": "plans/2026-11-18_feature_master-completion.md",
+      "files": [
+        "commands/mb.md",
+        "references/mb/**",
+        "commands/done.md",
+        "tests/pytest/test_doc_counts.py",
+        "tests/pytest/*helper*",
+        "tests/pytest/conftest.py",
+        "tests/bats/test_helper*",
+        "tests/bats/helpers/**",
+        ".memory-bank/plans/2026-09-24_fix_opus55-prompt-fit.md"
+      ],
+      "deps": [],
+      "resources": [],
+      "layers": {
+        "track": [
+          "size=standard",
+          "review=single"
+        ],
+        "prompt": []
+      },
+      "pipeline": {
+        "size": "standard",
+        "mode": "work",
+        "work": "orchestrated",
+        "tdd": "required",
+        "verifier": "plan-verifier",
+        "review": "single",
+        "lenses": [],
+        "effort": "medium",
+        "models": {
+          "executor": "sonnet",
+          "verifier": "sonnet",
+          "reviewer": "gpt-5.6-sol"
+        }
+      },
+      "provenance": {
+        "size": "track",
+        "mode": "preset:standard",
+        "work": "preset:standard",
+        "tdd": "preset:standard",
+        "verifier": "preset:standard",
+        "review": "track",
+        "models.executor": "preset:standard",
+        "models.verifier": "preset:standard",
+        "effort": "preset:standard",
+        "lenses": "default",
+        "models.reviewer": "default"
+      },
+      "prompt": "reports/master-completion-w1/tracks/D.prompt.md",
+      "report": "reports/master-completion-w1/D.md",
+      "status": "planned",
+      "run_id": null,
+      "fix_cycle": 0,
+      "collected": false,
+      "dispatched_at": null,
+      "returned_at": null,
+      "summary": null,
+      "contract": null
+    },
+    {
+      "id": "E",
+      "title": "dynamic-flow T13: Pi and OpenCode sub-invoke",
+      "task": "Execute master-completion Stage 14 (plan plans/2026-11-18_feature_master-completion.md; spec .memory-bank/specs/dynamic-flow/tasks.md T13): pi_subinvoke_cmd / opencode_subinvoke_cmd and a subinvoke verb mirroring adapters/codex.sh:503-603, preferring native dispatch; scripts/mb-fanout.sh:210 runs sequentially with a WARN instead of die_usage when sub-invoke is unresolvable.",
+      "dod": [
+        "New bats with stub pi/opencode binaries red before and green after; tests/bats/test_mb_fanout.bats, test_mb_subinvoke_resolve.bats, test_subinvoke_resolve.bats green",
+        "shellcheck clean on changed .sh; dynamic-flow T13 ticked through mb-work-state.sh done"
+      ],
+      "role": "developer",
+      "agent": "mb-developer",
+      "size": "standard",
+      "source": "plans/2026-11-18_feature_master-completion.md",
+      "files": [
+        "adapters/pi.sh",
+        "adapters/opencode.sh",
+        "scripts/mb-fanout.sh",
+        "scripts/mb-subinvoke-resolve.sh",
+        "tests/bats/test_mb_fanout.bats",
+        "tests/bats/test_mb_subinvoke_resolve.bats",
+        "tests/bats/test_subinvoke_resolve.bats",
+        "tests/bats/test_*subinvoke*.bats",
+        ".memory-bank/specs/dynamic-flow/**"
+      ],
+      "deps": [],
+      "resources": [],
+      "layers": {
+        "track": [
+          "size=standard"
+        ],
+        "prompt": []
+      },
+      "pipeline": {
+        "size": "standard",
+        "mode": "work",
+        "work": "orchestrated",
+        "tdd": "required",
+        "verifier": "plan-verifier",
+        "review": "none",
+        "lenses": [],
+        "effort": "medium",
+        "models": {
+          "executor": "sonnet",
+          "verifier": "sonnet"
+        }
+      },
+      "provenance": {
+        "size": "track",
+        "mode": "preset:standard",
+        "work": "preset:standard",
+        "tdd": "preset:standard",
+        "verifier": "preset:standard",
+        "review": "preset:standard",
+        "models.executor": "preset:standard",
+        "models.verifier": "preset:standard",
+        "effort": "preset:standard",
+        "lenses": "default"
+      },
+      "prompt": "reports/master-completion-w1/tracks/E.prompt.md",
+      "report": "reports/master-completion-w1/E.md",
+      "status": "planned",
+      "run_id": null,
+      "fix_cycle": 0,
+      "collected": false,
+      "dispatched_at": null,
+      "returned_at": null,
+      "summary": null,
+      "contract": null
+    }
+  ],
+  "reviews": [],
+  "checkpoints": [],
+  "commits": [],
+  "brief_sha256": "4fc894b4797a3f2abacb1453a0b175ec68d8119dce810c220932ed6ae8446274",
+  "closed": true
+}

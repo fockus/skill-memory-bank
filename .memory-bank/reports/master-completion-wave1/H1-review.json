@@ -1,0 +1,34 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "counts": {"blocker": 0, "major": 0, "minor": 2},
+  "issues": [
+    {
+      "severity": "minor",
+      "category": "tests",
+      "file": "tests/bats/test_mb_team_cli.bats",
+      "line": 142,
+      "message": "The mode snapshot uses `stat -f %Lp X 2>/dev/null || stat -c %a X`. On GNU coreutils (checked in a Debian bookworm container, coreutils 9.1) `stat -f` is --file-system: it prints the filesystem block for X on stdout, then fails on the '%Lp' operand. So `mode` captures 'File/ID/Blocks: Total/Free/Inodes...' plus '755'. The before/after compare at :147 then also compares free block counts, which change whenever anything else writes to the same fs, e.g. parallel `bats --jobs`. On such Linux hosts the assertion can fail at random even when the behaviour is correct, and it no longer checks only the mode. macOS is fine, and the ubuntu-latest CI currently passes the older literal-compare copies of this idiom (hardening:78, goal_evidence:188), so the risk is limited to some GNU hosts. The idiom was already in the repo; this diff adds one more copy of it.",
+      "fix": "Put GNU first, since BSD `stat -c` fails without printing to stdout: `stat -c %a \"$PROJ/a\" 2>/dev/null || stat -f %Lp \"$PROJ/a\"` at :142 and :147 (and file a follow-up for the other existing copies)."
+    },
+    {
+      "severity": "minor",
+      "category": "tests",
+      "file": "scripts/mb_team_ops.py",
+      "line": 117,
+      "message": "The comment at :117-118 makes two claims the new test does not cover: (1) a symlink at `backups/` itself also drops --adopt; (2) a bank reached through a symlink still adopts. The only new test covers `backups/team -> <tree>/a`. Claim (2) is the regression-sensitive one. If someone simplified :119 to compare realpath(out) with the unresolved default, banks opened through a symlinked path would lose --adopt, and their pre-marker default dirs would be refused with exit 2. No test would catch that. I probed both cases by hand and both currently behave correctly: backups/ -> <tree>/c gives rc 2, nothing written; --mb <symlink-to-bank> with a pre-marker default dir gives rc 0 and the marker is written.",
+      "fix": "Add two short bats cases next to :138: symlinked `$BANK/backups` into the tree gives exit 2 with nothing written, and `--mb <symlink to bank>` with a pre-marker default dir gives exit 0 and the marker is written."
+    }
+  ],
+  "strengths": [
+    "scripts/mb_team_ops.py:119 builds the expected path as realpath(bank)/backups/team without resolving `backups`. It is stricter than the judge's suggested `realpath==realpath(default) and not islink(out)`, because it also drops --adopt for a symlinked `backups/`, and it keeps adopting for a symlinked bank. I verified this by probe: pre-J-1 code adopts both symlink cases (rc 0, chmod 700 + .gitignore written into <tree>/a). New code refuses both (rc 2, target listing and mode unchanged, team.json checkpoints == []).",
+    "Keeping `out == default` in front of the realpath check means a config alias that resolves to the default (`dir: bk/team` with bk -> backups) does not get --adopt (probe: rc 2). Plain spellings still adopt: relative `backups/team`, absolute `$BANK/backups/team`, `./backups/../backups/team`, and relative `--mb .memory-bank` (all rc 0).",
+    "The fix is in the caller only. mb-team-checkpoint.sh is unchanged, and its existing ownership guard refuses before mkdir/chmod/.gitignore/tar. A dangling backups/team symlink also gives rc 2 and creates nothing, and `--verify` never passes --adopt."
+  ],
+  "notes": [
+    "J-1 hunk reviewed in isolation from the track C changes in the same files: comment :117-118, conjunct at :119, `--adopt` splice at :127. Python 3.11.11 (.venv): the module imports, the realpath expression is False for a symlinked backups/team, and the cli checkpoint bats tests (4/4) pass with the 3.11 interpreter first on PATH. ruff: clean.",
+    "`bats tests/bats/test_mb_team_cli.bats tests/bats/test_mb_team_checkpoint.bats`: 1..37, all ok, rc 0.",
+    "Not findings, by design: a default symlinked to an EMPTY in-tree dir is still taken over (rc 0, chmod 700 + .gitignore at the target). A default symlinked to a populated dir OUTSIDE the tree still receives checkpoint files (rc 0, mode kept). Both follow the script's normal rules for any configured dir. Refusing every symlinked default would break the legitimate case of backups on another disk; the executor recorded this as a follow-up.",
+    "Graph gap confirmed: `tests scripts/mb_team_ops.py` lists only test_mb_dup_scan.py and test_mb_team_gate.py, not the bats suites that reach it through mb-team.sh, and `who-calls cmd_checkpoint` has no incoming edges because it is reached by argparse dispatch."
+  ],
+  "graph": "Graph: 4 queries (status, tests scripts/mb_team_ops.py, impact scripts/mb-team-checkpoint.sh, who-calls cmd_checkpoint)"
+}

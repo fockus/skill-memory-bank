@@ -1,0 +1,111 @@
+{
+  "lens": "tests",
+  "issues": [
+    {
+      "id": "T-1",
+      "severity": "major",
+      "file": "tests/bats/test_mb_team_checkpoint.bats",
+      "line": 100,
+      "missing_scenario": "The m4 restore-hint regression never checks that the restore actually worked. Line 100 `[ a.txt = 'a\\nb' ] && [ new.txt = n ]` is not the last command (`rm -rf \"$W\"` comes after it), and bats `set -e` ignores a failing && list there. Mutation proof: changing the expected content to 'WRONG' in a copy still gives `ok 2 restore hint is a runnable command for paths with spaces`. Only a hint that fails to `eval` is caught; a hint that runs but restores the wrong thing passes. Line 98 (the clean-state precondition) has the same defect.",
+      "suggested_test": "Split it into separate assertions: `[ \"$(cat \"$T/a.txt\")\" = \"$(printf 'a\\nb')\" ]` and `[ \"$(cat \"$T/new.txt\")\" = n ]`. Do the same for line 98. Move the cleanup of `$W` into teardown, or put it before the assertions."
+    },
+    {
+      "id": "T-2",
+      "severity": "medium",
+      "file": "tests/bats/test_mb_team_checkpoint.bats",
+      "line": 87,
+      "missing_scenario": "In the m3 same-id refusal, `[ \"$status\" -eq 1 ] && [[ \"$output\" == *\"already exists\"* ]]` is not the last command, so a failure on the left side is ignored. Mutation proof: expecting status 0 still passes. The refusal exit code and its message are not asserted. Only the sha256 comparison after it guards the test, and it does so indirectly. Line 78 (label refusal) uses the same pattern but is the last line, so it does check.",
+      "suggested_test": "`[ \"$status\" -eq 1 ]` and `[[ \"$output\" == *\"already exists\"* ]] || false` as two separate lines. Also add a repo-wide lint: a bats test line `^\\s*\\[.*\\] && \\[` that is not the last line fails, in the same way as the existing `|| false` sweep."
+    },
+    {
+      "id": "T-3",
+      "severity": "major",
+      "file": "tests/pytest/test_mb_team_gate.py",
+      "line": 164,
+      "missing_scenario": "The contract part of the commit gate has no team test. `scripts/mb_team_gate.py:96-108,164-165` (`_contract_check`) refuses the commit and sends the track back to `fixing` in two cases: a contract item fails, or the contract is not frozen (no lock). It also turns ContractError and OSError into a refusal. No test under tests/**/test_mb_team_* sets `--contract` on a track and then runs `commit`. Contract freeze is one of the critical branches in the brief.",
+      "suggested_test": "In `_two_tracks`, give track A a contract. Case 1: frozen, with an item that fails. Expect rc 1, `contract … <id>` in stderr, A goes to `fixing`, HEAD is unchanged and nothing is staged. Case 2: the same contract, not frozen. Expect a refusal that mentions 'not frozen'. Case 3: frozen and passing. Expect the commit to succeed."
+    },
+    {
+      "id": "T-4",
+      "severity": "medium",
+      "file": "scripts/mb_team_ops.py",
+      "line": 142,
+      "missing_scenario": "`team close` and `team close --pause` have no tests. When the team closes, the `contract:<topic>` FREEZE should be lifted with LIFT and STATUS 'closed' should be posted. A pause should post STATUS 'paused' and keep the FREEZE. Only the FREEZE written at init is asserted (test_mb_team_cli.bats:28).",
+      "suggested_test": "bats: `team init demo`, then `team close --pause`. Assert team.json has closed=false, there is a `## STATUS … team demo: paused` line, and there is no LIFT. Then `team close`. Assert closed=true, there is a `## LIFT … contract:demo` line, and `mb-coord.sh active` no longer lists the FREEZE."
+    },
+    {
+      "id": "T-5",
+      "severity": "medium",
+      "file": "tests/pytest/test_mb_team_state.py",
+      "line": 103,
+      "missing_scenario": "The m9 regression test covers only a track already in `fixing` with fix_cycle 6, above the cap (`mb_team_status.py:112`, `>`). It does not cover a gate-routed fix at the cap (`route_fix`, `:92`, `>=`), or the boundary between the two rules: fix_cycle == cap. Because the two rules use different comparisons (>= and >), an off-by-one change in either one would go unnoticed.",
+      "suggested_test": "Add a parametrized decide() test. Gate `{'actions': ['fix A'], 'fix_cycles': {'A': 5}}` with A done and fix_cycle=5 and cap 5 should give `['stop_human fix-cycles:A']`. With fix_cycle=4 and snapshot 4 it should give `['fix A']`. A `fixing` track with fix_cycle=5 should give `['wait']`, and one with fix_cycle=6 should give a stop."
+    },
+    {
+      "id": "T-6",
+      "severity": "medium",
+      "file": "tests/bats/test_mb_lock_resource.bats",
+      "line": 132,
+      "missing_scenario": "AGR-097 says a lease never auto-expires for a waiter: `mb_lock_queue.py:177` skips reclaim when `lease_until` is set. Nothing tests this end to end. Nothing tests the opposite either: `break` removes a lock whose lease has expired, and refuses one whose lease is still live. The only coverage is the unit `holder_alive` check (test_mb_lock_queue.py:84). Deleting the `not meta.get('lease_until')` guard would leave the suite green while a queued `run` takes an expired-lease lock from a holder that is still working.",
+      "suggested_test": "Write meta.json with `lease_until` in the past, a live wrapper pid and a dead child. `lk run build --wait 1 -- echo ran` should exit 75 and leave meta unchanged. `lk break build` should then exit 0 and post the board entry. A second case: a lease that is still live makes `break` exit 1."
+    },
+    {
+      "id": "T-7",
+      "severity": "minor",
+      "file": "tests/bats/test_mb_lock_resource.bats",
+      "line": 61,
+      "missing_scenario": "The fairness test covers only waiters that were all queued before the release. Nothing covers barging: a new `run`/`acquire` that arrives while the lock is free but older tickets still exist must not go ahead of them. There is also no test of two waiters racing to the head after a dead ticket is pruned.",
+      "suggested_test": "Hold the lock and queue W1. Then release, and right away start W2 `run`. Assert the order file reads 'W1 W2'. Repeat this 10 times, as the existing test does."
+    },
+    {
+      "id": "T-8",
+      "severity": "minor",
+      "file": "tests/pytest/test_mb_team_gate.py",
+      "line": 275,
+      "missing_scenario": "The regression test for 3daadc6 (strip gate-output roots longest first) skips unless tmp_path starts with /private, so it runs only on macOS. On Linux CI this fixed defect has no coverage.",
+      "suggested_test": "Build the alias on any OS: create a real directory `R/x/tree`, make a symlink `x -> R/x` so the stored tree is a suffix of its realpath, set team.tree to the symlink path, and have the gate print `$(pwd -P)/a/new.txt`. Remove the skip."
+    },
+    {
+      "id": "T-9",
+      "severity": "minor",
+      "file": "tests/pytest/test_mb_team_gate.py",
+      "line": 209,
+      "missing_scenario": "test_a_deleted_owned_file_is_not_a_tdd_breach asserts only rc 0. It does not check that the deletion is in the commit. test_gate_output_naming_no_selected_file_refuses… (line 181) and test_path_match_respects_boundaries (line 188) do not check that HEAD and the index are unchanged after the refusal. Commit file selection for deletions is therefore not checked.",
+      "suggested_test": "Add `assert 'a/internal/gone.go' in _git(tree, 'show', '--name-status', '--format=', 'HEAD')` with status D. For the refusals, compare `rev-parse HEAD` before and after, and assert that `diff --cached` is empty."
+    },
+    {
+      "id": "T-10",
+      "severity": "minor",
+      "file": "tests/pytest/test_mb_team_next.py",
+      "line": 30,
+      "missing_scenario": "When there is no stop, `decide()` returns actions in the order fix, then dispatch, then extract, then collect (`mb_team_status.py:143-145`). No test has more than one kind at once, so the order is not pinned, even though commands/team.md tells the orchestrator to run the printed actions in order.",
+      "suggested_test": "Set up a gate-routed `fix A`, a planned and ready track C, and a returned track D with a DONE report. Assert `['fix A', 'dispatch C', 'collect']`."
+    },
+    {
+      "id": "T-11",
+      "severity": "nit",
+      "file": "tests/bats/test_mb_team_hardening.bats",
+      "line": 52,
+      "missing_scenario": "test_mb_team_checkpoint.bats:75 and :81 duplicate the checkpoint label and same-id tests (hardening:52 and :58). There are two copies of each m3 regression, and the C.md claim 'no tests existed' is inaccurate.",
+      "suggested_test": "Keep one copy of each, preferably the one in checkpoint.bats, which also checks that nothing is written, and delete the other."
+    },
+    {
+      "id": "T-12",
+      "severity": "nit",
+      "file": "tests/bats/test_mb_team_hardening.bats",
+      "line": 81,
+      "missing_scenario": "The host lock-root test writes to the real `/tmp/mb-locks-$UID` and has no teardown. If an assertion fails between acquire and release, a 60-second lease and the `.queue` directory stay behind on the host. The name is unique, so this does not cause flakes.",
+      "suggested_test": "Release the lock and remove `$root/$res.*` in a teardown() that also runs after a failure."
+    },
+    {
+      "id": "T-13",
+      "severity": "nit",
+      "file": "tests/pytest/test_mb_team_state.py",
+      "line": 107,
+      "missing_scenario": "test_next_stops_for_the_human_when_a_track_used_up_its_fix_cycles also asserts an unrelated no-report stop. Also, test_mb_team_gate.py and test_mb_team_next.py import helpers from another test module (`from test_mb_team_state import …`), which ties those files to that module.",
+      "suggested_test": "Move the no-report assertion into its own test. Move `_bank`, `_cli`, `_team`, `facts`, `team` and `track` into a conftest or a helper module."
+    }
+  ],
+  "summary": "Overall the tests assert real behavior: real git repos, real mb-coord.sh boards, the real mb-lock.sh wrapper with processes, and pure decide() over facts. Regression tests exist for M1, M3, M4, M5, m1, m2, m3, m4, m5, m6, m8, m9 and D4. M2 is moot because work:light was retired and is now refused, which is tested. m7 cannot be tested without an arc client. Gaps: (1) the main assertions of the m4 restore-hint test and the exit-code assertion of the m3 same-id test are vacuous, because a non-final `[ ] && [ ]` under bats set -e is ignored (mutation-proven); (2) the contract freeze has no coverage in the commit gate (a failing or unfrozen contract) or in `team close` (LIFT); (3) the fix-cycle cap is tested only on the `fixing` path, not at the cap for a gate-routed fix; (4) the rule that a lease never auto-expires for a queue waiter (AGR-097) and lease-based break are not tested end to end. Determinism is good: polling with timeouts, BATS_TEST_TMPDIR, MB_LOCK_DIR pinned in the fixture, a date shim for checkpoint ids, and teardown kills background waiters. One exception: the symlink-root regression runs only on macOS.",
+  "run": "pytest tests/pytest/test_mb_team_*.py tests/pytest/test_mb_lock_queue.py: 266 passed, 1 failed (test_router_index_and_counts_list_team, known/excluded). bats tests/bats/test_mb_team_*.bats tests/bats/test_mb_lock_*.bats: 107/107 ok. Mutation probe on a copy of test_mb_team_checkpoint.bats (lines 87 and 100 inverted): both tests still ok."
+}

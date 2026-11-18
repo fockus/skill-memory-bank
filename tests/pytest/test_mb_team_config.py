@@ -37,9 +37,19 @@ def _env(tmp_path: Path, *, hide_yaml: bool = False) -> dict[str, str]:
 
 def _config(tmp_path: Path, *args: str, pipeline: Path = FIXTURE, hide_yaml: bool = False):
     return subprocess.run(
-        [sys.executable, str(CONFIG), *args, "--pipeline", str(pipeline),
-         "--mb", str(tmp_path / ".memory-bank"), "--json"],
-        capture_output=True, text=True, env=_env(tmp_path, hide_yaml=hide_yaml),
+        [
+            sys.executable,
+            str(CONFIG),
+            *args,
+            "--pipeline",
+            str(pipeline),
+            "--mb",
+            str(tmp_path / ".memory-bank"),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        env=_env(tmp_path, hide_yaml=hide_yaml),
     )
 
 
@@ -68,11 +78,45 @@ def test_resource_build_on_examples_matches_c3_json(tmp_path: Path) -> None:
     got = json.loads(r.stdout)
     assert got.pop("path") == "/tmp/mb-locks-test/build"
     assert got == {
-        "name": "build", "kind": "mutex", "scope": "host",
-        "preconditions": {"free_disk_gb": 25, "disk_path": "/System/Volumes/Data", "check": "test -x ./ya"},
-        "stop_threshold": {"free_disk_gb": 12, "check": None}, "maintenance": "./ya gc cache",
-        "watch_interval_s": 30, "poll_s": 5,
+        "name": "build",
+        "kind": "mutex",
+        "scope": "host",
+        "preconditions": {
+            "free_disk_gb": 25,
+            "disk_path": "/System/Volumes/Data",
+            "check": "test -x ./ya",
+        },
+        "stop_threshold": {"free_disk_gb": 12, "check": None},
+        "maintenance": "./ya gc cache",
+        "watch_interval_s": 30,
+        "poll_s": 5,
     }
+
+
+def test_host_lock_root_ignores_tmpdir_so_every_shell_shares_one_lock(tmp_path: Path) -> None:
+    paths = []
+    for sub in ("sandbox-a", "sandbox-b"):
+        env = {k: v for k, v in _env(tmp_path).items() if k != "MB_LOCK_DIR"}
+        env["TMPDIR"] = str(tmp_path / sub)
+        r = subprocess.run(
+            [
+                sys.executable,
+                str(CONFIG),
+                "resource",
+                "build",
+                "--pipeline",
+                str(FIXTURE),
+                "--mb",
+                str(tmp_path / ".memory-bank"),
+                "--json",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert r.returncode == 0, r.stderr
+        paths.append(json.loads(r.stdout)["path"])
+    assert paths == [f"/tmp/mb-locks-{os.getuid()}/build"] * 2
 
 
 def test_resource_bank_scope_lives_under_bank_locks(tmp_path: Path) -> None:
@@ -111,9 +155,14 @@ BAD_TEAMS = [
     ("  resources:\n    build:\n      kind: semaphore\n", "team.resources.build.kind"),
     ("  resources:\n    build:\n      scope: galaxy\n", "team.resources.build.scope"),
     ("  resources:\n    ../x:\n      kind: mutex\n", "team.resources: invalid name '../x'"),
-    ("  resources:\n    build:\n      preconditions: {free_disk_gb: lots}\n",
-     "team.resources.build.preconditions.free_disk_gb"),
-    ("  presets:\n    small:\n      models: {executor: {slot: mid}}\n", "team.presets.small.models"),
+    (
+        "  resources:\n    build:\n      preconditions: {free_disk_gb: lots}\n",
+        "team.resources.build.preconditions.free_disk_gb",
+    ),
+    (
+        "  presets:\n    small:\n      models: {executor: {slot: mid}}\n",
+        "team.presets.small.models",
+    ),
     ("  max_parallel: 0\n", "team.max_parallel"),
 ]
 
@@ -161,16 +210,26 @@ def test_bundled_team_block_is_valid_and_has_no_resources(tmp_path: Path) -> Non
 def test_validator_accepts_examples_team_block(tmp_path: Path) -> None:
     path = _write(tmp_path, _default_without_team() + FIXTURE.read_text(encoding="utf-8"))
     for hide in (False, True):
-        r = subprocess.run(["bash", str(VALIDATE), str(path)], capture_output=True, text=True,
-                           env=_env(tmp_path, hide_yaml=hide))
+        r = subprocess.run(
+            ["bash", str(VALIDATE), str(path)],
+            capture_output=True,
+            text=True,
+            env=_env(tmp_path, hide_yaml=hide),
+        )
         assert r.returncode == 0, r.stderr
 
 
 def test_validator_rejects_bad_team_naming_field(tmp_path: Path) -> None:
-    path = _write(tmp_path, _default_without_team() + _team_text("  presets:\n    small:\n      tdd: maybe\n"))
+    path = _write(
+        tmp_path, _default_without_team() + _team_text("  presets:\n    small:\n      tdd: maybe\n")
+    )
     for hide in (False, True):
-        r = subprocess.run(["bash", str(VALIDATE), str(path)], capture_output=True, text=True,
-                           env=_env(tmp_path, hide_yaml=hide))
+        r = subprocess.run(
+            ["bash", str(VALIDATE), str(path)],
+            capture_output=True,
+            text=True,
+            env=_env(tmp_path, hide_yaml=hide),
+        )
         assert r.returncode == 1
         assert "team.presets.small.tdd" in r.stderr
 
@@ -179,8 +238,12 @@ def test_validator_rejects_nested_inline_map_in_team(tmp_path: Path) -> None:
     body = "  presets:\n    small:\n      models: {lens: {security: premium}}\n"
     path = _write(tmp_path, _default_without_team() + _team_text(body))
     for hide in (False, True):
-        r = subprocess.run(["bash", str(VALIDATE), str(path)], capture_output=True, text=True,
-                           env=_env(tmp_path, hide_yaml=hide))
+        r = subprocess.run(
+            ["bash", str(VALIDATE), str(path)],
+            capture_output=True,
+            text=True,
+            env=_env(tmp_path, hide_yaml=hide),
+        )
         assert r.returncode == 1
         assert "team.presets.small.models" in r.stderr
         assert "nested inline" in r.stderr

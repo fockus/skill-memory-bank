@@ -2,7 +2,7 @@
 // Managed by adapters/pi.sh (install-time path placeholders below).
 // Thin glue: tools (code_context, graph_neighbors/impact/tests, search_code) and the
 // catch-up / dirty-queue / nudge hooks live in <skill>/adapters/pi_native_graph.mjs; the guard and
-// plan-sync tool hooks in pi_native_hooks.mjs (registered here: this extension is installed in both tiers).
+// plan-sync tool hooks in pi_native_hooks.mjs and the settle-resume gate in pi_native_settle.mjs (registered here: this extension is installed in both tiers).
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
@@ -26,4 +26,6 @@ export default async function memoryBankGraphRagExtension(pi: ExtensionAPI) {
   mod.registerGraphRag(pi, { Type, skillDir: SKILL_DIR, projectRoot: PROJECT_ROOT, python: process.env.MB_PYTHON });
   const hooks = await import(pathToFileURL(join(SKILL_DIR, "adapters", "pi_native_hooks.mjs")).href);
   hooks.registerGuardHooks(pi, { skillDir: SKILL_DIR, projectRoot: PROJECT_ROOT });
+  const settle = await import(pathToFileURL(join(SKILL_DIR, "adapters", "pi_native_settle.mjs")).href);
+  settle.registerSettleGate(pi, { skillDir: SKILL_DIR, projectRoot: PROJECT_ROOT });
 }

@@ -132,6 +132,8 @@ Skip performative agreement and the "you're right" reflex: the reviewer needs th
 - **BLOCKED** — cannot proceed: concrete cause + what unblocks it + who can help.
 - **NEEDS_CONTEXT** — task unclear: concrete questions + what is already understood.
 
+Add an optional line `Graph: <n> queries` with the number of `mb-graph.sh` queries you ran (0 is fine).
+
 A status needs its evidence: `DONE` carries the test output, `BLOCKED` carries the specific cause —
 without them the orchestrator cannot act on it.
 

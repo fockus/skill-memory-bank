@@ -9,7 +9,7 @@ Three-in-one skill for code agents:
 
 1. **Memory Bank** — long-term project memory through `.memory-bank/` (`status.md`, `checklist.md`, `roadmap.md`, `research.md`, `backlog.md`, `adr.md`, `progress.md`, `lessons.md`, `notes/`, `plans/`, `experiments/`, `reports/`, `codebase/`).
 2. **RULES** — global engineering rules: TDD, Clean Architecture (backend), FSD (frontend), Mobile (iOS/Android UDF), SOLID, Testing Trophy.
-3. **Dev toolkit** — 36 commands: `/mb`, `/start`, `/done`, `/plan`, `/brief`, `/discuss`, `/groom`, `/sdd`, `/work`, `/drive`, `/team`, `/qa`, `/config`, `/pipeline`, `/profile`, `/rules`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
+3. **Dev toolkit** — 39 commands: `/mb`, `/start`, `/done`, `/plan`, `/brief`, `/discuss`, `/groom`, `/sdd`, `/work`, `/drive`, `/team`, `/qa`, `/config`, `/pipeline`, `/profile`, `/rules`, `/commit`, `/pr`, `/review`, `/test`, `/refactor`, `/doc`, `/changelog`, `/catchup`, `/adr`, `/contract`, `/security-review`, `/api-contract`, `/db-migration`, `/observability`, `/roadmap-sync`, `/traceability-gen`, `/analyze-task`, `/flow`, `/goal`, `/agree`.
 
 > **Design contract.** Memory Bank rests on one inviolable promise — *agents remember* — and a stack of fully configurable, token-economical layers above it. Default behaviour never changes without explicit opt-in; user customisations survive upgrades; expensive paths are off by default. See [`references/design-principles.md`](references/design-principles.md) for the full contract.
 
@@ -228,6 +228,7 @@ sees every active agreement without being reminded.
 - Effort tiers (sizing a task to trivial … extra and matching plan/tests/docs/checks): `references/effort-tiers.md`
 - ADaPT-lite — decompose only a stuck item, `complexity_escalation`: [`references/adapt.md`](references/adapt.md)
 - `/mb work` reference material (workflow modes, JSON schema, examples, scripts, parallel runs): `references/work-reference.md`
+- `/mb work` loop reference (target-resolution forms, worktree rule, flag table, hard-stop epilogue): `references/work-loop-reference.md`
 - `/mb work` sprint contracts, progress trend, strategic pivoting: `references/work-loop-v2.md`
 - Structure of `.memory-bank/`: `references/structure.md`
 - Code graph cookbook (jq library, `graph.json` schema, intelligence layer, semantic-search routing): `references/code-graph.md`

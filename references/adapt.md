@@ -136,8 +136,14 @@ token guard), and outcome (split into ids / continue / simplify / skip / refused
 
 ## Lite slice vs the full spec
 
-This is the first slice of `specs/svp-adapt-escalation` (AGR-080). It covers REQ-001 (signal), REQ-002
-in part (verify and token guards; the scope guard needs `svp-parallel-engine`), REQ-003 (thresholds in
-`pipeline.yaml`), REQ-005 (four HITL choices) and REQ-006-lite (sub-items inside the run, no new spec
-registry). Stubs behind a flag (REQ-004), the escalation journal (REQ-007/008) and the cascade stop
-(REQ-010) stay in the full spec.
+This is the first slice of `specs/svp-adapt-escalation` (AGR-080, AGR-082; commit 190251c). The spec
+was rebased on it (revision 4, 2026-11-19): what is below is delivered, the rest is owned by tasks on
+`scripts/mb_work_adapt.py` and the `adapt:` block.
+
+| Part | Status |
+|---|---|
+| REQ-001 signal, REQ-002 verify and token guards, REQ-003 `verify_fail_cycles: 3`, REQ-005 four HITL choices, REQ-006 in-run sub-items (no new spec registry) | delivered (Task 1 waiver) |
+| REQ-002 scope, review, judge, eval-not-green guards; REQ-003 `review_cycles: 3`, `judge_cycles: 2` | Task 2 |
+| REQ-007 escalation journal under `mb_lock_acquire`, REQ-008 run summary, REQ-010 cascade stop (`cascade_stop: 3`) | Task 3 |
+| REQ-009 stub gate in verify | Task 4 |
+| REQ-004 stub behind a flag plus a backlog item, when the auto split is refused at `max_depth` | Task 5 |

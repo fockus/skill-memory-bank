@@ -2,6 +2,7 @@
 name: mb-judge
 description: Independent final quality gate for Memory Bank governed workflows. Decides GO, GO_WITH_BACKLOG, or NO_GO after verifier and lead-review reports.
 tools: Bash, Read, Grep, Glob, SendMessage
+compose: mb-tooling-core
 color: purple
 effort: high
 ---

@@ -10,10 +10,12 @@
 bats_require_minimum_version 1.5.0
 load 'lib/assert'
 load 'lib/discuss_contract'
+load 'lib/mb_corpus'
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
-  MBMD="$REPO_ROOT/commands/mb.md"
+  MBMD="$BATS_TEST_TMPDIR/mb_corpus.md"
+  mb_corpus > "$MBMD"
   BRIEFMD="$REPO_ROOT/commands/brief.md"
   README="$REPO_ROOT/README.md"
   CLAUDEMD="$REPO_ROOT/CLAUDE.md"

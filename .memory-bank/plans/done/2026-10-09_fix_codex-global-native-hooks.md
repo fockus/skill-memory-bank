@@ -1,7 +1,7 @@
 ---
 type: fix
 topic: codex-global-native-hooks
-status: in_progress
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: []
@@ -55,7 +55,7 @@ created: 2026-10-09
 - [x] Default install registers all seven native events globally through the installed skill alias, independent of project cwd; existing linked-bundle installation semantics remain intact.
 - [x] Reinstall/uninstall and migration preserve foreign hooks/config and avoid duplicate owned project registrations.
 - [x] Runtime tests cover context, compaction, protected writes, requirement validation, synchronization and stop recursion.
-- [ ] Relevant tests and static analysis pass; full-suite results and independent verifier are recorded.
+- [x] Relevant tests and static analysis pass; full-suite results and independent verifier are recorded (classified full-suite results and the GO_WITH_BACKLOG judge are in plans/2026-10-09_feature_codex-memory-parity.md:130; closed by master-completion Stage 1, 2026-11-18).
 - [x] Codex gaps and trust limitations are reported with concrete evidence.
 
 **Verification evidence:** Installer 13 tests, final native runtime + resolver 45 tests / 12 subtests, renderer 23 tests, and Codex adapter 50 Bats checks passed. Ruff passed; ShellCheck passed with only the pre-existing SC2034/SC2016/SC2012 findings excluded. Independent review found and verified repairs for nested registry precedence, nonexistent MB_PATH bank creation, cross-host registry selection and same-line secret/placeholder warning leakage; no remaining scoped blocker. Both full suites have completed; follow-up results and scoped repairs are recorded in plans/2026-10-09_feature_codex-memory-parity.md. The initial seven-hook discovery was extended by the follow-up: Native CLI 0.160.0 discovers eight user-scope hooks, all already trusted/enabled, with no errors; foreign hooks are preserved. Installed 28 roles were rendered from the shipped profile after correcting Codex final-report delivery instructions; the global AGENTS entry point explicitly requires relevant RULES reads. Follow-up native evidence proves all eight delivered events, including persisted completed compaction and bounded SessionEnd.

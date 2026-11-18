@@ -238,6 +238,7 @@ Issue categories:
 
 - additional work outside the plan (scope creep?)
 - refactoring that was not part of the plan
+- the implementer report has no `Graph: <n> queries` line (INFO only, never a failure)
 
 ### Step 5: Produce a report
 

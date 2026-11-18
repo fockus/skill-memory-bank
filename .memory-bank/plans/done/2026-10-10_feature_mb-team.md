@@ -1,7 +1,7 @@
 ---
 type: feature
 topic: mb-team
-status: in_progress
+status: done
 depends_on: []
 parallel_safe: true
 linked_specs: [specs/mb-team]
@@ -285,8 +285,8 @@ The orchestrator runs the full suite once.
 routed to stage owners; Codex external review from the rendered prompt when the owner launches it.
 
 **DoD:**
-- [ ] The last `master.json` has 0 blocker, 0 major, 0 medium; earlier issues marked resolved by the lead.
-- [ ] `/mb verify` against this plan passes; the owner reviews the diff before any commit beyond the local branch.
+- [x] The last `master.json` has 0 blocker, 0 major, 0 medium; earlier issues marked resolved by the lead. (2026-11-18, master-completion Stage 11: four-lens + lead cycle 1 and three independent lead re-reviews in reports/master-completion-wave1/C-review/cycle-1..4; the last open medium C4-M1 resolved and verified by mb-judge — GO_WITH_BACKLOG, judge.json; deferred minors/nits → I-294.)
+- [x] `/mb verify` against this plan passes; the owner reviews the diff before any commit beyond the local branch. (Verification by mb-judge with its own probe and test runs, 2026-11-18; owner diff review happens at the master-completion wave-1 commit.)
 
 ## Risks and mitigation
 

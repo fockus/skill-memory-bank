@@ -87,13 +87,10 @@ def test_convert_removed_requirement_becomes_a_design_removed_scope_note() -> No
     assert "Superseded by the structured status field" in design_md
 
 
-def test_convert_renamed_requirement_is_deferred_not_emitted_as_req(capsys) -> None:
+def test_convert_renamed_requirement_is_emitted_with_the_next_req_id() -> None:
     requirements_md, design_md, _tasks_md = _convert()
-    assert "REQ-004" not in requirements_md  # only ADDED+MODIFIED consume REQ-NNN
-    assert "Change Owner" not in requirements_md
-    assert "Change Owner" in design_md  # surfaced as a deferred-rename note instead
-    captured = capsys.readouterr()
-    assert "deferred to re-import" in captured.err
+    assert "<!-- openspec-req: Change Author -->\n- **REQ-004**" in requirements_md
+    assert "Deferred renames" not in design_md  # nothing waits for a re-import (AGR-105)
 
 
 def test_convert_non_checkbox_task_becomes_plain_text_line() -> None:
@@ -143,6 +140,8 @@ def test_convert_neutralizes_comment_delimiters_in_a_malicious_requirement_name(
     # No dangling '-->' outside of the well-formed anchors/scenario markers.
     stray = requirements_md.replace(anchor_line, "")
     stray = re.sub(r"<!--\s*/?mb-scenario:\d+\s*-->", "", stray)
+    # The round-trip meta line (AGR-105) is the one other well-formed marker.
+    stray = stray.replace("<!-- openspec: cap=; kind=added -->", "", 1)
     assert "-->" not in stray
 
     captured = capsys.readouterr()

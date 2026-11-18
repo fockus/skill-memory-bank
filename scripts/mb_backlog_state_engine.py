@@ -23,6 +23,7 @@ import re
 import sys
 
 import mb_fs_atomic
+from mb_backlog_blocks import OUT, move_to_out_of_scope
 from mb_backlog_validate import validate_brief, validate_single_line
 
 STATES = ["NEW", "NEEDS-INFO", "TRIAGED", "READY", "IN-PROGRESS", "DONE", "WONTFIX"]
@@ -243,14 +244,18 @@ def parent_chain_has_cycle(entries, child_id, new_parent):
 # ── transition-locked (design.md C3 primitive; caller already holds the lock) ──
 def transition_main(argv):
     if len(argv) < 3:
-        die(2, "usage: <backlog> <I-NNN> <NEW_STATE> [--reason T] [--plan R]")
+        die(2, "usage: <backlog> <I-NNN> <NEW_STATE> [--reason T] [--plan R] [--check]")
     backlog, entry_id, new_state = argv[0], argv[1], argv[2]
     reason = None
     plan = None
+    check_only = False
     rest = argv[3:]
     i = 0
     while i < len(rest):
-        if rest[i] == "--reason" and i + 1 < len(rest):
+        if rest[i] == "--check":
+            check_only = True
+            i += 1
+        elif rest[i] == "--reason" and i + 1 < len(rest):
             reason = rest[i + 1]
             i += 2
         elif rest[i] == "--plan" and i + 1 < len(rest):
@@ -289,6 +294,8 @@ def transition_main(argv):
             die(1, f"READY refused for {entry_id}: {why}")
     if new_state == "WONTFIX" and not (reason and reason.strip()):
         die(1, f"WONTFIX requires a non-empty --reason for {entry_id}")
+    if check_only:
+        sys.exit(0)
     lines[e["header_idx"]] = rewrite_state(lines[e["header_idx"]], new_state)
     cr = line_cr(lines)
     seg = lines[e["header_idx"] + 1 : e["end_idx"]]
@@ -297,8 +304,55 @@ def transition_main(argv):
     if plan is not None:
         seg = set_meta(seg, "Plan", plan, cr)
     lines[e["header_idx"] + 1 : e["end_idx"]] = seg
+    if new_state == "WONTFIX" and e["section"] != OUT:
+        # The block LEAVES `## Ideas` for `## Out of scope` (move, not copy) in
+        # the same single atomic write as the state/Reason edit.
+        _, moved = parse_backlog("\n".join(lines))
+        move_to_out_of_scope(lines, moved, {entry_id}, cr)
     write_atomic(backlog, "\n".join(lines))
     sys.exit(0)
+
+
+def tree_order(entries, listed):
+    """Pre-order (parent first, siblings by numeric id) with depth, or die(1).
+
+    Validates the WHOLE hierarchy before anything is printed so a failure leaves
+    stdout empty (no partial tree). A parent that exists but lives under
+    ``## Out of scope`` is not in the working registry: its children surface as
+    roots rather than failing the listing.
+    """
+    by_id = {e["id"]: e for e in entries}
+    for e in listed:
+        parent = e["parent"]
+        if parent and parent != "none" and parent not in by_id:
+            die(1, f"code=missing_parent item={e['id']} parent={parent}")
+    for e in listed:
+        path, node = [], e["id"]
+        while node and node != "none" and node in by_id and node not in path:
+            path.append(node)
+            node = by_id[node]["parent"]
+        if node in path:
+            cycle = path[path.index(node) :] + [node]
+            die(1, "code=parent_cycle path=" + "->".join(cycle))
+    listed_ids = {e["id"] for e in listed}
+    children = {}
+    roots = []
+    for e in listed:
+        parent = e["parent"]
+        if parent and parent != "none" and parent in listed_ids:
+            children.setdefault(parent, []).append(e)
+        else:
+            roots.append(e)
+    out = []
+
+    def walk(e, depth):
+        out.append((e, depth))
+        for child in children.get(e["id"], []):
+            walk(child, depth + 1)
+
+    for root in roots:
+        walk(root, 0)
+    return out
 
 
 # ── getstate / list / annotate (mb-backlog-state.sh embedded engine) ──────────
@@ -315,11 +369,12 @@ def state_main(argv):
     if action == "list":
         backlog = argv[1]
         _, entries = parse_backlog(read_text(backlog))
-        listed = [e for e in entries if e["section"] != "Out of scope"]
-        for e in sorted(listed, key=lambda x: x["num"]):
+        listed = sorted((e for e in entries if e["section"] != OUT), key=lambda x: x["num"])
+        ordered = tree_order(entries, listed) if "--tree" in argv[2:] else [(e, 0) for e in listed]
+        for e, depth in ordered:
             print(
                 f"item={e['id']} state={e['state']} "
-                f"parent={e['parent'] or 'none'} depth=0 title={json_str(e['title'])}"
+                f"parent={e['parent'] or 'none'} depth={depth} title={json_str(e['title'])}"
             )
         return
     if action == "annotate":

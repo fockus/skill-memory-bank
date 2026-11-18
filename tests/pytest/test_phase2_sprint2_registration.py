@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from mb_corpus import read_mb_corpus, read_mb_router
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -24,12 +26,12 @@ def test_sdd_command_documents_three_files() -> None:
 
 
 def test_mb_router_table_lists_sdd() -> None:
-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    text = read_mb_router()
     assert "`sdd <topic>" in text
 
 
 def test_mb_md_has_sdd_section() -> None:
-    text = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    text = read_mb_corpus()
     assert "### sdd <topic>" in text
 
 

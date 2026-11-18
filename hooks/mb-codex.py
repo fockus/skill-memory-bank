@@ -125,9 +125,13 @@ def main(payload):
             pointers.extend(parent/'RULES.md' for parent in (project, *project.parents)
                             if parent != Path('/'))
             existing = list(dict.fromkeys(str(p) for p in pointers if p.is_file()))
+            status = run('scripts/mb-graph.sh', args=('status',), timeout=5).stdout.strip()
+            graph_line = (status.splitlines()[0] if status.startswith('Code graph:') else 'Code graph: absent') + \
+                ' — query it with scripts/mb-graph.sh who-calls|impact|tests <Symbol> before grepping'
             contexts.insert(0, 'Existing Memory Bank: ' + str(bank) +
                             '\nRead applicable instructions before implementation: ' +
                             ', '.join(existing) +
+                            '\n' + graph_line +
                             '\nChild completion reports to the parent; root plan closure belongs to the parent.')
     elif event == 'SessionStart':
         bank = resolve_bank()

@@ -6,9 +6,9 @@
 #   type ∈ feature|fix|refactor|experiment
 #   - Finds idea by ID in BACKLOG.md, extracts title → slug.
 #   - Calls mb-plan.sh with <type> <slug> to create a plan file.
-#   - Changes idea status NEW|TRIAGED → PLANNED, adds/updates `**Plan:** [plans/...](plans/...)`.
+#   - Changes idea status READY → IN-PROGRESS (S4 C7; PLANNED is never written), adds/updates `**Plan:** [plans/...](plans/...)`.
 #   - Runs mb-plan-sync.sh on the created plan (appears in STATUS.md + plan.md active-plans).
-#   - Rejects promoting idea already in PLANNED/DONE/DECLINED status.
+#   - Rejects promoting idea in legacy PLANNED / DONE / DECLINED status. Full matrix: test_mb_idea_promote_v2.bats.
 
 load lib/assert
 
@@ -25,7 +25,9 @@ setup() {
 
 ## Ideas
 
-### I-001 — refactor logging layer [HIGH, NEW, 2026-04-01]
+### I-001 — refactor logging layer [HIGH, READY, 2026-04-01]
+
+**Brief:** the logger should emit structured records when a request is handled
 
 **Problem:** logs are not structured.
 
@@ -93,11 +95,11 @@ teardown() {
   find "$TMPBANK/plans" -maxdepth 1 -type f -name '*refactor*logging*layer*' | grep -q .
 }
 
-@test "promote: flips idea status NEW → PLANNED" {
+@test "promote: flips idea status READY → IN-PROGRESS" {
   bash "$PROMOTE" "I-001" "refactor" "$TMPBANK"
 
-  refute_grep -qE 'I-001 — refactor logging layer \[HIGH, NEW' "$TMPBANK/backlog.md"
-  grep -qE 'I-001 — refactor logging layer \[HIGH, PLANNED' "$TMPBANK/backlog.md"
+  refute_grep -qE 'I-001 — refactor logging layer \[HIGH, READY' "$TMPBANK/backlog.md"
+  grep -qE 'I-001 — refactor logging layer \[HIGH, IN-PROGRESS' "$TMPBANK/backlog.md"
 }
 
 @test "promote: adds Plan link to the idea section" {

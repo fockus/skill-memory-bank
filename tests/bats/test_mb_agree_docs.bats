@@ -4,8 +4,12 @@
 # implemented separately; this suite only asserts the documentation
 # invariants — same style as test_agent_report_delivery.bats.
 
+load 'lib/mb_corpus'
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+  MB_CORPUS="$BATS_TEST_TMPDIR/mb_corpus.md"
+  mb_corpus > "$MB_CORPUS"
 }
 
 @test "rules/CLAUDE-GLOBAL.md carries the agreements trigger" {
@@ -48,12 +52,12 @@ setup() {
 }
 
 @test "commands/mb.md has a ### agree implementation section" {
-  run command grep -E '^### agree' "$REPO_ROOT/commands/mb.md"
+  run command grep -E '^### agree' "$MB_CORPUS"
   [ "$status" -eq 0 ]
 }
 
 @test "commands/mb.md verify section mentions agreement compliance" {
-  run command awk '/^### verify/,/^### map/' "$REPO_ROOT/commands/mb.md"
+  run command awk '/^### verify/{f=1} f && /^### /&&!/^### verify/{exit} f' "$REPO_ROOT/references/mb/verify.md"
   [ "$status" -eq 0 ]
   echo "$output" | command grep -qi 'agreement'
 }

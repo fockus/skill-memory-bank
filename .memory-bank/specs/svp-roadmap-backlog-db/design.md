@@ -685,6 +685,9 @@ type) — меняется набор состояний, дающих exit 2, �
 осталась бы вечной веткой по умолчанию. Документируется T5 (`commands/mb.md` + `CLAUDE.md`),
 тестируется T9.
 
+**Seams:**
+- CLI-поверхность скриптов `scripts/mb-backlog-state.sh`, `scripts/mb-idea.sh`, `scripts/mb-idea-promote.sh`, `scripts/mb-backlog-migrate.sh`, `scripts/mb-bank-lint.sh`, `scripts/mb-roadmap-sync.sh` — процесс из bats (stdout `key=value` + exit-код + stderr-коды); общий примитив `mb_next_backlog_id`/`mb_lock_acquire` проверяется через эти же вызовы, поэтому шов один и уже существует в репозитории; документы задачи 5 сверяются со скриптами на том же bats-шве.
+
 ## Decisions
 
 S4-A-01…05 + D-14/15/20/31 — в context; ключевое: только скрипты пишут вычисляемые числа (REQ-012).
@@ -808,7 +811,7 @@ Red наблюдается **после** материализации bats-фа
 - **T4** — скрипта `mb-bank-lint.sh` нет:
   **Eval:** `bats tests/bats/test_mb_bank_lint.bats` — red: bats-файл материализован; `scripts/mb-bank-lint.sh` не существует — кейсы всех 10 кодов и формата падают; exit: 1; output~: `not ok [0-9]+ bank_lint: `
 - **T5** — доки не обновлены:
-  **Eval:** `bats tests/bats/test_mb_roadmap_backlog_docs.bats` — red: bats-файл материализован; `commands/mb.md`, `references/templates.md` и `CLAUDE.md` не обновлены — кейсы сверки доков с реализацией падают; exit: 1; output~: `not ok [0-9]+ roadmap_backlog_docs: `
+  **Eval:** `bats tests/bats/test_mb_roadmap_backlog_docs.bats` — red: bats-файл материализован; `references/mb/idea.md`, `references/mb/idea-promote.md`, `references/templates.md` и `CLAUDE.md` не обновлены — кейсы сверки доков с реализацией падают; exit: 1; output~: `not ok [0-9]+ roadmap_backlog_docs: `
 
 ## Risks & mitigation
 

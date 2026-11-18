@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -129,3 +130,32 @@ def test_track_prompt_is_a_one_stage_plan_for_mb_work_plan(tmp_path: Path) -> No
     items = [json.loads(line) for line in r.stdout.splitlines() if line.startswith("{")]
     assert len(items) == 1
     assert (items[0]["role"], items[0]["dod_lines"], items[0]["kind"]) == ("backend", 3, "stage")
+
+
+def test_copy_paste_commands_survive_paths_with_spaces(tmp_path: Path) -> None:
+    bank, skill, tree = (str(tmp_path / f"{n} dir") for n in ("bank", "skill", "tree"))
+    team = json.loads((FIX / "team.json").read_text(encoding="utf-8"))
+    team["tree"] = tree
+    team["tracks"][0]["contract"] = "reports/sso/contract.json"
+    path = tmp_path / "team.json"
+    path.write_text(json.dumps(team), encoding="utf-8")
+    texts = []
+    for args in (("brief",), ("track", team["tracks"][0]["id"])):
+        r = subprocess.run([sys.executable, str(RENDER), *args, "--team", str(path), "--mb", bank,
+                            "--pipeline", str(FIX / "pipeline-team.yaml"), "--skill-dir", skill],
+                           capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+        texts.append(r.stdout)
+    spans = [s for s in re.findall(r"`([^`\n]+)`", "\n".join(texts)) if "--mb" in s or "scripts/" in s]
+    flags = {"--mb": bank, "--tree": tree}
+    checked = set()
+    for span in spans:
+        argv = shlex.split(span)
+        for i, tok in enumerate(argv):
+            if tok in flags:
+                assert argv[i + 1] == flags[tok], span
+                checked.add(tok)
+            if "/scripts/" in tok:
+                assert tok.startswith(f"{skill}/scripts/"), span
+                checked.add("script")
+    assert checked == {"--mb", "--tree", "script"}

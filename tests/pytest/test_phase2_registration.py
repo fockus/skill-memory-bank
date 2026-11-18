@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from mb_corpus import read_mb_corpus, read_mb_router
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -43,13 +45,13 @@ def test_discuss_command_documents_5_phases() -> None:
 
 
 def test_mb_router_table_lists_discuss() -> None:
-    mb_md = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    mb_md = read_mb_router()
     # Look for the row in the routing table
     assert "`discuss <topic>`" in mb_md, "discuss row missing from /mb router table"
 
 
 def test_mb_md_has_discuss_section() -> None:
-    mb_md = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    mb_md = read_mb_corpus()
     assert "### discuss <topic>" in mb_md, "### discuss <topic> section missing"
 
 

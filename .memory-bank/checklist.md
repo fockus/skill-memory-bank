@@ -6,60 +6,32 @@
 ## 🔄 Active — long-running autonomous sessions (SEQUENCE)
 
 Plan: [plans/2026-07-05_SEQUENCE_long-running-sessions.md](plans/2026-07-05_SEQUENCE_long-running-sessions.md).
-Roles: plans by Opus · `/mb work` implement=**sonnet** · review=**codex gpt-5.6-sol** · judge=**opus** (`pipeline.yaml`).
 
-- ✅ Phase 0 — doc-drift cleanup (no code): status/roadmap still claim dynamic-flow Phase 2 paused; it is DONE on disk — закрыто `/mb doctor` 2026-09-13
-- ✅ Phase 1 — reviewer-2.0 (6/6 tasks) — payload orchestrator + layered rubric examples + strict verdict parse + calibration
-- ✅ Phase 2 — work-loop-v2 (5/5 tasks) — trend · contract · pivot · `on_max_cycles` fail-fast · docs
-- ✅ Phase 3 — `/mb drive`: `specs/drive-loop/` superseded by `specs/drive-autopilot/` (7/7, commit cb928f4; argparse fix for Python <3.12 2026-11-18). T3 pivot lives in `mb_drive_decide.py`, T5 docs in `commands/drive.md` + CHANGELOG
-  - ✅ Task 1 — `mb-drive.sh next` stateless decision fn (fail-closed; `stop_success` needs green firewall AND 100% acceptance)
-  - ✅ Task 2 — `/mb drive` command + AGENTS.md loop-contract (governed: 2 judge-цикла, codex ×3, GO_WITH_BACKLOG I-141…143)
-  - ⏭ Task 3 — superseded: per-item stall/pivot in drive-autopilot Task 2 (drive owns no route re-eval)
-  - ✅ Task 4 — stop telemetry + Stop-hook resume-gate + parallel keying (governed: 2 judge-цикла, codex ×2, GO_WITH_BACKLOG I-135…140; fence preserve-on-partial в mb-flow-sync.sh)
-  - ⏭ Task 5 — superseded: drive-autopilot Task 5 (`commands/drive.md`, `commands/goal.md`, CHANGELOG)
+- ✅ Phases 0–3 — doc-drift cleanup · reviewer-2.0 6/6 · work-loop-v2 5/5 · `/mb drive` (`drive-autopilot` 7/7, drive-loop superseded) — details in `progress.md`
 - ⬜ Phase 4 — parallel execution (`parallel-pipeline` + `parallel-team-execution`, on `mb-fanout.sh`)
-- ⬜ Phase 5 — cost-multi-model + dynamic-flow Phase 3 (Tasks 13–14: pi/opencode sub-invoke arms)
+- ⬜ Phase 5 — cost-multi-model + dynamic-flow Phase 3 (T13–T14 → master-completion Stages 14–15)
 - ⬜ Phase 6 — documentation: "how to use all of this"
 
 ## 🔄 In progress — I-086 config-validation-docs (codex remediation Wave 2)
 
-- ✅ Stage 1 — pipeline validator runtime-block schema + duplicate keys
-- ✅ Stage 2 — runtime dup-key loader + pipeline.yaml judge fix
+- ✅ Stages 1–2 — validator runtime-block schema, dup-key loader, judge fix
 - ⬜ Stage 3–6 — runtime parsers, budget/profile, config split, docs regen
 
 ## ⏭ Queued waves
 
-- ⬜ **mb-work-cost-diet** — `graph-semantic-adoption` (блок ниже, пререквизит по AGR-044) → [Sprint 2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) → [Sprint 3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md)
-- ⏸ **Group `sdd-vision-pipeline`** (AGR-017, goal G-001, пауза с 2026-07-27): S1 ✅ 6/6 · S2 ✅ 9/9 · S7 2/4 · S4 3/9 · S8 3/8 (по T7/T8 есть коммиты, судьи не было) · S9 2/5 · S6/S3/S5 не начаты; порядок AGR-029; живые счётчики — `roadmap.md` § Group
-- ⬜ openspec-adapter — последний пункт: строка `/mb openspec` в `commands/mb.md` (заморозка файла снята AGR-033)
-- ⬜ cursor-extension Task 9 — hook-rename sync после handoff-v2 ([план](plans/2026-05-24_fix_cursor-compatibility-remediation.md) 20/23)
-- ⬜ I-084 — [dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) (после I-086)
-- ⬜ W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)
+- ⬜ **mb-work-cost-diet** — `graph-semantic-adoption` (AGR-044) → [Sprint 2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) → [Sprint 3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md)
+- ⏸ **Group `sdd-vision-pipeline`** (G-001, paused): S7/S8/S4/S5 → master-completion Track F; S1/S2/S3/S6/S9 + umbrella stay in [unfinished-work-completion](plans/2026-11-05_feature_unfinished-work-completion.md); live counters — `roadmap.md` § Group
+- ⬜ I-084 — [dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) (after I-086) · W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)
 
-## 🔓 Open backlog
-
-SSOT: [backlog.md](backlog.md). Hot clusters:
-
-- **Cross-agent parity (HIGH):** I-045 (Pi) · I-048/I-049 (OpenCode install+frontmatter) · I-054/I-055/I-056 (dispatch abstraction, hook mapping, plugin-first) · I-061 (Cursor)
-- **Cross-agent parity (MED/LOW):** I-046, I-047, I-050..I-053, I-057..I-060
-- **Harness chain (from Phases 1–3):** I-095 (DRY-fold) · I-096 (inert cache path) · I-097 (pipeline review_examples wiring) · I-098 (split mb-review.sh) · I-099 (cache-key reconcile) · I-100 (composable `--review` empty loop) · I-101 (traceability `.bats` suffix) · I-102 (mb-drive.sh 455>400 → split)
-- **Older:** I-023 (`grep → find` cleanup) · I-062 (EARS validator hardening)
-
-## See also
-
-- `roadmap.md` — full wave order and release gate.
-- `status.md` — current phase, active plan inventory, metrics.
-- `backlog.md` — open ideas/ADRs (SSOT).
-- `traceability.md` — generated REQ coverage matrix.
-- `progress.md` — append-only historical log.
+Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-061, harness chain I-095…I-102). See also `roadmap.md`, `status.md`, `traceability.md`, `progress.md`.
 
 <!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## graph-semantic-adoption — 9/11
+## graph-semantic-adoption — 10/11
 - ✅ Stage 1 — Nudge v2 — повторяемый и действенный
 - ✅ Stage 2 — Bootstrap векторного индекса при `/mb graph --apply`
 - ✅ Stage 3 — Auto-catchup графа на SessionStart
 - ✅ Stage 4 — Короткий враппер `mb-graph.sh` + короткие тексты подсказок
-- ⬜ Stage 5 — Статус графа в диспатче субагентов
+- ✅ Stage 5 — Статус графа в диспатче субагентов
 - ✅ Stage 6 — Покрытие — bash и bats в графе
 - ⬜ Stage 7 — Граф в каждом диспатче `/mb work` + замер adoption
 - ✅ Stage 8 — Тёплый индекс доступен документированной командой
@@ -68,12 +40,12 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - ✅ Stage 11 — детерминированная кластеризация (I-219)
 
 <!-- mb-plan:2026-10-05_feature_pi-native-integration.md -->
-## Pi native Memory Bank integration — Implementation Plan — 0/5
-- ⬜ Stage 1 — Native commands and governed pi-subagents bridge
-- ⬜ Stage 2 — Project-isolated capture, restore and compaction
-- ⬜ Stage 3 — Native GraphRAG, vector cache and graph lifecycle
-- ⬜ Stage 4 — Native guard hooks and synchronization
-- ⬜ Stage 5 — Safe installation and real Pi acceptance
+## Pi native Memory Bank integration — Implementation Plan — 5/5
+- ✅ Stage 1 — Native commands and governed pi-subagents bridge
+- ✅ Stage 2 — Project-isolated capture, restore and compaction
+- ✅ Stage 3 — Native GraphRAG, vector cache and graph lifecycle
+- ✅ Stage 4 — Native guard hooks and synchronization
+- ✅ Stage 5 — Safe installation and real Pi acceptance
 
 <!-- mb-plan:2026-10-07_fix_proportional-effortsprint2-execution-economy.md -->
 ## proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер» — 3/4
@@ -82,15 +54,43 @@ SSOT: [backlog.md](backlog.md). Hot clusters:
 - ✅ Stage 3 — Тон по силе модели
 - ⬜ Stage 4 — Замер на боевых задачах
 
-<!-- mb-plan:2026-10-09_fix_codex-global-native-hooks.md -->
-## codex-global-native-hooks — 1/2
-- ✅ Stage 1 — Global installation and migration
-- ⬜ Stage 2 — Runtime contracts and audit
-
 <!-- mb-plan:2026-10-09_feature_codex-memory-parity.md -->
-## Codex memory and lifecycle completion — 0/4
+## Codex memory and lifecycle completion — 1/4
 - ⬜ Stage 1 — Durable model-free Codex session memory
-- ⬜ Stage 2 — Preserve graph file identity
+- ✅ Stage 2 — Preserve graph file identity
 - ⬜ Stage 3 — Native child context and bounded lifecycle wiring
 - ⬜ Stage 4 — Native proof, review and documentation
+
+<!-- mb-plan:2026-11-18_feature_master-completion.md -->
+## master-completion — 15/22
+- ✅ Stage 1 — Bookkeeping close-out of already-shipped work
+- ✅ Stage 2 — Graph nudge that suggests useful queries, per-subagent budget
+- ✅ Stage 3 — Graph share in the cost report
+- ✅ Stage 4 — Make room in `commands/work.md`
+- ✅ Stage 5 — Graph context pushed into every `/mb work` dispatch
+- ✅ Stage 6 — Graph status on ad-hoc dispatch; Pi graph test fixture
+- ⬜ Stage 7 — Graph adoption demo and measurement
+- ✅ Stage 8 — OpenSpec contract decisions; import keeps what export needs
+- ✅ Stage 9 — OpenSpec export and three-way sync
+- ⬜ Stage 10 — `/mb work` over an OpenSpec change; docs
+- ✅ Stage 11 — mb-team review until clean
+- ✅ Stage 12 — Split `commands/mb.md` for Opus 5.5 / Fable
+- ⬜ Stage 13 — Opus 5.5 / Fable acceptance run
+- ✅ Stage 14 — dynamic-flow T13 — Pi and OpenCode sub-invoke
+- ✅ Stage 15 — dynamic-flow T14 — critique, risk-find, final-report skills
+- ✅ Stage 16 — Close S7 svp-brief and S8 svp-contract-test-loop (shipped, unticked)
+- ✅ Stage 17 — S4 svp-roadmap-backlog-db remainder
+- ⬜ Stage 18 — S5 svp-adapt-escalation — rebaseline on ADaPT-lite and remainder
+- ⬜ Stage 19 — Final verification and bank sync
+- ⬜ Stage 20 — Pi keeps working until the task is done (settle-resume gate)
+- ✅ Stage 21 — pi-dynamic-workflows — borrow now, spike as an optional Pi accelerator
+- ⬜ Stage 22 — Graph sees tests through shell entry points and argparse dispatch (I-297)
+
+<!-- mb-plan:tasks.md -->
+## svp-adapt-escalation — 0/5
+- ⬜ Stage 1 — ADaPT-lite baseline (delivered, waiver with commit link)
+- ⬜ Stage 2 — Remaining guards and thresholds in adapt-check
+- ⬜ Stage 3 — Escalation journal, cascade stop and run summary
+- ⬜ Stage 4 — Stub gate in verify (verify-stub)
+- ⬜ Stage 5 — Autonomous stub path and backlog chain
 

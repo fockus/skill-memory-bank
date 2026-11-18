@@ -1,7 +1,7 @@
 # claude-skill-memory-bank: Статус проекта
 
 **Current phase:** экономия усилий закрыта 2026-10-07 (5 уровней задачи + роутинг, тон по модели, пресеты simple/medium/complex/governed + cost tiers, настройки качества проекта, ADaPT-lite, Key rules onboarding, диета always-loaded, `anthropic-skill-guide-compliance` Sprint 2); открыт только `proportional-effort` Sprint 2 Stage 4 (замер «после», AGR-072). `graph-semantic-adoption` 9/11; Pi native integration 0/5 accepted. `/mb drive` закрыт (`drive-autopilot` 7/7, `drive-loop` superseded, 2026-11-18). Живые треки: I-086 `config-validation-docs` (Stages 3–6), `sdd-vision-pipeline` G-001 (пауза с 2026-07-27).
-**Focus:** собственный тест переустановки владельцем из main → замер экономии на боевых задачах (I-248, AGR-072) → замер экономии на боевых задачах (Sprint 2 Stage 4, AGR-072) → `graph-semantic-adoption` (пререквизит cost-diet по AGR-044) → Sprint 2/3 `mb-work-cost-diet` → `sdd-vision-pipeline` (AGR-029).
+**Focus:** [master-completion](plans/2026-11-18_feature_master-completion.md) (2026-11-18, AGR-101…103) — 19 stages in tracks A GraphRAG (priority) · B OpenSpec round-trip · C mb-team · D opus55 for Opus 5.5/Fable · E dynamic-flow · F SVP S7/S8/S4/S5; then the rest of `sdd-vision-pipeline` (AGR-029).
 **Blockers:** нет для текущей работы; действует репо-wide FREEZE на деструктивные git-операции (rebase / `reset --hard` / `checkout .` / whole-tree stash) — см. `COORDINATION.md`.
 
 ## Pi native integration — 2026-10-05
@@ -23,7 +23,6 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 <!-- mb-active-plans -->
 - [2026-05-23] `queued` [2026-05-23_feature_cost-multi-model.md](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
 - [2026-05-23] `queued` [2026-05-23_feature_skill-improvements-anthropic-audit.md](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
-- [2026-05-24] `in_progress` [2026-05-24_fix_cursor-compatibility-remediation.md](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — fix — Cursor Compatibility Remediation
 - [2026-05-24] `queued` [2026-05-24_fix_pi-compatibility-remediation.md](plans/2026-05-24_fix_pi-compatibility-remediation.md) — fix — Pi Compatibility Remediation
 - [2026-06-23] `in_progress` [2026-06-23_SEQUENCE_codex-remediation.md](plans/2026-06-23_SEQUENCE_codex-remediation.md) — sequence — Execution Sequence — codex/GPT-5.5 remediation (I-082..I-086)
 - [2026-06-23] `queued` [2026-06-23_feature_dispatcher-wiring-transports.md](plans/2026-06-23_feature_dispatcher-wiring-transports.md) — feature — Capability Dispatcher Wiring + Transports
@@ -35,23 +34,24 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - [2026-09-05] `queued` [2026-09-05_fix_mb-work-cost-diet-sprint3.md](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md) — fix — mb-work-cost-diet · Sprint 3 «instruction-diet + гигиена»
 - [2026-10-05] [plans/2026-10-05_feature_pi-native-integration.md](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan
 - [2026-10-07] [plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер»
-- [2026-10-09] [plans/2026-10-09_fix_codex-global-native-hooks.md](plans/2026-10-09_fix_codex-global-native-hooks.md) — fix — codex-global-native-hooks
 - [2026-10-09] [plans/2026-10-09_feature_codex-memory-parity.md](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion
+- [2026-11-18] [plans/2026-11-18_feature_master-completion.md](plans/2026-11-18_feature_master-completion.md) — feature — master-completion
+- [2026-11-19] [plans/tasks.md](plans/tasks.md) — svp-adapt-escalation
 <!-- /mb-active-plans -->
 
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-11-18 — [plans/done/2026-10-10_feature_mb-team.md](plans/done/2026-10-10_feature_mb-team.md) — `/mb team` — orchestrator-led parallel tracks
+- 2026-11-18 — [plans/done/2026-10-09_fix_codex-global-native-hooks.md](plans/done/2026-10-09_fix_codex-global-native-hooks.md) — fix — codex-global-native-hooks
+- 2026-11-18 — [plans/done/2026-05-24_fix_cursor-compatibility-remediation.md](plans/done/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation
+- 2026-11-18 — [plans/done/2026-09-24_fix_command-skill-root-paths.md](plans/done/2026-09-24_fix_command-skill-root-paths.md) — fix — command-skill-root-paths
 - 2026-11-17 — [plans/done/2026-11-17_feature_team-shared-gates.md](plans/done/2026-11-17_feature_team-shared-gates.md) — feature — team-shared-gates
 - 2026-10-08 — [plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md](plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md) — Ordinary Pi Memory Bank dispatch
 - 2026-10-08 — [plans/done/2026-10-07_fix_upgrade-safe-install.md](plans/done/2026-10-07_fix_upgrade-safe-install.md) — fix — установка поверх старой версии + хвосты I-249…I-254
 - 2026-10-07 — [plans/done/2026-10-07_feature_adapt-lite.md](plans/done/2026-10-07_feature_adapt-lite.md) — feature — adapt-lite · дробление по необходимости (первый срез svp-adapt-escalation)
 - 2026-10-07 — [plans/done/2026-10-07_feature_project-quality-settings.md](plans/done/2026-10-07_feature_project-quality-settings.md) — feature — project-quality-settings · coverage, TDD, Testing Trophy, архитектура и принципы как настройки проекта
 - 2026-10-07 — [plans/done/2026-10-07_feature_pipeline-presets-cost-tiers.md](plans/done/2026-10-07_feature_pipeline-presets-cost-tiers.md) — feature — pipeline-presets-cost-tiers · уровни сложности, тиры стоимости, шаблоны для код-агентов, частота верификатора
-- 2026-10-07 — [plans/done/2026-10-07_fix_proportional-effortsprint1-routing-rules.md](plans/done/2026-10-07_fix_proportional-effortsprint1-routing-rules.md) — fix — proportional-effort · Sprint 1 «уровни задачи, роутинг, правила тестов и документации»
-- 2026-10-07 — [plans/done/2026-10-06_fix_anthropic-skill-guide-compliance-sprint2-instructions.md](plans/done/2026-10-06_fix_anthropic-skill-guide-compliance-sprint2-instructions.md) — fix — anthropic-skill-guide-compliance · Sprint 2 «CLAUDE.md: глобальный, проектный, шаблон»
-- 2026-10-07 — [plans/done/2026-10-06_fix_agents-md-diet.md](plans/done/2026-10-06_fix_agents-md-diet.md) — fix — agents-md-diet · always-loaded инструкции хостов без копии RULES.md
-- 2026-10-07 — [plans/done/2026-10-06_feature_key-rules-onboarding.md](plans/done/2026-10-06_feature_key-rules-onboarding.md) — feature — key-rules-onboarding · каталог ключевых правил, онбординг и `/mb rules`
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)

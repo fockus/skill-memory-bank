@@ -4,18 +4,15 @@
 <!-- mb-roadmap-auto -->
 ## Now (in progress)
 
-- [2026-05-24_fix_cursor-compatibility-remediation](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation — progress=86% stages(done=5,in_progress=1,planned=0,total=6)
 - [2026-06-23_SEQUENCE_codex-remediation](plans/2026-06-23_SEQUENCE_codex-remediation.md) — Execution Sequence — codex/GPT-5.5 remediation (I-082..I-086) — progress=0% stages(done=0,in_progress=0,planned=0,total=0)
 - [2026-06-23_fix_config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) — Config Validation & Doc Consistency — progress=28% stages(done=1,in_progress=2,planned=3,total=6)
 - [2026-07-05_SEQUENCE_long-running-sessions](plans/2026-07-05_SEQUENCE_long-running-sessions.md) — SEQUENCE — Long-running autonomous sessions — progress=0% stages(done=0,in_progress=0,planned=0,total=0)
 - [graph-semantic-adoption](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption — progress=88% stages(done=9,in_progress=0,planned=2,total=11)
-- [command-skill-root-paths](plans/2026-09-24_fix_command-skill-root-paths.md) — fix — command-skill-root-paths — progress=100% stages(done=1,in_progress=0,planned=0,total=1)
-- [opus55-prompt-fit](plans/2026-09-24_fix_opus55-prompt-fit.md) — fix — opus55-prompt-fit · скил под Opus 5.5 / Fable 5.1 и любые агенты — progress=80% stages(done=5,in_progress=0,planned=3,total=8)
+- [opus55-prompt-fit](plans/2026-09-24_fix_opus55-prompt-fit.md) — fix — opus55-prompt-fit · скил под Opus 5.5 / Fable 5.1 и любые агенты — progress=90% stages(done=6,in_progress=0,planned=2,total=8)
 - [2026-10-05_feature_pi-native-integration](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan — progress=60% stages(done=0,in_progress=4,planned=1,total=5)
 - [proportional-effortsprint2-execution-economy](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер» — progress=85% stages(done=3,in_progress=1,planned=0,total=4)
-
 - [codex-memory-parity](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion — progress=0% stages(done=0,in_progress=0,planned=4,total=4)
-- [codex-global-native-hooks](plans/2026-10-09_fix_codex-global-native-hooks.md) — fix — codex-global-native-hooks — progress=80% stages(done=0,in_progress=1,planned=1,total=2)
+- [master-completion](plans/2026-11-18_feature_master-completion.md) — feature — master-completion — progress=65% stages(done=14,in_progress=1,planned=7,total=22)
 
 ## Next (strict order — depends)
 
@@ -33,32 +30,49 @@ _None._
 
 ## Paused / Archived
 
-_None._
+- [unfinished-work-completion](plans/2026-11-05_feature_unfinished-work-completion.md) — feature — unfinished-work-completion (G-001 + graph-хвосты) — progress=0% stages(done=0,in_progress=0,planned=13,total=13)
 
 ## Linked Specs (active)
 
 - cost-multi-model — progress=0% tasks(done=0,in_progress=0,planned=4,total=4)
-- cursor-extension — progress=90% tasks(done=8,in_progress=0,planned=1,total=9)
 - pi-extension — progress=0% tasks(done=0,in_progress=0,planned=12,total=12)
-- dynamic-flow — progress=88% tasks(done=12,in_progress=0,planned=2,total=14)
+- dynamic-flow — progress=100% tasks(done=14,in_progress=0,planned=0,total=14)
 - reviewer-2.0 — progress=100% tasks(done=6,in_progress=0,planned=0,total=6)
 - work-loop-v2 — progress=100% tasks(done=5,in_progress=0,planned=0,total=5)
 - drive-loop — progress=62% tasks(done=3,in_progress=0,planned=2,total=5)
 - parallel-pipeline — progress=0% tasks(done=0,in_progress=0,planned=6,total=6)
 - parallel-team-execution — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
 - mb-donor-evolution — progress=0% tasks(done=0,in_progress=0,planned=132,total=132)
+- sdd-vision-pipeline — progress=9% tasks(done=1,in_progress=0,planned=9,total=10)
+- svp-interview-upgrade — progress=100% tasks(done=6,in_progress=0,planned=0,total=6)
+- svp-sdd-core — progress=100% tasks(done=9,in_progress=0,planned=0,total=9)
+- svp-brief — progress=100% tasks(done=4,in_progress=0,planned=0,total=4)
+- svp-roadmap-backlog-db — progress=100% tasks(done=9,in_progress=0,planned=0,total=9)
+- svp-contract-test-loop — progress=100% tasks(done=8,in_progress=0,planned=0,total=8)
+- svp-spec-review-loop — progress=40% tasks(done=2,in_progress=0,planned=3,total=5)
+- svp-docs-wiki — progress=0% tasks(done=0,in_progress=0,planned=7,total=7)
+- svp-parallel-engine — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
+- svp-adapt-escalation — progress=20% tasks(done=1,in_progress=0,planned=4,total=5)
+- openspec-adapter — progress=100% tasks(done=8,in_progress=0,planned=0,total=8)
+- mb-team — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
+
+## Group: "[SPEC:autopilot]"
+progress=100%
+drive-autopilot — ice=no-ice — ready — progress=100% tasks(done=7,in_progress=0,planned=0,total=7) — blocked_by=none
+planning-qa-sources — ice=no-ice — ready — progress=100% tasks(done=5,in_progress=0,planned=0,total=5) — blocked_by=none
+team-completion — ice=no-ice — ready — progress=100% tasks(done=5,in_progress=0,planned=0,total=5) — blocked_by=none
 
 ## Group: sdd-vision-pipeline
-progress=39%
+progress=62%
 svp-interview-upgrade — ice=504 — ready — progress=100% tasks(done=6,in_progress=0,planned=0,total=6) — blocked_by=none
-svp-roadmap-backlog-db — ice=432 (unconfirmed) — ready — progress=39% tasks(done=3,in_progress=0,planned=6,total=9) — blocked_by=none
+svp-roadmap-backlog-db — ice=432 (unconfirmed) — ready — progress=100% tasks(done=9,in_progress=0,planned=0,total=9) — blocked_by=none
 svp-sdd-core — ice=400 (unconfirmed) — draft — progress=100% tasks(done=9,in_progress=0,planned=0,total=9) — blocked_by=none
-svp-brief — ice=448 (unconfirmed) — ready — progress=41% tasks(done=2,in_progress=0,planned=2,total=4) — blocked_by=svp-interview-upgrade
-svp-contract-test-loop — ice=360 (unconfirmed) — ready — progress=34% tasks(done=3,in_progress=0,planned=5,total=8) — blocked_by=svp-sdd-core
+svp-brief — ice=448 (unconfirmed) — ready — progress=100% tasks(done=4,in_progress=0,planned=0,total=4) — blocked_by=svp-interview-upgrade
+svp-contract-test-loop — ice=360 (unconfirmed) — ready — progress=100% tasks(done=8,in_progress=0,planned=0,total=8) — blocked_by=svp-sdd-core
 svp-docs-wiki — ice=336 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=7,total=7) — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
 svp-spec-review-loop — ice=336 (unconfirmed) — ready — progress=40% tasks(done=2,in_progress=0,planned=3,total=5) — blocked_by=svp-sdd-core
+svp-adapt-escalation — ice=294 (unconfirmed) — ready — progress=20% tasks(done=1,in_progress=0,planned=4,total=5) — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
 svp-parallel-engine — ice=252 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=10,total=10) — blocked_by=svp-sdd-core
-svp-adapt-escalation — ice=294 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=5,total=5) — blocked_by=svp-sdd-core,svp-parallel-engine,svp-roadmap-backlog-db
 <!-- /mb-roadmap-auto -->
 
 _Last updated: auto-synced by mb-roadmap-sync.sh_
@@ -129,8 +143,6 @@ ICE-примечания: 6.1 имеет третий score программы, 
 | dynamic-flow хвост | `specs/dynamic-flow` | T1–T12 ✅ · T13–T14 ⬜ (pi/opencode sub-invoke) | Phase 5 SEQUENCE |
 | sdd-vision-pipeline (G-001) | umbrella + 9 child-спек, § Group в авто-блоке | S1 ✅ · S2 ✅ · S7 2/4 · S4 3/9 · S8 3/8 · S9 2/5 · S6, S3, S5 не начаты | главный трек (AGR-017), пауза с 2026-07-27; порядок AGR-029 |
 | codex-remediation Wave 2 | I-086 [config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) → I-084 [dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) | Stages 1–2 ✅, 3–6 ⬜ · не начат | I-084 после I-086 |
-| cursor-extension хвост | [cursor-compatibility-remediation](plans/2026-05-24_fix_cursor-compatibility-remediation.md) | 20/23; Task 9 — hook-rename sync после handoff-v2 | мелкий ∥ слот |
-| openspec-adapter хвост | строка `/mb openspec` в `commands/mb.md` | T1–T6 ✅ | мелкий ∥ слот (заморозка файла снята AGR-033) |
 | adapter-parity | `specs/adapter-parity` + `context/adapter-parity.md` | T1–T7 ✅ (T1/T2 отмечены 2026-09-13 по доказательствам); T8 lifecycle ⬜ — upgrade не обновляет расширения, uninstall их оставляет, docs (I-213, I-118, I-124) | был первым в очереди (AGR-012); остался T8 |
 | agreements (`/mb agree`) | `specs/agreements` (8 задач), коммит `9cdb41e` | работает; 19/24 пунктов подтверждены 2026-09-13; открыто I-212: 3 пробела в тестах, CI, dogfood 8 решений фичи | входит в donor v5.4.0 Trustworthy Baseline |
 | donor v5.4.0 Trustworthy Baseline | [план](plans/2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md) | 0/2 стадий | голова donor-поезда |
@@ -181,7 +193,6 @@ Umbrella-группа (D-31, bootstrap вручную — автоматика �
 <!-- mb-active-plans -->
 - [2026-05-23] `queued` [2026-05-23_feature_cost-multi-model.md](plans/2026-05-23_feature_cost-multi-model.md) — feature — Cost (multi-model role assignment, S4 of harness-upgrade)
 - [2026-05-23] `queued` [2026-05-23_feature_skill-improvements-anthropic-audit.md](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md) — feature — skill-improvements-anthropic-audit
-- [2026-05-24] `in_progress` [2026-05-24_fix_cursor-compatibility-remediation.md](plans/2026-05-24_fix_cursor-compatibility-remediation.md) — fix — Cursor Compatibility Remediation
 - [2026-05-24] `queued` [2026-05-24_fix_pi-compatibility-remediation.md](plans/2026-05-24_fix_pi-compatibility-remediation.md) — fix — Pi Compatibility Remediation
 - [2026-06-23] `in_progress` [2026-06-23_SEQUENCE_codex-remediation.md](plans/2026-06-23_SEQUENCE_codex-remediation.md) — sequence — Execution Sequence — codex/GPT-5.5 remediation (I-082..I-086)
 - [2026-06-23] `queued` [2026-06-23_feature_dispatcher-wiring-transports.md](plans/2026-06-23_feature_dispatcher-wiring-transports.md) — feature — Capability Dispatcher Wiring + Transports
@@ -194,9 +205,9 @@ Umbrella-группа (D-31, bootstrap вручную — автоматика �
 - [2026-10-05] [plans/2026-10-05_feature_pi-native-integration.md](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan
 - [2026-10-07] [plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер»
 - [codex-memory-parity](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion — progress=0% stages(done=0,in_progress=0,planned=4,total=4)
-- [codex-global-native-hooks](plans/2026-10-09_fix_codex-global-native-hooks.md) — fix — codex-global-native-hooks — progress=80% stages(done=0,in_progress=1,planned=1,total=2)
-- [2026-10-09] [plans/2026-10-09_fix_codex-global-native-hooks.md](plans/2026-10-09_fix_codex-global-native-hooks.md) — fix — codex-global-native-hooks
 - [2026-10-09] [plans/2026-10-09_feature_codex-memory-parity.md](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion
+- [2026-11-18] [plans/2026-11-18_feature_master-completion.md](plans/2026-11-18_feature_master-completion.md) — feature — master-completion
+- [2026-11-19] [plans/tasks.md](plans/tasks.md) — svp-adapt-escalation
 <!-- /mb-active-plans -->
 
 ## Архив

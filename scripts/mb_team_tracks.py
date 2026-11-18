@@ -53,6 +53,8 @@ def cmd_init(args) -> int:
     bank, topic = args.mb, args.topic_name
     if not st.TOPIC_RE.match(topic):
         raise TeamError(f"topic '{topic}' must match {st.TOPIC_RE.pattern}")
+    if st.team_file(bank, topic).exists():  # before the budget init, which resets spent to 0
+        raise TeamError(f"team '{topic}' already exists: {st.team_file(bank, topic)}")
     validate = ["bash", st.script("mb-goal-validate.sh"), os.path.join(bank, "goal.md"), bank]
     if not args.no_goal and st.run(validate).returncode != 0:
         raise TeamError(f"goal.md in {bank} is missing or invalid (mb-goal-validate.sh); "

@@ -1,0 +1,97 @@
+{
+  "cycle": 2,
+  "verdict": "CHANGES_REQUESTED",
+  "counts": {
+    "blocker": 0,
+    "major": 0,
+    "medium": 1,
+    "minor": 0,
+    "nit": 2
+  },
+  "previous": [
+    {
+      "id": "C1-M1",
+      "status": "resolved",
+      "evidence": "scripts/mb_team_tracks.py:56-57 refuses an existing team.json before the goal/vcs/budget steps (budget init is at ~line 73). tests/bats/test_mb_team_cli.bats:31 inits with --budget 1000, adds 400, asserts the re-init fails with 'already exists' and `mb-work-budget.sh status` still prints spent=400 (format from mb-work-budget.sh:207). Without the guard the old order reset spent to 0, so the assertion can fail."
+    },
+    {
+      "id": "C1-M2",
+      "status": "resolved",
+      "evidence": "scripts/mb-team-checkpoint.sh:29-30 (umask 077, chmod 700, .gitignore '*') and :44-47 (realpath filter). Tests test_mb_team_checkpoint.bats:108 (mode 700, not in git status, second tar == new.txt) and :121 (kept empty .gitignore, so git still lists the dir; second tar == new.txt pins the filter). The default-path scenario of cycle 1 is closed. The fix adds a new defect for non-default dirs, see C2-M1."
+    },
+    {
+      "id": "C1-M3",
+      "status": "resolved",
+      "evidence": "scripts/mb_lock_liveness.py:26 proc_start catches OSError -> None; :42 `return now is None or start is None or now == start` after a successful os.kill. mb_lock_queue.py:26 imports from it (262 lines; C1-m19 split done). tests/pytest/test_mb_lock_queue.py:104 is parametrized for empty ps output and FileNotFoundError, patching subprocess.run. Old code returned False (empty) or raised (FileNotFoundError), so both cases fail on it."
+    },
+    {
+      "id": "C1-M4",
+      "status": "resolved",
+      "evidence": "test_mb_team_checkpoint.bats: the same-id, restore and label tests now use one assertion per line, and `[[ ]]` lines end with `|| false`. A grep for non-final `] && [` in tests/bats/test_mb_team_*.bats and test_mb_lock_resource.bats finds none. The remaining hits in test_mb_lock_{helper,corruption,r4_safety,ttl_reclaim}.bats are teardown guards and wait loops, not assertions. The bare `[[ ]]` lines in test_mb_team_cli.bats:92,149 and test_mb_team_review.bats:122,164 are each the last line of their test, so they count."
+    },
+    {
+      "id": "C1-M5",
+      "status": "resolved",
+      "evidence": "tests/pytest/test_mb_team_gate.py:308 (failing frozen item: rc 1, 'contract spec REQ-001', track A fixing, HEAD and index unchanged), :319 (unfrozen: 'not frozen', HEAD unchanged), :328 (frozen and passing: committed, A done). These cover mb_team_gate.py _contract_check and its call in the per-track loop. Removing the call makes the first two tests fail with rc 0."
+    },
+    {
+      "id": "C1-M6",
+      "status": "resolved",
+      "evidence": "tests/pytest/test_mb_team_state.py:111: a gate-routed fix at fix_cycle 4 gives ['fix A'] and at 5 gives ['stop_human fix-cycles:A'], so changing `>=` to `>` in route_fix (mb_team_status.py:92) fails the 5 case. :120: a fixing track at 5 gives ['wait'] and at 6 gives a stop, which pins the `>` branch."
+    },
+    {
+      "id": "C1-M7",
+      "status": "resolved",
+      "evidence": "tests/bats/test_mb_lock_resource.bats:188 sets up an expired lease with a live pid. `run --wait 1` must exit 75 with meta.json byte-identical. `break` then exits 0, the lock is gone and the board gets 'broke dead lock of L'; a live lease makes `break` exit 1. Mutation check by reasoning (the scratch mutation run was denied by the sandbox): without the `not meta.get(\"lease_until\")` guard at mb_lock_queue.py:140, holder_alive returns False for the expired lease, the queue head reclaims and runs `echo ran` with exit 0, and the `-eq 75` assertion fails. This matches the implementer's recorded red."
+    }
+  ],
+  "issues": [
+    {
+      "id": "C2-M1",
+      "severity": "medium",
+      "lenses": [
+        "logic",
+        "security"
+      ],
+      "file": "scripts/mb-team-checkpoint.sh",
+      "line": 29,
+      "problem": "Regression from the C1-M2 fix. The new code assumes --dir is a dedicated directory, but it comes from team.checkpoint.dir, which is bank-relative and user-configurable (mb_team_ops.py:115). (a) When --dir is an ancestor of the tree, the filter at :44-47 matches every untracked path, so all untracked work is silently left out of the tar. The manifest shows files: [] and has no skipped entry. (b) When --dir is the tree root, the same happens, and :30 also writes a repo-root .gitignore containing '*' when none exists. That hides every new untracked file from git status and from mb_vcs.sh untracked, so later checkpoints and `team commit` miss new track files. :29 also chmods the tree root (or any existing shared dir passed as --dir) to 700. Both cases were reproduced in the scratchpad: an ancestor dir gave an empty tar with rc 0; a tree-root dir gave an empty tar, an empty `git status --porcelain` and mode 700. The default <bank>/backups/team is not affected.",
+      "fix": "In create, resolve realpath(--dir) and realpath(root). Refuse with exit 2 and write nothing when --dir equals the tree root or contains it (the parent of the tree or higher). Then the filter only ever runs for a dir strictly inside the tree, or one outside it where it matches nothing. Do the chmod 700 and the .gitignore only on a dir this call created, or one that is strictly inside the tree. Add bats tests: --dir equal to the tree root and --dir equal to the tree's parent each exit 2, nothing is written, and the untracked file still appears in `git status --porcelain`.",
+      "owner": "C"
+    },
+    {
+      "id": "C2-n1",
+      "severity": "nit",
+      "lenses": [
+        "quality"
+      ],
+      "file": "tests/pytest/test_mb_lock_queue.py",
+      "line": 90,
+      "problem": "Blank-line layout of the new test code: three blank lines before `_ps` and one before the following `_wait` (test_mb_team_state.py:124 has the same single blank line before the next def). Ruff passes only because E30x is not selected.",
+      "fix": "Use two blank lines between top-level definitions.",
+      "owner": "C"
+    },
+    {
+      "id": "C2-n2",
+      "severity": "nit",
+      "lenses": [
+        "tests"
+      ],
+      "file": "tests/bats/test_mb_team_checkpoint.bats",
+      "line": 94,
+      "problem": "The restore-hint test moves $T into $W and removes $W only on its last line, so a failed assertion leaves $W behind (teardown removes $T, i.e. only the inner tree).",
+      "fix": "Create W under $BATS_TEST_TMPDIR, or remove it in teardown.",
+      "owner": "C"
+    }
+  ],
+  "backlog_candidates_carried": "The cycle-1 minors C1-m1..m18, m20, m21 and nits C1-n1..n7 are deferred unchanged. C1-m19 (the liveness split) is closed. None has become medium. The fix-cycle render and doc changes (shlex.quote in mb_team_render.py; the arc caveat in commands/team.md:232 and mb_vcs.sh:4) were checked for regressions and none were found. C1-m10 is still open for the freeze hint in mb_team_tracks.py and the review --range/--rev lines.",
+  "reviewers_consulted": [
+    "mb-reviewer-lead (independent re-review: code read, scratch reproduction, scoped suites)"
+  ],
+  "verification": {
+    "pytest": "PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_team_*.py tests/pytest/test_mb_lock_queue.py: 276 passed",
+    "bats": "bats tests/bats/test_mb_team_*.bats tests/bats/test_mb_lock_*.bats: 1..111, no 'not ok' lines",
+    "lint": "ruff check on the changed .py files: clean; shellcheck scripts/mb-team-checkpoint.sh: clean"
+  },
+  "notes": "All seven cycle-1 mediums are resolved, verified in code and in tests that can fail. One new medium, C2-M1, was introduced by the C1-M2 fix (a non-default checkpoint dir that is the tree root or one of its ancestors) and blocks the clean criterion. It is a small, local fix with two bats tests. Out-of-scope HANDOVER from C.md (the references/scripts.md row and the e2e module list) is already present: references/scripts.md:284 and tests/e2e/test_install_uninstall.bats:545 list mb_lock_liveness. Suites: pytest 276 passed; bats 111/111 with no failures. The tests are green because none of them covers the C2-M1 scenario."
+}

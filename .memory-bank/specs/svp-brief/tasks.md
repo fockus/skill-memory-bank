@@ -209,10 +209,10 @@
 - Сценарии §1–4 и §7 (requirements.md) — supplemental ручной smoke, не единственное доказательство.
 
 **DoD:**
-- [ ] Политика `brief-input` в `scripts/mb-secret-scan.sh` реализует S1-C5 без переопределения общих элементов; `test_mb_secret_scan_brief_input.bats` green
-- [ ] `scripts/mb-brief.sh create|context` реализован по C6: bootstrap корней + exists-гейт под publish-мьютексом (файл/каталог/symlink) → валидация C1 (Task 2) → сверки `--auto`/inputs (грамматика Attachments) → scan-all C5 с агрегацией R3-006 → staging → одиночный атомарный `mv`; правило `candidate=` R3-007 (usage-ошибки без строки, поздний отказ — с ней последней); два конкурентных create → один `created`, один `exists`
-- [ ] `commands/brief.md` + шаблон в `references/templates.md` по C0/C2; каждая клауза C7 (включая request-source XOR/empty/file-guard R3-008) проходит `assert_clause` **и** `assert_clause_load_bearing`
-- [ ] Eval green (был red по заявленному якорю `output~:`); shellcheck clean; сценарии §1–4, §7 отрабатывают вручную как smoke
+- [x] Политика `brief-input` в `scripts/mb-secret-scan.sh` реализует S1-C5 без переопределения общих элементов; `test_mb_secret_scan_brief_input.bats` green
+- [x] `scripts/mb-brief.sh create|context` реализован по C6: bootstrap корней + exists-гейт под publish-мьютексом (файл/каталог/symlink) → валидация C1 (Task 2) → сверки `--auto`/inputs (грамматика Attachments) → scan-all C5 с агрегацией R3-006 → staging → одиночный атомарный `mv`; правило `candidate=` R3-007 (usage-ошибки без строки, поздний отказ — с ней последней); два конкурентных create → один `created`, один `exists`
+- [x] `commands/brief.md` + шаблон в `references/templates.md` по C0/C2; каждая клауза C7 (включая request-source XOR/empty/file-guard R3-008) проходит `assert_clause` **и** `assert_clause_load_bearing`
+- [x] Eval green (был red по заявленному якорю `output~:`); shellcheck clean; сценарии §1–4, §7 отрабатывают вручную как smoke (closed 2026-11-18, master-completion Stage 16: commit 5d933fa, Eval green on HEAD, eval_gate=retro-skipped)
 <!-- /mb-task:1 -->
 
 <!-- mb-task:3 -->3
@@ -222,7 +222,7 @@
 **Covers:** REQ-006
 **Role:** developer
 **Blocked-by:** 1
-**Scope:** commands/discuss.md, tests/bats/test_brief_discuss_handoff.bats
+**Scope:** commands/discuss.md, scripts/mb-brief.sh, tests/bats/test_brief_discuss_handoff.bats
 **Budget:** 60000
 
 **What to do:**
@@ -286,7 +286,7 @@
 - shellcheck clean.
 
 **DoD:**
-- [ ] Routing-строка с dispatch + блок `### brief` с синопсисом C0 в `commands/mb.md`
-- [ ] `brief → discuss → sdd → work` в README.md и CLAUDE.md
-- [ ] Eval green (был red по заявленному якорю); все три ассерта проверяют целые строки/секции, а не наличие слова `brief`
+- [x] Routing-строка с dispatch + блок `### brief` с синопсисом C0 в `commands/mb.md`
+- [x] `brief → discuss → sdd → work` в README.md и CLAUDE.md
+- [x] Eval green (был red по заявленному якорю); все три ассерта проверяют целые строки/секции, а не наличие слова `brief` (closed 2026-11-18, master-completion Stage 16: commit 5d933fa, Eval green on HEAD, eval_gate=retro-skipped)
 <!-- /mb-task:4 -->

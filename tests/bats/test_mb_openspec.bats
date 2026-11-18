@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for scripts/mb-openspec.sh — thin dispatcher (T4: import|sync|list|status).
+# Tests for scripts/mb-openspec.sh — thin dispatcher (T4: import|sync|list|status|export).
 #
 # Contract (design.md, tasks.md T4 — Covers REQ-001, REQ-015, REQ-019):
 #   Usage: mb-openspec.sh <import|sync|list|status> [args...]
@@ -9,6 +9,7 @@
 #   - `status <topic>` reports the same status for one imported topic.
 #   - `sync [<topic>]` re-imports only when the source hash changed (REQ-015);
 #     hash match -> no-op, no topic -> sync all imported topics.
+#   - `export <topic>` forwards; dry-run diff by default, `--write` applies (AGR-105).
 #   - Unknown subcommand -> usage error, exit != 0.
 
 setup() {
@@ -110,6 +111,20 @@ _import() {
   run bash "$DISPATCH" bogus-subcommand
   [ "$status" -ne 0 ]
   [[ "$output" == *"sage"* ]]  # "Usage"/"usage" — tolerant of exact casing
+}
+
+@test "mb-openspec.sh: --help lists --normalize for import and sync" {
+  run bash "$DISPATCH" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"import <change_dir> [--as <topic>] [--mb <bank>] [--normalize]"* ]]
+  [[ "$output" == *"sync   [<topic>] [--take openspec|bank] [--mb <bank>] [--normalize]"* ]]
+}
+
+@test "mb-openspec.sh: --help lists export, --take and export --new" {
+  run bash "$DISPATCH" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"export <topic> [--write] [--allow-delete] [--mb <bank>]"* ]]
+  [[ "$output" == *"export <topic> --new [--id <id>] [--cap <cap>] [--openspec <root>]"* ]]
 }
 
 @test "mb-openspec.sh: no subcommand -> usage error, exit != 0" {
@@ -258,4 +273,27 @@ _import() {
   run bash "$DISPATCH" sync --mb "$BANK"
   [ "$status" -eq 0 ]
   grep -q "cache widgets aggressively" "$BANK/specs/widget-topic/requirements.md"
+}
+
+# ═══════════════════════════════════════════════════════════════
+# export
+# ═══════════════════════════════════════════════════════════════
+
+@test "export: dry-run by default, --write splices the bank edit into OpenSpec" {
+  _write_change "add-widget" "cache widgets"
+  _import "add-widget" "widget-topic"
+  spec="$OPENSPEC_ROOT/openspec/changes/add-widget/specs/demo/spec.md"
+  sed -i.bak 's/SHALL cache widgets\./SHALL cache widgets per tenant./' \
+    "$BANK/specs/widget-topic/requirements.md"
+  before="$(cat "$spec")"
+
+  run bash "$DISPATCH" export widget-topic --mb "$BANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"+The system SHALL cache widgets per tenant."* ]]
+  [ "$(cat "$spec")" = "$before" ]
+
+  run bash "$DISPATCH" export widget-topic --write --mb "$BANK"
+  [ "$status" -eq 0 ]
+  grep -q "The system SHALL cache widgets per tenant." "$spec"
+  ! grep -q "REQ-" "$spec"
 }

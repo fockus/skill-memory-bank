@@ -132,6 +132,16 @@ class CodexHooksTests(unittest.TestCase):
                 self.assertEqual(r.returncode, 0, r.stderr)
                 self.assertFalse(self.bank.exists())
 
+    def test_subagent_start_carries_graph_status_line_within_cap(self):
+        (self.bank/'status.md').write_text('# Status\n' + 'current milestone ' * 1000)
+        r = self.hook('SubagentStart')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        context = json.loads(r.stdout)['hookSpecificOutput']['additionalContext']
+        graph = [line for line in context.splitlines() if line.startswith('Code graph:')]
+        self.assertEqual(len(graph), 1, context[:600])
+        self.assertIn('mb-graph.sh', graph[0])
+        self.assertLessEqual(len(context), 4000)
+
     def test_session_start_restores_core_without_recent_sessions(self):
         (self.bank/'status.md').write_text('# Status\nRestore the current milestone.\n')
         (self.bank/'checklist.md').write_text('- [ ] Finish the integration.\n')

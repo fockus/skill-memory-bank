@@ -48,7 +48,7 @@ If gates pass (or are forced), continue with the rest of this flow.
 
 ## 0b. If work followed a plan or spec — verify first
 
-If this session followed a plan or spec tasks, run `/mb verify <exact source path>` before proceeding. Pass the explicit session target or current run's `source_path` through the `commands/mb.md` verify resolver. A spec-only run requires verification even when `<bank>/plans/` is empty. Never select an unrelated plan by modification time. Fix CRITICAL issues; surface WARNINGs to the user.
+If this session followed a plan or spec tasks, run `/mb verify <exact source path>` before proceeding. Pass the explicit session target or current run's `source_path` through the verify resolver in `references/mb/verify.md`. A spec-only run requires verification even when `<bank>/plans/` is empty. Never select an unrelated plan by modification time. Fix CRITICAL issues; surface WARNINGs to the user.
 
 ## 1. Run MB Manager `action: done`
 

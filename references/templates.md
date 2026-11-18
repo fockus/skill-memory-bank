@@ -15,6 +15,7 @@
   - [Required per Sprint — Gate](#required-per-sprint--gate)
   - [Terminology](#terminology)
 - [Plan (`plans/YYYY-MM-DD_<type>_<topic>.md`)](#plan-plansyyyy-mm-dd_type_topicmd)
+- [Roadmap frontmatter (`ice`, `pin`, `group`)](#roadmap-frontmatter-ice-pin-group)
 - [New Memory Bank initialization (`/mb init`)](#new-memory-bank-initialization-mb-init)
 - [Drift checks (`scripts/mb-drift.sh`)](#drift-checks-scriptsmb-driftsh)
   - [Usage](#usage)
@@ -266,6 +267,23 @@ Types: `feature`, `fix`, `refactor`, `experiment`
 ```
 
 ---
+
+## Roadmap frontmatter (`ice`, `pin`, `group`)
+
+Specs (`specs/<topic>/requirements.md`) and plans carry this frontmatter; `mb-roadmap-sync.sh` orders the roadmap from it and `mb-bank-lint.sh roadmap` checks it:
+
+```yaml
+topic: <slug>
+group: <slug>                                       # [a-z0-9][a-z0-9-]*
+ice: {impact: <1..10>, confidence: <1..10>, ease: <1..10>}   # flow-style, ONE line
+ice_confirmed: <true|false>   # optional, default false — the user confirmed the numbers
+pin: <integer > 0>            # optional manual order override
+blocked_by: [<spec-slug>, ...]
+status: draft | ready | done
+created: YYYY-MM-DD
+```
+
+The score `impact × confidence × ease` (1..1000) is computed by the script on every render; it is never stored and never read back from `roadmap.md`. A block-style `ice:` mapping, a plain integer or a value outside 1..10 is an `invalid_ice` error; a missing `ice` is a `no_ice` warning and the item sorts last.
 
 ## New Memory Bank initialization (`/mb init`)
 

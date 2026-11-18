@@ -122,9 +122,9 @@ teardown_skill_alias_sandbox() {
   teardown_skill_alias_sandbox
 }
 
-@test "skill_root: commands/mb.md resolves the skill root via MB_SKILLS_ROOT (overridable), not a bare hardcode" {
-  local mb_md="$REPO_ROOT/commands/mb.md"
-  [ -f "$mb_md" ] || skip "commands/mb.md missing"
+@test "skill_root: references/mb/help.md resolves the skill root via MB_SKILLS_ROOT (overridable), not a bare hardcode" {
+  local mb_md="$REPO_ROOT/references/mb/help.md"
+  [ -f "$mb_md" ] || skip "references/mb/help.md missing"
   # The command doc must honour an MB_SKILLS_ROOT override with the historical
   # Claude alias as its default fallback (backward compatible).
   grep -qF '${MB_SKILLS_ROOT:-$HOME/.claude/skills/memory-bank}' "$mb_md"

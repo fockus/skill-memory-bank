@@ -200,9 +200,9 @@ Testing: bats — the adapter bakes a per-agent sub-invoke command (CC Task/back
 Testing: per-agent smoke — Pi/OpenCode sub-invoke commands fan out via `mb-fanout`; where a native parallel feature exists it MAY be preferred; where no sub-invoke is resolvable → sequential + stderr WARN (last resort, not the default).
 
 **DoD:**
-- [ ] `adapters/{pi,opencode}.sh` declare their sub-invoke command; `flow-templates/` + fence rules ship in the install payload.
-- [ ] A host with a native feature MAY prefer it (REQ-DF-083); the explicit helper stays the portable default.
-- [ ] No sub-invoke resolvable → sequential + WARN; no standalone dispatcher rebuilt (ADR-1′).
+- [x] `adapters/{pi,opencode}.sh` declare their sub-invoke command; `flow-templates/` + fence rules ship in the install payload.
+- [x] A host with a native feature MAY prefer it (REQ-DF-083); the explicit helper stays the portable default.
+- [x] No sub-invoke resolvable → sequential + WARN; no standalone dispatcher rebuilt (ADR-1′).
 
 <!-- mb-task:14 -->
 ### Task 14: Composable skills — `critique` / `risk-find` / `final-report`
@@ -210,11 +210,11 @@ Testing: per-agent smoke — Pi/OpenCode sub-invoke commands fan out via `mb-fan
 **Covers:** REQ-DF-010, REQ-DF-011
 **Role:** developer
 
-Testing: per-skill — `critique` (wraps reflexion/sadd), `risk-find`, `final-report` each produce their artifact without duplicating the role-agents or `mb-reviewer`.
+Testing: per-skill — `critique` (validator-feedback retry), `risk-find`, `final-report` each produce their artifact without duplicating the role-agents or `mb-reviewer`.
 
 **DoD:**
-- [ ] `critique`/`risk-find`/`final-report` skills exist with a file-based I/O contract.
-- [ ] None duplicates an existing role-agent or `mb-reviewer`; `critique` wraps the existing reflexion/sadd skills.
+- [x] `critique`/`risk-find`/`final-report` skills exist with a file-based I/O contract.
+- [x] None duplicates an existing role-agent or `mb-reviewer`; `critique` is self-contained (validator-feedback retry, AGR-104), no reflexion/sadd wrap.
 
 ## Gate (whole spec)
 

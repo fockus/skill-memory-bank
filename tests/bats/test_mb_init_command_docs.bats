@@ -5,10 +5,12 @@
 # show non-interactive examples for scripts/CLI, and clarify that the default
 # remains local + project-shared while global mode keeps the repository clean.
 
+load 'lib/mb_corpus'
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
-  MB_MD="$REPO_ROOT/commands/mb.md"
-  [ -f "$MB_MD" ] || skip "commands/mb.md missing"
+  MB_MD="$BATS_TEST_TMPDIR/mb_corpus.md"
+  mb_corpus > "$MB_MD"
 }
 
 @test "mb init docs: both storage modes named in the routing table or section" {

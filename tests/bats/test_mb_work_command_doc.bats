@@ -14,6 +14,7 @@ setup() {
     "$REPO_ROOT/commands/work.md"
     "$REPO_ROOT/references/work-reference.md"
     "$REPO_ROOT/references/work-loop-v2.md"
+    "$REPO_ROOT/references/work-loop-reference.md"
   )
 }
 

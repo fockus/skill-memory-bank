@@ -1,0 +1,87 @@
+{
+ "status": "OK",
+ "verdict": "CHANGES_REQUESTED",
+ "issues": [
+  {
+   "severity": "blocker",
+   "file": "scripts/mb_openspec_ops.py",
+   "line": 158,
+   "description": "Re-import always passes take=\"openspec\" instead of a three-way merge: a unit edited on both sides is silently resolved to OpenSpec and the bank edit is lost. No check that an existing topic's openspec_source matches the imported change_dir, so a topic can be silently re-linked.",
+   "recommendation": "For an existing topic verify openspec_source first (reject unlinked/other-change topics); for the same source call plan_sync without take and abort without writes on conflict."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_sync.py",
+   "line": 183,
+   "description": "With missing/corrupt sidecar and changed source, synthetic_sidecar marks only text hashes unknown but accepts current OpenSpec checkbox states as baseline. Old false, OpenSpec true, bank false: no conflict, and the next export overwrites the OpenSpec tick back to false.",
+   "recommendation": "Treat checkbox as an unknown unit when no reliable sidecar; emit a conflict if the sides differ before writing a baseline; add a regression test."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_ops.py",
+   "line": 274,
+   "description": "Batch sync is not all-or-nothing: _sync_topic writes each successful topic immediately; a later conflicting topic leaves earlier ones modified, contrary to AGR-105 (any conflict -> no writes).",
+   "recommendation": "Two phases: plan all topics without writes, apply only if no conflicts/errors; test first-ok/second-conflict leaves both untouched."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_export.py",
+   "line": 232,
+   "description": "No compare-and-swap between hash check/bank read and the later writes: concurrent OpenSpec edit after the hash check is overwritten; concurrent bank requirements.md edit is lost because rebaseline (lines 269-272) writes the stale bank[0].",
+   "recommendation": "Re-verify all OpenSpec bytes vs job.old and the bank triple vs snapshot immediately before the first write; abort on drift; make the requirements.md rewrite conditional on unchanged bytes."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_export_new.py",
+   "line": 176,
+   "description": "export --new creates OpenSpec files then mutates the bank via several independent atomic_writes. A crash mid-way leaves a partial change; re-run refuses because change_dir exists; a crash after tasks/sidecar but before requirements frontmatter leaves a half-modified, unlinked bank topic.",
+   "recommendation": "Build the change in a sibling temp dir and rename atomically; make bank linking resumable (complete missing bank writes when an identical change already exists)."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_export.py",
+   "line": 48,
+   "description": "Write guard does not implement 'no path component is archive': it only checks real.name and immediate parents. /backup/archive/project/openspec/changes/id passes. Test covers only openspec/changes/archive/<id>.",
+   "recommendation": "Reject if \"archive\" in real.parts; add a test with archive in an earlier component incl. symlinked parent."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb_openspec_export_new.py",
+   "line": 59,
+   "description": "export --new can write an internal REQ-ID into OpenSpec: a requirement outside a recognised ### Requirement heading is named by its rid ('### Requirement: REQ-007'), violating AGR-105.",
+   "recommendation": "Generate a neutral stable name (e.g. 'Requirement 1'); add a test with an ungrouped requirement asserting no 'REQ-' in any created OpenSpec file."
+  },
+  {
+   "severity": "major",
+   "file": "scripts/mb-openspec.py",
+   "line": 163,
+   "description": "_print_sync_results prints action=\"error\" as a warning but leaves rc=0, so missing source/corrupt frontmatter exits 0 and automation proceeds with a stale bank.",
+   "recommendation": "Set rc=1 on action=\"error\" like conflict; add CLI test for non-zero exit and no writes on missing source."
+  },
+  {
+   "severity": "minor",
+   "file": "tests/pytest/test_openspec_export_new.py",
+   "line": 117,
+   "description": "'reads back to the same units' compares only REQ bullet and checkbox lines; design.md, scenario placement/Covers, anchors/meta and the full triple are not checked, so the Stage 9 DoD 'importer reads back the same triple' is under-tested.",
+   "recommendation": "Compare all three re-imported files to the expected canonical triple (excluding only documented projection-only fields); test shared scenario and Why/What Changes."
+  },
+  {
+   "severity": "info",
+   "file": "scripts/mb_openspec_bank.py",
+   "line": 1,
+   "description": "~280 lines mixing path/security guards, triple IO, discovery and backlog mutation; nearest SRP risk.",
+   "recommendation": "After security fixes, split into path guards and topic persistence/discovery."
+  }
+ ],
+ "counts": {
+  "blocker": 1,
+  "major": 7,
+  "minor": 1,
+  "info": 1
+ },
+ "prior_issues": [],
+ "raw_output": "/private/tmp/claude-502/-Users-fockus-Apps-skill-memory-bank/dc795ad2-23d2-4e73-bc4c-6c49e807e25c/scratchpad/raw.txt",
+ "model": "gpt-5.6-sol",
+ "effort": "high",
+ "rounds": 1
+}

@@ -199,7 +199,7 @@ prepend_recent_done() {
 prepend_recent_done "$STATUS_MD" "$BASENAME" "$plan_title" "$TODAY" "$LIMIT"
 
 # ═══════════════════════════════════════════════════════════════
-# Flip BACKLOG idea PLANNED → DONE (if linked to this plan)
+# Flip BACKLOG idea PLANNED|IN-PROGRESS → DONE (if linked to this plan)
 # ═══════════════════════════════════════════════════════════════
 flip_backlog_idea() {
   local file="$1" basename="$2"
@@ -222,7 +222,7 @@ text = open(path, encoding="utf-8").read()
 def flip_status(block: str) -> str:
     bits = [b.strip() for b in block.split(",")]
     for i, b in enumerate(bits):
-        if b.upper() in ("NEW", "TRIAGED", "PLANNED"):
+        if b.upper() in ("NEW", "TRIAGED", "PLANNED", "IN-PROGRESS"):
             bits[i] = "DONE"
     return ", ".join(bits)
 

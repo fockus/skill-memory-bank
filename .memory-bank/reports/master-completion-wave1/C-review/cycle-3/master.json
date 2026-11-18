@@ -1,0 +1,71 @@
+{
+  "cycle": 3,
+  "verdict": "CHANGES_REQUESTED",
+  "counts": {
+    "blocker": 0,
+    "major": 0,
+    "medium": 1,
+    "minor": 0,
+    "nit": 2
+  },
+  "previous": [
+    {
+      "id": "C2-M1",
+      "status": "resolved",
+      "scope_note": "Resolved for the scenario it named: --dir equal to the tree root or an ancestor. The same root cause still applies to an existing, non-dedicated dir strictly inside the tree. That case is tracked as C3-M1. The cycle-2 fix text allowed it ('or one that is strictly inside the tree'), so it is a gap in the review, not an implementer error.",
+      "evidence": "scripts/mb-team-checkpoint.sh:29-32 resolves realpath(--dir) and realpath(root) and exits 2 on 'contains' before any mkdir, chmod or write. :33-40 apply chmod 700 and the `*` .gitignore only when the dir was created by this call or is strictly inside the tree. tests/bats/test_mb_team_checkpoint.bats:133-153 (refuse_dir): root and ancestor each give rc 2, an unchanged listing, an unchanged tree mode, new.txt still in git status, and no root .gitignore. Old code fails these (it writes into the dir). Scratch repro (scratchpad c3/run.sh) passed for: a symlink to the root (rc 2, mode 755 kept, no .gitignore); a symlink inside the tree pointing to an ancestor (rc 2); a relative '../..' and '../../x/../' from a subdir cwd (rc 2); tree=a subdir, so mb_vcs root is the repo root, with --dir at the repo root (rc 2); a sibling with the same prefix, tree vs tree2 (accepted, full tar); a pre-existing outside dir with a space in its path (mode 755 left alone, no .gitignore, files 600, full tar); a new relative dir inside the tree with a space (700, `*` .gitignore, full tar, clean git status)."
+    },
+    {
+      "id": "C2-n1",
+      "status": "unresolved",
+      "evidence": "tests/pytest/test_mb_lock_queue.py:88-90 still has three blank lines before `def _ps`. tests/pytest/test_mb_team_state.py:124 still has one blank line before `def test_next_team_review_when_enabled_and_all_finished`. Fix cycle 2 did not claim this nit."
+    },
+    {
+      "id": "C2-n2",
+      "status": "resolved",
+      "evidence": "tests/bats/test_mb_team_checkpoint.bats:95 builds W under $BATS_TEST_TMPDIR. The new tests at :145 and :151 do the same."
+    }
+  ],
+  "issues": [
+    {
+      "id": "C3-M1",
+      "severity": "medium",
+      "lenses": ["logic", "data-safety"],
+      "file": "scripts/mb-team-checkpoint.sh",
+      "line": 37,
+      "problem": "This is C2-M1's root cause in a case the fix does not cover: the script still treats any --dir strictly inside the tree as a dedicated checkpoint dir. team.checkpoint.dir is relative to the bank and set by the user (mb_team_ops.py:115). With `dir: .` (the bank itself) or `dir: ../src`, the --dir is an existing, populated dir inside the tree. Three things then happen. (1) The self-exclusion filter at :54-57 silently leaves every untracked file under that dir out of the tar, with no skipped_large entry. (2) :39 writes a `*` .gitignore into the dir. That file ignores itself, so it is invisible, and from then on new files there are hidden from git status and from mb_vcs.sh untracked. Later checkpoints and `team commit` miss new bank notes or plans, or new source files. (3) :38 chmods the dir to 700. Reproduced in the scratchpad: (a) --dir=<tree>/src gave a tar without src/work.txt, src mode 755->700, and a src/later.txt created afterwards did not appear in `git status --porcelain -uall`. (b) --dir=<tree>/.memory-bank gave a tar without .memory-bank/note.md, and note.md vanished from git status. In both cases rc was 0. The only signal is the 'contains files tracked by a repository' warning, printed after the .gitignore is already written.",
+      "fix": "Run the chmod 700 and the `*` .gitignore only on a dir this call created, or on an existing dir that holds nothing but checkpoint artifacts: .gitignore, *.diff, *-manifest.json, *-untracked.tar.gz, *.sha256 and the .<cid>.changed/.untracked temp files. For an existing dir strictly inside the tree that holds anything else, exit 2 before writing anything, with a message like '--dir <d> is not a dedicated checkpoint dir'. That keeps the filter safe, because it then only ever excludes the script's own files. Add a bats test: an existing tracked subdir with an untracked file inside, passed as --dir, exits 2, gets no .gitignore, keeps its mode, and the untracked file stays in git status. The default <bank>/backups/team and tests :107 and :120 are unaffected. The dir in :120 holds only an empty .gitignore.",
+      "owner": "C"
+    },
+    {
+      "id": "C3-n1",
+      "severity": "nit",
+      "lenses": ["quality"],
+      "file": "scripts/mb-team-checkpoint.sh",
+      "line": 34,
+      "problem": "A --dir that is a dangling symlink makes `mkdir -p` fail and the script exit 1 ('No such file or directory'). The header contract says exit 1 means a verify mismatch or an existing id, and 2 means usage. Nothing is written, so this is cosmetic.",
+      "fix": "Optional: `mkdir -p \"$out\" || exit 2`.",
+      "owner": "C"
+    },
+    {
+      "id": "C2-n1",
+      "severity": "nit",
+      "lenses": ["quality"],
+      "file": "tests/pytest/test_mb_lock_queue.py",
+      "line": 90,
+      "problem": "Carried from cycle 2, unchanged: wrong blank-line layout before `_ps` and in test_mb_team_state.py:124.",
+      "fix": "Use two blank lines between top-level definitions.",
+      "owner": "C"
+    }
+  ],
+  "backlog_candidates_carried": "Cycle-1 minors and nits are deferred unchanged, as recorded in cycle 2. Accepted by design and not raised: an existing in-tree dir that has its own non-ignoring .gitignore (test :120) still shows its checkpoint files in git status. The tars are kept out by the filter. The script respects the user's .gitignore, and git status shows the files, so nothing is hidden.",
+  "reviewers_consulted": [
+    "mb-reviewer-lead (independent re-review: read the code and fix diff, scratch reproduction of 11 --dir edge cases, scoped suites)"
+  ],
+  "verification": {
+    "bats": "bats tests/bats/test_mb_team_checkpoint.bats tests/bats/test_mb_team_cli.bats tests/bats/test_mb_team_hardening.bats: 1..33, all ok, rc 0",
+    "shellcheck": "shellcheck scripts/mb-team-checkpoint.sh: clean; with -x --source-path=SCRIPTDIR: clean",
+    "scratch": "/private/tmp/claude-502/-Users-fockus-Apps-skill-memory-bank/dc795ad2-23d2-4e73-bc4c-6c49e807e25c/scratchpad/c3/run.sh"
+  },
+  "notes": "Not clean: one medium is open. C2-M1 is closed for root and ancestor dirs, and symlinks, relative paths and prefix siblings are handled correctly. The open medium C3-M1 is the same 'user-configured dir is not dedicated' defect for an existing populated dir inside the tree, such as the bank itself or src. The fix is a small local guard plus one bats test. The fix diff adds no other regressions: the shell-quoted restore hint and the realpath filter are consistent with the guard."
+}

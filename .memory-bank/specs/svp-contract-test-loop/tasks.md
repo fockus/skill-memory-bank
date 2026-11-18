@@ -184,9 +184,9 @@
   `test_renderer_writes_no_files` — снимок дерева до/после вызова совпадает.
 
 **DoD:**
-- [ ] C8-рендерер + вызов из `commands/sdd.md` + шаблоны; pytest green (был red)
-- [ ] рендерер не пишет файлов; запись триплета — только оркестратор (S2-C3)
-- [ ] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
+- [x] C8-рендерер + вызов из `commands/sdd.md` + шаблоны; pytest green (был red)
+- [x] рендерер не пишет файлов; запись триплета — только оркестратор (S2-C3)
+- [x] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean (closed 2026-11-18, master-completion Stage 16: commit a4f0ba0, Eval green on HEAD, eval_gate=retro-skipped)
 <!-- /mb-task:4 -->
 
 <!-- mb-task:5 -->
@@ -246,9 +246,9 @@
   `bash scripts/mb-pipeline-validate.sh` подтверждает неизменность порядка стадий.
 
 **DoD:**
-- [ ] C3a-раннер (JSON/argv, R3-002) + двухфазный диспатч A/B + resume (R2-001) + red-evidence gate перед verify (CPR-A); bats green (были red)
-- [ ] `fake_red` и `foreign_failure` — локальные hard stop, в S5 не маршрутизируются (C7)
-- [ ] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
+- [x] C3a-раннер (JSON/argv, R3-002) + двухфазный диспатч A/B + resume (R2-001) + red-evidence gate перед verify (CPR-A); bats green (были red)
+- [x] `fake_red` и `foreign_failure` — локальные hard stop, в S5 не маршрутизируются (C7)
+- [x] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean (closed 2026-11-18, master-completion Stage 16: commit 2d6d372, Eval green on HEAD, eval_gate=retro-skipped) (S8 T5 verify line pending: HANDOVER to references/mb/verify.md)
 <!-- /mb-task:5 -->
 
 <!-- mb-task:6 -->
@@ -290,9 +290,9 @@
   `test_overlap_not_reported_as_dry_violation` — фикстура с пересекающимся покрытием не даёт вердикта-нарушения.
 
 **DoD:**
-- [ ] C6 реализован; pytest green (был red)
-- [ ] конфиги не мутируются; новых каналов доставки не появилось (S8-D-09)
-- [ ] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
+- [x] C6 реализован; pytest green (был red)
+- [x] конфиги не мутируются; новых каналов доставки не появилось (S8-D-09)
+- [x] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean (closed 2026-11-18, master-completion Stage 16: commit 2d88b5b, Eval green on HEAD, eval_gate=retro-skipped)
 <!-- /mb-task:6 -->
 
 <!-- mb-task:7 -->
@@ -321,9 +321,9 @@
 - Edge: `REQ-011__fast_mode_refusal_is_recorded`, `REQ-017__missing_rule_source_fails_loudly`.
 
 **DoD:**
-- [ ] Интеграционные тесты покрывают scenario test_ids: `REQ-001__contract_task_comes_first`, `REQ-007__two_test_layers_at_the_end_of_the_spec`, `REQ-011__fast_mode_refusal_is_recorded`, `REQ-012__legacy_spec_read_without_mutation`, `REQ-015__project_rules_beat_bank_rules`, `REQ-017__missing_rule_source_fails_loudly`; green (были red)
-- [ ] Внешних моков ≤5 (правило Testing Trophy, `rules/RULES.md:286`)
-- [ ] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
+- [x] Интеграционные тесты покрывают scenario test_ids: `REQ-001__contract_task_comes_first`, `REQ-007__two_test_layers_at_the_end_of_the_spec`, `REQ-011__fast_mode_refusal_is_recorded`, `REQ-012__legacy_spec_read_without_mutation`, `REQ-015__project_rules_beat_bank_rules`, `REQ-017__missing_rule_source_fails_loudly`; green (были red)
+- [x] Внешних моков ≤5 (правило Testing Trophy, `rules/RULES.md:286`)
+- [x] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean (closed 2026-11-18, master-completion Stage 16: commit 85a0538, Eval green on HEAD, eval_gate=retro-skipped)
 <!-- /mb-task:7 -->
 
 <!-- mb-task:8 -->
@@ -350,7 +350,7 @@
   `REQ-006__unobservable_requirement_escalates`.
 
 **DoD:**
-- [ ] E2E покрывают scenario test_ids: `REQ-003__checker_without_a_negative_fixture_rejected`, `REQ-004__fake_red_fails_the_contract_task`, `REQ-006__unobservable_requirement_escalates`, `REQ-020__verify_runs_the_contract_checkers`; green (были red)
-- [ ] Прогон детерминирован (нет зависимости от сети и времени)
-- [ ] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean
+- [x] E2E покрывают scenario test_ids: `REQ-003__checker_without_a_negative_fixture_rejected`, `REQ-004__fake_red_fails_the_contract_task`, `REQ-006__unobservable_requirement_escalates`, `REQ-020__verify_runs_the_contract_checkers`; green (были red)
+- [x] Прогон детерминирован (нет зависимости от сети и времени)
+- [x] `bash scripts/mb-rules-check.sh --files <изменённые> --out json` — clean (closed 2026-11-18, master-completion Stage 16: commit cbd4d3d, Eval green on HEAD, eval_gate=retro-skipped)
 <!-- /mb-task:8 -->

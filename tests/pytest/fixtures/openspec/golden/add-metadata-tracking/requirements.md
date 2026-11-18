@@ -7,6 +7,7 @@
 
 ### Requirement 1: Change Metadata
 
+<!-- openspec: cap=change-tracking; kind=added -->
 <!-- openspec-req: Change Metadata -->
 - **REQ-001** (ubiquitous): The system SHALL store and validate per-change metadata in `.openspec.yaml` files.
 
@@ -20,6 +21,7 @@
 
 ### Requirement 2: Metadata Schema Version
 
+<!-- openspec: cap=change-tracking; kind=added -->
 <!-- openspec-req: Metadata Schema Version -->
 - **REQ-002** (ubiquitous): The system SHALL record a schema version field inside every `.openspec.yaml` file.
 
@@ -33,6 +35,7 @@
 
 ### Requirement 3: Change Status Field
 
+<!-- openspec: cap=change-tracking; kind=modified -->
 <!-- openspec-req: Change Status Field -->
 - **REQ-003** (ubiquitous): The system SHALL persist the change status as one of draft, active, or archived, replacing the previous free-text status field.
 
@@ -43,3 +46,17 @@
 - WHEN a change is archived via `openspec archive`
 - THEN the system SHALL set its status field to archived
 <!-- /mb-scenario:3 -->
+
+### Requirement 4: Change Author
+
+<!-- openspec: cap=change-tracking; kind=renamed; from=Change Owner -->
+<!-- openspec-req: Change Author -->
+- **REQ-004** (ubiquitous): The system SHALL keep requirement 'Change Owner' under the new name 'Change Author'.
+
+<!-- mb-scenario:4 -->
+### Scenario: (none provided)
+**Covers:** REQ-004
+
+- WHEN not specified
+- THEN not specified
+<!-- /mb-scenario:4 -->

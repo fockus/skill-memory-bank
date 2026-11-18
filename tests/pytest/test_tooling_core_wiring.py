@@ -67,7 +67,7 @@ def test_tooling_core_reaches_implementers_and_reviewer() -> None:
 
 def test_mb_md_verify_section_references_tooling_core() -> None:
     """The plan-verifier dispatch in `### verify` inlines tooling-core."""
-    text = _read(MB_MD)
+    text = _read(REPO_ROOT / "references" / "mb" / "verify.md")
     verify_idx = text.find("### verify")
     assert verify_idx != -1, "### verify section not found in mb.md"
     # Scope to the verify region: from `### verify` to the next top-level `### `.

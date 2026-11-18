@@ -86,3 +86,10 @@ Exit `0` PASS, `1` FAIL (clean red — name the breach, repair, loop again withi
 the cap), `2` BROKE (a check script itself malfunctioned — fix the runner
 first). A green firewall is the canonical stop predicate; reaching the cap with a
 non-green firewall is a HALT, not a done.
+
+### Discovery loops: dry-round stop (borrowed from pi-dynamic-workflows `loopUntilDry`)
+
+For loops whose body discovers items (findings, files, candidates) rather than repairs one result, add a third stop: **N
+consecutive dry rounds** (default `N=2`). A round is dry when it yields no item whose stable key (default: its JSON form) is new;
+null, non-array and duplicate-only rounds are dry. The MAX_ITERS cap still applies. Record the stop reason (`dry` / `cap` /
+`budget`) in the loop state: running out of budget is NOT dry and must be reported NOT-DONE.

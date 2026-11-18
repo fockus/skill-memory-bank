@@ -69,6 +69,9 @@ v3.0 `BACKLOG.md` was freeform. v3.1 fixes the skeleton:
   `DECLINED`). `mb-idea-promote.sh` flips `NEW/TRIAGED → PLANNED` and adds a
   `**Plan:**` cross-link; `mb-plan-done.sh` flips `PLANNED → DONE` when the
   linked plan completes.
+  *(History: this is the v3.1 lifecycle. Current lifecycle:
+  `NEW → NEEDS-INFO ⇄ TRIAGED → READY → IN-PROGRESS → DONE | WONTFIX`; promote now
+  requires `READY` and writes `IN-PROGRESS` — see `references/mb/idea.md`.)*
 
 ### `checklist.md` / `plan.md` compaction
 

@@ -12,6 +12,8 @@ import json
 import sys
 from pathlib import Path
 
+from mb_corpus import read_mb_corpus, read_mb_router
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
@@ -103,7 +105,7 @@ def test_cli_missing_graph_returns_exit_3(tmp_path: Path):
 def test_wiki_command_doc_exists_with_required_sections():
     # /mb wiki is a subcommand documented in commands/mb.md (like graph/search/tags),
     # not a standalone top-level command file.
-    doc = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    doc = read_mb_corpus()
     assert "### wiki" in doc
     assert "Haiku" in doc and "Sonnet" in doc
     assert "--dry-run" in doc
@@ -118,7 +120,7 @@ def test_wiki_agent_prompts_exist_and_declare_tiers():
 
 
 def test_mb_router_lists_wiki_subcommand():
-    router = (REPO_ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    router = read_mb_router()
     assert "`wiki" in router or "| `wiki`" in router
 
 

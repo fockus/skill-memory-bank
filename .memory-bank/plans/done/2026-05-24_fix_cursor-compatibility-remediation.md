@@ -2,7 +2,7 @@
 type: fix
 scope: cursor-compatibility-remediation
 created: 2026-05-24
-status: in_progress
+status: done
 priority: HIGH
 linked_specs: [specs/cursor-extension]
 linked_audit: reports/2026-05-24_cursor-compatibility-audit.md
@@ -73,7 +73,7 @@ TypeScript extension required (unlike Pi).
 **DoD:**
 - [x] `adapters/cursor/dispatch.md` exists
 - [x] `parallel-pipeline/design.md` Cursor row updated from TBD
-- [ ] handoff-v2 hook rename synced when that plan lands — **deferred: blocked on handoff-v2 (Wave 2); falls out of that spec's hook-rename task**
+- [x] handoff-v2 hook rename synced — `adapters/cursor.sh:62` registers `mb-pre-compact.sh`, `:211-227` removes legacy `mb-compact-reminder.sh`; tests `tests/bats/test_cursor_adapter.bats:103,374-383` (verified 2026-11-18)
 
 ## Verification
 
@@ -88,5 +88,5 @@ TypeScript extension required (unlike Pi).
 - [x] Audit blockers B1 and gaps C1–C3 closed
 - [x] Docs drift W1 resolved
 - [x] Verified via tests (2026-06-15): full pytest **1430 passed**; cursor bats (skill_root 5, adapter 8, docs 2) + e2e (global, global_storage incl. new sessionEnd case) + reviewer-resolve 6 + parallel-adapters 2 — all green
-- [ ] `mb-spec-validate cursor-extension` clean — orphans (REQ-310→Task 2, 312–317) + Task 9 missing-Testing **fixed** this pass; remaining 13 EARS-phrasing warnings are **pre-existing** (HEAD already exit=1) → backlog **I-071**
-- [ ] Stage 6 Task 9 (hook-rename sync) — deferred to handoff-v2 (Wave 2)
+- [x] `mb-spec-validate cursor-extension` — accepted 2026-11-18 (master-completion Stage 1): structural errors fixed; orphans (REQ-310→Task 2, 312–317) + Task 9 missing-Testing **fixed** this pass; remaining 13 EARS-phrasing warnings are **pre-existing** (HEAD already exit=1) → backlog **I-071**
+- [x] Stage 6 Task 9 (hook-rename sync) — done in code, see Stage 6 DoD

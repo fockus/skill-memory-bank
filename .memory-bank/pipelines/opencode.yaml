@@ -1,0 +1,524 @@
+# Named pipeline: opencode (created by /mb pipeline new)
+pipeline_name: opencode
+default: false
+agents: [opencode]
+
+# memory-bank — default execution pipeline (spec §9)
+#
+# This file is shipped with the skill. `/mb config init` copies it into
+# `<bank>/pipeline.yaml` so the project can override per-project values.
+# `/mb work` consumes the resolved file (project override → this default).
+
+version: 1
+
+# ===== Roles — mapping role → agent (plugin-style overrides supported) =====
+roles:
+  developer: { agent: mb-developer }
+  backend:   { agent: mb-backend,   fallback: mb-developer }
+  frontend:  { agent: mb-frontend,  fallback: mb-developer }
+  ios:       { agent: mb-ios,       fallback: mb-developer }
+  android:   { agent: mb-android,   fallback: mb-developer }
+  planner:   { agent: mb-architect }
+  architect: { agent: mb-architect }
+  researcher: { agent: mb-researcher, fallback: mb-analyst }
+  devops:    { agent: mb-devops,    fallback: mb-developer }
+  qa:        { agent: mb-qa,        fallback: mb-developer }
+  debugger:  { agent: mb-debugger,  fallback: mb-developer }
+  analyst:   { agent: mb-analyst }
+  reviewer:
+    agent: mb-reviewer
+    override_if_skill_present:
+      skill: superpowers
+      agent: superpowers:requesting-code-review
+  reviewer_logic:       { agent: mb-reviewer-logic }
+  reviewer_tests:       { agent: mb-reviewer-tests }
+  reviewer_quality:     { agent: mb-reviewer-quality }
+  reviewer_security:    { agent: mb-reviewer-security }
+  reviewer_scalability: { agent: mb-reviewer-scalability }
+  reviewer_lead:        { agent: mb-reviewer-lead }
+  judge:                { agent: mb-judge }
+  verifier:  { agent: plan-verifier }
+
+# ===== Workflow modes for /mb work =====
+# Projects may override workflow.default or any workflows.<name> block locally.
+# The default /mb work mode starts from an already-created plan/spec.
+# Complexity presets (AGR-074): simple < medium < complex < governed.
+# `verify.cadence` (AGR-075) decides which items get a verifier dispatch:
+#   stage — after every plan stage / spec task
+#   plan  — once, after the last item of the plan/spec (full suite, whole diff)
+#   run   — once, at the end of a run that may span several plans
+#   off   — no verifier; `/mb verify` stays available by hand
+# A workflow without `verify.cadence` verifies once at plan end (`plan`).
+# `/mb work --verify=<cadence>` overrides it for one run.
+workflow:
+  default: medium
+  aliases:
+    everything: full
+    from-scratch: full-cycle
+    requirements: requirements-plan
+    planning: requirements-plan
+    implement: implement-only
+    review: review-fix
+    execution: medium
+    governed-execution: governed
+    strict: governed
+
+# Task effort tier (AGR-067) → workflow, for `mb-workflow.sh --tier <name>`.
+# `trivial` is never mapped: it needs no /mb work at all. `large` expects a
+# spec first (discuss → sdd), then runs `complex`. Projects may override.
+effort_tiers:
+  small: simple
+  standard: medium
+  large: complex
+  extra: governed
+
+workflows:
+  full:
+    description: Complete composable chain — brainstorm to verified, reviewed, judged work.
+    steps: [discuss, sdd, plan, implement, verify, review, judge, done]
+    entrypoint: freeform_or_topic
+    interactive: true
+    review_profile: single
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  full-cycle:
+    description: Interactive simple path from idea to verified work.
+    steps: [discuss, sdd, plan, implement, verify, done]
+    entrypoint: freeform_or_topic
+    interactive: true
+
+  requirements-plan:
+    description: Requirements/planning only; produces context/spec/plan artifacts.
+    steps: [discuss, sdd, plan]
+    entrypoint: freeform_or_topic
+    interactive: true
+
+  simple:
+    description: Implementer only; it self-checks with targeted tests and the DoD. No separate verifier.
+    steps: [implement, done]
+    entrypoint: plan_or_spec
+    implement: {self_verify: true}
+
+  medium:
+    description: Default /mb work path from an existing plan/spec; one verifier pass at the end of the plan.
+    steps: [implement, verify, done]
+    entrypoint: plan_or_spec
+    verify: {cadence: plan}
+
+  complex:
+    description: Implement, verify at plan end, one reviewer per item, bounded fix loop.
+    steps: [implement, verify, review, fix, done]
+    entrypoint: plan_or_spec
+    review_profile: single
+    verify: {cadence: plan}
+    loop:
+      after: review
+      until: severity_gate_pass
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: stop_for_human
+      approval_required: false
+
+  governed:
+    description: Advanced quality gate with verifier, review ensemble, lead reviewer, independent judge, bounded fix loop, and backlog handoff.
+    steps: [implement, verify, review, judge, fix, done]
+    entrypoint: plan_or_spec
+    verify: {cadence: plan}
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  implement-only:
+    description: Implement and verify a work item, then stop before review.
+    steps: [implement, verify]
+    entrypoint: plan_or_spec
+
+  review-fix:
+    description: Governed review of existing changes with judge-controlled fixes/backlog.
+    steps: [verify, review, judge, fix, done]
+    entrypoint: plan_or_spec_or_diff
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      returns_to: verify
+      max_cycles: 2
+      on_max_cycles: judge_decides
+      approval_required: false
+
+  review-only:
+    description: Verify, run review ensemble, and ask judge without automatic fixes.
+    steps: [verify, review, judge]
+    entrypoint: plan_or_spec_or_diff
+    review_profile: ensemble
+    judge_profile: independent
+    loop:
+      after: judge
+      until: judge_go
+      max_cycles: 1
+      on_max_cycles: stop_for_human
+      approval_required: false
+
+# Backward-compatible per-item pipeline for older /mb work orchestrators that
+# only understand stage_pipeline. The DEFAULT is review-free: implement → verify →
+# done. Enable review with `/mb work --review` or by setting `review.enabled: true`
+# in the project pipeline.yaml (see the `review:` block below). New orchestrators
+# SHOULD read workflow.default and workflows.<name>.
+stage_pipeline:
+  - step: implement
+    role: auto                # auto-select based on stage context
+    tdd: true
+  - step: verify
+    role: verifier
+    checks:
+      - ears_format
+      - contract_first_tests
+      - test_red_green
+      - dod_checkboxes
+      - architecture_drift
+      - no_placeholders
+      - protocol_abc_defined
+  - step: done
+    role: verifier
+    require_review_approval: false
+
+# Opt-in single-reviewer review step — OFF by default. Turn it on per-run with
+# `/mb work --review`, or persist it for a project by setting `enabled: true`
+# here. When active, `/mb work` runs implement → verify → review → done: the
+# reviewer agent is resolved via mb-reviewer-resolve.sh and its findings are gated
+# by mb-work-severity-gate.sh against severity_gate below. (The heavyweight
+# multi-reviewer ensemble lives in workflows.governed / review_ensemble.)
+review:
+  enabled: false
+  role: reviewer
+  categories: [logic, code_rules, security, scalability, tests]
+  severity_gate:
+    blocker: 0
+    major: 0
+    minor: 3
+  max_cycles: 3
+  on_max_cycles: stop_for_human   # | continue_with_warning
+  # Strategic pivoting (work-loop-v2 design.md §5): on a CHANGES_REQUESTED
+  # verdict with a stagnant progress_trend, scripts/mb-work-pivot.sh forces a
+  # fresh-start re-dispatch instead of an indefinite refine loop.
+  pivot_after_cycles: 2                  # consecutive stagnant cycles before pivot_in_role
+  pivot_escalate_to_architect_on: 4      # cycle number that escalates to pivot_via_architect
+
+# ===== Per-stage opt-in toggles for composable /mb work pipelines =====
+# Each stage below is OFF by default. Turn one on per-run with its launch flag
+# (`--brainstorm`/`--sdd`/`--plan`/`--review`/`--judge`) or persist it here by
+# setting `enabled: true`. Launch flags win over these values; both add/remove a
+# stage on top of the resolved preset (`workflow.default` or `--workflow`).
+# `review:` (above) and `judge:`/`sdd:` (below) carry the same `enabled` toggle.
+discuss:
+  enabled: false   # brainstorm/requirements interview stage (alias: --brainstorm)
+plan:
+  enabled: false   # planning stage
+
+# ===== Governed review profile (used only by workflows with review_profile: ensemble) =====
+review_ensemble:
+  min_reviewers: 3
+  max_reviewers: 5
+  reviewers:
+    - role: reviewer_logic
+      focus: logic
+    - role: reviewer_tests
+      focus: tests
+    - role: reviewer_quality
+      focus: code_rules
+    - role: reviewer_security
+      focus: security
+    - role: reviewer_scalability
+      focus: scalability
+  lead_role: reviewer_lead
+  previous_report_required_after_cycle: 1
+
+# ===== Judge gate (used only by workflows with judge_profile: independent) =====
+judge:
+  enabled: false                 # opt-in composable stage (flag: --judge); requires review
+  role: judge
+  decisions: [GO, GO_WITH_BACKLOG, NO_GO]
+  fix_only_decision: NO_GO
+  backlog_decision: GO_WITH_BACKLOG
+  backlog_destination: backlog.md
+  register_backlog_before_done: true
+  blocking_policy:
+    - unmet_acceptance_criteria
+    - failed_verification
+    - security_or_data_loss_risk
+    - broken_build_or_tests
+    - protected_path_violation
+    - normal_user_behavior_contradicts_spec
+
+# ===== Budget / risk =====
+budget:
+  default_limit: null            # null = unlimited; CLI --budget overrides
+  warn_at_percent: 80
+  stop_at_percent: 100
+
+protected_paths:
+  - ".env*"
+  - "ci/**"
+  - ".github/workflows/**"
+  - "Dockerfile*"
+  - "k8s/**"
+  - "terraform/**"
+
+sprint_context_guard:
+  soft_warn_tokens: 150000
+  hard_stop_tokens: 190000
+
+# ===== ADaPT — decompose as needed (references/adapt.md, AGR-080/082) =====
+# The implementer takes an item whole; the fork opens on its complexity_escalation
+# block, after verify failed verify_fail_cycles times on one item, or when the item
+# spent more than item_token_budget tokens (null = off). auto: the planner splits
+# that item into 2-5 sub-items; HITL: continue / simplify / decompose / skip.
+# Sub-items nest at most max_depth levels. `/mb work --no-adapt` = halt as before.
+adapt: {enabled: true, verify_fail_cycles: 3, item_token_budget: null, max_depth: 2}
+
+# ===== Drive — /mb drive (commands/drive.md) =====
+# parallel: two or more ready, independent plans with disjoint files run as one /mb team; only a
+# literal `false` turns it off (then every plan runs through /mb work, one at a time).
+drive: {parallel: true}
+
+# ===== QA — acceptance scenarios inside /mb work (commands/qa.md, AGR-098) =====
+# Part of verify, not a step of its own. `/mb work --qa` turns it on for one run, a plan with `qa: on` for its own;
+# hosts.<host>.qa overrides these keys per host.
+qa:
+  enabled: auto                  # auto = QA on at plan time for standard+ tiers · true = every tier and every run · false = off
+  cadence: plan                  # stage = every item · plan = last item · run = last item of the run
+  position: before_review        # before_review | after_review (after the review/judge gate)
+  selector: "all"                # scenario selection passed to /mb qa run
+  prepare: ""                    # shell command that refreshes the stand before every QA run
+  gate: {critical: 0, major: 0}  # max open bugs of the run per severity (critical|major|medium|low)
+  max_cycles: 3                  # QA fix cycles per item before on_max_cycles
+  on_max_cycles: stop_for_human  # stop_for_human | continue_with_warning
+
+# ===== Review rubric — fixed keys, extensible items =====
+# Stock bullets tagged `SOLID:`/`DRY:`/`KISS:`/`YAGNI:` and the `(Testing Trophy)` one are
+# dropped from the review payload when the project switches that principle / Trophy off
+# (`mb-profile.sh quality`, AGR-076); bullets a project writes itself are always kept.
+review_rubric:
+  logic:
+    - "Every EARS requirement has at least one assertion in tests"
+    - "Edge cases from requirements covered"
+  code_rules:
+    - "SOLID: SRP — files <300 lines OR <=3 public methods"
+    - "DRY: the same logic in 3+ places is extracted"
+    - "KISS: the simplest design that meets the requirement"
+    - "YAGNI: no code for needs the task does not state"
+    - "No placeholders (TODO/...)"
+    - "Imports complete, functions copy-paste ready"
+  security:
+    - "Input validation at boundaries"
+    - "No secrets in code"
+    - "No raw SQL string concat"
+  scalability:
+    - "No N+1 queries introduced"
+    - "Async where IO-bound"
+  tests:
+    - "Contract-first: Protocol/ABC defined before impl"
+    - "Integration tests > unit tests (Testing Trophy)"
+    - "No test.skip / describe.skip"
+
+# ===== SDD enforcement =====
+sdd:
+  # Default test layers for a NEW spec (svp-contract-test-loop C1). A spec's own
+  # explicit block wins; a spec with NO block is legacy and gets none of them.
+  # INLINE MAP IS REQUIRED, not style: mb-pipeline-validate.sh reads `sdd` with
+  # parse_simple_mapping (indent == 2 only), so a nested block yields `layers: None`
+  # without PyYAML and a full dict with it — the two branches would disagree about
+  # whether the layers are configured at all.
+  layers: {contract_first: true, integration_tests: true, e2e_tests: true}
+  enabled: false                          # opt-in composable stage (flag: --sdd)
+  require_ears_in_sdd_command: true       # /mb sdd — hard requirement
+  require_ears_in_plan_command: false     # /mb plan — soft (warning)
+  require_ears_in_plan_with_sdd_flag: true # /mb plan --sdd — hard
+  covers_requirements_policy: warn        # warn | block | off
+  full_mode_path: ".memory-bank/specs"
+  require_scenarios: false                # opt-in: /mb sdd runs mb-spec-validate --require-scenarios
+                                          # (every REQ must have >=1 GIVEN/WHEN/THEN scenario). Default off
+                                          # so EARS-only specs stay valid.
+  spec_review: {enabled: false, agent: mb-reviewer, model: inherit, thinking: medium}
+                                          # optional key `rubric: <path>` overrides the bundled
+                                          # default references/spec-review-rubric.md (S9 REQ-013).
+  spec_judge: {enabled: false, agent: mb-judge, model: inherit, thinking: medium, max_cycles: 2}
+                                          # S9-C1 automatic verdict judge over spec_review.
+                                          # INLINE MAP, same grammar as spec_review above.
+                                          # enabled true REQUIRES spec_review.enabled true --
+                                          # a judge with no verdict to judge is a config error,
+                                          # not a silent no-op (spec_judge_requires_spec_review).
+                                          # max_cycles: integer >= 1, bounds the review->judge->fix
+                                          # loop; exhaustion is an honest stop, not an acceptance.
+                                          # Default off => pre-S9 behaviour byte-for-byte (D-30).
+                                          # opt-in C5 spec review. INLINE MAP (not a nested block):
+                                          # the validator reads sdd via parse_simple_mapping, so a nested
+                                          # block would parse as None. Values carry no comma (inline-map
+                                          # grammar). enabled true → agent/model non-empty, thinking in
+                                          # {low,medium,high}. Absent → treated as off.
+
+# ===== Mandatory /mb done gate set (handoff-v2 §5, GAP-4) =====
+# scripts/mb-done-gates.sh runs three independent checks before /mb done closes a
+# session, even without an active plan: tests (mb-test-runner), deterministic
+# rules (mb-rules-check.sh), and a placeholder scan. Exit 2 on failure unless
+# `/mb done --force --reason "<line>"` is used (which appends a NOTE to
+# progress.md and stores the failure detail under .memory-bank/tmp/).
+done_gates:
+  enabled: true                          # gate set runs as /mb done step 0
+  required: [tests_pass, no_critical_violations, no_placeholders]
+  allow_force: true                      # if false, --force is rejected outright
+
+# Deny list for the placeholder gate (gate 3). Each token is an ERE fragment
+# matched against staged + uncommitted source lines. Override per-project to add
+# or remove markers; falls back to this default set when absent.
+done_placeholders:
+  deny: [TODO, FIXME, XXX, '\.\.\.', pseudocode]
+
+# ===== Capability-aware dispatch (mb-agent-caps.sh / mb-agent-dispatch.sh) =====
+# Picks the CLI transport + model for each governed step, honouring BOTH that the
+# CLI agent is installed AND that the model is actually offered by it
+# (`opencode models` / `pi --list-models`). Walks `priority`; the first transport
+# whose CLI is present and whose (mapped) model is available wins; otherwise falls
+# back to the Claude Code Agent tool. Optional block — when absent, defaults below
+# apply. Projects override `model_map` with their concrete provider/model ids.
+dispatch:
+  priority: [pi, opencode, claude-agent]  # global order, tried after any `prefer` match
+  on_none_available: fallback             # fallback (use claude-agent) | error (fail the step)
+  # Model-family preference: if a role's contract model matches a glob, that
+  # transport is tried FIRST (before `priority`). Example: a ChatGPT/codex model
+  # routes to the `codex` CLI; if codex is absent it falls through to
+  # pi -> opencode -> claude-agent.
+  prefer: {}                              # e.g. { "openai-codex/*": codex, "gpt-*": codex }
+  # Transports whose model list is enumerable (strict availability check via
+  # `opencode models` / `pi --list-models`). Others (e.g. codex) are "trusted":
+  # if the CLI is installed, the mapped/contract model is assumed available.
+  enumerable: [pi, opencode]
+  # Map a role's contract model -> the concrete id per transport. Omit a transport
+  # to use the contract id verbatim on it (pi often accepts provider/id as-is).
+  model_map: {}                           # e.g. { "openai-codex/gpt-6.1-sol": { codex: gpt-6.1-sol, opencode: openai/gpt-6.1-sol } }
+  # Claude Code Agent tool model used when no contract transport is available.
+  # Unlisted roles default by tier: reviewer/judge/planner/architect -> opus, else sonnet.
+  fallback:
+    claude-agent: {}
+
+# ===== Discipline — instruction tone by model strength (AGR-068) =====
+# `mb-work-plan.sh` marks an item `discipline: strict` when its resolved model
+# matches one of these glob patterns (case-insensitive; matched against the full
+# id and the part after the last `/`), else `calm`. On `strict`, `/mb work`
+# appends agents/mb-discipline-strict.md (Iron Law, NEVER rules, rationalization
+# table) to the dispatch prompt. Default list: Haiku and small/local open models,
+# which follow hard rules more reliably than reasons; strong models over-trigger
+# on aggressive phrasing, so they get the calm core alone. A project
+# pipeline.yaml that sets this block replaces the list (empty list = all calm).
+discipline:
+  strict_models: ["*haiku*", "*-mini", "*-nano", "qwen*", "llama*", "mistral*", "gemma*", "phi*"]
+
+# ===== Cost tiers — model per role class (AGR-074) =====
+# The tier changes only the model; reasoning effort stays in the agent file.
+# Per role, first match wins: `mb-work-plan.sh --model` (item role only) ▸
+# `roles.<role>.model` ▸ model_profiles[host][cost_tiers[cost][class]] ▸ inherit.
+# Cost: `--cost` ▸ hosts.<host>.cost ▸ `cost`. Host: `--host` ▸ auto-detect
+# (MB_PIPELINE_HOST / MB_AGENT / host env). A project block replaces the
+# default one key by key (a tier, a host profile). Details:
+# docs/pipeline-yaml.md § cost tiers and model profiles.
+# Classes: implementer (developer backend frontend ios android devops qa
+# debugger analyst), planner (architect planner), researcher, verifier,
+# reviewer (reviewer, reviewer_*), judge.
+cost: optimal
+cost_tiers:
+  premium: {implementer: premium, planner: premium, researcher: premium, verifier: premium, reviewer: premium, judge: premium}
+  optimal: {implementer: mid, planner: premium, researcher: mid, verifier: mid, reviewer: premium, judge: premium}
+  economy: {implementer: mid, planner: mid, researcher: mid, verifier: mid, reviewer: mid, judge: mid}
+# Two slots per host: `premium` and `mid` (never the host's cheapest model).
+# Pi needs `provider/id` of one provider (bare opus/sonnet collapse to the
+# parent model, AGR-056); OpenCode and Cursor take the model only statically.
+# Pi and OpenCode work with any provider, so they ship no profile here (they
+# inherit): `/mb config init --host pi|opencode --model-mid <provider/id>`
+# writes one from the host's current model. Ids per host: docs/pipeline-yaml.md.
+model_profiles:
+  claude-code: {premium: opus, mid: sonnet}
+  codex: {premium: gpt-6-astra, mid: gpt-6.1-sol}
+  cursor: {premium: claude-opus-5-5, mid: claude-sonnet-5-5}
+# Per-host overrides, e.g. `hosts: {codex: {cost: economy, preset: complex, verify: stage}}`.
+
+# ===== /mb team — track pipelines of an orchestrator-led team (AGR-097) =====
+# Layers, later wins: presets[size] -> overrides -> init attrs -> track attrs ->
+# explicit prompt. A project block replaces presets size by size (key-wise) and
+# may add `overrides`, `rules`, `resources` and `checkpoint`. Nested block
+# mappings and scalar inline lists only: the stdlib fallback parser must agree
+# with PyYAML. Models take a slot (premium | mid), an exact id or inherit;
+# `models` sets roles (executor, verifier, reviewer, lead) and lenses (`lenses`
+# for all, `lens: {<name>: …}` per lens as a block mapping) separately.
+# Every track runs through /mb work (AGR-103): `mode: work`, `work: orchestrated`
+# (the orchestrator drives the loop); `direct` and `light` are refused. A track
+# without a plan or spec runs on its own prompt, a one-stage plan.
+team:
+  default_size: standard
+  max_parallel: 6
+  presets:
+    trivial:
+      mode: work
+      work: orchestrated
+      tdd: optional
+      verifier: none
+      review: none
+      models: {executor: mid}
+      effort: low
+    small:
+      mode: work
+      work: orchestrated
+      tdd: required
+      verifier: none
+      review: none
+      models: {executor: mid}
+      effort: medium
+    standard:
+      mode: work
+      work: orchestrated
+      tdd: required
+      verifier: plan-verifier
+      review: none
+      models: {executor: mid, verifier: mid}
+      effort: medium
+    large:
+      mode: work
+      work: orchestrated
+      tdd: required
+      verifier: plan-verifier
+      review: lenses
+      lenses: [logic, tests, code_rules, security, scalability]
+      models: {executor: premium, verifier: mid, lenses: premium, lead: premium}
+      effort: high
+    extra:
+      mode: work
+      work: orchestrated
+      tdd: required
+      verifier: plan-verifier
+      review: lenses
+      lenses: [logic, tests, code_rules, security, scalability]
+      models: {executor: premium, verifier: mid, lenses: premium, lead: premium}
+      effort: high
+  # Team review of the whole package: opt-in, the most expensive path.
+  # `medium` is an optional severity level (AGR-097); the bundled limit is 0.
+  review:
+    enabled: false
+    lenses: [logic, tests, code_rules, security, scalability]
+    clean_when: {blocker: 0, major: 0, medium: 0}
+    max_cycles: 5
+    models: {lenses: premium, lead: premium}
+  checkpoint:
+    max_untracked_mb: 512

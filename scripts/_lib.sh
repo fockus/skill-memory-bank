@@ -1181,3 +1181,48 @@ mb_backlog_transition_locked() {
   "${MB_PYTHON:-python3}" \
     "$(dirname "${BASH_SOURCE[0]}")/mb_backlog_state_engine.py" transition-locked "$@"
 }
+
+# mb_next_backlog_id <bank> — the ONLY I-NNN allocator (design.md C6, F-012).
+#
+# PRECONDITION: the caller holds <bank>/.locks/backlog.lock. Prints EXACTLY
+# `I-NNN` + \n and returns 0; on any fatal failure stdout stays EMPTY and the
+# return is 1. next = max(I-[0-9]{3} over the sources) + 1. Sources: backlog.md
+# (required), progress.md (required if present — the I-079 collision source),
+# progress-archive.md and index.json (optional, unreadable → warning). status/
+# roadmap/checklist/notes/session and backup trees only QUOTE ids → not scanned.
+mb_next_backlog_id() {
+  local bank="${1:-}" max=0 src required found n
+  if [ -z "$bank" ]; then
+    printf 'code=alloc_usage detail=bank path required\n' >&2
+    return 1
+  fi
+  for src in backlog.md progress.md progress-archive.md index.json; do
+    required=0
+    case "$src" in backlog.md) required=1 ;; esac
+    if [ ! -e "$bank/$src" ] && [ ! -L "$bank/$src" ]; then
+      if [ "$required" -eq 1 ]; then
+        printf '[error] backlog id scan: required source missing: %s\n' "$bank/$src" >&2
+        return 1
+      fi
+      continue
+    fi
+    if [ ! -f "$bank/$src" ] || [ ! -r "$bank/$src" ]; then
+      if [ "$required" -eq 1 ] || [ "$src" = "progress.md" ]; then
+        printf '[error] backlog id scan: unreadable required source: %s\n' "$bank/$src" >&2
+        return 1
+      fi
+      printf '[warn] backlog id scan: unreadable source %s; ignored\n' "$bank/$src" >&2
+      continue
+    fi
+    found=$(grep -Eo 'I-[0-9]{3}' "$bank/$src" 2>/dev/null | sed 's/^I-//' | sort -n | tail -1 || true)
+    if [ -n "$found" ]; then
+      n=$((10#$found))
+      [ "$n" -gt "$max" ] && max=$n
+    fi
+  done
+  if [ "$max" -ge 999 ]; then
+    printf '[error] backlog id space exhausted (max I-%03d); extending the ID format is out of scope\n' "$max" >&2
+    return 1
+  fi
+  printf 'I-%03d\n' $((max + 1))
+}

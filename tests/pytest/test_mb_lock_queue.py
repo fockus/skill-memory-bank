@@ -87,6 +87,30 @@ def test_lease_holder_liveness_follows_the_lease():
     assert q.holder_alive({**meta, "lease_until": time.time() - 1}) is False
 
 
+def _ps(stdout: str = "", exc: Exception | None = None):
+    real = subprocess.run
+
+    def fake(cmd, *a, **kw):
+        if cmd[:1] == ["ps"]:
+            if exc is not None:
+                raise exc
+            return subprocess.CompletedProcess(cmd, 0, stdout, "")
+        return real(cmd, *a, **kw)
+    return fake
+
+
+@pytest.mark.parametrize("ps", [_ps(""), _ps(exc=FileNotFoundError("ps"))], ids=["no-lstart", "no-ps"])
+def test_live_pid_with_unknown_start_time_is_alive_and_never_reclaimed(monkeypatch, ps):
+    monkeypatch.setattr(subprocess, "run", ps)
+    me = os.getpid()
+    assert q.proc_start(me) is None
+    assert q.alive(me, None) is True
+    assert q.alive(me, "Mon Jan  1 00:00:00 2001") is True
+    meta = {"host": socket.gethostname(), "pid": me, "pid_start": None, "child": None, "child_start": None,
+            "lease_until": None}
+    assert q.holder_alive(meta) is True
+
+
 def _wait(cond, timeout=10.0):
     end = time.time() + timeout
     while not cond():

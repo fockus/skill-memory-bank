@@ -1,254 +1,145 @@
 # Tasks: svp-adapt-escalation
 
-> Слайс S5 (ICE 294, blocked by svp-sdd-core + svp-parallel-engine — обе зависимости жёсткие).
-> Eval первым (red) → реализация (green). Порядок: 1 → 2 → 3 → 4 → 5.
-> Бюджеты: Stage 1 = 200000, Stage 2 = 160000 (оба ≤ 400000); каждая задача ≤ 120000.
-> Ревизия 3: каждый `Eval:` несёт `output~:`-якорь настоящего провала (S2 REQ-054/055) — `bats` на
-> отсутствующем файле даёт тот же exit 1, что настоящий провал, поэтому exit-only якорь запрещён.
+> Slice S5 (ICE 294), rebased on ADaPT-lite (revision 4, 2026-11-19, master-completion Stage 18a).
+> Task 1 is the delivered lite slice (waiver, ticked); Tasks 2-5 are the remainder on existing files.
+> Order: 1 → 2 → 3 → 4 → 5, one writer at a time on `scripts/mb_work_adapt.py`, `commands/work.md`
+> and `tests/pytest/test_mb_work_adapt*.py`. Eval first (red), then implementation (green).
+> Budgets: Stage 1 = 210000, Stage 2 = 170000 (both ≤ 400000); every task ≤ 120000.
+> `commands/work.md` is size-capped by the zone contract (`tests/pytest/test_s2_file_size_contract.py`):
+> every edit to it is net-zero lines (compress the existing 5c1 text), and each task DoD re-checks it.
+> `adapt.verify_fail_cycles` keeps its default 3 (AGR-082) in every task.
+> Each `Eval:` carries an `output~:` anchor of a real failure (S2 REQ-054/055): a pytest run on a
+> missing file exits non-zero without a `FAILED` line, so the anchor names a test that is written first.
 
 <!-- mb-task:1 -->
-## Task 1: mb-work-adapt.sh — гарды, решение, двухфазная телеметрия
+## Task 1: ADaPT-lite baseline (delivered, waiver with commit link)
 
-**Covers:** REQ-001, REQ-002, REQ-003, REQ-007, REQ-010
+**Stage:** 1
+**Covers:** REQ-001, REQ-005, REQ-006
 **Role:** backend
-**Stage:** 1
-**Blocked-by:** svp-sdd-core#8, svp-parallel-engine#3, svp-roadmap-backlog-db#2
-**Scope:** scripts/mb-work-adapt.sh, tests/bats/test_mb_work_adapt.bats, tests/bats/fixtures/adapt/**
-**Budget:** 110000
-
-**What to do:**
-- Новый `scripts/mb-work-adapt.sh` по C1: субкоманды `decide` / `resolve` / `note-clean` /
-  `replan-gate` (`verify-stub` — Task 5). **Blocked-by выровнен (R3-004 + CPR-C)**: `svp-sdd-core#8`
-  (durable eval-объект `eval-red`/`eval-green` поставляет **S2 Task 8**, не Task 1);
-  `svp-roadmap-backlog-db#2` (lock-helper C6 для сериализации журнала).
-- `decide`: все входы и enum'ы C1.1 (алиасы `auto`/`interactive`; неизвестное значение → exit 2);
-  **`--run-id <non-empty-id>` обязателен** (пустая строка → exit 2; `MB_WORK_RUN_ID`-fallback снят —
-  оркестратор передаёт `RUN_ID` явным флагом, `commands/work.md:311,320`, R3-001); триггеры
-  `agent_signal`/`budget_exceeded`/`scope_violation`/`eval_not_green`/`verify_loops`/
-  `review_loops`/`judge_loops`/`feature_flag_unavailable`; сравнение `count >= threshold`; счётчики
-  из `mb-work-state.sh status` по конвенции C2 (скрипт work-state **не править**); `{}`-состояние →
-  `degraded_guards += loop_counters`, а не ноль; пороги из `escalation:` (C3) с дефолтами 3/3/2 и
-  `cascade_stop: 3`; детерминированный непрозрачный `escalation_id`; решение по таблице C1.1.
-  Enum `--eval-status` — ровно `green|red|absent` (границу с hard stop'ами S8 не пересекаем, X8-01);
-  нормализуется из объекта `eval` (`mb-work-state.sh eval-red|eval-green`, S2 Task 8 — сам гоняет cmd).
-- Журнал строго по трём схемам C1.0: `opened` на `decide` (только при `decision != none`),
-  `resolved` на `resolve`, `clean` на `note-clean`; обязательные `ts`/`seq`; ключи
-  `item_id`/`cycle`/`mode` совместимы с pivot-log (NFR-002); невалидная строка при чтении → exit 1
-  без append. **Конкурентность — под lock'ом S4-C6 (CPR-C)**: весь путь read → validate
-  (`seq`/`consecutive`) → append под `mb_lock_acquire "<bank>/tmp/.escalations.lock" 5 30`
-  (`_lib.sh`, владелец S4-C6), release — `trap`; `replan-gate`/summary читают snapshot под тем же
-  локом. Обоснование через `PIPE_BUF`/лимит 4096 **удалено** (относится к pipe/FIFO, не к concurrent
-  append в regular file, `rules/RULES.md` допускает несколько orchestrator-сессий).
-- `resolve`: exit 2 на неизвестный `--id`/невалидный enum/**запрещённую комбинацию флагов по матрице
-  C1.2** (SVP-AE-007: `--backlog-id` **обязателен** для `stub_continue`/`skip` и запрещён иначе;
-  `--replan-kind` обязателен и только при `replan`; `--spec-topic` обязателен при `decomposition`,
-  запрещён при `requirement_change`); `resolved_by` **выводится из `decision` соответствующего `opened`,
-  не из режима** (R3-002: `fork_user`→`user`, `stub_continue`→`orchestrator`, `stop_run`→resolve запрещён);
-  `requirements_sha256` снимается с `<spec-dir>/requirements.md`; идемпотентность и коррекция — по полному
-  tuple `(resolution, replan_kind, backlog_id, spec_topic)`.
-- `replan-gate` по C1.4 (**без `--run-id`**, R3-001): выбирает последнее `resolved` данного `item_id`
-  по append-порядку среди всех `run_id`; сверка записанного `requirements_sha256` с текущим; коды отказа
-  `requirements_unchanged` / `requirements_changed_under_decomposition` / `child_spec_missing`.
-- `note-clean` (**`--run-id` обязателен**, R3-001) — событие `clean`, обнуляющее `consecutive` для
-  каскад-стопа (REQ-010).
-
-**Eval:** `bats tests/bats/test_mb_work_adapt.bats` — red: скрипта и тестов нет, ни один триггер C1.1 не считается; exit: 1; output~: not ok [0-9]+ .*adapt_decide_budget_stop_triggers
-
-**Testing (TDD — tests BEFORE implementation):**
-- bats на фикстурах `tests/bats/fixtures/adapt/**`: каждый триггер по отдельности и «двойной
-  триггер» = одна эскалация с двумя токенами; граница `count == threshold` срабатывает, `count ==
-  threshold - 1` — нет; нормализация budget (`ok|warn|stop|absent` — все четыре строки таблицы C1.1,
-  включая обе ветки exit 1); нормализация eval-статуса (`green_exit=0` → green; non-null ≠0 → red;
-  объекта нет или `green_exit=null` → absent; обязательный eval-first red триггером не является);
-  `scope_status=unavailable` → `degraded_guards`, не триггер; `eval_not_green` против `max_cycles`
-  из work-state; `{}`-состояние work-state → деградация; автономный режим без flag-механизма →
-  `fork_user` + `feature_flag_unavailable`; каскад: 3 подряд `opened` → `stop_run`, `note-clean`
-  сбрасывает; журнал: обе фазы, обязательные `ts`/`seq`, свёртка по `escalation_id`, лишний ключ /
-  неизвестный `event` / неверный тип → exit 1 без append; `item_id` с `:` не ломает корреляцию
-  (id не разбирается); tuple-идемпотентность: тот же tuple → no-op, смена `--spec-topic` при том же
-  `replan` → корректирующая строка; `replan-gate`: три кода отказа и допуск обеих ветвей;
-  exit-коды 0/1/2 по C1.6; shellcheck clean.
-- bats (**R3-001 run-id**): `decide`/`note-clean` с пустым `--run-id` → exit 2; `replan-gate` **без**
-  `--run-id` выбирает последнее `resolved` данного `item_id` среди всех `run_id` (replan из прошлого
-  прогона допускается в новом).
-- bats (**R3-002 resolved_by**): `mode=hitl` → `decision=fork_user` → `resolved_by=user`;
-  `mode=autonomous` + `feature_flag_unavailable` → принудительный `fork_user` → `resolved_by=user`
-  (НЕ orchestrator); `mode=autonomous` штатный → `stub_continue` → `resolved_by=orchestrator`;
-  `resolve` по `stop_run`-опенеду → exit 2.
-- bats (**SVP-AE-007 backlog-id матрица**): `stub_continue`/`skip` без `--backlog-id` или с неверным
-  форматом → exit 2 без append; `continue`/`simplify` с `--backlog-id` → exit 2; `replan` с
-  `--backlog-id` → exit 2; корректный `stub_continue --backlog-id I-NNN` → append.
-- bats (**CPR-C concurrency**): два **реальных** конкурентных orchestrator-процесса пишут журнал под
-  `mb_lock_acquire "<bank>/tmp/.escalations.lock" 5 30` → журнал валиден, оба `run_id` сохранены, `seq`
-  внутри каждого корректен, ни одно `opened`/`resolved` не потеряно и не оборвано.
-
-**DoD:**
-- [ ] C1.0–C1.4 реализованы; bats green (были red); `mb-work-state.sh` не изменён
-<!-- /mb-task:1 -->
-
-<!-- mb-task:2 -->
-## Task 2: Конфиг escalation в pipeline.yaml
-
-**Covers:** REQ-003
-**Role:** developer
-**Stage:** 1
-**Blocked-by:** 1
-**Scope:** references/pipeline.default.yaml, scripts/mb-pipeline-validate.sh, tests/bats/test_mb_pipeline_escalation.bats
+**Blocked-by:** none
+**Scope:** scripts/mb_work_adapt.py, references/pipeline.default.yaml, references/adapt.md, commands/work.md, tests/pytest/test_mb_work_adapt.py, tests/pytest/test_adapt_lite_rules.py
 **Budget:** 40000
 
 **What to do:**
-- Секция C3 в `references/pipeline.default.yaml` (`thresholds: {verify: 3, review: 3, judge: 2}`,
-  `cascade_stop: 3`) + валидация в `mb-pipeline-validate.sh`: значение — целое ≥ 1; `0`,
-  отрицательное, нецелое, строка, неизвестный ключ внутри `escalation:` → fail с точным сообщением;
-  отсутствие секции → дефолты (легаси-совместимость).
+- Nothing to build: commit `190251c` (AGR-080, AGR-082) ships the `complexity_escalation` block parser (`scripts/mb_work_adapt.py:155`), the four HITL choices (`references/adapt.md` § Fork, `commands/work.md` step 5c1) and the in-run split with the parent gate (`mb_work_adapt.py:195/227/239`). This task records that mapping so REQ-001, REQ-005 and REQ-006 are covered by existing code and tests, not by a second implementation.
+- The old Task 3 (`MB_WORK_RESULT_JSON` envelope in nine role agents) and the revision-3 `replan-gate` and child-spec registry are dropped: the lite block is the contract (`reason`, `estimate`, `proposed_subitems[]`, invalid → exit 3 → `BLOCKED`, ask once) and decomposition stays inside the run.
 
-**Eval:** `bats tests/bats/test_mb_pipeline_escalation.bats` — red: секции `escalation:` и её валидации нет, дефолты 3/3/2 не резолвятся; exit: 1; output~: not ok [0-9]+ .*pipeline_escalation_defaults_3_3_2
+**Eval:** `pytest tests/pytest/test_mb_work_adapt.py tests/pytest/test_adapt_lite_rules.py` — red: retro-red observed on 190251c~1, where scripts/mb_work_adapt.py does not exist so every test errors on import, green since 190251c; exit: 1; output~: FAILED tests/pytest/test_mb_work_adapt\.py::test_escalation_block_parses_with_and_without_pyyaml
 
 **Testing (TDD — tests BEFORE implementation):**
-- bats: дефолтный файл содержит 3/3/2 + cascade_stop 3 и валиден; фикстуры `verify: 0`,
-  `review: -1`, `judge: 2.5`, `verify: "три"`, `unknown_key: 1` → каждая fail с сообщением;
-  отсутствующая секция → pass + дефолты.
+- Existing tests are the green evidence: `PYTHONPATH=. python3 -m pytest -q tests/pytest/test_mb_work_adapt.py tests/pytest/test_adapt_lite_rules.py` (23 passed on 2026-11-19). Retro-red: `git show 190251c~1:scripts/mb_work_adapt.py` fails, so the module and its tests do not exist before the commit.
 
 **DoD:**
-- [ ] Конфиг + валидация; bats green (был red)
+- [x] REQ-001, REQ-005, REQ-006 mapped to code at 190251c (waiver, no new code)
+- [x] Existing lite tests green
+<!-- /mb-task:1 -->
+
+<!-- mb-task:2 -->
+## Task 2: Remaining guards and thresholds in adapt-check
+
+**Stage:** 1
+**Covers:** REQ-002, REQ-003
+**Role:** backend
+**Blocked-by:** 1
+**Scope:** scripts/mb_work_adapt.py, references/pipeline.default.yaml, commands/work.md, tests/pytest/test_mb_work_adapt.py
+**Budget:** 70000
+
+**What to do:**
+- Extend the `adapt:` block with `review_cycles: 3`, `judge_cycles: 2` and `cascade_stop: 3` (ints ≥ 1) in `DEFAULTS`, `validate()` and the default line of `references/pipeline.default.yaml`; `verify_fail_cycles: 3` is not touched. Update the pinned `DEFAULT_LINE` in `tests/pytest/test_mb_work_adapt.py`.
+- `check()` counts the run-state steps `review_cycle` and `judge_cycle` against `review_cycles` / `judge_cycles`, and `eval_fail` against the state's own `max_cycles` (`eval_not_green`), using the same `@<sub-item>` suffix as `verify_fail`. Reasons: `review_cycles`, `judge_cycles`, `eval_not_green`.
+- Scope guard, minimal: `adapt-check --declared "<Files csv>" --changed <path|->` marks `scope_violation` when a changed path matches no declared entry (exact path, `dir/**`, `*` inside one segment; the restricted-glob grammar of svp-sdd-core C1). With no declared list or no changed list the guard is not a trigger: it is listed in `degraded_guards` and the item's Files stay the only scope truth (S3's `mb-work-scope-check.sh` is out of scope).
+- `commands/work.md` step 5c1 and the phase steps record `step eval_fail|review_cycle|judge_cycle` and pass `--declared`/`--changed` (changed list from `mb-work-diff.sh --name-only`); net-zero lines.
+
+**Eval:** `pytest tests/pytest/test_mb_work_adapt.py` — red: adapt-check knows only the verify and token guards, so a changed path outside Files and a third review cycle are not triggers; exit: 1; output~: FAILED tests/pytest/test_mb_work_adapt\.py::test_adapt_check_scope_violation_triggers
+
+**Testing (TDD — tests BEFORE implementation):**
+- pytest: `test_adapt_check_scope_violation_triggers` (stray path → `scope_violation`; declared-only paths → none; `dir/**` and `*` matches); `test_adapt_check_scope_guard_degrades_without_inputs` (no list → `degraded_guards`, no trigger); `test_adapt_check_loop_thresholds` (review 3 / judge 2 boundary: `count == threshold` fires, `threshold - 1` does not; `eval_fail` against `max_cycles`; sub-item suffix); `test_adapt_config_new_keys_validated` (0, negative, bool, string, unknown key rejected, both PyYAML and stdlib branches); default block still has `verify_fail_cycles: 3`.
+- Wiring: `wc -l < commands/work.md` ≤ 400 and `tests/pytest/test_s2_file_size_contract.py` green; `ruff check scripts/mb_work_adapt.py`.
+
+**DoD:**
+- [ ] REQ-002 guards (scope, review, judge, eval-not-green) and REQ-003 keys implemented; pytest green (was red)
+- [ ] `adapt.verify_fail_cycles` default still 3; `commands/work.md` ≤ 400 lines
 <!-- /mb-task:2 -->
 
 <!-- mb-task:3 -->
-## Task 3: Envelope-контракт отчёта исполнителей
+## Task 3: Escalation journal, cascade stop and run summary
 
-**Covers:** REQ-001
-**Role:** developer
 **Stage:** 1
-**Blocked-by:** 2
-**Scope:** commands/work.md, agents/mb-*.md, tests/bats/test_mb_work_adapt_report.bats
-**Budget:** 50000
-
-**What to do:**
-- Envelope C4 (`MB_WORK_RESULT_JSON=…` последней непустой строкой отчёта) в контракт отчёта
-  `commands/work.md` и во все 9 role-агентов: `agents/mb-developer.md`, `mb-backend.md`,
-  `mb-frontend.md`, `mb-ios.md`, `mb-android.md`, `mb-architect.md`, `mb-devops.md`, `mb-qa.md`,
-  `mb-analyst.md`.
-- Правило извлечения (последняя строка с префиксом `MB_WORK_RESULT_JSON=`) и fail-loud обработка:
-  нет строки / нет ключа `complexity_escalation` / битый JSON / пустой `reason` /
-  `estimated_tokens` ≤ 0 / лишний ключ в envelope → halt item'а с `invalid_implementer_report`;
-  `null` → сигнала нет.
-- Явная фиксация X8-02: ранние блоки с другими `KEY=`-строками (S8 печатает
-  `MB_CONTRACT_CHECKERS_JSON=` отдельным блоком выше) контракт не нарушают — ограничен только
-  последний непустой блок, извлечение ключуется на точном префиксе.
-
-**Eval:** `bats tests/bats/test_mb_work_adapt_report.bats` — red: envelope-контракта нет ни в work.md, ни в 9 агентах; exit: 1; output~: not ok [0-9]+ .*report_envelope_present_in_all_nine_agents
-
-**Testing (TDD — tests BEFORE implementation):**
-- bats: цикл по всем 9 файлам агентов — каждый содержит envelope и `complexity_escalation`
-  (отсутствие любого → fail); `commands/work.md` содержит правило извлечения и все fail-loud ветки;
-  фикстурные отчёты: валидный сигнал → распознан, `null` → нет сигнала, битый JSON / пустой reason /
-  `estimated_tokens: 0` / лишний ключ / отсутствие строки → `invalid_implementer_report`;
-  **фикстура S8** (блок `MB_CONTRACT_CHECKERS_JSON={"checkers":[…]}`, пустая строка, затем
-  `MB_WORK_RESULT_JSON={…}`) → envelope извлечён корректно, ранний блок проигнорирован (X8-02).
-
-**DoD:**
-- [ ] Envelope во всех 9 исполнителях + work.md; bats green (был red)
-<!-- /mb-task:3 -->
-
-<!-- mb-task:4 -->
-## Task 4: Развилка в /mb work
-
-**Covers:** REQ-004, REQ-005, REQ-006, REQ-008, REQ-010
-**Role:** architect
-**Stage:** 2
-**Blocked-by:** 3, svp-roadmap-backlog-db#2
-**Scope:** commands/work.md, tests/bats/test_mb_work_adapt_orchestration.bats
+**Covers:** REQ-007, REQ-008, REQ-010
+**Role:** backend
+**Blocked-by:** 2, svp-roadmap-backlog-db#2
+**Scope:** scripts/mb_work_adapt.py, scripts/mb_work_adapt_journal.py, commands/work.md, tests/pytest/test_mb_work_adapt_journal.py
 **Budget:** 100000
 
 **What to do:**
-- Врезка в 5f-цикл `commands/work.md` в порядке C1.1 §Приоритет: `фаза → mb-work-state.sh step
-  <event> → adapt-check → pivot-check → on_max_cycles`; нормализация budget-статуса по таблице C1.1
-  (сырой exit-код не передаётся). **`--run-id "$RUN_ID"` передаётся во ВСЕ вызовы `decide`/`resolve`/
-  `note-clean`/`replan-gate`** (кроме `replan-gate`, у которого `--run-id` нет) — R3-001: локальный
-  `RUN_ID` оркестратора (`commands/work.md:311,320`), `MB_WORK_RUN_ID` не экспортируется.
-- Применение решения по C5: `stub_continue` (autonomous) → C6 (цепочка беклога **до** правки кода,
-  маркер `MB-ADAPT-STUB backlog=I-NNN flag=<NAME> eval=<path>`, флаг default-off) → `resolve
-  --id "$eid" --resolution stub_continue --backlog-id "$id"` (**`--backlog-id` обязателен**, SVP-AE-007);
-  `fork_user` → AskUserQuestion с четырьмя вариантами и их точными переходами (таблица C5: чекбокс не
-  переворачивается на simplify/replan/skip; `skip` → `resolve --resolution skip --backlog-id "$id"`;
-  `adapt_override`/`adapt_skip` — шаги work-state); `stop_run` → остановка до диспатча следующего item +
-  рекомендация пересмотра спеки (REQ-010), `resolve` по нему **не** вызывается (R3-002); `note-clean` на
-  успешном done без эскалации.
-- **Обе ветви replan** (C1.2/C5): после выбора `replan` — второй вопрос о виде;
-  `decomposition` → `--spec-topic <slug>` + регистрация child-спеки
-  `mb-idea.sh "[SPEC:<group>] <slug>"` + интервью (self-interview в autonomous, REQ-006);
-  `requirement_change` → child-спека **не** создаётся, `--spec-topic` не передаётся, item остаётся
-  pending. Перед диспатчем item'а с историей `replan` — вызов `replan-gate` (C1.4), отказ = item не
-  диспатчится, причина в summary.
-- **Цепочка беклога C6 (фактический S4-C3)**: `mb-idea.sh` (→ `NEW`, без `--force`) → `list` для
-  наблюдаемого состояния → кратчайший валидный путь до `READY` (`NEEDS-INFO`→`TRIAGED`→`READY`) с
-  `annotate --brief` по шаблону перед `READY`; `DONE`/`WONTFIX` → halt стаб-пути; любой non-zero
-  останавливает стаб-путь до правки кода. `PLANNED` не присваивается никогда (нет в алфавите S4-C3).
-- Финальный summary прогона: каждая эскалация, каждый стаб с беклог-элементом и драйвером,
-  `degraded_guards`, коррекции resolution, незакрытые skip-item'ы, отказы `replan-gate` (REQ-008).
+- New sibling module `scripts/mb_work_adapt_journal.py` (SRP: `mb_work_adapt.py` is past 300 lines) holds the journal; `mb_work_adapt.py` only registers the subcommands `esc-open`, `esc-resolve`, `esc-clean`, `esc-summary` and dispatches to it.
+- Journal `<bank>/tmp/escalations.jsonl`, three closed schemas (`opened`, `resolved`, `clean`; design C3), mandatory `ts`/`seq`, opaque `escalation_id`, invalid line on read → exit 1 without append.
+- Concurrency: the whole read → validate → append path runs under `mb_lock_acquire "<bank>/tmp/.escalations.lock" 5 30` from `scripts/_lib.sh`, held by a bash holder subprocess that stays alive for the critical section and releases with `mb_lock_release`; no fifth lock implementation.
+- `esc-open` computes `decision` (design C7): `stop_run` once `consecutive >= adapt.cascade_stop` (REQ-010), `fork_user` in HITL, `auto_split` in autonomous mode, `stub_continue` in autonomous mode when called with `--split-refused`.
+- `esc-summary` prints every escalation of the run, corrections of a resolution, open skips and stubs with their backlog ids (REQ-008).
+- `commands/work.md` step 5c1: call `esc-open` on a trigger, `esc-resolve` after the choice, `esc-clean` on a clean `done`, `stop_run` stops before the next dispatch with the recommendation, `esc-summary` in the final summary; net-zero lines.
 
-**Eval:** `bats tests/bats/test_mb_work_adapt_orchestration.bats` — red: врезки развилки в commands/work.md нет, adapt-check не предшествует pivot-check; exit: 1; output~: not ok [0-9]+ .*orchestration_adapt_check_precedes_pivot_check
+**Eval:** `pytest tests/pytest/test_mb_work_adapt_journal.py` — red: the esc-* subcommands and the journal do not exist, no opened record is written; exit: 1; output~: FAILED tests/pytest/test_mb_work_adapt_journal\.py::test_esc_open_writes_opened_record
 
 **Testing (TDD — tests BEFORE implementation):**
-- bats (структурные проверки контракта врезки + прогон по фикстурному банку, без ручных сценариев):
-  порядок adapt-before-pivot и step-before-adapt; все четыре варианта C5 с их переходами;
-  **отдельный кейс на каждую ветвь replan**: `decomposition` регистрирует child-спеку и допускается
-  гейтом при неизменённых требованиях, `requirement_change` child-спеку не создаёт и до правки
-  `requirements.md` гейтом не допускается (`requirements_unchanged`); autonomous stub-путь: цепочка
-  беклога исполнена до маркера, элемент доведён до `READY`, повторная эскалация с тем же заголовком
-  переиспользует существующий `I-NNN` без падения на недопустимом переходе, `WONTFIX`-элемент
-  останавливает стаб-путь; skip не переворачивает чекбокс и попадает в summary; каскад-стоп
-  останавливает прогон до следующего item; summary перечисляет стабы, эскалации, degraded_guards и
-  отказы гейта.
+- pytest on a temp bank: `test_esc_open_writes_opened_record` (one valid `opened` line, `escalation_id` returned); `test_esc_resolve_correlates_by_escalation_id` (two lines, same id, fold gives the last); resolve matrix (backlog id required for `stub_continue`/`skip`, forbidden otherwise; `resolved_by` from the opened `decision`; resolve after `stop_run` → exit 2; unknown id → exit 2); tuple idempotency `(resolution, backlog_id)` no-op vs corrective line; `test_cascade_stop_after_three_consecutive` and `esc-clean` resets; invalid line (extra key, unknown event, wrong type) → exit 1 with the file unchanged; an `item_id` containing `:` still correlates; `test_journal_concurrent_writers_keep_every_line` (two real processes with different run ids, all lines valid, `seq` correct per run); `esc-summary` lists escalations, corrections and stub backlog ids.
+- `wc -l < commands/work.md` ≤ 400; `ruff check` on the two modules.
 
 **DoD:**
-- [ ] Развилка встроена по C5/C6; обе ветви replan разведены и гейтованы; bats green (был red); scenarios 3–10 покрыты тестами, не ручной проверкой
-- [ ] Цепочка беклога исполняет фактический S4-C3 revision 4 (`annotate` поставлен, X5-01 SATISFIED; жёсткая зависимость `Blocked-by: svp-roadmap-backlog-db#2`, второй writer беклога не заводится)
+- [ ] Journal written as JSONL under `mb_lock_acquire` (concurrency test green); cascade stop and summary implemented; pytest green (was red)
+- [ ] `commands/work.md` ≤ 400 lines
+<!-- /mb-task:3 -->
+
+<!-- mb-task:4 -->
+## Task 4: Stub gate in verify (verify-stub)
+
+**Stage:** 2
+**Covers:** REQ-009
+**Role:** qa
+**Blocked-by:** 3
+**Scope:** scripts/mb_work_adapt.py, scripts/mb_work_adapt_stub.py, agents/plan-verifier.md, commands/work.md, tests/pytest/test_mb_work_adapt_stub.py
+**Budget:** 90000
+
+**What to do:**
+- New sibling module `scripts/mb_work_adapt_stub.py`; `mb_work_adapt.py` registers `verify-stub --repo <root> --diff-file <path> --backlog <path>` (design C4).
+- Structural checks per changed file: marker → existing `I-NNN` in backlog.md; marker on a comment or docstring line; flag token elsewhere in the same file; bare `NotImplementedError`/`TODO`/`FIXME`/`...` without a marker → violation.
+- Behavioural proof of fencing: run the `eval=<path>` driver twice from `--repo` with `subprocess.run(timeout=120)` in its own process group (killed on timeout): without `<NAME>` it must print `MB-ADAPT-STUB-PATH: baseline` and exit 0, with `<NAME>=1` it must print `MB-ADAPT-STUB-PATH: staged` and exit 0. Violation codes: `unknown_backlog_id`, `marker_not_in_docstring`, `flag_token_unused`, `bare_placeholder`, `missing_stub_eval`, `flag_default_on`, `flag_does_not_gate_stub`, `stub_eval_failed`, `stub_eval_timeout`; a driver that is missing or not executable → exit 2.
+- Output JSON `{"stubs":[{"file","backlog_id","flag","eval"}],"violations":[{"file","line","reason"}]}`; exit 0 clean, 1 violations, 2 usage or broken tooling.
+- `agents/plan-verifier.md` and the verify step of `commands/work.md` call `verify-stub` when the diff carries a stub marker and treat exit 1 and exit 2 as FAIL; docstring completeness stays a review judgment; net-zero lines in `commands/work.md`.
+
+**Eval:** `pytest tests/pytest/test_mb_work_adapt_stub.py` — red: the verify-stub subcommand does not exist, so a default-on flag passes verification; exit: 1; output~: FAILED tests/pytest/test_mb_work_adapt_stub\.py::test_verify_stub_default_on_flag_fails
+
+**Testing (TDD — tests BEFORE implementation):**
+- pytest on fixture repos: marker + flag + driver + existing `I-NNN` → clean; default-on (driver prints `staged` without the flag) → `flag_default_on`; marker outside a docstring → violation; flag token not steering the path (both runs print `baseline`) → `flag_does_not_gate_stub`; no `eval=` → `missing_stub_eval`; unknown backlog id; bare `NotImplementedError`/`TODO` without marker; flag only on the marker line; failing driver → `stub_eval_failed`; hanging driver → `stub_eval_timeout` (timeout patched short in the test); missing driver → exit 2; two valid stubs both listed; usage error → exit 2.
+- `wc -l < commands/work.md` ≤ 400; `ruff check` on the two modules.
+
+**DoD:**
+- [ ] verify-stub implemented and wired into plan-verifier and the verify step; default-on and unfenced stubs provably fail; pytest green (was red)
+- [ ] `commands/work.md` ≤ 400 lines
 <!-- /mb-task:4 -->
 
 <!-- mb-task:5 -->
-## Task 5: Verify-гейт стабов
+## Task 5: Autonomous stub path and backlog chain
 
-**Covers:** REQ-009
-**Role:** qa
 **Stage:** 2
-**Blocked-by:** 4
-**Scope:** agents/plan-verifier.md, commands/work.md, scripts/mb-work-adapt.sh, tests/bats/test_plan_verifier_stub_gate.bats
-**Budget:** 60000
+**Covers:** REQ-004
+**Role:** backend
+**Blocked-by:** 4, svp-roadmap-backlog-db#2
+**Scope:** scripts/mb_work_adapt.py, scripts/mb_work_adapt_stub.py, commands/work.md, tests/pytest/test_mb_work_adapt_backlog.py
+**Budget:** 80000
 
 **What to do:**
-- `mb-work-adapt.sh verify-stub --repo <root> --diff-file <path> --backlog <path>` по C1.5.
-  Структурные проверки: маркер → существующий `I-NNN` в backlog.md; маркер на комментарий/
-  docstring-строке; токен флага в том же файле вне строки маркера; голый
-  `NotImplementedError`/`TODO`/`FIXME`/`...` без маркера → violation.
-- **Поведенческое доказательство ограждённости**: драйвер из `eval=<path>` запускается дважды из
-  `--repo` через **portable `mb_adapt_bounded_run 120 <driver>`** (R3-006: `timeout` → `gtimeout` →
-  Bash 3.2 watchdog с TERM→KILL — стоковый macOS не несёт ни `timeout`, ни `gtimeout`; тот же приём, что
-  `scripts/mb-work-codex-preflight.sh:46-65`); без `<NAME>` драйвер обязан напечатать
-  `MB-ADAPT-STUB-PATH: baseline` и выйти 0, с `<NAME>=1` — `MB-ADAPT-STUB-PATH: staged` и выйти 0. Все
-  timeout-исходы нормализуются в violation `stub_eval_timeout`. Коды violation: `missing_stub_eval`,
-  `flag_default_on`, `flag_does_not_gate_stub`, `stub_eval_failed`, `stub_eval_timeout`; драйвер не
-  найден/не исполняем → exit 2 fail-loud.
-- JSON-выход со списком стабов (`file`, `backlog_id`, `flag`, `eval`) и violations; exit 0/1/2.
-- `agents/plan-verifier.md` + verify-шаг `commands/work.md` вызывают `verify-stub` и трактуют exit 1
-  и exit 2 как FAIL задачи (REQ-009); отчёт перечисляет валидные стабы с их беклог-элементами и
-  драйверами; полнота docstring остаётся ревью-суждением и машинным фактом не объявляется.
+- `stub-backlog --bank <bank> --spec-topic <slug> --task-id <n> --reason <text> --flag <NAME> --capability <phrase>` in `scripts/mb_work_adapt_stub.py`, registered in `mb_work_adapt.py`: a thin sequencer over the existing S4 writers, never a second backlog mutator (design C5). It runs `mb-idea.sh "[ADAPT] <spec-topic>#<task-id>: <reason>" HIGH <bank>` without `--force`, reads the state with `mb-backlog-state.sh list`, takes the shortest valid path to `READY` (`NEW → NEEDS-INFO → TRIAGED → READY`, `annotate --brief` from the fixed template before `READY`), reuses an existing `READY`/`IN-PROGRESS` item, and halts on `DONE`/`WONTFIX`/`similar_out_of_scope` or any non-zero step. stdout `I-NNN`, exit 0; halt → exit 1; usage → exit 2.
+- `commands/work.md` step 5c1, autonomous branch: when `split` exits 6 (refused at `adapt.max_depth`), `esc-open --split-refused` → decision `stub_continue` → `stub-backlog` before any code edit → re-dispatch the implementer with the stub protocol (marker, default-off flag, driver) → `esc-resolve --resolution stub_continue --backlog-id <I-NNN>`; any halt goes to the summary and stops the stub path before code; net-zero lines.
 
-**Eval:** `bats tests/bats/test_plan_verifier_stub_gate.bats` — red: субкоманды и гейта нет, default-on флаг проходит верификацию; exit: 1; output~: not ok [0-9]+ .*stub_gate_default_on_flag_fails
+**Eval:** `pytest tests/pytest/test_mb_work_adapt_backlog.py` — red: the stub-backlog subcommand does not exist and no backlog item reaches READY before the stub; exit: 1; output~: FAILED tests/pytest/test_mb_work_adapt_backlog\.py::test_stub_backlog_reaches_ready_before_code
 
 **Testing (TDD — tests BEFORE implementation):**
-- bats на фикстурах: маркер + флаг + драйвер + существующий `I-NNN` → PASS; **default-on**
-  (драйвер печатает `staged` без флага) → FAIL; **маркер вне doc-строки** (в исполняемом коде) →
-  FAIL; **токен флага не управляет путём** (оба прогона печатают `baseline`) → FAIL; отсутствует
-  `eval=` в маркере → FAIL; беклог-ID не существует в backlog.md → FAIL; голый
-  `NotImplementedError`/`TODO` без маркера → FAIL; флаг только в строке маркера → FAIL; драйвер
-  падает → FAIL с точным кодом; драйвер не исполняем → exit 2; два валидных стаба → оба перечислены в
-  summary; usage-ошибка → exit 2; shellcheck clean.
-- bats (**R3-006 portable timeout**): прогон с `PATH` **без** `timeout` и `gtimeout` и зависшим
-  драйвером → `mb_adapt_bounded_run` завершает его Bash-watchdog'ом (TERM→KILL) в пределах бюджета,
-  гейт даёт violation `stub_eval_timeout` (не виснет и не падает по отсутствию `timeout`); Bash 3.2.
+- pytest on a temp bank with the real S4 scripts: `test_stub_backlog_reaches_ready_before_code` (item ends `READY`, brief passes the READY gate, id printed); a repeated escalation with the same title reuses the existing `I-NNN` without an invalid transition; a `WONTFIX` item and a `similar_out_of_scope` hit halt with exit 1; the brief template carries `shall` and no path or line number; `PLANNED` is never assigned; usage error → exit 2.
+- `wc -l < commands/work.md` ≤ 400; `ruff check` on the two modules.
 
 **DoD:**
-- [ ] C1.5 + гейт в верифаере; default-on и неограждённый стаб доказуемо не проходят; bats green (был red)
-- [ ] Bounded-run портабелен (R3-006): без `timeout`/`gtimeout` работает Bash-watchdog, `stub_eval_timeout` наблюдаем; Scope включает `commands/work.md` (R3-005)
+- [ ] Autonomous stub path wired in work.md and `stub-backlog` implemented over the existing writers; pytest green (was red)
+- [ ] `commands/work.md` ≤ 400 lines; `adapt.verify_fail_cycles` default still 3
 <!-- /mb-task:5 -->

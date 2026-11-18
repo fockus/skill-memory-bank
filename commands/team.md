@@ -218,7 +218,8 @@ declared in `team.resources` (`docs/pipeline-yaml.md` § team).
   (registry row + foundation work) or accept.
 - `team checkpoint [label]` — diff from the baseline, untracked files (under `max_untracked_mb`), manifest and
   sha256 into `team.checkpoint.dir` (bank-relative, default `backups/team`), then `checkpoint.extra`.
-  `team checkpoint --verify <id>` recomputes the hashes. Restore commands are printed, never run.
+  `team checkpoint --verify <id>` recomputes the hashes. Restore commands are printed, never run. A configured
+  `checkpoint.dir` must be new, empty or marked by `.mb-team-checkpoint`; any other existing dir is refused (exit 2).
 - `team commit --tracks A,B -m <msg> [--yes]` — files = changed ∩ globs of the selected tracks; refuses unfinished
   tracks, an open BLOCKED/HANDOVER for them and files co-owned by an unfinished unselected track; lists excluded
   foreign files; **asks y/N, default No** (`--yes` only after the user said yes; a preview changes nothing); then runs
@@ -229,7 +230,9 @@ declared in `team.resources` (`docs/pipeline-yaml.md` § team).
   sends that track back to `fixing` and stages nothing (re-dispatch it; `mb-rules-enforcer` adds the judgment checks);
   `tdd/delta` is printed for the verifier, never a send-back (package-level tests break its file pairing); commits
   exactly that list through
-  `mb_vcs.sh commit -m <msg> -- <paths>`; posts `COMMIT` on the board. Never pushes.
+  `mb_vcs.sh commit -m <msg> -- <paths>`; posts `COMMIT` on the board. Never pushes. On arc, path-scoped
+  `arc commit -- <paths>` is unproven against the real client (tests use a git-backed shim): before the first arc
+  team commit, check on a scratch branch that a foreign staged file stays out of the commit.
 - `team known-red add <test-id> --reason R` · `team known-red list` — tests red on the baseline; the brief tells
   tracks not to fix or count them.
 - `team close [--pause]` — final STATUS and `LIFT · contract:<topic>`; `--pause` keeps the team open.

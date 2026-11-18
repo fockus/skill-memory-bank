@@ -18,11 +18,14 @@
 
 bats_require_minimum_version 1.5.0
 
+load 'lib/mb_corpus'
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   DOC="$REPO_ROOT/commands/drive.md"
   LIB="$REPO_ROOT/adapters/_lib_agents_md.sh"
-  ROUTER_DOC="$REPO_ROOT/commands/mb.md"
+  ROUTER_DOC="$BATS_TEST_TMPDIR/mb_corpus.md"
+  mb_corpus > "$ROUTER_DOC"
   BANK="$BATS_TEST_TMPDIR/bank"
   PROJECT="$BATS_TEST_TMPDIR/project"
   mkdir -p "$BANK" "$PROJECT"

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Ticket queue, liveness and status for mb-lock.sh named resources (specs/mb-team design §5, C3/C4).
+"""Ticket queue and status for mb-lock.sh named resources (specs/mb-team design §5, C3/C4).
 
 For a resource whose C3 `path` is P: `P.lock/meta.json` is the holder, `P.queue/<seq>` one ticket per
 waiter (lowest live seq is next). The lock is taken by renaming a prepared directory onto P.lock (atomic,
 meta always present); a ticket is published with link(2), which fails on an existing seq, so neither a
-mutex nor flock is needed. A process is alive only while its pid exists with the recorded
-`ps -o lstart=` start time, which defeats pid reuse. mb-lock.sh owns signals, the child and the board.
+mutex nor flock is needed. Liveness lives in mb_lock_liveness.py. mb-lock.sh owns signals, the child and
+the board.
 """
 
 from __future__ import annotations
@@ -17,13 +17,13 @@ import secrets
 import shlex
 import shutil
 import signal
-import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from mb_lock_liveness import HOST, alive, holder_alive, proc_start  # noqa: E402
 from mb_lock_resource import (  # noqa: E402
     check,
     describe,
@@ -33,43 +33,6 @@ from mb_lock_resource import (  # noqa: E402
     print_status,
     scan,
 )
-
-HOST = socket.gethostname()
-
-
-def proc_start(pid) -> str | None:
-    if not pid:
-        return None
-    # One fixed format: waiters with another LANG or TZ must read the same start string.
-    r = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True,
-                       env={**os.environ, "LC_ALL": "C", "TZ": "UTC"})
-    return r.stdout.strip() or None
-
-
-def alive(pid, start) -> bool:
-    """Pid exists (EPERM counts) and, when a start time was recorded, started at that time."""
-    if not isinstance(pid, int) or pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        pass
-    now = proc_start(pid)
-    return now is not None and (start is None or now == start)
-
-
-def holder_alive(meta: dict) -> bool | None:
-    """True alive · False provably dead (or lease expired) · None unknown (unreadable meta)."""
-    if not meta:
-        return None
-    if meta.get("host") != HOST:
-        return True  # death on another host cannot be proven from here
-    if meta.get("lease_until"):
-        return time.time() < meta["lease_until"]
-    return alive(meta.get("pid"), meta.get("pid_start")) or alive(
-        meta.get("child"), meta.get("child_start"))
 
 
 def read_meta(lock: Path) -> dict | None:

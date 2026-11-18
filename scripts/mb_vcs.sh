@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # mb_vcs.sh — VCS seam (contract C6) for git and arc. Read-mostly; `add`/`commit` act only on the
 # explicit file list given (`commit` is path-scoped: git --only, arc commit <paths>). There is no push/rebase/reset path.
+# The arc commit scoping is checked only against the git-backed test shim, not a real arc client.
 #   mb_vcs.sh <op> --tree <dir> [args]
 #   ops: kind | root | head | diff <base> | changed <base> | untracked | add -- <files> | index-save|index-restore -- <paths> | commit -m <msg> -- <paths> | show <rev>:<path>
 # `changed` and `untracked` print NUL-separated raw paths relative to the root (no git quoting; a rename

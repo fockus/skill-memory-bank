@@ -1,0 +1,102 @@
+{
+  "lens": "logic",
+  "issues": [
+    {
+      "id": "L1",
+      "severity": "medium",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_tracks.py",
+      "line": 72,
+      "what": "`init <topic> --budget N` runs `mb-work-budget.sh init --run-id team-<topic>` BEFORE `locked(create=...)` refuses an existing team. Re-running init on a live team is refused, but its budget state is already reset (reproduced: add 400 -> spent=400, refused re-init -> status total=1000 spent=0). The REQ-TEAM-025 stop threshold is silently bypassed.",
+      "fix": "Check that team_file(bank, topic) does not exist before budget init, or init the budget only after the team.json create succeeded."
+    },
+    {
+      "id": "L2",
+      "severity": "medium",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb-team-checkpoint.sh",
+      "line": 39,
+      "what": "Default checkpoint dir is <bank>/backups/team, not git-ignored. When it is inside the tree, `untracked` lists the dir itself: the new checkpoint's .changed/.untracked/.diff temp files and every earlier checkpoint's tar, diff, manifest and sha256 get tarred in (reproduced: the second tar contains the first checkpoint's 4 files). Size grows with every checkpoint, each earlier tar counts against max_untracked_mb, and restoring re-creates old backups.",
+      "fix": "Drop paths under realpath($out) from the untracked list before tarring (and from `skipped`), or write the temp files outside the tree; add a bats test with --dir inside the tree and two checkpoints."
+    },
+    {
+      "id": "L3",
+      "severity": "medium",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_tracks.py",
+      "line": 56,
+      "what": "`init --goal G` is not honoured: validation uses <bank>/goal.md always, `team.goal` stores G, and goal acceptance (mb_team_status.goal, mb_team_collect.goal_criteria) reads <bank>/goal.md. With a custom goal file the validation and the stop_success goal gate (REQ-TEAM-004/081) apply to a different file than the team declares.",
+      "fix": "Validate and read the goal path from team['goal'] (bank-relative) everywhere, or refuse --goal values other than goal.md."
+    },
+    {
+      "id": "L4",
+      "severity": "minor",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_review_external.py",
+      "line": 100,
+      "what": "_merge de-duplicates external findings by bare id: an external finding whose id equals a lens issue id (F1/M1 style) is silently dropped from master.json, so it can never be routed or gate the cycle. A master issue with a severity outside SEVERITIES also raises a bare KeyError, reported as exit 2 with a cryptic message.",
+      "fix": "Namespace external ids (external:<name>:<id>) or fail ingest on a collision; validate master issue severities before counting."
+    },
+    {
+      "id": "L5",
+      "severity": "minor",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_review.py",
+      "line": 136,
+      "what": "`reopened` falls back to the previous_issues stub (id/status/evidence only) for an item carried open from cycle n-2: it has no file or owner, so owner() is None and the gate answers `stop_human review-unowned` for a fixable issue.",
+      "fix": "Resolve the original issue from earlier masters (or require/copy `owner` and `file` into previous_issues) before routing."
+    },
+    {
+      "id": "L6",
+      "severity": "minor",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_ops.py",
+      "line": 67,
+      "what": "The open BLOCKED/HANDOVER refusal in `commit` is fail-open: the mb-coord.sh exit code is ignored, an empty stdout becomes {}, and non-JSON stdout raises an uncaught JSONDecodeError traceback. A board failure silently lets a commit through for a track with an open BLOCKED.",
+      "fix": "Check returncode and JSON validity; refuse the commit with a hint on failure."
+    },
+    {
+      "id": "L7",
+      "severity": "minor",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_ops.py",
+      "line": 142,
+      "what": "`close` does not check that the team is stop_success-ready (unfinished or uncollected tracks, open stops), and `close --pause` on an already closed team sets closed=False, i.e. reopens it.",
+      "fix": "`close` should refuse while `next` is not stop_success unless an explicit --force; `--pause` should leave `closed` untouched."
+    },
+    {
+      "id": "L8",
+      "severity": "minor",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_tracks.py",
+      "line": 151,
+      "what": "REQ-TEAM-023/024/033 (overlap, max_parallel, unfilled brief, unmet deps) are enforced only in `next`; `track set --status dispatched` accepts a dispatch that violates them, so a manual or mistaken dispatch runs two overlapping tracks or exceeds max_parallel unseen.",
+      "fix": "On dispatched, check deps finished, glob overlap with running tracks, the max_parallel cap and an unfilled brief; refuse with a hint (or print a warning)."
+    },
+    {
+      "id": "L9",
+      "severity": "minor",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_lock_queue.py",
+      "line": 266,
+      "what": "op_break gates on `holder_alive(meta)` truthiness: an unreadable meta gives None (unknown), which passes the check and the lock is removed (token None == None in remove()). REQ-TEAM-044 says a lock is removed only for a provably dead holder.",
+      "fix": "Require `holder_alive(meta) is False`; keep unknown holders unbreakable."
+    },
+    {
+      "id": "L10",
+      "severity": "minor",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_lock_resource.py",
+      "line": 118,
+      "what": "`status` without a name scans only locks or queues that exist on disk, so declared resources never used are missing from `mb-lock.sh status` and `team status` (REQ-TEAM-048/053 want current precondition values per resource).",
+      "fix": "Also list resources from team.resources config with their precondition values."
+    },
+    {
+      "id": "L11",
+      "severity": "minor",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/scripts/ + .memory-bank/specs/mb-team/requirements.md",
+      "line": 0,
+      "what": "Spec drift: requirements still say mode direct (REQ-TEAM-010, 020) and work-only for REQ-TEAM-016/021, while the implementation refuses mode=direct (AGR-103, one /mb work path). Shipped but unspecified: mb_team_shared.py (foundation heuristics whose regex on task text can raise stop_human shared-foundation) and mb_team_spec.py (spec_verify wave-end).",
+      "fix": "Amend requirements.md/design.md (supersede REQ-TEAM-020, add REQs for shared foundation and spec_verify) so the DoD matches shipped behaviour."
+    },
+    {
+      "id": "L12",
+      "severity": "nit",
+      "file": "/Users/fockus/Apps/skill-memory-bank/scripts/mb_team_review.py",
+      "line": 55,
+      "what": "`--range base..rev` is interpolated unquoted into the printed review command (only the tree is shlex-quoted).",
+      "fix": "shlex.quote base and rev."
+    }
+  ],
+  "summary": "No blocker or major. Three medium findings: budget reset by a refused re-init, checkpoints in an in-tree dir tar earlier checkpoints, --goal ignored. Previous review items (m1-m4, m6) hold. Tests were not executed in this review (static plus targeted reproductions only)."
+}

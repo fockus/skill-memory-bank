@@ -301,6 +301,19 @@ def test_go_with_backlog_registers_before_done(tmp_path):
     assert evidence(mb)[0]["phase"] == "done"
 
 
+def test_go_with_backlog_passes_despite_similar_out_of_scope_entry(tmp_path):
+    mb, source = project(tmp_path)
+    (mb / "backlog.md").write_text(
+        "# Backlog\n\n## Ideas\n\n## Out of scope\n\n"
+        "### I-050 \u2014 Native follow-up measured nonblocking concern [LOW, WONTFIX, 2026-03-01]\n\n"
+        "**Reason:** not now\n"
+    )
+    result = host(tmp_path, tmp_path, args="work sample --range 1", backlog=True)
+    assert not result.get("error"), result
+    assert "source:" in (mb / "backlog.md").read_text().split("## Out of scope")[0]
+    assert evidence(mb)[0]["phase"] == "done"
+
+
 def test_unbound_main_review_receipt_cannot_close(tmp_path):
     mb, source = project(tmp_path)
     pipeline = mb / "pipeline.yaml"

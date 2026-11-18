@@ -28,6 +28,17 @@ teardown() {
   grep -q '^## FREEZE · .* · contract:demo$' "$BANK/COORDINATION.md"
 }
 
+@test "team: a refused re-init with --budget keeps the live team's spent budget" {
+  team init demo --no-goal --tree "$PROJ" --budget 1000 >/dev/null
+  MB_WORK_PARALLEL=1 bash "$REPO/scripts/mb-work-budget.sh" add 400 --run-id team-demo --mb "$BANK" >/dev/null
+  run team init demo --no-goal --tree "$PROJ" --budget 1000
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"already exists"* ]] || false
+  run env MB_WORK_PARALLEL=1 bash "$REPO/scripts/mb-work-budget.sh" status --run-id team-demo --mb "$BANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"spent=400"* ]] || false
+}
+
 @test "team: the tracks table of an untouched brief follows track add; an edited brief is kept" {
   team_two_tracks
   grep -q '| A | developer |' "$BANK/reports/demo/brief.md"
@@ -112,6 +123,29 @@ assert 'stop_human blocked:B' in s['next']
   id=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['checkpoints'][0]['id'])" "$BANK/reports/demo/team.json")
   [ -f "$PROJ/backups-out/$id.diff" ]
   run team checkpoint --verify "$id"
+  [ "$status" -eq 0 ]
+}
+
+@test "team: the default checkpoint dir is adopted even when it predates the ownership marker" {
+  printf 'team:\n  resources:\n    build:\n      kind: mutex\n      scope: bank\n' >"$BANK/pipeline.yaml"
+  team_two_tracks
+  mkdir -p "$BANK/backups/team"; echo old >"$BANK/backups/team/2026-01-01-000000-demo-old.diff"
+  run team checkpoint s1
+  [ "$status" -eq 0 ]
+  [ -f "$BANK/backups/team/.mb-team-checkpoint" ]
+}
+
+@test "team: a default checkpoint dir that is a symlink into the tree is not adopted (exit 2, nothing written)" {
+  printf 'team:\n  resources:\n    build:\n      kind: mutex\n      scope: bank\n' >"$BANK/pipeline.yaml"
+  team_two_tracks
+  mkdir -p "$BANK/backups"; ln -s "$PROJ/a" "$BANK/backups/team"
+  before=$(ls -A "$PROJ/a"); mode=$(stat -c %a "$PROJ/a" 2>/dev/null || stat -f %Lp "$PROJ/a")
+  run team checkpoint s1
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"not a dedicated checkpoint dir"* ]] || false
+  [ "$(ls -A "$PROJ/a")" = "$before" ]
+  [ "$(stat -c %a "$PROJ/a" 2>/dev/null || stat -f %Lp "$PROJ/a")" = "$mode" ]
+  run python3 -c "import json,sys; assert json.load(open(sys.argv[1]))['checkpoints'] == []" "$BANK/reports/demo/team.json"
   [ "$status" -eq 0 ]
 }
 

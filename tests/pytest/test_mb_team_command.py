@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from mb_corpus import read_mb_router
 
 ROOT = Path(__file__).resolve().parents[2]
 TEAM_MD = ROOT / "commands" / "team.md"
@@ -127,7 +128,7 @@ def test_team_return_block_records_the_track_report(tmp_path):
 
 
 def test_router_index_and_counts_list_team():
-    router = (ROOT / "commands" / "mb.md").read_text(encoding="utf-8")
+    router = read_mb_router()
     assert re.search(r"^\| `team .*commands/team\.md", router, re.M)
     assert "`/team`" in (ROOT / "SKILL.md").read_text(encoding="utf-8")
     assert re.search(r"^\| `/team` \|", (ROOT / "README.md").read_text(encoding="utf-8"), re.M)

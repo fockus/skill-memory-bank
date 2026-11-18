@@ -5,7 +5,7 @@
 # CLI:
 #   transition <I-NNN> <STATE> [--reason TEXT] [--mb PATH]
 #   annotate  <I-NNN> --brief <TEXT> [--parent <I-NNN|none>] [--mb PATH]
-#   list [--mb PATH]                (flat only in Task 2; --tree → exit 2)
+#   list [--tree] [--mb PATH]       (--tree added by Task 7)
 #
 # Red-anchor: every test name starts with `backlog_state: `.
 
@@ -323,9 +323,9 @@ item=I-011 state=TRIAGED parent=none depth=0 title=\"linenum brief item\""
   [[ "$output" == *'title="café \"q\" тема"'* ]]
 }
 
-@test "backlog_state: unknown option --tree exits 2 without mutating the file" {
+@test "backlog_state: unknown list option exits 2 without mutating the file" {
   snapshot "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
-  run bash "$BS" list --tree --mb "$BANK"
+  run bash "$BS" list --bogus --mb "$BANK"
   [ "$status" -eq 2 ]
   assert_unchanged "$BANK/backlog.md" "$BATS_TEST_TMPDIR/before.snap"
 }

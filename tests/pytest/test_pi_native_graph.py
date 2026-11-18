@@ -72,6 +72,8 @@ def run(world, steps, env=None, project_root=""):
         timeout=180,
         input=json.dumps({"home": str(world["home"]), "projectRoot": project_root, "steps": steps}),
     )
+    if proc.returncode == 3:
+        pytest.skip(proc.stderr.strip() or "Pi package not found on PATH")
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout.strip().splitlines()[-1])
 
@@ -304,3 +306,11 @@ def test_graph_nudge_respects_off_switch(world):
         world, [_grep_event(world["a"], "grep -rn 'def alpha' src/")], env={"MB_GRAPH_NUDGE": "off"}
     )
     assert out[1]["outputs"] == []
+
+
+def test_pi_is_resolved_from_the_pi_binary_not_the_npm_global_root(world):
+    """A Pi on PATH works even when `npm root -g` points somewhere without Pi."""
+    empty_prefix = world["tmp"] / "empty-npm-prefix"
+    empty_prefix.mkdir()
+    result = run(world, [], env={"npm_config_prefix": str(empty_prefix)})
+    assert result[0]["tools"] == TOOLS

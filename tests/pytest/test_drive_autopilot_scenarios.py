@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_mb_drive_brain  # noqa: E402
 import test_s2_file_size_contract  # noqa: E402
+from mb_corpus import read_mb_corpus
 from test_mb_drive_brain import (  # noqa: E402
     ROOT,
     SCRIPTS,
@@ -274,7 +275,7 @@ def fences(text: str) -> list[str]:
 
 def test_REQ_046__drive_commands_resolve_paths_and_match_the_scripts() -> None:
     drive_md = (ROOT / "commands/drive.md").read_text()
-    mb_md = (ROOT / "commands/mb.md").read_text()
+    mb_md = read_mb_corpus()
     drive_section = mb_md.split("### drive", 1)[1].split("\n### ", 1)[0]
     agents_line = next(line for line in (ROOT / "adapters/_lib_agents_md.sh").read_text().splitlines()
                        if "`/mb drive`" in line)

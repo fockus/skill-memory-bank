@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 
 import pytest
+from mb_corpus import read_mb_corpus
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = REPO_ROOT / "references" / "claude-md-template.md"
@@ -90,7 +91,7 @@ def test_template_body_fits_eighty_lines() -> None:
 
 
 def test_mb_init_step4_required_sections_match_template() -> None:
-    step4 = MB_COMMAND.read_text(encoding="utf-8").split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
+    step4 = read_mb_corpus().split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
     step4 = step4.split("\n---\n", 1)[0]
     required = step4.split("Required sections", 1)[1]
     listed = re.findall(r"^- \*\*(.+?)\*\*", required, re.M)
@@ -99,7 +100,7 @@ def test_mb_init_step4_required_sections_match_template() -> None:
 
 
 def _init_step4() -> str:
-    step4 = MB_COMMAND.read_text(encoding="utf-8").split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
+    step4 = read_mb_corpus().split("#### Step 4: Generate `CLAUDE.md`", 1)[1]
     return step4.split("\n---\n", 1)[0]
 
 
