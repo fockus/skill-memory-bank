@@ -30,6 +30,8 @@ def load_graph(path: Path) -> tuple[list[JsonObj], list[JsonObj]]:
 
 # Suffixes of files the graph walks. A node/edge name ending in one of these is a
 # FILE, not a dotted symbol, so its last segment is an extension — never a symbol.
+_CHAIN_DEPTH = 3
+_closure_memo: dict[str, Any] = {}  # one graph per process; keyed by list identity
 _SOURCE_SUFFIXES = (
     ".py",
     ".sh",
@@ -160,14 +162,60 @@ def dedupe_edges(edges: list[JsonObj]) -> list[JsonObj]:
     result: list[JsonObj] = []
     for edge in edges:
         key = (str(edge.get("kind", "")), str(edge.get("src", "")), str(edge.get("dst", "")))
-        if key in seen:
-            continue
-        seen.add(key)
-        result.append(edge)
+        if key not in seen:
+            seen.add(key)
+            result.append(edge)
     return result
 
 
-def find_tests(edges: list[JsonObj], target_names: set[str], target_files: set[str]) -> list[str]:
+def _resolve_module(dst: str, src_file: str, py_files: dict[str, str], known: set[str]) -> str:
+    """File for an import destination: exact path, dotted module, or a sibling script."""
+    if dst in known:
+        return dst
+    parts = dst.split(".")
+    folder = src_file.rsplit("/", 1)[0] + "/" if "/" in src_file else ""
+    for size in range(len(parts), 0, -1):
+        head = ".".join(parts[:size])
+        if f"{folder}{head}.py" in known:
+            return f"{folder}{head}.py"
+        if head in py_files:
+            return py_files[head]
+    return ""
+
+
+def _entry_closure(edges: list[JsonObj], nodes: list[JsonObj]) -> dict[str, set[str]]:
+    """Python files a test reaches through a script entry point (`.sh` or `invoke`).
+
+    Starts at an invoked ``.py`` or a shell script the test uses, then follows
+    resolved Python imports (``_CHAIN_DEPTH`` hops); sh->sh is never followed.
+    """
+    known = {str(n.get("file", "")) for n in nodes if str(n.get("file", "")).endswith(".py")}
+    py_files = {file_to_module(f): f for f in known}
+    shell, imports, first = {}, {}, {}  # type: dict[str, set[str]], dict[str, set[str]], dict[str, set[str]]
+    for edge in (e for e in edges if e.get("kind") == "import"):
+        src, dst = edge_file(str(edge.get("src", ""))), str(edge.get("dst", ""))
+        if src.endswith(".sh") and dst.endswith(".py"):
+            shell.setdefault(src, set()).add(dst)
+        elif src.endswith(".py") and (t := _resolve_module(dst, src, py_files, known)) not in ("", src):
+            imports.setdefault(src, set()).add(t)
+        if is_test_file(src) and (dst.endswith(".sh") or dst.endswith(".py") and (
+                edge.get("via") == "invoke" or src.endswith(".bats"))):
+            first.setdefault(src, set()).add(dst)
+    closure: dict[str, set[str]] = {}
+    for test, starts in first.items():
+        frontier = {p for s in starts for p in (shell.get(s, set()) | ({s} if s.endswith(".py") else set()))}
+        reached = set(frontier)
+        for _ in range(_CHAIN_DEPTH):
+            frontier = {t for f in frontier for t in imports.get(f, ()) if not is_test_file(t)} - reached
+            reached |= frontier
+        closure[test] = reached
+    return closure
+
+
+def find_tests(
+    edges: list[JsonObj], target_names: set[str], target_files: set[str],
+    nodes: list[JsonObj] | None = None,
+) -> list[str]:
     test_files: set[str] = set()
     for edge in edges:
         src = str(edge.get("src", ""))
@@ -177,6 +225,11 @@ def find_tests(edges: list[JsonObj], target_names: set[str], target_files: set[s
             edge, target_names, target_files
         ):
             test_files.add(src_file)
+    if target_files and nodes:
+        key = (id(edges), id(nodes), len(edges))
+        if _closure_memo.get("key") != key:
+            _closure_memo.update(key=key, value=_entry_closure(edges, nodes))
+        test_files.update(t for t, got in _closure_memo["value"].items() if got & target_files)
     return sorted(test_files)
 
 
@@ -220,7 +273,7 @@ def impact_payload(
         "matches": matches,
         "dependents": base["incoming"],
         "dependencies": base["outgoing"],
-        "test_files": find_tests(edges, target_names, target_files),
+        "test_files": find_tests(edges, target_names, target_files, nodes),
     }
 
 
@@ -228,7 +281,7 @@ def tests_payload(
     nodes: list[JsonObj], edges: list[JsonObj], symbol: str | None, file_name: str | None
 ) -> JsonObj:
     matches, target_names, target_files = resolve_target(nodes, symbol=symbol, file_name=file_name)
-    test_files = find_tests(edges, target_names, target_files)
+    test_files = find_tests(edges, target_names, target_files, nodes)
     if not matches and not test_files:
         return {"ok": False, "error": "no_match", "query": {"symbol": symbol, "file": file_name}}
     return {

@@ -170,7 +170,7 @@ def graph_expand(
             if key not in seen and len(facts) < MAX_GRAPH_FACTS:
                 seen.add(key)
                 facts.append(edge)
-        for test_file in graph_query.find_tests(edges, target_names, target_files):
+        for test_file in graph_query.find_tests(edges, target_names, target_files, nodes):
             tests.add(test_file)
     return facts, sorted(tests)
 

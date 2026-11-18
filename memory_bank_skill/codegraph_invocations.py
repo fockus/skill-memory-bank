@@ -110,3 +110,60 @@ def script_invocations(tree: ast.Module, py_path: Path, src_root: Path) -> list[
                       "dst": target.relative_to(src_root.resolve()).as_posix(),
                       "kind": "import", "via": "invoke"})
     return edges
+
+
+def _handler_name(expr: ast.AST) -> str:
+    if isinstance(expr, ast.Name):
+        return expr.id
+    if isinstance(expr, ast.Attribute):
+        inner = _handler_name(expr.value)
+        return f"{inner}.{expr.attr}" if inner else ""
+    return ""
+
+
+class _DispatchVisitor(ast.NodeVisitor):
+    """Calls hidden behind `set_defaults(func=f)` and `{"k": f, ...}[k]` dispatch tables."""
+
+    def __init__(self, file_rel: str) -> None:
+        self.file = file_rel
+        self.scope: list[str] = []
+        self.edges: list[dict[str, str]] = []
+        self.tables: dict[str, list[ast.Dict]] = {}
+
+    def _emit(self, expr: ast.AST) -> None:
+        name = _handler_name(expr)
+        if name:
+            src = f"{self.file}:{'.'.join(self.scope)}" if self.scope else self.file
+            self.edges.append({"src": src, "dst": name, "kind": "call"})
+
+    def _table(self, node: ast.Dict) -> None:
+        if node.values and all(isinstance(k, ast.Constant) and isinstance(k.value, str)
+                               for k in node.keys) and all(_handler_name(v) for v in node.values):
+            for value in node.values:
+                self._emit(value)
+
+    def _scoped(self, node: ast.AST) -> None:
+        self.scope.append(node.name)  # type: ignore[attr-defined]
+        self.generic_visit(node)
+        self.scope.pop()
+
+    visit_FunctionDef = visit_AsyncFunctionDef = visit_ClassDef = _scoped
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "set_defaults":
+            for keyword in node.keywords:
+                if keyword.arg == "func":
+                    self._emit(keyword.value)
+        self.generic_visit(node)
+
+    def visit_Subscript(self, node: ast.Subscript) -> None:
+        if isinstance(node.value, ast.Dict):
+            self._table(node.value)
+        self.generic_visit(node)
+
+
+def dispatch_calls(tree: ast.Module, file_rel: str) -> list[dict[str, str]]:
+    """Static handler references only; a table counts when it is indexed in place."""
+    visitor = _DispatchVisitor(file_rel)
+    visitor.visit(tree)
+    return visitor.edges

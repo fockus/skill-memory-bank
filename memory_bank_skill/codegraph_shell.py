@@ -35,16 +35,14 @@ if nested constructs ever matter: add ``.sh`` to ``codegraph_treesitter.LANG_CON
 from __future__ import annotations
 
 import re
-from collections import deque
 from pathlib import Path
 from typing import Any
 
 from memory_bank_skill.codegraph_common import rel, sha256
+from memory_bank_skill.codegraph_shell_bind import SHELL_EXTS, bind_shell_edges
 
 __all__ = ["SHELL_EXTS", "bind_shell_edges", "parse_file"]
 
-# Extensions owned by this extractor (dispatch key in the orchestrator).
-SHELL_EXTS = frozenset({".sh", ".bats"})
 
 _IDENT = r"[A-Za-z_][A-Za-z0-9_:.-]*"
 
@@ -58,6 +56,7 @@ _BATS_TEST_RE = re.compile(r"^[ \t]*@test[ \t]+(?P<q>['\"])(?P<name>.*?)(?P=q)[ 
 _SOURCE_RE = re.compile(r"^[ \t]*(?:source|\.)[ \t]+(?P<path>\S+)")
 _LOAD_RE = re.compile(r"^[ \t]*load[ \t]+(?P<path>\S+)")
 _SH_PATH_RE = re.compile(r"[\w$./{}-]*[\w}]\.sh\b")
+_PY_PATH_RE = re.compile(r"[\w$./{}-]*[\w}]\.py\b")
 # Command position: line start, a shell operator, or a keyword that introduces a
 # command list. Good enough for `x="$(f)"`, `f || g`, `if f; then`.
 _CALL_RE = re.compile(
@@ -177,6 +176,10 @@ def parse_file(path: Path, src_root: Path, include_docs: bool = False) -> dict[s
             paths = [_unquote(m.group(0)) for m in _SH_PATH_RE.finditer(line)]
             for found in paths:
                 add_import(found, "source" if source else "invoke")
+            # A .py literal is an entry-point invocation (`python3 "$DIR/x.py"`);
+            # bind_shell_edges keeps it only when it names exactly one real file.
+            for match in _PY_PATH_RE.finditer(line):
+                add_import(_unquote(match.group(0)), "invoke")
             if source and not paths:  # e.g. `. /etc/os-release` — no .sh literal
                 add_import(_unquote(source.group("path")), "source")
             for match in _CALL_RE.finditer(line):
@@ -200,120 +203,3 @@ def parse_file(path: Path, src_root: Path, include_docs: bool = False) -> dict[s
         # Function names defined here — consumed by bind_shell_edges.
         "shell_defs": sorted(defined),
     }
-
-
-# ── binding pass (orchestrator, once all files are known) ────────────────────
-
-
-def _resolve_path(raw: str, known: list[str]) -> str:
-    """Best-effort repo-relative path for a shell path literal.
-
-    Variable-bearing segments are dropped (``"$REPO_ROOT/scripts/x.sh"`` →
-    ``scripts/x.sh``), then the remaining suffix — and failing that the bare
-    basename — must match exactly one walked file. Ambiguity resolves to nothing:
-    the cleaned path is kept as-is rather than inventing an edge to a homonym.
-    """
-    parts = [p for p in _unquote(raw).replace("\\", "/").split("/") if p not in ("", ".", "..")]
-    while parts and "$" in parts[0]:
-        parts.pop(0)
-    if not parts:
-        return _unquote(raw)
-    if any("$" in p for p in parts):
-        parts = parts[-1:]
-        if "$" in parts[0]:
-            return _unquote(raw)
-    suffix = "/".join(parts)
-    if suffix in known:
-        return suffix
-    matches = [f for f in known if f.endswith("/" + suffix)]
-    if len(matches) != 1:
-        base = parts[-1]
-        matches = [f for f in known if f.rsplit("/", 1)[-1] == base]
-    return matches[0] if len(matches) == 1 else suffix
-
-
-def _is_shell(file_rel: str) -> bool:
-    return any(file_rel.endswith(ext) for ext in SHELL_EXTS)
-
-
-def _src_file(edge: dict[str, Any]) -> str:
-    return str(edge.get("src", "")).split(":", 1)[0]
-
-
-def _reachable_funcs(start: str, sourced: dict[str, set[str]], funcs: dict[str, set[str]]) -> set[str]:
-    """Functions callable from ``start``: its own plus those of sourced files (transitive)."""
-    seen = {start}
-    queue = deque([start])
-    names: set[str] = set()
-    while queue:
-        current = queue.popleft()
-        names |= funcs.get(current, set())
-        for target in sorted(sourced.get(current, set())):
-            if target not in seen:
-                seen.add(target)
-                queue.append(target)
-    return names
-
-
-def bind_shell_edges(
-    nodes: list[dict[str, Any]], edges: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    """Resolve shell import paths and keep only call edges that name a real function.
-
-    Non-shell edges (Python, tree-sitter languages) are passed through untouched
-    and in order, so the rest of ``graph.json`` stays byte-identical. Shell edges
-    are de-duplicated: the same script mentioned twice is one import edge.
-    """
-    known_sh = sorted(
-        {
-            str(n.get("file", ""))
-            for n in nodes
-            if n.get("kind") == "module" and str(n.get("file", "")).endswith(".sh")
-        }
-    )
-    funcs: dict[str, set[str]] = {}
-    for node in nodes:
-        file_rel = str(node.get("file", ""))
-        if node.get("kind") == "function" and _is_shell(file_rel):
-            funcs.setdefault(file_rel, set()).add(str(node.get("name", "")))
-
-    # Pass 1 — resolve import destinations and build the `source` adjacency.
-    sourced: dict[str, set[str]] = {}
-    resolved: list[dict[str, Any] | None] = []
-    for edge in edges:
-        if edge.get("kind") != "import" or not _is_shell(_src_file(edge)):
-            resolved.append(None)
-            continue
-        dst = str(edge.get("dst", ""))
-        if dst.endswith(".sh"):
-            dst = _resolve_path(dst, known_sh)
-        new_edge = {"src": edge["src"], "dst": dst, "kind": "import"}
-        if edge.get("via") == "source" and dst in funcs:
-            sourced.setdefault(_src_file(edge), set()).add(dst)
-        resolved.append(new_edge)
-
-    # Pass 2 — emit, filtering call candidates against reachable functions.
-    reachable: dict[str, set[str]] = {}
-    seen: set[tuple[str, str, str]] = set()
-    out: list[dict[str, Any]] = []
-    for edge, rebound in zip(edges, resolved, strict=True):
-        src_file = _src_file(edge)
-        if not _is_shell(src_file):
-            out.append(edge)
-            continue
-        if rebound is not None:
-            candidate = rebound
-        elif edge.get("kind") == "call":
-            if src_file not in reachable:
-                reachable[src_file] = _reachable_funcs(src_file, sourced, funcs)
-            if str(edge.get("dst", "")) not in reachable[src_file]:
-                continue
-            candidate = {"src": edge["src"], "dst": edge["dst"], "kind": "call"}
-        else:
-            candidate = edge
-        key = (candidate["kind"], str(candidate["src"]), str(candidate["dst"]))
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(candidate)
-    return out

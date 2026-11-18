@@ -368,3 +368,27 @@ def test_code_context_accepts_semantic_only_alias(tmp_path: Path) -> None:
     assert payload["mode"] == "semantic"
     assert payload["channels_used"] == ["semantic", "read"]
     assert payload["graph_facts"] == []
+
+
+def test_code_context_lists_bats_reaching_python_script_through_sh(tmp_path: Path) -> None:
+    project = tmp_path / "repo"
+    mb = project / ".memory-bank"
+    (project / "scripts").mkdir(parents=True)
+    (project / "tests").mkdir()
+    (mb / "codebase").mkdir(parents=True)
+    for name in ("tool_core.py",):
+        (project / "scripts" / name).write_text("x\n", encoding="utf-8")
+    (project / "tests" / "test_tool.bats").write_text("x\n", encoding="utf-8")
+    _write_graph(mb / "codebase" / "graph.json", [
+        {"type": "node", "kind": "module", "name": "scripts/tool_core.py", "file": "scripts/tool_core.py", "line": 1},
+        {"type": "node", "kind": "module", "name": "scripts/tool_main.py", "file": "scripts/tool_main.py", "line": 1},
+        {"type": "edge", "src": "tests/test_suite.bats", "dst": "scripts/tool.sh", "kind": "import"},
+        {"type": "edge", "src": "scripts/tool.sh", "dst": "scripts/tool_main.py", "kind": "import"},
+        {"type": "edge", "src": "scripts/tool_main.py", "dst": "tool_core.run", "kind": "import"},
+    ])
+
+    result = _run(["--query", "scripts/tool_core.py", "--project-root", str(project),
+                   "--mb-path", str(mb), "--semantic-provider", "unavailable", "--json"])
+
+    assert result.returncode == 0, result.stderr
+    assert "tests/test_suite.bats" in _json(result)["test_files"]

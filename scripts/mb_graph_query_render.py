@@ -101,7 +101,7 @@ def render_test_links(nodes: list[JsonObj], edges: list[JsonObj]) -> str:
     for node in sorted(nodes, key=lambda item: str(item.get("name", ""))):
         name = str(node.get("name", ""))
         matches, target_names, target_files = resolve_target(nodes, symbol=name, file_name=None)
-        test_files = find_tests(edges, target_names, target_files)
+        test_files = find_tests(edges, target_names, target_files, nodes)
         if not matches or not test_files:
             continue
         emitted = True
