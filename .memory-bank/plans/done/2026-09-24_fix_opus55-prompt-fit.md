@@ -1,7 +1,7 @@
 ---
 type: fix
 topic: opus55-prompt-fit
-status: in_progress
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: []
@@ -218,3 +218,5 @@ recall не срабатывает на служебные уведомлени�
 - Вызов агентов по имени в других клиентах работает иначе → Stage 2 проверяет установку opencode/pi до мёржа.
 - Слияние с незакрытой веткой embeddings (`commands/mb.md`, `CHANGELOG.md`) → Stage 6 выполнять
   последним и ребейзить на актуальный main перед мёржем.
+
+> **Closed 2026-11-19 by master-completion** (Stages 2-7, 22 for the graph; Stages 12-13 for opus55, Stage 7 dropped by AGR-102). Evidence: reports/2026-11-19_graph-adoption.md, reports/2026-11-19_opus55-fable-run.md.

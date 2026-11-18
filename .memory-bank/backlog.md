@@ -1172,3 +1172,11 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-299 — OpenSpec round-trip backlog after Stage 9 judge (GO_WITH_BACKLOG): race window vs editors that don't take the bank lock; mid-batch rename failure can leave a partial publication and stray .staged files; bank_lock has no timeout or waiting message and imports private mb_fs_atomic._dir_lock; export --new can create a requirement with no scenario; blank line after inline-moved scenario; codex re-review of fix cycle 2 (do in Stage 10 review); pre-existing mypy error mb_openspec_convert.py:185. Evidence: reports/master-completion-wave1/B3-judge.json [LOW, NEW, 2026-11-19]
 **Type:** IDEA
+
+**Codex re-pass (Stage 10 review, B4-review.json part 2), deferred by the orchestrator:** a shared writer lock across all bank writers (/mb work, manual edits) or CAS for the final requirements/sidecar publish in export and export --new; a recoverable journal (rollback/roll-forward) for a rename failing mid-batch plus cleanup of stale staged files. Both were documented limits in the judge verdict; fail-open lock and mode widening were fixed in Stage 10.
+
+### I-300 — Installer follow-ups from the upgrade debug (reports/master-completion-wave1/upgrade-debug.md): the manifest-HOME mismatch message should name the manifest path and the MB_MANIFEST_PATH way out (its 'recovery:' dir is empty and misleading); a failed install leaves tmp.* dirs in the system temp dir; test harnesses that install under a temp HOME must use a git-archive snapshot or MB_MANIFEST_PATH, not the real checkout; scripts that need TMPDIR on macOS should use mktemp -p. [LOW, NEW, 2026-11-19]
+**Type:** IDEA
+
+### I-301 — /mb work over OpenSpec (Stage 10 judge, B4-judge.json): the bare-id ambiguity check misses a refused change (native collision, other-change link, symlink) — treat guard exit 2 like 0 so a plan with the same substring does not resolve silently; move the ~55-line Python guard out of the mb-work-resolve.sh heredoc into a helper with pytest cases. [LOW, NEW, 2026-11-19]
+**Type:** IDEA

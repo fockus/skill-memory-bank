@@ -22,6 +22,7 @@ except ModuleNotFoundError:  # pragma: no cover - import-path fallback
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import mb_openspec_bank as bank_io
 
+from mb_fs_atomic import _target_mode
 from mb_openspec_bank import Writer
 from mb_openspec_sync import SIDECAR_NAME, Triple
 
@@ -70,6 +71,7 @@ def publish_topics(pending: list[dict], write: Writer) -> None:
         tmp = dest.with_name(f".{dest.name}.{tag}.staged")
         staged.append((tmp, dest))
         write(tmp, text)
+        os.chmod(tmp, _target_mode(dest))  # keep the destination's mode, before any rename
 
     try:
         backlog: dict[Path, str] = {}

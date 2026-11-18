@@ -25,20 +25,6 @@ Plan: [plans/2026-07-05_SEQUENCE_long-running-sessions.md](plans/2026-07-05_SEQU
 
 Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-061, harness chain I-095…I-102). See also `roadmap.md`, `status.md`, `traceability.md`, `progress.md`.
 
-<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
-## graph-semantic-adoption — 10/11
-- ✅ Stage 1 — Nudge v2 — повторяемый и действенный
-- ✅ Stage 2 — Bootstrap векторного индекса при `/mb graph --apply`
-- ✅ Stage 3 — Auto-catchup графа на SessionStart
-- ✅ Stage 4 — Короткий враппер `mb-graph.sh` + короткие тексты подсказок
-- ✅ Stage 5 — Статус графа в диспатче субагентов
-- ✅ Stage 6 — Покрытие — bash и bats в графе
-- ⬜ Stage 7 — Граф в каждом диспатче `/mb work` + замер adoption
-- ✅ Stage 8 — Тёплый индекс доступен документированной командой
-- ✅ Stage 9 — `--apply` без networkx не стирает Communities и Bridge files
-- ✅ Stage 10 — networkx в bootstrap-venv + `mb-codegraph.py` под ним
-- ✅ Stage 11 — детерминированная кластеризация (I-219)
-
 <!-- mb-plan:2026-10-05_feature_pi-native-integration.md -->
 ## Pi native Memory Bank integration — Implementation Plan — 5/5
 - ✅ Stage 1 — Native commands and governed pi-subagents bridge
@@ -62,20 +48,20 @@ Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-0
 - ⬜ Stage 4 — Native proof, review and documentation
 
 <!-- mb-plan:2026-11-18_feature_master-completion.md -->
-## master-completion — 15/22
+## master-completion — 19/22
 - ✅ Stage 1 — Bookkeeping close-out of already-shipped work
 - ✅ Stage 2 — Graph nudge that suggests useful queries, per-subagent budget
 - ✅ Stage 3 — Graph share in the cost report
 - ✅ Stage 4 — Make room in `commands/work.md`
 - ✅ Stage 5 — Graph context pushed into every `/mb work` dispatch
 - ✅ Stage 6 — Graph status on ad-hoc dispatch; Pi graph test fixture
-- ⬜ Stage 7 — Graph adoption demo and measurement
+- ✅ Stage 7 — Graph adoption demo and measurement
 - ✅ Stage 8 — OpenSpec contract decisions; import keeps what export needs
 - ✅ Stage 9 — OpenSpec export and three-way sync
-- ⬜ Stage 10 — `/mb work` over an OpenSpec change; docs
+- ✅ Stage 10 — `/mb work` over an OpenSpec change; docs
 - ✅ Stage 11 — mb-team review until clean
 - ✅ Stage 12 — Split `commands/mb.md` for Opus 5.5 / Fable
-- ⬜ Stage 13 — Opus 5.5 / Fable acceptance run
+- ✅ Stage 13 — Opus 5.5 / Fable acceptance run
 - ✅ Stage 14 — dynamic-flow T13 — Pi and OpenCode sub-invoke
 - ✅ Stage 15 — dynamic-flow T14 — critique, risk-find, final-report skills
 - ✅ Stage 16 — Close S7 svp-brief and S8 svp-contract-test-loop (shipped, unticked)
@@ -84,7 +70,7 @@ Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-0
 - ⬜ Stage 19 — Final verification and bank sync
 - ⬜ Stage 20 — Pi keeps working until the task is done (settle-resume gate)
 - ✅ Stage 21 — pi-dynamic-workflows — borrow now, spike as an optional Pi accelerator
-- ⬜ Stage 22 — Graph sees tests through shell entry points and argparse dispatch (I-297)
+- ✅ Stage 22 — Graph sees tests through shell entry points and argparse dispatch (I-297)
 
 <!-- mb-plan:tasks.md -->
 ## svp-adapt-escalation — 0/5

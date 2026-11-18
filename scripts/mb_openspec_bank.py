@@ -135,9 +135,13 @@ def bank_lock(mb_path: Path):
     ``sync`` or ``export`` waits until the first finishes.
     """
     specs = Path(mb_path) / "specs"
-    if Path(mb_path).is_dir():
-        specs.mkdir(exist_ok=True)
-    with _dir_lock(str(specs if specs.is_dir() else mb_path)):
+    if not Path(mb_path).is_dir():
+        yield  # the operation itself reports the missing bank; nothing can be written
+        return
+    specs.mkdir(exist_ok=True)
+    with _dir_lock(str(specs if specs.is_dir() else mb_path)) as locked:
+        if not locked:
+            raise RuntimeError(f"cannot take the OpenSpec bank lock on {mb_path}; nothing written")
         yield
 
 

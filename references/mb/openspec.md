@@ -4,17 +4,18 @@ Loaded by `commands/mb.md` when the first word of `$ARGUMENTS` routes here. `$SK
 
 ## Router entries
 
-- `openspec <import\|list\|status\|sync> [args]` — One-way import adapter: OpenSpec `changes/<id>/` → MB spec triple `specs/<topic>/` via `scripts/mb-openspec.sh` (no `openspec` CLI dep). `import <dir> [--as <topic>] [--normalize]` writes the triple + drift frontmatter; `list [--all]`/`status <topic>` show imported/drifted/not-imported; `sync [<topic>]` re-imports only on hash drift. Opt-in `--normalize` fills LLM text slots (EARS/scenario/Covers), cached + fail-open. See `### openspec` below.
+- `openspec <import\|list\|status\|sync\|export> [args]` — OpenSpec ↔ MB round-trip via `scripts/mb-openspec.sh` (no `openspec` CLI dep): `import` a change into `specs/<topic>/`, three-way `sync [--take openspec|bank]`, dry-run `export [--write] [--allow-delete]`, `export --new` to publish a bank spec as a new change; `/mb work <change-id>` runs it in place. See `### openspec
 
-### openspec
+`/mb openspec <import|list|status|sync|export>` dispatches to `scripts/mb-openspec.sh`, a round-trip adapter between OpenSpec `changes/<id>/` and the MB spec triple `specs/<topic>/`. OpenSpec files are parsed directly (no `openspec` CLI dependency). Import and sync write only `.memory-bank/`; OpenSpec is written only by `export --write`.
 
-`/mb openspec <import|list|status|sync>` dispatches to `scripts/mb-openspec.sh` — a one-way OpenSpec → Memory Bank import adapter. OpenSpec change files are parsed directly (no `openspec` CLI dependency); the OpenSpec tree is never written to. Every write is asserted under `.memory-bank/`.
-
-- `import <change_dir> [--as <topic>] [--normalize]` — parse an OpenSpec `changes/<id>/` (proposal + delta specs + tasks) and write the MB spec triple under `specs/<topic>/` (topic default = change-id slug). Records `openspec_source`/`openspec_hash` frontmatter for drift detection. Re-import reuses `REQ-NNN` by requirement name, preserves `/mb work` task check-state by text, and appends orphaned tasks to `backlog.md` (never silently dropped).
-- `list [--all] [--openspec <root>]` — enumerate `openspec/changes/*` with status `imported` / `drifted` / `not-imported` (archived changes hidden unless `--all`).
+- `import <change_dir> [--as <topic>] [--normalize]` — parse proposal + delta specs + tasks into the triple (topic default = change-id slug). Records `openspec_source`/`openspec_hash` frontmatter and a sync baseline. Re-import reuses `REQ-NNN` by requirement name, keeps task check-state by text, and appends orphaned tasks to `backlog.md`.
+- `list [--all] [--openspec <root>]` — `openspec/changes/*` with status `imported` / `drifted` / `not-imported` (archived hidden unless `--all`).
 - `status <topic>` — drift status of one imported topic.
-- `sync [<topic>] [--normalize]` — re-import only topics whose source hash drifted; a hash match is a pure no-op (no write). No topic → sync every imported topic.
-- `--normalize` (opt-in) fills LLM text slots (prose-SHALL → EARS, missing scenario, `Covers`), cached by source-requirement hash so an unchanged requirement never regenerates, and fail-open (LLM unavailable → deterministic fallback + warn). Omit for the byte-deterministic path.
+- `sync [<topic>] [--take openspec|bank] [--normalize]` — per-unit three-way merge into the bank. A hash match is a no-op. Both sides changed the same unit → conflict, exit 1, nothing written; resolve by editing one side or `--take openspec|bank`. Without a topic: every imported topic, all-or-nothing.
+- `export <topic> [--write] [--allow-delete]` — diff of bank changes against the OpenSpec change; only `--write` touches OpenSpec, refused if OpenSpec changed since the last sync; `--allow-delete` also removes requirements/scenarios deleted in the bank.
+- `export <topic> --new [--id <id>] [--cap <cap>] [--openspec <root>] [--write]` — publish a bank-native spec as a new OpenSpec change.
+- `--normalize` (opt-in) fills LLM text slots (EARS, missing scenario, `Covers`), cached by source-requirement hash, fail-open.
+
+**In-place flow.** `/mb work <change-id|openspec/changes/<id>>` imports (new) or syncs (existing) through the resolver, stops on a conflict, works on the bank triple, and at the end shows the dry-run `export` diff and asks before `export --write`.
 
 Run directly: `bash "$SKILL_DIR"/scripts/mb-openspec.sh <sub> ...`. Spec: `.memory-bank/specs/openspec-adapter/`.
-

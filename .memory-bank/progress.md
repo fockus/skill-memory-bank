@@ -5226,3 +5226,96 @@ Spec: REQ-037 (shared scenarios belong to the requirement unit) and REQ-038 (one
 
 STATUS: DONE_WITH_CONCERNS
 
+
+## 2026-11-18 — team master-completion-wave1 · track A3 (DONE)
+Graph: tests through sh entry points + argparse edges (I-297)
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/A3.md
+# A3 — Graph: tests through sh entry points + argparse edges (I-297)
+
+STATUS: DONE_WITH_CONCERNS
+
+RED (before): `pytest tests/pytest/test_graph_test_mapping.py` -> 4 failed, 1 passed (py-script tests via sh; cmd_run/cmd_stop callers).
+GREEN (after): same file 5 passed; `pytest tests/pytest/test_graph*.py test_codegraph*.py test_e2e_graph_intelligence.py` -> 670 passed; test_graph_rag_srp_contract green (core held at exactly 300 lines); ruff clean.
+
+Changes
+- codegraph_shell.py: `.py` literals in .sh/.bats emit invoke edges, bound only to a unique real .py file (unresolved dropped).
+- codegraph_invocations.py: `dispatch_calls` — `set_defaults(func=f)` and in-place indexed `{"k": f}[k]` tables emit call edges from the enclosing function (constant names only).
+- codegraph_python.py: calls dispatch_calls; CACHE_VERSION 3 -> 4.
+- mb_graph_query_core.py: `find_tests(..., nodes=None)` adds `_entry_closure`: test -> (sh -> .py | invoke .py) -> resolved py imports, depth 3; sh->sh never followed (no _lib.sh leak).
+- tests/pytest/test_graph_test_mapping.py (new, small tmp bats->sh->py chain).
+
+Real graph: `python3 scripts/mb-codegraph.py --apply --docs .memory-bank .` rebuilt (reparsed=1015).
+- tests scripts/mb_bank_lint_backlog.py -> test_mb_bank_lint.bats, test_mb_roadmap_backlog_docs.bats
+- tests scripts/mb_team_ops.py -> test_mb_team_checkpoint/hardening.bats + pytest ones
+- who-calls cmd_checkpoint -> incoming edge from mb_team_ops.py:main
+
+Concerns / follow-ups
+- Med: mb_graph_query_render.py:104 and mb_code_context_core.py:173 call find_tests without nodes (outside track files), so `impact` text render / code-context do not get the new closure; pass nodes there.
+- Low: test_mb_team_cli/commit/review.bats still not listed: they reach mb-team.sh through variables/helper (lib/team_fixture.bash), not resolvable statically.
+- Low: codegraph_shell.py is 338 lines (was 319, already over 300).
+- A stray ./codebase/ (graph from a mistaken first apply) was created and removed.
+
+Graph: 9 queries
+
+## Fix cycle 1
+STATUS: DONE
+- mb_code_context_core.py:173 and mb_graph_query_render.py:104 now pass `nodes` to `find_tests`, so code_context and TEST_LINKS get the closure. Test first: `test_code_context_lists_bats_reaching_python_script_through_sh` (red: AssertionError on test_files; green after). Note: the first fixture leaked a direct hit via the on-disk .sh text channel; fixed so the test is truly red without the fix.
+- mb_graph_query_core.py: closure memoized per (edges, nodes) identity (render calls find_tests per node); still 300 lines. render 130 / code_context_core 254 lines.
+- codegraph_shell.py split: binding pass moved to new memory_bank_skill/codegraph_shell_bind.py (147 lines); codegraph_shell.py now 205 lines, re-exports SHELL_EXTS/bind_shell_edges.
+- Tests: test_graph*, test_codegraph*, test_code_context, test_e2e_graph_intelligence -> 685 passed; ruff clean. Real graph re-applied; the bank_lint_backlog query still lists test_mb_bank_lint.bats.
+- Graph: 11 queries
+
+
+## [checklist archive] 2026-11-19 — 2026-07-28_fix_graph-semantic-adoption.md
+
+<!-- mb-plan:2026-07-28_fix_graph-semantic-adoption.md -->
+## graph-semantic-adoption — 10/11
+- ✅ Stage 1 — Nudge v2 — повторяемый и действенный
+- ✅ Stage 2 — Bootstrap векторного индекса при `/mb graph --apply`
+- ✅ Stage 3 — Auto-catchup графа на SessionStart
+- ✅ Stage 4 — Короткий враппер `mb-graph.sh` + короткие тексты подсказок
+- ✅ Stage 5 — Статус графа в диспатче субагентов
+- ✅ Stage 6 — Покрытие — bash и bats в графе
+- ⬜ Stage 7 — Граф в каждом диспатче `/mb work` + замер adoption
+- ✅ Stage 8 — Тёплый индекс доступен документированной командой
+- ✅ Stage 9 — `--apply` без networkx не стирает Communities и Bridge files
+- ✅ Stage 10 — networkx в bootstrap-venv + `mb-codegraph.py` под ним
+- ✅ Stage 11 — детерминированная кластеризация (I-219)
+
+## 2026-11-18 — team master-completion-wave1 · track B4 (DONE)
+/mb work over an OpenSpec change; docs
+Report: /Users/fockus/Apps/skill-memory-bank/.memory-bank/reports/master-completion-wave1/B4.md
+# B4 report: /mb work over an OpenSpec change (Stage 10)
+STATUS: DONE
+Graph: 0 queries (small shell change, read directly)
+
+## Changes
+- scripts/mb-work-resolve.sh: new Form 2c. A change dir path or bare id (found under $PWD or <repo>/openspec/changes) runs `mb-openspec.sh import --as <slug>` (new) or `sync <topic>` (already linked), then prints specs/<topic>/tasks.md. Conflict or error exits 1 before work. A native same-named topic wins unless it has openspec_source. Not-found message now mentions OpenSpec.
+- commands/work.md (377 lines, net +0): target form text; end-of-run dry-run `export <topic>` and ask before `--write`. references/work-loop-reference.md: form 3b row and end-of-run note.
+- references/mb/openspec.md rewritten for import/list/status/sync/export/--new/--take/--allow-delete plus the in-place flow; commands/mb.md row summary; docs/commands.md section (no docs/openspec.md exists, so none created); CHANGELOG Unreleased line.
+- tests/bats/test_mb_work_resolve.bats: 5 new tests. mb_work_source.py and the pytest file were not needed (resolver output is a normal bank spec path).
+
+## TDD
+Red: `bats tests/bats/test_mb_work_resolve.bats` -> 4 not ok (5, 6, 7, 9; test 8 native topic already passed).
+Green: same command -> 9/9 ok. `pytest -k "doc_counts or router"` -> 34 passed.
+Follow-up: none blocking.
+
+## Fix cycle 1
+STATUS: DONE
+1. Collision: explicit OpenSpec target never falls to a native topic; topic linked to a different change (openspec_source vs change dir) exits 1 with a message suggesting `mb-openspec.sh import <dir> --as <topic>` (no new option).
+2. Path guard (python helper in Form 2c): exactly one id under <project>/openspec/changes/, project = cwd or bank parent; rejects symlink change/changes/openspec, archive, foreign dirs.
+3. work.md/work-loop-reference: dry-run and --write both carry `--mb <bank>` (work.md still 377 lines).
+4. Positional `openspec/changes/<id>` is a target before the dir-as-bank heuristic; test without --mb.
+5. bank_lock raises RuntimeError (exit 1) when the lock is not taken (skipped only for a missing bank, which the op reports itself).
+6. publish_topics copies dest mode onto staged file before os.replace; tests for 0600 and 0640. 0600 passed even before the fix (mkstemp default), 0640 was the red case.
+Red: bats 10-13 not ok; pytest fails_closed + mode_of(0640) failed. Green: bats resolve+openspec 31 ok, 0 not ok; pytest test_openspec_*.py 147 passed.
+Note: tests/pytest/test_doc_counts.py::test_skill_md_script_table_lists_all_scripts fails on mb_work_adapt_block.py / mb_work_adapt_journal.py missing from references/scripts.md (another track's files, not mine).
+
+## Fix cycle 2
+STATUS: DONE
+1. A bare id naming both an openspec/changes/<id> and a plan substring exits 2 ("ambiguous", names both, how to disambiguate); no sync, no specs/ created; path form still works. Red: bats 14 failed; green after.
+2. work-loop-reference row matches the code; resolver header lists form 3b (help range widened to 2-30).
+3. The inline Python imports slugify / parse_frontmatter / resolve_stored_source from mb_openspec_bank instead of copies.
+4. publish stage() applies mb_fs_atomic._target_mode(dest) before any rename; the rename loop is plain os.replace.
+Evidence: bats resolve+openspec 32 ok, 0 not ok; pytest test_openspec_*.py 147 passed; shellcheck clean; work.md 377 lines.
+

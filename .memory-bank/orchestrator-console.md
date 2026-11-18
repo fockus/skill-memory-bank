@@ -1,40 +1,26 @@
 # Orchestrator console — master-completion
 
-Plan: plans/2026-11-18_feature_master-completion.md · Team: master-completion-wave1 (reports/master-completion-wave1/) · Decisions: AGR-101…103
+Plan: plans/2026-11-18_feature_master-completion.md · Team: master-completion-wave1 (reports/master-completion-wave1/) · Decisions: AGR-101…106
+Committed: d3e4939 (waves 1-3, 299 files), 0139fcb (A3 graph I-297) on 2026-11-19. Progress: 16/22 stages.
 
-## Tracks (wave 1)
+## Done (collected)
+A, A2, A3, B, B2, B3 (judge GO_WITH_BACKLOG → I-299), C (judge GO_WITH_BACKLOG → I-294), D, E, E2, F1, F2 (I-296), F3a, G, G2 (no-go → I-295), H1, H2, Stage 1 bookkeeping.
+
+## Running
 | Track | Stage | Run id | State |
 |---|---|---|---|
-| A GraphRAG | 2→3→4 | d650943f… | done, collected (SKILL.md link added by orchestrator) |
-| C mb-team | 11 | d64b240f… | fix cycle 4 (C4-M1, ownership marker) running; cycle budget exhausted (3/2) → after this fix mb-judge decides GO/GO_WITH_BACKLOG/NO_GO instead of another lead cycle |
-| D mb.md split | 12 | c01987d5… | done, collected (re-review APPROVED) |
-| E sub-invoke | 14 | 5dc1d6eb5ea64cd691d726be545ac3b8 | done, collected |
-| G Pi settle gate | 20 | 3ebc0cb1… | done, collected (pi_native 173 passed); live Pi check still open |
-| A2 graph dispatch | 5→6 | 7cbe79a3… | done, collected; Claude SubagentStart → I-293 |
-| B OpenSpec decisions | 8 (draft) | 5987e086… | done; owner accepted all 11 → AGR-105 (Q-003 resolved) |
-| B2 OpenSpec import+sidecar | 8 (code) | 3f1e69ff… | done, collected; carry-over (whole-file rewrite) → Stage 9 |
-| B3 OpenSpec export+sync3 | 9 | 348b540a… | fix cycle 2 (last; then mb-judge): blockers A (scenarios outside unit) + B (incomplete topic bypasses link check), transactional apply, one bank lock for TOCTOU |
-| H1 Fable run (J-1) | 13+7 | f46327e4… | done, collected (review 2 minor; stat idiom fixed by orchestrator; I-298) |
-| H2 Opus run (dup-id lint) | 13+7 | 79b3f71b… | done, collected (review 3 minor → I-296); graph gap → I-297 |
-| upgrade check (Stage 13) | 13 | — | FAILED in temp HOME (opencode-io manifest HOME); mb-debugger investigating |
-| A3 graph test mapping (I-297) | 22 | 96a743f9… | dispatched |
-| F3a S5 rebaseline (spec) | 18a | 65cd4572… | dispatched |
-| F2 S4 backlog-db | 17 | 2e4f0940… | done, collected (verifier PASS_WITH_NOTES; follow-ups I-296) |
-| G2 pdw ideas+spike | 21 | 2908adcc… | done, collected; no-go → I-295 |
-| E2 T14 skills | 15 | 4088aa34… | done, collected; counts 39 in SKILL/README/install |
-| F1 S7+S8 close | 16 | 98ec8014… | done, collected; verify.md S8-T5 line + KNOWN_FAILING trimmed by orchestrator |
-| 0 bookkeeping | 1 | — | done (orchestrator) |
+| debugger: installer upgrade | 13 | — | 'manifest HOME does not match' on upgrade in temp HOME; edits adapters/opencode_install_io.py (uncommitted) |
+| B4 /mb work over OpenSpec change | 10 | 3956f7c6… | returned (bats 9/9, work.md 377); codex review running (part 2 = B3 fix-cycle-2 re-pass) |
+| F3b S5 code | 18b | fa1458bc… | dispatched; work.md edit via HANDOVER after B4 |
 
-## Next step
-Wave-1 commit: index free; goal.md parked to goals/G-001.md (AGR-106) → pre-commit no longer runs the full suite. Commit after B3 lands (B3 + upgrade-debug may touch more files); `git add` own list + `git commit --only --pathspec-from-file`; hermes staged set untouched.
-On each return: `mb-team.sh next`, read board, verifier (plan-verifier) per track; apply D's HANDOVER test edits; then wave commit.
+## Next
+- Q-004 answered → AGR-107. F3b's work.md HANDOVER applied by orchestrator after B4 lands.
+- Stage 13 remainder: upgrade check passes; CHANGELOG Unreleased entry; report with H1/H2 metrics (Fable 49k tok/11 calls/207s/5 graph; Opus 50k/20/125s/3 graph; graph_share 4.35% vs 2.6%).
+- Stage 7 report (graph_share) + 7-day window; Stage 20 live Pi check (owner); Stage 19 final (full suite once, plan-verifier).
 
 ## Open
-- C left: tests/pytest/test_mb_team_config.py has formatter-only churn (~97 lines) — at commit keep only the new test hunk (ask owner; restoring HEAD formatting was refused by auto-mode for the subagent). C's HANDOVER: test_mb_team_command.py router test → apply after D lands.
-- Research done: Pi early stop → Stage 20 (track G, running); pi-dynamic-workflows → Stage 21, owner chose borrow + spike (AGR-104); runs after Stage 15 (T14).
-- Staged but uncommitted from the first commit (aborted for wave 1): uv.lock, notes ×2, pipelines/opencode.yaml, plans/unfinished-work-completion, codebase graph → commit with wave 1.
-- Another session's hung `git commit` (fix(drive), started 16:15, already in HEAD as 1815bcc) runs a full bats in the main tree — not ours, not touched.
-- `.pi/` is a local install artifact: never commit. `hermes/` (untracked, not ours) — never commit.
+- `.pi/` is a local install artifact: never commit. Hermes session committed its own work (97c66f0).
+- Commit recipe: `git add --pathspec-from-file` own list, then `git commit --only --pathspec-from-file` (other sessions' staged files untouched).
 
 ## Unrecorded decisions
 - none

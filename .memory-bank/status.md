@@ -29,7 +29,6 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - [2026-06-23] `in_progress` [2026-06-23_fix_config-validation-docs.md](plans/2026-06-23_fix_config-validation-docs.md) — fix — Config Validation & Doc Consistency
 - [2026-07-05] `in_progress` [2026-07-05_SEQUENCE_long-running-sessions.md](plans/2026-07-05_SEQUENCE_long-running-sessions.md) — sequence-plan — SEQUENCE — Long-running autonomous sessions
 - [2026-07-15] `queued` [2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md](plans/2026-07-15_feature_mb-donor-evolution-v5-4-baseline.md) — feature — mb-donor-evolution — v5.4.0 Trustworthy Baseline
-- [2026-07-28] [plans/2026-07-28_fix_graph-semantic-adoption.md](plans/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
 - [2026-09-05] `queued` [2026-09-05_fix_mb-work-cost-diet-sprint2.md](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) — fix — mb-work-cost-diet · Sprint 2 «work-loop-diet»
 - [2026-09-05] `queued` [2026-09-05_fix_mb-work-cost-diet-sprint3.md](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md) — fix — mb-work-cost-diet · Sprint 3 «instruction-diet + гигиена»
 - [2026-10-05] [plans/2026-10-05_feature_pi-native-integration.md](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan
@@ -42,6 +41,8 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-11-19 — [plans/done/2026-09-24_fix_opus55-prompt-fit.md](plans/done/2026-09-24_fix_opus55-prompt-fit.md) — fix — opus55-prompt-fit · скил под Opus 5.5 / Fable 5.1 и любые агенты
+- 2026-11-19 — [plans/done/2026-07-28_fix_graph-semantic-adoption.md](plans/done/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
 - 2026-11-18 — [plans/done/2026-10-10_feature_mb-team.md](plans/done/2026-10-10_feature_mb-team.md) — `/mb team` — orchestrator-led parallel tracks
 - 2026-11-18 — [plans/done/2026-10-09_fix_codex-global-native-hooks.md](plans/done/2026-10-09_fix_codex-global-native-hooks.md) — fix — codex-global-native-hooks
 - 2026-11-18 — [plans/done/2026-05-24_fix_cursor-compatibility-remediation.md](plans/done/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation
@@ -50,8 +51,6 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - 2026-10-08 — [plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md](plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md) — Ordinary Pi Memory Bank dispatch
 - 2026-10-08 — [plans/done/2026-10-07_fix_upgrade-safe-install.md](plans/done/2026-10-07_fix_upgrade-safe-install.md) — fix — установка поверх старой версии + хвосты I-249…I-254
 - 2026-10-07 — [plans/done/2026-10-07_feature_adapt-lite.md](plans/done/2026-10-07_feature_adapt-lite.md) — feature — adapt-lite · дробление по необходимости (первый срез svp-adapt-escalation)
-- 2026-10-07 — [plans/done/2026-10-07_feature_project-quality-settings.md](plans/done/2026-10-07_feature_project-quality-settings.md) — feature — project-quality-settings · coverage, TDD, Testing Trophy, архитектура и принципы как настройки проекта
-- 2026-10-07 — [plans/done/2026-10-07_feature_pipeline-presets-cost-tiers.md](plans/done/2026-10-07_feature_pipeline-presets-cost-tiers.md) — feature — pipeline-presets-cost-tiers · уровни сложности, тиры стоимости, шаблоны для код-агентов, частота верификатора
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)

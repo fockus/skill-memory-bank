@@ -202,8 +202,8 @@ created: 2026-11-18
 **What to do:** run one real `/mb work` item from Track F through implementer + reviewer; record from `mb-cost-report.py` the `graph_share` per role and two concrete places where a graph answer replaced a grep sweep; start a 7-day window and note the date to re-read (report appendix, not a gate). Close graph-semantic-adoption Stages 5 and 7.
 
 **DoD:**
-- [ ] report shows `graph_share` > 0 for implementer and reviewer in the demo run
-- [ ] graph-semantic-adoption 11/11 and moved to `plans/done/`
+- [x] report shows `graph_share` > 0 for implementer and reviewer in the demo run
+- [x] graph-semantic-adoption 11/11 and moved to `plans/done/`
 
 <!-- mb-stage:8 -->
 ### Stage 8: OpenSpec contract decisions; import keeps what export needs
@@ -260,8 +260,8 @@ created: 2026-11-18
 **Testing (TDD):** resolver bats — a change id resolves to the synced triple; an unknown id fails with a clear message; a native topic resolves as before.
 
 **DoD:**
-- [ ] resolver tests green; `wc -l < commands/work.md` ≤ 400
-- [ ] docs and `/mb openspec` section list all four directions
+- [x] resolver tests green; `wc -l < commands/work.md` ≤ 400
+- [x] docs and `/mb openspec` section list all four directions
 
 <!-- mb-stage:11 -->
 ### Stage 11: mb-team review until clean
@@ -304,7 +304,7 @@ created: 2026-11-18
 **What to do:** Claude Code upgrade check in a temp HOME (`install.sh --clients claude-code` over the previous install, `/mb` loads, `/mb help work` works); one real `/mb work` item on Fable and one on Opus 5.5 with `mb-cost-report.py` metrics (tokens, turns, `graph_share`); CHANGELOG `Unreleased` entry; no version bump or tag (AGR-084).
 
 **DoD:**
-- [ ] report with both runs and the upgrade check; opus55-prompt-fit closed and moved to `plans/done/`
+- [x] report with both runs and the upgrade check; opus55-prompt-fit closed and moved to `plans/done/`
 
 <!-- mb-stage:14 -->
 ### Stage 14: dynamic-flow T13 — Pi and OpenCode sub-invoke
@@ -453,8 +453,8 @@ created: 2026-11-18
 **What to do:** link statically resolvable sh→py invocation edges (`python3 "$SCRIPT_DIR/x.py"`, `exec python3 …/x.py`) and bats→sh edges so `tests <py>` follows bats → sh → py; add argparse dispatch edges (`set_defaults(func=cmd_x)`, `{"name": cmd_x}` tables) as calls from the module's `main`; constant paths only, no evaluation; bump the parse-cache version.
 
 **DoD:**
-- [ ] new tests red before, green after: `tests scripts/mb_bank_lint_backlog.py` lists tests/bats/test_mb_bank_lint.bats; `tests scripts/mb_team_ops.py` lists the team bats; `who-calls cmd_checkpoint` is non-empty; existing graph tests green
-- [ ] `/mb graph --apply` on this repo rebuilds without error and the three queries above answer on the real graph
+- [x] new tests red before, green after: `tests scripts/mb_bank_lint_backlog.py` lists tests/bats/test_mb_bank_lint.bats; `tests scripts/mb_team_ops.py` lists the team bats; `who-calls cmd_checkpoint` is non-empty; existing graph tests green
+- [x] `/mb graph --apply` on this repo rebuilds without error and the three queries above answer on the real graph
 
 ---
 

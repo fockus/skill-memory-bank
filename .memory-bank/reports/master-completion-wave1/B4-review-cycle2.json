@@ -1,0 +1,45 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "cycle": 2,
+  "counts": {"blocker": 0, "major": 1, "medium": 1, "minor": 2},
+  "prior_issues": [
+    {"ref": "part1#1 native topic / linked-to-other-change collision", "status": "partially_resolved",
+     "evidence": "scripts/mb-work-resolve.sh:305-314 exit 1 on native topic and on openspec_source != change dir (probed: bare id and path both rc=1, nothing written; bats 10-11 green). Residual: a bare id still loses to a plan-basename substring (new issue 1) and work-loop-reference.md:14 still documents the old native-wins rule (new issue 2)."},
+    {"ref": "part1#2 symlinked/arbitrary change dirs", "status": "resolved",
+     "evidence": "scripts/mb-work-resolve.sh:270-289. Probed under /private/tmp/b4probe: symlinked change, changes/ and openspec/ dirs rejected (rc=1); ../ to another project rejected; ../ that normalizes back into the own project accepted (legitimate); archive path, bare 'archive' and archive/<x> rejected; two-segment openspec/changes/ok/specs rejected; nothing imported for any rejected case."},
+    {"ref": "part1#3 export lines omit --mb", "status": "resolved",
+     "evidence": "commands/work.md:330 dry-run and --write both carry --mb <bank>; references/work-loop-reference.md:20 likewise. work.md is 377 lines (<= 400)."},
+    {"ref": "part1#4 sole openspec/changes/<id> arg taken as bank", "status": "resolved",
+     "evidence": "scripts/mb-work-resolve.sh:108-111; probed without --mb: relative, trailing-slash and absolute forms resolve to specs/solo/tasks.md; bats 13 runs without --mb."},
+    {"ref": "part2 bank_lock fail-open", "status": "resolved",
+     "evidence": "scripts/mb_openspec_bank.py:142-144 raises RuntimeError when _dir_lock yields False; surfaced as exit 1 by mb-openspec.py:271. Missing-bank branch yields unlocked, but every op refuses a missing bank before writing (probed: export --new --write and sync on a missing bank wrote nothing, bank not created). test_bank_lock_fails_closed_when_the_lock_cannot_be_taken green."},
+    {"ref": "part2 staged publish mode widening", "status": "resolved",
+     "evidence": "scripts/mb_openspec_publish.py:98-99 copies the destination mode onto the staged file before os.replace; parametrized test for 0600 and 0640 green. Staged temp is written via atomic_write so a new destination gets the umask default, matching _target_mode."}
+  ],
+  "issues": [
+    {"severity": "major", "category": "logic", "file": "scripts/mb-work-resolve.sh", "line": 201,
+     "message": "A bare OpenSpec change id still resolves to an unrelated plan when any plan basename contains it: Form 2 (substring) runs before Form 2c. Probed: openspec/changes/auth exists, plans/2026-11-01_feature_auth-refactor.md exists, `mb-work-resolve.sh auth` prints the plan path rc=0, no sync, no specs/ created. Realistic trigger: a wrapper plan named after the same change (…_feature_add-widget-cache.md) makes `/mb work add-widget-cache` skip the sync and the conflict stop, the same silent-replacement class as prior finding 1 and a breach of AGR-105 ('/mb work <change-id> syncs first, stops on conflict').",
+     "fix": "Check for an existing <project>/openspec/changes/<id> before the Form 2 substring search (or exit 2 as ambiguous when both a change and a plan match); add a bats case with a colliding plan basename."},
+    {"severity": "medium", "category": "logic", "file": "references/work-loop-reference.md", "line": 14,
+     "message": "Form 3b row still says 'A native topic of the same name wins unless it carries openspec_source', the opposite of the fixed behaviour (native topic + same-named change now exits 1, as does a topic linked to a different change). The driver reads this table as the resolver contract; the resolver header comment (scripts/mb-work-resolve.sh:4-9) also omits the new form.",
+     "fix": "Replace the sentence with: a same-named native topic or a topic linked to another change exits 1 and suggests `mb-openspec.sh import <dir> --as <topic>`; add form 2c to the header list."},
+    {"severity": "minor", "category": "code_rules", "file": "scripts/mb-work-resolve.sh", "line": 293,
+     "message": "The inline python re-implements slugify (mb_openspec_paths.slugify), frontmatter parsing (mb_openspec_bank.parse_frontmatter) and the linkage check (mb_openspec_ops._assert_linked_to). The parse at :300 (`read().split('---')[1:2]`) is looser than _FRONTMATTER_RE: in a file without frontmatter it reads the text between two body horizontal rules as frontmatter. Outcome is fail-closed today, but the two slug/link rules can drift apart.",
+     "fix": "Import slugify/parse_frontmatter/resolve_stored_source from the scripts dir in the helper instead of copying them."},
+    {"severity": "minor", "category": "code_rules", "file": "scripts/mb_openspec_publish.py", "line": 99,
+     "message": "Mode copy duplicates mb_fs_atomic._target_mode and runs inside the rename loop: an exists()/stat() race or a chmod OSError after earlier os.replace calls aborts mid-batch, adding a failure point after the first rename (the partial-batch recovery itself is I-299, not re-raised). The prior recommendation was to reuse the established primitive.",
+     "fix": "Apply `os.chmod(tmp, _target_mode(dest))` in stage() right after writing the temp file, before any rename."}
+  ],
+  "strengths": [
+    "scripts/mb-work-resolve.sh:270-289 path guard checks lexical components with islink before realpath and compares real(project) against cwd/bank-parent; every symlink and escape probe was rejected with nothing imported.",
+    "scripts/mb_openspec_bank.py:138-145 fails closed with a clear message and keeps the missing-bank case harmless because each op refuses a missing bank before writing.",
+    "tests/bats/test_mb_work_resolve.bats adds red-first cases for collision, cross-linked topic, symlink/archive/foreign dirs and the no --mb form."
+  ],
+  "verification": {
+    "bats": "tests/bats/test_mb_work_resolve.bats + tests/bats/test_mb_openspec.bats: 31 ok, 0 not ok (13 resolve + 18 openspec)",
+    "pytest": "PYTHONPATH=. python3 -m pytest -q tests/pytest/test_openspec_*.py: 147 passed",
+    "lint": "shellcheck scripts/mb-work-resolve.sh clean; ruff clean on changed python files",
+    "probes": "/private/tmp/b4probe (scratch projects r1-r7)",
+    "graph": "3 queries (status, tests scripts/mb-work-resolve.sh, who-calls bank_lock; who-calls returned no incoming edges for the context manager, call sites found by grep in scripts/mb-openspec.py:76,85,190)"
+  }
+}

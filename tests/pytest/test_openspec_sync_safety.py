@@ -230,3 +230,33 @@ def test_sync_waits_while_another_openspec_operation_holds_the_bank_lock(env):
     out, err = proc.communicate(timeout=60)
     assert proc.returncode == 0, err
     assert "in Redis." in req.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("mode", [0o600, 0o640])
+def test_batch_sync_keeps_the_mode_of_a_restricted_bank_file(env, mode):
+    req = env["dir"] / "requirements.md"
+    req.chmod(mode)
+    _edit(env["change"] / "specs" / "widgets" / "spec.md", "in memory.", "in Redis.")
+    assert _cli("sync", "--mb", str(env["bank"])).returncode == 0
+    assert "Redis" in req.read_text(encoding="utf-8")
+    assert req.stat().st_mode & 0o777 == mode
+
+
+def test_bank_lock_fails_closed_when_the_lock_cannot_be_taken(env, monkeypatch):
+    spec = importlib.util.spec_from_file_location("mb_openspec_bank_t", REPO_ROOT / "scripts" / "mb_openspec_bank.py")
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    def _no_lock(_d):
+        import contextlib
+
+        @contextlib.contextmanager
+        def cm():
+            yield False
+
+        return cm()
+
+    monkeypatch.setattr(mod, "_dir_lock", _no_lock)
+    with pytest.raises(RuntimeError, match="lock"), mod.bank_lock(env["bank"]):
+        pytest.fail("body must not run without the lock")

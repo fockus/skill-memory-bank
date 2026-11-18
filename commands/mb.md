@@ -64,7 +64,7 @@ Fail open: for missing graph or stale graph, explain the limitation and suggest 
 | `askme <topic>`, `ask_me <topic>` | **Alias for `discuss`** — same interview, easier to remember | `references/mb/discuss.md` |
 | `groom <topic>` (also `grooming`) | Critical grooming session for any task/idea at any stage: challenge necessity + approach, cover white spots, propose... (see `commands/groom.md`) | `references/mb/groom.md` |
 | `sdd <topic> [--force]` | Create Kiro-style spec triple `specs/<topic>/{requirements,design,tasks}.md` | `references/mb/sdd.md` |
-| `openspec <import\|list\|status\|sync> [args]` | One-way import adapter: OpenSpec `changes/<id>/` → MB spec triple `specs/<topic>/` via `scripts/mb-openspec.sh` (no... | `references/mb/openspec.md` |
+| `openspec <import\|list\|status\|sync\|export> [args]` | OpenSpec ↔ MB round-trip: import, three-way sync, dry-run export, `export --new` via `scripts/mb-openspec.sh`; `/mb work <change-id>` runs it in place | `references/mb/openspec.md` |
 | `config <init\|show\|validate\|path>` | Manage execution `pipeline.yaml` (spec §9) | `references/mb/config.md` |
 | `pipeline <list\|new\|use\|show\|path\|validate>` | Manage **multiple named pipelines** under `<bank>/pipelines/<name>.yaml` (different models + workflow per pipeline) | `references/mb/pipeline.md` |
 | `work [target] [--range A-B] [--dry-run]` | Execute stages from a plan | `references/mb/work.md` |

@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- `/mb` router for Opus 5.5 / Fable: `commands/mb.md` is a ~12 KB router (was ~111 KB); each subcommand section loads from `references/mb/<sub>.md` on route; `/mb help <sub>` prints one.
+- Code graph in daily use: `/mb work` pushes a bounded `## Graph` block into implementer, reviewer and judge prompts; `mb-graph.sh tests` follows bats → shell → Python; `mb-cost-report.py` prints `graph_share`; graph nudges suggest only real symbols.
+- OpenSpec round-trip: `mb-openspec.sh export` (dry-run diff, `--write`, `--allow-delete`, `--new`) and per-unit three-way `sync` with `--take openspec|bank`; conflicts write nothing.
+- Pi: an `agent_before_settle` gate resumes an unfinished `/mb drive` or `/mb work` run owned by the session (capped, fail-open).
+- `/mb work <openspec-change-id|openspec/changes/<id>>`: the resolver imports or syncs the change into the bank triple (a conflict stops before any work), and the run ends with a dry-run `export` diff and a question before `--write`; [OpenSpec round-trip](docs/commands.md#openspec-round-trip).
 - Hermes Agent: `hermes/memory-bank` plugin runs the skill unchanged; each session gets its folder's `.memory-bank/`, a Hermes project bank or the profile's general bank, with session context, handoff and semantic reindex; [setup](hermes/README.md).
 - OpenCode 2: native command/tool hooks, opt-in model-free root memory and run-scoped model/variant routing; [contracts and limits](docs/cross-agent-setup.md#opencode).
 - Installer/CLI: `--only opencode` isolates installation, owned updates and uninstall; public extension opt-in survives reinstall. Other hosts and retained user configuration remain unchanged.

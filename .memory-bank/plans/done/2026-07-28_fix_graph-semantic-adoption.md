@@ -1,7 +1,7 @@
 ---
 type: fix
 topic: graph-semantic-adoption
-status: in_progress
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: []
@@ -333,3 +333,5 @@ created: 2026-07-28
 ## Gate (plan success criterion)
 
 Демо-прогон на этом репо после всех стадий: (0) `graph.json` покрывает `.sh`/`.bats` (Stage 6) и в демо-item `/mb work` implementer/verifier/reviewer используют граф с `graph_share` implementer ≥ 0.5 (Stage 7); (1) структурный grep даёт nudge с готовой командой и повторяется после N вызовов; (2) `mb-graph.sh who-calls <Symbol>` отвечает <2с; (3) `mb-semantic-search.py --backend embeddings` отвечает на тёплом индексе без пересборки; (4) во всех 4 активных банках `graph.json` не старше 1 коммита от HEAD (или честный budget-exceeded статус) и `.index/codesearch/` существует. Контрольный замер adoption скриптом по транскриптам — через неделю после раскатки, цель ≥10× по graph/semantic вызовам (43 → ≥400 при сопоставимом объёме, фиксируется в progress.md заметкой).
+
+> **Closed 2026-11-19 by master-completion** (Stages 2-7, 22 for the graph; Stages 12-13 for opus55, Stage 7 dropped by AGR-102). Evidence: reports/2026-11-19_graph-adoption.md, reports/2026-11-19_opus55-fable-run.md.

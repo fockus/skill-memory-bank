@@ -5,6 +5,9 @@
 #   1. Existing path → use as-is
 #   2. Substring search in <bank>/plans/*.md (excluding done/)
 #   3. Topic name → <bank>/specs/<safe>/tasks.md
+#   3b. OpenSpec change (<id> or openspec/changes/<id>) → import/sync into the bank
+#      triple, then specs/<topic>/tasks.md; never falls back to a native topic
+#      (collision / conflict / unsafe path exit 1; id also matching a plan exit 2)
 #   4. Freeform (≥3 words) → exit 3 (driver delegates to LLM-driven match)
 #   5. Empty → first plan link inside <bank>/roadmap.md mb-active-plans block
 #
@@ -92,7 +95,7 @@ while [ "$#" -gt 0 ]; do
     --mb=*) MB_ARG="${1#--mb=}"; shift ;;
     --skip-claimed) SKIP_CLAIMED=1; shift ;;
     -h|--help)
-      sed -n '2,27p' "$0"
+      sed -n '2,30p' "$0"
       exit 0
       ;;
     *) positional+=("$1"); shift ;;
@@ -105,7 +108,10 @@ done
 case "${#positional[@]}" in
   0) ;;
   1)
-    if [ -z "$MB_ARG" ] && [ -d "${positional[0]}" ]; then
+    pdir="${positional[0]%/}"
+    if [ -z "$MB_ARG" ] && [ -d "$pdir" ] \
+      && ! { [ "$(basename "$(dirname "$pdir")")" = "changes" ] \
+        && [ "$(basename "$(dirname "$(dirname "$pdir")")")" = "openspec" ]; }; then
       MB_ARG="${positional[0]}"
     else
       TARGET="${positional[0]}"
@@ -187,6 +193,76 @@ if [ -z "$TARGET" ]; then
   fi
 fi
 
+# ── Form 2c: OpenSpec change (dir or bare id) → sync/import → bank triple ──
+# The merge logic lives in mb-openspec.sh; a conflict or error stops here,
+# before any work starts. An explicit OpenSpec target never falls back to a
+# native topic: the python guard prints "<change_dir>\t<topic>\t<import|sync>"
+# (exit 0), exits 1 when TARGET is not an OpenSpec change, 2 with a message
+# when it is one but unsafe or colliding.
+openspec_plan() {
+  python3 - "$1" "$BANK" "$PWD" "$SCRIPT_DIR" <<'PY'
+import os, sys
+target, bank, cwd = sys.argv[1], sys.argv[2], sys.argv[3]
+sys.path.insert(0, sys.argv[4])
+from pathlib import Path
+from mb_openspec_bank import parse_frontmatter, resolve_stored_source, slugify
+t = target.rstrip("/")
+if not t:
+    sys.exit(1)
+real = os.path.realpath
+projects = []
+for p in (cwd, os.path.dirname(os.path.abspath(bank))):
+    if real(p) not in projects:
+        projects.append(real(p))
+
+def fail(msg):
+    print(f"[work-resolve] {msg}", file=sys.stderr)
+    sys.exit(2)
+
+if "/" in t:
+    cands = [os.path.abspath(t)]
+    if not os.path.isdir(cands[0]) or "openspec/changes" not in cands[0]:
+        sys.exit(1)
+else:
+    if t in (".", "..") or t.startswith("."):
+        sys.exit(1)
+    cands = [os.path.join(p, "openspec", "changes", t) for p in projects]
+cand = next((c for c in cands if os.path.lexists(c)), None)
+if cand is None:
+    sys.exit(1)
+changes = os.path.dirname(cand)
+osdir = os.path.dirname(changes)
+project = os.path.dirname(osdir)
+if (os.path.basename(changes) != "changes" or os.path.basename(osdir) != "openspec"
+        or real(project) not in projects):
+    fail(f"OpenSpec change must be <project>/openspec/changes/<id> (one id segment, not archived): {target}")
+if os.path.basename(cand) == "archive":
+    fail(f"archived OpenSpec changes are not workable: {target}")
+for q in (cand, changes, osdir):
+    if os.path.islink(q):
+        fail(f"OpenSpec change path contains a symlink: {q}")
+if not os.path.isdir(cand):
+    sys.exit(1)
+cand = real(cand)
+topic = slugify(os.path.basename(cand))
+req = os.path.join(bank, "specs", topic, "requirements.md")
+if not os.path.isdir(os.path.join(bank, "specs", topic)):
+    action = "import"
+else:
+    fm = parse_frontmatter(open(req, encoding="utf-8").read()) if os.path.isfile(req) else {}
+    src = fm.get("openspec_source")
+    if not src:
+        fail(f"specs/{topic} is a native topic, not imported from OpenSpec; "
+             f"rename or move it, or import the change under a distinct topic: "
+             f"mb-openspec.sh import {cand} --as <topic>")
+    if real(resolve_stored_source(src, Path(bank))) != cand:
+        fail(f"specs/{topic} is linked to a different change ({src}); "
+             f"import this one under a distinct topic: mb-openspec.sh import {cand} --as <topic>")
+    action = "sync"
+print(f"{cand}\t{topic}\t{action}")
+PY
+}
+
 # ── Form 1: existing path ───────────────────────────────────────────
 if [ -f "$TARGET" ]; then
   target_abs=$(abs "$TARGET")
@@ -204,6 +280,16 @@ if [ -d "$plans_dir" ]; then
   if [ -n "$matches" ]; then
     count=$(printf '%s\n' "$matches" | grep -c .)
   fi
+  case "$TARGET" in
+    */*) ;;
+    *)
+      if [ "$count" -ge 1 ] && openspec_plan "$TARGET" >/dev/null 2>&1; then
+        echo "[work-resolve] ambiguous: openspec change '$TARGET' and plan $(printf '%s\n' "$matches" | head -1)" >&2
+        echo "  use openspec/changes/$TARGET for the change, or the full plan file name for the plan" >&2
+        exit 2
+      fi
+      ;;
+  esac
   if [ "$count" -eq 1 ]; then
     match_abs=$(abs "$matches")
     claim_note "$BANK" "$match_abs"
@@ -239,6 +325,32 @@ case "$TARGET" in
     ;;
 esac
 
+# ── Form 2c (run): OpenSpec target
+set +e
+plan_out=$(openspec_plan "$TARGET")
+plan_rc=$?
+set -e
+if [ "$plan_rc" -eq 2 ]; then
+  exit 1
+elif [ "$plan_rc" -eq 0 ]; then
+  IFS=$'\t' read -r change_dir topic action <<<"$plan_out"
+  if [ "$action" = "sync" ]; then
+    sync_cmd=(sync "$topic" --mb "$BANK")
+  else
+    sync_cmd=(import "$change_dir" --as "$topic" --mb "$BANK")
+  fi
+  if ! sync_out=$(bash "$SCRIPT_DIR/mb-openspec.sh" "${sync_cmd[@]}" 2>&1); then
+    printf '%s\n' "$sync_out" >&2
+    echo "[work-resolve] OpenSpec change '$topic' did not sync (conflict or error); resolve it first: mb-openspec.sh sync $topic --take openspec|bank" >&2
+    exit 1
+  fi
+  printf '%s\n' "$sync_out" >&2
+  tasks_abs=$(abs "$BANK/specs/$topic/tasks.md")
+  claim_note "$BANK" "$tasks_abs"
+  printf '%s\n' "$tasks_abs"
+  exit 0
+fi
+
 # ── Form 3: topic → specs/<topic>/tasks.md ─────────────────────────
 safe=$(mb_sanitize_topic "$TARGET")
 if [ -n "$safe" ]; then
@@ -270,5 +382,5 @@ if [ "$words" -ge 3 ]; then
   exit 3
 fi
 
-echo "[work-resolve] target '$TARGET' not found" >&2
+echo "[work-resolve] target '$TARGET' not found (no plan, spec topic or OpenSpec change under openspec/changes/)" >&2
 exit 1

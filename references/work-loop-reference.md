@@ -11,10 +11,13 @@ The first positional arg `<target>` resolves in this order:
 | 1 | Existing path (plan `.md` or spec `tasks.md`) | Used as-is, no search performed |
 | 2 | Substring of a plan basename | Searches `<bank>/plans/*.md` (excluding `done/`); single hit wins, multiple = ambiguity exit |
 | 3 | Topic name | Checks `<bank>/specs/<topic>/tasks.md`; if present with `mb-task` markers, resolves to that file |
+| 3b | OpenSpec change (`<id>` or path to `openspec/changes/<id>`) | Runs `mb-openspec.sh import` (new) or `sync <topic>` (already imported), then resolves to `specs/<topic>/tasks.md`. A conflict or error exits 1 before any work; resolve with `mb-openspec.sh sync <topic> --take openspec|bank`. An explicit OpenSpec target never falls to a native topic: a native or differently-linked topic of the same name, a symlink/archive/foreign path exits 1; a bare id that also matches a plan name exits 2 (use `openspec/changes/<id>` or the full plan file name) |
 | 4 | Freeform (≥ 3 words) | Exits 3; the driver presents candidates from both `plans/` and `specs/` and asks the user to confirm |
 | 5 | Empty target | Uses the first plan link inside the `<!-- mb-active-plans -->` block of `roadmap.md` |
 
 **Form 3** is the direct spec-task path: if you have `specs/inventory-sync/tasks.md` containing `<!-- mb-task:N -->` markers, `/mb work inventory-sync` will execute those tasks directly — no plan file required.
+
+**Form 3b** end of run: print `mb-openspec.sh export <topic> --mb <bank>` (dry-run) and ask the user before the same command with `--write`; never write OpenSpec unasked.
 
 **Form 4** candidates include both `plans/*.md` and `specs/*/tasks.md`, so the user can pick either artifact type when input is ambiguous.
 

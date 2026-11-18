@@ -61,6 +61,10 @@ handful also have short aliases (`/start`, `/done`, `/plan`, `/discuss`, `/sdd`,
 `/mb help <subcommand>` prints `references/mb/<subcommand>.md` (the file the router in `commands/mb.md`
 names for that subcommand) — the same content this page condenses, kept as the single source of truth so the two never drift.
 
+## OpenSpec round-trip
+
+`/mb openspec <import|list|status|sync|export>` moves a spec between an OpenSpec `changes/<id>/` and the bank triple `specs/<topic>/`: `import` a change; `sync [--take openspec|bank]` three-way merges it into the bank (a conflict exits 1 and writes nothing); `export` prints a dry-run diff, `export --write` applies it to OpenSpec (`--allow-delete` also removes what the bank deleted); `export --new` publishes a bank spec as a new change. `/mb work <change-id>` runs the whole flow in place: sync, work on the triple, then a dry-run export and a question before `--write`. Details: `references/mb/openspec.md`.
+
 ## Related
 
 - [/mb work](mb-work.md) — the execution engine, documented in full.

@@ -1,0 +1,32 @@
+{
+  "verdict": "GO_WITH_BACKLOG",
+  "decision": "GO_WITH_BACKLOG",
+  "reasons": [
+    "Stage 10 DoD met: tests/bats/test_mb_work_resolve.bats 14/14 ok and tests/bats/test_mb_openspec.bats 18/18 ok (32 ok, 0 not ok); wc -l commands/work.md = 377 (<= 400); references/mb/openspec.md, the commands/mb.md router row and docs/commands.md 'OpenSpec round-trip' list import, sync (--take), export (--write/--allow-delete), export --new and the in-place /mb work flow; CHANGELOG Unreleased line present.",
+    "AGR-105 '/mb work <change-id> syncs first, stops on conflict, dry-run export diff at the end' holds: scratch probe /private/tmp/b4judge/p1 shows a fresh bare id (no --mb) imports the triple and resolves to specs/foo-change/tasks.md rc=0, a re-run syncs rc=0, and a two-sided edit prints the conflict, exits 1 before any tasks path and leaves the bank edit intact; commands/work.md and references/work-loop-reference.md both run the dry-run export with --mb <bank> and ask before --write.",
+    "Cycle-2 major (bare id vs plan substring) resolved: probe /private/tmp/b4judge/p2 with openspec/changes/auth and plans/2026-11-01_feature_auth-refactor.md gives 'ambiguous' rc=2, specs/ not created; openspec/changes/auth and the full plan name each still resolve rc=0; bats 14 covers it.",
+    "Cycle-2 medium resolved: references/work-loop-reference.md row 3b now states the collision/unsafe exit 1 and ambiguity exit 2 rules that match the code; the resolver header lists form 3b and --help covers lines 2-30.",
+    "Cycle-2 minors resolved: the inline guard imports parse_frontmatter, resolve_stored_source and slugify from mb_openspec_bank (no copies); mb_openspec_publish.stage loop applies os.chmod(tmp, mb_fs_atomic._target_mode(dest)) right after writing each staged file, before any os.replace.",
+    "Cycle-1 fixes spot-checked by probe: native same-named topic exits 1 with the import --as hint; ../ to a foreign project, archive/<x>, bare 'archive' and a symlinked change dir all exit 1 with nothing imported; openspec/changes/<id> without --mb is treated as a target (bats 13); bank_lock raises RuntimeError when the lock is not taken (test_bank_lock_fails_closed_when_the_lock_cannot_be_taken green); mode test parametrized for 0600/0640 green.",
+    "Gates: PYTHONPATH=. pytest tests/pytest/test_openspec_*.py 147 passed; shellcheck scripts/mb-work-resolve.sh clean; ruff clean on mb_openspec_bank.py and mb_openspec_publish.py. No blocker or major remains; the cycle-2 review's open items are all closed, so per the convergence rule the gate passes.",
+    "Out of B4 scope (not counted): test_doc_counts::test_skill_md_script_table_lists_all_scripts (mb_work_adapt_{block,journal,stub}.py missing from references/scripts.md) and test_planning_qa_sources_scenarios REQ_012/REQ_021 (workflow JSON now carries review_cycles/judge_cycles/cascade_stop) fail because of the uncommitted Stage 18a / pipeline.default.yaml work of another track, not the B4 files; that track must fix them before its commit. I-299 items (shared writer lock, rename journal) stay deferred."
+  ],
+  "blocking": [],
+  "backlog": [
+    {
+      "title": "Ambiguity check skipped when the bare-id change is unsafe or colliding",
+      "severity": "minor",
+      "evidence": "scripts/mb-work-resolve.sh Form 2 ambiguity block calls openspec_plan and treats only exit 0 as a change; when openspec/changes/<id> exists but openspec_plan exits 2 (native same-named topic, topic linked to another change, symlink) and a plan basename contains <id>, the plan resolves rc=0 silently instead of reporting the ambiguity/collision. Fix: treat exit 2 like exit 0 in the ambiguity test (or print the guard's message) and add a bats case. Edge case outside the Stage 10 DoD."
+    },
+    {
+      "title": "Move the OpenSpec target guard out of the resolver heredoc into a tested Python helper",
+      "severity": "minor",
+      "evidence": "scripts/mb-work-resolve.sh openspec_plan() embeds ~55 lines of Python in a heredoc; it is covered only through bats. A small module (e.g. in mb_openspec_paths.py) with pytest cases for path normalization, archive, symlink and linkage rules would keep the rules next to the adapter. Maintainability only; behaviour verified by probes."
+    }
+  ],
+  "acceptance_summary": {
+    "dod_met": true,
+    "verification_passed": true,
+    "review_blockers_remaining": 0
+  }
+}

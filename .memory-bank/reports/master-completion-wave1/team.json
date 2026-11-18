@@ -1114,13 +1114,13 @@
       },
       "prompt": "reports/master-completion-wave1/tracks/A3.prompt.md",
       "report": "reports/master-completion-wave1/A3.md",
-      "status": "fixing",
+      "status": "done",
       "run_id": null,
       "fix_cycle": 1,
-      "collected": false,
+      "collected": true,
       "dispatched_at": "2026-11-18T22:44:59Z",
-      "returned_at": "2026-11-18T22:56:45Z",
-      "summary": "# A3 — Graph: tests through sh entry points + argparse edges (I-297)\n\nSTATUS: DONE_WITH_CONCERNS\n\nRED (before): `pytest tests/pytest/test_graph_test_mapping.py` -> 4 failed, 1 passed (py-script tests via sh; cmd_run/cmd_stop callers).\nGREEN (after): same file 5 passed; `pytest tests/pytest/test_graph*.py test_codegraph*.py test_e2e_graph_intelligence.py` -> 670 passed; test_graph_rag_srp_contract green (core held at exactly 300 lines); ruff clean.\n\nChanges\n- codegraph_shell.py: `.py` literals in .sh/.bats emit invoke edges, bound only to a unique real .py file (unresolved dropped).\n- codegraph_invocations.py: `dispatch_calls` — `set_defaults(func=f)` and in-place indexed `{\"k\": f}[k]` tables emit call edges from the enclosing function (constant names only).\n- codegraph_python.py: calls dispatch_calls; CACHE_VERSION 3 -> 4.\n- mb_graph_query_core.py: `find_tests(..., nodes=None)` adds `_entry_closure`: test -> (sh -> .py | invoke .py) -> resolved py imports, depth 3; sh->sh never followed (no _lib.sh leak).\n- tests/pytest/test_graph_test_mapping.py (new, small tmp bats->sh->py chain).\n\nReal graph: `python3 scripts/mb-codegraph.py --apply --docs .memory-bank .` rebuilt (reparsed=1015).\n- tests scripts/mb_bank_lint_backlog.py -> test_mb_bank_lint.bats, test_mb_roadmap_backlog_docs.bats\n- tests scripts/mb_team_ops.py -> test_mb_team_checkpoint/hardening.bats + pytest ones\n- who-calls cmd_checkpoint -> incoming edge from mb_team_ops.py:main\n\nConcerns / follow-ups\n- Med: mb_graph_query_render.py:104 and mb_code_context_core.py:173 call find_tests without nodes (outside track files), so `impact` text render / code-context do not get the new closure; pass nodes there.\n- Low: test_mb_team_cli/commit/review.bats still not listed: they reach mb-team.sh through variables/helper (lib/team_fixture.bash), not resolvable statically.\n- Low: codegraph_shell.py is 338 lines (was 319, already over 300).\n- A stray ./codebase/ (graph from a mistaken first apply) was created and removed.\n\nGraph: 9 queries",
+      "returned_at": "2026-11-18T23:04:07Z",
+      "summary": "# A3 — Graph: tests through sh entry points + argparse edges (I-297)\n\nSTATUS: DONE_WITH_CONCERNS\n\nRED (before): `pytest tests/pytest/test_graph_test_mapping.py` -> 4 failed, 1 passed (py-script tests via sh; cmd_run/cmd_stop callers).\nGREEN (after): same file 5 passed; `pytest tests/pytest/test_graph*.py test_codegraph*.py test_e2e_graph_intelligence.py` -> 670 passed; test_graph_rag_srp_contract green (core held at exactly 300 lines); ruff clean.\n\nChanges\n- codegraph_shell.py: `.py` literals in .sh/.bats emit invoke edges, bound only to a unique real .py file (unresolved dropped).\n- codegraph_invocations.py: `dispatch_calls` — `set_defaults(func=f)` and in-place indexed `{\"k\": f}[k]` tables emit call edges from the enclosing function (constant names only).\n- codegraph_python.py: calls dispatch_calls; CACHE_VERSION 3 -> 4.\n- mb_graph_query_core.py: `find_tests(..., nodes=None)` adds `_entry_closure`: test -> (sh -> .py | invoke .py) -> resolved py imports, depth 3; sh->sh never followed (no _lib.sh leak).\n- tests/pytest/test_graph_test_mapping.py (new, small tmp bats->sh->py chain).\n\nReal graph: `python3 scripts/mb-codegraph.py --apply --docs .memory-bank .` rebuilt (reparsed=1015).\n- tests scripts/mb_bank_lint_backlog.py -> test_mb_bank_lint.bats, test_mb_roadmap_backlog_docs.bats\n- tests scripts/mb_team_ops.py -> test_mb_team_checkpoint/hardening.bats + pytest ones\n- who-calls cmd_checkpoint -> incoming edge from mb_team_ops.py:main\n\nConcerns / follow-ups\n- Med: mb_graph_query_render.py:104 and mb_code_context_core.py:173 call find_tests without nodes (outside track files), so `impact` text render / code-context do not get the new closure; pass nodes there.\n- Low: test_mb_team_cli/commit/review.bats still not listed: they reach mb-team.sh through variables/helper (lib/team_fixture.bash), not resolvable statically.\n- Low: codegraph_shell.py is 338 lines (was 319, already over 300).\n- A stray ./codebase/ (graph from a mistaken first apply) was created and removed.\n\nGraph: 9 queries\n\n## Fix cycle 1\nSTATUS: DONE\n- mb_code_context_core.py:173 and mb_graph_query_render.py:104 now pass `nodes` to `find_tests`, so code_context and TEST_LINKS get the closure. Test first: `test_code_context_lists_bats_reaching_python_script_through_sh` (red: AssertionError on test_files; green after). Note: the first fixture leaked a direct hit via the on-disk .sh text channel; fixed so the test is truly red without the fix.\n- mb_graph_query_core.py: closure memoized per (edges, nodes) identity (render calls find_tests per node); still 300 lines. render 130 / code_context_core 254 lines.\n- codegraph_shell.py split: binding pass moved to new memory_bank_skill/codegraph_shell_bind.py (147 lines); codegraph_shell.py now 205 lines, re-exports SHELL_EXTS/bind_shell_edges.\n- Tests: test_graph*, test_codegraph*, test_code_context, test_e2e_graph_intelligence -> 685 passed; ruff clean. Real graph re-applied; the bank_lint_backlog query still lists test_mb_bank_lint.bats.\n- Graph: 11 queries",
       "contract": null
     },
     {
@@ -1181,6 +1181,151 @@
       "dispatched_at": "2026-11-18T22:45:03Z",
       "returned_at": "2026-11-18T22:53:55Z",
       "summary": "# F3a report: svp-adapt-escalation rebased on ADaPT-lite (master-completion Stage 18a)\n\nSTATUS: DONE_WITH_CONCERNS\n\nConcern (Med, orchestrator): `tests/pytest/test_spec_corpus_battery.py` now fails\n`test_the_allowlist_has_no_stale_entries` because `svp-adapt-escalation` passes the validator. Delete the\n`\"svp-adapt-escalation\"` line from `KNOWN_FAILING` (file is orchestrator-owned, not touched).\n\n## Files\n- `/Users/fockus/Apps/skill-memory-bank/.memory-bank/specs/svp-adapt-escalation/requirements.md` (rebase map, amended REQ-002..006 wording, scenarios 1-11 in English, frontmatter `blocked_by` without `svp-parallel-engine`)\n- `/Users/fockus/Apps/skill-memory-bank/.memory-bank/specs/svp-adapt-escalation/design.md` (677 → ~270 lines; Seams block outside fences; Eval lines byte-identical to tasks.md)\n- `/Users/fockus/Apps/skill-memory-bank/.memory-bank/specs/svp-adapt-escalation/tasks.md` (5 tasks, all Eval/Scope/Budget in the svp-sdd-core grammar)\n- `/Users/fockus/Apps/skill-memory-bank/references/adapt.md` (§ Lite slice: status table only)\n- No code, no tests, no stage, no commit. `adapt.verify_fail_cycles: 3` untouched.\n\n## REQ map (code evidence from `scripts/mb_work_adapt.py`, graph fresh)\n\n| REQ | Result | Evidence / owner |\n|---|---|---|\n| 001 | covered by `scripts/mb_work_adapt.py:155` `parse_escalation`, `commands/work.md` step 5c1, test `test_escalation_block_parses_with_and_without_pyyaml`, commit 190251c → waiver (Task 1) | |\n| 002 | partly covered (`mb_work_adapt.py:247` `check`: verify + token guards, 190251c); open → Task 2 on `mb_work_adapt.py` (scope guard against the item's `Files:`, review/judge/eval-not-green counters) | |\n| 003 | partly covered (`adapt.verify_fail_cycles: 3`, `references/pipeline.default.yaml:286`, `mb_work_adapt.py:37/51`); open → Task 2 (`review_cycles: 3`, `judge_cycles: 2`, `cascade_stop: 3` in the `adapt:` block) | |\n| 004 | open → Task 5 (`stub-backlog` + autonomous branch in `commands/work.md`; stub is the fallback when the auto split is refused at `max_depth`) | |\n| 005 | covered by `references/adapt.md` § Fork + `commands/work.md` 5c1 (continue/simplify/decompose/skip), 190251c → waiver (Task 1), wording amended | |\n| 006 | covered by `mb_work_adapt.py:195/227/239` (`split`, `sub_done`, `gate`), 190251c → waiver (Task 1), wording amended (in-run sub-items, no spec registry) | |\n| 007 | open → Task 3 (`mb_work_adapt_journal.py`, journal under `mb_lock_acquire` via a bash holder) | |\n| 008 | open → Task 3 (`esc-summary`; stub lines come from journal `stub_continue` resolutions, Tasks 4-5 feed them) | |\n| 009 | open → Task 4 (`verify-stub`, Python `subprocess` timeout replaces the bash bounded-run helper) | |\n| 010 | open → Task 3 (`consecutive` in `esc-open`, `decision=stop_run`, `esc-clean`) | |\n\nDropped from revisions 1-3 as superseded by the lite code (YAGNI): `scripts/mb-work-adapt.sh`,\n`escalation:` config section, `MB_WORK_RESULT_JSON` envelope in nine agents, `replan-gate` with\n`requirements_sha256`, the child-spec registry route, S3 `mb-work-scope-check.sh` dependency.\n\n## Tests (spec work: the validator is the test)\n\nBefore (baseline run at start):\n```\n$ bash scripts/mb-spec-validate.sh --require-scenarios .memory-bank/specs/svp-adapt-escalation\n[spec-validate] REQ-049: task 3 has a documentation/configuration-only Scope but its Eval is not structural ...\n[spec-validate] REQ-049: task 4 has a documentation/configuration-only Scope but its Eval is not structural ...\n[spec-validate] REQ-051: design.md declares no **Seams:** block (C9 requires exactly one)\nrc=1\n```\nAfter (known-red marker: new, now green):\n```\n$ bash scripts/mb-spec-validate.sh --require-scenarios .memory-bank/specs/svp-adapt-escalation\n[spec-validate] layers=legacy\nrc=0\n```\nExisting lite tests stay green (Task 1 green evidence); retro-red: `git show 190251c~1:scripts/mb_work_adapt.py` → `fatal: path ... exists on disk, but not in '190251c~1'`:\n```\n$ PYTHONPATH=. python3 -m pytest -q tests/pytest/test_adapt_lite_rules.py tests/pytest/test_mb_work_adapt.py\n23 passed in 2.84s\n```\nSide effect (known, orchestrator-owned file): `tests/pytest/test_spec_corpus_battery.py::test_the_allowlist_has_no_stale_entries` FAILED, `svp-adapt-escalation` now passes the battery, entry in `KNOWN_FAILING` must be removed.\n\n## Remaining\nStage 18b (code, role backend): Tasks 2-5 in order, one writer on `scripts/mb_work_adapt.py`, `commands/work.md`, `tests/pytest/test_mb_work_adapt*.py`. Task 3-5 add two sibling modules `scripts/mb_work_adapt_journal.py` and `scripts/mb_work_adapt_stub.py` (the dispatcher is already 338 lines, past the SRP threshold). Every `commands/work.md` edit must be net-zero lines (cap 400, `test_s2_file_size_contract.py`); Task 2 also updates the pinned `DEFAULT_LINE` in `tests/pytest/test_mb_work_adapt.py`.\n\n## Questions for the orchestrator\n1. Owner confirmation of the amended wording: REQ-004 (stub only when the auto split is refused at `max_depth`, since AGR-082 makes auto = split), REQ-005 (`decompose` instead of `replan`, requirement change = `simplify`), REQ-006 (in-run sub-items, no child-spec registry). Recorded as an open question in design.md; needs an AGR if the owner agrees.\n2. Delete `svp-adapt-escalation` from `KNOWN_FAILING` in the corpus battery (see Concern).\n3. Mixed-language corpus: I wrote the rebased spec in English (AGR-085); the umbrella and sibling specs are still Russian.\n\n## Follow-ups\n- `umbrella` REQ-030..032 mapping in `specs/sdd-vision-pipeline` untouched; umbrella T6 Eval (escalations logged as JSONL) becomes satisfiable after Task 3.\n- `commands/work.md` was 377 lines in the working tree at the time of this run (the brief says 400); Track A owns it in wave 1, so Stage 18b must re-read the live size.",
+      "contract": null
+    },
+    {
+      "id": "B4",
+      "title": "/mb work over an OpenSpec change; docs",
+      "task": "Execute master-completion Stage 10 (plan plans/2026-11-18_feature_master-completion.md) on top of the finished OpenSpec round-trip (Stages 8-9, reports B2.md/B3.md/B3-judge.json): /mb work <openspec-change-id|openspec/changes/<id>> runs sync (import when new), stops on conflict, works on the bank triple, and at the end prints a dry-run export diff and asks before --write. Document import/sync/export/--new/--take/--allow-delete and the in-place flow in references/mb/openspec.md (commands/mb.md is a router now — touch its row only if the summary must change) and docs; CHANGELOG Unreleased line. commands/work.md must stay <= 400 lines (net-zero edits preferred; reference text goes to references/work-loop-reference.md).",
+      "dod": [
+        "Resolver bats: a change id resolves to the synced triple; an unknown id fails with a clear message; a native topic resolves as before; a conflicting change stops before any work — each red before, green after",
+        "references/mb/openspec.md and docs list all directions; wc -l commands/work.md <= 400; test_doc_counts and router-target tests green"
+      ],
+      "role": "backend",
+      "agent": "mb-backend",
+      "size": "standard",
+      "source": "plans/2026-11-18_feature_master-completion.md",
+      "files": [
+        "scripts/mb-work-resolve.sh",
+        "scripts/mb_work_source.py",
+        "commands/work.md",
+        "references/work-loop-reference.md",
+        "references/mb/openspec.md",
+        "commands/mb.md",
+        "docs/openspec.md",
+        "docs/commands.md",
+        "CHANGELOG.md",
+        "tests/bats/test_mb_work_resolve*.bats",
+        "tests/pytest/test_work_openspec_source.py"
+      ],
+      "deps": [],
+      "resources": [],
+      "layers": {
+        "track": [
+          "size=standard",
+          "review=single"
+        ],
+        "prompt": []
+      },
+      "pipeline": {
+        "size": "standard",
+        "mode": "work",
+        "work": "orchestrated",
+        "tdd": "required",
+        "verifier": "plan-verifier",
+        "review": "single",
+        "lenses": [],
+        "effort": "medium",
+        "models": {
+          "executor": "sonnet",
+          "verifier": "sonnet",
+          "reviewer": "gpt-5.6-sol"
+        }
+      },
+      "provenance": {
+        "size": "track",
+        "mode": "preset:standard",
+        "work": "preset:standard",
+        "tdd": "preset:standard",
+        "verifier": "preset:standard",
+        "review": "track",
+        "models.executor": "preset:standard",
+        "models.verifier": "preset:standard",
+        "effort": "preset:standard",
+        "lenses": "default",
+        "models.reviewer": "default"
+      },
+      "prompt": "reports/master-completion-wave1/tracks/B4.prompt.md",
+      "report": "reports/master-completion-wave1/B4.md",
+      "status": "done",
+      "run_id": null,
+      "fix_cycle": 2,
+      "collected": true,
+      "dispatched_at": "2026-11-18T23:01:29Z",
+      "returned_at": "2026-11-18T23:23:29Z",
+      "summary": "# B4 report: /mb work over an OpenSpec change (Stage 10)\nSTATUS: DONE\nGraph: 0 queries (small shell change, read directly)\n\n## Changes\n- scripts/mb-work-resolve.sh: new Form 2c. A change dir path or bare id (found under $PWD or <repo>/openspec/changes) runs `mb-openspec.sh import --as <slug>` (new) or `sync <topic>` (already linked), then prints specs/<topic>/tasks.md. Conflict or error exits 1 before work. A native same-named topic wins unless it has openspec_source. Not-found message now mentions OpenSpec.\n- commands/work.md (377 lines, net +0): target form text; end-of-run dry-run `export <topic>` and ask before `--write`. references/work-loop-reference.md: form 3b row and end-of-run note.\n- references/mb/openspec.md rewritten for import/list/status/sync/export/--new/--take/--allow-delete plus the in-place flow; commands/mb.md row summary; docs/commands.md section (no docs/openspec.md exists, so none created); CHANGELOG Unreleased line.\n- tests/bats/test_mb_work_resolve.bats: 5 new tests. mb_work_source.py and the pytest file were not needed (resolver output is a normal bank spec path).\n\n## TDD\nRed: `bats tests/bats/test_mb_work_resolve.bats` -> 4 not ok (5, 6, 7, 9; test 8 native topic already passed).\nGreen: same command -> 9/9 ok. `pytest -k \"doc_counts or router\"` -> 34 passed.\nFollow-up: none blocking.\n\n## Fix cycle 1\nSTATUS: DONE\n1. Collision: explicit OpenSpec target never falls to a native topic; topic linked to a different change (openspec_source vs change dir) exits 1 with a message suggesting `mb-openspec.sh import <dir> --as <topic>` (no new option).\n2. Path guard (python helper in Form 2c): exactly one id under <project>/openspec/changes/, project = cwd or bank parent; rejects symlink change/changes/openspec, archive, foreign dirs.\n3. work.md/work-loop-reference: dry-run and --write both carry `--mb <bank>` (work.md still 377 lines).\n4. Positional `openspec/changes/<id>` is a target before the dir-as-bank heuristic; test without --mb.\n5. bank_lock raises RuntimeError (exit 1) when the lock is not taken (skipped only for a missing bank, which the op reports itself).\n6. publish_topics copies dest mode onto staged file before os.replace; tests for 0600 and 0640. 0600 passed even before the fix (mkstemp default), 0640 was the red case.\nRed: bats 10-13 not ok; pytest fails_closed + mode_of(0640) failed. Green: bats resolve+openspec 31 ok, 0 not ok; pytest test_openspec_*.py 147 passed.\nNote: tests/pytest/test_doc_counts.py::test_skill_md_script_table_lists_all_scripts fails on mb_work_adapt_block.py / mb_work_adapt_journal.py missing from references/scripts.md (another track's files, not mine).\n\n## Fix cycle 2\nSTATUS: DONE\n1. A bare id naming both an openspec/changes/<id> and a plan substring exits 2 (\"ambiguous\", names both, how to disambiguate); no sync, no specs/ created; path form still works. Red: bats 14 failed; green after.\n2. work-loop-reference row matches the code; resolver header lists form 3b (help range widened to 2-30).\n3. The inline Python imports slugify / parse_frontmatter / resolve_stored_source from mb_openspec_bank instead of copies.\n4. publish stage() applies mb_fs_atomic._target_mode(dest) before any rename; the rename loop is plain os.replace.\nEvidence: bats resolve+openspec 32 ok, 0 not ok; pytest test_openspec_*.py 147 passed; shellcheck clean; work.md 377 lines.",
+      "contract": null
+    },
+    {
+      "id": "F3b",
+      "title": "S5 svp-adapt-escalation remainder (code)",
+      "task": "Second half of master-completion Stage 18 (plan plans/2026-11-18_feature_master-completion.md): implement the rebased svp-adapt-escalation tasks T2-T5 (.memory-bank/specs/svp-adapt-escalation/tasks.md, AGR-107): scope guard against the item's Files: inside the adapt path, review/judge/eval-not-green counters and the new adapt: keys (review_cycles 3, judge_cycles 2, cascade_stop 3) with validator support, escalation journal (JSONL) under mb_lock_acquire with a summary, cascade stop, verify-stub, stub + backlog chain. mb_work_adapt.py is 338 lines: put the journal and the stub in sibling modules scripts/mb_work_adapt_journal.py and scripts/mb_work_adapt_stub.py. adapt.verify_fail_cycles default 3 unchanged. commands/work.md is being edited by another track right now: do NOT edit it — post a HANDOVER with the exact net-zero edit you need.",
+      "dod": [
+        "Each task's Eval red before code, green after; open DoD = 0 and mb-spec-validate.sh --require-scenarios rc=0 for svp-adapt-escalation; existing adapt tests (grep -rl mb_work_adapt tests/) green; pipeline validator accepts the new adapt: keys and rejects bad values",
+        "Escalations are written as JSONL under the lock (test); modules <= 300 lines; Python 3.11; shellcheck/ruff clean"
+      ],
+      "role": "backend",
+      "agent": "mb-backend",
+      "size": "standard",
+      "source": "plans/2026-11-18_feature_master-completion.md",
+      "files": [
+        "scripts/mb_work_adapt.py",
+        "scripts/mb_work_adapt_journal.py",
+        "scripts/mb_work_adapt_stub.py",
+        "references/pipeline.default.yaml",
+        "scripts/mb-pipeline-validate.sh",
+        "scripts/mb_pipeline_validate_blocks.py",
+        "scripts/mb_pipeline_validate_core.py",
+        "references/adapt.md",
+        ".memory-bank/specs/svp-adapt-escalation/tasks.md",
+        ".memory-bank/specs/svp-adapt-escalation/design.md",
+        "tests/pytest/test_mb_work_adapt*.py",
+        "tests/pytest/test_adapt_*.py",
+        "tests/bats/test_*adapt*.bats"
+      ],
+      "deps": [],
+      "resources": [],
+      "layers": {
+        "track": [
+          "size=standard"
+        ],
+        "prompt": []
+      },
+      "pipeline": {
+        "size": "standard",
+        "mode": "work",
+        "work": "orchestrated",
+        "tdd": "required",
+        "verifier": "plan-verifier",
+        "review": "none",
+        "lenses": [],
+        "effort": "medium",
+        "models": {
+          "executor": "sonnet",
+          "verifier": "sonnet"
+        }
+      },
+      "provenance": {
+        "size": "track",
+        "mode": "preset:standard",
+        "work": "preset:standard",
+        "tdd": "preset:standard",
+        "verifier": "preset:standard",
+        "review": "preset:standard",
+        "models.executor": "preset:standard",
+        "models.verifier": "preset:standard",
+        "effort": "preset:standard",
+        "lenses": "default"
+      },
+      "prompt": "reports/master-completion-wave1/tracks/F3b.prompt.md",
+      "report": "reports/master-completion-wave1/F3b.md",
+      "status": "dispatched",
+      "run_id": null,
+      "fix_cycle": 0,
+      "collected": false,
+      "dispatched_at": "2026-11-18T23:02:25Z",
+      "returned_at": null,
+      "summary": null,
       "contract": null
     }
   ],

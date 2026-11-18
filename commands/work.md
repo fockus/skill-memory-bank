@@ -27,7 +27,7 @@ The workflow-mode matrix, verifier cadence, JSON Lines schema, worked examples, 
 
 ## How `/mb work` resolves your input
 
-The first positional arg `<target>` resolves in this order: (1) Existing path, (2) Substring of a plan basename, (3) Topic name (`specs/<topic>/tasks.md`), (4) Freeform (≥ 3 words, exit 3 + candidates), (5) Empty target → the first plan in the `<!-- mb-active-plans -->` block of `roadmap.md`; the form table is in `references/work-loop-reference.md` § Target resolution forms.
+The first positional arg `<target>` resolves in this order: (1) Existing path, (2) Substring of a plan basename, (3) Topic name (`specs/<topic>/tasks.md`) or OpenSpec change (`<id>` / `openspec/changes/<id>`: the resolver imports or syncs it into the bank triple, and a conflict exits non-zero before any work), (4) Freeform (≥ 3 words, exit 3 + candidates), (5) Empty target → the first plan in the `<!-- mb-active-plans -->` block of `roadmap.md`; the form table is in `references/work-loop-reference.md` § Target resolution forms.
 
 Underlying script: `bash "$SKILL_DIR"/scripts/mb-work-resolve.sh [target] [--mb path]`.
 
@@ -327,7 +327,7 @@ Run this loop for an explicit `/mb work` request or when Task routing selects it
    - Without `--auto` or existing whole-plan authorization: confirm before moving to the next item.
    - With `--auto`: continue to the next item unless one of the hard stops (below) fired.
 
-6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used; with QA on: QA runs, QA cycles used, bugs opened/fixed/left open by severity, and the `qa/runs/<id>/report.md` paths. Run `bash "$SKILL_DIR"/scripts/mb-work-budget.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` and `bash "$SKILL_DIR"/scripts/mb-work-state.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` to remove the budget and loop-state — the same run-id threading as `done`/`flip`, so a parallel run clears its own slot rather than the singleton.
+6. **End-of-run summary.** When all requested items are processed, summarise: workflow used, items attempted, items PASS / WARN / FAIL, files touched, total budget spent, verifier verdicts, review cycles used; with QA on: QA runs, QA cycles used, bugs opened/fixed/left open by severity, and the `qa/runs/<id>/report.md` paths. For an OpenSpec change target, also run `bash "$SKILL_DIR"/scripts/mb-openspec.sh export <topic> --mb <bank>` (dry-run diff only) and show it; ask the user before any `export <topic> --mb <bank> --write`. Run `bash "$SKILL_DIR"/scripts/mb-work-budget.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` and `bash "$SKILL_DIR"/scripts/mb-work-state.sh clear ${RUN_ID:+--run-id "$RUN_ID"} --mb <bank>` to remove the budget and loop-state — the same run-id threading as `done`/`flip`, so a parallel run clears its own slot rather than the singleton.
 
 ## Concurrent core-file writes
 
