@@ -20,7 +20,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - `mb-flow-verify.sh` runs the project's tests without the repo-local git env a hook exports (a linked worktree's pre-commit sets `GIT_DIR`; tests then wrote into the committing repo, e.g. its `.git/hooks`); `mb-work-resolve.sh` matches a plan substring against the file name, not its parent directories; the Cyrillic-topic warning of `mb-plan.sh` and the legacy answer forms of `mb-interview-artifact-check.sh` also work in the C locale.
 - Pi session capture: a stale `session_start` still awaiting the update notice no longer takes over its replacement session (input landed in the wrong session file).
-- Quick local loop: `pytest -m "not slow"` (~5% of the time) and `bats --filter-tags '!slow'`; the full sets stay the default and CI.
+- Parallel suites: `pytest -n auto` (pytest-xdist in the dev extra) and `bats --jobs N` (GNU parallel) locally and in CI; wall-clock budget tests are tagged `perf` and run alone. Measured on a loaded 10-core machine: pytest 72 → 20 min, bats 3 h → 35 min. Quick loop: `-m "not slow"` / `--filter-tags '!slow'`.
 - Test suites: bats and pytest drop hook git env, call the real interpreter instead of a pyenv shim (an install-heavy bats file: 23 min → 3 min), find the Pi SDK behind `pi` on PATH, and skip with a reason when the installed Tintin/pi-inspect/opencode differ from what a test needs.
 
 ### Changed — closure gate waits quietly

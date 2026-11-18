@@ -123,6 +123,8 @@ sync_project() { run bash "$SCRIPT" sync --scope=project --project="$PROJECT"; [
   assert_substring "$(printf '%s' "$output" | jq -r '.additional_context')" 'sync --scope=project'
 }
 
+# Wall-clock budget: run alone (`--filter-tags perf`), not beside parallel jobs.
+# bats test_tags=perf
 @test "freshness: the check adds <= 100 ms (best of 3)" {
   local best=999 t
   for _ in 1 2 3; do

@@ -49,11 +49,23 @@ class AcceptanceRuntime(fixture.NativeRuntime):
         target.chmod(0o600)
 
 
+# Git-ignored local state stays out of the bundle: a bootstrapped hooks/.venv holds
+# symlinks to the developer's interpreter, which the external-alias check rejects.
+BUNDLE_IGNORE = shutil.ignore_patterns(
+    ".git", ".env*", ".memory-bank", "node_modules", "__pycache__", ".venv", "*.pyc"
+)
+
+
+def test_bundle_copy_skips_local_virtualenvs_and_bytecode():
+    names = [".venv", "mod.pyc", "__pycache__", "hook.sh", "lib.py"]
+    assert BUNDLE_IGNORE(str(ROOT / "hooks"), names) == {".venv", "mod.pyc", "__pycache__"}
+
+
 @pytest.fixture
 def native(tmp_path, monkeypatch):
     bundle = tmp_path / "bundle"
     bundle.mkdir(mode=0o700)
-    ignored = shutil.ignore_patterns(".git", ".env*", ".memory-bank", "node_modules", "__pycache__")
+    ignored = BUNDLE_IGNORE
     for name in ("adapters", "agents", "commands", "hooks", "scripts", "rules", "references",
                  "templates", "flow-templates", "settings", "memory_bank_skill"):
         shutil.copytree(ROOT / name, bundle / name, ignore=ignored, symlinks=True)

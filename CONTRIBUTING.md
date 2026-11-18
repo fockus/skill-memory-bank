@@ -33,15 +33,17 @@ brew install bats-core
 Verify everything works:
 
 ```bash
-bats tests/bats/
-bats tests/e2e/
-python3 -m pytest tests/pytest/ --cov --cov-fail-under=85
+brew install parallel          # once: backs `bats --jobs`; pytest-xdist comes with `pip install -e ".[dev]"`
+bats --jobs 8 --filter-tags '!perf' tests/bats/
+bats --filter-tags perf tests/bats/   # wall-clock budgets: alone, on an idle machine
+bats --jobs 8 tests/e2e/
+python3 -m pytest tests/pytest/ -n auto --cov --cov-fail-under=85
 shellcheck -x --source-path=SCRIPTDIR scripts/*.sh
 shellcheck hooks/*.sh
 ruff check settings/ tests/pytest/
 ```
 
-While iterating, skip the installer/host-runtime tests (most of the run time): `python3 -m pytest tests/pytest/ -m "not slow"` and `bats --filter-tags '!slow' tests/bats/`. Run the full sets above before a commit.
+While iterating, also skip the installer/host-runtime tests (most of the run time): `python3 -m pytest tests/pytest/ -n auto -m "not slow"` and `bats --jobs 8 --filter-tags '!slow,!perf' tests/bats/`. Run the full sets above before a commit.
 
 All four commands must return green before you open a PR.
 

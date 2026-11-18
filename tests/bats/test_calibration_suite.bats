@@ -19,6 +19,9 @@ bats_require_minimum_version 1.5.0
 
 load lib/assert
 
+# Every run writes the shared tests/calibration/results/, which the results-file test removes.
+setup_file() { export BATS_NO_PARALLELIZE_WITHIN_FILE=true; }
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   RUN="$REPO_ROOT/tests/calibration/run.sh"

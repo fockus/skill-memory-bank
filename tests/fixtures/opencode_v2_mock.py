@@ -23,6 +23,7 @@ from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parents[2]
 CLI = shutil.which("opencode")
+SESSION_BUDGET = 180
 
 
 class NativeRuntime:
@@ -205,7 +206,8 @@ class NativeRuntime:
             raise RuntimeError(f"private API {exc.code}: {exc.read(4000).decode()}") from None
 
     def wait(self, sid: str, *, after_idle=None) -> dict:
-        deadline = time.monotonic() + 70
+        # A hang guard, not a speed check: parallel workers stretch a healthy session.
+        deadline = time.monotonic() + SESSION_BUDGET
         while time.monotonic() < deadline:
             info = self.data(f"/api/session/{sid}")
             idle = info.get("time", {}).get("idle")
@@ -214,7 +216,7 @@ class NativeRuntime:
             if self.errors:
                 raise AssertionError(self.errors)
             time.sleep(0.1)
-        raise AssertionError("native session exceeded 70s budget")
+        raise AssertionError(f"native session exceeded {SESSION_BUDGET}s budget")
 
     def states(self) -> list[dict]:
         result = subprocess.run(["bash", str(ROOT / "scripts/mb-work-state.sh"), "status", "--all", "--mb", str(self.project / ".memory-bank")],

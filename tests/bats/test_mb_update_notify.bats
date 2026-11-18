@@ -763,6 +763,8 @@ EOF
   [ "$(call_count)" -eq 1 ]
 }
 
+# Wall-clock budget: run alone (`--filter-tags perf`), not beside parallel jobs.
+# bats test_tags=perf
 @test "update-notify: warm cache reporting an update renders the notice in well under 100ms" {
   local checker
   checker=$(fake_checker checker.sh 0 \
