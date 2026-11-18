@@ -59,28 +59,31 @@ echo "lint_cmd=$LINT_CMD"
 # ═══ Source file count ═══
 count_files() {
   local stack="$1" dir="$2"
+  # Search from inside the project: the -path exclusions below must not see the
+  # project's own location (a checkout under ~/.config or .claude/worktrees).
+  cd "$dir" 2>/dev/null || { echo 0; return; }
   case "$stack" in
     python)
-      find "$dir" -name "*.py" -type f \
+      find . -name "*.py" -type f \
         -not -path '*/\.*' \
         -not -path '*/__pycache__/*' \
         -not -path '*/node_modules/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
     go)
-      find "$dir" -name "*.go" -type f \
+      find . -name "*.go" -type f \
         -not -path '*/\.*' \
         -not -path '*/vendor/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
     rust)
-      find "$dir" -name "*.rs" -type f \
+      find . -name "*.rs" -type f \
         -not -path '*/\.*' \
         -not -path '*/target/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
     node)
-      find "$dir" \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) -type f \
+      find . \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) -type f \
         -not -path '*/\.*' \
         -not -path '*/node_modules/*' \
         -not -path '*/dist/*' \
@@ -88,7 +91,7 @@ count_files() {
         2>/dev/null | wc -l | tr -d ' '
       ;;
     java)
-      find "$dir" -name "*.java" -type f \
+      find . -name "*.java" -type f \
         -not -path '*/\.*' \
         -not -path '*/target/*' \
         -not -path '*/build/*' \
@@ -96,7 +99,7 @@ count_files() {
         2>/dev/null | wc -l | tr -d ' '
       ;;
     kotlin)
-      find "$dir" \( -name "*.kt" -o -name "*.kts" \) -type f \
+      find . \( -name "*.kt" -o -name "*.kts" \) -type f \
         -not -path '*/\.*' \
         -not -path '*/target/*' \
         -not -path '*/build/*' \
@@ -104,14 +107,14 @@ count_files() {
         2>/dev/null | wc -l | tr -d ' '
       ;;
     swift)
-      find "$dir" -name "*.swift" -type f \
+      find . -name "*.swift" -type f \
         -not -path '*/\.*' \
         -not -path '*/.build/*' \
         -not -path '*/DerivedData/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
     cpp)
-      find "$dir" \( -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" -o -name "*.c" -o -name "*.hpp" -o -name "*.h" \) -type f \
+      find . \( -name "*.cpp" -o -name "*.cc" -o -name "*.cxx" -o -name "*.c" -o -name "*.hpp" -o -name "*.h" \) -type f \
         -not -path '*/\.*' \
         -not -path '*/build/*' \
         -not -path '*/out/*' \
@@ -119,27 +122,27 @@ count_files() {
         2>/dev/null | wc -l | tr -d ' '
       ;;
     ruby)
-      find "$dir" -name "*.rb" -type f \
+      find . -name "*.rb" -type f \
         -not -path '*/\.*' \
         -not -path '*/vendor/*' \
         -not -path '*/.bundle/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
     php)
-      find "$dir" -name "*.php" -type f \
+      find . -name "*.php" -type f \
         -not -path '*/\.*' \
         -not -path '*/vendor/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
     csharp)
-      find "$dir" -name "*.cs" -type f \
+      find . -name "*.cs" -type f \
         -not -path '*/\.*' \
         -not -path '*/bin/*' \
         -not -path '*/obj/*' \
         2>/dev/null | wc -l | tr -d ' '
       ;;
     elixir)
-      find "$dir" \( -name "*.ex" -o -name "*.exs" \) -type f \
+      find . \( -name "*.ex" -o -name "*.exs" \) -type f \
         -not -path '*/\.*' \
         -not -path '*/_build/*' \
         -not -path '*/deps/*' \

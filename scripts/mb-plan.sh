@@ -82,7 +82,9 @@ case "$TYPE" in
 esac
 
 # Soft-warn (never block) on legacy Cyrillic Этап/Эпик/Спринт/Фаза in <topic>; canon is Phase/Sprint/Stage.
-if printf '%s' "$TOPIC" | grep -qiE '\b(Этап|Эпик|Спринт|Фаза)\b'; then
+# Boundaries are spelled out: in the C locale (LANG unset) Cyrillic bytes are not
+# word characters, so `\b` never matched and -i does not fold Cyrillic case.
+if printf '%s' "$TOPIC" | grep -qiE '(^|[[:space:][:punct:]])(Этап|этап|Эпик|эпик|Спринт|спринт|Фаза|фаза)([[:space:][:punct:]]|$)'; then
   echo "[mb-plan] WARN: topic contains legacy Cyrillic naming; prefer Phase/Sprint/Stage. See references/templates.md." >&2
 fi
 

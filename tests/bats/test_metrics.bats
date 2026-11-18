@@ -162,6 +162,17 @@ teardown() {
   [ "$count" -ge 1 ]
 }
 
+@test "metrics: a project inside a hidden directory still counts its sources" {
+  # Hidden-path exclusions apply below the project root only: a checkout under
+  # ~/.config/… or a .claude/worktrees/<name> worktree used to count 0.
+  local proj="$BATS_TEST_TMPDIR/.hidden/proj"
+  mkdir -p "$proj"
+  cp -R "$FIXTURES/go/." "$proj/"
+  run bash "$SCRIPT" "$proj"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"src_count=1"* ]] || { echo "$output"; false; }
+}
+
 # ═══ Override ═══
 
 @test "metrics: .memory-bank/metrics.sh override is blocked by default" {

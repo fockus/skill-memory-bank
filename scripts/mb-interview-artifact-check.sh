@@ -275,8 +275,10 @@ run_transcript() {
         apat = "^\\*\\*A" qn "\\.\\*\\*[ \t]+[^ \t]"
         for (j = bs; j <= be; j++) {
           if (raw[j] ~ apat) return 1
-          if (legacy == "1" && raw[j] ~ /Ответ голосом \(суть\): «[^»]+»/) return 1
-          if (legacy == "1" && raw[j] ~ /пользователь: «[^»]+»/) return 1
+          # `.+`, not `[^»]+`: in the C locale that bracket excludes the BYTES of
+          # «»» (C2 BB), and BB is also the second byte of Cyrillic «л».
+          if (legacy == "1" && raw[j] ~ /Ответ голосом \(суть\): «.+»/) return 1
+          if (legacy == "1" && raw[j] ~ /пользователь: «.+»/) return 1
         }
         return 0
       }

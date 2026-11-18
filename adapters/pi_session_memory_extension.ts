@@ -66,10 +66,14 @@ export default function mbPiSessionExtension(pi: ExtensionAPI) {
 
   pi.on("session_start", async (event, ctx) => {
     const cwd = PROJECT_ROOT || ctx.cwd;
+    const loaded = await memory;
+    // Register the session before any other await: events resolve `memory` in
+    // order, so a stale start can no longer finish after its replacement's start
+    // and take over the current session (its input would land in the wrong file).
+    const started = loaded.api?.session_start(event, ctx);
     // REQ-013/019: update-notify is a separate transport from session capture
     // (MB_SESSION_CAPTURE governs capture only) and must never block startup.
     const notice = await renderUpdateNotice(SKILL_DIR, cwd).catch(() => null);
-    const loaded = await memory;
     const message = loaded.error
       ? `Memory Bank session memory unavailable (${SKILL_DIR}/adapters/pi_native_session.mjs): ${String(loaded.error).split("\n")[0]}`
       : null;
@@ -81,7 +85,7 @@ export default function mbPiSessionExtension(pi: ExtensionAPI) {
         // fail-open: a host whose ctx.ui.notify throws must not block session_start.
       }
     }
-    return loaded.api?.session_start(event, ctx);
+    return started;
   });
 
   for (const name of ["input", "tool_execution_start", "tool_execution_end", "agent_end", "before_agent_start",
