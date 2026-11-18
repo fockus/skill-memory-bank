@@ -4136,3 +4136,7 @@ Remaining gaps: native event delivery needs user trust in /hooks; unrecorded con
 - New: shared-mechanisms registry + prompt injection + reviewer blocker; blocking shared-foundation readiness in team plan/next (--accept-shared); EXTRACT handover action; cross-track duplicate scan at collect; team.rules_gate + mb-rules-check.sh (+ track contract) at team commit, failing track -> fixing; rules_source (project root RULES.md first); spec_verify/spec-check at wave end + mb_spec_coverage.py; plan-verifier REQ-text CRITICAL; mb_contract.py run/freeze (red anchor, lock, amend), track --contract, dispatch refuses unfrozen.
 - Deferred: built-in function-length/param-count checker (project rules_gate covers it); spec-level contract as the wave-end check.
 
+
+## 2026-11-18 — /mb team shared-gates: independent review closed
+
+- Review of b728474: plan-verifier FAIL, mb-reviewer CHANGES_REQUESTED (9 major). Fixed in 41c9ca4, 71da7a0, 3daadc6 with red-first tests; two re-reviews; mb-judge GO_WITH_BACKLOG (0 blockers). Backlog I-289..I-292 (dup-scan Go noise, quoted diff paths, built-in function-length check, portable symlink test).

@@ -1139,3 +1139,11 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-263 — Parallel /mb work claims use plan/spec categories rather than source/item keys, blocking independent stage runs and path-based skip-claimed resolution on both hosts [MED, NEW, 2026-10-09]
 
 ### I-288 — Stop hook mb-flow-closure-guard: tell red-and-idle (block, as now) from red-but-waiting (background tracks/agents in team.json dispatched/verifying/fixing, active work-state, or a recorded next milestone such as build/smoke with ACK) — then stay silent or print one line every N turns. Goal: Ralph-loop and goal work, noise gone (the hook now fires on every orchestrator reply while it waits for background tracks). Source: Anton 15.10. [HIGH, DONE 2026-10-15, 2026-10-15] — scripts/mb_flow_busy.py (open team with working tracks / fresh in-progress work-state) + deferral in the hook
+
+### I-289 — team dup-scan: suppress Go error-check boilerplate windows (if err != nil) from cross-track duplicate candidates (scripts/mb_dup_scan.py) [LOW, NEW, 2026-11-18]
+
+### I-290 — team dup-scan: parse quoted +++ "b/..." diff paths (spaces, non-ASCII) instead of skipping those files (scripts/mb_dup_scan.py) [LOW, NEW, 2026-11-18]
+
+### I-291 — team rules gate: optional built-in function-length / param-count check for projects without a lint-new rules_gate (scripts/mb_team_gate.py) [LOW, NEW, 2026-11-18]
+
+### I-292 — team gate test: portable symlinked-tree variant so Linux CI covers longest-root-first stripping (tests/pytest/test_mb_team_gate.py) [LOW, NEW, 2026-11-18]
