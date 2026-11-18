@@ -108,7 +108,15 @@ if [[ ! -f "$GOAL_PATH" ]]; then
   emit null
 fi
 
-# ---- evidence links (C1) ----------------------------------------------------
+# A paused or cancelled goal has no termination condition to enforce.
+GOAL_STATUS="$(awk 'NR == 1 && !/^---[[:space:]]*$/ { exit } NR > 1 && /^---[[:space:]]*$/ { exit }
+  NR > 1 && /^status:/ { sub(/^status:[[:space:]]*/, ""); gsub(/["'\''[:space:]]/, ""); print; exit }' "$GOAL_PATH")"
+if [[ "$GOAL_STATUS" == paused || "$GOAL_STATUS" == cancelled ]]; then
+  echo "[acceptance] goal is $GOAL_STATUS in $GOAL_PATH — skipping (ok=null)" >&2
+  emit null
+fi
+
+# ---- evidence links (C1)----------------------------------------------------
 # The module prints nothing for a goal without links; then the checkbox count
 # below stays the answer.
 

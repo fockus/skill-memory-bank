@@ -215,6 +215,7 @@ _inferred_options() {
   _install
   [ "$(_manifest .language)" = en ]
   [ "$(_manifest .clients_requested)" = claude-code ]
+  [ "$(jq -r .language "$SRC/.installed-manifest.json.other-home")" = ru ]
 }
 
 @test "I-250: re-install over the skill's own unedited files makes no backups; an edited one keeps a backup" {

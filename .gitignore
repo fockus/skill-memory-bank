@@ -1,4 +1,5 @@
 .installed-manifest.json
+.installed-manifest.json.other-home
 *.backup.*
 *.pre-mb-backup.*
 .DS_Store

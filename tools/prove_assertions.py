@@ -81,9 +81,9 @@ Reproduced by re-inserting the pre-I-147 guard into `test_kilo_adapter.bats`
 
     $ python3 tools/prove_assertions.py tests/bats/test_kilo_adapter.bats
       ALIVE :51   kilo: install creates .kilocode/rules/memory-bank.md
-      ...
+      …
       DEAD  :113  kilo: uninstall removes rules file and git hooks
-              ^ inverted to: assert_grep -q "memory-bank: managed hook" ...
+              ^ inverted to: assert_grep -q "memory-bank: managed hook" …
               ^ the test still PASSED, so this line's failure
                 does not fail the test. It asserts nothing.
       alive=8  dead=1  skipped(no inversion rule)=0
@@ -150,6 +150,7 @@ from __future__ import annotations
 
 import argparse
 import atexit
+import contextlib
 import os
 import pathlib
 import re
@@ -261,10 +262,8 @@ _SIDECARS: set[pathlib.Path] = set()
 
 def _sweep_sidecars() -> None:
     for sc in list(_SIDECARS):
-        try:
+        with contextlib.suppress(OSError):
             sc.unlink(missing_ok=True)
-        except OSError:  # pragma: no cover
-            pass
         _SIDECARS.discard(sc)
 
 

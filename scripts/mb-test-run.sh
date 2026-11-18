@@ -99,15 +99,16 @@ run_uncolored() {
   env -u FORCE_COLOR -u CLICOLOR_FORCE NO_COLOR=1 "$@"
 }
 
-# Collect *.bats paths relative to DIR (tests/ or hooks/tests/).
+# Collect *.bats paths relative to DIR (tests/ or hooks/tests/). Suites under a
+# fixtures/ dir are inputs for other tests, not part of this project's suite.
 find_bats_files() {
   local d f
   for d in tests hooks/tests; do
     [ -d "$DIR/$d" ] || continue
     while IFS= read -r f; do
       [ -n "$f" ] || continue
-      printf '%s\n' "${f#"$DIR"/}"
-    done < <(find "$DIR/$d" -name '*.bats' 2>/dev/null | sort)
+      printf '%s\n' "$d/${f#./}"
+    done < <(cd "$DIR/$d" && find . -name '*.bats' -not -path '*/fixtures/*' 2>/dev/null | sort)
   done
 }
 

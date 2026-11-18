@@ -152,3 +152,22 @@ EOF
   [ "$status" -eq 0 ]
   echo "$(json_of "$output")" | jq -e '.ok == true'
 }
+
+# ---- paused goals ------------------------------------------------------------
+
+@test "acceptance: paused or cancelled goal → ok=null, open items not reported" {
+  local state
+  for state in paused cancelled; do
+    printf -- '---\nid: g1\nstatus: %s\n---\n# Goal\n## Acceptance criteria\n- [ ] still open\n' "$state" >"$GOAL"
+    run bash "$RUN" "$GOAL" "$BANK"
+    [ "$status" -eq 0 ]
+    echo "$(json_of "$output")" | jq -e '.ok == null and (.findings | length == 0)'
+  done
+}
+
+@test "acceptance: status line outside frontmatter does not pause the goal" {
+  printf -- '---\nid: g1\nstatus: active\n---\n# Goal\nstatus: paused\n## Acceptance criteria\n- [ ] still open\n' >"$GOAL"
+  run bash "$RUN" "$GOAL" "$BANK"
+  [ "$status" -eq 0 ]
+  echo "$(json_of "$output")" | jq -e '.ok == false'
+}

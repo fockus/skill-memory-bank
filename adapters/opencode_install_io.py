@@ -94,7 +94,10 @@ def prepare(context: Path, record: str, root: str, specification: str) -> None:
         if before is not None:
             if stat.S_ISDIR(before[2]):
                 image = contained(entry["retain"], root)
-                if _fact(image) is not None or not any(item["path"] == str(image) for item in entries):
+                # Compare canonical paths: on macOS a declared /var/... is stored as /private/var/...
+                if _fact(image) is not None or not any(
+                    contained(item["path"], root) == image for item in entries
+                ):
                     raise ValueError("directory retention needs a fresh, declared destination")
                 material = before
             else:
@@ -108,11 +111,21 @@ def prepare(context: Path, record: str, root: str, specification: str) -> None:
                 material = _fact(image)
                 if material is None or material[2:] != before[2:]:
                     raise ValueError(f"preimage changed during preparation: {path}")
-        member = {"path": str(path), "before": before, "image": str(image) if image else None, "image_fact": material}
+        member = {
+            "path": str(path),
+            "before": before,
+            "image": str(image) if image else None,
+            "image_fact": material,
+        }
         if "expected" in entry:
             member["expected"] = entry["expected"]
         members.append(member)
-    data = {"root": root, "record": str(checked(record)), "record_before": _fact(checked(record)), "members": members}
+    data = {
+        "root": root,
+        "record": str(checked(record)),
+        "record_before": _fact(checked(record)),
+        "members": members,
+    }
     _save(context, data)
     for member in members:
         if member["before"] and stat.S_ISDIR(member["before"][2]):
@@ -121,7 +134,10 @@ def prepare(context: Path, record: str, root: str, specification: str) -> None:
 
 def mark(context: Path, expectations: str = "") -> dict:
     data = _load(context)
-    expected = json.loads(expectations or "{}")
+    expected = {
+        str(contained(path, data["root"])): value
+        for path, value in json.loads(expectations or "{}").items()
+    }
     if all("post" in member for member in data["members"]):
         _guard(context, data)
     else:
@@ -133,9 +149,17 @@ def mark(context: Path, expectations: str = "") -> dict:
             observed = _fact(path)
             if "expected" in member:
                 wanted = member["expected"]
-                matches = observed is None if wanted is None else observed is not None and observed[-1] == wanted
+                matches = (
+                    observed is None
+                    if wanted is None
+                    else observed is not None and observed[-1] == wanted
+                )
                 if isinstance(wanted, dict) and "link" in wanted:
-                    matches = observed is not None and stat.S_ISLNK(observed[2]) and os.readlink(path) == wanted["link"]
+                    matches = (
+                        observed is not None
+                        and stat.S_ISLNK(observed[2])
+                        and os.readlink(path) == wanted["link"]
+                    )
                 if not matches:
                     if observed != member["before"]:
                         _save(context, data)
@@ -145,7 +169,9 @@ def mark(context: Path, expectations: str = "") -> dict:
         _save(context, data)
         if incomplete:
             raise ValueError("mutation did not reach its expected postimage")
-    return {member["path"]: member["post"][-1] if member["post"] else None for member in data["members"]}
+    return {
+        member["path"]: member["post"][-1] if member["post"] else None for member in data["members"]
+    }
 
 
 def checkpoint(context: Path, record: str, candidate: str) -> None:

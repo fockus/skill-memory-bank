@@ -33,7 +33,7 @@ def snapshot(bank):
 
 
 @pytest.mark.parametrize("present", [True, False], ids=["task-context", "absent"])
-def test_native_root_and_child_receive_task_or_remain_absent(native, present):
+def test_native_root_and_child_receive_task_or_remain_absent(native, present):  # noqa: F811 - pytest fixture
     runtime, _ = native
     bank = runtime.project / ".memory-bank"
     (bank / "status.md").write_text("# Current task\nTASK_CONTEXT_NATIVE_SENTINEL repair the public greeting.\n")
@@ -65,7 +65,7 @@ def test_native_root_and_child_receive_task_or_remain_absent(native, present):
     runtime.observations.update(bank_present=present, root_and_child_context_checked=True)
 
 
-def test_native_private_memory_restores_fresh_root_and_reopened_session(native):
+def test_native_private_memory_restores_fresh_root_and_reopened_session(native):  # noqa: F811 - pytest fixture
     runtime, _ = native
     runtime.env["MB_SEMANTIC"] = "auto"
     private, credential = "PRIVATE_" + uuid.uuid4().hex, "sk-" + uuid.uuid4().hex * 2
@@ -134,7 +134,7 @@ def observe_native_events(runtime):
         "return async () => {abort.abort(); await pending;};\n}};\n")
 
 
-def test_native_child_and_moved_foreign_bank_cannot_modify_parent_memory(native):
+def test_native_child_and_moved_foreign_bank_cannot_modify_parent_memory(native):  # noqa: F811 - pytest fixture
     runtime, _ = native
     runtime.env["MB_AUTO_CAPTURE"] = "auto"
     config_file = runtime.project / "opencode.json"
@@ -178,7 +178,7 @@ def test_native_child_and_moved_foreign_bank_cannot_modify_parent_memory(native)
     runtime.observations.update(child_isolated=True, foreign_bank_isolated=True, foreign_capture_and_handoff=True)
 
 
-def test_native_completed_compaction_then_explicit_work_resume_keeps_run_source_item(native):
+def test_native_completed_compaction_then_explicit_work_resume_keeps_run_source_item(native):  # noqa: F811 - pytest fixture
     runtime, bundle = native
     project, bank = runtime.project, runtime.project / ".memory-bank"
     config_file = project / "opencode.json"
@@ -240,7 +240,7 @@ def test_native_completed_compaction_then_explicit_work_resume_keeps_run_source_
                                 run_id=resumed["run_id"], item_no=resumed["item_no"], source_unchanged=True)
 
 
-def test_native_completed_tools_persist_real_files_names_and_errors(native: tuple) -> None:
+def test_native_completed_tools_persist_real_files_names_and_errors(native: tuple) -> None:  # noqa: F811 - pytest fixture
     runtime, _ = native
     project, bank = runtime.project, runtime.project / ".memory-bank"
     selected = bank / "pipelines/fixture.yaml"

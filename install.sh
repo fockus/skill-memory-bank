@@ -897,6 +897,17 @@ if [ "$ONLY" = opencode ]; then
   MB_OC_PREFLIGHT_EXTENSIONS="$WITH_EXTENSIONS_FLAG" bash "$SOURCE_SKILL_DIR/adapters/opencode.sh" preflight "$PROJECT_ROOT" || { rm -rf "$MB_RUN_TMP"; exit 1; }
 fi
 
+# A shared checkout can hold another HOME's record. This install ignores it and
+# writes its own, so set it aside instead of letting the OpenCode IO refuse it.
+# An explicit MB_MANIFEST_PATH or recorded OpenCode state stays authoritative: refuse.
+if [ -z "${MB_MANIFEST_PATH:-}" ] && [ -f "$MANIFEST" ] && jq -e --arg home "$HOME" '
+  has("home") and .home != $home and
+  ([.clients[]?, .adapters_failed[]?] | index("opencode") == null)
+' "$MANIFEST" >/dev/null 2>&1; then
+  mv -f "$MANIFEST" "$MANIFEST.other-home" || { rm -rf "$MB_RUN_TMP"; exit 1; }
+  echo "[install.sh] manifest of another HOME kept as $MANIFEST.other-home" >&2
+fi
+
 # Probe metadata I/O and existing OpenCode authority before any user-file writer.
 _mb_oc_context || { rm -rf "$MB_RUN_TMP"; exit 1; }
 if ! _mb_oc_io probe "$MANIFEST" "$OPENCODE_DIR" || ! _mb_oc_preflight_existing; then

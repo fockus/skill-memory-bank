@@ -103,6 +103,22 @@ json_of() {
   echo "$(json_of "$output")" | jq -e '.ok == true'
 }
 
+@test "no_todo: mktemp templates and longer words are not placeholders" {
+  mkdir -p "$WORK/src"
+  printf 'tmp="$(mktemp "$f.XXXXXX")"\nb=$(mktemp -d x.XXXXXXXX)\nTODOS=1\n' >"$WORK/src/io.sh"
+  run bash "$RUN" --dir "$WORK"
+  [ "$status" -eq 0 ]
+  echo "$(json_of "$output")" | jq -e '.ok == true'
+}
+
+@test "no_todo: a marker next to punctuation is still detected" {
+  mkdir -p "$WORK/src"
+  printf 'x=1 # (XXX: fix)\n' >"$WORK/src/a.sh"
+  run bash "$RUN" --dir "$WORK"
+  [ "$status" -eq 0 ]
+  echo "$(json_of "$output")" | jq -e '.ok == false'
+}
+
 # ---- NULL / skip case -------------------------------------------------------
 
 @test "no_todo: empty dir (nothing to scan) → ok=null, exit 0" {

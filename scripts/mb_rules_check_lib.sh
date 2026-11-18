@@ -150,8 +150,9 @@ is_placeholder_exempt() {
 scan_placeholders() {
   local deny="${MB_PLACEHOLDER_DENY:-$MB_PLACEHOLDER_DENY_DEFAULT}"
   local pattern
-  # Convert comma-separated tokens into an ERE alternation.
-  pattern="$(printf '%s' "$deny" | sed 's/,/|/g')"
+  # Comma-separated tokens → ERE alternation of whole tokens, so a mktemp
+  # template (XXXXXX) or an identifier like TODOS is not a marker.
+  pattern="(^|[^[:alnum:]_])($(printf '%s' "$deny" | sed 's/,/|/g'))([^[:alnum:]_]|$)"
   PLACEHOLDER_HITS=0
 
   local f line_no line

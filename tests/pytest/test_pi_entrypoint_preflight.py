@@ -58,7 +58,7 @@ def _healthy(home: Path, project: Path, temp: Path) -> None:
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="Native Darwin temp selection")
-def test_native_darwin_adapter_uses_explicit_private_temp(box: tuple[Path, Path], tmp_path: Path) -> None:
+def test_native_darwin_adapter_uses_explicit_private_temp(box: tuple[Path, Path], tmp_path: Path) -> None:  # noqa: F811 - pytest fixture
     home, project = box
     temp = tmp_path / "private temp"
     temp.mkdir()
@@ -69,7 +69,7 @@ def test_native_darwin_adapter_uses_explicit_private_temp(box: tuple[Path, Path]
     assert list(temp.iterdir()) == []
 
 
-def test_missing_temp_directory_refuses_before_owned_state_changes(box: tuple[Path, Path], tmp_path: Path) -> None:
+def test_missing_temp_directory_refuses_before_owned_state_changes(box: tuple[Path, Path], tmp_path: Path) -> None:  # noqa: F811 - pytest fixture
     home, project = box
     temp = tmp_path / "temp"
     temp.mkdir()
@@ -82,7 +82,7 @@ def test_missing_temp_directory_refuses_before_owned_state_changes(box: tuple[Pa
     assert list(temp.iterdir()) == []
 
 
-def test_missing_required_module_hash_preserves_owned_install(box: tuple[Path, Path], tmp_path: Path) -> None:
+def test_missing_required_module_hash_preserves_owned_install(box: tuple[Path, Path], tmp_path: Path) -> None:  # noqa: F811 - pytest fixture
     home, project = box
     temp = tmp_path / "temp"
     temp.mkdir()
@@ -99,7 +99,7 @@ def test_missing_required_module_hash_preserves_owned_install(box: tuple[Path, P
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX required-render I/O limit")
-def test_launcher_render_io_failure_is_not_a_safe_preflight(box: tuple[Path, Path], tmp_path: Path) -> None:
+def test_launcher_render_io_failure_is_not_a_safe_preflight(box: tuple[Path, Path], tmp_path: Path) -> None:  # noqa: F811 - pytest fixture
     home, project = box
     temp = tmp_path / "temp"
     temp.mkdir()
@@ -113,7 +113,7 @@ def test_launcher_render_io_failure_is_not_a_safe_preflight(box: tuple[Path, Pat
 
 
 @pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="Real non-root file permissions")
-def test_unreadable_existing_launcher_is_an_error_not_permission(box: tuple[Path, Path], tmp_path: Path) -> None:
+def test_unreadable_existing_launcher_is_an_error_not_permission(box: tuple[Path, Path], tmp_path: Path) -> None:  # noqa: F811 - pytest fixture
     home, project = box
     temp = tmp_path / "temp"
     temp.mkdir()
@@ -136,7 +136,7 @@ def test_unreadable_existing_launcher_is_an_error_not_permission(box: tuple[Path
     assert list(temp.iterdir()) == []
 
 
-def test_healthy_owned_retry_keeps_hash_authority_and_cleans_temp(box: tuple[Path, Path], tmp_path: Path) -> None:
+def test_healthy_owned_retry_keeps_hash_authority_and_cleans_temp(box: tuple[Path, Path], tmp_path: Path) -> None:  # noqa: F811 - pytest fixture
     home, project = box
     temp = tmp_path / "temp"
     temp.mkdir()
@@ -151,7 +151,7 @@ def test_healthy_owned_retry_keeps_hash_authority_and_cleans_temp(box: tuple[Pat
 
 
 @pytest.mark.parametrize("name", ["mb-pi", "mb-pi.mjs"])
-def test_foreign_entrypoint_refuses_without_adoption(name: str, box: tuple[Path, Path], tmp_path: Path) -> None:
+def test_foreign_entrypoint_refuses_without_adoption(name: str, box: tuple[Path, Path], tmp_path: Path) -> None:  # noqa: F811 - pytest fixture
     home, project = box
     temp = tmp_path / "temp"
     temp.mkdir()

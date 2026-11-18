@@ -157,10 +157,7 @@ def main() -> int:
         span = section_bounds(body, "Attachments")
         if span is None:
             raise MkbriefError("no such section: Attachments")
-        if names:
-            rows = ["- [%s](inputs/%s)" % (n, pct(n)) for n in names]
-        else:
-            rows = ["- None"]
+        rows = ["- [%s](inputs/%s)" % (n, pct(n)) for n in names] if names else ["- None"]
         body[span[0] : span[1]] = ["## Attachments"] + rows + [""]
 
     if args.attachments_raw is not None:
