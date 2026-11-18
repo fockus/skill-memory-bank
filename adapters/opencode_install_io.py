@@ -102,14 +102,23 @@ def prepare(context: Path, record: str, root: str, specification: str) -> None:
                 material = before
             else:
                 image = context / f"before-{index}"
+                group = before[4]
                 if stat.S_ISLNK(before[2]):
                     os.link(path, image, follow_symlinks=False)
                 else:
                     shutil.copy2(path, image, follow_symlinks=False)
-                    os.chown(image, before[3], before[4])
+                    try:
+                        os.chown(image, before[3], group)
+                    except PermissionError:
+                        # A BSD directory hands new files its own group (/private/tmp: wheel),
+                        # which the owner may not be in; the copy keeps its group, as the
+                        # atomic writers' replacement files do.
+                        if before[3] != os.geteuid():
+                            raise
+                        group = os.lstat(image).st_gid
                     os.chmod(image, stat.S_IMODE(before[2]))
                 material = _fact(image)
-                if material is None or material[2:] != before[2:]:
+                if material is None or material[2:] != [before[2], before[3], group, *before[5:]]:
                     raise ValueError(f"preimage changed during preparation: {path}")
         member = {
             "path": str(path),
