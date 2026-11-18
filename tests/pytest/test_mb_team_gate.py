@@ -238,3 +238,31 @@ def test_a_preview_without_yes_changes_nothing_even_when_the_gate_fails(tmp_path
                         "--mb", str(bank)], capture_output=True, text=True, cwd=tree, stdin=subprocess.DEVNULL)
     assert r.returncode == 1 and "nothing was staged" in r.stderr
     assert _statuses(bank)["A"] == "done"
+
+
+def test_gate_output_with_absolute_paths_names_the_track(tmp_path):
+    bank, tree = _two_tracks(tmp_path, None)
+    (bank / "pipeline.yaml").write_text(DEFAULT.replace(
+        "\nteam:\n", f"\nteam:\n  rules_gate: {json.dumps('echo ' + str(tree) + '/a/new.txt:3:1: E501; exit 1')}\n"),
+        encoding="utf-8")
+    r = _commit_ids(bank, tree, "A,B")
+    assert r.returncode == 1
+    assert _statuses(bank) == {"A": "fixing", "B": "done"}
+
+
+def test_a_baseline_that_is_not_an_ancestor_is_not_used(tmp_path):
+    def big(tree: Path) -> None:
+        (tree / "a").mkdir()
+        (tree / "a" / "big.txt").write_text("line\n" * 290, encoding="utf-8")
+    bank, tree = _two_tracks(tmp_path, None, big)
+    old = _team(bank)["baseline"]
+    # rewrite history: the old baseline still exists but HEAD no longer descends from it
+    _git(tree, "checkout", "-q", "--orphan", "rewritten")
+    (tree / "a" / "big.txt").write_text("line\n" * 310, encoding="utf-8")
+    _git(tree, "add", "-A")
+    _git(tree, "commit", "-q", "-m", "upstream grew the file")
+    (tree / "a" / "big.txt").write_text("line\n" * 311, encoding="utf-8")
+    assert _git(tree, "cat-file", "-t", old).strip() == "commit"
+    r = _commit_ids(bank, tree, "A")
+    assert r.returncode == 0, r.stderr
+    assert "not an ancestor" in r.stderr or "not a reachable" in r.stderr

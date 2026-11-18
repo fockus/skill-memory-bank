@@ -231,7 +231,7 @@ def test_registry_keywords_match_whole_words_only():
 
 
 def test_a_foundation_track_all_members_depend_on_resolves_the_group():
-    f = _t("F", "Outbound call wrapper", files=["internal/outbound/**"])
+    f = _t("F", "Wrap the http client for outbound calls", files=["internal/outbound/**"])
     a = _t("A", "Call the bank over an http client", files=["a/**"], deps=["F"])
     b = _t("B", "Use the http client for retries", files=["b/**"], deps=["F"])
     assert shared.foundation_groups(team(f, a, b), []) == []
@@ -262,3 +262,10 @@ def test_next_cli_stops_on_the_signal_and_accept_releases_it(tmp_path):
     assert _cli(bank, "plan", "--accept-shared", "path:internal/platform").returncode == 0
     after = subprocess.run(nxt, capture_output=True, text=True, cwd=bank.parent).stdout
     assert "shared-foundation" not in after
+
+
+def test_an_unrelated_shared_dependency_does_not_resolve_the_group():
+    setup = _t("S", "Create the DB schema migrations", files=["migrations/**"])
+    a = _t("A", "Build the payments client calls", files=["a/**"], deps=["S"])
+    b = _t("B", "Retry through the payments client", files=["b/**"], deps=["S"])
+    assert [g["signal"] for g in shared.foundation_groups(team(setup, a, b), [])] == ["word:payments-client"]

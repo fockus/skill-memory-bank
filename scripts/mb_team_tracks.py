@@ -138,6 +138,12 @@ def cmd_track_set(args) -> int:
         track = next((t for t in team["tracks"] if t["id"] == args.id), None)
         if track is None:
             raise TeamError(f"unknown track '{args.id}'")
+        if args.contract:
+            path = _rel(bank, args.contract)
+            if track["status"] != "planned" and path != track.get("contract"):
+                raise TeamError(f"track {args.id} is {track['status']}: its contract cannot be swapped; amend the "
+                                "frozen one (mb_contract.py freeze --amend --reason R)")
+            track["contract"] = path
         if args.status:
             if not st.can_move(track["status"], args.status):
                 raise TeamError(f"track {args.id}: {track['status']} -> {args.status} is not allowed")
@@ -157,7 +163,6 @@ def cmd_track_set(args) -> int:
         if args.summary_file:
             track["summary"] = Path(args.summary_file).read_text(encoding="utf-8").strip()
         if args.contract:
-            track["contract"] = _rel(bank, args.contract)
             st.render_prompt(bank, team, args.id)
         attrs = st.pipeline_attrs(args)
         if attrs:

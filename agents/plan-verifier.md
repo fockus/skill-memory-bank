@@ -155,10 +155,11 @@ RULES drift is the silent killer of architectural integrity. Read the effective 
 
 Take the file from the checker so you and it judge against the same rules: `bash "$SKILL_DIR/scripts/mb-rules-check.sh"
 --files <changed csv> --out json` → `rules_source` (`bundled:rules/RULES.md` = the skill's own `rules/RULES.md`). By hand,
-the project root is the parent of the resolved bank:
+the project root is the parent of the bank when the bank is a `.memory-bank` folder, else the current project dir
+(the checker's rule):
 
 ```bash
-PROJECT_ROOT="$(dirname "$BANK")"
+case "$(basename "$BANK")" in .memory-bank) PROJECT_ROOT="$(dirname "$BANK")" ;; *) PROJECT_ROOT="$PWD" ;; esac
 if [ -f "$PROJECT_ROOT/RULES.md" ]; then       # project root rules win
   RULES="$PROJECT_ROOT/RULES.md"
 elif [ -f "$BANK/RULES.md" ]; then

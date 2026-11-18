@@ -23,7 +23,9 @@ PHRASE_RE = re.compile(r"\b([a-z][\w-]*)[\s-]+(kit|boundary|client|registry)\b",
 PATH_RE = re.compile(r"(?:[\w.-]+/)+[\w.*-]*")
 # Words before kit/boundary/client/registry that do not name a mechanism: articles, pronouns, prepositions,
 # conjunctions and quantifiers ("send errors to client", "for each client").
-NOT_A_QUALIFIER = frozenset(["a", "an", "the", "this", "that", "these", "those", "its", "their", "our", "your", "my", "each", "every", "any", "all", "some", "no", "new", "one", "own", "same", "to", "for", "with", "and", "or", "per", "from", "by", "of", "in", "on", "into", "via", "as", "at", "over", "under", "through", "between"])
+NOT_A_QUALIFIER = frozenset(
+    ["a", "an", "the", "this", "that", "these", "those", "its", "their", "our", "your", "my", "each", "every", "any", "all", "some", "no", "new", "one", "own", "same", "to", "for", "with", "and", "or", "per", "from", "by", "of", "in", "on", "into", "via", "as", "at", "over", "under", "through", "between"]
+)
 EXTRACT_RE = re.compile(r"^extract:\s*([\w./-]+)")
 
 
@@ -105,14 +107,16 @@ def foundation_groups(team: dict, rows: list[dict]) -> list[dict]:
     accepted = set(team.get("accepted_shared") or [])
     existing = {f"mech:{r['mechanism']}" for r in rows if r["status"] == "exists"}
     closure = _closure(tracks)
+    by_id = {t["id"]: t for t in tracks}
     groups = []
     for s, ids in by_signal.items():
         if len(ids) < 2 or s in accepted or s in existing:
             continue
-        # Resolved by a foundation: one member every other member depends on, or a track (inside or outside
-        # the group) that every member depends on.
-        if any(all(f in closure[o] for o in ids if o != f) for f in ids) or set.intersection(
-            *(closure[i] for i in ids)
+        # Resolved by a foundation: one member every other member depends on, or a track every member
+        # depends on that carries the signal itself (a setup track everyone depends on does not count).
+        common = set.intersection(*(closure[i] for i in ids))
+        if any(all(f in closure[o] for o in ids if o != f) for f in ids) or any(
+            s in signals(by_id[d], rows) for d in common if d in by_id
         ):
             continue
         groups.append(

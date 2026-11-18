@@ -301,3 +301,26 @@ def test_run_reports_amendments_and_freeze_warns_without_red_evidence(tmp_path):
     assert _run("freeze", str(contract), "--tree", str(tmp_path), "--amend", "--reason", "relax").returncode == 0
     out = json.loads(_run("run", str(contract), "--tree", str(tmp_path), "--json").stdout)
     assert out["amendments"] == [{"reason": "relax", "at": out["amendments"][0]["at"]}]
+
+
+def test_contract_attached_with_dispatch_in_one_call_must_be_frozen(tmp_path):
+    bank = _bank(tmp_path)
+    contract = bank / "contracts" / "A.md"
+    contract.parent.mkdir()
+    contract.write_text("# c\n\n## dod\n- x — `test -f nope` — exit: 0\n", encoding="utf-8")
+    assert _cli(bank, "init", "demo", "--no-goal", "--tree", str(bank.parent)).returncode == 0
+    assert _cli(bank, "track", "add", "A", "--task", "t", "--dod", "d", "--size", "small").returncode == 0
+    r = _cli(bank, "track", "set", "A", "--status", "dispatched", "--contract", "contracts/A.md")
+    assert r.returncode == 2 and "freeze" in r.stderr
+    assert _team(bank)["tracks"][0]["status"] == "planned"
+
+
+def test_a_dispatched_track_cannot_swap_its_contract(tmp_path):
+    bank, contract = _team_with_contract(tmp_path)
+    assert _run("freeze", str(contract), "--tree", str(bank.parent)).returncode == 0
+    assert _cli(bank, "track", "set", "A", "--status", "dispatched").returncode == 0
+    other = contract.with_name("B.md")
+    other.write_text("# c\n\n## dod\n- x — `true` — exit: 0\n", encoding="utf-8")
+    r = _cli(bank, "track", "set", "A", "--contract", "contracts/B.md")
+    assert r.returncode == 2 and "amend" in r.stderr
+    assert _team(bank)["tracks"][0]["contract"] == "contracts/A.md"

@@ -13,7 +13,8 @@ than the executor, in `<bank>/contracts/<id>.md`: `**Covers:** REQ-001, …` (ea
 --tree (default: the project that holds the bank); a timeout kills the whole process group.
 
 freeze: every executable spec item must FAIL now (red anchor); hash + red evidence go to `<contract>.lock.json`.
-A changed (`drifted`) or unreadable (`corrupt`) lock fails `run` until `freeze --amend --reason R` (recorded).
+A changed lock (`drifted`) fails `run` until `freeze --amend --reason R` (recorded); an unreadable one (`corrupt`)
+until it is removed and the contract frozen again.
 Exit: 0 all executable items pass · 1 a failure, a covered REQ without an item, a bad lock, freeze refused ·
 2 malformed contract or usage.
 """
@@ -183,7 +184,7 @@ def run(contract: Path, tree: str, timeout: int) -> dict:
                 "line": 0,
                 "status": "fail",
                 "reason": "contract changed since freeze; amend with `freeze --amend --reason R`"
-                if frozen == "drifted" else "lock file is unreadable; freeze again",
+                if frozen == "drifted" else "lock file is unreadable; remove it and freeze again (the red run repeats)",
             }
         )
     summary = {s: sum(1 for r in results if r["status"] == s) for s in ("pass", "fail", "manual")}

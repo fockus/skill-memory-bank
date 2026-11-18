@@ -12,6 +12,7 @@ goes back to `fixing` (the caller re-dispatches it with the findings).
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -39,6 +40,9 @@ def _base(team: dict) -> tuple[str | None, list[str]]:
         ).returncode
         == 0
     )
+    if ok and st.run(["git", "-C", team["tree"], "merge-base", "--is-ancestor", team["baseline"], "HEAD"]).returncode:
+        return None, [f"baseline {team['baseline'][:12]} is not an ancestor of HEAD (history rewritten): the SRP "
+                      "check ran without --base, so a large file is a WARNING, never CRITICAL"]
     if ok:
         return team["baseline"], []
     return None, [
@@ -122,8 +126,11 @@ def _gate(
         return {}, []
     lines = (out + err).strip().splitlines()
     head = f"rules gate `{gate}` exit {code}:"
+    # Linters print absolute paths too (`/abs/tree/a/x.py:3`): match against tree-relative text.
+    roots = {f"{team['tree']}/", f"{os.path.realpath(team['tree'])}/"}
+    rel = [functools.reduce(lambda ln, root: ln.replace(root, ""), roots, ln) for ln in lines]
     hits = {
-        tid: [ln for ln in lines if any(_names(ln, f) for f in files)]
+        tid: [ln for ln, r in zip(lines, rel, strict=True) if any(_names(r, f) for f in files)]
         for tid, files in owned.items()
     }
     hits = {tid: found for tid, found in hits.items() if found}
