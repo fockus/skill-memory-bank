@@ -6,24 +6,16 @@ Usage:
   mb_contract.py freeze <contract.md> [--tree D] [--amend --reason R]
 
 A contract is written from the plan stage / spec task / team track BEFORE implementation, by someone other
-than the executor, and lives in `<bank>/contracts/<id>.md`:
+than the executor, in `<bank>/contracts/<id>.md`: `**Covers:** REQ-001, …` (each covered REQ needs a spec item),
+`## spec` (`- REQ-001 <what> — <Eval>`, acceptance from the REQ text), `## rules` and `## dod` (`- <what> — <Eval>`).
+`<Eval>` is the task Eval syntax `` `<command>` — exit: N; output~: <regex> `` (default `exit: 0`) plus
+`output-empty`; or `- <what> — manual: <reason>` for the verifier's judgement. Commands run with `bash -c` in
+--tree (default: the project that holds the bank); a timeout kills the whole process group.
 
-  **Covers:** REQ-001, REQ-002            (the REQs in scope; each needs a spec item)
-  ## spec    — per REQ: `- REQ-001 <what> — <Eval>`   (acceptance from the REQ text and its EARS criteria)
-  ## rules   — `- <what> — <Eval>`                    (lint-new, forbidden imports, size thresholds)
-  ## dod     — `- <what> — <Eval>`                    (each plan DoD bullet)
-
-`<Eval>` is the task Eval syntax: `` `<command>` — exit: N; output~: <regex> `` (default `exit: 0`), plus
-`output-empty` (stdout must be empty). An item that cannot be a command is `- <what> — manual: <reason>`:
-it is reported `manual` for the verifier's judgement. Commands run with `bash -c` in --tree (default: the
-project that holds the bank).
-
-freeze: every executable spec item must FAIL now (the red anchor: the tests target missing behaviour); the
-contract hash and the red evidence go to `<contract>.lock.json`. A frozen contract that changes fails `run`
-(`frozen: drifted`) until `freeze --amend --reason R` records the amendment (no red run).
-
-Exit: 0 all executable items pass (manual allowed) · 1 a failure, a covered REQ without a spec item, a
-drifted contract, or freeze refused · 2 malformed contract or usage.
+freeze: every executable spec item must FAIL now (red anchor); hash + red evidence go to `<contract>.lock.json`.
+A changed (`drifted`) or unreadable (`corrupt`) lock fails `run` until `freeze --amend --reason R` (recorded).
+Exit: 0 all executable items pass · 1 a failure, a covered REQ without an item, a bad lock, freeze refused ·
+2 malformed contract or usage.
 """
 
 from __future__ import annotations
@@ -31,7 +23,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -102,23 +96,33 @@ def _item(section: str, body: str, no: int) -> dict:
     }
 
 
+def run_shell(cmd: str, cwd: str, timeout: int) -> tuple[int | None, str, str]:
+    """(exit code, stdout, stderr) of `bash -c cmd`; on timeout the whole process group is killed → code None."""
+    proc = subprocess.Popen(["bash", "-c", cmd], cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, start_new_session=True)
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        return None, "", ""
+    return proc.returncode, stdout, stderr
+
+
 def run_item(item: dict, tree: str, timeout: int) -> dict:
     out = {k: item[k] for k in ("section", "id", "line")}
     if "manual" in item:
         return {**out, "status": "manual", "reason": item["manual"]}
-    try:
-        r = subprocess.run(
-            ["bash", "-c", item["cmd"]], cwd=tree, capture_output=True, text=True, timeout=timeout
-        )
-    except subprocess.TimeoutExpired:
+    code, stdout, stderr = run_shell(item["cmd"], tree, timeout)
+    if code is None:
         return {**out, "status": "fail", "reason": f"timeout after {timeout}s", "cmd": item["cmd"]}
-    text = r.stdout + r.stderr
+    text = stdout + stderr
     reasons = []
-    if r.returncode != item["exit"]:
-        reasons.append(f"exit {r.returncode}, expected {item['exit']}")
+    if code != item["exit"]:
+        reasons.append(f"exit {code}, expected {item['exit']}")
     if item["output_re"] and not re.search(item["output_re"], text):
         reasons.append(f"output does not match /{item['output_re']}/")
-    if item["output_empty"] and r.stdout.strip():
+    if item["output_empty"] and stdout.strip():
         reasons.append("output is not empty")
     tail = "\n".join(text.strip().splitlines()[-TAIL:])
     return {
@@ -126,7 +130,7 @@ def run_item(item: dict, tree: str, timeout: int) -> dict:
         "status": "fail" if reasons else "pass",
         "reason": "; ".join(reasons),
         "cmd": item["cmd"],
-        "exit": r.returncode,
+        "exit": code,
         "tail": tail,
     }
 
@@ -140,13 +144,17 @@ def _sha(contract: Path) -> str:
 
 
 def frozen_state(contract: Path) -> str:
-    """`yes` (lock matches), `no` (no lock) or `drifted` (changed since freeze)."""
+    """`yes` (lock matches), `no` (no lock), `drifted` (changed since freeze) or `corrupt` (unreadable lock)."""
     lock = _lock_path(contract)
     if not lock.is_file():
         return "no"
+    try:
+        sha = json.loads(lock.read_text(encoding="utf-8"))["sha256"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return "corrupt"
     return (
         "yes"
-        if json.loads(lock.read_text(encoding="utf-8"))["sha256"] == _sha(contract)
+        if sha == _sha(contract)
         else "drifted"
     )
 
@@ -167,23 +175,34 @@ def run(contract: Path, tree: str, timeout: int) -> dict:
         if req not in have
     ]
     frozen = frozen_state(contract)
-    if frozen == "drifted":
+    if frozen in ("drifted", "corrupt"):
         results.append(
             {
                 "section": "contract",
                 "id": "freeze",
                 "line": 0,
                 "status": "fail",
-                "reason": "contract changed since freeze; amend with `freeze --amend --reason R`",
+                "reason": "contract changed since freeze; amend with `freeze --amend --reason R`"
+                if frozen == "drifted" else "lock file is unreadable; freeze again",
             }
         )
     summary = {s: sum(1 for r in results if r["status"] == s) for s in ("pass", "fail", "manual")}
-    return {"contract": str(contract), "frozen": frozen, "items": results, "summary": summary}
+    return {"contract": str(contract), "frozen": frozen, "items": results, "summary": summary,
+            "amendments": _amendments(contract) if frozen == "yes" else []}
+
+
+def _amendments(contract: Path) -> list[dict]:
+    """Recorded changes after freeze — the verifier checks each one was the orchestrator's decision."""
+    lock = json.loads(_lock_path(contract).read_text(encoding="utf-8"))
+    return [{"reason": a["reason"], "at": a["at"]} for a in lock.get("amendments", [])]
 
 
 def freeze(contract: Path, tree: str, timeout: int, amend: bool, reason: str) -> int:
     lock_path, sha = _lock_path(contract), _sha(contract)
     _covers, items = parse(contract.read_text(encoding="utf-8"))
+    if frozen_state(contract) == "corrupt":
+        print(f"{lock_path} is unreadable: remove it and freeze again (the red run repeats)", file=sys.stderr)
+        return 1
     lock = json.loads(lock_path.read_text(encoding="utf-8")) if lock_path.is_file() else None
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     if amend:
@@ -203,6 +222,14 @@ def freeze(contract: Path, tree: str, timeout: int, amend: bool, reason: str) ->
             for i in items
             if i["section"] == "spec" and "manual" not in i
         ]
+        weak = [i["id"] for i in items if i["section"] == "spec" and "cmd" in i
+                and not i["output_re"] and not i["output_empty"]]
+        if weak:
+            print(f"warning: exit-only anchor on {', '.join(weak)} — `go test -run X` exits 0 with no matching "
+                  "test; add `output~:` naming the test (e.g. `--- PASS: TestX`)", file=sys.stderr)
+        if not red:
+            print("warning: no executable spec item — the freeze has no red evidence that the checks target "
+                  "missing behaviour", file=sys.stderr)
         green = [r["id"] for r in red if r["status"] == "pass"]
         if green:
             print(
@@ -242,7 +269,7 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     contract = Path(args.contract).resolve()
     # <project>/.memory-bank/contracts/<id>.md → <project>
-    tree = args.tree or str(contract.parents[2])
+    tree = args.tree or str(contract.parents[2] if len(contract.parents) > 2 else contract.parent)
     try:
         if args.command == "freeze":
             return freeze(contract, tree, args.timeout, args.amend, args.reason)

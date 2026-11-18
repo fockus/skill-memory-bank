@@ -165,4 +165,4 @@ first (Step 1.5) and has a `Mode: contract` to write one.
 
 ## Gate (plan success criterion)
 
-All five stages' DoD checked, full pytest + bats suite green, no file pushed over 300 lines by this change.
+All six stages' DoD checked, full pytest + bats suite green, no file pushed over 300 lines by this change.

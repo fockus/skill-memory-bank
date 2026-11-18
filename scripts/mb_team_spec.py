@@ -13,7 +13,14 @@ from __future__ import annotations
 
 import re
 
-SPEC_RE = re.compile(r"(?:^|/)(specs/[^/]+)/")
+SPEC_RE = re.compile(r"^(specs/[^/]+)/")  # bank-relative only: `api/specs/v1/openapi.yaml` is not a bank spec
+ANY_SPEC_RE = re.compile(r"(?:^|/)(specs/[^/]+)(?:/|$)")
+
+
+def normalize(arg: str) -> str | None:
+    """`specs/<topic>` from what a user types: absolute, `.memory-bank/specs/x/`, `specs/x/tasks.md`."""
+    m = ANY_SPEC_RE.search(arg.rstrip("/"))
+    return m.group(1) if m else None
 
 
 def team_specs(team: dict) -> list[str]:

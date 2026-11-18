@@ -74,7 +74,11 @@ def _collect(args) -> int:
             raise _DryRun(result)
         if team.get("goal"):
             result["goal"] = goal_criteria(bank)
-        result["duplicates"] = _wave_duplicates(team)
+        snapshot = json.loads(json.dumps(team))
+    try:  # advisory: a failing scan must not undo the collect that already appended progress
+        result["duplicates"] = _wave_duplicates(snapshot)
+    except st.TeamError as exc:
+        print(f"warning: duplicate scan skipped: {exc}", file=sys.stderr)
     _print_collect(result, args.json)
     return 1 if result["errors"] else 0
 

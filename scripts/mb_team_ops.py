@@ -67,11 +67,6 @@ def cmd_commit(args) -> int:
     board = json.loads(st.run(["bash", st.script("mb-coord.sh"), "tracks", "--json", "--mb", bank]).stdout or "{}")
     owned, foreign = commit_plan(team, board, ids)
     by_id = {t["id"]: t for t in team["tracks"]}
-    failures = gate.check(team, bank, {i: [p for p in owned if st.owns(by_id[i], p)] for i in ids})
-    if failures:
-        gate.send_back(bank, topic, list(failures))
-        raise TeamError("commit refused by the rules gate; back to fixing:\n" + "".join(
-            f"  {tid}:\n" + "".join(f"    {line}\n" for line in lines) for tid, lines in failures.items()), 1)
     print(f"to commit ({len(owned)}):\n" + "".join(f"  {p}\n" for p in owned), end="")
     if foreign:
         print(f"foreign, not staged ({len(foreign)}):\n" + "".join(f"  {p}\n" for p in foreign), end="")
@@ -80,6 +75,15 @@ def cmd_commit(args) -> int:
             raise TeamError("no TTY to confirm: rerun with --yes to commit; nothing was staged", 1)
         if input(f"Commit {len(owned)} files? [y/N] ").strip().lower() not in ("y", "yes"):
             raise TeamError("aborted; nothing was staged", 1)
+    failures, refusal, warnings = gate.check(team, bank, {i: [p for p in owned if st.owns(by_id[i], p)] for i in ids})
+    for w in warnings:
+        print(f"warning: {w}", file=sys.stderr)
+    if failures:
+        gate.send_back(bank, topic, list(failures))
+    if failures or refusal:
+        raise TeamError("commit refused by the rules gate" + ("; back to fixing:\n" if failures else ":\n") + "".join(
+            f"  {tid}:\n" + "".join(f"    {line}\n" for line in lines) for tid, lines in failures.items())
+            + "".join(f"  {line}\n" for line in refusal), 1)
     snapshot = None
     with contextlib.suppress(TeamError):  # no index snapshot: commit without rollback
         snapshot = st.vcs(team, "index-save", "--", *owned)

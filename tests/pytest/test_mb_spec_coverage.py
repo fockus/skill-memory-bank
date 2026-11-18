@@ -149,7 +149,11 @@ def test_a_new_collect_makes_the_spec_check_stale():
 
 def test_spec_check_cli_records_the_result(tmp_path):
     bank = _bank(tmp_path)
+    (bank / "specs" / "access").mkdir(parents=True)
+    (bank / "specs" / "access" / "tasks.md").write_text("# t\n", encoding="utf-8")
     assert _cli(bank, "init", "demo", "--no-goal", "--tree", str(bank.parent)).returncode == 0
+    assert _cli(bank, "track", "add", "A", "--task", "t", "--dod", "d", "--size", "small",
+                "--source", "specs/access/tasks.md").returncode == 0
     r = _cli(bank, "spec-check", "specs/access", "--gaps", "1", "--report", "reports/demo/spec.md")
     assert r.returncode == 0, r.stderr
     rec = _team(bank)["spec_checks"]["specs/access"]
@@ -161,3 +165,77 @@ def test_plan_verifier_checks_each_covered_req_against_its_own_text():
     text = (REPO_ROOT / "agents" / "plan-verifier.md").read_text(encoding="utf-8")
     assert "REQ covered by task text only, no code/test evidence" in text
     assert "mb_spec_coverage.py" in text
+
+
+# ── review fixes (b728474) ───────────────────────────────────────────────────
+
+def test_spec_check_normalizes_the_key_and_refuses_an_unknown_spec(tmp_path):
+    bank = _bank(tmp_path)
+    (bank / "specs" / "access").mkdir(parents=True)
+    (bank / "specs" / "access" / "tasks.md").write_text("# t\n", encoding="utf-8")
+    assert _cli(bank, "init", "demo", "--no-goal", "--tree", str(bank.parent)).returncode == 0
+    assert _cli(bank, "track", "add", "A", "--task", "t", "--dod", "d", "--size", "small",
+                "--source", "specs/access/tasks.md").returncode == 0
+    r = _cli(bank, "spec-check", str(bank / "specs" / "access"), "--gaps", "0")
+    assert r.returncode == 0, r.stderr
+    assert list(_team(bank)["spec_checks"]) == ["specs/access"]
+    assert _cli(bank, "spec-check", ".memory-bank/specs/access/", "--gaps", "0").returncode == 0
+    assert list(_team(bank)["spec_checks"]) == ["specs/access"]
+    bad = _cli(bank, "spec-check", "specs/typo", "--gaps", "0")
+    assert bad.returncode == 2 and "specs/access" in bad.stderr
+
+
+def test_only_bank_relative_spec_paths_count():
+    t = team(track("A"))
+    t["tracks"][0]["source"] = "/abs/api/specs/v1/openapi.yaml"
+    assert team_spec.team_specs(t) == []
+
+
+def test_requirements_without_parsable_reqs_is_bad_input(tmp_path):
+    spec = tmp_path / ".memory-bank" / "specs" / "x"
+    spec.mkdir(parents=True)
+    (spec / "requirements.md").write_text("### REQ-001\nThe system shall work.\n", encoding="utf-8")
+    assert _coverage(spec, tmp_path).returncode == 2
+
+
+def test_a_blank_line_does_not_cut_the_acceptance_criteria(tmp_path):
+    spec = _spec(tmp_path)
+    (spec / "requirements.md").write_text(
+        "- **REQ-001** (Ubiquitous): The system shall issue a card.\n\n  Acceptance: a card number is returned.\n",
+        encoding="utf-8")
+    rows = json.loads(_coverage(spec, tmp_path).stdout)["reqs"]
+    assert "card number is returned" in rows[0]["text"]
+
+
+def test_a_req_id_defined_in_two_specs_needs_the_spec_named_in_the_test(tmp_path):
+    spec = _spec(tmp_path)
+    other = spec.parent / "billing"
+    other.mkdir()
+    (other / "requirements.md").write_text("- **REQ-001** (Ubiquitous): The system shall bill.\n", encoding="utf-8")
+    rows = {r["req"]: r for r in json.loads(_coverage(spec, tmp_path).stdout)["reqs"]}
+    assert rows["REQ-001"]["status"] != "tested"  # issue_test.go names REQ-001 but not the access spec
+    (tmp_path / "internal" / "cards" / "issue_test.go").write_text("// access:REQ-001 issue a card\n", encoding="utf-8")
+    rows = {r["req"]: r for r in json.loads(_coverage(spec, tmp_path).stdout)["reqs"]}
+    assert rows["REQ-001"]["status"] == "tested"
+
+
+def test_collect_survives_a_failing_duplicate_scan_without_double_progress(tmp_path):
+    bank = _bank(tmp_path)
+    tree = bank.parent
+    assert _cli(bank, "init", "demo", "--no-goal", "--tree", str(tree)).returncode == 0
+    for tid in ("A", "B"):
+        assert _cli(bank, "track", "add", tid, "--task", "t", "--dod", "d", "--files", f"{tid.lower()}/**",
+                    "--size", "small").returncode == 0
+        for s in ("dispatched", "returned"):
+            assert _cli(bank, "track", "set", tid, "--status", s).returncode == 0
+        (bank / "reports" / "demo" / f"{tid}.md").write_text("STATUS: DONE\n", encoding="utf-8")
+    t = _team(bank)
+    t["baseline"] = "deadbeef" * 5
+    (bank / "reports" / "demo" / "team.json").write_text(json.dumps(t), encoding="utf-8")
+    collect = [sys.executable, str(SCRIPTS / "mb_team_ops.py"), "collect", "--mb", str(bank)]
+    r = subprocess.run(collect, capture_output=True, text=True, cwd=tree)
+    assert r.returncode == 0, r.stderr
+    assert all(x["collected"] for x in _team(bank)["tracks"])
+    before = (bank / "progress.md").read_text(encoding="utf-8")
+    subprocess.run(collect, capture_output=True, text=True, cwd=tree)
+    assert (bank / "progress.md").read_text(encoding="utf-8") == before

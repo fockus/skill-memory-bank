@@ -34,7 +34,7 @@ verifier and the team commit gate run (`scripts/mb_contract.py`, format in its h
 ```markdown
 **Covers:** REQ-001, REQ-002
 ## spec
-- REQ-002 recovery only through an operator — `go test ./internal/access -run TestRecovery_REQ_002` — exit: 0
+- REQ-002 recovery only through an operator — `go test -v -run '^TestRecovery_REQ_002$' ./internal/access` — exit: 0; output~: --- PASS: TestRecovery_REQ_002
 ## rules
 - lint on new code — `make lint-new` — exit: 0
 - no domain→infra import — `grep -rn "infrastructure" internal/domain || true` — output-empty
@@ -43,7 +43,8 @@ verifier and the team commit gate run (`scripts/mb_contract.py`, format in its h
 ```
 
 Then `python3 <skill>/scripts/mb_contract.py freeze <contract>`: every spec item must fail now (red evidence goes
-to `<contract>.lock.json`). The executor never edits it; a change needs `freeze --amend --reason R`.
+to `<contract>.lock.json`). Anchor spec items on the test's own output: `go test -run X` exits 0 when no test
+matches. The executor never edits it; a change needs `freeze --amend --reason R` (recorded, listed by `run`).
 
 ## 3. Contract tests
 

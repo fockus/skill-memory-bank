@@ -21,20 +21,9 @@ import mb_team_state as st  # module attr: mb_team_state imports render, which i
 SHARED_DIRS = ("platform", "shared", "common", "kit")
 PHRASE_RE = re.compile(r"\b([a-z][\w-]*)[\s-]+(kit|boundary|client|registry)\b", re.I)
 PATH_RE = re.compile(r"(?:[\w.-]+/)+[\w.*-]*")
-NOT_A_QUALIFIER = {
-    "a",
-    "an",
-    "the",
-    "this",
-    "that",
-    "its",
-    "our",
-    "each",
-    "every",
-    "new",
-    "one",
-    "own",
-}
+# Words before kit/boundary/client/registry that do not name a mechanism: articles, pronouns, prepositions,
+# conjunctions and quantifiers ("send errors to client", "for each client").
+NOT_A_QUALIFIER = frozenset(["a", "an", "the", "this", "that", "these", "those", "its", "their", "our", "your", "my", "each", "every", "any", "all", "some", "no", "new", "one", "own", "same", "to", "for", "with", "and", "or", "per", "from", "by", "of", "in", "on", "into", "via", "as", "at", "over", "under", "through", "between"])
 EXTRACT_RE = re.compile(r"^extract:\s*([\w./-]+)")
 
 
@@ -61,8 +50,9 @@ def load_registry(bank: str) -> list[dict]:
 
 
 def _named(row: dict, text: str) -> bool:
-    low = text.lower()
-    return any(w.lower() in low for w in (row["mechanism"], *row["keywords"]))
+    """Mechanism name or a keyword as a whole word (`id` must not match `validate`)."""
+    return any(re.search(rf"(?<![\w-]){re.escape(w)}(?![\w-])", text, re.I)
+               for w in (row["mechanism"], *row["keywords"]))
 
 
 def relevant(rows: list[dict], track: dict) -> list[dict]:
@@ -86,7 +76,7 @@ def signals(track: dict, rows: list[dict]) -> set[str]:
     paths = [*(track.get("files") or []), *PATH_RE.findall(text)]
     out = {f"path:{p}" for p in map(_shared_prefix, paths) if p}
     out |= {
-        f"word:{m.group(1).lower()} {m.group(2).lower()}"
+        f"word:{m.group(1).lower()}-{m.group(2).lower()}"
         for m in PHRASE_RE.finditer(text)
         if m.group(1).lower() not in NOT_A_QUALIFIER
     }
@@ -119,7 +109,11 @@ def foundation_groups(team: dict, rows: list[dict]) -> list[dict]:
     for s, ids in by_signal.items():
         if len(ids) < 2 or s in accepted or s in existing:
             continue
-        if any(all(f in closure[o] for o in ids if o != f) for f in ids):
+        # Resolved by a foundation: one member every other member depends on, or a track (inside or outside
+        # the group) that every member depends on.
+        if any(all(f in closure[o] for o in ids if o != f) for f in ids) or set.intersection(
+            *(closure[i] for i in ids)
+        ):
             continue
         groups.append(
             {
@@ -164,6 +158,7 @@ def prompt_section(rows: list[dict]) -> str:
         else:
             lines.append(
                 f"- `{r['mechanism']}` is being extracted to `{r['home']}`: do not write your own; if you "
-                f"need it before it lands, post `HANDOVER · extract:{r['mechanism']}` and go on with the rest."
+                f"need it before it lands, run `mb-coord.sh append --type HANDOVER --track <id> --title "
+                f"extract:{r['mechanism']}` and go on with the rest."
             )
     return "\n".join(lines) + "\n\n"

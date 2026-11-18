@@ -7,7 +7,7 @@ Usage (through mb-team.sh, which adds --mb <bank>):
   mb_team_tracks.py track add <id> (--task T | --task-file F) --dod D [--dod D]... [--title T]
       [--role R] [--files g1,g2] [--deps A,B] [--resources r1] [--source P] [--contract C] [pipeline attrs]
       [--layer attr|prompt]   (--contract: frozen mb_contract.py file; `dispatched` refuses an unfrozen one)
-  mb_team_tracks.py track set <id> [--status S [--summary-file F]] [pipeline attrs] [--layer attr|prompt]
+  mb_team_tracks.py track set <id> [--status S [--summary-file F]] [--contract C] [pipeline attrs] [--layer attr|prompt]
   mb_team_tracks.py prompt <id> · known-red add <test-id> --reason R · known-red list
   mb_team_tracks.py spec-check specs/<topic> --gaps N [--report F]   # record a wave-end spec verification
   mb_team_tracks.py plan [--json] [--accept-shared S]   # mb_team_plan.py: table, waves, readiness
@@ -156,6 +156,9 @@ def cmd_track_set(args) -> int:
             track["status"] = args.status
         if args.summary_file:
             track["summary"] = Path(args.summary_file).read_text(encoding="utf-8").strip()
+        if args.contract:
+            track["contract"] = _rel(bank, args.contract)
+            st.render_prompt(bank, team, args.id)
         attrs = st.pipeline_attrs(args)
         if attrs:
             track["layers"][args.layer] += attrs
@@ -175,10 +178,13 @@ def cmd_prompt(args) -> int:
 
 
 def cmd_spec_check(args) -> int:
-    if args.gaps < 0 or not spec_mod.SPEC_RE.search(args.spec.rstrip("/") + "/"):
+    key = spec_mod.normalize(args.spec)
+    if args.gaps < 0 or not key:
         raise TeamError("spec-check specs/<topic> --gaps N (N >= 0) [--report F]")
     with st.locked(args.mb, st.find_topic(args.mb, args.topic)) as team:
-        team.setdefault("spec_checks", {})[args.spec.rstrip("/")] = {
+        if key not in spec_mod.team_specs(team):
+            raise TeamError(f"spec-check: {key} is not a spec of this team; team specs {spec_mod.team_specs(team)}")
+        team.setdefault("spec_checks", {})[key] = {
             "gaps": args.gaps, "report": args.report or None, "wave": spec_mod.wave_key(team), "at": st.now()}
     return 0
 
@@ -229,6 +235,7 @@ def _parser() -> argparse.ArgumentParser:
     tset.add_argument("id")
     tset.add_argument("--status", default="", choices=("", *st.MOVES, *st.TERMINAL))
     tset.add_argument("--summary-file", default="")
+    tset.add_argument("--contract", default="")
     prompt = sub.add_parser("prompt", parents=[common])
     prompt.add_argument("id")
     known = sub.add_parser("known-red", parents=[common])

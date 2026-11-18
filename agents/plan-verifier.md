@@ -64,7 +64,9 @@ python3 "$SKILL_DIR/scripts/mb_contract.py" run <contract> --tree <project> --js
 ```
 
 - every `fail` item is CRITICAL (`contract <section> <id>: <reason>`), `frozen: drifted` is CRITICAL (changed
-  after freeze without `freeze --amend`), `frozen: no` is a WARNING (never frozen — no red evidence);
+  after freeze without `freeze --amend`), `frozen: corrupt` is CRITICAL, `frozen: no` is a WARNING (never frozen — no
+  red evidence); list every entry of `amendments` with its reason — an amendment that weakens a spec item without an
+  orchestrator decision on the board is CRITICAL;
 - a covered REQ without a spec item is CRITICAL (the runner reports it);
 - your own judgement goes to the `manual` items and to the quality of the tests the spec items run (does the test
   exercise the REQ text, or only a flag?). Executable items that pass need no re-proof by reading.
@@ -151,8 +153,12 @@ work; list those first.
 
 RULES drift is the silent killer of architectural integrity. Read the effective rules file with project-first precedence — the project's root `RULES.md` (its §0 checklist and thresholds), then the bank copy `./.memory-bank/RULES.md`, then the global fallback at `~/.claude/RULES.md`. `mb-rules-check.sh` reports the same choice as `rules_source`:
 
+Take the file from the checker so you and it judge against the same rules: `bash "$SKILL_DIR/scripts/mb-rules-check.sh"
+--files <changed csv> --out json` → `rules_source` (`bundled:rules/RULES.md` = the skill's own `rules/RULES.md`). By hand,
+the project root is the parent of the resolved bank:
+
 ```bash
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PROJECT_ROOT="$(dirname "$BANK")"
 if [ -f "$PROJECT_ROOT/RULES.md" ]; then       # project root rules win
   RULES="$PROJECT_ROOT/RULES.md"
 elif [ -f "$BANK/RULES.md" ]; then

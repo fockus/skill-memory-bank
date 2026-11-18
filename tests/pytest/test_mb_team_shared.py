@@ -8,6 +8,7 @@ for signals ≥2 tracks share, and `extract` actions for tracks that hit another
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -78,7 +79,7 @@ def test_signals_cover_shared_paths_phrases_and_registry_hits():
     assert shared.signals(t, rows) == {
         "path:internal/platform",
         "path:pkg/shared",
-        "word:admin kit",
+        "word:admin-kit",
         "mech:http-error-mapper",
     }
 
@@ -213,3 +214,51 @@ def test_reviewer_rubrics_make_a_second_registry_copy_a_blocker():
         assert "blocker" in " ".join(lines[at - 1:at + 3]), name
     rubric = (REPO_ROOT / "references" / "pipeline.default.yaml").read_text(encoding="utf-8")
     assert "shared-mechanisms.md mechanism outside its home is a blocker" in rubric
+
+
+# ── review fixes (b728474): false positives and the documented resolution ────
+
+def test_prepositions_before_client_are_not_a_shared_phrase():
+    a = _t("A", "Return 404 to client when the card is missing")
+    b = _t("B", "Send validation errors to client")
+    assert shared.foundation_groups(team(a, b), []) == []
+
+
+def test_registry_keywords_match_whole_words_only():
+    rows = [{"mechanism": "request-id", "home": "p/r", "status": "exists", "keywords": ["id", "log"]}]
+    assert shared.relevant(rows, _t("A", "Validate the catalog form")) == []
+    assert shared.relevant(rows, _t("B", "Propagate the request id to the log")) == rows
+
+
+def test_a_foundation_track_all_members_depend_on_resolves_the_group():
+    f = _t("F", "Outbound call wrapper", files=["internal/outbound/**"])
+    a = _t("A", "Call the bank over an http client", files=["a/**"], deps=["F"])
+    b = _t("B", "Use the http client for retries", files=["b/**"], deps=["F"])
+    assert shared.foundation_groups(team(f, a, b), []) == []
+    a_nodep = _t("A", "Call the bank over an http client", files=["a/**"])
+    assert [g["signal"] for g in shared.foundation_groups(team(f, a_nodep, b), [])] == ["word:http-client"]
+
+
+def test_signal_ids_have_no_spaces():
+    t = _t("A", "Build the HTTP Client and the admin kit")
+    assert all(" " not in s for s in shared.signals(t, []))
+
+
+def test_registry_prompt_line_names_the_full_handover_command():
+    rows = [{"mechanism": "idem", "home": "p/i", "status": "being-extracted", "keywords": []}]
+    text = shared.prompt_section(rows)
+    assert "--type HANDOVER --track <id> --title extract:idem" in text
+
+
+def test_next_cli_stops_on_the_signal_and_accept_releases_it(tmp_path):
+    bank = _bank(tmp_path)
+    assert _cli(bank, "init", "demo", "--no-goal", "--tree", str(bank.parent)).returncode == 0
+    for tid in ("A", "B"):
+        assert _cli(bank, "track", "add", tid, "--task", f"s {tid}", "--dod", "d",
+                    "--files", f"internal/{tid.lower()}/**,internal/platform/**", "--size", "small").returncode == 0
+    nxt = [sys.executable, str(SCRIPTS / "mb_team_status.py"), "next", "--mb", str(bank)]
+    before = subprocess.run(nxt, capture_output=True, text=True, cwd=bank.parent).stdout
+    assert "stop_human shared-foundation:path:internal/platform" in before
+    assert _cli(bank, "plan", "--accept-shared", "path:internal/platform").returncode == 0
+    after = subprocess.run(nxt, capture_output=True, text=True, cwd=bank.parent).stdout
+    assert "shared-foundation" not in after

@@ -8,7 +8,9 @@ text. This is the deterministic floor of plan-verifier's spec mode — per REQ:
   tested     a test file names the REQ (`REQ-028`, `test_..._req_028`), the verifier still reads it
   task-only  a task covers it, no test names it  → plan-verifier needs code + test evidence or CRITICAL
   uncovered  no task covers it
-The REQ text is the bullet plus its indented continuation lines (acceptance criteria).
+The REQ text is the bullet plus its indented continuation lines (acceptance criteria). REQ ids are per spec: an id
+that a sibling spec also defines counts as tested only in a test file that names this spec's topic too
+(`access:REQ-001`, or the word `access`).
 Test files: `test_*`, `*_test.*`, `*.test.*`, `*.spec.*`, `*.bats`, or anything under a `tests`/`test`/
 `__tests__` directory, under --tree (default: the spec's project root); hidden, vendor and node_modules
 directories are skipped.
@@ -63,7 +65,7 @@ def requirements(path: Path) -> dict[str, str]:
             reqs[current] = line.strip()
         elif current and line.startswith((" ", "\t")) and line.strip():
             reqs[current] += " " + line.strip()
-        else:
+        elif line.strip():  # a blank line keeps the REQ open for its indented acceptance criteria
             current = None
     return reqs
 
@@ -81,8 +83,10 @@ def _is_test(rel: Path) -> bool:
     return bool(TEST_NAME_RE.match(rel.name)) or any(p in TEST_DIRS for p in rel.parts[:-1])
 
 
-def test_refs(tree: Path) -> dict[str, list[str]]:
-    out: dict[str, list[str]] = {}
+def test_refs(tree: Path, topic: str) -> dict[str, list[tuple[str, bool]]]:
+    """REQ id → [(test file, whether the file names the spec topic)]."""
+    out: dict[str, list[tuple[str, bool]]] = {}
+    topic_re = re.compile(rf"(?<![\w-]){re.escape(topic)}(?![\w-])", re.I)
     for root, dirs, files in os.walk(tree):
         dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in SKIP_DIRS)
         for name in sorted(files):
@@ -90,13 +94,24 @@ def test_refs(tree: Path) -> dict[str, list[str]]:
             rel = f.relative_to(tree)
             if f.suffix not in TEXT_SUFFIXES or not _is_test(rel) or f.stat().st_size > MAX_BYTES:
                 continue
-            for req in rq.find_test_ids(f.read_text(encoding="utf-8", errors="ignore")):
-                out.setdefault(rq.canon(req), []).append(rel.as_posix())
+            text = f.read_text(encoding="utf-8", errors="ignore")
+            for req in rq.find_test_ids(text):
+                out.setdefault(rq.canon(req), []).append((rel.as_posix(), bool(topic_re.search(text))))
     return out
 
 
+def shared_ids(spec: Path) -> set[str]:
+    """REQ ids also defined by a sibling spec: REQ ids are per-spec, so a bare test reference is ambiguous."""
+    ids: set[str] = set()
+    for other in spec.parent.glob("*/requirements.md"):
+        if other.parent != spec:
+            ids |= set(requirements(other))
+    return ids
+
+
 def coverage(spec: Path, tree: Path) -> list[dict]:
-    tasks, tests = covering_tasks(spec / "tasks.md"), test_refs(tree)
+    tasks, refs, ambiguous = covering_tasks(spec / "tasks.md"), test_refs(tree, spec.name), shared_ids(spec)
+    tests = {req: [f for f, names_spec in found if names_spec or req not in ambiguous] for req, found in refs.items()}
     rows = []
     for req, text in requirements(spec / "requirements.md").items():
         status = "tested" if tests.get(req) else "task-only" if tasks.get(req) else "uncovered"
@@ -125,6 +140,9 @@ def main(argv: list[str]) -> int:
     # <project>/.memory-bank/specs/<topic> → <project>
     tree = Path(args.tree).resolve() if args.tree else spec.parents[2]
     rows = coverage(spec, tree)
+    if not rows:
+        print(f"mb_spec_coverage: no `- **REQ-NNN**` bullet in {spec}/requirements.md", file=sys.stderr)
+        return 2
     gaps = [r for r in rows if r["status"] != "tested"]
     if args.json:
         print(

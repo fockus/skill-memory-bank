@@ -235,3 +235,69 @@ def test_plan_verifier_runs_the_contract_first_and_can_write_one():
     text = (REPO_ROOT / "agents" / "plan-verifier.md").read_text(encoding="utf-8")
     assert "mb_contract.py\" run <contract>" in text and "Mode: contract" in text
     assert text.index("Step 1.5: Run the contract first") < text.index("Step 2: Inspect code changes")
+
+
+# ── review fixes (b728474) ───────────────────────────────────────────────────
+
+def test_timeout_kills_the_whole_process_group(tmp_path):
+    marker = tmp_path / "late"
+    text = f"# c\n\n## dod\n- slow — `(sleep 3; touch {marker}) & wait` — exit: 0\n"
+    r = _run("run", str(_write(tmp_path, text)), "--tree", str(tmp_path), "--json", "--timeout", "1")
+    assert r.returncode == 1 and "timeout" in r.stdout
+    import time
+    time.sleep(4)
+    assert not marker.exists()
+
+
+def test_a_corrupted_lock_is_a_failure_not_a_traceback(tmp_path):
+    contract = _write(tmp_path)
+    Path(f"{contract}.lock.json").write_text("{not json", encoding="utf-8")
+    _implement(tmp_path)
+    r = _run("run", str(contract), "--tree", str(tmp_path), "--json")
+    assert r.returncode == 1 and "Traceback" not in r.stderr
+    assert json.loads(r.stdout)["frozen"] == "corrupt"
+
+
+def test_freeze_warns_about_spec_items_with_an_exit_only_anchor(tmp_path):
+    r = _run("freeze", str(_write(tmp_path)), "--tree", str(tmp_path))
+    assert r.returncode == 0
+    assert "REQ-001" in r.stderr and "exit-only" in r.stderr and "REQ-002" not in r.stderr
+
+
+def test_commit_gate_fails_when_the_lock_is_gone(tmp_path):
+    bank, contract = _team_with_contract(tmp_path)
+    tree = bank.parent
+    assert _run("freeze", str(contract), "--tree", str(tree)).returncode == 0
+    for s in ("dispatched", "returned", "done"):
+        assert _cli(bank, "track", "set", "A", "--status", s).returncode == 0
+    (tree / "a").mkdir()
+    (tree / "a" / "done.txt").write_text("x\n", encoding="utf-8")
+    Path(f"{contract}.lock.json").unlink()
+    commit = [sys.executable, str(SCRIPTS / "mb_team_ops.py"), "commit", "--tracks", "A", "-m", "a", "--yes",
+              "--mb", str(bank)]
+    r = subprocess.run(commit, capture_output=True, text=True, cwd=tree)
+    assert r.returncode == 1 and "not frozen" in r.stderr
+
+
+def test_track_set_attaches_a_contract_to_an_existing_track(tmp_path):
+    bank = _bank(tmp_path)
+    contract = bank / "contracts" / "A.md"
+    contract.parent.mkdir()
+    contract.write_text("# c\n\n## dod\n- x — `true` — exit: 0\n", encoding="utf-8")
+    assert _cli(bank, "init", "demo", "--no-goal", "--tree", str(bank.parent)).returncode == 0
+    assert _cli(bank, "track", "add", "A", "--task", "t", "--dod", "d", "--size", "standard").returncode == 0
+    r = _cli(bank, "track", "set", "A", "--contract", "contracts/A.md")
+    assert r.returncode == 0, r.stderr
+    t = _team(bank)["tracks"][0]
+    assert t["contract"] == "contracts/A.md"
+    assert str(contract) in (bank / t["prompt"]).read_text(encoding="utf-8")
+
+
+def test_run_reports_amendments_and_freeze_warns_without_red_evidence(tmp_path):
+    contract = _write(tmp_path, "# c\n\n## dod\n- a file — `test -f x` — exit: 0\n")
+    r = _run("freeze", str(contract), "--tree", str(tmp_path))
+    assert r.returncode == 0 and "no executable spec item" in r.stderr
+    contract.write_text("# c\n\n## dod\n- a file — `true` — exit: 0\n", encoding="utf-8")
+    assert _run("freeze", str(contract), "--tree", str(tmp_path), "--amend", "--reason", "relax").returncode == 0
+    out = json.loads(_run("run", str(contract), "--tree", str(tmp_path), "--json").stdout)
+    assert out["amendments"] == [{"reason": "relax", "at": out["amendments"][0]["at"]}]
