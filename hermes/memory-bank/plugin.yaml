@@ -1,0 +1,4 @@
+name: memory-bank
+version: "1.0.0"
+description: "Memory Bank skill for Hermes: per-session bank (project folder, Hermes project or profile) plus session context and handoff."
+author: fockus
