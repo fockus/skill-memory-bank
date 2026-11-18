@@ -21,8 +21,14 @@ opencode.json .git/hooks"
 
 # mb_repo_fingerprint [root] — path, mtime and sha256 of every guarded file.
 mb_repo_fingerprint() {
+  local root="${1:-$MB_GUARD_REPO_ROOT}" common
+  # The shared git dir too: from a worktree `.git` is a file, so `.git/hooks` above
+  # sees nothing, yet a test under a leaked GIT_DIR writes the common hooks and
+  # core.* (`git init` there sets core.bare=true for every checkout).
+  common="$(git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+  [ -n "$common" ] && git config --file "$common/config" --get-regexp '^core\.' 2>/dev/null
   # shellcheck disable=SC2086  # word-split the path list on purpose
-  (cd "${1:-$MB_GUARD_REPO_ROOT}" && python3 - $MB_GUARD_PATHS <<'PY'
+  (cd "$root" && python3 - $MB_GUARD_PATHS ${common:+"$common/hooks"} <<'PY'
 import hashlib, os, sys
 
 def files(top):
@@ -45,6 +51,10 @@ PY
 }
 
 mb_repo_guard_setup() {
+  # Run from a git hook (a linked worktree's pre-commit exports an absolute
+  # GIT_DIR), every `git -C <tmp>` in a test would act on the committing repo.
+  # shellcheck disable=SC2046  # one variable name per word
+  unset $(git rev-parse --local-env-vars 2>/dev/null)
   MB_GUARD_BEFORE="$BATS_SUITE_TMPDIR/repo-fingerprint.before"
   mb_repo_fingerprint > "$MB_GUARD_BEFORE"
   export MB_GUARD_BEFORE
@@ -60,4 +70,14 @@ mb_repo_guard_check() {
   echo "This test run wrote into the repo checkout $MB_GUARD_REPO_ROOT:" >&2
   diff "$MB_GUARD_BEFORE" "$after" >&2
   return 1
+}
+
+# mb_python_direct — put the interpreter that `python3` resolves to first on PATH.
+# A pyenv shim costs ~0.6 s per start (measured: 0.59 s shim vs 0.02 s direct);
+# one adapters/opencode.sh install spawns ~500 python3 processes (286 s vs 51 s).
+mb_python_direct() {
+  local bin
+  bin="$(python3 -c 'import os, sys; print(os.path.dirname(sys.executable))' 2>/dev/null)" || return 0
+  [ -x "$bin/python3" ] && export PATH="$bin:$PATH"
+  return 0
 }

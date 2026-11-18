@@ -39,6 +39,7 @@ def configure(runtime) -> None:
             "variants": [{"id": variant, "body": {"fixture_variant": variant}}],
         }
     config = {"$schema": "https://opencode.ai/config.json", "model": "fixture/team/parent",
+              "enabled_providers": ["fixture"],
               "plugins": ["-opencode.provider.ollama", "-opencode.provider.lmstudio", "-opencode.provider.vllm",
                           "-opencode.websearch.*", "-opencode.wellknown"],
               "snapshots": False, "compaction": {"auto": False},

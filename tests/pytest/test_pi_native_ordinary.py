@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -12,6 +13,24 @@ FIXTURE = ROOT / "tests/fixtures/pi_native_ordinary_host.mjs"
 TINTIN = Path(
     os.environ.get("PI_TINTIN_ROOT")
     or Path.home() / ".pi/agent/npm/node_modules/@tintinweb/pi-subagents"
+)
+PINNED = re.search(
+    r'PI_TINTIN_PACKAGE="npm:@tintinweb/pi-subagents@([^"]+)"',
+    (ROOT / "adapters/_lib_pi_global.sh").read_text(),
+).group(1)
+
+
+def _installed_version():
+    try:
+        return json.loads((TINTIN / "package.json").read_text())["version"]
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+# The bootstrap refuses any Tintin but the pinned one, so every scenario needs it.
+pytestmark = pytest.mark.skipif(
+    _installed_version() != PINNED,
+    reason=f"needs Tintin {PINNED} at {TINTIN} (found {_installed_version()}); set PI_TINTIN_ROOT",
 )
 
 

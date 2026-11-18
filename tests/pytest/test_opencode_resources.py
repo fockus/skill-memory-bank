@@ -12,6 +12,8 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+# A hang guard, not a speed check: one install spawns ~500 python3 processes (~25 s idle, ~50 s under load).
+INSTALL_TIMEOUT = 180
 
 
 def native_pin(text: str) -> str:
@@ -169,7 +171,7 @@ def test_adapter_renders_the_pipeline_selected_by_the_shared_ladder(tmp_path: Pa
                 text = "default: true\n" + text
         selected.write_text(text)
     result = subprocess.run(["bash", str(ROOT / "adapters/opencode.sh"), "install", str(project)],
-                            env=env, cwd=project, text=True, capture_output=True, timeout=30)
+                            env=env, cwd=project, text=True, capture_output=True, timeout=INSTALL_TIMEOUT)
     assert result.returncode == 0, result.stderr
     rendered = (project / ".opencode/agent/mb-developer.md").read_text()
     assert native_pin(rendered) == ("" if selection == "bundled" else f"local/{selection}#deep")
@@ -187,7 +189,7 @@ def test_config_rerender_respects_a_higher_priority_host_binding(tmp_path: Path)
     env = {k: v for k, v in os.environ.items() if not k.startswith(("MB_", "XDG_"))}
     env["HOME"] = str(home)
     subprocess.run(["bash", str(ROOT / "adapters/opencode.sh"), "install", str(project)],
-                   env=env, cwd=project, check=True, capture_output=True, timeout=30)
+                   env=env, cwd=project, check=True, capture_output=True, timeout=INSTALL_TIMEOUT)
     result = subprocess.run([
         sys.executable, "-c",
         "import runpy,sys; sys.exit(runpy.run_path(sys.argv[1])['render_installed_agents']('opencode', sys.argv[2], sys.argv[3]))",

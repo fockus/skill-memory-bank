@@ -151,6 +151,10 @@ def test_native_child_and_moved_foreign_bank_cannot_modify_parent_memory(native)
     before = snapshot(bank)
     child = runtime.api("POST", "/api/session", {"parentID": parent, "agent": "mb-developer",
         "model": {"providerID": "fixture", "id": "team/coder", "variant": "deep"}})["data"]["id"]
+    if runtime.data(f"/api/session/{child}").get("parentID") != parent:
+        # opencode 2.0.18 dropped parentID from the POST /api/session body: only a
+        # dispatched subagent gets a parent now, so this "child" would be a second root.
+        pytest.skip(f"opencode {runtime.version} cannot create a child session through POST /api/session")
     runtime.respond = scripted([], final="Decision: CHILD_ONLY_PUBLIC never append this to parent memory.")
     prompt(runtime, child, "Complete a child-only public turn.")
     compact(runtime, child)

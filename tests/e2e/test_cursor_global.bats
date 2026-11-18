@@ -16,6 +16,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
+  # Per test: the suite-wide manifest (repo_guard) belongs to another HOME, which install refuses.
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
 
   command -v python3 >/dev/null || skip "python3 not installed"
   command -v jq      >/dev/null || skip "jq not installed"

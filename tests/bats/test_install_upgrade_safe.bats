@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=slow
 # Installing `main` over an older install (plan 2026-10-07_fix_upgrade-safe-install, Stage 1):
 #   - a re-run of install.sh with no flags restores the saved options (language,
 #     comments language, clients, project root); an explicit flag wins;

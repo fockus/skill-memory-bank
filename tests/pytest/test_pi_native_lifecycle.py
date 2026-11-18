@@ -42,11 +42,14 @@ def test_inspect_lifecycle_releases_request_watcher(tmp_path, scenario):
         pytest.fail(f"SDK shutdown retained a referenced resource: {error.stdout!r}")
     assert result.returncode == 0, result.stderr
     resources = json.loads(result.stdout.strip().splitlines()[-1])
+    assert resources["after"] == resources["before"], resources
+    assert resources["timersAfter"] == resources["timersBefore"], resources
+    if resources["started"] == resources["before"]:
+        # getActiveResourcesInfo() lists only referenced handles; pi-inspect >= 0.6 unrefs it.
+        pytest.skip("installed pi-inspect unrefs its request watcher: no referenced handle to observe")
     assert resources["started"] == resources["before"] + 1, resources
     if scenario == "reload":
         assert resources["reloaded"] == resources["started"], resources
-    assert resources["after"] == resources["before"], resources
-    assert resources["timersAfter"] == resources["timersBefore"], resources
 
 
 def test_installed_mb_file_loader_registers_native_tool_after_reload(tmp_path):

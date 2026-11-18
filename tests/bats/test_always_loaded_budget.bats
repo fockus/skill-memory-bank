@@ -36,6 +36,8 @@ KR_START='<!-- mb-key-rules:start -->'
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   export HOME="$BATS_TEST_TMPDIR/home"
+  # Per test: the suite-wide manifest (repo_guard) belongs to another HOME, which install refuses.
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   PROJECT="$BATS_TEST_TMPDIR/project"
   mkdir -p "$HOME" "$PROJECT"
   command -v jq >/dev/null || skip "jq required"
@@ -170,7 +172,9 @@ EOF
 
 @test "budget: Cursor .mdc and Windsurf/Cline/Kilo rule files fit ${PROJECT_BUDGET} B, carry Key rules once, no RULES.md copy" {
   _install_all_clients
-  local f size src="$BATS_TEST_TMPDIR/skill"
+  # install.sh writes the physical path (pwd -P): on macOS /var is /private/var.
+  local f size src
+  src="$(cd "$BATS_TEST_TMPDIR/skill" && pwd -P)"
   for f in "$PROJECT/.cursor/rules/memory-bank.mdc" "$PROJECT/.windsurf/rules/memory-bank.md" \
            "$PROJECT/.clinerules/memory-bank.md" "$PROJECT/.kilocode/rules/memory-bank.md"; do
     [ -f "$f" ]

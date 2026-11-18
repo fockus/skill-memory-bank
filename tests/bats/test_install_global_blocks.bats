@@ -20,6 +20,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   YAML_SITE="$(python3 -c 'import os, yaml; print(os.path.dirname(os.path.dirname(yaml.__file__)))' 2>/dev/null || true)"
   export HOME="$BATS_TEST_TMPDIR/home"
+  # Per test: the suite-wide manifest (repo_guard) belongs to another HOME, which install refuses.
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   PROJECT="$BATS_TEST_TMPDIR/project"
   SRC="$BATS_TEST_TMPDIR/skill"
   export MB_USER_RULES_AUTO_PROMPT=off

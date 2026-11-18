@@ -11,8 +11,11 @@ one would try to download the model. Tests that want the builder set
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -30,11 +33,26 @@ _GUARDED = (
 
 def _repo_fingerprint() -> list[tuple[str, int, str]]:
     out = []
-    for top in _GUARDED:
-        paths = [REPO_ROOT / top]
+    # The shared git dir too: from a worktree `.git` is a file, so `.git/hooks`
+    # sees nothing, yet a test under a leaked GIT_DIR writes the common hooks and
+    # core.* (`git init` there sets core.bare=true for every checkout).
+    common = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        text=True, capture_output=True, check=False,
+    ).stdout.strip()
+    tops = [REPO_ROOT / top for top in _GUARDED]
+    if common:
+        tops.append(Path(common) / "hooks")
+        core = subprocess.run(
+            ["git", "config", "--file", f"{common}/config", "--get-regexp", r"^core\."],
+            text=True, capture_output=True, check=False,
+        ).stdout
+        out.append(("git-config core.*", 0, core))
+    for top in tops:
+        paths = [top]
         if paths[0].is_dir():
             paths = []
-            for d, dirs, names in os.walk(REPO_ROOT / top):
+            for d, dirs, names in os.walk(top):
                 dirs[:] = sorted(x for x in dirs if x != "node_modules")
                 paths += [Path(d) / n for n in sorted(names)]
         for p in paths:
@@ -69,8 +87,10 @@ def _no_background_embedder(monkeypatch, tmp_path_factory):
 def _installed_pi_sdk() -> str | None:
     """The real Pi SDK, resolved once with the real HOME (tests then swap HOME).
 
-    Managed install (Pi >= 1.1): ~/.pi/agent/install/current-version names the
-    release; older global npm installs live under `npm root -g`.
+    Same order as adapters/pi_managed_entrypoint.mjs: the managed install
+    (Pi >= 1.1: ~/.pi/agent/install/current-version names the release), else
+    the package behind `pi` on PATH. Not `npm root -g`: the first `npm` on PATH
+    can belong to another Node (a shim in ~/.local/bin) than the one Pi lives in.
     """
     agent = Path(os.environ.get("PI_CODING_AGENT_DIR") or Path.home() / ".pi" / "agent")
     try:
@@ -81,13 +101,29 @@ def _installed_pi_sdk() -> str | None:
             return str(managed)
     except OSError:
         pass
-    try:
-        npm = subprocess.run(["npm", "root", "-g"], text=True, capture_output=True, timeout=30)
-    except (OSError, subprocess.TimeoutExpired):
+    pi = shutil.which("pi")
+    if not pi:
         return None
-    legacy = Path(npm.stdout.strip()) / "@earendil-works" / "pi-coding-agent"
-    return str(legacy) if (legacy / "package.json").is_file() else None
+    for folder in Path(pi).resolve().parents:
+        manifest = folder / "package.json"
+        try:
+            if json.loads(manifest.read_text()).get("name") == "@earendil-works/pi-coding-agent":
+                return str(folder)
+        except (OSError, ValueError):
+            continue
+    return None
 
+
+# Run from a git hook (a linked worktree's pre-commit exports an absolute
+# GIT_DIR), every `git -C <tmp>` in a test would act on the committing repo.
+for _var in subprocess.run(
+    ["git", "rev-parse", "--local-env-vars"], text=True, capture_output=True, check=False
+).stdout.split():
+    os.environ.pop(_var, None)
+
+# Subprocesses that call `python3` get this interpreter directly: a pyenv shim
+# costs ~0.6 s per start and an adapter install spawns hundreds of them.
+os.environ["PATH"] = os.pathsep.join((os.path.dirname(sys.executable), os.environ.get("PATH", "")))
 
 # Every Pi harness (fixtures read PI_PACKAGE_ROOT / PI_SDK_ROOT, mb-pi reads
 # MB_PI_SDK_ROOT) gets the same explicit SDK instead of guessing under a sandbox HOME.
@@ -95,3 +131,25 @@ _PI_SDK = os.environ.get("MB_PI_SDK_ROOT") or _installed_pi_sdk()
 if _PI_SDK:
     for _name in ("MB_PI_SDK_ROOT", "PI_PACKAGE_ROOT", "PI_SDK_ROOT"):
         os.environ.setdefault(_name, _PI_SDK)
+
+
+# ~95% of the run (measured: 68 of 72 min) is in these modules — real installers and
+# host runtimes. `-m "not slow"` is the quick local loop; CI and pre-merge run everything.
+_SLOW_MODULES = frozenset({
+    "test_audit_install_roundtrip", "test_cli", "test_codex_native_install",
+    "test_global_prompt_guard", "test_opencode_acceptance_native",
+    "test_opencode_memory_acceptance_native", "test_opencode_resources",
+    "test_opencode_selective_install", "test_opencode_v2_native", "test_opencode_workflow_native",
+    "test_pi_native_backends", "test_pi_native_install", "test_pi_native_work",
+    "test_runtime_contract", "test_wheel_ships_templates",
+})
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: real installers/host runtimes; deselect with -m 'not slow'")
+
+
+def pytest_collection_modifyitems(items):
+    for item in items:
+        if item.module.__name__.rpartition(".")[2] in _SLOW_MODULES:
+            item.add_marker(pytest.mark.slow)

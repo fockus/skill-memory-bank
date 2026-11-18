@@ -41,6 +41,8 @@ shellcheck hooks/*.sh
 ruff check settings/ tests/pytest/
 ```
 
+While iterating, skip the installer/host-runtime tests (most of the run time): `python3 -m pytest tests/pytest/ -m "not slow"` and `bats --filter-tags '!slow' tests/bats/`. Run the full sets above before a commit.
+
 All four commands must return green before you open a PR.
 
 ---

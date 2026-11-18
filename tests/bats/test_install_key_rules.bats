@@ -18,6 +18,8 @@ setup() {
   INSTALL="$REPO_ROOT/install.sh"
   SANDBOX="$(mktemp -d)"
   export HOME="$SANDBOX/home"
+  # Per test: the suite-wide manifest (repo_guard) belongs to another HOME, which install refuses.
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   export MB_USER_RULES_AUTO_PROMPT=off
   unset MB_CLIENTS MB_LANGUAGE MB_WITH_EXTENSIONS MB_PATH MB_AGENT || true
   mkdir -p "$HOME" "$SANDBOX/project"
@@ -124,7 +126,7 @@ first_section_line() {
   assert_substring "$output" "Quality"
   assert_substring "$output" "2. hexagonal"
   assert_substring "$output" "8. event-driven"
-  "$REPO_ROOT/.venv/bin/python" - "$PROFILE" <<'PY'
+  python3 - "$PROFILE" <<'PY'
 import json, sys
 p = json.load(open(sys.argv[1]))
 assert p["architecture"] == ["hexagonal", "modular-monolith"], p

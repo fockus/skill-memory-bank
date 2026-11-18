@@ -27,12 +27,12 @@ setup() {
   MB_DISCUSS_CLAUSES+=("template-c2-discovered|mb_section|Interview plan template|Discovered mid-interview|Inherited decisions|/Discovered mid-interview/d|REQ-001")
   # REQ-002 close-gate: the DETERMINISTIC pre-generation call, not just prose.
   MB_DISCUSS_CLAUSES+=("close-gate-invocation|mb_section|Write . finalize|mb-interview-artifact-check.sh. plan .* --require-closed|interview plan|s/ --require-closed//|REQ-002")
-  MB_DISCUSS_CLAUSES+=("close-gate-blocking|mb_section|Write . finalize|open_topics. greater than 0 . unclosed themes. Generation does not start|generation|s/Generation does not start/Generation may proceed anyway/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-blocking|mb_section|Write . finalize|open_topics. greater than 0 .+ unclosed themes. Generation does not start|generation|s/Generation does not start/Generation may proceed anyway/|REQ-002")
   MB_DISCUSS_CLAUSES+=("close-gate-not-judgement|mb_section|Write . finalize|never substitute your own judgement|exit code|s/never substitute your own judgement/you may substitute your own judgement/|REQ-002")
   MB_DISCUSS_CLAUSES+=("rule11-code-enforced|mb_rule|11|enforced by code, not by judgement|open|s/enforced by code, not by judgement/a matter of judgement/|REQ-002")
   # r3 review [15]: exit 1 covers BOTH open topics and structural breakage, so
   # the contract must route on open_topics, not on the exit code alone.
-  MB_DISCUSS_CLAUSES+=("close-gate-routes-structural|mb_section|Write . finalize|open_topics=0. . the plan is structurally broken|open_topics|s/the plan is structurally broken/the same unanswered-theme case/|REQ-002")
+  MB_DISCUSS_CLAUSES+=("close-gate-routes-structural|mb_section|Write . finalize|open_topics=0. .+ the plan is structurally broken|open_topics|s/the plan is structurally broken/the same unanswered-theme case/|REQ-002")
   MB_DISCUSS_CLAUSES+=("close-gate-repair-path|mb_section|Write . finalize|repair the plan file from the stderr reason codes|repair|s/repair the plan file from the stderr reason codes/ask the missing questions/|REQ-002")
   # r3 review [16]: the glossary path must follow the resolved bank.
   # Pre-flight bank resolution must not hardcode a local .memory-bank/.

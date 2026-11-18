@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=slow
 # Tests for the adapter-parity extension offer (install.sh, T2).
 #
 # Contract (design.md "Extension offer contract"):

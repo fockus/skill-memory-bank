@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=slow
 # A13 (M-5): install.sh's ~/.claude/CLAUDE.md MB-section refresh must not
 # silently destroy user content placed AFTER the section, and must back up
 # the file before rewriting it. Exercises the exact code path install.sh runs

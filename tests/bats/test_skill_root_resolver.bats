@@ -88,6 +88,8 @@ teardown() {
 setup_skill_alias_sandbox() {
   command -v rsync >/dev/null || skip "rsync required"
   FAKE_HOME="$(mktemp -d)"
+  # Per test: the suite-wide manifest (repo_guard) belongs to another HOME, which install refuses.
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   INSTALL_PROJECT="$(mktemp -d)"
   SKILL_SRC="$(mktemp -d)/skill"
   mkdir -p "$SKILL_SRC"

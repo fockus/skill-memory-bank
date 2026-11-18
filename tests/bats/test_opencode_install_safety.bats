@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=slow
 # Public Stage 5 cycle-1 regressions; no native server or model boundary is used.
 load lib/assert
 load lib/opencode_install_fixture

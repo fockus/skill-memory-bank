@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=slow
 # shellcheck disable=SC2030,SC2031 # Bats intentionally isolates each test.
 # Tests for adapters/opencode.sh — OpenCode cross-agent adapter.
 #

@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=slow
 # Remaining public cleanup boundaries before the same cycle-1 canonical gate.
 load lib/assert
 load lib/opencode_install_fixture

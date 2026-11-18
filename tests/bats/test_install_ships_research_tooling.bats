@@ -22,6 +22,8 @@ setup() {
   # Sandboxed HOME — every client alias (Claude/Codex/Cursor/Pi) is derived
   # from $HOME inside install.sh, so this redirects ALL install side effects.
   FAKE_HOME="$(mktemp -d)"
+  # Per test: the suite-wide manifest (repo_guard) belongs to another HOME, which install refuses.
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   PROJECT="$(mktemp -d)"
 
   # TMP copy of the repo so the manifest writes into the copy, never the repo.

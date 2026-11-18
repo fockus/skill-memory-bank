@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# bats file_tags=slow
 # Public ownership contract: one pending OpenCode mutation, committed predecessors,
 # guarded recovery on handled I/O failure; no crash/replay or other-host rollback claim.
 load lib/assert

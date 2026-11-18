@@ -18,6 +18,8 @@ setup() {
   (cd "$PROJECT" && git init -q && git config user.email t@t && git config user.name t)
 
   export HOME="$SANDBOX_HOME"
+  # Per test: the suite-wide manifest (repo_guard) belongs to another HOME, which install refuses.
+  export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   export MB_SKIP_DEPS_CHECK=1
 
   command -v python3 >/dev/null || skip "python3 required"

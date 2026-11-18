@@ -105,13 +105,15 @@ ALL_ON='layers:
   integration_tests: true
   e2e_tests: true'
 
-# mkspec <name> <layers-block|""> — tasks.md comes from stdin.
+# mkspec <name> <layers-block|""> — tasks.md gets only its title; callers append
+# the tasks. It never reads stdin: under a runner whose stdin stays open (an
+# agent's background shell) a bare `cat` here blocked the whole suite forever.
 mkspec() {
   local dir="$SPECS/$1"
   mkdir -p "$dir"
   write_req "$dir" "$2"
   write_design "$dir"
-  { printf '# Tasks: demo\n\n'; cat; } >"$dir/tasks.md"
+  printf '# Tasks: demo\n\n' >"$dir/tasks.md"
   printf '%s\n' "$dir"
 }
 

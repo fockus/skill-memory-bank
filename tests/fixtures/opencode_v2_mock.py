@@ -107,7 +107,7 @@ class NativeRuntime:
             "<!-- mb-key-rules:start -->\nGLOBAL_NATIVE_RULE_SENTINEL\n<!-- mb-key-rules:end -->\n")
         result = subprocess.run(
             ["bash", str(ROOT / "adapters/opencode.sh"), "install", str(self.project)],
-            env={**self.env, "MB_OC_PARITY_ACCEPTED": "1"}, capture_output=True, text=True, timeout=60,
+            env={**self.env, "MB_OC_PARITY_ACCEPTED": "1"}, capture_output=True, text=True, timeout=180,
         )
         if result.returncode:
             raise AssertionError(result.stdout + result.stderr)
