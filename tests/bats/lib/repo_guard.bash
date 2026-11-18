@@ -55,6 +55,9 @@ mb_repo_guard_setup() {
   # GIT_DIR), every `git -C <tmp>` in a test would act on the committing repo.
   # shellcheck disable=SC2046  # one variable name per word
   unset $(git rev-parse --local-env-vars 2>/dev/null)
+  # Tests sandbox HOME; XDG base dirs must follow it. CI runners export
+  # XDG_CONFIG_HOME=/home/runner/.config, so installs shared one real directory.
+  unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME
   MB_GUARD_BEFORE="$BATS_SUITE_TMPDIR/repo-fingerprint.before"
   mb_repo_fingerprint > "$MB_GUARD_BEFORE"
   export MB_GUARD_BEFORE

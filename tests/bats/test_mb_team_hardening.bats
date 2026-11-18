@@ -75,7 +75,7 @@ PY
   b="$(env -u MB_LOCK_DIR TMPDIR=/var/tmp/two python3 -c "import sys; sys.path.insert(0,'$SCRIPTS'); import mb_lock_resource as m, argparse; print(m.lock_root(argparse.Namespace(mb=''), 'host'))")"
   [ "$a" = "$b" ]
   [ "$a" = "/tmp/mb-locks-$(id -u)" ]
-  [ "$(stat -f %Lp "$a" 2>/dev/null || stat -c %a "$a")" = 700 ]
+  [ "$(stat -c %a "$a" 2>/dev/null || stat -f %Lp "$a")" = 700 ]
 }
 
 @test "host resource from config: status lists it held under <host_lock_root> for any TMPDIR" {
@@ -84,6 +84,7 @@ PY
   printf 'team:\n  resources:\n    %s:\n      kind: mutex\n      scope: host\n' "$res" >"$BANK/pipeline.yaml"
   root="/tmp/mb-locks-$(id -u)"
   for t in one two; do
+    mkdir -p "$BATS_TEST_TMPDIR/tmp$t"  # GNU mktemp, unlike BSD, needs TMPDIR to exist
     tok="$(TMPDIR="$BATS_TEST_TMPDIR/tmp$t" bash "$REPO/scripts/mb-lock.sh" acquire "$res" --mb "$BANK" --owner t --lease 60)"
     out="$(TMPDIR="$BATS_TEST_TMPDIR/tmp$t" bash "$REPO/scripts/mb-lock.sh" status --mb "$BANK" --json)"
     [ -e "$root/$res.lock" ]

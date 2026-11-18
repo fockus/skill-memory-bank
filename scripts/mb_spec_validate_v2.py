@@ -50,6 +50,9 @@ def emit(msg: str) -> None:
 def ere_ok(pattern: str) -> bool:
     # Validate with the SAME portable engine used at execution time (grep -E):
     # a bad ERE exits 2 (a Python-only construct like `(?=...)` is rejected).
+    # GNU grep tolerates `(?` that BSD grep rejects; POSIX ERE has no `(?` at all.
+    if "(?" in pattern:
+        return False
     try:
         return (
             subprocess.run(

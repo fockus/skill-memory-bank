@@ -194,7 +194,7 @@ def test_config_rerender_respects_a_higher_priority_host_binding(tmp_path: Path)
         sys.executable, "-c",
         "import runpy,sys; sys.exit(runpy.run_path(sys.argv[1])['render_installed_agents']('opencode', sys.argv[2], sys.argv[3]))",
         str(ROOT / "scripts/mb_config_hosts.py"), str(project), str(legacy),
-    ], env=env, cwd=project, text=True, capture_output=True, timeout=30)
+    ], env=env, cwd=project, text=True, capture_output=True, timeout=INSTALL_TIMEOUT)
     assert result.returncode == 0, result.stderr
     assert native_pin((project / ".opencode/agent/mb-developer.md").read_text()) == "local/selected#deep"
 

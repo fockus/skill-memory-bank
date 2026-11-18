@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Parallel suites: `pytest -n auto` (pytest-xdist in the dev extra) and `bats --jobs N` (GNU parallel) locally and in CI; wall-clock budget tests are tagged `perf` and run alone. Measured on a loaded 10-core machine: pytest 72 → 20 min, bats 3 h → 35 min. Quick loop: `-m "not slow"` / `--filter-tags '!slow'`.
 - Test suites: bats and pytest drop hook git env, call the real interpreter instead of a pyenv shim (an install-heavy bats file: 23 min → 3 min), find the Pi SDK behind `pi` on PATH, and skip with a reason when the installed Tintin/pi-inspect/opencode differ from what a test needs.
 
+- CI red on Linux/macOS: test suites no longer inherit the runner's `XDG_*` base dirs (every install wrote one real `~/.config`); `mb_work_adapt.py` parses an item after options on Python <3.12; the spec validator rejects `(?…)` that GNU grep tolerates; permission checks use GNU `stat` first; the cyrillic test-name guard is one `grep` (the bash loop crashed on macOS runners).
+
 ### Changed — closure gate waits quietly
 
 - The Stop hook `mb-flow-closure-guard.sh` no longer blocks a red flow while known work runs (an open `/mb team` with working tracks or a fresh `/mb work` run, `scripts/mb_flow_busy.py`); it prints one reminder per `flow_closure_remind` minutes (default 30) and blocks again once the work ends or goes stale past `flow_closure_busy_max_age` (default 120, `0` = old behaviour) — both in `.mb-config` or `MB_FLOW_CLOSURE_*` env (I-288).

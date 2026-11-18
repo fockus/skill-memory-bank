@@ -120,6 +120,10 @@ for _var in subprocess.run(
     ["git", "rev-parse", "--local-env-vars"], text=True, capture_output=True, check=False
 ).stdout.split():
     os.environ.pop(_var, None)
+# Tests sandbox HOME; XDG base dirs must follow it. CI runners export
+# XDG_CONFIG_HOME=/home/runner/.config, so installs shared one real directory.
+for _var in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"):
+    os.environ.pop(_var, None)
 
 # Subprocesses that call `python3` get this interpreter directly: a pyenv shim
 # costs ~0.6 s per start and an adapter install spawns hundreds of them.

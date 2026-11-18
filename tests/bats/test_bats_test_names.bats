@@ -10,22 +10,14 @@
   local repo_root
   repo_root="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 
-  # Collect every name once, then match once. One grep over the whole list, not
-  # one grep per name: the per-name form forked 3669 times and cost ~17 s.
-  local names="" f name
-  shopt -s nullglob
-  for f in "$repo_root"/tests/bats/*.bats \
-           "$repo_root"/tests/e2e/*.bats \
-           "$repo_root"/hooks/tests/*.bats; do
-    while IFS= read -r name; do
-      names+="  ${f#"$repo_root"/}: ${name}"$'\n'
-    done < <(sed -nE 's/^@test "(.*)" \{.*/\1/p' "$f")
-  done
-
+  # One grep over every file: the per-name form forked 3669 times (~17 s), and
+  # accumulating ~4000 names in a bash string crashed bash on macOS runners (SIGTRAP).
   # C.UTF-8, not C: under a byte-wise locale `[А-Яа-яЁё]` expands to a byte set
   # that `→` (E2 86 92) falls into, reddening 600+ innocent names.
   local offenders rc
-  offenders="$(printf '%s' "$names" | LC_ALL=C.UTF-8 grep -E '[А-Яа-яЁё]')" && rc=0 || rc=$?
+  shopt -s nullglob
+  offenders="$(cd "$repo_root" && LC_ALL=C.UTF-8 grep -HE '^@test "[^"]*[А-Яа-яЁё]' \
+    tests/bats/*.bats tests/e2e/*.bats hooks/tests/*.bats)" && rc=0 || rc=$?
   # rc 0 = found, 1 = none, anything else = grep itself failed. A guard that
   # reports "clean" on its own failure guards nothing.
   if [ "$rc" -gt 1 ]; then
