@@ -261,6 +261,45 @@ EOF
   [ ! -f "$PROJECT/.cursor/.mb-manifest.json" ]
 }
 
+# Uninstall deleted the whole hooks.json whenever no hooks were left, taking any
+# other top-level key the user kept there with it. install merges into the
+# existing file without a backup, so that content was unrecoverable.
+@test "cursor: uninstall keeps a hooks.json that still holds the user's own top-level keys" {
+  mkdir -p "$PROJECT/.cursor"
+  printf '{"version":1,"userSetting":{"keep":true}}\n' > "$PROJECT/.cursor/hooks.json"
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.cursor/hooks.json" ]
+  jq -e '.userSetting.keep == true and .version == 1' "$PROJECT/.cursor/hooks.json" >/dev/null
+  [ "$(jq '[.hooks[]?[]?] | length' "$PROJECT/.cursor/hooks.json")" -eq 0 ]
+}
+
+@test "cursor: uninstall still removes a hooks.json that held only our hooks" {
+  run_adapter install "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.cursor/hooks.json" ]
+  run_adapter uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  [ ! -f "$PROJECT/.cursor/hooks.json" ]
+}
+
+@test "cursor: uninstall-global keeps the user's own top-level keys in ~/.cursor/hooks.json" {
+  local home
+  home="$(mktemp -d)"
+  mkdir -p "$home/.cursor"
+  printf '{"version":1,"userSetting":{"keep":true}}\n' > "$home/.cursor/hooks.json"
+  run env HOME="$home" MB_LANGUAGE=en bash "$ADAPTER" install-global </dev/null
+  [ "$status" -eq 0 ]
+  run env HOME="$home" bash "$ADAPTER" uninstall-global </dev/null
+  [ "$status" -eq 0 ]
+  [ -f "$home/.cursor/hooks.json" ]
+  jq -e '.userSetting.keep == true' "$home/.cursor/hooks.json" >/dev/null
+  [ "$(jq '[.hooks[]?[]?] | length' "$home/.cursor/hooks.json")" -eq 0 ]
+  rm -rf "$home"
+}
+
 @test "cursor: adapter hooks.json supports global storage via MB_AGENT" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
