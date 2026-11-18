@@ -10,18 +10,17 @@
   local repo_root
   repo_root="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 
-  # One grep over every file: the per-name form forked 3669 times (~17 s), and
-  # accumulating ~4000 names in a bash string crashed bash on macOS runners (SIGTRAP).
-  # C.UTF-8, not C: under a byte-wise locale `[А-Яа-яЁё]` expands to a byte set
-  # that `→` (E2 86 92) falls into, reddening 600+ innocent names.
+  # One pass over every file: the per-name form forked 3669 times (~17 s), the
+  # 4000-name bash loop crashed bash on macOS runners (SIGTRAP), and a `[А-Яа-яЁё]`
+  # range depends on the locale (C: a byte set that `→` falls into; GNU grep in
+  # C.UTF-8: "Invalid collation character"). perl's \p{Cyrillic} depends on neither.
   local offenders rc
   shopt -s nullglob
-  offenders="$(cd "$repo_root" && LC_ALL=C.UTF-8 grep -HE '^@test "[^"]*[А-Яа-яЁё]' \
+  offenders="$(cd "$repo_root" && perl -CSD -ne 'print "$ARGV: $_" if /^\@test "[^"]*\p{Cyrillic}/' \
     tests/bats/*.bats tests/e2e/*.bats hooks/tests/*.bats)" && rc=0 || rc=$?
-  # rc 0 = found, 1 = none, anything else = grep itself failed. A guard that
-  # reports "clean" on its own failure guards nothing.
-  if [ "$rc" -gt 1 ]; then
-    printf 'the cyrillic scan itself failed (grep rc=%s) — refusing to report a clean run\n' "$rc"
+  # A guard that reports "clean" on its own failure guards nothing.
+  if [ "$rc" -ne 0 ]; then
+    printf 'the cyrillic scan itself failed (perl rc=%s) — refusing to report a clean run\n' "$rc"
     return 1
   fi
 

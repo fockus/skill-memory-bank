@@ -70,7 +70,8 @@ EOF
   [[ "$output" == *"HARNESS_OK"* ]]
 
   local sf=""
-  for f in "$PROJECT/.memory-bank/session"/*.md; do
+  # Session files only: in the C locale the `_recent.md` digest sorts last.
+  for f in "$PROJECT/.memory-bank/session"/[0-9]*.md; do
     [ -f "$f" ] && sf="$f"
   done
   [ -n "$sf" ]

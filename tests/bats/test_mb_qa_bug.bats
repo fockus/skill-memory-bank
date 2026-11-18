@@ -77,6 +77,8 @@ teardown() {
   [ "${#lines[@]}" -eq 3 ]
 }
 
+# The registry lock waits 10 s at most: a wall-clock bound, so run alone (`--filter-tags perf`).
+# bats test_tags=perf
 @test "parallel adds get distinct ids" {
   for i in 1 2 3 4 5 6; do
     bash "$BUG" --mb "$MB" add low "Parallel bug $i" </dev/null >"$TMP/out$i" &

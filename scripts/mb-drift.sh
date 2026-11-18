@@ -497,7 +497,11 @@ check_supersedes() {
 # initialised (fresh bank / pre-upgrade), this is a `skip`, not a failure —
 # the chain makes no retroactive integrity claim (design §9 migration row).
 check_progress_chain() {
-  local chain_script="$DIR/scripts/mb-progress-chain.sh"
+  # The sibling script first: the project under check is rarely the skill repo, and
+  # without it a machine with no installed skill silently skipped this check.
+  local chain_script
+  chain_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mb-progress-chain.sh"
+  [ -f "$chain_script" ] || chain_script="$DIR/scripts/mb-progress-chain.sh"
   # Fall back to the installed skill location, mirroring check_script_coverage.
   if [ ! -f "$chain_script" ]; then
     chain_script="$HOME/.claude/skills/memory-bank/scripts/mb-progress-chain.sh"
