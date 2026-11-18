@@ -128,7 +128,9 @@ def _gate(
     head = f"rules gate `{gate}` exit {code}:"
     # Linters print absolute paths too (`/abs/tree/a/x.py:3`): match against tree-relative text.
     roots = {f"{team['tree']}/", f"{os.path.realpath(team['tree'])}/"}
-    rel = [functools.reduce(lambda ln, root: ln.replace(root, ""), roots, ln) for ln in lines]
+    # Longest root first: a non-canonical alias (/var/x) is a suffix of the realpath (/private/var/x).
+    ordered = sorted(roots, key=len, reverse=True)
+    rel = [functools.reduce(lambda ln, root: ln.replace(root, ""), ordered, ln) for ln in lines]
     hits = {
         tid: [ln for ln, r in zip(lines, rel, strict=True) if any(_names(r, f) for f in files)]
         for tid, files in owned.items()

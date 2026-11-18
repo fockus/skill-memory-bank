@@ -107,17 +107,13 @@ def foundation_groups(team: dict, rows: list[dict]) -> list[dict]:
     accepted = set(team.get("accepted_shared") or [])
     existing = {f"mech:{r['mechanism']}" for r in rows if r["status"] == "exists"}
     closure = _closure(tracks)
-    by_id = {t["id"]: t for t in tracks}
     groups = []
     for s, ids in by_signal.items():
         if len(ids) < 2 or s in accepted or s in existing:
             continue
-        # Resolved by a foundation: one member every other member depends on, or a track every member
-        # depends on that carries the signal itself (a setup track everyone depends on does not count).
-        common = set.intersection(*(closure[i] for i in ids))
-        if any(all(f in closure[o] for o in ids if o != f) for f in ids) or any(
-            s in signals(by_id[d], rows) for d in common if d in by_id
-        ):
+        # Resolved by a foundation: a member every other member depends on. A foundation track carries the
+        # signal too (its task names the mechanism or it owns the shared path), so it is a member of the group.
+        if any(all(f in closure[o] for o in ids if o != f) for f in ids):
             continue
         groups.append(
             {

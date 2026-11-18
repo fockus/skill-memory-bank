@@ -7,9 +7,12 @@ files, sends a failing track back to `fixing` and refuses the commit with nothin
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO_ROOT / "scripts"
@@ -266,3 +269,20 @@ def test_a_baseline_that_is_not_an_ancestor_is_not_used(tmp_path):
     r = _commit_ids(bank, tree, "A")
     assert r.returncode == 0, r.stderr
     assert "not an ancestor" in r.stderr or "not a reachable" in r.stderr
+
+
+@pytest.mark.parametrize("seed", ["0", "2"])
+def test_realpath_gate_output_names_the_track_when_the_tree_is_a_symlink(tmp_path, seed):
+    bank, tree = _two_tracks(tmp_path, "echo \"$(pwd -P)/a/new.txt:3:1: E501\"; exit 1")
+    # The stored tree is a non-canonical alias that is a suffix of the real path (macOS: /var → /private/var),
+    # the shape that made the order of prefix stripping matter.
+    if not str(tree).startswith("/private/"):
+        pytest.skip("needs a /private-prefixed realpath (macOS)")
+    t = _team(bank)
+    t["tree"] = str(tree)[len("/private"):]
+    (bank / "reports" / "demo" / "team.json").write_text(json.dumps(t), encoding="utf-8")
+    r = subprocess.run([sys.executable, str(SCRIPTS / "mb_team_ops.py"), "commit", "--tracks", "A,B", "-m", "x",
+                        "--yes", "--mb", str(bank)], capture_output=True, text=True, cwd=tree,
+                       env={**os.environ, "PYTHONHASHSEED": seed})
+    assert r.returncode == 1
+    assert _statuses(bank) == {"A": "fixing", "B": "done"}, r.stderr
