@@ -154,7 +154,7 @@ report_with() {  # <subitems yaml lines...> → report file path
   python3 -c "import yaml" 2>/dev/null || skip "PyYAML required"
   run bash "$REPO_ROOT/scripts/mb-workflow.sh" --mb "$BANK" --json
   [ "$status" -eq 0 ]
-  jq -e '.adapt == {"enabled":true,"verify_fail_cycles":3,"item_token_budget":null,"max_depth":2}' <<<"$output"
+  jq -e '.adapt == {"enabled":true,"verify_fail_cycles":3,"item_token_budget":null,"max_depth":2,"review_cycles":3,"judge_cycles":2,"cascade_stop":3}' <<<"$output"
   run bash "$REPO_ROOT/scripts/mb-workflow.sh" --mb "$BANK" --no-adapt --json
   jq -e '.adapt.enabled == false' <<<"$output"
 }

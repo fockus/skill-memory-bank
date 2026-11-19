@@ -48,7 +48,7 @@ Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-0
 - ⬜ Stage 4 — Native proof, review and documentation
 
 <!-- mb-plan:2026-11-18_feature_master-completion.md -->
-## master-completion — 19/22
+## master-completion — 21/22
 - ✅ Stage 1 — Bookkeeping close-out of already-shipped work
 - ✅ Stage 2 — Graph nudge that suggests useful queries, per-subagent budget
 - ✅ Stage 3 — Graph share in the cost report
@@ -66,9 +66,9 @@ Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-0
 - ✅ Stage 15 — dynamic-flow T14 — critique, risk-find, final-report skills
 - ✅ Stage 16 — Close S7 svp-brief and S8 svp-contract-test-loop (shipped, unticked)
 - ✅ Stage 17 — S4 svp-roadmap-backlog-db remainder
-- ⬜ Stage 18 — S5 svp-adapt-escalation — rebaseline on ADaPT-lite and remainder
+- ✅ Stage 18 — S5 svp-adapt-escalation — rebaseline on ADaPT-lite and remainder
 - ⬜ Stage 19 — Final verification and bank sync
-- ⬜ Stage 20 — Pi keeps working until the task is done (settle-resume gate)
+- ✅ Stage 20 — Pi keeps working until the task is done (settle-resume gate)
 - ✅ Stage 21 — pi-dynamic-workflows — borrow now, spike as an optional Pi accelerator
 - ✅ Stage 22 — Graph sees tests through shell entry points and argparse dispatch (I-297)
 

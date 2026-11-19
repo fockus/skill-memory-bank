@@ -221,6 +221,9 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_work_models.py` | Per-role model resolver for `mb-work-plan.sh` (cost tiers × host `model_profiles`, AGR-074) and the `cost`/`cost_tiers`/`model_profiles`/`hosts` schema for `mb-pipeline-validate.sh` |
 | `mb_config_hosts.py` | Host templates for `mb-pipeline.sh init --host` (`/mb config init`) and the role → model matrix of `mb-pipeline.sh matrix` (`/mb config show`), AGR-074 |
 | `mb_work_adapt.py` | ADaPT-lite for `/mb work`: `adapt:` config + schema, `complexity_escalation` parsing (`parse`), sub-items in run state behind `mb-work-state.sh split`/`sub-done`/`adapt-check` and the `done` gate (`references/adapt.md`) |
+| `mb_work_adapt_block.py` | ADaPT input parsing split out of `mb_work_adapt.py`: `complexity_escalation` block and scope-guard path matching |
+| `mb_work_adapt_journal.py` | ADaPT escalation journal `<bank>/tmp/escalations.jsonl` under `mb_lock_acquire`: `esc-open|esc-resolve|esc-clean|esc-summary`, cascade stop |
+| `mb_work_adapt_stub.py` | ADaPT staged-stub gate `verify-stub` and the `stub-backlog` sequencer over `mb-idea.sh`/`mb-backlog-state.sh` |
 | `mb_work_waves.py` | Parallel `wave` per item for `mb-work-plan.sh` from `Files:` / spec `Scope:` sets and `Blocked-by` (AGR-073) |
 | `mb_work_items.py` | Shared parser for plan stages (`<!-- mb-stage:N -->`) and spec tasks (`<!-- mb-task:N -->`); CLI emits JSON Lines |
 | `mb_req_id.py` | Shared REQ-ID grammar (single source of truth) used by traceability / spec-validate / ears-validate. Supports prefixed schemes (`REQ-RS-008`), distinguishes a definition from a mid-line mention, expands `REQ-RS-002/003` slash-shorthand, and maps pytest identifiers (`req_rs_008`) onto canonical ids |

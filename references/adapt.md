@@ -143,7 +143,11 @@ was rebased on it (revision 4, 2026-11-19): what is below is delivered, the rest
 | Part | Status |
 |---|---|
 | REQ-001 signal, REQ-002 verify and token guards, REQ-003 `verify_fail_cycles: 3`, REQ-005 four HITL choices, REQ-006 in-run sub-items (no new spec registry) | delivered (Task 1 waiver) |
-| REQ-002 scope, review, judge, eval-not-green guards; REQ-003 `review_cycles: 3`, `judge_cycles: 2` | Task 2 |
-| REQ-007 escalation journal under `mb_lock_acquire`, REQ-008 run summary, REQ-010 cascade stop (`cascade_stop: 3`) | Task 3 |
-| REQ-009 stub gate in verify | Task 4 |
-| REQ-004 stub behind a flag plus a backlog item, when the auto split is refused at `max_depth` | Task 5 |
+| REQ-002 scope, review, judge, eval-not-green guards; REQ-003 `review_cycles: 3`, `judge_cycles: 2` | delivered (Task 2) |
+| REQ-007 escalation journal under `mb_lock_acquire`, REQ-008 run summary, REQ-010 cascade stop (`cascade_stop: 3`) | delivered (Task 3) |
+| REQ-009 stub gate in verify | delivered (Task 4) |
+| REQ-004 stub behind a flag plus a backlog item, when the auto split is refused at `max_depth` | delivered (Task 5) |
+
+Subcommands of `scripts/mb_work_adapt.py` added by Tasks 2-5: `adapt-check --declared/--changed` (scope guard),
+`esc-open|esc-resolve|esc-clean|esc-summary` (journal `<bank>/tmp/escalations.jsonl`, written under
+`mb_lock_acquire` through a bash holder), `verify-stub`, `stub-backlog`. Step 5c1 of `commands/work.md` calls them.

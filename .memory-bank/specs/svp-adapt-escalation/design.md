@@ -249,6 +249,7 @@ S5-A-01…04 and D-16/33/35 live in context. Fixed by this revision:
   `mb_work_adapt.py`; S3 stays out of scope and may later feed the same `--changed` input.
 - **Auto mode splits first, stubs last.** AGR-082 makes auto-mode decomposition the lite behavior, so
   REQ-004's stub is the fallback when the split is refused at `max_depth`, instead of a halt.
+- **Implementation notes (F3b).** `scripts/mb_work_adapt_block.py` (report and scope-path parsing) was split out so the dispatcher stays at 300 lines. The bash holder waits up to 30 s (`mb_lock_acquire … 30 30`, not 5) and retries a fast `lock_corrupt` failure: under contention `mb_lock_acquire` can see the lock path vanish between its `mkdir` and `-d` check (library TOCTOU, follow-up). `adapt-check` and the CLI parse with `parse_intermixed_args` (Python 3.11 rejects a positional after options).
 - **Fail-loud journal, closed schemas, lock by owner liveness** — unchanged reasoning from revision 3,
   now with the Python writer holding the lock through a bash holder.
 - **Stub proven by behavior, not markup** — the two canonical driver tokens, default-off by construction.

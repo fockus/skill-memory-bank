@@ -116,7 +116,7 @@ For every plan stage, verify every DoD item:
 
 Tests being *present* is not enough — a DoD like "tests pass" or "coverage ≥ 85%" is only ✅ if tests
 actually run green. Run them once with the structured runner (it exits 0 even when tests fail; the
-verdict is `tests_pass` in the JSON). How much to run depends on what you were asked to verify (AGR-071):
+verdict is `tests_pass` in the JSON). When the diff carries an `MB-ADAPT-STUB` marker, also run `python3 "$SKILL_DIR"/scripts/mb_work_adapt.py verify-stub --repo . --diff-file <name-only list> --backlog <bank>/backlog.md`; exit 1 or 2 is FAIL. How much to run depends on what you were asked to verify (AGR-071):
 
 - **One `/mb work` item, not the last** — the prompt says `Verify only item <N>` and `Final item: no`.
   Run the tests for this item's own files — the prompt's `Item files:` (its `Files:` ∩ files changed

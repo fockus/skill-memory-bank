@@ -58,8 +58,8 @@
 - Wiring: `wc -l < commands/work.md` ≤ 400 and `tests/pytest/test_s2_file_size_contract.py` green; `ruff check scripts/mb_work_adapt.py`.
 
 **DoD:**
-- [ ] REQ-002 guards (scope, review, judge, eval-not-green) and REQ-003 keys implemented; pytest green (was red)
-- [ ] `adapt.verify_fail_cycles` default still 3; `commands/work.md` ≤ 400 lines
+- [x] REQ-002 guards (scope, review, judge, eval-not-green) and REQ-003 keys implemented; pytest green (was red)
+- [x] `adapt.verify_fail_cycles` default still 3; `commands/work.md` ≤ 400 lines
 <!-- /mb-task:2 -->
 
 <!-- mb-task:3 -->
@@ -87,8 +87,8 @@
 - `wc -l < commands/work.md` ≤ 400; `ruff check` on the two modules.
 
 **DoD:**
-- [ ] Journal written as JSONL under `mb_lock_acquire` (concurrency test green); cascade stop and summary implemented; pytest green (was red)
-- [ ] `commands/work.md` ≤ 400 lines
+- [x] Journal written as JSONL under `mb_lock_acquire` (concurrency test green); cascade stop and summary implemented; pytest green (was red)
+- [x] `commands/work.md` ≤ 400 lines
 <!-- /mb-task:3 -->
 
 <!-- mb-task:4 -->
@@ -115,8 +115,8 @@
 - `wc -l < commands/work.md` ≤ 400; `ruff check` on the two modules.
 
 **DoD:**
-- [ ] verify-stub implemented and wired into plan-verifier and the verify step; default-on and unfenced stubs provably fail; pytest green (was red)
-- [ ] `commands/work.md` ≤ 400 lines
+- [x] verify-stub implemented and wired into plan-verifier and the verify step; default-on and unfenced stubs provably fail; pytest green (was red)
+- [x] `commands/work.md` ≤ 400 lines
 <!-- /mb-task:4 -->
 
 <!-- mb-task:5 -->
@@ -140,6 +140,6 @@
 - `wc -l < commands/work.md` ≤ 400; `ruff check` on the two modules.
 
 **DoD:**
-- [ ] Autonomous stub path wired in work.md and `stub-backlog` implemented over the existing writers; pytest green (was red)
-- [ ] `commands/work.md` ≤ 400 lines; `adapt.verify_fail_cycles` default still 3
+- [x] Autonomous stub path wired in work.md and `stub-backlog` implemented over the existing writers; pytest green (was red)
+- [x] `commands/work.md` ≤ 400 lines; `adapt.verify_fail_cycles` default still 3
 <!-- /mb-task:5 -->

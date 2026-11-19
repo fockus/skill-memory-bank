@@ -1,17 +1,13 @@
-"""ADaPT-lite for `/mb work` (references/adapt.md, plan adapt-lite Stage 2).
+"""ADaPT-lite for `/mb work` (references/adapt.md): config, escalation block, sub-items, guards.
 
-One module for the three mechanical parts of the fork:
-
-- ``adapt:`` config from pipeline.yaml (defaults, ``--no-adapt``, validator);
-- ``complexity_escalation`` block extraction + validation from an implementer report;
-- sub-items in the run state: split / sub-done / done gate / guards / resume carry-over.
+Siblings: mb_work_adapt_{block,journal,stub} (parsing; esc-*; verify-stub, stub-backlog).
 
 CLI (called by mb-work-state.sh and by the orchestrator directly):
   parse [--file F]                         escalation JSON; exit 1 = no block, 3 = invalid
   config --pipeline P [--no-adapt]         effective adapt config as JSON
   split ITEM --state S --subitems JSON [--pipeline P] [--bank B] [--no-adapt]
   sub-done ITEM --state S
-  adapt-check [ITEM] --state S [--pipeline P] [--item-tokens N] [--no-adapt]
+  adapt-check [ITEM] --state S [--pipeline P] [--item-tokens N] [--declared CSV] [--changed F|-]
   gate --state S                           exit 6 while sub-items are open
   carry --from OLD --to NEW                keep sub-items when an open item is re-armed
 Exit codes: 0 ok · 1 no escalation block · 2 usage / invalid input · 3 invalid block ·
@@ -24,19 +20,36 @@ import argparse
 import json
 import os
 import pathlib
-import re
 import subprocess
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from mb_pipeline_minimal_yaml import minimal_pipeline_load, parse_nested_block  # noqa: E402
+import mb_work_adapt_journal as journal  # noqa: E402
+import mb_work_adapt_stub as stub  # noqa: E402
+from mb_pipeline_minimal_yaml import minimal_pipeline_load  # noqa: E402
+from mb_work_adapt_block import (  # noqa: E402,F401
+    normalize_subitems,
+    parse_cli,
+    parse_declared,
+    parse_escalation,
+    read_changed,
+    scope_violations,
+)
 from mb_work_waves import assign_waves  # noqa: E402
 
-DEFAULTS = {"enabled": True, "verify_fail_cycles": 3, "item_token_budget": None, "max_depth": 2}
+DEFAULTS = {
+    "enabled": True,
+    "verify_fail_cycles": 3,
+    "item_token_budget": None,
+    "max_depth": 2,
+    "review_cycles": 3,
+    "judge_cycles": 2,
+    "cascade_stop": 3,
+}
+_INT_KEYS = ("verify_fail_cycles", "max_depth", "review_cycles", "judge_cycles", "cascade_stop")
 DEFAULT_PIPELINE = HERE.parent / "references" / "pipeline.default.yaml"
-_KEY_RE = re.compile(r"^(\s*)complexity_escalation:\s*$")
 
 
 class Refusal(Exception):
@@ -61,7 +74,7 @@ def validate(cfg: dict, err) -> None:
         err(f"adapt: unknown keys {unknown}; allowed {sorted(DEFAULTS)}")
     if "enabled" in block and not isinstance(block["enabled"], bool):
         err(f"adapt.enabled: must be boolean (got {block['enabled']!r})")
-    for key in ("verify_fail_cycles", "max_depth"):
+    for key in _INT_KEYS:
         if key in block and not (_is_int(block[key]) and block[key] >= 1):
             err(f"adapt.{key}: must be int >= 1 (got {block[key]!r})")
     budget = block.get("item_token_budget")
@@ -92,85 +105,6 @@ def load_config(pipeline: str = "", no_adapt: bool = False) -> dict:
     if no_adapt:
         cfg["enabled"] = False
     return cfg
-
-
-# ── escalation block ───────────────────────────────────────────────────────
-def _files(value) -> list[str]:
-    parts = value.split(",") if isinstance(value, str) else value if isinstance(value, list) else []
-    return [str(p).strip().strip("`").strip() for p in parts if str(p).strip().strip("`").strip()]
-
-
-def normalize_subitems(raw) -> list[dict]:
-    """2-5 sub-items, each with a title and a non-empty Files list; ValueError otherwise."""
-    if not isinstance(raw, list) or not 2 <= len(raw) <= 5:
-        n = len(raw) if isinstance(raw, list) else 0
-        raise ValueError(f"proposed_subitems must hold 2-5 sub-items (got {n})")
-    out = []
-    for idx, item in enumerate(raw, 1):
-        if not isinstance(item, dict) or not str(item.get("title") or "").strip():
-            raise ValueError(f"sub-item {idx} needs a non-empty title")
-        files = _files(item.get("Files", item.get("files")))
-        if not files:
-            raise ValueError(f"sub-item {idx} needs a non-empty Files list")
-        out.append({"title": str(item["title"]).strip(), "files": files})
-    return out
-
-
-def _yaml_block(text: str):
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        m = _KEY_RE.match(line)
-        if not m:
-            continue
-        base = len(m.group(1))
-        body = []
-        for nxt in lines[i + 1 :]:
-            if nxt.strip().startswith("```") or (
-                nxt.strip() and len(nxt) - len(nxt.lstrip()) <= base
-            ):
-                break
-            body.append(nxt[base:])
-        src = "\n".join(["complexity_escalation:", *body])
-        try:
-            import yaml  # type: ignore
-
-            return (yaml.safe_load(src) or {}).get("complexity_escalation")
-        except ImportError:
-            return parse_nested_block(src.splitlines(), "complexity_escalation")
-    return None
-
-
-def _json_block(text: str):
-    decoder = json.JSONDecoder()
-    for m in re.finditer(r"\{", text):
-        try:
-            obj, _ = decoder.raw_decode(text, m.start())
-        except ValueError:
-            continue
-        if isinstance(obj, dict) and "complexity_escalation" in obj:
-            return obj["complexity_escalation"]
-    return None
-
-
-def parse_escalation(text: str):
-    """Return the normalized block, None when the report carries none; ValueError if invalid."""
-    block = (
-        _yaml_block(text)
-        if any(_KEY_RE.match(ln) for ln in text.splitlines())
-        else _json_block(text)
-    )
-    if block is None:
-        return None
-    if not isinstance(block, dict):
-        raise ValueError("complexity_escalation must be a mapping")
-    for key in ("reason", "estimate"):
-        if not str(block.get(key) or "").strip():
-            raise ValueError(f"complexity_escalation.{key} is required")
-    return {
-        "reason": str(block["reason"]).strip(),
-        "estimate": str(block["estimate"]).strip(),
-        "proposed_subitems": normalize_subitems(block.get("proposed_subitems")),
-    }
 
 
 # ── run state ─────────────────────────────────────────────────────────────
@@ -244,26 +178,54 @@ def gate(state: str) -> None:
         )
 
 
-def check(state: str, cfg: dict, item_id: str = "", item_tokens=None) -> dict:
+def check(
+    state: str,
+    cfg: dict,
+    item_id: str = "",
+    item_tokens=None,
+    declared: str = "",
+    changed: list[str] | None = None,
+) -> dict:
     data = _load(state)
     top = str(data.get("item_no", ""))
     item_id = item_id or top
-    key = "verify_fail" if item_id == top else f"verify_fail@{item_id}"
-    fails = list(data.get("steps") or []).count(key)
-    reasons = []
+    suffix = "" if item_id == top else f"@{item_id}"
+    steps = list(data.get("steps") or [])
+    count = {
+        n: steps.count(n + suffix)
+        for n in ("verify_fail", "review_cycle", "judge_cycle", "eval_fail")
+    }
+    reasons, stray = [], []
+    decl = parse_declared(declared)
+    degraded = [] if decl and changed else ["scope"]
     if cfg["enabled"]:
-        if fails >= cfg["verify_fail_cycles"]:
-            reasons.append("verify_fail_cycles")
         budget = cfg["item_token_budget"]
-        if budget is not None and item_tokens is not None and item_tokens > budget:
-            reasons.append("item_token_budget")
-    return {
+        max_cycles = data.get("max_cycles")
+        hits = [
+            ("verify_fail_cycles", count["verify_fail"] >= cfg["verify_fail_cycles"]),
+            (
+                "item_token_budget",
+                budget is not None and item_tokens is not None and item_tokens > budget,
+            ),
+            ("review_cycles", count["review_cycle"] >= cfg["review_cycles"]),
+            ("judge_cycles", count["judge_cycle"] >= cfg["judge_cycles"]),
+            ("eval_not_green", _is_int(max_cycles) and count["eval_fail"] >= max_cycles),
+        ]
+        if not degraded:
+            stray = scope_violations(decl, changed or [])
+            hits.append(("scope_violation", bool(stray)))
+        reasons = [name for name, hit in hits if hit]
+    out = {
         "enabled": cfg["enabled"],
         "item": item_id,
-        "verify_fails": fails,
+        "verify_fails": count["verify_fail"],
         "trigger": bool(reasons),
         "reasons": reasons,
+        "degraded_guards": degraded,
     }
+    if stray and "scope_violation" in reasons:
+        out["out_of_scope"] = stray
+    return out
 
 
 def carry(old: str, new: str) -> None:
@@ -284,6 +246,11 @@ def _progress(bank: str, line: str) -> None:
 
 
 def main(argv: list[str]) -> int:
+    if argv and argv[0] in journal.COMMANDS:
+        return journal.cli(argv, load_config)
+    stubs = {"verify-stub": stub.cli_verify, "stub-backlog": stub.cli_backlog}
+    if argv and argv[0] in stubs:
+        return stubs[argv[0]](argv[1:])
     ap = argparse.ArgumentParser(prog="mb_work_adapt.py")
     ap.add_argument(
         "cmd", choices=["parse", "config", "split", "sub-done", "adapt-check", "gate", "carry"]
@@ -291,36 +258,31 @@ def main(argv: list[str]) -> int:
     ap.add_argument("item", nargs="?", default="")
     for flag in ("--file", "--state", "--pipeline", "--bank", "--subitems", "--from", "--to"):
         ap.add_argument(flag, default="")
+    ap.add_argument("--declared", default="")
+    ap.add_argument("--changed", default="")
     ap.add_argument("--item-tokens", type=int, default=None)
     ap.add_argument("--no-adapt", action="store_true")
-    a = ap.parse_args(argv)
+    a = ap.parse_intermixed_args(argv)
     cfg = load_config(a.pipeline, a.no_adapt)
     try:
         if a.cmd == "parse":
-            text = pathlib.Path(a.file).read_text(encoding="utf-8") if a.file else sys.stdin.read()
-            try:
-                block = parse_escalation(text)
-            except ValueError as exc:
-                print(f"[adapt] invalid complexity_escalation: {exc}", file=sys.stderr)
-                return 3
-            if block is None:
-                print("[adapt] no complexity_escalation block", file=sys.stderr)
-                return 1
-            print(json.dumps(block, ensure_ascii=False))
+            rc = parse_cli(a.file)
+            if rc:
+                return rc
         elif a.cmd == "config":
             print(json.dumps(cfg))
         elif a.cmd == "split":
             children = split(a.state, a.item, json.loads(a.subitems or "null"), cfg)
-            parent = a.item
             ids = ", ".join(c["id"] for c in children)
             _progress(
-                a.bank, f"ADaPT: item {parent} split into {ids} (depth {children[0]['depth']})"
+                a.bank, f"ADaPT: item {a.item} split into {ids} (depth {children[0]['depth']})"
             )
             print(json.dumps(children, ensure_ascii=False))
         elif a.cmd == "sub-done":
             sub_done(a.state, a.item)
         elif a.cmd == "adapt-check":
-            print(json.dumps(check(a.state, cfg, a.item, a.item_tokens)))
+            changed = read_changed(a.changed) if a.changed else None
+            print(json.dumps(check(a.state, cfg, a.item, a.item_tokens, a.declared, changed)))
         elif a.cmd == "gate":
             gate(a.state)
         else:

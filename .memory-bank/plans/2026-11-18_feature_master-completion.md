@@ -379,8 +379,8 @@ created: 2026-11-18
 **Testing (TDD):** Eval per remaining task red first; existing `grep -rl mb_work_adapt tests/` tests stay green.
 
 **DoD:**
-- [ ] open DoD = 0; validate rc=0; escalations written as JSONL under the lock (test)
-- [ ] `wc -l < commands/work.md` ≤ 400
+- [x] open DoD = 0; validate rc=0; escalations written as JSONL under the lock (test)
+- [x] `wc -l < commands/work.md` ≤ 400
 
 <!-- mb-stage:19 -->
 ### Stage 19: Final verification and bank sync
@@ -417,7 +417,7 @@ created: 2026-11-18
 
 **DoD:**
 - [x] new tests red before, green after; existing `tests/pytest/test_pi_native_*.py` green (173 passed, 17 skipped, 2026-11-18)
-- [ ] live check: one Pi session under `/mb drive` or `/mb work` runs a 3-step item without a "продолжи" from the user (log excerpt in the report)
+- [x] live check: skipped by the owner (AGR-108, 2026-11-19); accepted on the automated tests
 
 <!-- mb-stage:21 -->
 ### Stage 21: pi-dynamic-workflows — borrow now, spike as an optional Pi accelerator

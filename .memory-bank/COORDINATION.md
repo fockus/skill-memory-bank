@@ -2422,3 +2422,5 @@ F3b needs commands/work.md (held by another track) and agents/plan-verifier.md e
    - **Run summary:** `esc-summary --bank <bank> --run-id "$RUN_ID"` (escalations, corrections, open skips, stubs with backlog ids).
 
 Then re-run tests/pytest/test_s2_file_size_contract.py (cap 400; the file is 377 now, the block must stay net-zero). If net-zero cannot be reached, compress other 5c1 prose. Also add one line to agents/plan-verifier.md: when the diff carries `MB-ADAPT-STUB`, run `python3 "$SKILL_DIR"/scripts/mb_work_adapt.py verify-stub --repo . --diff-file <name-only> --backlog <bank>/backlog.md` and treat exit 1/2 as FAIL.
+
+## STATUS · 2026-11-19 · F3b: F3b done: T2-T5 code green; work.md/plan-verifier wiring waits on HANDOVER

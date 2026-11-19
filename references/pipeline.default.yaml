@@ -283,7 +283,9 @@ sprint_context_guard:
 # spent more than item_token_budget tokens (null = off). auto: the planner splits
 # that item into 2-5 sub-items; HITL: continue / simplify / decompose / skip.
 # Sub-items nest at most max_depth levels. `/mb work --no-adapt` = halt as before.
-adapt: {enabled: true, verify_fail_cycles: 3, item_token_budget: null, max_depth: 2}
+# review_cycles / judge_cycles / verify_fail_cycles: failed cycles per item before the fork;
+# cascade_stop: consecutive escalations in one run before the run stops (journal, adapt.md).
+adapt: {enabled: true, verify_fail_cycles: 3, item_token_budget: null, max_depth: 2, review_cycles: 3, judge_cycles: 2, cascade_stop: 3}
 
 # ===== Drive — /mb drive (commands/drive.md) =====
 # parallel: two or more ready, independent plans with disjoint files run as one /mb team; only a

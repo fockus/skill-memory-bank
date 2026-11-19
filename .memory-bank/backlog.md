@@ -1180,3 +1180,6 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-301 — /mb work over OpenSpec (Stage 10 judge, B4-judge.json): the bare-id ambiguity check misses a refused change (native collision, other-change link, symlink) — treat guard exit 2 like 0 so a plan with the same substring does not resolve silently; move the ~55-line Python guard out of the mb-work-resolve.sh heredoc into a helper with pytest cases. [LOW, NEW, 2026-11-19]
 **Type:** IDEA
+
+### I-302 — S5 adapt-escalation follow-ups (F3b-verify.md): design.md:135 still says mb_lock_acquire 5 30 (code uses 30 30, justified at :252); _lib.sh mb_lock_acquire can raise a spurious lock_corrupt under contention (TOCTOU; the journal holder retries); 6 missing type hints flagged by mb-rules-check; T1 waiver line numbers point at 190251c and have moved; verify-stub may flag Protocol '...' bodies as bare placeholders in changed files without a stub marker. [LOW, NEW, 2026-11-19]
+**Type:** IDEA
