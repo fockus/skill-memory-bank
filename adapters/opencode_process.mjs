@@ -25,10 +25,14 @@ from pathlib import Path
 assert sys.version_info >= (3, 11)
 import memory_bank_skill, yaml
 from memory_bank_skill.pipeline_yaml import load_text
-print(json.dumps([sys.prefix, sys.version_info[:3], str(Path(memory_bank_skill.__file__).resolve())]))'
-identity="$("$python" -P -c "$probe" 2>/dev/null)" || exit 79
+print(json.dumps([sys.prefix, sys.version_info[:3], str(Path(memory_bank_skill.__file__).resolve())]))
+print(sys.executable)'
+report="$("$python" -P -c "$probe" 2>/dev/null)" || exit 79
+identity="\${report%%$'\\n'*}"
+# Pin the real interpreter: a version-manager shim (pyenv, asdf) costs ~0.3 s per helper fork.
+case "\${report#*$'\\n'}" in /*) [ -x "\${report#*$'\\n'}" ] && python="\${report#*$'\\n'}" ;; esac
 other="$("\${python%/*}/python3" -P -c "$probe" 2>/dev/null)" || exit 80
-[ "$identity" = "$other" ] || exit 80
+[ "$identity" = "\${other%%$'\\n'*}" ] || exit 80
 export MB_PYTHON="$python" PATH="\${python%/*}:$PATH"
 if [ "$1" = python3 ]; then shift; set -- "$python" "$@"; fi
 exec "$@"`;

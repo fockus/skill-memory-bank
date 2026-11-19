@@ -15,6 +15,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - OpenCode >= 2.3 (subagents always run in the background): the dispatch guidance drops `background?` and ends the turn until the `<subagent>` report; a planning run keeps its model pins until every child has reported. CI runs the OpenCode V2 acceptance tests against a pinned, checksum-verified 2.3.2; the coverage gate is back to 85%.
 - OpenCode upgrade from a pre-hash ownership record: a path listed in `files` without a `file_sha256` entry no longer fails the adapter; it is moved to a recorded backup under `<root>/.memory-bank-backups/` (outside host discovery), then rewritten and hashed. Uninstall keeps those backups and names them. Unlisted files and hashed files edited since installation are still refused.
 
+### Fixed — OpenCode helpers behind a pyenv/asdf shim
+
+- OpenCode runner pins the real interpreter behind a version-manager shim: each helper `python3` fork cost ~0.3 s, so `mb-work-state.sh retained` on a done item ran past the 5 s limit and blocked native dispatch.
+
 ### Fixed — /mb drive on Python 3.11
 
 - `mb-drive.sh phase execution` no longer fails with "unrecognized arguments" on Python older than 3.12, where a drive could not leave planning.

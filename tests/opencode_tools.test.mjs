@@ -220,6 +220,19 @@ for (const mode of ['wheel', 'explicit', 'checkout']) test(`native Python ${mode
   assert.deepEqual({ ...process.env }, before);
 });
 
+test('native Python behind a version-manager shim pins the real interpreter for helper forks', async t => {
+  const f = await nativePythonFixture(t, true);
+  const shims = path.join(f.temp, 'shims'); const calls = path.join(f.temp, 'shim-calls');
+  await fs.mkdir(shims);
+  for (const name of ['python', 'python3']) {
+    await fs.writeFile(path.join(shims, name), `#!/bin/bash\necho >> '${calls}'\nexec '${f.ambient}/bin/python' "$@"\n`, { mode: 0o755 });
+  }
+  process.env.PATH = `${shims}:${process.env.PATH}`;
+  await fs.writeFile(path.join(f.bundle, 'hooks/runtime-forks.sh'), 'for i in 1 2 3; do python3 -c pass; done\nprintf %s "$MB_PYTHON"\n');
+  assert.equal(await f.runner.run('hooks/runtime-forks.sh'), path.join(f.ambient, 'bin/python'));
+  assert.equal((await fs.readFile(calls, 'utf8')).split('\n').length - 1, 1, 'only the bootstrap probe may pay the shim cost');
+});
+
 for (const mode of ['stale', 'missing-owner', 'missing-package', 'missing-yaml', 'mismatched-python3']) test(`native Python ${mode} refuses before effects even with allowSoft`, async t => {
   const f = await nativePythonFixture(t);
   if (mode === 'stale') process.env.MB_PYTHON = '/missing/SECRET_INTERPRETER_CANARY';
