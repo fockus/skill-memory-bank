@@ -89,47 +89,65 @@ test('S3-SEC-5 an explicit missing pipeline cannot downgrade the selected protec
   await assert.rejects(host.hook('tool.execute.before', { tool: 'write', input: { path: 'secret/token.txt', content: 'safe' }, sessionID: 'root', id: 'policy' }), /BLOCKED/);
 });
 
-test('S3-SEC-6 successful helpers clean an observer-witnessed setsid descendant before returning', async t => {
+for (const slowRound of [false, true]) test(`S3-SEC-6 successful helpers clean an observer-witnessed setsid descendant before returning${slowRound ? ' (first witnessing ps round times out)' : ''}`, async t => {
   const f = await fixture(t); const controller = new AbortController();
   const runner = createRunner(f.bundle, f.cwd, controller.signal);
   const childFile = path.join(f.temp, 'escaped-success.py'), pidFile = path.join(f.temp, 'escaped-success.pid');
   const fifo = path.join(f.temp, 'observer.fifo'), witnessed = path.join(f.temp, 'observer.json');
+  const slowed = path.join(f.temp, 'observer.slowed');
   const realPs = execFileSync('which', ['ps'], { encoding: 'utf8' }).trim();
   const bin = path.join(f.temp, 'observer-bin'); await fs.mkdir(bin);
-  // Release the parent only after the runner's real ps snapshot contains child -> parent.
+  // Release the parent only after the runner holds a ps snapshot with child -> parent: the round that
+  // sees the pair marks it as its last act before exiting, and only a later round signals. The runner
+  // starts a round after the previous one returned, and drops a round it timed out (no marker then).
+  const seen = path.join(f.temp, 'observer.seen');
   await fs.writeFile(path.join(bin, 'ps'), `#!/usr/bin/env python3
-import json, os, subprocess, sys
+import json, os, subprocess, sys, time
 result = subprocess.run([${JSON.stringify(realPs)}, *sys.argv[1:]], capture_output=True, text=True, check=False)
 sys.stdout.write(result.stdout)
 sys.stderr.write(result.stderr)
+mark = False
 try:
-    with open(${JSON.stringify(pidFile)}) as stream:
-        expected = json.load(stream)
-    rows = [list(map(int, line.split())) for line in result.stdout.splitlines()]
-    pair = [expected['child'], expected['parent']]
-    if result.returncode == 0 and pair in rows:
+    if os.path.exists(${JSON.stringify(seen)}):
         fd = os.open(${JSON.stringify(fifo)}, os.O_WRONLY | os.O_NONBLOCK)
         try:
-            with open(${JSON.stringify(witnessed)}, 'w') as stream:
-                json.dump({'child': pair[0], 'parent': pair[1], 'row': pair}, stream)
             os.write(fd, b'observed\\n')
         finally:
             os.close(fd)
+    else:
+        with open(${JSON.stringify(pidFile)}) as stream:
+            expected = json.load(stream)
+        rows = [list(map(int, line.split())) for line in result.stdout.splitlines()]
+        pair = [expected['child'], expected['parent']]
+        if result.returncode == 0 and pair in rows:
+            with open(${JSON.stringify(witnessed)}, 'w') as stream:
+                json.dump({'child': pair[0], 'parent': pair[1], 'row': pair}, stream)
+            mark = True
+            if ${slowRound ? 'True' : 'False'} and not os.path.exists(${JSON.stringify(slowed)}):
+                open(${JSON.stringify(slowed)}, 'w').close()
+                time.sleep(1.5)  # past the runner's 1 s ps limit
 except (OSError, ValueError, KeyError):
     pass
-sys.exit(result.returncode)
+sys.stdout.flush()
+sys.stderr.flush()
+if mark:
+    open(${JSON.stringify(seen)}, 'w').close()
+os._exit(result.returncode)
 `, { mode: 0o755 });
   process.env.PATH = `${bin}${path.delimiter}${process.env.PATH}`;
   await fs.writeFile(childFile, 'import os, time\nos.setsid()\nprint(os.getpid(), flush=True)\ntime.sleep(60)\n');
   await fs.writeFile(path.join(f.bundle, 'adapters/success.py'), `import json, os, subprocess, sys\nos.mkfifo(${JSON.stringify(fifo)})\nchild = subprocess.Popen([sys.executable, ${JSON.stringify(childFile)}], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)\nchild_pid = int(child.stdout.readline())\nwith open(${JSON.stringify(pidFile)}, 'w') as stream:\n    json.dump({'child': child_pid, 'parent': os.getpid()}, stream)\nwith open(${JSON.stringify(fifo)}) as witness:\n    assert witness.read() == 'observed\\n'\nprint('helper completed')\n`);
   let child;
   try {
-    assert.equal(await runner.run('adapters/success.py'), 'helper completed');
+    // Headroom: a dropped 1 s ps round plus helper startup under load can pass the 5 s default.
+    assert.equal(await runner.run('adapters/success.py', [], '', { timeout: 15000 }), 'helper completed');
     const identity = JSON.parse(await fs.readFile(pidFile, 'utf8'));
     child = identity.child;
     const observation = JSON.parse(await fs.readFile(witnessed, 'utf8'));
     assert.deepEqual(observation.row, [child, identity.parent]);
-    assert.throws(() => process.kill(child, 0), /ESRCH/);
+    // Killed before returning: gone, or a zombie that launchd has not reaped yet.
+    const state = () => { try { process.kill(child, 0); return execFileSync(realPs, ['-o', 'stat=', '-p', String(child)], { encoding: 'utf8' }).trim(); } catch { return 'gone'; } };
+    assert.match(state(), /^(gone|Z)/);
   } finally {
     child ??= JSON.parse(await fs.readFile(pidFile, 'utf8').catch(() => '{}')).child;
     if (child) { try { process.kill(child, 'SIGKILL'); } catch { /* Already cleaned. */ } }
