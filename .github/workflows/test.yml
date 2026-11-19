@@ -49,6 +49,7 @@ jobs:
       - uses: ./.github/actions/setup-tests
         with:
           python-version: ${{ matrix.py }}
+          host-runtimes: ${{ startsWith(matrix.suite, 'pytest') }}
       - name: Run tests
         env:
           CI_COVERAGE: ${{ matrix.cov }}
@@ -106,6 +107,7 @@ jobs:
       - uses: ./.github/actions/setup-tests
         with:
           python-version: "3.12"
+          host-runtimes: ${{ startsWith(matrix.suite, 'pytest') }}
       - name: Run tests
         run: .github/ci-run.sh "${{ matrix.suite }}" "${{ matrix.k }}" "${{ matrix.n }}"
 
