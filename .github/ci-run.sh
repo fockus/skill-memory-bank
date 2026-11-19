@@ -34,13 +34,13 @@ case "$suite" in
   bats | bats-quick)
     tags='!perf'; [ "$suite" = bats ] || tags='!slow,!perf'
     # shellcheck disable=SC2046  # one path per word, no spaces in test file names
-    bats --jobs "$jobs" --filter-tags "$tags" $(shard '^@test' tests/bats/*.bats) ;;
+    bats --timing --jobs "$jobs" --filter-tags "$tags" $(shard '^@test' tests/bats/*.bats) ;;
   serial)
     bats --filter-tags perf tests/bats/
     bats --jobs "$jobs" hooks/tests/*.bats ;;
   e2e)
     # shellcheck disable=SC2046
-    bats --jobs "$jobs" $(shard '^@test' tests/e2e/*.bats) ;;
+    bats --timing --jobs "$jobs" $(shard '^@test' tests/e2e/*.bats) ;;
   pytest | pytest-quick)
     args=(-n auto -o 'python_files=*_test.py test_*.py')
     [ "$suite" = pytest ] || args+=(-m 'not slow')
