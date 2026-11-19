@@ -21,7 +21,13 @@ omit =
     scripts/mb-sdd-layers-render.py
     scripts/mb-settings-ensure-timeout.py
     scripts/mb-statusline.py
+    scripts/mb_backlog_blocks.py
+    scripts/mb_backlog_migrate.py
+    scripts/mb_backlog_similar.py
     scripts/mb_backlog_state_engine.py
+    scripts/mb_bank_lint.py
+    scripts/mb_bank_lint_backlog.py
+    scripts/mb_bank_lint_roadmap.py
     scripts/mb_brief_candidate.py
     scripts/mb_code_context_core.py
     scripts/mb_contract_gate.py
@@ -39,6 +45,10 @@ omit =
     scripts/mb_spec_validate_scope_eval.py
     scripts/mb_spec_validate_tasks.py
     scripts/mb_spec_validate_v2.py
+    scripts/mb_work_adapt.py
+    scripts/mb_work_adapt_block.py
+    scripts/mb_work_adapt_journal.py
+    scripts/mb_work_adapt_stub.py
     scripts/mb_work_plan_wrapper.py
 
 [report]
