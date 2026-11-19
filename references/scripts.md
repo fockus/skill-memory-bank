@@ -264,6 +264,7 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_work_retention.py` | Internal bounded, opt-in state I/O for native work retention; no workflow policy |
 | `mb_work_source.py` | Shared declaration-source resolution for work-state init and Eval; canonicalizes relative locators before they can change with cwd |
 | `mb_work_plan_wrapper.py` | Wrapper-plan resolution for `mb-work-plan.sh` (`linked_spec` / `<!-- mb-stage:N -->`) |
+| `mb_work_active.py` | Empty-target pick for `mb-work-resolve.sh`: skips paused/cancelled/done/blocked plans and open `depends_on` |
 | `mb_backlog_state_engine.py` | Backlog parser + state engine behind the backlog scripts |
 | `mb_backlog_validate.py` | Backlog metadata validation: the brief gate (REQ-007) + single-line safety |
 | `mb_backlog_blocks.py` | Move whole backlog entry blocks into `## Out of scope` (shared by the engine and the migrator) |
