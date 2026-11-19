@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Hermes Agent: `hermes/memory-bank` plugin runs the skill unchanged; each session gets its folder's `.memory-bank/`, a Hermes project bank or the profile's general bank, with session context, handoff and semantic reindex; [setup](hermes/README.md).
 - OpenCode 2: native command/tool hooks, opt-in model-free root memory and run-scoped model/variant routing; [contracts and limits](docs/cross-agent-setup.md#opencode).
 - Installer/CLI: `--only opencode` isolates installation, owned updates and uninstall; public extension opt-in survives reinstall. Other hosts and retained user configuration remain unchanged.
+- OpenCode >= 2.3 (subagents always run in the background): the dispatch guidance drops `background?` and ends the turn until the `<subagent>` report; a planning run keeps its model pins until every child has reported. CI runs the OpenCode V2 acceptance tests against a pinned, checksum-verified 2.3.2; the coverage gate is back to 85%.
 - OpenCode upgrade from a pre-hash ownership record: a path listed in `files` without a `file_sha256` entry no longer fails the adapter; it is moved to a recorded backup under `<root>/.memory-bank-backups/` (outside host discovery), then rewritten and hashed. Uninstall keeps those backups and names them. Unlisted files and hashed files edited since installation are still refused.
 
 ### Fixed — /mb drive on Python 3.11

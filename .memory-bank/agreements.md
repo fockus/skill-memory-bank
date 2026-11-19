@@ -98,6 +98,7 @@
 - AGR-106 (2026-11-19, user-confirmed): Goal G-001 (sdd-vision-pipeline, paused) is parked: .memory-bank/goal.md moved to .memory-bank/goals/G-001.md, because an existing goal.md makes the pre-commit hook run the full mb-flow-verify suite on every commit by every session; restore it by moving it back to goal.md when the sdd-vision-pipeline work resumes
 - AGR-107 (2026-11-19, user-confirmed): svp-adapt-escalation rebased on ADaPT-lite (master-completion Stage 18a): REQ-004/005/006 amended to match the lite code — the stub is the fallback when the auto split is refused at max_depth, decompose replaces replan, and there is no child-spec registry
 - AGR-108 (2026-11-19, user-confirmed): master-completion Stage 20: the live Pi session check of the settle-resume gate is skipped by the owner; the gate is accepted on its automated tests (12 settle tests, 173 pi_native tests passed) and can be checked live later
+- AGR-110 (2026-11-19, user-confirmed): CI coverage gate is back to 85%: Linux pytest shards install a pinned, checksum-verified OpenCode 2.3.2 release binary, so the OpenCode V2 native acceptance tests run in CI (green on OpenCode 2.0.18 and 2.3.2). [supersedes AGR-109]
 
 ## Deferred
 
@@ -121,3 +122,4 @@
 - AGR-087 (2026-10-08, user-confirmed): Оставшиеся этапы pi-native-integration идут по пресету medium: исполнитель берёт этап целиком, верификатор один раз на план, ревью и судья перед закрытием плана (решение владельца 2026-10-08) [superseded by AGR-089]
 - AGR-013 (2026-07-15, user-confirmed): adapter-parity: паритет хуков/сабагентов на Pi и OpenCode достигается host-native расширениями, предлагаемыми пользователю opt-in при install и в runtime-nudge (/mb doctor); никогда авто-install; отказ = byte-identical install; Codex = honest degradation (prompt-hook notify + platform_limited) [superseded by AGR-093]
 - AGR-016 (2026-07-15, user-confirmed): openspec-adapter: тонкий one-way import-адаптер OpenSpec change → наш spec-триплет (детерминированное ядро + опц. --normalize LLM-слой), ставится ВПЕРЁД остальных планов для быстрого релиза; отличен от sdd-openspec-parity (native parity) и iceboxed donor v6.7.0 (runtime integration) [superseded by AGR-101]
+- AGR-109 (2026-11-19, user-confirmed): CI coverage gate is 84% (full local run stays 85%): OpenCode V2 acceptance tests skip in CI because the CLI has no npm release; not installing OpenCode in CI for now [superseded by AGR-110]

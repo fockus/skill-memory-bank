@@ -9,6 +9,22 @@ function reference(selector) {
   return { providerID: match[1], id: match[2], ...(match[3] ? { variant: match[3] } : {}) };
 }
 const selector = ref => `${ref.providerID}/${ref.id}${ref.variant ? `#${ref.variant}` : ''}`;
+// OpenCode >= 2.3 runs every subagent in the background: the root idles right after dispatch and a
+// synthetic <subagent> report wakes it later. The generation is not over while a child is unreported
+// or a report is newer than the last idle.
+function awaitingChildren(generation, terminal) {
+  const open = new Set();
+  let reported = -1;
+  generation.forEach((message, index) => {
+    if (message.type === 'assistant') {
+      for (const part of message.content ?? []) {
+        if (part.type === 'tool' && part.name === 'subagent' && part.state?.metadata?.status === 'running') open.add(part.state.metadata.sessionID);
+      }
+    }
+    if (message.type === 'synthetic' && message.metadata?.source === 'subagent') { open.delete(message.metadata.childID); reported = index; }
+  });
+  return open.size > 0 || reported > generation.indexOf(terminal);
+}
 
 /** @param {{ctx: import('@opencode/plugin').Plugin.Context, root: string, runner: ReturnType<import('./opencode_process.mjs').createRunner>, directory: string, locate: Function, resolveBank: Function, signal: AbortSignal}} options */
 export function createWorkflowBinding({ ctx, root, runner, directory, locate, resolveBank, signal }) {
@@ -53,8 +69,8 @@ export function createWorkflowBinding({ ctx, root, runner, directory, locate, re
         const next = messages.findIndex((message, index) => index > start && message.type === 'user');
         const generation = start < 0 ? [] : messages.slice(start + 1, next < 0 ? undefined : next);
         const terminal = generation.findLast(message => message.type === 'idle');
-        if (terminal && (terminal.outcome !== 'succeeded'
-          || generation.some(message => message.type === 'assistant' && message.time.completed && message.finish === 'stop'))) {
+        if (terminal && (terminal.outcome !== 'succeeded' || (!awaitingChildren(generation, terminal)
+          && generation.some(message => message.type === 'assistant' && message.time.completed && message.finish === 'stop')))) {
           runs.delete(run.owner); return;
         }
       }

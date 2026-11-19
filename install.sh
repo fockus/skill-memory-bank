@@ -1351,7 +1351,8 @@ $OPENCODE_START_MARKER
 
 # Memory Bank — OpenCode Global Entry Point
 
-- Native OpenCode 2 dispatch: \`subagent({agent, description, prompt, model?: "provider/model#variant", sessionID?, background?})\`.
+- Native OpenCode 2 dispatch: \`subagent({agent, description, prompt, model?: "provider/model#variant", sessionID?})\`.
+- On OpenCode >= 2.3 subagents always run in the background: after dispatch end the turn; the \`/mb work\` loop continues when the \`<subagent>\` report arrives, and canonical state never advances before it.
 - Omit model for role pins/inheritance; \`/mb work --model inherit\` and \`--step-model role=inherit\` override pins for this run only.
 - Before changes, read applicable detailed rules at the pointer below and project \`RULES.md\` / \`.memory-bank/RULES.md\`; links do not load rules.
 - Without parity extensions, suggest \`install.sh --with-extensions=opencode\` once per session; stay silent once installed.

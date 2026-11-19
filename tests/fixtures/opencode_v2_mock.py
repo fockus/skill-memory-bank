@@ -210,12 +210,21 @@ class NativeRuntime:
 
     def wait(self, sid: str, *, after_idle=None) -> dict:
         # A hang guard, not a speed check: parallel workers stretch a healthy session.
+        # Quiescence, not the first idle: OpenCode >= 2.3 runs subagents in the background, so the
+        # root idles right after dispatch and a child's <subagent> report wakes it again. Done means
+        # every descendant is idle and the root went idle after the last of them (2.0.x already is).
         deadline = time.monotonic() + SESSION_BUDGET
         while time.monotonic() < deadline:
             info = self.data(f"/api/session/{sid}")
             idle = info.get("time", {}).get("idle")
             if idle and idle != after_idle:
-                return info
+                sessions = self.data("/api/session")
+                family = {sid}
+                while found := {s["id"] for s in sessions if s.get("parentID") in family} - family:
+                    family |= found
+                children = [s.get("time", {}).get("idle") for s in sessions if s["id"] in family - {sid}]
+                if all(child and child < idle for child in children):
+                    return info
             if self.errors:
                 raise AssertionError(self.errors)
             time.sleep(0.1)

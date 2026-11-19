@@ -55,3 +55,21 @@ runs:
       if: inputs.host-runtimes == 'true'
       shell: bash
       run: npm install -g @earendil-works/pi-coding-agent@1.5.0 && pi --version
+
+    # Pinned and checksum-verified: the OpenCode V2 native acceptance tests drive this
+    # binary (verified on 2.0.18 and 2.3.2). Linux only; elsewhere those tests skip.
+    - name: Install OpenCode
+      if: inputs.host-runtimes == 'true' && runner.os == 'Linux'
+      shell: bash
+      env:
+        OPENCODE_VERSION: v2.3.2
+        OPENCODE_SHA256: 563b5d663637226b6e3bb4bb6803281bc39b0d2cd88db06d674b6420aab009b0
+      run: |
+        dir="$RUNNER_TEMP/opencode"
+        mkdir -p "$dir"
+        curl -fsSL -o "$dir/opencode.tar.gz" \
+          "https://github.com/sst/opencode/releases/download/$OPENCODE_VERSION/opencode-linux-x64.tar.gz"
+        echo "$OPENCODE_SHA256  $dir/opencode.tar.gz" | sha256sum -c -
+        tar -xzf "$dir/opencode.tar.gz" -C "$dir" opencode
+        echo "$dir" >> "$GITHUB_PATH"
+        "$dir/opencode" --version

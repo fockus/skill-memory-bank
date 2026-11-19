@@ -234,6 +234,10 @@ def test_s4_item_and_run_native_current_item_models_then_expired_override(tmp_pa
                     if index % 3 == 1:
                         return fixture.tool(request, {"command"}, {"command": f"python3 check_{name}.py", "workdir": str(project)})
                 return {"content": "Actual native item check complete."}
+            last = request["messages"][-1]
+            if last["role"] == "tool" and "working in the background" in str(last.get("content")):
+                # OpenCode >= 2.3: dispatch returned at once; end the turn until the <subagent> report.
+                return {"content": "Waiting for the subagent report."}
             index = counters["root"]
             counters["root"] += 1
             action = actions[index] if index < len(actions) else None

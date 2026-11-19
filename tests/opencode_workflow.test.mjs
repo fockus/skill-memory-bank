@@ -64,7 +64,7 @@ async function fixture(t, { second = false, planning = false, sharedStep = false
     Object.assign(process.env, previous);
     await fs.rm(directory, { recursive: true, force: true });
   });
-  return { bank, directory, binding, state, script,
+  return { bank, directory, binding, state, script, messages,
     start: async args => { await binding.context({ sessionID: 'root', model: parent }); await definitions.get('work').execute({ sessionID: 'root', prompt: { text: args }, delivery: 'queue' }); },
     init: (number, run = '') => state('init', ['plan', String(number), '--source-path', source, '--max-cycles', '2', ...(run ? ['--run-id', run] : [])]),
     context: () => binding.context({ sessionID: 'root', model: parent }),
@@ -133,6 +133,21 @@ test('S4-PREVIEW-7 only the completed admitted planning generation ends its plan
   f.finishPlanning();
   const ordinary = event('mb-architect'); await f.binding.before(ordinary); assert.equal(ordinary.input.model, undefined);
   await f.binding.before(event());
+});
+
+test('S4-PREVIEW-7 a background child (OpenCode >= 2.3) keeps the planning binding until its report is handled', async t => {
+  const f = await fixture(t, { planning: true, planningOnly: true }); await f.start('new-topic');
+  const planner = event('mb-architect'); await f.binding.before(planner); assert.equal(planner.input.model, 'fixture/two#deep');
+  f.messages.push({ id: 'msg_dispatch', type: 'assistant', finish: 'tool-calls', time: { completed: 1 }, content: [
+    { type: 'tool', name: 'subagent', state: { status: 'completed', metadata: { sessionID: 'ses_child', status: 'running' } } }] });
+  f.finishPlanning();
+  const waiting = event('mb-architect'); await f.binding.before(waiting);
+  assert.equal(waiting.input.model, 'fixture/two#deep', 'the root idles right after a background dispatch; the child is still unreported');
+  f.messages.push({ id: 'msg_report', type: 'synthetic', metadata: { source: 'subagent', childID: 'ses_child', state: 'completed' } });
+  const woken = event('mb-architect'); await f.binding.before(woken);
+  assert.equal(woken.input.model, 'fixture/two#deep', 'the report wakes the root for another turn of the same generation');
+  f.finishPlanning();
+  const ordinary = event('mb-architect'); await f.binding.before(ordinary); assert.equal(ordinary.input.model, undefined);
 });
 
 test('S4-PREVIEW-7 failed planning also ends model scope without certifying an execution item', async t => {

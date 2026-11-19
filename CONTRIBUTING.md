@@ -60,7 +60,7 @@ Followed everywhere in the repo — the skill enforces these same rules on user 
 | **TDD** | Write a failing test first, then the minimal code to pass it. No untested code in PRs. |
 | **Clean Architecture** | Infrastructure → Application → Domain, never the reverse. |
 | **SOLID / DRY / KISS / YAGNI** | Apply consistently. If in doubt, keep it simple. |
-| **Coverage** | 85% overall on a full local run; CI enforces 84% (OpenCode V2 acceptance tests skip there). 95% for domain/core logic. |
+| **Coverage** | 85% overall, enforced in CI (Linux pytest shards run the OpenCode V2 acceptance tests against a pinned CLI). 95% for domain/core logic. |
 | **Commits** | Conventional Commits: `feat:`, `fix:`, `ci:`, `docs:`, `test:`, `refactor:`. |
 | **No emojis** | Unless explicitly requested by the user in an issue. |
 | **Comments** | Explain *why*, not *what*. Redundant narration is deleted on review. |

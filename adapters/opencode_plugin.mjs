@@ -10,7 +10,9 @@ import { createWorkflowBinding } from './opencode_workflow.mjs';
 
 const skillDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const binding = 'OpenCode 2 host binding (authoritative over older examples): '
-  + 'dispatch with subagent({agent, description, prompt, model?: "provider/model#variant", sessionID?, background?}); '
+  + 'dispatch with subagent({agent, description, prompt, model?: "provider/model#variant", sessionID?}). '
+  + 'On OpenCode >= 2.3 a subagent always runs in the background: dispatch a wave of parallel items at once, then end the turn; '
+  + 'continue the /mb work loop when its <subagent> report arrives and never advance canonical state before that report. '
   + 'omit model to use the role pin, or inherit the parent when unpinned. /mb work --model inherit and --step-model role=inherit override pins for this run only. Never use task(subagent_type) or launch another host CLI. '
   + 'Use native commands, skills and named roles; shared scripts implement /mb workflows. '
   + 'There is no blocking Stop hook; use explicit workflow/tool/commit gates. '
