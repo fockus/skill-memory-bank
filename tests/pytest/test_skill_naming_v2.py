@@ -87,7 +87,7 @@ OLD_NAMES = re.compile(r"\b(STATUS|BACKLOG|RESEARCH)\.md\b")
 # plan.md (file-ref) — but NOT `commands/plan.md` (that's the filename of the
 # /plan slash command definition, which we keep; renaming would break the
 # user-facing slash command).
-OLD_PLAN = re.compile(r"(?<![A-Za-z0-9_\-])(?<!commands/)plan\.md\b")
+OLD_PLAN = re.compile(r"(?<![A-Za-z0-9_\-])(?<!commands/)(?<!references/mb/)plan\.md\b")
 
 
 def _is_excluded(path: Path) -> bool:

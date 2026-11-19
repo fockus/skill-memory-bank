@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 import pytest
+from _inproc import load_adapt, run_main
 
 ADAPT = str(pathlib.Path(__file__).resolve().parents[2] / "scripts" / "mb_work_adapt.py")
 MARKER = "# MB-ADAPT-STUB backlog=I-007 flag=MB_STUB_X eval=drv.sh"
@@ -32,10 +33,9 @@ def _repo(tmp_path, src=STUB_SRC, driver=GOOD_DRIVER, backlog="### I-007 — x [
 
 def _verify(repo, files="mod.py\n", env=None):
     (repo / "diff.txt").write_text(files, encoding="utf-8")
-    res = subprocess.run(
+    res = run_main(
+        load_adapt().main,
         [
-            sys.executable,
-            ADAPT,
             "verify-stub",
             "--repo",
             str(repo),
@@ -44,8 +44,6 @@ def _verify(repo, files="mod.py\n", env=None):
             "--backlog",
             str(repo / "backlog.md"),
         ],
-        capture_output=True,
-        text=True,
         env={**os.environ, **(env or {})},
     )
     return res, (json.loads(res.stdout) if res.stdout.strip() else {})

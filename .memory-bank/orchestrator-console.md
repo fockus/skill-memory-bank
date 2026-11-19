@@ -9,7 +9,7 @@ All tracks collected; plan-verifier PASS_WITH_NOTES (notes fixed). Commits: d3e4
 - none
 
 ## Next
-- Merge origin/main (10 CI-fix commits from another session) into local main: one conflict in scripts/mb_work_adapt.py (keep S5 edits + parse_intermixed_args). Needs the owner's go; push only on request.
+- origin/main merged (24d2e53, conflict in scripts/mb_work_adapt.py resolved); main is 11 ahead / 0 behind. Push only on request.
 - Deferred: I-293, I-299, I-303 (graph re-measure 2026-11-26), I-304 (plan-sync tasks.md), I-305 (local-only install_reliability failures).
 - Stuck bats suite PID 28669 (17 h, not started by this step) — owner decides.
 

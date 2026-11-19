@@ -7,6 +7,8 @@ import re
 import subprocess
 import sys
 
+from _inproc import load_adapt, run_main
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 ADAPT = str(ROOT / "scripts" / "mb_work_adapt.py")
 STATE = str(ROOT / "scripts" / "mb-backlog-state.sh")
@@ -19,10 +21,9 @@ def _bank(tmp_path: pathlib.Path, text: str = BACKLOG) -> pathlib.Path:
 
 
 def _chain(bank, reason="needs a big refresh", *extra):
-    return subprocess.run(
+    return run_main(
+        load_adapt().main,
         [
-            sys.executable,
-            ADAPT,
             "stub-backlog",
             "--bank",
             str(bank),
@@ -38,8 +39,6 @@ def _chain(bank, reason="needs a big refresh", *extra):
             "bulk refresh, retry",
             *extra,
         ],
-        capture_output=True,
-        text=True,
     )
 
 

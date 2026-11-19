@@ -12,6 +12,7 @@ import pathlib
 import subprocess
 
 import pytest
+from _inproc import load_adapt, run_main
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 VALIDATE = REPO_ROOT / "scripts" / "mb-pipeline-validate.sh"
@@ -125,12 +126,7 @@ def _state(tmp_path: pathlib.Path, steps: list[str], max_cycles: int = 2) -> str
 
 
 def _check(state: str, *extra: str, stdin: str | None = None) -> dict:
-    res = subprocess.run(
-        ["python3", ADAPT, "adapt-check", "--state", state, *extra],
-        capture_output=True,
-        text=True,
-        input=stdin,
-    )
+    res = run_main(load_adapt().main, ["adapt-check", "--state", state, *extra], stdin=stdin)
     assert res.returncode == 0, res.stderr
     return json.loads(res.stdout)
 
@@ -193,12 +189,8 @@ def test_adapt_check_loop_counters_use_the_sub_item_suffix(tmp_path: pathlib.Pat
 
 def test_adapt_config_new_keys_default_and_override(tmp_path: pathlib.Path) -> None:
     def cfg(pipeline: str) -> dict:
-        out = subprocess.run(
-            ["python3", ADAPT, "config", "--pipeline", pipeline],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
+        out = run_main(load_adapt().main, ["config", "--pipeline", pipeline])
+        assert out.returncode == 0, out.stderr
         return json.loads(out.stdout)
 
     base = cfg(str(REPO_ROOT / "references" / "pipeline.default.yaml"))

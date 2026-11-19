@@ -8,12 +8,13 @@ import subprocess
 import sys
 
 import pytest
+from _inproc import load_adapt, run_main
 
 ADAPT = str(pathlib.Path(__file__).resolve().parents[2] / "scripts" / "mb_work_adapt.py")
 
 
 def _run(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, ADAPT, *args], capture_output=True, text=True)
+    return run_main(load_adapt().main, list(args))
 
 
 def _open(bank, item="4", run="r1", mode="hitl", triggers="verify_fail_cycles", *extra):
