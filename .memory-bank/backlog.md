@@ -1198,3 +1198,12 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-305 — Local-only e2e failures in test_install_reliability.bats: render EIO first/legacy/partway/late (4) and RST10 missing committed hash (1) fail on this macOS machine at baseline 1815bcc and at HEAD, green in CI; the injected EIO never fires and the hashless reinstall succeeds [MED, NEW, 2026-11-19]
 **Type:** IDEA
+
+### I-306 — mb-work-state claim index is keyed by the category (spec/plan), not the source path: parallel runs on disjoint specs refuse each other with exit 4 (seen in hermes-plugins wave-1; worked around with --takeover) [HIGH, NEW, 2026-11-20]
+**Type:** IDEA
+
+### I-307 — Hermes host detection: mb_detect_host / mb-pipeline.sh do not detect Hermes, so agents: [hermes] is only picked when MB_AGENT=hermes is set [MED, NEW, 2026-11-20]
+**Type:** IDEA
+
+### I-308 — test_doc_counts fails: references/scripts.md lacks mb_work_active.py (since ee5cfce) [LOW, NEW, 2026-11-20]
+**Type:** IDEA

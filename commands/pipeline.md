@@ -53,7 +53,7 @@ Three **optional** top-level metadata keys distinguish a named pipeline:
 |-----|---------|
 | `pipeline_name` | Display name (defaults to the filename stem). |
 | `default: true` | The project default when nothing else selects a pipeline. |
-| `agents: [<host>…]` | Code-agent hosts this pipeline binds to (`claude-code`, `cursor`, `codex`, `opencode`, `pi`, `windsurf`, `cline`, `kilo`). |
+| `agents: [<host>…]` | Code-agent hosts this pipeline binds to (`claude-code`, `cursor`, `codex`, `opencode`, `pi`, `windsurf`, `cline`, `kilo`, `hermes`). |
 
 Absent metadata stays valid — a plain copy of `pipeline.default.yaml` is a legal
 named pipeline.

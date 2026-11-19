@@ -213,6 +213,7 @@ def run(cfg, err, strip_comment, valid_max_cycles, yaml, text, SEVERITY_KEYS):
         "windsurf",
         "cline",
         "kilo",
+        "hermes",
     }
     KNOWN_TRANSPORTS = {"pi", "opencode", "codex", "claude-agent"}
     ALLOWED_DONE_REQUIRED = {"tests_pass", "no_critical_violations", "no_placeholders"}

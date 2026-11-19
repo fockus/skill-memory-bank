@@ -1,6 +1,7 @@
 """Hermes plugin: picks the session's bank and drives the skill's own scripts against it."""
 
 import importlib.util
+import json
 import time
 from pathlib import Path
 
@@ -159,12 +160,50 @@ def test_global_rules_are_synced_into_soul_not_plugin_sections(plugin, tmp_path)
     assert soul.stat().st_mtime_ns == mtime and soul.read_text() == text  # unchanged rules: no rewrite
 
 
-def test_memory_bank_section_fits_the_plugin_budget(plugin, tmp_path):
+def test_render_soul_brick_returns_rules_block_with_markers(plugin, tmp_path):
+    soul = tmp_path / "profile" / "SOUL.md"
+    soul.parent.mkdir(parents=True)
+    soul.write_text("Intro.\n")
+
+    brick = plugin.render_soul_brick()
+
+    assert brick.startswith("<!-- mb-rules:start -->") and brick.endswith("<!-- mb-rules:end -->")
+    assert "## Key rules" in brick and "**Language**" not in brick
+    plugin.register(Host(tmp_path))
+    synced = soul.read_text()
+    start = synced.index("<!-- mb-rules:start -->")
+    end = synced.index("<!-- mb-rules:end -->") + len("<!-- mb-rules:end -->")
+    assert synced[start:end] == brick  # the composer gets exactly what the plugin syncs
+
+
+def test_soul_sync_with_composer_header_writes_nothing(plugin, tmp_path):
+    soul = tmp_path / "profile" / "SOUL.md"
+    soul.parent.mkdir(parents=True)
+    soul.write_text("<!-- soul-composer: build abc123 -->\nComposed identity.\n\nPriority when instructions conflict: rules first.\n")
+    before, mtime = soul.read_bytes(), soul.stat().st_mtime_ns
+
+    plugin.register(Host(tmp_path))
+
+    assert soul.read_bytes() == before and soul.stat().st_mtime_ns == mtime  # the composer is the single writer
+
+
+def test_soul_sync_with_composer_header_not_on_first_line_still_syncs(plugin, tmp_path):
+    soul = tmp_path / "profile" / "SOUL.md"
+    soul.parent.mkdir(parents=True)
+    soul.write_text("Intro.\n\n<!-- soul-composer: build abc123 -->\n\nPriority when instructions conflict: rules first.\n")
+
+    plugin.register(Host(tmp_path))
+
+    assert "## Key rules" in soul.read_text()  # only a header on the first line marks a composed SOUL
+
+
+def test_memory_bank_section_fits_the_plugin_budget(plugin, tmp_path, monkeypatch):
     bank = tmp_path / "repo" / ".memory-bank"
     bank.mkdir(parents=True)
-    (bank / "status.md").write_text("# Status\n" + "long status line\n" * 2000)
+    # The skill's hook caps its own output; a larger one must still be cut by the plugin.
+    monkeypatch.setattr(plugin, "_script", lambda *a, **kw: json.dumps({"additional_context": "x" * 10000}))
     _, text = render(plugin, tmp_path / "repo")
-    assert len(text) <= plugin.SECTION_CAP
+    assert len(text) == 4000  # cut to Hermes' 4000-char section limit, never dropped or emptied
 
 
 def test_bank_in_world_writable_folder_is_not_trusted(plugin, tmp_path):

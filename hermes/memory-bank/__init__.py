@@ -25,7 +25,7 @@ _banks: dict[
     str, Path
 ] = {}  # ponytail: one entry per session for the gateway's lifetime; prune on finalize
 _init_lock = threading.Lock()
-SECTION_CAP = 6000
+SECTION_CAP = 4000  # Hermes drops a longer section (hermes_cli/plugins_dispatch.py:99-101, 720)
 _SHARED = {
     "folder": "this project folder's own bank, shared by every session and agent working in it",
     "project": "this Hermes project's bank, shared by every session of the project",
@@ -202,10 +202,12 @@ _COMMENT = re.compile(r"<!--.*?-->\n?", re.DOTALL)
 
 _RULES_START, _RULES_END = "<!-- mb-rules:start -->", "<!-- mb-rules:end -->"
 _LANGUAGE_LINE = re.compile(r"^.*\*\*Language\*\*.*\n?", re.MULTILINE)
+_COMPOSER_HEADER = "<!-- soul-composer: build "
 
 
-def _rules_block() -> str:
-    """Key rules + Memory Bank engineering rules, rendered from the skill (single source with Claude Code).
+def render_soul_brick() -> str:
+    """Key rules + Memory Bank engineering rules, rendered from the skill (single source with Claude Code),
+    wrapped in the mb-rules markers. soul-composer takes it as this provider's SOUL brick.
     The language line is dropped: Hermes answers in the user's language (USER.md, SOUL.md)."""
     key = _script("scripts/mb-rules.sh", "render", "--target=global")
     engineering = (SKILL_ROOT / "rules" / "CLAUDE-GLOBAL.md").read_text(encoding="utf-8")
@@ -219,8 +221,10 @@ def _sync_soul_rules() -> None:
     if not soul.is_file():
         return  # no SOUL.md: Hermes uses its built-in identity, which a rules-only file would replace
     try:
-        block = _rules_block()
         text = soul.read_text(encoding="utf-8")
+        if text.startswith(_COMPOSER_HEADER):
+            return  # soul-composer built this SOUL and is its single writer; it pulls render_soul_brick()
+        block = render_soul_brick()
     except (OSError, subprocess.SubprocessError) as error:
         logger.warning("memory-bank: rules sync skipped: %s", type(error).__name__)
         return

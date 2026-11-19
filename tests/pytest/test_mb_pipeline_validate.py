@@ -366,6 +366,15 @@ def test_agents_unknown_client_fails(tmp_path: Path) -> None:
     assert "frobnicator" in (r.stderr + r.stdout)
 
 
+def test_agents_hermes_client_passes(tmp_path: Path) -> None:
+    cfg = _valid_minimal()
+    cfg["agents"] = ["hermes"]
+    p = tmp_path / "pipeline.yaml"
+    _write(p, cfg)
+    r = _run(p)
+    assert r.returncode == 0, r.stderr
+
+
 def test_pipeline_name_empty_fails(tmp_path: Path) -> None:
     cfg = _valid_minimal()
     cfg["pipeline_name"] = "   "
