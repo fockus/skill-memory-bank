@@ -224,9 +224,11 @@ _concurrent_upserts() {
   done
 }
 
+# 12 serialized upserts: the last one waits for all others, a wall-clock bound that
+# parallel CI jobs break even at 60 s, so run alone (`--filter-tags perf`).
+# bats test_tags=perf
 @test "mb_glossary: with an adequate lock timeout every concurrent upsert succeeds" {
   local i rc n_ok=0
-  # Adequate under parallel CI load too: the 10 s default left one racer of 12 short.
   MB_GLOSSARY_LOCK_TIMEOUT=60 _concurrent_upserts 12
   for i in $(seq 1 12); do
     rc="$(cat "$RC_DIR/$i")"

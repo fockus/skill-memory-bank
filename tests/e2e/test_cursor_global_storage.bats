@@ -8,9 +8,12 @@ setup() {
   (cd "$PROJECT" && git init -q && git config user.email t@t && git config user.name t)
 
   export HOME="$SANDBOX_HOME"
+  # Own cwd: install.sh infers options from $PWD, and the suite-wide one is shared by parallel tests.
+  cd "$BATS_TEST_TMPDIR" || return 1
   # Per test: the suite-wide manifest (repo_guard) belongs to another HOME, which install refuses.
   export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   export MB_SKIP_DEPS_CHECK=1
+  unset MB_AUTO_CAPTURE   # an operator's own setting (e.g. off) would skip the capture under test
 
   command -v jq >/dev/null || skip "jq required"
 }

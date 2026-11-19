@@ -10,6 +10,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
+  # Own cwd: install.sh infers options from $PWD, and the suite-wide one is shared by parallel tests.
+  cd "$BATS_TEST_TMPDIR" || return 1
   export XDG_CONFIG_HOME="$HOME/.config" XDG_DATA_HOME="$HOME/.local/share"
   export XDG_STATE_HOME="$HOME/.local/state" XDG_CACHE_HOME="$HOME/.cache"
   export XDG_RUNTIME_DIR="$HOME/run" XDG_CONFIG_DIRS="$HOME/config-dirs" XDG_DATA_DIRS="$HOME/data-dirs"
@@ -166,7 +168,7 @@ PY
   refute_file "$root/agent"
   python3 - "$root/skills/memory-bank" "$REPO_ROOT" <<'PY'
 import os, sys
-assert os.path.realpath(sys.argv[1]) == sys.argv[2]
+assert os.path.realpath(sys.argv[1]) == os.path.realpath(sys.argv[2])  # macOS: /var -> /private/var
 PY
   run s5_private_command uninstall.sh -y
   [ "$status" -eq 0 ]
@@ -415,6 +417,12 @@ EOF
   ! find "$HOME/.config/opencode/skills" -maxdepth 2 -path '*pre-mb-backup*' -name SKILL.md | grep -q .
 }
 
+# Quarantine needs provenance (bde42c6): a pre-hash manifest that lists the path.
+legacy_listing() {
+  jq -n --arg h "$HOME" --arg p "$PWD" --arg f "$1" \
+    '{home:$h,project_root:$p,clients:[],adapters_failed:[],backups:[],files:[$f]}' > "$MB_MANIFEST_PATH"
+}
+
 @test "install: quarantines legacy ~/.opencode memory-bank backup skills outside discovery" {
   mkdir -p "$HOME/.opencode/skills/memory-bank.backup.20200101-000000"
   cat > "$HOME/.opencode/skills/memory-bank.backup.20200101-000000/SKILL.md" <<'EOF'
@@ -423,6 +431,7 @@ name: memory-bank
 ---
 # stale legacy OpenCode backup skill
 EOF
+  legacy_listing "$HOME/.opencode/skills/memory-bank.backup.20200101-000000"
 
   bash "$REPO_ROOT/install.sh" --clients opencode --non-interactive >/dev/null
 
@@ -438,6 +447,7 @@ EOF
 // memory-bank: managed plugin (do not remove marker line)
 export default { id: 'memory-bank', async setup() {} };
 EOF
+  legacy_listing "$HOME/.opencode/plugins/memory-bank.js"
 
   bash "$REPO_ROOT/install.sh" --clients opencode --non-interactive >/dev/null
 
@@ -1124,11 +1134,11 @@ teardown_readonly_skill_sandbox() {
   chmod a-w "$HOME/.local/share/memory-bank"
 
   run env MB_SKIP_DEPS_CHECK=1 bash "$RO_SKILL_SRC/install.sh" --non-interactive
-  # Install still completes (manifest is a rollback aid, not a hard blocker)...
-  [ "$status" -eq 0 ]
-  # ...but the failure is reported, not hidden behind a bare generic string.
-  [[ "$output" == *"Manifest write failed"* ]]
+  # The manifest is the ownership record (bde42c6): its probe fails the install
+  # before any write, with the real cause instead of a bare generic string.
+  [ "$status" -ne 0 ]
   [[ "$output" == *"Permission denied"* ]] || [[ "$output" == *"Errno 13"* ]]
+  refute_file "$HOME/.claude/RULES.md"
 
   chmod u+w "$HOME/.local/share/memory-bank"
   teardown_readonly_skill_sandbox

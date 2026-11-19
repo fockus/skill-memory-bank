@@ -13,6 +13,8 @@ setup() {
   HOOK="$BIN/mb-recall.sh"
   SEMHOOK="$BIN/mb-semantic-recall.sh"
   PY_REAL="$(command -v python3)"
+  # The semantic hook prefers a real ~/.claude/hooks/.venv, which would bypass the PATH stub.
+  export MB_SEMANTIC_PY=python3
   TMP="$(mktemp -d)"
   PROJ="$TMP/proj"; MB="$PROJ/.memory-bank"
   mkdir -p "$MB/session" "$MB/notes"
@@ -299,7 +301,7 @@ for line in sys.stdin:
 @test "injection: mb-semantic-recall.sh emits the COMPACT form, not full chunk bodies" {
   long='auth tokens rotate hourly via kamal proxy host with a very long body that should be summarised down to a single short line and never injected verbatim into the prompt context window at all'
   stub="$(_make_semantic_stub '[{"score":0.93,"source":"session/2026-06-01_1000_aaaa.md","kind":"session","text":"'"$long"'","anchor":"p0"}]')"
-  run env PATH="$stub:$PATH" MB_SEMANTIC=auto bash "$SEMHOOK" <<< '{"prompt":"auth tokens","cwd":"'"$PROJ"'"}'
+  run env PATH="$stub:$PATH" MB_SEMANTIC=auto MB_SEMANTIC_MIN_PROMPT=0 bash "$SEMHOOK" <<< '{"prompt":"auth tokens","cwd":"'"$PROJ"'"}'
   [ "$status" -eq 0 ]
   [[ "$output" == *"Relevant Memory"* ]]
   # Compact: the id + ' · ' separator present; the full long body absent.
@@ -313,6 +315,10 @@ for line in sys.stdin:
   # Adversarial pair (reproduced in review): both stems share the same 24-char capped
   # slug AND collide on the 6-hex sha1 prefix for anchor p0. Ids must still be unique
   # within the hit set — the hash field lengthens until every id differs.
+  # Real files (recall drops hits whose source is gone, f9603af), free of the query words
+  # so only the semantic channel returns them.
+  printf 'COLLIDERBODYONE\n' > "$MB/notes/xxxxxxxxxxxxxxxxxxxxxxxx1309.md"
+  printf 'COLLIDERBODYTWO\n' > "$MB/notes/xxxxxxxxxxxxxxxxxxxxxxxx6756.md"
   stub="$(_make_semantic_stub '[{"score":0.92,"source":"notes/xxxxxxxxxxxxxxxxxxxxxxxx1309.md","kind":"note","text":"COLLIDERBODYONE auth tokens","anchor":"p0"},{"score":0.90,"source":"notes/xxxxxxxxxxxxxxxxxxxxxxxx6756.md","kind":"note","text":"COLLIDERBODYTWO auth tokens","anchor":"p0"}]')"
   list="$(env PATH="$stub:$PATH" CLAUDE_PROJECT_DIR="$PROJ" MB_SEMANTIC=auto bash "$HOOK" auth tokens)"
   # Isolate the two collider rows by their shared 24-char slug — the fixture's lexical

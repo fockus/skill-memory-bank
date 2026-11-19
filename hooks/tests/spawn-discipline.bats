@@ -36,14 +36,15 @@ setup() {
   # codex round-5 blocker: adapters/pi_session_memory_extension.ts detached
   # `mb-reindex.sh --incremental` on session_shutdown — the 5th spawn point,
   # missed because it is TypeScript, not shell.
-  run grep -F 'mb-reindex' "$BIN/../adapters/pi_session_memory_extension.ts"
+  # The lifecycle moved into the bundled pi_native_session.mjs (b1bbbbf).
+  run grep -F 'mb-reindex' "$BIN/../adapters/pi_session_memory_extension.ts" "$BIN/../adapters/pi_native_session.mjs"
   [ "$status" -ne 0 ]
 }
 
 @test "pi adapter marks the index dirty on shutdown, honoring MB_INDEX_DIR" {
-  run grep -F '.dirty' "$BIN/../adapters/pi_session_memory_extension.ts"
+  run grep -F '.dirty' "$BIN/../adapters/pi_native_session.mjs"
   [ "$status" -eq 0 ]
-  run grep -F 'MB_INDEX_DIR' "$BIN/../adapters/pi_session_memory_extension.ts"
+  run grep -F 'MB_INDEX_DIR' "$BIN/../adapters/pi_native_session.mjs"
   [ "$status" -eq 0 ]
 }
 
