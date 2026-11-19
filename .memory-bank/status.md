@@ -1,7 +1,7 @@
 # claude-skill-memory-bank: Статус проекта
 
 **Current phase:** экономия усилий закрыта 2026-10-07 (5 уровней задачи + роутинг, тон по модели, пресеты simple/medium/complex/governed + cost tiers, настройки качества проекта, ADaPT-lite, Key rules onboarding, диета always-loaded, `anthropic-skill-guide-compliance` Sprint 2); открыт только `proportional-effort` Sprint 2 Stage 4 (замер «после», AGR-072). `graph-semantic-adoption` 9/11; Pi native integration 0/5 accepted. `/mb drive` закрыт (`drive-autopilot` 7/7, `drive-loop` superseded, 2026-11-18). Живые треки: I-086 `config-validation-docs` (Stages 3–6), `sdd-vision-pipeline` G-001 (пауза с 2026-07-27).
-**Focus:** [master-completion](plans/2026-11-18_feature_master-completion.md) (2026-11-18, AGR-101…103) — 19 stages in tracks A GraphRAG (priority) · B OpenSpec round-trip · C mb-team · D opus55 for Opus 5.5/Fable · E dynamic-flow · F SVP S7/S8/S4/S5; then the rest of `sdd-vision-pipeline` (AGR-029).
+**Focus:** [master-completion](plans/2026-11-18_feature_master-completion.md) (2026-11-18/19, AGR-101…108) — 22 stages in tracks A GraphRAG · B OpenSpec round-trip · C mb-team · D opus55 · E dynamic-flow · F SVP S4/S5/S7/S8 · G Pi; 21/22 done, Stage 19 (full suite + plan-verifier) closing. Next: the rest of `sdd-vision-pipeline` (S1/S2/S3/S6/S9 + umbrella) in unfinished-work-completion; G-001 parked (AGR-106).
 **Blockers:** нет для текущей работы; действует репо-wide FREEZE на деструктивные git-операции (rebase / `reset --hard` / `checkout .` / whole-tree stash) — см. `COORDINATION.md`.
 
 ## Pi native integration — 2026-10-05

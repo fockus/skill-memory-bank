@@ -2,6 +2,19 @@
 
 Loaded by `commands/mb.md` when the first word of `$ARGUMENTS` routes here. `$SKILL_DIR` and the bank setup are defined in `commands/mb.md`.
 
+## Contents
+
+- [init [--minimal|--full] [--storage=local|global] [--agent=NAME] [--lang=XX]](#init---minimal--full---storagelocalglobal---agentname---langxx)
+- [Step 1: Create the structure](#step-1-create-the-structure)
+- [Step 1.5: Offer to populate `codebase/` (`--full` only)](#step-15-offer-to-populate-codebase---full-only)
+- [Step 2: Copy RULES (`--full` only)](#step-2-copy-rules---full-only)
+- [Step 3: Auto-detect the stack (`--full` only)](#step-3-auto-detect-the-stack---full-only)
+- [Step 4: Generate `CLAUDE.md` (`--full` only)](#step-4-generate-claudemd---full-only)
+- [Step 5: `.planning/` symlink (`--full` only, optional)](#step-5-planning-symlink---full-only-optional)
+- [Step 5.5: Optional profile setup (`--full` only)](#step-55-optional-profile-setup---full-only)
+- [Step 6: Summary](#step-6-summary)
+
+
 ## Router entries
 
 - `init [--minimal\|--full]` — Initialize Memory Bank. `--full` (default): add RULES + CLAUDE.md with stack autodetect. `--minimal`: structure only

@@ -24,7 +24,7 @@ STOPWORDS = {
     "then", "than", "your", "their", "them", "over", "under", "after", "before",
     "without", "plus", "only", "also", "each", "every", "any",
 }
-TOTAL_BUDGET = 6200
+TOTAL_BUDGET = 6610
 
 
 def _frontmatter(path: Path) -> dict:

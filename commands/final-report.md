@@ -1,5 +1,5 @@
 ---
-description: "Writes the closing report of a flow: what changed, evidence, decisions and open follow-ups. Use as the last step of a flow, or for a research route whose result is the report."
+description: "Writes the closing report of a flow: changes, evidence, decisions, follow-ups. Use when a flow ends or a research route's result is the report."
 allowed-tools: [Bash, Read, Write]
 ---
 

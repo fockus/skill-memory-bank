@@ -1,5 +1,5 @@
 ---
-description: "Critiques a diff, spec or plan against a checklist and retries with the failed checks until the critique is well-formed. Use as the review-phase step of a flow when a structured, checkable critique is needed."
+description: "Critiques a diff, spec or plan against a checklist, retrying with the failed checks. Use when a flow needs a structured, checkable review step."
 allowed-tools: [Bash, Read, Write]
 ---
 

@@ -2,6 +2,16 @@
 
 Loaded by `commands/mb.md` when the first word of `$ARGUMENTS` routes here. `$SKILL_DIR` and the bank setup are defined in `commands/mb.md`.
 
+## Contents
+
+- [install []](#install-)
+- [Step 1 — Check the CLI](#step-1--check-the-cli)
+- [Step 2 — Collect the client list](#step-2--collect-the-client-list)
+- [Step 3 — Run installation](#step-3--run-installation)
+- [Step 4 — Resume hint](#step-4--resume-hint)
+- [Extension offer (pi/opencode only)](#extension-offer-piopencode-only)
+
+
 ## Router entries
 
 - `install [<clients>]` — Install Memory Bank for the project. If `<clients>` is empty, ask for an 8-client multiselect (`claude-code/cursor/windsurf/cline/kilo/opencode/pi/codex`). Calls `memory-bank install --clients ... --project-root $PWD`

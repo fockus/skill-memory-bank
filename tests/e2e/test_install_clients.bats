@@ -183,6 +183,7 @@ _a17_make_failing_adapter_skill_copy() {
     --exclude='*.pre-mb-backup.*' \
     --exclude='.index' \
     --exclude='node_modules' \
+    --exclude='/.installed-manifest.json' \
     --exclude='.installed-manifest.json' \
     "$REPO_ROOT/" "$SKILL_COPY/"
   cat > "$SKILL_COPY/adapters/codex.sh" <<'EOF'

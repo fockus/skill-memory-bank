@@ -42,6 +42,13 @@ created: 2026-11-18
 | dynamic-flow T14 (Stage 15) | wrap external reflexion/sadd skills | self-contained skills, spec text updated | the wrapped skills are not in this repo |
 | mb-team minors (Stage 11) | fix all findings | blocker/major/medium fixed; minors to backlog | matches the stage's own DoD |
 | Version bump (Stage 13) | 5.3.2 release | CHANGELOG entry only, no tag | AGR-084: no release yet |
+| mb-team close (Stage 11) | lead re-review until 0/0/0, plan-verifier PASS, ≤3 cycles | 4 fix cycles (budget 2) then mb-judge GO_WITH_BACKLOG; the judge re-ran the probes and tests in place of a cycle-5 lead pass and of plan-verifier | each cycle found a variant of one root cause; the ownership-marker fix ends it; judge terminates the loop |
+| OpenSpec review (Stages 9-10) | codex re-review clean after fixes | judge closed cycle-2 fixes; codex re-pass in Stage 10 found more; shared writer lock and rename journal deferred (I-299) | the remaining items need a lock shared by every bank writer — a separate design |
+| mb.md split baseline (Stage 12) | clean pre-split doc-test run | post-split runs + full-corpus line-loss check by the reviewer | the pre-split run was contaminated by parallel tracks |
+| Opus/Fable run (Stage 13) | metrics from mb-cost-report | executor/agent usage counters; models set by the dispatch `model` parameter (fable for H1, opus for H2 — team.json keeps the track preset); upgrade check = same-HOME upgrade by the debugger (temp-HOME run was invalid, see upgrade-debug.md) | cost-report has no per-agent model split |
+| Graph hints (Stages 2, 6) | agent_id from a captured payload; Claude SubagentStart wired or proven unsupported | agent_id used when present (unconfirmed → I-303); Claude SubagentStart unconfirmed → I-293 | no captured payload or doc in the repo |
+| pdw spike (Stage 21) | live run, roster binding, cost | source reading only (no provider auth in the isolated agent dir) | owner's credentials stay out of the spike; no-go stands on the roster-binding finding (AGR-104) |
+| Pi live check (Stage 20) | real Pi session | skipped by the owner | AGR-108 |
 
 ## Tracks and waves
 

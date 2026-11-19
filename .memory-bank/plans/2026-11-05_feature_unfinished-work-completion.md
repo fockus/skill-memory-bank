@@ -15,6 +15,8 @@ created: 2026-11-05
 
 **Tier:** extra (L/XL). Исполнение: `/mb work … --workflow codex-governed` (implement=Opus, review=codex gpt-5.6-sol xhigh, judge=mb-judge/Opus — AGR-028/AGR-029); закрытие уже реализованного — `--workflow review-fix` (`verify → review → judge → fix → done`). Pi-часть — по AGR-089 (без codex/judge, только верификатор).
 
+> **Trimmed 2026-11-19 by master-completion Stage 19.** Stages 2, 4, 5, 6, 7, 9, 12 are closed by `plans/2026-11-18_feature_master-completion.md` (marked CLOSED below). Open here: Stage 1 (owner setup — goal G-001 is parked in `goals/G-001.md`, AGR-106), Stage 3 (S1/S2 conformance + judge), Stage 8 (S9 remainder), Stage 10 (S6 docs-wiki), Stage 11 (S3 parallel-engine rebaseline), Stage 13 (umbrella + G-001 close).
+
 ## Context
 
 **Problem.** Группа `sdd-vision-pipeline` (goal G-001, `status: paused` с 2026-07-27) и графовые стадии трёх планов не закрыты. Счётчики checklist/roadmap частично устарели: часть задач реализована и закоммичена, но галочки и судейские вердикты отсутствуют; часть спек не проходит текущий валидатор (правила REQ-049/051, CPR-D появились позже самих спек); две спеки (S3, S5) написаны до появления `/mb team`, `mb-lock.sh`, `mb-work-slots.sh` и ADaPT-lite и пересекаются с ними.
@@ -112,7 +114,7 @@ created: 2026-11-05
 **DoD:** AGR по Q1–Q4 записаны (`mb-agree.sh list` показывает); `goal.md` ссылается на план; preflight `available:true` или зафиксирован degraded-режим ревью; доска содержит STATUS волны 1.
 
 <!-- mb-stage:2 -->
-### Stage 2: Разгрузка `commands/work.md` под зонный лимит 400
+### Stage 2: Разгрузка `commands/work.md` под зонный лимит 400 — CLOSED by master-completion Stage 4 (work.md room, 377 lines)
 
 **Role:** developer · **Size:** S · **Blocked-by:** —
 **Files:** `commands/work.md`, `references/work-reference.md`, тесты, которые пиннят перенесённые куски (найти `bash scripts/mb-graph.sh tests commands/work.md` + `grep -rl "commands/work.md" tests/`)
@@ -141,7 +143,7 @@ created: 2026-11-05
 **Edge cases:** NO_GO судьи → фикс-цикл ≤2 (`max_cycles`), затем `judge_decides`; блок Seams внутри ```-фенса не считается (`mb_spec_validate_v2.py:229`).
 
 <!-- mb-stage:4 -->
-### Stage 4: Закрытие S7 T1/T4 и S8 T4–T8 (реализовано, не отмечено)
+### Stage 4: Закрытие S7 T1/T4 и S8 T4–T8 (реализовано, не отмечено) — CLOSED by master-completion Stage 16 (S7/S8 closed, AGR-103 shortcut)
 
 **Role:** qa + judge · **Size:** M · **Blocked-by:** 1
 **Executes:** `svp-brief` T1, T4 (+ judge всей спеки); `svp-contract-test-loop` T4–T8 (+ judge всей спеки); umbrella T8, T9
@@ -156,7 +158,7 @@ created: 2026-11-05
 **Edge cases:** red в worktree может упасть по чужой причине (exit 127, отсутствующий модуль) — принимать только red с совпавшим якорем; если якорь недостижим на `~1`, Q2-вариант `unverified` с логом.
 
 <!-- mb-stage:5 -->
-### Stage 5: Закрытие графовых стадий Pi Stage 3 и Codex Stage 2
+### Stage 5: Закрытие графовых стадий Pi Stage 3 и Codex Stage 2 — CLOSED by master-completion Stage 1 + Stage 6 (Pi Stage 3 fixture, Codex Stage 2)
 
 **Role:** debugger · **Size:** S · **Blocked-by:** —
 **Executes:** `plans/2026-10-05_feature_pi-native-integration.md` Stage 3; `plans/2026-10-09_feature_codex-memory-parity.md` Stage 2
@@ -171,7 +173,7 @@ created: 2026-11-05
 **Edge cases:** skip не должен маскировать реальный провал при найденном пакете.
 
 <!-- mb-stage:6 -->
-### Stage 6: graph-semantic-adoption Stage 5 — статус графа в диспатче
+### Stage 6: graph-semantic-adoption Stage 5 — статус графа в диспатче — CLOSED by master-completion Stage 6 (graph status on dispatch)
 
 **Role:** developer · **Size:** S · **Blocked-by:** —
 **Executes:** `plans/2026-07-28_fix_graph-semantic-adoption.md` Stage 5 (DoD и тесты — там)
@@ -184,7 +186,7 @@ created: 2026-11-05
 **DoD:** DoD Stage 5 плана-источника; shellcheck чистый; ручная проверка в verify перехваченного промпта.
 
 <!-- mb-stage:7 -->
-### Stage 7: S4 `svp-roadmap-backlog-db` — остаток
+### Stage 7: S4 `svp-roadmap-backlog-db` — остаток — CLOSED by master-completion Stage 17 (S4 remainder)
 
 **Role:** backend · **Size:** L · **Blocked-by:** 3 (S2 закрыта), 4 (общий `templates.md`)
 **Executes:** `svp-roadmap-backlog-db` T9, T7 → T3 → T8 → T4 → T5 (порядок по `Blocked-by` задач); conformance; umbrella T3
@@ -214,7 +216,7 @@ created: 2026-11-05
 **Edge cases:** гейт молчит при `enabled: false` и без журнала (plan-таргеты не затронуты); legacy-строки `{"status":"decided"}` без `kind` (`4e385a4`) — громкий `status_unreadable`, не тихий пропуск.
 
 <!-- mb-stage:9 -->
-### Stage 9: graph-semantic-adoption Stage 7 — граф в каждом диспатче + замер
+### Stage 9: graph-semantic-adoption Stage 7 — граф в каждом диспатче + замер — CLOSED by master-completion Stages 5, 7, 22 (graph in every dispatch, demo, test mapping)
 
 **Role:** developer · **Size:** M · **Blocked-by:** 6, 8 (общий `commands/work.md`)
 **Executes:** `plans/2026-07-28_fix_graph-semantic-adoption.md` Stage 7 — только недостающее (см. таблицу состояния)
@@ -255,7 +257,7 @@ created: 2026-11-05
 **Edge cases:** git недоступен → exit 3 `unavailable` (T7); Cursor честно деградирует (AGR-020); промпт не интерполируется в шелл (T10).
 
 <!-- mb-stage:12 -->
-### Stage 12: S5 `svp-adapt-escalation` — ребейзлайн на ADaPT-lite (12a) и остаток (12b)
+### Stage 12: S5 `svp-adapt-escalation` — ребейзлайн на ADaPT-lite (12a) и остаток (12b) — CLOSED by master-completion Stage 18 (S5 rebased on ADaPT-lite, AGR-107)
 
 **Role:** architect (12a), backend/qa (12b) · **Size:** L · **Blocked-by:** 12a — 3; 12b — 12a принят (Q4), 11b T3 (`mb-work-scope-check.sh`), 7 (S4), 11b T4 (work.md)
 **Executes:** `svp-adapt-escalation` T1–T5; umbrella T6

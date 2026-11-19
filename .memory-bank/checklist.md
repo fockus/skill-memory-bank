@@ -19,19 +19,19 @@ Plan: [plans/2026-07-05_SEQUENCE_long-running-sessions.md](plans/2026-07-05_SEQU
 
 ## ⏭ Queued waves
 
-- ⬜ **mb-work-cost-diet** — `graph-semantic-adoption` (AGR-044) → [Sprint 2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) → [Sprint 3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md)
+- ⬜ **mb-work-cost-diet** — `graph-semantic-adoption` ✅ (2026-11-19) → [Sprint 2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) → [Sprint 3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md)
 - ⏸ **Group `sdd-vision-pipeline`** (G-001, paused): S7/S8/S4/S5 → master-completion Track F; S1/S2/S3/S6/S9 + umbrella stay in [unfinished-work-completion](plans/2026-11-05_feature_unfinished-work-completion.md); live counters — `roadmap.md` § Group
 - ⬜ I-084 — [dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) (after I-086) · W1 docs — [skill-improvements-anthropic-audit](plans/2026-05-23_feature_skill-improvements-anthropic-audit.md)
 
 Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-061, harness chain I-095…I-102). See also `roadmap.md`, `status.md`, `traceability.md`, `progress.md`.
 
 <!-- mb-plan:2026-10-05_feature_pi-native-integration.md -->
-## Pi native Memory Bank integration — Implementation Plan — 5/5
+## Pi native Memory Bank integration — Implementation Plan — 4/5
 - ✅ Stage 1 — Native commands and governed pi-subagents bridge
 - ✅ Stage 2 — Project-isolated capture, restore and compaction
 - ✅ Stage 3 — Native GraphRAG, vector cache and graph lifecycle
 - ✅ Stage 4 — Native guard hooks and synchronization
-- ✅ Stage 5 — Safe installation and real Pi acceptance
+- ⬜ Stage 5 — Safe installation and real Pi acceptance
 
 <!-- mb-plan:2026-10-07_fix_proportional-effortsprint2-execution-economy.md -->
 ## proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер» — 3/4
@@ -73,10 +73,10 @@ Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-0
 - ✅ Stage 22 — Graph sees tests through shell entry points and argparse dispatch (I-297)
 
 <!-- mb-plan:tasks.md -->
-## svp-adapt-escalation — 0/5
-- ⬜ Stage 1 — ADaPT-lite baseline (delivered, waiver with commit link)
-- ⬜ Stage 2 — Remaining guards and thresholds in adapt-check
-- ⬜ Stage 3 — Escalation journal, cascade stop and run summary
-- ⬜ Stage 4 — Stub gate in verify (verify-stub)
-- ⬜ Stage 5 — Autonomous stub path and backlog chain
+## svp-adapt-escalation — 5/5
+- ✅ Stage 1 — ADaPT-lite baseline (delivered, waiver with commit link)
+- ✅ Stage 2 — Remaining guards and thresholds in adapt-check
+- ✅ Stage 3 — Escalation journal, cascade stop and run summary
+- ✅ Stage 4 — Stub gate in verify (verify-stub)
+- ✅ Stage 5 — Autonomous stub path and backlog chain
 

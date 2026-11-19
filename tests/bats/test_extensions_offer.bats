@@ -49,6 +49,7 @@ setup() {
     --exclude='.memsearch' \
     --exclude='/tests/calibration/results' \
     --exclude='node_modules' \
+    --exclude='/.installed-manifest.json' \
     "$REPO_ROOT/" "$SKILL_SRC/"
 
   INSTALL="$SKILL_SRC/install.sh"

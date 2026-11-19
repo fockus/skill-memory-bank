@@ -197,9 +197,10 @@ done
 #     `bash -c "$CMD"` below) — the resolver only emits env-prompt templates that
 #     carry the literal $MB_FANOUT_PROMPT token, never an interpolated prompt;
 #   • the prompt STILL flows ONLY through MB_FANOUT_PROMPT (unchanged downstream);
-#   • a FAILURE to resolve takes the SAME die_usage path → exit 2 (NEVER exit 1):
-#     `set +e` brackets the resolver call so its non-zero rc can't trip set -e,
-#     and `die_usage` is the contracted loud exit 2;
+#   • a FAILURE to resolve falls back to the claude-code template and runs the
+#     branches one at a time with a WARN (dynamic-flow T13); only a failure of
+#     that fallback too takes die_usage → exit 2. `set +e` brackets the resolver
+#     calls so their non-zero rc can't trip set -e;
 #   • still STATELESS — the resolver only reads env + prints a template, writes
 #     nothing to the bank.
 if [ "$CMD_SET" -ne 1 ]; then

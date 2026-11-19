@@ -1154,6 +1154,8 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-294 — mb-team review backlog: 30 deferred minor/nit findings (cycle-1 minors and nits + judge J-1 symlinked default checkpoint dir, J-2 pre-marker custom checkpoint dir refused) — list in .memory-bank/reports/master-completion-wave1/C-review/judge.json [LOW, NEW, 2026-11-18]
 
+**Partial (2026-11-19):** J-1 fixed in d3e4939 (H1: realpath check before --adopt in scripts/mb_team_ops.py, test in test_mb_team_cli.bats); the other items stay open.
+
 ### I-295 — Pi roster tool-name mapping: our agents declare Claude-style tool names (Bash/Read/Grep/Glob); any Pi-side engine that binds the roster (e.g. pi-dynamic-workflows agentType) needs a mapping to bash/read/grep/find. pdw spike no-go (EXP-pdw-spike); revisit only if a live run with credentials is approved. [LOW, NEW, 2026-11-19]
 **Type:** IDEA
 
@@ -1162,10 +1164,14 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 **Also (H2 review, minors):** duplicate_id hides other backlog findings even when only a malformed twin heading is duplicated (return early only for full-grammar duplicates, scripts/mb_bank_lint_backlog.py:46); no test for 'duplicates are the only findings' and 'malformed twin counts'; svp-roadmap-backlog-db design.md:466 / tasks.md:275 lint-code table lacks `duplicate_id` (16 codes now). Evidence: reports/master-completion-wave1/H2-review.json.
 
-### I-297 — Code graph: 'mb-graph.sh tests <py module>' maps no tests to Python modules that tests reach only through a .sh entry point (e.g. scripts/mb_bank_lint_backlog.py via mb-bank-lint.sh, covered by tests/bats/test_mb_bank_lint.bats). Link sh→py invocation edges into the test mapping so agents get the real test set (found in the Stage 7 graph demo, H2). [HIGH, NEW, 2026-11-19]
+**Partial (2026-11-19):** duplicate-id lint delivered in d3e4939 (H2, mb_bank_lint_backlog.py `_duplicate_ids`); the other items stay open.
+
+### I-297 — Code graph: 'mb-graph.sh tests <py module>' maps no tests to Python modules that tests reach only through a .sh entry point (e.g. scripts/mb_bank_lint_backlog.py via mb-bank-lint.sh, covered by tests/bats/test_mb_bank_lint.bats). Link sh→py invocation edges into the test mapping so agents get the real test set (found in the Stage 7 graph demo, H2). [HIGH, DONE, 2026-11-19]
 **Type:** IDEA
 
 **Also (H1, Stage 7 demo):** `mb-graph.sh tests scripts/mb_team_ops.py` misses the bats files that reach it through `mb-team.sh`, and argparse-dispatched `cmd_*` functions have no incoming call edges, so `who-calls cmd_checkpoint` returns nothing.
+
+**Outcome (2026-11-19):** fixed in 0139fcb (master-completion Stage 22): bats → sh → py closure in find_tests, argparse dispatch edges; code_context gets the closure. Left: team bats behind variable paths (no dynamic resolution); `with`-statement use has no incoming edges.
 
 ### I-298 — mb-team checkpoint: add tests for the two untested comment claims in scripts/mb_team_ops.py:117 — a symlinked backups/ loses --adopt, and a bank opened through a symlink still adopts (H1 review minor 2, reports/master-completion-wave1/H1-review.json) [LOW, NEW, 2026-11-19]
 **Type:** IDEA
@@ -1182,4 +1188,7 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 **Type:** IDEA
 
 ### I-302 — S5 adapt-escalation follow-ups (F3b-verify.md): design.md:135 still says mb_lock_acquire 5 30 (code uses 30 30, justified at :252); _lib.sh mb_lock_acquire can raise a spurious lock_corrupt under contention (TOCTOU; the journal holder retries); 6 missing type hints flagged by mb-rules-check; T1 waiver line numbers point at 190251c and have moved; verify-stub may flag Protocol '...' bodies as bare placeholders in changed files without a stub marker. [LOW, NEW, 2026-11-19]
+**Type:** IDEA
+
+### I-303 — Graph adoption 7-day re-measure on 2026-11-26: python3 scripts/mb-cost-report.py --since 7 --json; target implementer graph_share >= 0.5 and judge > 0 (AGR-038); append to reports/2026-11-19_graph-adoption.md. Also confirm whether Claude Code PreToolUse payloads carry agent_id (graph nudge per-subagent budget falls back to session_id if not). [MED, NEW, 2026-11-19]
 **Type:** IDEA

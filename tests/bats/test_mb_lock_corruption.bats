@@ -40,6 +40,7 @@ make_faulty_scripts() {
   cp "$REPO_ROOT/scripts/mb_backlog_state_engine.py" "$dir/"
   cp "$REPO_ROOT/scripts/mb_fs_atomic.py" "$dir/"
   cp "$REPO_ROOT/scripts/mb_backlog_validate.py" "$dir/"
+  cp "$REPO_ROOT/scripts/mb_backlog_blocks.py" "$dir/"
   # Append an override AFTER the original definition — last definition wins.
   printf '\n%s\n' "$body" >> "$dir/_lib.sh"
   echo "$dir/mb-backlog-state.sh"

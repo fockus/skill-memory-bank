@@ -98,6 +98,7 @@ setup_skill_alias_sandbox() {
     --exclude='*.pre-mb-backup.*' \
     --exclude='.index' \
     --exclude='node_modules' \
+    --exclude='/.installed-manifest.json' \
     "$REPO_ROOT/" "$SKILL_SRC/"
 }
 

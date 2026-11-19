@@ -30,6 +30,7 @@ setup() {
     --exclude='*.pre-mb-backup.*' \
     --exclude='.index' \
     --exclude='node_modules' \
+    --exclude='/.installed-manifest.json' \
     --exclude='.installed-manifest.json' \
     "$REPO_ROOT/" "$SKILL_COPY/"
   # The manifest must land in the copy (asserted below), not at the suite default.

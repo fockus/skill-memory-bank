@@ -68,8 +68,8 @@ for k in ('tree','vcs','head','baseline','files','sizes','skipped_large'): asser
 }
 
 @test "no push anywhere in the scripts" {
-  ! grep -hnE '(^|[^a-z_])push([^a-z_]|$)' "$REPO_ROOT/scripts/mb-team-checkpoint.sh" \
-    "$REPO_ROOT/scripts/mb_vcs.sh" "$REPO_ROOT/scripts/mb_team_ops.py" | grep -v -e '^[0-9]*:#' -e '[Nn]o push'
+  run bash -c "grep -hnE '(^|[^a-z_])push([^a-z_]|\$)' \"$REPO_ROOT/scripts/mb-team-checkpoint.sh\" \"$REPO_ROOT/scripts/mb_vcs.sh\" \"$REPO_ROOT/scripts/mb_team_ops.py\" | grep -v -e '^[0-9]*:#' -e '[Nn]o push'"
+  [ "$status" -eq 1 ]
 }
 
 @test "label with a path separator is refused and nothing is written" {

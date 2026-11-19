@@ -17,4 +17,4 @@ Loaded by `commands/mb.md` when the first word of `$ARGUMENTS` routes here. `$SK
 
 Invoking `/mb start` = invoking `/start` — same scripts, same subagents, same outcome. Do not duplicate the logic here; read the primary command file and follow it.
 
-> **Plan hierarchy reminder:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for size thresholds. Cyrillic «Этап / Спринт / Фаза» — legacy alias, allowed only in archived `plans/done/`.
+> **Plan hierarchy reminder:** Phase → Sprint → Stage. See `references/templates.md` § *Plan decomposition* for size thresholds. The Russian legacy aliases for Phase, Sprint and Stage are allowed only in archived `plans/done/`.

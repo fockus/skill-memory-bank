@@ -24,18 +24,18 @@ $PI_START_MARKER
 
 # Memory Bank — Pi Global Entry Point
 
-Pi loads this file at startup and injects it into the agent prompt. Skill: \`~/.pi/agent/skills/memory-bank/SKILL.md\`; prompt templates (\`/mb\`, \`/start\`, \`/done\`, …): \`~/.pi/agent/prompts/\`.
+Pi loads this file at startup and injects it into the agent prompt. Skill: \`~/.pi/agent/skills/memory-bank/SKILL.md\`; prompts (\`/mb\`, \`/start\`, …): \`~/.pi/agent/prompts/\`.
 
 ### \`/mb work\` gate
 
-The gate applies when the request refers to an existing plan or spec in the bank (implement, fix, continue, resume, go by it). Without one, size the task (SKILL.md § Task routing): trivial and small tasks are done inline. When it applies:
-1. Workflow: \`mb-workflow.sh\` on \`<bank>/pipeline.yaml\`; target: \`mb-work-resolve.sh\` + \`mb-work-plan.sh\`. Spec tasks \`<!-- mb-task:N -->\` are the source of truth; a wrapper plan without \`linked_spec\`/\`mb-stage\` is fixed before coding.
-2. Run the resolved steps exactly; claim completion only after the configured gates or an explicit user override.
-3. Dispatch roles by name: \`mb_dispatch_subagent(role=<agent>, task=…)\`; \`model\`/\`thinking\` only when the JSON line sets them.
+The gate applies when the request refers to an existing bank plan or spec. Without one, size the task (SKILL.md § Task routing); small tasks run inline. Otherwise:
+1. Workflow: \`mb-workflow.sh\` on \`<bank>/pipeline.yaml\`; target: \`mb-work-resolve.sh\` + \`mb-work-plan.sh\`. Spec tasks \`<!-- mb-task:N -->\` are the source of truth; fix a wrapper plan without \`linked_spec\`/\`mb-stage\` first.
+2. Run the resolved steps exactly; complete only after the gates pass.
+3. Dispatch roles by name: \`mb_dispatch_subagent(role=<agent>, task=…)\`; set \`model\`/\`thinking\` only if the JSON line does.
 
-Persistence: inside an approved plan or workflow, do not end a turn with a status update or a "next step" note — keep calling tools until a gate or a real blocker. Ask only for decisions outside the granted scope. A failed subagent dispatch is retried once if transient, then reported.
+Persistence: inside an approved plan keep calling tools until a gate or blocker; no status-note turn endings. Retry a transient dispatch failure once.
 
-Planned work runs inline only when the user asks to skip \`/mb work\`; the tier's tests and verification still apply.
+Planned work runs inline only when the user asks to skip \`/mb work\`; tests and verification still apply.
 
 EOF
   mb_emit_rules_file "$SKILL_DIR/rules/CLAUDE-GLOBAL.md" \

@@ -1089,6 +1089,7 @@ setup_readonly_skill_sandbox() {
     --exclude='*.pre-mb-backup.*' \
     --exclude='.index' \
     --exclude='node_modules' \
+    --exclude='/.installed-manifest.json' \
     --exclude='.installed-manifest.json' \
     "$REPO_ROOT/" "$RO_SKILL_SRC/"
   # Simulate a pip/sudo install tree: readable+executable, not writable by us.

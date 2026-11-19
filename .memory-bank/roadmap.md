@@ -10,7 +10,7 @@
 - [2026-10-05_feature_pi-native-integration](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan — progress=60% stages(done=0,in_progress=4,planned=1,total=5)
 - [proportional-effortsprint2-execution-economy](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер» — progress=85% stages(done=3,in_progress=1,planned=0,total=4)
 - [codex-memory-parity](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion — progress=0% stages(done=0,in_progress=0,planned=4,total=4)
-- [master-completion](plans/2026-11-18_feature_master-completion.md) — feature — master-completion — progress=83% stages(done=18,in_progress=1,planned=3,total=22)
+- [master-completion](plans/2026-11-18_feature_master-completion.md) — feature — master-completion — progress=95% stages(done=21,in_progress=0,planned=1,total=22)
 
 ## Next (strict order — depends)
 
@@ -50,7 +50,7 @@ _None._
 - svp-spec-review-loop — progress=40% tasks(done=2,in_progress=0,planned=3,total=5)
 - svp-docs-wiki — progress=0% tasks(done=0,in_progress=0,planned=7,total=7)
 - svp-parallel-engine — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
-- svp-adapt-escalation — progress=80% tasks(done=3,in_progress=2,planned=0,total=5)
+- svp-adapt-escalation — progress=100% tasks(done=5,in_progress=0,planned=0,total=5)
 - openspec-adapter — progress=100% tasks(done=8,in_progress=0,planned=0,total=8)
 - mb-team — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
 
@@ -61,7 +61,7 @@ planning-qa-sources — ice=no-ice — ready — progress=100% tasks(done=5,in_p
 team-completion — ice=no-ice — ready — progress=100% tasks(done=5,in_progress=0,planned=0,total=5) — blocked_by=none
 
 ## Group: sdd-vision-pipeline
-progress=68%
+progress=71%
 svp-interview-upgrade — ice=504 — ready — progress=100% tasks(done=6,in_progress=0,planned=0,total=6) — blocked_by=none
 svp-roadmap-backlog-db — ice=432 (unconfirmed) — ready — progress=100% tasks(done=9,in_progress=0,planned=0,total=9) — blocked_by=none
 svp-sdd-core — ice=400 (unconfirmed) — draft — progress=100% tasks(done=9,in_progress=0,planned=0,total=9) — blocked_by=none
@@ -69,7 +69,7 @@ svp-brief — ice=448 (unconfirmed) — ready — progress=100% tasks(done=4,in_
 svp-contract-test-loop — ice=360 (unconfirmed) — ready — progress=100% tasks(done=8,in_progress=0,planned=0,total=8) — blocked_by=svp-sdd-core
 svp-docs-wiki — ice=336 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=7,total=7) — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
 svp-spec-review-loop — ice=336 (unconfirmed) — ready — progress=40% tasks(done=2,in_progress=0,planned=3,total=5) — blocked_by=svp-sdd-core
-svp-adapt-escalation — ice=294 (unconfirmed) — ready — progress=80% tasks(done=3,in_progress=2,planned=0,total=5) — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
+svp-adapt-escalation — ice=294 (unconfirmed) — ready — progress=100% tasks(done=5,in_progress=0,planned=0,total=5) — blocked_by=svp-sdd-core,svp-roadmap-backlog-db
 svp-parallel-engine — ice=252 (unconfirmed) — ready — progress=0% tasks(done=0,in_progress=0,planned=10,total=10) — blocked_by=svp-sdd-core
 <!-- /mb-roadmap-auto -->
 

@@ -42,6 +42,7 @@ _make_skill_copy() {
     --exclude='*.pre-mb-backup.*' \
     --exclude='.index' \
     --exclude='node_modules' \
+    --exclude='/.installed-manifest.json' \
     --exclude='.installed-manifest.json' \
     "$REPO_ROOT/" "$SKILL_COPY/"
 }
@@ -59,6 +60,7 @@ _make_readonly_skill_copy() {
     --exclude='*.pre-mb-backup.*' \
     --exclude='.index' \
     --exclude='node_modules' \
+    --exclude='/.installed-manifest.json' \
     --exclude='.installed-manifest.json' \
     "$REPO_ROOT/" "$RO_SKILL_SRC/"
   chmod -R a-w "$RO_SKILL_SRC"

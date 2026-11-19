@@ -100,7 +100,7 @@ alloc() {  # $1 = bank
   bash "$IDEA" "Beta parallel" MED "$BANK" > "$TMPROOT/b.out" &
   p2=$!
   wait "$p1"; wait "$p2"
-  [ "$(cat "$TMPROOT/a.out")" != "$(cat "$TMPROOT/b.out")" ]
+  refute_cmd cmp -s "$TMPROOT/a.out" "$TMPROOT/b.out"
   grep -q 'Alpha parallel' "$BANK/backlog.md"
   grep -q 'Beta parallel' "$BANK/backlog.md"
   [ "$(grep -c '^### I-' "$BANK/backlog.md")" -eq 3 ]
@@ -112,7 +112,7 @@ alloc() {  # $1 = bank
   bash "$IDEA" "Same racing title" MED "$BANK" > "$TMPROOT/b.out" 2>/dev/null &
   p2=$!
   wait "$p1"; wait "$p2"
-  [ "$(cat "$TMPROOT/a.out")" = "$(cat "$TMPROOT/b.out")" ]
+  assert_unchanged "$TMPROOT/a.out" "$TMPROOT/b.out"
   [ "$(grep -c 'Same racing title' "$BANK/backlog.md")" -eq 1 ]
 }
 

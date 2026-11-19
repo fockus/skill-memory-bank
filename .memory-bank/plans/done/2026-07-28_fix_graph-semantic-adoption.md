@@ -133,8 +133,8 @@ created: 2026-07-28
 - bats: при свежем графе инжект содержит строку `code graph: fresh`; при отсутствии графа инжект не меняется; добавка ≤3 строк (wc -l); хук укладывается в лимит времени на фикстурном банке.
 
 **DoD:**
-- [ ] bats красные → зелёные; существующее поведение слиммера не изменилось (старые кейсы зелёные)
-- [ ] Реальный прогон: перехваченный prompt субагента содержит статус-строку (ручная проверка в verify)
+- [x] superseded (2026-11-19): the pre-agent hook's additionalContext reaches only the orchestrator, so graph status goes to subagents through the /mb work `## Graph` push (master-completion Stage 5) and Codex SubagentStart (Stage 6); Claude ad-hoc dispatch → I-293
+- [x] superseded — see the line above (I-293 for the Claude SubagentStart half)
 
 **Code rules:** жёсткий лимит на размер инжекта — контекст субагента не раздуваем (прецедент token-economical defaults).
 
@@ -185,9 +185,9 @@ created: 2026-07-28
 - `tests/pytest/test_mb_cost_report.py`: `test_graph_and_grep_calls_counted_per_role`, `test_graph_share_zero_when_no_lookups` (фикстура: implementer 2 grep + 1 graph → 0.33).
 
 **DoD:**
-- [ ] Демо-item `/mb work` (execution) на этом репо после Stage 6: implementer ≥ 3 запросов к графу и `graph_share ≥ 0.5`; verifier ≥ 1 запрос; nudge наблюдаем в транскрипте сабагента (grep по output-файлу); `mb-cost-report.py` печатает `graph_share` по ролям; отчёт → `reports/`.
-- [ ] doc-pytest + 3 bats + 2 pytest зелёные; shellcheck; `ruff`; CHANGELOG.
-- [ ] Через 7 дней после раскатки `mb-cost-report.py --since 7`: `graph_share` implementer ≥ 0.5 (замер adoption по AGR-038); результат в `reports/`.
+- [x] (2026-11-19, reports/2026-11-19_graph-adoption.md: H1/H2 implementers 5 and 3 graph queries vs 1 grep each — share by executor count 0.83/0.75; cost report prints graph_share per role) Демо-item `/mb work` (execution) на этом репо после Stage 6: implementer ≥ 3 запросов к графу и `graph_share ≥ 0.5`; verifier ≥ 1 запрос; nudge наблюдаем в транскрипте сабагента (grep по output-файлу); `mb-cost-report.py` печатает `graph_share` по ролям; отчёт → `reports/`.
+- [x] doc-pytest + 3 bats + 2 pytest зелёные; shellcheck; `ruff`; CHANGELOG (d3e4939, 0139fcb, e0a7ee0).
+- [ ] DEFERRED to 2026-11-26 (I-303) — Через 7 дней после раскатки `mb-cost-report.py --since 7`: `graph_share` implementer ≥ 0.5 (замер adoption по AGR-038); результат в `reports/`.
 
 **Code rules:** детерминированный замер (regex), без LLM; fail-open на отсутствие графа; никаких новых зависимостей.
 

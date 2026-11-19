@@ -1,5 +1,5 @@
 ---
-description: "Lists concrete risks of a planned or finished change and, for a defect, authors the failing repro test. Use as the reproduce or pre-merge step of a flow."
+description: "Lists concrete risks of a change and author the failing repro test for a defect. Use when reproducing a defect or before merging."
 allowed-tools: [Bash, Read, Write, Grep]
 ---
 
