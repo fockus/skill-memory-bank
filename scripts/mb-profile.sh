@@ -25,6 +25,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Assets (key-rules.json, presets) come from THIS bundle: without it, _bundle prefers
+# the interpreter's <prefix>/share copy (pip install), mixing two versions.
+export MB_SKILL_BUNDLE="${MB_SKILL_BUNDLE:-$SCRIPT_DIR/..}"
 # shellcheck source=_lib.sh
 source "$SCRIPT_DIR/_lib.sh"
 

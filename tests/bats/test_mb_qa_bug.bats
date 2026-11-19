@@ -81,10 +81,10 @@ teardown() {
 # bats test_tags=perf
 @test "parallel adds get distinct ids" {
   for i in 1 2 3 4 5 6; do
-    bash "$BUG" --mb "$MB" add low "Parallel bug $i" </dev/null >"$TMP/out$i" &
+    bash "$BUG" --mb "$MB" add low "Parallel bug $i" </dev/null >"$TMP/out$i" 2>"$TMP/err$i" &
   done
   wait
-  [ "$(cat "$TMP"/out* | sort -u | wc -l | tr -d ' ')" -eq 6 ]
+  [ "$(cat "$TMP"/out* | sort -u | wc -l | tr -d ' ')" -eq 6 ] || { head "$TMP"/out* "$TMP"/err*; false; }
   [ "$(grep -c '^### BUG-' "$MB/qa/bugs.md")" -eq 6 ]
 }
 

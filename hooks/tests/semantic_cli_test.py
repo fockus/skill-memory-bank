@@ -199,6 +199,8 @@ def test_cli_search_embeddings_missing_deps_falls_back_to_bm25_with_hint(tmp_pat
 def test_cli_search_embeddings_without_embeddings_index_hints_and_falls_back(tmp_path):
     """Embeddings backend against a BM25-only index (no vectors) must say so
     on stderr and still answer via BM25."""
+    # Without numpy the backend itself is unavailable and says that instead.
+    pytest.importorskip("numpy")
     mb = _mk_bank(tmp_path)
     env = {"MB_ROOT": str(mb), "MB_SEMANTIC_MODEL": "definitely/not-a-real-model"}
     assert _run("reindex", env=env).returncode == 0  # builds the BM25-format index

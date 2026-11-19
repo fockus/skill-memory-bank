@@ -183,7 +183,7 @@ _concurrent_upserts() {
       MB_GLOSSARY_LOCK_TIMEOUT="${MB_GLOSSARY_LOCK_TIMEOUT:-90}" \
         "$SCRIPT" upsert --mb "$BANK" \
           --term-file "$BATS_TEST_TMPDIR/t$i.txt" \
-          --definition-file "$BATS_TEST_TMPDIR/d$i.txt" >/dev/null 2>&1 || rc=$?
+          --definition-file "$BATS_TEST_TMPDIR/d$i.txt" >/dev/null 2>"$RC_DIR/$i.err" || rc=$?
       printf '%d' "$rc" > "$RC_DIR/$i"
     ) &
   done
@@ -234,7 +234,7 @@ _concurrent_upserts() {
     rc="$(cat "$RC_DIR/$i")"
     [ "$rc" -eq 0 ] && n_ok=$((n_ok + 1))
   done
-  [ "$n_ok" -eq 12 ] || { echo "only $n_ok/12 upserts succeeded"; false; }
+  [ "$n_ok" -eq 12 ] || { echo "only $n_ok/12 upserts succeeded"; head "$RC_DIR"/*.err; false; }
   [ "$(grep -c ' — ' "$GLOSS")" -eq 12 ]
 }
 

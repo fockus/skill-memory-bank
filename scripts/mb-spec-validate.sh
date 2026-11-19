@@ -201,13 +201,13 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Checks 3-5: per-task validation (covers, DoD, Testing section).
-# Check 6: REQ orphan detection.
+# Checks 3-5: per-task validation (covers, DoD, Testing section); 6: REQ orphans.
 # ─────────────────────────────────────────────────────────────────────────────
 
 if [ -n "$TASKS_JSONL" ] && [ -f "$REQ_FILE" ]; then
-  TASKS_DATA="$TASKS_JSONL" REQ_PATH="$REQ_FILE" MB_SCRIPT_DIR="$SCRIPT_DIR" \
-    python3 "$SCRIPT_DIR/mb_spec_validate_tasks.py" >>"$VIOLATIONS_FILE"
+  # Tasks go on stdin: Linux caps one argv/env string at 128 KiB (MAX_ARG_STRLEN).
+  REQ_PATH="$REQ_FILE" MB_SCRIPT_DIR="$SCRIPT_DIR" \
+    python3 "$SCRIPT_DIR/mb_spec_validate_tasks.py" <<<"$TASKS_JSONL" >>"$VIOLATIONS_FILE"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -343,10 +343,10 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 
 if [ -n "$TASKS_JSONL" ] && [ -f "$REQ_FILE" ]; then
-  TASKS_DATA="$TASKS_JSONL" REQ_PATH="$REQ_FILE" DESIGN_PATH="$DESIGN_FILE" \
+  REQ_PATH="$REQ_FILE" DESIGN_PATH="$DESIGN_FILE" \
     SPECS_ROOT="$SPECS_ROOT" WAIVERS_FILE="$WAIVERS_FILE" MB_SCRIPT_DIR="$SCRIPT_DIR" \
     PIPELINE_YAML="$PIPELINE_YAML" \
-    python3 "$SCRIPT_DIR/mb_spec_validate_v2.py" >>"$VIOLATIONS_FILE"
+    python3 "$SCRIPT_DIR/mb_spec_validate_v2.py" <<<"$TASKS_JSONL" >>"$VIOLATIONS_FILE"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -357,10 +357,10 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 
 if [ -n "$TASKS_JSONL" ] && [ -f "$REQ_FILE" ]; then
-  TASKS_DATA="$TASKS_JSONL" REQ_PATH="$REQ_FILE" SPEC_DIR="$SPEC_DIR" \
+  REQ_PATH="$REQ_FILE" SPEC_DIR="$SPEC_DIR" \
     PIPELINE_YAML="$PIPELINE_YAML" MB_SCRIPT_DIR="$SCRIPT_DIR" \
     MB_SPEC_VALIDATE_JSON="$JSON_MODE" \
-    python3 "$SCRIPT_DIR/mb_spec_validate_layers.py" >>"$VIOLATIONS_FILE"
+    python3 "$SCRIPT_DIR/mb_spec_validate_layers.py" <<<"$TASKS_JSONL" >>"$VIOLATIONS_FILE"
 fi
 
 # Accepted waivers are visible in the output even on a clean run (REQ-050).

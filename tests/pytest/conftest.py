@@ -124,6 +124,11 @@ for _var in subprocess.run(
 # XDG_CONFIG_HOME=/home/runner/.config, so installs shared one real directory.
 for _var in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"):
     os.environ.pop(_var, None)
+# CI runners have no git identity; product code that commits (mb_vcs.sh) needs one.
+for _var, _value in (("GIT_AUTHOR_NAME", "mb-test"), ("GIT_COMMITTER_NAME", "mb-test"),
+                     ("GIT_AUTHOR_EMAIL", "mb-test@example.invalid"),
+                     ("GIT_COMMITTER_EMAIL", "mb-test@example.invalid")):
+    os.environ.setdefault(_var, _value)
 
 # Subprocesses that call `python3` get this interpreter directly: a pyenv shim
 # costs ~0.6 s per start and an adapter install spawns hundreds of them.
@@ -149,11 +154,23 @@ _SLOW_MODULES = frozenset({
 })
 
 
+# Modules that load the real Pi SDK (its jiti) through a node host fixture.
+_PI_HOST_MODULES = frozenset({
+    "test_pi_native_backends", "test_pi_native_commands", "test_pi_native_embeddings",
+    "test_pi_native_graph", "test_pi_native_hooks", "test_pi_native_host",
+    "test_pi_native_session", "test_pi_native_work",
+})
+_NO_PI_SDK = pytest.mark.skip(reason="needs the Pi SDK: npm i -g @earendil-works/pi-coding-agent, or MB_PI_SDK_ROOT")
+
+
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: real installers/host runtimes; deselect with -m 'not slow'")
 
 
 def pytest_collection_modifyitems(items):
     for item in items:
-        if item.module.__name__.rpartition(".")[2] in _SLOW_MODULES:
+        module = item.module.__name__.rpartition(".")[2]
+        if module in _SLOW_MODULES:
             item.add_marker(pytest.mark.slow)
+        if not _PI_SDK and module in _PI_HOST_MODULES:
+            item.add_marker(_NO_PI_SDK)

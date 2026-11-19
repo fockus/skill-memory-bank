@@ -2,7 +2,7 @@
 
 Split out of the shell heredoc so the CLI stays <=400 lines (S2 review [24]).
 Behaviour is unchanged: covers/DoD/Testing per task, plus REQ orphan detection.
-Reads TASKS_DATA / REQ_PATH / MB_SCRIPT_DIR from the environment and prints one
+Reads the tasks JSONL from stdin and REQ_PATH / MB_SCRIPT_DIR from the environment and prints one
 violation per line to stdout.
 """
 
@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, os.environ["MB_SCRIPT_DIR"])
 import mb_req_id as rq  # shared REQ-ID grammar (scheme + slash + def-vs-mention)
 
-tasks_raw = os.environ.get("TASKS_DATA", "")
+tasks_raw = sys.stdin.read()
 req_path = os.environ.get("REQ_PATH", "")
 
 tasks = []

@@ -261,3 +261,17 @@ with open('$BAD_PROFILE','w') as f:
   [[ "$output" == *"init"* ]] || [[ "$output" == *"scope=user"* ]] || \
     [[ "$output" == *"--scope=user"* ]] || [[ "$output" == *"mb init"* ]]
 }
+
+@test "profile: key-rules come from this bundle, not a pip-installed share of the interpreter" {
+  # A clone's install.sh ran under a Python whose prefix holds another copy
+  # (pip install -e / a wheel): _bundle prefers <prefix>/share, so the rules mixed.
+  python3 -m venv --without-pip "$SANDBOX/venv"
+  local share="$SANDBOX/venv/share/memory-bank-skill"
+  mkdir -p "$share/rules"
+  : > "$share/install.sh"
+  printf '{"rules": [{"id": "foreign", "group": "principles", "text": "FOREIGN BUNDLE", "default": true, "locked": false}]}' > "$share/rules/key-rules.json"
+  run env MB_PYTHON="$SANDBOX/venv/bin/python3" bash "$PROFILE_CMD" key-rules --json "--project=$PROJECT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"id": "solid"'* ]]
+  [[ "$output" != *FOREIGN* ]]
+}
