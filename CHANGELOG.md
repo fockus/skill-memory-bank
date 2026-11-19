@@ -24,6 +24,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - Test suites: bats and pytest drop hook git env, call the real interpreter instead of a pyenv shim (an install-heavy bats file: 23 min → 3 min), find the Pi SDK behind `pi` on PATH, and skip with a reason when the installed Tintin/pi-inspect/opencode differ from what a test needs.
 
 - CI red on Linux/macOS: test suites no longer inherit the runner's `XDG_*` base dirs (every install wrote one real `~/.config`); `mb_work_adapt.py` parses an item after options on Python <3.12; the spec validator rejects `(?…)` that GNU grep tolerates; permission checks use GNU `stat` first; the cyrillic test-name guard is one `perl \p{Cyrillic}` pass (the bash loop crashed on macOS runners; GNU grep rejects the range in C.UTF-8); `mb-drift.sh` verifies the progress chain with the script beside it — without an installed skill the check was silently skipped.
+- e2e under `bats --jobs`: each test runs in its own directory (`install.sh` inferred clients from an `.opencode` another test had installed in the shared cwd); the render-EIO fault matches real paths (`install.sh` resolves macOS `/var` to `/private/var`); stale e2e/hook tests follow the current contracts (legacy quarantine of 22f4c93 and its provenance listing, the fail-before-write manifest probe, Pi dirty marker in `pi_native_session.mjs`, the 24-char semantic prompt gate, recall dropping gone sources).
+- CI: each suite is split into shards on parallel runners (`.github/ci-run.sh <suite> <k> <n>`, also runnable locally) with coverage combined across pytest shards; Linux runs everything on every push (~15 min instead of ~2.5 h), macOS a quick subset, the full macOS run is nightly.
 
 ### Changed — closure gate waits quietly
 
