@@ -9,11 +9,13 @@
 #      triple, then specs/<topic>/tasks.md; never falls back to a native topic
 #      (collision / conflict / unsafe path exit 1; id also matching a plan exit 2)
 #   4. Freeform (≥3 words) → exit 3 (driver delegates to LLM-driven match)
-#   5. Empty → first plan link inside <bank>/roadmap.md mb-active-plans block
+#   5. Empty → a plan link inside <bank>/roadmap.md mb-active-plans block, picked by
+#      scripts/mb_work_active.py: paused/cancelled/done/blocked plans and plans with an
+#      open depends_on are skipped; the only eligible one, else the only in_progress one
 #
 # Exit codes:
 #   0  resolved (single absolute path printed to stdout)
-#   1  not found / no active plan / parse error / all active plans claimed
+#   1  not found / no (eligible) active plan / parse error / all active plans claimed
 #   2  ambiguous (multiple substring matches; list printed to stderr)
 #   3  freeform target (driver must resolve via LLM; candidate list to stderr)
 #
@@ -160,37 +162,38 @@ if [ -z "$TARGET" ]; then
       exit 1
     fi
     links="$unclaimed"
-    count=$(printf '%s\n' "$links" | grep -c .)
   fi
 
-  if [ "$count" -eq 1 ]; then
-    rel=$(printf '%s' "$links" | head -1)
-    case "$rel" in
-      /*|*..*)
-        echo "[work-resolve] active plan link rejected (absolute or traversal): $rel" >&2
-        exit 1
-        ;;
-    esac
-    abs_path=$(mb_canonical_under "$BANK" "$BANK/$rel") || {
-      echo "[work-resolve] active plan link escapes bank: $rel" >&2
+  # Plan status and depends_on pick among the links (scripts/mb_work_active.py).
+  rels=()
+  while IFS= read -r rel; do
+    [ -n "$rel" ] && rels+=("$rel")
+  done < <(printf '%s\n' "$links")
+  sel_rc=0
+  rel=$(python3 "$SCRIPT_DIR/mb_work_active.py" "$BANK" "${rels[@]}") || sel_rc=$?
+  [ "$sel_rc" -eq 0 ] || exit "$sel_rc"
+
+  case "$rel" in
+    /*|*..*)
+      echo "[work-resolve] active plan link rejected (absolute or traversal): $rel" >&2
       exit 1
-    }
-    if ! mb_is_allowed_plan_path "$BANK" "$abs_path"; then
-      echo "[work-resolve] active plan link is not a plan or spec tasks file: $abs_path" >&2
-      exit 1
-    fi
-    if [ ! -f "$abs_path" ]; then
-      echo "[work-resolve] active plan link points at missing file: $abs_path" >&2
-      exit 1
-    fi
-    claim_note "$BANK" "$abs_path"
-    printf '%s\n' "$abs_path"
-    exit 0
-  else
-    echo "[work-resolve] multiple active plans (use explicit target):" >&2
-    printf '%s\n' "$links" >&2
-    exit 2
+      ;;
+  esac
+  abs_path=$(mb_canonical_under "$BANK" "$BANK/$rel") || {
+    echo "[work-resolve] active plan link escapes bank: $rel" >&2
+    exit 1
+  }
+  if ! mb_is_allowed_plan_path "$BANK" "$abs_path"; then
+    echo "[work-resolve] active plan link is not a plan or spec tasks file: $abs_path" >&2
+    exit 1
   fi
+  if [ ! -f "$abs_path" ]; then
+    echo "[work-resolve] active plan link points at missing file: $abs_path" >&2
+    exit 1
+  fi
+  claim_note "$BANK" "$abs_path"
+  printf '%s\n' "$abs_path"
+  exit 0
 fi
 
 # ── Form 2c: OpenSpec change (dir or bare id) → sync/import → bank triple ──

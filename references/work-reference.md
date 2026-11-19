@@ -211,7 +211,7 @@ Field reference:
 ## Examples
 
 ```bash
-# Empty target: pick first active plan from roadmap.md mb-active-plans block
+# Empty target: pick the active plan from roadmap.md mb-active-plans (status + depends_on decide)
 /mb work
 /mb work --auto
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env bats
 # Bank-relative target resolution for mb-work-resolve.sh (I-085 Stage 6).
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   RESOLVE="$REPO_ROOT/scripts/mb-work-resolve.sh"
@@ -188,4 +190,40 @@ _openspec_repo() {
   run bash "$RESOLVE" openspec/changes/auth --mb "$OSBANK"
   [ "$status" -eq 0 ]
   [[ "$output" == *"/specs/auth/tasks.md" ]]
+}
+
+# ── Empty target: plan status and depends_on pick the active plan ───
+
+_roadmap() {
+  { printf '# Roadmap\n<!-- mb-active-plans -->\n'
+    for rel in "$@"; do printf -- '- [%s](%s)\n' "$rel" "$rel"; done
+    printf '<!-- /mb-active-plans -->\n'; } > "$BANK/roadmap.md"
+}
+
+_fm_plan() {  # name status [depends_on]
+  { printf -- '---\nstatus: %s\n' "$2"
+    [ -n "${3:-}" ] && printf 'depends_on: %s\n' "$3"
+    printf -- '---\n# plan\n'; } > "$BANK/plans/$1"
+}
+
+@test "work_resolve: empty target skips paused plans and waits on depends_on" {
+  _fm_plan base.md in_progress
+  _fm_plan paused.md paused
+  _fm_plan next.md queued "[base.md]"
+  _roadmap plans/paused.md plans/next.md plans/base.md
+  cd "$WORKDIR" || exit 1
+  run --separate-stderr bash "$RESOLVE" --mb "$BANK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"/plans/base.md" ]]
+  [[ "$stderr" == *"skipped plans/paused.md (status: paused)"* ]]
+  [[ "$stderr" == *"skipped plans/next.md (depends_on base.md is not closed)"* ]]
+}
+
+@test "work_resolve: empty target with only paused plans fails and says why" {
+  _fm_plan paused.md paused
+  _roadmap plans/paused.md
+  cd "$WORKDIR" || exit 1
+  run bash "$RESOLVE" --mb "$BANK"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no eligible active plan"* ]]
 }

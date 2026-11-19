@@ -18,7 +18,7 @@ Execute a composable workflow. **Default mode is `execution`: implement (TDD) �
 
 1. **Resolve workflow** with `mb-workflow.sh` (`--workflow` wins; otherwise `workflow.default`).
 2. **Planning steps** (`discuss`, `sdd`, `plan`) run only if the selected workflow includes them.
-3. **Resolve target** for execution/review steps (5 forms — see spec §8.2): existing path → substring in `plans/` → topic name → freeform → empty active plan.
+3. **Resolve target** for execution/review steps (5 forms — see spec §8.2): existing path → substring in `plans/` → topic name → freeform → empty active plan (skips paused/cancelled/done/blocked plans and open `depends_on`; the only eligible, else the only `in_progress`).
 4. **Apply `--range`** over plan stages or spec tasks.
 5. **Emit JSON Lines** with role/agent/model/thinking/status/DoD metadata.
 6. **Dispatch / quality loop** according to selected workflow steps and `workflow.loop`.

@@ -13,7 +13,7 @@ The first positional arg `<target>` resolves in this order:
 | 3 | Topic name | Checks `<bank>/specs/<topic>/tasks.md`; if present with `mb-task` markers, resolves to that file |
 | 3b | OpenSpec change (`<id>` or path to `openspec/changes/<id>`) | Runs `mb-openspec.sh import` (new) or `sync <topic>` (already imported), then resolves to `specs/<topic>/tasks.md`. A conflict or error exits 1 before any work; resolve with `mb-openspec.sh sync <topic> --take openspec|bank`. An explicit OpenSpec target never falls to a native topic: a native or differently-linked topic of the same name, a symlink/archive/foreign path exits 1; a bare id that also matches a plan name exits 2 (use `openspec/changes/<id>` or the full plan file name) |
 | 4 | Freeform (≥ 3 words) | Exits 3; the driver presents candidates from both `plans/` and `specs/` and asks the user to confirm |
-| 5 | Empty target | Uses the first plan link inside the `<!-- mb-active-plans -->` block of `roadmap.md` |
+| 5 | Empty target | A plan link inside the `<!-- mb-active-plans -->` block of `roadmap.md` (`scripts/mb_work_active.py`): skips `status: paused\|cancelled\|done\|blocked` and open `depends_on`; the only eligible link, else the only `in_progress` one, else exit 2 |
 
 **Form 3** is the direct spec-task path: if you have `specs/inventory-sync/tasks.md` containing `<!-- mb-task:N -->` markers, `/mb work inventory-sync` will execute those tasks directly — no plan file required.
 

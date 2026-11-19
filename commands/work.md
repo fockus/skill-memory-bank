@@ -27,7 +27,7 @@ The workflow-mode matrix, verifier cadence, JSON Lines schema, worked examples, 
 
 ## How `/mb work` resolves your input
 
-The first positional arg `<target>` resolves in this order: (1) Existing path, (2) Substring of a plan basename, (3) Topic name (`specs/<topic>/tasks.md`) or OpenSpec change (`<id>` / `openspec/changes/<id>`: the resolver imports or syncs it into the bank triple, and a conflict exits non-zero before any work), (4) Freeform (≥ 3 words, exit 3 + candidates), (5) Empty target → the first plan in the `<!-- mb-active-plans -->` block of `roadmap.md`; the form table is in `references/work-loop-reference.md` § Target resolution forms.
+The first positional arg `<target>` resolves in this order: (1) Existing path, (2) Substring of a plan basename, (3) Topic name (`specs/<topic>/tasks.md`) or OpenSpec change (`<id>` / `openspec/changes/<id>`: the resolver imports or syncs it into the bank triple, and a conflict exits non-zero before any work), (4) Freeform (≥ 3 words, exit 3 + candidates), (5) Empty target → a plan from the `<!-- mb-active-plans -->` block of `roadmap.md`: plans with `status: paused|cancelled|done|blocked` or an open `depends_on` are skipped (stderr says why), then the only eligible one wins, else the only `in_progress` one, else exit 2 with the eligible list; the form table is in `references/work-loop-reference.md` § Target resolution forms.
 
 Underlying script: `bash "$SKILL_DIR"/scripts/mb-work-resolve.sh [target] [--mb path]`.
 
