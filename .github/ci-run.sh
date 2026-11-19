@@ -36,8 +36,8 @@ case "$suite" in
     # shellcheck disable=SC2046  # one path per word, no spaces in test file names
     bats --timing --jobs "$jobs" --filter-tags "$tags" $(shard '^@test' tests/bats/*.bats) ;;
   serial)
-    bats --filter-tags perf tests/bats/
-    bats --jobs "$jobs" hooks/tests/*.bats ;;
+    bats --timing --filter-tags perf tests/bats/
+    bats --timing --jobs "$jobs" hooks/tests/*.bats ;;
   e2e)
     # shellcheck disable=SC2046
     bats --timing --jobs "$jobs" $(shard '^@test' tests/e2e/*.bats) ;;

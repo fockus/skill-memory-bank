@@ -224,12 +224,13 @@ _concurrent_upserts() {
   done
 }
 
-# 12 serialized upserts: the last one waits for all others, a wall-clock bound that
-# parallel CI jobs break even at 60 s, so run alone (`--filter-tags perf`).
+# 12 serialized upserts: the last one waits for all others. 60 s still timed out
+# 10 of 12 racers on a fresh CI runner (error=lock_timeout); this asserts mutual
+# exclusion, not speed, so the budget only has to rule out a deadlock. Run alone.
 # bats test_tags=perf
 @test "mb_glossary: with an adequate lock timeout every concurrent upsert succeeds" {
   local i rc n_ok=0
-  MB_GLOSSARY_LOCK_TIMEOUT=60 _concurrent_upserts 12
+  MB_GLOSSARY_LOCK_TIMEOUT=300 _concurrent_upserts 12
   for i in $(seq 1 12); do
     rc="$(cat "$RC_DIR/$i")"
     [ "$rc" -eq 0 ] && n_ok=$((n_ok + 1))
