@@ -50,7 +50,8 @@ EOF
   IN="$TMP/in.json"
   printf '{"cwd":"%s","session_id":"deadbeef-aaaa-bbbb"}' "$PROJ" > "$IN"
 }
-teardown() { rm -rf "$TMP"; }
+# A detached child of the hook may still be writing into $TMP; cleanup must not fail the test.
+teardown() { rm -rf "$TMP" 2>/dev/null || { sleep 1; rm -rf "$TMP"; } || true; }
 
 @test "dispatches substantive pending sessions, excludes summarized/contentless/current" {
   run bash -c "MB_SUMMARIZE_BIN='$STUB/summ' MB_CATCHUP_FOREGROUND=1 bash '$HOOK' < '$IN'"

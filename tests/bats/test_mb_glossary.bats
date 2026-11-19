@@ -183,7 +183,7 @@ _concurrent_upserts() {
       MB_GLOSSARY_LOCK_TIMEOUT="${MB_GLOSSARY_LOCK_TIMEOUT:-90}" \
         "$SCRIPT" upsert --mb "$BANK" \
           --term-file "$BATS_TEST_TMPDIR/t$i.txt" \
-          --definition-file "$BATS_TEST_TMPDIR/d$i.txt" >/dev/null 2>&1 || rc=$?
+          --definition-file "$BATS_TEST_TMPDIR/d$i.txt" >/dev/null 2>"$RC_DIR/$i.err" || rc=$?
       printf '%d' "$rc" > "$RC_DIR/$i"
     ) &
   done
@@ -224,14 +224,18 @@ _concurrent_upserts() {
   done
 }
 
+# 12 serialized upserts: the last one waits for all others. 60 s still timed out
+# 10 of 12 racers on a fresh CI runner (error=lock_timeout); this asserts mutual
+# exclusion, not speed, so the budget only has to rule out a deadlock. Run alone.
+# bats test_tags=perf
 @test "mb_glossary: with an adequate lock timeout every concurrent upsert succeeds" {
   local i rc n_ok=0
-  _concurrent_upserts 12
+  MB_GLOSSARY_LOCK_TIMEOUT=300 _concurrent_upserts 12
   for i in $(seq 1 12); do
     rc="$(cat "$RC_DIR/$i")"
     [ "$rc" -eq 0 ] && n_ok=$((n_ok + 1))
   done
-  [ "$n_ok" -eq 12 ] || { echo "only $n_ok/12 upserts succeeded"; false; }
+  [ "$n_ok" -eq 12 ] || { echo "only $n_ok/12 upserts succeeded"; head "$RC_DIR"/*.err; false; }
   [ "$(grep -c ' — ' "$GLOSS")" -eq 12 ]
 }
 
@@ -269,13 +273,15 @@ _concurrent_upserts() {
 # answer is 128+SIGTERM.
 
 _term_at_critical_section() {
-  # An interposed `python3` that consumes the here-doc program, signals the
-  # script, and returns WITHOUT running the critical section.
+  # An interposed `python3` that, for the here-doc program (`python3 -`), signals
+  # the script and returns WITHOUT running the critical section. Other calls (the
+  # lock's mkdir(2) gate) go to the real interpreter.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
-  cat > "$BATS_TEST_TMPDIR/bin/python3" <<'EOF'
+  cat > "$BATS_TEST_TMPDIR/bin/python3" <<EOF
 #!/usr/bin/env bash
+[ "\$1" = - ] || exec "$(command -v python3)" "\$@"
 cat > /dev/null
-kill -TERM "$PPID"
+kill -TERM "\$PPID"
 exit 0
 EOF
   chmod +x "$BATS_TEST_TMPDIR/bin/python3"

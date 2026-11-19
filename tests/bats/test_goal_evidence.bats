@@ -185,5 +185,5 @@ _pair() {
   chmod 0644 "$GOAL"
   _accept "$GOAL" --tick
   grep -qx -- '- \[x\] met one' "$GOAL"
-  [ "$(stat -f %Lp "$GOAL" 2>/dev/null || stat -c %a "$GOAL")" = 644 ]
+  [ "$(stat -c %a "$GOAL" 2>/dev/null || stat -f %Lp "$GOAL")" = 644 ]
 }

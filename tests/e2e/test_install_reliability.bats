@@ -12,6 +12,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
+  # Own cwd: install.sh infers options from $PWD, and the suite-wide one is shared by parallel tests.
+  cd "$BATS_TEST_TMPDIR" || return 1
   # Per-test manifest: never the repo's own (the owner's live install manifest).
   export MB_MANIFEST_PATH="$BATS_TEST_TMPDIR/installed-manifest.json"
   PROJECT="$(mktemp -d)"
@@ -90,7 +92,8 @@ from pathlib import Path
 original = io.open
 def checked(file, *args, **kwargs):
     kind = os.environ['FAULT_KIND']
-    match = str(file) == os.environ['FAULT_READ'] and (kind == 'late' or sys.argv[0] == '-')
+    # realpath: install.sh resolves its own dir with pwd -P (macOS /var -> /private/var).
+    match = os.path.realpath(str(file)) == os.path.realpath(os.environ['FAULT_READ']) and (kind == 'late' or sys.argv[0] == '-')
     if kind == 'late':
         match = match and any('<!-- mb-key-rules:start -->' in p.read_text()
                               for p in (Path(os.environ['HOME']) / '.pi/agent').glob('AGENTS.md'))
@@ -197,20 +200,23 @@ PY
   assert_unchanged "$target" "$BATS_TEST_TMPDIR/identical.before"
 }
 
-@test "RST10: a missing committed hash is not repaired by rerecording unchanged bytes" {
-  local target="$PROJECT/.opencode/commands/adr.md" record="$PROJECT/.opencode/.mb-manifest.json"
+# A listed file without a hash is legacy-owned (22f4c93): reinstall quarantines it, then rehashes.
+@test "RST10: a missing committed hash quarantines the listed file before rewriting it" {
+  local target="$PROJECT/.opencode/commands/adr.md" record="$PROJECT/.opencode/.mb-manifest.json" backup
   run bash "$REPO_ROOT/adapters/opencode.sh" install "$PROJECT"
   [ "$status" -eq 0 ]
   snapshot "$target" "$BATS_TEST_TMPDIR/hashless.before"
   jq --arg p "$target" 'del(.file_sha256[$p])' "$record" > "$BATS_TEST_TMPDIR/hashless.json"
   mv "$BATS_TEST_TMPDIR/hashless.json" "$record"
   run bash "$REPO_ROOT/adapters/opencode.sh" install "$PROJECT"
-  [ "$status" -ne 0 ]
-  assert_unchanged "$target" "$BATS_TEST_TMPDIR/hashless.before"
-  jq -e --arg p "$target" '.file_sha256[$p] == null' "$record"
+  [ "$status" -eq 0 ]
+  jq -e --arg p "$target" '.file_sha256[$p] != null' "$record"
+  backup="$(find "$PROJECT/.opencode/.memory-bank-backups" -name 'commands__adr.md.pre-mb-backup.*' | head -1)"
+  [ -n "$backup" ]
+  assert_unchanged "$backup" "$BATS_TEST_TMPDIR/hashless.before"
   run bash "$REPO_ROOT/adapters/opencode.sh" uninstall "$PROJECT"
   [ "$status" -eq 0 ]
-  assert_unchanged "$target" "$BATS_TEST_TMPDIR/hashless.before"
+  refute_file "$target"
 }
 
 @test "RST10: project owner-store I/O failure cannot be reported as a successful pair" {

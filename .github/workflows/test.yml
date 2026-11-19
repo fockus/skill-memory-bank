@@ -5,80 +5,113 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: "0 2 * * *"   # nightly: the full suite on macOS
   workflow_dispatch:
 
+# Each suite is split into shards on parallel runners (.github/ci-run.sh); a push
+# finishes in ~15 min instead of ~2.5 h. Full Linux on every push, a quick subset on
+# macOS (free plans run at most 5 macOS jobs at once); the full macOS run is nightly.
 jobs:
   test:
-    name: tests (${{ matrix.os }})
+    name: ${{ matrix.suite }} ${{ matrix.k }}/${{ matrix.n }} (${{ matrix.os }}, py${{ matrix.py }})
+    if: github.event_name != 'schedule'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
-
+        include:
+          - { os: ubuntu-latest, py: "3.12", suite: bats, k: 1, n: 8 }
+          - { os: ubuntu-latest, py: "3.12", suite: bats, k: 2, n: 8 }
+          - { os: ubuntu-latest, py: "3.12", suite: bats, k: 3, n: 8 }
+          - { os: ubuntu-latest, py: "3.12", suite: bats, k: 4, n: 8 }
+          - { os: ubuntu-latest, py: "3.12", suite: bats, k: 5, n: 8 }
+          - { os: ubuntu-latest, py: "3.12", suite: bats, k: 6, n: 8 }
+          - { os: ubuntu-latest, py: "3.12", suite: bats, k: 7, n: 8 }
+          - { os: ubuntu-latest, py: "3.12", suite: bats, k: 8, n: 8 }
+          - { os: ubuntu-latest, py: "3.12", suite: serial, k: 1, n: 1 }
+          - { os: ubuntu-latest, py: "3.12", suite: e2e, k: 1, n: 3 }
+          - { os: ubuntu-latest, py: "3.12", suite: e2e, k: 2, n: 3 }
+          - { os: ubuntu-latest, py: "3.12", suite: e2e, k: 3, n: 3 }
+          - { os: ubuntu-latest, py: "3.12", suite: pytest, k: 1, n: 4, cov: 1 }
+          - { os: ubuntu-latest, py: "3.12", suite: pytest, k: 2, n: 4, cov: 1 }
+          - { os: ubuntu-latest, py: "3.12", suite: pytest, k: 3, n: 4, cov: 1 }
+          - { os: ubuntu-latest, py: "3.12", suite: pytest, k: 4, n: 4, cov: 1 }
+          # Python 3.11 portability: the quick subset (installer/host-runtime tests are version-neutral)
+          - { os: ubuntu-latest, py: "3.11", suite: pytest-quick, k: 1, n: 1 }
+          - { os: macos-latest, py: "3.12", suite: bats-quick, k: 1, n: 3 }
+          - { os: macos-latest, py: "3.12", suite: bats-quick, k: 2, n: 3 }
+          - { os: macos-latest, py: "3.12", suite: bats-quick, k: 3, n: 3 }
+          - { os: macos-latest, py: "3.12", suite: pytest-quick, k: 1, n: 1 }
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: ./.github/actions/setup-tests
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytest pytest-cov pytest-xdist build
-          pip install -e ".[codegraph,yaml]"
-
-      - name: Setup bats
-        uses: bats-core/bats-action@3.0.0
+          python-version: ${{ matrix.py }}
+          host-runtimes: ${{ startsWith(matrix.suite, 'pytest') }}
+      - name: Run tests
+        env:
+          CI_COVERAGE: ${{ matrix.cov }}
+        run: .github/ci-run.sh "${{ matrix.suite }}" "${{ matrix.k }}" "${{ matrix.n }}"
+      - name: Upload coverage data
+        if: ${{ !cancelled() && matrix.cov == 1 }}   # also from a red shard: the gate reports a real number
+        uses: actions/upload-artifact@v4
         with:
-          bats-version: 1.11.0
-          support-install: false
-          assert-install: false
-          detik-install: false
-          file-install: false
+          name: coverage-${{ matrix.k }}
+          path: .coverage.${{ matrix.k }}
+          include-hidden-files: true
+          if-no-files-found: error
 
-      - name: Install shellcheck and GNU parallel
-        # Nine bats tests shell out to `shellcheck` to assert their script is
-        # error-clean. It was only installed in the `lint` job, so here they got
-        # 127 and failed — a self-check that never ran on the machine it was
-        # written for. Installing it is the honest fix; skipping when absent
-        # would keep the gate green while checking nothing.
+  coverage:
+    name: coverage (≥84%, all pytest shards)
+    needs: test
+    if: ${{ !cancelled() && github.event_name != 'schedule' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install coverage
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+      - name: Combine shards and check the gate
         run: |
-          # GNU parallel backs `bats --jobs`: the suites run in parallel (hours → minutes).
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            brew install shellcheck parallel
-          else
-            sudo apt-get update && sudo apt-get install -y shellcheck parallel
-          fi
-          shellcheck --version
-          echo "BATS_JOBS=$(getconf _NPROCESSORS_ONLN)" >> "$GITHUB_ENV"
+          coverage combine
+          # 84, not the local 85: the OpenCode V2 acceptance tests skip here (no npm release
+          # of the CLI) and their test code counts toward the total.
+          coverage report --skip-covered --fail-under=84
 
-      - name: Homebrew formula version invariant (fail fast on drift)
-        run: python -m pytest tests/pytest/test_homebrew_formula_version.py -q
-
-      - name: Run bats unit tests
-        run: bats --jobs "$BATS_JOBS" --filter-tags '!perf' tests/bats/
-
-      - name: Run bats wall-clock budget tests (alone, not beside parallel jobs)
-        run: bats --filter-tags perf tests/bats/
-
-      - name: Run bats e2e tests
-        run: bats --jobs "$BATS_JOBS" tests/e2e/
-
-      - name: Run bats hook tests
-        run: bats hooks/tests/*.bats
-
-      - name: Run pytest with coverage
-        run: |
-          python -m pytest hooks/tests/ tests/pytest/ -n auto \
-            -o python_files='*_test.py test_*.py' \
-            --cov \
-            --cov-report=term-missing \
-            --cov-fail-under=85
+  macos-full:
+    name: macOS full ${{ matrix.suite }} ${{ matrix.k }}/${{ matrix.n }}
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { suite: bats, k: 1, n: 5 }
+          - { suite: bats, k: 2, n: 5 }
+          - { suite: bats, k: 3, n: 5 }
+          - { suite: bats, k: 4, n: 5 }
+          - { suite: bats, k: 5, n: 5 }
+          - { suite: serial, k: 1, n: 1 }
+          - { suite: e2e, k: 1, n: 2 }
+          - { suite: e2e, k: 2, n: 2 }
+          - { suite: pytest, k: 1, n: 2 }
+          - { suite: pytest, k: 2, n: 2 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-tests
+        with:
+          python-version: "3.12"
+          host-runtimes: ${{ startsWith(matrix.suite, 'pytest') }}
+      - name: Run tests
+        run: .github/ci-run.sh "${{ matrix.suite }}" "${{ matrix.k }}" "${{ matrix.n }}"
 
   lint:
     name: lint

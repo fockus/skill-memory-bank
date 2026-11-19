@@ -16,6 +16,8 @@ setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SANDBOX_HOME="$(mktemp -d)"
   export HOME="$SANDBOX_HOME"
+  # Own cwd: install.sh infers options from $PWD, and the suite-wide one is shared by parallel tests.
+  cd "$BATS_TEST_TMPDIR" || return 1
   PROJECT="$(mktemp -d)"
 
   command -v python3 >/dev/null || skip "python3 not installed"

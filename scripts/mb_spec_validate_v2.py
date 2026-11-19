@@ -6,7 +6,7 @@ the same environment the heredoc used; every violation is printed to stdout,
 one per line, and the caller appends them to its violations file.
 
 Env contract:
-  TASKS_DATA    JSONL of parsed work items (one object per line)
+  stdin         JSONL of parsed work items (one object per line)
   REQ_PATH      path to requirements.md
   DESIGN_PATH   path to design.md
   SPECS_ROOT    root that cross-spec `Blocked-by: <topic>#<n>` resolves against
@@ -50,6 +50,9 @@ def emit(msg: str) -> None:
 def ere_ok(pattern: str) -> bool:
     # Validate with the SAME portable engine used at execution time (grep -E):
     # a bad ERE exits 2 (a Python-only construct like `(?=...)` is rejected).
+    # GNU grep tolerates `(?` that BSD grep rejects; POSIX ERE has no `(?` at all.
+    if "(?" in pattern:
+        return False
     try:
         return (
             subprocess.run(
@@ -70,7 +73,7 @@ def read(p: str) -> str:
 
 
 tasks = []
-for line in os.environ.get("TASKS_DATA", "").splitlines():
+for line in sys.stdin.read().splitlines():
     line = line.strip()
     if line:
         with contextlib.suppress(json.JSONDecodeError):

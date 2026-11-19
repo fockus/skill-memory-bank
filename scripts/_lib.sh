@@ -95,6 +95,13 @@ mb_mtime() {
 # live holder as dead, reclaimed its lock and let two writers into backlog.md at
 # once (R4-001). EPERM means the PID EXISTS, so it must count as alive; `ps -p`
 # answers existence without needing signal permission.
+# mb_mkdir_excl <dir> — create <dir> only if it does not exist yet: the atomic gate of
+# every mkdir-based lock. mkdir(2) itself, not the `mkdir` binary: uutils coreutils
+# (Ubuntu 26.04's default `mkdir`) reports success to several concurrent callers.
+mb_mkdir_excl() {
+  "${MB_PYTHON:-python3}" -c 'import os, sys; os.mkdir(sys.argv[1])' "$1" 2>/dev/null
+}
+
 mb_pid_alive() {
   local pid="${1:-}"
   if ! printf '%s' "$pid" | grep -qE '^[0-9]+$'; then
@@ -1018,14 +1025,14 @@ mb_lock_acquire() {
   local token waited=0 ownerless_since="" now gen_started marker base tok pid other
   token="$$-${RANDOM:-0}"
   while true; do
-    if mkdir "$lock_dir" 2>/dev/null; then
+    if mb_mkdir_excl "$lock_dir"; then
       # Won the atomic gate. Record the liveness marker in the SAME breath. If
       # the marker cannot be created, a lagging reclaimer pulled our lock dir
       # out from under us in the mkdir→owner window — we do NOT hold the lock,
       # so NEVER return success (R3-001: the old `|| true` reported a phantom
       # holder with no marker, which a later reclaim then evicted mid-section).
       # Fall through to retry / timeout instead.
-      if mkdir "$lock_dir/owner.$token" 2>/dev/null; then
+      if mb_mkdir_excl "$lock_dir/owner.$token"; then
         # Generation confirmation (R3-001 ABA guard): winning `mkdir lock` is not
         # enough — an owner-less TTL reclaimer could have removed our dir, made a
         # NEW generation and published its own owner.<B> in the window before our
@@ -1049,6 +1056,8 @@ mb_lock_acquire() {
       # (R4-004): a lock path pointing at an external directory made the reclaim
       # glob + rmdir delete an owner marker OUTSIDE the intended lock. Fail
       # closed — we never traverse a link to decide what to destroy.
+      # Gone again (the holder released after our mkdir lost): retry, not corrupt.
+      if [ ! -e "$lock_dir" ] && [ ! -L "$lock_dir" ]; then continue; fi
       if [ -L "$lock_dir" ] || [ ! -d "$lock_dir" ]; then
         printf 'code=lock_corrupt lock=%s detail=lock path is not a real directory\n' \
           "$(mb_json_string "$lock_dir")" >&2

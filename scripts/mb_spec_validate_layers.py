@@ -6,7 +6,7 @@ the driver, each gate family is a module it runs as a subprocess with the same
 env-var contract.
 
 Env contract:
-  TASKS_DATA     JSONL of parsed work items (one object per line, file order)
+  stdin          JSONL of parsed work items (one object per line, file order)
   REQ_PATH       path to requirements.md
   SPEC_DIR       the spec directory (its basename is the topic)
   PIPELINE_YAML  resolved pipeline config (``sdd.layers`` defaults)
@@ -238,7 +238,7 @@ def order_gate(name: str, flag: str, tasks_of: list, after_pos: int, after_what:
 
 def main() -> int:
     tasks = []
-    for line in os.environ.get("TASKS_DATA", "").splitlines():
+    for line in sys.stdin.read().splitlines():
         line = line.strip()
         if line:
             with contextlib.suppress(json.JSONDecodeError):

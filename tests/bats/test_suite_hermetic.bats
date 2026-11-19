@@ -37,3 +37,19 @@ EOF
   [ "$status" -eq 0 ] || { echo "$output"; false; }
   [ "$(git -C "$S/repo" config core.bare)" = false ]
 }
+
+@test "hermetic: a test never inherits the runner's XDG base dirs" {
+  # GitHub runners export XDG_CONFIG_HOME=/home/runner/.config: tests that set HOME
+  # still installed into that one real directory and collided under --jobs.
+  local inner="$BATS_TEST_TMPDIR/inner"
+  mkdir -p "$inner"
+  cat > "$inner/test_inner.bats" <<'INNER'
+@test "inner: XDG base dirs follow HOME" {
+  [ -z "${XDG_CONFIG_HOME:-}" ] && [ -z "${XDG_DATA_HOME:-}" ] && [ -z "${XDG_STATE_HOME:-}" ] && [ -z "${XDG_CACHE_HOME:-}" ]
+}
+INNER
+  run env XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/real/config" XDG_DATA_HOME="$BATS_TEST_TMPDIR/real/data" \
+    XDG_STATE_HOME="$BATS_TEST_TMPDIR/real/state" XDG_CACHE_HOME="$BATS_TEST_TMPDIR/real/cache" \
+    bats --setup-suite-file "$REPO_ROOT/tests/bats/setup_suite.bash" "$inner/test_inner.bats"
+  [ "$status" -eq 0 ] || { echo "$output"; false; }
+}

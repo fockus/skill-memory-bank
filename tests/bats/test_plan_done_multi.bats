@@ -107,11 +107,11 @@ teardown() {
     /<!-- mb-active-plans -->/ { inside=1; next }
     /<!-- \/mb-active-plans -->/ { inside=0; next }
     inside { print }
-  ' "$TMPBANK/roadmap.md" > /tmp/mb-after.txt
+  ' "$TMPBANK/roadmap.md" > "$BATS_TEST_TMPDIR/after.txt"
 
-  refute_grep -q "2026-04-20_feature_a.md" /tmp/mb-after.txt
-  grep -q "2026-04-21_refactor_b.md" /tmp/mb-after.txt
-  rm -f /tmp/mb-after.txt
+  refute_grep -q "2026-04-20_feature_a.md" "$BATS_TEST_TMPDIR/after.txt"
+  grep -q "2026-04-21_refactor_b.md" "$BATS_TEST_TMPDIR/after.txt"
+  rm -f "$BATS_TEST_TMPDIR/after.txt"
 }
 
 @test "done-multi: same removal in status.md active-plans" {
@@ -121,11 +121,11 @@ teardown() {
     /<!-- mb-active-plans -->/ { inside=1; next }
     /<!-- \/mb-active-plans -->/ { inside=0; next }
     inside { print }
-  ' "$TMPBANK/status.md" > /tmp/mb-after.txt
+  ' "$TMPBANK/status.md" > "$BATS_TEST_TMPDIR/after.txt"
 
-  refute_grep -q "2026-04-20_feature_a.md" /tmp/mb-after.txt
-  grep -q "2026-04-21_refactor_b.md" /tmp/mb-after.txt
-  rm -f /tmp/mb-after.txt
+  refute_grep -q "2026-04-20_feature_a.md" "$BATS_TEST_TMPDIR/after.txt"
+  grep -q "2026-04-21_refactor_b.md" "$BATS_TEST_TMPDIR/after.txt"
+  rm -f "$BATS_TEST_TMPDIR/after.txt"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -139,11 +139,11 @@ teardown() {
     /<!-- mb-recent-done -->/ { inside=1; next }
     /<!-- \/mb-recent-done -->/ { inside=0; next }
     inside { print }
-  ' "$TMPBANK/status.md" > /tmp/mb-recent.txt
+  ' "$TMPBANK/status.md" > "$BATS_TEST_TMPDIR/recent.txt"
 
-  grep -q "2026-04-20_feature_a.md" /tmp/mb-recent.txt
-  grep -qE '\[(done|closed)\]|plans/done/' /tmp/mb-recent.txt || grep -q 'plans/done/2026-04-20_feature_a' /tmp/mb-recent.txt
-  rm -f /tmp/mb-recent.txt
+  grep -q "2026-04-20_feature_a.md" "$BATS_TEST_TMPDIR/recent.txt"
+  grep -qE '\[(done|closed)\]|plans/done/' "$BATS_TEST_TMPDIR/recent.txt" || grep -q 'plans/done/2026-04-20_feature_a' "$BATS_TEST_TMPDIR/recent.txt"
+  rm -f "$BATS_TEST_TMPDIR/recent.txt"
 }
 
 @test "done-multi: recent-done keeps newest-first order" {
@@ -154,12 +154,12 @@ teardown() {
     /<!-- mb-recent-done -->/ { inside=1; next }
     /<!-- \/mb-recent-done -->/ { inside=0; next }
     inside && /refactor_b|feature_a/ { print }
-  ' "$TMPBANK/status.md" > /tmp/mb-recent.txt
+  ' "$TMPBANK/status.md" > "$BATS_TEST_TMPDIR/recent.txt"
 
   # refactor_b closed LAST, so it must appear BEFORE feature_a
-  first=$(head -1 /tmp/mb-recent.txt)
+  first=$(head -1 "$BATS_TEST_TMPDIR/recent.txt")
   [[ "$first" == *"refactor_b"* ]]
-  rm -f /tmp/mb-recent.txt
+  rm -f "$BATS_TEST_TMPDIR/recent.txt"
 }
 
 @test "done-multi: recent-done trims to MB_RECENT_DONE_LIMIT (default 10)" {

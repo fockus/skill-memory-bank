@@ -262,6 +262,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--changed", default="")
     ap.add_argument("--item-tokens", type=int, default=None)
     ap.add_argument("--no-adapt", action="store_true")
+    # mb-work-state.sh puts --state/--bank before the item; plain parse_args() drops it before Python 3.12.
     a = ap.parse_intermixed_args(argv)
     cfg = load_config(a.pipeline, a.no_adapt)
     try:

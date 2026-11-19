@@ -122,14 +122,10 @@ _kill_tree() {
   return 0
 }
 
-# Run the actualize in its own process group so the whole tree can be killed on
-# timeout.  `setsid` creates a new session+group (Linux + macOS 10.12+). When
-# absent, fall back to a plain backgrounded subshell (best-effort on old platforms).
-if command -v setsid >/dev/null 2>&1; then
-  setsid bash "$HANDOFF_SCRIPT" --actualize "$MB" pre_compact >/dev/null 2>&1 &
-else
-  bash "$HANDOFF_SCRIPT" --actualize "$MB" pre_compact >/dev/null 2>&1 &
-fi
+# Run the actualize in OUR process group: _kill_tree handles the budget, and a caller
+# that kills this hook's group on its own deadline (mb-codex.py killpg) takes the
+# worker with it. `setsid` here let the worker outlive that kill on Linux.
+bash "$HANDOFF_SCRIPT" --actualize "$MB" pre_compact >/dev/null 2>&1 &
 worker=$!
 
 # Poll in small slices. We track elapsed time in hundredths of a second so the

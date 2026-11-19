@@ -14,6 +14,8 @@ setup() {
   PROJECT="$(mktemp -d)"
   (cd "$PROJECT" && git init -q && git config user.email t@t && git config user.name t)
   export HOME="$SANDBOX_HOME"
+  # Own cwd: install.sh infers options from $PWD, and the suite-wide one is shared by parallel tests.
+  cd "$BATS_TEST_TMPDIR" || return 1
   export XDG_CONFIG_HOME="$HOME/.config" XDG_DATA_HOME="$HOME/.local/share"
   export XDG_STATE_HOME="$HOME/.local/state" XDG_CACHE_HOME="$HOME/.cache"
   export XDG_RUNTIME_DIR="$HOME/run" XDG_CONFIG_DIRS="$HOME/config-dirs" XDG_DATA_DIRS="$HOME/data-dirs"

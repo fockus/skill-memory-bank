@@ -9,6 +9,10 @@
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   SCRIPT="$REPO_ROOT/scripts/mb-progress-chain.sh"
+  # No installed skill to fall back on: mb-drift.sh must use the scripts beside it
+  # (a developer's ~/.claude/skills copy hid that CI skipped the check).
+  export HOME="$BATS_TEST_TMPDIR/home"
+  mkdir -p "$HOME"
 
   PROJECT="$(mktemp -d)"
   MB="$PROJECT/.memory-bank"

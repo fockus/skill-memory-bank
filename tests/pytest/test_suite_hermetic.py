@@ -17,11 +17,13 @@ def test_conftest_import_drops_hook_git_env(tmp_path):
         **os.environ,
         "GIT_DIR": str(tmp_path / "x.git"),
         "GIT_INDEX_FILE": str(tmp_path / "index"),
+        "XDG_CONFIG_HOME": str(tmp_path / "real-config"),
     }
     probe = (
-        "import os, conftest; print(os.environ.get('GIT_DIR'), os.environ.get('GIT_INDEX_FILE'))"
+        "import os, conftest; print(os.environ.get('GIT_DIR'), os.environ.get('GIT_INDEX_FILE'),"
+        " os.environ.get('XDG_CONFIG_HOME'))"
     )
     out = subprocess.run(
         [sys.executable, "-c", probe], cwd=HERE, env=env, text=True, capture_output=True, check=True
     ).stdout.split()
-    assert out == ["None", "None"]
+    assert out == ["None", "None", "None"]

@@ -45,6 +45,8 @@ ruff check settings/ tests/pytest/
 
 While iterating, also skip the installer/host-runtime tests (most of the run time): `python3 -m pytest tests/pytest/ -n auto -m "not slow"` and `bats --jobs 8 --filter-tags '!slow,!perf' tests/bats/`. Run the full sets above before a commit.
 
+CI runs the same suites split into shards: `.github/ci-run.sh bats 3 8` runs exactly what CI shard 3 of 8 runs, so a red shard reproduces locally.
+
 All four commands must return green before you open a PR.
 
 ---
@@ -58,7 +60,7 @@ Followed everywhere in the repo — the skill enforces these same rules on user 
 | **TDD** | Write a failing test first, then the minimal code to pass it. No untested code in PRs. |
 | **Clean Architecture** | Infrastructure → Application → Domain, never the reverse. |
 | **SOLID / DRY / KISS / YAGNI** | Apply consistently. If in doubt, keep it simple. |
-| **Coverage** | 85% overall (enforced by CI). 95% for domain/core logic. |
+| **Coverage** | 85% overall on a full local run; CI enforces 84% (OpenCode V2 acceptance tests skip there). 95% for domain/core logic. |
 | **Commits** | Conventional Commits: `feat:`, `fix:`, `ci:`, `docs:`, `test:`, `refactor:`. |
 | **No emojis** | Unless explicitly requested by the user in an issue. |
 | **Comments** | Explain *why*, not *what*. Redundant narration is deleted on review. |
@@ -99,7 +101,7 @@ Details: [rules/RULES.md](rules/RULES.md) (the same file the skill installs into
 
 6. **Open a PR** using the PR template. Link any related issues.
 
-7. **CI must pass** on Python 3.11 + 3.12 × ubuntu-latest + macos-latest.
+7. **CI must pass**: everything on ubuntu with Python 3.12 (the quick pytest subset on 3.11 too), a quick subset on macOS; the full macOS run is nightly.
 
 8. **Reviews:** expect one round of feedback. Prefer small, focused PRs over large ones.
 
