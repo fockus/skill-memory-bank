@@ -7,7 +7,7 @@ only Pi's event dispatch is simulated. Resume = hidden custom_message + continue
 import json
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -43,7 +43,7 @@ def world(tmp_path):
 
 def _work_run(proj: Path, run_id="W1", phase="in-progress") -> Path:
     run = {"run_id": run_id, "source": "plans/p.md", "item_no": 2, "phase": phase,
-           "steps": ["implement", "verify"], "updated": datetime.now(timezone.utc).isoformat()}
+           "steps": ["implement", "verify"], "updated": datetime.now(UTC).isoformat()}
     path = proj / ".memory-bank" / ".work-state" / f"{run_id}.json"
     path.write_text(json.dumps(run))
     return path
@@ -102,7 +102,7 @@ def _late_run(world, phase):
     """Session starts, then a run file appears (written by a delayed child), then Pi settles."""
     path = world["proj"] / ".memory-bank" / ".work-state" / "W1.json"
     run = {"run_id": "W1", "source": "plans/p.md", "item_no": 2, "phase": phase,
-           "steps": ["implement", "verify"], "updated": datetime.now(timezone.utc).isoformat()}
+           "steps": ["implement", "verify"], "updated": datetime.now(UTC).isoformat()}
     writer = subprocess.Popen(["python3", "-c", "import sys,time; time.sleep(2); open(sys.argv[1],'w').write(sys.argv[2])",
                                str(path), json.dumps(run)])
     cwd = str(world["proj"])
