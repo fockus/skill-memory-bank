@@ -244,10 +244,10 @@ EOF
   cat > "$TMPROOT/mcli" <<EOF
 #!/usr/bin/env bash
 source "$REPO_ROOT/scripts/_lib.sh"
-mkdir() {
+mb_mkdir_excl() {                       # the lock's mkdir(2) gate (_lib.sh)
   case "\$1" in
     */owner.*) return 1 ;;               # fresh lock vanished before the marker
-    *) command mkdir "\$@" ;;
+    *) command mkdir "\$1" 2>/dev/null ;;
   esac
 }
 mb_lock_acquire "$LOCK" 1 100
@@ -271,13 +271,13 @@ EOF
   cat > "$TMPROOT/acli" <<EOF
 #!/usr/bin/env bash
 source "$REPO_ROOT/scripts/_lib.sh"
-mkdir() {
+mb_mkdir_excl() {                       # the lock's mkdir(2) gate (_lib.sh)
   case "\$1" in
     */owner.*)
       : > "$atwin"                         # lock dir already made; freeze here
       while [ ! -e "$ago" ]; do sleep 0.01; done
-      command mkdir "\$@" ;;               # then publish owner.A into B's gen
-    *) command mkdir "\$@" ;;
+      command mkdir "\$1" 2>/dev/null ;;   # then publish owner.A into B's gen
+    *) command mkdir "\$1" 2>/dev/null ;;
   esac
 }
 mb_lock_acquire "$LOCK" 3 100

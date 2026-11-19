@@ -66,7 +66,7 @@ _lock_acquire() {
   local lock="$1" timeout="$2" ttl="$3" waited=0 age now token
   token="$$-${RANDOM:-0}"
   while true; do
-    if mkdir "$lock" 2>/dev/null; then
+    if mb_mkdir_excl "$lock"; then
       printf '%s' "$token" >"$lock/owner" 2>/dev/null || true
       printf '%s' "$token"
       return 0

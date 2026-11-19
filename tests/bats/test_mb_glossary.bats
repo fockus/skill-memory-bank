@@ -273,13 +273,15 @@ _concurrent_upserts() {
 # answer is 128+SIGTERM.
 
 _term_at_critical_section() {
-  # An interposed `python3` that consumes the here-doc program, signals the
-  # script, and returns WITHOUT running the critical section.
+  # An interposed `python3` that, for the here-doc program (`python3 -`), signals
+  # the script and returns WITHOUT running the critical section. Other calls (the
+  # lock's mkdir(2) gate) go to the real interpreter.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
-  cat > "$BATS_TEST_TMPDIR/bin/python3" <<'EOF'
+  cat > "$BATS_TEST_TMPDIR/bin/python3" <<EOF
 #!/usr/bin/env bash
+[ "\$1" = - ] || exec "$(command -v python3)" "\$@"
 cat > /dev/null
-kill -TERM "$PPID"
+kill -TERM "\$PPID"
 exit 0
 EOF
   chmod +x "$BATS_TEST_TMPDIR/bin/python3"

@@ -63,7 +63,7 @@ PARSE='
 lock() {
   mkdir -p "$(dirname "$FILE")"
   local i=0
-  until mkdir "$FILE.lock" 2>/dev/null; do
+  until mb_mkdir_excl "$FILE.lock"; do
     i=$((i + 1))
     [ "$i" -lt 100 ] || { echo "[error] registry is locked: $FILE.lock (remove it if no QA run is active)" >&2; exit 1; }
     sleep 0.1

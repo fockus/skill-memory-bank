@@ -115,13 +115,20 @@ _sc_mtime() {
   case "$m" in ''|*[!0-9]*) return 0 ;; *) printf '%s\n' "$m"; return 0 ;; esac
 }
 
+# _sc_mkdir_excl <dir> — create <dir> only if it does not exist yet: the atomic gate of
+# every mkdir-based lock. mkdir(2) itself, not the `mkdir` binary: uutils coreutils
+# (Ubuntu 26.04's default `mkdir`) reports success to several concurrent callers.
+_sc_mkdir_excl() {
+  "${MB_PYTHON:-python3}" -c 'import os, sys; os.mkdir(sys.argv[1])' "$1" 2>/dev/null
+}
+
 # Acquire a portable atomic lock via mkdir (flock is absent on macOS).
 #   sc_lock <lockdir> [timeout_s=10] [ttl_s=300]
 # Returns 0 on acquire, non-zero on timeout. Breaks a stale lock older than ttl.
 sc_lock() {
   local lock="$1" timeout="${2:-10}" ttl="${3:-300}" waited=0 age now
   while true; do
-    if mkdir "$lock" 2>/dev/null; then
+    if _sc_mkdir_excl "$lock"; then
       return 0
     fi
     age="$(_sc_mtime "$lock")"
