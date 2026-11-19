@@ -7,6 +7,7 @@
 #   e2e           tests/e2e
 #   pytest        tests/pytest + hooks/tests; CI_COVERAGE=1 writes .coverage.<k> for a combine job
 #   pytest-quick  the same without the slow marker
+#   node          tests/*.test.mjs, the OpenCode adapter contracts (k, n ignored)
 # Locally: `.github/ci-run.sh bats 1 8` runs what CI shard 1 of 8 runs.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -50,5 +51,7 @@ case "$suite" in
     fi
     # shellcheck disable=SC2046
     python -m pytest "${args[@]}" $(shard '^\s*(async )?def test_' $(py_files)) ;;
+  node)
+    node --test tests/*.test.mjs ;;
   *) echo "unknown suite: $suite" >&2; exit 2 ;;
 esac

@@ -75,7 +75,8 @@ test('guard timeout and unload kill subprocess descendants and await cleanup', a
   await fs.writeFile(path.join(f.bundle, 'hooks/block-dangerous.sh'), `#!/bin/bash\nsleep 60 &\necho $! > '${pid}'\nwait\n`);
   const pending = host.hook('tool.execute.before', event('shell', { command: 'printf safe' }));
   const rejected = assert.rejects(pending, /BLOCKED|refused|cancel/);
-  for (let i = 0; i < 100; i++) { if (await fs.stat(pid).catch(() => null)) break; await new Promise(r => setTimeout(r, 10)); }
+  // Two bootstraps (pipeline path, then this guard) run before the hook writes its pid.
+  for (let i = 0; i < 500; i++) { if (await fs.stat(pid).catch(() => null)) break; await new Promise(r => setTimeout(r, 10)); }
   await host.dispose(); await rejected;
   const child = Number((await fs.readFile(pid, 'utf8')).trim());
   assert.throws(() => process.kill(child, 0), /ESRCH/);
@@ -90,9 +91,10 @@ for (const mode of ['timeout', 'unload']) test(`${mode} also cleans a descendant
   await fs.writeFile(path.join(f.bundle, 'hooks/block-dangerous.sh'), `#!/bin/bash\npython3 '${childScript}' >/dev/null 2>&1 &\nwait\n`);
   let child;
   try {
-    const pending = runner.run('hooks/block-dangerous.sh', [], '', { timeout: mode === 'timeout' ? 500 : 3000 });
+    // The timeout must outlast the bootstrap and child start even on a loaded runner.
+    const pending = runner.run('hooks/block-dangerous.sh', [], '', { timeout: mode === 'timeout' ? 2000 : 5000 });
     const refused = assert.rejects(pending, /timed out|cancelled/);
-    for (let i = 0; i < 100; i++) { if (await fs.stat(pid).catch(() => null)) break; await new Promise(r => setTimeout(r, 10)); }
+    for (let i = 0; i < 500; i++) { if (await fs.stat(pid).catch(() => null)) break; await new Promise(r => setTimeout(r, 10)); }
     child = Number((await fs.readFile(pid, 'utf8')).trim());
     if (mode === 'unload') { controller.abort(); await runner.dispose(); }
     await refused;
