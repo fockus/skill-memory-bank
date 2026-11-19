@@ -5381,3 +5381,36 @@ All 15 failing tests now pass. Evidence: after the fixes, test_global_prompt_gua
 - My first probe ran install.sh with cwd = the repo, which refreshed the managed git hooks (.git/hooks/pre-commit, post-commit) and wrote ignored .codex/.mb-manifest.json, .pi/ (the .pi/ dir was already untracked). Hooks are the same managed hooks refreshed; review if the maintainer cares.
 - Graph: 0 queries (changes were mechanical).
 
+
+## [checklist archive] 2026-11-19 — 2026-11-18_feature_master-completion.md
+
+<!-- mb-plan:2026-11-18_feature_master-completion.md -->
+## master-completion — 21/22
+- ✅ Stage 1 — Bookkeeping close-out of already-shipped work
+- ✅ Stage 2 — Graph nudge that suggests useful queries, per-subagent budget
+- ✅ Stage 3 — Graph share in the cost report
+- ✅ Stage 4 — Make room in `commands/work.md`
+- ✅ Stage 5 — Graph context pushed into every `/mb work` dispatch
+- ✅ Stage 6 — Graph status on ad-hoc dispatch; Pi graph test fixture
+- ✅ Stage 7 — Graph adoption demo and measurement
+- ✅ Stage 8 — OpenSpec contract decisions; import keeps what export needs
+- ✅ Stage 9 — OpenSpec export and three-way sync
+- ✅ Stage 10 — `/mb work` over an OpenSpec change; docs
+- ✅ Stage 11 — mb-team review until clean
+- ✅ Stage 12 — Split `commands/mb.md` for Opus 5.5 / Fable
+- ✅ Stage 13 — Opus 5.5 / Fable acceptance run
+- ✅ Stage 14 — dynamic-flow T13 — Pi and OpenCode sub-invoke
+- ✅ Stage 15 — dynamic-flow T14 — critique, risk-find, final-report skills
+- ✅ Stage 16 — Close S7 svp-brief and S8 svp-contract-test-loop (shipped, unticked)
+- ✅ Stage 17 — S4 svp-roadmap-backlog-db remainder
+- ✅ Stage 18 — S5 svp-adapt-escalation — rebaseline on ADaPT-lite and remainder
+- ✅ Stage 19 — Final verification and bank sync
+- ✅ Stage 20 — Pi keeps working until the task is done (settle-resume gate)
+- ✅ Stage 21 — pi-dynamic-workflows — borrow now, spike as an optional Pi accelerator
+- ✅ Stage 22 — Graph sees tests through shell entry points and argparse dispatch (I-297)
+
+### 2026-11-19 — master-completion closed (Stage 19)
+- Full suite: pytest green after track Z; bats 4458/4501 ok on the first run. 31 fixed in 156b5b9; Pi gate phrase restored in adapters/_lib_pi_global.sh; session-doctor sandbox excludes the local /.installed-manifest.json; recall-disclosure, spawn-discipline and cursor-global-storage env leaks (hooks/.venv, I-132 prompt gate, f9603af source pruning, operator MB_AUTO_CAPTURE=off) are fixed on origin by another session the same way.
+- Pre-existing, local-only: 5 tests in tests/e2e/test_install_reliability.bats fail identically at baseline 1815bcc, green in CI → I-305. The teardown repo guard tripped because track Z ran install.sh in the checkout during the run.
+- plan-verifier PASS_WITH_NOTES; notes fixed: roadmap registry rows, bogus plans/tasks.md entries (sync bug → I-304), mb-research-tooling-core closure line. 7 HANDOVERs ACKed; team master-completion-wave1 closed.
+- Local main is ahead 9 / behind 10 vs origin; merging origin has one conflict (scripts/mb_work_adapt.py: parse_intermixed_args vs S5 edits).

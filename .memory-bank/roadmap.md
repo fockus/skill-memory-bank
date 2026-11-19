@@ -10,7 +10,6 @@
 - [2026-10-05_feature_pi-native-integration](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan — progress=60% stages(done=0,in_progress=4,planned=1,total=5)
 - [proportional-effortsprint2-execution-economy](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер» — progress=85% stages(done=3,in_progress=1,planned=0,total=4)
 - [codex-memory-parity](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion — progress=0% stages(done=0,in_progress=0,planned=4,total=4)
-- [master-completion](plans/2026-11-18_feature_master-completion.md) — feature — master-completion — progress=95% stages(done=21,in_progress=0,planned=1,total=22)
 
 ## Next (strict order — depends)
 
@@ -51,8 +50,6 @@ _None._
 - svp-docs-wiki — progress=0% tasks(done=0,in_progress=0,planned=7,total=7)
 - svp-parallel-engine — progress=0% tasks(done=0,in_progress=0,planned=10,total=10)
 - svp-adapt-escalation — progress=100% tasks(done=5,in_progress=0,planned=0,total=5)
-- openspec-adapter — progress=100% tasks(done=8,in_progress=0,planned=0,total=8)
-- mb-team — progress=0% tasks(done=0,in_progress=0,planned=0,total=0)
 
 ## Group: "[SPEC:autopilot]"
 progress=100%
@@ -134,12 +131,12 @@ ICE-примечания: 6.1 имеет третий score программы, 
 | Работа | Артефакт | Состояние | Где в очереди |
 |---|---|---|---|
 | Fix-слайс по ревью Sprint 1 | backlog I-194 · I-195 · I-196 · I-208; [отчёт](reports/2026-09-13_sprint1-review.md) | судья NO_GO, плана нет | HIGH, параллельно фокусу |
-| graph-semantic-adoption | [план](plans/2026-07-28_fix_graph-semantic-adoption.md) | 0/7 стадий | Now — пререквизит Sprint 2 (AGR-044), порядок стадий 6→2→3→1→5→4→7 |
+| graph-semantic-adoption | [план](plans/done/2026-07-28_fix_graph-semantic-adoption.md) | ✅ закрыт 2026-11-19 (master-completion Stages 2–7); 7-дневный замер — I-303, 2026-11-26 | закрыт |
 | mb-work-cost-diet Sprint 2 → Sprint 3 | [sprint2](plans/2026-09-05_fix_mb-work-cost-diet-sprint2.md) · [sprint3](plans/2026-09-05_fix_mb-work-cost-diet-sprint3.md) | 0/12 · 0/13 DoD | Next — раздел Phase выше |
 | `/mb drive` | `specs/drive-autopilot` (заменил `specs/drive-loop`) | 7/7 ✅ | закрыт 2026-11-18; T3/T5 drive-loop покрыты drive-autopilot |
 | long-running-sessions Phase 4–6 | SEQUENCE + `specs/parallel-team-execution` (0/10) + `specs/cost-multi-model` (0/4) | не начаты | parallel-team-execution заморожен на старте v6.0.0; cost-multi-model ↔ v6.3.0 |
-| dynamic-flow хвост | `specs/dynamic-flow` | T1–T12 ✅ · T13–T14 ⬜ (pi/opencode sub-invoke) | Phase 5 SEQUENCE |
-| sdd-vision-pipeline (G-001) | umbrella + 9 child-спек, § Group в авто-блоке | S1 ✅ · S2 ✅ · S7 2/4 · S4 3/9 · S8 3/8 · S9 2/5 · S6, S3, S5 не начаты | главный трек (AGR-017), пауза с 2026-07-27; порядок AGR-029 |
+| dynamic-flow хвост | `specs/dynamic-flow` | T1–T14 ✅ (T13–T14 — master-completion Stages 14–15) | закрыт 2026-11-19 |
+| sdd-vision-pipeline (G-001) | umbrella + 9 child-спек, § Group в авто-блоке | S1 ✅ · S2 ✅ · S7 ✅ · S8 ✅ · S4 ✅ · S5 ✅ (master-completion Track F) · S9 2/5 · S6, S3 не начаты | главный трек (AGR-017), пауза с 2026-07-27; порядок AGR-029 |
 | codex-remediation Wave 2 | I-086 [config-validation-docs](plans/2026-06-23_fix_config-validation-docs.md) → I-084 [dispatcher-wiring-transports](plans/2026-06-23_feature_dispatcher-wiring-transports.md) | Stages 1–2 ✅, 3–6 ⬜ · не начат | I-084 после I-086 |
 | adapter-parity | `specs/adapter-parity` + `context/adapter-parity.md` | T1–T7 ✅ (T1/T2 отмечены 2026-09-13 по доказательствам); T8 lifecycle ⬜ — upgrade не обновляет расширения, uninstall их оставляет, docs (I-213, I-118, I-124) | был первым в очереди (AGR-012); остался T8 |
 | agreements (`/mb agree`) | `specs/agreements` (8 задач), коммит `9cdb41e` | работает; 19/24 пунктов подтверждены 2026-09-13; открыто I-212: 3 пробела в тестах, CI, dogfood 8 решений фичи | входит в donor v5.4.0 Trustworthy Baseline |
@@ -203,8 +200,6 @@ Umbrella-группа (D-31, bootstrap вручную — автоматика �
 - [2026-10-07] [plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер»
 - [codex-memory-parity](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion — progress=0% stages(done=0,in_progress=0,planned=4,total=4)
 - [2026-10-09] [plans/2026-10-09_feature_codex-memory-parity.md](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion
-- [2026-11-18] [plans/2026-11-18_feature_master-completion.md](plans/2026-11-18_feature_master-completion.md) — feature — master-completion
-- [2026-11-19] [plans/tasks.md](plans/tasks.md) — svp-adapt-escalation
 <!-- /mb-active-plans -->
 
 ## Архив

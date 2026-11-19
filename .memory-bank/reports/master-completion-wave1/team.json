@@ -1407,5 +1407,6 @@
   "reviews": [],
   "checkpoints": [],
   "commits": [],
-  "brief_sha256": "c0e64c6f9c554266270aac35f80a28be3336776680018da863dc8dfb1402b3f8"
+  "brief_sha256": "c0e64c6f9c554266270aac35f80a28be3336776680018da863dc8dfb1402b3f8",
+  "closed": true
 }

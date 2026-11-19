@@ -1192,3 +1192,9 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 
 ### I-303 — Graph adoption 7-day re-measure on 2026-11-26: python3 scripts/mb-cost-report.py --since 7 --json; target implementer graph_share >= 0.5 and judge > 0 (AGR-038); append to reports/2026-11-19_graph-adoption.md. Also confirm whether Claude Code PreToolUse payloads carry agent_id (graph nudge per-subagent budget falls back to session_id if not). [MED, NEW, 2026-11-19]
 **Type:** IDEA
+
+### I-304 — mb-plan-sync registers a spec tasks.md as a plan named tasks.md (roadmap/status/checklist entries for a non-existent plan; seen for svp-adapt-escalation in d3e4939) [MED, NEW, 2026-11-19]
+**Type:** IDEA
+
+### I-305 — Local-only e2e failures in test_install_reliability.bats: render EIO first/legacy/partway/late (4) and RST10 missing committed hash (1) fail on this macOS machine at baseline 1815bcc and at HEAD, green in CI; the injected EIO never fires and the hashless reinstall succeeds [MED, NEW, 2026-11-19]
+**Type:** IDEA

@@ -8,6 +8,8 @@ created: 2026-06-09
 
 # Design — mb-research agent + mb-tooling-core partial
 
+> Closed 2026-11-19 (master-completion Stage 1): plan [plans/done/2026-06-09_feature_mb-research-tooling-core.md](../../plans/done/2026-06-09_feature_mb-research-tooling-core.md), closure record in [progress.md](../../progress.md).
+
 ## 1. Problem & goals
 
 Two gaps, surfaced during a repo audit:

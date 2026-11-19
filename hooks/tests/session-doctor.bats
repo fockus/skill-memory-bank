@@ -211,6 +211,7 @@ teardown() {
     --exclude='.memsearch' \
     --exclude='/tests/calibration/results' \
     --exclude='node_modules' \
+    --exclude='/.installed-manifest.json' \
     "$repo_root/" "$skill_root/"
 
   run env HOME="$FAKE_HOME" CLAUDE_PROJECT_DIR="$PROJ" bash "$SCRIPTS/mb-session-doctor.sh" "$PROJ"

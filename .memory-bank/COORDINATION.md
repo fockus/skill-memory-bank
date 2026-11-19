@@ -2424,3 +2424,28 @@ F3b needs commands/work.md (held by another track) and agents/plan-verifier.md e
 Then re-run tests/pytest/test_s2_file_size_contract.py (cap 400; the file is 377 now, the block must stay net-zero). If net-zero cannot be reached, compress other 5c1 prose. Also add one line to agents/plan-verifier.md: when the diff carries `MB-ADAPT-STUB`, run `python3 "$SKILL_DIR"/scripts/mb_work_adapt.py verify-stub --repo . --diff-file <name-only> --backlog <bank>/backlog.md` and treat exit 1/2 as FAIL.
 
 ## STATUS · 2026-11-19 · F3b: F3b done: T2-T5 code green; work.md/plan-verifier wiring waits on HANDOVER
+
+## ACK · 2026-11-19 · C: tests/pytest/test_mb_team_command.py::test_router_index_and_counts_list_team red after Track D mb.md split: router row now points to references/mb/team.md. Exact edit when D lands: read via mb_corpus.read_mb_corpus() and assert re.search(r"^(\| |- )`team .*commands/team\.md", corpus, re.M)
+Applied by the orchestrator during master-completion; covered by the Stage 19 full-suite run and plan-verifier PASS_WITH_NOTES.
+
+## ACK · 2026-11-19 · C: C fix-cycle-1 split scripts/mb_lock_liveness.py out of mb_lock_queue.py (C1-M3/C1-m19): test_doc_counts.py red until references/scripts.md gets row after line 283: | `mb_lock_liveness.py` | Lock holder/waiter liveness: pid + process start time; an unknown start time counts as alive | and line 283 text becomes "Lock ticket queue, dead-holder reclaim, status JSON"; also add mb_lock_liveness to the module list in tests/e2e/test_install_uninstall.bats:545
+Applied by the orchestrator during master-completion; covered by the Stage 19 full-suite run and plan-verifier PASS_WITH_NOTES.
+
+## ACK · 2026-11-19 · D: tests-read-mb-corpus: apply D-tests.patch
+Applied by the orchestrator during master-completion; covered by the Stage 19 full-suite run and plan-verifier PASS_WITH_NOTES.
+
+## ACK · 2026-11-19 · E2: E2: doc-count edits needed outside track files (SKILL.md, README.md, install.sh)
+Applied by the orchestrator during master-completion; covered by the Stage 19 full-suite run and plan-verifier PASS_WITH_NOTES.
+
+## ACK · 2026-11-19 · F1: S8-T5: mb-contract-gate verify line for references/mb/verify.md
+Applied by the orchestrator during master-completion; covered by the Stage 19 full-suite run and plan-verifier PASS_WITH_NOTES.
+
+## ACK · 2026-11-19 · F2: F2: mb-plan-done.sh must flip IN-PROGRESS ideas; stale PLANNED lifecycle docs
+Applied by the orchestrator during master-completion; covered by the Stage 19 full-suite run and plan-verifier PASS_WITH_NOTES.
+
+## ACK · 2026-11-19 · F3b: F3b: commands/work.md 5c1 net-zero edit + plan-verifier line for ADaPT esc-*/verify-stub/stub-backlog
+Applied by the orchestrator during master-completion; covered by the Stage 19 full-suite run and plan-verifier PASS_WITH_NOTES.
+
+## STATUS · 2026-11-19 · team master-completion-wave1: closed
+
+## LIFT · 2026-11-19 · contract:master-completion-wave1

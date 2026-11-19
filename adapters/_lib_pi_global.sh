@@ -28,7 +28,7 @@ Pi loads this file at startup and injects it into the agent prompt. Skill: \`~/.
 
 ### \`/mb work\` gate
 
-The gate applies when the request refers to an existing bank plan or spec. Without one, size the task (SKILL.md § Task routing); small tasks run inline. Otherwise:
+The gate applies when the request refers to an existing plan or spec in the bank. Without one, size the task (SKILL.md § Task routing); small tasks run inline. Otherwise:
 1. Workflow: \`mb-workflow.sh\` on \`<bank>/pipeline.yaml\`; target: \`mb-work-resolve.sh\` + \`mb-work-plan.sh\`. Spec tasks \`<!-- mb-task:N -->\` are the source of truth; fix a wrapper plan without \`linked_spec\`/\`mb-stage\` first.
 2. Run the resolved steps exactly; complete only after the gates pass.
 3. Dispatch roles by name: \`mb_dispatch_subagent(role=<agent>, task=…)\`; set \`model\`/\`thinking\` only if the JSON line does.

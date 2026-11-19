@@ -49,6 +49,7 @@ created: 2026-11-18
 | Graph hints (Stages 2, 6) | agent_id from a captured payload; Claude SubagentStart wired or proven unsupported | agent_id used when present (unconfirmed → I-303); Claude SubagentStart unconfirmed → I-293 | no captured payload or doc in the repo |
 | pdw spike (Stage 21) | live run, roster binding, cost | source reading only (no provider auth in the isolated agent dir) | owner's credentials stay out of the spike; no-go stands on the roster-binding finding (AGR-104) |
 | Pi live check (Stage 20) | real Pi session | skipped by the owner | AGR-108 |
+| Stage 19 full suite | full bats green locally | 5 local-only e2e failures accepted as pre-existing (I-305); verifier PASS_WITH_NOTES accepted | identical failures at baseline 1815bcc, CI green; verifier notes are bank records, fixed |
 
 ## Tracks and waves
 
@@ -400,8 +401,8 @@ created: 2026-11-18
 **What to do:** full suite once in the background (`bats tests/bats/ tests/e2e/ hooks/tests/*.bats`; `PYTHONPATH=. python3 -m pytest hooks/tests/ tests/pytest/`; `shellcheck` error gate; `ruff check`); failures triaged against a clean HEAD worktree — pre-existing ones go to backlog with evidence; plan-verifier on this plan; rewrite `unfinished-work-completion` to hold only S1/S2/S3/S6/S9 + umbrella; `mb-roadmap-sync.sh`; close this plan.
 
 **DoD:**
-- [ ] full suite green or every failure proven pre-existing on HEAD and logged
-- [ ] plan-verifier PASS; all stages ticked; this plan in `plans/done/`
+- [x] full suite green or every failure proven pre-existing on HEAD and logged — pytest green after track Z; bats 43 failures: 31 fixed in 156b5b9, 7 env leaks fixed (same fixes also on origin for 3 files), Pi gate phrase restored; 5 install_reliability failures fail identically at baseline 1815bcc, green in CI → I-305
+- [x] plan-verifier PASS; all stages ticked; this plan in `plans/done/` — PASS_WITH_NOTES, notes 1–3 fixed in the bank (roadmap rows, bogus `plans/tasks.md` → I-304, closure line)
 
 <!-- mb-stage:20 -->
 ### Stage 20: Pi keeps working until the task is done (settle-resume gate)

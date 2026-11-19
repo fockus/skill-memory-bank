@@ -1,7 +1,7 @@
 # claude-skill-memory-bank: Статус проекта
 
 **Current phase:** экономия усилий закрыта 2026-10-07 (5 уровней задачи + роутинг, тон по модели, пресеты simple/medium/complex/governed + cost tiers, настройки качества проекта, ADaPT-lite, Key rules onboarding, диета always-loaded, `anthropic-skill-guide-compliance` Sprint 2); открыт только `proportional-effort` Sprint 2 Stage 4 (замер «после», AGR-072). `graph-semantic-adoption` 9/11; Pi native integration 0/5 accepted. `/mb drive` закрыт (`drive-autopilot` 7/7, `drive-loop` superseded, 2026-11-18). Живые треки: I-086 `config-validation-docs` (Stages 3–6), `sdd-vision-pipeline` G-001 (пауза с 2026-07-27).
-**Focus:** [master-completion](plans/2026-11-18_feature_master-completion.md) (2026-11-18/19, AGR-101…108) — 22 stages in tracks A GraphRAG · B OpenSpec round-trip · C mb-team · D opus55 · E dynamic-flow · F SVP S4/S5/S7/S8 · G Pi; 21/22 done, Stage 19 (full suite + plan-verifier) closing. Next: the rest of `sdd-vision-pipeline` (S1/S2/S3/S6/S9 + umbrella) in unfinished-work-completion; G-001 parked (AGR-106).
+**Focus:** master-completion closed 2026-11-19 ([plan](plans/done/2026-11-18_feature_master-completion.md), AGR-101…108): 22/22 stages; deferred — I-293, I-299, I-303 (graph re-measure 2026-11-26), I-304, I-305. Next: the rest of `sdd-vision-pipeline` (S1/S2/S3/S6/S9 + umbrella) in unfinished-work-completion; G-001 parked (AGR-106). Local main is behind origin by 10 commits (CI fixes from another session) — merge pending.
 **Blockers:** нет для текущей работы; действует репо-wide FREEZE на деструктивные git-операции (rebase / `reset --hard` / `checkout .` / whole-tree stash) — см. `COORDINATION.md`.
 
 ## Pi native integration — 2026-10-05
@@ -34,13 +34,12 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - [2026-10-05] [plans/2026-10-05_feature_pi-native-integration.md](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan
 - [2026-10-07] [plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер»
 - [2026-10-09] [plans/2026-10-09_feature_codex-memory-parity.md](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion
-- [2026-11-18] [plans/2026-11-18_feature_master-completion.md](plans/2026-11-18_feature_master-completion.md) — feature — master-completion
-- [2026-11-19] [plans/tasks.md](plans/tasks.md) — svp-adapt-escalation
 <!-- /mb-active-plans -->
 
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-11-19 — [plans/done/2026-11-18_feature_master-completion.md](plans/done/2026-11-18_feature_master-completion.md) — feature — master-completion
 - 2026-11-19 — [plans/done/2026-09-24_fix_opus55-prompt-fit.md](plans/done/2026-09-24_fix_opus55-prompt-fit.md) — fix — opus55-prompt-fit · скил под Opus 5.5 / Fable 5.1 и любые агенты
 - 2026-11-19 — [plans/done/2026-07-28_fix_graph-semantic-adoption.md](plans/done/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
 - 2026-11-18 — [plans/done/2026-10-10_feature_mb-team.md](plans/done/2026-10-10_feature_mb-team.md) — `/mb team` — orchestrator-led parallel tracks
@@ -50,7 +49,6 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - 2026-11-17 — [plans/done/2026-11-17_feature_team-shared-gates.md](plans/done/2026-11-17_feature_team-shared-gates.md) — feature — team-shared-gates
 - 2026-10-08 — [plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md](plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md) — Ordinary Pi Memory Bank dispatch
 - 2026-10-08 — [plans/done/2026-10-07_fix_upgrade-safe-install.md](plans/done/2026-10-07_fix_upgrade-safe-install.md) — fix — установка поверх старой версии + хвосты I-249…I-254
-- 2026-10-07 — [plans/done/2026-10-07_feature_adapt-lite.md](plans/done/2026-10-07_feature_adapt-lite.md) — feature — adapt-lite · дробление по необходимости (первый срез svp-adapt-escalation)
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)
