@@ -1,209 +1,142 @@
-# Memory Bank — Documentation
+<div class="mb-hero" markdown>
 
-Long-term project memory for AI coding agents. Plus engineering rules
-baseline (TDD / Clean Architecture / SOLID / FSD / Mobile) and a 25-command
-dev toolkit.
+<p class="mb-kicker">Documentation · v5.4.0</p>
 
-**One inviolable promise, fully configurable above.** See
-[`references/design-principles.md`](../references/design-principles.md)
-for the contract.
+# Memory, a process and a *team* for your coding agent
 
----
+Long-term project memory, engineering rules, spec-driven planning, a work pipeline you dial by
+risk, parallel agent teams, a goal loop that stops on evidence, a code graph and acceptance QA.
+Plain files next to your code, for nine agent hosts.
+
+[Quick start](quick-start.md){ .md-button .md-button--primary }
+[The development flow](flow.md){ .md-button }
+[Agent guide](agent-guide.md){ .md-button }
+
+</div>
+
+## New in 5.4.0
+
+<div class="grid cards" markdown>
+
+-   **[/mb team](mb-team.md)** <span class="mb-chip">new</span>
+
+    ---
+
+    Run one task as parallel tracks in one working tree. Owned file globs, waves, locks, shared
+    foundations, executable contracts, a scoped commit.
+
+-   **[/mb drive](mb-drive.md)** <span class="mb-chip">rebuilt</span>
+
+    ---
+
+    Hand over a goal with acceptance criteria. Plan it together once, then let it run to
+    `stop_success`, `stop_budget` or `stop_human`.
+
+-   **[/mb qa](mb-qa.md)** <span class="mb-chip">new</span>
+
+    ---
+
+    Acceptance QA: a runner agent walks markdown scenarios against the live product and files
+    bugs by severity.
+
+-   **[The development flow](flow.md)** <span class="mb-chip">new</span>
+
+    ---
+
+    Eight stations from a raw request to verified code, and the five task tiers that decide how
+    many of them a task visits.
+
+-   **[Routes, firewall and cost](routes-and-firewall.md)**
+
+    ---
+
+    Five routes with a deterministic floor, one firewall with one exit code, four presets and
+    three cost tiers.
+
+-   **[Code graph](concepts/code-graph.md)**
+
+    ---
+
+    Bash and Bats join the graph, `mb-graph.sh` is one short command, and every subagent prompt
+    gets a `## Graph` block.
+
+</div>
 
 ## Start here
 
-- **[Concepts → Overview](concepts/overview.md)** — what this skill is and
-  what it does, in 5 minutes.
-- **[Your first feature, end to end](first-feature.md)** — worked example:
-  `/mb init` → plan → TDD work → verify → done.
-- **[Design principles](../references/design-principles.md)** — the
-  contract every feature is checked against.
-- **[Install guide](install.md)** — pipx, Homebrew, git clone, with
-  troubleshooting.
-- **[Troubleshooting](troubleshooting.md)** — common issues by symptom.
-- **[Cross-agent setup](cross-agent-setup.md)** — per-client cheatsheet
-  (Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, Kilo, Pi).
+<div class="grid cards" markdown>
 
-## Concepts
+-   **[Install](install.md)**
 
-Background reading on how the skill is structured.
+    ---
 
-- **[Overview](concepts/overview.md)** — high-level picture of the layers.
-- **[Design principles](../references/design-principles.md)** — inviolable
-  core + configurability invariants + token economy.
-- **[Composable `/mb work` pipeline](../commands/work.md)** — review off by
-  default; per-stage flags, the `full` preset, three-layer precedence.
-- **[Code graph & semantic search](concepts/code-graph.md)** — `/mb map`,
-  `/mb graph` (+ opt-in layers), `mb-semantic-search.py`, `/mb wiki`.
-- **[Cross-session memory](concepts/session-memory.md)** — `/mb recall`,
-  session hooks, the local semantic index.
-- **Memory model** *(coming)* — `status.md` / `checklist.md` / `plans/` /
-  `progress.md` / `lessons.md` / `notes/` and how they fit together.
-- **Pipeline config** *(coming)* — `pipeline.yaml` schema with examples.
-- **Overlay system** *(coming)* — agent-prompt and rule-profile overlays.
-- **Glossary** *(coming)* — Phase / Sprint / Stage / Goal / Wave / Worktree.
+    pipx, Homebrew or git clone, with troubleshooting.
 
-## Workflows
+-   **[Quick start](quick-start.md)**
 
-Step-by-step guides for common ways of working.
+    ---
 
-- **[Plan-driven: your first feature](first-feature.md)** — `/mb plan` →
-  `/mb work` → `/mb verify` → `/mb done`, with a worked example.
-- **Basic session** *(coming)* — `/mb start` → work → `/mb done`.
-- **Spec-driven** *(coming)* — `/mb discuss` → `/mb sdd` → `/mb work`.
-- **Goal-driven** *(coming)* — `/goal init` → `/goal "..."` →
-  `/mb work --autopilot` → `/goal done`.
-- **Autopilot** *(coming)* — long-running Ralph-loop with hard stops.
-- **Debugging** *(coming)* — `/mb debug` and auto-recovery on verify FAIL.
+    `/mb init` → `/mb start` → work → `/mb done`, in five minutes.
 
-## Features
+-   **[Your first feature](first-feature.md)**
 
-Reference pages, one per capability.
+    ---
 
-### Stable
+    A worked example: plan → TDD → verify → done.
 
-- **[Rule profiles](rule-profiles.md)** — role × stack × architecture ×
-  delivery preset matrix; 22 presets; immutable baseline; user/project
-  scope precedence.
+-   **[Cross-agent setup](cross-agent-setup.md)**
 
-### Coming as part of the goal-driven-autopilot spec
+    ---
 
-- **Worktree isolation** — `git worktree`-based execution sandbox.
-- **Parallel waves** — DAG-based stage parallelism via `depends_on`.
-- **Atomic stage commit** — one commit per `/mb work` stage with safety
-  gates.
-- **Token economy** — concrete techniques: slim mode, signal reuse,
-  artefact frugality, parallel-fallback.
+    Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, Kilo, Pi, Hermes.
 
-### Existing features pending dedicated docs
+</div>
 
-The following are documented inside `SKILL.md` / `references/` today;
-they will get their own pages in a follow-up backfill sprint.
+!!! agent "Working with an agent?"
+    Hand it the **[Agent operating guide](agent-guide.md)** — one plain-markdown page that tells
+    an AI coding agent what Memory Bank gives it, which command answers which request, and what
+    is and is not shipped in 5.4.0.
 
-- Memory Bank core (`.memory-bank/` structure, append-only progress).
-- Codebase mapping (`/mb map` → `codebase/STACK.md` /
-  `ARCHITECTURE.md` / `CONVENTIONS.md` / `CONCERNS.md`).
-- Code graph (`/mb graph --apply`, `graph.json`, `god-nodes.md`).
-- GraphRAG-lite retrieval (`mb-code-context.py`, semantic + graph + text
-  fallback).
-- Private content (`<private>...</private>` blocks, redaction in
-  `index.json` and search).
-- Auto-capture (SessionEnd hook, `MB_AUTO_CAPTURE=auto|strict|off`).
-- Weekly compact reminder.
+## How the pieces fit
 
-## Commands
-
-Per-command reference pages. Until a page exists, see `commands/<name>.md`
-in the skill bundle, or run the command with no args for inline help.
-
-Full list (25): `mb`, `start`, `done`, `plan`, `discuss`, `sdd`, `work`,
-`config`, `profile`, `commit`, `pr`, `review`, `test`, `refactor`, `doc`,
-`changelog`, `catchup`, `adr`, `contract`, `security-review`,
-`api-contract`, `db-migration`, `observability`, `roadmap-sync`,
-`traceability-gen`.
-
-Coming as part of goal-driven-autopilot: `goal`, `debug`.
+| Layer | What it does | Read |
+|---|---|---|
+| **Memory** | Status, plans, decisions and past sessions in `.memory-bank/` | [Overview](concepts/overview.md) · [Layout](concepts/memory-bank-layout.md) · [Session memory](concepts/session-memory.md) |
+| **Rules** | Key rules, TDD, architecture boundaries, profiles | [Engineering rules](concepts/rules.md) · [Rule profiles](rule-profiles.md) |
+| **Specs** | Brief → requirements → spec triple → plan | [The development flow](flow.md) · [Spec-driven development](concepts/sdd.md) |
+| **Pipeline** | Role agents implement each item; gates join by preset | [/mb work](mb-work.md) · [Reviewer 2.0](reviewer-2.md) |
+| **Team** | Several tracks at once in one tree | [/mb team](mb-team.md) · [Coordination board](coordination.md) |
+| **Drive** | A goal driven to completion | [/mb drive](mb-drive.md) |
+| **Graph** | Structural answers without grep | [Code graph & semantic search](concepts/code-graph.md) |
+| **Gates** | One firewall decides "done" | [Routes, firewall and cost](routes-and-firewall.md) · [/mb qa](mb-qa.md) |
 
 ## Reference
 
-Schemas and exhaustive listings — material agents may need.
-
-- **[Hooks](../references/hooks.md)** — per-host wiring and lifecycle.
-- **[Tags vocabulary](../references/tags-vocabulary.md)** — canonical tags
-  for `index.json`.
-- **[Templates](../references/templates.md)** — plan decomposition (Phase
-  / Sprint / Stage), drift checks.
-- **[Planning + verification](../references/planning-and-verification.md)**
-  — plan-verifier workflow.
-- **[Memory Bank structure](../references/structure.md)** — every file in
-  `.memory-bank/` and what it stores.
-- **[Workflow](../references/workflow.md)** — session lifecycle (start,
-  during, finish, before compaction).
-- **[Rules-profile schema](../references/rules-profile.schema.md)** —
-  dimensions, immutable baseline, validation.
-- **[Adapter manifest schema](../references/adapter-manifest-schema.md)** —
-  for adding new AI-client integrations.
-- **[Metadata protocol](../references/metadata.md)** — `index.json`
-  fields, 8 key rules.
-- **[CLAUDE.md template](../references/claude-md-template.md)** —
-  auto-generated by `/mb init --full`.
-- **[Command file template](../references/command-template.md)** — for
-  authoring new `/commands/*.md`.
-- **[Agents reference](agents-reference.md)** — all 29 subagents grouped
-  by role, and which command invokes each.
-- CLI scripts reference *(coming)* — every `scripts/mb-*.{sh,py}` with
-  arguments and exit codes.
-- `pipeline.yaml` schema *(coming)* — full configuration reference.
-- Artefact schemas *(coming)* — `project.md`, `goal.md`, plan
-  frontmatter, spec frontmatter, note frontmatter.
-
-## Integration
-
-How the skill fits with each AI coding agent.
-
-- **[Cross-agent setup](cross-agent-setup.md)** — supported clients
-  matrix, install paths, host-specific notes.
-- Claude Code *(coming)* — native command surface, hooks, native auto
-  memory coexistence.
-- Cursor *(coming)* — global vs project install, User Rules paste flow,
-  hooks integration.
-- Codex *(coming)* — global skill bundle + project-level adapter.
-- **[OpenCode 2](cross-agent-setup.md#opencode)** — native commands/hooks, opt-in model-free memory, workflow routing and limits.
-- Pi *(coming)* — dual-mode discovery.
-- CI/CD *(coming)* — using `mb-test-run.sh` / `mb-drift.sh` from
-  pipelines.
-
-## Recipes
-
-Practical "how do I…" guides. Grow as we accumulate notes worth
-generalising.
-
-- TDD workflow *(coming)*
-- Multi-stage feature delivery *(coming)*
-- Refactoring with the Strangler Fig pattern *(coming)*
-- Debugging flaky tests *(coming)*
+- **[Commands](commands.md)** — every `/mb` sub-command, and commands grouped by job.
+- **[`pipeline.yaml` schema](pipeline-yaml.md)** — roles, workflows, presets, cost tiers, QA, team.
+- **[Agents reference](agents-reference.md)** — all subagents grouped by role, and which command
+  invokes each.
+- **[Hooks](hooks.md)** · **[Environment variables](environment-variables.md)**
+- **[Design principles](../references/design-principles.md)** — the contract every feature is
+  checked against.
+- **[Memory Bank structure](../references/structure.md)** — every file in `.memory-bank/`.
+- **[Task tiers](../references/effort-tiers.md)** · **[Coordination](../references/coordination.md)**
+  · **[Agreements](../references/agreements.md)**
 
 ## Operations
 
-Run, upgrade, ship the skill itself.
-
-- **[Install guide](install.md)** — install methods and troubleshooting.
-- **[Release process](release-process.md)** — PyPI OIDC + tag workflow.
-- **[Repo migration](repo-migration.md)** — for users upgrading from
-  `claude-skill-memory-bank`.
-- **[i18n](i18n.md)** — adding a new locale (en / ru ship; es / zh
-  scaffolds).
-- Upgrading *(coming)* — `/mb upgrade`, what changes, what survives.
-
-## Migrations
-
-Version-specific upgrade guides.
-
-- **[v4 → v5](MIGRATION-v4-v5.md)** — composable `/mb work` pipeline;
-  review off by default. No file migration needed.
-- **[v1 → v2](MIGRATION-v1-v2.md)** — first structural migration.
-- **[v3.0 → v3.1](MIGRATION-v3-v3.1.md)** — multi-active plans, `I-NNN`
-  ideas, `ADR-NNN`.
-- **[Install v1 → v2](MIGRATION-install-v1-v2.md)** — installer changes.
-
-## Security
-
-- **[Security policy](../SECURITY.md)** — reporting, scope, response
-  timeline, design decisions.
-- **[Archived audit (2026-04-21)](security/audit-2026-04-21.md)** —
-  third-party audit snapshot; key findings addressed in 3.x/4.x (path
-  validation on uninstall, `MB_ALLOW_METRICS_OVERRIDE` opt-in gate).
-
----
+- **[Updating](updating.md)** · **[Troubleshooting](troubleshooting.md)** · **[i18n](i18n.md)**
+- **[Release process](release-process.md)** · **[Repository migration](repo-migration.md)**
+- Migrations: **[v4 → v5](MIGRATION-v4-v5.md)** · **[v3.0 → v3.1](MIGRATION-v3-v3.1.md)** ·
+  **[v1 → v2](MIGRATION-v1-v2.md)** · **[install v1 → v2](MIGRATION-install-v1-v2.md)**
+- Security: **[policy](../SECURITY.md)** · **[archived audit (2026-04-21)](security/audit-2026-04-21.md)**
 
 ## Contributing to docs
 
-- Each `docs/*.md` ≤ 300 lines. If a page grows, split.
-- Cross-link liberally, do not duplicate content.
-- `concepts/` explains *why*. `features/` explains *what*.
-  `workflows/` explains *how*. `reference/` is exhaustive lookup.
-- New skill capability ⇒ at least one `docs/features/<name>.md` page
-  before the feature is released.
-- Existing files are not moved while their paths are referenced from
-  `README.md`, `CONTRIBUTING.md`, or tests. Restructuring is a deliberate
-  refactor with link updates.
+- Each `docs/*.md` stays at 300 lines or fewer. If a page grows, split it.
+- Cross-link liberally; do not duplicate content. `commands/<name>.md` is the contract, a guide is
+  the map.
+- Every guide ends with **Limits** and a **For agents** block: what is not shipped, and the rules
+  an agent must follow.
+- Existing files are not moved while their paths are referenced from `README.md`,
+  `CONTRIBUTING.md` or tests.

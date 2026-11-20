@@ -1,67 +1,70 @@
 /*
  * Memory Bank docs — brand overlay for MkDocs Material.
- * Palette, texture and shape lifted straight from the landing page
- * (site/styles.css): warm paper ground, lime/sand/rose accents, ink text,
- * translucent blurred chrome. /docs/ and the marketing site are one product.
+ * One product with the landing page (site/styles.css): warm paper, ink, a lime
+ * signal, hard-edged plates. Text/code fonts come from mkdocs.yml (Bricolage
+ * Grotesque, JetBrains Mono); the serif accent is loaded here.
  *
- * Accessibility: the signature lime (#b5d65b) is LIGHT — it fails 4.5:1 on
+ * Accessibility: the signature lime (#b9dc5a) is LIGHT — it fails 4.5:1 on
  * paper, so as *text* on light it becomes deep olive-lime (#5f7d16, ~5.3:1).
- * Bright lime stays on dark surfaces, bars and underlines.
+ * Bright lime stays on dark surfaces, bars, markers and underlines.
  */
 
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap");
+
 :root {
-  --brand-ink: #1f2430;
-  --brand-ink-2: #2a3746;
-  --brand-ink-3: #151e2b;
-  --brand-lime: #b5d65b;
+  --brand-ink: #161b24;
+  --brand-mute: #5b6159;
+  --brand-night: #0f141d;
+  --brand-night-hi: #19212d;
+  --brand-on-night: #f4efe3;
+  --brand-lime: #b9dc5a;
+  --brand-lime-hi: #d8f27c;
   --brand-lime-deep: #5f7d16;
-  --brand-sand: #ffb16d;
-  --brand-rose: #e27668;
-  --brand-paper: #f4efe3;
-  --brand-panel: #fff9f1;
-  --brand-stroke: rgba(31, 36, 48, 0.12);
+  --brand-amber: #ffb16d;
+  --brand-rose: #e8705f;
+  --brand-paper: #f3eee2;
+  --brand-panel: #fbf7ee;
+  --brand-stroke: rgba(22, 27, 36, 0.14);
+  --brand-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
 
   --md-accent-fg-color: var(--brand-lime-deep);
+  --md-admonition-icon--agent: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2M7.5 13A2.5 2.5 0 0 0 5 15.5 2.5 2.5 0 0 0 7.5 18a2.5 2.5 0 0 0 2.5-2.5A2.5 2.5 0 0 0 7.5 13m9 0a2.5 2.5 0 0 0-2.5 2.5 2.5 2.5 0 0 0 2.5 2.5 2.5 2.5 0 0 0 2.5-2.5 2.5 2.5 0 0 0-2.5-2.5"/></svg>');
 }
 
 /* =====================================================================
-   LIGHT SCHEME — warm paper, exactly like the landing
+   LIGHT SCHEME — warm paper
    ===================================================================== */
 [data-md-color-scheme="default"] {
   --md-default-bg-color: var(--brand-paper);
   --md-default-fg-color: var(--brand-ink);
+  --md-default-fg-color--light: var(--brand-mute);
+  --md-typeset-color: var(--brand-ink);
   --md-typeset-a-color: var(--brand-ink);
-  --md-code-bg-color: var(--brand-panel);
-  --md-code-fg-color: #33405a;
-  --md-footer-bg-color: var(--brand-ink);
-  --md-footer-bg-color--dark: var(--brand-ink-3);
+  --md-footer-bg-color: var(--brand-night);
+  --md-footer-bg-color--dark: #0a0e15;
 }
 
-/* Paper gradient + faint grid + lime/rose glow — the landing's body layer,
-   composed in a single fixed background so it never scrolls or collides. */
+/* blueprint grid that fades out below the fold, as on the landing */
 [data-md-color-scheme="default"] body {
   background:
-    linear-gradient(rgba(31, 36, 48, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(31, 36, 48, 0.035) 1px, transparent 1px),
-    radial-gradient(circle at top left, rgba(181, 214, 91, 0.16), transparent 26%),
-    radial-gradient(circle at 85% 8%, rgba(226, 118, 104, 0.1), transparent 24%),
-    linear-gradient(180deg, #fbf6ec 0%, #f4efe3 55%, #efe6d5 100%);
-  background-size: 32px 32px, 32px 32px, auto, auto, auto;
-  background-attachment: fixed;
+    radial-gradient(ellipse 70% 520px at 70% 0, transparent 30%, var(--brand-paper) 100%),
+    linear-gradient(rgba(22, 27, 36, 0.05) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(22, 27, 36, 0.05) 1px, transparent 1px) 0 0 / 40px 40px,
+    var(--brand-paper);
+  background-repeat: no-repeat, repeat, repeat, repeat;
 }
 
-/* Header + tabs = translucent cream pill-bar with blur, ink text (landing topbar) */
 [data-md-color-scheme="default"] .md-header {
-  background: rgba(251, 247, 239, 0.85);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  background: rgba(251, 247, 238, 0.88);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   color: var(--brand-ink);
-  border-bottom: 1px solid var(--brand-stroke);
-  box-shadow: 0 8px 24px rgba(31, 36, 48, 0.06);
+  border-bottom: 1px solid var(--brand-ink);
+  box-shadow: none;
 }
 
 [data-md-color-scheme="default"] .md-tabs {
-  background: rgba(251, 247, 239, 0.7);
+  background: rgba(251, 247, 238, 0.8);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   color: var(--brand-ink);
@@ -70,26 +73,23 @@
 
 [data-md-color-scheme="default"] .md-tabs__link {
   color: var(--brand-ink);
-  opacity: 0.72;
+  opacity: 0.66;
 }
 
-[data-md-color-scheme="default"] .md-tabs__link--active {
+[data-md-color-scheme="default"] .md-tabs__link--active,
+[data-md-color-scheme="default"] .md-tabs__link:hover {
   opacity: 1;
 }
 
-/* Search field: white pill on the cream header */
 [data-md-color-scheme="default"] .md-search__form {
-  background: rgba(255, 255, 255, 0.7);
+  background: #fff;
   border-radius: 999px;
-  box-shadow: inset 0 0 0 1px var(--brand-stroke);
-}
-
-[data-md-color-scheme="default"] .md-search__form:hover {
-  background: rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 0 0 1px var(--brand-ink);
 }
 
 [data-md-color-scheme="default"] .md-search__input,
-[data-md-color-scheme="default"] .md-search__input::placeholder {
+[data-md-color-scheme="default"] .md-search__input::placeholder,
+[data-md-color-scheme="default"] .md-search__icon {
   color: var(--brand-ink);
 }
 
@@ -97,124 +97,526 @@
   opacity: 0.5;
 }
 
-/* Ink links with the signature lime underline */
+/* ink links with the lime underline */
 [data-md-color-scheme="default"] .md-typeset a:not(.md-button):not(.headerlink) {
   text-decoration: underline;
   text-decoration-color: var(--brand-lime);
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
-  transition: color 0.15s ease;
 }
 
 [data-md-color-scheme="default"] .md-typeset a:not(.md-button):not(.headerlink):hover {
-  color: var(--brand-lime-deep);
+  background: var(--brand-lime);
+  color: var(--brand-ink);
 }
 
 /* =====================================================================
-   DARK SCHEME — landing's ink cards, lime finally shines
+   DARK SCHEME
    ===================================================================== */
 [data-md-color-scheme="slate"] {
   --md-accent-fg-color: var(--brand-lime);
   --md-typeset-a-color: var(--brand-lime);
-  --md-default-bg-color: #101621;
+  --md-default-bg-color: var(--brand-night);
   --md-code-bg-color: rgba(255, 255, 255, 0.05);
+  --brand-stroke: rgba(244, 239, 227, 0.16);
+  --brand-panel: var(--brand-night-hi);
+  --brand-mute: rgba(244, 239, 227, 0.68);
 }
 
 [data-md-color-scheme="slate"] body {
   background:
-    radial-gradient(circle at top left, rgba(181, 214, 91, 0.1), transparent 28%),
-    radial-gradient(circle at 88% 6%, rgba(226, 118, 104, 0.08), transparent 26%),
-    linear-gradient(180deg, #131b28 0%, #101621 60%, #0c111a 100%);
-  background-attachment: fixed;
+    radial-gradient(ellipse 60% 420px at 85% 0, rgba(185, 220, 90, 0.12), transparent 70%),
+    var(--brand-night);
+  background-repeat: no-repeat;
 }
 
 [data-md-color-scheme="slate"] .md-header,
 [data-md-color-scheme="slate"] .md-tabs {
-  background: rgba(16, 22, 33, 0.82);
+  background: rgba(15, 20, 29, 0.86);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--brand-stroke);
 }
 
 /* =====================================================================
-   SHARED — landing shape language: soft radii, panels, pills
+   TYPE
    ===================================================================== */
+.md-typeset {
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
 
-/* Lime underline under the active top-level tab */
+.md-typeset h1 {
+  margin-bottom: 0.5em;
+  color: inherit;
+  font-size: clamp(2.1rem, 4.6vw, 3.1rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.038em;
+}
+
+.md-typeset h2 {
+  margin-top: 2.4em;
+  padding-top: 1em;
+  border-top: 1px solid var(--brand-ink);
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+}
+
+[data-md-color-scheme="slate"] .md-typeset h2 {
+  border-top-color: var(--brand-stroke);
+}
+
+.md-typeset h3 {
+  font-size: 1.12rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+/* serif-italic accent word over a marker stroke */
+.md-typeset h1 em,
+.md-typeset .mb-hero em {
+  padding: 0 0.06em;
+  background: linear-gradient(transparent 66%, var(--brand-lime) 66% 92%, transparent 92%);
+  font-family: var(--brand-serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+[data-md-color-scheme="slate"] .md-typeset h1 em,
+[data-md-color-scheme="slate"] .md-typeset .mb-hero em {
+  background: none;
+  color: var(--brand-lime);
+}
+
+/* opening paragraph of a guide */
+.md-typeset .mb-lede {
+  max-width: 62ch;
+  margin: 0 0 1.6em;
+  color: var(--brand-mute);
+  font-size: 1.06rem;
+  line-height: 1.6;
+}
+
+.md-typeset .mb-lede strong {
+  color: var(--md-typeset-color);
+}
+
+/* =====================================================================
+   CODE — dark plates, light inline chips
+   ===================================================================== */
+.md-typeset pre,
+.md-typeset .highlight,
+.md-typeset .highlighttable {
+  --md-code-bg-color: var(--brand-night);
+  --md-code-fg-color: #e9e4d6;
+  --md-code-hl-comment-color: rgba(244, 239, 227, 0.5);
+  --md-code-hl-keyword-color: var(--brand-amber);
+  --md-code-hl-string-color: var(--brand-lime-hi);
+  --md-code-hl-number-color: var(--brand-amber);
+  --md-code-hl-function-color: #9fd6ff;
+  --md-code-hl-name-color: #e9e4d6;
+  --md-code-hl-constant-color: var(--brand-lime-hi);
+  --md-code-hl-special-color: var(--brand-rose);
+  --md-code-hl-operator-color: rgba(244, 239, 227, 0.7);
+  --md-code-hl-punctuation-color: rgba(244, 239, 227, 0.7);
+  --md-code-hl-variable-color: #e9e4d6;
+  --md-code-hl-generic-color: #e9e4d6;
+}
+
+.md-typeset pre > code {
+  border: 1px solid var(--brand-ink);
+  border-radius: 12px;
+  box-shadow: 5px 5px 0 rgba(22, 27, 36, 0.12);
+  font-size: 0.78em;
+  line-height: 1.7;
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre > code {
+  border-color: var(--brand-stroke);
+  box-shadow: none;
+}
+
+.md-typeset .md-clipboard {
+  color: rgba(244, 239, 227, 0.5);
+}
+
+.md-typeset .md-clipboard:hover {
+  color: var(--brand-lime);
+}
+
+.md-typeset :not(pre) > code {
+  padding: 0.08em 0.4em;
+  border: 1px solid var(--brand-stroke);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--brand-ink);
+  font-size: 0.84em;
+  box-shadow: none;
+}
+
+[data-md-color-scheme="slate"] .md-typeset :not(pre) > code {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--brand-lime-hi);
+}
+
+/* tabbed code/content */
+.md-typeset .tabbed-labels > label {
+  font-weight: 600;
+}
+
+.md-typeset .tabbed-set > input:checked + label,
+.md-typeset .tabbed-labels > label:hover {
+  color: var(--md-typeset-color);
+}
+
+.md-typeset .tabbed-labels::before {
+  height: 3px;
+  background: var(--brand-lime);
+}
+
+/* =====================================================================
+   TABLES — ruled sheets with an ink header
+   ===================================================================== */
+.md-typeset table:not([class]) {
+  border: 1px solid var(--brand-ink);
+  border-radius: 12px;
+  background: var(--brand-panel);
+  box-shadow: none;
+  font-size: 0.74rem;
+  overflow: hidden;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) {
+  border-color: var(--brand-stroke);
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--brand-night);
+  color: var(--brand-on-night);
+  font-family: var(--md-code-font-family);
+  font-size: 0.86em;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.md-typeset table:not([class]) td {
+  border-top: 1px solid var(--brand-stroke);
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+  background: rgba(185, 220, 90, 0.14);
+  box-shadow: none;
+}
+
+/* a headerless two-column "at a glance" table: label column in mono */
+.md-typeset table:not([class]) thead th:empty {
+  padding: 0;
+  border: 0;
+  line-height: 0;
+}
+
+.md-typeset table:not([class]) thead:has(th:empty) + tbody td:first-child {
+  width: 11.5em;
+  color: var(--brand-mute);
+  white-space: nowrap;
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-typeset table:not([class]) thead:has(th:empty) + tbody td:first-child {
+    width: auto;
+    white-space: normal;
+  }
+}
+
+/* =====================================================================
+   ADMONITIONS
+   ===================================================================== */
+.md-typeset .admonition,
+.md-typeset details {
+  border: 1px solid var(--brand-ink);
+  border-left-width: 1px;
+  border-radius: 12px;
+  background: var(--brand-panel);
+  box-shadow: 5px 5px 0 rgba(22, 27, 36, 0.1);
+  font-size: 0.78rem;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition,
+[data-md-color-scheme="slate"] .md-typeset details {
+  border-color: var(--brand-stroke);
+  box-shadow: none;
+}
+
+.md-typeset .admonition-title,
+.md-typeset summary {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* "For agents" — the operating contract, set as a dark plate */
+.md-typeset .admonition.agent {
+  border-color: var(--brand-ink);
+  background: var(--brand-night);
+  color: var(--brand-on-night);
+  box-shadow: 5px 5px 0 var(--brand-lime);
+}
+
+.md-typeset .agent > .admonition-title {
+  background: transparent;
+  color: var(--brand-lime);
+  font-family: var(--md-code-font-family);
+  font-size: 0.9em;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.md-typeset .agent > .admonition-title::before {
+  background-color: var(--brand-lime);
+  -webkit-mask-image: var(--md-admonition-icon--agent);
+  mask-image: var(--md-admonition-icon--agent);
+}
+
+.md-typeset .admonition.agent :not(pre) > code {
+  border-color: rgba(244, 239, 227, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--brand-lime-hi);
+}
+
+.md-typeset .admonition.agent a:not(.md-button):not(.headerlink) {
+  color: var(--brand-on-night);
+}
+
+.md-typeset .admonition.agent a:not(.md-button):not(.headerlink):hover {
+  color: var(--brand-ink);
+}
+
+.md-typeset .admonition.agent strong {
+  color: #fff;
+}
+
+/* =====================================================================
+   STEPS — an ordered list drawn as numbered stations
+   ===================================================================== */
+.md-typeset .mb-steps > ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: 0.6rem;
+  margin: 1.2em 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: mb-step;
+}
+
+.md-typeset .mb-steps > ol > li {
+  position: relative;
+  margin: 0;
+  padding: 2.4rem 0.9rem 0.9rem;
+  border: 1px solid var(--brand-ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--brand-mute);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  counter-increment: mb-step;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .mb-steps > ol > li {
+  border-color: var(--brand-stroke);
+  background: var(--brand-night-hi);
+}
+
+.md-typeset .mb-steps > ol > li::before {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.9rem;
+  padding: 0.1em 0.5em;
+  border-radius: 5px;
+  background: var(--brand-lime);
+  color: var(--brand-ink);
+  content: counter(mb-step, decimal-leading-zero);
+  font-family: var(--md-code-font-family);
+  font-size: 0.86em;
+  font-weight: 700;
+}
+
+.md-typeset .mb-steps > ol > li > strong:first-child,
+.md-typeset .mb-steps > ol > li > p:first-child > strong:first-child {
+  color: var(--md-typeset-color);
+  font-size: 1.22em;
+  letter-spacing: -0.015em;
+}
+
+.md-typeset .mb-steps > ol > li > p {
+  margin: 0;
+}
+
+.md-typeset .mb-steps > ol > li > p + p {
+  margin-top: 0.45em;
+}
+
+/* =====================================================================
+   CARD GRIDS + BUTTONS
+   ===================================================================== */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > ol > li,
+.md-typeset .grid > .card {
+  border: 1px solid var(--brand-ink);
+  border-radius: 12px;
+  background: var(--brand-panel);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .grid.cards > ul > li {
+  border-color: var(--brand-stroke);
+}
+
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid.cards > ol > li:hover {
+  border-color: var(--brand-ink);
+  box-shadow: 5px 5px 0 var(--brand-lime);
+  transform: translate(-2px, -2px);
+}
+
+.md-typeset .grid.cards > ul > li > hr {
+  margin: 0.6em 0;
+  border-bottom-color: var(--brand-stroke);
+}
+
+.md-typeset .grid.cards > ul > li > p:first-child strong {
+  font-size: 1.12em;
+  letter-spacing: -0.015em;
+}
+
+.md-typeset .grid.cards code {
+  white-space: nowrap;
+}
+
+.md-typeset .md-button {
+  border: 1.5px solid var(--brand-ink);
+  border-radius: 999px;
+  color: var(--brand-ink);
+  font-weight: 600;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .md-button {
+  border-color: var(--brand-on-night);
+  color: var(--brand-on-night);
+}
+
+.md-typeset .md-button:hover {
+  border-color: var(--brand-ink);
+  background: var(--brand-ink);
+  color: var(--brand-paper);
+}
+
+.md-typeset .md-button--primary,
+[data-md-color-scheme="slate"] .md-typeset .md-button--primary {
+  border-color: var(--brand-ink);
+  background: var(--brand-lime);
+  color: var(--brand-ink);
+  box-shadow: 3px 3px 0 var(--brand-ink);
+}
+
+.md-typeset .md-button--primary:hover {
+  border-color: var(--brand-ink);
+  background: var(--brand-lime);
+  color: var(--brand-ink);
+  box-shadow: 5px 5px 0 var(--brand-ink);
+  transform: translate(-2px, -2px);
+}
+
+/* =====================================================================
+   HOME HERO + CHIPS
+   ===================================================================== */
+.md-typeset .mb-hero {
+  margin: 0.4rem 0 2.2rem;
+  padding: clamp(1.4rem, 4vw, 2.6rem);
+  border: 1px solid var(--brand-ink);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse 50% 80% at 100% 0%, rgba(185, 220, 90, 0.5), transparent 70%),
+    var(--brand-panel);
+  box-shadow: 8px 8px 0 var(--brand-ink);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .mb-hero {
+  border-color: var(--brand-stroke);
+  background:
+    radial-gradient(ellipse 50% 80% at 100% 0%, rgba(185, 220, 90, 0.18), transparent 70%),
+    var(--brand-night-hi);
+  box-shadow: 8px 8px 0 var(--brand-lime);
+}
+
+.md-typeset .mb-hero h1 {
+  max-width: 16ch;
+  margin: 0.2em 0 0.4em;
+}
+
+.md-typeset .mb-hero p {
+  max-width: 58ch;
+  color: var(--brand-mute);
+  font-size: 1.02rem;
+}
+
+.md-typeset .mb-kicker {
+  margin: 0;
+  color: var(--brand-mute);
+  font-family: var(--md-code-font-family);
+  font-size: 0.68rem !important;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.md-typeset .mb-chip {
+  display: inline-block;
+  padding: 0.05em 0.6em;
+  border: 1px solid var(--brand-ink);
+  border-radius: 999px;
+  background: var(--brand-lime);
+  color: var(--brand-ink);
+  font-family: var(--md-code-font-family);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* =====================================================================
+   CHROME
+   ===================================================================== */
 .md-tabs__item--active {
   box-shadow: inset 0 -3px 0 var(--brand-lime);
 }
 
-/* Rounded, elevated code / admonitions / details — like the landing cards */
-.md-typeset pre > code,
-.md-typeset .highlight,
-.md-typeset pre {
-  border-radius: 14px;
-}
-
-[data-md-color-scheme="default"] .md-typeset pre,
-[data-md-color-scheme="default"] .md-typeset .highlight {
-  border: 1px solid var(--brand-stroke);
-}
-
-.md-typeset .admonition,
-.md-typeset details {
-  border-radius: 16px;
-  border-left-width: 4px;
-  box-shadow: 0 12px 34px rgba(31, 36, 48, 0.07);
-}
-
-[data-md-color-scheme="default"] .md-typeset .admonition,
-[data-md-color-scheme="default"] .md-typeset details {
-  background: var(--brand-panel);
-}
-
-/* Tables as rounded panels with an ink header row */
-.md-typeset table:not([class]) {
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 12px 34px rgba(31, 36, 48, 0.06);
-  border: 1px solid var(--brand-stroke);
-}
-
-[data-md-color-scheme="default"] .md-typeset table:not([class]) {
-  background: var(--brand-panel);
-}
-
-.md-typeset table:not([class]) th {
-  background: var(--brand-ink);
-  color: #fff9f1;
-}
-
-/* Sidebar active item: bold + lime tick */
 .md-nav__link--active {
-  font-weight: 600;
+  font-weight: 650;
 }
 
-/* Pill buttons matching the landing CTA */
-.md-typeset .md-button {
-  border-radius: 999px;
-  border-width: 1px;
+[data-md-color-scheme="default"] .md-nav__link--active,
+[data-md-color-scheme="default"] .md-nav__link:hover {
+  color: var(--brand-ink);
 }
 
-.md-typeset .md-button--primary {
-  background: var(--brand-ink);
-  border-color: var(--brand-ink);
-  color: #fff9f1;
+.md-nav--secondary .md-nav__link--active {
+  box-shadow: inset 2px 0 0 var(--brand-lime);
+  padding-left: 0.5em;
 }
 
-.md-typeset .md-button--primary:hover {
-  background: var(--brand-lime-deep);
-  border-color: var(--brand-lime-deep);
-  color: #fff9f1;
-}
-
-/* Section rhythm + brand selection */
-.md-typeset h2 {
-  padding-top: 0.2em;
-  border-top: 1px solid var(--brand-stroke);
+.md-typeset hr {
+  border-bottom: 1px solid var(--brand-stroke);
 }
 
 ::selection {
-  background: rgba(181, 214, 91, 0.4);
+  background: rgba(185, 220, 90, 0.5);
 }

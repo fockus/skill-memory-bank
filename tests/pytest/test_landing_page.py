@@ -80,7 +80,7 @@ def test_landing_page_contains_core_sections_and_assets() -> None:
 
     title, parsed = _parse_html()
 
-    assert title == "memory-bank-skill v5 — Persistent memory for AI coding agents"
+    assert title == "memory-bank-skill v5.4 — Memory, pipeline and agent teams for AI coding"
     assert parsed.description.startswith("Long-term project memory")
     assert {"problem", "workflow", "agents", "install", "cta"} <= parsed.sections
     assert "#install" in parsed.anchors

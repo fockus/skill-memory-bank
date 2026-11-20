@@ -12,11 +12,12 @@ site_dir: docs_site
 
 theme:
   name: material
-  # Match the landing page typography (site/styles.css): Space Grotesk for
-  # display/body, IBM Plex Mono for code. Material fetches these by name.
+  # Match the landing page typography (site/styles.css): Bricolage Grotesque
+  # for display/body, JetBrains Mono for code. Material fetches these by name;
+  # the serif accent (Instrument Serif) is imported in assets/brand.css.
   font:
-    text: Space Grotesk
-    code: IBM Plex Mono
+    text: Bricolage Grotesque
+    code: JetBrains Mono
   icon:
     logo: material/brain
     repo: fontawesome/brands/github
@@ -96,7 +97,12 @@ nav:
       - Session Memory: concepts/session-memory.md
       - Spec-Driven Development: concepts/sdd.md
   - Guides:
+      - The Development Flow: flow.md
       - /mb work: mb-work.md
+      - /mb team: mb-team.md
+      - /mb drive: mb-drive.md
+      - /mb qa: mb-qa.md
+      - Routes, Firewall and Cost: routes-and-firewall.md
       - Reviewer 2.0: reviewer-2.md
       - Coordination Board: coordination.md
       - Rule Profiles: rule-profiles.md
@@ -104,6 +110,8 @@ nav:
       - Updating: updating.md
       - Cursor Extension: cursor-extension.md
       - Handoff 2.0: handoff-2.0.md
+  - For Agents:
+      - Agent Operating Guide: agent-guide.md
   - Reference:
       - Commands: commands.md
       - Agents Reference: agents-reference.md

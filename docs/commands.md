@@ -1,7 +1,7 @@
 # Command reference
 
 `/mb` is the single entrypoint for the whole toolkit — one command with subcommands, rather than
-25 separate slash commands to remember. Every row below is available as `/mb <subcommand>`; a
+dozens of separate slash commands to remember. Every row below is available as `/mb <subcommand>`; a
 handful also have short aliases (`/start`, `/done`, `/plan`, `/discuss`, `/sdd`, `/work`,
 `/verify`, `/config`, `/pipeline`) that dispatch to the exact same underlying command.
 
@@ -23,11 +23,15 @@ handful also have short aliases (`/start`, `/done`, `/plan`, `/discuss`, `/sdd`,
 | `index` | Registry of all entries. |
 | `done` | End the session — actualize, note, and append progress. |
 | `plan <type> <topic>` | Create a plan (`feature` / `fix` / `refactor` / `experiment`). |
+| `brief <topic> [--input <path>]…` | Formalize a raw request plus attached documents into a one-page brief under `briefs/<topic>/`. |
 | `discuss <topic>` | 5-phase requirements-elicitation interview producing an EARS-validated `context/<topic>.md`. |
 | `sdd <topic> [--force]` | Create the spec triple `specs/<topic>/{requirements,design,tasks}.md`. |
 | `config <init\|show\|validate\|path>` | Manage the project's `pipeline.yaml`. |
 | `pipeline <list\|new\|use\|show\|path\|validate>` | Manage multiple named pipelines with different model routing per host. |
 | `work [target] [--workflow NAME] [--range A-B]` | Execute a plan/spec through the composable implement→verify→(review→judge)→done loop. |
+| `team <subcommand> [args]` | Run one task as parallel tracks in one tree — see [/mb team](mb-team.md). |
+| `drive [--goal PATH] [--budget TOK] [--resume]` | Plan a goal with the user, then run it unattended — see [/mb drive](mb-drive.md). |
+| `qa <run\|new\|list\|bugs>` | Acceptance QA against the live product, with a bug registry — see [/mb qa](mb-qa.md). |
 | `verify` | Verify plan/spec execution against the actual codebase — required before `done` when work followed a plan. |
 | `map [focus]` | Scan the codebase, write `STACK` / `ARCHITECTURE` / `CONVENTIONS` / `CONCERNS` docs. |
 | `upgrade [--check\|--force]` | Update a git-clone install of the skill from GitHub. |
@@ -38,6 +42,10 @@ handful also have short aliases (`/start`, `/done`, `/plan`, `/discuss`, `/sdd`,
 | `tags [--apply] [--auto-merge]` | Normalize frontmatter tags against a closed vocabulary. |
 | `init [--minimal\|--full]` | Initialize Memory Bank in the current project. |
 | `profile <subcommand>` | Manage rule profiles (role/stack/architecture/delivery-tuned rule sets). |
+| `rules <subcommand>` | Key rules block at the top of `CLAUDE.md`/`AGENTS.md`: `list`, `enable`, `disable`, `add`, `remove`, `set`. |
+| `language <code> [--comments <code>]` | Per-project response and code-comment language (`en ru es pt zh`). |
+| `cost [--since N] [--json]` | Transcript cost report: per session, per subagent role, per work item. |
+| `openspec <import\|list\|status\|sync\|export>` | OpenSpec ↔ Memory Bank round-trip (below). |
 | `install [<clients>]` | Install Memory Bank for the project across one or more AI-agent clients. |
 | `statusline [--force]` | Claude Code only — install the context-window statusline. |
 | `help [subcommand]` | Print the router table, or the detailed section for one subcommand. |
@@ -65,8 +73,21 @@ names for that subcommand) — the same content this page condenses, kept as the
 
 `/mb openspec <import|list|status|sync|export>` moves a spec between an OpenSpec `changes/<id>/` and the bank triple `specs/<topic>/`: `import` a change; `sync [--take openspec|bank]` three-way merges it into the bank (a conflict exits 1 and writes nothing); `export` prints a dry-run diff, `export --write` applies it to OpenSpec (`--allow-delete` also removes what the bank deleted); `export --new` publishes a bank spec as a new change. `/mb work <change-id>` runs the whole flow in place: sync, work on the triple, then a dry-run export and a question before `--write`. Details: `references/mb/openspec.md`.
 
+## Commands by job
+
+| Job | Commands |
+|---|---|
+| **Start** | `init` · `start` · `map` |
+| **Shape** | `brief` · `discuss` · `sdd` · `plan` · `goal` |
+| **Build** | `work` · `team` · `drive` · `flow` |
+| **Prove** | `verify` · `qa` · `/review` · `/critique` · `/risk-find` |
+| **Know** | `graph` · `recall` · `search` · `wiki` · `research` |
+| **Keep** | `done` · `agree` · `idea` · `adr` · `/commit` |
+| **Tune** | `config` · `rules` · `language` · `cost` · `doctor` |
+
 ## Related
 
+- [The development flow](flow.md) — which commands a task needs, by size.
 - [/mb work](mb-work.md) — the execution engine, documented in full.
 - [pipeline.yaml reference](pipeline-yaml.md) — the config `config`/`pipeline` manage.
 - [Agents reference](agents-reference.md) — the specialist subagents `work`/`map`/`verify` dispatch.

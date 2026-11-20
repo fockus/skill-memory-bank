@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>memory-bank-skill v5 — Persistent memory for AI coding agents</title>
+    <title>memory-bank-skill v5.4 — Memory, pipeline and agent teams for AI coding</title>
     <meta
       name="description"
-      content="Long-term project memory, engineering rules, a composable work pipeline, code-graph intelligence, and cross-session recall for 8 AI coding agents: Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, Kilo, Pi Code."
+      content="Long-term project memory, engineering rules, spec-driven planning, a composable work pipeline, parallel agent teams, an autonomous goal loop, a code graph and acceptance QA — one framework for 9 AI coding agents: Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, Kilo, Pi Code, Hermes."
     />
-    <meta name="theme-color" content="#f4efe3" />
-    <meta property="og:title" content="memory-bank-skill v5" />
+    <meta name="theme-color" content="#f3eee2" />
+    <meta property="og:title" content="memory-bank-skill v5.4 — the framework for agentic coding" />
     <meta
       property="og:description"
-      content="Your AI agent remembers the project between sessions, follows your engineering rules, and picks up exactly where you left off. 8 agents, one memory model."
+      content="Give your coding agent a memory, a process and a team. Specs, a pipeline you dial by risk, parallel tracks, a goal loop that stops on evidence. Plain files, 9 agent hosts, $0 by default."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://fockus.github.io/skill-memory-bank/" />
@@ -20,888 +20,1322 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="memory-bank-skill v5 — Persistent memory for AI coding agents" />
+    <meta name="twitter:title" content="memory-bank-skill v5.4 — the framework for agentic coding" />
     <meta
       name="twitter:description"
-      content="Your AI agent remembers the project between sessions, follows your engineering rules, and picks up exactly where you left off. 8 agents, one memory model."
+      content="Give your coding agent a memory, a process and a team. Specs, a pipeline you dial by risk, parallel tracks, a goal loop that stops on evidence."
     />
     <meta name="twitter:image" content="https://fockus.github.io/skill-memory-bank/og-image.png" />
     <link rel="canonical" href="https://fockus.github.io/skill-memory-bank/" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <!-- ?v = first 8 of the file's sha256; rebump on any styles.css / app.js
          edit so returning visitors never get a stale cached copy (Pages max-age=600) -->
-    <link rel="stylesheet" href="styles.css?v=7c092d22" />
-    <script defer src="app.js?v=b6e8e61a"></script>
+    <link rel="stylesheet" href="styles.css?v=4a941797" />
+    <script defer src="app.js?v=1f42664f"></script>
   </head>
   <body>
-    <div class="page-shell">
-      <header class="topbar">
-        <a class="brand" href="#hero" aria-label="memory-bank-skill home">
-          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M21.33 12.91c.09 1.55-.62 3.04-1.89 3.95l.77 1.49c.23.45.26.98.06 1.45-.19.47-.58.84-1.06 1l-.79.25a1.687 1.687 0 0 1-1.86-.55L14.44 18c-.89-.15-1.73-.53-2.44-1.1-.5.15-1 .23-1.5.23-.88 0-1.76-.27-2.5-.79-.53.16-1.07.23-1.62.22-.79.01-1.57-.15-2.3-.45a4.1 4.1 0 0 1-2.43-3.61c-.08-.72.04-1.45.35-2.11-.29-.75-.32-1.57-.07-2.33C2.3 7.11 3 6.32 3.87 5.82c.58-1.69 2.21-2.82 4-2.7 1.6-1.5 4.05-1.66 5.83-.37.42-.11.86-.17 1.3-.17 1.36-.03 2.65.57 3.5 1.64 2.04.53 3.5 2.35 3.58 4.47.05 1.11-.25 2.2-.86 3.13.07.36.11.72.11 1.09m-5-1.41c.57.07 1.02.5 1.02 1.07a1 1 0 0 1-1 1h-.63c-.32.9-.88 1.69-1.62 2.29.25.09.51.14.77.21 5.13-.07 4.53-3.2 4.53-3.25a2.59 2.59 0 0 0-2.69-2.49 1 1 0 0 1-1-1 1 1 0 0 1 1-1c1.23.03 2.41.49 3.33 1.3.05-.29.08-.59.08-.89-.06-1.24-.62-2.32-2.87-2.53-1.25-2.96-4.4-1.32-4.4-.4-.03.23.21.72.25.75a1 1 0 0 1 1 1c0 .55-.45 1-1 1-.53-.02-1.03-.22-1.43-.56-.48.31-1.03.5-1.6.56-.57.05-1.04-.35-1.07-.9a.97.97 0 0 1 .88-1.1c.16-.02.94-.14.94-.77 0-.66.25-1.29.68-1.79-.92-.25-1.91.08-2.91 1.29C6.75 5 6 5.25 5.45 7.2 4.5 7.67 4 8 3.78 9c1.08-.22 2.19-.13 3.22.25.5.19.78.75.59 1.29-.19.52-.77.78-1.29.59-.73-.32-1.55-.34-2.3-.06-.32.27-.32.83-.32 1.27 0 .74.37 1.43 1 1.83.53.27 1.12.41 1.71.4q-.225-.39-.39-.81a1.038 1.038 0 0 1 1.96-.68c.4 1.14 1.42 1.92 2.62 2.05 1.37-.07 2.59-.88 3.19-2.13.23-1.38 1.34-1.5 2.56-1.5m2 7.47-.62-1.3-.71.16 1 1.25zm-4.65-8.61a1 1 0 0 0-.91-1.03c-.71-.04-1.4.2-1.93.67-.57.58-.87 1.38-.84 2.19a1 1 0 0 0 1 1c.57 0 1-.45 1-1 0-.27.07-.54.23-.76.12-.1.27-.15.43-.15.55.03 1.02-.38 1.02-.92"/></svg></span>
-          <span class="brand-copy">
-            <strong>memory-bank-skill</strong>
-            <span>Persistent memory for AI coding teams</span>
-          </span>
-        </a>
+    <a class="skip" href="#main">Skip to content</a>
 
-        <nav class="topnav" aria-label="Primary">
-          <a href="#problem">Problem</a>
-          <a href="#features">Features</a>
-          <a href="#v5">Pipeline</a>
-          <a href="#graph">Graph</a>
-          <a href="#workflow">How it works</a>
-          <a href="#install">Install</a>
-          <a href="https://fockus.github.io/skill-memory-bank/docs/">Docs</a>
-          <a href="https://github.com/fockus/skill-memory-bank">GitHub</a>
-        </nav>
-      </header>
+    <header class="topbar">
+      <a class="brand" href="#hero" aria-label="memory-bank-skill home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M21.33 12.91c.09 1.55-.62 3.04-1.89 3.95l.77 1.49c.23.45.26.98.06 1.45-.19.47-.58.84-1.06 1l-.79.25a1.687 1.687 0 0 1-1.86-.55L14.44 18c-.89-.15-1.73-.53-2.44-1.1-.5.15-1 .23-1.5.23-.88 0-1.76-.27-2.5-.79-.53.16-1.07.23-1.62.22-.79.01-1.57-.15-2.3-.45a4.1 4.1 0 0 1-2.43-3.61c-.08-.72.04-1.45.35-2.11-.29-.75-.32-1.57-.07-2.33C2.3 7.11 3 6.32 3.87 5.82c.58-1.69 2.21-2.82 4-2.7 1.6-1.5 4.05-1.66 5.83-.37.42-.11.86-.17 1.3-.17 1.36-.03 2.65.57 3.5 1.64 2.04.53 3.5 2.35 3.58 4.47.05 1.11-.25 2.2-.86 3.13.07.36.11.72.11 1.09m-5-1.41c.57.07 1.02.5 1.02 1.07a1 1 0 0 1-1 1h-.63c-.32.9-.88 1.69-1.62 2.29.25.09.51.14.77.21 5.13-.07 4.53-3.2 4.53-3.25a2.59 2.59 0 0 0-2.69-2.49 1 1 0 0 1-1-1 1 1 0 0 1 1-1c1.23.03 2.41.49 3.33 1.3.05-.29.08-.59.08-.89-.06-1.24-.62-2.32-2.87-2.53-1.25-2.96-4.4-1.32-4.4-.4-.03.23.21.72.25.75a1 1 0 0 1 1 1c0 .55-.45 1-1 1-.53-.02-1.03-.22-1.43-.56-.48.31-1.03.5-1.6.56-.57.05-1.04-.35-1.07-.9a.97.97 0 0 1 .88-1.1c.16-.02.94-.14.94-.77 0-.66.25-1.29.68-1.79-.92-.25-1.91.08-2.91 1.29C6.75 5 6 5.25 5.45 7.2 4.5 7.67 4 8 3.78 9c1.08-.22 2.19-.13 3.22.25.5.19.78.75.59 1.29-.19.52-.77.78-1.29.59-.73-.32-1.55-.34-2.3-.06-.32.27-.32.83-.32 1.27 0 .74.37 1.43 1 1.83.53.27 1.12.41 1.71.4q-.225-.39-.39-.81a1.038 1.038 0 0 1 1.96-.68c.4 1.14 1.42 1.92 2.62 2.05 1.37-.07 2.59-.88 3.19-2.13.23-1.38 1.34-1.5 2.56-1.5m2 7.47-.62-1.3-.71.16 1 1.25zm-4.65-8.61a1 1 0 0 0-.91-1.03c-.71-.04-1.4.2-1.93.67-.57.58-.87 1.38-.84 2.19a1 1 0 0 0 1 1c.57 0 1-.45 1-1 0-.27.07-.54.23-.76.12-.1.27-.15.43-.15.55.03 1.02-.38 1.02-.92"/></svg></span>
+        <span class="brand-copy">
+          <strong>memory-bank-skill</strong>
+          <span>v5.4.0</span>
+        </span>
+      </a>
 
-      <main>
-        <section class="hero" id="hero">
-          <div class="hero-copy reveal">
-            <svg class="hero-doodle" aria-hidden="true" viewBox="0 0 150 150" fill="none">
-              <circle cx="78" cy="72" r="62" stroke="#1f2430" stroke-opacity="0.14" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="255 135" transform="rotate(-38 78 72)"/>
-              <circle cx="78" cy="72" r="45" stroke="#1f2430" stroke-opacity="0.22" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="185 98" transform="rotate(74 78 72)"/>
-              <circle cx="78" cy="72" r="29" stroke="#1f2430" stroke-opacity="0.3" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="120 62" transform="rotate(-150 78 72)"/>
-              <circle cx="78" cy="72" r="9" fill="#b5d65b"/>
-              <circle cx="78" cy="72" r="3.2" fill="#fff9f1"/>
-              <circle cx="120" cy="52" r="4.2" fill="#b5d65b"/>
-              <circle cx="41" cy="105" r="3" fill="#1f2430" fill-opacity="0.55"/>
-              <path d="M25 34h12M31 28v12" stroke="#b5d65b" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <p class="eyebrow">Open source · MIT · v5.3.0</p>
-            <h1>AI coding agents should not wake up with amnesia.</h1>
-            <p class="hero-badges" aria-label="Project status">
-              <a href="https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml">
-                <img src="https://img.shields.io/github/actions/workflow/status/fockus/skill-memory-bank/test.yml?branch=main&label=tests&style=flat-square&color=brightgreen&v=300" alt="tests passing" />
-              </a>
-              <a href="https://pypi.org/project/memory-bank-skill/">
-                <img src="https://img.shields.io/pypi/v/memory-bank-skill?style=flat-square&color=brightgreen&label=pypi&v=300" alt="PyPI version" />
-              </a>
-              <a href="https://pypi.org/project/memory-bank-skill/">
-                <img src="https://img.shields.io/pypi/dm/memory-bank-skill?style=flat-square&color=brightgreen&v=300" alt="Downloads" />
-              </a>
-              <a href="https://github.com/fockus/skill-memory-bank/blob/main/LICENSE">
-                <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square&v=300" alt="License MIT" />
-              </a>
-            </p>
-            <p class="hero-lead">
-              Every new session starts with re-explaining the project, re-stating the plan, and
-              watching your rules get forgotten. <span>memory-bank-skill</span> ends that: a
-              <code>.memory-bank/</code> directory next to your code that the agent reads at session
-              start, updates as it works, and hands to the next session — or the next agent —
-              intact.
-            </p>
+      <nav class="topnav" aria-label="Primary">
+        <a href="#workflow">Flow</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#team">Team</a>
+        <a href="#drive">Drive</a>
+        <a href="#graph">Graph</a>
+        <a href="#qa">QA</a>
+        <a href="#commands">Commands</a>
+        <a href="https://fockus.github.io/skill-memory-bank/docs/">Docs</a>
+        <a href="https://github.com/fockus/skill-memory-bank">GitHub</a>
+      </nav>
 
-            <div class="hero-actions">
-              <a class="button primary" href="#install">Install in 5 minutes</a>
-              <a class="button secondary" href="https://fockus.github.io/skill-memory-bank/docs/">
-                Read the docs
-              </a>
-              <a class="button secondary" href="https://github.com/fockus/skill-memory-bank">
-                Star on GitHub
-              </a>
-            </div>
+      <a class="button primary small" href="#install">Install</a>
+    </header>
 
-            <div class="hero-proof">
-              <div>
-                <strong>Persistent memory</strong>
-                <span>Status, plans &amp; roadmap on disk</span>
-              </div>
-              <div>
-                <strong>Engineering rules</strong>
-                <span>TDD &amp; Clean Arch, enforced in agents</span>
-              </div>
-              <div>
-                <strong>SDD specs</strong>
-                <span>EARS reqs → executable tasks</span>
-              </div>
-              <div>
-                <strong>Work engine</strong>
-                <span>Implement → verify → review → judge</span>
-              </div>
-              <div>
-                <strong>Code graph</strong>
-                <span>Query, impact &amp; test targeting</span>
-              </div>
-              <div>
-                <strong>$0 by default</strong>
-                <span>Local files, no API keys</span>
-              </div>
-            </div>
+    <main id="main">
+      <!-- ================= HERO ================= -->
+      <section class="hero wrap" id="hero">
+        <div class="hero-copy">
+          <p class="kicker rise" style="--i: 0">
+            <span>5.4.0</span> Open source · MIT · the framework release
+          </p>
+          <h1 class="rise" style="--i: 1">
+            Vibe coding, with a <em>memory</em>, a <em>process</em> and a <em>team</em>.
+          </h1>
+          <p class="hero-lead rise" style="--i: 2">
+            <strong>memory-bank-skill</strong> began as long-term project memory for AI coding
+            agents. It is now a complete framework for agentic development: specs, a pipeline you
+            dial from one agent to a judged review ensemble, parallel agent teams, a goal loop that
+            only stops on evidence, a code graph and acceptance QA. Plain files in your repo. Nine
+            agent hosts. $0 by default.
+          </p>
+
+          <div class="hero-actions rise" style="--i: 3">
+            <a class="button primary" href="#install">Install in 5 minutes</a>
+            <a class="button ghost" href="#workflow">See how it works</a>
           </div>
 
-          <div class="hero-stage reveal reveal-delay-1">
-            <div class="signal-card">
-              <p class="signal-label">Session signal</p>
-              <div class="signal-orbit" aria-hidden="true">
-                <span class="signal-core"></span>
-                <span class="ring ring-one"></span>
-                <span class="ring ring-two"></span>
-                <span class="ring ring-three"></span>
-              </div>
-              <p class="signal-copy">
-                Status, plans, specs, research, lessons, code graph, and past sessions stay
-                navigable between chats — across compaction events and across agents.
-              </p>
-            </div>
+          <p class="hero-badges rise" style="--i: 4" aria-label="Project status">
+            <a href="https://github.com/fockus/skill-memory-bank/actions/workflows/test.yml">
+              <img src="https://img.shields.io/github/actions/workflow/status/fockus/skill-memory-bank/test.yml?branch=main&label=tests&style=flat-square&color=brightgreen&v=540" alt="tests passing" />
+            </a>
+            <a href="https://pypi.org/project/memory-bank-skill/">
+              <img src="https://img.shields.io/pypi/v/memory-bank-skill?style=flat-square&color=brightgreen&label=pypi&v=540" alt="PyPI version" />
+            </a>
+            <a href="https://pypi.org/project/memory-bank-skill/">
+              <img src="https://img.shields.io/pypi/dm/memory-bank-skill?style=flat-square&color=brightgreen&v=540" alt="Downloads" />
+            </a>
+            <a href="https://github.com/fockus/skill-memory-bank/blob/main/LICENSE">
+              <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square&v=540" alt="License MIT" />
+            </a>
+          </p>
+        </div>
 
-            <div class="terminal-card">
-              <div class="terminal-top">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-              <pre class="terminal-copy"><code>$ pipx install memory-bank-skill
-$ memory-bank install   # Claude Code · Cursor · Codex · …
-
-.memory-bank/
-├── status.md      ← where we are, what's next
-├── checklist.md   ← tasks ✅ / ⬜
-├── roadmap.md     ← priorities, direction
-├── agreements.md  ← confirmed decisions (AGR-NNN)
-├── plans/ specs/  ← executable plans &amp; SDD specs
-├── notes/ lessons.md
-├── session/       ← cross-chat memory (/mb recall)
-└── codebase/      ← stack map + code graph
-
-$ /mb start
-[context] active plan loaded
-[rules] tdd + clean architecture + fsd
-[next] resume exactly where we stopped<span class="term-cursor" aria-hidden="true"></span></code></pre>
-            </div>
+        <figure class="plate run rise" style="--i: 2">
+          <div class="plate-bar" aria-hidden="true">
+            <i></i><i></i><i></i>
+            <span>~/shop — /mb drive</span>
           </div>
-        </section>
+          <div class="run-log" role="img" aria-label="An illustrative /mb drive run: the plan is approved once, then parallel tracks implement, verify, review and QA the work until the firewall is green.">
+            <span class="ln" style="--i: 1"><b class="pr">$</b> /mb drive --goal goal.md</span>
+            <span class="ln" style="--i: 2"><b class="tag t-human">plan</b>      3 criteria → 2 plans · 1 spec   <i>approved by you</i></span>
+            <span class="ln rule" style="--i: 3">execution — no questions until a stop</span>
+            <span class="ln" style="--i: 4"><b class="tag">team</b>      wave 1   A api ∥ B web ∥ C e2e</span>
+            <span class="ln" style="--i: 5"><b class="tag">work A</b>    implement → verify                  <u>✓</u></span>
+            <span class="ln" style="--i: 6"><b class="tag">work B</b>    implement → verify → review → fix   <u>✓</u></span>
+            <span class="ln" style="--i: 7"><b class="tag">qa</b>        checkout-pay <u>✓</u>  guest-pay <u>✓</u>   0 open bugs</span>
+            <span class="ln" style="--i: 8"><b class="tag">firewall</b>  tests <u>✓</u> lint <u>✓</u> scope <u>✓</u> acceptance 3/3</span>
+            <span class="ln ok" style="--i: 9">stop_success — goal met from evidence<span class="term-cursor" aria-hidden="true"></span></span>
+          </div>
+          <figcaption class="fig-cap">
+            <b>Fig. 1</b> An illustrative <code>/mb drive</code> run. You approve the plan once;
+            the loop runs to the firewall.
+          </figcaption>
+        </figure>
+      </section>
 
-        <section class="agent-ribbon" aria-label="Supported AI coding agents">
-          <span>Claude Code</span>
-          <span>Cursor</span>
-          <span>Codex</span>
-          <span>OpenCode</span>
-          <span>Windsurf</span>
-          <span>Cline</span>
-          <span>Kilo</span>
-          <span>Pi Code</span>
-        </section>
+      <div class="wrap">
+        <dl class="stats reveal">
+          <div><dt>9</dt><dd>agent hosts</dd></div>
+          <div><dt>45+</dt><dd><code>/mb</code> commands</dd></div>
+          <div><dt>29</dt><dd>subagents</dd></div>
+          <div><dt>7,000+</dt><dd>automated tests</dd></div>
+          <div><dt>$0</dt><dd>local files, no API keys</dd></div>
+        </dl>
 
-        <section class="problem section" id="problem">
-          <div class="section-heading reveal">
-            <p class="eyebrow">The problem</p>
-            <h2>The tooling is smart. The memory model is fragile.</h2>
+        <ul class="hosts" aria-label="Supported AI coding agents">
+          <li>Claude Code</li>
+          <li>Cursor</li>
+          <li>Codex</li>
+          <li>OpenCode</li>
+          <li>Windsurf</li>
+          <li>Cline</li>
+          <li>Kilo</li>
+          <li>Pi Code</li>
+          <li>Hermes</li>
+        </ul>
+      </div>
+
+      <!-- ================= WHAT'S NEW ================= -->
+      <section class="section wrap" id="release">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>01</span> New in 5.4.0</p>
+          <h2>233 commits later, it is no longer <em>just</em> memory.</h2>
+          <p class="sec-lead">
+            The 5.4 release turns the work pipeline into a full delivery system: run a task as a
+            team, hand over a goal and walk away, and prove the result against the live product.
+          </p>
+        </header>
+
+        <div class="bento">
+          <a class="bento-card big reveal" href="#team">
+            <span class="chip new">new</span>
+            <h3><code>/mb team</code></h3>
+            <p class="bento-title">Parallel tracks in one working tree.</p>
             <p>
-              LLM agents are stateless by design. Without a durable memory layer you pay the same
-              tax every single day — in tokens, in time, and in architecture drift.
+              Split a task into tracks with owned file globs. Each track is a role agent running
+              the full <code>/mb work</code> loop; waves, locks, shared foundations and a scoped
+              commit keep them out of each other's way.
             </p>
-          </div>
+            <span class="more">How a team runs →</span>
+          </a>
 
-          <div class="problem-grid">
-            <article class="feature-card accent-sand reveal">
-              <h3>Session cold starts</h3>
-              <p>
-                Yesterday's decisions disappear. Today's agent re-asks the same questions, re-reads
-                half the repo, burns tokens, and repeats mistakes you already fixed once.
-              </p>
-            </article>
-
-            <article class="feature-card accent-lime reveal reveal-delay-1">
-              <h3>Rule drift</h3>
-              <p>
-                TDD, architecture boundaries, review rituals — repeated in chat, forgotten by the
-                next session. Shared constraints decay into wishful thinking.
-              </p>
-            </article>
-
-            <article class="feature-card accent-ink reveal reveal-delay-2">
-              <h3>Tool lock-in</h3>
-              <p>
-                Claude Code, Cursor, Codex, and OpenCode each invent their own glue. Your project
-                memory should outlive the agent you happen to use this week.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section class="features section" id="features">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Everything inside</p>
-            <h2>Not a notes folder. A full operating system for AI-assisted work.</h2>
+          <a class="bento-card big ink reveal" href="#drive">
+            <span class="chip new">rebuilt</span>
+            <h3><code>/mb drive</code></h3>
+            <p class="bento-title">Hand over a goal. Get evidence back.</p>
             <p>
-              Three layers in one skill: long-term project memory, an always-on engineering
-              ruleset, and a 50+ command dev toolkit — all plain files in your repo, all working
-              offline, all free by default.
+              Plan every acceptance criterion with you once, then execute without you — through
+              <code>/mb work</code> and <code>/mb team</code> — until a deterministic firewall is
+              green, the budget ends, or a human decision is needed.
             </p>
-          </div>
+            <span class="more">The goal loop →</span>
+          </a>
 
-          <div class="features-grid">
-            <article class="capability-card reveal">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3Z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
-              </span>
-              <h3>Persistent project memory</h3>
-              <p>
-                <code>.memory-bank/</code> holds status, checklist, roadmap, plans, research,
-                lessons, and notes. It survives compaction, restarts, and agent switches. Commit it
-                and your teammate's agent catches up without a single question.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-1">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 4.6-3.2 7.9-8 9-4.8-1.1-8-4.4-8-9V7l8-4Z"/><path d="m9 12 2 2 4-4"/></svg>
-              </span>
-              <h3>Engineering rules, always on</h3>
-              <p>
-                TDD, SOLID, Clean Architecture, Feature-Sliced Design, Testing Trophy, coverage
-                targets — installed as global rules the agent reads at every session start. No more
-                reminding. Works even without a bank (rules-only mode).
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-2">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m7 9-3 3 3 3"/><path d="m17 9 3 3-3 3"/><path d="m13 5-2 14"/></svg>
-              </span>
-              <h3>50+ workflow commands</h3>
-              <p>
-                25 top-level commands (<code>/plan</code>, <code>/review</code>,
-                <code>/commit</code>, <code>/adr</code>, <code>/security-review</code>…) plus 25+
-                <code>/mb</code> sub-commands for the full memory lifecycle. <code>/mb help</code>
-                shows them live inside any agent.
-              </p>
-            </article>
-
-            <article class="capability-card reveal">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1.5"/><rect x="3" y="10" width="12" height="4" rx="1.5"/><rect x="3" y="16" width="16" height="4" rx="1.5"/></svg>
-              </span>
-              <h3>Composable work pipeline <em class="chip-new">new in v5</em></h3>
-              <p>
-                <code>/mb work</code> drives plans and specs through
-                <code>implement → verify → done</code> by default. Need more rigor? Flip on
-                <code>--review</code>, <code>--judge</code>, or the full 8-stage chain. You pay for
-                exactly the process you ask for.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-1">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8"/><path d="M5 4v16"/><path d="m11 9 2 2-2 2"/></svg>
-              </span>
-              <h3>Spec-driven development</h3>
-              <p>
-                <code>/mb discuss</code> interviews you into EARS-validated requirements,
-                <code>/mb sdd</code> turns them into a Kiro-style spec triple
-                (requirements / design / tasks), and <code>/mb work</code> executes the tasks one by
-                one — with verification gates between them.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-2">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="8" r="2.4"/><circle cx="9" cy="18" r="2.4"/><path d="M8 7.2 15.7 8M7 16.1 6.4 8.4M11.2 16.9l5.2-7"/></svg>
-              </span>
-              <h3>Code graph &amp; semantic search</h3>
-              <p>
-                <code>/mb graph</code> builds a multi-language code graph (Python, Go, JS/TS, Rust,
-                Java) with god-node detection, git co-change edges, and suggested questions.
-                Semantic search runs on free local BM25, with opt-in embeddings for concept queries.
-              </p>
-            </article>
-
-            <article class="capability-card reveal">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h13v14H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h13"/><path d="M9 7h6"/></svg>
-              </span>
-              <h3>LLM codebase wiki</h3>
-              <p>
-                <code>/mb wiki</code> writes a per-community wiki of your codebase and hunts for
-                surprising cross-module connections — using your host agent's subagents. No API key,
-                no external service.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-1">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>
-              </span>
-              <h3>Cross-session recall</h3>
-              <p>
-                Lifecycle hooks log every session automatically. <code>/mb recall "why did we pick
-                postgres"</code> searches past chats and notes — so decisions made three weeks ago
-                are one query away, not lost in a closed tab.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-2">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 4.3a2 2 0 0 1 3.4 0l1 1.6 1.9-.3a2 2 0 0 1 2.3 2.3l-.3 1.9 1.6 1a2 2 0 0 1 0 3.4l-1.6 1 .3 1.9a2 2 0 0 1-2.3 2.3l-1.9-.3-1 1.6a2 2 0 0 1-3.4 0l-1-1.6-1.9.3a2 2 0 0 1-2.3-2.3l.3-1.9-1.6-1a2 2 0 0 1 0-3.4l1.6-1-.3-1.9A2 2 0 0 1 7.4 5.6l1.9.3 1-1.6Z"/><circle cx="12" cy="12" r="2.6"/></svg>
-              </span>
-              <h3>Rule profiles &amp; presets</h3>
-              <p>
-                22 built-in presets tune the rules to your world — backend / frontend / mobile, Go
-                to TypeScript, microservices to FSD, TDD to legacy-safe. The safety baseline (no
-                placeholders, protected files, verify before done) can never be switched off.
-              </p>
-            </article>
-
-            <article class="capability-card reveal">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-2.8 2.9-4.5 5.5-4.5s4.9 1.7 5.5 4.5"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M15.8 14.7c2.3.2 4.2 1.7 4.7 4.3"/></svg>
-              </span>
-              <h3>A roster of subagents</h3>
-              <p>
-                Planner, plan-verifier, doctor, reviewer ensemble, test-runner, rules-enforcer, and
-                9 dev-role agents (backend, frontend, iOS, Android, QA, DevOps…) — each carrying an
-                evidence-before-claims discipline: no "tests pass" without the actual output.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-1">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>
-              </span>
-              <h3>8 agents, zero lock-in</h3>
-              <p>
-                One install wires Claude Code, Cursor, Codex, OpenCode, Windsurf, Cline, Kilo, and
-                Pi Code to the same memory model. Adapters merge idempotently into your existing
-                <code>AGENTS.md</code> and hooks — uninstalling one client never breaks another.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-2">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg>
-              </span>
-              <h3>Private &amp; local by design</h3>
-              <p>
-                Everything is markdown and JSON on your disk. Nothing is sent anywhere. API keys and
-                tokens (<code>sk-…</code>, <code>ghp_…</code>, JWTs…) are auto-redacted from session
-                capture before they ever reach disk; wrap anything else in
-                <code>&lt;private&gt;</code> tags to keep it out of every index and search.
-              </p>
-            </article>
-
-            <article class="capability-card reveal">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20.5 20.5-4.8-4.8"/><path d="m8.4 11 1.8 1.8 3.4-3.4"/></svg>
-              </span>
-              <h3>Reviewer 2.0 <em class="chip-new">new in 5.3</em></h3>
-              <p>
-                <code>mb-review.sh</code> assembles a calibrated, tests-aware review payload — plan
-                context, diff, few-shot rubric examples per stack, and an auto-injected
-                <code>tests</code> blocker whenever touched-file tests are already red. A golden
-                calibration suite guards the verdicts against drift.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-1">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.5h6v3H9z"/><path d="M15 5h3a1.5 1.5 0 0 1 1.5 1.5V19A1.5 1.5 0 0 1 18 20.5H6A1.5 1.5 0 0 1 4.5 19V6.5A1.5 1.5 0 0 1 6 5h3"/><path d="m7.5 15.5 3-3 2 2 3.5-4"/><path d="M16 10.5v2.5h-2.5"/></svg>
-              </span>
-              <h3>Sprint contracts &amp; strategic pivoting</h3>
-              <p>
-                <code>/mb work --contract</code> scaffolds a per-item sprint contract — scope, plan
-                of attack, test plan, DoD checkpoints, out-of-scope — before code lands. Review
-                cycles now track a progress trend and pivot the dispatch, in-role or via the
-                architect, instead of looping forever on a stagnant fix.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-2">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9.5 4v16"/><path d="M15 4v16"/><path d="M5.5 8h2.5"/><path d="M11 8h2.5"/><path d="M11 12h2.5"/><path d="M16.5 8H19"/></svg>
-              </span>
-              <h3>Cross-session coordination board</h3>
-              <p>
-                An append-only <code>COORDINATION.md</code> board lets two or more agent sessions
-                share one working tree safely — read before every stage, commit, and shared-file
-                edit, with FREEZE entries and scoped <code>git add</code> only. No more silent merge
-                collisions between parallel sessions.
-              </p>
-            </article>
-
-            <article class="capability-card reveal">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15.5a8 8 0 0 1 16 0"/><path d="M12 15.5 15.5 11"/><path d="M4.5 19.5h15"/></svg>
-              </span>
-              <h3>Context-window statusline</h3>
-              <p>
-                <code>/mb statusline</code> wires a Claude Code statusline that shows how much of the
-                context window is filled — model, git branch, and project alongside it — so you see a
-                compaction coming before it happens.
-              </p>
-            </article>
-
-            <article class="capability-card reveal reveal-delay-1">
-              <span class="capability-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h10A1.5 1.5 0 0 1 18.5 5v14a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z"/><path d="M9 8h6"/><path d="M9 11.5h4"/><path d="m9.5 16 1.6 1.6 3.4-3.6"/></svg>
-              </span>
-              <h3>Agreements registry <em class="chip-new">next up</em></h3>
-              <p>
-                Decisions you settle with the agent stop evaporating: <code>/mb agree</code> records
-                each one as <code>AGR-NNN</code> in <code>agreements.md</code>, a changed decision
-                supersedes the old one, and the active list is mirrored into
-                <code>CLAUDE.md</code>/<code>AGENTS.md</code> — every future session starts already
-                knowing what was agreed.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section class="v5 section" id="v5">
-          <div class="section-heading reveal">
-            <p class="eyebrow">The v5 line — now at 5.3.0</p>
-            <h2>The pipeline is now yours to compose.</h2>
+          <a class="bento-card reveal" href="#qa">
+            <span class="chip new">new</span>
+            <h3><code>/mb qa</code></h3>
             <p>
-              v5 makes process a dial, not a tax. The default flow is lean — review and judge are
-              opt-in stages you add per run, per project, or per preset. Canonical order is fixed;
-              invalid chains fail fast before any code is touched. The line keeps shipping since
-              5.0.0: calibrated Reviewer 2.0, sprint contracts with strategic pivoting, a
-              cross-session coordination board, and a context-window statusline — all opt-in, all
-              additive, current through 5.3.0.
+              Acceptance QA: a runner agent walks markdown scenarios against the live product —
+              browser, CLI or API — and files bugs by severity.
             </p>
-          </div>
+          </a>
 
-          <div class="v5-panel reveal">
-            <div class="pipeline-track" role="img" aria-label="Pipeline stages: discuss, sdd, plan are optional; implement, verify are default; review, judge are optional; done is default.">
-              <span class="stage opt">discuss</span>
-              <span class="stage-arrow" aria-hidden="true">→</span>
-              <span class="stage opt">sdd</span>
-              <span class="stage-arrow" aria-hidden="true">→</span>
-              <span class="stage opt">plan</span>
-              <span class="stage-arrow" aria-hidden="true">→</span>
-              <span class="stage core">implement</span>
-              <span class="stage-arrow" aria-hidden="true">→</span>
-              <span class="stage core">verify</span>
-              <span class="stage-arrow" aria-hidden="true">→</span>
-              <span class="stage opt">review</span>
-              <span class="stage-arrow" aria-hidden="true">→</span>
-              <span class="stage opt">judge</span>
-              <span class="stage-arrow" aria-hidden="true">→</span>
-              <span class="stage core">done</span>
-            </div>
-            <p class="pipeline-legend">
-              <span><i class="dot dot-core"></i> default (<code>execution</code> preset)</span>
-              <span><i class="dot dot-opt"></i> opt-in via flags, <code>pipeline.yaml</code>, or presets</span>
-            </p>
-
-            <div class="v5-grid">
-              <article class="v5-card">
-                <h3>Lean by default</h3>
-                <pre><code>/mb work my-feature
-# implement → verify → done</code></pre>
-                <p>Review is off by default. Fast iteration stays fast.</p>
-              </article>
-              <article class="v5-card">
-                <h3>Rigor on demand</h3>
-                <pre><code>/mb work payments --review --judge
-# + reviewer + independent judge
-# severity gate: blocker 0 · major 0</code></pre>
-                <p>Add a reviewer and an independent judge for the code that matters.</p>
-              </article>
-              <article class="v5-card">
-                <h3>The whole chain</h3>
-                <pre><code>/mb work checkout --workflow full
-# discuss → sdd → plan → implement
-# → verify → review → judge → done</code></pre>
-                <p>From requirements interview to judged delivery — one command.</p>
-              </article>
-            </div>
-
-            <p class="v5-footnote">
-              Three precedence layers: launch flags &gt; project <code>pipeline.yaml</code> &gt;
-              built-in default. The heavyweight 5-reviewer ensemble stays available as
-              <code>--workflow governed-execution</code>. Upgrading from v4?
-              <a href="https://fockus.github.io/skill-memory-bank/docs/MIGRATION-v4-v5/">One-page migration guide</a> — no file migration needed.
-            </p>
-          </div>
-        </section>
-
-        <section class="graph section" id="graph">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Code-graph intelligence</p>
-            <h2>Stop grepping. Query the codebase like a database.</h2>
+          <a class="bento-card reveal" href="#pipeline">
+            <span class="chip">changed</span>
+            <h3>Presets &amp; cost tiers</h3>
             <p>
-              <code>/mb graph</code> parses Python (stdlib <code>ast</code>) and Go, JS, TS, Rust,
-              Java (tree-sitter) into a deterministic JSON-Lines graph next to your code — with
-              god-node analytics, bridge-file detection, Louvain communities, and an incremental
-              cache that rebuilds in seconds. Then it gives you three different ways to ask
-              questions, all local.
+              <code>simple · medium · complex · governed</code> picked by task size, and
+              <code>premium · optimal · economy</code> model routing per role and host.
             </p>
-          </div>
+          </a>
 
-          <div class="v5-panel reveal">
-            <div class="v5-grid">
-              <article class="v5-card">
-                <h3>1 · Structural queries — $0, &lt;1s</h3>
-                <pre><code>$ mb-graph-query.py impact \
-    --symbol WriteFile
-# every caller, transitively —
-# the blast radius before you edit</code></pre>
-                <p>
-                  "Who calls X?" · "What breaks if I change X?" · "Which tests cover X?" —
-                  deterministic answers from <code>graph.json</code>, queryable with plain
-                  <code>jq</code>. No false positives from strings and comments.
-                </p>
-              </article>
-
-              <article class="v5-card">
-                <h3>2 · Semantic search — local, no API key</h3>
-                <pre><code>$ mb-semantic-search.py \
-    "how does auth token refresh work" \
-    --source-only</code></pre>
-                <p>
-                  Find code by meaning, not by name. Pure-Python BM25 always works; opt-in local
-                  embeddings handle concept queries. A code-aware tokenizer splits
-                  <code>camelCase</code> and <code>snake_case</code> for precision.
-                </p>
-              </article>
-
-              <article class="v5-card">
-                <h3>3 · LLM wiki — your agent's own subagents</h3>
-                <pre><code>$ /mb wiki
-# one article per module community
-# + "surprising connections" edges
-#   with confidence & rationale</code></pre>
-                <p>
-                  Haiku writes a wiki article per module cluster; Sonnet hunts non-obvious
-                  cross-module links and merges them into the graph idempotently. No extra API
-                  key — it reuses the agent you're already running.
-                </p>
-              </article>
-            </div>
-
-            <p class="v5-footnote">
-              Opt-in layers keep the base output byte-identical: <code>--cochange</code> mines git
-              history for files that change together without importing each other — coupling no AST
-              can see; <code>--questions</code> appends data-ranked "what to look at first"
-              questions; <code>--docs</code> enriches nodes with signatures and docstrings. Unlike
-              Aider's per-request repo-map or Cursor's server-side index, the graph is a
-              <strong>persistent, committable file living next to your plans and ADRs</strong> —
-              and the dev-role subagents check the blast radius through it before every edit.
-              <a href="https://fockus.github.io/skill-memory-bank/docs/concepts/code-graph/">How it works &amp; honest comparison</a>.
-            </p>
-          </div>
-        </section>
-
-        <section class="workflow section" id="workflow">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Getting started</p>
-            <h2>How it works.</h2>
+          <a class="bento-card reveal" href="#graph">
+            <span class="chip">changed</span>
+            <h3>Code graph, in daily use</h3>
             <p>
-              From an empty repo to a reviewed, remembered feature — the whole path, in the order you
-              actually run it. Optional steps are marked; nothing here needs an API key.
+              Bash and Bats join the graph, <code>mb-graph.sh</code> is one short command, and
+              every implementer, reviewer and judge prompt gets a bounded
+              <code>## Graph</code> block.
+            </p>
+          </a>
+
+          <a class="bento-card reveal" href="#workflow">
+            <span class="chip new">new</span>
+            <h3><code>/mb brief</code> &amp; task tiers</h3>
+            <p>
+              A raw request plus a pile of documents becomes a one-page brief; five task tiers
+              decide how much process the work deserves.
+            </p>
+          </a>
+
+          <div class="bento-card reveal">
+            <span class="chip new">new</span>
+            <h3>OpenSpec round-trip</h3>
+            <p>
+              <code>/mb work &lt;openspec-change&gt;</code> imports the change, executes it, and
+              ends with a dry-run export diff. Three-way sync; conflicts write nothing.
             </p>
           </div>
 
-          <div class="workflow-grid">
-            <article class="workflow-step reveal">
-              <span class="step-index">01</span>
-              <h3>Install the bank</h3>
+          <a class="bento-card reveal" href="#agents">
+            <span class="chip new">new</span>
+            <h3>Hermes, OpenCode 2, Codex subagents</h3>
+            <p>
+              A Hermes Agent plugin, native OpenCode 2 hooks, and every role installed as a
+              named, dispatchable subagent on Codex, Cursor and OpenCode.
+            </p>
+          </a>
+
+          <div class="bento-card reveal">
+            <span class="chip">leaner</span>
+            <h3>A 12 KB router</h3>
+            <p>
+              <code>/mb</code> loads a ~12 KB router instead of ~111 KB; the always-loaded project
+              rules dropped from ~51 KB to ~4.3 KB. More context left for your code.
+            </p>
+          </div>
+
+          <div class="bento-card reveal">
+            <span class="chip new">new</span>
+            <h3>Key rules &amp; 5 languages</h3>
+            <p>
+              <code>/mb rules</code> picks the short rule set that opens every session; rules and
+              templates now ship in English, Russian, Spanish, Portuguese and Chinese.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PROBLEM ================= -->
+      <section class="section wrap" id="problem">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>02</span> The problem</p>
+          <h2>Agents write code fast. Left alone, they <em>drift</em>.</h2>
+        </header>
+
+        <div class="triad">
+          <article class="reveal">
+            <span class="triad-n">i.</span>
+            <h3>Amnesia</h3>
+            <p>
+              Every session starts cold. Yesterday's decisions are gone, the plan is re-explained,
+              and compaction erases whatever the agent finally learned.
+            </p>
+          </article>
+          <article class="reveal">
+            <span class="triad-n">ii.</span>
+            <h3>"Done" without proof</h3>
+            <p>
+              The agent says the feature works. Nobody ran the suite, read the diff against the
+              plan, or clicked through the product. Vibes are not evidence.
+            </p>
+          </article>
+          <article class="reveal">
+            <span class="triad-n">iii.</span>
+            <h3>One agent, one lane</h3>
+            <p>
+              Run two sessions in the same repo and they overwrite each other. Run one and a
+              three-module feature takes all afternoon.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================= FRAMEWORK STACK ================= -->
+      <section class="section wrap" id="features">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>03</span> The framework</p>
+          <h2>Six layers. Use one, or <em>all</em> of them.</h2>
+          <p class="sec-lead">
+            Each layer is plain markdown, YAML and shell next to your code, and each one works
+            without the layers above it. Start with memory; add process when the task earns it.
+          </p>
+        </header>
+
+        <div class="stack-grid">
+          <ol class="stack reveal">
+            <li>
+              <a href="#memory">
+                <span class="stack-n">L1</span>
+                <span class="stack-name">Memory <i>remembers</i></span>
+                <span class="stack-desc">Status, plans, decisions and past sessions in <code>.memory-bank/</code>, read at every session start.</span>
+                <span class="stack-cmd">/mb start · /mb done · /mb recall</span>
+              </a>
+            </li>
+            <li>
+              <a href="#commands">
+                <span class="stack-n">L2</span>
+                <span class="stack-name">Rules <i>constrain</i></span>
+                <span class="stack-desc">Key rules, TDD, architecture boundaries and 20+ presets — always loaded, under 3 KB.</span>
+                <span class="stack-cmd">/mb rules · /mb profile</span>
+              </a>
+            </li>
+            <li>
+              <a href="#workflow">
+                <span class="stack-n">L3</span>
+                <span class="stack-name">Specs <i>shape</i></span>
+                <span class="stack-desc">A raw request becomes a brief, EARS requirements, a spec triple and a plan with a Definition of Done.</span>
+                <span class="stack-cmd">/mb brief · discuss · sdd · plan</span>
+              </a>
+            </li>
+            <li>
+              <a href="#pipeline">
+                <span class="stack-n">L4</span>
+                <span class="stack-name">Pipeline <i>executes</i></span>
+                <span class="stack-desc">Role agents implement each item under TDD; verifier, reviewers and a judge join by preset.</span>
+                <span class="stack-cmd">/mb work</span>
+              </a>
+            </li>
+            <li>
+              <a href="#team">
+                <span class="stack-n">L5</span>
+                <span class="stack-name">Team <i>parallelises</i></span>
+                <span class="stack-desc">Several tracks at once in one tree, each with its own files, pipeline and report.</span>
+                <span class="stack-cmd">/mb team</span>
+              </a>
+            </li>
+            <li>
+              <a href="#drive">
+                <span class="stack-n">L6</span>
+                <span class="stack-name">Drive <i>finishes</i></span>
+                <span class="stack-desc">A goal file with acceptance criteria, driven to completion without you in the loop.</span>
+                <span class="stack-cmd">/mb goal · /mb drive</span>
+              </a>
+            </li>
+          </ol>
+
+          <div class="rails">
+            <a class="rail reveal" href="#graph">
+              <p class="rail-label">Across every layer</p>
+              <h3>Code graph <i>sees</i></h3>
               <p>
-                <code>/mb init</code> creates <code>.memory-bank/</code> and detects your stack.
-                <em>Optional:</em> <code>/mb map</code> + <code>/mb graph</code> index the codebase into
-                a map and a code graph for fast, structural search.
+                Who calls this, what breaks if it changes, which tests cover it — answered from a
+                committed graph instead of a grep guess.
               </p>
-            </article>
+              <span class="stack-cmd">mb-graph.sh who-calls · impact · tests</span>
+            </a>
+            <a class="rail reveal" href="#qa">
+              <p class="rail-label">Across every layer</p>
+              <h3>Gates <i>prove</i></h3>
+              <p>
+                Tests, lint, diff scope, protected paths, acceptance criteria and QA bugs — one
+                firewall with one exit code decides whether work is done.
+              </p>
+              <span class="stack-cmd">/mb verify · /mb qa · firewall</span>
+            </a>
+          </div>
+        </div>
+      </section>
 
-            <article class="workflow-step reveal reveal-delay-1">
-              <span class="step-index">02</span>
+      <!-- ================= FLOW ================= -->
+      <section class="section wrap" id="workflow">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>04</span> The flow</p>
+          <h2>From a raw idea to <em>verified</em> code.</h2>
+          <p class="sec-lead">
+            One path, eight stations, each leaving a file behind. How many stations a task visits
+            depends on its size — a typo does not get a ceremony, a payment flow does not get a
+            shortcut. Pick a size to see its route.
+          </p>
+          <a class="guide" href="https://fockus.github.io/skill-memory-bank/docs/flow/">Read the flow guide →</a>
+        </header>
+
+        <figure class="flow reveal">
+          <div class="tier-tabs" role="radiogroup" aria-label="Task size">
+            <label><input type="radio" name="tier" id="t-trivial" />trivial</label>
+            <label><input type="radio" name="tier" id="t-small" />small</label>
+            <label><input type="radio" name="tier" id="t-standard" checked />standard</label>
+            <label><input type="radio" name="tier" id="t-large" />large</label>
+            <label><input type="radio" name="tier" id="t-extra" />extra</label>
+          </div>
+
+          <div class="tier-notes" aria-live="polite">
+            <p class="tn tn-trivial">
+              <b>A typo, a config value, a rename.</b> No plan, no pipeline: edit, then run the one
+              test or lint that covers the touched line.
+            </p>
+            <p class="tn tn-small">
+              <b>One feature in 1–3 files with a clear contract.</b> Done inline with one test per
+              stated behavior. Ask for <code>/mb work</code> and it runs preset
+              <code>simple</code> — the implementer checks its own work.
+            </p>
+            <p class="tn tn-standard">
+              <b>Several modules, a new endpoint with storage, a refactor with callers.</b>
+              <code>/mb plan</code>, then <code>/mb work</code> on preset <code>medium</code>: one
+              implementer per item and one verifier pass at the end of the plan.
+            </p>
+            <p class="tn tn-large">
+              <b>A new subsystem, or requirements nobody has pinned down.</b> The spec is the
+              source of truth: <code>discuss → sdd</code>, then <code>/mb work</code> on preset
+              <code>complex</code> — adds a reviewer and a bounded fix loop.
+            </p>
+            <p class="tn tn-extra">
+              <b>Security, money, user data, reliability — at any size.</b> Preset
+              <code>governed</code>: verifier, a five-lens review ensemble, an independent judge, a
+              fix loop, the full suite and every configured gate.
+            </p>
+          </div>
+
+          <ol class="flow-track">
+            <li class="node on-large on-extra">
+              <span class="node-n">01</span>
+              <h3>Brief</h3>
+              <code>/mb brief</code>
+              <p>A raw request and attached documents become a one-page brief.</p>
+              <span class="node-out">briefs/&lt;topic&gt;/</span>
+            </li>
+            <li class="node on-large on-extra">
+              <span class="node-n">02</span>
               <h3>Discuss</h3>
-              <p>
-                <code>/mb discuss &lt;topic&gt;</code> runs a short requirements interview and writes an
-                EARS-validated context file — the spec starts from real intent, not guesses.
-              </p>
-            </article>
-
-            <article class="workflow-step reveal reveal-delay-2">
-              <span class="step-index">03</span>
-              <h3>Spec it — SDD</h3>
-              <p>
-                <code>/mb sdd &lt;topic&gt;</code> turns the discussion into a spec triple:
-                <code>requirements</code>, <code>design</code>, and an executable
-                <code>tasks.md</code>.
-              </p>
-            </article>
-
-            <article class="workflow-step reveal reveal-delay-3">
-              <span class="step-index">04</span>
-              <h3>Execute</h3>
-              <p>
-                <code>/mb work &lt;topic&gt;</code> drives every task through the governed loop —
-                <strong>plan → implement → verify → review → judge</strong> — under TDD and Clean
-                Architecture.
-              </p>
-            </article>
-
-            <article class="workflow-step reveal">
-              <span class="step-index">05</span>
+              <code>/mb discuss</code>
+              <p>A five-phase interview writes EARS-validated requirements.</p>
+              <span class="node-out">context/&lt;topic&gt;.md</span>
+            </li>
+            <li class="node on-large on-extra">
+              <span class="node-n">03</span>
+              <h3>Spec</h3>
+              <code>/mb sdd</code>
+              <p>Requirements, design and executable tasks — one spec triple.</p>
+              <span class="node-out">specs/&lt;topic&gt;/</span>
+            </li>
+            <li class="node on-standard on-large on-extra">
+              <span class="node-n">04</span>
+              <h3>Plan</h3>
+              <code>/mb plan</code>
+              <p>Stages with a SMART Definition of Done; QA is declared up front.</p>
+              <span class="node-out">plans/&lt;date&gt;_&lt;topic&gt;.md</span>
+            </li>
+            <li class="node on-trivial on-small on-standard on-large on-extra">
+              <span class="node-n">05</span>
+              <h3>Work</h3>
+              <code>/mb work</code>
+              <p>Role agents implement each item under TDD. Gates join by preset.</p>
+              <span class="node-out">code + tests</span>
+            </li>
+            <li class="node on-standard on-large on-extra">
+              <span class="node-n">06</span>
+              <h3>QA</h3>
+              <code>/mb qa run</code>
+              <p>A runner agent walks acceptance scenarios against the live product.</p>
+              <span class="node-out">qa/runs/ · qa/bugs.md</span>
+            </li>
+            <li class="node on-standard on-large on-extra">
+              <span class="node-n">07</span>
               <h3>Verify</h3>
+              <code>/mb verify</code>
+              <p>The plan-verifier audits the real diff against every DoD line.</p>
+              <span class="node-out">verdict + evidence</span>
+            </li>
+            <li class="node on-small on-standard on-large on-extra">
+              <span class="node-n">08</span>
+              <h3>Done</h3>
+              <code>/mb done</code>
+              <p>Progress, status and a session note are saved. The next chat starts warm.</p>
+              <span class="node-out">progress.md · status.md</span>
+            </li>
+          </ol>
+
+          <div class="loop">
+            <p class="loop-label">Inside station 05 — one item of <code>/mb work</code></p>
+            <div class="loop-track">
+              <span class="lp on-trivial on-small on-standard on-large on-extra">implement</span>
+              <span class="lp on-standard on-large on-extra">verify</span>
+              <span class="lp on-large on-extra">review</span>
+              <span class="lp on-extra">judge</span>
+              <span class="lp on-large on-extra">fix ↺</span>
+              <span class="lp end on-trivial on-small on-standard on-large on-extra">item done</span>
+            </div>
+          </div>
+
+          <figcaption class="fig-cap">
+            <b>Fig. 2</b> Stations a task visits, by size. An explicit request always beats the
+            estimate: ask for a plan or a review and you get one.
+          </figcaption>
+        </figure>
+      </section>
+
+      <!-- ================= NIGHT BAND: PIPELINE · TEAM · DRIVE ================= -->
+      <div class="band">
+        <section class="section wrap" id="pipeline">
+          <header class="sec-head reveal">
+            <p class="kicker"><span>05</span> The pipeline — <code>/mb work</code></p>
+            <h2>Process is a dial, <em>not</em> a tax.</h2>
+            <p class="sec-lead">
+              <code>/mb work</code> takes a plan or a spec and runs each item through a chain of
+              subagents. Four presets set how long that chain is. Canonical order is fixed; an
+              invalid chain fails before any code is touched.
+            </p>
+            <a class="guide" href="https://fockus.github.io/skill-memory-bank/docs/routes-and-firewall/">Routes, firewall and cost →</a>
+          </header>
+
+          <figure class="reveal">
+            <div class="table-scroll">
+              <table class="presets">
+                <thead>
+                  <tr>
+                    <th scope="col">Preset</th>
+                    <th scope="col">implement</th>
+                    <th scope="col">verify</th>
+                    <th scope="col">review</th>
+                    <th scope="col">judge</th>
+                    <th scope="col">fix loop</th>
+                    <th scope="col">Dispatches per item</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row"><b>simple</b><span>small tasks</span></th>
+                    <td class="on">self-check</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td class="num">1</td>
+                  </tr>
+                  <tr class="is-default">
+                    <th scope="row"><b>medium</b><span>standard · default</span></th>
+                    <td class="on">role agent</td>
+                    <td class="on">once per plan</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td class="num">1 <small>+ 1 verifier per plan</small></td>
+                  </tr>
+                  <tr>
+                    <th scope="row"><b>complex</b><span>large tasks</span></th>
+                    <td class="on">role agent</td>
+                    <td class="on">once per plan</td>
+                    <td class="on">1 reviewer</td>
+                    <td>—</td>
+                    <td class="on">bounded</td>
+                    <td class="num">2 <small>clean · ≤ 6 with fixes</small></td>
+                  </tr>
+                  <tr>
+                    <th scope="row"><b>governed</b><span>extra · high stakes</span></th>
+                    <td class="on">role agent</td>
+                    <td class="on">once per plan</td>
+                    <td class="on">5-lens ensemble</td>
+                    <td class="on">independent</td>
+                    <td class="on">fix or backlog</td>
+                    <td class="num">8 <small>clean · up to ~25</small></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <figcaption class="fig-cap">
+              <b>Fig. 3</b> The four complexity presets. Review lenses: logic, quality, security,
+              scalability, tests. <code>--verify=stage|plan|run|off</code> changes the verifier
+              cadence for one run.
+            </figcaption>
+          </figure>
+
+          <div class="cards-3">
+            <article class="card reveal">
+              <h3>Models by role, not by habit</h3>
               <p>
-                <code>/mb verify</code> re-reads the plan and audits the real diff against every DoD
-                item — required before anything is called done.
+                A cost tier maps every role class to a model slot. The default,
+                <code>optimal</code>, puts thinking roles on the premium model and doing roles on
+                the mid one.
+              </p>
+              <pre><code>cost: optimal   <i># premium | optimal | economy</i>
+<i># planner · reviewer · judge → premium</i>
+<i># implementer · verifier     → mid</i>
+model_profiles:
+  claude-code: {premium: opus, mid: sonnet}
+  codex: {premium: gpt-6-astra, mid: gpt-6.1-sol}</code></pre>
+              <p class="fine">
+                <code>/mb cost</code> reports what a run actually spent — per session, per role,
+                per work item.
               </p>
             </article>
 
-            <article class="workflow-step reveal reveal-delay-1">
-              <span class="step-index">06</span>
-              <h3>Done</h3>
+            <article class="card reveal">
+              <h3>Routes with a floor</h3>
               <p>
-                <code>/mb done</code> appends progress, updates status and roadmap, and saves the
-                session — the next chat starts warm and <code>/mb recall</code>-able.
+                <code>/mb analyze-task</code> classifies the work into one route;
+                <code>/mb flow &lt;route&gt;</code> pins it by hand.
+              </p>
+              <ul class="route-list">
+                <li><b>research</b> a spike; the report is the result</li>
+                <li><b>bugfix</b> reproduce → debug → patch</li>
+                <li><b>code-change</b> the default, inside existing seams</li>
+                <li><b>arch</b> contracts, domain rules, ports</li>
+                <li><b>migration</b> schema or data, with ordering risk</li>
+              </ul>
+              <p class="fine">
+                Touch <code>domain/</code>, a port or a protected path and the route is raised to
+                <code>arch</code>. An override can raise a route, never lower it.
+              </p>
+            </article>
+
+            <article class="card reveal">
+              <h3>One firewall, one exit code</h3>
+              <p>
+                <code>mb-flow-verify.sh</code> fans out to every check and owns the verdict. A
+                flow is never declared finished on red.
+              </p>
+              <ul class="check-list">
+                <li class="blk">acceptance</li>
+                <li class="blk">tests</li>
+                <li class="blk">diff scope</li>
+                <li class="blk">protected paths</li>
+                <li class="blk">QA bugs</li>
+                <li>rules</li>
+                <li>lint</li>
+                <li>no TODOs</li>
+              </ul>
+              <p class="fine">
+                <code>0</code> pass · <code>1</code> a check is red, named with its findings ·
+                <code>2</code> a check itself broke — never swallowed as a pass.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <!-- ---------- TEAM ---------- -->
+        <section class="section wrap" id="team">
+          <header class="sec-head reveal">
+            <p class="kicker"><span>06</span> Parallel tracks — <code>/mb team</code></p>
+            <h2>Several agents, one working tree, <em>zero</em> collisions.</h2>
+            <p class="sec-lead">
+              A team runs one task as tracks. Each track is a role agent that owns a set of file
+              globs, runs the complete <code>/mb work</code> loop for its part, writes one report
+              and talks only to a shared board. You see the plan and say yes before the first
+              dispatch.
+            </p>
+            <a class="guide" href="https://fockus.github.io/skill-memory-bank/docs/mb-team/">Read the /mb team guide →</a>
+          </header>
+
+          <figure class="reveal">
+            <div class="lanes">
+              <span class="lanes-h"></span>
+              <span class="lanes-h">Wave 1</span>
+              <span class="lanes-h">Wave 2</span>
+              <span class="lanes-h">Wave end</span>
+
+              <div class="lane-id"><b>F</b><span>mb-architect</span><code>platform/http/**</code></div>
+              <div class="bar bar-f" style="grid-column: 2">extract shared http-client</div>
+              <div class="bar-gap" style="grid-column: 3"></div>
+
+              <div class="lane-id"><b>A</b><span>mb-backend</span><code>api/**</code></div>
+              <div class="bar-gap dep" style="grid-column: 2">waits for F</div>
+              <div class="bar" style="grid-column: 3">implement → verify</div>
+
+              <div class="lane-id"><b>B</b><span>mb-frontend</span><code>web/**</code></div>
+              <div class="bar-gap dep" style="grid-column: 2">waits for F</div>
+              <div class="bar" style="grid-column: 3">implement → verify → review</div>
+
+              <div class="lane-id"><b>C</b><span>mb-qa</span><code>tests/e2e/**</code></div>
+              <div class="bar" style="grid-column: 2 / span 2">write acceptance cases → run them</div>
+
+              <ol class="lanes-end">
+                <li>collect reports</li>
+                <li>verify every spec REQ</li>
+                <li>team review</li>
+                <li class="human">scoped commit · y/N</li>
+              </ol>
+            </div>
+            <figcaption class="fig-cap">
+              <b>Fig. 4</b> Tracks A and B both need an HTTP client, so the plan blocks until a
+              foundation track owns it. Overlapping globs never run in the same wave.
+            </figcaption>
+          </figure>
+
+          <div class="cards-3">
+            <article class="card reveal">
+              <h3>Files have one owner</h3>
+              <p>
+                Every track declares its globs and dependencies; waves are computed from both. Two
+                tracks whose globs overlap never run at once, and heavy shared commands — a native
+                build, the full suite — wait in a fair FIFO lock queue.
+              </p>
+            </article>
+            <article class="card reveal">
+              <h3>No copy-paste foundations</h3>
+              <p>
+                When several tracks need the same mechanism, the plan stops and proposes a
+                foundation track. A registry of shared mechanisms tells every prompt "use this, do
+                not copy it" — a second copy is a review blocker.
+              </p>
+            </article>
+            <article class="card reveal">
+              <h3>Contracts that execute</h3>
+              <p>
+                A track can carry a frozen contract: spec, rules and DoD checks that must be red
+                before the work and green after it. The commit runs it again and refuses a changed
+                lock. Nothing is pushed for you.
               </p>
             </article>
           </div>
 
-          <div class="workflow-extras">
-            <article class="install-card reveal">
-              <h3>Configure the pipeline</h3>
+          <pre class="snippet reveal"><code><i># a team is three commands and a loop</i>
+/mb team init checkout --goal G-004 --max-parallel 4
+/mb team track add A --role backend --files 'api/**' --size standard \
+     --task "Card payments endpoint" --dod "An unknown card is refused with 402 and a test proves it"
+/mb team plan      <i># tracks, waves, pipeline per track — you confirm</i>
+/mb team next      <i># one action per line: dispatch · fix · collect · stop_human · stop_success</i></code></pre>
+          <p class="fine center reveal">
+            Stateless by design: everything resumes from <code>team.json</code>, the brief, the
+            reports and the board after a compaction or a restart.
+          </p>
+        </section>
+
+        <!-- ---------- DRIVE ---------- -->
+        <section class="section wrap" id="drive">
+          <header class="sec-head reveal">
+            <p class="kicker"><span>07</span> The goal loop — <code>/mb drive</code></p>
+            <h2>Vibes in. <em>Evidence</em> out.</h2>
+            <p class="sec-lead">
+              Write the end state as acceptance criteria. Drive plans every criterion with you,
+              takes one batch of approvals, then runs on its own. The agent's feeling that the work
+              looks finished is never a stop — only evidence is.
+            </p>
+            <a class="guide" href="https://fockus.github.io/skill-memory-bank/docs/mb-drive/">Read the /mb drive guide →</a>
+          </header>
+
+          <figure class="reveal">
+            <div class="drive">
+              <div class="phase">
+                <p class="phase-label human">Phase 1 · with you</p>
+                <h3>Planning</h3>
+                <ol>
+                  <li>Size each criterion by tier</li>
+                  <li>Small work gets a plan, big work a spec</li>
+                  <li>Link the evidence: <code>plan:</code> and <code>check:</code></li>
+                  <li>Approve every spec in one batch</li>
+                </ol>
+              </div>
+
+              <div class="gate" aria-hidden="true"><span>gate</span></div>
+
+              <div class="phase wide">
+                <p class="phase-label">Phase 2 · without you</p>
+                <h3>Execution</h3>
+                <div class="loop-ring">
+                  <code class="ring-core">next</code>
+                  <span class="act">work</span>
+                  <span class="act">team</span>
+                  <span class="act">pivot</span>
+                  <span class="act">qa</span>
+                  <span class="act">wait</span>
+                  <span class="act">final_qa</span>
+                </div>
+                <p class="fine">
+                  One action per call; state lives in <code>.drive/&lt;run_id&gt;.json</code>, so a
+                  compacted or resumed session continues where it stopped. A stalled plan is
+                  re-decomposed by the architect before a human is asked.
+                </p>
+              </div>
+
+              <div class="stops">
+                <p class="stop ok"><b>stop_success</b>goal met from evidence, final QA and firewall green</p>
+                <p class="stop warn"><b>stop_budget</b>the token budget of the run is spent</p>
+                <p class="stop bad"><b>stop_human</b>a stall, a red acceptance check, a blocking QA bug</p>
+              </div>
+            </div>
+            <figcaption class="fig-cap">
+              <b>Fig. 5</b> Two phases and exactly three ways to end. Drive runs no gates of its
+              own: every check happens inside <code>/mb work</code> and each team track.
+            </figcaption>
+          </figure>
+
+          <div class="split">
+            <pre class="snippet reveal"><code><i># .memory-bank/goal.md</i>
+## Acceptance criteria
+
+- [ ] Users can pay by card
+  - plan: plans/2026-11-20_feature_checkout.md
+  - check: bats tests/bats/test_checkout.bats
+- [ ] Guests can check out without an account
+  - plan: plans/2026-11-20_feature_guest.md</code></pre>
+            <div class="reveal">
+              <h3>A tick only counts when it is backed</h3>
               <p>
-                The work loop is composable. Turn review and judge on — and pick a model per role — in
-                a plain prompt or via <code>/mb config</code>:
+                A criterion is met when every linked plan is closed and its
+                <code>check:</code> command exits 0. A checkbox ticked by hand, without that
+                evidence, is listed as <em>unbacked</em> and ignored.
               </p>
-              <pre><code>Run /mb work on billing-overhaul with the
-governed pipeline: review + judge on.
-Implementers = Sonnet, reviewer = Codex
-(GPT-5.5), judge = Opus.</code></pre>
               <p>
-                Roles map to models in <code>pipeline.yaml</code> — edit the file, or just say it in the
-                prompt. Off by default: you only pay for review and judge when you ask.
+                Several drives can share one bank, each with its own goal and budget. On Pi, a
+                settle gate resumes an unfinished run the session owns.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================= GRAPH ================= -->
+      <section class="section wrap" id="graph">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>08</span> Code graph</p>
+          <h2>The agent stops grepping and starts <em>knowing</em>.</h2>
+          <p class="sec-lead">
+            <code>/mb graph</code> parses your code into a deterministic graph of modules,
+            functions, classes, imports, calls and inheritance, stored as a committable file next
+            to your plans. Agents query it before they edit; the pipeline feeds it into their
+            prompts.
+          </p>
+        </header>
+
+        <div class="graph-grid">
+          <figure class="plate graph-plate reveal">
+            <svg class="graph-svg" viewBox="0 0 560 360" role="img" aria-label="A code graph: the function mb_resolve_path in the centre, its direct callers highlighted as the blast radius, and the tests that cover it.">
+              <g class="ge">
+                <path d="M118 78 268 172" /><path d="M86 196 262 190" /><path d="M134 300 268 204" />
+                <path d="M262 62 278 170" /><path d="M36 118 108 84" /><path d="M30 262 80 204" />
+                <path d="M440 84 294 178" class="t" /><path d="M478 206 298 192" class="t" />
+                <path d="M286 204 348 284" class="d" /><path d="M360 290 452 318" class="d" />
+                <path d="M398 40 276 58" class="d" /><path d="M214 334 142 306" class="d" />
+              </g>
+              <g class="gn">
+                <g class="n target" transform="translate(280 188)"><circle r="14" /><text x="62" y="34">mb_resolve_path</text></g>
+                <g class="n hit" transform="translate(112 74)"><circle r="8" /><text y="-14">mb-team.sh</text></g>
+                <g class="n hit" transform="translate(80 196)"><circle r="8" /><text x="6" y="-14">mb-drive.sh</text></g>
+                <g class="n hit" transform="translate(128 304)"><circle r="8" /><text x="-4" y="24">mb-graph.sh</text></g>
+                <g class="n hit" transform="translate(262 56)"><circle r="8" /><text y="-14">mb-work-state.sh</text></g>
+                <g class="n hit2" transform="translate(30 122)"><circle r="6" /><text x="4" y="22">/mb team</text></g>
+                <g class="n hit2" transform="translate(26 266)"><circle r="6" /><text x="8" y="22">/mb drive</text></g>
+                <g class="n test" transform="translate(446 80)"><rect x="-7" y="-7" width="14" height="14" rx="3" /><text y="-14">test_lib.bats</text></g>
+                <g class="n test" transform="translate(484 206)"><rect x="-7" y="-7" width="14" height="14" rx="3" /><text y="26">test_team.bats</text></g>
+                <g class="n" transform="translate(352 288)"><circle r="6" /><text x="2" y="-12">_lib.sh</text></g>
+                <g class="n" transform="translate(458 320)"><circle r="6" /><text y="22">mb_lock_acquire</text></g>
+                <g class="n" transform="translate(404 38)"><circle r="6" /><text y="-12">mb-agree.sh</text></g>
+                <g class="n" transform="translate(220 336)"><circle r="6" /><text x="34" y="4">mb-codegraph.py</text></g>
+              </g>
+            </svg>
+            <ul class="legend">
+              <li class="lg-target">the symbol</li>
+              <li class="lg-hit">callers — the blast radius</li>
+              <li class="lg-test">tests that cover it</li>
+            </ul>
+            <figcaption class="fig-cap">
+              <b>Fig. 6</b> <code>mb-graph.sh impact mb_resolve_path</code>, drawn. On this
+              repository <code>who-calls</code> returns its 92 real callers — not the 194 raw
+              edges a neighbour query gives, 103 of them whole-file imports.
+            </figcaption>
+          </figure>
+
+          <div class="graph-copy">
+            <article class="reveal">
+              <h3>Three questions, one command</h3>
+              <pre><code>mb-graph.sh who-calls WriteFile   <i># direct callers</i>
+mb-graph.sh impact    WriteFile   <i># everything that breaks</i>
+mb-graph.sh tests     WriteFile   <i># tests that cover it</i>
+mb-graph.sh search "token refresh" <i># by meaning</i></code></pre>
+              <p>
+                Deterministic answers in under a second, with no false hits from strings and
+                comments. <code>search</code> sends an identifier to BM25 and a phrase to local
+                embeddings.
               </p>
             </article>
 
-            <article class="install-card reveal reveal-delay-1">
-              <h3>Call anytime</h3>
-              <ul class="cmd-list">
-                <li><code>/mb recall &lt;q&gt;</code> — search past sessions &amp; notes</li>
-                <li><code>/mb agree</code> — pin a decision as <code>AGR-NNN</code></li>
-                <li><code>/mb doctor</code> — diagnose &amp; repair the bank</li>
-                <li><code>/mb graph</code> — impact &amp; structural queries</li>
-                <li><code>/mb profile</code> — tune the rules profile &amp; stack</li>
+            <article class="reveal">
+              <h3>Wired into the pipeline</h3>
+              <ul class="ticks">
+                <li><code>/mb work</code> injects a bounded <code>## Graph</code> block into implementer, reviewer and judge prompts.</li>
+                <li>A hook notices structural greps and answers with a runnable graph command naming the real symbol.</li>
+                <li>The graph refreshes after every finished item and reports its own staleness honestly.</li>
+                <li><code>tests</code> follows the chain bats → shell → Python, so a shell change finds its Python tests.</li>
               </ul>
             </article>
           </div>
-        </section>
+        </div>
 
-        <section class="agents section" id="agents">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Cross-agent portability</p>
-            <h2>One repo, one memory bank, eight coding agents.</h2>
+        <div class="facts reveal">
+          <div>
+            <h3>Languages</h3>
             <p>
-              The project state lives in your repo, not in a vendor's cloud. Adapters teach each
-              host the same memory model — switch tools mid-project and nothing is lost.
+              Python, Bash and Bats always on with zero dependencies. Go, JavaScript, TypeScript,
+              Rust and Java through tree-sitter.
             </p>
           </div>
-
-          <div class="agents-grid">
-            <article class="agent-card reveal"><h3>Claude Code</h3><p>Native commands, full lifecycle hooks, subagents, session memory.</p></article>
-            <article class="agent-card reveal reveal-delay-1"><h3>Cursor</h3><p>Global rules, 10 hooks, commands, and skill alias — auto-wired.</p></article>
-            <article class="agent-card reveal reveal-delay-2"><h3>Codex</h3><p>Skill discovery plus <code>AGENTS.md</code> guidance and project adapter.</p></article>
-            <article class="agent-card reveal reveal-delay-3"><h3>OpenCode</h3><p>Native commands, TypeScript plugins, global AGENTS surface.</p></article>
-            <article class="agent-card reveal"><h3>Windsurf</h3><p>Cascade hooks and project rules.</p></article>
-            <article class="agent-card reveal reveal-delay-1"><h3>Cline</h3><p><code>.clinerules</code> integration and hooks.</p></article>
-            <article class="agent-card reveal reveal-delay-2"><h3>Kilo</h3><p>Rules plus git-hook fallback where native hooks are absent.</p></article>
-            <article class="agent-card reveal reveal-delay-3"><h3>Pi Code</h3><p>Dual-mode install: native skill or shared <code>AGENTS.md</code>.</p></article>
-          </div>
-        </section>
-
-        <section class="install section" id="install">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Install</p>
-            <h2>Fast to add. Easy to keep. Trivial to remove.</h2>
+          <div>
+            <h3>Analytics</h3>
             <p>
-              Plain files, marker-based merges, byte-level idempotent installs. No framework
-              lock-in, no hosted dependency, no hidden state. macOS, Linux, and Windows
-              (Git Bash / WSL).
+              God nodes, Louvain communities with cohesion scores, bridge files by betweenness —
+              the same clusters in every process.
             </p>
           </div>
+          <div>
+            <h3>Hidden coupling</h3>
+            <p>
+              <code>--cochange</code> mines git history for files that change together without
+              importing each other — coupling no parser can see.
+            </p>
+          </div>
+          <div>
+            <h3>Wiki &amp; warm index</h3>
+            <p>
+              <code>/mb wiki</code> writes an article per module cluster; <code>--apply</code>
+              warms the semantic index so the first concept search is instant.
+            </p>
+          </div>
+        </div>
+        <p class="fine reveal">
+          Unlike a per-request repo map or a server-side index, the graph is a persistent file in
+          your repo: incremental by SHA-256, readable with <code>jq</code>, reviewed in pull
+          requests. <a href="https://fockus.github.io/skill-memory-bank/docs/concepts/code-graph/">How it works and an honest comparison →</a>
+        </p>
+      </section>
 
-          <div class="install-grid">
-            <article class="install-card reveal">
-              <h3>Recommended — pipx</h3>
+      <!-- ================= QA ================= -->
+      <section class="section wrap" id="qa">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>09</span> Acceptance QA — <code>/mb qa</code></p>
+          <h2>Tests prove the code. QA proves the <em>user path</em>.</h2>
+          <p class="sec-lead">
+            A scenario is a short markdown file. The <code>mb-qa-runner</code> agent walks it
+            against the running product like a user would — in a browser through Playwright, on
+            the CLI, or over HTTP — and records exactly what it observed.
+          </p>
+          <a class="guide" href="https://fockus.github.io/skill-memory-bank/docs/mb-qa/">Read the /mb qa guide →</a>
+        </header>
+
+        <figure class="qa-fig reveal">
+          <div class="sheet">
+            <p class="sheet-name">qa/test_cases/checkout/guest-pay.md</p>
+            <pre><code>---
+tags: [smoke]
+driver: browser      <i># browser | cli | api</i>
+covers: [REQ-004]
+---
+# Guest pays by card
+
+## Steps
+1. Add an item, open the cart → total is shown
+2. Pay with the test card → order page opens
+
+## Pass criteria
+- The order is listed as paid</code></pre>
+          </div>
+
+          <div class="qa-arrow" aria-hidden="true">
+            <span>mb-qa-runner</span>
+          </div>
+
+          <div class="sheet">
+            <p class="sheet-name">qa/bugs.md</p>
+            <ul class="bugs">
+              <li><b class="sev crit">critical</b><span>BUG-012 · payment succeeds, order stays "pending"</span></li>
+              <li><b class="sev maj">major</b><span>BUG-013 · total ignores the promo code</span></li>
+              <li><b class="sev med">medium</b><span>BUG-014 · focus is lost after card errors</span></li>
+              <li><b class="sev low">low</b><span>BUG-015 · currency symbol wraps on mobile</span></li>
+            </ul>
+            <p class="bugs-note">An open <b>critical</b> or <b>major</b> bug blocks closure.</p>
+          </div>
+          <figcaption class="fig-cap">
+            <b>Fig. 7</b> Scenario in, strict run report and a bug registry out. The same registry
+            is a firewall check for <code>/mb drive</code> and <code>/mb team</code>.
+          </figcaption>
+        </figure>
+
+        <div class="facts three reveal">
+          <div>
+            <h3>Declared at plan time</h3>
+            <p>
+              <code>/mb plan</code> writes <code>qa: on</code> for standard and larger work and
+              has the QA agent draft the cases before any code exists.
+            </p>
+          </div>
+          <div>
+            <h3>Run what you need</h3>
+            <p>
+              <code>/mb qa run all</code>, one scenario by name, a tag like
+              <code>@smoke</code>, or a whole folder.
+            </p>
+          </div>
+          <div>
+            <h3>Regressions stay caught</h3>
+            <p>
+              A fixed bug leaves a regression case behind under <code>qa/test_cases/</code>, so the
+              next run checks it again.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= MEMORY ================= -->
+      <section class="section wrap" id="memory">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>10</span> Memory — where it all started</p>
+          <h2>The next session already <em>knows</em>.</h2>
+          <p class="sec-lead">
+            Everything above writes into one directory. The agent reads it at session start,
+            updates it as it works and hands it to the next session — or the next agent — intact.
+          </p>
+        </header>
+
+        <div class="memory-grid">
+          <figure class="plate reveal">
+            <div class="plate-bar" aria-hidden="true"><i></i><i></i><i></i><span>.memory-bank/</span></div>
+            <pre class="tree"><code>.memory-bank/
+├── status.md       <i>← where we are, what is next</i>
+├── checklist.md    <i>← one block per active plan</i>
+├── roadmap.md      <i>← priorities and direction</i>
+├── agreements.md   <i>← confirmed decisions, AGR-NNN</i>
+├── goal.md         <i>← acceptance criteria for /mb drive</i>
+├── briefs/ context/ specs/ plans/
+├── qa/             <i>← scenarios, runs, bugs.md</i>
+├── reports/        <i>← team briefs and track reports</i>
+├── session/        <i>← every chat, searchable</i>
+├── progress.md     <i>← append-only work log</i>
+└── codebase/       <i>← stack map + graph.json</i></code></pre>
+          </figure>
+
+          <div class="memory-list">
+            <article class="reveal">
+              <h3>Recall, model-free</h3>
+              <p>
+                Lifecycle hooks capture every session. <code>/mb recall "why postgres"</code>
+                searches agreements, progress, notes and past chats with BM25 — no model call.
+              </p>
+            </article>
+            <article class="reveal">
+              <h3>Agreements that stick</h3>
+              <p>
+                <code>/mb agree</code> pins a decision as <code>AGR-NNN</code>. A changed decision
+                supersedes the old one, and a 4 KB index of the active ones opens every session.
+              </p>
+            </article>
+            <article class="reveal">
+              <h3>Compaction is survivable</h3>
+              <p>
+                An orchestrator running background agents keeps a short console of open questions
+                and running tracks, and reads it first after a compaction.
+              </p>
+            </article>
+            <article class="reveal">
+              <h3>Private by construction</h3>
+              <p>
+                Markdown and JSON on your disk, nothing sent anywhere. Keys and tokens are redacted
+                before session capture reaches the disk.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= COMMANDS ================= -->
+      <section class="section wrap" id="commands">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>11</span> Command map</p>
+          <h2>Forty-odd commands, <em>seven</em> jobs.</h2>
+          <p class="sec-lead">
+            You do not have to remember them: <code>/mb help</code> lists every command inside the
+            agent, and most of the flow starts from plain language — "plan this", "run it as a
+            team", "drive it to the end".
+          </p>
+        </header>
+
+        <div class="cmd-map reveal">
+          <div>
+            <h3>Start</h3>
+            <ul>
+              <li><code>/mb init</code>create the bank, detect the stack</li>
+              <li><code>/mb start</code>restore context and the active plan</li>
+              <li><code>/mb map</code>write a map of the codebase</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Shape</h3>
+            <ul>
+              <li><code>/mb brief</code>raw request → one-page brief</li>
+              <li><code>/mb discuss</code>requirements interview</li>
+              <li><code>/mb sdd</code>spec: requirements, design, tasks</li>
+              <li><code>/mb plan</code>stages with a Definition of Done</li>
+              <li><code>/mb goal</code>end state and acceptance criteria</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Build</h3>
+            <ul>
+              <li><code>/mb work</code>run a plan or spec through the pipeline</li>
+              <li><code>/mb team</code>run it as parallel tracks</li>
+              <li><code>/mb drive</code>drive a goal to completion</li>
+              <li><code>/mb flow</code>pin the route by hand</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Prove</h3>
+            <ul>
+              <li><code>/mb verify</code>audit the diff against the plan</li>
+              <li><code>/mb qa</code>acceptance scenarios, bug registry</li>
+              <li><code>/review</code>review uncommitted code</li>
+              <li><code>/critique</code>check a diff, spec or plan against a list</li>
+              <li><code>/risk-find</code>list risks, write the failing repro</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Know</h3>
+            <ul>
+              <li><code>/mb graph</code>build and query the code graph</li>
+              <li><code>/mb recall</code>search past sessions and decisions</li>
+              <li><code>/mb search</code>search the bank</li>
+              <li><code>/mb wiki</code>a wiki of your module clusters</li>
+              <li><code>/mb research</code>codebase, docs and web research</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Keep</h3>
+            <ul>
+              <li><code>/mb done</code>save the session, update status</li>
+              <li><code>/mb agree</code>pin a decision as AGR-NNN</li>
+              <li><code>/mb idea</code>park an idea in the backlog</li>
+              <li><code>/adr</code>record an architecture decision</li>
+              <li><code>/commit</code>review staged changes, then commit</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Tune</h3>
+            <ul>
+              <li><code>/mb config</code>roles, models, workflows, gates</li>
+              <li><code>/mb rules</code>key rules and quality settings</li>
+              <li><code>/mb language</code>reply and comment language</li>
+              <li><code>/mb cost</code>what a run actually spent</li>
+              <li><code>/mb doctor</code>diagnose and repair the bank</li>
+            </ul>
+          </div>
+          <div class="cmd-help">
+            <h3>Lost?</h3>
+            <p><code>/mb help</code> prints the whole map inside your agent, and <code>/mb help &lt;command&gt;</code> explains one.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= AGENTS / HOSTS ================= -->
+      <section class="section wrap" id="agents">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>12</span> Hosts</p>
+          <h2>One bank, <em>nine</em> coding agents.</h2>
+          <p class="sec-lead">
+            Project state lives in your repo, not in a vendor's cloud. Adapters teach each host
+            the same model and merge into your existing config idempotently — switch tools
+            mid-project and nothing is lost.
+          </p>
+        </header>
+
+        <div class="host-grid">
+          <article class="reveal"><h3>Claude Code</h3><p>Native commands, lifecycle hooks, named subagents, session memory, a context statusline.</p></article>
+          <article class="reveal"><h3>Codex</h3><p>Global lifecycle hooks and every role as a TOML subagent, read-only where it should be.</p></article>
+          <article class="reveal"><h3>OpenCode <span class="chip new">2.x</span></h3><p>Native command and tool hooks, run-scoped model routing, rendered agents.</p></article>
+          <article class="reveal"><h3>Cursor</h3><p>Global rules, hooks, commands and installed agents that carry their tier model.</p></article>
+          <article class="reveal"><h3>Pi Code</h3><p>A native extension: dispatcher, session capture, and a gate that resumes unfinished runs.</p></article>
+          <article class="reveal"><h3>Hermes <span class="chip new">new</span></h3><p>A plugin that runs the skill unchanged, with a bank per folder, project or profile.</p></article>
+          <article class="reveal"><h3>Windsurf</h3><p>Cascade hooks and project rules.</p></article>
+          <article class="reveal"><h3>Cline</h3><p><code>.clinerules</code> integration and hooks.</p></article>
+          <article class="reveal"><h3>Kilo</h3><p>Rules, with a git-hook fallback where native hooks are absent.</p></article>
+        </div>
+      </section>
+
+      <!-- ================= INSTALL ================= -->
+      <div class="band">
+        <section class="section wrap" id="install">
+          <header class="sec-head reveal">
+            <p class="kicker"><span>13</span> Install</p>
+            <h2>Fast to add. Easy to keep. <em>Trivial</em> to remove.</h2>
+            <p class="sec-lead">
+              Plain files, marker-based merges, idempotent installs. No hosted dependency and no
+              hidden state. macOS, Linux and Windows (Git Bash or WSL).
+            </p>
+          </header>
+
+          <div class="cards-3">
+            <article class="card reveal">
+              <h3>1 · Install the skill</h3>
               <pre><code>pipx install memory-bank-skill
 memory-bank install
-# or pick clients explicitly:
+<i># or pick the hosts yourself:</i>
 memory-bank install \
   --clients claude-code,cursor,codex</code></pre>
+              <p class="fine">Homebrew: <code>brew tap fockus/tap &amp;&amp; brew install memory-bank</code></p>
             </article>
 
-            <article class="install-card reveal reveal-delay-1">
-              <h3>First session in a project</h3>
-              <pre><code>/mb init        # create the bank
-/mb start       # load context
+            <article class="card reveal">
+              <h3>2 · First session</h3>
+              <pre><code>/mb init          <i># once per project</i>
+/mb start         <i># every session</i>
 /mb plan feature user-auth
 /mb work user-auth
-/mb verify &amp;&amp; /mb done</code></pre>
+/mb verify
+/mb done</code></pre>
             </article>
 
-            <article class="install-card reveal reveal-delay-2">
-              <h3>Alt paths</h3>
-              <pre><code># Homebrew
-brew tap fockus/tap &amp;&amp; brew install memory-bank
+            <article class="card reveal">
+              <h3>3 · When the task is bigger</h3>
+              <pre><code>/mb discuss checkout
+/mb sdd checkout
+/mb team init checkout   <i># parallel tracks</i>
 
-# One-shot skill copy
-npx skills add fockus/skill-memory-bank
-
-# Developers
-git clone https://github.com/fockus/skill-memory-bank.git \
-  ~/.claude/skills/skill-memory-bank</code></pre>
+/mb goal                 <i># write the end state</i>
+/mb drive                <i># and let it run</i></code></pre>
             </article>
           </div>
         </section>
+      </div>
 
-        <section class="docs section" id="docs">
-          <div class="section-heading reveal">
-            <p class="eyebrow">Documentation</p>
-            <h2>Learn the rhythm in ten minutes.</h2>
-            <p>
-              The daily loop is three commands. Everything else is there when you need it — and
-              every doc lives next to the code on GitHub.
-            </p>
-            <div class="cta-actions">
-              <a class="button primary" href="https://fockus.github.io/skill-memory-bank/docs/">
-                Read the docs
-              </a>
-            </div>
-          </div>
+      <!-- ================= DOCS + FAQ ================= -->
+      <section class="section wrap" id="docs">
+        <header class="sec-head reveal">
+          <p class="kicker"><span>14</span> Documentation</p>
+          <h2>Honest answers, and the <em>long</em> version.</h2>
+        </header>
 
-          <div class="howto-grid">
-            <article class="howto-card reveal">
-              <span class="howto-step">Every session</span>
-              <h3>start → work → done</h3>
-              <p>
-                Open the project, run <code>/mb start</code>, do the work, finish with
-                <code>/mb done</code>. The agent keeps <code>checklist.md</code> and
-                <code>progress.md</code> current as tasks complete — you never write a status
-                report again.
-              </p>
-            </article>
-            <article class="howto-card reveal reveal-delay-1">
-              <span class="howto-step">Bigger features</span>
-              <h3>discuss → sdd → work</h3>
-              <p>
-                <code>/mb discuss</code> turns a vague idea into validated requirements,
-                <code>/mb sdd</code> produces the spec triple, and <code>/mb work</code> executes
-                its tasks with verification — and review/judge gates when you opt in.
-              </p>
-            </article>
-            <article class="howto-card reveal reveal-delay-2">
-              <span class="howto-step">When you forget</span>
-              <h3>search → recall → wiki</h3>
-              <p>
-                <code>/mb search</code> scans the bank, <code>/mb recall</code> digs through past
-                sessions, semantic search finds code by concept, and <code>/mb wiki</code> explains
-                how the modules actually fit together.
-              </p>
-            </article>
-          </div>
-
-          <div class="install-grid docs-links">
-            <article class="install-card reveal">
-              <h3>Getting started</h3>
-              <ul>
-                <li><a href="https://github.com/fockus/skill-memory-bank#5-minute-quick-start">Quick start (5 min)</a></li>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/first-feature/">Your first feature, end to end</a></li>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/install/">Install guide</a></li>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/cross-agent-setup/">Cross-agent setup</a></li>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/troubleshooting/">Troubleshooting</a></li>
-              </ul>
-            </article>
-
-            <article class="install-card reveal reveal-delay-1">
-              <h3>Concepts &amp; reference</h3>
-              <ul>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/commands/mb.md">/mb command reference</a></li>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/commands/work.md">Composable /mb work pipeline</a></li>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/concepts/code-graph/">Code graph &amp; semantic search</a></li>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/concepts/session-memory/">Cross-session memory</a></li>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/agents-reference/">Agents reference (29 subagents)</a></li>
-              </ul>
-            </article>
-
-            <article class="install-card reveal reveal-delay-2">
-              <h3>Project &amp; release</h3>
-              <ul>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/MIGRATION-v4-v5/">v4 → v5 migration</a></li>
-                <li><a href="https://fockus.github.io/skill-memory-bank/docs/rule-profiles/">Rule profiles &amp; presets</a></li>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/CHANGELOG.md">CHANGELOG</a></li>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/rules/">Engineering rules bundle</a></li>
-                <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/SKILL.md">SKILL.md spec</a></li>
-              </ul>
-            </article>
-          </div>
-
+        <div class="docs-grid">
           <div class="faq reveal">
-            <h3 class="faq-title">Honest answers</h3>
-            <details>
-              <summary>Does this replace my agent's built-in memory?</summary>
+            <details open>
+              <summary>Do I have to use the whole framework?</summary>
               <p>
-                No — it complements it. Native memory is per-user and cross-project (your
-                preferences, your style). <code>.memory-bank/</code> is per-project and team-shared
-                (status, plans, decisions). Both load simultaneously.
+                No. Memory works alone, rules work without a bank, and the pipeline only starts
+                when you ask for it. Task tiers exist precisely so a small change is done inline
+                and only risky work pays for review and a judge.
               </p>
             </details>
             <details>
-              <summary>Do I have to commit <code>.memory-bank/</code>?</summary>
+              <summary>What does a governed run cost?</summary>
               <p>
-                Your call. Commit it to share state with your team — a colleague clones the repo,
-                runs <code>/mb start</code>, and has full context. Solo? <code>.gitignore</code> it,
-                or use global storage mode and keep the repo untouched.
+                About 8 subagent dispatches per item when clean, up to ~25 with fix cycles, plus
+                one verifier per plan. The default <code>medium</code> preset is one dispatch per
+                item. <code>/mb cost</code> reads your transcripts and reports the real numbers.
+              </p>
+            </details>
+            <details>
+              <summary>How do parallel agents avoid overwriting each other?</summary>
+              <p>
+                Each <code>/mb team</code> track owns file globs, overlapping tracks never share a
+                wave, heavy commands queue behind a lock, and sessions coordinate through an
+                append-only board with FREEZE entries. Commits are scoped to the track's files.
+              </p>
+            </details>
+            <details>
+              <summary>Does this replace my agent's built-in memory?</summary>
+              <p>
+                It complements it. Native memory is per user and cross-project;
+                <code>.memory-bank/</code> is per project and shared with the team. Both load.
               </p>
             </details>
             <details>
               <summary>Is my code sent anywhere?</summary>
               <p>
-                No. Everything is local markdown and JSON. The code graph, BM25 search, co-change
-                analysis, and recall index all run on your machine for $0. The only LLM calls are
-                the ones your agent already makes.
+                No. The graph, BM25 search, co-change analysis and recall index run on your
+                machine for $0. The only model calls are the ones your agent already makes.
               </p>
             </details>
             <details>
-              <summary>Will it overwrite my existing <code>AGENTS.md</code> or hooks?</summary>
+              <summary>Will it overwrite my <code>AGENTS.md</code> or hooks?</summary>
               <p>
-                No. Adapters use marker blocks (<code>&lt;!-- memory-bank:start/end --&gt;</code>)
-                and merge idempotently. Your content is preserved; uninstall removes only MB-owned
-                sections.
+                No. Adapters write marker blocks and merge idempotently. Your content is kept;
+                uninstall removes only what the skill owns.
               </p>
             </details>
             <details>
               <summary>Is it production-ready?</summary>
               <p>
-                v5.3.0 is the current stable line, used daily on real projects, with a green test
-                envelope of 1,900+ tests (pytest + bats) on Python 3.11/3.12 × Ubuntu and macOS.
-                The skill develops itself with its own memory bank — dogfooding all the way down.
+                v5.4.0 is the current stable line, used daily on real projects, behind 7,000+
+                tests (pytest, bats, node) on Python 3.11 and 3.12 across Ubuntu and macOS. The
+                skill develops itself with its own memory bank, teams and drive.
               </p>
             </details>
           </div>
-        </section>
 
-        <section class="cta section" id="cta">
-          <div class="cta-panel reveal">
-            <div>
-              <p class="eyebrow">Ready to keep the context?</p>
-              <h2>Put the project memory next to the code.</h2>
-              <p>
-                Install the skill, run <code>/mb init</code>, and let every session start from the
-                actual state of the project instead of guesswork. Five minutes now, zero cold
-                starts after.
-              </p>
-            </div>
-
-            <div class="cta-actions">
-              <a class="button primary" href="https://github.com/fockus/skill-memory-bank">
-                Open the repository
-              </a>
-              <a class="button secondary" href="#install">See install commands</a>
-            </div>
+          <div class="doc-links reveal">
+            <h3>For your agent</h3>
+            <ul>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/agent-guide/">Agent operating guide — hand it to your agent</a></li>
+            </ul>
+            <h3>Getting started</h3>
+            <ul>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/quick-start/">Quick start, 5 minutes</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/first-feature/">Your first feature, end to end</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/install/">Install guide</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/cross-agent-setup/">Cross-agent setup</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/commands/">Commands</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/mb-work/">The <code>/mb work</code> pipeline</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/pipeline-yaml/"><code>pipeline.yaml</code></a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/flow/">The development flow</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/mb-team/"><code>/mb team</code></a> · <a href="https://fockus.github.io/skill-memory-bank/docs/mb-drive/"><code>/mb drive</code></a> · <a href="https://fockus.github.io/skill-memory-bank/docs/mb-qa/"><code>/mb qa</code></a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/routes-and-firewall/">Routes, firewall and cost</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/concepts/code-graph/">Code graph and semantic search</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/agents-reference/">Agents reference</a></li>
+            </ul>
+            <h3>Release</h3>
+            <ul>
+              <li><a href="https://github.com/fockus/skill-memory-bank/blob/main/CHANGELOG.md">CHANGELOG — 5.4.0</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/updating/">Updating</a></li>
+              <li><a href="https://fockus.github.io/skill-memory-bank/docs/troubleshooting/">Troubleshooting</a></li>
+            </ul>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
 
-      <footer class="footer">
-        <p>memory-bank-skill v5 — for serious AI-assisted software work.</p>
-        <a href="https://github.com/fockus/skill-memory-bank">github.com/fockus/skill-memory-bank</a>
-      </footer>
-    </div>
+      <!-- ================= CTA ================= -->
+      <section class="section wrap" id="cta">
+        <div class="cta-panel reveal">
+          <p class="kicker"><span>→</span> Five minutes now, zero cold starts after</p>
+          <h2>Put the memory, the process and the team <em>next to the code</em>.</h2>
+          <div class="hero-actions">
+            <a class="button primary" href="#install">See install commands</a>
+            <a class="button ghost" href="https://github.com/fockus/skill-memory-bank">Star on GitHub</a>
+            <a class="button ghost" href="https://fockus.github.io/skill-memory-bank/docs/">Read the docs</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer wrap">
+      <p>memory-bank-skill v5.4.0 · MIT · built with its own memory bank.</p>
+      <a href="https://github.com/fockus/skill-memory-bank">github.com/fockus/skill-memory-bank</a>
+    </footer>
   </body>
 </html>

@@ -99,13 +99,13 @@ def main() -> None:
         fill=CREAM,
     )
     d.text((margin + mark + 24, 70), "memory-bank-skill", font=brand_font, fill=INK)
-    d.text((margin + mark + 24, 112), "v5.0.0 · MIT · open source", font=meta_font, fill=INK_MUTED)
+    d.text((margin + mark + 24, 112), "v5.4.0 · MIT · open source", font=meta_font, fill=INK_MUTED)
 
     # Headline.
-    d.text((margin, 178), "Persistent memory", font=headline_font, fill=INK)
-    d.text((margin, 270), "for AI coding agents.", font=headline_font, fill=INK)
+    d.text((margin, 178), "Memory, process", font=headline_font, fill=INK)
+    d.text((margin, 270), "and a team for AI agents.", font=headline_font, fill=INK)
     # Lime underline accent under the second headline line.
-    line2_box = d.textbbox((margin, 270), "for AI coding agents.", font=headline_font)
+    line2_box = d.textbbox((margin, 270), "and a team for AI agents.", font=headline_font)
     d.rounded_rectangle(
         (margin + 4, line2_box[3] + 14, line2_box[2], line2_box[3] + 28), radius=7, fill=LIME
     )
@@ -114,13 +114,13 @@ def main() -> None:
     sub_y = line2_box[3] + 56
     d.text(
         (margin, sub_y),
-        "Plans, specs, code graph & cross-session recall —",
+        "Specs, a work pipeline, parallel tracks, a goal loop,",
         font=sub_font,
         fill=INK_MUTED,
     )
     d.text(
         (margin, sub_y + 44),
-        "a .memory-bank/ that lives next to your code.",
+        "a code graph and QA — plain files next to your code.",
         font=sub_font,
         fill=INK_MUTED,
     )
@@ -140,7 +140,7 @@ def main() -> None:
     )
 
     # Bottom-right: one muted line instead of chips (no room for both).
-    tail = "works with 8 coding agents — zero lock-in"
+    tail = "works with 9 coding agents — zero lock-in"
     tail_box = d.textbbox((0, 0), tail, font=chip_font)
     d.text(
         (

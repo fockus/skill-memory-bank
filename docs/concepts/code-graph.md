@@ -23,8 +23,9 @@ stack and architecture. This is prose, not a graph — the orientation layer.
 
 `/mb graph [--apply]` builds a deterministic graph of your code:
 
-- **Languages:** Python via stdlib `ast` (zero new deps); Go / JS / TS / Rust /
-  Java via tree-sitter (opt-in).
+- **Languages:** Python via stdlib `ast`, Bash (`.sh`) and Bats (`.bats`) via
+  stdlib `re` — always on, zero new deps; Go / JS / TS / Rust / Java via
+  tree-sitter (opt-in).
 - **Nodes:** module (per file), function (top-level + nested), class.
 - **Edges:** `import`, `call`, `inherit`. Python `call` edges are
   **import-aware** — resolved through the file's actual imports (local `def` >
@@ -42,15 +43,60 @@ stack and architecture. This is prose, not a graph — the orientation layer.
 - `--dry-run` (default) prints a summary and writes nothing; `--apply` writes
   the graph + an incremental per-file SHA256 cache (second run is near-instant).
 
-**Query it** with `mb-graph-query.py` (`neighbors` / `impact` / `tests` /
-`explain` / `summary`) or raw `jq` — prefer this over `grep -rn` for structural
-questions:
+**Query it** with one short command, `mb-graph.sh` — prefer this over
+`grep -rn` for structural questions:
 
 ```bash
-# Who calls function X? (impact analysis)
-jq -c 'select(.type=="edge" and .dst=="WriteFile")' .memory-bank/codebase/graph.json
-python3 scripts/mb-graph-query.py impact WriteFile --mb .memory-bank
+SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
+bash "$SKILL_DIR/scripts/mb-graph.sh" who-calls WriteFile   # direct callers only
+bash "$SKILL_DIR/scripts/mb-graph.sh" impact    WriteFile   # everything that breaks
+bash "$SKILL_DIR/scripts/mb-graph.sh" tests     WriteFile   # tests that cover it
+bash "$SKILL_DIR/scripts/mb-graph.sh" search "token refresh" # by meaning
+bash "$SKILL_DIR/scripts/mb-graph.sh" status                # fresh or stale
 ```
+
+| Subcommand | Answers | Notes |
+|---|---|---|
+| `who-calls <Symbol>` | Who calls it | Only edges whose destination is the symbol itself — no whole-file imports |
+| `impact <Symbol>` | What breaks if it changes | Callers, transitively: the blast radius |
+| `tests <Symbol>` | Which tests cover it | Follows the chain bats → shell → Python |
+| `search "<query>"` | Where the logic lives | A single identifier goes to BM25, a phrase to local embeddings |
+| `status` | Is the graph usable | Age and commits behind |
+
+Exit codes: `1` no match · `2` usage · `3` no graph · `4` no Memory Bank; anything
+else is the delegate's. The script resolves the bank and delegates to
+`mb-graph-query.py` and `mb-semantic-search.py`, which remain available with their
+full flag sets (`neighbors --direction in|out|both`, `explain`, `summary`), and
+`graph.json` stays queryable with raw `jq`:
+
+```bash
+jq -c 'select(.type=="edge" and .dst=="WriteFile")' .memory-bank/codebase/graph.json
+```
+
+!!! example "Why `who-calls` and not `neighbors`"
+    On this repository `who-calls mb_resolve_path` returns its 92 callers and
+    nothing else. A plain `neighbors` query returned 194 "incoming" edges — 103 of
+    them imports of the whole file — plus 20 outgoing ones.
+
+### The graph in daily use
+
+The graph is not a report you remember to run. It is wired into the loop:
+
+- **In the prompt.** `/mb work` pushes a bounded `## Graph` block into
+  implementer, reviewer and judge prompts, so each subagent starts with the
+  blast radius of its item.
+- **Refreshed as you go.** After every finished item the graph is updated through
+  a bounded, fail-open catch-up; a SessionStart hook does the same when commits
+  landed outside a session.
+- **Honest staleness.** Hints say how old the graph is and how many commits
+  behind, instead of presenting stale answers as current.
+- **A nudge that names the symbol.** A hook notices structural greps and answers
+  with a runnable `mb-graph.sh` command for the symbol being defined. It returns
+  every `MB_GRAPH_NUDGE_EVERY` structural calls (default 25) and after a
+  compaction.
+- **A warm semantic index.** `/mb graph --apply` ends by warming the vector index
+  in the background, so the first concept search reads a cache.
+- **Measured.** `mb-cost-report.py` prints `graph_share` for a run.
 
 ### Opt-in graph layers (base output stays byte-identical)
 
@@ -124,11 +170,11 @@ using **host subagents** (no API key; cost is only the subagent calls):
 
 | Question | Tool |
 |---|---|
-| "who calls / imports / inherits X?" | `jq` over `graph.json` / `mb-graph-query.py neighbors` |
-| change impact / reverse deps | `mb-graph-query.py impact` |
-| "what tests cover this?" | `mb-graph-query.py tests` |
-| "where is the logic for X?" / "find similar" / concept | `mb-semantic-search.py --backend embeddings` |
-| an exact symbol you already know | `mb-semantic-search.py --backend bm25` |
+| "who calls / imports X?" | `mb-graph.sh who-calls X` (or `jq` over `graph.json`) |
+| change impact / reverse deps | `mb-graph.sh impact X` |
+| "what tests cover this?" | `mb-graph.sh tests X` |
+| "where is the logic for X?" / "find similar" / concept | `mb-graph.sh search "<phrase>"` |
+| an exact symbol you already know | `mb-graph.sh search <Identifier>` |
 | "what else changes with this file?" | `co_change` edges (`--cochange`) |
 | "give me a map / the non-obvious links" / "why" | `/mb wiki`, or `/mb recall` for past decisions |
 
@@ -157,9 +203,9 @@ no server, no API key, and no vendor. Unique extras: git **co-change edges**
 `confidence` bands (and the deterministic `< 0.5` drop floor) are defined in
 [`references/code-graph.md`](../../references/code-graph.md#semantic-edge-confidence-bands).
 
-Honest limits: 6 languages (Python/Go/JS/TS/Rust/Java); call resolution is
+Honest limits: 8 languages (Python/Bash/Bats/Go/JS/TS/Rust/Java); call resolution is
 **import-aware for Python** (stdlib `ast` — follows the file's imports) but
-**name-based** for the tree-sitter languages (Go/JS/TS/Rust/Java), so an LSP like
+**name-based** for Bash/Bats and the tree-sitter languages (Go/JS/TS/Rust/Java), so an LSP like
 Serena is still more precise on dynamic dispatch and cross-language aliases; no
 automatic PageRank-style context packing — agents query explicitly instead.
 
