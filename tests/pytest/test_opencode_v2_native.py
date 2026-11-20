@@ -5,6 +5,7 @@ import json
 import re
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -122,16 +123,28 @@ def test_native_work_observes_models_and_real_eval_completion(override: bool, fa
                 actions.append(("subagent", {"agent": "mb-developer", "description": "Ordinary dispatch after grouped completion",
                                               "prompt": "Report only; do not edit files or run a workflow."}))
             counters = {"root": 0, "implementer": 0, "verifier": 0}
+            edited = threading.Event()
 
             def respond(request: dict) -> dict:
                 system = "\n".join(str(m.get("content", "")) for m in request["messages"] if m["role"] == "system")
                 role = "verifier" if "# Plan Verifier — Subagent Prompt" in system else "implementer" if "# MB Developer — Subagent Prompt" in system else "root"
+                last = request["messages"][-1]
+                if role == "root" and last["role"] == "tool" and "working in the background" in str(last.get("content")):
+                    # OpenCode >= 2.3: dispatch returned at once; end the turn until the <subagent> report.
+                    edited.set()
+                    return {"content": "Waiting for the subagent report."}
                 step = counters[role]
                 counters[role] += 1
+                if role == "root" and step > 2:
+                    edited.set()
                 if role == "root" and step < len(actions):
                     kind, values = actions[step]
                     return fixture.tool(request, {"command"} if kind == "shell" else {"agent", "prompt"}, values)
                 if role == "implementer" and step == 0 and not failing:
+                    if tuple(map(int, runtime.version.split(".")[:2])) >= (2, 3):
+                        # Worst-case schedule for background subagents: hold the edit until the root's eval-green
+                        # action ran, so a root that advances before the <subagent> report sees the product red.
+                        edited.wait(8)
                     return fixture.tool(request, {"path", "content"}, {"path": str(project / "product.py"), "content": "def greeting():\n    return 'hello native'\n"})
                 if role in ("implementer", "verifier") and step == (1 if role == "implementer" and not failing else 0):
                     return fixture.tool(request, {"command"}, {"command": "python3 check_product.py", "workdir": str(project)})
@@ -158,6 +171,8 @@ def test_native_work_observes_models_and_real_eval_completion(override: bool, fa
                              for part in m["content"] if part["type"] == "tool")
                 assert first["metadata"]["exit"] == 0 and "LEGACY_SLOT_UNCHANGED" in str(first["content"])
             assert counters["implementer"] >= 2 and counters["verifier"] >= 2
+            context = str(runtime.api("GET", f'/api/session/{root["id"]}/context'))
+            assert ("DONE_EXIT=5 FLIP_EXIT=1" if failing else "DONE_EXIT=0 FLIP_EXIT=0") in context
             sessions = runtime.api("GET", "/api/session" + query)["data"]
             children = [s for s in sessions if s.get("parentID") == root["id"]]
             assert {s["agent"] for s in children} == {"mb-developer", "plan-verifier"}
@@ -188,9 +203,7 @@ def test_native_work_observes_models_and_real_eval_completion(override: bool, fa
             assert result["phase"] == ("in-progress" if failing else "done")
             assert result["run_id"] == ("legacy-root" if legacy else (project / "run-id").read_text().strip())
             assert ("- [x]" in source.read_text()) is not failing
-            context = str(runtime.api("GET", f'/api/session/{root["id"]}/context'))
             assert "pipelines/fixture.yaml" in context and '"name": "native-check"' in context
-            assert ("DONE_EXIT=5 FLIP_EXIT=1" if failing else "DONE_EXIT=0 FLIP_EXIT=0") in context
             assert all(p.read_bytes() == content for p, content in installed.items())
             if failing:
                 assert "eval_gate" not in result
