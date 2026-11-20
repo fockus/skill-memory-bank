@@ -5414,3 +5414,16 @@ All 15 failing tests now pass. Evidence: after the fixes, test_global_prompt_gua
 - Pre-existing, local-only: 5 tests in tests/e2e/test_install_reliability.bats fail identically at baseline 1815bcc, green in CI → I-305. The teardown repo guard tripped because track Z ran install.sh in the checkout during the run.
 - plan-verifier PASS_WITH_NOTES; notes fixed: roadmap registry rows, bogus plans/tasks.md entries (sync bug → I-304), mb-research-tooling-core closure line. 7 HANDOVERs ACKed; team master-completion-wave1 closed.
 - Local main is ahead 9 / behind 10 vs origin; merging origin has one conflict (scripts/mb_work_adapt.py: parse_intermixed_args vs S5 edits).
+
+## 2026-11-20
+
+### NOTE: /mb done --force — gates failed: tests: local full suite stopped after 45 min at owner request; full suite green in CI: c499012 run 44628907588, be0fba5 run 44640710801
+
+### Session 95de497e (2026-11-17 → 2026-11-20) — team-shared-gates, green CI, /mb work active-plan pick
+- team-shared-gates items 1–7 merged to main after governed review + mb-judge GO_WITH_BACKLOG.
+- CI green again (side session): hermetic XDG_*, Linux portability, e2e per-test dirs, sharding via .github/ci-run.sh, pyenv shim pin a28dfbc; ~15–22 min, coverage 86% vs 85% gate (AGR-099/AGR-100).
+- cb95ce3: OpenCode >= 2.3 background subagents supported.
+- ee5cfce + c499012: `/mb work` with no target uses new scripts/mb_work_active.py (skips paused/cancelled/done/blocked and unmet depends_on; exit 1 none, 2 ambiguous); mb-work-resolve.sh Form 5; 7 pytest + 2 bats; I-308 closed. CI run 44628907588 green.
+- Skill reinstalled from c499012 for claude-code, cursor, codex, opencode, pi (rc=0).
+- Open elsewhere: lock bugs on debug/locks; OpenCode 2.3 subagent issues; bats flake "MB_TEST_COMMAND exit 7" (diagnostics f233642, CI pending).
+- Next step: confirm f233642 CI; decide local done-gates scope.

@@ -1205,5 +1205,14 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-307 — Hermes host detection: mb_detect_host / mb-pipeline.sh do not detect Hermes, so agents: [hermes] is only picked when MB_AGENT=hermes is set [MED, NEW, 2026-11-20]
 **Type:** IDEA
 
-### I-308 — test_doc_counts fails: references/scripts.md lacks mb_work_active.py (since ee5cfce) [LOW, NEW, 2026-11-20]
+### I-308 — test_doc_counts fails: references/scripts.md lacks mb_work_active.py (since ee5cfce) [LOW, DONE, 2026-11-20]
 **Type:** IDEA
+
+**Brief:** The scripts reference table should list every bundled script so the doc-count test passes.
+
+**Reason:** fixed in c499012, CI run 44628907588 green
+
+
+### I-309 — mb-done-gates: default to scope=touched or a quick subset locally; local scope=full takes >45 min on macOS (no timeout binary), CI sharding is the fast path [LOW, NEW, 2026-11-20]
+**Type:** IDEA
+
