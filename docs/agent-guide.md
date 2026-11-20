@@ -9,7 +9,7 @@ Installed copy: `$SKILL_DIR/docs/agent-guide.md`.
 
 ## 1. What you are working with
 
-memory-bank-skill (v5.4.0) is a framework installed next to the code:
+memory-bank-skill (v5.4.1) is a framework installed next to the code:
 
 - **Memory** — a `.memory-bank/` directory holding status, plans, specs, decisions and past
   sessions.
@@ -150,7 +150,7 @@ If `.memory-bank/COORDINATION.md` exists, other sessions are working in the same
 - No destructive git (`reset --hard`, force-push, mass delete) without an explicit request.
 - Protected files (`.env`, CI, Docker, Kubernetes, Terraform) are touched only on explicit request.
 
-## 11. What ships in 5.4.0, and what does not
+## 11. What ships in 5.4.1, and what does not
 
 | Capability | Status | Note |
 |---|---|---|

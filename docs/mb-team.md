@@ -10,7 +10,7 @@ loop for its part, writes one report and talks only to a shared board.</p>
 | **Needs** | A Memory Bank; a goal (`--goal G-NNN`) or an explicit `--no-goal` |
 | **Writes** | `reports/<topic>/team.json`, `brief.md`, `tracks/<id>.prompt.md`, one report per track |
 | **Never does** | Push. Commit without your yes. Let a track commit |
-| **Status in 5.4.0** | New in this release. Canonical reference: [`commands/team.md`](../commands/team.md) |
+| **Status in 5.4.1** | New in 5.4. Canonical reference: [`commands/team.md`](../commands/team.md) |
 
 ## Quick start
 
@@ -176,7 +176,7 @@ amends a frozen contract (`freeze --amend --reason R`).
 
 A host that runs one dispatch at a time runs the tracks serially, with a one-line notice.
 
-## Limits in 5.4.0
+## Limits in 5.4.1
 
 - There is no daemon. The orchestrator session **is** the runtime: `mb-team.sh` only prints
   actions and records state.

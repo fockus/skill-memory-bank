@@ -10,7 +10,7 @@ like a user would and records exactly what it observed.</p>
 | **Drivers** | `browser` (Playwright MCP or `@playwright/cli`), `cli`, `api` (HTTP) |
 | **Writes** | `qa/runs/<run-id>/report.md` with screenshots and output excerpts; `qa/bugs.md` |
 | **Hosts** | Claude Code, Codex, OpenCode, Pi |
-| **Status in 5.4.0** | New in this release. Canonical reference: [`commands/qa.md`](../commands/qa.md) |
+| **Status in 5.4.1** | New in 5.4. Canonical reference: [`commands/qa.md`](../commands/qa.md) |
 
 ## Quick start
 
@@ -133,7 +133,7 @@ QA is declared when the plan is written, not bolted on afterwards.
 `/mb plan` dispatches the `mb-qa` agent once to draft the test cases before any code exists. Inside
 `/mb work`, open bugs of the run over `qa.gate` send the item back to the implementer.
 
-## Limits in 5.4.0
+## Limits in 5.4.1
 
 - Browser scenarios run in open-source Chromium. The CLI path installs it on first use; a
   Playwright MCP server should be started with `--browser chromium` too.

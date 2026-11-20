@@ -10,7 +10,7 @@ through `/mb work` and `/mb team` — until evidence says the goal is met.</p>
 | **Needs** | A Memory Bank and a goal file that validates (`/mb goal`) |
 | **Writes** | `.drive/<run_id>.json`, plans and specs per criterion, `progress.md`, the `mb-flow` fence in `status.md` |
 | **Stops on** | `stop_success`, `stop_budget` or `stop_human` — nothing else |
-| **Status in 5.4.0** | Rebuilt in this release. Canonical reference: [`commands/drive.md`](../commands/drive.md) |
+| **Status in 5.4.1** | Rebuilt in 5.4. Canonical reference: [`commands/drive.md`](../commands/drive.md) |
 
 ## Quick start
 
@@ -133,7 +133,7 @@ final report: what is done, what is not verified, unbacked ticks, open QA bugs a
   met; a recorded stop releases it. On Pi, a settle gate resumes an unfinished run the session
   owns.
 
-## Limits in 5.4.0
+## Limits in 5.4.1
 
 - `/mb goal` scaffolds and validates only. A goal lifecycle (`status | init | set | done | list`)
   is not shipped.

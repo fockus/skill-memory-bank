@@ -9,7 +9,7 @@ the **cost tier** decides which model does which job.</p>
 | **Use it for** | Understanding why a flow took the path it did, and what "green" means |
 | **Commands** | `/mb analyze-task`, `/mb flow <route>`, `/mb config`, `/mb cost` |
 | **Scripts** | `mb-flow-route.sh`, `mb-flow-verify.sh`, `mb-work-plan.sh` |
-| **Status in 5.4.0** | Routes and the firewall are stable; presets and cost tiers changed in this release |
+| **Status in 5.4.1** | Routes and the firewall are stable; presets and cost tiers changed in 5.4 |
 
 ## Routes
 
@@ -150,7 +150,7 @@ per-host defaults. `/mb config show` prints the resolved config and where each v
 `/mb cost` mines the transcripts for what a run actually spent: turns, tool calls, dispatches,
 tokens, peak context and compactions per session; totals per role; totals per work item.
 
-## Limits in 5.4.0
+## Limits in 5.4.1
 
 - There is no local build check: `build` always resolves to a skip.
 - `diff_scope` is a skip unless a scope is configured.

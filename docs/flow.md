@@ -9,7 +9,7 @@ shortcut.</p>
 | **Use it for** | Deciding which commands a task needs, in which order |
 | **Entry point** | Plain language ("plan this", "implement the spec") or the commands below |
 | **Source of truth** | [`references/effort-tiers.md`](../references/effort-tiers.md), `pipeline.yaml` `effort_tiers:` |
-| **Status in 5.4.0** | Stable. Task tiers and `/mb brief` are new in this release |
+| **Status in 5.4.1** | Stable. Task tiers and `/mb brief` are new in 5.4 |
 
 ## The eight stations
 
@@ -128,7 +128,7 @@ One item of `/mb work` is itself a short chain. The preset decides how long it i
 
 Details, flags and cost: [/mb work](mb-work.md) and [Routes, firewall and cost](routes-and-firewall.md).
 
-## Limits in 5.4.0
+## Limits in 5.4.1
 
 - `/mb brief` has no overwrite flag: re-formalize under a new topic, or delete `briefs/<topic>/`
   by hand first.

@@ -99,7 +99,7 @@ def main() -> None:
         fill=CREAM,
     )
     d.text((margin + mark + 24, 70), "memory-bank-skill", font=brand_font, fill=INK)
-    d.text((margin + mark + 24, 112), "v5.4.0 · MIT · open source", font=meta_font, fill=INK_MUTED)
+    d.text((margin + mark + 24, 112), "v5.4.1 · MIT · open source", font=meta_font, fill=INK_MUTED)
 
     # Headline.
     d.text((margin, 178), "Memory, process", font=headline_font, fill=INK)

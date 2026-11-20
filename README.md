@@ -779,7 +779,7 @@ A: Not by default. Project-local metrics overrides are disabled unless you expli
 A: `memory-bank install` now writes Pi global artifacts automatically: `~/.pi/agent/AGENTS.md`, `~/.pi/agent/skills/memory-bank`, and slash prompt templates in `~/.pi/agent/prompts/`. In an existing Pi session, run `/reload` after install. For a project-level shared `AGENTS.md`, additionally run `memory-bank install --clients pi --project-root <repo>`. Existing local Pi skill directories are backed up outside `~/.pi/agent/skills/` so Pi does not discover backup copies as duplicate skills.
 
 **Q: Is this production-ready?**
-A: Yes. Current stable line is **v5.4.0** (released 2026-11-20) — see [CHANGELOG.md](CHANGELOG.md) for the exact version, which is also authoritative in `VERSION`. Daily used on real projects — including on this repository itself (the skill maintains its own `.memory-bank/`). Test envelope: 7,000+ automated tests (pytest + bats + node) on Python 3.11/3.12 × Ubuntu and macOS. Stable API.
+A: Yes. Current stable line is **v5.4.1** (released 2026-11-20) — see [CHANGELOG.md](CHANGELOG.md) for the exact version, which is also authoritative in `VERSION`. Daily used on real projects — including on this repository itself (the skill maintains its own `.memory-bank/`). Test envelope: 7,000+ automated tests (pytest + bats + node) on Python 3.11/3.12 × Ubuntu and macOS. Stable API.
 
 ---
 

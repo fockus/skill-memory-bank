@@ -1,6 +1,6 @@
 <div class="mb-hero" markdown>
 
-<p class="mb-kicker">Documentation · v5.4.0</p>
+<p class="mb-kicker">Documentation · v5.4.1</p>
 
 # Memory, a process and a *team* for your coding agent
 
@@ -14,7 +14,7 @@ Plain files next to your code, for nine agent hosts.
 
 </div>
 
-## New in 5.4.0
+## New in 5.4
 
 <div class="grid cards" markdown>
 
@@ -95,7 +95,7 @@ Plain files next to your code, for nine agent hosts.
 !!! agent "Working with an agent?"
     Hand it the **[Agent operating guide](agent-guide.md)** — one plain-markdown page that tells
     an AI coding agent what Memory Bank gives it, which command answers which request, and what
-    is and is not shipped in 5.4.0.
+    is and is not shipped in 5.4.1.
 
 ## How the pieces fit
 
