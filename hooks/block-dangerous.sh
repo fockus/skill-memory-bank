@@ -9,12 +9,21 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 [ -z "$COMMAND" ] && exit 0
 
+# True when an rm flag run ($1, e.g. "rm -r -f") holds both a recursive and a
+# force flag. Checked per flag rather than as the literal "-rf", which let
+# rm -fr, rm -r -f and rm --recursive --force through.
+_rm_recursive_force() {
+  echo "$1" | grep -qEi '\s(-[a-z]*r[a-z]*|--recursive)(\s|$)' \
+    && echo "$1" | grep -qEi '\s(-[a-z]*f[a-z]*|--force)(\s|$)'
+}
+
 # BLOCK: destructive commands (exit 2)
-if echo "$COMMAND" | grep -qEi \
-  'rm\s+-rf\s+/($|\s)|rm\s+-rf\s+~|rm\s+-rf\s+/\*|rm\s+-rf\s+\.\s*$'; then
-  echo "BLOCKED: rm -rf on the root/home directory" >&2
-  exit 2
-fi
+while IFS= read -r _rm_hit; do
+  if [ -n "$_rm_hit" ] && _rm_recursive_force "$_rm_hit"; then
+    echo "BLOCKED: rm -rf on the root/home directory" >&2
+    exit 2
+  fi
+done < <(echo "$COMMAND" | grep -oEi 'rm(\s+-[^[:space:]]+)+\s+(/($|\s)|~|/\*|\.\s*$)')
 
 if echo "$COMMAND" | grep -qEi 'DROP\s+(TABLE|DATABASE)'; then
   echo "BLOCKED: DROP TABLE/DATABASE" >&2
@@ -82,9 +91,12 @@ if echo "$COMMAND" | grep -qEi 'git\s+(commit|push)\s+.*--no-verify'; then
 fi
 
 # WARN: risky commands (do not block, only emit feedback)
-if echo "$COMMAND" | grep -qEi 'rm\s+-rf'; then
-  echo "WARNING: rm -rf detected — verify target path" >&2
-fi
+while IFS= read -r _rm_hit; do
+  if [ -n "$_rm_hit" ] && _rm_recursive_force "$_rm_hit"; then
+    echo "WARNING: rm -rf detected — verify target path" >&2
+    break
+  fi
+done < <(echo "$COMMAND" | grep -oEi 'rm(\s+-[^[:space:]]+)+')
 
 if echo "$COMMAND" | grep -qEi 'git\s+push\s+.*--force'; then
   echo "WARNING: force push detected — verify branch" >&2
