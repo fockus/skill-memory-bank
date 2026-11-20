@@ -112,7 +112,7 @@ run_texttool() {
   # CLI as MB_PYTHON). A bare `python3` resolves to whatever is first on PATH —
   # under pipx/pyenv that is NOT the venv holding the package, so the import of
   # memory_bank_skill._texttools fails. Fall back to python3 for git checkouts.
-  PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+  PYTHONSAFEPATH=1 PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
     "${MB_PYTHON:-python3}" -m memory_bank_skill._texttools "$@"
 }
 

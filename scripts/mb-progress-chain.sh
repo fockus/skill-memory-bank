@@ -77,5 +77,5 @@ MB_PATH="$(mb_resolve_path "${2:-}")"
 # Delegate hashing/JSON to the Python module (3.11/3.12-safe, stdlib only).
 # mb_resolve_python: $MB_PYTHON > wheel-install interpreter > python3.
 MB_PY="$(mb_resolve_python "$REPO_ROOT")"
-PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+PYTHONSAFEPATH=1 PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
   "$MB_PY" -m memory_bank_skill.progress_chain "$MODE" "$MB_PATH"

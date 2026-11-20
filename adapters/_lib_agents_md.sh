@@ -54,7 +54,7 @@ mb_emit_rules_file() {
   TARGET_RULES_FILE="$rules_file" \
   MB_RULE_LANGUAGE="$(mb_preferred_language)" \
   MB_RULE_COMMENTS_LANGUAGE="${MB_COMMENTS_LANGUAGE:-}" \
-  PYTHONPATH="$skill_root${PYTHONPATH:+:$PYTHONPATH}" \
+  PYTHONSAFEPATH=1 PYTHONPATH="$skill_root${PYTHONPATH:+:$PYTHONPATH}" \
   "$py" <<'PYEOF'
 import os
 import sys
@@ -239,7 +239,7 @@ _mb_language_rule() {
   if [ -z "$out" ] && command -v "$py" >/dev/null 2>&1; then
     out="$(MB_RULE_LANGUAGE="$(mb_preferred_language)" \
       MB_RULE_COMMENTS_LANGUAGE="${MB_COMMENTS_LANGUAGE:-}" \
-      PYTHONPATH="$_MB_AGENTS_LIB_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
+      PYTHONSAFEPATH=1 PYTHONPATH="$_MB_AGENTS_LIB_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
       "$py" -c 'import os
 from memory_bank_skill._texttools import resolve_language_strings as r
 print(r(os.environ["MB_RULE_LANGUAGE"], os.environ.get("MB_RULE_COMMENTS_LANGUAGE") or None).rule_full)' 2>/dev/null)" || out=""

@@ -144,7 +144,7 @@ render_block() {
     pointer="Details: \`$(_host_rules "$host")\`."
   fi
   _resolved "$profile" \
-    | PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
+    | PYTHONSAFEPATH=1 PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
       "$(mb_resolve_python "$SCRIPT_DIR/..")" -m memory_bank_skill.key_rules block "--pointer=$pointer" ${base[@]+"${base[@]}"} ${stamp[@]+"${stamp[@]}"} \
       3< <([ ${#base[@]} -eq 0 ] || _resolved /dev/null)
 }
@@ -157,7 +157,7 @@ _edit() {
   if [ "$scope" = project ] && [ ! -d "$bank" ]; then
     _die "no Memory Bank at $bank — use --scope=user or run /mb init"
   fi
-  PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
+  PYTHONSAFEPATH=1 PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
     "$(mb_resolve_python "$SCRIPT_DIR/..")" -m memory_bank_skill.key_rules_edit "$op" "--scope=$scope" \
     "--user=$user_profile" "--project=$bank/rules-profile.json" "$@" || rc=$?
   [ "$rc" -eq 0 ] || exit "$rc"

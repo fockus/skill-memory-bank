@@ -7,7 +7,7 @@ load_profile() {
     py_args=("--project=$PROFILE_PATH")
   fi
 
-  PROFILE_JSON="$(PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+  PROFILE_JSON="$(PYTHONSAFEPATH=1 PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     "$(mb_resolve_python "$REPO_ROOT")" -m memory_bank_skill.rules_profile resolve \
     "${py_args[@]+"${py_args[@]}"}" 2>/dev/null)" || true
 

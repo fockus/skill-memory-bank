@@ -23,7 +23,7 @@ _sync_rules_md() {
   fi
   section="$(mktemp)"
   if ! bash "$SCRIPT_DIR/mb-profile.sh" quality --json "--project=$bank/rules-profile.json" \
-      | PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
+      | PYTHONSAFEPATH=1 PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" \
         "$(mb_resolve_python "$SCRIPT_DIR/..")" -m memory_bank_skill.quality rules-md > "$section"; then
     rm -f "$section"
     _die "render failed for $file"

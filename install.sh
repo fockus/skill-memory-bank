@@ -1181,7 +1181,7 @@ comments_language_name() {
 }
 
 run_texttool() {
-  PYTHONPATH="$SOURCE_SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+  PYTHONSAFEPATH=1 PYTHONPATH="$SOURCE_SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
     "$MB_PY" -m memory_bank_skill._texttools "$@"
 }
 
@@ -1388,7 +1388,7 @@ oc_install_global_block() {
     return 1
   fi
   # One required Python call prevents shell substitutions from hiding resolver errors.
-  if ! PYTHONPATH="$SOURCE_SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+  if ! PYTHONSAFEPATH=1 PYTHONPATH="$SOURCE_SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
     "$MB_PY" - "$section" "$LANGUAGE" "$COMMENTS_LANGUAGE" "$OPENCODE_START_MARKER" <<'PY'
 import sys
 

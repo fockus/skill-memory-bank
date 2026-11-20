@@ -4,8 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [5.4.1] — 2026-11-20
+
+- Security: a `memory_bank_skill/` folder in the current directory (for example an untrusted checkout) no longer runs in place of the bundled package. The npm bin runs Python with `-P`; shell helpers that find the package through `PYTHONPATH` set `PYTHONSAFEPATH=1`. Affects 5.4.0 on every channel.
 - npm: `npx skill-memory-bank install` runs the PyPI bundle (staged by `packaging/npm/stage.sh` from the sdist) from a persistent copy under `~/.local/share/memory-bank-skill/npm/<version>/`.
-- Security (npm): the npm bin runs Python with `-P`, so a `memory_bank_skill/` folder in the current directory can no longer run in place of the bundle (npm 5.4.0 is affected).
 
 ## [5.4.0] — 2026-11-20
 

@@ -35,7 +35,7 @@ ONLY="" PROJECT_ROOT=""
 FORCE=0
 
 run_texttool() {
-  PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+  PYTHONSAFEPATH=1 PYTHONPATH="$SKILL_DIR${PYTHONPATH:+:$PYTHONPATH}" \
     "$MB_PY" -m memory_bank_skill._texttools "$@"
 }
 
