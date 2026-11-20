@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [5.4.0] — 2026-11-20
+
 - `/mb work` with no target skips active plans that are paused, cancelled, done, blocked or waiting on an open `depends_on`, and takes the only eligible plan, else the only `in_progress` one.
 - `/mb` router for Opus 5.5 / Fable: `commands/mb.md` is a ~12 KB router (was ~111 KB); each subcommand section loads from `references/mb/<sub>.md` on route; `/mb help <sub>` prints one.
 - Code graph in daily use: `/mb work` pushes a bounded `## Graph` block into implementer, reviewer and judge prompts; `mb-graph.sh tests` follows bats → shell → Python; `mb-cost-report.py` prints `graph_share`; graph nudges suggest only real symbols.
