@@ -40,6 +40,7 @@ jobs:
           - { os: ubuntu-latest, py: "3.12", suite: pytest, k: 4, n: 4, cov: 1 }
           # Python 3.11 portability: the quick subset (installer/host-runtime tests are version-neutral)
           - { os: ubuntu-latest, py: "3.11", suite: pytest-quick, k: 1, n: 1 }
+          - { os: ubuntu-latest, py: "3.12", suite: node, k: 1, n: 1 }
           - { os: macos-latest, py: "3.12", suite: bats-quick, k: 1, n: 3 }
           - { os: macos-latest, py: "3.12", suite: bats-quick, k: 2, n: 3 }
           - { os: macos-latest, py: "3.12", suite: bats-quick, k: 3, n: 3 }
@@ -49,7 +50,7 @@ jobs:
       - uses: ./.github/actions/setup-tests
         with:
           python-version: ${{ matrix.py }}
-          host-runtimes: ${{ startsWith(matrix.suite, 'pytest') }}
+          host-runtimes: ${{ startsWith(matrix.suite, 'pytest') || matrix.suite == 'node' }}
       - name: Run tests
         env:
           CI_COVERAGE: ${{ matrix.cov }}

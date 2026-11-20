@@ -19,6 +19,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Fixed — OpenCode helpers behind a pyenv/asdf shim
 
 - OpenCode runner pins the real interpreter behind a version-manager shim: each helper `python3` fork cost ~0.3 s, so `mb-work-state.sh retained` on a done item ran past the 5 s limit and blocked native dispatch.
+- CI runs the OpenCode node contracts (`tests/*.test.mjs`, suite `node` in `.github/ci-run.sh`); their fixtures skip the shim and give process-cleanup tests load headroom.
 
 ### Fixed — /mb drive on Python 3.11
 

@@ -9,6 +9,8 @@ import { createRunner } from '../adapters/opencode_process.mjs';
 import { createWorkflowBinding } from '../adapters/opencode_workflow.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+// Direct script calls bypass the runner bootstrap; skip a pyenv/asdf shim (~0.3 s per python3 fork) the same way.
+const PYTHON_BIN = path.dirname(execFileSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' }).trim());
 const parent = { providerID: 'fixture', id: 'parent', variant: 'parent' };
 const event = (agent = 'mb-developer', model) => ({ sessionID: 'root', tool: 'subagent', input: {
   agent, description: 'Contract dispatch', prompt: 'Identity must come from canonical state, not this text.',
@@ -21,7 +23,7 @@ async function fixture(t, { second = false, planning = false, sharedStep = false
   await fs.mkdir(path.join(bank, 'plans'), { recursive: true });
   const previous = { ...process.env };
   for (const key of Object.keys(process.env)) if (/^(MB_|CLAUDE_|XDG_)/.test(key)) delete process.env[key];
-  Object.assign(process.env, { HOME: directory, MB_PATH: bank });
+  Object.assign(process.env, { HOME: directory, MB_PATH: bank, PATH: `${PYTHON_BIN}${path.delimiter}${process.env.PATH}` });
   const roles = { developer: { agent: 'mb-developer', model: 'fixture/one#deep' },
     backend: { agent: 'mb-developer', model: 'fixture/two#deep' }, planner: { agent: 'mb-architect', model: 'fixture/two#deep' },
     ...(sharedStep ? { verifier: { agent: 'mb-developer', model: 'fixture/two#deep' } } : {}) };
