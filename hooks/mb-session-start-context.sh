@@ -141,7 +141,8 @@ if [ -f "$HANDOFF_LATEST" ]; then
   fi
 
   if [ "$capsule_mtime" -gt "$last_progress_epoch" ]; then
-    capsule_body=$(public_source "$HANDOFF_LATEST" | head -c "$HANDOFF_CAP" || true)
+    # jq slices by character: `head -c` could cut a multibyte character in half.
+    capsule_body=$(public_source "$HANDOFF_LATEST" | jq -Rrs --argjson n "$HANDOFF_CAP" '.[:$n]' 2>/dev/null || true)
     if [ -n "$capsule_body" ]; then
       CONTEXT="[MEMORY BANK: ACTIVE]\n\n## Handoff capsule (fresh — restored from PreCompact)\n${capsule_body}\n\n${CONTEXT#\[MEMORY BANK: ACTIVE\]\\n\\n}"
       echo "[mb] using fresh handoff capsule" >&2
@@ -149,9 +150,7 @@ if [ -f "$HANDOFF_LATEST" ]; then
   fi
 fi
 
-# Hard cap to avoid blowing the context window on large banks.
-if [ "${#CONTEXT}" -gt 2500 ]; then
-  CONTEXT="${CONTEXT:0:2500}"
-fi
-
-jq -n --arg ctx "$CONTEXT" '{additional_context: $ctx}'
+# Hard cap (2500 characters) to avoid blowing the context window on large banks; jq counts
+# characters in any locale, where bash's ${CONTEXT:0:N} counts bytes under LC_ALL=C.
+# stdin, not --arg: one long status line would pass the exec argument limit (E2BIG).
+printf '%s' "$CONTEXT" | jq -Rs '{additional_context: .[:2500]}'

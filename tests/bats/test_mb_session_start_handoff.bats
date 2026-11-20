@@ -274,3 +274,49 @@ SHIM
   cap_section_len=$(printf '%s' "$ctx" | awk '/status.md/{exit} {n+=length($0)+1} END{print n+0}')
   [ "$cap_section_len" -le 1800 ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# Truncation never cuts inside a UTF-8 sequence
+# ═══════════════════════════════════════════════════════════════
+
+# U+FFFD is what jq substitutes for a cut multibyte sequence.
+REPLACEMENT_CHAR=$'\xef\xbf\xbd'
+
+@test "session-start: multibyte capsule over the cap is cut on a character boundary" {
+  # One ASCII byte first, so a 1500-byte cut lands inside a two-byte character.
+  { printf 'x'; for _ in $(seq 1 2000); do printf 'ж'; done; } > "$MB/handoff/latest.md"
+  set_capsule_mtime 202606141200
+
+  run_hook_split
+  [ "$status" -eq 0 ]
+  local ctx
+  ctx="$(injected_context)"
+  [[ "$ctx" == *"Handoff capsule"* ]]
+  [[ "$ctx" != *"$REPLACEMENT_CHAR"* ]]
+}
+
+@test "session-start: multibyte context over the hard cap is cut on a character boundary in the C locale" {
+  { printf '# Status\n'; for _ in $(seq 1 30); do printf 'x'; for _ in $(seq 1 100); do printf 'ж'; done; printf '\n'; done; } > "$MB/status.md"
+
+  run_hook_split LC_ALL=C
+  [ "$status" -eq 0 ]
+  local ctx
+  ctx="$(injected_context)"
+  [[ "$ctx" == *"## status.md"* ]]
+  [[ "$ctx" != *"$REPLACEMENT_CHAR"* ]]
+  [ "$(printf '%s' "$ctx" | python3 -c 'import sys; print(len(sys.stdin.read()))')" -le 2500 ]
+}
+
+@test "session-start: a status line longer than the argument limit still yields the capped context" {
+  # 2 MiB on one line: past ARG_MAX on macOS (1 MiB) and MAX_ARG_STRLEN on Linux (128 KiB).
+  { printf '# Status\n'; head -c 2097152 /dev/zero | tr '\0' 'x'; printf '\n'; } > "$MB/status.md"
+
+  run_hook_split
+  [ "$status" -eq 0 ]
+  local ctx prefix expected
+  ctx="$(injected_context)"
+  # The hook's own separators are literal \n (Cursor format); status.md's newline is a real one.
+  prefix='[MEMORY BANK: ACTIVE]\n\n## status.md\n# Status'$'\n'
+  expected="${prefix}$(head -c $((2500 - ${#prefix})) /dev/zero | tr '\0' 'x')"
+  [ "$ctx" = "$expected" ]
+}

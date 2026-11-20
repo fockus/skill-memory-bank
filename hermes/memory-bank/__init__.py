@@ -4,6 +4,10 @@ Bank per session (first match wins):
   folder   the nearest ``.memory-bank/`` at or above the session's cwd (shared with other agents)
   project  ``$HERMES_HOME/projects/<slug>/.memory-bank`` for a Hermes project folder without its own bank
   general  ``$HERMES_HOME/.memory-bank``: one bank per profile (bot) for every other session
+
+``render_soul_brick()`` is this plugin's soul-composer brick. Without the composer the plugin keeps the
+same block in ``$HERMES_HOME/SOUL.md`` itself, in a background thread started by ``register()``;
+the writer contract (shared lock, detect-and-restore, composer header) is in ``soul.py``.
 """
 
 from __future__ import annotations
@@ -17,6 +21,8 @@ import sys
 import threading
 from pathlib import Path
 
+from . import soul
+
 logger = logging.getLogger(__name__)
 
 SKILL_ROOT = Path(__file__).resolve().parents[2]
@@ -25,7 +31,9 @@ _banks: dict[
     str, Path
 ] = {}  # ponytail: one entry per session for the gateway's lifetime; prune on finalize
 _init_lock = threading.Lock()
-SECTION_CAP = 4000  # Hermes drops a longer section (hermes_cli/plugins_dispatch.py:99-101, 720)
+# Hermes drops a section over 4000 chars and any section past 8000 for all of them together
+# (hermes_cli/plugins_dispatch.py:99-101, 679-700); llm-wiki sorts first, so leave it the full 4000.
+SECTION_CAP = 3000
 _SHARED = {
     "folder": "this project folder's own bank, shared by every session and agent working in it",
     "project": "this Hermes project's bank, shared by every session of the project",
@@ -63,7 +71,7 @@ def _trusted(*paths: Path) -> bool:
     except OSError:
         return False
     uid = os.getuid() if hasattr(os, "getuid") else None
-    return all((uid is None or st.st_uid == uid) and not st.st_mode & 0o002 for st in stats)
+    return all((uid is None or st.st_uid == uid) and not st.st_mode & 0o022 for st in stats)
 
 
 def resolve_bank(cwd: str) -> tuple[Path, str]:
@@ -82,19 +90,31 @@ def resolve_bank(cwd: str) -> tuple[Path, str]:
     return home / ".memory-bank", "general"
 
 
-def _script(*args: str, env: dict | None = None, stdin: str = "", timeout: int = 15) -> str:
+def _script(
+    *args: str, env: dict | None = None, stdin: str = "", timeout: int = 15, check: bool = False
+) -> str:
     result = subprocess.run(
         ["bash", str(SKILL_ROOT / args[0]), *args[1:]],
         input=stdin,
         capture_output=True,
         text=True,
         timeout=timeout,
+        # Hermes' cwd and PYTHONPATH are not ours: a module planted there must not shadow the bundle.
+        cwd=SKILL_ROOT,
         # The skill's scripts spawn python several times; a pyenv shim costs ~0.5 s per call.
-        env={**os.environ, "MB_PYTHON": sys.executable, **(env or {})},
+        env={
+            **os.environ,
+            "MB_PYTHON": sys.executable,
+            "PYTHONSAFEPATH": "1",
+            "PYTHONPATH": str(SKILL_ROOT),
+            **(env or {}),
+        },
         check=False,
     )
     if result.returncode:
         logger.warning("memory-bank: %s exited %s", args[0], result.returncode)
+        if check:
+            raise subprocess.CalledProcessError(result.returncode, args[0])
     return result.stdout
 
 
@@ -133,7 +153,6 @@ def _section(info) -> str:
         "notes, progress and sessions); for a project's code use "
         'bash "$MB_SKILLS_ROOT/scripts/mb-graph.sh" search "<query>" (or who-calls / impact / tests <symbol>).\n\n'
     )
-    # Hermes caps all plugin prompt sections at 8000 chars together; keep room for llm-wiki.
     return (head + context)[:SECTION_CAP]
 
 
@@ -200,60 +219,55 @@ def _on_finalize(*, session_id="", **kwargs):
 _COMMENT = re.compile(r"<!--.*?-->\n?", re.DOTALL)
 
 
-_RULES_START, _RULES_END = "<!-- mb-rules:start -->", "<!-- mb-rules:end -->"
 _LANGUAGE_LINE = re.compile(r"^.*\*\*Language\*\*.*\n?", re.MULTILINE)
-_COMPOSER_HEADER = "<!-- soul-composer: build "
+_soul_sync_lock = threading.Lock()
+_soul_syncs: set[Path] = set()  # SOUL.md files whose sync thread started in this process
 
 
 def render_soul_brick() -> str:
     """Key rules + Memory Bank engineering rules, rendered from the skill (single source with Claude Code),
     wrapped in the mb-rules markers. soul-composer takes it as this provider's SOUL brick.
-    The language line is dropped: Hermes answers in the user's language (USER.md, SOUL.md)."""
-    key = _script("scripts/mb-rules.sh", "render", "--target=global")
+    The language line is dropped: Hermes answers in the user's language (USER.md, SOUL.md).
+    Raises when the skill cannot render the rules, so the composer keeps its last good brick (REQ-015)."""
+    key = _script("scripts/mb-rules.sh", "render", "--target=global", check=True)
+    if "## Key rules" not in key:
+        raise ValueError("memory-bank: mb-rules.sh rendered no Key rules")
     engineering = (SKILL_ROOT / "rules" / "CLAUDE-GLOBAL.md").read_text(encoding="utf-8")
     body = _LANGUAGE_LINE.sub("", _COMMENT.sub("", key + "\n\n" + engineering)).strip()
-    return f"{_RULES_START}\n{body}\n{_RULES_END}"
+    return f"{soul.START.decode()}\n{body}\n{soul.END.decode()}"
 
 
-def _sync_soul_rules() -> None:
-    """Keep the rules block in SOUL.md current. SOUL has no plugin-section size cap and is read at session start."""
-    soul = _hermes_home() / "SOUL.md"
-    if not soul.is_file():
-        return  # no SOUL.md: Hermes uses its built-in identity, which a rules-only file would replace
+def _sync_soul_rules(path: Path) -> None:
+    """Keep the rules block in SOUL.md current; a busy lock leaves the file to the next session start."""
+    if not soul.sync(path, render_soul_brick):
+        with _soul_sync_lock:
+            _soul_syncs.discard(path)
+
+
+def _start_soul_sync(**kwargs) -> None:
+    """One background sync per SOUL.md per process. register() starts it, because Hermes builds and caches
+    the first session's prompt before on_session_start (agent/conversation_loop.py:918, 934); each
+    on_session_start starts it again only when no earlier start succeeded or the lock was busy."""
     try:
-        text = soul.read_text(encoding="utf-8")
-        if text.startswith(_COMPOSER_HEADER):
-            return  # soul-composer built this SOUL and is its single writer; it pulls render_soul_brick()
-        block = render_soul_brick()
-    except (OSError, subprocess.SubprocessError) as error:
-        logger.warning("memory-bank: rules sync skipped: %s", type(error).__name__)
-        return
-    if _RULES_START in text and _RULES_END in text:
-        before, rest = text.split(_RULES_START, 1)
-        updated = before + block + rest.split(_RULES_END, 1)[1]
-    else:
-        paragraphs = text.split("\n\n")
-        at = next(
-            (
-                i + 1
-                for i, para in enumerate(paragraphs)
-                if para.startswith("Priority when instructions conflict")
-            ),
-            len(paragraphs),
-        )
-        updated = "\n\n".join(paragraphs[:at] + [block] + paragraphs[at:])
-    if updated != text:
-        try:
-            soul.write_text(updated, encoding="utf-8")
-        except OSError as error:
-            logger.warning("memory-bank: rules sync failed: %s", type(error).__name__)
+        # Resolved in the caller: the profile's home is bound to this context, which a new thread lacks.
+        path = _hermes_home() / "SOUL.md"
+        with _soul_sync_lock:
+            if path in _soul_syncs:
+                return
+            threading.Thread(
+                target=_sync_soul_rules, args=(path,), name="memory-bank-soul-sync", daemon=True
+            ).start()
+            _soul_syncs.add(path)
+    except (OSError, RuntimeError) as error:
+        logger.warning("memory-bank: rules sync not started: %s", type(error).__name__)
 
 
 def register(ctx):
-    _sync_soul_rules()
     ctx.register_system_prompt_section("memory-bank", _section)
     ctx.register_session_env(
         ["MB_PATH", "MB_SKILLS_ROOT"], lambda session_id: _session_env(session_id, ctx)
     )
+    ctx.register_hook("on_session_start", _start_soul_sync)
     ctx.register_hook("post_compaction", _after_compaction)
     ctx.register_hook("on_session_finalize", _on_finalize)
+    _start_soul_sync()

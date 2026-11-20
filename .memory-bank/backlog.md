@@ -1216,3 +1216,29 @@ PYTHONPATH-стаб. 45 hooks-pytest зелёные.
 ### I-309 — mb-done-gates: default to scope=touched or a quick subset locally; local scope=full takes >45 min on macOS (no timeout binary), CI sharding is the fast path [LOW, NEW, 2026-11-20]
 **Type:** IDEA
 
+### I-310 — memory-bank Hermes SOUL sync: make a leftover swap temp after a second-exchange failure or crash discoverable on next sync (warn, never delete); treat as retryable [LOW, NEW, 2026-11-20]
+**Type:** IDEA
+
+
+### I-311 — memory-bank Hermes SOUL sync: add st_mode/st_uid/st_gid to the displaced-file identity (not ctime) [LOW, NEW, 2026-11-20]
+**Type:** IDEA
+
+
+### I-312 — memory-bank Hermes SOUL sync: skip publish when SOUL.md carries an extended ACL [LOW, NEW, 2026-11-20]
+**Type:** IDEA
+
+
+### I-313 — memory-bank Hermes SOUL sync: cold start — bounded join on the sync thread before the first prompt section per profile [LOW, NEW, 2026-11-20]
+**Type:** IDEA
+
+
+### I-314 — memory-bank Hermes SOUL sync: transient render timeout/OSError returns retry instead of disabling until restart [LOW, NEW, 2026-11-20]
+**Type:** IDEA
+
+
+### I-315 — mb-session-start-context.sh: jq-1.7.1-apple corrupts multibyte chars at 4096-byte -Rs boundaries; cut in Python [LOW, NEW, 2026-11-20]
+**Type:** IDEA
+
+
+### I-316 — tests: 0444 SOUL test fails under root (CAP_DAC_OVERRIDE); first-start concurrency test does not exercise the race [LOW, NEW, 2026-11-20]
+**Type:** IDEA
