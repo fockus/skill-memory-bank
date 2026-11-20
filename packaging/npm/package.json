@@ -1,0 +1,35 @@
+{
+  "name": "skill-memory-bank",
+  "description": "Universal long-term project memory + dev toolkit for AI coding agents (Claude Code, Codex, Cursor, OpenCode, Pi, Hermes)",
+  "license": "MIT",
+  "author": "Anton Ivanov",
+  "homepage": "https://github.com/fockus/skill-memory-bank",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fockus/skill-memory-bank.git"
+  },
+  "bugs": "https://github.com/fockus/skill-memory-bank/issues",
+  "bin": {
+    "skill-memory-bank": "bin/memory-bank.js",
+    "memory-bank": "bin/memory-bank.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "keywords": [
+    "memory-bank",
+    "claude-code",
+    "codex",
+    "cursor",
+    "opencode",
+    "pi",
+    "hermes",
+    "agent-skill",
+    "ai-coding",
+    "persistent-memory"
+  ]
+}

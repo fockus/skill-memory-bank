@@ -102,6 +102,14 @@ brew install memory-bank
 memory-bank install
 ```
 
+### Option 2b: npx (Node 18+, Python 3.11+)
+
+```bash
+npx skill-memory-bank install
+```
+
+The npm package carries the same bundle as PyPI and keeps a copy in `~/.local/share/memory-bank-skill/npm/<version>/`.
+
 ### Option 3: git clone (developers)
 
 ```bash

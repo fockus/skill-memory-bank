@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- npm: `npx skill-memory-bank install` runs the PyPI bundle (staged by `packaging/npm/stage.sh` from the sdist) from a persistent copy under `~/.local/share/memory-bank-skill/npm/<version>/`.
+
 ## [5.4.0] — 2026-11-20
 
 - `/mb work` with no target skips active plans that are paused, cancelled, done, blocked or waiting on an open `depends_on`, and takes the only eligible plan, else the only `in_progress` one.
