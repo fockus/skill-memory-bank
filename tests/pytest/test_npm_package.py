@@ -42,10 +42,16 @@ def test_npm_bin_staged_from_sdist_runs_cli_from_persistent_copy(tmp_path: Path)
     )
     data_home = tmp_path / "data"
     env = {**os.environ, "XDG_DATA_HOME": str(data_home), "MB_PYTHON": sys.executable}
+    # A checkout that plants its own `memory_bank_skill` must not shadow the bundle.
+    hostile = tmp_path / "hostile" / "memory_bank_skill"
+    hostile.mkdir(parents=True)
+    (hostile / "__init__.py").write_text("", encoding="utf-8")
+    (hostile / "__main__.py").write_text("print('HIJACKED')\n", encoding="utf-8")
 
     # Act
     run = subprocess.run(
         ["node", str(pkg / "bin/memory-bank.js"), "version"],
+        cwd=hostile.parent,
         env=env,
         capture_output=True,
         text=True,

@@ -29,7 +29,9 @@ function ensureBundle() {
 }
 
 const python = process.env.MB_PYTHON || "python3";
-const probe = spawnSync(python, ["-c", "import sys; sys.exit(sys.version_info < (3, 11))"]);
+// -P: keep the caller's working directory off sys.path, or a `memory_bank_skill/`
+// folder in an untrusted checkout would run instead of the bundle.
+const probe = spawnSync(python, ["-P", "-c","import sys; sys.exit(sys.version_info < (3, 11))"]);
 if (probe.error || probe.status !== 0) {
   console.error(`[memory-bank] needs Python 3.11+ as \`${python}\` (set MB_PYTHON to another interpreter)`);
   process.exit(127);
@@ -41,7 +43,7 @@ const env = {
   MB_SKILL_BUNDLE: bundle,
   PYTHONPATH: [bundle, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
 };
-const run = spawnSync(python, ["-m", "memory_bank_skill", ...process.argv.slice(2)], {
+const run = spawnSync(python, ["-P", "-m", "memory_bank_skill",...process.argv.slice(2)], {
   stdio: "inherit",
   env,
 });

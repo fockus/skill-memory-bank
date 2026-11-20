@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 - npm: `npx skill-memory-bank install` runs the PyPI bundle (staged by `packaging/npm/stage.sh` from the sdist) from a persistent copy under `~/.local/share/memory-bank-skill/npm/<version>/`.
+- Security (npm): the npm bin runs Python with `-P`, so a `memory_bank_skill/` folder in the current directory can no longer run in place of the bundle (npm 5.4.0 is affected).
 
 ## [5.4.0] — 2026-11-20
 
