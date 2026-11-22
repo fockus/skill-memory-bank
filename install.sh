@@ -1647,6 +1647,9 @@ for f in "$SOURCE_SKILL_DIR"/agents/*.md; do
 done
 rm -rf "$agents_render_dir"
 echo -e "  ${GREEN}✓${NC} ${agents_installed} agents (partials excluded from registry)"
+# The MB Team track loop is a Claude Code Workflow script; user-level workflows load from any project.
+install_file "$SOURCE_SKILL_DIR/workflows/mb-team-track.js" "$CLAUDE_DIR/workflows/mb-team-track.js"
+echo -e "  ${GREEN}✓${NC} workflow mb-team-track (~/.claude/workflows/)"
 
 # ═══ Step 3: Hooks ═══
 echo -e "${BLUE}[3/7] Hooks${NC}"

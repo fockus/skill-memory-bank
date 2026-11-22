@@ -337,7 +337,10 @@ For a resource, `preconditions` gate the start (`check` exit 0 = ok) and `stop_t
 command (`check` non-zero = breached); `maintenance` runs under the lock when preconditions fail.
 `checkpoint.extra` is an optional command run after each checkpoint. `rules_gate` (optional string) is the project's
 "lint on new code" command; `team commit` runs it, then `mb-rules-check.sh --base <baseline>` per track, and sends a
-failing track back to `fixing`. See [commands/team.md](../commands/team.md).
+failing track back to `fixing`. The resource `console` is built in (bank scope). `external_review` (`model`, `effort`,
+`max_rounds`, `command` with `{tree} {model} {effort} {prompt} {out}`) drives the cross-model rounds of the
+`mb-team-track` Workflow and the `codex-reviewer` model; an empty model falls back to a codex-cli `roles.reviewer.model`,
+then `model_profiles.codex.premium`. See [commands/team.md](../commands/team.md).
 
 ## qa — acceptance QA inside `/mb work`
 

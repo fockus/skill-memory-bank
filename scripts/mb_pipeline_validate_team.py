@@ -28,7 +28,8 @@ SEVERITIES = ("blocker", "major", "medium", "minor")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$")
 
 _TEAM_KEYS = ("default_size", "max_parallel", "presets", "overrides", "rules", "rules_gate", "review",
-              "resources", "checkpoint")
+              "resources", "checkpoint", "external_review")
+_EXTERNAL_KEYS = ("model", "effort", "max_rounds", "command")
 _REVIEW_KEYS = ("enabled", "lenses", "clean_when", "max_cycles", "models")
 _RESOURCE_KEYS = ("kind", "scope", "preconditions", "stop_threshold", "maintenance",
                   "watch_interval_s", "poll_s")
@@ -180,6 +181,16 @@ def _check_checkpoint(err, checkpoint) -> None:
         err("team.checkpoint.max_untracked_mb: must be int >= 0")
 
 
+def _check_external(err, block) -> None:
+    block = _mapping(err, "team.external_review", block)
+    _unknown(err, "team.external_review", block, _EXTERNAL_KEYS)
+    for key in ("model", "effort", "command"):
+        if block.get(key) is not None and not isinstance(block[key], str):
+            err(f"team.external_review.{key}: must be a string")
+    if "max_rounds" in block and not _is_int(block["max_rounds"]):
+        err("team.external_review.max_rounds: must be int >= 0")
+
+
 def nested_inline_errors(text: str, err) -> int:
     """Flag `{…{…}…}` / `[…{…}…]` inside `team:` (design D6); returns the count.
 
@@ -243,3 +254,5 @@ def validate(team, err, text: str | None = None) -> None:
         _check_resource(err, name, spec)
     if "checkpoint" in team:
         _check_checkpoint(err, team["checkpoint"])
+    if "external_review" in team:
+        _check_external(err, team["external_review"])

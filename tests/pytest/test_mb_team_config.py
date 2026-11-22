@@ -195,11 +195,11 @@ def test_effective_team_identical_with_and_without_yaml(tmp_path: Path) -> None:
     assert team["presets"]["extra"]["review"] == "lenses"  # omitted size falls back to bundled
 
 
-def test_bundled_team_block_is_valid_and_has_no_resources(tmp_path: Path) -> None:
+def test_bundled_team_block_is_valid_and_has_only_the_builtin_console_resource(tmp_path: Path) -> None:
     r = _config(tmp_path, "show", pipeline=REPO_ROOT / "references" / "pipeline.default.yaml")
     assert r.returncode == 0, r.stderr
     team = json.loads(r.stdout)
-    assert team["resources"] == {}
+    assert team["resources"] == {"console": {"scope": "bank"}}
     assert team["review"]["enabled"] is False
     assert team["review"]["clean_when"] == {"blocker": 0, "major": 0, "medium": 0}
 

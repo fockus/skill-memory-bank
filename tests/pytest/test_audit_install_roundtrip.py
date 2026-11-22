@@ -40,7 +40,7 @@ def copy_bundle(destination: Path) -> Path:
     for name in (
         "install.sh", "uninstall.sh", "VERSION", "SKILL.md", "adapters", "agents",
         "commands", "hooks", "rules", "scripts", "references", "settings", "templates",
-        "flow-templates", "memory_bank_skill",
+        "flow-templates", "workflows", "memory_bank_skill",
     ):
         source = REPO / name
         if source.is_dir():

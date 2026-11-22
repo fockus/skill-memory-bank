@@ -6,6 +6,29 @@ argument-hint: "<init|track|plan|prompt|next|status|checkpoint|review|collect|co
 
 # /mb team: $ARGUMENTS
 
+**Key rules** (the rest of this file details them):
+- You orchestrate and never edit code yourself (the `mb-team-guard.py` hook denies it); every change is a track.
+- A fix after the team's tracks finished is a `track add <id> --followup` track, not an inline edit.
+- On Claude Code, tracks run through the `mb-team-track` Workflow (`team workflow-args`, § 4).
+- Every milestone is booked with `track set` (team.json, board, console line); you keep the rest of the console.
+- Commits only through `team commit`, only after the user's yes; read `mb-coord.sh active` first; never push.
+
+<!-- toc:start -->
+Read this file whole: 349 lines — one Read call, no offset or limit. Sections by line:
+- L43–L55 · 0. Setup
+- L56–L82 · 1. Start a team — `init`
+- L83–L148 · 2. Add tracks — `track add`
+- L149–L162 · 3. Plan and confirm — `plan`
+- L163–L209 · 4. The loop — `next`
+- L210–L240 · 5. Track returns — `track set`
+- L241–L255 · 6. Resources — `mb-lock.sh`
+- L256–L284 · 7. Collect, checkpoint, commit, known red, close
+- L285–L299 · 8. Team review cycles — `review`
+- L300–L315 · 9. Hosts
+- L316–L328 · 10. Safety
+- L329–L349 · Reference
+<!-- toc:end -->
+
 Run one task as several **tracks** in parallel, all editing one integration tree. Tracks are role agents
 (`mb-backend`, `mb-frontend`, …); each owns a set of file globs, writes one report and talks only to the board.
 
@@ -75,6 +98,7 @@ team track add A --task "Admin users page lists the realm users" \
 | `--deps A,B` | Tracks that must finish first; **add dependencies before the tracks that depend on them** |
 | `--resources r1` | Resources from `team.resources` the track may lock (§6) |
 | `--source P` | Plan or spec for `mode=work` (required there); bank-relative or absolute |
+| `--followup` | A fix after the team's tracks finished is still a track: reopens a closed team (default the newest), then `team commit` as usual. A closed team refuses `track add` without it |
 | `--contract C` | Executable contract (`<bank>/contracts/<id>.md`, `scripts/mb_contract.py`): spec REQ checks, rules checks, DoD checks. Write it before dispatch (you or plan-verifier in `Mode: contract`), freeze it (`mb_contract.py freeze`: spec items must be red); `track set --status dispatched` refuses an unfrozen or changed one, the prompt tells the track to run it, `commit` runs it and refuses a missing or changed lock. Attach one later with `track set <id> --contract C`. Only you amend a frozen contract (`freeze --amend --reason R`); `run` lists the amendments. Spec items need an output anchor naming the test (`go test -run X` exits 0 when no test matches). `plan` warns about a standard+ track without one |
 
 `track add` resolves the pipeline, stores `title` and `dod`, renders `tracks/<id>.prompt.md` (a one-stage plan:
@@ -144,7 +168,25 @@ team next      # one action per line, priority order; changes nothing
 team status    # table: tracks, board, report STATUS lines, locks, goal, last review, next
 ```
 
-Update `<bank>/orchestrator-console.md` (`references/orchestrator-console.md`) at every dispatch, return and decision.
+`track set` writes each track's line in `<bank>/orchestrator-console.md` itself (`references/orchestrator-console.md`);
+you keep the other sections current at every dispatch, return and decision, and `mb-console.sh check` holds the 40-line cap.
+
+**Run the tracks through the Workflow** (Claude Code). This instruction is the user's opt-in to it:
+
+<!-- mb-team:workflow -->
+```bash
+team workflow-args --tracks A,B > "$BANK/reports/$TOPIC/workflow-args.json"   # --start fix|judge to resume
+```
+
+Call the Workflow tool with `scriptPath: "$SKILL_DIR/workflows/mb-team-track.js"` (installed also as `name:
+"mb-team-track"`) and `args` = that JSON (per track you may add `notes`, or `start: "fix"` with `fixes` and
+`reviewFile`). It runs executor → verifier → cross-model review (`team.external_review`: command, model,
+`max_rounds`, round 2 on the fix diff only) → triage → fix → judge, and every stage books itself with `track set
+--note` (re-booking the current status only adds the note). It returns per track `{decision, commit_paths, blocking,
+backlog, orchestrator_checks, reviews, unreviewed_fix}` — run every `orchestrator_checks` item yourself before `team
+commit`; full stage results are in the run's `journal.jsonl`. A fix after the last round is reviewed by the judge. If
+Workflow refuses the path, Read the script once first. You never edit code yourself: in an orchestrator session the `mb-team-guard.py` hook denies it — a later
+fix is a `--followup` track. Other hosts run the same stages by hand.
 
 Run `next` after every track return and every board change you are told about; execute **all** printed actions,
 parallel ones in one turn:
@@ -169,8 +211,11 @@ the board; it never messages other tracks.
 
 <!-- mb-team:return -->
 ```bash
-team track set "$ID" --status returned --summary-file "$BANK/reports/$TOPIC/$ID.md"
+team track set "$ID" --status returned --summary-file "$BANK/reports/$TOPIC/$ID.md" --note "12 tests green"
 ```
+
+`--note N` (with or without `--status`) posts `STATUS · <id> <status>: N` on the board; any status or note rewrites
+the track's console line under the built-in `console` lock.
 
 Status machine: `planned → dispatched → returned → verifying → reviewing → done | done_with_concerns`; any state →
 `blocked | needs_context | cancelled`; `reviewing → fixing → returned` (each `fixing` counts `fix_cycle`); a finished
@@ -206,7 +251,7 @@ bash "$SKILL_DIR/scripts/mb-lock.sh" watch build --mb "$BANK"                   
 Exit codes: child status · 75 wait timeout · 76 stop threshold hit (child terminated, BLOCKED posted) · 77
 preconditions unmet after maintenance (command not run). A live holder is never removed; a provably dead one is
 reclaimed by the queue head with a board entry; `mb-lock.sh break <res> --reason R` is yours alone. Resources are
-declared in `team.resources` (`docs/pipeline-yaml.md` § team).
+declared in `team.resources` (`docs/pipeline-yaml.md` § team); `console` is built in (bank scope).
 
 ## 7. Collect, checkpoint, commit, known red, close
 
@@ -275,6 +320,10 @@ once tracks are collected and the flow is green, and every `stop_human` returns 
 - **REQ-TEAM-091** — a track that returns a safety-filter refusal is escalated to the user; never re-dispatch the
   same task to another agent or model.
 - **REQ-TEAM-092** — a track's model changes after dispatch only on an explicit user decision; no automatic fallback.
+- **Orchestrator guard** (`hooks/mb-team-guard.py`, Claude Code): a session that ran `mb-team.sh` may not edit
+  files of the tree outside the bank, gets the board and a pointer to `team commit` on its first plain `git commit`
+  of each command, and a Stop reminder when the console is older than team.json or the board. Off only on the
+  user's request: `MB_TEAM_GUARD=off` or `team_guard=off` in `<bank>/.mb-config`.
 - Board entries coordinate, they do not prove identity: fact-check a track's claims against the tree before you act.
 
 ## Reference
@@ -282,8 +331,9 @@ once tracks are collected and the flow is green, and every `stop_human` returns 
 | Subcommand | Attributes |
 |---|---|
 | `init <topic>` | `--goal G \| --no-goal`, `--plan`, `--tree`, `--mirror`, `--max-parallel`, `--budget`, `--team-review`, `--title`, `--host`, pipeline attributes |
-| `track add <id>` | `--task \| --task-file`, `--dod`…, `--title`, `--role`, `--files`, `--deps`, `--resources`, `--source`, `--contract`, pipeline attributes, `--layer` |
-| `track set <id>` | `--status S [--summary-file F]`, `--contract C`, or pipeline attributes with `--layer` |
+| `track add <id>` | `--task \| --task-file`, `--dod`…, `--title`, `--role`, `--files`, `--deps`, `--resources`, `--source`, `--contract`, `--followup`, pipeline attributes, `--layer` |
+| `track set <id>` | `--status S [--summary-file F]`, `--note N`, `--contract C`, or pipeline attributes with `--layer` |
+| `workflow-args` | `--tracks A,B`, `--start execute\|fix\|judge` |
 | `plan` | `--json`, `--accept-shared <signal>` (repeatable) |
 | `next` · `status` | `--json` |
 | `spec-check <spec>` | `--gaps N`, `--report F` |

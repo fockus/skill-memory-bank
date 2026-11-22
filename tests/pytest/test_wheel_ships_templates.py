@@ -99,6 +99,12 @@ def test_sdist_ships_templates(built_dists: tuple[Path, Path]) -> None:
     )
 
 
+def test_wheel_and_sdist_ship_the_team_workflow(built_dists: tuple[Path, Path]) -> None:
+    wheel, sdist = built_dists
+    assert any(n.endswith(f"{WHEEL_DATA_PREFIX}/workflows/mb-team-track.js") for n in _wheel_names(wheel))
+    assert any(n.endswith("workflows/mb-team-track.js") for n in _sdist_names(sdist))
+
+
 def test_installed_rules_assets(built_dists: tuple[Path, Path], tmp_path: Path) -> None:
     wheel, _ = built_dists
     prefix, cwd, home = (tmp_path / name for name in ("prefix", "empty", "home"))

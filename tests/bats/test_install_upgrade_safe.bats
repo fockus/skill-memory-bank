@@ -55,7 +55,7 @@ _sync_current() {
   if [ ! -d "$T/current" ]; then
     mkdir -p "$T/current"
     rsync -a --exclude='.env*' --exclude='__pycache__' \
-      "$REPO_ROOT/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,settings,memory_bank_skill} \
+      "$REPO_ROOT/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,workflows,settings,memory_bank_skill} \
       "$REPO_ROOT/"{install.sh,uninstall.sh,VERSION,SKILL.md} "$T/current/"
   fi
   rsync -a --delete --exclude='.installed-manifest.json' "$T/current/" "$SRC/"

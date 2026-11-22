@@ -4,6 +4,7 @@
 Usage:
   mb_team_config.py show [--mb <bank>] [--pipeline <file>] [--json]
   mb_team_config.py resource <name> [--mb <bank>] [--pipeline <file>] [--json]
+  mb_team_config.py external-review [--mb <bank>]   # {model, effort, max_rounds, command}
 
 `show` prints the effective team block: the project block over the bundled one
 (presets size by size and key by key, review/checkpoint key by key, resources and
@@ -29,6 +30,8 @@ import mb_pipeline_validate_team as schema  # noqa: E402
 from mb_pipeline_minimal_yaml import minimal_pipeline_load  # noqa: E402
 
 DEFAULT_PIPELINE = HERE.parent / "references" / "pipeline.default.yaml"
+# Built in: every team has it, `team.resources` may redefine it. Serialises orchestrator-console.md writes.
+BUILTIN_RESOURCES = {"console": {"scope": "bank"}}
 RESOURCE_DEFAULTS = {"kind": "mutex", "scope": "host", "maintenance": None,
                      "watch_interval_s": 30, "poll_s": 5}
 
@@ -108,9 +111,24 @@ def effective_team(project: dict, bundled: dict) -> dict:
         "rules": list(p.get("rules") or b.get("rules") or []),
         "rules_gate": p.get("rules_gate", b.get("rules_gate")),
         "review": review,
-        "resources": {**_block(b, "resources"), **_block(p, "resources")},
+        "resources": {**BUILTIN_RESOURCES, **_block(b, "resources"), **_block(p, "resources")},
         "checkpoint": {**_block(b, "checkpoint"), **_block(p, "checkpoint")},
+        "external_review": {**_block(b, "external_review"), **_block(p, "external_review")},
     }
+
+
+def external_review(project: dict, bundled: dict, team: dict) -> dict:
+    """Cross-model reviewer of the mb-team-track Workflow and the codex-reviewer agent.
+
+    model: team.external_review.model ▸ roles.reviewer.model of a codex-cli reviewer ▸
+    model_profiles.codex.premium; effort: team.external_review.effort ▸ that reviewer's thinking ▸ high."""
+    rv = team["external_review"]
+    reviewer = _block(_block(project, "roles"), "reviewer")
+    codex_cli = reviewer if reviewer.get("agent") == "codex-cli" else {}
+    profile = {**_block(_block(bundled, "model_profiles"), "codex"), **_block(_block(project, "model_profiles"), "codex")}
+    return {"model": str(rv.get("model") or codex_cli.get("model") or profile.get("premium") or ""),
+            "effort": str(rv.get("effort") or codex_cli.get("thinking") or "high"),
+            "max_rounds": int(rv.get("max_rounds", 2)), "command": str(rv.get("command") or "")}
 
 
 def load_configs(pipeline: str = "", bank: str = "") -> tuple[dict, dict, dict]:
@@ -148,16 +166,18 @@ def resource_json(team: dict, name: str, bank: str) -> dict:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="mb_team_config.py")
-    parser.add_argument("command", choices=("show", "resource"))
+    parser.add_argument("command", choices=("show", "resource", "external-review"))
     parser.add_argument("name", nargs="?")
     parser.add_argument("--mb", default="")
     parser.add_argument("--pipeline", default="")
     parser.add_argument("--json", action="store_true", help="accepted; output is always JSON")
     args = parser.parse_args(argv)
     try:
-        _project, _bundled, team = load_configs(args.pipeline, args.mb)
+        project, bundled, team = load_configs(args.pipeline, args.mb)
         if args.command == "show":
             result = team
+        elif args.command == "external-review":
+            result = external_review(project, bundled, team)
         elif not args.name:
             raise ConfigError(["resource: name required"])
         elif args.name not in team["resources"]:

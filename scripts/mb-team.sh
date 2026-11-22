@@ -4,7 +4,7 @@
 #
 # Usage: mb-team.sh [--mb <bank>] [--topic T] <subcommand> …
 #   init <topic> · track add|set <id> · plan · prompt <id> · known-red · spec-check (mb_team_tracks.py)
-#   next · status                                                                  (mb_team_status.py)
+#   next · status (mb_team_status.py) · workflow-args --tracks A,B (mb_team_workflow.py, Workflow args)
 #   collect · commit · checkpoint · close                                          (mb_team_ops.py)
 #   review gate --cycle N       → mb-team-review.sh gate, recorded in team.json reviews[]
 #   review start|external|ingest … → mb-team-review.sh with --team/--mb
@@ -45,6 +45,7 @@ tail_args=(${topic[@]+"${topic[@]}"} --mb "$bank")
 
 case "${args[0]}" in
   init | track | plan | prompt | known-red | spec-check) exec python3 "$SCRIPT_DIR/mb_team_tracks.py" "${args[@]}" "${tail_args[@]}" ;;
+  workflow-args) exec python3 "$SCRIPT_DIR/mb_team_workflow.py" "${args[@]}" "${tail_args[@]}" ;;
   next | status) exec python3 "$SCRIPT_DIR/mb_team_status.py" "${args[@]}" "${tail_args[@]}" ;;
   collect | commit | checkpoint | close) exec python3 "$SCRIPT_DIR/mb_team_ops.py" "${args[@]}" "${tail_args[@]}" ;;
   review)

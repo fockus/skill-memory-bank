@@ -100,13 +100,17 @@ def team_file(bank: str, topic: str) -> Path:
     return Path(bank) / "reports" / topic / "team.json"
 
 
-def find_topic(bank: str, topic: str = "") -> str:
+def find_topic(bank: str, topic: str = "", closed_too: bool = False) -> str:
+    """The named team, else the only open one; `closed_too` falls back to the newest closed team."""
     if topic:
         if not team_file(bank, topic).is_file():
             raise TeamError(f"no team '{topic}' in {bank}/reports")
         return topic
-    open_teams = [p.parent.name for p in sorted((Path(bank) / "reports").glob("*/team.json"))
-                  if not json.loads(p.read_text(encoding="utf-8")).get("closed")]
+    teams = [json.loads(p.read_text(encoding="utf-8")) | {"_topic": p.parent.name}
+             for p in sorted((Path(bank) / "reports").glob("*/team.json"))]
+    open_teams = [t["_topic"] for t in teams if not t.get("closed")]
+    if closed_too and not open_teams and teams:
+        return max(teams, key=lambda t: t.get("created") or "")["_topic"]
     if len(open_teams) != 1:
         raise TeamError(f"pass --topic: open teams {open_teams or 'none'}")
     return open_teams[0]
@@ -205,6 +209,14 @@ def resolve_track(bank: str, team: dict, track: dict) -> None:
     for warning in out["warnings"]:
         print(f"warning: track {track['id']}: {warning}", file=sys.stderr)
     track.update(size=out["pipeline"]["size"], pipeline=out["pipeline"], provenance=out["provenance"])
+
+
+def board(bank: str, kind: str, title: str, track: str = "") -> None:
+    """Append a board entry; a failure is a warning, the team.json change already landed."""
+    r = run(["bash", script("mb-coord.sh"), "append", "--type", kind, "--title", title,
+             *(["--track", track] if track else []), "--mb", bank])
+    if r.returncode != 0:
+        print(f"warning: board entry not posted: {r.stderr.strip()}", file=sys.stderr)
 
 
 def vcs(team: dict, *args: str, stdin: str | None = None) -> str:

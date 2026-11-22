@@ -32,7 +32,7 @@ def lab(tmp_path):
     bundle = tmp_path / "bundle"
     bundle.mkdir()
     for name in ("adapters", "agents", "commands", "hooks", "scripts", "rules", "references",
-                 "templates", "flow-templates", "settings", "memory_bank_skill"):
+                 "templates", "flow-templates", "workflows", "settings", "memory_bank_skill"):
         shutil.copytree(ROOT / name, bundle / name, ignore=shutil.ignore_patterns("__pycache__"))
     for name in ("install.sh", "uninstall.sh", "VERSION", "SKILL.md"):
         shutil.copy2(ROOT / name, bundle / name)

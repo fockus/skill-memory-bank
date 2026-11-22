@@ -402,11 +402,7 @@ def cmd_add(args):
     print(new_id)
 
     active_count = len(sections["Active"])
-    if active_count > 25:
-        sys.stderr.write(
-            "[mb-agree] prune warning: %d active agreements (>25) — "
-            "consider deferring/rejecting stale ones\n" % active_count
-        )
+    _cap_warning(active_count)
 
 
 def _move_active(args, target_section, extra_marker):
@@ -484,6 +480,18 @@ def cmd_resolve(args):
     print(id_str)
 
 
+ACTIVE_CAP = 25
+
+
+def _cap_warning(active_count):
+    if active_count > ACTIVE_CAP:
+        sys.stderr.write(
+            "[mb-agree] prune warning: %d active agreements (>%d) — consolidate related ones: "
+            "`mb-agree.sh add \"<merged statement>\" --supersedes N`, then `mb-agree.sh reject M` "
+            "for the other merged ids; defer or reject stale ones\n" % (active_count, ACTIVE_CAP)
+        )
+
+
 def cmd_list(args):
     file_path = require_file(args)
     mode = args.get("mode") or "active"
@@ -506,6 +514,7 @@ def cmd_list(args):
             print(line)
     else:
         print("(none)")
+    _cap_warning(len(sections["Active"]))
 
 
 BLOCK_BUDGET = 4096
@@ -678,11 +687,7 @@ def cmd_sync(args):
         atomic_write(path, new_text)
 
     print("[mb-agree] managed block synced (%d active)" % active_count)
-    if active_count > 25:
-        sys.stderr.write(
-            "[mb-agree] prune warning: %d active agreements (>25) — "
-            "consider deferring/rejecting stale ones\n" % active_count
-        )
+    _cap_warning(active_count)
 
 
 ACTIONS = {

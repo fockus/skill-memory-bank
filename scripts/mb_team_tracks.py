@@ -7,7 +7,9 @@ Usage (through mb-team.sh, which adds --mb <bank>):
   mb_team_tracks.py track add <id> (--task T | --task-file F) --dod D [--dod D]... [--title T]
       [--role R] [--files g1,g2] [--deps A,B] [--resources r1] [--source P] [--contract C] [pipeline attrs]
       [--layer attr|prompt]   (--contract: frozen mb_contract.py file; `dispatched` refuses an unfrozen one)
-  mb_team_tracks.py track set <id> [--status S [--summary-file F]] [--contract C] [pipeline attrs] [--layer attr|prompt]
+      [--followup]   (a fix after the tracks finished: reopens the closed team, default the newest one)
+  mb_team_tracks.py track set <id> [--status S [--summary-file F]] [--note N] [--contract C] [pipeline attrs]
+      [--layer attr|prompt]   (--note: one line for the board; every status or note rewrites the track's console line)
   mb_team_tracks.py prompt <id> · known-red add <test-id> --reason R · known-red list
   mb_team_tracks.py spec-check specs/<topic> --gaps N [--report F]   # record a wave-end spec verification
   mb_team_tracks.py plan [--json] [--accept-shared S]   # mb_team_plan.py: table, waves, readiness
@@ -106,8 +108,14 @@ def cmd_track_add(args) -> int:
         raise TeamError("--dod is required (a track prompt is a one-stage plan with a DoD)")
     if not (st.HERE.parent / "agents" / f"mb-{args.role}.md").is_file():
         raise TeamError(f"role '{args.role}': no agents/mb-{args.role}.md")
-    topic = st.find_topic(bank, args.topic)
+    topic = st.find_topic(bank, args.topic, closed_too=args.followup)
+    reopened = False
     with st.locked(bank, topic) as team:
+        if team.get("closed"):
+            if not args.followup:
+                raise TeamError(f"team '{topic}' is closed; a fix after its tracks finished is a follow-up "
+                                f"track: track add {tid} --followup …")
+            team["closed"], reopened = False, True
         ids = [t["id"] for t in team["tracks"]]
         if tid in ids:
             raise TeamError(f"track {tid} already exists")
@@ -125,18 +133,21 @@ def cmd_track_add(args) -> int:
                  "layers": {"track": [], "prompt": []}, "pipeline": None, "provenance": None,
                  "prompt": f"{base}/tracks/{tid}.prompt.md", "report": f"{base}/{tid}.md", "status": "planned",
                  "run_id": None, "fix_cycle": 0, "collected": False, "dispatched_at": None, "returned_at": None,
-                 "summary": None, "contract": _rel(bank, args.contract) if args.contract else None}
+                 "summary": None, "contract": _rel(bank, args.contract) if args.contract else None,
+                 "followup": args.followup}
         track["layers"][args.layer] = st.pipeline_attrs(args)
         st.resolve_track(bank, team, track)
         team["tracks"].append(track)
         print(st.render_prompt(bank, team, tid))
         st.refresh_brief(bank, team)
+    if reopened:
+        st.board(bank, "STATUS", f"team {topic}: reopened for follow-up {tid}", track=tid)
     return 0
 
 
 def cmd_track_set(args) -> int:
     bank = args.mb
-    with st.locked(bank, st.find_topic(bank, args.topic)) as team:
+    with st.locked(bank, st.find_topic(bank, args.topic, closed_too=True)) as team:
         track = next((t for t in team["tracks"] if t["id"] == args.id), None)
         if track is None:
             raise TeamError(f"unknown track '{args.id}'")
@@ -146,6 +157,9 @@ def cmd_track_set(args) -> int:
                 raise TeamError(f"track {args.id} is {track['status']}: its contract cannot be swapped; amend the "
                                 "frozen one (mb_contract.py freeze --amend --reason R)")
             track["contract"] = path
+        requested = args.status
+        if args.status == track["status"]:
+            args.status = ""  # a stage re-booking its own status: no transition, the note still lands
         if args.status:
             if not st.can_move(track["status"], args.status):
                 raise TeamError(f"track {args.id}: {track['status']} -> {args.status} is not allowed")
@@ -172,7 +186,19 @@ def cmd_track_set(args) -> int:
             st.resolve_track(bank, team, track)
             st.render_prompt(bank, team, args.id)
             st.refresh_brief(bank, team)
+        status = track["status"]
+    if requested or args.note:
+        _book(bank, args.id, status, requested, args.note)
     return 0
+
+
+def _book(bank: str, tid: str, status: str, moved: str, note: str) -> None:
+    """The milestone's console line (under the `console` lock) and, with a note, a board entry."""
+    r = st.run(["bash", st.script("mb-console.sh"), "line", tid, status, note, "--mb", bank])
+    if r.returncode != 0:
+        print(f"warning: console line not written: {r.stderr.strip()}", file=sys.stderr)
+    if note:
+        st.board(bank, "STATUS", f"{tid} {moved or 'note'}: {note}", track=tid)
 
 
 def cmd_prompt(args) -> int:
@@ -238,11 +264,13 @@ def _parser() -> argparse.ArgumentParser:
         add.add_argument(flag, default="")
     add.add_argument("--dod", action="append", default=[])
     add.add_argument("--role", default="developer")
+    add.add_argument("--followup", action="store_true", help="a fix after the tracks finished; reopens a closed team")
     tset = track.add_parser("set", parents=[common, attrs])
     tset.add_argument("id")
     tset.add_argument("--status", default="", choices=("", *st.MOVES, *st.TERMINAL))
     tset.add_argument("--summary-file", default="")
     tset.add_argument("--contract", default="")
+    tset.add_argument("--note", default="", help="one line for the console and the board")
     prompt = sub.add_parser("prompt", parents=[common])
     prompt.add_argument("id")
     known = sub.add_parser("known-red", parents=[common])

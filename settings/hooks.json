@@ -23,6 +23,16 @@
       ]
     },
     {
+      "matcher": "Edit|Write|NotebookEdit|Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "~/.claude/skills/memory-bank/hooks/mb-team-guard.py # [memory-bank-skill]",
+          "timeout": 20
+        }
+      ]
+    },
+    {
       "matcher": "Task|Agent",
       "hooks": [
         {
@@ -108,6 +118,11 @@
         {
           "type": "command",
           "command": "MB_AGENT=claude-code ~/.claude/skills/memory-bank/hooks/mb-core-cap-guard.sh # [memory-bank-skill]",
+          "timeout": 20
+        },
+        {
+          "type": "command",
+          "command": "~/.claude/skills/memory-bank/hooks/mb-team-guard.py # [memory-bank-skill]",
           "timeout": 20
         },
         {

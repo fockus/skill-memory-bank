@@ -14,6 +14,7 @@ Full roster of the bundled subagents. Dispatch rules (by name, per host) stay in
 | `mb-test-runner` | `/test`, `plan-verifier` step 3.5 — runs `mb-test-run.sh`, correlates failures with session diff. Returns JSON `{stack, tests_pass, tests_total, failures[], coverage, duration_ms}` | `agents/mb-test-runner.md` |
 | `mb-qa-runner` | `/mb qa run` — walks md acceptance scenarios against the live product (browser via Playwright MCP or `@playwright/cli`, CLI, HTTP API), files bugs by severity through `mb-qa-bug.sh`, writes `qa/runs/<run-id>/report.md` | `agents/mb-qa-runner.md` |
 | `mb-reviewer` | `/mb work` legacy single-reviewer fallback — reads stage diff + `pipeline.yaml:review_rubric`, emits structured JSON verdict | `agents/mb-reviewer.md` |
+| `codex-reviewer` | Cross-model review runner over the Codex CLI — model and effort from `pipeline.yaml` (`mb-reviewer-resolve.sh --external`), strict reviewer JSON, loud SKIPPED | `agents/codex-reviewer.md` |
 | `mb-reviewer-logic` | `/mb work` governed review ensemble — correctness / logic aspect reviewer with scoped context | `agents/mb-reviewer-logic.md` |
 | `mb-reviewer-tests` | `/mb work` governed review ensemble — test-coverage / quality-of-tests aspect reviewer | `agents/mb-reviewer-tests.md` |
 | `mb-reviewer-quality` | `/mb work` governed review ensemble — code-quality / maintainability aspect reviewer | `agents/mb-reviewer-quality.md` |

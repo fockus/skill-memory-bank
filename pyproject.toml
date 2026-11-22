@@ -89,6 +89,7 @@ include = [
   "docs/*.md",
   "templates/**/*",
   "flow-templates/**/*",
+  "workflows/*",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -109,6 +110,7 @@ packages = ["memory_bank_skill"]
 "settings" = "share/memory-bank-skill/settings"
 "templates" = "share/memory-bank-skill/templates"
 "flow-templates" = "share/memory-bank-skill/flow-templates"
+"workflows" = "share/memory-bank-skill/workflows"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -131,6 +133,7 @@ include = [
   "/docs",
   "/templates",
   "/flow-templates",
+  "/workflows",
   "/pyproject.toml",
 ]
 

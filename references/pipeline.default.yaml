@@ -520,3 +520,13 @@ team:
     models: {lenses: premium, lead: premium}
   checkpoint:
     max_untracked_mb: 512
+  # Cross-model review rounds of the mb-team-track Workflow (commands/team.md § 4), also the
+  # model of the codex-reviewer agent (`mb-reviewer-resolve.sh --external`). Empty model:
+  # roles.reviewer.model of a codex-cli reviewer, else model_profiles.codex.premium; empty
+  # effort: that reviewer's thinking, else high. max_rounds 0 turns the rounds off. Command
+  # placeholders: {tree} {model} {effort} (workflow-args), {prompt} {out} (each round).
+  external_review:
+    model: ""
+    effort: ""
+    max_rounds: 2
+    command: perl -e 'alarm 1800; exec @ARGV' codex exec --sandbox read-only -C {tree} -m {model} -c model_reasoning_effort={effort} - < {prompt} > {out} 2>&1

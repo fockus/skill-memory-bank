@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- `/mb team`: tracks run through the bundled Claude Code Workflow `workflows/mb-team-track.js` (args from `team workflow-args`; models, efforts and the `team.external_review` command come from `pipeline.yaml`; installed to `~/.claude/workflows/`); `track add --followup` reopens a closed team; `track set --note` writes the board entry and the track's console line under the built-in `console` lock; `mb-console.sh check` enforces the 40-line cap.
+- New `hooks/mb-team-guard.py`: in an orchestrator session it denies code edits outside the bank, points a plain `git commit` to `team commit` with the board, and reminds at Stop when the console is stale; the `codex-reviewer` agent ships with the skill and reads its model from `pipeline.yaml` (`mb-reviewer-resolve.sh --external`); `mb-agree.sh` suggests consolidation above 25 active agreements.
+- `commands/team.md` opens with its key rules and a line-range contents block (`scripts/mb-doc-toc.py`, checked by a test), so a reader that stops early still sees the rules and every section.
+
 ## [5.4.1] — 2026-11-20
 
 - Security: a `memory_bank_skill/` folder in the current directory (for example an untrusted checkout) no longer runs in place of the bundled package. The npm bin runs Python with `-P`; shell helpers that find the package through `PYTHONPATH` set `PYTHONSAFEPATH=1`. Affects 5.4.0 on every channel.

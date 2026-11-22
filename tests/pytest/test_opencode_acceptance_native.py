@@ -67,7 +67,7 @@ def native(tmp_path, monkeypatch):
     bundle.mkdir(mode=0o700)
     ignored = BUNDLE_IGNORE
     for name in ("adapters", "agents", "commands", "hooks", "scripts", "rules", "references",
-                 "templates", "flow-templates", "settings", "memory_bank_skill"):
+                 "templates", "flow-templates", "workflows", "settings", "memory_bank_skill"):
         shutil.copytree(ROOT / name, bundle / name, ignore=ignored, symlinks=True)
     for name in ("install.sh", "uninstall.sh", "VERSION", "SKILL.md"):
         shutil.copy2(ROOT / name, bundle / name)

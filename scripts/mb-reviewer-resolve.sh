@@ -3,6 +3,8 @@
 #
 # Usage:
 #   mb-reviewer-resolve.sh [--mb <path>]
+#   mb-reviewer-resolve.sh --external [--mb <path>]   # cross-model reviewer JSON: model, effort,
+#       max_rounds, command (team.external_review ▸ codex-cli roles.reviewer ▸ model_profiles.codex)
 #
 # Resolution:
 #   1. Read pipeline.yaml: project <bank>/pipeline.yaml → references/pipeline.default.yaml.
@@ -25,12 +27,15 @@ set -euo pipefail
 source "$(dirname "$0")/_lib.sh"
 
 MB_ARG=""
+EXTERNAL=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --mb) MB_ARG="${2:-}"; shift 2 ;;
+    --external) EXTERNAL=1; shift ;;
     --help|-h)
       cat <<'USAGE'
 Usage: mb-reviewer-resolve.sh [--mb <path>]
+       mb-reviewer-resolve.sh --external [--mb <path>]   (cross-model reviewer JSON)
 
 Resolves the reviewer agent name from pipeline.yaml. Honours
 `roles.reviewer.override_if_skill_present` when the named skill directory
@@ -49,6 +54,9 @@ MB_PATH="$MB_PATH_RAW"
 [ -d "$MB_PATH_RAW" ] && MB_PATH=$(cd "$MB_PATH_RAW" && pwd)
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+if [ "$EXTERNAL" = 1 ]; then
+  exec python3 "$SCRIPT_DIR/mb_team_config.py" external-review --mb "$MB_PATH"
+fi
 SKILL_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 DEFAULT_PIPELINE="$SKILL_ROOT/references/pipeline.default.yaml"
 PROJECT_PIPELINE="$MB_PATH/pipeline.yaml"

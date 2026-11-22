@@ -50,6 +50,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-index.sh` | Registry of all entries (core + notes/plans/experiments/reports) |
 | `mb-index-json.py` | Build `index.json` (frontmatter notes + lessons headings). Atomic write |
 | `mb-drift.sh` | 8 deterministic drift checkers (path, staleness, script coverage, dependency, cross-file, index sync, command, frontmatter) |
+| `mb-doc-toc.py [--check] <file>` | Rewrites the `<!-- toc:start -->…<!-- toc:end -->` block of a long command file (read-whole line with the line count, one `L<start>–L<end>` row per `##` section); `--check` exits 1 when stale (a test runs it on `commands/team.md`) |
 | `mb-progress-chain.sh` | `--rebuild-tail` / `--verify` the `progress.md` append-only hash chain (`index.json:progress_chain`); CRITICAL drift on tamper (handoff-v2) |
 | `mb-rules-check.sh` | Deterministic rules enforcement (SRP / Clean Architecture / TDD delta) |
 | `mb-rules.sh render\|sync\|list\|enable\|disable\|add\|remove\|init` | Managed `## Key rules` block at the top of CLAUDE.md / AGENTS.md (after the language block). `render --target=project\|global` prints it; `sync --scope=project\|user` writes existing project / global host files; the selection subcommands edit the scope's `key_rules` profile field and re-sync (`/mb rules`, install onboarding `init --interactive`) |
@@ -188,6 +189,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | Script | Purpose |
 |--------|---------|
 | `mb-team.sh` | `/mb team` dispatcher: `init`, `track add\|set`, `plan`, `prompt`, `next`, `status`, `collect`, `checkpoint`, `commit`, `known-red`, `close`, `review start\|gate\|external\|ingest`. Stateless `next` plus the single writer of `reports/<topic>/team.json`; refuses a cwd inside a bank; no push path |
+| `mb-console.sh` | `line <track> <status> <note>` rewrites the track's line in `orchestrator-console.md` under the built-in `console` lock (called by `track set`); `check` exits 1 above 40 lines (`MB_CONSOLE_MAX_LINES`) with a move-history-to-progress.md hint |
 | `mb-team-review.sh` | Team review cycles: `start` (cycle brief), `gate` (exit 0 clean / 1 fixes by owner track / 2 broken input / 3 review off), `external` (outside-reviewer prompt), `ingest` (validate `findings.json` + `prior-closure.json`) |
 | `mb-team-checkpoint.sh` | Checkpoint `create` (binary-safe diff from the baseline, untracked tarball under a size cap, manifest, sha256) and `verify`; restore commands are printed, never run |
 | `mb-lock.sh` | Named resource locks with a fair FIFO ticket queue: `run`, `acquire`, `release`, `maint`, `status`, `watch`, `break`. Live holders are never removed; disk preconditions, maintenance under the lock, stop threshold; exit 75 / 76 / 77 |
@@ -289,6 +291,8 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_fs_atomic.py` | One atomic file-publish primitive, shared by every writer |
 | `mb_team_state.py` | `team.json` single writer (flock + atomic replace), track status machine, glob ownership and overlap |
 | `mb_team_tracks.py` | `init`, `track add\|set`, `prompt`, `known-red`, `spec-check`, `plan` behind `mb-team.sh` |
+| `mb_team_workflow.py` | `workflow-args --tracks A,B` behind `mb-team.sh`: the JSON args of the `workflows/mb-team-track.js` Workflow (paths, per-track models and efforts, judge, `team.external_review` command) |
+| `mb_team_console.py` | Console line writer and line-cap check behind `mb-console.sh` |
 | `mb_team_plan.py` | `plan`: track table, waves, effort mismatches, readiness (brief, glob overlap, shared foundations; `--accept-shared`) |
 | `mb_team_shared.py` | Shared-mechanisms registry (`<bank>/shared-mechanisms.md`), foundation detection across tracks, `extract` actions |
 | `mb_team_spec.py` | Wave-end whole-spec verification: team specs, `spec_verify` / `spec-gaps` actions, staleness key |
@@ -299,7 +303,7 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_spec_coverage.py` | Per-REQ coverage of a spec: REQ text, covering tasks, naming tests; `task-only`/`uncovered` gaps exit 1 |
 | `mb_team_status.py` | `next` (pure `decide()` over gathered facts) and `status` (team, board, reports, locks, goal, last review) |
 | `mb_team_ops.py` | `collect`, `checkpoint`, `commit` (through `mb_vcs.sh`), `close`, `review-gate` (records `reviews[]`) |
-| `mb_team_config.py` | Reads `team:` from the resolved pipeline: `show`, `resource <name>` (resource JSON; exit 2 invalid, 3 unknown) |
+| `mb_team_config.py` | Reads `team:` from the resolved pipeline: `show`, `resource <name>` (resource JSON; exit 2 invalid, 3 unknown; `console` is built in), `external-review` (cross-model reviewer model, effort, rounds, command) |
 | `mb_team_pipeline.py` | Layered track pipeline resolver with per-field provenance (`resolve`) and prompt-phrase mapping (`parse-prompt`) |
 | `mb_team_vocab.py` | Closed prompt vocabulary for `parse-prompt`: explicit phrases map, anything else becomes a question |
 | `mb_team_render.py` | Renders the team brief, track prompts (one-stage plans) and the external-review prompt; lists unfilled hints |
