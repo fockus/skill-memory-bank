@@ -317,6 +317,13 @@ EOF
   [[ "$output" == *"    brew upgrade memory-bank"* ]]
 }
 
+@test "upgrade: npm flavor — the npm launcher's bundle copy points at npx and exits 0" {
+  mkdir -p "$TMPDIR/home/.local/share/memory-bank-skill/npm/5.4.2"
+  MB_SKILL_DIR="$TMPDIR/home/.local/share/memory-bank-skill/npm/5.4.2" run bash "$SCRIPT" --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"    npx skill-memory-bank@latest install"* ]]
+}
+
 @test "upgrade: unknown flavor — prints the pinned error+reinstall-hint lines and exits 1" {
   mkdir -p "$TMPDIR/somewhere/random/not-a-known-install"
   MB_SKILL_DIR="$TMPDIR/somewhere/random/not-a-known-install" run bash "$SCRIPT" --check

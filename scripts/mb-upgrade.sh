@@ -111,12 +111,20 @@ if [ ! -d "$SKILL_DIR/.git" ]; then
       echo "    $(mb_upgrade_command brew "$SKILL_DIR")"
       exit 0
       ;;
+    npm)
+      echo "[info] memory-bank-skill runs from the npm launcher's bundle copy ($resolved)" >&2
+      echo ""
+      echo "To update, run:"
+      echo "    $(mb_upgrade_command npm "$SKILL_DIR")"
+      exit 0
+      ;;
     *)
       echo "[error] $SKILL_DIR is not a git repository and not a known package install" >&2
       echo "[hint] Reinstall options:" >&2
       echo "    git clone:  rm -rf $SKILL_DIR && git clone https://github.com/fockus/skill-memory-bank.git $SKILL_DIR" >&2
       echo "    pipx:       pipx install memory-bank-skill" >&2
       echo "    pip:        pip install memory-bank-skill" >&2
+      echo "    npm:        npx skill-memory-bank@latest install" >&2
       exit 1
       ;;
   esac

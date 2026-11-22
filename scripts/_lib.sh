@@ -765,6 +765,11 @@ mb_install_flavor() {
       printf '%s\n' "brew"
       return 0
       ;;
+    */memory-bank-skill/npm/*)
+      # packaging/npm/memory-bank.js runs from its persistent per-version copy
+      printf '%s\n' "npm"
+      return 0
+      ;;
   esac
 
   if command -v brew >/dev/null 2>&1; then
@@ -845,6 +850,9 @@ mb_upgrade_command() {
       ;;
     brew)
       printf '%s\n' "brew upgrade memory-bank && memory-bank install"
+      ;;
+    npm)
+      printf '%s\n' "npx skill-memory-bank@latest install"
       ;;
     *)
       printf '%s\n' "No known upgrade path — reinstall: git clone https://github.com/fockus/skill-memory-bank.git <dir>, or pipx install memory-bank-skill, or pip install memory-bank-skill"

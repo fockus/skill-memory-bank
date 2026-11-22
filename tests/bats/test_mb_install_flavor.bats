@@ -256,3 +256,18 @@ EOF
   [ "$status" -eq 0 ]
   [ -n "$output" ]
 }
+
+
+@test "mb_install_flavor: the npm launcher's persistent bundle copy → npm" {
+  mkdir -p "$TMPDIR/home/.local/share/memory-bank-skill/npm/5.4.2"
+  run mb_install_flavor "$TMPDIR/home/.local/share/memory-bank-skill/npm/5.4.2"
+  [ "$status" -eq 0 ]
+  [ "$output" = "npm" ]
+}
+
+
+@test "mb_upgrade_command: npm → npx skill-memory-bank@latest install" {
+  run mb_upgrade_command npm
+  [ "$status" -eq 0 ]
+  [ "$output" = "npx skill-memory-bank@latest install" ]
+}
