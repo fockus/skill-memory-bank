@@ -14,19 +14,19 @@ argument-hint: "<init|track|plan|prompt|next|status|checkpoint|review|collect|co
 - Commits only through `team commit`, only after the user's yes; read `mb-coord.sh active` first; never push.
 
 <!-- toc:start -->
-Read this file whole: 349 lines — one Read call, no offset or limit. Sections by line:
+Read this file whole: 351 lines — one Read call, no offset or limit. Sections by line:
 - L43–L55 · 0. Setup
 - L56–L82 · 1. Start a team — `init`
 - L83–L148 · 2. Add tracks — `track add`
 - L149–L162 · 3. Plan and confirm — `plan`
 - L163–L209 · 4. The loop — `next`
-- L210–L240 · 5. Track returns — `track set`
-- L241–L255 · 6. Resources — `mb-lock.sh`
-- L256–L284 · 7. Collect, checkpoint, commit, known red, close
-- L285–L299 · 8. Team review cycles — `review`
-- L300–L315 · 9. Hosts
-- L316–L328 · 10. Safety
-- L329–L349 · Reference
+- L210–L242 · 5. Track returns — `track set`
+- L243–L257 · 6. Resources — `mb-lock.sh`
+- L258–L286 · 7. Collect, checkpoint, commit, known red, close
+- L287–L301 · 8. Team review cycles — `review`
+- L302–L317 · 9. Hosts
+- L318–L330 · 10. Safety
+- L331–L351 · Reference
 <!-- toc:end -->
 
 Run one task as several **tracks** in parallel, all editing one integration tree. Tracks are role agents
@@ -215,7 +215,9 @@ team track set "$ID" --status returned --summary-file "$BANK/reports/$TOPIC/$ID.
 ```
 
 `--note N` (with or without `--status`) posts `STATUS · <id> <status>: N` on the board; any status or note rewrites
-the track's console line under the built-in `console` lock.
+the track's console line under the built-in `console` lock. `--add-files g1,g2` widens a track's globs after the fact
+(the judge's `commit_paths` reach a shared file the track could not foresee); a glob that overlaps an unfinished track
+is refused, then `team commit` takes those files as usual.
 
 Status machine: `planned → dispatched → returned → verifying → reviewing → done | done_with_concerns`; any state →
 `blocked | needs_context | cancelled`; `reviewing → fixing → returned` (each `fixing` counts `fix_cycle`); a finished
@@ -332,7 +334,7 @@ once tracks are collected and the flow is green, and every `stop_human` returns 
 |---|---|
 | `init <topic>` | `--goal G \| --no-goal`, `--plan`, `--tree`, `--mirror`, `--max-parallel`, `--budget`, `--team-review`, `--title`, `--host`, pipeline attributes |
 | `track add <id>` | `--task \| --task-file`, `--dod`…, `--title`, `--role`, `--files`, `--deps`, `--resources`, `--source`, `--contract`, `--followup`, pipeline attributes, `--layer` |
-| `track set <id>` | `--status S [--summary-file F]`, `--note N`, `--contract C`, or pipeline attributes with `--layer` |
+| `track set <id>` | `--status S [--summary-file F]`, `--note N`, `--add-files g1,g2`, `--contract C`, or pipeline attributes with `--layer` |
 | `workflow-args` | `--tracks A,B`, `--start execute\|fix\|judge` |
 | `plan` | `--json`, `--accept-shared <signal>` (repeatable) |
 | `next` · `status` | `--json` |

@@ -525,3 +525,30 @@ def test_agree_list_suggests_consolidation_above_the_cap(tmp_path):
     )
     assert "AGR-026" in r.stdout
     assert "26 active" in r.stderr and "consolidate" in r.stderr and "--supersedes" in r.stderr
+
+
+def test_guard_never_writes_state_through_a_symlinked_state_dir(tmp_path):
+    bank = _demo(tmp_path)
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    (tmp_path / "locks").mkdir(mode=0o700)
+    (tmp_path / "locks" / "team-guard").symlink_to(victim)
+    _register(tmp_path, bank)
+    assert list(victim.iterdir()) == []
+    assert _decision(_hook(tmp_path, _edit(bank, bank.parent / "f" / "x.txt"))) == ""
+
+
+def test_track_set_add_files_widens_globs_for_team_commit_and_refuses_overlap(tmp_path):
+    bank = _demo(tmp_path)
+    _ok(_team(tmp_path, bank, "track", "add", "B", "--task", "t", "--dod", "d", "--files", "lib/b/**"))
+    (bank.parent / "shared").mkdir()
+    (bank.parent / "shared" / "helper.py").write_text("fixed\n", encoding="utf-8")
+    refused = _team(tmp_path, bank, "track", "set", "A", "--add-files", "lib/**")
+    assert refused.returncode == 2 and "B" in refused.stderr
+    _ok(_team(tmp_path, bank, "track", "set", "A", "--add-files", "shared/helper.py"))
+    assert _team_json(bank)["tracks"][0]["files"] == ["f/**", "shared/helper.py"]
+    _finish(tmp_path, bank, "A")
+    _ok(_team(tmp_path, bank, "commit", "--tracks", "A", "-m", "fix: shared helper", "--yes"))
+    log = subprocess.run(["git", "-C", str(bank.parent), "log", "-1", "--name-only", "--format=%s"],
+                         capture_output=True, text=True, check=True).stdout
+    assert "shared/helper.py" in log

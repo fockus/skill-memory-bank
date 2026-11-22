@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -34,7 +35,25 @@ EDIT_TOOLS = ("Edit", "Write", "NotebookEdit", "MultiEdit")
 
 
 def state_dir() -> Path:
-    return Path(os.environ.get("MB_LOCK_DIR") or f"/tmp/mb-locks-{os.getuid()}") / "team-guard"
+    """Private per-user dir; a symlink or a foreign owner raises (and the hook fails open)."""
+    sys.path.insert(0, str(SKILL / "scripts"))
+    from mb_team_config import host_lock_root  # validates the root the same way for mb-lock.sh
+
+    path = Path(host_lock_root()) / "team-guard"
+    if not path.is_symlink():
+        path.mkdir(mode=0o700, exist_ok=True)
+    info = os.lstat(path)
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        raise OSError(f"{path} is a symlink or not owned by this user")
+    return path
+
+
+def save(path: Path, data: dict) -> None:
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        fh.write(json.dumps(data))
+    os.replace(tmp, path)
 
 
 def state_file(sid: str) -> Path:
@@ -64,8 +83,7 @@ def register(sid: str, cwd: str) -> None:
     path = state_file(sid)
     old = json.loads(path.read_text()) if path.exists() else {}
     if old.get("bank") != bank or old.get("tree") != tree:
-        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        path.write_text(json.dumps({**old, "bank": bank, "tree": tree}))
+        save(path, {**old, "bank": bank, "tree": tree})
 
 
 def orchestrator(payload: dict) -> dict | None:
@@ -107,8 +125,7 @@ def once(sid: str, key: str) -> bool:
     if key in seen:
         return False
     st["seen"] = (seen + [key])[-200:]
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    path.write_text(json.dumps(st))
+    save(path, st)
     return True
 
 

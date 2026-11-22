@@ -8,7 +8,7 @@ Usage (through mb-team.sh, which adds --mb <bank>):
       [--role R] [--files g1,g2] [--deps A,B] [--resources r1] [--source P] [--contract C] [pipeline attrs]
       [--layer attr|prompt]   (--contract: frozen mb_contract.py file; `dispatched` refuses an unfrozen one)
       [--followup]   (a fix after the tracks finished: reopens the closed team, default the newest one)
-  mb_team_tracks.py track set <id> [--status S [--summary-file F]] [--note N] [--contract C] [pipeline attrs]
+  mb_team_tracks.py track set <id> [--status S [--summary-file F]] [--note N] [--add-files g1,g2] [--contract C] [pipeline attrs]
       [--layer attr|prompt]   (--note: one line for the board; every status or note rewrites the track's console line)
   mb_team_tracks.py prompt <id> · known-red add <test-id> --reason R · known-red list
   mb_team_tracks.py spec-check specs/<topic> --gaps N [--report F]   # record a wave-end spec verification
@@ -151,6 +151,14 @@ def cmd_track_set(args) -> int:
         track = next((t for t in team["tracks"] if t["id"] == args.id), None)
         if track is None:
             raise TeamError(f"unknown track '{args.id}'")
+        if args.add_files:
+            new = [g for g in split(args.add_files) if g not in track["files"]]
+            clash = [f"{g} ~ {t['id']}:{h}" for g in new for t in team["tracks"]
+                     if t["id"] != args.id and t["status"] not in st.TERMINAL
+                     for h in t.get("files") or [] if st.globs_overlap(g, h)]
+            if clash:
+                raise TeamError(f"track {args.id}: --add-files overlaps unfinished tracks: {', '.join(clash)}")
+            track["files"] += new
         if args.contract:
             path = _rel(bank, args.contract)
             if track["status"] != "planned" and path != track.get("contract"):
@@ -271,6 +279,7 @@ def _parser() -> argparse.ArgumentParser:
     tset.add_argument("--summary-file", default="")
     tset.add_argument("--contract", default="")
     tset.add_argument("--note", default="", help="one line for the console and the board")
+    tset.add_argument("--add-files", default="", help="globs to add, e.g. a shared fix the judge lists for commit")
     prompt = sub.add_parser("prompt", parents=[common])
     prompt.add_argument("id")
     known = sub.add_parser("known-red", parents=[common])
