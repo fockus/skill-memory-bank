@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [5.4.2] — 2026-11-22
+
+- Update notice and `/mb upgrade` know the npm install: the bundle copy the npx launcher runs from is the `npm` flavor, and its upgrade command is `npx skill-memory-bank@latest install`.
 - `/mb team`: tracks run through the bundled Claude Code Workflow `workflows/mb-team-track.js` (args from `team workflow-args`; models, efforts and the `team.external_review` command come from `pipeline.yaml`; installed to `~/.claude/workflows/`); `track add --followup` reopens a closed team; `track set --note` writes the board entry and the track's console line under the built-in `console` lock; `mb-console.sh check` enforces the 40-line cap; `track set --add-files` widens a track's globs (refused on overlap with an unfinished track) so `team commit` takes a shared fix the judge lists.
 - New `hooks/mb-team-guard.py`: in an orchestrator session it denies code edits outside the bank, points a plain `git commit` to `team commit` with the board, and reminds at Stop when the console is stale; the `codex-reviewer` agent ships with the skill and reads its model from `pipeline.yaml` (`mb-reviewer-resolve.sh --external`); `mb-agree.sh` suggests consolidation above 25 active agreements.
 - `commands/team.md` opens with its key rules and a line-range contents block (`scripts/mb-doc-toc.py`, checked by a test), so a reader that stops early still sees the rules and every section.

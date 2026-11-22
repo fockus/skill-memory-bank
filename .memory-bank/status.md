@@ -12,7 +12,7 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 
 ## Metrics
 
-- VERSION: **5.4.1**; scripts: 42 sh / 9 py; hooks: 10; agents: 17 dispatchable + partials; commands: 24
+- VERSION: **5.4.2**; scripts: 42 sh / 9 py; hooks: 10; agents: 17 dispatchable + partials; commands: 24
 - Tests (baseline 2026-06-10): pytest 1190 / bats 779, 0 failed — свежие числа по сессиям в `progress.md`
 - Audit fixes 2026-09-14: R01–R15 закрыты; полный pytest **2614 passed, 1 skipped**, связанные Bats/linters/wheel smoke прошли; независимая проверка 6/6 этапов ([отчёт](reports/2026-09-14_skill-audit-remediation.md)).
 - Site: https://fockus.github.io/skill-memory-bank/ · remote: `fockus/skill-memory-bank`
