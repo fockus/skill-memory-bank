@@ -141,7 +141,7 @@ final report: what is done, what is not verified, unbacked ticks, open QA bugs a
   `--host-serial` and expect serial execution.
 - The budget counts only the tokens the host reports for each dispatch; an action reported
   without `--tokens` is not counted.
-- The old `--route`, `--phase` and `--max-cycles` flags and `mb-drive-preflight.sh` are removed.
+- The old `--route`, `--phase` and `--max-cycles` flags and the old preflight script are removed.
 
 !!! agent "For agents"
     You are the runtime. Follow [`commands/drive.md`](../commands/drive.md) exactly; this page is

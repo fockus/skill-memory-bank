@@ -5,7 +5,7 @@ setup_file() {
   repo="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   mkdir -p "$BATS_FILE_TMPDIR/assets"
   rsync -a --exclude='.env*' --exclude='__pycache__' \
-    "$repo/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,settings,memory_bank_skill} \
+    "$repo/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,workflows,settings,memory_bank_skill} \
     "$repo/"{install.sh,uninstall.sh,VERSION,SKILL.md} "$BATS_FILE_TMPDIR/assets/"
 }
 

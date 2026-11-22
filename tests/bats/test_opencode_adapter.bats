@@ -48,7 +48,7 @@ opencode_frozen_bundle() {
   local bundle="$SANDBOX_HOME/frozen-bundle"
   mkdir -p "$bundle"
   rsync -a --exclude='.env*' --exclude='__pycache__' \
-    "$REPO_ROOT/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,settings,memory_bank_skill} \
+    "$REPO_ROOT/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,workflows,settings,memory_bank_skill} \
     "$REPO_ROOT/"{install.sh,uninstall.sh,VERSION,SKILL.md} "$bundle/"
   REPO_ROOT="$bundle"
   ADAPTER="$bundle/adapters/opencode.sh"

@@ -34,7 +34,7 @@ s5_private_bundle() {
   REPO_ROOT="$BATS_TEST_TMPDIR/frozen-bundle"
   mkdir -p "$REPO_ROOT"
   rsync -a --exclude='.env*' --exclude='__pycache__' \
-    "$source/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,settings,memory_bank_skill} \
+    "$source/"{adapters,agents,commands,hooks,scripts,rules,references,templates,flow-templates,workflows,settings,memory_bank_skill} \
     "$source/"{install.sh,uninstall.sh,VERSION,SKILL.md} "$REPO_ROOT/"
   PROJECT="$BATS_TEST_TMPDIR/project"
   mkdir -p "$PROJECT" "$SANDBOX_HOME/tmp" "$SANDBOX_HOME/run"
