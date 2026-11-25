@@ -70,6 +70,8 @@ def bind_calls(
     import_bindings: dict[str, dict[str, str]],
     definitions: dict[str, list[str]],
     star_imports: dict[str, list[str]] | None = None,
+    *,
+    python_files: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Apply import-aware resolution to call edges and return the filtered list.
 
@@ -91,10 +93,8 @@ def bind_calls(
     (``pkg.mod.symbol``) — never the slash path form — so import-target and
     path-derived bindings never diverge.
 
-    Attribute calls (dst contains ".") keep current behaviour — they already
-    carry enough context; type inference is out of scope.
-
-    Non-call edges (import, inherit) pass through unchanged.
+    AST import evidence adds an exact file or file:symbol target alongside the
+    original spelling. With no evidence, legacy edges pass through as before.
 
     Cross-language safety (§ A2, Python-first): a call edge whose caller file is
     not a ``.py`` file passes through UNCHANGED — Go/JS/TS/Rust/Java homonym
@@ -112,8 +112,16 @@ def bind_calls(
                       ``from module import *`` (dotted module form).
     """
     star_imports = star_imports or {}
+    known = python_files or set()
+    # A directory can be both a package and an explicit script search root.
+    # Only reuse that evidence for its own siblings, never a global suffix search.
+    script_roots = {root for e in all_edges if e.get("kind") == "import" and e.get("_ref")
+                    for root in (e["_ref"][2] or ())}
     result: list[dict[str, Any]] = []
     for edge in all_edges:
+        if "_ref" in edge:
+            result.append(_bind_import_edge(edge, known, script_roots, definitions))
+            continue
         if edge.get("kind") != "call":
             result.append(edge)
             continue
@@ -192,3 +200,39 @@ def bind_calls(
         result.append(edge)
 
     return result
+
+
+def _module_file(module: str, roots: set[str], known: set[str]) -> str:
+    """Only exact importable paths; never match a project-wide basename."""
+    stem = module.replace(".", "/")
+    matches = {path for root in roots
+               for base in [f"{root}/{stem}" if root and root != "." else stem]
+               for path in (f"{base}.py", f"{base}/__init__.py") if path in known}
+    return matches.pop() if len(matches) == 1 else ""
+
+
+def _bind_import_edge(edge: dict[str, Any], known: set[str], script_roots: set[str],
+                      definitions: dict[str, list[str]]) -> dict[str, Any]:
+    edge = {**edge, "target": ""}
+    ref = edge.pop("_ref")
+    if not ref:
+        return edge
+    module, member, roots = ref
+    dirs = {""}
+    if roots is not None:  # relative imports are already rooted at the package
+        dirs.update(roots)
+        folder = edge["src"].partition(":")[0].rpartition("/")[0]
+        if folder in script_roots or f"{folder}/__init__.py" not in known:
+            dirs.add(folder)
+    full = ".".join(filter(None, (module, member)))
+    is_import = edge["kind"] == "import"
+    if is_import and member != "*" and (path := _module_file(full, dirs, known)):
+        edge["target"] = path
+    elif module and (path := _module_file(module, dirs, known)):
+        if member and path in definitions.get(member, ()):
+            edge["target"] = f"{path}:{member}"
+        elif is_import:
+            edge["target"] = path
+    if not is_import and "." not in edge["dst"]:
+        edge["dst"] = full  # keep the historical from-import spelling
+    return edge

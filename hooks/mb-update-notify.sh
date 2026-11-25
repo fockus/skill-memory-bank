@@ -78,6 +78,7 @@ set -u
 # Absolute first short-circuit, before any fork (flavor detection inside the
 # resolver can fork `brew --prefix`) — the cheapest possible disabled path.
 [ "${MB_UPDATE_CHECK:-on}" = "off" ] && exit 0
+[ -n "${MB_CAPTURE_SUBPROCESS:-}" ] && exit 0
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)" || exit 0
 
@@ -266,23 +267,26 @@ _mb_uan_sanitize() {
 current="$(_mb_uan_sanitize "$(_mb_uan_field "$json" current)")"
 latest="$(_mb_uan_sanitize "$(_mb_uan_field "$json" latest)")"
 upgrade_command="$(_mb_uan_sanitize "$(_mb_uan_field "$json" upgrade_command)")"
+# Restore shell quoting in the command (e.g. a git path containing spaces).
+upgrade_command="${upgrade_command//\\\\/\\}"
 
-# A truthy `update_available` without a usable latest/command is a malformed
-# answer, not a real update to act on — stay silent rather than print a
-# broken/half-empty notice.
-[ -n "$latest" ] && [ -n "$upgrade_command" ] || exit 0
-[ -n "$current" ] || current="unknown"
+# A malformed answer is not evidence of a new release.
+[ -n "$current" ] && [ "$current" != unknown ] && [ -n "$latest" ] && [ "$latest" != unknown ] \
+  && [ "$current" != "$latest" ] && [ -n "$upgrade_command" ] || exit 0
 
 printf '[memory-bank-skill] update available: %s -> %s\n' "$current" "$latest"
-printf '  upgrade: %s\n' "$upgrade_command"
+flavor="$(_mb_uan_field "$json" flavor)"
+case "$flavor" in
+  git|pipx|pip|brew|npm) printf '  upgrade: %s\n' "$upgrade_command" ;;
+  *) printf '  Tell me how you installed Memory Bank so I can find the right command.\n' ;;
+esac
 
 # ═══ Opt-in auto-update (Stage 4) ═══
 #
 # Everything above this point is unconditional — the notice always prints
 # when an update is available. This block ADDS an optional auto-apply on
 # top of it, gated by a strict safety matrix; when any gate fails it is a
-# silent no-op and the notice above is the whole story, byte-identical to
-# pre-Stage-4 behaviour.
+# silent no-op and the notice ends with an offer to help.
 #
 #   1. MB_AUTO_UPDATE unset/anything-but-"on" -> never upgrades (default off).
 #   2. flavor "git" + a CLEAN working tree + update available -> runs
@@ -300,8 +304,7 @@ printf '  upgrade: %s\n' "$upgrade_command"
 # build `upgrade_command` above) — one source of truth, not a second,
 # independent detection that could drift from the command already printed.
 if [ "${MB_AUTO_UPDATE:-off}" = "on" ]; then
-  MB_AUN_FLAVOR="$(_mb_uan_sanitize "$(_mb_uan_field "$json" flavor)")"
-  if [ "$MB_AUN_FLAVOR" = "git" ]; then
+  if [ "$flavor" = "git" ]; then
     # Resolve the install root independently of whichever resolver binary
     # answered above (tests routinely override MB_VERSION_CHECK_BIN with a
     # stub that never touches a real checkout) — MB_SKILL_ROOT is checked
@@ -415,10 +418,12 @@ if [ "${MB_AUTO_UPDATE:-off}" = "on" ]; then
           && [ "$MB_AUN_VERSION_AFTER" != "$MB_AUN_VERSION_BEFORE" ] \
           && [ "$MB_AUN_VERSION_AFTER" = "$latest" ]; then
           printf '[memory-bank-skill] auto-updated: %s -> %s\n' "$current" "$latest"
+          exit 0
         fi
       fi
     fi
   fi
 fi
 
+printf '  Ask me to update Memory Bank for you.\n'
 exit 0

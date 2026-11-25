@@ -38,7 +38,7 @@ For the snippets below, parse the remaining user arguments into the named Bash a
 
 `code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" and "find similar implementation". Exact structural questions use graph tools directly: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or impact analysis → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code`, served by `bash "$SKILL_DIR"/scripts/mb-graph.sh search "<query>"` (one token → BM25, a phrase → local embeddings); respect explicit tool intent.
 
-Fail open: for missing graph or stale graph, explain the limitation and suggest `/mb graph --apply`; for missing semantic provider or unavailable native extension, use `scripts/mb-code-context.py`, `bash "$SKILL_DIR"/scripts/mb-graph.sh who-calls|impact|tests <Symbol>`, `rg`, and `read` as CLI fallback instead of blocking.
+For implementation, call `code_context` with the original question, your English `searchQuery` (preserve code identifiers), and `sourceOnly: true`. Open a result before answering. For missing graph or stale graph, explain the limitation and suggest `/mb graph --apply`; for missing semantic provider or unavailable native extension, use `scripts/mb-code-context.py`, `bash "$SKILL_DIR"/scripts/mb-graph.sh who-calls|impact|tests <Symbol>`, `rg`, and `read` as CLI fallback instead of blocking.
 
 
 | Subcommand | Action | Reference |

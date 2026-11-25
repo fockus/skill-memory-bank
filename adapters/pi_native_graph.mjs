@@ -1,5 +1,5 @@
 // Pi GraphRAG: native code_context/graph/search tools and graph lifecycle hooks over the
-// portable MB scripts. Every call resolves the bank of the live ctx.cwd; failures are thrown
+// portable MB scripts. Every call uses the live ctx.cwd; failures are thrown
 // (Pi marks the tool result as an error), weaker answers are labeled `degraded`.
 import { access, appendFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -20,10 +20,12 @@ export function registerGraphRag(pi, { Type, skillDir, projectRoot = '', python 
   const scriptPath = name => join(skillDir, 'scripts', name);
 
   // Resolve per call: the live project, never the install-time one (global installs bake '').
-  async function locate(ctx) {
-    const cwd = projectRoot || ctx.cwd;
+  async function locate(ctx, toolName = '') {
+    const cwd = ctx.cwd || projectRoot;
+    // Leave Git root and optional bank discovery to the same CLI other hosts call.
+    if (toolName === 'code_context') return { cwd, root: cwd, bank: null };
     const bank = await findBank(skillDir, cwd, { timeoutMs: HOOK_TIMEOUT_MS });
-    if (!bank) return { cwd, bank: null };
+    if (!bank) return { cwd, bank: null, root: cwd };
     // A global bank does not sit inside its project: the source root is then the live cwd.
     const root = basename(bank) === '.memory-bank' ? dirname(bank) : cwd;
     return { cwd, bank, root, graph: join(bank, 'codebase', 'graph.json') };
@@ -54,20 +56,25 @@ export function registerGraphRag(pi, { Type, skillDir, projectRoot = '', python 
   const tools = {
     code_context: {
       description: 'GraphRAG-lite code context for the current project: semantic candidates, graph expansion, text/read fallback.',
-      promptSnippet: 'Use code_context for ambiguous code-understanding questions.',
+      promptSnippet: 'Call code_context before guessing where an implementation lives or editing it.',
       promptGuidelines: [
-        'Use code_context when the user asks where logic lives or how code fits together.',
-        'Use graph tools directly for exact callers/imports/impact/tests questions; search_code for concept search.',
+        'Pass the original question as query. Write a concise English searchQuery retaining exact symbols, paths and errors. Set sourceOnly=true only for implementation searches.',
+        'Read a returned file before answering or editing; cite the verified path:line. If the selected index is stale, continue with graph or grep/read while it refreshes in the background. Never download a model during search.',
+        'For exact callers, impact or test coverage call graph_neighbors, graph_impact or graph_tests directly; use search_code for explicit concept search.',
       ],
       parameters: {
-        query: Type.String({ description: 'Natural-language code question' }),
+        query: Type.String({ description: 'Original code question, unchanged' }),
+        searchQuery: Type.Optional(Type.String({ description: 'Your concise English paraphrase preserving identifiers, paths and error strings' })),
+        sourceOnly: Type.Optional(Type.Boolean({ description: 'Exclude tests when looking for implementation; otherwise leave unset' })),
         mode: Type.Optional(Type.String({ description: 'auto | graph | semantic' })),
         semanticCandidates: Type.Optional(Type.String({ description: 'JSON file with semantic candidates' })),
         semanticProvider: Type.Optional(Type.String({ description: 'none | unavailable' })),
         semanticOnly: Type.Optional(Type.Boolean({ description: 'Use only semantic candidates and recommended reads' })),
       },
       argv: (p, loc) => [scriptPath('mb-code-context.py'), '--query', p.query, '--project-root', loc.root,
-        '--mb-path', loc.bank, '--mode', p.mode || 'auto', '--json',
+        '--mode', p.mode || 'auto', '--json',
+        ...(p.searchQuery ? ['--search-query', p.searchQuery] : []),
+        ...(p.sourceOnly ? ['--source-only'] : []),
         ...(p.semanticCandidates ? ['--semantic-candidates', p.semanticCandidates] : []),
         ...(p.semanticProvider ? ['--semantic-provider', p.semanticProvider] : []),
         ...(p.semanticOnly ? ['--semantic-only'] : [])],
@@ -112,8 +119,8 @@ export function registerGraphRag(pi, { Type, skillDir, projectRoot = '', python 
       ...(spec.promptSnippet ? { promptSnippet: spec.promptSnippet, promptGuidelines: spec.promptGuidelines } : {}),
       parameters: Type.Object(spec.parameters),
       async execute(_toolCallId, params, signal, _onUpdate, ctx) {
-        const loc = await locate(ctx);
-        if (!loc.bank) throw new Error(`${name} failed: no Memory Bank for ${loc.cwd}`);
+        const loc = await locate(ctx, name);
+        if (name !== 'code_context' && !loc.bank) throw new Error(`${name} failed: no Memory Bank for ${loc.cwd}`);
         const payload = await runJson(name, spec.argv(params, loc), loc.root, signal);
         return result(payload, spec.reasons(payload, params));
       },

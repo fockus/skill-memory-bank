@@ -1132,16 +1132,7 @@ JS
   [[ "$output" == *"SURVIVED"* ]]
 }
 
-# Codex review fix (minor): notifiedSessions (once-per-session nudge dedup)
-# used to be cleared ONLY inside finalizeSessionCapture, which (a) only ran
-# on the extended variant and (b) early-returned before the delete when no
-# per-turn capture state existed — a base-variant session (added via
-# system.transform, never reaching chat.message) leaked its entry forever.
-# Observable proof: on the BASE variant, render the notice for a session,
-# fire session.idle for that SAME sessionID, then request the notice again
-# for the same sessionID — a cleared dedup entry re-renders it; a leaked one
-# would stay silent forever.
-@test "opencode: session.idle clears the per-session notify dedup even on the base (non-extended) plugin" {
+@test "opencode: root gets onboarding and update instructions once without local AGENTS.md or a bank" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   command -v node >/dev/null || skip "node required"
@@ -1150,26 +1141,41 @@ JS
   cp "$PROJECT/.opencode/plugins/memory-bank.js" "$plugin_mjs"
 
   local counter="$PROJECT/notify-call-count-leak"
+  git -C "$PROJECT" init -q
+  echo 'print("tracked")' > "$PROJECT/main.py"
+  git -C "$PROJECT" add main.py
+  rm "$PROJECT/AGENTS.md"
+  mv "$PROJECT/.memory-bank" "$BATS_TEST_TMPDIR/unused-bank"
   local stub="$PROJECT/stub-update-notify-leak.sh"
   cat > "$stub" <<STUB
 #!/usr/bin/env bash
 echo x >> "$counter"
 echo "[memory-bank-skill] update available: 1.0.0 -> 2.0.0"
+echo "  upgrade: pipx upgrade memory-bank-skill"
 STUB
   chmod +x "$stub"
 
   MB_UPDATE_NOTIFY_BIN="$stub" run v2_node <<'JS'
-const plugin = await loadV2();
-await plugin.hook('session.context', request('reused-sess'));
-await plugin.emit('session.idle', { sessionID: 'reused-sess' });
-await plugin.hook('session.context', request('reused-sess'));
+const plugin = await loadV2({ child: { parentID: 'root', location: { directory } } });
+async function instructions(id) {
+  const event = request(id);
+  await plugin.hook('session.context', event);
+  return event.system.map(part => part.text).join('\n');
+}
+assert.doesNotMatch(await instructions('child'), /--auto-refresh|Qwen3|pipx upgrade/);
+const first = await instructions('root');
+for (const term of ['mb-rag.py" status --auto-refresh', 'Qwen3', 'Perplexity', 'ready', 'stale', 'broken', 'declined', 'rag update',
+  'next visible reply', '1.0.0 -> 2.0.0', 'pipx upgrade memory-bank-skill']) assert(first.includes(term), term);
+await plugin.emit('session.idle', { sessionID: 'root' });
+assert.doesNotMatch(await instructions('root'), /--auto-refresh|Qwen3|pipx upgrade/);
+assert(!fs.existsSync(path.join(directory, '.memory-bank')));
 await plugin.dispose();
 JS
   [ "$status" -eq 0 ]
   [ -f "$counter" ]
   local calls
   calls=$(wc -l < "$counter" | tr -d ' ')
-  [ "$calls" -eq 2 ]
+  [ "$calls" -eq 1 ]
 }
 
 # ═══════════════════════════════════════════════════════════════

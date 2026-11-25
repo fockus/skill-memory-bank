@@ -130,8 +130,9 @@ try {
   const event = request();
   await plugin.hook('session.context', event);
   const guidance = event.system.map(part => part.text ?? '').join('\n');
-  assert(guidance.includes('GraphRAG CLI: scripts/mb-graph.sh, scripts/mb-code-context.py'));
   assert(guidance.includes('no native wrappers'));
+  for (const term of ['mb-code-context.py', '--query', '--search-query', '--source-only', 'English',
+    'mb-graph.sh', 'who-calls', 'impact', 'tests', 'path:line', 'grep/read']) assert(guidance.includes(term), term);
   for (const name of ['code_context', 'search_code', 'graph_neighbors', 'graph_impact', 'graph_tests']) {
     assert.equal(event.tools[name], undefined);
   }
@@ -151,18 +152,32 @@ JS
 }
 
 @test "graph-rag adapters: AGENTS.md guidance exposes cross-agent routing and CLI commands" {
+  local agents="$PROJECT/AGENTS.md" original="$BATS_TEST_TMPDIR/original"
+  echo 'def run(): return True' > "$PROJECT/main.py"
+  git -C "$PROJECT" add main.py
+  printf '# Project conventions\n\nKeep this custom instruction.\n' > "$original"
+  cp "$original" "$agents"
   run_script "$CODEX_ADAPTER" install "$PROJECT"
   [ "$status" -eq 0 ]
 
-  local agents="$PROJECT/AGENTS.md"
-  [ -f "$agents" ]
-  grep -q "GraphRAG-lite routing" "$agents"
-  grep -q "code_context" "$agents"
-  grep -q "graph_neighbors" "$agents"
-  grep -q "graph_impact" "$agents"
-  grep -q "graph_tests" "$agents"
-  # search_code is not asserted: it came only from the pasted rules/RULES.md
-  # copy, which agents-md-diet removed (detail lives in RULES.md on demand).
-  grep -q "scripts/mb-code-context.py" "$agents"
-  grep -q "scripts/mb-graph-query.py" "$agents"
+  local term
+  for term in code_context "$REPO_ROOT/scripts/mb-code-context.py" --query --search-query --source-only \
+    English graph_neighbors graph_impact graph_tests who-calls path:line grep/read \
+    "$REPO_ROOT/scripts/mb-rag.py status --auto-refresh" Qwen3 Perplexity ready stale broken declined \
+    'rag update' MB_AUTO_UPDATE=off mb-update-notify.sh; do
+    grep -qF -- "$term" "$agents"
+  done
+  local status_cmd
+  status_cmd="$(sed -n 's/.*`\([^`]*mb-rag.py status --auto-refresh\)`.*/\1/p' "$agents")"
+  run bash -c 'cd "$1" && bash -c "$2 --json"' _ "$PROJECT" "$status_cmd"
+  [ "$status" -eq 0 ]
+  jq -e '.status == "unconfigured"' <<< "$output"
+  grep -qF 'Keep this custom instruction.' "$agents"
+  cp "$agents" "$BATS_TEST_TMPDIR/installed"
+  run_script "$CODEX_ADAPTER" install "$PROJECT"
+  [ "$status" -eq 0 ]
+  cmp "$BATS_TEST_TMPDIR/installed" "$agents"
+  run_script "$CODEX_ADAPTER" uninstall "$PROJECT"
+  [ "$status" -eq 0 ]
+  cmp "$original" "$agents"
 }

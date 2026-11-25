@@ -168,20 +168,26 @@ class CodexHooksTests(unittest.TestCase):
         self.assertNotIn('Do not inject', r.stdout)
 
     def test_session_start_surfaces_available_update_notice(self):
-        resolver = self.cwd/'cached-version.sh'
-        resolver.write_text("#!/bin/sh\nprintf '%s\\n' "
-                            "'{\"update_available\":true,\"current\":\"5.3.1\","
-                            "\"latest\":\"5.3.2\",\"source\":\"cache\","
-                            "\"upgrade_command\":\"memory-bank upgrade\"}'\n")
-        resolver.chmod(0o700)
-        self.env.update(MB_UPDATE_CHECK='on', MB_VERSION_CHECK_BIN=str(resolver), MB_AUTO_UPDATE='off')
+        install = self.cwd/'pipx/venvs/memory-bank-skill'
+        install.mkdir(parents=True)
+        (install/'VERSION').write_text('5.3.1')
+        cache = self.cwd/'release.json'
+        cache.write_text('{"source":"github","latest":"5.3.2"}')
+        self.env.update(MB_UPDATE_CHECK='on', MB_SKILL_DIR=str(install), MB_VERSION_CHECK_CACHE=str(cache),
+                        MB_VERSION_CHECK_FETCH_BIN='false', MB_AUTO_UPDATE='off')
         (self.bank/'status.md').write_text('Retain current project context.\n')
-        r = self.hook('SessionStart')
-        self.assertEqual(r.returncode, 0, r.stderr)
-        output = json.loads(r.stdout)
-        self.assertIn('5.3.1 -> 5.3.2', output.get('systemMessage', ''))
-        self.assertIn('memory-bank upgrade', output.get('systemMessage', ''))
-        self.assertIn('Retain current project context.', output['hookSpecificOutput']['additionalContext'])
+        output = json.loads(self.hook('SessionStart').stdout)
+        notice = ('[memory-bank-skill] update available: 5.3.1 -> 5.3.2\n'
+                  '  upgrade: pipx upgrade memory-bank-skill && memory-bank install\n'
+                  '  Ask me to update Memory Bank for you.')
+        self.assertIn(notice, output['systemMessage'])
+        context = output['hookSpecificOutput']['additionalContext']
+        self.assertIn('Retain current project context.', context)
+        self.assertIn(notice, context)
+        self.assertIn('next visible reply', context)
+        self.bank.rename(self.cwd/'inactive-bank')
+        self.assertIn(notice, json.loads(self.hook('SessionStart').stdout)['hookSpecificOutput']['additionalContext'])
+        self.assertFalse(self.bank.exists())
 
     def test_compaction_handoff_is_restored_on_compact_session_start(self):
         (self.bank/'checklist.md').write_text('- [ ] Resume the unfinished integration.\n')

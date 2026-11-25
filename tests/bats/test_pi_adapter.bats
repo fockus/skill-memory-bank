@@ -127,6 +127,8 @@ EOF
   grep -q '### `/mb work` gate' "$HOME/.pi/agent/AGENTS.md"
   grep -q 'existing plan or spec' "$HOME/.pi/agent/AGENTS.md"
   grep -q 'mb-workflow.sh' "$HOME/.pi/agent/AGENTS.md"
+  grep -Fq 'without the session-memory extension' "$HOME/.pi/agent/AGENTS.md"
+  grep -Fq "MB_AUTO_UPDATE=off bash $REPO_ROOT/hooks/mb-update-notify.sh" "$HOME/.pi/agent/AGENTS.md"
   local count
   count=$(grep -c 'memory-bank-pi:start' "$HOME/.pi/agent/AGENTS.md")
   [ "$count" -eq 1 ]

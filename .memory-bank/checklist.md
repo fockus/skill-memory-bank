@@ -47,3 +47,15 @@ Open backlog SSOT: [backlog.md](backlog.md) (hot: cross-agent parity I-045…I-0
 - ⬜ Stage 3 — Native child context and bounded lifecycle wiring
 - ⬜ Stage 4 — Native proof, review and documentation
 
+<!-- mb-plan:2026-11-24_feature_project-code-rag.md -->
+## project-code-rag — 1/1
+- ✅ Stage 1 — Ship both providers and the project setup/search lifecycle
+
+<!-- mb-plan:2026-11-25_feature_agent-retrieval-routing.md -->
+## agent-retrieval-routing — 2/2
+- ✅ Stage 1 — Wire retrieval options through real agent entry points and verify their use
+- ✅ Stage 2 — Project onboarding and actionable release notices (AGR-113)
+
+<!-- mb-plan:2026-11-25_feature_bounded-rag-refresh.md -->
+## bounded-rag-refresh — 1/1
+- ✅ Stage 1 — Bounded incremental refresh for an enrolled worktree

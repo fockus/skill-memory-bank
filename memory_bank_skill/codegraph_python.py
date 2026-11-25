@@ -17,8 +17,10 @@ Import-aware call resolution (v2):
     1. Caller imports the name (or its module) → bind dst to that definition.
     2. Name is unique project-wide → keep edge (recall-preserving fallback).
     3. Otherwise → suppress cross-module edge (no guessing among homonyms).
-  Attribute calls (obj.method()) keep their current behaviour — type
-  inference is out of scope (documented limit).
+  Imported module calls carry lexical evidence to bind_calls. Graph edges
+  retain their dst spelling; target is the resolved file or file:symbol.
+  An empty target is literal-only (e.g. an unknown receiver); older graphs
+  without target retain legacy name matching. No receiver type inference.
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ from memory_bank_skill.codegraph_binding import (
 )
 from memory_bank_skill.codegraph_common import rel, sha256
 from memory_bank_skill.codegraph_invocations import dispatch_calls, script_invocations
+from memory_bank_skill.codegraph_python_imports import ImportRef, import_refs
 
 # Re-exported for back-compat: callers (orchestrator, tests) import
 # ``file_to_module`` / ``bind_calls`` from this module. The implementations live
@@ -48,7 +51,7 @@ __all__ = [
 # Bump this integer whenever the edge/node schema changes so that stale cache
 # entries are automatically re-parsed rather than served.  Consumers compare
 # cached_data["cache_version"] against this constant; any mismatch → re-parse.
-CACHE_VERSION: int = 4
+CACHE_VERSION: int = 5
 
 _DOC_MAX = 200  # truncate docstrings; keeps graph.json grep-friendly and compact
 
@@ -87,8 +90,9 @@ class _Extractor(ast.NodeVisitor):
     so that bare-name calls can be resolved against them in ``bind_calls``.
     """
 
-    def __init__(self, file_rel: str, include_docs: bool = False) -> None:
+    def __init__(self, file_rel: str, refs: dict[ast.AST, ImportRef | None], include_docs: bool = False) -> None:
         self.file = file_rel
+        self.refs = refs
         self.include_docs = include_docs
         self.nodes: list[dict[str, Any]] = []
         self.edges: list[dict[str, Any]] = []
@@ -183,6 +187,7 @@ class _Extractor(ast.NodeVisitor):
                     "src": self.file,
                     "dst": alias.name,
                     "kind": "import",
+                    "_ref": self.refs[alias],
                 }
             )
 
@@ -199,7 +204,8 @@ class _Extractor(ast.NodeVisitor):
                 # resolution; no per-name binding is possible.
                 if mod:
                     self.star_imports.append(mod)
-                    self.edges.append({"src": self.file, "dst": f"{mod}.*", "kind": "import"})
+                    self.edges.append({"src": self.file, "dst": f"{mod}.*", "kind": "import",
+                                       "_ref": self.refs[alias]})
                 continue
             target = f"{mod}.{alias.name}" if mod else alias.name
             local = alias.asname if alias.asname else alias.name
@@ -210,6 +216,7 @@ class _Extractor(ast.NodeVisitor):
                     "src": self.file,
                     "dst": target,
                     "kind": "import",
+                    "_ref": self.refs[alias],
                 }
             )
 
@@ -222,6 +229,7 @@ class _Extractor(ast.NodeVisitor):
                     "src": src or self.file,
                     "dst": target,
                     "kind": "call",
+                    **({"_ref": self.refs[node]} if node in self.refs else {}),
                 }
             )
         self.generic_visit(node)
@@ -248,7 +256,7 @@ def parse_file(py_path: Path, src_root: Path, include_docs: bool = False) -> dic
     text = py_path.read_text(encoding="utf-8")
     tree = ast.parse(text, filename=str(py_path))
     file_rel = rel(py_path, src_root)
-    extractor = _Extractor(file_rel, include_docs=include_docs)
+    extractor = _Extractor(file_rel, import_refs(tree, py_path, src_root, file_rel), include_docs)
     # Module node
     module_node: dict[str, Any] = {
         "kind": "module",

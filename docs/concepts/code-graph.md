@@ -142,6 +142,13 @@ Ranks graph symbols (+ wiki articles, if built) by relevance.
   itself in a detached child rather than making you wait for the encode.
 - Build with `/mb graph --apply --docs` so the index matches intent.
 
+For multilingual source lookup, `code_context` can also use a separate project index.
+Choose Qwen3 (recommended) or Perplexity with `memory-bank rag init`. After setup,
+the agent's startup check (`memory-bank rag status --auto-refresh`) or a stale lookup
+can queue a background refresh. Graph/text search continues without waiting. Plain
+`memory-bank rag status` only inspects the index. See [refresh limits and manual
+recovery](../../references/code-graph.md#project-code-search-with-qwen3-or-perplexity).
+
 ### `/mb wiki` — per-community articles + surprising connections
 
 `/mb wiki` is an **opt-in LLM layer** over the deterministic graph (never runs
@@ -173,7 +180,8 @@ using **host subagents** (no API key; cost is only the subagent calls):
 | "who calls / imports X?" | `mb-graph.sh who-calls X` (or `jq` over `graph.json`) |
 | change impact / reverse deps | `mb-graph.sh impact X` |
 | "what tests cover this?" | `mb-graph.sh tests X` |
-| "where is the logic for X?" / "find similar" / concept | `mb-graph.sh search "<phrase>"` |
+| "where is the logic for X?" / "find similar" | `code_context` or `mb-code-context.py --query "$original" --search-query "$english" --source-only`; read a suggested file |
+| explicit concept search | `mb-graph.sh search "<phrase>"` |
 | an exact symbol you already know | `mb-graph.sh search <Identifier>` |
 | "what else changes with this file?" | `co_change` edges (`--cochange`) |
 | "give me a map / the non-obvious links" / "why" | `/mb wiki`, or `/mb recall` for past decisions |

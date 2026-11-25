@@ -5,6 +5,8 @@ allowed-tools: [Bash, Read, Task]
 
 Canonical session-start command. `/mb start` is an alias that dispatches here.
 
+In Git, if the startup RAG check has not run this user session, run `memory-bank rag status --auto-refresh` (bundled: `python3 "$SKILL_DIR/scripts/mb-rag.py" status --auto-refresh`). This check does not require a bank. Follow `SKILL.md` § GraphRAG-lite retrieval routing; do not wait for an index refresh.
+
 ## Pre-flight: resolve Memory Bank path
 
 Memory Bank may live in one of three places. Always resolve the active bank through `mb_resolve_path` (in `scripts/_lib.sh`) — never assume `./.memory-bank/` is the only signal:

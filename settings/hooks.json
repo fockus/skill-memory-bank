@@ -165,7 +165,12 @@
         {
           "type": "command",
           "command": "~/.claude/hooks/mb-session-catchup.sh # [memory-bank-skill]"
-        },
+        }
+      ]
+    },
+    {
+      "matcher": "startup|resume|clear",
+      "hooks": [
         {
           "type": "command",
           "command": "~/.claude/skills/memory-bank/hooks/mb-update-notify.sh # [memory-bank-skill]"

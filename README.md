@@ -561,6 +561,8 @@ bash scripts/mb-graph.sh search "how does auth token refresh work"
 /mb wiki
 ```
 
+**Optional multilingual code search:** Choose Qwen3 (recommended) or Perplexity with `memory-bank rag init`. Once configured, the agent's startup check (`memory-bank rag status --auto-refresh`) or a stale `code_context` lookup can refresh tracked edits in the background. Search uses graph/text results without waiting. Plain `memory-bank rag status` is read-only; use `memory-bank rag update` for a full rebuild. [Setup and refresh limits](references/code-graph.md#project-code-search-with-qwen3-or-perplexity).
+
 **Opt-in layers** (without them the base output stays byte-identical):
 
 - `--cochange` — git-history co-change edges: files that change together *without importing each other* (test ↔ subject, config ↔ reader). Coupling no AST can see. Also emits a per-file `churn_30d` signal that gives recently-hot files a small semantic-search boost.

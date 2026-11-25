@@ -101,7 +101,7 @@ EOF
 # Scenario 4 (REQ-013): update-notify reaches a Pi user on session_start.
 # ═══════════════════════════════════════════════════════════════
 
-@test "pi session-memory extension: session_start renders the update-notice via ctx.ui.notify" {
+@test "pi session-memory extension: only the root gets a UI notice and one model-facing notice, even without a bank" {
   _install_global_session_ext
 
   local checker="$PROJECT/fake-checker.sh"
@@ -111,8 +111,10 @@ echo '{"current":"5.3.0","latest":"9.9.9","update_available":true,"flavor":"git"
 EOF
   chmod +x "$checker"
 
+  rmdir "$PROJECT/.memory-bank"
   local harness="$PROJECT/harness-notice.mjs"
   cat > "$harness" <<'EOF'
+import assert from "node:assert/strict";
 const [, , extPath, projectRoot] = process.argv;
 const notices = [];
 const handlers = {};
@@ -125,13 +127,60 @@ const ctx = {
   ui: { notify: (msg) => notices.push(msg) },
 };
 await handlers.session_start({}, ctx);
-console.log(JSON.stringify({ notices }));
+const turn = () => handlers.before_agent_start({ systemPrompt: "Existing system prompt" }, ctx);
+const first = await turn();
+if (process.env.PI_SUBAGENT_CHILD === "1" || process.env.MB_UPDATE_CHECK === "off") {
+  assert.deepEqual(notices, []);
+  assert.equal(first, undefined);
+} else {
+  assert.equal(notices.length, 1);
+  assert.match(notices[0], /5\.3\.0 -> 9\.9\.9/);
+  assert.match(notices[0], /bash \/tmp\/x\/scripts\/mb-upgrade.sh/);
+  assert.match(notices[0], /Ask me to update Memory Bank for you/);
+  assert.ok(first.systemPrompt.startsWith("Existing system prompt"));
+  assert.ok(first.systemPrompt.includes(notices[0]));
+  assert.match(first.systemPrompt, /next visible reply/i);
+}
+await handlers.session_compact({}, ctx);
+assert.equal(await turn(), undefined);
 EOF
 
-  run env MB_VERSION_CHECK_BIN="$checker" node --experimental-strip-types "$harness" "$EXT" "$PROJECT"
+  local child
+  for child in 0 1; do
+    run env PI_SUBAGENT_CHILD="$child" MB_UPDATE_CHECK=on MB_VERSION_CHECK_BIN="$checker" node --experimental-strip-types "$harness" "$EXT" "$PROJECT"
+    [ "$status" -eq 0 ]
+  done
+  run env MB_UPDATE_CHECK=off MB_VERSION_CHECK_BIN="$checker" node --experimental-strip-types "$harness" "$EXT" "$PROJECT"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"5.3.0"* ]]
-  [[ "$output" == *"9.9.9"* ]]
+  [ ! -e "$PROJECT/.memory-bank" ]
+}
+
+@test "pi session-memory extension: replacing a starting session drops its notice and preserves the new session's memory" {
+  _install_global_session_ext
+  mkdir -p "$PROJECT/old" "$PROJECT/.memory-bank/session"
+  echo 'Keep this handoff.' > "$PROJECT/.memory-bank/session/_recent.md"
+  local checker="$PROJECT/check.sh"
+  cat > "$checker" <<'EOF'
+case "$PWD" in */old) latest=7.0.0 ;; *) latest=8.0.0 ;; esac
+printf '{"update_available":true,"current":"5.3.0","latest":"%s","flavor":"pipx","upgrade_command":"pipx upgrade memory-bank-skill"}\n' "$latest"
+EOF
+  run env MB_SESSION_CAPTURE=off MB_UPDATE_CHECK=on MB_VERSION_CHECK_BIN="$checker" node --experimental-strip-types --input-type=module - "$EXT" "$PROJECT" <<'JS'
+import assert from 'node:assert/strict';
+const [, , ext, cwd] = process.argv, hooks = {}, notices = [];
+(await import(ext)).default({on: (name, fn) => hooks[name] = fn});
+const ctx = (id, cwd) => ({cwd, sessionManager: {getSessionId: () => id},
+  ui: {notify: text => notices.push(text)}});
+const a = ctx('old', `${cwd}/old`), b = ctx('new', cwd);
+await Promise.all([hooks.session_start({}, a), hooks.session_start({}, b)]);
+assert.equal(notices.length, 1);
+assert.match(notices[0], /5.3.0 -> 8.0.0/);
+const event = {systemPrompt: 'Retain host instructions.'};
+const result = await hooks.before_agent_start(event, b);
+assert.match(result.message.content, /Keep this handoff/);
+assert.equal(result.message.customType, 'mb-session-restore');
+assert.ok(result.systemPrompt.includes(event.systemPrompt) && result.systemPrompt.includes(notices[0]));
+JS
+  [ "$status" -eq 0 ]
 }
 
 @test "pi session-memory extension: MB_UPDATE_CHECK=off renders no notice at all" {

@@ -16,13 +16,15 @@ Flags (the first word after `upgrade`):
 - `--check` — check only (exit 1 if an update is available, exit 0 if already up to date)
 - `--force` — apply without interactive confirmation
 
-**Automatic release check (SessionStart notice).** Independent of the `upgrade` command above,
-`scripts/mb-version-check.sh` answers "is a newer release out?" (GitHub Release, PyPI JSON
-fallback, TTL-cached) and `hooks/mb-update-notify.sh` renders its answer at SessionStart: an
-up-to-date session sees nothing; an out-of-date one sees a ≤3-line notice naming `current ->
-latest` and the exact upgrade command for the detected install flavor (`git pull` for a clone,
-the matching `pipx`/`pip`/`brew` command otherwise — a package manager is only ever *named*, never
-run on your behalf). Controlled by three env vars:
+**Session-start notice.** When the release cache confirms an update, the notice shows
+`current -> latest` and the command for your installation. Run it yourself or ask the agent
+to update Memory Bank for you. If the install method is unknown, the notice asks how you
+installed Memory Bank instead of guessing a command. Current or unverified releases stay silent.
+Codex and Pi pass the notice to both the root session UI and its next reply. Claude Code uses
+SessionStart output; Cursor uses `sessionStart.additional_context`. On hosts without a release
+hook, the root agent checks once with `MB_AUTO_UPDATE=off` and relays any notice.
+Startup reads the local cache; a cache miss triggers a background refresh for a later session
+(GitHub Releases, with PyPI as fallback).
 
 - `MB_UPDATE_CHECK` (default `on`) — `off` disables the check entirely, no output, no network call.
 - `MB_UPDATE_CHECK_TTL` (default `86400`, 24h) — cache TTL; at most one network call per window,

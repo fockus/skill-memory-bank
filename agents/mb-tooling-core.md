@@ -21,7 +21,13 @@ through the skill bundle root, from the project directory. Bind it in the SAME s
 SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:-$HOME/.claude/skills/memory-bank}}"
 ```
 
-Check the graph first with `bash "$SKILL_DIR"/scripts/mb-graph.sh status`:
+Make the lookup before answering or choosing files to edit. For an implementation question in a non-English language, keep the original in `query` and write one short English description of the same behavior in `searchQuery`. Copy identifiers, flags, paths and error strings literally; do not invent likely filenames. Set `sourceOnly: true` for implementation, not for test discovery. CLI equivalent:
+
+```bash
+python3 "$SKILL_DIR/scripts/mb-code-context.py" --query 'Где обновляется ключ доступа?' --search-query 'Where is the access token refreshed?' --source-only --json
+```
+
+Open a relevant file from `recommended_next_reads` and verify the code before citing `file:line`. Use the graph commands below directly for structural questions. If a graph lookup fails, check `bash "$SKILL_DIR"/scripts/mb-graph.sh status`, then use `Grep`/`Read` to verify the answer.
 
 | Intent | Token | Canonical command |
 |--------|-------|-------------------|

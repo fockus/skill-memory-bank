@@ -99,6 +99,10 @@
 - AGR-107 (2026-11-19, user-confirmed): svp-adapt-escalation rebased on ADaPT-lite (master-completion Stage 18a): REQ-004/005/006 amended to match the lite code — the stub is the fallback when the auto split is refused at max_depth, decompose replaces replan, and there is no child-spec registry
 - AGR-108 (2026-11-19, user-confirmed): master-completion Stage 20: the live Pi session check of the settle-resume gate is skipped by the owner; the gate is accepted on its automated tests (12 settle tests, 173 pi_native tests passed) and can be checked live later
 - AGR-110 (2026-11-19, user-confirmed): CI coverage gate is back to 85%: Linux pytest shards install a pinned, checksum-verified OpenCode 2.3.2 release binary, so the OpenCode V2 native acceptance tests run in CI (green on OpenCode 2.0.18 and 2.3.2). [supersedes AGR-109]
+- AGR-111 (2026-11-24, user-confirmed): Project code RAG is opt-in: let the user select Qwen3 via QMD or Perplexity 0.6B ONNX Q4, download only the selected model during setup, and keep the project index separate from notes.
+- AGR-112 (2026-11-25, user-confirmed): For implementation searches, agents must actually call code_context with the original question and an identifier-preserving English retrieval query, rank unique source files, and read the source before answering. Use graph tools directly for callers, impact and test coverage; keep fallback available.
+- AGR-113 (2026-11-25, user-confirmed): In Git projects, offer optional local repository indexing to the user when missing, and use code_context when the index is ready. On a verified new Memory Bank release, explicitly tell the user the installed and available versions, the install-specific upgrade command and that they can ask the agent to run it; no implicit consent.
+- AGR-114 (2026-11-25, user-confirmed): Once a project code index is configured, refresh it automatically when tracked source changes, without blocking the user or triggering hours of reindexing. Initial model setup and downloads still require explicit consent; manual rag update remains available.
 
 ## Deferred
 

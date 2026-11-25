@@ -12,6 +12,7 @@
 - [Keep the graph fresh on commit (opt-in)](#keep-the-graph-fresh-on-commit-opt-in)
 - [Intelligence layer (opt-in) — suggested questions · semantic search · wiki](#intelligence-layer-opt-in--suggested-questions--semantic-search--wiki)
 - [Semantic code search — when & how (benchmark-grounded)](#semantic-code-search--when--how-benchmark-grounded)
+- [Project code search with Qwen3 or Perplexity](#project-code-search-with-qwen3-or-perplexity)
 - [Session memory — cross-session recall](#session-memory--cross-session-recall)
 
 > On-demand reference. The structural code-graph cookbook — jq query library,
@@ -122,6 +123,7 @@ jq -r 'select(.type=="edge" and .kind=="import" and (.dst|contains("internal/cor
 ### Caveats
 
 - **Call resolution.** Python `call` edges are **import-aware** — resolved through the file's actual imports (local `def` > explicit/relative/aliased import > star-import > unique project-wide fallback; homonyms suppressed). The tree-sitter languages (Go/JS/TS/Rust/Java) stay **name-based** (no type inference): generic names (`Error`, `New`, `String`, `Run`, `Close`, `Background`, `Now`, `Execute`) in `god-nodes.md` are lexical false-positives there — filter generics when analysing top-degree nodes.
+- After rebuilding the graph, `who-calls graph_freshness` also finds `fresh.graph_freshness(...)` when `fresh` is a proven import alias. `tests` and `impact` use the same import targets. Dynamic imports or runtime changes to the import path can still leave gaps.
 - **Vendored code.** By default `skip_dirs = {.venv, __pycache__, node_modules, .git, target, dist, build}`. Projects with `vendor/` or `third_party/` (e.g. Go projects vendoring langchaingo) need a **project-local patched copy** in `.memory-bank/scripts/mb-codegraph-local.py` that adds those paths to `skip_dirs`. Run with: `PYTHONPATH="$HOME/.claude/skills/memory-bank" python3 .memory-bank/scripts/mb-codegraph-local.py --apply`.
 - **Language coverage.** Python always works (stdlib `ast`). Go / JS / TS / Rust / Java require tree-sitter + grammars (opt-in): `hooks/mb-semantic-bootstrap.sh` installs them with networkx into the bootstrap venv, and `mb-codegraph.py` re-execs under it. Without tree-sitter, non-Python files are silently skipped (graceful degradation).
 - **Rebuild cost.** Incremental via SHA256 cache in `.cache/` — unchanged files are skipped. First run on a 1000-file project: ~3-5 min. Subsequent runs: seconds.
@@ -186,7 +188,7 @@ confidence by them, and `mb-wiki.py merge-edges` enforces the floor (`wiki_store
 The `< 0.5` floor is enforced deterministically, so a `semantic` edge in `graph.json`
 always means `confidence ≥ 0.5` regardless of what the model proposed.
 
-**Routing for the code-agent:** exact structural question ("who calls X?") → `mb-graph.sh who-calls X` ("imports / inherits" → `jq` over `graph.json`); intent/fuzzy ("where is the logic for X?", "find similar") → `mb-graph.sh search "<query>"`; "what else changes with this file?" → `co_change` edges; "give me a map / the non-obvious links" → `/mb wiki`. **Fail open:** missing/stale graph → suggest `/mb graph --apply`; missing optional dep (`networkx` for communities, `fastembed` for embeddings) → degrade and surface the one-line install, never block the task.
+**Routing for the code-agent:** exact structural question ("who calls X?") → `mb-graph.sh who-calls X` ("imports / inherits" → `jq` over `graph.json`); intent/fuzzy ("where is the logic for X?", "find similar") → `mb-code-context.py --query "<query>"`; explicit symbol search → `mb-graph.sh search "<query>"`; "what else changes with this file?" → `co_change` edges; "give me a map / the non-obvious links" → `/mb wiki`. **Fail open:** missing/stale graph → suggest `/mb graph --apply`; missing optional dep (`networkx` for communities, `fastembed` for embeddings) → degrade and surface the one-line install, never block the task.
 
 ### Semantic code search — when & how (benchmark-grounded)
 
@@ -196,7 +198,7 @@ The lead command is `mb-graph.sh` (`bash "$SKILL_DIR"/scripts/mb-graph.sh …` w
 
 | You want… | Command | Why |
 |---|---|---|
-| concept / "how does X work" / synonym (no exact name) | `mb-graph.sh search "how does auth work"` (a phrase → embeddings) | vectors match *meaning* — finds `auth/*` even with no "authentication" token (requires `fastembed`; else degrades to BM25) |
+| where an implementation lives (no exact name) | `mb-code-context.py --query "$question" --search-query "$english" --source-only --json` | search the project's selected model for distinct source files, then use graph evidence and open a result |
 | an exact symbol/keyword you already know | `mb-graph.sh search pickWeighted` (one token → BM25) | lexical, sharp score separation, fastest |
 | the implementation, not its tests | append `--source-only` | drops `*test*` / `*.spec.*` / `__tests__/` / `test_*.py` |
 | who calls X | `mb-graph.sh who-calls X` (= `mb-graph-query.py neighbors --graph $G --symbol X --direction in`) | only edges whose target is X itself — no file-level imports, no outgoing calls |
@@ -208,6 +210,31 @@ The lead command is `mb-graph.sh` (`bash "$SKILL_DIR"/scripts/mb-graph.sh …` w
 
 - **Enrich first:** `/mb graph --apply --docs` indexes docstrings+signatures (opt-in; toggling re-parses via the cache). Without it the index sees only `name + kind + path`.
 - **Embeddings cache** lives in `.memory-bank/.index/codesearch/` (gitignored, auto-invalidated by a corpus hash) — separate from session-recall's vectors, never collides.
+
+### Project code search with Qwen3 or Perplexity
+
+To search code by meaning across languages, run `memory-bank rag init` from your Git project root on macOS or Linux (including WSL). Choose **qwen3** (via QMD) or **perplexity** (0.6B ONNX Q4), or press Enter to cancel. Setup downloads only the chosen model and indexes tracked source files, not notes or session history. The normal installer does neither.
+
+For Qwen3, install Node.js 22+ and the QMD version requested by setup. Perplexity setup installs its Python runtime dependencies in a private user cache. The two models do not require each other's runtimes.
+
+Plain `memory-bank rag status` is read-only. At the Git project root, agents run `memory-bank rag status --auto-refresh` once per user session. Neither command enrolls a project. Offer setup if unconfigured and search a ready index with `code_context`.
+
+After enrollment, the startup check or a semantic `code_context` lookup that notices changed tracked source can queue an incremental refresh. There is no always-on file watcher. Edits are batched after **2 minutes of quiet**, with at most **one attempt per 15 minutes per worktree**. Each attempt has a **3-minute** time limit and can encode at most **32 new chunks**. It reuses unchanged embeddings and never downloads a model. Use graph/text fallback immediately; ordinary edits need no user action.
+
+If a change exceeds the automatic budget or an older index cannot refresh incrementally, offer `memory-bank rag update`. For broken assets, surface the reported repair command (for example, `memory-bank rag init --model qwen3` for missing Qwen3 weights). Wait for consent before running either command.
+
+```bash
+memory-bank rag init --model qwen3       # or --model perplexity; no prompt
+memory-bank rag update                   # manual rebuild, without waiting for auto-refresh
+python3 "$SKILL_DIR/scripts/mb-code-context.py" --query 'Где обновляется истёкший токен?' \
+  --search-query 'Where is an expired token refreshed?' --source-only --json
+```
+
+From a checkout, `python3 "$SKILL_DIR/scripts/mb-rag.py" init` and `update` perform the same operations. Without a terminal, `init` does nothing unless `--model` is set. To target another project, pass `--project-root`; for a bank outside the project, also pass `--mb-path` or set `MB_PATH`.
+
+The calling agent writes the English paraphrase; no translation service is required. Preserve symbols, flags, paths and errors exactly. The original question remains available for exact matches and graph expansion. In source-only mode, retrieve up to 50 project-index hits and keep the best hit per non-test file. Read the suggested source before answering: search rank is not proof. Omit `--source-only` when looking for tests; for coverage of a known symbol use `mb-graph.sh tests` directly.
+
+The local model receives `--search-query` when supplied, otherwise the original `--query`. In auto mode, a missing model or stale index leaves graph and text search available. If results are weak, try another description or check the source with Grep/Read. `--semantic-candidates FILE` takes precedence over the project model; `--mode graph` skips it entirely.
 
 ### Session memory — cross-session recall
 

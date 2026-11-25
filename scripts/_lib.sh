@@ -837,7 +837,7 @@ mb_upgrade_command() {
   case "$flavor" in
     git)
       if [ -n "$install_dir" ]; then
-        printf '%s\n' "bash ${install_dir%/}/scripts/mb-upgrade.sh --force"
+        printf 'bash %q --force\n' "${install_dir%/}/scripts/mb-upgrade.sh"
       else
         printf '%s\n' "scripts/mb-upgrade.sh --force"
       fi

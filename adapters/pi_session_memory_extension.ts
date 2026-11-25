@@ -61,11 +61,14 @@ async function renderUpdateNotice(skillDir: string, cwd: string): Promise<string
 export default function mbPiSessionExtension(pi: ExtensionAPI) {
   // Handlers register synchronously; the lifecycle module loads once per runtime.
   const memory = import(pathToFileURL(join(SKILL_DIR, "adapters", "pi_native_session.mjs")).href)
-    .then((mod) => ({ mod, api: mod.createSessionMemory({ skillDir: SKILL_DIR, projectRoot: PROJECT_ROOT }) }))
-    .catch((error) => ({ error }));
+    .then((mod) => ({ api: mod.createSessionMemory({ skillDir: SKILL_DIR, projectRoot: PROJECT_ROOT }), error: null }))
+    .catch((error) => ({ api: null, error }));
+  let pending: Promise<string | null> | undefined;
 
   pi.on("session_start", async (event, ctx) => {
     const cwd = PROJECT_ROOT || ctx.cwd;
+    const child = process.env.PI_SUBAGENT_CHILD === "1" || process.env.PI_SUBAGENTS_HERDR_BRIDGE === "1";
+    const release = pending = child ? undefined : renderUpdateNotice(SKILL_DIR, cwd);
     const loaded = await memory;
     // Register the session before any other await: events resolve `memory` in
     // order, so a stale start can no longer finish after its replacement's start
@@ -73,11 +76,11 @@ export default function mbPiSessionExtension(pi: ExtensionAPI) {
     const started = loaded.api?.session_start(event, ctx);
     // REQ-013/019: update-notify is a separate transport from session capture
     // (MB_SESSION_CAPTURE governs capture only) and must never block startup.
-    const notice = await renderUpdateNotice(SKILL_DIR, cwd).catch(() => null);
+    const notice = await release;
     const message = loaded.error
       ? `Memory Bank session memory unavailable (${SKILL_DIR}/adapters/pi_native_session.mjs): ${String(loaded.error).split("\n")[0]}`
       : null;
-    for (const text of [notice, message]) {
+    for (const text of [pending === release ? notice : null, message]) {
       if (!text || typeof ctx.ui?.notify !== "function") continue;
       try {
         ctx.ui.notify(text);
@@ -88,8 +91,23 @@ export default function mbPiSessionExtension(pi: ExtensionAPI) {
     return started;
   });
 
-  for (const name of ["input", "tool_execution_start", "tool_execution_end", "agent_end", "before_agent_start",
-    "session_before_compact", "session_compact", "session_compact_failed", "session_shutdown"]) {
+  pi.on("before_agent_start", async (event, ctx) => {
+    const release = pending;
+    const restored = await (await memory).api?.before_agent_start(event, ctx);
+    if (!release || event.messageType === "custom") return restored;
+    const notice = await release;
+    if (pending !== release) return restored;
+    pending = undefined;
+    if (!notice) return restored;
+    return { ...restored, systemPrompt: `${event.systemPrompt}\n\nRelay this notice in your next visible reply in the user's language. Do not run the command unless asked.\n${notice}` };
+  });
+
+  pi.on("session_shutdown", async (event, ctx) => {
+    pending = undefined;
+    return (await memory).api?.session_shutdown(event, ctx);
+  });
+  for (const name of ["input", "tool_execution_start", "tool_execution_end", "agent_end",
+    "session_before_compact", "session_compact", "session_compact_failed"]) {
     pi.on(name as any, async (event: any, ctx: any) => (await memory).api?.[name](event, ctx));
   }
 }

@@ -246,9 +246,10 @@ EOF
 
   run env HOME="$sandbox_home" MB_VERSION_CHECK_BIN="$checker" bash -c "$cmd"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"5.3.0"* ]]
-  [[ "$output" == *"5.4.0"* ]]
-  [[ "$output" == *"pipx upgrade memory-bank-skill"* ]]
+  jq -e '.additional_context | contains("5.3.0 -> 5.4.0") and contains("pipx upgrade memory-bank-skill") and contains("Ask me to update Memory Bank for you.")' <<< "$output"
+  run env HOME="$sandbox_home" MB_UPDATE_CHECK=off MB_VERSION_CHECK_BIN="$checker" bash -c "$cmd"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
 
   rm -rf "$sandbox_home"
 }

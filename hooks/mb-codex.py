@@ -141,9 +141,12 @@ def main(payload):
         run('hooks/mb-session-start.sh')
         if payload.get('source') == 'compact':
             run('hooks/mb-graph-nudge.sh', args=('--reset',))
-        notice = run('hooks/mb-update-notify.sh')
-        if notice.stdout.strip():
-            result['systemMessage'] = '\n'.join(filter(None, (result.get('systemMessage'), notice.stdout.strip())))
+        elif not payload.get('agent_id') and not env.get('MB_CAPTURE_SUBPROCESS'):
+            notice = run('hooks/mb-update-notify.sh').stdout.strip()
+            if notice:
+                result['systemMessage'] = '\n'.join(filter(None, (result.get('systemMessage'), notice)))
+                contexts.append("Relay this notice in your next visible reply in the user's language. "
+                                "Do not run the command unless asked.\n" + notice)
     elif event == 'UserPromptSubmit':
         run('hooks/mb-semantic-recall.sh')
     elif event in ('PreCompact', 'SessionEnd'):

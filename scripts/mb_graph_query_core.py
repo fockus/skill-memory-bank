@@ -32,20 +32,8 @@ def load_graph(path: Path) -> tuple[list[JsonObj], list[JsonObj]]:
 # FILE, not a dotted symbol, so its last segment is an extension — never a symbol.
 _CHAIN_DEPTH = 3
 _closure_memo: dict[str, Any] = {}  # one graph per process; keyed by list identity
-_SOURCE_SUFFIXES = (
-    ".py",
-    ".sh",
-    ".bats",
-    ".bash",
-    ".go",
-    ".js",
-    ".mjs",
-    ".jsx",
-    ".ts",
-    ".tsx",
-    ".rs",
-    ".java",
-)
+_SOURCE_SUFFIXES = (".py", ".sh", ".bats", ".bash", ".go", ".js", ".mjs", ".jsx",
+                    ".ts", ".tsx", ".rs", ".java")
 
 
 def short_name(value: str) -> str:
@@ -112,7 +100,9 @@ def edge_is_outgoing(edge: JsonObj, target_names: set[str], target_files: set[st
 
 def edge_is_incoming(edge: JsonObj, target_names: set[str], target_files: set[str]) -> bool:
     dst = str(edge.get("dst", ""))
-    return dst in target_names or dst in target_files
+    target = edge.get("target", dst)
+    return (bool(target) and (target in target_names or target in target_files)) or (
+        dst in target_names and f"literal:{dst}" in target_names)
 
 
 def resolve_target(
@@ -124,6 +114,12 @@ def resolve_target(
 
     if symbol is not None:
         target_names.add(symbol)
+        if symbol.endswith(".py"):  # mb-graph.sh passes even file paths as --symbol
+            target_names.update(f"{symbol}:{n['name']}" for n in nodes if n.get("file") == symbol)
+        # Keep exact raw aliases and class.method queries. An inferred alias
+        # of a matched module function must use the proven target instead.
+        if not matches or ("." in symbol and any(n.get("name") == symbol for n in matches)):
+            target_names.add(f"literal:{symbol}")
     if file_name is not None:
         target_files.add(file_name)
         if file_name.endswith(".py"):
@@ -191,12 +187,15 @@ def _entry_closure(edges: list[JsonObj], nodes: list[JsonObj]) -> dict[str, set[
     """
     known = {str(n.get("file", "")) for n in nodes if str(n.get("file", "")).endswith(".py")}
     py_files = {file_to_module(f): f for f in known}
-    shell, imports, first = {}, {}, {}  # type: dict[str, set[str]], dict[str, set[str]], dict[str, set[str]]
+    shell: dict[str, set[str]] = {}
+    imports: dict[str, set[str]] = {}
+    first: dict[str, set[str]] = {}
     for edge in (e for e in edges if e.get("kind") == "import"):
         src, dst = edge_file(str(edge.get("src", ""))), str(edge.get("dst", ""))
         if src.endswith(".sh") and dst.endswith(".py"):
             shell.setdefault(src, set()).add(dst)
-        elif src.endswith(".py") and (t := _resolve_module(dst, src, py_files, known)) not in ("", src):
+        elif src.endswith(".py") and (t := edge_file(edge["target"]) if "target" in edge
+                                      else _resolve_module(dst, src, py_files, known)) not in ("", src):
             imports.setdefault(src, set()).add(t)
         if is_test_file(src) and (dst.endswith(".sh") or dst.endswith(".py") and (
                 edge.get("via") == "invoke" or src.endswith(".bats"))):

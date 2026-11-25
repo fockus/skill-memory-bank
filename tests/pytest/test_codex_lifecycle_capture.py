@@ -37,6 +37,17 @@ class CodexLifecycleTests(unittest.TestCase):
         return subprocess.run(['python3', str(RUNNER)], input=json.dumps(payload),
                               text=True, capture_output=True, env=self.env, cwd=self.cwd)
 
+    def test_children_prompts_and_compaction_never_rerun_release_check(self):
+        resolver = self.cwd/'version.sh'
+        resolver.write_text('echo checked > checker-ran\n')
+        self.env.update(MB_VERSION_CHECK_BIN=str(resolver), MB_UPDATE_CHECK='on')
+        for event, fields in [('UserPromptSubmit', {}), ('SessionStart', {'source': 'compact'}),
+                              ('SubagentStart', {'agent_id': 'child'}), ('SessionStart', {'agent_id': 'child'})]:
+            with self.subTest(event=event, fields=fields):
+                result = self.hook(event, **fields)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertFalse((self.cwd/'checker-ran').exists())
+
     def test_child_start_restores_bank_and_rule_pointers(self):
         (self.bank/'status.md').write_text('Child must retain the milestone.\n')
         (self.bank/'RULES.md').write_text('Project rules.\n')

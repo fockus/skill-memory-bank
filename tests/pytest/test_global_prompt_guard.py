@@ -4,6 +4,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -152,10 +154,9 @@ GLOBAL_FILE_LIMIT = 8192
 GLOBAL_FILE_HEADROOM = 1024
 
 
-def test_global_host_files_keep_one_kb_headroom(tmp_path: Path) -> None:
-    # I-249: every global file = host header + Key rules + this core. The core
-    # grows with the skill, so the largest file (Pi) keeps >= 1 KB under the
-    # 8192 B budget gated in tests/bats/test_always_loaded_budget.bats.
+@pytest.fixture(scope="module")
+def installed_global_prompts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
+    tmp_path = tmp_path_factory.mktemp("global-prompts")
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
     env["MB_MANIFEST_PATH"] = str(tmp_path / "installed-manifest.json")
@@ -173,8 +174,8 @@ def test_global_host_files_keep_one_kb_headroom(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
 
-    sizes = {
-        rel: (tmp_path / rel).stat().st_size
+    return {
+        rel: tmp_path / rel
         for rel in (
             ".claude/CLAUDE.md",
             ".codex/AGENTS.md",
@@ -183,5 +184,20 @@ def test_global_host_files_keep_one_kb_headroom(tmp_path: Path) -> None:
             ".cursor/AGENTS.md",
         )
     }
-    largest = max(sizes, key=sizes.get)
-    assert sizes[largest] <= GLOBAL_FILE_LIMIT - GLOBAL_FILE_HEADROOM, sizes
+
+
+def test_global_host_files_keep_one_kb_headroom(installed_global_prompts: dict[str, Path]) -> None:
+    # I-249: keep 1 KB free after combining each host's header, Key rules and global core.
+    sizes = {rel: path.stat().st_size for rel, path in installed_global_prompts.items()}
+    assert max(sizes.values()) <= GLOBAL_FILE_LIMIT - GLOBAL_FILE_HEADROOM, sizes
+
+
+def test_global_install_delivers_discovery_outside_configured_projects(
+    installed_global_prompts: dict[str, Path],
+) -> None:
+    for path in installed_global_prompts.values():
+        prompt = path.read_text(encoding="utf-8")
+        assert all(token in prompt for token in (
+            "memory-bank rag status --auto-refresh", "scripts/mb-rag.py status --auto-refresh",
+            "Qwen3", "Perplexity", "rag update", "code_context", "mb-update-notify.sh",
+        )), path

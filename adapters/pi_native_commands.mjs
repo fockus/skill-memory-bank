@@ -30,13 +30,12 @@ export function execute(file, args, cwd, { signal, env = {}, stdin = '', timeout
 }
 
 // Bank of the live project via _lib.sh (local, global and legacy layouts); null when absent.
-// Like mb-graph.sh, a session started in a project subfolder walks up to the nearest ancestor
-// that resolves a bank, stopping at the filesystem root.
+// Walk up from a subfolder, but never inherit the enclosing worktree's bank.
 const WALK_UP = `source "$1"; d="$PWD"
 while :; do
   b=$(cd "$d" && mb_resolve_path) && case "$b" in /*) ;; *) b="$d/$b" ;; esac
   [ -d "$b" ] && { printf '%s\\n' "$b"; exit 0; }
-  [ "$d" = / ] && exit 0
+  if [ -e "$d/.git" ] || [ "$d" = / ]; then exit 0; fi
   d=$(dirname "$d")
 done`;
 

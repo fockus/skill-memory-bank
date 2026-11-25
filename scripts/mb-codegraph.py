@@ -318,7 +318,9 @@ def build_graph(
             if file_rel and file_rel not in definitions[name]:
                 definitions[name].append(file_rel)
 
-    all_edges = cgpy.bind_calls(all_edges, all_import_bindings, definitions, all_star_imports)
+    python_files = {n["file"] for n in all_nodes if n["kind"] == "module" and n["file"].endswith(".py")}
+    all_edges = cgpy.bind_calls(all_edges, all_import_bindings, definitions, all_star_imports,
+                                python_files=python_files)
 
     # ── Shell binding (Bash/Bats files only) ─────────────────────────────────
     # Resolves `source`/invocation paths against the files actually walked and

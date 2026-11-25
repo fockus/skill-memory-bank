@@ -38,8 +38,10 @@ Persistence: inside an approved plan keep calling tools until a gate or blocker;
 Planned work runs inline only when the user asks to skip \`/mb work\`; tests and verification still apply.
 
 EOF
+  # In standalone skill mode the discovery alias contains only SKILL.md.
+  printf 'In root sessions without the session-memory extension, check once: `MB_AUTO_UPDATE=off bash %q`. Relay a notice (versions, exact command, offer of help) in your next visible reply; silence needs no announcement.\n\n' "$SKILL_DIR/hooks/mb-update-notify.sh"
   mb_emit_rules_file "$SKILL_DIR/rules/CLAUDE-GLOBAL.md" \
-    | sed 's#~/.claude/RULES.md#~/.pi/agent/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.pi/agent/skills/memory-bank#g'
+    | sed '/MB_AUTO_UPDATE=off bash .*mb-update-notify\.sh/d; s#~/.claude/RULES.md#~/.pi/agent/skills/memory-bank/rules/RULES.md#g; s#~/.claude/skills/memory-bank#~/.pi/agent/skills/memory-bank#g'
   cat <<EOF
 
 $PI_END_MARKER

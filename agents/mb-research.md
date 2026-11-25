@@ -46,9 +46,11 @@ does not expose (`--file`, `neighbors --direction out|both`, `explain`, `summary
 
 | Question | Tool (run from repo root) |
 |---|---|
-| **who depends on / blast-radius / which tests cover** a symbol (`graph_impact`) | `bash "$G" impact <Name>` (→ `dependents` + `test_files`) |
+| **who depends on / blast-radius** of a symbol (`graph_impact`) | `bash "$G" impact <Name>` (→ `dependents` + `test_files`) |
+| **which tests cover** a symbol (`graph_tests`) | `bash "$G" tests <Name>` |
 | **who calls** a symbol (`graph_neighbors`) | `bash "$G" who-calls <Name>` (callers only) |
-| **concept / "how does X work" / synonym** (`search_code`) | `bash "$G" search "<question>"` → embeddings (`--source-only` to skip tests) |
+| **where is this implemented / how does it work?** (`code_context`) | `python3 "$SKILL_DIR/scripts/mb-code-context.py" --query "$original" --search-query "$english" --source-only --json`; supply your own English paraphrase, keep identifiers unchanged, then open a recommended file. Omit `--source-only` to find tests. |
+| **explicit concept search** (`search_code`) | `bash "$G" search "<question>"` |
 | **exact symbol/file name** | `bash "$G" search <exactName>` → BM25 (one token routes there) |
 | **raw text / regex / freshly-changed / un-indexed code** | `Grep` (ripgrep) + `Glob`, then `Read`. Use directly — do NOT force everything through the graph. |
 | **"what did we decide / why / was it done before"** (`recall`) | `/mb recall <query>` (semantic + lexical over session/ + notes/) |
@@ -69,9 +71,7 @@ does not expose (`--file`, `neighbors --direction out|both`, `explain`, `summary
 - **GitHub (`gh`)** — preflight once: `gh auth status` (and `command -v gh`). If missing/unauthed,
   fall back to `WebSearch "site:github.com <query>"` + `WebFetch`, and say so. Prefer `gh search code`
   (code), `gh search repos` (projects), `gh search issues` (bugs/discussions); cap with `--limit`.
-- **MB graph / semantic index** — if `.memory-bank/codebase/graph.json` or the embeddings index is
-  absent in the current project, skip those rows and use `Grep`/`Glob`/`Read` + web. **mb-research must
-  still work in a repo with no Memory Bank** — fail open, degrade to `Grep`/`Glob`/`Read`, never block.
+- **Project code index** — `code_context` can search a ready project index even without a bank or graph. If the desired index is unavailable, verify against the source with `Grep`/`Glob`/`Read`. **mb-research must still work in a repo with no Memory Bank.**
 
 ## Execution patterns
 

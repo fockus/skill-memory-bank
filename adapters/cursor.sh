@@ -76,10 +76,7 @@ MB_HOOKS=(
 EVENT_BINDINGS=(
   "sessionStart:mb-session-start-context.sh"
   # A5/stage-3: "is a newer release out?" notice — silent when up to date,
-  # <=3 lines when not. Registered alongside the context-injection hook, not
-  # in place of it: this hook's stdout is plain text (not the
-  # hookSpecificOutput JSON contract), which Cursor's CC-compatible hooks
-  # runtime still surfaces as additional context when non-empty.
+  # <=3 lines when not. cursor_build_hooks_json maps the notice to Cursor JSON.
   "sessionStart:mb-update-notify.sh"
   # adapter-parity T7 (REQ-021): the CC-tier claim requires mb-session-turn.sh
   # (CC's real Stop hook — see its own header comment) to actually CREATE/
@@ -248,6 +245,9 @@ cursor_build_hooks_json() {
       matcher=""
     fi
     cmd="${env_prefix}bash \"${hooks_dir}/${script}\""
+    if [ "$script" = "mb-update-notify.sh" ]; then
+      cmd+=" | jq -Rs 'select(length > 0) | {additional_context: (\"Relay this notice in your next visible reply. Do not run the command unless asked.\\n\" + .)}'"
+    fi
     if [ -n "$matcher" ]; then
       entry=$(jq -n --arg cmd "$cmd" --arg m "$matcher" '{command:$cmd, matcher:$m, _mb_owned:true}')
     else

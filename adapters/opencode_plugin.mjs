@@ -9,14 +9,14 @@ import { createSessionMemory } from './opencode_session.mjs';
 import { createWorkflowBinding } from './opencode_workflow.mjs';
 
 const skillDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const binding = 'OpenCode 2 host binding (authoritative over older examples): '
-  + 'dispatch with subagent({agent, description, prompt, model?: "provider/model#variant", sessionID?}). '
-  + 'On OpenCode >= 2.3 a subagent always runs in the background: dispatch a wave of parallel items at once, then end the turn; '
-  + 'continue the /mb work loop when its <subagent> report arrives and never advance canonical state before that report. '
-  + 'omit model to use the role pin, or inherit the parent when unpinned. /mb work --model inherit and --step-model role=inherit override pins for this run only. Never use task(subagent_type) or launch another host CLI. '
-  + 'Use native commands, skills and named roles; shared scripts implement /mb workflows. '
-  + 'There is no blocking Stop hook; use explicit workflow/tool/commit gates. '
-  + 'GraphRAG CLI: scripts/mb-graph.sh, scripts/mb-code-context.py (no native wrappers).';
+const binding = 'OpenCode 2 host binding: subagent({agent, description, prompt, model?: "provider/model#variant", sessionID?}). '
+  + 'On 2.3+ dispatch parallel roles together, end the turn, resume /mb work and advance state only after their reports. '
+  + 'Omit model for role pin or parent if unpinned; --model inherit / --step-model role=inherit override per run. '
+  + 'Use native roles and shared scripts, never task(subagent_type) or another host CLI. No blocking Stop hook: enforce workflow/tool/commit gates. '
+  + 'GraphRAG CLI (no native wrappers): set SKILL_DIR to Skill root below or project AGENTS.md checkout. From repo root, before editing or guessing, run '
+  + '"$SKILL_DIR/scripts/mb-code-context.py" --query "$original" --search-query "$english"; keep identifiers/paths/errors in English paraphrase. '
+  + '--source-only for implementation, not tests. Exact structure: "$SKILL_DIR/scripts/mb-graph.sh" who-calls|impact|tests SYMBOL. '
+  + 'Read a hit; cite path:line. Otherwise grep/read immediately; never wait for an index refresh.';
 
 async function read(file, cap = 32768) {
   let handle;
@@ -61,8 +61,9 @@ export function createMemoryBankPlugin({ extended = false } = {}) {
         if (commands) registrations.push(commands);
         if (ctx.shell) await hook('shell', 'create.before', event => workflow.shell(event));
         await hook('session', 'context', async (event) => {
-          if (!await session(event.sessionID)) return;
-           await workflow.context(event);
+          const info = await session(event.sessionID);
+          if (!info) return;
+          await workflow.context(event);
           const config = path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'opencode');
           event.system.push({ type: 'text', text: `${binding}\nSkill root: ${skillDir}` });
           for (const root of [config, directory]) {
@@ -75,10 +76,10 @@ export function createMemoryBankPlugin({ extended = false } = {}) {
           const bank = await invoke('resolve', event.sessionID);
           const ruleFiles = [path.join(config, 'RULES.md'), path.join(directory, 'RULES.md')];
           if (bank) ruleFiles.push(path.join(bank, 'RULES.md'));
-          event.system.push({ type: 'text', text: `Read applicable detailed sections before changes: ${path.join(skillDir, 'rules/RULES.md')}. AGENTS.md and its Key rules remain the instruction source.` });
+          event.system.push({ type: 'text', text: `Before edits read applicable sections: ${path.join(skillDir, 'rules/RULES.md')}. AGENTS.md Key rules apply.` });
           for (const file of new Set(ruleFiles)) {
             try {
-              if ((await stat(file)).isFile()) event.system.push({ type: 'text', text: `Applicable detailed rules (read relevant sections before changes): ${file}` });
+              if ((await stat(file)).isFile()) event.system.push({ type: 'text', text: `Additional rules: ${file}` });
             } catch { /* Optional detailed-rule pointers fail open. */ }
           }
           if (extended) await memory.context(event);
@@ -89,10 +90,14 @@ export function createMemoryBankPlugin({ extended = false } = {}) {
             text = await runner.optional('adapters/opencode_memory.py', ['filter'], text);
             if (text) event.system.push({ type: 'text', text });
           }
-          if (!notified.has(event.sessionID)) {
+          if (!info.parentID && !notified.has(event.sessionID)) {
             notified.add(event.sessionID);
+            event.system.push({ type: 'text', text:
+              'In Git run python3 "$SKILL_DIR/scripts/mb-rag.py" status --auto-refresh once per user session. If unconfigured, offer Qwen3 (recommended) or Perplexity. Skip not_applicable/declined. '
+              + 'If ready use code_context. For ordinary stale, use fallback now; refresh runs in the background. Ask before setup, a reported memory-bank rag update, or repair of broken assets.' });
             const notice = await runner.optional('hooks/mb-update-notify.sh');
-            if (notice) event.system.push({ type: 'text', text: notice });
+            if (notice) event.system.push({ type: 'text', text:
+              `In your next visible reply, relay this verified notice with the installed and available versions and exact upgrade command. Offer to run it if asked; never treat the notice as consent.\n${notice}` });
             if (bank) {
               const hint = await runner.optional('adapters/opencode_session.sh', ['hint', directory, event.sessionID], '', { env: { MB_AUTO_REFRESH: 'off' } });
               if (hint) event.system.push({ type: 'text', text: hint });
@@ -153,7 +158,6 @@ export function createMemoryBankPlugin({ extended = false } = {}) {
                 await runner.optional(process.env.MB_SUMMARIZE_BIN, [], { cwd: directory, session_id: sid }, { trustedCustom: true });
               }
             }
-            notified.delete(sid);
           }
         } catch { /* Optional live-only observations must not break ordinary work. */ }
       })();

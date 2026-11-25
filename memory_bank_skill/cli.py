@@ -4,6 +4,7 @@ Subcommands:
     install       Run global + optional cross-agent adapter install
     uninstall     Remove global install
     init          Bootstrap .memory-bank/ in current project (hint: use /mb init)
+    rag           Inspect, set up or refresh the optional project code index
     version       Print version string
     self-update   Suggest pipx upgrade command
     doctor        Print resolved bundle path + platform info
@@ -245,6 +246,14 @@ def cmd_version(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_rag(args: argparse.Namespace) -> int:
+    script = find_bundle_root() / "scripts" / "mb-rag.py"
+    if not script.is_file():
+        sys.stderr.write(f"[memory-bank] missing bundled script: {script}\n")
+        return EXIT_MISSING_SCRIPT
+    return subprocess.run([sys.executable, str(script), args.action, *args.options]).returncode
+
+
 def cmd_self_update(_args: argparse.Namespace) -> int:
     sys.stdout.write(
         f"To update memory-bank-skill:\n"
@@ -346,6 +355,11 @@ def build_parser() -> argparse.ArgumentParser:
         f"Valid: {', '.join(VALID_LANGUAGES)}. Default: en.",
     )
     p_init.set_defaults(func=cmd_init)
+
+    p_rag = sub.add_parser("rag", help="Inspect, set up or refresh the optional project code index")
+    p_rag.add_argument("action", choices=("status", "init", "update"))
+    p_rag.add_argument("options", nargs=argparse.REMAINDER, help="Use ACTION --help for options")
+    p_rag.set_defaults(func=cmd_rag)
 
     p_version = sub.add_parser("version", help="Print version")
     p_version.set_defaults(func=cmd_version)

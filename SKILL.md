@@ -96,9 +96,17 @@ Use `SKILL_DIR="${MB_SKILLS_ROOT:-${SKILL_DIR:?Set SKILL_DIR from the loaded ski
 
 ### GraphRAG-lite retrieval routing
 
+In Git, run `memory-bank rag status --auto-refresh` once per user session from the repository root (bundled: `python3 "$SKILL_DIR/scripts/mb-rag.py" status --auto-refresh`). If unconfigured, offer Qwen3 (recommended) or Perplexity in chat. Only on acceptance run `memory-bank rag init --model qwen3` or `--model perplexity`. Skip the offer if ineligible or already declined. Use a ready index on the first relevant lookup.
+
+For configured indexes, this startup check or a stale `code_context` lookup queues a bounded background refresh. Use graph/text fallback immediately; do not ask about ordinary tracked edits. If the change is too large or an older index needs a rebuild, offer `memory-bank rag update`; for broken assets, offer the reported repair. Plain `memory-bank rag status` is read-only. [Refresh limits](references/code-graph.md#project-code-search-with-qwen3-or-perplexity).
+
+At session start, if Memory Bank reports an available release, **tell the user in their language, in your next visible reply**: “Memory Bank `<current>` → `<latest>` is available. Run `<detected upgrade command>`, or ask me to update it for you.” Use the actual versions and installation advice from the notice; if the install method is unknown, offer to identify it first. Without startup hooks, run `MB_AUTO_UPDATE=off bash "$SKILL_DIR/hooks/mb-update-notify.sh"` once; silence means no announcement. Do not repeat an offer already shown. Only upgrade when asked or when automatic updates were explicitly enabled.
+
 `code_context is the default` for ambiguous code-understanding questions such as "where is the logic for X?" or "find similar implementation". Exact structural questions route directly to graph tools: "who calls/imports/defines X?" → `graph_neighbors`, "reverse deps" or change impact → `graph_impact`, and "what tests cover this file/symbol?" → `graph_tests`. User explicitly asks "semantic search" → `search_code` because explicit tool intent wins.
 
-Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block the agent. Optional dependencies (tree-sitter, networkx, fastembed) are not assumed installed: `bash "$SKILL_DIR"/scripts/mb-deps-check.sh --install-hints` prints the exact install command. Use `bash "$SKILL_DIR"/scripts/mb-graph.sh who-calls|impact|tests <Symbol>` / `search "<query>"` / `status` and `scripts/mb-code-context.py` as the universal CLI fallback; Pi and OpenCode may expose native tool wrappers, while Claude Code, Codex, and generic AGENTS.md agents can call the scripts directly.
+For an implementation lookup, **call** `code_context` before guessing a path. Keep the user's wording in `query`; for a non-English question supply a concise English `searchQuery` yourself, preserving literal identifiers and errors. Set `sourceOnly: true` for implementation, not for tests. CLI: `scripts/mb-code-context.py --query "$question" --search-query "$english" --source-only --json`. Open a suggested file and cite the lines you verified.
+
+Fail open: missing graph, stale graph, missing semantic provider, or unavailable native extension must not block the agent. Optional dependency hints: `bash "$SKILL_DIR"/scripts/mb-deps-check.sh --install-hints`. Pi exposes native tools. On OpenCode, Claude Code, Codex or a generic AGENTS.md host, use the CLI fallback: `scripts/mb-code-context.py` and `bash "$SKILL_DIR"/scripts/mb-graph.sh who-calls|impact|tests <Symbol>` (wraps `scripts/mb-graph-query.py`).
 
 **Entry points agents call** (full grouped table incl. internal libraries → [`references/scripts.md`](references/scripts.md)):
 

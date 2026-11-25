@@ -10,6 +10,9 @@
 - [2026-10-05_feature_pi-native-integration](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan — progress=60% stages(done=0,in_progress=4,planned=1,total=5)
 - [proportional-effortsprint2-execution-economy](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер» — progress=85% stages(done=3,in_progress=1,planned=0,total=4)
 - [codex-memory-parity](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion — progress=0% stages(done=0,in_progress=0,planned=4,total=4)
+- [project-code-rag](plans/2026-11-24_feature_project-code-rag.md) — feature — project-code-rag — progress=100% stages(done=1,in_progress=0,planned=0,total=1)
+- [agent-retrieval-routing](plans/2026-11-25_feature_agent-retrieval-routing.md) — feature — agent-retrieval-routing — progress=100% stages(done=2,in_progress=0,planned=0,total=2)
+- [bounded-rag-refresh](plans/2026-11-25_feature_bounded-rag-refresh.md) — feature — bounded-rag-refresh — progress=100% stages(done=1,in_progress=0,planned=0,total=1)
 
 ## Next (strict order — depends)
 
@@ -200,6 +203,9 @@ Umbrella-группа (D-31, bootstrap вручную — автоматика �
 - [2026-10-07] [plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер»
 - [codex-memory-parity](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion — progress=0% stages(done=0,in_progress=0,planned=4,total=4)
 - [2026-10-09] [plans/2026-10-09_feature_codex-memory-parity.md](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion
+- [2026-11-24] [plans/2026-11-24_feature_project-code-rag.md](plans/2026-11-24_feature_project-code-rag.md) — feature — project-code-rag
+- [2026-11-25] [plans/2026-11-25_feature_agent-retrieval-routing.md](plans/2026-11-25_feature_agent-retrieval-routing.md) — feature — agent-retrieval-routing
+- [2026-11-25] [plans/2026-11-25_feature_bounded-rag-refresh.md](plans/2026-11-25_feature_bounded-rag-refresh.md) — feature — bounded-rag-refresh
 <!-- /mb-active-plans -->
 
 ## Архив

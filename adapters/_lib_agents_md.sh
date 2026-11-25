@@ -206,24 +206,30 @@ _agents_md_mb_body() {
   echo '## Memory Bank'
   echo "- Language: $(_mb_language_rule)"
   # shellcheck disable=SC2016
-  echo '- First reply: `[MEMORY BANK: ACTIVE]` if a bank resolves (local or global), else `[MEMORY BANK: ABSENT]`; never init one unasked. Run `/mb context` first.'
+  echo '- `/mb context`: local or global bank → `[MEMORY BANK: ACTIVE]`, else `[MEMORY BANK: ABSENT]`. Never auto-init.'
   if [ "$has_key_rules" != "1" ]; then
     # The Key rules block normally carries this pointer (AGR-066).
     # shellcheck disable=SC2016
     echo '- Own rules: `RULES.md` / `.memory-bank/RULES.md`.'
   fi
   # shellcheck disable=SC2016
-  echo '- Firewall: with `.memory-bank/goal.md`, done = `mb-flow-verify.sh` exit 0; on red, repair and re-run — never self-certify. Hookless Pi: a no-commit false-done shows only at commit-time.'
+  echo '- goal.md: mb-flow-verify.sh exit 0; fix/re-run, never self-certify. Hookless Pi: no-commit false-done at commit-time.'
   # shellcheck disable=SC2016
-  echo '- `/mb drive`: you are the runtime — `mb-drive.sh start` (refuses an invalid goal: `mb-goal-validate.sh`), plan with the user, then loop `mb-drive.sh next`, run the action via `/mb work`/`/mb team`, `mb-drive.sh returned`, until `stop_success|stop_human|stop_budget` (`mb-drive-stop.sh record`); never self-certify: needs `mb-goal-acceptance.sh` + `mb-flow-verify.sh`.'
+  echo '- `/mb drive`: mb-drive.sh start (mb-goal-validate.sh refuses invalid goals); plan together. Loop mb-drive.sh next, /mb work|/mb team, returned. stop_success|stop_human|stop_budget: mb-drive-stop.sh record. Need mb-goal-acceptance.sh + firewall.'
   # shellcheck disable=SC2016
-  echo '- GraphRAG-lite routing: `code_context` (`scripts/mb-code-context.py`) for fuzzy questions, `graph_neighbors|graph_impact|graph_tests` (`scripts/mb-graph-query.py`); fail open to grep.'
+  printf '%s%q%s\n' '- Git once/session: `' "$skill_dir/scripts/mb-rag.py" ' status --auto-refresh`. If unconfigured offer Qwen3 (recommended)/Perplexity; skip ineligible/declined. Use ready index; stale: fallback now. Ask before setup, broken-asset repair or reported `memory-bank rag update`.'
+  # shellcheck disable=SC2016
+  printf '%s%q%s\n' '- Hookless root once: `MB_AUTO_UPDATE=off bash ' "$skill_dir/hooks/mb-update-notify.sh" '`. Next reply: versions, command, upgrade offer.'
+  # shellcheck disable=SC2016
+  printf '%s%q%s\n' '- Before edits/guesses: code_context or `' "$skill_dir/scripts/mb-code-context.py" ' --query "$original" --search-query "$english"`; English keeps symbols/errors. --source-only for impl.'
+  # shellcheck disable=SC2016
+  printf '%s%q%s\n' '- graph_neighbors/graph_impact/graph_tests or `' "$skill_dir/scripts/mb-graph.sh" '` who-calls/impact/tests. Read hit; cite path:line. Else grep/read.'
   if [ "$include_ext_nudge" = "1" ]; then
     # shellcheck disable=SC2016
     echo '- Bare Pi/OpenCode: offer `install.sh --with-extensions=pi,opencode` once per session.'
   fi
   if [ -f "$skill_dir/rules/RULES.md" ]; then
-    echo "- Read \`$skill_dir/rules/RULES.md\` § TDD, § Architecture, § Tests, § Session Pipeline, § \`/mb work\` when the task touches them. Scripts named here live in \`$skill_dir/scripts/\`."
+    echo "- Rules: \`$skill_dir/rules/RULES.md\`."
   fi
 }
 

@@ -34,6 +34,9 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - [2026-10-05] [plans/2026-10-05_feature_pi-native-integration.md](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan
 - [2026-10-07] [plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер»
 - [2026-10-09] [plans/2026-10-09_feature_codex-memory-parity.md](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion
+- [2026-11-24] [plans/2026-11-24_feature_project-code-rag.md](plans/2026-11-24_feature_project-code-rag.md) — feature — project-code-rag
+- [2026-11-25] [plans/2026-11-25_feature_agent-retrieval-routing.md](plans/2026-11-25_feature_agent-retrieval-routing.md) — feature — agent-retrieval-routing
+- [2026-11-25] [plans/2026-11-25_feature_bounded-rag-refresh.md](plans/2026-11-25_feature_bounded-rag-refresh.md) — feature — bounded-rag-refresh
 <!-- /mb-active-plans -->
 
 ## Recently done (last 10)

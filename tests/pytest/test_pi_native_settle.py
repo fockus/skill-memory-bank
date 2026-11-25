@@ -99,17 +99,15 @@ def _run_node(world, steps):
 
 
 def _late_run(world, phase):
-    """Session starts, then a run file appears (written by a delayed child), then Pi settles."""
+    """Publish the run after session_start returns, before Pi settles."""
     path = world["proj"] / ".memory-bank" / ".work-state" / "W1.json"
     run = {"run_id": "W1", "source": "plans/p.md", "item_no": 2, "phase": phase,
            "steps": ["implement", "verify"], "updated": datetime.now(UTC).isoformat()}
-    writer = subprocess.Popen(["python3", "-c", "import sys,time; time.sleep(2); open(sys.argv[1],'w').write(sys.argv[2])",
-                               str(path), json.dumps(run)])
     cwd = str(world["proj"])
     results = _run_node(world, [{"emit": "session_start", "cwd": cwd, "event": {}},
-                                {"waitFile": str(path), "timeoutMs": 20000},
+                                {"writeFile": str(path), "content": json.dumps(run)},
                                 {"emit": "agent_before_settle", "cwd": cwd, "event": {"entries": [], "outcome": "completed"}}])
-    writer.wait()
+    assert results[-2]["ok"], results[-2]
     return results[-1]["outputs"]
 
 

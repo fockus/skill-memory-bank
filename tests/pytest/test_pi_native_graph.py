@@ -135,17 +135,57 @@ def test_no_match_is_an_explicit_failure_even_though_stdout_is_json(world):
     assert "graph_impact failed" in out[1]["error"]
 
 
-def test_missing_bank_is_an_explicit_failure_without_initialising_one(world):
+def test_bankless_git_allows_code_context_but_not_graph_queries(world):
+    project = world["bare"]
+    subprocess.run(["git", "init", "-q", project], check=True)
+    (project / "queue.py").write_text("def retry_queue(): return 1\n")
+    subprocess.run(["git", "-C", project, "add", "queue.py"], check=True)
     out = run(
         world,
         [
-            call("graph_tests", world["bare"], symbol="alpha"),
-            call("code_context", world["bare"], query="where is alpha"),
+            call("graph_tests", project, symbol="retry_queue"),
+            call("code_context", project, query="Где retry_queue?", searchQuery="retry_queue implementation",
+                 sourceOnly=True),
         ],
     )
-    assert [r["ok"] for r in out[1:]] == [False, False]
-    assert all("no Memory Bank" in r["error"] for r in out[1:])
-    assert not (world["bare"] / ".memory-bank").exists()
+    assert not out[1]["ok"] and "no Memory Bank" in out[1]["error"]
+    assert out[2]["ok"], out[2]
+    assert out[2]["details"]["payload"]["recommended_next_reads"] == ["queue.py"]
+    assert not (project / ".memory-bank").exists()
+
+
+@pytest.mark.parametrize("layout", ["no-bank", "local", "registered"])
+def test_nested_worktree_never_uses_the_outer_project_or_bank(world, layout):
+    outer = world["a"]
+    inner = outer / "inner"
+    nested = inner / "nested"
+    nested.mkdir(parents=True)
+    for worktree in (outer, inner):
+        subprocess.run(["git", "init", "-q", worktree], check=True)
+    (inner / "inner.py").write_text("def alpha(): return 7\n")
+    if layout != "no-bank":
+        (inner / ".memory-bank").mkdir()
+        _build_graph(inner, world["env"])
+    if layout == "registered":
+        external = world["tmp"] / "private-bank"
+        (inner / ".memory-bank").rename(external)
+        registry = world["home"] / ".pi/agent/memory-bank/registry.json"
+        registry.parent.mkdir(parents=True)
+        registry.write_text(json.dumps({"projects": {str(inner): {"bank_path": str(external)}}}))
+
+    _, lookup, graph = run(world, [
+        call("code_context", nested, query="alpha", searchQuery="alpha implementation", sourceOnly=True),
+        call("graph_neighbors", nested, symbol="alpha"),
+    ], project_root=str(outer))
+    assert lookup["ok"], lookup
+    payload = lookup["details"]["payload"]
+    assert payload["recommended_next_reads"] == ["inner.py"]
+    assert ("graph" in payload["channels_used"]) == (layout != "no-bank")
+    if layout == "no-bank":
+        assert not graph["ok"] and "no Memory Bank" in graph["error"]
+    else:
+        assert graph["ok"], graph
+        assert {match["file"] for match in graph["details"]["payload"]["matches"]} == {"inner.py"}
 
 
 def test_search_code_without_graph_fails(world):
@@ -175,6 +215,33 @@ def test_code_context_returns_evidence_from_current_bank(world):
     assert out[1]["ok"], out[1]
     assert out[1]["details"]["status"] in {"ok", "degraded"}
     assert "src/alpha.py" in out[1]["text"]
+
+
+def test_code_context_forwards_the_original_and_identifier_preserving_search(world):
+    question = 'Где RetryQueue выдаёт "E_FULL"?'
+    english = 'RetryQueue emitting "E_FULL"'
+    probe = world["tmp"] / "echo-argv"
+    probe.write_text('#!/usr/bin/env python3\nimport json, sys\nprint(json.dumps({"argv": sys.argv[1:]}))\n')
+    probe.chmod(0o755)
+    head, implementation, unfiltered = run(world, [
+        call("code_context", world["a"], query=question, searchQuery=english, sourceOnly=True),
+        call("code_context", world["bare"], query=question),
+    ], env={"MB_PYTHON": str(probe)})
+    for result in (implementation, unfiltered):
+        assert result["ok"], result
+        args = result["details"]["payload"]["argv"]
+        assert Path(args[0]) == ROOT / "scripts/mb-code-context.py"
+        assert args[args.index("--query") + 1] == question
+    args = implementation["details"]["payload"]["argv"]
+    assert args[args.index("--search-query") + 1] == english
+    assert "--source-only" in args
+    args = unfiltered["details"]["payload"]["argv"]
+    assert {"--mb-path", "--source-only", "--search-query"}.isdisjoint(args)
+    assert args[args.index("--project-root") + 1] == str(world["bare"])
+    assert {"searchQuery", "sourceOnly"} <= head["parameters"]["properties"].keys()
+    guidelines = " ".join(head["promptGuidelines"])
+    assert "path:line" in guidelines
+    assert "background" in guidelines and "grep/read" in guidelines
 
 
 def test_tool_cancellation_stops_the_script_promptly(world):

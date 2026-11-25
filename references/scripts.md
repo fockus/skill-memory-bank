@@ -158,6 +158,7 @@ Scripts work with `.memory-bank/` in the current directory or through the `mb_pa
 | `mb-graph.sh` | Short front door the hooks print: `who-calls\|impact\|tests <Symbol>`, `status`, `search "<query>"` (one token → BM25, phrase → embeddings); finds the bank from any project subdirectory; exit 4 = no Memory Bank |
 | `mb-graph-query.py` | Query `codebase/graph.json`: `neighbors`, `impact`, `tests`, `explain`, `summary` with JSON/markdown output |
 | `mb-code-context.py` | GraphRAG-lite evidence pack: optional semantic candidates + graph expansion + text/read fallback |
+| `mb-rag.py status\|init\|update` | Plain `status` is read-only; `status --auto-refresh` may queue a bounded refresh of an enrolled index. `init` selects a model, `update` rebuilds on request. [Setup and refresh limits](code-graph.md#project-code-search-with-qwen3-or-perplexity). |
 | `mb-semantic-search.py` | Semantic code search over `graph.json` (+ wiki): `--backend auto` (embeddings when `fastembed` installed, else pure-Python BM25 — the $0 zero-dep base), `--source-only`, disk cache in `.index/codesearch/` warmed by `/mb graph --apply`. Modules in `memory_bank_skill/`: `semantic_search`, `semantic_embeddings`, `codegraph_loader` |
 | `mb-wiki.py` | `/mb wiki` engine (deterministic prep): `plan`/`packs`/`write-article`/`merge-edges`/`index`. LLM articles + surprising-connection edges via host subagents. Modules: `wiki_evidence`, `wiki_store` |
 
@@ -251,6 +252,12 @@ Sourced helpers and Python modules behind the entry points above — not called 
 | `mb_graph_query_core.py` | Core graph loading, matching and payload builders for `mb-graph-query.py` |
 | `mb_graph_query_render.py` | Markdown summary renderers for graph-query output |
 | `mb_code_context_core.py` | Core evidence-pack orchestration for `mb-code-context.py` |
+| `mb_project_rag.py` | Publish a complete index and route queries to the project's selected model. |
+| `mb_project_rag_corpus.py` | Select tracked source files, redact private spans and produce line-addressable excerpts. |
+| `mb_rag_refresh.py` | Coalesce stale-index notifications and run bounded incremental updates outside the requesting process. |
+| `mb_rag_storage.py` | Manage per-worktree index generations, publication and writer locks. |
+| `mb_rag_qmd.py` | Verify the selected Qwen3 weights and invoke the QMD vector-search bridge (`mb_rag_qmd.mjs`). |
+| `mb_rag_pplx.py` | Prepare the Perplexity ONNX Q4 runtime and run local vector indexing and search. |
 | `mb_brief_candidate.py` | Candidate inspection for `mb-brief.sh` (contract C6 steps 4–5) |
 | `mb-estimate-lib.sh` | Sourced parsers for `mb-estimate-check.sh` (context-file and spec/candidate estimates). Not a standalone entry point |
 | `mb-sdd-self-check-eval.sh` | Sourced half of the C8a battery: how ONE `**Eval:**` declaration is classified in a given phase (`--phase generation` requires red, `--phase done` requires green) |

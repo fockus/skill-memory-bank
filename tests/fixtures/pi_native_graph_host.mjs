@@ -43,7 +43,8 @@ const jiti = createJiti(import.meta.url, { alias: { typebox: require.resolve('ty
 const factory = (await jiti.import(ext)).default;
 await factory(pi);
 
-const results = [{ tools: [...tools.keys()].sort(), events: [...handlers.keys()].sort() }];
+const { parameters, promptGuidelines } = tools.get('code_context');
+const results = [{ tools: [...tools.keys()].sort(), events: [...handlers.keys()].sort(), parameters, promptGuidelines }];
 for (const step of input.steps) {
   const started = Date.now();
   try {
@@ -56,6 +57,9 @@ for (const step of input.steps) {
       const outs = [];
       for (const fn of handlers.get(step.emit) || []) outs.push(await fn({ type: step.emit, ...step.event }, ctxFor(step)));
       results.push({ ok: true, outputs: outs.filter(Boolean), ms: Date.now() - started });
+    } else if (step.writeFile) {
+      await writeFile(step.writeFile, step.content);
+      results.push({ ok: true });
     } else if (step.waitFile) {
       while (!(await stat(step.waitFile).then(() => true, () => false)) && Date.now() - started < (step.timeoutMs || 20000)) {
         await new Promise(r => setTimeout(r, 50));

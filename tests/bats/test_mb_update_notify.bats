@@ -322,7 +322,7 @@ run_with_deadline() {
   [ -f "$resolver" ] || skip "scripts/mb-version-check.sh not present"
 
   local skill_dir fetch_stub cache_file
-  skill_dir="$TMPDIR/skill"
+  skill_dir="$TMPDIR/pipx/venvs/memory-bank-skill/share/memory-bank-skill"
   mkdir -p "$skill_dir"
   printf '1.0.0\n' > "$skill_dir/VERSION"
   cache_file="$TMPDIR/cache/.mb-version-check.json"
@@ -354,8 +354,9 @@ EOF
   [ "$status" -eq 0 ]
   [ -z "$stderr" ]
   [ "$(printf '%s\n' "$output" | wc -l | tr -d ' ')" -le 3 ]
-  [[ "$output" == *"1.0.0"* ]]
-  [[ "$output" == *"99.0.0"* ]]
+  [[ "$output" == *"1.0.0 -> 99.0.0"* ]]
+  [[ "$output" == *"pipx upgrade memory-bank-skill && memory-bank install"* ]]
+  [[ "$output" == *"Ask me to update Memory Bank for you."* ]]
 }
 
 @test "update-notify: contract — the REAL resolver reporting up-to-date (warm cache) drives the hook to zero bytes" {
@@ -508,6 +509,23 @@ EOF
   [ "$status" -eq 0 ]
   [ -z "$output" ]
   [ -z "$stderr" ]
+}
+
+@test "update-notify: an available answer without two known distinct versions stays silent" {
+  local checker current latest
+  while IFS=: read -r current latest; do
+    checker=$(fake_checker checker.sh 0 \
+      "{\"current\":\"$current\",\"latest\":\"$latest\",\"update_available\":true,\"flavor\":\"pipx\",\"upgrade_command\":\"pipx upgrade memory-bank-skill\"}")
+    run --separate-stderr env MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+    [ -z "$stderr" ]
+  done <<'VERSIONS'
+:5.4.0
+unknown:5.4.0
+5.3.0:unknown
+5.4.0:5.4.0
+VERSIONS
 }
 
 # ═══ watchdog: a resolver that never answers must never hang a session ═══
@@ -782,7 +800,7 @@ EOF
   [ "$elapsed_ms" -lt 100 ]
 }
 
-@test "update-notify: contract — a real 'unknown' flavor notice never leaks a \\u escape (real resolver, warm cache)" {
+@test "update-notify: a real unknown install offers help instead of a guessed command (warm cache)" {
   local resolver="$REPO_ROOT/scripts/mb-version-check.sh"
   [ -f "$resolver" ] || skip "scripts/mb-version-check.sh not present"
 
@@ -816,12 +834,29 @@ EOF
 
   [ "$status" -eq 0 ]
   [ -z "$stderr" ]
-  [[ "$output" == *"1.0.0"* ]]
-  case "$output" in
-    *'\u'*) false ;;
-    *) true ;;
-  esac
-  [[ "$output" == *"—"* ]]
+  [[ "$output" == *"1.0.0 -> 99.0.0"* ]]
+  [[ "$output" == *"how you installed Memory Bank"* ]]
+  [[ "$output" == *"Ask me to update Memory Bank for you."* ]]
+  [[ "$output" != *"git clone"* && "$output" != *"pipx install"* ]]
+}
+
+@test "update-notify: the displayed git command runs from another project when the bundle path contains shell metacharacters" {
+  local bundle cache command
+  bundle="$(make_clean_git_root 'Memory Bank ($HOME)')"
+  printf '#!/usr/bin/env bash\nprintf "fixture: %%s\\n" "$1"\n' > "$bundle/scripts/mb-upgrade.sh"
+  cache="$TMPDIR/release.json"
+  printf '{"latest":"5.4.0","checked_at":"2026-07-13T00:00:00Z","source":"github"}\n' > "$cache"
+  git init -q "$TMPDIR/other"
+  cd "$TMPDIR/other"
+
+  run env MB_SKILL_DIR="$bundle" MB_VERSION_CHECK_BIN="$REPO_ROOT/scripts/mb-version-check.sh" \
+    MB_VERSION_CHECK_CACHE="$cache" MB_VERSION_CHECK_FETCH_BIN=false MB_AUTO_UPDATE=off bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"5.3.0 -> 5.4.0"* ]]
+  command="$(printf '%s\n' "$output" | sed -n 's/^  upgrade: //p')"
+  run bash -c "$command"
+  [ "$status" -eq 0 ]
+  [ "$output" = 'fixture: --force' ]
 }
 
 # ═══ opt-in auto-update (Stage 4) — safety matrix ═══
@@ -876,6 +911,7 @@ EOF
   [ "$status" -eq 0 ]
   [ -z "$stderr" ]
   [[ "$output" == *"auto-updated: 5.3.0 -> 5.4.0"* ]]
+  [[ "$output" != *"Ask me to update"* ]]
   [ "$(upgrade_call_count)" -eq 1 ]
   grep -q -- '--force' "$TMPDIR/upgrade-calls.log"
 }
@@ -940,7 +976,7 @@ EOF
   git -C "$root" status >/dev/null 2>&1
 
   checker=$(fake_checker checker.sh 0 \
-    "{\"current\": \"unknown\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
+    "{\"current\": \"5.3.0\", \"latest\": \"5.4.0\", \"update_available\": true, \"flavor\": \"git\", \"upgrade_command\": \"bash $root/scripts/mb-upgrade.sh --force\", \"checked_at\": \"x\", \"source\": \"github\"}")
   # The stub writes VERSION == latest for the FIRST time — rc==0, after is
   # non-empty and equals $latest, but BEFORE was never readable (the file
   # didn't exist). A missing baseline must be treated as inconclusive, not
@@ -1051,7 +1087,7 @@ EOF
   run --separate-stderr env MB_AUTO_UPDATE=on MB_VERSION_CHECK_BIN="$checker" MB_SKILL_ROOT="$root" MB_UPGRADE_BIN="$upgrade" bash "$HOOK"
   [ "$status" -eq 0 ]
   [ -z "$stderr" ]
-  [[ "$output" == *"see release notes"* ]]
+  [[ "$output" == *"how you installed Memory Bank"* ]]
   [[ "$output" != *"auto-updated"* ]]
   [ "$(upgrade_call_count)" -eq 0 ]
 }
@@ -1125,14 +1161,25 @@ EOF
 
 @test "update-notify: registered under settings/hooks.json SessionStart" {
   python3 - "$REPO_ROOT/settings/hooks.json" <<'PY'
-import json, sys
+import json, re, sys
 data = json.load(open(sys.argv[1]))
-cmds = []
-for entry in data.get("SessionStart", []):
-    for h in entry.get("hooks", []):
-        cmds.append(h.get("command", ""))
-assert any("mb-update-notify.sh" in c for c in cmds), cmds
+patterns = [group.get("matcher", ".*") for group in data["SessionStart"]
+            for hook in group["hooks"] if "mb-update-notify.sh" in hook["command"]]
+assert len(patterns) == 1, patterns
+for source in ("startup", "resume", "clear"):
+    assert re.search(patterns[0], source)
+assert not re.search(patterns[0], "compact")
 PY
+}
+
+@test "update-notify: a capture subprocess never checks or offers updates" {
+  local checker
+  checker=$(fake_checker checker.sh 0 \
+    '{"current":"5.3.0","latest":"5.4.0","update_available":true,"flavor":"pipx","upgrade_command":"pipx upgrade memory-bank-skill"}')
+  run env MB_CAPTURE_SUBPROCESS=1 MB_VERSION_CHECK_BIN="$checker" bash "$HOOK"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ "$(call_count)" -eq 0 ]
 }
 
 @test "update-notify: registered as Cursor's sessionStart binding (the only other host with a SessionStart transport)" {
